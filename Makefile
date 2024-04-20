@@ -62,6 +62,8 @@ $(BIN_DIR)/%: $(SRC_DIR)/%.cc $(INCLUDE_DIR)/*.h | $(BIN_DIR) $(LIB_DIR)
 run-%: $(BIN_DIR)/%
 	@./$< -g 10 -n 1 $(EXIT_STATUS)
 
+run-all: $(addprefix run-, $(KERNELS))
+
 # =========================================================
 # Directory Setup
 # =========================================================
