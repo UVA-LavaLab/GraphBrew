@@ -47,7 +47,7 @@ KERNELS = bc bfs cc cc_sv pr pr_spmv sssp tc
 SUITE = $(addprefix $(BIN_DIR)/,$(KERNELS)) $(BIN_DIR)/converter
 # =========================================================
 
-.PHONY: all run-% clean help
+.PHONY: all run-% help-% help clean
 all: $(SUITE)
 
 # =========================================================
@@ -60,7 +60,7 @@ $(BIN_DIR)/%: $(SRC_DIR)/%.cc $(INCLUDE_DIR)/*.h | $(BIN_DIR) $(LIB_DIR)
 # Running Benchmarks
 # =========================================================
 run-%: $(BIN_DIR)/%
-	@./$< -g 10 -n 1 $(EXIT_STATUS)
+	@./$< -g 15 -n 1 $(EXIT_STATUS)
 
 run-all: $(addprefix run-, $(KERNELS))
 
@@ -79,9 +79,31 @@ clean:
 # =========================================================
 # Help
 # =========================================================
-help:
-	@echo "Available commands:"
+help: help-pr
+	@echo "Available Make commands:"
 	@echo "  all            - Builds all targets including GAP benchmarks (CPU)"
-	@echo "  run-%          - Runs the specified GAP benchmark"
+	@echo "  run-%          - Runs the specified GAP benchmark (bc bfs cc cc_sv pr pr_spmv sssp tc)"
+	@echo "  help-%         - Print the specified Help (bc bfs cc cc_sv pr pr_spmv sssp tc)"
 	@echo "  clean          - Removes all build artifacts"
 	@echo "  help           - Displays this help message"
+
+help-%: $(BIN_DIR)/%
+	@./$< -h 
+	@echo ""
+	@echo "Reordering Algorithms:"
+	@echo "  - ORIGINAL (0): No reordering applied."
+	@echo "  - RANDOM (1): Apply random reordering."
+	@echo "  - SORT (2): Apply sort-based reordering."
+	@echo "  - HUBSORT (3): Apply hub-based sorting."
+	@echo "  - HUBCLUSTER (4): Apply clustering based on hub scores."
+	@echo "  - DBG (5): Apply degree-based grouping."
+	@echo "  - HUBSORTDBG (6): Combine hub sorting with degree-based grouping."
+	@echo "  - HUBCLUSTERDBG (7): Combine hub clustering with degree-based grouping."
+	@echo "  - MAP (10): Requires a file format for reordering. Use the -r 10:filename.label option."
+	@echo ""
+	@echo "Example Usage:"
+	@echo "  make all - Compile the program."
+	@echo "  make clean - Clean build files."
+	@echo "  ./$< -g 15 -n 1 -r 10:mapping.label - Execute with MAP reordering using 'mapping.label'."
+
+help-all: $(addprefix help-, $(KERNELS))

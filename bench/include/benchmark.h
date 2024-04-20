@@ -10,6 +10,7 @@
 #include <random>
 #include <utility>
 #include <vector>
+#include <parallel/algorithm>
 
 #include "builder.h"
 #include "graph.h"
@@ -72,7 +73,7 @@ TopK(const std::vector<std::pair<KeyT, ValT>> &to_sort, size_t k) {
   for (auto kvp : to_sort) {
     if ((top_k.size() < k) || (kvp.second > min_so_far)) {
       top_k.push_back(std::make_pair(kvp.second, kvp.first));
-      std::sort(top_k.begin(), top_k.end(),
+      __gnu_parallel::stable_sort(top_k.begin(), top_k.end(),
                 std::greater<std::pair<ValT, KeyT>>());
       if (top_k.size() > k)
         top_k.resize(k);

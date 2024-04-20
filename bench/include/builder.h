@@ -8,6 +8,7 @@
 #include <cinttypes>
 #include <fstream>
 #include <functional>
+#include <parallel/algorithm>
 #include <type_traits>
 #include <utility>
 
@@ -145,7 +146,7 @@ public:
         n_start = g.out_neigh(n).begin();
         n_end = g.out_neigh(n).end();
       }
-      std::sort(n_start, n_end);
+      __gnu_parallel::stable_sort(n_start, n_end);
       DestID_ *new_end = std::unique(n_start, n_end);
       new_end = std::remove(n_start, new_end, n);
       diffs[n] = new_end - n_start;
@@ -190,7 +191,7 @@ public:
   void MakeCSRInPlace(EdgeList &el, DestID_ ***index, DestID_ **neighs,
                       DestID_ ***inv_index, DestID_ **inv_neighs) {
     // preprocess EdgeList - sort & squish in place
-    std::sort(el.begin(), el.end());
+    __gnu_parallel::stable_sort(el.begin(), el.end());
     auto new_end = std::unique(el.begin(), el.end());
     el.resize(new_end - el.begin());
     auto self_loop = [](Edge e) { return e.u == e.v; };
@@ -279,7 +280,8 @@ public:
         }
       }
       for (NodeID_ n = 0; n < num_nodes_; n++)
-        std::sort(*neighs + offsets[n], *neighs + offsets[n + 1]);
+        __gnu_parallel::stable_sort(*neighs + offsets[n],
+                                    *neighs + offsets[n + 1]);
       *index = CSRGraph<NodeID_, DestID_>::GenIndex(offsets, *neighs);
     }
   }
@@ -371,8 +373,8 @@ public:
 #pragma omp parallel for
     for (NodeID_ n = 0; n < g.num_nodes(); n++)
       degree_id_pairs[n] = std::make_pair(g.out_degree(n), n);
-    std::sort(degree_id_pairs.begin(), degree_id_pairs.end(),
-              std::greater<degree_node_p>());
+    __gnu_parallel::stable_sort(degree_id_pairs.begin(), degree_id_pairs.end(),
+                                std::greater<degree_node_p>());
     pvector<NodeID_> degrees(g.num_nodes());
     pvector<NodeID_> new_ids(g.num_nodes());
 #pragma omp parallel for
@@ -387,11 +389,126 @@ public:
     for (NodeID_ u = 0; u < g.num_nodes(); u++) {
       for (NodeID_ v : g.out_neigh(u))
         neighs[offsets[new_ids[u]]++] = new_ids[v];
-      std::sort(index[new_ids[u]], index[new_ids[u] + 1]);
+      __gnu_parallel::stable_sort(index[new_ids[u]], index[new_ids[u] + 1]);
     }
     t.Stop();
     PrintTime("Relabel", t.Seconds());
     return CSRGraph<NodeID_, DestID_, invert>(g.num_nodes(), index, neighs);
+  }
+
+  const string ReorderingAlgoStr(ReorderingAlgo type) {
+    switch (type) {
+    case HubSort:
+      return "HubSort";
+    case DBG:
+      return "DBG";
+    case HubClusterDBG:
+      return "HubClusterDBG";
+    case HubSortDBG:
+      return "HubSortDBG";
+    case HubCluster:
+      return "HubCluster";
+    case Random:
+      return "Random";
+    case ORIGINAL:
+      return "Original";
+    case Sort:
+      return "Sort";
+    case MAP:
+      return "MAP";
+    default:
+      std::cout << "Unknown PreprocessTypeStr type: " << type << std::endl;
+      abort();
+    }
+    assert(0);
+    return "";
+  }
+
+  void GenerateMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
+                       pvector<NodeID_> &new_ids,
+                       ReorderingAlgo reordering_algo, bool useOutdeg) {
+    switch (reordering_algo) {
+    case HubSort:
+      // GenerateHubSortMapping(g, new_ids, useOutdeg);
+      break;
+    case Sort:
+      // GenerateSortMapping(g, new_ids, useOutdeg);
+      break;
+    case DBG:
+      // GenerateDBGMapping(g, new_ids, useOutdeg);
+      break;
+    case HubSortDBG:
+      // GenerateHubSortDBGMapping(g, new_ids, useOutdeg);
+      break;
+    case HubClusterDBG:
+      // GenerateHubClusterDBGMapping(g, new_ids, useOutdeg);
+      break;
+    case HubCluster:
+      // GenerateHubClusterMapping(g, new_ids, useOutdeg);
+      break;
+    case Random:
+      GenerateRandomMapping(g, new_ids, useOutdeg);
+      break;
+    case MAP:
+      // LoadMappingFromFile(g, new_ids, useOutdeg);
+      break;
+    case ORIGINAL:
+      std::cout << "Should not be here!" << std::endl;
+      abort();
+      return;
+      break;
+    default:
+      std::cout << "Unknown generateMapping type: " << reordering_algo
+                << std::endl;
+      abort();
+    }
+#ifdef _DEBUG
+    VerifyMapping(g, new_ids, g.n);
+    exit(-1);
+#endif
+  }
+
+  void GenerateRandomMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
+                             pvector<NodeID_> &new_ids, bool useOutdeg) {
+    Timer t;
+    t.Start();
+
+    int64_t num_nodes = g.num_nodes();
+    int64_t num_edges = g.num_edges();
+
+    DestID_ granularity = 1;
+    DestID_ slice = (num_nodes - granularity + 1) / granularity;
+    DestID_ artificial_num_nodes = slice * granularity;
+    assert(artificial_num_nodes <= num_nodes);
+    pvector<DestID_> slice_index;
+    slice_index.resize(slice);
+
+#pragma omp parallel for
+    for (NodeID_ i = 0; i < slice; i++) {
+      slice_index[i] = i;
+    }
+
+    __gnu_parallel::random_shuffle(slice_index.begin(), slice_index.end());
+
+    {
+#pragma omp parallel for
+      for (DestID_ i = 0; i < slice; i++) {
+        DestID_ new_index = slice_index[i] * granularity;
+        for (DestID_ j = 0; j < granularity; j++) {
+          DestID_ v = (i * granularity) + j;
+          if (v < artificial_num_nodes) {
+            new_ids[v] = new_index + j;
+          }
+        }
+      }
+    }
+    for (DestID_ i = artificial_num_nodes; i < num_nodes; i++) {
+      new_ids[i] = i;
+    }
+    slice_index.clear();
+
+    t.Stop();
+    PrintTime("Random Map Time", t.Seconds());
   }
 };
 

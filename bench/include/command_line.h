@@ -6,32 +6,34 @@
 
 #include <getopt.h>
 
+#include "util.h"
 #include <algorithm>
 #include <cinttypes>
+#include <cstdlib>
 #include <iostream>
 #include <string>
 #include <type_traits>
+#include <unistd.h>
 #include <vector>
 
-
 /*
-GAP Benchmark Suite
-Class:  CLBase
-Author: Scott Beamer
+   GAP Benchmark Suite
+   Class:  CLBase
+   Author: Scott Beamer
 
-Handles command line argument parsing
- - Through inheritance, can add more options to object
- - For example, most kernels will use CLApp
-*/
-
+   Handles command line argument parsing
+   - Through inheritance, can add more options to object
+   - For example, most kernels will use CLApp
+ */
 
 class CLBase {
- protected:
+protected:
   int argc_;
-  char** argv_;
+  char **argv_;
   std::string name_;
-  std::string get_args_ = "f:g:hk:su:m";
+  std::string get_args_ = "f:g:hk:su:m:o:";
   std::vector<std::string> help_strings_;
+  std::vector<std::pair<ReorderingAlgo, std::string>> reorder_options_;
 
   int scale_ = -1;
   int degree_ = 16;
@@ -42,20 +44,20 @@ class CLBase {
 
   void AddHelpLine(char opt, std::string opt_arg, std::string text,
                    std::string def = "") {
-    const int kBufLen = 100;
+    const int kBufLen = 200;
     char buf[kBufLen];
     if (opt_arg != "")
       opt_arg = "<" + opt_arg + ">";
     if (def != "")
       def = "[" + def + "]";
     snprintf(buf, kBufLen, " -%c %-9s: %-54s%10s", opt, opt_arg.c_str(),
-            text.c_str(), def.c_str());
+             text.c_str(), def.c_str());
     help_strings_.push_back(buf);
   }
 
- public:
-  CLBase(int argc, char** argv, std::string name = "") :
-         argc_(argc), argv_(argv), name_(name) {
+public:
+  CLBase(int argc, char **argv, std::string name = "")
+      : argc_(argc), argv_(argv), name_(name) {
     AddHelpLine('h', "", "print this help message");
     AddHelpLine('f', "file", "load graph from file");
     AddHelpLine('s', "", "symmetrize input edge list", "false");
@@ -64,11 +66,14 @@ class CLBase {
     AddHelpLine('k', "degree", "average degree for synthetic graph",
                 std::to_string(degree_));
     AddHelpLine('m', "", "reduces memory usage during graph building", "false");
+    AddHelpLine('o', "order",
+                "apply reordering strategy, optionally with a parameter \n               [example]-r 3 "
+                "-r 2 -r 10:mapping.label", "optional");
   }
 
   bool ParseArgs() {
     signed char c_opt;
-    extern char *optarg;          // from and for getopt
+    extern char *optarg; // from and for getopt
     while ((c_opt = getopt(argc_, argv_, get_args_.c_str())) != -1) {
       HandleArg(c_opt, optarg);
     }
@@ -81,15 +86,38 @@ class CLBase {
     return true;
   }
 
-  void virtual HandleArg(signed char opt, char* opt_arg) {
+  void virtual HandleArg(signed char opt, char *opt_arg) {
     switch (opt) {
-      case 'f': filename_ = std::string(opt_arg);           break;
-      case 'g': scale_ = atoi(opt_arg);                     break;
-      case 'h': PrintUsage();                               break;
-      case 'k': degree_ = atoi(opt_arg);                    break;
-      case 's': symmetrize_ = true;                         break;
-      case 'u': uniform_ = true; scale_ = atoi(opt_arg);    break;
-      case 'm': in_place_ = true;                           break;
+    case 'f':
+      filename_ = std::string(opt_arg);
+      break;
+    case 'g':
+      scale_ = atoi(opt_arg);
+      break;
+    case 'h':
+      PrintUsage();
+      break;
+    case 'k':
+      degree_ = atoi(opt_arg);
+      break;
+    case 's':
+      symmetrize_ = true;
+      break;
+    case 'u':
+      uniform_ = true;
+      scale_ = atoi(opt_arg);
+      break;
+    case 'm':
+      in_place_ = true;
+      break;
+    case 'o': {
+      std::string arg(optarg);
+      size_t pos = arg.find(':');
+      ReorderingAlgo algo =
+          static_cast<ReorderingAlgo>(std::stoi(arg.substr(0, pos)));
+      std::string param = (pos != std::string::npos) ? arg.substr(pos + 1) : "";
+      reorder_options_.emplace_back(algo, param);
+    } break;
     }
   }
 
@@ -109,8 +137,6 @@ class CLBase {
   bool in_place() const { return in_place_; }
 };
 
-
-
 class CLApp : public CLBase {
   bool do_analysis_ = false;
   int num_trials_ = 16;
@@ -118,8 +144,8 @@ class CLApp : public CLBase {
   bool do_verify_ = false;
   bool enable_logging_ = false;
 
- public:
-  CLApp(int argc, char** argv, std::string name) : CLBase(argc, argv, name) {
+public:
+  CLApp(int argc, char **argv, std::string name) : CLBase(argc, argv, name) {
     get_args_ += "an:r:vl";
     AddHelpLine('a', "", "output analysis of last run", "false");
     AddHelpLine('n', "n", "perform n trials", std::to_string(num_trials_));
@@ -128,14 +154,25 @@ class CLApp : public CLBase {
     AddHelpLine('l', "", "log performance within each trial", "false");
   }
 
-  void HandleArg(signed char opt, char* opt_arg) override {
+  void HandleArg(signed char opt, char *opt_arg) override {
     switch (opt) {
-      case 'a': do_analysis_ = true;                    break;
-      case 'n': num_trials_ = atoi(opt_arg);            break;
-      case 'r': start_vertex_ = atol(opt_arg);          break;
-      case 'v': do_verify_ = true;                      break;
-      case 'l': enable_logging_ = true;                 break;
-      default: CLBase::HandleArg(opt, opt_arg);
+    case 'a':
+      do_analysis_ = true;
+      break;
+    case 'n':
+      num_trials_ = atoi(opt_arg);
+      break;
+    case 'r':
+      start_vertex_ = atol(opt_arg);
+      break;
+    case 'v':
+      do_verify_ = true;
+      break;
+    case 'l':
+      enable_logging_ = true;
+      break;
+    default:
+      CLBase::HandleArg(opt, opt_arg);
     }
   }
 
@@ -146,49 +183,53 @@ class CLApp : public CLBase {
   bool logging_en() const { return enable_logging_; }
 };
 
-
-
 class CLIterApp : public CLApp {
   int num_iters_;
 
- public:
-  CLIterApp(int argc, char** argv, std::string name, int num_iters) :
-    CLApp(argc, argv, name), num_iters_(num_iters) {
+public:
+  CLIterApp(int argc, char **argv, std::string name, int num_iters)
+      : CLApp(argc, argv, name), num_iters_(num_iters) {
     get_args_ += "i:";
     AddHelpLine('i', "i", "perform i iterations", std::to_string(num_iters_));
   }
 
-  void HandleArg(signed char opt, char* opt_arg) override {
+  void HandleArg(signed char opt, char *opt_arg) override {
     switch (opt) {
-      case 'i': num_iters_ = atoi(opt_arg);            break;
-      default: CLApp::HandleArg(opt, opt_arg);
+    case 'i':
+      num_iters_ = atoi(opt_arg);
+      break;
+    default:
+      CLApp::HandleArg(opt, opt_arg);
     }
   }
 
   int num_iters() const { return num_iters_; }
 };
 
-
-
 class CLPageRank : public CLApp {
   int max_iters_;
   double tolerance_;
 
- public:
-  CLPageRank(int argc, char** argv, std::string name, double tolerance,
-             int max_iters) :
-    CLApp(argc, argv, name), max_iters_(max_iters), tolerance_(tolerance) {
+public:
+  CLPageRank(int argc, char **argv, std::string name, double tolerance,
+             int max_iters)
+      : CLApp(argc, argv, name), max_iters_(max_iters), tolerance_(tolerance) {
     get_args_ += "i:t:";
     AddHelpLine('i', "i", "perform at most i iterations",
                 std::to_string(max_iters_));
     AddHelpLine('t', "t", "use tolerance t", std::to_string(tolerance_));
   }
 
-  void HandleArg(signed char opt, char* opt_arg) override {
+  void HandleArg(signed char opt, char *opt_arg) override {
     switch (opt) {
-      case 'i': max_iters_ = atoi(opt_arg);            break;
-      case 't': tolerance_ = std::stod(opt_arg);            break;
-      default: CLApp::HandleArg(opt, opt_arg);
+    case 'i':
+      max_iters_ = atoi(opt_arg);
+      break;
+    case 't':
+      tolerance_ = std::stod(opt_arg);
+      break;
+    default:
+      CLApp::HandleArg(opt, opt_arg);
     }
   }
 
@@ -196,34 +237,30 @@ class CLPageRank : public CLApp {
   double tolerance() const { return tolerance_; }
 };
 
-
-
-template<typename WeightT_>
-class CLDelta : public CLApp {
+template <typename WeightT_> class CLDelta : public CLApp {
   WeightT_ delta_ = 1;
 
- public:
-  CLDelta(int argc, char** argv, std::string name) : CLApp(argc, argv, name) {
+public:
+  CLDelta(int argc, char **argv, std::string name) : CLApp(argc, argv, name) {
     get_args_ += "d:";
     AddHelpLine('d', "d", "delta parameter", std::to_string(delta_));
   }
 
-  void HandleArg(signed char opt, char* opt_arg) override {
+  void HandleArg(signed char opt, char *opt_arg) override {
     switch (opt) {
-      case 'd':
-        if (std::is_floating_point<WeightT_>::value)
-          delta_ = static_cast<WeightT_>(atof(opt_arg));
-        else
-          delta_ = static_cast<WeightT_>(atol(opt_arg));
-        break;
-      default: CLApp::HandleArg(opt, opt_arg);
+    case 'd':
+      if (std::is_floating_point<WeightT_>::value)
+        delta_ = static_cast<WeightT_>(atof(opt_arg));
+      else
+        delta_ = static_cast<WeightT_>(atol(opt_arg));
+      break;
+    default:
+      CLApp::HandleArg(opt, opt_arg);
     }
   }
 
   WeightT_ delta() const { return delta_; }
 };
-
-
 
 class CLConvert : public CLBase {
   std::string out_filename_ = "";
@@ -231,8 +268,8 @@ class CLConvert : public CLBase {
   bool out_el_ = false;
   bool out_sg_ = false;
 
- public:
-  CLConvert(int argc, char** argv, std::string name)
+public:
+  CLConvert(int argc, char **argv, std::string name)
       : CLBase(argc, argv, name) {
     get_args_ += "e:b:w";
     AddHelpLine('b', "file", "output serialized graph to file");
@@ -240,12 +277,21 @@ class CLConvert : public CLBase {
     AddHelpLine('w', "file", "make output weighted");
   }
 
-  void HandleArg(signed char opt, char* opt_arg) override {
+  void HandleArg(signed char opt, char *opt_arg) override {
     switch (opt) {
-      case 'b': out_sg_ = true; out_filename_ = std::string(opt_arg);   break;
-      case 'e': out_el_ = true; out_filename_ = std::string(opt_arg);   break;
-      case 'w': out_weighted_ = true;                                   break;
-      default: CLBase::HandleArg(opt, opt_arg);
+    case 'b':
+      out_sg_ = true;
+      out_filename_ = std::string(opt_arg);
+      break;
+    case 'e':
+      out_el_ = true;
+      out_filename_ = std::string(opt_arg);
+      break;
+    case 'w':
+      out_weighted_ = true;
+      break;
+    default:
+      CLBase::HandleArg(opt, opt_arg);
     }
   }
 
@@ -255,4 +301,4 @@ class CLConvert : public CLBase {
   bool out_sg() const { return out_sg_; }
 };
 
-#endif  // COMMAND_LINE_H_
+#endif // COMMAND_LINE_H_
