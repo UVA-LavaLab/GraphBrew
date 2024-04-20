@@ -61,7 +61,7 @@ The Makefile compiles and links the following executable targets:
 3. **Running the Benchmarks**
    * Run `make run-benchmark_name` (replace 'benchmark_name' with an algorithm name from the list above). Example: `make run-bc`  
    * The benchmark will use the following default parameters:
-       * Graph ID: 10
+       * Random Graph (V): 2^10
        * Number of Runs: 1 
 
 **Modifying the Makefile**
