@@ -32,10 +32,10 @@ This project contains a collection of Graph Analytics for Performance (GAP) benc
 
 **Key Algorithms**
 
-* **bc:** Breadth-First Search
-* **bfs:** Breadth-First Search (alternative implementation) 
-* **cc:** Connected Components
-* **cc_sv:** Connected Components (single-vertex optimization)
+* **bc:** Betweenness Centrality 
+* **bfs:** Breadth-First Search (Direction Optimized) 
+* **cc:** Connected Components (Afforest)
+* **cc_sv:** Connected Components (ShiloachVishkin)
 * **pr:** PageRank
 * **pr_spmv:** PageRank (using sparse matrix-vector multiplication)
 * **sssp:**  Single-Source Shortest Paths
