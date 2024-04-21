@@ -38,14 +38,14 @@ NC      =\033[0m
 # Compiler Flags
 # =========================================================
 CXXFLAGS = -std=c++11 -O3 -Wall -fopenmp -D_GLIBCXX_PARALLEL 
-CXXFLAGS += -D_DEBUG
+# CXXFLAGS += -D_DEBUG
 INCLUDES = -I$(INCLUDE_DIR)
 
 # =========================================================
 # Runtime Flags OMP_NUM_THREADS
 # =========================================================
-PARALLEL = 1
-
+PARALLEL = 4
+GRAPH_BENCH = /test/graphs/graph.el
 # =========================================================
 # Targets
 # =========================================================
@@ -53,7 +53,7 @@ KERNELS = bc bfs cc cc_sv pr pr_spmv sssp tc
 SUITE = $(addprefix $(BIN_DIR)/,$(KERNELS)) $(BIN_DIR)/converter
 # =========================================================
 
-.PHONY: all run-% help-% help clean run-%-gdb
+.PHONY: all run-% help-% help clean run-%-gdb run-%-sweep
 all: $(SUITE)
 
 # =========================================================
@@ -65,8 +65,8 @@ $(BIN_DIR)/%: $(SRC_DIR)/%.cc $(INCLUDE_DIR)/*.h | $(BIN_DIR) $(LIB_DIR)
 # =========================================================
 # Running Benchmarks
 # =========================================================
-# RUN_PARAMS = -g 5 -n 1 -o 1 -o 2 -o 3 -o 4 -o 5 -o 6
-RUN_PARAMS = -s -g 6 -n 1 -o 1
+RUN_PARAMS = -g 5 -n 1 -o 3
+# RUN_PARAMS = -s -g 6 -n 1 -o 1
 
 run-%: $(BIN_DIR)/%
 	@OMP_NUM_THREADS=$(PARALLEL) ./$< $(RUN_PARAMS) $(EXIT_STATUS)
@@ -79,6 +79,12 @@ run-%-mem: $(BIN_DIR)/%
 
 run-all: $(addprefix run-, $(KERNELS))
 
+# Define a rule that sweeps through -o 1 to 7
+run-%-sweep: $(BIN_DIR)/%
+	@for o in 1 2 3 4 5 6 7; do \
+		echo "Running with -o $$o"; \
+		OMP_NUM_THREADS=$(PARALLEL) ./$(BIN_DIR)/$* -f ./$(GRAPH_BENCH) -n 1 -o $$o; \
+	done
 # =========================================================
 # Directory Setup
 # =========================================================
