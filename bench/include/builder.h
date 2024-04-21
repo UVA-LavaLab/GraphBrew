@@ -507,7 +507,7 @@ public:
       GenerateSortMapping(g, new_ids, useOutdeg);
       break;
     case DBG:
-      // GenerateDBGMapping(g, new_ids, useOutdeg);
+      GenerateDBGMapping(g, new_ids, useOutdeg);
       break;
     case HubSortDBG:
       GenerateHubSortDBGMapping(g, new_ids, useOutdeg);
@@ -956,6 +956,204 @@ public:
 
     t.Stop();
     PrintTime("Sort Map Time", t.Seconds());
+  }
+
+  void GenerateDBGMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
+                          pvector<NodeID_> &new_ids, bool useOutdeg) {
+    Timer t;
+    t.Start();
+
+    int64_t num_nodes = g.num_nodes();
+    int64_t num_edges = g.num_edges();
+
+    uint32_t avg_vertex = num_edges / num_nodes;
+    const uint32_t &av = avg_vertex;
+
+    uint32_t bucket_threshold[] = {
+        av / 2,   av,       av * 2,   av * 4,
+        av * 8,   av * 16,  av * 32,  av * 64,
+        av * 128, av * 256, av * 512, static_cast<uint32_t>(-1)};
+    int num_buckets = 8;
+    if (num_buckets > 11) {
+      // if you really want to increase the bucket count, add more thresholds to
+      // the bucket_threshold above.
+      std::cout << "Unsupported bucket size: " << num_buckets << std::endl;
+      assert(0);
+    }
+    bucket_threshold[num_buckets - 1] = static_cast<uint32_t>(-1);
+
+    vector<uint32_t> bucket_vertices[num_buckets];
+    const int num_threads = omp_get_max_threads();
+    vector<uint32_t> local_buckets[num_threads][num_buckets];
+
+    if (useOutdeg) {
+      // This loop relies on a static scheduling
+#pragma omp parallel for schedule(static)
+      for (int64_t i = 0; i < num_nodes; i++) {
+        for (int j = 0; j < num_buckets; j++) {
+          const int64_t &count = g.out_degree(i);
+          if (count <= bucket_threshold[j]) {
+            local_buckets[omp_get_thread_num()][j].push_back(i);
+            break;
+          }
+        }
+      }
+    } else {
+#pragma omp parallel for schedule(static)
+      for (int64_t i = 0; i < num_nodes; i++) {
+        for (int j = 0; j < num_buckets; j++) {
+          const int64_t &count = g.in_degree(i);
+          if (count <= bucket_threshold[j]) {
+            local_buckets[omp_get_thread_num()][j].push_back(i);
+            break;
+          }
+        }
+      }
+    }
+
+    int temp_k = 0;
+    uint32_t start_k[num_threads][num_buckets];
+    for (int32_t j = num_buckets - 1; j >= 0; j--) {
+      for (int t = 0; t < num_threads; t++) {
+        start_k[t][j] = temp_k;
+        temp_k += local_buckets[t][j].size();
+      }
+    }
+
+#pragma omp parallel for schedule(static)
+    for (int t = 0; t < num_threads; t++) {
+      for (int j = num_buckets - 1; j >= 0; j--) {
+        const vector<uint32_t> &current_bucket = local_buckets[t][j];
+        int k = start_k[t][j];
+        const size_t &size = current_bucket.size();
+        for (uint32_t i = 0; i < size; i++) {
+          new_ids[current_bucket[i]] = k++;
+        }
+      }
+    }
+
+    for (int i = 0; i < num_threads; i++) {
+      for (int j = 0; j < num_buckets; j++) {
+        local_buckets[i][j].clear();
+      }
+    }
+
+    t.Stop();
+    PrintTime("DBG Map Time", t.Seconds());
+  }
+
+  void GenerateHubClusterMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
+                                 pvector<NodeID_> &new_ids, bool useOutdeg) {
+
+    typedef std::pair<int64_t, NodeID_> degree_nodeid_t;
+
+    Timer t;
+    t.Start();
+
+    int64_t num_nodes = g.num_nodes();
+    int64_t num_edges = g.num_edges();
+
+    pvector<degree_nodeid_t> degree_id_pairs(num_nodes);
+    int64_t avgDegree = num_edges / num_nodes;
+    // size_t hubCount {0};
+
+    const int PADDING = 64 / sizeof(uintE);
+    int64_t *localOffsets = new int64_t[omp_get_max_threads() * PADDING]();
+    int64_t partitionSz = num_nodes / omp_get_max_threads();
+
+#pragma omp parallel
+    {
+      int tid = omp_get_thread_num();
+      int startID = partitionSz * tid;
+      int stopID = partitionSz * (tid + 1);
+      if (tid == omp_get_max_threads() - 1) {
+        stopID = num_nodes;
+      }
+      for (int n = startID; n < stopID; ++n) {
+        if (useOutdeg) {
+          int64_t out_degree_n = g.out_degree(n);
+          if (out_degree_n > avgDegree) {
+            ++localOffsets[tid * PADDING];
+            new_ids[n] = 1;
+          }
+        } else {
+          int64_t in_degree_n = g.in_degree(n);
+          if (in_degree_n > avgDegree) {
+            ++localOffsets[tid * PADDING];
+            new_ids[n] = 1;
+          }
+        }
+      }
+    }
+    int64_t sum{0};
+    for (int tid = 0; tid < omp_get_max_threads(); ++tid) {
+      auto origCount = localOffsets[tid * PADDING];
+      localOffsets[tid * PADDING] = sum;
+      sum += origCount;
+    }
+
+    /* Step II - assign a remap for the hub vertices first */
+#pragma omp parallel
+    {
+      int64_t localCtr{0};
+      int tid = omp_get_thread_num();
+      int64_t startID = partitionSz * tid;
+      int64_t stopID = partitionSz * (tid + 1);
+      if (tid == omp_get_max_threads() - 1) {
+        stopID = num_nodes;
+      }
+      for (int64_t n = startID; n < stopID; ++n) {
+        if (new_ids[n] != (NodeID_)UINT_E_MAX) {
+          new_ids[n] = (NodeID_)localOffsets[tid * PADDING] + (NodeID_)localCtr;
+          ++localCtr;
+        }
+      }
+    }
+    delete[] localOffsets;
+
+    /* Step III - assigning a remap for (easy) non hub vertices */
+    auto numHubs = sum;
+    SlidingQueue<int64_t> queue(numHubs);
+#pragma omp parallel
+    {
+      // assert(omp_get_max_threads() == 56);
+      QueueBuffer<int64_t> lqueue(queue, numHubs / omp_get_max_threads());
+#pragma omp for
+      for (int64_t n = numHubs; n < num_nodes; ++n) {
+        if (new_ids[n] == (NodeID_)UINT_E_MAX) {
+          // This steps preserves the ordering of the original graph (as much as
+          // possible)
+          new_ids[n] = (NodeID_)n;
+        } else {
+          int64_t remappedTo = new_ids[n];
+          if (new_ids[remappedTo] == (NodeID_)UINT_E_MAX) {
+            // safe to swap Ids because the original vertex is a non-hub
+            new_ids[remappedTo] = (NodeID_)n;
+          } else {
+            // Cannot swap ids because original vertex was a hub (swapping
+            // would disturb sorted ordering of hubs - not allowed)
+            lqueue.push_back(n);
+          }
+        }
+      }
+      lqueue.flush();
+    }
+    queue.slide_window(); // the queue keeps a list of vertices where a simple
+                          // swap of locations is not possible
+
+    /* Step IV - assigning remaps for remaining non hubs */
+    int64_t unassignedCtr{0};
+    auto q_iter = queue.begin();
+#pragma omp parallel for
+    for (int64_t n = 0; n < numHubs; ++n) {
+      if (new_ids[n] == (NodeID_)UINT_E_MAX) {
+        int64_t u = *(q_iter + __sync_fetch_and_add(&unassignedCtr, 1));
+        new_ids[n] = (NodeID_)u;
+      }
+    }
+
+    t.Stop();
+    PrintTime("HubCluster Map Time", t.Seconds());
   }
 };
 
