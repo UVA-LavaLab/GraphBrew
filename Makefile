@@ -65,7 +65,7 @@ $(BIN_DIR)/%: $(SRC_DIR)/%.cc $(INCLUDE_DIR)/*.h | $(BIN_DIR) $(LIB_DIR)
 # =========================================================
 # Running Benchmarks
 # =========================================================
-RUN_PARAMS = -g 5 -n 1 -o 3
+RUN_PARAMS = -g 5 -n 1 -o 3 -v
 # RUN_PARAMS = -s -g 6 -n 1 -o 1
 
 run-%: $(BIN_DIR)/%
@@ -83,7 +83,7 @@ run-all: $(addprefix run-, $(KERNELS))
 run-%-sweep: $(BIN_DIR)/%
 	@for o in 1 2 3 4 5 6 7; do \
 		echo "Running with -o $$o"; \
-		OMP_NUM_THREADS=$(PARALLEL) ./$(BIN_DIR)/$* -g 22 -n 1 -o $$o; \
+		OMP_NUM_THREADS=$(PARALLEL) ./$(BIN_DIR)/$* -v -g 5 -n 1 -j 2 -o $$o; \
 	done
 # =========================================================
 # Directory Setup

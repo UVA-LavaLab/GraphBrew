@@ -14,6 +14,7 @@
 #include <string>
 #include <type_traits>
 #include <unistd.h>
+#include <utility>
 #include <vector>
 
 /*
@@ -31,7 +32,7 @@ protected:
   int argc_;
   char **argv_;
   std::string name_;
-  std::string get_args_ = "f:g:hk:su:m:o:";
+  std::string get_args_ = "f:g:hk:su:m:o:j:";
   std::vector<std::string> help_strings_;
   std::vector<std::pair<ReorderingAlgo, std::string>> reorder_options_;
 
@@ -41,6 +42,8 @@ protected:
   bool symmetrize_ = false;
   bool uniform_ = false;
   bool in_place_ = false;
+  std::pair<std::string, int> segments_ = {
+      "", 1}; // Label and number of segments as a pair
 
   void AddHelpLine(char opt, std::string opt_arg, std::string text,
                    std::string def = "") {
@@ -67,8 +70,11 @@ public:
                 std::to_string(degree_));
     AddHelpLine('m', "", "reduces memory usage during graph building", "false");
     AddHelpLine('o', "order",
-                "apply reordering strategy, optionally with a parameter \n               [example]-r 3 "
-                "-r 2 -r 10:mapping.label", "optional");
+                "apply reordering strategy, optionally with a parameter \n     "
+                "          [example]-r 3 "
+                "-r 2 -r 10:mapping.label",
+                "optional");
+    AddHelpLine('j', "segments", "number of segments for the graph", "1");
   }
 
   bool ParseArgs() {
@@ -90,9 +96,11 @@ public:
     switch (opt) {
     case 'f':
       filename_ = std::string(opt_arg);
+      segments_.first = filename_; // Set label to filename
       break;
     case 'g':
       scale_ = atoi(opt_arg);
+      segments_.first = "kronecker" + std::to_string(scale_);
       break;
     case 'h':
       PrintUsage();
@@ -106,18 +114,25 @@ public:
     case 'u':
       uniform_ = true;
       scale_ = atoi(opt_arg);
+      segments_.first = "uniform-random" + std::to_string(scale_);
       break;
     case 'm':
       in_place_ = true;
       break;
     case 'o': {
-      std::string arg(optarg);
+      std::string arg(opt_arg);
       size_t pos = arg.find(':');
       ReorderingAlgo algo =
           static_cast<ReorderingAlgo>(std::stoi(arg.substr(0, pos)));
       std::string param = (pos != std::string::npos) ? arg.substr(pos + 1) : "";
       reorder_options_.emplace_back(algo, param);
     } break;
+    case 'j':
+      segments_.second = atoi(opt_arg);
+      if (segments_.first.empty()) {
+        segments_.first = "default";
+      }
+      break;
     }
   }
 
@@ -135,8 +150,13 @@ public:
   bool symmetrize() const { return symmetrize_; }
   bool uniform() const { return uniform_; }
   bool in_place() const { return in_place_; }
-  const std::vector<std::pair<ReorderingAlgo, std::string>> & reorder_options() const { return reorder_options_; }
-
+  const std::vector<std::pair<ReorderingAlgo, std::string>> &
+  reorder_options() const {
+    return reorder_options_;
+  }
+  std::pair<std::string, int> const segments()  {
+    return segments_;
+  }
 };
 
 class CLApp : public CLBase {
