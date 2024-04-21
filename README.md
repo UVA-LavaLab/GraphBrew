@@ -31,6 +31,7 @@ sudo apt-get install g++ make libomp-dev
 ### Installing Boost 1.58.0
 
 1. **Remove Debian Package Installations**
+   
    * If you installed Boost through Debian packages, use the following command to remove these installations:
 ```bash
 sudo apt-get -y --purge remove libboost-all-dev libboost-doc libboost-dev
@@ -41,6 +42,7 @@ sudo rm -f /usr/lib/libboost_*
 ```
 
 2. **Installing Boost 1.58.0**
+   
    * First, navigate to your home directory and download the desired Boost version:
 ```bash
 cd ~
@@ -63,6 +65,7 @@ sudo ./b2 --with=all -j $cpuCores install
 ```
 
 2. **Verify the Installation**
+   
    * After installation, verify that Boost has been installed correctly by checking the installed version:
 ```bash
 cat /usr/local/include/boost/version.hpp | grep "BOOST_LIB_VERSION"
@@ -73,7 +76,7 @@ cat /usr/local/include/boost/version.hpp | grep "BOOST_LIB_VERSION"
 #define BOOST_LIB_VERSION "1_54"
 ```
 
-## GAP Benchmarks Project
+## GAP Benchmarks
 
 This project contains a collection of Graph Analytics for Performance (GAP) benchmarks implemented in C++. The benchmarks are designed to exercise the performance of graph algorithms on a CPU. 
 

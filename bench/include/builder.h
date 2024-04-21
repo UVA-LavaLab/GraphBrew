@@ -378,7 +378,6 @@ public:
       g_final = SquishGraph(g);
 
     pvector<NodeID_> new_ids(g.num_nodes());
-
     for (const auto &option : cli_.reorder_options()) {
       new_ids.fill(UINT_E_MAX);
       if (!option.second.empty()) {
@@ -388,7 +387,6 @@ public:
       }
       g_final = RelabelByMapping(g_final, new_ids);
     }
-
     return g_final;
   }
 

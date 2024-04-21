@@ -97,7 +97,7 @@ run-all: $(addprefix run-, $(KERNELS))
 
 # Define a rule that sweeps through -o 1 to 7
 run-%-sweep: $(BIN_DIR)/%
-	@for o in 1 2 3 4 5 6 7; do \
+	@for o in 1  8; do \
 		echo "Running with -o $$o"; \
 		OMP_NUM_THREADS=$(PARALLEL) ./$(BIN_DIR)/$* -v -g 5 -n 1 -j 2 -o $$o; \
 	done
