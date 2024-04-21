@@ -5,14 +5,14 @@
 #define BUILDER_H_
 
 #include <algorithm>
+#include <cassert>
 #include <cinttypes>
 #include <fstream>
 #include <functional>
 #include <parallel/algorithm>
+#include <set>
 #include <type_traits>
 #include <utility>
-#include <set>
-#include <cassert>
 
 #include "command_line.h"
 #include "generator.h"
@@ -35,6 +35,17 @@
    - edgelist can be from file (Reader) or synthetically generated (Generator)
    - Common case: BuilderBase typedef'd (w/ params) to be Builder (benchmark.h)
  */
+
+//
+// A demo program of reordering using Rabbit Order.
+#include "edge_list.hpp"
+#include "rabbit_order.hpp"
+#include <boost/range/adaptor/transformed.hpp>
+#include <boost/range/algorithm/count.hpp>
+
+using namespace edge_list;
+// Author: ARAI Junya <arai.junya@lab.ntt.co.jp> <araijn@gmail.com>
+//
 
 template <typename NodeID_, typename DestID_ = NodeID_,
           typename WeightT_ = NodeID_, bool invert = true>
@@ -488,6 +499,8 @@ public:
       return "HubCluster";
     case Random:
       return "Random";
+    case RabbitOrder:
+      return "RabbitOrder";
     case ORIGINAL:
       return "Original";
     case Sort:
@@ -527,6 +540,9 @@ public:
       break;
     case Random:
       GenerateRandomMapping(g, new_ids, useOutdeg);
+      break;
+    case RabbitOrder:
+      GenerateRabbitOrderMapping(g, new_ids);
       break;
     case MAP:
       LoadMappingFromFile(g, new_ids, useOutdeg, map_file);
@@ -1771,6 +1787,260 @@ public:
     std::cout
         << "[CSR-HYBRID-PREPROCESSING] Time to transpose offsets matrix =  "
         << tm.Seconds() << std::endl;
+  }
+
+  //
+  // A demo program of reordering using Rabbit Order.
+  //
+  // Author: ARAI Junya <arai.junya@lab.ntt.co.jp> <araijn@gmail.com>
+  //
+  typedef std::vector<std::vector<std::pair<rabbit_order::vint, float>>>
+      adjacency_list;
+
+  rabbit_order::vint
+  count_unused_id(const rabbit_order::vint n,
+                  const std::vector<edge_list::edge> &edges) {
+    std::vector<char> appears(n);
+    for (size_t i = 0; i < edges.size(); ++i) {
+      appears[std::get<0>(edges[i])] = true;
+      appears[std::get<1>(edges[i])] = true;
+    }
+    return static_cast<rabbit_order::vint>(boost::count(appears, false));
+  }
+
+  template <typename RandomAccessRange>
+  adjacency_list make_adj_list(const rabbit_order::vint n,
+                               const RandomAccessRange &es) {
+    using std::get;
+
+    // Symmetrize the edge list and remove self-loops simultaneously
+    std::vector<edge_list::edge> ss(boost::size(es) * 2);
+#pragma omp parallel for
+    for (size_t i = 0; i < boost::size(es); ++i) {
+      auto &e = es[i];
+      if (get<0>(e) != get<1>(e)) {
+        ss[i * 2] = std::make_tuple(get<0>(e), get<1>(e), get<2>(e));
+        ss[i * 2 + 1] = std::make_tuple(get<1>(e), get<0>(e), get<2>(e));
+      } else {
+        // Insert zero-weight edges instead of loops; they are ignored in making
+        // an adjacency list
+        ss[i * 2] = std::make_tuple(0, 0, 0.0f);
+        ss[i * 2 + 1] = std::make_tuple(0, 0, 0.0f);
+      }
+    }
+
+    // Sort the edges
+    __gnu_parallel::sort(ss.begin(), ss.end());
+
+    // Convert to an adjacency list
+    adjacency_list adj(n);
+#pragma omp parallel
+    {
+      // Advance iterators to a boundary of a source vertex
+      const auto adv = [](auto it, const auto first, const auto last) {
+        while (first != it && it != last && get<0>(*(it - 1)) == get<0>(*it))
+          ++it;
+        return it;
+      };
+
+      // Compute an iterator range assigned to this thread
+      const int p = omp_get_max_threads();
+      const size_t t = static_cast<size_t>(omp_get_thread_num());
+      const size_t ifirst = ss.size() / p * (t) + std::min(t, ss.size() % p);
+      const size_t ilast =
+          ss.size() / p * (t + 1) + std::min(t + 1, ss.size() % p);
+      auto it = adv(ss.begin() + ifirst, ss.begin(), ss.end());
+      const auto last = adv(ss.begin() + ilast, ss.begin(), ss.end());
+
+      // Reduce edges and store them in std::vector
+      while (it != last) {
+        const rabbit_order::vint s = get<0>(*it);
+
+        // Obtain an upper bound of degree and reserve memory
+        const auto maxdeg =
+            std::find_if(it, last, [s](auto &x) { return get<0>(x) != s; }) -
+            it;
+        adj[s].reserve(maxdeg);
+
+        while (it != last && get<0>(*it) == s) {
+          const rabbit_order::vint t = get<1>(*it);
+          float w = 0.0;
+          while (it != last && get<0>(*it) == s && get<1>(*it) == t)
+            w += get<2>(*it++);
+          if (w > 0.0)
+            adj[s].push_back({t, w});
+        }
+
+        // The actual degree can be smaller than the upper bound
+        adj[s].shrink_to_fit();
+      }
+    }
+
+    return adj;
+  }
+
+  adjacency_list read_graph(const std::string &graphpath) {
+    const auto edges = edge_list::read(graphpath);
+
+    // The number of vertices = max vertex ID + 1 (assuming IDs start from zero)
+    const auto n = boost::accumulate(
+        edges, static_cast<rabbit_order::vint>(0),
+        [](rabbit_order::vint s, auto &e) {
+          return std::max(s, std::max(std::get<0>(e), std::get<1>(e)) + 1);
+        });
+
+    if (const size_t c = count_unused_id(n, edges)) {
+      std::cerr << "WARNING: " << c << "/" << n << " vertex IDs are unused"
+                << " (zero-degree vertices or noncontiguous IDs?)\n";
+    }
+
+    return make_adj_list(n, edges);
+  }
+
+  adjacency_list
+  readRabbitOrderGraphCSR(const CSRGraph<NodeID_, DestID_, invert> &g) {
+
+    std::vector<edge> edges(g.num_edges, {0, 0, 0.0f});
+
+    for (NodeID_ i = 0; i < g.num_nodes_; i++) {
+      for (DestID_ j : g.out_neigh(i)) {
+        edges.push_back({i, j, j.w});
+      }
+    }
+
+    if (g.directed()) {
+      for (NodeID_ i = 0; i < g.num_nodes_; i++) {
+        for (DestID_ j : g.in_neigh(i)) {
+          edges.push_back({i, j, j.w});
+        }
+      }
+    }
+
+    // The number of vertices = max vertex ID + 1 (assuming IDs start from zero)
+    const auto n = boost::accumulate(
+        edges, static_cast<rabbit_order::vint>(0),
+        [](rabbit_order::vint s, auto &e) {
+          return std::max(s, std::max(std::get<0>(e), std::get<1>(e)) + 1);
+        });
+
+    if (const size_t c = count_unused_id(n, edges)) {
+      std::cerr << "WARNING: " << c << "/" << n << " vertex IDs are unused"
+                << " (zero-degree vertices or noncontiguous IDs?)\n";
+    }
+
+    return make_adj_list(n, edges);
+  }
+
+  void GenerateRabbitOrderMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
+                                  pvector<NodeID_> &new_ids, bool useOutdeg) {
+    using boost::adaptors::transformed;
+
+    std::cerr << "Number of threads: " << omp_get_num_threads() << std::endl;
+    auto adj = readRabbitOrderGraphCSR(g);
+    const auto m =
+        boost::accumulate(adj | transformed([](auto &es) { return es.size(); }),
+                          static_cast<size_t>(0));
+    std::cerr << "Number of vertices: " << adj.size() << std::endl;
+    std::cerr << "Number of edges: " << m << std::endl;
+
+    // if (commode)
+    //   detect_community(std::move(adj));
+    // else
+    reorder(std::move(adj));
+  }
+
+  template <typename InputIt>
+  typename std::iterator_traits<InputIt>::difference_type
+  count_uniq(const InputIt f, const InputIt l) {
+    std::vector<typename std::iterator_traits<InputIt>::value_type> ys(f, l);
+    return boost::size(boost::unique(boost::sort(ys)));
+  }
+
+  double compute_modularity(const adjacency_list &adj,
+                            const rabbit_order::vint *const coms) {
+    const rabbit_order::vint n = static_cast<rabbit_order::vint>(adj.size());
+    const auto ncom = count_uniq(coms, coms + n);
+    double m2 = 0.0; // total weight of the (bidirectional) edges
+
+    std::unordered_map<rabbit_order::vint, double[2]> degs(
+        ncom); // ID -> {all, loop}
+    degs.reserve(ncom);
+
+#pragma omp parallel reduction(+ : m2)
+    {
+      std::unordered_map<rabbit_order::vint, double[2]> mydegs(ncom);
+      mydegs.reserve(ncom);
+
+#pragma omp for
+      for (rabbit_order::vint v = 0; v < n; ++v) {
+        const rabbit_order::vint c = coms[v];
+        auto *const d = &mydegs[c];
+        for (const auto e : adj[v]) {
+          m2 += e.second;
+          (*d)[0] += e.second;
+          if (coms[e.first] == c)
+            (*d)[1] += e.second;
+        }
+      }
+
+#pragma omp critical
+      {
+        for (auto &kv : mydegs) {
+          auto *const d = &degs[kv.first];
+          (*d)[0] += kv.second[0];
+          (*d)[1] += kv.second[1];
+        }
+      }
+    }
+    assert(static_cast<intmax_t>(degs.size()) == ncom);
+
+    double q = 0.0;
+    for (auto &kv : degs) {
+      const double all = kv.second[0];
+      const double loop = kv.second[1];
+      q += loop / m2 - (all / m2) * (all / m2);
+    }
+
+    return q;
+  }
+
+  void detect_community(adjacency_list adj) {
+    auto _adj = adj; // copy `adj` because it is used for computing modularity
+
+    std::cerr << "Detecting communities...\n";
+    const double tstart = rabbit_order::now_sec();
+    //--------------------------------------------
+    auto g = rabbit_order::aggregate(std::move(_adj));
+    const auto c = std::make_unique<rabbit_order::vint[]>(g.n());
+#pragma omp parallel for
+    for (rabbit_order::vint v = 0; v < g.n(); ++v)
+      c[v] = rabbit_order::trace_com(v, &g);
+    //--------------------------------------------
+    std::cerr << "Runtime for community detection [sec]: "
+              << rabbit_order::now_sec() - tstart << std::endl;
+
+    // Print the result
+    std::copy(&c[0], &c[g.n()],
+              std::ostream_iterator<rabbit_order::vint>(std::cout, "\n"));
+
+    std::cerr << "Computing modularity of the result...\n";
+    const double q = compute_modularity(adj, c.get());
+    std::cerr << "Modularity: " << q << std::endl;
+  }
+
+  void reorder(adjacency_list adj) {
+    std::cerr << "Generating a permutation...\n";
+    const double tstart = rabbit_order::now_sec();
+    //--------------------------------------------
+    const auto g = rabbit_order::aggregate(std::move(adj));
+    const auto p = rabbit_order::compute_perm(g);
+    //--------------------------------------------
+    std::cerr << "Runtime for permutation generation [sec]: "
+              << rabbit_order::now_sec() - tstart << std::endl;
+
+    // Print the result
+    std::copy(&p[0], &p[g.n()],
+              std::ostream_iterator<rabbit_order::vint>(std::cout, "\n"));
   }
 };
 

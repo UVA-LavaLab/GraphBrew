@@ -5,12 +5,22 @@
 
 This repository contains the GAP (Graph Algorithms in Practice) benchmarks suite, designed to compile and run various graph algorithms using C++. The Makefile in this repository automates the process of compiling these benchmarks from source code.
 
+## Enhancements
+
+* **GraphIt-DSL:** Integration of GraphIt-DSL segment graphs to improve locality.
+* **Degree-Based Grouping:** Implementing degree-based grouping strategies to test benchmark performance.
+* **Rabbit Order:**  Community clustering order with incremental aggregation.
+* **P-OPT Segmentation:**  Exploring graph caching techniques for efficient handling of large-scale graphs.
+
 ## Prerequisites
 
 Before you begin, ensure you have the following installed on your system:
 - **GCC**: The GNU Compiler Collection, specifically `g++` which supports C++11 or later.
 - **Make**: The build utility to automate the compilation.
 - **OpenMP**: Support for parallel programming in C++.
+- **Boost** C++ library (1.58.0).
+- **libnuma** (2.0.9).
+- **libtcmalloc\_minimal** in google-perftools (2.1).
 
 These tools are available on most Unix-like operating systems and can be installed via your package manager. For example, on Ubuntu, you can install them using:
 
@@ -18,13 +28,50 @@ These tools are available on most Unix-like operating systems and can be install
 sudo apt-get update
 sudo apt-get install g++ make libomp-dev
 ```
+### Installing Boost 1.58.0
 
-## Enhancements
+1. **Remove Debian Package Installations**
+   * If you installed Boost through Debian packages, use the following command to remove these installations:
+```bash
+sudo apt-get -y --purge remove libboost-all-dev libboost-doc libboost-dev
+```
+   * If Boost was installed from the source on your system, you can remove the installed library files with:
+```bash
+sudo rm -f /usr/lib/libboost_*
+```
 
-* **GraphIt-DSL:** Integration of GraphIt-DSL segment graphs to improve locality.
-* **Degree-Based Grouping:** Implementing degree-based grouping strategies to test benchmark performance.
-* **Graph Segmentation:**  Exploring graph segmentation techniques for efficient handling of large-scale graphs.
+2. **Installing Boost 1.58.0**
+   * First, navigate to your home directory and download the desired Boost version:
+```bash
+cd ~
+wget http://downloads.sourceforge.net/project/boost/boost/1.58.0/boost_1_58_0.tar.gz
+tar -zxvf boost_1_58_0.tar.gz
+cd boost_1_58_0
+```
+   * Determine the number of CPU cores available to optimize the compilation process:
+```bash
+cpuCores=$(cat /proc/cpuinfo | grep "cpu cores" | uniq | awk '{print $NF}')
+echo "Available CPU cores: $cpuCores"
+```
+   * Initialize the Boost installation script:
+```bash
+./bootstrap.sh  # This script prepares Boost for installation
+```
+   * Compile and install Boost using all available cores to speed up the process:
+```bash
+sudo ./b2 --with=all -j $cpuCores install
+```
 
+2. **Verify the Installation**
+   * After installation, verify that Boost has been installed correctly by checking the installed version:
+```bash
+cat /usr/local/include/boost/version.hpp | grep "BOOST_LIB_VERSION"
+```
+   * The output should display the version of Boost you installed, like so:
+```bash
+//  BOOST_LIB_VERSION must be defined to be the same as BOOST_VERSION
+#define BOOST_LIB_VERSION "1_54"
+```
 
 ## GAP Benchmarks Project
 
@@ -76,6 +123,19 @@ The Makefile compiles and links the following executable targets:
 * `bench/bin`: Stores the compiled executables.
 * `bench/lib`: Used for intermediate build objects.
 
+## Boost Installation Guide
+
+This README outlines the steps for uninstalling Boost libraries installed via Debian packages or directly from source, and the subsequent installation of Boost version 1.54.0.
+
+## Prerequisites
+
+Before proceeding, update the package list and install necessary development tools and libraries:
+
+```bash
+sudo apt-get update
+sudo apt-get -y install build-essential g++ python-dev autotools-dev libicu-dev libbz2-dev
+```
+
 Graph Loading
 -------------
 
@@ -100,4 +160,5 @@ How to Cite
 Please cite the following papers if you find this repository useful.
 
 + Scott Beamer, Krste Asanović, David Patterson. "[*The GAP Benchmark Suite*](http://arxiv.org/abs/1508.03619)". arXiv:1508.03619 [cs.DC], 2015.
-
++ J. Arai, H. Shiokawa, T. Yamamuro, M. Onizuka, and S. Iwamura.Rabbit Order: Just-in-time Parallel Reordering for Fast Graph Analysis.
+     

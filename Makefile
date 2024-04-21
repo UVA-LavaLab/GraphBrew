@@ -37,7 +37,23 @@ NC      =\033[0m
 # =========================================================
 # Compiler Flags
 # =========================================================
-CXXFLAGS = -std=c++11 -O3 -Wall -fopenmp -D_GLIBCXX_PARALLEL 
+CXXFLAGS_GAP = -std=c++17 -O3 -Wall -fopenmp
+
+CXXFLAGS_RABBIT  = -mcx16 
+# 		-Wall -Wextra -Wcast-align -Wcast-qual -Wconversion -Wfloat-equal \
+# 	    -Wformat=2 -Winit-self -Wmissing-declarations \
+# 	    -Wmissing-include-dirs -Wpointer-arith -Wredundant-decls \
+# 	    -Wswitch-default -Wuninitialized -Wwrite-strings \
+# 	    -Wno-sign-conversion -Wno-unused-function \
+#         -Wno-missing-declarations \
+#         -fopenmp 
+
+LDLIBS_RABBIT   += -ltcmalloc_minimal -lnuma
+
+# =========================================================
+CXXFLAGS = $(CXXFLAGS_GAP) $(CXXFLAGS_RABBIT)
+LDLIBS   = $(LDLIBS_RABBIT)
+# =========================================================
 # CXXFLAGS += -D_DEBUG
 INCLUDES = -I$(INCLUDE_DIR)
 
@@ -60,7 +76,7 @@ all: $(SUITE)
 # Compilation Rules
 # =========================================================
 $(BIN_DIR)/%: $(SRC_DIR)/%.cc $(INCLUDE_DIR)/*.h | $(BIN_DIR) $(LIB_DIR)
-	@$(CXX) $(CXXFLAGS) $(INCLUDES) $< -o $@ $(EXIT_STATUS)
+	@$(CXX) $(CXXFLAGS) $(INCLUDES) $< $(LDLIBS) -o $@ $(EXIT_STATUS)
 
 # =========================================================
 # Running Benchmarks
@@ -112,14 +128,16 @@ help-%: $(BIN_DIR)/%
 	@./$< -h 
 	@echo ""
 	@echo "Reordering Algorithms:"
-	@echo "  - ORIGINAL (0): No reordering applied."
-	@echo "  - RANDOM (1): Apply random reordering."
-	@echo "  - SORT (2): Apply sort-based reordering."
-	@echo "  - HUBSORT (3): Apply hub-based sorting."
-	@echo "  - HUBCLUSTER (4): Apply clustering based on hub scores."
-	@echo "  - DBG (5): Apply degree-based grouping."
-	@echo "  - HUBSORTDBG (6): Combine hub sorting with degree-based grouping."
+	@echo "  - ORIGINAL      (0): No reordering applied."
+	@echo "  - RANDOM        (1): Apply random reordering."
+	@echo "  - SORT          (2): Apply sort-based reordering."
+	@echo "  - HUBSORT       (3): Apply hub-based sorting."
+	@echo "  - HUBCLUSTER    (4): Apply clustering based on hub scores."
+	@echo "  - DBG           (5): Apply degree-based grouping."
+	@echo "  - HUBSORTDBG    (6): Combine hub sorting with degree-based grouping."
 	@echo "  - HUBCLUSTERDBG (7): Combine hub clustering with degree-based grouping."
+	@echo "  - RABBITORDER   (8): Apply community clustering with incremental aggregation."
+	@echo "  - GORDER        (9): Apply dynamic programming BFS and windowing ordering."
 	@echo "  - MAP (10): Requires a file format for reordering. Use the -r 10:filename.label option."
 	@echo ""
 	@echo "Example Usage:"

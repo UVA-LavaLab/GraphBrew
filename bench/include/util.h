@@ -20,8 +20,6 @@ Author: Scott Beamer
 Miscellaneous helpers that don't fit into classes
 */
 
-
-
 enum ReorderingAlgo {
   ORIGINAL = 0,
   Random = 1,
@@ -31,6 +29,8 @@ enum ReorderingAlgo {
   DBG = 5,
   HubSortDBG = 6,
   HubClusterDBG = 7,
+  RabbitOrder = 8,
+  GORDER = 9,
   MAP = 10,
 };
 
