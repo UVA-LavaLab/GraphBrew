@@ -83,7 +83,7 @@ run-all: $(addprefix run-, $(KERNELS))
 run-%-sweep: $(BIN_DIR)/%
 	@for o in 1 2 3 4 5 6 7; do \
 		echo "Running with -o $$o"; \
-		OMP_NUM_THREADS=$(PARALLEL) ./$(BIN_DIR)/$* -f ./$(GRAPH_BENCH) -n 1 -o $$o; \
+		OMP_NUM_THREADS=$(PARALLEL) ./$(BIN_DIR)/$* -g 22 -n 1 -o $$o; \
 	done
 # =========================================================
 # Directory Setup

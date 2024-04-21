@@ -11,6 +11,8 @@
 #include <parallel/algorithm>
 #include <type_traits>
 #include <utility>
+#include <set>
+#include <cassert>
 
 #include "command_line.h"
 #include "generator.h"
@@ -72,8 +74,8 @@ public:
 #pragma omp parallel for reduction(max : max_seen)
     for (auto it = el.begin(); it < el.end(); it++) {
       Edge e = *it;
-      max_seen = std::max(max_seen, e.u);
-      max_seen = std::max(max_seen, (NodeID_)e.v);
+      max_seen = __gnu_parallel::max(max_seen, e.u);
+      max_seen = __gnu_parallel::max(max_seen, (NodeID_)e.v);
     }
     return max_seen;
   }
@@ -1159,6 +1161,616 @@ public:
 
     t.Stop();
     PrintTime("HubCluster Map Time", t.Seconds());
+  }
+
+  // @inproceedings{popt-hpca21,
+  //   title={P-OPT: Practical Optimal Cache Replacement for Graph Analytics},
+  //   author={Balaji, Vignesh and Crago, Neal and Jaleel, Aamer and Lucia,
+  //   Brandon}, booktitle={2021 IEEE International Symposium on
+  //   High-Performance Computer Architecture (HPCA)}, pages={668--681},
+  //   year={2021},
+  //   organization={IEEE}
+  // }
+
+  /*
+     CSR-segmenting as proposed in the Cagra paper
+
+     Partitions the graphs and produces a sub-graph within a specified range of
+     vertices.
+
+     The following implementation assumes use in pull implementation and that
+     only the partitioned CSC is required
+   */
+  static CSRGraph<NodeID_, DestID_, invert>
+  graphSlicer(const CSRGraph<NodeID_, DestID_, invert> &g, NodeID_ startID,
+              NodeID_ stopID, bool outDegree = false,
+              bool modifyBothDestlists = false) {
+    /* create a partition of a graph in the range [startID, stopID) */
+    Timer t;
+    t.Start();
+
+    // NOTE: that pull implementation should specify outDegree == false
+    //       and push implementations should use outDegree == true
+
+    if (g.directed() == true) {
+      /* Step I : For the requested range [startID, stopID), construct the
+       * reduced degree per vertex */
+      pvector<NodeID_> degrees(
+          g.num_nodes()); // note that stopID is not included in the range
+#pragma omp parallel for schedule(dynamic, 1024)
+      for (NodeID_ n = 0; n < g.num_nodes(); ++n) {
+        if (outDegree == true) {
+          NodeID_ newDegree(0);
+          for (NodeID_ m : g.out_neigh(n)) {
+            if (m >= startID && m < stopID) {
+              ++newDegree;
+            }
+          }
+          degrees[n] = newDegree;
+        } else {
+          NodeID_ newDegree(0);
+          for (NodeID_ m : g.in_neigh(n)) {
+            if (m >= startID && m < stopID) {
+              ++newDegree;
+            }
+          }
+          degrees[n] = newDegree;
+        }
+      }
+
+      /* Step II : Construct a trimmed offset list */
+      pvector<SGOffset> offsets = ParallelPrefixSum(degrees);
+      DestID_ *neighs = new DestID_[offsets[g.num_nodes()]];
+      DestID_ **index = CSRGraph<NodeID_, DestID_>::GenIndex(offsets, neighs);
+      if (outDegree == true) {
+#pragma omp parallel for schedule(dynamic, 1024)
+        for (NodeID_ u = 0; u < g.num_nodes(); ++u) {
+          for (NodeID_ v : g.out_neigh(u)) {
+            if (v >= startID && v < stopID) {
+              neighs[offsets[u]++] = v;
+            }
+          }
+        }
+      } else {
+#pragma omp parallel for schedule(dynamic, 1024)
+        for (NodeID_ u = 0; u < g.num_nodes(); ++u) {
+          for (NodeID_ v : g.in_neigh(u)) {
+            if (v >= startID && v < stopID) {
+              neighs[offsets[u]++] = v;
+            }
+          }
+        }
+      }
+
+      /* Step III : Populate the inv dest lists (for push-pull implementations)
+       */
+      DestID_ *inv_neighs(nullptr);
+      DestID_ **inv_index(nullptr);
+      if (modifyBothDestlists == true) {
+        // allocate space
+        pvector<NodeID_> inv_degrees(g.num_nodes());
+#pragma omp parallel for
+        for (NodeID_ u = 0; u < g.num_nodes(); ++u) {
+          if (outDegree == true) {
+            inv_degrees[u] = g.in_degree(u);
+          } else {
+            inv_degrees[u] = g.out_degree(u);
+          }
+        }
+        pvector<SGOffset> inv_offsets = ParallelPrefixSum(inv_degrees);
+        inv_neighs = new DestID_[inv_offsets[g.num_nodes()]];
+        inv_index =
+            CSRGraph<NodeID_, DestID_>::GenIndex(inv_offsets, inv_neighs);
+
+// populate the inv dest list
+#pragma omp parallel for schedule(dynamic, 1024)
+        for (NodeID_ u = 0; u < g.num_nodes(); ++u) {
+          if (outDegree == true) {
+            for (NodeID_ v : g.in_neigh(u)) {
+              inv_neighs[inv_offsets[u]++] = v;
+            }
+          } else {
+            for (NodeID_ v : g.out_neigh(u)) {
+              inv_neighs[inv_offsets[u]++] = v;
+            }
+          }
+        }
+      }
+
+      /* Step IV : return the appropriate graph */
+      if (outDegree == true) {
+        t.Stop();
+        PrintTime("Slice-time", t.Seconds());
+        return CSRGraph<NodeID_, DestID_, invert>(g.num_nodes(), index, neighs,
+                                                  inv_index, inv_neighs);
+      } else {
+        t.Stop();
+        PrintTime("Slice-time", t.Seconds());
+        return CSRGraph<NodeID_, DestID_, invert>(g.num_nodes(), inv_index,
+                                                  inv_neighs, index, neighs);
+      }
+    } else {
+      /* Step I : For the requested range [startID, stopID), construct the
+       * reduced degree per vertex */
+      pvector<NodeID_> degrees(
+          g.num_nodes()); // note that stopID is not included in the range
+#pragma omp parallel for schedule(dynamic, 1024)
+      for (NodeID_ n = 0; n < g.num_nodes(); ++n) {
+        NodeID_ newDegree(0);
+        for (NodeID_ m : g.out_neigh(n)) {
+          if (m >= startID && m < stopID) {
+            ++newDegree; // if neighbor is in current partition
+          }
+        }
+        degrees[n] = newDegree;
+      }
+
+      /* Step II : Construct a trimmed offset list */
+      pvector<SGOffset> offsets = ParallelPrefixSum(degrees);
+      DestID_ *neighs = new DestID_[offsets[g.num_nodes()]];
+      DestID_ **index = CSRGraph<NodeID_, DestID_>::GenIndex(offsets, neighs);
+#pragma omp parallel for schedule(dynamic, 1024)
+      for (NodeID_ u = 0; u < g.num_nodes(); ++u) {
+        for (NodeID_ v : g.out_neigh(u)) {
+          if (v >= startID && v < stopID) {
+            neighs[offsets[u]++] = v;
+          }
+        }
+      }
+
+      /* Step III : return the appropriate graph */
+      t.Stop();
+      PrintTime("Slice-time", t.Seconds());
+      return CSRGraph<NodeID_, DestID_, invert>(g.num_nodes(), index, neighs);
+    }
+  }
+
+  static CSRGraph<NodeID_, DestID_, invert>
+  quantizeGraph(const CSRGraph<NodeID_, DestID_, invert> &g, NodeID_ numTiles) {
+
+    NodeID_ tileSz = g.num_nodes() / numTiles;
+    if (numTiles > g.num_nodes())
+      tileSz = 1;
+    else if (g.num_nodes() % numTiles != 0)
+      tileSz += 1;
+
+    pvector<NodeID_> degrees(g.num_nodes(), 0);
+#pragma omp parallel for
+    for (NodeID_ n = 0; n < g.num_nodes(); ++n) {
+      std::set<NodeID_> uniqNghs;
+      for (NodeID_ ngh : g.out_neigh(n)) {
+        uniqNghs.insert(ngh / tileSz);
+      }
+      degrees[n] = uniqNghs.size();
+      assert(degrees[n] <= numTiles);
+    }
+
+    pvector<SGOffset> offsets = ParallelPrefixSum(degrees);
+    DestID_ *neighs = new DestID_[offsets[g.num_nodes()]];
+    DestID_ **index = CSRGraph<NodeID_, DestID_>::GenIndex(offsets, neighs);
+#pragma omp parallel for schedule(dynamic, 1024)
+    for (NodeID_ u = 0; u < g.num_nodes(); u++) {
+      std::set<NodeID_> uniqNghs;
+      for (NodeID_ ngh : g.out_neigh(u)) {
+        uniqNghs.insert(ngh / tileSz);
+      }
+
+      auto it = uniqNghs.begin();
+      for (NodeID_ i = 0; i < static_cast<NodeID_>(uniqNghs.size()); ++i) {
+        neighs[offsets[u]++] = *it;
+        it++;
+      }
+    }
+    return CSRGraph<NodeID_, DestID_, invert>(g.num_nodes(), index, neighs);
+  }
+
+  // Proper degree sorting
+  static CSRGraph<NodeID_, DestID_, invert>
+  DegSort(const CSRGraph<NodeID_, DestID_, invert> &g, bool outDegree,
+          pvector<NodeID_> &new_ids, bool createOnlyDegList,
+          bool createBothCSRs) {
+    Timer t;
+    t.Start();
+
+    typedef std::pair<int64_t, NodeID_> degree_node_p;
+    pvector<degree_node_p> degree_id_pairs(g.num_nodes());
+    if (g.directed() == true) {
+/* Step I: Create a list of degrees */
+#pragma omp parallel for
+      for (NodeID_ n = 0; n < g.num_nodes(); n++) {
+        if (outDegree == true) {
+          degree_id_pairs[n] = std::make_pair(g.out_degree(n), n);
+        } else {
+          degree_id_pairs[n] = std::make_pair(g.in_degree(n), n);
+        }
+      }
+
+      /* Step II: Sort based on degree order */
+      __gnu_parallel::sort(
+          degree_id_pairs.begin(), degree_id_pairs.end(),
+          std::greater<degree_node_p>()); // TODO:Use parallel sort
+
+/* Step III: assigned remap for the hub vertices */
+#pragma omp parallel for
+      for (NodeID_ n = 0; n < g.num_nodes(); n++) {
+        new_ids[degree_id_pairs[n].second] = n;
+      }
+
+      /* Step VI: generate degree to build a new graph */
+      pvector<NodeID_> degrees(g.num_nodes());
+      pvector<NodeID_> inv_degrees(g.num_nodes());
+      if (outDegree == true) {
+#pragma omp parallel for
+        for (NodeID_ n = 0; n < g.num_nodes(); n++) {
+          degrees[new_ids[n]] = g.out_degree(n);
+          inv_degrees[new_ids[n]] = g.in_degree(n);
+        }
+      } else {
+#pragma omp parallel for
+        for (NodeID_ n = 0; n < g.num_nodes(); n++) {
+          degrees[new_ids[n]] = g.in_degree(n);
+          inv_degrees[new_ids[n]] = g.out_degree(n);
+        }
+      }
+
+      /* Graph building phase */
+      pvector<SGOffset> offsets = ParallelPrefixSum(inv_degrees);
+      DestID_ *neighs = new DestID_[offsets[g.num_nodes()]];
+      DestID_ **index = CSRGraph<NodeID_, DestID_>::GenIndex(offsets, neighs);
+#pragma omp parallel for schedule(dynamic, 1024)
+      for (NodeID_ u = 0; u < g.num_nodes(); u++) {
+        if (outDegree == true) {
+          for (NodeID_ v : g.in_neigh(u))
+            neighs[offsets[new_ids[u]]++] = new_ids[v];
+        } else {
+          for (NodeID_ v : g.out_neigh(u))
+            neighs[offsets[new_ids[u]]++] = new_ids[v];
+        }
+        std::sort(index[new_ids[u]],
+                  index[new_ids[u] + 1]); // sort neighbors of each vertex
+      }
+      DestID_ *inv_neighs(nullptr);
+      DestID_ **inv_index(nullptr);
+      if (createOnlyDegList == true || createBothCSRs == true) {
+        // making the inverse list (in-degrees in this case)
+        pvector<SGOffset> inv_offsets = ParallelPrefixSum(degrees);
+        inv_neighs = new DestID_[inv_offsets[g.num_nodes()]];
+        inv_index =
+            CSRGraph<NodeID_, DestID_>::GenIndex(inv_offsets, inv_neighs);
+        if (createBothCSRs == true) {
+#pragma omp parallel for schedule(dynamic, 1024)
+          for (NodeID_ u = 0; u < g.num_nodes(); u++) {
+            if (outDegree == true) {
+              for (NodeID_ v : g.out_neigh(u))
+                inv_neighs[inv_offsets[new_ids[u]]++] = new_ids[v];
+            } else {
+              for (NodeID_ v : g.in_neigh(u))
+                inv_neighs[inv_offsets[new_ids[u]]++] = new_ids[v];
+            }
+            std::sort(
+                inv_index[new_ids[u]],
+                inv_index[new_ids[u] + 1]); // sort neighbors of each vertex
+          }
+        }
+      }
+      t.Stop();
+      PrintTime("DegSort time", t.Seconds());
+      if (outDegree == true) {
+        return CSRGraph<NodeID_, DestID_, invert>(g.num_nodes(), inv_index,
+                                                  inv_neighs, index, neighs);
+      } else {
+        return CSRGraph<NodeID_, DestID_, invert>(g.num_nodes(), index, neighs,
+                                                  inv_index, inv_neighs);
+      }
+    } else {
+/* Undirected graphs - no need to make separate lists for in and out degree */
+/* Step I: Create a list of degrees */
+#pragma omp parallel for
+      for (NodeID_ n = 0; n < g.num_nodes(); n++) {
+        degree_id_pairs[n] = std::make_pair(g.out_degree(n), n);
+      }
+
+      /* Step II: Sort based on degree order */
+      __gnu_parallel::sort(
+          degree_id_pairs.begin(), degree_id_pairs.end(),
+          std::greater<degree_node_p>()); // TODO:Use parallel sort
+
+/* Step III: assigned remap for the hub vertices */
+#pragma omp parallel for
+      for (NodeID_ n = 0; n < g.num_nodes(); n++) {
+        new_ids[degree_id_pairs[n].second] = n;
+      }
+
+      /* Step VI: generate degree to build a new graph */
+      pvector<NodeID_> degrees(g.num_nodes());
+#pragma omp parallel for
+      for (NodeID_ n = 0; n < g.num_nodes(); n++) {
+        degrees[new_ids[n]] = g.out_degree(n);
+      }
+
+      /* Graph building phase */
+      pvector<SGOffset> offsets = ParallelPrefixSum(degrees);
+      DestID_ *neighs = new DestID_[offsets[g.num_nodes()]];
+      DestID_ **index = CSRGraph<NodeID_, DestID_>::GenIndex(offsets, neighs);
+#pragma omp parallel for schedule(dynamic, 1024)
+      for (NodeID_ u = 0; u < g.num_nodes(); u++) {
+        for (NodeID_ v : g.out_neigh(u))
+          neighs[offsets[new_ids[u]]++] = new_ids[v];
+        std::sort(index[new_ids[u]], index[new_ids[u] + 1]);
+      }
+      t.Stop();
+      PrintTime("DegSort time", t.Seconds());
+      return CSRGraph<NodeID_, DestID_, invert>(g.num_nodes(), index, neighs);
+    }
+  }
+
+  static CSRGraph<NodeID_, DestID_, invert>
+  RandOrder(const CSRGraph<NodeID_, DestID_, invert> &g,
+            pvector<NodeID_> &new_ids, bool createOnlyDegList,
+            bool createBothCSRs) {
+    Timer t;
+    t.Start();
+    std::srand(0); // so that the random graph generated is the same everytime
+    bool outDegree = true;
+
+    if (g.directed() == true) {
+      // Step I: create a random permutation - SLOW implementation
+      pvector<NodeID_> claimedVtxs(g.num_nodes(), 0);
+
+      // #pragma omp parallel for
+      for (NodeID_ v = 0; v < g.num_nodes(); ++v) {
+        while (true) {
+          NodeID_ randID = std::rand() % g.num_nodes();
+          if (claimedVtxs[randID] != 1) {
+            if (compare_and_swap(claimedVtxs[randID], 0, 1) == true) {
+              new_ids[v] = randID;
+              break;
+            } else
+              continue;
+          }
+        }
+      }
+
+#pragma omp parallel for
+      for (NodeID_ v = 0; v < g.num_nodes(); ++v)
+        assert(new_ids[v] != -1);
+
+      /* Step VI: generate degree to build a new graph */
+      pvector<NodeID_> degrees(g.num_nodes());
+      pvector<NodeID_> inv_degrees(g.num_nodes());
+      if (outDegree == true) {
+#pragma omp parallel for
+        for (NodeID_ n = 0; n < g.num_nodes(); n++) {
+          degrees[new_ids[n]] = g.out_degree(n);
+          inv_degrees[new_ids[n]] = g.in_degree(n);
+        }
+      } else {
+#pragma omp parallel for
+        for (NodeID_ n = 0; n < g.num_nodes(); n++) {
+          degrees[new_ids[n]] = g.in_degree(n);
+          inv_degrees[new_ids[n]] = g.out_degree(n);
+        }
+      }
+
+      /* Graph building phase */
+      pvector<SGOffset> offsets = ParallelPrefixSum(inv_degrees);
+      DestID_ *neighs = new DestID_[offsets[g.num_nodes()]];
+      DestID_ **index = CSRGraph<NodeID_, DestID_>::GenIndex(offsets, neighs);
+#pragma omp parallel for schedule(dynamic, 1024)
+      for (NodeID_ u = 0; u < g.num_nodes(); u++) {
+        if (outDegree == true) {
+          for (NodeID_ v : g.in_neigh(u))
+            neighs[offsets[new_ids[u]]++] = new_ids[v];
+        } else {
+          for (NodeID_ v : g.out_neigh(u))
+            neighs[offsets[new_ids[u]]++] = new_ids[v];
+        }
+        std::sort(index[new_ids[u]],
+                  index[new_ids[u] + 1]); // sort neighbors of each vertex
+      }
+      DestID_ *inv_neighs(nullptr);
+      DestID_ **inv_index(nullptr);
+      if (createOnlyDegList == true || createBothCSRs == true) {
+        // making the inverse list (in-degrees in this case)
+        pvector<SGOffset> inv_offsets = ParallelPrefixSum(degrees);
+        inv_neighs = new DestID_[inv_offsets[g.num_nodes()]];
+        inv_index =
+            CSRGraph<NodeID_, DestID_>::GenIndex(inv_offsets, inv_neighs);
+        if (createBothCSRs == true) {
+#pragma omp parallel for schedule(dynamic, 1024)
+          for (NodeID_ u = 0; u < g.num_nodes(); u++) {
+            if (outDegree == true) {
+              for (NodeID_ v : g.out_neigh(u))
+                inv_neighs[inv_offsets[new_ids[u]]++] = new_ids[v];
+            } else {
+              for (NodeID_ v : g.in_neigh(u))
+                inv_neighs[inv_offsets[new_ids[u]]++] = new_ids[v];
+            }
+            std::sort(
+                inv_index[new_ids[u]],
+                inv_index[new_ids[u] + 1]); // sort neighbors of each vertex
+          }
+        }
+      }
+      t.Stop();
+      PrintTime("RandOrder time", t.Seconds());
+      if (outDegree == true) {
+        return CSRGraph<NodeID_, DestID_, invert>(g.num_nodes(), inv_index,
+                                                  inv_neighs, index, neighs);
+      } else {
+        return CSRGraph<NodeID_, DestID_, invert>(g.num_nodes(), index, neighs,
+                                                  inv_index, inv_neighs);
+      }
+    } else {
+      /* Undirected graphs - no need to make separate lists for in and out
+       * degree */
+      // Step I: create a random permutation - SLOW implementation
+      pvector<NodeID_> claimedVtxs(g.num_nodes(), 0);
+
+      // #pragma omp parallel for
+      for (NodeID_ v = 0; v < g.num_nodes(); ++v) {
+        while (true) {
+          NodeID_ randID = std::rand() % g.num_nodes();
+          if (claimedVtxs[randID] != 1) {
+            if (compare_and_swap(claimedVtxs[randID], 0, 1) == true) {
+              new_ids[v] = randID;
+              break;
+            } else
+              continue;
+          }
+        }
+      }
+
+#pragma omp parallel for
+      for (NodeID_ v = 0; v < g.num_nodes(); ++v)
+        assert(new_ids[v] != -1);
+
+      /* Step VI: generate degree to build a new graph */
+      pvector<NodeID_> degrees(g.num_nodes());
+#pragma omp parallel for
+      for (NodeID_ n = 0; n < g.num_nodes(); n++) {
+        degrees[new_ids[n]] = g.out_degree(n);
+      }
+
+      /* Graph building phase */
+      pvector<SGOffset> offsets = ParallelPrefixSum(degrees);
+      DestID_ *neighs = new DestID_[offsets[g.num_nodes()]];
+      DestID_ **index = CSRGraph<NodeID_, DestID_>::GenIndex(offsets, neighs);
+#pragma omp parallel for schedule(dynamic, 1024)
+      for (NodeID_ u = 0; u < g.num_nodes(); u++) {
+        for (NodeID_ v : g.out_neigh(u))
+          neighs[offsets[new_ids[u]]++] = new_ids[v];
+        std::sort(index[new_ids[u]], index[new_ids[u] + 1]);
+      }
+      t.Stop();
+      PrintTime("RandOrder time", t.Seconds());
+      return CSRGraph<NodeID_, DestID_, invert>(g.num_nodes(), index, neighs);
+    }
+  }
+
+  /*
+     Return a compressed transpose matrix (Rereference Matrix)
+   */
+  static void makeOffsetMatrix(const CSRGraph<NodeID_, DestID_, invert> &g,
+                               pvector<uint8_t> &offsetMatrix,
+                               int numVtxPerLine, int numEpochs,
+                               bool traverseCSR = true) {
+    if (g.directed() == false)
+      traverseCSR = true;
+
+    Timer tm;
+
+    /* Step I: Collect quantized edges & Compact vertices into "super vertices"
+     */
+    tm.Start();
+    NodeID_ numCacheLines = (g.num_nodes() + numVtxPerLine - 1) / numVtxPerLine;
+    NodeID_ epochSz = (g.num_nodes() + numEpochs - 1) / numEpochs;
+    pvector<NodeID_> lastRef(numCacheLines * numEpochs, -1);
+    NodeID_ chunkSz = 64 / numVtxPerLine;
+    if (chunkSz == 0)
+      chunkSz = 1;
+
+#pragma omp parallel for schedule(dynamic, chunkSz)
+    for (NodeID_ c = 0; c < numCacheLines; ++c) {
+      NodeID_ startVtx = c * numVtxPerLine;
+      NodeID_ endVtx = (c + 1) * numVtxPerLine;
+      if (c == numCacheLines - 1)
+        endVtx = g.num_nodes();
+
+      for (NodeID_ v = startVtx; v < endVtx; ++v) {
+        if (traverseCSR == true) {
+          for (NodeID_ ngh : g.out_neigh(v)) {
+            NodeID_ nghEpoch = ngh / epochSz;
+            lastRef[(c * numEpochs) + nghEpoch] =
+                std::max(ngh, lastRef[(c * numEpochs) + nghEpoch]);
+          }
+        } else {
+          for (NodeID_ ngh : g.in_neigh(v)) {
+            NodeID_ nghEpoch = ngh / epochSz;
+            lastRef[(c * numEpochs) + nghEpoch] =
+                std::max(ngh, lastRef[(c * numEpochs) + nghEpoch]);
+          }
+        }
+      }
+    }
+    tm.Stop();
+    std::cout << "[CSR-HYBRID-PREPROCESSING] Time to quantize nghs and compact "
+                 "vertices = "
+              << tm.Seconds() << std::endl;
+    assert(numEpochs == 256);
+
+    /* Step II: Converting adjacency matrix into offsets */
+    tm.Start();
+    uint8_t maxReref = 127; // because MSB is reserved for identifying between
+                            // reref val (1) & switch point (0)
+    NodeID_ subEpochSz =
+        (epochSz + 127) /
+        128; // Using remaining 7 bits to identify intra-epoch information
+    pvector<uint8_t> compressedOffsets(numCacheLines * numEpochs);
+    uint8_t mask = 1;
+    uint8_t orMask = mask << 7;
+    uint8_t andMask = ~(orMask);
+    assert(orMask == 128 && andMask == 127);
+#pragma omp parallel for schedule(static)
+    for (NodeID_ c = 0; c < numCacheLines; ++c) {
+      { // first set values for the last epoch
+        NodeID_ e = numEpochs - 1;
+        if (lastRef[(c * numEpochs) + e] != -1) {
+          compressedOffsets[(c * numEpochs) + e] = maxReref;
+          compressedOffsets[(c * numEpochs) + e] &= andMask;
+        } else {
+          compressedOffsets[(c * numEpochs) + e] = maxReref;
+          compressedOffsets[(c * numEpochs) + e] |= orMask;
+        }
+      }
+
+      // Now back track and set values for all epochs
+      for (NodeID_ e = numEpochs - 2; e >= 0; --e) {
+        if (lastRef[(c * numEpochs) + e] != -1) {
+          // There was a ref this epoch - store the quantized val of the lastRef
+          NodeID_ subEpochDist = lastRef[(c * numEpochs) + e] - (e * epochSz);
+          assert(subEpochDist >= 0);
+          NodeID_ lastRefQ = (subEpochDist / subEpochSz);
+          assert(lastRefQ <= maxReref);
+          compressedOffsets[(c * numEpochs) + e] =
+              static_cast<uint8_t>(lastRefQ);
+          compressedOffsets[(c * numEpochs) + e] &= andMask;
+        } else {
+          if ((compressedOffsets[(c * numEpochs) + e + 1] & orMask) != 0) {
+            // No access next epoch as well - add inter-epoch distance
+            uint8_t nextRef =
+                compressedOffsets[(c * numEpochs) + e + 1] & andMask;
+            if (nextRef == maxReref)
+              compressedOffsets[(c * numEpochs) + e] = maxReref;
+            else
+              compressedOffsets[(c * numEpochs) + e] = nextRef + 1;
+          } else {
+            // There is an access next epoch - so inter-epoch distance is set to
+            // next epoch
+            compressedOffsets[(c * numEpochs) + e] = 1;
+          }
+          compressedOffsets[(c * numEpochs) + e] |= orMask;
+        }
+      }
+    }
+    tm.Stop();
+    std::cout
+        << "[CSR-HYBRID-PREPROCESSING] Time to convert to offsets matrix = "
+        << tm.Seconds() << std::endl;
+
+    /* Step III: Transpose edgePresent*/
+    tm.Start();
+#pragma omp parallel for schedule(static)
+    for (NodeID_ c = 0; c < numCacheLines; ++c) {
+      for (NodeID_ e = 0; e < numEpochs; ++e) {
+        offsetMatrix[(e * numCacheLines) + c] =
+            compressedOffsets[(c * numEpochs) + e];
+      }
+    }
+    tm.Stop();
+    std::cout
+        << "[CSR-HYBRID-PREPROCESSING] Time to transpose offsets matrix =  "
+        << tm.Seconds() << std::endl;
   }
 };
 
