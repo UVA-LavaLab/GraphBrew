@@ -37,7 +37,8 @@ NC      =\033[0m
 # =========================================================
 # Compiler Flags
 # =========================================================
-CXXFLAGS = -std=c++11 -O3 -Wall -fopenmp 
+CXXFLAGS = -std=c++11 -O3 -Wall -fopenmp -D_GLIBCXX_PARALLEL
+# CXXFLAGS += -D_DEBUG
 INCLUDES = -I$(INCLUDE_DIR)
 
 # =========================================================
@@ -47,7 +48,7 @@ KERNELS = bc bfs cc cc_sv pr pr_spmv sssp tc
 SUITE = $(addprefix $(BIN_DIR)/,$(KERNELS)) $(BIN_DIR)/converter
 # =========================================================
 
-.PHONY: all run-% help-% help clean
+.PHONY: all run-% help-% help clean run-%-gdb
 all: $(SUITE)
 
 # =========================================================
@@ -59,8 +60,16 @@ $(BIN_DIR)/%: $(SRC_DIR)/%.cc $(INCLUDE_DIR)/*.h | $(BIN_DIR) $(LIB_DIR)
 # =========================================================
 # Running Benchmarks
 # =========================================================
+RUN_PARAMS = -g 22 -n 1 -o 1 -o 6 
+
 run-%: $(BIN_DIR)/%
-	@./$< -g 15 -n 1 $(EXIT_STATUS)
+	@./$< $(RUN_PARAMS) $(EXIT_STATUS)
+
+run-%-gdb: $(BIN_DIR)/%
+	@gdb -ex=r --args ./$< $(RUN_PARAMS)
+
+run-%-mem: $(BIN_DIR)/%
+	@	valgrind --leak-check=full --show-leak-kinds=all -v ./$< $(RUN_PARAMS)
 
 run-all: $(addprefix run-, $(KERNELS))
 

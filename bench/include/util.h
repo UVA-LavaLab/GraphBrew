@@ -6,7 +6,10 @@
 
 #include <cinttypes>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string>
+#include <stdexcept>
+#include <iostream>
 
 #include "timer.h"
 
@@ -16,6 +19,8 @@ Author: Scott Beamer
 
 Miscellaneous helpers that don't fit into classes
 */
+
+
 
 enum ReorderingAlgo {
   ORIGINAL = 0,
@@ -30,6 +35,16 @@ enum ReorderingAlgo {
 };
 
 static const int64_t kRandSeed = 27491095;
+
+template<typename T>
+T* alloc_align_4k(size_t size) {
+    void* ptr = nullptr;
+    // posix_memalign requires the memory address to be stored in a void pointer
+    if (posix_memalign(&ptr, 4096, size * sizeof(T)) != 0) {
+        ptr = nullptr; // If allocation fails, posix_memalign returns non-zero
+    }
+    return static_cast<T*>(ptr);
+}
 
 void PrintLabel(const std::string &label, const std::string &val) {
   printf("%-21s%7s\n", (label + ":").c_str(), val.c_str());

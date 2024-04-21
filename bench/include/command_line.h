@@ -135,6 +135,8 @@ public:
   bool symmetrize() const { return symmetrize_; }
   bool uniform() const { return uniform_; }
   bool in_place() const { return in_place_; }
+  const std::vector<std::pair<ReorderingAlgo, std::string>> & reorder_options() const { return reorder_options_; }
+
 };
 
 class CLApp : public CLBase {

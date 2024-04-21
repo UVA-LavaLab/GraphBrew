@@ -2,9 +2,9 @@
 // See LICENSE.txt for license details
 
 // Encourage use of gcc's parallel algorithms (for sort for relabeling)
-#ifdef _OPENMP
-  #define _GLIBCXX_PARALLEL
-#endif
+// #ifdef _OPENMP
+//   #define _GLIBCXX_PARALLEL
+// #endif
 
 #include <algorithm>
 #include <cinttypes>

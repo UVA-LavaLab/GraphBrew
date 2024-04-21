@@ -44,12 +44,15 @@ class BuilderBase {
   bool needs_weights_;
   bool in_place_ = false;
   int64_t num_nodes_ = -1;
+  std::vector<std::pair<ReorderingAlgo, std::string>> reorder_options_;
 
 public:
   explicit BuilderBase(const CLBase &cli) : cli_(cli) {
+
     symmetrize_ = cli_.symmetrize();
     needs_weights_ = !std::is_same<NodeID_, DestID_>::value;
     in_place_ = cli_.in_place();
+    // reorder_options_(cli_.reorder_options());
     if (in_place_ && needs_weights_) {
       std::cout << "In-place building (-m) does not support weighted graphs"
                 << std::endl;
@@ -353,6 +356,17 @@ public:
       }
       g = MakeGraphFromEL(el);
     }
+
+    for (const auto &option : cli_.reorder_options()) {
+      pvector<NodeID_> new_ids(g.num_nodes(), UINT_E_MAX);
+      if (!option.second.empty()) {
+        GenerateMapping(g, new_ids, option.first, true, option.second);
+      } else {
+        GenerateMapping(g, new_ids, option.first, true);
+      }
+      RelabelByMapping(g, new_ids);
+    }
+
     if (in_place_)
       return g;
     else
@@ -396,6 +410,62 @@ public:
     return CSRGraph<NodeID_, DestID_, invert>(g.num_nodes(), index, neighs);
   }
 
+  static CSRGraph<NodeID_, DestID_, invert>
+  RelabelByMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
+                   pvector<NodeID_> &new_ids) {
+    Timer t;
+    DestID_ **out_index;
+    DestID_ *out_neighs;
+    DestID_ **in_index;
+    DestID_ *in_neighs;
+    CSRGraph<NodeID_, DestID_, invert> g_relabel;
+
+    t.Start();
+    pvector<NodeID_> out_degrees(g.num_nodes(), 0);
+
+#pragma omp parallel for
+    for (NodeID_ n = 0; n < g.num_nodes(); n++) {
+      out_degrees[new_ids[n]] = g.out_degree(n);
+    }
+    pvector<SGOffset> out_offsets = ParallelPrefixSum(out_degrees);
+    out_neighs = new DestID_[out_offsets[g.num_nodes()]];
+    out_index = CSRGraph<NodeID_, DestID_>::GenIndex(out_offsets, out_neighs);
+#pragma omp parallel for
+    for (NodeID_ u = 0; u < g.num_nodes(); u++) {
+      for (NodeID_ v : g.out_neigh(u))
+        out_neighs[out_offsets[new_ids[u]]++] = new_ids[v];
+      __gnu_parallel::stable_sort(out_index[new_ids[u]],
+                                  out_index[new_ids[u] + 1]);
+    }
+
+    if (g.directed()) {
+      pvector<NodeID_> in_degrees(g.num_nodes(), 0);
+#pragma omp parallel for
+      for (NodeID_ n = 0; n < g.num_nodes(); n++) {
+        in_degrees[new_ids[n]] = g.in_degree(n);
+      }
+      pvector<SGOffset> in_offsets = ParallelPrefixSum(in_degrees);
+      in_neighs = new DestID_[in_offsets[g.num_nodes()]];
+      in_index = CSRGraph<NodeID_, DestID_>::GenIndex(in_offsets, in_neighs);
+#pragma omp parallel for
+      for (NodeID_ u = 0; u < g.num_nodes(); u++) {
+        for (NodeID_ v : g.in_neigh(u))
+          in_neighs[in_offsets[new_ids[u]]++] = new_ids[v];
+        __gnu_parallel::stable_sort(in_index[new_ids[u]],
+                                    in_index[new_ids[u] + 1]);
+      }
+      t.Stop();
+      g_relabel = CSRGraph<NodeID_, DestID_, invert>(
+          g.num_nodes(), out_index, out_neighs, in_index, in_neighs);
+    } else {
+      t.Stop();
+      g_relabel = CSRGraph<NodeID_, DestID_, invert>(g.num_nodes(), out_index,
+                                                     out_neighs);
+    }
+    PrintTime("Relabel", t.Seconds());
+    return g_relabel;
+  }
+
   const string ReorderingAlgoStr(ReorderingAlgo type) {
     switch (type) {
     case HubSort:
@@ -426,7 +496,8 @@ public:
 
   void GenerateMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
                        pvector<NodeID_> &new_ids,
-                       ReorderingAlgo reordering_algo, bool useOutdeg) {
+                       ReorderingAlgo reordering_algo, bool useOutdeg,
+                       std::string map_file = "mapping.label") {
     switch (reordering_algo) {
     case HubSort:
       // GenerateHubSortMapping(g, new_ids, useOutdeg);
@@ -438,7 +509,7 @@ public:
       // GenerateDBGMapping(g, new_ids, useOutdeg);
       break;
     case HubSortDBG:
-      // GenerateHubSortDBGMapping(g, new_ids, useOutdeg);
+      GenerateHubSortDBGMapping(g, new_ids, useOutdeg);
       break;
     case HubClusterDBG:
       // GenerateHubClusterDBGMapping(g, new_ids, useOutdeg);
@@ -450,22 +521,105 @@ public:
       GenerateRandomMapping(g, new_ids, useOutdeg);
       break;
     case MAP:
-      // LoadMappingFromFile(g, new_ids, useOutdeg);
+      LoadMappingFromFile(g, new_ids, useOutdeg, map_file);
       break;
     case ORIGINAL:
       std::cout << "Should not be here!" << std::endl;
-      abort();
+      std::abort();
       return;
       break;
     default:
       std::cout << "Unknown generateMapping type: " << reordering_algo
                 << std::endl;
-      abort();
+      std::abort();
     }
 #ifdef _DEBUG
-    VerifyMapping(g, new_ids, g.n);
-    exit(-1);
+    VerifyMapping(g, new_ids);
+    // exit(-1);
 #endif
+  }
+
+  void VerifyMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
+                    const pvector<NodeID_> &new_ids) {
+    NodeID_ *hist = alloc_align_4k<NodeID_>(g.num_nodes());
+    int64_t num_nodes = g.num_nodes();
+
+#pragma omp parallel for
+    for (long i = 0; i < num_nodes; i++) {
+      hist[i] = new_ids[i];
+    }
+
+    __gnu_parallel::stable_sort(&hist[0], &hist[num_nodes]);
+
+    NodeID_ count = 0;
+
+#pragma omp parallel for
+    for (int64_t i = 0; i < num_nodes; i++) {
+      if (hist[i] != i) {
+        __sync_fetch_and_add(&count, 1);
+      }
+    }
+
+    if (count != 0) {
+      std::cout << "Num of vertices did not match: " << count << std::endl;
+      std::cout << "Mapping is invalid.!" << std::endl;
+      std::abort();
+    } else {
+      std::cout << "Mapping is valid.!" << std::endl;
+    }
+    std::free(hist);
+  }
+
+  void LoadMappingFromFile(const CSRGraph<NodeID_, DestID_, invert> &g,
+                           pvector<NodeID_> &new_ids, bool useOutdeg,
+                           std::string map_file = "mapping.label") {
+    Timer t;
+    t.Start();
+
+    int64_t num_nodes = g.num_nodes();
+    int64_t num_edges = g.num_edges();
+
+    ifstream ifs(map_file.c_str(), std::ifstream::in);
+    if (!ifs.good()) {
+      cout << "File " << map_file << " does not exist!" << endl;
+      exit(-1);
+    }
+    int64_t num_nodes_1, num_edges_1;
+    ifs >> num_nodes_1;
+    ifs >> num_edges_1;
+    cout << " num_nodes: " << num_nodes_1 << " num_edges: " << num_edges_1
+         << endl;
+    cout << " num_nodes: " << num_nodes << " num_edges: " << num_edges << endl;
+    if (num_nodes != num_nodes_1) {
+      cout << "Mismatch: " << num_nodes << " " << num_nodes_1 << endl;
+      exit(-1);
+    }
+    if (num_nodes != (int64_t)new_ids.size()) {
+      cout << "Mismatch: " << num_nodes << " " << new_ids.size() << endl;
+      exit(-1);
+    }
+    if (num_edges != num_edges_1) {
+      cout << "Warning! Potential mismatch: " << num_edges << " " << num_edges_1
+           << endl;
+    }
+    char c;
+    unsigned long int st, v;
+    bool tab = true;
+    if (tab) {
+      for (int64_t i = 0; i < num_nodes; i++) {
+        ifs >> st >> v;
+        new_ids[st] = v;
+      }
+    } else {
+      for (int64_t i = 0; i < num_nodes; i++) {
+        ifs >> c >> st >> c >> v >> c;
+        new_ids[st] = v;
+      }
+    }
+    ifs.close();
+
+    t.Stop();
+    PrintTime("Load Map Time", t.Seconds());
   }
 
   void GenerateRandomMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
@@ -474,13 +628,13 @@ public:
     t.Start();
 
     int64_t num_nodes = g.num_nodes();
-    int64_t num_edges = g.num_edges();
+    // int64_t num_edges = g.num_edges();
 
-    DestID_ granularity = 1;
-    DestID_ slice = (num_nodes - granularity + 1) / granularity;
-    DestID_ artificial_num_nodes = slice * granularity;
+    NodeID_ granularity = 1;
+    NodeID_ slice = (num_nodes - granularity + 1) / granularity;
+    NodeID_ artificial_num_nodes = slice * granularity;
     assert(artificial_num_nodes <= num_nodes);
-    pvector<DestID_> slice_index;
+    pvector<NodeID_> slice_index;
     slice_index.resize(slice);
 
 #pragma omp parallel for
@@ -492,23 +646,111 @@ public:
 
     {
 #pragma omp parallel for
-      for (DestID_ i = 0; i < slice; i++) {
-        DestID_ new_index = slice_index[i] * granularity;
-        for (DestID_ j = 0; j < granularity; j++) {
-          DestID_ v = (i * granularity) + j;
+      for (NodeID_ i = 0; i < slice; i++) {
+        NodeID_ new_index = slice_index[i] * granularity;
+        for (NodeID_ j = 0; j < granularity; j++) {
+          NodeID_ v = (i * granularity) + j;
           if (v < artificial_num_nodes) {
             new_ids[v] = new_index + j;
           }
         }
       }
     }
-    for (DestID_ i = artificial_num_nodes; i < num_nodes; i++) {
+    for (NodeID_ i = artificial_num_nodes; i < num_nodes; i++) {
       new_ids[i] = i;
     }
     slice_index.clear();
 
     t.Stop();
     PrintTime("Random Map Time", t.Seconds());
+  }
+
+  void GenerateHubSortDBGMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
+                                 pvector<NodeID_> &new_ids, bool useOutdeg) {
+
+    typedef std::pair<int64_t, NodeID_> degree_nodeid_t;
+
+    Timer t;
+    t.Start();
+
+    int64_t num_nodes = g.num_nodes();
+    int64_t num_edges = g.num_edges();
+
+    int64_t avgDegree = num_edges / num_nodes;
+    size_t hubCount{0};
+
+    const int num_threads = omp_get_max_threads();
+    pvector<degree_nodeid_t> local_degree_id_pairs[num_threads];
+    int64_t slice = num_nodes / num_threads;
+    int64_t start[num_threads];
+    int64_t end[num_threads];
+    int64_t hub_count[num_threads];
+    int64_t non_hub_count[num_threads];
+    int64_t new_index[num_threads];
+    for (int t = 0; t < num_threads; t++) {
+      start[t] = t * slice;
+      end[t] = (t + 1) * slice;
+      hub_count[t] = 0;
+    }
+    end[num_threads - 1] = num_nodes;
+
+#pragma omp parallel for schedule(static) num_threads(num_threads)
+    for (int64_t t = 0; t < num_threads; t++) {
+      for (int64_t v = start[t]; v < end[t]; ++v) {
+        if (useOutdeg) {
+          int64_t out_degree_v = g.out_degree(v);
+          if (out_degree_v > avgDegree) {
+            local_degree_id_pairs[t].push_back(std::make_pair(out_degree_v, v));
+          }
+        } else {
+          int64_t in_degree_v = g.in_degree(v);
+          if (in_degree_v > avgDegree) {
+            local_degree_id_pairs[t].push_back(std::make_pair(in_degree_v, v));
+          }
+        }
+      }
+    }
+    for (int t = 0; t < num_threads; t++) {
+      hub_count[t] = local_degree_id_pairs[t].size();
+      hubCount += hub_count[t];
+      non_hub_count[t] = end[t] - start[t] - hub_count[t];
+    }
+    new_index[0] = hubCount;
+    for (int t = 1; t < num_threads; t++) {
+      new_index[t] = new_index[t - 1] + non_hub_count[t - 1];
+    }
+    pvector<degree_nodeid_t> degree_id_pairs(hubCount);
+
+    size_t k = 0;
+    for (int i = 0; i < num_threads; i++) {
+      for (size_t j = 0; j < local_degree_id_pairs[i].size(); j++) {
+        degree_id_pairs[k++] = local_degree_id_pairs[i][j];
+      }
+      local_degree_id_pairs[i].clear();
+    }
+    assert(degree_id_pairs.size() == hubCount);
+    assert(k == hubCount);
+
+    __gnu_parallel::stable_sort(degree_id_pairs.begin(), degree_id_pairs.end(),
+                                std::greater<degree_nodeid_t>());
+
+#pragma omp parallel for
+    for (size_t n = 0; n < hubCount; ++n) {
+      new_ids[degree_id_pairs[n].second] = n;
+    }
+    pvector<degree_nodeid_t>().swap(degree_id_pairs);
+
+#pragma omp parallel for schedule(static) num_threads(num_threads)
+    for (int t = 0; t < num_threads; t++) {
+      for (int64_t v = start[t]; v < end[t]; ++v) {
+        if (new_ids[v] == (NodeID_)UINT_E_MAX) {
+          new_ids[v] = new_index[t]++;
+        }
+      }
+    }
+
+    t.Stop();
+    PrintTime("HubSortDBG Map Time", t.Seconds());
   }
 };
 

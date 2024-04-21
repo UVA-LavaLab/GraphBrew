@@ -132,12 +132,14 @@ class CSRGraph {
         if (flags_ != nullptr)
           delete[] flags_;
      */
+
     out_index_shared_.reset();
     out_neighbors_shared_.reset();
     in_index_shared_.reset();
     in_neighbors_shared_.reset();
     flags_shared_.reset();
     offsets_shared_.reset();
+
     for (auto iter = label_to_segment.begin(); iter != label_to_segment.end();
          iter++) {
       delete ((*iter).second);
@@ -161,6 +163,7 @@ public:
   CSRGraph(int64_t num_nodes, DestID_ **index, DestID_ *neighs)
       : directed_(false), num_nodes_(num_nodes), out_index_(index),
         out_neighbors_(neighs), in_index_(index), in_neighbors_(neighs) {
+
     out_index_shared_.reset(index);
     out_neighbors_shared_.reset(neighs);
     in_index_shared_ = out_index_shared_;
@@ -356,6 +359,8 @@ public:
   }
 
   bool directed() const { return directed_; }
+
+  bool is_transpose() const {return is_transpose_; }
 
   int64_t num_nodes() const { return num_nodes_; }
 
