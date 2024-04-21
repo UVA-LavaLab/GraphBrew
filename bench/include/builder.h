@@ -16,9 +16,9 @@
 #include "generator.h"
 #include "graph.h"
 #include "platform_atomics.h"
-#include "sliding_queue.h"
 #include "pvector.h"
 #include "reader.h"
+#include "sliding_queue.h"
 #include "timer.h"
 #include "util.h"
 
@@ -504,7 +504,7 @@ public:
       GenerateHubSortMapping(g, new_ids, useOutdeg);
       break;
     case Sort:
-      // GenerateSortMapping(g, new_ids, useOutdeg);
+      GenerateSortMapping(g, new_ids, useOutdeg);
       break;
     case DBG:
       // GenerateDBGMapping(g, new_ids, useOutdeg);
@@ -915,6 +915,47 @@ public:
 
     t.Stop();
     PrintTime("HubSort Map Time", t.Seconds());
+  }
+
+  void GenerateSortMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
+                           pvector<NodeID_> &new_ids, bool useOutdeg) {
+
+    typedef std::pair<int64_t, NodeID_> degree_nodeid_t;
+
+    Timer t;
+    t.Start();
+
+    int64_t num_nodes = g.num_nodes();
+    // int64_t num_edges = g.num_edges();
+
+    pvector<degree_nodeid_t> degree_id_pairs(num_nodes);
+
+    if (useOutdeg) {
+#pragma omp parallel for
+      for (int64_t v = 0; v < num_nodes; ++v) {
+        int64_t out_degree_v = g.out_degree(v);
+        degree_id_pairs[v] = std::make_pair(out_degree_v, v);
+      }
+    } else {
+#pragma omp parallel for
+      for (int64_t v = 0; v < num_nodes; ++v) {
+        int64_t in_degree_v = g.in_degree(v);
+        degree_id_pairs[v] = std::make_pair(in_degree_v, v);
+      }
+    }
+
+    __gnu_parallel::stable_sort(degree_id_pairs.begin(), degree_id_pairs.end(),
+                                std::greater<degree_nodeid_t>());
+
+#pragma omp parallel for
+    for (int64_t n = 0; n < num_nodes; ++n) {
+      new_ids[degree_id_pairs[n].second] = n;
+    }
+
+    pvector<degree_nodeid_t>().swap(degree_id_pairs);
+
+    t.Stop();
+    PrintTime("Sort Map Time", t.Seconds());
   }
 };
 

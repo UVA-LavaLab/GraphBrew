@@ -60,7 +60,7 @@ $(BIN_DIR)/%: $(SRC_DIR)/%.cc $(INCLUDE_DIR)/*.h | $(BIN_DIR) $(LIB_DIR)
 # =========================================================
 # Running Benchmarks
 # =========================================================
-RUN_PARAMS = -g 22 -n 1 -o 1 -o 6 -o 3 -o 7 
+RUN_PARAMS = -g 22 -n 1 -o 1 -o 2 -o 6 -o 3 -o 7 
 
 run-%: $(BIN_DIR)/%
 	@./$< $(RUN_PARAMS) $(EXIT_STATUS)
