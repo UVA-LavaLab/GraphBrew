@@ -126,19 +126,6 @@ The Makefile compiles and links the following executable targets:
 * `bench/bin`: Stores the compiled executables.
 * `bench/lib`: Used for intermediate build objects.
 
-## Boost Installation Guide
-
-This README outlines the steps for uninstalling Boost libraries installed via Debian packages or directly from source, and the subsequent installation of Boost version 1.54.0.
-
-## Prerequisites
-
-Before proceeding, update the package list and install necessary development tools and libraries:
-
-```bash
-sudo apt-get update
-sudo apt-get -y install build-essential g++ python-dev autotools-dev libicu-dev libbz2-dev
-```
-
 Graph Loading
 -------------
 
@@ -157,11 +144,58 @@ The graph loading infrastructure understands the following formats:
 + `.sg` serialized pre-built graph (use `converter` to make)
 + `.wsg` weighted serialized pre-built graph (use `converter` to make)
 
+New Parameters
+-------------
+1. **GAP Parameters**
+   * Reorder the graph before running orders can bet layered.
+   * Segment the graph for scalability requires modifying the algorithm to iterate through segments.
+   
+```bash
+-o <order>  : apply reordering strategy, optionally with a parameter 
+               [example]-r 3 -r 2 -r 10:mapping.label[optional]
+
+-j <segments>: number of segments for the graph [1]
+
+Reordering Algorithms:
+  - ORIGINAL      (0): No reordering applied.
+  - RANDOM        (1): Apply random reordering.
+  - SORT          (2): Apply sort-based reordering.
+  - HUBSORT       (3): Apply hub-based sorting.
+  - HUBCLUSTER    (4): Apply clustering based on hub scores.
+  - DBG           (5): Apply degree-based grouping.
+  - HUBSORTDBG    (6): Combine hub sorting with degree-based grouping.
+  - HUBCLUSTERDBG (7): Combine hub clustering with degree-based grouping.
+  - RABBITORDER   (8): Apply community clustering with incremental aggregation.
+  - GORDER        (9): Apply dynamic programming BFS and windowing ordering.
+  - MAP (10): Requires a file format for reordering. Use the -r 10:filename.label option.
+```
+
+2. **Makefile Flow**
+```bash
+available Make commands:
+  all            - Builds all targets including GAP benchmarks (CPU)
+  run-%          - Runs the specified GAP benchmark (bc bfs cc cc_sv pr pr_spmv sssp tc)
+  help-%         - Print the specified Help (bc bfs cc cc_sv pr pr_spmv sssp tc)
+  clean          - Removes all build artifacts
+  help           - Displays this help message
+
+Example Usage:
+  make all - Compile the program.
+  make clean - Clean build files.
+  ./bench/bin/pr -g 15 -n 1 -r 10:mapping.label - Execute with MAP reordering using 'mapping.label'.
+
+```
+
 How to Cite
 -----------
 
 Please cite the following papers if you find this repository useful.
 
-+ Scott Beamer, Krste Asanović, David Patterson. "[*The GAP Benchmark Suite*](http://arxiv.org/abs/1508.03619)". arXiv:1508.03619 [cs.DC], 2015.
++ S. Beamer, K. Asanović, and D. Patterson, “The GAP Benchmark Suite,” arXiv:1508.03619 [cs], May 2017.
 + J. Arai, H. Shiokawa, T. Yamamuro, M. Onizuka, and S. Iwamura.Rabbit Order: Just-in-time Parallel Reordering for Fast Graph Analysis.
-     
++ P. Faldu, J. Diamond, and B. Grot, “A Closer Look at Lightweight Graph Reordering,” arXiv:2001.08448 [cs], Jan. 2020.
++ V. Balaji, N. Crago, A. Jaleel, and B. Lucia, “P-OPT: Practical Optimal Cache Replacement for Graph Analytics,” in 2021 IEEE International Symposium on High-Performance Computer Architecture (HPCA), Feb. 2021, pp. 668–681. doi: 10.1109/HPCA51647.2021.00062.
++ Y. Zhang, V. Kiriansky, C. Mendis, S. Amarasinghe, and M. Zaharia, “Making caches work for graph analytics,” in 2017 IEEE International Conference on Big Data (Big Data), Dec. 2017, pp. 293–302. doi: 10.1109/BigData.2017.8257937.
++ Y. Zhang, M. Yang, R. Baghdadi, S. Kamil, J. Shun, and S. Amarasinghe, “GraphIt: a high-performance graph DSL,” Proc. ACM Program. Lang., vol. 2, no. OOPSLA, p. 121:1-121:30, Oct. 2018, doi: 10.1145/3276491.
+
+   
