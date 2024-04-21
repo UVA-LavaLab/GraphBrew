@@ -38,7 +38,7 @@ NC      =\033[0m
 # Compiler Flags
 # =========================================================
 CXXFLAGS = -std=c++11 -O3 -Wall -fopenmp -D_GLIBCXX_PARALLEL
-# CXXFLAGS += -D_DEBUG
+CXXFLAGS += -D_DEBUG
 INCLUDES = -I$(INCLUDE_DIR)
 
 # =========================================================
@@ -60,7 +60,7 @@ $(BIN_DIR)/%: $(SRC_DIR)/%.cc $(INCLUDE_DIR)/*.h | $(BIN_DIR) $(LIB_DIR)
 # =========================================================
 # Running Benchmarks
 # =========================================================
-RUN_PARAMS = -g 22 -n 1 -o 1 -o 6 
+RUN_PARAMS = -g 22 -n 1 -o 1 -o 6 -o 7 
 
 run-%: $(BIN_DIR)/%
 	@./$< $(RUN_PARAMS) $(EXIT_STATUS)

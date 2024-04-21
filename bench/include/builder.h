@@ -512,7 +512,7 @@ public:
       GenerateHubSortDBGMapping(g, new_ids, useOutdeg);
       break;
     case HubClusterDBG:
-      // GenerateHubClusterDBGMapping(g, new_ids, useOutdeg);
+      GenerateHubClusterDBGMapping(g, new_ids, useOutdeg);
       break;
     case HubCluster:
       // GenerateHubClusterMapping(g, new_ids, useOutdeg);
@@ -540,7 +540,7 @@ public:
   }
 
   void VerifyMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
-                    const pvector<NodeID_> &new_ids) {
+                     const pvector<NodeID_> &new_ids) {
     NodeID_ *hist = alloc_align_4k<NodeID_>(g.num_nodes());
     int64_t num_nodes = g.num_nodes();
 
@@ -751,6 +751,80 @@ public:
 
     t.Stop();
     PrintTime("HubSortDBG Map Time", t.Seconds());
+  }
+
+  void GenerateHubClusterDBGMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
+                                    pvector<NodeID_> &new_ids, bool useOutdeg) {
+    Timer t;
+    t.Start();
+
+    int64_t num_nodes = g.num_nodes();
+    int64_t num_edges = g.num_edges();
+
+    uint32_t avg_vertex = num_edges / num_nodes;
+
+    const int num_buckets = 2;
+    avg_vertex = avg_vertex;
+    uint32_t bucket_threshold[] = {avg_vertex, static_cast<uint32_t>(-1)};
+
+    vector<uint32_t> bucket_vertices[num_buckets];
+    const int num_threads = omp_get_max_threads();
+    vector<uint32_t> local_buckets[num_threads][num_buckets];
+
+    if (useOutdeg) {
+      // This loop relies on a static scheduling
+#pragma omp parallel for schedule(static)
+      for (int64_t i = 0; i < num_nodes; i++) {
+        for (unsigned int j = 0; j < num_buckets; j++) {
+          const int64_t &count = g.out_degree(i);
+          if (count <= bucket_threshold[j]) {
+            local_buckets[omp_get_thread_num()][j].push_back(i);
+            break;
+          }
+        }
+      }
+    } else {
+#pragma omp parallel for schedule(static)
+      for (int64_t i = 0; i < num_nodes; i++) {
+        for (unsigned int j = 0; j < num_buckets; j++) {
+          const int64_t &count = g.in_degree(i);
+          if (count <= bucket_threshold[j]) {
+            local_buckets[omp_get_thread_num()][j].push_back(i);
+            break;
+          }
+        }
+      }
+    }
+
+    int temp_k = 0;
+    uint32_t start_k[num_threads][num_buckets];
+    for (int32_t j = num_buckets - 1; j >= 0; j--) {
+      for (int t = 0; t < num_threads; t++) {
+        start_k[t][j] = temp_k;
+        temp_k += local_buckets[t][j].size();
+      }
+    }
+
+#pragma omp parallel for schedule(static)
+    for (int t = 0; t < num_threads; t++) {
+      for (int32_t j = num_buckets - 1; j >= 0; j--) {
+        const vector<uint32_t> &current_bucket = local_buckets[t][j];
+        int k = start_k[t][j];
+        const size_t &size = current_bucket.size();
+        for (uint32_t i = 0; i < size; i++) {
+          new_ids[current_bucket[i]] = k++;
+        }
+      }
+    }
+
+    for (int i = 0; i < num_threads; i++) {
+      for (unsigned int j = 0; j < num_buckets; j++) {
+        local_buckets[i][j].clear();
+      }
+    }
+
+    t.Stop();
+    PrintTime("HubClusterDBG Map Time", t.Seconds());
   }
 };
 
