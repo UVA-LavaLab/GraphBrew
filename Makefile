@@ -37,9 +37,14 @@ NC      =\033[0m
 # =========================================================
 # Compiler Flags
 # =========================================================
-CXXFLAGS = -std=c++11 -O3 -Wall -fopenmp -D_GLIBCXX_PARALLEL
+CXXFLAGS = -std=c++11 -O3 -Wall -fopenmp -D_GLIBCXX_PARALLEL 
 CXXFLAGS += -D_DEBUG
 INCLUDES = -I$(INCLUDE_DIR)
+
+# =========================================================
+# Runtime Flags OMP_NUM_THREADS
+# =========================================================
+PARALLEL = 1
 
 # =========================================================
 # Targets
@@ -60,16 +65,17 @@ $(BIN_DIR)/%: $(SRC_DIR)/%.cc $(INCLUDE_DIR)/*.h | $(BIN_DIR) $(LIB_DIR)
 # =========================================================
 # Running Benchmarks
 # =========================================================
-RUN_PARAMS = -g 22 -n 1 -o 1 -o 2 -o 6 -o 5 -o 7 
+# RUN_PARAMS = -g 5 -n 1 -o 1 -o 2 -o 3 -o 4 -o 5 -o 6
+RUN_PARAMS = -s -g 6 -n 1 -o 1
 
 run-%: $(BIN_DIR)/%
-	@./$< $(RUN_PARAMS) $(EXIT_STATUS)
+	@OMP_NUM_THREADS=$(PARALLEL) ./$< $(RUN_PARAMS) $(EXIT_STATUS)
 
 run-%-gdb: $(BIN_DIR)/%
-	@gdb -ex=r --args ./$< $(RUN_PARAMS)
+	@OMP_NUM_THREADS=1 gdb -ex=r --args ./$< $(RUN_PARAMS)
 
 run-%-mem: $(BIN_DIR)/%
-	@	valgrind --leak-check=full --show-leak-kinds=all -v ./$< $(RUN_PARAMS)
+	@OMP_NUM_THREADS=1 valgrind --leak-check=full --show-leak-kinds=all  --track-origins=yes -v ./$< $(RUN_PARAMS)
 
 run-all: $(addprefix run-, $(KERNELS))
 

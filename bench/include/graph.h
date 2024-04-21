@@ -250,10 +250,10 @@ public:
          other.flags_ = nullptr;
          other.offsets_ = nullptr;
      */
-    out_index_shared_ = other.out_index_shared_;
-    out_neighbors_shared_ = other.out_neighbors_shared_;
-    in_index_shared_ = other.in_index_shared_;
-    in_neighbors_shared_ = other.in_neighbors_shared_;
+      out_index_shared_ = std::move(other.out_index_shared_);
+      out_neighbors_shared_ = std::move(other.out_neighbors_shared_);
+      in_index_shared_ = std::move(other.in_index_shared_);
+      in_neighbors_shared_ = std::move(other.in_neighbors_shared_);
     // Set this up for getting random neighbors
     srand(time(NULL));
   }
@@ -272,10 +272,10 @@ public:
     other.flags_ = nullptr;
     other.offsets_ = nullptr;
 
-    out_index_shared_ = other.out_index_shared_;
-    out_neighbors_shared_ = other.out_neighbors_shared_;
-    in_index_shared_ = other.in_index_shared_;
-    in_neighbors_shared_ = other.in_neighbors_shared_;
+    out_index_shared_ = std::move(other.out_index_shared_);
+    out_neighbors_shared_ = std::move(other.out_neighbors_shared_);
+    in_index_shared_ = std::move(other.in_index_shared_);
+    in_neighbors_shared_ = std::move(other.in_neighbors_shared_);
 
     other.out_index_shared_.reset();
     other.out_neighbors_shared_.reset();
@@ -305,10 +305,10 @@ public:
       out_neighbors_ = other.out_neighbors_;
       in_index_ = other.in_index_;
       in_neighbors_ = other.in_neighbors_;
-      out_index_shared_ = other.out_index_shared_;
-      out_neighbors_shared_ = other.out_neighbors_shared_;
-      in_index_shared_ = other.in_index_shared_;
-      in_neighbors_shared_ = other.in_neighbors_shared_;
+      out_index_shared_ = std::move(other.out_index_shared_);
+      out_neighbors_shared_ = std::move(other.out_neighbors_shared_);
+      in_index_shared_ = std::move(other.in_index_shared_);
+      in_neighbors_shared_ = std::move(other.in_neighbors_shared_);
       // need the following, otherwise would get double free errors
       /*
                 other.num_edges_ = -1;
@@ -335,10 +335,10 @@ public:
       out_neighbors_ = other.out_neighbors_;
       in_index_ = other.in_index_;
       in_neighbors_ = other.in_neighbors_;
-      out_index_shared_ = other.out_index_shared_;
-      out_neighbors_shared_ = other.out_neighbors_shared_;
-      in_index_shared_ = other.in_index_shared_;
-      in_neighbors_shared_ = other.in_neighbors_shared_;
+      out_index_shared_ = std::move(other.out_index_shared_);
+      out_neighbors_shared_ = std::move(other.out_neighbors_shared_);
+      in_index_shared_ = std::move(other.in_index_shared_);
+      in_neighbors_shared_ = std::move(other.in_neighbors_shared_);
       other.num_edges_ = -1;
       other.num_nodes_ = -1;
       other.out_index_ = nullptr;
@@ -360,7 +360,7 @@ public:
 
   bool directed() const { return directed_; }
 
-  bool is_transpose() const {return is_transpose_; }
+  bool is_transpose() const { return is_transpose_; }
 
   int64_t num_nodes() const { return num_nodes_; }
 

@@ -31,7 +31,7 @@ enum ReorderingAlgo {
   DBG = 5,
   HubSortDBG = 6,
   HubClusterDBG = 7,
-  MAP = 10, // TODO: MAP file format
+  MAP = 10,
 };
 
 static const int64_t kRandSeed = 27491095;

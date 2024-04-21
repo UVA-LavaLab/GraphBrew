@@ -342,6 +342,7 @@ public:
 
   CSRGraph<NodeID_, DestID_, invert> MakeGraph() {
     CSRGraph<NodeID_, DestID_, invert> g;
+    CSRGraph<NodeID_, DestID_, invert> g_final;
     { // extra scope to trigger earlier deletion of el (save memory)
       EdgeList el;
       if (cli_.filename() != "") {
@@ -358,20 +359,24 @@ public:
       g = MakeGraphFromEL(el);
     }
 
+    if (in_place_)
+      g_final = g;
+    else
+      g_final = SquishGraph(g);
+
+    pvector<NodeID_> new_ids(g.num_nodes());
+
     for (const auto &option : cli_.reorder_options()) {
-      pvector<NodeID_> new_ids(g.num_nodes(), UINT_E_MAX);
+      new_ids.fill(UINT_E_MAX);
       if (!option.second.empty()) {
-        GenerateMapping(g, new_ids, option.first, true, option.second);
+        GenerateMapping(g_final, new_ids, option.first, true, option.second);
       } else {
-        GenerateMapping(g, new_ids, option.first, true);
+        GenerateMapping(g_final, new_ids, option.first, true);
       }
-      RelabelByMapping(g, new_ids);
+      g_final = RelabelByMapping(g_final, new_ids);
     }
 
-    if (in_place_)
-      return g;
-    else
-      return SquishGraph(g);
+    return g_final;
   }
 
   // Relabels (and rebuilds) graph by order of decreasing degree
@@ -516,7 +521,7 @@ public:
       GenerateHubClusterDBGMapping(g, new_ids, useOutdeg);
       break;
     case HubCluster:
-      // GenerateHubClusterMapping(g, new_ids, useOutdeg);
+      GenerateHubClusterMapping(g, new_ids, useOutdeg);
       break;
     case Random:
       GenerateRandomMapping(g, new_ids, useOutdeg);
