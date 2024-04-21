@@ -1,7 +1,7 @@
 [![Build Status](https://app.travis-ci.com/atmughrabi/GLay.svg?token=L3reAtGHdEVVPvzcVqQ6&branch=main)](https://app.travis-ci.com/atmughrabi/GLay)
 
 
-# SuperGAP Benchmarks Suite
+# GAP++ Benchmarks Suite
 
 This repository contains the GAP (Graph Algorithms in Practice) benchmarks suite, designed to compile and run various graph algorithms using C++. The Makefile in this repository automates the process of compiling these benchmarks from source code.
 
@@ -149,7 +149,7 @@ New Parameters
 1. **GAP Parameters**
    * Reorder the graph before running orders can bet layered.
    * Segment the graph for scalability requires modifying the algorithm to iterate through segments.
-   
+
 ```bash
 -o <order>  : apply reordering strategy, optionally with a parameter 
                [example]-r 3 -r 2 -r 10:mapping.label[optional]
