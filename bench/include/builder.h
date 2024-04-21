@@ -16,6 +16,7 @@
 #include "generator.h"
 #include "graph.h"
 #include "platform_atomics.h"
+#include "sliding_queue.h"
 #include "pvector.h"
 #include "reader.h"
 #include "timer.h"
@@ -500,7 +501,7 @@ public:
                        std::string map_file = "mapping.label") {
     switch (reordering_algo) {
     case HubSort:
-      // GenerateHubSortMapping(g, new_ids, useOutdeg);
+      GenerateHubSortMapping(g, new_ids, useOutdeg);
       break;
     case Sort:
       // GenerateSortMapping(g, new_ids, useOutdeg);
@@ -825,6 +826,95 @@ public:
 
     t.Stop();
     PrintTime("HubClusterDBG Map Time", t.Seconds());
+  }
+
+  void GenerateHubSortMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
+                              pvector<NodeID_> &new_ids, bool useOutdeg) {
+
+    typedef std::pair<int64_t, NodeID_> degree_nodeid_t;
+
+    Timer t;
+    t.Start();
+
+    int64_t num_nodes = g.num_nodes();
+    int64_t num_edges = g.num_edges();
+
+    pvector<degree_nodeid_t> degree_id_pairs(num_nodes);
+    int64_t avgDegree = num_edges / num_nodes;
+    size_t hubCount{0};
+
+    /* STEP I - collect degrees of all vertices */
+#pragma omp parallel for reduction(+ : hubCount)
+    for (int64_t v = 0; v < num_nodes; ++v) {
+      if (useOutdeg) {
+        int64_t out_degree_v = g.out_degree(v);
+        degree_id_pairs[v] = std::make_pair(out_degree_v, v);
+        if (out_degree_v > avgDegree) {
+          ++hubCount;
+        }
+      } else {
+        int64_t in_degree_v = g.in_degree(v);
+        degree_id_pairs[v] = std::make_pair(in_degree_v, v);
+        if (in_degree_v > avgDegree) {
+          ++hubCount;
+        }
+      }
+    }
+
+    /* Step II - sort the degrees in parallel */
+    __gnu_parallel::stable_sort(degree_id_pairs.begin(), degree_id_pairs.end(),
+                                std::greater<degree_nodeid_t>());
+
+    /* Step III - make a remap based on the sorted degree list [Only for hubs]
+     */
+#pragma omp parallel for
+    for (size_t n = 0; n < hubCount; ++n) {
+      new_ids[degree_id_pairs[n].second] = n;
+    }
+    // clearing space from degree pairs
+    pvector<degree_nodeid_t>().swap(degree_id_pairs);
+
+    /* Step IV - assigning a remap for (easy) non hub vertices */
+    auto numHubs = hubCount;
+    SlidingQueue<int64_t> queue(numHubs);
+#pragma omp parallel
+    {
+      QueueBuffer<int64_t> lqueue(queue, numHubs / omp_get_max_threads());
+#pragma omp for
+      for (int64_t n = numHubs; n < num_nodes; ++n) {
+        if (new_ids[n] == (NodeID_)UINT_E_MAX) {
+          // This steps preserves the ordering of the original graph (as much as
+          // possible)
+          new_ids[n] = n;
+        } else {
+          int64_t remappedTo = new_ids[n];
+          if (new_ids[remappedTo] == (NodeID_)UINT_E_MAX) {
+            // safe to swap Ids because the original vertex is a non-hub
+            new_ids[remappedTo] = n;
+          } else {
+            // Cannot swap ids because original vertex was a hub (swapping
+            // would disturb sorted ordering of hubs - not allowed)
+            lqueue.push_back(n);
+          }
+        }
+      }
+      lqueue.flush();
+    }
+    queue.slide_window(); // the queue keeps a list of vertices where a simple
+                          // swap of locations is not possible
+    /* Step V - assigning remaps for remaining non hubs */
+    int64_t unassignedCtr{0};
+    auto q_iter = queue.begin();
+#pragma omp parallel for
+    for (size_t n = 0; n < numHubs; ++n) {
+      if (new_ids[n] == (NodeID_)UINT_E_MAX) {
+        int64_t u = *(q_iter + __sync_fetch_and_add(&unassignedCtr, 1));
+        new_ids[n] = u;
+      }
+    }
+
+    t.Stop();
+    PrintTime("HubSort Map Time", t.Seconds());
   }
 };
 
