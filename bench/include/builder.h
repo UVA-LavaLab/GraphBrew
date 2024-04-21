@@ -1900,18 +1900,20 @@ public:
   adjacency_list
   readRabbitOrderGraphCSR(const CSRGraph<NodeID_, DestID_, invert> &g) {
 
-    std::vector<edge> edges(g.num_edges, {0, 0, 0.0f});
+    std::vector<edge> edges(g.num_edges(), {0, 0, 0.0f});
 
-    for (NodeID_ i = 0; i < g.num_nodes_; i++) {
+    for (NodeID_ i = 0; i < g.num_nodes(); i++) {
       for (DestID_ j : g.out_neigh(i)) {
-        edges.push_back({i, j, j.w});
+        // edges.push_back({i, j, j.w});
+        edges.push_back({i, j, 1.0f});
       }
     }
 
     if (g.directed()) {
-      for (NodeID_ i = 0; i < g.num_nodes_; i++) {
+      for (NodeID_ i = 0; i < g.num_nodes(); i++) {
         for (DestID_ j : g.in_neigh(i)) {
-          edges.push_back({i, j, j.w});
+          // edges.push_back({i, j, j.w});
+          edges.push_back({i, j, 1.0f});
         }
       }
     }
@@ -1932,7 +1934,7 @@ public:
   }
 
   void GenerateRabbitOrderMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
-                                  pvector<NodeID_> &new_ids, bool useOutdeg) {
+                                  pvector<NodeID_> &new_ids) {
     using boost::adaptors::transformed;
 
     std::cerr << "Number of threads: " << omp_get_num_threads() << std::endl;
@@ -1946,7 +1948,7 @@ public:
     // if (commode)
     //   detect_community(std::move(adj));
     // else
-    reorder(std::move(adj));
+    reorder_internal(std::move(adj), new_ids);
   }
 
   template <typename InputIt>
@@ -2041,6 +2043,27 @@ public:
     // Print the result
     std::copy(&p[0], &p[g.n()],
               std::ostream_iterator<rabbit_order::vint>(std::cout, "\n"));
+  }
+
+  void reorder_internal(adjacency_list adj, pvector<NodeID_> &new_ids) {
+    std::cerr << "Generating a permutation...\n";
+    const double tstart = rabbit_order::now_sec();
+    //--------------------------------------------
+    const auto g = rabbit_order::aggregate(std::move(adj));
+    const auto p = rabbit_order::compute_perm(g);
+    //--------------------------------------------
+    std::cerr << "Runtime for permutation generation [sec]: "
+              << rabbit_order::now_sec() - tstart << std::endl;
+
+    // Ensure new_ids is large enough to hold all new IDs
+
+    if (new_ids.size() < g.n())
+      new_ids.resize(g.n());
+
+#pragma omp parallel for
+    for (size_t i = 0; i < g.n(); ++i) {
+      new_ids[i] = (NodeID_)p[i];
+    }
   }
 };
 
