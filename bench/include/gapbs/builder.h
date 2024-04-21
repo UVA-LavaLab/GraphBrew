@@ -1888,8 +1888,8 @@ public:
         });
 
     if (const size_t c = count_unused_id(n, edges)) {
-      std::cerr << "WARNING: " << c << "/" << n << " vertex IDs are unused"
-                << " (zero-degree vertices or noncontiguous IDs?)\n";
+      // std::cerr << "WARNING: " << c << "/" << n << " vertex IDs are unused"
+                // << " (zero-degree vertices or noncontiguous IDs?)\n";
     }
 
     return make_adj_list(n, edges);
@@ -1924,8 +1924,8 @@ public:
         });
 
     if (const size_t c = count_unused_id(n, edges)) {
-      std::cerr << "WARNING: " << c << "/" << n << " vertex IDs are unused"
-                << " (zero-degree vertices or noncontiguous IDs?)\n";
+      // std::cerr << "WARNING: " << c << "/" << n << " vertex IDs are unused"
+      //           << " (zero-degree vertices or noncontiguous IDs?)\n";
     }
 
     return make_adj_list(n, edges);
@@ -1935,13 +1935,14 @@ public:
                                   pvector<NodeID_> &new_ids) {
     using boost::adaptors::transformed;
 
-    std::cerr << "Number of threads: " << omp_get_num_threads() << std::endl;
+    // std::cerr << "Number of threads: " << omp_get_num_threads() << std::endl;
+    omp_set_num_threads(omp_get_max_threads());
     auto adj = readRabbitOrderGraphCSR(g);
-    const auto m =
-        boost::accumulate(adj | transformed([](auto &es) { return es.size(); }),
-                          static_cast<size_t>(0));
-    std::cerr << "Number of vertices: " << adj.size() << std::endl;
-    std::cerr << "Number of edges: " << m << std::endl;
+    // const auto m =
+    //     boost::accumulate(adj | transformed([](auto &es) { return es.size(); }),
+    //                       static_cast<size_t>(0));
+    // std::cerr << "Number of vertices: " << adj.size() << std::endl;
+    // std::cerr << "Number of edges: " << m << std::endl;
 
     // if (commode)
     //   detect_community(std::move(adj));
@@ -2007,7 +2008,7 @@ public:
   void detect_community(adjacency_list adj) {
     auto _adj = adj; // copy `adj` because it is used for computing modularity
 
-    std::cerr << "Detecting communities...\n";
+    // std::cerr << "Detecting communities...\n";
     const double tstart = rabbit_order::now_sec();
     //--------------------------------------------
     auto g = rabbit_order::aggregate(std::move(_adj));
@@ -2016,26 +2017,26 @@ public:
     for (rabbit_order::vint v = 0; v < g.n(); ++v)
       c[v] = rabbit_order::trace_com(v, &g);
     //--------------------------------------------
-    std::cerr << "Runtime for community detection [sec]: "
+    std::cerr << "Community detection time"
               << rabbit_order::now_sec() - tstart << std::endl;
 
     // Print the result
     std::copy(&c[0], &c[g.n()],
               std::ostream_iterator<rabbit_order::vint>(std::cout, "\n"));
 
-    std::cerr << "Computing modularity of the result...\n";
+    // std::cerr << "Computing modularity of the result...\n";
     const double q = compute_modularity(adj, c.get());
-    std::cerr << "Modularity: " << q << std::endl;
+    // std::cerr << "Modularity: " << q << std::endl;
   }
 
   void reorder(adjacency_list adj) {
-    std::cerr << "Generating a permutation...\n";
+    // std::cerr << "Generating a permutation...\n";
     const double tstart = rabbit_order::now_sec();
     //--------------------------------------------
     const auto g = rabbit_order::aggregate(std::move(adj));
     const auto p = rabbit_order::compute_perm(g);
     //--------------------------------------------
-    std::cerr << "Runtime for permutation generation [sec]: "
+    std::cerr << "Permutation generation time: "
               << rabbit_order::now_sec() - tstart << std::endl;
 
     // Print the result
@@ -2044,13 +2045,13 @@ public:
   }
 
   void reorder_internal(adjacency_list adj, pvector<NodeID_> &new_ids) {
-    std::cerr << "Generating a permutation...\n";
+    // std::cerr << "Generating a permutation...\n";
     const double tstart = rabbit_order::now_sec();
     //--------------------------------------------
     const auto g = rabbit_order::aggregate(std::move(adj));
     const auto p = rabbit_order::compute_perm(g);
     //--------------------------------------------
-    std::cerr << "Runtime for permutation generation [sec]: "
+    std::cerr << "Permutation generation time: "
               << rabbit_order::now_sec() - tstart << std::endl;
 
     // Ensure new_ids is large enough to hold all new IDs
