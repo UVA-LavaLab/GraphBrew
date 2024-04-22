@@ -14,6 +14,21 @@ This repository contains the GAP Benchmarks Suite, modified to reorder graphs an
 * **Gorder:**  Speedup Graph Processing by Graph Ordering."
 * **Corder:**  Workload Balancing via Graph Reordering on Multicore Systems."
 
+## GAP Benchmarks
+
+This project contains a collection of Graph Analytics for Performance (GAP) benchmarks implemented in C++. The benchmarks are designed to exercise the performance of graph algorithms on a CPU. 
+
+**Key Algorithms**
+
+* **bc:** Betweenness Centrality 
+* **bfs:** Breadth-First Search (Direction Optimized) 
+* **cc:** Connected Components (Afforest)
+* **cc_sv:** Connected Components (ShiloachVishkin)
+* **pr:** PageRank
+* **pr_spmv:** PageRank (using sparse matrix-vector multiplication)
+* **sssp:**  Single-Source Shortest Paths
+* **tc:** Triangle Counting
+
 ## Prerequisites
 
 Before you begin, ensure you have the following installed on your system:
@@ -78,20 +93,6 @@ cat /usr/local/include/boost/version.hpp | grep "BOOST_LIB_VERSION"
 #define BOOST_LIB_VERSION "1_54"
 ```
 
-## GAP Benchmarks
-
-This project contains a collection of Graph Analytics for Performance (GAP) benchmarks implemented in C++. The benchmarks are designed to exercise the performance of graph algorithms on a CPU. 
-
-**Key Algorithms**
-
-* **bc:** Betweenness Centrality 
-* **bfs:** Breadth-First Search (Direction Optimized) 
-* **cc:** Connected Components (Afforest)
-* **cc_sv:** Connected Components (ShiloachVishkin)
-* **pr:** PageRank
-* **pr_spmv:** PageRank (using sparse matrix-vector multiplication)
-* **sssp:**  Single-Source Shortest Paths
-* **tc:** Triangle Counting
 
 ## Build Targets
 
