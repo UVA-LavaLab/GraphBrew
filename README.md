@@ -3,7 +3,7 @@
 
 # GraphBrew
 
-This repository contains the GAP (Graph Algorithms in Practice) benchmarks suite, designed to reorder graphs and run various graph algorithms using C++. The Makefile in this repository automates the process of compiling these benchmarks from source code.
+This repository contains the GAP Benchmarks Suite, modified to reorder graphs and run various graph algorithms using C++. The Makefile in this repository automates the process of compiling these benchmarks from source code.
 
 ## Enhancements
 
