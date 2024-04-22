@@ -70,8 +70,8 @@ using namespace edge_list;
    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
    SOFTWARE.
  */
-// #include "GoGraph.h"
-// #include "GoUtil.h"
+#include "GoGraph.h"
+#include "GoUtil.h"
 
 template <typename NodeID_, typename DestID_ = NodeID_,
           typename WeightT_ = NodeID_, bool invert = true>
@@ -575,7 +575,7 @@ void GenerateMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
     GenerateRabbitOrderMapping(g, new_ids);
     break;
   case GOrder:
-    // GenerateGOrderMapping(g, new_ids);
+    GenerateGOrderMapping(g, new_ids);
     break;
   case MAP:
     LoadMappingFromFile(g, new_ids, useOutdeg, map_file);
@@ -1965,8 +1965,8 @@ readRabbitOrderGraphCSR(const CSRGraph<NodeID_, DestID_, invert> &g) {
     });
 
   // if (const size_t c = count_unused_id(n, edges)) {
-    // std::cerr << "WARNING: " << c << "/" << n << " vertex IDs are unused"
-    //           << " (zero-degree vertices or noncontiguous IDs?)\n";
+  // std::cerr << "WARNING: " << c << "/" << n << " vertex IDs are unused"
+  //           << " (zero-degree vertices or noncontiguous IDs?)\n";
   // }
 
   return make_adj_list(n, edges);
@@ -2134,50 +2134,54 @@ void reorder_internal(adjacency_list adj, pvector<NodeID_> &new_ids) {
    DEALINGS IN THE SOFTWARE.
  */
 
-//   void GenerateGOrderMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
-//                              pvector<NodeID_> &new_ids) {
+void GenerateGOrderMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
+                           pvector<NodeID_> &new_ids) {
 
-//     std::vector<std::pair<int, int>> edges(g.num_edges(), {0, 0});
-//     int window = 5;
+  std::vector<std::pair<int, int> > edges(g.num_edges(), {0, 0});
+  int window = 5;
 
-//     for (NodeID_ i = 0; i < g.num_nodes(); i++) {
-//       for (DestID_ j : g.out_neigh(i)) {
-//         edges.push_back({i, j});
-//       }
-//     }
+  if (g.directed()) {
+    edges.resize(g.num_edges_directed(), {0, 0});
+  }
 
-//     if (g.directed()) {
-//       for (NodeID_ i = 0; i < g.num_nodes(); i++) {
-//         for (DestID_ j : g.in_neigh(i)) {
-//           edges.push_back({i, j});
-//         }
-//       }
-//     }
+  for (NodeID_ i = 0; i < g.num_nodes(); i++) {
+    for (DestID_ j : g.out_neigh(i)) {
+      edges.push_back({i, j});
+    }
+  }
 
-//     Gorder::GoGraph go;
-//     vector<int> order;
-//     Timer tm;
-//     std::string name;
-//     name = GorderUtil::extractFilename(cli_.filename().c_str());
-//     go.setFilename(name);
+  if (g.directed()) {
+    for (NodeID_ i = 0; i < g.num_nodes(); i++) {
+      for (DestID_ j : g.in_neigh(i)) {
+        edges.push_back({i, j});
+      }
+    }
+  }
 
-//     tm.Start();
-//     go.readGraphEdgelist(edges, g.num_nodes());
-//     go.Transform();
-//     tm.Stop();
-//     PrintTime("Gorder graph", tm.Seconds());
+  Gorder::GoGraph go;
+  vector<int> order;
+  Timer tm;
+  std::string name;
+  name = GorderUtil::extractFilename(cli_.filename().c_str());
+  go.setFilename(name);
 
-//     tm.Start();
-//     go.GorderGreedy(order, window);
-//     tm.Stop();
-//     PrintTime("Gorder time", tm.Seconds());
+  tm.Start();
+  go.readGraphEdgelist(edges, g.num_nodes());
+  go.Transform();
+  tm.Stop();
+  PrintTime("Gorder graph", tm.Seconds());
 
-// #pragma omp parallel for
-//     for (int i = 0; i < go.vsize; i++) {
-//       int u = order[go.order_l1[i]];
-//       new_ids[i] = (NodeID_)u;
-//     }
-//   }
+  tm.Start();
+  go.GorderGreedy(order, window);
+  tm.Stop();
+  PrintTime("Gorder time", tm.Seconds());
+
+#pragma omp parallel for
+  for (int i = 0; i < go.vsize; i++) {
+    int u = order[go.order_l1[i]];
+    new_ids[i] = (NodeID_)u;
+  }
+}
 };
 
 #endif // BUILDER_H_

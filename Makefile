@@ -20,7 +20,7 @@ INCLUDE_GORDER = $(INC_DIR)/gorder
 # =========================================================
 DEP_GAPBS  = $(wildcard $(INC_DIR)/gapbs/*.h)
 DEP_RABBIT = $(wildcard $(INC_DIR)/rabbit/*.hpp)
-DEP_GORDER = $(wildcard $(INC_DIR)/gorder/*.hpp) $(wildcard $(INC_DIR)/gorder/*.cpp) 
+DEP_GORDER = $(wildcard $(INC_DIR)/gorder/*.h)
 # =========================================================
 
 # =========================================================
@@ -53,15 +53,17 @@ NC      =\033[0m
 # =========================================================
 CXXFLAGS_GAP    = -std=c++17 -O3 -Wall -fopenmp
 CXXFLAGS_RABBIT = -mcx16 
-CXXFLAGS_GORDER = -m64 -mcpu=native -DRelease -DGCC
+CXXFLAGS_GORDER = -m64 -march=native 
+CXXFLAGS_GORDER += -DRelease -DGCC
 # =========================================================
 LDLIBS_RABBIT   += -ltcmalloc_minimal -lnuma
 # =========================================================
-CXXFLAGS = $(CXXFLAGS_GAP) $(CXXFLAGS_RABBIT) 
+CXXFLAGS = $(CXXFLAGS_GAP) $(CXXFLAGS_RABBIT) $(CXXFLAGS_GORDER) 
 LDLIBS   = $(LDLIBS_RABBIT)
 # =========================================================
 # CXXFLAGS += -D_DEBUG
-INCLUDES = -I$(INCLUDE_GAPBS) -I$(INCLUDE_RABBIT)
+INCLUDES = -I$(INCLUDE_GAPBS) -I$(INCLUDE_RABBIT) -I$(INCLUDE_GORDER)
+
 # =========================================================
 # Targets
 # =========================================================
@@ -98,7 +100,7 @@ run-all: $(addprefix run-, $(KERNELS))
 
 # Define a rule that sweeps through -o 1 to 7
 run-%-sweep: $(BIN_DIR)/%
-	@for o in 1 2 3 4 5 6 7 8; do \
+	@for o in 1 2 3 4 5 6 7 8 9; do \
 		echo "========================================================="; \
 		OMP_NUM_THREADS=$(PARALLEL) ./$(BIN_DIR)/$* $(GRAPH_BENCH) -n 1 -o 1 -o $$o; \
 	done
@@ -106,7 +108,7 @@ run-%-sweep: $(BIN_DIR)/%
 # =========================================================
 # Compilation Rules
 # =========================================================
-$(BIN_DIR)/%: $(SRC_DIR)/%.cc $(DEP_GAPBS) $(DEP_RABBIT) | $(BIN_DIR)
+$(BIN_DIR)/%: $(SRC_DIR)/%.cc $(DEP_GAPBS) $(DEP_RABBIT) $(DEP_GORDER) | $(BIN_DIR)
 	@$(CXX) $(CXXFLAGS) $(INCLUDES) $< $(LDLIBS) -o $@ $(EXIT_STATUS)
 
 # =========================================================
