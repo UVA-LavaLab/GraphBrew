@@ -1,5 +1,5 @@
 [![Build Status](https://app.travis-ci.com/atmughrabi/GLay.svg?token=L3reAtGHdEVVPvzcVqQ6&branch=main)](https://app.travis-ci.com/atmughrabi/GLay)
-[<p align="center"><img src="./docs/figures/logo.svg" width="300" ></p>](#GLay-benchmark-suite)
+[<p align="center"><img src="./docs/figures/logo.svg" width="250" ></p>](#GLay-benchmark-suite)
 
 # GraphBrew
 
