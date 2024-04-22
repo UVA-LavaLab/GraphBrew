@@ -10,7 +10,7 @@
 
 /**
  * Phase-synchronous priority queue with dual representation
- * Representation 1: When using thread-local buckets, there is nothing stored in the data strucutre. It merely holds the current bucket index, next bucket index and other metadata. The real priority queue is distributed across threads. 
+ * Representation 1: When using thread-local buckets, there is nothing stored in the data structure. It merely holds the current bucket index, next bucket index and other metadata. The real priority queue is distributed across threads. 
  * Representation 2: When using lazy buckets, the priority queue actually stores all the nodes with their buckets (the buckets are not distributed)
  **/
 template<typename PriorityT_>

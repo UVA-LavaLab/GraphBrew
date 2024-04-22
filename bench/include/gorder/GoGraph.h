@@ -30,6 +30,7 @@
 #include <cstring>
 #include <cstdint>
 #include <chrono>
+#include <parallel/algorithm>
 
 #include "GoUtil.h"
 #include "GoUnitHeap.h"
@@ -132,6 +133,8 @@ void readGraph(const string &fullname) {
         }
     }
     vsize++;
+    cout << "vsize: " << vsize << endl;
+    cout << "edgenum: " << edgenum << endl;
 
     fclose(fp);
     graph.resize(vsize + 1);
@@ -146,7 +149,7 @@ void readGraph(const string &fullname) {
         graph[i].instart = graph[i - 1].instart + graph[i - 1].indegree;
     }
 
-    sort(edges.begin(), edges.end(),
+    __gnu_parallel::stable_sort(edges.begin(), edges.end(),
          [](const pair<int, int> &a, const pair<int, int> &b) -> bool {
                 if (a.first < b.first)
                     return true;
@@ -187,9 +190,9 @@ void readGraph(const string &fullname) {
     graph[vsize].instart = edgenum;
 }
 
-void readGraphEdgelist(vector<pair<int, int> > &edges, int vsize) {
+void readGraphEdgelist(vector<pair<int, int>> &edges, int vsize_par) {
     edgenum = edges.size();
-    vsize = vsize;
+    vsize = vsize_par;
 
     graph.resize(vsize + 1);
     for (size_t i = 0; i < edges.size(); i++) {
@@ -203,7 +206,7 @@ void readGraphEdgelist(vector<pair<int, int> > &edges, int vsize) {
         graph[i].instart = graph[i - 1].instart + graph[i - 1].indegree;
     }
 
-    sort(edges.begin(), edges.end(),
+    __gnu_parallel::stable_sort(edges.begin(), edges.end(),
          [](const pair<int, int> &a, const pair<int, int> &b) -> bool {
                 if (a.first < b.first)
                     return true;
@@ -238,8 +241,8 @@ void readGraphEdgelist(vector<pair<int, int> > &edges, int vsize) {
     }
 #endif
 
-    cout << "vsize: " << vsize << endl;
-    cout << "edgenum: " << edgenum << endl;
+    // cout << "edgelist vsize: " << vsize << endl;
+    // cout << "edgelist edgenum: " << edgenum << endl;
     graph[vsize].outstart = edgenum;
     graph[vsize].instart = edgenum;
 }
@@ -253,7 +256,7 @@ void Transform() {
         quit();
     }
     if (graph.size() != (size_t)(vsize + 1)) {
-        cout << "graph.size()!=(vsize+1)" << endl;
+        cout << "graph.size()!=(vsize+1)" <<graph.size()<< " " << vsize + 1 <<  endl;
         quit();
     }
 
@@ -288,7 +291,7 @@ void Transform() {
     graph[vsize].outstart = edgenum;
     graph[vsize].instart = edgenum;
 
-    sort(edges.begin(), edges.end(),
+    __gnu_parallel::sort(edges.begin(), edges.end(),
          [](const pair<int, int> &a, const pair<int, int> &b) -> bool {
                 if (a.first < b.first)
                     return true;
@@ -332,6 +335,16 @@ void writeGraph(ostream &out) {
     }
 }
 
+void printGraph() {
+    std::cout << "Print graph (v)" << vsize << std::endl;
+    for (int u = 0; u < vsize; u++) {
+        for (int j = graph[u].outstart; j < graph[u].outdegree + graph[u].outstart; j++) {
+            int v = outedge[j];
+            std::cout << u << '\t' << v << std::endl;
+        }
+    }
+}
+
 void PrintReOrderedGraph(const vector<int> &order) {
     ofstream out((name + "_Gorder.txt").c_str());
 
@@ -347,11 +360,11 @@ void PrintReOrderedGraph(const vector<int> &order) {
             v = order[outedge[j]];
             ReOrderedGraph[u].push_back(v);
         }
-        sort(ReOrderedGraph[u].begin(), ReOrderedGraph[u].end());
+        __gnu_parallel::sort(ReOrderedGraph[u].begin(), ReOrderedGraph[u].end());
     }
     /*
             for(int u=0; u<vsize; u++){
-                    sort(ReOrderedGraph[u].begin(), ReOrderedGraph[u].end());
+                    __gnu_parallel::sort(ReOrderedGraph[u].begin(), ReOrderedGraph[u].end());
             }
      */
     for (int u = 0; u < vsize; u++) {
@@ -378,7 +391,7 @@ void GraphAnalysis() {
     for (int i = 0; i < vsize; i++) {
         tmp[i] = graph[i].outdegree;
     }
-    sort(tmp.begin(), tmp.end());
+    __gnu_parallel::sort(tmp.begin(), tmp.end());
 
     cout << "outdegree:" << endl;
     vector<int>::iterator tmpit1, tmpit2;
@@ -392,7 +405,7 @@ void GraphAnalysis() {
     for (int i = 0; i < vsize; i++) {
         tmp[i] = graph[i].indegree;
     }
-    sort(tmp.begin(), tmp.end());
+    __gnu_parallel::sort(tmp.begin(), tmp.end());
 
     cout << "indegree:" << endl;
     tmpit1 = tmp.begin();
@@ -519,7 +532,7 @@ double GapCost(vector<int> &order) {
              j++) {
             edgelist.push_back(order[outedge[j]]);
         }
-        sort(edgelist.begin(), edgelist.end());
+        __gnu_parallel::sort(edgelist.begin(), edgelist.end());
         for (size_t j = 1; j < edgelist.size(); j++) {
             if (edgelist[j] - edgelist[j - 1])
                 gaplog2 += log(double(edgelist[j] - edgelist[j - 1])) / log(double(2));
@@ -753,7 +766,7 @@ void GorderGreedy(vector<int> &retorder, int window) {
 
 #ifndef Release
     vector<int> tmporder = order;
-    sort(tmporder.begin(), tmporder.end());
+    __gnu_parallel::sort(tmporder.begin(), tmporder.end());
     for (size_t i = 0; i < tmporder.size() - 1; i++) {
         if (tmporder[i] == tmporder[i + 1]) {
             cout << "same elements: " << tmporder[i] << endl;
@@ -789,7 +802,7 @@ void RCMOrder(vector<int> &retorder) {
         degreevertex[i] = i;
     }
 
-    sort(degreevertex.begin(), degreevertex.end(),
+    __gnu_parallel::sort(degreevertex.begin(), degreevertex.end(),
          [&](const int &a, const int &b) -> bool {
                 if (graph[a].outdegree + graph[a].indegree <
                     graph[b].outdegree + graph[b].indegree)
@@ -819,7 +832,7 @@ void RCMOrder(vector<int> &retorder) {
                      it < limit; it++) {
                     tmp.push_back(outedge[it]);
                 }
-                sort(tmp.begin(), tmp.end(), [&](const int &a, const int &b) -> bool {
+                __gnu_parallel::sort(tmp.begin(), tmp.end(), [&](const int &a, const int &b) -> bool {
                             if (graph[a].outdegree + graph[a].indegree <
                                 graph[b].outdegree + graph[b].indegree)
                                 return true;

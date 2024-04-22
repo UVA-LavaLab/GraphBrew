@@ -549,7 +549,7 @@ const string ReorderingAlgoStr(ReorderingAlgo type) {
   case RabbitOrder:
     return "RabbitOrder";
   case GOrder:
-    return "COrder";
+    return "GOrder";
   case COrder:
     return "COrder";
   case ORIGINAL:
@@ -2091,23 +2091,11 @@ readRabbitOrderGraphCSR(const CSRGraph<NodeID_, DestID_, invert> &g) {
 
   std::vector<edge> edges(g.num_edges(), {0, 0, 0.0f});
 
-  if (g.directed()) {
-    edges.resize(g.num_edges_directed(), {0, 0, 0.0f});
-  }
-
+  int edge_idx = 0;
   for (NodeID_ i = 0; i < g.num_nodes(); i++) {
     for (DestID_ j : g.out_neigh(i)) {
-      // edges.push_back({i, j, j.w});
-      edges.push_back({i, j, 1.0f});
-    }
-  }
-
-  if (g.directed()) {
-    for (NodeID_ i = 0; i < g.num_nodes(); i++) {
-      for (DestID_ j : g.in_neigh(i)) {
-        // edges.push_back({i, j, j.w});
-        edges.push_back({i, j, 1.0f});
-      }
+      edges[edge_idx] = {i, j, 1.0f};
+      edge_idx++;
     }
   }
 
@@ -2291,27 +2279,19 @@ void reorder_internal(adjacency_list adj, pvector<NodeID_> &new_ids) {
 void GenerateGOrderMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
                            pvector<NodeID_> &new_ids) {
 
+  // int64_t num_edges = g.num_edges();
+
   std::vector<std::pair<int, int> > edges(g.num_edges(), {0, 0});
   int window = 5;
 
-  if (g.directed()) {
-    edges.resize(g.num_edges_directed(), {0, 0});
-  }
-
+  int edge_idx = 0;
   for (NodeID_ i = 0; i < g.num_nodes(); i++) {
     for (DestID_ j : g.out_neigh(i)) {
-      edges.push_back({i, j});
+      edges[edge_idx] = {i, j};
+      edge_idx++;
     }
   }
-
-  if (g.directed()) {
-    for (NodeID_ i = 0; i < g.num_nodes(); i++) {
-      for (DestID_ j : g.in_neigh(i)) {
-        edges.push_back({i, j});
-      }
-    }
-  }
-
+  
   Gorder::GoGraph go;
   vector<int> order;
   Timer tm;
@@ -2321,6 +2301,7 @@ void GenerateGOrderMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
 
   tm.Start();
   go.readGraphEdgelist(edges, g.num_nodes());
+  // go.readGraph(cli_.filename().c_str());
   go.Transform();
   tm.Stop();
   PrintTime("Gorder graph", tm.Seconds());

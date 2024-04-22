@@ -85,8 +85,8 @@ PARALLEL=16
 # =========================================================
 # Running Benchmarks
 # =========================================================
-# GRAPH_BENCH = -f ./test/graphs/graph.el
-GRAPH_BENCH = -g 5
+GRAPH_BENCH = -f ./test/graphs/4.el
+# GRAPH_BENCH = -g 5
 RUN_PARAMS = $(GRAPH_BENCH) -n 1 -o 1 -o 8 
 # =========================================================
 run-%: $(BIN_DIR)/%
