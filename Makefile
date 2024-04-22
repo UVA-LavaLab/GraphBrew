@@ -102,7 +102,7 @@ run-all: $(addprefix run-, $(KERNELS))
 
 # Define a rule that sweeps through -o 1 to 7
 run-%-sweep: $(BIN_DIR)/%
-	@for o in 1 2 3 4 5 6 7 8 10; do \
+	@for o in 1 2 3 4 5 6 7 8 9 10; do \
 		echo "========================================================="; \
 		OMP_NUM_THREADS=$(PARALLEL) ./$(BIN_DIR)/$* $(GRAPH_BENCH) -n 1 -o 1 -o $$o; \
 	done

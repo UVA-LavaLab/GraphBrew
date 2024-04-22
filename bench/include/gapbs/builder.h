@@ -597,6 +597,7 @@ void GenerateMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
     break;
   case GOrder:
     GenerateGOrderMapping(g, new_ids);
+    break;
   case COrder:
     GenerateCOrderMapping(g, new_ids);
     break;
