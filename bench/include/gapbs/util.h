@@ -31,7 +31,8 @@ enum ReorderingAlgo {
   HubClusterDBG = 7,
   RabbitOrder = 8,
   GOrder = 9,
-  MAP = 10,
+  COrder = 10,
+  MAP = 11,
 };
 
 static const int64_t kRandSeed = 27491095;

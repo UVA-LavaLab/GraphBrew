@@ -17,10 +17,12 @@ OBJ_DIR = $(BENCH_DIR)/obj
 INCLUDE_GAPBS  = $(INC_DIR)/gapbs 
 INCLUDE_RABBIT = $(INC_DIR)/rabbit
 INCLUDE_GORDER = $(INC_DIR)/gorder
+INCLUDE_CORDER = $(INC_DIR)/corder
 # =========================================================
 DEP_GAPBS  = $(wildcard $(INC_DIR)/gapbs/*.h)
 DEP_RABBIT = $(wildcard $(INC_DIR)/rabbit/*.hpp)
 DEP_GORDER = $(wildcard $(INC_DIR)/gorder/*.h)
+DEP_CORDER = $(wildcard $(INC_DIR)/corder/*.h)
 # =========================================================
 
 # =========================================================
@@ -62,7 +64,7 @@ CXXFLAGS = $(CXXFLAGS_GAP) $(CXXFLAGS_RABBIT) $(CXXFLAGS_GORDER)
 LDLIBS   = $(LDLIBS_RABBIT)
 # =========================================================
 # CXXFLAGS += -D_DEBUG
-INCLUDES = -I$(INCLUDE_GAPBS) -I$(INCLUDE_RABBIT) -I$(INCLUDE_GORDER)
+INCLUDES = -I$(INCLUDE_GAPBS) -I$(INCLUDE_RABBIT) -I$(INCLUDE_GORDER) -I$(INCLUDE_CORDER)
 
 # =========================================================
 # Targets
@@ -84,7 +86,7 @@ PARALLEL=16
 # Running Benchmarks
 # =========================================================
 # GRAPH_BENCH = -f ./test/graphs/graph.el
-GRAPH_BENCH = -u 23
+GRAPH_BENCH = -g 5
 RUN_PARAMS = $(GRAPH_BENCH) -n 1 -o 1 -o 8 
 # =========================================================
 run-%: $(BIN_DIR)/%
@@ -100,7 +102,7 @@ run-all: $(addprefix run-, $(KERNELS))
 
 # Define a rule that sweeps through -o 1 to 7
 run-%-sweep: $(BIN_DIR)/%
-	@for o in 1 2 3 4 5 6 7 8 9; do \
+	@for o in 1 2 3 4 5 6 7 8 10; do \
 		echo "========================================================="; \
 		OMP_NUM_THREADS=$(PARALLEL) ./$(BIN_DIR)/$* $(GRAPH_BENCH) -n 1 -o 1 -o $$o; \
 	done
@@ -108,7 +110,7 @@ run-%-sweep: $(BIN_DIR)/%
 # =========================================================
 # Compilation Rules
 # =========================================================
-$(BIN_DIR)/%: $(SRC_DIR)/%.cc $(DEP_GAPBS) $(DEP_RABBIT) $(DEP_GORDER) | $(BIN_DIR)
+$(BIN_DIR)/%: $(SRC_DIR)/%.cc $(DEP_GAPBS) $(DEP_RABBIT) $(DEP_GORDER) $(DEP_CORDER) | $(BIN_DIR)
 	@$(CXX) $(CXXFLAGS) $(INCLUDES) $< $(LDLIBS) -o $@ $(EXIT_STATUS)
 
 # =========================================================
@@ -138,17 +140,18 @@ help-%: $(BIN_DIR)/%
 	@./$< -h 
 	@echo ""
 	@echo "Reordering Algorithms:"
-	@echo "  - ORIGINAL      (0): No reordering applied."
-	@echo "  - RANDOM        (1): Apply random reordering."
-	@echo "  - SORT          (2): Apply sort-based reordering."
-	@echo "  - HUBSORT       (3): Apply hub-based sorting."
-	@echo "  - HUBCLUSTER    (4): Apply clustering based on hub scores."
-	@echo "  - DBG           (5): Apply degree-based grouping."
-	@echo "  - HUBSORTDBG    (6): Combine hub sorting with degree-based grouping."
-	@echo "  - HUBCLUSTERDBG (7): Combine hub clustering with degree-based grouping."
-	@echo "  - RABBITORDER   (8): Apply community clustering with incremental aggregation."
-	@echo "  - GORDER        (9): Apply dynamic programming BFS and windowing ordering."
-	@echo "  - MAP           (10): Requires a file format for reordering. Use the -r 10:filename.label option."
+	@echo "  - ORIGINAL      (0):  No reordering applied."
+	@echo "  - RANDOM        (1):  Apply random reordering."
+	@echo "  - SORT          (2):  Apply sort-based reordering."
+	@echo "  - HUBSORT       (3):  Apply hub-based sorting."
+	@echo "  - HUBCLUSTER    (4):  Apply clustering based on hub scores."
+	@echo "  - DBG           (5):  Apply degree-based grouping."
+	@echo "  - HUBSORTDBG    (6):  Combine hub sorting with degree-based grouping."
+	@echo "  - HUBCLUSTERDBG (7):  Combine hub clustering with degree-based grouping."
+	@echo "  - RABBITORDER   (8):  Apply community clustering with incremental aggregation."
+	@echo "  - GORDER        (9):  Apply dynamic programming BFS and windowing ordering."
+	@echo "  - CORDER        (10): Workload Balancing via Graph Reordering on Multicore Systems."
+	@echo "  - MAP           (11): Requires a file format for reordering. Use the -r 10:filename.label option."
 	@echo ""
 	@echo "Example Usage:"
 	@echo "  make all - Compile the program."

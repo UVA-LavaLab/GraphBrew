@@ -72,6 +72,25 @@ using namespace edge_list;
  */
 #include "GoGraph.h"
 #include "GoUtil.h"
+/*
+ * @author Priyank Faldu <Priyank.Faldu@ed.ac.uk> <http://faldupriyank.com>
+ *
+ * Copyright 2019 The University of Edinburgh
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
+#include "vec2d.h"
 
 template <typename NodeID_, typename DestID_ = NodeID_,
           typename WeightT_ = NodeID_, bool invert = true>
@@ -530,7 +549,9 @@ const string ReorderingAlgoStr(ReorderingAlgo type) {
   case RabbitOrder:
     return "RabbitOrder";
   case GOrder:
-    return "GOrder";
+    return "COrder";
+  case COrder:
+    return "COrder";
   case ORIGINAL:
     return "Original";
   case Sort:
@@ -576,6 +597,8 @@ void GenerateMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
     break;
   case GOrder:
     GenerateGOrderMapping(g, new_ids);
+  case COrder:
+    GenerateCOrderMapping(g, new_ids);
     break;
   case MAP:
     LoadMappingFromFile(g, new_ids, useOutdeg, map_file);
@@ -1210,6 +1233,136 @@ void GenerateHubClusterMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
 
   t.Stop();
   PrintTime("HubCluster Map Time", t.Seconds());
+}
+
+void GenerateCOrderMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
+                               pvector<NodeID_> &new_ids) {
+     Timer t; 
+    t.Start();
+
+    auto num_nodes = g.num_nodes();
+    auto num_edges = g.num_edges();
+
+
+    uint32_t average_degree = num_edges / num_nodes;
+    
+    const int max_threads = omp_get_max_threads();
+
+    Vector2d<unsigned> large_segment(max_threads);
+    Vector2d<unsigned> small_segment(max_threads);
+
+    #pragma omp parallel for schedule(static, 1024) num_threads(max_threads) 
+    for(unsigned i = 0; i < num_nodes; i++)
+        if(g.out_degree(i) > average_degree) 
+            large_segment[omp_get_thread_num()].push_back(i);
+        else
+            small_segment[omp_get_thread_num()].push_back(i);
+
+    std::vector<unsigned> large_offset(max_threads + 1, 0);
+    std::vector<unsigned> small_offset(max_threads + 1, 0);
+
+    large_offset[1] = large_segment[0].size();
+    small_offset[1] = small_segment[0].size(); 
+    for(int i = 0; i < max_threads ; i++) {
+        large_offset[i+1] = large_offset[i] + large_segment[i].size();
+        small_offset[i+1] = small_offset[i] + small_segment[i].size();
+    }
+
+    unsigned total_large = large_offset[max_threads];
+    unsigned total_small = small_offset[max_threads];
+
+    unsigned cluster_size = 1024 * 1024 / sizeof(float);
+    unsigned num_clusters = (num_nodes-1)/ cluster_size + 1;
+    unsigned num_large_per_seg = ceil((float) total_large  / num_clusters);
+    unsigned num_small_per_seg = cluster_size - num_large_per_seg;
+
+    // Parallelize constructing partitions based on the classified hot/cold vertices
+    #pragma omp parallel for schedule(static) num_threads(max_threads)
+    for(unsigned i = 0; i < num_clusters; i++) {
+        unsigned index = i * cluster_size;
+        unsigned num_large =  (i != num_clusters - 1) ? (i + 1) * num_large_per_seg: total_large;
+        unsigned large_start_t = 0;
+        unsigned large_end_t = 0;
+        unsigned large_start_v = 0;
+        unsigned large_end_v = 0;
+        unsigned large_per_seg = (i != num_clusters - 1) ? num_large_per_seg: total_large - i * num_large_per_seg;
+
+        unsigned num_small =  (i != num_clusters - 1) ? (i + 1) * num_small_per_seg: total_small;
+        unsigned small_start_t = 0;
+        unsigned small_end_t = 0;
+        unsigned small_start_v = 0;
+        unsigned small_end_v = 0;
+        unsigned small_per_seg = (i != num_clusters - 1) ? num_small_per_seg: total_small - i * num_small_per_seg;
+        //HOT find the starting segment and starting vertex
+        for(int t = 0; t < max_threads; t++) {
+            if(large_offset[t+1] > num_large - large_per_seg) {
+                large_start_t = t;
+                large_start_v = num_large - large_per_seg - large_offset[t];
+                break;
+            }
+        }
+        //HOT find the ending segment and ending vertex
+        for(int t = large_start_t; t < max_threads; t++) {
+            if(large_offset[t+1] >= num_large) {
+                large_end_t = t;
+                large_end_v =  num_large - large_offset[t] - 1;
+                break;
+            }
+        }
+
+        //COLD find the starting segment and starting vertex
+        for(int t = 0; t < max_threads; t++) {
+            if(small_offset[t+1] > num_small - small_per_seg) {
+                small_start_t = t;
+                small_start_v = num_small - small_per_seg - small_offset[t];
+                break;
+            }
+        }
+        //COLD find the ending segment and ending vertex
+        for(int t = small_start_t; t < max_threads; t++) {
+            if(small_offset[t+1] >= num_small) {
+                small_end_t = t;
+                small_end_v =  num_small - small_offset[t] - 1;
+                break;
+            }
+        }
+
+        if(large_start_t == large_end_t) {
+            for(unsigned j = large_start_v; j <= large_end_v; j++) {
+                new_ids[large_segment[large_start_t][j]] = index++;
+            }
+        } else {
+            for(unsigned t = large_start_t; t < large_end_t; t++) {
+                if(t!=large_start_t)
+                    large_start_v = 0;
+                for(unsigned j = large_start_v; j < large_segment[t].size(); j++) {
+                    new_ids[large_segment[t][j]] = index++;
+                }
+            }
+            for(unsigned j = 0; j <= large_end_v; j++) {
+                new_ids[large_segment[large_end_t][j]] = index++;
+            }
+        }
+// COLD move the vertices form cold segment(s) to a partition
+        if(small_start_t == small_end_t) {
+            for(unsigned j = small_start_v; j <= small_end_v; j++) {
+                new_ids[small_segment[small_start_t][j]] = index++;
+            }
+        } else {
+            for(unsigned t = small_start_t; t < small_end_t; t++) {
+                if(t!=small_start_t)
+                    small_start_v = 0;
+                for(unsigned j = small_start_v; j < small_segment[t].size(); j++) {
+                    new_ids[small_segment[t][j]] = index++;
+                }
+            }
+            for(unsigned j = 0; j <= small_end_v; j++) {
+                new_ids[small_segment[small_end_t][j]] = index++;
+            }
+        }
+    }
+    t.Stop();
+    PrintTime("Corder Time", t.Seconds());
 }
 
 // @inproceedings{popt-hpca21,
