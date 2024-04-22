@@ -1,9 +1,9 @@
 [![Build Status](https://app.travis-ci.com/atmughrabi/GLay.svg?token=L3reAtGHdEVVPvzcVqQ6&branch=main)](https://app.travis-ci.com/atmughrabi/GLay)
+[<p align="center"><img src="./04_docs/fig/logo.webp" width="300" ></p>](#GLay-benchmark-suite)
 
+# GraphBrew
 
-# GAP++ Benchmarks Suite
-
-This repository contains the GAP (Graph Algorithms in Practice) benchmarks suite, designed to compile and run various graph algorithms using C++. The Makefile in this repository automates the process of compiling these benchmarks from source code.
+This repository contains the GAP (Graph Algorithms in Practice) benchmarks suite, designed to reorder graphs and run various graph algorithms using C++. The Makefile in this repository automates the process of compiling these benchmarks from source code.
 
 ## Enhancements
 
@@ -11,6 +11,8 @@ This repository contains the GAP (Graph Algorithms in Practice) benchmarks suite
 * **Degree-Based Grouping:** Implementing degree-based grouping strategies to test benchmark performance.
 * **Rabbit Order:**  Community clustering order with incremental aggregation.
 * **P-OPT Segmentation:**  Exploring graph caching techniques for efficient handling of large-scale graphs.
+* **Gorder:**  Speedup Graph Processing by Graph Ordering."
+* **Corder:**  Workload Balancing via Graph Reordering on Multicore Systems."
 
 ## Prerequisites
 
@@ -167,7 +169,8 @@ Reordering Algorithms:
   - HUBCLUSTERDBG (7): Combine hub clustering with degree-based grouping.
   - RABBITORDER   (8): Apply community clustering with incremental aggregation.
   - GORDER        (9): Apply dynamic programming BFS and windowing ordering.
-  - MAP           (10): Requires a file format for reordering. Use the -r 10:filename.label option.
+  - CORDER        (10): Workload Balancing via Graph Reordering on Multicore Systems.
+  - MAP           (11): Requires a file format for reordering. Use the -r 10:filename.label option.
 ```
 
 2. **Makefile Flow**
