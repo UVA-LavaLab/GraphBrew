@@ -154,8 +154,8 @@ New Parameters
    * Segment the graph for scalability requires modifying the algorithm to iterate through segments.
 
 ```bash
--o <order>  : apply reordering strategy, optionally with a parameter 
-               [example]-r 3 -r 2 -r 10:mapping.label[optional]
+-o <order>  : apply reordering strategy, optionally layer ordering 
+               [example]-o 3 -o 2 -o 10:mapping.label[optional]
 
 -j <segments>: number of segments for the graph [1]
 
