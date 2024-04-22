@@ -170,7 +170,8 @@ Reordering Algorithms:
   - RABBITORDER   (8): Apply community clustering with incremental aggregation.
   - GORDER        (9): Apply dynamic programming BFS and windowing ordering.
   - CORDER        (10): Workload Balancing via Graph Reordering on Multicore Systems.
-  - MAP           (11): Requires a file format for reordering. Use the -r 10:filename.label option.
+  - RCM           (11): RCM is ordered by the reverse Cuthill-McKee algorithm (BFS).
+  - MAP           (12): Requires a file format for reordering. Use the -r 10:filename.label option.
 ```
 
 2. **Makefile Flow**
@@ -201,5 +202,5 @@ Please cite the following papers if you find this repository useful.
 + Y. Zhang, M. Yang, R. Baghdadi, S. Kamil, J. Shun, and S. Amarasinghe, “GraphIt: a high-performance graph DSL,” Proc. ACM Program. Lang., vol. 2, no. OOPSLA, p. 121:1-121:30, Oct. 2018, doi: 10.1145/3276491.
 + H. Wei, J. X. Yu, C. Lu, and X. Lin, “Speedup Graph Processing by Graph Ordering,” New York, NY, USA, Jun. 2016, pp. 1813–1828. doi: 10.1145/2882903.2915220.
 + Y. Chen and Y.-C. Chung, “Workload Balancing via Graph Reordering on Multicore Systems,” IEEE Transactions on Parallel and Distributed Systems, 2021.
-
-   
++ A. George and J. W. H. Liu, Computer Solution of Large Sparse Positive Definite Systems. Prentice-Hall, 1981.
+ 

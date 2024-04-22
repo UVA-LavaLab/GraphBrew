@@ -552,6 +552,8 @@ const string ReorderingAlgoStr(ReorderingAlgo type) {
     return "GOrder";
   case COrder:
     return "COrder";
+  case RCMOrder:
+    return "RCMOrder";
   case ORIGINAL:
     return "Original";
   case Sort:
@@ -600,6 +602,9 @@ void GenerateMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
     break;
   case COrder:
     GenerateCOrderMapping(g, new_ids);
+    break;
+  case RCMOrder:
+    GenerateRCMOrderMapping(g, new_ids);
     break;
   case MAP:
     LoadMappingFromFile(g, new_ids, useOutdeg, map_file);
@@ -709,7 +714,7 @@ void GenerateRandomMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
   t.Start();
 
   int64_t num_nodes = g.num_nodes();
-  // int64_t num_edges = g.num_edges();
+  // int64_t num_edges = g.num_edges_directed();
 
   NodeID_ granularity = 1;
   NodeID_ slice = (num_nodes - granularity + 1) / granularity;
@@ -755,7 +760,7 @@ void GenerateHubSortDBGMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
   t.Start();
 
   int64_t num_nodes = g.num_nodes();
-  int64_t num_edges = g.num_edges();
+  int64_t num_edges = g.num_edges_directed();
 
   int64_t avgDegree = num_edges / num_nodes;
   size_t hubCount{0};
@@ -840,7 +845,7 @@ void GenerateHubClusterDBGMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
   t.Start();
 
   int64_t num_nodes = g.num_nodes();
-  int64_t num_edges = g.num_edges();
+  int64_t num_edges = g.num_edges_directed();
 
   uint32_t avg_vertex = num_edges / num_nodes;
 
@@ -917,7 +922,7 @@ void GenerateHubSortMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
   t.Start();
 
   int64_t num_nodes = g.num_nodes();
-  int64_t num_edges = g.num_edges();
+  int64_t num_edges = g.num_edges_directed();
 
   pvector<degree_nodeid_t> degree_id_pairs(num_nodes);
   int64_t avgDegree = num_edges / num_nodes;
@@ -1006,7 +1011,7 @@ void GenerateSortMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
   t.Start();
 
   int64_t num_nodes = g.num_nodes();
-  // int64_t num_edges = g.num_edges();
+  // int64_t num_edges = g.num_edges_directed();
 
   pvector<degree_nodeid_t> degree_id_pairs(num_nodes);
 
@@ -1044,7 +1049,7 @@ void GenerateDBGMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
   t.Start();
 
   int64_t num_nodes = g.num_nodes();
-  int64_t num_edges = g.num_edges();
+  int64_t num_edges = g.num_edges_directed();
 
   uint32_t avg_vertex = num_edges / num_nodes;
   const uint32_t &av = avg_vertex;
@@ -1131,7 +1136,7 @@ void GenerateHubClusterMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
   t.Start();
 
   int64_t num_nodes = g.num_nodes();
-  int64_t num_edges = g.num_edges();
+  int64_t num_edges = g.num_edges_directed();
 
   pvector<degree_nodeid_t> degree_id_pairs(num_nodes);
   int64_t avgDegree = num_edges / num_nodes;
@@ -1237,133 +1242,133 @@ void GenerateHubClusterMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
 }
 
 void GenerateCOrderMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
-                               pvector<NodeID_> &new_ids) {
-     Timer t; 
-    t.Start();
+                           pvector<NodeID_> &new_ids) {
+  Timer t;
+  t.Start();
 
-    auto num_nodes = g.num_nodes();
-    auto num_edges = g.num_edges();
+  auto num_nodes = g.num_nodes();
+  auto num_edges = g.num_edges_directed();
 
 
-    uint32_t average_degree = num_edges / num_nodes;
-    
-    const int max_threads = omp_get_max_threads();
+  uint32_t average_degree = num_edges / num_nodes;
 
-    Vector2d<unsigned> large_segment(max_threads);
-    Vector2d<unsigned> small_segment(max_threads);
+  const int max_threads = omp_get_max_threads();
 
-    #pragma omp parallel for schedule(static, 1024) num_threads(max_threads) 
-    for(unsigned i = 0; i < num_nodes; i++)
-        if(g.out_degree(i) > average_degree) 
-            large_segment[omp_get_thread_num()].push_back(i);
-        else
-            small_segment[omp_get_thread_num()].push_back(i);
+  Vector2d<unsigned> large_segment(max_threads);
+  Vector2d<unsigned> small_segment(max_threads);
 
-    std::vector<unsigned> large_offset(max_threads + 1, 0);
-    std::vector<unsigned> small_offset(max_threads + 1, 0);
+    #pragma omp parallel for schedule(static, 1024) num_threads(max_threads)
+  for(unsigned i = 0; i < num_nodes; i++)
+    if(g.out_degree(i) > average_degree)
+      large_segment[omp_get_thread_num()].push_back(i);
+    else
+      small_segment[omp_get_thread_num()].push_back(i);
 
-    large_offset[1] = large_segment[0].size();
-    small_offset[1] = small_segment[0].size(); 
-    for(int i = 0; i < max_threads ; i++) {
-        large_offset[i+1] = large_offset[i] + large_segment[i].size();
-        small_offset[i+1] = small_offset[i] + small_segment[i].size();
-    }
+  std::vector<unsigned> large_offset(max_threads + 1, 0);
+  std::vector<unsigned> small_offset(max_threads + 1, 0);
 
-    unsigned total_large = large_offset[max_threads];
-    unsigned total_small = small_offset[max_threads];
+  large_offset[1] = large_segment[0].size();
+  small_offset[1] = small_segment[0].size();
+  for(int i = 0; i < max_threads ; i++) {
+    large_offset[i+1] = large_offset[i] + large_segment[i].size();
+    small_offset[i+1] = small_offset[i] + small_segment[i].size();
+  }
 
-    unsigned cluster_size = 1024 * 1024 / sizeof(float);
-    unsigned num_clusters = (num_nodes-1)/ cluster_size + 1;
-    unsigned num_large_per_seg = ceil((float) total_large  / num_clusters);
-    unsigned num_small_per_seg = cluster_size - num_large_per_seg;
+  unsigned total_large = large_offset[max_threads];
+  unsigned total_small = small_offset[max_threads];
 
-    // Parallelize constructing partitions based on the classified hot/cold vertices
+  unsigned cluster_size = 1024 * 1024 / sizeof(float);
+  unsigned num_clusters = (num_nodes-1)/ cluster_size + 1;
+  unsigned num_large_per_seg = ceil((float) total_large  / num_clusters);
+  unsigned num_small_per_seg = cluster_size - num_large_per_seg;
+
+  // Parallelize constructing partitions based on the classified hot/cold vertices
     #pragma omp parallel for schedule(static) num_threads(max_threads)
-    for(unsigned i = 0; i < num_clusters; i++) {
-        unsigned index = i * cluster_size;
-        unsigned num_large =  (i != num_clusters - 1) ? (i + 1) * num_large_per_seg: total_large;
-        unsigned large_start_t = 0;
-        unsigned large_end_t = 0;
-        unsigned large_start_v = 0;
-        unsigned large_end_v = 0;
-        unsigned large_per_seg = (i != num_clusters - 1) ? num_large_per_seg: total_large - i * num_large_per_seg;
+  for(unsigned i = 0; i < num_clusters; i++) {
+    unsigned index = i * cluster_size;
+    unsigned num_large =  (i != num_clusters - 1) ? (i + 1) * num_large_per_seg: total_large;
+    unsigned large_start_t = 0;
+    unsigned large_end_t = 0;
+    unsigned large_start_v = 0;
+    unsigned large_end_v = 0;
+    unsigned large_per_seg = (i != num_clusters - 1) ? num_large_per_seg: total_large - i * num_large_per_seg;
 
-        unsigned num_small =  (i != num_clusters - 1) ? (i + 1) * num_small_per_seg: total_small;
-        unsigned small_start_t = 0;
-        unsigned small_end_t = 0;
-        unsigned small_start_v = 0;
-        unsigned small_end_v = 0;
-        unsigned small_per_seg = (i != num_clusters - 1) ? num_small_per_seg: total_small - i * num_small_per_seg;
-        //HOT find the starting segment and starting vertex
-        for(int t = 0; t < max_threads; t++) {
-            if(large_offset[t+1] > num_large - large_per_seg) {
-                large_start_t = t;
-                large_start_v = num_large - large_per_seg - large_offset[t];
-                break;
-            }
-        }
-        //HOT find the ending segment and ending vertex
-        for(int t = large_start_t; t < max_threads; t++) {
-            if(large_offset[t+1] >= num_large) {
-                large_end_t = t;
-                large_end_v =  num_large - large_offset[t] - 1;
-                break;
-            }
-        }
-
-        //COLD find the starting segment and starting vertex
-        for(int t = 0; t < max_threads; t++) {
-            if(small_offset[t+1] > num_small - small_per_seg) {
-                small_start_t = t;
-                small_start_v = num_small - small_per_seg - small_offset[t];
-                break;
-            }
-        }
-        //COLD find the ending segment and ending vertex
-        for(int t = small_start_t; t < max_threads; t++) {
-            if(small_offset[t+1] >= num_small) {
-                small_end_t = t;
-                small_end_v =  num_small - small_offset[t] - 1;
-                break;
-            }
-        }
-
-        if(large_start_t == large_end_t) {
-            for(unsigned j = large_start_v; j <= large_end_v; j++) {
-                new_ids[large_segment[large_start_t][j]] = index++;
-            }
-        } else {
-            for(unsigned t = large_start_t; t < large_end_t; t++) {
-                if(t!=large_start_t)
-                    large_start_v = 0;
-                for(unsigned j = large_start_v; j < large_segment[t].size(); j++) {
-                    new_ids[large_segment[t][j]] = index++;
-                }
-            }
-            for(unsigned j = 0; j <= large_end_v; j++) {
-                new_ids[large_segment[large_end_t][j]] = index++;
-            }
-        }
-// COLD move the vertices form cold segment(s) to a partition
-        if(small_start_t == small_end_t) {
-            for(unsigned j = small_start_v; j <= small_end_v; j++) {
-                new_ids[small_segment[small_start_t][j]] = index++;
-            }
-        } else {
-            for(unsigned t = small_start_t; t < small_end_t; t++) {
-                if(t!=small_start_t)
-                    small_start_v = 0;
-                for(unsigned j = small_start_v; j < small_segment[t].size(); j++) {
-                    new_ids[small_segment[t][j]] = index++;
-                }
-            }
-            for(unsigned j = 0; j <= small_end_v; j++) {
-                new_ids[small_segment[small_end_t][j]] = index++;
-            }
-        }
+    unsigned num_small =  (i != num_clusters - 1) ? (i + 1) * num_small_per_seg: total_small;
+    unsigned small_start_t = 0;
+    unsigned small_end_t = 0;
+    unsigned small_start_v = 0;
+    unsigned small_end_v = 0;
+    unsigned small_per_seg = (i != num_clusters - 1) ? num_small_per_seg: total_small - i * num_small_per_seg;
+    //HOT find the starting segment and starting vertex
+    for(int t = 0; t < max_threads; t++) {
+      if(large_offset[t+1] > num_large - large_per_seg) {
+        large_start_t = t;
+        large_start_v = num_large - large_per_seg - large_offset[t];
+        break;
+      }
     }
-    t.Stop();
-    PrintTime("Corder Time", t.Seconds());
+    //HOT find the ending segment and ending vertex
+    for(int t = large_start_t; t < max_threads; t++) {
+      if(large_offset[t+1] >= num_large) {
+        large_end_t = t;
+        large_end_v =  num_large - large_offset[t] - 1;
+        break;
+      }
+    }
+
+    //COLD find the starting segment and starting vertex
+    for(int t = 0; t < max_threads; t++) {
+      if(small_offset[t+1] > num_small - small_per_seg) {
+        small_start_t = t;
+        small_start_v = num_small - small_per_seg - small_offset[t];
+        break;
+      }
+    }
+    //COLD find the ending segment and ending vertex
+    for(int t = small_start_t; t < max_threads; t++) {
+      if(small_offset[t+1] >= num_small) {
+        small_end_t = t;
+        small_end_v =  num_small - small_offset[t] - 1;
+        break;
+      }
+    }
+
+    if(large_start_t == large_end_t) {
+      for(unsigned j = large_start_v; j <= large_end_v; j++) {
+        new_ids[large_segment[large_start_t][j]] = index++;
+      }
+    } else {
+      for(unsigned t = large_start_t; t < large_end_t; t++) {
+        if(t!=large_start_t)
+          large_start_v = 0;
+        for(unsigned j = large_start_v; j < large_segment[t].size(); j++) {
+          new_ids[large_segment[t][j]] = index++;
+        }
+      }
+      for(unsigned j = 0; j <= large_end_v; j++) {
+        new_ids[large_segment[large_end_t][j]] = index++;
+      }
+    }
+// COLD move the vertices form cold segment(s) to a partition
+    if(small_start_t == small_end_t) {
+      for(unsigned j = small_start_v; j <= small_end_v; j++) {
+        new_ids[small_segment[small_start_t][j]] = index++;
+      }
+    } else {
+      for(unsigned t = small_start_t; t < small_end_t; t++) {
+        if(t!=small_start_t)
+          small_start_v = 0;
+        for(unsigned j = small_start_v; j < small_segment[t].size(); j++) {
+          new_ids[small_segment[t][j]] = index++;
+        }
+      }
+      for(unsigned j = 0; j <= small_end_v; j++) {
+        new_ids[small_segment[small_end_t][j]] = index++;
+      }
+    }
+  }
+  t.Stop();
+  PrintTime("Corder Time", t.Seconds());
 }
 
 // @inproceedings{popt-hpca21,
@@ -2089,7 +2094,7 @@ adjacency_list read_graph(const std::string &graphpath) {
 adjacency_list
 readRabbitOrderGraphCSR(const CSRGraph<NodeID_, DestID_, invert> &g) {
 
-  std::vector<edge> edges(g.num_edges(), {0, 0, 0.0f});
+  std::vector<edge> edges(g.num_edges_directed(), {0, 0, 0.0f});
 
   int edge_idx = 0;
   for (NodeID_ i = 0; i < g.num_nodes(); i++) {
@@ -2279,9 +2284,10 @@ void reorder_internal(adjacency_list adj, pvector<NodeID_> &new_ids) {
 void GenerateGOrderMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
                            pvector<NodeID_> &new_ids) {
 
-  // int64_t num_edges = g.num_edges();
+  int64_t num_edges = g.num_edges_directed();
 
-  std::vector<std::pair<int, int> > edges(g.num_edges(), {0, 0});
+  std::vector<std::pair<int, int> > edges(num_edges, {0, 0});
+
   int window = 5;
 
   int edge_idx = 0;
@@ -2291,7 +2297,7 @@ void GenerateGOrderMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
       edge_idx++;
     }
   }
-  
+
   Gorder::GoGraph go;
   vector<int> order;
   Timer tm;
@@ -2317,6 +2323,48 @@ void GenerateGOrderMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
     new_ids[i] = (NodeID_)u;
   }
 }
+
+void GenerateRCMOrderMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
+                           pvector<NodeID_> &new_ids) {
+
+  int64_t num_edges = g.num_edges_directed();
+
+  std::vector<std::pair<int, int> > edges(num_edges, {0, 0});
+
+  int edge_idx = 0;
+  for (NodeID_ i = 0; i < g.num_nodes(); i++) {
+    for (DestID_ j : g.out_neigh(i)) {
+      edges[edge_idx] = {i, j};
+      edge_idx++;
+    }
+  }
+
+  Gorder::GoGraph go;
+  vector<int> order;
+  Timer tm;
+  std::string name;
+  name = GorderUtil::extractFilename(cli_.filename().c_str());
+  go.setFilename(name);
+
+  tm.Start();
+  go.readGraphEdgelist(edges, g.num_nodes());
+  // go.readGraph(cli_.filename().c_str());
+  go.Transform();
+  tm.Stop();
+  PrintTime("RCMorder graph", tm.Seconds());
+
+  tm.Start();
+  go.RCMOrder(order);
+  tm.Stop();
+  PrintTime("RCMorder time", tm.Seconds());
+
+#pragma omp parallel for
+  for (int i = 0; i < go.vsize; i++) {
+    int u = order[go.order_l1[i]];
+    new_ids[i] = (NodeID_)u;
+  }
+}
+
 };
 
 #endif // BUILDER_H_

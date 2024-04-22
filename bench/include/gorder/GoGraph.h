@@ -291,7 +291,7 @@ void Transform() {
     graph[vsize].outstart = edgenum;
     graph[vsize].instart = edgenum;
 
-    __gnu_parallel::sort(edges.begin(), edges.end(),
+    __gnu_parallel::stable_sort(edges.begin(), edges.end(),
          [](const pair<int, int> &a, const pair<int, int> &b) -> bool {
                 if (a.first < b.first)
                     return true;
@@ -360,7 +360,7 @@ void PrintReOrderedGraph(const vector<int> &order) {
             v = order[outedge[j]];
             ReOrderedGraph[u].push_back(v);
         }
-        __gnu_parallel::sort(ReOrderedGraph[u].begin(), ReOrderedGraph[u].end());
+        __gnu_parallel::stable_sort(ReOrderedGraph[u].begin(), ReOrderedGraph[u].end());
     }
     /*
             for(int u=0; u<vsize; u++){
@@ -391,7 +391,7 @@ void GraphAnalysis() {
     for (int i = 0; i < vsize; i++) {
         tmp[i] = graph[i].outdegree;
     }
-    __gnu_parallel::sort(tmp.begin(), tmp.end());
+    __gnu_parallel::stable_sort(tmp.begin(), tmp.end());
 
     cout << "outdegree:" << endl;
     vector<int>::iterator tmpit1, tmpit2;
@@ -405,7 +405,7 @@ void GraphAnalysis() {
     for (int i = 0; i < vsize; i++) {
         tmp[i] = graph[i].indegree;
     }
-    __gnu_parallel::sort(tmp.begin(), tmp.end());
+    __gnu_parallel::stable_sort(tmp.begin(), tmp.end());
 
     cout << "indegree:" << endl;
     tmpit1 = tmp.begin();
@@ -532,7 +532,7 @@ double GapCost(vector<int> &order) {
              j++) {
             edgelist.push_back(order[outedge[j]]);
         }
-        __gnu_parallel::sort(edgelist.begin(), edgelist.end());
+        __gnu_parallel::stable_sort(edgelist.begin(), edgelist.end());
         for (size_t j = 1; j < edgelist.size(); j++) {
             if (edgelist[j] - edgelist[j - 1])
                 gaplog2 += log(double(edgelist[j] - edgelist[j - 1])) / log(double(2));
@@ -766,7 +766,7 @@ void GorderGreedy(vector<int> &retorder, int window) {
 
 #ifndef Release
     vector<int> tmporder = order;
-    __gnu_parallel::sort(tmporder.begin(), tmporder.end());
+    __gnu_parallel::stable_sort(tmporder.begin(), tmporder.end());
     for (size_t i = 0; i < tmporder.size() - 1; i++) {
         if (tmporder[i] == tmporder[i + 1]) {
             cout << "same elements: " << tmporder[i] << endl;
@@ -802,7 +802,7 @@ void RCMOrder(vector<int> &retorder) {
         degreevertex[i] = i;
     }
 
-    __gnu_parallel::sort(degreevertex.begin(), degreevertex.end(),
+    __gnu_parallel::stable_sort(degreevertex.begin(), degreevertex.end(),
          [&](const int &a, const int &b) -> bool {
                 if (graph[a].outdegree + graph[a].indegree <
                     graph[b].outdegree + graph[b].indegree)
@@ -832,7 +832,7 @@ void RCMOrder(vector<int> &retorder) {
                      it < limit; it++) {
                     tmp.push_back(outedge[it]);
                 }
-                __gnu_parallel::sort(tmp.begin(), tmp.end(), [&](const int &a, const int &b) -> bool {
+                __gnu_parallel::stable_sort(tmp.begin(), tmp.end(), [&](const int &a, const int &b) -> bool {
                             if (graph[a].outdegree + graph[a].indegree <
                                 graph[b].outdegree + graph[b].indegree)
                                 return true;

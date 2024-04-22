@@ -102,7 +102,7 @@ run-all: $(addprefix run-, $(KERNELS))
 
 # Define a rule that sweeps through -o 1 to 7
 run-%-sweep: $(BIN_DIR)/%
-	@for o in 1 2 3 4 5 6 7 8 9 10; do \
+	@for o in 1 2 3 4 5 6 7 8 9 10 11; do \
 		echo "========================================================="; \
 		OMP_NUM_THREADS=$(PARALLEL) ./$(BIN_DIR)/$* $(GRAPH_BENCH) -n 1 -o 1 -o $$o; \
 	done
@@ -151,7 +151,8 @@ help-%: $(BIN_DIR)/%
 	@echo "  - RABBITORDER   (8):  Apply community clustering with incremental aggregation."
 	@echo "  - GORDER        (9):  Apply dynamic programming BFS and windowing ordering."
 	@echo "  - CORDER        (10): Workload Balancing via Graph Reordering on Multicore Systems."
-	@echo "  - MAP           (11): Requires a file format for reordering. Use the -r 10:filename.label option."
+	@echo "  - RCM           (11): RCM is ordered by the reverse Cuthill-McKee algorithm (BFS)."
+	@echo "  - MAP           (12): Requires a file format for reordering. Use the -r 10:filename.label option."
 	@echo ""
 	@echo "Example Usage:"
 	@echo "  make all - Compile the program."
