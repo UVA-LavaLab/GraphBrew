@@ -72,15 +72,15 @@ all: $(SUITE)
 # =========================================================
 # Runtime Flags OMP_NUM_THREADS
 # =========================================================
-PARALLEL = 4
+PARALLEL=16
 # =========================================================
 
 # =========================================================
 # Running Benchmarks
 # =========================================================
-# GRAPH_BENCH = /test/graphs/graph.el
-GRAPH_BENCH = -g 5
-RUN_PARAMS = $(GRAPH_BENCH) -n 1 -o 3 -v
+GRAPH_BENCH = -f ./test/graphs/graph.el
+# GRAPH_BENCH = -g 5
+RUN_PARAMS = $(GRAPH_BENCH) -n 1 -o 3 
 # =========================================================
 run-%: $(BIN_DIR)/%
 	@OMP_NUM_THREADS=$(PARALLEL) ./$< $(RUN_PARAMS) $(EXIT_STATUS)
@@ -97,7 +97,7 @@ run-all: $(addprefix run-, $(KERNELS))
 run-%-sweep: $(BIN_DIR)/%
 	@for o in 1 2 3 4 5 6 7 8; do \
 		echo "========================================================="; \
-		OMP_NUM_THREADS=$(PARALLEL) ./$(BIN_DIR)/$* -v $(GRAPH_BENCH) -n 1 -o $$o; \
+		OMP_NUM_THREADS=$(PARALLEL) ./$(BIN_DIR)/$* $(GRAPH_BENCH) -n 1 -o 1 -o $$o; \
 	done
 
 # =========================================================
@@ -148,6 +148,6 @@ help-%: $(BIN_DIR)/%
 	@echo "Example Usage:"
 	@echo "  make all - Compile the program."
 	@echo "  make clean - Clean build files."
-	@echo "  ./$< -g 15 -n 1 -r 10:mapping.label - Execute with MAP reordering using 'mapping.label'."
+	@echo "  ./$< -g 15 -n 1 -o 10:mapping.label - Execute with MAP reordering using 'mapping.label'."
 
 help-all: $(addprefix help-, $(KERNELS))
