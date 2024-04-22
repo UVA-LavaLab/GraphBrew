@@ -1,7 +1,13 @@
 # =========================================================
 # Compiler and Directories Setup
 # =========================================================
-CXX = g++
+# CXX = g++
+
+# Specify the C compiler
+CC=/usr/bin/gcc-9
+
+# Specify the C++ compiler
+CXX=/usr/bin/g++-9
 # =========================================================
 BENCH_DIR = bench
 BIN_DIR = $(BENCH_DIR)/bin
@@ -78,8 +84,8 @@ PARALLEL=16
 # =========================================================
 # Running Benchmarks
 # =========================================================
-GRAPH_BENCH = -f ./test/graphs/graph.el
-# GRAPH_BENCH = -g 5
+# GRAPH_BENCH = -f ./test/graphs/graph.el
+GRAPH_BENCH = -g 5
 RUN_PARAMS = $(GRAPH_BENCH) -n 1 -o 3 
 # =========================================================
 run-%: $(BIN_DIR)/%
