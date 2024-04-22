@@ -8,14 +8,16 @@ BIN_DIR = $(BENCH_DIR)/bin
 LIB_DIR = $(BENCH_DIR)/lib
 SRC_DIR = $(BENCH_DIR)/src
 INC_DIR = $(BENCH_DIR)/include
+OBJ_DIR = $(BENCH_DIR)/obj
+
 # =========================================================
-INCLUDE_GAP    = $(INC_DIR)/gapbs 
+INCLUDE_GAPBS  = $(INC_DIR)/gapbs 
 INCLUDE_RABBIT = $(INC_DIR)/rabbit
 INCLUDE_GORDER = $(INC_DIR)/gorder
 # =========================================================
-DEP_GAP    = $(wildcard $(INCLUDE_GAP)/*.h) 
-DEP_RABBIT = $(wildcard $(INCLUDE_RABBIT)/*.hpp)
-DEP_GORDER = $(wildcard $(INCLUDE_GORDER)/*.hpp) $(wildcard $(INCLUDE_GORDER)/*.cpp) 
+DEP_GAPBS  = $(wildcard $(INC_DIR)/gapbs/*.h)
+DEP_RABBIT = $(wildcard $(INC_DIR)/rabbit/*.hpp)
+DEP_GORDER = $(wildcard $(INC_DIR)/gorder/*.hpp) $(wildcard $(INC_DIR)/gorder/*.cpp) 
 # =========================================================
 
 # =========================================================
@@ -48,7 +50,7 @@ NC      =\033[0m
 # =========================================================
 CXXFLAGS_GAP    = -std=c++17 -O3 -Wall -fopenmp
 CXXFLAGS_RABBIT = -mcx16 
-CXXFLAGS_GORDER = -m64 -mcpu=native 
+CXXFLAGS_GORDER = -m64 -mcpu=native -DRelease -DGCC
 # =========================================================
 LDLIBS_RABBIT   += -ltcmalloc_minimal -lnuma
 # =========================================================
@@ -56,15 +58,7 @@ CXXFLAGS = $(CXXFLAGS_GAP) $(CXXFLAGS_RABBIT)
 LDLIBS   = $(LDLIBS_RABBIT)
 # =========================================================
 # CXXFLAGS += -D_DEBUG
-INCLUDES = -I$(INCLUDE_GAP) -I$(INCLUDE_RABBIT) 
-# =========================================================
-
-# =========================================================
-# Runtime Flags OMP_NUM_THREADS
-# =========================================================
-PARALLEL = 4
-# GRAPH_BENCH = /test/graphs/graph.el
-GRAPH_BENCH = -g 5
+INCLUDES = -I$(INCLUDE_GAPBS) -I$(INCLUDE_RABBIT)
 # =========================================================
 # Targets
 # =========================================================
@@ -72,23 +66,22 @@ KERNELS = bc bfs cc cc_sv pr pr_spmv sssp tc
 SUITE = $(addprefix $(BIN_DIR)/,$(KERNELS)) $(BIN_DIR)/converter
 # =========================================================
 
-
-
-.PHONY: all run-% help-% help clean run-%-gdb run-%-sweep
+.PHONY: all run-% help-% help clean run-%-gdb run-%-sweep $(BIN_DIR)/%
 all: $(SUITE)
 
 # =========================================================
-# Compilation Rules
+# Runtime Flags OMP_NUM_THREADS
 # =========================================================
-$(BIN_DIR)/%: $(SRC_DIR)/%.cc $(DEP_GAP) $(DEP_RABBIT) | $(BIN_DIR)
-	@$(CXX) $(CXXFLAGS) $(INCLUDES) $< $(LDLIBS) -o $@ $(EXIT_STATUS)
+PARALLEL = 4
+# =========================================================
 
 # =========================================================
 # Running Benchmarks
 # =========================================================
+# GRAPH_BENCH = /test/graphs/graph.el
+GRAPH_BENCH = -g 5
 RUN_PARAMS = $(GRAPH_BENCH) -n 1 -o 3 -v
-# RUN_PARAMS = -s -g 6 -n 1 -o 1
-
+# =========================================================
 run-%: $(BIN_DIR)/%
 	@OMP_NUM_THREADS=$(PARALLEL) ./$< $(RUN_PARAMS) $(EXIT_STATUS)
 
@@ -102,10 +95,17 @@ run-all: $(addprefix run-, $(KERNELS))
 
 # Define a rule that sweeps through -o 1 to 7
 run-%-sweep: $(BIN_DIR)/%
-	@for o in 1 8; do \
-		echo "Running with -o $$o"; \
+	@for o in 1 2 3 4 5 6 7 8; do \
+		echo "========================================================="; \
 		OMP_NUM_THREADS=$(PARALLEL) ./$(BIN_DIR)/$* -v $(GRAPH_BENCH) -n 1 -o $$o; \
 	done
+
+# =========================================================
+# Compilation Rules
+# =========================================================
+$(BIN_DIR)/%: $(SRC_DIR)/%.cc $(DEP_GAPBS) $(DEP_RABBIT) | $(BIN_DIR)
+	@$(CXX) $(CXXFLAGS) $(INCLUDES) $< $(LDLIBS) -o $@ $(EXIT_STATUS)
+
 # =========================================================
 # Directory Setup
 # =========================================================

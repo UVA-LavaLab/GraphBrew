@@ -10,17 +10,17 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-#ifndef _UNITHEAP_H
-#define _UNITHEAP_H
+#ifndef _GOUNITHEAP_H
+#define _GOUNITHEAP_H
 
 #include<cstdlib>
 #include<vector>
 #include<climits>
 #include<algorithm>
 
-#include "Util.h"
+#include "GoUtil.h"
 
-namespace Gorder
+namespace GorderUnitHeap
 {
 
 using namespace std;
@@ -84,9 +84,9 @@ public:
 
 		LinkedList[index].key++;
 #ifndef Release
-		if(key+1>=Header.size()){
+		if(key+1>=(int)Header.size()){
 			cout << "IncrementKey: key+1>=Header.size()\t" << key+1 << endl;
-			quit();
+			GorderUtil::quit();
 		}
 #endif
 		if(Header[key].first==Header[key].second)
@@ -105,11 +105,13 @@ public:
 			top=index;
 		}
 
-		if(key+4>=Header.size()){
+		if(key+4>=(int)Header.size()){
 			Header.resize(Header.size()*1.5);
 		}		
 	}
 };
+
+
 
 }
 

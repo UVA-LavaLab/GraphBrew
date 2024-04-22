@@ -1,6 +1,6 @@
-#include "Util.h"
+#include "GoUtil.h"
 
-namespace Gorder
+namespace GorderUtil
 {
 
 unsigned long long MyRand64(){

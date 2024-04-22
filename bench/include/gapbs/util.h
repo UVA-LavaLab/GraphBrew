@@ -30,7 +30,7 @@ enum ReorderingAlgo {
   HubSortDBG = 6,
   HubClusterDBG = 7,
   RabbitOrder = 8,
-  GORDER = 9,
+  GOrder = 9,
   MAP = 10,
 };
 

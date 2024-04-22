@@ -10,8 +10,8 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-#ifndef _GRAPH_H
-#define _GRAPH_H
+#ifndef _GOGRAPH_H
+#define _GOGRAPH_H
 
 #include <iostream>
 #include <fstream>
@@ -31,8 +31,17 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #include <cstdint>
 #include <chrono>
 
-#include "Util.h"
-#include "UnitHeap.h"
+#include "GoUtil.h"
+#include "GoUnitHeap.h"
+
+#ifdef __GNUC__
+#define likely(cond) __builtin_expect(!!(cond), 1)
+#define unlikely(cond) __builtin_expect(!!(cond), 0)
+#else
+#define likely(cond) (!!(cond))
+#define unlikely(cond) (!!(cond))
+#endif // GNUC
+
 
 namespace Gorder
 {
@@ -54,7 +63,7 @@ namespace Gorder
         }
     };
 
-    class Graph
+    class GoGraph
     {
     public:
         int vsize;
@@ -69,10 +78,11 @@ namespace Gorder
         string getFilename();
         void setFilename(string name);
 
-        Graph();
-        ~Graph();
+        GoGraph();
+        ~GoGraph();
         void clear();
         void readGraph(const string &fullname);
+        void readGraphEdgelist(const vector<pair<int, int>> &edges, int vsize);
         void writeGraph(ostream &);
         void PrintReOrderedGraph(const vector<int> &order);
         void PrintReOrderedList(vector<int> &order);
@@ -91,6 +101,8 @@ namespace Gorder
         void RCMOrder(vector<int> &order);
         unsigned long long LocalityScore(const int w);
     };
+
+    
 
 }
 

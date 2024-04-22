@@ -1,5 +1,5 @@
-#ifndef UTIL_H_
-#define UTIL_H_
+#ifndef GOUTIL_H_
+#define GOUTIL_H_
 
 #include <iostream>
 #include <algorithm>
@@ -11,7 +11,7 @@
 #include <string>
 #include <cstring>
 
-namespace Gorder
+namespace GorderUtil
 {
 
 using namespace std;
@@ -147,6 +147,8 @@ public:
 	}
 
 };
+
+
 
 }
 

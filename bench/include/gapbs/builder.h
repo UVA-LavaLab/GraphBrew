@@ -47,6 +47,32 @@ using namespace edge_list;
 // Author: ARAI Junya <arai.junya@lab.ntt.co.jp> <araijn@gmail.com>
 //
 
+/*
+   MIT License
+
+   Copyright (c) 2016, Hao Wei.
+
+   Permission is hereby granted, free of charge, to any person obtaining a copy
+   of this software and associated documentation files (the "Software"), to deal
+   in the Software without restriction, including without limitation the rights
+   to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+   copies of the Software, and to permit persons to whom the Software is
+   furnished to do so, subject to the following conditions:
+
+   The above copyright notice and this permission notice shall be included in
+   all copies or substantial portions of the Software.
+
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+   IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+   FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+   AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+   LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+   OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+   SOFTWARE.
+ */
+// #include "GoGraph.h"
+// #include "GoUtil.h"
+
 template <typename NodeID_, typename DestID_ = NodeID_,
           typename WeightT_ = NodeID_, bool invert = true>
 class BuilderBase {
@@ -499,6 +525,8 @@ public:
       return "Random";
     case RabbitOrder:
       return "RabbitOrder";
+    case GOrder:
+      return "GOrder";
     case ORIGINAL:
       return "Original";
     case Sort:
@@ -541,6 +569,9 @@ public:
       break;
     case RabbitOrder:
       GenerateRabbitOrderMapping(g, new_ids);
+      break;
+    case GOrder:
+      // GenerateGOrderMapping(g, new_ids);
       break;
     case MAP:
       LoadMappingFromFile(g, new_ids, useOutdeg, map_file);
@@ -1889,7 +1920,7 @@ public:
 
     if (const size_t c = count_unused_id(n, edges)) {
       // std::cerr << "WARNING: " << c << "/" << n << " vertex IDs are unused"
-                // << " (zero-degree vertices or noncontiguous IDs?)\n";
+      // << " (zero-degree vertices or noncontiguous IDs?)\n";
     }
 
     return make_adj_list(n, edges);
@@ -1936,10 +1967,13 @@ public:
     using boost::adaptors::transformed;
 
     // std::cerr << "Number of threads: " << omp_get_num_threads() << std::endl;
-    omp_set_num_threads(omp_get_max_threads());
+    // omp_set_num_threads(omp_get_max_threads());
+
+    // std::cerr << "Number of threads: " << omp_get_max_threads() << std::endl;
     auto adj = readRabbitOrderGraphCSR(g);
     // const auto m =
-    //     boost::accumulate(adj | transformed([](auto &es) { return es.size(); }),
+    //     boost::accumulate(adj | transformed([](auto &es) { return es.size();
+    //     }),
     //                       static_cast<size_t>(0));
     // std::cerr << "Number of vertices: " << adj.size() << std::endl;
     // std::cerr << "Number of edges: " << m << std::endl;
@@ -2017,8 +2051,9 @@ public:
     for (rabbit_order::vint v = 0; v < g.n(); ++v)
       c[v] = rabbit_order::trace_com(v, &g);
     //--------------------------------------------
-    std::cerr << "Community detection time"
-              << rabbit_order::now_sec() - tstart << std::endl;
+    // std::cerr << "Community detection time"
+    //           << rabbit_order::now_sec() - tstart << std::endl;
+    PrintTime("Community time", rabbit_order::now_sec() - tstart);
 
     // Print the result
     std::copy(&c[0], &c[g.n()],
@@ -2036,9 +2071,9 @@ public:
     const auto g = rabbit_order::aggregate(std::move(adj));
     const auto p = rabbit_order::compute_perm(g);
     //--------------------------------------------
-    std::cerr << "Permutation generation time: "
-              << rabbit_order::now_sec() - tstart << std::endl;
-
+    // std::cerr << "Permutation generation time: "
+    //           << rabbit_order::now_sec() - tstart << std::endl;
+    PrintTime("Permutation generation time", rabbit_order::now_sec() - tstart);
     // Print the result
     std::copy(&p[0], &p[g.n()],
               std::ostream_iterator<rabbit_order::vint>(std::cout, "\n"));
@@ -2051,9 +2086,9 @@ public:
     const auto g = rabbit_order::aggregate(std::move(adj));
     const auto p = rabbit_order::compute_perm(g);
     //--------------------------------------------
-    std::cerr << "Permutation generation time: "
-              << rabbit_order::now_sec() - tstart << std::endl;
-
+    // std::cerr << "Permutation generation time: "
+    //           << rabbit_order::now_sec() - tstart << std::endl;
+    PrintTime("Permutation time", rabbit_order::now_sec() - tstart);
     // Ensure new_ids is large enough to hold all new IDs
 
     if (new_ids.size() < g.n())
@@ -2064,6 +2099,75 @@ public:
       new_ids[i] = (NodeID_)p[i];
     }
   }
+
+  /*
+     MIT License
+
+     Copyright (c) 2016, Hao Wei.
+
+     Permission is hereby granted, free of charge, to any person obtaining a
+     copy of this software and associated documentation files (the "Software"),
+     to deal in the Software without restriction, including without limitation
+     the rights to use, copy, modify, merge, publish, distribute, sublicense,
+     and/or sell copies of the Software, and to permit persons to whom the
+     Software is furnished to do so, subject to the following conditions:
+
+     The above copyright notice and this permission notice shall be included in
+     all copies or substantial portions of the Software.
+
+     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+     IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+     FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+     AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+     LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+     DEALINGS IN THE SOFTWARE.
+   */
+
+//   void GenerateGOrderMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
+//                              pvector<NodeID_> &new_ids) {
+
+//     std::vector<std::pair<int, int>> edges(g.num_edges(), {0, 0});
+//     int window = 5;
+    
+//     for (NodeID_ i = 0; i < g.num_nodes(); i++) {
+//       for (DestID_ j : g.out_neigh(i)) {
+//         edges.push_back({i, j});
+//       }
+//     }
+
+//     if (g.directed()) {
+//       for (NodeID_ i = 0; i < g.num_nodes(); i++) {
+//         for (DestID_ j : g.in_neigh(i)) {
+//           edges.push_back({i, j});
+//         }
+//       }
+//     }
+
+//     Gorder::GoGraph go;
+//     vector<int> order;
+//     Timer tm;
+//     std::string name;
+//     name = GorderUtil::extractFilename(cli_.filename().c_str());
+//     go.setFilename(name);
+
+//     tm.Start();
+//     go.readGraphEdgelist(edges, g.num_nodes());
+//     go.Transform();
+//     tm.Stop();
+//     PrintTime("Gorder graph", tm.Seconds());
+
+//     tm.Start();
+//     go.GorderGreedy(order, window);
+//     tm.Stop();
+//     PrintTime("Gorder time", tm.Seconds());
+
+// #pragma omp parallel for
+//     for (int i = 0; i < go.vsize; i++) {
+//       int u = order[go.order_l1[i]];
+//       new_ids[i] = (NodeID_)u;
+//     }
+//   }
 };
 
 #endif // BUILDER_H_
