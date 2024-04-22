@@ -2,12 +2,9 @@
 # Compiler and Directories Setup
 # =========================================================
 # CXX = g++
-
-# Specify the C compiler
-CC=/usr/bin/gcc-9
-
-# Specify the C++ compiler
-CXX=/usr/bin/g++-9
+# Attempt to find gcc-9, else use default gcc
+CC  = $(shell which gcc-9 || which gcc)
+CXX = $(shell which g++-9 || which g++)
 # =========================================================
 BENCH_DIR = bench
 BIN_DIR = $(BENCH_DIR)/bin
@@ -85,8 +82,8 @@ PARALLEL=16
 # Running Benchmarks
 # =========================================================
 # GRAPH_BENCH = -f ./test/graphs/graph.el
-GRAPH_BENCH = -g 5
-RUN_PARAMS = $(GRAPH_BENCH) -n 1 -o 3 
+GRAPH_BENCH = -u 23
+RUN_PARAMS = $(GRAPH_BENCH) -n 1 -o 1 -o 8 
 # =========================================================
 run-%: $(BIN_DIR)/%
 	@OMP_NUM_THREADS=$(PARALLEL) ./$< $(RUN_PARAMS) $(EXIT_STATUS)
