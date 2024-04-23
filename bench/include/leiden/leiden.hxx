@@ -1419,7 +1419,7 @@ inline auto leidenInvokeOmp(RND& rnd, const G& x, const LeidenOptions& o, FI fi,
         for(size_t i=1; i<S; i++)   //as size is S
         {
           
-          printf("node is: %ld, comm is: %d" " ",i,  ucom[i]);
+          printf("node is: %ld, comm is: %d degree:%ld) ",i,  ucom[i], x.degree(ucom[i]));
           printf("\n");
           //printf("comm is: %d\n", ucom[i]);
         }
