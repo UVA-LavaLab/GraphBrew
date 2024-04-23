@@ -14,6 +14,7 @@
 #include <type_traits>
 #include <utility>
 
+
 #include "command_line.h"
 #include "generator.h"
 #include "graph.h"
@@ -2373,10 +2374,21 @@ void GenerateRCMOrderMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
 }
 
 
+// #ifndef TYPE
+// /** Type of edge weights. */
+// #define TYPE float
+// #endif
 
 void GenerateLeidenMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
                            pvector<NodeID_> &new_ids) {
+
+
+// using K = uint32_t;
+// using V = TYPE;
+// install_sigsegv();
+
 }
+
 
 };
 

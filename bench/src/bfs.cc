@@ -3,6 +3,7 @@
 
 #include <iostream>
 #include <vector>
+#include <cstdint> // For int64_t
 
 #include "benchmark.h"
 #include "bitmap.h"
@@ -188,8 +189,8 @@ void PrintBFSStats(const Graph &g, const pvector<NodeID> &bfs_tree) {
       tree_size++;
     }
   }
-  cout << "BFS Tree has " << tree_size << " nodes and ";
-  cout << n_edges << " edges" << endl;
+  cout << "BFS Tree has " << static_cast<long long>(tree_size)  << " nodes and ";
+  cout << static_cast<long long>(n_edges) << " edges" << endl;
 }
 
 

@@ -6,6 +6,7 @@
 #include <iostream>
 #include <queue>
 #include <vector>
+#include <cstdint> // For int64_t
 
 #include "benchmark.h"
 #include "builder.h"
@@ -156,7 +157,7 @@ pvector<WeightT> DeltaStep(const WGraph &g, NodeID source, WeightT delta,
 void PrintSSSPStats(const WGraph &g, const pvector<WeightT> &dist) {
   auto NotInf = [](WeightT d) { return d != kDistInf; };
   int64_t num_reached = count_if(dist.begin(), dist.end(), NotInf);
-  cout << "SSSP Tree reaches " << num_reached << " nodes" << endl;
+  cout << "SSSP Tree reaches " << static_cast<long long>(num_reached) << " nodes" << endl;
 }
 
 
