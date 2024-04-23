@@ -185,17 +185,17 @@ The graph loading infrastructure understands the following formats:
 + `.sg` serialized pre-built graph (use `converter` to make)
 + `.wsg` weighted serialized pre-built graph (use `converter` to make)
 
-New Parameters
+GraphBrew Parameters
 -------------
 1. **GAP Parameters**
-   * Reorder the graph before running orders can bet layered.
+   * Reorder the graph orders can bet layered.
    * Segment the graph for scalability requires modifying the algorithm to iterate through segments.
 
 ```bash
 -o <order>  : apply reordering strategy, optionally layer ordering 
-               [example]-o 3 -o 2 -o 10:mapping.label[optional]
+               [example]-o 3 -o 2 -o 10:mapping.label [optional]
 
--j <segments>: number of segments for the graph [1]
+-j <segments>: number of segments for the graph [default:1]
 
 Reordering Algorithms:
   - ORIGINAL      (0):  No reordering applied.
