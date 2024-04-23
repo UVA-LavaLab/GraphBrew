@@ -63,7 +63,7 @@ CXXFLAGS_LEIDEN = -DTYPE=float -DMAX_THREADS=$(PARALLEL) -DREPEAT_METHOD=1
 # =========================================================
 LDLIBS_RABBIT   += -ltcmalloc_minimal -lnuma
 # =========================================================
-CXXFLAGS = $(CXXFLAGS_GAP) $(CXXFLAGS_RABBIT) $(CXXFLAGS_GORDER) 
+CXXFLAGS = $(CXXFLAGS_GAP) $(CXXFLAGS_RABBIT) $(CXXFLAGS_GORDER) $(CXXFLAGS_LEIDEN) 
 LDLIBS   = $(LDLIBS_RABBIT)
 # =========================================================
 # CXXFLAGS += -D_DEBUG
@@ -82,15 +82,15 @@ all: $(SUITE)
 # =========================================================
 # Runtime Flags OMP_NUM_THREADS
 # =========================================================
-PARALLEL=16
+PARALLEL=32
 # =========================================================
 
 # =========================================================
 # Running Benchmarks
 # =========================================================
 # GRAPH_BENCH = -f /home/ab/Documents/00_github_repos/00_GraphDatasets/SNAP/soc-LiveJournal1/graph.el
-GRAPH_BENCH = -g 25
-RUN_PARAMS = $(GRAPH_BENCH) -n 1 -i 100 -o 12
+GRAPH_BENCH = -g 23
+RUN_PARAMS = $(GRAPH_BENCH) -n 1 -i 100 -o8 -o5 -o 12
 # =========================================================
 run-%: $(BIN_DIR)/%
 	@OMP_NUM_THREADS=$(PARALLEL) ./$< $(RUN_PARAMS) $(EXIT_STATUS)
