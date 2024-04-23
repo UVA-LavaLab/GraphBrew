@@ -98,6 +98,14 @@ using namespace edge_list;
 /** Type of edge weights. */
 #define TYPE float
 #endif
+#ifndef REPEAT_METHOD
+/** Number of times to repeat each method. */
+#define REPEAT_METHOD 5
+#endif
+#ifndef MAX_THREADS
+/** Maximum number of threads to use. */
+#define MAX_THREADS 16
+#endif
 
 #include "main.hxx"
 
@@ -2396,6 +2404,81 @@ void GenerateRCMOrderMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
 }
 
 
+// HELPERS
+// -------
+
+template <class G, class R>
+inline double getModularity(const G& x, const R& a, double M) {
+  auto fc = [&](auto u) { return a.membership[u]; };
+  return modularityByOmp(x, fc, M, 1.0);
+}
+
+
+template <class K, class W>
+inline float refinementTime(const LouvainResult<K, W>& a) {
+  return 0;
+}
+template <class K, class W>
+inline float refinementTime(const LeidenResult<K, W>& a) {
+  return a.refinementTime;
+}
+
+// PERFORM EXPERIMENT
+// ------------------
+
+template <class G>
+void runExperiment(const G& x) {
+  // using K = typename G::key_type;
+  // using V = typename G::edge_value_type;
+  random_device dev;
+  default_random_engine rnd(dev());
+  int repeat = REPEAT_METHOD;
+  double   M = edgeWeightOmp(x)/2;
+  // Follow a specific result logging format, which can be easily parsed later.
+  auto flog = [&](const auto& ans, const char *technique) {
+    printf(
+      "{%09.1fms, %09.1fms mark, %09.1fms init, %09.1fms firstpass, %09.1fms locmove, %09.1fms refine, %09.1fms aggr, %.3e aff, %04d iters, %03d passes, %01.9f modularity, %zu/%zu disconnected} %s\n",
+      ans.time, ans.markingTime, ans.initializationTime, ans.firstPassTime, ans.localMoveTime, refinementTime(ans), ans.aggregationTime,
+      double(ans.affectedVertices), ans.iterations, ans.passes, getModularity(x, ans, M),
+      countValue(communitiesDisconnectedOmp(x, ans.membership), char(1)),
+      communities(x, ans.membership).size(), technique
+    );
+  };
+  // Get community memberships on original graph (static).
+  {
+    auto a0 = louvainStaticOmp(x, {repeat});
+    flog(a0, "louvainStaticOmp");
+  }
+  {
+    auto b0 = leidenStaticOmp<false, false>(rnd, x, {repeat});
+    flog(b0, "leidenStaticOmpGreedy");
+    auto b1 = leidenStaticOmp<false,  true>(rnd, x, {repeat});
+    flog(b1, "leidenStaticOmpGreedyOrg");
+    auto c0 = leidenStaticOmp<false, false>(rnd, x, {repeat, 1.0, 1e-12, 0.8, 1.0, 100, 100});
+    flog(c0, "leidenStaticOmpGreedyMedium");
+    auto c1 = leidenStaticOmp<false,  true>(rnd, x, {repeat, 1.0, 1e-12, 0.8, 1.0, 100, 100});
+    flog(c1, "leidenStaticOmpGreedyMediumOrg");
+    auto d0 = leidenStaticOmp<false, false>(rnd, x, {repeat, 1.0, 1e-12, 1.0, 1.0, 100, 100});
+    flog(d0, "leidenStaticOmpGreedyHeavy");
+    auto d1 = leidenStaticOmp<false,  true>(rnd, x, {repeat, 1.0, 1e-12, 1.0, 1.0, 100, 100});
+    flog(d1, "leidenStaticOmpGreedyHeavyOrg");
+  }
+  {
+    auto b2 = leidenStaticOmp<true, false>(rnd, x, {repeat});
+    flog(b2, "leidenStaticOmpRandom");
+    auto b3 = leidenStaticOmp<true,  true>(rnd, x, {repeat});
+    flog(b3, "leidenStaticOmpRandomOrg");
+    auto c2 = leidenStaticOmp<true, false>(rnd, x, {repeat, 1.0, 1e-12, 0.8, 1.0, 100, 100});
+    flog(c2, "leidenStaticOmpRandomMedium");
+    auto c3 = leidenStaticOmp<true,  true>(rnd, x, {repeat, 1.0, 1e-12, 0.8, 1.0, 100, 100});
+    flog(c3, "leidenStaticOmpRandomMediumOrg");
+    auto d2 = leidenStaticOmp<true, false>(rnd, x, {repeat, 1.0, 1e-12, 1.0, 1.0, 100, 100});
+    flog(d2, "leidenStaticOmpRandomHeavy");
+    auto d3 = leidenStaticOmp<true,  true>(rnd, x, {repeat, 1.0, 1e-12, 1.0, 1.0, 100, 100});
+    flog(d3, "leidenStaticOmpRandomHeavyOrg");
+  }
+}
+
 void GenerateLeidenMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
                            pvector<NodeID_> &new_ids) {
 
@@ -2408,7 +2491,6 @@ void GenerateLeidenMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
   int64_t num_nodes = g.num_nodes();
 
   vector<tuple<size_t, size_t, double> > edges(num_edges, {0, 0, 0.0f});
-
 
   int edge_idx = 0;
   for (NodeID_ i = 0; i < g.num_nodes(); i++) {
@@ -2430,6 +2512,8 @@ void GenerateLeidenMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
   tm.Stop();
   PrintTime("DiGraph graph", tm.Seconds());
 
+  runExperiment(x);
+  printf("\n");
   // g.PrintTopology();
   // writeGraph(std::cout, x, true);
 

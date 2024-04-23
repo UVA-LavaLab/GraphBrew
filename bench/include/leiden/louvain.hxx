@@ -1185,7 +1185,7 @@ inline auto louvainInvokeOmp(const G& x, const LouvainOptions& o, FI fi, FM fm, 
         l += max(m, 1); ++p;
         if (m<=1 || p>=P) break;
         size_t GN = isFirst? x.order() : y.order();
-        size_t GS = isFirst? x.span()  : y.span();
+        // size_t GS = isFirst? x.span()  : y.span();
         size_t CN = 0;
         if (isFirst) CN = louvainCommunityExistsOmpW(cv.degrees, x, ucom);
         else         CN = louvainCommunityExistsOmpW(cv.degrees, y, vcom);
