@@ -1414,10 +1414,20 @@ inline auto leidenInvokeOmp(RND& rnd, const G& x, const LeidenOptions& o, FI fi,
           if (isFirst) m += leidenMoveOmpW<true, RANDOM>(ucom, ctot, vaff, vcs, vcout, rng, x, vcob, utot, M, R, L, fc);
           else         m += leidenMoveOmpW<true, RANDOM>(vcom, ctot, vaff, vcs, vcout, rng, y, vcob, vtot, M, R, L, fc);
         });
+
+        // printf("PASS IS: %d\n", p);
+        // for(int i=1; i<S; i++)   //as size is S
+        // {
+          
+        //   printf("node is: %d, comm is: %d" " ",i,  ucom[i]);
+        //   printf("\n");
+        //   //printf("comm is: %d\n", ucom[i]);
+        // }
+
         l += max(m, 1); ++p;
         if (m<=1 || p>=P) break;
         size_t GN = isFirst? x.order() : y.order();
-        size_t GS = isFirst? x.span()  : y.span();
+        // size_t GS = isFirst? x.span()  : y.span();
         size_t CN = 0;
         if (isFirst) CN = leidenCommunityExistsOmpW(cv.degrees, x, ucom);
         else         CN = leidenCommunityExistsOmpW(cv.degrees, y, vcom);
