@@ -1,23 +1,24 @@
 [![Build Status](https://app.travis-ci.com/atmughrabi/GLay.svg?token=L3reAtGHdEVVPvzcVqQ6&branch=main)](https://app.travis-ci.com/atmughrabi/GLay)
-[<p align="center"><img src="./docs/figures/logo.svg" width="200" ></p>](#GLay-benchmark-suite)
+[<p align="center"><img src="./docs/figures/logo.svg" width="200" ></p>](#graphbrew)
 
 # GraphBrew
 
-This repository contains the GAP Benchmarks Suite, modified to reorder graphs and test on various graph algorithms. The Makefile in this repository automates the process of compiling these benchmarks from source code.
+This repository contains the GAP Benchmarks Suite, modified to reorder graphs and test cache performance on various graph algorithms.
 
-## Enhancements
-* **Multi-Layerd** graph reordering for improved cache performance.
-* **GraphIt-DSL:** Integration of GraphIt-DSL segment graphs to improve locality.
+## Enhancements (Brewing)
+
+* **Multi-layered:** graph reordering (multi-layered) for improved cache performance.
+* **Rabbit Order:**  Community clustering order with incremental aggregation.
+* **Leiden Order:**  Community clustering order with Louvian/refinement step.
 * **Degree-Based Grouping:** Implementing degree-based grouping strategies to test benchmark performance.
-* **P-OPT Segmentation:**  Exploring graph caching techniques for efficient handling of large-scale graphs.
 * **Gorder:**  Speedup Graph Processing by Graph Ordering.
 * **Corder:**  Workload Balancing via Graph Reordering on Multicore Systems.
-* **Rabbit Order:**  Community clustering order with incremental aggregation.
-* **Leiden Order:**  Community clustering order with louvian/refinment step.
+* **P-OPT Segmentation:**  Exploring graph caching techniques for efficient handling of large-scale graphs.
+* **GraphIt-DSL:** Integration of GraphIt-DSL segment graphs to improve locality.
 
 ## GAP Benchmarks
 
-This project contains a collection of Graph Analytics for Performance (GAP) benchmarks implemented in C++. The benchmarks are designed to exercise the performance of graph algorithms on a CPU. 
+This project contains a collection of Graph Analytics for Performance (GAPBS) benchmarks implemented in C++. The benchmarks are designed to exercise the performance of graph algorithms on a CPU. 
 
 **Key Algorithms**
 
