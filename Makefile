@@ -18,11 +18,13 @@ INCLUDE_GAPBS  = $(INC_DIR)/gapbs
 INCLUDE_RABBIT = $(INC_DIR)/rabbit
 INCLUDE_GORDER = $(INC_DIR)/gorder
 INCLUDE_CORDER = $(INC_DIR)/corder
+INCLUDE_LEIDEN = $(INC_DIR)/leiden
 # =========================================================
 DEP_GAPBS  = $(wildcard $(INC_DIR)/gapbs/*.h)
 DEP_RABBIT = $(wildcard $(INC_DIR)/rabbit/*.hpp)
 DEP_GORDER = $(wildcard $(INC_DIR)/gorder/*.h)
 DEP_CORDER = $(wildcard $(INC_DIR)/corder/*.h)
+DEP_CORDER = $(wildcard $(INC_DIR)/leiden/*.hxx)
 # =========================================================
 
 # =========================================================
@@ -57,6 +59,7 @@ CXXFLAGS_GAP    = -std=c++17 -O3 -Wall -fopenmp
 CXXFLAGS_RABBIT = -mcx16 
 CXXFLAGS_GORDER = -m64 -march=native 
 CXXFLAGS_GORDER += -DRelease -DGCC
+CXXFLAGS_LEIDEN = -DTYPE=float -DMAX_THREADS=$(PARALLEL) -DREPEAT_METHOD=1
 # =========================================================
 LDLIBS_RABBIT   += -ltcmalloc_minimal -lnuma
 # =========================================================
