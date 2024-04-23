@@ -618,9 +618,7 @@ void GenerateMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
     LoadMappingFromFile(g, new_ids, useOutdeg, map_file);
     break;
   case ORIGINAL:
-    std::cout << "Should not be here!" << std::endl;
-    std::abort();
-    return;
+    GenerateOriginalMapping(g, new_ids);
     break;
   default:
     std::cout << "Unknown generateMapping type: " << reordering_algo
@@ -708,6 +706,20 @@ void LoadMappingFromFile(const CSRGraph<NodeID_, DestID_, invert> &g,
 
   t.Stop();
   PrintTime("Load Map Time", t.Seconds());
+}
+
+void GenerateOriginalMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
+                             pvector<NodeID_> &new_ids) {
+  int64_t num_nodes = g.num_nodes();
+
+  Timer t;
+  t.Start();
+#pragma omp parallel for
+  for (int64_t i = 0; i < num_nodes; i++) {
+    new_ids[i] = (NodeID_)i;
+  }
+  t.Stop();
+  PrintTime("Original time", t.Seconds());
 }
 
 void GenerateRandomMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
@@ -2247,7 +2259,7 @@ void reorder_internal(adjacency_list adj, pvector<NodeID_> &new_ids) {
   //--------------------------------------------
   // std::cerr << "Permutation generation time: "
   //           << rabbit_order::now_sec() - tstart << std::endl;
-  PrintTime("Permutation time", rabbit_order::now_sec() - tstart);
+  PrintTime("RabbitOrder time", rabbit_order::now_sec() - tstart);
   // Ensure new_ids is large enough to hold all new IDs
 
   if (new_ids.size() < g.n())
@@ -2373,11 +2385,6 @@ void GenerateRCMOrderMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
   }
 }
 
-
-// #ifndef TYPE
-// /** Type of edge weights. */
-// #define TYPE float
-// #endif
 
 void GenerateLeidenMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
                            pvector<NodeID_> &new_ids) {
