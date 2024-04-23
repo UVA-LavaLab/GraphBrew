@@ -3,7 +3,7 @@
 
 # GraphBrew
 
-This repository contains the GAP Benchmarks Suite, modified to reorder graphs and test cache performance on various graph algorithms.
+This repository contains the GAP Benchmarks Suite (GAPBS), modified to reorder graphs and test cache performance on various graph algorithms.
 
 ## Enhancements (Brewing)
 
