@@ -2431,7 +2431,7 @@ void GenerateLeidenMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
   PrintTime("DiGraph graph", tm.Seconds());
 
   // g.PrintTopology();
-  writeGraph(std::cout, x, true);
+  // writeGraph(std::cout, x, true);
 
   tm.Start();
 #pragma omp parallel for
