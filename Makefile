@@ -89,7 +89,7 @@ PARALLEL=32
 # Running Benchmarks
 # =========================================================
 # GRAPH_BENCH = -f /home/ab/Documents/00_github_repos/00_GraphDatasets/SNAP/soc-LiveJournal1/graph.el
-GRAPH_BENCH = -g 23
+GRAPH_BENCH = -g 5
 RUN_PARAMS = $(GRAPH_BENCH) -n 1 -i 100 -o8 -o5 -o 12
 # =========================================================
 run-%: $(BIN_DIR)/%

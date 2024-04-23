@@ -1415,14 +1415,14 @@ inline auto leidenInvokeOmp(RND& rnd, const G& x, const LeidenOptions& o, FI fi,
           else         m += leidenMoveOmpW<true, RANDOM>(vcom, ctot, vaff, vcs, vcout, rng, y, vcob, vtot, M, R, L, fc);
         });
 
-        // printf("PASS IS: %d\n", p);
-        // for(int i=1; i<S; i++)   //as size is S
-        // {
+        printf("PASS IS: %d\n", p);
+        for(size_t i=1; i<S; i++)   //as size is S
+        {
           
-        //   printf("node is: %d, comm is: %d" " ",i,  ucom[i]);
-        //   printf("\n");
-        //   //printf("comm is: %d\n", ucom[i]);
-        // }
+          printf("node is: %ld, comm is: %d" " ",i,  ucom[i]);
+          printf("\n");
+          //printf("comm is: %d\n", ucom[i]);
+        }
 
         l += max(m, 1); ++p;
         if (m<=1 || p>=P) break;
