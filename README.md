@@ -11,7 +11,7 @@ This repository contains the GAP Benchmarks Suite (GAPBS), modified to reorder g
 * **Rabbit Order:**  Community clustering order with incremental aggregation.
 * **Leiden Order:**  Community clustering order with Louvian/refinement step.
 * **Degree-Based Grouping:** Implementing degree-based grouping strategies to test benchmark performance.
-* **Gorder:**  Speedup Graph Processing by Graph Ordering.
+* **Gorder:**  Window based ordering with reverse Cuthill-McKee (RCM) algorithm.
 * **Corder:**  Workload Balancing via Graph Reordering on Multicore Systems.
 * **P-OPT Segmentation:**  Exploring graph caching techniques for efficient handling of large-scale graphs.
 * **GraphIt-DSL:** Integration of GraphIt-DSL segment graphs to improve locality.
