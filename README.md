@@ -161,16 +161,16 @@ New Parameters
 -j <segments>: number of segments for the graph [1]
 
 Reordering Algorithms:
-  - ORIGINAL      (0): No reordering applied.
-  - RANDOM        (1): Apply random reordering.
-  - SORT          (2): Apply sort-based reordering.
-  - HUBSORT       (3): Apply hub-based sorting.
-  - HUBCLUSTER    (4): Apply clustering based on hub scores.
-  - DBG           (5): Apply degree-based grouping.
-  - HUBSORTDBG    (6): Combine hub sorting with degree-based grouping.
-  - HUBCLUSTERDBG (7): Combine hub clustering with degree-based grouping.
-  - RABBITORDER   (8): Apply community clustering with incremental aggregation.
-  - GORDER        (9): Apply dynamic programming BFS and windowing ordering.
+  - ORIGINAL      (0):  No reordering applied.
+  - RANDOM        (1):  Apply random reordering.
+  - SORT          (2):  Apply sort-based reordering.
+  - HUBSORT       (3):  Apply hub-based sorting.
+  - HUBCLUSTER    (4):  Apply clustering based on hub scores.
+  - DBG           (5):  Apply degree-based grouping.
+  - HUBSORTDBG    (6):  Combine hub sorting with degree-based grouping.
+  - HUBCLUSTERDBG (7):  Combine hub clustering with degree-based grouping.
+  - RABBITORDER   (8):  Apply community clustering with incremental aggregation.
+  - GORDER        (9):  Apply dynamic programming BFS and windowing ordering.
   - CORDER        (10): Workload Balancing via Graph Reordering on Multicore Systems.
   - RCM           (11): RCM is ordered by the reverse Cuthill-McKee algorithm (BFS).
   - LeidenOrder   (12): Apply Leiden community clustering with louvain with refinement.
