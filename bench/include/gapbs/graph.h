@@ -362,6 +362,8 @@ public:
 
   bool is_transpose() const { return is_transpose_; }
 
+  bool is_weighted() const { return (!std::is_same<NodeID_, DestID_>::value); }
+
   int64_t num_nodes() const { return num_nodes_; }
 
   int64_t num_edges() const { return num_edges_; }

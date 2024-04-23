@@ -93,6 +93,12 @@ using namespace edge_list;
  */
 #include "vec2d.h"
 
+
+#ifndef TYPE
+/** Type of edge weights. */
+#define TYPE float
+#endif
+
 #include "main.hxx"
 
 template <typename NodeID_, typename DestID_ = NodeID_,
@@ -2113,7 +2119,11 @@ readRabbitOrderGraphCSR(const CSRGraph<NodeID_, DestID_, invert> &g) {
   int edge_idx = 0;
   for (NodeID_ i = 0; i < g.num_nodes(); i++) {
     for (DestID_ j : g.out_neigh(i)) {
-      edges[edge_idx] = {i, j, 1.0f};
+      if(g.is_weighted())
+        edges[edge_idx] = {i, static_cast<NodeWeight<> >(j).v, static_cast<NodeWeight<> >(j).w};
+      else
+        edges[edge_idx] = {i, j, 1.0f};
+
       edge_idx++;
     }
   }
@@ -2389,11 +2399,47 @@ void GenerateRCMOrderMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
 void GenerateLeidenMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
                            pvector<NodeID_> &new_ids) {
 
+  Timer tm;
+  using K = uint32_t;
+  using V = TYPE;
+  install_sigsegv();
 
-// using K = uint32_t;
-// using V = TYPE;
-// install_sigsegv();
+  int64_t num_edges = g.num_edges_directed();
+  int64_t num_nodes = g.num_nodes();
 
+  vector<tuple<size_t, size_t, double> > edges(num_edges, {0, 0, 0.0f});
+
+
+  int edge_idx = 0;
+  for (NodeID_ i = 0; i < g.num_nodes(); i++) {
+    for (DestID_ j : g.out_neigh(i)) {
+      if(g.is_weighted())
+        edges[edge_idx] = {i, static_cast<NodeWeight<> >(j).v, static_cast<NodeWeight<> >(j).w};
+      else
+        edges[edge_idx] = {i, j, 1.0f};
+      edge_idx++;
+    }
+  }
+
+  tm.Start();
+  bool symmetric = !cli_.symmetrize();
+  bool weighted  = g.is_weighted();
+  DiGraph<K, None, V> x;
+  readVecOmpW(x, edges, num_nodes, symmetric, weighted); LOG(""); println(x);
+  if (!symmetric) { x = symmetricizeOmp(x); LOG(""); print(x); printf(" (->symmetricize)\n"); }
+  tm.Stop();
+  PrintTime("DiGraph graph", tm.Seconds());
+
+  // g.PrintTopology();
+  writeGraph(std::cout, x, true);
+
+  tm.Start();
+#pragma omp parallel for
+  for (int64_t i = 0; i < num_nodes; i++) {
+    new_ids[i] = (NodeID_)i;
+  }
+  tm.Stop();
+  PrintTime("Original time", tm.Seconds());
 }
 
 

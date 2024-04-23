@@ -16,7 +16,7 @@ template <class K>
 inline bool belongsOmp(K key, int thread, int THREADS) {
   const K CHUNK_SIZE = 1024;
   K chunk = key / CHUNK_SIZE;
-  return chunk % THREADS == thread;
+  return (int)chunk % THREADS == thread;
 }
 
 

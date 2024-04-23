@@ -6,13 +6,14 @@
 This repository contains the GAP Benchmarks Suite, modified to reorder graphs and test on various graph algorithms. The Makefile in this repository automates the process of compiling these benchmarks from source code.
 
 ## Enhancements
-
+* **Multi-Layerd** graph reordering for improved cache performance.
 * **GraphIt-DSL:** Integration of GraphIt-DSL segment graphs to improve locality.
 * **Degree-Based Grouping:** Implementing degree-based grouping strategies to test benchmark performance.
-* **Rabbit Order:**  Community clustering order with incremental aggregation.
 * **P-OPT Segmentation:**  Exploring graph caching techniques for efficient handling of large-scale graphs.
-* **Gorder:**  Speedup Graph Processing by Graph Ordering."
-* **Corder:**  Workload Balancing via Graph Reordering on Multicore Systems."
+* **Gorder:**  Speedup Graph Processing by Graph Ordering.
+* **Corder:**  Workload Balancing via Graph Reordering on Multicore Systems.
+* **Rabbit Order:**  Community clustering order with incremental aggregation.
+* **Leiden Order:**  Community clustering order with louvian/refinment step.
 
 ## GAP Benchmarks
 
@@ -172,7 +173,8 @@ Reordering Algorithms:
   - GORDER        (9): Apply dynamic programming BFS and windowing ordering.
   - CORDER        (10): Workload Balancing via Graph Reordering on Multicore Systems.
   - RCM           (11): RCM is ordered by the reverse Cuthill-McKee algorithm (BFS).
-  - MAP           (12): Requires a file format for reordering. Use the -r 10:filename.label option.
+  - LeidenOrder   (12): Apply Leiden community clustering with louvain with refinement.
+  - MAP           (13): Requires a file format for reordering. Use the -r 10:filename.label option.
 ```
 
 2. **Makefile Flow**
@@ -203,5 +205,6 @@ Please cite the following papers if you find this repository useful.
 + Y. Zhang, M. Yang, R. Baghdadi, S. Kamil, J. Shun, and S. Amarasinghe, “GraphIt: a high-performance graph DSL,” Proc. ACM Program. Lang., vol. 2, no. OOPSLA, p. 121:1-121:30, Oct. 2018, doi: 10.1145/3276491.
 + H. Wei, J. X. Yu, C. Lu, and X. Lin, “Speedup Graph Processing by Graph Ordering,” New York, NY, USA, Jun. 2016, pp. 1813–1828. doi: 10.1145/2882903.2915220.
 + Y. Chen and Y.-C. Chung, “Workload Balancing via Graph Reordering on Multicore Systems,” IEEE Transactions on Parallel and Distributed Systems, 2021.
-+ A. George and J. W. H. Liu, Computer Solution of Large Sparse Positive Definite Systems. Prentice-Hall, 1981.
- 
++ A. George and J. W. H. Liu, Computer Solution of Large Sparse Positive Definite Systems. Prentice-Hall, 1981
++ S. Sahu, “GVE-Leiden: Fast Leiden Algorithm for Community Detection in Shared Memory Setting.” arXiv, Mar. 28, 2024. doi: 10.48550/arXiv.2312.13936.
++ V. A. Traag, L. Waltman, and N. J. van Eck, “From Louvain to Leiden: guaranteeing well-connected communities,” Sci Rep, vol. 9, no. 1, p. 5233, Mar. 2019, doi: 10.1038/s41598-019-41695-z.

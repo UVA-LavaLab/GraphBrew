@@ -294,3 +294,46 @@ inline void readMtxOmpW(G& a, const char *pth, bool weighted=false) {
 #endif
 
 
+#ifdef OPENMP
+/**
+ * Read vector edgelist as graph.
+ * @param a output graph (updated)
+ * @param s input stream
+ * @param weighted is it weighted?
+ */
+template <class G>
+inline void readVecOmpW(G& a, const vector<tuple<size_t, size_t, double>>& s, size_t num_nodes, bool symmetric, bool weighted=false) {
+  auto fv = [](auto u, auto d) { return true; };
+  auto fe = [](auto u, auto v, auto w) { return true; };
+  readVecIfOmpW(a, s, num_nodes, symmetric, fv, fe);
+}
+
+template <class G, class FV, class FE>
+inline void readVecIfOmpW(G& a, const vector<tuple<size_t, size_t, double>>& s, size_t num_nodes, bool symmetric, FV fv, FE fe) {
+  using K = typename G::key_type;
+  using V = typename G::vertex_value_type;
+  using E = typename G::edge_value_type;
+
+  size_t max_vertex = num_nodes;
+  // for (const auto& [u, v, w] : s) {
+  //   max_vertex = max(max_vertex, max(u, v));
+  // }
+  addVerticesIfU(a, K(1), K(max_vertex), V(), fv);
+
+  // #pragma omp parallel for schedule(dynamic, 1024)
+    #pragma omp parallel
+    {
+    for (size_t i = 0; i < s.size(); ++i) {
+      const auto& [u, v, w] = s[i];
+      if (fe(K(u), K(v), K(w))) {
+        addEdgeOmpU(a, K(u), K(v), E(w));
+        if (symmetric) {
+          addEdgeOmpU(a, K(v), K(u), E(w));
+        }
+      }
+    }
+  }
+  updateOmpU(a);
+}
+
+#endif

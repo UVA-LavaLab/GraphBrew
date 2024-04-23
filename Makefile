@@ -89,8 +89,8 @@ PARALLEL=16
 # Running Benchmarks
 # =========================================================
 # GRAPH_BENCH = -f /home/ab/Documents/00_github_repos/00_GraphDatasets/SNAP/soc-LiveJournal1/graph.el
-GRAPH_BENCH = -g 20
-RUN_PARAMS = $(GRAPH_BENCH) -n 1  -i 100 -o 5
+GRAPH_BENCH = -g 5
+RUN_PARAMS = $(GRAPH_BENCH) -n 1 -i 100 -o 12
 # =========================================================
 run-%: $(BIN_DIR)/%
 	@OMP_NUM_THREADS=$(PARALLEL) ./$< $(RUN_PARAMS) $(EXIT_STATUS)
@@ -105,7 +105,7 @@ run-all: $(addprefix run-, $(KERNELS))
 
 # Define a rule that sweeps through -o 1 to 7
 run-%-sweep: $(BIN_DIR)/%
-	@for o in 1 2 3 4 5 6 7 8 9 10 11; do \
+	@for o in 0 1 2 3 4 5 6 7 8 9 10 11; do \
 		echo "========================================================="; \
 		OMP_NUM_THREADS=$(PARALLEL) ./$(BIN_DIR)/$* $(GRAPH_BENCH) -n 1 -o $$o; \
 	done
@@ -155,7 +155,8 @@ help-%: $(BIN_DIR)/%
 	@echo "  - GORDER        (9):  Apply dynamic programming BFS and windowing ordering."
 	@echo "  - CORDER        (10): Workload Balancing via Graph Reordering on Multicore Systems."
 	@echo "  - RCM           (11): RCM is ordered by the reverse Cuthill-McKee algorithm (BFS)."
-	@echo "  - MAP           (12): Requires a file format for reordering. Use the -r 10:filename.label option."
+	@echo "  - LeidenOrder   (12): Apply Leiden community clustering with louvain with refinement."
+	@echo "  - MAP           (13): Requires a file format for reordering. Use the -r 10:filename.label option."
 	@echo ""
 	@echo "Example Usage:"
 	@echo "  make all - Compile the program."
