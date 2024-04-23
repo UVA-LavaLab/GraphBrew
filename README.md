@@ -82,7 +82,7 @@ echo "Available CPU cores: $cpuCores"
 sudo ./b2 --with=all -j $cpuCores install
 ```
 
-2. **Verify the Installation**
+3. **Verify the Installation**
    
    * After installation, verify that Boost has been installed correctly by checking the installed version:
 ```bash
@@ -94,41 +94,77 @@ cat /usr/local/include/boost/version.hpp | grep "BOOST_LIB_VERSION"
 #define BOOST_LIB_VERSION "1_54"
 ```
 
+## Usage
 
-## Build Targets
+### Example Usage
+   * To compile, run, and then clean up the betweenness centrality benchmark:
+```bash
+make all
+make run-bc
+make clean
+```
+### Compiling the Benchmarks
+   * To build all benchmarks:
+```bash
+make all
+```
 
-The Makefile compiles and links the following executable targets:
+### Running the Benchmarks
+   * To run a specific benchmark, use:
+```bash
+make run-<benchmark_name>
+```
+   * Where `<benchmark_name>` can be `bc`, `bfs`, etc.
+```bash
+make run-bfs
+```
 
-* **Executable Benchmarks:** Located in the `bench/bin` directory.
-* **Converter:** A utility for converting graphs into the project's input format (`bench/bin/converter`)
+### Debugging
+   * To run a benchmark with gdb:
+```bash
+make run-<benchmark_name>-gdb
+```
+   * To run a benchmark with memory checks (using valgrind):
+```bash
+make run-<benchmark_name>-mem
+```
 
-**Getting Started**
+### Clean up
+   * To clean up all compiled files:
+```bash
+make clean
+```
 
-1. **Prerequisites**
-   * A C++11 compliant compiler (e.g., g++)
-   * OpenMP library for multi-threading support
+### Help
+   * To display help for a specific benchmark or for general usage:
+```bash
+make help-<benchmark_name>
+make help
+```
 
-2. **Building the Project**
-   * Navigate to the project's root directory.
-   * Run `make all` to compile the benchmarks and converter utility.
+## Additional Commands
 
-3. **Running the Benchmarks**
-   * Run `make run-benchmark_name` (replace 'benchmark_name' with an algorithm name from the list above). Example: `make run-bc`  
-   * The benchmark will use the following default parameters:
-       * Random Graph (V): 2^10
-       * Number of Runs: 1 
+### Benchmark Parameter Sweeping
+   * To sweep through different configurations (`-o` options from 1 to 13):
+```bash
+make run-<benchmark_name>-sweep
+```
 
-**Modifying the Makefile**
+## Modifying the Makefile
 
 * **Compiler and Flags:** Edit the `CXX`, `CXXFLAGS`, and `INCLUDES` variables to customize compilation settings.
 * **Benchmark Targets:** Add or remove benchmark names from the `KERNELS` variable to control which ones are built.
 
 **Project Structure**
+- `bench/bin`: Executables are placed here.
+- `bench/lib`: Library files can be stored here (not used by default).
+- `bench/src`: Source code files (*.cc) for the benchmarks.
+- `bench/include`: Header files for the benchmarks and various include files for libraries such as GAPBS, RABBIT, etc.
+- `bench/obj`: Object files are stored here (directory creation is handled but not used by default).
 
-* `bench/src`: Contains the C++ source files for the benchmarks.
-* `bench/include`: Contains header files.
-* `bench/bin`: Stores the compiled executables.
-* `bench/lib`: Used for intermediate build objects.
+**Compiler Flags**
+- **CXXFLAGS**: Combines optimization and feature flags necessary for compiling the benchmarks.
+- **LDLIBS**: Specifies additional linker flags needed for libraries such as `tcmalloc_minimal` and `numa`.
 
 Graph Loading
 -------------
