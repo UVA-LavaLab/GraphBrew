@@ -5,9 +5,9 @@
 
 This repository contains the GAP Benchmarks Suite (GAPBS), modified to reorder graphs and test cache performance on various graph algorithms.
 
-## Enhancements (Brewing)
+## Enhancements (Graph Brewing)
 
-* **Multi-layered:** graph reordering (multi-layered) for improved cache performance.
+* **Multi-layered:** Graph reordering (multi-layered) for improved cache performance.
 * **Rabbit Order:**  Community clustering order with incremental aggregation.
 * **Leiden Order:**  Community clustering order with Louvian/refinement step.
 * **Degree-Based Grouping:** Implementing degree-based grouping strategies to test benchmark performance.
