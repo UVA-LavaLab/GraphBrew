@@ -188,8 +188,8 @@ The graph loading infrastructure understands the following formats:
 GraphBrew Parameters
 -------------
 1. **GAP Parameters**
-   * Reorder the graph orders can bet layered.
-   * Segment the graph for scalability requires modifying the algorithm to iterate through segments.
+   * Reorder the graph, orders can bet layered.
+   * Segment the graph for scalability, requires modifying the algorithm to iterate through segments.
 
 ```bash
 -o <order>  : apply reordering strategy, optionally layer ordering 
