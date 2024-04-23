@@ -92,7 +92,7 @@ cat /usr/local/include/boost/version.hpp | grep "BOOST_LIB_VERSION"
    * The output should display the version of Boost you installed, like so:
 ```bash
 //  BOOST_LIB_VERSION must be defined to be the same as BOOST_VERSION
-#define BOOST_LIB_VERSION "1_54"
+#define BOOST_LIB_VERSION "1_58"
 ```
 
 ## Usage
