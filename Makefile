@@ -88,9 +88,9 @@ PARALLEL=16
 # =========================================================
 # Running Benchmarks
 # =========================================================
-# GRAPH_BENCH = -f ./test/graphs/4.el
+# GRAPH_BENCH = -f /home/ab/Documents/00_github_repos/00_GraphDatasets/SNAP/soc-LiveJournal1/graph.el
 GRAPH_BENCH = -g 20
-RUN_PARAMS = $(GRAPH_BENCH) -n 1 -o 1 -o 8 -o 5 -o 11
+RUN_PARAMS = $(GRAPH_BENCH) -n 1  -i 100 -o 5
 # =========================================================
 run-%: $(BIN_DIR)/%
 	@OMP_NUM_THREADS=$(PARALLEL) ./$< $(RUN_PARAMS) $(EXIT_STATUS)
@@ -107,7 +107,7 @@ run-all: $(addprefix run-, $(KERNELS))
 run-%-sweep: $(BIN_DIR)/%
 	@for o in 1 2 3 4 5 6 7 8 9 10 11; do \
 		echo "========================================================="; \
-		OMP_NUM_THREADS=$(PARALLEL) ./$(BIN_DIR)/$* $(GRAPH_BENCH) -n 1 -o 1 -o $$o; \
+		OMP_NUM_THREADS=$(PARALLEL) ./$(BIN_DIR)/$* $(GRAPH_BENCH) -n 1 -o $$o; \
 	done
 
 # =========================================================

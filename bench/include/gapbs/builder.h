@@ -663,45 +663,39 @@ void LoadMappingFromFile(const CSRGraph<NodeID_, DestID_, invert> &g,
   t.Start();
 
   int64_t num_nodes = g.num_nodes();
-  int64_t num_edges = g.num_edges();
+  // int64_t num_edges = g.num_edges();
 
   ifstream ifs(map_file.c_str(), std::ifstream::in);
   if (!ifs.good()) {
     cout << "File " << map_file << " does not exist!" << endl;
     exit(-1);
   }
-  int64_t num_nodes_1, num_edges_1;
-  ifs >> num_nodes_1;
-  ifs >> num_edges_1;
-  cout << " num_nodes: " << num_nodes_1 << " num_edges: " << num_edges_1
-       << endl;
-  cout << " num_nodes: " << num_nodes << " num_edges: " << num_edges << endl;
-  if (num_nodes != num_nodes_1) {
-    cout << "Mismatch: " << num_nodes << " " << num_nodes_1 << endl;
-    exit(-1);
+  // int64_t num_nodes_1, num_edges_1;
+  // ifs >> num_nodes_1;
+  // ifs >> num_edges_1;
+  // cout << " num_nodes: " << num_nodes_1 << " num_edges: " << num_edges_1
+  //      << endl;
+  // cout << " num_nodes: " << num_nodes << " num_edges: " << num_edges << endl;
+  // if (num_nodes != num_nodes_1) {
+  //   cout << "Mismatch: " << num_nodes << " " << num_nodes_1 << endl;
+  //   exit(-1);
+  // }
+  // if (num_nodes != (int64_t)new_ids.size()) {
+  //   cout << "Mismatch: " << num_nodes << " " << new_ids.size() << endl;
+  //   exit(-1);
+  // }
+  // if (num_edges != num_edges_1) {
+  //   cout << "Warning! Potential mismatch: " << num_edges << " " << num_edges_1
+  //        << endl;
+  // }
+
+  NodeID_ v;
+
+  for (int64_t i = 0; i < num_nodes; i++) {
+    ifs >> v;
+    new_ids[i] = v;
   }
-  if (num_nodes != (int64_t)new_ids.size()) {
-    cout << "Mismatch: " << num_nodes << " " << new_ids.size() << endl;
-    exit(-1);
-  }
-  if (num_edges != num_edges_1) {
-    cout << "Warning! Potential mismatch: " << num_edges << " " << num_edges_1
-         << endl;
-  }
-  char c;
-  unsigned long int st, v;
-  bool tab = true;
-  if (tab) {
-    for (int64_t i = 0; i < num_nodes; i++) {
-      ifs >> st >> v;
-      new_ids[st] = v;
-    }
-  } else {
-    for (int64_t i = 0; i < num_nodes; i++) {
-      ifs >> c >> st >> c >> v >> c;
-      new_ids[st] = v;
-    }
-  }
+
   ifs.close();
 
   t.Stop();
@@ -2317,6 +2311,9 @@ void GenerateGOrderMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
   tm.Stop();
   PrintTime("Gorder time", tm.Seconds());
 
+  if (new_ids.size() < (size_t)go.vsize)
+    new_ids.resize(go.vsize);
+
 #pragma omp parallel for
   for (int i = 0; i < go.vsize; i++) {
     int u = order[go.order_l1[i]];
@@ -2325,7 +2322,7 @@ void GenerateGOrderMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
 }
 
 void GenerateRCMOrderMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
-                           pvector<NodeID_> &new_ids) {
+                             pvector<NodeID_> &new_ids) {
 
   int64_t num_edges = g.num_edges_directed();
 
@@ -2357,6 +2354,9 @@ void GenerateRCMOrderMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
   go.RCMOrder(order);
   tm.Stop();
   PrintTime("RCMorder time", tm.Seconds());
+
+  if (new_ids.size() < (size_t)go.vsize)
+    new_ids.resize(go.vsize);
 
 #pragma omp parallel for
   for (int i = 0; i < go.vsize; i++) {
