@@ -4,7 +4,7 @@
 
 
 
-#pragma region BELONGS
+
 /**
  * Check if work belongs to current thread.
  * @param key work key
@@ -31,4 +31,4 @@ inline bool belongsOmp(K key) {
   int THREADS = omp_get_num_threads();
   return belongsOmp(key, thread, THREADS);
 }
-#pragma endregion
+

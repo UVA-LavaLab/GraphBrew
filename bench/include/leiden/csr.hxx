@@ -9,7 +9,7 @@ using std::unordered_map;
 
 
 
-#pragma region PROPERTIES
+
 /**
  * Get the degree of a vertex in the graph.
  * @param offsets offsets of the outgoing edges of vertices
@@ -20,12 +20,12 @@ template <class O, class K>
 inline K csrDegree(const vector<O>& offsets, K u) {
   return offsets[u+1] - offsets[u];
 }
-#pragma endregion
 
 
 
 
-#pragma region FOREACH
+
+
 /**
  * Iterate over the target vertex ids of a source vertex in the graph.
  * @param offsets offsets of the outgoing edges of vertices
@@ -92,12 +92,12 @@ inline void csrForEachEdgeKey(const vector<O>& offsets, const vector<K>& degrees
   for (; i<I; ++i)
     fp(edgeKeys[i], edgeValues[i]);
 }
-#pragma endregion
 
 
 
 
-#pragma region CREATE
+
+
 /**
  * Obtain offsets of the outgoing edges of vertices.
  * @param offsets offsets of the outgoing edges of vertices (output)
@@ -284,12 +284,12 @@ inline void csrCreateEdgeValuesW(vector<E>& edgeValues, const G& x, const vector
     });
   }
 }
-#pragma endregion
 
 
 
 
-#pragma region UPDATE
+
+
 /**
  * Clear the graph.
  * @param offsets offsets of the outgoing edges of vertices
@@ -414,4 +414,4 @@ inline void csrAddEdgeOmpU(vector<K>& degrees, vector<K>& edgeKeys, vector<E>& e
   edgeValues[i] = w;
 }
 #endif
-#pragma endregion
+

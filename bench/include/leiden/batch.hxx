@@ -16,8 +16,8 @@ using std::remove_if;
 
 
 
-#pragma region METHODS
-#pragma region REMOVE RANDOM EDGE
+
+
 /**
  * Randomly decide upon a edge that may be removed from a graph, from a given source vertex.
  * @param rnd random number generator (updated)
@@ -56,12 +56,12 @@ inline bool removeRandomEdge(R& rnd, const G& x, size_t i, size_t n, FE fe) {
   K u = K(i + n*dis(rnd));
   return removeRandomEdgeFrom(rnd, x, u, fe);
 }
-#pragma endregion
 
 
 
 
-#pragma region ADD RANDOM EDGE
+
+
 /**
  * Randomly decide upon a edge that may be added to a graph.
  * @param rnd random number generator (updated)
@@ -80,12 +80,12 @@ inline bool addRandomEdge(R& rnd, const G& x, size_t i, size_t n, V w, FE fe) {
   K v = K(i + n*dis(rnd));
   return fe(u, v, w);
 }
-#pragma endregion
 
 
 
 
-#pragma region GENERATE BATCH
+
+
 /**
  * Generate a batch of random edge deletions.
  * @param rnd random number generator (updated)
@@ -138,12 +138,12 @@ inline auto generateEdgeInsertions(R& rnd, const G& x, size_t batchSize, size_t 
     retry([&]() { return addRandomEdge(rnd, x, i, n, w, fe); }, retries);
   return insertions;
 }
-#pragma endregion
 
 
 
 
-#pragma region TIDY BATCH
+
+
 /**
  * Filter out edges in batch update by existence.
  * @param edges edges in batch update (updated)
@@ -207,12 +207,12 @@ inline void tidyBatchUpdateU(vector<tuple<K, K, V>>& deletions, vector<tuple<K, 
   uniqueEdgesU(deletions);
   uniqueEdgesU(insertions);
 }
-#pragma endregion
 
 
 
 
-#pragma region APPLY
+
+
 /**
  * Apply a batch update to a graph.
  * @param a input graph (updated)
@@ -247,5 +247,5 @@ inline void applyBatchUpdateOmpU(G& a, const vector<tuple<K, K, V>>& deletions, 
   updateOmpU(a);
 }
 #endif
-#pragma endregion
-#pragma endregion
+
+

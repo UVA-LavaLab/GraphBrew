@@ -6,14 +6,14 @@
 #include <algorithm>
 #include <cstdint>
 #include <cstdio>
-#include "inc/main.hxx"
+#include "main.hxx"
 
 using namespace std;
 
 
 
 
-#pragma region CONFIGURATION
+
 #ifndef TYPE
 /** Type of edge weights. */
 #define TYPE float
@@ -26,7 +26,7 @@ using namespace std;
 /** Number of times to repeat each method. */
 #define REPEAT_METHOD 5
 #endif
-#pragma endregion
+
 
 
 

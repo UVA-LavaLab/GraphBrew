@@ -92,6 +92,8 @@ using namespace edge_list;
  */
 #include "vec2d.h"
 
+#include "main.hxx"
+
 template <typename NodeID_, typename DestID_ = NodeID_,
           typename WeightT_ = NodeID_, bool invert = true>
 class BuilderBase {
@@ -554,6 +556,8 @@ const string ReorderingAlgoStr(ReorderingAlgo type) {
     return "COrder";
   case RCMOrder:
     return "RCMOrder";
+  case LeidenOrder:
+    return "LeidenOrder";
   case ORIGINAL:
     return "Original";
   case Sort:
@@ -605,6 +609,9 @@ void GenerateMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
     break;
   case RCMOrder:
     GenerateRCMOrderMapping(g, new_ids);
+    break;
+  case LeidenOrder:
+    GenerateLeidenMapping(g, new_ids);
     break;
   case MAP:
     LoadMappingFromFile(g, new_ids, useOutdeg, map_file);
@@ -2363,6 +2370,12 @@ void GenerateRCMOrderMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
     int u = order[go.order_l1[i]];
     new_ids[i] = (NodeID_)u;
   }
+}
+
+
+
+void GenerateLeidenMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
+                           pvector<NodeID_> &new_ids) {
 }
 
 };

@@ -4,8 +4,8 @@
 
 
 
-#pragma region METHODS
-#pragma region COUNT SELF-LOOPS
+
+
 /**
  * Count the number of self-loops in a graph.
  * @param x input graph
@@ -17,12 +17,12 @@ inline size_t countSelfLoops(const G& x) {
   x.forEachVertexKey([&](auto u) { if (x.hasEdge(u, u)) ++a; });
   return a;
 }
-#pragma endregion
 
 
 
 
-#pragma region ADD SELF-LOOPS
+
+
 /**
  * Add self-loops to a graph.
  * @param a graph to add self-loops to (updated)
@@ -78,5 +78,5 @@ inline G addSelfLoopsOmp(const G& x, E w, FT ft) {
   return a;
 }
 #endif
-#pragma endregion
-#pragma endregion
+
+

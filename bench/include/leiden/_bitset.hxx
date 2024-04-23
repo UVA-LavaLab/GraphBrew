@@ -14,7 +14,7 @@ using std::lower_bound;
 
 
 
-#pragma region CLASSES
+
 /**
  * A Lazy bitset is a sparse integer key to value map that updates insertions
  * and deletions upon calling update(). It maintains keys in ascending order.
@@ -23,7 +23,7 @@ using std::lower_bound;
  */
 template <class K=uint32_t, class V=NONE>
 class LazyBitset {
-  #pragma region TYPES
+
   public:
   /** The key type. */
   using key_type   = K;
@@ -31,20 +31,20 @@ class LazyBitset {
   using value_type = V;
   /** The entry type. */
   using entry_type = pair<K, V>;
-  #pragma endregion
 
 
-  #pragma region DATA
+
+
   protected:
   /** The pairs of keys and values. */
   vector<pair<K, V>> pairs;
   /** The number of unprocessed insertions and deletions (-ve). */
   ssize_t unprocessed;
-  #pragma endregion
 
 
-  #pragma region METHODS
-  #pragma region SIZE
+
+
+
   public:
   /**
    * Get the number of entries in the bitset.
@@ -61,10 +61,10 @@ class LazyBitset {
   inline bool empty() const noexcept {
     return size() == 0;
   }
-  #pragma endregion
 
 
-  #pragma region AT
+
+
   public:
   /**
    * Get the entry at given index.
@@ -92,10 +92,10 @@ class LazyBitset {
   inline V valueAt(size_t i) const noexcept {
     return pairs[i].second;
   }
-  #pragma endregion
 
 
-  #pragma region FOREACH
+
+
   public:
   /**
    * Iterate over the entries in the bitset.
@@ -116,10 +116,10 @@ class LazyBitset {
     for (const auto& p : pairs)
       fp(p.first);
   }
-  #pragma endregion
 
 
-  #pragma region ITERATOR
+
+
   protected:
   /**
    * Get const iterator to the first entry.
@@ -152,10 +152,10 @@ class LazyBitset {
   inline auto end() noexcept {
     return pairs.end();  // pairs.begin() + size();
   }
-  #pragma endregion
 
 
-  #pragma region FIND
+
+
   protected:
   /**
    * Find the entry with given key.
@@ -178,10 +178,10 @@ class LazyBitset {
     auto   it = lower_bound(begin(), end(), k, fl);
     return it == end() || (*it).first != k? end() : it;
   }
-  #pragma endregion
 
 
-  #pragma region ACCESS
+
+
   public:
   /**
    * Check if the bitset has an entry with given key.
@@ -215,10 +215,10 @@ class LazyBitset {
     (*it).second = v;
     return true;
   }
-  #pragma endregion
 
 
-  #pragma region UPDATE
+
+
   protected:
   /**
    * Update the bitset by sorting out all unprocessed deletions.
@@ -311,16 +311,16 @@ class LazyBitset {
     pairs.push_back({k, v});
     ++unprocessed;
   }
-  #pragma endregion
-  #pragma endregion
+
+
 };
-#pragma endregion
 
 
 
 
-#pragma region METHODS
-#pragma region WRITE
+
+
+
 /**
  * Write a bitset to a stream.
  * @tparam B bitset type
@@ -360,5 +360,5 @@ inline ostream& operator<<(ostream& a, const LazyBitset<K, V>& x) {
   write(a, x);
   return a;
 }
-#pragma endregion
-#pragma endregion
+
+

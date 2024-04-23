@@ -23,12 +23,12 @@ using std::max;
 
 
 
-#pragma region TYPES
+
 /**
  * Options for Louvain algorithm.
  */
 struct LouvainOptions {
-  #pragma region DATA
+
   /** Number of times to repeat the algorithm [1]. */
   int repeat;
   /** Resolution parameter for modularity [1]. */
@@ -43,10 +43,10 @@ struct LouvainOptions {
   int maxIterations;
   /** Maximum number of passes [10]. */
   int maxPasses;
-  #pragma endregion
 
 
-  #pragma region CONSTRUCTORS
+
+
   /**
    * Define options for Louvain algorithm.
    * @param repeat number of times to repeat the algorithm [1]
@@ -59,7 +59,7 @@ struct LouvainOptions {
    */
   LouvainOptions(int repeat=1, double resolution=1, double tolerance=1e-2, double aggregationTolerance=0.8, double toleranceDrop=10, int maxIterations=20, int maxPasses=10) :
   repeat(repeat), resolution(resolution), tolerance(tolerance), aggregationTolerance(aggregationTolerance), toleranceDrop(toleranceDrop), maxIterations(maxIterations), maxPasses(maxPasses) {}
-  #pragma endregion
+
 };
 
 
@@ -76,7 +76,7 @@ struct LouvainOptions {
  */
 template <class K, class W=LOUVAIN_WEIGHT_TYPE>
 struct LouvainResult {
-  #pragma region DATA
+
   /** Community membership each vertex belongs to. */
   vector<K> membership;
   /** Total edge weight of each vertex. */
@@ -101,10 +101,10 @@ struct LouvainResult {
   float aggregationTime;
   /** Number of vertices initially marked as affected. */
   size_t affectedVertices;
-  #pragma endregion
 
 
-  #pragma region CONSTRUCTORS
+
+
   /**
    * Result of Louvain algorithm.
    * @param membership community membership each vertex belongs to
@@ -141,15 +141,15 @@ struct LouvainResult {
    */
   LouvainResult(vector<K>& membership, vector<W>& vertexWeight, vector<W>& communityWeight, int iterations=0, int passes=0, float time=0, float markingTime=0, float initializationTime=0, float firstPassTime=0, float localMoveTime=0, float aggregationTime=0, size_t affectedVertices=0) :
   membership(move(membership)), vertexWeight(move(vertexWeight)), communityWeight(move(communityWeight)), iterations(iterations), passes(passes), time(time), markingTime(markingTime), initializationTime(initializationTime), firstPassTime(firstPassTime), localMoveTime(localMoveTime), aggregationTime(aggregationTime), affectedVertices(affectedVertices) {}
-  #pragma endregion
+
 };
-#pragma endregion
 
 
 
 
-#pragma region METHODS
-#pragma region HASHTABLES
+
+
+
 /**
  * Allocate a number of hashtables.
  * @param vcs communities vertex u is linked to (updated)
@@ -179,12 +179,12 @@ inline void louvainFreeHashtablesW(vector<vector<K>*>& vcs, vector<vector<W>*>& 
     delete vcout[i];
   }
 }
-#pragma endregion
 
 
 
 
-#pragma region INITIALIZE
+
+
 /**
  * Find the total edge weight of each vertex.
  * @param vtot total edge weight of each vertex (updated, must be initialized)
@@ -387,12 +387,12 @@ inline void louvainUpdateWeightsFromOmpU(vector<W>& vtot, vector<W>& ctot, const
   }
 }
 #endif
-#pragma endregion
 
 
 
 
-#pragma region CHANGE COMMUNITY
+
+
 /**
  * Scan an edge community connected to a vertex.
  * @param vcs communities vertex u is linked to (updated)
@@ -502,12 +502,12 @@ inline void louvainChangeCommunityOmpW(vector<K>& vcom, vector<W>& ctot, const G
   vcom[u] = c;
 }
 #endif
-#pragma endregion
 
 
 
 
-#pragma region LOCAL-MOVING PHASE
+
+
 /**
  * Louvain algorithm's local moving phase.
  * @param vcom community each vertex belongs to (initial, updated)
@@ -630,12 +630,12 @@ inline int louvainMoveOmpW(vector<K>& vcom, vector<W>& ctot, vector<B>& vaff, ve
   return louvainMoveOmpW(vcom, ctot, vaff, vcs, vcout, x, vtot, M, R, L, fc, fa);
 }
 #endif
-#pragma endregion
 
 
 
 
-#pragma region COMMUNITY PROPERTIES
+
+
 /**
  * Examine if each community exists.
  * @param a does each community exist (updated)
@@ -811,12 +811,12 @@ inline void louvainCommunityVerticesOmpW(vector<K>& coff, vector<K>& cdeg, vecto
   }
 }
 #endif
-#pragma endregion
 
 
 
 
-#pragma region LOOKUP COMMUNITIES
+
+
 /**
  * Update community membership in a tree-like fashion (to handle aggregation).
  * @param a output community each vertex belongs to (updated)
@@ -843,12 +843,12 @@ inline void louvainLookupCommunitiesOmpU(vector<K>& a, const vector<K>& vcom) {
     a[u] = vcom[a[u]];
 }
 #endif
-#pragma endregion
 
 
 
 
-#pragma region AGGREGATION PHASE
+
+
 /**
  * Aggregate outgoing edges of each community.
  * @param ydeg degree of each community (updated)
@@ -991,12 +991,12 @@ inline void louvainAggregateOmpW(vector<size_t>& yoff, vector<K>& ydeg, vector<K
   louvainAggregateEdgesOmpW(ydeg, yedg, ywei, vcs, vcout, x, vcom, coff, cedg, yoff);
 }
 #endif
-#pragma endregion
 
 
 
 
-#pragma region ENVIRONMENT SETUP
+
+
 /**
  * Setup and perform the Louvain algorithm.
  * @param x original graph
@@ -1220,12 +1220,12 @@ inline auto louvainInvokeOmp(const G& x, const LouvainOptions& o, FI fi, FM fm, 
   return LouvainResult<K, W>(ucom, utot, ctot, l, p, t, tm/o.repeat, ti/o.repeat, tp/o.repeat, tl/o.repeat, ta/o.repeat, countValueOmp(vaff, B(1)));
 }
 #endif
-#pragma endregion
 
 
 
 
-#pragma region REPEAT SETUP (DYNAMIC)
+
+
 /**
  * Setup the Dynamic Louvain algorithm for multiple runs.
  * @param qs initial community membership for each run (updated)
@@ -1247,12 +1247,12 @@ inline void louvainSetupInitialsW(vector2d<K>& qs, vector2d<W>& qvtots, vector2d
     qctots[r] = qctot;
   }
 }
-#pragma endregion
 
 
 
 
-#pragma region STATIC APPROACH
+
+
 /**
  * Obtain the community membership of each vertex with Static Louvain.
  * @param x original graph
@@ -1293,5 +1293,5 @@ inline auto louvainStaticOmp(const G& x, const LouvainOptions& o={}) {
   return louvainInvokeOmp<false, FLAG>(x, o, fi, fm, fa);
 }
 #endif
-#pragma endregion
-#pragma endregion
+
+

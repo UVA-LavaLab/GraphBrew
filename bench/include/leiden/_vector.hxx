@@ -17,20 +17,20 @@ using std::max;
 
 
 
-#pragma region TYPES
+
 /**
  * Represents a 2D vector.
  * @tparam T element type
  */
 template <class T>
 using vector2d = vector<vector<T>>;
-#pragma endregion
 
 
 
 
-#pragma region METHODS
-#pragma region GATHER VALUES
+
+
+
 /**
  * Gather values at specified indices of an array into another array.
  * @param a output array (updated)
@@ -147,12 +147,12 @@ inline void gatherValuesOmpW(vector<TA>& a, const vector<TX>& x, const IS& is) {
   gatherValuesOmpW(a.data(), x.data(), is);
 }
 #endif
-#pragma endregion
 
 
 
 
-#pragma region SCATTER VALUES
+
+
 /**
  * Scatter values of an array into another array at specified indices.
  * @param a output array (updated)
@@ -269,12 +269,12 @@ inline void scatterValuesOmpW(vector<TA>& a, const vector<TX>& x, const IS& is) 
   scatterValuesOmpW(a.data(), x.data(), is);
 }
 #endif
-#pragma endregion
 
 
 
 
-#pragma region SCATTER OR
+
+
 /**
  * Scatter values of an array into another array at specified indices with OR operation.
  * @param a output array (updated)
@@ -328,12 +328,12 @@ inline void scatterOrOmpW(vector<TA>& a, const vector<TX>& x, const IS& is) {
   scatterOrOmpW(a.data(), x.data(), is);
 }
 #endif
-#pragma endregion
 
 
 
 
-#pragma region VALUE INDICES
+
+
 /**
  * Get indices of values in an array.
  * @param a output array of indices for each value (updated)
@@ -350,12 +350,12 @@ inline void valueIndicesW(vector2d<TA>& a, const vector<TX>& x, FM fm) {
     a[v].push_back(TA(i));
   }
 }
-#pragma endregion
 
 
 
 
-#pragma region FILL VALUE
+
+
 /**
  * Fill an array with a value.
  * @param a output array (a[i] = v, updated)
@@ -407,12 +407,12 @@ inline void fillValueOmpU(vector<bool>& a, const bool& v) {
   fill(a.begin(), a.end(), v);
 }
 #endif
-#pragma endregion
 
 
 
 
-#pragma region ADD VALUE
+
+
 /**
  * Add a value to each element of an array.
  * @param a output array (a[i] += v, updated)
@@ -462,12 +462,12 @@ inline void addValueOmpU(vector<T>& a, const T& v) {
   addValueOmpU(a.data(), a.size(), v);
 }
 #endif
-#pragma endregion
 
 
 
 
-#pragma region COPY VALUES
+
+
 /**
  * Copy values from an array to another output array.
  * @param a output array (a[i] = x[i], updated)
@@ -517,12 +517,12 @@ inline void copyValuesOmpW(vector<TA>& a, const vector<TX>& x) {
   return copyValuesOmpW(a.data(), x.data(), x.size());
 }
 #endif
-#pragma endregion
 
 
 
 
-#pragma region MULTIPLY VALUE
+
+
 /**
  * Multiply a value to each element of an array and store the result in an output array.
  * @param a output array (a[i] = x[i] * v, updated)
@@ -576,12 +576,12 @@ inline void multiplyValueOmpW(vector<TA>& a, const vector<TX>& x, TV v) {
   multiplyValueOmpW(a.data(), x.data(), v, x.size());
 }
 #endif
-#pragma endregion
 
 
 
 
-#pragma region MULTIPLY VALUES
+
+
 /**
  * Multiply two arrays element-wise and store the result in an output array.
  * @param a output array (a[i] = x[i] * y[i], updated)
@@ -635,12 +635,12 @@ inline void multiplyValuesOmpW(vector<TA>& a, const vector<TX>& x, const vector<
   multiplyValuesOmpW(a.data(), x.data(), y.data(), x.size());
 }
 #endif
-#pragma endregion
 
 
 
 
-#pragma region SUM VALUES
+
+
 /**
  * Compute the sum of values in an array.
  * @param x an array
@@ -696,12 +696,12 @@ inline TA sumValuesOmp(const vector<TX>& x, TA a=TA()) {
   return sumValuesOmp(x.data(), x.size(), a);
 }
 #endif
-#pragma endregion
 
 
 
 
-#pragma region COUNT VALUE
+
+
 /**
  * Count the number of times a value appears in an array.
  * @param x an array
@@ -759,12 +759,12 @@ inline size_t countValueOmp(const vector<TX>& x, const TX& v) {
   return countValueOmp(x.data(), x.size(), v);
 }
 #endif
-#pragma endregion
 
 
 
 
-#pragma region L1-NORM
+
+
 /**
  * Compute the L1-norm of an array.
  * @param x an array
@@ -820,12 +820,12 @@ inline TA l1NormOmp(const vector<TX>& x, TA a=TA()) {
   return l1NormOmp(x.data(), x.size(), a);
 }
 #endif
-#pragma endregion
 
 
 
 
-#pragma region L1-NORM DELTA
+
+
 /**
  * Compute the L1-norm of the difference of two arrays.
  * @param x an array
@@ -885,12 +885,12 @@ inline TA l1NormDeltaOmp(const vector<TX>& x, const vector<TY>& y, TA a=TA()) {
   return l1NormDeltaOmp(x.data(), y.data(), x.size(), a);
 }
 #endif
-#pragma endregion
 
 
 
 
-#pragma region L1-NORM DELTA AT
+
+
 /**
  * Compute the L1-norm of the difference of two arrays at given indices.
  * @param x an array
@@ -958,12 +958,12 @@ inline TA l1NormDeltaAtOmp(const vector<TX>& x, const vector<TY>& y, const vecto
   return l1NormDeltaAtOmp(x.data(), y.data(), is.data(), is.size(), a);
 }
 #endif
-#pragma endregion
 
 
 
 
-#pragma region L2-NORM
+
+
 /**
  * Compute the L2-norm of an array.
  * @param x an array
@@ -1019,12 +1019,12 @@ inline TA l2NormOmp(const vector<TX>& x, TA a=TA()) {
   return l2NormOmp(x.data(), x.size(), a);
 }
 #endif
-#pragma endregion
 
 
 
 
-#pragma region L2-NORM DELTA
+
+
 /**
  * Compute the L2-norm of the difference of two arrays.
  * @param x an array
@@ -1084,12 +1084,12 @@ inline TA l2NormDeltaOmp(const vector<TX>& x, const vector<TY>& y, TA a=TA()) {
   return l2NormDeltaOmp(x.data(), y.data(), x.size(), a);
 }
 #endif
-#pragma endregion
 
 
 
 
-#pragma region L2-NORM DELTA AT
+
+
 /**
  * Compute the L2-norm of the difference of two arrays at given indices.
  * @param x an array
@@ -1157,12 +1157,12 @@ inline TA l2NormDeltaAtOmp(const vector<TX>& x, const vector<TY>& y, const vecto
   return l2NormDeltaAtOmp(x.data(), y.data(), is.data(), is.size(), a);
 }
 #endif
-#pragma endregion
 
 
 
 
-#pragma region LI-NORM
+
+
 /**
  * Compute the L∞-norm of an array.
  * @param x an array
@@ -1218,12 +1218,12 @@ inline TA liNormOmp(const vector<TX>& x, TA a=TA()) {
   return liNormOmp(x.data(), x.size(), a);
 }
 #endif
-#pragma endregion
 
 
 
 
-#pragma region LI-NORM DELTA
+
+
 /**
  * Compute the L∞-norm of the difference of two arrays.
  * @param x an array
@@ -1283,12 +1283,12 @@ inline TA liNormDeltaOmp(const vector<TX>& x, const vector<TY>& y, TA a=TA()) {
   return liNormDeltaOmp(x.data(), y.data(), x.size(), a);
 }
 #endif
-#pragma endregion
 
 
 
 
-#pragma region LI-NORM DELTA AT
+
+
 /**
  * Compute the L∞-norm of the difference of two arrays at given indices.
  * @param x an array
@@ -1356,12 +1356,12 @@ inline TA liNormDeltaAtOmp(const vector<TX>& x, const vector<TY>& y, const vecto
   return liNormDeltaAtOmp(x.data(), y.data(), is.data(), is.size(), a);
 }
 #endif
-#pragma endregion
 
 
 
 
-#pragma region INCLUSIVE SCAN
+
+
 /**
  * Perform inclusive scan of an array into another array.
  * @param a output array (updated)
@@ -1445,12 +1445,12 @@ inline TA inclusiveScanOmpW(vector<TA>& a, vector<TA>& buf, const vector<TX>& x,
   return inclusiveScanOmpW(a.data(), buf.data(), x.data(), x.size(), acc);
 }
 #endif
-#pragma endregion
 
 
 
 
-#pragma region EXCLUSIVE SCAN
+
+
 /**
  * Perform exclusive scan of an array into another array.
  * @param a output array (updated)
@@ -1535,5 +1535,5 @@ inline TA exclusiveScanOmpW(vector<TA>& a, vector<TA>& buf, const vector<TX>& x,
   return exclusiveScanOmpW(a.data(), buf.data(), x.data(), x.size(), acc);
 }
 #endif
-#pragma endregion
-#pragma endregion
+
+

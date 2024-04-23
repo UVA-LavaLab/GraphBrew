@@ -8,7 +8,7 @@ using std::string;
 
 
 
-#pragma region METHODS
+
 /**
  * Count the number of lines in a string.
  * @param x string
@@ -33,4 +33,4 @@ inline size_t countLines(const char* x) {
 inline size_t countLines(const string& x) {
   return countLines(x.c_str());
 }
-#pragma endregion
+

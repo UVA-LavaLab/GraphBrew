@@ -5,8 +5,8 @@
 
 
 
-#pragma region METHODS
-#pragma region TRANSPOSE
+
+
 /**
  * Transpose a graph.
  * @param a transposed graph (output)
@@ -64,12 +64,12 @@ inline auto transposeOmp(const G& x) {
   return a;
 }
 #endif
-#pragma endregion
 
 
 
 
-#pragma region TRANSPOSE WITH DEGREE
+
+
 /**
  * Transpose a graph with degree.
  * @param a transposed graph with degree (output)
@@ -133,5 +133,5 @@ inline auto transposeWithDegreeOmp(const G& x) {
   return a;
 }
 #endif
-#pragma endregion
-#pragma endregion
+
+

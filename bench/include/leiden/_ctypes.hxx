@@ -12,38 +12,38 @@ using std::ostream;
 
 
 
-#pragma region TYPES
+
 /** Signed size type. */
 using ssize_t = make_signed_t<size_t>;
-#pragma endregion
 
 
 
 
-#pragma region CLASSES
+
+
 #ifndef NONE
 /**
  * Zero size type.
  */
 struct None {
-  #pragma region METHODS
-  #pragma region COMPARISION OPERATORS
+
+
   friend inline bool operator==(None l, None r)     noexcept { return true; }
   template <class T>
   friend inline bool operator==(None l, const T& r) noexcept { return false; }
   template <class T>
   friend inline bool operator==(const T& l, None r) noexcept { return false; }
-  #pragma endregion
 
 
-  #pragma region STREAM OPERATORS
+
+
   friend inline istream& operator>>(istream& a, None& x) noexcept { return a; }
   friend inline ostream& operator<<(ostream& a, None x)  noexcept { return a; }
-  #pragma endregion
-  #pragma endregion
 
 
-  #pragma region CONSTRUCTORS
+
+
+
   /**
    * Construct a zero size object.
    */
@@ -55,7 +55,7 @@ struct None {
    */
   template <class T>
   explicit None(T _) {}
-  #pragma endregion
+
 };
 #define NONE None
 #endif
@@ -107,13 +107,13 @@ struct ShowType;
  */
 #define SHOW_TYPET(T)  PERFORMT(SHOW_TYPE(T))
 #endif
-#pragma endregion
+
 // - https://stackoverflow.com/a/39637476/1413259
 
 
 
 
-#pragma region TEMPLATE TYPES
+
 // For template classes in template :).
 #ifndef tclass0
 /** Template class with no arguments. */
@@ -133,4 +133,4 @@ struct ShowType;
 /** Template class with three or more arguments. */
 #define tclass3s  template <class, class, class, class...> class
 #endif
-#pragma endregion
+

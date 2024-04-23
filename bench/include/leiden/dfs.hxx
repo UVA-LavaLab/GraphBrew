@@ -6,7 +6,7 @@ using std::vector;
 
 
 
-#pragma region METHODS
+
 /**
  * Find vertices visited with DFS.
  * @param vis vertex visited flags (updated)
@@ -40,4 +40,4 @@ inline vector<FLAG> dfsVisitedForEach(const G& x, K u, FT ft, FP fp) {
   dfsVisitedForEachU(vis, x, u, ft, fp);
   return vis;
 }
-#pragma endregion
+

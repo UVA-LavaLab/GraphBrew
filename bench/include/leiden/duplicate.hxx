@@ -4,8 +4,8 @@
 
 
 
-#pragma region METHODS
-#pragma region DUPLICATE IF
+
+
 /**
  * Duplicate vertices/edges of a graph if test passes.
  * @param a output graph (updated)
@@ -71,12 +71,12 @@ inline G duplicateIfOmp(const G& x, FV fv, FE fe) {
   return a;
 }
 #endif
-#pragma endregion
 
 
 
 
-#pragma region DUPLICATE
+
+
 /**
  * Duplicate vertices/edges of a graph.
  * @param a output graph (updated)
@@ -99,5 +99,5 @@ inline G duplicate(const G& x) {
   G a = x;  // Just use the copy constructor.
   return a;
 }
-#pragma endregion
-#pragma endregion
+
+

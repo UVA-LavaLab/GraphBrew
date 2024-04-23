@@ -21,7 +21,7 @@ using std::exit;
 
 
 
-#pragma region BUILD MODES
+
 #ifndef BUILD_RELEASE
 /** Build has no debug information. */
 #define BUILD_RELEASE  0
@@ -36,12 +36,12 @@ using std::exit;
 /** Build has error, warning, info, debug and trace information. */
 #define BUILD_TRACE    5
 #endif
-#pragma endregion
 
 
 
 
-#pragma region PERFORM
+
+
 #ifndef PEFORME
 #if !defined(NDEBUG) && defined(BUILD) && BUILD>=BUILD_ERROR
 /** Perform only if build mode is error or higher. */
@@ -83,12 +83,12 @@ using std::exit;
 #define PERFORMT(...)
 #endif
 #endif
-#pragma endregion
 
 
 
 
-#pragma region PRINT
+
+
 #ifndef FPRINTFE
 /** File print using format only if build mode is error or higher. */
 #define FPRINTFE(...)  PERFORME(fprintf(__VA_ARGS__))
@@ -157,12 +157,12 @@ using std::exit;
 /** Print line only if build mode is trace. */
 #define PRINTLNT(...)  PERFORMT(println(__VA_ARGS__))
 #endif
-#pragma endregion
 
 
 
 
-#pragma region LOG
+
+
 #ifndef LOG
 /**
  * Print log prefix.
@@ -206,12 +206,12 @@ void logPrefixMpi();
 /** Log using format only if build mode is trace. */
 #define LOGT(...)  PERFORMT(LOG(__VA_ARGS__))
 #endif
-#pragma endregion
 
 
 
 
-#pragma region ASSERT
+
+
 #ifndef ASSERT
 #if !defined(NDEBUG) && defined(BUILD) && BUILD>=BUILD_ERROR
 /** Assert expression. */
@@ -225,13 +225,13 @@ void logPrefixMpi();
 #define ASSERT_THAT(exp, msg)
 #endif
 #endif
-#pragma endregion
 
 
 
 
-#pragma region METHODS
-#pragma region ON SIGNAL
+
+
+
 /** Stack trace size for SIGSEGV signal handler. */
 #define STACK_TRACE_SIZE  32
 
@@ -260,5 +260,5 @@ void install_sigsegv() {
 #endif
 }
 // - https://stackoverflow.com/a/77336/1413259
-#pragma endregion
-#pragma endregion
+
+

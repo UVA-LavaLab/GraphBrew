@@ -25,12 +25,12 @@ using std::max;
 
 
 
-#pragma region TYPES
+
 /**
  * Options for Leiden algorithm.
  */
 struct LeidenOptions {
-  #pragma region DATA
+
   /** Number of times to repeat the algorithm [1]. */
   int repeat;
   /** Resolution parameter for modularity [1]. */
@@ -45,10 +45,10 @@ struct LeidenOptions {
   int maxIterations;
   /** Maximum number of passes [10]. */
   int maxPasses;
-  #pragma endregion
 
 
-  #pragma region CONSTRUCTORS
+
+
   /**
    * Define options for Leiden algorithm.
    * @param repeat number of times to repeat the algorithm [1]
@@ -61,7 +61,7 @@ struct LeidenOptions {
    */
   LeidenOptions(int repeat=1, double resolution=1, double tolerance=1e-2, double aggregationTolerance=0.8, double toleranceDrop=10, int maxIterations=20, int maxPasses=10) :
   repeat(repeat), resolution(resolution), tolerance(tolerance), aggregationTolerance(aggregationTolerance), toleranceDrop(toleranceDrop), maxIterations(maxIterations), maxPasses(maxPasses) {}
-  #pragma endregion
+
 };
 
 
@@ -78,7 +78,7 @@ struct LeidenOptions {
  */
 template <class K, class W=LEIDEN_WEIGHT_TYPE>
 struct LeidenResult {
-  #pragma region DATA
+
   /** Community membership each vertex belongs to. */
   vector<K> membership;
   /** Total edge weight of each vertex. */
@@ -105,10 +105,10 @@ struct LeidenResult {
   float aggregationTime;
   /** Number of vertices initially marked as affected. */
   size_t affectedVertices;
-  #pragma endregion
 
 
-  #pragma region CONSTRUCTORS
+
+
   /**
    * Result of Leiden algorithm.
    * @param membership community membership each vertex belongs to
@@ -147,15 +147,15 @@ struct LeidenResult {
    */
   LeidenResult(vector<K>& membership, vector<W>& vertexWeight, vector<W>& communityWeight, int iterations=0, int passes=0, float time=0, float markingTime=0, float initializationTime=0, float firstPassTime=0, float localMoveTime=0, float refinementTime=0, float aggregationTime=0, size_t affectedVertices=0) :
   membership(move(membership)), vertexWeight(move(vertexWeight)), communityWeight(move(communityWeight)), iterations(iterations), passes(passes), time(time), markingTime(markingTime), initializationTime(initializationTime), firstPassTime(firstPassTime), localMoveTime(localMoveTime), refinementTime(refinementTime), aggregationTime(aggregationTime), affectedVertices(affectedVertices) {}
-  #pragma endregion
+
 };
-#pragma endregion
 
 
 
 
-#pragma region METHODS
-#pragma region HASHTABLES
+
+
+
 /**
  * Allocate a number of hashtables.
  * @param vcs communities vertex u is linked to (updated)
@@ -185,12 +185,12 @@ inline void leidenFreeHashtablesW(vector<vector<K>*>& vcs, vector<vector<W>*>& v
     delete vcout[i];
   }
 }
-#pragma endregion
 
 
 
 
-#pragma region RANDOM NUMBER GENERATORS
+
+
 /**
  * Allocate a number of random number generators.
  * @param rng per-thread random number generators (updated)
@@ -214,12 +214,12 @@ inline void leidenFreeRngsW(vector<xorshift32_engine*>& rng) {
   for (size_t i=0; i<N; ++i)
     delete rng[i];
 }
-#pragma endregion
 
 
 
 
-#pragma region INITIALIZE
+
+
 /**
  * Find the total edge weight of each vertex.
  * @param vtot total edge weight of each vertex (updated, must be initialized)
@@ -422,12 +422,12 @@ inline void leidenUpdateWeightsFromOmpU(vector<W>& vtot, vector<W>& ctot, const 
   }
 }
 #endif
-#pragma endregion
 
 
 
 
-#pragma region CHANGE COMMUNITY
+
+
 /**
  * Scan an edge community connected to a vertex.
  * @param vcs communities vertex u is linked to (updated)
@@ -640,12 +640,12 @@ inline bool leidenChangeCommunityOmpW(vector<K>& vcom, vector<W>& ctot, const G&
   return true;
 }
 #endif
-#pragma endregion
 
 
 
 
-#pragma region LOCAL-MOVING PHASE
+
+
 /**
  * Leiden algorithm's local moving phase.
  * @param vcom community each vertex belongs to (initial, updated)
@@ -778,12 +778,12 @@ inline int leidenMoveOmpW(vector<K>& vcom, vector<W>& ctot, vector<B>& vaff, vec
   return leidenMoveOmpW<REFINE, RANDOM>(vcom, ctot, vaff, vcs, vcout, rng, x, vcob, vtot, M, R, L, fc, fa);
 }
 #endif
-#pragma endregion
 
 
 
 
-#pragma region PARENT COMMUNITY
+
+
 /**
  * Find the parent/bounding community of each community.
  * @param a parent community of each community (updated)
@@ -819,12 +819,12 @@ inline void leidenParentCommunityOmpU(vector<K>& a, const G& x, const vector<K>&
     a[c] = b;
   }
 }
-#pragma endregion
 
 
 
 
-#pragma region COMMUNITY PROPERTIES
+
+
 /**
  * Examine if each community exists.
  * @param a does each community exist (updated)
@@ -1000,12 +1000,12 @@ inline void leidenCommunityVerticesOmpW(vector<K>& coff, vector<K>& cdeg, vector
   }
 }
 #endif
-#pragma endregion
 
 
 
 
-#pragma region LOOKUP COMMUNITIES
+
+
 /**
  * Update community membership in a tree-like fashion (to handle aggregation).
  * @param a output community each vertex belongs to (updated)
@@ -1032,12 +1032,12 @@ inline void leidenLookupCommunitiesOmpU(vector<K>& a, const vector<K>& vcom) {
     a[u] = vcom[a[u]];
 }
 #endif
-#pragma endregion
 
 
 
 
-#pragma region AGGREGATION PHASE
+
+
 /**
  * Aggregate outgoing edges of each community.
  * @param ydeg degree of each community (updated)
@@ -1180,12 +1180,12 @@ inline void leidenAggregateOmpW(vector<size_t>& yoff, vector<K>& ydeg, vector<K>
   leidenAggregateEdgesOmpW(ydeg, yedg, ywei, vcs, vcout, x, vcom, coff, cedg, yoff);
 }
 #endif
-#pragma endregion
 
 
 
 
-#pragma region ENVIRONMENT SETUP
+
+
 /**
  * Setup and perform the Leiden algorithm.
  * @param rnd random number generator
@@ -1459,12 +1459,12 @@ inline auto leidenInvokeOmp(RND& rnd, const G& x, const LeidenOptions& o, FI fi,
   return LeidenResult<K>(ucom, utot, ctot, l, p, t, tm/o.repeat, ti/o.repeat, tp/o.repeat, tl/o.repeat, tr/o.repeat, ta/o.repeat, countValueOmp(vaff, B(1)));
 }
 #endif
-#pragma endregion
 
 
 
 
-#pragma region REPEAT SETUP (DYNAMIC)
+
+
 /**
  * Setup the Dynamic Leiden algorithm for multiple runs.
  * @param qs initial community membership for each run (updated)
@@ -1486,12 +1486,12 @@ inline void leidenSetupInitialsW(vector2d<K>& qs, vector2d<W>& qvtots, vector2d<
     qctots[r] = qctot;
   }
 }
-#pragma endregion
 
 
 
 
-#pragma region STATIC APPROACH
+
+
 /**
  * Obtain the community membership of each vertex with Static Leiden.
  * @param rnd random number generator
@@ -1534,5 +1534,5 @@ inline auto leidenStaticOmp(RND& rnd, const G& x, const LeidenOptions& o={}) {
   return leidenInvokeOmp<false, RANDOM, USEPARENT, FLAG>(rnd, x, o, fi, fm, fa);
 }
 #endif
-#pragma endregion
-#pragma endregion
+
+

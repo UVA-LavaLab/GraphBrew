@@ -13,7 +13,7 @@ using std::chrono::duration_cast;
 
 
 
-#pragma region PAIR ACCESSORS
+
 /**
  * Accessor for the first element (key) of a pair.
  * @tparam K key type
@@ -61,12 +61,12 @@ struct PairFirstValue  { inline K operator()(const pair<K, V>& x) noexcept { ret
  */
 template <class K, class V>
 struct PairSecondValue { inline V operator()(const pair<K, V>& x) noexcept { return x.second; } };
-#pragma endregion
 
 
 
 
-#pragma region MEASURE DURATION
+
+
 /**
  * Get current time.
  * @returns high resolution clock time
@@ -183,12 +183,12 @@ inline float measureDurationMarkedMpi(F fn, int N=1) {
   return total/N;
 }
 #endif
-#pragma endregion
 
 
 
 
-#pragma region RETRY
+
+
 /**
  * Call a function, retrying if it fails.
  * @param fn called function (returns true if successful)
@@ -201,12 +201,12 @@ inline bool retry(F fn, int N=2) {
     if (fn()) return true;
   return false;
 }
-#pragma endregion
 
 
 
 
-#pragma region SUBSCRIPT
+
+
 #ifndef SUBSCRIPT2D
 /**
  * Access value at given x, i index of 2D array.
@@ -243,12 +243,12 @@ inline bool retry(F fn, int N=2) {
  */
 #define SUBSCRIPTRC(a, r, c, C)  (a)[(C)*(r) + (c)]
 #endif
-#pragma endregion
 
 
 
 
-#pragma region MOVE
+
+
 /**
  * Conditional move.
  * @param c condition
@@ -278,4 +278,4 @@ inline bool retry(F fn, int N=2) {
  */
 #define CMOVE_GRAPH(t, f) \
   CMOVE((t).order()>0, t, f)
-#pragma endregion
+

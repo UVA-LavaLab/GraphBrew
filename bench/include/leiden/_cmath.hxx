@@ -9,7 +9,7 @@ using std::sqrt;
 
 
 
-#pragma region CEIL DIV
+
 /**
  * Get the ceiling of a division.
  * @param x the dividend
@@ -42,12 +42,12 @@ template <>
 inline double ceilDiv<double>(double x, double y) {
   return ceil(x / y);
 }
-#pragma endregion
 
 
 
 
-#pragma region SGN
+
+
 /**
  * Get the sign of a value.
  * @param x the value
@@ -58,12 +58,12 @@ inline int sgn(T x) {
   return (T() < x) - (x < T());
 }
 // - https://stackoverflow.com/a/4609795/1413259
-#pragma endregion
 
 
 
 
-#pragma region POW2
+
+
 /**
  * Check if a value is a power of 2.
  * @param x the value
@@ -95,12 +95,12 @@ template <class T>
 constexpr T nextPow2(T x) noexcept {
   return 1 << T(ceil(log2(x)));
 }
-#pragma endregion
 
 
 
 
-#pragma region PRIME
+
+
 /**
  * Examine if a value is prime.
  * @param x the value
@@ -147,4 +147,4 @@ inline T randomPrime(T begin, T end, R& rnd) {
   }
   return end+1;
 }
-#pragma endregion
+

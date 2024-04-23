@@ -15,8 +15,8 @@ using std::pow;
 
 
 
-#pragma region METHODS
-#pragma region GRAPH DATA
+
+
 /**
  * Obtain the vertex keys of a graph.
  * @param x given graph
@@ -53,12 +53,12 @@ template <class G, class K>
 inline void degreesW(vector<K>& a, const G& x) {
   x.forEachVertexKey([&](auto u) { a[u] = x.degree(u); });
 }
-#pragma endregion
 
 
 
 
-#pragma region EDGE WEIGHT
+
+
 /**
  * Find the total outgoing edge weight of a vertex.
  * @param x given graph
@@ -105,12 +105,12 @@ inline double edgeWeightOmp(const G& x) {
   return a;
 }
 #endif
-#pragma endregion
 
 
 
 
-#pragma region MODULARITY
+
+
 /**
  * Find the modularity of a community C.
  * @param cin total weight of edges within community C
@@ -232,12 +232,12 @@ inline double modularityByOmp(const G& x, FC fc, double M, double R=1) {
   return modularityCommunitiesOmp(cin, ctot, M, R);
 }
 #endif
-#pragma endregion
 
 
 
 
-#pragma region DELTA MODULARITY
+
+
 /**
  * Find the change in modularity when moving a vertex from community D to C.
  * @param vcout total weight of edges from vertex v to community C
@@ -254,12 +254,12 @@ inline double deltaModularity(double vcout, double vdout, double vtot, double ct
   ASSERT(vcout>=0 && vdout>=0 && vtot>=0 && ctot>=0 && dtot>=0 && M>0 && R>0);
   return (vcout-vdout)/M - R*vtot*(vtot+ctot-dtot)/(2*M*M);
 }
-#pragma endregion
 
 
 
 
-#pragma region COMMUNITIES
+
+
 /**
  * Obtain the size of each community.
  * @param x given graph
@@ -362,12 +362,12 @@ inline vector<K> communities(const G& x, const vector<K>& vcom) {
   });
   return a;
 }
-#pragma endregion
 
 
 
 
-#pragma region DISCONNECTED COMMUNITIES
+
+
 #ifdef OPENMP
 /**
  * Examine if each community in a graph is disconnected (using single flag vector, BFS).
@@ -400,5 +400,5 @@ inline vector<char> communitiesDisconnectedOmp(const G& x, const vector<K>& vcom
   return a;
 }
 #endif
-#pragma endregion
-#pragma endregion
+
+

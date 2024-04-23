@@ -8,7 +8,7 @@ using std::swap;
 
 
 
-#pragma region METHODS
+
 /**
  * Find vertices visited with BFS.
  * @param vis vertex visited flags (updated)
@@ -70,4 +70,4 @@ inline vector<FLAG> bfsVisitedForEach(const G& x, K u, FT ft, FP fp) {
   bfsVisitedForEachU(vis, x, u, ft, fp);
   return vis;
 }
-#pragma endregion
+

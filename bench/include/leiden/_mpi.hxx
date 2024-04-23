@@ -16,7 +16,7 @@ using std::printf;
 
 
 
-#pragma region ERROR
+
 #ifndef TRY_MPI
 /**
  * Log error on MPI function call failure.
@@ -100,11 +100,11 @@ void assertFailedMpi(const char* exp, const char* func, int line, const char* fi
  */
 #define ASSERT_MPI(exp)  do { if (!(exp)) assertFailedMpi(#exp, __func__, __LINE__, __FILE__); } while (0)
 #endif
-#pragma endregion
 
 
 
-#pragma region BASIC
+
+
 /**
  * Get the size of the communicator.
  * @param comm communicator
@@ -125,12 +125,12 @@ inline int mpi_comm_rank(MPI_Comm comm=MPI_COMM_WORLD) {
   int rank; MPI_Comm_rank(comm, &rank);
   return rank;
 }
-#pragma endregion
 
 
 
 
-#pragma region LOG
+
+
 #ifndef LOG_MPI
 /**
  * Print log prefix.
@@ -152,4 +152,4 @@ void logPrefixMpi() {
 /** Log using format. */
 #define LOG_MPI(...) do { logPrefixMpi(); printf(" " __VA_ARGS__); } while (0)
 #endif
-#pragma endregion
+

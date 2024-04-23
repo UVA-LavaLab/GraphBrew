@@ -22,18 +22,18 @@ using std::exit;
 
 
 
-#pragma region TYPES
+
 /** 64-bit signed integer (CUDA specific). */
 typedef long long int          int64_cu;
 /** 64-bit unsigned integer (CUDA specific). */
 typedef unsigned long long int uint64_cu;
 // - https://stackoverflow.com/a/32862733/1413259
-#pragma endregion
 
 
 
 
-#pragma region KEYWORDS
+
+
 #ifndef __global__
 /** CUDA kernel function. */
 #define __global__
@@ -52,12 +52,12 @@ typedef unsigned long long int uint64_cu;
  */
 #define __syncthreads()
 #endif
-#pragma endregion
 
 
 
 
-#pragma region LAUNCH CONFIG
+
+
 #ifndef BLOCK_LIMIT_CUDA
 /** Maximum number of threads per block. */
 #define BLOCK_LIMIT_CUDA         1024
@@ -117,12 +117,12 @@ inline int reduceSizeCu(size_t N) noexcept {
   const int G = gridSizeCu <COARSE>(N, B, GRID_LIMIT_REDUCE_CUDA);
   return G;
 }
-#pragma endregion
 
 
 
 
-#pragma region TRY
+
+
 #ifndef TRY_CUDA
 /**
  * Log error on CUDA function call failure.
@@ -178,12 +178,12 @@ void tryFailedCuda(cudaError err, const char* exp, const char* func, int line, c
  **/
 #define TRY_CUDAT(exp)  PERFORMT(TRY_CUDA(exp))
 #endif
-#pragma endregion
 
 
 
 
-#pragma region UNUSED
+
+
 /**
  * Mark CUDA variable as unused.
  */
@@ -198,12 +198,12 @@ inline void __device__ unusedCuda(T&&) {}
  */
 #define UNUSED_CUDA(x)  unusedCuda(x)
 #endif
-#pragma endregion
 
 
 
 
-#pragma region DEFINE
+
+
 #ifndef DEFINE_CUDA
 /**
  * Define thread, block variables for CUDA.
@@ -252,13 +252,13 @@ inline void __device__ unusedCuda(T&&) {}
   UNUSED_CUDA(GX); \
   UNUSED_CUDA(GY)
 #endif
-#pragma endregion
 
 
 
 
-#pragma region METHODS
-#pragma region READ
+
+
+
 /**
  * Read a value from global memory.
  * @param v address of value
@@ -286,12 +286,12 @@ inline vector<T> readValuesCu(const T *v, size_t N) {
   TRY_CUDA( cudaMemcpy(vH.data(), v, N * sizeof(T), cudaMemcpyDeviceToHost) );
   return vH;
 }
-#pragma endregion
 
 
 
 
-#pragma region SWAP
+
+
 /**
  * Swap two values in device memory [device function].
  * @param a first value (updated)
@@ -303,12 +303,12 @@ inline void __device__ swapCudU(T& a, T& b) {
   a = b;
   b = t;
 }
-#pragma endregion
 
 
 
 
-#pragma region CEIL DIV
+
+
 /**
  * Get the ceiling of a division [device function].
  * @param x the dividend
@@ -342,12 +342,12 @@ template <>
 inline double __device__ ceilDivCud<double>(double x, double y) {
   return ceil(x/y);
 }
-#pragma endregion
 
 
 
 
-#pragma region POW2
+
+
 /**
  * Get the next power of 2 of a value [device function].
  * @param x the value
@@ -357,12 +357,12 @@ template <class T>
 inline T __device__ nextPow2Cud(T x) {
   return T(1) << (__clz(T()) - __clz(x));
 }
-#pragma endregion
 
 
 
 
-#pragma region COPY
+
+
 /**
  * Copy values from one array to another [device function].
  * @param a destination array (output)
@@ -406,12 +406,12 @@ inline void copyValuesCuW(T *a, const T *x, size_t N) {
   const int G = gridSizeCu (N, B, GRID_LIMIT_MAP_CUDA);
   copyValuesCukW<<<G, B>>>(a, x, N);
 }
-#pragma endregion
 
 
 
 
-#pragma region FILL
+
+
 /**
  * Fill array with a value [device function].
  * @param a array to fill (output)
@@ -455,12 +455,12 @@ inline void fillValueCuW(T *a, size_t N, T v) {
   const int G = gridSizeCu (N, B, GRID_LIMIT_MAP_CUDA);
   fillValueCukW<<<G, B>>>(a, N, v);
 }
-#pragma endregion
 
 
 
 
-#pragma region SUM
+
+
 /**
  * Compute the sum of values in an array, from a thread [device function].
  * @param x array to sum
@@ -551,12 +551,12 @@ inline void sumValuesInplaceCuW(T *a, const T *x, size_t N) {
   TRY_CUDA( cudaDeviceSynchronize() );
   sumValuesCukW<GRID_LIMIT_REDUCE_CUDA><<<1, G>>>(a, a, G);
 }
-#pragma endregion
 
 
 
 
-#pragma region LI-NORM
+
+
 /**
  * Compute the L∞-norm of an array, from a thread [device function].
  * @param x array to compute on
@@ -647,12 +647,12 @@ inline void liNormInplaceCuW(T *a, const T *x, size_t N) {
   TRY_CUDA( cudaDeviceSynchronize() );
   liNormCukW<GRID_LIMIT_REDUCE_CUDA><<<1, G>>>(a, a, G);
 }
-#pragma endregion
 
 
 
 
-#pragma region LI-NORM DELTA
+
+
 /**
  * Compute L∞-norm of the difference between two arrays, from a thread [device function].
  * @param x first array
@@ -728,5 +728,5 @@ inline void liNormDeltaInplaceCuW(T *a, const T *x, const T *y, size_t N) {
   TRY_CUDA( cudaDeviceSynchronize() );
   liNormCukW<GRID_LIMIT_REDUCE_CUDA><<<1, G>>>(a, a, G);
 }
-#pragma endregion
-#pragma endregion
+
+

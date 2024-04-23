@@ -4,7 +4,7 @@
 
 
 
-#pragma region METHODS
+
 /**
  * Obtain the symmetric version of a graph.
  * @param a output symmetric graph (empty, updated)
@@ -81,4 +81,4 @@ inline auto symmetricizeOmp(const G& x) {
   return a;
 }
 #endif
-#pragma endregion
+

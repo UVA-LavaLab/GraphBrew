@@ -18,22 +18,22 @@ using std::get;
 
 
 
-#pragma region TYPES
+
 /**
  * Options for RAK algorithm.
  */
 struct RakOptions {
-  #pragma region DATA
+
   /** Number of times to repeat the algorithm [1]. */
   int repeat;
   /** Tolerance for convergence [0.05]. */
   double tolerance;
   /** Maximum number of iterations [20]. */
   int maxIterations;
-  #pragma endregion
 
 
-  #pragma region CONSTRUCTORS
+
+
   /**
    * Define options for RAK algorithm.
    * @param repeat number of times to repeat the algorithm [1]
@@ -42,7 +42,7 @@ struct RakOptions {
    */
   RakOptions(int repeat=1, double tolerance=0.05, int maxIterations=20) :
   repeat(repeat), tolerance(tolerance), maxIterations(maxIterations) {}
-  #pragma endregion
+
 };
 
 
@@ -58,7 +58,7 @@ struct RakOptions {
  */
 template <class K>
 struct RakResult {
-  #pragma region DATA
+
   /** Community membership each vertex belongs to. */
   vector<K> membership;
   /** Number of iterations performed. */
@@ -71,10 +71,10 @@ struct RakResult {
   float initializationTime;
   /** Number of vertices initially marked as affected. */
   size_t affectedVertices;
-  #pragma endregion
 
 
-  #pragma region CONSTRUCTORS
+
+
   /**
    * Result of RAK algorithm.
    * @param membership community membership each vertex belongs to
@@ -99,15 +99,15 @@ struct RakResult {
    */
   RakResult(vector<K>& membership, int iterations=0, float time=0, float markingTime=0, float initializationTime=0, size_t affectedVertices=0) :
   membership(move(membership)), iterations(iterations), time(time), markingTime(markingTime), initializationTime(initializationTime), affectedVertices(affectedVertices) {}
-  #pragma endregion
+
 };
-#pragma endregion
 
 
 
 
-#pragma region METHODS
-#pragma region HASHTABLES
+
+
+
 /**
  * Allocate a number of hashtables.
  * @param vcs communities vertex u is linked to (temporary buffer, updated)
@@ -137,12 +137,12 @@ inline void rakFreeHashtablesW(vector<vector<K>*>& vcs, vector<vector<W>*>& vcou
     delete vcout[i];
   }
 }
-#pragma endregion
 
 
 
 
-#pragma region INITIALIZE
+
+
 /**
  * Initialize communities such that each vertex is its own community.
  * @param vcom community each vertex belongs to (updated, must be initialized)
@@ -201,12 +201,12 @@ inline void rakInitializeFromOmpW(vector<K>& vcom, const G& x, const vector<K>& 
   }
 }
 #endif
-#pragma endregion
 
 
 
 
-#pragma region CHOOSE COMMUNITY
+
+
 /**
  * Scan an edge community connected to a vertex.
  * @param vcs communities vertex u is linked to (temporary buffer, updated)
@@ -270,12 +270,12 @@ inline pair<K, W> rakChooseCommunity(const G& x, K u, const vector<K>& vcom, con
     if (vcout[c]>wmax) { cmax = c; wmax = vcout[c]; }
   return make_pair(cmax, wmax);
 }
-#pragma endregion
 
 
 
 
-#pragma region MOVE ITERATION
+
+
 /**
  * Move each vertex to its best community.
  * @param vcom community each vertex belongs to (updated)
@@ -332,12 +332,12 @@ inline size_t rakMoveIterationOmpW(vector<K>& vcom, vector<F>& vaff, vector<vect
   return a;
 }
 #endif
-#pragma endregion
 
 
 
 
-#pragma region ENVIRONMENT SETUP
+
+
 /**
  * Setup and perform the RAK algorithm.
  * @param x original graph
@@ -350,7 +350,7 @@ inline size_t rakMoveIterationOmpW(vector<K>& vcom, vector<F>& vaff, vector<vect
 template <bool DYNAMIC=false, class FLAG=char, class G, class FI, class FM, class FA>
 inline auto rakInvoke(const G& x, const RakOptions& o, FI fi, FM fm, FA fa) {
   using K = typename G::key_type;
-  using V = typename G::edge_value_type;
+  // using V = typename G::edge_value_type;
   using W = RAK_WEIGHT_TYPE;
   using F = FLAG;
   int l = 0;
@@ -393,7 +393,7 @@ inline auto rakInvoke(const G& x, const RakOptions& o, FI fi, FM fm, FA fa) {
 template <bool DYNAMIC=false, class FLAG=char, class G, class FI, class FM, class FA>
 inline auto rakInvokeOmp(const G& x, const RakOptions& o, FI fi, FM fm, FA fa) {
   using K = typename G::key_type;
-  using V = typename G::edge_value_type;
+  // using V = typename G::edge_value_type;
   using W = RAK_WEIGHT_TYPE;
   using F = FLAG;
   int l = 0;
@@ -425,12 +425,12 @@ inline auto rakInvokeOmp(const G& x, const RakOptions& o, FI fi, FM fm, FA fa) {
   return RakResult<K>(vcom, l, t, tm/o.repeat, ti/o.repeat, countValueOmp(vaff, F(1)));
 }
 #endif
-#pragma endregion
 
 
 
 
-#pragma region REPEAT SETUP (DYNAMIC)
+
+
 /**
  * Setup the Dynamic RAK algorithm for multiple runs.
  * @param qs initial community membership for each run (updated)
@@ -443,12 +443,12 @@ inline void rakSetupInitialsW(vector2d<K>& qs, const vector<K>& q, int repeat) {
   for (int r=0; r<repeat; ++r)
     qs[r] = q;
 }
-#pragma endregion
 
 
 
 
-#pragma region STATIC
+
+
 /**
  * Obtain the community membership of each vertex with Static RAK.
  * @param x original graph
@@ -479,12 +479,12 @@ inline auto rakStaticOmp(const G& x, const RakOptions& o={}) {
   return rakInvokeOmp<false, FLAG>(x, o, fi, fm, fa);
 }
 #endif
-#pragma endregion
 
 
 
 
-#pragma region NAIVE-DYNAMIC
+
+
 /**
  * Obtain the community membership of each vertex with Naive-dynamic RAK.
  * @param y updated graph
@@ -523,12 +523,12 @@ inline RakResult<K> rakNaiveDynamicOmp(const G& y, const vector<K>& q, const Rak
   return rakInvokeOmp<true, FLAG>(y, o, fi, fm, fa);
 }
 #endif
-#pragma endregion
 
 
 
 
-#pragma region DYNAMIC DELTA-SCREENING
+
+
 /**
  * Find the vertices which should be processed upon a batch of edge insertions and deletions.
  * @param vertices vertex affected flags (output)
@@ -652,7 +652,7 @@ inline void rakAffectedVerticesDeltaScreeningOmpW(vector<B>& vertices, vector<B>
  */
 template <class FLAG=char, class G, class K, class V>
 inline RakResult<K> rakDynamicDeltaScreening(const G& y, const vector<tuple<K, K, V>>& deletions, const vector<tuple<K, K, V>>& insertions, const vector<K>& q, const RakOptions& o={}) {
-  using  W = RAK_WEIGHT_TYPE;
+  // using  W = RAK_WEIGHT_TYPE;
   using  B = FLAG;
   size_t S = y.span();
   vector<B> vertices(S), neighbors(S), communities(S);
@@ -681,7 +681,7 @@ inline RakResult<K> rakDynamicDeltaScreening(const G& y, const vector<tuple<K, K
  */
 template <class FLAG=char, class G, class K, class V>
 inline RakResult<K> rakDynamicDeltaScreeningOmp(const G& y, const vector<tuple<K, K, V>>& deletions, const vector<tuple<K, K, V>>& insertions, const vector<K>& q, const RakOptions& o={}) {
-  using  W = RAK_WEIGHT_TYPE;
+  // using  W = RAK_WEIGHT_TYPE;
   using  B = FLAG;
   size_t S = y.span();
   int    T = omp_get_max_threads();
@@ -698,12 +698,12 @@ inline RakResult<K> rakDynamicDeltaScreeningOmp(const G& y, const vector<tuple<K
   return rakInvokeOmp<true, FLAG>(y, o, fi, fm, fa);
 }
 #endif
-#pragma endregion
 
 
 
 
-#pragma region DYNAMIC FRONTIER APPROACH
+
+
 /**
  * Find the vertices which should be processed upon a batch of edge insertions and deletions.
  * @param vertices vertex affected flags (output)
@@ -807,5 +807,5 @@ inline auto rakDynamicFrontierOmp(const G& y, const vector<tuple<K, K, V>>& dele
   return rakInvokeOmp<true, FLAG>(y, o, fi, fm, fa);
 }
 #endif
-#pragma endregion
-#pragma endregion
+
+

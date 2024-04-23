@@ -24,7 +24,7 @@ DEP_GAPBS  = $(wildcard $(INC_DIR)/gapbs/*.h)
 DEP_RABBIT = $(wildcard $(INC_DIR)/rabbit/*.hpp)
 DEP_GORDER = $(wildcard $(INC_DIR)/gorder/*.h)
 DEP_CORDER = $(wildcard $(INC_DIR)/corder/*.h)
-DEP_CORDER = $(wildcard $(INC_DIR)/leiden/*.hxx)
+DEP_LEIDEN = $(wildcard $(INC_DIR)/leiden/*.hxx)
 # =========================================================
 
 # =========================================================
@@ -59,7 +59,7 @@ CXXFLAGS_GAP    = -std=c++17 -O3 -Wall -fopenmp
 CXXFLAGS_RABBIT = -mcx16 
 CXXFLAGS_GORDER = -m64 -march=native 
 CXXFLAGS_GORDER += -DRelease -DGCC
-CXXFLAGS_LEIDEN = -DTYPE=float -DMAX_THREADS=$(PARALLEL) -DREPEAT_METHOD=1
+CXXFLAGS_LEIDEN = -DTYPE=float -DMAX_THREADS=$(PARALLEL) -DREPEAT_METHOD=1 -DOPENMP
 # =========================================================
 LDLIBS_RABBIT   += -ltcmalloc_minimal -lnuma
 # =========================================================
@@ -67,7 +67,7 @@ CXXFLAGS = $(CXXFLAGS_GAP) $(CXXFLAGS_RABBIT) $(CXXFLAGS_GORDER)
 LDLIBS   = $(LDLIBS_RABBIT)
 # =========================================================
 # CXXFLAGS += -D_DEBUG
-INCLUDES = -I$(INCLUDE_GAPBS) -I$(INCLUDE_RABBIT) -I$(INCLUDE_GORDER) -I$(INCLUDE_CORDER)
+INCLUDES = -I$(INCLUDE_GAPBS) -I$(INCLUDE_RABBIT) -I$(INCLUDE_GORDER) -I$(INCLUDE_CORDER) -I$(INCLUDE_LEIDEN)
 
 # =========================================================
 # Targets
@@ -113,7 +113,7 @@ run-%-sweep: $(BIN_DIR)/%
 # =========================================================
 # Compilation Rules
 # =========================================================
-$(BIN_DIR)/%: $(SRC_DIR)/%.cc $(DEP_GAPBS) $(DEP_RABBIT) $(DEP_GORDER) $(DEP_CORDER) | $(BIN_DIR)
+$(BIN_DIR)/%: $(SRC_DIR)/%.cc $(DEP_GAPBS) $(DEP_RABBIT) $(DEP_GORDER) $(DEP_CORDER) $(DEP_LEIDEN) | $(BIN_DIR)
 	@$(CXX) $(CXXFLAGS) $(INCLUDES) $< $(LDLIBS) -o $@ $(EXIT_STATUS)
 
 # =========================================================

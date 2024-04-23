@@ -7,24 +7,24 @@ using std::iterator_traits;
 
 
 
-#pragma region CLASSES
+
 /**
  * A bounded (circular) deque view capable of storing N elements.
  * @tparam I iterator type of the buffer used to store the elements
  */
 template <class I>
 class DequeView {
-  #pragma region TYPES
+
   protected:
   using T = typename iterator_traits<I>::value_type;
 
   public:
   /** Value type of the deque. */
   using value_type = T;
-  #pragma endregion
 
 
-  #pragma region DATA
+
+
   protected:
   /** Begin iterator of the buffer. */
   const I xb;
@@ -36,11 +36,11 @@ class DequeView {
   I ie;
   /** Number of elements in the deque. */
   size_t n;
-  #pragma endregion
 
 
-  #pragma region METHODS
-  #pragma region SIZE
+
+
+
   public:
   /**
    * Get the size of the deque.
@@ -57,10 +57,10 @@ class DequeView {
   inline bool empty() const {
     return n==0;
   }
-  #pragma endregion
 
 
-  #pragma region READ
+
+
   public:
   /**
    * Get the element at the rear of the deque.
@@ -77,10 +77,10 @@ class DequeView {
   inline auto front() const {
     return *ib;
   }
-  #pragma endregion
 
 
-  #pragma region WRITE
+
+
   public:
   /**
    * Push value to the rear of the deque.
@@ -122,11 +122,11 @@ class DequeView {
     if (ib==xe) ib = xb;
     return v;
   }
-  #pragma endregion
-  #pragma endregion
 
 
-  #pragma region CONSTRUCTORS
+
+
+
   public:
   /**
    * Construct a Deque View from a given buffer.
@@ -135,7 +135,7 @@ class DequeView {
    */
   DequeView(I xb, I xe) :
   xb(xb), xe(xe), ib(xb), ie(xb), n(0) {}
-  #pragma endregion
+
 };
 
 
@@ -159,17 +159,17 @@ inline auto deque_view(I xb, I xe) {
  */
 template <class I>
 class UnsizedDequeView {
-  #pragma region TYPES
+
   protected:
   using T = typename iterator_traits<I>::value_type;
 
   public:
   /** Value type of the deque. */
   using value_type = T;
-  #pragma endregion
 
 
-  #pragma region DATA
+
+
   protected:
   /** Begin iterator of the buffer. */
   const I xb;
@@ -179,11 +179,11 @@ class UnsizedDequeView {
   I ib;
   /** Rear iterator of the deque. */
   I ie;
-  #pragma endregion
 
 
-  #pragma region METHODS
-  #pragma region SIZE
+
+
+
   public:
   /**
    * Check if the deque is empty.
@@ -192,10 +192,10 @@ class UnsizedDequeView {
   inline bool empty() const {
     return ib==ie;
   }
-  #pragma endregion
 
 
-  #pragma region READ
+
+
   public:
   /**
    * Get the element at the rear of the deque.
@@ -212,10 +212,10 @@ class UnsizedDequeView {
   inline auto front() const {
     return *ib;
   }
-  #pragma endregion
 
 
-  #pragma region WRITE
+
+
   public:
   /**
    * Push value to the rear of the deque.
@@ -253,11 +253,11 @@ class UnsizedDequeView {
     if (ib==xe) ib = xb;
     return v;
   }
-  #pragma endregion
-  #pragma endregion
 
 
-  #pragma region CONSTRUCTORS
+
+
+
   public:
   /**
    * Construct an unsized deque view from a given buffer.
@@ -266,7 +266,7 @@ class UnsizedDequeView {
    */
   UnsizedDequeView(I xb, I xe) :
   xb(xb), xe(xe), ib(xb), ie(xb) {}
-  #pragma endregion
+
 };
 
 
@@ -280,4 +280,4 @@ template <class I>
 inline auto unsized_deque_view(I xb, I xe) {
   return UnsizedDequeView<I>(xb, xe);
 }
-#pragma endregion
+

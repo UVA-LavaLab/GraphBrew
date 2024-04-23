@@ -25,7 +25,7 @@ using std::cout;
 
 
 
-#pragma region WRITE
+
 /**
  * Write values to a stream.
  * @param a the stream
@@ -126,12 +126,12 @@ template <class T>
 inline ostream& operator<<(ostream& a, const vector<T>& x) {
   write(a, x); return a;
 }
-#pragma endregion
 
 
 
 
-#pragma region WRITE TIME
+
+
 /**
  * Write a time to a stream.
  * @param a the stream
@@ -183,12 +183,12 @@ inline ostream& operator<<(ostream& a, const time_t& x) {
 inline ostream& operator<<(ostream& a, const time_point<system_clock>& x) {
   writeTimePoint(a, x); return a;
 }
-#pragma endregion
 
 
 
 
-#pragma region PRINT
+
+
 /**
  * Print an object.
  * @param x the object to print
@@ -215,4 +215,4 @@ inline void println(const T& x) {
 inline void println() {
   cout << "\n";
 }
-#pragma endregion
+

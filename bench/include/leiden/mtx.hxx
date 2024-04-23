@@ -26,8 +26,8 @@ using std::getline;
 
 
 
-#pragma region METHODS
-#pragma region READ MTX HEADER
+
+
 /**
  * Read header of MTX file.
  * @param s input stream
@@ -102,12 +102,12 @@ inline size_t readMtxSpan(const char* pth) {
   ifstream s(pth);
   return readMtxSpan(s);
 }
-#pragma endregion
 
 
 
 
-#pragma region READ MTX DO
+
+
 /**
  * Read contents of MTX file.
  * @param s input stream
@@ -192,12 +192,12 @@ inline void readMtxDoOmp(const char *pth, bool weighted, FH fh, FB fb) {
   readMtxDoOmp(s, weighted, fh, fb);
 }
 #endif
-#pragma endregion
 
 
 
 
-#pragma region READ MTX IF
+
+
 /**
  * Read MTX file as graph if test passes.
  * @param a output graph (updated)
@@ -248,12 +248,12 @@ inline void readMtxIfOmpW(G &a, const char *pth, bool weighted, FV fv, FE fe) {
   readMtxIfOmpW(a, s, weighted, fv, fe);
 }
 #endif
-#pragma endregion
 
 
 
 
-#pragma region READ MTX
+
+
 /**
  * Read MTX file as graph.
  * @param a output graph (updated)
@@ -292,5 +292,5 @@ inline void readMtxOmpW(G& a, const char *pth, bool weighted=false) {
   readMtxOmpW(a, s, weighted);
 }
 #endif
-#pragma endregion
-#pragma endregion
+
+

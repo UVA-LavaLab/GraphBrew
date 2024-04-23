@@ -12,8 +12,8 @@ using std::vector;
 
 
 
-#pragma region METHODS
-#pragma region ADD VERTICES
+
+
 /**
  * Add a range of vertices to a graph.
  * @param a graph to add vertices to
@@ -42,12 +42,12 @@ inline void addVerticesU(G& a, K u, K U, V d=V()) {
   auto ft = [](auto u, auto d) { return true; };
   addVerticesIfU(a, u, U, d, ft);
 }
-#pragma endregion
 
 
 
 
-#pragma region ADD EDGE
+
+
 /**
  * Add an edge to a graph.
  * @param a graph to add edge to
@@ -75,12 +75,12 @@ inline void addEdgeOmpU(G& a, K u, K v, E w=E()) {
   a.addEdgeIf(u, v, w, ft);
 }
 #endif
-#pragma endregion
 
 
 
 
-#pragma region REMOVE EDGE
+
+
 /**
  * Remove an edge from a graph.
  * @param a graph to remove edge from
@@ -105,12 +105,12 @@ inline void removeEdgeOmpU(G& a, K u, K v) {
   a.removeEdgeIf(u, v, ft);
 }
 #endif
-#pragma endregion
 
 
 
 
-#pragma region UPDATE
+
+
 /**
  * Update changes made to a graph.
  * @param a graph to update
@@ -149,5 +149,5 @@ inline void updateOmpU(G& a) {
     delete bufs[i];
 }
 #endif
-#pragma endregion
-#pragma endregion
+
+

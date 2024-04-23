@@ -13,7 +13,7 @@ using std::max;
 
 
 
-#pragma region CLASSES
+
 /**
  * Directed graph that memorizes only out-edges for each vertex.
  * @tparam K key type (vertex id)
@@ -22,7 +22,7 @@ using std::max;
  */
 template <class K=uint32_t, class V=None, class E=None>
 class DiGraph {
-  #pragma region TYPES
+
   public:
   /** Key type (vertex id). */
   using key_type = K;
@@ -30,10 +30,10 @@ class DiGraph {
   using vertex_value_type = V;
   /** Edge value type (edge weight). */
   using edge_value_type   = E;
-  #pragma endregion
 
 
-  #pragma region DATA
+
+
   protected:
   /** Number of vertices. */
   size_t N = 0;
@@ -45,11 +45,11 @@ class DiGraph {
   vector<V> values;
   /** Outgoing edges for each vertex (including edge weights). */
   vector<LazyBitset<K, E>> edges;
-  #pragma endregion
 
 
-  #pragma region METHODS
-  #pragma region PROPERTIES
+
+
+
   public:
   /**
    * Get the size of buffer required to store data associated with each vertex
@@ -91,10 +91,10 @@ class DiGraph {
   inline bool directed() const noexcept {
     return true;
   }
-  #pragma endregion
 
 
-  #pragma region FOREACH
+
+
   public:
   /**
    * Iterate over the vertices in the graph.
@@ -135,10 +135,10 @@ class DiGraph {
   inline void forEachEdgeKey(K u, FP fp) const noexcept {
     edges[u].forEachKey(fp);
   }
-  #pragma endregion
 
 
-  #pragma region ACCESS
+
+
   public:
   /**
    * Check if a vertex exists in the graph.
@@ -210,10 +210,10 @@ class DiGraph {
     if (!hasVertex(u) || !hasVertex(v)) return false;
     return edges[u].set(v, w);
   }
-  #pragma endregion
 
 
-  #pragma region UPDATE
+
+
   public:
   /**
    * Remove all vertices and edges from the graph.
@@ -367,8 +367,8 @@ class DiGraph {
     values[u] = V();
     edges[u].clear();
   }
-  #pragma endregion
-  #pragma endregion
+
+
 };
 
 
@@ -382,7 +382,7 @@ class DiGraph {
  */
 template <class K=uint32_t, class V=None, class E=None, class O=size_t>
 class DiGraphCsr {
-  #pragma region TYPES
+
   public:
   /** Key type (vertex id). */
   using key_type = K;
@@ -390,10 +390,10 @@ class DiGraphCsr {
   using vertex_value_type = V;
   /** Edge value type (edge weight). */
   using edge_value_type   = E;
-  #pragma endregion
 
 
-  #pragma region DATA
+
+
   public:
   /** Offsets of the outgoing edges of vertices. */
   vector<O> offsets;
@@ -405,11 +405,11 @@ class DiGraphCsr {
   vector<K> edgeKeys;
   /** Edge weights of the outgoing edges of each vertex (lookup using offsets). */
   vector<E> edgeValues;
-  #pragma endregion
 
 
-  #pragma region METHODS
-  #pragma region PROPERTIES
+
+
+
   public:
   /**
    * Get the size of buffer required to store data associated with each vertex
@@ -454,10 +454,10 @@ class DiGraphCsr {
   inline bool directed() const noexcept {
     return true;
   }
-  #pragma endregion
 
 
-  #pragma region FOREACH
+
+
   public:
   /**
    * Iterate over the vertices in the graph.
@@ -504,10 +504,10 @@ class DiGraphCsr {
     for (size_t I=i+d; i<I; ++i)
       fp(edgeKeys[i]);
   }
-  #pragma endregion
 
 
-  #pragma region OFFSET
+
+
   public:
   /**
    * Get the offset of an edge in the graph.
@@ -524,10 +524,10 @@ class DiGraphCsr {
     auto   it = find(ib, ie, v);
     return it!=ie? it - edgeKeys.begin() : size_t(-1);
   }
-  #pragma endregion
 
 
-  #pragma region ACCESS
+
+
   public:
   /**
    * Check if a vertex exists in the graph.
@@ -603,10 +603,10 @@ class DiGraphCsr {
     edgeValues[o] = w;
     return true;
   }
-  #pragma endregion
 
 
-  #pragma region UPDATE
+
+
   public:
   /**
    * Adjust the span of the graph (or the number of vertices).
@@ -617,11 +617,11 @@ class DiGraphCsr {
     degrees.resize(n);
     values.resize(n);
   }
-  #pragma endregion
-  #pragma endregion
 
 
-  #pragma region CONSTRUCTORS
+
+
+
   public:
   /**
    * Allocate space for CSR representation of a directed graph.
@@ -635,15 +635,15 @@ class DiGraphCsr {
     edgeKeys.resize(m);
     edgeValues.resize(m);
   }
-  #pragma endregion
+
 };
-#pragma endregion
 
 
 
 
-#pragma region METHODS
-#pragma region WRITE
+
+
+
 /**
  * Write the only the sizes of a graph to an output stream.
  * @tparam G graph type
@@ -716,5 +716,5 @@ inline ostream& operator<<(ostream& a, const DiGraph<K, V, E>& x) {
   write(a, x);
   return a;
 }
-#pragma endregion
-#pragma endregion
+
+
