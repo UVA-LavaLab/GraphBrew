@@ -195,7 +195,7 @@ make run-<benchmark_name>-sweep
 - **`help`**: Provides a generic help message about available commands.
 - **`help-%`**: Provides specific help for each benchmark command, detailing reordering algorithms and usage examples.
 
-**Project Structure**
+## Project Structure
 - `bench/bin`: Executables are placed here.
 - `bench/lib`: Library files can be stored here (not used by default).
 - `bench/src`: Source code files (*.cc) for the benchmarks.
