@@ -144,8 +144,56 @@ make run-<benchmark_name>-sweep
 
 ## Modifying the Makefile
 
-* **Compiler and Flags:** Edit the `CXX`, `CXXFLAGS`, and `INCLUDES` variables to customize compilation settings.
-* **Benchmark Targets:** Add or remove benchmark names from the `KERNELS` variable to control which ones are built.
+### Compiler Setup
+- **`CC`**: The C compiler to be used, checks for `gcc-9` first, if not found, falls back to `gcc`.
+- **`CXX`**: The C++ compiler to be used, checks for `g++-9` first, if not found, falls back to `g++`.
+
+### Directory Structure
+- **`BENCH_DIR`**: Base directory for benchmark-related subdirectories.
+- **`BIN_DIR`**: Directory where compiled binaries will be stored.
+- **`LIB_DIR`**: Directory for libraries (not explicitly used in the Makefile).
+- **`SRC_DIR`**: Source directory containing `.cc` files.
+- **`INC_DIR`**: Include directory for header files.
+- **`OBJ_DIR`**: Directory for object files (not explicitly used in the Makefile).
+
+### Include Directories
+- **`INCLUDE_<LIBRARY>`**: Each variable specifies the path to header files for various libraries or modules.
+- **`INCLUDE_BOOST`**: Specifies the directory for Boost library headers.
+
+### Compiler and Linker Flags
+- **`CXXFLAGS`**: Compiler flags for C++ files, combining flags for different libraries and conditions.
+- **`LDLIBS`**: Linker flags specifying libraries to link against.
+- **`CXXFLAGS_<LIBRARY>`**: Specific compiler flags for various libraries/modules.
+- **`LDLIBS_<LIBRARY>`**: Specific linker flags for various libraries/modules.
+
+### Runtime and Execution
+- **`PARALLEL`**: Number of parallel threads.
+- **`FLUSH_CACHE`**: Whether or not to flush cache before running benchmarks.
+- **`GRAPH_BENCH`**: Command line arguments for specifying graph benchmarks.
+- **`RUN_PARAMS`**: General command line parameters for running benchmarks.
+
+## Makefile Targets
+
+### Primary Targets
+- **`all`**: Compiles all binaries defined in `SUITE`.
+- **`run-%`**: Runs a specified benchmark, handling cache flushing if required.
+- **`run-%-gdb`**: Runs a specified benchmark using gdb.
+- **`run-%-mem`**: Runs a specified benchmark using valgrind for memory checking.
+- **`run-all`**: Runs all benchmarks.
+- **`run-%-sweep`**: Runs a specified benchmark with a sweep over different reordering options.
+
+### Compilation Rules
+- **`$(BIN_DIR)/%`**: Compiles a `.cc` source file into a binary, taking dependencies into account.
+
+### Directory Setup
+- **`$(BIN_DIR)`**: Ensures the binary directory and required subdirectories exist.
+
+### Cleanup
+- **`clean`**: Cleans up all generated files and directories.
+
+### Help
+- **`help`**: Provides a generic help message about available commands.
+- **`help-%`**: Provides specific help for each benchmark command, detailing reordering algorithms and usage examples.
 
 **Project Structure**
 - `bench/bin`: Executables are placed here.
@@ -153,10 +201,6 @@ make run-<benchmark_name>-sweep
 - `bench/src`: Source code files (*.cc) for the benchmarks.
 - `bench/include`: Header files for the benchmarks and various include files for libraries such as GAPBS, RABBIT, etc.
 - `bench/obj`: Object files are stored here (directory creation is handled but not used by default).
-
-**Compiler Flags**
-- **CXXFLAGS**: Combines optimization and feature flags necessary for compiling the benchmarks.
-- **LDLIBS**: Specifies additional linker flags needed for libraries such as `tcmalloc_minimal` and `numa`.
 
 Graph Loading
 -------------
