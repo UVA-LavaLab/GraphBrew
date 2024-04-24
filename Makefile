@@ -87,17 +87,22 @@ all: $(SUITE)
 # Runtime Flags OMP_NUM_THREADS
 # =========================================================
 PARALLEL=32
+FLUSH_CACHE=0
 # =========================================================
 
 # =========================================================
 # Running Benchmarks
 # =========================================================
 # GRAPH_BENCH = -f /home/ab/Documents/00_github_repos/00_GraphDatasets/SNAP/soc-LiveJournal1/graph.el
-GRAPH_BENCH = -g 5
+GRAPH_BENCH = -g 24
 RUN_PARAMS = $(GRAPH_BENCH) -n 1 -i 100 -o 2 -o 12
 # =========================================================
 run-%: $(BIN_DIR)/%
-	@OMP_NUM_THREADS=$(PARALLEL) ./$< $(RUN_PARAMS) $(EXIT_STATUS)
+	@if [ "$(FLUSH_CACHE)" = "1" ]; then \
+		echo "Flushing cache..."; \
+		dd if=/dev/zero of=/dev/null bs=1M count=1024; \
+	fi; \
+	OMP_NUM_THREADS=$(PARALLEL) ./$< $(RUN_PARAMS) $(EXIT_STATUS)
 
 run-%-gdb: $(BIN_DIR)/%
 	@OMP_NUM_THREADS=1 gdb -ex=r --args ./$< $(RUN_PARAMS)
@@ -111,6 +116,10 @@ run-all: $(addprefix run-, $(KERNELS))
 run-%-sweep: $(BIN_DIR)/%
 	@for o in 0 1 2 3 4 5 6 7 8 9 10 11 12; do \
 		echo "========================================================="; \
+		if [ "$(FLUSH_CACHE)" = "1" ]; then \
+			echo "Flushing cache..."; \
+			dd if=/dev/zero of=/dev/null bs=1M count=1024; \
+		fi; \
 		OMP_NUM_THREADS=$(PARALLEL) ./$(BIN_DIR)/$* $(GRAPH_BENCH) -n 1 -o $$o; \
 	done
 
