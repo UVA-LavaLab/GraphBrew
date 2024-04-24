@@ -51,6 +51,7 @@ sudo apt-get install g++ make libomp-dev
 
 1. First, navigate to your project directory
 
+
    * Download the desired Boost version `boost_1_58_0`:
 ```bash
 cd ~
@@ -73,6 +74,7 @@ sudo ./b2 --with=all -j $cpuCores install
 ```
 
 3. **Verify the Installation**
+
    
    * After installation, verify that Boost has been installed correctly by checking the installed version:
 ```bash
