@@ -142,6 +142,90 @@ make help
 make run-<benchmark_name>-sweep
 ```
 
+## Graph Loading
+
+All of the binaries use the same command-line options for loading graphs:
++ `-g 20` generates a Kronecker graph with 2^20 vertices (Graph500 specifications)
++ `-u 20` generates a uniform random graph with 2^20 vertices (degree 16)
++ `-f graph.el` loads graph from file graph.el
++ `-sf graph.el` symmetrizes graph loaded from file graph.el
+
+The graph loading infrastructure understands the following formats:
++ `.el` plain-text edge-list with an edge per line as _node1_ _node2_
++ `.wel` plain-text weighted edge-list with an edge per line as _node1_ _node2_ _weight_
++ `.gr` [9th DIMACS Implementation Challenge](http://www.dis.uniroma1.it/challenge9/download.shtml) format
++ `.graph` Metis format (used in [10th DIMACS Implementation Challenge](http://www.cc.gatech.edu/dimacs10/index.shtml))
++ `.mtx` [Matrix Market](http://math.nist.gov/MatrixMarket/formats.html) format
++ `.sg` serialized pre-built graph (use `converter` to make)
++ `.wsg` weighted serialized pre-built graph (use `converter` to make)
+
+## Parameters
+
+### GAP Parameters
+```bash
+pagerank
+ -h          : print this help message                                         
+ -f <file>   : load graph from file                                            
+ -s          : symmetrize input edge list                               [false]
+ -g <scale>  : generate 2^scale kronecker graph                                
+ -u <scale>  : generate 2^scale uniform-random graph                           
+ -k <degree> : average degree for synthetic graph                          [16]
+ -m          : reduces memory usage during graph building               [false]
+ -o <order>  : apply reordering strategy, optionally with a parameter 
+               [example]-r 3 -r 2 -r 10:mapping.label[optional]
+ -j <segments>: number of segments for the graph                            [1]
+ -a          : output analysis of last run                              [false]
+ -n <n>      : perform n trials                                            [16]
+ -r <node>   : start from node r                                         [rand]
+ -v          : verify the output of each run                            [false]
+ -l          : log performance within each trial                        [false]
+ -i <i>      : perform at most i iterations                                [20]
+ -t <t>      : use tolerance t                                       [0.000100]
+
+```
+### GraphBrew Parameters
+   * Reorder the graph, orders can bet layered.
+   * Segment the graph for scalability, requires modifying the algorithm to iterate through segments.
+
+```bash
+-o <order>  : apply reordering strategy, optionally layer ordering 
+               [example]-o 3 -o 2 -o 10:mapping.label [optional]
+
+-j <segments>: number of segments for the graph [default:1]
+
+Reordering Algorithms:
+  - ORIGINAL      (0):  No reordering applied.
+  - RANDOM        (1):  Apply random reordering.
+  - SORT          (2):  Apply sort-based reordering.
+  - HUBSORT       (3):  Apply hub-based sorting.
+  - HUBCLUSTER    (4):  Apply clustering based on hub scores.
+  - DBG           (5):  Apply degree-based grouping.
+  - HUBSORTDBG    (6):  Combine hub sorting with degree-based grouping.
+  - HUBCLUSTERDBG (7):  Combine hub clustering with degree-based grouping.
+  - RABBITORDER   (8):  Apply community clustering with incremental aggregation.
+  - GORDER        (9):  Apply dynamic programming BFS and windowing ordering.
+  - CORDER        (10): Workload Balancing via Graph Reordering on Multicore Systems.
+  - RCM           (11): RCM is ordered by the reverse Cuthill-McKee algorithm (BFS).
+  - LeidenOrder   (12): Apply Leiden community clustering with louvain with refinement.
+  - MAP           (13): Requires a file format for reordering. Use the -r 10:filename.label option.
+```
+
+2. **Makefile Flow**
+```bash
+available Make commands:
+  all            - Builds all targets including GAP benchmarks (CPU)
+  run-%          - Runs the specified GAP benchmark (bc bfs cc cc_sv pr pr_spmv sssp tc)
+  help-%         - Print the specified Help (bc bfs cc cc_sv pr pr_spmv sssp tc)
+  clean          - Removes all build artifacts
+  help           - Displays this help message
+
+Example Usage:
+  make all - Compile the program.
+  make clean - Clean build files.
+  ./bench/bin/pr -g 15 -n 1 -r 10:mapping.label - Execute with MAP reordering using 'mapping.label'.
+
+```
+
 ## Modifying the Makefile
 
 ### Compiler Setup
@@ -201,69 +285,6 @@ make run-<benchmark_name>-sweep
 - `bench/src`: Source code files (*.cc) for the benchmarks.
 - `bench/include`: Header files for the benchmarks and various include files for libraries such as GAPBS, RABBIT, etc.
 - `bench/obj`: Object files are stored here (directory creation is handled but not used by default).
-
-Graph Loading
--------------
-
-All of the binaries use the same command-line options for loading graphs:
-+ `-g 20` generates a Kronecker graph with 2^20 vertices (Graph500 specifications)
-+ `-u 20` generates a uniform random graph with 2^20 vertices (degree 16)
-+ `-f graph.el` loads graph from file graph.el
-+ `-sf graph.el` symmetrizes graph loaded from file graph.el
-
-The graph loading infrastructure understands the following formats:
-+ `.el` plain-text edge-list with an edge per line as _node1_ _node2_
-+ `.wel` plain-text weighted edge-list with an edge per line as _node1_ _node2_ _weight_
-+ `.gr` [9th DIMACS Implementation Challenge](http://www.dis.uniroma1.it/challenge9/download.shtml) format
-+ `.graph` Metis format (used in [10th DIMACS Implementation Challenge](http://www.cc.gatech.edu/dimacs10/index.shtml))
-+ `.mtx` [Matrix Market](http://math.nist.gov/MatrixMarket/formats.html) format
-+ `.sg` serialized pre-built graph (use `converter` to make)
-+ `.wsg` weighted serialized pre-built graph (use `converter` to make)
-
-GraphBrew Parameters
--------------
-1. **GAP Parameters**
-   * Reorder the graph, orders can bet layered.
-   * Segment the graph for scalability, requires modifying the algorithm to iterate through segments.
-
-```bash
--o <order>  : apply reordering strategy, optionally layer ordering 
-               [example]-o 3 -o 2 -o 10:mapping.label [optional]
-
--j <segments>: number of segments for the graph [default:1]
-
-Reordering Algorithms:
-  - ORIGINAL      (0):  No reordering applied.
-  - RANDOM        (1):  Apply random reordering.
-  - SORT          (2):  Apply sort-based reordering.
-  - HUBSORT       (3):  Apply hub-based sorting.
-  - HUBCLUSTER    (4):  Apply clustering based on hub scores.
-  - DBG           (5):  Apply degree-based grouping.
-  - HUBSORTDBG    (6):  Combine hub sorting with degree-based grouping.
-  - HUBCLUSTERDBG (7):  Combine hub clustering with degree-based grouping.
-  - RABBITORDER   (8):  Apply community clustering with incremental aggregation.
-  - GORDER        (9):  Apply dynamic programming BFS and windowing ordering.
-  - CORDER        (10): Workload Balancing via Graph Reordering on Multicore Systems.
-  - RCM           (11): RCM is ordered by the reverse Cuthill-McKee algorithm (BFS).
-  - LeidenOrder   (12): Apply Leiden community clustering with louvain with refinement.
-  - MAP           (13): Requires a file format for reordering. Use the -r 10:filename.label option.
-```
-
-2. **Makefile Flow**
-```bash
-available Make commands:
-  all            - Builds all targets including GAP benchmarks (CPU)
-  run-%          - Runs the specified GAP benchmark (bc bfs cc cc_sv pr pr_spmv sssp tc)
-  help-%         - Print the specified Help (bc bfs cc cc_sv pr pr_spmv sssp tc)
-  clean          - Removes all build artifacts
-  help           - Displays this help message
-
-Example Usage:
-  make all - Compile the program.
-  make clean - Clean build files.
-  ./bench/bin/pr -g 15 -n 1 -r 10:mapping.label - Execute with MAP reordering using 'mapping.label'.
-
-```
 
 How to Cite
 -----------
