@@ -76,7 +76,7 @@ echo "Available CPU cores: $cpuCores"
 ```
    * Initialize the Boost installation script:
 ```bash
-./bootstrap.sh  # This script prepares Boost for installation
+./bootstrap.sh --prefix=/opt/boost_1_58_0 --with-python=python2.7 
 ```
    * Compile and install Boost using all available cores to speed up the process:
 ```bash
@@ -87,7 +87,7 @@ sudo ./b2 --with=all -j $cpuCores install
    
    * After installation, verify that Boost has been installed correctly by checking the installed version:
 ```bash
-cat /usr/local/include/boost/version.hpp | grep "BOOST_LIB_VERSION"
+cat /opt/boost_1_58_0/include/boost/version.hpp | grep "BOOST_LIB_VERSION"
 ```
    * The output should display the version of Boost you installed, like so:
 ```bash
