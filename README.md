@@ -49,20 +49,9 @@ sudo apt-get install g++ make libomp-dev
 ```
 ### Installing Boost 1.58.0
 
-1. **Remove Debian Package Installations**
-   
-   * If you installed Boost through Debian packages, use the following command to remove these installations:
-```bash
-sudo apt-get -y --purge remove libboost-all-dev libboost-doc libboost-dev
-```
-   * If Boost was installed from the source on your system, you can remove the installed library files with:
-```bash
-sudo rm -f /usr/lib/libboost_*
-```
+1. First, navigate to your project directory
 
-2. **Installing Boost 1.58.0**
-   
-   * First, navigate to your home directory and download the desired Boost version:
+   * Download the desired Boost version `boost_1_58_0`:
 ```bash
 cd ~
 wget http://downloads.sourceforge.net/project/boost/boost/1.58.0/boost_1_58_0.tar.gz
