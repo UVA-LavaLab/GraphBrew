@@ -20,6 +20,8 @@ INCLUDE_GORDER = $(INC_DIR)/gorder
 INCLUDE_CORDER = $(INC_DIR)/corder
 INCLUDE_LEIDEN = $(INC_DIR)/leiden
 # =========================================================
+INCLUDE_BOOST  = /opt/boost_1_58_0/include  
+# =========================================================
 DEP_GAPBS  = $(wildcard $(INC_DIR)/gapbs/*.h)
 DEP_RABBIT = $(wildcard $(INC_DIR)/rabbit/*.hpp)
 DEP_GORDER = $(wildcard $(INC_DIR)/gorder/*.h)
@@ -56,18 +58,20 @@ NC      =\033[0m
 # Compiler Flags
 # =========================================================
 CXXFLAGS_GAP    = -std=c++17 -O3 -Wall -fopenmp
-CXXFLAGS_RABBIT = -mcx16 
+CXXFLAGS_RABBIT = -mcx16 -Wno-deprecated-declarations -Wno-parentheses -Wno-unused-local-typedefs
 CXXFLAGS_GORDER = -m64 -march=native 
 CXXFLAGS_GORDER += -DRelease -DGCC
 CXXFLAGS_LEIDEN = -DTYPE=float -DMAX_THREADS=$(PARALLEL) -DREPEAT_METHOD=1
 # =========================================================
 LDLIBS_RABBIT   += -ltcmalloc_minimal -lnuma
 # =========================================================
-CXXFLAGS = $(CXXFLAGS_GAP) $(CXXFLAGS_RABBIT) $(CXXFLAGS_GORDER) $(CXXFLAGS_LEIDEN) 
-LDLIBS   = $(LDLIBS_RABBIT)
+LDLIBS_BOOST    += -L/opt/boost_1_58_0/lib 
+# =========================================================
+CXXFLAGS = $(CXXFLAGS_GAP) $(CXXFLAGS_RABBIT) $(CXXFLAGS_GORDER) $(CXXFLAGS_LEIDEN)
+LDLIBS  = $(LDLIBS_RABBIT) $(LDLIBS_BOOST)
 # =========================================================
 # CXXFLAGS += -D_DEBUG
-INCLUDES = -I$(INCLUDE_GAPBS) -I$(INCLUDE_RABBIT) -I$(INCLUDE_GORDER) -I$(INCLUDE_CORDER) -I$(INCLUDE_LEIDEN)
+INCLUDES = -I$(INCLUDE_GAPBS) -I$(INCLUDE_RABBIT) -I$(INCLUDE_GORDER) -I$(INCLUDE_CORDER) -I$(INCLUDE_LEIDEN) -I$(INCLUDE_BOOST)
 
 # =========================================================
 # Targets
@@ -90,7 +94,7 @@ PARALLEL=32
 # =========================================================
 # GRAPH_BENCH = -f /home/ab/Documents/00_github_repos/00_GraphDatasets/SNAP/soc-LiveJournal1/graph.el
 GRAPH_BENCH = -g 5
-RUN_PARAMS = $(GRAPH_BENCH) -n 1 -i 100 -o8 -o5 -o 12
+RUN_PARAMS = $(GRAPH_BENCH) -n 1 -i 100 -o 2 -o 12
 # =========================================================
 run-%: $(BIN_DIR)/%
 	@OMP_NUM_THREADS=$(PARALLEL) ./$< $(RUN_PARAMS) $(EXIT_STATUS)
@@ -105,7 +109,7 @@ run-all: $(addprefix run-, $(KERNELS))
 
 # Define a rule that sweeps through -o 1 to 7
 run-%-sweep: $(BIN_DIR)/%
-	@for o in 0 1 2 3 4 5 6 7 8 9 10 11; do \
+	@for o in 0 1 2 3 4 5 6 7 8 9 10 11 12; do \
 		echo "========================================================="; \
 		OMP_NUM_THREADS=$(PARALLEL) ./$(BIN_DIR)/$* $(GRAPH_BENCH) -n 1 -o $$o; \
 	done
