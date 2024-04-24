@@ -95,20 +95,20 @@ FLUSH_CACHE=0
 # =========================================================
 # GRAPH_BENCH = -f /home/ab/Documents/00_github_repos/00_GraphDatasets/SNAP/soc-LiveJournal1/graph.el
 GRAPH_BENCH = -g 24
-RUN_PARAMS = $(GRAPH_BENCH) -n 1 -i 100 -o 2 -o 12
+RUN_PARAMS =  -n 1 -i 100 -o 2 -o 12
 # =========================================================
 run-%: $(BIN_DIR)/%
 	@if [ "$(FLUSH_CACHE)" = "1" ]; then \
 		echo "Flushing cache..."; \
 		dd if=/dev/zero of=/dev/null bs=1M count=1024; \
 	fi; \
-	OMP_NUM_THREADS=$(PARALLEL) ./$< $(RUN_PARAMS) $(EXIT_STATUS)
+	OMP_NUM_THREADS=$(PARALLEL) ./$<  $(GRAPH_BENCH) $(RUN_PARAMS) $(EXIT_STATUS)
 
 run-%-gdb: $(BIN_DIR)/%
-	@OMP_NUM_THREADS=1 gdb -ex=r --args ./$< $(RUN_PARAMS)
+	@OMP_NUM_THREADS=1 gdb -ex=r --args ./$< $(GRAPH_BENCH) $(RUN_PARAMS)
 
 run-%-mem: $(BIN_DIR)/%
-	@OMP_NUM_THREADS=1 valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes -v ./$< $(RUN_PARAMS)
+	@OMP_NUM_THREADS=1 valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes -v ./$< $(GRAPH_BENCH) $(RUN_PARAMS)
 
 run-all: $(addprefix run-, $(KERNELS))
 
