@@ -41,51 +41,6 @@ Before you begin, ensure you have the following installed on your system:
 - **libnuma** (2.0.9).
 - **libtcmalloc\_minimal** in google-perftools (2.1).
 
-These tools are available on most Unix-like operating systems and can be installed via your package manager. For example, on Ubuntu, you can install them using:
-
-```bash
-sudo apt-get update
-sudo apt-get install g++ make libomp-dev
-```
-### Installing Boost 1.58.0
-
-1. First, navigate to your project directory
-
-
-   * Download the desired Boost version `boost_1_58_0`:
-```bash
-cd ~
-wget http://downloads.sourceforge.net/project/boost/boost/1.58.0/boost_1_58_0.tar.gz
-tar -zxvf boost_1_58_0.tar.gz
-cd boost_1_58_0
-```
-   * Determine the number of CPU cores available to optimize the compilation process:
-```bash
-cpuCores=$(cat /proc/cpuinfo | grep "cpu cores" | uniq | awk '{print $NF}')
-echo "Available CPU cores: $cpuCores"
-```
-   * Initialize the Boost installation script:
-```bash
-./bootstrap.sh --prefix=/opt/boost_1_58_0 --with-python=python2.7 
-```
-   * Compile and install Boost using all available cores to speed up the process:
-```bash
-sudo ./b2 --with=all -j $cpuCores install
-```
-
-3. **Verify the Installation**
-
-   
-   * After installation, verify that Boost has been installed correctly by checking the installed version:
-```bash
-cat /opt/boost_1_58_0/include/boost/version.hpp | grep "BOOST_LIB_VERSION"
-```
-   * The output should display the version of Boost you installed, like so:
-```bash
-//  BOOST_LIB_VERSION must be defined to be the same as BOOST_VERSION
-#define BOOST_LIB_VERSION "1_58"
-```
-
 ## Usage
 
 ### Example Usage
@@ -285,6 +240,53 @@ Example Usage:
 - `bench/src`: Source code files (*.cc) for the benchmarks.
 - `bench/include`: Header files for the benchmarks and various include files for libraries such as GAPBS, RABBIT, etc.
 - `bench/obj`: Object files are stored here (directory creation is handled but not used by default).
+
+## Installing Prerequisites
+
+These tools are available on most Unix-like operating systems and can be installed via your package manager. For example, on Ubuntu, you can install them using:
+
+```bash
+sudo apt-get update
+sudo apt-get install g++ make libomp-dev
+```
+### Installing Boost 1.58.0
+
+1. First, navigate to your project directory
+
+
+   * Download the desired Boost version `boost_1_58_0`:
+```bash
+cd ~
+wget http://downloads.sourceforge.net/project/boost/boost/1.58.0/boost_1_58_0.tar.gz
+tar -zxvf boost_1_58_0.tar.gz
+cd boost_1_58_0
+```
+   * Determine the number of CPU cores available to optimize the compilation process:
+```bash
+cpuCores=$(cat /proc/cpuinfo | grep "cpu cores" | uniq | awk '{print $NF}')
+echo "Available CPU cores: $cpuCores"
+```
+   * Initialize the Boost installation script:
+```bash
+./bootstrap.sh --prefix=/opt/boost_1_58_0 --with-python=python2.7 
+```
+   * Compile and install Boost using all available cores to speed up the process:
+```bash
+sudo ./b2 --with=all -j $cpuCores install
+```
+
+3. **Verify the Installation**
+
+   
+   * After installation, verify that Boost has been installed correctly by checking the installed version:
+```bash
+cat /opt/boost_1_58_0/include/boost/version.hpp | grep "BOOST_LIB_VERSION"
+```
+   * The output should display the version of Boost you installed, like so:
+```bash
+//  BOOST_LIB_VERSION must be defined to be the same as BOOST_VERSION
+#define BOOST_LIB_VERSION "1_58"
+```
 
 How to Cite
 -----------
