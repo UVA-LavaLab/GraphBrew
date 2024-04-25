@@ -2427,7 +2427,7 @@ inline float refinementTime(const LeidenResult<K, W>& a) {
 // ------------------
 
 template <class G>
-void runExperiment(const G& x) {
+void runExperiment(G& x) {
   // using K = typename G::key_type;
   // using V = typename G::edge_value_type;
   random_device dev;
@@ -2518,7 +2518,8 @@ void GenerateLeidenMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
   printf("\n");
   tm.Stop();
   PrintTime("Leiden time", tm.Seconds());
-
+ 
+  x.printCommunitiesPerPass();
   // g.PrintTopology();
   // writeGraph(std::cout, x, true);
 

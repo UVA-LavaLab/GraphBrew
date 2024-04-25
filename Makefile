@@ -57,7 +57,7 @@ NC      =\033[0m
 # =========================================================
 # Compiler Flags
 # =========================================================
-CXXFLAGS_GAP    = -std=c++17 -O3 -Wall -fopenmp
+CXXFLAGS_GAP    = -std=c++17 -O1 -Wall -fopenmp
 CXXFLAGS_RABBIT = -mcx16 -Wno-deprecated-declarations -Wno-parentheses -Wno-unused-local-typedefs
 CXXFLAGS_GORDER = -m64 -march=native 
 CXXFLAGS_GORDER += -DRelease -DGCC
@@ -93,8 +93,8 @@ FLUSH_CACHE=0
 # =========================================================
 # Running Benchmarks
 # =========================================================
-# GRAPH_BENCH = -f /home/ab/Documents/00_github_repos/00_GraphDatasets/SNAP/soc-LiveJournal1/graph.el
-GRAPH_BENCH = -g 24
+# GRAPH_BENCH = -f ./test/graphs/4.el
+GRAPH_BENCH = -g 5
 RUN_PARAMS =  -n 1 -i 100 -o 2 -o 12
 # =========================================================
 run-%: $(BIN_DIR)/%
