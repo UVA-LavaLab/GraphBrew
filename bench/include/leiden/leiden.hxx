@@ -4,6 +4,10 @@
 #include <vector>
 #include <random>
 #include <algorithm>
+#include <unordered_map>
+#include <mutex>
+#include <thread>
+
 #include "_main.hxx"
 #include "Graph.hxx"
 #include "properties.hxx"
@@ -1332,7 +1336,7 @@ inline auto leidenInvoke(RND& rnd, const G& x, const LeidenOptions& o, FI fi, FM
  * @returns leiden result
  */
 template <bool DYNAMIC=false, bool RANDOM=false, bool USEPARENT=false, class FLAG=char, class RND, class G, class FI, class FM, class FA>
-inline auto leidenInvokeOmp(RND& rnd, const G& x, const LeidenOptions& o, FI fi, FM fm, FA fa) {
+inline auto leidenInvokeOmp(RND& rnd, G& x, const LeidenOptions& o, FI fi, FM fm, FA fa) {
   using  K = typename G::key_type;
   using  W = LEIDEN_WEIGHT_TYPE;
   using  B = FLAG;
@@ -1415,14 +1419,55 @@ inline auto leidenInvokeOmp(RND& rnd, const G& x, const LeidenOptions& o, FI fi,
           else         m += leidenMoveOmpW<true, RANDOM>(vcom, ctot, vaff, vcs, vcout, rng, y, vcob, vtot, M, R, L, fc);
         });
 
-        printf("PASS IS: %d\n", p);
-        for(size_t i=1; i<S; i++)   //as size is S
-        {
+        // printf("PASS IS: %d\n", p);
+        // for(size_t i=0; i<S; i++)   //as size is S
+        // {
           
-          printf("node is: %ld, comm is: %d degree:%ld) ",i,  ucom[i], x.degree(ucom[i]));
-          printf("\n");
-          //printf("comm is: %d\n", ucom[i]);
+        //   printf("node is: %ld, comm is: %d) ",i,  ucom[i]);
+        //   printf("\n");
+        //   //printf("comm is: %d\n", ucom[i]);
+        // }
+
+        unordered_map<K, vector<K> > communityGroups;
+        mutex mtx;
+
+        // Define the number of threads to use
+        const int numThreads =  MAX_THREADS;
+
+        // Calculate the number of nodes each thread will handle
+        const int nodesPerThread = (S + numThreads - 1) / numThreads;
+
+        // Function to add nodes to the communityGroups map
+        auto addNodesToGroup = [&](K start, K end) {
+                     for (size_t i = start; i < end && i < S; ++i) {
+                       lock_guard<mutex> lock(mtx); // Lock the mutex
+                       communityGroups[ucom[i]].push_back(i);
+                     }
+                   };
+
+        // Create threads to add nodes to the groups
+        vector<thread> threads;
+        for (int i = 0; i < numThreads; ++i) {
+          K start = i * nodesPerThread;
+          K end = (i + 1) * nodesPerThread;
+          threads.emplace_back(addNodesToGroup, start, end);
         }
+
+        // Join the threads
+        for (thread& t : threads) {
+            t.join();
+        }
+
+        x.communityGroupsPush(communityGroups);
+
+        // // Print the groups
+        // for (const auto& entry : communityGroups) {
+        //     cout << "Community " << entry.first << ": ";
+        //     for (int id : entry.second) {
+        //         cout << id << " ";
+        //     }
+        //     cout << endl;
+        // }
 
         l += max(m, 1); ++p;
         if (m<=1 || p>=P) break;
@@ -1469,11 +1514,6 @@ inline auto leidenInvokeOmp(RND& rnd, const G& x, const LeidenOptions& o, FI fi,
   return LeidenResult<K>(ucom, utot, ctot, l, p, t, tm/o.repeat, ti/o.repeat, tp/o.repeat, tl/o.repeat, tr/o.repeat, ta/o.repeat, countValueOmp(vaff, B(1)));
 }
 #endif
-
-
-
-
-
 
 /**
  * Setup the Dynamic Leiden algorithm for multiple runs.
@@ -1532,7 +1572,7 @@ inline auto leidenStatic(RND& rnd, const G& x, const LeidenOptions& o={}) {
  * @returns leiden result
  */
 template <bool RANDOM=false, bool USEPARENT=false, class FLAG=char, class RND, class G>
-inline auto leidenStaticOmp(RND& rnd, const G& x, const LeidenOptions& o={}) {
+inline auto leidenStaticOmp(RND& rnd, G& x, const LeidenOptions& o={}) {
   auto fi = [&](auto& vcom, auto& vtot, auto& ctot)  {
     leidenVertexWeightsOmpW(vtot, x);
     leidenInitializeOmpW(vcom, ctot, x, vtot);
