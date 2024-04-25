@@ -1459,6 +1459,7 @@ inline auto leidenInvokeOmp(RND& rnd, G& x, const LeidenOptions& o, FI fi, FM fm
         }
 
         x.communityGroupsPush(communityGroups);
+        x.communityMappingPush(ucom);
 
         // // Print the groups
         // for (const auto& entry : communityGroups) {
