@@ -45,40 +45,40 @@ vector<bool> exists;
 vector<V> values;
 /** Outgoing edges for each vertex (including edge weights). */
 vector<LazyBitset<K, E> > edges;
-/** Vector to store communityGroups for each pass. */
-mutable vector<unordered_map<K, vector<K> > > communityGroupsPerPass;
-mutable vector<vector<K>> communityMappingPerPass;
 
 
 public:
+  /** Vector to store communityGroups for each pass. */
+// mutable vector<unordered_map<K, vector<K> > > communityGroupsPerPass;
+mutable vector<vector<K>> communityMappingPerPass;
 /**
  * Push the communities per pass.
  */
-inline void communityGroupsPush(const unordered_map<K, vector<K> > &communityGroups) noexcept {
-  communityGroupsPerPass.push_back(communityGroups);
-}
+// inline void communityGroupsPush(const unordered_map<K, vector<K> > &communityGroups) noexcept {
+//   communityGroupsPerPass.push_back(communityGroups);
+// }
 
 inline void communityMappingPush(const vector<K> &communityMapping) noexcept {
   communityMappingPerPass.push_back(communityMapping);
 }
 
 
-/**
- * Print the communities per pass.
- */
-inline void printCommunitiesPerPass() const noexcept {
-  for (size_t pass = 0; pass < communityGroupsPerPass.size(); ++pass) {
-    cout << "Pass " << pass << ":" << endl;
-    const auto& communityGroups = communityGroupsPerPass[pass];
-    for (const auto& entry : communityGroups) {
-      cout << "Community " << entry.first << ": ";
-      for (int id : entry.second) {
-        cout << id << " ";
-      }
-      cout << endl;
-    }
-  }
-}
+// /**
+//  * Print the communities per pass.
+//  */
+// inline void printCommunitiesPerPass() const noexcept {
+//   for (size_t pass = 0; pass < communityGroupsPerPass.size(); ++pass) {
+//     cout << "Pass " << pass << ":" << endl;
+//     const auto& communityGroups = communityGroupsPerPass[pass];
+//     for (const auto& entry : communityGroups) {
+//       cout << "Community " << entry.first << ": ";
+//       for (int id : entry.second) {
+//         cout << id << " ";
+//       }
+//       cout << endl;
+//     }
+//   }
+// }
 
 
 public:

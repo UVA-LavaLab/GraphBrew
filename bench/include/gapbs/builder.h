@@ -13,7 +13,8 @@
 #include <set>
 #include <type_traits>
 #include <utility>
-
+#include <tuple>
+#include <vector>
 
 #include "command_line.h"
 #include "generator.h"
@@ -2409,7 +2410,9 @@ void GenerateRCMOrderMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
 
 template <class G, class R>
 inline double getModularity(const G& x, const R& a, double M) {
-  auto fc = [&](auto u) { return a.membership[u]; };
+  auto fc = [&](auto u) {
+        return a.membership[u];
+      };
   return modularityByOmp(x, fc, M, 1.0);
 }
 
@@ -2433,17 +2436,17 @@ void runExperiment(G& x) {
   random_device dev;
   default_random_engine rnd(dev());
   int repeat = REPEAT_METHOD;
-  double   M = edgeWeightOmp(x)/2;
+  // double M = edgeWeightOmp(x)/2;
   // Follow a specific result logging format, which can be easily parsed later.
-  auto flog = [&](const auto& ans, const char *technique) {
-    printf(
-      "{%09.1fms, %09.1fms mark, %09.1fms init, %09.1fms firstpass, %09.1fms locmove, %09.1fms refine, %09.1fms aggr, %.3e aff, %04d iters, %03d passes, %01.9f modularity, %zu/%zu disconnected} %s\n",
-      ans.time, ans.markingTime, ans.initializationTime, ans.firstPassTime, ans.localMoveTime, refinementTime(ans), ans.aggregationTime,
-      double(ans.affectedVertices), ans.iterations, ans.passes, getModularity(x, ans, M),
-      countValue(communitiesDisconnectedOmp(x, ans.membership), char(1)),
-      communities(x, ans.membership).size(), technique
-    );
-  };
+  // auto flog = [&](const auto& ans, const char *technique) {
+  //         printf(
+  //           "{%09.1fms, %09.1fms mark, %09.1fms init, %09.1fms firstpass, %09.1fms locmove, %09.1fms refine, %09.1fms aggr, %.3e aff, %04d iters, %03d passes, %01.9f modularity, %zu/%zu disconnected} %s\n",
+  //           ans.time, ans.markingTime, ans.initializationTime, ans.firstPassTime, ans.localMoveTime, refinementTime(ans), ans.aggregationTime,
+  //           double(ans.affectedVertices), ans.iterations, ans.passes, getModularity(x, ans, M),
+  //           countValue(communitiesDisconnectedOmp(x, ans.membership), char(1)),
+  //           communities(x, ans.membership).size(), technique
+  //           );
+  //       };
   // Get community memberships on original graph (static).
   {
     // auto a0 = louvainStaticOmp(x, {repeat});
@@ -2451,7 +2454,7 @@ void runExperiment(G& x) {
   }
   {
     auto b0 = leidenStaticOmp<false, false>(rnd, x, {repeat});
-    flog(b0, "leidenStaticOmpGreedy");
+    // flog(b0, "leidenStaticOmpGreedy");
     // auto b1 = leidenStaticOmp<false,  true>(rnd, x, {repeat});
     // flog(b1, "leidenStaticOmpGreedyOrg");
     // auto c0 = leidenStaticOmp<false, false>(rnd, x, {repeat, 1.0, 1e-12, 0.8, 1.0, 100, 100});
@@ -2479,21 +2482,30 @@ void runExperiment(G& x) {
   }
 }
 
+using K = uint32_t;
+
+void sort_by_vector_element(std::vector<std::vector<K> > &communityVectorTuplePerPass, size_t element_index) {
+  __gnu_parallel::stable_sort(communityVectorTuplePerPass.begin(), communityVectorTuplePerPass.end(),
+                              [&](const std::vector<K>& a, const std::vector<K>& b) {
+      return a[element_index] < b[element_index];
+    });
+}
+
 void GenerateLeidenMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
                            pvector<NodeID_> &new_ids) {
 
   Timer tm;
-  using K = uint32_t;
+
   using V = TYPE;
   install_sigsegv();
 
   int64_t num_edges = g.num_edges_directed();
   int64_t num_nodes = g.num_nodes();
-  LOG("OMP_NUM_THREADS=%d\n", MAX_THREADS);
-  vector<tuple<size_t, size_t, double> > edges(num_edges, {0, 0, 0.0f});
+  // LOG("OMP_NUM_THREADS=%d\n", MAX_THREADS);
+  std::vector<std::tuple<size_t, size_t, double> > edges(num_edges, {0, 0, 0.0f});
 
   int edge_idx = 0;
-  for (NodeID_ i = 0; i < g.num_nodes(); i++) {
+  for (NodeID_ i = 0; i < num_nodes; i++) {
     for (DestID_ j : g.out_neigh(i)) {
       if(g.is_weighted())
         edges[edge_idx] = {i, static_cast<NodeWeight<> >(j).v, static_cast<NodeWeight<> >(j).w};
@@ -2507,29 +2519,60 @@ void GenerateLeidenMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
   bool symmetric = !cli_.symmetrize();
   bool weighted  = g.is_weighted();
   DiGraph<K, None, V> x;
-  readVecOmpW(x, edges, num_nodes, symmetric, weighted); LOG(""); println(x);
-  if (!symmetric) { x = symmetricizeOmp(x); LOG(""); print(x); printf(" (->symmetricize)\n"); }
+  readVecOmpW(x, edges, num_nodes, symmetric, weighted); //LOG(""); println(x);
+  if (!symmetric) { x = symmetricizeOmp(x);} //; LOG(""); print(x); printf(" (->symmetricize)\n"); }
   tm.Stop();
   PrintTime("DiGraph graph", tm.Seconds());
 
 
   tm.Start();
   runExperiment(x);
-  printf("\n");
   tm.Stop();
   PrintTime("Leiden time", tm.Seconds());
- 
-  x.printCommunitiesPerPass();
+
+
+  size_t num_nodesx;
+  size_t num_passes;
+  num_nodesx= x.span();
+  num_passes = x.communityMappingPerPass.size()+2;
+
+  std::vector<std::vector<K> > communityVectorTuplePerPass(num_nodesx, std::vector<K>(num_passes, 0));
+  // // Initialize each inner vector
+  tm.Start();
+  #pragma omp parallel for
+  for (size_t i = 0; i < num_nodesx; ++i) {
+    communityVectorTuplePerPass[i][0] = i;
+    communityVectorTuplePerPass[i][1] = x.degree(i);
+  }
+
+  for (size_t i = 0; i < num_passes-2; ++i) {
+    #pragma omp parallel for
+    for (size_t j = 0; j < num_nodesx; ++j) {
+      communityVectorTuplePerPass[j][2+i] = x.communityMappingPerPass[i][j];
+    }
+  }
+
+  for (size_t i = 1; i < num_passes; ++i) {
+    sort_by_vector_element(communityVectorTuplePerPass,i);
+  }
+
+  // for (size_t i = 0; i < num_passes; ++i) {
+  //   for (size_t j = 0; j < num_nodesx; ++j) {
+  //     cout << communityVectorTuplePerPass[j] << "\n";
+  //   }
+  // }
+
+  // x.printCommunitiesPerPass();
   // g.PrintTopology();
   // writeGraph(std::cout, x, true);
 
-  tm.Start();
+
 #pragma omp parallel for
   for (int64_t i = 0; i < num_nodes; i++) {
-    new_ids[i] = (NodeID_)i;
+    new_ids[communityVectorTuplePerPass[i][0]] = (NodeID_)i;
   }
   tm.Stop();
-  PrintTime("Original time", tm.Seconds());
+  PrintTime("GenID time", tm.Seconds());
 }
 
 
