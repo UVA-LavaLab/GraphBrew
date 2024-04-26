@@ -94,7 +94,7 @@ FLUSH_CACHE=0
 # Running Benchmarks
 # =========================================================
 # GRAPH_BENCH = -f ./test/graphs/4.el
-GRAPH_BENCH = -g 5
+GRAPH_BENCH = -g 25
 RUN_PARAMS =  -n 1 -i 100 -o 2 -o 12
 # =========================================================
 run-%: $(BIN_DIR)/%
@@ -114,7 +114,7 @@ run-all: $(addprefix run-, $(KERNELS))
 
 # Define a rule that sweeps through -o 1 to 7
 run-%-sweep: $(BIN_DIR)/%
-	@for o in 0 1 2 3 4 5 6 7 8 9 10 11 12; do \
+	@for o in 0 1 2 3 4 5 6 7 8 10 11 12; do \
 		echo "========================================================="; \
 		if [ "$(FLUSH_CACHE)" = "1" ]; then \
 			echo "Flushing cache..."; \

@@ -1428,37 +1428,37 @@ inline auto leidenInvokeOmp(RND& rnd, G& x, const LeidenOptions& o, FI fi, FM fm
         //   //printf("comm is: %d\n", ucom[i]);
         // }
 
-        unordered_map<K, vector<K> > communityGroups;
-        mutex mtx;
+        // unordered_map<K, vector<K> > communityGroups;
+        // mutex mtx;
 
-        // Define the number of threads to use
-        const int numThreads =  MAX_THREADS;
+        // // Define the number of threads to use
+        // const int numThreads =  MAX_THREADS;
 
-        // Calculate the number of nodes each thread will handle
-        const int nodesPerThread = (S + numThreads - 1) / numThreads;
+        // // Calculate the number of nodes each thread will handle
+        // const int nodesPerThread = (S + numThreads - 1) / numThreads;
 
-        // Function to add nodes to the communityGroups map
-        auto addNodesToGroup = [&](K start, K end) {
-                     for (size_t i = start; i < end && i < S; ++i) {
-                       lock_guard<mutex> lock(mtx); // Lock the mutex
-                       communityGroups[ucom[i]].push_back(i);
-                     }
-                   };
+        // // Function to add nodes to the communityGroups map
+        // auto addNodesToGroup = [&](K start, K end) {
+        //              for (size_t i = start; i < end && i < S; ++i) {
+        //                lock_guard<mutex> lock(mtx); // Lock the mutex
+        //                communityGroups[ucom[i]].push_back(i);
+        //              }
+        //            };
 
-        // Create threads to add nodes to the groups
-        vector<thread> threads;
-        for (int i = 0; i < numThreads; ++i) {
-          K start = i * nodesPerThread;
-          K end = (i + 1) * nodesPerThread;
-          threads.emplace_back(addNodesToGroup, start, end);
-        }
+        // // Create threads to add nodes to the groups
+        // vector<thread> threads;
+        // for (int i = 0; i < numThreads; ++i) {
+        //   K start = i * nodesPerThread;
+        //   K end = (i + 1) * nodesPerThread;
+        //   threads.emplace_back(addNodesToGroup, start, end);
+        // }
 
-        // Join the threads
-        for (thread& t : threads) {
-            t.join();
-        }
+        // // Join the threads
+        // for (thread& t : threads) {
+        //     t.join();
+        // }
 
-        x.communityGroupsPush(communityGroups);
+        // x.communityGroupsPush(communityGroups);
         x.communityMappingPush(ucom);
 
         // // Print the groups
