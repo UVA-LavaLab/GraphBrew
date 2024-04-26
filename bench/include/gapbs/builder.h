@@ -443,17 +443,18 @@ CSRGraph<NodeID_, DestID_, invert> MakeGraph() {
     g_final = g;
   else
     g_final = SquishGraph(g);
-
+ // g_final.PrintTopology();
   pvector<NodeID_> new_ids(g.num_nodes());
   for (const auto &option : cli_.reorder_options()) {
     new_ids.fill(UINT_E_MAX);
     if (!option.second.empty()) {
-      GenerateMapping(g_final, new_ids, option.first, true, option.second);
+      GenerateMapping(g_final, new_ids, option.first, cli_.use_out_degree(), option.second);
     } else {
-      GenerateMapping(g_final, new_ids, option.first, true);
+      GenerateMapping(g_final, new_ids, option.first, cli_.use_out_degree());
     }
     g_final = RelabelByMapping(g_final, new_ids);
   }
+   // g_final.PrintTopology();
   return g_final;
 }
 

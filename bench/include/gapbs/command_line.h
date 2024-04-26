@@ -32,7 +32,7 @@ protected:
   int argc_;
   char **argv_;
   std::string name_;
-  std::string get_args_ = "f:g:hk:su:m:o:j:";
+  std::string get_args_ = "f:g:hk:su:m:o:zj:";
   std::vector<std::string> help_strings_;
   std::vector<std::pair<ReorderingAlgo, std::string>> reorder_options_;
 
@@ -42,6 +42,7 @@ protected:
   bool symmetrize_ = false;
   bool uniform_ = false;
   bool in_place_ = false;
+  bool use_out_degree_ = true;
   std::pair<std::string, int> segments_ = {
       "", 1}; // Label and number of segments as a pair
 
@@ -74,6 +75,7 @@ public:
                 "          [example]-r 3 "
                 "-r 2 -r 10:mapping.label",
                 "optional");
+    AddHelpLine('z', "indegree","use indegree for ordering [Degree Based Orderings]", "false");
     AddHelpLine('j', "segments", "number of segments for the graph", "1");
   }
 
@@ -107,6 +109,9 @@ public:
       break;
     case 'k':
       degree_ = atoi(opt_arg);
+      break;
+    case 'z':
+      use_out_degree_ = false;
       break;
     case 's':
       symmetrize_ = true;
@@ -150,6 +155,7 @@ public:
   bool symmetrize() const { return symmetrize_; }
   bool uniform() const { return uniform_; }
   bool in_place() const { return in_place_; }
+  bool use_out_degree() const { return use_out_degree_; }
   const std::vector<std::pair<ReorderingAlgo, std::string>> &
   reorder_options() const {
     return reorder_options_;

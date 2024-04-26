@@ -119,23 +119,24 @@ The graph loading infrastructure understands the following formats:
 ### GAP Parameters
 ```bash
 pagerank
- -h          : print this help message                                         
- -f <file>   : load graph from file                                            
- -s          : symmetrize input edge list                               [false]
- -g <scale>  : generate 2^scale kronecker graph                                
- -u <scale>  : generate 2^scale uniform-random graph                           
- -k <degree> : average degree for synthetic graph                          [16]
- -m          : reduces memory usage during graph building               [false]
- -o <order>  : apply reordering strategy, optionally with a parameter 
+ -h           : print this help message                                         
+ -f <file>    : load graph from file                                            
+ -s           : symmetrize input edge list                               [false]
+ -g <scale>   : generate 2^scale kronecker graph                                
+ -u <scale>   : generate 2^scale uniform-random graph                           
+ -k <degree>  : average degree for synthetic graph                          [16]
+ -m           : reduces memory usage during graph building               [false]
+ -o <order>   : apply reordering strategy, optionally with a parameter 
                [example]-r 3 -r 2 -r 10:mapping.label[optional]
+ -z <indegree>: use indegree for ordering [Degree Based Orderings]      [false]
  -j <segments>: number of segments for the graph                            [1]
- -a          : output analysis of last run                              [false]
- -n <n>      : perform n trials                                            [16]
- -r <node>   : start from node r                                         [rand]
- -v          : verify the output of each run                            [false]
- -l          : log performance within each trial                        [false]
- -i <i>      : perform at most i iterations                                [20]
- -t <t>      : use tolerance t                                       [0.000100]
+ -a           : output analysis of last run                              [false]
+ -n <n>       : perform n trials                                            [16]
+ -r <node>    : start from node r                                         [rand]
+ -v           : verify the output of each run                            [false]
+ -l           : log performance within each trial                        [false]
+ -i <i>       : perform at most i iterations                                [20]
+ -t <t>       : use tolerance t                                       [0.000100]
 
 ```
 ### GraphBrew Parameters
@@ -143,10 +144,12 @@ pagerank
    * Segment the graph for scalability, requires modifying the algorithm to iterate through segments.
 
 ```bash
--o <order>  : apply reordering strategy, optionally layer ordering 
-               [example]-o 3 -o 2 -o 10:mapping.label [optional]
+-o <order>   : Apply reordering strategy, optionally layer ordering 
+               [example]-o 3 -o 2 -o 10:mapping.label                   [optional]
 
--j <segments>: number of segments for the graph [default:1]
+-j <segments>: number of segments for the graph                         [default:1]
+
+-z <indegree>: use indegree for ordering [Degree Based Orderings]       [false]
 
 Reordering Algorithms:
   - ORIGINAL      (0):  No reordering applied.
