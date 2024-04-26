@@ -116,8 +116,10 @@ The graph loading infrastructure understands the following formats:
 
 ## Parameters
 
-### GAP Parameters
+### GAP Parameters (PageRank example)
 ```bash
+make help-pr
+--------------------------------------------------------------------------------
 pagerank
  -h           : print this help message                                         
  -f <file>    : load graph from file                                            
@@ -128,8 +130,8 @@ pagerank
  -m           : reduces memory usage during graph building               [false]
  -o <order>   : apply reordering strategy, optionally with a parameter 
                [example]-r 3 -r 2 -r 10:mapping.label[optional]
- -z <indegree>: use indegree for ordering [Degree Based Orderings]      [false]
- -j <segments>: number of segments for the graph                            [1]
+ -z <indegree>: use indegree for ordering [Degree Based Orderings]       [false]
+ -j <segments>: number of segments for the graph                             [1]
  -a           : output analysis of last run                              [false]
  -n <n>       : perform n trials                                            [16]
  -r <node>    : start from node r                                         [rand]
@@ -137,20 +139,21 @@ pagerank
  -l           : log performance within each trial                        [false]
  -i <i>       : perform at most i iterations                                [20]
  -t <t>       : use tolerance t                                       [0.000100]
-
+--------------------------------------------------------------------------------
 ```
 ### GraphBrew Parameters
    * Reorder the graph, orders can bet layered.
    * Segment the graph for scalability, requires modifying the algorithm to iterate through segments.
 
 ```bash
+--------------------------------------------------------------------------------
 -o <order>   : Apply reordering strategy, optionally layer ordering 
-               [example]-o 3 -o 2 -o 10:mapping.label                   [optional]
+               [example]-o 3 -o 2 -o 10:mapping.label                 [optional]
 
--j <segments>: number of segments for the graph                         [default:1]
+-j <segments>: number of segments for the graph                      [default:1]
 
--z <indegree>: use indegree for ordering [Degree Based Orderings]       [false]
-
+-z <indegree>: use indegree for ordering [Degree Based Orderings]        [false]
+--------------------------------------------------------------------------------
 Reordering Algorithms:
   - ORIGINAL      (0):  No reordering applied.
   - RANDOM        (1):  Apply random reordering.
@@ -167,6 +170,28 @@ Reordering Algorithms:
   - LeidenOrder   (12): Apply Leiden community clustering with louvain with refinement.
   - MAP           (13): Requires a file format for reordering. Use the -r 10:filename.label option.
 ```
+### Converter Parameters (Generate Optimized Graphs)
+```bash
+make help-converter
+--------------------------------------------------------------------------------
+converter
+ -h          : print this help message                                         
+ -f <file>   : load graph from file                                            
+ -s          : symmetrize input edge list                                [false]
+ -g <scale>  : generate 2^scale kronecker graph                                
+ -u <scale>  : generate 2^scale uniform-random graph                           
+ -k <degree> : average degree for synthetic graph                           [16]
+ -m          : reduces memory usage during graph building                [false]
+ -o <order>  : apply reordering strategy, optionally with a parameter 
+               [example]-r 3 -r 2 -r 10:mapping.label                 [optional]
+ -z <indegree>: use indegree for ordering [Degree Based Orderings]       [false]
+ -j <segments>: number of segments for the graph                             [1]
+ --------------------------------------------------------------------------------
+ -b <file>   : output serialized graph to file                                 
+ -e <file>   : output edge list to file                                        
+ -w <file>   : make output weighted     
+ --------------------------------------------------------------------------------
+```
 
 2. **Makefile Flow**
 ```bash
@@ -176,7 +201,7 @@ available Make commands:
   help-%         - Print the specified Help (bc bfs cc cc_sv pr pr_spmv sssp tc)
   clean          - Removes all build artifacts
   help           - Displays this help message
-
+ --------------------------------------------------------------------------------
 Example Usage:
   make all - Compile the program.
   make clean - Clean build files.
