@@ -93,8 +93,8 @@ FLUSH_CACHE=1
 # =========================================================
 # Running Benchmarks
 # =========================================================
-# GRAPH_BENCH = -f ./test/graphs/4.el
-GRAPH_BENCH = -g 4
+GRAPH_BENCH = -f /media/cmv6ru/Data/00_GraphDatasets/SNAP/soc-LiveJournal1/graph.el
+# GRAPH_BENCH = -g 4
 RUN_PARAMS =  -n 1 -i 100 -o 12
 # =========================================================
 run-%: $(BIN_DIR)/%
