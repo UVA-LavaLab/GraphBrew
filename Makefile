@@ -94,7 +94,7 @@ FLUSH_CACHE=1
 # Running Benchmarks
 # =========================================================
 # GRAPH_BENCH = -f ./test/graphs/4.el
-GRAPH_BENCH = -g 25
+GRAPH_BENCH = -g 4
 RUN_PARAMS =  -n 1 -i 100 -o 12
 # =========================================================
 run-%: $(BIN_DIR)/%

@@ -248,6 +248,7 @@ These tools are available on most Unix-like operating systems and can be install
 ```bash
 sudo apt-get update
 sudo apt-get install g++ make libomp-dev
+sudo apt-get install libgoogle-perftools-dev
 ```
 ### Installing Boost 1.58.0
 
