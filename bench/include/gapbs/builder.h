@@ -2552,9 +2552,9 @@ void GenerateLeidenMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
     }
   }
 
-  for (size_t i = 1; i < num_passes; ++i) {
-    sort_by_vector_element(communityVectorTuplePerPass,i);
-  }
+  // for (size_t i = 1; i < num_passes; ++i) {
+    sort_by_vector_element(communityVectorTuplePerPass,num_passes-1);
+  // }
 
   // for (size_t i = 0; i < num_passes; ++i) {
   //   for (size_t j = 0; j < num_nodesx; ++j) {
