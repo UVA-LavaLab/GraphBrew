@@ -154,7 +154,7 @@ void ReleaseResources() {
   in_neighbors_shared_.reset();
   flags_shared_.reset();
   offsets_shared_.reset();
-
+  org_ids_shared_.reset();
   for (auto iter = label_to_segment.begin(); iter != label_to_segment.end();
        iter++) {
     delete ((*iter).second);
@@ -174,6 +174,7 @@ CSRGraph()
   : directed_(false), num_nodes_(-1), num_edges_(-1), out_index_(nullptr),
   out_neighbors_(nullptr), in_index_(nullptr), in_neighbors_(nullptr),
   flags_(nullptr), is_transpose_(false) {
+  initialize_org_ids();
 }
 
 CSRGraph(int64_t num_nodes, DestID_ **index, DestID_ *neighs)
@@ -184,7 +185,7 @@ CSRGraph(int64_t num_nodes, DestID_ **index, DestID_ *neighs)
   out_neighbors_shared_.reset(neighs);
   in_index_shared_ = out_index_shared_;
   in_neighbors_shared_ = out_neighbors_shared_;
-
+  initialize_org_ids();
   num_edges_ = (out_index_[num_nodes_] - out_index_[0]) / 2;
   // adding flags used for deduplication
   flags_ = new int[num_nodes_];
@@ -208,7 +209,7 @@ CSRGraph(int64_t num_nodes, DestID_ **out_index, DestID_ *out_neighs,
   flags_ = new int[num_nodes_];
   flags_shared_.reset(flags_);
   SetUpOffsets(true);
-
+  initialize_org_ids();
   // Set this up for getting random neighbors
   srand(time(NULL));
 }
@@ -227,7 +228,7 @@ CSRGraph(int64_t num_nodes, DestID_ **out_index, DestID_ *out_neighs,
   flags_ = new int[num_nodes_];
   flags_shared_.reset(flags_);
   SetUpOffsets(true);
-
+  initialize_org_ids();
   // Set this up for getting random neighbors
   srand(time(NULL));
 }
@@ -239,7 +240,7 @@ CSRGraph(int64_t num_nodes, std::shared_ptr<DestID_ *> out_index,
   out_neighbors_(out_neighs.get()), in_index_(in_index.get()),
   in_neighbors_(in_neighs.get()), is_transpose_(is_transpose) {
   num_edges_ = out_index_[num_nodes_] - out_index_[0];
-
+  initialize_org_ids();
   out_index_shared_ = (out_index);
   out_neighbors_shared_ = (out_neighs);
   in_index_shared_ = (in_index);
@@ -270,6 +271,7 @@ CSRGraph(CSRGraph &other)
   out_neighbors_shared_ = std::move(other.out_neighbors_shared_);
   in_index_shared_ = std::move(other.in_index_shared_);
   in_neighbors_shared_ = std::move(other.in_neighbors_shared_);
+  org_ids_shared_ = std::move(other.org_ids_shared_);
   // Set this up for getting random neighbors
   srand(time(NULL));
 }
@@ -287,17 +289,19 @@ CSRGraph(CSRGraph &&other)
   other.in_neighbors_ = nullptr;
   other.flags_ = nullptr;
   other.offsets_ = nullptr;
+  other.org_ids_ = nullptr;
 
   out_index_shared_ = std::move(other.out_index_shared_);
   out_neighbors_shared_ = std::move(other.out_neighbors_shared_);
   in_index_shared_ = std::move(other.in_index_shared_);
   in_neighbors_shared_ = std::move(other.in_neighbors_shared_);
+  org_ids_shared_ = std::move(other.org_ids_shared_);
 
   other.out_index_shared_.reset();
   other.out_neighbors_shared_.reset();
   other.in_index_shared_.reset();
   other.in_neighbors_shared_.reset();
-
+  other.org_ids_shared_.reset();
   other.flags_shared_.reset();
   other.offsets_shared_.reset();
   // Set this up for getting random neighbors
@@ -321,10 +325,12 @@ CSRGraph &operator=(CSRGraph &other) {
     out_neighbors_ = other.out_neighbors_;
     in_index_ = other.in_index_;
     in_neighbors_ = other.in_neighbors_;
+    org_ids_ = other.org_ids_;
     out_index_shared_ = std::move(other.out_index_shared_);
     out_neighbors_shared_ = std::move(other.out_neighbors_shared_);
     in_index_shared_ = std::move(other.in_index_shared_);
     in_neighbors_shared_ = std::move(other.in_neighbors_shared_);
+    org_ids_shared_ = std::move(other.org_ids_shared_);
     // need the following, otherwise would get double free errors
     /*
               other.num_edges_ = -1;
@@ -351,6 +357,8 @@ CSRGraph &operator=(CSRGraph &&other) {
     out_neighbors_ = other.out_neighbors_;
     in_index_ = other.in_index_;
     in_neighbors_ = other.in_neighbors_;
+    org_ids_ = other.org_ids_;
+    org_ids_shared_ = std::move(other.org_ids_shared_);
     out_index_shared_ = std::move(other.out_index_shared_);
     out_neighbors_shared_ = std::move(other.out_neighbors_shared_);
     in_index_shared_ = std::move(other.in_index_shared_);
@@ -363,6 +371,8 @@ CSRGraph &operator=(CSRGraph &&other) {
     other.in_neighbors_ = nullptr;
     other.flags_ = nullptr;
     other.offsets_ = nullptr;
+    other.org_ids_ = nullptr;
+    other.org_ids_shared_.reset();
     other.out_index_shared_.reset();
     other.out_neighbors_shared_.reset();
     other.in_index_shared_.reset();
@@ -562,6 +572,52 @@ void buildPullSegmentedGraphs(std::string label, int numSegments,
 #endif
 }
 
+public:
+// Function to initialize org_ids_
+void initialize_org_ids() {
+  if(num_nodes_ == -1){
+    org_ids_ = nullptr;
+    org_ids_shared_.reset();
+  } else {
+    org_ids_ = new NodeID_[num_nodes_];
+  #pragma omp parallel for
+    for (NodeID_ n = 0; n < num_nodes_; n++) {
+      org_ids_[n] = n;
+    }
+    org_ids_shared_.reset(org_ids_);
+  }
+}
+
+void update_org_ids(const pvector<NodeID_> &new_ids) {
+  if(num_nodes_ == -1){
+    org_ids_ = nullptr;
+    org_ids_shared_.reset();
+  } else {
+  #pragma omp parallel for
+    for (NodeID_ n = 0; n < num_nodes_; n++) {
+      org_ids_[n] = new_ids[org_ids_[n]];
+    }
+  }
+}
+
+void copy_org_ids(const std::shared_ptr<NodeID_>& other_org_ids_shared_) {
+  if (num_nodes_ == -1) {
+    org_ids_ = nullptr; // Ensure org_ids_ is set to nullptr if no nodes
+  } else {
+    // Allocate memory for org_ids_ if not already allocated
+    if (org_ids_ == nullptr) {
+      org_ids_ = new NodeID_[num_nodes_];
+    }
+    // Get the raw pointer from the shared_ptr
+    NodeID_ *source_array = other_org_ids_shared_.get();
+    // Use OpenMP to parallelize the copying of node IDs
+  #pragma omp parallel for
+    for (NodeID_ n = 0; n < num_nodes_; n++) {
+      org_ids_[n] = source_array[n];
+    }
+  }
+}
+
 private:
 // Making private so cannot be modified from outside
 // useful for deduplication
@@ -575,6 +631,7 @@ DestID_ **in_index_;
 DestID_ *in_neighbors_;
 int *flags_;
 bool is_transpose_;
+NodeID_ *org_ids_;
 
 public:
 std::shared_ptr<int> flags_shared_;
@@ -585,6 +642,7 @@ std::shared_ptr<DestID_> out_neighbors_shared_;
 
 std::shared_ptr<DestID_ *> in_index_shared_;
 std::shared_ptr<DestID_> in_neighbors_shared_;
+std::shared_ptr<NodeID_> org_ids_shared_;
 
 std::map<std::string, GraphSegments<DestID_, NodeID_> *> label_to_segment;
 

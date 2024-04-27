@@ -412,6 +412,7 @@ CSRGraph<NodeID_, DestID_, invert> MakeGraphFromEL(EdgeList &el) {
     }
   }
   t.Stop();
+
   PrintTime("Build Time", t.Seconds());
   if (symmetrize_)
     return CSRGraph<NodeID_, DestID_, invert>(num_nodes_, index, neighs);
@@ -547,6 +548,8 @@ RelabelByMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
     g_relabel = CSRGraph<NodeID_, DestID_, invert>(g.num_nodes(), out_index,
                                                    out_neighs);
   }
+  g_relabel.copy_org_ids(g.org_ids_shared_);
+  g_relabel.update_org_ids(new_ids);
   PrintTime("Relabel", t.Seconds());
   return g_relabel;
 }
@@ -735,7 +738,7 @@ void GenerateOriginalMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
     new_ids[i] = (NodeID_)i;
   }
   t.Stop();
-  PrintTime("Original time", t.Seconds());
+  PrintTime("Original Time", t.Seconds());
 }
 
 void GenerateRandomMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
@@ -1692,7 +1695,7 @@ DegSort(const CSRGraph<NodeID_, DestID_, invert> &g, bool outDegree,
       }
     }
     t.Stop();
-    PrintTime("DegSort time", t.Seconds());
+    PrintTime("DegSort Time", t.Seconds());
     if (outDegree == true) {
       return CSRGraph<NodeID_, DestID_, invert>(g.num_nodes(), inv_index,
                                                 inv_neighs, index, neighs);
@@ -1737,7 +1740,7 @@ DegSort(const CSRGraph<NodeID_, DestID_, invert> &g, bool outDegree,
       std::sort(index[new_ids[u]], index[new_ids[u] + 1]);
     }
     t.Stop();
-    PrintTime("DegSort time", t.Seconds());
+    PrintTime("DegSort Time", t.Seconds());
     return CSRGraph<NodeID_, DestID_, invert>(g.num_nodes(), index, neighs);
   }
 }
@@ -1831,7 +1834,7 @@ RandOrder(const CSRGraph<NodeID_, DestID_, invert> &g,
       }
     }
     t.Stop();
-    PrintTime("RandOrder time", t.Seconds());
+    PrintTime("RandOrder Time", t.Seconds());
     if (outDegree == true) {
       return CSRGraph<NodeID_, DestID_, invert>(g.num_nodes(), inv_index,
                                                 inv_neighs, index, neighs);
@@ -1881,7 +1884,7 @@ RandOrder(const CSRGraph<NodeID_, DestID_, invert> &g,
       std::sort(index[new_ids[u]], index[new_ids[u] + 1]);
     }
     t.Stop();
-    PrintTime("RandOrder time", t.Seconds());
+    PrintTime("RandOrder Time", t.Seconds());
     return CSRGraph<NodeID_, DestID_, invert>(g.num_nodes(), index, neighs);
   }
 }
@@ -2242,9 +2245,9 @@ void detect_community(adjacency_list adj) {
   for (rabbit_order::vint v = 0; v < g.n(); ++v)
     c[v] = rabbit_order::trace_com(v, &g);
   //--------------------------------------------
-  // std::cerr << "Community detection time"
+  // std::cerr << "Community detection Time"
   //           << rabbit_order::now_sec() - tstart << std::endl;
-  PrintTime("Community time", rabbit_order::now_sec() - tstart);
+  PrintTime("Community Time", rabbit_order::now_sec() - tstart);
 
   // Print the result
   std::copy(&c[0], &c[g.n()],
@@ -2262,9 +2265,9 @@ void reorder(adjacency_list adj) {
   const auto g = rabbit_order::aggregate(std::move(adj));
   const auto p = rabbit_order::compute_perm(g);
   //--------------------------------------------
-  // std::cerr << "Permutation generation time: "
+  // std::cerr << "Permutation generation Time: "
   //           << rabbit_order::now_sec() - tstart << std::endl;
-  PrintTime("Permutation generation time", rabbit_order::now_sec() - tstart);
+  PrintTime("Permutation generation Time", rabbit_order::now_sec() - tstart);
   // Print the result
   std::copy(&p[0], &p[g.n()],
             std::ostream_iterator<rabbit_order::vint>(std::cout, "\n"));
@@ -2277,9 +2280,9 @@ void reorder_internal(adjacency_list adj, pvector<NodeID_> &new_ids) {
   const auto g = rabbit_order::aggregate(std::move(adj));
   const auto p = rabbit_order::compute_perm(g);
   //--------------------------------------------
-  // std::cerr << "Permutation generation time: "
+  // std::cerr << "Permutation generation Time: "
   //           << rabbit_order::now_sec() - tstart << std::endl;
-  PrintTime("RabbitOrder time", rabbit_order::now_sec() - tstart);
+  PrintTime("RabbitOrder Time", rabbit_order::now_sec() - tstart);
   // Ensure new_ids is large enough to hold all new IDs
 
   if (new_ids.size() < g.n())
@@ -2349,7 +2352,7 @@ void GenerateGOrderMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
   tm.Start();
   go.GorderGreedy(order, window);
   tm.Stop();
-  PrintTime("Gorder time", tm.Seconds());
+  PrintTime("Gorder Time", tm.Seconds());
 
   if (new_ids.size() < (size_t)go.vsize)
     new_ids.resize(go.vsize);
@@ -2393,7 +2396,7 @@ void GenerateRCMOrderMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
   tm.Start();
   go.RCMOrder(order);
   tm.Stop();
-  PrintTime("RCMorder time", tm.Seconds());
+  PrintTime("RCMorder Time", tm.Seconds());
 
   if (new_ids.size() < (size_t)go.vsize)
     new_ids.resize(go.vsize);
@@ -2529,7 +2532,7 @@ void GenerateLeidenMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
   tm.Start();
   runExperiment(x);
   tm.Stop();
-  PrintTime("Leiden time", tm.Seconds());
+  PrintTime("Leiden Time", tm.Seconds());
 
 
   size_t num_nodesx;
@@ -2575,7 +2578,7 @@ void GenerateLeidenMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
     new_ids[communityVectorTuplePerPass[i][0]] = (NodeID_)i;
   }
   tm.Stop();
-  PrintTime("GenID time", tm.Seconds());
+  PrintTime("GenID Time", tm.Seconds());
 }
 
 

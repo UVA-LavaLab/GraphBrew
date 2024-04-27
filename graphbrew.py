@@ -39,7 +39,7 @@ os.makedirs(graph_raw_dir, exist_ok=True)
 # Regular expressions for parsing timing data from benchmark outputs
 time_patterns = {
     'reorder_time': {
-        'Original': re.compile(r"Original time:\s+([\d\.]+)"),
+        'Original': re.compile(r"Original Time:\s+([\d\.]+)"),
         'Random Map': re.compile(r"Random Map Time:\s+([\d\.]+)"),
         'Sort Map': re.compile(r"Sort Map Time:\s+([\d\.]+)"),
         'HubSort Map': re.compile(r"HubSort Map Time:\s+([\d\.]+)"),
@@ -47,11 +47,11 @@ time_patterns = {
         'DBG Map': re.compile(r"DBG Map Time:\s+([\d\.]+)"),
         'HubSortDBG Map': re.compile(r"HubSortDBG Map Time:\s+([\d\.]+)"),
         'HubClusterDBG Map': re.compile(r"HubClusterDBG Map Time:\s+([\d\.]+)"),
-        'RabbitOrder': re.compile(r"RabbitOrder time:\s+([\d\.]+)"),
-        'Gorder': re.compile(r"Gorder time:\s+([\d\.]+)"),
+        'RabbitOrder': re.compile(r"RabbitOrder Time:\s+([\d\.]+)"),
+        'Gorder': re.compile(r"Gorder Time:\s+([\d\.]+)"),
         'Corder': re.compile(r"Corder Time:\s+([\d\.]+)"),
-        'RCMorder': re.compile(r"RCMorder time:\s+([\d\.]+)"),
-        'Leiden': re.compile(r"Leiden time:\s+([\d\.]+)")
+        'RCMorder': re.compile(r"RCMorder Time:\s+([\d\.]+)"),
+        'Leiden': re.compile(r"Leiden Time:\s+([\d\.]+)")
     },
     'trial_time': {
         'Average': re.compile(r"Average Time:\s+([\d\.]+)")
@@ -105,19 +105,50 @@ def parse_timing_data(output):
                 time_data[category][key] = float(match.group(1))
     return time_data
 
-# Function to write results to CSV, copy them to designated directories, and generate charts
-def write_to_csv_and_copy(kernel, results):
-    for category, data in results.items():
+def generate_svg_chart(csv_path):
+    # Load the CSV data using pandas
+    df = pd.read_csv(csv_path)
+
+    # Create a plot of the data using matplotlib
+    plt.figure(figsize=(10, 5))  # Set the figure size
+    for column in df.columns[1:]:  # Skip the 'Graph Name' column for x-axis labels
+        plt.plot(df['Graph Name'], df[column], marker='o', label=column)
+    
+    plt.title('Benchmark Results')
+    plt.xlabel('Graph Name')
+    plt.ylabel('Time (seconds)')
+    plt.xticks(rotation=45)  # Rotate x-axis labels for better readability
+    plt.legend(title='Metrics')  # Add a legend with a title
+    plt.tight_layout()  # Adjust layout to make room for labels
+
+    # Save the plot as an SVG file
+    svg_path = csv_path.replace('.csv', '.svg')
+    plt.savefig(svg_path)
+    plt.close()  # Close the plot to free up memory
+
+    print(f"Chart saved as {svg_path}")
+
+def write_to_csv_and_copy(kernel, kernel_results):
+    for category, data in kernel_results.items():
         csv_filename = f"{kernel}_{category}.csv"
         csv_path = os.path.join(graph_csv_dir, csv_filename)
+
+        # Determine all unique field names from all entries
+        all_fieldnames = {'Graph Name'}  # Start with 'Graph Name'
+        for timings in data.values():
+            all_fieldnames.update(timings.keys())  # Add keys from each set of timings
+
         with open(csv_path, mode='w', newline='') as file:
-            fieldnames = ['Graph Name'] + list(time_patterns[category].keys())
+            fieldnames = list(all_fieldnames)  # Convert set to list
             writer = csv.DictWriter(file, fieldnames=fieldnames)
             writer.writeheader()
+
             for graph_name, timings in data.items():
-                row = {'Graph Name': graph_name}
-                row.update(timings)
+                # Ensure each row has all fields, fill missing ones with a default value (e.g., None or an empty string)
+                row = {key: timings.get(key, None) for key in fieldnames}
+                row['Graph Name'] = graph_name  # Set the graph name
                 writer.writerow(row)
+
         shutil.copy(csv_path, graph_charts_dir)
         generate_svg_chart(csv_path)
 
