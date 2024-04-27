@@ -1,0 +1,25 @@
+{
+    "reorderings": {
+        "ORIGINAL": 0, "RANDOM": 1, "SORT": 2, "HUBSORT": 3, "HUBCLUSTER": 4,
+        "DBG": 5, "HUBSORTDBG": 6, "HUBCLUSTERDBG": 7, "RABBITORDER": 8,
+        "GORDER": 9, "CORDER": 10, "RCM": 11, "LeidenOrder": 12
+    },
+    "kernels": ["bc", "bfs", "cc", "cc_sv", "pr", "pr_spmv", "sssp", "tc"],
+    "graph_suites": {
+        "suite_dir" : "/media/cmv6ru/Data/00_GraphDatasets",
+        "SNAP": {
+            "graphs": ["cit-Patents", "com-Orkut", "soc-LiveJournal1", "soc-Pokec", "web-Google"],
+            "file_type": "graph.el"
+        },
+        "GAP": {
+            "graphs": ["kron", "road", "twitter", "urand", "web"],
+            "file_type": "graph.wel"
+        },
+         "LAW": {
+            "graphs": ["amazon-2008", "arabic-2005", "cnr-2000", "dblp-2010", "enron", "eu-2005",
+                       "hollywood-2009", "in-2004", "indochina-2004", "it-2004", "ljournal-2008",
+                       "sk-2005", "uk-2002", "uk-2005", "webbase-2001"],
+            "file_type": "graph.el"
+        }
+    }
+}
