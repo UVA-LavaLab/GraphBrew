@@ -1,0 +1,63 @@
+sudo: required
+language: cpp
+
+# Specify the operating system(s) to use. Here we use Ubuntu.
+os:
+  - linux
+
+# You can specify different distributions
+dist: xenial  # You can use 'bionic' for Ubuntu 18.04 LTS
+
+addons:
+  apt:
+    # List of packages to be installed which are required for the build
+    packages:
+      - g++
+      - make
+      - libomp-dev
+      - libgoogle-perftools-dev
+
+before_install:
+  # Update system repositories and install Boost
+  - sudo apt-get update
+  - sudo apt-get install libboost-all-dev  # This installs Boost via apt-get if suitable
+
+# If specific version of Boost is needed and not available via apt-get, manually install it
+install:
+  - cd ~
+  - wget http://downloads.sourceforge.net/project/boost/boost/1.58.0/boost_1_58_0.tar.gz
+  - tar -zxvf boost_1_58_0.tar.gz
+  - cd boost_1_58_0
+  - cpuCores=$(grep -c ^processor /proc/cpuinfo)
+  - echo "Available CPU cores: $cpuCores"
+  - ./bootstrap.sh --prefix=/usr/local --with-python=python2.7
+  - sudo ./b2 --with=all -j $cpuCores install
+
+# Define the script to run for building your project
+script:
+  - echo "Building project"
+  # Here you would add your project-specific build commands
+  - make run-all FLUSH_CACHE=0
+
+# Optionally define after successful build actions
+after_success:
+  - echo "Build successful!"
+
+# Cache settings to speed up build process
+cache:
+  directories:
+    - $HOME/.cache
+
+# Notify me by email when the build status changes
+notifications:
+  email:
+    recipients:
+    - atmughrabi@gmail.com
+    - atmughra@alumni.ncsu.edu
+    - atmughra@virginia.edu
+    on_success: change  # default: change
+    on_failure: always  # default: always
+
+branches:
+  only:
+    - main

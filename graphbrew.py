@@ -4,7 +4,10 @@ import os
 import shutil
 import pandas as pd
 import matplotlib.pyplot as plt
+from matplotlib import rcParams
 
+# Set a default font that includes more glyphs
+rcParams['font.family'] = 'DejaVu Sans'
 
 # Define the graph suites with their corresponding graph names and file types
 graph_suites = {
