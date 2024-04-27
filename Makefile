@@ -95,7 +95,7 @@ FLUSH_CACHE=1
 # =========================================================
 GRAPH_BENCH = -f /media/cmv6ru/Data/00_GraphDatasets/SNAP/soc-LiveJournal1/graph.el
 # GRAPH_BENCH = -g 4
-RUN_PARAMS =  -n 1 -i 100 -o 12
+RUN_PARAMS =  -n 1 -i 100  -o 8 -o 5 -z
 # =========================================================
 run-%: $(BIN_DIR)/%
 	@if [ "$(FLUSH_CACHE)" = "1" ]; then \
@@ -114,13 +114,13 @@ run-all: $(addprefix run-, $(KERNELS))
 
 # Define a rule that sweeps through -o 1 to 7
 run-%-sweep: $(BIN_DIR)/%
-	@for o in 0 1 2 3 4 5 6 7 8 10 12; do \
+	@for o in 0 1 2 3 4 5 6 7 8 9 10 11 12; do \
 		echo "========================================================="; \
 		if [ "$(FLUSH_CACHE)" = "1" ]; then \
 			echo "Flushing cache..."; \
 			dd if=/dev/zero of=/dev/null bs=1M count=1024; \
 		fi; \
-		OMP_NUM_THREADS=$(PARALLEL) ./$(BIN_DIR)/$* $(GRAPH_BENCH) -n 1 -o $$o; \
+		OMP_NUM_THREADS=$(PARALLEL) ./$(BIN_DIR)/$* $(GRAPH_BENCH) -s -n 1 -o $$o -o 2; \
 	done
 
 # =========================================================
