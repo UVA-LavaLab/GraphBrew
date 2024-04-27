@@ -444,7 +444,7 @@ CSRGraph<NodeID_, DestID_, invert> MakeGraph() {
     g_final = g;
   else
     g_final = SquishGraph(g);
- // g_final.PrintTopology();
+  // g_final.PrintTopology();
   pvector<NodeID_> new_ids(g.num_nodes());
   for (const auto &option : cli_.reorder_options()) {
     new_ids.fill(UINT_E_MAX);
@@ -455,7 +455,8 @@ CSRGraph<NodeID_, DestID_, invert> MakeGraph() {
     }
     g_final = RelabelByMapping(g_final, new_ids);
   }
-   // g_final.PrintTopology();
+  // g_final.PrintTopology();
+  // g_final.PrintTopologyOriginal();
   return g_final;
 }
 
@@ -2556,16 +2557,16 @@ void GenerateLeidenMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
     }
   }
 
-    // sort_by_vector_element(communityVectorTuplePerPass,1);
+  // sort_by_vector_element(communityVectorTuplePerPass,1);
 
   // for (size_t i = 1; i < num_passes; ++i) {
-    sort_by_vector_element(communityVectorTuplePerPass,num_passes-1);
+  sort_by_vector_element(communityVectorTuplePerPass,num_passes-1);
   // }
 
   // for (size_t i = 0; i < num_passes; ++i) {
-    // for (size_t j = 0; j < num_nodesx; ++j) {
-    //   cout << communityVectorTuplePerPass[j] << "\n";
-    // }
+  // for (size_t j = 0; j < num_nodesx; ++j) {
+  //   cout << communityVectorTuplePerPass[j] << "\n";
+  // }
   // }
 
   // x.printCommunitiesPerPass();

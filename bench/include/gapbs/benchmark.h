@@ -45,7 +45,9 @@ template <typename GraphT_> class SourcePicker {
 public:
   explicit SourcePicker(const GraphT_ &g, NodeID given_source = -1)
       : given_source_(given_source), rng_(kRandSeed),
-        udist_(g.num_nodes() - 1, rng_), g_(g) {}
+        udist_(g.num_nodes() - 1, rng_), g_(g) {
+            // g_.copy_org_ids(g.org_ids_shared_);
+        }
 
   NodeID PickNext() {
     if (given_source_ != -1)
@@ -53,6 +55,8 @@ public:
     NodeID source;
     do {
       source = udist_();
+      source = g_.get_org_id(source);
+      // cout << "source : " << source << endl;
     } while (g_.out_degree(source) == 0);
     return source;
   }
