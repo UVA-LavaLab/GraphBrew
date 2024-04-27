@@ -142,7 +142,7 @@ pagerank
 --------------------------------------------------------------------------------
 ```
 ### GraphBrew Parameters
-   * Reorder the graph, orders can bet layered.
+   * Reorder the graph, orders can be layered.
    * Segment the graph for scalability, requires modifying the algorithm to iterate through segments.
 
 ```bash
