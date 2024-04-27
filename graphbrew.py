@@ -12,7 +12,7 @@ from matplotlib import rcParams
 rcParams['font.family'] = 'DejaVu Sans'
 
 # Loading configuration settings from a JSON file
-with open('graphbrew.json', 'r') as f:
+with open('config/lite.json', 'r') as f:
     config = json.load(f)
 reorderings = config['reorderings']  # Dictionary of reordering strategies with corresponding codes
 KERNELS = config['kernels']          # List of kernels to use in benchmarks
