@@ -1,4 +1,4 @@
-[![Build Status](https://app.travis-ci.com/atmughrabi/GLay.svg?token=L3reAtGHdEVVPvzcVqQ6&branch=main)](https://app.travis-ci.com/atmughrabi/GLay)
+[![Build Status](https://app.travis-ci.com/atmughrabi/logo.svg?token=L3reAtGHdEVVPvzcVqQ6&branch=main)](https://app.travis-ci.com/atmughrabi/GraphBrew)
 [<p align="center"><img src="./docs/figures/logo.svg" width="200" ></p>](#graphbrew)
 
 # GraphBrew

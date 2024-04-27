@@ -66,7 +66,13 @@ CXXFLAGS_LEIDEN = -DTYPE=float -DMAX_THREADS=$(PARALLEL) -DREPEAT_METHOD=1
 # =========================================================
 LDLIBS_RABBIT   += -ltcmalloc_minimal -lnuma
 # =========================================================
-LDLIBS_BOOST    += -L/opt/boost_1_58_0/lib 
+# Default library path for Boost libraries
+BOOST_LIB_DIR := /opt/boost_1_58_0/lib
+# Verify if the Boost library directory exists, otherwise use the fallback directory
+ifeq ($(wildcard $(BOOST_LIB_DIR)/*),)
+    BOOST_LIB_DIR := /usr/local/lib
+endif
+LDLIBS_BOOST    += -L$(BOOST_LIB_DIR)
 # =========================================================
 CXXFLAGS = $(CXXFLAGS_GAP) $(CXXFLAGS_RABBIT) $(CXXFLAGS_GORDER) $(CXXFLAGS_LEIDEN)
 LDLIBS  = $(LDLIBS_RABBIT) $(LDLIBS_BOOST)
@@ -94,9 +100,9 @@ FLUSH_CACHE=1
 # =========================================================
 # Running Benchmarks
 # =========================================================
-GRAPH_BENCH = -f /media/cmv6ru/Data/00_GraphDatasets/SNAP/soc-LiveJournal1/graph.el
+GRAPH_BENCH = -f ./test/graphs/4.el
 # GRAPH_BENCH = -g 4
-RUN_PARAMS =  -n 1 -i 100 -o 8 -o 5 -z
+RUN_PARAMS =  -s -n 1 -o 12
 # =========================================================
 run-%: $(BIN_DIR)/%
 	@if [ "$(FLUSH_CACHE)" = "1" ]; then \
