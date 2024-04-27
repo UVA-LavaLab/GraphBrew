@@ -1,0 +1,13 @@
+{
+    "reorderings": {
+        "ORIGINAL": 0, "DBG": 5, "RABBITORDER": 8, "LeidenOrder": 12
+    },
+    "kernels": ["bfs", "pr_spmv"],
+    "graph_suites": {
+        "suite_dir" : "/media/cmv6ru/Data/00_GraphDatasets",
+        "SNAP": {
+            "graphs": ["cit-Patents", "com-Orkut", "soc-LiveJournal1", "soc-Pokec", "web-Google"],
+            "file_type": "graph.el"
+        }
+    }
+}
