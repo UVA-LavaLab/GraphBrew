@@ -1,2 +1,5 @@
 bench/bin
 bench/lib
+bench/results
+*.csv
+results
