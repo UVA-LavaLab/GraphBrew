@@ -459,6 +459,22 @@ void PrintTopology() const {
   }
 }
 
+void PrintTopologyOriginal() const {
+  NodeID_* org_ids_inv_ = new NodeID_[num_nodes_];
+  #pragma omp parallel for
+  for (NodeID_ n = 0; n < num_nodes_; n++) {
+    org_ids_inv_[org_ids_[n]] = n;
+  }
+
+  for (NodeID_ i = 0; i < num_nodes_; i++) {
+    std::cout << org_ids_inv_[i] << ": ";
+    for (DestID_ j : out_neigh(i)) {
+      std::cout << org_ids_inv_[j] << " ";
+    }
+    std::cout << std::endl;
+  }
+}
+
 static DestID_ **GenIndex(const pvector<SGOffset> &offsets, DestID_ *neighs) {
   NodeID_ length = offsets.size();
   DestID_ **index = new DestID_ *[length];
@@ -616,6 +632,17 @@ void copy_org_ids(const std::shared_ptr<NodeID_>& other_org_ids_shared_) {
       org_ids_[n] = source_array[n];
     }
   }
+}
+
+NodeID_ get_org_id(const NodeID_ ref_id) const { 
+  NodeID_ org_id = 0;
+  if(num_nodes_ == -1){
+    return org_id;
+  } else {
+    NodeID_ *source_array = org_ids_shared_.get();
+    org_id = source_array[ref_id];
+  }
+  return org_id;
 }
 
 private:
