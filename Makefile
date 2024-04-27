@@ -7,6 +7,7 @@ CC  = $(shell which gcc-9 || which gcc)
 CXX = $(shell which g++-9 || which g++)
 # =========================================================
 BENCH_DIR = bench
+RES_DIR = $(BENCH_DIR)/results
 BIN_DIR = $(BENCH_DIR)/bin
 LIB_DIR = $(BENCH_DIR)/lib
 SRC_DIR = $(BENCH_DIR)/src
@@ -86,7 +87,7 @@ all: $(SUITE)
 # =========================================================
 # Runtime Flags OMP_NUM_THREADS
 # =========================================================
-PARALLEL=32
+PARALLEL=$(shell grep -c ^processor /proc/cpuinfo)
 FLUSH_CACHE=1
 # =========================================================
 
@@ -95,7 +96,7 @@ FLUSH_CACHE=1
 # =========================================================
 GRAPH_BENCH = -f /media/cmv6ru/Data/00_GraphDatasets/SNAP/soc-LiveJournal1/graph.el
 # GRAPH_BENCH = -g 4
-RUN_PARAMS =  -n 1 -i 100  -o 8 -o 5 -z
+RUN_PARAMS =  -n 1 -i 100 -o 8 -o 5 -z
 # =========================================================
 run-%: $(BIN_DIR)/%
 	@if [ "$(FLUSH_CACHE)" = "1" ]; then \
@@ -140,6 +141,9 @@ $(BIN_DIR):
 # =========================================================
 clean:
 	@rm -rf $(BIN_DIR) $(EXIT_STATUS)
+
+clean-all:
+	@rm -rf $(BIN_DIR) $(RES_DIR) ./*.csv $(EXIT_STATUS)
 
 # =========================================================
 # Help
