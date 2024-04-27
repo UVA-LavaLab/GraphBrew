@@ -4,7 +4,7 @@
     },
     "kernels": ["bfs", "pr_spmv"],
     "graph_suites": {
-        "suite_dir" : "/media/cmv6ru/Data/00_GraphDatasets",
+        "suite_dir" : "/home/ab/Documents/00_github_repos/00_Graph_Datasets",
         "SNAP": {
             "graphs": ["cit-Patents", "com-Orkut", "soc-LiveJournal1", "soc-Pokec", "web-Google"],
             "file_type": "graph.el"
