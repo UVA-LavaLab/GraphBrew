@@ -47,7 +47,7 @@ FLUSH_CACHE  = 1
 PARALLEL     = os.cpu_count()  # Use all available CPU cores
 
 # Setup directories
-results_dir = "results"
+results_dir = "bench/results"
 raw_csv_dir = os.path.join(results_dir, "csv_tables")
 graph_charts_dir = os.path.join(results_dir, "charts")
 
