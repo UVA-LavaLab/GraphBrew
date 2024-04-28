@@ -7,6 +7,7 @@ import sys
 import shutil
 import importlib.util
 import pandas as pd
+import seaborn as sns
 import matplotlib.pyplot as plt
 from matplotlib import rcParams
 from collections import defaultdict
@@ -30,11 +31,6 @@ results_dir = "bench/results"
 graph_csv_dir = os.path.join(results_dir, "data_csv")      # Directory for CSV files
 graph_charts_dir = os.path.join(results_dir, "data_charts")  # Directory for charts
 graph_raw_dir = os.path.join(results_dir, "data_raw")      # Directory for raw outputs
-
-# Ensure all directories exist
-os.makedirs(graph_csv_dir, exist_ok=True)
-os.makedirs(graph_charts_dir, exist_ok=True)
-os.makedirs(graph_raw_dir, exist_ok=True)
 
 # Regular expressions for parsing timing data from benchmark outputs
 time_patterns = {
@@ -119,6 +115,20 @@ def initialize_kernel_results():
     """ Initializes a nested dictionary for storing benchmark results by kernel and category. """
     return {kernel: defaultdict(lambda: defaultdict(dict)) for kernel in KERNELS}
 
+
+def graph_results_from_csv():
+    """Parses the benchmark output to extract timing data based on predefined patterns."""
+    for kernel in KERNELS:
+        for category, patterns in time_patterns.items():
+            filename = f"{kernel}_{category}_results"
+            csv_path = os.path.join("bench", "results", "data_csv", f"{filename}.csv")
+            chart_path = os.path.join("bench", "results", "data_charts")
+            print(csv_path, chart_path, category)
+            # with open(csv_path, 'w', newline='') as file:
+            # create_pandas_bar_graph(csv_path, chart_path, category)
+            if os.path.exists(csv_path):
+                create_pandas_bar_graph(csv_path, chart_path, category)
+
 def write_results_to_csv(kernel, kernel_data):
     for category, category_data in kernel_data.items():
         # Prepare CSV file path
@@ -142,45 +152,106 @@ def write_results_to_csv(kernel, kernel_data):
 
             print(f"Data written to {csv_path}")
 
-        create_bar_graph(csv_path, chart_path, category)
+        create_seaborn_bar_graph(csv_path, chart_path, category)
 
-def create_bar_graph(csv_file, output_folder, category):
+def create_pandas_bar_graph(csv_file, output_folder, category):
     # Read CSV file into a pandas DataFrame
-    df = pd.read_csv(csv_file)
+    if os.path.exists(csv_file) and os.path.getsize(csv_file) > 0:
+        df = pd.read_csv(csv_file)
+        # Check if DataFrame is not empty
+        if not df.empty:
+            # Prepare the data in long-form for seaborn
+            df_long = df.melt(id_vars=[df.columns[0]], var_name='Group', value_name='Value')
 
-    # Define the color palette from the image provided
-    color_palette = ['#4572A7', '#AA4643', '#89A54E', '#80699B']
+            # Modify category label for the title and remove underscores
+            category_title = category.replace('_', ' ').capitalize()
+            if 'time' in category.lower():
+                category_title += ' (s)'
 
-    # Extract labels and data
-    labels = df.iloc[:, 0]
-    data = df.iloc[:, 1:]
+            # Define the color palette from the image provided
+            color_palette = ['#1f88e5', '#91caf9', '#ffe082', '#ffa000']
 
-    # Modify category label for the title and remove underscores
-    category_title = category.replace('_', ' ').capitalize()
-    if 'time' in category.lower():
-        category_title += ' (s)'
+            # Initialize the matplotlib figure
+            f, ax = plt.subplots(figsize=(12, 6))
 
-    # Create bar plot
-    ax = df.plot(kind='bar', color=color_palette, figsize=(10, 5), width=0.8, edgecolor='black')
+            # Create grouped bar plot with seaborn
+            sns.barplot(x='Graph', y='Value', hue='Group', errorbar=None, data=df_long, palette=color_palette, edgecolor='black', width=0.5, linewidth=2.5)
 
-    # Set labels and title
-    ax.set_xticklabels(labels, rotation=45, ha='right', fontsize=12)
-    ax.set_xlabel('Graph', fontsize=14)
-    ax.set_ylabel('Time (s)', fontsize=14)
-    ax.set_title(f"{category_title}", fontsize=16)
+            # Fixing tick positions and labels for robustness
+            ticks = ax.get_xticks()
+            labels = [label.get_text() for label in ax.get_xticklabels()]
+            ax.set_xticks(ticks)  # Ensure ticks are correctly set
+            ax.set_xticklabels(labels, rotation=45, ha='right', fontsize=14, fontweight='bold')  # Now safe to use
 
-    # Set font size for ticks
-    ax.tick_params(axis='both', which='major', labelsize=12)
+            # Set labels with the modified layout
+            ax.set_xlabel('Graphs', fontsize=18, fontweight='bold')
+            ax.set_ylabel(category_title, fontsize=16, fontweight='bold')
 
+            # Add horizontal grid lines
+            ax.yaxis.grid(True, linestyle='--', which='major', color='grey', alpha=0.7)
 
-    # Save the plot in desired format and location
-    filename = os.path.splitext(os.path.basename(csv_file))[0]
-    for ext in ['svg', 'pdf']:
-        plt.tight_layout()
-        plt.savefig(os.path.join(output_folder, f"{filename}_graph.{ext}"))
+            # Set font size for ticks and adjust the layout
+            ax.tick_params(axis='both', which='major', labelsize=14, width=2)
+            plt.yscale('log')  # Set y-axis to logarithmic scale
+            plt.tight_layout()
 
-    # Show the plot
-    # plt.show()
+            # Remove legend if not needed
+            # ax.legend().set_visible(False)
+
+            # Save the plot as SVG and PDF in the output folder
+            filename = os.path.splitext(os.path.basename(csv_file))[0]
+            for ext in ['svg', 'pdf']:
+                output_path = os.path.join(output_folder, f"{filename}_{category}.{ext}")
+                plt.savefig(output_path)
+
+def create_pandas_bar_graph(csv_file, output_folder, category):
+    # Read CSV file into a pandas DataFrame
+    if os.path.exists(csv_file) and os.path.getsize(csv_file) > 0:
+        df = pd.read_csv(csv_file)
+
+        # Check if DataFrame is not empty
+        if not df.empty:
+            # Extract labels and data
+            labels = df.iloc[:, 0]
+            data = df.iloc[:, 1:]
+
+            # Modify category label for the title and remove underscores
+            category_title = category.replace('_', ' ').capitalize()
+            if 'time' in category.lower():
+                category_title += ' (s)'
+
+            # Define the color palette from the image provided
+            color_palette = ['#1f88e5', '#91caf9', '#ffe082', '#ffa000']
+
+            # Create grouped bar plot with the new color palette
+            # Adjust 'width' for narrow bars and 'linewidth' for thicker borders
+            ax = data.plot(kind='bar', color=color_palette, figsize=(12, 6), width=0.5, edgecolor='black', linewidth=2.5, logy=True)
+
+            # Set labels and title with the modified layout
+            # Adjust 'fontsize' and 'fontweight' for thicker and larger font
+            ax.set_xticklabels(labels, rotation=45, ha='right', fontsize=14, fontweight='bold')
+            ax.set_xlabel('Graphs', fontsize=18, fontweight='bold')
+            ax.set_ylabel(category_title, fontsize=16, fontweight='bold')
+            # ax.set_title(f"{category_title}", fontsize=18, fontweight='bold')
+
+            # Add horizontal grid lines
+            ax.yaxis.grid(True, linestyle='--', which='major', color='grey', alpha=0.7)
+
+            # Set font size for ticks and adjust the layout
+            ax.tick_params(axis='both', which='major', labelsize=14, width=2)
+            plt.yscale('log')  # Set y-axis to logarithmic scale
+            plt.tight_layout()
+
+            # Save the plot as SVG and PDF in the output folder
+            filename = os.path.splitext(os.path.basename(csv_file))[0]
+            for ext in ['svg', 'pdf']:
+                output_path = os.path.join(output_folder, f"{filename}_{category}.{ext}")
+                plt.savefig(output_path)
+        else:
+            print(f"CSV file {csv_file} is empty. Skipping graph generation.")
+    else:
+        print(f"CSV file {csv_file} does not exist or is empty. No graph will be generated.")
+
 
 def parse_timing_data(output):
     """Parses the benchmark output to extract timing data based on predefined patterns."""
@@ -231,9 +302,7 @@ def run_and_parse_benchmarks():
             write_results_to_csv(kernel, kernel_results[kernel])
 
 
-dependencies = ['re', 'json', 'shutil', 'tarfile', 'csv', 'matplotlib', 'collections']
-for dependency in dependencies:
-    import_check_install(dependency)
+
 
 def main():
     global reorderings
@@ -242,11 +311,15 @@ def main():
     global KERNELS 
     global kernel_results
 
+    dependencies = ['re', 'json', 'shutil', 'tarfile', 'csv', 'matplotlib', 'collections', 'seaborn']
+    for dependency in dependencies:
+        import_check_install(dependency)
+
     config_file    = "config/lite.json"  # Specify the path to your JSON configuration file
     graph_download_script = "./graph_download.py"  # Specify the path to your other Python script
+    csv_dir = os.path.join("bench", "results", "data_csv")
 
-    # Call the other Python script with the specified configuration file
-    subprocess.run(["python3", graph_download_script, config_file])
+
 
     # Load configuration settings from the specified JSON file
     with open(config_file, 'r') as f:
@@ -255,6 +328,19 @@ def main():
         KERNELS = config['kernels']          # List of kernels to use in benchmarks
         graph_suites = config['graph_suites']  # Graph suites with their respective details
         suite_dir = graph_suites.pop('suite_dir')  # Base directory for graph data, removing it from graph_suites
+
+        if os.path.exists(csv_dir):
+            print(f"Suite directory {csv_dir} already exists.")
+            graph_results_from_csv()
+            return
+
+        # Ensure all directories exist
+        os.makedirs(graph_csv_dir, exist_ok=True)
+        os.makedirs(graph_charts_dir, exist_ok=True)
+        os.makedirs(graph_raw_dir, exist_ok=True)
+
+        # Call the other Python script with the specified configuration file
+        subprocess.run(["python3", graph_download_script, config_file])
 
     kernel_results = initialize_kernel_results()
     run_and_parse_benchmarks()
