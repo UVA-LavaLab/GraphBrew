@@ -132,10 +132,10 @@ run-%-sweep: $(BIN_DIR)/%
 	
 # =========================================================
 run-sweep: $(BIN_DIR)/%
-	python3 ./graphbrew.py
+	python3 ./graph_brew.py
 
 run-setup: $(BIN_DIR)/%
-	python3 ./grapsetup.py
+	python3 ./graph_download.py
 
 # =========================================================
 # Compilation Rules
