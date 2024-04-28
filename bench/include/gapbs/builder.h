@@ -2458,11 +2458,11 @@ void runExperiment(G& x) {
     // flog(a0, "louvainStaticOmp");
   }
   {
-    auto b0 = leidenStaticOmp<false, false>(rnd, x, {repeat});
+    // auto b0 = leidenStaticOmp<false, false>(rnd, x, {repeat});
     // flog(b0, "leidenStaticOmpGreedy");
     // auto b1 = leidenStaticOmp<false,  true>(rnd, x, {repeat});
     // flog(b1, "leidenStaticOmpGreedyOrg");
-    // auto c0 = leidenStaticOmp<false, false>(rnd, x, {repeat, 1.0, 1e-12, 0.8, 1.0, 100, 100});
+    auto c0 = leidenStaticOmp<false, false>(rnd, x, {repeat, 0.5, 1e-12, 0.8, 1.0, 100, 100});
     // flog(c0, "leidenStaticOmpGreedyMedium");
     // auto c1 = leidenStaticOmp<false,  true>(rnd, x, {repeat, 1.0, 1e-12, 0.8, 1.0, 100, 100});
     // flog(c1, "leidenStaticOmpGreedyMediumOrg");
@@ -2557,11 +2557,11 @@ void GenerateLeidenMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
     }
   }
 
-  // sort_by_vector_element(communityVectorTuplePerPass,1);
+  // sort_by_vector_element(communityVectorTuplePerPass,num_passes-1);
 
-  // for (size_t i = 1; i < num_passes; ++i) {
-  sort_by_vector_element(communityVectorTuplePerPass,num_passes-1);
-  // }
+  for (size_t i = 1; i < num_passes; ++i) {
+  sort_by_vector_element(communityVectorTuplePerPass,i);
+  }
 
   // for (size_t i = 0; i < num_passes; ++i) {
   // for (size_t j = 0; j < num_nodesx; ++j) {

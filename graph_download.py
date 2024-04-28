@@ -139,9 +139,9 @@ def download_and_extract_graph(graph):
 
                 # Remove the extracted directory
                 shutil.rmtree(extract_dir)
-                os.remove(file_path)
             else:
                 print("No files found in the archive")
+            os.remove(file_path)
     else:
         print("Unsupported file format.")
 
