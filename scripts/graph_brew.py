@@ -27,10 +27,10 @@ FLUSH_CACHE    = 0       # Whether to flush cache before each run
 PARALLEL       = os.cpu_count()  # Use all available CPU cores
 
 # Directory setup for storing results
-results_dir = "bench/results"
-graph_csv_dir = os.path.join(results_dir, "data_csv")      # Directory for CSV files
-graph_charts_dir = os.path.join(results_dir, "data_charts")  # Directory for charts
-graph_raw_dir = os.path.join(results_dir, "data_raw")      # Directory for raw outputs
+results_dir      = None
+graph_csv_dir    = None      # Directory for CSV files
+graph_charts_dir = None  # Directory for charts
+graph_raw_dir    = None      # Directory for raw outputs
 
 # Regular expressions for parsing timing data from benchmark outputs
 time_patterns = {
@@ -121,25 +121,23 @@ def graph_results_from_csv():
     for kernel in KERNELS:
         for category, patterns in time_patterns.items():
             filename = f"{kernel}_{category}_results"
-            csv_path = os.path.join("bench", "results", "data_csv", f"{filename}.csv")
-            chart_path = os.path.join("bench", "results", "data_charts")
-            print(csv_path, chart_path, category)
+            csv_file_path = os.path.join(graph_csv_dir, f"{filename}.csv")
+            print(csv_file_path, graph_charts_dir, category)
             # with open(csv_path, 'w', newline='') as file:
             # create_pandas_bar_graph(csv_path, chart_path, category)
-            if os.path.exists(csv_path):
-                create_pandas_bar_graph(csv_path, chart_path, category)
+            if os.path.exists(csv_file_path):
+                create_pandas_bar_graph(csv_file_path, graph_charts_dir, category)
 
-def write_results_to_csv(kernel, kernel_data):
+def write_results_to_csv(config_file_name, kernel, kernel_data):
     for category, category_data in kernel_data.items():
         # Prepare CSV file path
         filename = f"{kernel}_{category}_results"
-        csv_path = os.path.join("bench", "results", "data_csv", f"{filename}.csv")
-        chart_path = os.path.join("bench", "results", "data_charts")
+        csv_file_path = os.path.join(graph_csv_dir, f"{filename}.csv")
         
         # Determine the fieldnames based on available metrics
         fieldnames = ['Graph'] + list(next(iter(category_data.values())).keys())
 
-        with open(csv_path, 'w', newline='') as file:
+        with open(csv_file_path, 'w', newline='') as file:
             writer = csv.DictWriter(file, fieldnames=fieldnames)
             writer.writeheader()
 
@@ -150,9 +148,9 @@ def write_results_to_csv(kernel, kernel_data):
                     row[reordering] = value[next(iter(value))]
                 writer.writerow(row)
 
-            print(f"Data written to {csv_path}")
+            print(f"Data written to {csv_file_path}")
 
-        create_seaborn_bar_graph(csv_path, chart_path, category)
+        create_seaborn_bar_graph(csv_file_path, graph_charts_dir, category)
 
 def create_seaborn_bar_graph(csv_file, output_folder, category):
     # Read CSV file into a pandas DataFrame
@@ -264,7 +262,7 @@ def parse_timing_data(output):
                 time_data[category][key] = float(match.group(1))
     return time_data
 
-def run_and_parse_benchmarks():
+def run_and_parse_benchmarks(config_file_name):
     global kernel_results
     
     """ Executes benchmarks for each kernel, graph, and reordering, then parses and stores the results. """
@@ -280,45 +278,46 @@ def run_and_parse_benchmarks():
                     if output:
                         time_data = parse_timing_data(output)
                         # print(time_data)
-                        
+                        for category, patterns in time_patterns.items():
                         # Update reorder_time
-                        if 'reorder_time' in time_data:
-                            for key, value in time_data['reorder_time'].items():
-                                if reorder_name not in kernel_results[kernel]['reorder_time'][graph_symbol]:
-                                    kernel_results[kernel]['reorder_time'][graph_symbol][reorder_name] = {}
-                                kernel_results[kernel]['reorder_time'][graph_symbol][reorder_name][key] = value
-                                print(f"{kernel:<7} {graph_symbol:<7} reorder_time    {key:<13}: {value:<7}(s)")
-                        
-                        # Update trial_time
-                        if 'trial_time' in time_data:
-                            for key, value in time_data['trial_time'].items():
-                                if key == 'Average':  # Only store average trial time
-                                    if reorder_name not in kernel_results[kernel]['trial_time'][graph_symbol]:
-                                        kernel_results[kernel]['trial_time'][graph_symbol][reorder_name] = {}
-                                    kernel_results[kernel]['trial_time'][graph_symbol][reorder_name][key] = value
-                                    print(f"{kernel:<7} {graph_symbol:<7} trial_time      {key:<13}: {value:<7}(s)")
+                            if category in time_data:
+                                for key, value in time_data[category].items():
+                                    if reorder_name not in kernel_results[kernel][category][graph_symbol]:
+                                        kernel_results[kernel][category][graph_symbol][reorder_name] = {}
+                                    kernel_results[kernel][category][graph_symbol][reorder_name][key] = value
+                                    print(f"{kernel:<7} {graph_symbol:<7} {category:<15} {key:<13}: {value:7.7f}(s)")
 
         if kernel_results[kernel]:  # Ensure there is data to process
-            write_results_to_csv(kernel, kernel_results[kernel])
+            write_results_to_csv(config_file_name, kernel, kernel_results[kernel])
 
 
 
 
-def main():
+def main(config_file):
     global reorderings
     global graph_suites
     global suite_dir
     global KERNELS 
     global kernel_results
+    # Directory setup for storing results
+    global results_dir
+    global graph_csv_dir
+    global graph_charts_dir
+    global graph_raw_dir
 
     dependencies = ['re', 'json', 'shutil', 'tarfile', 'csv', 'matplotlib', 'collections', 'seaborn']
     for dependency in dependencies:
         import_check_install(dependency)
 
-    config_file    = "scripts/config/lite.json"  # Specify the path to your JSON configuration file
+    # config_file    = "scripts/config/lite.json"  # Specify the path to your JSON configuration file
     graph_download_script = "./scripts/graph_download.py"  # Specify the path to your other Python script
-    csv_dir = os.path.join("bench", "results", "data_csv")
-
+   
+    config_file_name = os.path.splitext(os.path.basename(config_file))[0]
+    # Directory setup for storing results
+    results_dir = f"bench/results/{config_file_name}"
+    graph_csv_dir = os.path.join(results_dir, "data_csv")      # Directory for CSV files
+    graph_charts_dir = os.path.join(results_dir, "data_charts")  # Directory for charts
+    graph_raw_dir = os.path.join(results_dir, "data_raw")      # Directory for raw outputs
 
     # Load configuration settings from the specified JSON file
     with open(config_file, 'r') as f:
@@ -328,8 +327,8 @@ def main():
         graph_suites = config['graph_suites']  # Graph suites with their respective details
         suite_dir = graph_suites.pop('suite_dir')  # Base directory for graph data, removing it from graph_suites
 
-        if os.path.exists(csv_dir):
-            print(f"Suite directory {csv_dir} already exists.")
+        if os.path.exists(graph_csv_dir):
+            print(f"Suite directory {graph_csv_dir} already exists.")
             graph_results_from_csv()
             return
 
@@ -342,11 +341,15 @@ def main():
         subprocess.run(["python3", graph_download_script, config_file])
 
     kernel_results = initialize_kernel_results()
-    run_and_parse_benchmarks()
+    run_and_parse_benchmarks(config_file_name)
 
     print("Benchmarking completed and data recorded in designated folders.")
 
 if __name__ == "__main__":
-    main()
-
-   
+    if len(sys.argv) < 2:
+        print("Usage: python graph_download.py config_file.json")
+        sys.exit(1)
+    
+    config_file = sys.argv[1]
+    
+    main(config_file)

@@ -6,9 +6,13 @@
 CC  = $(shell which gcc-9 || which gcc)
 CXX = $(shell which g++-9 || which g++)
 # =========================================================
-SCRIPT_DIR = scripts
-BENCH_DIR  = bench
-RES_DIR = $(BENCH_DIR)/results
+SCRIPT_DIR  = scripts
+BENCH_DIR   = bench
+CONFIG_DIR  = $(SCRIPT_DIR)/config
+# =========================================================
+RES_DIR    = $(BENCH_DIR)/results
+BACKUP_DIR = $(BENCH_DIR)/backups
+# =========================================================
 BIN_DIR = $(BENCH_DIR)/bin
 LIB_DIR = $(BENCH_DIR)/lib
 SRC_DIR = $(BENCH_DIR)/src
@@ -59,7 +63,7 @@ NC      =\033[0m
 # =========================================================
 # Compiler Flags
 # =========================================================
-CXXFLAGS_GAP    = -std=c++17 -O3 -Wall -fopenmp
+CXXFLAGS_GAP    = -std=c++17 -O3 -Wall -fopenmp -g
 CXXFLAGS_RABBIT = -mcx16 -Wno-deprecated-declarations -Wno-parentheses -Wno-unused-local-typedefs
 CXXFLAGS_GORDER = -m64 -march=native 
 CXXFLAGS_GORDER += -DRelease -DGCC
@@ -85,7 +89,8 @@ INCLUDES = -I$(INCLUDE_GAPBS) -I$(INCLUDE_RABBIT) -I$(INCLUDE_GORDER) -I$(INCLUD
 # Targets
 # =========================================================
 KERNELS = bc bfs cc cc_sv pr pr_spmv sssp tc
-SUITE = $(addprefix $(BIN_DIR)/,$(KERNELS)) $(BIN_DIR)/converter
+KERNELS_BIN = $(addprefix $(BIN_DIR)/,$(KERNELS))
+SUITE = $(KERNELS_BIN) $(BIN_DIR)/converter
 # =========================================================
 
 .PHONY: all run-% help-% help clean run-%-gdb run-%-sweep $(BIN_DIR)/%
@@ -132,14 +137,11 @@ run-%-sweep: $(BIN_DIR)/%
 	done
 	
 # =========================================================
-run-sweep: $(BIN_DIR)/%
-	python3 ./$(SCRIPT_DIR)/graph_brew.py
+run-%: $(KERNELS_BIN)
+	python3 ./$(SCRIPT_DIR)/graph_brew.py $(CONFIG_DIR)/$*.json
 
-setup-lite: $(BIN_DIR)/%
-	python3 ./$(SCRIPT_DIR)/graph_download.py $(SCRIPT_DIR)/config/lite.json
-
-setup-full: $(BIN_DIR)/%
-	python3 ./$(SCRIPT_DIR)/graph_download.py $(SCRIPT_DIR)/config/full.json
+graph-%:
+	python3 ./$(SCRIPT_DIR)/graph_download.py $(CONFIG_DIR)/$*.json
 
 # =========================================================
 # Compilation Rules
@@ -161,6 +163,14 @@ clean:
 
 clean-all:
 	@rm -rf $(BIN_DIR) $(RES_DIR) ./*.csv $(EXIT_STATUS)
+
+clean-results:
+	@mkdir -p $(BACKUP_DIR)
+	@echo "Backing up results directory..."
+	@tar -czf $(BACKUP_DIR)/result_`date +"%Y%m%d_%H%M%S"`.tar.gz $(RES_DIR)
+	@echo "Cleaning results directory..."
+	@rm -rf $(RES_DIR)
+	@echo "Backup and clean completed."
 
 # =========================================================
 # Help
