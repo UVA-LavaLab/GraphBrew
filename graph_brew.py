@@ -76,7 +76,7 @@ def clear_cpu_cache(size=100*1024*1024):  # 100 MB
         print(f"Failed to disrupt CPU cache: {e}")
 
 # Function to run benchmarks, handle output, and save raw data
-def run_benchmark(kernel, graph_path, reorder_code, graph_name, reorder_name):
+def run_benchmark(kernel, graph_path, reorder_code, graph_symbol, reorder_name):
     # Prepare benchmark command with parameters
     RUN_PARAMS = [f"-n{NUM_TRIALS}", f"-o{reorder_code}"]
     GRAPH_BENCH = ["-f", f"{graph_path}"]
@@ -105,7 +105,7 @@ def run_benchmark(kernel, graph_path, reorder_code, graph_name, reorder_name):
             print("Error Output:", error_text)
 
         # Save both output and errors to the file
-        output_filename = f"{kernel}_{graph_name}_{reorder_name}_output.txt"
+        output_filename = f"{kernel}_{graph_symbol}_{reorder_name}_output.txt"
         output_filepath = os.path.join(graph_raw_dir, output_filename)
         with open(output_filepath, 'w') as f:
             f.write("Standard Output:\n" + output_text + "\n\nError Output:\n" + error_text)
@@ -120,51 +120,66 @@ def initialize_kernel_results():
     return {kernel: defaultdict(lambda: defaultdict(dict)) for kernel in KERNELS}
 
 def write_results_to_csv(kernel, kernel_data):
-    """Writes results to a CSV file for the specified kernel."""
-    csv_path = os.path.join(graph_csv_dir, f"{kernel}_results.csv")
-    
-    # Assume we have a flat dictionary for each graph containing all metrics
-    fieldnames = ['Graph', 'Original', 'DBG', 'RabbitOrder', 'Leiden', 'Average']
-
-    with open(csv_path, 'w', newline='') as file:
-        writer = csv.DictWriter(file, fieldnames=fieldnames)
-        writer.writeheader()
+    for category, category_data in kernel_data.items():
+        # Prepare CSV file path
+        filename = f"{kernel}_{category}_results"
+        csv_path = os.path.join("bench", "results", "data_csv", f"{filename}.csv")
+        chart_path = os.path.join("bench", "results", "data_charts")
         
-        # Iterate over each graph's data and organize it into rows
-        for graph, data in kernel_data.items():
-            row = {'Graph': graph}
-            # Flatten the data for each reordering into a single row
-            for reorder, metrics in data.items():
-                for metric, value in metrics.items():
-                    row[metric] = value  # Update the row with each metric
+        # Determine the fieldnames based on available metrics
+        fieldnames = ['Graph'] + list(next(iter(category_data.values())).keys())
 
-            writer.writerow(row)
+        with open(csv_path, 'w', newline='') as file:
+            writer = csv.DictWriter(file, fieldnames=fieldnames)
+            writer.writeheader()
 
-        print(f"Data written to {csv_path}")
+            # Write data to CSV
+            for graph, graph_data in category_data.items():
+                row = {'Graph': graph}
+                for reordering, value in graph_data.items():
+                    row[reordering] = value[next(iter(value))]
+                writer.writerow(row)
 
-def generate_combined_charts(csv_path):
-    try:
-        df = pd.read_csv(csv_path)
-        if df.empty:
-            raise ValueError("DataFrame is empty! No data to plot.")
+            print(f"Data written to {csv_path}")
 
-        plt.figure(figsize=(10, 5))
-        for column in df.columns[1:]:  # Assuming non-graph name columns represent different metrics
-            plt.plot(df['Graph'], df[column], marker='o', label=column)
+        create_bar_graph(csv_path, chart_path, category)
 
-        plt.title('Combined Metrics for ' + os.path.basename(csv_path).replace('.csv', ''))
-        plt.xlabel('Graph')
-        plt.ylabel('Time (seconds)')
-        plt.legend()
-        plt.tight_layout()
+def create_bar_graph(csv_file, output_folder, category):
+    # Read CSV file into a pandas DataFrame
+    df = pd.read_csv(csv_file)
 
-        svg_path = csv_path.replace('.csv', '.svg')
-        plt.savefig(svg_path)
-        plt.close()
-        print(f"Chart saved as {svg_path}")
-        
-    except pd.errors.EmptyDataError:
-        print(f"Failed to generate charts: No data in {csv_path}")
+    # Extract labels and data
+    labels = df.iloc[:, 0]
+    data = df.iloc[:, 1:]
+
+    # Modify category label for the title
+    if 'time' in category.lower():
+        category_title = f"{category.capitalize()} (s)"
+    else:
+        category_title = category.capitalize()
+
+    # Create bar plot
+    ax = data.plot(kind='bar', stacked=True, figsize=(12, 6), edgecolor='black')
+
+    # Set labels and title
+    ax.set_xticklabels(labels, rotation=45, ha='right', fontsize=12)
+    ax.set_xlabel('Graph', fontsize=14)
+    ax.set_ylabel('Time (s)', fontsize=14)
+    ax.set_title(f"Reordering {category_title}", fontsize=16)
+
+    # Set font size for ticks
+    ax.tick_params(axis='both', which='major', labelsize=12)
+
+    # Save the plot as SVG and PDF
+    filename = os.path.splitext(os.path.basename(csv_file))[0]
+    svg_path = os.path.join(output_folder, f"{filename}_{category}.svg")
+    pdf_path = os.path.join(output_folder, f"{filename}_{category}.pdf")
+    plt.tight_layout()
+    plt.savefig(svg_path)
+    plt.savefig(pdf_path)
+
+    # Show the plot
+    # plt.show()
 
 def parse_timing_data(output):
     """Parses the benchmark output to extract timing data based on predefined patterns."""
@@ -192,14 +207,27 @@ def run_and_parse_benchmarks():
                     output = run_benchmark(kernel, graph_path, reorder_code, graph_symbol, reorder_name)
                     if output:
                         time_data = parse_timing_data(output)
-                        for category, times in time_data.items():
-                            for key, value in times.items():
-                                kernel_results[kernel][category][graph_name][key] = value
-                                print(f"{kernel:<7} {graph_symbol:<7} {category:<15} {key:<13}: {value:<7}(s)")
+                        # print(time_data)
+                        
+                        # Update reorder_time
+                        if 'reorder_time' in time_data:
+                            for key, value in time_data['reorder_time'].items():
+                                if reorder_name not in kernel_results[kernel]['reorder_time'][graph_symbol]:
+                                    kernel_results[kernel]['reorder_time'][graph_symbol][reorder_name] = {}
+                                kernel_results[kernel]['reorder_time'][graph_symbol][reorder_name][key] = value
+                                print(f"{kernel:<7} {graph_symbol:<7} reorder_time    {key:<13}: {value:<7}(s)")
+                        
+                        # Update trial_time
+                        if 'trial_time' in time_data:
+                            for key, value in time_data['trial_time'].items():
+                                if key == 'Average':  # Only store average trial time
+                                    if reorder_name not in kernel_results[kernel]['trial_time'][graph_symbol]:
+                                        kernel_results[kernel]['trial_time'][graph_symbol][reorder_name] = {}
+                                    kernel_results[kernel]['trial_time'][graph_symbol][reorder_name][key] = value
+                                    print(f"{kernel:<7} {graph_symbol:<7} trial_time      {key:<13}: {value:<7}(s)")
 
         if kernel_results[kernel]:  # Ensure there is data to process
             write_results_to_csv(kernel, kernel_results[kernel])
-
 
 
 dependencies = ['re', 'json', 'shutil', 'tarfile', 'csv', 'matplotlib', 'collections']
@@ -212,7 +240,7 @@ def main():
     global suite_dir
     global KERNELS 
     global kernel_results
-    
+
     config_file    = "config/lite.json"  # Specify the path to your JSON configuration file
     graph_download_script = "./graph_download.py"  # Specify the path to your other Python script
 
