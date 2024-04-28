@@ -1,6 +1,6 @@
 {
     "reorderings": {
-        "ORIGINAL": 0, "DBG": 5, "RABBITORDER": 8, "LeidenOrder": 12
+        "Original": 0, "DBG": 5, "RabbitOrder": 8, "Leiden": 12
     },
     "kernels": ["bfs", "pr_spmv"],
     "graph_suites": {
