@@ -59,7 +59,6 @@ time_patterns = {
     }
 }
 
-
 def clear_cpu_cache(size=100*1024*1024):  # 100 MB
     """
     A simple attempt to 'flush' CPU cache by loading large data into memory,
@@ -111,11 +110,61 @@ def run_benchmark(kernel, graph_path, reorder_code, graph_name, reorder_name):
         print(f"Error running command: {cmd}\nError: {e.stderr.decode()}")
         return None
 
-# Function to parse and extract timing data from benchmark output
+def initialize_kernel_results():
+    """ Initializes a nested dictionary for storing benchmark results by kernel and category. """
+    return {kernel: defaultdict(lambda: defaultdict(dict)) for kernel in KERNELS}
+
+def write_results_to_csv(kernel, kernel_data):
+    """Writes results to a CSV, expecting kernel_data to be a dictionary where each graph's name is a key."""
+    csv_path = os.path.join(graph_csv_dir, f"{kernel}_results.csv")
+    
+    # Determine all fieldnames dynamically based on nested dictionary keys
+    all_fieldnames = {'Graph'}  # Start with 'Graph'
+    for graph_data in kernel_data.values():
+        for category_data in graph_data.values():
+            all_fieldnames.update(category_data.keys())
+
+    fieldnames = list(all_fieldnames)  # Convert set to list
+
+    with open(csv_path, 'w', newline='') as file:
+        writer = csv.DictWriter(file, fieldnames=fieldnames)
+        writer.writeheader()
+
+        # Write each graph's data as a separate row
+        for graph, categories in kernel_data.items():
+            for category, data in categories.items():
+                row = {'Graph': graph}
+                row.update(data)  # Assumes data is a flat dictionary with values to write
+                writer.writerow(row)
+
+        print(f"Data written to {csv_path}")
+
+def generate_combined_charts(csv_path):
+    try:
+        df = pd.read_csv(csv_path)
+        if df.empty:
+            raise ValueError("DataFrame is empty! No data to plot.")
+
+        plt.figure(figsize=(10, 5))
+        for column in df.columns[1:]:  # Assuming non-graph name columns represent different metrics
+            plt.plot(df['Graph'], df[column], marker='o', label=column)
+
+        plt.title('Combined Metrics for ' + os.path.basename(csv_path).replace('.csv', ''))
+        plt.xlabel('Graph')
+        plt.ylabel('Time (seconds)')
+        plt.legend()
+        plt.tight_layout()
+
+        svg_path = csv_path.replace('.csv', '.svg')
+        plt.savefig(svg_path)
+        plt.close()
+        print(f"Chart saved as {svg_path}")
+        
+    except pd.errors.EmptyDataError:
+        print(f"Failed to generate charts: No data in {csv_path}")
+
 def parse_timing_data(output):
-    """
-    Parses output to extract timing data based on defined regular expressions in time_patterns.
-    """
+    """Parses the benchmark output to extract timing data based on predefined patterns."""
     time_data = {}
     for category, patterns in time_patterns.items():
         time_data[category] = {}
@@ -123,82 +172,31 @@ def parse_timing_data(output):
             match = regex.search(output)
             if match:
                 time_data[category][key] = float(match.group(1))
-            # else:
-            #     print(f"Warning: No data found for {key} in category {category}.")
-            #     time_data[category][key] = None  # Optionally handle missing data
     return time_data
     
-def generate_svg_chart(csv_path):
-    df = pd.read_csv(csv_path)
-    plt.figure(figsize=(10, 5))
-    for column in df.columns[1:]:  # Skip 'Graph Name' for plotting
-        plt.plot(df['Graph Name'], df[column], marker='o', label=column)
+def run_and_parse_benchmarks():
+    """ Executes benchmarks for each kernel, graph, and reordering, then parses and stores the results. """
+    for kernel in KERNELS:
+        for suite_name, details in graph_suites.items():
+            for graph in details["graphs"]:
+                graph_path = f"{suite_dir}/{suite_name}/{graph}/{details['file_type']}"
+                for reorder_name, reorder_code in reorderings.items():
+                    output = run_benchmark(kernel, graph_path, reorder_code, graph, reorder_name)
+                    if output:
+                        time_data = parse_timing_data(output)
+                        for category, times in time_data.items():
+                            for key, value in times.items():
+                                kernel_results[kernel][category][graph][key] = value
+                                print(f"{kernel} {graph} {category} {key}: {value}")
 
-    plt.title('Benchmark Results for ' + os.path.basename(csv_path).replace('.csv', ''))
-    plt.xlabel('Graph Name')
-    plt.ylabel('Time (seconds)')
-    plt.xticks(rotation=45)
-    plt.legend(title='Reordering Strategies')
-    plt.tight_layout()
-
-    svg_path = csv_path.replace('.csv', '.svg')
-    plt.savefig(svg_path)
-    plt.close()
-    print(f"Chart saved as {svg_path}")
-
-def write_csv_for_category(category, data, base_dir):
-    csv_filename = f"{category}_results.csv"
-    csv_path = os.path.join(base_dir, csv_filename)
-    fieldnames = ['Graph Name'] + sorted(data[next(iter(data))].keys())  # Dynamic field names based on keys
-
-    with open(csv_path, mode='w', newline='') as file:
-        writer = csv.DictWriter(file, fieldnames=fieldnames)
-        writer.writeheader()
-        for graph_name, timings in data.items():
-            row = {'Graph Name': graph_name}
-            row.update(timings)
-            writer.writerow(row)
-
-    shutil.copy(csv_path, graph_charts_dir)
-    generate_svg_chart(csv_path)
-
-def process_kernel_results(kernel_results):
-    """
-    Process kernel results for all categories defined in time_patterns.
-    Each category's data is written to a separate CSV file and a corresponding chart is generated.
-
-    :param kernel_results: Dictionary structured by graph and categories containing timing data.
-    """
-    # Iterate over all categories defined in time_patterns
-    for category in time_patterns.keys():
-        # Prepare data for this category
-        category_data = {graph: data.get(category, {}) for graph, data in kernel_results.items()}
-        # Write data to CSV and generate chart
-        write_csv_for_category(category, category_data, graph_csv_dir)
-
-
-# Function to initialize the kernel results data structure
-def initialize_kernel_results():
-    return defaultdict(lambda: defaultdict(dict))
+        if kernel_results[kernel]:  # Ensure there is data to process
+            write_results_to_csv(kernel, kernel_results[kernel])
 
 kernel_results = initialize_kernel_results()
 
-# Example of data collection (modify as per your existing setup)
-for kernel in KERNELS:
-    for suite_name, details in graph_suites.items():
-        for graph in details["graphs"]:
-            graph_path = f"{suite_dir}/{suite_name}/{graph}/{details['file_type']}"
-            for reorder_name, reorder_code in reorderings.items():
-                output = run_benchmark(kernel, graph_path, reorder_code, graph, reorder_name)
-                if output:
-                    time_data = parse_timing_data(output)
-                    for category, times in time_data.items():
-                        for key, value in times.items():
-                            kernel_results[category][graph][key] = value
-                            print(f"Processed {category} for {graph} under {key}: {value}")
+run_and_parse_benchmarks()
 
-    # print(kernel_results)
-
-process_kernel_results(kernel_results)
+# for kernel in KERNELS:
+#     write_results_to_csv(kernel, kernel_results[kernel])
 
 print("Benchmarking completed and data recorded in designated folders.")

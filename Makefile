@@ -106,7 +106,7 @@ RUN_PARAMS =  -s -n 1 -o 1
 # =========================================================
 run-%: $(BIN_DIR)/%
 	@if [ "$(FLUSH_CACHE)" = "1" ]; then \
-		echo "Flushing cache..."; \
+		echo "Attempting to mitigate cache effects by busy-looping..."; \
 		dd if=/dev/zero of=/dev/null bs=1M count=1024; \
 	fi; \
 	OMP_NUM_THREADS=$(PARALLEL) ./$<  $(GRAPH_BENCH) $(RUN_PARAMS) $(EXIT_STATUS)
