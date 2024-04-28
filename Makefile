@@ -134,8 +134,11 @@ run-%-sweep: $(BIN_DIR)/%
 run-sweep: $(BIN_DIR)/%
 	python3 ./graph_brew.py
 
-run-setup: $(BIN_DIR)/%
-	python3 ./graph_download.py
+setup-lite: $(BIN_DIR)/%
+	python3 ./graph_download.py config/lite.json
+
+setup-full: $(BIN_DIR)/%
+	python3 ./graph_download.py config/full.json
 
 # =========================================================
 # Compilation Rules

@@ -3,6 +3,7 @@ import requests
 import tarfile
 import shutil
 import json
+import sys
 from tqdm import tqdm
 from multiprocessing.pool import ThreadPool
 import importlib.util
@@ -15,13 +16,19 @@ def import_check_install(package_name):
 
 def download_and_extract_graph(graph):
     symbol = graph['symbol']
+    graph_type = graph['type']
     download_link = graph['download_link']
     suite_dir_path = graph['suite_dir_path']
-    file_type = graph['file_type']
+    file_type = f"graph.{graph_type}"
     
     download_dir = os.path.join(suite_dir_path, symbol)
     os.makedirs(download_dir, exist_ok=True)
     
+    # Check if suite directory exists
+    if os.path.exists(download_dir):
+        print(f"Suite directory {download_dir} already exists. Skipping {symbol}.")
+        return
+
     # Download the graph file
     file_name = os.path.basename(download_link)
     file_path = os.path.join(download_dir, file_name)
@@ -90,8 +97,9 @@ def download_and_extract_graphs(config):
         file_type = details['file_type']
         
         for graph in graphs:
+            graph_type = graph['type']
             graph['suite_dir_path'] = suite_dir_path
-            graph['file_type'] = file_type
+            graph['file_type'] = f"graph.{graph_type}"
             thread = ThreadPool(processes=1).apply_async(download_and_extract_graph, (graph,))
             threads.append(thread)
     
@@ -99,11 +107,18 @@ def download_and_extract_graphs(config):
     for thread in threads:
         thread.get()
 
-dependencies = ['requests', 'tqdm', 'shutil', 'tarfile', 'requests', 'multiprocessing', 'importlib']
+dependencies = ['requests', 'tqdm', 'shutil', 'tarfile', 'requests', 'multiprocessing']
 for dependency in dependencies:
     import_check_install(dependency)
 
-# Loading configuration settings from a JSON file
-with open('config/lite.json', 'r') as f:
-    config = json.load(f)
-    download_and_extract_graphs(config)
+if __name__ == "__main__":
+    if len(sys.argv) < 2:
+        print("Usage: python graph_download.py config_file.json")
+        sys.exit(1)
+    
+    config_file = sys.argv[1]
+    
+    # Loading configuration settings from the specified JSON file
+    with open(config_file, 'r') as f:
+        config = json.load(f)
+        download_and_extract_graphs(config)
