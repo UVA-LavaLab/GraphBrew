@@ -129,9 +129,13 @@ run-%-sweep: $(BIN_DIR)/%
 		fi;
 		OMP_NUM_THREADS=$(PARALLEL) ./$(BIN_DIR)/$* $(GRAPH_BENCH) -s -n 1 -o $$o -o 2; \
 	done
-
+	
+# =========================================================
 run-sweep: $(BIN_DIR)/%
 	python3 ./graphbrew.py
+
+run-setup: $(BIN_DIR)/%
+	python3 ./grapsetup.py
 
 # =========================================================
 # Compilation Rules
