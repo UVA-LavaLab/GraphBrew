@@ -171,21 +171,23 @@ def parse_timing_data(output):
             if match:
                 time_data[category][key] = float(match.group(1))
     return time_data
-    
+
 def run_and_parse_benchmarks():
     """ Executes benchmarks for each kernel, graph, and reordering, then parses and stores the results. """
     for kernel in KERNELS:
         for suite_name, details in graph_suites.items():
             for graph in details["graphs"]:
-                graph_path = f"{suite_dir}/{suite_name}/{graph}/{details['file_type']}"
+                graph_name   = graph["name"]
+                graph_symbol = graph["symbol"]
+                graph_path = f"{suite_dir}/{suite_name}/{graph_name}/{details['file_type']}"
                 for reorder_name, reorder_code in reorderings.items():
-                    output = run_benchmark(kernel, graph_path, reorder_code, graph, reorder_name)
+                    output = run_benchmark(kernel, graph_path, reorder_code, graph_symbol, reorder_name)
                     if output:
                         time_data = parse_timing_data(output)
                         for category, times in time_data.items():
                             for key, value in times.items():
-                                kernel_results[kernel][category][graph][key] = value
-                                print(f"{kernel} {graph} {category} {key}: {value}")
+                                kernel_results[kernel][category][graph_name][key] = value
+                                print(f"{kernel:<7} {graph_symbol:<7} {category:<15} {key:<13}: {value:<7}(s)")
 
         if kernel_results[kernel]:  # Ensure there is data to process
             write_results_to_csv(kernel, kernel_results[kernel])
