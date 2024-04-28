@@ -1,8 +1,8 @@
 {
     "reorderings": {
-        "ORIGINAL": 0, "RANDOM": 1, "SORT": 2, "HUBSORT": 3, "HUBCLUSTER": 4,
-        "DBG": 5, "HUBSORTDBG": 6, "HUBCLUSTERDBG": 7, "RABBITORDER": 8,
-        "GORDER": 9, "CORDER": 10, "RCM": 11, "LeidenOrder": 12
+        "Original": 0, "Random": 1, "Sort": 2, "HubSort": 3, "HubCluster": 4,
+        "DBG": 5, "HubSortDBG": 6, "HubClusterDBG": 7, "RabbitOrder": 8,
+        "Gorder": 9, "Corder": 10, "RCM": 11, "Leiden": 12
     },
     "kernels": ["bc", "bfs", "cc", "cc_sv", "pr", "pr_spmv", "sssp", "tc"],
     "graph_suites": {

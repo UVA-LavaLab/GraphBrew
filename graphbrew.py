@@ -41,17 +41,17 @@ os.makedirs(graph_raw_dir, exist_ok=True)
 time_patterns = {
     'reorder_time': {
         'Original': re.compile(r"Original Time:\s+([\d\.]+)"),
-        'Random Map': re.compile(r"Random Map Time:\s+([\d\.]+)"),
-        'Sort Map': re.compile(r"Sort Map Time:\s+([\d\.]+)"),
-        'HubSort Map': re.compile(r"HubSort Map Time:\s+([\d\.]+)"),
-        'HubCluster Map': re.compile(r"HubCluster Map Time:\s+([\d\.]+)"),
-        'DBG Map': re.compile(r"DBG Map Time:\s+([\d\.]+)"),
-        'HubSortDBG Map': re.compile(r"HubSortDBG Map Time:\s+([\d\.]+)"),
-        'HubClusterDBG Map': re.compile(r"HubClusterDBG Map Time:\s+([\d\.]+)"),
+        'Random': re.compile(r"Random Map Time:\s+([\d\.]+)"),
+        'Sort': re.compile(r"Sort Map Time:\s+([\d\.]+)"),
+        'HubSort': re.compile(r"HubSort Map Time:\s+([\d\.]+)"),
+        'HubCluster': re.compile(r"HubCluster Map Time:\s+([\d\.]+)"),
+        'DBG': re.compile(r"DBG Map Time:\s+([\d\.]+)"),
+        'HubSortDBG': re.compile(r"HubSortDBG Map Time:\s+([\d\.]+)"),
+        'HubClusterDBG': re.compile(r"HubClusterDBG Map Time:\s+([\d\.]+)"),
         'RabbitOrder': re.compile(r"RabbitOrder Time:\s+([\d\.]+)"),
         'Gorder': re.compile(r"Gorder Time:\s+([\d\.]+)"),
         'Corder': re.compile(r"Corder Time:\s+([\d\.]+)"),
-        'RCMorder': re.compile(r"RCMorder Time:\s+([\d\.]+)"),
+        'RCM': re.compile(r"RCMorder Time:\s+([\d\.]+)"),
         'Leiden': re.compile(r"Leiden Time:\s+([\d\.]+)")
     },
     'trial_time': {
@@ -113,71 +113,69 @@ def run_benchmark(kernel, graph_path, reorder_code, graph_name, reorder_name):
 
 # Function to parse and extract timing data from benchmark output
 def parse_timing_data(output):
+    """
+    Parses output to extract timing data based on defined regular expressions in time_patterns.
+    """
     time_data = {}
     for category, patterns in time_patterns.items():
         time_data[category] = {}
-        for key, pattern in patterns.items():
-            match = pattern.search(output)
+        for key, regex in patterns.items():
+            match = regex.search(output)
             if match:
                 time_data[category][key] = float(match.group(1))
             # else:
-            #     time_data[category][key] = None  # Set default or handle missing data
+            #     print(f"Warning: No data found for {key} in category {category}.")
+            #     time_data[category][key] = None  # Optionally handle missing data
     return time_data
     
 def generate_svg_chart(csv_path):
-    # Load the CSV data using pandas
     df = pd.read_csv(csv_path)
-
-    # Create a plot of the data using matplotlib
-    plt.figure(figsize=(10, 5))  # Set the figure size
-    for column in df.columns[1:]:  # Skip the 'Graph Name' column for x-axis labels
+    plt.figure(figsize=(10, 5))
+    for column in df.columns[1:]:  # Skip 'Graph Name' for plotting
         plt.plot(df['Graph Name'], df[column], marker='o', label=column)
-    
-    plt.title('Benchmark Results')
+
+    plt.title('Benchmark Results for ' + os.path.basename(csv_path).replace('.csv', ''))
     plt.xlabel('Graph Name')
     plt.ylabel('Time (seconds)')
-    plt.xticks(rotation=45)  # Rotate x-axis labels for better readability
-    plt.legend(title='Metrics')  # Add a legend with a title
-    plt.tight_layout()  # Adjust layout to make room for labels
+    plt.xticks(rotation=45)
+    plt.legend(title='Reordering Strategies')
+    plt.tight_layout()
 
-    # Save the plot as an SVG file
     svg_path = csv_path.replace('.csv', '.svg')
     plt.savefig(svg_path)
-    plt.close()  # Close the plot to free up memory
-
+    plt.close()
     print(f"Chart saved as {svg_path}")
 
-def write_to_csv_and_copy(results):
-    csv_filename = "aggregate_results.csv"
-    csv_path = os.path.join(graph_csv_dir, csv_filename)
-
-    # Initialize fieldnames set to ensure unique entries and include 'Graph Name'
-    fieldnames = {'Graph Name'}
-
-    # First, determine all possible fieldnames from the data
-    for category, reorderings_data in results.items():
-        for graph_name, data in reorderings_data.items():
-            fieldnames.update(data.keys())  # Add data keys to the fieldnames set
-
-    # Convert set to list and sort if necessary, or keep order if Python version >= 3.7
-    fieldnames = sorted(fieldnames)
+def write_csv_for_category(category, data, base_dir):
+    csv_filename = f"{category}_results.csv"
+    csv_path = os.path.join(base_dir, csv_filename)
+    fieldnames = ['Graph Name'] + sorted(data[next(iter(data))].keys())  # Dynamic field names based on keys
 
     with open(csv_path, mode='w', newline='') as file:
         writer = csv.DictWriter(file, fieldnames=fieldnames)
         writer.writeheader()
+        for graph_name, timings in data.items():
+            row = {'Graph Name': graph_name}
+            row.update(timings)
+            writer.writerow(row)
 
-        # Now write the data
-        for category, reorderings_data in results.items():
-            for graph_name, data in reorderings_data.items():
-                # Prepare row with graph name and ensure all keys are in the row, even if missing
-                row = {'Graph Name': graph_name}
-                # Update row with existing data, fill missing with None or a sensible default
-                for field in fieldnames:
-                    row[field] = data.get(field, None)  # Use None for missing fields
-                writer.writerow(row)
+    shutil.copy(csv_path, graph_charts_dir)
+    generate_svg_chart(csv_path)
 
-        shutil.copy(csv_path, graph_charts_dir)
-        generate_svg_chart(csv_path)
+def process_kernel_results(kernel_results):
+    """
+    Process kernel results for all categories defined in time_patterns.
+    Each category's data is written to a separate CSV file and a corresponding chart is generated.
+
+    :param kernel_results: Dictionary structured by graph and categories containing timing data.
+    """
+    # Iterate over all categories defined in time_patterns
+    for category in time_patterns.keys():
+        # Prepare data for this category
+        category_data = {graph: data.get(category, {}) for graph, data in kernel_results.items()}
+        # Write data to CSV and generate chart
+        write_csv_for_category(category, category_data, graph_csv_dir)
+
 
 # Function to initialize the kernel results data structure
 def initialize_kernel_results():
@@ -193,14 +191,14 @@ for kernel in KERNELS:
             for reorder_name, reorder_code in reorderings.items():
                 output = run_benchmark(kernel, graph_path, reorder_code, graph, reorder_name)
                 if output:
-                    # print (output)
                     time_data = parse_timing_data(output)
-                    print(time_data)
-                    # for category in time_data:
-                    #     kernel_results[category][reorder_name][graph] = time_data[category][reorder_name]
+                    for category, times in time_data.items():
+                        for key, value in times.items():
+                            kernel_results[category][graph][key] = value
+                            print(f"Processed {category} for {graph} under {key}: {value}")
 
     # print(kernel_results)
 
-# write_to_csv_and_copy(kernel_results)
+process_kernel_results(kernel_results)
 
 print("Benchmarking completed and data recorded in designated folders.")
