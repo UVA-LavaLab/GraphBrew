@@ -3,7 +3,9 @@ import csv
 import re
 import subprocess
 import os
+import sys
 import shutil
+import importlib.util
 import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib import rcParams
@@ -12,19 +14,16 @@ from collections import defaultdict
 # Setting a default font for matplotlib to handle more character glyphs
 rcParams['font.family'] = 'DejaVu Sans'
 
-# Loading configuration settings from a JSON file
-with open('config/lite.json', 'r') as f:
-    config = json.load(f)
-reorderings = config['reorderings']  # Dictionary of reordering strategies with corresponding codes
-KERNELS = config['kernels']          # List of kernels to use in benchmarks
-graph_suites = config['graph_suites']  # Graph suites with their respective details
-suite_dir = graph_suites.pop('suite_dir')  # Base directory for graph data, removing it from graph_suites
-
+reorderings    = None  # Dictionary of reordering strategies with corresponding codes
+KERNELS        = None          # List of kernels to use in benchmarks
+graph_suites   = None  # Graph suites with their respective details
+suite_dir      = None  # Base directory for graph data, removing it from graph_suites
+kernel_results = None
 # Define constants for benchmark settings
-NUM_TRIALS = 1        # Number of times to run each benchmark
+NUM_TRIALS     = 1        # Number of times to run each benchmark
 NUM_ITERATIONS = 1    # Number of iterations per trial (if applicable)
-FLUSH_CACHE = 0       # Whether to flush cache before each run
-PARALLEL = os.cpu_count()  # Use all available CPU cores
+FLUSH_CACHE    = 0       # Whether to flush cache before each run
+PARALLEL       = os.cpu_count()  # Use all available CPU cores
 
 # Directory setup for storing results
 results_dir = "bench/results"
@@ -58,6 +57,12 @@ time_patterns = {
         'Average': re.compile(r"Average Time:\s+([\d\.]+)")
     }
 }
+
+def import_check_install(package_name):
+    spec = importlib.util.find_spec(package_name)
+    if spec is None:
+        print(f"{package_name} is not installed. Installing...")
+        subprocess.run(["pip", "install", package_name])
 
 def clear_cpu_cache(size=100*1024*1024):  # 100 MB
     """
@@ -173,13 +178,16 @@ def parse_timing_data(output):
     return time_data
 
 def run_and_parse_benchmarks():
+    global kernel_results
+    
     """ Executes benchmarks for each kernel, graph, and reordering, then parses and stores the results. """
     for kernel in KERNELS:
         for suite_name, details in graph_suites.items():
             for graph in details["graphs"]:
                 graph_name   = graph["name"]
                 graph_symbol = graph["symbol"]
-                graph_path = f"{suite_dir}/{suite_name}/{graph_name}/{details['file_type']}"
+                graph_type   = graph["type"]
+                graph_path = f"{suite_dir}/{suite_name}/{graph_symbol}/graph.{graph_type}"
                 for reorder_name, reorder_code in reorderings.items():
                     output = run_benchmark(kernel, graph_path, reorder_code, graph_symbol, reorder_name)
                     if output:
@@ -192,11 +200,39 @@ def run_and_parse_benchmarks():
         if kernel_results[kernel]:  # Ensure there is data to process
             write_results_to_csv(kernel, kernel_results[kernel])
 
-kernel_results = initialize_kernel_results()
 
-run_and_parse_benchmarks()
 
-# for kernel in KERNELS:
-#     write_results_to_csv(kernel, kernel_results[kernel])
+dependencies = ['re', 'json', 'shutil', 'tarfile', 'csv', 'matplotlib', 'collections']
+for dependency in dependencies:
+    import_check_install(dependency)
 
-print("Benchmarking completed and data recorded in designated folders.")
+def main():
+    global reorderings
+    global graph_suites
+    global suite_dir
+    global KERNELS 
+    global kernel_results
+    
+    config_file    = "config/lite.json"  # Specify the path to your JSON configuration file
+    graph_download_script = "./graph_download.py"  # Specify the path to your other Python script
+
+    # Call the other Python script with the specified configuration file
+    subprocess.run(["python3", graph_download_script, config_file])
+
+    # Load configuration settings from the specified JSON file
+    with open(config_file, 'r') as f:
+        config = json.load(f)
+        reorderings = config['reorderings']  # Dictionary of reordering strategies with corresponding codes
+        KERNELS = config['kernels']          # List of kernels to use in benchmarks
+        graph_suites = config['graph_suites']  # Graph suites with their respective details
+        suite_dir = graph_suites.pop('suite_dir')  # Base directory for graph data, removing it from graph_suites
+
+    kernel_results = initialize_kernel_results()
+    run_and_parse_benchmarks()
+
+    print("Benchmarking completed and data recorded in designated folders.")
+
+if __name__ == "__main__":
+    main()
+
+   
