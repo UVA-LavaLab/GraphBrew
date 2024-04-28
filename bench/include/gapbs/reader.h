@@ -45,23 +45,64 @@ public:
     return filename_.substr(suff_pos);
   }
 
+  // EdgeList ReadInEL(std::ifstream &in) {
+  //   EdgeList el;
+  //   NodeID_ u, v;
+  //   while (in >> u >> v) {
+  //     el.push_back(Edge(u, v));
+  //   }
+  //   return el;
+  // }
+
+  // Assuming Edge, NodeID_, and EdgeList types are defined elsewhere
   EdgeList ReadInEL(std::ifstream &in) {
-    EdgeList el;
-    NodeID_ u, v;
-    while (in >> u >> v) {
-      el.push_back(Edge(u, v));
-    }
-    return el;
+      EdgeList el;
+      NodeID_ u, v;
+      std::string line;
+
+      while (std::getline(in, line)) {
+          // Check if the line is empty or starts with % or #
+          if (line.empty() || line[0] == '%' || line[0] == '#')
+              continue;
+
+          // Use a stringstream to read node ids from the line
+          std::istringstream iss(line);
+          if (iss >> u >> v) {
+              el.push_back(Edge(u, v));
+          }
+      }
+      return el;
   }
 
+  // EdgeList ReadInWEL(std::ifstream &in) {
+  //   EdgeList el;
+  //   NodeID_ u;
+  //   NodeWeight<NodeID_, WeightT_> v;
+  //   while (in >> u >> v) {
+  //     el.push_back(Edge(u, v));
+  //   }
+  //   return el;
+  // }
+
+    // Assuming Edge, NodeID_, NodeWeight, and EdgeList types are defined elsewhere
   EdgeList ReadInWEL(std::ifstream &in) {
-    EdgeList el;
-    NodeID_ u;
-    NodeWeight<NodeID_, WeightT_> v;
-    while (in >> u >> v) {
-      el.push_back(Edge(u, v));
-    }
-    return el;
+      EdgeList el;
+      NodeID_ u;
+      NodeWeight<NodeID_, WeightT_> v;
+      std::string line;
+
+      while (std::getline(in, line)) {
+          // Check if the line is empty or starts with % or #
+          if (line.empty() || line[0] == '%' || line[0] == '#')
+              continue;
+
+          // Use a stringstream to read node id and node weight from the line
+          std::istringstream iss(line);
+          if (iss >> u >> v) {
+              el.push_back(Edge(u, v));
+          }
+      }
+      return el;
   }
 
   // Note: converts vertex numbering from 1..N to 0..N-1

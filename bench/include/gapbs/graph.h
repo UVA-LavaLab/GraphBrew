@@ -332,7 +332,7 @@ CSRGraph &operator=(CSRGraph &other) {
     in_neighbors_shared_ = std::move(other.in_neighbors_shared_);
     org_ids_shared_ = std::move(other.org_ids_shared_);
     // need the following, otherwise would get double free errors
-    /*
+    
               other.num_edges_ = -1;
               other.num_nodes_ = -1;
               other.out_index_ = nullptr;
@@ -341,7 +341,7 @@ CSRGraph &operator=(CSRGraph &other) {
               other.in_neighbors_ = nullptr;
               other.flags_ = nullptr;
               other.offsets_ = nullptr;
-     */
+     
   }
   return *this;
 }
@@ -609,9 +609,10 @@ void update_org_ids(const pvector<NodeID_> &new_ids) {
     org_ids_ = nullptr;
     org_ids_shared_.reset();
   } else {
+    NodeID_ *source_array = org_ids_shared_.get();
   #pragma omp parallel for
     for (NodeID_ n = 0; n < num_nodes_; n++) {
-      org_ids_[n] = new_ids[org_ids_[n]];
+      source_array[n] = new_ids[source_array[n]];
     }
   }
 }

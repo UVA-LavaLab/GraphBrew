@@ -6,20 +6,16 @@
     },
     "kernels": ["bc", "bfs", "cc", "cc_sv", "pr", "pr_spmv", "sssp", "tc"],
     "graph_suites": {
-        "suite_dir" : "/media/cmv6ru/Data/00_GraphDatasets",
+        "suite_dir": "./00_Graph_Datasets/full",
         "SNAP": {
-            "graphs": ["cit-Patents", "com-Orkut", "soc-LiveJournal1", "soc-Pokec", "web-Google"],
-            "file_type": "graph.el"
-        },
-        "GAP": {
-            "graphs": ["kron", "road", "twitter", "urand", "web"],
-            "file_type": "graph.wel"
-        },
-         "LAW": {
-            "graphs": ["amazon-2008", "arabic-2005", "cnr-2000", "dblp-2010", "enron", "eu-2005",
-                       "hollywood-2009", "in-2004", "indochina-2004", "it-2004", "ljournal-2008",
-                       "sk-2005", "uk-2002", "uk-2005", "webbase-2001"],
-            "file_type": "graph.el"
+            "graphs": [
+                {"type": "mtx" ,"symbol" : "WGL"   ,"name" : "web-Google", "download_link": "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/web-Google.tar.gz"},
+                {"type": "el"  ,"symbol" : "CHET"  ,"name" : "cit-HepTh" , "download_link": "https://snap.stanford.edu/data/cit-HepTh.txt.gz"},
+                {"type": "mtx" ,"symbol" : "AMZ08" ,"name" : "amazon-2008","download_link": "https://suitesparse-collection-website.herokuapp.com/MM/LAW/amazon-2008.tar.gz"},
+                {"type": "mtx" ,"symbol" : "CNR00" ,"name" : "cnr-2000"  , "download_link": "https://suitesparse-collection-website.herokuapp.com/MM/LAW/cnr-2000.tar.gz"},
+                {"type": "mtx" ,"symbol" : "DBLP10","name" : "dblp-2010" , "download_link": "https://suitesparse-collection-website.herokuapp.com/MM/LAW/dblp-2010.tar.gz"}
+            ],
+            "file_type": "graph"
         }
     }
 }
