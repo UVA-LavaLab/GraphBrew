@@ -115,27 +115,25 @@ def initialize_kernel_results():
     return {kernel: defaultdict(lambda: defaultdict(dict)) for kernel in KERNELS}
 
 def write_results_to_csv(kernel, kernel_data):
-    """Writes results to a CSV, expecting kernel_data to be a dictionary where each graph's name is a key."""
+    """Writes results to a CSV file for the specified kernel."""
     csv_path = os.path.join(graph_csv_dir, f"{kernel}_results.csv")
     
-    # Determine all fieldnames dynamically based on nested dictionary keys
-    all_fieldnames = {'Graph'}  # Start with 'Graph'
-    for graph_data in kernel_data.values():
-        for category_data in graph_data.values():
-            all_fieldnames.update(category_data.keys())
-
-    fieldnames = list(all_fieldnames)  # Convert set to list
+    # Assume we have a flat dictionary for each graph containing all metrics
+    fieldnames = ['Graph', 'Original', 'DBG', 'RabbitOrder', 'Leiden', 'Average']
 
     with open(csv_path, 'w', newline='') as file:
         writer = csv.DictWriter(file, fieldnames=fieldnames)
         writer.writeheader()
+        
+        # Iterate over each graph's data and organize it into rows
+        for graph, data in kernel_data.items():
+            row = {'Graph': graph}
+            # Flatten the data for each reordering into a single row
+            for reorder, metrics in data.items():
+                for metric, value in metrics.items():
+                    row[metric] = value  # Update the row with each metric
 
-        # Write each graph's data as a separate row
-        for graph, categories in kernel_data.items():
-            for category, data in categories.items():
-                row = {'Graph': graph}
-                row.update(data)  # Assumes data is a flat dictionary with values to write
-                writer.writerow(row)
+            writer.writerow(row)
 
         print(f"Data written to {csv_path}")
 
