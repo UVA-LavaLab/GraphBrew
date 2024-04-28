@@ -154,7 +154,7 @@ def write_results_to_csv(kernel, kernel_data):
 
         create_seaborn_bar_graph(csv_path, chart_path, category)
 
-def create_pandas_bar_graph(csv_file, output_folder, category):
+def create_seaborn_bar_graph(csv_file, output_folder, category):
     # Read CSV file into a pandas DataFrame
     if os.path.exists(csv_file) and os.path.getsize(csv_file) > 0:
         df = pd.read_csv(csv_file)
@@ -315,10 +315,9 @@ def main():
     for dependency in dependencies:
         import_check_install(dependency)
 
-    config_file    = "config/lite.json"  # Specify the path to your JSON configuration file
-    graph_download_script = "./graph_download.py"  # Specify the path to your other Python script
+    config_file    = "scripts/config/lite.json"  # Specify the path to your JSON configuration file
+    graph_download_script = "./scripts/graph_download.py"  # Specify the path to your other Python script
     csv_dir = os.path.join("bench", "results", "data_csv")
-
 
 
     # Load configuration settings from the specified JSON file
