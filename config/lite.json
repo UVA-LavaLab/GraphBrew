@@ -10,13 +10,11 @@
         "suite_dir": "./00_Graph_Datasets",
         "SNAP": {
             "graphs": [
-                {"type": "mtx","symbol": "CPAT","name": "cit-Patents", "download_link": "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/cit-Patents.tar.gz"},
-                {"type": "mtx","symbol": "CORKT","name": "com-Orkut", "download_link": "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/com-Orkut.tar.gz"},
                 {"type": "mtx","symbol": "SLJ1","name": "soc-LiveJournal1", "download_link": "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/soc-LiveJournal1.tar.gz"},
-                {"type": "mtx","symbol": "SPKC","name": "soc-Pokec", "download_link": "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/soc-Pokec.tar.gz"},
+                {"type": "el","symbol": "SPKC","name": "soc-Pokec", "download_link": "https://snap.stanford.edu/data/soc-pokec-relationships.txt.gz"},
                 {"type": "mtx","symbol": "WGL" ,"name" : "web-Google", "download_link": "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/web-Google.tar.gz"}
             ],
-            "file_type": "graph.mtx"
+            "file_type": "graph"
         }
     }
 }
