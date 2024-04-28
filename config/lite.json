@@ -7,16 +7,16 @@
     },
     "kernels": ["bfs", "pr_spmv"],
     "graph_suites": {
-        "suite_dir": "/home/ab/Documents/00_github_repos/00_Graph_Datasets",
+        "suite_dir": "./00_Graph_Datasets",
         "SNAP": {
             "graphs": [
-                {"symbol": "CPAT","name": "cit-Patents", "download_link": "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/cit-Patents.tar.gz"},
-                {"symbol": "CORKT","name": "com-Orkut", "download_link": "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/com-Orkut.tar.gz"},
-                {"symbol": "SLJ1","name": "soc-LiveJournal1", "download_link": "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/soc-LiveJournal1.tar.gz"},
-                {"symbol": "SPKC","name": "soc-Pokec", "download_link": "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/soc-Pokec.tar.gz"},
-                {"symbol": "WGL","name": "web-Google", "download_link": "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/web-Google.tar.gz"}
+                {"type": "mtx","symbol": "CPAT","name": "cit-Patents", "download_link": "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/cit-Patents.tar.gz"},
+                {"type": "mtx","symbol": "CORKT","name": "com-Orkut", "download_link": "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/com-Orkut.tar.gz"},
+                {"type": "mtx","symbol": "SLJ1","name": "soc-LiveJournal1", "download_link": "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/soc-LiveJournal1.tar.gz"},
+                {"type": "mtx","symbol": "SPKC","name": "soc-Pokec", "download_link": "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/soc-Pokec.tar.gz"},
+                {"type": "mtx","symbol": "WGL" ,"name" : "web-Google", "download_link": "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/web-Google.tar.gz"}
             ],
-            "file_type": "graph.el"
+            "file_type": "graph.mtx"
         }
     }
 }
