@@ -148,35 +148,36 @@ def create_bar_graph(csv_file, output_folder, category):
     # Read CSV file into a pandas DataFrame
     df = pd.read_csv(csv_file)
 
+    # Define the color palette from the image provided
+    color_palette = ['#4572A7', '#AA4643', '#89A54E', '#80699B']
+
     # Extract labels and data
     labels = df.iloc[:, 0]
     data = df.iloc[:, 1:]
 
-    # Modify category label for the title
+    # Modify category label for the title and remove underscores
+    category_title = category.replace('_', ' ').capitalize()
     if 'time' in category.lower():
-        category_title = f"{category.capitalize()} (s)"
-    else:
-        category_title = category.capitalize()
+        category_title += ' (s)'
 
     # Create bar plot
-    ax = data.plot(kind='bar', stacked=True, figsize=(12, 6), edgecolor='black')
+    ax = df.plot(kind='bar', color=color_palette, figsize=(10, 5), width=0.8, edgecolor='black')
 
     # Set labels and title
     ax.set_xticklabels(labels, rotation=45, ha='right', fontsize=12)
     ax.set_xlabel('Graph', fontsize=14)
     ax.set_ylabel('Time (s)', fontsize=14)
-    ax.set_title(f"Reordering {category_title}", fontsize=16)
+    ax.set_title(f"{category_title}", fontsize=16)
 
     # Set font size for ticks
     ax.tick_params(axis='both', which='major', labelsize=12)
 
-    # Save the plot as SVG and PDF
+
+    # Save the plot in desired format and location
     filename = os.path.splitext(os.path.basename(csv_file))[0]
-    svg_path = os.path.join(output_folder, f"{filename}_{category}.svg")
-    pdf_path = os.path.join(output_folder, f"{filename}_{category}.pdf")
-    plt.tight_layout()
-    plt.savefig(svg_path)
-    plt.savefig(pdf_path)
+    for ext in ['svg', 'pdf']:
+        plt.tight_layout()
+        plt.savefig(os.path.join(output_folder, f"{filename}_graph.{ext}"))
 
     # Show the plot
     # plt.show()
