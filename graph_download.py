@@ -7,6 +7,8 @@ import sys
 from tqdm import tqdm
 from multiprocessing.pool import ThreadPool
 import importlib.util
+import gzip
+import zipfile
 
 def import_check_install(package_name):
     spec = importlib.util.find_spec(package_name)
@@ -22,13 +24,11 @@ def download_and_extract_graph(graph):
     file_type = f"graph.{graph_type}"
     
     download_dir = os.path.join(suite_dir_path, symbol)
-    os.makedirs(download_dir, exist_ok=True)
-    
     # Check if suite directory exists
     if os.path.exists(download_dir):
         print(f"Suite directory {download_dir} already exists. Skipping {symbol}.")
         return
-
+    os.makedirs(download_dir, exist_ok=True)
     # Download the graph file
     file_name = os.path.basename(download_link)
     file_path = os.path.join(download_dir, file_name)
@@ -45,7 +45,7 @@ def download_and_extract_graph(graph):
     
     # Extract the graph file if it's a tar.gz archive
     if file_name.endswith('.tar.gz'):
-        # print(f"Extracting {symbol}...")
+        print(f"Extracting {symbol}...")
         with tarfile.open(file_path, 'r:gz') as tar:
             largest_size = 0
             largest_file = None
@@ -80,6 +80,70 @@ def download_and_extract_graph(graph):
         # Remove the downloaded .tar.gz file
         os.remove(file_path)
         # print(f"Deleted {file_name}")
+
+    elif file_name.endswith('.gz'):
+        # Handle .gz files using gzip
+        # Create a subdirectory for extraction
+        extract_dir = os.path.join(download_dir, 'extracted')
+        os.makedirs(extract_dir, exist_ok=True)
+
+        # Extract the .gz file
+        with gzip.open(file_path, 'rb') as gz_file:
+            # Read the contents of the .gz file
+            content = gz_file.read()
+
+            # Write the contents to a new file
+            extracted_file_path = os.path.join(extract_dir, symbol + '.' + graph_type)
+            with open(extracted_file_path, 'wb') as extracted_file:
+                extracted_file.write(content)
+
+        # Move the extracted file to the desired location
+        graph_file_path = os.path.join(download_dir, f'{file_type}')
+        shutil.move(extracted_file_path, graph_file_path)
+
+        # Remove the extracted directory
+        shutil.rmtree(extract_dir)
+        os.remove(file_path)
+
+    elif file_name.endswith('.zip'):
+        # Handle .zip files using zipfile
+        # Create a subdirectory for extraction
+        extract_dir = os.path.join(download_dir, 'extracted')
+        os.makedirs(extract_dir, exist_ok=True)
+
+        # Extract the .zip file
+        with zipfile.ZipFile(file_path, 'r') as zip_file:
+            # Get the list of files in the .zip file
+            file_list = zip_file.namelist()
+
+            # Choose the largest file in the .zip file
+            largest_file = max(file_list, key=lambda x: zip_file.getinfo(x).file_size)
+
+            if largest_file:
+                # Extract the largest file
+                zip_file.extract(largest_file, path=extract_dir)
+
+                # Rename the extracted file to 'graph.extension'
+                extracted_path = os.path.join(extract_dir, largest_file)
+                graph_file_path = os.path.join(download_dir, f'{file_type}')
+                shutil.move(extracted_path, graph_file_path)
+
+                # Remove the rest of the files
+                for file in file_list:
+                    if file != largest_file:
+                        zip_file.extract(file, path=extract_dir)
+                        if os.path.isdir(os.path.join(extract_dir, file)):
+                            shutil.rmtree(os.path.join(extract_dir, file))
+                        else:
+                            os.remove(os.path.join(extract_dir, file))
+
+                # Remove the extracted directory
+                shutil.rmtree(extract_dir)
+                os.remove(file_path)
+            else:
+                print("No files found in the archive")
+    else:
+        print("Unsupported file format.")
 
 def download_and_extract_graphs(config):
     graph_suites = config['graph_suites']
