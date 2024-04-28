@@ -1,9 +1,9 @@
 [![Build Status](https://app.travis-ci.com/atmughrabi/GraphBrew.svg?token=L3reAtGHdEVVPvzcVqQ6&branch=main)](https://app.travis-ci.com/atmughrabi/GraphBrew)
 [<p align="center"><img src="./docs/figures/logo.svg" width="200" ></p>](#graphbrew)
 
-# GraphBrew
+# GraphBrew (Cache Friendly Graphs)
 
-This repository contains the GAP Benchmarks Suite (GAPBS), modified to reorder graphs and test cache performance on various graph algorithms.
+This repository contains the GAP Benchmarks Suite (GAPBS), modified to reorder graphs and improve cache performance on various graph algorithms.
 
 ## Enhancements (Graph Brewing)
 
