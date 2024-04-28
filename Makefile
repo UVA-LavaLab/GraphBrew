@@ -6,7 +6,8 @@
 CC  = $(shell which gcc-9 || which gcc)
 CXX = $(shell which g++-9 || which g++)
 # =========================================================
-BENCH_DIR = bench
+SCRIPT_DIR = scripts
+BENCH_DIR  = bench
 RES_DIR = $(BENCH_DIR)/results
 BIN_DIR = $(BENCH_DIR)/bin
 LIB_DIR = $(BENCH_DIR)/lib
@@ -132,13 +133,13 @@ run-%-sweep: $(BIN_DIR)/%
 	
 # =========================================================
 run-sweep: $(BIN_DIR)/%
-	python3 ./graph_brew.py
+	python3 ./$(SCRIPT_DIR)/graph_brew.py
 
 setup-lite: $(BIN_DIR)/%
-	python3 ./graph_download.py config/lite.json
+	python3 ./$(SCRIPT_DIR)/graph_download.py $(SCRIPT_DIR)/config/lite.json
 
 setup-full: $(BIN_DIR)/%
-	python3 ./graph_download.py config/full.json
+	python3 ./$(SCRIPT_DIR)/graph_download.py $(SCRIPT_DIR)/config/full.json
 
 # =========================================================
 # Compilation Rules
