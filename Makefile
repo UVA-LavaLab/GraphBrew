@@ -169,7 +169,7 @@ $(BIN_DIR):
 clean:
 	@rm -rf $(BIN_DIR) $(EXIT_STATUS)
 
-clean-all:
+clean-all: clean-results
 	@rm -rf $(BIN_DIR) $(RES_DIR) ./*.csv $(EXIT_STATUS)
 
 clean-results:
