@@ -93,7 +93,7 @@ KERNELS_BIN = $(addprefix $(BIN_DIR)/,$(KERNELS))
 SUITE = $(KERNELS_BIN) $(BIN_DIR)/converter
 # =========================================================
 
-.PHONY: all run-% help-% help clean run-%-gdb run-%-sweep $(BIN_DIR)/%
+.PHONY: all run-% graph-% help-% install-py-deps help clean run-%-gdb run-%-sweep $(BIN_DIR)/%
 all: $(SUITE)
 
 # =========================================================
@@ -137,10 +137,15 @@ run-%-sweep: $(BIN_DIR)/%
 	done
 	
 # =========================================================
-run-%: $(KERNELS_BIN)
+# Define a rule to install Python dependencies
+install-py-deps:
+	@echo "Installing Python dependencies..."
+	@pip3 install -r ./$(SCRIPT_DIR)/requirements.txt
+
+run-%: $(KERNELS_BIN) install-py-deps
 	python3 ./$(SCRIPT_DIR)/graph_brew.py $(CONFIG_DIR)/$*.json
 
-graph-%:
+graph-%: install-py-deps
 	python3 ./$(SCRIPT_DIR)/graph_download.py $(CONFIG_DIR)/$*.json
 
 # =========================================================
