@@ -23,6 +23,8 @@ KERNELS        = None          # List of kernels to use in benchmarks
 graph_suites   = None  # Graph suites with their respective details
 suite_dir      = None  # Base directory for graph data, removing it from graph_suites
 kernel_results = None
+prereorder_codes  = None
+postreorder_codes = None
 # Define constants for benchmark settings
 NUM_TRIALS     = 1        # Number of times to run each benchmark
 NUM_ITERATIONS = 1    # Number of iterations per trial (if applicable)
@@ -38,22 +40,22 @@ graph_raw_dir    = None      # Directory for raw outputs
 # Regular expressions for parsing timing data from benchmark outputs
 time_patterns = {
     'reorder_time': {
-        'Original': re.compile(r"Original Time:\s+([\d\.]+)"),
-        'Random': re.compile(r"Random Map Time:\s+([\d\.]+)"),
-        'Sort': re.compile(r"Sort Map Time:\s+([\d\.]+)"),
-        'HubSort': re.compile(r"HubSort Map Time:\s+([\d\.]+)"),
-        'HubCluster': re.compile(r"HubCluster Map Time:\s+([\d\.]+)"),
-        'DBG': re.compile(r"DBG Map Time:\s+([\d\.]+)"),
-        'HubSortDBG': re.compile(r"HubSortDBG Map Time:\s+([\d\.]+)"),
-        'HubClusterDBG': re.compile(r"HubClusterDBG Map Time:\s+([\d\.]+)"),
-        'RabbitOrder': re.compile(r"RabbitOrder Time:\s+([\d\.]+)"),
-        'Gorder': re.compile(r"Gorder Time:\s+([\d\.]+)"),
-        'Corder': re.compile(r"Corder Time:\s+([\d\.]+)"),
-        'RCM': re.compile(r"RCMorder Time:\s+([\d\.]+)"),
-        'Leiden': re.compile(r"Leiden Time:\s+([\d\.]+)")
+        'Corder': re.compile(r"\bCorder\b Time:\s+([\d\.]+)"),
+        'DBG': re.compile(r"\bDBG\b Map Time:\s+([\d\.]+)"),
+        'Gorder': re.compile(r"\bGorder\b Time:\s+([\d\.]+)"),
+        'HubClusterDBG': re.compile(r"\bHubClusterDBG\b Map Time:\s+([\d\.]+)"),
+        'HubCluster': re.compile(r"\bHubCluster\b Map Time:\s+([\d\.]+)"),
+        'HubSortDBG': re.compile(r"\bHubSortDBG\b Map Time:\s+([\d\.]+)"),
+        'HubSort': re.compile(r"\bHubSort\b Map Time:\s+([\d\.]+)"),
+        'Leiden': re.compile(r"\bLeiden\b Time:\s+([\d\.]+)"),
+        'Original': re.compile(r"\bOriginal\b Time:\s+([\d\.]+)"),
+        'RabbitOrder': re.compile(r"\bRabbitOrder\b Time:\s+([\d\.]+)"),
+        'Random': re.compile(r"\bRandom\b Map Time:\s+([\d\.]+)"),
+        'RCM': re.compile(r"\bRCMorder\b Time:\s+([\d\.]+)"),
+        'Sort': re.compile(r"\bSort\b Map Time:\s+([\d\.]+)")
     },
     'trial_time': {
-        'Average': re.compile(r"Average Time:\s+([\d\.]+)")
+        'Average': re.compile(r"\bAverage\b Time:\s+([\d\.]+)")
     }
 }
 
@@ -75,17 +77,32 @@ def clear_cpu_cache(size=100*1024*1024):  # 100 MB
         print(f"Failed to disrupt CPU cache: {e}")
 
 # Function to run benchmarks, handle output, and save raw data
-def run_benchmark(kernel, graph_path, reorder_code, graph_symbol, reorder_name):
-    # Prepare benchmark command with parameters
-    RUN_PARAMS = [f"-n{NUM_TRIALS}", f"-o{reorder_code}"]
-    GRAPH_BENCH = ["-f", f"{graph_path}"]
-    clear_cpu_cache();
+def run_benchmark(kernel, graph_path, reorder_code, graph_symbol, reorder_name, prereorder_codes, postreorder_codes):
+    # Clear CPU cache to simulate a fresh start for benchmarking
+    clear_cpu_cache()
 
+    # Start with the number of trials parameter
+    RUN_PARAMS = [f"-n{NUM_TRIALS}"]
+
+    # Add prereorder codes if any
+    RUN_PARAMS.extend([f"-o{code}" for code in prereorder_codes])
+
+    # Main reorder code
+    RUN_PARAMS.append(f"-o{reorder_code}")
+
+    # Add postreorder codes if any
+    RUN_PARAMS.extend([f"-o{code}" for code in postreorder_codes])
+
+    # Specify the graph file
+    GRAPH_BENCH = ["-f", f"{graph_path}"]
+
+    # Additional kernel-specific parameters
     if kernel in ['pr', 'pr_spmv']:
-        RUN_PARAMS.append(f"-i {NUM_ITERATIONS}")  # Add iterations for specific kernels
+        RUN_PARAMS.append(f"-i {NUM_ITERATIONS}")  # PageRank iterations
     if kernel == 'tc':
         RUN_PARAMS.append("-s")  # Special flag for 'tc' kernel
 
+    # Assemble the command
     cmd = [
         f"make run-{kernel}",
         f"GRAPH_BENCH='{ ' '.join(GRAPH_BENCH) }'",
@@ -94,16 +111,19 @@ def run_benchmark(kernel, graph_path, reorder_code, graph_symbol, reorder_name):
         f"PARALLEL={PARALLEL}"
     ]
 
+    # Convert list to a space-separated string for subprocess execution
     cmd = " ".join(cmd)
+    print(cmd)
+    # Execute the command
     try:
         output = subprocess.run(cmd, shell=True, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         output_text = output.stdout.decode()
         error_text = output.stderr.decode()
 
+        # Output handling
         if error_text:
             print("Error Output:", error_text)
 
-        # Save both output and errors to the file
         output_filename = f"{kernel}_{graph_symbol}_{reorder_name}_output.txt"
         output_filepath = os.path.join(graph_raw_dir, output_filename)
         with open(output_filepath, 'w') as f:
@@ -262,7 +282,7 @@ def create_seaborn_bar_graph(csv_file, output_folder, category):
     plt.close()
 
 
-def parse_timing_data(output):
+def parse_timing_data(output, reorderings, prereorder_codes, postreorder_codes):
     """Parses the benchmark output to extract timing data based on predefined patterns."""
     time_data = {}
     for category, patterns in time_patterns.items():
@@ -273,8 +293,46 @@ def parse_timing_data(output):
                 time_data[category][key] = float(match.group(1))
     return time_data
 
+# def parse_timing_data(output, reorderings, prereorder_codes, postreorder_codes):
+#     """Parses the benchmark output to extract timing data based on predefined patterns."""
+#     time_data = {'reorder_time': {}, 'trial_time': {}}
+#     found_reorder_times = {}
+
+#     # Iterate through the categories in the predefined order
+#     for category in time_patterns.keys():
+#         patterns = time_patterns[category]
+#         for key, regex in patterns.items():
+#             matches = regex.findall(output)
+#             if matches:
+#                 # If it's a reorder category, handle according to pre/post/main sequence
+#                 if category == 'reorder_time' and key in reorderings:
+#                     reorder_code = reorderings[key]
+#                     # Determine if this is pre, main, or post reorder time
+#                     if reorder_code in prereorder_codes:
+#                         time_key = f"pre_{key}"
+#                     elif reorder_code in postreorder_codes:
+#                         time_key = f"post_{key}"
+#                     else:
+#                         time_key = key  # Main reorder time
+#                     found_reorder_times.setdefault(reorder_code, []).append((time_key, float(matches[0])))
+#                 else:
+#                     # Handle trial times normally
+#                     time_data[category][key] = float(matches[0])
+
+#     # Ensure we capture the main reorder time correctly, even if it's not the first found
+#     if found_reorder_times:
+#         for code, times_list in found_reorder_times.items():
+#             sorted_times = sorted(times_list, key=lambda x: x[0] not in prereorder_codes and x[0] not in postreorder_codes)
+#             for time_key, time_value in sorted_times:
+#                 time_data['reorder_time'][time_key] = time_value
+
+#     return time_data
+
+
 def run_and_parse_benchmarks(config_file_name):
     global kernel_results
+    global prereorder_codes
+    global postreorder_codes
     
     """ Executes benchmarks for each kernel, graph, and reordering, then parses and stores the results. """
     for kernel in KERNELS:
@@ -285,9 +343,9 @@ def run_and_parse_benchmarks(config_file_name):
                 graph_type   = graph["type"]
                 graph_path = f"{suite_dir}/{suite_name}/{graph_symbol}/graph.{graph_type}"
                 for reorder_name, reorder_code in reorderings.items():
-                    output = run_benchmark(kernel, graph_path, reorder_code, graph_symbol, reorder_name)
+                    output = run_benchmark(kernel, graph_path, reorder_code, graph_symbol, reorder_name, prereorder_codes, postreorder_codes)
                     if output:
-                        time_data = parse_timing_data(output)
+                        time_data = parse_timing_data(output, reorderings, prereorder_codes, postreorder_codes)
                         # print(time_data)
                         for category, patterns in time_patterns.items():
                         # Update reorder_time
@@ -296,7 +354,7 @@ def run_and_parse_benchmarks(config_file_name):
                                     if reorder_name not in kernel_results[kernel][category][graph_symbol]:
                                         kernel_results[kernel][category][graph_symbol][reorder_name] = {}
                                     kernel_results[kernel][category][graph_symbol][reorder_name][key] = value
-                                    print(f"{kernel:<7} {graph_symbol:<7} {category:<15} {key:<13}: {value:7.7f}(s)")
+                                    print(f"{kernel:<7} {graph_symbol:<7} {category:<15} {key:<13}: {value}(s)")
 
         if kernel_results[kernel]:  # Ensure there is data to process
             write_results_to_csv(config_file_name, kernel, kernel_results[kernel])
@@ -310,6 +368,8 @@ def main(config_file):
     global suite_dir
     global KERNELS 
     global kernel_results
+    global prereorder_codes
+    global postreorder_codes
     # Directory setup for storing results
     global results_dir
     global graph_csv_dir
@@ -333,6 +393,9 @@ def main(config_file):
         KERNELS = config['kernels']          # List of kernels to use in benchmarks
         graph_suites = config['graph_suites']  # Graph suites with their respective details
         suite_dir = graph_suites.pop('suite_dir')  # Base directory for graph data, removing it from graph_suites
+        # Extract prereorder and postreorder codes
+        prereorder_codes = [config['prereorder'].get(key, []) for key in config.get('prereorder', {})]
+        postreorder_codes = [config['postreorder'].get(key, []) for key in config.get('postreorder', {})]
 
         if os.path.exists(graph_csv_dir):
             print(f"Suite directory {graph_csv_dir} already exists.")
