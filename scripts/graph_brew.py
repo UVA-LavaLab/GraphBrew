@@ -40,22 +40,22 @@ graph_raw_dir    = None      # Directory for raw outputs
 # Regular expressions for parsing timing data from benchmark outputs
 time_patterns = {
     'reorder_time': {
-        'Corder': re.compile(r"\bCorder\b Time:\s+([\d\.]+)"),
-        'DBG': re.compile(r"\bDBG\b Map Time:\s+([\d\.]+)"),
-        'Gorder': re.compile(r"\bGorder\b Time:\s+([\d\.]+)"),
-        'HubClusterDBG': re.compile(r"\bHubClusterDBG\b Map Time:\s+([\d\.]+)"),
-        'HubCluster': re.compile(r"\bHubCluster\b Map Time:\s+([\d\.]+)"),
-        'HubSortDBG': re.compile(r"\bHubSortDBG\b Map Time:\s+([\d\.]+)"),
-        'HubSort': re.compile(r"\bHubSort\b Map Time:\s+([\d\.]+)"),
-        'Leiden': re.compile(r"\bLeiden\b Time:\s+([\d\.]+)"),
-        'Original': re.compile(r"\bOriginal\b Time:\s+([\d\.]+)"),
-        'RabbitOrder': re.compile(r"\bRabbitOrder\b Time:\s+([\d\.]+)"),
-        'Random': re.compile(r"\bRandom\b Map Time:\s+([\d\.]+)"),
-        'RCM': re.compile(r"\bRCMorder\b Time:\s+([\d\.]+)"),
-        'Sort': re.compile(r"\bSort\b Map Time:\s+([\d\.]+)")
+        'Corder': re.compile(r"\bCorder\b Time:\s*([\d\.]+)"),
+        'DBG': re.compile(r"\bDBG\b Map Time:\s*([\d\.]+)"),
+        'Gorder': re.compile(r"\bGorder\b Time:\s*([\d\.]+)"),
+        'HubClusterDBG': re.compile(r"\bHubClusterDBG\b Map Time:\s*([\d\.]+)"),
+        'HubCluster': re.compile(r"\bHubCluster\b Map Time:\s*([\d\.]+)"),
+        'HubSortDBG': re.compile(r"\bHubSortDBG\b Map Time:\s*([\d\.]+)"),
+        'HubSort': re.compile(r"\bHubSort\b Map Time:\s*([\d\.]+)"),
+        'Leiden': re.compile(r"\bLeiden\b Time:\s*([\d\.]+)"),
+        'Original': re.compile(r"\bOriginal\b Time:\s*([\d\.]+)"),
+        'RabbitOrder': re.compile(r"\bRabbitOrder\b Time:\s*([\d\.]+)"),
+        'Random': re.compile(r"\bRandom\b Map Time:\s*([\d\.]+)"),
+        'RCM': re.compile(r"\bRCMorder\b Time:\s*([\d\.]+)"),
+        'Sort': re.compile(r"\bSort\b Map Time:\s*([\d\.]+)")
     },
     'trial_time': {
-        'Average': re.compile(r"\bAverage\b Time:\s+([\d\.]+)")
+        'Average': re.compile(r"\bAverage\b Time:\s*([\d\.]+)")
     }
 }
 
@@ -248,12 +248,12 @@ def create_seaborn_bar_graph(csv_file, output_folder, category):
     else:
         color_palette = base_palette[:num_groups]
 
-    plt.figure(figsize=(12, 6))
+    plt.figure(figsize=(8, 6))
     bar_plot = sns.barplot(x='Graph', y='Value', hue='Group', data=df_long, palette=color_palette, edgecolor='black', width=0.5, linewidth=2.5)
 
     # Calculate and plot geometric mean
     geom_means = df_long.groupby('Group')['Value'].apply(lambda x: np.exp(np.log(x).mean())).reset_index()
-    geom_means['Graph'] = 'Geometric Mean'
+    geom_means['Graph'] = 'GM'
     sns.barplot(x='Graph', y='Value', hue='Group', data=geom_means, palette=color_palette, edgecolor='black', width=0.5, linewidth=2.5, ax=plt.gca(), legend=False)
 
     # Find the position for the vertical line
@@ -281,52 +281,47 @@ def create_seaborn_bar_graph(csv_file, output_folder, category):
         plt.savefig(output_path, bbox_inches='tight')
     plt.close()
 
+# def parse_timing_data(output, reorderings, prereorder_codes, postreorder_codes):
+#     """Parses the benchmark output to extract timing data based on predefined patterns."""
+#     time_data = {}
+#     for category, patterns in time_patterns.items():
+#         time_data[category] = {}
+#         for key, regex in patterns.items():
+#             match = regex.search(output)
+#             if match:
+#                 time_data[category][key] = float(match.group(1))
+#     return time_data
 
 def parse_timing_data(output, reorderings, prereorder_codes, postreorder_codes):
     """Parses the benchmark output to extract timing data based on predefined patterns."""
-    time_data = {}
-    for category, patterns in time_patterns.items():
-        time_data[category] = {}
-        for key, regex in patterns.items():
-            match = regex.search(output)
-            if match:
-                time_data[category][key] = float(match.group(1))
+    found_reorder_times = {}
+    time_data = {category: {} for category in time_patterns}
+
+    match_count = 0
+    main_match = len(prereorder_codes)+1
+    # Process each line of the output
+    for line in output.strip().split('\n'):
+        for category, patterns in time_patterns.items():
+            for key, regex in patterns.items():
+                matches = regex.findall(line)
+                if matches:
+                    if category == 'reorder_time':
+                        match_count += 1
+                        if(match_count == main_match):
+                            reorder_code = reorderings[key]
+                            time_key = key  # Use the main reorder time
+                            found_reorder_times.setdefault(reorder_code, []).append((time_key, float(matches[0])))
+                    else:
+                        # Handle other times
+                        time_data[category][key] = float(matches[0])
+
+    if found_reorder_times:
+        for code, times_list in found_reorder_times.items():
+            sorted_times = sorted(times_list, key=lambda x: x[0] not in prereorder_codes and x[0] not in postreorder_codes)
+            for time_key, time_value in sorted_times:
+                time_data['reorder_time'][time_key] = time_value
+
     return time_data
-
-# def parse_timing_data(output, reorderings, prereorder_codes, postreorder_codes):
-#     """Parses the benchmark output to extract timing data based on predefined patterns."""
-#     time_data = {'reorder_time': {}, 'trial_time': {}}
-#     found_reorder_times = {}
-
-#     # Iterate through the categories in the predefined order
-#     for category in time_patterns.keys():
-#         patterns = time_patterns[category]
-#         for key, regex in patterns.items():
-#             matches = regex.findall(output)
-#             if matches:
-#                 # If it's a reorder category, handle according to pre/post/main sequence
-#                 if category == 'reorder_time' and key in reorderings:
-#                     reorder_code = reorderings[key]
-#                     # Determine if this is pre, main, or post reorder time
-#                     if reorder_code in prereorder_codes:
-#                         time_key = f"pre_{key}"
-#                     elif reorder_code in postreorder_codes:
-#                         time_key = f"post_{key}"
-#                     else:
-#                         time_key = key  # Main reorder time
-#                     found_reorder_times.setdefault(reorder_code, []).append((time_key, float(matches[0])))
-#                 else:
-#                     # Handle trial times normally
-#                     time_data[category][key] = float(matches[0])
-
-#     # Ensure we capture the main reorder time correctly, even if it's not the first found
-#     if found_reorder_times:
-#         for code, times_list in found_reorder_times.items():
-#             sorted_times = sorted(times_list, key=lambda x: x[0] not in prereorder_codes and x[0] not in postreorder_codes)
-#             for time_key, time_value in sorted_times:
-#                 time_data['reorder_time'][time_key] = time_value
-
-#     return time_data
 
 
 def run_and_parse_benchmarks(config_file_name):
