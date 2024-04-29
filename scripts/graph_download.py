@@ -26,7 +26,7 @@ def download_and_extract_graph(graph):
     download_dir = os.path.join(suite_dir_path, symbol)
     # Check if suite directory exists
     if os.path.exists(download_dir):
-        print(f"Suite directory {download_dir} already exists. Skipping {symbol}.")
+        print(f"Suite directory {download_dir} already exists.")
         return
     os.makedirs(download_dir, exist_ok=True)
     # Download the graph file

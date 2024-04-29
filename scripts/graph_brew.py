@@ -8,6 +8,7 @@ import shutil
 import importlib.util
 import pandas as pd
 import seaborn as sns
+import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import rcParams
 from collections import defaultdict
@@ -126,7 +127,7 @@ def graph_results_from_csv():
             # with open(csv_path, 'w', newline='') as file:
             # create_pandas_bar_graph(csv_path, chart_path, category)
             if os.path.exists(csv_file_path):
-                create_pandas_bar_graph(csv_file_path, graph_charts_dir, category)
+                create_seaborn_bar_graph(csv_file_path, graph_charts_dir, category)
 
 def write_results_to_csv(config_file_name, kernel, kernel_data):
     for category, category_data in kernel_data.items():
@@ -153,102 +154,110 @@ def write_results_to_csv(config_file_name, kernel, kernel_data):
         create_seaborn_bar_graph(csv_file_path, graph_charts_dir, category)
 
 def create_seaborn_bar_graph(csv_file, output_folder, category):
-    # Read CSV file into a pandas DataFrame
-    if os.path.exists(csv_file) and os.path.getsize(csv_file) > 0:
-        df = pd.read_csv(csv_file)
-        # Check if DataFrame is not empty
-        if not df.empty:
-            # Prepare the data in long-form for seaborn
-            df_long = df.melt(id_vars=[df.columns[0]], var_name='Group', value_name='Value')
+    if not os.path.exists(csv_file) or os.path.getsize(csv_file) == 0:
+        print(f"File {csv_file} does not exist or is empty.")
+        return
 
-            # Modify category label for the title and remove underscores
-            category_title = category.replace('_', ' ').capitalize()
-            if 'time' in category.lower():
-                category_title += ' (s)'
+    df = pd.read_csv(csv_file)
+    if df.empty:
+        print("DataFrame is empty.")
+        return
 
-            # Define the color palette from the image provided
-            color_palette = ['#1f88e5', '#91caf9', '#ffe082', '#ffa000']
+    df_long = df.melt(id_vars=[df.columns[0]], var_name='Group', value_name='Value')
+    category_title = category.replace('_', ' ').capitalize()
+    if 'time' in category.lower():
+        category_title += ' (s)'
 
-            # Initialize the matplotlib figure
-            f, ax = plt.subplots(figsize=(12, 6))
+    base_palette = [
+        '#1f88e5', '#91caf9',   # Original blues
+        '#ffe082', '#ffa000',   # Original yellows
+        '#174a7e', '#7ab8bf',   # Additional blues and teals
+        '#ffc857', '#dbab09',   # More yellows and golds
+        '#44a248',              # Introducing green
+        '#606c38', '#283d3b'    # Neutrals and dark accents
+    ]
 
-            # Create grouped bar plot with seaborn
-            sns.barplot(x='Graph', y='Value', hue='Group', errorbar=None, data=df_long, palette=color_palette, edgecolor='black', width=0.5, linewidth=2.5)
-
-            # Fixing tick positions and labels for robustness
-            ticks = ax.get_xticks()
-            labels = [label.get_text() for label in ax.get_xticklabels()]
-            ax.set_xticks(ticks)  # Ensure ticks are correctly set
-            ax.set_xticklabels(labels, rotation=45, ha='right', fontsize=14, fontweight='bold')  # Now safe to use
-
-            # Set labels with the modified layout
-            ax.set_xlabel('Graphs', fontsize=18, fontweight='bold')
-            ax.set_ylabel(category_title, fontsize=16, fontweight='bold')
-
-            # Add horizontal grid lines
-            ax.yaxis.grid(True, linestyle='--', which='major', color='grey', alpha=0.7)
-
-            # Set font size for ticks and adjust the layout
-            ax.tick_params(axis='both', which='major', labelsize=14, width=2)
-            plt.yscale('log')  # Set y-axis to logarithmic scale
-            plt.tight_layout()
-
-            # Remove legend if not needed
-            # ax.legend().set_visible(False)
-
-            # Save the plot as SVG and PDF in the output folder
-            filename = os.path.splitext(os.path.basename(csv_file))[0]
-            for ext in ['svg', 'pdf']:
-                output_path = os.path.join(output_folder, f"{filename}_{category}.{ext}")
-                plt.savefig(output_path)
-
-def create_pandas_bar_graph(csv_file, output_folder, category):
-    # Read CSV file into a pandas DataFrame
-    if os.path.exists(csv_file) and os.path.getsize(csv_file) > 0:
-        df = pd.read_csv(csv_file)
-
-        # Check if DataFrame is not empty
-        if not df.empty:
-            # Extract labels and data
-            labels = df.iloc[:, 0]
-            data = df.iloc[:, 1:]
-
-            # Modify category label for the title and remove underscores
-            category_title = category.replace('_', ' ').capitalize()
-            if 'time' in category.lower():
-                category_title += ' (s)'
-
-            # Define the color palette from the image provided
-            color_palette = ['#1f88e5', '#91caf9', '#ffe082', '#ffa000']
-
-            # Create grouped bar plot with the new color palette
-            # Adjust 'width' for narrow bars and 'linewidth' for thicker borders
-            ax = data.plot(kind='bar', color=color_palette, figsize=(12, 6), width=0.5, edgecolor='black', linewidth=2.5, logy=True)
-
-            # Set labels and title with the modified layout
-            # Adjust 'fontsize' and 'fontweight' for thicker and larger font
-            ax.set_xticklabels(labels, rotation=45, ha='right', fontsize=14, fontweight='bold')
-            ax.set_xlabel('Graphs', fontsize=18, fontweight='bold')
-            ax.set_ylabel(category_title, fontsize=16, fontweight='bold')
-            # ax.set_title(f"{category_title}", fontsize=18, fontweight='bold')
-
-            # Add horizontal grid lines
-            ax.yaxis.grid(True, linestyle='--', which='major', color='grey', alpha=0.7)
-
-            # Set font size for ticks and adjust the layout
-            ax.tick_params(axis='both', which='major', labelsize=14, width=2)
-            plt.yscale('log')  # Set y-axis to logarithmic scale
-            plt.tight_layout()
-
-            # Save the plot as SVG and PDF in the output folder
-            filename = os.path.splitext(os.path.basename(csv_file))[0]
-            for ext in ['svg', 'pdf']:
-                output_path = os.path.join(output_folder, f"{filename}_{category}.{ext}")
-                plt.savefig(output_path)
-        else:
-            print(f"CSV file {csv_file} is empty. Skipping graph generation.")
+    num_groups = df_long['Group'].nunique()
+    if num_groups > len(base_palette):
+        # Extend the palette by repeating it
+        repeats = -(-num_groups // len(base_palette))  # Ceiling division
+        color_palette = (base_palette * repeats)[:num_groups]
     else:
-        print(f"CSV file {csv_file} does not exist or is empty. No graph will be generated.")
+        color_palette = base_palette[:num_groups]
+
+    plt.figure(figsize=(12, 6))
+    sns.barplot(x='Graph', y='Value', hue='Group', data=df_long, palette=color_palette, edgecolor='black', width=0.5, linewidth=2.5)
+    plt.xticks(rotation=45, ha='right', fontsize=14, fontweight='bold')
+    plt.xlabel('Graphs', fontsize=18, fontweight='bold')
+    plt.ylabel(category_title, fontsize=16, fontweight='bold')
+    plt.yscale('log')
+    plt.grid(True, linestyle='--', which='major', color='grey', alpha=0.7)
+    plt.tight_layout()
+
+    filename = os.path.splitext(os.path.basename(csv_file))[0]
+    for ext in ['svg', 'pdf']:
+        output_path = os.path.join(output_folder, f"{filename}_{category}.{ext}")
+        plt.savefig(output_path)
+    plt.close()
+
+def create_seaborn_bar_graph(csv_file, output_folder, category):
+    if not os.path.exists(csv_file) or os.path.getsize(csv_file) == 0:
+        print(f"File {csv_file} does not exist or is empty.")
+        return
+
+    df = pd.read_csv(csv_file)
+    if df.empty:
+        print("DataFrame is empty.")
+        return
+
+    df_long = df.melt(id_vars=[df.columns[0]], var_name='Group', value_name='Value')
+    category_title = category.replace('_', ' ').capitalize()
+    if 'time' in category.lower():
+        category_title += ' (s)'
+
+    base_palette = [
+        '#1f88e5', '#91caf9', '#ffe082', '#ffa000', '#174a7e', '#7ab8bf',
+        '#ffc857', '#dbab09', '#44a248', '#606c38', '#283d3b'
+    ]
+    num_groups = df_long['Group'].nunique()
+    if num_groups > len(base_palette):
+        repeats = -(-num_groups // len(base_palette))  # Ceiling division
+        color_palette = (base_palette * repeats)[:num_groups]
+    else:
+        color_palette = base_palette[:num_groups]
+
+    plt.figure(figsize=(12, 6))
+    bar_plot = sns.barplot(x='Graph', y='Value', hue='Group', data=df_long, palette=color_palette, edgecolor='black', width=0.5, linewidth=2.5)
+
+    # Calculate and plot geometric mean
+    geom_means = df_long.groupby('Group')['Value'].apply(lambda x: np.exp(np.log(x).mean())).reset_index()
+    geom_means['Graph'] = 'Geometric Mean'
+    sns.barplot(x='Graph', y='Value', hue='Group', data=geom_means, palette=color_palette, edgecolor='black', width=0.5, linewidth=2.5, ax=plt.gca(), legend=False)
+
+    # Find the position for the vertical line
+    unique_graphs = df_long['Graph'].nunique()  # Number of unique graphs
+    # The position is after the last plot of the initial set of graphs
+    line_position = unique_graphs - 0.5
+
+    plt.axvline(x=line_position, color='gray', linestyle='--', linewidth=2)
+
+    plt.xticks(rotation=45, ha='right', fontsize=14, fontweight='bold')
+    plt.xlabel('Graphs', fontsize=18, fontweight='bold')
+    plt.ylabel(category_title, fontsize=16, fontweight='bold')
+    plt.yscale('log')
+    plt.grid(True, linestyle='--', which='major', color='grey', alpha=0.7)
+    plt.tight_layout()
+
+    # Position the legend outside the plot area
+    lgd = plt.legend(title='Reordering', bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0., fontsize=12, title_fontsize=14)
+    lgd.get_frame().set_linewidth(1.5)  # Increase the frame width
+
+
+    filename = os.path.splitext(os.path.basename(csv_file))[0]
+    for ext in ['svg', 'pdf']:
+        output_path = os.path.join(output_folder, f"{filename}_{category}.{ext}")
+        plt.savefig(output_path, bbox_inches='tight')
+    plt.close()
 
 
 def parse_timing_data(output):
