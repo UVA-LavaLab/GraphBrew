@@ -4,6 +4,9 @@
         "DBG": 5, "HubSortDBG": 6, "HubClusterDBG": 7, "RabbitOrder": 8,
         "Gorder": 9, "Corder": 10, "RCM": 11, "Leiden": 12
     },
+    "baselines": {
+        "Original": 0, "Random": 1
+    },
     "kernels": ["bc", "bfs", "cc", "cc_sv", "pr", "pr_spmv", "sssp", "tc"],
     "graph_suites": {
         "suite_dir": "./00_Graph_Datasets/full",

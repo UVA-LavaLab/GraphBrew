@@ -216,12 +216,16 @@ Example Usage:
 - **`CXX`**: The C++ compiler to be used, checks for `g++-9` first, if not found, falls back to `g++`.
 
 ### Directory Structure
-- **`BENCH_DIR`**: Base directory for benchmark-related subdirectories.
-- **`BIN_DIR`**: Directory where compiled binaries will be stored.
-- **`LIB_DIR`**: Directory for libraries (not explicitly used in the Makefile).
-- **`SRC_DIR`**: Source directory containing `.cc` files.
+- **`BIN_DIR`**: Directory for compiled binaries.
+- **`LIB_DIR`**: Library directory.
+- **`SRC_DIR`**: Source files directory.
 - **`INC_DIR`**: Include directory for header files.
-- **`OBJ_DIR`**: Directory for object files (not explicitly used in the Makefile).
+- **`OBJ_DIR`**: Object files directory.
+- **`SCRIPT_DIR`**: Scripts used for operations like graph processing.
+- **`BENCH_DIR`**: Benchmark directory.
+- **`CONFIG_DIR`**: Configuration files for scripts and full expriments in congif.json format.
+- **`RES_DIR`**: Directory where results are stored.
+- **`BACKUP_DIR`**: Directory for backups of results `make clean-results`. backsup results then cleans them.
 
 ### Include Directories
 - **`INCLUDE_<LIBRARY>`**: Each variable specifies the path to header files for various libraries or modules.
@@ -242,12 +246,16 @@ Example Usage:
 ## Makefile Targets
 
 ### Primary Targets
-- **`all`**: Compiles all binaries defined in `SUITE`.
-- **`run-%`**: Runs a specified benchmark, handling cache flushing if required.
-- **`run-%-gdb`**: Runs a specified benchmark using gdb.
-- **`run-%-mem`**: Runs a specified benchmark using valgrind for memory checking.
+- **`all`**: Compiles all benchmarks.
+- **`clean`**: Removes binaries and intermediate files.
+- **`clean-all`**: Removes binaries, results, and intermediate files.
+- **`clean-results`**: Backs up and then cleans the results directory.
+- **`run-%`**: Runs a specific benchmark by replacing `%` with the benchmark name. E.g., `run-bfs`.
+- **`run-%-gdb`**: Runs a specific benchmark under GDB.
+- **`run-%-mem`**: Runs a specific benchmark under Valgrind for memory leak checks.
 - **`run-all`**: Runs all benchmarks.
-- **`run-%-sweep`**: Runs a specified benchmark with a sweep over different reordering options.
+- **`graph-%`**: Downloads necessary graphs for a specific benchmark at `CONFIG_DIR`.
+- **`help`**: Displays help for all benchmarks.
 
 ### Compilation Rules
 - **`$(BIN_DIR)/%`**: Compiles a `.cc` source file into a binary, taking dependencies into account.

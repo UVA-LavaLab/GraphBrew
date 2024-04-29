@@ -5,6 +5,9 @@
         "RabbitOrder": 8,
         "Leiden": 12
     },
+    "baselines": {
+        "Original": 0, "Random": 1
+    },
     "kernels": ["bfs", "pr_spmv"],
     "graph_suites": {
         "suite_dir": "./00_Graph_Datasets/lite",
