@@ -171,10 +171,6 @@ def download_and_extract_graphs(config):
     for thread in threads:
         thread.get()
 
-dependencies = ['requests', 'tqdm', 'shutil', 'tarfile', 'requests', 'multiprocessing']
-for dependency in dependencies:
-    import_check_install(dependency)
-
 if __name__ == "__main__":
     if len(sys.argv) < 2:
         print("Usage: python graph_download.py config_file.json")

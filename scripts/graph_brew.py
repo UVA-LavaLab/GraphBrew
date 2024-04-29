@@ -314,10 +314,6 @@ def main(config_file):
     global graph_charts_dir
     global graph_raw_dir
 
-    dependencies = ['re', 'json', 'shutil', 'tarfile', 'csv', 'matplotlib', 'collections', 'seaborn']
-    for dependency in dependencies:
-        import_check_install(dependency)
-
     # config_file    = "scripts/config/lite.json"  # Specify the path to your JSON configuration file
     graph_download_script = "./scripts/graph_download.py"  # Specify the path to your other Python script
    
