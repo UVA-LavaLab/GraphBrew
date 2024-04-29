@@ -285,6 +285,7 @@ These tools are available on most Unix-like operating systems and can be install
 sudo apt-get update
 sudo apt-get install g++ make libomp-dev
 sudo apt-get install libgoogle-perftools-dev
+sudo apt-get install python3 python3-pip python3-venv
 ```
 ### Installing Boost 1.58.0
 
