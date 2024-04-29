@@ -21,6 +21,7 @@ before_install:
   # Update system repositories and install Boost
   - sudo apt-get update
   - sudo apt-get install libboost-all-dev  # This installs Boost via apt-get if suitable
+  - sudo apt-get install python3 python3-pip python3-venv
 
 # If specific version of Boost is needed and not available via apt-get, manually install it
 install:

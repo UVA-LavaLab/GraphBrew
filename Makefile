@@ -6,6 +6,9 @@
 CC  = $(shell which gcc-9 || which gcc)
 CXX = $(shell which g++-9 || which g++)
 # =========================================================
+PYTHON=@python3
+PIP=@pip
+# =========================================================
 SCRIPT_DIR  = scripts
 BENCH_DIR   = bench
 CONFIG_DIR  = $(SCRIPT_DIR)/config
@@ -39,14 +42,14 @@ DEP_LEIDEN = $(wildcard $(INC_DIR)/leiden/*.hxx)
 #     CLI COMMANDS                           
 # =========================================================
 COMPILED_FILE = $(@F)
-CREATE        = [${BLUE}create!${NC}]
-SUCCESS       = [${GREEN}success!${NC}]
-FAIL          = [${RED}failure!${NC}]
+CREATE        = [$(BLUE)create!$(NC)]
+SUCCESS       = [$(GREEN)success!$(NC)]
+FAIL          = [$(RED)failure!$(NC)]
 CREATE_MSG   = echo  "$(CREATE) $(COMPILED_FILE)"
 SUCCESS_MSG   = echo  "$(SUCCESS) $(COMPILED_FILE)"
 FAIL_MSG      = echo  "$(FAIL) $(COMPILED_FILE)"
-EXIT_STATUS   = &&  $(SUCCESS_MSG) || { $(FAIL_MSG) ; exit 1; }
-CREATE_STATUS  = &&  $(CREATE_MSG) || { $(FAIL_MSG) ; exit 1; }
+EXIT_STATUS   = &&  $(SUCCESS_MSG) || ( $(FAIL_MSG) ; exit 1; )
+CREATE_STATUS  = &&  $(CREATE_MSG) || ( $(FAIL_MSG) ; exit 1; )
 # TEST PASS OR FAIL
 PASS = \033[92mPASS\033[0m
 FAIL = \033[91mFAIL\033[0m
@@ -137,16 +140,16 @@ run-%-sweep: $(BIN_DIR)/%
 	done
 	
 # =========================================================
-# Define a rule to install Python dependencies
-install-py-deps:
-	@echo "Installing Python dependencies..."
-	@pip3 install -r ./$(SCRIPT_DIR)/requirements.txt
+# Rule to install Python dependencies
+install-py-deps: ./$(SCRIPT_DIR)/requirements.txt
+	$(PIP) install -q --upgrade pip
+	$(PIP) install -q -r ./$(SCRIPT_DIR)/requirements.txt
 
-run-%: $(KERNELS_BIN) install-py-deps
-	python3 ./$(SCRIPT_DIR)/graph_brew.py $(CONFIG_DIR)/$*.json
+run-%: $(KERNELS_BIN) | install-py-deps
+	$(PYTHON) ./$(SCRIPT_DIR)/graph_brew.py $(CONFIG_DIR)/$*.json
 
 graph-%: install-py-deps
-	python3 ./$(SCRIPT_DIR)/graph_download.py $(CONFIG_DIR)/$*.json
+	$(PYTHON) ./$(SCRIPT_DIR)/graph_download.py $(CONFIG_DIR)/$*.json
 
 # =========================================================
 # Compilation Rules
