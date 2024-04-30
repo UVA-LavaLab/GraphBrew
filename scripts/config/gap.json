@@ -5,7 +5,7 @@
         "Gorder": 9, "Corder": 10, "RCM": 11, "Leiden": 12
     },
     "baselines_speedup": {
-        "Original": 0, "Random": 1
+        "Original": 0
     },
     "baselines_overhead": {
         "Leiden": 12
