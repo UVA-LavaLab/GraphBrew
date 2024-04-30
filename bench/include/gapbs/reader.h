@@ -352,6 +352,7 @@ public:
 
   CSRGraph<NodeID_, DestID_, invert> ReadSerializedGraph() {
     bool weighted = GetSuffix() == ".wsg";
+    CSRGraph<NodeID_, DestID_, invert> g_new;
     if (!std::is_same<NodeID_, SGID>::value) {
       std::cout << "serialized graphs only allowed for 32bit" << std::endl;
       std::exit(-5);
@@ -395,14 +396,22 @@ public:
       file.read(reinterpret_cast<char *>(inv_neighs), num_neigh_bytes);
       inv_index = CSRGraph<NodeID_, DestID_>::GenIndex(offsets, inv_neighs);
     }
+    NodeID_ *org_ids = new NodeID_[num_nodes];
+    file.read(reinterpret_cast<char *>(org_ids), num_nodes * sizeof(NodeID_));  // Read original IDs
     file.close();
     t.Stop();
     PrintTime("Read Time", t.Seconds());
     if (directed)
-      return CSRGraph<NodeID_, DestID_, invert>(num_nodes, index, neighs,
+      g_new = CSRGraph<NodeID_, DestID_, invert>(num_nodes, index, neighs,
                                                 inv_index, inv_neighs);
     else
-      return CSRGraph<NodeID_, DestID_, invert>(num_nodes, index, neighs);
+      g_new = CSRGraph<NodeID_, DestID_, invert>(num_nodes, index, neighs);
+
+    std::shared_ptr<NodeID_> org_ids_shared;
+    org_ids_shared.reset(org_ids);
+    g_new.copy_org_ids(org_ids_shared);
+    
+    return g_new;
   }
 };
 

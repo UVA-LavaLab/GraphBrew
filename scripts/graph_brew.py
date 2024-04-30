@@ -7,6 +7,7 @@ import subprocess
 import os
 import sys
 import shutil
+from pathlib import Path
 import importlib.util
 import pandas as pd
 import seaborn as sns
@@ -83,20 +84,26 @@ def run_benchmark(kernel, graph_path, reorder_code, graph_symbol, reorder_name, 
     # Clear CPU cache to simulate a fresh start for benchmarking
     clear_cpu_cache()
 
+    RUN_PARAMS = []
     # Start with the number of trials parameter
-    RUN_PARAMS = [f"-n{NUM_TRIALS}"]
+    if kernel != 'converter':
+        RUN_PARAMS.append(f"-n{NUM_TRIALS}")
 
+    EXTENTION_PARAMS = []
     # Add prereorder codes if any
     RUN_PARAMS.extend([f"-o{code}" for code in prereorder_codes])
-
+    EXTENTION_PARAMS.extend([f"{code}" for code in prereorder_codes])
     # Main reorder code
     RUN_PARAMS.append(f"-o{reorder_code}")
-
+    EXTENTION_PARAMS.append(f"{reorder_code}")
     # Add postreorder codes if any
     RUN_PARAMS.extend([f"-o{code}" for code in postreorder_codes])
+    EXTENTION_PARAMS.extend([f"{code}" for code in postreorder_codes])
 
     # Specify the graph file
-    GRAPH_BENCH = ["-f", f"{graph_path}"]
+    GRAPH_BENCH  = ["-f", f"{graph_path}"]
+    OUTPUT_BENCH = []
+    cmd = []
 
     # Additional kernel-specific parameters
     if kernel in ['pr', 'pr_spmv']:
@@ -104,14 +111,27 @@ def run_benchmark(kernel, graph_path, reorder_code, graph_symbol, reorder_name, 
     if kernel == 'tc':
         RUN_PARAMS.append("-s")  # Special flag for 'tc' kernel
 
-    # Assemble the command
-    cmd = [
-        f"make run-{kernel}",
-        f"GRAPH_BENCH='{ ' '.join(GRAPH_BENCH) }'",
-        f"RUN_PARAMS='{ ' '.join(RUN_PARAMS) }'",
-        f"FLUSH_CACHE={FLUSH_CACHE}",
-        f"PARALLEL={PARALLEL}"
-    ]
+    if kernel == 'converter':
+        output_graph_path = Path(graph_path)
+        new_graph_path = output_graph_path.with_name(f"{output_graph_path.stem}_{'_'.join(EXTENTION_PARAMS)}.sg")
+        OUTPUT_BENCH = ["-b", f"{new_graph_path}"]
+        GRAPH_BENCH.extend(OUTPUT_BENCH)
+        cmd = [
+            f"make run-{kernel}",
+            f"GRAPH_BENCH='{ ' '.join(GRAPH_BENCH) }'",
+            f"RUN_PARAMS='{ ' '.join(RUN_PARAMS) }'",
+            f"FLUSH_CACHE={FLUSH_CACHE}",
+            f"PARALLEL={PARALLEL}"
+        ]
+    else:
+        # Assemble the command
+        cmd = [
+            f"make run-{kernel}",
+            f"GRAPH_BENCH='{ ' '.join(GRAPH_BENCH) }'",
+            f"RUN_PARAMS='{ ' '.join(RUN_PARAMS) }'",
+            f"FLUSH_CACHE={FLUSH_CACHE}",
+            f"PARALLEL={PARALLEL}"
+        ]
 
     # Convert list to a space-separated string for subprocess execution
     cmd = " ".join(cmd)

@@ -388,6 +388,10 @@ bool directed() const {
   return directed_;
 }
 
+// NodeID_ *org_ids(){
+//   return org_ids_shared_.get();
+// } 
+
 bool is_transpose() const {
   return is_transpose_;
 }
