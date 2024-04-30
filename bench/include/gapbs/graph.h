@@ -567,8 +567,8 @@ void buildPullSegmentedGraphs(std::string label, int numSegments,
   for (auto d : vertices()) {
     for (auto s : in_neigh(d)) {
       int segment_id;
-      if (std::is_same<DestID_, NodeWeight<> >::value)
-        segment_id = static_cast<NodeWeight<> >(s).v / segmentRange;
+if (std::is_same<DestID_, NodeWeight<>>::value)
+  segment_id = static_cast<NodeWeight<>>(s).v / segmentRange;
       else
         segment_id = s / segmentRange;
       graphSegments->getSegmentedGraph(segment_id)->addEdge(d, s);
