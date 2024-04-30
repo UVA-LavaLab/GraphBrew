@@ -55,7 +55,7 @@ Graphbrew can explore the impact of graph reordering techniques on the performan
      * The graph will be downloaded or should be copied to `/00_Graph_Datasets/full/GAP/{symbol}/graph.{type}`.
 2. **test Experiments:**
    * Use the `make run-test` command. This will:
-     * Execute the experiments as defined in the configuration file [(`scripts/config/test.json`)](./scripts/config/test.json.
+     * Execute the experiments as defined in the configuration file [(`scripts/config/test.json`)](./scripts/config/test.json).
      * Generate results (e.g., speedup graphs, overhead measurements) in the `bench/results` folder.
      * `make clean-results` will back up current results into `bench/backup` and delete `bench/results` for a new run.
      * Use this config for functional testing, to make sure all libraries are installed and GraphBrew is running -- **not for performance**.
