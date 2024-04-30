@@ -73,7 +73,7 @@ The experiments utilize the GAP benchmark suite of graph datasets. These dataset
 ### Run GAPBS GraphBrew:
 
 * Use the `make run-gap` command. This will:
-  * Execute the experiments as defined in the configuration file [(`scripts/config/gap.json`)](./scripts/config/gap.json..
+  * Execute the experiments as defined in the configuration file [(`scripts/config/gap.json`)](./scripts/config/gap.json).
   * Generate results (e.g., speedup graphs, overhead measurements) in the `bench/result` folder.
 
 # GraphBrew Standalone
