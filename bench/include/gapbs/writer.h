@@ -51,6 +51,8 @@ class WriterBase {
     SGOffset edges_to_write = g_.num_edges_directed();
     std::streamsize index_bytes = (num_nodes+1) * sizeof(SGOffset);
     std::streamsize neigh_bytes;
+    std::streamsize ids_bytes = num_nodes * sizeof(NodeID_);
+
     if (std::is_same<DestID_, NodeID_>::value)
       neigh_bytes = edges_to_write * sizeof(SGID);
     else
@@ -66,6 +68,8 @@ class WriterBase {
       out.write(reinterpret_cast<char*>(offsets.data()), index_bytes);
       out.write(reinterpret_cast<char*>(g_.in_neigh(0).begin()), neigh_bytes);
     }
+    // Write original IDs
+    out.write(reinterpret_cast<char*>(g_.org_ids_shared_.get()), ids_bytes);
   }
 
   void WriteGraph(std::string filename, bool serialized = false) {
