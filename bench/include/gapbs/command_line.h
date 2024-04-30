@@ -292,17 +292,22 @@ public:
 
 class CLConvert : public CLBase {
   std::string out_filename_ = "";
+  std::string label_out_filename_ = "";
   bool out_weighted_ = false;
   bool out_el_ = false;
   bool out_sg_ = false;
+  bool out_label_so_ = false;
+  bool out_label_lo_ = false;
 
 public:
   CLConvert(int argc, char **argv, std::string name)
       : CLBase(argc, argv, name) {
-    get_args_ += "e:b:w";
-    AddHelpLine('b', "file", "output serialized graph to file");
-    AddHelpLine('e', "file", "output edge list to file");
-    AddHelpLine('w', "file", "make output weighted");
+    get_args_ += "e:b:x:w";
+    AddHelpLine('b', "file", "output serialized graph to file (.sg)");
+    AddHelpLine('e', "file", "output edge list to file (.el)");
+    AddHelpLine('w', "file", "make output weighted (.wel|.wsg)");
+    AddHelpLine('x', "file", "output new reordered labels to file list (.so)");
+    AddHelpLine('q', "file", "output new reordered labels to file serialized (.lo)");
   }
 
   void HandleArg(signed char opt, char *opt_arg) override {
@@ -310,6 +315,14 @@ public:
     case 'b':
       out_sg_ = true;
       out_filename_ = std::string(opt_arg);
+      break;
+    case 'x':
+      out_label_so_ = true;
+      label_out_filename_ = std::string(opt_arg);
+      break;
+    case 'q':
+      out_label_lo_ = true;
+      label_out_filename_ = std::string(opt_arg);
       break;
     case 'e':
       out_el_ = true;
@@ -324,8 +337,11 @@ public:
   }
 
   std::string out_filename() const { return out_filename_; }
+  std::string label_out_filename() const { return label_out_filename_; }
   bool out_weighted() const { return out_weighted_; }
   bool out_el() const { return out_el_; }
+  bool out_label_so() const { return out_label_so_; }
+  bool out_label_lo() const { return out_label_lo_; }
   bool out_sg() const { return out_sg_; }
 };
 

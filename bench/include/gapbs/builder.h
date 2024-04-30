@@ -637,7 +637,7 @@ public:
       GenerateLeidenMapping(g, new_ids);
       break;
     case MAP:
-      LoadMappingFromFile(g, new_ids, useOutdeg, map_file);
+      LoadMappingFromFile(g, new_ids, map_file);
       break;
     case ORIGINAL:
       GenerateOriginalMapping(g, new_ids);
@@ -685,48 +685,36 @@ public:
   }
 
   void LoadMappingFromFile(const CSRGraph<NodeID_, DestID_, invert> &g,
-                           pvector<NodeID_> &new_ids, bool useOutdeg,
-                           std::string map_file = "mapping.label") {
+                           pvector<NodeID_> &new_ids,
+                           std::string map_file = "mapping.lo") {
     Timer t;
-    t.Start();
-
     int64_t num_nodes = g.num_nodes();
-    // int64_t num_edges = g.num_edges();
-
-    ifstream ifs(map_file.c_str(), std::ifstream::in);
-    if (!ifs.good()) {
-      cout << "File " << map_file << " does not exist!" << endl;
-      exit(-1);
+    t.Start();
+    std::ifstream ifs(map_file, std::ifstream::in);
+    if (!ifs.is_open()) {
+      std::cerr << "File " << map_file << " does not exist!" << std::endl;
+      throw std::runtime_error("File not found.");
     }
-    // int64_t num_nodes_1, num_edges_1;
-    // ifs >> num_nodes_1;
-    // ifs >> num_edges_1;
-    // cout << " num_nodes: " << num_nodes_1 << " num_edges: " << num_edges_1
-    //      << endl;
-    // cout << " num_nodes: " << num_nodes << " num_edges: " << num_edges <<
-    // endl; if (num_nodes != num_nodes_1) {
-    //   cout << "Mismatch: " << num_nodes << " " << num_nodes_1 << endl;
-    //   exit(-1);
-    // }
-    // if (num_nodes != (int64_t)new_ids.size()) {
-    //   cout << "Mismatch: " << num_nodes << " " << new_ids.size() << endl;
-    //   exit(-1);
-    // }
-    // if (num_edges != num_edges_1) {
-    //   cout << "Warning! Potential mismatch: " << num_edges << " " <<
-    //   num_edges_1
-    //        << endl;
-    // }
-
-    NodeID_ v;
-
-    for (int64_t i = 0; i < num_nodes; i++) {
-      ifs >> v;
-      new_ids[i] = v;
+    std::string file_suffix = map_file.substr(map_file.find_last_of('.'));
+    if (file_suffix != ".so" && file_suffix != ".lo") {
+      std::cerr << "Unsupported file format: " << file_suffix << std::endl;
+      throw std::invalid_argument("Unsupported format.");
     }
-
+    NodeID_ *label_ids = new NodeID_[num_nodes];
+    if (file_suffix == ".so") {
+      ifs.read(reinterpret_cast<char *>(label_ids),
+               g.num_nodes() * sizeof(NodeID_));
+#pragma omp parallel for
+      for (int64_t i = 0; i < num_nodes; i++) {
+        new_ids[i] = label_ids[i];
+      }
+    } else {
+      for (int64_t i = 0; i < num_nodes; i++) {
+        ifs >> new_ids[i];
+      }
+    }
+    delete[] label_ids;
     ifs.close();
-
     t.Stop();
     PrintTime("Load Map Time", t.Seconds());
   }

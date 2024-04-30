@@ -22,10 +22,10 @@ def import_check_install(package_name):
 
 def download_and_extract_graph(graph):
     symbol = graph["symbol"]
-    graph_type = graph["type"]
+    graph_download_type = graph["download_type"]
     download_link = graph["download_link"]
     suite_dir_path = graph["suite_dir_path"]
-    file_type = f"graph.{graph_type}"
+    graph_fullname = graph["graph_fullname"]
 
     download_dir = os.path.join(suite_dir_path, symbol)
     # Check if suite directory exists
@@ -66,9 +66,9 @@ def download_and_extract_graph(graph):
                 tar.extract(largest_file, path=extract_dir)
                 # Rename the largest file to 'graph.extension'
                 extracted_path = os.path.join(extract_dir, largest_file.name)
-                graph_file_path = os.path.join(download_dir, f"{file_type}")
+                graph_file_path = os.path.join(download_dir, f"{graph_fullname}")
                 shutil.move(extracted_path, graph_file_path)
-                # print(f"Extracted and renamed {largest_file.name} to {file_type}")
+                # print(f"Extracted and renamed {largest_file.name} to {graph_fullname}")
                 # Remove the rest of the files
                 for member in tar.getmembers():
                     if member.name != largest_file.name:
@@ -99,12 +99,12 @@ def download_and_extract_graph(graph):
             content = gz_file.read()
 
             # Write the contents to a new file
-            extracted_file_path = os.path.join(extract_dir, symbol + "." + graph_type)
+            extracted_file_path = os.path.join(extract_dir, symbol + "." + graph_download_type)
             with open(extracted_file_path, "wb") as extracted_file:
                 extracted_file.write(content)
 
         # Move the extracted file to the desired location
-        graph_file_path = os.path.join(download_dir, f"{file_type}")
+        graph_file_path = os.path.join(download_dir, f"{graph_fullname}")
         shutil.move(extracted_file_path, graph_file_path)
 
         # Remove the extracted directory
@@ -131,7 +131,7 @@ def download_and_extract_graph(graph):
 
                 # Rename the extracted file to 'graph.extension'
                 extracted_path = os.path.join(extract_dir, largest_file)
-                graph_file_path = os.path.join(download_dir, f"{file_type}")
+                graph_file_path = os.path.join(download_dir, f"{graph_fullname}")
                 shutil.move(extracted_path, graph_file_path)
 
                 # Remove the rest of the files
@@ -165,12 +165,12 @@ def download_and_extract_graphs(config):
         os.makedirs(suite_dir_path, exist_ok=True)
 
         graphs = details["graphs"]
-        file_type = details["file_type"]
+        graph_basename = details.get("graph_basename", "graph")
 
         for graph in graphs:
-            graph_type = graph["type"]
+            graph_download_type = graph.get("download_type", "el")
             graph["suite_dir_path"] = suite_dir_path
-            graph["file_type"] = f"graph.{graph_type}"
+            graph["graph_fullname"] = f"{graph_basename}.{graph_download_type}"
             thread = ThreadPool(processes=1).apply_async(
                 download_and_extract_graph, (graph,)
             )
