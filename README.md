@@ -33,7 +33,7 @@ This project contains a collection of Graph Analytics for Performance [(GAPBS)](
 
 ## Prerequisites
 
-Before you begin, ensure you have the following installed on your system:
+Before you begin, ensure you have the following installed on your system, [(section)](#installing-prerequisites):
 - **Ubuntu**: All testing has been done on Ubuntu `22.04+` Operating System.
 - **GCC**: The GNU Compiler Collection, specifically `g++9` which supports C++11 or later.
 - **Make**: The build utility to automate the compilation.
@@ -51,7 +51,7 @@ Graphbrew can explore the impact of graph reordering techniques on the performan
 
 1. **Run Experiments:**
    * Use the `make run-<experiment-name>` command, matching the `scripts/config/<experiment-name>.json` file name. This will:
-     * Download necessary datasets if they don't exist. Provide a link in the `JSON` file or copy the graph into the same directory to skip downloading. 
+     * Download necessary datasets if they don't exist. Provide a link in the [`JSON`](#configuration-file-breakdown-gapjson) file or copy the graph into the same directory to skip downloading. 
      * The graph will be downloaded or should be copied to `/00_Graph_Datasets/full/GAP/{symbol}/graph.{type}`.
 2. **test Experiments:**
    * Use the `make run-test` command. This will:
@@ -102,6 +102,10 @@ make run-<benchmark_name>
 ```bash
 make run-bfs
 ```
+### Parameters
+All parameters [(section)](#parameters) can be passed through the make command via:
+   * `RUN_PARAMS='-n1 -o11'`, for controlling aspects of the algorithm and reordering.
+   * `GRAPH_BENCH ='-f ./test/graphs/4.el'`,`GRAPH_BENCH ='-g 4'`, for controlling the graph path, or kron/random generation.
 
 ### Relabeling the graph
    * `converter` is used to convert graphs and apply new labeling to them.
@@ -165,6 +169,8 @@ The graph loading infrastructure understands the following formats:
 ## Parameters
 
 All parameters can be passed through the make command via:
+   * Reorder the graph, orders can be layered.
+   * Segment the graph for scalability, requires modifying the algorithm to iterate through segments.
    * `RUN_PARAMS='-n1 -o11'`, for controlling aspects of the algorithm and reordering.
    * `GRAPH_BENCH ='-f ./test/graphs/4.el'`,`GRAPH_BENCH ='-g 4'`, for controlling the graph path, or kron/random generation.
 
@@ -194,9 +200,6 @@ pagerank
 --------------------------------------------------------------------------------
 ```
 ### GraphBrew Parameters
-   * Reorder the graph, orders can be layered.
-   * Segment the graph for scalability, requires modifying the algorithm to iterate through segments.
-
 ```bash
 --------------------------------------------------------------------------------
 -o <order>   : Apply reordering strategy, optionally layer ordering 
