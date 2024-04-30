@@ -8,8 +8,8 @@ This repository contains the GAP Benchmarks Suite (GAPBS), modified to reorder g
 ## Enhancements (Graph Brewing)
 
 * **GraphBrew:** Graph reordering (multi-layered) for improved cache performance.
-* **Rabbit Order:** [link](https://github.com/araij/rabbit_order) Community clustering order with incremental aggregation.
 * **Leiden Order:** [link](https://github.com/puzzlef/leiden-communities-openmp) Community clustering order with Louvian/refinement step.
+* **Rabbit Order:** [link](https://github.com/araij/rabbit_order) Community clustering order with incremental aggregation.
 * **Degree-Based Grouping:** [link](https://github.com/ease-lab/dbg) Implementing degree-based grouping strategies to test benchmark performance.
 * **Gorder:** [link](https://github.com/datourat/Gorder) Window based ordering with reverse Cuthill-McKee (RCM) algorithm.
 * **Corder:** [link](https://github.com/yuang-chen/Corder-TPDS-21) Workload Balancing via Graph Reordering on Multicore Systems.
