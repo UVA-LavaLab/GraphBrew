@@ -471,6 +471,10 @@ public:
     org_ids_shared.reset(org_ids);
     g_new.copy_org_ids(org_ids_shared);
 
+    delete[] temp_neighs;
+    delete[] temp_inv_neighs;
+    delete[] temp_neighs_clear;
+    delete[] temp_inv_neighs_clear;
     return g_new;
   }
 };

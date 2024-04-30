@@ -1,11 +1,11 @@
 [![Build Status](https://app.travis-ci.com/atmughrabi/GraphBrew.svg?token=L3reAtGHdEVVPvzcVqQ6&branch=main)](https://app.travis-ci.com/atmughrabi/GraphBrew)
 [<p align="center"><img src="./docs/figures/logo.svg" width="200" ></p>](#graphbrew)
 
-# GraphBrew (Cache Friendly Graphs)
+# GraphBrew
 
-This repository contains the GAP Benchmarks Suite (GAPBS), modified to reorder graphs and improve cache performance on various graph algorithms.
+This repository contains the GAP Benchmarks Suite [(GAPBS)](https://github.com/sbeamer/gapbs), modified to reorder graphs and improve cache performance on various graph algorithms.
 
-## Enhancements (Graph Brewing)
+## Enhancements with Cache Friendly Graphs (Graph Brewing)
 
 * **GraphBrew:** Graph reordering (multi-layered) for improved cache performance.
 * **Leiden Order:** [link](https://github.com/puzzlef/leiden-communities-openmp) Community clustering order with Louvian/refinement step.

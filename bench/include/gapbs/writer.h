@@ -69,6 +69,23 @@ public:
     out.write(reinterpret_cast<char *>(g_.org_ids_shared_.get()), ids_bytes);
   }
 
+  void WriteSerializedLabels(std::fstream &out) {
+    if (!std::is_same<NodeID_, SGID>::value) {
+      std::cout << "serialized graphs only allowed for 32b IDs" << std::endl;
+      std::exit(-4);
+    }
+    SGOffset num_nodes = g_.num_nodes();
+    std::streamsize ids_bytes = num_nodes * sizeof(NodeID_);
+    out.write(reinterpret_cast<char *>(g_.org_ids_shared_.get()), ids_bytes);
+  }
+
+  void WriteListLabels(std::fstream &out) {
+    NodeID_ *source_array = g_.org_ids_shared_.get();
+    for (NodeID_ u = 0; u < g_.num_nodes(); u++) {
+        out << source_array[u] << std::endl;
+    }
+  }
+
   void WriteGraph(std::string filename, bool serialized = false) {
     if (filename == "") {
       std::cout << "No output filename given (Use -h for help)" << std::endl;
@@ -85,6 +102,24 @@ public:
       WriteEL(file);
     file.close();
   }
+
+  void WriteLabels(std::string filename, bool serialized = false) {
+    if (filename == "") {
+      std::cout << "No output filename given (Use -h for help)" << std::endl;
+      std::exit(-8);
+    }
+    std::fstream file(filename, std::ios::out | std::ios::binary);
+    if (!file) {
+      std::cout << "Couldn't write to file " << filename << std::endl;
+      std::exit(-5);
+    }
+    if (serialized)
+      WriteSerializedLabels(file);
+    else
+      WriteListLabels(file);
+    file.close();
+  }
+
 
 private:
   CSRGraph<NodeID_, DestID_> &g_;

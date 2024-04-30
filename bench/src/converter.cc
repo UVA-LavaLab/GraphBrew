@@ -11,7 +11,7 @@
 
 using namespace std;
 
-int main(int argc, char* argv[]) {
+int main(int argc, char *argv[]) {
   CLConvert cli(argc, argv, "converter");
   cli.ParseArgs();
   if (cli.out_weighted()) {
@@ -19,13 +19,23 @@ int main(int argc, char* argv[]) {
     WGraph wg = bw.MakeGraph();
     wg.PrintStats();
     WeightedWriter ww(wg);
-    ww.WriteGraph(cli.out_filename(), cli.out_sg());
+    if (cli.out_sg() || cli.out_el())
+      ww.WriteGraph(cli.out_filename(), cli.out_sg());
+    if (cli.out_label_so() || cli.out_label_lo()) {
+      ww.WriteLabels(cli.label_out_filename(), cli.out_label_so());
+    }
+
   } else {
     Builder b(cli);
     Graph g = b.MakeGraph();
     g.PrintStats();
     Writer w(g);
-    w.WriteGraph(cli.out_filename(), cli.out_sg());
+    if (cli.out_sg() || cli.out_el())
+      w.WriteGraph(cli.out_filename(), cli.out_sg());
+    if (cli.out_label_so() || cli.out_label_lo()) {
+      w.WriteLabels(cli.label_out_filename(), cli.out_label_so());
+    }
   }
+
   return 0;
 }
