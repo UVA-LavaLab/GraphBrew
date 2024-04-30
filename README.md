@@ -103,7 +103,7 @@ make run-<benchmark_name>
 make run-bfs
 ```
 ### Parameters
-All parameters [(section)](#parameters) can be passed through the make command via:
+All parameters [(section)](#graphbrew-parameters) can be passed through the make command via:
    * `RUN_PARAMS='-n1 -o11'`, for controlling aspects of the algorithm and reordering.
    * `GRAPH_BENCH ='-f ./test/graphs/4.el'`,`GRAPH_BENCH ='-g 4'`, for controlling the graph path, or kron/random generation.
 
@@ -166,7 +166,7 @@ The graph loading infrastructure understands the following formats:
 + `.sg` serialized pre-built graph (use `converter` to make)
 + `.wsg` weighted serialized pre-built graph (use `converter` to make)
 
-## Parameters
+## GraphBrew Parameters
 
 All parameters can be passed through the make command via:
    * Reorder the graph, orders can be layered.
@@ -199,7 +199,7 @@ pagerank
  -t <t>       : use tolerance t                                       [0.000100]
 --------------------------------------------------------------------------------
 ```
-### GraphBrew Parameters
+### Reorder Parameters
 ```bash
 --------------------------------------------------------------------------------
 -o <order>   : Apply reordering strategy, optionally layer ordering 
