@@ -18,7 +18,7 @@ This repository contains the GAP Benchmarks Suite (GAPBS), modified to reorder g
 
 ## GAP Benchmarks
 
-This project contains a collection of Graph Analytics for Performance (GAPBS) benchmarks implemented in C++. The benchmarks are designed to exercise the performance of graph algorithms on a CPU. 
+This project contains a collection of Graph Analytics for Performance [(GAPBS)](https://github.com/sbeamer/gapbs) benchmarks implemented in C++. The benchmarks are designed to exercise the performance of graph algorithms on a CPU. 
 
 **Key Algorithms**
 
@@ -55,7 +55,7 @@ Graphbrew can explore the impact of graph reordering techniques on the performan
      * The graph will be downloaded or should be copied to `/00_Graph_Datasets/full/GAP/{symbol}/graph.{type}`.
 2. **test Experiments:**
    * Use the `make run-test` command. This will:
-     * Execute the experiments as defined in the configuration file (`scripts/config/test.json`).
+     * Execute the experiments as defined in the configuration file [(`scripts/config/test.json`)](./scripts/config/test.json.
      * Generate results (e.g., speedup graphs, overhead measurements) in the `bench/results` folder.
      * `make clean-results` will back up current results into `bench/backup` and delete `bench/results` for a new run.
      * Use this config for functional testing, to make sure all libraries are installed and GraphBrew is running -- **not for performance**.
@@ -73,10 +73,10 @@ The experiments utilize the GAP benchmark suite of graph datasets. These dataset
 ### Run GAPBS GraphBrew:
 
 * Use the `make run-gap` command. This will:
-  * Execute the experiments as defined in the configuration file (`scripts/config/gap.json`).
+  * Execute the experiments as defined in the configuration file [(`scripts/config/gap.json`)](./scripts/config/gap.json..
   * Generate results (e.g., speedup graphs, overhead measurements) in the `bench/result` folder.
 
-# GraphBrew single usage
+# GraphBrew Standalone
 
 ## Usage
 
@@ -165,7 +165,7 @@ The graph loading infrastructure understands the following formats:
 ## Parameters
 
 All parameters can be passed through the make command via:
-   * `RUN_PARAMS='-n1 -o11'`, for controling asspect of the algorithm and reordering.
+   * `RUN_PARAMS='-n1 -o11'`, for controlling aspects of the algorithm and reordering.
    * `GRAPH_BENCH ='-f ./test/graphs/4.el'`,`GRAPH_BENCH ='-g 4'`, for controlling the graph path, or kron/random generation.
 
 ### GAP Parameters (PageRank example)
