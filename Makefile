@@ -96,7 +96,7 @@ KERNELS_BIN = $(addprefix $(BIN_DIR)/,$(KERNELS))
 SUITE = $(KERNELS_BIN) $(BIN_DIR)/converter
 # =========================================================
 
-.PHONY: all run-% graph-% help-% install-py-deps help clean run-%-gdb run-%-sweep $(BIN_DIR)/%
+.PHONY: all run-% graph-% help-% install-py-deps help clean clean-all clean-results run-%-gdb run-%-sweep $(BIN_DIR)/%
 all: $(SUITE)
 
 # =========================================================
@@ -145,7 +145,7 @@ install-py-deps: ./$(SCRIPT_DIR)/requirements.txt
 	$(PIP) install -q --upgrade pip
 	$(PIP) install -q -r ./$(SCRIPT_DIR)/requirements.txt
 
-run-%: $(KERNELS_BIN) | install-py-deps
+run-%: $(KERNELS_BIN) install-py-deps
 	$(PYTHON) ./$(SCRIPT_DIR)/graph_brew.py $(CONFIG_DIR)/$*.json
 
 graph-%: install-py-deps
@@ -184,8 +184,7 @@ clean-results:
 # Help
 # =========================================================
 help: help-pr
-	@echo "Available Make commands:"
-	@echo "  all            - Builds all targets including GAP benchmarks (CPU)"
+	@echo "Available Make commands:"	@echo "  all            - Builds all targets including GAP benchmarks (CPU)"
 	@echo "  run-%          - Runs the specified GAP benchmark (bc bfs cc cc_sv pr pr_spmv sssp tc)"
 	@echo "  help-%         - Print the specified Help (bc bfs cc cc_sv pr pr_spmv sssp tc)"
 	@echo "  clean          - Removes all build artifacts"
