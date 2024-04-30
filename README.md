@@ -8,13 +8,13 @@ This repository contains the GAP Benchmarks Suite (GAPBS), modified to reorder g
 ## Enhancements (Graph Brewing)
 
 * **Multi-layered:** Graph reordering (multi-layered) for improved cache performance.
-* **Rabbit Order:**  Community clustering order with incremental aggregation.
-* **Leiden Order:**  Community clustering order with Louvian/refinement step.
-* **Degree-Based Grouping:** Implementing degree-based grouping strategies to test benchmark performance.
-* **Gorder:**  Window based ordering with reverse Cuthill-McKee (RCM) algorithm.
-* **Corder:**  Workload Balancing via Graph Reordering on Multicore Systems.
-* **P-OPT Segmentation:**  Exploring graph caching techniques for efficient handling of large-scale graphs.
-* **GraphIt-DSL:** Integration of GraphIt-DSL segment graphs to improve locality.
+* **Rabbit Order:** [ref](https://github.com/araij/rabbit_order) Community clustering order with incremental aggregation.
+* **Leiden Order:** [ref](https://github.com/puzzlef/leiden-communities-openmp) Community clustering order with Louvian/refinement step.
+* **Degree-Based Grouping:** [ref](https://github.com/ease-lab/dbg) Implementing degree-based grouping strategies to test benchmark performance.
+* **Gorder:** [ref](https://github.com/datourat/Gorder) Window based ordering with reverse Cuthill-McKee (RCM) algorithm.
+* **Corder:** [ref](https://github.com/yuang-chen/Corder-TPDS-21) Workload Balancing via Graph Reordering on Multicore Systems.
+* **P-OPT Segmentation:** [ref](https://github.com/CMUAbstract/POPT-CacheSim-HPCA21) Exploring graph caching techniques for efficient handling of large-scale graphs.
+* **GraphIt-DSL:** [ref](https://github.com/GraphIt-DSL/graphit) Integration of GraphIt-DSL segment graphs to improve locality.
 
 ## GAP Benchmarks
 
