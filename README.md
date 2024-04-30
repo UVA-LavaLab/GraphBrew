@@ -50,11 +50,11 @@ Graphbrew can explore the impact of graph reordering techniques on the performan
 ### Experiment Execution
 
 1. **Run Experiments:**
-   * Use the `make run-<experiment-name>` command, matching the `scripts/config/<experiment-name>.json` file name. This will:
+   * Use the `make exp-<experiment-name>` command, matching the `scripts/config/<experiment-name>.json` file name. This will:
      * Download necessary datasets if they don't exist. Provide a link in the [`JSON`](#configuration-file-breakdown-gapjson) file or copy the graph into the same directory to skip downloading. 
      * The graph will be downloaded or should be copied to `/00_Graph_Datasets/full/GAP/{symbol}/graph.{type}`.
 2. **Test Experiment:**
-   * Use the `make run-test` command. This will:
+   * Use the `make exp-test` command. This will:
      * Execute the experiments as defined in the configuration file [(`scripts/config/test.json`)](./scripts/config/test.json).
      * Generate results (e.g., speedup graphs, overhead measurements) in the `bench/results` folder.
      * `make clean-results` will back up current results into `bench/backup` and delete `bench/results` for a new run.
@@ -314,9 +314,10 @@ Example Usage:
       "subdirectory": "./00_Graph_Datasets/full/GAP",  // Specific to GAP datasets
       "graphs": [
         { 
-          "type": "mtx", 
+          "serial": true, 
+          "type"  : "mtx", 
           "symbol": "TWTR", 
-          "name": "twitter",  
+          "name"  : "twitter",  
           "download_link": "https://suitesparse-collection-website.herokuapp.com/MM/GAP/GAP-twitter.tar.gz" 
         },
         // ... other graph dataset definitions: WEB, RD, KRON, URND
@@ -369,6 +370,7 @@ Example Usage:
 - **`clean`**: Removes binaries and intermediate files.
 - **`clean-all`**: Removes binaries, results, and intermediate files.
 - **`clean-results`**: Backs up and then cleans the results directory.
+- **`exp-%`**: Runs a specific experiment by replacing `%` with the experiment.json name. E.g., `test.json`.
 - **`run-%`**: Runs a specific benchmark by replacing `%` with the benchmark name. E.g., `run-bfs`.
 - **`run-%-gdb`**: Runs a specific benchmark under GDB.
 - **`run-%-mem`**: Runs a specific benchmark under Valgrind for memory leak checks.
@@ -394,8 +396,12 @@ Example Usage:
 - `bench/bin`: Executable is placed here.
 - `bench/lib`: Library files can be stored here (not used by default).
 - `bench/src`: Source code files (*.cc) for the benchmarks.
+- `bench/obj`    : Object files are stored here (directory creation is handled but not used by default).
 - `bench/include`: Header files for the benchmarks and various include files for libraries such as GAPBS, RABBIT, etc.
-- `bench/obj`: Object files are stored here (directory creation is handled but not used by default).
+
+## Project Experiments
+- `bench/results`: experiment results from running `exp-%`.
+- `bench/backups`: experiment backup results from running `clean-all` or `clean-results`.
 
 ## Installing Prerequisites
 

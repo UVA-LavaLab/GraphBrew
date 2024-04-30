@@ -56,22 +56,22 @@ public:
 
   // Assuming Edge, NodeID_, and EdgeList types are defined elsewhere
   EdgeList ReadInEL(std::ifstream &in) {
-      EdgeList el;
-      NodeID_ u, v;
-      std::string line;
+    EdgeList el;
+    NodeID_ u, v;
+    std::string line;
 
-      while (std::getline(in, line)) {
-          // Check if the line is empty or starts with % or #
-          if (line.empty() || line[0] == '%' || line[0] == '#')
-              continue;
+    while (std::getline(in, line)) {
+      // Check if the line is empty or starts with % or #
+      if (line.empty() || line[0] == '%' || line[0] == '#')
+        continue;
 
-          // Use a stringstream to read node ids from the line
-          std::istringstream iss(line);
-          if (iss >> u >> v) {
-              el.push_back(Edge(u, v));
-          }
+      // Use a stringstream to read node ids from the line
+      std::istringstream iss(line);
+      if (iss >> u >> v) {
+        el.push_back(Edge(u, v));
       }
-      return el;
+    }
+    return el;
   }
 
   // EdgeList ReadInWEL(std::ifstream &in) {
@@ -84,25 +84,26 @@ public:
   //   return el;
   // }
 
-    // Assuming Edge, NodeID_, NodeWeight, and EdgeList types are defined elsewhere
+  // Assuming Edge, NodeID_, NodeWeight, and EdgeList types are defined
+  // elsewhere
   EdgeList ReadInWEL(std::ifstream &in) {
-      EdgeList el;
-      NodeID_ u;
-      NodeWeight<NodeID_, WeightT_> v;
-      std::string line;
+    EdgeList el;
+    NodeID_ u;
+    NodeWeight<NodeID_, WeightT_> v;
+    std::string line;
 
-      while (std::getline(in, line)) {
-          // Check if the line is empty or starts with % or #
-          if (line.empty() || line[0] == '%' || line[0] == '#')
-              continue;
+    while (std::getline(in, line)) {
+      // Check if the line is empty or starts with % or #
+      if (line.empty() || line[0] == '%' || line[0] == '#')
+        continue;
 
-          // Use a stringstream to read node id and node weight from the line
-          std::istringstream iss(line);
-          if (iss >> u >> v) {
-              el.push_back(Edge(u, v));
-          }
+      // Use a stringstream to read node id and node weight from the line
+      std::istringstream iss(line);
+      if (iss >> u >> v) {
+        el.push_back(Edge(u, v));
       }
-      return el;
+    }
+    return el;
   }
 
   // Note: converts vertex numbering from 1..N to 0..N-1
@@ -353,17 +354,21 @@ public:
   CSRGraph<NodeID_, DestID_, invert> ReadSerializedGraph() {
     bool weighted = GetSuffix() == ".wsg";
     CSRGraph<NodeID_, DestID_, invert> g_new;
+    bool generate_weights = false;
+    bool clear_weights = false;
     if (!std::is_same<NodeID_, SGID>::value) {
       std::cout << "serialized graphs only allowed for 32bit" << std::endl;
       std::exit(-5);
     }
     if (!weighted && !std::is_same<NodeID_, DestID_>::value) {
-      std::cout << ".sg not allowed for weighted graphs" << std::endl;
-      std::exit(-5);
+      // std::cout << ".sg not allowed for weighted graphs" << std::endl;
+      // std::exit(-5);
+      generate_weights = true;
     }
     if (weighted && std::is_same<NodeID_, DestID_>::value) {
-      std::cout << ".wsg only allowed for weighted graphs" << std::endl;
-      std::exit(-5);
+      // std::cout << ".wsg only allowed for weighted graphs" << std::endl;
+      // std::exit(-5);
+      clear_weights = true;
     }
     if (weighted && !std::is_same<WeightT_, SGID>::value) {
       std::cout << ".wsg only allowed for int32_t weights" << std::endl;
@@ -380,6 +385,9 @@ public:
     SGOffset num_nodes, num_edges;
     DestID_ **index = nullptr, **inv_index = nullptr;
     DestID_ *neighs = nullptr, *inv_neighs = nullptr;
+    NodeID_ *temp_neighs = nullptr, *temp_inv_neighs = nullptr;
+    NodeWeight<NodeID_, WeightT_> *temp_neighs_clear = nullptr,
+                                  *temp_inv_neighs_clear = nullptr;
     file.read(reinterpret_cast<char *>(&directed), sizeof(bool));
     file.read(reinterpret_cast<char *>(&num_edges), sizeof(SGOffset));
     file.read(reinterpret_cast<char *>(&num_nodes), sizeof(SGOffset));
@@ -387,30 +395,82 @@ public:
     neighs = new DestID_[num_edges];
     std::streamsize num_index_bytes = (num_nodes + 1) * sizeof(SGOffset);
     std::streamsize num_neigh_bytes = num_edges * sizeof(DestID_);
+    std::streamsize num_neigh_bytes_clear =
+        num_edges * sizeof(NodeWeight<NodeID_, WeightT_>);
     file.read(reinterpret_cast<char *>(offsets.data()), num_index_bytes);
-    file.read(reinterpret_cast<char *>(neighs), num_neigh_bytes);
+
+    if (generate_weights) {
+      temp_neighs = new NodeID_[num_edges];
+      file.read(reinterpret_cast<char *>(temp_neighs), num_neigh_bytes);
+
+#pragma omp parallel for
+      for (int i = 0; i < num_edges; ++i) {
+        reinterpret_cast<NodeWeight<NodeID_, WeightT_> *>(&neighs[i])->v =
+            temp_neighs[i];
+        reinterpret_cast<NodeWeight<NodeID_, WeightT_> *>(&neighs[i])->w = 1;
+      }
+    } else {
+      if (clear_weights) {
+        temp_neighs_clear = new NodeWeight<NodeID_, WeightT_>[num_edges];
+        file.read(reinterpret_cast<char *>(temp_neighs_clear),
+                  num_neigh_bytes_clear);
+#pragma omp parallel for
+        for (int i = 0; i < num_edges; ++i) {
+          neighs[i] = temp_neighs_clear[i].v;
+          // cout << temp_neighs_clear[i] << endl;
+        }
+      } else {
+        file.read(reinterpret_cast<char *>(neighs), num_neigh_bytes);
+      }
+    }
     index = CSRGraph<NodeID_, DestID_>::GenIndex(offsets, neighs);
+
     if (directed && invert) {
       inv_neighs = new DestID_[num_edges];
       file.read(reinterpret_cast<char *>(offsets.data()), num_index_bytes);
-      file.read(reinterpret_cast<char *>(inv_neighs), num_neigh_bytes);
+
+      if (generate_weights) {
+        temp_inv_neighs = new NodeID_[num_edges];
+        file.read(reinterpret_cast<char *>(temp_inv_neighs), num_neigh_bytes);
+
+#pragma omp parallel for
+        for (int i = 0; i < num_edges; ++i) {
+          reinterpret_cast<NodeWeight<NodeID_, WeightT_> *>(&inv_neighs[i])->v =
+              temp_inv_neighs[i];
+          reinterpret_cast<NodeWeight<NodeID_, WeightT_> *>(&inv_neighs[i])->w =
+              1;
+        }
+      } else {
+        if (clear_weights) {
+          temp_inv_neighs_clear = new NodeWeight<NodeID_, WeightT_>[num_edges];
+          file.read(reinterpret_cast<char *>(temp_inv_neighs_clear),
+                    num_neigh_bytes_clear);
+#pragma omp parallel for
+          for (int i = 0; i < num_edges; ++i) {
+            inv_neighs[i] = temp_inv_neighs_clear[i].v;
+          }
+        } else {
+          file.read(reinterpret_cast<char *>(inv_neighs), num_neigh_bytes);
+        }
+      }
       inv_index = CSRGraph<NodeID_, DestID_>::GenIndex(offsets, inv_neighs);
     }
     NodeID_ *org_ids = new NodeID_[num_nodes];
-    file.read(reinterpret_cast<char *>(org_ids), num_nodes * sizeof(NodeID_));  // Read original IDs
+    file.read(reinterpret_cast<char *>(org_ids),
+              num_nodes * sizeof(NodeID_)); // Read original IDs
     file.close();
     t.Stop();
     PrintTime("Read Time", t.Seconds());
     if (directed)
       g_new = CSRGraph<NodeID_, DestID_, invert>(num_nodes, index, neighs,
-                                                inv_index, inv_neighs);
+                                                 inv_index, inv_neighs);
     else
       g_new = CSRGraph<NodeID_, DestID_, invert>(num_nodes, index, neighs);
 
     std::shared_ptr<NodeID_> org_ids_shared;
     org_ids_shared.reset(org_ids);
     g_new.copy_org_ids(org_ids_shared);
-    
+
     return g_new;
   }
 };
