@@ -25,6 +25,8 @@ suite_dir      = None  # Base directory for graph data, removing it from graph_s
 kernel_results = None
 prereorder_codes  = None
 postreorder_codes = None
+baselines_speedup = None
+baselines_overhead= None
 # Define constants for benchmark settings
 NUM_TRIALS     = 1        # Number of times to run each benchmark
 NUM_ITERATIONS = 1    # Number of iterations per trial (if applicable)
@@ -172,125 +174,128 @@ def write_results_to_csv(config_file_name, kernel, kernel_data):
                 writer.writerow(row)
 
             print(f"Data written to {csv_file_path}")
-
         create_seaborn_bar_graph(csv_file_path, graph_charts_dir, category)
 
-def create_seaborn_bar_graph(csv_file, output_folder, category):
-    if not os.path.exists(csv_file) or os.path.getsize(csv_file) == 0:
-        print(f"File {csv_file} does not exist or is empty.")
-        return
 
+def load_and_prepare_data(csv_file):
+    """Load the CSV file into a DataFrame and melt it for Seaborn plotting."""
     df = pd.read_csv(csv_file)
-    if df.empty:
-        print("DataFrame is empty.")
-        return
+    df_melted = df.melt(id_vars='Graph', var_name='Reordering', value_name='Trial Time')
+    return df_melted
 
-    df_long = df.melt(id_vars=[df.columns[0]], var_name='Group', value_name='Value')
-    category_title = category.replace('_', ' ').capitalize()
-    if 'time' in category.lower():
-        category_title += ' (s)'
-
-    base_palette = [
-        '#1f88e5', '#91caf9',   # Original blues
-        '#ffe082', '#ffa000',   # Original yellows
-        '#174a7e', '#7ab8bf',   # Additional blues and teals
-        '#ffc857', '#dbab09',   # More yellows and golds
-        '#44a248',              # Introducing green
-        '#606c38', '#283d3b'    # Neutrals and dark accents
-    ]
-
-    num_groups = df_long['Group'].nunique()
-    if num_groups > len(base_palette):
-        # Extend the palette by repeating it
-        repeats = -(-num_groups // len(base_palette))  # Ceiling division
-        color_palette = (base_palette * repeats)[:num_groups]
-    else:
-        color_palette = base_palette[:num_groups]
-
-    plt.figure(figsize=(12, 6))
-    sns.barplot(x='Graph', y='Value', hue='Group', data=df_long, palette=color_palette, edgecolor='black', width=0.5, linewidth=2.5)
-    plt.xticks(rotation=45, ha='right', fontsize=14, fontweight='bold')
-    plt.xlabel('Graphs', fontsize=18, fontweight='bold')
-    plt.ylabel(category_title, fontsize=16, fontweight='bold')
-    plt.yscale('log')
-    plt.grid(True, linestyle='--', which='major', color='grey', alpha=0.7)
-    plt.tight_layout()
-
-    filename = os.path.splitext(os.path.basename(csv_file))[0]
-    for ext in ['svg', 'pdf']:
-        output_path = os.path.join(output_folder, f"{filename}_{category}.{ext}")
-        plt.savefig(output_path)
-    plt.close()
-
-def create_seaborn_bar_graph(csv_file, output_folder, category):
-    if not os.path.exists(csv_file) or os.path.getsize(csv_file) == 0:
-        print(f"File {csv_file} does not exist or is empty.")
-        return
-
+def load_and_prepare_data_speedup(csv_file, baseline):
+    """Load the CSV file into a DataFrame and melt it for Seaborn plotting."""
     df = pd.read_csv(csv_file)
-    if df.empty:
-        print("DataFrame is empty.")
-        return
+    new_df = df[['Graph']].copy()
+    baseline_time = df[baseline]
+    for column in df.columns:
+        if column not in ['Graph', baseline]:  # Avoid the graph and baseline column itself
+            new_df[column] = baseline_time / df[column]
 
-    df_long = df.melt(id_vars=[df.columns[0]], var_name='Group', value_name='Value')
-    category_title = category.replace('_', ' ').capitalize()
-    if 'time' in category.lower():
-        category_title += ' (s)'
+    df_melted = new_df.melt(id_vars='Graph', var_name='Reordering', value_name='Trial Time')
+    return df_melted
+
+def load_and_prepare_data_overhead(csv_file, baseline):
+    """Load the CSV file into a DataFrame and melt it for Seaborn plotting."""
+    df = pd.read_csv(csv_file)
+    new_df = df[['Graph']].copy()
+    baseline_time = df[baseline]
+    for column in df.columns:
+        if column not in ['Graph', baseline]:  # Avoid the graph and baseline column itself
+            new_df[column] = df[column] / baseline_time 
+
+    df_melted = new_df.melt(id_vars='Graph', var_name='Reordering', value_name='Trial Time')
+    return df_melted
+
+def add_geometric_means(df):
+    """Add a row for geometric means to the DataFrame, calculated across all graphs for each reordering."""
+    # Calculate geometric means for each reordering, ignoring non-positive values
+    gm = df[df['Trial Time'] > 0].groupby('Reordering')['Trial Time'].apply(
+        lambda x: np.exp(np.mean(np.log(x)))
+    ).reset_index()
+    gm['Graph'] = 'GM'
+    # Concatenate geometric means with the main data frame
+    return pd.concat([df, pd.DataFrame(gm)], ignore_index=True)
+
+def plot_data(df,csv_file, output_folder, category, value_name="time"):
+    """Create a Seaborn bar plot from the DataFrame."""
 
     base_palette = [
         '#1f88e5', '#91caf9', '#ffe082', '#ffa000', '#174a7e', '#7ab8bf',
         '#ffc857', '#dbab09', '#44a248', '#606c38', '#283d3b'
     ]
-    num_groups = df_long['Group'].nunique()
+    num_groups = df['Reordering'].nunique()
     if num_groups > len(base_palette):
         repeats = -(-num_groups // len(base_palette))  # Ceiling division
         color_palette = (base_palette * repeats)[:num_groups]
     else:
         color_palette = base_palette[:num_groups]
 
-    plt.figure(figsize=(8, 6))
-    bar_plot = sns.barplot(x='Graph', y='Value', hue='Group', data=df_long, palette=color_palette, edgecolor='black', width=0.5, linewidth=2.5)
+    category_title = category.replace('_', ' ').capitalize()
 
-    # Calculate and plot geometric mean
-    geom_means = df_long.groupby('Group')['Value'].apply(lambda x: np.exp(np.log(x).mean())).reset_index()
-    geom_means['Graph'] = 'GM'
-    sns.barplot(x='Graph', y='Value', hue='Group', data=geom_means, palette=color_palette, edgecolor='black', width=0.5, linewidth=2.5, ax=plt.gca(), legend=False)
+    # plt.figure(figsize=(8, 4))
+    # bar_plot = sns.barplot(x='Graph', y='Trial Time', hue='Reordering', data=df, palette=color_palette, edgecolor='black', width=0.7, linewidth=2.5)
+# Calculate the accurate position for the vertical line
+    num_graphs = len(df['Graph'].unique())  # Total number of graphs including 'GM'
+    bar_width = 0.8  # Adjust this if you want wider or narrower bars
+    gm_x_position = num_graphs - 1 - bar_width/(1 + bar_width) # Position the line right before the 'GM' group
 
-    # Find the position for the vertical line
-    unique_graphs = df_long['Graph'].nunique()  # Number of unique graphs
-    # The position is after the last plot of the initial set of graphs
-    line_position = unique_graphs - 0.5
+    plt.figure(figsize=(10, 6)) 
+    bar_plot = sns.barplot(x='Graph', y='Trial Time', hue='Reordering', data=df, 
+                           palette=color_palette, edgecolor='black', width=bar_width, linewidth=2.5) 
 
-    plt.axvline(x=line_position, color='gray', linestyle='--', linewidth=2)
+    plt.xticks(rotation=45, ha='right', fontsize=12, fontweight='bold') 
+    plt.axvline(x=gm_x_position, color='red', linestyle='--', linewidth=2, label='Geometric Mean')  
 
-    plt.xticks(rotation=45, ha='right', fontsize=14, fontweight='bold')
     plt.xlabel('Graphs', fontsize=18, fontweight='bold')
     plt.ylabel(category_title, fontsize=16, fontweight='bold')
     plt.yscale('log')
     plt.grid(True, linestyle='--', which='major', color='grey', alpha=0.7)
     plt.tight_layout()
 
-    # Position the legend outside the plot area
-    lgd = plt.legend(title='Reordering', bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0., fontsize=12, title_fontsize=14)
-    lgd.get_frame().set_linewidth(1.5)  # Increase the frame width
+    # Adjust legend position to be outside the plot
+    plt.legend(title='Reordering', loc='upper left', bbox_to_anchor=(1.05, 1), borderaxespad=0.)
+    
+    # Adjust the layout to make space for the legend
+    plt.subplots_adjust(right=0.75)  # Adjust this value to fit your specific plot and legend size
 
 
     filename = os.path.splitext(os.path.basename(csv_file))[0]
     for ext in ['svg', 'pdf']:
-        output_path = os.path.join(output_folder, f"{filename}_{category}.{ext}")
-        plt.savefig(output_path, bbox_inches='tight')
+        output_path = os.path.join(output_folder, f"{filename}_{category}_{value_name}.{ext}")
+        plt.savefig(output_path)
     plt.close()
 
-# def parse_timing_data(output, reorderings, prereorder_codes, postreorder_codes):
-#     """Parses the benchmark output to extract timing data based on predefined patterns."""
-#     time_data = {}
-#     for category, patterns in time_patterns.items():
-#         time_data[category] = {}
-#         for key, regex in patterns.items():
-#             match = regex.search(output)
-#             if match:
-#                 time_data[category][key] = float(match.group(1))
-#     return time_data
+def clean_category_name(category):
+    """Remove '_time' suffix from category name if present, using split and join."""
+    parts = category.split('_')
+    if "time" in parts:
+        parts.remove('time')  # Remove the 'time' part from the list
+    cleaned_category = '_'.join(parts)  # Rejoin the parts without 'time'
+    return cleaned_category
+
+def create_seaborn_bar_graph(csv_file, output_folder, category):
+    baseline_speedup_columns = baselines_speedup.keys()  # Get baseline column names
+    baselines_overhead_columns = baselines_overhead.keys()  # Get baseline column names
+    
+     # Calculate speedup for each column against each baseline
+    df = load_and_prepare_data(csv_file)
+    df = add_geometric_means(df)
+    plot_data(df,csv_file, output_folder, category)
+    
+    if 'trial_time' in category:
+        for baseline in baseline_speedup_columns:
+            clean_category = clean_category_name(category)
+            df = load_and_prepare_data_speedup(csv_file, baseline)
+            df = add_geometric_means(df)
+            plot_data(df,csv_file, output_folder, f"{clean_category}_Speedup",f"speedup_{baseline}")
+    if 'reorder_time' in category:   
+        for baseline in baselines_overhead_columns:
+            clean_category = clean_category_name(category)
+            df = load_and_prepare_data_speedup(csv_file, baseline)
+            df = add_geometric_means(df)
+            plot_data(df,csv_file, output_folder, f"{clean_category}_Overhead",f"overhead_{baseline}")
+
 
 def parse_timing_data(output, reorderings, prereorder_codes, postreorder_codes):
     """Parses the benchmark output to extract timing data based on predefined patterns."""
@@ -370,6 +375,8 @@ def main(config_file):
     global graph_csv_dir
     global graph_charts_dir
     global graph_raw_dir
+    global baselines_speedup
+    global baselines_overhead
 
     # config_file    = "scripts/config/lite.json"  # Specify the path to your JSON configuration file
     graph_download_script = "./scripts/graph_download.py"  # Specify the path to your other Python script
@@ -383,14 +390,16 @@ def main(config_file):
 
     # Load configuration settings from the specified JSON file
     with open(config_file, 'r') as f:
-        config = json.load(f)
-        reorderings = config['reorderings']  # Dictionary of reordering strategies with corresponding codes
-        KERNELS = config['kernels']          # List of kernels to use in benchmarks
+        config       = json.load(f)
+        reorderings  = config['reorderings']  # Dictionary of reordering strategies with corresponding codes
+        KERNELS      = config['kernels']          # List of kernels to use in benchmarks
         graph_suites = config['graph_suites']  # Graph suites with their respective details
-        suite_dir = graph_suites.pop('suite_dir')  # Base directory for graph data, removing it from graph_suites
+        suite_dir    = graph_suites.pop('suite_dir')  # Base directory for graph data, removing it from graph_suites
         # Extract prereorder and postreorder codes
-        prereorder_codes = [config['prereorder'].get(key, []) for key in config.get('prereorder', {})]
-        postreorder_codes = [config['postreorder'].get(key, []) for key in config.get('postreorder', {})]
+        prereorder_codes   = [config['prereorder'].get(key, []) for key in config.get('prereorder', {})]
+        postreorder_codes  = [config['postreorder'].get(key, []) for key in config.get('postreorder', {})]
+        baselines_speedup  = config.get('baselines_speedup', {})
+        baselines_overhead = config.get('baselines_overhead', {})
 
         if os.path.exists(graph_csv_dir):
             print(f"Suite directory {graph_csv_dir} already exists.")
