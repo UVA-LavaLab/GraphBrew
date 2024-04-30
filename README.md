@@ -380,17 +380,18 @@ Example Usage:
 - **`$(BIN_DIR)/%`**: Compiles a `.cc` source file into a binary, taking dependencies into account.
 
 ### Directory Setup
-- **`$(BIN_DIR)`**: Ensures the binary directory and required subdirectories exist.
+- **`$(BIN_DIR)`**: Ensures the binary directory and required sub directories exist.
 
 ### Cleanup
-- **`clean`**: Cleans up all generated files and directories.
+- **`clean`**: Removes binaries and intermediate files.
+- **`clean-all`**: Removes binaries, results, and intermediate files.
 
 ### Help
 - **`help`**: Provides a generic help message about available commands.
 - **`help-%`**: Provides specific help for each benchmark command, detailing reordering algorithms and usage examples.
 
 ## Project Structure
-- `bench/bin`: Executables are placed here.
+- `bench/bin`: Executable is placed here.
 - `bench/lib`: Library files can be stored here (not used by default).
 - `bench/src`: Source code files (*.cc) for the benchmarks.
 - `bench/include`: Header files for the benchmarks and various include files for libraries such as GAPBS, RABBIT, etc.
