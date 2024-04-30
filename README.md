@@ -41,6 +41,39 @@ Before you begin, ensure you have the following installed on your system:
 - **libnuma** (2.0.9).
 - **libtcmalloc\_minimal** in google-perftools (2.1).
 
+# GraphBrew Experiment Configuration
+
+Graphbrew can explore the impact of graph reordering techniques on the performance of various graph algorithms. The configuration for these experiments is specified in the `scripts/config/<experiment-name>.json` file.  
+
+## Datasets (GAP Example)
+
+The experiments utilize the GAP benchmark suite of graph datasets. These datasets are downloaded into the `./00_Graph_Datasets/full/GAP` directory.
+
+* **Twitter (TWTR):** A representation of the Twitter social network.
+* **Web graph (WEB):** A crawl of a portion of the World Wide Web.
+* **Road network (RD):** A road network from a specific geographic region.
+* **Kronecker graph (KRON):** A synthetic graph generated using the Kronecker product, often used to model real-world networks with power-law degree distributions.
+* **Random graph (URND):** A graph generated with random connections between nodes.
+
+### Experiment Execution
+
+1. **Run Experiments:**
+   * Use the `make run-<experiment-name>` command, matching the `scripts/config/<experiment-name>.json` file name. This will:
+     * Download necessary datasets if they don't exist. Provide a link in the `JSON` file or copy the graph into the same directory to skip downloading. 
+     * The graph will be downloaded or should be copied to `/00_Graph_Datasets/full/GAP/{symbol}/graph.{type}`.
+2. **Lite Experiments:**
+   * Use the `make run-lite` command. This will:
+     * Execute the experiments as defined in the configuration file (`scripts/config/lite.json`).
+     * Generate results (e.g., speedup graphs, overhead measurements) in the `bench/results` folder.
+     * `make clean-results` will back up current results into `bench/backup` and delete `bench/results` for a new run.
+     * Use this config for functional testing, to make sure all libraries are installed and GraphBrew is running -- **not for performance**.
+2. **GAP Experiments:**
+   * Use the `make run-gap` command. This will:
+     * Execute the experiments as defined in the configuration file (`scripts/config/gap.json`).
+     * Generate results (e.g., speedup graphs, overhead measurements) in the `bench/result` folder.
+
+# GraphBrew single usage
+
 ## Usage
 
 ### Example Usage
@@ -61,9 +94,16 @@ make all
 ```bash
 make run-<benchmark_name>
 ```
-   * Where `<benchmark_name>` can be `bc`, `bfs`, etc.
+   * Where `<benchmark_name>` can be `bc`, `bfs`, `converter`, etc.
 ```bash
 make run-bfs
+```
+
+### Relabeling the graph
+   * `converter` is used to convert graphs and apply new labeling to them.
+   * Please check converter parameters and pass them to `RUN_PARAMS='-n1 -o11'`.
+```bash
+make run-converter RUN_PARAMS='-e -n1 -o11'
 ```
 
 ### Debugging
@@ -80,6 +120,10 @@ make run-<benchmark_name>-mem
    * To clean up all compiled files:
 ```bash
 make clean
+```
+   * To clean up all compiled including results (backed up automatically in `bench/backup`) files:
+```bash
+make clean-all
 ```
 
 ### Help
@@ -193,7 +237,7 @@ converter
  --------------------------------------------------------------------------------
 ```
 
-2. **Makefile Flow**
+### Makefile Flow
 ```bash
 available Make commands:
   all            - Builds all targets including GAP benchmarks (CPU)
@@ -206,6 +250,70 @@ Example Usage:
   make all - Compile the program.
   make clean - Clean build files.
   ./bench/bin/pr -g 15 -n 1 -r 10:mapping.label - Execute with MAP reordering using 'mapping.label'.
+
+```
+
+## Configuration File Breakdown (gap.json)
+
+```json
+{
+  "reorderings": { 
+    // This section defines reordering techniques and assigns them numeric codes 
+    "Original": 0,  // No reordering, maintains the original graph order 
+    "Random": 1,    // Randomly shuffles the node order of the graph
+    "Sort": 2,      // Sorts nodes based on some criterion (e.g., degree)
+    "HubSort": 3,   // Custom reordering, potentially prioritizing high-degree nodes
+    "HubCluster": 4,// Custom reordering focused on node clustering
+    "DBG": 5,       // Degree-Based Grouping (for post-processing)
+    // ... other reordering techniques: HubSortDBG, RabbitOrder, Gorder, etc. 
+  },
+
+  "baselines_speedup": { 
+    // Baselines for measuring speedup of other reordering methods
+    "Original": 0, 
+    "Random": 1 
+  },
+
+  "baselines_overhead": { 
+    // Baseline for comparing computational overhead of reordering techniques
+    "Leiden": 12 
+  },
+
+  "prereorder": { 
+    // Reordering to perform before the main experiments
+    "Random": 1  
+  },
+
+  "postreorder": { 
+   // Reordering for post-processing, aiming to improve caching 
+    "DBG": 5  
+  },
+
+  "kernels": [ 
+   // Graph algorithms to use in the experiments
+    "bc",    // Betweenness Centrality
+    "bfs",   // Breadth-First Search
+    "cc",    // Connected Components
+    // ... other algorithms: cc_sv, pr, pr_spmv, sssp, tc 
+  ],
+
+  "graph_suites": {
+    "suite_dir": "./00_Graph_Datasets/full", // Base download directory
+    "GAP": { 
+      "subdirectory": "./00_Graph_Datasets/full/GAP",  // Specific to GAP datasets
+      "graphs": [
+        { 
+          "type": "mtx", 
+          "symbol": "TWTR", 
+          "name": "twitter",  
+          "download_link": "https://suitesparse-collection-website.herokuapp.com/MM/GAP/GAP-twitter.tar.gz" 
+        },
+        // ... other graph dataset definitions: WEB, RD, KRON, URND
+      ],
+      "file_type": "graph" // Indicates how to interpret files in this suite
+    }
+  }
+}
 
 ```
 
