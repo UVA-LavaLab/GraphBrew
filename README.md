@@ -34,7 +34,8 @@ This project contains a collection of Graph Analytics for Performance (GAPBS) be
 ## Prerequisites
 
 Before you begin, ensure you have the following installed on your system:
-- **GCC**: The GNU Compiler Collection, specifically `g++` which supports C++11 or later.
+- **Ubuntu**: All testing has been done on Ubuntu `22.04+` Operating System.
+- **GCC**: The GNU Compiler Collection, specifically `g++9` which supports C++11 or later.
 - **Make**: The build utility to automate the compilation.
 - **OpenMP**: Support for parallel programming in C++.
 - **Boost** C++ library (1.58.0).
@@ -45,7 +46,21 @@ Before you begin, ensure you have the following installed on your system:
 
 Graphbrew can explore the impact of graph reordering techniques on the performance of various graph algorithms. The configuration for these experiments is specified in the `scripts/config/<experiment-name>.json` file.  
 
-## Datasets (GAP Example)
+
+### Experiment Execution
+
+1. **Run Experiments:**
+   * Use the `make run-<experiment-name>` command, matching the `scripts/config/<experiment-name>.json` file name. This will:
+     * Download necessary datasets if they don't exist. Provide a link in the `JSON` file or copy the graph into the same directory to skip downloading. 
+     * The graph will be downloaded or should be copied to `/00_Graph_Datasets/full/GAP/{symbol}/graph.{type}`.
+2. **test Experiments:**
+   * Use the `make run-test` command. This will:
+     * Execute the experiments as defined in the configuration file (`scripts/config/test.json`).
+     * Generate results (e.g., speedup graphs, overhead measurements) in the `bench/results` folder.
+     * `make clean-results` will back up current results into `bench/backup` and delete `bench/results` for a new run.
+     * Use this config for functional testing, to make sure all libraries are installed and GraphBrew is running -- **not for performance**.
+
+## GAPBS Experiment
 
 The experiments utilize the GAP benchmark suite of graph datasets. These datasets are downloaded into the `./00_Graph_Datasets/full/GAP` directory.
 
@@ -55,22 +70,11 @@ The experiments utilize the GAP benchmark suite of graph datasets. These dataset
 * **Kronecker graph (KRON):** A synthetic graph generated using the Kronecker product, often used to model real-world networks with power-law degree distributions.
 * **Random graph (URND):** A graph generated with random connections between nodes.
 
-### Experiment Execution
+### Run GAPBS GraphBrew:
 
-1. **Run Experiments:**
-   * Use the `make run-<experiment-name>` command, matching the `scripts/config/<experiment-name>.json` file name. This will:
-     * Download necessary datasets if they don't exist. Provide a link in the `JSON` file or copy the graph into the same directory to skip downloading. 
-     * The graph will be downloaded or should be copied to `/00_Graph_Datasets/full/GAP/{symbol}/graph.{type}`.
-2. **Lite Experiments:**
-   * Use the `make run-lite` command. This will:
-     * Execute the experiments as defined in the configuration file (`scripts/config/lite.json`).
-     * Generate results (e.g., speedup graphs, overhead measurements) in the `bench/results` folder.
-     * `make clean-results` will back up current results into `bench/backup` and delete `bench/results` for a new run.
-     * Use this config for functional testing, to make sure all libraries are installed and GraphBrew is running -- **not for performance**.
-2. **GAP Experiments:**
-   * Use the `make run-gap` command. This will:
-     * Execute the experiments as defined in the configuration file (`scripts/config/gap.json`).
-     * Generate results (e.g., speedup graphs, overhead measurements) in the `bench/result` folder.
+* Use the `make run-gap` command. This will:
+  * Execute the experiments as defined in the configuration file (`scripts/config/gap.json`).
+  * Generate results (e.g., speedup graphs, overhead measurements) in the `bench/result` folder.
 
 # GraphBrew single usage
 
@@ -259,7 +263,7 @@ Example Usage:
 
 ## Configuration File Breakdown (gap.json)
 
-```json
+```bash
 {
   "reorderings": { 
     // This section defines reordering techniques and assigns them numeric codes 
