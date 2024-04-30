@@ -33,7 +33,7 @@
             ],
             "file_type": "graph"
         },
-        "MISC": {
+        "KONECT": {
             "graphs": [
                 {"type": "mtx" ,"symbol" : "WIKLE"  ,"name" : "wikipedia_link_en"   , "download_link": "http://konect.cc/files/download.tsv.wikipedia_link_en.tar.bz2"},
             ],
