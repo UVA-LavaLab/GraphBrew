@@ -160,6 +160,10 @@ The graph loading infrastructure understands the following formats:
 
 ## Parameters
 
+All parameters can be passed through the make command via:
+   * `RUN_PARAMS='-n1 -o11'`, for controling asspect of the algorithm and reordering.
+   * `GRAPH_BENCH ='-f ./test/graphs/4.el'`,`GRAPH_BENCH ='-g 4'`, for controlling the graph path, or kron/random generation.
+
 ### GAP Parameters (PageRank example)
 ```bash
 make help-pr
