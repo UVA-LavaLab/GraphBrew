@@ -557,7 +557,7 @@ public:
     return g_relabel;
   }
 
-  const string ReorderingAlgoStr(ReorderingAlgo type) {
+  const std::string ReorderingAlgoStr(ReorderingAlgo type) {
     switch (type) {
     case HubSort:
       return "HubSort";
@@ -588,11 +588,9 @@ public:
     case MAP:
       return "MAP";
     default:
-      std::cout << "Unknown PreprocessTypeStr type: " << type << std::endl;
+      std::cerr << "Unknown Reordering Algorithm type: " << type << std::endl;
       abort();
     }
-    assert(0);
-    return "";
   }
 
   void GenerateMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
@@ -684,6 +682,35 @@ public:
     std::free(hist);
   }
 
+  void printReorderingMethods(const std::string &filename, Timer t) {
+    std::size_t last_slash = filename.rfind('/');
+    std::string basename = filename.substr(last_slash + 1);
+    std::size_t last_dot = basename.rfind('.');
+    std::string stem = basename.substr(0, last_dot);
+
+    std::vector<int> codes;
+    std::istringstream iss(stem);
+    std::string part;
+    while (getline(iss, part, '_')) {
+      int num;
+      if (std::istringstream(part) >> num) {
+        codes.push_back(num);
+      }
+    }
+
+    // std::cout << "Reordering methods for file '" << filename
+    //           << "':" << std::endl;
+    for (int code : codes) {
+      try {
+        std::string algoStr =
+            ReorderingAlgoStr(static_cast<ReorderingAlgo>(code)) + " Map Time";
+        PrintTime(algoStr, t.Seconds());
+      } catch (...) {
+        std::cerr << "Invalid code: " << code << std::endl;
+      }
+    }
+  }
+
   void LoadMappingFromFile(const CSRGraph<NodeID_, DestID_, invert> &g,
                            pvector<NodeID_> &new_ids,
                            std::string map_file = "mapping.lo") {
@@ -716,6 +743,8 @@ public:
     delete[] label_ids;
     ifs.close();
     t.Stop();
+
+    printReorderingMethods(map_file, t);
     PrintTime("Load Map Time", t.Seconds());
   }
 
@@ -730,7 +759,7 @@ public:
       new_ids[i] = (NodeID_)i;
     }
     t.Stop();
-    PrintTime("Original Time", t.Seconds());
+    PrintTime("Original Map Time", t.Seconds());
   }
 
   void GenerateRandomMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
@@ -1399,7 +1428,7 @@ public:
       }
     }
     t.Stop();
-    PrintTime("Corder Time", t.Seconds());
+    PrintTime("COrder Map Time", t.Seconds());
   }
 
   // @inproceedings{popt-hpca21,
@@ -2279,7 +2308,7 @@ public:
     //--------------------------------------------
     // std::cerr << "Permutation generation Time: "
     //           << rabbit_order::now_sec() - tstart << std::endl;
-    PrintTime("RabbitOrder Time", rabbit_order::now_sec() - tstart);
+    PrintTime("RabbitOrder Map Time", rabbit_order::now_sec() - tstart);
     // Ensure new_ids is large enough to hold all new IDs
 
     if (new_ids.size() < g.n())
@@ -2344,12 +2373,12 @@ public:
     // go.readGraph(cli_.filename().c_str());
     go.Transform();
     tm.Stop();
-    PrintTime("Gorder graph", tm.Seconds());
+    PrintTime("GOrder graph", tm.Seconds());
 
     tm.Start();
     go.GorderGreedy(order, window);
     tm.Stop();
-    PrintTime("Gorder Time", tm.Seconds());
+    PrintTime("GOrder Map Time", tm.Seconds());
 
     if (new_ids.size() < (size_t)go.vsize)
       new_ids.resize(go.vsize);
@@ -2388,12 +2417,12 @@ public:
     // go.readGraph(cli_.filename().c_str());
     go.Transform();
     tm.Stop();
-    PrintTime("RCMorder graph", tm.Seconds());
+    PrintTime("RCMOrder graph", tm.Seconds());
 
     tm.Start();
     go.RCMOrder(order);
     tm.Stop();
-    PrintTime("RCMorder Time", tm.Seconds());
+    PrintTime("RCMOrder Map Time", tm.Seconds());
 
     if (new_ids.size() < (size_t)go.vsize)
       new_ids.resize(go.vsize);
@@ -2537,7 +2566,7 @@ public:
     tm.Start();
     runExperiment(x);
     tm.Stop();
-    PrintTime("Leiden Time", tm.Seconds());
+    PrintTime("LeidenOrder Map Time", tm.Seconds());
 
     size_t num_nodesx;
     size_t num_passes;

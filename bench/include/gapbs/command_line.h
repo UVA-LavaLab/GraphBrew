@@ -302,7 +302,7 @@ class CLConvert : public CLBase {
 public:
   CLConvert(int argc, char **argv, std::string name)
       : CLBase(argc, argv, name) {
-    get_args_ += "e:b:x:w";
+    get_args_ += "e:b:x:q:w";
     AddHelpLine('b', "file", "output serialized graph to file (.sg)");
     AddHelpLine('e', "file", "output edge list to file (.el)");
     AddHelpLine('w', "file", "make output weighted (.wel|.wsg)");
