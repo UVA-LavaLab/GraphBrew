@@ -16,7 +16,7 @@
     "postreorder": {
         "DBG": 5
     },
-   "kernels": ["bc", "bfs", "cc", "cc_sv", "pr", "pr_spmv", "sssp"],
+    "kernels": ["converter"],
     "graph_suites": {
         "suite_dir": "./00_Graph_Datasets/full",
         "SNAP": {
