@@ -43,18 +43,18 @@ graph_raw_dir = None  # Directory for raw outputs
 # Regular expressions for parsing timing data from benchmark outputs
 time_patterns = {
     "reorder_time": {
-        "Corder": re.compile(r"\bCorder\b Time:\s*([\d\.]+)"),
+        "Corder": re.compile(r"\bCOrder\b Map Time:\s*([\d\.]+)"),
         "DBG": re.compile(r"\bDBG\b Map Time:\s*([\d\.]+)"),
-        "Gorder": re.compile(r"\bGorder\b Time:\s*([\d\.]+)"),
+        "Gorder": re.compile(r"\bGOrder\b Map Time:\s*([\d\.]+)"),
         "HubClusterDBG": re.compile(r"\bHubClusterDBG\b Map Time:\s*([\d\.]+)"),
         "HubCluster": re.compile(r"\bHubCluster\b Map Time:\s*([\d\.]+)"),
         "HubSortDBG": re.compile(r"\bHubSortDBG\b Map Time:\s*([\d\.]+)"),
         "HubSort": re.compile(r"\bHubSort\b Map Time:\s*([\d\.]+)"),
-        "Leiden": re.compile(r"\bLeiden\b Time:\s*([\d\.]+)"),
-        "Original": re.compile(r"\bOriginal\b Time:\s*([\d\.]+)"),
-        "RabbitOrder": re.compile(r"\bRabbitOrder\b Time:\s*([\d\.]+)"),
+        "Leiden": re.compile(r"\bLeidenOrder\b Map Time:\s*([\d\.]+)"),
+        "Original": re.compile(r"\bOriginal\b Map Time:\s*([\d\.]+)"),
+        "RabbitOrder": re.compile(r"\bRabbitOrder\b Map Time:\s*([\d\.]+)"),
         "Random": re.compile(r"\bRandom\b Map Time:\s*([\d\.]+)"),
-        "RCM": re.compile(r"\bRCMorder\b Time:\s*([\d\.]+)"),
+        "RCM": re.compile(r"\bRCMOrder\b Map Time:\s*([\d\.]+)"),
         "Sort": re.compile(r"\bSort\b Map Time:\s*([\d\.]+)"),
     },
     "trial_time": {"Average": re.compile(r"\bAverage\b Time:\s*([\d\.]+)")},
@@ -91,6 +91,7 @@ def run_benchmark(
     graph_convert_type,
     graph_label,
     graph_label_type,
+    graph_label_generate,
     reorder_name,
     prereorder_codes,
     postreorder_codes,
@@ -98,17 +99,17 @@ def run_benchmark(
     # Clear CPU cache to simulate a fresh start for benchmarking
     clear_cpu_cache()
 
-    RUN_PARAMS = []
+    DEFAULT_RUN_PARAMS = []
 
     EXTENTION_PARAMS = []
     # Add prereorder codes if any
-    RUN_PARAMS.extend([f"-o{code}" for code in prereorder_codes])
+    DEFAULT_RUN_PARAMS.extend([f"-o{code}" for code in prereorder_codes])
     EXTENTION_PARAMS.extend([f"{code}" for code in prereorder_codes])
     # Main reorder code
-    RUN_PARAMS.append(f"-o{reorder_code}")
+    DEFAULT_RUN_PARAMS.append(f"-o{reorder_code}")
     EXTENTION_PARAMS.append(f"{reorder_code}")
     # Add postreorder codes if any
-    RUN_PARAMS.extend([f"-o{code}" for code in postreorder_codes])
+    DEFAULT_RUN_PARAMS.extend([f"-o{code}" for code in postreorder_codes])
     EXTENTION_PARAMS.extend([f"{code}" for code in postreorder_codes])
 
     # Specify the graph file
@@ -116,57 +117,69 @@ def run_benchmark(
     OUTPUT_BENCH = []
     cmd = []
 
+    output_graph_path = Path(graph_path)
+    new_convert_graph_path = output_graph_path.with_name(
+        f"{output_graph_path.stem}_{'_'.join(EXTENTION_PARAMS)}.{graph_convert_type}"
+    )
+    new_run_graph_path = output_graph_path.with_name(
+        f"{output_graph_path.stem}_{'_'.join(EXTENTION_PARAMS)}.{graph_run_type}"
+    )
+    default_run_graph_path = output_graph_path.with_name(f"{output_graph_path.stem}.{graph_run_type}")
+    default_convert_graph_path = output_graph_path.with_name(f"{output_graph_path.stem}.{graph_convert_type}")
+
+    new_label_path = output_graph_path.with_name(
+        f"{output_graph_path.stem}_{'_'.join(EXTENTION_PARAMS)}.{graph_label_type}"
+    )
+    default_label_path = output_graph_path.with_name(f"{output_graph_path.stem}.{graph_label_type}")
+
     if kernel == "converter":
-        # RUN_PARAMS.append("-w")  #
-        OUTPUT_BENCH = []
-        output_graph_path = Path(graph_path)
-        new_graph_path = output_graph_path.with_name(
-            f"{output_graph_path.stem}_{'_'.join(EXTENTION_PARAMS)}.{graph_convert_type}"
-        )
-        default_graph_path = output_graph_path.with_name(
-            f"{output_graph_path.stem}.el"
-        )
-
-        new_label_path = output_graph_path.with_name(
-            f"{output_graph_path.stem}_{'_'.join(EXTENTION_PARAMS)}.{graph_label_type}"
-        )
-        default_label_path = output_graph_path.with_name(
-            f"{output_graph_path.stem}.lo"
-        )
-
         if graph_generate:
-            if convert_type == "sg":
-                OUTPUT_BENCH.extend(["-b", f"{new_graph_path}"])
-            elif convert_type == "wsg":
-                OUTPUT_BENCH.extend(["-w", "-b", f"{new_graph_path}"])
-            elif convert_type == "el":
-                OUTPUT_BENCH.extend(["-e", f"{new_graph_path}"])
-            elif convert_type == "wel":
-                OUTPUT_BENCH.extend(["-w", "-e", f"{new_graph_path}"])
+            if graph_convert_type == "sg":
+                OUTPUT_BENCH.extend(["-b", f"{new_convert_graph_path}"])
+            elif graph_convert_type == "wsg":
+                OUTPUT_BENCH.extend(["-w", "-b", f"{new_convert_graph_path}"])
+            elif graph_convert_type == "el":
+                OUTPUT_BENCH.extend(["-e", f"{new_convert_graph_path}"])
+            elif graph_convert_type == "wel":
+                OUTPUT_BENCH.extend(["-w", "-e", f"{new_convert_graph_path}"])
             else:
-                OUTPUT_BENCH.extend(["-e", f"{new_graph_path}"])
-        # else:
-        #     OUTPUT_BENCH.extend(["-e", f"{default_graph_path}"])
+                OUTPUT_BENCH.extend(["-e", f"{new_convert_graph_path}"])
+        else:
+            if graph_convert_type == "sg":
+                OUTPUT_BENCH.extend(["-b", f"{default_convert_graph_path}"])
+            elif graph_convert_type == "wsg":
+                OUTPUT_BENCH.extend(["-w", "-b", f"{default_convert_graph_path}"])
+            elif graph_convert_type == "el":
+                OUTPUT_BENCH.extend(["-e", f"{default_convert_graph_path}"])
+            elif graph_convert_type == "wel":
+                OUTPUT_BENCH.extend(["-w", "-e", f"{default_convert_graph_path}"])
+            else:
+                OUTPUT_BENCH.extend(["-e", f"{default_convert_graph_path}"])
 
         if graph_label:
-            if graph_label_type == "so":
-                OUTPUT_BENCH.extend(["-x", f"{new_label_path}"])
-            elif graph_label_type == "lo":
-                OUTPUT_BENCH.extend(["-q", f"{new_label_path}"])
+            if graph_label_generate:
+                if graph_label_type == "so":
+                    OUTPUT_BENCH.extend(["-x", f"{new_label_path}"])
+                elif graph_label_type == "lo":
+                    OUTPUT_BENCH.extend(["-q", f"{new_label_path}"])
             else:
-                OUTPUT_BENCH.extend(["-q", f"{default_label_path}"])
+                if graph_label_type == "so":
+                    OUTPUT_BENCH.extend(["-x", f"{default_label_path}"])
+                elif graph_label_type == "lo":
+                    OUTPUT_BENCH.extend(["-q", f"{default_label_path}"])
 
-        GRAPH_BENCH.append(f"-f {graph_path}")
+        GRAPH_BENCH.append(f"-f {default_run_graph_path}")
         GRAPH_BENCH.extend(OUTPUT_BENCH)
         cmd = [
             f"make run-{kernel}",
             f"GRAPH_BENCH='{ ' '.join(GRAPH_BENCH) }'",
-            f"RUN_PARAMS='{ ' '.join(RUN_PARAMS) }'",
+            f"RUN_PARAMS='{ ' '.join(DEFAULT_RUN_PARAMS) }'",
             f"FLUSH_CACHE={FLUSH_CACHE}",
             f"PARALLEL={PARALLEL}",
         ]
     else:
         # Additional kernel-specific parameters
+        RUN_PARAMS = []
         RUN_PARAMS.append(f"-n{NUM_TRIALS}")
         if kernel in ["pr", "pr_spmv"]:
             RUN_PARAMS.append(f"-i {NUM_ITERATIONS}")  # PageRank iterations
@@ -174,13 +187,17 @@ def run_benchmark(
             RUN_PARAMS.append("-s")  # Special flag for 'tc' kernel
 
         if graph_generate:
-            serial_graph_path = Path(graph_path)
-            new_graph_path = serial_graph_path.with_name(
-                f"{serial_graph_path.stem}_{'_'.join(EXTENTION_PARAMS)}.{graph_run_type}"
-            )
-            GRAPH_BENCH.append(f"-f {new_graph_path}")
+            GRAPH_BENCH.append(f"-f {new_run_graph_path}")
         else:
-            GRAPH_BENCH.append(f"-f {graph_path}")
+            GRAPH_BENCH.append(f"-f {default_run_graph_path}")
+
+        if graph_label:
+            if graph_label_generate:
+                RUN_PARAMS.append(f"-o 13:{new_label_path}")
+            else:
+                RUN_PARAMS.append(f"-o 13:{default_label_path}")
+        else:
+            RUN_PARAMS.extend(DEFAULT_RUN_PARAMS)
 
         cmd = [
             f"make run-{kernel}",
@@ -499,6 +516,7 @@ def run_and_parse_benchmarks(config_file_name):
                 graph_generate = graph.get("generate", False)
                 graph_label = graph.get("label", False)
                 graph_label_type = graph.get("label_type", "lo")
+                graph_label_generate = graph.get("label_generate", False)
                 graph_path = f"{suite_dir}/{suite_name}/{graph_symbol}/{graph_basename}.{graph_run_type}"
                 for reorder_name, reorder_code in reorderings.items():
                     output = run_benchmark(
@@ -511,6 +529,7 @@ def run_and_parse_benchmarks(config_file_name):
                         graph_convert_type,
                         graph_label,
                         graph_label_type,
+                        graph_label_generate,
                         reorder_name,
                         prereorder_codes,
                         postreorder_codes,

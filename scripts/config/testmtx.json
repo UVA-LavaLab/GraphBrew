@@ -16,15 +16,15 @@
     "postreorder": {
         "DBG": 5
     },
-    "kernels": ["converter"],
+    "kernels": ["bc", "bfs", "cc", "cc_sv", "pr", "pr_spmv", "sssp"],
     "graph_suites": {
         "suite_dir": "./00_Graph_Datasets/full",
         "SNAP": {
             "graphs": [
-                {"label": true ,"label_type": "so" ,"generate": true ,"convert_type": "sg","run_type": "sg","download_type": "mtx" ,"symbol" : "WGL"   ,"name" : "web-Google", "download_link": "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/web-Google.tar.gz"},
-                {"label": true ,"label_type": "lo" ,"generate": true ,"convert_type": "sg","run_type": "mtx","download_type": "mtx" ,"symbol" : "AMZ08" ,"name" : "amazon-2008","download_link": "https://suitesparse-collection-website.herokuapp.com/MM/LAW/amazon-2008.tar.gz"},
-                {"label": true ,"label_type": "so" ,"generate": true ,"convert_type": "sg","run_type": "sg","download_type": "mtx" ,"symbol" : "CNR00" ,"name" : "cnr-2000"  , "download_link": "https://suitesparse-collection-website.herokuapp.com/MM/LAW/cnr-2000.tar.gz"},
-                {"label": true ,"label_type": "lo" ,"generate": true ,"convert_type": "sg","run_type": "mtx","download_type": "mtx" ,"symbol" : "DBLP10","name" : "dblp-2010" , "download_link": "https://suitesparse-collection-website.herokuapp.com/MM/LAW/dblp-2010.tar.gz"}
+                {"label": true ,"label_generate": true ,"label_type": "so" ,"generate": false ,"convert_type" : "sg","run_type": "mtx","download_type": "mtx" ,"symbol" : "WGL"   ,"name" : "web-Google", "download_link": "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/web-Google.tar.gz"},
+                {"label": true ,"label_generate": true ,"label_type": "lo" ,"generate": false ,"convert_type" : "sg","run_type": "mtx","download_type": "mtx" ,"symbol" : "AMZ08" ,"name" : "amazon-2008","download_link": "https://suitesparse-collection-website.herokuapp.com/MM/LAW/amazon-2008.tar.gz"},
+                {"label": true ,"label_generate": true ,"label_type": "so" ,"generate": false ,"convert_type" : "sg","run_type": "mtx","download_type": "mtx" ,"symbol" : "CNR00" ,"name" : "cnr-2000"  , "download_link": "https://suitesparse-collection-website.herokuapp.com/MM/LAW/cnr-2000.tar.gz"},
+                {"label": true ,"label_generate": true ,"label_type": "lo" ,"generate": false ,"convert_type" : "sg","run_type": "mtx","download_type": "mtx" ,"symbol" : "DBLP10","name" : "dblp-2010" , "download_link": "https://suitesparse-collection-website.herokuapp.com/MM/LAW/dblp-2010.tar.gz"}
             ],
             "graph_basename": "graph"
         }
