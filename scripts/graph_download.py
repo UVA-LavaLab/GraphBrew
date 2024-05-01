@@ -28,9 +28,13 @@ def download_and_extract_graph(graph):
     graph_fullname = graph["graph_fullname"]
 
     download_dir = os.path.join(suite_dir_path, symbol)
+    graph_file_path = os.path.join(download_dir, f"{graph_fullname}")
+    # Create a subdirectory for extraction
+    extract_dir = os.path.join(download_dir, "extracted")
+    os.makedirs(extract_dir, exist_ok=True)
     # Check if suite directory exists
-    if os.path.exists(download_dir):
-        print(f"Suite directory {download_dir} already exists.")
+    if os.path.exists(graph_file_path):
+        print(f"Suite graph {graph_file_path} already exists.")
         return
     os.makedirs(download_dir, exist_ok=True)
     # Download the graph file
@@ -60,13 +64,9 @@ def download_and_extract_graph(graph):
                     largest_size = member.size
                     largest_file = member
             if largest_file:
-                # Create a subdirectory for extraction
-                extract_dir = os.path.join(download_dir, "extracted")
-                os.makedirs(extract_dir, exist_ok=True)
                 tar.extract(largest_file, path=extract_dir)
                 # Rename the largest file to 'graph.extension'
                 extracted_path = os.path.join(extract_dir, largest_file.name)
-                graph_file_path = os.path.join(download_dir, f"{graph_fullname}")
                 shutil.move(extracted_path, graph_file_path)
                 # print(f"Extracted and renamed {largest_file.name} to {graph_fullname}")
                 # Remove the rest of the files
@@ -89,10 +89,6 @@ def download_and_extract_graph(graph):
 
     elif file_name.endswith(".gz"):
         # Handle .gz files using gzip
-        # Create a subdirectory for extraction
-        extract_dir = os.path.join(download_dir, "extracted")
-        os.makedirs(extract_dir, exist_ok=True)
-
         # Extract the .gz file
         with gzip.open(file_path, "rb") as gz_file:
             # Read the contents of the .gz file
@@ -104,7 +100,6 @@ def download_and_extract_graph(graph):
                 extracted_file.write(content)
 
         # Move the extracted file to the desired location
-        graph_file_path = os.path.join(download_dir, f"{graph_fullname}")
         shutil.move(extracted_file_path, graph_file_path)
 
         # Remove the extracted directory
@@ -113,10 +108,6 @@ def download_and_extract_graph(graph):
 
     elif file_name.endswith(".zip"):
         # Handle .zip files using zipfile
-        # Create a subdirectory for extraction
-        extract_dir = os.path.join(download_dir, "extracted")
-        os.makedirs(extract_dir, exist_ok=True)
-
         # Extract the .zip file
         with zipfile.ZipFile(file_path, "r") as zip_file:
             # Get the list of files in the .zip file
@@ -131,7 +122,6 @@ def download_and_extract_graph(graph):
 
                 # Rename the extracted file to 'graph.extension'
                 extracted_path = os.path.join(extract_dir, largest_file)
-                graph_file_path = os.path.join(download_dir, f"{graph_fullname}")
                 shutil.move(extracted_path, graph_file_path)
 
                 # Remove the rest of the files

@@ -146,10 +146,12 @@ install-py-deps: ./$(SCRIPT_DIR)/requirements.txt
 	$(PIP) install -q -r ./$(SCRIPT_DIR)/requirements.txt
 
 exp-%: install-py-deps
-	$(PYTHON) ./$(SCRIPT_DIR)/graph_brew.py $(CONFIG_DIR)/$*.json
+	$(PYTHON) ./$(SCRIPT_DIR)/graph_brew.py $(CONFIG_DIR)/$*/convert.json
+	$(PYTHON) ./$(SCRIPT_DIR)/graph_brew.py $(CONFIG_DIR)/$*/label.json
+	$(PYTHON) ./$(SCRIPT_DIR)/graph_brew.py $(CONFIG_DIR)/$*/run.json
 
 graph-%: install-py-deps
-	$(PYTHON) ./$(SCRIPT_DIR)/graph_download.py $(CONFIG_DIR)/$*.json
+	$(PYTHON) ./$(SCRIPT_DIR)/graph_brew.py $(CONFIG_DIR)/$*/convert.json
 
 # =========================================================
 # Compilation Rules
