@@ -167,6 +167,7 @@ The graph loading infrastructure understands the following formats:
 + `.wsg` weighted serialized pre-built graph (use `converter` to make)
 
 The graph loading infrastructure understands the following formats for reordering labels:
++ `-o 10:mapping.lo` loads new reodering labels from file mapping.lo, so is also supported
 + `.so` reordered serialized labels list (.so) (use `converter` to make), _node_id_ per line as _node_label_ 
 + `.lo` reordered plain-text labels list (.lo) (use `converter` to make), _node_id_ per line as _node_label_ 
 
