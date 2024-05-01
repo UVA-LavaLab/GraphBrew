@@ -72,8 +72,8 @@ public:
     AddHelpLine('m', "", "reduces memory usage during graph building", "false");
     AddHelpLine('o', "order",
                 "apply reordering strategy, optionally with a parameter \n     "
-                "          [example]-r 3 "
-                "-r 2 -r 10:mapping.label",
+                "          [example]-o 3 "
+                "-o 2 -o 13:mapping.label",
                 "optional");
     AddHelpLine('z', "indegree","use indegree for ordering [Degree Based Orderings]", "false");
     AddHelpLine('j', "segments", "number of segments for the graph", "1");
