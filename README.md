@@ -167,7 +167,7 @@ The graph loading infrastructure understands the following formats:
 + `.wsg` weighted serialized pre-built graph (use `converter` to make)
 
 The graph loading infrastructure understands the following formats for reordering labels:
-+ `-o 10:mapping.lo` loads new reodering labels from file mapping.lo, so is also supported
++ `-o 13:mapping.lo` loads new reodering labels from file mapping.lo, so is also supported
 + `.so` reordered serialized labels list (.so) (use `converter` to make), _node_id_ per line as _node_label_ 
 + `.lo` reordered plain-text labels list (.lo) (use `converter` to make), _node_id_ per line as _node_label_ 
 
@@ -192,7 +192,7 @@ pagerank
  -k <degree>  : average degree for synthetic graph                          [16]
  -m           : reduces memory usage during graph building               [false]
  -o <order>   : apply reordering strategy, optionally with a parameter 
-               [example]-r 3 -r 2 -r 10:mapping.label[optional]
+               [example]-o 3 -o 2 -r 13:mapping.<lo|so> [optional]
  -z <indegree>: use indegree for ordering [Degree Based Orderings]       [false]
  -j <segments>: number of segments for the graph                             [1]
  -a           : output analysis of last run                              [false]
@@ -208,7 +208,7 @@ pagerank
 ```bash
 --------------------------------------------------------------------------------
 -o <order>   : Apply reordering strategy, optionally layer ordering 
-               [example]-o 3 -o 2 -o 10:mapping.label                 [optional]
+               [example]-o 3 -o 2 -o 13:mapping.<lo|so>               [optional]
 
 -j <segments>: number of segments for the graph                      [default:1]
 
