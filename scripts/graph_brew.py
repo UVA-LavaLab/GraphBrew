@@ -87,6 +87,7 @@ def run_benchmark(
     reorder_code,
     graph_symbol,
     graph_generate,
+    graph_generate_default,
     graph_run_type,
     graph_convert_type,
     graph_label,
@@ -144,7 +145,8 @@ def run_benchmark(
                 OUTPUT_BENCH.extend(["-w", "-e", f"{new_convert_graph_path}"])
             else:
                 OUTPUT_BENCH.extend(["-e", f"{new_convert_graph_path}"])
-        else:
+
+        if graph_generate_default:
             if graph_convert_type == "sg":
                 OUTPUT_BENCH.extend(["-b", f"{default_convert_graph_path}"])
             elif graph_convert_type == "wsg":
@@ -514,6 +516,7 @@ def run_and_parse_benchmarks(config_file_name):
                 graph_run_type = graph.get("run_type", "el")
                 graph_convert_type = graph.get("convert_type", "el")
                 graph_generate = graph.get("generate", False)
+                graph_generate_default = graph.get("generate_default", False) 
                 graph_label = graph.get("label", False)
                 graph_label_type = graph.get("label_type", "lo")
                 graph_label_generate = graph.get("label_generate", False)
@@ -525,6 +528,7 @@ def run_and_parse_benchmarks(config_file_name):
                         reorder_code,
                         graph_symbol,
                         graph_generate,
+                        graph_generate_default,
                         graph_run_type,
                         graph_convert_type,
                         graph_label,
