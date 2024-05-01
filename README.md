@@ -166,6 +166,10 @@ The graph loading infrastructure understands the following formats:
 + `.sg` serialized pre-built graph (use `converter` to make)
 + `.wsg` weighted serialized pre-built graph (use `converter` to make)
 
+The graph loading infrastructure understands the following formats for reordering labels:
++ `.so` reordered serialized labels list (.so) (use `converter` to make), _node_id_ per line as _node_label_ 
++ `.lo` reordered plain-text labels list (.lo) (use `converter` to make), _node_id_ per line as _node_label_ 
+
 ## GraphBrew Parameters
 
 All parameters can be passed through the make command via:
@@ -242,9 +246,11 @@ converter
  -z <indegree>: use indegree for ordering [Degree Based Orderings]       [false]
  -j <segments>: number of segments for the graph                             [1]
  --------------------------------------------------------------------------------
- -b <file>   : output serialized graph to file                                 
- -e <file>   : output edge list to file                                        
- -w <file>   : make output weighted     
+ -b <file>   : output serialized graph to file (.sg)                           
+ -e <file>   : output edge list to file (.el)                                  
+ -w <file>   : make output weighted (.wel|.wsg)                                
+ -x <file>   : output new reordered labels to file list (.so)                  
+ -q <file>   : output new reordered labels to file serialized (.lo)    
  --------------------------------------------------------------------------------
 ```
 
@@ -264,70 +270,139 @@ Example Usage:
 
 ```
 
-## Configuration File Breakdown (gap.json)
+## JSON Configuration Overview 
 
 ```bash
+(scripts/config/testmtx.json)
 {
-  "reorderings": { 
-    // This section defines reordering techniques and assigns them numeric codes 
-    "Original": 0,  // No reordering, maintains the original graph order 
-    "Random": 1,    // Randomly shuffles the node order of the graph
-    "Sort": 2,      // Sorts nodes based on some criterion (e.g., degree)
-    "HubSort": 3,   // Custom reordering, potentially prioritizing high-degree nodes
-    "HubCluster": 4,// Custom reordering focused on node clustering
-    "DBG": 5,       // Degree-Based Grouping (for post-processing)
-    // ... other reordering techniques: HubSortDBG, RabbitOrder, Gorder, etc. 
-  },
-
-  "baselines_speedup": { 
-    // Baselines for measuring speedup of other reordering methods
-    "Original": 0, 
-    "Random": 1 
-  },
-
-  "baselines_overhead": { 
-    // Baseline for comparing computational overhead of reordering techniques
-    "Leiden": 12 
-  },
-
-  "prereorder": { 
-    // Reordering to perform before the main experiments
-    "Random": 1  
-  },
-
-  "postreorder": { 
-   // Reordering for post-processing, aiming to improve caching 
-    "DBG": 5  
-  },
-
-  "kernels": [ 
-   // Graph algorithms to use in the experiments
-    "bc",    // Betweenness Centrality
-    "bfs",   // Breadth-First Search
-    "cc",    // Connected Components
-    // ... other algorithms: cc_sv, pr, pr_spmv, sssp, tc 
-  ],
-
-  "graph_suites": {
-    "suite_dir": "./00_Graph_Datasets/full", // Base download directory
-    "GAP": { 
-      "subdirectory": "./00_Graph_Datasets/full/GAP",  // Specific to GAP datasets
-      "graphs": [
-        { 
-          "serial": true, 
-          "type"  : "mtx", 
-          "symbol": "TWTR", 
-          "name"  : "twitter",  
-          "download_link": "https://suitesparse-collection-website.herokuapp.com/MM/GAP/GAP-twitter.tar.gz" 
-        },
-        // ... other graph dataset definitions: WEB, RD, KRON, URND
-      ],
-      "file_type": "graph" // Indicates how to interpret files in this suite
+    "reorderings": {
+        "Original": 0, "Random": 1, "Sort": 2, "HubSort": 3, "HubCluster": 4,
+        "DBG": 5, "HubSortDBG": 6, "HubClusterDBG": 7, "RabbitOrder": 8,
+        "Gorder": 9, "Corder": 10, "RCM": 11, "Leiden": 12
+    },
+    "baselines_speedup": {
+        "Original": 0, "Random": 1
+    },
+    "baselines_overhead": {
+        "Leiden": 12
+    },
+    "prereorder": {
+        "Random": 1
+    },
+    "postreorder": {
+        "DBG": 5
+    },
+    "kernels": ["bc", "bfs", "cc", "cc_sv", "pr", "pr_spmv", "sssp", "tc"],
+    "graph_suites": {
+        "suite_dir": "./00_Graph_Datasets/full",
+        "SNAP": {
+            "graphs": [
+                {
+                    "label": true,
+                    "label_generate": true,
+                    "label_type": "so",
+                    "generate": false,
+                    "generate_default": false,
+                    "convert_type": "sg",
+                    "run_type": "mtx",
+                    "download_type": "mtx",
+                    "symbol": "WGL",
+                    "name": "web-Google",
+                    "download_link": "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/web-Google.tar.gz"
+                },
+                {
+                    "label": true,
+                    "label_generate": true,
+                    "label_type": "so",
+                    "generate": false,
+                    "generate_default": false,
+                    "convert_type": "sg",
+                    "run_type": "mtx",
+                    "download_type": "mtx",
+                    "symbol": "AMZ08",
+                    "name": "amazon-2008",
+                    "download_link": "https://suitesparse-collection-website.herokuapp.com/MM/LAW/amazon-2008.tar.gz"
+                },
+                {
+                    "label": true,
+                    "label_generate": true,
+                    "label_type": "so",
+                    "generate": false,
+                    "generate_default": false,
+                    "convert_type": "sg",
+                    "run_type": "mtx",
+                    "download_type": "mtx",
+                    "symbol": "CNR00",
+                    "name": "cnr-2000",
+                    "download_link": "https://suitesparse-collection-website.herokuapp.com/MM/LAW/cnr-2000.tar.gz"
+                },
+                {
+                    "label": true,
+                    "label_generate": true,
+                    "label_type": "so",
+                    "generate": false,
+                    "generate_default": false,
+                    "convert_type": "sg",
+                    "run_type": "mtx",
+                    "download_type": "mtx",
+                    "symbol": "DBLP10",
+                    "name": "dblp-2010",
+                    "download_link": "https://suitesparse-collection-website.herokuapp.com/MM/LAW/dblp-2010.tar.gz"
+                }
+            ],
+            "graph_basename": "graph"
+        }
     }
-  }
 }
 
 ```
+
+The JSON configuration file includes several key sections that define how the benchmarking script operates:
+
+### "reorderings"
+Defines the enumeration of possible graph reordering algorithms used in preprocessing steps. Each reordering strategy is mapped to a unique identifier.
+
+- `Original`: No reordering applied.
+- `Random`, `Sort`, `HubSort`, etc.: Specific algorithms that modify the node ordering for potential performance improvements in graph processing.
+
+### "baselines_speedup" and "baselines_overhead"
+Identify the baseline reorderings for comparing speedup and measuring overhead respectively.
+
+- `Original`, `Random`: Used as reference points for performance metrics.
+
+### "prereorder" and "postreorder"
+Specify reordering algorithms to be applied before and after the main graph processing, enabling multi-stage reordering pipelines.
+
+- `Random`: Applied before main processing.
+- `DBG`: Applied after main processing.
+
+### "kernels"
+Lists the graph processing kernels that will be benchmarked, such as `bc` (Betweenness Centrality), `bfs` (Breadth-First Search), etc.
+
+### "graph_suites"
+Describes the directories and specific graphs used in benchmarks, including download links and metadata for proper setup.
+
+- `suite_dir`: Directory containing all graph datasets.
+- `SNAP`: Contains details for each graph from the SNAP dataset, such as whether labels should be generated, the type of labels, and the conversion type needed for processing.
+
+## Python Script Parameters
+
+The script `graph_brew->run_benchmark` is designed to automate the execution of graph benchmarks based on the defined JSON configuration. It utilizes several parameters extracted from the JSON:
+
+- `kernel`: The graph processing kernel to run.
+- `graph_path`: Path to the graph dataset.
+- `reorder_code`: The main reordering code applied during graph processing.
+- `graph_symbol`: A short symbolic name for the graph being processed.
+- `graph_generate`: Indicates whether the graph should be generated (converted from another format).
+- `graph_generate_default`: Indicates whether to generate a graph using default settings.
+- `graph_run_type`, `graph_convert_type`: Define the file formats for running and converting graphs.
+- `graph_label`, `graph_label_type`, `graph_label_generate`: Specify if and how graph node labels are handled.
+- `reorder_name`: Descriptive name for the reordering process.
+- `prereorder_codes`, `postreorder_codes`: Codes for additional reorderings applied before or after the main reordering.
+
+The script orchestrates the setup, execution, and logging of benchmark results, managing various preprocessing and postprocessing steps required for comprehensive performance evaluation.
+
+
 
 ## Modifying the Makefile
 
