@@ -66,7 +66,7 @@ NC      =\033[0m
 # =========================================================
 # Compiler Flags
 # =========================================================
-CXXFLAGS_GAP    = -std=c++17 -O3 -Wall -fopenmp
+CXXFLAGS_GAP    = -std=c++17 -O3 -Wall -fopenmp -g
 CXXFLAGS_RABBIT = -mcx16 -Wno-deprecated-declarations -Wno-parentheses -Wno-unused-local-typedefs
 CXXFLAGS_GORDER = -m64 -march=native 
 CXXFLAGS_GORDER += -DRelease -DGCC
@@ -109,9 +109,9 @@ FLUSH_CACHE=1
 # =========================================================
 # Running Benchmarks
 # =========================================================
-GRAPH_BENCH = -f ./test/graphs/4.el
-# GRAPH_BENCH = -g 4
-RUN_PARAMS =  -s -n 1 -o 1
+# GRAPH_BENCH = -f ./test/graphs/4.el
+GRAPH_BENCH = -u 5
+RUN_PARAMS =  -s -n 1 -o 1 -o10
 # =========================================================
 run-%: $(BIN_DIR)/%
 	@if [ "$(FLUSH_CACHE)" = "1" ]; then \
@@ -121,10 +121,10 @@ run-%: $(BIN_DIR)/%
 	OMP_NUM_THREADS=$(PARALLEL) ./$<  $(GRAPH_BENCH) $(RUN_PARAMS) $(EXIT_STATUS)
 
 run-%-gdb: $(BIN_DIR)/%
-	@OMP_NUM_THREADS=1 gdb -ex=r --args ./$< $(GRAPH_BENCH) $(RUN_PARAMS)
+	@OMP_NUM_THREADS=$(PARALLEL) gdb -ex=r --args ./$< $(GRAPH_BENCH) $(RUN_PARAMS)
 
 run-%-mem: $(BIN_DIR)/%
-	@OMP_NUM_THREADS=1 valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes -v ./$< $(GRAPH_BENCH) $(RUN_PARAMS)
+	@OMP_NUM_THREADS=$(PARALLEL) valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes -v ./$< $(GRAPH_BENCH) $(RUN_PARAMS)
 
 run-all: $(addprefix run-, $(KERNELS))
 
@@ -172,14 +172,15 @@ clean:
 	@rm -rf $(BIN_DIR) $(EXIT_STATUS)
 
 clean-all: clean-results
-	@rm -rf $(BIN_DIR) $(RES_DIR) ./*.csv $(EXIT_STATUS)
+	@rm -rf $(BIN_DIR) $(EXIT_STATUS)
 
 clean-results:
 	@mkdir -p $(BACKUP_DIR)
 	@echo "Backing up results directory..."
 	@tar -czf $(BACKUP_DIR)/result_`date +"%Y%m%d_%H%M%S"`.tar.gz $(RES_DIR)
 	@echo "Cleaning results directory..."
-	@rm -rf $(RES_DIR)
+	@rm -rf $(RES_DIR)/*/data_charts
+	@rm -rf $(RES_DIR)/*/data_csv
 	@echo "Backup and clean completed."
 
 # =========================================================

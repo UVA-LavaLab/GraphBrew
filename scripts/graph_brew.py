@@ -1,20 +1,20 @@
 #!/usr/bin/env python3
 
-import json
-import csv
-import re
-import subprocess
-import os
-import sys
-import shutil
-from pathlib import Path
-import importlib.util
-import pandas as pd
-import seaborn as sns
-import numpy as np
-import matplotlib.pyplot as plt
-from matplotlib import rcParams
 from collections import defaultdict
+from matplotlib import rcParams
+from pathlib import Path
+import csv
+import importlib.util
+import json
+import matplotlib.pyplot as plt
+import numpy as np
+import os
+import pandas as pd
+import re
+import seaborn as sns
+import shutil
+import subprocess
+import sys
 
 # Setting a default font for matplotlib to handle more character glyphs
 rcParams["font.family"] = "DejaVu Sans"
@@ -80,6 +80,25 @@ def clear_cpu_cache(size=100 * 1024 * 1024):  # 100 MB
         print(f"Failed to disrupt CPU cache: {e}")
 
 
+def check_file_exist(file_path):
+    if os.path.exists(file_path):
+        print(f"{file_path} already exists.")
+        return True
+    return False
+
+
+def generate_raw_output(kernel, graph_symbol, reorder_name):
+    output_filename = f"{kernel}_{graph_symbol}_{reorder_name}_output.txt"
+    output_filepath = os.path.join(graph_raw_dir, output_filename)
+    output_text = f"{reorder_name} Map Time : 0\n Average Time: 0"
+    # Check if the file exists
+    if os.path.exists(output_filepath):
+        with open(output_filepath, "r") as f:
+            output_text = f.read()
+
+    return output_text
+
+
 # Function to run benchmarks, handle output, and save raw data
 def run_benchmark(
     kernel,
@@ -125,16 +144,29 @@ def run_benchmark(
     new_run_graph_path = output_graph_path.with_name(
         f"{output_graph_path.stem}_{'_'.join(EXTENTION_PARAMS)}.{graph_run_type}"
     )
-    default_run_graph_path = output_graph_path.with_name(f"{output_graph_path.stem}.{graph_run_type}")
-    default_convert_graph_path = output_graph_path.with_name(f"{output_graph_path.stem}.{graph_convert_type}")
+    default_run_graph_path = output_graph_path.with_name(
+        f"{output_graph_path.stem}.{graph_run_type}"
+    )
+    default_convert_graph_path = output_graph_path.with_name(
+        f"{output_graph_path.stem}.{graph_convert_type}"
+    )
 
     new_label_path = output_graph_path.with_name(
         f"{output_graph_path.stem}_{'_'.join(EXTENTION_PARAMS)}.{graph_label_type}"
     )
-    default_label_path = output_graph_path.with_name(f"{output_graph_path.stem}.{graph_label_type}")
+    default_label_path = output_graph_path.with_name(
+        f"{output_graph_path.stem}.{graph_label_type}"
+    )
 
     if kernel == "converter":
+
+        output_filename = f"{kernel}_{graph_symbol}_{reorder_name}_output.txt"
+        output_filepath = os.path.join(graph_raw_dir, output_filename)
+
         if graph_generate:
+            if check_file_exist(new_convert_graph_path):
+                return generate_raw_output(kernel, graph_symbol, reorder_name)
+
             if graph_convert_type == "sg":
                 OUTPUT_BENCH.extend(["-b", f"{new_convert_graph_path}"])
             elif graph_convert_type == "wsg":
@@ -147,6 +179,9 @@ def run_benchmark(
                 OUTPUT_BENCH.extend(["-e", f"{new_convert_graph_path}"])
 
         if graph_generate_default:
+            if check_file_exist(default_convert_graph_path):
+                return generate_raw_output(kernel, graph_symbol, reorder_name)
+
             if graph_convert_type == "sg":
                 OUTPUT_BENCH.extend(["-b", f"{default_convert_graph_path}"])
             elif graph_convert_type == "wsg":
@@ -160,11 +195,17 @@ def run_benchmark(
 
         if graph_label:
             if graph_label_generate:
+                if check_file_exist(new_label_path):
+                    return generate_raw_output(kernel, graph_symbol, reorder_name)
+
                 if graph_label_type == "so":
                     OUTPUT_BENCH.extend(["-x", f"{new_label_path}"])
                 elif graph_label_type == "lo":
                     OUTPUT_BENCH.extend(["-q", f"{new_label_path}"])
             else:
+                if check_file_exist(default_label_path):
+                    return generate_raw_output(kernel, graph_symbol, reorder_name)
+
                 if graph_label_type == "so":
                     OUTPUT_BENCH.extend(["-x", f"{default_label_path}"])
                 elif graph_label_type == "lo":
@@ -393,7 +434,7 @@ def plot_data(df, csv_file, output_folder, category, value_name="time"):
 
     plt.xlabel("Graphs", fontsize=18, fontweight="bold")
     plt.ylabel(category_title, fontsize=16, fontweight="bold")
-    plt.yscale("log")
+    # plt.yscale("log")
     plt.grid(True, linestyle="--", which="major", color="grey", alpha=0.7)
     plt.tight_layout()
 
@@ -516,7 +557,7 @@ def run_and_parse_benchmarks(config_file_name):
                 graph_run_type = graph.get("run_type", "el")
                 graph_convert_type = graph.get("convert_type", "el")
                 graph_generate = graph.get("generate", False)
-                graph_generate_default = graph.get("generate_default", False) 
+                graph_generate_default = graph.get("generate_default", False)
                 graph_label = graph.get("label", False)
                 graph_label_type = graph.get("label_type", "lo")
                 graph_label_generate = graph.get("label_generate", False)
