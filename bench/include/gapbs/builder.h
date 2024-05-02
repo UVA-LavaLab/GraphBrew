@@ -2434,7 +2434,7 @@ public:
     }
 
     if (g.directed()) {
-      if (num_edges != g.num_edges()) {
+      if (num_edges < g.num_edges_directed()) {
         for (NodeID_ i = 0; i < g.num_nodes(); i++) {
           for (DestID_ j : g.in_neigh(i)) {
             if (g.is_weighted())
@@ -2645,7 +2645,7 @@ public:
     }
 
     if (g.directed()) {
-      if (num_edges != g.num_edges()) {
+      if (num_edges < g.num_edges_directed()) {
         for (NodeID_ i = 0; i < g.num_nodes(); i++) {
           for (DestID_ j : g.in_neigh(i)) {
             if (g.is_weighted())
@@ -2705,7 +2705,7 @@ public:
     }
 
     if (g.directed()) {
-      if (num_edges != g.num_edges()) {
+      if (num_edges < g.num_edges_directed()) {
         for (NodeID_ i = 0; i < g.num_nodes(); i++) {
           for (DestID_ j : g.in_neigh(i)) {
             if (g.is_weighted())
@@ -2862,7 +2862,7 @@ public:
     }
 
     if (g.directed()) {
-      if (num_edges != g.num_edges()) {
+      if (num_edges < g.num_edges_directed()) {
         for (NodeID_ i = 0; i < g.num_nodes(); i++) {
           for (DestID_ j : g.in_neigh(i)) {
             if (g.is_weighted())

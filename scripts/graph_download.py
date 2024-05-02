@@ -70,7 +70,7 @@ def download_and_extract_graph(graph):
         # Assuming here that you have a function to generate synthetic graph data
         # Replace this with your actual function call to generate the synthetic graph data
         # Assuming you want to call the make command after generating the synthetic graph
-        graph_bench = " ".join([f"'{g_or_u_number}'" for g_or_u_number, k_number in parsed_synthetic_link])
+        graph_bench = " ".join([f"{g_or_u_number} {k_number}" for g_or_u_number, k_number in parsed_synthetic_link])
         # print(parsed_synthetic_link)
         run_params = f"-b {file_path}"
 
