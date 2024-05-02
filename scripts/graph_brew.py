@@ -406,7 +406,7 @@ def plot_data(df, csv_file, output_folder, category, value_name="time"):
     # bar_plot = sns.barplot(x='Graph', y='Trial Time', hue='Reordering', data=df, palette=color_palette, edgecolor='black', width=0.7, linewidth=2.5)
     # Calculate the accurate position for the vertical line
     num_graphs = len(df["Graph"].unique())  # Total number of graphs including 'GM'
-    bar_width = 0.8  # Adjust this if you want wider or narrower bars
+    bar_width = 0.7  # Adjust this if you want wider or narrower bars
     gm_x_position = (
         num_graphs - 1 - bar_width / (1 + bar_width)
     )  # Position the line right before the 'GM' group
@@ -434,7 +434,12 @@ def plot_data(df, csv_file, output_folder, category, value_name="time"):
 
     plt.xlabel("Graphs", fontsize=18, fontweight="bold")
     plt.ylabel(category_title, fontsize=16, fontweight="bold")
-    # plt.yscale("log")
+    # Set the y-axis to a logarithmic scale
+    plt.yscale('log')
+
+    # Set custom ticks
+    custom_ticks = [1, 2, 5, 20, 50, 200, 500, 1000]
+    plt.yticks(custom_ticks, labels=[str(tick) for tick in custom_ticks])
     plt.grid(True, linestyle="--", which="major", color="grey", alpha=0.7)
     plt.tight_layout()
 
