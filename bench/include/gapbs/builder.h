@@ -2420,37 +2420,32 @@ public:
     // int64_t num_nodes = g.num_nodes();
     int64_t num_edges = g.num_edges();
 
-    std::vector<edge> edges(num_edges, {0, 0, 0.0f});
+    std::vector<edge_list::edge> edges;
+    edges.reserve(num_edges * 2);
 
-    // std::cerr << static_cast<long long>(num_edges) << std::endl;
-    // std::cerr << static_cast<long long>(num_nodes) << std::endl;
-
-    int edge_idx = 0;
     for (NodeID_ i = 0; i < g.num_nodes(); i++) {
       for (DestID_ j : g.out_neigh(i)) {
         if (g.is_weighted())
-          edges[edge_idx] = {i, static_cast<NodeWeight<>>(j).v,
-                             static_cast<NodeWeight<>>(j).w};
+          edges.push_back({i, static_cast<NodeWeight<>>(j).v,
+                           static_cast<NodeWeight<>>(j).w});
         else
-          edges[edge_idx] = {i, j, 1.0f};
-
-        edge_idx++;
+          edges.push_back({i, j, 1.0f});
       }
     }
 
-    // if (g.directed()) {
-    //   for (NodeID_ i = 0; i < g.num_nodes(); i++) {
-    //     for (DestID_ j : g.in_neigh(i)) {
-    //       if (g.is_weighted())
-    //         edges[edge_idx] = {i, static_cast<NodeWeight<>>(j).v,
-    //                            static_cast<NodeWeight<>>(j).w};
-    //       else
-    //         edges[edge_idx] = {i, j, 1.0f};
-
-    //       edge_idx++;
-    //     }
-    //   }
-    // }
+    if (g.directed()) {
+      if (num_edges != g.num_edges()) {
+        for (NodeID_ i = 0; i < g.num_nodes(); i++) {
+          for (DestID_ j : g.in_neigh(i)) {
+            if (g.is_weighted())
+              edges.push_back({i, static_cast<NodeWeight<>>(j).v,
+                               static_cast<NodeWeight<>>(j).w});
+            else
+              edges.push_back({i, j, 1.0f});
+          }
+        }
+      }
+    }
 
     // The number of vertices = max vertex ID + 1 (assuming IDs start from zero)
     const auto n = boost::accumulate(
@@ -2632,26 +2627,32 @@ public:
   void GenerateGOrderMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
                              pvector<NodeID_> &new_ids) {
 
-    int64_t num_edges = g.num_edges_directed();
-
-    std::vector<std::pair<int, int>> edges(num_edges, {0, 0});
-
     int window = 5;
 
-    int edge_idx = 0;
+    // int64_t num_nodes = g.num_nodes();
+    int64_t num_edges = g.num_edges();
+
+    std::vector<std::pair<int, int>> edges;
+    edges.reserve(num_edges * 2);
+
     for (NodeID_ i = 0; i < g.num_nodes(); i++) {
       for (DestID_ j : g.out_neigh(i)) {
-        edges[edge_idx] = {i, j};
-        edge_idx++;
+        if (g.is_weighted())
+          edges.push_back({i, static_cast<NodeWeight<>>(j).v});
+        else
+          edges.push_back({i, j});
       }
     }
 
     if (g.directed()) {
-      int edge_idx = 0;
-      for (NodeID_ i = 0; i < g.num_nodes(); i++) {
-        for (DestID_ j : g.in_neigh(i)) {
-          edges[edge_idx] = {i, j};
-          edge_idx++;
+      if (num_edges != g.num_edges()) {
+        for (NodeID_ i = 0; i < g.num_nodes(); i++) {
+          for (DestID_ j : g.in_neigh(i)) {
+            if (g.is_weighted())
+              edges.push_back({i, static_cast<NodeWeight<>>(j).v});
+            else
+              edges.push_back({i, j});
+          }
         }
       }
     }
@@ -2688,24 +2689,30 @@ public:
   void GenerateRCMOrderMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
                                pvector<NodeID_> &new_ids) {
 
-    int64_t num_edges = g.num_edges_directed();
+    // int64_t num_nodes = g.num_nodes();
+    int64_t num_edges = g.num_edges();
 
-    std::vector<std::pair<int, int>> edges(num_edges, {0, 0});
+    std::vector<std::pair<int, int>> edges;
+    edges.reserve(num_edges * 2);
 
-    int edge_idx = 0;
     for (NodeID_ i = 0; i < g.num_nodes(); i++) {
       for (DestID_ j : g.out_neigh(i)) {
-        edges[edge_idx] = {i, j};
-        edge_idx++;
+        if (g.is_weighted())
+          edges.push_back({i, static_cast<NodeWeight<>>(j).v});
+        else
+          edges.push_back({i, j});
       }
     }
 
     if (g.directed()) {
-      int edge_idx = 0;
-      for (NodeID_ i = 0; i < g.num_nodes(); i++) {
-        for (DestID_ j : g.in_neigh(i)) {
-          edges[edge_idx] = {i, j};
-          edge_idx++;
+      if (num_edges != g.num_edges()) {
+        for (NodeID_ i = 0; i < g.num_nodes(); i++) {
+          for (DestID_ j : g.in_neigh(i)) {
+            if (g.is_weighted())
+              edges.push_back({i, static_cast<NodeWeight<>>(j).v});
+            else
+              edges.push_back({i, j});
+          }
         }
       }
     }
@@ -2841,36 +2848,29 @@ public:
     int64_t num_nodes = g.num_nodes();
     int64_t num_edges = g.num_edges();
 
-    std::vector<std::tuple<size_t, size_t, double>> edges(num_edges,
-                                                          {0, 0, 0.0f});
-    int edge_idx = 0;
+    std::vector<std::tuple<size_t, size_t, double>> edges;
+    edges.reserve(num_edges * 2);
+
     for (NodeID_ i = 0; i < g.num_nodes(); i++) {
       for (DestID_ j : g.out_neigh(i)) {
         if (g.is_weighted())
-          edges[edge_idx] = {i, static_cast<NodeWeight<>>(j).v,
-                             static_cast<NodeWeight<>>(j).w};
+          edges.push_back({i, static_cast<NodeWeight<>>(j).v,
+                           static_cast<NodeWeight<>>(j).w});
         else
-          edges[edge_idx] = {i, j, 1.0f};
-
-        edge_idx++;
+          edges.push_back({i, j, 1.0f});
       }
     }
 
-    cout << g.directed() << endl ;
-    cout << g.is_transpose()<< endl ;
-
     if (g.directed()) {
-      edges.resize(num_nodes*2);
-      for (NodeID_ i = 0; i < g.num_nodes(); i++) {
-        for (DestID_ j : g.in_neigh(i)) {
-          if (g.is_weighted())
-            edges[edge_idx] = {i, static_cast<NodeWeight<>>(j).v,
-                               static_cast<NodeWeight<>>(j).w};
-          else
-            edges[edge_idx] = {i, j, 1.0f};
-          edge_idx++ ;
-          // cout << "in" << edge_idx << " " << endl ;
-          // cout <<  (size_t)num_edges << " " << (size_t)g.in_degree(i) <<  endl;
+      if (num_edges != g.num_edges()) {
+        for (NodeID_ i = 0; i < g.num_nodes(); i++) {
+          for (DestID_ j : g.in_neigh(i)) {
+            if (g.is_weighted())
+              edges.push_back({i, static_cast<NodeWeight<>>(j).v,
+                               static_cast<NodeWeight<>>(j).w});
+            else
+              edges.push_back({i, j, 1.0f});
+          }
         }
       }
     }
@@ -2928,7 +2928,7 @@ public:
 
     // x.printCommunitiesPerPass();
     // g.PrintTopology();
-    // writeGraph(std::cout, x, true);
+    writeGraph(std::cout, x, false);
 
 #pragma omp parallel for
     for (int64_t i = 0; i < num_nodes; i++) {
