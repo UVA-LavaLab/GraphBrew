@@ -1,32 +1,129 @@
 {
-    "reorderings": {
-        "Original": 0, "Random": 1, "Sort": 2, "HubSort": 3, "HubCluster": 4,
-        "DBG": 5, "HubSortDBG": 6, "HubClusterDBG": 7, "RabbitOrder": 8,
-        "Gorder": 9, "Corder": 10, "RCM": 11, "Leiden": 12
-    },
-    "baselines_speedup": {
-        "Original": 0, "Random": 1
-    },
-    "baselines_overhead": {
-        "Leiden": 12
-    },
-    "prereorder": {
-        "Random": 1
-    },
-    "postreorder": {
-        "DBG": 5
-    },
-   "kernels": ["bc", "bfs", "cc", "cc_sv", "pr", "pr_spmv", "sssp"],
-    "graph_suites": {
-        "suite_dir": "./00_Graph_Datasets/full",
-        "SNAP": {
-            "graphs": [
-                {"label": true ,"label_generate": true ,"label_type": "so" ,"generate": false ,"generate_default": false ,"convert_type" : "sg","run_type": "sg","download_type": "mtx" ,"symbol" : "WGL"   ,"name" : "web-Google", "download_link": "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/web-Google.tar.gz"},
-                {"label": true ,"label_generate": true ,"label_type": "so" ,"generate": false ,"generate_default": false ,"convert_type" : "sg","run_type": "sg","download_type": "mtx" ,"symbol" : "AMZ08" ,"name" : "amazon-2008","download_link": "https://suitesparse-collection-website.herokuapp.com/MM/LAW/amazon-2008.tar.gz"},
-                {"label": true ,"label_generate": true ,"label_type": "so" ,"generate": false ,"generate_default": false ,"convert_type" : "sg","run_type": "sg","download_type": "mtx" ,"symbol" : "CNR00" ,"name" : "cnr-2000"  , "download_link": "https://suitesparse-collection-website.herokuapp.com/MM/LAW/cnr-2000.tar.gz"},
-                {"label": true ,"label_generate": true ,"label_type": "so" ,"generate": false ,"generate_default": false ,"convert_type" : "sg","run_type": "sg","download_type": "mtx" ,"symbol" : "DBLP10","name" : "dblp-2010" , "download_link": "https://suitesparse-collection-website.herokuapp.com/MM/LAW/dblp-2010.tar.gz"}
-            ],
-            "graph_basename": "graph"
+  "reorderings": {
+    "Original": 0,
+    "Random": 1,
+    "Sort": 2,
+    "HubSort": 3,
+    "HubCluster": 4,
+    "DBG": 5,
+    "HubSortDBG": 6,
+    "HubClusterDBG": 7,
+    "RabbitOrder": 8,
+    "Gorder": 9,
+    "Corder": 10,
+    "RCM": 11,
+    "Leiden": 12
+  },
+  "baselines_speedup": {
+    "Original": 0,
+    "Random": 1
+  },
+  "baselines_overhead": {
+    "Leiden": 12
+  },
+  "prereorder": {
+    "Random": 1
+  },
+  "postreorder": {
+    "DBG": 5
+  },
+  "kernels": [
+    "bc",
+    "bfs",
+    "cc",
+    "cc_sv",
+    "pr",
+    "pr_spmv",
+    "sssp"
+  ],
+  "graph_suites": {
+    "suite_dir": "./00_Graph_Datasets/full",
+    "SNAP": {
+      "graphs": [
+        {
+          "label": true,
+          "label_generate": true,
+          "label_type": "so",
+          "generate": false,
+          "generate_default": false,
+          "convert_type": "sg",
+          "run_type": "sg",
+          "download_type": "mtx",
+          "symbol": "WGL",
+          "name": "web-Google",
+          "download_link":
+              "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/web-Google.tar.gz"
+        },
+        {
+          "label": true,
+          "label_generate": true,
+          "label_type": "so",
+          "generate": false,
+          "generate_default": false,
+          "convert_type": "sg",
+          "run_type": "sg",
+          "download_type": "mtx",
+          "symbol": "AMZ08",
+          "name": "amazon-2008",
+          "download_link":
+              "https://suitesparse-collection-website.herokuapp.com/MM/LAW/amazon-2008.tar.gz"
+        },
+        {
+          "label": true,
+          "label_generate": true,
+          "label_type": "so",
+          "generate": false,
+          "generate_default": false,
+          "convert_type": "sg",
+          "run_type": "sg",
+          "download_type": "mtx",
+          "symbol": "CNR00",
+          "name": "cnr-2000",
+          "download_link":
+              "https://suitesparse-collection-website.herokuapp.com/MM/LAW/cnr-2000.tar.gz"
+        },
+        {
+          "label": true,
+          "label_generate": true,
+          "label_type": "so",
+          "generate": false,
+          "generate_default": false,
+          "convert_type": "sg",
+          "run_type": "sg",
+          "download_type": "mtx",
+          "symbol": "DBLP10",
+          "name": "dblp-2010",
+          "download_link":
+              "https://suitesparse-collection-website.herokuapp.com/MM/LAW/dblp-2010.tar.gz"
+        },
+        {
+          "label": true,
+          "label_generate": true,
+          "label_type": "so",
+          "generate": false,
+          "generate_default": false,
+          "convert_type": "sg",
+          "run_type": "sg",
+          "download_type": "sg",
+          "symbol": "KRON10",
+          "name": "kron-10",
+          "synthetic_link": "-g10 -k5 "
+        },
+        {
+          "label": true,
+          "label_generate": true,
+          "label_type": "so",
+          "generate": false,
+          "generate_default": false,
+          "convert_type": "sg",
+          "run_type": "sg",
+          "download_type": "sg",
+          "symbol": "URAND10",
+          "name": "urand-10",
+          "synthetic_link": "-u10 -k5 "
         }
+      ],
+      "graph_basename": "graph"
     }
+  }
 }

@@ -492,7 +492,7 @@ public:
     for (NodeID_ u = 0; u < g.num_nodes(); u++) {
       for (NodeID_ v : g.out_neigh(u))
         neighs[offsets[new_ids[u]]++] = new_ids[v];
-      __gnu_parallel::stable_sort(index[new_ids[u]], index[new_ids[u] + 1]);
+      std::sort(index[new_ids[u]], index[new_ids[u] + 1]);
     }
     t.Stop();
     PrintTime("Relabel", t.Seconds());
@@ -503,6 +503,137 @@ public:
   RelabelByMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
                    pvector<NodeID_> &new_ids) {
     Timer t;
+    t.Start();
+    bool outDegree = true;
+    // bool createOnlyDegList = true;
+    CSRGraph<NodeID_, DestID_, invert> g_relabel;
+    bool createBothCSRs = true;
+
+    auto max_iter = __gnu_parallel::max_element(new_ids.begin(), new_ids.end());
+    size_t max_id = *max_iter;
+
+#pragma omp parallel for
+    for (NodeID_ v = 0; v < g.num_nodes(); ++v) {
+      if (new_ids[v] == -1) {
+        // Assigning new IDs starting from max_id atomically
+        NodeID_ local_max = __sync_fetch_and_add(&max_id, 1);
+        new_ids[v] = local_max + 1;
+        // cerr << v << " " << new_ids[v] <<  " " << max_id << endl;
+      }
+    }
+
+    if (g.directed() == true) {
+#pragma omp parallel for
+      for (NodeID_ v = 0; v < g.num_nodes(); ++v)
+        assert(new_ids[v] != -1);
+
+      /* Step VI: generate degree to build a new graph */
+      pvector<NodeID_> degrees(g.num_nodes());
+      pvector<NodeID_> inv_degrees(g.num_nodes());
+      if (outDegree == true) {
+#pragma omp parallel for
+        for (NodeID_ n = 0; n < g.num_nodes(); n++) {
+          degrees[new_ids[n]] = g.out_degree(n);
+          inv_degrees[new_ids[n]] = g.in_degree(n);
+        }
+      } else {
+#pragma omp parallel for
+        for (NodeID_ n = 0; n < g.num_nodes(); n++) {
+          degrees[new_ids[n]] = g.in_degree(n);
+          inv_degrees[new_ids[n]] = g.out_degree(n);
+        }
+      }
+
+      /* Graph building phase */
+      pvector<SGOffset> offsets = ParallelPrefixSum(inv_degrees);
+      DestID_ *neighs = new DestID_[offsets[g.num_nodes()]];
+      DestID_ **index = CSRGraph<NodeID_, DestID_>::GenIndex(offsets, neighs);
+#pragma omp parallel for schedule(dynamic, 1024)
+      for (NodeID_ u = 0; u < g.num_nodes(); u++) {
+        if (outDegree == true) {
+          for (NodeID_ v : g.in_neigh(u))
+            neighs[offsets[new_ids[u]]++] = new_ids[v];
+        } else {
+          for (NodeID_ v : g.out_neigh(u))
+            neighs[offsets[new_ids[u]]++] = new_ids[v];
+        }
+        std::sort(index[new_ids[u]],
+                  index[new_ids[u] + 1]); // sort neighbors of each vertex
+      }
+      DestID_ *inv_neighs(nullptr);
+      DestID_ **inv_index(nullptr);
+      if (createBothCSRs == true) {
+        // making the inverse list (in-degrees in this case)
+        pvector<SGOffset> inv_offsets = ParallelPrefixSum(degrees);
+        inv_neighs = new DestID_[inv_offsets[g.num_nodes()]];
+        inv_index =
+            CSRGraph<NodeID_, DestID_>::GenIndex(inv_offsets, inv_neighs);
+        if (createBothCSRs == true) {
+#pragma omp parallel for schedule(dynamic, 1024)
+          for (NodeID_ u = 0; u < g.num_nodes(); u++) {
+            if (outDegree == true) {
+              for (NodeID_ v : g.out_neigh(u))
+                inv_neighs[inv_offsets[new_ids[u]]++] = new_ids[v];
+            } else {
+              for (NodeID_ v : g.in_neigh(u))
+                inv_neighs[inv_offsets[new_ids[u]]++] = new_ids[v];
+            }
+            std::sort(
+                inv_index[new_ids[u]],
+                inv_index[new_ids[u] + 1]); // sort neighbors of each vertex
+          }
+        }
+      }
+      t.Stop();
+      PrintTime("Relabel Map Time", t.Seconds());
+      if (outDegree == true) {
+
+        g_relabel = CSRGraph<NodeID_, DestID_, invert>(
+            g.num_nodes(), inv_index, inv_neighs, index, neighs);
+      } else {
+        g_relabel = CSRGraph<NodeID_, DestID_, invert>(
+            g.num_nodes(), index, neighs, inv_index, inv_neighs);
+      }
+    } else {
+      /* Undirected graphs - no need to make separate lists for in and out
+       * degree */
+
+#pragma omp parallel for
+      for (NodeID_ v = 0; v < g.num_nodes(); ++v)
+        assert(new_ids[v] != -1);
+
+      /* Step VI: generate degree to build a new graph */
+      pvector<NodeID_> degrees(g.num_nodes());
+#pragma omp parallel for
+      for (NodeID_ n = 0; n < g.num_nodes(); n++) {
+        degrees[new_ids[n]] = g.out_degree(n);
+      }
+
+      /* Graph building phase */
+      pvector<SGOffset> offsets = ParallelPrefixSum(degrees);
+      DestID_ *neighs = new DestID_[offsets[g.num_nodes()]];
+      DestID_ **index = CSRGraph<NodeID_, DestID_>::GenIndex(offsets, neighs);
+#pragma omp parallel for schedule(dynamic, 1024)
+      for (NodeID_ u = 0; u < g.num_nodes(); u++) {
+        for (NodeID_ v : g.out_neigh(u))
+          neighs[offsets[new_ids[u]]++] = new_ids[v];
+        std::sort(index[new_ids[u]], index[new_ids[u] + 1]);
+      }
+      t.Stop();
+      PrintTime("Relabel Map Time", t.Seconds());
+      g_relabel =
+          CSRGraph<NodeID_, DestID_, invert>(g.num_nodes(), index, neighs);
+    }
+
+    g_relabel.copy_org_ids(g.org_ids_shared_);
+    g_relabel.update_org_ids(new_ids);
+    return g_relabel;
+  }
+
+  static CSRGraph<NodeID_, DestID_, invert>
+  RelabelByMapping_v2(const CSRGraph<NodeID_, DestID_, invert> &g,
+                      pvector<NodeID_> &new_ids) {
+    Timer t;
     DestID_ **out_index;
     DestID_ *out_neighs;
     DestID_ **in_index;
@@ -512,36 +643,50 @@ public:
     t.Start();
     pvector<NodeID_> out_degrees(g.num_nodes(), 0);
 
+    auto max_iter = __gnu_parallel::max_element(new_ids.begin(), new_ids.end());
+    size_t max_id = *max_iter;
+
 #pragma omp parallel for
+    for (NodeID_ v = 0; v < g.num_nodes(); ++v) {
+      if (new_ids[v] == -1) {
+        // Assigning new IDs starting from max_id atomically
+        NodeID_ local_max = __sync_fetch_and_add(&max_id, 1);
+        new_ids[v] = local_max + 1;
+      }
+    }
+
+    // #pragma omp parallel for
     for (NodeID_ n = 0; n < g.num_nodes(); n++) {
       out_degrees[new_ids[n]] = g.out_degree(n);
+      // if(new_ids[n] > g.num_nodes())
+      // cerr << new_ids[n] << endl;
     }
     pvector<SGOffset> out_offsets = ParallelPrefixSum(out_degrees);
     out_neighs = new DestID_[out_offsets[g.num_nodes()]];
     out_index = CSRGraph<NodeID_, DestID_>::GenIndex(out_offsets, out_neighs);
-#pragma omp parallel for
+    // #pragma omp parallel for
     for (NodeID_ u = 0; u < g.num_nodes(); u++) {
-      for (NodeID_ v : g.out_neigh(u))
+      for (NodeID_ v : g.out_neigh(u)) {
         out_neighs[out_offsets[new_ids[u]]++] = new_ids[v];
-      __gnu_parallel::stable_sort(out_index[new_ids[u]],
-                                  out_index[new_ids[u] + 1]);
+      }
+      std::sort(out_index[new_ids[u]], out_index[new_ids[u] + 1]);
     }
 
     if (g.directed()) {
       pvector<NodeID_> in_degrees(g.num_nodes(), 0);
-#pragma omp parallel for
+      // #pragma omp parallel for
       for (NodeID_ n = 0; n < g.num_nodes(); n++) {
         in_degrees[new_ids[n]] = g.in_degree(n);
       }
       pvector<SGOffset> in_offsets = ParallelPrefixSum(in_degrees);
       in_neighs = new DestID_[in_offsets[g.num_nodes()]];
       in_index = CSRGraph<NodeID_, DestID_>::GenIndex(in_offsets, in_neighs);
-#pragma omp parallel for
+      // #pragma omp parallel for
       for (NodeID_ u = 0; u < g.num_nodes(); u++) {
-        for (NodeID_ v : g.in_neigh(u))
+        for (NodeID_ v : g.in_neigh(u)) {
           in_neighs[in_offsets[new_ids[u]]++] = new_ids[v];
-        __gnu_parallel::stable_sort(in_index[new_ids[u]],
-                                    in_index[new_ids[u] + 1]);
+        }
+        std::sort(in_index[new_ids[u]], in_index[new_ids[u] + 1]);
       }
       t.Stop();
       g_relabel = CSRGraph<NodeID_, DestID_, invert>(
@@ -617,7 +762,8 @@ public:
       GenerateHubClusterMapping(g, new_ids, useOutdeg);
       break;
     case Random:
-      GenerateRandomMapping(g, new_ids, useOutdeg);
+      GenerateRandomMapping(g, new_ids);
+      // RandOrder(g, new_ids, false, false);
       break;
     case RabbitOrder:
       GenerateRabbitOrderMapping(g, new_ids);
@@ -762,8 +908,8 @@ public:
     PrintTime("Original Map Time", t.Seconds());
   }
 
-  void GenerateRandomMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
-                             pvector<NodeID_> &new_ids, bool useOutdeg) {
+  void GenerateRandomMapping_v2(const CSRGraph<NodeID_, DestID_, invert> &g,
+                                pvector<NodeID_> &new_ids, bool useOutdeg) {
     Timer t;
     t.Start();
 
@@ -796,10 +942,43 @@ public:
         }
       }
     }
+
     for (NodeID_ i = artificial_num_nodes; i < num_nodes; i++) {
       new_ids[i] = i;
     }
     slice_index.clear();
+
+    t.Stop();
+    PrintTime("Random Map Time", t.Seconds());
+  }
+
+  void GenerateRandomMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
+                             pvector<NodeID_> &new_ids) {
+    Timer t;
+    t.Start();
+    // std::srand(0); // so that the random graph generated is the same
+    // everytime
+
+    // Step I: create a random permutation - SLOW implementation
+    pvector<NodeID_> claimedVtxs(g.num_nodes(), 0);
+
+    // #pragma omp parallel for
+    for (NodeID_ v = 0; v < g.num_nodes(); ++v) {
+      while (true) {
+        NodeID_ randID = std::rand() % g.num_nodes();
+        if (claimedVtxs[randID] != 1) {
+          if (compare_and_swap(claimedVtxs[randID], 0, 1) == true) {
+            new_ids[v] = randID;
+            break;
+          } else
+            continue;
+        }
+      }
+    }
+
+#pragma omp parallel for
+    for (NodeID_ v = 0; v < g.num_nodes(); ++v)
+      assert(new_ids[v] != -1);
 
     t.Stop();
     PrintTime("Random Map Time", t.Seconds());
@@ -814,7 +993,7 @@ public:
     t.Start();
 
     int64_t num_nodes = g.num_nodes();
-    int64_t num_edges = g.num_edges_directed();
+    int64_t num_edges = g.num_edges();
 
     int64_t avgDegree = num_edges / num_nodes;
     size_t hubCount{0};
@@ -899,7 +1078,7 @@ public:
     t.Start();
 
     int64_t num_nodes = g.num_nodes();
-    int64_t num_edges = g.num_edges_directed();
+    int64_t num_edges = g.num_edges();
 
     uint32_t avg_vertex = num_edges / num_nodes;
 
@@ -976,7 +1155,7 @@ public:
     t.Start();
 
     int64_t num_nodes = g.num_nodes();
-    int64_t num_edges = g.num_edges_directed();
+    int64_t num_edges = g.num_edges();
 
     pvector<degree_nodeid_t> degree_id_pairs(num_nodes);
     int64_t avgDegree = num_edges / num_nodes;
@@ -1103,7 +1282,7 @@ public:
     t.Start();
 
     int64_t num_nodes = g.num_nodes();
-    int64_t num_edges = g.num_edges_directed();
+    int64_t num_edges = g.num_edges();
 
     uint32_t avg_vertex = num_edges / num_nodes;
     const uint32_t &av = avg_vertex;
@@ -1190,7 +1369,7 @@ public:
     t.Start();
 
     int64_t num_nodes = g.num_nodes();
-    int64_t num_edges = g.num_edges_directed();
+    int64_t num_edges = g.num_edges();
 
     pvector<degree_nodeid_t> degree_id_pairs(num_nodes);
     int64_t avgDegree = num_edges / num_nodes;
@@ -1295,13 +1474,75 @@ public:
     PrintTime("HubCluster Map Time", t.Seconds());
   }
 
+  void GenerateCOrderMapping_v2(const CSRGraph<NodeID_, DestID_, invert> &g,
+                                pvector<NodeID_> &new_ids) {
+    Timer t;
+    t.Start();
+
+    auto num_nodes = g.num_nodes();
+    auto num_edges = g.num_edges();
+    unsigned max_threads = omp_get_max_threads();
+
+    uint32_t average_degree = num_edges / num_nodes;
+    uint32_t num_partitions = (num_nodes - 1) / 1024 + 1;
+    std::vector<unsigned> segment_large;
+    segment_large.reserve(num_nodes);
+    std::vector<unsigned> segment_small;
+    segment_small.reserve(num_nodes / 2);
+
+    for (unsigned i = 0; i < num_nodes; i++)
+      if (g.out_degree(i) > 1 * average_degree)
+        segment_large.push_back(i);
+      else
+        segment_small.push_back(i);
+
+    unsigned num_large_per_seg =
+        ceil((float)segment_large.size() / num_partitions);
+    params::overflow_ceil = num_large_per_seg;
+
+    unsigned num_small_per_seg = params::partition_size - num_large_per_seg;
+
+    std::cout << "partition size: " << params::partition_size
+              << " num of large: " << num_large_per_seg
+              << " num of small: " << num_small_per_seg << '\n';
+    unsigned last_cls = num_partitions - 1;
+
+    while ((num_large_per_seg * last_cls > segment_large.size()) ||
+           (num_small_per_seg * last_cls > segment_small.size())) {
+      last_cls -= 1;
+    }
+
+#pragma omp parallel for schedule(static) num_threads(max_threads)
+    for (unsigned i = 0; i < last_cls; i++) {
+      unsigned index = i * params::partition_size;
+      for (unsigned j = 0; j < num_large_per_seg; j++) {
+        new_ids[segment_large[i * num_large_per_seg + j]] = index++;
+      }
+      for (unsigned j = 0; j < num_small_per_seg; j++)
+        new_ids[segment_small[i * num_small_per_seg + j]] = index++;
+    }
+
+    auto last_large = num_large_per_seg * last_cls;
+    auto last_small = num_small_per_seg * last_cls;
+    unsigned index = last_cls * params::partition_size;
+
+    for (unsigned i = last_large; i < segment_large.size(); i++) {
+      new_ids[segment_large[i]] = index++;
+    }
+    for (unsigned i = last_small; i < segment_small.size(); i++) {
+      new_ids[segment_small[i]] = index++;
+    }
+    t.Stop();
+    PrintTime("COrder Map Time", t.Seconds());
+  }
+
   void GenerateCOrderMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
                              pvector<NodeID_> &new_ids) {
     Timer t;
     t.Start();
 
     auto num_nodes = g.num_nodes();
-    auto num_edges = g.num_edges_directed();
+    auto num_edges = g.num_edges();
 
     uint32_t average_degree = num_edges / num_nodes;
 
@@ -1311,11 +1552,13 @@ public:
     Vector2d<unsigned> small_segment(max_threads);
 
 #pragma omp parallel for schedule(static, 1024) num_threads(max_threads)
-    for (unsigned i = 0; i < num_nodes; i++)
-      if (g.out_degree(i) > average_degree)
+    for (unsigned i = 0; i < num_nodes; i++) {
+      if (g.out_degree(i) > average_degree) {
         large_segment[omp_get_thread_num()].push_back(i);
-      else
+      } else {
         small_segment[omp_get_thread_num()].push_back(i);
+      }
+    }
 
     std::vector<unsigned> large_offset(max_threads + 1, 0);
     std::vector<unsigned> small_offset(max_threads + 1, 0);
@@ -1339,6 +1582,9 @@ public:
     // vertices
 #pragma omp parallel for schedule(static) num_threads(max_threads)
     for (unsigned i = 0; i < num_clusters; i++) {
+
+      // Debug output for current cluster's state across all threads
+
       unsigned index = i * cluster_size;
       unsigned num_large =
           (i != num_clusters - 1) ? (i + 1) * num_large_per_seg : total_large;
@@ -1359,6 +1605,7 @@ public:
       unsigned small_per_seg = (i != num_clusters - 1)
                                    ? num_small_per_seg
                                    : total_small - i * num_small_per_seg;
+
       // HOT find the starting segment and starting vertex
       for (int t = 0; t < max_threads; t++) {
         if (large_offset[t + 1] > num_large - large_per_seg) {
@@ -1394,36 +1641,54 @@ public:
       }
 
       if (large_start_t == large_end_t) {
-        for (unsigned j = large_start_v; j <= large_end_v; j++) {
-          new_ids[large_segment[large_start_t][j]] = index++;
+        if (!large_segment[large_start_t].empty()) {
+          for (unsigned j = large_start_v; j <= large_end_v; j++) {
+            assert(large_start_t < large_segment.size());
+            assert(j < large_segment[large_start_t].size());
+            new_ids[large_segment[large_start_t][j]] = index++;
+          }
         }
       } else {
         for (unsigned t = large_start_t; t < large_end_t; t++) {
           if (t != large_start_t)
             large_start_v = 0;
-          for (unsigned j = large_start_v; j < large_segment[t].size(); j++) {
-            new_ids[large_segment[t][j]] = index++;
+          if (!large_segment[t].empty()) {
+            for (unsigned j = large_start_v; j < large_segment[t].size(); j++) {
+              new_ids[large_segment[t][j]] = index++;
+            }
           }
         }
-        for (unsigned j = 0; j <= large_end_v; j++) {
-          new_ids[large_segment[large_end_t][j]] = index++;
+        if (!large_segment[large_end_t].empty()) {
+          for (unsigned j = 0; j <= large_end_v; j++) {
+            new_ids[large_segment[large_end_t][j]] = index++;
+          }
         }
       }
+
       // COLD move the vertices form cold segment(s) to a partition
+
       if (small_start_t == small_end_t) {
-        for (unsigned j = small_start_v; j <= small_end_v; j++) {
-          new_ids[small_segment[small_start_t][j]] = index++;
+        if (!small_segment[small_start_t].empty()) {
+          for (unsigned j = small_start_v; j <= small_end_v; j++) {
+            assert(small_start_t < small_segment.size());
+            assert(j < small_segment[small_start_t].size());
+            new_ids[small_segment[small_start_t][j]] = index++;
+          }
         }
       } else {
         for (unsigned t = small_start_t; t < small_end_t; t++) {
           if (t != small_start_t)
             small_start_v = 0;
-          for (unsigned j = small_start_v; j < small_segment[t].size(); j++) {
-            new_ids[small_segment[t][j]] = index++;
+          if (!small_segment[t].empty()) {
+            for (unsigned j = small_start_v; j < small_segment[t].size(); j++) {
+              new_ids[small_segment[t][j]] = index++;
+            }
           }
         }
-        for (unsigned j = 0; j <= small_end_v; j++) {
-          new_ids[small_segment[small_end_t][j]] = index++;
+        if (!small_segment[small_end_t].empty()) {
+          for (unsigned j = 0; j <= small_end_v; j++) {
+            new_ids[small_segment[small_end_t][j]] = index++;
+          }
         }
       }
     }
@@ -1722,7 +1987,7 @@ public:
         }
       }
       t.Stop();
-      PrintTime("DegSort Time", t.Seconds());
+      PrintTime("Sort Map Time", t.Seconds());
       if (outDegree == true) {
         return CSRGraph<NodeID_, DestID_, invert>(g.num_nodes(), inv_index,
                                                   inv_neighs, index, neighs);
@@ -1767,7 +2032,7 @@ public:
         std::sort(index[new_ids[u]], index[new_ids[u] + 1]);
       }
       t.Stop();
-      PrintTime("DegSort Time", t.Seconds());
+      PrintTime("Sort Map Time", t.Seconds());
       return CSRGraph<NodeID_, DestID_, invert>(g.num_nodes(), index, neighs);
     }
   }
@@ -1861,7 +2126,7 @@ public:
         }
       }
       t.Stop();
-      PrintTime("RandOrder Time", t.Seconds());
+      PrintTime("Random Map Time", t.Seconds());
       if (outDegree == true) {
         return CSRGraph<NodeID_, DestID_, invert>(g.num_nodes(), inv_index,
                                                   inv_neighs, index, neighs);
@@ -2152,7 +2417,13 @@ public:
   adjacency_list
   readRabbitOrderGraphCSR(const CSRGraph<NodeID_, DestID_, invert> &g) {
 
-    std::vector<edge> edges(g.num_edges_directed(), {0, 0, 0.0f});
+    // int64_t num_nodes = g.num_nodes();
+    int64_t num_edges = g.num_edges();
+
+    std::vector<edge> edges(num_edges, {0, 0, 0.0f});
+
+    // std::cerr << static_cast<long long>(num_edges) << std::endl;
+    // std::cerr << static_cast<long long>(num_nodes) << std::endl;
 
     int edge_idx = 0;
     for (NodeID_ i = 0; i < g.num_nodes(); i++) {
@@ -2167,6 +2438,20 @@ public:
       }
     }
 
+    // if (g.directed()) {
+    //   for (NodeID_ i = 0; i < g.num_nodes(); i++) {
+    //     for (DestID_ j : g.in_neigh(i)) {
+    //       if (g.is_weighted())
+    //         edges[edge_idx] = {i, static_cast<NodeWeight<>>(j).v,
+    //                            static_cast<NodeWeight<>>(j).w};
+    //       else
+    //         edges[edge_idx] = {i, j, 1.0f};
+
+    //       edge_idx++;
+    //     }
+    //   }
+    // }
+
     // The number of vertices = max vertex ID + 1 (assuming IDs start from zero)
     const auto n = boost::accumulate(
         edges, static_cast<rabbit_order::vint>(0),
@@ -2175,8 +2460,8 @@ public:
         });
 
     // if (const size_t c = count_unused_id(n, edges)) {
-    // std::cerr << "WARNING: " << c << "/" << n << " vertex IDs are unused"
-    //           << " (zero-degree vertices or noncontiguous IDs?)\n";
+    //   std::cerr << "WARNING: " << c << "/" << n << " vertex IDs are unused"
+    //             << " (zero-degree vertices or noncontiguous IDs?)\n";
     // }
 
     return make_adj_list(n, edges);
@@ -2361,6 +2646,16 @@ public:
       }
     }
 
+    if (g.directed()) {
+      int edge_idx = 0;
+      for (NodeID_ i = 0; i < g.num_nodes(); i++) {
+        for (DestID_ j : g.in_neigh(i)) {
+          edges[edge_idx] = {i, j};
+          edge_idx++;
+        }
+      }
+    }
+
     Gorder::GoGraph go;
     vector<int> order;
     Timer tm;
@@ -2402,6 +2697,16 @@ public:
       for (DestID_ j : g.out_neigh(i)) {
         edges[edge_idx] = {i, j};
         edge_idx++;
+      }
+    }
+
+    if (g.directed()) {
+      int edge_idx = 0;
+      for (NodeID_ i = 0; i < g.num_nodes(); i++) {
+        for (DestID_ j : g.in_neigh(i)) {
+          edges[edge_idx] = {i, j};
+          edge_idx++;
+        }
       }
     }
 
@@ -2533,26 +2838,45 @@ public:
     using V = TYPE;
     install_sigsegv();
 
-    int64_t num_edges = g.num_edges_directed();
     int64_t num_nodes = g.num_nodes();
-    // LOG("OMP_NUM_THREADS=%d\n", MAX_THREADS);
+    int64_t num_edges = g.num_edges();
+
     std::vector<std::tuple<size_t, size_t, double>> edges(num_edges,
                                                           {0, 0, 0.0f});
-
     int edge_idx = 0;
-    for (NodeID_ i = 0; i < num_nodes; i++) {
+    for (NodeID_ i = 0; i < g.num_nodes(); i++) {
       for (DestID_ j : g.out_neigh(i)) {
         if (g.is_weighted())
           edges[edge_idx] = {i, static_cast<NodeWeight<>>(j).v,
                              static_cast<NodeWeight<>>(j).w};
         else
           edges[edge_idx] = {i, j, 1.0f};
+
         edge_idx++;
       }
     }
 
+    cout << g.directed() << endl ;
+    cout << g.is_transpose()<< endl ;
+
+    if (g.directed()) {
+      edges.resize(num_nodes*2);
+      for (NodeID_ i = 0; i < g.num_nodes(); i++) {
+        for (DestID_ j : g.in_neigh(i)) {
+          if (g.is_weighted())
+            edges[edge_idx] = {i, static_cast<NodeWeight<>>(j).v,
+                               static_cast<NodeWeight<>>(j).w};
+          else
+            edges[edge_idx] = {i, j, 1.0f};
+          edge_idx++ ;
+          // cout << "in" << edge_idx << " " << endl ;
+          // cout <<  (size_t)num_edges << " " << (size_t)g.in_degree(i) <<  endl;
+        }
+      }
+    }
+
     tm.Start();
-    bool symmetric = !cli_.symmetrize();
+    bool symmetric = false;
     bool weighted = g.is_weighted();
     DiGraph<K, None, V> x;
     readVecOmpW(x, edges, num_nodes, symmetric,

@@ -1,17 +1,20 @@
 #!/usr/bin/env python3
 
-import os
-import requests
-import tarfile
-import shutil
-import json
-import sys
-from tqdm import tqdm
 from multiprocessing.pool import ThreadPool
-import importlib.util
+from tqdm import tqdm
 import gzip
+import importlib.util
+import json
+import os
+import re
+import requests
+import shutil
+import subprocess
+import sys
+import tarfile
 import zipfile
 
+PARALLEL = os.cpu_count()  # Use all available CPU cores
 
 def import_check_install(package_name):
     spec = importlib.util.find_spec(package_name)
@@ -20,38 +23,93 @@ def import_check_install(package_name):
         subprocess.run(["pip", "install", package_name])
 
 
+def parse_synthetic_link(synthetic_link):
+    # Regular expression pattern to match either -g or -u followed by a number, and optionally -k followed by another number
+    pattern = r"(-[gu]\d+)\s*(-k\d+)?"
+    # Find all matches in the synthetic_link string
+    matches = re.findall(pattern, synthetic_link)
+    parsed_values = []
+    for match in matches:
+        # Extract the -g or -u number
+        g_or_u_number = match[0]
+        # Extract the -k number if present, otherwise set it to None
+        k_number = match[1] if match[1] else None
+        parsed_values.append((g_or_u_number, k_number))
+    return parsed_values
+
+
 def download_and_extract_graph(graph):
     symbol = graph["symbol"]
-    graph_download_type = graph["download_type"]
-    download_link = graph["download_link"]
+    graph_download_type = graph.get("download_type", "")
+    graph_download_link = graph.get("download_link", "")
+    graph_synthetic_link = graph.get("synthetic_link", "")
+    parsed_synthetic_link = parse_synthetic_link(graph_synthetic_link)
+
     suite_dir_path = graph["suite_dir_path"]
     graph_fullname = graph["graph_fullname"]
 
     download_dir = os.path.join(suite_dir_path, symbol)
-    graph_file_path = os.path.join(download_dir, f"{graph_fullname}")
+    graph_file_path = os.path.join(download_dir, graph_fullname)
+
     # Create a subdirectory for extraction
     extract_dir = os.path.join(download_dir, "extracted")
     os.makedirs(extract_dir, exist_ok=True)
+
     # Check if suite directory exists
     if os.path.exists(graph_file_path):
         print(f"Suite graph {graph_file_path} already exists.")
         return
+
     os.makedirs(download_dir, exist_ok=True)
+
     # Download the graph file
-    file_name = os.path.basename(download_link)
-    file_path = os.path.join(download_dir, file_name)
-    progress_desc = f"Downloading {symbol}"
-    with requests.get(download_link, stream=True) as response:
-        total_size = int(response.headers.get("content-length", 0))
-        progress_bar = tqdm(
-            total=total_size, unit="B", unit_scale=True, leave=False, desc=progress_desc
-        )
-        with open(file_path, "wb") as f:
-            for chunk in response.iter_content(chunk_size=8192):
-                if chunk:
-                    f.write(chunk)
-                    progress_bar.update(len(chunk))
-    progress_bar.close()
+    if parsed_synthetic_link:
+        # Construct file path using synthetic link
+        file_name = f"{symbol}_synthetic"
+        file_path = graph_file_path
+        # Assuming here that you have a function to generate synthetic graph data
+        # Replace this with your actual function call to generate the synthetic graph data
+        # Assuming you want to call the make command after generating the synthetic graph
+        graph_bench = " ".join([f"'{g_or_u_number}'" for g_or_u_number, k_number in parsed_synthetic_link])
+        # print(parsed_synthetic_link)
+        run_params = f"-b {file_path}"
+
+        cmd = [
+            "make run-converter",
+            f"RUN_PARAMS='{run_params}'",
+            f"GRAPH_BENCH='{graph_bench}'",
+            "FLUSH_CACHE=0",
+            f"PARALLEL={PARALLEL}",
+        ]
+
+        # Convert list to a space-separated string for subprocess execution
+        cmd = " ".join(cmd)
+        print(cmd)
+        try:
+            output = subprocess.run(
+                cmd, shell=True, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+            )
+        except subprocess.CalledProcessError as e:
+            print(f"Error running command: {cmd}\nError: {e.stderr.decode()}")
+            return
+
+        return
+    else:
+        file_name = os.path.basename(graph_download_link)
+        file_path = os.path.join(download_dir, file_name)
+
+        progress_desc = f"Downloading {symbol}"
+        with requests.get(graph_download_link, stream=True) as response:
+            total_size = int(response.headers.get("content-length", 0))
+            progress_bar = tqdm(
+                total=total_size, unit="B", unit_scale=True, leave=False, desc=progress_desc
+            )
+            with open(file_path, "wb") as f:
+                for chunk in response.iter_content(chunk_size=8192):
+                    if chunk:
+                        f.write(chunk)
+                        progress_bar.update(len(chunk))
+        progress_bar.close()
 
     # Extract the graph file if it's a tar.gz archive
     if file_name.endswith(".tar.gz"):
@@ -95,7 +153,9 @@ def download_and_extract_graph(graph):
             content = gz_file.read()
 
             # Write the contents to a new file
-            extracted_file_path = os.path.join(extract_dir, symbol + "." + graph_download_type)
+            extracted_file_path = os.path.join(
+                extract_dir, symbol + "." + graph_download_type
+            )
             with open(extracted_file_path, "wb") as extracted_file:
                 extracted_file.write(content)
 
