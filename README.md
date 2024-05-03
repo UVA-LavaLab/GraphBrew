@@ -50,12 +50,12 @@ Graphbrew can explore the impact of graph reordering techniques on the performan
 ### Experiment Execution
 
 1. **Run Experiments:**
-   * Use the `make exp-<experiment-name>` command, matching the `scripts/config/<experiment-name>.json` file name. This will:
+   * Use the `make exp-<experiment-name>` command, matching the `scripts/config/<experiment-name>/*[convert|label|run].json` file name. This will:
      * Download necessary datasets if they don't exist. Provide a link in the [`JSON`](#configuration-file-breakdown-gapjson) file or copy the graph into the same directory to skip downloading. 
      * The graph will be downloaded or should be copied to `/00_Graph_Datasets/full/GAP/{symbol}/graph.{type}`.
 2. **Test Experiment:**
    * Use the `make exp-test` command. This will:
-     * Execute the experiments as defined in the configuration file [(`scripts/config/test.json`)](./scripts/config/test.json).
+     * Execute the experiments as defined in the configuration file [(`scripts/config/<experiment-name>/*[convert|label|run].json`)](./scripts/config/test/convert.json).
      * Generate results (e.g., speedup graphs, overhead measurements) in the `bench/results` folder.
      * `make clean-results` will back up current results into `bench/backup` and delete `bench/results` for a new run.
      * Use this config for functional testing, to make sure all libraries are installed and GraphBrew is running -- **not for performance evaluation**.
@@ -64,16 +64,16 @@ Graphbrew can explore the impact of graph reordering techniques on the performan
 
 The experiments utilize the GAP benchmark suite of graph datasets. These datasets are downloaded into the `./00_Graph_Datasets/full/GAP` directory.
 
-* **Twitter (TWTR):** A representation of the Twitter social network.
-* **Web graph (WEB):** A crawl of a portion of the World Wide Web.
-* **Road network (RD):** A road network from a specific geographic region.
-* **Kronecker graph (KRON):** A synthetic graph generated using the Kronecker product, often used to model real-world networks with power-law degree distributions.
-* **Random graph (URND):** A graph generated with random connections between nodes.
+* **Twitter (TWTR|30GB):** A representation of the Twitter social network.
+* **Web graph (WEB|39GB):** A crawl of a portion of the World Wide Web.
+* **Road network (RD|600MB):** A road network from a specific geographic region.
+* **Kronecker graph (KRON|44GB):** A synthetic graph generated using the Kronecker product, often used to model real-world networks with power-law degree distributions.
+* **Random graph (URND|44GB):** A graph generated with random connections between nodes.
 
 ### Run GAPBS GraphBrew:
 
-* Use the `make run-gap` command. This will:
-  * Execute the experiments as defined in the configuration file [(`scripts/config/gap.json`)](./scripts/config/gap.json).
+* Use the `make exp-gap` command. This will:
+  * Execute the experiments as defined in the configuration file [(`scripts/config/gap/*[convert|label|run].json`)](./scripts/config/gap/convert.json).
   * Generate results (e.g., speedup graphs, overhead measurements) in the `bench/result` folder.
 
 # GraphBrew Standalone
@@ -166,7 +166,7 @@ The graph loading infrastructure understands the following formats:
 + `.sg` serialized pre-built graph (use `converter` to make)
 + `.wsg` weighted serialized pre-built graph (use `converter` to make)
 
-The graph loading infrastructure understands the following formats for reordering labels:
+The GraphBrew loading infrastructure understands the following formats for reordering labels:
 + `-o 13:mapping.lo` loads new reodering labels from file mapping.lo, so is also supported
 + `.so` reordered serialized labels list (.so) (use `converter` to make), _node_id_ per line as _node_label_ 
 + `.lo` reordered plain-text labels list (.lo) (use `converter` to make), _node_id_ per line as _node_label_ 
@@ -274,87 +274,131 @@ Example Usage:
 ## JSON Configuration Overview 
 
 ```bash
-(scripts/config/testmtx.json)
+(scripts/config/scripts/test/label.json)
 {
-    "reorderings": {
-        "Original": 0, "Random": 1, "Sort": 2, "HubSort": 3, "HubCluster": 4,
-        "DBG": 5, "HubSortDBG": 6, "HubClusterDBG": 7, "RabbitOrder": 8,
-        "Gorder": 9, "Corder": 10, "RCM": 11, "Leiden": 12
-    },
-    "baselines_speedup": {
-        "Original": 0, "Random": 1
-    },
-    "baselines_overhead": {
-        "Leiden": 12
-    },
-    "prereorder": {
-        "Random": 1
-    },
-    "postreorder": {
-        "DBG": 5
-    },
-    "kernels": ["bc", "bfs", "cc", "cc_sv", "pr", "pr_spmv", "sssp", "tc"],
-    "graph_suites": {
-        "suite_dir": "./00_Graph_Datasets/full",
-        "SNAP": {
-            "graphs": [
-                {
-                    "label": true,
-                    "label_generate": true,
-                    "label_type": "so",
-                    "generate": false,
-                    "generate_default": false,
-                    "convert_type": "sg",
-                    "run_type": "mtx",
-                    "download_type": "mtx",
-                    "symbol": "WGL",
-                    "name": "web-Google",
-                    "download_link": "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/web-Google.tar.gz"
-                },
-                {
-                    "label": true,
-                    "label_generate": true,
-                    "label_type": "so",
-                    "generate": false,
-                    "generate_default": false,
-                    "convert_type": "sg",
-                    "run_type": "mtx",
-                    "download_type": "mtx",
-                    "symbol": "AMZ08",
-                    "name": "amazon-2008",
-                    "download_link": "https://suitesparse-collection-website.herokuapp.com/MM/LAW/amazon-2008.tar.gz"
-                },
-                {
-                    "label": true,
-                    "label_generate": true,
-                    "label_type": "so",
-                    "generate": false,
-                    "generate_default": false,
-                    "convert_type": "sg",
-                    "run_type": "mtx",
-                    "download_type": "mtx",
-                    "symbol": "CNR00",
-                    "name": "cnr-2000",
-                    "download_link": "https://suitesparse-collection-website.herokuapp.com/MM/LAW/cnr-2000.tar.gz"
-                },
-                {
-                    "label": true,
-                    "label_generate": true,
-                    "label_type": "so",
-                    "generate": false,
-                    "generate_default": false,
-                    "convert_type": "sg",
-                    "run_type": "mtx",
-                    "download_type": "mtx",
-                    "symbol": "DBLP10",
-                    "name": "dblp-2010",
-                    "download_link": "https://suitesparse-collection-website.herokuapp.com/MM/LAW/dblp-2010.tar.gz"
-                }
-            ],
-            "graph_basename": "graph"
+  "reorderings": {
+    "Original": 0,
+    "Random": 1,
+    "Sort": 2,
+    "HubSort": 3,
+    "HubCluster": 4,
+    "DBG": 5,
+    "HubSortDBG": 6,
+    "HubClusterDBG": 7,
+    "RabbitOrder": 8,
+    "Gorder": 9,
+    "Corder": 10,
+    "RCM": 11,
+    "Leiden": 12
+  },
+  "baselines_speedup": {
+    "Original": 0,
+    "Random": 1
+  },
+  "baselines_overhead": {
+    "Leiden": 12
+  },
+  "prereorder": {
+    "Random": 1
+  },
+  "postreorder": {
+    "DBG": 5
+  },
+  "kernels": [
+    "converter"
+  ],
+  "graph_suites": {
+    "suite_dir": "./00_Graph_Datasets/full",
+    "SNAP": {
+      "graphs": [
+        {
+          "label": true,
+          "label_generate": true,
+          "label_type": "so",
+          "generate": false,
+          "generate_default": false,
+          "convert_type": "sg",
+          "run_type": "sg",
+          "download_type": "mtx",
+          "symbol": "WGL",
+          "name": "web-Google",
+          "download_link":
+              "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/web-Google.tar.gz"
+        },
+        {
+          "label": true,
+          "label_generate": true,
+          "label_type": "so",
+          "generate": false,
+          "generate_default": false,
+          "convert_type": "sg",
+          "run_type": "sg",
+          "download_type": "mtx",
+          "symbol": "AMZ08",
+          "name": "amazon-2008",
+          "download_link":
+              "https://suitesparse-collection-website.herokuapp.com/MM/LAW/amazon-2008.tar.gz"
+        },
+        {
+          "label": true,
+          "label_generate": true,
+          "label_type": "so",
+          "generate": false,
+          "generate_default": false,
+          "convert_type": "sg",
+          "run_type": "sg",
+          "download_type": "mtx",
+          "symbol": "CNR00",
+          "name": "cnr-2000",
+          "download_link":
+              "https://suitesparse-collection-website.herokuapp.com/MM/LAW/cnr-2000.tar.gz"
+        },
+        {
+          "label": true,
+          "label_generate": true,
+          "label_type": "so",
+          "generate": false,
+          "generate_default": false,
+          "convert_type": "sg",
+          "run_type": "sg",
+          "download_type": "mtx",
+          "symbol": "DBLP10",
+          "name": "dblp-2010",
+          "download_link":
+              "https://suitesparse-collection-website.herokuapp.com/MM/LAW/dblp-2010.tar.gz"
+        },
+        {
+          "label": true,
+          "label_generate": true,
+          "label_type": "so",
+          "generate": false,
+          "generate_default": false,
+          "convert_type": "sg",
+          "run_type": "sg",
+          "download_type": "sg",
+          "symbol": "KRON10",
+          "name": "kron-10",
+          "synthetic_link": "-g10 -k5 "
+        },
+        {
+          "label": true,
+          "label_generate": true,
+          "label_type": "so",
+          "generate": false,
+          "generate_default": false,
+          "convert_type": "sg",
+          "run_type": "sg",
+          "download_type": "sg",
+          "symbol": "URAND10",
+          "name": "urand-10",
+          "synthetic_link": "-u10 -k5 "
         }
+      ],
+      "graph_basename": "graph"
     }
+  }
 }
+
 
 ```
 
@@ -402,8 +446,6 @@ The script `graph_brew->run_benchmark` is designed to automate the execution of 
 - `prereorder_codes`, `postreorder_codes`: Codes for additional reorderings applied before or after the main reordering.
 
 The script orchestrates the setup, execution, and logging of benchmark results, managing various preprocessing and postprocessing steps required for comprehensive performance evaluation.
-
-
 
 ## Modifying the Makefile
 
