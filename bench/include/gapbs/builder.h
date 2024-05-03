@@ -2786,21 +2786,21 @@ public:
     random_device dev;
     default_random_engine rnd(dev());
     int repeat = REPEAT_METHOD;
-    double M = edgeWeightOmp(x) / 2;
+    // double M = edgeWeightOmp(x) / 2;
     // Follow a specific result logging format, which can be easily parsed
     // later.
-    auto flog = [&](const auto &ans, const char *technique) {
-      printf("{%09.1fms, %09.1fms mark, %09.1fms init, %09.1fms "
-             "firstpass,%09.1fms locmove, %09.1fms refine, %09.1fms aggr, %.3e "
-             "aff,%04d iters, %03d passes, %01.9f modularity, "
-             "%zu/%zudisconnected} %s\n",
-             ans.time, ans.markingTime, ans.initializationTime,
-             ans.firstPassTime, ans.localMoveTime, refinementTime(ans),
-             ans.aggregationTime, double(ans.affectedVertices), ans.iterations,
-             ans.passes, getModularity(x, ans, M),
-             countValue(communitiesDisconnectedOmp(x, ans.membership), char(1)),
-             communities(x, ans.membership).size(), technique);
-    };
+    // auto flog = [&](const auto &ans, const char *technique) {
+    //   printf("{%09.1fms, %09.1fms mark, %09.1fms init, %09.1fms "
+    //          "firstpass,%09.1fms locmove, %09.1fms refine, %09.1fms aggr, %.3e "
+    //          "aff,%04d iters, %03d passes, %01.9f modularity, "
+    //          "%zu/%zudisconnected} %s\n",
+    //          ans.time, ans.markingTime, ans.initializationTime,
+    //          ans.firstPassTime, ans.localMoveTime, refinementTime(ans),
+    //          ans.aggregationTime, double(ans.affectedVertices), ans.iterations,
+    //          ans.passes, getModularity(x, ans, M),
+    //          countValue(communitiesDisconnectedOmp(x, ans.membership), char(1)),
+    //          communities(x, ans.membership).size(), technique);
+    // };
     // Get community memberships on original graph (static).
     {
       // auto a0 = louvainStaticOmp(x, {repeat});
@@ -2813,7 +2813,7 @@ public:
       // flog(b1, "leidenStaticOmpGreedyOrg");
       auto c0 = leidenStaticOmp<false, false>(
           rnd, x, {repeat, 0.5, 1e-12, 0.8, 1.0, 100, 100});
-      flog(c0, "leidenStaticOmpGreedyMedium");
+      // flog(c0, "leidenStaticOmpGreedyMedium");
       // auto c1 = leidenStaticOmp<false,  true>(rnd, x, {repeat, 1.0, 1e-12,
       // 0.8, 1.0, 100, 100}); flog(c1, "leidenStaticOmpGreedyMediumOrg"); auto
       // d0 = leidenStaticOmp<false, false>(rnd, x, {repeat, 1.0,
