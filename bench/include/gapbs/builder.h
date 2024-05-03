@@ -100,7 +100,7 @@ using namespace edge_list;
 #endif
 #ifndef REPEAT_METHOD
 /** Number of times to repeat each method. */
-#define REPEAT_METHOD 5
+#define REPEAT_METHOD 1
 #endif
 #ifndef MAX_THREADS
 /** Maximum number of threads to use. */
