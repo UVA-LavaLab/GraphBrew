@@ -110,8 +110,8 @@ FLUSH_CACHE=1
 # Running Benchmarks
 # =========================================================
 # GRAPH_BENCH = -f ./test/graphs/4.el
-GRAPH_BENCH = -u 5
-RUN_PARAMS =  -o 1 -o8
+GRAPH_BENCH = -g 11
+RUN_PARAMS =  -o8 -n 20 -l
 # =========================================================
 run-%: $(BIN_DIR)/%
 	@if [ "$(FLUSH_CACHE)" = "1" ]; then \

@@ -369,6 +369,7 @@ def load_and_prepare_data_overhead(csv_file, baseline):
 def add_geometric_means(df):
     """Add a row for geometric means to the DataFrame, calculated across all graphs for each reordering."""
     # Calculate geometric means for each reordering, ignoring non-positive values
+
     gm = (
         df[df["Trial Time"] > 0]
         .groupby("Reordering")["Trial Time"]
@@ -396,6 +397,7 @@ def plot_data(df, csv_file, output_folder, category, value_name="time"):
         "#606c38",
         "#283d3b",
     ]
+
     num_groups = df["Reordering"].nunique()
     if num_groups > len(base_palette):
         repeats = -(-num_groups // len(base_palette))  # Ceiling division
@@ -415,6 +417,8 @@ def plot_data(df, csv_file, output_folder, category, value_name="time"):
     )  # Position the line right before the 'GM' group
 
     plt.figure(figsize=(10, 6))
+
+
     bar_plot = sns.barplot(
         x="Graph",
         y="Trial Time",
@@ -440,9 +444,9 @@ def plot_data(df, csv_file, output_folder, category, value_name="time"):
     # Set the y-axis to a logarithmic scale
     plt.yscale("log")
 
-    # Set custom ticks
-    custom_ticks = [1, 2, 5, 20, 50, 200, 500, 1000]
-    plt.yticks(custom_ticks, labels=[str(tick) for tick in custom_ticks])
+    # # Set custom ticks
+    # custom_ticks = [1, 2, 5, 20, 50, 200, 500, 1000]
+    # plt.yticks(custom_ticks, labels=[str(tick) for tick in custom_ticks])
     plt.grid(True, linestyle="--", which="major", color="grey", alpha=0.7)
     plt.tight_layout()
 
@@ -483,16 +487,18 @@ def create_seaborn_bar_graph(csv_file, output_folder, category):
 
     # Calculate speedup for each column against each baseline
     df = load_and_prepare_data(csv_file)
-    df = add_geometric_means(df)
-    plot_data(df, csv_file, output_folder, category)
+    filtered_df = df[~df["Reordering"].isin(["Original", "Random"])]
+    filtered_df = add_geometric_means(filtered_df)
+    plot_data(filtered_df, csv_file, output_folder, category)
 
     if "trial_time" in category:
         for baseline in baseline_speedup_columns:
             clean_category = clean_category_name(category)
             df = load_and_prepare_data_speedup(csv_file, baseline)
-            df = add_geometric_means(df)
+            filtered_df = df[~df["Reordering"].isin(["Original", "Random"])]
+            filtered_df = add_geometric_means(filtered_df)
             plot_data(
-                df,
+                filtered_df,
                 csv_file,
                 output_folder,
                 f"{clean_category}_Speedup",
@@ -501,10 +507,11 @@ def create_seaborn_bar_graph(csv_file, output_folder, category):
     if "reorder_time" in category:
         for baseline in baselines_overhead_columns:
             clean_category = clean_category_name(category)
-            df = load_and_prepare_data_speedup(csv_file, baseline)
-            df = add_geometric_means(df)
+            df = load_and_prepare_data_overhead(csv_file, baseline)
+            filtered_df = df[~df["Reordering"].isin(["Original", "Random"])]
+            filtered_df = add_geometric_means(filtered_df)
             plot_data(
-                df,
+                filtered_df,
                 csv_file,
                 output_folder,
                 f"{clean_category}_Overhead",
