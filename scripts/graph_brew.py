@@ -29,8 +29,6 @@ postreorder_codes = None
 baselines_speedup = None
 baselines_overhead = None
 # Define constants for benchmark settings
-NUM_TRIALS = 1  # Number of times to run each benchmark
-NUM_ITERATIONS = 1  # Number of iterations per trial (if applicable)
 FLUSH_CACHE = 0  # Whether to flush cache before each run
 PARALLEL = os.cpu_count()  # Use all available CPU cores
 
@@ -102,6 +100,8 @@ def generate_raw_output(kernel, graph_symbol, reorder_name):
 # Function to run benchmarks, handle output, and save raw data
 def run_benchmark(
     kernel,
+    trials,
+    iterations,
     graph_path,
     reorder_code,
     graph_symbol,
@@ -223,9 +223,9 @@ def run_benchmark(
     else:
         # Additional kernel-specific parameters
         RUN_PARAMS = []
-        RUN_PARAMS.append(f"-n{NUM_TRIALS}")
+        RUN_PARAMS.append(f"-n{trials}")
         if kernel in ["pr", "pr_spmv"]:
-            RUN_PARAMS.append(f"-i {NUM_ITERATIONS}")  # PageRank iterations
+            RUN_PARAMS.append(f"-i {iterations}")  # PageRank iterations
         if kernel == "tc":
             RUN_PARAMS.append("-s")  # Special flag for 'tc' kernel
 
@@ -280,12 +280,15 @@ def run_benchmark(
 
 def initialize_kernel_results():
     """Initializes a nested dictionary for storing benchmark results by kernel and category."""
-    return {kernel: defaultdict(lambda: defaultdict(dict)) for kernel in KERNELS}
+    return {kernel['name']: defaultdict(lambda: defaultdict(dict)) for kernel in KERNELS}
 
 
 def graph_results_from_csv():
     """Parses the benchmark output to extract timing data based on predefined patterns."""
-    for kernel in KERNELS:
+    for kernel_detail in KERNELS:
+        kernel = kernel_detail.get("name", "pr")
+        trials = kernel_detail.get("trials", 1)
+        iterations = kernel_detail.get("iterations", 1)
         for category, patterns in time_patterns.items():
             filename = f"{kernel}_{category}_results"
             csv_file_path = os.path.join(graph_csv_dir, f"{filename}.csv")
@@ -435,7 +438,7 @@ def plot_data(df, csv_file, output_folder, category, value_name="time"):
     plt.xlabel("Graphs", fontsize=18, fontweight="bold")
     plt.ylabel(category_title, fontsize=16, fontweight="bold")
     # Set the y-axis to a logarithmic scale
-    plt.yscale('log')
+    plt.yscale("log")
 
     # Set custom ticks
     custom_ticks = [1, 2, 5, 20, 50, 200, 500, 1000]
@@ -553,7 +556,10 @@ def run_and_parse_benchmarks(config_file_name):
     global postreorder_codes
 
     """ Executes benchmarks for each kernel, graph, and reordering, then parses and stores the results. """
-    for kernel in KERNELS:
+    for kernel_detail in KERNELS:
+        kernel = kernel_detail.get("name", "pr")
+        trials = kernel_detail.get("trials", 1)
+        iterations = kernel_detail.get("iterations", 1)
         for suite_name, details in graph_suites.items():
             graph_basename = details.get("graph_basename", "graph")
             for graph in details["graphs"]:
@@ -570,6 +576,8 @@ def run_and_parse_benchmarks(config_file_name):
                 for reorder_name, reorder_code in reorderings.items():
                     output = run_benchmark(
                         kernel,
+                        trials,
+                        iterations,
                         graph_path,
                         reorder_code,
                         graph_symbol,

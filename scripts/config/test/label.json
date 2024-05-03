@@ -28,7 +28,11 @@
     "DBG": 5
   },
   "kernels": [
-    "converter"
+    {
+      "name": "converter",
+      "trials": 1,
+      "iterations": 1
+    }
   ],
   "graph_suites": {
     "suite_dir": "./00_Graph_Datasets/full",
