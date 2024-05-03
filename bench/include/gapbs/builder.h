@@ -449,6 +449,7 @@ public:
     pvector<NodeID_> new_ids(g_final.num_nodes());
     for (const auto &option : cli_.reorder_options()) {
       new_ids.fill(UINT_E_MAX);
+      g_final = SquishGraph(g_final);
       if (!option.second.empty()) {
         GenerateMapping(g_final, new_ids, option.first, cli_.use_out_degree(),
                         option.second);
@@ -956,7 +957,7 @@ public:
                              pvector<NodeID_> &new_ids) {
     Timer t;
     t.Start();
-    // std::srand(0); // so that the random graph generated is the same
+    std::srand(0); // so that the random graph generated is the same
     // everytime
 
     // Step I: create a random permutation - SLOW implementation
@@ -2433,7 +2434,7 @@ public:
       }
     }
 
-    if (g.directed()) {
+    if (g.directed()) { // rabbit order modularity assume undirectoerd
       if (num_edges < g.num_edges_directed()) {
         for (NodeID_ i = 0; i < g.num_nodes(); i++) {
           for (DestID_ j : g.in_neigh(i)) {
@@ -2442,6 +2443,16 @@ public:
                                static_cast<NodeWeight<>>(j).w});
             else
               edges.push_back({i, j, 1.0f});
+          }
+        }
+      } else {
+        for (NodeID_ i = 0; i < g.num_nodes(); i++) {
+          for (DestID_ j : g.out_neigh(i)) {
+            if (g.is_weighted())
+              edges.push_back({static_cast<NodeWeight<>>(j).v, i,
+                               static_cast<NodeWeight<>>(j).w});
+            else
+              edges.push_back({j, i, 1.0f});
           }
         }
       }
@@ -2928,7 +2939,7 @@ public:
 
     // x.printCommunitiesPerPass();
     // g.PrintTopology();
-    writeGraph(std::cout, x, false);
+    // writeGraph(std::cout, x, false);
 
 #pragma omp parallel for
     for (int64_t i = 0; i < num_nodes; i++) {
