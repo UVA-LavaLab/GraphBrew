@@ -28,13 +28,41 @@
     "DBG": 5
   },
   "kernels": [
-    "bc",
-    "bfs",
-    "cc",
-    "cc_sv",
-    "pr",
-    "pr_spmv",
-    "sssp"
+    {
+      "name": "bc",
+      "trials": 20,
+      "iterations": 10
+    },
+    {
+      "name": "bfs",
+      "trials": 20,
+      "iterations": 10
+    },
+    {
+      "name": "cc",
+      "trials": 20,
+      "iterations": 10
+    },
+    {
+      "name": "cc_sv",
+      "trials": 20,
+      "iterations": 10
+    },
+    {
+      "name": "pr",
+      "trials": 20,
+      "iterations": 10
+    },
+    {
+      "name": "pr_spmv",
+      "trials": 20,
+      "iterations": 10
+    },
+    {
+      "name": "sssp",
+      "trials": 20,
+      "iterations": 10
+    }
   ],
   "graph_suites": {
     "suite_dir": "./00_Graph_Datasets/full",
