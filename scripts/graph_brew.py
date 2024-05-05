@@ -646,7 +646,7 @@ def main(config_file):
 
     # config_file    = "scripts/config/lite.json"  # Specify the path to your JSON configuration file
     graph_download_script = (
-        "./scripts/graph_download.py"  # Specify the path to your other Python script
+        "./scripts/graph_create.py"  # Specify the path to your other Python script
     )
 
     config_file_name = os.path.splitext(os.path.basename(config_file))[0]

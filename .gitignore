@@ -5,4 +5,5 @@ bench/backups
 *.csv
 results
 00_Graph_Datasets/
+00_*
 nohup.out
