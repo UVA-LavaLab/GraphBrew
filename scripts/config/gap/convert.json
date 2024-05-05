@@ -10,37 +10,9 @@
     }
   ],
   "graph_suites": {
-    "suite_dir": "/media/cmv6ru/Data/00_GraphDatasets",
+    "suite_dir": "./00_GraphDatasets",
     "GAP": {
       "graphs": [
-        {
-          "label": false,
-          "label_generate": true,
-          "label_type": "so",
-          "generate": false,
-          "generate_default": true,
-          "convert_type": "sg",
-          "run_type": "mtx",
-          "download_type": "mtx",
-          "symbol": "TWTR",
-          "name": "twitter",
-          "download_link":
-              "https://suitesparse-collection-website.herokuapp.com/MM/GAP/GAP-twitter.tar.gz"
-        },
-        {
-          "label": false,
-          "label_generate": true,
-          "label_type": "so",
-          "generate": false,
-          "generate_default": true,
-          "convert_type": "sg",
-          "run_type": "mtx",
-          "download_type": "mtx",
-          "symbol": "WEB",
-          "name": "web",
-          "download_link":
-              "https://suitesparse-collection-website.herokuapp.com/MM/GAP/GAP-web.tar.gz"
-        },
         {
           "label": false,
           "label_generate": true,
@@ -54,34 +26,6 @@
           "name": "road",
           "download_link":
               "https://suitesparse-collection-website.herokuapp.com/MM/GAP/GAP-road.tar.gz"
-        },
-        {
-          "label": false,
-          "label_generate": true,
-          "label_type": "so",
-          "generate": false,
-          "generate_default": true,
-          "convert_type": "sg",
-          "run_type": "mtx",
-          "download_type": "mtx",
-          "symbol": "KRON",
-          "name": "kron",
-          "download_link":
-              "https://suitesparse-collection-website.herokuapp.com/MM/GAP/GAP-kron.tar.gz"
-        },
-        {
-          "label": false,
-          "label_generate": true,
-          "label_type": "so",
-          "generate": false,
-          "generate_default": true,
-          "convert_type": "sg",
-          "run_type": "mtx",
-          "download_type": "mtx",
-          "symbol": "URND",
-          "name": "urand",
-          "download_link":
-              "https://suitesparse-collection-website.herokuapp.com/MM/GAP/GAP-urand.tar.gz"
         }
       ],
       "graph_basename": "graph"

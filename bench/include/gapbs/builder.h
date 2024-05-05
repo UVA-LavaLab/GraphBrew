@@ -521,7 +521,7 @@ public:
         // Assigning new IDs starting from max_id atomically
         NodeID_ local_max = __sync_fetch_and_add(&max_id, 1);
         new_ids[v] = local_max + 1;
-        // cerr << v << " " << new_ids[v] <<  " " << max_id << endl;
+        // cerr << v << " " << new_ids[v] << " " << max_id << endl;
       }
     }
 
@@ -658,7 +658,7 @@ public:
       }
     }
 
-    // #pragma omp parallel for
+#pragma omp parallel for
     for (NodeID_ n = 0; n < g.num_nodes(); n++) {
       out_degrees[new_ids[n]] = g.out_degree(n);
       // if(new_ids[n] > g.num_nodes())
@@ -667,27 +667,31 @@ public:
     pvector<SGOffset> out_offsets = ParallelPrefixSum(out_degrees);
     out_neighs = new DestID_[out_offsets[g.num_nodes()]];
     out_index = CSRGraph<NodeID_, DestID_>::GenIndex(out_offsets, out_neighs);
-    // #pragma omp parallel for
+#pragma omp parallel for
     for (NodeID_ u = 0; u < g.num_nodes(); u++) {
       for (NodeID_ v : g.out_neigh(u)) {
-        out_neighs[out_offsets[new_ids[u]]++] = new_ids[v];
+        SGOffset out_offsets_local =
+            __sync_fetch_and_add(&(out_offsets[new_ids[u]]), 1);
+        out_neighs[out_offsets_local] = new_ids[v];
       }
       std::sort(out_index[new_ids[u]], out_index[new_ids[u] + 1]);
     }
 
     if (g.directed()) {
       pvector<NodeID_> in_degrees(g.num_nodes(), 0);
-      // #pragma omp parallel for
+#pragma omp parallel for
       for (NodeID_ n = 0; n < g.num_nodes(); n++) {
         in_degrees[new_ids[n]] = g.in_degree(n);
       }
       pvector<SGOffset> in_offsets = ParallelPrefixSum(in_degrees);
       in_neighs = new DestID_[in_offsets[g.num_nodes()]];
       in_index = CSRGraph<NodeID_, DestID_>::GenIndex(in_offsets, in_neighs);
-      // #pragma omp parallel for
+#pragma omp parallel for
       for (NodeID_ u = 0; u < g.num_nodes(); u++) {
         for (NodeID_ v : g.in_neigh(u)) {
-          in_neighs[in_offsets[new_ids[u]]++] = new_ids[v];
+          SGOffset in_offsets_local =
+              __sync_fetch_and_add(&(in_offsets[new_ids[u]]), 1);
+          in_neighs[in_offsets_local] = new_ids[v];
         }
         std::sort(in_index[new_ids[u]], in_index[new_ids[u] + 1]);
       }
@@ -701,7 +705,7 @@ public:
     }
     g_relabel.copy_org_ids(g.org_ids_shared_);
     g_relabel.update_org_ids(new_ids);
-    PrintTime("Relabel", t.Seconds());
+    PrintTime("Relabel Map Time", t.Seconds());
     return g_relabel;
   }
 
@@ -911,11 +915,11 @@ public:
     PrintTime("Original Map Time", t.Seconds());
   }
 
-  void GenerateRandomMapping_v2(const CSRGraph<NodeID_, DestID_, invert> &g,
-                                pvector<NodeID_> &new_ids, bool useOutdeg) {
+  void GenerateRandomMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
+                                pvector<NodeID_> &new_ids) {
     Timer t;
     t.Start();
-
+    std::srand(0); // so that the random graph generated is the same
     int64_t num_nodes = g.num_nodes();
     // int64_t num_edges = g.num_edges_directed();
 
@@ -955,7 +959,7 @@ public:
     PrintTime("Random Map Time", t.Seconds());
   }
 
-  void GenerateRandomMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
+  void GenerateRandomMapping_v2(const CSRGraph<NodeID_, DestID_, invert> &g,
                              pvector<NodeID_> &new_ids) {
     Timer t;
     t.Start();
@@ -965,7 +969,7 @@ public:
     // Step I: create a random permutation - SLOW implementation
     pvector<NodeID_> claimedVtxs(g.num_nodes(), 0);
 
-    // #pragma omp parallel for
+    #pragma omp parallel for
     for (NodeID_ v = 0; v < g.num_nodes(); ++v) {
       while (true) {
         NodeID_ randID = std::rand() % g.num_nodes();
@@ -1477,17 +1481,18 @@ public:
     PrintTime("HubCluster Map Time", t.Seconds());
   }
 
-  void GenerateCOrderMapping_v2(const CSRGraph<NodeID_, DestID_, invert> &g,
-                                pvector<NodeID_> &new_ids) {
+  void GenerateCOrderMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
+                             pvector<NodeID_> &new_ids) {
     Timer t;
     t.Start();
 
     auto num_nodes = g.num_nodes();
     auto num_edges = g.num_edges();
-    unsigned max_threads = omp_get_max_threads();
-
-    uint32_t average_degree = num_edges / num_nodes;
-    uint32_t num_partitions = (num_nodes - 1) / 1024 + 1;
+    unsigned average_degree = num_edges / num_nodes;
+    params::partition_size = 1024;
+    params::num_partitions = (num_nodes - 1) / params::partition_size + 1;
+    unsigned num_partitions = params::num_partitions;
+    // unsigned max_threads = omp_get_max_threads();
     std::vector<unsigned> segment_large;
     segment_large.reserve(num_nodes);
     std::vector<unsigned> segment_small;
@@ -1505,9 +1510,9 @@ public:
 
     unsigned num_small_per_seg = params::partition_size - num_large_per_seg;
 
-    std::cout << "partition size: " << params::partition_size
-              << " num of large: " << num_large_per_seg
-              << " num of small: " << num_small_per_seg << '\n';
+    // std::cout << "partition size: " << params::partition_size
+    //           << " num of large: " << num_large_per_seg
+    //           << " num of small: " << num_small_per_seg << '\n';
     unsigned last_cls = num_partitions - 1;
 
     while ((num_large_per_seg * last_cls > segment_large.size()) ||
@@ -1515,7 +1520,7 @@ public:
       last_cls -= 1;
     }
 
-#pragma omp parallel for schedule(static) num_threads(max_threads)
+#pragma omp parallel for schedule(static) 
     for (unsigned i = 0; i < last_cls; i++) {
       unsigned index = i * params::partition_size;
       for (unsigned j = 0; j < num_large_per_seg; j++) {
@@ -1529,23 +1534,32 @@ public:
     auto last_small = num_small_per_seg * last_cls;
     unsigned index = last_cls * params::partition_size;
 
+#pragma omp parallel for
     for (unsigned i = last_large; i < segment_large.size(); i++) {
-      new_ids[segment_large[i]] = index++;
+      unsigned local_index = __sync_fetch_and_add(&index, 1);
+      new_ids[segment_large[i]] = local_index;
     }
+
+#pragma omp parallel for
     for (unsigned i = last_small; i < segment_small.size(); i++) {
-      new_ids[segment_small[i]] = index++;
+      unsigned local_index = __sync_fetch_and_add(&index, 1);
+      new_ids[segment_small[i]] = local_index;
     }
     t.Stop();
     PrintTime("COrder Map Time", t.Seconds());
   }
 
-  void GenerateCOrderMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
-                             pvector<NodeID_> &new_ids) {
+  void GenerateCOrderMapping_v2(const CSRGraph<NodeID_, DestID_, invert> &g,
+                                pvector<NodeID_> &new_ids) {
     Timer t;
     t.Start();
 
     auto num_nodes = g.num_nodes();
     auto num_edges = g.num_edges();
+
+    params::partition_size = 1024;
+    params::num_partitions = (num_nodes - 1) / params::partition_size + 1;
+    unsigned num_partitions = params::num_partitions;
 
     uint32_t average_degree = num_edges / num_nodes;
 
@@ -1576,13 +1590,14 @@ public:
     unsigned total_large = large_offset[max_threads];
     unsigned total_small = small_offset[max_threads];
 
-    unsigned cluster_size = 1024 * 1024 / sizeof(float);
-    unsigned num_clusters = (num_nodes - 1) / cluster_size + 1;
+    unsigned cluster_size = params::partition_size;
+    unsigned num_clusters = num_partitions;
     unsigned num_large_per_seg = ceil((float)total_large / num_clusters);
     unsigned num_small_per_seg = cluster_size - num_large_per_seg;
 
     // Parallelize constructing partitions based on the classified hot/cold
     // vertices
+
 #pragma omp parallel for schedule(static) num_threads(max_threads)
     for (unsigned i = 0; i < num_clusters; i++) {
 
@@ -1667,8 +1682,6 @@ public:
           }
         }
       }
-
-      // COLD move the vertices form cold segment(s) to a partition
 
       if (small_start_t == small_end_t) {
         if (!small_segment[small_start_t].empty()) {
@@ -2791,15 +2804,15 @@ public:
     // later.
     // auto flog = [&](const auto &ans, const char *technique) {
     //   printf("{%09.1fms, %09.1fms mark, %09.1fms init, %09.1fms "
-    //          "firstpass,%09.1fms locmove, %09.1fms refine, %09.1fms aggr, %.3e "
-    //          "aff,%04d iters, %03d passes, %01.9f modularity, "
+    //          "firstpass,%09.1fms locmove, %09.1fms refine, %09.1fms aggr,
+    //          %.3e " "aff,%04d iters, %03d passes, %01.9f modularity, "
     //          "%zu/%zudisconnected} %s\n",
     //          ans.time, ans.markingTime, ans.initializationTime,
     //          ans.firstPassTime, ans.localMoveTime, refinementTime(ans),
-    //          ans.aggregationTime, double(ans.affectedVertices), ans.iterations,
-    //          ans.passes, getModularity(x, ans, M),
-    //          countValue(communitiesDisconnectedOmp(x, ans.membership), char(1)),
-    //          communities(x, ans.membership).size(), technique);
+    //          ans.aggregationTime, double(ans.affectedVertices),
+    //          ans.iterations, ans.passes, getModularity(x, ans, M),
+    //          countValue(communitiesDisconnectedOmp(x, ans.membership),
+    //          char(1)), communities(x, ans.membership).size(), technique);
     // };
     // Get community memberships on original graph (static).
     {
