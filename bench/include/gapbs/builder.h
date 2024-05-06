@@ -628,7 +628,7 @@ public:
           CSRGraph<NodeID_, DestID_, invert>(g.num_nodes(), index, neighs);
     }
 
-    g_relabel.copy_org_ids(g.org_ids_);
+    g_relabel.copy_org_ids(g.get_org_ids());
     g_relabel.update_org_ids(new_ids);
     return g_relabel;
   }
@@ -703,7 +703,7 @@ public:
       g_relabel = CSRGraph<NodeID_, DestID_, invert>(g.num_nodes(), out_index,
                                                      out_neighs);
     }
-    g_relabel.copy_org_ids(g.org_ids_);
+    g_relabel.copy_org_ids(g.get_org_ids());
     g_relabel.update_org_ids(new_ids);
     PrintTime("Relabel Map Time", t.Seconds());
     return g_relabel;
