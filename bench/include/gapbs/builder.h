@@ -441,9 +441,9 @@ public:
 
     if (gContinue_) {
       if (in_place_)
-        g_final = g;
+        g_final = std::move(g);
       else
-        g_final = SquishGraph(g);
+        g_final = SquishGraph(std::move(g));
     }
     // g_final.PrintTopology();
     pvector<NodeID_> new_ids(g_final.num_nodes());
@@ -628,7 +628,7 @@ public:
           CSRGraph<NodeID_, DestID_, invert>(g.num_nodes(), index, neighs);
     }
 
-    g_relabel.copy_org_ids(g.org_ids_shared_);
+    g_relabel.copy_org_ids(g.org_ids_);
     g_relabel.update_org_ids(new_ids);
     return g_relabel;
   }
@@ -703,7 +703,7 @@ public:
       g_relabel = CSRGraph<NodeID_, DestID_, invert>(g.num_nodes(), out_index,
                                                      out_neighs);
     }
-    g_relabel.copy_org_ids(g.org_ids_shared_);
+    g_relabel.copy_org_ids(g.org_ids_);
     g_relabel.update_org_ids(new_ids);
     PrintTime("Relabel Map Time", t.Seconds());
     return g_relabel;
@@ -916,7 +916,7 @@ public:
   }
 
   void GenerateRandomMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
-                                pvector<NodeID_> &new_ids) {
+                             pvector<NodeID_> &new_ids) {
     Timer t;
     t.Start();
     std::srand(0); // so that the random graph generated is the same
@@ -960,7 +960,7 @@ public:
   }
 
   void GenerateRandomMapping_v2(const CSRGraph<NodeID_, DestID_, invert> &g,
-                             pvector<NodeID_> &new_ids) {
+                                pvector<NodeID_> &new_ids) {
     Timer t;
     t.Start();
     std::srand(0); // so that the random graph generated is the same
@@ -969,7 +969,7 @@ public:
     // Step I: create a random permutation - SLOW implementation
     pvector<NodeID_> claimedVtxs(g.num_nodes(), 0);
 
-    #pragma omp parallel for
+#pragma omp parallel for
     for (NodeID_ v = 0; v < g.num_nodes(); ++v) {
       while (true) {
         NodeID_ randID = std::rand() % g.num_nodes();
@@ -1520,7 +1520,7 @@ public:
       last_cls -= 1;
     }
 
-#pragma omp parallel for schedule(static) 
+#pragma omp parallel for schedule(static)
     for (unsigned i = 0; i < last_cls; i++) {
       unsigned index = i * params::partition_size;
       for (unsigned j = 0; j < num_large_per_seg; j++) {
@@ -2442,8 +2442,8 @@ public:
     for (NodeID_ i = 0; i < g.num_nodes(); i++) {
       for (DestID_ j : g.out_neigh(i)) {
         if (g.is_weighted())
-          edges.push_back({i, static_cast<NodeWeight<>>(j).v,
-                           static_cast<NodeWeight<>>(j).w});
+          edges.push_back({i, static_cast<NodeWeight<NodeID_, WeightT_>>(j).v,
+                           static_cast<NodeWeight<NodeID_, WeightT_>>(j).w});
         else
           edges.push_back({i, j, 1.0f});
       }
@@ -2454,8 +2454,9 @@ public:
         for (NodeID_ i = 0; i < g.num_nodes(); i++) {
           for (DestID_ j : g.in_neigh(i)) {
             if (g.is_weighted())
-              edges.push_back({i, static_cast<NodeWeight<>>(j).v,
-                               static_cast<NodeWeight<>>(j).w});
+              edges.push_back(
+                  {i, static_cast<NodeWeight<NodeID_, WeightT_>>(j).v,
+                   static_cast<NodeWeight<NodeID_, WeightT_>>(j).w});
             else
               edges.push_back({i, j, 1.0f});
           }
@@ -2464,8 +2465,9 @@ public:
         for (NodeID_ i = 0; i < g.num_nodes(); i++) {
           for (DestID_ j : g.out_neigh(i)) {
             if (g.is_weighted())
-              edges.push_back({static_cast<NodeWeight<>>(j).v, i,
-                               static_cast<NodeWeight<>>(j).w});
+              edges.push_back(
+                  {static_cast<NodeWeight<NodeID_, WeightT_>>(j).v, i,
+                   static_cast<NodeWeight<NodeID_, WeightT_>>(j).w});
             else
               edges.push_back({j, i, 1.0f});
           }
@@ -2664,7 +2666,7 @@ public:
     for (NodeID_ i = 0; i < g.num_nodes(); i++) {
       for (DestID_ j : g.out_neigh(i)) {
         if (g.is_weighted())
-          edges.push_back({i, static_cast<NodeWeight<>>(j).v});
+          edges.push_back({i, static_cast<NodeWeight<NodeID_, WeightT_>>(j).v});
         else
           edges.push_back({i, j});
       }
@@ -2675,7 +2677,8 @@ public:
         for (NodeID_ i = 0; i < g.num_nodes(); i++) {
           for (DestID_ j : g.in_neigh(i)) {
             if (g.is_weighted())
-              edges.push_back({i, static_cast<NodeWeight<>>(j).v});
+              edges.push_back(
+                  {i, static_cast<NodeWeight<NodeID_, WeightT_>>(j).v});
             else
               edges.push_back({i, j});
           }
@@ -2724,7 +2727,7 @@ public:
     for (NodeID_ i = 0; i < g.num_nodes(); i++) {
       for (DestID_ j : g.out_neigh(i)) {
         if (g.is_weighted())
-          edges.push_back({i, static_cast<NodeWeight<>>(j).v});
+          edges.push_back({i, static_cast<NodeWeight<NodeID_, WeightT_>>(j).v});
         else
           edges.push_back({i, j});
       }
@@ -2735,7 +2738,8 @@ public:
         for (NodeID_ i = 0; i < g.num_nodes(); i++) {
           for (DestID_ j : g.in_neigh(i)) {
             if (g.is_weighted())
-              edges.push_back({i, static_cast<NodeWeight<>>(j).v});
+              edges.push_back(
+                  {i, static_cast<NodeWeight<NodeID_, WeightT_>>(j).v});
             else
               edges.push_back({i, j});
           }
@@ -2879,8 +2883,8 @@ public:
     for (NodeID_ i = 0; i < g.num_nodes(); i++) {
       for (DestID_ j : g.out_neigh(i)) {
         if (g.is_weighted())
-          edges.push_back({i, static_cast<NodeWeight<>>(j).v,
-                           static_cast<NodeWeight<>>(j).w});
+          edges.push_back({i, static_cast<NodeWeight<NodeID_, WeightT_>>(j).v,
+                           static_cast<NodeWeight<NodeID_, WeightT_>>(j).w});
         else
           edges.push_back({i, j, 1.0f});
       }
@@ -2891,8 +2895,9 @@ public:
         for (NodeID_ i = 0; i < g.num_nodes(); i++) {
           for (DestID_ j : g.in_neigh(i)) {
             if (g.is_weighted())
-              edges.push_back({i, static_cast<NodeWeight<>>(j).v,
-                               static_cast<NodeWeight<>>(j).w});
+              edges.push_back(
+                  {i, static_cast<NodeWeight<NodeID_, WeightT_>>(j).v,
+                   static_cast<NodeWeight<NodeID_, WeightT_>>(j).w});
             else
               edges.push_back({i, j, 1.0f});
           }
