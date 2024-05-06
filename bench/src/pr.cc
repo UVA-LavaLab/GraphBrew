@@ -98,7 +98,7 @@ int main(int argc, char *argv[]) {
   Graph g = b.MakeGraph();
 
   if (cli.segments().second > 1) {
-    g.buildPullSegmentedGraphs(cli.segments().first, cli.segments().second);
+    // g.buildPullSegmentedGraphs(cli.segments().first, cli.segments().second);
   }
 
   auto PRBound = [&cli](const Graph &g) {

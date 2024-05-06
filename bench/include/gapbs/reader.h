@@ -467,9 +467,7 @@ public:
     else
       g_new = CSRGraph<NodeID_, DestID_, invert>(num_nodes, index, neighs);
 
-    std::shared_ptr<NodeID_> org_ids_shared;
-    org_ids_shared.reset(org_ids);
-    g_new.copy_org_ids(org_ids_shared);
+    g_new.copy_org_ids(org_ids);
 
     delete[] temp_neighs;
     delete[] temp_inv_neighs;

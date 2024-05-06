@@ -76,7 +76,7 @@ def download_and_extract_graph(graph):
 
         cmd = [
             "make run-converter",
-            f"RUN_PARAMS='{run_params}'",
+            f"RUN_PARAMS=' -o0 {run_params}'",
             f"GRAPH_BENCH='{graph_bench}'",
             "FLUSH_CACHE=0",
             f"PARALLEL={PARALLEL}",
