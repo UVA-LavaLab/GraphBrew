@@ -261,6 +261,8 @@ public:
   Range<NodeID_> vertices() const { return Range<NodeID_>(num_nodes()); }
 
 public:
+ NodeID_ *get_org_ids() const { return org_ids_; }
+
   // Function to initialize org_ids_
   void initialize_org_ids() {
     if (num_nodes_ == -1) {
@@ -307,6 +309,24 @@ public:
     return org_id;
   }
 
+void PrintTopologyOriginal() const {
+  NodeID_* org_ids_inv_ = new NodeID_[num_nodes_];
+  #pragma omp parallel for
+  for (NodeID_ n = 0; n < num_nodes_; n++) {
+    org_ids_inv_[org_ids_[n]] = n;
+  }
+
+  for (NodeID_ i = 0; i < num_nodes_; i++) {
+    std::cout << org_ids_inv_[i] << ": ";
+    for (DestID_ j : out_neigh(i)) {
+      std::cout << org_ids_inv_[j] << " ";
+    }
+    std::cout << std::endl;
+  }
+
+  delete[] org_ids_inv_;
+}
+
 private:
   bool directed_;
   int64_t num_nodes_;
@@ -315,8 +335,6 @@ private:
   DestID_ *out_neighbors_;
   DestID_ **in_index_;
   DestID_ *in_neighbors_;
-
-public:
   NodeID_ *org_ids_ = nullptr;
 };
 

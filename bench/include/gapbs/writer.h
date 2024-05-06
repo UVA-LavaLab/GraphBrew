@@ -66,7 +66,7 @@ public:
       out.write(reinterpret_cast<char *>(g_.in_neigh(0).begin()), neigh_bytes);
     }
     // Write original IDs
-    out.write(reinterpret_cast<char *>(g_.org_ids_), ids_bytes);
+    out.write(reinterpret_cast<char *>(g_.get_org_ids()), ids_bytes);
   }
 
   void WriteSerializedLabels(std::fstream &out) {
@@ -76,13 +76,13 @@ public:
     }
     SGOffset num_nodes = g_.num_nodes();
     std::streamsize ids_bytes = num_nodes * sizeof(NodeID_);
-    out.write(reinterpret_cast<char *>(g_.org_ids_), ids_bytes);
+    out.write(reinterpret_cast<char *>(g_.get_org_ids()), ids_bytes);
   }
 
   void WriteListLabels(std::fstream &out) {
-    NodeID_ *source_array = g_.org_ids_;
+    NodeID_ *source_array = g_.get_org_ids();
     for (NodeID_ u = 0; u < g_.num_nodes(); u++) {
-        out << source_array[u] << std::endl;
+      out << source_array[u] << std::endl;
     }
   }
 
@@ -119,7 +119,6 @@ public:
       WriteListLabels(file);
     file.close();
   }
-
 
 private:
   CSRGraph<NodeID_, DestID_> &g_;
