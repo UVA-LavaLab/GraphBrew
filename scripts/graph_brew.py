@@ -659,9 +659,12 @@ def main(config_file):
     # Load configuration settings from the specified JSON file
     with open(config_file, "r") as f:
         config = json.load(f)
-        reorderings = config[
-            "reorderings"
-        ]  # Dictionary of reordering strategies with corresponding codes
+        # reorderings = config[
+        #     "reorderings"
+        # ]  # Dictionary of reordering strategies with corresponding codes
+
+        reorderings = config.get("reorderings", {"Original": 0})
+
         KERNELS = config["kernels"]  # List of kernels to use in benchmarks
         graph_suites = config[
             "graph_suites"
