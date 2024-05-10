@@ -14,6 +14,9 @@ import sys
 import tarfile
 import zipfile
 
+prereorder_codes = None
+postreorder_codes = None
+
 PARALLEL = os.cpu_count()  # Use all available CPU cores
 
 def import_check_install(package_name):
@@ -39,6 +42,9 @@ def parse_synthetic_link(synthetic_link):
 
 
 def download_and_extract_graph(graph):
+    global prereorder_codes
+    global postreorder_codes
+
     symbol = graph["symbol"]
     graph_download_type = graph.get("download_type", "")
     graph_download_link = graph.get("download_link", "")
@@ -62,6 +68,13 @@ def download_and_extract_graph(graph):
 
     os.makedirs(download_dir, exist_ok=True)
 
+    DEFAULT_RUN_PARAMS = []
+    # Add prereorder codes if any
+    DEFAULT_RUN_PARAMS.extend([f"-o{code}" for code in prereorder_codes])
+    # Main reorder code
+    # Add postreorder codes if any
+    DEFAULT_RUN_PARAMS.extend([f"-o{code}" for code in postreorder_codes])
+
     # Download the graph file
     if parsed_synthetic_link:
         # Construct file path using synthetic link
@@ -72,11 +85,13 @@ def download_and_extract_graph(graph):
         # Assuming you want to call the make command after generating the synthetic graph
         graph_bench = " ".join([f"{g_or_u_number} {k_number}" for g_or_u_number, k_number in parsed_synthetic_link])
         # print(parsed_synthetic_link)
+        order_params = ' '.join(DEFAULT_RUN_PARAMS)
         run_params = f"-b {file_path}"
+        run_params = order_params + ' ' + run_params
 
         cmd = [
             "make run-converter",
-            f"RUN_PARAMS=' -o0 {run_params}'",
+            f"RUN_PARAMS='{run_params}'",
             f"GRAPH_BENCH='{graph_bench}'",
             "FLUSH_CACHE=0",
             f"PARALLEL={PARALLEL}",
@@ -203,8 +218,19 @@ def download_and_extract_graph(graph):
 
 
 def download_and_extract_graphs(config):
+    global prereorder_codes
+    global postreorder_codes
+
     graph_suites = config["graph_suites"]
     suite_dir = graph_suites.pop("suite_dir")  # Extracting suite_dir from graph_suites
+
+    # Extract prereorder and postreorder codes
+    prereorder_codes = [
+        config["prereorder"].get(key, []) for key in config.get("prereorder", {})
+    ]
+    postreorder_codes = [
+        config["postreorder"].get(key, []) for key in config.get("postreorder", {})
+    ]
 
     threads = []
     for suite_name, details in graph_suites.items():

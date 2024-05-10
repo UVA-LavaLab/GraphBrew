@@ -96,7 +96,7 @@ KERNELS_BIN = $(addprefix $(BIN_DIR)/,$(KERNELS))
 SUITE = $(KERNELS_BIN) $(BIN_DIR)/converter
 # =========================================================
 
-.PHONY: all run-% exp-% graph-% help-% install-py-deps help clean clean-all clean-results run-%-gdb run-%-sweep $(BIN_DIR)/%
+.PHONY: all run-% exp-% graph-% help-% install-py-deps help clean clean-all clean-results run-%-gdb run-%-sweep $(BIN_DIR)/% scrub-all
 all: $(SUITE)
 
 # =========================================================
@@ -145,12 +145,12 @@ install-py-deps: ./$(SCRIPT_DIR)/requirements.txt
 	$(PIP) install -q --upgrade pip
 	$(PIP) install -q -r ./$(SCRIPT_DIR)/requirements.txt
 
-exp-%: install-py-deps
+exp-%: install-py-deps all
 	$(PYTHON) ./$(SCRIPT_DIR)/graph_brew.py $(CONFIG_DIR)/$*/convert.json
 	$(PYTHON) ./$(SCRIPT_DIR)/graph_brew.py $(CONFIG_DIR)/$*/label.json
 	$(PYTHON) ./$(SCRIPT_DIR)/graph_brew.py $(CONFIG_DIR)/$*/run.json
 
-graph-%: install-py-deps
+graph-%: install-py-deps converter
 	$(PYTHON) ./$(SCRIPT_DIR)/graph_brew.py $(CONFIG_DIR)/$*/convert.json
 
 # =========================================================
@@ -173,6 +173,9 @@ clean:
 
 clean-all: clean-results
 	@rm -rf $(BIN_DIR) $(EXIT_STATUS)
+
+scrub-all:
+	@rm -rf $(BIN_DIR) $(BACKUP_DIR) $(RES_DIR) 00_* $(EXIT_STATUS) 
 
 clean-results:
 	@mkdir -p $(BACKUP_DIR)

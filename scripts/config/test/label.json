@@ -1,6 +1,5 @@
 {
   "reorderings": {
-    "Original": 0,
     "Random": 1,
     "Sort": 2,
     "HubSort": 3,
@@ -15,17 +14,10 @@
     "Leiden": 12
   },
   "baselines_speedup": {
-    "Original": 0,
     "Random": 1
   },
   "baselines_overhead": {
     "Leiden": 12
-  },
-  "prereorder": {
-    "Random": 1
-  },
-  "postreorder": {
-    "DBG": 5
   },
   "kernels": [
     {
