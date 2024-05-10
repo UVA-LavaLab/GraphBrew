@@ -5,11 +5,11 @@
 #define UTIL_H_
 
 #include <cinttypes>
+#include <iostream>
+#include <stdexcept>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string>
-#include <stdexcept>
-#include <iostream>
 
 #include "timer.h"
 
@@ -33,20 +33,19 @@ enum ReorderingAlgo {
   GOrder = 9,
   COrder = 10,
   RCMOrder = 11,
-  LeidenOrder  = 12,
+  LeidenOrder = 12,
   MAP = 13,
 };
 
 static const int64_t kRandSeed = 27491095;
 
-template<typename T>
-T* alloc_align_4k(size_t size) {
-    void* ptr = nullptr;
-    // posix_memalign requires the memory address to be stored in a void pointer
-    if (posix_memalign(&ptr, 4096, size * sizeof(T)) != 0) {
-        ptr = nullptr; // If allocation fails, posix_memalign returns non-zero
-    }
-    return static_cast<T*>(ptr);
+template <typename T> T *alloc_align_4k(size_t size) {
+  void *ptr = nullptr;
+  // posix_memalign requires the memory address to be stored in a void pointer
+  if (posix_memalign(&ptr, 4096, size * sizeof(T)) != 0) {
+    ptr = nullptr; // If allocation fails, posix_memalign returns non-zero
+  }
+  return static_cast<T *>(ptr);
 }
 
 void PrintLabel(const std::string &label, const std::string &val) {

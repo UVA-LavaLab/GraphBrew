@@ -2,11 +2,11 @@
 // See LICENSE.txt for license details
 
 #include <cinttypes>
-#include <limits>
+#include <cstdint> // For int64_t
 #include <iostream>
+#include <limits>
 #include <queue>
 #include <vector>
-#include <cstdint> // For int64_t
 
 #include "benchmark.h"
 #include "builder.h"
@@ -15,7 +15,6 @@
 #include "platform_atomics.h"
 #include "pvector.h"
 #include "timer.h"
-
 
 /*
 GAP Benchmark Suite
@@ -55,32 +54,31 @@ execution order, leading to significant speedup on large diameter road networks.
 
 [2] Yunming Zhang, Ajay Brahmakshatriya, Xinyi Chen, Laxman Dhulipala,
     Shoaib Kamil, Saman Amarasinghe, and Julian Shun. "Optimizing ordered graph
-    algorithms with GraphIt." The 18th International Symposium on Code Generation
-    and Optimization (CGO), pages 158-170, 2020.
+    algorithms with GraphIt." The 18th International Symposium on Code
+Generation and Optimization (CGO), pages 158-170, 2020.
 */
-
 
 using namespace std;
 
-const WeightT kDistInf = numeric_limits<WeightT>::max()/2;
-const size_t kMaxBin = numeric_limits<size_t>::max()/2;
+const WeightT kDistInf = numeric_limits<WeightT>::max() / 2;
+const size_t kMaxBin = numeric_limits<size_t>::max() / 2;
 const size_t kBinSizeThreshold = 1000;
 
-inline
-void RelaxEdges(const WGraph &g, NodeID u, WeightT delta,
-                pvector<WeightT> &dist, vector <vector<NodeID>> &local_bins) {
+inline void RelaxEdges(const WGraph &g, NodeID u, WeightT delta,
+                       pvector<WeightT> &dist,
+                       vector<vector<NodeID>> &local_bins) {
   for (WNode wn : g.out_neigh(u)) {
     WeightT old_dist = dist[wn.v];
     WeightT new_dist = dist[u] + wn.w;
     while (new_dist < old_dist) {
       if (compare_and_swap(dist[wn.v], old_dist, new_dist)) {
-        size_t dest_bin = new_dist/delta;
+        size_t dest_bin = new_dist / delta;
         if (dest_bin >= local_bins.size())
-          local_bins.resize(dest_bin+1);
+          local_bins.resize(dest_bin + 1);
         local_bins[dest_bin].push_back(wn.v);
         break;
       }
-      old_dist = dist[wn.v];      // swap failed, recheck dist update & retry
+      old_dist = dist[wn.v]; // swap failed, recheck dist update & retry
     }
   }
 }
@@ -96,17 +94,17 @@ pvector<WeightT> DeltaStep(const WGraph &g, NodeID source, WeightT delta,
   size_t frontier_tails[2] = {1, 0};
   frontier[0] = source;
   t.Start();
-  #pragma omp parallel
+#pragma omp parallel
   {
-    vector<vector<NodeID> > local_bins(0);
+    vector<vector<NodeID>> local_bins(0);
     size_t iter = 0;
-    while (shared_indexes[iter&1] != kMaxBin) {
-      size_t &curr_bin_index = shared_indexes[iter&1];
-      size_t &next_bin_index = shared_indexes[(iter+1)&1];
-      size_t &curr_frontier_tail = frontier_tails[iter&1];
-      size_t &next_frontier_tail = frontier_tails[(iter+1)&1];
-      #pragma omp for nowait schedule(dynamic, 64)
-      for (size_t i=0; i < curr_frontier_tail; i++) {
+    while (shared_indexes[iter & 1] != kMaxBin) {
+      size_t &curr_bin_index = shared_indexes[iter & 1];
+      size_t &next_bin_index = shared_indexes[(iter + 1) & 1];
+      size_t &curr_frontier_tail = frontier_tails[iter & 1];
+      size_t &next_frontier_tail = frontier_tails[(iter + 1) & 1];
+#pragma omp for nowait schedule(dynamic, 64)
+      for (size_t i = 0; i < curr_frontier_tail; i++) {
         NodeID u = frontier[i];
         if (dist[u] >= delta * static_cast<WeightT>(curr_bin_index))
           RelaxEdges(g, u, delta, dist, local_bins);
@@ -119,15 +117,15 @@ pvector<WeightT> DeltaStep(const WGraph &g, NodeID source, WeightT delta,
         for (NodeID u : curr_bin_copy)
           RelaxEdges(g, u, delta, dist, local_bins);
       }
-      for (size_t i=curr_bin_index; i < local_bins.size(); i++) {
+      for (size_t i = curr_bin_index; i < local_bins.size(); i++) {
         if (!local_bins[i].empty()) {
-          #pragma omp critical
+#pragma omp critical
           next_bin_index = min(next_bin_index, i);
           break;
         }
       }
-      #pragma omp barrier
-      #pragma omp single nowait
+#pragma omp barrier
+#pragma omp single nowait
       {
         t.Stop();
         if (logging_enabled)
@@ -144,22 +142,21 @@ pvector<WeightT> DeltaStep(const WGraph &g, NodeID source, WeightT delta,
         local_bins[next_bin_index].resize(0);
       }
       iter++;
-      #pragma omp barrier
+#pragma omp barrier
     }
-    #pragma omp single
+#pragma omp single
     if (logging_enabled)
       cout << "took " << iter << " iterations" << endl;
   }
   return dist;
 }
 
-
 void PrintSSSPStats(const WGraph &g, const pvector<WeightT> &dist) {
   auto NotInf = [](WeightT d) { return d != kDistInf; };
   int64_t num_reached = count_if(dist.begin(), dist.end(), NotInf);
-  cout << "SSSP Tree reaches " << static_cast<long long>(num_reached) << " nodes" << endl;
+  cout << "SSSP Tree reaches " << static_cast<long long>(num_reached)
+       << " nodes" << endl;
 }
-
 
 // Compares against simple serial implementation
 bool SSSPVerifier(const WGraph &g, NodeID source,
@@ -194,19 +191,18 @@ bool SSSPVerifier(const WGraph &g, NodeID source,
   return all_ok;
 }
 
-
-int main(int argc, char* argv[]) {
+int main(int argc, char *argv[]) {
   CLDelta<WeightT> cli(argc, argv, "single-source shortest-path");
   if (!cli.ParseArgs())
     return -1;
   WeightedBuilder b(cli);
   WGraph g = b.MakeGraph();
   SourcePicker<WGraph> sp(g, cli.start_vertex());
-  auto SSSPBound = [&sp, &cli] (const WGraph &g) {
+  auto SSSPBound = [&sp, &cli](const WGraph &g) {
     return DeltaStep(g, sp.PickNext(), cli.delta(), cli.logging_en());
   };
   SourcePicker<WGraph> vsp(g, cli.start_vertex());
-  auto VerifierBound = [&vsp] (const WGraph &g, const pvector<WeightT> &dist) {
+  auto VerifierBound = [&vsp](const WGraph &g, const pvector<WeightT> &dist) {
     return SSSPVerifier(g, vsp.PickNext(), dist);
   };
   BenchmarkKernel(cli, g, SSSPBound, PrintSSSPStats, VerifierBound);

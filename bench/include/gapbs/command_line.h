@@ -75,7 +75,8 @@ public:
                 "          [example]-o 3 "
                 "-o 2 -o 13:mapping.label",
                 "optional");
-    AddHelpLine('z', "indegree","use indegree for ordering [Degree Based Orderings]", "false");
+    AddHelpLine('z', "indegree",
+                "use indegree for ordering [Degree Based Orderings]", "false");
     AddHelpLine('j', "segments", "number of segments for the graph", "1");
   }
 
@@ -160,9 +161,7 @@ public:
   reorder_options() const {
     return reorder_options_;
   }
-  std::pair<std::string, int> const segments()  {
-    return segments_;
-  }
+  std::pair<std::string, int> const segments() { return segments_; }
 };
 
 class CLApp : public CLBase {
@@ -307,7 +306,8 @@ public:
     AddHelpLine('e', "file", "output edge list to file (.el)");
     AddHelpLine('w', "file", "make output weighted (.wel|.wsg)");
     AddHelpLine('x', "file", "output new reordered labels to file list (.so)");
-    AddHelpLine('q', "file", "output new reordered labels to file serialized (.lo)");
+    AddHelpLine('q', "file",
+                "output new reordered labels to file serialized (.lo)");
   }
 
   void HandleArg(signed char opt, char *opt_arg) override {

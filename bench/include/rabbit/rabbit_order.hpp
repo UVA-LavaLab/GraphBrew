@@ -387,10 +387,8 @@ OutputIt compact(InputIt it, const InputIt last, OutputIt result) {
 
   std::sort(it, last, [](auto &e0, auto &e1) { return e0.first < e1.first; });
   return uniq_accum(
-      it, last, result, [](auto x, auto y) {  return x.first == y.first; },
-      [](auto x, auto y) {
-        return edge{x.first, x.second + y.second};
-      });
+      it, last, result, [](auto x, auto y) { return x.first == y.first; },
+      [](auto x, auto y) { return edge{x.first, x.second + y.second}; });
 }
 
 //
