@@ -385,9 +385,6 @@ public:
     SGOffset num_nodes, num_edges;
     DestID_ **index = nullptr, **inv_index = nullptr;
     DestID_ *neighs = nullptr, *inv_neighs = nullptr;
-    NodeID_ *temp_neighs = nullptr, *temp_inv_neighs = nullptr;
-    NodeWeight<NodeID_, WeightT_> *temp_neighs_clear = nullptr,
-                                  *temp_inv_neighs_clear = nullptr;
     file.read(reinterpret_cast<char *>(&directed), sizeof(bool));
     file.read(reinterpret_cast<char *>(&num_edges), sizeof(SGOffset));
     file.read(reinterpret_cast<char *>(&num_nodes), sizeof(SGOffset));
@@ -400,8 +397,9 @@ public:
     file.read(reinterpret_cast<char *>(offsets.data()), num_index_bytes);
 
     if (generate_weights) {
-      temp_neighs = new NodeID_[num_edges];
-      file.read(reinterpret_cast<char *>(temp_neighs), num_neigh_bytes);
+      NodeID_ *temp_neighs = new NodeID_[num_edges];
+      std::streamsize temp_num_neigh_bytes = num_edges * sizeof(NodeID_);
+      file.read(reinterpret_cast<char *>(temp_neighs), temp_num_neigh_bytes);
 
 #pragma omp parallel for
       for (int i = 0; i < num_edges; ++i) {
@@ -409,9 +407,11 @@ public:
             temp_neighs[i];
         reinterpret_cast<NodeWeight<NodeID_, WeightT_> *>(&neighs[i])->w = 1;
       }
+      delete[] temp_neighs;
     } else {
       if (clear_weights) {
-        temp_neighs_clear = new NodeWeight<NodeID_, WeightT_>[num_edges];
+        NodeWeight<NodeID_, WeightT_> *temp_neighs_clear =
+            new NodeWeight<NodeID_, WeightT_>[num_edges];
         file.read(reinterpret_cast<char *>(temp_neighs_clear),
                   num_neigh_bytes_clear);
 #pragma omp parallel for
@@ -419,6 +419,7 @@ public:
           neighs[i] = temp_neighs_clear[i].v;
           // cout << temp_neighs_clear[i] << endl;
         }
+        delete[] temp_neighs_clear;
       } else {
         file.read(reinterpret_cast<char *>(neighs), num_neigh_bytes);
       }
@@ -430,8 +431,10 @@ public:
       file.read(reinterpret_cast<char *>(offsets.data()), num_index_bytes);
 
       if (generate_weights) {
-        temp_inv_neighs = new NodeID_[num_edges];
-        file.read(reinterpret_cast<char *>(temp_inv_neighs), num_neigh_bytes);
+        NodeID_ *temp_inv_neighs = new NodeID_[num_edges];
+        std::streamsize temp_num_inv_neighs_bytes = num_edges * sizeof(NodeID_);
+        file.read(reinterpret_cast<char *>(temp_inv_neighs),
+                  temp_num_inv_neighs_bytes);
 
 #pragma omp parallel for
         for (int i = 0; i < num_edges; ++i) {
@@ -440,15 +443,18 @@ public:
           reinterpret_cast<NodeWeight<NodeID_, WeightT_> *>(&inv_neighs[i])->w =
               1;
         }
+        delete[] temp_inv_neighs;
       } else {
         if (clear_weights) {
-          temp_inv_neighs_clear = new NodeWeight<NodeID_, WeightT_>[num_edges];
+          NodeWeight<NodeID_, WeightT_> *temp_inv_neighs_clear =
+              new NodeWeight<NodeID_, WeightT_>[num_edges];
           file.read(reinterpret_cast<char *>(temp_inv_neighs_clear),
                     num_neigh_bytes_clear);
 #pragma omp parallel for
           for (int i = 0; i < num_edges; ++i) {
             inv_neighs[i] = temp_inv_neighs_clear[i].v;
           }
+          delete[] temp_inv_neighs_clear;
         } else {
           file.read(reinterpret_cast<char *>(inv_neighs), num_neigh_bytes);
         }
@@ -469,10 +475,7 @@ public:
 
     g_new.copy_org_ids(org_ids);
 
-    delete[] temp_neighs;
-    delete[] temp_inv_neighs;
-    delete[] temp_neighs_clear;
-    delete[] temp_inv_neighs_clear;
+    delete[] org_ids;
     return g_new;
   }
 };

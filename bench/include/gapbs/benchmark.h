@@ -53,12 +53,13 @@ public:
     if (given_source_ != -1)
       return given_source_;
     NodeID source;
+    NodeID real_source;
     do {
       source = udist_();
-      source = g_.get_org_id(source);
-      // cout << "source : " << source << endl;
-    } while (g_.out_degree(source) == 0);
-    return source;
+      real_source = g_.get_org_id(source);
+      // cout << "source : " << source << " real_source : " << real_source << " out_degree : " << (NodeID)g_.in_degree(real_source) << endl;
+    } while (g_.out_degree(real_source) == 0);
+    return real_source;
   }
 
 private:

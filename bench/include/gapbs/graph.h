@@ -302,7 +302,7 @@ public:
   NodeID_ get_org_id(const NodeID_ ref_id) const {
     NodeID_ org_id = 0;
     if (num_nodes_ == -1 || ref_id > num_nodes_) {
-      return org_id;
+      return ref_id;
     } else {
       org_id = org_ids_[ref_id];
     }
