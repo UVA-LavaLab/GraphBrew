@@ -66,7 +66,11 @@ public:
       out.write(reinterpret_cast<char *>(g_.in_neigh(0).begin()), neigh_bytes);
     }
     // Write original IDs
-    out.write(reinterpret_cast<char *>(g_.get_org_ids()), ids_bytes);
+    NodeID_ *temp_org_ids = g_.get_org_ids();
+    out.write(reinterpret_cast<char *>(temp_org_ids), ids_bytes);
+
+    out.flush();
+    out.close();
   }
 
   void WriteSerializedLabels(std::fstream &out) {
