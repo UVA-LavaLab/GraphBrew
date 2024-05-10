@@ -7,10 +7,10 @@
 #include <algorithm>
 #include <cinttypes>
 #include <functional>
+#include <parallel/algorithm>
 #include <random>
 #include <utility>
 #include <vector>
-#include <parallel/algorithm>
 
 #include "builder.h"
 #include "graph.h"
@@ -46,8 +46,8 @@ public:
   explicit SourcePicker(const GraphT_ &g, NodeID given_source = -1)
       : given_source_(given_source), rng_(kRandSeed),
         udist_(g.num_nodes() - 1, rng_), g_(g) {
-            // g_.copy_org_ids(g.org_ids_shared_);
-        }
+    // g_.copy_org_ids(g.org_ids_shared_);
+  }
 
   NodeID PickNext() {
     if (given_source_ != -1)
@@ -57,7 +57,8 @@ public:
     do {
       source = udist_();
       real_source = g_.get_org_id(source);
-      // cout << "source : " << source << " real_source : " << real_source << " out_degree : " << (NodeID)g_.in_degree(real_source) << endl;
+      // cout << "source : " << source << " real_source : " << real_source << "
+      // out_degree : " << (NodeID)g_.in_degree(real_source) << endl;
     } while (g_.out_degree(real_source) == 0);
     return real_source;
   }
@@ -79,7 +80,7 @@ TopK(const std::vector<std::pair<KeyT, ValT>> &to_sort, size_t k) {
     if ((top_k.size() < k) || (kvp.second > min_so_far)) {
       top_k.push_back(std::make_pair(kvp.second, kvp.first));
       __gnu_parallel::stable_sort(top_k.begin(), top_k.end(),
-                std::greater<std::pair<ValT, KeyT>>());
+                                  std::greater<std::pair<ValT, KeyT>>());
       if (top_k.size() > k)
         top_k.resize(k);
       min_so_far = top_k.back().first;
