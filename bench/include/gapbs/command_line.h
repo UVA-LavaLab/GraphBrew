@@ -73,7 +73,7 @@ public:
     AddHelpLine('o', "order",
                 "apply reordering strategy, optionally with a parameter \n     "
                 "          [example]-o 3 "
-                "-o 2 -o 13:mapping.label",
+                "-o 2 -o 14:mapping.label",
                 "optional");
     AddHelpLine('z', "indegree",
                 "use indegree for ordering [Degree Based Orderings]", "false");

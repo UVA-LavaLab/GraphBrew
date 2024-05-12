@@ -11,13 +11,14 @@
     "Gorder": 9,
     "Corder": 10,
     "RCM": 11,
-    "Leiden": 12
+    "Leiden": 12,
+    "LeidenFull": 13
   },
   "baselines_speedup": {
     "Random": 1
   },
   "baselines_overhead": {
-    "Leiden": 12
+    "LeidenFull": 13
   },
   "kernels": [
     {
