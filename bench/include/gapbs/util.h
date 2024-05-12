@@ -34,7 +34,8 @@ enum ReorderingAlgo {
   COrder = 10,
   RCMOrder = 11,
   LeidenOrder = 12,
-  MAP = 13,
+  LeidenFullOrder = 13,
+  MAP = 14,
 };
 
 static const int64_t kRandSeed = 27491095;

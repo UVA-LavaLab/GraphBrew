@@ -452,7 +452,7 @@ CSRGraph<NodeID_, DestID_, invert> MakeGraph() {
   // g_final.PrintTopology();
   pvector<NodeID_> new_ids(g_final.num_nodes());
   for (const auto &option : cli_.reorder_options()) {
-    new_ids.fill(UINT_E_MAX);
+    new_ids.fill(-1);
 
     if (!option.second.empty()) {
       GenerateMapping(g_final, new_ids, option.first, cli_.use_out_degree(),
@@ -737,6 +737,8 @@ const std::string ReorderingAlgoStr(ReorderingAlgo type) {
     return "RCMOrder";
   case LeidenOrder:
     return "LeidenOrder";
+  case LeidenFullOrder:
+    return "LeidenFullOrder";
   case ORIGINAL:
     return "Original";
   case Sort:
@@ -790,6 +792,9 @@ void GenerateMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
     break;
   case LeidenOrder:
     GenerateLeidenMapping(g, new_ids);
+    break;
+  case LeidenFullOrder:
+    GenerateLeidenFullMapping(g, new_ids);
     break;
   case MAP:
     LoadMappingFromFile(g, new_ids, map_file);
@@ -2701,6 +2706,7 @@ void GenerateGOrderMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
 
   tm.Start();
   go.readGraphEdgelist(edges, g.num_nodes());
+  edges.clear();
   // go.readGraph(cli_.filename().c_str());
   go.Transform();
   tm.Stop();
@@ -2762,6 +2768,7 @@ void GenerateRCMOrderMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
 
   tm.Start();
   go.readGraphEdgelist(edges, g.num_nodes());
+  edges.clear();
   // go.readGraph(cli_.filename().c_str());
   go.Transform();
   tm.Stop();
@@ -2919,6 +2926,7 @@ void GenerateLeidenMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
   DiGraph<K, None, V> x;
   readVecOmpW(x, edges, num_nodes, symmetric,
               weighted); // LOG(""); println(x);
+  edges.clear();
   if (!symmetric) {
     x = symmetricizeOmp(x);
   } //; LOG(""); print(x); printf(" (->symmetricize)\n"); }
@@ -2954,37 +2962,124 @@ void GenerateLeidenMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
 
   sort_by_vector_element(communityVectorTuplePerPass,num_passes-1);
 
-  // for (size_t i = 1; i < num_passes; ++i) {
-  // sort_by_vector_element(communityVectorTuplePerPass, i);
-  // }
-
-  // for (size_t i = 0; i < num_passes; ++i) {
-  // for (size_t j = 0; j < num_nodesx; ++j) {
-  //   cout << communityVectorTuplePerPass[j] << "\n";
-  // }
-  // }
-
-  // x.printCommunitiesPerPass();
-  // g.PrintTopology();
-  // writeGraph(std::cout, x, false);
-
-  // pvector<NodeID_> interim_ids(num_nodes, -1);
+// for (size_t i = 1; i < num_passes; ++i) {
+//   sort_by_vector_element(communityVectorTuplePerPass, i);
+// }
 
 #pragma omp parallel for
   for (int64_t i = 0; i < num_nodes; i++) {
     new_ids[communityVectorTuplePerPass[i][0]] = (NodeID_)i;
   }
 
-  // GenerateDBGMappingInterim(g,new_ids,interim_ids,true);
-
   tm.Stop();
   PrintTime("GenID Time", tm.Seconds());
 }
 
+void GenerateLeidenFullMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
+                              pvector<NodeID_> &new_ids) {
+
+  Timer tm;
+  Timer tm2;
+
+  using V = TYPE;
+  install_sigsegv();
+
+  int64_t num_nodes = g.num_nodes();
+  int64_t num_edges = g.num_edges();
+
+  std::vector<std::tuple<size_t, size_t, double> > edges;
+  edges.reserve(num_edges * 2);
+
+  for (NodeID_ i = 0; i < g.num_nodes(); i++) {
+    for (DestID_ j : g.out_neigh(i)) {
+      if (g.is_weighted())
+        edges.push_back({i, static_cast<NodeWeight<NodeID_, WeightT_> >(j).v,
+                         static_cast<NodeWeight<NodeID_, WeightT_> >(j).w});
+      else
+        edges.push_back({i, j, 1.0f});
+    }
+  }
+
+  if (g.directed()) {
+    if (num_edges < g.num_edges_directed()) {
+      for (NodeID_ i = 0; i < g.num_nodes(); i++) {
+        for (DestID_ j : g.in_neigh(i)) {
+          if (g.is_weighted())
+            edges.push_back(
+              {i, static_cast<NodeWeight<NodeID_, WeightT_> >(j).v,
+               static_cast<NodeWeight<NodeID_, WeightT_> >(j).w});
+          else
+            edges.push_back({i, j, 1.0f});
+        }
+      }
+    }
+  }
+
+  tm.Start();
+  bool symmetric = false;
+  bool weighted = g.is_weighted();
+  DiGraph<K, None, V> x;
+  readVecOmpW(x, edges, num_nodes, symmetric,
+              weighted); // LOG(""); println(x);
+  edges.clear();
+  if (!symmetric) {
+    x = symmetricizeOmp(x);
+  } //; LOG(""); print(x); printf(" (->symmetricize)\n"); }
+  tm.Stop();
+  PrintTime("DiGraph graph", tm.Seconds());
+
+  tm.Start();
+  runExperiment(x);
+  tm.Stop();
+
+
+  size_t num_nodesx;
+  size_t num_passes;
+  num_nodesx = x.span();
+  num_passes = x.communityMappingPerPass.size() + 2;
+
+  std::vector<std::vector<K> > communityVectorTuplePerPass(
+    num_nodesx, std::vector<K>(num_passes, 0));
+  // // Initialize each inner vector
+  // tm.Start();
+#pragma omp parallel for
+  for (size_t i = 0; i < num_nodesx; ++i) {
+    communityVectorTuplePerPass[i][0] = i;
+    communityVectorTuplePerPass[i][1] = x.degree(i);
+  }
+
+  for (size_t i = 0; i < num_passes - 2; ++i) {
+#pragma omp parallel for
+    for (size_t j = 0; j < num_nodesx; ++j) {
+      communityVectorTuplePerPass[j][2 + i] = x.communityMappingPerPass[i][j];
+    }
+  }
+
+  // sort_by_vector_element(communityVectorTuplePerPass,num_passes-1);
+
+  for (size_t i = 1; i < num_passes; ++i) {
+    sort_by_vector_element(communityVectorTuplePerPass, i);
+  }
+
+  pvector<NodeID_> interim_ids(num_nodes, -1);
+
+#pragma omp parallel for
+  for (int64_t i = 0; i < num_nodes; i++) {
+    interim_ids[communityVectorTuplePerPass[i][0]] = (NodeID_)i;
+  }
+
+  tm2.Start();
+  GenerateDBGMappingInterim(g,new_ids,interim_ids,true);
+  tm2.Stop();
+
+  // tm.Stop();
+  PrintTime("LeidenFullOrder Map Time", tm.Seconds() + tm2.Seconds());
+}
+
 void GenerateDBGMappingInterim(const CSRGraph<NodeID_, DestID_, invert> &g,
                                pvector<NodeID_> &new_ids,pvector<NodeID_> &interim_ids, bool useOutdeg) {
-  Timer t;
-  t.Start();
+  // Timer t;
+  // t.Start();
 
   int64_t num_nodes = g.num_nodes();
   int64_t num_edges = g.num_edges();
@@ -2992,11 +3087,11 @@ void GenerateDBGMappingInterim(const CSRGraph<NodeID_, DestID_, invert> &g,
   pvector<NodeID_> interim_ids_inv(num_nodes, -1);
   pvector<NodeID_> new_ids_interim(num_nodes, -1);
 
-  // #pragma omp parallel for
+  #pragma omp parallel for
   for (NodeID_ n = 0; n < num_nodes_; n++) {
-    assert(interim_ids_inv[interim_ids[n]] == -1);
+    // assert(interim_ids_inv[interim_ids[n]] == -1);
     interim_ids_inv[interim_ids[n]] = n;
-    std::cout << "Node " << n << " | interim_ids: " << interim_ids[n] << " | interim_ids_inv: " << interim_ids_inv[interim_ids[n]] << std::endl;
+    // std::cout << "Node " << n << " | interim_ids: " << interim_ids[n] << " | interim_ids_inv: " << interim_ids_inv[interim_ids[n]] << std::endl;
   }
 
   uint32_t avg_vertex = num_edges / num_nodes;
@@ -3074,11 +3169,11 @@ void GenerateDBGMappingInterim(const CSRGraph<NodeID_, DestID_, invert> &g,
     #pragma omp parallel for
   for (NodeID_ n = 0; n < num_nodes_; n++) {
     new_ids[n] = new_ids_interim[interim_ids[n]];
-        // std::cout << "Node " << n << " | interim_ids: " << new_ids[n] << " | interim_ids_inv: " << new_ids_interim[interim_ids[n]] << std::endl;
+    // std::cout << "Node " << n << " | new_ids: " << new_ids[n] << " | new_ids_interim: " << new_ids_interim[interim_ids[n]] << std::endl;
   }
 
-  t.Stop();
-  PrintTime("DBG Map Time", t.Seconds());
+  // t.Stop();
+  // PrintTime("DBG Map Time", t.Seconds());
 }
 
 

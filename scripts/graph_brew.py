@@ -41,17 +41,19 @@ graph_raw_dir = None  # Directory for raw outputs
 # Regular expressions for parsing timing data from benchmark outputs
 time_patterns = {
     "reorder_time": {
-        "Corder": re.compile(r"\bCOrder\b Map Time:\s*([\d\.]+)"),
-        "DBG": re.compile(r"\bDBG\b Map Time:\s*([\d\.]+)"),
-        "Gorder": re.compile(r"\bGOrder\b Map Time:\s*([\d\.]+)"),
+
         "HubClusterDBG": re.compile(r"\bHubClusterDBG\b Map Time:\s*([\d\.]+)"),
         "HubCluster": re.compile(r"\bHubCluster\b Map Time:\s*([\d\.]+)"),
         "HubSortDBG": re.compile(r"\bHubSortDBG\b Map Time:\s*([\d\.]+)"),
         "HubSort": re.compile(r"\bHubSort\b Map Time:\s*([\d\.]+)"),
+        "LeidenFull": re.compile(r"\bLeidenFullOrder\b Map Time:\s*([\d\.]+)"),
         "Leiden": re.compile(r"\bLeidenOrder\b Map Time:\s*([\d\.]+)"),
         "Original": re.compile(r"\bOriginal\b Map Time:\s*([\d\.]+)"),
         "RabbitOrder": re.compile(r"\bRabbitOrder\b Map Time:\s*([\d\.]+)"),
         "Random": re.compile(r"\bRandom\b Map Time:\s*([\d\.]+)"),
+        "Corder": re.compile(r"\bCOrder\b Map Time:\s*([\d\.]+)"),
+        "Gorder": re.compile(r"\bGOrder\b Map Time:\s*([\d\.]+)"),
+        "DBG": re.compile(r"\bDBG\b Map Time:\s*([\d\.]+)"),
         "RCM": re.compile(r"\bRCMOrder\b Map Time:\s*([\d\.]+)"),
         "Sort": re.compile(r"\bSort\b Map Time:\s*([\d\.]+)"),
     },
@@ -236,9 +238,9 @@ def run_benchmark(
 
         if graph_label:
             if graph_label_generate:
-                RUN_PARAMS.append(f"-o 13:{new_label_path}")
+                RUN_PARAMS.append(f"-o 14:{new_label_path}")
             else:
-                RUN_PARAMS.append(f"-o 13:{default_label_path}")
+                RUN_PARAMS.append(f"-o 14:{default_label_path}")
         else:
             RUN_PARAMS.extend(DEFAULT_RUN_PARAMS)
 
