@@ -147,7 +147,6 @@ install-py-deps: ./$(SCRIPT_DIR)/requirements.txt
 
 exp-%: install-py-deps all
 	$(PYTHON) ./$(SCRIPT_DIR)/graph_brew.py $(CONFIG_DIR)/$*/convert.json
-	$(PYTHON) ./$(SCRIPT_DIR)/graph_brew.py $(CONFIG_DIR)/$*/label.json
 	$(PYTHON) ./$(SCRIPT_DIR)/graph_brew.py $(CONFIG_DIR)/$*/run.json
 
 graph-%: install-py-deps converter
