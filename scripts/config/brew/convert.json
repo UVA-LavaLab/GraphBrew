@@ -10,79 +10,9 @@
     }
   ],
   "graph_suites": {
-    "suite_dir": "/media/cmv6ru/Data/00_GraphDatasets",
+    "suite_dir": "./00_GraphDatasets",
     "GraphBrew": {
       "graphs": [
-       {
-          "label": false,
-          "label_generate": true,
-          "label_type": "so",
-          "generate": false,
-          "generate_default": true,
-          "convert_type": "sg",
-          "run_type": "mtx",
-          "download_type": "mtx",
-          "symbol": "TWTR",
-          "name": "twitter",
-          "download_link":
-              "https://suitesparse-collection-website.herokuapp.com/MM/GAP/GAP-twitter.tar.gz"
-        },
-        {
-          "label": false,
-          "label_generate": true,
-          "label_type": "so",
-          "generate": false,
-          "generate_default": true,
-          "convert_type": "sg",
-          "run_type": "mtx",
-          "download_type": "mtx",
-          "symbol": "RD",
-          "name": "road",
-          "download_link":
-              "https://suitesparse-collection-website.herokuapp.com/MM/GAP/GAP-road.tar.gz"
-        },
-        {
-          "label": false,
-          "label_generate": true,
-          "label_type": "so",
-          "generate": false,
-          "generate_default": true,
-          "convert_type": "sg",
-          "run_type": "mtx",
-          "download_type": "mtx",
-          "symbol": "SLJ1",
-          "name": "soc-LiveJournal1",
-          "download_link":
-              "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/soc-LiveJournal1.tar.gz"
-        },        
-        {
-          "label": false,
-          "label_generate": true,
-          "label_type": "so",
-          "generate": false,
-          "generate_default": true,
-          "convert_type": "sg",
-          "run_type": "mtx",
-          "download_type": "mtx",
-          "symbol": "CPAT",
-          "name": "cit-Patents",
-          "download_link":
-              "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/cit-Patents.tar.gz"
-        },      
-        {
-          "label": false,
-          "label_generate": true,
-          "label_type": "so",
-          "generate": false,
-          "generate_default": true,
-          "convert_type": "sg",
-          "run_type": "mtx",
-          "download_type": "mtx",
-          "symbol": "CORKT",
-          "name": "com-Orkut",
-          "download_link":
-              "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/com-Orkut.tar.gz"
-        },
         {
           "label": false,
           "label_generate": true,
@@ -107,7 +37,7 @@
           "run_type": "sg",
           "download_type": "wel",
           "symbol": "GPLUS",
-          "name": "gong-gplus",
+          "name": "gplus.zip",
           "download_link":
               "https://drive.google.com/file/d/1HF8Q2N_hxsaQ26MarKYxZEQhqI66qAxV/view?usp=sharing"
         },
@@ -124,20 +54,6 @@
           "name": "wikipedia_link_en",
           "download_link":
               "http://konect.cc/files/download.tsv.wikipedia_link_en.tar.bz2"
-        },  
-        {
-          "label": false,
-          "label_generate": true,
-          "label_type": "so",
-          "generate": false,
-          "generate_default": true,
-          "convert_type": "sg",
-          "run_type": "sg",
-          "download_type": "mtx",
-          "symbol": "WEB01",
-          "name": "webbase-2001",
-          "download_link":
-              "https://suitesparse-collection-website.herokuapp.com/MM/LAW/webbase-2001.tar.gz"
         }
       ],
       "graph_basename": "graph"
