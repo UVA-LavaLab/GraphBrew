@@ -19,6 +19,33 @@ postreorder_codes = None
 
 PARALLEL = os.cpu_count()  # Use all available CPU cores
 
+def download_file_from_google_drive(id, destination):
+    URL = "https://docs.google.com/uc?export=download"
+
+    session = requests.Session()
+    response = session.get(URL, params={'id': id}, stream=True)
+    token = get_confirm_token(response)
+
+    if token:
+        params = {'id': id, 'confirm': token}
+        response = session.get(URL, params=params, stream=True)
+
+    save_response_content(response, destination)
+
+def get_confirm_token(response):
+    for key, value in response.cookies.items():
+        if key.startswith('download_warning'):
+            return value
+    return None
+
+def save_response_content(response, destination):
+    CHUNK_SIZE = 32768
+
+    with open(destination, "wb") as f:
+        for chunk in response.iter_content(CHUNK_SIZE):
+            if chunk:  # filter out keep-alive new chunks
+                f.write(chunk)
+
 def import_check_install(package_name):
     spec = importlib.util.find_spec(package_name)
     if spec is None:
@@ -109,6 +136,18 @@ def download_and_extract_graph(graph):
             return
 
         return
+
+    # Check if it is a Google Drive link
+    elif 'drive.google.com' in graph_download_link:
+        # Extract the file ID from the link
+        match = re.search(r'd/([^/]+)', graph_download_link)
+        if match:
+            file_id = match.group(1)
+            file_path = os.path.join(download_dir, graph_fullname)
+            download_file_from_google_drive(file_id, file_path)
+        else:
+            print("Failed to extract File ID from the Google Drive link.")
+
     else:
         file_name = os.path.basename(graph_download_link)
         file_path = os.path.join(download_dir, file_name)
