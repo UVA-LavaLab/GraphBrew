@@ -13,7 +13,7 @@
     "suite_dir": "/media/cmv6ru/Data/00_GraphDatasets",
     "GraphBrew": {
       "graphs": [
-       {
+        {
           "label": false,
           "label_generate": true,
           "label_type": "so",
@@ -54,7 +54,7 @@
           "name": "soc-LiveJournal1",
           "download_link":
               "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/soc-LiveJournal1.tar.gz"
-        },        
+        },
         {
           "label": false,
           "label_generate": true,
@@ -68,7 +68,7 @@
           "name": "cit-Patents",
           "download_link":
               "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/cit-Patents.tar.gz"
-        },      
+        },
         {
           "label": false,
           "label_generate": true,
@@ -104,8 +104,8 @@
           "generate": false,
           "generate_default": true,
           "convert_type": "sg",
-          "run_type": "sg",
-          "download_type": "wel",
+          "run_type": "mtx",
+          "download_type": "mtx",
           "symbol": "GPLUS",
           "name": "gong-gplus",
           "download_link":
@@ -118,8 +118,8 @@
           "generate": false,
           "generate_default": true,
           "convert_type": "sg",
-          "run_type": "sg",
-          "download_type": "el",
+          "run_type": "mtx",
+          "download_type": "mtx",
           "symbol": "WIKLE",
           "name": "wikipedia_link_en",
           "download_link":

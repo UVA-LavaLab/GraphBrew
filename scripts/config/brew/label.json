@@ -22,39 +22,9 @@
   },
   "kernels": [
     {
-      "name": "bc",
-      "trials": 20,
-      "iterations": 10
-    },
-    {
-      "name": "bfs",
-      "trials": 20,
-      "iterations": 10
-    },
-    {
-      "name": "cc",
-      "trials": 20,
-      "iterations": 10
-    },
-    {
-      "name": "cc_sv",
-      "trials": 20,
-      "iterations": 10
-    },
-    {
-      "name": "pr",
-      "trials": 20,
-      "iterations": 10
-    },
-    {
-      "name": "pr_spmv",
-      "trials": 20,
-      "iterations": 10
-    },
-    {
-      "name": "sssp",
-      "trials": 20,
-      "iterations": 10
+      "name": "converter",
+      "trials": 1,
+      "iterations": 1
     }
   ],
   "graph_suites": {
@@ -66,7 +36,7 @@
           "label_generate": true,
           "label_type": "so",
           "generate": false,
-          "generate_default": false,
+          "generate_default": true,
           "convert_type": "sg",
           "run_type": "sg",
           "download_type": "mtx",
@@ -80,7 +50,7 @@
           "label_generate": true,
           "label_type": "so",
           "generate": false,
-          "generate_default": false,
+          "generate_default": true,
           "convert_type": "sg",
           "run_type": "sg",
           "download_type": "mtx",
@@ -94,7 +64,7 @@
           "label_generate": true,
           "label_type": "so",
           "generate": false,
-          "generate_default": false,
+          "generate_default": true,
           "convert_type": "sg",
           "run_type": "sg",
           "download_type": "mtx",
@@ -108,7 +78,7 @@
           "label_generate": true,
           "label_type": "so",
           "generate": false,
-          "generate_default": false,
+          "generate_default": true,
           "convert_type": "sg",
           "run_type": "sg",
           "download_type": "mtx",
@@ -122,7 +92,7 @@
           "label_generate": true,
           "label_type": "so",
           "generate": false,
-          "generate_default": false,
+          "generate_default": true,
           "convert_type": "sg",
           "run_type": "sg",
           "download_type": "mtx",
@@ -136,7 +106,7 @@
           "label_generate": true,
           "label_type": "so",
           "generate": false,
-          "generate_default": false,
+          "generate_default": true,
           "convert_type": "sg",
           "run_type": "sg",
           "download_type": "mtx",
@@ -150,7 +120,7 @@
           "label_generate": true,
           "label_type": "so",
           "generate": false,
-          "generate_default": false,
+          "generate_default": true,
           "convert_type": "sg",
           "run_type": "sg",
           "download_type": "mtx",
@@ -164,7 +134,7 @@
           "label_generate": true,
           "label_type": "so",
           "generate": false,
-          "generate_default": false,
+          "generate_default": true,
           "convert_type": "sg",
           "run_type": "sg",
           "download_type": "mtx",
