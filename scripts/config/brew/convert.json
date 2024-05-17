@@ -11,7 +11,7 @@
   ],
   "graph_suites": {
     "suite_dir": "/media/cmv6ru/Data/00_GraphDatasets",
-    "GraphBrew": {
+    "GBREW": {
       "graphs": [
         {
           "label": false,
@@ -106,6 +106,20 @@
           "convert_type": "sg",
           "run_type": "mtx",
           "download_type": "mtx",
+          "symbol": "WEB01",
+          "name": "webbase-2001",
+          "download_link":
+              "https://suitesparse-collection-website.herokuapp.com/MM/LAW/webbase-2001.tar.gz"
+        },
+        {
+          "label": false,
+          "label_generate": true,
+          "label_type": "so",
+          "generate": false,
+          "generate_default": true,
+          "convert_type": "sg",
+          "run_type": "wel",
+          "download_type": "wel",
           "symbol": "GPLUS",
           "name": "gong-gplus",
           "download_link":
@@ -118,8 +132,8 @@
           "generate": false,
           "generate_default": true,
           "convert_type": "sg",
-          "run_type": "mtx",
-          "download_type": "mtx",
+          "run_type": "el",
+          "download_type": "el",
           "symbol": "WIKLE",
           "name": "wikipedia_link_en",
           "download_link":

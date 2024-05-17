@@ -13,64 +13,65 @@ import subprocess
 import sys
 import tarfile
 import zipfile
+from bs4 import BeautifulSoup
 
 prereorder_codes = None
 postreorder_codes = None
 
 PARALLEL = os.cpu_count()  # Use all available CPU cores
 
-def download_file_from_google_drive(id, destination):
+def download_file_from_google_drive(file_id, destination):
     URL = "https://docs.google.com/uc?export=download"
     session = requests.Session()
 
-    # First request to get the confirmation token
-    response = session.get(URL, params={'id': id}, stream=True)
+    response = session.get(URL, params={'id': file_id}, stream=True)
     token = get_confirm_token(response)
 
     if token:
-        # Make the second request to download the file with the confirmation token
-        params = {'id': id, 'confirm': token}
+        params = {'id': file_id, 'confirm': token}
         response = session.get(URL, params=params, stream=True)
-
-    save_response_content(response, destination)
+        save_response_content(response, destination)
+    else:
+        soup = BeautifulSoup(response.content, 'html.parser')
+        download_link = find_confirm_link(soup)
+        if download_link:
+            response = session.get(download_link, stream=True)
+            save_response_content(response, destination)
+        else:
+            print("Failed to find download link in the HTML file.")
+            return
 
 def get_confirm_token(response):
-    # Google sends a confirmation token if the file is large
     for key, value in response.cookies.items():
         if key.startswith('download_warning'):
             return value
     return None
 
+def find_confirm_link(soup):
+    download_link = None
+    for a in soup.find_all('a'):
+        if 'Download anyway' in a.text:
+            download_link = a['href']
+            break
+    return download_link
+
 def save_response_content(response, destination):
     CHUNK_SIZE = 32768  # 32KB chunks
 
-    # Stream the download to a file
     with open(destination, "wb") as f:
         for chunk in response.iter_content(CHUNK_SIZE):
-            if chunk:  # filter out keep-alive new chunks
+            if chunk:
                 f.write(chunk)
 
-def import_check_install(package_name):
-    spec = importlib.util.find_spec(package_name)
-    if spec is None:
-        print(f"{package_name} is not installed. Installing...")
-        subprocess.run(["pip", "install", package_name])
-
-
 def parse_synthetic_link(synthetic_link):
-    # Regular expression pattern to match either -g or -u followed by a number, and optionally -k followed by another number
     pattern = r"(-[gu]\d+)\s*(-k\d+)?"
-    # Find all matches in the synthetic_link string
     matches = re.findall(pattern, synthetic_link)
     parsed_values = []
     for match in matches:
-        # Extract the -g or -u number
         g_or_u_number = match[0]
-        # Extract the -k number if present, otherwise set it to None
         k_number = match[1] if match[1] else None
         parsed_values.append((g_or_u_number, k_number))
     return parsed_values
-
 
 def download_and_extract_graph(graph):
     global prereorder_codes
@@ -88,11 +89,9 @@ def download_and_extract_graph(graph):
     download_dir = os.path.join(suite_dir_path, symbol)
     graph_file_path = os.path.join(download_dir, graph_fullname)
 
-    # Create a subdirectory for extraction
     extract_dir = os.path.join(download_dir, "extracted")
     os.makedirs(extract_dir, exist_ok=True)
 
-    # Check if suite directory exists
     if os.path.exists(graph_file_path):
         print(f"Suite graph {graph_file_path} already exists.")
         return
@@ -100,22 +99,15 @@ def download_and_extract_graph(graph):
     os.makedirs(download_dir, exist_ok=True)
 
     DEFAULT_RUN_PARAMS = []
-    # Add prereorder codes if any
     DEFAULT_RUN_PARAMS.extend([f"-o{code}" for code in prereorder_codes])
-    # Main reorder code
-    # Add postreorder codes if any
     DEFAULT_RUN_PARAMS.extend([f"-o{code}" for code in postreorder_codes])
 
-    # Download the graph file
+    file_name = None
+
     if parsed_synthetic_link:
-        # Construct file path using synthetic link
         file_name = f"{symbol}_synthetic"
         file_path = graph_file_path
-        # Assuming here that you have a function to generate synthetic graph data
-        # Replace this with your actual function call to generate the synthetic graph data
-        # Assuming you want to call the make command after generating the synthetic graph
         graph_bench = " ".join([f"{g_or_u_number} {k_number}" for g_or_u_number, k_number in parsed_synthetic_link])
-        # print(parsed_synthetic_link)
         order_params = ' '.join(DEFAULT_RUN_PARAMS)
         run_params = f"-b {file_path}"
         run_params = order_params + ' ' + run_params
@@ -128,29 +120,18 @@ def download_and_extract_graph(graph):
             f"PARALLEL={PARALLEL}",
         ]
 
-        # Convert list to a space-separated string for subprocess execution
         cmd = " ".join(cmd)
         print(cmd)
         try:
             output = subprocess.run(
                 cmd, shell=True, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE
             )
+            print(output.stdout.decode())
+            print(output.stderr.decode())
         except subprocess.CalledProcessError as e:
             print(f"Error running command: {cmd}\nError: {e.stderr.decode()}")
             return
-
         return
-
-    # Check if it is a Google Drive link
-    elif 'drive.google.com' in graph_download_link:
-        # Extract the file ID from the link
-        match = re.search(r'd/([^/]+)', graph_download_link)
-        if match:
-            file_id = match.group(1)
-            file_path = os.path.join(download_dir, graph_fullname)
-            download_file_from_google_drive(file_id, file_path)
-        else:
-            print("Failed to extract File ID from the Google Drive link.")
 
     else:
         file_name = os.path.basename(graph_download_link)
@@ -169,105 +150,91 @@ def download_and_extract_graph(graph):
                         progress_bar.update(len(chunk))
         progress_bar.close()
 
-    # Extract the graph file if it's a tar.gz archive
-    if file_name.endswith(".tar.gz"):
-        print(f"Extracting {symbol}...")
-        with tarfile.open(file_path, "r:gz") as tar:
-            largest_size = 0
-            largest_file = None
-            for member in tar.getmembers():
-                if member.size > largest_size:
-                    largest_size = member.size
-                    largest_file = member
-            if largest_file:
-                tar.extract(largest_file, path=extract_dir)
-                # Rename the largest file to 'graph.extension'
-                extracted_path = os.path.join(extract_dir, largest_file.name)
-                shutil.move(extracted_path, graph_file_path)
-                # print(f"Extracted and renamed {largest_file.name} to {graph_fullname}")
-                # Remove the rest of the files
-                for member in tar.getmembers():
-                    if member.name != largest_file.name:
-                        tar.extract(member, path=extract_dir)
-                        if os.path.isdir(os.path.join(extract_dir, member.name)):
-                            shutil.rmtree(os.path.join(extract_dir, member.name))
-                        else:
-                            os.remove(os.path.join(extract_dir, member.name))
-                # print("Deleted other files")
-                # Remove the extracted directory
-                shutil.rmtree(extract_dir)
-            else:
-                print("No files found in the archive")
+    try:
+        if file_name.endswith(".tar.gz"):
+            mode = "r:gz"
+        elif file_name.endswith(".tar.bz2"):
+            mode = "r:bz2"
+        else:
+            mode = None
 
-        # Remove the downloaded .tar.gz file
-        os.remove(file_path)
-        # print(f"Deleted {file_name}")
-
-    elif file_name.endswith(".gz"):
-        # Handle .gz files using gzip
-        # Extract the .gz file
-        with gzip.open(file_path, "rb") as gz_file:
-            # Read the contents of the .gz file
-            content = gz_file.read()
-
-            # Write the contents to a new file
-            extracted_file_path = os.path.join(
-                extract_dir, symbol + "." + graph_download_type
-            )
-            with open(extracted_file_path, "wb") as extracted_file:
-                extracted_file.write(content)
-
-        # Move the extracted file to the desired location
-        shutil.move(extracted_file_path, graph_file_path)
-
-        # Remove the extracted directory
-        shutil.rmtree(extract_dir)
-        os.remove(file_path)
-
-    elif file_name.endswith(".zip"):
-        # Handle .zip files using zipfile
-        # Extract the .zip file
-        with zipfile.ZipFile(file_path, "r") as zip_file:
-            # Get the list of files in the .zip file
-            file_list = zip_file.namelist()
-
-            # Choose the largest file in the .zip file
-            largest_file = max(file_list, key=lambda x: zip_file.getinfo(x).file_size)
-
-            if largest_file:
-                # Extract the largest file
-                zip_file.extract(largest_file, path=extract_dir)
-
-                # Rename the extracted file to 'graph.extension'
-                extracted_path = os.path.join(extract_dir, largest_file)
-                shutil.move(extracted_path, graph_file_path)
-
-                # Remove the rest of the files
-                for file in file_list:
-                    if file != largest_file:
-                        zip_file.extract(file, path=extract_dir)
-                        if os.path.isdir(os.path.join(extract_dir, file)):
-                            shutil.rmtree(os.path.join(extract_dir, file))
-                        else:
-                            os.remove(os.path.join(extract_dir, file))
-
-                # Remove the extracted directory
-                shutil.rmtree(extract_dir)
-            else:
-                print("No files found in the archive")
+        if mode:
+            print(f"Extracting {symbol} with mode {mode}...")
+            with tarfile.open(file_path, mode) as tar:
+                print(f"Opened {file_path}")
+                members = tar.getmembers()
+                print(f"Members count: {len(members)}")
+                largest_size = 0
+                largest_file = None
+                for member in members:
+                    if member.size > largest_size:
+                        largest_size = member.size
+                        largest_file = member
+                if largest_file:
+                    print(f"Largest file in the archive: {largest_file.name} ({largest_size} bytes)")
+                    tar.extract(largest_file, path=extract_dir)
+                    extracted_path = os.path.join(extract_dir, largest_file.name)
+                    shutil.move(extracted_path, graph_file_path)
+                    for member in members:
+                        if member.name != largest_file.name:
+                            tar.extract(member, path=extract_dir)
+                            if os.path.isdir(os.path.join(extract_dir, member.name)):
+                                shutil.rmtree(os.path.join(extract_dir, member.name))
+                            else:
+                                os.remove(os.path.join(extract_dir, member.name))
+                    shutil.rmtree(extract_dir)
+                else:
+                    print("No files found in the archive")
             os.remove(file_path)
-    else:
-        print("Unsupported file format.")
 
+        elif file_name.endswith(".gz"):
+            print(f"Extracting .gz file {file_name}...")
+            with gzip.open(file_path, "rb") as gz_file:
+                content = gz_file.read()
+                extracted_file_path = os.path.join(
+                    extract_dir, symbol + "." + graph_download_type
+                )
+                with open(extracted_file_path, "wb") as extracted_file:
+                    extracted_file.write(content)
+            shutil.move(extracted_file_path, graph_file_path)
+            shutil.rmtree(extract_dir)
+            os.remove(file_path)
+
+        elif file_name.endswith(".zip"):
+            print(f"Extracting .zip file {file_name}...")
+            with zipfile.ZipFile(file_path, "r") as zip_file:
+                file_list = zip_file.namelist()
+                print(f"Files in the zip archive: {file_list}")
+                largest_file = max(file_list, key=lambda x: zip_file.getinfo(x).file_size)
+                if largest_file:
+                    zip_file.extract(largest_file, path=extract_dir)
+                    extracted_path = os.path.join(extract_dir, largest_file)
+                    shutil.move(extracted_path, graph_file_path)
+                    for file in file_list:
+                        if file != largest_file:
+                            zip_file.extract(file, path=extract_dir)
+                            if os.path.isdir(os.path.join(extract_dir, file)):
+                                shutil.rmtree(os.path.join(extract_dir, file))
+                            else:
+                                os.remove(os.path.join(extract_dir, file))
+                    shutil.rmtree(extract_dir)
+                else:
+                    print("No files found in the archive")
+            os.remove(file_path)
+
+        else:
+            print(f"Unsupported file format for {file_name}.")
+
+    except (tarfile.TarError, gzip.BadGzipFile, zipfile.BadZipFile) as e:
+        print(f"Error extracting {file_name}: {e}")
 
 def download_and_extract_graphs(config):
     global prereorder_codes
     global postreorder_codes
 
     graph_suites = config["graph_suites"]
-    suite_dir = graph_suites.pop("suite_dir")  # Extracting suite_dir from graph_suites
+    suite_dir = graph_suites.pop("suite_dir")
 
-    # Extract prereorder and postreorder codes
     prereorder_codes = [
         config["prereorder"].get(key, []) for key in config.get("prereorder", {})
     ]
@@ -295,10 +262,8 @@ def download_and_extract_graphs(config):
             )
             threads.append(thread)
 
-    # Wait for all threads to complete
     for thread in threads:
         thread.get()
-
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
@@ -307,7 +272,6 @@ if __name__ == "__main__":
 
     config_file = sys.argv[1]
 
-    # Loading configuration settings from the specified JSON file
     with open(config_file, "r") as f:
         config = json.load(f)
         download_and_extract_graphs(config)
