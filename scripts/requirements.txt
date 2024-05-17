@@ -5,3 +5,5 @@ matplotlib
 requests
 tqdm
 pathlib
+beautifulsoup4
+requests
