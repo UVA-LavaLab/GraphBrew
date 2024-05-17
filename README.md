@@ -228,7 +228,8 @@ Reordering Algorithms:
   - CORDER        (10): Workload Balancing via Graph Reordering on Multicore Systems.
   - RCM           (11): RCM is ordered by the reverse Cuthill-McKee algorithm (BFS).
   - LeidenOrder   (12): Apply Leiden community clustering with louvain with refinement.
-  - MAP           (13): Requires a file format for reordering. Use the -r 10:filename.label option.
+  - LeidenFull    (13): Apply Leiden community clustering - degreesort -> louvain with refinement -> DBG.
+  - MAP           (14): Requires a file format for reordering. Use the -r 10:filename.label option.
 ```
 ### Converter Parameters (Generate Optimized Graphs)
 ```bash
@@ -267,7 +268,7 @@ available Make commands:
 Example Usage:
   make all - Compile the program.
   make clean - Clean build files.
-  ./bench/bin/pr -g 15 -n 1 -r 10:mapping.label - Execute with MAP reordering using 'mapping.label'.
+  ./bench/bin/pr -g 15 -n 1 -o 14:mapping.lo - Execute with MAP reordering using 'mapping.<lo|so> '.
 
 ```
 
