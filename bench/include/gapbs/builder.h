@@ -1307,7 +1307,7 @@ void GenerateDBGMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
     av / 2,   av,       av * 2,   av * 4,
     av * 8,   av * 16,  av * 32,  av * 64,
     av * 128, av * 256, av * 512, static_cast<uint32_t>(-1)};
-  int num_buckets = 11;
+  int num_buckets = 7;
   if (num_buckets > 11) {
     // if you really want to increase the bucket count, add more thresholds to
     // the bucket_threshold above.
@@ -3055,11 +3055,11 @@ void GenerateLeidenFullMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
     }
   }
 
-  // sort_by_vector_element(communityVectorTuplePerPass,num_passes-1);
+  sort_by_vector_element(communityVectorTuplePerPass,num_passes-1);
 
-  for (size_t i = 1; i < num_passes; ++i) {
-    sort_by_vector_element(communityVectorTuplePerPass, i);
-  }
+  // for (size_t i = 1; i < num_passes; ++i) {
+  //   sort_by_vector_element(communityVectorTuplePerPass, i);
+  // }
 
   pvector<NodeID_> interim_ids(num_nodes, -1);
 
@@ -3101,7 +3101,7 @@ void GenerateDBGMappingInterim(const CSRGraph<NodeID_, DestID_, invert> &g,
     av / 2,   av,       av * 2,   av * 4,
     av * 8,   av * 16,  av * 32,  av * 64,
     av * 128, av * 256, av * 512, static_cast<uint32_t>(-1)};
-  int num_buckets = 11;
+  int num_buckets = 7;
   if (num_buckets > 11) {
     // if you really want to increase the bucket count, add more thresholds to
     // the bucket_threshold above.
