@@ -50,15 +50,14 @@ Graphbrew can explore the impact of graph reordering techniques on the performan
 
 1. **Test Experiment:**
    * Use the `make exp-test` command. This will:
-     * Execute the experiments as defined in the python script [(`scripts/<experiment-name>/run_experiment.py`)](./scripts/test/run_experiment.py), with smaller graphs.
-     * Generate results (e.g., reorder time for each graphs, speedup for each algorithm) in the `bench/results` folder.
+     * Execute the experiments as defined in the python script [(`scripts/test/run_experiment.py`)](./scripts/test/run_experiment.py), with smaller graphs.
+     * Generate results (e.g., reorder time for each graph, average time for each algorithm) in the `bench/results` folder.
      * `make clean-results` will back up current results into `bench/backup` and delete `bench/results` for a new run.
      * Use this config for functional testing, to make sure all libraries are installed and GraphBrew is running -- **not for performance evaluation**.
 
 ## GraphBrew Experiment
 
 Point the downloaded graphs into any directory through updating `BASE_DIR = "00_GraphDatasets/GBREW"` in [(`scripts/<experiment-name>/run_experiment.py`)](./scripts/test/run_experiment.py).
-
 
 ### Download Graphs
 
