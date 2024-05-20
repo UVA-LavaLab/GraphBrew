@@ -46,39 +46,59 @@ Before you begin, ensure you have the following installed on your system, [(sect
 
 Graphbrew can explore the impact of graph reordering techniques on the performance of various graph algorithms. The configuration for these experiments is specified in the `scripts/<experiment-name>/run_experiment.py` file.  
 
-
 ### Experiment Execution
 
-1. **Run Experiments:**
-   * Use the `make exp-<experiment-name>` command, matching the `scripts/<experiment-name>/run_experiment.py` file name. This will:
-     * Download necessary datasets if they don't exist. Provide a link in the [`JSON`](#configuration-file-breakdown-gapjson) file or copy the graph into the same directory to skip downloading. 
-     * The graph will be downloaded or should be copied to `/00_Graph_Datasets/full/GAP/{symbol}/graph.{type}`.
-2. **Test Experiment:**
+1. **Test Experiment:**
    * Use the `make exp-test` command. This will:
-     * Execute the experiments as defined in the configuration file [(`scripts/<experiment-name>/run_experiment.py`)](./scripts/test/run_experiment.py).
-     * Generate results (e.g., speedup graphs, overhead measurements) in the `bench/results` folder.
+     * Execute the experiments as defined in the python script [(`scripts/<experiment-name>/run_experiment.py`)](./scripts/test/run_experiment.py), with smaller graphs.
+     * Generate results (e.g., reorder time for each graphs, speedup for each algorithm) in the `bench/results` folder.
      * `make clean-results` will back up current results into `bench/backup` and delete `bench/results` for a new run.
      * Use this config for functional testing, to make sure all libraries are installed and GraphBrew is running -- **not for performance evaluation**.
 
 ## GraphBrew Experiment
 
-The experiments utilize datasets are downloaded into `BASE_DIR = "00_GraphDatasets/GBREW"` and updated in [(`scripts/<experiment-name>/run_experiment.py`)](./scripts/test/run_experiment.py).
+Point the downloaded graphs into any directory through updating `BASE_DIR = "00_GraphDatasets/GBREW"` in [(`scripts/<experiment-name>/run_experiment.py`)](./scripts/test/run_experiment.py).
 
-* **Twitter (TWTR|31.4GB|mtx):** A representation of the Twitter social network. [link](https://suitesparse-collection-website.herokuapp.com/MM/GAP/GAP-twitter.tar.gz)
-* **Road network (RD|628.4MB|mtx):** A road network from a specific geographic region. [link](https://suitesparse-collection-website.herokuapp.com/MM/GAP/GAP-road.tar.gz)
-* **LiveJournal (SLJ1|1GB|mtx):** A social network from LiveJournal users. [link](https://suitesparse-collection-website.herokuapp.com/MM/SNAP/soc-LiveJournal1.tar.gz)
-* **Patents (CPAT|261.7MB|mtx):** A citation network of patents. [link](https://suitesparse-collection-website.herokuapp.com/MM/SNAP/cit-Patents.tar.gz)
-* **Orkut (CORKT|1.8GB|mtx):** A social network from Orkut. [link](https://suitesparse-collection-website.herokuapp.com/MM/SNAP/com-Orkut.tar.gz)
-* **Pokec (SPKC|424MB|mtx):** A social network from Pokec. [link](https://suitesparse-collection-website.herokuapp.com/MM/SNAP/soc-Pokec.tar.gz)
-* **Web graph (WEB01|18.5GB|mtx):** A crawl of a portion of the World Wide Web from 2001. [link](https://suitesparse-collection-website.herokuapp.com/MM/LAW/webbase-2001.tar.gz)
-* **Google Plus (GPLUS|7.3GB|wel):** A social network from Google Plus. [link](https://drive.google.com/file/d/1HF8Q2N_hxsaQ26MarKYxZEQhqI66qAxV/view?usp=sharing)
-* **Wikipedia Links (WIKLE|6.7GB|el):** Links between Wikipedia pages in English. [link](http://konect.cc/files/download.tsv.wikipedia_link_en.tar.bz2)
 
-### Run GAPBS GraphBrew:
+### Download Graphs
+
+* **Twitter (TWTR | 31.4GB | .mtx):** A representation of the Twitter social network. [link](https://suitesparse-collection-website.herokuapp.com/MM/GAP/GAP-twitter.tar.gz)
+* **Road network (RD | 628.4MB | .mtx):** A road network from a specific geographic region. [link](https://suitesparse-collection-website.herokuapp.com/MM/GAP/GAP-road.tar.gz)
+* **LiveJournal (SLJ1 | 1GB | .mtx):** A social network from LiveJournal users. [link](https://suitesparse-collection-website.herokuapp.com/MM/SNAP/soc-LiveJournal1.tar.gz)
+* **Patents (CPAT | 261.7MB | .mtx):** A citation network of patents. [link](https://suitesparse-collection-website.herokuapp.com/MM/SNAP/cit-Patents.tar.gz)
+* **Orkut (CORKT | 1.8GB | .mtx):** A social network from Orkut. [link](https://suitesparse-collection-website.herokuapp.com/MM/SNAP/com-Orkut.tar.gz)
+* **Pokec (SPKC | 424MB | .mtx):** A social network from Pokec. [link](https://suitesparse-collection-website.herokuapp.com/MM/SNAP/soc-Pokec.tar.gz)
+* **Web graph (WEB01 | 18.5GB | .mtx):** A crawl of a portion of the World Wide Web from 2001. [link](https://suitesparse-collection-website.herokuapp.com/MM/LAW/webbase-2001.tar.gz)
+* **Google Plus (GPLUS | 7.3GB | .wel):** A social network from Google Plus. [link](https://drive.google.com/file/d/1HF8Q2N_hxsaQ26MarKYxZEQhqI66qAxV/view?usp=sharing)
+* **Wikipedia Links (WIKLE | 6.7GB | .el):** Links between Wikipedia pages in English. [link](http://konect.cc/files/download.tsv.wikipedia_link_en.tar.bz2)
+
+### Rename the Graph
+
+Rename each graph into the specified extension in the aforementioned list. For example, for the Twitter graph (Symbol: TWTR), rename the graph to `graph.mtx` and place it in the following directory structure:
+
+```
+00_GraphDatasets/GBREW/TWTR/graph.mtx
+```
+
+Follow the same pattern for each graph, using their respective symbols and extensions. Here is the directory structure for each graph:
+
+* **Twitter:** `00_GraphDatasets/GBREW/TWTR/graph.mtx`
+* **Road network:** `00_GraphDatasets/GBREW/RD/graph.mtx`
+* **LiveJournal:** `00_GraphDatasets/GBREW/SLJ1/graph.mtx`
+* **Patents:** `00_GraphDatasets/GBREW/CPAT/graph.mtx`
+* **Orkut:** `00_GraphDatasets/GBREW/CORKT/graph.mtx`
+* **Pokec:** `00_GraphDatasets/GBREW/SPKC/graph.mtx`
+* **Web graph:** `00_GraphDatasets/GBREW/WEB01/graph.mtx`
+* **Google Plus:** `00_GraphDatasets/GBREW/GPLUS/graph.wel`
+* **Wikipedia Links:** `00_GraphDatasets/GBREW/WIKLE/graph.el`
+
+Ensure that you download the graphs, extract them if necessary, and place them in the corresponding directories with the correct file names and extensions.
+
+### Run GAPBS with GraphBrew:
 
 * Use the `make exp-brew` command. This will:
-  * Execute the experiments as defined in the configuration file [(`scripts/brew//run_experiment.py`)](./scripts/gap/convert.json).
-  * Generate results (e.g., speedup graphs, overhead measurements) in the `bench/result` folder.
+  * Execute the experiments as defined in the configuration file [(`scripts/brew/run_experiment.py`)](./scripts/gap/convert.json).
+  * Generate results (e.g., speedup graphs, overhead measurements) in the `bench/results` folder.
 
 # GraphBrew Standalone
 
