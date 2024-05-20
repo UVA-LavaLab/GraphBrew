@@ -44,36 +44,40 @@ Before you begin, ensure you have the following installed on your system, [(sect
 
 # GraphBrew Experiment Configuration
 
-Graphbrew can explore the impact of graph reordering techniques on the performance of various graph algorithms. The configuration for these experiments is specified in the `scripts/config/<experiment-name>.json` file.  
+Graphbrew can explore the impact of graph reordering techniques on the performance of various graph algorithms. The configuration for these experiments is specified in the `scripts/<experiment-name>/run_experiment.py` file.  
 
 
 ### Experiment Execution
 
 1. **Run Experiments:**
-   * Use the `make exp-<experiment-name>` command, matching the `scripts/config/<experiment-name>/*[convert|label|run].json` file name. This will:
+   * Use the `make exp-<experiment-name>` command, matching the `scripts/<experiment-name>/run_experiment.py` file name. This will:
      * Download necessary datasets if they don't exist. Provide a link in the [`JSON`](#configuration-file-breakdown-gapjson) file or copy the graph into the same directory to skip downloading. 
      * The graph will be downloaded or should be copied to `/00_Graph_Datasets/full/GAP/{symbol}/graph.{type}`.
 2. **Test Experiment:**
    * Use the `make exp-test` command. This will:
-     * Execute the experiments as defined in the configuration file [(`scripts/config/<experiment-name>/*[convert|label|run].json`)](./scripts/config/test/convert.json).
+     * Execute the experiments as defined in the configuration file [(`scripts/<experiment-name>/run_experiment.py`)](./scripts/test/run_experiment.py).
      * Generate results (e.g., speedup graphs, overhead measurements) in the `bench/results` folder.
      * `make clean-results` will back up current results into `bench/backup` and delete `bench/results` for a new run.
      * Use this config for functional testing, to make sure all libraries are installed and GraphBrew is running -- **not for performance evaluation**.
 
-## GAPBS Experiment
+## GraphBrew Experiment
 
-The experiments utilize the GAP benchmark suite of graph datasets. These datasets are downloaded into the `./00_Graph_Datasets/full/GAP` directory.
+The experiments utilize datasets are downloaded into `BASE_DIR = "00_GraphDatasets/GBREW"` and updated in [(`scripts/<experiment-name>/run_experiment.py`)](./scripts/test/run_experiment.py).
 
-* **Twitter (TWTR|30GB):** A representation of the Twitter social network.
-* **Web graph (WEB|39GB):** A crawl of a portion of the World Wide Web.
-* **Road network (RD|600MB):** A road network from a specific geographic region.
-* **Kronecker graph (KRON|44GB):** A synthetic graph generated using the Kronecker product, often used to model real-world networks with power-law degree distributions.
-* **Random graph (URND|44GB):** A graph generated with random connections between nodes.
+* **Twitter (TWTR|31.4GB|mtx):** A representation of the Twitter social network. [link](https://suitesparse-collection-website.herokuapp.com/MM/GAP/GAP-twitter.tar.gz)
+* **Road network (RD|628.4MB|mtx):** A road network from a specific geographic region. [link](https://suitesparse-collection-website.herokuapp.com/MM/GAP/GAP-road.tar.gz)
+* **LiveJournal (SLJ1|1GB|mtx):** A social network from LiveJournal users. [link](https://suitesparse-collection-website.herokuapp.com/MM/SNAP/soc-LiveJournal1.tar.gz)
+* **Patents (CPAT|261.7MB|mtx):** A citation network of patents. [link](https://suitesparse-collection-website.herokuapp.com/MM/SNAP/cit-Patents.tar.gz)
+* **Orkut (CORKT|1.8GB|mtx):** A social network from Orkut. [link](https://suitesparse-collection-website.herokuapp.com/MM/SNAP/com-Orkut.tar.gz)
+* **Pokec (SPKC|424MB|mtx):** A social network from Pokec. [link](https://suitesparse-collection-website.herokuapp.com/MM/SNAP/soc-Pokec.tar.gz)
+* **Web graph (WEB01|18.5GB|mtx):** A crawl of a portion of the World Wide Web from 2001. [link](https://suitesparse-collection-website.herokuapp.com/MM/LAW/webbase-2001.tar.gz)
+* **Google Plus (GPLUS|7.3GB|wel):** A social network from Google Plus. [link](https://drive.google.com/file/d/1HF8Q2N_hxsaQ26MarKYxZEQhqI66qAxV/view?usp=sharing)
+* **Wikipedia Links (WIKLE|6.7GB|el):** Links between Wikipedia pages in English. [link](http://konect.cc/files/download.tsv.wikipedia_link_en.tar.bz2)
 
 ### Run GAPBS GraphBrew:
 
-* Use the `make exp-gap` command. This will:
-  * Execute the experiments as defined in the configuration file [(`scripts/config/gap/*[convert|label|run].json`)](./scripts/config/gap/convert.json).
+* Use the `make exp-brew` command. This will:
+  * Execute the experiments as defined in the configuration file [(`scripts/brew//run_experiment.py`)](./scripts/gap/convert.json).
   * Generate results (e.g., speedup graphs, overhead measurements) in the `bench/result` folder.
 
 # GraphBrew Standalone
@@ -228,7 +232,7 @@ Reordering Algorithms:
   - CORDER        (10): Workload Balancing via Graph Reordering on Multicore Systems.
   - RCM           (11): RCM is ordered by the reverse Cuthill-McKee algorithm (BFS).
   - LeidenOrder   (12): Apply Leiden community clustering with louvain with refinement.
-  - LeidenFull    (13): Apply Leiden community clustering - degreesort -> louvain with refinement -> DBG.
+  - LeidenFull    (13): Apply Leiden community clustering - Rabbit -> louvain with refinement (Leiden).
   - MAP           (14): Requires a file format for reordering. Use the -r 10:filename.label option.
 ```
 ### Converter Parameters (Generate Optimized Graphs)
@@ -272,181 +276,6 @@ Example Usage:
 
 ```
 
-## JSON Configuration Overview
-
-```bash
-(scripts/config/scripts/test/label.json)
-{
-  "reorderings": {
-    "Original": 0,
-    "Random": 1,
-    "Sort": 2,
-    "HubSort": 3,
-    "HubCluster": 4,
-    "DBG": 5,
-    "HubSortDBG": 6,
-    "HubClusterDBG": 7,
-    "RabbitOrder": 8,
-    "Gorder": 9,
-    "Corder": 10,
-    "RCM": 11,
-    "Leiden": 12
-  },
-  "baselines_speedup": {
-    "Original": 0,
-    "Random": 1
-  },
-  "baselines_overhead": {
-    "Leiden": 12
-  },
-  "prereorder": {
-    "Random": 1
-  },
-  "postreorder": {
-    "DBG": 5
-  },
-  "kernels": [
-    "converter"
-  ],
-  "graph_suites": {
-    "suite_dir": "./00_Graph_Datasets/full",
-    "SNAP": {
-      "graphs": [
-        {
-          "label": true,
-          "label_generate": true,
-          "label_type": "so",
-          "generate": false,
-          "generate_default": false,
-          "convert_type": "sg",
-          "run_type": "sg",
-          "download_type": "mtx",
-          "symbol": "WGL",
-          "name": "web-Google",
-          "download_link":
-              "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/web-Google.tar.gz"
-        },
-        {
-          "label": true,
-          "label_generate": true,
-          "label_type": "so",
-          "generate": false,
-          "generate_default": false,
-          "convert_type": "sg",
-          "run_type": "sg",
-          "download_type": "mtx",
-          "symbol": "AMZ08",
-          "name": "amazon-2008",
-          "download_link":
-              "https://suitesparse-collection-website.herokuapp.com/MM/LAW/amazon-2008.tar.gz"
-        },
-        {
-          "label": true,
-          "label_generate": true,
-          "label_type": "so",
-          "generate": false,
-          "generate_default": false,
-          "convert_type": "sg",
-          "run_type": "sg",
-          "download_type": "mtx",
-          "symbol": "CNR00",
-          "name": "cnr-2000",
-          "download_link":
-              "https://suitesparse-collection-website.herokuapp.com/MM/LAW/cnr-2000.tar.gz"
-        },
-        {
-          "label": true,
-          "label_generate": true,
-          "label_type": "so",
-          "generate": false,
-          "generate_default": false,
-          "convert_type": "sg",
-          "run_type": "sg",
-          "download_type": "mtx",
-          "symbol": "DBLP10",
-          "name": "dblp-2010",
-          "download_link":
-              "https://suitesparse-collection-website.herokuapp.com/MM/LAW/dblp-2010.tar.gz"
-        },
-        {
-          "label": true,
-          "label_generate": true,
-          "label_type": "so",
-          "generate": false,
-          "generate_default": false,
-          "convert_type": "sg",
-          "run_type": "sg",
-          "download_type": "sg",
-          "symbol": "KRON10",
-          "name": "kron-10",
-          "synthetic_link": "-g10 -k5 "
-        },
-        {
-          "label": true,
-          "label_generate": true,
-          "label_type": "so",
-          "generate": false,
-          "generate_default": false,
-          "convert_type": "sg",
-          "run_type": "sg",
-          "download_type": "sg",
-          "symbol": "URAND10",
-          "name": "urand-10",
-          "synthetic_link": "-u10 -k5 "
-        }
-      ],
-      "graph_basename": "graph"
-    }
-  }
-}
-
-
-```
-
-The JSON configuration file includes several key sections that define how the benchmarking script operates:
-
-### "reorderings"
-Defines the enumeration of possible graph reordering algorithms used in preprocessing steps. Each reordering strategy is mapped to a unique identifier.
-
-- `Original`: No reordering applied.
-- `Random`, `Sort`, `HubSort`, etc.: Specific algorithms that modify the node ordering for potential performance improvements in graph processing.
-
-### "baselines_speedup" and "baselines_overhead"
-Identify the baseline reorderings for comparing speedup and measuring overhead respectively.
-
-- `Original`, `Random`: Used as reference points for performance metrics.
-
-### "prereorder" and "postreorder"
-Specify reordering algorithms to be applied before and after the main graph processing, enabling multi-stage reordering pipelines.
-
-- `Random`: Applied before main processing.
-- `DBG`: Applied after main processing.
-
-### "kernels"
-Lists the graph processing kernels that will be benchmarked, such as `bc` (Betweenness Centrality), `bfs` (Breadth-First Search), etc.
-
-### "graph_suites"
-Describes the directories and specific graphs used in benchmarks, including download links and metadata for proper setup.
-
-- `suite_dir`: Directory containing all graph datasets.
-- `SNAP`: Contains details for each graph from the SNAP dataset, such as whether labels should be generated, the type of labels, and the conversion type needed for processing.
-
-## Python Script Parameters
-
-The script `graph_brew->run_benchmark` is designed to automate the execution of graph benchmarks based on the defined JSON configuration. It utilizes several parameters extracted from the JSON:
-
-- `kernel`: The graph processing kernel to run.
-- `graph_path`: Path to the graph dataset.
-- `reorder_code`: The main reordering code applied during graph processing.
-- `graph_symbol`: A short symbolic name for the graph being processed.
-- `graph_generate`: Indicates whether the graph should be generated (converted from another format).
-- `graph_generate_default`: Indicates whether to generate a graph using default settings.
-- `graph_run_type`, `graph_convert_type`: Define the file formats for running and converting graphs.
-- `graph_label`, `graph_label_type`, `graph_label_generate`: Specify if and how graph node labels are handled.
-- `reorder_name`: Descriptive name for the reordering process.
-- `prereorder_codes`, `postreorder_codes`: Codes for additional reorderings applied before or after the main reordering.
-
-The script orchestrates the setup, execution, and logging of benchmark results, managing various preprocessing and postprocessing steps required for comprehensive performance evaluation.
 
 ## Modifying the Makefile
 

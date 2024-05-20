@@ -1301,18 +1301,22 @@ void GenerateDBGMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
   int64_t num_edges = g.num_edges();
 
   uint32_t avg_vertex = num_edges / num_nodes;
-  const uint32_t &av = avg_vertex;
+  // const uint32_t av = avg_vertex;
 
-  uint32_t bucket_threshold[] = {
-    av / 2,   av,       av * 2,   av * 4,
-    av * 8,   av * 16,  av * 32,  av * 64,
-    av * 128, av * 256, av * 512, static_cast<uint32_t>(-1)};
+  // uint32_t bucket_threshold[] = {
+  //   av / 2,   av,       av * 2,   av * 4,
+  //   av * 8,   av * 16,  av * 32,  av * 64,
+  //   av * 128, av * 256, av * 512, static_cast<uint32_t>(-1)};
   int num_buckets = 7;
-  if (num_buckets > 11) {
-    // if you really want to increase the bucket count, add more thresholds to
-    // the bucket_threshold above.
-    std::cout << "Unsupported bucket size: " << num_buckets << std::endl;
-    assert(0);
+  int *bucket_threshold = new int[num_buckets];
+  // START initialize thresholds
+  if(avg_vertex <= 1)
+    bucket_threshold[0] = 1;
+  else
+    bucket_threshold[0] = (avg_vertex / 2);
+  for (int i = 1; i < (num_buckets - 1); ++i)
+  {
+    bucket_threshold[i] = bucket_threshold[i - 1] * 2;
   }
   bucket_threshold[num_buckets - 1] = static_cast<uint32_t>(-1);
 
@@ -2976,7 +2980,7 @@ void GenerateLeidenMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
 }
 
 void GenerateLeidenFullMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
-                              pvector<NodeID_> &new_ids) {
+                               pvector<NodeID_> &new_ids) {
 
   Timer tm;
   Timer tm2;
