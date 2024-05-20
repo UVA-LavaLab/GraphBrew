@@ -233,7 +233,10 @@ public:
     for (NodeID_ i = 0; i < num_nodes_; i++) {
       std::cout << i << ": ";
       for (DestID_ j : out_neigh(i)) {
-        std::cout << j << " ";
+        // if (is_weighted())
+        //   std::cout << static_cast<DestID_>(j).v << " ";
+        // else
+          std::cout << j << " ";
       }
       std::cout << std::endl;
     }

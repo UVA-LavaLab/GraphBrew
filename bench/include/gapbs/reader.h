@@ -184,80 +184,93 @@ public:
 
   // Note: converts vertex numbering from 1..N to 0..N-1
   // Note: weights casted to type WeightT_
-  EdgeList ReadInMTX(std::ifstream &in, bool &needs_weights) {
+EdgeList ReadInMTX(std::ifstream &in, bool &needs_weights) {
     EdgeList el;
     std::string start, object, format, field, symmetry, line;
     in >> start >> object >> format >> field >> symmetry >> std::ws;
+    // std::cout << "Header: " << start << " " << object << " " << format << " " << field << " " << symmetry << std::endl;
+
     if (start != "%%MatrixMarket") {
-      std::cout << ".mtx file did not start with %%MatrixMarket" << std::endl;
-      std::exit(-21);
+        std::cout << ".mtx file did not start with %%MatrixMarket" << std::endl;
+        std::exit(-21);
     }
     if ((object != "matrix") || (format != "coordinate")) {
-      std::cout << "only allow matrix coordinate format for .mtx" << std::endl;
-      std::exit(-22);
+        std::cout << "only allow matrix coordinate format for .mtx" << std::endl;
+        std::exit(-22);
     }
     if (field == "complex") {
-      std::cout << "do not support complex weights for .mtx" << std::endl;
-      std::exit(-23);
+        std::cout << "do not support complex weights for .mtx" << std::endl;
+        std::exit(-23);
     }
     bool read_weights;
     if (field == "pattern") {
-      read_weights = false;
-    } else if ((field == "real") || (field == "double") ||
-               (field == "integer")) {
-      read_weights = true;
+        read_weights = false;
+    } else if ((field == "real") || (field == "double") || (field == "integer")) {
+        read_weights = true;
     } else {
-      std::cout << "unrecognized field type for .mtx" << std::endl;
-      std::exit(-24);
+        std::cout << "unrecognized field type for .mtx" << std::endl;
+        std::exit(-24);
     }
     bool undirected;
     if (symmetry == "symmetric") {
-      undirected = true;
+        undirected = true;
     } else if ((symmetry == "general") || (symmetry == "skew-symmetric")) {
-      undirected = false;
+        undirected = false;
     } else {
-      std::cout << "unsupported symmetry type for .mtx" << std::endl;
-      std::exit(-25);
+        std::cout << "unsupported symmetry type for .mtx" << std::endl;
+        std::exit(-25);
     }
-    while (true) {
-      char c = in.peek();
-      if (c == '%') {
-        in.ignore(200, '\n');
-      } else {
-        break;
-      }
-    }
-    int64_t m, n, nonzeros;
-    in >> m >> n >> nonzeros >> std::ws;
-    if (m != n) {
-      std::cout << m << " " << n << " " << nonzeros << std::endl;
-      std::cout << "matrix must be square for .mtx" << std::endl;
-      std::exit(-26);
-    }
+
+    // Skip all comment lines
     while (std::getline(in, line)) {
-      if (line.empty())
-        continue;
-      std::istringstream edge_stream(line);
-      NodeID_ u;
-      edge_stream >> u;
-      if (read_weights) {
-        NodeWeight<NodeID_, WeightT_> v;
-        edge_stream >> v;
-        v.v -= 1;
-        el.push_back(Edge(u - 1, v));
-        if (undirected)
-          el.push_back(Edge(v.v, NodeWeight<NodeID_, WeightT_>(u - 1, v.w)));
-      } else {
-        NodeID_ v;
-        edge_stream >> v;
-        el.push_back(Edge(u - 1, v - 1));
-        if (undirected)
-          el.push_back(Edge(v - 1, u - 1));
-      }
+        if (line[0] != '%') {
+            break;
+        }
+    }
+
+    // Read the dimensions and non-zeros line explicitly
+    std::istringstream dimensions_stream(line);
+    int64_t m = 0, n = 0, nonzeros = 0;
+    if (!(dimensions_stream >> m >> n >> nonzeros)) {
+        std::cout << "Error parsing matrix dimensions and non-zeros" << std::endl;
+        std::exit(-28);
+    }
+
+    // std::cout << "Matrix dimensions and nonzeros: " << m << " " << n << " " << nonzeros << std::endl;
+
+    if (m != n) {
+        std::cout << m << " " << n << " " << nonzeros << std::endl;
+        std::cout << "matrix must be square for .mtx" << std::endl;
+        std::exit(-26);
+    }
+
+    while (std::getline(in, line)) {
+        if (line.empty())
+            continue;
+        std::istringstream edge_stream(line);
+        NodeID_ u;
+        edge_stream >> u;
+        if (read_weights) {
+            NodeWeight<NodeID_, WeightT_> v;
+            edge_stream >> v;
+            v.v -= 1;
+            el.push_back(Edge(u - 1, v));
+            if (undirected)
+                el.push_back(Edge(v.v, NodeWeight<NodeID_, WeightT_>(u - 1, v.w)));
+        } else {
+            NodeID_ v;
+            edge_stream >> v;
+            el.push_back(Edge(u - 1, v - 1));
+            if (undirected)
+                el.push_back(Edge(v - 1, u - 1));
+        }
     }
     needs_weights = !read_weights;
     return el;
-  }
+}
+
+
+
 
   EdgeList ReadInAstar(std::ifstream &in) {
     EdgeList el;

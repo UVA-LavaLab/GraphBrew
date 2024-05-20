@@ -449,7 +449,7 @@ CSRGraph<NodeID_, DestID_, invert> MakeGraph() {
     else
       g_final = SquishGraph(std::move(g));
   }
-  // g_final.PrintTopology();
+  g_final.PrintTopology();
   pvector<NodeID_> new_ids(g_final.num_nodes());
   for (const auto &option : cli_.reorder_options()) {
     new_ids.fill(-1);
@@ -464,7 +464,7 @@ CSRGraph<NodeID_, DestID_, invert> MakeGraph() {
   }
 
   // g_final = SquishGraph(g_final);
-  // g_final.PrintTopology();
+  g_final.PrintTopology();
   // g_final.PrintTopologyOriginal();
   return g_final;
 }
