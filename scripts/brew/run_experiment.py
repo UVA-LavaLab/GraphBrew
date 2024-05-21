@@ -6,6 +6,8 @@ import csv
 # Define the base directory containing the graph datasets
 BASE_DIR   = "/media/cmv6ru/Data/00_GraphDatasets/GBREW"
 RESULT_DIR = "bench/results"
+LOG_DIR    = os.path.join(RESULT_DIR, "logs")
+os.makedirs(LOG_DIR, exist_ok=True)
 
 # Define the list of graphs and their extensions
 graph_extensions = {
@@ -99,15 +101,19 @@ def run_reorders():
 
         first_item = next(iter(reorder_option_mapping.items()))
         reorder_name, reorder_option = first_item        
-        # Construct a random graph
-        print(f"Running converter with reorder {reorder_name} option:{reorder_option}")
-        print(f"Output file: {random_graph_file}")
-        make_command = f"make run-converter GRAPH_BENCH='-f {graph_file} -b {random_graph_file}' RUN_PARAMS='{reorder_option}' FLUSH_CACHE=0 PARALLEL=16"
-        print(f"Executing command: {make_command}")
-        subprocess.run(make_command, shell=True, check=True, capture_output=True, text=True)
-        # Check if the graph file exists
-        if os.path.isfile(graph_file):
-            print(f"Graph file found: {graph_file}")
+        # Construct a random graph if it does not exist
+        if not os.path.isfile(random_graph_file):
+            print(f"Running converter with reorder {reorder_name} option: {reorder_option}")
+            print(f"Output file: {random_graph_file}")
+            make_command = f"make run-converter GRAPH_BENCH='-f {graph_file} -b {random_graph_file}' RUN_PARAMS='{reorder_option}' FLUSH_CACHE=0 PARALLEL=16"
+            log_file = os.path.join(LOG_DIR, f"{graph}_initial.log")
+            with open(log_file, 'w') as log:
+                print(f"Executing command: {make_command}")
+                subprocess.run(make_command, shell=True, check=True, stdout=log, stderr=log)
+        
+        # Check if the random graph file exists
+        if os.path.isfile(random_graph_file):
+            print(f"Graph file found: {random_graph_file}")
             
             results[graph] = {}
             
@@ -122,19 +128,25 @@ def run_reorders():
                     option_number = reorder_option.split('o')[1]
                     output_file = os.path.join(BASE_DIR, graph, f"graph_{option_number}.sg")
                 
+                # Skip if the output file already exists
+                if os.path.isfile(output_file):
+                    print(f"Output file already exists, skipping: {output_file}")
+                    continue
+                
                 # Print the current stage
                 print(f"Running converter with reorder {reorder_name} option: {reorder_option}")
                 print(f"Output file: {output_file}")
                 
                 # Construct and run the make command
                 make_command = f"make run-converter GRAPH_BENCH='-f {random_graph_file} -b {output_file}' RUN_PARAMS='{reorder_option}' FLUSH_CACHE=0 PARALLEL=16"
-                print(f"Executing command: {make_command}")
+                log_file = os.path.join(LOG_DIR, f"{graph}_{reorder_name}.log")
+                with open(log_file, 'w') as log:
+                    print(f"Executing command: {make_command}")
+                    result = subprocess.run(make_command, shell=True, check=True, stdout=log, stderr=log)
                 
-                # Run the command and capture the output
-                result = subprocess.run(make_command, shell=True, check=True, capture_output=True, text=True)
-                
-                # Parse the output
-                timings = parse_reorder_output(result.stdout)
+                # Parse the output from the log file
+                with open(log_file, 'r') as log:
+                    timings = parse_reorder_output(log.read())
                 
                 # Record the results
                 for key, time in timings.items():
@@ -144,6 +156,11 @@ def run_reorders():
                 print(f"Completed conversion for reorder option: {reorder_option}\n")
         else:
             print(f"Graph file not found: {random_graph_file}")
+    
+    # Check if results are empty
+    if not results:
+        print("No new conversions were performed. All graph files already exist.")
+        return
     
     # Write results to CSV
     csv_file = os.path.join(RESULT_DIR, "reorder_results.csv")
@@ -185,12 +202,18 @@ def run_kernels():
                 # Run kernels on the converted graph file
                 for kernel in kernels:
                     kernel_command = f"make run-{kernel['name']} GRAPH_BENCH='-f {output_file}' RUN_PARAMS='-n {kernel['trials']}' FLUSH_CACHE=1 PARALLEL=16"
+                    log_file = os.path.join(LOG_DIR, f"{graph}_{reorder_name}_{kernel['name']}.log")
                     print(f"Running kernel: {kernel['name']} with {kernel['trials']} trials and {kernel['iterations']} iterations")
                     print(f"Executing command: {kernel_command}")
-                    result = subprocess.run(kernel_command, shell=True, check=True, capture_output=True, text=True)
                     
-                    # Parse the output
-                    average_time = parse_kernel_output(result.stdout)
+                    # Run the command and log the output
+                    with open(log_file, 'w') as log:
+                        result = subprocess.run(kernel_command, shell=True, check=True, stdout=log, stderr=log)
+                    
+                    # Parse the output from the log file
+                    with open(log_file, 'r') as log:
+                        average_time = parse_kernel_output(log.read())
+                    
                     if average_time is not None:
                         if graph not in kernel_results[kernel['name']]:
                             kernel_results[kernel['name']][graph] = {}
@@ -200,17 +223,23 @@ def run_kernels():
             else:
                 print(f"Converted graph file not found: {output_file}")
     
+    # Check if kernel results are empty
+    if all(not results for results in kernel_results.values()):
+        print("No kernels were executed. All converted graph files already exist or were not found.")
+        return
+    
     # Write results to CSV for each kernel
     for kernel_name, results in kernel_results.items():
-        csv_file = os.path.join(RESULT_DIR, f"{kernel_name}_trial_time_results.csv")
-        with open(csv_file, mode='w', newline='') as file:
-            writer = csv.writer(file)
-            header = ["Graph"] + list(reorder_option_mapping.keys())
-            writer.writerow(header)
-            
-            for graph, timings in results.items():
-                row = [graph] + [timings.get(reorder_name, '') for reorder_name in reorder_option_mapping.keys()]
-                writer.writerow(row)
+        if results:
+            csv_file = os.path.join(RESULT_DIR, f"{kernel_name}_trial_time_results.csv")
+            with open(csv_file, mode='w', newline='') as file:
+                writer = csv.writer(file)
+                header = ["Graph"] + list(reorder_option_mapping.keys())
+                writer.writerow(header)
+                
+                for graph, timings in results.items():
+                    row = [graph] + [timings.get(reorder_name, '') for reorder_name in reorder_option_mapping.keys()]
+                    writer.writerow(row)
     
     print("Kernel execution process completed.")
 
