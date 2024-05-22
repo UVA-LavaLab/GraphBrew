@@ -68,7 +68,7 @@ Point the downloaded graphs into any directory by updating `BASE_DIR = "00_Graph
 * **Orkut (CORKT | 1.8GB | .mtx):** A social network from Orkut. [link](https://suitesparse-collection-website.herokuapp.com/MM/SNAP/com-Orkut.tar.gz)
 * **Pokec (SPKC | 424MB | .mtx):** A social network from Pokec. [link](https://suitesparse-collection-website.herokuapp.com/MM/SNAP/soc-Pokec.tar.gz)
 * **Web graph (WEB01 | 18.5GB | .mtx):** A crawl of a portion of the World Wide Web from 2001. [link](https://suitesparse-collection-website.herokuapp.com/MM/LAW/webbase-2001.tar.gz)
-* **Google Plus (GPLUS | 7.3GB | .wel):** A social network from Google Plus. [link](https://drive.google.com/file/d/1HF8Q2N_hxsaQ26MarKYxZEQhqI66qAxV/view?usp=sharing)
+* **Google Plus (GPLUS | 7.3GB | .wel):** A social network from Google Plus (assume timestamps weights and filter out). [link](https://drive.google.com/file/d/1HF8Q2N_hxsaQ26MarKYxZEQhqI66qAxV/view?usp=sharing)
 * **Wikipedia Links (WIKLE | 6.7GB | .el):** Links between Wikipedia pages in English. [link](http://konect.cc/files/download.tsv.wikipedia_link_en.tar.bz2)
 
 ### Rename the Graph
@@ -178,7 +178,7 @@ The `CLConvert` class provides several command-line options for generating diffe
 - `-e file`: Output edge list to file (`.el`).
 - `-p file`: Output Matrix Market exchange format to file (`.mtx`).
 - `-y file`: Output in Ligra adjacency graph format to file (`.ligra`).
-- `-w file`: Make output weighted (`.wel` | `.wsg`).
+- `-w file`: Make output weighted (`.wel` | `.wsg`| `.wligra`).
 - `-x file`: Output new reordered labels to file list (`.so`).
 - `-q file`: Output new reordered labels to file serialized (`.lo`).
 - `-o order`: Apply reordering strategy, optionally with a parameter (e.g., `-o 3`, `-o 2`, `-o 14:mapping.label`).
