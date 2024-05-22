@@ -303,11 +303,11 @@ class CLConvert : public CLBase {
 public:
   CLConvert(int argc, char **argv, std::string name)
       : CLBase(argc, argv, name) {
-    get_args_ += "e:b:x:q:p:j:w";
+    get_args_ += "e:b:x:q:p:y:w";
     AddHelpLine('b', "file", "output serialized graph to file (.sg)");
     AddHelpLine('e', "file", "output edge list to file (.el)");
     AddHelpLine('p', "file", "output matrix market exchange format to file (.mtx)");
-    AddHelpLine('j', "file", "output in Ligra adjacency graph format to file (.ligra)");
+    AddHelpLine('y', "file", "output in Ligra adjacency graph format to file (.ligra)");
     AddHelpLine('w', "file", "make output weighted (.wel|.wsg)");
     AddHelpLine('x', "file", "output new reordered labels to file list (.so)");
     AddHelpLine('q', "file",
@@ -324,7 +324,7 @@ public:
       out_mtx_ = true;
       out_filename_ = std::string(opt_arg);
       break;
-    case 'j':
+    case 'y':
       out_ligra_ = true;
       out_filename_ = std::string(opt_arg);
       break;

@@ -177,7 +177,7 @@ The `CLConvert` class provides several command-line options for generating diffe
 - `-b file`: Output serialized graph to file (`.sg`).
 - `-e file`: Output edge list to file (`.el`).
 - `-p file`: Output Matrix Market exchange format to file (`.mtx`).
-- `-j file`: Output in Ligra adjacency graph format to file (`.ligra`).
+- `-y file`: Output in Ligra adjacency graph format to file (`.ligra`).
 - `-w file`: Make output weighted (`.wel` | `.wsg`).
 - `-x file`: Output new reordered labels to file list (`.so`).
 - `-q file`: Output new reordered labels to file serialized (`.lo`).
@@ -202,7 +202,7 @@ make run-converter GRAPH_BENCH='-f ./graph.<mtx|el|sg>' RUN_PARAMS='-p ./graph_8
 You can specify multiple output formats by combining the command-line options. Here is an example that generates multiple output formats:
 
 ```bash
-make run-converter GRAPH_BENCH='-f ./graph.<mtx|el|sg>' RUN_PARAMS='-b graph.sg -e graph.el -p graph.mtx -j graph.ligra -x labels.so -q labels.lo'
+make run-converter GRAPH_BENCH='-f ./graph.<mtx|el|sg>' RUN_PARAMS='-b graph.sg -e graph.el -p graph.mtx -y graph.ligra -x labels.so -q labels.lo'
 ```
 
 #### Step 4: Apply Reordering Strategy
@@ -218,7 +218,7 @@ make run-converter GRAPH_BENCH='-f ./graph.<mtx|el|sg>' RUN_PARAMS='-p ./graph_3
 You can generate multiple output formats and apply reordering in a single command. Here is an example:
 
 ```bash
-make run-converter GRAPH_BENCH='-f ./graph.<mtx|el|sg>' RUN_PARAMS='-b graph_3.sg -e graph_3.el -p graph_3.mtx -j graph_3.ligra -x labels_3.so -q labels_3.lo -o 3'
+make run-converter GRAPH_BENCH='-f ./graph.<mtx|el|sg>' RUN_PARAMS='-b graph_3.sg -e graph_3.el -p graph_3.mtx -y graph_3.ligra -x labels_3.so -q labels_3.lo -o 3'
 ```
 
 
@@ -324,7 +324,7 @@ converter
  -b <file>   : output serialized graph to file (.sg)                           
  -e <file>   : output edge list to file (.el)
  -p <file>   : output matrix market exchange format to file (.mtx)
- -j <file>   : output in Ligra adjacency graph format to file (.ligra)                                      
+ -y <file>   : output in Ligra adjacency graph format to file (.ligra)                                      
  -w <file>   : make output weighted (.wel|.wsg)                                
  -x <file>   : output new reordered labels to file list (.so)                  
  -q <file>   : output new reordered labels to file serialized (.lo)    
