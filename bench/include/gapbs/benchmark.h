@@ -37,8 +37,8 @@ typedef CSRGraph<NodeID, WNode> WGraph;
 typedef BuilderBase<NodeID, NodeID, WeightT> Builder;
 typedef BuilderBase<NodeID, WNode, WeightT> WeightedBuilder;
 
-typedef WriterBase<NodeID, NodeID> Writer;
-typedef WriterBase<NodeID, WNode> WeightedWriter;
+typedef WriterBase<NodeID, NodeID, WeightT> Writer;
+typedef WriterBase<NodeID, WNode, WeightT> WeightedWriter;
 
 // Used to pick random non-zero degree starting points for search algorithms
 template <typename GraphT_> class SourcePicker {
