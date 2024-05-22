@@ -132,9 +132,9 @@ All parameters [(section)](#graphbrew-parameters) can be passed through the make
 
 ### Relabeling the graph
    * `converter` is used to convert graphs and apply new labeling to them.
-   * Please check converter parameters and pass them to `RUN_PARAMS='-n1 -o11'`.
+   * Please check converter parameters and pass them to `RUN_PARAMS='-p ./graph_8.mtx -o 8'`.
 ```bash
-make run-converter RUN_PARAMS='-e -n1 -o11'
+make run-converter GRAPH_BENCH='-f ./graph.<mtx|el|sg>' RUN_PARAMS='-p ./graph_8.mtx -o 8' 
 ```
 
 ### Debugging
@@ -187,7 +187,7 @@ The `CLConvert` class provides several command-line options for generating diffe
 
 #### Step 1: Prepare the Input Graph Files
 
-Make sure you have the input graph files (`graph_1.mtx|el|sg`) while specifying their paths correctly.
+Make sure you have the input graph files (`graph_1.<mtx|el|sg>`) while specifying their paths correctly.
 
 #### Step 2: Run the Converter
 
