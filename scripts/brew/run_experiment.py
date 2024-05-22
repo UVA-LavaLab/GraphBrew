@@ -6,8 +6,10 @@ import csv
 # Define the base directory containing the graph datasets
 BASE_DIR   = "/media/cmv6ru/Data/00_GraphDatasets/GBREW"
 RESULT_DIR = "bench/results"
-LOG_DIR    = os.path.join(RESULT_DIR, "logs")
-os.makedirs(LOG_DIR, exist_ok=True)
+LOG_DIR_RUN   = os.path.join(RESULT_DIR, "logs_run")
+LOG_DIR_ORDER = os.path.join(RESULT_DIR, "logs_order")
+os.makedirs(LOG_DIR_RUN, exist_ok=True)
+os.makedirs(LOG_DIR_ORDER, exist_ok=True)
 
 # Define the list of graphs and their extensions
 graph_extensions = {
@@ -57,7 +59,7 @@ time_patterns = {
 }
 
 reorder_option_mapping = {
-    "Random": "-o1", # this is your baseline
+    "Random": "-o0", # this is your baseline
     # "Sort": "-o2",
     # "HubSort": "-o3",
     # "HubCluster": "-o4",
@@ -99,14 +101,14 @@ def run_reorders():
         graph_file = os.path.join(BASE_DIR, graph, f"graph.{ext}")
         random_graph_file = os.path.join(BASE_DIR, graph, f"graph_1.sg")
 
-        first_item = next(iter(reorder_option_mapping.items()))
-        reorder_name, reorder_option = first_item        
+        reorder_name   = "Random" 
+        reorder_option = "-o1"        
         # Construct a random graph if it does not exist
         if not os.path.isfile(random_graph_file):
             print(f"Running converter with reorder {reorder_name} option: {reorder_option}")
             print(f"Output file: {random_graph_file}")
             make_command = f"make run-converter GRAPH_BENCH='-f {graph_file} -b {random_graph_file}' RUN_PARAMS='{reorder_option}' FLUSH_CACHE=0 PARALLEL=16"
-            log_file = os.path.join(LOG_DIR, f"{graph}_initial.log")
+            log_file = os.path.join(LOG_DIR_ORDER, f"{graph}_initial.log")
             with open(log_file, 'w') as log:
                 print(f"Executing command: {make_command}")
                 subprocess.run(make_command, shell=True, check=True, stdout=log, stderr=log)
@@ -118,15 +120,15 @@ def run_reorders():
             results[graph] = {}
             
             # Iterate over each reorder option
-            for reorder_name, reorder_option in list(reorder_option_mapping.items())[1:]:
+            for reorder_name, reorder_option in list(reorder_option_mapping.items()):
                 if ' ' in reorder_option:
                     # Handle multiple options
                     option_numbers = '_'.join([opt.split('o')[1] for opt in reorder_option.split()])
-                    output_file = os.path.join(BASE_DIR, graph, f"graph_{option_numbers}.sg")
+                    output_file = os.path.join(BASE_DIR, graph, f"graph_{option_numbers}.mtx")
                 else:
                     # Handle single option
                     option_number = reorder_option.split('o')[1]
-                    output_file = os.path.join(BASE_DIR, graph, f"graph_{option_number}.sg")
+                    output_file = os.path.join(BASE_DIR, graph, f"graph_{option_number}.mtx")
                 
                 # Skip if the output file already exists
                 if os.path.isfile(output_file):
@@ -138,8 +140,8 @@ def run_reorders():
                 print(f"Output file: {output_file}")
                 
                 # Construct and run the make command
-                make_command = f"make run-converter GRAPH_BENCH='-f {random_graph_file} -b {output_file}' RUN_PARAMS='{reorder_option}' FLUSH_CACHE=0 PARALLEL=16"
-                log_file = os.path.join(LOG_DIR, f"{graph}_{reorder_name}.log")
+                make_command = f"make run-converter GRAPH_BENCH='-f {random_graph_file} -p {output_file}' RUN_PARAMS='{reorder_option}' FLUSH_CACHE=0 PARALLEL=16"
+                log_file = os.path.join(LOG_DIR_ORDER, f"{graph}_{reorder_name}.log")
                 with open(log_file, 'w') as log:
                     print(f"Executing command: {make_command}")
                     result = subprocess.run(make_command, shell=True, check=True, stdout=log, stderr=log)
@@ -202,7 +204,7 @@ def run_kernels():
                 # Run kernels on the converted graph file
                 for kernel in kernels:
                     kernel_command = f"make run-{kernel['name']} GRAPH_BENCH='-f {output_file}' RUN_PARAMS='-n {kernel['trials']}' FLUSH_CACHE=1 PARALLEL=16"
-                    log_file = os.path.join(LOG_DIR, f"{graph}_{reorder_name}_{kernel['name']}.log")
+                    log_file = os.path.join(LOG_DIR_RUN, f"{graph}_{reorder_name}_{kernel['name']}.log")
                     print(f"Running kernel: {kernel['name']} with {kernel['trials']} trials and {kernel['iterations']} iterations")
                     print(f"Executing command: {kernel_command}")
                     
@@ -245,4 +247,4 @@ def run_kernels():
 
 if __name__ == "__main__":
     run_reorders()
-    run_kernels()
+    # run_kernels()
