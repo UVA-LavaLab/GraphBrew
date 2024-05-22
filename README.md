@@ -272,7 +272,8 @@ converter
  -j <segments>: number of segments for the graph                             [1]
  --------------------------------------------------------------------------------
  -b <file>   : output serialized graph to file (.sg)                           
- -e <file>   : output edge list to file (.el)                                  
+ -e <file>   : output edge list to file (.el)
+ -p <file>   : output matrix market exchange format to file (.mtx)                                      
  -w <file>   : make output weighted (.wel|.wsg)                                
  -x <file>   : output new reordered labels to file list (.so)                  
  -q <file>   : output new reordered labels to file serialized (.lo)    
