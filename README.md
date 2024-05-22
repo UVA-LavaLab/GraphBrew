@@ -57,7 +57,7 @@ Graphbrew can explore the impact of graph reordering techniques on the performan
 
 ## GraphBrew Experiment
 
-Point the downloaded graphs into any directory through updating `BASE_DIR = "00_GraphDatasets/GBREW"` in [(`scripts/<experiment-name>/run_experiment.py`)](./scripts/test/run_experiment.py).
+Point the downloaded graphs into any directory by updating `BASE_DIR = "00_GraphDatasets/GBREW"` in [(`scripts/<experiment-name>/run_experiment.py`)](./scripts/test/run_experiment.py).
 
 ### Download Graphs
 
@@ -164,13 +164,63 @@ make help-<benchmark_name>
 make help
 ```
 
-## Additional Commands
+## Generating Reordered Graphs
 
-### Benchmark Parameter Sweeping
-   * To sweep through different configurations (`-o` options from 1 to 13):
+### Overview
+
+Use the `make run-converter` command to generate reordered graphs from input graph files. The converter supports various output formats, including serialized graphs, edge lists, Matrix Market exchange format, Ligra adjacency graph format, and reordered labels.
+
+### Command-Line Options
+
+The `CLConvert` class provides several command-line options for generating different output formats. Here is a summary of the options:
+
+- `-b file`: Output serialized graph to file (`.sg`).
+- `-e file`: Output edge list to file (`.el`).
+- `-p file`: Output Matrix Market exchange format to file (`.mtx`).
+- `-j file`: Output in Ligra adjacency graph format to file (`.ligra`).
+- `-w file`: Make output weighted (`.wel` | `.wsg`).
+- `-x file`: Output new reordered labels to file list (`.so`).
+- `-q file`: Output new reordered labels to file serialized (`.lo`).
+- `-o order`: Apply reordering strategy, optionally with a parameter (e.g., `-o 3`, `-o 2`, `-o 14:mapping.label`).
+
+### Example Usage
+
+#### Step 1: Prepare the Input Graph Files
+
+Make sure you have the input graph files (`graph_1.mtx|el|sg`) while specifying their paths correctly.
+
+#### Step 2: Run the Converter
+
+Use the `make run-converter` command with the appropriate `GRAPH_BENCH` and `RUN_PARAMS` values to generate the reordered graphs. Here is an example command:
+
 ```bash
-make run-<benchmark_name>-sweep
+make run-converter GRAPH_BENCH='-f ./graph.<mtx|el|sg>' RUN_PARAMS='-p ./graph_8.mtx -o 8' 
 ```
+
+#### Step 3: Specify Output Formats
+
+You can specify multiple output formats by combining the command-line options. Here is an example that generates multiple output formats:
+
+```bash
+make run-converter GRAPH_BENCH='-f ./graph.<mtx|el|sg>' RUN_PARAMS='-b graph.sg -e graph.el -p graph.mtx -j graph.ligra -x labels.so -q labels.lo'
+```
+
+#### Step 4: Apply Reordering Strategy
+
+To apply a reordering strategy on the newly generated graph, use the `-o` option. For example:
+
+```bash
+make run-converter GRAPH_BENCH='-f ./graph.<mtx|el|sg>' RUN_PARAMS='-p ./graph_3_2_14.mtx -o 3 -o 2 -o 14:mapping.<lo|so>'
+```
+
+### Combining Multiple Output Formats and Reordering
+
+You can generate multiple output formats and apply reordering in a single command. Here is an example:
+
+```bash
+make run-converter GRAPH_BENCH='-f ./graph.<mtx|el|sg>' RUN_PARAMS='-b graph_3.sg -e graph_3.el -p graph_3.mtx -j graph_3.ligra -x labels_3.so -q labels_3.lo -o 3'
+```
+
 
 ## Graph Loading
 
@@ -273,7 +323,8 @@ converter
  --------------------------------------------------------------------------------
  -b <file>   : output serialized graph to file (.sg)                           
  -e <file>   : output edge list to file (.el)
- -p <file>   : output matrix market exchange format to file (.mtx)                                      
+ -p <file>   : output matrix market exchange format to file (.mtx)
+ -j <file>   : output in Ligra adjacency graph format to file (.ligra)                                      
  -w <file>   : make output weighted (.wel|.wsg)                                
  -x <file>   : output new reordered labels to file list (.so)                  
  -q <file>   : output new reordered labels to file serialized (.lo)    
