@@ -27,40 +27,68 @@ public:
 explicit WriterBase(CSRGraph<NodeID_, DestID_> &g) : g_(g) {
 }
 
+// Function to write data to the buffer and flush to file if needed
+void WriteToBuffer(std::fstream &out, std::vector<char> &buffer, const std::string &data) {
+  if (buffer.size() + data.size() > buffer.capacity()) {
+    out.write(buffer.data(), buffer.size());
+    buffer.clear();
+  }
+  buffer.insert(buffer.end(), data.begin(), data.end());
+}
+
 void WriteEL(std::fstream &out) {
+  const size_t buffer_size = 1024 * 1024; // 1024 KB buffer
+  std::vector<char> buffer;
+  buffer.reserve(buffer_size);
+
   for (NodeID_ u = 0; u < g_.num_nodes(); u++) {
-    for (DestID_ v : g_.out_neigh(u))
-      out << u << " " << v << std::endl;
+    for (DestID_ v : g_.out_neigh(u)){
+      if (g_.is_weighted()) {
+        WriteToBuffer(out, buffer, std::to_string(u) + " " +
+                      std::to_string(static_cast<NodeWeight<NodeID_, WeightT_> >(v).v ) + " " +
+                      std::to_string(static_cast<NodeWeight<NodeID_, WeightT_> >(v).w ) + "\n");
+      } else {
+        WriteToBuffer(out, buffer, std::to_string(u) + " " +
+                      std::to_string(v) + "\n");
+      }
+    }
+  }
+
+  if (!buffer.empty()) {
+    out.write(buffer.data(), buffer.size());
   }
 }
 
 void WriteLIGRA(std::fstream &out) {
+  const size_t buffer_size = 1024 * 1024; // 1024 KB buffer
+  std::vector<char> buffer;
+  buffer.reserve(buffer_size);
 
   long n = g_.num_nodes();
   long m = g_.num_edges_directed();
 
   // Write the header
   if (g_.is_weighted()) {
-    out << "WeightedAdjacencyGraph" << std::endl;
+    WriteToBuffer(out, buffer, "WeightedAdjacencyGraph\n");
   } else {
-    out << "AdjacencyGraph" << std::endl;
+    WriteToBuffer(out, buffer, "AdjacencyGraph\n");
   }
-  out << static_cast<long long>(n) << std::endl;
-  out << static_cast<long long>(m) << std::endl;
+  WriteToBuffer(out, buffer, std::to_string(n) + "\n");
+  WriteToBuffer(out, buffer, std::to_string(m) + "\n");
 
   // Write the offsets
   long offset = 0;
   for (NodeID_ u = 0; u < g_.num_nodes(); ++u) {
-    out << static_cast<long long>(offset) << std::endl;
+    WriteToBuffer(out, buffer, std::to_string(offset) + "\n");
     offset += g_.out_neigh(u).end() - g_.out_neigh(u).begin();
   }
 
   for (NodeID_ u = 0; u < g_.num_nodes(); u++) {
     for (DestID_ v : g_.out_neigh(u)) {
       if (g_.is_weighted()) {
-        out << static_cast<NodeWeight<NodeID_, WeightT_> >(v).v << std::endl; // 0-based indexing
+        WriteToBuffer(out, buffer, std::to_string(static_cast<NodeWeight<NodeID_, WeightT_> >(v).v) + "\n"); // 0-based indexing
       } else {
-        out << v << std::endl; // 0-based indexing
+        WriteToBuffer(out, buffer, std::to_string(v) + "\n"); // 0-based indexing
       }
     }
   }
@@ -69,13 +97,20 @@ void WriteLIGRA(std::fstream &out) {
   if (g_.is_weighted()) {
     for (NodeID_ u = 0; u < g_.num_nodes(); ++u) {
       for (DestID_ v : g_.out_neigh(u)) {
-        out << static_cast<NodeWeight<NodeID_, WeightT_> >(v).w << std::endl; // 0-based indexing
+        WriteToBuffer(out, buffer, std::to_string(static_cast<NodeWeight<NodeID_, WeightT_> >(v).w) + "\n"); // 0-based indexing
       }
     }
+  }
+
+  if (!buffer.empty()) {
+    out.write(buffer.data(), buffer.size());
   }
 }
 
 void WriteMTX(std::fstream &out) {
+  const size_t buffer_size = 1024 * 1024; // 1024 KB buffer
+  std::vector<char> buffer;
+  buffer.reserve(buffer_size);
 
   std::string field_type;
   if (g_.is_weighted()) {
@@ -92,22 +127,30 @@ void WriteMTX(std::fstream &out) {
   }
 
   // Write the header
-  out << "%%MatrixMarket matrix coordinate "
-      << field_type << " general" << std::endl;
-  out << "%" << std::endl;
-  out << static_cast<long long>(g_.num_nodes()) << " "
-      << static_cast<long long>(g_.num_nodes()) << " "
-      << static_cast<long long>(g_.num_edges_directed()) << std::endl;
+  // Write the header
+  WriteToBuffer(out, buffer, "%%MatrixMarket matrix coordinate " + field_type + " general\n");
+  WriteToBuffer(out, buffer, "%\n");
+  WriteToBuffer(out, buffer, std::to_string(g_.num_nodes()) + " " +
+                std::to_string(g_.num_nodes()) + " " +
+                std::to_string(g_.num_edges_directed()) + "\n");
 
   // Write the edges
   for (NodeID_ u = 0; u < g_.num_nodes(); u++) {
     for (DestID_ v : g_.out_neigh(u)) {
       if (g_.is_weighted()) {
-        out << u + 1 << " " << static_cast<NodeWeight<NodeID_, WeightT_> >(v).v + 1 << " " << static_cast<NodeWeight<NodeID_, WeightT_> >(v).w << std::endl; // 1-based indexing
+        WriteToBuffer(out, buffer, std::to_string(u + 1) + " " +
+                      std::to_string(static_cast<NodeWeight<NodeID_, WeightT_> >(v).v  + 1) + " " +
+                      std::to_string(static_cast<NodeWeight<NodeID_, WeightT_> >(v).w ) + "\n");
       } else {
-        out << u + 1 << " " << v + 1 << std::endl; // 1-based indexing
+        WriteToBuffer(out, buffer, std::to_string(u + 1) + " " +
+                      std::to_string(v + 1) + "\n");
       }
     }
+  }
+
+  // Write any remaining data in the buffer
+  if (!buffer.empty()) {
+    out.write(buffer.data(), buffer.size());
   }
 }
 
