@@ -34,6 +34,42 @@ void WriteEL(std::fstream &out) {
   }
 }
 
+void WriteLIGRA(std::fstream &out) {
+
+  long n = g_.num_nodes();
+  long m = g_.num_edges();
+
+  // Write the header
+  out << static_cast<long long>(n) << std::endl;
+  out << static_cast<long long>(m) << std::endl;
+
+  // Write the offsets
+  long offset = 0;
+  for (NodeID_ u = 0; u < g_.num_nodes(); ++u) {
+    out << static_cast<long long>(offset) << std::endl;
+    offset += g_.out_neigh(u).end() - g_.out_neigh(u).begin();
+  }
+
+  for (NodeID_ u = 0; u < g_.num_nodes(); u++) {
+    for (DestID_ v : g_.out_neigh(u)) {
+      if (g_.is_weighted()) {
+        out << static_cast<NodeWeight<NodeID_, WeightT_> >(v).v << std::endl; // 0-based indexing
+      } else {
+        out << v << std::endl; // 0-based indexing
+      }
+    }
+  }
+
+  // Write the weights if the graph is weighted
+  if (g_.is_weighted()) {
+    for (NodeID_ u = 0; u < g_.num_nodes(); ++u) {
+      for (DestID_ v : g_.out_neigh(u)) {
+        out << static_cast<NodeWeight<NodeID_, WeightT_> >(v).w << std::endl; // 0-based indexing
+      }
+    }
+  }
+}
+
 void WriteMTX(std::fstream &out) {
 
   std::string field_type;
@@ -127,26 +163,86 @@ void WriteListLabels(std::fstream &out) {
   }
 }
 
-void WriteGraph(std::string filename, bool serialized = false, bool mtxed = false, bool edgelisted = false) {
+// Helper function to modify the filename
+std::string ModifyFilename(const std::string& filename, const std::string& new_extension) {
+  size_t last_dot = filename.find_last_of('.');
+  size_t last_slash = filename.find_last_of("/\\");
+
+  if (last_dot == std::string::npos || (last_slash != std::string::npos && last_slash > last_dot)) {
+    // No extension found or the last dot is part of a directory
+    return filename + new_extension;
+  } else {
+    return filename.substr(0, last_dot) + new_extension;
+  }
+}
+
+// The main function to write the graph to a file
+void WriteGraph(std::string filename, bool serialized = false, bool mtxed = false, bool edgelisted = false, bool ligraed = false) {
   if (filename == "") {
     std::cout << "No output filename given (Use -h for help)" << std::endl;
     std::exit(-8);
   }
-  std::fstream file(filename, std::ios::out | std::ios::binary);
-  if (!file) {
-    std::cout << "Couldn't write to file " << filename << std::endl;
-    std::exit(-5);
+
+  std::string original_filename = filename;
+  if (serialized) {
+    if (g_.is_weighted()) {
+      filename = ModifyFilename(original_filename, ".wsg");
+    } else {
+      filename = ModifyFilename(original_filename, ".sg");
+    }
+    std::fstream file(filename, std::ios::out | std::ios::binary);
+    if (!file) {
+      std::cout << "Couldn't write to file " << filename << std::endl;
+      std::exit(-5);
+    }
+    std::cout << "writing to file " << filename << std::endl;
+    WriteSerializedGraph(file);
+    file.close();
   }
 
-  std::cout << "writing to file " << filename << std::endl;
-  if (serialized)
-    WriteSerializedGraph(file);
-  if (edgelisted)
+  if (edgelisted) {
+    if (g_.is_weighted()) {
+      filename = ModifyFilename(original_filename, ".wel");
+    } else {
+      filename = ModifyFilename(original_filename, ".el");
+    }
+    std::fstream file(filename, std::ios::out | std::ios::binary);
+    if (!file) {
+      std::cout << "Couldn't write to file " << filename << std::endl;
+      std::exit(-5);
+    }
+    std::cout << "writing to file " << filename << std::endl;
     WriteEL(file);
-  if(mtxed)
-    WriteMTX(file);
+    file.close();
+  }
 
-  file.close();
+  if (mtxed) {
+    filename = ModifyFilename(original_filename, ".mtx");
+    std::fstream file(filename, std::ios::out | std::ios::binary);
+    if (!file) {
+      std::cout << "Couldn't write to file " << filename << std::endl;
+      std::exit(-5);
+    }
+    std::cout << "writing to file " << filename << std::endl;
+    WriteMTX(file);
+    file.close();
+  }
+
+  if (ligraed) {
+    if (g_.is_weighted()) {
+      filename = ModifyFilename(original_filename, ".wligra");
+    } else {
+      filename = ModifyFilename(original_filename, ".ligra");
+    }
+    std::fstream file(filename, std::ios::out | std::ios::binary);
+    if (!file) {
+      std::cout << "Couldn't write to file " << filename << std::endl;
+      std::exit(-5);
+    }
+    std::cout << "writing to file " << filename << std::endl;
+    WriteLIGRA(file);
+    file.close();
+  }
 }
 
 void WriteLabels(std::string filename, bool serialized = false, bool edgelisted = false) {
@@ -154,17 +250,31 @@ void WriteLabels(std::string filename, bool serialized = false, bool edgelisted 
     std::cout << "No output filename given (Use -h for help)" << std::endl;
     std::exit(-8);
   }
-  std::fstream file(filename, std::ios::out | std::ios::binary);
-  if (!file) {
-    std::cout << "Couldn't write to file " << filename << std::endl;
-    std::exit(-5);
-  }
-  if (serialized)
-    WriteSerializedLabels(file);
-  if (edgelisted)
-    WriteListLabels(file);
 
-  file.close();
+  std::string original_filename = filename;
+  if (serialized) {
+    filename = ModifyFilename(original_filename, ".so");
+    std::fstream file(filename, std::ios::out | std::ios::binary);
+    if (!file) {
+      std::cout << "Couldn't write to file " << filename << std::endl;
+      std::exit(-5);
+    }
+    std::cout << "writing to file " << filename << std::endl;
+    WriteSerializedLabels(file);
+    file.close();
+  }
+
+  if (edgelisted) {
+    filename = ModifyFilename(original_filename, ".lo");
+    std::fstream file(filename, std::ios::out | std::ios::binary);
+    if (!file) {
+      std::cout << "Couldn't write to file " << filename << std::endl;
+      std::exit(-5);
+    }
+    std::cout << "writing to file " << filename << std::endl;
+    WriteListLabels(file);
+    file.close();
+  }
 }
 
 private:

@@ -19,8 +19,8 @@ int main(int argc, char *argv[]) {
     WGraph wg = bw.MakeGraph();
     wg.PrintStats();
     WeightedWriter ww(wg);
-    if (cli.out_sg() || cli.out_el() || cli.out_mtx())
-      ww.WriteGraph(cli.out_filename(), cli.out_sg(), cli.out_mtx(), cli.out_el());
+    if (cli.out_sg() || cli.out_el() || cli.out_mtx() || cli.out_ligra())
+      ww.WriteGraph(cli.out_filename(), cli.out_sg(), cli.out_mtx(), cli.out_el(), cli.out_ligra());
     if (cli.out_label_so() || cli.out_label_lo()) {
       ww.WriteLabels(cli.label_out_filename(), cli.out_label_so(), cli.out_label_lo());
     }
@@ -30,8 +30,8 @@ int main(int argc, char *argv[]) {
     Graph g = b.MakeGraph();
     g.PrintStats();
     Writer w(g);
-    if (cli.out_sg() || cli.out_el() || cli.out_mtx())
-      w.WriteGraph(cli.out_filename(), cli.out_sg(), cli.out_mtx(), cli.out_el());
+    if (cli.out_sg() || cli.out_el() || cli.out_mtx() || cli.out_ligra())
+      w.WriteGraph(cli.out_filename(), cli.out_sg(), cli.out_mtx(), cli.out_el(), cli.out_ligra());
     if (cli.out_label_so() || cli.out_label_lo()) {
       w.WriteLabels(cli.label_out_filename(), cli.out_label_so(), cli.out_label_lo());
     }
