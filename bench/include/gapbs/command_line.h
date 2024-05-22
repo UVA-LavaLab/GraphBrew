@@ -293,8 +293,9 @@ class CLConvert : public CLBase {
   std::string out_filename_ = "";
   std::string label_out_filename_ = "";
   bool out_weighted_ = false;
-  bool out_el_ = false;
-  bool out_sg_ = false;
+  bool out_el_  = false;
+  bool out_mtx_ = false;
+  bool out_sg_  = false;
   bool out_label_so_ = false;
   bool out_label_lo_ = false;
 
@@ -304,6 +305,7 @@ public:
     get_args_ += "e:b:x:q:w";
     AddHelpLine('b', "file", "output serialized graph to file (.sg)");
     AddHelpLine('e', "file", "output edge list to file (.el)");
+    AddHelpLine('p', "file", "output matrix market exchange format to file (.mtx)");
     AddHelpLine('w', "file", "make output weighted (.wel|.wsg)");
     AddHelpLine('x', "file", "output new reordered labels to file list (.so)");
     AddHelpLine('q', "file",
@@ -314,6 +316,10 @@ public:
     switch (opt) {
     case 'b':
       out_sg_ = true;
+      out_filename_ = std::string(opt_arg);
+      break;
+    case 'p':
+      out_mtx_ = true;
       out_filename_ = std::string(opt_arg);
       break;
     case 'x':
@@ -342,7 +348,8 @@ public:
   bool out_el() const { return out_el_; }
   bool out_label_so() const { return out_label_so_; }
   bool out_label_lo() const { return out_label_lo_; }
-  bool out_sg() const { return out_sg_; }
+  bool out_sg()  const { return out_sg_; }
+  bool out_mtx() const { return out_mtx_; }
 };
 
 #endif // COMMAND_LINE_H_
