@@ -37,9 +37,14 @@ void WriteEL(std::fstream &out) {
 void WriteLIGRA(std::fstream &out) {
 
   long n = g_.num_nodes();
-  long m = g_.num_edges();
+  long m = g_.num_edges_directed();
 
   // Write the header
+  if (g_.is_weighted()) {
+    out << "WeightedAdjacencyGraph" << std::endl;
+  } else {
+    out << "AdjacencyGraph" << std::endl;
+  }
   out << static_cast<long long>(n) << std::endl;
   out << static_cast<long long>(m) << std::endl;
 
@@ -92,7 +97,7 @@ void WriteMTX(std::fstream &out) {
   out << "%" << std::endl;
   out << static_cast<long long>(g_.num_nodes()) << " "
       << static_cast<long long>(g_.num_nodes()) << " "
-      << static_cast<long long>(g_.num_edges()) << std::endl;
+      << static_cast<long long>(g_.num_edges_directed()) << std::endl;
 
   // Write the edges
   for (NodeID_ u = 0; u < g_.num_nodes(); u++) {
