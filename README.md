@@ -96,7 +96,7 @@ Ensure that you download the graphs, extract them if necessary, and place them i
 ### Run GAPBS with GraphBrew:
 
 * Use the `make exp-brew` command. This will:
-  * Execute the experiments as defined in the configuration file [(`scripts/brew/run_experiment.py`)](./scripts/gap/convert.json).
+  * Execute the experiments as defined in the configuration file [(`scripts/brew/run_experiment.py`)](scripts/brew/run_experiment.py).
   * Generate results (e.g., speedup graphs, overhead measurements) in the `bench/results` folder.
 
 # GraphBrew Standalone
