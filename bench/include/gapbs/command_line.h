@@ -296,16 +296,18 @@ class CLConvert : public CLBase {
   bool out_el_  = false;
   bool out_mtx_ = false;
   bool out_sg_  = false;
+  bool out_ligra_  = false;
   bool out_label_so_ = false;
   bool out_label_lo_ = false;
 
 public:
   CLConvert(int argc, char **argv, std::string name)
       : CLBase(argc, argv, name) {
-    get_args_ += "e:b:x:q:p:w";
+    get_args_ += "e:b:x:q:p:j:w";
     AddHelpLine('b', "file", "output serialized graph to file (.sg)");
     AddHelpLine('e', "file", "output edge list to file (.el)");
     AddHelpLine('p', "file", "output matrix market exchange format to file (.mtx)");
+    AddHelpLine('j', "file", "output in Ligra adjacency graph format to file (.ligra)");
     AddHelpLine('w', "file", "make output weighted (.wel|.wsg)");
     AddHelpLine('x', "file", "output new reordered labels to file list (.so)");
     AddHelpLine('q', "file",
@@ -320,6 +322,10 @@ public:
       break;
     case 'p':
       out_mtx_ = true;
+      out_filename_ = std::string(opt_arg);
+      break;
+    case 'j':
+      out_ligra_ = true;
       out_filename_ = std::string(opt_arg);
       break;
     case 'x':
@@ -350,6 +356,7 @@ public:
   bool out_label_lo() const { return out_label_lo_; }
   bool out_sg()  const { return out_sg_; }
   bool out_mtx() const { return out_mtx_; }
+  bool out_ligra() const { return out_ligra_; }
 };
 
 #endif // COMMAND_LINE_H_
