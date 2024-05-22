@@ -35,9 +35,24 @@ void WriteEL(std::fstream &out) {
 }
 
 void WriteMTX(std::fstream &out) {
+
+  std::string field_type;
+  if (g_.is_weighted()) {
+    if (std::is_integral<WeightT_>::value) {
+      field_type = "integer";
+    } else if (std::is_floating_point<WeightT_>::value) {
+      field_type = "real";
+    } else {
+      std::cerr << "Unsupported weight type." << std::endl;
+      return;
+    }
+  } else {
+    field_type = "pattern";
+  }
+
   // Write the header
   out << "%%MatrixMarket matrix coordinate "
-      << (g_.is_weighted() ? "real" : "integer") << " general" << std::endl;
+      << field_type << " general" << std::endl;
   out << "%" << std::endl;
   out << static_cast<long long>(g_.num_nodes()) << " "
       << static_cast<long long>(g_.num_nodes()) << " "
@@ -122,6 +137,8 @@ void WriteGraph(std::string filename, bool serialized = false, bool mtxed = fals
     std::cout << "Couldn't write to file " << filename << std::endl;
     std::exit(-5);
   }
+
+  std::cout << "writing to file " << filename << std::endl;
   if (serialized)
     WriteSerializedGraph(file);
   if (edgelisted)
@@ -144,9 +161,9 @@ void WriteLabels(std::string filename, bool serialized = false, bool edgelisted 
   }
   if (serialized)
     WriteSerializedLabels(file);
- if (edgelisted)
+  if (edgelisted)
     WriteListLabels(file);
-  
+
   file.close();
 }
 
