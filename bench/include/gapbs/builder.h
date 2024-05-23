@@ -2599,12 +2599,12 @@ void detect_community(adjacency_list adj) {
   PrintTime("Community Time", rabbit_order::now_sec() - tstart);
 
   // Print the result
-  std::copy(&c[0], &c[g.n()],
-            std::ostream_iterator<rabbit_order::vint>(std::cout, "\n"));
+  // std::copy(&c[0], &c[g.n()],
+  //           std::ostream_iterator<rabbit_order::vint>(std::cout, "\n"));
 
   // std::cerr << "Computing modularity of the result...\n";
   const double q = compute_modularity(adj, c.get());
-  // std::cerr << "Modularity: " << q << std::endl;
+  std::cerr << "Modularity: " << q << std::endl;
 }
 
 void reorder(adjacency_list adj) {
@@ -2624,14 +2624,29 @@ void reorder(adjacency_list adj) {
 
 void reorder_internal(adjacency_list adj, pvector<NodeID_> &new_ids) {
   // std::cerr << "Generating a permutation...\n";
+  auto _adj = adj; // copy `adj` because it is used for computing modularity
   const double tstart = rabbit_order::now_sec();
   //--------------------------------------------
-  const auto g = rabbit_order::aggregate(std::move(adj));
+  auto g = rabbit_order::aggregate(std::move(_adj));
   const auto p = rabbit_order::compute_perm(g);
+  const double tend = rabbit_order::now_sec();
+  //--------------------------------------------
+  const auto c = std::make_unique<rabbit_order::vint[]>(g.n());
+  #pragma omp parallel for
+    for (rabbit_order::vint v = 0; v < g.n(); ++v)
+      c[v] = rabbit_order::trace_com(v, &g);
+
+  const double q = compute_modularity(adj, c.get());
+
+  // Print the result
+  // std::copy(&c[0], &c[g.n()],
+  //           std::ostream_iterator<rabbit_order::vint>(std::cout, "\n"));
+
+  PrintTime("Modularity", q);
   //--------------------------------------------
   // std::cerr << "Permutation generation Time: "
   //           << rabbit_order::now_sec() - tstart << std::endl;
-  PrintTime("RabbitOrder Map Time", rabbit_order::now_sec() - tstart);
+  PrintTime("RabbitOrder Map Time", tend - tstart);
   // Ensure new_ids is large enough to hold all new IDs
 
   if (new_ids.size() < g.n())
@@ -2822,7 +2837,7 @@ template <class G> void runExperiment(G &x) {
   random_device dev;
   default_random_engine rnd(dev());
   int repeat = REPEAT_METHOD;
-  // double M = edgeWeightOmp(x) / 2;
+  double M = edgeWeightOmp(x) / 2;
   // Follow a specific result logging format, which can be easily parsed
   // later.
   // auto flog = [&](const auto &ans, const char *technique) {
@@ -2847,12 +2862,14 @@ template <class G> void runExperiment(G &x) {
     // flog(b0, "leidenStaticOmpGreedy");
     // auto b1 = leidenStaticOmp<false,  true>(rnd, x, {repeat});
     // flog(b1, "leidenStaticOmpGreedyOrg");
-    auto c0 = leidenStaticOmp<false, false>(
-      rnd, x, {repeat, 0.5, 1e-12, 0.8, 1.0, 100, 100});
+    // auto c0 = leidenStaticOmp<false, false>(
+    //   rnd, x, {repeat, 0.5, 1e-12, 0.8, 1.0, 100, 100});
     // flog(c0, "leidenStaticOmpGreedyMedium");
-    // auto c1 = leidenStaticOmp<false,  true>(rnd, x, {repeat, 1.0, 1e-12,
-    // 0.8, 1.0, 100, 100}); flog(c1, "leidenStaticOmpGreedyMediumOrg"); auto
-    // d0 = leidenStaticOmp<false, false>(rnd, x, {repeat, 1.0,
+    auto c1 = leidenStaticOmp<false,  true>(rnd, x, {repeat, 1.0, 1e-12,
+                                                     0.8, 1.0, 100, 100});
+    PrintTime("Modularity", getModularity(x, c1, M));
+    // flog(c1, "leidenStaticOmpGreedyMediumOrg");
+    // auto d0 = leidenStaticOmp<false, false>(rnd, x, {repeat, 1.0,
     // 1e-12, 1.0, 1.0, 100, 100}); flog(d0, "leidenStaticOmpGreedyHeavy");
     // auto d1 = leidenStaticOmp<false,  true>(rnd, x, {repeat, 1.0,
     // 1e-12, 1.0, 1.0, 100, 100}); flog(d1, "leidenStaticOmpGreedyHeavyOrg");
@@ -2977,6 +2994,7 @@ void GenerateLeidenMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
 
   tm.Stop();
   PrintTime("GenID Time", tm.Seconds());
+  PrintTime("Num Passes", num_passes);
 }
 
 void GenerateLeidenFullMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
@@ -3059,11 +3077,11 @@ void GenerateLeidenFullMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
     }
   }
 
-  sort_by_vector_element(communityVectorTuplePerPass,num_passes-1);
+  // sort_by_vector_element(communityVectorTuplePerPass,num_passes-1);
 
-  // for (size_t i = 1; i < num_passes; ++i) {
-  //   sort_by_vector_element(communityVectorTuplePerPass, i);
-  // }
+  for (size_t i = 1; i < num_passes; ++i) {
+    sort_by_vector_element(communityVectorTuplePerPass, i);
+  }
 
   pvector<NodeID_> interim_ids(num_nodes, -1);
 
