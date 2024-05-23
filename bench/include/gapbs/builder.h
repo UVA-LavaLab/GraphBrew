@@ -2834,6 +2834,7 @@ inline float refinementTime(const LeidenResult<K, W> &a) {
 template <class G> void runExperiment(G &x) {
   // using K = typename G::key_type;
   // using V = typename G::edge_value_type;
+  Timer tm;
   random_device dev;
   default_random_engine rnd(dev());
   int repeat = REPEAT_METHOD;
@@ -2857,7 +2858,10 @@ template <class G> void runExperiment(G &x) {
     // auto a0 = louvainStaticOmp(x, {repeat});
     // flog(a0, "louvainStaticOmp");
   }
-  {
+  { 
+
+    tm.Start();
+
     // auto b0 = leidenStaticOmp<false, false>(rnd, x, {repeat});
     // flog(b0, "leidenStaticOmpGreedy");
     // auto b1 = leidenStaticOmp<false,  true>(rnd, x, {repeat});
@@ -2865,9 +2869,12 @@ template <class G> void runExperiment(G &x) {
     // auto c0 = leidenStaticOmp<false, false>(
     //   rnd, x, {repeat, 0.5, 1e-12, 0.8, 1.0, 100, 100});
     // flog(c0, "leidenStaticOmpGreedyMedium");
-    auto c1 = leidenStaticOmp<false,  true>(rnd, x, {repeat, 1.0, 1e-12,
-                                                     0.8, 1.0, 100, 100});
+    auto c1 = leidenStaticOmp<false,  false>(rnd, x, {repeat, 0.75, 1e-12,
+                                                     0.8, 1.0, 10, 10});
+    tm.Stop();
     PrintTime("Modularity", getModularity(x, c1, M));
+    PrintTime("LeidenOrder Map Time", tm.Seconds());
+
     // flog(c1, "leidenStaticOmpGreedyMediumOrg");
     // auto d0 = leidenStaticOmp<false, false>(rnd, x, {repeat, 1.0,
     // 1e-12, 1.0, 1.0, 100, 100}); flog(d0, "leidenStaticOmpGreedyHeavy");
@@ -2954,10 +2961,9 @@ void GenerateLeidenMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
   tm.Stop();
   PrintTime("DiGraph graph", tm.Seconds());
 
-  tm.Start();
+ 
   runExperiment(x);
-  tm.Stop();
-  PrintTime("LeidenOrder Map Time", tm.Seconds());
+
 
   size_t num_nodesx;
   size_t num_passes;
