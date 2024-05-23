@@ -113,6 +113,7 @@ void WriteMTX(std::fstream &out) {
   buffer.reserve(buffer_size);
 
   std::string field_type;
+  std::string symmetry_type;
   if (g_.is_weighted()) {
     if (std::is_integral<WeightT_>::value) {
       field_type = "integer";
@@ -126,9 +127,14 @@ void WriteMTX(std::fstream &out) {
     field_type = "pattern";
   }
 
+  if(g_.directed()){
+    symmetry_type="general";
+  }else{
+    symmetry_type="symmetric";
+  }
+
   // Write the header
-  // Write the header
-  WriteToBuffer(out, buffer, "%%MatrixMarket matrix coordinate " + field_type + " general\n");
+  WriteToBuffer(out, buffer, "%%MatrixMarket matrix coordinate " + field_type + " " + symmetry_type + "\n");
   WriteToBuffer(out, buffer, "%\n");
   WriteToBuffer(out, buffer, std::to_string(g_.num_nodes()) + " " +
                 std::to_string(g_.num_nodes()) + " " +
