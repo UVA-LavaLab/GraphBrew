@@ -111,6 +111,16 @@ class CSRGraph {
     typedef DestID_ *iterator;
     iterator begin() { return g_index_[n_] + start_offset_; }
     iterator end() { return g_index_[n_ + 1]; }
+
+    bool contains(DestID_ vertex) {
+        if constexpr (!std::is_same<NodeID_, DestID_>::value) {
+            return __gnu_parallel::find_if(begin(), end(), [&](const DestID_ &neighbor) {
+                return static_cast<NodeWeight<NodeID_, NodeID_>>(neighbor).v == vertex;
+            }) != end();
+        } else {
+            return __gnu_parallel::find(begin(), end(), vertex) != end();
+        }
+    }
   };
 
   void ReleaseResources() {
@@ -236,7 +246,7 @@ public:
         // if (is_weighted())
         //   std::cout << static_cast<DestID_>(j).v << " ";
         // else
-          std::cout << j << " ";
+        std::cout << j << " ";
       }
       std::cout << std::endl;
     }
