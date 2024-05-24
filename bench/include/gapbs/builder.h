@@ -3155,7 +3155,7 @@ void GenerateDBGMappingInterim(const CSRGraph<NodeID_, DestID_, invert> &g,
     av / 2,   av,       av * 2,   av * 4,
     av * 8,   av * 16,  av * 32,  av * 64,
     av * 128, av * 256, av * 512, static_cast<uint32_t>(-1)};
-  int num_buckets = 7;
+  int num_buckets = 11;
   if (num_buckets > 11) {
     // if you really want to increase the bucket count, add more thresholds to
     // the bucket_threshold above.
