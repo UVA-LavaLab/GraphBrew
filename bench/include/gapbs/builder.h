@@ -453,13 +453,8 @@ CSRGraph<NodeID_, DestID_, invert> MakeGraph() {
   pvector<NodeID_> new_ids(g_final.num_nodes());
   for (const auto &option : cli_.reorder_options()) {
     new_ids.fill(-1);
-
-    if (!option.second.empty()) {
-      GenerateMapping(g_final, new_ids, option.first, cli_.use_out_degree(),
-                      option.second);
-    } else {
-      GenerateMapping(g_final, new_ids, option.first, cli_.use_out_degree());
-    }
+    GenerateMapping(g_final, new_ids, option.first, cli_.use_out_degree(),
+                    option.second);
     g_final = RelabelByMapping(g_final, new_ids);
   }
 
@@ -754,7 +749,7 @@ const std::string ReorderingAlgoStr(ReorderingAlgo type) {
 void GenerateMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
                      pvector<NodeID_> &new_ids,
                      ReorderingAlgo reordering_algo, bool useOutdeg,
-                     std::string map_file = "mapping.label") {
+                     std::vector<std::string> reordering_options) {
   switch (reordering_algo) {
   case HubSort:
     GenerateHubSortMapping(g, new_ids, useOutdeg);
@@ -791,13 +786,13 @@ void GenerateMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
     GenerateRCMOrderMapping(g, new_ids);
     break;
   case LeidenOrder:
-    GenerateLeidenMapping(g, new_ids);
+    GenerateLeidenMapping(g, new_ids, reordering_options);
     break;
   case LeidenFullOrder:
     GenerateLeidenFullMapping(g, new_ids);
     break;
   case MAP:
-    LoadMappingFromFile(g, new_ids, map_file);
+    LoadMappingFromFile(g, new_ids, reordering_options);
     break;
   case ORIGINAL:
     GenerateOriginalMapping(g, new_ids);
@@ -875,9 +870,20 @@ void printReorderingMethods(const std::string &filename, Timer t) {
 
 void LoadMappingFromFile(const CSRGraph<NodeID_, DestID_, invert> &g,
                          pvector<NodeID_> &new_ids,
-                         std::string map_file = "mapping.lo") {
+                         std::vector<std::string> reordering_options) {
   Timer t;
   int64_t num_nodes = g.num_nodes();
+  std::string map_file = "mapping.lo";
+
+  // std::cout << "Options: ";
+  // for (const auto& param : reordering_options) {
+  //   std::cout << param << " ";
+  // }
+  // std::cout << std::endl;
+
+  if(!reordering_options.empty())
+    map_file = reordering_options[0];
+
   t.Start();
   std::ifstream ifs(map_file, std::ifstream::in);
   if (!ifs.is_open()) {
@@ -2633,8 +2639,8 @@ void reorder_internal(adjacency_list adj, pvector<NodeID_> &new_ids) {
   //--------------------------------------------
   const auto c = std::make_unique<rabbit_order::vint[]>(g.n());
   #pragma omp parallel for
-    for (rabbit_order::vint v = 0; v < g.n(); ++v)
-      c[v] = rabbit_order::trace_com(v, &g);
+  for (rabbit_order::vint v = 0; v < g.n(); ++v)
+    c[v] = rabbit_order::trace_com(v, &g);
 
   const double q = compute_modularity(adj, c.get());
 
@@ -2831,7 +2837,7 @@ inline float refinementTime(const LeidenResult<K, W> &a) {
 // PERFORM EXPERIMENT
 // ------------------
 
-template <class G> void runExperiment(G &x) {
+template <class G> void runExperiment(G &x,   double resolution=0.75, int maxIterations=10, int maxPasses=10) {
   // using K = typename G::key_type;
   // using V = typename G::edge_value_type;
   Timer tm;
@@ -2858,7 +2864,7 @@ template <class G> void runExperiment(G &x) {
     // auto a0 = louvainStaticOmp(x, {repeat});
     // flog(a0, "louvainStaticOmp");
   }
-  { 
+  {
 
     tm.Start();
 
@@ -2869,8 +2875,8 @@ template <class G> void runExperiment(G &x) {
     // auto c0 = leidenStaticOmp<false, false>(
     //   rnd, x, {repeat, 0.5, 1e-12, 0.8, 1.0, 100, 100});
     // flog(c0, "leidenStaticOmpGreedyMedium");
-    auto c1 = leidenStaticOmp<false,  false>(rnd, x, {repeat, 0.75, 1e-12,
-                                                     0.8, 1.0, 10, 10});
+    auto c1 = leidenStaticOmp<false,  false>(rnd, x, {repeat, resolution, 1e-12,
+                                                      0.8, 1.0, maxIterations, maxPasses});
     tm.Stop();
     PrintTime("Modularity", getModularity(x, c1, M));
     PrintTime("LeidenOrder Map Time", tm.Seconds());
@@ -2910,9 +2916,15 @@ void sort_by_vector_element(
 }
 
 void GenerateLeidenMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
-                           pvector<NodeID_> &new_ids) {
+                           pvector<NodeID_> &new_ids, std::vector<std::string> reordering_options) {
 
   Timer tm;
+
+  // std::cout << "Options: ";
+  // for (const auto& param : reordering_options) {
+  //   std::cout << param << " ";
+  // }
+  // std::cout << std::endl;
 
   using V = TYPE;
   install_sigsegv();
@@ -2961,9 +2973,22 @@ void GenerateLeidenMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
   tm.Stop();
   PrintTime("DiGraph graph", tm.Seconds());
 
- 
-  runExperiment(x);
+  double resolution = 0.75;
+  int maxIterations = 10;
+  /** Maximum number of passes [10]. */
+  int maxPasses = 10;
 
+  if (!reordering_options.empty()) {
+    resolution = std::stod(reordering_options[0]);
+  }
+  if (reordering_options.size() > 1) {
+    maxIterations = std::stoi(reordering_options[1]);
+  }
+  if (reordering_options.size() > 2) {
+    maxPasses = std::stoi(reordering_options[2]);
+  }
+
+  runExperiment(x, resolution, maxIterations, maxPasses);
 
   size_t num_nodesx;
   size_t num_passes;
@@ -3000,7 +3025,8 @@ void GenerateLeidenMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
 
   tm.Stop();
   PrintTime("GenID Time", tm.Seconds());
-  PrintTime("Num Passes", num_passes);
+  PrintTime("Num Passes", x.communityMappingPerPass.size());
+  PrintTime("resolution", resolution);
 }
 
 void GenerateLeidenFullMapping(const CSRGraph<NodeID_, DestID_, invert> &g,

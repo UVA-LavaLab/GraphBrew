@@ -34,7 +34,7 @@ protected:
   std::string name_;
   std::string get_args_ = "f:g:hk:su:m:o:zj:";
   std::vector<std::string> help_strings_;
-  std::vector<std::pair<ReorderingAlgo, std::string>> reorder_options_;
+  std::vector<std::pair<ReorderingAlgo, std::vector<std::string>>> reorder_options_;
 
   int scale_ = -1;
   int degree_ = 16;
@@ -72,7 +72,7 @@ public:
     AddHelpLine('m', "", "reduces memory usage during graph building", "false");
     AddHelpLine('o', "order",
                 "apply reordering strategy, optionally with a parameter \n     "
-                "          [example]-o 3 "
+                "          [example]-o 12:option1:option2 "
                 "-o 2 -o 14:mapping.label",
                 "optional");
     AddHelpLine('z', "indegree",
@@ -128,11 +128,20 @@ public:
     case 'o': {
       std::string arg(opt_arg);
       size_t pos = arg.find(':');
-      ReorderingAlgo algo =
-          static_cast<ReorderingAlgo>(std::stoi(arg.substr(0, pos)));
-      std::string param = (pos != std::string::npos) ? arg.substr(pos + 1) : "";
-      reorder_options_.emplace_back(algo, param);
+      ReorderingAlgo algo = static_cast<ReorderingAlgo>(std::stoi(arg.substr(0, pos)));
+      std::vector<std::string> params;
+      if (pos != std::string::npos) {
+        size_t start = pos + 1;
+        size_t end;
+        while ((end = arg.find(':', start)) != std::string::npos) {
+          params.push_back(arg.substr(start, end - start));
+          start = end + 1;
+        }
+        params.push_back(arg.substr(start));
+      }
+      reorder_options_.emplace_back(algo, params);
     } break;
+
     case 'j':
       segments_.second = atoi(opt_arg);
       if (segments_.first.empty()) {
@@ -157,7 +166,7 @@ public:
   bool uniform() const { return uniform_; }
   bool in_place() const { return in_place_; }
   bool use_out_degree() const { return use_out_degree_; }
-  const std::vector<std::pair<ReorderingAlgo, std::string>> &
+  const std::vector<std::pair<ReorderingAlgo, std::vector<std::string>>> &
   reorder_options() const {
     return reorder_options_;
   }
