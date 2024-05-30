@@ -61,10 +61,18 @@ pvector<ScoreT> PageRankPullGS(const Graph &g, int max_iters,
 
 void PrintTopScores(const Graph &g, const pvector<ScoreT> &scores) {
   vector<pair<NodeID, ScoreT>> score_pairs(g.num_nodes());
+  NodeID *temp_org_ids = g.get_org_ids();
+
+  NodeID *org_ids_inv_ = new NodeID[g.num_nodes()];
+#pragma omp parallel for
   for (NodeID n = 0; n < g.num_nodes(); n++) {
-    score_pairs[n] = make_pair(n, scores[n]);
+    org_ids_inv_[temp_org_ids[n]] = n;
   }
-  int k = 5;
+
+  for (NodeID n = 0; n < g.num_nodes(); n++) {
+    score_pairs[n] = make_pair(org_ids_inv_[n], scores[n]);
+  }
+  int k = 100;
   vector<pair<ScoreT, NodeID>> top_k = TopK(score_pairs, k);
   for (auto kvp : top_k)
     cout << kvp.second << ":" << kvp.first << endl;
