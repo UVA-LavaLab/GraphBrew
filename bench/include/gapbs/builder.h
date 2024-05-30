@@ -1629,8 +1629,8 @@ void GenerateCOrderMapping_v2(const CSRGraph<NodeID_, DestID_, invert> &g,
     unsigned large_start_v = 0;
     unsigned large_end_v = 0;
     unsigned large_per_seg = (i != num_clusters - 1)
-                       ? num_large_per_seg
-                       : total_large - i * num_large_per_seg;
+     ? num_large_per_seg
+     : total_large - i * num_large_per_seg;
 
     unsigned num_small =
       (i != num_clusters - 1) ? (i + 1) * num_small_per_seg : total_small;
@@ -1639,8 +1639,8 @@ void GenerateCOrderMapping_v2(const CSRGraph<NodeID_, DestID_, invert> &g,
     unsigned small_start_v = 0;
     unsigned small_end_v = 0;
     unsigned small_per_seg = (i != num_clusters - 1)
-                       ? num_small_per_seg
-                       : total_small - i * num_small_per_seg;
+     ? num_small_per_seg
+     : total_small - i * num_small_per_seg;
 
     // HOT find the starting segment and starting vertex
     for (int t = 0; t < max_threads; t++) {
@@ -3018,54 +3018,32 @@ void GenerateLeidenMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
 
   sort_by_vector_element(communityVectorTuplePerPass, num_passes - 1);
 
-  // for (size_t i = 1; i < num_passes; ++i) {
-  //   sort_by_vector_element(communityVectorTuplePerPass, i);
-  // }
-  // auto start_com_idx = 0;
-  // auto current_com_id = communityVectorTuplePerPass[0][num_passes - 1];
-  // auto next_com_id = communityVectorTuplePerPass[1][num_passes - 1];
-  // auto current_v_id = communityVectorTuplePerPass[0][1];
-  // auto new_v_id = communityVectorTuplePerPass[0][0];
-  // auto set_v_id = communityVectorTuplePerPass[0][1];
-  // auto running_v_id = 1;
-  // communityVectorTuplePerPass[0][0] = 0;
+  auto running_v_id = 0;
 
-  // for (int64_t i = 1; i < num_nodes; i++) {
-
-  //   int64_t j = start_com_idx;
-  //   while ((current_com_id == next_com_id) && !(j >= num_nodes-1)) {
-
-  //     current_com_id = next_com_id;
-  //     next_com_id = communityVectorTuplePerPass[j + 1][num_passes - 1];
-  //     // std::cout << " " << static_cast<long long>(current_com_id) << " " << static_cast<long long>(next_com_id) << std::endl;
-        
-  //     new_v_id = communityVectorTuplePerPass[j][0];
-  //     set_v_id = communityVectorTuplePerPass[j][1];
-
-  //     if (new_v_id == UINT_E_MAX) {
-  //       // current_v_id = communityVectorTuplePerPass[j][1];
-  //       if (g.out_neigh(current_v_id).contains(set_v_id)) {
-  //         communityVectorTuplePerPass[j][0] = running_v_id;
-  //         current_v_id = set_v_id;
-  //         running_v_id++;
-  //     std::cout <<  static_cast<long long>(communityVectorTuplePerPass[j][0]) << " " <<  static_cast<long long>(set_v_id) << " " << static_cast<long long>(current_com_id) << " "  <<  static_cast<long long>(new_v_id) << std::endl;
-  //       }
-  //     }
-  //     j++;
-
-  //     if(current_com_id !=  next_com_id){
-  //       start_com_idx = j;
-  //       std::cout << "start_com_idx " << static_cast<long long>(start_com_idx) << " " << static_cast<long long>(current_com_id) << " " << static_cast<long long>(next_com_id) << std::endl;
-  //       current_com_id   = next_com_id;
-  //     }
-  //   }
-
-
-  // }
+  for (int64_t i = 0; i < num_nodes; i++) {
+    if(communityVectorTuplePerPass[i][0] == UINT_E_MAX) {
+      auto current_com_id = communityVectorTuplePerPass[i][num_passes - 1];
+      communityVectorTuplePerPass[i][0] = running_v_id;
+      running_v_id++;
+      auto current_v_id = communityVectorTuplePerPass[i][1];
+      for (int64_t j = (i+1); j < num_nodes; j++) {
+        auto next_com_id = communityVectorTuplePerPass[j][num_passes - 1];
+        if(current_com_id != next_com_id)
+          break;
+        auto set_v_id = communityVectorTuplePerPass[j][1];
+        if(communityVectorTuplePerPass[j][0] == UINT_E_MAX){
+          if(g.out_neigh(current_v_id).contains(set_v_id)){
+            communityVectorTuplePerPass[j][0] = running_v_id;
+            running_v_id++;
+          }
+        }
+      }
+    }
+  }
 
 #pragma omp parallel for
   for (int64_t i = 0; i < num_nodes; i++) {
-    new_ids[communityVectorTuplePerPass[i][1]] = (NodeID_)i;
+    new_ids[communityVectorTuplePerPass[i][0]] = (NodeID_)i;
   }
 
   tm.Stop();
