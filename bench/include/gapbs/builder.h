@@ -3016,6 +3016,7 @@ void GenerateLeidenMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
     }
   }
 
+  sort_by_vector_element(communityVectorTuplePerPass, 2);
   sort_by_vector_element(communityVectorTuplePerPass, num_passes - 1);
 
   auto running_v_id = 0;
@@ -3035,6 +3036,9 @@ void GenerateLeidenMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
           if(g.out_neigh(current_v_id).contains(set_v_id)){
             communityVectorTuplePerPass[j][0] = running_v_id;
             running_v_id++;
+          }
+          else {
+            break;
           }
         }
       }
