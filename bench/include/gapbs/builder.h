@@ -2935,6 +2935,8 @@ void GenerateLeidenMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
   int64_t num_nodes = g.num_nodes();
   int64_t num_edges = g.num_edges();
 
+
+
   std::vector<std::tuple<size_t, size_t, double> > edges;
   edges.reserve(num_edges * 2);
 
@@ -3016,10 +3018,12 @@ void GenerateLeidenMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
     }
   }
 
-  sort_by_vector_element(communityVectorTuplePerPass, 2);
+  // sort_by_vector_element(communityVectorTuplePerPass, 2);
   sort_by_vector_element(communityVectorTuplePerPass, num_passes - 1);
 
-  auto running_v_id = 0;
+  auto running_v_id   = 0;
+  auto running_v_hops = 0;
+  int64_t avgDegree = g.num_edges() / g.num_nodes() + 1;
 
   for (int64_t i = 0; i < num_nodes; i++) {
     if(communityVectorTuplePerPass[i][0] == UINT_E_MAX) {
@@ -3029,21 +3033,23 @@ void GenerateLeidenMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
       auto current_v_id = communityVectorTuplePerPass[i][1];
       for (int64_t j = (i+1); j < num_nodes; j++) {
         auto next_com_id = communityVectorTuplePerPass[j][num_passes - 1];
-        if(current_com_id != next_com_id)
+        if(current_com_id != next_com_id || (running_v_hops%avgDegree) == 0){
+          running_v_hops = 0;
           break;
+        }
         auto set_v_id = communityVectorTuplePerPass[j][1];
         if(communityVectorTuplePerPass[j][0] == UINT_E_MAX){
           if(g.out_neigh(current_v_id).contains(set_v_id)){
             communityVectorTuplePerPass[j][0] = running_v_id;
             running_v_id++;
-          }
-          else {
-            break;
+            running_v_hops++;
           }
         }
       }
     }
   }
+
+// sort_by_vector_element(communityVectorTuplePerPass, 0);
 
 #pragma omp parallel for
   for (int64_t i = 0; i < num_nodes; i++) {
@@ -3053,7 +3059,7 @@ void GenerateLeidenMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
   tm.Stop();
   PrintTime("GenID Time", tm.Seconds());
   PrintTime("Num Passes", x.communityMappingPerPass.size());
-  PrintTime("Resolution",  resolution);
+  PrintTime("Resolution", resolution);
 }
 
 void GenerateLeidenFullMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
