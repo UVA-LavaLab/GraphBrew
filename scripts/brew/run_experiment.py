@@ -245,6 +245,60 @@ def run_kernels():
     
     print("Kernel execution process completed.")
 
+def run_convert():
+    print("Starting reorder process...")
+    
+    results = {}
+    
+    # Iterate over each graph
+    for graph, ext in graph_extensions.items():
+        print(f"Processing graph: {graph}")
+        
+        results[graph] = {}
+            
+        # Iterate over each reorder option
+        for reorder_name, reorder_option in list(reorder_option_mapping.items()):
+            if ' ' in reorder_option:
+                # Handle multiple options
+                option_numbers = '_'.join([opt.split('o')[1] for opt in reorder_option.split()])
+                output_file = os.path.join(BASE_DIR, graph, f"graph_{option_numbers}.mtx")
+                output_file_conv = os.path.join(BASE_DIR, graph, f"graph_{option_numbers}.sg")
+            else:
+                # Handle single option
+                option_number = reorder_option.split('o')[1]
+                output_file = os.path.join(BASE_DIR, graph, f"graph_{option_number}.mtx")
+                output_file_conv = os.path.join(BASE_DIR, graph, f"graph_{option_number}.sg")
+            
+            # Skip if the output file already exists
+            if os.path.isfile(output_file_conv):
+                print(f"Output file already exists, skipping: {output_file_conv}")
+                continue
+            
+            # Print the current stage
+            print(f"Running converter with reorder {reorder_name} option: {reorder_option}")
+            print(f"Output file: {output_file}")
+            
+            # Construct and run the make command
+            make_command = f"make run-converter GRAPH_BENCH='-f {output_file} -b {output_file_conv}' RUN_PARAMS='-o0' FLUSH_CACHE=0 PARALLEL=32"
+            log_file = os.path.join(LOG_DIR_ORDER, f"{graph}_{reorder_name}.log")
+            with open(log_file, 'w') as log:
+                print(f"Executing command: {make_command}")
+                result = subprocess.run(make_command, shell=True, check=True, stdout=log, stderr=log)
+            
+            # Parse the output from the log file
+            with open(log_file, 'r') as log:
+                timings = parse_reorder_output(log.read())
+            
+            # Record the results
+            for key, time in timings.items():
+                if reorder_name in reorder_option_mapping:
+                    results[graph][reorder_name] = time
+            
+            print(f"Completed conversion for reorder option: {reorder_option}\n")
+    
+    print("Convert process completed.")
+
 if __name__ == "__main__":
-    run_reorders()
+    run_convert()
+    # run_reorders()
     # run_kernels()
