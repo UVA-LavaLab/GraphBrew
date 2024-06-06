@@ -188,7 +188,8 @@ clean-results:
 # Help
 # =========================================================
 help: help-pr
-	@echo "Available Make commands:"	@echo "  all            - Builds all targets including GAP benchmarks (CPU)"
+	@echo "Available Make commands:"	
+	@echo "  all            - Builds all targets including GAP benchmarks (CPU)"
 	@echo "  run-%          - Runs the specified GAP benchmark (bc bfs cc cc_sv pr pr_spmv sssp tc)"
 	@echo "  help-%         - Print the specified Help (bc bfs cc cc_sv pr pr_spmv sssp tc)"
 	@echo "  clean          - Removes all build artifacts"
