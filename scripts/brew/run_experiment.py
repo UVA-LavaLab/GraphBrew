@@ -4,7 +4,7 @@ import subprocess
 import csv
 
 # Define the base directory containing the graph datasets
-BASE_DIR   = "/media/cmv6ru/Data/00_GraphDatasets/GBREW"
+BASE_DIR   = "/media/Data/00_GraphDatasets/GBREW"
 RESULT_DIR = "bench/results"
 LOG_DIR_RUN   = os.path.join(RESULT_DIR, "logs_run")
 LOG_DIR_ORDER = os.path.join(RESULT_DIR, "logs_order")
@@ -13,15 +13,15 @@ os.makedirs(LOG_DIR_ORDER, exist_ok=True)
 
 # Define the list of graphs and their extensions
 graph_extensions = {
-    "TWTR": "mtx",
     "RD": "mtx",
     "SLJ1": "mtx",
     "CPAT": "mtx",
     "CORKT": "mtx",
     "SPKC": "mtx",
+    "GPLUS": "mtx",
+    "WIKLE": "mtx",
     "WEB01": "mtx",
-    "GPLUS": "el",
-    "WIKLE": "el"
+    "TWTR": "mtx"
 }
 
 # Define the list of kernels
