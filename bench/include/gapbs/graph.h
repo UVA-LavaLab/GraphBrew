@@ -17,7 +17,6 @@
 
 #include "parallel.h"
 
-#include "segmentgraph.h"
 #include <assert.h>
 #include <memory>
 
