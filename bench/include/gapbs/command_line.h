@@ -43,8 +43,8 @@ protected:
   bool uniform_ = false;
   bool in_place_ = false;
   bool use_out_degree_ = true;
-  std::pair<std::string, int> segments_ = {
-      "", 1}; // Label and number of segments as a pair
+  std::pair<int, int> segments_ = {
+      1, 1}; // number of segments as a pair
 
   void AddHelpLine(char opt, std::string opt_arg, std::string text,
                    std::string def = "") {
@@ -99,11 +99,9 @@ public:
     switch (opt) {
     case 'f':
       filename_ = std::string(opt_arg);
-      segments_.first = filename_; // Set label to filename
       break;
     case 'g':
       scale_ = atoi(opt_arg);
-      segments_.first = "kronecker" + std::to_string(scale_);
       break;
     case 'h':
       PrintUsage();
@@ -120,7 +118,6 @@ public:
     case 'u':
       uniform_ = true;
       scale_ = atoi(opt_arg);
-      segments_.first = "uniform-random" + std::to_string(scale_);
       break;
     case 'm':
       in_place_ = true;
@@ -142,11 +139,17 @@ public:
       reorder_options_.emplace_back(algo, params);
     } break;
 
-    case 'j':
-      segments_.second = atoi(opt_arg);
-      if (segments_.first.empty()) {
-        segments_.first = "default";
+    case 'j': {
+      std::string arg(opt_arg);
+      size_t pos = arg.find(':');
+      if (pos != std::string::npos) {
+        segments_.first = std::stoi(arg.substr(0, pos));
+        segments_.second = std::stoi(arg.substr(pos + 1));
+      } else {
+        segments_.first  = atoi(opt_arg);
+        segments_.second = atoi(opt_arg);
       }
+    } 
       break;
     }
   }
@@ -170,7 +173,7 @@ public:
   reorder_options() const {
     return reorder_options_;
   }
-  std::pair<std::string, int> const segments() { return segments_; }
+  std::pair<int, int> const segments() { return segments_; }
 };
 
 class CLApp : public CLBase {

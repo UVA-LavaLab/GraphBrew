@@ -420,6 +420,13 @@ CSRGraph<NodeID_, DestID_, invert> MakeGraphFromEL(EdgeList &el) {
                                               inv_index, inv_neighs);
 }
 
+std::vector<CSRGraph<NodeID_, DestID_, invert>> MakePartitionedGraph() {
+  std::vector<CSRGraph<NodeID_, DestID_, invert>> partitions;
+  
+  
+  return partitions;
+}
+
 CSRGraph<NodeID_, DestID_, invert> MakeGraph() {
   CSRGraph<NodeID_, DestID_, invert> g;
   CSRGraph<NodeID_, DestID_, invert> g_final;
@@ -2842,8 +2849,8 @@ void runExperiment(G &x, double resolution = 0.75, int maxIterations = 10,
   // using K = typename G::key_type;
   // using V = typename G::edge_value_type;
   Timer tm;
-  random_device dev;
-  default_random_engine rnd(dev());
+  std::random_device dev;
+  std::default_random_engine rnd(dev());
   int repeat = REPEAT_METHOD;
   double M = edgeWeightOmp(x) / 2;
   // Follow a specific result logging format, which can be easily parsed
