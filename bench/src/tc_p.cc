@@ -139,14 +139,7 @@ int main(int argc, char* argv[]) {
     return -2;
   }
 
-  for (std::vector<int>::const_iterator i = cli.segments().begin(); i != cli.segments().end(); ++i)
-  {
-    cout << *i << endl;
-  }
-
-  // if (cli.segments().size() > 1) {
-  //   // g.buildPullSegmentedGraphs(cli.segments().first, cli.segments().second);
-  // }
+  PGraph p_g = b.MakePartitionedGraph();
 
   BenchmarkKernel(cli, g, Hybrid, PrintTriangleStats, TCVerifier);
   return 0;
