@@ -142,15 +142,15 @@ public:
     } break;
     case 'j': {
       std::string arg(opt_arg);
-      segments_.clear();
+      // segments_.clear();
       size_t start = 0;
       size_t end = arg.find(':');
       while (end != std::string::npos) {
-        segments_.push_back(std::stoi(arg.substr(start, end - start)));
+        segments_[start] = (std::stoi(arg.substr(start, end - start)));
         start = end + 1;
         end = arg.find(':', start);
       }
-      segments_.push_back(std::stoi(arg.substr(start))); // Last segment
+      segments_[start] = (std::stoi(arg.substr(start))); // Last segment
     } break;
     }
   }
