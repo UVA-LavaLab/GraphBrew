@@ -45,7 +45,7 @@ protected:
   bool uniform_ = false;
   bool in_place_ = false;
   bool use_out_degree_ = true;
-  std::vector<int> segments_; // Default to one segment ir
+  std::vector<int> segments_{0, 1, 1}; // Default to one segment ir
 
   void AddHelpLine(char opt, std::string opt_arg, std::string text,
                    std::string def = "") {
