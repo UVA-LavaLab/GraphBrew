@@ -112,13 +112,16 @@ class CSRGraph {
     iterator end() { return g_index_[n_ + 1]; }
 
     bool contains(DestID_ vertex) {
-        if constexpr (!std::is_same<NodeID_, DestID_>::value) {
-            return __gnu_parallel::find_if(begin(), end(), [&](const DestID_ &neighbor) {
-                return static_cast<NodeWeight<NodeID_, NodeID_>>(neighbor).v == static_cast<NodeWeight<NodeID_, NodeID_>>(vertex).v;
-            }) != end();
-        } else {
-            return __gnu_parallel::find(begin(), end(), vertex) != end();
-        }
+      if constexpr (!std::is_same<NodeID_, DestID_>::value) {
+        return __gnu_parallel::find_if(
+                   begin(), end(), [&](const DestID_ &neighbor) {
+                     return static_cast<NodeWeight<NodeID_, NodeID_>>(neighbor)
+                                .v ==
+                            static_cast<NodeWeight<NodeID_, NodeID_>>(vertex).v;
+                   }) != end();
+      } else {
+        return __gnu_parallel::find(begin(), end(), vertex) != end();
+      }
     }
   };
 
