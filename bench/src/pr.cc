@@ -105,10 +105,6 @@ int main(int argc, char *argv[]) {
   Builder b(cli);
   Graph g = b.MakeGraph();
 
-  if (cli.segments().second > 1) {
-    // g.buildPullSegmentedGraphs(cli.segments().first, cli.segments().second);
-  }
-
   auto PRBound = [&cli](const Graph &g) {
     return PageRankPullGS(g, cli.max_iters(), cli.tolerance(),
                           cli.logging_en());
