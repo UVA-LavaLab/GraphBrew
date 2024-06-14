@@ -265,9 +265,10 @@ pagerank
  -k <degree>  : average degree for synthetic graph                          [16]
  -m           : reduces memory usage during graph building               [false]
  -o <order>   : apply reordering strategy, optionally with a parameter 
-               [example]-o 3 -o 2 -r 14:mapping.<lo|so> [optional]
+               [example]-o 3 -o 2 -r 14:mapping.<lo|so>               [optional]
  -z <indegree>: use indegree for ordering [Degree Based Orderings]       [false]
- -j <segments>: type and number of segments for the graph                [0:1:1]
+ -j <segments>: number of segments for the graph 
+               [type:n:m] <0:GRAPHIT/Cagra> <1:TRUST>                    [0:1:1]
  -a           : output analysis of last run                              [false]
  -n <n>       : perform n trials                                            [16]
  -r <node>    : start from node r                                         [rand]
@@ -302,7 +303,6 @@ Reordering Algorithms:
   - CORDER        (10): Workload Balancing via Graph Reordering on Multicore Systems.
   - RCM           (11): RCM is ordered by the reverse Cuthill-McKee algorithm (BFS).
   - LeidenOrder   (12): Apply Leiden community clustering with louvain with refinement.
-  - LeidenFull    (13): Apply Leiden community clustering - Rabbit -> louvain with refinement (Leiden).
   - MAP           (14): Requires a file format for reordering. Use the -r 10:filename.label option.
 ```
 ### Converter Parameters (Generate Optimized Graphs)
@@ -320,7 +320,8 @@ converter
  -o <order>  : Apply reordering strategy, optionally layer ordering 
                [example]-o 3 -o 2 -o 14:mapping.<lo|so>               [optional]
  -z <indegree>: use indegree for ordering [Degree Based Orderings]       [false]
- -j <segments>: number of segments for the graph                             [1]
+ -j <segments>: number of segments for the graph 
+               [type:n:m] <0:GRAPHIT/Cagra> <1:TRUST>                    [0:1:1]
  --------------------------------------------------------------------------------
  -b <file>   : output serialized graph to file (.sg)                           
  -e <file>   : output edge list to file (.el)
@@ -347,7 +348,6 @@ Example Usage:
   ./bench/bin/pr -g 15 -n 1 -o 14:mapping.lo - Execute with MAP reordering using 'mapping.<lo|so> '.
 
 ```
-
 
 ## Modifying the Makefile
 
