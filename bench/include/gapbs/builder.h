@@ -428,9 +428,10 @@ std::vector<CSRGraph<NodeID_, DestID_, invert> > MakePartitionedGraph() {
     std::cout << *i << std::endl;
   }
 
-  int p_type = cli_.segments()[0];
-  int p_n    = cli_.segments()[1];
-  int p_m    = cli_.segments()[2];
+  std::vector<int>::const_iterator segment_iter = cli_.segments().begin();
+  int p_type = *segment_iter; segment_iter++;
+  int p_n    = *segment_iter; segment_iter++;
+  int p_m    = *segment_iter; segment_iter++;
   int p_num  = p_n*p_m;
 
   CSRGraph<NodeID_, DestID_, invert> g = MakeGraph();
@@ -443,6 +444,7 @@ std::vector<CSRGraph<NodeID_, DestID_, invert> > MakePartitionedGraph() {
     partitions = MakeTrustPartitionedGraph(g, p_num);
     break;
   default:
+    partitions = MakeCagraPartitionedGraph(g, p_num);
     break;
   }
 
