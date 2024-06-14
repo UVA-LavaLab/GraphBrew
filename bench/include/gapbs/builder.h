@@ -15,6 +15,7 @@
 #include <type_traits>
 #include <utility>
 #include <vector>
+#include <numeric>
 
 #include "command_line.h"
 #include "generator.h"
@@ -420,6 +421,80 @@ CSRGraph<NodeID_, DestID_, invert> MakeGraphFromEL(EdgeList &el) {
                                               inv_index, inv_neighs);
 }
 
+EdgeList MakeUniDirectELFromGraph(const CSRGraph<NodeID_, DestID_, invert> &g) {
+  int64_t num_edges = g.num_edges_directed();
+  int64_t num_nodes = g.num_nodes();
+  EdgeList el(num_edges*2);
+  el.resize(num_edges*2);
+
+  // Serial
+  // for (NodeID_ i = 0; i < g.num_nodes(); i++) {
+  //   for (DestID_ j : g.out_neigh(i)) {
+  //     el.push_back(Edge(i, j));
+  //     if (g.is_weighted()){
+  //       NodeID_ dest = static_cast<NodeWeight<NodeID_, WeightT_> >(j).v;
+  //       WeightT_ weight = static_cast<NodeWeight<NodeID_, WeightT_> >(j).w;
+  //       el.push_back(Edge(dest, NodeWeight<NodeID_, WeightT_>(i, weight)));
+  //     }
+  //     else
+  //       el.push_back(Edge(j, i));
+  //   }
+  // }
+
+  pvector<NodeID_> degrees(num_nodes);
+
+  // Calculate prefix sums
+  #pragma omp parallel for
+  for (NodeID_ i = 0; i < num_nodes; ++i) {
+    degrees[i] = g.out_degree(i);
+  }
+
+  pvector<SGOffset> offsets = ParallelPrefixSum(degrees);
+
+  // Print degrees array for debugging
+  std::cout << "Degrees: ";
+  for (NodeID_ i = 0; i < num_nodes; ++i) {
+    std::cout << degrees[i] << " ";
+  }
+  std::cout << std::endl;
+
+  // Print offsets array for debugging
+  std::cout << "Offsets: ";
+  for (NodeID_ i = 0; i < num_nodes+1; ++i) { // Note: offsets array has num_nodes + 1 elements
+    printf("%ld ", static_cast<long int>(offsets[i]));
+  }
+  std::cout << std::endl;
+
+  // Parallel loop to construct the edge list
+  #pragma omp parallel for
+  for (NodeID_ i = 0; i < num_nodes; ++i) {
+    NodeID_ out_start = offsets[i];
+    NodeID_ in_start = offsets[i] + num_edges;
+
+    NodeID_ j = 0;
+    for (DestID_ neighbor : g.out_neigh(i)){
+      el[out_start + j] = Edge(i, neighbor);
+      if (g.is_weighted()){
+        NodeID_ dest = static_cast<NodeWeight<NodeID_, WeightT_> >(neighbor).v;
+        WeightT_ weight = static_cast<NodeWeight<NodeID_, WeightT_> >(neighbor).w;
+        el[in_start + j] = Edge(dest, NodeWeight<NodeID_, WeightT_>(i, weight));
+      }
+      else
+        el[in_start + j] = Edge(neighbor, i);
+      ++j;
+    }
+  }
+
+  return el;
+}
+
+
+void PrintEdgeList(const EdgeList &el) {
+  for (const auto &edge : el) {
+    std::cout << edge.u << " -> " << edge.v << std::endl;
+  }
+}
+
 std::vector<CSRGraph<NodeID_, DestID_, invert> > MakePartitionedGraph() {
   std::vector<CSRGraph<NodeID_, DestID_, invert> > partitions;
 
@@ -475,7 +550,7 @@ std::vector<CSRGraph<NodeID_, DestID_, invert> > MakeCagraPartitionedGraph(const
       stopID += 1; // Distribute remaining nodes
     }
     // Create a partition using graphSlicer
-    CSRGraph<NodeID_, DestID_, invert> partition = graphSlicer(g, startID, stopID);
+    CSRGraph<NodeID_, DestID_, invert> partition = graphSlicer(g, startID, stopID, cli_.use_out_degree());
     partitions.emplace_back(std::move(partition));
     startID = stopID;
   }
@@ -487,6 +562,9 @@ std::vector<CSRGraph<NodeID_, DestID_, invert> > MakeCagraPartitionedGraph(const
 std::vector<CSRGraph<NodeID_, DestID_, invert> > MakeTrustPartitionedGraph(const CSRGraph<NodeID_, DestID_, invert> &g, int p_n=1, int p_m=1) {
   std::vector<CSRGraph<NodeID_, DestID_, invert> > partitions;
 
+  EdgeList uni_el;
+  uni_el = MakeUniDirectELFromGraph(g);
+  PrintEdgeList(uni_el);
 
   return partitions;
 }
@@ -2540,7 +2618,7 @@ readRabbitOrderGraphCSR(const CSRGraph<NodeID_, DestID_, invert> &g) {
     }
   }
 
-  if (g.directed()) { // rabbit order modularity assume undirectoerd
+  if (g.directed()) { // rabbit order modularity assume unidirectional
     if (num_edges < g.num_edges_directed()) {
       for (NodeID_ i = 0; i < g.num_nodes(); i++) {
         for (DestID_ j : g.in_neigh(i)) {
@@ -2565,6 +2643,8 @@ readRabbitOrderGraphCSR(const CSRGraph<NodeID_, DestID_, invert> &g) {
       }
     }
   }
+
+  edges.shrink_to_fit();
 
   // The number of vertices = max vertex ID + 1 (assuming IDs start from zero)
   const auto n = boost::accumulate(
@@ -2792,6 +2872,8 @@ void GenerateGOrderMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
     }
   }
 
+  edges.shrink_to_fit();
+
   Gorder::GoGraph go;
   vector<int> order;
   Timer tm;
@@ -2853,6 +2935,8 @@ void GenerateRCMOrderMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
       }
     }
   }
+
+  edges.shrink_to_fit();
 
   Gorder::GoGraph go;
   vector<int> order;
@@ -3034,6 +3118,8 @@ void GenerateLeidenMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
     }
   }
 
+  edges.shrink_to_fit();
+
   tm.Start();
   bool symmetric = false;
   bool weighted = g.is_weighted();
@@ -3171,6 +3257,8 @@ void GenerateLeidenFullMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
       }
     }
   }
+
+  edges.shrink_to_fit();
 
   tm.Start();
   bool symmetric = false;
