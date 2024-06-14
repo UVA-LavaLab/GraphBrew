@@ -283,7 +283,8 @@ pagerank
 -o <order>   : Apply reordering strategy, optionally layer ordering 
                [example]-o 3 -o 2 -o 14:mapping.<lo|so>               [optional]
 
--j <segments>: number of segments for the graph                      [default:1]
+-j <segments>: number of segments for the graph 
+               [type:n:m] <0:GRAPHIT/Cagra> <1:TRUST>   [0:1:1]
 
 -z <indegree>: use indegree for ordering [Degree Based Orderings]        [false]
 --------------------------------------------------------------------------------

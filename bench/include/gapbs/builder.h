@@ -432,19 +432,18 @@ std::vector<CSRGraph<NodeID_, DestID_, invert> > MakePartitionedGraph() {
   int p_type = *segment_iter; segment_iter++;
   int p_n    = *segment_iter; segment_iter++;
   int p_m    = *segment_iter; segment_iter++;
-  int p_num  = p_n*p_m;
 
   CSRGraph<NodeID_, DestID_, invert> g = MakeGraph();
 
   switch(p_type){
   case 0: // <0:GRAPHIT/Cagra>
-    partitions = MakeCagraPartitionedGraph(g, p_num);
+    partitions = MakeCagraPartitionedGraph(g, p_n, p_m);
     break;
   case 1: // <1:TRUST>
-    partitions = MakeTrustPartitionedGraph(g, p_num);
+    partitions = MakeTrustPartitionedGraph(g, p_n, p_m);
     break;
   default:
-    partitions = MakeCagraPartitionedGraph(g, p_num);
+    partitions = MakeCagraPartitionedGraph(g, p_n, p_m);
     break;
   }
 
@@ -458,8 +457,9 @@ void PrintPartitionsTopology(const std::vector<CSRGraph<NodeID_, DestID_, invert
   }
 }
 
-std::vector<CSRGraph<NodeID_, DestID_, invert> > MakeCagraPartitionedGraph(const CSRGraph<NodeID_, DestID_, invert> &g, int p_num=1) {
+std::vector<CSRGraph<NodeID_, DestID_, invert> > MakeCagraPartitionedGraph(const CSRGraph<NodeID_, DestID_, invert> &g, int p_n=1, int p_m=1) {
   std::vector<CSRGraph<NodeID_, DestID_, invert> > partitions;
+  int p_num  = p_n*p_m;
   if (p_num <= 0) {
     throw std::invalid_argument("Number of partitions must be greater than 0");
   }
@@ -484,7 +484,7 @@ std::vector<CSRGraph<NodeID_, DestID_, invert> > MakeCagraPartitionedGraph(const
 }
 
 
-std::vector<CSRGraph<NodeID_, DestID_, invert> > MakeTrustPartitionedGraph(const CSRGraph<NodeID_, DestID_, invert> &g, int p_num=1) {
+std::vector<CSRGraph<NodeID_, DestID_, invert> > MakeTrustPartitionedGraph(const CSRGraph<NodeID_, DestID_, invert> &g, int p_n=1, int p_m=1) {
   std::vector<CSRGraph<NodeID_, DestID_, invert> > partitions;
 
 
