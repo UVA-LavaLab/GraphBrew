@@ -267,7 +267,7 @@ pagerank
  -o <order>   : apply reordering strategy, optionally with a parameter 
                [example]-o 3 -o 2 -r 14:mapping.<lo|so> [optional]
  -z <indegree>: use indegree for ordering [Degree Based Orderings]       [false]
- -j <segments>: number of segments for the graph                             [1]
+ -j <segments>: type and number of segments for the graph                [0:1:1]
  -a           : output analysis of last run                              [false]
  -n <n>       : perform n trials                                            [16]
  -r <node>    : start from node r                                         [rand]
