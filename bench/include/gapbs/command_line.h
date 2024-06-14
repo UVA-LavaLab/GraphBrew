@@ -78,7 +78,8 @@ public:
                 "optional");
     AddHelpLine('z', "indegree",
                 "use indegree for ordering [Degree Based Orderings]", "false");
-    AddHelpLine('j', "segments", "number of segments for the graph", "1");
+    AddHelpLine('j', "segments", "number of segments for the graph \n     "
+                     "          [type:n:m] <0:GRAPHIT/Cagra> <1:TRUST>", "0:1:1");
   }
 
   bool ParseArgs() {

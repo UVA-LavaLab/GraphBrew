@@ -141,6 +141,9 @@ int main(int argc, char* argv[]) {
 
   PGraph p_g = b.MakePartitionedGraph();
 
+  g.PrintTopology();
+  b.PrintPartitionsTopology(p_g);
+
   BenchmarkKernel(cli, g, Hybrid, PrintTriangleStats, TCVerifier);
   return 0;
 }
