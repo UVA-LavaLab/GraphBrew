@@ -19,32 +19,32 @@
 
 
 /*
-GAP Benchmark Suite
-Kernel: Triangle Counting (TC)
-Author: Scott Beamer
+   GAP Benchmark Suite
+   Kernel: Triangle Counting (TC)
+   Author: Scott Beamer
 
-Will count the number of triangles (cliques of size 3)
+   Will count the number of triangles (cliques of size 3)
 
-Input graph requirements:
-  - undirected
-  - has no duplicate edges (or else will be counted as multiple triangles)
-  - neighborhoods are sorted by vertex identifiers
+   Input graph requirements:
+   - undirected
+   - has no duplicate edges (or else will be counted as multiple triangles)
+   - neighborhoods are sorted by vertex identifiers
 
-Other than symmetrizing, the rest of the requirements are done by SquishCSR
-during graph building.
+   Other than symmetrizing, the rest of the requirements are done by SquishCSR
+   during graph building.
 
-This implementation reduces the search space by counting each triangle only
-once. A naive implementation will count the same triangle six times because
-each of the three vertices (u, v, w) will count it in both ways. To count
-a triangle only once, this implementation only counts a triangle if u > v > w.
-Once the remaining unexamined neighbors identifiers get too big, it can break
-out of the loop, but this requires that the neighbors are sorted.
+   This implementation reduces the search space by counting each triangle only
+   once. A naive implementation will count the same triangle six times because
+   each of the three vertices (u, v, w) will count it in both ways. To count
+   a triangle only once, this implementation only counts a triangle if u > v > w.
+   Once the remaining unexamined neighbors identifiers get too big, it can break
+   out of the loop, but this requires that the neighbors are sorted.
 
-This implementation relabels the vertices by degree. This optimization is
-beneficial if the average degree is sufficiently high and if the degree
-distribution is sufficiently non-uniform. To decide whether to relabel the
-graph, we use the heuristic in WorthRelabelling.
-*/
+   This implementation relabels the vertices by degree. This optimization is
+   beneficial if the average degree is sufficiently high and if the degree
+   distribution is sufficiently non-uniform. To decide whether to relabel the
+   graph, we use the heuristic in WorthRelabelling.
+ */
 
 
 using namespace std;
@@ -100,6 +100,27 @@ size_t Hybrid(const Graph &g) {
 }
 
 
+// // Uses heuristic to see if worth relabeling
+// size_t Hybrid_partitioned(const PGraph &p_g,
+//                           int p_n = 1, int p_m = 1) {
+//   size_t total = 0;
+//   size_t p_total = 0;
+//   for (int col = 0; col < p_m; ++col) {
+//     for (int row = 0; row < p_n; ++row) {
+//       int idx = col * p_n + row;
+//       Graph partition_g = p_g[idx];
+//       if (WorthRelabelling(partition_g))
+//         p_total = OrderedCount(Builder::RelabelByDegree(partition_g));
+//       else
+//         p_total = OrderedCount(partition_g);
+
+//       total += p_total;
+//     }
+//   }
+
+//   return total;
+// }
+
 void PrintTriangleStats(const Graph &g, size_t total_triangles) {
   cout << total_triangles << " triangles" << endl;
 }
@@ -121,7 +142,7 @@ bool TCVerifier(const Graph &g, size_t test_total) {
       total += intersection.size();
     }
   }
-  total = total / 6;  // each triangle was counted 6 times
+  total = total / 6; // each triangle was counted 6 times
   if (total != test_total)
     cout << total << " != " << test_total << endl;
   return total == test_total;
@@ -142,8 +163,35 @@ int main(int argc, char* argv[]) {
   PGraph p_g = b.MakePartitionedGraph();
 
   // g.PrintTopology();
-  b.PrintPartitionsTopology(p_g);
+  // b.PrintPartitionsTopology(p_g);
+
+  // Create graphs from each partition in column-major order and add to partitions_g
+  std::vector<int>::const_iterator segment_iter = cli.segments().begin();
+  // int p_type = *segment_iter;
+  segment_iter++;
+  int p_n = *segment_iter;
+  segment_iter++;
+  int p_m = *segment_iter;
+  segment_iter++;
+
+  size_t total = 0;
+  size_t p_total = 0;
+  for (int col = 0; col < p_m; ++col) {
+    for (int row = 0; row < p_n; ++row) {
+      int idx = col * p_n + row;
+      Graph partition_g = std::move(p_g[idx]);
+      partition_g.PrintStats();
+      if (WorthRelabelling(partition_g))
+        p_total = OrderedCount(Builder::RelabelByDegree(partition_g));
+      else
+        p_total = OrderedCount(partition_g);
+
+      total += p_total;
+    }
+  }
+
 
   BenchmarkKernel(cli, g, Hybrid, PrintTriangleStats, TCVerifier);
+  std::cout << "tc_p: " << total/6 << std::endl;
   return 0;
 }

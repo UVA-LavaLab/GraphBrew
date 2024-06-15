@@ -562,23 +562,32 @@ MakeCagraPartitionedGraph(const CSRGraph<NodeID_, DestID_, invert> &g,
   return partitions;
 }
 
-std::vector<EdgeList>
+std::pair<std::vector<EdgeList>, std::vector<pvector<NodeID_> > >
 MakeTrustPartitionedEL(const CSRGraph<NodeID_, DestID_, invert> &g,
                        int p_n = 1, int p_m = 1) {
 
   int num_partitions = p_n * p_m;
   int num_threads = omp_get_max_threads();
   std::vector<EdgeList> partitions_el(num_partitions);
+  std::vector<EdgeList> partitions_el_dest(p_m);
 
   // Local edge lists for each thread
   std::vector<std::vector<EdgeList> > local_partitions_el(num_threads);
+  std::vector<std::vector<EdgeList> > local_partitions_el_dest(num_threads);
+
+  std::vector<CSRGraph<NodeID_, DestID_, invert> > partitions_g(p_m);
+  std::vector<pvector<NodeID_> > partitions_new_ids(p_m);
+
+  for (int thread_id = 0; thread_id < num_threads; ++thread_id)
+  {
+    local_partitions_el[thread_id].resize(num_partitions);
+    local_partitions_el_dest[thread_id].resize(p_m);
+  }
 
   #pragma omp parallel
   {
 
     int thread_id = omp_get_thread_num();
-    local_partitions_el[thread_id].resize(num_partitions);
-
 
     // Each thread processes a portion of the nodes
     #pragma omp for schedule(static)
@@ -588,14 +597,71 @@ MakeTrustPartitionedEL(const CSRGraph<NodeID_, DestID_, invert> &g,
         if (g.is_weighted()) {
           NodeID_ dest = static_cast<NodeWeight<NodeID_, WeightT_> >(j).v;
           WeightT_ weight = static_cast<NodeWeight<NodeID_, WeightT_> >(j).w;
-          int partition_idx = (src % p_n) * p_m + (dest % p_m);
-          Edge e = Edge(src, NodeWeight<NodeID_, WeightT_>(dest/p_m, weight));
-          local_partitions_el[thread_id][partition_idx].push_back(e);
+          int partition_idx = (dest % p_m);
+          Edge e = Edge(src, NodeWeight<NodeID_, WeightT_>(dest, weight));
+          local_partitions_el_dest[thread_id][partition_idx].push_back(e);
         } else{
           NodeID_ dest = j;
-          int partition_idx = (src % p_n) * p_m + (dest % p_m);
-          Edge e = Edge(src, dest/p_m);
-          local_partitions_el[thread_id][partition_idx].push_back(e);
+          int partition_idx = (dest % p_m);
+          Edge e = Edge(src, dest);
+          local_partitions_el_dest[thread_id][partition_idx].push_back(e);
+        }
+      }
+    }
+  }
+
+  // Parallel merge of local partitions into the global partitions
+  #pragma omp parallel for schedule(dynamic)
+  for (int i = 0; i < p_m; ++i) {
+    for (int t = 0; t < num_threads; ++t) {
+      partitions_el_dest[i].reserve(partitions_el_dest[i].size() + local_partitions_el_dest[t][i].size());
+    }
+    for (int t = 0; t < num_threads; ++t) {
+      partitions_el_dest[i].insert(partitions_el_dest[i].end(), local_partitions_el_dest[t][i].begin(), local_partitions_el_dest[t][i].end());
+    }
+  }
+
+  // Create graphs from each column partition and generate new IDs
+  for (int i = 0; i < p_m; ++i) {
+    if (partitions_el_dest[i].empty()) {
+      partitions_g[i] = CSRGraph<NodeID_, DestID_, invert>();
+      partitions_new_ids[i] = pvector<NodeID_>();
+      continue;
+    }
+    CSRGraph<NodeID_, DestID_, invert> partition_g = MakeGraphFromEL(partitions_el_dest[i]);
+    pvector<NodeID_> new_ids(partition_g.num_nodes());
+    GenerateSortMapping(partition_g, new_ids, true, false);
+    partitions_new_ids[i] = std::move(new_ids);
+    partitions_g[i] = std::move(partition_g);
+  }
+
+  for (int dest_p = 0; dest_p < p_m; ++dest_p) {
+    CSRGraph<NodeID_, DestID_, invert> partition_g = std::move(partitions_g[dest_p]);
+
+    if (partition_g.num_nodes() == 0) {
+      continue;
+    }
+
+    #pragma omp parallel
+    {
+      int thread_id = omp_get_thread_num();
+      // Each thread processes a portion of the nodes
+    #pragma omp for schedule(static)
+      for (NodeID_ i = 0; i < partition_g.num_nodes(); ++i) {
+        NodeID_ src = i;
+        for (DestID_ j : partition_g.out_neigh(i)){
+          if (partition_g.is_weighted()) {
+            NodeID_ dest = static_cast<NodeWeight<NodeID_, WeightT_> >(j).v;
+            WeightT_ weight = static_cast<NodeWeight<NodeID_, WeightT_> >(j).w;
+            int partition_idx = (src % p_n) * p_m + dest_p;
+            Edge e = Edge(src, NodeWeight<NodeID_, WeightT_>(dest, weight));
+            local_partitions_el[thread_id][partition_idx].push_back(e);
+          } else{
+            NodeID_ dest = j;
+            int partition_idx = (src % p_n) * p_m + dest_p;
+            Edge e = Edge(src, dest);
+            local_partitions_el[thread_id][partition_idx].push_back(e);
+          }
         }
       }
     }
@@ -612,7 +678,7 @@ MakeTrustPartitionedEL(const CSRGraph<NodeID_, DestID_, invert> &g,
     }
   }
 
-  return partitions_el;
+  return std::make_pair(std::move(partitions_el), std::move(partitions_new_ids));
 }
 
 std::vector<CSRGraph<NodeID_, DestID_, invert> >
@@ -624,8 +690,9 @@ MakeTrustPartitionedGraph(const CSRGraph<NodeID_, DestID_, invert> &g,
             "Number of partitions must be greater than 0");
   }
 
-  std::vector<CSRGraph<NodeID_, DestID_, invert> > partitions_g;
+  std::vector<CSRGraph<NodeID_, DestID_, invert> > partitions_g(p_n * p_m);
   std::vector<EdgeList> partitions_el;
+  std::vector<pvector<NodeID_> > partitions_new_ids;
 
   CSRGraph<NodeID_, DestID_, invert> uni_g;
   CSRGraph<NodeID_, DestID_, invert> org_g;
@@ -638,26 +705,24 @@ MakeTrustPartitionedGraph(const CSRGraph<NodeID_, DestID_, invert> &g,
   uni_el = MakeUniDirectELFromGraph(org_g);
 
   MakeOrientedELFromUniDirect(uni_el, org_g);
-  PrintEdgeList(uni_el);
 
   uni_g = MakeGraphFromEL(uni_el);
-  uni_g = SquishGraph(uni_g);
-  uni_g.PrintTopology();
-
-  std::cout << std::endl;
+  uni_g = SquishGraph(uni_g);;
 
   pvector<NodeID_> new_ids(uni_g.num_nodes());
   GenerateSortMapping(uni_g, new_ids, true, false);
   uni_g = RelabelByMapping(uni_g, new_ids);
 
-  uni_g.PrintTopology();
+  std::tie(partitions_el, partitions_new_ids) = MakeTrustPartitionedEL(uni_g, p_n, p_m);
 
-  partitions_el = MakeTrustPartitionedEL(uni_g, p_n, p_m);
-
-  // Create graphs from each partition and add to partitions_g
-  for (auto &partition_el : partitions_el) {
-    CSRGraph<NodeID_, DestID_, invert> partition_g = MakeGraphFromEL(partition_el);
-    partitions_g.emplace_back(std::move(partition_g));
+  // Create graphs from each partition in column-major order and add to partitions_g
+  for (int col = 0; col < p_m; ++col) {
+    for (int row = 0; row < p_n; ++row) {
+      int idx = col * p_n + row;
+      CSRGraph<NodeID_, DestID_, invert> partition_g = MakeGraphFromEL(partitions_el[idx]);
+      partition_g = RelabelByMapping(partition_g, partitions_new_ids[row]);
+      partitions_g[idx] = std::move(partition_g);
+    }
   }
 
   return partitions_g;
