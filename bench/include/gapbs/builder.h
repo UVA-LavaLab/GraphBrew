@@ -630,9 +630,9 @@ MakeTrustPartitionedEL(const CSRGraph<NodeID_, DestID_, invert> &g,
     }
     CSRGraph<NodeID_, DestID_, invert> partition_g = MakeGraphFromEL(partitions_el_dest[i]);
     pvector<NodeID_> new_ids(partition_g.num_nodes());
+    partition_g     = SquishGraph(partition_g);
     GenerateSortMapping(partition_g, new_ids, true, false);
     partitions_new_ids[i] = std::move(new_ids);
-    partition_g     = SquishGraph(partition_g);
     partitions_g[i] = std::move(partition_g);
   }
 
