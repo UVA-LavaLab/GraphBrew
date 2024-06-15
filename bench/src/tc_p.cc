@@ -180,6 +180,7 @@ int main(int argc, char* argv[]) {
     for (int row = 0; row < p_n; ++row) {
       int idx = col * p_n + row;
       Graph partition_g = std::move(p_g[idx]);
+      std::cout <<"tc_p: ["<<row<<"] ["<<col<<"]"<<std::endl;
       partition_g.PrintStats();
       if (WorthRelabelling(partition_g))
         p_total = OrderedCount(Builder::RelabelByDegree(partition_g));
@@ -192,6 +193,6 @@ int main(int argc, char* argv[]) {
 
 
   BenchmarkKernel(cli, g, Hybrid, PrintTriangleStats, TCVerifier);
-  std::cout << "tc_p: " << total/6 << std::endl;
+  std::cout << "tc_p: " << total << std::endl;
   return 0;
 }
