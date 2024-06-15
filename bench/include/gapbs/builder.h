@@ -790,7 +790,7 @@ public:
         int idx = row * p_m + col;
         CSRGraph<NodeID_, DestID_, invert> partition_g =
             MakeGraphFromEL(partitions_el[idx]);
-        partition_g = RelabelByMapping(partition_g, partitions_new_ids[col]);
+        // partition_g = RelabelByMapping(partition_g, partitions_new_ids[col]);
         partition_g = SquishGraph(partition_g);
         partitions_g[idx] = std::move(partition_g);
       }

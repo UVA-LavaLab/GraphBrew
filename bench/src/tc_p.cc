@@ -200,11 +200,11 @@ int main(int argc, char *argv[]) {
   // local count
   for (int col = 0; col < p_m; ++col) {
     for (int row = 0; row < p_n; ++row) {
-      int idx = col * p_n + row;
+      int idx = row * p_m + col;
       Graph partition_g = std::move(p_g[idx]);
       // pf_g[idx] =  b.flattenGraphCSR(partition_g);
       std::cout << "tc_p: [" << row << "] [" << col << "]" << std::endl;
-      partition_g.PrintStats();
+      partition_g.PrintTopology();
       tm.Start();
       p_total = OrderedCount(partition_g);
       tm.Stop();
