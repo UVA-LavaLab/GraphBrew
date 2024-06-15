@@ -172,7 +172,8 @@ int main(int argc, char *argv[]) {
   //   return -2;
   // }
 
-  PGraph p_g = b.MakePartitionedGraph();
+
+
 
   // g.PrintTopology();
   // b.PrintPartitionsTopology(p_g);
@@ -187,6 +188,9 @@ int main(int argc, char *argv[]) {
   int p_m = *segment_iter;
   segment_iter++;
 
+  PGraph p_g = b.MakePartitionedGraph();
+  // PFlatGraph pf_g(p_m*p_n);
+
   Timer tm;
   double tc_p_time = 0.0f;
 
@@ -198,6 +202,7 @@ int main(int argc, char *argv[]) {
     for (int row = 0; row < p_n; ++row) {
       int idx = col * p_n + row;
       Graph partition_g = std::move(p_g[idx]);
+      // pf_g[idx] =  b.flattenGraphCSR(partition_g);
       std::cout << "tc_p: [" << row << "] [" << col << "]" << std::endl;
       partition_g.PrintStats();
       tm.Start();
@@ -228,6 +233,8 @@ int main(int argc, char *argv[]) {
       }
     }
   }
+
+  
 
   PrintTime(" Total Time TC_P", tc_p_time);
   std::cout << "COUNT TC_P: " << total << std::endl;
