@@ -453,8 +453,8 @@ EdgeList
 MakeUniDirectELFromGraph(const CSRGraph<NodeID_, DestID_, invert> &g) {
   int64_t num_edges = g.num_edges_directed();
   int64_t num_nodes = g.num_nodes();
-  EdgeList el(num_edges * 2);
-  el.resize(num_edges * 2);
+  EdgeList el(num_edges*2);
+  el.resize(num_edges*2);
 
   pvector<NodeID_> degrees(num_nodes);
 
@@ -498,11 +498,6 @@ void PrintEdgeList(const EdgeList &el) {
 
 std::vector<CSRGraph<NodeID_, DestID_, invert> > MakePartitionedGraph() {
   std::vector<CSRGraph<NodeID_, DestID_, invert> > partitions;
-
-  for (std::vector<int>::const_iterator i = cli_.segments().begin();
-       i != cli_.segments().end(); ++i) {
-    std::cout << *i << std::endl;
-  }
 
   std::vector<int>::const_iterator segment_iter = cli_.segments().begin();
   int p_type = *segment_iter;
@@ -567,20 +562,51 @@ MakeCagraPartitionedGraph(const CSRGraph<NodeID_, DestID_, invert> &g,
   return partitions;
 }
 
+std::vector<EdgeList>
+MakeTrustPartitionedEL(const CSRGraph<NodeID_, DestID_, invert> &g,
+                       int p_n = 1, int p_m = 1) {
+
+  int num_partitions = p_n * p_m;
+  std::vector<EdgeList> partitions_el(num_partitions);
+  
+
+  return partitions_el;
+}
+
 std::vector<CSRGraph<NodeID_, DestID_, invert> >
 MakeTrustPartitionedGraph(const CSRGraph<NodeID_, DestID_, invert> &g,
                           int p_n = 1, int p_m = 1) {
-  std::vector<CSRGraph<NodeID_, DestID_, invert> > partitions;
+  std::vector<CSRGraph<NodeID_, DestID_, invert> > partitions_g;
+  std::vector<EdgeList> partitions_el;
 
+  CSRGraph<NodeID_, DestID_, invert> uni_g;
+  CSRGraph<NodeID_, DestID_, invert> org_g;
   EdgeList uni_el;
-  uni_el = MakeUniDirectELFromGraph(g);
 
-  MakeOrientedELFromUniDirect(uni_el, g);
+  pvector<NodeID_> new_ids_g(g.num_nodes());
+  GenerateSortMapping(g, new_ids_g, true, true);
+  org_g = RelabelByMapping(g, new_ids_g);
 
-  
+  uni_el = MakeUniDirectELFromGraph(org_g);
+
+  MakeOrientedELFromUniDirect(uni_el, org_g);
   PrintEdgeList(uni_el);
 
-  return partitions;
+  uni_g = MakeGraphFromEL(uni_el);
+  uni_g = SquishGraph(uni_g);
+  uni_g.PrintTopology();
+
+  std::cout << std::endl;
+
+  pvector<NodeID_> new_ids(uni_g.num_nodes());
+  GenerateSortMapping(uni_g, new_ids, true, false);
+  uni_g = RelabelByMapping(uni_g, new_ids);
+
+  uni_g.PrintTopology();
+
+  partitions_el = MakeTrustPartitionedEL(uni_g, p_n, p_m);
+
+  return partitions_g;
 }
 
 CSRGraph<NodeID_, DestID_, invert> MakeGraph() {
