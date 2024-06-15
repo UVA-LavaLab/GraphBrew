@@ -417,54 +417,56 @@ public:
                                                 inv_index, inv_neighs);
   }
 
-//   GraphArrays<NodeID_, SGOffset>
-//   flattenGraphCSR(const CSRGraph<NodeID_, DestID_, invert> &g) {
-//     int64_t num_edges = g.num_edges_directed();
-//     int64_t num_nodes = g.num_nodes();
-//     GraphArrays<NodeID_, SGOffset> arrays(num_nodes, num_edges * 2);
+  //   GraphArrays<NodeID_, SGOffset>
+  //   flattenGraphCSR(const CSRGraph<NodeID_, DestID_, invert> &g) {
+  //     int64_t num_edges = g.num_edges_directed();
+  //     int64_t num_nodes = g.num_nodes();
+  //     GraphArrays<NodeID_, SGOffset> arrays(num_nodes, num_edges * 2);
 
-//     pvector<NodeID_> degrees(num_nodes);
+  //     pvector<NodeID_> degrees(num_nodes);
 
-// // Calculate prefix sums
-// #pragma omp parallel for
-//     for (NodeID_ i = 0; i < num_nodes; ++i) {
-//       degrees[i] = g.out_degree(i);
-//       arrays.degrees.data[i] = g.out_degree(i);
-//     }
+  // // Calculate prefix sums
+  // #pragma omp parallel for
+  //     for (NodeID_ i = 0; i < num_nodes; ++i) {
+  //       degrees[i] = g.out_degree(i);
+  //       arrays.degrees.data[i] = g.out_degree(i);
+  //     }
 
-//     pvector<SGOffset> offsets = ParallelPrefixSum(degrees);
+  //     pvector<SGOffset> offsets = ParallelPrefixSum(degrees);
 
-// #pragma omp parallel for
-//     for (NodeID_ i = 0; i <= num_nodes; ++i) {
-//       arrays.offsets.data[i] = offsets[i];
-//     }
+  // #pragma omp parallel for
+  //     for (NodeID_ i = 0; i <= num_nodes; ++i) {
+  //       arrays.offsets.data[i] = offsets[i];
+  //     }
 
-//     // Parallel loop to construct the edge list
-// #pragma omp parallel for
-//     for (NodeID_ i = 0; i < num_nodes; ++i) {
-//       NodeID_ out_start = offsets[i];
+  //     // Parallel loop to construct the edge list
+  // #pragma omp parallel for
+  //     for (NodeID_ i = 0; i < num_nodes; ++i) {
+  //       NodeID_ out_start = offsets[i];
 
-//       NodeID_ j = 0;
-//       for (DestID_ neighbor : g.out_neigh(i)) {
-//         if (g.is_weighted()) {
-//           NodeID_ dest = static_cast<NodeWeight<NodeID_, WeightT_>>(neighbor).v;
-//           arrays.neighbors.data[out_start + j] = dest;
-//         } else {
-//           arrays.neighbors.data[out_start + j] = neighbor;
-//         }
-//         ++j;
-//       }
-//     }
+  //       NodeID_ j = 0;
+  //       for (DestID_ neighbor : g.out_neigh(i)) {
+  //         if (g.is_weighted()) {
+  //           NodeID_ dest = static_cast<NodeWeight<NodeID_,
+  //           WeightT_>>(neighbor).v; arrays.neighbors.data[out_start + j] =
+  //           dest;
+  //         } else {
+  //           arrays.neighbors.data[out_start + j] = neighbor;
+  //         }
+  //         ++j;
+  //       }
+  //     }
 
-//     // Calculate and output the total size in megabytes
-//     size_t total_size =
-//         (num_nodes * sizeof(NodeID_) + (num_nodes + 1) * sizeof(SGOffset) +
-//          num_edges * sizeof(DestID_)) /
-//         (1024 * 1024);
-//     std::cout << "Total estimated size: " << total_size << " MB" << std::endl;
+  //     // Calculate and output the total size in megabytes
+  //     size_t total_size =
+  //         (num_nodes * sizeof(NodeID_) + (num_nodes + 1) * sizeof(SGOffset) +
+  //          num_edges * sizeof(DestID_)) /
+  //         (1024 * 1024);
+  //     std::cout << "Total estimated size: " << total_size << " MB" <<
+  //     std::endl;
 
-//     return arrays;
-//   }
+  //     return arrays;
+  //   }
 
   // void FlattenPartitions(
   //     const std::vector<CSRGraph<NodeID_, DestID_, invert>> &partitions,
@@ -773,7 +775,6 @@ public:
 
     uni_g = MakeGraphFromEL(uni_el);
     uni_g = SquishGraph(uni_g);
-    ;
 
     pvector<NodeID_> new_ids(uni_g.num_nodes());
     GenerateSortMapping(uni_g, new_ids, true, false);
@@ -784,12 +785,12 @@ public:
 
     // Create graphs from each partition in column-major order and add to
     // partitions_g
-    for (int col = 0; col < p_m; ++col) {
-      for (int row = 0; row < p_n; ++row) {
-        int idx = col * p_n + row;
+    for (int row = 0; row < p_n; ++row) {
+      for (int col = 0; col < p_m; ++col) {
+        int idx = row * p_m + col;
         CSRGraph<NodeID_, DestID_, invert> partition_g =
             MakeGraphFromEL(partitions_el[idx]);
-        partition_g = RelabelByMapping(partition_g, partitions_new_ids[row]);
+        partition_g = RelabelByMapping(partition_g, partitions_new_ids[col]);
         partition_g = SquishGraph(partition_g);
         partitions_g[idx] = std::move(partition_g);
       }
