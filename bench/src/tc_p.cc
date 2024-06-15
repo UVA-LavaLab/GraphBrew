@@ -17,7 +17,6 @@
 #include "graph.h"
 #include "pvector.h"
 
-
 /*
    GAP Benchmark Suite
    Kernel: Triangle Counting (TC)
@@ -36,9 +35,9 @@
    This implementation reduces the search space by counting each triangle only
    once. A naive implementation will count the same triangle six times because
    each of the three vertices (u, v, w) will count it in both ways. To count
-   a triangle only once, this implementation only counts a triangle if u > v > w.
-   Once the remaining unexamined neighbors identifiers get too big, it can break
-   out of the loop, but this requires that the neighbors are sorted.
+   a triangle only once, this implementation only counts a triangle if u > v >
+   w. Once the remaining unexamined neighbors identifiers get too big, it can
+   break out of the loop, but this requires that the neighbors are sorted.
 
    This implementation relabels the vertices by degree. This optimization is
    beneficial if the average degree is sufficiently high and if the degree
@@ -46,13 +45,12 @@
    graph, we use the heuristic in WorthRelabelling.
  */
 
-
 using namespace std;
 
 size_t OrderedCount(const Graph &g) {
   size_t total = 0;
-  #pragma omp parallel for reduction(+ : total) schedule(dynamic, 64)
-  for (NodeID u=0; u < g.num_nodes(); u++) {
+#pragma omp parallel for reduction(+ : total) schedule(dynamic, 64)
+  for (NodeID u = 0; u < g.num_nodes(); u++) {
     for (NodeID v : g.out_neigh(u)) {
       if (v > u)
         break;
@@ -70,6 +68,26 @@ size_t OrderedCount(const Graph &g) {
   return total;
 }
 
+size_t CrossOrderedCount(const Graph &g, const Graph &g2) {
+  size_t total = 0;
+#pragma omp parallel for reduction(+ : total) schedule(dynamic, 64)
+  for (NodeID u = 0; u < g.num_nodes(); u++) {
+    for (NodeID v : g.out_neigh(u)) {
+      if (v > u)
+        break;
+      auto it = g2.out_neigh(v).begin();
+      for (NodeID w : g.out_neigh(u)) {
+        if (w > v)
+          break;
+        while (*it < w)
+          it++;
+        if (w == *it)
+          total++;
+      }
+    }
+  }
+  return total;
+}
 
 // Heuristic to see if sufficiently dense power-law graph
 bool WorthRelabelling(const Graph &g) {
@@ -80,16 +98,15 @@ bool WorthRelabelling(const Graph &g) {
   int64_t num_samples = min(int64_t(1000), g.num_nodes());
   int64_t sample_total = 0;
   pvector<int64_t> samples(num_samples);
-  for (int64_t trial=0; trial < num_samples; trial++) {
+  for (int64_t trial = 0; trial < num_samples; trial++) {
     samples[trial] = g.out_degree(sp.PickNext());
     sample_total += samples[trial];
   }
   sort(samples.begin(), samples.end());
   double sample_average = static_cast<double>(sample_total) / num_samples;
-  double sample_median = samples[num_samples/2];
+  double sample_median = samples[num_samples / 2];
   return sample_average / 1.3 > sample_median;
 }
-
 
 // Uses heuristic to see if worth relabeling
 size_t Hybrid(const Graph &g) {
@@ -98,7 +115,6 @@ size_t Hybrid(const Graph &g) {
   else
     return OrderedCount(g);
 }
-
 
 // // Uses heuristic to see if worth relabeling
 // size_t Hybrid_partitioned(const PGraph &p_g,
@@ -125,7 +141,6 @@ void PrintTriangleStats(const Graph &g, size_t total_triangles) {
   cout << total_triangles << " triangles" << endl;
 }
 
-
 // Compares with simple serial implementation that uses std::set_intersection
 bool TCVerifier(const Graph &g, size_t test_total) {
   size_t total = 0;
@@ -133,11 +148,9 @@ bool TCVerifier(const Graph &g, size_t test_total) {
   intersection.reserve(g.num_nodes());
   for (NodeID u : g.vertices()) {
     for (NodeID v : g.out_neigh(u)) {
-      auto new_end = set_intersection(g.out_neigh(u).begin(),
-                                      g.out_neigh(u).end(),
-                                      g.out_neigh(v).begin(),
-                                      g.out_neigh(v).end(),
-                                      intersection.begin());
+      auto new_end = set_intersection(
+          g.out_neigh(u).begin(), g.out_neigh(u).end(), g.out_neigh(v).begin(),
+          g.out_neigh(v).end(), intersection.begin());
       intersection.resize(new_end - intersection.begin());
       total += intersection.size();
     }
@@ -148,8 +161,7 @@ bool TCVerifier(const Graph &g, size_t test_total) {
   return total == test_total;
 }
 
-
-int main(int argc, char* argv[]) {
+int main(int argc, char *argv[]) {
   CLApp cli(argc, argv, "triangle count");
   if (!cli.ParseArgs())
     return -1;
@@ -165,7 +177,8 @@ int main(int argc, char* argv[]) {
   // g.PrintTopology();
   // b.PrintPartitionsTopology(p_g);
 
-  // Create graphs from each partition in column-major order and add to partitions_g
+  // Create graphs from each partition in column-major order and add to
+  // partitions_g
   std::vector<int>::const_iterator segment_iter = cli.segments().begin();
   // int p_type = *segment_iter;
   segment_iter++;
@@ -179,25 +192,44 @@ int main(int argc, char* argv[]) {
 
   size_t total = 0;
   size_t p_total = 0;
-  
+
+  // local count
   for (int col = 0; col < p_m; ++col) {
     for (int row = 0; row < p_n; ++row) {
       int idx = col * p_n + row;
       Graph partition_g = std::move(p_g[idx]);
-      std::cout <<"tc_p: ["<<row<<"] ["<<col<<"]"<<std::endl;
+      std::cout << "tc_p: [" << row << "] [" << col << "]" << std::endl;
       partition_g.PrintStats();
       tm.Start();
-      if (WorthRelabelling(partition_g))
-        p_total = OrderedCount(Builder::RelabelByDegree(partition_g));
-      else
-        p_total = OrderedCount(partition_g);
+      p_total = OrderedCount(partition_g);
       tm.Stop();
       tc_p_time += tm.Seconds();
       total += p_total;
     }
   }
- 
-  PrintTime(" Time TC_P", tc_p_time);
+  PrintTime(" Local Time TC_P", tc_p_time);
+
+  // cross count
+  // Cross count for each column
+  for (int col = 0; col < p_m; ++col) {
+    for (int row1 = 0; row1 < p_n; ++row1) {
+      int idx1 = col * p_n + row1;
+      Graph partition_g1 = std::move(p_g[idx1]);
+      for (int row2 = row1 + 1; row2 < p_n; ++row2) {
+        int idx2 = col * p_n + row2;
+        Graph partition_g2 = std::move(p_g[idx2]);
+        std::cout << "Cross tc_p: [" << row1 << "] [" << col << "] with ["
+                  << row2 << "] [" << col << "]" << std::endl;
+        tm.Start();
+        p_total = CrossOrderedCount(partition_g1, partition_g2);
+        tm.Stop();
+        tc_p_time += tm.Seconds();
+        total += p_total;
+      }
+    }
+  }
+
+  PrintTime(" Total Time TC_P", tc_p_time);
   std::cout << "COUNT TC_P: " << total << std::endl;
 
   BenchmarkKernel(cli, g, Hybrid, PrintTriangleStats, TCVerifier);
