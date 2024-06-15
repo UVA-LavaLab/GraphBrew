@@ -216,23 +216,23 @@ int main(int argc, char *argv[]) {
 
   // cross count
   // Cross count for each column
-  for (int col = 0; col < p_m; ++col) {
-    for (int row1 = 0; row1 < p_n; ++row1) {
-      int idx1 = col * p_n + row1;
-      Graph partition_g1 = std::move(p_g[idx1]);
-      for (int row2 = row1 + 1; row2 < p_n; ++row2) {
-        int idx2 = col * p_n + row2;
-        Graph partition_g2 = std::move(p_g[idx2]);
-        std::cout << "Cross tc_p: [" << row1 << "] [" << col << "] with ["
-                  << row2 << "] [" << col << "]" << std::endl;
-        tm.Start();
-        p_total = CrossOrderedCount(partition_g1, partition_g2);
-        tm.Stop();
-        tc_p_time += tm.Seconds();
-        total += p_total;
-      }
-    }
-  }
+  // for (int col = 0; col < p_m; ++col) {
+  //   for (int row1 = 0; row1 < p_n; ++row1) {
+  //     int idx1 = col * p_n + row1;
+  //     Graph partition_g1 = std::move(p_g[idx1]);
+  //     for (int row2 = row1 + 1; row2 < p_n; ++row2) {
+  //       int idx2 = col * p_n + row2;
+  //       Graph partition_g2 = std::move(p_g[idx2]);
+  //       std::cout << "Cross tc_p: [" << row1 << "] [" << col << "] with ["
+  //                 << row2 << "] [" << col << "]" << std::endl;
+  //       tm.Start();
+  //       p_total = CrossOrderedCount(partition_g1, partition_g2);
+  //       tm.Stop();
+  //       tc_p_time += tm.Seconds();
+  //       total += p_total;
+  //     }
+  //   }
+  // }
 
   
 
