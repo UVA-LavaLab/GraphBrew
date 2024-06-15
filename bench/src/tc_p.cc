@@ -191,7 +191,6 @@ int main(int argc, char* argv[]) {
     }
   }
 
-
   BenchmarkKernel(cli, g, Hybrid, PrintTriangleStats, TCVerifier);
   std::cout << "tc_p: " << total << std::endl;
   return 0;
