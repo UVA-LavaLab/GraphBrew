@@ -42,8 +42,8 @@ static std::mutex thread_mutex;
 
 //     AlignedArray(size_t size, size_t alignment = 64)
 //         : size(size), alignment(alignment) {
-//         data = static_cast<T*>(std::aligned_alloc(alignment, size * sizeof(T)));
-//         if (!data) throw std::bad_alloc();
+//         data = static_cast<T*>(std::aligned_alloc(alignment, size *
+//         sizeof(T))); if (!data) throw std::bad_alloc();
 //     }
 
 //     ~AlignedArray() {
@@ -269,6 +269,13 @@ public:
       std::cout << "un";
     std::cout << "directed edges for degree: ";
     std::cout << num_edges_ / num_nodes_ << std::endl;
+
+    // Calculate and output the total size in megabytes
+    size_t total_size =
+        (num_nodes_ * sizeof(NodeID_) + (num_nodes_ + 1) * sizeof(NodeID_) +
+         num_edges_ * sizeof(NodeID_)) /
+        (1024 * 1024);
+    std::cout << "Total estimated size: " << total_size << " MB" << std::endl;
   }
 
   void PrintTopology() const {
