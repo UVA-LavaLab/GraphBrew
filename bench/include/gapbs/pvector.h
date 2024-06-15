@@ -42,6 +42,7 @@ public:
 
   // don't want this to be copied, too much data to move
   pvector(const pvector &other) = delete;
+  // pvector &operator=(const pvector &other) = delete;
 
   // prefer move because too much data to copy
   pvector(pvector &&other)
@@ -112,6 +113,13 @@ public:
     }
     *end_size_ = val;
     end_size_++;
+  }
+
+  void insert(iterator position, iterator first, iterator last) {
+    size_t offset = position - start_;
+    size_t insert_size = last - first;
+    resize(size() + insert_size);
+    std::copy(first, last, start_ + offset);
   }
 
   void fill(T_ init_val) {

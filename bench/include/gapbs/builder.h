@@ -567,8 +567,50 @@ MakeTrustPartitionedEL(const CSRGraph<NodeID_, DestID_, invert> &g,
                        int p_n = 1, int p_m = 1) {
 
   int num_partitions = p_n * p_m;
+  int num_threads = omp_get_max_threads();
   std::vector<EdgeList> partitions_el(num_partitions);
-  
+
+  // Local edge lists for each thread
+  std::vector<std::vector<EdgeList> > local_partitions_el(num_threads);
+
+  #pragma omp parallel
+  {
+
+    int thread_id = omp_get_thread_num();
+    local_partitions_el[thread_id].resize(num_partitions);
+
+
+    // Each thread processes a portion of the nodes
+    #pragma omp for schedule(static)
+    for (NodeID_ i = 0; i < g.num_nodes(); ++i) {
+      NodeID_ src = i;
+      for (DestID_ j : g.out_neigh(i)){
+        if (g.is_weighted()) {
+          NodeID_ dest = static_cast<NodeWeight<NodeID_, WeightT_> >(j).v;
+          WeightT_ weight = static_cast<NodeWeight<NodeID_, WeightT_> >(j).w;
+          int partition_idx = (src % p_n) * p_m + (dest % p_m);
+          Edge e = Edge(src, NodeWeight<NodeID_, WeightT_>(dest/p_m, weight));
+          local_partitions_el[thread_id][partition_idx].push_back(e);
+        } else{
+          NodeID_ dest = j;
+          int partition_idx = (src % p_n) * p_m + (dest % p_m);
+          Edge e = Edge(src, dest/p_m);
+          local_partitions_el[thread_id][partition_idx].push_back(e);
+        }
+      }
+    }
+  }
+
+  // Parallel merge of local partitions into the global partitions
+  #pragma omp parallel for schedule(dynamic)
+  for (int i = 0; i < num_partitions; ++i) {
+    for (int t = 0; t < num_threads; ++t) {
+      partitions_el[i].reserve(partitions_el[i].size() + local_partitions_el[t][i].size());
+    }
+    for (int t = 0; t < num_threads; ++t) {
+      partitions_el[i].insert(partitions_el[i].end(), local_partitions_el[t][i].begin(), local_partitions_el[t][i].end());
+    }
+  }
 
   return partitions_el;
 }
@@ -576,6 +618,12 @@ MakeTrustPartitionedEL(const CSRGraph<NodeID_, DestID_, invert> &g,
 std::vector<CSRGraph<NodeID_, DestID_, invert> >
 MakeTrustPartitionedGraph(const CSRGraph<NodeID_, DestID_, invert> &g,
                           int p_n = 1, int p_m = 1) {
+
+  if ((p_n*p_m) <= 0) {
+    throw std::invalid_argument(
+            "Number of partitions must be greater than 0");
+  }
+
   std::vector<CSRGraph<NodeID_, DestID_, invert> > partitions_g;
   std::vector<EdgeList> partitions_el;
 
@@ -605,6 +653,12 @@ MakeTrustPartitionedGraph(const CSRGraph<NodeID_, DestID_, invert> &g,
   uni_g.PrintTopology();
 
   partitions_el = MakeTrustPartitionedEL(uni_g, p_n, p_m);
+
+  // Create graphs from each partition and add to partitions_g
+  for (auto &partition_el : partitions_el) {
+    CSRGraph<NodeID_, DestID_, invert> partition_g = MakeGraphFromEL(partition_el);
+    partitions_g.emplace_back(std::move(partition_g));
+  }
 
   return partitions_g;
 }
