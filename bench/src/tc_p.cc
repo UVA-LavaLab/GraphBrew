@@ -134,15 +134,15 @@ int main(int argc, char* argv[]) {
     return -1;
   Builder b(cli);
   Graph g = b.MakeGraph();
-  if (g.directed()) {
-    cout << "Input graph is directed but tc requires undirected" << endl;
-    return -2;
-  }
+  // if (g.directed()) {
+  //   cout << "Input graph is directed but tc requires undirected" << endl;
+  //   return -2;
+  // }
 
   PGraph p_g = b.MakePartitionedGraph();
 
-  g.PrintTopology();
-  b.PrintPartitionsTopology(p_g);
+  // g.PrintTopology();
+  // b.PrintPartitionsTopology(p_g);
 
   BenchmarkKernel(cli, g, Hybrid, PrintTriangleStats, TCVerifier);
   return 0;
