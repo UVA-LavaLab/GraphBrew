@@ -174,24 +174,32 @@ int main(int argc, char* argv[]) {
   int p_m = *segment_iter;
   segment_iter++;
 
+  Timer tm;
+  double tc_p_time = 0.0f;
+
   size_t total = 0;
   size_t p_total = 0;
+  
   for (int col = 0; col < p_m; ++col) {
     for (int row = 0; row < p_n; ++row) {
       int idx = col * p_n + row;
       Graph partition_g = std::move(p_g[idx]);
       std::cout <<"tc_p: ["<<row<<"] ["<<col<<"]"<<std::endl;
       partition_g.PrintStats();
+      tm.Start();
       if (WorthRelabelling(partition_g))
         p_total = OrderedCount(Builder::RelabelByDegree(partition_g));
       else
         p_total = OrderedCount(partition_g);
-
+      tm.Stop();
+      tc_p_time += tm.Seconds();
       total += p_total;
     }
   }
+ 
+  PrintTime(" Time TC_P", tc_p_time);
+  std::cout << "COUNT TC_P: " << total << std::endl;
 
   BenchmarkKernel(cli, g, Hybrid, PrintTriangleStats, TCVerifier);
-  std::cout << "tc_p: " << total << std::endl;
   return 0;
 }
