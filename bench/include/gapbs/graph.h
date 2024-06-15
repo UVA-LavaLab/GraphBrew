@@ -33,6 +33,36 @@
 
 // static lock for deduplication flags (only created once)
 static std::mutex thread_mutex;
+
+// template <typename T>
+// struct AlignedArray {
+//     T* data;
+//     size_t size;
+//     size_t alignment;
+
+//     AlignedArray(size_t size, size_t alignment = 64)
+//         : size(size), alignment(alignment) {
+//         data = static_cast<T*>(std::aligned_alloc(alignment, size * sizeof(T)));
+//         if (!data) throw std::bad_alloc();
+//     }
+
+//     ~AlignedArray() {
+//         std::free(data);
+//     }
+// };
+
+// template <typename NodeID_, typename SGOffset=NodeID_>
+// struct GraphArrays {
+//     AlignedArray<NodeID_> degrees;
+//     AlignedArray<SGOffset> offsets;
+//     AlignedArray<NodeID_> neighbors;
+
+//     GraphArrays(size_t num_nodes, size_t num_edges)
+//         : degrees(num_nodes),
+//           offsets(num_nodes + 1),
+//           neighbors(num_edges) {}
+// };
+
 // Used to hold node & weight, with another node it makes a weighted edge
 template <typename NodeID_, typename WeightT_> struct NodeWeight {
   NodeID_ v;

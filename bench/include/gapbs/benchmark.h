@@ -44,6 +44,9 @@ typedef WriterBase<NodeID, WNode, WeightT> WeightedWriter;
 typedef std::vector<Graph> PGraph;
 typedef std::vector<WGraph> PWGraph;
 
+// typedef GraphArrays<NodeID, NodeID> FlatGraph;
+// typedef std::vector<FlatGraph> PFlatGraph;
+
 // Used to pick random non-zero degree starting points for search algorithms
 template <typename GraphT_> class SourcePicker {
 public:
