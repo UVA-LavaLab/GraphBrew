@@ -417,6 +417,59 @@ public:
                                                 inv_index, inv_neighs);
   }
 
+    pvector<NodeID_> CountLocalDegrees(const EdgeList &el, bool transpose) {
+    pvector<NodeID_> degrees(num_nodes_, 0);
+#pragma omp parallel for
+    for (auto it = el.begin(); it < el.end(); it++) {
+      Edge e = *it;
+      if ((!transpose))
+        fetch_and_add(degrees[e.u], 1);
+      if ((transpose))
+        fetch_and_add(degrees[(NodeID_)e.v], 1);
+    }
+    return degrees;
+  }
+
+    void MakeLocalCSR(const EdgeList &el, bool transpose, DestID_ ***index,
+               DestID_ **neighs) {
+    pvector<NodeID_> degrees = CountLocalDegrees(el, transpose);
+    pvector<SGOffset> offsets = ParallelPrefixSum(degrees);
+    *neighs = new DestID_[offsets[num_nodes_]];
+    *index = CSRGraph<NodeID_, DestID_>::GenIndex(offsets, *neighs);
+#pragma omp parallel for
+    for (auto it = el.begin(); it < el.end(); it++) {
+      Edge e = *it;
+      if ((!transpose))
+        (*neighs)[fetch_and_add(offsets[e.u], 1)] = e.v;
+      if ((transpose))
+        (*neighs)[fetch_and_add(offsets[static_cast<NodeID_>(e.v)], 1)] =
+            GetSource(e);
+    }
+  }
+
+  CSRGraph<NodeID_, DestID_, invert> MakeLocalGraphFromEL(EdgeList &el) {
+    DestID_ **index = nullptr, **inv_index = nullptr;
+    DestID_ *neighs = nullptr, *inv_neighs = nullptr;
+    Timer t;
+    t.Start();
+    if (num_nodes_ == -1){
+      num_nodes_ = FindMaxNodeID(el) + 1;
+    }
+
+    MakeLocalCSR(el, false, &index, &neighs);
+    MakeLocalCSR(el, true, &inv_index, &inv_neighs);
+    CSRGraph<NodeID_, DestID_, invert> g = CSRGraph<NodeID_, DestID_, invert>(num_nodes_, index, neighs, inv_index, inv_neighs);
+    // CSRGraph<NodeID_, DestID_, invert> g = CSRGraph<NodeID_, DestID_, invert>(num_nodes_, index, neighs);
+    // g.PrintTopology();
+    SquishCSR(g, false, &index, &neighs);
+    SquishCSR(g, true, &inv_index, &inv_neighs);
+    t.Stop();
+
+    PrintTime("Local Build Time", t.Seconds());
+    return CSRGraph<NodeID_, DestID_, invert>(g.num_nodes(), index, neighs, inv_index, inv_neighs);
+    // return CSRGraph<NodeID_, DestID_, invert>(g.num_nodes(), index, neighs);
+  }
+
   //   GraphArrays<NodeID_, SGOffset>
   //   flattenGraphCSR(const CSRGraph<NodeID_, DestID_, invert> &g) {
   //     int64_t num_edges = g.num_edges_directed();
@@ -554,6 +607,16 @@ public:
     }
   }
 
+
+/**
+ * @brief Partitions a graph based on input parameters and returns the partitions.
+ *
+ * This function retrieves partitioning parameters from the CLI input, creates a graph,
+ * and then partitions the graph using either the GRAPHIT/Cagra or TRUST partitioning 
+ * method based on the input type. The resulting partitions are then returned.
+ *
+ * @return std::vector<CSRGraph<NodeID_, DestID_, invert>> The partitions of the graph.
+ */
   std::vector<CSRGraph<NodeID_, DestID_, invert>> MakePartitionedGraph() {
     std::vector<CSRGraph<NodeID_, DestID_, invert>> partitions;
 
@@ -641,15 +704,16 @@ public:
       local_partitions_el_dest[thread_id].resize(p_m);
     }
 
-#pragma omp parallel
-    {
+// #pragma omp parallel
+//     {
 
       int thread_id = omp_get_thread_num();
 
 // Each thread processes a portion of the nodes
-#pragma omp for schedule(static)
+// #pragma omp for schedule(static)
       for (NodeID_ i = 0; i < g.num_nodes(); ++i) {
         NodeID_ src = i;
+
         for (DestID_ j : g.out_neigh(i)) {
           if (g.is_weighted()) {
             NodeID_ dest = static_cast<NodeWeight<NodeID_, WeightT_>>(j).v;
@@ -661,11 +725,12 @@ public:
             NodeID_ dest = j;
             int partition_idx = (dest % p_m);
             Edge e = Edge(src, dest);
+            // std::cout << partition_idx << ": " <<  src << " -> " << dest << std::endl;
             local_partitions_el_dest[thread_id][partition_idx].push_back(e);
           }
         }
       }
-    }
+    // }
 
 // Parallel merge of local partitions into the global partitions
 #pragma omp parallel for schedule(dynamic)
@@ -689,9 +754,9 @@ public:
         continue;
       }
       CSRGraph<NodeID_, DestID_, invert> partition_g =
-          MakeGraphFromEL(partitions_el_dest[i]);
+          MakeLocalGraphFromEL(partitions_el_dest[i]);
       pvector<NodeID_> new_ids(partition_g.num_nodes());
-      partition_g = SquishGraph(partition_g);
+      // partition_g = SquishGraph(partition_g);
       GenerateSortMapping(partition_g, new_ids, true, false);
       partitions_new_ids[i] = std::move(new_ids);
       partitions_g[i] = std::move(partition_g);
@@ -700,7 +765,7 @@ public:
     for (int dest_p = 0; dest_p < p_m; ++dest_p) {
       CSRGraph<NodeID_, DestID_, invert> partition_g =
           std::move(partitions_g[dest_p]);
-
+      // partition_g.PrintTopology();
       if (partition_g.num_nodes() == 0) {
         continue;
       }
@@ -770,12 +835,17 @@ public:
     org_g = RelabelByMapping(g, new_ids_g);
 
     uni_el = MakeUniDirectELFromGraph(org_g);
-
+    // PrintEdgeList(uni_el);
+    // std::cout << std::endl;
     MakeOrientedELFromUniDirect(uni_el, org_g);
+    // PrintEdgeList(uni_el);
+    // std::cout << std::endl;
 
-    uni_g = MakeGraphFromEL(uni_el);
-    uni_g = SquishGraph(uni_g);
-
+    uni_g = MakeLocalGraphFromEL(uni_el);
+    // uni_g = SquishGraph(uni_g);
+    // uni_g.PrintTopology();
+    // std::cout << std::endl;
+    
     pvector<NodeID_> new_ids(uni_g.num_nodes());
     GenerateSortMapping(uni_g, new_ids, true, false);
     uni_g = RelabelByMapping(uni_g, new_ids);
@@ -789,9 +859,9 @@ public:
       for (int col = 0; col < p_m; ++col) {
         int idx = row * p_m + col;
         CSRGraph<NodeID_, DestID_, invert> partition_g =
-            MakeGraphFromEL(partitions_el[idx]);
+            MakeLocalGraphFromEL(partitions_el[idx]);
         // partition_g = RelabelByMapping(partition_g, partitions_new_ids[col]);
-        partition_g = SquishGraph(partition_g);
+        // partition_g = SquishGraph(partition_g);
         partitions_g[idx] = std::move(partition_g);
       }
     }
