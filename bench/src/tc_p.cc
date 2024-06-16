@@ -47,73 +47,84 @@
 
 using namespace std;
 
-size_t OrderedCount(const Graph &g) {
-  size_t total = 0;
-#pragma omp parallel for reduction(+ : total) schedule(dynamic, 64)
-  for (NodeID u = 0; u < g.num_nodes(); u++) {
-    for (NodeID v : g.out_neigh(u)) {
-      if (v > u)
-        break;
-      auto it = g.out_neigh(v).begin();
-      for (NodeID w : g.out_neigh(u)) {
-        if (w > v)
-          break;
-        while (*it < w)
-          it++;
-        if (w == *it)
-          total++;
-      }
+size_t OrderedCount(const Graph &g)
+{
+    size_t total = 0;
+    #pragma omp parallel for reduction(+ : total) schedule(dynamic, 64)
+    for (NodeID u = 0; u < g.num_nodes(); u++)
+    {
+        for (NodeID v : g.out_neigh(u))
+        {
+            if (v > u)
+                break;
+            auto it = g.out_neigh(v).begin();
+            for (NodeID w : g.out_neigh(u))
+            {
+                if (w > v)
+                    break;
+                while (*it < w)
+                    it++;
+                if (w == *it)
+                    total++;
+            }
+        }
     }
-  }
-  return total;
+    return total;
 }
 
-size_t CrossOrderedCount(const Graph &g, const Graph &g2) {
-  size_t total = 0;
-#pragma omp parallel for reduction(+ : total) schedule(dynamic, 64)
-  for (NodeID u = 0; u < g.num_nodes(); u++) {
-    for (NodeID v : g.out_neigh(u)) {
-      if (v > u)
-        break;
-      auto it = g2.out_neigh(v).begin();
-      for (NodeID w : g.out_neigh(u)) {
-        if (w > v)
-          break;
-        while (*it < w)
-          it++;
-        if (w == *it)
-          total++;
-      }
+size_t CrossOrderedCount(const Graph &g, const Graph &g2)
+{
+    size_t total = 0;
+    #pragma omp parallel for reduction(+ : total) schedule(dynamic, 64)
+    for (NodeID u = 0; u < g.num_nodes(); u++)
+    {
+        for (NodeID v : g.out_neigh(u))
+        {
+            if (v > u)
+                break;
+            auto it = g2.out_neigh(v).begin();
+            for (NodeID w : g.out_neigh(u))
+            {
+                if (w > v)
+                    break;
+                while (*it < w)
+                    it++;
+                if (w == *it)
+                    total++;
+            }
+        }
     }
-  }
-  return total;
+    return total;
 }
 
 // Heuristic to see if sufficiently dense power-law graph
-bool WorthRelabelling(const Graph &g) {
-  int64_t average_degree = g.num_edges() / g.num_nodes();
-  if (average_degree < 10)
-    return false;
-  SourcePicker<Graph> sp(g);
-  int64_t num_samples = min(int64_t(1000), g.num_nodes());
-  int64_t sample_total = 0;
-  pvector<int64_t> samples(num_samples);
-  for (int64_t trial = 0; trial < num_samples; trial++) {
-    samples[trial] = g.out_degree(sp.PickNext());
-    sample_total += samples[trial];
-  }
-  sort(samples.begin(), samples.end());
-  double sample_average = static_cast<double>(sample_total) / num_samples;
-  double sample_median = samples[num_samples / 2];
-  return sample_average / 1.3 > sample_median;
+bool WorthRelabelling(const Graph &g)
+{
+    int64_t average_degree = g.num_edges() / g.num_nodes();
+    if (average_degree < 10)
+        return false;
+    SourcePicker<Graph> sp(g);
+    int64_t num_samples = min(int64_t(1000), g.num_nodes());
+    int64_t sample_total = 0;
+    pvector<int64_t> samples(num_samples);
+    for (int64_t trial = 0; trial < num_samples; trial++)
+    {
+        samples[trial] = g.out_degree(sp.PickNext());
+        sample_total += samples[trial];
+    }
+    sort(samples.begin(), samples.end());
+    double sample_average = static_cast<double>(sample_total) / num_samples;
+    double sample_median = samples[num_samples / 2];
+    return sample_average / 1.3 > sample_median;
 }
 
 // Uses heuristic to see if worth relabeling
-size_t Hybrid(const Graph &g) {
-  if (WorthRelabelling(g))
-    return OrderedCount(Builder::RelabelByDegree(g));
-  else
-    return OrderedCount(g);
+size_t Hybrid(const Graph &g)
+{
+    if (WorthRelabelling(g))
+        return OrderedCount(Builder::RelabelByDegree(g));
+    else
+        return OrderedCount(g);
 }
 
 // // Uses heuristic to see if worth relabeling
@@ -137,107 +148,115 @@ size_t Hybrid(const Graph &g) {
 //   return total;
 // }
 
-void PrintTriangleStats(const Graph &g, size_t total_triangles) {
-  cout << total_triangles << " triangles" << endl;
+void PrintTriangleStats(const Graph &g, size_t total_triangles)
+{
+    cout << total_triangles << " triangles" << endl;
 }
 
 // Compares with simple serial implementation that uses std::set_intersection
-bool TCVerifier(const Graph &g, size_t test_total) {
-  size_t total = 0;
-  vector<NodeID> intersection;
-  intersection.reserve(g.num_nodes());
-  for (NodeID u : g.vertices()) {
-    for (NodeID v : g.out_neigh(u)) {
-      auto new_end = set_intersection(
-          g.out_neigh(u).begin(), g.out_neigh(u).end(), g.out_neigh(v).begin(),
-          g.out_neigh(v).end(), intersection.begin());
-      intersection.resize(new_end - intersection.begin());
-      total += intersection.size();
+bool TCVerifier(const Graph &g, size_t test_total)
+{
+    size_t total = 0;
+    vector<NodeID> intersection;
+    intersection.reserve(g.num_nodes());
+    for (NodeID u : g.vertices())
+    {
+        for (NodeID v : g.out_neigh(u))
+        {
+            auto new_end = set_intersection(
+                               g.out_neigh(u).begin(), g.out_neigh(u).end(), g.out_neigh(v).begin(),
+                               g.out_neigh(v).end(), intersection.begin());
+            intersection.resize(new_end - intersection.begin());
+            total += intersection.size();
+        }
     }
-  }
-  total = total / 6; // each triangle was counted 6 times
-  if (total != test_total)
-    cout << total << " != " << test_total << endl;
-  return total == test_total;
+    total = total / 6; // each triangle was counted 6 times
+    if (total != test_total)
+        cout << total << " != " << test_total << endl;
+    return total == test_total;
 }
 
-int main(int argc, char *argv[]) {
-  CLApp cli(argc, argv, "triangle count");
-  if (!cli.ParseArgs())
-    return -1;
-  Builder b(cli);
-  Graph g = b.MakeGraph();
-  // if (g.directed()) {
-  //   cout << "Input graph is directed but tc requires undirected" << endl;
-  //   return -2;
-  // }
+int main(int argc, char *argv[])
+{
+    CLApp cli(argc, argv, "triangle count");
+    if (!cli.ParseArgs())
+        return -1;
+    Builder b(cli);
+    Graph g = b.MakeGraph();
+    // if (g.directed()) {
+    //   cout << "Input graph is directed but tc requires undirected" << endl;
+    //   return -2;
+    // }
 
 
 
 
-  // g.PrintTopology();
-  // b.PrintPartitionsTopology(p_g);
+    // g.PrintTopology();
+    // b.PrintPartitionsTopology(p_g);
 
-  // Create graphs from each partition in column-major order and add to
-  // partitions_g
-  std::vector<int>::const_iterator segment_iter = cli.segments().begin();
-  // int p_type = *segment_iter;
-  segment_iter++;
-  int p_n = *segment_iter;
-  segment_iter++;
-  int p_m = *segment_iter;
-  segment_iter++;
+    // Create graphs from each partition in column-major order and add to
+    // partitions_g
+    std::vector<int>::const_iterator segment_iter = cli.segments().begin();
+    // int p_type = *segment_iter;
+    segment_iter++;
+    int p_n = *segment_iter;
+    segment_iter++;
+    int p_m = *segment_iter;
+    segment_iter++;
 
-  PGraph p_g = b.MakePartitionedGraph();
-  // PFlatGraph pf_g(p_m*p_n);
+    PGraph p_g = b.MakePartitionedGraph();
+    PFlatGraph pf_g;
 
-  Timer tm;
-  double tc_p_time = 0.0f;
+    Timer tm;
+    double tc_p_time = 0.0f;
 
-  size_t total = 0;
-  size_t p_total = 0;
+    size_t total = 0;
+    size_t p_total = 0;
 
-  // local count
-  for (int col = 0; col < p_m; ++col) {
-    for (int row = 0; row < p_n; ++row) {
-      int idx = row * p_m + col;
-      Graph partition_g = std::move(p_g[idx]);
-      // pf_g[idx] =  b.flattenGraphCSR(partition_g);
-      std::cout << "Local TC_P: [" << row << "] [" << col << "]" << std::endl;
-      partition_g.PrintTopology();
-      partition_g.PrintStats();
-      tm.Start();
-      p_total = OrderedCount(partition_g);
-      tm.Stop();
-      tc_p_time += tm.Seconds();
-      total += p_total;
+    // local count
+    for (int col = 0; col < p_m; ++col)
+    {
+        for (int row = 0; row < p_n; ++row)
+        {
+            int idx = row * p_m + col;
+            std::cout << "Local TC_P: [" << row << "] [" << col << "]" << std::endl;
+            // p_g[idx].PrintTopology();
+            p_g[idx].PrintStats();
+            tm.Start();
+            p_total = OrderedCount(p_g[idx]);
+            tm.Stop();
+            tc_p_time += tm.Seconds();
+            total += p_total;
+        }
     }
-  }
-  PrintTime("Local Time TC_P", tc_p_time);
-  std::cout << "Local TC_P: " << total << std::endl;
-  // cross count
-  // Cross count for each column
-  for (int col = 0; col < p_m; ++col) {
-    for (int row1 = 0; row1 < p_n; ++row1) {
-      int idx1 = row1 * p_m + col;
-      Graph partition_g1 = std::move(p_g[idx1]);
-      for (int row2 = row1 + 1; row2 < p_n; ++row2) {
-        int idx2 = row2 * p_m + col;
-        Graph partition_g2 = std::move(p_g[idx2]);
-        std::cout << "Cross TC_P: [" << row1 << "] [" << col << "] with ["
-                  << row2 << "] [" << col << "]" << std::endl;
-        tm.Start();
-        p_total = CrossOrderedCount(partition_g1, partition_g2);
-        tm.Stop();
-        tc_p_time += tm.Seconds();
-        total += p_total;
-      }
+    PrintTime("Local Time TC_P", tc_p_time);
+    std::cout << "Local TC_P: " << total << std::endl;
+    // cross count
+    // Cross count for each column
+    for (int col = 0; col < p_m; ++col)
+    {
+        for (int row1 = 0; row1 < p_n; ++row1)
+        {
+            int idx1 = row1 * p_m + col;
+            for (int row2 = row1 + 1; row2 < p_n; ++row2)
+            {
+                int idx2 = row2 * p_m + col;
+                std::cout << "Cross TC_P: [" << row1 << "] [" << col << "] with ["
+                          << row2 << "] [" << col << "]" << std::endl;
+                tm.Start();
+                p_total = CrossOrderedCount(p_g[idx1], p_g[idx2]);
+                tm.Stop();
+                tc_p_time += tm.Seconds();
+                total += p_total;
+            }
+        }
     }
-  }
 
-  PrintTime("Total Time TC_P", tc_p_time);
-  std::cout << "Total TC_P: " << total << std::endl;
+    b.FlattenPartitions(p_g, pf_g);
 
-  BenchmarkKernel(cli, g, Hybrid, PrintTriangleStats, TCVerifier);
-  return 0;
+    PrintTime("Total Time TC_P", tc_p_time);
+    std::cout << "Total TC_P: " << total << std::endl;
+
+    BenchmarkKernel(cli, g, Hybrid, PrintTriangleStats, TCVerifier);
+    return 0;
 }
