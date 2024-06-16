@@ -203,8 +203,9 @@ int main(int argc, char *argv[]) {
       int idx = row * p_m + col;
       Graph partition_g = std::move(p_g[idx]);
       // pf_g[idx] =  b.flattenGraphCSR(partition_g);
-      std::cout << "tc_p: [" << row << "] [" << col << "]" << std::endl;
+      std::cout << "Local TC_P: [" << row << "] [" << col << "]" << std::endl;
       partition_g.PrintTopology();
+      partition_g.PrintStats();
       tm.Start();
       p_total = OrderedCount(partition_g);
       tm.Stop();
@@ -223,7 +224,7 @@ int main(int argc, char *argv[]) {
       for (int row2 = row1 + 1; row2 < p_n; ++row2) {
         int idx2 = row2 * p_m + col;
         Graph partition_g2 = std::move(p_g[idx2]);
-        std::cout << "Cross tc_p: [" << row1 << "] [" << col << "] with ["
+        std::cout << "Cross TC_P: [" << row1 << "] [" << col << "] with ["
                   << row2 << "] [" << col << "]" << std::endl;
         tm.Start();
         p_total = CrossOrderedCount(partition_g1, partition_g2);

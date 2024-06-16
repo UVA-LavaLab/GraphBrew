@@ -268,14 +268,14 @@ public:
     if (!directed_)
       std::cout << "un";
     std::cout << "directed edges for degree: ";
-    std::cout << num_edges_ / num_nodes_ << std::endl;
+    std::cout << num_edges_ / num_nodes_;
 
     // Calculate and output the total size in megabytes
     size_t total_size =
         (num_nodes_ * sizeof(NodeID_) + (num_nodes_ + 1) * sizeof(NodeID_) +
          num_edges_ * sizeof(NodeID_)) /
         (1024 * 1024);
-    std::cout << "Total estimated size: " << total_size << " MB" << std::endl;
+    std::cout << " Estimated size: " << total_size << " MB" << std::endl;
   }
 
   void PrintTopology() const {
