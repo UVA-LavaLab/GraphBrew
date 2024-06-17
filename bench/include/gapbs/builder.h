@@ -521,18 +521,18 @@ public:
         CSRGraph<NodeID_, DestID_, invert> g = CSRGraph<NodeID_, DestID_, invert>(num_nodes_, index, neighs, inv_index, inv_neighs);
         // CSRGraph<NodeID_, DestID_, invert> g = CSRGraph<NodeID_, DestID_, invert>(num_nodes_, index, neighs);
         // g.PrintTopology();
-        SquishCSR(g, false, &index, &neighs);
-        SquishCSR(g, true, &inv_index, &inv_neighs);
+        g = SquishGraph(g);
+        // SquishCSR(g, false, &index, &neighs);
+        // SquishCSR(g, true, &inv_index, &inv_neighs);
         t.Stop();
-
         PrintTime("Local Build Time", t.Seconds());
-        return CSRGraph<NodeID_, DestID_, invert>(g.num_nodes(), index, neighs, inv_index, inv_neighs);
+        return g;
         // return CSRGraph<NodeID_, DestID_, invert>(g.num_nodes(), index, neighs);
     }
 
     void FlattenPartitions(
         const std::vector<CSRGraph<NodeID_, DestID_, invert>> &partitions,
-        std::vector<std::tuple<AlignedArray<NodeID_>, AlignedArray<NodeID_>, AlignedArray<NodeID_>>> &partitions_flat, size_t alignment = 4096)
+        std::vector<std::tuple<AlignedArray<NodeID_>, AlignedArray<NodeID_>, AlignedArray<NodeID_>, AlignedArray<WeightT_>>> &partitions_flat, size_t alignment = 4096)
     {
         partitions_flat.reserve(
             partitions.size()); // Reserve space for the flattened partitions

@@ -173,7 +173,7 @@ typedef int32_t SGID;
 typedef EdgePair<SGID> SGEdge;
 typedef int64_t SGOffset;
 
-template <class NodeID_, class DestID_ = NodeID_, bool MakeInverse = true>
+template <class NodeID_, class DestID_ = NodeID_, bool MakeInverse = true , class WeightT_ = NodeID_>
 class CSRGraph
 {
     // Used for *non-negative* offsets within a neighborhood
@@ -506,11 +506,12 @@ public:
     }
 
 
-    std::tuple<AlignedArray<NodeID_>, AlignedArray<NodeID_>, AlignedArray<NodeID_>> flattenGraphOut(size_t alignment = 4096) const
+    std::tuple<AlignedArray<NodeID_>, AlignedArray<NodeID_>, AlignedArray<NodeID_>, AlignedArray<WeightT_>> flattenGraphOut(size_t alignment = 4096) const
     {
         AlignedArray<NodeID_> degrees(num_nodes_, alignment, 0);
         AlignedArray<NodeID_> offsets(num_nodes_ + 1, alignment, 0);
         AlignedArray<NodeID_> neighbors(num_edges_directed(), alignment, 0);
+        AlignedArray<WeightT_> weights(num_edges_directed(), alignment, 0);
 
         // Calculate degrees using the difference of indices
         #pragma omp parallel for
@@ -525,31 +526,38 @@ public:
             offsets.data[i] = out_index_[i] - out_index_[0];
         }
 
-        // Directly copy neighbors, but only the `.v` value if NodeID_ and DestID_ are different
+       // Directly copy neighbors and weights
         #pragma omp parallel for
         for (NodeID_ i = 0; i < num_nodes_; ++i) {
             NodeID_ offset = offsets.data[i];
             NodeID_ length = degrees.data[i];
             if constexpr (!std::is_same<NodeID_, DestID_>::value) {
                 std::transform(out_index_[i], out_index_[i] + length, neighbors.data + offset, [](const DestID_ &neighbor) {
-                    return static_cast<const NodeWeight<NodeID_, typename NodeWeight<NodeID_, NodeID_>::weight> &>(neighbor).v;
+                    return static_cast<const NodeWeight<NodeID_, typename NodeWeight<NodeID_, WeightT_>::value> &>(neighbor).v;
+                });
+                std::transform(out_index_[i], out_index_[i] + length, weights.data + offset, [](const DestID_ &neighbor) {
+                    return static_cast<const NodeWeight<NodeID_, typename NodeWeight<NodeID_, WeightT_>::value> &>(neighbor).w;
                 });
             } else {
                 std::copy(out_index_[i], out_index_[i] + length, neighbors.data + offset);
+                std::fill(weights.data + offset, weights.data + offset + length, NodeWeight<NodeID_, WeightT_>(0, 1).w); // Assuming weights are zero for same type
             }
         }
-        degrees.display("degrees");
-        offsets.display("offsets");
-        neighbors.display("neighbors");
-        return std::make_tuple(std::move(offsets), std::move(degrees), std::move(neighbors));
+
+        // degrees.display("degrees");
+        // offsets.display("offsets");
+        // neighbors.display("neighbors");
+        // weights.display("weights");
+        return std::make_tuple(std::move(offsets), std::move(degrees), std::move(neighbors), std::move(weights));
     }
 
-    std::tuple<AlignedArray<NodeID_>, AlignedArray<NodeID_>, AlignedArray<NodeID_>> flattenGraphIn(size_t alignment = 4096) const
+    std::tuple<AlignedArray<NodeID_>, AlignedArray<NodeID_>, AlignedArray<NodeID_>, AlignedArray<WeightT_>> flattenGraphIn(size_t alignment = 4096) const
     {
         static_assert(MakeInverse, "Graph inversion disabled but reading inverse");
         AlignedArray<NodeID_> degrees(num_nodes_, alignment, 0);
         AlignedArray<NodeID_> offsets(num_nodes_ + 1, alignment, 0);
         AlignedArray<NodeID_> neighbors(num_edges_directed(), alignment, 0);
+        AlignedArray<WeightT_> weights(num_edges_directed(), alignment, 0);
 
         // Calculate degrees using the difference of indices
         #pragma omp parallel for
@@ -564,24 +572,29 @@ public:
             offsets.data[i] = in_index_[i] - in_index_[0];
         }
 
-        // Directly copy neighbors, but only the `.v` value if NodeID_ and DestID_ are different
+       // Directly copy neighbors and weights
         #pragma omp parallel for
         for (NodeID_ i = 0; i < num_nodes_; ++i) {
             NodeID_ offset = offsets.data[i];
             NodeID_ length = degrees.data[i];
             if constexpr (!std::is_same<NodeID_, DestID_>::value) {
                 std::transform(in_index_[i], in_index_[i] + length, neighbors.data + offset, [](const DestID_ &neighbor) {
-                    return static_cast<const NodeWeight<NodeID_, typename NodeWeight<NodeID_, NodeID_>::weight> &>(neighbor).v;
+                    return static_cast<const NodeWeight<NodeID_, typename NodeWeight<NodeID_, WeightT_>::value> &>(neighbor).v;
+                });
+                std::transform(in_index_[i], in_index_[i] + length, weights.data + offset, [](const DestID_ &neighbor) {
+                    return static_cast<const NodeWeight<NodeID_, typename NodeWeight<NodeID_, WeightT_>::value> &>(neighbor).w;
                 });
             } else {
                 std::copy(in_index_[i], in_index_[i] + length, neighbors.data + offset);
+                std::fill(weights.data + offset, weights.data + offset + length, NodeWeight<NodeID_, WeightT_>(0, 2).w); // Assuming weights are zero for same type
             }
         }
 
-        degrees.display("degrees");
-        offsets.display("offsets");
-        neighbors.display("neighbors");
-        return std::make_tuple(std::move(offsets), std::move(degrees), std::move(neighbors));
+        // degrees.display("degrees");
+        // offsets.display("offsets");
+        // neighbors.display("neighbors");
+        // weights.display("weights");
+        return std::make_tuple(std::move(offsets), std::move(degrees), std::move(neighbors), std::move(weights));
     }
 
 private:
