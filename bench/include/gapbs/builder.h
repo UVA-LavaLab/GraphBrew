@@ -532,7 +532,7 @@ public:
 
     void FlattenPartitions(
         const std::vector<CSRGraph<NodeID_, DestID_, invert>> &partitions,
-        std::vector<std::tuple<AlignedArray<NodeID_>, AlignedArray<NodeID_>, AlignedArray<NodeID_>>> &partitions_flat, size_t alignment = 64)
+        std::vector<std::tuple<AlignedArray<NodeID_>, AlignedArray<NodeID_>, AlignedArray<NodeID_>>> &partitions_flat, size_t alignment = 4096)
     {
         partitions_flat.reserve(
             partitions.size()); // Reserve space for the flattened partitions
