@@ -830,14 +830,14 @@ public:
                         {
                             NodeID_ dest = static_cast<NodeWeight<NodeID_, WeightT_>>(j).v;
                             WeightT_ weight = static_cast<NodeWeight<NodeID_, WeightT_>>(j).w;
-                            int partition_idx = (src % p_n) * p_m + dest_p;
+                            int partition_idx = (src % p_n) * p_m + (dest % p_m);
                             Edge e = Edge(src, NodeWeight<NodeID_, WeightT_>(dest, weight));
                             local_partitions_el[thread_id][partition_idx].push_back(e);
                         }
                         else
                         {
                             NodeID_ dest = j;
-                            int partition_idx = (src % p_n) * p_m + dest_p;
+                            int partition_idx = (src % p_n) * p_m + (dest % p_m);
                             Edge e = Edge(src, dest);
                             local_partitions_el[thread_id][partition_idx].push_back(e);
                         }
@@ -845,6 +845,39 @@ public:
                 }
             }
         }
+
+        // #pragma omp parallel
+        // {
+
+        //     int thread_id = omp_get_thread_num();
+
+        //     // Each thread processes a portion of the nodes
+        //     #pragma omp for schedule(static)
+        //     for (NodeID_ i = 0; i < g.num_nodes(); ++i)
+        //     {
+        //         NodeID_ src = i;
+
+        //         for (DestID_ j : g.out_neigh(i))
+        //         {
+        //             if (g.is_weighted())
+        //             {
+        //                 NodeID_ dest = static_cast<NodeWeight<NodeID_, WeightT_>>(j).v;
+        //                 WeightT_ weight = static_cast<NodeWeight<NodeID_, WeightT_>>(j).w;
+        //                 int partition_idx = (src % p_n) * p_m + (dest % p_m);
+        //                 Edge e = Edge(src, NodeWeight<NodeID_, WeightT_>(dest, weight));
+        //                 local_partitions_el[thread_id][partition_idx].push_back(e);
+        //             }
+        //             else
+        //             {
+        //                 NodeID_ dest = j;
+        //                 int partition_idx = (src % p_n) * p_m + (dest % p_m);
+        //                 Edge e = Edge(src, dest);
+        //                 // std::cout << partition_idx << ": " <<  src << " -> " << dest << std::endl;
+        //                 local_partitions_el[thread_id][partition_idx].push_back(e);
+        //             }
+        //         }
+        //     }
+        // }
 
         // Parallel merge of local partitions into the global partitions
         #pragma omp parallel for schedule(dynamic)
