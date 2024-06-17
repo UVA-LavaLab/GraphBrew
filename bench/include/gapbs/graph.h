@@ -41,7 +41,7 @@ struct AlignedArray
     size_t size;
     size_t alignment;
 
-    AlignedArray(size_t size, size_t alignment = 64, T init_val = T())
+    AlignedArray(size_t size, size_t alignment = 4096, T init_val = T())
         : data(nullptr), size(size), alignment(alignment)
     {
         data = static_cast<T *>(std::aligned_alloc(alignment, size * sizeof(T)));
@@ -506,76 +506,81 @@ public:
     }
 
 
-    std::tuple<AlignedArray<NodeID_>, AlignedArray<NodeID_>, AlignedArray<NodeID_>> flattenGraphOut(size_t alignment = 64) const
+    std::tuple<AlignedArray<NodeID_>, AlignedArray<NodeID_>, AlignedArray<NodeID_>> flattenGraphOut(size_t alignment = 4096) const
     {
         AlignedArray<NodeID_> degrees(num_nodes_, alignment, 0);
         AlignedArray<NodeID_> offsets(num_nodes_ + 1, alignment, 0);
         AlignedArray<NodeID_> neighbors(num_edges_directed(), alignment, 0);
 
-        // Calculate degrees
+        // Calculate degrees using the difference of indices
         #pragma omp parallel for
-        for (NodeID_ i = 0; i < num_nodes_; ++i)
-        {
-            degrees.data[i] = out_degree(i);
+        for (NodeID_ i = 0; i < num_nodes_; ++i) {
+            degrees.data[i] = out_index_[i + 1] - out_index_[i];
         }
 
         // Calculate offsets (prefix sum of degrees)
+        #pragma omp parallel for
         for (NodeID_ i = 1; i <= num_nodes_; ++i)
         {
-            offsets.data[i] = offsets.data[i - 1] + degrees.data[i - 1];
+            offsets.data[i] = out_index_[i] - out_index_[0];
         }
 
-        // Fill neighbors
+        // Directly copy neighbors, but only the `.v` value if NodeID_ and DestID_ are different
         #pragma omp parallel for
-        for (NodeID_ i = 0; i < num_nodes_; ++i)
-        {
+        for (NodeID_ i = 0; i < num_nodes_; ++i) {
             NodeID_ offset = offsets.data[i];
-            NodeID_ j = 0;
-            for (DestID_ neighbor : out_neigh(i))
-            {
-                neighbors.data[offset + j] = neighbor;
-                ++j;
+            NodeID_ length = degrees.data[i];
+            if constexpr (!std::is_same<NodeID_, DestID_>::value) {
+                std::transform(out_index_[i], out_index_[i] + length, neighbors.data + offset, [](const DestID_ &neighbor) {
+                    return static_cast<const NodeWeight<NodeID_, typename NodeWeight<NodeID_, NodeID_>::weight> &>(neighbor).v;
+                });
+            } else {
+                std::copy(out_index_[i], out_index_[i] + length, neighbors.data + offset);
             }
         }
-
         degrees.display("degrees");
         offsets.display("offsets");
         neighbors.display("neighbors");
         return std::make_tuple(std::move(offsets), std::move(degrees), std::move(neighbors));
     }
 
-    std::tuple<AlignedArray<NodeID_>, AlignedArray<NodeID_>, AlignedArray<NodeID_>> flattenGraphIn(size_t alignment = 64) const
+    std::tuple<AlignedArray<NodeID_>, AlignedArray<NodeID_>, AlignedArray<NodeID_>> flattenGraphIn(size_t alignment = 4096) const
     {
+        static_assert(MakeInverse, "Graph inversion disabled but reading inverse");
         AlignedArray<NodeID_> degrees(num_nodes_, alignment, 0);
         AlignedArray<NodeID_> offsets(num_nodes_ + 1, alignment, 0);
         AlignedArray<NodeID_> neighbors(num_edges_directed(), alignment, 0);
 
-        // Calculate degrees
+        // Calculate degrees using the difference of indices
         #pragma omp parallel for
-        for (NodeID_ i = 0; i < num_nodes_; ++i)
-        {
-            degrees.data[i] = in_degree(i);
+        for (NodeID_ i = 0; i < num_nodes_; ++i) {
+            degrees.data[i] = in_index_[i + 1] - in_index_[i];
         }
 
-        // Calculate offsets (prefix sum of degrees)
+       // Calculate offsets (prefix sum of degrees)
+        #pragma omp parallel for
         for (NodeID_ i = 1; i <= num_nodes_; ++i)
         {
-            offsets.data[i] = offsets.data[i - 1] + degrees.data[i - 1];
+            offsets.data[i] = in_index_[i] - in_index_[0];
         }
 
-        // Fill neighbors
+        // Directly copy neighbors, but only the `.v` value if NodeID_ and DestID_ are different
         #pragma omp parallel for
-        for (NodeID_ i = 0; i < num_nodes_; ++i)
-        {
+        for (NodeID_ i = 0; i < num_nodes_; ++i) {
             NodeID_ offset = offsets.data[i];
-            NodeID_ j = 0;
-            for (DestID_ neighbor : in_neigh(i))
-            {
-                neighbors.data[offset + j] = neighbor;
-                ++j;
+            NodeID_ length = degrees.data[i];
+            if constexpr (!std::is_same<NodeID_, DestID_>::value) {
+                std::transform(in_index_[i], in_index_[i] + length, neighbors.data + offset, [](const DestID_ &neighbor) {
+                    return static_cast<const NodeWeight<NodeID_, typename NodeWeight<NodeID_, NodeID_>::weight> &>(neighbor).v;
+                });
+            } else {
+                std::copy(in_index_[i], in_index_[i] + length, neighbors.data + offset);
             }
         }
 
+        degrees.display("degrees");
+        offsets.display("offsets");
+        neighbors.display("neighbors");
         return std::make_tuple(std::move(offsets), std::move(degrees), std::move(neighbors));
     }
 
