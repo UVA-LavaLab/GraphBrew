@@ -41,52 +41,60 @@ struct AlignedArray
     size_t size;
     size_t alignment;
 
-    AlignedArray(size_t size, size_t alignment = 64)
-        : size(size), alignment(alignment)
+    AlignedArray(size_t size, size_t alignment = 64, T init_val = T())
+        : data(nullptr), size(size), alignment(alignment)
     {
-        data = static_cast<T *>(std::aligned_alloc(alignment, size *
-                                sizeof(T)));
+        data = static_cast<T *>(std::aligned_alloc(alignment, size * sizeof(T)));
         if (!data) throw std::bad_alloc();
+        std::fill(data, data + size, init_val);  // Initialize memory with init_val
     }
 
     ~AlignedArray()
     {
-        std::free(data);
+        if (data != nullptr)
+        {
+            std::free(data);
+        }
     }
-};
 
-template <typename NodeID_, typename SGOffset, typename DestID_>
-struct GraphArrays
-{
-    AlignedArray<NodeID_> degrees;
-    AlignedArray<SGOffset> offsets;
-    AlignedArray<DestID_> neighbors;
+    // Disable copy constructor and copy assignment operator
+    AlignedArray(const AlignedArray &) = delete;
+    AlignedArray &operator=(const AlignedArray &) = delete;
 
-    GraphArrays(size_t num_nodes, size_t num_edges)
-        : degrees(num_nodes),
-          offsets(num_nodes + 1),
-          neighbors(num_edges) {}
-
-    void PrintTopology() const
+    // Enable move constructor and move assignment operator
+    AlignedArray(AlignedArray &&other) noexcept
+        : data(other.data), size(other.size), alignment(other.alignment)
     {
-        std::cout << "Degrees: ";
-        for (size_t i = 0; i < degrees.size; ++i)
-        {
-            std::cout << degrees.data[i] << " ";
-        }
-        std::cout << std::endl;
+        other.data = nullptr;
+        other.size = 0;
+        other.alignment = 0;
+    }
 
-        std::cout << "Offsets: ";
-        for (size_t i = 0; i < offsets.size; ++i)
+    AlignedArray &operator=(AlignedArray &&other) noexcept
+    {
+        if (this != &other)
         {
-            std::cout << offsets.data[i] << " ";
+            if (data != nullptr)
+            {
+                std::free(data);
+            }
+            data = other.data;
+            size = other.size;
+            alignment = other.alignment;
+            other.data = nullptr;
+            other.size = 0;
+            other.alignment = 0;
         }
-        std::cout << std::endl;
+        return *this;
+    }
 
-        std::cout << "Neighbors: ";
-        for (size_t i = 0; i < neighbors.size; ++i)
+    // Function to display the contents of the array
+    void display(const std::string &name) const
+    {
+        std::cout << name << ": ";
+        for (size_t i = 0; i < size; ++i)
         {
-            std::cout << neighbors.data[i] << " ";
+            std::cout << data[i] << " ";
         }
         std::cout << std::endl;
     }
@@ -495,6 +503,80 @@ public:
         }
 
         delete[] org_ids_inv_;
+    }
+
+
+    std::tuple<AlignedArray<NodeID_>, AlignedArray<NodeID_>, AlignedArray<NodeID_>> flattenGraphOut(size_t alignment = 64) const
+    {
+        AlignedArray<NodeID_> degrees(num_nodes_, alignment, 0);
+        AlignedArray<NodeID_> offsets(num_nodes_ + 1, alignment, 0);
+        AlignedArray<NodeID_> neighbors(num_edges_directed(), alignment, 0);
+
+        // Calculate degrees
+        #pragma omp parallel for
+        for (NodeID_ i = 0; i < num_nodes_; ++i)
+        {
+            degrees.data[i] = out_degree(i);
+        }
+
+        // Calculate offsets (prefix sum of degrees)
+        for (NodeID_ i = 1; i <= num_nodes_; ++i)
+        {
+            offsets.data[i] = offsets.data[i - 1] + degrees.data[i - 1];
+        }
+
+        // Fill neighbors
+        #pragma omp parallel for
+        for (NodeID_ i = 0; i < num_nodes_; ++i)
+        {
+            NodeID_ offset = offsets.data[i];
+            NodeID_ j = 0;
+            for (DestID_ neighbor : out_neigh(i))
+            {
+                neighbors.data[offset + j] = neighbor;
+                ++j;
+            }
+        }
+
+        degrees.display("degrees");
+        offsets.display("offsets");
+        neighbors.display("neighbors");
+        return std::make_tuple(std::move(offsets), std::move(degrees), std::move(neighbors));
+    }
+
+    std::tuple<AlignedArray<NodeID_>, AlignedArray<NodeID_>, AlignedArray<NodeID_>> flattenGraphIn(size_t alignment = 64) const
+    {
+        AlignedArray<NodeID_> degrees(num_nodes_, alignment, 0);
+        AlignedArray<NodeID_> offsets(num_nodes_ + 1, alignment, 0);
+        AlignedArray<NodeID_> neighbors(num_edges_directed(), alignment, 0);
+
+        // Calculate degrees
+        #pragma omp parallel for
+        for (NodeID_ i = 0; i < num_nodes_; ++i)
+        {
+            degrees.data[i] = in_degree(i);
+        }
+
+        // Calculate offsets (prefix sum of degrees)
+        for (NodeID_ i = 1; i <= num_nodes_; ++i)
+        {
+            offsets.data[i] = offsets.data[i - 1] + degrees.data[i - 1];
+        }
+
+        // Fill neighbors
+        #pragma omp parallel for
+        for (NodeID_ i = 0; i < num_nodes_; ++i)
+        {
+            NodeID_ offset = offsets.data[i];
+            NodeID_ j = 0;
+            for (DestID_ neighbor : in_neigh(i))
+            {
+                neighbors.data[offset + j] = neighbor;
+                ++j;
+            }
+        }
+
+        return std::make_tuple(std::move(offsets), std::move(degrees), std::move(neighbors));
     }
 
 private:

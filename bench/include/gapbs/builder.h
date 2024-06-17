@@ -530,74 +530,18 @@ public:
         // return CSRGraph<NodeID_, DestID_, invert>(g.num_nodes(), index, neighs);
     }
 
-    GraphArrays<NodeID_, NodeID_, NodeID_>
-    flattenGraphCSR(const CSRGraph<NodeID_, DestID_, invert> &g)
-    {
-        int64_t num_edges = g.num_edges_directed();
-        int64_t num_nodes = g.num_nodes();
-        std::cout << "Allocating GraphArrays with num_nodes: ";
-        std::cout << static_cast<long long>(num_nodes) ;
-        std::cout << " and num_edges: " ;
-        std::cout << static_cast<long long>(num_edges) << std::endl;
-   
-        GraphArrays<NodeID_, NodeID_, NodeID_> arrays(num_nodes, num_edges);
-
-        pvector<NodeID_> degrees(num_nodes);
-
-        // Calculate prefix sums
-        #pragma omp parallel for
-        for (NodeID_ i = 0; i < num_nodes; ++i)
-        {
-            degrees[i] = g.out_degree(i);
-            arrays.degrees.data[i] = g.out_degree(i);
-        }
-
-        pvector<SGOffset> offsets = ParallelPrefixSum(degrees);
-
-        #pragma omp parallel for
-        for (NodeID_ i = 0; i <= num_nodes; ++i)
-        {
-            arrays.offsets.data[i] = offsets[i];
-        }
-
-        // Parallel loop to construct the edge list
-        #pragma omp parallel for
-        for (NodeID_ i = 0; i < num_nodes; ++i)
-        {
-            NodeID_ out_start = offsets[i];
-
-            NodeID_ j = 0;
-            for (DestID_ neighbor : g.out_neigh(i))
-            {
-                if (g.is_weighted())
-                {
-                    NodeID_ dest = static_cast<NodeWeight<NodeID_,
-                            WeightT_>>(neighbor).v;
-                    arrays.neighbors.data[out_start + j] =
-                        dest;
-                }
-                else
-                {
-                    arrays.neighbors.data[out_start + j] = neighbor;
-                }
-                ++j;
-            }
-        }
-
-        // arrays.PrintTopology();
-        return arrays;
-    }
-
     void FlattenPartitions(
         const std::vector<CSRGraph<NodeID_, DestID_, invert>> &partitions,
-        std::vector<GraphArrays<NodeID_, NodeID_, NodeID_>> &partitions_flat) {
-      partitions_flat.reserve(
-          partitions.size()); // Reserve space for the flattened partitions
+        std::vector<std::tuple<AlignedArray<NodeID_>, AlignedArray<NodeID_>, AlignedArray<NodeID_>>> &partitions_flat, size_t alignment = 64)
+    {
+        partitions_flat.reserve(
+            partitions.size()); // Reserve space for the flattened partitions
 
-      for (const auto &partition : partitions) {
-        partitions_flat.push_back(
-            flattenGraphCSR(partition));
-      }
+        for (const auto &partition : partitions)
+        {
+            partitions_flat.push_back(
+                partition.flattenGraphOut(alignment) );
+        }
     }
 
     void
@@ -640,7 +584,7 @@ public:
         EdgeList el(num_edges * 2);
         el.resize(num_edges * 2);
 
-        pvector<NodeID_> degrees(num_nodes);
+        pvector<NodeID_> degrees(num_nodes, 0);
 
         // Calculate prefix sums
         #pragma omp parallel for
@@ -794,38 +738,38 @@ public:
             local_partitions_el_dest[thread_id].resize(p_m);
         }
 
-        // #pragma omp parallel
-        //     {
-
-        int thread_id = omp_get_thread_num();
-
-        // Each thread processes a portion of the nodes
-        // #pragma omp for schedule(static)
-        for (NodeID_ i = 0; i < g.num_nodes(); ++i)
+        #pragma omp parallel
         {
-            NodeID_ src = i;
 
-            for (DestID_ j : g.out_neigh(i))
+            int thread_id = omp_get_thread_num();
+
+            // Each thread processes a portion of the nodes
+            #pragma omp for schedule(static)
+            for (NodeID_ i = 0; i < g.num_nodes(); ++i)
             {
-                if (g.is_weighted())
+                NodeID_ src = i;
+
+                for (DestID_ j : g.out_neigh(i))
                 {
-                    NodeID_ dest = static_cast<NodeWeight<NodeID_, WeightT_>>(j).v;
-                    WeightT_ weight = static_cast<NodeWeight<NodeID_, WeightT_>>(j).w;
-                    int partition_idx = (dest % p_m);
-                    Edge e = Edge(src, NodeWeight<NodeID_, WeightT_>(dest, weight));
-                    local_partitions_el_dest[thread_id][partition_idx].push_back(e);
-                }
-                else
-                {
-                    NodeID_ dest = j;
-                    int partition_idx = (dest % p_m);
-                    Edge e = Edge(src, dest);
-                    // std::cout << partition_idx << ": " <<  src << " -> " << dest << std::endl;
-                    local_partitions_el_dest[thread_id][partition_idx].push_back(e);
+                    if (g.is_weighted())
+                    {
+                        NodeID_ dest = static_cast<NodeWeight<NodeID_, WeightT_>>(j).v;
+                        WeightT_ weight = static_cast<NodeWeight<NodeID_, WeightT_>>(j).w;
+                        int partition_idx = (dest % p_m);
+                        Edge e = Edge(src, NodeWeight<NodeID_, WeightT_>(dest, weight));
+                        local_partitions_el_dest[thread_id][partition_idx].push_back(e);
+                    }
+                    else
+                    {
+                        NodeID_ dest = j;
+                        int partition_idx = (dest % p_m);
+                        Edge e = Edge(src, dest);
+                        // std::cout << partition_idx << ": " <<  src << " -> " << dest << std::endl;
+                        local_partitions_el_dest[thread_id][partition_idx].push_back(e);
+                    }
                 }
             }
         }
-        // }
 
         // Parallel merge of local partitions into the global partitions
         #pragma omp parallel for schedule(dynamic)
@@ -855,7 +799,7 @@ public:
             }
             CSRGraph<NodeID_, DestID_, invert> partition_g =
                 MakeLocalGraphFromEL(partitions_el_dest[i]);
-            pvector<NodeID_> new_ids(partition_g.num_nodes());
+            pvector<NodeID_> new_ids(partition_g.num_nodes(), -1);
             // partition_g = SquishGraph(partition_g);
             GenerateSortMapping(partition_g, new_ids, true, false);
             partitions_new_ids[i] = std::move(new_ids);
@@ -942,7 +886,7 @@ public:
         CSRGraph<NodeID_, DestID_, invert> org_g;
         EdgeList uni_el;
 
-        pvector<NodeID_> new_ids_g(g.num_nodes());
+        pvector<NodeID_> new_ids_g(g.num_nodes(), -1);
         GenerateSortMapping(g, new_ids_g, true, true);
         org_g = RelabelByMapping(g, new_ids_g);
 
@@ -958,7 +902,7 @@ public:
         // uni_g.PrintTopology();
         // std::cout << std::endl;
 
-        pvector<NodeID_> new_ids(uni_g.num_nodes());
+        pvector<NodeID_> new_ids(uni_g.num_nodes(), -1);
         GenerateSortMapping(uni_g, new_ids, true, false);
         uni_g = RelabelByMapping(uni_g, new_ids);
 
