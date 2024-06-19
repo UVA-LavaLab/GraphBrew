@@ -49,7 +49,7 @@ public:
 
     CSRGraphFlat(AlignedArray<FNodeID_> offsets, AlignedArray<FNodeID_> degrees, AlignedArray<FDestID_> neighbors, AlignedArray<WeightT_> weights)
         : offsets_(std::move(offsets)), degrees_(std::move(degrees)), neighbors_(std::move(neighbors)), weights_(std::move(weights)),
-          num_nodes_(offsets.size - 1), num_edges_(neighbors.size), directed_(true) {}
+          num_nodes_(offsets_.size - 1), num_edges_(neighbors_.size), directed_(true) {}
 
     int64_t num_nodes() const
     {
