@@ -111,7 +111,8 @@ using namespace edge_list;
 #include "main.hxx"
 
 template <typename NodeID_, typename DestID_ = NodeID_,
-          typename WeightT_ = NodeID_, bool invert = true>
+          typename WeightT_ = NodeID_, bool invert = true,
+          typename FNodeID_ = NodeID_, typename FDestID_ = NodeID_>
 class BuilderBase
 {
     typedef EdgePair<NodeID_, DestID_> Edge;
@@ -532,7 +533,7 @@ public:
 
     void FlattenPartitions(
         const std::vector<CSRGraph<NodeID_, DestID_, invert>> &partitions,
-        std::vector<std::tuple<AlignedArray<NodeID_>, AlignedArray<NodeID_>, AlignedArray<NodeID_>, AlignedArray<WeightT_>>> &partitions_flat, size_t alignment = 4096)
+        std::vector<CSRGraphFlat<FNodeID_, WeightT_, FDestID_>> &partitions_flat, size_t alignment = 4096)
     {
         partitions_flat.reserve(
             partitions.size()); // Reserve space for the flattened partitions
