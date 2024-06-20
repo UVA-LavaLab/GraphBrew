@@ -361,10 +361,21 @@ public:
         return out_index_[v + 1] - out_index_[v];
     }
 
+    int64_t out_offset(NodeID_ v) const
+    {
+        return out_index_[v] - out_index_[0];
+    }
+
     int64_t in_degree(NodeID_ v) const
     {
         static_assert(MakeInverse, "Graph inversion disabled but reading inverse");
         return in_index_[v + 1] - in_index_[v];
+    }
+
+    int64_t in_offset(NodeID_ v) const
+    {
+        static_assert(MakeInverse, "Graph inversion disabled but reading inverse");
+        return in_index_[v] - in_index_[0];
     }
 
     Neighborhood out_neigh(NodeID_ n, OffsetT start_offset = 0) const
