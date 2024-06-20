@@ -47,9 +47,10 @@ public:
     int64_t num_edges_;
     bool directed_;
 
-    CSRGraphFlat(AlignedArray<FNodeID_> offsets, AlignedArray<FNodeID_> degrees, AlignedArray<FDestID_> neighbors, AlignedArray<WeightT_> weights)
-        : offsets_(std::move(offsets)), degrees_(std::move(degrees)), neighbors_(std::move(neighbors)), weights_(std::move(weights)),
-          num_nodes_(offsets_.size - 1), num_edges_(neighbors_.size), directed_(true) {}
+    CSRGraphFlat(int64_t num_nodes, int64_t num_edges, size_t alignment = 4096)
+        : offsets_(num_nodes + 1, alignment, 0), degrees_(num_nodes, alignment, 0),
+          neighbors_(num_edges, alignment, 0), weights_(num_edges, alignment, 0),
+          num_nodes_(num_nodes), num_edges_(num_edges), directed_(true) {}
 
     int64_t num_nodes() const
     {
@@ -529,50 +530,48 @@ public:
 
     CSRGraphFlat<FNodeID_, WeightT_, FDestID_> flattenGraphOut(size_t alignment = 4096) const
     {
-        AlignedArray<FNodeID_> degrees(num_nodes(), alignment, 0);
-        AlignedArray<FNodeID_> offsets(num_nodes() + 1, alignment, 0);
-        AlignedArray<FDestID_> neighbors(num_edges_directed(), alignment, 0);
-        AlignedArray<WeightT_> weights(num_edges_directed(), alignment, 0);
+
+        CSRGraphFlat<FNodeID_, WeightT_, FDestID_> graph(num_nodes(), num_edges_directed(), alignment);
 
         // Calculate degrees using the difference of indices
         #pragma omp parallel for
         for (NodeID_ i = 0; i < num_nodes(); ++i)
         {
-            degrees.data[i] = out_index_[i + 1] - out_index_[i];
+            graph.degrees_.data[i] = out_index_[i + 1] - out_index_[i];
         }
 
         // Calculate offsets (prefix sum of degrees)
         #pragma omp parallel for
         for (NodeID_ i = 1; i <= num_nodes(); ++i)
         {
-            offsets.data[i] = out_index_[i] - out_index_[0];
+            graph.offsets_.data[i] = out_index_[i] - out_index_[0];
         }
 
         // Directly copy neighbors and weights
         #pragma omp parallel for
         for (NodeID_ i = 0; i < num_nodes(); ++i)
         {
-            NodeID_ offset = offsets.data[i];
-            NodeID_ length = degrees.data[i];
+            NodeID_ offset = graph.offsets_.data[i];
+            NodeID_ length = graph.degrees_.data[i];
             if constexpr (!std::is_same<NodeID_, DestID_>::value)
             {
-                std::transform(out_index_[i], out_index_[i] + length, neighbors.data + offset, [](const DestID_ & neighbor)
+                std::transform(out_index_[i], out_index_[i] + length, graph.neighbors_.data + offset, [](const DestID_ & neighbor)
                 {
                     return static_cast<const NodeWeight<NodeID_, typename NodeWeight<NodeID_, WeightT_>::value> &>(neighbor).v;
                 });
-                std::transform(out_index_[i], out_index_[i] + length, weights.data + offset, [](const DestID_ & neighbor)
+                std::transform(out_index_[i], out_index_[i] + length, graph.weights_.data + offset, [](const DestID_ & neighbor)
                 {
                     return static_cast<const NodeWeight<NodeID_, typename NodeWeight<NodeID_, WeightT_>::value> &>(neighbor).w;
                 });
             }
             else
             {
-                std::copy(out_index_[i], out_index_[i] + length, neighbors.data + offset);
-                std::fill(weights.data + offset, weights.data + offset + length, NodeWeight<NodeID_, WeightT_>(0, 1).w); // Assuming weights are zero for same type
+                std::copy(out_index_[i], out_index_[i] + length, graph.neighbors_.data + offset);
+                std::fill(graph.weights_.data + offset, graph.weights_.data + offset + length, NodeWeight<NodeID_, WeightT_>(0, 1).w); // Assuming weights are zero for same type
             }
         }
 
-        return CSRGraphFlat<FNodeID_, WeightT_, FDestID_>(std::move(offsets), std::move(degrees), std::move(neighbors), std::move(weights));
+        return graph;
     }
 
 private:
