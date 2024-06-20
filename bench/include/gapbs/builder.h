@@ -4357,17 +4357,17 @@ public:
         }
 
         // // Print the new_ids vectors for each community (optional)
-        // for (const auto &entry : community_new_ids)
-        // {
-        //     size_t comm_id = entry.first;
-        //     const auto &new_ids = entry.second;
-        //     std::cout << "Community ID " << comm_id << " new_ids:\n";
-        //     for (size_t i = 0; i < new_ids.size(); ++i)
-        //     {
-        //         std::cout << new_ids[i] << " ";
-        //     }
-        //     std::cout << "\n";
-        // }
+        for (const auto &entry : community_new_ids)
+        {
+            size_t comm_id = entry.first;
+            const auto &new_ids = entry.second;
+            std::cout << "Community ID " << comm_id << " new_ids:\n";
+            for (size_t i = 0; i < new_ids.size(); ++i)
+            {
+                std::cout << new_ids[i] << " ";
+            }
+            std::cout << "\n";
+        }
 
 
         PrintTime("GenID Time", tm.Seconds());
