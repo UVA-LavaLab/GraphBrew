@@ -4271,11 +4271,20 @@ public:
         // Sort the pairs by frequency in descending order
         __gnu_parallel::sort(freq_comm_pairs.begin(), freq_comm_pairs.end(), std::greater<>());
 
+        // Get the top ten community IDs
+        std::vector<size_t> top_communities(std::min(size_t(10), freq_comm_pairs.size()), 0);
+
+
+        for (size_t i = 0; i < top_communities.size(); ++i)
+        {
+            top_communities[i] = freq_comm_pairs[i].second;
+        }
+
         // Print the top ten frequencies
         std::cout << "Top ten community frequencies:\n";
-        for (size_t i = 0; i < std::min(size_t(10), freq_comm_pairs.size()); ++i)
+        for (size_t i = 0; i < top_communities.size(); ++i)
         {
-            std::cout << "Community ID " << freq_comm_pairs[i].second << " has frequency " << freq_comm_pairs[i].first << ".\n";
+            std::cout << "Community ID " << top_communities[i] << " has frequency " << freq_comm_pairs[i].first << ".\n";
         }
 
         // // Print the frequency array (optional)
@@ -4307,7 +4316,7 @@ public:
                         size_t dst_comm_id = comm_ids[neighbor];
                         // if (src_comm_id == dst_comm_id)
                         // {
-                            local_edge_list[src_comm_id].emplace_back(i, dest, weight);
+                        local_edge_list[src_comm_id].emplace_back(i, dest, weight);
                         // }
                     }
                     else
@@ -4315,7 +4324,7 @@ public:
                         size_t dst_comm_id = comm_ids[neighbor];
                         // if (src_comm_id == dst_comm_id)
                         // {
-                            local_edge_list[src_comm_id].emplace_back(i, neighbor, 1.0f);
+                        local_edge_list[src_comm_id].emplace_back(i, neighbor, 1.0f);
                         // }
                     }
                 }
