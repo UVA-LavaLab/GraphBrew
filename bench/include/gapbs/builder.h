@@ -994,7 +994,7 @@ public:
                 g_final = SquishGraph(g);
         }
         // g_final.PrintTopology();
-        pvector<NodeID_> new_ids(g_final.num_nodes());
+        pvector<NodeID_> new_ids(g_final.num_nodes(), -1);
         for (const auto &option : cli_.reorder_options())
         {
             new_ids.fill(-1);
@@ -4265,14 +4265,16 @@ public:
         std::vector<std::pair<size_t, size_t>> freq_comm_pairs;
         for (size_t i = 0; i < frequency_array.size(); ++i)
         {
-            freq_comm_pairs.emplace_back(frequency_array[i], i);
+            if(frequency_array[i] >= 1)
+                freq_comm_pairs.emplace_back(frequency_array[i], i);
         }
 
         // Sort the pairs by frequency in descending order
         __gnu_parallel::sort(freq_comm_pairs.begin(), freq_comm_pairs.end(), std::greater<>());
 
         // Get the top ten community IDs
-        std::vector<size_t> top_communities(std::min(size_t(10), freq_comm_pairs.size()), 0);
+        size_t top_comms_size = freq_comm_pairs.size();
+        std::vector<size_t> top_communities(top_comms_size, 0);
 
 
         for (size_t i = 0; i < top_communities.size(); ++i)
@@ -4294,6 +4296,9 @@ public:
         // }
 
 
+        // Create a set of top communities for quick lookup
+        std::unordered_set<size_t> top_communities_set(top_communities.begin(), top_communities.end());
+
         // Create thread-private edge lists for each community
         std::vector<std::unordered_map<size_t, std::vector<edge_list::edge>>> thread_edge_lists(omp_get_max_threads());
 
@@ -4307,25 +4312,28 @@ public:
             for (NodeID_ i = 0; i < num_nodes; ++i)
             {
                 size_t src_comm_id = comm_ids[i];
-                for (DestID_ neighbor : g.out_neigh(i))
+                if (top_communities_set.find(src_comm_id) != top_communities_set.end())
                 {
-                    if (g.is_weighted())
+                    for (DestID_ neighbor : g.out_neigh(i))
                     {
-                        NodeID_ dest = static_cast<NodeWeight<NodeID_, WeightT_>>(neighbor).v;
-                        WeightT_ weight = static_cast<NodeWeight<NodeID_, WeightT_>>(neighbor).w;
-                        size_t dst_comm_id = comm_ids[neighbor];
-                        // if (src_comm_id == dst_comm_id)
-                        // {
-                        local_edge_list[src_comm_id].emplace_back(i, dest, weight);
-                        // }
-                    }
-                    else
-                    {
-                        size_t dst_comm_id = comm_ids[neighbor];
-                        // if (src_comm_id == dst_comm_id)
-                        // {
-                        local_edge_list[src_comm_id].emplace_back(i, neighbor, 1.0f);
-                        // }
+                        if (g.is_weighted())
+                        {
+                            NodeID_ dest = static_cast<NodeWeight<NodeID_, WeightT_>>(neighbor).v;
+                            WeightT_ weight = static_cast<NodeWeight<NodeID_, WeightT_>>(neighbor).w;
+                            // size_t dst_comm_id = comm_ids[neighbor];
+                            // if (src_comm_id == dst_comm_id)
+                            // {
+                            local_edge_list[src_comm_id].emplace_back(i, dest, weight);
+                            // }
+                        }
+                        else
+                        {
+                            // size_t dst_comm_id = comm_ids[neighbor];
+                            // if (src_comm_id == dst_comm_id)
+                            // {
+                            local_edge_list[src_comm_id].emplace_back(i, neighbor, 1.0f);
+                            // }
+                        }
                     }
                 }
             }
@@ -4333,6 +4341,7 @@ public:
 
         // Merge thread-private edge lists into the final community edge lists
         std::unordered_map<size_t, std::vector<edge_list::edge>> community_edge_lists;
+
         for (const auto &local_edge_list : thread_edge_lists)
         {
             for (const auto &entry : local_edge_list)
@@ -4352,20 +4361,36 @@ public:
             // }
         }
 
-        // Create a data structure to store the new_ids vectors for each community
-        std::unordered_map<size_t, pvector<NodeID_>> community_new_ids;
+        // Create a vector to store the new_ids vectors for each community in parallel
+        std::vector<std::pair<size_t, std::vector<std::pair<size_t, NodeID_>>>> community_new_ids(top_communities.size());
 
-        // Call GenerateRabbitOrderMappingEdglist for each community edge list and store the new_ids result
-        for (const auto &entry : community_edge_lists)
+        // Call GenerateRabbitOrderMappingEdglist for each top community edge list and store the new_ids result
+        // #pragma omp parallel for
+        for (size_t idx = 0; idx < top_communities.size(); ++idx)
         {
-            size_t comm_id = entry.first;
-            const auto &edge_list = entry.second;
-            pvector<NodeID_> new_ids(num_nodes);
+            size_t comm_id = top_communities[idx];
+            const auto &edge_list = community_edge_lists[comm_id];
+            pvector<NodeID_> new_ids(num_nodes, -1);
             GenerateRabbitOrderMappingEdglist(edge_list, new_ids);
-            community_new_ids[comm_id] = std::move(new_ids);
+
+            // Initialize id_pairs with the correct size
+            std::vector<std::pair<size_t, NodeID_>> id_pairs(num_nodes);
+
+            #pragma omp parallel for
+            for (size_t i = 0; i < new_ids.size(); ++i)
+            {
+                id_pairs[i] = std::make_pair(i, new_ids[i]);
+            }
+            // Sort pairs by new IDs
+            __gnu_parallel::sort(id_pairs.begin(), id_pairs.end(), [](const auto & a, const auto & b)
+            {
+                return static_cast<unsigned>(a.second) < static_cast<unsigned>(b.second);
+            });
+
+            community_new_ids[idx] = std::make_pair(comm_id, std::move(id_pairs));
         }
 
-        // // Print the new_ids vectors for each community (optional)
+        // Print the new_ids vectors for each community (optional)
         for (const auto &entry : community_new_ids)
         {
             size_t comm_id = entry.first;
@@ -4373,7 +4398,7 @@ public:
             std::cout << "Community ID " << comm_id << " new_ids:\n";
             for (size_t i = 0; i < new_ids.size(); ++i)
             {
-                std::cout << new_ids[i] << " ";
+                std::cout << i << ":" << new_ids[i].first << ":" << new_ids[i].second <<" ";
             }
             std::cout << "\n";
         }
