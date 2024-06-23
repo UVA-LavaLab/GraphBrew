@@ -4361,8 +4361,8 @@ public:
             // }
         }
 
-        // Create a vector to store the new_ids vectors for each community in parallel
-        std::vector<std::pair<size_t, std::vector<std::pair<size_t, NodeID_>>>> community_new_ids(top_communities.size());
+        // Create a vector to store the new_ids vectors for each community
+        std::unordered_map<size_t, std::vector<std::pair<size_t, NodeID_>>> community_id_mappings;
 
         // Call GenerateRabbitOrderMappingEdglist for each top community edge list and store the new_ids result
         // #pragma omp parallel for
@@ -4373,36 +4373,79 @@ public:
             pvector<NodeID_> new_ids(num_nodes, -1);
             GenerateRabbitOrderMappingEdglist(edge_list, new_ids);
 
-            // Initialize id_pairs with the correct size
-            std::vector<std::pair<size_t, NodeID_>> id_pairs(num_nodes);
-
+            // Add id pairs to the corresponding community list
             #pragma omp parallel for
             for (size_t i = 0; i < new_ids.size(); ++i)
             {
-                id_pairs[i] = std::make_pair(i, new_ids[i]);
+                size_t src_comm_id = comm_ids[i];
+                if (new_ids[i] != -1 && comm_id == src_comm_id)
+                {
+                    #pragma omp critical
+                    community_id_mappings[src_comm_id].emplace_back(i, new_ids[i]);
+                }
             }
-            // Sort pairs by new IDs
+        }
+
+        // Debug: Print initial community_id_mappings
+        std::cout << "Initial community_id_mappings:\n";
+        for (const auto &entry : community_id_mappings)
+        {
+            std::cout << "Community ID " << entry.first << ":\n";
+            for (const auto &pair : entry.second)
+            {
+                std::cout << pair.first << "->" << pair.second << " ";
+            }
+            std::cout << "\n";
+        }
+        std::cout << "\n";
+
+        // Make the mapping consecutive within each community list
+        for (auto &entry : community_id_mappings)
+        {
+            auto &id_pairs = entry.second;
             __gnu_parallel::sort(id_pairs.begin(), id_pairs.end(), [](const auto & a, const auto & b)
             {
                 return static_cast<unsigned>(a.second) < static_cast<unsigned>(b.second);
             });
 
-            community_new_ids[idx] = std::make_pair(comm_id, std::move(id_pairs));
-        }
-
-        // Print the new_ids vectors for each community (optional)
-        for (const auto &entry : community_new_ids)
-        {
-            size_t comm_id = entry.first;
-            const auto &new_ids = entry.second;
-            std::cout << "Community ID " << comm_id << " new_ids:\n";
-            for (size_t i = 0; i < new_ids.size(); ++i)
+            #pragma omp parallel for
+            for (size_t i = 0; i < id_pairs.size(); ++i)
             {
-                std::cout << i << ":" << new_ids[i].first << ":" << new_ids[i].second <<" ";
+                id_pairs[i].second = i;
             }
-            std::cout << "\n";
         }
 
+        // Collect all pairs in a single vector for final processing
+        std::vector<std::pair<size_t, NodeID_>> all_pairs;
+        for (const auto &entry : community_id_mappings)
+        {
+            all_pairs.insert(all_pairs.end(), entry.second.begin(), entry.second.end());
+        }
+
+        // Sort all pairs by new IDs to make the mapping consecutive across all lists
+        __gnu_parallel::sort(all_pairs.begin(), all_pairs.end(), [](const auto & a, const auto & b)
+        {
+            return static_cast<unsigned>(a.second) < static_cast<unsigned>(b.second);
+        });
+
+        // Assign consecutive new IDs
+        size_t global_counter = 0;
+        pvector<NodeID_> aggregate_new_ids(num_nodes, static_cast<NodeID_>(-1));
+        for (const auto &pair : all_pairs)
+        {
+            aggregate_new_ids[pair.first] = global_counter++;
+        }
+
+        // Print the aggregate new_id list (optional)
+        // std::cout << "Aggregate new_id list:\n";
+        // for (size_t i = 0; i < aggregate_new_ids.size(); ++i)
+        // {
+        //     if (aggregate_new_ids[i] != -1)
+        //     {
+        //         std::cout << i << "->" << aggregate_new_ids[i] << " ";
+        //     }
+        // }
+        // std::cout << "\n";
 
         PrintTime("GenID Time", tm.Seconds());
         PrintTime("Num Passes", x.communityMappingPerPass.size());
