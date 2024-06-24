@@ -4206,48 +4206,48 @@ public:
         num_comm = *(__gnu_parallel::max_element(comm_ids.begin(), comm_ids.end()));
 
 
-        auto running_v_id = 0;
-        auto running_v_hops = 0;
-        int64_t avgDegree = g.num_edges() / g.num_nodes() + 1;
+        // auto running_v_id = 0;
+        // auto running_v_hops = 0;
+        // int64_t avgDegree = g.num_edges() / g.num_nodes() + 1;
 
-        for (int64_t i = 0; i < num_nodes; i++)
-        {
-            if (communityVectorTuplePerPass[i][0] == UINT_E_MAX)
-            {
-                auto current_com_id = communityVectorTuplePerPass[i][num_passes - 1];
-                communityVectorTuplePerPass[i][0] = running_v_id;
-                running_v_id++;
-                auto current_v_id = communityVectorTuplePerPass[i][1];
-                for (int64_t j = (i + 1); j < num_nodes; j++)
-                {
-                    auto next_com_id = communityVectorTuplePerPass[j][num_passes - 1];
-                    if (current_com_id != next_com_id ||
-                            (running_v_hops % avgDegree) == 0)
-                    {
-                        running_v_hops = 0;
-                        break;
-                    }
-                    auto set_v_id = communityVectorTuplePerPass[j][1];
-                    if (communityVectorTuplePerPass[j][0] == UINT_E_MAX)
-                    {
-                        if (g.out_neigh(current_v_id).contains(set_v_id))
-                        {
-                            communityVectorTuplePerPass[j][0] = running_v_id;
-                            running_v_id++;
-                            running_v_hops++;
-                        }
-                    }
-                }
-            }
-        }
+        // for (int64_t i = 0; i < num_nodes; i++)
+        // {
+        //     if (communityVectorTuplePerPass[i][0] == UINT_E_MAX)
+        //     {
+        //         auto current_com_id = communityVectorTuplePerPass[i][num_passes - 1];
+        //         communityVectorTuplePerPass[i][0] = running_v_id;
+        //         running_v_id++;
+        //         auto current_v_id = communityVectorTuplePerPass[i][1];
+        //         for (int64_t j = (i + 1); j < num_nodes; j++)
+        //         {
+        //             auto next_com_id = communityVectorTuplePerPass[j][num_passes - 1];
+        //             if (current_com_id != next_com_id ||
+        //                     (running_v_hops % avgDegree) == 0)
+        //             {
+        //                 running_v_hops = 0;
+        //                 break;
+        //             }
+        //             auto set_v_id = communityVectorTuplePerPass[j][1];
+        //             if (communityVectorTuplePerPass[j][0] == UINT_E_MAX)
+        //             {
+        //                 if (g.out_neigh(current_v_id).contains(set_v_id))
+        //                 {
+        //                     communityVectorTuplePerPass[j][0] = running_v_id;
+        //                     running_v_id++;
+        //                     running_v_hops++;
+        //                 }
+        //             }
+        //         }
+        //     }
+        // }
 
-        sort_by_vector_element(communityVectorTuplePerPass, 0);
+        // sort_by_vector_element(communityVectorTuplePerPass, 0);
 
-        #pragma omp parallel for
-        for (int64_t i = 0; i < num_nodes; i++)
-        {
-            new_ids[communityVectorTuplePerPass[i][0]] = (NodeID_)i;
-        }
+        // #pragma omp parallel for
+        // for (int64_t i = 0; i < num_nodes; i++)
+        // {
+        //     new_ids[communityVectorTuplePerPass[i][0]] = (NodeID_)i;
+        // }
 
         tm.Stop();
         // Create the frequency array
@@ -4370,18 +4370,18 @@ public:
         {
             size_t comm_id = top_communities[idx];
             const auto &edge_list = community_edge_lists[comm_id];
-            pvector<NodeID_> new_ids(num_nodes, -1);
-            GenerateRabbitOrderMappingEdglist(edge_list, new_ids);
+            pvector<NodeID_> new_ids_sub(num_nodes, -1);
+            GenerateRabbitOrderMappingEdglist(edge_list, new_ids_sub);
 
             // Add id pairs to the corresponding community list
             #pragma omp parallel for
-            for (size_t i = 0; i < new_ids.size(); ++i)
+            for (size_t i = 0; i < new_ids_sub.size(); ++i)
             {
                 size_t src_comm_id = comm_ids[i];
-                if (new_ids[i] != -1 && comm_id == src_comm_id)
+                if (new_ids_sub[i] != -1 && comm_id == src_comm_id)
                 {
                     #pragma omp critical
-                    community_id_mappings[src_comm_id].emplace_back(i, new_ids[i]);
+                    community_id_mappings[src_comm_id].emplace_back(i, new_ids_sub[i]);
                 }
             }
         }
@@ -4415,26 +4415,68 @@ public:
             }
         }
 
-        // Collect all pairs in a single vector for final processing
-        std::vector<std::pair<size_t, NodeID_>> all_pairs;
+        // Debug: Print community_id_mappings after making consecutive within each community
+        std::cout << "Community_id_mappings after making consecutive within each community:\n";
         for (const auto &entry : community_id_mappings)
         {
-            all_pairs.insert(all_pairs.end(), entry.second.begin(), entry.second.end());
+            std::cout << "Community ID " << entry.first << ":\n";
+            for (const auto &pair : entry.second)
+            {
+                std::cout << pair.first << "->" << pair.second << " " ;
+            }
+            std::cout << "\n";
+        }
+        std::cout << "\n";
+
+
+        // Calculate the total size of all pairs
+        size_t total_size = 0;
+        for (const auto &entry : community_id_mappings)
+        {
+            total_size += entry.second.size();
+        }
+
+        // Create all_pairs with the total size
+        std::vector<std::pair<size_t, NodeID_>> all_pairs(total_size);
+
+        // Assign the pairs to all_pairs and update the community_id_mappings with new indices
+        size_t index = 0;
+        for (auto &entry : community_id_mappings)
+        {
+            #pragma omp parallel for
+            for (size_t i = 0; i < entry.second.size(); ++i)
+            {
+                entry.second[i].second = index + i;
+                all_pairs[index + i] = entry.second[i];
+            }
+            index += entry.second.size();
         }
 
         // Sort all pairs by new IDs to make the mapping consecutive across all lists
         __gnu_parallel::sort(all_pairs.begin(), all_pairs.end(), [](const auto & a, const auto & b)
         {
-            return static_cast<unsigned>(a.second) < static_cast<unsigned>(b.second);
+            return static_cast<unsigned>(a.first) < static_cast<unsigned>(b.first);
         });
 
-        // Assign consecutive new IDs
-        size_t global_counter = 0;
-        pvector<NodeID_> aggregate_new_ids(num_nodes, static_cast<NodeID_>(-1));
-        for (const auto &pair : all_pairs)
+        // Debug: Print community_id_mappings after assigning to all_pairs
+        std::cout << "Community_id_mappings after assigning to all_pairs:\n";
+        for (const auto &entry : community_id_mappings)
         {
-            aggregate_new_ids[pair.first] = global_counter++;
+            std::cout << "Community ID " << entry.first << ":\n";
+            for (const auto &pair : entry.second)
+            {
+                std::cout << pair.first << "->" << pair.second << " ";
+            }
+            std::cout << "\n";
         }
+        std::cout << "\n";
+
+        std::cout << "All pairs:\n";
+        for (size_t i = 0; i < all_pairs.size(); ++i)
+        {
+            std::cout << all_pairs[i].first << "->" << all_pairs[i].second << " ";
+        }
+        std::cout << "\n";
 
         // Print the aggregate new_id list (optional)
         // std::cout << "Aggregate new_id list:\n";
@@ -4446,6 +4488,12 @@ public:
         //     }
         // }
         // std::cout << "\n";
+
+        #pragma omp parallel for
+        for (size_t i = 0; i < all_pairs.size(); i++)
+        {
+            new_ids[all_pairs[i].first] = (NodeID_)all_pairs[i].second;
+        }
 
         PrintTime("GenID Time", tm.Seconds());
         PrintTime("Num Passes", x.communityMappingPerPass.size());
