@@ -4202,56 +4202,36 @@ public:
             comm_ids[i] = communityVectorTuplePerPass[i][num_passes - 1];
         }
 
-
         num_comm = *(__gnu_parallel::max_element(comm_ids.begin(), comm_ids.end()));
-
-
-        // auto running_v_id = 0;
-        // auto running_v_hops = 0;
-        // int64_t avgDegree = g.num_edges() / g.num_nodes() + 1;
-
-        // for (int64_t i = 0; i < num_nodes; i++)
-        // {
-        //     if (communityVectorTuplePerPass[i][0] == UINT_E_MAX)
-        //     {
-        //         auto current_com_id = communityVectorTuplePerPass[i][num_passes - 1];
-        //         communityVectorTuplePerPass[i][0] = running_v_id;
-        //         running_v_id++;
-        //         auto current_v_id = communityVectorTuplePerPass[i][1];
-        //         for (int64_t j = (i + 1); j < num_nodes; j++)
-        //         {
-        //             auto next_com_id = communityVectorTuplePerPass[j][num_passes - 1];
-        //             if (current_com_id != next_com_id ||
-        //                     (running_v_hops % avgDegree) == 0)
-        //             {
-        //                 running_v_hops = 0;
-        //                 break;
-        //             }
-        //             auto set_v_id = communityVectorTuplePerPass[j][1];
-        //             if (communityVectorTuplePerPass[j][0] == UINT_E_MAX)
-        //             {
-        //                 if (g.out_neigh(current_v_id).contains(set_v_id))
-        //                 {
-        //                     communityVectorTuplePerPass[j][0] = running_v_id;
-        //                     running_v_id++;
-        //                     running_v_hops++;
-        //                 }
-        //             }
-        //         }
-        //     }
-        // }
-
-        // sort_by_vector_element(communityVectorTuplePerPass, 0);
-
-        // #pragma omp parallel for
-        // for (int64_t i = 0; i < num_nodes; i++)
-        // {
-        //     new_ids[communityVectorTuplePerPass[i][0]] = (NodeID_)i;
-        // }
 
         tm.Stop();
         // Create the frequency array
+        std::vector<size_t> frequency_array_pre(num_comm + 1, 0); // +1 to include num_comm index
         std::vector<size_t> frequency_array(num_comm + 1, 0); // +1 to include num_comm index
+
+        // Define the frequency threshold
+        size_t frequency_threshold = 2 ; // Set your frequency threshold here
+
+        // Fill the frequency array
+        #pragma omp parallel for
+        for (size_t i = 0; i < comm_ids.size(); ++i)
+        {
+            #pragma omp atomic
+            ++frequency_array_pre[comm_ids[i]];
+        }
+
+        // Find the community ID with the minimum frequency
+        size_t min_freq_comm_id = __gnu_parallel::min_element(frequency_array_pre.begin(), frequency_array_pre.end()) - frequency_array_pre.begin();
+
+        // Reassign nodes with frequency below the threshold
+        #pragma omp parallel for
+        for (size_t i = 0; i < comm_ids.size(); ++i)
+        {
+            if (frequency_array_pre[comm_ids[i]] < frequency_threshold)
+            {
+                comm_ids[i] = min_freq_comm_id;
+            }
+        }
 
         // Fill the frequency array
         #pragma omp parallel for
@@ -4276,25 +4256,17 @@ public:
         size_t top_comms_size = freq_comm_pairs.size();
         std::vector<size_t> top_communities(top_comms_size, 0);
 
-
         for (size_t i = 0; i < top_communities.size(); ++i)
         {
             top_communities[i] = freq_comm_pairs[i].second;
         }
 
         // Print the top ten frequencies
-        std::cout << "Top ten community frequencies:\n";
+        std::cout << "Top community frequencies:\n";
         for (size_t i = 0; i < top_communities.size(); ++i)
         {
             std::cout << "Community ID " << top_communities[i] << " has frequency " << freq_comm_pairs[i].first << ".\n";
         }
-
-        // // Print the frequency array (optional)
-        // for (size_t i = 0; i < frequency_array.size(); ++i)
-        // {
-        //     std::cout << "Community ID " << i << " appears " << frequency_array[i] << " times.\n";
-        // }
-
 
         // Create a set of top communities for quick lookup
         std::unordered_set<size_t> top_communities_set(top_communities.begin(), top_communities.end());
@@ -4477,17 +4449,6 @@ public:
             std::cout << all_pairs[i].first << "->" << all_pairs[i].second << " ";
         }
         std::cout << "\n";
-
-        // Print the aggregate new_id list (optional)
-        // std::cout << "Aggregate new_id list:\n";
-        // for (size_t i = 0; i < aggregate_new_ids.size(); ++i)
-        // {
-        //     if (aggregate_new_ids[i] != -1)
-        //     {
-        //         std::cout << i << "->" << aggregate_new_ids[i] << " ";
-        //     }
-        // }
-        // std::cout << "\n";
 
         #pragma omp parallel for
         for (size_t i = 0; i < all_pairs.size(); i++)
