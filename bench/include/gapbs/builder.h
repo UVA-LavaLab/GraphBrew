@@ -3491,7 +3491,7 @@ public:
         // if (commode)
         //   detect_community(std::move(adj));
         // else
-        reorder_internal(std::move(adj), new_ids);
+        reorder_internal_single(std::move(adj), new_ids);
     }
 
     template <typename InputIt>
@@ -3623,6 +3623,44 @@ public:
         // std::cerr << "Permutation generation Time: "
         //           << rabbit_order::now_sec() - tstart << std::endl;
         PrintTime("RabbitOrder Map Time", tend - tstart);
+        // Ensure new_ids is large enough to hold all new IDs
+
+        if (new_ids.size() < g.n())
+            new_ids.resize(g.n());
+
+        #pragma omp parallel for
+        for (size_t i = 0; i < g.n(); ++i)
+        {
+            new_ids[i] = (NodeID_)p[i];
+        }
+    }
+
+    void reorder_internal_single(adjacency_list adj, pvector<NodeID_> &new_ids)
+    {
+        // std::cerr << "Generating a permutation...\n";
+        auto _adj = adj; // copy `adj` because it is used for computing modularity
+        const double tstart = rabbit_order::now_sec();
+        //--------------------------------------------
+        auto g = rabbit_order::aggregate(std::move(_adj));
+        const auto p = rabbit_order::compute_perm(g);
+        const double tend = rabbit_order::now_sec();
+        //--------------------------------------------
+        const auto c = std::make_unique<rabbit_order::vint[]>(g.n());
+        #pragma omp parallel for
+        for (rabbit_order::vint v = 0; v < g.n(); ++v)
+            c[v] = rabbit_order::trace_com(v, &g);
+
+        // const double q = compute_modularity(adj, c.get());
+
+        // Print the result
+        // std::copy(&c[0], &c[g.n()],
+        //           std::ostream_iterator<rabbit_order::vint>(std::cout, "\n"));
+
+        // PrintTime("Modularity", q);
+        //--------------------------------------------
+        // std::cerr << "Permutation generation Time: "
+        //           << rabbit_order::now_sec() - tstart << std::endl;
+        PrintTime("SubRabbitOrder Map Time", tend - tstart);
         // Ensure new_ids is large enough to hold all new IDs
 
         if (new_ids.size() < g.n())
@@ -4150,14 +4188,17 @@ public:
         int maxIterations = 10;
         /** Maximum number of passes [10]. */
         int maxPasses = 10;
+        // Define the frequency threshold
+        size_t frequency_threshold = 4; // Set your frequency threshold here
 
         if (!reordering_options.empty())
         {
-            resolution = std::stod(reordering_options[0]);
+            frequency_threshold = std::stoi(reordering_options[0]);
         }
         if (reordering_options.size() > 1)
         {
             maxIterations = std::stoi(reordering_options[1]);
+            resolution = std::stod(reordering_options[0]);
         }
         if (reordering_options.size() > 2)
         {
@@ -4208,9 +4249,6 @@ public:
         // Create the frequency array
         std::vector<size_t> frequency_array_pre(num_comm + 1, 0); // +1 to include num_comm index
         std::vector<size_t> frequency_array(num_comm + 1, 0); // +1 to include num_comm index
-
-        // Define the frequency threshold
-        size_t frequency_threshold = 2 ; // Set your frequency threshold here
 
         // Fill the frequency array
         #pragma omp parallel for
@@ -4358,19 +4396,6 @@ public:
             }
         }
 
-        // Debug: Print initial community_id_mappings
-        std::cout << "Initial community_id_mappings:\n";
-        for (const auto &entry : community_id_mappings)
-        {
-            std::cout << "Community ID " << entry.first << ":\n";
-            for (const auto &pair : entry.second)
-            {
-                std::cout << pair.first << "->" << pair.second << " ";
-            }
-            std::cout << "\n";
-        }
-        std::cout << "\n";
-
         // Make the mapping consecutive within each community list
         for (auto &entry : community_id_mappings)
         {
@@ -4386,20 +4411,6 @@ public:
                 id_pairs[i].second = i;
             }
         }
-
-        // Debug: Print community_id_mappings after making consecutive within each community
-        std::cout << "Community_id_mappings after making consecutive within each community:\n";
-        for (const auto &entry : community_id_mappings)
-        {
-            std::cout << "Community ID " << entry.first << ":\n";
-            for (const auto &pair : entry.second)
-            {
-                std::cout << pair.first << "->" << pair.second << " " ;
-            }
-            std::cout << "\n";
-        }
-        std::cout << "\n";
-
 
         // Calculate the total size of all pairs
         size_t total_size = 0;
@@ -4429,26 +4440,6 @@ public:
         {
             return static_cast<unsigned>(a.first) < static_cast<unsigned>(b.first);
         });
-
-        // Debug: Print community_id_mappings after assigning to all_pairs
-        std::cout << "Community_id_mappings after assigning to all_pairs:\n";
-        for (const auto &entry : community_id_mappings)
-        {
-            std::cout << "Community ID " << entry.first << ":\n";
-            for (const auto &pair : entry.second)
-            {
-                std::cout << pair.first << "->" << pair.second << " ";
-            }
-            std::cout << "\n";
-        }
-        std::cout << "\n";
-
-        std::cout << "All pairs:\n";
-        for (size_t i = 0; i < all_pairs.size(); ++i)
-        {
-            std::cout << all_pairs[i].first << "->" << all_pairs[i].second << " ";
-        }
-        std::cout << "\n";
 
         #pragma omp parallel for
         for (size_t i = 0; i < all_pairs.size(); i++)
