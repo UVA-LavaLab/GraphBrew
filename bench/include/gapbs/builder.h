@@ -1321,8 +1321,8 @@ public:
             return "RCMOrder";
         case LeidenOrder:
             return "LeidenOrder";
-        case LeidenFullOrder:
-            return "LeidenFullOrder";
+        case GraphBrewOrder:
+            return "GraphBrewOrder";
         case ORIGINAL:
             return "Original";
         case Sort:
@@ -1379,8 +1379,75 @@ public:
         case LeidenOrder:
             GenerateLeidenMapping(g, new_ids, reordering_options);
             break;
-        case LeidenFullOrder:
-            GenerateLeidenFullMapping(g, new_ids);
+        case GraphBrewOrder:
+            GenerateGraphBrewMapping(g, new_ids, useOutdeg, reordering_options);
+            break;
+        case MAP:
+            LoadMappingFromFile(g, new_ids, reordering_options);
+            break;
+        case ORIGINAL:
+            GenerateOriginalMapping(g, new_ids);
+            break;
+        default:
+            std::cout << "Unknown generateMapping type: " << reordering_algo
+                      << std::endl;
+            std::abort();
+        }
+#ifdef _DEBUG
+        VerifyMapping(g, new_ids);
+        // exit(-1);
+#endif
+    }
+
+    void GenerateMappingLocalEdgelist(const EdgeList &el,
+                                      pvector<NodeID_> &new_ids,
+                                      ReorderingAlgo reordering_algo, bool useOutdeg,
+                                      std::vector<std::string> reordering_options)
+    {
+
+        CSRGraph<NodeID_, DestID_, invert> g = MakeLocalGraphFromEL(el);
+
+        switch (reordering_algo)
+        {
+        case HubSort:
+            GenerateHubSortMapping(g, new_ids, useOutdeg);
+            break;
+        case Sort:
+            GenerateSortMapping(g, new_ids, useOutdeg);
+            break;
+        case DBG:
+            GenerateDBGMapping(g, new_ids, useOutdeg);
+            break;
+        case HubSortDBG:
+            GenerateHubSortDBGMapping(g, new_ids, useOutdeg);
+            break;
+        case HubClusterDBG:
+            GenerateHubClusterDBGMapping(g, new_ids, useOutdeg);
+            break;
+        case HubCluster:
+            GenerateHubClusterMapping(g, new_ids, useOutdeg);
+            break;
+        case Random:
+            GenerateRandomMapping(g, new_ids);
+            // RandOrder(g, new_ids, false, false);
+            break;
+        case RabbitOrder:
+            GenerateRabbitOrderMapping(g, new_ids);
+            break;
+        case GOrder:
+            GenerateGOrderMapping(g, new_ids);
+            break;
+        case COrder:
+            GenerateCOrderMapping(g, new_ids);
+            break;
+        case RCMOrder:
+            GenerateRCMOrderMapping(g, new_ids);
+            break;
+        case LeidenOrder:
+            GenerateLeidenMapping(g, new_ids, reordering_options);
+            break;
+        case GraphBrewOrder:
+            GenerateGraphBrewMapping(g, new_ids, useOutdeg, reordering_options);
             break;
         case MAP:
             LoadMappingFromFile(g, new_ids, reordering_options);
@@ -3471,8 +3538,8 @@ public:
     }
 
 
-    void GenerateRabbitOrderMappingEdglist(const std::vector<edge_list::edge> &edges,
-                                           pvector<NodeID_> &new_ids)
+    void GenerateRabbitOrderMappingEdgelist(const std::vector<edge_list::edge> &edges,
+                                            pvector<NodeID_> &new_ids)
     {
         using boost::adaptors::transformed;
 
@@ -3954,9 +4021,9 @@ public:
         });
     }
 
-    void GenerateLeidenMappingOrg(const CSRGraph<NodeID_, DestID_, invert> &g,
-                                  pvector<NodeID_> &new_ids,
-                                  std::vector<std::string> reordering_options)
+    void GenerateLeidenMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
+                               pvector<NodeID_> &new_ids,
+                               std::vector<std::string> reordering_options)
     {
 
         Timer tm;
@@ -4122,9 +4189,9 @@ public:
         PrintTime("Resolution", resolution);
     }
 
-    void GenerateLeidenMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
-                               pvector<NodeID_> &new_ids,
-                               std::vector<std::string> reordering_options)
+    void GenerateGraphBrewMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
+                                  pvector<NodeID_> &new_ids, bool useOutdeg,
+                                  std::vector<std::string> reordering_options)
     {
 
         Timer tm;
@@ -4381,7 +4448,7 @@ public:
             size_t comm_id = top_communities[idx];
             const auto &edge_list = community_edge_lists[comm_id];
             pvector<NodeID_> new_ids_sub(num_nodes, -1);
-            GenerateRabbitOrderMappingEdglist(edge_list, new_ids_sub);
+            GenerateRabbitOrderMappingEdgelist(edge_list, new_ids_sub);
 
             // Add id pairs to the corresponding community list
             #pragma omp parallel for
