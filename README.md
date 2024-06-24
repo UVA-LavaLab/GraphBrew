@@ -303,6 +303,7 @@ Reordering Algorithms:
   - CORDER        (10): Workload Balancing via Graph Reordering on Multicore Systems.
   - RCM           (11): RCM is ordered by the reverse Cuthill-McKee algorithm (BFS).
   - LeidenOrder   (12): Apply Leiden community clustering with louvain with refinement.
+  - GraphBrewOrder(13): Leiden community clustering with rabbit order refinement..
   - MAP           (14): Requires a file format for reordering. Use the -r 10:filename.label option.
 ```
 ### Converter Parameters (Generate Optimized Graphs)

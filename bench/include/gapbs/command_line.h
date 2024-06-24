@@ -73,7 +73,7 @@ CLBase(int argc, char **argv, std::string name = "")
   AddHelpLine('m', "", "reduces memory usage during graph building", "false");
   AddHelpLine('o', "order",
               "apply reordering strategy, optionally with a parameter \n     "
-              "          [example]-o 12:option1:option2 "
+              "          [example]-o <12|13>:option1:option2 "
               "-o 2 -o 14:mapping.label",
               "optional");
   AddHelpLine('z', "indegree",
