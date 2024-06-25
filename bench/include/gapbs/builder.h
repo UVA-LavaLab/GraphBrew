@@ -1399,10 +1399,10 @@ public:
 #endif
     }
 
-    void GenerateMappingLocalEdgelist(const EdgeList &el,
-                                      pvector<NodeID_> &new_ids,
-                                      ReorderingAlgo reordering_algo, bool useOutdeg,
-                                      std::vector<std::string> reordering_options)
+    void GenerateMappingLocalEdgelist( EdgeList &el,
+                                       pvector<NodeID_> &new_ids,
+                                       ReorderingAlgo reordering_algo, bool useOutdeg,
+                                       std::vector<std::string> reordering_options)
     {
 
         CSRGraph<NodeID_, DestID_, invert> g = MakeLocalGraphFromEL(el);
@@ -1464,6 +1464,47 @@ public:
         VerifyMapping(g, new_ids);
         // exit(-1);
 #endif
+    }
+
+    ReorderingAlgo getReorderingAlgo(const char *arg)
+    {
+        int value = std::atoi(arg);
+        switch (value)
+        {
+        case 0:
+            return ORIGINAL;
+        case 1:
+            return Random;
+        case 2:
+            return Sort;
+        case 3:
+            return HubSort;
+        case 4:
+            return HubCluster;
+        case 5:
+            return DBG;
+        case 6:
+            return HubSortDBG;
+        case 7:
+            return HubClusterDBG;
+        case 8:
+            return RabbitOrder;
+        case 9:
+            return GOrder;
+        case 10:
+            return COrder;
+        case 11:
+            return RCMOrder;
+        case 12:
+            return LeidenOrder;
+        case 13:
+            return GraphBrewOrder;
+        case 14:
+            return MAP;
+        default:
+            std::cerr << "Invalid ReorderingAlgo value: " << value << std::endl;
+            std::exit(EXIT_FAILURE);
+        }
     }
 
     void VerifyMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
@@ -4099,6 +4140,7 @@ public:
         if (!reordering_options.empty())
         {
             resolution = std::stod(reordering_options[0]);
+            resolution = (resolution > 1) ? 0.75 : resolution;
         }
         if (reordering_options.size() > 1)
         {
@@ -4258,18 +4300,29 @@ public:
         // Define the frequency threshold
         size_t frequency_threshold = 4; // Set your frequency threshold here
 
+        const char *reorderingAlgo_arg = "8"; // This can be any string representing a valid integer
+        ReorderingAlgo algo = getReorderingAlgo(reorderingAlgo_arg);
+
         if (!reordering_options.empty())
         {
             frequency_threshold = std::stoi(reordering_options[0]);
         }
         if (reordering_options.size() > 1)
         {
-            maxIterations = std::stoi(reordering_options[1]);
-            resolution = std::stod(reordering_options[0]);
+            algo = getReorderingAlgo(reordering_options[1].c_str());
         }
         if (reordering_options.size() > 2)
         {
-            maxPasses = std::stoi(reordering_options[2]);
+            resolution = std::stod(reordering_options[2]);
+            resolution = (resolution > 1) ? 0.75 : resolution;
+        }
+        if (reordering_options.size() > 3)
+        {
+            maxIterations = std::stoi(reordering_options[3]);
+        }
+        if (reordering_options.size() > 4)
+        {
+            maxPasses = std::stoi(reordering_options[4]);
         }
 
         runExperiment(x, resolution, maxIterations, maxPasses);
@@ -4377,7 +4430,7 @@ public:
         std::unordered_set<size_t> top_communities_set(top_communities.begin(), top_communities.end());
 
         // Create thread-private edge lists for each community
-        std::vector<std::unordered_map<size_t, std::vector<edge_list::edge>>> thread_edge_lists(omp_get_max_threads());
+        std::vector<std::unordered_map<size_t, EdgeList>> thread_edge_lists(omp_get_max_threads());
 
         // Loop through the original graph and add edges to the appropriate community edge list
         #pragma omp parallel
@@ -4400,7 +4453,8 @@ public:
                             // size_t dst_comm_id = comm_ids[neighbor];
                             // if (src_comm_id == dst_comm_id)
                             // {
-                            local_edge_list[src_comm_id].emplace_back(i, dest, weight);
+                            Edge e = Edge(i, NodeWeight<NodeID_, WeightT_>(dest, weight));
+                            local_edge_list[src_comm_id].push_back(e);
                             // }
                         }
                         else
@@ -4408,7 +4462,8 @@ public:
                             // size_t dst_comm_id = comm_ids[neighbor];
                             // if (src_comm_id == dst_comm_id)
                             // {
-                            local_edge_list[src_comm_id].emplace_back(i, neighbor, 1.0f);
+                            Edge e = Edge(i, neighbor);
+                            local_edge_list[src_comm_id].push_back(e);
                             // }
                         }
                     }
@@ -4417,7 +4472,7 @@ public:
         }
 
         // Merge thread-private edge lists into the final community edge lists
-        std::unordered_map<size_t, std::vector<edge_list::edge>> community_edge_lists;
+        std::unordered_map<size_t, EdgeList> community_edge_lists;
 
         for (const auto &local_edge_list : thread_edge_lists)
         {
@@ -4442,14 +4497,36 @@ public:
         std::unordered_map<size_t, std::vector<std::pair<size_t, NodeID_>>> community_id_mappings;
 
         // Call GenerateRabbitOrderMappingEdglist for each top community edge list and store the new_ids result
+        // void GenerateMappingLocalEdgelist(const EdgeList & el,
+        //                                   pvector<NodeID_> &new_ids,
+        //                                   ReorderingAlgo reordering_algo, bool useOutdeg,
+        //                                   std::vector<std::string> reordering_options)
         // #pragma omp parallel for
+        // enum ReorderingAlgo
+        // {
+        //     ORIGINAL = 0,
+        //     Random = 1,
+        //     Sort = 2,
+        //     HubSort = 3,
+        //     HubCluster = 4,
+        //     DBG = 5,
+        //     HubSortDBG = 6,
+        //     HubClusterDBG = 7,
+        //     RabbitOrder = 8,
+        //     GOrder = 9,
+        //     COrder = 10,
+        //     RCMOrder = 11,
+        //     LeidenOrder = 12,
+        //     GraphBrewOrder = 13,
+        //     MAP = 14,
+        // };
         for (size_t idx = 0; idx < top_communities.size(); ++idx)
         {
             size_t comm_id = top_communities[idx];
-            const auto &edge_list = community_edge_lists[comm_id];
+            auto &edge_list = community_edge_lists[comm_id];
             pvector<NodeID_> new_ids_sub(num_nodes, -1);
-            GenerateRabbitOrderMappingEdgelist(edge_list, new_ids_sub);
-
+            // GenerateRabbitOrderMappingEdgelist(edge_list, new_ids_sub);
+            GenerateMappingLocalEdgelist(edge_list, new_ids_sub, algo, true, reordering_options);
             // Add id pairs to the corresponding community list
             #pragma omp parallel for
             for (size_t i = 0; i < new_ids_sub.size(); ++i)
