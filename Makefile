@@ -5,6 +5,7 @@
 # Attempt to find gcc-9, else use default gcc
 CC  = $(shell which gcc-9 || which gcc)
 CXX = $(shell which g++-9 || which g++)
+RABBIT_ENABLE = 1
 # =========================================================
 PYTHON=@python3
 PIP=@pip
@@ -82,12 +83,17 @@ ifeq ($(wildcard $(BOOST_LIB_DIR)/*),)
 endif
 LDLIBS_BOOST    += -L$(BOOST_LIB_DIR)
 # =========================================================
-CXXFLAGS = $(CXXFLAGS_GAP) $(CXXFLAGS_RABBIT) $(CXXFLAGS_GORDER) $(CXXFLAGS_LEIDEN)
-LDLIBS  = $(LDLIBS_RABBIT) $(LDLIBS_BOOST)
+CXXFLAGS = $(CXXFLAGS_GAP) $(CXXFLAGS_GORDER) $(CXXFLAGS_LEIDEN) $(CXXFLAGS_RABBIT)
+LDLIBS  = 
 # =========================================================
-# CXXFLAGS += -D_DEBUG
-INCLUDES = -I$(INCLUDE_GAPBS) -I$(INCLUDE_RABBIT) -I$(INCLUDE_GORDER) -I$(INCLUDE_CORDER) -I$(INCLUDE_LEIDEN) -I$(INCLUDE_BOOST)
-
+INCLUDES = -I$(INCLUDE_GAPBS) -I$(INCLUDE_GORDER) -I$(INCLUDE_CORDER) -I$(INCLUDE_LEIDEN) -I$(INCLUDE_BOOST)
+# =========================================================
+# Optional RABBIT includes
+ifdef RABBIT_ENABLE
+CXXFLAGS += -DRABBIT_ENABLE 
+LDLIBS += $(LDLIBS_BOOST) $(LDLIBS_RABBIT)
+INCLUDES += -I$(INCLUDE_RABBIT)
+endif
 # =========================================================
 # Targets
 # =========================================================
