@@ -41,6 +41,7 @@ Before you begin, ensure you have the following installed on your system, [(sect
 ### Compile with RabbitOrder
    * Go to Makefile <[line:8](https://github.com/atmughrabi/GraphBrew/blob/main/Makefile#L8)> make sure `RABBIT_ENABLE = 1`
 ```bash
+# make RABBIT_ENABLE=1 // disables RabbitOrder dependencies
 <OR>
 make RABBIT_ENABLE=1
 ```
