@@ -117,7 +117,7 @@ make run-bc
 make clean
 ```
 ### Compiling a single Benchmarks
-   * To build all benchmarks:
+   * Where `make <benchmark_name>` can be `bc`, `bfs`, `converter`, etc.
 ```bash
 make bc
 ```
@@ -136,10 +136,11 @@ make run-<benchmark_name>
 ```bash
 make run-bfs
 ```
-### Parameters
+### Parameters Makefile
 All parameters [(section)](#graphbrew-parameters) can be passed through the Make command via:
    * `RUN_PARAMS='-n1 -o11'`, for controlling aspects of the algorithm and reordering.
    * `GRAPH_BENCH ='-f ./test/graphs/4.el'`,`GRAPH_BENCH ='-g 4'`, for controlling the graph path, or kron/random generation.
+### Parameters Binary
 All parameters [(section)](#graphbrew-parameters) can be passed through the binary command via:
    * `./bench/bin/<benchmark_name> -f ./test/graphs/4.el -n1 -o11`
    * `./bench/bin/<benchmark_name> -g 4 -n1 -o11`
