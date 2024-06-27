@@ -102,7 +102,7 @@ KERNELS_BIN = $(addprefix $(BIN_DIR)/,$(KERNELS))
 SUITE = $(KERNELS_BIN) $(BIN_DIR)/converter
 # =========================================================
 
-.PHONY: all run-% exp-% graph-% help-% install-py-deps help clean clean-all clean-results run-%-gdb run-%-sweep $(BIN_DIR)/% scrub-all
+.PHONY: $(KERNELS) all run-% exp-% graph-% help-% install-py-deps help clean clean-all clean-results run-%-gdb run-%-sweep $(BIN_DIR)/% scrub-all
 all: $(SUITE)
 
 # =========================================================
@@ -200,6 +200,9 @@ help: help-pr
 	@echo "  help-%         - Print the specified Help (bc bfs cc cc_sv pr pr_spmv sssp tc)"
 	@echo "  clean          - Removes all build artifacts"
 	@echo "  help           - Displays this help message"
+
+# Alias each kernel target to its corresponding help target
+$(KERNELS): %: help-%
 
 help-%: $(BIN_DIR)/%
 	@./$< -h 

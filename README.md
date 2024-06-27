@@ -1,7 +1,7 @@
 [![Build Status](https://app.travis-ci.com/atmughrabi/GraphBrew.svg?token=L3reAtGHdEVVPvzcVqQ6&branch=main)](https://app.travis-ci.com/atmughrabi/GraphBrew)
 [<p align="center"><img src="./docs/figures/logo.svg" width="200" ></p>](#graphbrew)
 
-# GraphBrew
+# GraphBrew '>>' GAPBS
 
 This repository contains the GAP Benchmarks Suite [(GAPBS)](https://github.com/sbeamer/gapbs), modified to reorder graphs and improve cache performance on various graph algorithms.
 
@@ -38,9 +38,16 @@ Before you begin, ensure you have the following installed on your system, [(sect
 - **GCC**: The GNU Compiler Collection, specifically `g++9` which supports C++11 or later.
 - **Make**: The build utility to automate the compilation.
 - **OpenMP**: Support for parallel programming in C++.
-- **Boost** C++ library (1.58.0).
-- **libnuma** (2.0.9).
-- **libtcmalloc\_minimal** in google-perftools (2.1).
+- 
+### Compile with RabbitOrder
+   * Go to Makefile <line:8> make sure `RABBIT_ENABLE = 1`
+```bash
+<OR>
+make RABBIT_ENABLE=1
+```
+   * **Boost** C++ library (1.58.0).
+   * **libnuma** (2.0.9).
+   * **libtcmalloc\_minimal** in google-perftools (2.1).
 
 # GraphBrew Experiment Configuration
 
@@ -110,13 +117,18 @@ make all
 make run-bc
 make clean
 ```
+### Compiling a single Benchmarks
+   * To build all benchmarks:
+```bash
+make bc
+```
 ### Compiling the Benchmarks
    * To build all benchmarks:
 ```bash
 make all
 ```
 
-### Running the Benchmarks
+### Running a single Benchmarks
    * To run a specific benchmark, use:
 ```bash
 make run-<benchmark_name>
@@ -126,15 +138,20 @@ make run-<benchmark_name>
 make run-bfs
 ```
 ### Parameters
-All parameters [(section)](#graphbrew-parameters) can be passed through the make command via:
+All parameters [(section)](#graphbrew-parameters) can be passed through the Make command via:
    * `RUN_PARAMS='-n1 -o11'`, for controlling aspects of the algorithm and reordering.
    * `GRAPH_BENCH ='-f ./test/graphs/4.el'`,`GRAPH_BENCH ='-g 4'`, for controlling the graph path, or kron/random generation.
+All parameters [(section)](#graphbrew-parameters) can be passed through the binary command via:
+   * `./bench/bin/<benchmark_name> -f ./test/graphs/4.el -n1 -o11`
+   * `./bench/bin/<benchmark_name> -g 4 -n1 -o11`
 
 ### Relabeling the graph
    * `converter` is used to convert graphs and apply new labeling to them.
    * Please check converter parameters and pass them to `RUN_PARAMS='-p ./graph_8.mtx -o 8'`.
 ```bash
 make run-converter GRAPH_BENCH='-f ./graph.<mtx|el|sg>' RUN_PARAMS='-p ./graph_8.mtx -o 8' 
+<OR>
+./bench/bin/converter -f ./graph.<mtx|el|sg> -p ./graph_8.mtx -o 8
 ```
 
 ### Debugging
@@ -254,7 +271,7 @@ All parameters can be passed through the make command via:
 
 ### GAP Parameters (PageRank example)
 ```bash
-make help-pr
+make pr
 --------------------------------------------------------------------------------
 pagerank
  -h           : print this help message                                         
@@ -424,13 +441,24 @@ Example Usage:
 - `bench/results`: experiment results from running `exp-%`.
 - `bench/backups`: experiment backup results from running `clean-all` or `clean-results`.
 
-## Installing Prerequisites
+## Installing Prerequisites (General)
 
-These tools are available on most Unix-like operating systems and can be installed via your package manager. For example, on Ubuntu, you can install them using:
+* These tools are available on most Unix-like operating systems and can be installed via your package manager. For example, on Ubuntu, you can install them using:
 
 ```bash
 sudo apt-get update
 sudo apt-get install g++ make libomp-dev
+```
+
+## Installing Prerequisites (RabbitOrder)
+* Go to Makefile <line:8> make sure `RABBIT_ENABLE = 1`
+```bash
+<OR>
+make RABBIT_ENABLE=1
+```
+
+* These made optional if you don't need Rabbit Order or running on machines where you can't install these libraries
+```bash
 sudo apt-get install libgoogle-perftools-dev
 sudo apt-get install python3 python3-pip python3-venv
 ```
