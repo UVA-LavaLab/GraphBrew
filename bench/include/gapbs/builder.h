@@ -3088,9 +3088,51 @@ public:
     //   detect_community(std::move(adj));
     // else
     reorder_internal(std::move(adj), new_ids);
+#else
+    GenerateOriginalMapping(g, new_ids);
 #endif
   }
 
+  double GenerateRabbitModularityEdgelist(EdgeList &edgesList,
+                                          bool is_weighted) {
+
+#ifdef RABBIT_ENABLE
+    using boost::adaptors::transformed;
+
+    std::vector<edge_list::edge> edges(edgesList.size());
+
+    // Parallel for loop
+#pragma omp parallel for
+    for (size_t i = 0; i < edges.size(); ++i) {
+      if (is_weighted) {
+        rabbit_order::vint src = edgesList[i].u;
+        rabbit_order::vint dest =
+            static_cast<NodeWeight<NodeID_, WeightT_>>(edgesList[i].v).v;
+        float weight =
+            static_cast<NodeWeight<NodeID_, WeightT_>>(edgesList[i].v).w;
+        edges[i] = std::make_tuple(src, dest, weight);
+      } else {
+        rabbit_order::vint src = edgesList[i].u;
+        rabbit_order::vint dest = edgesList[i].v;
+        edges[i] = std::make_tuple(src, dest, 1.0f);
+      }
+    }
+
+    auto adj = readRabbitOrderAdjacencylist(edges);
+    auto _adj = adj; // copy `adj` because it is used for computing modularity
+    //--------------------------------------------
+    auto g = rabbit_order::aggregate(std::move(_adj));
+    const auto c = std::make_unique<rabbit_order::vint[]>(g.n());
+#pragma omp parallel for
+    for (rabbit_order::vint v = 0; v < g.n(); ++v)
+      c[v] = rabbit_order::trace_com(v, &g);
+
+    const double q = compute_modularity(adj, c.get());
+    return q;
+#else
+    return 1.0f;
+#endif
+  }
 
 #ifdef RABBIT_ENABLE
   void
@@ -3272,7 +3314,7 @@ public:
     //--------------------------------------------
     // std::cerr << "Permutation generation Time: "
     //           << rabbit_order::now_sec() - tstart << std::endl;
-    PrintTime("SubRabbitOrder Map Time", tend - tstart);
+    PrintTime("Sub-RabbitOrder Map Time", tend - tstart);
     // Ensure new_ids is large enough to hold all new IDs
 
     if (new_ids.size() < g.n())
@@ -3972,6 +4014,12 @@ public:
       auto &edge_list = community_edge_lists[comm_id];
       pvector<NodeID_> new_ids_sub(num_nodes, -1);
       // GenerateRabbitOrderMappingEdgelist(edge_list, new_ids_sub);
+
+      double modularity =
+          GenerateRabbitModularityEdgelist(edge_list, g.is_weighted());
+
+      PrintTime("Sub-Modularity", modularity);
+
       GenerateMappingLocalEdgelist(edge_list, new_ids_sub, algo, true,
                                    reordering_options);
 // Add id pairs to the corresponding community list
