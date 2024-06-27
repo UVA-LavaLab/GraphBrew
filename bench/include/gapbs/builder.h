@@ -4020,6 +4020,19 @@ public:
 
       PrintTime("Sub-Modularity", modularity);
 
+      // if (modularity > 0.7) {
+      //   algo = ReorderingAlgo::RabbitOrder;
+      // } else if (modularity > 0.5 ) {
+      //   algo = ReorderingAlgo::DBG;
+      //   // reordering_options[0] = std::to_string(static_cast<int>(frequency_threshold * 1.5));
+      // } else if (modularity > 0.3) {
+      //   algo = ReorderingAlgo::Sort;
+      // } else if (modularity > 0.1) {
+      //   algo = ReorderingAlgo::LeidenOrder;
+      // } else {
+      //   algo = ReorderingAlgo::Sort;
+      // }
+
       GenerateMappingLocalEdgelist(edge_list, new_ids_sub, algo, true,
                                    reordering_options);
 // Add id pairs to the corresponding community list
