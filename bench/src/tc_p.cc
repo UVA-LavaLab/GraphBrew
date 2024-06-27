@@ -254,17 +254,17 @@ int main(int argc, char *argv[])
 
     b.FlattenPartitions(p_g, pf_g);
 
-    for (int col = 0; col < p_m; ++col)
-    {
-        for (int row = 0; row < p_n; ++row)
-        {
-            int idx = row * p_m + col;
-            std::cout << "Local TC_P: [" << row << "] [" << col << "]" << std::endl;
-            pf_g[idx].PrintStats();
-            pf_g[idx].PrintTopology();
-            pf_g[idx].display(std::string("graph"));
-        }
-    }
+    // for (int col = 0; col < p_m; ++col)
+    // {
+    //     for (int row = 0; row < p_n; ++row)
+    //     {
+    //         int idx = row * p_m + col;
+    //         std::cout << "Local TC_P: [" << row << "] [" << col << "]" << std::endl;
+    //         pf_g[idx].PrintStats();
+    //         pf_g[idx].PrintTopology();
+    //         pf_g[idx].display(std::string("graph"));
+    //     }
+    // }
 
     PrintTime("Total Time TC_P", tc_p_time);
     std::cout << "Total TC_P: " << total << std::endl;
