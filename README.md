@@ -38,7 +38,6 @@ Before you begin, ensure you have the following installed on your system, [(sect
 - **GCC**: The GNU Compiler Collection, specifically `g++9` which supports C++11 or later.
 - **Make**: The build utility to automate the compilation.
 - **OpenMP**: Support for parallel programming in C++.
-- 
 ### Compile with RabbitOrder
    * Go to Makefile <line:8> make sure `RABBIT_ENABLE = 1`
 ```bash
