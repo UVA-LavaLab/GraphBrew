@@ -1,7 +1,7 @@
 [![Build Status](https://app.travis-ci.com/atmughrabi/GraphBrew.svg?token=L3reAtGHdEVVPvzcVqQ6&branch=main)](https://app.travis-ci.com/atmughrabi/GraphBrew)
 [<p align="center"><img src="./docs/figures/logo.svg" width="200" ></p>](#graphbrew)
 
-# GraphBrew [<p align="center"><img src="./docs/figures/logo_left.png" width="50" ></p>] GAPBS
+# GraphBrew <p align="center"><img src="./docs/figures/logo_left.png" width="50" ></p> GAPBS
 
 This repository contains the GAP Benchmarks Suite [(GAPBS)](https://github.com/sbeamer/gapbs), modified to reorder graphs and improve cache performance on various graph algorithms.
 
