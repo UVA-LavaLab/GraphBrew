@@ -123,7 +123,18 @@ inline bool directed() const noexcept {
   return true;
 }
 
+inline void passAndClear(vector<vector<K>>& communityMapping) {
+    communityMapping = std::move(communityMappingPerPass);  // Move the data to the passed vector
 
+    // Clear other data members
+    exists.clear();
+    values.clear();
+    edges.clear();
+    
+    // Reset N and M if needed
+    N = 0;
+    M = 0;
+}
 
 
 public:
