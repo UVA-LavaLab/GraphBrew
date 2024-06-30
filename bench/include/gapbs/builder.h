@@ -4197,15 +4197,15 @@ public:
         tm.Stop();
         PrintTime("DiGraph graph", tm.Seconds());
 
-        double resolution = 0.75;
-        int maxIterations = 10;
+        double resolution = 0.8;
+        int maxIterations = 30;
         /** Maximum number of passes [10]. */
-        int maxPasses = 10;
+        int maxPasses = 30;
 
         if (!reordering_options.empty())
         {
             resolution = std::stod(reordering_options[0]);
-            resolution = (resolution > 1) ? 0.75 : resolution;
+            resolution = (resolution > 1) ? 0.8 : resolution;
         }
         if (reordering_options.size() > 1)
         {
@@ -4318,10 +4318,10 @@ public:
         int64_t num_edges = g.num_edges_directed();
         size_t num_nodesx = num_nodes;
         size_t num_passes = 0;
-        double resolution = 0.75;
-        int maxIterations = 10;
+        double resolution = 0.8;
+        int maxIterations = 30;
         /** Maximum number of passes [10]. */
-        int maxPasses = 10;
+        int maxPasses = 30;
         // Define the frequency threshold
         size_t frequency_threshold = 4; // Set your frequency threshold here
 
