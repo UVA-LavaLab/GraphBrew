@@ -4323,7 +4323,7 @@ public:
         /** Maximum number of passes [10]. */
         int maxPasses = 30;
         // Define the frequency threshold
-        size_t frequency_threshold = 4; // Set your frequency threshold here
+        size_t frequency_threshold = 10; // Set your frequency threshold here
 
         const char *reorderingAlgo_arg =
             "8"; // This can be any string representing a valid integer
@@ -4464,6 +4464,22 @@ public:
             frequency_array_pre.begin();
 
         // Reassign nodes with frequency below the threshold
+
+        if (!frequency_array_pre.empty())
+        {
+            std::vector<size_t> sorted_freq_array = frequency_array_pre;
+            std::sort(sorted_freq_array.begin(), sorted_freq_array.end(), std::greater<size_t>());
+
+            if (frequency_threshold > 0 && frequency_threshold <= sorted_freq_array.size())
+            {
+                frequency_threshold = sorted_freq_array[frequency_threshold - 1];
+            }
+            else
+            {
+                frequency_threshold = sorted_freq_array.back();
+            }
+        }
+
         #pragma omp parallel for
         for (size_t i = 0; i < comm_ids.size(); ++i)
         {
