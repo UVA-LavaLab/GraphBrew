@@ -4442,12 +4442,12 @@ public:
             comm_ids[i] = communityVectorTuplePerPass[i][num_passes - 1];
         }
 
-        std::cout << std::endl;
-        for (size_t i = 0; i < num_nodesx; ++i)
-        {
-            std::cout <<  i << "->" << comm_ids[i] << std::endl;
-        }
-        std::cout << std::endl;
+        // std::cout << std::endl;
+        // for (size_t i = 0; i < num_nodesx; ++i)
+        // {
+        //     std::cout <<  i << "->" << comm_ids[i] << std::endl;
+        // }
+        // std::cout << std::endl;
 
         communityMappingPerPass.clear();
         communityVectorTuplePerPass.clear();
@@ -4737,12 +4737,12 @@ public:
             new_ids[all_pairs[i].first] = (NodeID_)all_pairs[i].second;
         }
 
-        std::cout << std::endl;
-        for (size_t i = 0; i < new_ids.size(); ++i)
-        {
-            std::cout <<  i << "->" << new_ids[i] << std::endl;
-        }
-        std::cout << std::endl;
+        // std::cout << std::endl;
+        // for (size_t i = 0; i < new_ids.size(); ++i)
+        // {
+        //     std::cout <<  i << "->" << new_ids[i] << std::endl;
+        // }
+        // std::cout << std::endl;
 
         PrintTime("GenID Time", tm.Seconds());
         PrintTime("Num Passes", num_passes);
