@@ -74,7 +74,7 @@ single_reorder_option_mapping = {
     # "Sort": "-o2",
     # "HubSort": "-o3",
     # "HubCluster": "-o4",
-    # "DBG": "-o5",
+    "DBG": "-o5",
     # "HubSortDBG": "-o6",
     # "HubClusterDBG": "-o7",
     "RabbitOrder": "-o8",
