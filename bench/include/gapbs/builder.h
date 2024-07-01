@@ -1403,6 +1403,13 @@ public:
                       << std::endl;
             std::abort();
         }
+
+        // std::cout << std::endl;
+        // for (size_t i = 0; i < new_ids.size(); ++i)
+        // {
+        //     std::cout <<  i << "->" << new_ids[i] << " " << static_cast<size_t>(g.out_degree(i)) << std::endl;
+        // }
+        // std::cout << std::endl;
 #ifdef _DEBUG
         VerifyMapping(g, new_ids);
         // exit(-1);
@@ -2122,22 +2129,20 @@ public:
         int64_t num_edges = g.num_edges();
 
         uint32_t avg_vertex = num_edges / num_nodes;
-        // const uint32_t av = avg_vertex;
+        const uint32_t &av = avg_vertex;
 
         // uint32_t bucket_threshold[] = {
         //   av / 2,   av,       av * 2,   av * 4,
         //   av * 8,   av * 16,  av * 32,  av * 64,
         //   av * 128, av * 256, av * 512, static_cast<uint32_t>(-1)};
-        int num_buckets = 7;
-        int *bucket_threshold = new int[num_buckets];
-        // START initialize thresholds
-        if (avg_vertex <= 1)
-            bucket_threshold[0] = 1;
-        else
-            bucket_threshold[0] = (avg_vertex / 2);
-        for (int i = 1; i < (num_buckets - 1); ++i)
+
+        uint32_t bucket_threshold[] = {av / 2, av, av * 2, av * 4, av * 8, av * 16, av * 32, av * 64, av * 128, av * 256, av * 512, static_cast<uint32_t>(-1)};
+        int num_buckets = 8;
+        if ( num_buckets > 11 )
         {
-            bucket_threshold[i] = bucket_threshold[i - 1] * 2;
+            // if you really want to increase the bucket count, add more thresholds to the bucket_threshold above.
+            std::cout << "Unsupported bucket size: " << num_buckets << std::endl;
+            assert(0);
         }
         bucket_threshold[num_buckets - 1] = static_cast<uint32_t>(-1);
 
@@ -4437,6 +4442,13 @@ public:
             comm_ids[i] = communityVectorTuplePerPass[i][num_passes - 1];
         }
 
+        std::cout << std::endl;
+        for (size_t i = 0; i < num_nodesx; ++i)
+        {
+            std::cout <<  i << "->" << comm_ids[i] << std::endl;
+        }
+        std::cout << std::endl;
+
         communityMappingPerPass.clear();
         communityVectorTuplePerPass.clear();
 
@@ -4724,6 +4736,13 @@ public:
         {
             new_ids[all_pairs[i].first] = (NodeID_)all_pairs[i].second;
         }
+
+        std::cout << std::endl;
+        for (size_t i = 0; i < new_ids.size(); ++i)
+        {
+            std::cout <<  i << "->" << new_ids[i] << std::endl;
+        }
+        std::cout << std::endl;
 
         PrintTime("GenID Time", tm.Seconds());
         PrintTime("Num Passes", num_passes);
