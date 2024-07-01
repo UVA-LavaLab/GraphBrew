@@ -5,6 +5,7 @@ import csv
 
 # Define the base directory containing the graph datasets
 BASE_DIR   = "/media/Data/00_GraphDatasets/GBREW"
+BASE_NVME_DIR   = "/media/NVMeData/00_GraphDatasets/GBREW"
 RESULT_DIR = "bench/results"
 LOG_DIR_RUN   = os.path.join(RESULT_DIR, "logs_run")
 LOG_DIR_ORDER = os.path.join(RESULT_DIR, "logs_order")
@@ -13,15 +14,15 @@ os.makedirs(LOG_DIR_ORDER, exist_ok=True)
 
 # Define the list of graphs and their extensions
 graph_extensions = {
-    "RD": "mtx",
-    "SLJ1": "mtx",
-    "CPAT": "mtx",
-    "CORKT": "mtx",
-    "SPKC": "mtx",
-    "GPLUS": "mtx",
-    "WIKLE": "mtx",
-    "WEB01": "mtx",
-    "TWTR": "mtx"
+    "RD": "sg",
+    "SLJ1": "sg",
+    "CPAT": "sg",
+    "CORKT": "sg",
+    "SPKC": "sg",
+    "GPLUS": "sg",
+    "WIKLE": "sg",
+    "WEB01": "sg",
+    "TWTR": "sg"
 }
 
 # Define the list of kernels
@@ -58,12 +59,22 @@ time_patterns = {
     }
 }
 
-reorder_option_mapping = {
+brewing_reorder_option_mapping = {
+    "GraphBrew1": "-o13:10:1",
+    "GraphBrew5": "-o13:10:5",
+    "GraphBrew8": "-o13:10:8",
+    "GraphBrew9": "-o13:10:9",
+    "GraphBrew10": "-o13:10:10",
+    "GraphBrew11": "-o13:10:11",
+    "GraphBrew12": "-o13:10:12"
+}
+
+single_reorder_option_mapping = {
     "Random": "-o0", # this is your baseline
     # "Sort": "-o2",
     # "HubSort": "-o3",
     # "HubCluster": "-o4",
-    "DBG": "-o5",
+    # "DBG": "-o5",
     # "HubSortDBG": "-o6",
     # "HubClusterDBG": "-o7",
     "RabbitOrder": "-o8",
@@ -71,8 +82,18 @@ reorder_option_mapping = {
     "Corder": "-o10",
     "RCM": "-o11",
     "Leiden": "-o12",
-    "LeidenFull": "-o8 -o12"
+    "GraphBrew": "-o13"
 }
+
+# reorder_option_mapping = {
+#     # "Random": "-o0", # this is your baseline
+#     "DBG": "-o5",
+#     "RabbitOrder": "-o8 -o5",
+#     "Gorder": "-o9 -o5",
+#     "Corder": "-o10 -o5",
+#     "RCM": "-o11 -o5",
+#     "Leiden": "-o12 -o5"
+# }
 
 def parse_reorder_output(output):
     timings = {}
@@ -99,7 +120,7 @@ def run_reorders():
         
         # Construct the graph file path
         graph_file = os.path.join(BASE_DIR, graph, f"graph.{ext}")
-        random_graph_file = os.path.join(BASE_DIR, graph, f"graph_1.sg")
+        random_graph_file = os.path.join(BASE_DIR, graph, f"graph_0.sg")
 
         reorder_name   = "Random" 
         reorder_option = "-o1"        
@@ -107,7 +128,7 @@ def run_reorders():
         if not os.path.isfile(random_graph_file):
             print(f"Running converter with reorder {reorder_name} option: {reorder_option}")
             print(f"Output file: {random_graph_file}")
-            make_command = f"make run-converter GRAPH_BENCH='-f {graph_file} -b {random_graph_file}' RUN_PARAMS='{reorder_option}' FLUSH_CACHE=0 PARALLEL=16"
+            make_command = f"make run-converter GRAPH_BENCH='-f {graph_file} -b {random_graph_file}' RUN_PARAMS='{reorder_option}' FLUSH_CACHE=0 PARALLEL=32"
             log_file = os.path.join(LOG_DIR_ORDER, f"{graph}_initial.log")
             with open(log_file, 'w') as log:
                 print(f"Executing command: {make_command}")
@@ -124,11 +145,11 @@ def run_reorders():
                 if ' ' in reorder_option:
                     # Handle multiple options
                     option_numbers = '_'.join([opt.split('o')[1] for opt in reorder_option.split()])
-                    output_file = os.path.join(BASE_DIR, graph, f"graph_{option_numbers}.mtx")
+                    output_file = os.path.join(BASE_DIR, graph, f"graph_{option_numbers}.sg")
                 else:
                     # Handle single option
                     option_number = reorder_option.split('o')[1]
-                    output_file = os.path.join(BASE_DIR, graph, f"graph_{option_number}.mtx")
+                    output_file = os.path.join(BASE_DIR, graph, f"graph_{option_number}.sg")
                 
                 # Skip if the output file already exists
                 if os.path.isfile(output_file):
@@ -140,7 +161,7 @@ def run_reorders():
                 print(f"Output file: {output_file}")
                 
                 # Construct and run the make command
-                make_command = f"make run-converter GRAPH_BENCH='-f {random_graph_file} -p {output_file}' RUN_PARAMS='{reorder_option}' FLUSH_CACHE=0 PARALLEL=16"
+                make_command = f"make run-converter GRAPH_BENCH='-f {random_graph_file} -b {output_file} -p {output_file}' RUN_PARAMS='{reorder_option}' FLUSH_CACHE=0 PARALLEL=32"
                 log_file = os.path.join(LOG_DIR_ORDER, f"{graph}_{reorder_name}.log")
                 with open(log_file, 'w') as log:
                     print(f"Executing command: {make_command}")
@@ -257,18 +278,22 @@ def run_convert():
         results[graph] = {}
             
         # Iterate over each reorder option
-        for reorder_name, reorder_option in list(reorder_option_mapping.items()):
+        for reorder_name, reorder_option in list(single_reorder_option_mapping.items()):
             if ' ' in reorder_option:
                 # Handle multiple options
                 option_numbers = '_'.join([opt.split('o')[1] for opt in reorder_option.split()])
-                output_file = os.path.join(BASE_DIR, graph, f"graph_{option_numbers}.mtx")
-                output_file_conv = os.path.join(BASE_DIR, graph, f"graph_{option_numbers}.sg")
+                output_file = os.path.join(BASE_DIR, graph, f"graph_{option_numbers}.sg")
+                output_file_conv = os.path.join(BASE_NVME_DIR, graph, f"graph_{option_numbers}.sg")
             else:
                 # Handle single option
                 option_number = reorder_option.split('o')[1]
-                output_file = os.path.join(BASE_DIR, graph, f"graph_{option_number}.mtx")
-                output_file_conv = os.path.join(BASE_DIR, graph, f"graph_{option_number}.sg")
+                output_file = os.path.join(BASE_DIR, graph, f"graph_{option_number}.sg")
+                output_file_conv = os.path.join(BASE_NVME_DIR, graph, f"graph_{option_number}.sg")
             
+            # Ensure the graph directories exist
+            os.makedirs(os.path.join(BASE_DIR, graph), exist_ok=True)
+            os.makedirs(os.path.join(BASE_NVME_DIR, graph), exist_ok=True)
+
             # Skip if the output file already exists
             if os.path.isfile(output_file_conv):
                 print(f"Output file already exists, skipping: {output_file_conv}")
@@ -279,7 +304,7 @@ def run_convert():
             print(f"Output file: {output_file}")
             
             # Construct and run the make command
-            make_command = f"make run-converter GRAPH_BENCH='-f {output_file} -b {output_file_conv}' RUN_PARAMS='-o0' FLUSH_CACHE=0 PARALLEL=32"
+            make_command = f"make run-converter GRAPH_BENCH='-f {output_file} -b {output_file_conv} -p {output_file_conv}' RUN_PARAMS='-o5' FLUSH_CACHE=0 PARALLEL=32"
             log_file = os.path.join(LOG_DIR_ORDER, f"{graph}_{reorder_name}.log")
             with open(log_file, 'w') as log:
                 print(f"Executing command: {make_command}")
@@ -291,7 +316,7 @@ def run_convert():
             
             # Record the results
             for key, time in timings.items():
-                if reorder_name in reorder_option_mapping:
+                if reorder_name in single_reorder_option_mapping:
                     results[graph][reorder_name] = time
             
             print(f"Completed conversion for reorder option: {reorder_option}\n")
