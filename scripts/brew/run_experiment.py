@@ -59,7 +59,7 @@ time_patterns = {
     }
 }
 
-brewing_reorder_option_mapping = {
+reorder_option_mapping = {
     "GraphBrew1": "-o13:10:1",
     "GraphBrew5": "-o13:10:5",
     "GraphBrew8": "-o13:10:8",
@@ -145,12 +145,16 @@ def run_reorders():
                 if ' ' in reorder_option:
                     # Handle multiple options
                     option_numbers = '_'.join([opt.split('o')[1] for opt in reorder_option.split()])
-                    output_file = os.path.join(BASE_DIR, graph, f"graph_{option_numbers}.sg")
+                    output_file = os.path.join(BASE_NVME_DIR, graph, f"graph_{option_numbers}.sg")
                 else:
                     # Handle single option
                     option_number = reorder_option.split('o')[1]
-                    output_file = os.path.join(BASE_DIR, graph, f"graph_{option_number}.sg")
+                    output_file = os.path.join(BASE_NVME_DIR, graph, f"graph_{option_number}.sg")
                 
+                # Ensure the graph directories exist
+                # os.makedirs(os.path.join(BASE_DIR, graph), exist_ok=True)
+                os.makedirs(os.path.join(BASE_NVME_DIR, graph), exist_ok=True)
+
                 # Skip if the output file already exists
                 if os.path.isfile(output_file):
                     print(f"Output file already exists, skipping: {output_file}")
@@ -324,6 +328,6 @@ def run_convert():
     print("Convert process completed.")
 
 if __name__ == "__main__":
-    run_convert()
-    # run_reorders()
+    # run_convert()
+    run_reorders()
     # run_kernels()

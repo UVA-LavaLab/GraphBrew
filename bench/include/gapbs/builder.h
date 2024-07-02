@@ -513,8 +513,10 @@ public:
 
     CSRGraph<NodeID_, DestID_, invert> MakeLocalGraphFromEL(EdgeList &el)
     {
-        DestID_ **index = nullptr, **inv_index = nullptr;
-        DestID_ *neighs = nullptr, *inv_neighs = nullptr;
+        DestID_ **index = nullptr;
+        // **inv_index = nullptr;
+        DestID_ *neighs = nullptr;
+        // *inv_neighs = nullptr;
         Timer t;
         t.Start();
         if (num_nodes_ == -1)
@@ -523,13 +525,14 @@ public:
         }
 
         MakeLocalCSR(el, false, &index, &neighs);
-        MakeLocalCSR(el, true, &inv_index, &inv_neighs);
-        CSRGraph<NodeID_, DestID_, invert> g = CSRGraph<NodeID_, DestID_, invert>(
-                num_nodes_, index, neighs, inv_index, inv_neighs);
-        // CSRGraph<NodeID_, DestID_, invert> g = CSRGraph<NodeID_, DestID_,
-        // invert>(num_nodes_, index, neighs); g.PrintTopology();
-        g = SquishGraph(g);
-        // SquishCSR(g, false, &index, &neighs);
+        // MakeLocalCSR(el, true, &inv_index, &inv_neighs);
+        // CSRGraph<NodeID_, DestID_, invert> g = CSRGraph<NodeID_, DestID_, invert>(
+        //         num_nodes_, index, neighs, inv_index, inv_neighs);
+        CSRGraph<NodeID_, DestID_, invert> g = CSRGraph<NodeID_, DestID_,
+                                           invert>(num_nodes_, index, neighs);
+        // g.PrintTopology();
+        // g = SquishGraph(g);
+        SquishCSR(g, false, &index, &neighs);
         // SquishCSR(g, true, &inv_index, &inv_neighs);
         t.Stop();
         PrintTime("Local Build Time", t.Seconds());
@@ -1390,7 +1393,7 @@ public:
             GenerateLeidenMapping(g, new_ids, reordering_options);
             break;
         case GraphBrewOrder:
-            GenerateGraphBrewMapping(g, new_ids, useOutdeg, reordering_options);
+            GenerateGraphBrewMapping(g, new_ids, useOutdeg, reordering_options, 3);
             break;
         case MAP:
             LoadMappingFromFile(g, new_ids, reordering_options);
@@ -1421,6 +1424,8 @@ public:
                                  ReorderingAlgo reordering_algo, bool useOutdeg,
                                  std::vector<std::string> reordering_options, int numLevels = 1, bool recursion = false)
     {
+
+        // omp_set_nested(1);
 
         CSRGraph<NodeID_, DestID_, invert> g = MakeLocalGraphFromEL(el);
 
@@ -3879,44 +3884,41 @@ public:
                                pvector<NodeID_> &new_ids)
     {
 
-        int window = 5;
+        int window = 7;
 
-        // int64_t num_nodes = g.num_nodes();
-        int64_t num_edges = g.num_edges();
+        int64_t num_nodes = g.num_nodes();
+        int64_t num_edges = g.num_edges_directed();
 
-        std::vector<std::pair<int, int>> edges;
-        edges.reserve(num_edges * 2);
-
-        for (NodeID_ i = 0; i < g.num_nodes(); i++)
+        std::vector<std::pair<int, int>> edges(num_edges);
+        edges.reserve(num_edges);
+        // Parallel loop to construct the edge list
+        #pragma omp parallel for
+        for (NodeID_ i = 0; i < num_nodes; ++i)
         {
-            for (DestID_ j : g.out_neigh(i))
+            NodeID_ out_start = g.out_offset(i);
+
+            NodeID_ j = 0;
+            for (DestID_ neighbor : g.out_neigh(i))
             {
                 if (g.is_weighted())
-                    edges.push_back({i, static_cast<NodeWeight<NodeID_, WeightT_>>(j).v});
-                else
-                    edges.push_back({i, j});
-            }
-        }
-
-        if (g.directed())
-        {
-            if (num_edges < g.num_edges_directed())
-            {
-                for (NodeID_ i = 0; i < g.num_nodes(); i++)
                 {
-                    for (DestID_ j : g.in_neigh(i))
-                    {
-                        if (g.is_weighted())
-                            edges.push_back(
-                        {i, static_cast<NodeWeight<NodeID_, WeightT_>>(j).v});
-                        else
-                            edges.push_back({i, j});
-                    }
+                    NodeID_ dest = static_cast<NodeWeight<NodeID_, WeightT_>>(neighbor).v;
+                    // WeightT_ weight =
+                    //     static_cast<NodeWeight<NodeID_, WeightT_>>(neighbor).w;
+
+                    std::pair<int, int>edge =
+                        std::make_pair(i, dest);
+                    edges[out_start + j] = edge;
                 }
+                else
+                {
+                    std::pair<int, int> edge =
+                        std::make_pair(i, neighbor);
+                    edges[out_start + j] = edge;
+                }
+                ++j;
             }
         }
-
-        edges.shrink_to_fit();
 
         Gorder::GoGraph go;
         vector<int> order;
@@ -3953,42 +3955,39 @@ public:
                                  pvector<NodeID_> &new_ids)
     {
 
-        // int64_t num_nodes = g.num_nodes();
-        int64_t num_edges = g.num_edges();
+        int64_t num_nodes = g.num_nodes();
+        int64_t num_edges = g.num_edges_directed();
 
-        std::vector<std::pair<int, int>> edges;
-        edges.reserve(num_edges * 2);
-
-        for (NodeID_ i = 0; i < g.num_nodes(); i++)
+        std::vector<std::pair<int, int>> edges(num_edges);
+        edges.reserve(num_edges);
+        // Parallel loop to construct the edge list
+        #pragma omp parallel for
+        for (NodeID_ i = 0; i < num_nodes; ++i)
         {
-            for (DestID_ j : g.out_neigh(i))
+            NodeID_ out_start = g.out_offset(i);
+
+            NodeID_ j = 0;
+            for (DestID_ neighbor : g.out_neigh(i))
             {
                 if (g.is_weighted())
-                    edges.push_back({i, static_cast<NodeWeight<NodeID_, WeightT_>>(j).v});
-                else
-                    edges.push_back({i, j});
-            }
-        }
-
-        if (g.directed())
-        {
-            if (num_edges < g.num_edges_directed())
-            {
-                for (NodeID_ i = 0; i < g.num_nodes(); i++)
                 {
-                    for (DestID_ j : g.in_neigh(i))
-                    {
-                        if (g.is_weighted())
-                            edges.push_back(
-                        {i, static_cast<NodeWeight<NodeID_, WeightT_>>(j).v});
-                        else
-                            edges.push_back({i, j});
-                    }
+                    NodeID_ dest = static_cast<NodeWeight<NodeID_, WeightT_>>(neighbor).v;
+                    // WeightT_ weight =
+                    //     static_cast<NodeWeight<NodeID_, WeightT_>>(neighbor).w;
+
+                    std::pair<int, int>edge =
+                        std::make_pair(i, dest);
+                    edges[out_start + j] = edge;
                 }
+                else
+                {
+                    std::pair<int, int> edge =
+                        std::make_pair(i, neighbor);
+                    edges[out_start + j] = edge;
+                }
+                ++j;
             }
         }
-
-        edges.shrink_to_fit();
 
         Gorder::GoGraph go;
         vector<int> order;
@@ -4139,70 +4138,10 @@ public:
 
         Timer tm;
 
-        // std::cout << "Options: ";
-        // for (const auto& param : reordering_options) {
-        //   std::cout << param << " ";
-        // }
-        // std::cout << std::endl;
-
         using V = TYPE;
         install_sigsegv();
 
-        int64_t num_nodes = g.num_nodes();
-        int64_t num_edges = g.num_edges();
-
-        std::vector<std::tuple<size_t, size_t, double>> edges;
-        edges.reserve(num_edges * 2);
-
-        for (NodeID_ i = 0; i < g.num_nodes(); i++)
-        {
-            for (DestID_ j : g.out_neigh(i))
-            {
-                if (g.is_weighted())
-                    edges.push_back({i, static_cast<NodeWeight<NodeID_, WeightT_>>(j).v,
-                                     static_cast<NodeWeight<NodeID_, WeightT_>>(j).w});
-                else
-                    edges.push_back({i, j, 1.0f});
-            }
-        }
-
-        if (g.directed())
-        {
-            if (num_edges < g.num_edges_directed())
-            {
-                for (NodeID_ i = 0; i < g.num_nodes(); i++)
-                {
-                    for (DestID_ j : g.in_neigh(i))
-                    {
-                        if (g.is_weighted())
-                            edges.push_back(
-                        {
-                            i, static_cast<NodeWeight<NodeID_, WeightT_>>(j).v,
-                                    static_cast<NodeWeight<NodeID_, WeightT_>>(j).w});
-                        else
-                            edges.push_back({i, j, 1.0f});
-                    }
-                }
-            }
-        }
-
-        edges.shrink_to_fit();
-
-        tm.Start();
-        bool symmetric = false;
-        bool weighted = g.is_weighted();
-        DiGraph<K, None, V> x;
-        readVecOmpW(x, edges, num_nodes, symmetric,
-                    weighted); // LOG(""); println(x);
-        edges.clear();
-        if (!symmetric)
-        {
-            x = symmetricizeOmp(x);
-        } //; LOG(""); print(x); printf(" (->symmetricize)\n"); }
-        tm.Stop();
-        PrintTime("DiGraph graph", tm.Seconds());
-
-        double resolution = 0.8;
+        double resolution = 0.75;
         int maxIterations = 30;
         /** Maximum number of passes [10]. */
         int maxPasses = 30;
@@ -4210,7 +4149,7 @@ public:
         if (!reordering_options.empty())
         {
             resolution = std::stod(reordering_options[0]);
-            resolution = (resolution > 1) ? 0.8 : resolution;
+            resolution = (resolution > 2) ? 0.75 : resolution;
         }
         if (reordering_options.size() > 1)
         {
@@ -4221,12 +4160,58 @@ public:
             maxPasses = std::stoi(reordering_options[2]);
         }
 
+        int64_t num_nodes = g.num_nodes();
+        int64_t num_edges = g.num_edges_directed();
+
+        std::vector<std::tuple<size_t, size_t, double>> edges(num_edges);
+        edges.reserve(num_edges);
+        // Parallel loop to construct the edge list
+        #pragma omp parallel for
+        for (NodeID_ i = 0; i < num_nodes; ++i)
+        {
+            NodeID_ out_start = g.out_offset(i);
+
+            NodeID_ j = 0;
+            for (DestID_ neighbor : g.out_neigh(i))
+            {
+                if (g.is_weighted())
+                {
+                    NodeID_ dest = static_cast<NodeWeight<NodeID_, WeightT_>>(neighbor).v;
+                    WeightT_ weight =
+                        static_cast<NodeWeight<NodeID_, WeightT_>>(neighbor).w;
+
+                    std::tuple<size_t, size_t, double> edge =
+                        std::make_tuple(i, dest, weight);
+                    edges[out_start + j] = edge;
+                }
+                else
+                {
+                    std::tuple<size_t, size_t, double> edge =
+                        std::make_tuple(i, neighbor, 1.0f);
+                    edges[out_start + j] = edge;
+                }
+                ++j;
+            }
+        }
+
+        tm.Start();
+        bool symmetric = false;
+        bool weighted = g.is_weighted();
+        DiGraph<K, None, V> x;
+        readVecOmpW(x, edges, num_nodes, symmetric,
+                    weighted); // LOG(""); println(x);
+        edges.clear();
+        x = symmetricizeOmp(x);
+
+        tm.Stop();
+        PrintTime("DiGraph graph", tm.Seconds());
+
         runExperiment(x, resolution, maxIterations, maxPasses);
 
         size_t num_nodesx;
         size_t num_passes;
         num_nodesx = x.span();
-        num_passes = x.communityMappingPerPass.size() + 3;
+        num_passes = x.communityMappingPerPass.size() + 2;
 
         std::vector<std::vector<K>> communityVectorTuplePerPass(
                                      num_nodesx, std::vector<K>(num_passes, 0));
@@ -4235,64 +4220,26 @@ public:
         #pragma omp parallel for
         for (size_t i = 0; i < num_nodesx; ++i)
         {
-            communityVectorTuplePerPass[i][0] = UINT_E_MAX;
-            communityVectorTuplePerPass[i][1] = i;
-            communityVectorTuplePerPass[i][2] = x.degree(i);
+            communityVectorTuplePerPass[i][0] = i;
+            communityVectorTuplePerPass[i][1] = x.degree(i);
         }
 
-        for (size_t i = 0; i < num_passes - 3; ++i)
+        for (size_t i = 0; i < num_passes - 2; ++i)
         {
             #pragma omp parallel for
             for (size_t j = 0; j < num_nodesx; ++j)
             {
-                communityVectorTuplePerPass[j][3 + i] = x.communityMappingPerPass[i][j];
+                communityVectorTuplePerPass[j][2 + i] = x.communityMappingPerPass[i][j];
             }
         }
 
         // sort_by_vector_element(communityVectorTuplePerPass, 2);
         sort_by_vector_element(communityVectorTuplePerPass, num_passes - 1);
 
-        // auto running_v_id = 0;
-        // auto running_v_hops = 0;
-        // int64_t avgDegree = g.num_edges() / g.num_nodes() + 1;
-
-        // for (int64_t i = 0; i < num_nodes; i++)
-        // {
-        //     if (communityVectorTuplePerPass[i][0] == UINT_E_MAX)
-        //     {
-        //         auto current_com_id = communityVectorTuplePerPass[i][num_passes - 1];
-        //         communityVectorTuplePerPass[i][0] = running_v_id;
-        //         running_v_id++;
-        //         auto current_v_id = communityVectorTuplePerPass[i][1];
-        //         for (int64_t j = (i + 1); j < num_nodes; j++)
-        //         {
-        //             auto next_com_id = communityVectorTuplePerPass[j][num_passes - 1];
-        //             if (current_com_id != next_com_id ||
-        //                     (running_v_hops % avgDegree) == 0)
-        //             {
-        //                 running_v_hops = 0;
-        //                 break;
-        //             }
-        //             auto set_v_id = communityVectorTuplePerPass[j][1];
-        //             if (communityVectorTuplePerPass[j][0] == UINT_E_MAX)
-        //             {
-        //                 if (g.out_neigh(current_v_id).contains(set_v_id))
-        //                 {
-        //                     communityVectorTuplePerPass[j][0] = running_v_id;
-        //                     running_v_id++;
-        //                     running_v_hops++;
-        //                 }
-        //             }
-        //         }
-        //     }
-        // }
-
-        // sort_by_vector_element(communityVectorTuplePerPass, 0);
-
         #pragma omp parallel for
         for (int64_t i = 0; i < num_nodes; i++)
         {
-            new_ids[communityVectorTuplePerPass[i][1]] = (NodeID_)i;
+            new_ids[communityVectorTuplePerPass[i][0]] = (NodeID_)i;
         }
 
         tm.Stop();
@@ -4323,7 +4270,7 @@ public:
         int64_t num_edges = g.num_edges_directed();
         size_t num_nodesx = num_nodes;
         size_t num_passes = 0;
-        double resolution = 0.8;
+        double resolution = 0.75;
         int maxIterations = 30;
         /** Maximum number of passes [10]. */
         int maxPasses = 30;
@@ -4346,7 +4293,7 @@ public:
         if (reordering_options.size() > 2)
         {
             resolution = std::stod(reordering_options[2]);
-            resolution = (resolution > 1) ? 0.75 : resolution;
+            resolution = (resolution > 2) ? 0.75 : resolution;
         }
         if (reordering_options.size() > 3)
         {
@@ -4658,15 +4605,50 @@ public:
             std::cout << "Community ID " << comm_id
                       << " edge list: " << edge_list.size() << "\n";
 
-            // if (numLevels && top_communities.size() > 1 && edge_list.size() > 1) {
-            //   algo = ReorderingAlgo::GraphBrewOrder;
-            //   reordering_options[0] = std::to_string(static_cast<int>(frequency_threshold * 1.5));
-            // } else {
-            //   algo = ReorderingAlgo::RabbitOrder;
+
+            ReorderingAlgo reordering_algo_nest = algo;
+
+            if (numLevels > 1 && idx == 0)
+            {
+                reordering_algo_nest = ReorderingAlgo::GraphBrewOrder;
+                // reordering_options[0] = std::to_string(static_cast<int>(frequency_threshold * 1.5));
+                if (reordering_options.size() > 2)
+                {
+                    reordering_options[2] = std::to_string(static_cast<double>(resolution));
+                }
+                else
+                {
+                    reordering_options.push_back(std::to_string(static_cast<double>(resolution)));
+                }
+            }
+
+            // if (numLevels == 1 && idx == 0)
+            // {
+            //     reordering_algo_nest = ReorderingAlgo::RabbitOrder;
             // }
 
-            GenerateMappingLocalEdgelist(edge_list, new_ids_sub, algo, true,
-                                         reordering_options, numLevels, true);
+
+            // Initialize with default values
+            std::vector<std::string> leiden_reordering_options = {"1.0", "30", "30"};
+            std::vector<std::string> next_reordering_options;
+
+            if (reordering_algo_nest == ReorderingAlgo::LeidenOrder)
+            {
+                // Customize options for LeidenOrder
+                leiden_reordering_options[0] = reordering_options[2];
+                leiden_reordering_options[1] = std::to_string(static_cast<int>(maxIterations));
+                leiden_reordering_options[2] = std::to_string(static_cast<int>(maxPasses));
+                std::cout << "Resolution Next: " << reordering_options[2] << std::endl;
+            }
+
+
+            next_reordering_options = (reordering_algo_nest == ReorderingAlgo::LeidenOrder) ? leiden_reordering_options : reordering_options;
+
+
+            if(edge_list.size() > 0)
+                GenerateMappingLocalEdgelist(edge_list, new_ids_sub, reordering_algo_nest, true,
+                                             next_reordering_options, numLevels, true);
+
             // Add id pairs to the corresponding community list
             #pragma omp parallel for
             for (size_t i = 0; i < new_ids_sub.size(); ++i)
