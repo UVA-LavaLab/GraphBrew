@@ -531,8 +531,8 @@ public:
         CSRGraph<NodeID_, DestID_, invert> g = CSRGraph<NodeID_, DestID_,
                                            invert>(num_nodes_, index, neighs);
         // g.PrintTopology();
-        // g = SquishGraph(g);
-        SquishCSR(g, false, &index, &neighs);
+        g = SquishGraph(g);
+        // SquishCSR(g, false, &index, &neighs);
         // SquishCSR(g, true, &inv_index, &inv_neighs);
         t.Stop();
         PrintTime("Local Build Time", t.Seconds());
