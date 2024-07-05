@@ -1348,7 +1348,7 @@ public:
         }
     }
 
-    void GenerateMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
+    void GenerateMapping(CSRGraph<NodeID_, DestID_, invert> &g,
                          pvector<NodeID_> &new_ids,
                          ReorderingAlgo reordering_algo, bool useOutdeg,
                          std::vector<std::string> reordering_options)
@@ -1378,8 +1378,15 @@ public:
             // RandOrder(g, new_ids, false, false);
             break;
         case RabbitOrder:
+        {
+            // MakeLocalGraphFromEL(partitions_el_dest[i]);
+            pvector<NodeID_> new_ids_local(g.num_nodes(), -1);
+            // partition_g = SquishGraph(partition_g);
+            GenerateSortMappingRabbit(g, new_ids_local, true, true);
+            g = RelabelByMapping(g, new_ids_local);
             GenerateRabbitOrderMapping(g, new_ids);
-            break;
+        }
+        break;
         case GOrder:
             GenerateGOrderMapping(g, new_ids);
             break;
@@ -2085,8 +2092,10 @@ public:
             #pragma omp parallel for
             for (int64_t v = 0; v < num_nodes; ++v)
             {
+
                 int64_t out_degree_v = g.out_degree(v);
                 degree_id_pairs[v] = std::make_pair(out_degree_v, v);
+
             }
         }
         else
@@ -2096,21 +2105,80 @@ public:
             {
                 int64_t in_degree_v = g.in_degree(v);
                 degree_id_pairs[v] = std::make_pair(in_degree_v, v);
+
             }
         }
 
-        if (lesser)
+        auto custom_comparator = [lesser](const degree_nodeid_t &a, const degree_nodeid_t &b)
         {
-            __gnu_parallel::stable_sort(degree_id_pairs.begin(),
-                                        degree_id_pairs.end(),
-                                        std::less<degree_nodeid_t>());
+            if (a.first == 0 && b.first == 0) return false; // Keep relative order of zero-degree nodes
+            if (a.first == 0) return false; // Zero-degree nodes should be "greater"
+            if (b.first == 0) return true;  // Zero-degree nodes should be "greater"
+            return lesser ? (a < b) : (a > b);
+        };
+
+        __gnu_parallel::stable_sort(degree_id_pairs.begin(), degree_id_pairs.end(), custom_comparator);
+
+
+        #pragma omp parallel for
+        for (int64_t n = 0; n < num_nodes; ++n)
+        {
+            new_ids[degree_id_pairs[n].second] = n;
+        }
+
+        pvector<degree_nodeid_t>().swap(degree_id_pairs);
+
+        t.Stop();
+        PrintTime("Sort Map Time", t.Seconds());
+    }
+
+    void GenerateSortMappingRabbit(const CSRGraph<NodeID_, DestID_, invert> &g,
+                                   pvector<NodeID_> &new_ids, bool useOutdeg,
+                                   bool lesser = false)
+    {
+
+        typedef std::pair<int64_t, NodeID_> degree_nodeid_t;
+
+        Timer t;
+        t.Start();
+
+        int64_t num_nodes = g.num_nodes();
+        // int64_t num_edges = g.num_edges_directed();
+
+        pvector<degree_nodeid_t> degree_id_pairs(num_nodes);
+
+        if (useOutdeg)
+        {
+            #pragma omp parallel for
+            for (int64_t v = 0; v < num_nodes; ++v)
+            {
+
+                int64_t out_degree_v = g.out_degree(v) + g.in_degree(v);
+                degree_id_pairs[v] = std::make_pair(out_degree_v, v);
+
+            }
         }
         else
         {
-            __gnu_parallel::stable_sort(degree_id_pairs.begin(),
-                                        degree_id_pairs.end(),
-                                        std::greater<degree_nodeid_t>());
+            #pragma omp parallel for
+            for (int64_t v = 0; v < num_nodes; ++v)
+            {
+                int64_t in_degree_v = g.in_degree(v);
+                degree_id_pairs[v] = std::make_pair(in_degree_v, v);
+
+            }
         }
+
+        auto custom_comparator = [lesser](const degree_nodeid_t &a, const degree_nodeid_t &b)
+        {
+            if (a.first == 0 && b.first == 0) return false; // Keep relative order of zero-degree nodes
+            if (a.first == 0) return false; // Zero-degree nodes should be "greater"
+            if (b.first == 0) return true;  // Zero-degree nodes should be "greater"
+            return lesser ? (a < b) : (a > b);
+        };
+
+        __gnu_parallel::stable_sort(degree_id_pairs.begin(), degree_id_pairs.end(), custom_comparator);
+
 
         #pragma omp parallel for
         for (int64_t n = 0; n < num_nodes; ++n)
@@ -3549,10 +3617,11 @@ public:
             return std::max(s, std::max(std::get<0>(e), std::get<1>(e)) + 1);
         });
 
-        // if (const size_t c = count_unused_id(n, edges)) {
-        //   std::cerr << "WARNING: " << c << "/" << n << " vertex IDs are unused"
-        //             << " (zero-degree vertices or noncontiguous IDs?)\n";
-        // }
+        if (const size_t c = count_unused_id(n, edges))
+        {
+            std::cerr << "WARNING: " << c << "/" << n << " vertex IDs are unused"
+                      << " (zero-degree vertices or noncontiguous IDs?)\n";
+        }
 
         return make_adj_list(n, edges);
     }
