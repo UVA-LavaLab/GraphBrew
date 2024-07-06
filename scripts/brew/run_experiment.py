@@ -39,11 +39,11 @@ kernels = [
 # Regular expressions for parsing timing data from benchmark outputs
 time_patterns = {
     "reorder_time": {
+        "GraphBrew": re.compile(r"\bGraphBrewOrder\b Map Time:\s*([\d\.]+)"),
         "HubClusterDBG": re.compile(r"\bHubClusterDBG\b Map Time:\s*([\d\.]+)"),
         "HubCluster": re.compile(r"\bHubCluster\b Map Time:\s*([\d\.]+)"),
         "HubSortDBG": re.compile(r"\bHubSortDBG\b Map Time:\s*([\d\.]+)"),
         "HubSort": re.compile(r"\bHubSort\b Map Time:\s*([\d\.]+)"),
-        "LeidenFull": re.compile(r"\bLeidenFullOrder\b Map Time:\s*([\d\.]+)"),
         "Leiden": re.compile(r"\bLeidenOrder\b Map Time:\s*([\d\.]+)"),
         "Original": re.compile(r"\bOriginal\b Map Time:\s*([\d\.]+)"),
         "RabbitOrder": re.compile(r"\bRabbitOrder\b Map Time:\s*([\d\.]+)"),
@@ -81,8 +81,17 @@ single_reorder_option_mapping = {
     "Gorder": "-o9",
     "Corder": "-o10",
     "RCM": "-o11",
-    "Leiden": "-o12",
-    "GraphBrew": "-o13"
+    "Leiden0": "-o12:0.25",
+    "Leiden1": "-o12:0.75",
+    "Leiden2": "-o12:1.25",
+    "Leiden3": "-o12:1.75",
+    "Leiden4": "-o12:2.0",
+    "GraphBrew0": "-o13:10:8",
+    "GraphBrew1": "-o13:10:12:0.25",
+    "GraphBrew2": "-o13:10:12:0.75",
+    "GraphBrew3": "-o13:10:12:1.25",
+    "GraphBrew4": "-o13:10:12:1.75",
+    "GraphBrew5": "-o13:10:12:2.0",
 }
 
 # reorder_option_mapping = {
@@ -141,7 +150,7 @@ def run_reorders():
             results[graph] = {}
             
             # Iterate over each reorder option
-            for reorder_name, reorder_option in list(reorder_option_mapping.items()):
+            for reorder_name, reorder_option in list(single_reorder_option_mapping.items()):
                 if ' ' in reorder_option:
                     # Handle multiple options
                     option_numbers = '_'.join([opt.split('o')[1] for opt in reorder_option.split()])
@@ -177,7 +186,7 @@ def run_reorders():
                 
                 # Record the results
                 for key, time in timings.items():
-                    if reorder_name in reorder_option_mapping:
+                    if reorder_name in single_reorder_option_mapping:
                         results[graph][reorder_name] = time
                 
                 print(f"Completed conversion for reorder option: {reorder_option}\n")
@@ -193,11 +202,11 @@ def run_reorders():
     csv_file = os.path.join(RESULT_DIR, "reorder_results.csv")
     with open(csv_file, mode='w', newline='') as file:
         writer = csv.writer(file)
-        header = ["Graph"] + list(reorder_option_mapping.keys())
+        header = ["Graph"] + list(single_reorder_option_mapping.keys())
         writer.writerow(header)
         
         for graph, timings in results.items():
-            row = [graph] + [timings.get(reorder_name, '') for reorder_name in reorder_option_mapping.keys()]
+            row = [graph] + [timings.get(reorder_name, '') for reorder_name in single_reorder_option_mapping.keys()]
             writer.writerow(row)
     
     print("Reorder process completed.")

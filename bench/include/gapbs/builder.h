@@ -3630,8 +3630,8 @@ public:
 
         if (const size_t c = count_unused_id(n, edges))
         {
-            std::cerr << "WARNING: " << c << "/" << n << " vertex IDs are unused"
-                      << " (zero-degree vertices or noncontiguous IDs?)\n";
+            // std::cerr << "WARNING: " << c << "/" << n << " vertex IDs are unused"
+            //           << " (zero-degree vertices or noncontiguous IDs?)\n";
         }
 
         return make_adj_list(n, edges);
@@ -4229,7 +4229,7 @@ public:
         if (!reordering_options.empty())
         {
             resolution = std::stod(reordering_options[0]);
-            resolution = (resolution > 2) ? 0.75 : resolution;
+            resolution = (resolution > 3) ? 1.0 : resolution;
         }
         if (reordering_options.size() > 1)
         {
@@ -4335,6 +4335,7 @@ public:
     {
 
         Timer tm;
+        Timer tm_2;
 
         // std::cout << "Options: ";
         // for (const auto& param : reordering_options) {
@@ -4351,6 +4352,7 @@ public:
         size_t num_nodesx = num_nodes;
         size_t num_passes = 0;
         double resolution = 0.75;
+        // double total_time = 0.0;
         int maxIterations = 30;
         /** Maximum number of passes [10]. */
         int maxPasses = 30;
@@ -4360,7 +4362,6 @@ public:
         const char *reorderingAlgo_arg =
             "8"; // This can be any string representing a valid integer
         ReorderingAlgo algo = getReorderingAlgo(reorderingAlgo_arg);
-
 
         if (!reordering_options.empty())
         {
@@ -4373,7 +4374,7 @@ public:
         if (reordering_options.size() > 2)
         {
             resolution = std::stod(reordering_options[2]);
-            resolution = (resolution > 2) ? 0.75 : resolution;
+            resolution = (resolution > 3) ? 1.0 : resolution;
         }
         if (reordering_options.size() > 3)
         {
@@ -4558,12 +4559,12 @@ public:
         }
 
         // Print the top ten frequencies
-        std::cout << "Top community frequencies:\n";
-        for (size_t i = 0; i < top_communities.size(); ++i)
-        {
-            std::cout << "Community ID " << top_communities[i] << " has frequency "
-                      << freq_comm_pairs[i].first << ".\n";
-        }
+        // std::cout << "Top community frequencies:\n";
+        // for (size_t i = 0; i < top_communities.size(); ++i)
+        // {
+        //     std::cout << "Community ID " << top_communities[i] << " has frequency "
+        //               << freq_comm_pairs[i].first << ".\n";
+        // }
 
         // Create a set of top communities for quick lookup
         std::unordered_set<size_t> top_communities_set(top_communities.begin(),
@@ -4630,16 +4631,16 @@ public:
         }
 
         // Print the segmented edge lists (optional)
-        for (const auto &[comm_id, edge_list] : community_edge_lists)
-        {
-            std::cout << "Community ID " << comm_id
-                      << " edge list: " << edge_list.size() << "\n";
-            // for (const auto &edge : edge_list)
-            // {
-            //     std::cout << "(" << std::get<0>(edge) << ", " << std::get<1>(edge)
-            //     << ", " << std::get<2>(edge) << ")\n";
-            // }
-        }
+        // for (const auto &[comm_id, edge_list] : community_edge_lists)
+        // {
+        //     std::cout << "Community ID " << comm_id
+        //               << " edge list: " << edge_list.size() << "\n";
+        //     // for (const auto &edge : edge_list)
+        //     // {
+        //     //     std::cout << "(" << std::get<0>(edge) << ", " << std::get<1>(edge)
+        //     //     << ", " << std::get<2>(edge) << ")\n";
+        //     // }
+        // }
 
         // Create a vector to store the new_ids vectors for each community
         std::unordered_map<size_t, std::vector<std::pair<size_t, NodeID_>>>
@@ -4671,6 +4672,9 @@ public:
         //     GraphBrewOrder = 13,
         //     MAP = 14,
         // };
+
+        tm_2.Start();
+
         for (size_t idx = 0; idx < top_communities.size(); ++idx)
         {
             size_t comm_id = top_communities[idx];
@@ -4744,6 +4748,8 @@ public:
             }
         }
 
+        tm_2.Stop();
+
         // Make the mapping consecutive within each community list
         for (auto &entry : community_id_mappings)
         {
@@ -4807,6 +4813,9 @@ public:
         //     std::cout <<  i << "->" << new_ids[i] << std::endl;
         // }
         // std::cout << std::endl;
+
+        if(!recursion)
+            PrintTime("GraphBrew Map Time", tm_2.Seconds());
 
         PrintTime("GenID Time", tm.Seconds());
         PrintTime("Num Passes", num_passes);
