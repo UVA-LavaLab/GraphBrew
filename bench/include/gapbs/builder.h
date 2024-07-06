@@ -1381,10 +1381,17 @@ public:
         {
             // MakeLocalGraphFromEL(partitions_el_dest[i]);
             pvector<NodeID_> new_ids_local(g.num_nodes(), -1);
+            pvector<NodeID_> new_ids_local_2(g.num_nodes(), -1);
             // partition_g = SquishGraph(partition_g);
             GenerateSortMappingRabbit(g, new_ids_local, true, true);
-            g = RelabelByMapping(g, new_ids_local);
-            GenerateRabbitOrderMapping(g, new_ids);
+            CSRGraph<NodeID_, DestID_, invert> g_trans = RelabelByMapping(g, new_ids_local);
+            GenerateRabbitOrderMapping(g_trans, new_ids_local_2);
+
+            #pragma omp parallel for
+            for (NodeID_ n = 0; n < g.num_nodes(); n++)
+            {
+                new_ids[n] = new_ids_local_2[new_ids_local[n]];
+            }
         }
         break;
         case GOrder:
@@ -1427,14 +1434,14 @@ public:
     }
 
     void
-    GenerateMappingLocalEdgelist(EdgeList &el, pvector<NodeID_> &new_ids,
+    GenerateMappingLocalEdgelist(const CSRGraph<NodeID_, DestID_, invert> &g_org, EdgeList &el, pvector<NodeID_> &new_ids,
                                  ReorderingAlgo reordering_algo, bool useOutdeg,
                                  std::vector<std::string> reordering_options, int numLevels = 1, bool recursion = false)
     {
 
-        // omp_set_nested(1);
-
+        omp_set_nested(1);
         CSRGraph<NodeID_, DestID_, invert> g = MakeLocalGraphFromEL(el);
+        g.copy_org_ids(g_org.get_org_ids());
 
         switch (reordering_algo)
         {
@@ -1461,8 +1468,23 @@ public:
             // RandOrder(g, new_ids, false, false);
             break;
         case RabbitOrder:
-            GenerateRabbitOrderMapping(g, new_ids);
-            break;
+        {
+            // MakeLocalGraphFromEL(partitions_el_dest[i]);
+            pvector<NodeID_> new_ids_local(g_org.num_nodes(), -1);
+            pvector<NodeID_> new_ids_local_2(g_org.num_nodes(), -1);
+            // partition_g = SquishGraph(partition_g);
+            GenerateSortMappingRabbit(g, new_ids_local, true, true);
+            g = RelabelByMapping(g, new_ids_local);
+
+            GenerateRabbitOrderMapping(g, new_ids_local_2);
+
+            #pragma omp parallel for
+            for (NodeID_ n = 0; n < g_org.num_nodes(); n++)
+            {
+                new_ids[n] = new_ids_local_2[new_ids_local[n]];
+            }
+        }
+        break;
         case GOrder:
             GenerateGOrderMapping(g, new_ids);
             break;
@@ -2137,53 +2159,42 @@ public:
                                    bool lesser = false)
     {
 
-        typedef std::pair<int64_t, NodeID_> degree_nodeid_t;
+        typedef std::tuple<int64_t, int64_t, NodeID_> degree_nodeid_t;
 
         Timer t;
         t.Start();
 
         int64_t num_nodes = g.num_nodes();
-        // int64_t num_edges = g.num_edges_directed();
-
         pvector<degree_nodeid_t> degree_id_pairs(num_nodes);
 
-        if (useOutdeg)
+        #pragma omp parallel for
+        for (int64_t v = 0; v < num_nodes; ++v)
         {
-            #pragma omp parallel for
-            for (int64_t v = 0; v < num_nodes; ++v)
-            {
-
-                int64_t out_degree_v = g.out_degree(v) + g.in_degree(v);
-                degree_id_pairs[v] = std::make_pair(out_degree_v, v);
-
-            }
-        }
-        else
-        {
-            #pragma omp parallel for
-            for (int64_t v = 0; v < num_nodes; ++v)
-            {
-                int64_t in_degree_v = g.in_degree(v);
-                degree_id_pairs[v] = std::make_pair(in_degree_v, v);
-
-            }
+            int64_t out_degree_v = g.out_degree(v);
+            int64_t in_degree_v = g.in_degree(v);
+            degree_id_pairs[v] = std::make_tuple(out_degree_v, in_degree_v, v);
         }
 
-        auto custom_comparator = [lesser](const degree_nodeid_t &a, const degree_nodeid_t &b)
+        auto custom_comparator = [](const degree_nodeid_t &a, const degree_nodeid_t &b)
         {
-            if (a.first == 0 && b.first == 0) return false; // Keep relative order of zero-degree nodes
-            if (a.first == 0) return false; // Zero-degree nodes should be "greater"
-            if (b.first == 0) return true;  // Zero-degree nodes should be "greater"
-            return lesser ? (a < b) : (a > b);
+            int64_t out_a = std::get<0>(a);
+            int64_t out_b = std::get<0>(b);
+            int64_t in_a = std::get<1>(a);
+            int64_t in_b = std::get<1>(b);
+
+            if (out_a == 0 && in_a == 0) return false; // Keep relative order of zero-degree nodes
+            if (out_b == 0 && in_b == 0) return true;  // Zero-degree nodes should be "greater"
+
+            if (out_a != out_b) return out_a > out_b; // Primary sort by out-degree
+            return in_a > in_b;                       // Secondary sort by in-degree
         };
 
         __gnu_parallel::stable_sort(degree_id_pairs.begin(), degree_id_pairs.end(), custom_comparator);
 
-
         #pragma omp parallel for
         for (int64_t n = 0; n < num_nodes; ++n)
         {
-            new_ids[degree_id_pairs[n].second] = n;
+            new_ids[std::get<2>(degree_id_pairs[n])] = n;
         }
 
         pvector<degree_nodeid_t>().swap(degree_id_pairs);
@@ -4715,8 +4726,10 @@ public:
 
 
             if(edge_list.size() > 0)
-                GenerateMappingLocalEdgelist(edge_list, new_ids_sub, reordering_algo_nest, true,
+                GenerateMappingLocalEdgelist(g, edge_list, new_ids_sub, reordering_algo_nest, true,
                                              next_reordering_options, numLevels, true);
+            else
+                return;
 
             // Add id pairs to the corresponding community list
             #pragma omp parallel for

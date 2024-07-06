@@ -564,6 +564,8 @@ graph aggregate(std::vector<std::vector<edge>> adj) {
   double tmax = 0.0, ttotal = 0.0;
   std::vector<std::deque<vint>> topss(np);
 
+  // std::cerr << "CPU time utilization rate: " << np << std::endl;
+
 #pragma omp parallel reduction(+ : npend) reduction(max : tmax)                \
     reduction(+ : ttotal)
   {
