@@ -72,6 +72,31 @@ size_t OrderedCount(const Graph &g)
     return total;
 }
 
+size_t LocalOrderedCount(const Graph &g)
+{
+    size_t total = 0;
+    #pragma omp parallel for reduction(+ : total) schedule(dynamic, 64)
+    for (NodeID u = 0; u < g.num_nodes(); u++)
+    {
+        for (NodeID v : g.out_neigh(u))
+        {
+            if (v > u)
+                break;
+            auto it = g.out_neigh(v).begin();
+            for (NodeID w : g.out_neigh(u))
+            {
+                if (w > v)
+                    break;
+                while (*it < w)
+                    it++;
+                if (w == *it)
+                    total++;
+            }
+        }
+    }
+    return total;
+}
+
 size_t CrossOrderedCount(const Graph &g, const Graph &g2)
 {
     size_t total = 0;
@@ -82,6 +107,17 @@ size_t CrossOrderedCount(const Graph &g, const Graph &g2)
         {
             if (v > u)
                 break;
+            // auto it = g2.out_neigh(v).begin();
+            // for (NodeID w : g.out_neigh(u))
+            // {
+            //     if (w > v)
+            //         break;
+            //     while (*it < w)
+            //         it++;
+            //     if (w == *it)
+            //         total++;
+            // }
+
             auto it = g2.out_neigh(v).begin();
             for (NodeID w : g.out_neigh(u))
             {
@@ -181,8 +217,11 @@ int main(int argc, char *argv[])
     CLApp cli(argc, argv, "triangle count");
     if (!cli.ParseArgs())
         return -1;
+
     Builder b(cli);
     Graph g = b.MakeGraph();
+
+    cli.set_keep_self(true);
     // if (g.directed()) {
     //   cout << "Input graph is directed but tc requires undirected" << endl;
     //   return -2;
@@ -214,16 +253,19 @@ int main(int argc, char *argv[])
     size_t p_total = 0;
 
     // local count
-    for (int col = 0; col < p_m; ++col)
+    for (int row = 0; row < p_n; ++row)
     {
-        for (int row = 0; row < p_n; ++row)
+        for (int col = 0; col < p_m; ++col)
         {
             int idx = row * p_m + col;
             std::cout << "Local TC_P: [" << row << "] [" << col << "]" << std::endl;
-            // p_g[idx].PrintTopology();
+            if(cli.logging_en())
+            {
+                p_g[idx].PrintTopology();
+            }
             p_g[idx].PrintStats();
             tm.Start();
-            p_total = OrderedCount(p_g[idx]);
+            p_total = LocalOrderedCount(p_g[idx]);
             tm.Stop();
             tc_p_time += tm.Seconds();
             total += p_total;
@@ -241,8 +283,8 @@ int main(int argc, char *argv[])
             for (int row2 = row1 + 1; row2 < p_n; ++row2)
             {
                 int idx2 = row2 * p_m + col;
-                std::cout << "Cross TC_P: [" << row1 << "] [" << col << "] with ["
-                          << row2 << "] [" << col << "]" << std::endl;
+                std::cout << "Cross TC_P: [" << row1 << "] [" << col << "] " << std::to_string(p_g[idx1].num_edges_directed()) << " with ["
+                          << row2 << "] [" << col << "] " << std::to_string(p_g[idx2].num_edges_directed()) << std::endl;
                 tm.Start();
                 p_total = CrossOrderedCount(p_g[idx1], p_g[idx2]);
                 tm.Stop();

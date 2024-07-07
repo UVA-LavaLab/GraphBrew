@@ -14,8 +14,8 @@ os.makedirs(LOG_DIR_ORDER, exist_ok=True)
 
 # Define the list of graphs and their extensions
 graph_extensions = {
-    "RD": "sg",
     "SLJ1": "sg",
+    "RD": "sg",
     "CPAT": "sg",
     "CORKT": "sg",
     "SPKC": "sg",
@@ -31,8 +31,8 @@ kernels = [
     {"name": "bfs", "trials": 20, "iterations": 10},
     {"name": "cc", "trials": 20, "iterations": 10},
     {"name": "cc_sv", "trials": 20, "iterations": 10},
-    {"name": "pr", "trials": 20, "iterations": 10},
-    {"name": "pr_spmv", "trials": 20, "iterations": 10},
+    {"name": "pr", "trials": 20, "iterations": 100},
+    {"name": "pr_spmv", "trials": 20, "iterations": 100},
     {"name": "sssp", "trials": 20, "iterations": 10}
 ]
 
@@ -82,16 +82,20 @@ single_reorder_option_mapping = {
     "Corder": "-o10",
     "RCM": "-o11",
     "Leiden0": "-o12:0.25",
-    "Leiden1": "-o12:0.75",
-    "Leiden2": "-o12:1.25",
-    "Leiden3": "-o12:1.75",
-    "Leiden4": "-o12:2.0",
-    "GraphBrew0": "-o13:10:8",
-    "GraphBrew1": "-o13:10:12:0.25",
-    "GraphBrew2": "-o13:10:12:0.75",
-    "GraphBrew3": "-o13:10:12:1.25",
-    "GraphBrew4": "-o13:10:12:1.75",
-    "GraphBrew5": "-o13:10:12:2.0",
+    "Leiden1": "-o12:0.5",
+    "Leiden2": "-o12:0.75",
+    "Leiden3": "-o12:1.0",
+    "Leiden4": "-o12:1.25",
+    "Leiden5": "-o12:1.75",
+    "Leiden6": "-o12:2.0",
+    "GraphBrew0" : "-o13:10:8",
+    "GraphBrew1" : "-o13:10:12:0.25",
+    "GraphBrew2" : "-o13:10:12:0.5",
+    "GraphBrew3" : "-o13:10:12:0.75",
+    "GraphBrew4" : "-o13:10:12:1.0",
+    "GraphBrew5" : "-o13:10:12:1.25",
+    "GraphBrew6" : "-o13:10:12:1.75",
+    "GraphBrew7" : "-o13:10:12:2.0",
 }
 
 # reorder_option_mapping = {
@@ -154,15 +158,15 @@ def run_reorders():
                 if ' ' in reorder_option:
                     # Handle multiple options
                     option_numbers = '_'.join([opt.split('o')[1] for opt in reorder_option.split()])
-                    output_file = os.path.join(BASE_NVME_DIR, graph, f"graph_{option_numbers}.sg")
+                    output_file = os.path.join(BASE_DIR, graph, f"graph_{option_numbers}.sg")
                 else:
                     # Handle single option
                     option_number = reorder_option.split('o')[1]
-                    output_file = os.path.join(BASE_NVME_DIR, graph, f"graph_{option_number}.sg")
+                    output_file = os.path.join(BASE_DIR, graph, f"graph_{option_number}.sg")
                 
                 # Ensure the graph directories exist
                 # os.makedirs(os.path.join(BASE_DIR, graph), exist_ok=True)
-                os.makedirs(os.path.join(BASE_NVME_DIR, graph), exist_ok=True)
+                os.makedirs(os.path.join(BASE_DIR, graph), exist_ok=True)
 
                 # Skip if the output file already exists
                 if os.path.isfile(output_file):
@@ -174,7 +178,7 @@ def run_reorders():
                 print(f"Output file: {output_file}")
                 
                 # Construct and run the make command
-                make_command = f"make run-converter GRAPH_BENCH='-f {random_graph_file} -b {output_file} -p {output_file}' RUN_PARAMS='{reorder_option}' FLUSH_CACHE=0 PARALLEL=32"
+                make_command = f"make run-converter GRAPH_BENCH='-f {random_graph_file} -b {output_file}' RUN_PARAMS='{reorder_option}' FLUSH_CACHE=0 PARALLEL=32"
                 log_file = os.path.join(LOG_DIR_ORDER, f"{graph}_{reorder_name}.log")
                 with open(log_file, 'w') as log:
                     print(f"Executing command: {make_command}")
