@@ -33,7 +33,7 @@ protected:
 int argc_;
 char **argv_;
 std::string name_;
-std::string get_args_ = "f:g:hk:su:m:o:zj:";
+std::string get_args_ = "f:g:hk:su:m:o:zj:Sl";
 std::vector<std::string> help_strings_;
 std::vector<std::pair<ReorderingAlgo, std::vector<std::string> > >
 reorder_options_;
@@ -43,9 +43,11 @@ int degree_ = 16;
 std::string filename_ = "";
 bool symmetrize_ = false;
 bool uniform_ = false;
+bool keep_self_ = false;
 bool in_place_ = false;
 bool use_out_degree_ = true;
 std::vector<int> segments_{0, 1, 1};   // Default to one segment ir
+bool enable_logging_ = false;
 
 void AddHelpLine(char opt, std::string opt_arg, std::string text,
                  std::string def = "") {
@@ -80,6 +82,8 @@ CLBase(int argc, char **argv, std::string name = "")
               "use indegree for ordering [Degree Based Orderings]", "false");
   AddHelpLine('j', "segments", "number of segments for the graph \n     "
               "          [type:n:m] <0:GRAPHIT/Cagra> <1:TRUST>", "0:1:1");
+  AddHelpLine('l', "", "log performance within each trial", "false");
+  AddHelpLine('S', "", "keep self loops", "false");
 }
 
 bool ParseArgs() {
@@ -123,6 +127,12 @@ void virtual HandleArg(signed char opt, char *opt_arg) {
     break;
   case 'm':
     in_place_ = true;
+    break;
+  case 'l':
+    enable_logging_ = true;
+    break;
+  case 'S':
+    keep_self_ = true;
     break;
   case 'o': {
     std::string arg(opt_arg);
@@ -188,6 +198,12 @@ std::string filename() const {
 bool symmetrize() const {
   return symmetrize_;
 }
+bool keep_self() const {
+  return keep_self_;
+}
+void set_keep_self(bool keep_self_loop = false)  {
+  keep_self_ = keep_self_loop;
+}
 bool uniform() const {
   return uniform_;
 }
@@ -196,6 +212,9 @@ bool in_place() const {
 }
 bool use_out_degree() const {
   return use_out_degree_;
+}
+bool logging_en() const {
+  return enable_logging_;
 }
 const std::vector<std::pair<ReorderingAlgo, std::vector<std::string> > > &
 reorder_options() const {
@@ -211,16 +230,14 @@ bool do_analysis_ = false;
 int num_trials_ = 16;
 int64_t start_vertex_ = -1;
 bool do_verify_ = false;
-bool enable_logging_ = false;
 
 public:
 CLApp(int argc, char **argv, std::string name) : CLBase(argc, argv, name) {
-  get_args_ += "an:r:vl";
+  get_args_ += "an:r:v";
   AddHelpLine('a', "", "output analysis of last run", "false");
   AddHelpLine('n', "n", "perform n trials", std::to_string(num_trials_));
   AddHelpLine('r', "node", "start from node r", "rand");
   AddHelpLine('v', "", "verify the output of each run", "false");
-  AddHelpLine('l', "", "log performance within each trial", "false");
 }
 
 void HandleArg(signed char opt, char *opt_arg) override {
@@ -237,14 +254,10 @@ void HandleArg(signed char opt, char *opt_arg) override {
   case 'v':
     do_verify_ = true;
     break;
-  case 'l':
-    enable_logging_ = true;
-    break;
   default:
     CLBase::HandleArg(opt, opt_arg);
   }
 }
-
 bool do_analysis() const {
   return do_analysis_;
 }
@@ -256,9 +269,6 @@ int64_t start_vertex() const {
 }
 bool do_verify() const {
   return do_verify_;
-}
-bool logging_en() const {
-  return enable_logging_;
 }
 };
 

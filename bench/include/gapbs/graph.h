@@ -431,6 +431,24 @@ public:
         }
     }
 
+    void PrintTopologyOrdered(std::vector<std::pair<NodeID_, int64_t>> &node_degree_pairs) const
+    {
+        for (NodeID_ i = 0; i < num_nodes_; i++)
+        {
+
+            NodeID_ new_u = node_degree_pairs[i].first;
+            std::cout << new_u << ": ";
+            for (DestID_ j : out_neigh(new_u))
+            {
+                // if (is_weighted())
+                //   std::cout << static_cast<DestID_>(j).v << " ";
+                // else
+                std::cout << j << " ";
+            }
+            std::cout << std::endl;
+        }
+    }
+
     static DestID_ **GenIndex(const pvector<SGOffset> &offsets, DestID_ *neighs)
     {
         NodeID_ length = offsets.size();
