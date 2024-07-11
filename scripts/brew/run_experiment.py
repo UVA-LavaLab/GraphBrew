@@ -7,6 +7,7 @@ import csv
 BASE_DIR   = "/media/Data/00_GraphDatasets/GBREW"
 BASE_NVME_DIR   = "/media/NVMeData/00_GraphDatasets/GBREW"
 RESULT_DIR = "bench/results"
+PARALLEL = os.cpu_count()  # Use all available CPU cores
 LOG_DIR_RUN   = os.path.join(RESULT_DIR, "logs_run")
 LOG_DIR_ORDER = os.path.join(RESULT_DIR, "logs_order")
 os.makedirs(LOG_DIR_RUN, exist_ok=True)
@@ -31,8 +32,8 @@ kernels = [
     {"name": "bfs", "trials": 20, "iterations": 10},
     {"name": "cc", "trials": 20, "iterations": 10},
     {"name": "cc_sv", "trials": 20, "iterations": 10},
-    {"name": "pr", "trials": 20, "iterations": 100},
-    {"name": "pr_spmv", "trials": 20, "iterations": 100},
+    {"name": "pr", "trials": 10, "iterations": 200},
+    {"name": "pr_spmv", "trials": 10, "iterations": 200},
     {"name": "sssp", "trials": 20, "iterations": 10}
 ]
 
@@ -70,32 +71,42 @@ reorder_option_mapping = {
 }
 
 single_reorder_option_mapping = {
-    "Random": "-o0", # this is your baseline
+    # "Random": "-o0", # this is your baseline
     # "Sort": "-o2",
     # "HubSort": "-o3",
     # "HubCluster": "-o4",
-    "DBG": "-o5",
+    # "DBG": "-o5",
     # "HubSortDBG": "-o6",
     # "HubClusterDBG": "-o7",
     "RabbitOrder": "-o8",
-    "Gorder": "-o9",
-    "Corder": "-o10",
-    "RCM": "-o11",
-    "Leiden0": "-o12:0.25",
-    "Leiden1": "-o12:0.5",
-    "Leiden2": "-o12:0.75",
-    "Leiden3": "-o12:1.0",
-    "Leiden4": "-o12:1.25",
-    "Leiden5": "-o12:1.75",
-    "Leiden6": "-o12:2.0",
-    "GraphBrew0" : "-o13:10:8",
-    "GraphBrew1" : "-o13:10:12:0.25",
-    "GraphBrew2" : "-o13:10:12:0.5",
-    "GraphBrew3" : "-o13:10:12:0.75",
-    "GraphBrew4" : "-o13:10:12:1.0",
-    "GraphBrew5" : "-o13:10:12:1.25",
-    "GraphBrew6" : "-o13:10:12:1.75",
-    "GraphBrew7" : "-o13:10:12:2.0",
+    # "Gorder": "-o9",
+    # "Corder": "-o10",
+    # "RCM": "-o11",
+    "GraphBrew_12_025": "-o12:0.25",
+    "GraphBrew_12_050": "-o12:0.5",
+    "GraphBrew_12_075": "-o12:0.75",
+    "GraphBrew_12_100": "-o12:1.0",
+    "GraphBrew_12_125": "-o12:1.25",
+    "GraphBrew_12_175": "-o12:1.75",
+    "GraphBrew_12_200": "-o12:2.0",
+    "GraphBrew_13_15_5_025"  : "-o13:15:5:0.25",
+    "GraphBrew_13_15_5_100"  : "-o13:15:5:1.0",
+    "GraphBrew_13_15_5_175"  : "-o13:15:5:1.75",
+    "GraphBrew_13_15_8_025"  : "-o13:15:8:0.25",
+    "GraphBrew_13_15_8_100"  : "-o13:15:8:1.0",
+    "GraphBrew_13_15_8_175"  : "-o13:15:8:1.75",
+    "GraphBrew_13_15_9_025"  : "-o13:15:9:0.25",
+    "GraphBrew_13_15_9_100"  : "-o13:15:9:1.0",
+    "GraphBrew_13_15_9_175"  : "-o13:15:9:1.75",
+    "GraphBrew_13_15_10_025" : "-o13:15:10:0.25",
+    "GraphBrew_13_15_10_100" : "-o13:15:10:1.0",
+    "GraphBrew_13_15_10_175" : "-o13:15:10:1.75",
+    "GraphBrew_13_15_11_025" : "-o13:15:11:0.25",
+    "GraphBrew_13_15_11_100" : "-o13:15:11:1.0",
+    "GraphBrew_13_15_11_175" : "-o13:15:11:1.75",
+    "GraphBrew_13_15_12_025" : "-o13:15:12:0.25",
+    "GraphBrew_13_15_12_100" : "-o13:15:12:1.00",
+    "GraphBrew_13_15_12_175" : "-o13:15:12:1.75",
 }
 
 # reorder_option_mapping = {
@@ -126,6 +137,10 @@ def run_reorders():
     print("Starting reorder process...")
     
     results = {}
+
+    affinity = "0-31"  # Specify CPU IDs from 0 to 31
+    os.environ["GOMP_CPU_AFFINITY"] = affinity
+    print(f"Setting GOMP_CPU_AFFINITY to {affinity}")
     
     # Iterate over each graph
     for graph, ext in graph_extensions.items():
@@ -141,7 +156,7 @@ def run_reorders():
         if not os.path.isfile(random_graph_file):
             print(f"Running converter with reorder {reorder_name} option: {reorder_option}")
             print(f"Output file: {random_graph_file}")
-            make_command = f"make run-converter GRAPH_BENCH='-f {graph_file} -b {random_graph_file}' RUN_PARAMS='{reorder_option}' FLUSH_CACHE=0 PARALLEL=32"
+            make_command = f"make run-converter GRAPH_BENCH='-f {graph_file} -b {random_graph_file}' RUN_PARAMS='{reorder_option}' FLUSH_CACHE=0 PARALLEL={PARALLEL}"
             log_file = os.path.join(LOG_DIR_ORDER, f"{graph}_initial.log")
             with open(log_file, 'w') as log:
                 print(f"Executing command: {make_command}")
@@ -149,6 +164,7 @@ def run_reorders():
         
         # Check if the random graph file exists
         if os.path.isfile(random_graph_file):
+
             print(f"Graph file found: {random_graph_file}")
             
             results[graph] = {}
@@ -158,15 +174,16 @@ def run_reorders():
                 if ' ' in reorder_option:
                     # Handle multiple options
                     option_numbers = '_'.join([opt.split('o')[1] for opt in reorder_option.split()])
-                    output_file = os.path.join(BASE_DIR, graph, f"graph_{option_numbers}.sg")
+                    output_file = os.path.join(BASE_NVME_DIR, graph, f"graph_{option_numbers}.sg")
                 else:
                     # Handle single option
                     option_number = reorder_option.split('o')[1]
-                    output_file = os.path.join(BASE_DIR, graph, f"graph_{option_number}.sg")
+                    output_file = os.path.join(BASE_NVME_DIR, graph, f"graph_{option_number}.sg")
+
                 
                 # Ensure the graph directories exist
-                # os.makedirs(os.path.join(BASE_DIR, graph), exist_ok=True)
                 os.makedirs(os.path.join(BASE_DIR, graph), exist_ok=True)
+                os.makedirs(os.path.join(BASE_NVME_DIR, graph), exist_ok=True)
 
                 # Skip if the output file already exists
                 if os.path.isfile(output_file):
@@ -178,7 +195,7 @@ def run_reorders():
                 print(f"Output file: {output_file}")
                 
                 # Construct and run the make command
-                make_command = f"make run-converter GRAPH_BENCH='-f {random_graph_file} -b {output_file}' RUN_PARAMS='{reorder_option}' FLUSH_CACHE=0 PARALLEL=32"
+                make_command = f"make run-converter GRAPH_BENCH='-f {random_graph_file} -b {output_file}' RUN_PARAMS='{reorder_option}' FLUSH_CACHE=0 PARALLEL={PARALLEL}"
                 log_file = os.path.join(LOG_DIR_ORDER, f"{graph}_{reorder_name}.log")
                 with open(log_file, 'w') as log:
                     print(f"Executing command: {make_command}")
@@ -225,7 +242,7 @@ def run_kernels():
         print(f"Processing graph: {graph}")
         
         # Iterate over each reorder option
-        for reorder_name, reorder_option in reorder_option_mapping.items():
+        for reorder_name, reorder_option in single_reorder_option_mapping.items():
             if ' ' in reorder_option:
                 # Handle multiple options
                 option_numbers = '_'.join([opt.split('o')[1] for opt in reorder_option.split()])
@@ -241,14 +258,16 @@ def run_kernels():
                 
                 # Run kernels on the converted graph file
                 for kernel in kernels:
-                    kernel_command = f"make run-{kernel['name']} GRAPH_BENCH='-f {output_file}' RUN_PARAMS='-n {kernel['trials']}' FLUSH_CACHE=1 PARALLEL=16"
+                    kernel_command = f"make run-{kernel['name']} GRAPH_BENCH='-f {output_file}' RUN_PARAMS='-l -n {kernel['trials']}' FLUSH_CACHE=1 PARALLEL={PARALLEL}"
+                    if kernel["name"] in ["pr", "pr_spmv"]:
+                        kernel_command = f"make run-{kernel['name']} GRAPH_BENCH='-f {output_file}' RUN_PARAMS='-l -n {kernel['trials']} -i {kernel['iterations']}' FLUSH_CACHE=1 PARALLEL={PARALLEL}"
                     log_file = os.path.join(LOG_DIR_RUN, f"{graph}_{reorder_name}_{kernel['name']}.log")
                     print(f"Running kernel: {kernel['name']} with {kernel['trials']} trials and {kernel['iterations']} iterations")
                     print(f"Executing command: {kernel_command}")
                     
-                    # Run the command and log the output
-                    with open(log_file, 'w') as log:
-                        result = subprocess.run(kernel_command, shell=True, check=True, stdout=log, stderr=log)
+                    # # Run the command and log the output
+                    # with open(log_file, 'w') as log:
+                    #     result = subprocess.run(kernel_command, shell=True, check=True, stdout=log, stderr=log)
                     
                     # Parse the output from the log file
                     with open(log_file, 'r') as log:
@@ -274,13 +293,96 @@ def run_kernels():
             csv_file = os.path.join(RESULT_DIR, f"{kernel_name}_trial_time_results.csv")
             with open(csv_file, mode='w', newline='') as file:
                 writer = csv.writer(file)
-                header = ["Graph"] + list(reorder_option_mapping.keys())
+                header = ["Graph"] + list(single_reorder_option_mapping.keys())
                 writer.writerow(header)
                 
                 for graph, timings in results.items():
-                    row = [graph] + [timings.get(reorder_name, '') for reorder_name in reorder_option_mapping.keys()]
+                    row = [graph] + [timings.get(reorder_name, '') for reorder_name in single_reorder_option_mapping.keys()]
                     writer.writerow(row)
     
+    print("Kernel execution process completed.")
+
+def run_kernels_affin():
+    print("Starting kernel execution process...")
+
+    # Define different CPU affinity settings to experiment with
+    affinities = [
+        "0-15",  # First 16 physical cores
+        "0-15:2",  # Every second core in the first 16 cores
+        "16-31",  # Last 16 logical cores (Hyper-threaded pairs of the first 16 cores)
+        "0-31",  # All 32 threads
+        "0-31:2"  # Every second thread in all 32 threads
+    ]
+
+    kernel_results = {kernel["name"]: {} for kernel in kernels}
+
+    # Iterate over each graph
+    for graph in graph_extensions.keys():
+        print(f"Processing graph: {graph}")
+
+        # Iterate over each reorder option
+        for reorder_name, reorder_option in single_reorder_option_mapping.items():
+            if ' ' in reorder_option:
+                # Handle multiple options
+                option_numbers = '_'.join([opt.split('o')[1] for opt in reorder_option.split()])
+                output_file = os.path.join(BASE_DIR, graph, f"graph_{option_numbers}.sg")
+            else:
+                # Handle single option
+                option_number = reorder_option.split('o')[1]
+                output_file = os.path.join(BASE_DIR, graph, f"graph_{option_number}.sg")
+
+            # Check if the converted graph file exists
+            if os.path.isfile(output_file):
+                print(f"Converted graph file found: {output_file}")
+
+                # Run kernels on the converted graph file with different affinity settings
+                for affinity in affinities:
+                    os.environ["GOMP_CPU_AFFINITY"] = affinity
+                    print(f"Setting GOMP_CPU_AFFINITY to {affinity}")
+
+                    for kernel in kernels:
+                        kernel_command = f"make run-{kernel['name']} GRAPH_BENCH='-f {output_file}' RUN_PARAMS='-l -n {kernel['trials']}' FLUSH_CACHE=1 PARALLEL={PARALLEL}"
+                        if kernel["name"] in ["pr", "pr_spmv"]:
+                            kernel_command = f"make run-{kernel['name']} GRAPH_BENCH='-f {output_file}' RUN_PARAMS='-l -n {kernel['trials']} -i {kernel['iterations']}' FLUSH_CACHE=1 PARALLEL={PARALLEL}"
+                        log_file = os.path.join(LOG_DIR_RUN, f"{graph}_{reorder_name}_{kernel['name']}_{affinity.replace(' ', '_')}.log")
+                        print(f"Running kernel: {kernel['name']} with {kernel['trials']} trials and {kernel['iterations']} iterations")
+                        print(f"Executing command: {kernel_command}")
+
+                        # Run the command and log the output
+                        with open(log_file, 'w') as log:
+                            result = subprocess.run(kernel_command, shell=True, check=True, stdout=log, stderr=log)
+
+                        # Parse the output from the log file
+                        with open(log_file, 'r') as log:
+                            average_time = parse_kernel_output(log.read())
+
+                        if average_time is not None:
+                            if graph not in kernel_results[kernel['name']]:
+                                kernel_results[kernel['name']][graph] = {}
+                            kernel_results[kernel['name']][graph][reorder_name] = average_time
+
+                        print(f"Completed kernel: {kernel['name']} with affinity {affinity}\n")
+            else:
+                print(f"Converted graph file not found: {output_file}")
+
+    # Check if kernel results are empty
+    if all(not results for results in kernel_results.values()):
+        print("No kernels were executed. All converted graph files already exist or were not found.")
+        return
+
+    # Write results to CSV for each kernel
+    for kernel_name, results in kernel_results.items():
+        if results:
+            csv_file = os.path.join(RESULT_DIR, f"{kernel_name}_trial_time_results.csv")
+            with open(csv_file, mode='w', newline='') as file:
+                writer = csv.writer(file)
+                header = ["Graph"] + list(single_reorder_option_mapping.keys())
+                writer.writerow(header)
+
+                for graph, timings in results.items():
+                    row = [graph] + [timings.get(reorder_name, '') for reorder_name in single_reorder_option_mapping.keys()]
+                    writer.writerow(row)
+
     print("Kernel execution process completed.")
 
 def run_convert():
@@ -321,7 +423,7 @@ def run_convert():
             print(f"Output file: {output_file}")
             
             # Construct and run the make command
-            make_command = f"make run-converter GRAPH_BENCH='-f {output_file} -b {output_file_conv} -p {output_file_conv}' RUN_PARAMS='-o5' FLUSH_CACHE=0 PARALLEL=32"
+            make_command = f"make run-converter GRAPH_BENCH='-f {output_file} -b {output_file_conv} -p {output_file_conv}' RUN_PARAMS='-o5' FLUSH_CACHE=0 PARALLEL={PARALLEL}"
             log_file = os.path.join(LOG_DIR_ORDER, f"{graph}_{reorder_name}.log")
             with open(log_file, 'w') as log:
                 print(f"Executing command: {make_command}")
@@ -344,3 +446,4 @@ if __name__ == "__main__":
     # run_convert()
     run_reorders()
     # run_kernels()
+    # run_kernels_affin()
