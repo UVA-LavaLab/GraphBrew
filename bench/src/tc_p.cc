@@ -273,7 +273,7 @@ int main(int argc, char *argv[])
                 std::cout << "Cross TC_P: [" << row1 << "] [" << col << "] " << std::to_string(p_g[idx1].num_edges_directed()) << " with ["
                           << row2 << "] [" << col << "] " << std::to_string(p_g[idx2].num_edges_directed()) << std::endl;
                 tm.Start();
-                p_total = CrossOrderedCount(p_g[idx1], p_g[idx2]);
+                // p_total = CrossOrderedCount(p_g[idx1], p_g[idx2]);
                 tm.Stop();
                 tc_p_time += tm.Seconds();
                 total += p_total;
@@ -293,7 +293,7 @@ int main(int argc, char *argv[])
                 std::cout << "Cross TC_P: [" << row << "] [" << col1 << "] " << std::to_string(p_g[idx1].num_edges_directed()) << " with ["
                           << row << "] [" << col2 << "] " << std::to_string(p_g[idx2].num_edges_directed()) << std::endl;
                 tm.Start();
-                p_total = CrossOrderedCount(p_g[idx1], p_g[idx2]);
+                // p_total = CrossOrderedCount(p_g[idx1], p_g[idx2]);
                 tm.Stop();
                 tc_p_time += tm.Seconds();
                 total += p_total;
