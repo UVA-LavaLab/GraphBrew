@@ -400,6 +400,13 @@ public:
 
     void PrintStats() const
     {
+        if(num_nodes_ == -1)
+        {
+            std::cout << "Graph has " << 0 << " nodes and " << 0
+                      << " ";
+            return;
+        }
+
         std::cout << "Graph has " << num_nodes_ << " nodes and " << num_edges_
                   << " ";
         if (!directed_)

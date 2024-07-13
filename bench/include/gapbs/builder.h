@@ -131,6 +131,20 @@ class BuilderBase
     int64_t num_nodes_ = -1;
     std::vector<std::pair<ReorderingAlgo, std::string>> reorder_options_;
 
+
+    //TRUST Partitions
+    int64_t trust_vertex_count, trust_edge_count;
+    NodeID_ trust_endofprocess = -1;
+    struct trust_edge_list
+    {
+        NodeID_ vertexID;
+        vector<NodeID_> edge;
+        NodeID_ newid;
+    };
+
+    vector<trust_edge_list> trust_vertex;
+    vector<trust_edge_list> trust_vertexb;
+
 public:
     explicit BuilderBase(const CLBase &cli) : cli_(cli)
     {
@@ -492,9 +506,9 @@ public:
                     inv_index, inv_neighs);
     }
 
-    pvector<NodeID_> CountLocalDegrees(const EdgeList &el, bool transpose)
+    pvector<NodeID_> CountLocalDegrees(const EdgeList &el, bool transpose, int64_t num_nodes_local = -1)
     {
-        pvector<NodeID_> degrees(num_nodes_, 0);
+        pvector<NodeID_> degrees(num_nodes_local, 0);
         #pragma omp parallel for
         for (auto it = el.begin(); it < el.end(); it++)
         {
@@ -510,9 +524,10 @@ public:
     void MakeLocalCSR(const EdgeList &el, bool transpose, DestID_ ***index,
                       DestID_ **neighs)
     {
-        pvector<NodeID_> degrees = CountLocalDegrees(el, transpose);
+        int64_t num_nodes_local = FindMaxNodeID(el) + 1;
+        pvector<NodeID_> degrees = CountLocalDegrees(el, transpose, num_nodes_local);
         pvector<SGOffset> offsets = ParallelPrefixSum(degrees);
-        *neighs = new DestID_[offsets[num_nodes_]];
+        *neighs = new DestID_[offsets[num_nodes_local]];
         *index = CSRGraph<NodeID_, DestID_>::GenIndex(offsets, *neighs);
         #pragma omp parallel for
         for (auto it = el.begin(); it < el.end(); it++)
@@ -534,18 +549,16 @@ public:
         // *inv_neighs = nullptr;
         Timer t;
         t.Start();
-        if (num_nodes_ == -1)
-        {
-            num_nodes_ = FindMaxNodeID(el) + 1;
-        }
+
+        int64_t num_nodes_local = FindMaxNodeID(el) + 1;
 
         MakeLocalCSR(el, false, &index, &neighs);
         // MakeLocalCSR(el, true, &inv_index, &inv_neighs);
         // CSRGraph<NodeID_, DestID_, invert> g = CSRGraph<NodeID_, DestID_, invert>(
         //         num_nodes_, index, neighs, inv_index, inv_neighs);
         CSRGraph<NodeID_, DestID_, invert> g = CSRGraph<NodeID_, DestID_,
-                                           invert>(num_nodes_, index, neighs);
-        // g.PrintTopology();
+                                           invert>(num_nodes_local, index, neighs);
+
         g = SquishGraph(g);
         // SquishCSR(g, false, &index, &neighs);
         // SquishCSR(g, true, &inv_index, &inv_neighs);
@@ -808,7 +821,7 @@ public:
         return partitions;
     }
 
-    std::pair<std::vector<EdgeList>, std::vector<pvector<NodeID_>>>
+    std::vector<EdgeList>
     MakeTrustPartitionedEL(const CSRGraph<NodeID_, DestID_, invert> &g,
                            int p_n = 1, int p_m = 1)
     {
@@ -816,130 +829,34 @@ public:
         int num_partitions = p_n * p_m;
         int num_threads = omp_get_max_threads();
         std::vector<EdgeList> partitions_el(num_partitions);
-        std::vector<EdgeList> partitions_el_dest(p_m);
 
         // Local edge lists for each thread
         std::vector<std::vector<EdgeList>> local_partitions_el(num_threads);
-        std::vector<std::vector<EdgeList>> local_partitions_el_dest(num_threads);
-
-        std::vector<CSRGraph<NodeID_, DestID_, invert>> partitions_g(p_m);
-        std::vector<pvector<NodeID_>> partitions_new_ids(p_m);
 
         for (int thread_id = 0; thread_id < num_threads; ++thread_id)
         {
             local_partitions_el[thread_id].resize(num_partitions);
-            local_partitions_el_dest[thread_id].resize(p_m);
         }
+
+        trust_endofprocess = std::numeric_limits<NodeID_>::max();
 
         #pragma omp parallel
         {
-
-            int thread_id = omp_get_thread_num();
-
-            // Each thread processes a portion of the nodes
             #pragma omp for schedule(static)
             for (NodeID_ i = 0; i < g.num_nodes(); ++i)
             {
-                NodeID_ src = i;
-
-                for (DestID_ j : g.out_neigh(i))
+                if (g.out_degree(i) < 2)
                 {
-                    if (g.is_weighted())
+                    // Use atomic compare-and-swap to update trust_endofprocess
+                    int current_value = trust_endofprocess;
+                    while (i < current_value && !__sync_bool_compare_and_swap(&trust_endofprocess, current_value, i))
                     {
-                        NodeID_ dest = static_cast<NodeWeight<NodeID_, WeightT_>>(j).v;
-                        WeightT_ weight = static_cast<NodeWeight<NodeID_, WeightT_>>(j).w;
-                        int partition_idx = (dest % p_m);
-                        Edge e = Edge(src, NodeWeight<NodeID_, WeightT_>(dest, weight));
-                        local_partitions_el_dest[thread_id][partition_idx].push_back(e);
-                    }
-                    else
-                    {
-                        NodeID_ dest = j;
-                        int partition_idx = (dest % p_m);
-                        Edge e = Edge(src, dest);
-                        // std::cout << partition_idx << ": " <<  src << " -> " << dest <<
-                        //           std::endl;
-                        local_partitions_el_dest[thread_id][partition_idx].push_back(e);
+                        current_value = trust_endofprocess;
                     }
                 }
             }
         }
 
-        // Parallel merge of local partitions into the global partitions
-        #pragma omp parallel for schedule(dynamic)
-        for (int i = 0; i < p_m; ++i)
-        {
-            for (int t = 0; t < num_threads; ++t)
-            {
-                partitions_el_dest[i].reserve(partitions_el_dest[i].size() +
-                                              local_partitions_el_dest[t][i].size());
-            }
-            for (int t = 0; t < num_threads; ++t)
-            {
-                partitions_el_dest[i].insert(partitions_el_dest[i].end(),
-                                             local_partitions_el_dest[t][i].begin(),
-                                             local_partitions_el_dest[t][i].end());
-            }
-        }
-
-        // Create graphs from each column partition and generate new IDs
-        for (int i = 0; i < p_m; ++i)
-        {
-            if (partitions_el_dest[i].empty())
-            {
-                partitions_g[i] = CSRGraph<NodeID_, DestID_, invert>();
-                partitions_new_ids[i] = pvector<NodeID_>();
-                continue;
-            }
-            CSRGraph<NodeID_, DestID_, invert> partition_g =
-                MakeLocalGraphFromEL(partitions_el_dest[i]);
-            pvector<NodeID_> new_ids(partition_g.num_nodes(), -1);
-            // partition_g = SquishGraph(partition_g);
-            GenerateSortMapping(partition_g, new_ids, true, false);
-            partitions_new_ids[i] = std::move(new_ids);
-            // partitions_g[i] = std::move(partition_g);
-        }
-
-        // for (int dest_p = 0; dest_p < p_m; ++dest_p)
-        // {
-        //     CSRGraph<NodeID_, DestID_, invert> partition_g =
-        //         std::move(partitions_g[dest_p]);
-        //     // partition_g.PrintTopology();
-        //     if (partition_g.num_nodes() == 0)
-        //     {
-        //         continue;
-        //     }
-
-        //     #pragma omp parallel
-        //     {
-        //         int thread_id = omp_get_thread_num();
-        //         // Each thread processes a portion of the nodes
-        //         #pragma omp for schedule(static)
-        //         for (NodeID_ i = 0; i < partition_g.num_nodes(); ++i)
-        //         {
-        //             NodeID_ src = i;
-        //             for (DestID_ j : partition_g.out_neigh(i))
-        //             {
-        //                 if (partition_g.is_weighted())
-        //                 {
-        //                     NodeID_ dest = static_cast<NodeWeight<NodeID_, WeightT_>>(j).v;
-        //                     WeightT_ weight = static_cast<NodeWeight<NodeID_, WeightT_>>(j).w;
-        //                     int partition_idx = (src % p_n) * p_m + dest_p;
-        //                     Edge e = Edge(src, NodeWeight<NodeID_, WeightT_>(dest, weight));
-        //                     local_partitions_el[thread_id][partition_idx].push_back(e);
-        //                 }
-        //                 else
-        //                 {
-        //                     NodeID_ dest = j;
-        //                     int partition_idx = (src % p_n) * p_m + dest_p;
-        //                     Edge e = Edge(src, dest);
-        //                     local_partitions_el[thread_id][partition_idx].push_back(e);
-        //                 }
-        //             }
-        //         }
-        //     }
-        // }
-
         #pragma omp parallel
         {
 
@@ -950,7 +867,6 @@ public:
             for (NodeID_ i = 0; i < g.num_nodes(); ++i)
             {
                 NodeID_ src = i;
-
                 for (DestID_ j : g.out_neigh(i))
                 {
                     if (g.is_weighted())
@@ -962,14 +878,15 @@ public:
                         int
                         partition_idx = (src % p_n) * p_m + (dest % p_m);
                         Edge e =
-                            Edge(src/p_n, NodeWeight<NodeID_, WeightT_>(dest/p_m, weight));
+                            Edge(src / p_n, NodeWeight<NodeID_, WeightT_>(dest / p_m, weight));
                         local_partitions_el[thread_id][partition_idx].push_back(e);
                     }
                     else
                     {
                         NodeID_ dest = j;
                         int partition_idx = (src % p_n) * p_m + (dest % p_m);
-                        Edge e = Edge(src/p_n, dest/p_m);
+                        Edge e = Edge(src / p_n, dest / p_m);
+                        // Edge e = Edge(src, dest);
                         // std::cout << partition_idx << " p: " <<  src << " -> " <<
                         //           dest << std::endl;
                         local_partitions_el[thread_id][partition_idx].push_back(e);
@@ -995,20 +912,8 @@ public:
             }
         }
 
-        return std::make_pair(std::move(partitions_el),
-                              std::move(partitions_new_ids));
+        return partitions_el;
     }
-
-    int64_t trust_vertex_count, trust_edge_count;
-    struct trust_edge_list
-    {
-        NodeID_ vertexID;
-        vector<NodeID_> edge;
-        NodeID_ newid;
-    };
-
-    vector<trust_edge_list> trust_vertex;
-    vector<trust_edge_list> trust_vertexb;
 
     static bool trust_cmp1(trust_edge_list a, trust_edge_list b)
     {
@@ -1284,7 +1189,7 @@ public:
     {
 
         CSRGraph<NodeID_, DestID_, invert> sort_g;
-        trust_vertex_count = g.num_nodes() - 1;
+        trust_vertex_count = g.num_nodes();
         trust_vertex.resize(trust_vertex_count);
         trust_edge_count = g.num_edges_directed();
 
@@ -1383,8 +1288,6 @@ public:
 
             sort_g.PrintTopology();
         }
-
-
         return sort_g;
     }
 
@@ -1441,7 +1344,7 @@ public:
             std::cout << std::endl;
         }
 
-        std::tie(partitions_el, partitions_new_ids) =
+        partitions_el =
             MakeTrustPartitionedEL(prep_g, p_n, p_m);
 
         // Create graphs from each partition in column-major order and add to
@@ -1453,8 +1356,6 @@ public:
                 int idx = row * p_m + col;
                 CSRGraph<NodeID_, DestID_, invert> partition_g =
                     MakeLocalGraphFromEL(partitions_el[idx]);
-                // partition_g = RelabelByMapping(partition_g, partitions_new_ids[col]);
-                // partition_g = SquishGraph(partition_g);
                 partitions_g[idx] = std::move(partition_g);
             }
         }
