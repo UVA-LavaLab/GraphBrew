@@ -12,7 +12,7 @@
 #include <stdio.h>
 #include <thread>
 #include <type_traits>
-
+#include <parallel/algorithm>
 #include <omp.h>
 
 #include "aligned_array.h"
