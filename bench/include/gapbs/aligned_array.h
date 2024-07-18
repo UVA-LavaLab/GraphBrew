@@ -71,6 +71,18 @@ struct AlignedArray
         return *this;
     }
 
+   // Overload operator[] for non-const access
+    T &operator[](size_t index)
+    {
+        return data[index];
+    }
+
+    // Overload operator[] for const access
+    const T &operator[](size_t index) const
+    {
+        return data[index];
+    }
+    
     // Function to display the contents of the array
     void display(const std::string &name) const
     {
