@@ -13,8 +13,13 @@ This repository contains the GAP Benchmarks Suite [(GAPBS)](https://github.com/s
 * **Degree-Based Grouping:** [link](https://github.com/ease-lab/dbg) Implementing degree-based grouping strategies to test benchmark performance.
 * **Gorder:** [link](https://github.com/datourat/Gorder) Window based ordering with reverse Cuthill-McKee (RCM) algorithm.
 * **Corder:** [link](https://github.com/yuang-chen/Corder-TPDS-21) Workload Balancing via Graph Reordering on Multicore Systems.
-* **P-OPT Segmentation:** [link](https://github.com/CMUAbstract/POPT-CacheSim-HPCA21) Exploring graph caching techniques for efficient handling of large-scale graphs.
-* **GraphIt-DSL:** [link](https://github.com/GraphIt-DSL/graphit) Integration of GraphIt-DSL segment graphs to improve locality.
+
+<!-- * **P-OPT Segmentation:** [link](https://github.com/CMUAbstract/POPT-CacheSim-HPCA21) Exploring graph caching techniques for efficient handling of large-scale graphs.
+* **GraphIt-DSL:** [link](https://github.com/GraphIt-DSL/graphit) Integration of GraphIt-DSL segment graphs to improve locality. -->
+
+## Segmentation for Scalable Graph Processing
+* **Cagra:** [link1](https://github.com/CMUAbstract/POPT-CacheSim-HPCA21)/[link2](https://github.com/GraphIt-DSL/graphit) Integration of P-OPT/GraphIt-DSL segment graphs to improve locality.
+* **Trust:** [link](https://github.com/wzbxpy/TRUST) Graph partition for Triangle counting on large graph.
 
 ## GAP Benchmarks
 
@@ -343,7 +348,8 @@ converter
                [type:n:m] <0:GRAPHIT/Cagra> <1:TRUST>                    [0:1:1]
  --------------------------------------------------------------------------------
  -b <file>   : output serialized graph to file (.sg)                           
- -e <file>   : output edge list to file (.el)
+ -V <file>   : output edge list to file (.el)
+ -e <file>   : output edge list csr structure individually to files(.out_degree/.out_offset..etc)
  -p <file>   : output matrix market exchange format to file (.mtx)
  -y <file>   : output in Ligra adjacency graph format to file (.ligra)                                      
  -w <file>   : make output weighted (.wel|.wsg)                                
