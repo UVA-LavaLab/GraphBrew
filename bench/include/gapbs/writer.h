@@ -103,6 +103,8 @@ public:
 
         size_t out_offset = 0;
         size_t in_offset = 0;
+        WriteToBuffer(out_neigh_out, out_neigh_buffer, std::to_string(g_.num_nodes()) + "\n");
+        WriteToBuffer(out_neigh_out, out_neigh_buffer, std::to_string(g_.num_edges_directed()) + "\n");
         for (NodeID_ u = 0; u < g_.num_nodes(); u++)
         {
             // Write out-offsets
