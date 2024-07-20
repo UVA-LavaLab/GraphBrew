@@ -181,14 +181,15 @@ clean-all: clean-results
 scrub-all:
 	@rm -rf $(BIN_DIR) $(BACKUP_DIR) $(RES_DIR) 00_* $(EXIT_STATUS) 
 
-clean-results:
+clean-results: 
 	@mkdir -p $(BACKUP_DIR)
-	@echo "Backing up results directory..."
-	@tar -czf $(BACKUP_DIR)/result_`date +"%Y%m%d_%H%M%S"`.tar.gz $(RES_DIR)
-	@echo "Cleaning results directory..."
-	@rm -rf $(RES_DIR)/*/data_charts
-	@rm -rf $(RES_DIR)/*/data_csv
-	@echo "Backup and clean completed."
+	@if [ -d "$(RES_DIR)" ]; then \
+		echo "Backing up results directory..."; \
+		tar -czf $(BACKUP_DIR)/result_`date +"%Y%m%d_%H%M%S"`.tar.gz $(RES_DIR); \
+		echo "Cleaning results directory..."; \
+		rm -rf $(RES_DIR); \
+		echo "Backup and clean completed."; \
+	fi
 
 # =========================================================
 # Help
