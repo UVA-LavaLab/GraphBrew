@@ -1,0 +1,32 @@
+{
+  "ORIGINAL": {
+    "bias": 0.84,
+    "w_modularity": 0.0,
+    "w_log_nodes": 0.0,
+    "w_log_edges": 0.0,
+    "w_density": 0.0,
+    "w_avg_degree": 0.0,
+    "w_degree_variance": 0.0,
+    "w_hub_concentration": 0.0
+  },
+  "LeidenOrder": {
+    "bias": 0.52,
+    "w_modularity": 0.0,
+    "w_log_nodes": -0.159,
+    "w_log_edges": -0.157,
+    "w_density": 0.072,
+    "w_avg_degree": -0.136,
+    "w_degree_variance": 0.0,
+    "w_hub_concentration": 0.0
+  },
+  "LeidenHybrid": {
+    "bias": 0.528,
+    "w_modularity": 0.0,
+    "w_log_nodes": -0.03,
+    "w_log_edges": -0.031,
+    "w_density": 0.121,
+    "w_avg_degree": -0.055,
+    "w_degree_variance": 0.0,
+    "w_hub_concentration": 0.0
+  }
+}

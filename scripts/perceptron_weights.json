@@ -1,0 +1,202 @@
+{
+  "ORIGINAL": {
+    "bias": 0.74,
+    "w_modularity": 0.0,
+    "w_log_nodes": 0.0,
+    "w_log_edges": 0.0,
+    "w_density": 0.0,
+    "w_avg_degree": 0.0,
+    "w_degree_variance": 0.0,
+    "w_hub_concentration": 0.0
+  },
+  "RANDOM": {
+    "bias": 0.3,
+    "w_modularity": 0.0,
+    "w_log_nodes": 0.0,
+    "w_log_edges": 0.0,
+    "w_density": 0.0,
+    "w_avg_degree": 0.0,
+    "w_degree_variance": 0.0,
+    "w_hub_concentration": 0.0
+  },
+  "SORT": {
+    "bias": 0.4,
+    "w_modularity": 0.0,
+    "w_log_nodes": 0.0,
+    "w_log_edges": 0.0,
+    "w_density": 0.0,
+    "w_avg_degree": 0.0,
+    "w_degree_variance": 0.0,
+    "w_hub_concentration": 0.0
+  },
+  "HUBSORT": {
+    "bias": 0.55,
+    "w_modularity": 0.05,
+    "w_log_nodes": 0.0,
+    "w_log_edges": 0.05,
+    "w_density": -0.05,
+    "w_avg_degree": 0.1,
+    "w_degree_variance": 0.15,
+    "w_hub_concentration": 0.2
+  },
+  "HUBCLUSTER": {
+    "bias": 0.6,
+    "w_modularity": 0.1,
+    "w_log_nodes": 0.0,
+    "w_log_edges": 0.05,
+    "w_density": -0.05,
+    "w_avg_degree": 0.1,
+    "w_degree_variance": 0.15,
+    "w_hub_concentration": 0.25
+  },
+  "DBG": {
+    "bias": 0.65,
+    "w_modularity": 0.1,
+    "w_log_nodes": 0.05,
+    "w_log_edges": 0.05,
+    "w_density": 0.0,
+    "w_avg_degree": 0.1,
+    "w_degree_variance": 0.1,
+    "w_hub_concentration": 0.1
+  },
+  "HUBSORTDBG": {
+    "bias": 0.7,
+    "w_modularity": 0.1,
+    "w_log_nodes": 0.05,
+    "w_log_edges": 0.05,
+    "w_density": -0.05,
+    "w_avg_degree": 0.15,
+    "w_degree_variance": 0.15,
+    "w_hub_concentration": 0.2
+  },
+  "HUBCLUSTERDBG": {
+    "bias": 0.75,
+    "w_modularity": 0.15,
+    "w_log_nodes": 0.05,
+    "w_log_edges": 0.05,
+    "w_density": -0.05,
+    "w_avg_degree": 0.15,
+    "w_degree_variance": 0.15,
+    "w_hub_concentration": 0.25
+  },
+  "RABBITORDER": {
+    "bias": 0.7,
+    "w_modularity": 0.2,
+    "w_log_nodes": 0.1,
+    "w_log_edges": 0.1,
+    "w_density": -0.1,
+    "w_avg_degree": 0.1,
+    "w_degree_variance": 0.1,
+    "w_hub_concentration": 0.15
+  },
+  "GORDER": {
+    "bias": 0.65,
+    "w_modularity": 0.1,
+    "w_log_nodes": 0.05,
+    "w_log_edges": 0.05,
+    "w_density": 0.0,
+    "w_avg_degree": 0.1,
+    "w_degree_variance": 0.05,
+    "w_hub_concentration": 0.1
+  },
+  "CORDER": {
+    "bias": 0.6,
+    "w_modularity": 0.1,
+    "w_log_nodes": 0.05,
+    "w_log_edges": 0.05,
+    "w_density": 0.0,
+    "w_avg_degree": 0.05,
+    "w_degree_variance": 0.05,
+    "w_hub_concentration": 0.1
+  },
+  "RCM": {
+    "bias": 0.55,
+    "w_modularity": 0.0,
+    "w_log_nodes": 0.0,
+    "w_log_edges": 0.0,
+    "w_density": 0.1,
+    "w_avg_degree": -0.05,
+    "w_degree_variance": 0.0,
+    "w_hub_concentration": 0.0
+  },
+  "LeidenOrder": {
+    "bias": 0.636,
+    "w_modularity": 0.0,
+    "w_log_nodes": 0.224,
+    "w_log_edges": 0.223,
+    "w_density": -0.152,
+    "w_avg_degree": 0.207,
+    "w_degree_variance": 0.0,
+    "w_hub_concentration": 0.0
+  },
+  "GraphBrewOrder": {
+    "bias": 0.8,
+    "w_modularity": 0.25,
+    "w_log_nodes": 0.1,
+    "w_log_edges": 0.1,
+    "w_density": -0.1,
+    "w_avg_degree": 0.15,
+    "w_degree_variance": 0.15,
+    "w_hub_concentration": 0.2
+  },
+  "AdaptiveOrder": {
+    "bias": 0.85,
+    "w_modularity": 0.2,
+    "w_log_nodes": 0.1,
+    "w_log_edges": 0.1,
+    "w_density": 0.0,
+    "w_avg_degree": 0.15,
+    "w_degree_variance": 0.15,
+    "w_hub_concentration": 0.2
+  },
+  "LeidenDFS": {
+    "bias": 0.75,
+    "w_modularity": 0.2,
+    "w_log_nodes": 0.1,
+    "w_log_edges": 0.1,
+    "w_density": -0.1,
+    "w_avg_degree": 0.1,
+    "w_degree_variance": 0.1,
+    "w_hub_concentration": 0.15
+  },
+  "LeidenDFSHub": {
+    "bias": 0.8,
+    "w_modularity": 0.2,
+    "w_log_nodes": 0.1,
+    "w_log_edges": 0.1,
+    "w_density": -0.1,
+    "w_avg_degree": 0.15,
+    "w_degree_variance": 0.15,
+    "w_hub_concentration": 0.25
+  },
+  "LeidenDFSSize": {
+    "bias": 0.78,
+    "w_modularity": 0.2,
+    "w_log_nodes": 0.15,
+    "w_log_edges": 0.1,
+    "w_density": -0.1,
+    "w_avg_degree": 0.1,
+    "w_degree_variance": 0.1,
+    "w_hub_concentration": 0.15
+  },
+  "LeidenBFS": {
+    "bias": 0.75,
+    "w_modularity": 0.2,
+    "w_log_nodes": 0.1,
+    "w_log_edges": 0.1,
+    "w_density": -0.1,
+    "w_avg_degree": 0.1,
+    "w_degree_variance": 0.1,
+    "w_hub_concentration": 0.15
+  },
+  "LeidenHybrid": {
+    "bias": 0.523,
+    "w_modularity": 0.0,
+    "w_log_nodes": -0.296,
+    "w_log_edges": -0.295,
+    "w_density": 0.265,
+    "w_avg_degree": -0.29,
+    "w_degree_variance": 0.0,
+    "w_hub_concentration": 0.0
+  }
+}

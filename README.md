@@ -94,10 +94,10 @@ scripts/
 │   ├── run_benchmark.py       # Comprehensive benchmark suite
 │   └── run_pagerank_convergence.py  # PageRank convergence analysis
 ├── analysis/
-│   ├── correlation_analysis.py     # Feature-algorithm correlations
-│   └── perceptron_features.py      # Perceptron weight training
+│   └── correlation_analysis.py     # Feature-algorithm correlations + perceptron training
 ├── utils/
 │   └── common.py              # Shared utilities (ALGORITHMS dict, parsing)
+├── perceptron_weights.json    # ML weights for AdaptiveOrder (auto-generated)
 └── test_topology.py           # Topology verification tests
 ```
 
@@ -207,9 +207,21 @@ python3 scripts/analysis/correlation_analysis.py \
 ### Train Perceptron Weights (AdaptiveOrder)
 ```bash
 # Generate optimal perceptron weights from benchmark data
-python3 scripts/analysis/perceptron_features.py \
-    --graphs-config ./graphs/graphs.json \
-    --output ./bench/results/perceptron_weights.json
+# - Generates weights for ALL algorithms (0-20)
+# - Creates backup of existing weights automatically
+# - Merges benchmark results with sensible defaults
+# - Partially tested algorithms keep their learned weights
+python3 scripts/analysis/correlation_analysis.py \
+    --graphs-dir ./graphs \
+    --benchmark pr bfs
+
+# Quick test with synthetic graphs (uses defaults for untested algorithms)
+python3 scripts/analysis/correlation_analysis.py --quick
+
+# Or specify a custom output location:
+python3 scripts/analysis/correlation_analysis.py \
+    --graphs-dir ./graphs \
+    --weights-file ./custom_weights.json
 ```
 
 ## Step 5: Verify Correctness
