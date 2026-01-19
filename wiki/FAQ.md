@@ -45,7 +45,7 @@ GraphBrew is a graph processing benchmark framework that combines:
 ```bash
 sudo apt-get update
 sudo apt-get install build-essential git
-git clone https://github.com/your-username/GraphBrew.git
+git clone https://github.com/UVA-LavaLab/GraphBrew.git
 cd GraphBrew
 make all
 ```
@@ -55,7 +55,7 @@ make all
 ```bash
 xcode-select --install
 brew install gcc
-git clone https://github.com/your-username/GraphBrew.git
+git clone https://github.com/UVA-LavaLab/GraphBrew.git
 cd GraphBrew
 make all CXX=g++-13
 ```

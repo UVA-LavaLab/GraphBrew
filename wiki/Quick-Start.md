@@ -15,7 +15,7 @@ Get up and running with GraphBrew in 5 minutes!
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-username/GraphBrew.git
+git clone https://github.com/UVA-LavaLab/GraphBrew.git
 cd GraphBrew
 
 # Build everything

@@ -49,7 +49,7 @@ pip3 install numpy matplotlib pandas
 ### Clone the Repository
 
 ```bash
-git clone https://github.com/atmughrabi/GraphBrew.git
+git clone https://github.com/UVA-LavaLab/GraphBrew.git
 cd GraphBrew
 ```
 
