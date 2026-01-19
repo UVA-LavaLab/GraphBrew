@@ -286,6 +286,220 @@ def generate_recommendations(
     return recommendations
 
 
+def compute_perceptron_weights(
+    results: List[CorrelationResult],
+    output_file: str = None
+) -> Dict[str, Dict[str, float]]:
+    """
+    Compute perceptron weights from benchmark results for ALL algorithms (0-20).
+    
+    For each algorithm, computes weights that correlate features with performance.
+    The weights represent how well the algorithm performs given certain features.
+    
+    - Generates weights for ALL algorithms in ALGORITHMS dict
+    - Loads existing weights file and merges/updates with new data
+    - Uses sensible defaults for algorithms without benchmark data
+    
+    Output format (JSON):
+    {
+        "ORIGINAL": {"bias": 1.0, "w_modularity": 0.3, ...},
+        "LeidenHybrid": {"bias": 0.95, "w_modularity": 0.45, ...},
+        ...
+    }
+    """
+    from collections import defaultdict
+    import numpy as np
+    
+    feature_names = ['w_modularity', 'w_log_nodes', 'w_log_edges', 
+                     'w_density', 'w_avg_degree', 'w_degree_variance', 
+                     'w_hub_concentration']
+    
+    # Default weights for each algorithm category (tuned heuristics)
+    DEFAULT_WEIGHTS = {
+        # Basic algorithms - conservative, work well on small/simple graphs
+        "ORIGINAL": {"bias": 0.6, "w_modularity": 0.0, "w_log_nodes": -0.1, "w_log_edges": -0.1, 
+                     "w_density": 0.1, "w_avg_degree": 0.0, "w_degree_variance": 0.0, "w_hub_concentration": 0.0},
+        "RANDOM": {"bias": 0.3, "w_modularity": 0.0, "w_log_nodes": 0.0, "w_log_edges": 0.0, 
+                   "w_density": 0.0, "w_avg_degree": 0.0, "w_degree_variance": 0.0, "w_hub_concentration": 0.0},
+        "SORT": {"bias": 0.4, "w_modularity": 0.0, "w_log_nodes": 0.0, "w_log_edges": 0.0, 
+                 "w_density": 0.0, "w_avg_degree": 0.0, "w_degree_variance": 0.0, "w_hub_concentration": 0.0},
+        
+        # Hub-based algorithms - good for power-law graphs
+        "HUBSORT": {"bias": 0.55, "w_modularity": 0.05, "w_log_nodes": 0.0, "w_log_edges": 0.05, 
+                    "w_density": -0.05, "w_avg_degree": 0.1, "w_degree_variance": 0.15, "w_hub_concentration": 0.2},
+        "HUBCLUSTER": {"bias": 0.6, "w_modularity": 0.1, "w_log_nodes": 0.0, "w_log_edges": 0.05, 
+                       "w_density": -0.05, "w_avg_degree": 0.1, "w_degree_variance": 0.15, "w_hub_concentration": 0.25},
+        
+        # DBG-based algorithms - good for locality
+        "DBG": {"bias": 0.65, "w_modularity": 0.1, "w_log_nodes": 0.05, "w_log_edges": 0.05, 
+                "w_density": 0.0, "w_avg_degree": 0.1, "w_degree_variance": 0.1, "w_hub_concentration": 0.1},
+        "HUBSORTDBG": {"bias": 0.7, "w_modularity": 0.1, "w_log_nodes": 0.05, "w_log_edges": 0.05, 
+                       "w_density": -0.05, "w_avg_degree": 0.15, "w_degree_variance": 0.15, "w_hub_concentration": 0.2},
+        "HUBCLUSTERDBG": {"bias": 0.75, "w_modularity": 0.15, "w_log_nodes": 0.05, "w_log_edges": 0.05, 
+                          "w_density": -0.05, "w_avg_degree": 0.15, "w_degree_variance": 0.15, "w_hub_concentration": 0.25},
+        
+        # Community-based algorithms - excellent for modular graphs
+        "RABBITORDER": {"bias": 0.7, "w_modularity": 0.2, "w_log_nodes": 0.1, "w_log_edges": 0.1, 
+                        "w_density": -0.1, "w_avg_degree": 0.1, "w_degree_variance": 0.1, "w_hub_concentration": 0.15},
+        "GORDER": {"bias": 0.65, "w_modularity": 0.1, "w_log_nodes": 0.05, "w_log_edges": 0.05, 
+                   "w_density": 0.0, "w_avg_degree": 0.1, "w_degree_variance": 0.05, "w_hub_concentration": 0.1},
+        "CORDER": {"bias": 0.6, "w_modularity": 0.1, "w_log_nodes": 0.05, "w_log_edges": 0.05, 
+                   "w_density": 0.0, "w_avg_degree": 0.05, "w_degree_variance": 0.05, "w_hub_concentration": 0.1},
+        "RCM": {"bias": 0.55, "w_modularity": 0.0, "w_log_nodes": 0.0, "w_log_edges": 0.0, 
+                "w_density": 0.1, "w_avg_degree": -0.05, "w_degree_variance": 0.0, "w_hub_concentration": 0.0},
+        
+        # Leiden-based algorithms - best for community structure
+        "LeidenOrder": {"bias": 0.75, "w_modularity": 0.25, "w_log_nodes": 0.1, "w_log_edges": 0.1, 
+                        "w_density": -0.1, "w_avg_degree": 0.1, "w_degree_variance": 0.1, "w_hub_concentration": 0.15},
+        "GraphBrewOrder": {"bias": 0.8, "w_modularity": 0.25, "w_log_nodes": 0.1, "w_log_edges": 0.1, 
+                           "w_density": -0.1, "w_avg_degree": 0.15, "w_degree_variance": 0.15, "w_hub_concentration": 0.2},
+        "AdaptiveOrder": {"bias": 0.85, "w_modularity": 0.2, "w_log_nodes": 0.1, "w_log_edges": 0.1, 
+                          "w_density": 0.0, "w_avg_degree": 0.15, "w_degree_variance": 0.15, "w_hub_concentration": 0.2},
+        "LeidenDFS": {"bias": 0.75, "w_modularity": 0.2, "w_log_nodes": 0.1, "w_log_edges": 0.1, 
+                      "w_density": -0.1, "w_avg_degree": 0.1, "w_degree_variance": 0.1, "w_hub_concentration": 0.15},
+        "LeidenDFSHub": {"bias": 0.8, "w_modularity": 0.2, "w_log_nodes": 0.1, "w_log_edges": 0.1, 
+                         "w_density": -0.1, "w_avg_degree": 0.15, "w_degree_variance": 0.15, "w_hub_concentration": 0.25},
+        "LeidenDFSSize": {"bias": 0.78, "w_modularity": 0.2, "w_log_nodes": 0.15, "w_log_edges": 0.1, 
+                          "w_density": -0.1, "w_avg_degree": 0.1, "w_degree_variance": 0.1, "w_hub_concentration": 0.15},
+        "LeidenBFS": {"bias": 0.75, "w_modularity": 0.2, "w_log_nodes": 0.1, "w_log_edges": 0.1, 
+                      "w_density": -0.1, "w_avg_degree": 0.1, "w_degree_variance": 0.1, "w_hub_concentration": 0.15},
+        "LeidenHybrid": {"bias": 0.85, "w_modularity": 0.25, "w_log_nodes": 0.1, "w_log_edges": 0.1, 
+                         "w_density": -0.05, "w_avg_degree": 0.15, "w_degree_variance": 0.15, "w_hub_concentration": 0.25},
+    }
+    
+    # Determine output path (default: scripts/perceptron_weights.json)
+    if output_file is None:
+        script_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        output_file = os.path.join(script_dir, "perceptron_weights.json")
+    
+    # Start with defaults for ALL algorithms
+    perceptron_weights = {}
+    for algo_id, algo_name in ALGORITHMS.items():
+        if algo_name in DEFAULT_WEIGHTS:
+            perceptron_weights[algo_name] = DEFAULT_WEIGHTS[algo_name].copy()
+        else:
+            # Fallback for any algorithm not in defaults
+            perceptron_weights[algo_name] = {
+                "bias": 0.5, "w_modularity": 0.0, "w_log_nodes": 0.0, "w_log_edges": 0.0,
+                "w_density": 0.0, "w_avg_degree": 0.0, "w_degree_variance": 0.0, "w_hub_concentration": 0.0
+            }
+    
+    # Load existing weights file and merge (preserves manually tuned values)
+    if os.path.exists(output_file):
+        try:
+            with open(output_file, 'r') as f:
+                existing_weights = json.load(f)
+            # Merge existing weights (they take precedence for algorithms not being updated)
+            for algo_name, weights in existing_weights.items():
+                if algo_name in perceptron_weights:
+                    perceptron_weights[algo_name].update(weights)
+            print(f"Loaded existing weights from: {output_file}")
+        except (json.JSONDecodeError, IOError) as e:
+            print(f"Warning: Could not load existing weights: {e}")
+    
+    # Collect training data from benchmark results
+    algo_data = defaultdict(lambda: {
+        'speedups': [],
+        'features': [],
+        'wins': 0,
+        'total_tests': 0
+    })
+    
+    for result in results:
+        features = [
+            getattr(result.features, 'modularity', 0.5),  # estimated modularity
+            result.features.log_nodes,
+            result.features.log_edges,
+            result.features.density,
+            result.features.avg_degree / 100.0,  # normalized
+            getattr(result.features, 'degree_variance', 0.5),
+            getattr(result.features, 'hub_concentration', 0.3),
+        ]
+        
+        for benchmark, speedups in result.all_speedups.items():
+            if not speedups:
+                continue
+            
+            best_algo_id = max(speedups.items(), key=lambda x: x[1])[0]
+            
+            for algo_id, speedup in speedups.items():
+                algo_name = ALGORITHMS.get(algo_id, f"Unknown({algo_id})")
+                algo_data[algo_name]['speedups'].append(speedup)
+                algo_data[algo_name]['features'].append(features)
+                algo_data[algo_name]['total_tests'] += 1
+                
+                if algo_id == best_algo_id:
+                    algo_data[algo_name]['wins'] += 1
+    
+    # Update weights for algorithms with benchmark data
+    updated_algos = []
+    for algo_name, data in algo_data.items():
+        if data['total_tests'] == 0:
+            continue
+        
+        avg_speedup = sum(data['speedups']) / len(data['speedups'])
+        win_rate = data['wins'] / data['total_tests']
+        
+        # Simple heuristic: base bias on win rate and average speedup
+        bias = 0.5 + 0.3 * win_rate + 0.2 * min(avg_speedup / 5.0, 1.0)
+        
+        # Compute feature correlations with speedup
+        weights = {'bias': round(bias, 3)}
+        
+        if len(data['speedups']) >= 3:
+            speedups_arr = np.array(data['speedups'])
+            features_arr = np.array(data['features'])
+            
+            # Simple correlation-based weights
+            for i, fname in enumerate(feature_names):
+                if features_arr.shape[0] > 1:
+                    feature_col = features_arr[:, i]
+                    if np.std(feature_col) > 0:
+                        corr = np.corrcoef(feature_col, speedups_arr)[0, 1]
+                        if not np.isnan(corr):
+                            weights[fname] = round(corr * 0.3, 3)  # Scale correlation
+                        else:
+                            weights[fname] = perceptron_weights[algo_name].get(fname, 0.0)
+                    else:
+                        weights[fname] = perceptron_weights[algo_name].get(fname, 0.0)
+                else:
+                    weights[fname] = perceptron_weights[algo_name].get(fname, 0.0)
+        else:
+            # Not enough data, keep defaults
+            for fname in feature_names:
+                weights[fname] = perceptron_weights[algo_name].get(fname, 0.0)
+        
+        # Update weights for this algorithm
+        perceptron_weights[algo_name].update(weights)
+        updated_algos.append(algo_name)
+    
+    # Create backup if file exists
+    if os.path.exists(output_file):
+        backup_file = output_file + ".backup"
+        import shutil
+        shutil.copy2(output_file, backup_file)
+        print(f"Backup created: {backup_file}")
+    
+    # Save to file (sorted by algorithm ID for consistency)
+    sorted_weights = {}
+    algo_name_to_id = {name: id for id, name in ALGORITHMS.items()}
+    for algo_name in sorted(perceptron_weights.keys(), key=lambda x: algo_name_to_id.get(x, 999)):
+        sorted_weights[algo_name] = perceptron_weights[algo_name]
+    
+    with open(output_file, 'w') as f:
+        json.dump(sorted_weights, f, indent=2)
+    
+    print(f"\nPerceptron weights saved to: {output_file}")
+    print(f"  {len(sorted_weights)} algorithms configured (all 0-20)")
+    if updated_algos:
+        print(f"  Updated from benchmarks: {', '.join(updated_algos)}")
+    else:
+        print(f"  Using default weights (no benchmark data)")
+    print(f"  C++ will automatically load these weights at runtime")
+    
+    return sorted_weights
+
+
 # ============================================================================
 # Main
 # ============================================================================
@@ -330,6 +544,11 @@ def main():
         "--quick", "-q",
         action="store_true",
         help="Quick test with synthetic graphs"
+    )
+    parser.add_argument(
+        "--weights-file", "-w",
+        default=None,
+        help="Output file for perceptron weights (default: scripts/perceptron_weights.json)"
     )
     
     args = parser.parse_args()
@@ -405,6 +624,13 @@ def main():
     print_subheader("Recommendations")
     for category, algo in recommendations.items():
         print(f"  {category.replace('_', ' ').title()}: {algo}")
+    
+    # Compute and save perceptron weights
+    print_subheader("Computing Perceptron Weights")
+    perceptron_weights = compute_perceptron_weights(
+        results, 
+        output_file=args.weights_file
+    )
     
     # Save results
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")

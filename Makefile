@@ -214,6 +214,8 @@ help: help-pr
 	@echo "  run-%          - Runs the specified GAP benchmark (bc bfs cc cc_sv pr pr_spmv sssp tc)"
 	@echo "  help-%         - Print the specified Help (bc bfs cc cc_sv pr pr_spmv sssp tc)"
 	@echo "  clean          - Removes all build artifacts"
+	@echo "  publish-wiki   - Publish wiki/ to GitHub wiki"
+	@echo "  wiki-status    - Show wiki files status"
 	@echo "  help           - Displays this help message"
 
 # Alias each kernel target to its corresponding help target
@@ -268,3 +270,43 @@ help-%: $(BIN_DIR)/%
 	@echo "  ./$< -f graph.mtx -o 14:map.lo  - Execute with MAP reordering from file"
 
 help-all: $(addprefix help-, $(KERNELS))
+
+# =========================================================
+# Wiki Publishing
+# =========================================================
+WIKI_REPO = https://github.com/UVA-LavaLab/GraphBrew.wiki.git
+WIKI_DIR = wiki
+WIKI_CLONE_DIR = .wiki_publish
+
+.PHONY: publish-wiki wiki-status
+
+publish-wiki:
+	@echo "$(BLUE)Publishing wiki to GitHub...$(NC)"
+	@if [ ! -d "$(WIKI_DIR)" ]; then \
+		echo "$(RED)Error: wiki/ directory not found$(NC)"; \
+		exit 1; \
+	fi
+	@rm -rf $(WIKI_CLONE_DIR)
+	@echo "Cloning wiki repository..."
+	@git clone $(WIKI_REPO) $(WIKI_CLONE_DIR) || { \
+		echo "$(YELLOW)Wiki repo not initialized. Creating first commit...$(NC)"; \
+		mkdir -p $(WIKI_CLONE_DIR); \
+		cd $(WIKI_CLONE_DIR) && git init && git remote add origin $(WIKI_REPO); \
+	}
+	@echo "Copying wiki files..."
+	@cp -r $(WIKI_DIR)/*.md $(WIKI_CLONE_DIR)/
+	@cd $(WIKI_CLONE_DIR) && \
+		git add -A && \
+		git commit -m "Update wiki documentation - $$(date '+%Y-%m-%d %H:%M:%S')" && \
+		git push origin master || git push origin main || { \
+			echo "$(YELLOW)Trying to push to new branch...$(NC)"; \
+			git push -u origin master || git push -u origin main; \
+		}
+	@rm -rf $(WIKI_CLONE_DIR)
+	@echo "$(GREEN)Wiki published successfully!$(NC)"
+	@echo "View at: https://github.com/UVA-LavaLab/GraphBrew/wiki"
+
+wiki-status:
+	@echo "Wiki files in $(WIKI_DIR)/:"
+	@ls -la $(WIKI_DIR)/*.md 2>/dev/null | wc -l | xargs -I {} echo "  {} markdown files"
+	@ls $(WIKI_DIR)/*.md 2>/dev/null | xargs -I {} basename {} | sed 's/^/  - /'

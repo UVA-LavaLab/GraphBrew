@@ -249,9 +249,10 @@ MEDIUM_GRAPHS = [
     ),
 ]
 
-# Large graphs (2GB+, for comprehensive benchmarking on powerful machines)
+# "Large" graphs (1GB - 8GB, substantial but manageable)
+# These were previously in the "Large" category - good for serious benchmarking
 # VERIFIED: All have proper square adjacency matrix format
-LARGE_GRAPHS = [
+MID_LARGE_GRAPHS = [
     GraphInfo(
         name="soc-LiveJournal1",
         url="https://suitesparse-collection-website.herokuapp.com/MM/SNAP/soc-LiveJournal1.tar.gz",
@@ -308,6 +309,71 @@ LARGE_GRAPHS = [
         category="road"
     ),
     GraphInfo(
+        name="arabic-2005",
+        url="https://suitesparse-collection-website.herokuapp.com/MM/LAW/arabic-2005.tar.gz",
+        size_mb=3200,
+        nodes=22744080,
+        edges=639999458,
+        format="mtx",
+        symmetric=False,
+        description="Arabic web crawl 2005",
+        category="web"
+    ),
+    GraphInfo(
+        name="it-2004",
+        url="https://suitesparse-collection-website.herokuapp.com/MM/LAW/it-2004.tar.gz",
+        size_mb=3500,
+        nodes=41291594,
+        edges=1150725436,
+        format="mtx",
+        symmetric=False,
+        description="Italian web crawl 2004",
+        category="web"
+    ),
+]
+
+# Large graphs (8GB - 16GB, for comprehensive benchmarking)
+# VERIFIED: All have proper square adjacency matrix format
+LARGE_GRAPHS = [
+    GraphInfo(
+        name="GAP-urand",
+        url="https://suitesparse-collection-website.herokuapp.com/MM/GAP/GAP-urand.tar.gz",
+        size_mb=16000,
+        nodes=134217726,
+        edges=4294966654,
+        format="mtx",
+        symmetric=True,
+        description="Uniform random graph (GAP benchmark)",
+        category="synthetic"
+    ),
+    GraphInfo(
+        name="GAP-kron",
+        url="https://suitesparse-collection-website.herokuapp.com/MM/GAP/GAP-kron.tar.gz",
+        size_mb=14000,
+        nodes=134217726,
+        edges=2111634222,
+        format="mtx",
+        symmetric=True,
+        description="Kronecker synthetic graph (GAP benchmark)",
+        category="synthetic"
+    ),
+    GraphInfo(
+        name="webbase-2001",
+        url="https://suitesparse-collection-website.herokuapp.com/MM/LAW/webbase-2001.tar.gz",
+        size_mb=8500,
+        nodes=118142155,
+        edges=1019903190,
+        format="mtx",
+        symmetric=False,
+        description="WebBase 2001 web crawl",
+        category="web"
+    ),
+]
+
+# Extra Large graphs (>16GB, for comprehensive benchmarking on powerful machines)
+# VERIFIED: All have proper square adjacency matrix format  
+EXTRA_LARGE_GRAPHS = [
+    GraphInfo(
         name="GAP-twitter",
         url="https://suitesparse-collection-website.herokuapp.com/MM/GAP/GAP-twitter.tar.gz",
         size_mb=31400,
@@ -330,15 +396,26 @@ LARGE_GRAPHS = [
         category="web"
     ),
     GraphInfo(
-        name="GAP-urand",
-        url="https://suitesparse-collection-website.herokuapp.com/MM/GAP/GAP-urand.tar.gz",
-        size_mb=16000,
-        nodes=134217726,
-        edges=4294966654,
+        name="uk-2005",
+        url="https://suitesparse-collection-website.herokuapp.com/MM/LAW/uk-2005.tar.gz",
+        size_mb=20000,
+        nodes=39459925,
+        edges=936364282,
         format="mtx",
-        symmetric=True,
-        description="Uniform random graph (GAP benchmark)",
-        category="synthetic"
+        symmetric=False,
+        description="UK web crawl 2005",
+        category="web"
+    ),
+    GraphInfo(
+        name="sk-2005",
+        url="https://suitesparse-collection-website.herokuapp.com/MM/LAW/sk-2005.tar.gz",
+        size_mb=18000,
+        nodes=50636154,
+        edges=1949412601,
+        format="mtx",
+        symmetric=False,
+        description="SK domain web crawl 2005",
+        category="web"
     ),
 ]
 
@@ -516,20 +593,38 @@ def download_graph(
 # ============================================================================
 
 def get_graphs_by_size(size: str) -> List[GraphInfo]:
-    """Get list of graphs by size category."""
+    """Get list of graphs by size category.
+    
+    Size categories:
+    - SMALL: <100MB (quick testing)
+    - MEDIUM: 100MB-1GB (standard benchmarking)
+    - MID_LARGE: 1GB-8GB (serious benchmarking)
+    - LARGE: 8GB-16GB (comprehensive benchmarking)
+    - EXTRA_LARGE/XL: >16GB (powerful machines only)
+    """
     size = size.upper()
     if size == "SMALL":
         return SMALL_GRAPHS
     elif size == "MEDIUM":
         return SMALL_GRAPHS + MEDIUM_GRAPHS
+    elif size == "MID_LARGE" or size == "ML":
+        return SMALL_GRAPHS + MEDIUM_GRAPHS + MID_LARGE_GRAPHS
     elif size == "LARGE":
-        return SMALL_GRAPHS + MEDIUM_GRAPHS + LARGE_GRAPHS
+        return SMALL_GRAPHS + MEDIUM_GRAPHS + MID_LARGE_GRAPHS + LARGE_GRAPHS
+    elif size == "EXTRA_LARGE" or size == "XL":
+        return SMALL_GRAPHS + MEDIUM_GRAPHS + MID_LARGE_GRAPHS + LARGE_GRAPHS + EXTRA_LARGE_GRAPHS
     elif size == "ALL":
-        return SMALL_GRAPHS + MEDIUM_GRAPHS + LARGE_GRAPHS
+        return SMALL_GRAPHS + MEDIUM_GRAPHS + MID_LARGE_GRAPHS + LARGE_GRAPHS + EXTRA_LARGE_GRAPHS
+    elif size == "SMALL_ONLY":
+        return SMALL_GRAPHS
     elif size == "MEDIUM_ONLY":
         return MEDIUM_GRAPHS
+    elif size == "MID_LARGE_ONLY" or size == "ML_ONLY":
+        return MID_LARGE_GRAPHS
     elif size == "LARGE_ONLY":
         return LARGE_GRAPHS
+    elif size == "EXTRA_LARGE_ONLY" or size == "XL_ONLY":
+        return EXTRA_LARGE_GRAPHS
     else:
         return MEDIUM_GRAPHS
 
@@ -658,9 +753,11 @@ def main():
     )
     parser.add_argument(
         "--size", "-s",
-        choices=["SMALL", "MEDIUM", "LARGE", "ALL", "MEDIUM_ONLY", "LARGE_ONLY"],
+        choices=["SMALL", "MEDIUM", "MID_LARGE", "ML", "LARGE", "EXTRA_LARGE", "XL", "ALL", 
+                 "SMALL_ONLY", "MEDIUM_ONLY", "MID_LARGE_ONLY", "ML_ONLY", 
+                 "LARGE_ONLY", "EXTRA_LARGE_ONLY", "XL_ONLY"],
         default="MEDIUM",
-        help="Size category of graphs to download (default: MEDIUM)"
+        help="Size: SMALL(<100MB), MEDIUM(<1GB), MID_LARGE/ML(1-8GB), LARGE(8-16GB), XL(>16GB)"
     )
     parser.add_argument(
         "--list", "-l",
