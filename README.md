@@ -88,122 +88,187 @@ The `scripts/` directory contains Python tools for comprehensive benchmarking an
 
 ```
 scripts/
-├── main.py                    # Unified entry point
 ├── download/
-│   └── download_graphs.py     # Download benchmark graphs
+│   └── download_graphs.py     # Download benchmark graphs from SuiteSparse
 ├── benchmark/
 │   ├── run_benchmark.py       # Comprehensive benchmark suite
-│   └── run_pagerank_convergence.py  # PR convergence analysis
+│   └── run_pagerank_convergence.py  # PageRank convergence analysis
 ├── analysis/
 │   ├── correlation_analysis.py     # Feature-algorithm correlations
 │   └── perceptron_features.py      # Perceptron weight training
 ├── utils/
-│   └── common.py              # Shared utilities
-└── test_topology.py           # Topology verification
+│   └── common.py              # Shared utilities (ALGORITHMS dict, parsing)
+└── test_topology.py           # Topology verification tests
 ```
 
-### Download Benchmark Graphs
+---
+
+# 🔬 Reproducing Our Experiments
+
+This section provides step-by-step instructions for researchers to reproduce our benchmarking results.
+
+## Step 1: Environment Setup
 
 ```bash
-# List available graphs
+# Clone the repository
+git clone https://github.com/atmughrabi/GraphBrew.git
+cd GraphBrew
+
+# Install system dependencies (Ubuntu 22.04+)
+sudo apt-get update
+sudo apt-get install -y build-essential g++-9 libboost-all-dev libnuma-dev google-perftools
+
+# Create Python virtual environment
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r scripts/requirements.txt
+
+# Build all benchmarks with RabbitOrder support
+make clean && make RABBIT_ENABLE=1 all
+```
+
+## Step 2: Download Benchmark Graphs
+
+```bash
+# List available graphs with sizes
 python3 scripts/download/download_graphs.py --list
 
-# Download medium-sized graphs (~3GB total)
+# Download MEDIUM graphs (~600MB, good for testing)
 python3 scripts/download/download_graphs.py --size MEDIUM --output-dir ./graphs
 
-# Download large graphs for comprehensive benchmarking (~40GB)
-python3 scripts/download/download_graphs.py --size LARGE --output-dir ./graphs
+# Download ALL graphs including LARGE (~72GB, for full experiments)
+python3 scripts/download/download_graphs.py --size ALL --output-dir ./graphs
+
+# Validate downloaded graphs
+python3 scripts/download/download_graphs.py --validate
 ```
 
-### Run Comprehensive Benchmarks
+**Available Graph Sizes:**
+| Size | Graphs | Download | Use Case |
+|------|--------|----------|----------|
+| SMALL | 4 | ~12MB | Quick testing |
+| MEDIUM | 17 | ~600MB | Development & validation |
+| LARGE | 8 | ~72GB | Full paper experiments |
 
+## Step 3: Run Benchmarks
+
+### Quick Validation (5-10 minutes)
 ```bash
-# Quick test with synthetic RMAT graphs
+# Test with synthetic RMAT graphs
 python3 scripts/benchmark/run_benchmark.py --quick --benchmark pr bfs
 
-# Full benchmark on downloaded graphs
-python3 scripts/benchmark/run_benchmark.py --graphs-dir ./graphs --benchmark pr bfs cc
-
-# Analyze PageRank convergence
-python3 scripts/benchmark/run_pagerank_convergence.py --graphs-dir ./graphs
+# Test specific algorithms on small graphs
+python3 scripts/benchmark/run_benchmark.py \
+    --graphs-config ./graphs/graphs.json \
+    --benchmark pr \
+    --algorithms 0,7,12,15,20 \
+    --trials 3
 ```
 
-### Correlation Analysis
-
+### Full Benchmark Suite (several hours)
 ```bash
-# Analyze which algorithms work best for different graph types
-python3 scripts/analysis/correlation_analysis.py --graphs-dir ./graphs
-
-# Train perceptron weights for AdaptiveOrder
-python3 scripts/analysis/perceptron_features.py --graphs-dir ./graphs
+# Run all algorithms on all downloaded graphs
+python3 scripts/benchmark/run_benchmark.py \
+    --graphs-config ./graphs/graphs.json \
+    --benchmark pr bfs cc sssp bc \
+    --algorithms 0,1,2,3,4,5,6,7,8,9,10,11,12,15,16,17,18,19,20 \
+    --trials 16 \
+    --output ./bench/results/full_benchmark.json
 ```
 
-### Topology Verification
+### Multi-Source Benchmarks (BFS, SSSP, BC)
+For traversal algorithms, the benchmark automatically runs 16+ source nodes for statistical significance:
+```bash
+python3 scripts/benchmark/run_benchmark.py \
+    --graphs-config ./graphs/graphs.json \
+    --benchmark bfs sssp bc \
+    --trials 16
+```
+
+## Step 4: Analyze Results
+
+### PageRank Convergence Analysis
+```bash
+# Analyze iteration counts per reordering algorithm
+python3 scripts/benchmark/run_pagerank_convergence.py \
+    --graphs-config ./graphs/graphs.json \
+    --algorithms 0,1,2,3,7,12,15,20
+```
+
+### Feature-Algorithm Correlation
+```bash
+# Discover which algorithms work best for different graph types
+python3 scripts/analysis/correlation_analysis.py \
+    --graphs-config ./graphs/graphs.json \
+    --benchmark pr bfs \
+    --output ./bench/results/correlations.json
+```
+
+### Train Perceptron Weights (AdaptiveOrder)
+```bash
+# Generate optimal perceptron weights from benchmark data
+python3 scripts/analysis/perceptron_features.py \
+    --graphs-config ./graphs/graphs.json \
+    --output ./bench/results/perceptron_weights.json
+```
+
+## Step 5: Verify Correctness
 
 ```bash
-# Quick topology test
+# Quick topology test (ensures reordering preserves graph structure)
 make test-topology
 
-# Full test with all algorithms
+# Full verification with all algorithms
 make test-topology-full
 ```
 
-# GraphBrew Experiment Configuration
+---
 
-Graphbrew can explore the impact of graph reordering techniques on the performance of various graph algorithms. The configuration for these experiments is specified in the `scripts/<experiment-name>/run_experiment.py` file.  
+## 📊 Expected Results Summary
 
-### Experiment Execution
+Based on our experiments, you should observe:
 
-1. **Test Experiment:**
-   * Use the `make exp-test` command. This will:
-     * Execute the experiments as defined in the python script [(`scripts/test/run_experiment.py`)](./scripts/test/run_experiment.py), with smaller graphs.
-     * Generate results (e.g., reorder time for each graph, average time for each algorithm) in the `bench/results` folder.
-     * `make clean-results` will back up current results into `bench/backup` and delete `bench/results` for a new run.
-     * Use this config for functional testing, to make sure all libraries are installed and GraphBrew is running -- **not for performance evaluation**.
+| Graph Type | Best Algorithm | Typical Speedup |
+|------------|---------------|-----------------|
+| Social Networks | LeidenHybrid (20) | 1.2-2.5x |
+| Web Graphs | LeidenDFSHub (17) | 1.3-2.0x |
+| Road Networks | RCM (11) / Gorder (9) | 1.1-1.5x |
+| Citation Networks | HubClusterDBG (7) | 1.2-1.8x |
+| Mixed/Unknown | AdaptiveOrder (15) | Near-optimal |
 
-## GraphBrew Experiment
+---
 
-Point the downloaded graphs into any directory by updating `BASE_DIR = "00_GraphDatasets/GBREW"` in [(`scripts/<experiment-name>/run_experiment.py`)](./scripts/test/run_experiment.py).
+# Legacy Experiment Configuration
 
-### Download Graphs
+> **Note:** The sections below describe the legacy experiment system. For new experiments, we recommend using the Python scripts described above.
 
-* **Twitter (TWTR | 31.4GB | .mtx):** A representation of the Twitter social network. [link](https://suitesparse-collection-website.herokuapp.com/MM/GAP/GAP-twitter.tar.gz)
-* **Road network (RD | 628.4MB | .mtx):** A road network from a specific geographic region. [link](https://suitesparse-collection-website.herokuapp.com/MM/GAP/GAP-road.tar.gz)
-* **LiveJournal (SLJ1 | 1GB | .mtx):** A social network from LiveJournal users. [link](https://suitesparse-collection-website.herokuapp.com/MM/SNAP/soc-LiveJournal1.tar.gz)
-* **Patents (CPAT | 261.7MB | .mtx):** A citation network of patents. [link](https://suitesparse-collection-website.herokuapp.com/MM/SNAP/cit-Patents.tar.gz)
-* **Orkut (CORKT | 1.8GB | .mtx):** A social network from Orkut. [link](https://suitesparse-collection-website.herokuapp.com/MM/SNAP/com-Orkut.tar.gz)
-* **Pokec (SPKC | 424MB | .mtx):** A social network from Pokec. [link](https://suitesparse-collection-website.herokuapp.com/MM/SNAP/soc-Pokec.tar.gz)
-* **Web graph (WEB01 | 18.5GB | .mtx):** A crawl of a portion of the World Wide Web from 2001. [link](https://suitesparse-collection-website.herokuapp.com/MM/LAW/webbase-2001.tar.gz)
-* **Google Plus (GPLUS | 7.3GB | .wel):** A social network from Google Plus (assume timestamps weights and filter out). [link](https://drive.google.com/file/d/1HF8Q2N_hxsaQ26MarKYxZEQhqI66qAxV/view?usp=sharing)
-* **Wikipedia Links (WIKLE | 6.7GB | .el):** Links between Wikipedia pages in English. [link](http://konect.cc/files/download.tsv.wikipedia_link_en.tar.bz2)
+## Manual Graph Download (Alternative)
 
-### Rename the Graph
+If you prefer to download graphs manually instead of using `download_graphs.py`:
 
-Rename each graph into the specified extension in the aforementioned list. For example, for the Twitter graph (Symbol: TWTR), rename the graph to `graph.mtx` and place it in the following directory structure:
+### Recommended Graphs
 
+| Symbol | Graph | Size | Format | Download Link |
+|--------|-------|------|--------|---------------|
+| TWTR | Twitter | 31.4GB | .mtx | [GAP-twitter](https://suitesparse-collection-website.herokuapp.com/MM/GAP/GAP-twitter.tar.gz) |
+| RD | Road Network | 628MB | .mtx | [GAP-road](https://suitesparse-collection-website.herokuapp.com/MM/GAP/GAP-road.tar.gz) |
+| SLJ1 | LiveJournal | 1GB | .mtx | [soc-LiveJournal1](https://suitesparse-collection-website.herokuapp.com/MM/SNAP/soc-LiveJournal1.tar.gz) |
+| CPAT | Patents | 262MB | .mtx | [cit-Patents](https://suitesparse-collection-website.herokuapp.com/MM/SNAP/cit-Patents.tar.gz) |
+| HWOD | Hollywood | 600MB | .mtx | [hollywood-2009](https://suitesparse-collection-website.herokuapp.com/MM/LAW/hollywood-2009.tar.gz) |
+| UK02 | UK Web 2002 | 4GB | .mtx | [uk-2002](https://suitesparse-collection-website.herokuapp.com/MM/LAW/uk-2002.tar.gz) |
+
+### Directory Structure
+
+After downloading, organize graphs as:
 ```
-00_GraphDatasets/GBREW/TWTR/graph.mtx
+graphs/
+├── graphs.json          # Auto-generated config (use download_graphs.py)
+├── email-Enron/
+│   └── graph.mtx
+├── cit-Patents/
+│   └── graph.mtx
+└── ...
 ```
-
-Follow the same pattern for each graph, using their respective symbols and extensions. Here is the directory structure for each graph:
-
-* **Twitter:** `00_GraphDatasets/GBREW/TWTR/graph.mtx`
-* **Road network:** `00_GraphDatasets/GBREW/RD/graph.mtx`
-* **LiveJournal:** `00_GraphDatasets/GBREW/SLJ1/graph.mtx`
-* **Patents:** `00_GraphDatasets/GBREW/CPAT/graph.mtx`
-* **Orkut:** `00_GraphDatasets/GBREW/CORKT/graph.mtx`
-* **Pokec:** `00_GraphDatasets/GBREW/SPKC/graph.mtx`
-* **Web graph:** `00_GraphDatasets/GBREW/WEB01/graph.mtx`
-* **Google Plus:** `00_GraphDatasets/GBREW/GPLUS/graph.wel`
-* **Wikipedia Links:** `00_GraphDatasets/GBREW/WIKLE/graph.el`
-
-Ensure that you download the graphs, extract them if necessary, and place them in the corresponding directories with the correct file names and extensions.
-
-### Run GAPBS with GraphBrew:
-
-* Use the `make exp-brew` command. This will:
-  * Execute the experiments as defined in the configuration file [(`scripts/brew/run_experiment.py`)](scripts/brew/run_experiment.py).
-  * Generate results (e.g., speedup graphs, overhead measurements) in the `bench/results` folder.
 
 # GraphBrew Standalone
 
