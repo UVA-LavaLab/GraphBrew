@@ -1,9 +1,12 @@
-[![Build Status](https://app.travis-ci.com/atmughrabi/GraphBrew.svg?token=L3reAtGHdEVVPvzcVqQ6&branch=main)](https://app.travis-ci.com/atmughrabi/GraphBrew)
+[![Build Status](https://app.travis-ci.com/UVA-LavaLab/GraphBrew.svg?branch=main)](https://app.travis-ci.com/UVA-LavaLab/GraphBrew)
+[![Wiki](https://img.shields.io/badge/📚_Wiki-Documentation-blue?style=flat)](https://github.com/UVA-LavaLab/GraphBrew/wiki)
 [<p align="center"><img src="./docs/figures/logo.svg" width="200" ></p>](#graphbrew)
 
 # GraphBrew <img src="./docs/figures/logo_left.png" width="50" align="center"> GAPBS
 
 This repository contains the GAP Benchmarks Suite [(GAPBS)](https://github.com/sbeamer/gapbs), modified to reorder graphs and improve cache performance on various graph algorithms.
+
+> **📖 New to GraphBrew?** Check out our comprehensive **[Wiki Documentation](https://github.com/UVA-LavaLab/GraphBrew/wiki)** for detailed guides on installation, algorithms, and usage!
 
 ## Enhancements with Cache Friendly Graphs (Graph Brewing)
 
