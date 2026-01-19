@@ -97,7 +97,7 @@ endif
 # =========================================================
 # Targets
 # =========================================================
-KERNELS = bc bfs cc cc_sv pr pr_spmv sssp tc tc_p
+KERNELS = bc bfs cc cc_sv pr pr_spmv sssp tc tc_p leiden
 KERNELS_BIN = $(addprefix $(BIN_DIR)/,$(KERNELS))
 SUITE = $(KERNELS_BIN) $(BIN_DIR)/converter
 # =========================================================
@@ -178,6 +178,20 @@ clean:
 clean-all: clean-results
 	@rm -rf $(BIN_DIR) $(EXIT_STATUS)
 
+# =========================================================
+# Testing
+# =========================================================
+test-topology: $(BIN_DIR)/bfs
+	@echo "Running topology verification tests..."
+	@python3 $(SCRIPT_DIR)/test_topology.py --graph="-g 12" --quick
+
+test-topology-full: $(BIN_DIR)/bfs
+	@echo "Running full topology verification tests..."
+	@python3 $(SCRIPT_DIR)/test_topology.py --graph="-g 12"
+
+test-topology-large: $(BIN_DIR)/bfs
+	@echo "Running topology verification on larger graph..."
+	@python3 $(SCRIPT_DIR)/test_topology.py --graph="-g 16" --quick
 scrub-all:
 	@rm -rf $(BIN_DIR) $(BACKUP_DIR) $(RES_DIR) 00_* $(EXIT_STATUS) 
 
@@ -209,25 +223,48 @@ help-%: $(BIN_DIR)/%
 	@./$< -h 
 	@echo ""
 	@echo "Reordering Algorithms:"
-	@echo "  - ORIGINAL      (0):  No reordering applied."
-	@echo "  - RANDOM        (1):  Apply random reordering."
-	@echo "  - SORT          (2):  Apply sort-based reordering."
-	@echo "  - HUBSORT       (3):  Apply hub-based sorting."
-	@echo "  - HUBCLUSTER    (4):  Apply clustering based on hub scores."
-	@echo "  - DBG           (5):  Apply degree-based grouping."
-	@echo "  - HUBSORTDBG    (6):  Combine hub sorting with degree-based grouping."
-	@echo "  - HUBCLUSTERDBG (7):  Combine hub clustering with degree-based grouping."
-	@echo "  - RABBITORDER   (8):  Apply community clustering with incremental aggregation."
-	@echo "  - GORDER        (9):  Apply dynamic programming BFS and windowing ordering."
-	@echo "  - CORDER        (10): Workload Balancing via Graph Reordering on Multicore Systems."
-	@echo "  - RCM           (11): RCM is ordered by the reverse Cuthill-McKee algorithm (BFS)."
-	@echo "  - LeidenOrder   (12): Apply Leiden community clustering with louvain with refinement."
-	@echo "  - GraphBrewOrder(13): Leiden community clustering with rabbit order refinement."
-	@echo "  - MAP           (14): Requires a file format for reordering. Use the -r 10:filename.label option."
+	@echo "  ┌─────────────────────────────────────────────────────────────────────────────┐"
+	@echo "  │ Basic Algorithms                                                            │"
+	@echo "  ├─────────────────────────────────────────────────────────────────────────────┤"
+	@echo "  │ ORIGINAL       (0):  No reordering applied                                  │"
+	@echo "  │ RANDOM         (1):  Apply random reordering                                │"
+	@echo "  │ SORT           (2):  Apply sort-based reordering                            │"
+	@echo "  │ HUBSORT        (3):  Apply hub-based sorting                                │"
+	@echo "  │ HUBCLUSTER     (4):  Apply clustering based on hub scores                   │"
+	@echo "  │ DBG            (5):  Apply degree-based grouping                            │"
+	@echo "  │ HUBSORTDBG     (6):  Combine hub sorting with degree-based grouping         │"
+	@echo "  │ HUBCLUSTERDBG  (7):  Combine hub clustering with degree-based grouping      │"
+	@echo "  ├─────────────────────────────────────────────────────────────────────────────┤"
+	@echo "  │ Community-Based Algorithms                                                  │"
+	@echo "  ├─────────────────────────────────────────────────────────────────────────────┤"
+	@echo "  │ RABBITORDER    (8):  Community clustering with incremental aggregation      │"
+	@echo "  │ GORDER         (9):  Dynamic programming BFS and windowing ordering         │"
+	@echo "  │ CORDER        (10):  Workload balancing via graph reordering                │"
+	@echo "  │ RCM           (11):  Reverse Cuthill-McKee algorithm (BFS-based)            │"
+	@echo "  │ LeidenOrder   (12):  Leiden community detection with Louvain refinement     │"
+	@echo "  ├─────────────────────────────────────────────────────────────────────────────┤"
+	@echo "  │ Advanced Hybrid Algorithms                                                  │"
+	@echo "  ├─────────────────────────────────────────────────────────────────────────────┤"
+	@echo "  │ GraphBrewOrder(13):  Leiden clustering + per-community ordering             │"
+	@echo "  │                      Format: -o 13:<freq>:<intra_algo>:<resolution>         │"
+	@echo "  │ MAP           (14):  Load reordering from file (-o 14:mapping.<lo|so>)      │"
+	@echo "  │ AdaptiveOrder (15):  ML-based perceptron selector for optimal algorithm     │"
+	@echo "  ├─────────────────────────────────────────────────────────────────────────────┤"
+	@echo "  │ Leiden Dendrogram Variants                                                  │"
+	@echo "  ├─────────────────────────────────────────────────────────────────────────────┤"
+	@echo "  │ LeidenDFS     (16):  Leiden + DFS standard traversal of dendrogram          │"
+	@echo "  │ LeidenDFSHub  (17):  Leiden + DFS prioritizing hub communities first        │"
+	@echo "  │ LeidenDFSSize (18):  Leiden + DFS prioritizing larger communities first     │"
+	@echo "  │ LeidenBFS     (19):  Leiden + BFS level-order traversal of dendrogram       │"
+	@echo "  │ LeidenHybrid  (20):  Leiden + Hybrid hub-aware DFS (RECOMMENDED)            │"
+	@echo "  └─────────────────────────────────────────────────────────────────────────────┘"
 	@echo ""
 	@echo "Example Usage:"
 	@echo "  make all - Compile the program."
 	@echo "  make clean - Clean build files."
-	@echo "  ./$< -g 15 -n 1 -o 10:mapping.label - Execute with MAP reordering using 'mapping.label'."
+	@echo "  ./$< -g 15 -n 1 -o 15           - Execute with AdaptiveOrder (auto-select best)"
+	@echo "  ./$< -g 15 -n 1 -o 20           - Execute with LeidenHybrid"
+	@echo "  ./$< -g 15 -n 1 -o 13:10:17     - Execute GraphBrew with LeidenDFSHub"
+	@echo "  ./$< -f graph.mtx -o 14:map.lo  - Execute with MAP reordering from file"
 
 help-all: $(addprefix help-, $(KERNELS))

@@ -13,9 +13,37 @@ This repository contains the GAP Benchmarks Suite [(GAPBS)](https://github.com/s
 * **Degree-Based Grouping:** [link](https://github.com/ease-lab/dbg) Implementing degree-based grouping strategies to test benchmark performance.
 * **Gorder:** [link](https://github.com/datourat/Gorder) Window based ordering with reverse Cuthill-McKee (RCM) algorithm.
 * **Corder:** [link](https://github.com/yuang-chen/Corder-TPDS-21) Workload Balancing via Graph Reordering on Multicore Systems.
+* **Leiden Dendrogram Variants:** New algorithms that exploit community hierarchy for optimal node ordering.
+* **AdaptiveOrder:** ML-based perceptron selector that automatically chooses the best algorithm for your graph.
 
 <!-- * **P-OPT Segmentation:** [link](https://github.com/CMUAbstract/POPT-CacheSim-HPCA21) Exploring graph caching techniques for efficient handling of large-scale graphs.
 * **GraphIt-DSL:** [link](https://github.com/GraphIt-DSL/graphit) Integration of GraphIt-DSL segment graphs to improve locality. -->
+
+## Algorithm Selection Guide
+
+Choosing the right reordering algorithm depends on your graph characteristics:
+
+| Graph Type | Recommended Algorithm | Rationale |
+|------------|----------------------|-----------|
+| **Social Networks** (high clustering) | `LeidenHybrid (20)` or `AdaptiveOrder (15)` | Hub-aware DFS exploits community structure |
+| **Web Graphs** (power-law degree) | `LeidenDFSHub (17)` or `HubClusterDBG (7)` | Prioritizes high-degree hubs for cache efficiency |
+| **Road Networks** (low clustering) | `RCM (11)` or `Gorder (9)` | BFS-based approaches work well for sparse graphs |
+| **Unknown/Mixed** | `AdaptiveOrder (15)` | Let the ML perceptron choose automatically |
+
+### Quick Start Examples
+```bash
+# Use AdaptiveOrder for automatic best selection
+./bench/bin/bfs -g 20 -o 15
+
+# Use LeidenHybrid (best overall for social/web graphs)
+./bench/bin/pr -f graph.mtx -o 20
+
+# Use GraphBrew with LeidenDFSHub for per-community ordering
+./bench/bin/pr -f graph.mtx -o 13:10:17
+
+# Chain multiple orderings (Leiden then Sort refinement)
+./bench/bin/bfs -f graph.mtx -o 20 -o 2
+```
 
 ## Segmentation for Scalable Graph Processing
 * **Cagra:** [link1](https://github.com/CMUAbstract/POPT-CacheSim-HPCA21)/[link2](https://github.com/GraphIt-DSL/graphit) Integration of P-OPT/GraphIt-DSL segment graphs to improve locality.
@@ -304,30 +332,76 @@ pagerank
 ### Reorder Parameters
 ```bash
 --------------------------------------------------------------------------------
--o <order>   : Apply reordering strategy, optionally layer ordering 
-               [example]-o 3 -o 2 -o 14:mapping.<lo|so>               [optional]
+-o <order>   : Apply reordering strategy with optional parameters
+               Format: -o <algo> or -o <algo>:<param1>:<param2>:...
+               
+-j <segments>: Number of segments for the graph 
+               [type:n:m] <0:GRAPHIT/Cagra> <1:TRUST>                    [0:1:1]
 
--j <segments>: number of segments for the graph 
-               [type:n:m] <0:GRAPHIT/Cagra> <1:TRUST>   [0:1:1]
-
--z <indegree>: use indegree for ordering [Degree Based Orderings]        [false]
+-z <indegree>: Use indegree for ordering [Degree Based Orderings]        [false]
 --------------------------------------------------------------------------------
 Reordering Algorithms:
-  - ORIGINAL      (0):  No reordering applied.
-  - RANDOM        (1):  Apply random reordering.
-  - SORT          (2):  Apply sort-based reordering.
-  - HUBSORT       (3):  Apply hub-based sorting.
-  - HUBCLUSTER    (4):  Apply clustering based on hub scores.
-  - DBG           (5):  Apply degree-based grouping.
-  - HUBSORTDBG    (6):  Combine hub sorting with degree-based grouping.
-  - HUBCLUSTERDBG (7):  Combine hub clustering with degree-based grouping.
-  - RABBITORDER   (8):  Apply community clustering with incremental aggregation.
-  - GORDER        (9):  Apply dynamic programming BFS and windowing ordering.
-  - CORDER        (10): Workload Balancing via Graph Reordering on Multicore Systems.
-  - RCM           (11): RCM is ordered by the reverse Cuthill-McKee algorithm (BFS).
-  - LeidenOrder   (12): Apply Leiden community clustering with louvain with refinement.
-  - GraphBrewOrder(13): Leiden community clustering with rabbit order refinement..
-  - MAP           (14): Requires a file format for reordering. Use the -r 10:filename.label option.
+  ┌─────────────────────────────────────────────────────────────────────────────┐
+  │ Basic Algorithms                                                            │
+  ├─────────────────────────────────────────────────────────────────────────────┤
+  │ ORIGINAL       (0):  No reordering applied                                  │
+  │ RANDOM         (1):  Apply random reordering                                │
+  │ SORT           (2):  Apply sort-based reordering                            │
+  │ HUBSORT        (3):  Apply hub-based sorting                                │
+  │ HUBCLUSTER     (4):  Apply clustering based on hub scores                   │
+  │ DBG            (5):  Apply degree-based grouping                            │
+  │ HUBSORTDBG     (6):  Combine hub sorting with degree-based grouping         │
+  │ HUBCLUSTERDBG  (7):  Combine hub clustering with degree-based grouping      │
+  ├─────────────────────────────────────────────────────────────────────────────┤
+  │ Community-Based Algorithms                                                  │
+  ├─────────────────────────────────────────────────────────────────────────────┤
+  │ RABBITORDER    (8):  Community clustering with incremental aggregation      │
+  │ GORDER         (9):  Dynamic programming BFS and windowing ordering         │
+  │ CORDER        (10):  Workload balancing via graph reordering                │
+  │ RCM           (11):  Reverse Cuthill-McKee algorithm (BFS-based)            │
+  │ LeidenOrder   (12):  Leiden community detection with Louvain refinement     │
+  ├─────────────────────────────────────────────────────────────────────────────┤
+  │ Advanced Hybrid Algorithms                                                  │
+  ├─────────────────────────────────────────────────────────────────────────────┤
+  │ GraphBrewOrder(13):  Leiden clustering + configurable per-community order   │
+  │ MAP           (14):  Load reordering from file (-o 14:mapping.<lo|so>)      │
+  │ AdaptiveOrder (15):  ML-based perceptron selector for optimal algorithm     │
+  ├─────────────────────────────────────────────────────────────────────────────┤
+  │ Leiden Dendrogram Variants (NEW)                                            │
+  ├─────────────────────────────────────────────────────────────────────────────┤
+  │ LeidenDFS     (16):  Leiden + DFS standard traversal of dendrogram          │
+  │ LeidenDFSHub  (17):  Leiden + DFS prioritizing hub communities first        │
+  │ LeidenDFSSize (18):  Leiden + DFS prioritizing larger communities first     │
+  │ LeidenBFS     (19):  Leiden + BFS level-order traversal of dendrogram       │
+  │ LeidenHybrid  (20):  Leiden + Hybrid hub-aware DFS (RECOMMENDED)            │
+  └─────────────────────────────────────────────────────────────────────────────┘
+
+Parameter Syntax for Composite Algorithms:
+--------------------------------------------------------------------------------
+  GraphBrewOrder (13) - Format: -o 13:<frequency>:<intra_algo>:<resolution>
+    <frequency>   : Frequency ordering within communities (default: 10)
+                    Options: 0-14 (any basic/community algorithm)
+    <intra_algo>  : Algorithm for per-community reordering (default: 8)
+                    Options: 0-20 (any algorithm including Leiden variants)
+    <resolution>  : Leiden resolution parameter (default: 1.0)
+    
+    Examples:
+      -o 13                    # Default: frequency=10, intra=RabbitOrder
+      -o 13:10:17              # Use LeidenDFSHub for per-community ordering
+      -o 13:10:20:0.5          # Use LeidenHybrid with resolution 0.5
+      
+  AdaptiveOrder (15) - Automatically selects optimal algorithm using ML
+    Uses graph features (modularity, density, degree variance) to predict
+    the best algorithm. No parameters needed.
+    
+    Example:
+      -o 15                    # Let perceptron choose the best algorithm
+      
+  MAP (14) - Format: -o 14:<mapping_file>
+    <mapping_file>: Path to label file (.lo or .so format)
+    
+    Example:
+      -o 14:mapping.lo         # Load reordering from mapping.lo file
 ```
 ### Converter Parameters (Generate Optimized Graphs)
 ```bash

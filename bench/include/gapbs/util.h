@@ -37,6 +37,13 @@ enum ReorderingAlgo
     LeidenOrder = 12,
     GraphBrewOrder = 13,
     MAP = 14,
+    AdaptiveOrder = 15,  // Hierarchical adaptive reordering based on community features
+    // Leiden Dendrogram-based orderings (RabbitOrder-style traversal)
+    LeidenDFS = 16,       // Standard DFS traversal
+    LeidenDFSHub = 17,    // DFS with high-degree nodes first  
+    LeidenDFSSize = 18,   // DFS with largest subtrees first
+    LeidenBFS = 19,       // BFS by hierarchy level
+    LeidenHybrid = 20,    // Hybrid: sort by (community, degree)
 };
 
 static const int64_t kRandSeed = 27491095;
