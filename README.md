@@ -109,6 +109,21 @@ scripts/
 └── test_topology.py           # Topology verification tests
 ```
 
+## Results Directory Structure
+
+Benchmark results are organized in the `results/` folder:
+
+```
+results/
+├── logs/                      # Execution logs
+│   └── correlation_scan.log   # Full scan progress/debug log
+├── scan_results.json          # Comprehensive benchmark results
+├── correlation_*.json         # Feature-algorithm correlations
+└── cache_*.json               # Cache simulation results
+```
+
+> 📖 **Understanding results?** See **[Correlation Analysis Wiki](https://github.com/UVA-LavaLab/GraphBrew/wiki/Correlation-Analysis)** for interpretation guides.
+
 ---
 
 # 🔬 Cache Simulation Framework
