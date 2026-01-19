@@ -454,6 +454,9 @@ def print_subheader(title: str, width: int = 70):
 
 def format_time(seconds: float) -> str:
     """Format time in human-readable format."""
+    import math
+    if seconds is None or math.isnan(seconds) or math.isinf(seconds):
+        return "N/A"
     if seconds < 0.001:
         return f"{seconds*1000000:.1f}µs"
     elif seconds < 1:
@@ -468,6 +471,9 @@ def format_time(seconds: float) -> str:
 
 def format_speedup(speedup: float) -> str:
     """Format speedup with color coding."""
+    import math
+    if speedup is None or math.isnan(speedup) or math.isinf(speedup):
+        return f"{Colors.RED}N/A{Colors.RESET}"
     if speedup >= 2.0:
         return f"{Colors.GREEN}{speedup:.2f}x{Colors.RESET}"
     elif speedup >= 1.0:

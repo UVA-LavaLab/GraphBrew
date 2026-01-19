@@ -46,12 +46,12 @@ The foundation is built on the GAP Benchmark Suite with extensions.
 
 | File | Purpose |
 |------|---------|
-| [graph.h](../bench/include/gapbs/graph.h) | CSRGraph class, core data structure |
-| [builder.h](../bench/include/gapbs/builder.h) | Graph loading and reordering |
-| [benchmark.h](../bench/include/gapbs/benchmark.h) | Benchmark harness |
-| [command_line.h](../bench/include/gapbs/command_line.h) | CLI parsing |
-| [pvector.h](../bench/include/gapbs/pvector.h) | Parallel-friendly vector |
-| [timer.h](../bench/include/gapbs/timer.h) | High-resolution timing |
+| [graph.h](https://github.com/UVA-LavaLab/GraphBrew/blob/main/bench/include/gapbs/graph.h) | CSRGraph class, core data structure |
+| [builder.h](https://github.com/UVA-LavaLab/GraphBrew/blob/main/bench/include/gapbs/builder.h) | Graph loading and reordering |
+| [benchmark.h](https://github.com/UVA-LavaLab/GraphBrew/blob/main/bench/include/gapbs/benchmark.h) | Benchmark harness |
+| [command_line.h](https://github.com/UVA-LavaLab/GraphBrew/blob/main/bench/include/gapbs/command_line.h) | CLI parsing |
+| [pvector.h](https://github.com/UVA-LavaLab/GraphBrew/blob/main/bench/include/gapbs/pvector.h) | Parallel-friendly vector |
+| [timer.h](https://github.com/UVA-LavaLab/GraphBrew/blob/main/bench/include/gapbs/timer.h) | High-resolution timing |
 
 #### graph.h - CSRGraph Class
 

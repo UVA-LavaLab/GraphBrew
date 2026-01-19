@@ -11,3 +11,5 @@ __pycache__/
 .venv/
 *.pyc
 graphs/
+*.log
+cache_results

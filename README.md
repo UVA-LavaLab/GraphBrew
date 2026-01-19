@@ -10,21 +10,21 @@ This repository contains the GAP Benchmarks Suite [(GAPBS)](https://github.com/s
 
 ## Enhancements with Cache Friendly Graphs (Graph Brewing)
 
-* **GraphBrew:** Graph reordering (multi-layered) for improved cache performance.
-* **Leiden Order:** [link](https://github.com/puzzlef/leiden-communities-openmp) Community clustering order with Louvian/refinement step.
+* **GraphBrew:** Graph reordering (multi-layered) for improved cache performance. See **[GraphBrewOrder Wiki](https://github.com/UVA-LavaLab/GraphBrew/wiki/GraphBrewOrder)**.
+* **Leiden Order:** [link](https://github.com/puzzlef/leiden-communities-openmp) Community clustering order with Louvian/refinement step. See **[Community Detection Wiki](https://github.com/UVA-LavaLab/GraphBrew/wiki/Community-Detection)**.
 * **Rabbit Order:** [link](https://github.com/araij/rabbit_order) Community clustering order with incremental aggregation.
 * **Degree-Based Grouping:** [link](https://github.com/ease-lab/dbg) Implementing degree-based grouping strategies to test benchmark performance.
 * **Gorder:** [link](https://github.com/datourat/Gorder) Window based ordering with reverse Cuthill-McKee (RCM) algorithm.
 * **Corder:** [link](https://github.com/yuang-chen/Corder-TPDS-21) Workload Balancing via Graph Reordering on Multicore Systems.
 * **Leiden Dendrogram Variants:** New algorithms that exploit community hierarchy for optimal node ordering.
-* **AdaptiveOrder:** ML-based perceptron selector that automatically chooses the best algorithm for your graph.
+* **AdaptiveOrder:** ML-based perceptron selector that automatically chooses the best algorithm. See **[AdaptiveOrder ML Wiki](https://github.com/UVA-LavaLab/GraphBrew/wiki/AdaptiveOrder-ML)**.
 
 <!-- * **P-OPT Segmentation:** [link](https://github.com/CMUAbstract/POPT-CacheSim-HPCA21) Exploring graph caching techniques for efficient handling of large-scale graphs.
 * **GraphIt-DSL:** [link](https://github.com/GraphIt-DSL/graphit) Integration of GraphIt-DSL segment graphs to improve locality. -->
 
 ## Algorithm Selection Guide
 
-Choosing the right reordering algorithm depends on your graph characteristics:
+Choosing the right reordering algorithm depends on your graph characteristics. For detailed algorithm descriptions, see the **[Reordering Algorithms Wiki](https://github.com/UVA-LavaLab/GraphBrew/wiki/Reordering-Algorithms)**.
 
 | Graph Type | Recommended Algorithm | Rationale |
 |------------|----------------------|-----------|
@@ -48,13 +48,15 @@ Choosing the right reordering algorithm depends on your graph characteristics:
 ./bench/bin/bfs -f graph.mtx -o 20 -o 2
 ```
 
+> 📖 **More examples?** See the **[Quick Start Guide](https://github.com/UVA-LavaLab/GraphBrew/wiki/Quick-Start)** and **[Command Line Reference](https://github.com/UVA-LavaLab/GraphBrew/wiki/Command-Line-Reference)** in the wiki.
+
 ## Segmentation for Scalable Graph Processing
 * **Cagra:** [link1](https://github.com/CMUAbstract/POPT-CacheSim-HPCA21)/[link2](https://github.com/GraphIt-DSL/graphit) Integration of P-OPT/GraphIt-DSL segment graphs to improve locality.
 * **Trust:** [link](https://github.com/wzbxpy/TRUST) Graph partition for Triangle counting on large graph.
 
 ## GAP Benchmarks
 
-This project contains a collection of Graph Analytics for Performance [(GAPBS)](https://github.com/sbeamer/gapbs) benchmarks implemented in C++. The benchmarks are designed to exercise the performance of graph algorithms on a CPU. 
+This project contains a collection of Graph Analytics for Performance [(GAPBS)](https://github.com/sbeamer/gapbs) benchmarks implemented in C++. The benchmarks are designed to exercise the performance of graph algorithms on a CPU. For implementation details, see **[Graph Benchmarks Wiki](https://github.com/UVA-LavaLab/GraphBrew/wiki/Graph-Benchmarks)**.
 
 **Key Algorithms**
 
@@ -69,7 +71,8 @@ This project contains a collection of Graph Analytics for Performance [(GAPBS)](
 
 ## Prerequisites
 
-Before you begin, ensure you have the following installed on your system, [(section)](#installing-prerequisites):
+Before you begin, ensure you have the following installed on your system, [(section)](#installing-prerequisites). For detailed installation steps, see **[Installation Wiki](https://github.com/UVA-LavaLab/GraphBrew/wiki/Installation)**.
+
 - **Ubuntu**: All testing has been done on Ubuntu `22.04+` Operating System.
 - **GCC**: The GNU Compiler Collection, specifically `g++9` which supports C++11 or later.
 - **Make**: The build utility to automate the compilation.
@@ -87,7 +90,7 @@ make RABBIT_ENABLE=1
 
 # GraphBrew Analysis Scripts
 
-The `scripts/` directory contains Python tools for comprehensive benchmarking and analysis:
+The `scripts/` directory contains Python tools for comprehensive benchmarking and analysis. For detailed usage, see **[Python Scripts Wiki](https://github.com/UVA-LavaLab/GraphBrew/wiki/Python-Scripts)**.
 
 ```
 scripts/
@@ -97,12 +100,86 @@ scripts/
 │   ├── run_benchmark.py       # Comprehensive benchmark suite
 │   └── run_pagerank_convergence.py  # PageRank convergence analysis
 ├── analysis/
-│   └── correlation_analysis.py     # Feature-algorithm correlations + perceptron training
+│   ├── correlation_analysis.py     # Feature-algorithm correlations + perceptron training
+│   ├── perceptron_features.py      # ML features extraction (graph + cache)
+│   └── cache_benchmark.py          # Cache performance benchmark suite
 ├── utils/
 │   └── common.py              # Shared utilities (ALGORITHMS dict, parsing)
 ├── perceptron_weights.json    # ML weights for AdaptiveOrder (auto-generated)
 └── test_topology.py           # Topology verification tests
 ```
+
+---
+
+# 🔬 Cache Simulation Framework
+
+GraphBrew includes a detailed cache simulation framework for analyzing memory access patterns and cache behavior across reordering algorithms.
+
+## Building Cache Simulation
+
+```bash
+# Build all simulation binaries
+make all-sim
+
+# Build specific algorithm simulation
+make sim-pr   # PageRank
+make sim-bfs  # BFS
+make sim-cc   # Connected Components
+
+# Clean simulation binaries
+make clean-sim
+```
+
+## Running Cache Simulations
+
+```bash
+# Basic simulation with default Intel Xeon cache config
+./bench/bin_sim/pr -g 18 -o 12 -n 1
+
+# Export statistics to JSON
+CACHE_OUTPUT_JSON=cache_stats.json ./bench/bin_sim/pr -g 18 -o 12 -n 1
+
+# Custom cache configuration
+CACHE_L1_SIZE=32768 CACHE_L1_WAYS=8 CACHE_L1_POLICY=LRU \
+CACHE_L2_SIZE=262144 CACHE_L3_SIZE=12582912 \
+./bench/bin_sim/bfs -g 16 -o 7 -n 1
+```
+
+## Cache Benchmark Suite
+
+The Python cache benchmark script provides comprehensive analysis:
+
+```bash
+# Quick test with synthetic graphs
+python3 scripts/analysis/cache_benchmark.py --quick
+
+# Full benchmark across algorithms and reorders
+python3 scripts/analysis/cache_benchmark.py \
+    --algorithms pr bfs cc \
+    --reorders 0 7 12 17 20 \
+    --output ./cache_results
+
+# Real graphs with correlation analysis
+python3 scripts/analysis/cache_benchmark.py \
+    --graphs-dir ./graphs \
+    --output ./cache_results
+```
+
+## Cache Features for ML
+
+Cache performance metrics are used as features for the perceptron model:
+
+| Feature | Description |
+|---------|-------------|
+| `l1_hit_rate` | L1 cache hit rate (0.0-1.0) |
+| `l2_hit_rate` | L2 cache hit rate (0.0-1.0) |
+| `l3_hit_rate` | L3 cache hit rate (0.0-1.0) |
+| `dram_access_rate` | Rate of accesses reaching main memory |
+| `l1_eviction_rate` | L1 cache eviction rate |
+| `l2_eviction_rate` | L2 cache eviction rate |
+| `l3_eviction_rate` | L3 cache eviction rate |
+
+For detailed documentation, see **[Cache Simulation Wiki](https://github.com/UVA-LavaLab/GraphBrew/wiki/Cache-Simulation)**.
 
 ---
 
@@ -227,6 +304,8 @@ python3 scripts/analysis/correlation_analysis.py \
     --weights-file ./custom_weights.json
 ```
 
+> 📖 **Understanding perceptron weights?** See **[AdaptiveOrder ML Wiki](https://github.com/UVA-LavaLab/GraphBrew/wiki/AdaptiveOrder-ML)** and **[Perceptron Weights Wiki](https://github.com/UVA-LavaLab/GraphBrew/wiki/Perceptron-Weights)**.
+
 ## Step 5: Verify Correctness
 
 ```bash
@@ -250,6 +329,8 @@ Based on our experiments, you should observe:
 | Road Networks | RCM (11) / Gorder (9) | 1.1-1.5x |
 | Citation Networks | HubClusterDBG (7) | 1.2-1.8x |
 | Mixed/Unknown | AdaptiveOrder (15) | Near-optimal |
+
+> 📖 **Need help?** Check out the **[FAQ](https://github.com/UVA-LavaLab/GraphBrew/wiki/FAQ)** and **[Troubleshooting Guide](https://github.com/UVA-LavaLab/GraphBrew/wiki/Troubleshooting)** in the wiki.
 
 ---
 

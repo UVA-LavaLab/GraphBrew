@@ -206,6 +206,42 @@ clean-results:
 	fi
 
 # =========================================================
+# Cache Simulation Builds
+# =========================================================
+SRC_SIM_DIR = $(BENCH_DIR)/src_sim
+BIN_SIM_DIR = $(BENCH_DIR)/bin_sim
+INCLUDE_CACHE = $(INC_DIR)/cache
+DEP_CACHE = $(wildcard $(INCLUDE_CACHE)/*.h)
+
+# Simulation kernels (algorithms with cache instrumentation)
+KERNELS_SIM = pr bfs bc cc sssp tc
+
+# Create bin_sim directory
+$(BIN_SIM_DIR):
+	mkdir -p $@
+
+# Build simulation versions
+$(BIN_SIM_DIR)/%: $(SRC_SIM_DIR)/%.cc $(DEP_GAPBS) $(DEP_CACHE) | $(BIN_SIM_DIR)
+	$(CXX) $(CXXFLAGS) $(INCLUDES) -I$(INCLUDE_CACHE) $< $(LDLIBS) -o $@
+
+# Convenience targets for simulation builds
+.PHONY: sim-% all-sim clean-sim run-sim-%
+
+sim-%: $(BIN_SIM_DIR)/%
+	@echo "Built simulation version: $<"
+
+all-sim: $(addprefix $(BIN_SIM_DIR)/, $(KERNELS_SIM))
+	@echo "Built all simulation binaries"
+
+clean-sim:
+	rm -rf $(BIN_SIM_DIR)
+
+# Run simulation with default parameters
+run-sim-%: $(BIN_SIM_DIR)/%
+	@echo "Running cache simulation: $<"
+	@./$< -g 10 -n 1
+
+# =========================================================
 # Help
 # =========================================================
 help: help-pr
@@ -214,6 +250,25 @@ help: help-pr
 	@echo "  run-%          - Runs the specified GAP benchmark (bc bfs cc cc_sv pr pr_spmv sssp tc)"
 	@echo "  help-%         - Print the specified Help (bc bfs cc cc_sv pr pr_spmv sssp tc)"
 	@echo "  clean          - Removes all build artifacts"
+	@echo ""
+	@echo "Cache Simulation:"
+	@echo "  all-sim        - Builds all cache simulation binaries (pr bfs bc cc sssp tc)"
+	@echo "  sim-%          - Build simulation version of specified algorithm"
+	@echo "  run-sim-%      - Run cache simulation with default graph"
+	@echo "  clean-sim      - Remove simulation build artifacts"
+	@echo ""
+	@echo "Cache Simulation Environment Variables:"
+	@echo "  CACHE_L1_SIZE=32768       - L1 cache size in bytes (default: 32KB)"
+	@echo "  CACHE_L1_WAYS=8           - L1 associativity (default: 8-way)"
+	@echo "  CACHE_L2_SIZE=262144      - L2 cache size in bytes (default: 256KB)"
+	@echo "  CACHE_L2_WAYS=4           - L2 associativity (default: 4-way)"
+	@echo "  CACHE_L3_SIZE=8388608     - L3 cache size in bytes (default: 8MB)"
+	@echo "  CACHE_L3_WAYS=16          - L3 associativity (default: 16-way)"
+	@echo "  CACHE_LINE_SIZE=64        - Cache line size in bytes (default: 64)"
+	@echo "  CACHE_POLICY=LRU          - Eviction policy: LRU, FIFO, RANDOM, LFU, PLRU, SRRIP"
+	@echo "  CACHE_OUTPUT_JSON=file    - Export stats to JSON file"
+	@echo ""
+	@echo "Other:"
 	@echo "  publish-wiki   - Publish wiki/ to GitHub wiki"
 	@echo "  wiki-status    - Show wiki files status"
 	@echo "  help           - Displays this help message"

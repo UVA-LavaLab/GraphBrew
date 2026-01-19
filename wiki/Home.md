@@ -35,6 +35,7 @@ GraphBrew is a high-performance graph reordering framework that combines **commu
 - [[AdaptiveOrder-ML]] - The perceptron-based algorithm selector
 - [[Perceptron-Weights]] - Training and tuning the ML model
 - [[GraphBrewOrder]] - Per-community reordering explained
+- [[Cache-Simulation]] - Cache performance analysis for algorithms
 
 ### Developer Guide
 - [[Adding-New-Algorithms]] - Implement your own reordering method
@@ -87,6 +88,7 @@ The best algorithm depends on your graph's topology!
 | [[AdaptiveOrder-ML]] | ML-based algorithm selection |
 | [[Perceptron-Weights]] | Weight file format & tuning |
 | [[GraphBrewOrder]] | Per-community hub ordering |
+| [[Cache-Simulation]] | Cache performance analysis |
 | [[Adding-New-Algorithms]] | Developer: add algorithms |
 | [[Adding-New-Benchmarks]] | Developer: add benchmarks |
 | [[Code-Architecture]] | Codebase structure |
