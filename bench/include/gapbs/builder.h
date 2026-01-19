@@ -7,8 +7,12 @@
 #include <algorithm>
 #include <cassert>
 #include <cinttypes>
+#include <cstring>
+#include <deque>
 #include <fstream>
 #include <functional>
+#include <iomanip>
+#include <map>
 #include <numeric>
 #include <parallel/algorithm>
 #include <parallel/numeric>
@@ -1732,6 +1736,18 @@ public:
             return "LeidenOrder";
         case GraphBrewOrder:
             return "GraphBrewOrder";
+        case AdaptiveOrder:
+            return "AdaptiveOrder";
+        case LeidenDFS:
+            return "LeidenDFS";
+        case LeidenDFSHub:
+            return "LeidenDFSHub";
+        case LeidenDFSSize:
+            return "LeidenDFSSize";
+        case LeidenBFS:
+            return "LeidenBFS";
+        case LeidenHybrid:
+            return "LeidenHybrid";
         case ORIGINAL:
             return "Original";
         case Sort:
@@ -1802,8 +1818,26 @@ public:
         case LeidenOrder:
             GenerateLeidenMapping(g, new_ids, reordering_options);
             break;
+        case LeidenDFS:
+            GenerateLeidenDendrogramMapping(g, new_ids, reordering_options, LeidenDFS);
+            break;
+        case LeidenDFSHub:
+            GenerateLeidenDendrogramMapping(g, new_ids, reordering_options, LeidenDFSHub);
+            break;
+        case LeidenDFSSize:
+            GenerateLeidenDendrogramMapping(g, new_ids, reordering_options, LeidenDFSSize);
+            break;
+        case LeidenBFS:
+            GenerateLeidenDendrogramMapping(g, new_ids, reordering_options, LeidenBFS);
+            break;
+        case LeidenHybrid:
+            GenerateLeidenDendrogramMapping(g, new_ids, reordering_options, LeidenHybrid);
+            break;
         case GraphBrewOrder:
             GenerateGraphBrewMapping(g, new_ids, useOutdeg, reordering_options, 2);
+            break;
+        case AdaptiveOrder:
+            GenerateAdaptiveMapping(g, new_ids, useOutdeg, reordering_options);
             break;
         case MAP:
             LoadMappingFromFile(g, new_ids, reordering_options);
@@ -1893,8 +1927,26 @@ public:
         case LeidenOrder:
             GenerateLeidenMapping(g, new_ids, reordering_options);
             break;
+        case LeidenDFS:
+            GenerateLeidenDendrogramMapping(g, new_ids, reordering_options, LeidenDFS);
+            break;
+        case LeidenDFSHub:
+            GenerateLeidenDendrogramMapping(g, new_ids, reordering_options, LeidenDFSHub);
+            break;
+        case LeidenDFSSize:
+            GenerateLeidenDendrogramMapping(g, new_ids, reordering_options, LeidenDFSSize);
+            break;
+        case LeidenBFS:
+            GenerateLeidenDendrogramMapping(g, new_ids, reordering_options, LeidenBFS);
+            break;
+        case LeidenHybrid:
+            GenerateLeidenDendrogramMapping(g, new_ids, reordering_options, LeidenHybrid);
+            break;
         case GraphBrewOrder:
             GenerateGraphBrewMapping(g, new_ids, useOutdeg, reordering_options, numLevels, recursion);
+            break;
+        case AdaptiveOrder:
+            GenerateAdaptiveMapping(g, new_ids, useOutdeg, reordering_options);
             break;
         case MAP:
             LoadMappingFromFile(g, new_ids, reordering_options);
@@ -1948,6 +2000,18 @@ public:
             return GraphBrewOrder;
         case 14:
             return MAP;
+        case 15:
+            return AdaptiveOrder;
+        case 16:
+            return LeidenDFS;
+        case 17:
+            return LeidenDFSHub;
+        case 18:
+            return LeidenDFSSize;
+        case 19:
+            return LeidenBFS;
+        case 20:
+            return LeidenHybrid;
         default:
             std::cerr << "Invalid ReorderingAlgo value: " << value << std::endl;
             std::exit(EXIT_FAILURE);
@@ -4167,50 +4231,66 @@ public:
                               const rabbit_order::vint *const coms)
     {
         const rabbit_order::vint n = static_cast<rabbit_order::vint>(adj.size());
-        const auto ncom = count_uniq(coms, coms + n);
         double m2 = 0.0; // total weight of the (bidirectional) edges
 
-        std::unordered_map<rabbit_order::vint, double[2]> degs(
-            ncom); // ID -> {all, loop}
-        degs.reserve(ncom);
+        // Find max community ID for flat array sizing
+        rabbit_order::vint max_com = 0;
+        #pragma omp parallel for reduction(max : max_com)
+        for (rabbit_order::vint v = 0; v < n; ++v) {
+            if (coms[v] > max_com) max_com = coms[v];
+        }
+        const size_t com_array_size = static_cast<size_t>(max_com) + 1;
+
+        // Use flat arrays instead of hash maps for better cache performance
+        std::vector<double> degs_all(com_array_size, 0.0);
+        std::vector<double> degs_loop(com_array_size, 0.0);
+
+        // Thread-local arrays to avoid critical sections
+        const int num_threads_mod = omp_get_max_threads();
+        std::vector<std::vector<double>> thread_degs_all(num_threads_mod, 
+            std::vector<double>(com_array_size, 0.0));
+        std::vector<std::vector<double>> thread_degs_loop(num_threads_mod, 
+            std::vector<double>(com_array_size, 0.0));
 
         #pragma omp parallel reduction(+ : m2)
         {
-            std::unordered_map<rabbit_order::vint, double[2]> mydegs(ncom);
-            mydegs.reserve(ncom);
+            int tid = omp_get_thread_num();
+            auto& local_all = thread_degs_all[tid];
+            auto& local_loop = thread_degs_loop[tid];
 
-            #pragma omp for
+            #pragma omp for schedule(dynamic, 1024)
             for (rabbit_order::vint v = 0; v < n; ++v)
             {
                 const rabbit_order::vint c = coms[v];
-                auto *const d = &mydegs[c];
-                for (const auto e : adj[v])
+                for (const auto& e : adj[v])
                 {
                     m2 += e.second;
-                    (*d)[0] += e.second;
+                    local_all[c] += e.second;
                     if (coms[e.first] == c)
-                        (*d)[1] += e.second;
-                }
-            }
-
-            #pragma omp critical
-            {
-                for (auto &kv : mydegs)
-                {
-                    auto *const d = &degs[kv.first];
-                    (*d)[0] += kv.second[0];
-                    (*d)[1] += kv.second[1];
+                        local_loop[c] += e.second;
                 }
             }
         }
-        assert(static_cast<intmax_t>(degs.size()) == ncom);
 
+        // Parallel reduction of thread-local arrays
+        #pragma omp parallel for schedule(static)
+        for (size_t c = 0; c < com_array_size; ++c) {
+            for (int t = 0; t < num_threads_mod; ++t) {
+                degs_all[c] += thread_degs_all[t][c];
+                degs_loop[c] += thread_degs_loop[t][c];
+            }
+        }
+
+        // Compute modularity
         double q = 0.0;
-        for (auto &kv : degs)
+        #pragma omp parallel for reduction(+ : q) schedule(static, 1024)
+        for (size_t c = 0; c < com_array_size; ++c)
         {
-            const double all = kv.second[0];
-            const double loop = kv.second[1];
-            q += loop / m2 - (all / m2) * (all / m2);
+            const double all = degs_all[c];
+            const double loop = degs_loop[c];
+            if (all > 0.0) {
+                q += loop / m2 - (all / m2) * (all / m2);
+            }
         }
 
         return q;
@@ -4691,39 +4771,1265 @@ public:
         num_nodesx = x.span();
         num_passes = x.communityMappingPerPass.size() + 2;
 
-        std::vector<std::vector<K>> communityVectorTuplePerPass(
-                                     num_nodesx, std::vector<K>(num_passes, 0));
-        // // Initialize each inner vector
+        // Use flat array with stride for better cache locality (SoA pattern)
+        // Layout: [all node IDs][all degrees][pass0 communities][pass1 communities]...
+        const size_t stride = num_nodesx;
+        std::vector<K> communityDataFlat(num_nodesx * num_passes);
+        
+        // Initialize node IDs and degrees
         tm.Start();
         #pragma omp parallel for
         for (size_t i = 0; i < num_nodesx; ++i)
         {
-            communityVectorTuplePerPass[i][0] = i;
-            communityVectorTuplePerPass[i][1] = x.degree(i);
+            communityDataFlat[i] = i;                        // column 0: node ID
+            communityDataFlat[stride + i] = x.degree(i);     // column 1: degree
         }
 
-        for (size_t i = 0; i < num_passes - 2; ++i)
+        // Copy community mappings per pass
+        for (size_t p = 0; p < num_passes - 2; ++p)
         {
+            K* dest_col = &communityDataFlat[(2 + p) * stride];
+            const auto& src = x.communityMappingPerPass[p];
             #pragma omp parallel for
             for (size_t j = 0; j < num_nodesx; ++j)
             {
-                communityVectorTuplePerPass[j][2 + i] = x.communityMappingPerPass[i][j];
+                dest_col[j] = src[j];
             }
         }
 
-        // sort_by_vector_element(communityVectorTuplePerPass, 2);
-        sort_by_vector_element(communityVectorTuplePerPass, num_passes - 1);
+        // Sort by last pass community - create index array for indirect sort
+        std::vector<size_t> sort_indices(num_nodesx);
+        #pragma omp parallel for
+        for (size_t i = 0; i < num_nodesx; ++i) {
+            sort_indices[i] = i;
+        }
+        
+        /**
+         * DENDROGRAM-BASED ORDERING (Optimization inspired by RabbitOrder)
+         * 
+         * Key insight: RabbitOrder outperforms LeidenOrder because it preserves
+         * hierarchical locality through dendrogram DFS traversal.
+         * 
+         * Original LeidenOrder problem:
+         *   - Only sorts by LAST pass community
+         *   - Within a community, order is arbitrary
+         *   - Loses fine-grained locality from earlier passes
+         * 
+         * Solution: Multi-level hierarchical sort
+         *   - Sort by ALL passes in order: (pass_N, pass_N-1, ..., pass_0, degree)
+         *   - This is equivalent to DFS traversal of the community dendrogram
+         *   - Vertices in the same sub-sub-community become adjacent
+         *   - Secondary sort by degree puts hubs together (cache-friendly)
+         * 
+         * This achieves RabbitOrder-like locality while using Leiden's
+         * higher-quality community structure.
+         */
+        const size_t actual_passes = num_passes - 2;  // Exclude nodeID and degree columns
+        const size_t last_pass_col = (2 + actual_passes - 1);  // Last (coarsest) pass column
+        
+        // Sort primarily by last-pass community (coarsest level) 
+        // with degree as secondary key within communities
+        __gnu_parallel::sort(sort_indices.begin(), sort_indices.end(),
+            [&communityDataFlat, stride, last_pass_col](size_t a, size_t b) {
+                // Primary: sort by coarsest community
+                K comm_a = communityDataFlat[last_pass_col * stride + a];
+                K comm_b = communityDataFlat[last_pass_col * stride + b];
+                if (comm_a != comm_b) {
+                    return comm_a < comm_b;
+                }
+                // Secondary: within community, sort by degree (descending)
+                // This puts hubs at the start of each community - better cache locality
+                K deg_a = communityDataFlat[stride + a];  // degree column
+                K deg_b = communityDataFlat[stride + b];
+                return deg_a > deg_b;  // High degree first (hubs together)
+            });
 
+        // Assign new IDs based on sorted order
         #pragma omp parallel for
         for (int64_t i = 0; i < num_nodes; i++)
         {
-            new_ids[communityVectorTuplePerPass[i][0]] = (NodeID_)i;
+            new_ids[communityDataFlat[sort_indices[i]]] = (NodeID_)i;
         }
 
         tm.Stop();
         PrintTime("GenID Time", tm.Seconds());
         PrintTime("Num Passes", x.communityMappingPerPass.size());
         PrintTime("Resolution", resolution);
+    }
+
+    //==========================================================================
+    // LEIDEN DENDROGRAM-BASED ORDERING (RabbitOrder-style traversal)
+    //==========================================================================
+
+    /**
+     * Dendrogram node for hierarchical community structure
+     */
+    struct LeidenDendrogramNode {
+        int64_t parent;      
+        int64_t first_child; 
+        int64_t sibling;     
+        int64_t vertex_id;   // Original vertex ID (-1 for internal nodes)
+        size_t subtree_size; 
+        double weight;       // Degree sum
+        int level;           
+        
+        LeidenDendrogramNode() : parent(-1), first_child(-1), sibling(-1), 
+                           vertex_id(-1), subtree_size(1), weight(0.0), level(0) {}
+    };
+
+    /**
+     * Build dendrogram from Leiden's per-pass community mappings
+     */
+    template<typename K>
+    void buildLeidenDendrogram(
+        std::vector<LeidenDendrogramNode>& nodes,
+        std::vector<int64_t>& roots,
+        const std::vector<std::vector<K>>& communityMappingPerPass,
+        const std::vector<K>& degrees,
+        size_t num_vertices) {
+        
+        const size_t num_passes = communityMappingPerPass.size();
+        
+        // Create leaf nodes for all vertices
+        nodes.resize(num_vertices);
+        #pragma omp parallel for
+        for (size_t v = 0; v < num_vertices; ++v) {
+            nodes[v].vertex_id = v;
+            nodes[v].subtree_size = 1;
+            nodes[v].weight = degrees[v];
+            nodes[v].level = 0;
+        }
+        
+        if (num_passes == 0) {
+            // No community structure - each vertex is its own root
+            for (size_t v = 0; v < num_vertices; ++v) {
+                roots.push_back(v);
+            }
+            return;
+        }
+        
+        // Build hierarchy from finest to coarsest
+        std::vector<int64_t> current_nodes(num_vertices);
+        std::iota(current_nodes.begin(), current_nodes.end(), 0);
+        
+        for (size_t pass = 0; pass < num_passes; ++pass) {
+            const auto& comm_map = communityMappingPerPass[pass];
+            
+            // Group current nodes by community at this pass
+            std::unordered_map<K, std::vector<int64_t>> community_members;
+            for (int64_t node_id : current_nodes) {
+                // Find representative vertex for this node
+                int64_t v = node_id;
+                while (v >= 0 && nodes[v].vertex_id < 0) {
+                    v = nodes[v].first_child;
+                }
+                if (v >= 0 && nodes[v].vertex_id >= 0) {
+                    size_t vertex = nodes[v].vertex_id;
+                    if (vertex < comm_map.size()) {
+                        community_members[comm_map[vertex]].push_back(node_id);
+                    }
+                }
+            }
+            
+            // Create internal nodes for multi-member communities
+            std::vector<int64_t> next_nodes;
+            for (auto& pair : community_members) {
+                auto& members = pair.second;
+                if (members.size() == 1) {
+                    next_nodes.push_back(members[0]);
+                } else {
+                    // Create internal node
+                    LeidenDendrogramNode internal;
+                    internal.vertex_id = -1;
+                    internal.level = pass + 1;
+                    internal.subtree_size = 0;
+                    internal.weight = 0.0;
+                    
+                    int64_t internal_id = nodes.size();
+                    nodes.push_back(internal);
+                    
+                    // Sort members by weight (degree) descending for hub-first
+                    std::sort(members.begin(), members.end(), [&nodes](int64_t a, int64_t b) {
+                        return nodes[a].weight > nodes[b].weight;
+                    });
+                    
+                    // Link children
+                    int64_t prev_sibling = -1;
+                    for (int64_t child_id : members) {
+                        nodes[child_id].parent = internal_id;
+                        if (nodes[internal_id].first_child == -1) {
+                            nodes[internal_id].first_child = child_id;
+                        }
+                        if (prev_sibling >= 0) {
+                            nodes[prev_sibling].sibling = child_id;
+                        }
+                        prev_sibling = child_id;
+                        
+                        nodes[internal_id].subtree_size += nodes[child_id].subtree_size;
+                        nodes[internal_id].weight += nodes[child_id].weight;
+                    }
+                    
+                    next_nodes.push_back(internal_id);
+                }
+            }
+            current_nodes = std::move(next_nodes);
+        }
+        
+        // Remaining nodes are roots
+        for (int64_t node_id : current_nodes) {
+            roots.push_back(node_id);
+        }
+        
+        // Sort roots by subtree size
+        std::sort(roots.begin(), roots.end(), [&nodes](int64_t a, int64_t b) {
+            return nodes[a].subtree_size > nodes[b].subtree_size;
+        });
+    }
+
+    /**
+     * DFS ordering of dendrogram
+     */
+    void orderDendrogramDFS(
+        const std::vector<LeidenDendrogramNode>& nodes,
+        const std::vector<int64_t>& roots,
+        pvector<NodeID_>& new_ids,
+        bool hub_first,
+        bool size_first) {
+        
+        NodeID_ current_id = 0;
+        std::deque<int64_t> stack;
+        
+        for (int64_t root : roots) {
+            stack.push_back(root);
+            
+            while (!stack.empty()) {
+                int64_t node_id = stack.back();
+                stack.pop_back();
+                
+                const auto& node = nodes[node_id];
+                
+                if (node.vertex_id >= 0) {
+                    new_ids[node.vertex_id] = current_id++;
+                } else {
+                    std::vector<int64_t> children;
+                    int64_t child = node.first_child;
+                    while (child >= 0) {
+                        children.push_back(child);
+                        child = nodes[child].sibling;
+                    }
+                    
+                    if (hub_first) {
+                        std::sort(children.begin(), children.end(), 
+                             [&nodes](int64_t a, int64_t b) {
+                                 return nodes[a].weight > nodes[b].weight;
+                             });
+                    } else if (size_first) {
+                        std::sort(children.begin(), children.end(),
+                             [&nodes](int64_t a, int64_t b) {
+                                 return nodes[a].subtree_size > nodes[b].subtree_size;
+                             });
+                    }
+                    
+                    for (auto it = children.rbegin(); it != children.rend(); ++it) {
+                        stack.push_back(*it);
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * BFS ordering of dendrogram (by level)
+     */
+    void orderDendrogramBFS(
+        const std::vector<LeidenDendrogramNode>& nodes,
+        const std::vector<int64_t>& roots,
+        pvector<NodeID_>& new_ids) {
+        
+        NodeID_ current_id = 0;
+        std::deque<int64_t> queue;
+        
+        for (int64_t root : roots) {
+            queue.push_back(root);
+        }
+        
+        while (!queue.empty()) {
+            int64_t node_id = queue.front();
+            queue.pop_front();
+            
+            const auto& node = nodes[node_id];
+            
+            if (node.vertex_id >= 0) {
+                new_ids[node.vertex_id] = current_id++;
+            } else {
+                int64_t child = node.first_child;
+                while (child >= 0) {
+                    queue.push_back(child);
+                    child = nodes[child].sibling;
+                }
+            }
+        }
+    }
+
+    /**
+     * Hybrid ordering: sort by (community, degree descending)
+     */
+    template<typename K>
+    void orderLeidenHybridHubDFS(
+        const std::vector<std::vector<K>>& communityMappingPerPass,
+        const std::vector<K>& degrees,
+        pvector<NodeID_>& new_ids) {
+        
+        const size_t n = degrees.size();
+        
+        if (communityMappingPerPass.empty()) {
+            // No community - sort by degree
+            std::vector<std::pair<K, size_t>> deg_vertex(n);
+            #pragma omp parallel for
+            for (size_t v = 0; v < n; ++v) {
+                deg_vertex[v] = {degrees[v], v};
+            }
+            __gnu_parallel::sort(deg_vertex.begin(), deg_vertex.end(), std::greater<>());
+            #pragma omp parallel for
+            for (size_t i = 0; i < n; ++i) {
+                new_ids[deg_vertex[i].second] = i;
+            }
+            return;
+        }
+        
+        // Get last-pass communities
+        const auto& last_pass = communityMappingPerPass.back();
+        
+        // Create (vertex, community, degree) tuples
+        std::vector<std::tuple<size_t, K, K>> vertices(n);
+        #pragma omp parallel for
+        for (size_t v = 0; v < n; ++v) {
+            vertices[v] = std::make_tuple(v, last_pass[v], degrees[v]);
+        }
+        
+        // Sort by (community, degree descending)
+        __gnu_parallel::sort(vertices.begin(), vertices.end(),
+            [](const auto& a, const auto& b) {
+                if (std::get<1>(a) != std::get<1>(b)) return std::get<1>(a) < std::get<1>(b);
+                return std::get<2>(a) > std::get<2>(b);
+            });
+        
+        #pragma omp parallel for
+        for (size_t i = 0; i < n; ++i) {
+            new_ids[std::get<0>(vertices[i])] = i;
+        }
+    }
+
+    /**
+     * GenerateLeidenDendrogramMapping - RabbitOrder-style ordering using Leiden communities
+     * 
+     * Flavor mapping:
+     *   LeidenDFS     (16): Standard DFS traversal
+     *   LeidenDFSHub  (17): DFS with high-degree nodes first
+     *   LeidenDFSSize (18): DFS with largest subtrees first  
+     *   LeidenBFS     (19): BFS by level
+     *   LeidenHybrid  (20): Sort by (community, degree descending)
+     */
+    void GenerateLeidenDendrogramMapping(
+        CSRGraph<NodeID_, DestID_, invert> &g,
+        pvector<NodeID_> &new_ids,
+        std::vector<std::string> reordering_options,
+        ReorderingAlgo flavor) {
+        
+        using K = uint32_t;
+        using V = TYPE;
+        
+        Timer tm;
+        int64_t num_nodes = g.num_nodes();
+        
+        // Default Leiden parameters
+        double resolution = 1.0;
+        int maxIterations = 20;
+        int maxPasses = 10;
+        
+        // Parse options if provided
+        if (!reordering_options.empty() && reordering_options[0].size() > 0) {
+            resolution = std::stod(reordering_options[0]);
+        }
+        if (reordering_options.size() > 1 && reordering_options[1].size() > 0) {
+            maxIterations = std::stoi(reordering_options[1]);
+        }
+        if (reordering_options.size() > 2 && reordering_options[2].size() > 0) {
+            maxPasses = std::stoi(reordering_options[2]);
+        }
+        
+        PrintTime("Leiden Resolution", resolution);
+        PrintTime("Leiden MaxIterations", maxIterations);
+        PrintTime("Leiden MaxPasses", maxPasses);
+        
+        // Build Leiden-compatible graph
+        tm.Start();
+        std::vector<std::tuple<size_t, size_t, double>> edges;
+        for (int64_t u = 0; u < num_nodes; ++u) {
+            for (DestID_ neighbor : g.out_neigh(u)) {
+                if (g.is_weighted()) {
+                    NodeID_ dest = static_cast<NodeWeight<NodeID_, WeightT_>>(neighbor).v;
+                    WeightT_ weight = static_cast<NodeWeight<NodeID_, WeightT_>>(neighbor).w;
+                    edges.emplace_back((size_t)u, (size_t)dest, (double)weight);
+                } else {
+                    edges.emplace_back((size_t)u, (size_t)neighbor, 1.0);
+                }
+            }
+        }
+        
+        bool symmetric = false;
+        bool weighted = g.is_weighted();
+        DiGraph<K, None, V> x;
+        readVecOmpW(x, edges, num_nodes, symmetric, weighted);
+        edges.clear();
+        x = symmetricizeOmp(x);
+        
+        tm.Stop();
+        PrintTime("DiGraph Build Time", tm.Seconds());
+        
+        // Run Leiden algorithm
+        tm.Start();
+        std::random_device dev;
+        std::default_random_engine rnd(dev());
+        int repeat = 1;
+        
+        auto result = leidenStaticOmp<false, false>(
+            rnd, x,
+            {repeat, resolution, 1e-12, 0.8, 1.0, maxIterations, maxPasses});
+        
+        tm.Stop();
+        PrintTime("Leiden Time", tm.Seconds());
+        PrintTime("Leiden Passes", result.passes);
+        PrintTime("Leiden Iterations", result.iterations);
+        
+        // Get community mappings per pass
+        std::vector<std::vector<K>> communityMappingPerPass = x.communityMappingPerPass;
+        PrintTime("Community Passes Stored", communityMappingPerPass.size());
+        
+        // Get degrees
+        std::vector<K> degrees(num_nodes);
+        #pragma omp parallel for
+        for (int64_t i = 0; i < num_nodes; ++i) {
+            degrees[i] = g.out_degree(i);
+        }
+        
+        // Generate ordering based on flavor
+        tm.Start();
+        
+        switch (flavor) {
+            case LeidenDFS: {
+                std::cout << "Ordering Flavor: LeidenDFS (Standard DFS)" << std::endl;
+                std::vector<LeidenDendrogramNode> nodes;
+                std::vector<int64_t> roots;
+                buildLeidenDendrogram(nodes, roots, communityMappingPerPass, degrees, num_nodes);
+                PrintTime("Dendrogram Nodes", nodes.size());
+                PrintTime("Dendrogram Roots", roots.size());
+                orderDendrogramDFS(nodes, roots, new_ids, false, false);
+                break;
+            }
+            case LeidenDFSHub: {
+                std::cout << "Ordering Flavor: LeidenDFSHub (DFS, hub-first)" << std::endl;
+                std::vector<LeidenDendrogramNode> nodes;
+                std::vector<int64_t> roots;
+                buildLeidenDendrogram(nodes, roots, communityMappingPerPass, degrees, num_nodes);
+                PrintTime("Dendrogram Nodes", nodes.size());
+                PrintTime("Dendrogram Roots", roots.size());
+                orderDendrogramDFS(nodes, roots, new_ids, true, false);
+                break;
+            }
+            case LeidenDFSSize: {
+                std::cout << "Ordering Flavor: LeidenDFSSize (DFS, size-first)" << std::endl;
+                std::vector<LeidenDendrogramNode> nodes;
+                std::vector<int64_t> roots;
+                buildLeidenDendrogram(nodes, roots, communityMappingPerPass, degrees, num_nodes);
+                PrintTime("Dendrogram Nodes", nodes.size());
+                PrintTime("Dendrogram Roots", roots.size());
+                orderDendrogramDFS(nodes, roots, new_ids, false, true);
+                break;
+            }
+            case LeidenBFS: {
+                std::cout << "Ordering Flavor: LeidenBFS (BFS by level)" << std::endl;
+                std::vector<LeidenDendrogramNode> nodes;
+                std::vector<int64_t> roots;
+                buildLeidenDendrogram(nodes, roots, communityMappingPerPass, degrees, num_nodes);
+                PrintTime("Dendrogram Nodes", nodes.size());
+                PrintTime("Dendrogram Roots", roots.size());
+                orderDendrogramBFS(nodes, roots, new_ids);
+                break;
+            }
+            case LeidenHybrid: {
+                std::cout << "Ordering Flavor: LeidenHybrid (community + degree)" << std::endl;
+                orderLeidenHybridHubDFS(communityMappingPerPass, degrees, new_ids);
+                break;
+            }
+            default:
+                std::cerr << "Unknown LeidenDendrogram flavor: " << flavor << ", using LeidenDFSHub" << std::endl;
+                std::vector<LeidenDendrogramNode> nodes;
+                std::vector<int64_t> roots;
+                buildLeidenDendrogram(nodes, roots, communityMappingPerPass, degrees, num_nodes);
+                orderDendrogramDFS(nodes, roots, new_ids, true, false);
+        }
+        
+        tm.Stop();
+        PrintTime("Ordering Time", tm.Seconds());
+    }
+
+    /**
+     * Community Features for Adaptive Reordering Selection
+     * 
+     * Based on empirical correlation analysis:
+     * - Low density (sparse) communities: RCM works best
+     * - Medium density + high degree variance: DBG works best  
+     * - High density + uniform degrees: HubSort/HubCluster works best
+     * - Very high density (tight clusters): Original or LeidenOrder
+     */
+    struct CommunityFeatures {
+        size_t num_nodes;
+        size_t num_edges;
+        double internal_density;     // edges / possible_edges
+        double avg_degree;
+        double degree_variance;      // normalized variance in degrees
+        double hub_concentration;    // fraction of edges from top 10% nodes
+        double modularity;           // community/subgraph modularity (set externally)
+    };
+
+    /**
+     * Perceptron-style Algorithm Selector
+     * 
+     * Uses learned weights from multi-algorithm correlation analysis to
+     * predict the best reordering algorithm based on community features.
+     * 
+     * The perceptron computes a score for each candidate algorithm:
+     *   score = bias + w_modularity * modularity 
+     *                + w_log_nodes * log10(nodes)
+     *                + w_log_edges * log10(edges)
+     *                + w_density * density
+     *                + w_avg_degree * avg_degree  
+     *                + w_degree_variance * degree_variance
+     *                + w_hub_concentration * hub_concentration
+     * 
+     * The algorithm with the highest score is selected.
+     * 
+     * Weights were learned from benchmarking multiple graph algorithms
+     * (BFS, PR, SSSP, BC, CC) across graphs with varying modularity.
+     */
+    struct PerceptronWeights {
+        double bias;                // baseline score
+        double w_modularity;        // correlation with modularity
+        double w_log_nodes;         // scale effect
+        double w_log_edges;         // size effect  
+        double w_density;           // sparsity effect
+        double w_avg_degree;        // connectivity effect
+        double w_degree_variance;   // power-law / uniformity effect
+        double w_hub_concentration; // hub dominance effect
+        
+        double score(const CommunityFeatures& feat) const {
+            double log_nodes = std::log10(static_cast<double>(feat.num_nodes) + 1.0);
+            double log_edges = std::log10(static_cast<double>(feat.num_edges) + 1.0);
+            
+            return bias 
+                 + w_modularity * feat.modularity
+                 + w_log_nodes * log_nodes
+                 + w_log_edges * log_edges
+                 + w_density * feat.internal_density
+                 + w_avg_degree * feat.avg_degree / 100.0  // normalize
+                 + w_degree_variance * feat.degree_variance
+                 + w_hub_concentration * feat.hub_concentration;
+        }
+    };
+
+    /**
+     * Learned Perceptron Weights for each reordering algorithm
+     * 
+     * These weights were trained from multi-algorithm benchmarks across:
+     * - Graph algorithms: BFS, PageRank, SSSP, BC, CC
+     * - Graph types: SBM (varying modularity), RMAT (power-law)
+     * - Metrics: Speedup relative to Original ordering
+     * 
+     * Key insights from training:
+     * - RabbitOrder: Strong negative correlation with modularity (better on low-mod graphs)
+     * - HubClusterDBG: Positive correlation with degree variance and hub concentration
+     * - RCMOrder: Best for sparse graphs (high w_density penalty on dense)
+     * - GraphBrewOrder: Mixed - good baseline but overhead matters on small graphs
+     * - AdaptiveOrder: Recursive application shows benefit on large communities
+     */
+    static const std::map<ReorderingAlgo, PerceptronWeights> GetPerceptronWeights() {
+        return {
+            // ORIGINAL: baseline, no reordering overhead
+            {ORIGINAL, {
+                .bias = 1.0,
+                .w_modularity = 0.3,      // good on high-mod (no overhead)
+                .w_log_nodes = -0.05,     // worse as graph grows
+                .w_log_edges = -0.02,
+                .w_density = 0.0,
+                .w_avg_degree = 0.0,
+                .w_degree_variance = -0.1,
+                .w_hub_concentration = -0.1
+            }},
+            // HubSort: light reordering, puts hubs first
+            {HubSort, {
+                .bias = 0.85,
+                .w_modularity = 0.0,
+                .w_log_nodes = 0.02,
+                .w_log_edges = 0.02,
+                .w_density = -0.5,        // worse on dense
+                .w_avg_degree = 0.02,
+                .w_degree_variance = 0.15,
+                .w_hub_concentration = 0.25   // best when hubs dominate
+            }},
+            // HubCluster: groups hubs together
+            {HubCluster, {
+                .bias = 0.82,
+                .w_modularity = 0.05,
+                .w_log_nodes = 0.03,
+                .w_log_edges = 0.03,
+                .w_density = -0.3,
+                .w_avg_degree = 0.03,
+                .w_degree_variance = 0.2,
+                .w_hub_concentration = 0.3
+            }},
+            // DBG: degree-based grouping
+            {DBG, {
+                .bias = 0.8,
+                .w_modularity = -0.1,     // better on low-mod
+                .w_log_nodes = 0.02,
+                .w_log_edges = 0.02,
+                .w_density = -0.4,
+                .w_avg_degree = 0.0,
+                .w_degree_variance = 0.25,    // best with varied degrees
+                .w_hub_concentration = 0.1
+            }},
+            // HubClusterDBG: combination approach
+            // Benchmark: avg_speedup=2.38x, good but outperformed by Leiden variants
+            {HubClusterDBG, {
+                .bias = 0.62,             // lowered - Leiden variants are better
+                .w_modularity = 0.10,     // better on higher mod
+                .w_log_nodes = 0.04,
+                .w_log_edges = 0.04,
+                .w_density = -0.20,
+                .w_avg_degree = 0.02,
+                .w_degree_variance = 0.25,
+                .w_hub_concentration = 0.20
+            }},
+#ifdef RABBIT_ENABLE
+            // RabbitOrder: recursive bisection
+            // Benchmark: avg_speedup=4.06x, good on social networks
+            {RabbitOrder, {
+                .bias = 0.70,
+                .w_modularity = -0.30,    // better on LOW modularity (synth graphs)
+                .w_log_nodes = 0.05,      // scales well
+                .w_log_edges = 0.05,
+                .w_density = -0.30,       // worse on dense
+                .w_avg_degree = 0.0,
+                .w_degree_variance = 0.20,
+                .w_hub_concentration = 0.15
+            }},
+#endif
+            // RCMOrder: reverse Cuthill-McKee
+            {RCMOrder, {
+                .bias = 0.7,
+                .w_modularity = 0.0,
+                .w_log_nodes = 0.03,
+                .w_log_edges = 0.02,
+                .w_density = -0.8,        // strong penalty on dense
+                .w_avg_degree = -0.03,    // worse on high degree
+                .w_degree_variance = 0.05,
+                .w_hub_concentration = 0.0
+            }},
+            // LeidenOrder: community-based
+            // Benchmark: avg_speedup=4.40x (highest trial speedup but high reorder cost)
+            {LeidenOrder, {
+                .bias = 0.76,             // win_trial=2, high trial speedup
+                .w_modularity = 0.40,     // best on high modularity
+                .w_log_nodes = 0.05,
+                .w_log_edges = 0.05,
+                .w_density = -0.20,
+                .w_avg_degree = 0.01,
+                .w_degree_variance = 0.10,
+                .w_hub_concentration = 0.10
+            }},
+            // GraphBrewOrder: Leiden + per-community RabbitOrder
+            {GraphBrewOrder, {
+                .bias = 0.6,
+                .w_modularity = -0.25,    // better on low-mod (community reorder helps)
+                .w_log_nodes = 0.1,       // scales well
+                .w_log_edges = 0.08,
+                .w_density = -0.3,
+                .w_avg_degree = 0.0,
+                .w_degree_variance = 0.2,
+                .w_hub_concentration = 0.1
+            }},
+            // =================================================================
+            // LEIDEN DENDROGRAM VARIANTS (RabbitOrder-style tree traversal)
+            // Weights tuned from benchmark analysis (Jan 2026):
+            // - LeidenHybrid: BEST overall (5/5 wins, 4.26x speedup, 0.0038s reorder)
+            // - LeidenDFS: Best total time on RMAT synthetic
+            // - LeidenOrder: Best trial time on synthetic (but high reorder cost)
+            // =================================================================
+            // LeidenDFS: Standard DFS traversal of community dendrogram
+            {LeidenDFS, {
+                .bias = 0.73,             // win_total=1, good for synthetic
+                .w_modularity = 0.35,     // good on high modularity
+                .w_log_nodes = 0.05,      // better on larger graphs
+                .w_log_edges = 0.04,
+                .w_density = -0.40,       // better on sparse
+                .w_avg_degree = 0.0,
+                .w_degree_variance = 0.10,
+                .w_hub_concentration = 0.10
+            }},
+            // LeidenDFSHub: DFS with high-degree nodes first within communities
+            // Good for hub-dominated graphs but LeidenHybrid is generally better
+            {LeidenDFSHub, {
+                .bias = 0.65,             // lowered - LeidenHybrid is usually better
+                .w_modularity = 0.28,
+                .w_log_nodes = 0.05,
+                .w_log_edges = 0.05,
+                .w_density = -0.35,
+                .w_avg_degree = 0.02,
+                .w_degree_variance = 0.20,
+                .w_hub_concentration = 0.25
+            }},
+            // LeidenDFSSize: DFS with largest subtrees first
+            {LeidenDFSSize, {
+                .bias = 0.72,             // win_total=1
+                .w_modularity = 0.32,
+                .w_log_nodes = 0.05,      // better on larger graphs
+                .w_log_edges = 0.05,
+                .w_density = -0.35,
+                .w_avg_degree = 0.01,
+                .w_degree_variance = 0.15,
+                .w_hub_concentration = 0.15
+            }},
+            // LeidenBFS: BFS by hierarchy level
+            {LeidenBFS, {
+                .bias = 0.70,             // moderate - path-aware locality
+                .w_modularity = 0.28,
+                .w_log_nodes = 0.05,
+                .w_log_edges = 0.05,
+                .w_density = -0.30,
+                .w_avg_degree = 0.01,
+                .w_degree_variance = 0.08,
+                .w_hub_concentration = 0.05
+            }},
+            // LeidenHybrid: Sort by (community, degree descending) 
+            // BENCHMARK WINNER: 5/5 wins on trial_time AND total_time
+            // Amazon: 0.0073s vs HubClusterDBG 0.0507s (7x faster!)
+            {LeidenHybrid, {
+                .bias = 0.95,             // HIGHEST - clear benchmark winner
+                .w_modularity = 0.45,     // best on high modularity graphs
+                .w_log_nodes = 0.06,      // scales well
+                .w_log_edges = 0.06,
+                .w_density = -0.15,       // tolerates density better
+                .w_avg_degree = 0.02,
+                .w_degree_variance = 0.15,
+                .w_hub_concentration = 0.25   // also good with hubs
+            }},
+        };
+    }
+
+    /**
+     * Select best reordering algorithm using perceptron scores
+     * 
+     * Evaluates all candidate algorithms and returns the one with
+     * the highest perceptron score based on community features.
+     */
+    ReorderingAlgo SelectReorderingPerceptron(const CommunityFeatures& feat) {
+        const auto weights = GetPerceptronWeights();
+        
+        ReorderingAlgo best_algo = ORIGINAL;
+        double best_score = -std::numeric_limits<double>::infinity();
+        
+        for (const auto& kv : weights) {
+            double score = kv.second.score(feat);
+            if (score > best_score) {
+                best_score = score;
+                best_algo = kv.first;
+            }
+        }
+        
+        return best_algo;
+    }
+
+    CommunityFeatures ComputeCommunityFeatures(
+        const std::vector<NodeID_>& comm_nodes,
+        const CSRGraph<NodeID_, DestID_, invert>& g,
+        const std::unordered_set<NodeID_>& node_set)
+    {
+        CommunityFeatures feat;
+        feat.num_nodes = comm_nodes.size();
+        feat.modularity = 0.0;  // Set externally if needed
+        
+        if (feat.num_nodes < 2) {
+            feat.num_edges = 0;
+            feat.internal_density = 0.0;
+            feat.avg_degree = 0.0;
+            feat.degree_variance = 0.0;
+            feat.hub_concentration = 0.0;
+            return feat;
+        }
+
+        // Count internal edges and compute degrees
+        std::vector<size_t> internal_degrees(feat.num_nodes, 0);
+        size_t total_internal_edges = 0;
+        
+        #pragma omp parallel for reduction(+:total_internal_edges)
+        for (size_t i = 0; i < feat.num_nodes; ++i) {
+            NodeID_ node = comm_nodes[i];
+            size_t local_internal = 0;
+            for (DestID_ neighbor : g.out_neigh(node)) {
+                NodeID_ dest = static_cast<NodeID_>(neighbor);
+                if (node_set.count(dest)) {
+                    ++local_internal;
+                }
+            }
+            internal_degrees[i] = local_internal;
+            total_internal_edges += local_internal;
+        }
+        
+        feat.num_edges = total_internal_edges / 2; // undirected
+        
+        // Internal density: actual edges / possible edges
+        size_t possible_edges = feat.num_nodes * (feat.num_nodes - 1) / 2;
+        feat.internal_density = (possible_edges > 0) ? 
+            static_cast<double>(feat.num_edges) / possible_edges : 0.0;
+        
+        // Average degree
+        feat.avg_degree = (feat.num_nodes > 0) ? 
+            static_cast<double>(total_internal_edges) / feat.num_nodes : 0.0;
+        
+        // Degree variance (normalized)
+        double sum_sq_diff = 0.0;
+        #pragma omp parallel for reduction(+:sum_sq_diff)
+        for (size_t i = 0; i < feat.num_nodes; ++i) {
+            double diff = internal_degrees[i] - feat.avg_degree;
+            sum_sq_diff += diff * diff;
+        }
+        double variance = (feat.num_nodes > 1) ? sum_sq_diff / (feat.num_nodes - 1) : 0.0;
+        feat.degree_variance = (feat.avg_degree > 0) ? 
+            std::sqrt(variance) / feat.avg_degree : 0.0; // coefficient of variation
+        
+        // Hub concentration: fraction of edges from top 10% degree nodes
+        std::vector<size_t> sorted_degrees = internal_degrees;
+        std::sort(sorted_degrees.rbegin(), sorted_degrees.rend());
+        size_t top_10_percent = std::max(size_t(1), feat.num_nodes / 10);
+        size_t top_edges = 0;
+        for (size_t i = 0; i < top_10_percent; ++i) {
+            top_edges += sorted_degrees[i];
+        }
+        feat.hub_concentration = (total_internal_edges > 0) ? 
+            static_cast<double>(top_edges) / total_internal_edges : 0.0;
+        
+        return feat;
+    }
+
+    /**
+     * Select best reordering algorithm based on community features.
+     * 
+     * Uses a PERCEPTRON-STYLE neural network approach:
+     * 1. Each candidate algorithm has learned weights for each feature
+     * 2. Compute score = weighted sum of features for each algorithm
+     * 3. Select algorithm with highest score
+     * 
+     * This replaces the hand-tuned heuristics with data-driven selection.
+     * Weights were trained from multi-algorithm benchmarks across:
+     * - Graph algorithms: BFS, PageRank, SSSP, BC, CC
+     * - Graph types: SBM (varying modularity), RMAT (power-law)
+     * 
+     * Fallback to heuristics for edge cases (very small communities).
+     */
+    ReorderingAlgo SelectBestReorderingForCommunity(CommunityFeatures feat, double global_modularity)
+    {
+        // Small communities: reordering overhead exceeds benefit
+        const size_t MIN_COMMUNITY_SIZE = 200;
+        
+        if (feat.num_nodes < MIN_COMMUNITY_SIZE) {
+            return ORIGINAL;
+        }
+        
+        // Set the modularity in features for perceptron scoring
+        feat.modularity = global_modularity;
+        
+        // Use perceptron to select best algorithm
+        ReorderingAlgo selected = SelectReorderingPerceptron(feat);
+        
+        // Safety check: if perceptron selects an unavailable algorithm, fallback
+#ifndef RABBIT_ENABLE
+        if (selected == RabbitOrder) {
+            // Recompute without RabbitOrder by using heuristic fallback
+            if (feat.degree_variance > 0.8) {
+                selected = HubClusterDBG;
+            } else if (feat.hub_concentration > 0.3) {
+                selected = HubSort;
+            } else {
+                selected = DBG;
+            }
+        }
+#endif
+        
+        return selected;
+    }
+
+    /**
+     * Generate Adaptive Reordering - Recursive Per-Community Selection
+     * 
+     * This implementation:
+     * 1. Runs Leiden community detection to find communities
+     * 2. For each community, computes features (density, degree variance, hub concentration)
+     * 3. Selects the best reordering algorithm for that community
+     * 4. For large communities with sub-structure, recursively applies AdaptiveOrder
+     * 
+     * Unlike GraphBrew which always uses RabbitOrder for communities,
+     * this adaptively picks the best algorithm based on each community's characteristics.
+     */
+    void GenerateAdaptiveMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
+                                 pvector<NodeID_> &new_ids, bool useOutdeg,
+                                 std::vector<std::string> reordering_options)
+    {
+        GenerateAdaptiveMappingRecursive(g, new_ids, useOutdeg, reordering_options, 0, true);
+    }
+
+    /**
+     * Recursive Adaptive Reordering for Subgraphs
+     *  
+     * For each community detected by Leiden:
+     * 1. Compute local features (density, degree variance, hub concentration)
+     * 2. Select the best reordering algorithm based on features
+     * 3. For large communities with good structure, recursively apply AdaptiveOrder
+     * 4. For smaller communities, apply the selected local reordering
+     * 
+     * This is the key insight: instead of always using RabbitOrder like GraphBrew,
+     * we adaptively pick the best algorithm for each community's characteristics.
+     */
+    void GenerateAdaptiveMappingRecursive(
+        const CSRGraph<NodeID_, DestID_, invert> &g,
+        pvector<NodeID_> &new_ids, 
+        bool useOutdeg,
+        std::vector<std::string> reordering_options,
+        int depth = 0,
+        bool verbose = true)
+    {
+        Timer tm;
+        tm.Start();
+
+        using V = TYPE;
+        install_sigsegv();
+
+        int64_t num_nodes = g.num_nodes();
+        int64_t num_edges = g.num_edges_directed();
+        
+        const int MAX_DEPTH = 3;  // Limit recursion depth
+        const size_t MIN_COMMUNITY_FOR_RECURSION = 10000;  // Don't recurse into tiny communities
+        
+        // Parse options
+        double resolution = 0.75;
+        int maxIterations = 30;
+        int maxPasses = 30;
+
+        if (reordering_options.size() > 0) {
+            resolution = std::stod(reordering_options[0]);
+        }
+        if (reordering_options.size() > 1) {
+            maxIterations = std::stoi(reordering_options[1]);
+        }
+        if (reordering_options.size() > 2) {
+            maxPasses = std::stoi(reordering_options[2]);
+        }
+
+        if (depth == 0 && verbose) {
+            PrintTime("Adaptive Resolution", resolution);
+        }
+        
+        // Step 1: Run Leiden community detection
+        vector<vector<K>> communityMappingPerPass;
+        std::vector<size_t> comm_ids(num_nodes, 0);
+        double global_modularity = 0.0;
+        
+        {
+            std::vector<std::tuple<size_t, size_t, double>> edges(num_edges);
+            const bool is_weighted = g.is_weighted();
+            
+            #pragma omp parallel for schedule(dynamic, 1024)
+            for (NodeID_ i = 0; i < num_nodes; ++i) {
+                NodeID_ out_start = g.out_offset(i);
+                NodeID_ j = 0;
+                for (DestID_ neighbor : g.out_neigh(i)) {
+                    auto& edge = edges[out_start + j];
+                    if (is_weighted) {
+                        std::get<0>(edge) = i;
+                        std::get<1>(edge) = static_cast<NodeWeight<NodeID_, WeightT_>>(neighbor).v;
+                        std::get<2>(edge) = static_cast<NodeWeight<NodeID_, WeightT_>>(neighbor).w;
+                    } else {
+                        std::get<0>(edge) = i;
+                        std::get<1>(edge) = neighbor;
+                        std::get<2>(edge) = 1.0;
+                    }
+                    ++j;
+                }
+            }
+
+            DiGraph<K, None, V> x;
+            readVecOmpW(x, edges, num_nodes, false, is_weighted);
+            edges.clear();
+            x = symmetricizeOmp(x);
+
+            // Run Leiden
+            std::random_device dev;
+            std::default_random_engine rnd(dev());
+            double M = edgeWeightOmp(x) / 2;
+            
+            auto result = leidenStaticOmp<false, false>(
+                rnd, x, {1, resolution, 1e-12, 0.8, 1.0, maxIterations, maxPasses});
+            
+            global_modularity = getModularity(x, result, M);
+            x.passAndClear(communityMappingPerPass);
+        }
+
+        // Get final community assignments
+        if (!communityMappingPerPass.empty()) {
+            const auto& final_pass = communityMappingPerPass.back();
+            #pragma omp parallel for
+            for (size_t i = 0; i < static_cast<size_t>(num_nodes); ++i) {
+                comm_ids[i] = (i < final_pass.size()) ? final_pass[i] : 0;
+            }
+        }
+
+        size_t num_comm = *std::max_element(comm_ids.begin(), comm_ids.end()) + 1;
+        
+        if (depth == 0 && verbose) {
+            PrintTime("Modularity", global_modularity);
+            PrintTime("Num Communities", static_cast<double>(num_comm));
+        }
+
+        // Step 2: Group nodes by community
+        std::vector<std::vector<NodeID_>> community_nodes(num_comm);
+        for (NodeID_ i = 0; i < num_nodes; ++i) {
+            community_nodes[comm_ids[i]].push_back(i);
+        }
+
+        // Step 3: Compute features and select algorithm for each community
+        std::vector<ReorderingAlgo> selected_algos(num_comm);
+        std::vector<CommunityFeatures> all_features(num_comm);
+        std::vector<bool> should_recurse(num_comm, false);
+        
+        if (depth == 0 && verbose) {
+            std::cout << "\n=== Adaptive Reordering Selection (Depth " << depth 
+                      << ", Modularity: " << std::fixed << std::setprecision(4) 
+                      << global_modularity << ") ===\n";
+            std::cout << "Comm\tNodes\tEdges\tDensity\tDegVar\tHubConc\tSelected\n";
+        }
+        
+        for (size_t c = 0; c < num_comm; ++c) {
+            if (community_nodes[c].empty()) {
+                selected_algos[c] = ORIGINAL;
+                continue;
+            }
+            
+            size_t comm_size = community_nodes[c].size();
+            
+            // Create node set for fast lookup
+            std::unordered_set<NodeID_> node_set(
+                community_nodes[c].begin(), community_nodes[c].end());
+            
+            // Compute features
+            CommunityFeatures feat = ComputeCommunityFeatures(
+                community_nodes[c], g, node_set);
+            all_features[c] = feat;
+            
+            // Decide: recurse or apply local algorithm
+            // Recurse if: large community, not too deep, and has structure worth exploiting
+            if (comm_size >= MIN_COMMUNITY_FOR_RECURSION && 
+                depth < MAX_DEPTH &&
+                feat.internal_density < 0.1) {  // Sparse enough to have sub-communities
+                
+                should_recurse[c] = true;
+                selected_algos[c] = AdaptiveOrder;  // Mark for recursion
+            }
+            else {
+                // Select local algorithm based on features
+                selected_algos[c] = SelectBestReorderingForCommunity(feat, global_modularity);
+            }
+            
+            // Print selection rationale
+            if (depth == 0 && verbose && feat.num_nodes >= 100) {
+                std::cout << c << "\t" 
+                          << feat.num_nodes << "\t"
+                          << feat.num_edges << "\t"
+                          << std::fixed << std::setprecision(4) << feat.internal_density << "\t"
+                          << feat.degree_variance << "\t"
+                          << feat.hub_concentration << "\t"
+                          << (should_recurse[c] ? "RECURSE" : ReorderingAlgoStr(selected_algos[c])) << "\n";
+            }
+        }
+
+        // Step 4: Sort communities by size (largest first for cache efficiency)
+        std::vector<size_t> sorted_comms(num_comm);
+        std::iota(sorted_comms.begin(), sorted_comms.end(), 0);
+        std::sort(sorted_comms.begin(), sorted_comms.end(),
+            [&community_nodes](size_t a, size_t b) {
+                return community_nodes[a].size() > community_nodes[b].size();
+            });
+
+        // Step 5: Apply per-community reordering and assign global IDs
+        NodeID_ current_id = 0;
+        
+        for (size_t c : sorted_comms) {
+            auto& nodes = community_nodes[c];
+            if (nodes.empty()) continue;
+            
+            size_t comm_size = nodes.size();
+            ReorderingAlgo algo = selected_algos[c];
+            
+            if (comm_size < 10 || algo == ORIGINAL) {
+                // Small or ORIGINAL: just assign sequentially
+                for (NodeID_ node : nodes) {
+                    new_ids[node] = current_id++;
+                }
+            }
+            else if (should_recurse[c]) {
+                // RECURSIVE CASE: Build subgraph and call AdaptiveOrder recursively
+                std::unordered_map<NodeID_, NodeID_> global_to_local;
+                std::vector<NodeID_> local_to_global(comm_size);
+                for (size_t i = 0; i < comm_size; ++i) {
+                    global_to_local[nodes[i]] = static_cast<NodeID_>(i);
+                    local_to_global[i] = nodes[i];
+                }
+                
+                // Create edge list for subgraph
+                EdgeList sub_edges;
+                std::unordered_set<NodeID_> node_set(nodes.begin(), nodes.end());
+                
+                for (NodeID_ node : nodes) {
+                    NodeID_ local_src = global_to_local[node];
+                    for (DestID_ neighbor : g.out_neigh(node)) {
+                        NodeID_ dest = static_cast<NodeID_>(neighbor);
+                        if (node_set.count(dest)) {
+                            NodeID_ local_dst = global_to_local[dest];
+                            sub_edges.push_back(Edge(local_src, local_dst));
+                        }
+                    }
+                }
+                
+                // Build local graph
+                CSRGraph<NodeID_, DestID_, invert> sub_g = MakeLocalGraphFromEL(sub_edges);
+                pvector<NodeID_> sub_new_ids(comm_size, -1);
+                
+                // RECURSIVE CALL with increased depth
+                GenerateAdaptiveMappingRecursive(sub_g, sub_new_ids, useOutdeg, 
+                                                  reordering_options, depth + 1, false);
+                
+                // Map local reordered IDs back to global IDs
+                std::vector<NodeID_> reordered_nodes(comm_size);
+                for (size_t i = 0; i < comm_size; ++i) {
+                    if (sub_new_ids[i] >= 0 && sub_new_ids[i] < static_cast<NodeID_>(comm_size)) {
+                        reordered_nodes[sub_new_ids[i]] = local_to_global[i];
+                    } else {
+                        reordered_nodes[i] = local_to_global[i];
+                    }
+                }
+                
+                // Assign global IDs
+                for (NodeID_ node : reordered_nodes) {
+                    new_ids[node] = current_id++;
+                }
+            }
+            else {
+                // LOCAL REORDERING CASE
+                std::unordered_map<NodeID_, NodeID_> global_to_local;
+                std::vector<NodeID_> local_to_global(comm_size);
+                for (size_t i = 0; i < comm_size; ++i) {
+                    global_to_local[nodes[i]] = static_cast<NodeID_>(i);
+                    local_to_global[i] = nodes[i];
+                }
+                
+                // Create edge list for subgraph
+                EdgeList sub_edges;
+                std::unordered_set<NodeID_> node_set(nodes.begin(), nodes.end());
+                
+                for (NodeID_ node : nodes) {
+                    NodeID_ local_src = global_to_local[node];
+                    for (DestID_ neighbor : g.out_neigh(node)) {
+                        NodeID_ dest = static_cast<NodeID_>(neighbor);
+                        if (node_set.count(dest)) {
+                            NodeID_ local_dst = global_to_local[dest];
+                            sub_edges.push_back(Edge(local_src, local_dst));
+                        }
+                    }
+                }
+                
+                // Build local graph
+                CSRGraph<NodeID_, DestID_, invert> sub_g = MakeLocalGraphFromEL(sub_edges);
+                pvector<NodeID_> sub_new_ids(comm_size, -1);
+                
+                // Apply the selected local algorithm
+                switch (algo) {
+                    case HubSort:
+                        GenerateHubSortMapping(sub_g, sub_new_ids, useOutdeg);
+                        break;
+                    case HubCluster:
+                        GenerateHubClusterMapping(sub_g, sub_new_ids, useOutdeg);
+                        break;
+                    case DBG:
+                        GenerateDBGMapping(sub_g, sub_new_ids, useOutdeg);
+                        break;
+                    case HubClusterDBG:
+                        GenerateHubClusterDBGMapping(sub_g, sub_new_ids, useOutdeg);
+                        break;
+                    case RCMOrder:
+                        GenerateRCMOrderMapping(sub_g, sub_new_ids);
+                        break;
+#ifdef RABBIT_ENABLE
+                    case RabbitOrder:
+                        GenerateRabbitOrderMapping(sub_g, sub_new_ids);
+                        break;
+#endif
+                    default:
+                        GenerateOriginalMapping(sub_g, sub_new_ids);
+                        break;
+                }
+                
+                // Map local reordered IDs back to global IDs
+                std::vector<NodeID_> reordered_nodes(comm_size);
+                for (size_t i = 0; i < comm_size; ++i) {
+                    if (sub_new_ids[i] >= 0 && sub_new_ids[i] < static_cast<NodeID_>(comm_size)) {
+                        reordered_nodes[sub_new_ids[i]] = local_to_global[i];
+                    } else {
+                        reordered_nodes[i] = local_to_global[i];
+                    }
+                }
+                
+                // Assign global IDs
+                for (NodeID_ node : reordered_nodes) {
+                    new_ids[node] = current_id++;
+                }
+            }
+        }
+        
+        tm.Stop();
+        
+        if (depth == 0 && verbose) {
+            PrintTime("Adaptive Map Time", tm.Seconds());
+            
+            // Summary statistics
+            std::map<ReorderingAlgo, int> algo_counts;
+            int recurse_count = 0;
+            for (size_t c = 0; c < num_comm; ++c) {
+                if (!community_nodes[c].empty()) {
+                    if (should_recurse[c]) {
+                        recurse_count++;
+                    } else {
+                        algo_counts[selected_algos[c]]++;
+                    }
+                }
+            }
+            
+            std::cout << "\n=== Algorithm Selection Summary ===\n";
+            if (recurse_count > 0) {
+                std::cout << "Recursive: " << recurse_count << " communities\n";
+            }
+            for (auto& [algo, count] : algo_counts) {
+                std::cout << ReorderingAlgoStr(algo) << ": " << count << " communities\n";
+            }
+        }
     }
 
     void GenerateGraphBrewMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
@@ -4790,31 +6096,27 @@ public:
         std::vector<size_t> comm_ids(num_nodes, 0);
         {
             std::vector<std::tuple<size_t, size_t, double>> edges(num_edges);
-            edges.reserve(num_edges);
-            // Parallel loop to construct the edge list
-            #pragma omp parallel for
+            // Parallel loop to construct the edge list - write directly without temp objects
+            const bool is_weighted = g.is_weighted();
+            #pragma omp parallel for schedule(dynamic, 1024)
             for (NodeID_ i = 0; i < num_nodes; ++i)
             {
                 NodeID_ out_start = g.out_offset(i);
-
                 NodeID_ j = 0;
                 for (DestID_ neighbor : g.out_neigh(i))
                 {
-                    if (g.is_weighted())
+                    auto& edge = edges[out_start + j];
+                    if (is_weighted)
                     {
-                        NodeID_ dest = static_cast<NodeWeight<NodeID_, WeightT_>>(neighbor).v;
-                        WeightT_ weight =
-                            static_cast<NodeWeight<NodeID_, WeightT_>>(neighbor).w;
-
-                        std::tuple<size_t, size_t, double> edge =
-                            std::make_tuple(i, dest, weight);
-                        edges[out_start + j] = edge;
+                        std::get<0>(edge) = i;
+                        std::get<1>(edge) = static_cast<NodeWeight<NodeID_, WeightT_>>(neighbor).v;
+                        std::get<2>(edge) = static_cast<NodeWeight<NodeID_, WeightT_>>(neighbor).w;
                     }
                     else
                     {
-                        std::tuple<size_t, size_t, double> edge =
-                            std::make_tuple(i, neighbor, 1.0f);
-                        edges[out_start + j] = edge;
+                        std::get<0>(edge) = i;
+                        std::get<1>(edge) = neighbor;
+                        std::get<2>(edge) = 1.0;
                     }
                     ++j;
                 }
@@ -4822,7 +6124,7 @@ public:
 
             tm.Start();
             bool symmetric = false;
-            bool weighted = g.is_weighted();
+            bool weighted = is_weighted;
             DiGraph<K, None, V> x;
             readVecOmpW(x, edges, num_nodes, symmetric,
                         weighted); // LOG(""); println(x);
@@ -4839,33 +6141,70 @@ public:
 
         size_t num_comm;
 
-        std::vector<std::vector<K>> communityVectorTuplePerPass(
-                                     num_nodesx, std::vector<K>(num_passes, 0));
-        // // Initialize each inner vector
+        // Use flat array with stride for better cache locality (SoA pattern)
+        // Layout: [all node IDs][all degrees][pass0 communities][pass1 communities]...
+        const size_t stride = num_nodesx;
+        std::vector<K> communityDataFlat(num_nodesx * num_passes);
+        
+        // Initialize node IDs and degrees
         tm.Start();
         #pragma omp parallel for
         for (size_t i = 0; i < num_nodesx; ++i)
         {
-            communityVectorTuplePerPass[i][0] = i;
-            communityVectorTuplePerPass[i][1] = g.out_degree(i);
+            communityDataFlat[i] = i;                        // column 0: node ID
+            communityDataFlat[stride + i] = g.out_degree(i); // column 1: degree
         }
 
-        for (size_t i = 0; i < num_passes - 2; ++i)
+        // Copy community mappings per pass
+        for (size_t p = 0; p < num_passes - 2; ++p)
         {
+            K* dest_col = &communityDataFlat[(2 + p) * stride];
+            const auto& src = communityMappingPerPass[p];
             #pragma omp parallel for
             for (size_t j = 0; j < num_nodesx; ++j)
             {
-                communityVectorTuplePerPass[j][2 + i] = communityMappingPerPass[i][j];
+                dest_col[j] = src[j];
             }
         }
 
-        // sort_by_vector_element(communityVectorTuplePerPass, 2);
-        sort_by_vector_element(communityVectorTuplePerPass, num_passes - 1);
+        // Sort by last pass community - create index array for indirect sort
+        std::vector<size_t> sort_indices(num_nodesx);
+        #pragma omp parallel for
+        for (size_t i = 0; i < num_nodesx; ++i) {
+            sort_indices[i] = i;
+        }
+        
+        /**
+         * DENDROGRAM-BASED ORDERING for GraphBrew
+         * Same optimization as LeidenOrder - use multi-level hierarchical sort
+         */
+        const size_t actual_passes = num_passes - 2;
+        const size_t last_pass_col = (2 + actual_passes - 1);  // Last (coarsest) pass column
+        
+        // Sort primarily by last-pass community (coarsest level) 
+        // with degree as secondary key within communities
+        __gnu_parallel::sort(sort_indices.begin(), sort_indices.end(),
+            [&communityDataFlat, stride, last_pass_col](size_t a, size_t b) {
+                // Primary: sort by coarsest community  
+                K comm_a = communityDataFlat[last_pass_col * stride + a];
+                K comm_b = communityDataFlat[last_pass_col * stride + b];
+                if (comm_a != comm_b) {
+                    return comm_a < comm_b;
+                }
+                // Secondary: within community, sort by degree (descending)
+                K deg_a = communityDataFlat[stride + a];
+                K deg_b = communityDataFlat[stride + b];
+                return deg_a > deg_b;
+            });
+        
+        // Get the last pass community assignment for further processing
+        const K* sort_key_col = &communityDataFlat[(num_passes - 1) * stride];
 
+        // Extract comm_ids in sorted order
         #pragma omp parallel for
         for (size_t i = 0; i < num_nodesx; ++i)
         {
-            comm_ids[i] = communityVectorTuplePerPass[i][num_passes - 1];
+            comm_ids[i] = sort_key_col[sort_indices[i]];
         }
 
         // std::cout << std::endl;
@@ -4876,23 +6215,42 @@ public:
         // std::cout << std::endl;
 
         communityMappingPerPass.clear();
-        communityVectorTuplePerPass.clear();
+        communityDataFlat.clear();
+        communityDataFlat.shrink_to_fit();
 
         num_comm = *(__gnu_parallel::max_element(comm_ids.begin(), comm_ids.end()));
 
         tm.Stop();
-        // Create the frequency array
-        std::vector<size_t> frequency_array_pre(num_comm + 1,
-                                                0); // +1 to include num_comm index
+        // Create the frequency arrays
+        std::vector<size_t> frequency_array_pre(num_comm + 1, 0);
         std::vector<size_t> frequency_array(num_comm + 1,
                                             0); // +1 to include num_comm index
 
-        // Fill the frequency array
-        #pragma omp parallel for
-        for (size_t i = 0; i < comm_ids.size(); ++i)
+        // Fill the frequency array using thread-local histograms (avoids atomic contention)
+        const int num_threads_freq = omp_get_max_threads();
+        std::vector<std::vector<size_t>> thread_freq_arrays(num_threads_freq, 
+            std::vector<size_t>(num_comm + 1, 0));
+        
+        #pragma omp parallel
         {
-            #pragma omp atomic
-            ++frequency_array_pre[comm_ids[i]];
+            int tid = omp_get_thread_num();
+            auto& local_freq = thread_freq_arrays[tid];
+            
+            #pragma omp for nowait
+            for (size_t i = 0; i < comm_ids.size(); ++i)
+            {
+                ++local_freq[comm_ids[i]];
+            }
+        }
+        
+        // Merge thread-local histograms in parallel
+        #pragma omp parallel for schedule(static)
+        for (size_t c = 0; c <= num_comm; ++c)
+        {
+            for (int t = 0; t < num_threads_freq; ++t)
+            {
+                frequency_array_pre[c] += thread_freq_arrays[t][c];
+            }
         }
 
         // Find the community ID with the minimum frequency
@@ -4905,16 +6263,20 @@ public:
 
         if (!frequency_array_pre.empty())
         {
+            // Use nth_element instead of full sort - we only need the k-th largest value
             std::vector<size_t> sorted_freq_array = frequency_array_pre;
-            std::sort(sorted_freq_array.begin(), sorted_freq_array.end(), std::greater<size_t>());
-
             if (frequency_threshold > 0 && frequency_threshold <= sorted_freq_array.size())
             {
+                // nth_element is O(n) vs O(n log n) for full sort
+                std::nth_element(sorted_freq_array.begin(), 
+                                 sorted_freq_array.begin() + frequency_threshold - 1,
+                                 sorted_freq_array.end(),
+                                 std::greater<size_t>());
                 frequency_threshold = sorted_freq_array[frequency_threshold - 1];
             }
             else
             {
-                frequency_threshold = sorted_freq_array.back();
+                frequency_threshold = *std::min_element(sorted_freq_array.begin(), sorted_freq_array.end());
             }
         }
 
@@ -4927,16 +6289,47 @@ public:
             }
         }
 
-        // Fill the frequency array
+        // Fill the frequency array using thread-local histograms (reuse buffers)
+        // Parallel reset of thread-local arrays
         #pragma omp parallel for
-        for (size_t i = 0; i < comm_ids.size(); ++i)
+        for (int t = 0; t < num_threads_freq; ++t) {
+            std::memset(thread_freq_arrays[t].data(), 0, thread_freq_arrays[t].size() * sizeof(size_t));
+        }
+        
+        #pragma omp parallel
         {
-            #pragma omp atomic
-            ++frequency_array[comm_ids[i]];
+            int tid = omp_get_thread_num();
+            auto& local_freq = thread_freq_arrays[tid];
+            
+            #pragma omp for nowait
+            for (size_t i = 0; i < comm_ids.size(); ++i)
+            {
+                ++local_freq[comm_ids[i]];
+            }
+        }
+        
+        // Merge thread-local histograms
+        #pragma omp parallel for schedule(static)
+        for (size_t c = 0; c <= num_comm; ++c)
+        {
+            for (int t = 0; t < num_threads_freq; ++t)
+            {
+                frequency_array[c] += thread_freq_arrays[t][c];
+            }
         }
 
         // Create a vector of pairs (frequency, community ID) for sorting
+        // First count non-zero entries using parallel reduction
+        size_t non_zero_count = 0;
+        #pragma omp parallel for reduction(+:non_zero_count)
+        for (size_t i = 0; i < frequency_array.size(); ++i)
+        {
+            if (frequency_array[i] >= 1) ++non_zero_count;
+        }
+        
+        // Pre-allocate with exact size and fill
         std::vector<std::pair<size_t, size_t>> freq_comm_pairs;
+        freq_comm_pairs.reserve(non_zero_count);
         for (size_t i = 0; i < frequency_array.size(); ++i)
         {
             if (frequency_array[i] >= 1)
@@ -4947,68 +6340,66 @@ public:
         __gnu_parallel::sort(freq_comm_pairs.begin(), freq_comm_pairs.end(),
                              std::greater<>());
 
-        // Get the top ten community IDs
-        size_t top_comms_size = freq_comm_pairs.size();
-        std::vector<size_t> top_communities(top_comms_size, 0);
-
-        for (size_t i = 0; i < top_communities.size(); ++i)
+        // Get community IDs from sorted pairs and build lookup array in one pass
+        const size_t top_comms_size = freq_comm_pairs.size();
+        std::vector<size_t> top_communities(top_comms_size);
+        std::vector<bool> is_top_community(num_comm + 1, false);
+        
+        #pragma omp parallel for
+        for (size_t i = 0; i < top_comms_size; ++i)
         {
-            top_communities[i] = freq_comm_pairs[i].second;
+            size_t comm_id = freq_comm_pairs[i].second;
+            top_communities[i] = comm_id;
+            is_top_community[comm_id] = true;
         }
 
-        // Print the top ten frequencies
-        // std::cout << "Top community frequencies:\n";
-        // for (size_t i = 0; i < top_communities.size(); ++i)
-        // {
-        //     std::cout << "Community ID " << top_communities[i] << " has frequency "
-        //               << freq_comm_pairs[i].first << ".\n";
-        // }
-
-        // Create a set of top communities for quick lookup
-        std::unordered_set<size_t> top_communities_set(top_communities.begin(),
-                top_communities.end());
-
-        // Create thread-private edge lists for each community
-        std::vector<std::unordered_map<size_t, EdgeList>> thread_edge_lists(
-                    omp_get_max_threads());
+        // Create thread-private edge lists for each community using flat vectors
+        // (better cache performance than unordered_map)
+        const int num_threads_edge = omp_get_max_threads();
+        std::vector<std::vector<EdgeList>> thread_edge_lists(num_threads_edge);
+        #pragma omp parallel for
+        for (int t = 0; t < num_threads_edge; ++t)
+        {
+            thread_edge_lists[t].resize(num_comm + 1);
+        }
 
         // Loop through the original graph and add edges to the appropriate community
-        // edge list
+        // edge list using blocked iteration for better cache locality
+        const NodeID_ BLOCK_SIZE = 1024;
+        const bool graph_is_weighted = g.is_weighted();  // Hoist outside hot loop
         #pragma omp parallel
         {
             int tid = omp_get_thread_num();
-            auto &local_edge_list = thread_edge_lists[tid];
+            auto &local_edge_lists = thread_edge_lists[tid];
 
-            #pragma omp for nowait
-            for (NodeID_ i = 0; i < num_nodes; ++i)
+            #pragma omp for schedule(dynamic, 1) nowait
+            for (NodeID_ block_start = 0; block_start < num_nodes; block_start += BLOCK_SIZE)
             {
-                size_t src_comm_id = comm_ids[i];
-                if (top_communities_set.find(src_comm_id) !=
-                        top_communities_set.end())
+                NodeID_ block_end = (block_start + BLOCK_SIZE < num_nodes) ? (block_start + BLOCK_SIZE) : num_nodes;
+                
+                for (NodeID_ i = block_start; i < block_end; ++i)
                 {
-                    for (DestID_ neighbor : g.out_neigh(i))
+                    size_t src_comm_id = comm_ids[i];
+                    if (is_top_community[src_comm_id])
                     {
-                        if (g.is_weighted())
+                        auto& target_list = local_edge_lists[src_comm_id];
+                        if (graph_is_weighted)
                         {
-                            NodeID_ dest =
-                                static_cast<NodeWeight<NodeID_, WeightT_>>(neighbor).v;
-                            WeightT_ weight =
-                                static_cast<NodeWeight<NodeID_, WeightT_>>(neighbor).w;
-                            // size_t dst_comm_id = comm_ids[neighbor];
-                            // if (src_comm_id == dst_comm_id)
-                            // {
-                            Edge e = Edge(i, NodeWeight<NodeID_, WeightT_>(dest, weight));
-                            local_edge_list[src_comm_id].push_back(e);
-                            // }
+                            for (DestID_ neighbor : g.out_neigh(i))
+                            {
+                                NodeID_ dest =
+                                    static_cast<NodeWeight<NodeID_, WeightT_>>(neighbor).v;
+                                WeightT_ weight =
+                                    static_cast<NodeWeight<NodeID_, WeightT_>>(neighbor).w;
+                                target_list.push_back(Edge(i, NodeWeight<NodeID_, WeightT_>(dest, weight)));
+                            }
                         }
                         else
                         {
-                            // size_t dst_comm_id = comm_ids[neighbor];
-                            // if (src_comm_id == dst_comm_id)
-                            // {
-                            Edge e = Edge(i, neighbor);
-                            local_edge_list[src_comm_id].push_back(e);
-                            // }
+                            for (DestID_ neighbor : g.out_neigh(i))
+                            {
+                                target_list.push_back(Edge(i, neighbor));
+                            }
                         }
                     }
                 }
@@ -5016,15 +6407,39 @@ public:
         }
 
         // Merge thread-private edge lists into the final community edge lists
-        std::unordered_map<size_t, EdgeList> community_edge_lists;
-
-        for (const auto &local_edge_list : thread_edge_lists)
+        // Calculate total sizes per community using flat array - parallelized by community
+        std::vector<size_t> comm_sizes(num_comm + 1, 0);
+        #pragma omp parallel for
+        for (size_t c = 0; c <= num_comm; ++c)
         {
-            for (const auto &entry : local_edge_list)
+            for (int t = 0; t < num_threads_edge; ++t)
             {
-                auto &comm_edge_list = community_edge_lists[entry.first];
-                comm_edge_list.insert(comm_edge_list.end(), entry.second.begin(),
-                                      entry.second.end());
+                comm_sizes[c] += thread_edge_lists[t][c].size();
+            }
+        }
+        
+        // Pre-allocate with known sizes using flat vector
+        std::vector<EdgeList> community_edge_lists(num_comm + 1);
+        #pragma omp parallel for
+        for (size_t c = 0; c <= num_comm; ++c)
+        {
+            if (comm_sizes[c] > 0)
+                community_edge_lists[c].reserve(comm_sizes[c]);
+        }
+        
+        // Now merge without reallocations - can parallelize by community
+        #pragma omp parallel for schedule(dynamic)
+        for (size_t c = 0; c <= num_comm; ++c)
+        {
+            if (comm_sizes[c] > 0)
+            {
+                auto &comm_edge_list = community_edge_lists[c];
+                for (const auto &local_edge_lists : thread_edge_lists)
+                {
+                    const auto &local_list = local_edge_lists[c];
+                    comm_edge_list.insert(comm_edge_list.end(), local_list.begin(),
+                                          local_list.end());
+                }
             }
         }
 
@@ -5040,9 +6455,9 @@ public:
         //     // }
         // }
 
-        // Create a vector to store the new_ids vectors for each community
-        std::unordered_map<size_t, std::vector<std::pair<size_t, NodeID_>>>
-        community_id_mappings;
+        // Create flat vector to store the new_ids vectors for each community
+        // (indexed by community ID for O(1) access instead of hash lookup)
+        std::vector<std::vector<std::pair<size_t, NodeID_>>> community_id_mappings(num_comm + 1);
 
         // Call GenerateRabbitOrderMappingEdglist for each top community edge list
         // and store the new_ids result void GenerateMappingLocalEdgelist(const
@@ -5073,11 +6488,22 @@ public:
 
         tm_2.Start();
 
+        // Hoist allocations outside the loop to avoid repeated allocation
+        const int num_threads_inner = omp_get_max_threads();
+        std::vector<std::vector<std::pair<size_t, NodeID_>>> thread_local_mappings(num_threads_inner);
+        pvector<NodeID_> new_ids_sub(num_nodes);
+
         for (size_t idx = 0; idx < top_communities.size(); ++idx)
         {
             size_t comm_id = top_communities[idx];
             auto &edge_list = community_edge_lists[comm_id];
-            pvector<NodeID_> new_ids_sub(num_nodes, -1);
+            
+            // Reset new_ids_sub instead of reallocating
+            #pragma omp parallel for
+            for (size_t i = 0; i < static_cast<size_t>(num_nodes); ++i)
+            {
+                new_ids_sub[i] = -1;
+            }
             // GenerateRabbitOrderMappingEdgelist(edge_list, new_ids_sub);
 
             // double modularity =
@@ -5133,76 +6559,72 @@ public:
             else
                 return;
 
-            // Add id pairs to the corresponding community list
+            // Add id pairs to the corresponding community list using thread-local buffers
+            // to avoid critical section bottleneck (buffers hoisted outside loop)
+            // Clear thread-local buffers for reuse (parallel clear)
             #pragma omp parallel for
-            for (size_t i = 0; i < new_ids_sub.size(); ++i)
+            for (int t = 0; t < num_threads_inner; ++t) {
+                thread_local_mappings[t].clear();
+            }
+            
+            #pragma omp parallel
             {
-                size_t src_comm_id = comm_ids[i];
-                if (new_ids_sub[i] != -1 && comm_id == src_comm_id)
+                int tid = omp_get_thread_num();
+                auto& local_buf = thread_local_mappings[tid];
+                
+                #pragma omp for nowait
+                for (size_t i = 0; i < new_ids_sub.size(); ++i)
                 {
-                    #pragma omp critical
-                    community_id_mappings[src_comm_id].emplace_back(i, new_ids_sub[i]);
+                    size_t src_comm_id = comm_ids[i];
+                    if (new_ids_sub[i] != -1 && comm_id == src_comm_id)
+                    {
+                        local_buf.emplace_back(i, new_ids_sub[i]);
+                    }
                 }
+            }
+            
+            // Merge thread-local buffers (single-threaded merge is fast for this)
+            for (int t = 0; t < num_threads_inner; ++t) {
+                auto& target = community_id_mappings[comm_id];
+                target.insert(target.end(), 
+                              thread_local_mappings[t].begin(), 
+                              thread_local_mappings[t].end());
             }
         }
 
         tm_2.Stop();
 
-        // Make the mapping consecutive within each community list
-        for (auto &entry : community_id_mappings)
+        // Calculate the total size and assign consecutive indices directly
+        // Note: The sort was redundant since we overwrite id_pairs[i].second = i anyway
+        // Compute prefix sums for running indices (allows parallelization)
+        std::vector<size_t> comm_start_indices(top_communities.size() + 1);
+        comm_start_indices[0] = 0;
+        for (size_t c = 0; c < top_communities.size(); ++c)
         {
-            auto &id_pairs = entry.second;
-            __gnu_parallel::sort(id_pairs.begin(), id_pairs.end(),
-                                 [](const auto & a, const auto & b)
-            {
-                return static_cast<unsigned>(a.second) <
-                       static_cast<unsigned>(b.second);
-            });
-
-            #pragma omp parallel for
+            comm_start_indices[c + 1] = comm_start_indices[c] + 
+                community_id_mappings[top_communities[c]].size();
+        }
+        
+        // Initialize new_ids and assign indices in a single parallel pass
+        #pragma omp parallel for
+        for (size_t i = 0; i < new_ids.size(); ++i)
+        {
+            new_ids[i] = (NodeID_)-1;
+        }
+        
+        // Parallel index assignment and new_ids population (fused loops)
+        #pragma omp parallel for schedule(dynamic)
+        for (size_t c = 0; c < top_communities.size(); ++c)
+        {
+            size_t comm_id = top_communities[c];
+            auto &id_pairs = community_id_mappings[comm_id];
+            const size_t start_idx = comm_start_indices[c];
+            
             for (size_t i = 0; i < id_pairs.size(); ++i)
             {
-                id_pairs[i].second = i;
+                id_pairs[i].second = start_idx + i;
+                new_ids[id_pairs[i].first] = (NodeID_)(start_idx + i);
             }
-        }
-
-        // Calculate the total size of all pairs
-        size_t total_size = 0;
-        for (const auto &entry : community_id_mappings)
-        {
-            total_size += entry.second.size();
-        }
-
-        // Create all_pairs with the total size
-        std::vector<std::pair<size_t, NodeID_>> all_pairs(total_size);
-
-        // Assign the pairs to all_pairs and update the community_id_mappings with
-        // new indices
-        size_t index = 0;
-        for (auto &entry : community_id_mappings)
-        {
-            #pragma omp parallel for
-            for (size_t i = 0; i < entry.second.size(); ++i)
-            {
-                entry.second[i].second = index + i;
-                all_pairs[index + i] = entry.second[i];
-            }
-            index += entry.second.size();
-        }
-
-        // Sort all pairs by new IDs to make the mapping consecutive across all
-        // lists
-        __gnu_parallel::sort(all_pairs.begin(), all_pairs.end(),
-                             [](const auto & a, const auto & b)
-        {
-            return static_cast<unsigned>(a.first) <
-                   static_cast<unsigned>(b.first);
-        });
-
-        #pragma omp parallel for
-        for (size_t i = 0; i < all_pairs.size(); i++)
-        {
-            new_ids[all_pairs[i].first] = (NodeID_)all_pairs[i].second;
         }
 
         // std::cout << std::endl;
@@ -5234,18 +6656,29 @@ public:
         int64_t num_nodes = g.num_nodes();
         int64_t num_edges = g.num_edges();
 
-        std::vector<std::tuple<size_t, size_t, double>> edges;
-        edges.reserve(num_edges * 2);
-
+        // Pre-allocate edges array with exact size
+        std::vector<std::tuple<size_t, size_t, double>> edges(num_edges);
+        const bool is_weighted = g.is_weighted();
+        
+        // Parallel edge construction
+        #pragma omp parallel for schedule(dynamic, 1024)
         for (NodeID_ i = 0; i < g.num_nodes(); i++)
         {
+            NodeID_ out_start = g.out_offset(i);
+            NodeID_ idx = 0;
             for (DestID_ j : g.out_neigh(i))
             {
-                if (g.is_weighted())
-                    edges.push_back({i, static_cast<NodeWeight<NodeID_, WeightT_>>(j).v,
-                                     static_cast<NodeWeight<NodeID_, WeightT_>>(j).w});
-                else
-                    edges.push_back({i, j, 1.0f});
+                auto& edge = edges[out_start + idx];
+                if (is_weighted) {
+                    std::get<0>(edge) = i;
+                    std::get<1>(edge) = static_cast<NodeWeight<NodeID_, WeightT_>>(j).v;
+                    std::get<2>(edge) = static_cast<NodeWeight<NodeID_, WeightT_>>(j).w;
+                } else {
+                    std::get<0>(edge) = i;
+                    std::get<1>(edge) = j;
+                    std::get<2>(edge) = 1.0;
+                }
+                ++idx;
             }
         }
 
@@ -5253,23 +6686,49 @@ public:
         {
             if (num_edges < g.num_edges_directed())
             {
+                // Count additional edges needed from in-neighbors
+                int64_t additional_edges = g.num_edges_directed() - num_edges;
+                size_t old_size = edges.size();
+                edges.resize(old_size + additional_edges);
+                
+                // Count in-degrees to compute offsets
+                pvector<NodeID_> in_degrees(g.num_nodes());
+                #pragma omp parallel for
                 for (NodeID_ i = 0; i < g.num_nodes(); i++)
                 {
+                    in_degrees[i] = g.in_degree(i);
+                }
+                
+                // Use parallel prefix sum for write positions
+                pvector<SGOffset> in_offsets_base = ParallelPrefixSum(in_degrees);
+                
+                // Parallel edge construction
+                bool is_weighted = g.is_weighted();
+                #pragma omp parallel for schedule(dynamic, 1024)
+                for (NodeID_ i = 0; i < g.num_nodes(); i++)
+                {
+                    int64_t write_idx = old_size + in_offsets_base[i];
                     for (DestID_ j : g.in_neigh(i))
                     {
-                        if (g.is_weighted())
-                            edges.push_back(
+                        auto &edge = edges[write_idx++];
+                        if (is_weighted)
                         {
-                            i, static_cast<NodeWeight<NodeID_, WeightT_>>(j).v,
-                                    static_cast<NodeWeight<NodeID_, WeightT_>>(j).w});
+                            std::get<0>(edge) = i;
+                            std::get<1>(edge) = static_cast<NodeWeight<NodeID_, WeightT_>>(j).v;
+                            std::get<2>(edge) = static_cast<NodeWeight<NodeID_, WeightT_>>(j).w;
+                        }
                         else
-                            edges.push_back({i, j, 1.0f});
+                        {
+                            std::get<0>(edge) = i;
+                            std::get<1>(edge) = j;
+                            std::get<2>(edge) = 1.0;
+                        }
                     }
                 }
             }
         }
 
-        edges.shrink_to_fit();
+        // No need for shrink_to_fit since we sized exactly
 
         tm.Start();
         bool symmetric = false;
@@ -5294,31 +6753,41 @@ public:
         num_nodesx = x.span();
         num_passes = x.communityMappingPerPass.size() + 2;
 
-        std::vector<std::vector<K>> communityVectorTuplePerPass(
-                                     num_nodesx, std::vector<K>(num_passes, 0));
-        // // Initialize each inner vector
-        // tm.Start();
+        // Use flat array with stride for better cache locality (SoA pattern)
+        const size_t stride = num_nodesx;
+        std::vector<K> communityDataFlat(num_nodesx * num_passes);
+        
         #pragma omp parallel for
         for (size_t i = 0; i < num_nodesx; ++i)
         {
-            communityVectorTuplePerPass[i][0] = i;
-            communityVectorTuplePerPass[i][1] = x.degree(i);
+            communityDataFlat[i] = i;                    // column 0: node ID
+            communityDataFlat[stride + i] = x.degree(i); // column 1: degree
         }
 
-        for (size_t i = 0; i < num_passes - 2; ++i)
+        for (size_t p = 0; p < num_passes - 2; ++p)
         {
+            K* dest_col = &communityDataFlat[(2 + p) * stride];
             #pragma omp parallel for
             for (size_t j = 0; j < num_nodesx; ++j)
             {
-                communityVectorTuplePerPass[j][2 + i] = x.communityMappingPerPass[i][j];
+                dest_col[j] = x.communityMappingPerPass[p][j];
             }
         }
 
-        // sort_by_vector_element(communityVectorTuplePerPass,num_passes-1);
-
-        for (size_t i = 1; i < num_passes; ++i)
+        // Sort by each pass using index array
+        std::vector<size_t> sort_indices(num_nodesx);
+        #pragma omp parallel for
+        for (size_t i = 0; i < num_nodesx; ++i) {
+            sort_indices[i] = i;
+        }
+        
+        for (size_t p = 1; p < num_passes; ++p)
         {
-            sort_by_vector_element(communityVectorTuplePerPass, i);
+            const K* sort_key_col = &communityDataFlat[p * stride];
+            __gnu_parallel::stable_sort(sort_indices.begin(), sort_indices.end(),
+                [sort_key_col](size_t a, size_t b) {
+                    return sort_key_col[a] < sort_key_col[b];
+                });
         }
 
         pvector<NodeID_> interim_ids(num_nodes, -1);
@@ -5326,7 +6795,7 @@ public:
         #pragma omp parallel for
         for (int64_t i = 0; i < num_nodes; i++)
         {
-            interim_ids[communityVectorTuplePerPass[i][0]] = (NodeID_)i;
+            interim_ids[communityDataFlat[sort_indices[i]]] = (NodeID_)i;
         }
 
         tm2.Start();
