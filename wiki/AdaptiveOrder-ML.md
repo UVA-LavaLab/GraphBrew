@@ -146,6 +146,275 @@ This:
 3. Correlates graph features with best algorithm
 4. Generates `scripts/perceptron_weights.json`
 
+---
+
+## How Correlation Analysis Works
+
+### Step 1: Benchmark All Algorithms
+
+For each graph in your dataset, we run every algorithm and measure execution time:
+
+```
+Graph: facebook.el
+┌────────────────────┬──────────────┬─────────┐
+│ Algorithm          │ Time (sec)   │ Rank    │
+├────────────────────┼──────────────┼─────────┤
+│ ORIGINAL (0)       │ 0.0523       │ 5       │
+│ HUBCLUSTERDBG (7)  │ 0.0412       │ 3       │
+│ LeidenOrder (12)   │ 0.0398       │ 2       │
+│ LeidenHybrid (20)  │ 0.0371       │ 1 ★     │
+│ RCM (11)           │ 0.0489       │ 4       │
+└────────────────────┴──────────────┴─────────┘
+Winner: LeidenHybrid (fastest)
+```
+
+### Step 2: Extract Graph Features
+
+For each graph, we compute structural features:
+
+```
+Graph: facebook.el
+┌─────────────────────┬────────────┐
+│ Feature             │ Value      │
+├─────────────────────┼────────────┤
+│ num_nodes           │ 4,039      │
+│ num_edges           │ 88,234     │
+│ modularity          │ 0.835      │  ← High (strong communities)
+│ density             │ 0.0108     │  ← Sparse
+│ avg_degree          │ 43.7       │
+│ degree_variance     │ 52.4       │  ← High (hubs exist)
+│ hub_concentration   │ 0.42       │  ← Moderate hub dominance
+└─────────────────────┴────────────┘
+```
+
+### Step 3: Build the Correlation Table
+
+We create a table linking features to winning algorithms:
+
+```
+┌──────────────────┬────────────┬─────────┬─────────┬─────────┬────────────────┐
+│ Graph            │ Modularity │ Density │ HubConc │ DegVar  │ Best Algorithm │
+├──────────────────┼────────────┼─────────┼─────────┼─────────┼────────────────┤
+│ facebook.el      │ 0.835      │ 0.011   │ 0.42    │ 52.4    │ LeidenHybrid   │
+│ twitter.el       │ 0.721      │ 0.002   │ 0.68    │ 891.2   │ LeidenDFSHub   │
+│ roadNet-CA.el    │ 0.112      │ 0.0001  │ 0.05    │ 1.2     │ RCM            │
+│ web-Google.el    │ 0.654      │ 0.008   │ 0.55    │ 234.5   │ HUBCLUSTERDBG  │
+│ citation.el      │ 0.443      │ 0.003   │ 0.31    │ 45.6    │ LeidenOrder    │
+└──────────────────┴────────────┴─────────┴─────────┴─────────┴────────────────┘
+```
+
+### Step 4: Compute Correlations
+
+We calculate Pearson correlation between each feature and algorithm performance:
+
+```
+Feature Correlations with "LeidenHybrid being best":
+┌─────────────────────┬─────────────┬────────────────────────────────────┐
+│ Feature             │ Correlation │ Interpretation                     │
+├─────────────────────┼─────────────┼────────────────────────────────────┤
+│ modularity          │ +0.78       │ Strong positive → use on modular   │
+│ hub_concentration   │ +0.45       │ Moderate positive → helps with hubs│
+│ density             │ -0.23       │ Weak negative → prefers sparse     │
+│ degree_variance     │ +0.52       │ Moderate positive → handles skew   │
+└─────────────────────┴─────────────┴────────────────────────────────────┘
+```
+
+### Step 5: Convert Correlations to Perceptron Weights
+
+The correlations become the perceptron weights:
+
+```python
+# Simplified weight derivation
+weights["LeidenHybrid"] = {
+    "bias": 0.5 + (win_rate * 0.5),      # Base preference from win rate
+    "w_modularity": correlation_modularity * scale,      # +0.78 → +0.25
+    "w_hub_concentration": correlation_hubconc * scale,  # +0.45 → +0.15
+    "w_density": correlation_density * scale,            # -0.23 → -0.08
+    "w_degree_variance": correlation_degvar * scale,     # +0.52 → +0.17
+}
+```
+
+The scaling factor normalizes correlations to useful weight ranges (typically 0.1-0.3).
+
+---
+
+## How Perceptron Scores Feed Into Ordering
+
+### Complete Example: Ordering a Social Network
+
+Let's walk through ordering `social_network.el` with AdaptiveOrder:
+
+#### Phase 1: Community Detection
+
+```
+Input Graph: 10,000 nodes, 150,000 edges
+
+Leiden detects 5 communities:
+┌─────────┬───────┬────────┬──────────┬─────────┬──────────┐
+│ Comm ID │ Nodes │ Edges  │ Density  │ HubConc │ DegVar   │
+├─────────┼───────┼────────┼──────────┼─────────┼──────────┤
+│ C0      │ 3,500 │ 45,000 │ 0.0073   │ 0.62    │ 89.3     │
+│ C1      │ 2,800 │ 28,000 │ 0.0071   │ 0.41    │ 34.2     │
+│ C2      │ 1,900 │ 22,000 │ 0.0122   │ 0.28    │ 12.1     │
+│ C3      │ 1,200 │ 8,500  │ 0.0118   │ 0.15    │ 5.4      │
+│ C4      │ 600   │ 3,200  │ 0.0178   │ 0.09    │ 2.1      │
+└─────────┴───────┴────────┴──────────┴─────────┴──────────┘
+```
+
+#### Phase 2: Feature Computation for Each Community
+
+For community C0:
+```
+Features (normalized):
+- modularity: 0.72 (from Leiden quality)
+- log_nodes: 3.54 (log10(3500))
+- log_edges: 4.65 (log10(45000))
+- density: 0.0073
+- avg_degree: 25.7 / 100 = 0.257
+- degree_variance: 89.3 / 100 = 0.893
+- hub_concentration: 0.62
+```
+
+#### Phase 3: Perceptron Scoring for Community C0
+
+```
+Algorithm Scores for C0 (high hubs, high variance):
+
+LeidenHybrid:
+  = 0.85 + (0.25×0.72) + (0.1×3.54) + (0.1×4.65) + (-0.05×0.007)
+    + (0.15×0.257) + (0.15×0.893) + (0.25×0.62)
+  = 0.85 + 0.18 + 0.354 + 0.465 - 0.0004 + 0.039 + 0.134 + 0.155
+  = 2.18 ★ WINNER
+
+HUBCLUSTERDBG:
+  = 0.75 + (0.1×0.72) + (0.05×3.54) + (0.05×4.65) + (0.0×0.007)
+    + (0.2×0.257) + (0.2×0.893) + (0.35×0.62)
+  = 0.75 + 0.072 + 0.177 + 0.233 + 0 + 0.051 + 0.179 + 0.217
+  = 1.68
+
+ORIGINAL:
+  = 0.6 + (0.0×0.72) + (-0.1×3.54) + (-0.1×4.65) + (0.1×0.007)
+    + (0.0×0.257) + (0.0×0.893) + (0.0×0.62)
+  = 0.6 + 0 - 0.354 - 0.465 + 0.0007 + 0 + 0 + 0
+  = -0.22
+
+RCM:
+  = 0.65 + (0.05×0.72) + (0.0×3.54) + (0.0×4.65) + (0.15×0.007)
+    + (0.1×0.257) + (-0.1×0.893) + (-0.05×0.62)
+  = 0.65 + 0.036 + 0 + 0 + 0.001 + 0.026 - 0.089 - 0.031
+  = 0.59
+```
+
+**Result**: C0 gets **LeidenHybrid** (score 2.18)
+
+#### Phase 4: Scoring All Communities
+
+```
+┌─────────┬──────────────────┬────────────────────────────────────────┐
+│ Comm    │ Selected Algo    │ Reasoning                              │
+├─────────┼──────────────────┼────────────────────────────────────────┤
+│ C0      │ LeidenHybrid     │ High hub_conc (0.62), high deg_var     │
+│ C1      │ LeidenHybrid     │ Moderate hub_conc, good modularity     │
+│ C2      │ LeidenOrder      │ Lower hub_conc, still modular          │
+│ C3      │ HUBCLUSTERDBG    │ Small community, moderate structure    │
+│ C4      │ ORIGINAL         │ Very small, overhead not worth it      │
+└─────────┴──────────────────┴────────────────────────────────────────┘
+```
+
+#### Phase 5: Apply Per-Community Ordering
+
+```
+Final Vertex Relabeling:
+
+Original IDs → New IDs (after per-community reordering)
+
+Community C0 (LeidenHybrid applied):
+  Vertices 0-3499 → reordered by hub-aware DFS within C0
+  New IDs: 0-3499
+
+Community C1 (LeidenHybrid applied):
+  Vertices 3500-6299 → reordered by hub-aware DFS within C1
+  New IDs: 3500-6299
+
+Community C2 (LeidenOrder applied):
+  Vertices 6300-8199 → simple community ordering
+  New IDs: 6300-8199
+
+Community C3 (HUBCLUSTERDBG applied):
+  Vertices 8200-9399 → hub clustering with DBG
+  New IDs: 8200-9399
+
+Community C4 (ORIGINAL - no change):
+  Vertices 9400-9999 → kept as-is
+  New IDs: 9400-9999
+```
+
+#### Visual Representation
+
+```
+Before AdaptiveOrder:
+┌─────────────────────────────────────────────────────┐
+│ Memory layout: vertices scattered, poor locality    │
+│ [v892][v12][v5601][v234][v8923][v45]...            │
+└─────────────────────────────────────────────────────┘
+
+After AdaptiveOrder:
+┌─────────────────────────────────────────────────────┐
+│ C0 (LeidenHybrid)    │ C1 (LeidenHybrid)    │ ...  │
+│ [hub1][hub2][n1][n2] │ [hub1][n1][n2][n3]   │      │
+│ Hubs clustered first │ Hubs clustered first │      │
+└─────────────────────────────────────────────────────┘
+
+Result: When PageRank processes C0, all hub vertices
+        are in adjacent cache lines → fewer cache misses
+```
+
+---
+
+## Why Different Algorithms for Different Communities?
+
+### The Key Insight
+
+Not all communities have the same structure:
+
+```
+Community C0: Social cluster (influencers + followers)
+  → High hub concentration (0.62)
+  → LeidenHybrid groups influencers together
+  → Their followers are adjacent in memory
+
+Community C4: Small tight-knit group
+  → Low hub concentration (0.09)
+  → Few vertices (600)
+  → Reordering overhead > benefit
+  → ORIGINAL keeps natural ordering
+```
+
+### Performance Impact
+
+```
+PageRank on Community C0:
+┌────────────────────┬──────────────┬─────────────────┐
+│ Algorithm          │ Cache Misses │ Time (ms)       │
+├────────────────────┼──────────────┼─────────────────┤
+│ ORIGINAL           │ 145,000      │ 12.3            │
+│ HUBCLUSTERDBG      │ 98,000       │ 8.7             │
+│ LeidenHybrid       │ 67,000       │ 6.2 ★           │
+└────────────────────┴──────────────┴─────────────────┘
+
+PageRank on Community C4:
+┌────────────────────┬──────────────┬─────────────────┐
+│ Algorithm          │ Cache Misses │ Time (ms)       │
+├────────────────────┼──────────────┼─────────────────┤
+│ ORIGINAL           │ 1,200        │ 0.4 ★           │
+│ LeidenHybrid       │ 1,150        │ 0.5 (+ overhead)│
+└────────────────────┴──────────────┴─────────────────┘
+
+AdaptiveOrder picks the best for EACH community!
+```
+
+---
+
 ### Quick Training (Synthetic Graphs)
 
 ```bash

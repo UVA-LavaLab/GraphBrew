@@ -70,11 +70,37 @@ GraphBrew typically achieves:
 
 The best algorithm depends on your graph's topology!
 
+## � Page Index
+
+| Page | Description |
+|------|-------------|
+| [[Home]] | This page - wiki overview |
+| [[Installation]] | Build requirements and instructions |
+| [[Quick-Start]] | 5-minute getting started guide |
+| [[Supported-Graph-Formats]] | EL, MTX, GRAPH format specs |
+| [[Reordering-Algorithms]] | All 21 algorithms explained |
+| [[Graph-Benchmarks]] | PR, BFS, CC, SSSP, BC, TC |
+| [[Community-Detection]] | Leiden algorithm details |
+| [[Running-Benchmarks]] | Manual benchmark execution |
+| [[Benchmark-Suite]] | Automated experiment runner |
+| [[Correlation-Analysis]] | Feature-algorithm correlation |
+| [[AdaptiveOrder-ML]] | ML-based algorithm selection |
+| [[Perceptron-Weights]] | Weight file format & tuning |
+| [[GraphBrewOrder]] | Per-community hub ordering |
+| [[Adding-New-Algorithms]] | Developer: add algorithms |
+| [[Adding-New-Benchmarks]] | Developer: add benchmarks |
+| [[Code-Architecture]] | Codebase structure |
+| [[Python-Scripts]] | Analysis & utility tools |
+| [[Command-Line-Reference]] | All CLI flags |
+| [[Configuration-Files]] | JSON config reference |
+| [[Troubleshooting]] | Common issues |
+| [[FAQ]] | Frequently asked questions |
+
 ## 🔗 Quick Links
 
-- [GitHub Repository](https://github.com/atmughrabi/GraphBrew)
-- [Paper/Citation](#) (if applicable)
-- [Issue Tracker](https://github.com/atmughrabi/GraphBrew/issues)
+- [GitHub Repository](https://github.com/UVA-LavaLab/GraphBrew)
+- [Issue Tracker](https://github.com/UVA-LavaLab/GraphBrew/issues)
+- [Contributing Guide](https://github.com/UVA-LavaLab/GraphBrew/blob/main/CONTRIBUTING.md)
 
 ---
 
