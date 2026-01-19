@@ -451,6 +451,84 @@ with open('benchmark_results.json') as f:
 
 ---
 
+## Full Correlation Scan
+
+For comprehensive benchmarking of all algorithms across all graphs, use the full correlation scan script. This is the recommended way to generate complete benchmark data for perceptron weight training.
+
+### Running Full Scan
+
+```bash
+# Quick test with synthetic graphs
+python3 scripts/analysis/full_correlation_scan.py --quick
+
+# SMALL graphs only (~12MB)
+python3 scripts/analysis/full_correlation_scan.py --small
+
+# SMALL + MEDIUM graphs (~600MB, recommended)
+python3 scripts/analysis/full_correlation_scan.py --medium --trials 3
+
+# All graphs including LARGE (~72GB, full experiments)
+python3 scripts/analysis/full_correlation_scan.py --full --trials 16
+```
+
+### Key Features
+
+- **Sequential Execution**: One benchmark at a time for full CPU utilization
+- **RANDOM Baseline**: Uses RANDOM (1) for all speedup calculations
+- **All Algorithms**: Tests IDs 0-12, 15-20 (skips 13=GraphBrew, 14=MAP)
+- **Incremental Save**: Progress saved to allow resumption on interruption
+- **Skip TC**: Triangle counting excluded (reordering doesn't help)
+
+### Results Directory
+
+Results are saved to `./results/` by default:
+
+```
+results/
+├── logs/
+│   └── correlation_scan.log   # Detailed execution log
+├── scan_results.json          # All benchmark results (JSON)
+├── correlation_matrix.csv     # Feature-algorithm correlations
+└── summary_report.txt         # Human-readable summary
+```
+
+### Resume Interrupted Scan
+
+If a scan is interrupted, simply re-run with the same parameters:
+
+```bash
+# Resume automatically picks up where it left off
+python3 scripts/analysis/full_correlation_scan.py --medium --resume
+```
+
+### Output Format
+
+The `scan_results.json` contains structured results:
+
+```json
+{
+  "metadata": {
+    "start_time": "2025-01-19T02:00:00",
+    "graphs_completed": 20,
+    "total_runs": 1900
+  },
+  "results": {
+    "facebook": {
+      "pr": {
+        "1": {"time": 0.052, "speedup": 1.0},
+        "20": {"time": 0.037, "speedup": 1.41}
+      }
+    }
+  },
+  "best_algorithms": {
+    "pr": {"facebook": "LeidenHybrid", "twitter": "LeidenDFSHub"},
+    "bfs": {"facebook": "RABBITORDER", "roadNet": "RCM"}
+  }
+}
+```
+
+---
+
 ## Mathematical Details
 
 ### Perceptron Score Function
