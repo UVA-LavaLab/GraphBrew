@@ -45,8 +45,8 @@ from utils.common import (
 # Configuration
 # ============================================================================
 
-# Feature names used by the perceptron
-FEATURE_NAMES = [
+# Graph structural feature names used by the perceptron
+STRUCTURAL_FEATURE_NAMES = [
     'modularity',
     'log_nodes',
     'log_edges',
@@ -55,6 +55,20 @@ FEATURE_NAMES = [
     'degree_variance',
     'hub_concentration',
 ]
+
+# Cache performance feature names (from cache simulation)
+CACHE_FEATURE_NAMES = [
+    'l1_hit_rate',
+    'l2_hit_rate',
+    'l3_hit_rate',
+    'dram_access_rate',
+    'l1_eviction_rate',
+    'l2_eviction_rate',
+    'l3_eviction_rate',
+]
+
+# Combined feature names (structural + cache)
+FEATURE_NAMES = STRUCTURAL_FEATURE_NAMES + CACHE_FEATURE_NAMES
 
 # Algorithms supported by the perceptron
 PERCEPTRON_ALGORITHMS = {
@@ -81,6 +95,7 @@ SYNTHETIC_GRAPHS = {
 class PerceptronFeatures:
     """Features for perceptron-based algorithm selection."""
     graph_name: str
+    # Structural features
     modularity: float = 0.0
     log_nodes: float = 0.0
     log_edges: float = 0.0
@@ -88,9 +103,38 @@ class PerceptronFeatures:
     avg_degree: float = 0.0
     degree_variance: float = 0.0
     hub_concentration: float = 0.0
+    # Cache performance features
+    l1_hit_rate: float = 0.0
+    l2_hit_rate: float = 0.0
+    l3_hit_rate: float = 0.0
+    dram_access_rate: float = 0.0
+    l1_eviction_rate: float = 0.0
+    l2_eviction_rate: float = 0.0
+    l3_eviction_rate: float = 0.0
     
     def to_vector(self) -> List[float]:
         """Return features as a vector."""
+        return [
+            # Structural features
+            self.modularity,
+            self.log_nodes,
+            self.log_edges,
+            self.density,
+            self.avg_degree,
+            self.degree_variance,
+            self.hub_concentration,
+            # Cache features
+            self.l1_hit_rate,
+            self.l2_hit_rate,
+            self.l3_hit_rate,
+            self.dram_access_rate,
+            self.l1_eviction_rate,
+            self.l2_eviction_rate,
+            self.l3_eviction_rate,
+        ]
+    
+    def to_structural_vector(self) -> List[float]:
+        """Return only structural features as a vector."""
         return [
             self.modularity,
             self.log_nodes,
@@ -101,8 +145,21 @@ class PerceptronFeatures:
             self.hub_concentration,
         ]
     
+    def to_cache_vector(self) -> List[float]:
+        """Return only cache features as a vector."""
+        return [
+            self.l1_hit_rate,
+            self.l2_hit_rate,
+            self.l3_hit_rate,
+            self.dram_access_rate,
+            self.l1_eviction_rate,
+            self.l2_eviction_rate,
+            self.l3_eviction_rate,
+        ]
+    
     def to_dict(self) -> Dict[str, float]:
         return {
+            # Structural
             'modularity': self.modularity,
             'log_nodes': self.log_nodes,
             'log_edges': self.log_edges,
@@ -110,6 +167,14 @@ class PerceptronFeatures:
             'avg_degree': self.avg_degree,
             'degree_variance': self.degree_variance,
             'hub_concentration': self.hub_concentration,
+            # Cache
+            'l1_hit_rate': self.l1_hit_rate,
+            'l2_hit_rate': self.l2_hit_rate,
+            'l3_hit_rate': self.l3_hit_rate,
+            'dram_access_rate': self.dram_access_rate,
+            'l1_eviction_rate': self.l1_eviction_rate,
+            'l2_eviction_rate': self.l2_eviction_rate,
+            'l3_eviction_rate': self.l3_eviction_rate,
         }
 
 
@@ -168,6 +233,140 @@ def extract_features(graph_args: str, timeout: int = 300) -> Optional[Perceptron
     except Exception as e:
         print(f"Error extracting features: {e}")
         return None
+
+
+def extract_cache_features(
+    graph_args: str,
+    algorithm: str = "pr",
+    reorder_id: int = 0,
+    timeout: int = 300,
+    json_output: str = None
+) -> Tuple[float, float, float, float, float, float, float]:
+    """
+    Extract cache performance features from a simulation.
+    
+    Args:
+        graph_args: Graph arguments (-g N or -f path)
+        algorithm: Algorithm to simulate (pr, bfs, cc, etc.)
+        reorder_id: Reordering algorithm ID
+        timeout: Timeout in seconds
+        json_output: Path for JSON output file
+    
+    Returns:
+        Tuple of (l1_hit_rate, l2_hit_rate, l3_hit_rate, dram_access_rate,
+                  l1_eviction_rate, l2_eviction_rate, l3_eviction_rate)
+    """
+    import tempfile
+    import subprocess
+    
+    # Default return values
+    default = (0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
+    
+    binary = f"./bench/bin_sim/{algorithm}"
+    if not os.path.exists(binary):
+        return default
+    
+    # Use temp file for JSON if not provided
+    if json_output is None:
+        json_output = tempfile.mktemp(suffix='.json')
+        cleanup_json = True
+    else:
+        cleanup_json = False
+    
+    cmd = f"{binary} {graph_args} -o {reorder_id} -n 1"
+    env = os.environ.copy()
+    env['CACHE_OUTPUT_JSON'] = json_output
+    
+    try:
+        result = subprocess.run(
+            cmd,
+            shell=True,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+            env=env
+        )
+        
+        if not os.path.exists(json_output):
+            return default
+        
+        with open(json_output, 'r') as f:
+            data = json.load(f)
+        
+        total_accesses = data.get('total_accesses', 0)
+        memory_accesses = data.get('memory_accesses', 0)
+        
+        l1 = data.get('L1', {})
+        l2 = data.get('L2', {})
+        l3 = data.get('L3', {})
+        
+        l1_hit_rate = l1.get('hit_rate', 0.0)
+        l2_hit_rate = l2.get('hit_rate', 0.0)
+        l3_hit_rate = l3.get('hit_rate', 0.0)
+        dram_access_rate = memory_accesses / total_accesses if total_accesses > 0 else 0.0
+        
+        # Compute eviction rates
+        l1_total = l1.get('hits', 0) + l1.get('misses', 0)
+        l2_total = l2.get('hits', 0) + l2.get('misses', 0)
+        l3_total = l3.get('hits', 0) + l3.get('misses', 0)
+        
+        l1_eviction_rate = l1.get('evictions', 0) / l1_total if l1_total > 0 else 0.0
+        l2_eviction_rate = l2.get('evictions', 0) / l2_total if l2_total > 0 else 0.0
+        l3_eviction_rate = l3.get('evictions', 0) / l3_total if l3_total > 0 else 0.0
+        
+        return (l1_hit_rate, l2_hit_rate, l3_hit_rate, dram_access_rate,
+                l1_eviction_rate, l2_eviction_rate, l3_eviction_rate)
+        
+    except Exception as e:
+        print(f"Error extracting cache features: {e}")
+        return default
+    finally:
+        if cleanup_json and os.path.exists(json_output):
+            try:
+                os.remove(json_output)
+            except:
+                pass
+
+
+def extract_all_features(
+    graph_args: str,
+    algorithm: str = "pr",
+    reorder_id: int = 0,
+    timeout: int = 300,
+    include_cache: bool = True
+) -> Optional[PerceptronFeatures]:
+    """
+    Extract both structural and cache features for a graph.
+    
+    Args:
+        graph_args: Graph arguments
+        algorithm: Algorithm for cache simulation
+        reorder_id: Reordering algorithm ID
+        timeout: Timeout in seconds
+        include_cache: Whether to include cache features
+    
+    Returns:
+        PerceptronFeatures with all features populated
+    """
+    # Get structural features
+    features = extract_features(graph_args, timeout)
+    if features is None:
+        return None
+    
+    # Get cache features if simulation binaries exist
+    if include_cache and os.path.exists(f"./bench/bin_sim/{algorithm}"):
+        cache_features = extract_cache_features(
+            graph_args, algorithm, reorder_id, timeout
+        )
+        features.l1_hit_rate = cache_features[0]
+        features.l2_hit_rate = cache_features[1]
+        features.l3_hit_rate = cache_features[2]
+        features.dram_access_rate = cache_features[3]
+        features.l1_eviction_rate = cache_features[4]
+        features.l2_eviction_rate = cache_features[5]
+        features.l3_eviction_rate = cache_features[6]
+    
+    return features
 
 
 # ============================================================================
@@ -304,13 +503,18 @@ def train_perceptron_weights(
     return weights
 
 
-def format_weights_for_cpp(weights: Dict[int, Dict[str, float]]) -> str:
+def format_weights_for_cpp(weights: Dict[int, Dict[str, float]], include_cache: bool = True) -> str:
     """
     Format weights for inclusion in C++ code.
+    
+    Args:
+        weights: Dictionary of algorithm ID -> weight data
+        include_cache: Whether to include cache feature weights
     """
     lines = []
     lines.append("// Perceptron weights for AdaptiveOrder")
     lines.append("// Generated by scripts/analysis/perceptron_features.py")
+    lines.append("// Features: " + ", ".join(FEATURE_NAMES if include_cache else STRUCTURAL_FEATURE_NAMES))
     lines.append("")
     
     for algo_id, data in sorted(weights.items()):
@@ -321,10 +525,24 @@ def format_weights_for_cpp(weights: Dict[int, Dict[str, float]]) -> str:
         lines.append(f"// {algo_name} (ID: {algo_id})")
         lines.append(f"perceptron_weights[{algo_id}] = {{")
         lines.append(f"    {bias:.4f},  // bias")
-        lines.append(f"    {{{w.get('modularity', 0):.4f}, {w.get('log_nodes', 0):.4f}, "
+        
+        # Structural feature weights
+        structural = (f"{w.get('modularity', 0):.4f}, {w.get('log_nodes', 0):.4f}, "
                      f"{w.get('log_edges', 0):.4f}, {w.get('density', 0):.4f}, "
                      f"{w.get('avg_degree', 0):.4f}, {w.get('degree_variance', 0):.4f}, "
-                     f"{w.get('hub_concentration', 0):.4f}}}  // feature weights")
+                     f"{w.get('hub_concentration', 0):.4f}")
+        
+        if include_cache:
+            # Cache feature weights
+            cache = (f"{w.get('l1_hit_rate', 0):.4f}, {w.get('l2_hit_rate', 0):.4f}, "
+                    f"{w.get('l3_hit_rate', 0):.4f}, {w.get('dram_access_rate', 0):.4f}, "
+                    f"{w.get('l1_eviction_rate', 0):.4f}, {w.get('l2_eviction_rate', 0):.4f}, "
+                    f"{w.get('l3_eviction_rate', 0):.4f}")
+            lines.append(f"    {{{structural},  // structural features")
+            lines.append(f"     {cache}}}  // cache features")
+        else:
+            lines.append(f"    {{{structural}}}  // structural features")
+        
         lines.append("};")
         lines.append("")
     

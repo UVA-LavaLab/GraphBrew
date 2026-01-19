@@ -284,11 +284,11 @@ See [[Adding-New-Benchmarks]] for a complete guide:
 3. Make changes with tests
 4. Submit a pull request
 
-See [CONTRIBUTING.md](../CONTRIBUTING.md) for guidelines.
+See [CONTRIBUTING.md](https://github.com/UVA-LavaLab/GraphBrew/blob/main/CONTRIBUTING.md) for guidelines.
 
 ### What's the code license?
 
-GraphBrew is released under the MIT License. See [LICENSE](../LICENSE).
+GraphBrew is released under the MIT License. See [LICENSE](https://github.com/UVA-LavaLab/GraphBrew/blob/main/LICENSE).
 
 ---
 

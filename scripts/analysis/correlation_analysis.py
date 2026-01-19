@@ -110,19 +110,29 @@ def run_benchmark_for_correlation(
                 results.append((algo_id, algo_name, trial_time))
         
         if results:
+            # Filter out invalid results (NaN, inf, None)
+            import math
+            valid_results = [(a, n, t) for a, n, t in results 
+                           if t is not None and not math.isnan(t) and not math.isinf(t) and t > 0]
+            
+            if not valid_results:
+                if verbose:
+                    print("No valid results")
+                continue
+            
             # Find baseline (ORIGINAL)
-            baseline_time = next((t for aid, _, t in results if aid == 0), results[0][2])
+            baseline_time = next((t for aid, _, t in valid_results if aid == 0), valid_results[0][2])
             
             # Compute speedups
             speedups = {}
-            for algo_id, algo_name, trial_time in results:
+            for algo_id, algo_name, trial_time in valid_results:
                 if trial_time > 0:
                     speedups[algo_id] = baseline_time / trial_time
             
             all_speedups[benchmark] = speedups
             
             # Find best
-            best = min(results, key=lambda x: x[2])
+            best = min(valid_results, key=lambda x: x[2])
             best_algorithm[benchmark] = best
             
             if verbose:
