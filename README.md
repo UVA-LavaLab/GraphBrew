@@ -82,6 +82,72 @@ make RABBIT_ENABLE=1
    * **libnuma** (2.0.9).
    * **libtcmalloc\_minimal** in google-perftools (2.1).
 
+# GraphBrew Analysis Scripts
+
+The `scripts/` directory contains Python tools for comprehensive benchmarking and analysis:
+
+```
+scripts/
+├── main.py                    # Unified entry point
+├── download/
+│   └── download_graphs.py     # Download benchmark graphs
+├── benchmark/
+│   ├── run_benchmark.py       # Comprehensive benchmark suite
+│   └── run_pagerank_convergence.py  # PR convergence analysis
+├── analysis/
+│   ├── correlation_analysis.py     # Feature-algorithm correlations
+│   └── perceptron_features.py      # Perceptron weight training
+├── utils/
+│   └── common.py              # Shared utilities
+└── test_topology.py           # Topology verification
+```
+
+### Download Benchmark Graphs
+
+```bash
+# List available graphs
+python3 scripts/download/download_graphs.py --list
+
+# Download medium-sized graphs (~3GB total)
+python3 scripts/download/download_graphs.py --size MEDIUM --output-dir ./graphs
+
+# Download large graphs for comprehensive benchmarking (~40GB)
+python3 scripts/download/download_graphs.py --size LARGE --output-dir ./graphs
+```
+
+### Run Comprehensive Benchmarks
+
+```bash
+# Quick test with synthetic RMAT graphs
+python3 scripts/benchmark/run_benchmark.py --quick --benchmark pr bfs
+
+# Full benchmark on downloaded graphs
+python3 scripts/benchmark/run_benchmark.py --graphs-dir ./graphs --benchmark pr bfs cc
+
+# Analyze PageRank convergence
+python3 scripts/benchmark/run_pagerank_convergence.py --graphs-dir ./graphs
+```
+
+### Correlation Analysis
+
+```bash
+# Analyze which algorithms work best for different graph types
+python3 scripts/analysis/correlation_analysis.py --graphs-dir ./graphs
+
+# Train perceptron weights for AdaptiveOrder
+python3 scripts/analysis/perceptron_features.py --graphs-dir ./graphs
+```
+
+### Topology Verification
+
+```bash
+# Quick topology test
+make test-topology
+
+# Full test with all algorithms
+make test-topology-full
+```
+
 # GraphBrew Experiment Configuration
 
 Graphbrew can explore the impact of graph reordering techniques on the performance of various graph algorithms. The configuration for these experiments is specified in the `scripts/<experiment-name>/run_experiment.py` file.  
