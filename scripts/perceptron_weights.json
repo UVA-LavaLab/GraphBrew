@@ -1,202 +1,78 @@
 {
-  "ORIGINAL": {
-    "bias": 0.74,
-    "w_modularity": 0.0,
-    "w_log_nodes": 0.0,
-    "w_log_edges": 0.0,
-    "w_density": 0.0,
-    "w_avg_degree": 0.0,
-    "w_degree_variance": 0.0,
-    "w_hub_concentration": 0.0
+  "16": {
+    "bias": 1.0,
+    "weights": {}
   },
-  "RANDOM": {
+  "17": {
+    "bias": 0.9698,
+    "weights": {}
+  },
+  "20": {
+    "bias": 0.9445,
+    "weights": {}
+  },
+  "0": {
+    "bias": 0.9328,
+    "weights": {}
+  },
+  "12": {
+    "bias": 0.9123,
+    "weights": {}
+  },
+  "4": {
+    "bias": 0.9089,
+    "weights": {}
+  },
+  "19": {
+    "bias": 0.8992,
+    "weights": {}
+  },
+  "7": {
+    "bias": 0.8834,
+    "weights": {}
+  },
+  "10": {
+    "bias": 0.851,
+    "weights": {}
+  },
+  "5": {
+    "bias": 0.8439,
+    "weights": {}
+  },
+  "8": {
+    "bias": 0.821,
+    "weights": {}
+  },
+  "2": {
+    "bias": 0.807,
+    "weights": {}
+  },
+  "6": {
+    "bias": 0.8052,
+    "weights": {}
+  },
+  "9": {
+    "bias": 0.7756,
+    "weights": {}
+  },
+  "11": {
+    "bias": 0.72,
+    "weights": {}
+  },
+  "18": {
+    "bias": 0.6318,
+    "weights": {}
+  },
+  "15": {
+    "bias": 0.6279,
+    "weights": {}
+  },
+  "3": {
+    "bias": 0.5527,
+    "weights": {}
+  },
+  "1": {
     "bias": 0.3,
-    "w_modularity": 0.0,
-    "w_log_nodes": 0.0,
-    "w_log_edges": 0.0,
-    "w_density": 0.0,
-    "w_avg_degree": 0.0,
-    "w_degree_variance": 0.0,
-    "w_hub_concentration": 0.0
-  },
-  "SORT": {
-    "bias": 0.4,
-    "w_modularity": 0.0,
-    "w_log_nodes": 0.0,
-    "w_log_edges": 0.0,
-    "w_density": 0.0,
-    "w_avg_degree": 0.0,
-    "w_degree_variance": 0.0,
-    "w_hub_concentration": 0.0
-  },
-  "HUBSORT": {
-    "bias": 0.55,
-    "w_modularity": 0.05,
-    "w_log_nodes": 0.0,
-    "w_log_edges": 0.05,
-    "w_density": -0.05,
-    "w_avg_degree": 0.1,
-    "w_degree_variance": 0.15,
-    "w_hub_concentration": 0.2
-  },
-  "HUBCLUSTER": {
-    "bias": 0.6,
-    "w_modularity": 0.1,
-    "w_log_nodes": 0.0,
-    "w_log_edges": 0.05,
-    "w_density": -0.05,
-    "w_avg_degree": 0.1,
-    "w_degree_variance": 0.15,
-    "w_hub_concentration": 0.25
-  },
-  "DBG": {
-    "bias": 0.65,
-    "w_modularity": 0.1,
-    "w_log_nodes": 0.05,
-    "w_log_edges": 0.05,
-    "w_density": 0.0,
-    "w_avg_degree": 0.1,
-    "w_degree_variance": 0.1,
-    "w_hub_concentration": 0.1
-  },
-  "HUBSORTDBG": {
-    "bias": 0.7,
-    "w_modularity": 0.1,
-    "w_log_nodes": 0.05,
-    "w_log_edges": 0.05,
-    "w_density": -0.05,
-    "w_avg_degree": 0.15,
-    "w_degree_variance": 0.15,
-    "w_hub_concentration": 0.2
-  },
-  "HUBCLUSTERDBG": {
-    "bias": 0.75,
-    "w_modularity": 0.15,
-    "w_log_nodes": 0.05,
-    "w_log_edges": 0.05,
-    "w_density": -0.05,
-    "w_avg_degree": 0.15,
-    "w_degree_variance": 0.15,
-    "w_hub_concentration": 0.25
-  },
-  "RABBITORDER": {
-    "bias": 0.7,
-    "w_modularity": 0.2,
-    "w_log_nodes": 0.1,
-    "w_log_edges": 0.1,
-    "w_density": -0.1,
-    "w_avg_degree": 0.1,
-    "w_degree_variance": 0.1,
-    "w_hub_concentration": 0.15
-  },
-  "GORDER": {
-    "bias": 0.65,
-    "w_modularity": 0.1,
-    "w_log_nodes": 0.05,
-    "w_log_edges": 0.05,
-    "w_density": 0.0,
-    "w_avg_degree": 0.1,
-    "w_degree_variance": 0.05,
-    "w_hub_concentration": 0.1
-  },
-  "CORDER": {
-    "bias": 0.6,
-    "w_modularity": 0.1,
-    "w_log_nodes": 0.05,
-    "w_log_edges": 0.05,
-    "w_density": 0.0,
-    "w_avg_degree": 0.05,
-    "w_degree_variance": 0.05,
-    "w_hub_concentration": 0.1
-  },
-  "RCM": {
-    "bias": 0.55,
-    "w_modularity": 0.0,
-    "w_log_nodes": 0.0,
-    "w_log_edges": 0.0,
-    "w_density": 0.1,
-    "w_avg_degree": -0.05,
-    "w_degree_variance": 0.0,
-    "w_hub_concentration": 0.0
-  },
-  "LeidenOrder": {
-    "bias": 0.636,
-    "w_modularity": 0.0,
-    "w_log_nodes": 0.224,
-    "w_log_edges": 0.223,
-    "w_density": -0.152,
-    "w_avg_degree": 0.207,
-    "w_degree_variance": 0.0,
-    "w_hub_concentration": 0.0
-  },
-  "GraphBrewOrder": {
-    "bias": 0.8,
-    "w_modularity": 0.25,
-    "w_log_nodes": 0.1,
-    "w_log_edges": 0.1,
-    "w_density": -0.1,
-    "w_avg_degree": 0.15,
-    "w_degree_variance": 0.15,
-    "w_hub_concentration": 0.2
-  },
-  "AdaptiveOrder": {
-    "bias": 0.85,
-    "w_modularity": 0.2,
-    "w_log_nodes": 0.1,
-    "w_log_edges": 0.1,
-    "w_density": 0.0,
-    "w_avg_degree": 0.15,
-    "w_degree_variance": 0.15,
-    "w_hub_concentration": 0.2
-  },
-  "LeidenDFS": {
-    "bias": 0.75,
-    "w_modularity": 0.2,
-    "w_log_nodes": 0.1,
-    "w_log_edges": 0.1,
-    "w_density": -0.1,
-    "w_avg_degree": 0.1,
-    "w_degree_variance": 0.1,
-    "w_hub_concentration": 0.15
-  },
-  "LeidenDFSHub": {
-    "bias": 0.8,
-    "w_modularity": 0.2,
-    "w_log_nodes": 0.1,
-    "w_log_edges": 0.1,
-    "w_density": -0.1,
-    "w_avg_degree": 0.15,
-    "w_degree_variance": 0.15,
-    "w_hub_concentration": 0.25
-  },
-  "LeidenDFSSize": {
-    "bias": 0.78,
-    "w_modularity": 0.2,
-    "w_log_nodes": 0.15,
-    "w_log_edges": 0.1,
-    "w_density": -0.1,
-    "w_avg_degree": 0.1,
-    "w_degree_variance": 0.1,
-    "w_hub_concentration": 0.15
-  },
-  "LeidenBFS": {
-    "bias": 0.75,
-    "w_modularity": 0.2,
-    "w_log_nodes": 0.1,
-    "w_log_edges": 0.1,
-    "w_density": -0.1,
-    "w_avg_degree": 0.1,
-    "w_degree_variance": 0.1,
-    "w_hub_concentration": 0.15
-  },
-  "LeidenHybrid": {
-    "bias": 0.523,
-    "w_modularity": 0.0,
-    "w_log_nodes": -0.296,
-    "w_log_edges": -0.295,
-    "w_density": 0.265,
-    "w_avg_degree": -0.29,
-    "w_degree_variance": 0.0,
-    "w_hub_concentration": 0.0
+    "weights": {}
   }
 }
