@@ -151,11 +151,17 @@ python3 scripts/analysis/correlation_analysis.py --quick
 GraphBrew/
 ├── bench/
 │   ├── bin/           # Compiled binaries (pr, bfs, cc, etc.)
+│   ├── bin_sim/       # Cache simulation binaries
 │   ├── include/       # Header files
 │   └── src/           # Source files
-├── graphs/            # Downloaded benchmark graphs
+├── graphs/            # Downloaded benchmark graphs (or use results/graphs/)
+├── results/           # Experiment outputs and weights
+│   ├── perceptron_weights.json  # ML model weights (default location)
+│   ├── graphs/        # Downloaded graphs (when using --full)
+│   └── training_*/    # Iterative training outputs
 ├── scripts/           # Python analysis tools
-│   ├── perceptron_weights.json  # ML model weights
+│   ├── graphbrew_experiment.py  # Main experiment script
+│   ├── requirements.txt
 │   ├── download/      # Graph download utilities
 │   ├── analysis/      # Correlation and analysis tools
 │   └── utils/         # Shared utilities

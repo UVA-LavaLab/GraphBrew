@@ -16,8 +16,10 @@ This JSON file contains weights for each algorithm. When AdaptiveOrder processes
 
 ### Default Location
 ```
-GraphBrew/scripts/perceptron_weights.json
+GraphBrew/results/perceptron_weights.json
 ```
+
+Note: The default path is defined by `DEFAULT_WEIGHTS_FILE` in `graphbrew_experiment.py` as `./results/perceptron_weights.json`.
 
 ### Environment Override
 ```bash
@@ -32,62 +34,58 @@ If the file doesn't exist, C++ uses hardcoded defaults with conservative weights
 
 ## File Structure
 
-### Complete Example (Current Format)
+### Complete Example (Enhanced Format)
 
 ```json
 {
-  "ORIGINAL": {
+  "Original": {
     "bias": 0.5,
-    "w_modularity": 0.0,
-    "w_log_nodes": 0.001,
-    "w_log_edges": 0.0,
-    "w_density": -0.001,
-    "w_avg_degree": 0.0,
-    "w_degree_variance": 0.001,
-    "w_hub_concentration": 0.001,
-    "cache_l1_impact": 0,
-    "cache_l2_impact": 0,
-    "cache_l3_impact": 0,
-    "cache_dram_penalty": 0,
-    "w_reorder_time": 0,
-    "_metadata": {
-      "win_rate": 1.0,
-      "avg_speedup": 1.0,
-      "times_best": 5,
-      "sample_count": 5,
-      "avg_reorder_time": 0.0,
-      "avg_l1_hit_rate": 0.0,
-      "avg_l2_hit_rate": 0.0,
-      "avg_l3_hit_rate": 0.0
+    "w_modularity": 0.1,
+    "w_density": 0.05,
+    "w_degree_variance": 0.03,
+    "w_hub_concentration": 0.05,
+    "w_log_nodes": 0.02,
+    "w_log_edges": 0.02,
+    "w_clustering_coeff": 0.04,
+    "w_avg_path_length": 0.02,
+    "w_diameter": 0.01,
+    "w_community_count": 0.03,
+    "benchmark_weights": {
+      "pr": 1.0,
+      "bfs": 1.0,
+      "cc": 1.0,
+      "sssp": 1.0,
+      "bc": 1.0
     }
   },
-  "LeidenHybrid": {
-    "bias": 0.85,
-    "w_modularity": 0.25,
-    "w_log_nodes": 0.1,
-    "w_log_edges": 0.1,
-    "w_density": -0.05,
-    "w_avg_degree": 0.15,
-    "w_degree_variance": 0.15,
-    "w_hub_concentration": 0.25,
-    "cache_l1_impact": 0.1,
-    "cache_l2_impact": 0.05,
-    "cache_l3_impact": 0.02,
-    "cache_dram_penalty": -0.1,
-    "w_reorder_time": -0.0001,
-    "_metadata": {
-      "win_rate": 0.85,
-      "avg_speedup": 2.34,
-      "times_best": 42,
-      "sample_count": 50,
-      "avg_reorder_time": 1.234,
-      "avg_l1_hit_rate": 85.2,
-      "avg_l2_hit_rate": 92.1,
-      "avg_l3_hit_rate": 98.5
+  "LeidenDFS": {
+    "bias": 3.5,
+    "w_modularity": 0.1,
+    "w_density": 0.05,
+    "w_degree_variance": 0.03,
+    "w_hub_concentration": 0.05,
+    "w_log_nodes": 0.02,
+    "w_log_edges": 0.02,
+    "w_clustering_coeff": 0.04,
+    "w_avg_path_length": 0.02,
+    "w_diameter": 0.01,
+    "w_community_count": 0.03,
+    "benchmark_weights": {
+      "pr": 1.0,
+      "bfs": 1.0,
+      "cc": 1.0,
+      "sssp": 1.0,
+      "bc": 1.0
     }
+  },
+  "_metadata": {
+    "enhanced_features": true,
+    "last_updated": "2026-01-20T12:00:00"
   }
 }
 ```
+
+Note: Algorithm names in the weights file use the format from `initialize_enhanced_weights()` (e.g., `Original`, `LeidenDFS`, `RabbitOrder`) rather than the C++ uppercase format.
 
 ---
 
@@ -106,7 +104,26 @@ If the file doesn't exist, C++ uses hardcoded defaults with conservative weights
 | `w_degree_variance` | degree_var/100 | Degree distribution spread |
 | `w_hub_concentration` | hub_conc | Edge fraction to top 10% vertices |
 
-### Cache Impact Weights (NEW)
+### Extended Graph Structure Weights
+
+| Weight | Feature | Description |
+|--------|---------|-------------|
+| `w_clustering_coeff` | clustering_coefficient | Local clustering coefficient (0-1) |
+| `w_avg_path_length` | avg_path_length | Average shortest path length (BFS estimate) |
+| `w_diameter` | diameter_estimate | Graph diameter (BFS estimate) |
+| `w_community_count` | community_count | Number of sub-communities |
+
+### Per-Benchmark Weights
+
+| Weight | Description |
+|--------|-------------|
+| `benchmark_weights.pr` | Multiplier for PageRank benchmark |
+| `benchmark_weights.bfs` | Multiplier for BFS benchmark |
+| `benchmark_weights.cc` | Multiplier for Connected Components benchmark |
+| `benchmark_weights.sssp` | Multiplier for SSSP benchmark |
+| `benchmark_weights.bc` | Multiplier for Betweenness Centrality benchmark |
+
+### Cache Impact Weights (Optional)
 
 | Weight | Description |
 |--------|-------------|
@@ -115,7 +132,7 @@ If the file doesn't exist, C++ uses hardcoded defaults with conservative weights
 | `cache_l3_impact` | Bonus for algorithms with high L3 hit rates |
 | `cache_dram_penalty` | Penalty for DRAM access (cache misses) |
 
-### Reorder Time Weight (NEW)
+### Reorder Time Weight (Optional)
 
 | Weight | Description |
 |--------|-------------|
