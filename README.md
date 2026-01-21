@@ -215,7 +215,7 @@ results/
 
 ### Perceptron Weights Format
 
-The trained weights include cache impact and reorder time features:
+The trained weights include cache impact, reorder time, and benchmark-specific multipliers:
 
 ```json
 {
@@ -232,7 +232,18 @@ The trained weights include cache impact and reorder time features:
     "cache_l2_impact": 0.05,
     "cache_l3_impact": 0.02,
     "cache_dram_penalty": -0.1,
-    "w_reorder_time": -0.0001,
+    "w_reorder_time": -0.0078,
+    "w_clustering_coeff": 0.0,
+    "w_avg_path_length": 0.0,
+    "w_diameter": 0.0,
+    "w_community_count": 0.0,
+    "benchmark_weights": {
+      "pr": 1.0,
+      "bfs": 1.0,
+      "cc": 1.0,
+      "sssp": 1.0,
+      "bc": 1.0
+    },
     "_metadata": {
       "win_rate": 0.85,
       "avg_speedup": 2.34,
@@ -247,7 +258,17 @@ The trained weights include cache impact and reorder time features:
 }
 ```
 
-> 📖 **Understanding results?** See **[Correlation Analysis Wiki](https://github.com/UVA-LavaLab/GraphBrew/wiki/Correlation-Analysis)** for interpretation guides.
+**Weight Categories:**
+
+| Category | Weights | Description |
+|----------|---------|-------------|
+| **Core** | `bias`, `w_modularity`, `w_log_nodes`, `w_log_edges`, `w_density`, `w_avg_degree`, `w_degree_variance`, `w_hub_concentration` | Basic graph feature weights |
+| **Extended** | `w_clustering_coeff`, `w_avg_path_length`, `w_diameter`, `w_community_count` | Advanced graph topology features |
+| **Cache** | `cache_l1_impact`, `cache_l2_impact`, `cache_l3_impact`, `cache_dram_penalty` | Cache performance weights (from simulation) |
+| **Time** | `w_reorder_time` | Penalty for slow reordering algorithms |
+| **Benchmark** | `benchmark_weights: {pr, bfs, cc, sssp, bc}` | Multipliers for benchmark-specific tuning |
+
+> 📖 **Understanding results?** See **[Correlation Analysis Wiki](https://github.com/UVA-LavaLab/GraphBrew/wiki/Correlation-Analysis)** and **[AdaptiveOrder ML Wiki](https://github.com/UVA-LavaLab/GraphBrew/wiki/AdaptiveOrder-ML)** for interpretation guides.
 
 ---
 
