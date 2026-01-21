@@ -51,6 +51,24 @@ GraphBrew is a high-performance graph reordering framework that combines **commu
 
 ## 🚀 Quick Example
 
+### One-Click Full Pipeline (Recommended)
+
+```bash
+# Clone, download graphs, build, and run complete experiment
+git clone https://github.com/UVA-LavaLab/GraphBrew.git
+cd GraphBrew
+python3 scripts/graphbrew_experiment.py --full --download-size SMALL
+```
+
+This single command will:
+1. Download benchmark graphs from SuiteSparse
+2. Build binaries automatically
+3. Run all benchmarks with all 20 algorithms
+4. Execute cache simulations
+5. Generate perceptron weights for AdaptiveOrder
+
+### Manual Usage
+
 ```bash
 # Build GraphBrew
 make all

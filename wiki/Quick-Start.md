@@ -11,7 +11,52 @@ Get up and running with GraphBrew in 5 minutes!
 
 ---
 
-## 1. Clone and Build (2 minutes)
+## 🚀 One-Click Full Pipeline (Easiest)
+
+Run the complete GraphBrew experiment with a single command:
+
+```bash
+# Clone and run - that's it!
+git clone https://github.com/UVA-LavaLab/GraphBrew.git
+cd GraphBrew
+python3 scripts/graphbrew_experiment.py --full --download-size SMALL
+```
+
+This will automatically:
+- ✅ Download benchmark graphs from SuiteSparse (~12 MB for SMALL)
+- ✅ Build all binaries (standard + cache simulation)
+- ✅ Generate reorderings with all 20 algorithms
+- ✅ Run performance benchmarks (PR, BFS, CC, SSSP, BC)
+- ✅ Execute cache simulations
+- ✅ Train perceptron weights for AdaptiveOrder
+
+All results saved to `./results/` directory.
+
+### Download Size Options
+
+| Size | Graphs | Total Size | Use Case |
+|------|--------|------------|----------|
+| `SMALL` | 4 | ~12 MB | Quick testing |
+| `MEDIUM` | 11 | ~624 MB | Standard experiments |
+| `LARGE` | 2 | ~1.6 GB | Full evaluation |
+| `ALL` | 17 | ~2.2 GB | Complete benchmark |
+
+```bash
+# Download medium graphs and run
+python3 scripts/graphbrew_experiment.py --full --download-size MEDIUM
+
+# Just download graphs (no experiments)
+python3 scripts/graphbrew_experiment.py --download-only --download-size MEDIUM
+
+# Clean start (remove all generated data)
+python3 scripts/graphbrew_experiment.py --clean-all --full --download-size SMALL
+```
+
+---
+
+## Manual Setup (Step-by-Step)
+
+### 1. Clone and Build (2 minutes)
 
 ```bash
 # Clone the repository

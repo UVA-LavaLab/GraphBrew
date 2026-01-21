@@ -17,7 +17,26 @@ GraphBrew includes six graph algorithm benchmarks from the GAP Benchmark Suite:
 
 ---
 
-## Basic Usage
+## 🚀 Automated Pipeline (Recommended)
+
+For comprehensive benchmarking, use the unified experiment script:
+
+```bash
+# One-click: downloads graphs, builds, runs all benchmarks
+python3 scripts/graphbrew_experiment.py --full --download-size SMALL
+
+# Run benchmarks on existing graphs
+python3 scripts/graphbrew_experiment.py --phase benchmark --graphs small
+
+# Quick test with key algorithms only
+python3 scripts/graphbrew_experiment.py --graphs small --key-only
+```
+
+See [[Python-Scripts]] for full documentation.
+
+---
+
+## Manual Benchmark Execution
 
 ### Standard Command Format
 

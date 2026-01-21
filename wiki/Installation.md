@@ -2,6 +2,23 @@
 
 This guide covers installing GraphBrew on Linux systems.
 
+## 🚀 Quick Install (One-Click)
+
+The fastest way to get started - builds automatically and downloads test graphs:
+
+```bash
+git clone https://github.com/UVA-LavaLab/GraphBrew.git
+cd GraphBrew
+python3 scripts/graphbrew_experiment.py --full --download-size SMALL
+```
+
+This single command will:
+- Build all binaries automatically
+- Download benchmark graphs from SuiteSparse
+- Run the complete experiment pipeline
+
+---
+
 ## System Requirements
 
 ### Minimum Requirements
@@ -44,7 +61,7 @@ sudo dnf install -y \
 pip3 install numpy matplotlib pandas
 ```
 
-## Building GraphBrew
+## Manual Build
 
 ### Clone the Repository
 
@@ -58,6 +75,9 @@ cd GraphBrew
 ```bash
 # Build all benchmarks
 make all
+
+# Build with cache simulation support
+make sim
 
 # Or build specific benchmarks
 make pr    # PageRank

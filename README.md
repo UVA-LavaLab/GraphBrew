@@ -69,6 +69,49 @@ This project contains a collection of Graph Analytics for Performance [(GAPBS)](
 * **sssp:**  Single-Source Shortest Paths
 * **tc:** Triangle Counting
 
+## 🚀 One-Click Experiment Pipeline
+
+Run the complete GraphBrew experiment workflow with a single command:
+
+```bash
+# Clone and run - that's it!
+git clone https://github.com/UVA-LavaLab/GraphBrew.git
+cd GraphBrew
+python3 scripts/graphbrew_experiment.py --full --download-size SMALL
+```
+
+This single command will:
+1. **Download** benchmark graphs from SuiteSparse collection
+2. **Build** the benchmark binaries automatically
+3. **Generate** reorderings with all 20 algorithms
+4. **Run** performance benchmarks (BFS, PR, CC, SSSP, BC)
+5. **Execute** cache simulations for detailed analysis
+6. **Train** perceptron weights for AdaptiveOrder
+
+All results are saved to `./results/` for easy analysis.
+
+### Available Options
+
+```bash
+# Download graphs only
+python3 scripts/graphbrew_experiment.py --download-only --download-size MEDIUM
+
+# Run experiment on existing graphs
+python3 scripts/graphbrew_experiment.py --phase all
+
+# Quick test with key algorithms
+python3 scripts/graphbrew_experiment.py --graphs small --key-only
+
+# Run brute-force validation (test adaptive vs all 20 algorithms)
+python3 scripts/graphbrew_experiment.py --brute-force
+
+# Clean and start fresh
+python3 scripts/graphbrew_experiment.py --clean-all --full --download-size SMALL
+
+# See all options
+python3 scripts/graphbrew_experiment.py --help
+```
+
 ## Prerequisites
 
 Before you begin, ensure you have the following installed on your system, [(section)](#installing-prerequisites). For detailed installation steps, see **[Installation Wiki](https://github.com/UVA-LavaLab/GraphBrew/wiki/Installation)**.
@@ -92,21 +135,31 @@ make RABBIT_ENABLE=1
 
 The `scripts/` directory contains Python tools for comprehensive benchmarking and analysis. For detailed usage, see **[Python Scripts Wiki](https://github.com/UVA-LavaLab/GraphBrew/wiki/Python-Scripts)**.
 
+**Main Script (Unified Pipeline):**
+```
+scripts/
+├── graphbrew_experiment.py    # ⭐ One-click unified experiment pipeline
+│                              #    - Downloads graphs from SuiteSparse
+│                              #    - Builds binaries automatically  
+│                              #    - Runs all benchmarks & simulations
+│                              #    - Generates perceptron weights
+│                              #    - Supports brute-force validation
+├── requirements.txt           # Python dependencies
+└── perceptron_weights.json    # ML weights (auto-generated)
+```
+
+**Utility Scripts:**
 ```
 scripts/
 ├── download/
-│   └── download_graphs.py     # Download benchmark graphs from SuiteSparse
+│   └── download_graphs.py          # Standalone graph downloader
 ├── benchmark/
-│   ├── run_benchmark.py       # Comprehensive benchmark suite
-│   └── run_pagerank_convergence.py  # PageRank convergence analysis
+│   └── run_pagerank_convergence.py # PageRank convergence analysis
 ├── analysis/
-│   ├── correlation_analysis.py     # Feature-algorithm correlations + perceptron training
-│   ├── perceptron_features.py      # ML features extraction (graph + cache)
-│   └── cache_benchmark.py          # Cache performance benchmark suite
-├── utils/
-│   └── common.py              # Shared utilities (ALGORITHMS dict, parsing)
-├── perceptron_weights.json    # ML weights for AdaptiveOrder (auto-generated)
-└── test_topology.py           # Topology verification tests
+│   ├── correlation_analysis.py     # Feature-algorithm correlation library
+│   └── perceptron_features.py      # ML feature extraction utilities
+└── utils/
+    └── common.py                   # Shared utilities (ALGORITHMS dict)
 ```
 
 ## Results Directory Structure
@@ -115,11 +168,14 @@ Benchmark results are organized in the `results/` folder:
 
 ```
 results/
-├── logs/                      # Execution logs
-│   └── correlation_scan.log   # Full scan progress/debug log
-├── scan_results.json          # Comprehensive benchmark results
-├── correlation_*.json         # Feature-algorithm correlations
-└── cache_*.json               # Cache simulation results
+├── graphs/                    # Downloaded graphs (if using --full)
+├── mappings/                  # Reordering label maps
+├── reorder_*.json             # Reordering times
+├── benchmark_*.json           # Benchmark results  
+├── cache_*.json               # Cache simulation results
+├── perceptron_weights.json    # Trained ML weights
+├── brute_force_*.json         # Validation results
+└── logs/                      # Execution logs
 ```
 
 > 📖 **Understanding results?** See **[Correlation Analysis Wiki](https://github.com/UVA-LavaLab/GraphBrew/wiki/Correlation-Analysis)** for interpretation guides.
