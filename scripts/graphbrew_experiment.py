@@ -1305,7 +1305,7 @@ def check_and_build_binaries(project_dir: str = ".") -> bool:
     # Build simulation binaries
     if missing_sim:
         print("  Building simulation binaries...")
-        success, stdout, stderr = run_command(f"cd {project_dir} && make sim -j$(nproc)", timeout=600)
+        success, stdout, stderr = run_command(f"cd {project_dir} && make all-sim -j$(nproc)", timeout=600)
         if not success:
             print(f"  Simulation build failed: {stderr}")
             return False
@@ -4073,40 +4073,39 @@ def run_experiment(args):
         
         # Phase 1: Reorderings
         log_section("Phase 1: Generate Reorderings")
-        reorder_results = run_reordering_phase(
+        reorder_results = generate_reorderings(
             graphs=graphs,
+            algorithms=algorithms,
             bin_dir=args.bin_dir,
             output_dir=args.results_dir,
-            algorithms=algorithms,
-            generate_maps=getattr(args, 'generate_maps', False),
-            use_maps=getattr(args, 'use_maps', False),
-            timeout=args.timeout_reorder
+            timeout=args.timeout_reorder,
+            skip_slow=getattr(args, 'skip_slow', False)
         )
         
         # Phase 2: Benchmarks (all of them)
         log_section("Phase 2: Execution Benchmarks (All)")
         all_benchmarks = ["pr", "bfs", "cc", "sssp", "bc"]
-        benchmark_results = run_benchmark_phase(
+        benchmark_results = run_benchmarks(
             graphs=graphs,
-            bin_dir=args.bin_dir,
-            output_dir=args.results_dir,
             algorithms=algorithms,
             benchmarks=all_benchmarks,
-            use_maps=getattr(args, 'use_maps', False),
+            bin_dir=args.bin_dir,
             num_trials=args.trials,
-            timeout=args.timeout_benchmark
+            timeout=args.timeout_benchmark,
+            skip_slow=getattr(args, 'skip_slow', False),
+            label_maps={}
         )
         
         # Phase 3: Cache Simulation
         log_section("Phase 3: Cache Simulation")
-        cache_results = run_cache_simulation_phase(
+        cache_results = run_cache_simulations(
             graphs=graphs,
-            bin_sim_dir=args.bin_sim_dir,
-            output_dir=args.results_dir,
             algorithms=algorithms,
             benchmarks=["pr", "bfs"],  # Key benchmarks for cache
+            bin_sim_dir=args.bin_sim_dir,
+            timeout=args.timeout_sim,
             skip_heavy=getattr(args, 'skip_heavy', True),
-            timeout=args.timeout_sim
+            label_maps={}
         )
         
         # Phase 4: Generate Base Weights
@@ -4334,6 +4333,10 @@ Examples:
     parser.add_argument("--clean-all", action="store_true",
                         help="Remove ALL generated data (graphs, results, mappings) - fresh start")
     
+    # Auto-setup option
+    parser.add_argument("--auto-setup", action="store_true",
+                        help="Automatically setup everything: create directories, build if missing, download graphs if needed")
+    
     args = parser.parse_args()
     
     # Determine memory limit
@@ -4366,6 +4369,54 @@ Examples:
     
     # Ensure directories exist
     os.makedirs(args.results_dir, exist_ok=True)
+    
+    # Auto-setup: automatically handle missing components
+    if args.auto_setup or args.fill_weights or args.full:
+        log_section("Auto-Setup: Checking Prerequisites")
+        
+        # 1. Check/create directories
+        log("Checking directories...")
+        os.makedirs(args.graphs_dir, exist_ok=True)
+        os.makedirs(args.results_dir, exist_ok=True)
+        os.makedirs(os.path.dirname(args.weights_file), exist_ok=True)
+        
+        # 2. Check/build binaries
+        log("Checking binaries...")
+        if not args.skip_build:
+            if not check_and_build_binaries("."):
+                log("Build failed - attempting to continue anyway", "WARN")
+        
+        # 3. Check for graphs and download if missing
+        graphs = discover_graphs(args.graphs_dir, max_memory_gb=args.max_memory)
+        if not graphs:
+            log("No graphs found - downloading automatically...", "INFO")
+            download_graphs(
+                size_category=args.download_size,
+                graphs_dir=args.graphs_dir,
+                force=False,
+                max_memory_gb=args.max_memory,
+                max_disk_gb=args.max_disk
+            )
+            # Re-discover after download
+            graphs = discover_graphs(args.graphs_dir, max_memory_gb=args.max_memory)
+            if not graphs:
+                log("Still no graphs found after download - aborting", "ERROR")
+                sys.exit(1)
+        else:
+            log(f"Found {len(graphs)} graphs")
+        
+        # 4. Check for weights file and initialize if missing
+        if not os.path.exists(args.weights_file):
+            # Try to copy from scripts folder
+            scripts_weights = "./scripts/perceptron_weights.json"
+            if os.path.exists(scripts_weights):
+                log(f"Copying weights from {scripts_weights}", "INFO")
+                shutil.copy(scripts_weights, args.weights_file)
+            else:
+                log("Initializing new weights file...", "INFO")
+                weights = initialize_enhanced_weights(args.weights_file)
+        
+        log("Auto-setup complete\n")
     
     try:
         # Handle download-only mode
