@@ -44,8 +44,9 @@ python3 scripts/graphbrew_experiment.py --help
 
 | Feature | Description |
 |---------|-------------|
-| **Graph Download** | Downloads from SuiteSparse collection |
+| **Graph Download** | Downloads from SuiteSparse collection (56 graphs available) |
 | **Auto Build** | Compiles binaries if missing |
+| **Label Maps** | Pre-generates reordering maps for consistency |
 | **Reordering** | Tests all 20 algorithms |
 | **Benchmarks** | PR, BFS, CC, SSSP, BC |
 | **Cache Simulation** | L1/L2/L3 hit rate analysis |
@@ -59,7 +60,7 @@ python3 scripts/graphbrew_experiment.py --help
 |--------|-------------|
 | `--full` | Run complete pipeline (download → build → experiment → weights) |
 | `--download-only` | Only download graphs |
-| `--download-size` | SMALL (4 graphs), MEDIUM (11), LARGE (2), ALL (17) |
+| `--download-size` | SMALL (16), MEDIUM (20), LARGE (20), ALL (56 graphs) |
 | `--clean` | Clean results (keep graphs/weights) |
 | `--clean-all` | Full reset for fresh start |
 
@@ -71,6 +72,14 @@ python3 scripts/graphbrew_experiment.py --help
 | `--key-only` | Only test key algorithms (faster) |
 | `--skip-cache` | Skip cache simulations |
 | `--brute-force` | Run brute-force validation |
+
+#### Label Mapping (Consistent Reordering)
+| Option | Description |
+|--------|-------------|
+| `--generate-maps` | Pre-generate .lo mapping files for consistent reordering |
+| `--use-maps` | Use pre-generated label maps (avoids regenerating each run) |
+
+> **Note:** `--full` automatically enables `--generate-maps` and `--use-maps` for consistent results across all benchmarks.
 
 ### Examples
 
@@ -104,13 +113,123 @@ All outputs go to `./results/`:
 ```
 results/
 ├── graphs/                   # Downloaded graphs (if using --full)
-├── mappings/                 # Reordering label maps
-├── reorder_*.json            # Reordering times
-├── benchmark_*.json          # Benchmark results
-├── cache_*.json              # Cache simulation results
-├── perceptron_weights.json   # Trained ML weights
+│   └── {graph_name}/         # Each graph in its own directory
+│       └── {graph_name}.mtx  # Matrix Market format
+├── mappings/                 # Pre-generated label mappings
+│   ├── index.json            # Mapping index (graph → algo → path)
+│   └── {graph_name}/         # Per-graph mappings
+│       ├── HUBCLUSTERDBG.lo  # Label order for each algorithm
+│       ├── LeidenHybrid.lo
+│       └── ...
+├── reorder_*.json            # Reordering times per algorithm
+├── benchmark_*.json          # Benchmark execution results
+├── cache_*.json              # Cache simulation results (L1/L2/L3 hit rates)
+├── perceptron_weights.json   # Trained ML weights with metadata
 ├── brute_force_*.json        # Validation results
 └── logs/                     # Execution logs
+```
+
+---
+
+## Data Classes
+
+The script uses these dataclasses for structured data:
+
+### GraphInfo
+```python
+@dataclass
+class GraphInfo:
+    name: str           # Graph name
+    path: str           # Path to graph file
+    size_mb: float      # File size in MB
+    is_symmetric: bool  # Whether graph is symmetric
+    nodes: int          # Number of vertices
+    edges: int          # Number of edges
+```
+
+### ReorderResult
+```python
+@dataclass
+class ReorderResult:
+    graph: str              # Graph name
+    algorithm_id: int       # Algorithm ID (0-20)
+    algorithm_name: str     # Algorithm name
+    reorder_time: float     # Time to reorder (seconds)
+    mapping_file: str       # Path to .lo file (if generated)
+    success: bool           # Whether reordering succeeded
+    error: str              # Error message if failed
+```
+
+### BenchmarkResult
+```python
+@dataclass
+class BenchmarkResult:
+    graph: str              # Graph name
+    algorithm_id: int       # Algorithm ID
+    algorithm_name: str     # Algorithm name
+    benchmark: str          # Benchmark name (pr, bfs, etc.)
+    trial_time: float       # Average trial time
+    speedup: float          # Speedup vs ORIGINAL
+    nodes: int              # Graph nodes
+    edges: int              # Graph edges
+    success: bool           # Whether benchmark succeeded
+    error: str              # Error message if failed
+```
+
+### CacheResult
+```python
+@dataclass
+class CacheResult:
+    graph: str              # Graph name
+    algorithm_id: int       # Algorithm ID
+    algorithm_name: str     # Algorithm name
+    benchmark: str          # Benchmark name
+    l1_hit_rate: float      # L1 cache hit rate (%)
+    l2_hit_rate: float      # L2 cache hit rate (%)
+    l3_hit_rate: float      # L3 cache hit rate (%)
+    success: bool           # Whether simulation succeeded
+    error: str              # Error message if failed
+```
+
+### PerceptronWeight
+```python
+@dataclass
+class PerceptronWeight:
+    # Core weights
+    bias: float                 # Base preference (0.0-1.0+)
+    w_modularity: float         # Weight for modularity
+    w_log_nodes: float          # Weight for log(nodes)
+    w_log_edges: float          # Weight for log(edges)
+    w_density: float            # Weight for edge density
+    w_avg_degree: float         # Weight for average degree
+    w_degree_variance: float    # Weight for degree variance
+    w_hub_concentration: float  # Weight for hub concentration
+    
+    # Cache impact weights
+    cache_l1_impact: float      # L1 cache hit rate impact
+    cache_l2_impact: float      # L2 cache hit rate impact
+    cache_l3_impact: float      # L3 cache hit rate impact
+    cache_dram_penalty: float   # DRAM access penalty
+    
+    # Reorder time weight
+    w_reorder_time: float       # Penalty for reorder time
+    
+    # Training metadata
+    _metadata: Dict             # win_rate, avg_speedup, sample_count, etc.
+```
+
+### DownloadableGraph
+```python
+@dataclass
+class DownloadableGraph:
+    name: str           # Graph name
+    url: str            # Download URL
+    size_mb: int        # Expected size in MB
+    nodes: int          # Number of nodes
+    edges: int          # Number of edges
+    symmetric: bool     # Whether graph is symmetric
+    category: str       # Category (social, web, road, etc.)
+    description: str    # Human-readable description
 ```
 
 ---

@@ -284,28 +284,24 @@ Triangle counting benefits from processing vertices in degree order:
 
 ## Running Multiple Benchmarks
 
-### Using the Benchmark Suite
+### Using the Unified Script (Recommended)
 
 ```bash
-# Run all benchmarks on one graph
-python3 scripts/benchmark/run_benchmark.py \
-    --graph ./graphs/soc-LiveJournal1/graph.el \
-    --benchmarks pr bfs cc \
-    --algorithms 0 12 20 \
-    --trials 3
+# One-click: downloads graphs, runs all benchmarks with all algorithms
+python3 scripts/graphbrew_experiment.py --full --download-size SMALL
 
-# Run on all downloaded graphs
-python3 scripts/benchmark/run_benchmark.py \
-    --graphs-dir ./graphs \
-    --benchmarks pr bfs \
-    --algorithms 0 7 12 20
+# Run benchmarks on specific graphs
+python3 scripts/graphbrew_experiment.py --phase benchmark --graphs small --trials 3
+
+# Run specific benchmarks only
+python3 scripts/graphbrew_experiment.py --benchmarks pr bfs --graphs small
 ```
 
 ### Quick Comparison Script
 
 ```bash
 #!/bin/bash
-GRAPH="./graphs/amazon0601/graph.el"
+GRAPH="./results/graphs/email-Enron/email-Enron.mtx"
 ALGOS="0 7 12 20"
 TRIALS=3
 

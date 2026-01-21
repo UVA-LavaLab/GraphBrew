@@ -32,39 +32,34 @@ If the file doesn't exist, C++ uses hardcoded defaults with conservative weights
 
 ## File Structure
 
-### Complete Example
+### Complete Example (Current Format)
 
 ```json
 {
   "ORIGINAL": {
-    "bias": 0.6,
+    "bias": 0.5,
     "w_modularity": 0.0,
-    "w_log_nodes": -0.1,
-    "w_log_edges": -0.1,
-    "w_density": 0.1,
+    "w_log_nodes": 0.001,
+    "w_log_edges": 0.0,
+    "w_density": -0.001,
     "w_avg_degree": 0.0,
-    "w_degree_variance": 0.0,
-    "w_hub_concentration": 0.0
-  },
-  "HUBCLUSTERDBG": {
-    "bias": 0.75,
-    "w_modularity": 0.1,
-    "w_log_nodes": 0.05,
-    "w_log_edges": 0.05,
-    "w_density": 0.0,
-    "w_avg_degree": 0.2,
-    "w_degree_variance": 0.2,
-    "w_hub_concentration": 0.35
-  },
-  "LeidenOrder": {
-    "bias": 0.7,
-    "w_modularity": 0.2,
-    "w_log_nodes": 0.08,
-    "w_log_edges": 0.08,
-    "w_density": -0.05,
-    "w_avg_degree": 0.1,
-    "w_degree_variance": 0.1,
-    "w_hub_concentration": 0.15
+    "w_degree_variance": 0.001,
+    "w_hub_concentration": 0.001,
+    "cache_l1_impact": 0,
+    "cache_l2_impact": 0,
+    "cache_l3_impact": 0,
+    "cache_dram_penalty": 0,
+    "w_reorder_time": 0,
+    "_metadata": {
+      "win_rate": 1.0,
+      "avg_speedup": 1.0,
+      "times_best": 5,
+      "sample_count": 5,
+      "avg_reorder_time": 0.0,
+      "avg_l1_hit_rate": 0.0,
+      "avg_l2_hit_rate": 0.0,
+      "avg_l3_hit_rate": 0.0
+    }
   },
   "LeidenHybrid": {
     "bias": 0.85,
@@ -74,17 +69,22 @@ If the file doesn't exist, C++ uses hardcoded defaults with conservative weights
     "w_density": -0.05,
     "w_avg_degree": 0.15,
     "w_degree_variance": 0.15,
-    "w_hub_concentration": 0.25
-  },
-  "RCM": {
-    "bias": 0.55,
-    "w_modularity": -0.15,
-    "w_log_nodes": 0.0,
-    "w_log_edges": 0.0,
-    "w_density": 0.2,
-    "w_avg_degree": 0.1,
-    "w_degree_variance": -0.15,
-    "w_hub_concentration": -0.2
+    "w_hub_concentration": 0.25,
+    "cache_l1_impact": 0.1,
+    "cache_l2_impact": 0.05,
+    "cache_l3_impact": 0.02,
+    "cache_dram_penalty": -0.1,
+    "w_reorder_time": -0.0001,
+    "_metadata": {
+      "win_rate": 0.85,
+      "avg_speedup": 2.34,
+      "times_best": 42,
+      "sample_count": 50,
+      "avg_reorder_time": 1.234,
+      "avg_l1_hit_rate": 85.2,
+      "avg_l2_hit_rate": 92.1,
+      "avg_l3_hit_rate": 98.5
+    }
   }
 }
 ```
@@ -93,21 +93,11 @@ If the file doesn't exist, C++ uses hardcoded defaults with conservative weights
 
 ## Weight Definitions
 
-### Bias
-
-The base preference for an algorithm, independent of features.
-
-| Value | Meaning |
-|-------|---------|
-| 0.3 - 0.5 | Low preference (rarely selected) |
-| 0.5 - 0.7 | Moderate preference |
-| 0.7 - 0.9 | High preference (often selected) |
-| > 0.9 | Very high (almost always selected) |
-
-### Feature Weights
+### Core Weights
 
 | Weight | Feature | Description |
 |--------|---------|-------------|
+| `bias` | - | Base preference for algorithm (higher = more likely selected) |
 | `w_modularity` | modularity | Leiden community quality score (0-1) |
 | `w_log_nodes` | log₁₀(nodes) | Community size (vertices) |
 | `w_log_edges` | log₁₀(edges) | Community size (edges) |
@@ -116,15 +106,33 @@ The base preference for an algorithm, independent of features.
 | `w_degree_variance` | degree_var/100 | Degree distribution spread |
 | `w_hub_concentration` | hub_conc | Edge fraction to top 10% vertices |
 
-### Weight Ranges
+### Cache Impact Weights (NEW)
 
-| Range | Interpretation |
-|-------|----------------|
-| +0.2 to +0.35 | Strong positive: algorithm excels when feature is high |
-| +0.1 to +0.2 | Moderate positive |
-| -0.1 to +0.1 | Weak: feature doesn't strongly influence this algorithm |
-| -0.2 to -0.1 | Moderate negative |
-| -0.35 to -0.2 | Strong negative: algorithm struggles when feature is high |
+| Weight | Description |
+|--------|-------------|
+| `cache_l1_impact` | Bonus for algorithms with high L1 hit rates |
+| `cache_l2_impact` | Bonus for algorithms with high L2 hit rates |
+| `cache_l3_impact` | Bonus for algorithms with high L3 hit rates |
+| `cache_dram_penalty` | Penalty for DRAM access (cache misses) |
+
+### Reorder Time Weight (NEW)
+
+| Weight | Description |
+|--------|-------------|
+| `w_reorder_time` | Penalty for slow reordering (typically negative, e.g., -0.0001) |
+
+### Metadata Fields (Auto-generated)
+
+| Field | Description |
+|-------|-------------|
+| `win_rate` | Fraction of benchmarks where this algorithm was best |
+| `avg_speedup` | Average speedup over ORIGINAL |
+| `times_best` | Number of times this algorithm was optimal |
+| `sample_count` | Number of graph/benchmark samples |
+| `avg_reorder_time` | Average time to reorder (seconds) |
+| `avg_l1_hit_rate` | Average L1 cache hit rate (%) |
+| `avg_l2_hit_rate` | Average L2 cache hit rate (%) |
+| `avg_l3_hit_rate` | Average L3 cache hit rate (%) |
 
 ---
 
@@ -309,18 +317,17 @@ nano scripts/perceptron_weights.json
 python3 -c "import json; json.load(open('scripts/perceptron_weights.json'))"
 ```
 
-### Hybrid: Start from Correlation, Then Tune
+### Hybrid: Start from Auto-Generated, Then Tune
 
 ```bash
-# Generate base weights
-python3 scripts/analysis/correlation_analysis.py --graphs-dir ./graphs
+# Generate weights from benchmark data
+python3 scripts/graphbrew_experiment.py --phase weights
 
 # Backup
-cp scripts/perceptron_weights.json scripts/perceptron_weights.json.auto
+cp results/perceptron_weights.json results/perceptron_weights.json.auto
 
-# Edit manually
-# Increase LeidenHybrid bias, decrease ORIGINAL
-vim scripts/perceptron_weights.json
+# Edit manually to adjust biases
+vim results/perceptron_weights.json
 ```
 
 ---

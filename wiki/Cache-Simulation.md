@@ -168,36 +168,68 @@ done
 
 ### 3. Perceptron Training Features
 
-The cache simulator provides features for the ML-based algorithm selector:
-
-```python
-import json
-
-with open('cache_stats.json') as f:
-    data = json.load(f)
-
-# Cache features from JSON
-features = [
-    data['L1']['hit_rate'],           # L1 hit rate
-    data['L2']['hit_rate'],           # L2 hit rate
-    data['L3']['hit_rate'],           # L3 hit rate
-    data['memory_accesses'] / data['total_accesses'],  # DRAM access rate
-    data['L1']['evictions'] / (data['L1']['hits'] + data['L1']['misses']),  # L1 eviction rate
-    data['L2']['evictions'] / (data['L2']['hits'] + data['L2']['misses']),  # L2 eviction rate
-    data['L3']['evictions'] / (data['L3']['hits'] + data['L3']['misses']),  # L3 eviction rate
-]
-```
-
-### 4. Cache Benchmark Suite
-
-Run comprehensive cache benchmarks across reorderings:
+The cache simulator provides features for the ML-based algorithm selector. The unified experiment script automatically collects these:
 
 ```bash
-# Quick benchmark with synthetic graphs
-python3 scripts/analysis/cache_benchmark.py --quick
+# Run cache simulation as part of the full pipeline
+python3 scripts/graphbrew_experiment.py --full --download-size SMALL
 
-# Full benchmark suite
-python3 scripts/analysis/cache_benchmark.py \
+# Or just the cache phase
+python3 scripts/graphbrew_experiment.py --phase cache
+```
+
+Cache features are stored in `results/cache_*.json` and integrated into perceptron weights:
+
+```json
+{
+  "LeidenHybrid": {
+    "bias": 0.85,
+    "w_modularity": 0.25,
+    "cache_l1_impact": 0.1,
+    "cache_l2_impact": 0.05,
+    "cache_l3_impact": 0.02,
+    "cache_dram_penalty": -0.1,
+    "_metadata": {
+      "avg_l1_hit_rate": 85.2,
+      "avg_l2_hit_rate": 92.1,
+      "avg_l3_hit_rate": 98.5
+    }
+  }
+}
+```
+
+The perceptron uses these weights to factor cache performance into algorithm selection.
+
+### 4. Automated Cache Benchmark Suite
+
+Run comprehensive cache benchmarks using the unified script:
+
+```bash
+# Run cache simulation on all graphs
+python3 scripts/graphbrew_experiment.py --phase cache
+
+# Skip heavy simulations (BC, SSSP) on large graphs
+python3 scripts/graphbrew_experiment.py --phase cache --skip-heavy
+
+# Full pipeline includes cache simulation automatically
+python3 scripts/graphbrew_experiment.py --full --download-size MEDIUM
+```
+
+Results are saved to `results/cache_*.json`:
+
+```json
+{
+  "graph": "email-Enron",
+  "algorithm_id": 20,
+  "algorithm_name": "LeidenHybrid",
+  "benchmark": "pr",
+  "l1_hit_rate": 85.2,
+  "l2_hit_rate": 92.1,
+  "l3_hit_rate": 98.5,
+  "success": true,
+  "error": ""
+}
+```
     --algorithms pr bfs cc bc sssp tc \
     --reorders 0 7 8 12 17 20 \
     --graphs-dir ./graphs \
@@ -286,20 +318,24 @@ The perceptron uses 14 features (7 structural + 7 cache):
 ### Training Pipeline
 
 ```bash
-# 1. Run cache benchmarks to collect features
-python3 scripts/analysis/cache_benchmark.py \
-    --graphs-dir ./graphs \
-    --output ./cache_results
+# 1. Run full pipeline (includes cache simulation)
+python3 scripts/graphbrew_experiment.py --full --download-size SMALL
 
-# 2. Generate perceptron features
-python3 scripts/analysis/perceptron_features.py \
-    --graphs-dir ./graphs \
-    --include-cache \
-    --output ./perceptron_weights.json
+# 2. Or run cache phase separately
+python3 scripts/graphbrew_experiment.py --phase cache --graphs small
 
-# 3. Use in benchmarks with AdaptiveOrder
+# 3. Generate weights with cache features
+python3 scripts/graphbrew_experiment.py --phase weights
+
+# 4. Use in benchmarks with AdaptiveOrder
 ./bench/bin/pr -g 18 -o 15  # AdaptiveOrder uses trained weights
 ```
+
+Cache features are automatically integrated into perceptron weights:
+- `cache_l1_impact`: Bonus for high L1 hit rate
+- `cache_l2_impact`: Bonus for high L2 hit rate  
+- `cache_l3_impact`: Bonus for high L3 hit rate
+- `cache_dram_penalty`: Penalty for DRAM accesses
 
 ### C++ Integration
 
