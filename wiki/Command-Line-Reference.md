@@ -363,6 +363,55 @@ done
 
 ---
 
+## Python Script Options (graphbrew_experiment.py)
+
+The unified experiment script provides comprehensive options for training and benchmarking.
+
+### Pipeline Options
+
+| Option | Description |
+|--------|-------------|
+| `--full` | Run complete pipeline (download → build → experiment → weights) |
+| `--download-only` | Only download graphs |
+| `--download-size SIZE` | SMALL (16), MEDIUM (20), LARGE (20), ALL (56 graphs) |
+| `--phase PHASE` | Run specific phase: all, reorder, benchmark, cache, weights, adaptive |
+
+### Training Options
+
+| Option | Description |
+|--------|-------------|
+| `--train-adaptive` | Run iterative training feedback loop |
+| `--train-large` | Large-scale training with batching and multi-benchmark support |
+| `--target-accuracy N` | Target accuracy % for training (default: 80) |
+| `--max-iterations N` | Maximum training iterations (default: 10) |
+| `--learning-rate N` | Weight adjustment rate (default: 0.1) |
+| `--fill-weights` | Fill ALL weight fields: runs cache sim, graph features, benchmark analysis |
+| `--init-weights` | Initialize/upgrade weights file with enhanced features |
+
+### Label Map Options
+
+| Option | Description |
+|--------|-------------|
+| `--generate-maps` | Pre-generate .lo mapping files for consistent reordering |
+| `--use-maps` | Use pre-generated label maps instead of regenerating |
+
+### Examples
+
+```bash
+# Fill all weight fields comprehensively
+python3 scripts/graphbrew_experiment.py --fill-weights --graphs small --max-graphs 5
+
+# Iterative training to 85% accuracy
+python3 scripts/graphbrew_experiment.py --train-adaptive --target-accuracy 85 --graphs small
+
+# Download and run full pipeline
+python3 scripts/graphbrew_experiment.py --full --download-size SMALL
+```
+
+See [[Python-Scripts]] for complete documentation.
+
+---
+
 ## Tips
 
 1. **Always use `-s`** for undirected graphs

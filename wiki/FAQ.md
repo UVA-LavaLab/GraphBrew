@@ -188,6 +188,29 @@ GraphBrew uses Leiden to guide reordering decisions.
 
 See [[AdaptiveOrder-ML]] for details.
 
+### Why are some perceptron weights 0 or 1.0?
+
+Weight fields remain at 0 or default 1.0 when:
+1. **Cache simulation was skipped** (`--skip-cache`) - no cache impact data
+2. **Graph features weren't computed** - no topology metrics
+3. **No benchmark data** - no per-benchmark weights
+
+**Fix**: Run the comprehensive fill-weights mode:
+```bash
+python3 scripts/graphbrew_experiment.py --fill-weights --graphs small --max-graphs 5 --trials 2
+```
+
+This populates all fields including `cache_l1/l2/l3_impact`, `w_clustering_coeff`, `w_diameter`, and `benchmark_weights`.
+
+### Where are the trained weights saved?
+
+Weights are saved in multiple locations:
+- **Primary**: `results/perceptron_weights.json` - runtime weights
+- **Backups**: `results/perceptron_weights_YYYYMMDD_HHMMSS.json` - timestamped backups
+- **Scripts**: `scripts/perceptron_weights.json` - loaded for next experiment run
+
+The system automatically backs up and syncs after every weight save.
+
 ### What's the difference between LeidenOrder and LeidenHybrid?
 
 | Algorithm | Approach |
