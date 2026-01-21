@@ -81,12 +81,12 @@ python3 scripts/graphbrew_experiment.py --full --download-size SMALL
 ```
 
 This single command will:
-1. **Download** benchmark graphs from SuiteSparse collection
+1. **Download** benchmark graphs from SuiteSparse collection (56 graphs available)
 2. **Build** the benchmark binaries automatically
-3. **Generate** reorderings with all 20 algorithms
-4. **Run** performance benchmarks (BFS, PR, CC, SSSP, BC)
-5. **Execute** cache simulations for detailed analysis
-6. **Train** perceptron weights for AdaptiveOrder
+3. **Generate** label mappings for consistent reordering across all benchmarks
+4. **Run** performance benchmarks (BFS, PR, CC, SSSP, BC) with all 20 algorithms
+5. **Execute** cache simulations for L1/L2/L3 hit rate analysis
+6. **Train** perceptron weights for AdaptiveOrder (with cache + reorder time features)
 
 All results are saved to `./results/` for easy analysis.
 
@@ -105,12 +105,24 @@ python3 scripts/graphbrew_experiment.py --graphs small --key-only
 # Run brute-force validation (test adaptive vs all 20 algorithms)
 python3 scripts/graphbrew_experiment.py --brute-force
 
+# Use pre-generated label maps for consistent reordering
+python3 scripts/graphbrew_experiment.py --generate-maps --use-maps
+
 # Clean and start fresh
 python3 scripts/graphbrew_experiment.py --clean-all --full --download-size SMALL
 
 # See all options
 python3 scripts/graphbrew_experiment.py --help
 ```
+
+### Graph Catalog
+
+| Size | Graphs | Total Size | Categories |
+|------|--------|------------|------------|
+| `SMALL` | 16 | ~62 MB | communication, collaboration, p2p, social, citation |
+| `MEDIUM` | 20 | ~1.2 GB | web, road, social, commerce, biology, infrastructure |
+| `LARGE` | 20 | ~68 GB | social, web, road (includes twitter7, webbase-2001) |
+| `ALL` | **56** | ~70 GB | Complete benchmark set |
 
 ## Prerequisites
 
@@ -169,13 +181,54 @@ Benchmark results are organized in the `results/` folder:
 ```
 results/
 ├── graphs/                    # Downloaded graphs (if using --full)
-├── mappings/                  # Reordering label maps
-├── reorder_*.json             # Reordering times
-├── benchmark_*.json           # Benchmark results  
-├── cache_*.json               # Cache simulation results
-├── perceptron_weights.json    # Trained ML weights
+│   └── {graph_name}/          # Each graph in its own directory
+│       └── {name}.mtx         # Matrix Market format
+├── mappings/                  # Pre-generated label orderings
+│   ├── index.json             # Mapping index: graph → algo → path
+│   └── {graph_name}/          # Per-graph mappings
+│       ├── HUBCLUSTERDBG.lo   # Label order file for each algorithm
+│       ├── LeidenHybrid.lo
+│       └── ...
+├── reorder_*.json             # Reordering times per algorithm
+├── benchmark_*.json           # Benchmark execution results  
+├── cache_*.json               # Cache simulation results (L1/L2/L3)
+├── perceptron_weights.json    # Trained ML weights with metadata
 ├── brute_force_*.json         # Validation results
 └── logs/                      # Execution logs
+```
+
+### Perceptron Weights Format
+
+The trained weights include cache impact and reorder time features:
+
+```json
+{
+  "LeidenHybrid": {
+    "bias": 0.85,
+    "w_modularity": 0.25,
+    "w_log_nodes": 0.1,
+    "w_log_edges": 0.1,
+    "w_density": -0.05,
+    "w_avg_degree": 0.15,
+    "w_degree_variance": 0.15,
+    "w_hub_concentration": 0.25,
+    "cache_l1_impact": 0.1,
+    "cache_l2_impact": 0.05,
+    "cache_l3_impact": 0.02,
+    "cache_dram_penalty": -0.1,
+    "w_reorder_time": -0.0001,
+    "_metadata": {
+      "win_rate": 0.85,
+      "avg_speedup": 2.34,
+      "times_best": 42,
+      "sample_count": 50,
+      "avg_reorder_time": 1.234,
+      "avg_l1_hit_rate": 85.2,
+      "avg_l2_hit_rate": 92.1,
+      "avg_l3_hit_rate": 98.5
+    }
+  }
+}
 ```
 
 > 📖 **Understanding results?** See **[Correlation Analysis Wiki](https://github.com/UVA-LavaLab/GraphBrew/wiki/Correlation-Analysis)** for interpretation guides.
@@ -218,37 +271,36 @@ CACHE_L2_SIZE=262144 CACHE_L3_SIZE=12582912 \
 
 ## Cache Benchmark Suite
 
-The Python cache benchmark script provides comprehensive analysis:
+The unified experiment script includes comprehensive cache analysis:
 
 ```bash
-# Quick test with synthetic graphs
-python3 scripts/analysis/cache_benchmark.py --quick
+# One-click: includes cache simulation
+python3 scripts/graphbrew_experiment.py --full --download-size SMALL
 
-# Full benchmark across algorithms and reorders
-python3 scripts/analysis/cache_benchmark.py \
-    --algorithms pr bfs cc \
-    --reorders 0 7 12 17 20 \
-    --output ./cache_results
+# Cache simulation only
+python3 scripts/graphbrew_experiment.py --phase cache --graphs small
 
-# Real graphs with correlation analysis
-python3 scripts/analysis/cache_benchmark.py \
-    --graphs-dir ./graphs \
-    --output ./cache_results
+# Skip heavy simulations (BC, SSSP) on large graphs
+python3 scripts/graphbrew_experiment.py --phase cache --skip-heavy
 ```
+
+Results are saved to `results/cache_*.json` with L1/L2/L3 hit rates for each graph/algorithm combination.
 
 ## Cache Features for ML
 
-Cache performance metrics are used as features for the perceptron model:
+Cache performance metrics are integrated into perceptron weights:
 
-| Feature | Description |
-|---------|-------------|
-| `l1_hit_rate` | L1 cache hit rate (0.0-1.0) |
-| `l2_hit_rate` | L2 cache hit rate (0.0-1.0) |
-| `l3_hit_rate` | L3 cache hit rate (0.0-1.0) |
-| `dram_access_rate` | Rate of accesses reaching main memory |
-| `l1_eviction_rate` | L1 cache eviction rate |
-| `l2_eviction_rate` | L2 cache eviction rate |
-| `l3_eviction_rate` | L3 cache eviction rate |
+| Weight | Description |
+|--------|-------------|
+| `cache_l1_impact` | Bonus for algorithms with high L1 hit rate |
+| `cache_l2_impact` | Bonus for algorithms with high L2 hit rate |
+| `cache_l3_impact` | Bonus for algorithms with high L3 hit rate |
+| `cache_dram_penalty` | Penalty for DRAM accesses (cache misses) |
+
+Metadata includes average hit rates:
+- `avg_l1_hit_rate`: Mean L1 hit rate across benchmarks
+- `avg_l2_hit_rate`: Mean L2 hit rate across benchmarks
+- `avg_l3_hit_rate`: Mean L3 hit rate across benchmarks
 
 For detailed documentation, see **[Cache Simulation Wiki](https://github.com/UVA-LavaLab/GraphBrew/wiki/Cache-Simulation)**.
 
@@ -297,74 +349,57 @@ python3 scripts/download/download_graphs.py --validate
 **Available Graph Sizes:**
 | Size | Graphs | Download | Use Case |
 |------|--------|----------|----------|
-| SMALL | 4 | ~12MB | Quick testing |
-| MEDIUM | 17 | ~600MB | Development & validation |
-| LARGE | 8 | ~72GB | Full paper experiments |
+| SMALL | 16 | ~62 MB | Quick testing |
+| MEDIUM | 20 | ~1.2 GB | Development & validation |
+| LARGE | 20 | ~68 GB | Full paper experiments |
+| ALL | 56 | ~70 GB | Complete benchmark |
 
 ## Step 3: Run Benchmarks
 
 ### Quick Validation (5-10 minutes)
 ```bash
-# Test with synthetic RMAT graphs
-python3 scripts/benchmark/run_benchmark.py --quick --benchmark pr bfs
+# One-click full pipeline (recommended)
+python3 scripts/graphbrew_experiment.py --full --download-size SMALL
 
-# Test specific algorithms on small graphs
-python3 scripts/benchmark/run_benchmark.py \
-    --graphs-config ./graphs/graphs.json \
-    --benchmark pr \
-    --algorithms 0,7,12,15,20 \
-    --trials 3
+# Quick test with key algorithms
+python3 scripts/graphbrew_experiment.py --graphs small --key-only --skip-cache
 ```
 
 ### Full Benchmark Suite (several hours)
 ```bash
-# Run all algorithms on all downloaded graphs
-python3 scripts/benchmark/run_benchmark.py \
-    --graphs-config ./graphs/graphs.json \
-    --benchmark pr bfs cc sssp bc \
-    --algorithms 0,1,2,3,4,5,6,7,8,9,10,11,12,15,16,17,18,19,20 \
-    --trials 16 \
-    --output ./bench/results/full_benchmark.json
+# Run all algorithms on all graphs with cache simulation
+python3 scripts/graphbrew_experiment.py --full --download-size MEDIUM
+
+# Or run benchmarks separately from downloads
+python3 scripts/graphbrew_experiment.py --phase benchmark --graphs medium --trials 16
 ```
 
 ### Multi-Source Benchmarks (BFS, SSSP, BC)
-For traversal algorithms, the benchmark automatically runs 16+ source nodes for statistical significance:
+For traversal algorithms, the benchmark automatically runs multiple source nodes:
 ```bash
-python3 scripts/benchmark/run_benchmark.py \
-    --graphs-config ./graphs/graphs.json \
-    --benchmark bfs sssp bc \
-    --trials 16
+python3 scripts/graphbrew_experiment.py --phase benchmark --benchmarks bfs sssp bc --trials 16
 ```
 
 ## Step 4: Analyze Results
 
-### PageRank Convergence Analysis
+### Generate Perceptron Weights (AdaptiveOrder)
 ```bash
-# Analyze iteration counts per reordering algorithm
-python3 scripts/benchmark/run_pagerank_convergence.py \
-    --graphs-config ./graphs/graphs.json \
-    --algorithms 0,1,2,3,7,12,15,20
+# Generate weights from existing benchmark + cache results
+python3 scripts/graphbrew_experiment.py --phase weights
 ```
 
-### Feature-Algorithm Correlation
+### Brute-Force Validation
 ```bash
-# Discover which algorithms work best for different graph types
-python3 scripts/analysis/correlation_analysis.py \
-    --graphs-config ./graphs/graphs.json \
-    --benchmark pr bfs \
-    --output ./bench/results/correlations.json
+# Compare adaptive selection vs all 20 algorithms
+python3 scripts/graphbrew_experiment.py --brute-force --graphs small
 ```
 
-### Train Perceptron Weights (AdaptiveOrder)
-```bash
-# Generate optimal perceptron weights from benchmark data
-# - Generates weights for ALL algorithms (0-20)
-# - Creates backup of existing weights automatically
-# - Merges benchmark results with sensible defaults
-# - Partially tested algorithms keep their learned weights
-python3 scripts/analysis/correlation_analysis.py \
-    --graphs-dir ./graphs \
-    --benchmark pr bfs
+### Results Location
+All results are saved to `./results/`:
+- `benchmark_*.json` - Execution times and speedups
+- `cache_*.json` - L1/L2/L3 cache hit rates
+- `reorder_*.json` - Reordering times per algorithm
+- `perceptron_weights.json` - Trained ML weights with metadata
 
 # Quick test with synthetic graphs (uses defaults for untested algorithms)
 python3 scripts/analysis/correlation_analysis.py --quick

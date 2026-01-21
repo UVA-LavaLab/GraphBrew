@@ -9,12 +9,12 @@ scripts/
 ├── graphbrew_experiment.py           # ⭐ MAIN: One-click unified pipeline
 │                                      #    Downloads, builds, benchmarks, analyzes
 ├── benchmark/
-│   ├── run_benchmark.py              # Legacy benchmark runner
 │   └── run_pagerank_convergence.py   # PageRank iteration analysis
 ├── download/
 │   └── download_graphs.py            # Graph downloader (standalone)
 └── analysis/
-    └── correlation_analysis.py       # Results analysis
+    ├── correlation_analysis.py       # Results analysis
+    └── perceptron_features.py        # ML feature extraction
 ```
 
 ---
@@ -44,192 +44,181 @@ python3 scripts/graphbrew_experiment.py --brute-force
 
 | Size | Graphs | Total Size | Use Case |
 |------|--------|------------|----------|
-| `SMALL` | 4 | ~12 MB | Quick testing |
-| `MEDIUM` | 11 | ~624 MB | Standard experiments |
-| `LARGE` | 2 | ~1.6 GB | Full evaluation |
-| `ALL` | 17 | ~2.2 GB | Complete benchmark |
+| `SMALL` | 16 | ~62 MB | Quick testing |
+| `MEDIUM` | 20 | ~1.2 GB | Standard experiments |
+| `LARGE` | 20 | ~68 GB | Full evaluation |
+| `ALL` | 56 | ~70 GB | Complete benchmark |
+
+### Graph Categories
+
+The graph catalog includes diverse graph types:
+
+| Category | Examples | Count |
+|----------|----------|-------|
+| Social | soc-LiveJournal, com-Orkut, twitter7 | 12 |
+| Web | uk-2002, webbase-2001, web-Google | 10 |
+| Road | roadNet-CA, europe-osm, USA-road-d | 6 |
+| Collaboration | hollywood-2009, com-DBLP, ca-AstroPh | 8 |
+| Commerce | amazon0601, com-Amazon | 5 |
+| Communication | email-Enron, wiki-Talk | 4 |
+| Citation | cit-Patents, cit-HepPh | 4 |
+| P2P | p2p-Gnutella24/25/30/31 | 4 |
+| Biology | bio-CE-CX, bio-DM-CX, kmer_V1r | 4 |
+| Infrastructure | as-Skitter | 1 |
 
 All results are saved to `./results/`:
 - `reorder_*.json` - Reordering times
 - `benchmark_*.json` - Execution times  
-- `cache_*.json` - Cache hit rates
-- `perceptron_weights.json` - Trained ML weights
+- `cache_*.json` - Cache hit rates (L1/L2/L3)
+- `mappings/` - Pre-generated label maps for consistent reordering
+- `perceptron_weights.json` - Trained ML weights with metadata
 
 ---
 
-## Legacy Scripts (Manual Approach)
+## Alternative Approach (Manual)
+
+If you prefer more control, you can use specific phases of the unified script:
 
 ### 1. Download Graphs
 
 ```bash
 # List available graphs
-python3 scripts/download/download_graphs.py --list
+python3 scripts/graphbrew_experiment.py --download-only --download-size SMALL
 
-# Download medium-sized graphs (~600MB)
-python3 scripts/download/download_graphs.py --size MEDIUM --output-dir ./graphs
+# Download specific size category
+python3 scripts/graphbrew_experiment.py --download-only --download-size MEDIUM
+
+# Force re-download
+python3 scripts/graphbrew_experiment.py --download-only --force-download
 ```
 
-### 2. Run Benchmarks
+### 2. Generate Label Maps (Consistent Reordering)
 
 ```bash
-# Quick test
-python3 scripts/benchmark/run_benchmark.py --quick --benchmark pr bfs
-
-# Full benchmark
-python3 scripts/benchmark/run_benchmark.py \
-    --graphs-config ./graphs/graphs.json \
-    --benchmark pr bfs cc \
-    --algorithms 0,7,12,15,20 \
-    --trials 5
+# Pre-generate label maps for all algorithms
+python3 scripts/graphbrew_experiment.py --generate-maps --graphs small
 ```
 
-### 3. Analyze Results
+### 3. Run Specific Phase
 
 ```bash
-python3 scripts/analysis/correlation_analysis.py \
-    --graphs-dir ./graphs \
-    --benchmark pr bfs
+# Just reordering phase (measure reorder times)
+python3 scripts/graphbrew_experiment.py --phase reorder --graphs small
+
+# Just benchmarks (skip cache simulation)
+python3 scripts/graphbrew_experiment.py --phase benchmark --graphs small --skip-cache
+
+# Just cache simulation
+python3 scripts/graphbrew_experiment.py --phase cache --graphs small
+
+# Just weight generation (from existing results)
+python3 scripts/graphbrew_experiment.py --phase weights
+```
+
+### 4. Custom Configuration
+
+```bash
+# Specify graph size range
+python3 scripts/graphbrew_experiment.py --min-size 10 --max-size 500
+
+# Limit number of graphs
+python3 scripts/graphbrew_experiment.py --max-graphs 10
+
+# Custom trials
+python3 scripts/graphbrew_experiment.py --trials 10
+
+# Key algorithms only (faster)
+python3 scripts/graphbrew_experiment.py --key-only
 ```
 
 ---
 
-## run_benchmark.py (Legacy)
+## Output Format
 
-The standalone benchmark runner for custom experiments.
+### Benchmark Results (benchmark_*.json)
 
-### Basic Usage
-
-```bash
-python3 scripts/benchmark/run_benchmark.py [options]
+```json
+[
+  {
+    "graph": "email-Enron",
+    "algorithm_id": 20,
+    "algorithm_name": "LeidenHybrid",
+    "benchmark": "pr",
+    "trial_time": 0.0234,
+    "speedup": 1.85,
+    "nodes": 36692,
+    "edges": 183831,
+    "success": true,
+    "error": ""
+  }
+]
 ```
 
-### Options
+### Cache Results (cache_*.json)
 
-| Option | Description | Default |
-|--------|-------------|---------|
-| `--graphs-config` | Path to graphs.json | Auto-detect |
-| `--graphs-dir` | Directory with graph files | `./graphs` |
-| `--benchmark` | Benchmarks to run | `pr` |
-| `--algorithms` | Algorithm IDs (comma-separated) | `0,7,12,20` |
-| `--trials` | Number of trials per run | `5` |
-| `--output` | Output JSON file | `results.json` |
-| `--quick` | Quick test with synthetic graphs | False |
-| `--timeout` | Timeout per run (seconds) | `3600` |
-
-### Examples
-
-#### Quick Validation Test
-```bash
-python3 scripts/benchmark/run_benchmark.py \
-    --quick \
-    --benchmark pr \
-    --algorithms 0,7,20 \
-    --trials 1
+```json
+[
+  {
+    "graph": "email-Enron",
+    "algorithm_id": 20,
+    "algorithm_name": "LeidenHybrid",
+    "benchmark": "pr",
+    "l1_hit_rate": 85.2,
+    "l2_hit_rate": 92.1,
+    "l3_hit_rate": 98.5,
+    "success": true,
+    "error": ""
+  }
+]
 ```
 
-#### Full Experiment Suite
-```bash
-python3 scripts/benchmark/run_benchmark.py \
-    --graphs-config ./graphs/graphs.json \
-    --benchmark pr bfs cc sssp bc tc \
-    --algorithms 0,1,2,3,4,5,6,7,8,9,10,11,12,15,16,17,18,19,20 \
-    --trials 16 \
-    --output ./bench/results/full_benchmark.json
+### Reorder Results (reorder_*.json)
+
+```json
+[
+  {
+    "graph": "email-Enron",
+    "algorithm_id": 20,
+    "algorithm_name": "LeidenHybrid",
+    "reorder_time": 0.145,
+    "mapping_file": "results/mappings/email-Enron/LeidenHybrid.lo",
+    "success": true,
+    "error": ""
+  }
+]
 ```
 
-#### Specific Algorithms on Specific Graphs
-```bash
-python3 scripts/benchmark/run_benchmark.py \
-    --graphs-dir ./graphs \
-    --benchmark pr bfs \
-    --algorithms 0,12,20 \
-    --trials 10
-```
-
-### Output Format
-
-Results are saved as JSON:
+### Perceptron Weights (perceptron_weights.json)
 
 ```json
 {
-  "metadata": {
-    "date": "2026-01-18",
-    "trials": 5,
-    "benchmarks": ["pr", "bfs"],
-    "algorithms": [0, 7, 12, 20]
-  },
-  "results": {
-    "facebook": {
-      "pr": {
-        "0": {"mean": 0.0523, "std": 0.002, "times": [0.051, 0.053, ...]},
-        "7": {"mean": 0.0412, "std": 0.001, "times": [0.041, 0.042, ...]},
-        "20": {"mean": 0.0371, "std": 0.001, "times": [0.037, 0.038, ...]}
-      },
-      "bfs": {
-        "0": {"mean": 0.0089, "std": 0.001, "mteps": 9923.4},
-        ...
-      }
+  "LeidenHybrid": {
+    "bias": 0.85,
+    "w_modularity": 0.25,
+    "w_log_nodes": 0.1,
+    "w_log_edges": 0.1,
+    "w_density": -0.05,
+    "w_avg_degree": 0.15,
+    "w_degree_variance": 0.15,
+    "w_hub_concentration": 0.25,
+    "cache_l1_impact": 0.1,
+    "cache_l2_impact": 0.05,
+    "cache_l3_impact": 0.02,
+    "cache_dram_penalty": -0.1,
+    "w_reorder_time": -0.0001,
+    "_metadata": {
+      "win_rate": 0.85,
+      "avg_speedup": 2.34,
+      "times_best": 42,
+      "sample_count": 50,
+      "avg_reorder_time": 1.234,
+      "avg_l1_hit_rate": 85.2,
+      "avg_l2_hit_rate": 92.1,
+      "avg_l3_hit_rate": 98.5
     }
   }
 }
 ```
-
----
-
-## download_graphs.py
-
-Download benchmark graphs from SuiteSparse Matrix Collection.
-
-### Usage
-
-```bash
-python3 scripts/download/download_graphs.py [options]
-```
-
-### Options
-
-| Option | Description |
-|--------|-------------|
-| `--list` | List available graphs |
-| `--size` | Size category (SMALL, MEDIUM, LARGE, ALL) |
-| `--output-dir` | Output directory |
-| `--validate` | Validate downloaded graphs |
-| `--graph` | Download specific graph by name |
-
-### Size Categories
-
-| Category | Graphs | Download Size | Description |
-|----------|--------|---------------|-------------|
-| SMALL | 4 | ~12MB | Quick testing |
-| MEDIUM | 17 | ~600MB | Development |
-| MID_LARGE | 8 | ~4GB | Serious testing |
-| LARGE | 5 | ~72GB | Full experiments |
-| XL | 3 | ~150GB | Large-scale |
-
-### Examples
-
-```bash
-# List all available graphs
-python3 scripts/download/download_graphs.py --list
-
-# Download small graphs for testing
-python3 scripts/download/download_graphs.py --size SMALL --output-dir ./graphs
-
-# Download specific graph
-python3 scripts/download/download_graphs.py --graph twitter --output-dir ./graphs
-
-# Validate downloads
-python3 scripts/download/download_graphs.py --validate --output-dir ./graphs
-```
-
-### graphs.json
-
-After download, a `graphs.json` config is auto-generated:
-
-```json
-{
-  "graphs": {
-    "facebook": {
       "path": "./graphs/facebook/graph.el",
       "nodes": 4039,
       "edges": 88234,
@@ -284,118 +273,68 @@ Graph: facebook.el
 
 ## Experiment Workflow
 
-### Complete Reproducible Experiment
+### Complete Reproducible Experiment (One Command)
+
+```bash
+# One-click full experiment
+python3 scripts/graphbrew_experiment.py --full --download-size MEDIUM
+```
+
+This automatically:
+1. Downloads graphs from SuiteSparse
+2. Builds binaries
+3. Generates label maps for consistent reordering
+4. Runs all benchmarks with all algorithms
+5. Runs cache simulations
+6. Trains perceptron weights with cache + reorder time features
+
+### Custom Experiment Workflow
 
 ```bash
 #!/bin/bash
-# Full experiment workflow
+# Custom experiment workflow
 
-# 1. Setup
 cd GraphBrew
-source .venv/bin/activate
 
-# 2. Download graphs
-python3 scripts/download/download_graphs.py \
-    --size MEDIUM \
-    --output-dir ./graphs
+# 1. Download specific size graphs
+python3 scripts/graphbrew_experiment.py --download-only --download-size MEDIUM
 
-# 3. Run benchmarks
-python3 scripts/benchmark/run_benchmark.py \
-    --graphs-config ./graphs/graphs.json \
-    --benchmark pr bfs cc tc \
-    --algorithms 0,7,12,15,16,17,18,19,20 \
-    --trials 10 \
-    --output ./bench/results/experiment_$(date +%Y%m%d).json
+# 2. Generate label maps once
+python3 scripts/graphbrew_experiment.py --generate-maps --graphs medium
 
-# 4. Analyze results
-python3 scripts/analysis/correlation_analysis.py \
-    --graphs-dir ./graphs \
-    --benchmark pr bfs
+# 3. Run benchmarks using pre-generated maps
+python3 scripts/graphbrew_experiment.py --use-maps --phase benchmark --graphs medium --trials 10
 
-# 5. Generate summary
-python3 -c "
-import json
-with open('./bench/results/experiment_*.json') as f:
-    data = json.load(f)
-    for graph, results in data['results'].items():
-        print(f'\n{graph}:')
-        for bench, algos in results.items():
-            best = min(algos.items(), key=lambda x: x[1]['mean'])
-            print(f'  {bench}: Best={best[0]} ({best[1][\"mean\"]:.4f}s)')
-"
-```
+# 4. Run cache simulations
+python3 scripts/graphbrew_experiment.py --use-maps --phase cache --graphs medium
 
-### Multi-Source Benchmarks
+# 5. Generate perceptron weights
+python3 scripts/graphbrew_experiment.py --phase weights
 
-For BFS, SSSP, and BC, the suite automatically tests multiple source vertices:
-
-```bash
-python3 scripts/benchmark/run_benchmark.py \
-    --benchmark bfs sssp bc \
-    --trials 16  # 16 different source vertices
-```
-
-Output includes:
-- Mean time across all sources
-- Standard deviation
-- MTEPS (Million Traversed Edges Per Second) for BFS
-
----
-
-## Configuration Files
-
-### Experiment Config (optional)
-
-Create custom experiment configs:
-
-```json
-{
-  "name": "leiden_comparison",
-  "description": "Compare Leiden variants",
-  "graphs": ["facebook", "twitter", "web-Google"],
-  "benchmarks": ["pr", "bfs"],
-  "algorithms": [0, 12, 16, 17, 18, 19, 20],
-  "trials": 10,
-  "options": {
-    "symmetrize": true,
-    "timeout": 3600
-  }
-}
-```
-
-Run with:
-```bash
-python3 scripts/benchmark/run_benchmark.py --config experiment.json
+# 6. Run brute-force validation
+python3 scripts/graphbrew_experiment.py --brute-force --graphs medium
 ```
 
 ---
 
 ## Parallel Execution
 
-### Running on Multiple Machines
-
-Split workload across machines:
-
-```bash
-# Machine 1: Small/Medium graphs
-python3 scripts/benchmark/run_benchmark.py \
-    --graphs-dir ./graphs \
-    --size SMALL,MEDIUM \
-    --output results_small.json
-
-# Machine 2: Large graphs
-python3 scripts/benchmark/run_benchmark.py \
-    --graphs-dir ./graphs \
-    --size LARGE \
-    --output results_large.json
-```
-
 ### Thread Control
 
 ```bash
 # Control OpenMP threads
 export OMP_NUM_THREADS=8
-python3 scripts/benchmark/run_benchmark.py ...
+python3 scripts/graphbrew_experiment.py --full --download-size SMALL
+```
+
+### Skip Heavy Operations
+
+```bash
+# Skip slow algorithms on large graphs
+python3 scripts/graphbrew_experiment.py --skip-slow --graphs large
+
+# Skip heavy cache simulations (BC, SSSP)
+python3 scripts/graphbrew_experiment.py --skip-heavy --phase cache
 ```
 
 ---
@@ -405,29 +344,41 @@ python3 scripts/benchmark/run_benchmark.py ...
 ### "Graph not found"
 
 ```bash
-# Check graphs.json exists
-cat ./graphs/graphs.json
+# Check downloaded graphs
+ls results/graphs/
 
-# Regenerate config
-python3 scripts/download/download_graphs.py --validate --output-dir ./graphs
+# Re-download with force flag
+python3 scripts/graphbrew_experiment.py --download-only --force-download
 ```
 
 ### Timeout Issues
 
 ```bash
-# Increase timeout for large graphs
-python3 scripts/benchmark/run_benchmark.py \
-    --timeout 7200 \
-    ...
+# Increase timeouts
+python3 scripts/graphbrew_experiment.py \
+    --timeout-reorder 86400 \
+    --timeout-benchmark 7200 \
+    --timeout-sim 14400
 ```
 
 ### Memory Issues
 
 ```bash
+# Use smaller graphs
+python3 scripts/graphbrew_experiment.py --graphs small
+
 # Skip large graphs
-python3 scripts/benchmark/run_benchmark.py \
-    --size SMALL,MEDIUM \
-    ...
+python3 scripts/graphbrew_experiment.py --max-size 500
+```
+
+### Clean Start
+
+```bash
+# Clean results only (keep graphs)
+python3 scripts/graphbrew_experiment.py --clean
+
+# Full reset (remove everything including downloaded graphs)
+python3 scripts/graphbrew_experiment.py --clean-all
 ```
 
 ---
@@ -437,6 +388,7 @@ python3 scripts/benchmark/run_benchmark.py \
 - [[Correlation-Analysis]] - Analyze benchmark results
 - [[AdaptiveOrder-ML]] - Train the perceptron
 - [[Running-Benchmarks]] - Manual benchmark commands
+- [[Python-Scripts]] - Full script documentation
 
 ---
 

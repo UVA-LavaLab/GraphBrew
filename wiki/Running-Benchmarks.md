@@ -22,7 +22,7 @@ GraphBrew includes six graph algorithm benchmarks from the GAP Benchmark Suite:
 For comprehensive benchmarking, use the unified experiment script:
 
 ```bash
-# One-click: downloads graphs, builds, runs all benchmarks
+# One-click: downloads 56 graphs, builds, runs all benchmarks
 python3 scripts/graphbrew_experiment.py --full --download-size SMALL
 
 # Run benchmarks on existing graphs
@@ -30,7 +30,19 @@ python3 scripts/graphbrew_experiment.py --phase benchmark --graphs small
 
 # Quick test with key algorithms only
 python3 scripts/graphbrew_experiment.py --graphs small --key-only
+
+# Use pre-generated label maps for consistent reordering
+python3 scripts/graphbrew_experiment.py --generate-maps --use-maps --phase benchmark
 ```
+
+### Download Options
+
+| Size | Graphs | Total | Categories |
+|------|--------|-------|------------|
+| `SMALL` | 16 | ~62 MB | communication, p2p, social |
+| `MEDIUM` | 20 | ~1.2 GB | web, road, commerce, biology |
+| `LARGE` | 20 | ~68 GB | social, web (twitter7, webbase) |
+| `ALL` | **56** | ~70 GB | Complete benchmark set |
 
 See [[Python-Scripts]] for full documentation.
 

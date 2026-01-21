@@ -23,12 +23,12 @@ python3 scripts/graphbrew_experiment.py --full --download-size SMALL
 ```
 
 This will automatically:
-- ✅ Download benchmark graphs from SuiteSparse (~12 MB for SMALL)
+- ✅ Download benchmark graphs from SuiteSparse (56 graphs available)
 - ✅ Build all binaries (standard + cache simulation)
-- ✅ Generate reorderings with all 20 algorithms
-- ✅ Run performance benchmarks (PR, BFS, CC, SSSP, BC)
-- ✅ Execute cache simulations
-- ✅ Train perceptron weights for AdaptiveOrder
+- ✅ Pre-generate label mappings for consistent reordering
+- ✅ Run performance benchmarks (PR, BFS, CC, SSSP, BC) with all 20 algorithms
+- ✅ Execute cache simulations (L1/L2/L3 hit rates)
+- ✅ Train perceptron weights for AdaptiveOrder (with cache + reorder time features)
 
 All results saved to `./results/` directory.
 
@@ -36,10 +36,10 @@ All results saved to `./results/` directory.
 
 | Size | Graphs | Total Size | Use Case |
 |------|--------|------------|----------|
-| `SMALL` | 4 | ~12 MB | Quick testing |
-| `MEDIUM` | 11 | ~624 MB | Standard experiments |
-| `LARGE` | 2 | ~1.6 GB | Full evaluation |
-| `ALL` | 17 | ~2.2 GB | Complete benchmark |
+| `SMALL` | 16 | ~62 MB | Quick testing (communication, p2p, social) |
+| `MEDIUM` | 20 | ~1.2 GB | Standard experiments (web, road, commerce) |
+| `LARGE` | 20 | ~68 GB | Full evaluation (twitter7, webbase-2001) |
+| `ALL` | **56** | ~70 GB | Complete benchmark set |
 
 ```bash
 # Download medium graphs and run
@@ -47,6 +47,9 @@ python3 scripts/graphbrew_experiment.py --full --download-size MEDIUM
 
 # Just download graphs (no experiments)
 python3 scripts/graphbrew_experiment.py --download-only --download-size MEDIUM
+
+# Use pre-generated label maps for faster, consistent reordering
+python3 scripts/graphbrew_experiment.py --generate-maps --use-maps --phase benchmark
 
 # Clean start (remove all generated data)
 python3 scripts/graphbrew_experiment.py --clean-all --full --download-size SMALL

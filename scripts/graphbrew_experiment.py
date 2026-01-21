@@ -241,50 +241,148 @@ class DownloadableGraph:
 # Graph Catalog for Download
 # ============================================================================
 
-# Small graphs (< 50MB, good for testing)
+# Small graphs (< 20MB, good for quick testing)
 DOWNLOAD_GRAPHS_SMALL = [
+    # Communication networks
     DownloadableGraph("email-Enron", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/email-Enron.tar.gz",
                       5, 36692, 183831, True, "communication", "Enron email network"),
+    DownloadableGraph("email-EuAll", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/email-EuAll.tar.gz",
+                      4, 265214, 420045, False, "communication", "EU email network"),
+    # Collaboration networks
     DownloadableGraph("ca-AstroPh", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/ca-AstroPh.tar.gz",
                       3, 18772, 198110, True, "collaboration", "Arxiv Astro Physics"),
     DownloadableGraph("ca-CondMat", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/ca-CondMat.tar.gz",
                       2, 23133, 93497, True, "collaboration", "Condensed Matter"),
+    DownloadableGraph("ca-GrQc", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/ca-GrQc.tar.gz",
+                      1, 5242, 14496, True, "collaboration", "General Relativity"),
+    DownloadableGraph("ca-HepPh", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/ca-HepPh.tar.gz",
+                      2, 12008, 118521, True, "collaboration", "High Energy Physics"),
+    DownloadableGraph("ca-HepTh", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/ca-HepTh.tar.gz",
+                      1, 9877, 25998, True, "collaboration", "High Energy Physics Theory"),
+    # P2P networks
     DownloadableGraph("p2p-Gnutella31", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/p2p-Gnutella31.tar.gz",
                       2, 62586, 147892, False, "p2p", "Gnutella P2P network"),
+    DownloadableGraph("p2p-Gnutella30", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/p2p-Gnutella30.tar.gz",
+                      1, 36682, 88328, False, "p2p", "Gnutella P2P Aug 30"),
+    DownloadableGraph("p2p-Gnutella25", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/p2p-Gnutella25.tar.gz",
+                      1, 22687, 54705, False, "p2p", "Gnutella P2P Aug 25"),
+    DownloadableGraph("p2p-Gnutella24", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/p2p-Gnutella24.tar.gz",
+                      1, 26518, 65369, False, "p2p", "Gnutella P2P Aug 24"),
+    # Social networks (small)
+    DownloadableGraph("soc-Slashdot0811", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/soc-Slashdot0811.tar.gz",
+                      8, 77360, 905468, False, "social", "Slashdot Nov 2008"),
+    DownloadableGraph("soc-Slashdot0902", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/soc-Slashdot0902.tar.gz",
+                      9, 82168, 948464, False, "social", "Slashdot Feb 2009"),
+    DownloadableGraph("soc-sign-epinions", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/soc-sign-epinions.tar.gz",
+                      10, 131828, 841372, False, "social", "Epinions signed network"),
+    # Citation networks (small)
+    DownloadableGraph("cit-HepPh", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/cit-HepPh.tar.gz",
+                      8, 34546, 421578, False, "citation", "HEP-PH citations"),
+    DownloadableGraph("cit-HepTh", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/cit-HepTh.tar.gz",
+                      4, 27770, 352807, False, "citation", "HEP-TH citations"),
 ]
 
-# Medium graphs (50MB - 500MB)
+# Medium graphs (20MB - 200MB)
 DOWNLOAD_GRAPHS_MEDIUM = [
+    # Communication
     DownloadableGraph("wiki-Talk", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/wiki-Talk.tar.gz",
                       80, 2394385, 5021410, False, "communication", "Wikipedia talk"),
+    DownloadableGraph("wiki-topcats", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/wiki-topcats.tar.gz",
+                      120, 1791489, 28511807, False, "web", "Wikipedia top categories"),
+    # Citation networks (large)
     DownloadableGraph("cit-Patents", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/cit-Patents.tar.gz",
                       262, 3774768, 16518948, False, "citation", "US Patent citations"),
+    # Road networks
     DownloadableGraph("roadNet-PA", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/roadNet-PA.tar.gz",
                       40, 1090920, 1541898, True, "road", "Pennsylvania roads"),
     DownloadableGraph("roadNet-CA", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/roadNet-CA.tar.gz",
                       60, 1971281, 2766607, True, "road", "California roads"),
     DownloadableGraph("roadNet-TX", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/roadNet-TX.tar.gz",
                       45, 1393383, 1921660, True, "road", "Texas roads"),
+    # Social networks (medium)
     DownloadableGraph("soc-Epinions1", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/soc-Epinions1.tar.gz",
                       12, 75888, 508837, False, "social", "Epinions social"),
+    DownloadableGraph("soc-pokec", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/soc-pokec.tar.gz",
+                      180, 1632803, 30622564, False, "social", "Pokec social network"),
+    # Commerce networks
     DownloadableGraph("amazon0302", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/amazon0302.tar.gz",
                       15, 262111, 1234877, False, "commerce", "Amazon Mar 2003"),
+    DownloadableGraph("amazon0312", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/amazon0312.tar.gz",
+                      18, 400727, 3200440, False, "commerce", "Amazon Dec 2003"),
+    DownloadableGraph("amazon0505", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/amazon0505.tar.gz",
+                      22, 410236, 3356824, False, "commerce", "Amazon May 2005"),
     DownloadableGraph("amazon0601", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/amazon0601.tar.gz",
                       25, 403394, 3387388, False, "commerce", "Amazon Jun 2001"),
+    # Web graphs
     DownloadableGraph("web-NotreDame", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/web-NotreDame.tar.gz",
                       15, 325729, 1497134, False, "web", "Notre Dame web"),
     DownloadableGraph("web-Stanford", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/web-Stanford.tar.gz",
                       20, 281903, 2312497, False, "web", "Stanford web"),
     DownloadableGraph("web-BerkStan", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/web-BerkStan.tar.gz",
                       50, 685230, 7600595, False, "web", "Berkeley-Stanford web"),
+    DownloadableGraph("web-Google", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/web-Google.tar.gz",
+                      35, 916428, 5105039, False, "web", "Google web graph"),
+    # Infrastructure
+    DownloadableGraph("as-Skitter", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/as-Skitter.tar.gz",
+                      90, 1696415, 11095298, True, "infrastructure", "Internet topology"),
+    # Biology
+    DownloadableGraph("bio-CE-CX", "https://suitesparse-collection-website.herokuapp.com/MM/Belcastro/bio-CE-CX.tar.gz",
+                      15, 15229, 245952, True, "biology", "C. elegans neural"),
+    DownloadableGraph("bio-DM-CX", "https://suitesparse-collection-website.herokuapp.com/MM/Belcastro/bio-DM-CX.tar.gz",
+                      28, 47158, 524358, True, "biology", "D. melanogaster gene"),
+    DownloadableGraph("bio-HS-CX", "https://suitesparse-collection-website.herokuapp.com/MM/Belcastro/bio-HS-CX.tar.gz",
+                      85, 55823, 1614760, True, "biology", "H. sapiens gene"),
 ]
 
-# Large graphs (500MB - 2GB)
+# Large graphs (200MB - 2GB)
 DOWNLOAD_GRAPHS_LARGE = [
+    # Social networks (large)
     DownloadableGraph("soc-LiveJournal1", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/soc-LiveJournal1.tar.gz",
                       1024, 4847571, 68993773, False, "social", "LiveJournal social"),
+    DownloadableGraph("com-Orkut", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/com-Orkut.tar.gz",
+                      800, 3072441, 117185083, True, "social", "Orkut social network"),
+    DownloadableGraph("com-Youtube", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/com-Youtube.tar.gz",
+                      250, 1134890, 2987624, True, "social", "Youtube social network"),
+    DownloadableGraph("com-Amazon", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/com-Amazon.tar.gz",
+                      220, 334863, 925872, True, "commerce", "Amazon product network"),
+    DownloadableGraph("com-DBLP", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/com-DBLP.tar.gz",
+                      200, 317080, 1049866, True, "collaboration", "DBLP collaboration"),
+    DownloadableGraph("com-Friendster", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/com-Friendster.tar.gz",
+                      31000, 65608366, 1806067135, True, "social", "Friendster social network"),
+    # Collaboration
     DownloadableGraph("hollywood-2009", "https://suitesparse-collection-website.herokuapp.com/MM/LAW/hollywood-2009.tar.gz",
                       600, 1139905, 57515616, True, "collaboration", "Hollywood actors"),
+    # Web graphs (large)
+    DownloadableGraph("in-2004", "https://suitesparse-collection-website.herokuapp.com/MM/LAW/in-2004.tar.gz",
+                      450, 1382908, 16917053, False, "web", "Indian web 2004"),
+    DownloadableGraph("eu-2005", "https://suitesparse-collection-website.herokuapp.com/MM/LAW/eu-2005.tar.gz",
+                      500, 862664, 19235140, False, "web", "European web 2005"),
+    DownloadableGraph("uk-2002", "https://suitesparse-collection-website.herokuapp.com/MM/LAW/uk-2002.tar.gz",
+                      2500, 18520486, 298113762, False, "web", "UK web 2002"),
+    DownloadableGraph("arabic-2005", "https://suitesparse-collection-website.herokuapp.com/MM/LAW/arabic-2005.tar.gz",
+                      2200, 22744080, 639999458, False, "web", "Arabic web 2005"),
+    DownloadableGraph("uk-2005", "https://suitesparse-collection-website.herokuapp.com/MM/LAW/uk-2005.tar.gz",
+                      3200, 39459925, 936364282, False, "web", "UK web 2005"),
+    DownloadableGraph("webbase-2001", "https://suitesparse-collection-website.herokuapp.com/MM/LAW/webbase-2001.tar.gz",
+                      8500, 118142155, 1019903190, False, "web", "WebBase 2001 crawl"),
+    DownloadableGraph("it-2004", "https://suitesparse-collection-website.herokuapp.com/MM/LAW/it-2004.tar.gz",
+                      3500, 41291594, 1150725436, False, "web", "Italian web 2004"),
+    # Road networks (large)
+    DownloadableGraph("USA-road-d", "https://suitesparse-collection-website.herokuapp.com/MM/DIMACS10/usa_road_d.USA.tar.gz",
+                      350, 23947347, 57708624, True, "road", "US road network distance"),
+    DownloadableGraph("europe-osm", "https://suitesparse-collection-website.herokuapp.com/MM/DIMACS10/europe_osm.tar.gz",
+                      1200, 50912018, 108109320, True, "road", "European OSM roads"),
+    DownloadableGraph("asia-osm", "https://suitesparse-collection-website.herokuapp.com/MM/DIMACS10/asia_osm.tar.gz",
+                      600, 11950757, 25423206, True, "road", "Asian OSM roads"),
+    # Citation networks (large)
+    DownloadableGraph("cit-Patents-full", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/cit-Patents.tar.gz",
+                      262, 3774768, 16518948, False, "citation", "US Patent citations full"),
+    # Knowledge graphs
+    DownloadableGraph("kmer_V1r", "https://suitesparse-collection-website.herokuapp.com/MM/GenBank/kmer_V1r.tar.gz",
+                      450, 214005017, 465410904, True, "biology", "K-mer graph V1r"),
+    # Twitter
+    DownloadableGraph("twitter7", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/twitter7.tar.gz",
+                      12000, 41652230, 1468365182, False, "social", "Twitter follower network"),
 ]
 
 # ============================================================================
@@ -1090,12 +1188,19 @@ def run_benchmarks(
     bin_dir: str,
     num_trials: int = 2,
     timeout: int = TIMEOUT_BENCHMARK,
-    skip_slow: bool = False
+    skip_slow: bool = False,
+    label_maps: Dict[str, Dict[str, str]] = None
 ) -> List[BenchmarkResult]:
     """
     Run execution benchmarks for all combinations.
+    
+    If label_maps is provided, uses pre-generated mappings via MAP algorithm (14)
+    for consistent reordering instead of regenerating each time.
     """
     log_section("Phase 2: Execution Benchmarks")
+    
+    if label_maps:
+        log(f"Using pre-generated label maps for {len(label_maps)} graphs")
     
     results = []
     total = len(graphs) * len(algorithms) * len(benchmarks)
@@ -1132,9 +1237,20 @@ def run_benchmarks(
                     ))
                     continue
                 
-                # Build command
+                # Check for pre-generated label map
+                label_map_path = None
+                if label_maps and algo_id != 0:  # ORIGINAL doesn't need mapping
+                    label_map_path = get_label_map_path(label_maps, graph.name, algo_name)
+                
+                # Build command - use MAP algorithm (14) with label map if available
                 sym_flag = "-s" if graph.is_symmetric else ""
-                cmd = f"{binary} -f {graph.path} {sym_flag} -o {algo_id} -n {num_trials}"
+                if label_map_path:
+                    # Use pre-generated mapping via MAP (algo 14)
+                    cmd = f"{binary} -f {graph.path} {sym_flag} -o 14:{label_map_path} -n {num_trials}"
+                else:
+                    # Generate reordering on-the-fly
+                    cmd = f"{binary} -f {graph.path} {sym_flag} -o {algo_id} -n {num_trials}"
+                    continue
                 
                 # Run
                 success, stdout, stderr = run_command(cmd, timeout)
@@ -1191,10 +1307,14 @@ def run_cache_simulations(
     benchmarks: List[str],
     bin_sim_dir: str,
     timeout: int = TIMEOUT_SIM,
-    skip_heavy: bool = False
+    skip_heavy: bool = False,
+    label_maps: Dict[str, Dict[str, str]] = None
 ) -> List[CacheResult]:
     """
     Run cache simulations for all combinations.
+    
+    If label_maps is provided, uses pre-generated mappings via MAP algorithm (14)
+    for consistent reordering instead of regenerating each time.
     """
     log_section("Phase 3: Cache Simulations")
     
@@ -1234,9 +1354,19 @@ def run_cache_simulations(
                 current += 1
                 algo_name = ALGORITHMS.get(algo_id, f"ALGO_{algo_id}")
                 
-                # Build command
+                # Check for pre-generated label map
+                label_map_path = None
+                if label_maps and algo_id != 0:  # ORIGINAL doesn't need mapping
+                    label_map_path = get_label_map_path(label_maps, graph.name, algo_name)
+                
+                # Build command - use MAP algorithm (14) with label map if available
                 sym_flag = "-s" if graph.is_symmetric else ""
-                cmd = f"{binary} -f {graph.path} {sym_flag} -o {algo_id} -n 1"
+                if label_map_path:
+                    # Use pre-generated mapping via MAP (algo 14)
+                    cmd = f"{binary} -f {graph.path} {sym_flag} -o 14:{label_map_path} -n 1"
+                else:
+                    # Generate reordering on-the-fly
+                    cmd = f"{binary} -f {graph.path} {sym_flag} -o {algo_id} -n 1"
                 
                 # Run
                 success, stdout, stderr = run_command(cmd, bench_timeout)
@@ -2407,7 +2537,8 @@ def run_experiment(args):
             bin_dir=args.bin_dir,
             num_trials=args.trials,
             timeout=args.timeout_benchmark,
-            skip_slow=args.skip_slow
+            skip_slow=args.skip_slow,
+            label_maps=label_maps
         )
         all_benchmark_results.extend(benchmark_results)
         
@@ -2425,7 +2556,8 @@ def run_experiment(args):
             benchmarks=args.benchmarks,
             bin_sim_dir=args.bin_sim_dir,
             timeout=args.timeout_sim,
-            skip_heavy=args.skip_heavy
+            skip_heavy=args.skip_heavy,
+            label_maps=label_maps
         )
         all_cache_results.extend(cache_results)
         
@@ -2710,7 +2842,11 @@ Examples:
                     log("Build failed - aborting", "ERROR")
                     sys.exit(1)
             
-            # Step 3: Run experiment (adjust graphs setting based on download size)
+            # Step 3: Enable label map generation for consistent reordering
+            args.generate_maps = True
+            args.use_maps = True
+            
+            # Step 4: Run experiment (adjust graphs setting based on download size)
             log("\nStarting experiments...", "INFO")
             
             # Set graph size range based on download category

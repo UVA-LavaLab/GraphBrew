@@ -81,7 +81,7 @@ The algorithm with the highest score wins.
 
 ### Weight Structure
 
-Each algorithm has weights for each feature:
+Each algorithm has weights for each feature, including cache impact and reorder time:
 
 ```json
 {
@@ -93,10 +93,32 @@ Each algorithm has weights for each feature:
     "w_density": -0.05,
     "w_avg_degree": 0.15,
     "w_degree_variance": 0.15,
-    "w_hub_concentration": 0.25
+    "w_hub_concentration": 0.25,
+    "cache_l1_impact": 0.1,
+    "cache_l2_impact": 0.05,
+    "cache_l3_impact": 0.02,
+    "cache_dram_penalty": -0.1,
+    "w_reorder_time": -0.0001,
+    "_metadata": {
+      "win_rate": 0.85,
+      "avg_speedup": 2.34,
+      "times_best": 42,
+      "sample_count": 50,
+      "avg_reorder_time": 1.234,
+      "avg_l1_hit_rate": 85.2,
+      "avg_l2_hit_rate": 92.1,
+      "avg_l3_hit_rate": 98.5
+    }
   },
   ...
 }
+```
+
+**New Weight Fields:**
+- `cache_l1_impact` / `cache_l2_impact` / `cache_l3_impact`: Bonus for algorithms with high cache hit rates
+- `cache_dram_penalty`: Penalty for DRAM access (cache misses)
+- `w_reorder_time`: Penalty for slow reordering algorithms (typically negative)
+- `_metadata`: Auto-generated training statistics
 ```
 
 ### Score Calculation Example
@@ -128,23 +150,42 @@ LeidenHybrid score:
 
 ## Training the Perceptron
 
-### Automatic Training via Correlation Analysis
+### Automatic Training via Unified Pipeline (Recommended)
 
-The easiest way to train is using the correlation analysis script:
+The easiest way to train is using the unified experiment script:
 
 ```bash
-# Run benchmarks and generate weights
-python3 scripts/analysis/correlation_analysis.py \
-    --graphs-dir ./graphs \
-    --benchmark pr bfs \
-    --algorithms 0 5 7 12 16 17 18 19 20
+# One-click: downloads graphs, runs benchmarks, generates weights
+python3 scripts/graphbrew_experiment.py --full --download-size SMALL
+
+# Or train from existing benchmark/cache results
+python3 scripts/graphbrew_experiment.py --phase weights
 ```
 
-This:
-1. Runs all specified algorithms on all graphs
-2. Identifies which algorithm is best for each graph
-3. Correlates graph features with best algorithm
-4. Generates `scripts/perceptron_weights.json`
+This automatically:
+1. Downloads 56 diverse graphs from SuiteSparse
+2. Runs all 20 algorithms on each graph
+3. Collects cache simulation data (L1/L2/L3 hit rates)
+4. Records reorder times for each algorithm
+5. Generates `results/perceptron_weights.json` with:
+   - Core feature weights (modularity, size, hub concentration, etc.)
+   - Cache impact weights (L1/L2/L3 bonuses, DRAM penalty)
+   - Reorder time penalty weight
+   - Training metadata (win rate, avg speedup, sample counts)
+
+### Using Pre-Generated Label Maps
+
+For consistent benchmarks across multiple runs, use label mapping:
+
+```bash
+# Generate label maps once
+python3 scripts/graphbrew_experiment.py --generate-maps
+
+# Use maps for all subsequent benchmarks
+python3 scripts/graphbrew_experiment.py --use-maps --phase benchmark
+```
+
+This ensures each algorithm's reordering is applied consistently, avoiding variance from regenerating orderings.
 
 ---
 
