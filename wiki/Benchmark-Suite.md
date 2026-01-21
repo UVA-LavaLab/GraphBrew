@@ -6,18 +6,58 @@ The GraphBrew Benchmark Suite provides automated tools for running comprehensive
 
 ```
 scripts/
+├── graphbrew_experiment.py           # ⭐ MAIN: One-click unified pipeline
+│                                      #    Downloads, builds, benchmarks, analyzes
 ├── benchmark/
-│   ├── run_benchmark.py              # Main benchmark runner
+│   ├── run_benchmark.py              # Legacy benchmark runner
 │   └── run_pagerank_convergence.py   # PageRank iteration analysis
 ├── download/
-│   └── download_graphs.py            # Graph downloader
+│   └── download_graphs.py            # Graph downloader (standalone)
 └── analysis/
     └── correlation_analysis.py       # Results analysis
 ```
 
 ---
 
-## Quick Start
+## 🚀 Quick Start (One-Click Recommended)
+
+The unified script handles everything automatically:
+
+```bash
+# Full pipeline: download → build → benchmark → analyze → train
+python3 scripts/graphbrew_experiment.py --full --download-size SMALL
+
+# Just run benchmarks on existing graphs
+python3 scripts/graphbrew_experiment.py --phase benchmark
+
+# Quick test with key algorithms
+python3 scripts/graphbrew_experiment.py --graphs small --key-only
+
+# Skip cache simulations (faster)
+python3 scripts/graphbrew_experiment.py --phase all --skip-cache
+
+# Run brute-force validation
+python3 scripts/graphbrew_experiment.py --brute-force
+```
+
+### Download Size Options
+
+| Size | Graphs | Total Size | Use Case |
+|------|--------|------------|----------|
+| `SMALL` | 4 | ~12 MB | Quick testing |
+| `MEDIUM` | 11 | ~624 MB | Standard experiments |
+| `LARGE` | 2 | ~1.6 GB | Full evaluation |
+| `ALL` | 17 | ~2.2 GB | Complete benchmark |
+
+All results are saved to `./results/`:
+- `reorder_*.json` - Reordering times
+- `benchmark_*.json` - Execution times  
+- `cache_*.json` - Cache hit rates
+- `perceptron_weights.json` - Trained ML weights
+
+---
+
+## Legacy Scripts (Manual Approach)
 
 ### 1. Download Graphs
 
@@ -53,9 +93,9 @@ python3 scripts/analysis/correlation_analysis.py \
 
 ---
 
-## run_benchmark.py
+## run_benchmark.py (Legacy)
 
-The main benchmark runner for comprehensive experiments.
+The standalone benchmark runner for custom experiments.
 
 ### Basic Usage
 
