@@ -22,8 +22,14 @@ GraphBrew includes six graph algorithm benchmarks from the GAP Benchmark Suite:
 For comprehensive benchmarking, use the unified experiment script:
 
 ```bash
-# One-click: downloads 56 graphs, builds, runs all benchmarks
+# One-click: downloads graphs, builds, runs all benchmarks
 python3 scripts/graphbrew_experiment.py --full --download-size SMALL
+
+# Auto-detect RAM and skip graphs that won't fit
+python3 scripts/graphbrew_experiment.py --full --download-size ALL --auto-memory
+
+# Specify maximum memory (e.g., 32 GB system)
+python3 scripts/graphbrew_experiment.py --full --download-size ALL --max-memory 32
 
 # Run benchmarks on existing graphs
 python3 scripts/graphbrew_experiment.py --phase benchmark --graphs small
@@ -35,7 +41,7 @@ python3 scripts/graphbrew_experiment.py --graphs small --key-only
 python3 scripts/graphbrew_experiment.py --generate-maps --use-maps --phase benchmark
 
 # Fill ALL weight fields (cache sim, topology features, benchmark weights)
-python3 scripts/graphbrew_experiment.py --fill-weights --graphs small --max-graphs 5 --trials 2
+python3 scripts/graphbrew_experiment.py --fill-weights --auto-memory --download-size ALL
 ```
 
 ### Download Options
@@ -43,9 +49,41 @@ python3 scripts/graphbrew_experiment.py --fill-weights --graphs small --max-grap
 | Size | Graphs | Total | Categories |
 |------|--------|-------|------------|
 | `SMALL` | 16 | ~62 MB | communication, p2p, social |
-| `MEDIUM` | 20 | ~1.2 GB | web, road, commerce, biology |
-| `LARGE` | 20 | ~68 GB | social, web (twitter7, webbase) |
-| `ALL` | **56** | ~70 GB | Complete benchmark set |
+| `MEDIUM` | 34 | ~1.1 GB | web, road, commerce, mesh, synthetic |
+| `LARGE` | 40 | ~27 GB | social, web, collaboration, road |
+| `XLARGE` | 6 | ~63 GB | massive web (twitter7, webbase), Kronecker |
+| `ALL` | **96** | ~91 GB | Complete benchmark set |
+
+### Memory Management
+
+The script automatically estimates memory requirements for each graph:
+
+```
+Memory ≈ (edges × 24 bytes + nodes × 8 bytes) × 1.5 safety factor
+```
+
+| Option | Description |
+|--------|-------------|
+| `--max-memory GB` | Skip graphs requiring more than this RAM |
+| `--auto-memory` | Use 80% of total system RAM as limit |
+
+Example memory requirements:
+| Graph | Nodes | Edges | Memory Required |
+|-------|-------|-------|-----------------|
+| email-Enron | 37K | 184K | ~0.01 GB |
+| soc-LiveJournal1 | 4.8M | 69M | ~2.4 GB |
+| com-Orkut | 3.1M | 117M | ~4.0 GB |
+| uk-2005 | 39M | 936M | ~32 GB |
+| twitter7 | 42M | 1.5B | ~52 GB |
+
+### Disk Space Management
+
+The script can limit downloads based on available disk space:
+
+| Option | Description |
+|--------|-------------|
+| `--max-disk GB` | Stop downloads when cumulative size exceeds this limit |
+| `--auto-disk` | Use 80% of available disk space as limit |
 
 See [[Python-Scripts]] for full documentation.
 

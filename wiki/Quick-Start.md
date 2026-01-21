@@ -23,7 +23,7 @@ python3 scripts/graphbrew_experiment.py --full --download-size SMALL
 ```
 
 This will automatically:
-- ✅ Download benchmark graphs from SuiteSparse (56 graphs available)
+- ✅ Download benchmark graphs from SuiteSparse (96 graphs available)
 - ✅ Build all binaries (standard + cache simulation)
 - ✅ Pre-generate label mappings for consistent reordering
 - ✅ Run performance benchmarks (PR, BFS, CC, SSSP, BC) with all 20 algorithms
@@ -37,9 +37,24 @@ All results saved to `./results/` directory.
 | Size | Graphs | Total Size | Use Case |
 |------|--------|------------|----------|
 | `SMALL` | 16 | ~62 MB | Quick testing (communication, p2p, social) |
-| `MEDIUM` | 20 | ~1.2 GB | Standard experiments (web, road, commerce) |
-| `LARGE` | 20 | ~68 GB | Full evaluation (twitter7, webbase-2001) |
-| `ALL` | **56** | ~70 GB | Complete benchmark set |
+| `MEDIUM` | 34 | ~1.1 GB | Standard experiments (web, road, mesh, synthetic) |
+| `LARGE` | 40 | ~27 GB | Full evaluation (social, web, collaboration) |
+| `XLARGE` | 6 | ~63 GB | Massive graphs (twitter7, webbase, Kronecker) |
+| `ALL` | **96** | ~91 GB | Complete benchmark set |
+
+### Memory Management
+
+GraphBrew automatically detects system RAM and can skip graphs that won't fit:
+
+```bash
+# Auto-detect RAM and skip graphs that won't fit
+python3 scripts/graphbrew_experiment.py --full --download-size ALL --auto-memory
+
+# Set explicit memory limit (e.g., 32 GB)
+python3 scripts/graphbrew_experiment.py --full --download-size ALL --max-memory 32
+```
+
+### More Examples
 
 ```bash
 # Download medium graphs and run
