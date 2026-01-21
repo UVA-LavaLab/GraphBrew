@@ -81,7 +81,7 @@ python3 scripts/graphbrew_experiment.py --full --download-size SMALL
 ```
 
 This single command will:
-1. **Download** benchmark graphs from SuiteSparse collection (56 graphs available)
+1. **Download** benchmark graphs from SuiteSparse collection (96 graphs available)
 2. **Build** the benchmark binaries automatically
 3. **Generate** label mappings for consistent reordering across all benchmarks
 4. **Run** performance benchmarks (BFS, PR, CC, SSSP, BC) with all 20 algorithms
@@ -108,6 +108,12 @@ python3 scripts/graphbrew_experiment.py --brute-force
 # Use pre-generated label maps for consistent reordering
 python3 scripts/graphbrew_experiment.py --generate-maps --use-maps
 
+# Auto-detect RAM and disk limits (skips graphs that won't fit)
+python3 scripts/graphbrew_experiment.py --full --download-size ALL --auto-memory --auto-disk
+
+# Set explicit memory/disk limits
+python3 scripts/graphbrew_experiment.py --full --download-size ALL --max-memory 32 --max-disk 100
+
 # Clean and start fresh
 python3 scripts/graphbrew_experiment.py --clean-all --full --download-size SMALL
 
@@ -120,9 +126,19 @@ python3 scripts/graphbrew_experiment.py --help
 | Size | Graphs | Total Size | Categories |
 |------|--------|------------|------------|
 | `SMALL` | 16 | ~62 MB | communication, collaboration, p2p, social, citation |
-| `MEDIUM` | 20 | ~1.2 GB | web, road, social, commerce, biology, infrastructure |
-| `LARGE` | 20 | ~68 GB | social, web, road (includes twitter7, webbase-2001) |
-| `ALL` | **56** | ~70 GB | Complete benchmark set |
+| `MEDIUM` | 34 | ~1.1 GB | web, road, commerce, mesh, synthetic, infrastructure |
+| `LARGE` | 40 | ~27 GB | social, web, collaboration, road, mesh, synthetic |
+| `XLARGE` | 6 | ~63 GB | massive web (twitter7, webbase-2001), Kronecker |
+| `ALL` | **96** | ~92 GB | Complete benchmark set |
+
+### Resource Management
+
+| Option | Description |
+|--------|-------------|
+| `--max-memory GB` | Skip graphs requiring more than this RAM |
+| `--auto-memory` | Auto-detect RAM, use 80% as limit |
+| `--max-disk GB` | Limit total download size |
+| `--auto-disk` | Auto-detect disk space, use 80% as limit |
 
 ## Prerequisites
 
@@ -350,9 +366,10 @@ python3 scripts/download/download_graphs.py --validate
 | Size | Graphs | Download | Use Case |
 |------|--------|----------|----------|
 | SMALL | 16 | ~62 MB | Quick testing |
-| MEDIUM | 20 | ~1.2 GB | Development & validation |
-| LARGE | 20 | ~68 GB | Full paper experiments |
-| ALL | 56 | ~70 GB | Complete benchmark |
+| MEDIUM | 34 | ~1.1 GB | Development & validation |
+| LARGE | 40 | ~27 GB | Full paper experiments |
+| XLARGE | 6 | ~63 GB | Massive-scale testing |
+| ALL | 96 | ~91 GB | Complete benchmark |
 
 ## Step 3: Run Benchmarks
 
@@ -369,6 +386,9 @@ python3 scripts/graphbrew_experiment.py --graphs small --key-only --skip-cache
 ```bash
 # Run all algorithms on all graphs with cache simulation
 python3 scripts/graphbrew_experiment.py --full --download-size MEDIUM
+
+# Run with automatic memory/disk filtering
+python3 scripts/graphbrew_experiment.py --full --download-size ALL --auto-memory --auto-disk
 
 # Or run benchmarks separately from downloads
 python3 scripts/graphbrew_experiment.py --phase benchmark --graphs medium --trials 16

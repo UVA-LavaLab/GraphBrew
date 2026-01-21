@@ -44,8 +44,9 @@ python3 scripts/graphbrew_experiment.py --help
 
 | Feature | Description |
 |---------|-------------|
-| **Graph Download** | Downloads from SuiteSparse collection (56 graphs available) |
+| **Graph Download** | Downloads from SuiteSparse collection (96 graphs available) |
 | **Auto Build** | Compiles binaries if missing |
+| **Memory Management** | Automatically skips graphs exceeding RAM limits |
 | **Label Maps** | Pre-generates reordering maps for consistency |
 | **Reordering** | Tests all 20 algorithms |
 | **Benchmarks** | PR, BFS, CC, SSSP, BC |
@@ -60,9 +61,21 @@ python3 scripts/graphbrew_experiment.py --help
 |--------|-------------|
 | `--full` | Run complete pipeline (download → build → experiment → weights) |
 | `--download-only` | Only download graphs |
-| `--download-size` | SMALL (16), MEDIUM (20), LARGE (20), ALL (56 graphs) |
+| `--download-size` | SMALL (16), MEDIUM (34), LARGE (40), XLARGE (6), ALL (96 graphs) |
 | `--clean` | Clean results (keep graphs/weights) |
 | `--clean-all` | Full reset for fresh start |
+
+#### Memory Management
+| Option | Description |
+|--------|-------------|
+| `--max-memory GB` | Maximum RAM (GB) for graph processing. Graphs exceeding this limit are skipped. |
+| `--auto-memory` | Automatically detect available RAM and skip graphs that won't fit (uses 80% of total) |
+
+#### Disk Space Management
+| Option | Description |
+|--------|-------------|
+| `--max-disk GB` | Maximum disk space (GB) for downloads. Downloads stop when cumulative size exceeds limit. |
+| `--auto-disk` | Automatically limit downloads to available disk space (uses 80% of free space) |
 
 #### Experiment Options
 | Option | Description |
@@ -103,6 +116,15 @@ python3 scripts/graphbrew_experiment.py --full --download-size SMALL
 # Download medium graphs only
 python3 scripts/graphbrew_experiment.py --download-only --download-size MEDIUM
 
+# Download all graphs that fit in 32GB RAM
+python3 scripts/graphbrew_experiment.py --download-only --download-size ALL --max-memory 32
+
+# Limit downloads to 50GB disk space
+python3 scripts/graphbrew_experiment.py --download-only --download-size ALL --max-disk 50
+
+# Auto-detect RAM and disk space limits
+python3 scripts/graphbrew_experiment.py --full --download-size ALL --auto-memory --auto-disk
+
 # Run experiment on existing graphs
 python3 scripts/graphbrew_experiment.py --phase all --graphs small
 
@@ -129,6 +151,9 @@ python3 scripts/graphbrew_experiment.py --clean-all --full --download-size SMALL
 
 # Fill ALL weight fields (cache impacts, topology features, benchmark weights)
 python3 scripts/graphbrew_experiment.py --fill-weights --graphs small --max-graphs 5
+
+# Fill weights on all graphs within memory and disk limits
+python3 scripts/graphbrew_experiment.py --fill-weights --auto-memory --auto-disk --download-size ALL
 ```
 
 ### Output Structure

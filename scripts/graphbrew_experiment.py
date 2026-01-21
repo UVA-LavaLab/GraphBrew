@@ -108,6 +108,12 @@ SIZE_SMALL = 50
 SIZE_MEDIUM = 500
 SIZE_LARGE = 2000
 
+# Memory estimation constants (bytes per edge/node for graph algorithms)
+# Based on CSR format: ~24 bytes/edge + 8 bytes/node for working memory
+BYTES_PER_EDGE = 24
+BYTES_PER_NODE = 8
+MEMORY_SAFETY_FACTOR = 1.5  # Add 50% buffer for algorithm overhead
+
 # Default timeouts (seconds)
 TIMEOUT_REORDER = 43200     # 12 hours for reordering (some algorithms like GORDER are slow on large graphs)
 TIMEOUT_BENCHMARK = 600     # 10 min for benchmarks
@@ -448,6 +454,90 @@ class DownloadableGraph:
     symmetric: bool
     category: str
     description: str = ""
+    
+    def estimated_memory_gb(self) -> float:
+        """Estimate RAM required to process this graph."""
+        memory_bytes = (self.edges * BYTES_PER_EDGE + self.nodes * BYTES_PER_NODE) * MEMORY_SAFETY_FACTOR
+        return memory_bytes / (1024 ** 3)
+
+
+def get_available_memory_gb() -> float:
+    """Get available system RAM in GB."""
+    try:
+        with open('/proc/meminfo', 'r') as f:
+            for line in f:
+                if line.startswith('MemAvailable:'):
+                    # Value is in kB
+                    return int(line.split()[1]) / (1024 * 1024)
+    except:
+        pass
+    # Fallback: try psutil if available
+    try:
+        import psutil
+        return psutil.virtual_memory().available / (1024 ** 3)
+    except:
+        pass
+    # Default to 8GB if we can't detect
+    return 8.0
+
+
+def get_total_memory_gb() -> float:
+    """Get total system RAM in GB."""
+    try:
+        with open('/proc/meminfo', 'r') as f:
+            for line in f:
+                if line.startswith('MemTotal:'):
+                    return int(line.split()[1]) / (1024 * 1024)
+    except:
+        pass
+    try:
+        import psutil
+        return psutil.virtual_memory().total / (1024 ** 3)
+    except:
+        pass
+    return 16.0
+
+
+def estimate_graph_memory_gb(nodes: int, edges: int) -> float:
+    """Estimate memory required for a graph in GB."""
+    memory_bytes = (edges * BYTES_PER_EDGE + nodes * BYTES_PER_NODE) * MEMORY_SAFETY_FACTOR
+    return memory_bytes / (1024 ** 3)
+
+
+def get_available_disk_gb(path: str = ".") -> float:
+    """Get available disk space in GB for the given path."""
+    try:
+        import shutil
+        usage = shutil.disk_usage(path)
+        return usage.free / (1024 ** 3)
+    except:
+        pass
+    try:
+        # Fallback using statvfs
+        import os
+        stat = os.statvfs(path)
+        return (stat.f_bavail * stat.f_frsize) / (1024 ** 3)
+    except:
+        pass
+    # Default to 100GB if we can't detect
+    return 100.0
+
+
+def get_total_disk_gb(path: str = ".") -> float:
+    """Get total disk space in GB for the given path."""
+    try:
+        import shutil
+        usage = shutil.disk_usage(path)
+        return usage.total / (1024 ** 3)
+    except:
+        pass
+    try:
+        import os
+        stat = os.statvfs(path)
+        return (stat.f_blocks * stat.f_frsize) / (1024 ** 3)
+    except:
+        pass
+    return 500.0
 
 # ============================================================================
 # Graph Catalog for Download
@@ -494,14 +584,14 @@ DOWNLOAD_GRAPHS_SMALL = [
                       4, 27770, 352807, False, "citation", "HEP-TH citations"),
 ]
 
-# Medium graphs (20MB - 200MB)
+# Medium graphs (20MB - 200MB) - ~35 graphs
 DOWNLOAD_GRAPHS_MEDIUM = [
     # Communication
     DownloadableGraph("wiki-Talk", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/wiki-Talk.tar.gz",
                       80, 2394385, 5021410, False, "communication", "Wikipedia talk"),
     DownloadableGraph("wiki-topcats", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/wiki-topcats.tar.gz",
                       120, 1791489, 28511807, False, "web", "Wikipedia top categories"),
-    # Citation networks (large)
+    # Citation networks
     DownloadableGraph("cit-Patents", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/cit-Patents.tar.gz",
                       262, 3774768, 16518948, False, "citation", "US Patent citations"),
     # Road networks
@@ -514,8 +604,6 @@ DOWNLOAD_GRAPHS_MEDIUM = [
     # Social networks (medium)
     DownloadableGraph("soc-Epinions1", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/soc-Epinions1.tar.gz",
                       12, 75888, 508837, False, "social", "Epinions social"),
-    DownloadableGraph("soc-pokec", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/soc-pokec.tar.gz",
-                      180, 1632803, 30622564, False, "social", "Pokec social network"),
     # Commerce networks
     DownloadableGraph("amazon0302", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/amazon0302.tar.gz",
                       15, 262111, 1234877, False, "commerce", "Amazon Mar 2003"),
@@ -537,16 +625,50 @@ DOWNLOAD_GRAPHS_MEDIUM = [
     # Infrastructure
     DownloadableGraph("as-Skitter", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/as-Skitter.tar.gz",
                       90, 1696415, 11095298, True, "infrastructure", "Internet topology"),
-    # Biology
-    DownloadableGraph("bio-CE-CX", "https://suitesparse-collection-website.herokuapp.com/MM/Belcastro/bio-CE-CX.tar.gz",
-                      15, 15229, 245952, True, "biology", "C. elegans neural"),
-    DownloadableGraph("bio-DM-CX", "https://suitesparse-collection-website.herokuapp.com/MM/Belcastro/bio-DM-CX.tar.gz",
-                      28, 47158, 524358, True, "biology", "D. melanogaster gene"),
-    DownloadableGraph("bio-HS-CX", "https://suitesparse-collection-website.herokuapp.com/MM/Belcastro/bio-HS-CX.tar.gz",
-                      85, 55823, 1614760, True, "biology", "H. sapiens gene"),
+    DownloadableGraph("as-caida20071105", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/as-caida20071105.tar.gz",
+                      1, 26475, 53381, False, "infrastructure", "CAIDA AS graph Nov 2007"),
+    # Autonomous systems
+    DownloadableGraph("Oregon-1", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/Oregon-1.tar.gz",
+                      1, 11174, 23409, False, "infrastructure", "Oregon AS peering"),
+    DownloadableGraph("Oregon-2", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/Oregon-2.tar.gz",
+                      1, 11461, 32730, False, "infrastructure", "Oregon AS peering 2"),
+    # Additional social networks
+    DownloadableGraph("loc-Brightkite", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/loc-brightkite_edges.tar.gz",
+                      3, 58228, 214078, False, "social", "Brightkite location social"),
+    DownloadableGraph("loc-Gowalla", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/loc-gowalla_edges.tar.gz",
+                      8, 196591, 950327, False, "social", "Gowalla location social"),
+    DownloadableGraph("ego-Facebook", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/ego-Facebook.tar.gz",
+                      1, 4039, 88234, True, "social", "Facebook ego networks"),
+    DownloadableGraph("ego-Twitter", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/ego-Twitter.tar.gz",
+                      6, 81306, 1768149, False, "social", "Twitter ego networks"),
+    DownloadableGraph("ego-Gplus", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/ego-Gplus.tar.gz",
+                      15, 107614, 13673453, False, "social", "Google+ ego networks"),
+    # DIMACS10 graphs (sparse)
+    DownloadableGraph("delaunay_n17", "https://suitesparse-collection-website.herokuapp.com/MM/DIMACS10/delaunay_n17.tar.gz",
+                      5, 131072, 393176, True, "mesh", "Delaunay triangulation n=17"),
+    DownloadableGraph("delaunay_n18", "https://suitesparse-collection-website.herokuapp.com/MM/DIMACS10/delaunay_n18.tar.gz",
+                      10, 262144, 786396, True, "mesh", "Delaunay triangulation n=18"),
+    DownloadableGraph("delaunay_n19", "https://suitesparse-collection-website.herokuapp.com/MM/DIMACS10/delaunay_n19.tar.gz",
+                      20, 524288, 1572823, True, "mesh", "Delaunay triangulation n=19"),
+    DownloadableGraph("delaunay_n20", "https://suitesparse-collection-website.herokuapp.com/MM/DIMACS10/delaunay_n20.tar.gz",
+                      40, 1048576, 3145686, True, "mesh", "Delaunay triangulation n=20"),
+    DownloadableGraph("rgg_n_2_17_s0", "https://suitesparse-collection-website.herokuapp.com/MM/DIMACS10/rgg_n_2_17_s0.tar.gz",
+                      15, 131072, 728753, True, "mesh", "Random geometric graph n=17"),
+    DownloadableGraph("rgg_n_2_18_s0", "https://suitesparse-collection-website.herokuapp.com/MM/DIMACS10/rgg_n_2_18_s0.tar.gz",
+                      30, 262144, 1457506, True, "mesh", "Random geometric graph n=18"),
+    DownloadableGraph("rgg_n_2_19_s0", "https://suitesparse-collection-website.herokuapp.com/MM/DIMACS10/rgg_n_2_19_s0.tar.gz",
+                      60, 524288, 2915013, True, "mesh", "Random geometric graph n=19"),
+    # Power-law and scale-free
+    DownloadableGraph("preferentialAttachment", "https://suitesparse-collection-website.herokuapp.com/MM/DIMACS10/preferentialAttachment.tar.gz",
+                      10, 100000, 499985, True, "synthetic", "Preferential attachment model"),
+    DownloadableGraph("smallworld", "https://suitesparse-collection-website.herokuapp.com/MM/DIMACS10/smallworld.tar.gz",
+                      10, 100000, 499998, True, "synthetic", "Small world model"),
+    # Additional web graphs
+    DownloadableGraph("cnr-2000", "https://suitesparse-collection-website.herokuapp.com/MM/LAW/cnr-2000.tar.gz",
+                      30, 325557, 3216152, False, "web", "Italian CNR web 2000"),
 ]
 
-# Large graphs (200MB - 2GB)
+# Large graphs (200MB - 2GB) - ~40 graphs  
 DOWNLOAD_GRAPHS_LARGE = [
     # Social networks (large)
     DownloadableGraph("soc-LiveJournal1", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/soc-LiveJournal1.tar.gz",
@@ -559,11 +681,15 @@ DOWNLOAD_GRAPHS_LARGE = [
                       220, 334863, 925872, True, "commerce", "Amazon product network"),
     DownloadableGraph("com-DBLP", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/com-DBLP.tar.gz",
                       200, 317080, 1049866, True, "collaboration", "DBLP collaboration"),
-    DownloadableGraph("com-Friendster", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/com-Friendster.tar.gz",
-                      31000, 65608366, 1806067135, True, "social", "Friendster social network"),
+    DownloadableGraph("com-lj", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/com-lj.tar.gz",
+                      1100, 3997962, 34681189, True, "social", "LiveJournal communities"),
     # Collaboration
     DownloadableGraph("hollywood-2009", "https://suitesparse-collection-website.herokuapp.com/MM/LAW/hollywood-2009.tar.gz",
                       600, 1139905, 57515616, True, "collaboration", "Hollywood actors"),
+    DownloadableGraph("dblp-2010", "https://suitesparse-collection-website.herokuapp.com/MM/LAW/dblp-2010.tar.gz",
+                      200, 326186, 1615400, True, "collaboration", "DBLP 2010"),
+    DownloadableGraph("dblp-2011", "https://suitesparse-collection-website.herokuapp.com/MM/LAW/dblp-2011.tar.gz",
+                      220, 986324, 6707236, True, "collaboration", "DBLP 2011"),
     # Web graphs (large)
     DownloadableGraph("in-2004", "https://suitesparse-collection-website.herokuapp.com/MM/LAW/in-2004.tar.gz",
                       450, 1382908, 16917053, False, "web", "Indian web 2004"),
@@ -573,28 +699,84 @@ DOWNLOAD_GRAPHS_LARGE = [
                       2500, 18520486, 298113762, False, "web", "UK web 2002"),
     DownloadableGraph("arabic-2005", "https://suitesparse-collection-website.herokuapp.com/MM/LAW/arabic-2005.tar.gz",
                       2200, 22744080, 639999458, False, "web", "Arabic web 2005"),
+    DownloadableGraph("indochina-2004", "https://suitesparse-collection-website.herokuapp.com/MM/LAW/indochina-2004.tar.gz",
+                      600, 7414866, 194109311, False, "web", "Indochina web 2004"),
+    DownloadableGraph("sk-2005", "https://suitesparse-collection-website.herokuapp.com/MM/LAW/sk-2005.tar.gz",
+                      1100, 50636154, 1949412601, False, "web", "Slovakia web 2005"),
+    # Road networks (large)
+    DownloadableGraph("USA-road-d-NY", "https://suitesparse-collection-website.herokuapp.com/MM/DIMACS10/road_usa.tar.gz",
+                      350, 23947347, 57708624, True, "road", "US road network"),
+    DownloadableGraph("europe-osm", "https://suitesparse-collection-website.herokuapp.com/MM/DIMACS10/europe_osm.tar.gz",
+                      1200, 50912018, 108109320, True, "road", "European OSM roads"),
+    DownloadableGraph("asia-osm", "https://suitesparse-collection-website.herokuapp.com/MM/DIMACS10/asia_osm.tar.gz",
+                      600, 11950757, 25423206, True, "road", "Asian OSM roads"),
+    DownloadableGraph("great-britain-osm", "https://suitesparse-collection-website.herokuapp.com/MM/DIMACS10/great-britain_osm.tar.gz",
+                      250, 7733822, 16313034, True, "road", "Great Britain OSM roads"),
+    DownloadableGraph("germany-osm", "https://suitesparse-collection-website.herokuapp.com/MM/DIMACS10/germany_osm.tar.gz",
+                      300, 11548845, 24738362, True, "road", "Germany OSM roads"),
+    # DIMACS10 large meshes
+    DownloadableGraph("delaunay_n21", "https://suitesparse-collection-website.herokuapp.com/MM/DIMACS10/delaunay_n21.tar.gz",
+                      80, 2097152, 6291372, True, "mesh", "Delaunay triangulation n=21"),
+    DownloadableGraph("delaunay_n22", "https://suitesparse-collection-website.herokuapp.com/MM/DIMACS10/delaunay_n22.tar.gz",
+                      160, 4194304, 12582869, True, "mesh", "Delaunay triangulation n=22"),
+    DownloadableGraph("delaunay_n23", "https://suitesparse-collection-website.herokuapp.com/MM/DIMACS10/delaunay_n23.tar.gz",
+                      320, 8388608, 25165784, True, "mesh", "Delaunay triangulation n=23"),
+    DownloadableGraph("delaunay_n24", "https://suitesparse-collection-website.herokuapp.com/MM/DIMACS10/delaunay_n24.tar.gz",
+                      640, 16777216, 50331601, True, "mesh", "Delaunay triangulation n=24"),
+    DownloadableGraph("rgg_n_2_20_s0", "https://suitesparse-collection-website.herokuapp.com/MM/DIMACS10/rgg_n_2_20_s0.tar.gz",
+                      120, 1048576, 5830030, True, "mesh", "Random geometric graph n=20"),
+    DownloadableGraph("rgg_n_2_21_s0", "https://suitesparse-collection-website.herokuapp.com/MM/DIMACS10/rgg_n_2_21_s0.tar.gz",
+                      240, 2097152, 11660061, True, "mesh", "Random geometric graph n=21"),
+    DownloadableGraph("rgg_n_2_22_s0", "https://suitesparse-collection-website.herokuapp.com/MM/DIMACS10/rgg_n_2_22_s0.tar.gz",
+                      480, 4194304, 23320130, True, "mesh", "Random geometric graph n=22"),
+    DownloadableGraph("rgg_n_2_23_s0", "https://suitesparse-collection-website.herokuapp.com/MM/DIMACS10/rgg_n_2_23_s0.tar.gz",
+                      960, 8388608, 46640257, True, "mesh", "Random geometric graph n=23"),
+    DownloadableGraph("rgg_n_2_24_s0", "https://suitesparse-collection-website.herokuapp.com/MM/DIMACS10/rgg_n_2_24_s0.tar.gz",
+                      1920, 16777216, 93280513, True, "mesh", "Random geometric graph n=24"),
+    # Clustering benchmarks
+    DownloadableGraph("coPapersDBLP", "https://suitesparse-collection-website.herokuapp.com/MM/DIMACS10/coPapersDBLP.tar.gz",
+                      400, 540486, 15245729, True, "collaboration", "DBLP co-author papers"),
+    DownloadableGraph("coPapersCiteseer", "https://suitesparse-collection-website.herokuapp.com/MM/DIMACS10/coPapersCiteseer.tar.gz",
+                      450, 434102, 16036720, True, "citation", "Citeseer co-papers"),
+    DownloadableGraph("citationCiteseer", "https://suitesparse-collection-website.herokuapp.com/MM/DIMACS10/citationCiteseer.tar.gz",
+                      350, 268495, 1156647, False, "citation", "Citeseer citations"),
+    DownloadableGraph("coAuthorsDBLP", "https://suitesparse-collection-website.herokuapp.com/MM/DIMACS10/coAuthorsDBLP.tar.gz",
+                      200, 299067, 977676, True, "collaboration", "DBLP co-authors"),
+    DownloadableGraph("coAuthorsCiteseer", "https://suitesparse-collection-website.herokuapp.com/MM/DIMACS10/coAuthorsCiteseer.tar.gz",
+                      160, 227320, 814134, True, "collaboration", "Citeseer co-authors"),
+    # Wikipedia graphs
+    DownloadableGraph("wiki-Vote", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/wiki-Vote.tar.gz",
+                      2, 7115, 103689, False, "social", "Wikipedia adminship votes"),
+    # Kron graphs (synthetic power-law)
+    DownloadableGraph("kron_g500-logn16", "https://suitesparse-collection-website.herokuapp.com/MM/DIMACS10/kron_g500-logn16.tar.gz",
+                      200, 65536, 4912201, True, "synthetic", "Kronecker graph logn=16"),
+    DownloadableGraph("kron_g500-logn17", "https://suitesparse-collection-website.herokuapp.com/MM/DIMACS10/kron_g500-logn17.tar.gz",
+                      400, 131072, 10228360, True, "synthetic", "Kronecker graph logn=17"),
+    DownloadableGraph("kron_g500-logn18", "https://suitesparse-collection-website.herokuapp.com/MM/DIMACS10/kron_g500-logn18.tar.gz",
+                      800, 262144, 21165908, True, "synthetic", "Kronecker graph logn=18"),
+    DownloadableGraph("kron_g500-logn19", "https://suitesparse-collection-website.herokuapp.com/MM/DIMACS10/kron_g500-logn19.tar.gz",
+                      1600, 524288, 43561574, True, "synthetic", "Kronecker graph logn=19"),
+    DownloadableGraph("kron_g500-logn20", "https://suitesparse-collection-website.herokuapp.com/MM/DIMACS10/kron_g500-logn20.tar.gz",
+                      3200, 1048576, 89239674, True, "synthetic", "Kronecker graph logn=20"),
+]
+
+# Extra-large graphs (>2GB) - requires significant memory
+DOWNLOAD_GRAPHS_XLARGE = [
+    # Massive web graphs
     DownloadableGraph("uk-2005", "https://suitesparse-collection-website.herokuapp.com/MM/LAW/uk-2005.tar.gz",
                       3200, 39459925, 936364282, False, "web", "UK web 2005"),
     DownloadableGraph("webbase-2001", "https://suitesparse-collection-website.herokuapp.com/MM/LAW/webbase-2001.tar.gz",
                       8500, 118142155, 1019903190, False, "web", "WebBase 2001 crawl"),
     DownloadableGraph("it-2004", "https://suitesparse-collection-website.herokuapp.com/MM/LAW/it-2004.tar.gz",
                       3500, 41291594, 1150725436, False, "web", "Italian web 2004"),
-    # Road networks (large)
-    DownloadableGraph("USA-road-d", "https://suitesparse-collection-website.herokuapp.com/MM/DIMACS10/usa_road_d.USA.tar.gz",
-                      350, 23947347, 57708624, True, "road", "US road network distance"),
-    DownloadableGraph("europe-osm", "https://suitesparse-collection-website.herokuapp.com/MM/DIMACS10/europe_osm.tar.gz",
-                      1200, 50912018, 108109320, True, "road", "European OSM roads"),
-    DownloadableGraph("asia-osm", "https://suitesparse-collection-website.herokuapp.com/MM/DIMACS10/asia_osm.tar.gz",
-                      600, 11950757, 25423206, True, "road", "Asian OSM roads"),
-    # Citation networks (large)
-    DownloadableGraph("cit-Patents-full", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/cit-Patents.tar.gz",
-                      262, 3774768, 16518948, False, "citation", "US Patent citations full"),
-    # Knowledge graphs
-    DownloadableGraph("kmer_V1r", "https://suitesparse-collection-website.herokuapp.com/MM/GenBank/kmer_V1r.tar.gz",
-                      450, 214005017, 465410904, True, "biology", "K-mer graph V1r"),
-    # Twitter
+    # Massive social
+    DownloadableGraph("com-Friendster", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/com-Friendster.tar.gz",
+                      31000, 65608366, 1806067135, True, "social", "Friendster social network"),
     DownloadableGraph("twitter7", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/twitter7.tar.gz",
                       12000, 41652230, 1468365182, False, "social", "Twitter follower network"),
+    # Large meshes
+    DownloadableGraph("kron_g500-logn21", "https://suitesparse-collection-website.herokuapp.com/MM/DIMACS10/kron_g500-logn21.tar.gz",
+                      6400, 2097152, 182081864, True, "synthetic", "Kronecker graph logn=21"),
 ]
 
 # ============================================================================
@@ -672,8 +854,35 @@ def get_graph_size_mb(path: str) -> float:
         return os.path.getsize(path) / (1024 * 1024)
     return 0.0
 
+
+def get_graph_dimensions(path: str) -> Tuple[int, int]:
+    """Read nodes and edges count from an MTX file header.
+    
+    Returns:
+        (nodes, edges) tuple, or (0, 0) if unable to read
+    """
+    try:
+        with open(path, 'r') as f:
+            for line in f:
+                if line.startswith('%'):
+                    continue
+                # First non-comment line has dimensions: rows cols nnz
+                parts = line.strip().split()
+                if len(parts) >= 3:
+                    nodes = int(parts[0])
+                    edges = int(parts[2])
+                    return nodes, edges
+                elif len(parts) >= 2:
+                    nodes = int(parts[0])
+                    return nodes, 0
+                break
+    except:
+        pass
+    return 0, 0
+
+
 def discover_graphs(graphs_dir: str, min_size: float = 0, max_size: float = float('inf'), 
-                    additional_dirs: List[str] = None) -> List[GraphInfo]:
+                    additional_dirs: List[str] = None, max_memory_gb: float = None) -> List[GraphInfo]:
     """Discover available graphs in the directory and additional directories.
     
     Args:
@@ -681,9 +890,11 @@ def discover_graphs(graphs_dir: str, min_size: float = 0, max_size: float = floa
         min_size: Minimum graph size in MB
         max_size: Maximum graph size in MB
         additional_dirs: Additional directories to scan (e.g., ./graphs for pre-existing graphs)
+        max_memory_gb: If set, skip graphs requiring more than this memory (auto-detects if None)
     """
     graphs = []
     seen_names = set()
+    skipped_memory = []
     
     # Build list of directories to scan
     dirs_to_scan = [graphs_dir]
@@ -727,13 +938,34 @@ def discover_graphs(graphs_dir: str, min_size: float = 0, max_size: float = floa
                     size_mb = get_graph_size_mb(graph_path)
                     if min_size <= size_mb <= max_size:
                         is_symmetric = metadata.get(entry, {}).get("symmetric", True)
+                        
+                        # Read actual node/edge counts from MTX file
+                        nodes, edges = get_graph_dimensions(graph_path)
+                        
+                        # Check memory requirements if limit specified
+                        if max_memory_gb is not None and nodes > 0 and edges > 0:
+                            mem_required = estimate_graph_memory_gb(nodes, edges)
+                            if mem_required > max_memory_gb:
+                                skipped_memory.append((entry, mem_required))
+                                continue
+                        
                         graphs.append(GraphInfo(
                             name=entry,
                             path=graph_path,
                             size_mb=size_mb,
-                            is_symmetric=is_symmetric
+                            is_symmetric=is_symmetric,
+                            nodes=nodes,
+                            edges=edges
                         ))
                         seen_names.add(entry)
+    
+    # Report skipped graphs
+    if skipped_memory:
+        log(f"Skipped {len(skipped_memory)} graphs exceeding {max_memory_gb:.1f}GB memory limit:", "INFO")
+        for name, mem in skipped_memory[:5]:
+            log(f"  - {name}: requires {mem:.1f} GB", "INFO")
+        if len(skipped_memory) > 5:
+            log(f"  ... and {len(skipped_memory) - 5} more", "INFO")
     
     # Sort by size
     graphs.sort(key=lambda g: g.size_mb)
@@ -900,14 +1132,18 @@ def download_graph(graph: DownloadableGraph, graphs_dir: str, force: bool = Fals
 def download_graphs(
     size_category: str = "SMALL",
     graphs_dir: str = DEFAULT_GRAPHS_DIR,
-    force: bool = False
+    force: bool = False,
+    max_memory_gb: float = None,
+    max_disk_gb: float = None
 ) -> List[str]:
-    """Download graphs by size category.
+    """Download graphs by size category with optional memory and disk filtering.
     
     Args:
-        size_category: One of "SMALL", "MEDIUM", "LARGE", "ALL"
+        size_category: One of "SMALL", "MEDIUM", "LARGE", "XLARGE", "ALL"
         graphs_dir: Directory to download graphs to
         force: If True, re-download existing graphs
+        max_memory_gb: If set, skip graphs exceeding this memory requirement
+        max_disk_gb: If set, skip downloads that would exceed this disk space
         
     Returns:
         List of successfully downloaded graph names
@@ -925,18 +1161,66 @@ def download_graphs(
         graphs_to_download.extend(DOWNLOAD_GRAPHS_MEDIUM)
     if size_category.upper() in ["LARGE", "ALL"]:
         graphs_to_download.extend(DOWNLOAD_GRAPHS_LARGE)
+    if size_category.upper() in ["XLARGE", "ALL"]:
+        graphs_to_download.extend(DOWNLOAD_GRAPHS_XLARGE)
     
     if not graphs_to_download:
         print(f"Unknown size category: {size_category}")
-        print("Valid options: SMALL, MEDIUM, LARGE, ALL")
+        print("Valid options: SMALL, MEDIUM, LARGE, XLARGE, ALL")
         return []
+    
+    # Apply memory filtering if specified
+    skipped_memory = []
+    if max_memory_gb is not None:
+        original_count = len(graphs_to_download)
+        filtered = []
+        for g in graphs_to_download:
+            mem_required = g.estimated_memory_gb()
+            if mem_required <= max_memory_gb:
+                filtered.append(g)
+            else:
+                skipped_memory.append((g.name, mem_required))
+        graphs_to_download = filtered
+        if skipped_memory:
+            print(f"Memory limit: {max_memory_gb:.1f} GB")
+            print(f"Skipped {len(skipped_memory)} graphs exceeding memory limit:")
+            for name, mem in skipped_memory[:5]:
+                print(f"  - {name}: requires {mem:.1f} GB")
+            if len(skipped_memory) > 5:
+                print(f"  ... and {len(skipped_memory) - 5} more")
+    
+    # Apply disk space filtering if specified
+    skipped_disk = []
+    if max_disk_gb is not None:
+        # Sort by size to download smaller graphs first
+        graphs_to_download.sort(key=lambda g: g.size_mb)
+        filtered = []
+        cumulative_size_gb = 0
+        for g in graphs_to_download:
+            size_gb = g.size_mb / 1024
+            if cumulative_size_gb + size_gb <= max_disk_gb:
+                filtered.append(g)
+                cumulative_size_gb += size_gb
+            else:
+                skipped_disk.append((g.name, g.size_mb))
+        graphs_to_download = filtered
+        if skipped_disk:
+            print(f"Disk space limit: {max_disk_gb:.1f} GB")
+            print(f"Skipped {len(skipped_disk)} graphs due to disk space limit:")
+            for name, size in skipped_disk[:5]:
+                print(f"  - {name}: {size:.1f} MB")
+            if len(skipped_disk) > 5:
+                print(f"  ... and {len(skipped_disk) - 5} more")
     
     print(f"Category: {size_category}")
     print(f"Graphs to download: {len(graphs_to_download)}")
     print(f"Target directory: {graphs_dir}")
     
     total_size = sum(g.size_mb for g in graphs_to_download)
-    print(f"Total estimated size: {total_size:.1f} MB")
+    print(f"Total estimated download size: {total_size:.1f} MB")
+    
+    total_memory = sum(g.estimated_memory_gb() for g in graphs_to_download)
+    print(f"Max graph memory requirement: {max(g.estimated_memory_gb() for g in graphs_to_download):.1f} GB")
     
     # Create graphs directory
     os.makedirs(graphs_dir, exist_ok=True)
@@ -3531,7 +3815,7 @@ def run_experiment(args):
     else:
         min_size, max_size = args.min_size, args.max_size
     
-    graphs = discover_graphs(args.graphs_dir, min_size, max_size)
+    graphs = discover_graphs(args.graphs_dir, min_size, max_size, max_memory_gb=args.max_memory)
     
     if args.max_graphs:
         graphs = graphs[:args.max_graphs]
@@ -3937,12 +4221,22 @@ Examples:
                         help="Run complete pipeline: download, build, experiment, weights")
     parser.add_argument("--download-only", action="store_true",
                         help="Only download graphs (no experiments)")
-    parser.add_argument("--download-size", choices=["SMALL", "MEDIUM", "LARGE", "ALL"],
+    parser.add_argument("--download-size", choices=["SMALL", "MEDIUM", "LARGE", "XLARGE", "ALL"],
                         default="SMALL", help="Size category of graphs to download")
     parser.add_argument("--force-download", action="store_true",
                         help="Re-download graphs even if they exist")
     parser.add_argument("--skip-build", action="store_true",
                         help="Skip build check (assume binaries exist)")
+    parser.add_argument("--max-memory", type=float, default=None,
+                        help="Maximum RAM (GB) for graph processing. Auto-detects available memory if not set. "
+                             "Graphs requiring more memory are automatically skipped.")
+    parser.add_argument("--auto-memory", action="store_true",
+                        help="Automatically skip graphs that won't fit in available system RAM")
+    parser.add_argument("--max-disk", type=float, default=None,
+                        help="Maximum disk space (GB) for graph downloads. Graphs are skipped if total "
+                             "download size would exceed this limit.")
+    parser.add_argument("--auto-disk", action="store_true",
+                        help="Automatically limit downloads to available disk space (uses 80%% of free space)")
     
     # Phase selection
     parser.add_argument("--phase", choices=["all", "reorder", "benchmark", "cache", "weights", "adaptive"],
@@ -4042,6 +4336,24 @@ Examples:
     
     args = parser.parse_args()
     
+    # Determine memory limit
+    if args.auto_memory and args.max_memory is None:
+        # Auto-detect available memory, use 80% of total as safe limit
+        total_mem = get_total_memory_gb()
+        args.max_memory = total_mem * 0.8
+        log(f"Auto-detected memory limit: {args.max_memory:.1f} GB (80% of {total_mem:.1f} GB total)", "INFO")
+    elif args.max_memory is not None:
+        log(f"Using specified memory limit: {args.max_memory:.1f} GB", "INFO")
+    
+    # Determine disk space limit
+    if args.auto_disk and args.max_disk is None:
+        # Auto-detect available disk space, use 80% of free space
+        free_disk = get_available_disk_gb(args.graphs_dir if os.path.exists(args.graphs_dir) else ".")
+        args.max_disk = free_disk * 0.8
+        log(f"Auto-detected disk limit: {args.max_disk:.1f} GB (80% of {free_disk:.1f} GB free)", "INFO")
+    elif args.max_disk is not None:
+        log(f"Using specified disk limit: {args.max_disk:.1f} GB", "INFO")
+    
     # Handle clean operations first
     if args.clean_all:
         clean_all(".", confirm=False)
@@ -4061,7 +4373,9 @@ Examples:
             download_graphs(
                 size_category=args.download_size,
                 graphs_dir=args.graphs_dir,
-                force=args.force_download
+                force=args.force_download,
+                max_memory_gb=args.max_memory,
+                max_disk_gb=args.max_disk
             )
             log("Download complete. Run without --download-only to start experiments.", "INFO")
             return
@@ -4076,7 +4390,9 @@ Examples:
             downloaded = download_graphs(
                 size_category=args.download_size,
                 graphs_dir=args.graphs_dir,
-                force=args.force_download
+                force=args.force_download,
+                max_memory_gb=args.max_memory,
+                max_disk_gb=args.max_disk
             )
             
             if not downloaded:
@@ -4105,6 +4421,8 @@ Examples:
                 args.max_size = 200
             elif args.download_size == "LARGE":
                 args.graphs = "large"
+            elif args.download_size == "XLARGE":
+                args.graphs = "all"
             else:
                 args.graphs = "all"
         

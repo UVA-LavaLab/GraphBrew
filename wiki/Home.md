@@ -62,12 +62,22 @@ python3 scripts/graphbrew_experiment.py --full --download-size SMALL
 ```
 
 This single command will:
-1. Download benchmark graphs from SuiteSparse (56 graphs available)
+1. Download benchmark graphs from SuiteSparse (96 graphs available)
 2. Build binaries automatically
 3. Pre-generate label mappings for consistent reordering
 4. Run all benchmarks with all 20 algorithms
 5. Execute cache simulations (L1/L2/L3 hit rates)
 6. Generate perceptron weights for AdaptiveOrder (includes cache + reorder time features)
+
+### Resource Management
+
+```bash
+# Auto-detect RAM and disk limits
+python3 scripts/graphbrew_experiment.py --full --download-size ALL --auto-memory --auto-disk
+
+# Set explicit limits
+python3 scripts/graphbrew_experiment.py --full --download-size ALL --max-memory 32 --max-disk 100
+```
 
 ### Training Options
 
@@ -84,9 +94,10 @@ python3 scripts/graphbrew_experiment.py --train-adaptive --target-accuracy 85 --
 | Size | Graphs | Total | Use Case |
 |------|--------|-------|----------|
 | `SMALL` | 16 | ~62 MB | Quick testing |
-| `MEDIUM` | 20 | ~1.2 GB | Standard experiments |
-| `LARGE` | 20 | ~68 GB | Full evaluation |
-| `ALL` | **56** | ~70 GB | Complete benchmark |
+| `MEDIUM` | 34 | ~1.1 GB | Standard experiments |
+| `LARGE` | 40 | ~27 GB | Full evaluation |
+| `XLARGE` | 6 | ~63 GB | Massive-scale testing |
+| `ALL` | **96** | ~91 GB | Complete benchmark |
 
 ### Manual Usage
 

@@ -373,8 +373,24 @@ The unified experiment script provides comprehensive options for training and be
 |--------|-------------|
 | `--full` | Run complete pipeline (download → build → experiment → weights) |
 | `--download-only` | Only download graphs |
-| `--download-size SIZE` | SMALL (16), MEDIUM (20), LARGE (20), ALL (56 graphs) |
+| `--download-size SIZE` | SMALL (16), MEDIUM (34), LARGE (40), XLARGE (6), ALL (96 graphs) |
 | `--phase PHASE` | Run specific phase: all, reorder, benchmark, cache, weights, adaptive |
+
+### Memory Management
+
+| Option | Description |
+|--------|-------------|
+| `--max-memory GB` | Maximum RAM (GB) for graph processing. Graphs exceeding this are skipped. |
+| `--auto-memory` | Automatically detect available RAM and skip graphs that won't fit (uses 80% of total) |
+
+Memory estimation: `(edges × 24 bytes + nodes × 8 bytes) × 1.5`
+
+### Disk Space Management
+
+| Option | Description |
+|--------|-------------|
+| `--max-disk GB` | Maximum disk space (GB) for downloads. Downloads stop when limit is reached. |
+| `--auto-disk` | Automatically limit downloads to available disk space (uses 80% of free space) |
 
 ### Training Options
 
@@ -398,8 +414,14 @@ The unified experiment script provides comprehensive options for training and be
 ### Examples
 
 ```bash
+# Auto-detect RAM and disk limits, run on all fitting graphs
+python3 scripts/graphbrew_experiment.py --full --download-size ALL --auto-memory --auto-disk
+
+# Set explicit 32GB memory and 100GB disk limits
+python3 scripts/graphbrew_experiment.py --full --download-size ALL --max-memory 32 --max-disk 100
+
 # Fill all weight fields comprehensively
-python3 scripts/graphbrew_experiment.py --fill-weights --graphs small --max-graphs 5
+python3 scripts/graphbrew_experiment.py --fill-weights --auto-memory --auto-disk --download-size ALL
 
 # Iterative training to 85% accuracy
 python3 scripts/graphbrew_experiment.py --train-adaptive --target-accuracy 85 --graphs small
