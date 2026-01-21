@@ -230,4 +230,33 @@ chmod +x bench/bin/*
 
 ---
 
+## Training Your Own Weights (Terminal Quick Reference)
+
+### One-Line Commands
+
+```bash
+# QUICK: Test on 3 small graphs (5-10 min)
+python3 scripts/graphbrew_experiment.py --graphs-dir ./results/graphs --graphs small --max-graphs 3 --trials 1
+
+# FILL ALL WEIGHTS: Populate cache impacts, topology features, benchmark weights (30-60 min)
+python3 scripts/graphbrew_experiment.py --fill-weights --graphs-dir ./results/graphs --graphs small --max-graphs 5 --trials 2
+
+# FULL: Train on all graphs with validation (1-2 hours)
+python3 scripts/graphbrew_experiment.py --graphs-dir ./results/graphs --max-graphs 50 --trials 2 && \
+python3 scripts/graphbrew_experiment.py --graphs-dir ./results/graphs --brute-force --bf-benchmark pr --trials 2
+
+# CHECK RESULTS: View new algorithm biases
+cat results/perceptron_weights.json | python3 -c "import sys,json; d=json.load(sys.stdin); [print(f'{k}: {v.get(\"bias\",0):.2f}') for k,v in sorted(d.items(), key=lambda x:-x[1].get('bias',0))[:10] if not k.startswith('_')]"
+```
+
+### Understanding Output
+
+- **RANDOM is baseline** (1.00x) - all speedups measured against random ordering
+- **Higher bias = better** - HUBSORT at 26.0 means 26x faster than random
+- **Bias < 0.5** - algorithm is slower than random (not useful)
+
+See [Perceptron-Weights](Perceptron-Weights.md#step-by-step-terminal-training-guide) for detailed guide.
+
+---
+
 [← Back to Home](Home) | [Installation →](Installation)

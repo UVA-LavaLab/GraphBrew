@@ -33,6 +33,9 @@ python3 scripts/graphbrew_experiment.py --graphs small --key-only
 
 # Use pre-generated label maps for consistent reordering
 python3 scripts/graphbrew_experiment.py --generate-maps --use-maps --phase benchmark
+
+# Fill ALL weight fields (cache sim, topology features, benchmark weights)
+python3 scripts/graphbrew_experiment.py --fill-weights --graphs small --max-graphs 5 --trials 2
 ```
 
 ### Download Options

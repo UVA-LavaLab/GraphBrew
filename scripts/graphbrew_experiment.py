@@ -612,6 +612,31 @@ def log_section(title: str):
     print(title)
     print("=" * 70 + "\n")
 
+def backup_and_sync_weights(results_weights_path: str, scripts_weights_path: str = "./scripts/perceptron_weights.json"):
+    """
+    Backup weights with timestamp in results folder and sync to scripts folder.
+    
+    This ensures:
+    1. Results weights are backed up with timestamp (won't be overwritten)
+    2. Scripts weights are updated for next experiment iteration
+    """
+    if not os.path.exists(results_weights_path):
+        log(f"Weights file not found: {results_weights_path}", "WARNING")
+        return
+    
+    # Create timestamped backup in results folder
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    backup_path = results_weights_path.replace(".json", f"_{timestamp}.json")
+    
+    import shutil
+    shutil.copy2(results_weights_path, backup_path)
+    log(f"Weights backed up to: {backup_path}")
+    
+    # Copy to scripts folder for next iteration
+    os.makedirs(os.path.dirname(scripts_weights_path), exist_ok=True)
+    shutil.copy2(results_weights_path, scripts_weights_path)
+    log(f"Weights synced to: {scripts_weights_path}")
+
 def get_graph_path(graphs_dir: str, graph_name: str) -> Optional[str]:
     """Get the path to a graph file."""
     graph_folder = os.path.join(graphs_dir, graph_name)
@@ -1510,10 +1535,14 @@ def run_benchmarks(
     total = len(graphs) * len(algorithms) * len(benchmarks)
     current = 0
     
+    # BASELINE_ALGORITHM = 1 (RANDOM) for fair comparison
+    # RANDOM represents the worst-case random ordering, so speedups are meaningful
+    BASELINE_ALGO_ID = 1
+    
     for graph in graphs:
         log(f"\nGraph: {graph.name} ({graph.size_mb:.1f}MB)")
         
-        # Store baseline times for speedup calculation
+        # Store baseline times for speedup calculation (using RANDOM as baseline)
         baseline_times = {}
         
         for bench in benchmarks:
@@ -1565,11 +1594,11 @@ def run_benchmarks(
                     nodes = parsed.get('nodes', 0)
                     edges = parsed.get('edges', 0)
                     
-                    # Record baseline for speedup
-                    if algo_id == 0:
+                    # Record baseline for speedup (RANDOM = algo_id 1)
+                    if algo_id == BASELINE_ALGO_ID:
                         baseline_times[bench] = trial_time
                     
-                    # Calculate speedup
+                    # Calculate speedup vs RANDOM baseline
                     baseline = baseline_times.get(bench, trial_time)
                     speedup = baseline / trial_time if trial_time > 0 else 0.0
                     
@@ -1835,6 +1864,9 @@ def generate_perceptron_weights(
         json.dump(weights_dict, f, indent=2)
     
     log(f"\nWeights saved to: {output_file}")
+    
+    # Backup with timestamp and sync to scripts folder
+    backup_and_sync_weights(output_file)
     
     return weights
 
@@ -2474,6 +2506,98 @@ def update_zero_weights(
     log(f"\nUpdated {updated_count} algorithms")
     log(f"Weights saved to: {weights_file}")
     log("\nNote: Negative weights (like -0.0) are NORMAL and mean that feature is penalized")
+    
+    # Backup with timestamp and sync to scripts folder
+    backup_and_sync_weights(weights_file)
+
+
+def compute_benchmark_weights(
+    weights_file: str,
+    benchmark_results: List[BenchmarkResult]
+) -> None:
+    """
+    Compute per-benchmark weights based on algorithm performance on each benchmark.
+    
+    For each algorithm, calculates how well it performs on pr, bfs, cc, sssp, bc
+    relative to other algorithms. Higher weight = algorithm is better for that benchmark.
+    """
+    log("Computing benchmark-specific weights...")
+    
+    # Load existing weights
+    with open(weights_file) as f:
+        weights = json.load(f)
+    
+    # Group results by benchmark
+    benchmarks = {}
+    for r in benchmark_results:
+        if not r.success:
+            continue
+        if r.benchmark not in benchmarks:
+            benchmarks[r.benchmark] = []
+        benchmarks[r.benchmark].append(r)
+    
+    if not benchmarks:
+        log("No benchmark results to compute weights from")
+        return
+    
+    # For each algorithm, compute relative performance on each benchmark
+    for algo_name, algo_weights in weights.items():
+        if algo_name.startswith("_") or not isinstance(algo_weights, dict):
+            continue
+        
+        if "benchmark_weights" not in algo_weights:
+            algo_weights["benchmark_weights"] = {}
+        
+        for benchmark, results in benchmarks.items():
+            # Get this algorithm's results for this benchmark
+            algo_results = [r for r in results if r.algorithm_name == algo_name]
+            
+            if not algo_results:
+                continue
+            
+            # Calculate average speedup for this algorithm on this benchmark
+            avg_speedup = sum(r.speedup for r in algo_results) / len(algo_results)
+            
+            # Calculate average speedup across ALL algorithms for this benchmark
+            all_speedups = [r.speedup for r in results]
+            overall_avg = sum(all_speedups) / len(all_speedups) if all_speedups else 1.0
+            
+            # Relative performance: >1 means better than average, <1 means worse
+            relative_perf = avg_speedup / overall_avg if overall_avg > 0 else 1.0
+            
+            # Convert to weight: clamp to [0.5, 2.0] range
+            bw = max(0.5, min(2.0, relative_perf))
+            
+            algo_weights["benchmark_weights"][benchmark] = round(bw, 3)
+        
+        weights[algo_name] = algo_weights
+    
+    # Add metadata
+    weights["_benchmark_weights_update"] = {
+        "timestamp": datetime.now().isoformat(),
+        "benchmarks_analyzed": list(benchmarks.keys()),
+        "results_used": len(benchmark_results)
+    }
+    
+    # Save
+    with open(weights_file, 'w') as f:
+        json.dump(weights, f, indent=2)
+    
+    log(f"Updated benchmark weights for {len(benchmarks)} benchmarks")
+    
+    # Show summary
+    for benchmark in benchmarks:
+        algo_weights_for_bm = []
+        for algo, w in weights.items():
+            if algo.startswith("_") or not isinstance(w, dict):
+                continue
+            bw = w.get("benchmark_weights", {}).get(benchmark, 1.0)
+            algo_weights_for_bm.append((algo, bw))
+        
+        # Sort by weight, show top 3
+        algo_weights_for_bm.sort(key=lambda x: -x[1])
+        top3 = algo_weights_for_bm[:3]
+        log(f"  {benchmark}: best={top3[0][0]}({top3[0][1]:.2f}), {top3[1][0]}({top3[1][1]:.2f}), {top3[2][0]}({top3[2][1]:.2f})")
 
 
 # ============================================================================
@@ -3106,6 +3230,9 @@ def train_adaptive_weights_iterative(
             json.dump(best_weights, f, indent=2)
         log(f"Best weights (accuracy: {best_accuracy:.1f}%) restored to {weights_file}")
     
+    # Backup with timestamp and sync to scripts folder
+    backup_and_sync_weights(weights_file)
+    
     return result
 
 
@@ -3645,6 +3772,111 @@ def run_experiment(args):
         log(f"Weights initialized/upgraded with {len(weights) - 1} algorithms")
         log(f"Saved to: {args.weights_file}")
     
+    # Fill ALL weights mode: comprehensive training to populate all weight fields
+    if getattr(args, "fill_weights", False):
+        log_section("Fill All Weights - Comprehensive Training")
+        log("This mode runs all phases to populate every weight field:")
+        log("  - Phase 1: Reorderings (fills w_reorder_time)")
+        log("  - Phase 2: Benchmarks (fills bias, w_log_*, w_density, w_avg_degree)")
+        log("  - Phase 3: Cache Simulation (fills cache_l1/l2/l3_impact)")
+        log("  - Phase 4: Generate base weights")
+        log("  - Phase 5: Update topology weights (fills w_clustering_coeff, etc.)")
+        log("")
+        
+        # Force enable cache simulation for this mode
+        skip_cache_original = getattr(args, 'skip_cache', False)
+        args.skip_cache = False
+        
+        # Phase 1: Reorderings
+        log_section("Phase 1: Generate Reorderings")
+        reorder_results = run_reordering_phase(
+            graphs=graphs,
+            bin_dir=args.bin_dir,
+            output_dir=args.results_dir,
+            algorithms=algorithms,
+            generate_maps=getattr(args, 'generate_maps', False),
+            use_maps=getattr(args, 'use_maps', False),
+            timeout=args.timeout_reorder
+        )
+        
+        # Phase 2: Benchmarks (all of them)
+        log_section("Phase 2: Execution Benchmarks (All)")
+        all_benchmarks = ["pr", "bfs", "cc", "sssp", "bc"]
+        benchmark_results = run_benchmark_phase(
+            graphs=graphs,
+            bin_dir=args.bin_dir,
+            output_dir=args.results_dir,
+            algorithms=algorithms,
+            benchmarks=all_benchmarks,
+            use_maps=getattr(args, 'use_maps', False),
+            num_trials=args.trials,
+            timeout=args.timeout_benchmark
+        )
+        
+        # Phase 3: Cache Simulation
+        log_section("Phase 3: Cache Simulation")
+        cache_results = run_cache_simulation_phase(
+            graphs=graphs,
+            bin_sim_dir=args.bin_sim_dir,
+            output_dir=args.results_dir,
+            algorithms=algorithms,
+            benchmarks=["pr", "bfs"],  # Key benchmarks for cache
+            skip_heavy=getattr(args, 'skip_heavy', True),
+            timeout=args.timeout_sim
+        )
+        
+        # Phase 4: Generate Base Weights
+        log_section("Phase 4: Generate Perceptron Weights")
+        weights = generate_perceptron_weights(
+            benchmark_results=benchmark_results,
+            cache_results=cache_results,
+            reorder_results=reorder_results,
+            output_file=args.weights_file
+        )
+        
+        # Phase 5: Update Zero Weights with topology features
+        log_section("Phase 5: Update Topology Weights")
+        update_zero_weights(
+            weights_file=args.weights_file,
+            graphs_dir=args.graphs_dir,
+            benchmark_results=benchmark_results,
+            cache_results=cache_results,
+            reorder_results=reorder_results
+        )
+        
+        # Phase 6: Compute per-benchmark weights
+        log_section("Phase 6: Compute Benchmark-Specific Weights")
+        compute_benchmark_weights(
+            weights_file=args.weights_file,
+            benchmark_results=benchmark_results
+        )
+        
+        # Restore original skip_cache setting
+        args.skip_cache = skip_cache_original
+        
+        log_section("Fill Weights Complete")
+        log(f"All weight fields have been populated")
+        log(f"Weights file: {args.weights_file}")
+        
+        # Show summary
+        with open(args.weights_file) as f:
+            final_weights = json.load(f)
+        
+        log("\nWeight field population summary:")
+        sample_algo = next((k for k in final_weights if not k.startswith("_")), None)
+        if sample_algo:
+            w = final_weights[sample_algo]
+            for key, val in w.items():
+                if key.startswith("_") or key == "benchmark_weights":
+                    continue
+                status = "✓ filled" if val != 0 else "○ zero"
+                log(f"  {key}: {status}")
+            
+            if "benchmark_weights" in w:
+                bw = w["benchmark_weights"]
+                all_same = len(set(bw.values())) == 1
+                log(f"  benchmark_weights: {'○ defaults' if all_same else '✓ tuned'}")
+    
     log_section("Experiment Complete")
     log(f"Results directory: {args.results_dir}")
     log(f"Weights file: {args.weights_file}")
@@ -3799,6 +4031,8 @@ Examples:
                         help="Benchmarks to use for multi-benchmark training (default: pr bfs cc)")
     parser.add_argument("--init-weights", action="store_true",
                         help="Initialize/upgrade weights file with enhanced features")
+    parser.add_argument("--fill-weights", action="store_true",
+                        help="Fill ALL weight fields: runs cache sim, graph features, benchmark analysis")
     
     # Clean options
     parser.add_argument("--clean", action="store_true",

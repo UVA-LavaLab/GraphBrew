@@ -69,6 +69,16 @@ This single command will:
 5. Execute cache simulations (L1/L2/L3 hit rates)
 6. Generate perceptron weights for AdaptiveOrder (includes cache + reorder time features)
 
+### Training Options
+
+```bash
+# Fill ALL weight fields (cache impacts, topology features, per-benchmark weights)
+python3 scripts/graphbrew_experiment.py --fill-weights --graphs small --max-graphs 5
+
+# Iterative training to reach target accuracy
+python3 scripts/graphbrew_experiment.py --train-adaptive --target-accuracy 85 --graphs small
+```
+
 ### Download Size Options
 
 | Size | Graphs | Total | Use Case |

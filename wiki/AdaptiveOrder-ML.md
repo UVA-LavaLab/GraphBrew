@@ -101,12 +101,16 @@ Each algorithm has weights for each feature, including extended graph features a
     "w_avg_path_length": 0.02,
     "w_diameter": 0.01,
     "w_community_count": 0.03,
+    "w_reorder_time": -0.001,
+    "cache_l1_impact": 0.1,
+    "cache_l2_impact": 0.05,
+    "cache_l3_impact": 0.02,
     "benchmark_weights": {
-      "pr": 1.0,
-      "bfs": 1.0,
+      "pr": 1.2,
+      "bfs": 0.9,
       "cc": 1.0,
-      "sssp": 1.0,
-      "bc": 1.0
+      "sssp": 1.1,
+      "bc": 0.8
     }
   }
 }
@@ -115,6 +119,8 @@ Each algorithm has weights for each feature, including extended graph features a
 **Weight Categories:**
 - **Core weights**: `bias`, `w_modularity`, `w_density`, `w_degree_variance`, `w_hub_concentration`, `w_log_nodes`, `w_log_edges`
 - **Extended graph structure weights**: `w_clustering_coeff`, `w_avg_path_length`, `w_diameter`, `w_community_count`
+- **Cache impact weights**: `cache_l1_impact`, `cache_l2_impact`, `cache_l3_impact` (from cache simulation)
+- **Reorder time weight**: `w_reorder_time` (penalty for slow reordering)
 - **Per-benchmark multipliers**: `benchmark_weights` dict adjusts scores based on target benchmark
 ```
 
@@ -212,6 +218,9 @@ python3 scripts/graphbrew_experiment.py --train-large --graphs medium --batch-si
 
 # Initialize/upgrade weights with enhanced features before training
 python3 scripts/graphbrew_experiment.py --init-weights
+
+# Fill ALL weight fields (cache impacts, topology features, benchmark weights)
+python3 scripts/graphbrew_experiment.py --fill-weights --graphs small --max-graphs 5
 ```
 
 **Note:** All graph algorithms run sequentially (not in parallel) to ensure accurate performance measurements.
@@ -269,6 +278,8 @@ results/training_20250118_123045/
 ├── best_weights_iter4.json     # Best weights (highest accuracy)
 └── brute_force_analysis_*.json # Detailed analysis per iteration
 ```
+
+**Automatic Backup:** After each weight save, a timestamped backup is created (e.g., `perceptron_weights_20260121_143052.json`) and synced to `scripts/perceptron_weights.json` for the next run.
 
 ### How the Learning Works
 

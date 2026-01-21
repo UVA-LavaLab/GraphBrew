@@ -21,6 +21,14 @@ GraphBrew/results/perceptron_weights.json
 
 Note: The default path is defined by `DEFAULT_WEIGHTS_FILE` in `graphbrew_experiment.py` as `./results/perceptron_weights.json`.
 
+### Automatic Backup and Sync
+
+When weights are saved, the script automatically:
+1. Creates a **timestamped backup** in results folder (e.g., `perceptron_weights_20260121_143052.json`)
+2. **Syncs to scripts folder** (`scripts/perceptron_weights.json`) for next experiment iteration
+
+This ensures weights are never accidentally overwritten and the latest weights are always loaded on subsequent runs.
+
 ### Environment Override
 ```bash
 export PERCEPTRON_WEIGHTS_FILE=/path/to/custom_weights.json
@@ -444,6 +452,230 @@ If no weights file exists, these defaults are used:
 These defaults:
 - Favor ORIGINAL for small communities
 - Favor LeidenHybrid for large, modular, hub-heavy communities
+
+---
+
+## Understanding Algorithm Biases
+
+The **bias** is the most important weight - it's the base preference for an algorithm before any graph features are considered. Higher bias = more likely to be selected.
+
+### How Bias is Calculated
+
+When training weights, the bias is computed from benchmark performance:
+
+```
+bias = 0.5 × avg_speedup_vs_RANDOM
+```
+
+Where:
+- **RANDOM (ID 1)** is the baseline - represents worst-case random node ordering
+- `avg_speedup` = RANDOM_time / Algorithm_time
+
+### Example Bias Values
+
+After training on 56 graphs, typical biases look like:
+
+| Algorithm | Bias | Interpretation |
+|-----------|------|----------------|
+| HUBSORT | ~26.0 | **26x faster** than random on average |
+| SORT | ~9.5 | 9.5x faster than random |
+| HUBSORTDBG | ~8.5 | 8.5x faster than random |
+| LeidenDFSHub | ~2.4 | 2.4x faster than random |
+| LeidenBFS | ~2.3 | 2.3x faster than random |
+| LeidenOrder | ~1.8 | 1.8x faster than random |
+| ORIGINAL | 0.5 | Baseline (no reordering) |
+| RANDOM | 0.5 | Baseline (1.00x) |
+| DBG | ~0.44 | Slightly worse than random |
+| RABBITORDER | ~0.40 | Slower than random on small graphs |
+
+### Why Some Algorithms Have Low Bias
+
+Algorithms like `RABBITORDER`, `DBG`, and `LeidenHybrid` may show biases < 0.5, meaning they're slower than RANDOM on the training graphs. This happens because:
+
+1. **Reordering overhead** - Complex algorithms have high setup cost
+2. **Small graph penalty** - Sophisticated ordering doesn't help small graphs
+3. **Graph type mismatch** - Algorithm designed for different graph structures
+
+### Adjusting Biases Manually
+
+To favor an algorithm regardless of graph features:
+
+```json
+{
+  "LeidenHybrid": {
+    "bias": 3.0,  // Force higher preference
+    "w_modularity": 0.1,
+    ...
+  }
+}
+```
+
+---
+
+## Step-by-Step Terminal Training Guide
+
+### Complete Training Workflow
+
+#### Step 1: Clean Previous Results (Optional)
+
+```bash
+cd /path/to/GraphBrew
+
+# Backup current weights
+cp results/perceptron_weights.json results/perceptron_weights.json.backup
+
+# Clean results but keep graphs
+python3 scripts/graphbrew_experiment.py --clean
+```
+
+#### Step 2: Generate Reorderings for All Graphs
+
+```bash
+# Small graphs only (~5 minutes)
+python3 scripts/graphbrew_experiment.py \
+    --graphs-dir ./results/graphs \
+    --graphs small \
+    --phase reorder \
+    --generate-maps
+
+# All graphs including large (~1-2 hours)
+python3 scripts/graphbrew_experiment.py \
+    --graphs-dir ./results/graphs \
+    --max-graphs 50 \
+    --phase reorder \
+    --generate-maps
+```
+
+#### Step 3: Run Benchmarks (RANDOM Baseline)
+
+```bash
+# All benchmarks on all graphs
+python3 scripts/graphbrew_experiment.py \
+    --graphs-dir ./results/graphs \
+    --max-graphs 50 \
+    --phase benchmark \
+    --benchmarks pr bfs cc sssp bc \
+    --trials 2 \
+    --use-maps
+```
+
+#### Step 4: Generate New Weights
+
+```bash
+# Generate weights from benchmark results
+python3 scripts/graphbrew_experiment.py \
+    --graphs-dir ./results/graphs \
+    --phase weights
+```
+
+#### Step 5: Run Brute-Force Validation
+
+```bash
+# Test all 20 algorithms vs adaptive choice
+python3 scripts/graphbrew_experiment.py \
+    --graphs-dir ./results/graphs \
+    --max-graphs 50 \
+    --brute-force \
+    --bf-benchmark pr \
+    --trials 2
+```
+
+#### Step 6: View Results
+
+```bash
+# Check algorithm biases
+cat results/perceptron_weights.json | python3 -c "
+import sys, json
+d = json.load(sys.stdin)
+print('Algorithm Biases (sorted by speedup):')
+items = [(k, v.get('bias', 0)) for k, v in d.items() if not k.startswith('_')]
+for k, b in sorted(items, key=lambda x: -x[1])[:15]:
+    print(f'  {k:20s}: {b:.3f}')
+"
+
+# Check validation accuracy
+cat results/brute_force_*.json | python3 -c "
+import sys, json
+for line in sys.stdin:
+    d = json.loads(line)
+    print(f'Accuracy: {d.get(\"overall_accuracy\", \"N/A\")}')
+" 2>/dev/null || echo "Run brute-force first"
+```
+
+### Quick Training (Minimal)
+
+For fast iteration during development:
+
+```bash
+# Quick training on 3 small graphs, 1 trial each
+python3 scripts/graphbrew_experiment.py \
+    --graphs-dir ./results/graphs \
+    --graphs small \
+    --max-graphs 3 \
+    --trials 1 \
+    --skip-cache \
+    2>&1 | tee /tmp/training.log
+```
+
+### Fill All Weight Fields (Comprehensive)
+
+If many weight fields show as 0 or default 1.0, use `--fill-weights` to populate ALL fields:
+
+```bash
+# Fill ALL weight fields including cache impacts and topology features
+python3 scripts/graphbrew_experiment.py \
+    --fill-weights \
+    --graphs-dir ./results/graphs \
+    --graphs small \
+    --max-graphs 5 \
+    --trials 2
+```
+
+This runs all 6 phases sequentially:
+1. **Phase 1 (Reorderings)**: Fills `w_reorder_time`
+2. **Phase 2 (Benchmarks)**: Fills `bias`, `w_log_edges`, `w_avg_degree`  
+3. **Phase 3 (Cache Sim)**: Fills `cache_l1_impact`, `cache_l2_impact`, `cache_l3_impact`
+4. **Phase 4 (Base Weights)**: Fills `w_density`, `w_degree_variance`, `w_hub_concentration`
+5. **Phase 5 (Topology)**: Fills `w_clustering_coeff`, `w_avg_path_length`, `w_diameter`
+6. **Phase 6 (Benchmark Weights)**: Fills `benchmark_weights.{pr,bfs,cc,sssp,bc}`
+
+### Full Training (Production)
+
+For production-quality weights:
+
+```bash
+# Full training on all graphs with validation
+python3 scripts/graphbrew_experiment.py \
+    --graphs-dir ./results/graphs \
+    --max-graphs 50 \
+    --benchmarks pr bfs cc sssp bc \
+    --trials 3 \
+    --generate-maps \
+    --use-maps \
+    2>&1 | tee results/training_full.log
+
+# Follow with brute-force validation
+python3 scripts/graphbrew_experiment.py \
+    --graphs-dir ./results/graphs \
+    --max-graphs 50 \
+    --brute-force \
+    --bf-benchmark pr \
+    --trials 2 \
+    2>&1 | tee results/validation.log
+```
+
+### Monitoring Long Runs
+
+```bash
+# In another terminal, monitor progress
+tail -f results/training_full.log
+
+# Check if still running
+ps aux | grep graphbrew
+
+# Kill if needed
+pkill -f graphbrew_experiment
+```
 
 ---
 

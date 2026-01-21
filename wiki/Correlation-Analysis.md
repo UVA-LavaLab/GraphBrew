@@ -358,6 +358,34 @@ python3 scripts/analysis/correlation_analysis.py \
 3. **Changed target benchmarks** (pr vs bfs vs sssp)
 4. **Noticed poor predictions** in production
 
+### Using --fill-weights for Comprehensive Updates
+
+If many weight fields are 0 or default 1.0, use the unified fill mode:
+
+```bash
+# Fill ALL weight fields including cache impacts and topology features
+python3 scripts/graphbrew_experiment.py \
+    --fill-weights \
+    --graphs-dir ./results/graphs \
+    --graphs small \
+    --max-graphs 5 \
+    --trials 2
+```
+
+This runs all phases sequentially:
+1. Reorderings → `w_reorder_time`
+2. Benchmarks → `bias`, `w_log_edges`, `w_avg_degree`
+3. Cache simulation → `cache_l1_impact`, `cache_l2_impact`, `cache_l3_impact`
+4. Base weights → `w_density`, `w_degree_variance`, `w_hub_concentration`
+5. Topology features → `w_clustering_coeff`, `w_avg_path_length`, `w_diameter`
+6. Per-benchmark weights → `benchmark_weights.{pr,bfs,cc,sssp,bc}`
+
+### Automatic Backup and Sync
+
+After each weight update, the system automatically:
+1. Creates a **timestamped backup** (e.g., `perceptron_weights_20260121_143052.json`)
+2. **Syncs to scripts folder** (`scripts/perceptron_weights.json`) for the next run
+
 ### Incremental Update
 
 ```bash

@@ -90,6 +90,7 @@ python3 scripts/graphbrew_experiment.py --help
 | `--batch-size` | Batch size for large-scale training (default: 8) |
 | `--train-benchmarks` | Benchmarks for multi-benchmark training (default: pr bfs cc) |
 | `--init-weights` | Initialize/upgrade weights file with enhanced features |
+| `--fill-weights` | Fill ALL weight fields: runs cache sim, graph features, benchmark analysis |
 
 > **Note:** `--full` automatically enables `--generate-maps` and `--use-maps` for consistent results across all benchmarks.
 
@@ -125,6 +126,9 @@ python3 scripts/graphbrew_experiment.py --train-adaptive --target-accuracy 85 --
 
 # Clean and start fresh
 python3 scripts/graphbrew_experiment.py --clean-all --full --download-size SMALL
+
+# Fill ALL weight fields (cache impacts, topology features, benchmark weights)
+python3 scripts/graphbrew_experiment.py --fill-weights --graphs small --max-graphs 5
 ```
 
 ### Output Structure
@@ -148,6 +152,7 @@ results/
 ├── benchmark_*.json          # Benchmark execution results
 ├── cache_*.json              # Cache simulation results (L1/L2/L3 hit rates)
 ├── perceptron_weights.json   # Trained ML weights with metadata
+├── perceptron_weights_*.json # Timestamped weight backups (auto-generated)
 ├── brute_force_*.json        # Validation results
 ├── training_*/               # Iterative training output (if --train-adaptive)
 │   ├── training_summary.json # Overall training results

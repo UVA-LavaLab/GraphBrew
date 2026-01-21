@@ -38,6 +38,9 @@ python3 scripts/graphbrew_experiment.py --phase all --skip-cache
 
 # Run brute-force validation
 python3 scripts/graphbrew_experiment.py --brute-force
+
+# Fill ALL weight fields (cache impacts, topology features, benchmark weights)
+python3 scripts/graphbrew_experiment.py --fill-weights --graphs small --max-graphs 5
 ```
 
 ### Download Size Options
@@ -72,6 +75,7 @@ All results are saved to `./results/`:
 - `cache_*.json` - Cache hit rates (L1/L2/L3)
 - `mappings/` - Pre-generated label maps for consistent reordering
 - `perceptron_weights.json` - Trained ML weights with metadata
+- `perceptron_weights_*.json` - Timestamped weight backups (auto-generated)
 
 ---
 
