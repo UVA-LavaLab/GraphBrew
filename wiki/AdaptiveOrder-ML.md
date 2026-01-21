@@ -69,59 +69,142 @@ The algorithm with the highest score wins.
 
 ### Features Used
 
-| Feature | Description | Range |
-|---------|-------------|-------|
-| `modularity` | Community cohesion | 0.0 - 1.0 |
-| `log_nodes` | log10(num_nodes) | 0 - 10 |
-| `log_edges` | log10(num_edges) | 0 - 15 |
-| `density` | edges / max_edges | 0.0 - 1.0 |
-| `avg_degree` | mean degree / 100 | 0.0 - 1.0 |
-| `degree_variance` | degree distribution spread | 0.0 - 5.0 |
-| `hub_concentration` | fraction of edges to top 10% | 0.0 - 1.0 |
-| `clustering_coefficient` | local clustering (sampled) | 0.0 - 1.0 |
-| `avg_path_length` | BFS-estimated avg path | 0 - 50 |
-| `diameter_estimate` | BFS-estimated diameter | 0 - 100 |
-| `community_count` | number of sub-communities | 1 - 1000 |
+The C++ code computes these features for each community at runtime:
+
+| Feature | Weight Field | Description | Range |
+|---------|--------------|-------------|-------|
+| `modularity` | `w_modularity` | Community cohesion | 0.0 - 1.0 |
+| `log_nodes` | `w_log_nodes` | log10(num_nodes) | 0 - 10 |
+| `log_edges` | `w_log_edges` | log10(num_edges) | 0 - 15 |
+| `density` | `w_density` | edges / max_edges | 0.0 - 1.0 |
+| `avg_degree` | `w_avg_degree` | mean degree / 100 | 0.0 - 1.0 |
+| `degree_variance` | `w_degree_variance` | degree distribution spread | 0.0 - 5.0 |
+| `hub_concentration` | `w_hub_concentration` | fraction of edges to top 10% | 0.0 - 1.0 |
+| `clustering_coeff` | `w_clustering_coeff` | local clustering (sampled) | 0.0 - 1.0 |
+| `avg_path_length` | `w_avg_path_length` | estimated avg path / 10 | 0 - 5.0 |
+| `diameter_estimate` | `w_diameter` | estimated diameter / 50 | 0 - 2.0 |
+| `community_count` | `w_community_count` | log10(sub-communities) | 0 - 3.0 |
+| `reorder_time` | `w_reorder_time` | estimated reorder time | 0 - 100s |
 
 ### Weight Structure
 
-Each algorithm has weights for each feature, including extended graph features and per-benchmark adjustments:
+Each algorithm has weights for each feature. The weights file supports multiple categories:
 
 ```json
 {
   "LeidenDFS": {
-    "bias": 3.5,
-    "w_modularity": 0.1,
-    "w_density": 0.05,
-    "w_degree_variance": 0.03,
-    "w_hub_concentration": 0.05,
-    "w_log_nodes": 0.02,
-    "w_log_edges": 0.02,
-    "w_clustering_coeff": 0.04,
-    "w_avg_path_length": 0.02,
-    "w_diameter": 0.01,
-    "w_community_count": 0.03,
-    "w_reorder_time": -0.001,
-    "cache_l1_impact": 0.1,
-    "cache_l2_impact": 0.05,
-    "cache_l3_impact": 0.02,
+    "bias": 0.58,
+    "w_modularity": 0.0,
+    "w_log_nodes": 0.001,
+    "w_log_edges": 8.5e-05,
+    "w_density": -0.001,
+    "w_avg_degree": 0.00017,
+    "w_degree_variance": 0.001,
+    "w_hub_concentration": 0.001,
+    "w_clustering_coeff": 0.0,
+    "w_avg_path_length": 0.0,
+    "w_diameter": 0.0,
+    "w_community_count": 0.0,
+    "w_reorder_time": -0.0087,
+    "cache_l1_impact": 0,
+    "cache_l2_impact": 0,
+    "cache_l3_impact": 0,
+    "cache_dram_penalty": 0,
     "benchmark_weights": {
-      "pr": 1.2,
-      "bfs": 0.9,
+      "pr": 1.0,
+      "bfs": 1.0,
       "cc": 1.0,
-      "sssp": 1.1,
-      "bc": 0.8
+      "sssp": 1.0,
+      "bc": 1.0
+    },
+    "_metadata": {
+      "win_rate": 1.0,
+      "avg_speedup": 1.17,
+      "times_best": 16,
+      "sample_count": 16,
+      "avg_reorder_time": 8.7,
+      "avg_l1_hit_rate": 0.0,
+      "avg_l2_hit_rate": 0.0,
+      "avg_l3_hit_rate": 0.0
     }
   }
 }
 ```
 
 **Weight Categories:**
-- **Core weights**: `bias`, `w_modularity`, `w_density`, `w_degree_variance`, `w_hub_concentration`, `w_log_nodes`, `w_log_edges`
-- **Extended graph structure weights**: `w_clustering_coeff`, `w_avg_path_length`, `w_diameter`, `w_community_count`
-- **Cache impact weights**: `cache_l1_impact`, `cache_l2_impact`, `cache_l3_impact` (from cache simulation)
-- **Reorder time weight**: `w_reorder_time` (penalty for slow reordering)
-- **Per-benchmark multipliers**: `benchmark_weights` dict adjusts scores based on target benchmark
+
+| Category | Fields | Usage |
+|----------|--------|-------|
+| **Core weights** | `bias`, `w_modularity`, `w_density`, `w_degree_variance`, `w_hub_concentration`, `w_log_nodes`, `w_log_edges`, `w_avg_degree` | Used in C++ runtime scoring |
+| **Extended graph structure** | `w_clustering_coeff`, `w_avg_path_length`, `w_diameter`, `w_community_count` | Used in C++ runtime if features available |
+| **Reorder time** | `w_reorder_time` | Penalty for slow reordering (used in C++) |
+| **Cache impact** | `cache_l1_impact`, `cache_l2_impact`, `cache_l3_impact`, `cache_dram_penalty` | Used during Python training to adjust `bias` |
+| **Per-benchmark multipliers** | `benchmark_weights.{pr,bfs,cc,sssp,bc,tc}` | Benchmark-specific score adjustments |
+| **Metadata** | `_metadata.*` | Statistics, not used in scoring |
+
+### Benchmark-Specific Weights (NEW)
+
+The perceptron supports **benchmark-specific tuning**. Some algorithms perform differently across workloads:
+- **PageRank**: Iterative, benefits from cache locality
+- **BFS**: Traversal-heavy, benefits from hub ordering
+- **SSSP**: Priority-queue based, different access patterns
+
+**Benchmark Types (C++ Enum):**
+
+```cpp
+enum BenchmarkType {
+    BENCH_GENERIC = 0,  // Default - balanced for all algorithms
+    BENCH_PR,           // PageRank
+    BENCH_BFS,          // Breadth-First Search
+    BENCH_CC,           // Connected Components
+    BENCH_SSSP,         // Single-Source Shortest Path
+    BENCH_BC,           // Betweenness Centrality
+    BENCH_TC            // Triangle Counting
+};
+```
+
+**How It Works:**
+
+1. Base score is computed from graph features
+2. Score is multiplied by `benchmark_weights[current_benchmark]`
+3. If no benchmark is specified, `BENCH_GENERIC` is used (multiplier = 1.0)
+
+```cpp
+// C++ Usage Examples:
+
+// Generic/default - optimizes for all algorithms equally
+ReorderingAlgo algo = SelectReorderingPerceptron(features);  // BENCH_GENERIC
+ReorderingAlgo algo = SelectReorderingPerceptron(features, BENCH_GENERIC);
+ReorderingAlgo algo = SelectReorderingPerceptron(features, "generic");
+
+// Benchmark-specific - optimizes for that workload
+ReorderingAlgo algo = SelectReorderingPerceptron(features, BENCH_PR);
+ReorderingAlgo algo = SelectReorderingPerceptron(features, "pr");
+```
+
+> **Note:** The `cache_*` and `benchmark_weights` fields are primarily used during Python training to compute the final `bias` value. At C++ runtime, you can optionally pass a benchmark type to apply the benchmark-specific multiplier.
+
+### Score Calculation (C++ Runtime)
+
+```
+base_score = bias
+           + w_modularity × modularity
+           + w_log_nodes × log10(nodes+1)
+           + w_log_edges × log10(edges+1)
+           + w_density × density
+           + w_avg_degree × avg_degree / 100
+           + w_degree_variance × degree_variance
+           + w_hub_concentration × hub_concentration
+           + w_clustering_coeff × clustering_coeff      (if computed)
+           + w_avg_path_length × avg_path_length / 10   (if computed)
+           + w_diameter × diameter / 50                 (if computed)
+           + w_community_count × log10(count+1)         (if computed)
+           + w_reorder_time × reorder_time              (if known)
+
+# Final score with benchmark adjustment
+final_score = base_score × benchmark_weights[benchmark_type]
+
+# For BENCH_GENERIC (default), multiplier = 1.0, so final_score = base_score
 ```
 
 ### Score Calculation Example
@@ -137,16 +220,16 @@ Community features:
 - hub_concentration: 0.4
 
 LeidenHybrid score:
-= 0.85                    # bias
-+ 0.25 × 0.5              # modularity
-+ 0.1 × 4.0               # log_nodes
-+ 0.1 × 5.0               # log_edges
-+ (-0.05) × 0.01          # density
-+ 0.15 × 0.2              # avg_degree
-+ 0.15 × 1.5              # degree_variance
-+ 0.25 × 0.4              # hub_concentration
-= 0.85 + 0.125 + 0.4 + 0.5 - 0.0005 + 0.03 + 0.225 + 0.1
-= 2.23
+= 0.58                    # bias (incorporates cache/benchmark adjustments)
++ 0.0 × 0.5               # modularity
++ 0.001 × 4.0             # log_nodes
++ 8e-05 × 5.0             # log_edges
++ (-0.001) × 0.01         # density
++ 0.00016 × 0.2           # avg_degree
++ 0.001 × 1.5             # degree_variance
++ 0.001 × 0.4             # hub_concentration
+= 0.58 + 0.004 + 0.0004 - 0.00001 + 0.000032 + 0.0015 + 0.0004
+≈ 0.586
 ```
 
 ---
@@ -163,10 +246,13 @@ python3 scripts/graphbrew_experiment.py --full --download-size SMALL
 
 # Or train from existing benchmark/cache results
 python3 scripts/graphbrew_experiment.py --phase weights
+
+# Fill ALL weight fields comprehensively
+python3 scripts/graphbrew_experiment.py --fill-weights --graphs small
 ```
 
 This automatically:
-1. Downloads 56 diverse graphs from SuiteSparse
+1. Downloads 96 diverse graphs from SuiteSparse (with `--auto-memory`/`--auto-disk` support)
 2. Runs all 20 algorithms on each graph
 3. Collects cache simulation data (L1/L2/L3 hit rates)
 4. Records reorder times for each algorithm

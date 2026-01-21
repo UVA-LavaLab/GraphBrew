@@ -173,10 +173,10 @@ $(BIN_DIR):
 # Cleanup
 # =========================================================
 clean:
-	@rm -rf $(BIN_DIR) $(EXIT_STATUS)
+	@rm -rf $(BIN_DIR) $(BIN_SIM_DIR) $(EXIT_STATUS)
 
-clean-all: clean-results
-	@rm -rf $(BIN_DIR) $(EXIT_STATUS)
+clean-all: clean-results clean-sim
+	@rm -rf $(BIN_DIR) $(BIN_SIM_DIR) $(EXIT_STATUS)
 
 # =========================================================
 # Testing

@@ -130,6 +130,19 @@ Note: Algorithm names in the weights file use the format from `initialize_enhanc
 | `benchmark_weights.cc` | Multiplier for Connected Components benchmark |
 | `benchmark_weights.sssp` | Multiplier for SSSP benchmark |
 | `benchmark_weights.bc` | Multiplier for Betweenness Centrality benchmark |
+| `benchmark_weights.tc` | Multiplier for Triangle Counting benchmark |
+
+**Usage:**
+- When `BENCH_GENERIC` (default), multiplier = 1.0 (no adjustment)
+- When a specific benchmark is passed, the score is multiplied by the corresponding weight
+- This allows algorithms to score differently for different workloads
+
+```cpp
+// C++ Usage:
+SelectReorderingPerceptron(features);           // BENCH_GENERIC (multiplier = 1.0)
+SelectReorderingPerceptron(features, BENCH_PR); // Uses benchmark_weights.pr
+SelectReorderingPerceptron(features, "bfs");    // Uses benchmark_weights.bfs
+```
 
 ### Cache Impact Weights (Optional)
 
@@ -166,8 +179,11 @@ Note: Algorithm names in the weights file use the format from `initialize_enhanc
 ### Formula
 
 ```
-score = bias + Σ(w_feature × feature_value)
+base_score = bias + Σ(w_feature × feature_value)
+final_score = base_score × benchmark_weights[benchmark_type]
 ```
+
+For `BENCH_GENERIC` (default when no benchmark is specified), the multiplier is 1.0.
 
 ### Example Calculation
 
