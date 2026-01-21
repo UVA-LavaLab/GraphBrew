@@ -78,47 +78,44 @@ The algorithm with the highest score wins.
 | `avg_degree` | mean degree / 100 | 0.0 - 1.0 |
 | `degree_variance` | degree distribution spread | 0.0 - 5.0 |
 | `hub_concentration` | fraction of edges to top 10% | 0.0 - 1.0 |
+| `clustering_coefficient` | local clustering (sampled) | 0.0 - 1.0 |
+| `avg_path_length` | BFS-estimated avg path | 0 - 50 |
+| `diameter_estimate` | BFS-estimated diameter | 0 - 100 |
+| `community_count` | number of sub-communities | 1 - 1000 |
 
 ### Weight Structure
 
-Each algorithm has weights for each feature, including cache impact and reorder time:
+Each algorithm has weights for each feature, including extended graph features and per-benchmark adjustments:
 
 ```json
 {
-  "LeidenHybrid": {
-    "bias": 0.85,
-    "w_modularity": 0.25,
-    "w_log_nodes": 0.1,
-    "w_log_edges": 0.1,
-    "w_density": -0.05,
-    "w_avg_degree": 0.15,
-    "w_degree_variance": 0.15,
-    "w_hub_concentration": 0.25,
-    "cache_l1_impact": 0.1,
-    "cache_l2_impact": 0.05,
-    "cache_l3_impact": 0.02,
-    "cache_dram_penalty": -0.1,
-    "w_reorder_time": -0.0001,
-    "_metadata": {
-      "win_rate": 0.85,
-      "avg_speedup": 2.34,
-      "times_best": 42,
-      "sample_count": 50,
-      "avg_reorder_time": 1.234,
-      "avg_l1_hit_rate": 85.2,
-      "avg_l2_hit_rate": 92.1,
-      "avg_l3_hit_rate": 98.5
+  "LeidenDFS": {
+    "bias": 3.5,
+    "w_modularity": 0.1,
+    "w_density": 0.05,
+    "w_degree_variance": 0.03,
+    "w_hub_concentration": 0.05,
+    "w_log_nodes": 0.02,
+    "w_log_edges": 0.02,
+    "w_clustering_coeff": 0.04,
+    "w_avg_path_length": 0.02,
+    "w_diameter": 0.01,
+    "w_community_count": 0.03,
+    "benchmark_weights": {
+      "pr": 1.0,
+      "bfs": 1.0,
+      "cc": 1.0,
+      "sssp": 1.0,
+      "bc": 1.0
     }
-  },
-  ...
+  }
 }
 ```
 
-**New Weight Fields:**
-- `cache_l1_impact` / `cache_l2_impact` / `cache_l3_impact`: Bonus for algorithms with high cache hit rates
-- `cache_dram_penalty`: Penalty for DRAM access (cache misses)
-- `w_reorder_time`: Penalty for slow reordering algorithms (typically negative)
-- `_metadata`: Auto-generated training statistics
+**Weight Categories:**
+- **Core weights**: `bias`, `w_modularity`, `w_density`, `w_degree_variance`, `w_hub_concentration`, `w_log_nodes`, `w_log_edges`
+- **Extended graph structure weights**: `w_clustering_coeff`, `w_avg_path_length`, `w_diameter`, `w_community_count`
+- **Per-benchmark multipliers**: `benchmark_weights` dict adjusts scores based on target benchmark
 ```
 
 ### Score Calculation Example
@@ -178,14 +175,134 @@ This automatically:
 For consistent benchmarks across multiple runs, use label mapping:
 
 ```bash
-# Generate label maps once
+# Generate label maps once (also records reorder times)
 python3 scripts/graphbrew_experiment.py --generate-maps
 
 # Use maps for all subsequent benchmarks
 python3 scripts/graphbrew_experiment.py --use-maps --phase benchmark
 ```
 
-This ensures each algorithm's reordering is applied consistently, avoiding variance from regenerating orderings.
+This ensures each algorithm's reordering is applied consistently, avoiding variance from regenerating orderings. The `--generate-maps` option also records reorder times to `reorder_times_*.json` and `reorder_times_*.csv` files.
+
+---
+
+## Iterative Training with Feedback Loop
+
+The most powerful way to train AdaptiveOrder is using the iterative feedback loop. This process:
+
+1. Measures current accuracy (% of times adaptive picks the best algorithm)
+2. Identifies where adaptive made wrong predictions
+3. Adjusts weights based on what should have been selected
+4. Repeats until target accuracy is reached
+
+### Running Iterative Training
+
+```bash
+# Basic iterative training (default: 80% accuracy, 10 iterations)
+python3 scripts/graphbrew_experiment.py --train-adaptive --graphs small
+
+# Target 90% accuracy with more iterations
+python3 scripts/graphbrew_experiment.py --train-adaptive --target-accuracy 90 --max-iterations 20
+
+# Use slower learning rate for fine-tuning
+python3 scripts/graphbrew_experiment.py --train-adaptive --target-accuracy 85 --learning-rate 0.05
+
+# Large-scale training with batching and multi-benchmark support
+python3 scripts/graphbrew_experiment.py --train-large --graphs medium --batch-size 8 --train-benchmarks pr bfs cc
+
+# Initialize/upgrade weights with enhanced features before training
+python3 scripts/graphbrew_experiment.py --init-weights
+```
+
+**Note:** All graph algorithms run sequentially (not in parallel) to ensure accurate performance measurements.
+
+### Training Output
+
+```
+============================================================
+TRAINING ITERATION 1/10
+============================================================
+
+--- Step 1: Measure Current Accuracy ---
+[2025-01-18 12:30:00] INFO: Running brute-force analysis...
+
+Iteration 1 Accuracy:
+  Adaptive correct (time): 45.0%
+  Adaptive correct (cache): 52.0%
+  Adaptive in top 3: 78.0%
+  Avg time ratio: 0.856
+
+--- Step 2: Analyze Errors and Adjust Weights ---
+  Weights updated for 15 algorithm adjustments
+
+============================================================
+TRAINING ITERATION 2/10
+============================================================
+
+Iteration 2 Accuracy:
+  Adaptive correct (time): 58.0%
+  Adaptive correct (cache): 61.0%
+  ...
+
+============================================================
+🎯 TARGET ACCURACY REACHED: 82.0% >= 80.0%
+============================================================
+TRAINING COMPLETE
+Iterations run: 4
+Target accuracy: 80.0%
+Final accuracy (time): 82.0%
+Target reached: YES
+Best iteration: 4
+Training summary saved to: results/training_20250118_123045/training_summary.json
+```
+
+### Training Output Files
+
+The training process creates:
+
+```
+results/training_20250118_123045/
+├── training_summary.json       # Overall training results
+├── weights_iter1.json          # Weights after iteration 1
+├── weights_iter2.json          # Weights after iteration 2
+├── ...
+├── best_weights_iter4.json     # Best weights (highest accuracy)
+└── brute_force_analysis_*.json # Detailed analysis per iteration
+```
+
+### How the Learning Works
+
+For each graph where adaptive picked the wrong algorithm:
+
+1. **Identify the error**: Adaptive selected `RCM`, but `LeidenHybrid` was fastest
+2. **Analyze features**: High hub_concentration (0.62), high degree_variance (1.8)
+3. **Adjust weights**:
+   - Increase `LeidenHybrid.w_hub_concentration` (should select it for hub graphs)
+   - Increase `LeidenHybrid.bias` (slightly more likely to be selected)
+   - Decrease `RCM.bias` (was over-selected)
+
+The learning rate controls how aggressive these adjustments are:
+- High learning rate (0.2-0.5): Fast learning but may overshoot
+- Low learning rate (0.01-0.05): Slow but stable convergence
+
+### Best Practices for Training
+
+1. **Use diverse graphs**: Include graphs of different sizes and structures
+2. **Start with SMALL graphs**: Faster iteration for initial training
+3. **Graduate to larger graphs**: Fine-tune with MEDIUM/LARGE graphs
+4. **Monitor convergence**: If accuracy plateaus, adjust learning rate
+
+```bash
+# Recommended training progression:
+# Step 1: Quick training on small graphs
+python3 scripts/graphbrew_experiment.py --train-adaptive --graphs small --target-accuracy 75
+
+# Step 2: Fine-tune with medium graphs
+python3 scripts/graphbrew_experiment.py --train-adaptive --graphs medium --target-accuracy 80 --learning-rate 0.05
+
+# Step 3: Validate on large graphs
+python3 scripts/graphbrew_experiment.py --brute-force --graphs large
+```
 
 ---
 

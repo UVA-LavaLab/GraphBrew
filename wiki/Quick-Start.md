@@ -166,9 +166,14 @@ done
 ## 6. Analyze Results (Optional)
 
 ```bash
-# Generate performance comparison
-cd scripts
-python3 graph_brew.py --help
+# View all available options
+python3 scripts/graphbrew_experiment.py --help
+
+# Run brute-force validation
+python3 scripts/graphbrew_experiment.py --brute-force --graphs small
+
+# Train adaptive weights with iterative learning
+python3 scripts/graphbrew_experiment.py --train-adaptive --graphs small --target-accuracy 50
 ```
 
 ---

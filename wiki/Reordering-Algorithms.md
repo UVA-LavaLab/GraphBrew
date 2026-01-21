@@ -1,6 +1,8 @@
 # Graph Reordering Algorithms
 
-GraphBrew implements **21 different vertex reordering algorithms**, each with unique characteristics suited for different graph topologies. This page explains each algorithm in detail.
+GraphBrew implements **20 different vertex reordering algorithms** (IDs 0-13 and 15-20), each with unique characteristics suited for different graph topologies. This page explains each algorithm in detail.
+
+Note: Algorithm ID 14 (MAP) is reserved for external label mapping files, not a standalone reordering algorithm.
 
 ## Why Reorder Graphs?
 

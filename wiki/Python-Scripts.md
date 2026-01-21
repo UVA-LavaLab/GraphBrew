@@ -79,6 +79,18 @@ python3 scripts/graphbrew_experiment.py --help
 | `--generate-maps` | Pre-generate .lo mapping files for consistent reordering |
 | `--use-maps` | Use pre-generated label maps (avoids regenerating each run) |
 
+#### Iterative Training (Adaptive Weight Optimization)
+| Option | Description |
+|--------|-------------|
+| `--train-adaptive` | Run iterative training feedback loop |
+| `--train-large` | Run large-scale training with batching and multi-benchmark support |
+| `--target-accuracy` | Target accuracy % for training (default: 80) |
+| `--max-iterations` | Maximum training iterations (default: 10) |
+| `--learning-rate` | Weight adjustment rate (default: 0.1) |
+| `--batch-size` | Batch size for large-scale training (default: 8) |
+| `--train-benchmarks` | Benchmarks for multi-benchmark training (default: pr bfs cc) |
+| `--init-weights` | Initialize/upgrade weights file with enhanced features |
+
 > **Note:** `--full` automatically enables `--generate-maps` and `--use-maps` for consistent results across all benchmarks.
 
 ### Examples
@@ -102,6 +114,15 @@ python3 scripts/graphbrew_experiment.py --brute-force
 # Generate weights from existing results
 python3 scripts/graphbrew_experiment.py --phase weights
 
+# Pre-generate label maps (also records reorder times)
+python3 scripts/graphbrew_experiment.py --generate-maps --graphs small
+
+# Iterative training to reach 90% accuracy
+python3 scripts/graphbrew_experiment.py --train-adaptive --target-accuracy 90 --graphs small
+
+# Full training with custom learning rate
+python3 scripts/graphbrew_experiment.py --train-adaptive --target-accuracy 85 --learning-rate 0.05
+
 # Clean and start fresh
 python3 scripts/graphbrew_experiment.py --clean-all --full --download-size SMALL
 ```
@@ -119,13 +140,20 @@ results/
 │   ├── index.json            # Mapping index (graph → algo → path)
 │   └── {graph_name}/         # Per-graph mappings
 │       ├── HUBCLUSTERDBG.lo  # Label order for each algorithm
+│       ├── HUBCLUSTERDBG.time # Reorder time for this algorithm
 │       ├── LeidenHybrid.lo
 │       └── ...
-├── reorder_*.json            # Reordering times per algorithm
+├── reorder_times_*.json      # All reorder timings (per graph/algo)
+├── reorder_times_*.csv       # CSV version for analysis
 ├── benchmark_*.json          # Benchmark execution results
 ├── cache_*.json              # Cache simulation results (L1/L2/L3 hit rates)
 ├── perceptron_weights.json   # Trained ML weights with metadata
 ├── brute_force_*.json        # Validation results
+├── training_*/               # Iterative training output (if --train-adaptive)
+│   ├── training_summary.json # Overall training results
+│   ├── weights_iter1.json    # Weights after each iteration
+│   ├── best_weights_*.json   # Best weights (highest accuracy)
+│   └── brute_force_*.json    # Per-iteration analysis
 └── logs/                     # Execution logs
 ```
 
@@ -196,26 +224,37 @@ class CacheResult:
 @dataclass
 class PerceptronWeight:
     # Core weights
-    bias: float                 # Base preference (0.0-1.0+)
-    w_modularity: float         # Weight for modularity
-    w_log_nodes: float          # Weight for log(nodes)
-    w_log_edges: float          # Weight for log(edges)
-    w_density: float            # Weight for edge density
-    w_avg_degree: float         # Weight for average degree
-    w_degree_variance: float    # Weight for degree variance
-    w_hub_concentration: float  # Weight for hub concentration
+    bias: float = 0.5               # Base preference (0.0-1.0+)
+    w_modularity: float = 0.0       # Weight for modularity
+    w_log_nodes: float = 0.0        # Weight for log(nodes)
+    w_log_edges: float = 0.0        # Weight for log(edges)
+    w_density: float = 0.0          # Weight for edge density
+    w_avg_degree: float = 0.0       # Weight for average degree
+    w_degree_variance: float = 0.0  # Weight for degree variance
+    w_hub_concentration: float = 0.0 # Weight for hub concentration
     
     # Cache impact weights
-    cache_l1_impact: float      # L1 cache hit rate impact
-    cache_l2_impact: float      # L2 cache hit rate impact
-    cache_l3_impact: float      # L3 cache hit rate impact
-    cache_dram_penalty: float   # DRAM access penalty
+    cache_l1_impact: float = 0.0    # L1 cache hit rate impact
+    cache_l2_impact: float = 0.0    # L2 cache hit rate impact
+    cache_l3_impact: float = 0.0    # L3 cache hit rate impact
+    cache_dram_penalty: float = 0.0 # DRAM access penalty
     
     # Reorder time weight
-    w_reorder_time: float       # Penalty for reorder time
+    w_reorder_time: float = 0.0     # Penalty for reorder time
+    
+    # Extended graph structure features (NEW)
+    w_clustering_coeff: float = 0.0   # Local clustering coefficient effect
+    w_avg_path_length: float = 0.0    # Average path length sensitivity
+    w_diameter: float = 0.0           # Diameter effect
+    w_community_count: float = 0.0    # Sub-community count effect
+    
+    # Per-benchmark weight adjustments (NEW)
+    benchmark_weights: Dict[str, float] = field(default_factory=lambda: {
+        'pr': 1.0, 'bfs': 1.0, 'cc': 1.0, 'sssp': 1.0, 'bc': 1.0
+    })
     
     # Training metadata
-    _metadata: Dict             # win_rate, avg_speedup, sample_count, etc.
+    _metadata: Dict = field(default_factory=dict)  # win_rate, avg_speedup, sample_count
 ```
 
 ### DownloadableGraph

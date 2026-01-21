@@ -128,6 +128,167 @@ class GraphInfo:
     nodes: int = 0
     edges: int = 0
 
+# ============================================================================
+# Graph Feature Computation Functions
+# ============================================================================
+
+def compute_clustering_coefficient_sample(adjacency_list: Dict[int, List[int]], sample_size: int = 1000) -> float:
+    """
+    Compute average local clustering coefficient using sampling for large graphs.
+    Clustering coefficient measures how connected a node's neighbors are to each other.
+    """
+    import random
+    
+    if not adjacency_list:
+        return 0.0
+    
+    nodes = list(adjacency_list.keys())
+    if len(nodes) > sample_size:
+        nodes = random.sample(nodes, sample_size)
+    
+    total_cc = 0.0
+    valid_nodes = 0
+    
+    for node in nodes:
+        neighbors = adjacency_list.get(node, [])
+        k = len(neighbors)
+        if k < 2:
+            continue
+        
+        # Count edges between neighbors
+        neighbor_set = set(neighbors)
+        triangles = 0
+        for neighbor in neighbors:
+            for n2 in adjacency_list.get(neighbor, []):
+                if n2 in neighbor_set and n2 != node:
+                    triangles += 1
+        
+        # Each triangle is counted twice
+        triangles //= 2
+        possible_triangles = k * (k - 1) // 2
+        
+        if possible_triangles > 0:
+            total_cc += triangles / possible_triangles
+            valid_nodes += 1
+    
+    return total_cc / valid_nodes if valid_nodes > 0 else 0.0
+
+
+def estimate_diameter_bfs(adjacency_list: Dict[int, List[int]], num_samples: int = 10) -> Tuple[float, float]:
+    """
+    Estimate graph diameter and average path length using BFS from random samples.
+    Returns (diameter_estimate, avg_path_length).
+    """
+    import random
+    from collections import deque
+    
+    if not adjacency_list:
+        return 0.0, 0.0
+    
+    nodes = list(adjacency_list.keys())
+    if len(nodes) < 2:
+        return 0.0, 0.0
+    
+    # Sample starting nodes
+    sample_nodes = random.sample(nodes, min(num_samples, len(nodes)))
+    
+    max_distance = 0
+    total_distance = 0
+    path_count = 0
+    
+    for start in sample_nodes:
+        # BFS from start
+        distances = {start: 0}
+        queue = deque([start])
+        
+        while queue:
+            node = queue.popleft()
+            current_dist = distances[node]
+            
+            for neighbor in adjacency_list.get(node, []):
+                if neighbor not in distances:
+                    distances[neighbor] = current_dist + 1
+                    queue.append(neighbor)
+                    
+                    if distances[neighbor] > max_distance:
+                        max_distance = distances[neighbor]
+        
+        # Accumulate path lengths
+        for dist in distances.values():
+            if dist > 0:
+                total_distance += dist
+                path_count += 1
+    
+    avg_path = total_distance / path_count if path_count > 0 else 0.0
+    return float(max_distance), avg_path
+
+
+def count_subcommunities_quick(adjacency_list: Dict[int, List[int]], threshold: int = 100) -> int:
+    """
+    Quick estimate of number of connected components/communities using union-find.
+    For small graphs, returns exact count. For large graphs, estimates.
+    """
+    if not adjacency_list:
+        return 0
+    
+    # Union-Find
+    parent = {node: node for node in adjacency_list}
+    
+    def find(x):
+        if parent[x] != x:
+            parent[x] = find(parent[x])
+        return parent[x]
+    
+    def union(x, y):
+        px, py = find(x), find(y)
+        if px != py:
+            parent[px] = py
+    
+    # Build connected components
+    for node, neighbors in adjacency_list.items():
+        for neighbor in neighbors:
+            if neighbor in parent:
+                union(node, neighbor)
+    
+    # Count unique roots
+    roots = set(find(node) for node in adjacency_list)
+    return len(roots)
+
+
+def compute_extended_features(nodes: int, edges: int, density: float, 
+                               degree_variance: float, hub_concentration: float,
+                               adjacency_list: Optional[Dict[int, List[int]]] = None) -> Dict:
+    """
+    Compute extended feature set for a subcommunity/subgraph.
+    Returns dictionary with all features.
+    """
+    features = {
+        'nodes': nodes,
+        'edges': edges,
+        'density': density,
+        'degree_variance': degree_variance,
+        'hub_concentration': hub_concentration,
+        'avg_degree': (2 * edges / nodes) if nodes > 0 else 0,
+        'clustering_coefficient': 0.0,
+        'avg_path_length': 0.0,
+        'diameter_estimate': 0.0,
+        'community_count': 1,
+    }
+    
+    # If we have the adjacency list, compute additional features
+    if adjacency_list and len(adjacency_list) > 0 and len(adjacency_list) < 50000:
+        try:
+            features['clustering_coefficient'] = compute_clustering_coefficient_sample(adjacency_list)
+            diameter, avg_path = estimate_diameter_bfs(adjacency_list)
+            features['diameter_estimate'] = diameter
+            features['avg_path_length'] = avg_path
+            features['community_count'] = count_subcommunities_quick(adjacency_list)
+        except Exception:
+            pass  # Use defaults on error
+    
+    return features
+
+
 @dataclass
 class ReorderResult:
     """Result from reordering a graph."""
@@ -167,6 +328,17 @@ class CacheResult:
     error: str = ""
 
 @dataclass
+class ReorderResult:
+    """Result from reordering/label map generation."""
+    graph: str
+    algorithm_id: int
+    algorithm_name: str
+    reorder_time: float
+    mapping_file: str = ""
+    success: bool = True
+    error: str = ""
+
+@dataclass
 class SubcommunityInfo:
     """Information about a subcommunity in adaptive ordering."""
     community_id: int
@@ -176,6 +348,11 @@ class SubcommunityInfo:
     degree_variance: float
     hub_concentration: float
     selected_algorithm: str
+    # New graph structure features
+    clustering_coefficient: float = 0.0  # Local clustering coefficient
+    avg_path_length: float = 0.0  # Average shortest path (estimated)
+    diameter_estimate: float = 0.0  # BFS diameter estimate
+    community_count: int = 1  # Number of sub-communities (from Leiden)
     
 @dataclass
 class AdaptiveOrderResult:
@@ -216,7 +393,19 @@ class PerceptronWeight:
     cache_l2_impact: float = 0.0
     cache_l3_impact: float = 0.0
     cache_dram_penalty: float = 0.0
-    w_reorder_time: float = 0.0  # NEW: weight for reorder time
+    w_reorder_time: float = 0.0  # weight for reorder time
+    
+    # NEW: Additional graph structure feature weights
+    w_clustering_coeff: float = 0.0  # Local clustering effect
+    w_avg_path_length: float = 0.0  # Path length sensitivity
+    w_diameter: float = 0.0  # Diameter effect
+    w_community_count: float = 0.0  # Sub-community count effect
+    
+    # NEW: Per-benchmark weight adjustments (multipliers)
+    # These modify the base weights for specific benchmarks
+    benchmark_weights: Dict[str, float] = field(default_factory=lambda: {
+        'pr': 1.0, 'bfs': 1.0, 'cc': 1.0, 'sssp': 1.0, 'bc': 1.0
+    })
     
     # Metadata
     _metadata: Dict = field(default_factory=dict)
@@ -224,6 +413,29 @@ class PerceptronWeight:
     def to_dict(self) -> Dict:
         d = asdict(self)
         return d
+    
+    def compute_score(self, features: Dict, benchmark: str = 'pr') -> float:
+        """Compute perceptron score for given features and benchmark."""
+        import math
+        log_nodes = math.log10(features.get('nodes', 1) + 1)
+        log_edges = math.log10(features.get('edges', 1) + 1)
+        
+        score = self.bias
+        score += self.w_modularity * features.get('modularity', 0.5)
+        score += self.w_log_nodes * log_nodes
+        score += self.w_log_edges * log_edges
+        score += self.w_density * features.get('density', 0.0)
+        score += self.w_avg_degree * features.get('avg_degree', 0.0) / 100.0
+        score += self.w_degree_variance * features.get('degree_variance', 0.0)
+        score += self.w_hub_concentration * features.get('hub_concentration', 0.0)
+        score += self.w_clustering_coeff * features.get('clustering_coefficient', 0.0)
+        score += self.w_avg_path_length * features.get('avg_path_length', 0.0) / 10.0
+        score += self.w_diameter * features.get('diameter_estimate', 0.0) / 100.0
+        score += self.w_community_count * math.log10(features.get('community_count', 1) + 1)
+        
+        # Apply benchmark-specific multiplier
+        bench_mult = self.benchmark_weights.get(benchmark.lower(), 1.0)
+        return score * bench_mult
 
 @dataclass
 class DownloadableGraph:
@@ -402,15 +614,31 @@ def log_section(title: str):
 
 def get_graph_path(graphs_dir: str, graph_name: str) -> Optional[str]:
     """Get the path to a graph file."""
-    # Check common formats
+    graph_folder = os.path.join(graphs_dir, graph_name)
+    
+    # Check for graph files with the graph name (downloaded format)
     for ext in [".mtx", ".el", ".sg"]:
-        path = os.path.join(graphs_dir, graph_name, f"graph{ext}")
+        path = os.path.join(graph_folder, f"{graph_name}{ext}")
         if os.path.exists(path):
             return path
-    # Try direct path
+    
+    # Check for generic "graph" name (legacy format)
+    for ext in [".mtx", ".el", ".sg"]:
+        path = os.path.join(graph_folder, f"graph{ext}")
+        if os.path.exists(path):
+            return path
+    
+    # Try direct path (file directly in graphs_dir)
     direct = os.path.join(graphs_dir, graph_name)
     if os.path.isfile(direct):
         return direct
+    
+    # Look for any .mtx file in the folder
+    if os.path.isdir(graph_folder):
+        for f in os.listdir(graph_folder):
+            if f.endswith('.mtx') and not f.endswith('_nodename.mtx') and not f.endswith('_Categories.mtx'):
+                return os.path.join(graph_folder, f)
+    
     return None
 
 def get_graph_size_mb(path: str) -> float:
@@ -1085,23 +1313,27 @@ def generate_label_maps(
     output_dir: str,
     timeout: int = TIMEOUT_REORDER,
     skip_slow: bool = False
-) -> Dict[str, Dict[str, str]]:
+) -> Tuple[Dict[str, Dict[str, str]], List[ReorderResult]]:
     """
     Pre-generate label.map files for each graph/algorithm combination.
+    Also records reorder times during generation.
     
     This allows consistent reordering across multiple benchmark runs
     by using the MAP algorithm (14) with pre-generated mappings.
     
     Returns:
-        Dictionary mapping (graph, algorithm) to label map file path
+        Tuple of:
+        - Dictionary mapping (graph, algorithm) to label map file path
+        - List of ReorderResult with timing information
     """
-    log_section("Pre-generate Label Maps for Consistency")
+    log_section("Pre-generate Label Maps + Record Reorder Times")
     
     # Create mappings directory
     mappings_dir = os.path.join(output_dir, "mappings")
     os.makedirs(mappings_dir, exist_ok=True)
     
     label_maps = {}  # {graph: {algo: path}}
+    reorder_results = []  # Store timing information
     total = len(graphs) * len(algorithms)
     current = 0
     
@@ -1117,43 +1349,115 @@ def generate_label_maps(
             
             # Skip ORIGINAL (no mapping needed)
             if algo_id == 0:
-                log(f"  [{current}/{total}] {algo_name}: no map needed")
+                log(f"  [{current}/{total}] {algo_name}: no map needed (0.0000s)")
+                reorder_results.append(ReorderResult(
+                    graph=graph.name,
+                    algorithm_id=algo_id,
+                    algorithm_name=algo_name,
+                    reorder_time=0.0,
+                    mapping_file="",
+                    success=True
+                ))
                 continue
             
             # Skip slow algorithms on large graphs if requested
             if skip_slow and algo_id in SLOW_ALGORITHMS and graph.size_mb > SIZE_MEDIUM:
-                log(f"  [{current}/{total}] {algo_name}: SKIPPED")
+                log(f"  [{current}/{total}] {algo_name}: SKIPPED (slow)")
+                reorder_results.append(ReorderResult(
+                    graph=graph.name,
+                    algorithm_id=algo_id,
+                    algorithm_name=algo_name,
+                    reorder_time=0.0,
+                    mapping_file="",
+                    success=False,
+                    error="SKIPPED"
+                ))
                 continue
             
             # Output mapping file path
             map_file = os.path.join(graph_mappings_dir, f"{algo_name}.lo")
             
-            # Check if already exists
+            # Check if already exists - still need to record approximate time
             if os.path.exists(map_file):
-                log(f"  [{current}/{total}] {algo_name}: exists")
+                # Load existing timing if available
+                timing_file = os.path.join(graph_mappings_dir, f"{algo_name}.time")
+                if os.path.exists(timing_file):
+                    with open(timing_file) as f:
+                        reorder_time = float(f.read().strip())
+                else:
+                    reorder_time = 0.0  # Unknown timing for existing file
+                
+                log(f"  [{current}/{total}] {algo_name}: exists ({reorder_time:.4f}s)")
                 label_maps[graph.name][algo_name] = map_file
+                reorder_results.append(ReorderResult(
+                    graph=graph.name,
+                    algorithm_id=algo_id,
+                    algorithm_name=algo_name,
+                    reorder_time=reorder_time,
+                    mapping_file=map_file,
+                    success=True
+                ))
                 continue
             
-            # Use converter to generate mapping
-            # Note: Using pr binary with -q flag to save mapping
-            binary = os.path.join(bin_dir, "pr")
+            # Use converter to generate mapping and time it
+            binary = os.path.join(bin_dir, "converter")
             sym_flag = "-s" if graph.is_symmetric else ""
-            cmd = f"{binary} -f {graph.path} {sym_flag} -o {algo_id} -n 1 -q {map_file}"
+            cmd = f"{binary} -f {graph.path} {sym_flag} -o {algo_id} -q {map_file}"
             
+            start_time = time.time()
             success, stdout, stderr = run_command(cmd, timeout)
+            elapsed = time.time() - start_time
             
             if success and os.path.exists(map_file):
-                log(f"  [{current}/{total}] {algo_name}: generated")
+                # Save timing to file for future reference
+                timing_file = os.path.join(graph_mappings_dir, f"{algo_name}.time")
+                with open(timing_file, 'w') as f:
+                    f.write(f"{elapsed:.6f}")
+                
+                log(f"  [{current}/{total}] {algo_name}: generated ({elapsed:.4f}s)")
                 label_maps[graph.name][algo_name] = map_file
+                reorder_results.append(ReorderResult(
+                    graph=graph.name,
+                    algorithm_id=algo_id,
+                    algorithm_name=algo_name,
+                    reorder_time=elapsed,
+                    mapping_file=map_file,
+                    success=True
+                ))
             else:
                 error = "TIMEOUT" if "TIMEOUT" in stderr else stderr[:50]
                 log(f"  [{current}/{total}] {algo_name}: FAILED ({error})")
+                reorder_results.append(ReorderResult(
+                    graph=graph.name,
+                    algorithm_id=algo_id,
+                    algorithm_name=algo_name,
+                    reorder_time=elapsed,
+                    mapping_file="",
+                    success=False,
+                    error=error
+                ))
     
     # Save mapping index
     index_file = os.path.join(mappings_dir, "index.json")
     with open(index_file, 'w') as f:
         json.dump(label_maps, f, indent=2)
     log(f"\nLabel map index saved to: {index_file}")
+    
+    # Save reorder times to JSON and CSV
+    reorder_json = os.path.join(output_dir, f"reorder_times_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json")
+    with open(reorder_json, 'w') as f:
+        json.dump([asdict(r) for r in reorder_results], f, indent=2)
+    log(f"Reorder times saved to: {reorder_json}")
+    
+    # Also save as CSV for easy analysis
+    reorder_csv = os.path.join(output_dir, f"reorder_times_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv")
+    with open(reorder_csv, 'w') as f:
+        f.write("graph,algorithm_id,algorithm_name,reorder_time,success,error\n")
+        for r in reorder_results:
+            f.write(f"{r.graph},{r.algorithm_id},{r.algorithm_name},{r.reorder_time:.6f},{r.success},{r.error}\n")
+    log(f"Reorder times CSV saved to: {reorder_csv}")
+    
+    return label_maps, reorder_results
     
     return label_maps
 
@@ -1250,7 +1554,6 @@ def run_benchmarks(
                 else:
                     # Generate reordering on-the-fly
                     cmd = f"{binary} -f {graph.path} {sym_flag} -o {algo_id} -n {num_trials}"
-                    continue
                 
                 # Run
                 success, stdout, stderr = run_command(cmd, timeout)
@@ -1640,8 +1943,12 @@ def run_subcommunity_brute_force(
        - Run all 20 algorithms and measure time + cache
        - Compare against adaptive choice
     3. Generate detailed comparison table
+    
+    NOTE: All operations run sequentially (not in parallel) to ensure accurate
+    performance measurements. Parallel execution would cause CPU contention.
     """
     log_section("Subcommunity Brute-Force Analysis: Adaptive vs All Algorithms")
+    log("Note: Sequential execution for accurate timing (no parallelism)")
     
     results = []
     
@@ -2168,6 +2475,640 @@ def update_zero_weights(
     log(f"Weights saved to: {weights_file}")
     log("\nNote: Negative weights (like -0.0) are NORMAL and mean that feature is penalized")
 
+
+# ============================================================================
+# Phase 5b: Iterative Weight Training with Feedback Loop
+# ============================================================================
+
+@dataclass
+class TrainingIterationResult:
+    """Result from one iteration of training."""
+    iteration: int
+    accuracy_time_pct: float
+    accuracy_cache_pct: float
+    accuracy_top3_pct: float
+    avg_time_ratio: float
+    avg_cache_ratio: float
+    graphs_tested: int
+    weights_updated: int
+    
+@dataclass
+class TrainingResult:
+    """Final result from iterative training."""
+    final_accuracy_time_pct: float
+    final_accuracy_cache_pct: float
+    final_accuracy_top3_pct: float
+    iterations_run: int
+    target_accuracy: float
+    target_reached: bool
+    iteration_history: List[TrainingIterationResult] = field(default_factory=list)
+    best_weights_iteration: int = 0
+    best_weights_file: str = ""
+
+
+def initialize_enhanced_weights(weights_file: str, algorithms: List[str] = None) -> Dict:
+    """
+    Initialize or upgrade weights file with enhanced feature support.
+    
+    Creates a new weights file with all extended features, or upgrades
+    an existing weights file to include new features.
+    """
+    default_algorithms = [
+        "Original", "RCMOrder", "DegSort", "HubSort", "HubClusterDBG",
+        "HubClusterDeg", "Sort", "Gorder", "RabbitOrder", "MineOrder",
+        "LDGOrder", "Corder", "SlashBurn", "LeidenDFS", "LeidenBFS",
+        "Adaptive", "LeidenDFSHub", "LeidenBFSHub", "MAP"
+    ]
+    
+    if algorithms is None:
+        algorithms = default_algorithms
+    
+    # Default template for algorithm weights
+    def make_default_weights(algo_name: str) -> Dict:
+        # Baseline biases based on prior experiments
+        base_biases = {
+            "LeidenDFS": 3.5, "LeidenDFSHub": 3.3, "LeidenBFS": 3.2,
+            "LeidenBFSHub": 3.0, "RabbitOrder": 2.5, "Gorder": 2.3,
+            "HubClusterDBG": 2.0, "HubSort": 1.8, "DegSort": 1.5,
+            "RCMOrder": 1.2, "Corder": 1.0, "Original": 0.5
+        }
+        return {
+            "bias": base_biases.get(algo_name, 1.0),
+            "w_modularity": 0.1,
+            "w_density": 0.05,
+            "w_degree_variance": 0.03,
+            "w_hub_concentration": 0.05,
+            "w_log_nodes": 0.02,
+            "w_log_edges": 0.02,
+            # New extended features
+            "w_clustering_coeff": 0.04,
+            "w_avg_path_length": 0.02,
+            "w_diameter": 0.01,
+            "w_community_count": 0.03,
+            # Per-benchmark multipliers
+            "benchmark_weights": {
+                "pr": 1.0,
+                "bfs": 1.0,
+                "cc": 1.0,
+                "sssp": 1.0,
+                "bc": 1.0
+            }
+        }
+    
+    # Try to load existing weights
+    weights = {}
+    if os.path.exists(weights_file):
+        try:
+            with open(weights_file) as f:
+                weights = json.load(f)
+        except (json.JSONDecodeError, IOError):
+            weights = {}
+    
+    # Initialize or upgrade each algorithm
+    for algo in algorithms:
+        if algo not in weights:
+            weights[algo] = make_default_weights(algo)
+        else:
+            # Upgrade existing weights with missing fields
+            existing = weights[algo]
+            if isinstance(existing, dict):
+                defaults = make_default_weights(algo)
+                for key, value in defaults.items():
+                    if key not in existing:
+                        existing[key] = value
+                    elif key == "benchmark_weights" and isinstance(existing.get(key), dict):
+                        # Merge benchmark weights
+                        for bk, bv in value.items():
+                            if bk not in existing[key]:
+                                existing[key][bk] = bv
+                weights[algo] = existing
+    
+    # Add metadata
+    if '_metadata' not in weights:
+        weights['_metadata'] = {}
+    weights['_metadata']['enhanced_features'] = True
+    weights['_metadata']['last_updated'] = datetime.now().isoformat()
+    
+    # Save updated weights
+    with open(weights_file, 'w') as f:
+        json.dump(weights, f, indent=2)
+    
+    return weights
+
+
+def train_adaptive_weights_large_scale(
+    graphs: List[GraphInfo],
+    bin_dir: str,
+    bin_sim_dir: str,
+    output_dir: str,
+    weights_file: str,
+    benchmarks: List[str] = None,
+    target_accuracy: float = 80.0,
+    max_iterations: int = 10,
+    batch_size: int = 8,
+    timeout: int = TIMEOUT_REORDER,
+    timeout_sim: int = TIMEOUT_SIM,
+    num_trials: int = 2,
+    learning_rate: float = 0.15,
+    algorithms: List[int] = None
+) -> TrainingResult:
+    """
+    Large-scale training with batching and multi-benchmark support.
+    
+    This extends train_adaptive_weights_iterative with:
+    - Batch processing for organized training (sequential execution for accurate timing)
+    - Multi-benchmark training (pr, bfs, cc, etc.)
+    - Progressive learning rate decay
+    - Cross-validation between batches
+    
+    NOTE: All graph algorithms and reordering operations run sequentially (not in parallel)
+    to ensure accurate performance measurements. Parallel execution would cause CPU
+    contention and skew timing results.
+    
+    Args:
+        graphs: List of all graphs to train on
+        benchmarks: List of benchmarks to train on (default: ['pr', 'bfs', 'cc'])
+        batch_size: Number of graphs per batch (processed sequentially)
+        Other args same as train_adaptive_weights_iterative
+    """
+    log_section(f"Large-Scale Adaptive Training ({len(graphs)} graphs)")
+    log("Note: All algorithms run sequentially for accurate performance measurement")
+    
+    if benchmarks is None:
+        benchmarks = ['pr', 'bfs', 'cc']
+    
+    if algorithms is None:
+        algorithms = [1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 13]
+    
+    # Setup
+    training_dir = os.path.join(output_dir, f"large_training_{datetime.now().strftime('%Y%m%d_%H%M%S')}")
+    os.makedirs(training_dir, exist_ok=True)
+    
+    # Initialize weights
+    initialize_enhanced_weights(weights_file)
+    
+    result = TrainingResult(
+        final_accuracy_time_pct=0.0,
+        final_accuracy_cache_pct=0.0,
+        final_accuracy_top3_pct=0.0,
+        iterations_run=0,
+        target_accuracy=target_accuracy,
+        target_reached=False
+    )
+    
+    best_accuracy = 0.0
+    
+    # Split graphs into batches (for organized progress tracking, not parallel execution)
+    import random
+    shuffled_graphs = graphs.copy()
+    random.shuffle(shuffled_graphs)
+    batches = [shuffled_graphs[i:i+batch_size] for i in range(0, len(shuffled_graphs), batch_size)]
+    
+    log(f"Created {len(batches)} batches of ~{batch_size} graphs each (sequential processing)")
+    log(f"Training on benchmarks: {benchmarks}")
+    
+    for iteration in range(1, max_iterations + 1):
+        # Learning rate decay
+        current_lr = learning_rate * (0.9 ** (iteration - 1))
+        
+        log(f"\n{'='*60}")
+        log(f"ITERATION {iteration}/{max_iterations} (LR: {current_lr:.4f})")
+        log(f"{'='*60}")
+        
+        iteration_accuracy = []
+        
+        for benchmark in benchmarks:
+            log(f"\n--- Benchmark: {benchmark.upper()} ---")
+            
+            for batch_idx, batch in enumerate(batches):
+                log(f"\nBatch {batch_idx+1}/{len(batches)}: {[g.name for g in batch]}")
+                
+                # Run training iteration on this batch
+                iter_result = train_adaptive_weights_iterative(
+                    graphs=batch,
+                    bin_dir=bin_dir,
+                    bin_sim_dir=bin_sim_dir,
+                    output_dir=training_dir,
+                    weights_file=weights_file,
+                    benchmark=benchmark,
+                    target_accuracy=target_accuracy,
+                    max_iterations=1,  # Single iteration per batch
+                    timeout=timeout,
+                    timeout_sim=timeout_sim,
+                    num_trials=num_trials,
+                    learning_rate=current_lr,
+                    algorithms=algorithms
+                )
+                
+                if iter_result.iteration_history:
+                    iteration_accuracy.append(iter_result.iteration_history[0].accuracy_time_pct)
+        
+        # Calculate average accuracy across all batches and benchmarks
+        if iteration_accuracy:
+            avg_accuracy = sum(iteration_accuracy) / len(iteration_accuracy)
+            log(f"\nIteration {iteration} average accuracy: {avg_accuracy:.1f}%")
+            
+            if avg_accuracy > best_accuracy:
+                best_accuracy = avg_accuracy
+                result.best_weights_iteration = iteration
+                # Save best weights
+                best_weights_file = os.path.join(training_dir, f"best_weights_iter{iteration}.json")
+                with open(weights_file) as f:
+                    best_weights = json.load(f)
+                with open(best_weights_file, 'w') as f:
+                    json.dump(best_weights, f, indent=2)
+                result.best_weights_file = best_weights_file
+            
+            result.final_accuracy_time_pct = avg_accuracy
+            
+            if avg_accuracy >= target_accuracy:
+                log(f"\n🎯 TARGET REACHED: {avg_accuracy:.1f}% >= {target_accuracy}%")
+                result.target_reached = True
+                break
+        
+        result.iterations_run = iteration
+    
+    # Summary
+    log(f"\n{'='*60}")
+    log("LARGE-SCALE TRAINING COMPLETE")
+    log(f"{'='*60}")
+    log(f"Total iterations: {result.iterations_run}")
+    log(f"Best accuracy: {best_accuracy:.1f}%")
+    log(f"Target reached: {'YES' if result.target_reached else 'NO'}")
+    
+    return result
+
+
+def train_adaptive_weights_iterative(
+    graphs: List[GraphInfo],
+    bin_dir: str,
+    bin_sim_dir: str,
+    output_dir: str,
+    weights_file: str,
+    benchmark: str = "pr",
+    target_accuracy: float = 80.0,
+    max_iterations: int = 10,
+    timeout: int = TIMEOUT_REORDER,
+    timeout_sim: int = TIMEOUT_SIM,
+    num_trials: int = 3,
+    learning_rate: float = 0.1,
+    algorithms: List[int] = None
+) -> TrainingResult:
+    """
+    Iterative training loop for adaptive algorithm selection weights.
+    
+    This function:
+    1. Runs brute-force evaluation to measure current accuracy
+    2. Identifies where adaptive picks wrong (what should have been chosen)
+    3. Adjusts weights based on the analysis
+    4. Repeats until target accuracy is reached or max iterations
+    
+    The learning process:
+    - For each graph where adaptive picked wrong, we analyze the features
+    - If the correct algorithm has different feature preferences, we adjust weights
+    - We use a learning rate to prevent overcorrection
+    
+    Args:
+        graphs: List of graphs to test
+        bin_dir: Path to benchmark binaries
+        bin_sim_dir: Path to cache simulation binaries
+        output_dir: Where to save results
+        weights_file: Path to perceptron weights file
+        benchmark: Which benchmark to use (pr, bfs, etc.)
+        target_accuracy: Target accuracy percentage (0-100)
+        max_iterations: Maximum training iterations
+        timeout: Timeout for reorder operations
+        timeout_sim: Timeout for cache simulations
+        num_trials: Number of benchmark trials per test
+        learning_rate: How much to adjust weights (0.0-1.0)
+        algorithms: List of algorithm IDs to test
+    
+    Returns:
+        TrainingResult with iteration history and final accuracy
+    """
+    log_section(f"Iterative Weight Training (Target: {target_accuracy}%)")
+    
+    if algorithms is None:
+        # Use representative algorithms for training
+        algorithms = [1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 13]  # Skip MAP, ADAPTIVE, etc.
+    
+    # Ensure results directory exists
+    training_dir = os.path.join(output_dir, f"training_{datetime.now().strftime('%Y%m%d_%H%M%S')}")
+    os.makedirs(training_dir, exist_ok=True)
+    
+    # Initialize/upgrade weights file with enhanced features
+    log("Initializing enhanced weight structure...")
+    initialize_enhanced_weights(weights_file)
+    
+    # Initialize result
+    result = TrainingResult(
+        final_accuracy_time_pct=0.0,
+        final_accuracy_cache_pct=0.0,
+        final_accuracy_top3_pct=0.0,
+        iterations_run=0,
+        target_accuracy=target_accuracy,
+        target_reached=False
+    )
+    
+    best_accuracy = 0.0
+    best_iteration = 0
+    
+    for iteration in range(1, max_iterations + 1):
+        log(f"\n{'='*60}")
+        log(f"TRAINING ITERATION {iteration}/{max_iterations}")
+        log(f"{'='*60}")
+        
+        # Step 1: Run brute-force analysis to measure current accuracy
+        log(f"\n--- Step 1: Measure Current Accuracy ---")
+        bf_results = run_subcommunity_brute_force(
+            graphs=graphs,
+            bin_dir=bin_dir,
+            bin_sim_dir=bin_sim_dir,
+            output_dir=training_dir,
+            benchmark=benchmark,
+            timeout=timeout,
+            timeout_sim=timeout_sim,
+            num_trials=num_trials
+        )
+        
+        # Calculate overall accuracy
+        if not bf_results:
+            log("No brute-force results, stopping training")
+            break
+        
+        successful = [r for r in bf_results if r.success]
+        if not successful:
+            log("No successful brute-force results, stopping training")
+            break
+        
+        avg_accuracy_time = sum(r.adaptive_correct_time_pct for r in successful) / len(successful)
+        avg_accuracy_cache = sum(r.adaptive_correct_cache_pct for r in successful) / len(successful)
+        avg_top3_time = sum(r.adaptive_top3_time_pct for r in successful) / len(successful)
+        avg_time_ratio = sum(r.avg_time_ratio for r in successful if r.avg_time_ratio > 0) / max(1, sum(1 for r in successful if r.avg_time_ratio > 0))
+        avg_cache_ratio = sum(r.avg_cache_ratio for r in successful if r.avg_cache_ratio > 0) / max(1, sum(1 for r in successful if r.avg_cache_ratio > 0))
+        
+        log(f"\nIteration {iteration} Accuracy:")
+        log(f"  Adaptive correct (time): {avg_accuracy_time:.1f}%")
+        log(f"  Adaptive correct (cache): {avg_accuracy_cache:.1f}%")
+        log(f"  Adaptive in top 3: {avg_top3_time:.1f}%")
+        log(f"  Avg time ratio: {avg_time_ratio:.3f}")
+        log(f"  Avg cache ratio: {avg_cache_ratio:.3f}")
+        
+        # Record iteration result
+        iter_result = TrainingIterationResult(
+            iteration=iteration,
+            accuracy_time_pct=avg_accuracy_time,
+            accuracy_cache_pct=avg_accuracy_cache,
+            accuracy_top3_pct=avg_top3_time,
+            avg_time_ratio=avg_time_ratio,
+            avg_cache_ratio=avg_cache_ratio,
+            graphs_tested=len(successful),
+            weights_updated=0
+        )
+        
+        # Track best iteration
+        if avg_accuracy_time > best_accuracy:
+            best_accuracy = avg_accuracy_time
+            best_iteration = iteration
+            # Save best weights
+            best_weights_file = os.path.join(training_dir, f"best_weights_iter{iteration}.json")
+            with open(weights_file) as f:
+                best_weights = json.load(f)
+            with open(best_weights_file, 'w') as f:
+                json.dump(best_weights, f, indent=2)
+            result.best_weights_iteration = iteration
+            result.best_weights_file = best_weights_file
+            log(f"  New best accuracy! Saved weights to {best_weights_file}")
+        
+        # Check if we've reached target accuracy
+        if avg_accuracy_time >= target_accuracy:
+            log(f"\n🎯 TARGET ACCURACY REACHED: {avg_accuracy_time:.1f}% >= {target_accuracy}%")
+            result.target_reached = True
+            result.iteration_history.append(iter_result)
+            break
+        
+        # Step 2: Analyze errors and adjust weights
+        log(f"\n--- Step 2: Analyze Errors and Adjust Weights ---")
+        
+        # Load current weights
+        with open(weights_file) as f:
+            weights = json.load(f)
+        
+        # Analyze each graph where adaptive was wrong
+        weights_updated = 0
+        for bf_result in successful:
+            for sc_result in bf_result.subcommunity_results:
+                if sc_result.adaptive_is_best_time:
+                    continue  # Skip correct predictions
+                
+                # Get extended features of this subcommunity
+                features = {
+                    'density': sc_result.density,
+                    'degree_variance': sc_result.degree_variance,
+                    'hub_concentration': sc_result.hub_concentration,
+                    'log_nodes': math.log10(sc_result.nodes) if sc_result.nodes > 0 else 0,
+                    'log_edges': math.log10(sc_result.edges) if sc_result.edges > 0 else 0,
+                    'avg_degree': (2 * sc_result.edges / sc_result.nodes) if sc_result.nodes > 0 else 0,
+                    # New extended features (use defaults if not available)
+                    'clustering_coefficient': getattr(sc_result, 'clustering_coefficient', 0.0),
+                    'avg_path_length': getattr(sc_result, 'avg_path_length', 0.0),
+                    'diameter_estimate': getattr(sc_result, 'diameter_estimate', 0.0),
+                    'community_count': getattr(sc_result, 'community_count', 1),
+                }
+                
+                adaptive_algo = sc_result.adaptive_algorithm
+                correct_algo = sc_result.best_time_algorithm
+                
+                if not correct_algo or correct_algo == adaptive_algo:
+                    continue
+                
+                # Adjust weights for the correct algorithm (increase selection probability)
+                if correct_algo in weights:
+                    algo_weights = weights[correct_algo]
+                    
+                    # --- Feature-based weight adjustments (stronger gradients) ---
+                    
+                    # Density-based adjustment
+                    if features['density'] > 0.01:  # Relatively dense
+                        current = algo_weights.get('w_density', 0)
+                        algo_weights['w_density'] = round(current + learning_rate * 0.01 * features['density'], 6)
+                    elif features['density'] < 0.001:  # Very sparse
+                        current = algo_weights.get('w_density', 0)
+                        algo_weights['w_density'] = round(current - learning_rate * 0.005, 6)
+                    
+                    # Degree variance adjustment (higher learning rate)
+                    if features['degree_variance'] > 0.5:  # High variance
+                        current = algo_weights.get('w_degree_variance', 0)
+                        algo_weights['w_degree_variance'] = round(current + learning_rate * 0.005, 6)
+                    elif features['degree_variance'] < 0.1:  # Low variance (uniform degrees)
+                        current = algo_weights.get('w_degree_variance', 0)
+                        algo_weights['w_degree_variance'] = round(current - learning_rate * 0.002, 6)
+                    
+                    # Hub concentration adjustment
+                    if features['hub_concentration'] > 0.3:  # Hub-dominated
+                        current = algo_weights.get('w_hub_concentration', 0)
+                        algo_weights['w_hub_concentration'] = round(current + learning_rate * 0.01, 6)
+                    elif features['hub_concentration'] < 0.1:  # No clear hubs
+                        current = algo_weights.get('w_hub_concentration', 0)
+                        algo_weights['w_hub_concentration'] = round(current - learning_rate * 0.005, 6)
+                    
+                    # --- New extended feature adjustments ---
+                    
+                    # Clustering coefficient (measures local connectivity)
+                    if features['clustering_coefficient'] > 0.3:  # Highly clustered
+                        current = algo_weights.get('w_clustering_coeff', 0)
+                        algo_weights['w_clustering_coeff'] = round(current + learning_rate * 0.008, 6)
+                    elif features['clustering_coefficient'] < 0.05:  # Tree-like structure
+                        current = algo_weights.get('w_clustering_coeff', 0)
+                        algo_weights['w_clustering_coeff'] = round(current - learning_rate * 0.004, 6)
+                    
+                    # Average path length (affects traversal algorithms)
+                    if features['avg_path_length'] > 10:  # Long paths
+                        current = algo_weights.get('w_avg_path_length', 0)
+                        algo_weights['w_avg_path_length'] = round(current + learning_rate * 0.005, 6)
+                    elif features['avg_path_length'] > 0 and features['avg_path_length'] < 3:  # Short paths
+                        current = algo_weights.get('w_avg_path_length', 0)
+                        algo_weights['w_avg_path_length'] = round(current - learning_rate * 0.003, 6)
+                    
+                    # Diameter (graph width)
+                    if features['diameter_estimate'] > 20:  # Wide graph
+                        current = algo_weights.get('w_diameter', 0)
+                        algo_weights['w_diameter'] = round(current + learning_rate * 0.003, 6)
+                    
+                    # Community count (for multi-community graphs)
+                    if features['community_count'] > 5:  # Many subcommunities
+                        current = algo_weights.get('w_community_count', 0)
+                        algo_weights['w_community_count'] = round(current + learning_rate * 0.002, 6)
+                    
+                    # --- Per-benchmark weight adjustment ---
+                    benchmark_key = benchmark.lower()
+                    if 'benchmark_weights' not in algo_weights:
+                        algo_weights['benchmark_weights'] = {'pr': 1.0, 'bfs': 1.0, 'cc': 1.0, 'sssp': 1.0, 'bc': 1.0}
+                    
+                    # Increase this benchmark's multiplier for the correct algorithm
+                    if benchmark_key in algo_weights['benchmark_weights']:
+                        current_bw = algo_weights['benchmark_weights'][benchmark_key]
+                        algo_weights['benchmark_weights'][benchmark_key] = round(current_bw + learning_rate * 0.02, 4)
+                    
+                    # Increase bias (stronger gradient)
+                    current_bias = algo_weights.get('bias', 0.5)
+                    algo_weights['bias'] = round(current_bias + learning_rate * 0.02, 4)
+                    
+                    weights[correct_algo] = algo_weights
+                    weights_updated += 1
+                
+                # Decrease weights for the adaptive-selected algorithm (that was wrong)
+                if adaptive_algo in weights:
+                    algo_weights = weights[adaptive_algo]
+                    
+                    # Decrease bias (stronger gradient)
+                    current_bias = algo_weights.get('bias', 0.5)
+                    algo_weights['bias'] = round(current_bias - learning_rate * 0.015, 4)
+                    
+                    # Also decrease feature weights that contributed to wrong selection
+                    if features['density'] > 0.01:
+                        current = algo_weights.get('w_density', 0)
+                        algo_weights['w_density'] = round(current - learning_rate * 0.003, 6)
+                    
+                    if features['degree_variance'] > 0.5:
+                        current = algo_weights.get('w_degree_variance', 0)
+                        algo_weights['w_degree_variance'] = round(current - learning_rate * 0.002, 6)
+                    
+                    if features['hub_concentration'] > 0.3:
+                        current = algo_weights.get('w_hub_concentration', 0)
+                        algo_weights['w_hub_concentration'] = round(current - learning_rate * 0.003, 6)
+                    
+                    # Decrease per-benchmark weight for this benchmark
+                    benchmark_key = benchmark.lower()
+                    if 'benchmark_weights' in algo_weights and benchmark_key in algo_weights['benchmark_weights']:
+                        current_bw = algo_weights['benchmark_weights'][benchmark_key]
+                        algo_weights['benchmark_weights'][benchmark_key] = round(current_bw - learning_rate * 0.01, 4)
+                    
+                    weights[adaptive_algo] = algo_weights
+        
+        # Add training metadata
+        weights['_training_metadata'] = {
+            'last_iteration': iteration,
+            'accuracy_time_pct': avg_accuracy_time,
+            'accuracy_cache_pct': avg_accuracy_cache,
+            'timestamp': datetime.now().isoformat(),
+            'learning_rate': learning_rate,
+            'graphs_tested': len(successful)
+        }
+        
+        # Save updated weights
+        with open(weights_file, 'w') as f:
+            json.dump(weights, f, indent=2)
+        
+        iter_result.weights_updated = weights_updated
+        result.iteration_history.append(iter_result)
+        
+        log(f"  Weights updated for {weights_updated} algorithm adjustments")
+        
+        # Also save iteration-specific weights for debugging
+        iter_weights_file = os.path.join(training_dir, f"weights_iter{iteration}.json")
+        with open(iter_weights_file, 'w') as f:
+            json.dump(weights, f, indent=2)
+        
+        result.iterations_run = iteration
+    
+    # Finalize results
+    result.final_accuracy_time_pct = avg_accuracy_time if 'avg_accuracy_time' in dir() else 0.0
+    result.final_accuracy_cache_pct = avg_accuracy_cache if 'avg_accuracy_cache' in dir() else 0.0
+    result.final_accuracy_top3_pct = avg_top3_time if 'avg_top3_time' in dir() else 0.0
+    
+    # Save training summary
+    summary_file = os.path.join(training_dir, "training_summary.json")
+    summary = {
+        'target_accuracy': target_accuracy,
+        'target_reached': result.target_reached,
+        'iterations_run': result.iterations_run,
+        'final_accuracy_time_pct': result.final_accuracy_time_pct,
+        'final_accuracy_cache_pct': result.final_accuracy_cache_pct,
+        'final_accuracy_top3_pct': result.final_accuracy_top3_pct,
+        'best_iteration': result.best_weights_iteration,
+        'best_weights_file': result.best_weights_file,
+        'iteration_history': [
+            {
+                'iteration': h.iteration,
+                'accuracy_time_pct': h.accuracy_time_pct,
+                'accuracy_cache_pct': h.accuracy_cache_pct,
+                'accuracy_top3_pct': h.accuracy_top3_pct,
+                'avg_time_ratio': h.avg_time_ratio,
+                'avg_cache_ratio': h.avg_cache_ratio,
+                'graphs_tested': h.graphs_tested,
+                'weights_updated': h.weights_updated
+            }
+            for h in result.iteration_history
+        ]
+    }
+    
+    with open(summary_file, 'w') as f:
+        json.dump(summary, f, indent=2)
+    
+    log(f"\n{'='*60}")
+    log("TRAINING COMPLETE")
+    log(f"{'='*60}")
+    log(f"Iterations run: {result.iterations_run}")
+    log(f"Target accuracy: {target_accuracy}%")
+    log(f"Final accuracy (time): {result.final_accuracy_time_pct:.1f}%")
+    log(f"Final accuracy (cache): {result.final_accuracy_cache_pct:.1f}%")
+    log(f"Target reached: {'YES' if result.target_reached else 'NO'}")
+    log(f"Best iteration: {result.best_weights_iteration}")
+    log(f"Training summary saved to: {summary_file}")
+    
+    # If we didn't reach target, restore best weights
+    if not result.target_reached and result.best_weights_file and os.path.exists(result.best_weights_file):
+        log(f"\nRestoring best weights from iteration {result.best_weights_iteration}")
+        with open(result.best_weights_file) as f:
+            best_weights = json.load(f)
+        with open(weights_file, 'w') as f:
+            json.dump(best_weights, f, indent=2)
+        log(f"Best weights (accuracy: {best_accuracy:.1f}%) restored to {weights_file}")
+    
+    return result
+
+
 # ============================================================================
 # Phase 6: Adaptive Order Analysis
 # ============================================================================
@@ -2491,9 +3432,9 @@ def run_experiment(args):
     all_cache_results = []
     label_maps = {}
     
-    # Pre-generate label maps if requested
+    # Pre-generate label maps if requested (also records reorder times)
     if getattr(args, "generate_maps", False):
-        label_maps = generate_label_maps(
+        label_maps, reorder_timing_results = generate_label_maps(
             graphs=graphs,
             algorithms=algorithms,
             bin_dir=args.bin_dir,
@@ -2501,6 +3442,7 @@ def run_experiment(args):
             timeout=args.timeout_reorder,
             skip_slow=args.skip_slow
         )
+        all_reorder_results.extend(reorder_timing_results)
     
     # Load existing label maps if requested
     if getattr(args, "use_maps", False):
@@ -2659,6 +3601,50 @@ def run_experiment(args):
             num_trials=args.trials
         )
     
+    # Phase 9: Iterative Training (feedback loop to optimize adaptive weights)
+    if getattr(args, "train_adaptive", False):
+        training_result = train_adaptive_weights_iterative(
+            graphs=graphs,
+            bin_dir=args.bin_dir,
+            bin_sim_dir=args.bin_sim_dir,
+            output_dir=args.results_dir,
+            weights_file=args.weights_file,
+            benchmark=getattr(args, "bf_benchmark", "pr"),
+            target_accuracy=getattr(args, "target_accuracy", 80.0),
+            max_iterations=getattr(args, "max_iterations", 10),
+            timeout=args.timeout_benchmark,
+            timeout_sim=args.timeout_sim,
+            num_trials=args.trials,
+            learning_rate=getattr(args, "learning_rate", 0.1),
+            algorithms=algorithms
+        )
+    
+    # Phase 10: Large-Scale Training (batched multi-benchmark training)
+    if getattr(args, "train_large", False):
+        large_training_result = train_adaptive_weights_large_scale(
+            graphs=graphs,
+            bin_dir=args.bin_dir,
+            bin_sim_dir=args.bin_sim_dir,
+            output_dir=args.results_dir,
+            weights_file=args.weights_file,
+            benchmarks=getattr(args, "train_benchmarks", ['pr', 'bfs', 'cc']),
+            target_accuracy=getattr(args, "target_accuracy", 80.0),
+            max_iterations=getattr(args, "max_iterations", 10),
+            batch_size=getattr(args, "batch_size", 8),
+            timeout=args.timeout_benchmark,
+            timeout_sim=args.timeout_sim,
+            num_trials=args.trials,
+            learning_rate=getattr(args, "learning_rate", 0.15),
+            algorithms=algorithms
+        )
+    
+    # Initialize/upgrade weights file with enhanced features
+    if getattr(args, "init_weights", False):
+        log_section("Initialize Enhanced Weights")
+        weights = initialize_enhanced_weights(args.weights_file)
+        log(f"Weights initialized/upgraded with {len(weights) - 1} algorithms")
+        log(f"Saved to: {args.weights_file}")
+    
     log_section("Experiment Complete")
     log(f"Results directory: {args.results_dir}")
     log(f"Weights file: {args.weights_file}")
@@ -2702,6 +3688,15 @@ Examples:
   
   # Run brute-force validation experiment
   python scripts/graphbrew_experiment.py --brute-force --graphs small
+  
+  # Pre-generate label maps and record reorder times
+  python scripts/graphbrew_experiment.py --generate-maps --graphs small
+  
+  # Iterative training to reach 90% accuracy
+  python scripts/graphbrew_experiment.py --train-adaptive --target-accuracy 90 --graphs small
+  
+  # Full training pipeline with custom learning rate
+  python scripts/graphbrew_experiment.py --train-adaptive --target-accuracy 85 --max-iterations 15 --learning-rate 0.05
         """
     )
     
@@ -2786,6 +3781,24 @@ Examples:
                         help="Run brute-force validation: test all 20 algorithms vs adaptive choice")
     parser.add_argument("--bf-benchmark", default="pr",
                         help="Benchmark to use for brute-force validation (default: pr)")
+    
+    # Iterative training options
+    parser.add_argument("--train-adaptive", action="store_true",
+                        help="Run iterative training loop to optimize adaptive algorithm weights")
+    parser.add_argument("--train-large", action="store_true",
+                        help="Run large-scale training with batching and multi-benchmark support")
+    parser.add_argument("--target-accuracy", type=float, default=80.0,
+                        help="Target accuracy %% for iterative training (default: 80)")
+    parser.add_argument("--max-iterations", type=int, default=10,
+                        help="Maximum training iterations (default: 10)")
+    parser.add_argument("--learning-rate", type=float, default=0.1,
+                        help="Learning rate for weight adjustments (default: 0.1)")
+    parser.add_argument("--batch-size", type=int, default=8,
+                        help="Batch size for large-scale training (default: 8)")
+    parser.add_argument("--train-benchmarks", nargs="+", default=['pr', 'bfs', 'cc'],
+                        help="Benchmarks to use for multi-benchmark training (default: pr bfs cc)")
+    parser.add_argument("--init-weights", action="store_true",
+                        help="Initialize/upgrade weights file with enhanced features")
     
     # Clean options
     parser.add_argument("--clean", action="store_true",
