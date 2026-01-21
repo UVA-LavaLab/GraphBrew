@@ -1530,11 +1530,21 @@ def generate_reorderings(
     bin_dir: str,
     output_dir: str,
     timeout: int = TIMEOUT_REORDER,
-    skip_slow: bool = False
+    skip_slow: bool = False,
+    generate_maps: bool = True
 ) -> List[ReorderResult]:
     """
     Generate reorderings for all graphs and algorithms.
     Records reorder time for each combination.
+    
+    Args:
+        graphs: List of graphs to process
+        algorithms: List of algorithm IDs to use
+        bin_dir: Directory containing binaries
+        output_dir: Directory for outputs (mappings will be in output_dir/mappings/)
+        timeout: Timeout for each reordering
+        skip_slow: Skip slow algorithms on large graphs
+        generate_maps: If True, generate .lo mapping files (default: True)
     """
     log_section("Phase 1: Generate Reorderings")
     
@@ -1548,6 +1558,11 @@ def generate_reorderings(
     
     for graph in graphs:
         log(f"\nGraph: {graph.name} ({graph.size_mb:.1f}MB)")
+        
+        # Create per-graph mappings directory
+        graph_mappings_dir = os.path.join(mappings_dir, graph.name)
+        if generate_maps:
+            os.makedirs(graph_mappings_dir, exist_ok=True)
         
         for algo_id in algorithms:
             current += 1
@@ -1578,10 +1593,40 @@ def generate_reorderings(
                 ))
                 continue
             
-            # Build command - use pr binary with 1 trial to measure reorder time
-            sym_flag = "-s" if graph.is_symmetric else ""
-            binary = os.path.join(bin_dir, "pr")
-            cmd = f"{binary} -f {graph.path} {sym_flag} -o {algo_id} -n 1"
+            # Output mapping file path
+            map_file = os.path.join(graph_mappings_dir, f"{algo_name}.lo") if generate_maps else None
+            
+            # Check if mapping already exists
+            if generate_maps and map_file and os.path.exists(map_file):
+                # Load existing timing if available
+                timing_file = os.path.join(graph_mappings_dir, f"{algo_name}.time")
+                if os.path.exists(timing_file):
+                    with open(timing_file) as f:
+                        reorder_time = float(f.read().strip())
+                else:
+                    reorder_time = 0.0
+                
+                log(f"  [{current}/{total}] {algo_name}: exists ({reorder_time:.4f}s)")
+                results.append(ReorderResult(
+                    graph=graph.name,
+                    algorithm_id=algo_id,
+                    algorithm_name=algo_name,
+                    reorder_time=reorder_time,
+                    mapping_file=map_file,
+                    success=True
+                ))
+                continue
+            
+            # Generate mapping with converter (also times it)
+            if generate_maps:
+                binary = os.path.join(bin_dir, "converter")
+                sym_flag = "-s" if graph.is_symmetric else ""
+                cmd = f"{binary} -f {graph.path} {sym_flag} -o {algo_id} -q {map_file}"
+            else:
+                # Use pr binary with 1 trial to measure reorder time
+                binary = os.path.join(bin_dir, "pr")
+                sym_flag = "-s" if graph.is_symmetric else ""
+                cmd = f"{binary} -f {graph.path} {sym_flag} -o {algo_id} -n 1"
             
             # Run and parse
             start_time = time.time()
@@ -1590,17 +1635,46 @@ def generate_reorderings(
             
             if success:
                 output = stdout + stderr
-                parsed = parse_benchmark_output(output)
-                reorder_time = parsed.get('reorder_time', elapsed)
                 
-                log(f"  [{current}/{total}] {algo_name}: {reorder_time:.4f}s")
-                results.append(ReorderResult(
-                    graph=graph.name,
-                    algorithm_id=algo_id,
-                    algorithm_name=algo_name,
-                    reorder_time=reorder_time,
-                    success=True
-                ))
+                if generate_maps:
+                    # Verify map file was created
+                    if os.path.exists(map_file):
+                        # Save timing to file for future reference
+                        timing_file = os.path.join(graph_mappings_dir, f"{algo_name}.time")
+                        with open(timing_file, 'w') as f:
+                            f.write(f"{elapsed:.6f}")
+                        
+                        log(f"  [{current}/{total}] {algo_name}: {elapsed:.4f}s (map: {algo_name}.lo)")
+                        results.append(ReorderResult(
+                            graph=graph.name,
+                            algorithm_id=algo_id,
+                            algorithm_name=algo_name,
+                            reorder_time=elapsed,
+                            mapping_file=map_file,
+                            success=True
+                        ))
+                    else:
+                        log(f"  [{current}/{total}] {algo_name}: FAILED (no map file)")
+                        results.append(ReorderResult(
+                            graph=graph.name,
+                            algorithm_id=algo_id,
+                            algorithm_name=algo_name,
+                            reorder_time=elapsed,
+                            success=False,
+                            error="Map file not created"
+                        ))
+                else:
+                    parsed = parse_benchmark_output(output)
+                    reorder_time = parsed.get('reorder_time', elapsed)
+                    
+                    log(f"  [{current}/{total}] {algo_name}: {reorder_time:.4f}s")
+                    results.append(ReorderResult(
+                        graph=graph.name,
+                        algorithm_id=algo_id,
+                        algorithm_name=algo_name,
+                        reorder_time=reorder_time,
+                        success=True
+                    ))
             else:
                 error = "TIMEOUT" if "TIMEOUT" in stderr else stderr[:100]
                 log(f"  [{current}/{total}] {algo_name}: FAILED ({error})")
@@ -3871,7 +3945,8 @@ def run_experiment(args):
             bin_dir=args.bin_dir,
             output_dir=args.results_dir,
             timeout=args.timeout_reorder,
-            skip_slow=args.skip_slow
+            skip_slow=args.skip_slow,
+            generate_maps=True  # Always generate .lo mapping files
         )
         all_reorder_results.extend(reorder_results)
         
@@ -4079,7 +4154,8 @@ def run_experiment(args):
             bin_dir=args.bin_dir,
             output_dir=args.results_dir,
             timeout=args.timeout_reorder,
-            skip_slow=getattr(args, 'skip_slow', False)
+            skip_slow=getattr(args, 'skip_slow', False),
+            generate_maps=True  # Always generate .lo mapping files
         )
         
         # Phase 2: Benchmarks (all of them)
