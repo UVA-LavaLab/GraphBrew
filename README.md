@@ -83,12 +83,13 @@ python3 scripts/graphbrew_experiment.py --full --download-size SMALL
 This single command will:
 1. **Download** benchmark graphs from SuiteSparse collection (96 graphs available)
 2. **Build** the benchmark binaries automatically
-3. **Generate** label mappings for consistent reordering across all benchmarks
-4. **Run** performance benchmarks (BFS, PR, CC, SSSP, BC) with all 20 algorithms
-5. **Execute** cache simulations for L1/L2/L3 hit rate analysis
-6. **Train** perceptron weights for AdaptiveOrder (with cache + reorder time features)
+3. **Analyze** graph properties (modularity, degree variance, hub concentration) to detect graph types
+4. **Generate** label mappings for consistent reordering across all benchmarks
+5. **Run** performance benchmarks (BFS, PR, CC, SSSP, BC) with all 20 algorithms
+6. **Execute** cache simulations for L1/L2/L3 hit rate analysis
+7. **Train** per-graph-type perceptron weights for AdaptiveOrder (social, road, web, powerlaw, uniform)
 
-All results are saved to `./results/` for easy analysis.
+All results are saved to `./results/` with per-type weights synced to `./scripts/`.
 
 ### Available Options
 
@@ -170,10 +171,15 @@ scripts/
 │                              #    - Downloads graphs from SuiteSparse
 │                              #    - Builds binaries automatically  
 │                              #    - Runs all benchmarks & simulations
-│                              #    - Generates perceptron weights
+│                              #    - Generates per-graph-type perceptron weights
 │                              #    - Supports brute-force validation
 ├── requirements.txt           # Python dependencies
-└── perceptron_weights.json    # ML weights (auto-generated)
+├── perceptron_weights.json    # Generic ML weights (auto-generated)
+├── perceptron_weights_social.json    # Social network weights
+├── perceptron_weights_road.json      # Road network weights
+├── perceptron_weights_web.json       # Web graph weights
+├── perceptron_weights_powerlaw.json  # Power-law graph weights
+└── perceptron_weights_uniform.json   # Uniform random graph weights
 ```
 
 **Utility Scripts:**
@@ -205,13 +211,35 @@ results/
 │       ├── HUBCLUSTERDBG.lo   # Label order file for each algorithm
 │       ├── LeidenHybrid.lo
 │       └── ...
+├── graph_properties_cache.json # Cached graph properties for type detection
 ├── reorder_*.json             # Reordering times per algorithm
 ├── benchmark_*.json           # Benchmark execution results  
 ├── cache_*.json               # Cache simulation results (L1/L2/L3)
-├── perceptron_weights.json    # Trained ML weights with metadata
+├── perceptron_weights.json    # Generic ML weights with metadata
 ├── brute_force_*.json         # Validation results
 └── logs/                      # Execution logs
+
+scripts/                       # Per-graph-type weight files (synced)
+├── perceptron_weights.json         # Generic fallback
+├── perceptron_weights_social.json  # Social network specialized
+├── perceptron_weights_road.json    # Road network specialized  
+├── perceptron_weights_web.json     # Web graph specialized
+├── perceptron_weights_powerlaw.json # Power-law specialized
+└── perceptron_weights_uniform.json  # Uniform random specialized
 ```
+
+### Per-Graph-Type Weights
+
+AdaptiveOrder automatically detects graph types from computed properties and loads specialized weights:
+
+| Type | Detection Criteria | Example Graphs |
+|------|-------------------|----------------|
+| `social` | High modularity (>0.3), high degree variance (>0.8) | soc-LiveJournal1, com-Friendster |
+| `road` | Low modularity (<0.1), low degree variance (<0.5), low avg degree (<10) | roadNet-CA, GAP-road |
+| `web` | High hub concentration (>0.5), high degree variance (>1.0) | uk-2002, webbase-2001 |
+| `powerlaw` | Very high degree variance (>1.5), low modularity (<0.3) | GAP-kron, twitter7 |
+| `uniform` | Low degree variance (<0.5), low hub concentration (<0.3) | GAP-urand, ER random |
+| `generic` | Default fallback | (none of the above) |
 
 ### Perceptron Weights Format
 
