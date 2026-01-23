@@ -73,6 +73,30 @@ python3 scripts/graphbrew_experiment.py --clean-all --full --download-size SMALL
 
 ---
 
+## 🎯 Quick Weight Training (Recommended)
+
+Train perceptron weights from scratch with automatic resource management:
+
+```bash
+# Clean slate: remove old results and weights
+rm -rf results/* scripts/weights/type_*.json scripts/weights/type_registry.json
+
+# Fill weights with auto memory/disk limits, skip cache simulation for speed
+python3 scripts/graphbrew_experiment.py --fill-weights --auto-memory --auto-disk --skip-cache --graphs all
+```
+
+This command:
+- ✅ Auto-detects available RAM and skips graphs that won't fit
+- ✅ Auto-detects disk space and limits downloads accordingly
+- ✅ Skips cache simulation (faster training)
+- ✅ Processes all graph sizes (small, medium, large)
+- ✅ Generates type clusters based on graph features
+- ✅ Creates `scripts/weights/type_N.json` files for each cluster
+
+**Estimated time:** ~30-60 minutes depending on system and graph sizes.
+
+---
+
 ## Manual Setup (Step-by-Step)
 
 ### 1. Clone and Build (2 minutes)
