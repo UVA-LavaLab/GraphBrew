@@ -1411,30 +1411,7 @@ def log_section(title: str):
     print(title)
     print("=" * 70 + "\n")
 
-def backup_and_sync_weights(results_weights_path: str, scripts_weights_path: str = "./scripts/perceptron_weights.json"):
-    """
-    Backup weights with timestamp in results folder and sync to scripts folder.
-    
-    This ensures:
-    1. Results weights are backed up with timestamp (won't be overwritten)
-    2. Scripts weights are updated for next experiment iteration
-    """
-    if not os.path.exists(results_weights_path):
-        log(f"Weights file not found: {results_weights_path}", "WARNING")
-        return
-    
-    # Create timestamped backup in results folder
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    backup_path = results_weights_path.replace(".json", f"_{timestamp}.json")
-    
-    import shutil
-    shutil.copy2(results_weights_path, backup_path)
-    log(f"Weights backed up to: {backup_path}")
-    
-    # Copy to scripts folder for next iteration
-    os.makedirs(os.path.dirname(scripts_weights_path), exist_ok=True)
-    shutil.copy2(results_weights_path, scripts_weights_path)
-    log(f"Weights synced to: {scripts_weights_path}")
+# NOTE: Legacy backup_and_sync_weights removed - now using type-based weights in scripts/weights/
 
 def get_graph_path(graphs_dir: str, graph_name: str) -> Optional[str]:
     """Get the path to a graph file."""
@@ -2079,8 +2056,6 @@ def clean_results(results_dir: str = DEFAULT_RESULTS_DIR, keep_graphs: bool = Tr
     keep_items = set()
     if keep_graphs:
         keep_items.add("graphs")
-    if keep_weights:
-        keep_items.add("perceptron_weights.json")
     
     deleted_count = 0
     kept_count = 0
@@ -2096,10 +2071,6 @@ def clean_results(results_dir: str = DEFAULT_RESULTS_DIR, keep_graphs: bool = Tr
         
         # Clean based on pattern
         if entry.endswith(('.json', '.log', '.csv')):
-            if entry == "perceptron_weights.json" and keep_weights:
-                kept_count += 1
-                print(f"  Keeping: {entry}")
-                continue
             try:
                 os.remove(entry_path)
                 deleted_count += 1
@@ -3252,9 +3223,6 @@ def generate_perceptron_weights(
     
     log(f"\nWeights saved to: {output_file}")
     
-    # Backup with timestamp and sync to scripts folder
-    backup_and_sync_weights(output_file)
-    
     return weights
 
 # ============================================================================
@@ -4094,9 +4062,6 @@ def update_zero_weights(
     log(f"\nUpdated {updated_count} algorithms")
     log(f"Weights saved to: {weights_file}")
     log("\nNote: Negative weights (like -0.0) are NORMAL and mean that feature is penalized")
-    
-    # Backup with timestamp and sync to scripts folder
-    backup_and_sync_weights(weights_file)
 
 
 def compute_benchmark_weights(
@@ -4982,9 +4947,6 @@ def train_adaptive_weights_iterative(
         with open(weights_file, 'w') as f:
             json.dump(best_weights, f, indent=2)
         log(f"Best weights (accuracy: {best_accuracy:.1f}%) restored to {weights_file}")
-    
-    # Backup with timestamp and sync to scripts folder
-    backup_and_sync_weights(weights_file)
     
     return result
 
