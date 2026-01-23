@@ -152,11 +152,11 @@ int main(int argc, char *argv[]) {
     
     CacheHierarchy cache = CacheHierarchy::fromEnvironment();
     
-    SourcePicker<WGraph> sp(g, cli.start_vertex());
+    SourcePicker<WGraph> sp(g, cli.start_vertex(), cli.num_trials());
     auto SSSPBound = [&sp, &cli, &cache](const WGraph &g) {
         return DeltaStep_Sim(g, sp.PickNext(), cli.delta(), cache);
     };
-    SourcePicker<WGraph> vsp(g, cli.start_vertex());
+    SourcePicker<WGraph> vsp(g, cli.start_vertex(), cli.num_trials());
     auto VerifierBound = [&vsp](const WGraph &g, const pvector<WeightT> &dist) {
         return SSSPVerifier(g, vsp.PickNext(), dist);
     };
