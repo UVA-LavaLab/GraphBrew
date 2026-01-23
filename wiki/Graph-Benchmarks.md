@@ -4,14 +4,18 @@ GraphBrew includes implementations of classic graph algorithms used to measure t
 
 ## Overview of Benchmarks
 
-| Benchmark | Binary | Description | Complexity |
-|-----------|--------|-------------|------------|
-| PageRank | `pr` | Importance ranking | O(n + m) per iteration |
-| BFS | `bfs` | Shortest paths (unweighted) | O(n + m) |
-| Connected Components | `cc` | Find connected subgraphs | O(n + m) |
-| SSSP | `sssp` | Shortest paths (weighted) | O((n + m) log n) |
-| Betweenness Centrality | `bc` | Node importance | O(n × (n + m)) |
-| Triangle Counting | `tc` | Count triangles | O(m^1.5) |
+The automated pipeline uses **five** benchmarks (PR, BFS, CC, SSSP, BC). Triangle Counting (TC) is available for manual use:
+
+| Benchmark | Binary | Description | Complexity | Automated |
+|-----------|--------|-------------|------------|-----------|
+| PageRank | `pr` | Importance ranking | O(n + m) per iteration | ✅ |
+| BFS | `bfs` | Shortest paths (unweighted) | O(n + m) | ✅ |
+| Connected Components | `cc` | Find connected subgraphs | O(n + m) | ✅ |
+| SSSP | `sssp` | Shortest paths (weighted) | O((n + m) log n) | ✅ |
+| Betweenness Centrality | `bc` | Node importance | O(n × (n + m)) | ✅ |
+| Triangle Counting | `tc` | Count triangles | O(m^1.5) | ❌* |
+
+> **Note:** *Triangle Counting is excluded from the automated pipeline because reordering provides minimal benefit for this workload. It can still be run manually.
 
 ---
 

@@ -517,7 +517,7 @@ python3 scripts/analysis/full_correlation_scan.py --full --trials 16
 
 - **Sequential Execution**: One benchmark at a time for full CPU utilization
 - **RANDOM Baseline**: Uses RANDOM (1) for all speedup calculations
-- **All Algorithms**: Tests IDs 0-12, 15-20 (skips 13=GraphBrew, 14=MAP)
+- **All Algorithms**: Tests IDs 0-12, 16-20 (skips 13=GraphBrewOrder, 14=MAP, 15=AdaptiveOrder)
 - **Incremental Save**: Progress saved to allow resumption on interruption
 - **Skip TC**: Triangle counting excluded (reordering doesn't help)
 

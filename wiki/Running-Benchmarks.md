@@ -4,16 +4,18 @@ Complete guide to running GraphBrew benchmarks with all options explained.
 
 ## Overview
 
-GraphBrew includes six graph algorithm benchmarks from the GAP Benchmark Suite:
+GraphBrew includes six graph algorithm benchmark binaries from the GAP Benchmark Suite. The automated pipeline uses **five** benchmarks (PR, BFS, CC, SSSP, BC), while Triangle Counting (TC) is available for manual use:
 
-| Benchmark | Binary | Description |
-|-----------|--------|-------------|
-| PageRank | `pr` | Page importance ranking |
-| BFS | `bfs` | Breadth-First Search traversal |
-| Connected Components | `cc` | Find graph connectivity |
-| SSSP | `sssp` | Single-Source Shortest Paths |
-| Betweenness Centrality | `bc` | Node importance by path flow |
-| Triangle Counting | `tc` | Count triangles in graph |
+| Benchmark | Binary | Description | Automated |
+|-----------|--------|-------------|-----------|
+| PageRank | `pr` | Page importance ranking | ✅ |
+| BFS | `bfs` | Breadth-First Search traversal | ✅ |
+| Connected Components | `cc` | Find graph connectivity | ✅ |
+| SSSP | `sssp` | Single-Source Shortest Paths | ✅ |
+| Betweenness Centrality | `bc` | Node importance by path flow | ✅ |
+| Triangle Counting | `tc` | Count triangles in graph | ❌* |
+
+> **Note:** *Triangle Counting is excluded from the automated pipeline because reordering provides minimal benefit for this workload. It can still be run manually.
 
 ---
 

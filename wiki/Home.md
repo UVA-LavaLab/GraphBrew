@@ -11,7 +11,7 @@ GraphBrew is a high-performance graph reordering framework that combines **commu
 - **20 Reordering Algorithms**: From simple sorting to advanced ML-based selection (IDs 0-13, 15-20)
 - **Leiden Community Detection**: State-of-the-art community detection for graph partitioning
 - **AdaptiveOrder**: ML-powered perceptron that automatically selects the best algorithm
-- **Comprehensive Benchmarks**: PageRank, BFS, Connected Components, Triangle Counting, and more
+- **Comprehensive Benchmarks**: PageRank, BFS, Connected Components, SSSP, BC (5 automated), plus Triangle Counting (manual)
 - **Python Analysis Tools**: Correlation analysis, benchmark automation, and weight training
 - **Iterative Training**: Feedback loop to optimize adaptive algorithm selection
 
