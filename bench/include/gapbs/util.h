@@ -44,6 +44,7 @@ enum ReorderingAlgo
     LeidenDFSSize = 18,   // DFS with largest subtrees first
     LeidenBFS = 19,       // BFS by hierarchy level
     LeidenHybrid = 20,    // Hybrid: sort by (community, degree)
+    LeidenCSR = 21,       // Fast Leiden on CSR (no DiGraph conversion)
 };
 
 static const int64_t kRandSeed = 27491095;
