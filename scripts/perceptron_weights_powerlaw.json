@@ -1,0 +1,142 @@
+{
+  "_description": "Perceptron weights optimized for power-law (scale-free) graphs",
+  "_graph_characteristics": {
+    "high_degree_variance": "> 1.5",
+    "low_modularity": "< 0.3",
+    "structure": "scale-free, heavy-tailed degree distribution",
+    "examples": ["GAP-kron", "RMAT graphs", "twitter7"]
+  },
+  "ORIGINAL": {
+    "bias": 0.35,
+    "w_modularity": 0.0,
+    "w_log_nodes": 0.001,
+    "w_log_edges": 0.0,
+    "w_density": -0.001,
+    "w_avg_degree": 0.0,
+    "w_degree_variance": 0.002,
+    "w_hub_concentration": 0.002,
+    "cache_l1_impact": 0.004,
+    "cache_l2_impact": 0.0007,
+    "cache_l3_impact": -0.001,
+    "cache_dram_penalty": -0.001,
+    "w_reorder_time": 0,
+    "w_clustering_coeff": 0.0,
+    "w_avg_path_length": -0.01,
+    "w_diameter": 0.0,
+    "w_community_count": -0.02,
+    "benchmark_weights": {
+      "pr": 1.1,
+      "bfs": 1.0,
+      "cc": 1.0,
+      "sssp": 1.0,
+      "bc": 0.9
+    }
+  },
+  "HUBCLUSTERDBG": {
+    "bias": 0.85,
+    "w_modularity": 0.05,
+    "w_log_nodes": 0.002,
+    "w_log_edges": 0.001,
+    "w_density": -0.002,
+    "w_avg_degree": 0.0,
+    "w_degree_variance": 0.004,
+    "w_hub_concentration": 0.005,
+    "cache_l1_impact": 0.0055,
+    "cache_l2_impact": 0.0008,
+    "cache_l3_impact": -0.0008,
+    "cache_dram_penalty": -0.0008,
+    "w_reorder_time": -0.00006,
+    "w_clustering_coeff": 0.01,
+    "w_avg_path_length": -0.03,
+    "w_diameter": -0.01,
+    "w_community_count": 0.01,
+    "benchmark_weights": {
+      "pr": 1.25,
+      "bfs": 1.05,
+      "cc": 1.1,
+      "sssp": 1.05,
+      "bc": 0.95
+    },
+    "_metadata": {
+      "description": "Hub clustering works very well on power-law graphs"
+    }
+  },
+  "DBG": {
+    "bias": 0.7,
+    "w_modularity": 0.0,
+    "w_log_nodes": 0.001,
+    "w_log_edges": 0.0,
+    "w_density": -0.001,
+    "w_avg_degree": 0.0,
+    "w_degree_variance": 0.003,
+    "w_hub_concentration": 0.003,
+    "cache_l1_impact": 0.0048,
+    "cache_l2_impact": 0.00075,
+    "cache_l3_impact": -0.0009,
+    "cache_dram_penalty": -0.0009,
+    "w_reorder_time": -0.00005,
+    "w_clustering_coeff": 0.0,
+    "w_avg_path_length": -0.02,
+    "w_diameter": 0.0,
+    "w_community_count": 0.0,
+    "benchmark_weights": {
+      "pr": 1.1,
+      "bfs": 1.0,
+      "cc": 1.0,
+      "sssp": 1.0,
+      "bc": 0.95
+    }
+  },
+  "GRAPHBREWORDER": {
+    "bias": 0.65,
+    "w_modularity": 0.15,
+    "w_log_nodes": 0.002,
+    "w_log_edges": 0.001,
+    "w_density": -0.001,
+    "w_avg_degree": 0.0,
+    "w_degree_variance": 0.0025,
+    "w_hub_concentration": 0.003,
+    "cache_l1_impact": 0.005,
+    "cache_l2_impact": 0.0008,
+    "cache_l3_impact": -0.0009,
+    "cache_dram_penalty": -0.0009,
+    "w_reorder_time": -0.00015,
+    "w_clustering_coeff": 0.03,
+    "w_avg_path_length": -0.02,
+    "w_diameter": -0.01,
+    "w_community_count": 0.02,
+    "benchmark_weights": {
+      "pr": 1.15,
+      "bfs": 1.0,
+      "cc": 1.05,
+      "sssp": 1.0,
+      "bc": 0.95
+    }
+  },
+  "RABBITORDER": {
+    "bias": 0.6,
+    "w_modularity": 0.1,
+    "w_log_nodes": 0.002,
+    "w_log_edges": 0.001,
+    "w_density": -0.001,
+    "w_avg_degree": 0.0,
+    "w_degree_variance": 0.002,
+    "w_hub_concentration": 0.002,
+    "cache_l1_impact": 0.0048,
+    "cache_l2_impact": 0.00066,
+    "cache_l3_impact": 0,
+    "cache_dram_penalty": 0,
+    "w_reorder_time": -0.00006,
+    "w_clustering_coeff": 0.02,
+    "w_avg_path_length": -0.015,
+    "w_diameter": 0.0,
+    "w_community_count": 0.01,
+    "benchmark_weights": {
+      "pr": 1.05,
+      "bfs": 1.1,
+      "cc": 1.0,
+      "sssp": 1.1,
+      "bc": 1.0
+    }
+  }
+}
