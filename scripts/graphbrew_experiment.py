@@ -5,17 +5,28 @@ GraphBrew Unified Experiment Pipeline
 
 A comprehensive one-click script that runs the complete GraphBrew experiment workflow:
 
-1. Download graphs (if not present)
-2. Build binaries (if not present)
-3. Pre-generate reorderings with label-mapping for consistency
-4. Record reorder times for all algorithms on all graphs
-5. Run execution benchmarks on all graphs
-6. Run cache simulations  
-7. Generate perceptron weights with reorder time included
-8. Run brute-force validation (adaptive vs all algorithms)
-9. Update zero weights based on correlation analysis
+**Core Pipeline (--phase all):**
+1. Download graphs (if not present) - via --download-only or --full
+2. Build binaries (if not present) - via --build or --full
+3. Phase 1: Generate reorderings with label-mapping for consistency
+4. Phase 2: Run execution benchmarks on all graphs
+5. Phase 3: Run cache simulations (optional, skip with --skip-cache)
+6. Phase 4: Generate type-based perceptron weights (scripts/weights/type_*.json)
+
+**Validation & Analysis:**
+7. Phase 6: Adaptive order analysis (--adaptive-analysis)
+8. Phase 7: Adaptive vs fixed comparison (--adaptive-comparison)
+9. Phase 8: Brute-force validation (--brute-force)
+
+**Weight Training:**
+10. Phase 9: Iterative training with feedback loop (--train-adaptive)
+    - Uses type-based weight system (scripts/weights/type_*.json)
+    - Classifies graphs into types, updates per-type weights
+11. Phase 10: Large-scale batched training (--train-large)
+12. Fill-weights: One-pass comprehensive training (--fill-weights)
 
 All outputs are saved to the results/ directory for clean organization.
+Type-based weights are saved to scripts/weights/type_*.json.
 
 Usage:
     python scripts/graphbrew_experiment.py --help
@@ -23,9 +34,12 @@ Usage:
     python scripts/graphbrew_experiment.py --download-only         # Just download graphs
     python scripts/graphbrew_experiment.py --phase all             # Run all experiment phases
     python scripts/graphbrew_experiment.py --brute-force           # Run brute-force validation
+    python scripts/graphbrew_experiment.py --train-adaptive        # Iterative type-based training
+    python scripts/graphbrew_experiment.py --fill-weights          # One-pass comprehensive training
 
 Quick Start (One-Click):
     python scripts/graphbrew_experiment.py --full --graphs small   # Full run with small graphs
+    python scripts/graphbrew_experiment.py --fill-weights --auto-memory --auto-disk --graphs all
 
 Author: GraphBrew Team
 """
@@ -5566,7 +5580,8 @@ def run_experiment(args):
             timeout_sim=args.timeout_sim,
             num_trials=args.trials,
             learning_rate=getattr(args, "learning_rate", 0.1),
-            algorithms=algorithms
+            algorithms=algorithms,
+            weights_dir=args.weights_dir  # Type-based weights directory
         )
     
     # Phase 10: Large-Scale Training (batched multi-benchmark training)
