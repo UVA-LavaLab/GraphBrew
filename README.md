@@ -171,15 +171,14 @@ scripts/
 │                              #    - Downloads graphs from SuiteSparse
 │                              #    - Builds binaries automatically  
 │                              #    - Runs all benchmarks & simulations
-│                              #    - Generates per-graph-type perceptron weights
+│                              #    - Auto-clusters graphs and generates typed weights
 │                              #    - Supports brute-force validation
 ├── requirements.txt           # Python dependencies
-├── perceptron_weights.json    # Generic ML weights (auto-generated)
-├── perceptron_weights_social.json    # Social network weights
-├── perceptron_weights_road.json      # Road network weights
-├── perceptron_weights_web.json       # Web graph weights
-├── perceptron_weights_powerlaw.json  # Power-law graph weights
-└── perceptron_weights_uniform.json   # Uniform random graph weights
+└── weights/                   # Auto-generated type-based weight files
+    ├── type_registry.json     # Maps graph names → type assignments
+    ├── type_0.json            # Cluster 0 weights (auto-generated)
+    ├── type_1.json            # Cluster 1 weights (auto-generated)
+    └── type_N.json            # Additional clusters as needed
 ```
 
 **Utility Scripts:**
@@ -215,31 +214,29 @@ results/
 ├── reorder_*.json             # Reordering times per algorithm
 ├── benchmark_*.json           # Benchmark execution results  
 ├── cache_*.json               # Cache simulation results (L1/L2/L3)
-├── perceptron_weights.json    # Generic ML weights with metadata
 ├── brute_force_*.json         # Validation results
 └── logs/                      # Execution logs
-
-scripts/                       # Per-graph-type weight files (synced)
-├── perceptron_weights.json         # Generic fallback
-├── perceptron_weights_social.json  # Social network specialized
-├── perceptron_weights_road.json    # Road network specialized  
-├── perceptron_weights_web.json     # Web graph specialized
-├── perceptron_weights_powerlaw.json # Power-law specialized
-└── perceptron_weights_uniform.json  # Uniform random specialized
 ```
 
-### Per-Graph-Type Weights
+### Auto-Clustered Type System
 
-AdaptiveOrder automatically detects graph types from computed properties and loads specialized weights:
+AdaptiveOrder uses an automatic clustering system that groups graphs by their feature similarity. Instead of predefined categories (social, road, web), the system:
 
-| Type | Detection Criteria | Example Graphs |
-|------|-------------------|----------------|
-| `social` | High modularity (>0.3), high degree variance (>0.8) | soc-LiveJournal1, com-Friendster |
-| `road` | Low modularity (<0.1), low degree variance (<0.5), low avg degree (<10) | roadNet-CA, GAP-road |
-| `web` | High hub concentration (>0.5), high degree variance (>1.0) | uk-2002, webbase-2001 |
-| `powerlaw` | Very high degree variance (>1.5), low modularity (<0.3) | GAP-kron, twitter7 |
-| `uniform` | Low degree variance (<0.5), low hub concentration (<0.3) | GAP-urand, ER random |
-| `generic` | Default fallback | (none of the above) |
+1. **Computes 9 features** for each graph: modularity, log_nodes, log_edges, density, avg_degree, degree_variance, hub_concentration, clustering_coefficient, community_count
+2. **Clusters similar graphs** using cosine similarity (threshold: 0.85)
+3. **Trains per-cluster weights** optimized for graphs in that cluster
+4. **Assigns new graphs** to the best matching cluster at runtime
+
+**Type Files:**
+```
+scripts/weights/
+├── type_registry.json    # {graph_name: type_N, ...}
+├── type_0.json           # Weights for cluster 0
+├── type_1.json           # Weights for cluster 1
+└── type_N.json           # Additional clusters as needed
+```
+
+**C++ Integration:** At runtime, `AdaptiveOrder` computes graph features and finds the best matching type using `FindBestTypeFromFeatures()`.
 
 ### Perceptron Weights Format
 
@@ -468,7 +465,10 @@ All results are saved to `./results/`:
 - `benchmark_*.json` - Execution times and speedups
 - `cache_*.json` - L1/L2/L3 cache hit rates
 - `reorder_*.json` - Reordering times per algorithm
-- `perceptron_weights.json` - Trained ML weights with metadata
+
+Weight files are saved to `./scripts/weights/`:
+- `type_registry.json` - Maps graph names to type IDs
+- `type_N.json` - Per-cluster trained ML weights
 
 # Quick test with synthetic graphs (uses defaults for untested algorithms)
 python3 scripts/analysis/correlation_analysis.py --quick

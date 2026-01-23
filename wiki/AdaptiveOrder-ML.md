@@ -5,41 +5,48 @@ AdaptiveOrder (algorithm 15) uses a **machine learning perceptron** to automatic
 ## Overview
 
 Instead of using one reordering algorithm for the entire graph, AdaptiveOrder:
-1. **Detects graph type** from computed properties (modularity, degree variance, hub concentration)
-2. **Loads specialized weights** for that graph type (social, road, web, powerlaw, uniform, or generic)
-3. **Detects communities** using Leiden
-4. **Computes features** for each community
-5. **Uses a trained perceptron** to predict the best algorithm
-6. **Applies different algorithms** to different communities
+1. **Computes graph features** (modularity, degree variance, hub concentration, etc.)
+2. **Finds best matching type** from auto-clustered type files using cosine similarity
+3. **Loads specialized weights** for that type (type_0.json, type_1.json, etc.)
+4. **Detects communities** using Leiden
+5. **Computes features** for each community
+6. **Uses a trained perceptron** to predict the best algorithm
+7. **Applies different algorithms** to different communities
 
 ```
-Graph → Detect Type → Load Weights → Leiden → Communities → Features → Perceptron → Per-Community Algorithms
+Graph → Features → Find Best Type → Load Weights → Leiden → Communities → Perceptron → Per-Community Algorithms
 ```
 
-## Graph Type Detection
+## Auto-Clustering Type System
 
-AdaptiveOrder automatically detects graph type from **computed properties** (not graph names):
+AdaptiveOrder uses automatic clustering to group similar graphs, rather than predefined categories:
 
-| Type | Detection Criteria | Typical Graphs |
-|------|-------------------|----------------|
-| `road` | modularity < 0.1, degree_variance < 0.5, avg_degree < 10 | roadNet-CA, GAP-road |
-| `social` | modularity > 0.3, degree_variance > 0.8 | soc-LiveJournal1, com-Friendster |
-| `web` | hub_concentration > 0.5, degree_variance > 1.0 | uk-2002, webbase-2001 |
-| `powerlaw` | degree_variance > 1.5, modularity < 0.3 | GAP-kron, twitter7 |
-| `uniform` | degree_variance < 0.5, hub_concentration < 0.3, modularity < 0.1 | GAP-urand |
-| `generic` | default fallback | (none match above) |
+**How It Works:**
+1. Extract 9 features per graph: modularity, log_nodes, log_edges, density, avg_degree, degree_variance, hub_concentration, clustering_coefficient, community_count
+2. Cluster similar graphs using cosine similarity (threshold: 0.85)
+3. Train optimized weights for each cluster
+4. At runtime, find best matching cluster based on features
+
+**Type Files:**
+```
+scripts/weights/
+├── type_registry.json    # Maps graphs → types + stores centroids
+├── type_0.json           # Cluster 0 weights
+├── type_1.json           # Cluster 1 weights
+└── type_N.json           # Additional clusters as needed
+```
 
 **Weight File Loading Priority:**
 1. Environment variable `PERCEPTRON_WEIGHTS_FILE` (if set)
-2. Graph-type-specific file (e.g., `scripts/perceptron_weights_web.json`)
-3. Generic fallback (`scripts/perceptron_weights.json`)
+2. Best matching type file (e.g., `scripts/weights/type_0.json`)
+3. Semantic type fallback (if type files don't exist)
 4. Hardcoded defaults
 
 ## Why Per-Community Selection?
 
 Different parts of a graph have different structures:
 - **Hub communities**: Dense cores with high-degree vertices → HUBCLUSTERDBG works well
-- **Sparse communities**: Road-network-like → RCM or ORIGINAL may be better
+- **Sparse communities**: Mesh-like structures → RCM or ORIGINAL may be better
 - **Hierarchical communities**: Tree-like → LeidenDFS variants excel
 
 AdaptiveOrder selects the best algorithm for each community's characteristics.
@@ -277,7 +284,9 @@ This automatically:
 2. Runs all 20 algorithms on each graph
 3. Collects cache simulation data (L1/L2/L3 hit rates)
 4. Records reorder times for each algorithm
-5. Generates `results/perceptron_weights.json` with:
+5. Auto-clusters graphs by feature similarity and generates:
+   - `scripts/weights/type_registry.json` (graph → type mapping + centroids)
+   - `scripts/weights/type_N.json` (per-cluster weights)
    - Core feature weights (modularity, size, hub concentration, etc.)
    - Cache impact weights (L1/L2/L3 bonuses, DRAM penalty)
    - Reorder time penalty weight
@@ -384,9 +393,15 @@ results/training_20250118_123045/
 ├── ...
 ├── best_weights_iter4.json     # Best weights (highest accuracy)
 └── brute_force_analysis_*.json # Detailed analysis per iteration
+
+scripts/weights/                # Auto-clustered type weights
+├── type_registry.json          # Graph → type mapping + centroids
+├── type_0.json                 # Cluster 0 weights
+├── type_1.json                 # Cluster 1 weights
+└── type_N.json                 # Additional clusters
 ```
 
-**Automatic Backup:** After each weight save, a timestamped backup is created (e.g., `perceptron_weights_20260121_143052.json`) and synced to `scripts/perceptron_weights.json` for the next run.
+**Automatic Clustering:** The training process groups similar graphs into clusters and generates per-cluster weights. The type registry stores centroids for runtime matching.
 
 ### How the Learning Works
 
@@ -702,15 +717,16 @@ python3 scripts/analysis/correlation_analysis.py --quick
 
 ```
 ----------------------------------------------------------------------
-Computing Perceptron Weights
+Computing Perceptron Weights  
 ----------------------------------------------------------------------
-Loaded existing weights from: scripts/perceptron_weights.json
-Backup created: scripts/perceptron_weights.json.backup
+Auto-clustering graphs by feature similarity...
+  Created cluster type_0: 5 graphs (mod=0.45, deg_var=0.82, hub=0.35)
+  Created cluster type_1: 3 graphs (mod=0.12, deg_var=0.21, hub=0.15)
 
-Perceptron weights saved to: scripts/perceptron_weights.json
-  20 algorithms configured (all 0-20)
-  Updated from benchmarks: ORIGINAL, LeidenOrder, LeidenHybrid
-  C++ will automatically load these weights at runtime
+Weights saved to scripts/weights/type_0.json (5 graphs)
+Weights saved to scripts/weights/type_1.json (3 graphs)
+Registry saved to scripts/weights/type_registry.json
+  C++ will automatically load matching type weights at runtime
 ```
 
 ---
@@ -720,7 +736,11 @@ Perceptron weights saved to: scripts/perceptron_weights.json
 ### Location
 
 ```
-GraphBrew/scripts/perceptron_weights.json
+GraphBrew/scripts/weights/
+├── type_registry.json    # Maps graphs → types + centroids
+├── type_0.json           # Cluster 0 weights
+├── type_1.json           # Cluster 1 weights
+└── type_N.json           # Additional clusters
 ```
 
 ### Structure
@@ -829,8 +849,9 @@ GraphBrew/scripts/perceptron_weights.json
 
 The C++ code automatically loads weights from:
 1. `PERCEPTRON_WEIGHTS_FILE` environment variable (if set)
-2. `scripts/perceptron_weights.json` (default)
-3. Hardcoded defaults (if file not found)
+2. Best matching type file from `scripts/weights/type_N.json`
+3. Semantic type fallback (if type files don't exist)
+4. Hardcoded defaults (if all else fails)
 
 ### Environment Variable Override
 
@@ -842,7 +863,7 @@ export PERCEPTRON_WEIGHTS_FILE=/path/to/my_weights.json
 
 ### Fallback to Defaults
 
-If the weights file doesn't exist or is invalid:
+If no type weights file matches or exists:
 - C++ uses hardcoded defaults
 - Warning is printed (in verbose mode)
 - System continues to work
@@ -882,17 +903,19 @@ The recursion depth is controlled by:
 
 Look for output like:
 ```
-Perceptron: Loaded 20 algorithm weights from scripts/perceptron_weights.json
+Finding best type match for features: mod=0.4521, deg_var=0.8012, hub=0.3421...
+Best matching type: type_0 (similarity: 0.9234)
+Loaded 21 weights from scripts/weights/type_0.json
 ```
 
 ### Verify Weights File
 
 ```bash
 # Check JSON is valid
-python3 -c "import json; json.load(open('scripts/perceptron_weights.json'))"
+python3 -c "import json; json.load(open('scripts/weights/type_0.json'))"
 
 # View contents
-cat scripts/perceptron_weights.json | python3 -m json.tool
+cat scripts/weights/type_0.json | python3 -m json.tool
 ```
 
 ---

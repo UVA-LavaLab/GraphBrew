@@ -168,7 +168,7 @@ python3 scripts/analysis/correlation_analysis.py [options]
 | `--graphs-dir` | Directory with graphs | `./graphs` |
 | `--benchmark` | Benchmarks to analyze | `pr bfs` |
 | `--algorithms` | Algorithm IDs | `0,7,12,15,16-20` |
-| `--output` | Output weights file | `scripts/perceptron_weights.json` |
+| `--output` | Output weights file | `scripts/weights/type_0.json` |
 | `--quick` | Quick test with synthetic graphs | False |
 | `--no-benchmark` | Use existing results only | False |
 | `--verbose` | Show detailed output | False |
@@ -234,7 +234,7 @@ Computing correlations...
 ----------------------------------------------------------------------
 Computing Perceptron Weights
 ----------------------------------------------------------------------
-Perceptron weights saved to: scripts/perceptron_weights.json
+Perceptron weights saved to: scripts/weights/type_0.json
   20 algorithms configured
   Updated from benchmarks: ORIGINAL, HUBCLUSTERDBG, LeidenHybrid, ...
 
@@ -247,9 +247,10 @@ Summary:
 
 ### Generated Files
 
-1. **perceptron_weights.json** - Weights for C++ runtime
-2. **correlation_matrix.csv** - Raw correlation data
-3. **benchmark_results.json** - Full benchmark results
+1. **scripts/weights/type_N.json** - Weights for C++ runtime (per cluster)
+2. **scripts/weights/type_registry.json** - Graph → type mappings + centroids
+3. **correlation_matrix.csv** - Raw correlation data
+4. **benchmark_results.json** - Full benchmark results
 
 ---
 
@@ -383,22 +384,26 @@ This runs all phases sequentially:
 | **Phase 4** | Base weights | `w_density`, `w_degree_variance`, `w_hub_concentration` |
 | **Phase 5** | Topology features | `w_clustering_coeff`, `w_avg_path_length`, `w_diameter` |
 | **Phase 6** | Per-benchmark weights | `benchmark_weights.{pr,bfs,cc,sssp,bc}` |
-| **Phase 7** | Per-graph-type weights | Generates specialized weight files |
+| **Phase 7** | Auto-cluster types | Generates type_N.json weight files |
 
 **Output files:**
-- `scripts/perceptron_weights.json` - Generic fallback
-- `scripts/perceptron_weights_social.json` - Social network weights
-- `scripts/perceptron_weights_road.json` - Road network weights
-- `scripts/perceptron_weights_web.json` - Web graph weights
-- `scripts/perceptron_weights_powerlaw.json` - Power-law weights
-- `scripts/perceptron_weights_uniform.json` - Uniform random weights
-- `results/graph_properties_cache.json` - Cached graph properties for type detection
+```
+scripts/weights/
+├── type_registry.json    # Maps graphs → types + cluster centroids
+├── type_0.json           # Cluster 0 weights
+├── type_1.json           # Cluster 1 weights
+└── type_N.json           # Additional clusters
 
-### Automatic Backup and Sync
+results/
+└── graph_properties_cache.json  # Cached graph properties for type detection
+```
+
+### Automatic Clustering
 
 After each weight update, the system automatically:
-1. Creates a **timestamped backup** (e.g., `perceptron_weights_20260121_143052.json`)
-2. **Syncs to scripts folder** (`scripts/perceptron_weights.json`) for the next run
+1. **Clusters graphs** by feature similarity (cosine similarity ≥ 0.85)
+2. **Generates per-cluster weights** in `scripts/weights/type_N.json`
+3. **Updates type registry** with centroids for runtime matching
 
 ### Incremental Update
 
@@ -413,7 +418,7 @@ python3 scripts/analysis/correlation_analysis.py \
 
 ```bash
 # Regenerate from scratch
-rm scripts/perceptron_weights.json
+rm -rf scripts/weights/
 python3 scripts/analysis/correlation_analysis.py \
     --graphs-dir ./graphs
 ```

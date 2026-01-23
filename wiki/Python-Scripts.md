@@ -8,12 +8,12 @@ Documentation for all Python tools in the GraphBrew framework.
 scripts/
 ├── graphbrew_experiment.py      # ⭐ MAIN: One-click unified experiment pipeline
 ├── requirements.txt             # Python dependencies
-├── perceptron_weights.json      # Generic ML weights (auto-generated)
-├── perceptron_weights_social.json    # Social network weights
-├── perceptron_weights_road.json      # Road network weights
-├── perceptron_weights_web.json       # Web graph weights
-├── perceptron_weights_powerlaw.json  # Power-law graph weights
-├── perceptron_weights_uniform.json   # Uniform random graph weights
+│
+├── weights/                     # Auto-generated type weights
+│   ├── type_registry.json       # Maps graphs → types + centroids
+│   ├── type_0.json              # Cluster 0 weights
+│   ├── type_1.json              # Cluster 1 weights
+│   └── type_N.json              # Additional clusters as needed
 │
 ├── analysis/                    # Utility libraries
 │   ├── correlation_analysis.py  # Feature-algorithm correlation functions
@@ -182,8 +182,6 @@ results/
 ├── reorder_times_*.csv       # CSV version for analysis
 ├── benchmark_*.json          # Benchmark execution results
 ├── cache_*.json              # Cache simulation results (L1/L2/L3 hit rates)
-├── perceptron_weights.json   # Generic ML weights with metadata
-├── perceptron_weights_*.json # Timestamped weight backups (auto-generated)
 ├── brute_force_*.json        # Validation results
 ├── training_*/               # Iterative training output (if --train-adaptive)
 │   ├── training_summary.json # Overall training results
@@ -192,13 +190,11 @@ results/
 │   └── brute_force_*.json    # Per-iteration analysis
 └── logs/                     # Execution logs
 
-scripts/                       # Per-graph-type weight files (synced from results/)
-├── perceptron_weights.json         # Generic fallback
-├── perceptron_weights_social.json  # Social network specialized
-├── perceptron_weights_road.json    # Road network specialized
-├── perceptron_weights_web.json     # Web graph specialized
-├── perceptron_weights_powerlaw.json # Power-law specialized
-└── perceptron_weights_uniform.json  # Uniform random specialized
+scripts/weights/               # Auto-clustered type weights
+├── type_registry.json        # Maps graph names → type IDs + centroids
+├── type_0.json               # Cluster 0 weights (auto-generated)
+├── type_1.json               # Cluster 1 weights (auto-generated)
+└── type_N.json               # Additional clusters as needed
 ```
 
 ---

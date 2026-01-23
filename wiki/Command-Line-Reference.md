@@ -246,22 +246,22 @@ export OMP_NUM_THREADS=8
 ### Perceptron Weights
 
 ```bash
-# Override default weights file (overrides graph type detection)
+# Override default weights file (overrides type matching)
 export PERCEPTRON_WEIGHTS_FILE=/path/to/weights.json
 ./bench/bin/pr -f graph.el -s -o 15 -n 3
 ```
 
 **Note:** If `PERCEPTRON_WEIGHTS_FILE` is not set, AdaptiveOrder automatically:
-1. Detects the graph type from computed properties (modularity, degree variance, hub concentration)
-2. Loads the appropriate per-type weights file (e.g., `perceptron_weights_social.json`)
-3. Falls back to `perceptron_weights.json` if no type-specific file exists
+1. Computes graph features (modularity, degree variance, hub concentration, etc.)
+2. Finds the best matching type file using cosine similarity
+3. Loads weights from `scripts/weights/type_N.json`
+4. Falls back to hardcoded defaults if no type files exist
 
 **Example output:**
 ```
-Graph Type: social
-Degree Variance:     2.3456
-Hub Concentration:   0.6789
-Perceptron: Loaded 9 weights from scripts/perceptron_weights_social.json (graph type: social)
+Finding best type match for features: mod=0.4521, deg_var=2.3456, hub=0.6789...
+Best matching type: type_0 (similarity: 0.9234)
+Loaded 21 weights from scripts/weights/type_0.json
 ```
 
 ### NUMA Binding

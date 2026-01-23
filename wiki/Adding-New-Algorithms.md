@@ -206,21 +206,19 @@ const map<string, ReorderingAlgo> name_to_algo = {
 
 If you want AdaptiveOrder to consider your algorithm:
 
-### Edit ALL Per-Type Weight Files
+### Edit Type Weight Files
 
-When adding a new algorithm, you should add weights to **all** per-graph-type weight files:
+When adding a new algorithm, add weights to the type weight files:
 
 ```bash
 # Files to update:
-scripts/perceptron_weights.json           # Generic fallback
-scripts/perceptron_weights_social.json    # Social networks
-scripts/perceptron_weights_road.json      # Road networks
-scripts/perceptron_weights_web.json       # Web graphs
-scripts/perceptron_weights_powerlaw.json  # Power-law graphs
-scripts/perceptron_weights_uniform.json   # Uniform random
+scripts/weights/type_registry.json    # Contains centroids (no algorithm weights)
+scripts/weights/type_0.json           # Cluster 0 weights
+scripts/weights/type_1.json           # Cluster 1 weights
+scripts/weights/type_N.json           # Additional clusters as needed
 ```
 
-### Example Entry (add to each file)
+### Example Entry (add to each type_N.json file)
 
 ```json
 {

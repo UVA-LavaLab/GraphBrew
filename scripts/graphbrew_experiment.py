@@ -3940,12 +3940,12 @@ def generate_per_type_weights(
     output_dir: str = "scripts"
 ) -> Dict[str, str]:
     """
-    Generate per-graph-type weight files.
+    Generate per-graph-type weight files using auto-clustering.
     
     This function:
-    1. Groups benchmark results by detected graph type (from computed properties)
-    2. For each graph type, computes specialized weights based on results for that type
-    3. Saves weights to type-specific files (e.g., perceptron_weights_social.json)
+    1. Groups benchmark results by auto-detected graph type (using feature clustering)
+    2. For each cluster, computes specialized weights based on results for graphs in that cluster
+    3. Saves weights to type-specific files (e.g., scripts/weights/type_0.json)
     
     Args:
         base_weights_file: Path to the base weights file (used as starting point)

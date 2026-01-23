@@ -204,37 +204,30 @@ This populates all fields including `cache_l1/l2/l3_impact`, `w_clustering_coeff
 
 ### Where are the trained weights saved?
 
-Weights are saved in multiple locations with graph-type specialization:
+Weights are saved using an auto-clustering system:
 
-**Generic weights:**
-- `results/perceptron_weights.json` - runtime generic weights
-- `results/perceptron_weights_YYYYMMDD_HHMMSS.json` - timestamped backups
-
-**Per-graph-type weights (automatically generated):**
-- `scripts/perceptron_weights_social.json` - social network specialized
-- `scripts/perceptron_weights_road.json` - road network specialized
-- `scripts/perceptron_weights_web.json` - web graph specialized
-- `scripts/perceptron_weights_powerlaw.json` - power-law specialized
-- `scripts/perceptron_weights_uniform.json` - uniform random specialized
+**Auto-clustered type weights (primary):**
+```
+scripts/weights/
+├── type_registry.json    # Maps graph names → type IDs + cluster centroids
+├── type_0.json           # Cluster 0 weights
+├── type_1.json           # Cluster 1 weights
+└── type_N.json           # Additional clusters as needed
+```
 
 **Loading priority (C++ runtime):**
 1. Environment variable `PERCEPTRON_WEIGHTS_FILE` (if set)
-2. Graph-type-specific file (e.g., `perceptron_weights_web.json`)
-3. Generic fallback (`perceptron_weights.json`)
+2. Best matching type file via cosine similarity (e.g., `type_0.json`)
+3. Semantic type fallback (if type files don't exist)
 4. Hardcoded defaults
 
-### How does graph type detection work?
+### How does graph type matching work?
 
-Graph type is detected from **computed properties**, not graph names:
-
-| Type | Detection Criteria |
-|------|-------------------|
-| `road` | modularity < 0.1, degree_variance < 0.5, avg_degree < 10 |
-| `social` | modularity > 0.3, degree_variance > 0.8 |
-| `web` | hub_concentration > 0.5, degree_variance > 1.0 |
-| `powerlaw` | degree_variance > 1.5, modularity < 0.3 |
-| `uniform` | degree_variance < 0.5, hub_concentration < 0.3, modularity < 0.1 |
-| `generic` | default fallback |
+The auto-clustering system:
+1. **Extracts 9 features** per graph: modularity, log_nodes, log_edges, density, avg_degree, degree_variance, hub_concentration, clustering_coefficient, community_count
+2. **Clusters similar graphs** using cosine similarity (threshold: 0.85)
+3. **Stores centroids** in `type_registry.json`
+4. **At runtime**, finds best matching cluster based on feature similarity
 
 Properties are computed during `--fill-weights` Phase 0 and cached in `results/graph_properties_cache.json`.
 
