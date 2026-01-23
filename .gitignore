@@ -13,4 +13,5 @@ __pycache__/
 *.pyc
 graphs/
 *.log
-cache_resultsscripts/weights/backup_before_reset/
+cache_results
+scripts/weights/backup_before_reset/
