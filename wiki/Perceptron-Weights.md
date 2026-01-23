@@ -10,6 +10,40 @@ scripts/weights/type_N.json   # Auto-clustered type weights
 
 Each JSON file contains weights for each algorithm. When AdaptiveOrder processes a community, it computes a score for each algorithm using these weights and selects the highest-scoring one.
 
+## How Perceptron Scoring Works
+
+```
+INPUTS (Features)         WEIGHTS              OUTPUT
+=================         =======              ======
+
+modularity: 0.72  --*---> w_mod: 0.28 ---+
+                                         |
+density: 0.001    --*---> w_den: -0.15 --+
+                                         |
+degree_var: 2.1   --*---> w_dv: 0.18 ----+
+                                         |
+hub_conc: 0.45    --*---> w_hc: 0.22 ----+----> SUM ---> SCORE
+                                         |      (+bias)
+cluster_coef: 0.3 --*---> w_cc: 0.12 ----+
+                                         |
+avg_path: 5.2     --*---> w_ap: 0.08 ----+
+                                         |
+diameter: 16      --*---> w_di: 0.05 ----+
+                                         |
+...               --*---> ...       -----+
+
+
+ALGORITHM SELECTION:
+====================
+RABBITORDER:    score = 2.31  <-- WINNER
+LeidenDFS:      score = 2.18
+HubClusterDBG:  score = 1.95
+GORDER:         score = 1.82
+ORIGINAL:       score = 0.50
+```
+
+**Key Insight:** Each weight encodes "When this feature is high, how well does this algorithm perform?"
+
 ---
 
 ## Weight File Location
@@ -38,9 +72,9 @@ AdaptiveOrder uses an automatic clustering system that groups graphs by feature 
 
 **How It Works:**
 1. **Feature Extraction:** For each graph, compute 9 features: modularity, log_nodes, log_edges, density, avg_degree, degree_variance, hub_concentration, clustering_coefficient, community_count
-2. **Clustering:** Group similar graphs using cosine similarity (threshold: 0.85)
+2. **Clustering:** Group similar graphs using k-means-like clustering
 3. **Per-Cluster Training:** Train optimized weights for each cluster
-4. **Runtime Matching:** Select best cluster based on feature similarity
+4. **Runtime Matching:** Select best cluster based on Euclidean distance to centroid
 
 **Type Files:**
 ```
@@ -60,7 +94,7 @@ scripts/weights/
 **Example Output:**
 ```
 Finding best type match for features: mod=0.4521, deg_var=0.8012, hub=0.3421...
-Best matching type: type_0 (similarity: 0.9234)
+Best matching type: type_0 (distance: 0.12)
 Loaded 21 weights from scripts/weights/type_0.json
 ```
 
@@ -565,6 +599,52 @@ To favor an algorithm regardless of graph features:
 
 ## Step-by-Step Terminal Training Guide
 
+### Training Pipeline Diagram
+
+```
++=====================================================+
+|            TRAINING PIPELINE (Python)               |
++=====================================================+
+
++-----------+    +-----------+    +-----------+
+|  Graph 1  |    |  Graph 2  |    |  Graph N  |
++-----+-----+    +-----+-----+    +-----+-----+
+      |               |               |
+      +-------+-------+-------+-------+
+              |
+              v
+      +-------+-------+
+      | PHASE 1:      |
+      | Reorder each  |
+      | graph with    |
+      | all 18 algos  |
+      +-------+-------+
+              |
+              v
+      +-------+-------+
+      | PHASE 2:      |
+      | Run benchmarks|
+      | PR,BFS,CC,    |
+      | SSSP,BC       |
+      +-------+-------+
+              |
+              v
+      +-------+-------+
+      | For each      |
+      | result:       |
+      | 1.Get speedup |
+      | 2.Get features|
+      | 3.Find type   |
+      | 4.Update wts  |
+      +-------+-------+
+              |
+              v
++-------------+-------------+
+|  type_0.json | type_1.json |
+|  (social)    | (road)      |
++--------------+-------------+
+```
+
 ### Complete Training Workflow
 
 #### Step 1: Clean Previous Results (Optional)
@@ -692,6 +772,65 @@ This runs all 6 phases sequentially:
 4. **Phase 4 (Base Weights)**: Fills `w_density`, `w_degree_variance`, `w_hub_concentration`
 5. **Phase 5 (Topology)**: Fills `w_clustering_coeff`, `w_avg_path_length`, `w_diameter`
 6. **Phase 6 (Benchmark Weights)**: Fills `benchmark_weights.{pr,bfs,cc,sssp,bc}`
+
+---
+
+## Gradient Update Rule: Online Learning
+
+### Error Signal Computation
+
+```python
+error = (speedup - 1.0) - current_score
+# Positive error: algorithm performed better than expected
+# Negative error: algorithm performed worse than expected
+```
+
+### Weight Update (Stochastic Gradient Descent)
+
+```python
+learning_rate = 0.01
+
+# Core feature weights
+w_modularity      += lr * error * modularity
+w_density         += lr * error * density  
+w_degree_variance += lr * error * degree_variance
+w_hub_concentration += lr * error * hub_concentration
+
+# Extended topology weights
+w_avg_path_length += lr * error * (avg_path_length / 10)
+w_diameter        += lr * error * (diameter / 50)
+w_clustering_coeff += lr * error * clustering_coeff
+
+# Cache impact weights (when simulation data available)
+w_cache_l1_impact += lr * error * l1_hit_rate
+w_cache_dram_penalty += lr * error * dram_penalty
+```
+
+### When Algorithm Performs Well (speedup > 1.0)
+
+```python
+error = speedup - 1.0 - current_score  # positive
+
+# Increase weights for features that predicted this success
+w_modularity += learning_rate * error * modularity
+w_hub_concentration += learning_rate * error * hub_concentration
+# ... etc for all features
+```
+
+**Effect**: Algorithm gets higher scores for similar graphs in future.
+
+### When Algorithm Performs Poorly (speedup < 1.0)
+
+```python
+error = speedup - 1.0 - current_score  # negative
+
+# Decrease weights (error is negative)
+w_modularity += learning_rate * error * modularity
+```
+
+**Effect**: Algorithm gets lower scores for similar graphs in future.
+
+---
 
 ### Full Training (Production)
 

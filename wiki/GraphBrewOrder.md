@@ -15,6 +15,50 @@ Unlike traditional reordering that treats the entire graph uniformly, GraphBrewO
 Input Graph → Leiden → Communities → Per-Community Hub Order → Output Graph
 ```
 
+## Architecture Flow Diagram
+
+```
++------------------+
+|   INPUT GRAPH    |
++--------+---------+
+         |
+         v
++------------------+
+| Leiden Community |
+|    Detection     |
++--------+---------+
+         |
+    +----+----+----+----+
+    |         |         |
+    v         v         v
++-------+ +-------+ +-------+
+| Comm0 | | Comm1 | | CommN |
+| 15234 | | 8912  | | 500   |
+| nodes | | nodes | | nodes |
++---+---+ +---+---+ +---+---+
+    |         |         |
+    v         v         v
++-------+ +-------+ +-------+
+| HUB   | | HUB   | | HUB   |
+| SORT  | | SORT  | | SORT  |
+| (int) | | (int) | | (int) |
++---+---+ +---+---+ +---+---+
+    |         |         |
+    +----+----+----+----+
+         |
+         v
++------------------+
+| SIZE-SORTED MERGE|
+| [Comm0][Comm1]...|
++------------------+
+         |
+         v
++------------------+
+|  OUTPUT GRAPH    |
+| (reordered IDs)  |
++------------------+
+```
+
 ---
 
 ## Why Per-Community?

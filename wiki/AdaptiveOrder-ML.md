@@ -6,15 +6,57 @@ AdaptiveOrder (algorithm 15) uses a **machine learning perceptron** to automatic
 
 Instead of using one reordering algorithm for the entire graph, AdaptiveOrder:
 1. **Computes graph features** (modularity, degree variance, hub concentration, etc.)
-2. **Finds best matching type** from auto-clustered type files using cosine similarity
+2. **Finds best matching type** from auto-clustered type files using Euclidean distance
 3. **Loads specialized weights** for that type (type_0.json, type_1.json, etc.)
 4. **Detects communities** using Leiden
 5. **Computes features** for each community
 6. **Uses a trained perceptron** to predict the best algorithm
 7. **Applies different algorithms** to different communities
 
+## Architecture Diagram
+
 ```
-Graph → Features → Find Best Type → Load Weights → Leiden → Communities → Perceptron → Per-Community Algorithms
++------------------+
+|   INPUT GRAPH    |
++--------+---------+
+         |
+         v
++------------------+
+| Leiden Community |
+|    Detection     |
++--------+---------+
+         |
+    +----+----+----+----+
+    |         |         |
+    v         v         v
++-------+ +-------+ +-------+
+| Comm1 | | Comm2 | | CommN |
++---+---+ +---+---+ +---+---+
+    |         |         |
+    v         v         v
++-------+ +-------+ +-------+
+|Feature| |Feature| |Feature|
+|Extract| |Extract| |Extract|
++---+---+ +---+---+ +---+---+
+    |         |         |
+    v         v         v
++-------+ +-------+ +-------+
+|Percep-| |Percep-| |Percep-|
+| tron  | | tron  | | tron  |
+|Select | |Select | |Select |
++---+---+ +---+---+ +---+---+
+    |         |         |
+    v         v         v
+ Rabbit    HubClust  LeidenDFS
+ Order       DBG
+    |         |         |
+    +----+----+----+----+
+         |
+         v
++------------------+
+|  MERGE & OUTPUT  |
+| (size-sorted)    |
++------------------+
 ```
 
 ## Auto-Clustering Type System
@@ -23,9 +65,9 @@ AdaptiveOrder uses automatic clustering to group similar graphs, rather than pre
 
 **How It Works:**
 1. Extract 9 features per graph: modularity, log_nodes, log_edges, density, avg_degree, degree_variance, hub_concentration, clustering_coefficient, community_count
-2. Cluster similar graphs using cosine similarity (threshold: 0.85)
+2. Cluster similar graphs using k-means-like clustering
 3. Train optimized weights for each cluster
-4. At runtime, find best matching cluster based on features
+4. At runtime, find best matching cluster based on Euclidean distance to centroids
 
 **Type Files:**
 ```
@@ -41,6 +83,85 @@ scripts/weights/
 2. Best matching type file (e.g., `scripts/weights/type_0.json`)
 3. Semantic type fallback (if type files don't exist)
 4. Hardcoded defaults
+
+## What is a Centroid?
+
+A **centroid** is the "center point" of a cluster - the average feature values of all graphs in that type.
+
+```
+Centroid for type_0 (social networks):
+  modularity: 0.72      (high - strong communities)
+  degree_variance: 2.1  (high - power-law degrees)
+  hub_concentration: 0.45
+  avg_degree: 15.3
+
+Centroid for type_1 (road networks):
+  modularity: 0.15      (low - mesh-like)
+  degree_variance: 0.3  (low - uniform degrees)
+  hub_concentration: 0.12
+  avg_degree: 2.8
+```
+
+## Centroid Matching Diagram
+
+```
+FEATURE SPACE (2D simplified view)
+==================================
+
+     degree_variance
+          ^
+          |
+     3.0  |        * type_2 (power-law)
+          |
+     2.5  |    
+          |        
+     2.0  |  [X] <-- NEW GRAPH        * type_0 (social)
+          |         features:             centroid
+     1.5  |         mod=0.68
+          |         dv=1.9
+     1.0  |         hub=0.42
+          |
+     0.5  |                    * type_1 (road)
+          |                      centroid
+     0.0  +-----------------------------------> modularity
+          0.0  0.2  0.4  0.6  0.8  1.0
+
+
+DISTANCE CALCULATION:
+=====================
+dist(X, type_0) = sqrt((0.68-0.72)^2 + (1.9-2.1)^2 + ...) = 0.24
+dist(X, type_1) = sqrt((0.68-0.15)^2 + (1.9-0.3)^2 + ...) = 1.82
+dist(X, type_2) = sqrt((0.68-0.45)^2 + (1.9-2.8)^2 + ...) = 0.98
+
+RESULT: type_0 (social) is closest --> Load type_0.json
+```
+
+## How Type Matching Works at Runtime
+
+When we see a new graph, we compute its features and find the **closest type** using Euclidean distance:
+
+```python
+def find_best_type(graph_features, type_registry):
+    best_type = None
+    min_distance = infinity
+    
+    for type_name, type_info in type_registry.items():
+        centroid = type_info['centroid']
+        
+        # Euclidean distance in feature space
+        distance = sqrt(
+            (graph.modularity - centroid.modularity)^2 +
+            (graph.degree_variance - centroid.degree_variance)^2 +
+            (graph.hub_concentration - centroid.hub_concentration)^2 +
+            (graph.avg_degree - centroid.avg_degree)^2
+        )
+        
+        if distance < min_distance:
+            min_distance = distance
+            best_type = type_name
+    
+    return best_type  # e.g., "type_3"
+```
 
 ## Why Per-Community Selection?
 
@@ -87,15 +208,59 @@ This shows:
 
 ### What is a Perceptron?
 
-A perceptron is a simple linear classifier that computes a weighted sum of features:
+A **perceptron** is the simplest form of a neural network - a linear classifier that computes a weighted sum of inputs.
+
+**Mathematical Formula:**
+```
+output = activation(sum(w_i * x_i) + bias)
+
+Where:
+  x_i = input features (modularity, density, etc.)
+  w_i = learned weights (how important each feature is)
+  bias = base score (algorithm's inherent quality)
+```
+
+**Why Perceptron for GraphBrew?**
+1. **Interpretable**: Each weight tells us feature importance
+2. **Fast**: O(n) computation where n = number of features
+3. **Online Learning**: Can update weights incrementally
+4. **No Overfitting**: Simple model generalizes well
+
+For multi-class selection, we use **one perceptron per algorithm**. Each computes a score, and we pick the algorithm with the **highest score**.
+
+### Perceptron Scoring Diagram
 
 ```
-score(algorithm) = bias + w1×feature1 + w2×feature2 + ...
+INPUTS (Features)         WEIGHTS              OUTPUT
+=================         =======              ======
+
+modularity: 0.72  --*---> w_mod: 0.28 ---+
+                                         |
+density: 0.001    --*---> w_den: -0.15 --+
+                                         |
+degree_var: 2.1   --*---> w_dv: 0.18 ----+
+                                         |
+hub_conc: 0.45    --*---> w_hc: 0.22 ----+----> SUM ---> SCORE
+                                         |      (+bias)
+cluster_coef: 0.3 --*---> w_cc: 0.12 ----+
+                                         |
+avg_path: 5.2     --*---> w_ap: 0.08 ----+
+                                         |
+diameter: 16      --*---> w_di: 0.05 ----+
+                                         |
+...               --*---> ...       -----+
+
+
+ALGORITHM SELECTION:
+====================
+RABBITORDER:    score = 2.31  <-- WINNER
+LeidenDFS:      score = 2.18
+HubClusterDBG:  score = 1.95
+GORDER:         score = 1.82
+ORIGINAL:       score = 0.50
 ```
 
-The algorithm with the highest score wins.
-
-### Features Used
+### Features Used (12 Total)
 
 The C++ code computes these features for each community at runtime:
 
