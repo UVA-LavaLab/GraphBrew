@@ -49,7 +49,7 @@ python3 scripts/graphbrew_experiment.py --help
 
 | Feature | Description |
 |---------|-------------|
-| **Graph Download** | Downloads from SuiteSparse collection (96 graphs available) |
+| **Graph Download** | Downloads from SuiteSparse collection (87 graphs available) |
 | **Auto Build** | Compiles binaries if missing |
 | **Memory Management** | Automatically skips graphs exceeding RAM limits |
 | **Label Maps** | Pre-generates reordering maps for consistency |
@@ -66,7 +66,7 @@ python3 scripts/graphbrew_experiment.py --help
 |--------|-------------|
 | `--full` | Run complete pipeline (download → build → experiment → weights) |
 | `--download-only` | Only download graphs |
-| `--download-size` | SMALL (16), MEDIUM (34), LARGE (40), XLARGE (6), ALL (96 graphs) |
+| `--download-size` | SMALL (16), MEDIUM (28), LARGE (37), XLARGE (6), ALL (87 graphs) |
 | `--clean` | Clean results (keep graphs/weights) |
 | `--clean-all` | Full reset for fresh start |
 

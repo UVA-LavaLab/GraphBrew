@@ -23,7 +23,7 @@ python3 scripts/graphbrew_experiment.py --full --download-size SMALL
 ```
 
 This will automatically:
-- ✅ Download benchmark graphs from SuiteSparse (96 graphs available)
+- ✅ Download benchmark graphs from SuiteSparse (87 graphs available)
 - ✅ Build all binaries (standard + cache simulation)
 - ✅ Pre-generate label mappings for consistent reordering
 - ✅ Run performance benchmarks (PR, BFS, CC, SSSP, BC) with all 20 algorithms
@@ -38,10 +38,10 @@ All results saved to `./results/` directory, with per-type weights synced to `./
 | Size | Graphs | Total Size | Use Case |
 |------|--------|------------|----------|
 | `SMALL` | 16 | ~62 MB | Quick testing (communication, p2p, social) |
-| `MEDIUM` | 34 | ~1.1 GB | Standard experiments (web, road, mesh, synthetic) |
-| `LARGE` | 40 | ~27 GB | Full evaluation (social, web, collaboration) |
+| `MEDIUM` | 28 | ~1.1 GB | Standard experiments (web, road, mesh, synthetic) |
+| `LARGE` | 37 | ~25 GB | Full evaluation (social, web, collaboration) |
 | `XLARGE` | 6 | ~63 GB | Massive graphs (twitter7, webbase, Kronecker) |
-| `ALL` | **96** | ~91 GB | Complete benchmark set |
+| `ALL` | **87** | ~89 GB | Complete benchmark set |
 
 ### Memory Management
 

@@ -81,7 +81,7 @@ python3 scripts/graphbrew_experiment.py --full --download-size SMALL
 ```
 
 This single command will:
-1. **Download** benchmark graphs from SuiteSparse collection (96 graphs available)
+1. **Download** benchmark graphs from SuiteSparse collection (87 graphs available)
 2. **Build** the benchmark binaries automatically
 3. **Analyze** graph properties (modularity, degree variance, hub concentration) to detect graph types
 4. **Generate** label mappings for consistent reordering across all benchmarks
@@ -127,10 +127,10 @@ python3 scripts/graphbrew_experiment.py --help
 | Size | Graphs | Total Size | Categories |
 |------|--------|------------|------------|
 | `SMALL` | 16 | ~62 MB | communication, collaboration, p2p, social, citation |
-| `MEDIUM` | 34 | ~1.1 GB | web, road, commerce, mesh, synthetic, infrastructure |
-| `LARGE` | 40 | ~27 GB | social, web, collaboration, road, mesh, synthetic |
+| `MEDIUM` | 28 | ~1.1 GB | web, road, commerce, mesh, synthetic, infrastructure |
+| `LARGE` | 37 | ~25 GB | social, web, collaboration, road, mesh, synthetic |
 | `XLARGE` | 6 | ~63 GB | massive web (twitter7, webbase-2001), Kronecker |
-| `ALL` | **96** | ~92 GB | Complete benchmark set |
+| `ALL` | **87** | ~89 GB | Complete benchmark set |
 
 ### Resource Management
 
@@ -415,10 +415,10 @@ python3 scripts/download/download_graphs.py --validate
 | Size | Graphs | Download | Use Case |
 |------|--------|----------|----------|
 | SMALL | 16 | ~62 MB | Quick testing |
-| MEDIUM | 34 | ~1.1 GB | Development & validation |
-| LARGE | 40 | ~27 GB | Full paper experiments |
+| MEDIUM | 28 | ~1.1 GB | Development & validation |
+| LARGE | 37 | ~25 GB | Full paper experiments |
 | XLARGE | 6 | ~63 GB | Massive-scale testing |
-| ALL | 96 | ~91 GB | Complete benchmark |
+| ALL | 87 | ~89 GB | Complete benchmark |
 
 ## Step 3: Run Benchmarks
 

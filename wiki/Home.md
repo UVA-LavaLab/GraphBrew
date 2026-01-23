@@ -62,7 +62,7 @@ python3 scripts/graphbrew_experiment.py --full --download-size SMALL
 ```
 
 This single command will:
-1. Download benchmark graphs from SuiteSparse (96 graphs available)
+1. Download benchmark graphs from SuiteSparse (87 graphs available)
 2. Build binaries automatically
 3. Pre-generate label mappings for consistent reordering
 4. Run all benchmarks with all 20 algorithms
@@ -97,10 +97,10 @@ python3 scripts/graphbrew_experiment.py --train-adaptive --target-accuracy 85 --
 | Size | Graphs | Total | Use Case |
 |------|--------|-------|----------|
 | `SMALL` | 16 | ~62 MB | Quick testing |
-| `MEDIUM` | 34 | ~1.1 GB | Standard experiments |
-| `LARGE` | 40 | ~27 GB | Full evaluation |
+| `MEDIUM` | 28 | ~1.1 GB | Standard experiments |
+| `LARGE` | 37 | ~25 GB | Full evaluation |
 | `XLARGE` | 6 | ~63 GB | Massive-scale testing |
-| `ALL` | **96** | ~91 GB | Complete benchmark |
+| `ALL` | **87** | ~89 GB | Complete benchmark |
 
 ### Manual Usage
 

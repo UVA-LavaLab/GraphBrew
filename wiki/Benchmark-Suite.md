@@ -48,9 +48,10 @@ python3 scripts/graphbrew_experiment.py --fill-weights --graphs small --max-grap
 | Size | Graphs | Total Size | Use Case |
 |------|--------|------------|----------|
 | `SMALL` | 16 | ~62 MB | Quick testing |
-| `MEDIUM` | 20 | ~1.2 GB | Standard experiments |
-| `LARGE` | 20 | ~68 GB | Full evaluation |
-| `ALL` | 56 | ~70 GB | Complete benchmark |
+| `MEDIUM` | 28 | ~1.1 GB | Standard experiments |
+| `LARGE` | 37 | ~25 GB | Full evaluation |
+| `XLARGE` | 6 | ~63 GB | Massive-scale testing |
+| `ALL` | 87 | ~89 GB | Complete benchmark |
 
 ### Graph Categories
 
