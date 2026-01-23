@@ -254,11 +254,13 @@ int main(int argc, char* argv[]) {
     return -1;
   Builder b(cli);
   Graph g = b.MakeGraph();
-  SourcePicker<Graph> sp(g, cli.start_vertex());
+  // Create SourcePicker with pre-generated consistent sources based on num_trials
+  // This ensures all orderings use the same ORIGINAL vertex IDs as sources
+  SourcePicker<Graph> sp(g, cli.start_vertex(), cli.num_trials());
   auto BFSBound = [&sp,&cli] (const Graph &g) {
     return DOBFS(g, sp.PickNext(), cli.logging_en());
   };
-  SourcePicker<Graph> vsp(g, cli.start_vertex());
+  SourcePicker<Graph> vsp(g, cli.start_vertex(), cli.num_trials());
   auto VerifierBound = [&vsp] (const Graph &g, const pvector<NodeID> &parent) {
     return BFSVerifier(g, vsp.PickNext(), parent);
   };

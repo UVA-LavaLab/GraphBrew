@@ -51,19 +51,74 @@ typedef std::vector<FlatGraph> PFlatGraph;
 template <typename GraphT_> class SourcePicker
 {
 public:
-    explicit SourcePicker(const GraphT_ &g, NodeID given_source = -1)
+    explicit SourcePicker(const GraphT_ &g, NodeID given_source = -1, int num_sources = 0)
         : given_source_(given_source), rng_(kRandSeed),
-          udist_(g.num_nodes() - 1, rng_), g_(g), top_nodes_index_(0)
+          udist_(g.num_nodes() - 1, rng_), g_(g), top_nodes_index_(0),
+          source_index_(0)
     {
         // g_.copy_org_ids(g.org_ids_shared_);
         // Initialize top 100 nodes
         initializeTopNodes();
+        
+        // Pre-generate consistent source list if requested
+        if (num_sources > 0 && given_source == -1)
+        {
+            GenerateConsistentSources(num_sources);
+        }
+    }
+
+    // Generate a list of ORIGINAL vertex IDs to use as sources
+    // This ensures all orderings explore the same vertices
+    // NOTE: These are stored as INTERNAL IDs for the current graph,
+    // which will be the same as original IDs for Original ordering,
+    // and will be translated for reorderings
+    void GenerateConsistentSources(int count)
+    {
+        consistent_sources_.clear();
+        consistent_sources_.reserve(count);
+        
+        // Use a fresh RNG with fixed seed for reproducibility
+        // Generate internal IDs and store the ORIGINAL IDs
+        std::mt19937_64 src_rng(kRandSeed);
+        UniDist<NodeID, std::mt19937_64> src_dist(g_.num_nodes() - 1, src_rng);
+        
+        while (static_cast<int>(consistent_sources_.size()) < count)
+        {
+            // Generate a random number in [0, num_nodes-1]
+            // This will be used as an ORIGINAL vertex ID
+            NodeID candidate_original = src_dist();
+            
+            // Find the internal ID for this original vertex
+            NodeID internal_id = g_.get_internal_id(candidate_original);
+            
+            // Check if this vertex has non-zero degree
+            if (g_.out_degree(internal_id) > 0)
+            {
+                // Store the ORIGINAL ID - we'll translate when picking
+                consistent_sources_.push_back(candidate_original);
+            }
+        }
     }
 
     NodeID PickNextRand()
     {
         if (given_source_ != -1)
-            return given_source_;
+        {
+            // given_source_ is an ORIGINAL vertex ID from user (-r flag)
+            // We need to find its internal ID so BFS operates on the correct vertex
+            NodeID internal_id = g_.get_internal_id(given_source_);
+            return internal_id;
+        }
+        
+        // If we have pre-generated consistent sources, use them
+        if (!consistent_sources_.empty() && source_index_ < consistent_sources_.size())
+        {
+            NodeID original_id = consistent_sources_[source_index_++];
+            NodeID internal_id = g_.get_internal_id(original_id);
+            return internal_id;
+        }
+        
+        // Fallback to random (for backward compatibility)
         NodeID source;
         NodeID real_source;
         do
@@ -136,6 +191,8 @@ private:
     const GraphT_ &g_;
     size_t top_nodes_index_;        // To iterate through the top nodes
     std::vector<NodeID> top_nodes_; // Store the top 100 nodes
+    std::vector<NodeID> consistent_sources_; // Pre-generated ORIGINAL source IDs
+    size_t source_index_;           // Current index in consistent_sources_
 };
 
 // Returns k pairs with the largest values from list of key-value pairs
