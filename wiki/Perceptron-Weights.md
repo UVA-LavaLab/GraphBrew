@@ -29,6 +29,44 @@ When weights are saved, the script automatically:
 
 This ensures weights are never accidentally overwritten and the latest weights are always loaded on subsequent runs.
 
+### Graph-Type-Specific Weight Files
+
+AdaptiveOrder automatically detects the graph type and loads specialized weights for that type. This allows different tuning for different graph categories.
+
+**Supported Graph Types:**
+| Type | Detection Criteria | Example Graphs |
+|------|-------------------|----------------|
+| `social` | High modularity (>0.3), high degree variance (>0.8) | soc-LiveJournal1, com-Friendster |
+| `road` | Low modularity (<0.1), low degree variance (<0.5), low avg degree (<10) | roadNet-CA, GAP-road |
+| `web` | High hub concentration (>0.5), high degree variance (>1.0) | uk-2002, webbase-2001 |
+| `powerlaw` | Very high degree variance (>1.5), low modularity (<0.3) | GAP-kron, twitter7 |
+| `uniform` | Low degree variance (<0.5), low hub concentration (<0.3), low modularity (<0.1) | GAP-urand, ER random |
+| `generic` | Default fallback | (none of the above) |
+
+**Weight File Naming:**
+```
+scripts/perceptron_weights_social.json
+scripts/perceptron_weights_road.json
+scripts/perceptron_weights_web.json
+scripts/perceptron_weights_powerlaw.json
+scripts/perceptron_weights_uniform.json
+scripts/perceptron_weights.json (generic fallback)
+```
+
+**Loading Order:**
+1. Environment variable `PERCEPTRON_WEIGHTS_FILE` (if set)
+2. Graph-type-specific file (e.g., `perceptron_weights_web.json`)
+3. Generic fallback (`perceptron_weights.json`)
+4. Hardcoded defaults
+
+**Example Output:**
+```
+Graph Type: web
+Degree Variance:     6.07673
+Hub Concentration:   0.81701
+Perceptron: Loaded 4 weights from scripts/perceptron_weights_web.json (graph type: web)
+```
+
 ### Environment Override
 ```bash
 export PERCEPTRON_WEIGHTS_FILE=/path/to/custom_weights.json

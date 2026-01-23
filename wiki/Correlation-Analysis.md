@@ -363,7 +363,7 @@ python3 scripts/analysis/correlation_analysis.py \
 If many weight fields are 0 or default 1.0, use the unified fill mode:
 
 ```bash
-# Fill ALL weight fields including cache impacts and topology features
+# Fill ALL weight fields including cache impacts, topology features, and per-graph-type weights
 python3 scripts/graphbrew_experiment.py \
     --fill-weights \
     --graphs-dir ./results/graphs \
@@ -373,12 +373,26 @@ python3 scripts/graphbrew_experiment.py \
 ```
 
 This runs all phases sequentially:
-1. Reorderings → `w_reorder_time`
-2. Benchmarks → `bias`, `w_log_edges`, `w_avg_degree`
-3. Cache simulation → `cache_l1_impact`, `cache_l2_impact`, `cache_l3_impact`
-4. Base weights → `w_density`, `w_degree_variance`, `w_hub_concentration`
-5. Topology features → `w_clustering_coeff`, `w_avg_path_length`, `w_diameter`
-6. Per-benchmark weights → `benchmark_weights.{pr,bfs,cc,sssp,bc}`
+
+| Phase | Description | Weight Fields Updated |
+|-------|-------------|----------------------|
+| **Phase 0** | Graph Property Analysis | Detects graph types (social, road, web, etc.) |
+| **Phase 1** | Reorderings | `w_reorder_time` |
+| **Phase 2** | Benchmarks | `bias`, `w_log_edges`, `w_avg_degree` |
+| **Phase 3** | Cache simulation | `cache_l1_impact`, `cache_l2_impact`, `cache_l3_impact` |
+| **Phase 4** | Base weights | `w_density`, `w_degree_variance`, `w_hub_concentration` |
+| **Phase 5** | Topology features | `w_clustering_coeff`, `w_avg_path_length`, `w_diameter` |
+| **Phase 6** | Per-benchmark weights | `benchmark_weights.{pr,bfs,cc,sssp,bc}` |
+| **Phase 7** | Per-graph-type weights | Generates specialized weight files |
+
+**Output files:**
+- `scripts/perceptron_weights.json` - Generic fallback
+- `scripts/perceptron_weights_social.json` - Social network weights
+- `scripts/perceptron_weights_road.json` - Road network weights
+- `scripts/perceptron_weights_web.json` - Web graph weights
+- `scripts/perceptron_weights_powerlaw.json` - Power-law weights
+- `scripts/perceptron_weights_uniform.json` - Uniform random weights
+- `results/graph_properties_cache.json` - Cached graph properties for type detection
 
 ### Automatic Backup and Sync
 

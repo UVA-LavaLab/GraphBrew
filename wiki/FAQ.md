@@ -204,12 +204,39 @@ This populates all fields including `cache_l1/l2/l3_impact`, `w_clustering_coeff
 
 ### Where are the trained weights saved?
 
-Weights are saved in multiple locations:
-- **Primary**: `results/perceptron_weights.json` - runtime weights
-- **Backups**: `results/perceptron_weights_YYYYMMDD_HHMMSS.json` - timestamped backups
-- **Scripts**: `scripts/perceptron_weights.json` - loaded for next experiment run
+Weights are saved in multiple locations with graph-type specialization:
 
-The system automatically backs up and syncs after every weight save.
+**Generic weights:**
+- `results/perceptron_weights.json` - runtime generic weights
+- `results/perceptron_weights_YYYYMMDD_HHMMSS.json` - timestamped backups
+
+**Per-graph-type weights (automatically generated):**
+- `scripts/perceptron_weights_social.json` - social network specialized
+- `scripts/perceptron_weights_road.json` - road network specialized
+- `scripts/perceptron_weights_web.json` - web graph specialized
+- `scripts/perceptron_weights_powerlaw.json` - power-law specialized
+- `scripts/perceptron_weights_uniform.json` - uniform random specialized
+
+**Loading priority (C++ runtime):**
+1. Environment variable `PERCEPTRON_WEIGHTS_FILE` (if set)
+2. Graph-type-specific file (e.g., `perceptron_weights_web.json`)
+3. Generic fallback (`perceptron_weights.json`)
+4. Hardcoded defaults
+
+### How does graph type detection work?
+
+Graph type is detected from **computed properties**, not graph names:
+
+| Type | Detection Criteria |
+|------|-------------------|
+| `road` | modularity < 0.1, degree_variance < 0.5, avg_degree < 10 |
+| `social` | modularity > 0.3, degree_variance > 0.8 |
+| `web` | hub_concentration > 0.5, degree_variance > 1.0 |
+| `powerlaw` | degree_variance > 1.5, modularity < 0.3 |
+| `uniform` | degree_variance < 0.5, hub_concentration < 0.3, modularity < 0.1 |
+| `generic` | default fallback |
+
+Properties are computed during `--fill-weights` Phase 0 and cached in `results/graph_properties_cache.json`.
 
 ### What's the difference between LeidenOrder and LeidenHybrid?
 

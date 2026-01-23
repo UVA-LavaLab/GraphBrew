@@ -8,7 +8,12 @@ Documentation for all Python tools in the GraphBrew framework.
 scripts/
 ├── graphbrew_experiment.py      # ⭐ MAIN: One-click unified experiment pipeline
 ├── requirements.txt             # Python dependencies
-├── perceptron_weights.json      # Trained ML weights (auto-generated)
+├── perceptron_weights.json      # Generic ML weights (auto-generated)
+├── perceptron_weights_social.json    # Social network weights
+├── perceptron_weights_road.json      # Road network weights
+├── perceptron_weights_web.json       # Web graph weights
+├── perceptron_weights_powerlaw.json  # Power-law graph weights
+├── perceptron_weights_uniform.json   # Uniform random graph weights
 │
 ├── analysis/                    # Utility libraries
 │   ├── correlation_analysis.py  # Feature-algorithm correlation functions
@@ -103,7 +108,7 @@ python3 scripts/graphbrew_experiment.py --help
 | `--batch-size` | Batch size for large-scale training (default: 8) |
 | `--train-benchmarks` | Benchmarks for multi-benchmark training (default: pr bfs cc) |
 | `--init-weights` | Initialize/upgrade weights file with enhanced features |
-| `--fill-weights` | Fill ALL weight fields: runs cache sim, graph features, benchmark analysis |
+| `--fill-weights` | Fill ALL weight fields: graph type detection, cache sim, topology features, per-type weights |
 
 > **Note:** `--full` automatically enables `--generate-maps` and `--use-maps` for consistent results across all benchmarks.
 
@@ -149,7 +154,7 @@ python3 scripts/graphbrew_experiment.py --train-adaptive --target-accuracy 85 --
 # Clean and start fresh
 python3 scripts/graphbrew_experiment.py --clean-all --full --download-size SMALL
 
-# Fill ALL weight fields (cache impacts, topology features, benchmark weights)
+# Fill ALL weight fields (graph type detection, cache impacts, topology features, per-type weights)
 python3 scripts/graphbrew_experiment.py --fill-weights --graphs small --max-graphs 5
 
 # Fill weights on all graphs within memory and disk limits
@@ -172,11 +177,12 @@ results/
 │       ├── HUBCLUSTERDBG.time # Reorder time for this algorithm
 │       ├── LeidenHybrid.lo
 │       └── ...
+├── graph_properties_cache.json    # Cached graph properties (modularity, degree_variance, etc.)
 ├── reorder_times_*.json      # All reorder timings (per graph/algo)
 ├── reorder_times_*.csv       # CSV version for analysis
 ├── benchmark_*.json          # Benchmark execution results
 ├── cache_*.json              # Cache simulation results (L1/L2/L3 hit rates)
-├── perceptron_weights.json   # Trained ML weights with metadata
+├── perceptron_weights.json   # Generic ML weights with metadata
 ├── perceptron_weights_*.json # Timestamped weight backups (auto-generated)
 ├── brute_force_*.json        # Validation results
 ├── training_*/               # Iterative training output (if --train-adaptive)
@@ -185,6 +191,14 @@ results/
 │   ├── best_weights_*.json   # Best weights (highest accuracy)
 │   └── brute_force_*.json    # Per-iteration analysis
 └── logs/                     # Execution logs
+
+scripts/                       # Per-graph-type weight files (synced from results/)
+├── perceptron_weights.json         # Generic fallback
+├── perceptron_weights_social.json  # Social network specialized
+├── perceptron_weights_road.json    # Road network specialized
+├── perceptron_weights_web.json     # Web graph specialized
+├── perceptron_weights_powerlaw.json # Power-law specialized
+└── perceptron_weights_uniform.json  # Uniform random specialized
 ```
 
 ---
