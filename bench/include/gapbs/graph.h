@@ -516,11 +516,22 @@ public:
         }
         else
         {
+            // new_ids[old_position] = new_position
+            // We want: org_ids_[new_position] = original_id
+            // Where original_id was at org_ids_[old_position] before
+            // So: org_ids_new[new_ids[n]] = org_ids_old[n]
+            NodeID_* temp = new NodeID_[num_nodes_];
             #pragma omp parallel for
             for (NodeID_ n = 0; n < num_nodes_; n++)
             {
-                org_ids_[n] = new_ids[org_ids_[n]];
+                temp[new_ids[n]] = org_ids_[n];
             }
+            #pragma omp parallel for
+            for (NodeID_ n = 0; n < num_nodes_; n++)
+            {
+                org_ids_[n] = temp[n];
+            }
+            delete[] temp;
         }
     }
 
@@ -548,6 +559,26 @@ public:
             org_id = org_ids_[ref_id];
         }
         return org_id;
+    }
+
+    // Get internal ID from original ID (inverse of get_org_id)
+    // Searches for which internal ID maps to the given original ID
+    NodeID_ get_internal_id(const NodeID_ orig_id) const
+    {
+        if (num_nodes_ == -1 || orig_id >= num_nodes_ || org_ids_ == nullptr)
+        {
+            return orig_id;
+        }
+        // Linear search for the internal ID that maps to orig_id
+        for (NodeID_ n = 0; n < num_nodes_; n++)
+        {
+            if (org_ids_[n] == orig_id)
+            {
+                return n;
+            }
+        }
+        // Not found - return original (shouldn't happen for valid IDs)
+        return orig_id;
     }
 
     void PrintTopologyOriginal() const

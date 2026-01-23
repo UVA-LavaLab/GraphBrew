@@ -16,6 +16,7 @@
 #include <numeric>
 #include <parallel/algorithm>
 #include <parallel/numeric>
+#include <queue>
 #include <set>
 #include <tuple>
 #include <type_traits>
@@ -545,7 +546,7 @@ public:
         }
     }
 
-    CSRGraph<NodeID_, DestID_, invert> MakeLocalGraphFromEL(EdgeList &el)
+    CSRGraph<NodeID_, DestID_, invert> MakeLocalGraphFromEL(EdgeList &el, bool verbose = false)
     {
         DestID_ **index = nullptr;
         // **inv_index = nullptr;
@@ -567,7 +568,9 @@ public:
         // SquishCSR(g, false, &index, &neighs);
         // SquishCSR(g, true, &inv_index, &inv_neighs);
         t.Stop();
-        PrintTime("Local Build Time", t.Seconds());
+        if (verbose) {
+            PrintTime("Local Build Time", t.Seconds());
+        }
         return g;
         // return CSRGraph<NodeID_, DestID_, invert>(g.num_nodes(), index, neighs);
     }
@@ -4871,14 +4874,21 @@ public:
         int64_t vertex_id;   // Original vertex ID (-1 for internal nodes)
         size_t subtree_size; 
         double weight;       // Degree sum
-        int level;           
+        int level;
+        int64_t dfs_start;   // Starting DFS position for this subtree (for parallel ordering)
         
         LeidenDendrogramNode() : parent(-1), first_child(-1), sibling(-1), 
-                           vertex_id(-1), subtree_size(1), weight(0.0), level(0) {}
+                           vertex_id(-1), subtree_size(1), weight(0.0), level(0), dfs_start(-1) {}
     };
 
     /**
-     * Build dendrogram from Leiden's per-pass community mappings
+     * Build dendrogram from Leiden's per-pass community mappings (PARALLEL VERSION)
+     * 
+     * Uses parallel sorting instead of hash maps for O(n log n) parallel grouping.
+     * Key optimizations:
+     * 1. Parallel sort by community ID for grouping
+     * 2. Parallel scan to find community boundaries
+     * 3. Parallel creation of internal nodes
      */
     template<typename K>
     void buildLeidenDendrogram(
@@ -4890,7 +4900,7 @@ public:
         
         const size_t num_passes = communityMappingPerPass.size();
         
-        // Create leaf nodes for all vertices
+        // Create leaf nodes for all vertices (parallel)
         nodes.resize(num_vertices);
         #pragma omp parallel for
         for (size_t v = 0; v < num_vertices; ++v) {
@@ -4901,62 +4911,128 @@ public:
         }
         
         if (num_passes == 0) {
-            // No community structure - each vertex is its own root
+            roots.resize(num_vertices);
+            #pragma omp parallel for
             for (size_t v = 0; v < num_vertices; ++v) {
-                roots.push_back(v);
+                roots[v] = v;
             }
             return;
         }
         
         // Build hierarchy from finest to coarsest
         std::vector<int64_t> current_nodes(num_vertices);
-        std::iota(current_nodes.begin(), current_nodes.end(), 0);
+        #pragma omp parallel for
+        for (size_t i = 0; i < num_vertices; ++i) {
+            current_nodes[i] = i;
+        }
         
         for (size_t pass = 0; pass < num_passes; ++pass) {
             const auto& comm_map = communityMappingPerPass[pass];
+            const size_t n_current = current_nodes.size();
             
-            // Group current nodes by community at this pass
-            std::unordered_map<K, std::vector<int64_t>> community_members;
-            for (int64_t node_id : current_nodes) {
-                // Find representative vertex for this node
+            // Step 1: Create (community, node_id, weight) tuples (parallel)
+            // We need representative vertex for each node to get community
+            std::vector<std::tuple<K, int64_t, double>> node_comm(n_current);
+            
+            #pragma omp parallel for
+            for (size_t i = 0; i < n_current; ++i) {
+                int64_t node_id = current_nodes[i];
+                // Find representative vertex (first leaf in subtree)
                 int64_t v = node_id;
                 while (v >= 0 && nodes[v].vertex_id < 0) {
                     v = nodes[v].first_child;
                 }
+                K comm = 0;
                 if (v >= 0 && nodes[v].vertex_id >= 0) {
                     size_t vertex = nodes[v].vertex_id;
                     if (vertex < comm_map.size()) {
-                        community_members[comm_map[vertex]].push_back(node_id);
+                        comm = comm_map[vertex];
                     }
+                }
+                node_comm[i] = std::make_tuple(comm, node_id, nodes[node_id].weight);
+            }
+            
+            // Step 2: Parallel sort by community, then by weight (descending for hub-first)
+            __gnu_parallel::sort(node_comm.begin(), node_comm.end(),
+                [](const auto& a, const auto& b) {
+                    if (std::get<0>(a) != std::get<0>(b)) return std::get<0>(a) < std::get<0>(b);
+                    return std::get<2>(a) > std::get<2>(b);  // Higher weight first
+                });
+            
+            // Step 3: Find community boundaries (parallel scan)
+            std::vector<size_t> is_boundary(n_current + 1, 0);
+            is_boundary[0] = 1;  // First element is always a boundary
+            
+            #pragma omp parallel for
+            for (size_t i = 1; i < n_current; ++i) {
+                if (std::get<0>(node_comm[i]) != std::get<0>(node_comm[i-1])) {
+                    is_boundary[i] = 1;
+                }
+            }
+            is_boundary[n_current] = 1;  // End marker
+            
+            // Step 4: Collect boundary indices
+            std::vector<size_t> boundaries;
+            boundaries.reserve(n_current / 2);  // Reasonable estimate
+            for (size_t i = 0; i <= n_current; ++i) {
+                if (is_boundary[i]) {
+                    boundaries.push_back(i);
                 }
             }
             
-            // Create internal nodes for multi-member communities
-            std::vector<int64_t> next_nodes;
-            for (auto& pair : community_members) {
-                auto& members = pair.second;
-                if (members.size() == 1) {
-                    next_nodes.push_back(members[0]);
+            const size_t num_communities = boundaries.size() - 1;
+            
+            // Step 5: Pre-allocate internal nodes for multi-member communities
+            // Count how many communities have more than 1 member
+            std::vector<size_t> needs_internal(num_communities);
+            #pragma omp parallel for
+            for (size_t c = 0; c < num_communities; ++c) {
+                size_t start = boundaries[c];
+                size_t end = boundaries[c + 1];
+                needs_internal[c] = (end - start > 1) ? 1 : 0;
+            }
+            
+            // Prefix sum to get internal node offsets
+            std::vector<size_t> internal_offset(num_communities + 1);
+            internal_offset[0] = 0;
+            for (size_t c = 0; c < num_communities; ++c) {
+                internal_offset[c + 1] = internal_offset[c] + needs_internal[c];
+            }
+            size_t num_new_internals = internal_offset[num_communities];
+            
+            // Reserve space for new internal nodes
+            size_t internal_base = nodes.size();
+            nodes.resize(internal_base + num_new_internals);
+            
+            // Step 6: Create internal nodes and link children (parallel per community)
+            std::vector<int64_t> next_nodes(num_communities);
+            
+            #pragma omp parallel for schedule(dynamic, 64)
+            for (size_t c = 0; c < num_communities; ++c) {
+                size_t start = boundaries[c];
+                size_t end = boundaries[c + 1];
+                size_t member_count = end - start;
+                
+                if (member_count == 1) {
+                    // Single member - no internal node needed
+                    next_nodes[c] = std::get<1>(node_comm[start]);
                 } else {
                     // Create internal node
-                    LeidenDendrogramNode internal;
-                    internal.vertex_id = -1;
-                    internal.level = pass + 1;
-                    internal.subtree_size = 0;
-                    internal.weight = 0.0;
+                    int64_t internal_id = internal_base + internal_offset[c];
+                    nodes[internal_id].vertex_id = -1;
+                    nodes[internal_id].level = pass + 1;
+                    nodes[internal_id].subtree_size = 0;
+                    nodes[internal_id].weight = 0.0;
+                    nodes[internal_id].first_child = -1;
+                    nodes[internal_id].sibling = -1;
+                    nodes[internal_id].parent = -1;
                     
-                    int64_t internal_id = nodes.size();
-                    nodes.push_back(internal);
-                    
-                    // Sort members by weight (degree) descending for hub-first
-                    std::sort(members.begin(), members.end(), [&nodes](int64_t a, int64_t b) {
-                        return nodes[a].weight > nodes[b].weight;
-                    });
-                    
-                    // Link children
+                    // Link children (already sorted by weight from step 2)
                     int64_t prev_sibling = -1;
-                    for (int64_t child_id : members) {
+                    for (size_t i = start; i < end; ++i) {
+                        int64_t child_id = std::get<1>(node_comm[i]);
                         nodes[child_id].parent = internal_id;
+                        
                         if (nodes[internal_id].first_child == -1) {
                             nodes[internal_id].first_child = child_id;
                         }
@@ -4969,25 +5045,108 @@ public:
                         nodes[internal_id].weight += nodes[child_id].weight;
                     }
                     
-                    next_nodes.push_back(internal_id);
+                    next_nodes[c] = internal_id;
                 }
             }
+            
             current_nodes = std::move(next_nodes);
         }
         
-        // Remaining nodes are roots
-        for (int64_t node_id : current_nodes) {
-            roots.push_back(node_id);
-        }
-        
-        // Sort roots by subtree size
-        std::sort(roots.begin(), roots.end(), [&nodes](int64_t a, int64_t b) {
+        // Copy roots and sort by subtree size
+        roots = current_nodes;
+        __gnu_parallel::sort(roots.begin(), roots.end(), [&nodes](int64_t a, int64_t b) {
             return nodes[a].subtree_size > nodes[b].subtree_size;
         });
     }
 
     /**
-     * DFS ordering of dendrogram
+     * Parallel DFS ordering of dendrogram
+     * 
+     * Uses subtree sizes to compute DFS positions in parallel:
+     * 1. Compute DFS start position for each subtree using prefix sums
+     * 2. Process all vertices in parallel using their computed positions
+     */
+    void orderDendrogramDFSParallel(
+        std::vector<LeidenDendrogramNode>& nodes,
+        const std::vector<int64_t>& roots,
+        pvector<NodeID_>& new_ids,
+        bool hub_first,
+        bool size_first) {
+        
+        const size_t num_nodes = nodes.size();
+        
+        // Step 1: Compute DFS start positions for each root's subtree
+        size_t total_vertices = 0;
+        for (int64_t root : roots) {
+            nodes[root].dfs_start = total_vertices;
+            total_vertices += nodes[root].subtree_size;
+        }
+        
+        // Step 2: Propagate DFS positions down the tree (BFS order for correctness)
+        // We process level by level, computing child offsets within each subtree
+        std::vector<int64_t> current_level;
+        current_level.reserve(roots.size());
+        for (int64_t root : roots) {
+            current_level.push_back(root);
+        }
+        
+        while (!current_level.empty()) {
+            std::vector<int64_t> next_level;
+            next_level.reserve(current_level.size() * 2);
+            
+            // Process all nodes at current level in parallel
+            // But collect children sequentially since we need to maintain order
+            for (int64_t node_id : current_level) {
+                auto& node = nodes[node_id];
+                
+                if (node.vertex_id >= 0) {
+                    // Leaf node - will be processed in final step
+                    continue;
+                }
+                
+                // Collect and optionally sort children
+                std::vector<int64_t> children;
+                int64_t child = node.first_child;
+                while (child >= 0) {
+                    children.push_back(child);
+                    child = nodes[child].sibling;
+                }
+                
+                if (hub_first) {
+                    std::sort(children.begin(), children.end(), 
+                         [&nodes](int64_t a, int64_t b) {
+                             return nodes[a].weight > nodes[b].weight;
+                         });
+                } else if (size_first) {
+                    std::sort(children.begin(), children.end(),
+                         [&nodes](int64_t a, int64_t b) {
+                             return nodes[a].subtree_size > nodes[b].subtree_size;
+                         });
+                }
+                
+                // Assign DFS start positions to children
+                int64_t pos = node.dfs_start;
+                for (int64_t child_id : children) {
+                    nodes[child_id].dfs_start = pos;
+                    pos += nodes[child_id].subtree_size;
+                    next_level.push_back(child_id);
+                }
+            }
+            
+            current_level = std::move(next_level);
+        }
+        
+        // Step 3: Assign final IDs to all leaf vertices in parallel
+        #pragma omp parallel for
+        for (size_t i = 0; i < num_nodes; ++i) {
+            if (nodes[i].vertex_id >= 0 && nodes[i].dfs_start >= 0) {
+                new_ids[nodes[i].vertex_id] = nodes[i].dfs_start;
+            }
+        }
+    }
+
+    /**
+     * DFS ordering of dendrogram (original sequential version for comparison)
      */
     void orderDendrogramDFS(
         const std::vector<LeidenDendrogramNode>& nodes,
@@ -5218,33 +5377,33 @@ public:
         
         switch (flavor) {
             case LeidenDFS: {
-                std::cout << "Ordering Flavor: LeidenDFS (Standard DFS)" << std::endl;
+                std::cout << "Ordering Flavor: LeidenDFS (Parallel DFS)" << std::endl;
                 std::vector<LeidenDendrogramNode> nodes;
                 std::vector<int64_t> roots;
                 buildLeidenDendrogram(nodes, roots, communityMappingPerPass, degrees, num_nodes);
                 PrintTime("Dendrogram Nodes", nodes.size());
                 PrintTime("Dendrogram Roots", roots.size());
-                orderDendrogramDFS(nodes, roots, new_ids, false, false);
+                orderDendrogramDFSParallel(nodes, roots, new_ids, false, false);
                 break;
             }
             case LeidenDFSHub: {
-                std::cout << "Ordering Flavor: LeidenDFSHub (DFS, hub-first)" << std::endl;
+                std::cout << "Ordering Flavor: LeidenDFSHub (Parallel DFS, hub-first)" << std::endl;
                 std::vector<LeidenDendrogramNode> nodes;
                 std::vector<int64_t> roots;
                 buildLeidenDendrogram(nodes, roots, communityMappingPerPass, degrees, num_nodes);
                 PrintTime("Dendrogram Nodes", nodes.size());
                 PrintTime("Dendrogram Roots", roots.size());
-                orderDendrogramDFS(nodes, roots, new_ids, true, false);
+                orderDendrogramDFSParallel(nodes, roots, new_ids, true, false);
                 break;
             }
             case LeidenDFSSize: {
-                std::cout << "Ordering Flavor: LeidenDFSSize (DFS, size-first)" << std::endl;
+                std::cout << "Ordering Flavor: LeidenDFSSize (Parallel DFS, size-first)" << std::endl;
                 std::vector<LeidenDendrogramNode> nodes;
                 std::vector<int64_t> roots;
                 buildLeidenDendrogram(nodes, roots, communityMappingPerPass, degrees, num_nodes);
                 PrintTime("Dendrogram Nodes", nodes.size());
                 PrintTime("Dendrogram Roots", roots.size());
-                orderDendrogramDFS(nodes, roots, new_ids, false, true);
+                orderDendrogramDFSParallel(nodes, roots, new_ids, false, true);
                 break;
             }
             case LeidenBFS: {
@@ -5267,7 +5426,7 @@ public:
                 std::vector<LeidenDendrogramNode> nodes;
                 std::vector<int64_t> roots;
                 buildLeidenDendrogram(nodes, roots, communityMappingPerPass, degrees, num_nodes);
-                orderDendrogramDFS(nodes, roots, new_ids, true, false);
+                orderDendrogramDFSParallel(nodes, roots, new_ids, true, false);
         }
         
         tm.Stop();
@@ -5347,10 +5506,123 @@ public:
      * 
      * The file is typically located at scripts/perceptron_weights.json and is
      * automatically generated by running: python3 scripts/graphbrew_experiment.py --fill-weights
+     * 
+     * GRAPH-TYPE SPECIFIC WEIGHTS:
+     * The system supports per-graph-type weight files for specialized tuning:
+     * - scripts/perceptron_weights_social.json   (high modularity, power-law)
+     * - scripts/perceptron_weights_road.json     (mesh-like, low modularity)
+     * - scripts/perceptron_weights_web.json      (high hub concentration)
+     * - scripts/perceptron_weights_powerlaw.json (RMAT-like, skewed degrees)
+     * - scripts/perceptron_weights_uniform.json  (random graphs, uniform degrees)
+     * - scripts/perceptron_weights.json          (default fallback)
+     * 
+     * Graph type is auto-detected from features (modularity, degree variance, etc.)
+     * or can be specified via GRAPH_TYPE environment variable.
      */
     
     // Default path for perceptron weights file (relative to project root)
     static constexpr const char* DEFAULT_WEIGHTS_FILE = "scripts/perceptron_weights.json";
+    static constexpr const char* WEIGHTS_DIR = "scripts/";
+    
+    /**
+     * Graph type enum for graph-type-specific weight selection
+     * 
+     * Different graph types have different structural properties that
+     * benefit from different reordering strategies:
+     * 
+     * - SOCIAL: High modularity, community structure, power-law degrees
+     *           Best: LeidenDFS, RabbitOrder
+     * - ROAD: Mesh-like, low modularity, planar structure
+     *         Best: RCMOrder (bandwidth reduction)
+     * - WEB: High hub concentration, bow-tie structure
+     *        Best: HubClusterDBG, HubSort
+     * - POWERLAW: RMAT-like, highly skewed degree distribution
+     *             Best: RabbitOrder, HubCluster
+     * - UNIFORM: Random graphs, uniform degree distribution
+     *            Best: Original or light reordering (DBG)
+     * - GENERIC: Unknown or mixed - use default weights
+     */
+    enum GraphType {
+        GRAPH_GENERIC = 0,  // Unknown or mixed graph type
+        GRAPH_SOCIAL,       // Social networks (Facebook, Twitter)
+        GRAPH_ROAD,         // Road networks (planar, mesh-like)
+        GRAPH_WEB,          // Web graphs (bow-tie structure)
+        GRAPH_POWERLAW,     // Power-law/RMAT graphs
+        GRAPH_UNIFORM       // Uniform random graphs
+    };
+    
+    /**
+     * Convert graph type enum to string (for file naming)
+     */
+    static std::string GraphTypeToString(GraphType type) {
+        switch (type) {
+            case GRAPH_SOCIAL:   return "social";
+            case GRAPH_ROAD:     return "road";
+            case GRAPH_WEB:      return "web";
+            case GRAPH_POWERLAW: return "powerlaw";
+            case GRAPH_UNIFORM:  return "uniform";
+            case GRAPH_GENERIC:
+            default:             return "generic";
+        }
+    }
+    
+    /**
+     * Convert string to graph type enum
+     */
+    static GraphType GetGraphType(const std::string& name) {
+        if (name.empty() || name == "generic" || name == "GENERIC" || name == "default") return GRAPH_GENERIC;
+        if (name == "social" || name == "SOCIAL") return GRAPH_SOCIAL;
+        if (name == "road" || name == "ROAD" || name == "mesh") return GRAPH_ROAD;
+        if (name == "web" || name == "WEB") return GRAPH_WEB;
+        if (name == "powerlaw" || name == "POWERLAW" || name == "rmat" || name == "RMAT") return GRAPH_POWERLAW;
+        if (name == "uniform" || name == "UNIFORM" || name == "random") return GRAPH_UNIFORM;
+        return GRAPH_GENERIC;
+    }
+    
+    /**
+     * Auto-detect graph type from graph features
+     * 
+     * Uses a decision tree based on empirical observations:
+     * 1. High modularity (>0.3) + power-law degrees → SOCIAL
+     * 2. Low modularity (<0.1) + low degree variance → ROAD
+     * 3. High hub concentration (>0.5) → WEB
+     * 4. High degree variance (>1.5) + low modularity → POWERLAW
+     * 5. Low degree variance (<0.5) + low hub concentration → UNIFORM
+     * 6. Otherwise → GENERIC
+     */
+    static GraphType DetectGraphType(double modularity, double degree_variance, 
+                                      double hub_concentration, double avg_degree,
+                                      size_t num_nodes) {
+        // Decision tree for graph type classification
+        
+        // Road networks: low modularity, mesh-like (low variance, moderate degree)
+        if (modularity < 0.1 && degree_variance < 0.5 && avg_degree < 10) {
+            return GRAPH_ROAD;
+        }
+        
+        // Social networks: high modularity with community structure
+        if (modularity > 0.3 && degree_variance > 0.8) {
+            return GRAPH_SOCIAL;
+        }
+        
+        // Web graphs: extreme hub concentration (bow-tie structure)
+        if (hub_concentration > 0.5 && degree_variance > 1.0) {
+            return GRAPH_WEB;
+        }
+        
+        // Power-law (RMAT): high skew but lower modularity than social
+        if (degree_variance > 1.5 && modularity < 0.3) {
+            return GRAPH_POWERLAW;
+        }
+        
+        // Uniform random: low variance, low hub concentration
+        if (degree_variance < 0.5 && hub_concentration < 0.3 && modularity < 0.1) {
+            return GRAPH_UNIFORM;
+        }
+        
+        // Default to generic
+        return GRAPH_GENERIC;
+    }
     
     /**
      * Benchmark type enum for benchmark-specific weight selection
@@ -5854,48 +6126,116 @@ public:
      * 3. If neither exists, returns hardcoded defaults from GetPerceptronWeights()
      */
     static std::map<ReorderingAlgo, PerceptronWeights> LoadPerceptronWeights(bool verbose = false) {
+        return LoadPerceptronWeightsForGraphType(GRAPH_GENERIC, verbose);
+    }
+    
+    /**
+     * Load perceptron weights for a specific graph type.
+     * 
+     * Checks for weights file in this order:
+     * 1. Path from PERCEPTRON_WEIGHTS_FILE environment variable (overrides all)
+     * 2. Graph-type-specific file: scripts/perceptron_weights_{type}.json
+     * 3. Default file: scripts/perceptron_weights.json
+     * 4. If none exist, returns hardcoded defaults from GetPerceptronWeights()
+     * 
+     * @param graph_type The detected or specified graph type
+     * @param verbose Print which file was loaded
+     */
+    static std::map<ReorderingAlgo, PerceptronWeights> LoadPerceptronWeightsForGraphType(
+        GraphType graph_type, bool verbose = false) {
+        
         // Start with defaults
         auto weights = GetPerceptronWeights();
         
-        // Check for weights file
-        std::string weights_file;
+        // Check environment variable override first
         const char* env_path = std::getenv("PERCEPTRON_WEIGHTS_FILE");
         if (env_path != nullptr) {
-            weights_file = env_path;
-        } else {
-            weights_file = DEFAULT_WEIGHTS_FILE;
+            std::ifstream file(env_path);
+            if (file.is_open()) {
+                std::string json_content((std::istreambuf_iterator<char>(file)),
+                                          std::istreambuf_iterator<char>());
+                file.close();
+                
+                std::map<ReorderingAlgo, PerceptronWeights> loaded_weights;
+                if (ParseWeightsFromJSON(json_content, loaded_weights)) {
+                    for (const auto& kv : loaded_weights) {
+                        weights[kv.first] = kv.second;
+                    }
+                    if (verbose) {
+                        std::cout << "Perceptron: Loaded " << loaded_weights.size() 
+                                  << " weights from env override: " << env_path << "\n";
+                    }
+                    return weights;
+                }
+            }
         }
         
-        std::ifstream file(weights_file);
-        if (!file.is_open()) {
-            if (verbose) {
-                std::cout << "Perceptron: Using hardcoded default weights (no " 
-                          << weights_file << " found)\n";
-            }
-            return weights;
+        // Build list of candidate files to try (in order of preference)
+        std::vector<std::string> candidate_files;
+        
+        // 1. Graph-type-specific file
+        if (graph_type != GRAPH_GENERIC) {
+            std::string type_file = std::string(WEIGHTS_DIR) + "perceptron_weights_" 
+                                    + GraphTypeToString(graph_type) + ".json";
+            candidate_files.push_back(type_file);
         }
         
-        // Read file content
-        std::string json_content((std::istreambuf_iterator<char>(file)),
-                                  std::istreambuf_iterator<char>());
-        file.close();
+        // 2. Default file
+        candidate_files.push_back(DEFAULT_WEIGHTS_FILE);
         
-        // Parse and merge with defaults
-        std::map<ReorderingAlgo, PerceptronWeights> loaded_weights;
-        if (ParseWeightsFromJSON(json_content, loaded_weights)) {
-            for (const auto& kv : loaded_weights) {
-                weights[kv.first] = kv.second;
+        // Try each candidate file
+        for (const auto& weights_file : candidate_files) {
+            std::ifstream file(weights_file);
+            if (!file.is_open()) continue;
+            
+            std::string json_content((std::istreambuf_iterator<char>(file)),
+                                      std::istreambuf_iterator<char>());
+            file.close();
+            
+            std::map<ReorderingAlgo, PerceptronWeights> loaded_weights;
+            if (ParseWeightsFromJSON(json_content, loaded_weights)) {
+                for (const auto& kv : loaded_weights) {
+                    weights[kv.first] = kv.second;
+                }
+                if (verbose) {
+                    std::cout << "Perceptron: Loaded " << loaded_weights.size() 
+                              << " weights from " << weights_file;
+                    if (graph_type != GRAPH_GENERIC) {
+                        std::cout << " (graph type: " << GraphTypeToString(graph_type) << ")";
+                    }
+                    std::cout << "\n";
+                }
+                return weights;
             }
-            if (verbose) {
-                std::cout << "Perceptron: Loaded " << loaded_weights.size() 
-                          << " algorithm weights from " << weights_file << "\n";
-            }
-        } else if (verbose) {
-            std::cout << "Perceptron: Failed to parse " << weights_file 
-                      << ", using defaults\n";
         }
         
+        // No files found - use defaults
+        if (verbose) {
+            std::cout << "Perceptron: Using hardcoded defaults (no weight files found)\n";
+        }
         return weights;
+    }
+    
+    /**
+     * Get cached weights for a specific graph type
+     * Uses thread-local cache to avoid repeated file loading
+     */
+    static const std::map<ReorderingAlgo, PerceptronWeights>& GetCachedWeights(
+        GraphType graph_type, bool verbose_first_load = false) {
+        // Cache weights per graph type (static map persists across calls)
+        static std::map<GraphType, std::map<ReorderingAlgo, PerceptronWeights>> weight_cache;
+        static std::mutex cache_mutex;
+        
+        std::lock_guard<std::mutex> lock(cache_mutex);
+        
+        auto it = weight_cache.find(graph_type);
+        if (it != weight_cache.end()) {
+            return it->second;
+        }
+        
+        // Load and cache (with verbose output if requested)
+        weight_cache[graph_type] = LoadPerceptronWeightsForGraphType(graph_type, verbose_first_load);
+        return weight_cache[graph_type];
     }
 
     /**
@@ -5908,13 +6248,15 @@ public:
      * @param bench Benchmark type (default: BENCH_GENERIC for balanced performance)
      *              - BENCH_GENERIC: Optimizes for all graph algorithms equally
      *              - BENCH_PR, BENCH_BFS, etc.: Optimizes for specific benchmark
+     * @param graph_type The detected graph type for loading appropriate weights
      * 
      * Loads weights from file if available, otherwise uses defaults.
      */
     ReorderingAlgo SelectReorderingPerceptron(const CommunityFeatures& feat, 
-                                               BenchmarkType bench = BENCH_GENERIC) {
-        // Use cached weights - load once from file or defaults
-        static const auto weights = LoadPerceptronWeights(false);
+                                               BenchmarkType bench = BENCH_GENERIC,
+                                               GraphType graph_type = GRAPH_GENERIC) {
+        // Get cached weights for this graph type
+        const auto& weights = GetCachedWeights(graph_type);
         
         ReorderingAlgo best_algo = ORIGINAL;
         double best_score = -std::numeric_limits<double>::infinity();
@@ -5935,14 +6277,16 @@ public:
      * Pass empty string or "generic" for balanced/default scoring
      */
     ReorderingAlgo SelectReorderingPerceptron(const CommunityFeatures& feat,
-                                               const std::string& benchmark_name) {
-        return SelectReorderingPerceptron(feat, GetBenchmarkType(benchmark_name));
+                                               const std::string& benchmark_name,
+                                               GraphType graph_type = GRAPH_GENERIC) {
+        return SelectReorderingPerceptron(feat, GetBenchmarkType(benchmark_name), graph_type);
     }
 
     CommunityFeatures ComputeCommunityFeatures(
         const std::vector<NodeID_>& comm_nodes,
         const CSRGraph<NodeID_, DestID_, invert>& g,
-        const std::unordered_set<NodeID_>& node_set)
+        const std::unordered_set<NodeID_>& node_set,
+        bool compute_extended = true)
     {
         CommunityFeatures feat;
         feat.num_nodes = comm_nodes.size();
@@ -5954,6 +6298,10 @@ public:
             feat.avg_degree = 0.0;
             feat.degree_variance = 0.0;
             feat.hub_concentration = 0.0;
+            feat.clustering_coeff = 0.0;
+            feat.avg_path_length = 0.0;
+            feat.diameter_estimate = 0.0;
+            feat.community_count = 1.0;
             return feat;
         }
 
@@ -6008,6 +6356,128 @@ public:
         feat.hub_concentration = (total_internal_edges > 0) ? 
             static_cast<double>(top_edges) / total_internal_edges : 0.0;
         
+        // ============================================================
+        // EXTENDED FEATURES (computed via fast sampling for efficiency)
+        // Only compute for larger communities where it matters
+        // ============================================================
+        const size_t MIN_SIZE_FOR_EXTENDED = 1000;  // Skip for small communities
+        
+        if (compute_extended && feat.num_nodes >= MIN_SIZE_FOR_EXTENDED) {
+            
+            // --- Clustering Coefficient (fast sampled estimate) ---
+            // Sample only a few high-degree nodes and use hash set for O(1) neighbor lookup
+            const size_t MAX_SAMPLES_CC = std::min(size_t(50), feat.num_nodes / 20 + 1);
+            double total_cc = 0.0;
+            size_t valid_cc_samples = 0;
+            
+            // Find high-degree nodes for sampling (they're more informative)
+            std::vector<std::pair<size_t, size_t>> deg_idx(feat.num_nodes);
+            for (size_t i = 0; i < feat.num_nodes; ++i) {
+                deg_idx[i] = {internal_degrees[i], i};
+            }
+            std::partial_sort(deg_idx.begin(), 
+                              deg_idx.begin() + std::min(MAX_SAMPLES_CC, feat.num_nodes),
+                              deg_idx.end(),
+                              std::greater<std::pair<size_t, size_t>>());
+            
+            for (size_t s = 0; s < MAX_SAMPLES_CC && s < feat.num_nodes; ++s) {
+                size_t idx = deg_idx[s].second;
+                NodeID_ node = comm_nodes[idx];
+                size_t deg = internal_degrees[idx];
+                if (deg < 2 || deg > 500) continue;  // Skip very high degree (too slow)
+                
+                // Get internal neighbors into a hash set for O(1) lookup
+                std::unordered_set<NodeID_> neighbor_set;
+                for (DestID_ neighbor : g.out_neigh(node)) {
+                    NodeID_ dest = static_cast<NodeID_>(neighbor);
+                    if (node_set.count(dest)) {
+                        neighbor_set.insert(dest);
+                    }
+                }
+                
+                // Count triangles using hash set lookup
+                size_t triangles = 0;
+                for (NodeID_ n1 : neighbor_set) {
+                    for (DestID_ n2_edge : g.out_neigh(n1)) {
+                        NodeID_ n2 = static_cast<NodeID_>(n2_edge);
+                        if (n2 > n1 && neighbor_set.count(n2)) {  // n2 > n1 avoids double counting
+                            ++triangles;
+                        }
+                    }
+                }
+                
+                double local_cc = (2.0 * triangles) / (deg * (deg - 1));
+                total_cc += local_cc;
+                ++valid_cc_samples;
+            }
+            feat.clustering_coeff = (valid_cc_samples > 0) ? 
+                total_cc / valid_cc_samples : 0.0;
+            
+            // --- Diameter & Avg Path (single BFS from highest degree node) ---
+            // Just one BFS is enough for a rough estimate
+            if (!deg_idx.empty()) {
+                size_t start_idx = deg_idx[0].second;
+                std::vector<int> dist(feat.num_nodes, -1);
+                std::queue<size_t> bfs_queue;
+                bfs_queue.push(start_idx);
+                dist[start_idx] = 0;
+                
+                // Build local index map (reuse node_set which we already have)
+                std::unordered_map<NodeID_, size_t> node_to_idx;
+                node_to_idx.reserve(feat.num_nodes);
+                for (size_t i = 0; i < feat.num_nodes; ++i) {
+                    node_to_idx[comm_nodes[i]] = i;
+                }
+                
+                double path_sum = 0.0;
+                size_t path_count = 0;
+                size_t max_dist = 0;
+                
+                while (!bfs_queue.empty()) {
+                    size_t curr_idx = bfs_queue.front();
+                    bfs_queue.pop();
+                    NodeID_ curr_node = comm_nodes[curr_idx];
+                    
+                    for (DestID_ neighbor : g.out_neigh(curr_node)) {
+                        NodeID_ dest = static_cast<NodeID_>(neighbor);
+                        auto it = node_to_idx.find(dest);
+                        if (it != node_to_idx.end() && dist[it->second] == -1) {
+                            size_t dest_idx = it->second;
+                            dist[dest_idx] = dist[curr_idx] + 1;
+                            bfs_queue.push(dest_idx);
+                            path_sum += dist[dest_idx];
+                            ++path_count;
+                            if (static_cast<size_t>(dist[dest_idx]) > max_dist) {
+                                max_dist = dist[dest_idx];
+                            }
+                        }
+                    }
+                }
+                
+                feat.avg_path_length = (path_count > 0) ? path_sum / path_count : 1.0;
+                feat.diameter_estimate = static_cast<double>(max_dist);
+                
+                // Community count = number of unreached nodes + 1 (connected component)
+                size_t unreached = 0;
+                for (size_t i = 0; i < feat.num_nodes; ++i) {
+                    if (dist[i] == -1) ++unreached;
+                }
+                feat.community_count = (unreached > 0) ? 2.0 : 1.0;  // Simplified: connected or not
+            } else {
+                feat.avg_path_length = 1.0;
+                feat.diameter_estimate = 1.0;
+                feat.community_count = 1.0;
+            }
+            
+        } else {
+            // Small community or extended features disabled - use fast estimates
+            feat.clustering_coeff = feat.internal_density;  // Rough proxy
+            feat.avg_path_length = (feat.internal_density > 0.1) ? 1.5 : 
+                                   std::log2(feat.num_nodes + 1);  // Small-world estimate
+            feat.diameter_estimate = feat.avg_path_length * 2.0;
+            feat.community_count = 1.0;
+        }
+        
         return feat;
     }
 
@@ -6033,7 +6503,8 @@ public:
      * Fallback to heuristics for edge cases (very small communities).
      */
     ReorderingAlgo SelectBestReorderingForCommunity(CommunityFeatures feat, double global_modularity,
-                                                     BenchmarkType bench = BENCH_GENERIC)
+                                                     BenchmarkType bench = BENCH_GENERIC,
+                                                     GraphType graph_type = GRAPH_GENERIC)
     {
         // Small communities: reordering overhead exceeds benefit
         const size_t MIN_COMMUNITY_SIZE = 200;
@@ -6045,8 +6516,8 @@ public:
         // Set the modularity in features for perceptron scoring
         feat.modularity = global_modularity;
         
-        // Use perceptron to select best algorithm (with benchmark-specific adjustment)
-        ReorderingAlgo selected = SelectReorderingPerceptron(feat, bench);
+        // Use perceptron to select best algorithm (with benchmark-specific adjustment and graph type)
+        ReorderingAlgo selected = SelectReorderingPerceptron(feat, bench, graph_type);
         
         // Safety check: if perceptron selects an unavailable algorithm, fallback
 #ifndef RABBIT_ENABLE
@@ -6113,8 +6584,8 @@ public:
         int64_t num_nodes = g.num_nodes();
         int64_t num_edges = g.num_edges_directed();
         
-        const int MAX_DEPTH = 3;  // Limit recursion depth
-        const size_t MIN_COMMUNITY_FOR_RECURSION = 10000;  // Don't recurse into tiny communities
+        const int MAX_DEPTH = 0;  // Disable recursion (too expensive - runs Leiden on subgraphs)
+        const size_t MIN_COMMUNITY_FOR_RECURSION = 100000;  // Only recurse on very large communities
         
         // Parse options
         double resolution = 0.75;
@@ -6202,6 +6673,61 @@ public:
             community_nodes[comm_ids[i]].push_back(i);
         }
 
+        // Step 2.5: Compute quick global features for graph type detection
+        // We use lightweight features here since we're at the graph level
+        double global_degree_variance = 0.0;
+        double global_hub_concentration = 0.0;
+        double global_avg_degree = static_cast<double>(num_edges) / num_nodes;
+        
+        {
+            // Compute degree statistics for graph type detection (fast sampling)
+            const size_t SAMPLE_SIZE = std::min(static_cast<size_t>(5000), static_cast<size_t>(num_nodes));
+            std::vector<int64_t> sampled_degrees(SAMPLE_SIZE);
+            
+            double sum = 0.0;
+            for (size_t i = 0; i < SAMPLE_SIZE; ++i) {
+                NodeID_ node = (num_nodes > SAMPLE_SIZE) ? 
+                    static_cast<NodeID_>((i * num_nodes) / SAMPLE_SIZE) : static_cast<NodeID_>(i);
+                sampled_degrees[i] = g.out_degree(node);
+                sum += sampled_degrees[i];
+            }
+            double sample_mean = sum / SAMPLE_SIZE;
+            
+            double sum_sq_diff = 0.0;
+            for (size_t i = 0; i < SAMPLE_SIZE; ++i) {
+                double diff = sampled_degrees[i] - sample_mean;
+                sum_sq_diff += diff * diff;
+            }
+            double variance = sum_sq_diff / (SAMPLE_SIZE - 1);
+            global_degree_variance = (sample_mean > 0) ? std::sqrt(variance) / sample_mean : 0.0;
+            
+            // Hub concentration: sort degrees and see fraction from top 10%
+            std::sort(sampled_degrees.rbegin(), sampled_degrees.rend());
+            size_t top_10 = std::max(size_t(1), SAMPLE_SIZE / 10);
+            int64_t top_edge_sum = 0;
+            int64_t total_edge_sum = 0;
+            for (size_t i = 0; i < SAMPLE_SIZE; ++i) {
+                if (i < top_10) top_edge_sum += sampled_degrees[i];
+                total_edge_sum += sampled_degrees[i];
+            }
+            global_hub_concentration = (total_edge_sum > 0) ? 
+                static_cast<double>(top_edge_sum) / total_edge_sum : 0.0;
+        }
+        
+        // Detect graph type based on global features
+        GraphType detected_graph_type = DetectGraphType(
+            global_modularity, global_degree_variance, global_hub_concentration, 
+            global_avg_degree, static_cast<size_t>(num_nodes));
+        
+        if (depth == 0 && verbose) {
+            std::cout << "Graph Type: " << GraphTypeToString(detected_graph_type) << "\n";
+            PrintTime("Degree Variance", global_degree_variance);
+            PrintTime("Hub Concentration", global_hub_concentration);
+            
+            // Preload and show which weights file is being used
+            GetCachedWeights(detected_graph_type, true);
+        }
+
         // Step 3: Compute features and select algorithm for each community
         std::vector<ReorderingAlgo> selected_algos(num_comm);
         std::vector<CommunityFeatures> all_features(num_comm);
@@ -6211,8 +6737,11 @@ public:
             std::cout << "\n=== Adaptive Reordering Selection (Depth " << depth 
                       << ", Modularity: " << std::fixed << std::setprecision(4) 
                       << global_modularity << ") ===\n";
-            std::cout << "Comm\tNodes\tEdges\tDensity\tDegVar\tHubConc\tSelected\n";
+            std::cout << "Comm\tNodes\tEdges\tDensity\tDegVar\tHubConc\tClustC\tAvgPath\tDiam\tSubComm\tSelected\n";
         }
+        
+        // Minimum size to compute features and consider reordering
+        const size_t MIN_SIZE_FOR_FEATURES = 200;
         
         for (size_t c = 0; c < num_comm; ++c) {
             if (community_nodes[c].empty()) {
@@ -6222,13 +6751,20 @@ public:
             
             size_t comm_size = community_nodes[c].size();
             
+            // Skip feature computation for small communities - just use ORIGINAL
+            if (comm_size < MIN_SIZE_FOR_FEATURES) {
+                selected_algos[c] = ORIGINAL;
+                continue;
+            }
+            
             // Create node set for fast lookup
             std::unordered_set<NodeID_> node_set(
                 community_nodes[c].begin(), community_nodes[c].end());
             
-            // Compute features
+            // Compute features (with extended features only for large communities)
+            bool compute_extended = (comm_size >= 1000);
             CommunityFeatures feat = ComputeCommunityFeatures(
-                community_nodes[c], g, node_set);
+                community_nodes[c], g, node_set, compute_extended);
             all_features[c] = feat;
             
             // Decide: recurse or apply local algorithm
@@ -6241,11 +6777,12 @@ public:
                 selected_algos[c] = AdaptiveOrder;  // Mark for recursion
             }
             else {
-                // Select local algorithm based on features
-                selected_algos[c] = SelectBestReorderingForCommunity(feat, global_modularity);
+                // Select local algorithm based on features and detected graph type
+                selected_algos[c] = SelectBestReorderingForCommunity(
+                    feat, global_modularity, BENCH_GENERIC, detected_graph_type);
             }
             
-            // Print selection rationale
+            // Print selection rationale with extended features
             if (depth == 0 && verbose && feat.num_nodes >= 100) {
                 std::cout << c << "\t" 
                           << feat.num_nodes << "\t"
@@ -6253,6 +6790,10 @@ public:
                           << std::fixed << std::setprecision(4) << feat.internal_density << "\t"
                           << feat.degree_variance << "\t"
                           << feat.hub_concentration << "\t"
+                          << feat.clustering_coeff << "\t"
+                          << feat.avg_path_length << "\t"
+                          << static_cast<int>(feat.diameter_estimate) << "\t"
+                          << static_cast<int>(feat.community_count) << "\t"
                           << (should_recurse[c] ? "RECURSE" : ReorderingAlgoStr(selected_algos[c])) << "\n";
             }
         }
@@ -6268,6 +6809,9 @@ public:
         // Step 5: Apply per-community reordering and assign global IDs
         NodeID_ current_id = 0;
         
+        // Minimum size to bother with local reordering (building subgraph is expensive)
+        const size_t MIN_COMMUNITY_FOR_LOCAL_REORDER = 500;
+        
         for (size_t c : sorted_comms) {
             auto& nodes = community_nodes[c];
             if (nodes.empty()) continue;
@@ -6275,8 +6819,8 @@ public:
             size_t comm_size = nodes.size();
             ReorderingAlgo algo = selected_algos[c];
             
-            if (comm_size < 10 || algo == ORIGINAL) {
-                // Small or ORIGINAL: just assign sequentially
+            if (comm_size < MIN_COMMUNITY_FOR_LOCAL_REORDER || algo == ORIGINAL) {
+                // Small or ORIGINAL: just assign sequentially (no subgraph overhead)
                 for (NodeID_ node : nodes) {
                     new_ids[node] = current_id++;
                 }
