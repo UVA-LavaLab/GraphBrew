@@ -527,7 +527,7 @@ Where:
 
 ### Example Bias Values
 
-After training on 56 graphs, typical biases look like:
+After training on 87 graphs, typical biases look like:
 
 | Algorithm | Bias | Interpretation |
 |-----------|------|----------------|

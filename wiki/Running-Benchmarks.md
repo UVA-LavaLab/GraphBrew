@@ -66,10 +66,10 @@ Output files include `perceptron_weights_social.json`, `perceptron_weights_road.
 | Size | Graphs | Total | Categories |
 |------|--------|-------|------------|
 | `SMALL` | 16 | ~62 MB | communication, p2p, social |
-| `MEDIUM` | 34 | ~1.1 GB | web, road, commerce, mesh, synthetic |
-| `LARGE` | 40 | ~27 GB | social, web, collaboration, road |
+| `MEDIUM` | 28 | ~1.1 GB | web, road, commerce, mesh, synthetic |
+| `LARGE` | 37 | ~25 GB | social, web, collaboration, road |
 | `XLARGE` | 6 | ~63 GB | massive web (twitter7, webbase), Kronecker |
-| `ALL` | **96** | ~91 GB | Complete benchmark set |
+| `ALL` | **87** | ~89 GB | Complete benchmark set |
 
 ### Memory Management
 

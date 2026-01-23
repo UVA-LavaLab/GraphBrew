@@ -386,7 +386,7 @@ The unified experiment script provides comprehensive options for training and be
 |--------|-------------|
 | `--full` | Run complete pipeline (download → build → experiment → weights) |
 | `--download-only` | Only download graphs |
-| `--download-size SIZE` | SMALL (16), MEDIUM (34), LARGE (40), XLARGE (6), ALL (96 graphs) |
+| `--download-size SIZE` | SMALL (16), MEDIUM (28), LARGE (37), XLARGE (6), ALL (87 graphs) |
 | `--phase PHASE` | Run specific phase: all, reorder, benchmark, cache, weights, adaptive |
 
 ### Memory Management
