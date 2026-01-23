@@ -46,7 +46,7 @@ import gzip
 from dataclasses import dataclass, field, asdict
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Any
+from typing import Dict, List, Optional, Tuple, Any, Set
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import traceback
 import urllib.request
@@ -4594,20 +4594,23 @@ def train_adaptive_weights_iterative(
     timeout_sim: int = TIMEOUT_SIM,
     num_trials: int = 3,
     learning_rate: float = 0.1,
-    algorithms: List[int] = None
+    algorithms: List[int] = None,
+    weights_dir: str = DEFAULT_WEIGHTS_DIR
 ) -> TrainingResult:
     """
     Iterative training loop for adaptive algorithm selection weights.
     
-    This function:
+    This function uses the **type-based weight system**:
     1. Runs brute-force evaluation to measure current accuracy
     2. Identifies where adaptive picks wrong (what should have been chosen)
-    3. Adjusts weights based on the analysis
-    4. Repeats until target accuracy is reached or max iterations
+    3. Detects the graph type for each graph/subcommunity
+    4. Updates type-specific weights using update_type_weights_incremental()
+    5. Repeats until target accuracy is reached or max iterations
     
     The learning process:
     - For each graph where adaptive picked wrong, we analyze the features
-    - If the correct algorithm has different feature preferences, we adjust weights
+    - The graph is classified into a type (type_0, type_1, etc.)
+    - Type-specific weights are updated to improve algorithm selection
     - We use a learning rate to prevent overcorrection
     
     Args:
@@ -4615,7 +4618,7 @@ def train_adaptive_weights_iterative(
         bin_dir: Path to benchmark binaries
         bin_sim_dir: Path to cache simulation binaries
         output_dir: Where to save results
-        weights_file: Path to perceptron weights file
+        weights_file: Path to intermediate weights file (for iteration snapshots)
         benchmark: Which benchmark to use (pr, bfs, etc.)
         target_accuracy: Target accuracy percentage (0-100)
         max_iterations: Maximum training iterations
@@ -4624,6 +4627,7 @@ def train_adaptive_weights_iterative(
         num_trials: Number of benchmark trials per test
         learning_rate: How much to adjust weights (0.0-1.0)
         algorithms: List of algorithm IDs to test
+        weights_dir: Directory for type-based weight files (scripts/weights/)
     
     Returns:
         TrainingResult with iteration history and final accuracy
@@ -4638,9 +4642,19 @@ def train_adaptive_weights_iterative(
     training_dir = os.path.join(output_dir, f"training_{datetime.now().strftime('%Y%m%d_%H%M%S')}")
     os.makedirs(training_dir, exist_ok=True)
     
-    # Initialize/upgrade weights file with enhanced features
+    # Ensure weights directory exists
+    os.makedirs(weights_dir, exist_ok=True)
+    
+    # Load type registry for type-based weight system
+    log("Loading type registry for type-based weight system...")
+    load_type_registry(weights_dir)
+    
+    # Initialize legacy weights file for iteration snapshots (optional backwards compat)
     log("Initializing enhanced weight structure...")
     initialize_enhanced_weights(weights_file)
+    
+    # Track types updated per iteration
+    types_updated_per_iter: Dict[int, Set[str]] = {}
     
     # Initialize result
     result = TrainingResult(
@@ -4729,12 +4743,15 @@ def train_adaptive_weights_iterative(
             result.iteration_history.append(iter_result)
             break
         
-        # Step 2: Analyze errors and adjust weights
-        log(f"\n--- Step 2: Analyze Errors and Adjust Weights ---")
+        # Step 2: Analyze errors and adjust weights using TYPE-BASED system
+        log(f"\n--- Step 2: Analyze Errors and Adjust Type-Based Weights ---")
         
-        # Load current weights
+        # Load current weights (for legacy compatibility / iteration snapshots)
         with open(weights_file) as f:
             weights = json.load(f)
+        
+        # Track types updated this iteration
+        types_updated_this_iter: Set[str] = set()
         
         # Analyze each graph where adaptive was wrong
         weights_updated = 0
@@ -4745,9 +4762,12 @@ def train_adaptive_weights_iterative(
                 
                 # Get extended features of this subcommunity
                 features = {
+                    'modularity': getattr(sc_result, 'modularity', 0.5),
                     'density': sc_result.density,
                     'degree_variance': sc_result.degree_variance,
                     'hub_concentration': sc_result.hub_concentration,
+                    'nodes': sc_result.nodes,
+                    'edges': sc_result.edges,
                     'log_nodes': math.log10(sc_result.nodes) if sc_result.nodes > 0 else 0,
                     'log_edges': math.log10(sc_result.edges) if sc_result.edges > 0 else 0,
                     'avg_degree': (2 * sc_result.edges / sc_result.nodes) if sc_result.nodes > 0 else 0,
@@ -4755,8 +4775,12 @@ def train_adaptive_weights_iterative(
                     'clustering_coefficient': getattr(sc_result, 'clustering_coefficient', 0.0),
                     'avg_path_length': getattr(sc_result, 'avg_path_length', 0.0),
                     'diameter_estimate': getattr(sc_result, 'diameter_estimate', 0.0),
+                    'diameter': getattr(sc_result, 'diameter_estimate', 0.0),
                     'community_count': getattr(sc_result, 'community_count', 1),
                 }
+                
+                # Detect graph type for this subcommunity
+                graph_type = assign_graph_type(features, weights_dir, create_if_outlier=False)
                 
                 adaptive_algo = sc_result.adaptive_algorithm
                 correct_algo = sc_result.best_time_algorithm
@@ -4764,7 +4788,42 @@ def train_adaptive_weights_iterative(
                 if not correct_algo or correct_algo == adaptive_algo:
                     continue
                 
-                # Adjust weights for the correct algorithm (increase selection probability)
+                # === TYPE-BASED WEIGHT UPDATE ===
+                # Compute speedup for the correct algorithm (positive feedback)
+                # We use a synthetic speedup > 1.0 to reinforce correct algorithm
+                correct_speedup = 1.2  # Positive reinforcement
+                wrong_speedup = 0.8    # Negative reinforcement
+                
+                # Update type-based weights for CORRECT algorithm (positive feedback)
+                update_type_weights_incremental(
+                    type_name=graph_type,
+                    algorithm=correct_algo,
+                    benchmark=benchmark.lower(),
+                    speedup=correct_speedup,
+                    features=features,
+                    cache_stats=None,  # Not available in this context
+                    reorder_time=0.0,
+                    weights_dir=weights_dir,
+                    learning_rate=learning_rate
+                )
+                types_updated_this_iter.add(graph_type)
+                weights_updated += 1
+                
+                # Update type-based weights for WRONG algorithm (negative feedback)
+                update_type_weights_incremental(
+                    type_name=graph_type,
+                    algorithm=adaptive_algo,
+                    benchmark=benchmark.lower(),
+                    speedup=wrong_speedup,
+                    features=features,
+                    cache_stats=None,
+                    reorder_time=0.0,
+                    weights_dir=weights_dir,
+                    learning_rate=learning_rate
+                )
+                
+                # === LEGACY WEIGHTS UPDATE (for backwards compatibility) ===
+                # Also update the single weights file for iteration snapshots
                 if correct_algo in weights:
                     algo_weights = weights[correct_algo]
                     
@@ -4837,9 +4896,10 @@ def train_adaptive_weights_iterative(
                     algo_weights['bias'] = round(current_bias + learning_rate * 0.02, 4)
                     
                     weights[correct_algo] = algo_weights
-                    weights_updated += 1
                 
                 # Decrease weights for the adaptive-selected algorithm (that was wrong)
+                # NOTE: Type-based update already done above with wrong_speedup
+                # This section only updates the legacy single weights file
                 if adaptive_algo in weights:
                     algo_weights = weights[adaptive_algo]
                     
@@ -4875,17 +4935,23 @@ def train_adaptive_weights_iterative(
             'accuracy_cache_pct': avg_accuracy_cache,
             'timestamp': datetime.now().isoformat(),
             'learning_rate': learning_rate,
-            'graphs_tested': len(successful)
+            'graphs_tested': len(successful),
+            'types_updated': list(types_updated_this_iter),
+            'weight_system': 'type-based'  # Mark as using new system
         }
         
-        # Save updated weights
+        # Save updated legacy weights (for iteration snapshots)
         with open(weights_file, 'w') as f:
             json.dump(weights, f, indent=2)
+        
+        # Track types updated per iteration
+        types_updated_per_iter[iteration] = types_updated_this_iter
         
         iter_result.weights_updated = weights_updated
         result.iteration_history.append(iter_result)
         
         log(f"  Weights updated for {weights_updated} algorithm adjustments")
+        log(f"  Types updated: {len(types_updated_this_iter)} ({', '.join(sorted(types_updated_this_iter)) if types_updated_this_iter else 'none'})")
         
         # Also save iteration-specific weights for debugging
         iter_weights_file = os.path.join(training_dir, f"weights_iter{iteration}.json")
@@ -4929,7 +4995,7 @@ def train_adaptive_weights_iterative(
         json.dump(summary, f, indent=2)
     
     log(f"\n{'='*60}")
-    log("TRAINING COMPLETE")
+    log("TRAINING COMPLETE (TYPE-BASED WEIGHTS)")
     log(f"{'='*60}")
     log(f"Iterations run: {result.iterations_run}")
     log(f"Target accuracy: {target_accuracy}%")
@@ -4938,6 +5004,13 @@ def train_adaptive_weights_iterative(
     log(f"Target reached: {'YES' if result.target_reached else 'NO'}")
     log(f"Best iteration: {result.best_weights_iteration}")
     log(f"Training summary saved to: {summary_file}")
+    
+    # Summarize type updates
+    all_types_updated = set()
+    for types in types_updated_per_iter.values():
+        all_types_updated.update(types)
+    log(f"Total unique types updated: {len(all_types_updated)}")
+    log(f"Type weight files: {weights_dir}/type_*.json")
     
     # If we didn't reach target, restore best weights
     if not result.target_reached and result.best_weights_file and os.path.exists(result.best_weights_file):
