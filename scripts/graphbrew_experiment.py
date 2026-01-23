@@ -105,8 +105,8 @@ DEFAULT_WEIGHTS_DIR = "./scripts/weights"  # Auto-generated type weights
 DEFAULT_MAPPINGS_DIR = "./results/mappings"
 
 # Auto-clustering configuration
-CLUSTER_DISTANCE_THRESHOLD = 0.3  # Max normalized distance to join existing cluster
-MIN_SAMPLES_FOR_CLUSTER = 3  # Minimum graphs to form a stable cluster
+CLUSTER_DISTANCE_THRESHOLD = 0.15  # Max normalized distance to join existing cluster (lower = more clusters)
+MIN_SAMPLES_FOR_CLUSTER = 2  # Minimum graphs to form a stable cluster
 
 # Graph size categories (MB)
 SIZE_SMALL = 50
@@ -2168,6 +2168,41 @@ def clean_all(project_dir: str = ".", confirm: bool = False) -> None:
     
     print("\nClean complete - ready for fresh start")
 
+
+def clean_reorder_cache(graphs_dir: str = None):
+    """Clean all .lo and .time files to force fresh reordering.
+    
+    Args:
+        graphs_dir: Directory containing graph data (default: auto-detect)
+    """
+    if graphs_dir is None:
+        graphs_dir = os.environ.get("GRAPH_DATA_DIR", DEFAULT_GRAPHS_DIR)
+    
+    log_section("Cleaning Reorder Cache")
+    
+    # Find all .lo files
+    lo_files = glob.glob(os.path.join(graphs_dir, "**/*.lo"), recursive=True)
+    time_files = glob.glob(os.path.join(graphs_dir, "**/*.time"), recursive=True)
+    
+    total = len(lo_files) + len(time_files)
+    if total == 0:
+        log("No cached reorder files found.")
+        return
+    
+    log(f"Found {len(lo_files)} .lo files and {len(time_files)} .time files")
+    
+    removed = 0
+    for f in lo_files + time_files:
+        try:
+            os.remove(f)
+            removed += 1
+        except Exception as e:
+            log(f"  Failed to remove {f}: {e}", "WARN")
+    
+    log(f"Removed {removed}/{total} cached files")
+    log("Fresh reordering will be performed on next run.")
+
+
 def get_num_threads() -> int:
     """Get the number of available CPU threads."""
     try:
@@ -2378,7 +2413,8 @@ def generate_reorderings(
     output_dir: str,
     timeout: int = TIMEOUT_REORDER,
     skip_slow: bool = False,
-    generate_maps: bool = True
+    generate_maps: bool = True,
+    force_reorder: bool = False
 ) -> List[ReorderResult]:
     """
     Generate reorderings for all graphs and algorithms.
@@ -2392,8 +2428,12 @@ def generate_reorderings(
         timeout: Timeout for each reordering
         skip_slow: Skip slow algorithms on large graphs
         generate_maps: If True, generate .lo mapping files (default: True)
+        force_reorder: If True, regenerate even if .lo/.time files exist
     """
     log_section("Phase 1: Generate Reorderings")
+    
+    if force_reorder:
+        log("Force reorder enabled - will regenerate all reorderings")
     
     results = []
     total = len(graphs) * len(algorithms)
@@ -2443,8 +2483,8 @@ def generate_reorderings(
             # Output mapping file path
             map_file = os.path.join(graph_mappings_dir, f"{algo_name}.lo") if generate_maps else None
             
-            # Check if mapping already exists
-            if generate_maps and map_file and os.path.exists(map_file):
+            # Check if mapping already exists (unless force_reorder is set)
+            if generate_maps and map_file and os.path.exists(map_file) and not force_reorder:
                 # Load existing timing if available
                 timing_file = os.path.join(graph_mappings_dir, f"{algo_name}.time")
                 if os.path.exists(timing_file):
@@ -2463,6 +2503,13 @@ def generate_reorderings(
                     success=True
                 ))
                 continue
+            
+            # Remove existing files if force_reorder
+            if force_reorder and map_file and os.path.exists(map_file):
+                os.remove(map_file)
+                timing_file = os.path.join(graph_mappings_dir, f"{algo_name}.time")
+                if os.path.exists(timing_file):
+                    os.remove(timing_file)
             
             # Generate mapping with converter (also times it)
             if generate_maps:
@@ -2823,6 +2870,8 @@ def run_benchmarks(
                         'hub_concentration': parsed.get('hub_concentration'),
                         'clustering_coefficient': parsed.get('clustering_coefficient'),
                         'community_count': parsed.get('community_count'),
+                        'avg_path_length': parsed.get('avg_path_length'),
+                        'diameter': parsed.get('diameter'),
                         'graph_type': parsed.get('graph_type'),
                         'nodes': nodes,
                         'edges': edges,
@@ -2831,7 +2880,8 @@ def run_benchmarks(
                     }
                     # Only update if we got meaningful parsed data
                     if any(k in parsed for k in ['modularity', 'degree_variance', 'hub_concentration', 
-                                                   'clustering_coefficient', 'community_count', 'graph_type']):
+                                                   'clustering_coefficient', 'community_count', 'graph_type',
+                                                   'avg_path_length', 'diameter']):
                         update_graph_properties(graph.name, graph_features)
                     
                     # Record baseline for speedup (RANDOM = algo_id 1)
@@ -2870,6 +2920,8 @@ def run_benchmarks(
                             'density': cached_props.get('density') or computed_density,
                             'clustering_coefficient': cached_props.get('clustering_coefficient', 0.0),
                             'community_count': cached_props.get('community_count', 0),
+                            'avg_path_length': cached_props.get('avg_path_length', 0.0),
+                            'diameter': cached_props.get('diameter', 0.0),
                         }
                         graph_type = assign_graph_type(features, weights_dir)
                         
@@ -3024,6 +3076,8 @@ def run_cache_simulations(
                             'density': cached_props.get('density') or computed_density,
                             'clustering_coefficient': cached_props.get('clustering_coefficient', 0.0),
                             'community_count': cached_props.get('community_count', 0),
+                            'avg_path_length': cached_props.get('avg_path_length', 0.0),
+                            'diameter': cached_props.get('diameter', 0.0),
                         }
                         graph_type = assign_graph_type(features, weights_dir, create_if_outlier=False)
                         
@@ -3318,6 +3372,7 @@ def run_subcommunity_brute_force(
     results = []
     
     # All algorithms to test (0-20, excluding MAP=14 and AdaptiveOrder=15)
+    # Test algorithms 0-20, excluding MAP=14 and AdaptiveOrder=15
     test_algorithms = [i for i in range(21) if i not in [14, 15]]
     
     # Create mapping from adaptive output names to our algorithm names
@@ -3662,6 +3717,206 @@ def run_subcommunity_brute_force(
         log(f"Avg % adaptive in top 3 for cache: {avg_top3_cache:.1f}%")
     
     return results
+
+
+def validate_adaptive_accuracy(
+    graphs: List[GraphInfo],
+    bin_dir: str,
+    output_dir: str,
+    benchmarks: List[str] = ['pr', 'bfs', 'cc'],
+    timeout: int = TIMEOUT_BENCHMARK,
+    num_trials: int = 3,
+    force_reorder: bool = False
+) -> Dict[str, Any]:
+    """
+    Validate adaptive algorithm accuracy by comparing predicted vs actual best.
+    
+    For each graph and benchmark:
+    1. Run all algorithms and measure execution time
+    2. Get adaptive's prediction
+    3. Compare: Is adaptive's choice the best? In top 3? How far from best?
+    
+    This is faster than brute_force as it doesn't run cache simulations.
+    
+    Args:
+        graphs: List of graphs to test
+        bin_dir: Directory containing binaries  
+        output_dir: Directory for results
+        benchmarks: Benchmarks to test
+        timeout: Timeout per algorithm
+        num_trials: Number of trials for timing
+        force_reorder: Force regeneration of reorderings
+        
+    Returns:
+        Dict with accuracy statistics
+    """
+    log_section("Adaptive Algorithm Accuracy Validation")
+    log(f"Testing {len(graphs)} graphs × {len(benchmarks)} benchmarks")
+    log(f"Trials per algorithm: {num_trials}")
+    
+    # Algorithms to test (excluding MAP and AdaptiveOrder itself)
+    test_algorithms = [i for i in range(21) if i not in [13, 14, 15]]
+    
+    results = {
+        "graphs": [],
+        "summary": {
+            "total_tests": 0,
+            "adaptive_best_count": 0,
+            "adaptive_top3_count": 0,
+            "adaptive_top5_count": 0,
+            "avg_rank": 0.0,
+            "avg_slowdown_vs_best": 0.0,
+        },
+        "per_benchmark": {}
+    }
+    
+    all_ranks = []
+    all_slowdowns = []
+    
+    for bench in benchmarks:
+        results["per_benchmark"][bench] = {
+            "tests": 0,
+            "best_count": 0,
+            "top3_count": 0,
+            "avg_rank": 0.0
+        }
+        bench_ranks = []
+        
+        binary = os.path.join(bin_dir, bench)
+        if not os.path.exists(binary):
+            log(f"Binary not found: {binary}", "ERROR")
+            continue
+        
+        for graph in graphs:
+            log(f"\n[{bench.upper()}] {graph.name} ({graph.size_mb:.1f}MB)")
+            
+            algo_times = {}
+            adaptive_choice = None
+            
+            # Run all algorithms
+            for algo_id in test_algorithms:
+                algo_name = ALGORITHMS.get(algo_id, f"ALGO_{algo_id}")
+                
+                sym_flag = "-s" if graph.is_symmetric else ""
+                cmd = f"{binary} -f {graph.path} {sym_flag} -o {algo_id} -n {num_trials}"
+                
+                success, stdout, stderr = run_command(cmd, timeout)
+                
+                if success:
+                    output = stdout + stderr
+                    parsed = parse_benchmark_output(output)
+                    avg_time = parsed.get('average_time', parsed.get('trial_time', 999999))
+                    algo_times[algo_name] = avg_time
+                else:
+                    algo_times[algo_name] = 999999
+            
+            # Get adaptive choice
+            cmd = f"{binary} -f {graph.path} {sym_flag} -o 15 -n 1"
+            success, stdout, stderr = run_command(cmd, timeout)
+            
+            if success:
+                output = stdout + stderr
+                # Parse adaptive choice from output
+                match = re.search(r'Selected Algorithm[:\s]+(\w+)', output)
+                if match:
+                    adaptive_choice = match.group(1)
+                else:
+                    # Try alternative format
+                    match = re.search(r'Using[:\s]+(\w+)', output)
+                    if match:
+                        adaptive_choice = match.group(1)
+            
+            if not adaptive_choice or adaptive_choice not in algo_times:
+                log(f"  Could not determine adaptive choice", "WARN")
+                continue
+            
+            # Rank algorithms by time
+            sorted_algos = sorted(algo_times.items(), key=lambda x: x[1])
+            best_algo, best_time = sorted_algos[0]
+            adaptive_time = algo_times[adaptive_choice]
+            
+            # Find adaptive's rank
+            adaptive_rank = 1
+            for i, (algo, t) in enumerate(sorted_algos):
+                if algo == adaptive_choice:
+                    adaptive_rank = i + 1
+                    break
+            
+            # Calculate slowdown
+            slowdown = (adaptive_time / best_time - 1.0) * 100 if best_time > 0 else 0
+            
+            # Record
+            all_ranks.append(adaptive_rank)
+            all_slowdowns.append(slowdown)
+            bench_ranks.append(adaptive_rank)
+            
+            results["summary"]["total_tests"] += 1
+            results["per_benchmark"][bench]["tests"] += 1
+            
+            if adaptive_rank == 1:
+                results["summary"]["adaptive_best_count"] += 1
+                results["per_benchmark"][bench]["best_count"] += 1
+            if adaptive_rank <= 3:
+                results["summary"]["adaptive_top3_count"] += 1
+                results["per_benchmark"][bench]["top3_count"] += 1
+            if adaptive_rank <= 5:
+                results["summary"]["adaptive_top5_count"] += 1
+            
+            # Log result
+            status = "✓ BEST" if adaptive_rank == 1 else f"rank #{adaptive_rank}"
+            log(f"  Adaptive chose: {adaptive_choice} ({status}, +{slowdown:.1f}% vs {best_algo})")
+            
+            results["graphs"].append({
+                "graph": graph.name,
+                "benchmark": bench,
+                "adaptive_choice": adaptive_choice,
+                "adaptive_time": adaptive_time,
+                "adaptive_rank": adaptive_rank,
+                "best_algo": best_algo,
+                "best_time": best_time,
+                "slowdown_pct": slowdown,
+                "all_times": algo_times
+            })
+        
+        # Per-benchmark stats
+        if bench_ranks:
+            results["per_benchmark"][bench]["avg_rank"] = sum(bench_ranks) / len(bench_ranks)
+    
+    # Overall stats
+    if all_ranks:
+        results["summary"]["avg_rank"] = sum(all_ranks) / len(all_ranks)
+        results["summary"]["avg_slowdown_vs_best"] = sum(all_slowdowns) / len(all_slowdowns)
+        
+        total = results["summary"]["total_tests"]
+        best_pct = results["summary"]["adaptive_best_count"] / total * 100
+        top3_pct = results["summary"]["adaptive_top3_count"] / total * 100
+        top5_pct = results["summary"]["adaptive_top5_count"] / total * 100
+        
+        log(f"\n{'='*60}")
+        log("VALIDATION SUMMARY")
+        log(f"{'='*60}")
+        log(f"Total tests: {total}")
+        log(f"Adaptive chose BEST: {results['summary']['adaptive_best_count']} ({best_pct:.1f}%)")
+        log(f"Adaptive in TOP 3: {results['summary']['adaptive_top3_count']} ({top3_pct:.1f}%)")
+        log(f"Adaptive in TOP 5: {results['summary']['adaptive_top5_count']} ({top5_pct:.1f}%)")
+        log(f"Average rank: {results['summary']['avg_rank']:.2f}")
+        log(f"Average slowdown vs best: {results['summary']['avg_slowdown_vs_best']:.1f}%")
+        
+        # Per-benchmark breakdown
+        log(f"\nPer-benchmark breakdown:")
+        for bench, stats in results["per_benchmark"].items():
+            if stats["tests"] > 0:
+                best_pct = stats["best_count"] / stats["tests"] * 100
+                log(f"  {bench.upper()}: {best_pct:.1f}% best, avg rank {stats['avg_rank']:.2f}")
+    
+    # Save results
+    results_file = os.path.join(output_dir, f"adaptive_validation_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json")
+    with open(results_file, 'w') as f:
+        json.dump(results, f, indent=2)
+    log(f"\nResults saved to: {results_file}")
+    
+    return results
+
 
 def update_zero_weights(
     weights_file: str, 
@@ -5103,7 +5358,8 @@ def run_experiment(args):
             output_dir=args.results_dir,
             timeout=args.timeout_reorder,
             skip_slow=args.skip_slow,
-            generate_maps=True  # Always generate .lo mapping files
+            generate_maps=True,  # Always generate .lo mapping files
+            force_reorder=getattr(args, "force_reorder", False)
         )
         all_reorder_results.extend(reorder_results)
         
@@ -5222,7 +5478,7 @@ def run_experiment(args):
     # Phase 7: Adaptive vs Fixed Comparison
     if getattr(args, "adaptive_comparison", False):
         # Compare against top fixed algorithms
-        fixed_algos = [1, 2, 4, 7, 12, 17]  # RCM, LeidenBFS, Gorder, DBG, RabbitOrder, LeidenDFSSize
+        fixed_algos = [1, 2, 4, 7, 12, 17]  # RANDOM, SORT, HUBCLUSTER, HUBCLUSTERDBG, LeidenOrder, LeidenDFSHub
         
         comparison_results = compare_adaptive_vs_fixed(
             graphs=graphs,
@@ -5246,6 +5502,18 @@ def run_experiment(args):
             timeout=args.timeout_benchmark,
             timeout_sim=args.timeout_sim,
             num_trials=args.trials
+        )
+    
+    # Phase 8b: Validate Adaptive Accuracy (faster than brute-force)
+    if getattr(args, "validate_adaptive", False):
+        validation_results = validate_adaptive_accuracy(
+            graphs=graphs,
+            bin_dir=args.bin_dir,
+            output_dir=args.results_dir,
+            benchmarks=getattr(args, "benchmarks", ['pr', 'bfs', 'cc']),
+            timeout=args.timeout_benchmark,
+            num_trials=args.trials,
+            force_reorder=getattr(args, "force_reorder", False)
         )
     
     # Phase 9: Iterative Training (feedback loop to optimize adaptive weights)
@@ -5337,7 +5605,8 @@ def run_experiment(args):
             output_dir=args.results_dir,
             timeout=args.timeout_reorder,
             skip_slow=getattr(args, 'skip_slow', False),
-            generate_maps=True  # Always generate .lo mapping files
+            generate_maps=True,  # Always generate .lo mapping files
+            force_reorder=getattr(args, "force_reorder", False)
         )
         
         # Phase 2: Benchmarks (all of them)
@@ -5581,12 +5850,18 @@ Examples:
                         help="Pre-generate label.map files for consistent reordering")
     parser.add_argument("--use-maps", action="store_true",
                         help="Use pre-generated label maps instead of regenerating reorderings")
+    parser.add_argument("--force-reorder", action="store_true",
+                        help="Force regeneration of reorderings even if .lo/.time files exist")
+    parser.add_argument("--clean-reorder-cache", action="store_true",
+                        help="Remove all .lo and .time files to force fresh reordering")
     
     # Brute-force validation
     parser.add_argument("--brute-force", action="store_true",
                         help="Run brute-force validation: test all 20 algorithms vs adaptive choice")
     parser.add_argument("--bf-benchmark", default="pr",
                         help="Benchmark to use for brute-force validation (default: pr)")
+    parser.add_argument("--validate-adaptive", action="store_true",
+                        help="Validate adaptive algorithm accuracy: compare predicted vs actual best")
     
     # Iterative training options
     parser.add_argument("--train-adaptive", action="store_true",
@@ -5657,6 +5932,13 @@ Examples:
         clean_results(args.results_dir, keep_graphs=True, keep_weights=True)
         if not (args.full or args.download_only or args.phase != "all"):
             return  # Just clean, don't run experiments
+    
+    # Handle --clean-reorder-cache early
+    if getattr(args, 'clean_reorder_cache', False):
+        clean_reorder_cache(args.graphs_dir)
+        if not (args.full or args.download_only or args.phase != "all" or 
+                getattr(args, 'validate_adaptive', False) or getattr(args, 'brute_force', False)):
+            return  # Just clean cache, don't run experiments
     
     # Handle --show-types early (informational command)
     if getattr(args, 'show_types', False):
