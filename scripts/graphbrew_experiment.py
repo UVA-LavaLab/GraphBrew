@@ -31,6 +31,7 @@ Author: GraphBrew Team
 """
 
 import argparse
+import copy
 import json
 import os
 import re
@@ -137,6 +138,198 @@ class GraphInfo:
 # ============================================================================
 # Graph Feature Computation Functions
 # ============================================================================
+
+# Graph type constants (must match C++ GraphType enum in builder.h)
+GRAPH_TYPE_GENERIC = "generic"
+GRAPH_TYPE_SOCIAL = "social"
+GRAPH_TYPE_ROAD = "road"
+GRAPH_TYPE_WEB = "web"
+GRAPH_TYPE_POWERLAW = "powerlaw"
+GRAPH_TYPE_UNIFORM = "uniform"
+
+ALL_GRAPH_TYPES = [
+    GRAPH_TYPE_GENERIC,
+    GRAPH_TYPE_SOCIAL,
+    GRAPH_TYPE_ROAD,
+    GRAPH_TYPE_WEB,
+    GRAPH_TYPE_POWERLAW,
+    GRAPH_TYPE_UNIFORM,
+]
+
+# Global cache for graph properties (populated during benchmark runs)
+_graph_properties_cache: Dict[str, Dict] = {}
+
+def get_graph_properties_cache_file(output_dir: str = "results") -> str:
+    """Get the path to the graph properties cache file."""
+    return os.path.join(output_dir, "graph_properties_cache.json")
+
+def load_graph_properties_cache(output_dir: str = "results") -> Dict[str, Dict]:
+    """Load graph properties cache from file."""
+    global _graph_properties_cache
+    cache_file = get_graph_properties_cache_file(output_dir)
+    if os.path.exists(cache_file):
+        try:
+            with open(cache_file) as f:
+                _graph_properties_cache = json.load(f)
+        except Exception:
+            _graph_properties_cache = {}
+    return _graph_properties_cache
+
+def save_graph_properties_cache(output_dir: str = "results"):
+    """Save graph properties cache to file."""
+    global _graph_properties_cache
+    cache_file = get_graph_properties_cache_file(output_dir)
+    os.makedirs(output_dir, exist_ok=True)
+    with open(cache_file, 'w') as f:
+        json.dump(_graph_properties_cache, f, indent=2)
+
+def update_graph_properties(graph_name: str, properties: Dict, output_dir: str = "results"):
+    """
+    Update graph properties in the cache.
+    
+    Args:
+        graph_name: Name of the graph
+        properties: Dict with keys like 'modularity', 'degree_variance', 
+                   'hub_concentration', 'avg_degree', 'graph_type', 'nodes', 'edges'
+    """
+    global _graph_properties_cache
+    if graph_name not in _graph_properties_cache:
+        _graph_properties_cache[graph_name] = {}
+    
+    # Update with new properties (don't overwrite existing valid values with None)
+    for key, value in properties.items():
+        if value is not None:
+            _graph_properties_cache[graph_name][key] = value
+    
+    # Auto-detect graph type if we have enough features
+    if 'graph_type' not in _graph_properties_cache[graph_name]:
+        props = _graph_properties_cache[graph_name]
+        if all(k in props for k in ['modularity', 'degree_variance', 'hub_concentration']):
+            avg_degree = props.get('avg_degree', 0)
+            if avg_degree == 0 and 'nodes' in props and 'edges' in props:
+                avg_degree = 2 * props['edges'] / props['nodes'] if props['nodes'] > 0 else 0
+            
+            _graph_properties_cache[graph_name]['graph_type'] = detect_graph_type(
+                props['modularity'],
+                props['degree_variance'],
+                props['hub_concentration'],
+                avg_degree
+            )
+
+def get_graph_type_from_properties(graph_name: str, fallback_to_name: bool = True) -> str:
+    """
+    Get graph type from cached properties, or fall back to name heuristic.
+    
+    Args:
+        graph_name: Name of the graph
+        fallback_to_name: If True, use name-based heuristic when no cached properties
+    
+    Returns:
+        Graph type string
+    """
+    global _graph_properties_cache
+    
+    if graph_name in _graph_properties_cache:
+        props = _graph_properties_cache[graph_name]
+        
+        # If we have pre-computed graph type, use it
+        if 'graph_type' in props:
+            return props['graph_type']
+        
+        # Try to detect from stored features
+        if all(k in props for k in ['modularity', 'degree_variance', 'hub_concentration']):
+            avg_degree = props.get('avg_degree', 0)
+            if avg_degree == 0 and 'nodes' in props and 'edges' in props:
+                avg_degree = 2 * props['edges'] / props['nodes'] if props['nodes'] > 0 else 0
+            
+            return detect_graph_type(
+                props['modularity'],
+                props['degree_variance'],
+                props['hub_concentration'],
+                avg_degree
+            )
+    
+    # Fall back to name-based heuristic
+    if fallback_to_name:
+        return get_graph_type_from_name(graph_name)
+    
+    return GRAPH_TYPE_GENERIC
+
+
+def detect_graph_type(modularity: float, degree_variance: float, 
+                      hub_concentration: float, avg_degree: float,
+                      num_nodes: int = 0) -> str:
+    """
+    Detect graph type based on topological features.
+    
+    Uses the same decision tree as C++ DetectGraphType() in builder.h.
+    
+    Args:
+        modularity: Leiden modularity score (0-1)
+        degree_variance: Coefficient of variation of degrees
+        hub_concentration: Fraction of edges to top 10% nodes
+        avg_degree: Average node degree
+        num_nodes: Number of nodes (for additional heuristics)
+    
+    Returns:
+        One of: 'generic', 'social', 'road', 'web', 'powerlaw', 'uniform'
+    """
+    # Decision tree matching C++ implementation
+    
+    # Road networks: very regular, low degree variance, sparse
+    if modularity < 0.1 and degree_variance < 0.5 and avg_degree < 10:
+        return GRAPH_TYPE_ROAD
+    
+    # Social networks: high modularity, high degree variance
+    if modularity > 0.3 and degree_variance > 0.8:
+        return GRAPH_TYPE_SOCIAL
+    
+    # Web graphs: high hub concentration, power-law like
+    if hub_concentration > 0.5 and degree_variance > 1.0:
+        return GRAPH_TYPE_WEB
+    
+    # Power-law (scale-free) graphs: very high degree variance
+    if degree_variance > 1.5 and modularity < 0.3:
+        return GRAPH_TYPE_POWERLAW
+    
+    # Uniform random graphs: low variance, no clear structure
+    if degree_variance < 0.5 and hub_concentration < 0.3 and modularity < 0.1:
+        return GRAPH_TYPE_UNIFORM
+    
+    # Default fallback
+    return GRAPH_TYPE_GENERIC
+
+
+def get_graph_type_from_name(graph_name: str) -> str:
+    """
+    Heuristic graph type detection based on graph name.
+    
+    Used as a fallback when we don't have computed features.
+    """
+    name_lower = graph_name.lower()
+    
+    # Social networks
+    if any(x in name_lower for x in ['soc-', 'social', 'twitter', 'facebook', 'friendster', 'orkut']):
+        return GRAPH_TYPE_SOCIAL
+    
+    # Road networks
+    if any(x in name_lower for x in ['road', 'osm', 'tiger', 'rgg_']):
+        return GRAPH_TYPE_ROAD
+    
+    # Web graphs
+    if any(x in name_lower for x in ['web-', 'uk-', 'it-', 'arabic', 'webbase', 'indochina']):
+        return GRAPH_TYPE_WEB
+    
+    # Power-law / scale-free
+    if any(x in name_lower for x in ['kron', 'rmat', 'gap-kron']):
+        return GRAPH_TYPE_POWERLAW
+    
+    # Uniform random
+    if any(x in name_lower for x in ['urand', 'erdos', 'gap-urand', 'random']):
+        return GRAPH_TYPE_UNIFORM
+    
+    return GRAPH_TYPE_GENERIC
+
 
 def compute_clustering_coefficient_sample(adjacency_list: Dict[int, List[int]], sample_size: int = 1000) -> float:
     """
@@ -625,24 +818,11 @@ DOWNLOAD_GRAPHS_MEDIUM = [
     # Infrastructure
     DownloadableGraph("as-Skitter", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/as-Skitter.tar.gz",
                       90, 1696415, 11095298, True, "infrastructure", "Internet topology"),
-    DownloadableGraph("as-caida20071105", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/as-caida20071105.tar.gz",
-                      1, 26475, 53381, False, "infrastructure", "CAIDA AS graph Nov 2007"),
     # Autonomous systems
     DownloadableGraph("Oregon-1", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/Oregon-1.tar.gz",
                       1, 11174, 23409, False, "infrastructure", "Oregon AS peering"),
     DownloadableGraph("Oregon-2", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/Oregon-2.tar.gz",
                       1, 11461, 32730, False, "infrastructure", "Oregon AS peering 2"),
-    # Additional social networks
-    DownloadableGraph("loc-Brightkite", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/loc-brightkite_edges.tar.gz",
-                      3, 58228, 214078, False, "social", "Brightkite location social"),
-    DownloadableGraph("loc-Gowalla", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/loc-gowalla_edges.tar.gz",
-                      8, 196591, 950327, False, "social", "Gowalla location social"),
-    DownloadableGraph("ego-Facebook", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/ego-Facebook.tar.gz",
-                      1, 4039, 88234, True, "social", "Facebook ego networks"),
-    DownloadableGraph("ego-Twitter", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/ego-Twitter.tar.gz",
-                      6, 81306, 1768149, False, "social", "Twitter ego networks"),
-    DownloadableGraph("ego-Gplus", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/ego-Gplus.tar.gz",
-                      15, 107614, 13673453, False, "social", "Google+ ego networks"),
     # DIMACS10 graphs (sparse)
     DownloadableGraph("delaunay_n17", "https://suitesparse-collection-website.herokuapp.com/MM/DIMACS10/delaunay_n17.tar.gz",
                       5, 131072, 393176, True, "mesh", "Delaunay triangulation n=17"),
@@ -681,15 +861,11 @@ DOWNLOAD_GRAPHS_LARGE = [
                       220, 334863, 925872, True, "commerce", "Amazon product network"),
     DownloadableGraph("com-DBLP", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/com-DBLP.tar.gz",
                       200, 317080, 1049866, True, "collaboration", "DBLP collaboration"),
-    DownloadableGraph("com-lj", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/com-lj.tar.gz",
-                      1100, 3997962, 34681189, True, "social", "LiveJournal communities"),
     # Collaboration
     DownloadableGraph("hollywood-2009", "https://suitesparse-collection-website.herokuapp.com/MM/LAW/hollywood-2009.tar.gz",
                       600, 1139905, 57515616, True, "collaboration", "Hollywood actors"),
     DownloadableGraph("dblp-2010", "https://suitesparse-collection-website.herokuapp.com/MM/LAW/dblp-2010.tar.gz",
                       200, 326186, 1615400, True, "collaboration", "DBLP 2010"),
-    DownloadableGraph("dblp-2011", "https://suitesparse-collection-website.herokuapp.com/MM/LAW/dblp-2011.tar.gz",
-                      220, 986324, 6707236, True, "collaboration", "DBLP 2011"),
     # Web graphs (large)
     DownloadableGraph("in-2004", "https://suitesparse-collection-website.herokuapp.com/MM/LAW/in-2004.tar.gz",
                       450, 1382908, 16917053, False, "web", "Indian web 2004"),
@@ -703,9 +879,7 @@ DOWNLOAD_GRAPHS_LARGE = [
                       600, 7414866, 194109311, False, "web", "Indochina web 2004"),
     DownloadableGraph("sk-2005", "https://suitesparse-collection-website.herokuapp.com/MM/LAW/sk-2005.tar.gz",
                       1100, 50636154, 1949412601, False, "web", "Slovakia web 2005"),
-    # Road networks (large)
-    DownloadableGraph("USA-road-d-NY", "https://suitesparse-collection-website.herokuapp.com/MM/DIMACS10/road_usa.tar.gz",
-                      350, 23947347, 57708624, True, "road", "US road network"),
+    # Road networks (large) - OSM graphs extract with subdirectory structure
     DownloadableGraph("europe-osm", "https://suitesparse-collection-website.herokuapp.com/MM/DIMACS10/europe_osm.tar.gz",
                       1200, 50912018, 108109320, True, "road", "European OSM roads"),
     DownloadableGraph("asia-osm", "https://suitesparse-collection-website.herokuapp.com/MM/DIMACS10/asia_osm.tar.gz",
@@ -1432,15 +1606,35 @@ def clean_all(project_dir: str = ".", confirm: bool = False) -> None:
     
     print("\nClean complete - ready for fresh start")
 
-def run_command(cmd: str, timeout: int = 300) -> Tuple[bool, str, str]:
-    """Run a shell command with timeout."""
+def get_num_threads() -> int:
+    """Get the number of available CPU threads."""
     try:
+        return os.cpu_count() or 1
+    except:
+        return 1
+
+def run_command(cmd: str, timeout: int = 300, use_all_threads: bool = True) -> Tuple[bool, str, str]:
+    """Run a shell command with timeout.
+    
+    Args:
+        cmd: Command to run
+        timeout: Timeout in seconds
+        use_all_threads: If True, set OMP_NUM_THREADS to use all available cores
+    """
+    try:
+        # Set up environment with OpenMP thread count
+        env = os.environ.copy()
+        if use_all_threads:
+            num_threads = get_num_threads()
+            env['OMP_NUM_THREADS'] = str(num_threads)
+        
         result = subprocess.run(
             cmd,
             shell=True,
             capture_output=True,
             text=True,
-            timeout=timeout
+            timeout=timeout,
+            env=env
         )
         return result.returncode == 0, result.stdout, result.stderr
     except subprocess.TimeoutExpired:
@@ -1476,7 +1670,51 @@ def parse_benchmark_output(output: str) -> Dict[str, Any]:
     if match:
         result['modularity'] = float(match.group(1))
     
+    # Global graph features (from AdaptiveOrder output)
+    # Degree Variance: 0.1234
+    match = re.search(r'Degree Variance[:\s]+([\d.]+)', output)
+    if match:
+        result['degree_variance'] = float(match.group(1))
+    
+    # Hub Concentration: 0.1234
+    match = re.search(r'Hub Concentration[:\s]+([\d.]+)', output)
+    if match:
+        result['hub_concentration'] = float(match.group(1))
+    
+    # Graph Type: social
+    match = re.search(r'Graph Type[:\s]+(\w+)', output)
+    if match:
+        result['graph_type'] = match.group(1).lower()
+    
     return result
+
+
+def parse_reorder_time_from_converter(output: str) -> Optional[float]:
+    """
+    Parse the actual reorder time from converter output.
+    
+    The converter outputs lines like:
+        HubSort Map Time:    0.05982
+        GOrder Map Time:     0.25328
+        RabbitOrder Map Time:0.09335
+        COrder Map Time:     0.00910
+        DBG Map Time:        0.01234
+        etc.
+    
+    We look for the LAST non-Relabel "*Map Time:" entry as that's the final reorder.
+    """
+    # Match lines like 'AlgoName Map Time:' but NOT 'Relabel Map Time:'
+    pattern = r'^([A-Za-z]+)\s+Map Time:\s*([\d.]+)'
+    matches = re.findall(pattern, output, re.MULTILINE)
+    
+    # Filter out Relabel entries
+    matches = [(name, time) for name, time in matches if name != 'Relabel']
+    
+    if matches:
+        # Return the last one (the actual reorder algorithm time)
+        return float(matches[-1][1])
+    
+    return None
 
 def parse_cache_output(output: str) -> Dict[str, float]:
     """Parse cache simulation output."""
@@ -1639,17 +1877,25 @@ def generate_reorderings(
                 if generate_maps:
                     # Verify map file was created
                     if os.path.exists(map_file):
+                        # Parse actual reorder time from converter output
+                        actual_reorder_time = parse_reorder_time_from_converter(output)
+                        if actual_reorder_time is not None:
+                            reorder_time = actual_reorder_time
+                        else:
+                            # Fallback to elapsed time if parsing fails
+                            reorder_time = elapsed
+                        
                         # Save timing to file for future reference
                         timing_file = os.path.join(graph_mappings_dir, f"{algo_name}.time")
                         with open(timing_file, 'w') as f:
-                            f.write(f"{elapsed:.6f}")
+                            f.write(f"{reorder_time:.6f}")
                         
-                        log(f"  [{current}/{total}] {algo_name}: {elapsed:.4f}s (map: {algo_name}.lo)")
+                        log(f"  [{current}/{total}] {algo_name}: {reorder_time:.4f}s (map: {algo_name}.lo)")
                         results.append(ReorderResult(
                             graph=graph.name,
                             algorithm_id=algo_id,
                             algorithm_name=algo_name,
-                            reorder_time=elapsed,
+                            reorder_time=reorder_time,
                             mapping_file=map_file,
                             success=True
                         ))
@@ -1951,6 +2197,18 @@ def run_benchmarks(
                     trial_time = parsed.get('average_time', parsed.get('trial_time', 0.0))
                     nodes = parsed.get('nodes', 0)
                     edges = parsed.get('edges', 0)
+                    
+                    # Update graph properties cache with any parsed features
+                    if any(k in parsed for k in ['modularity', 'degree_variance', 'hub_concentration', 'graph_type']):
+                        update_graph_properties(graph.name, {
+                            'modularity': parsed.get('modularity'),
+                            'degree_variance': parsed.get('degree_variance'),
+                            'hub_concentration': parsed.get('hub_concentration'),
+                            'graph_type': parsed.get('graph_type'),
+                            'nodes': nodes,
+                            'edges': edges,
+                            'avg_degree': 2 * edges / nodes if nodes > 0 else 0
+                        })
                     
                     # Record baseline for speedup (RANDOM = algo_id 1)
                     if algo_id == BASELINE_ALGO_ID:
@@ -2958,6 +3216,171 @@ def compute_benchmark_weights(
         log(f"  {benchmark}: best={top3[0][0]}({top3[0][1]:.2f}), {top3[1][0]}({top3[1][1]:.2f}), {top3[2][0]}({top3[2][1]:.2f})")
 
 
+def generate_per_type_weights(
+    base_weights_file: str,
+    benchmark_results: List[BenchmarkResult],
+    graphs_dir: str,
+    output_dir: str = "scripts"
+) -> Dict[str, str]:
+    """
+    Generate per-graph-type weight files.
+    
+    This function:
+    1. Groups benchmark results by detected graph type (from computed properties)
+    2. For each graph type, computes specialized weights based on results for that type
+    3. Saves weights to type-specific files (e.g., perceptron_weights_social.json)
+    
+    Args:
+        base_weights_file: Path to the base weights file (used as starting point)
+        benchmark_results: List of benchmark results from all phases
+        graphs_dir: Directory containing graph files
+        output_dir: Directory to save per-type weight files
+    
+    Returns:
+        Dict mapping graph type to weight file path
+    """
+    log("Generating per-graph-type weight files...")
+    
+    # Load graph properties cache if not already loaded
+    load_graph_properties_cache(output_dir)
+    
+    # Load base weights as template
+    with open(base_weights_file) as f:
+        base_weights = json.load(f)
+    
+    # Group benchmark results by graph type
+    type_results: Dict[str, List[BenchmarkResult]] = {t: [] for t in ALL_GRAPH_TYPES}
+    graph_type_cache: Dict[str, str] = {}
+    detection_method: Dict[str, str] = {}  # Track how each graph type was detected
+    
+    for result in benchmark_results:
+        if not result.success:
+            continue
+        
+        # Get or detect graph type from properties (falls back to name heuristic)
+        if result.graph not in graph_type_cache:
+            # Check if we have properties for this graph
+            has_properties = (result.graph in _graph_properties_cache and 
+                            any(k in _graph_properties_cache[result.graph] 
+                                for k in ['modularity', 'degree_variance', 'hub_concentration', 'graph_type']))
+            
+            # Use properties-based detection, with name fallback
+            graph_type = get_graph_type_from_properties(result.graph, fallback_to_name=True)
+            graph_type_cache[result.graph] = graph_type
+            detection_method[result.graph] = "properties" if has_properties else "name"
+        
+        graph_type = graph_type_cache[result.graph]
+        type_results[graph_type].append(result)
+    
+    # Log distribution with detection method
+    log("  Graph type distribution:")
+    for gtype, results in type_results.items():
+        if results:
+            unique_graphs = set(r.graph for r in results)
+            # Count by detection method
+            from_props = sum(1 for g in unique_graphs if detection_method.get(g) == "properties")
+            from_name = sum(1 for g in unique_graphs if detection_method.get(g) == "name")
+            log(f"    {gtype}: {len(unique_graphs)} graphs ({from_props} from properties, {from_name} from name), {len(results)} results")
+    
+    # Generate weights for each graph type
+    output_files = {}
+    
+    for graph_type in ALL_GRAPH_TYPES:
+        results = type_results[graph_type]
+        
+        if not results and graph_type != GRAPH_TYPE_GENERIC:
+            # No data for this type - skip (will fall back to generic)
+            continue
+        
+        # Start with base weights
+        type_weights = copy.deepcopy(base_weights)
+        
+        # Update metadata
+        type_weights["_graph_type"] = graph_type
+        type_weights["_generation_date"] = datetime.now().isoformat()
+        type_weights["_graphs_used"] = list(set(r.graph for r in results)) if results else []
+        
+        if results:
+            # Compute type-specific algorithm performance
+            algo_performance: Dict[str, Dict] = {}
+            
+            for result in results:
+                if result.algorithm_name not in algo_performance:
+                    algo_performance[result.algorithm_name] = {
+                        'speedups': [],
+                        'times': [],
+                        'wins': 0,
+                        'count': 0
+                    }
+                algo_performance[result.algorithm_name]['speedups'].append(result.speedup)
+                algo_performance[result.algorithm_name]['times'].append(result.avg_time)
+                algo_performance[result.algorithm_name]['count'] += 1
+            
+            # Compute wins (best speedup for each graph/benchmark combo)
+            from collections import defaultdict
+            best_for_combo: Dict[tuple, tuple] = {}  # (graph, benchmark) -> (algo, speedup)
+            
+            for result in results:
+                key = (result.graph, result.benchmark)
+                if key not in best_for_combo or result.speedup > best_for_combo[key][1]:
+                    best_for_combo[key] = (result.algorithm_name, result.speedup)
+            
+            for (graph, benchmark), (winner, _) in best_for_combo.items():
+                if winner in algo_performance:
+                    algo_performance[winner]['wins'] += 1
+            
+            # Adjust biases based on win rate for this graph type
+            total_combos = len(best_for_combo)
+            
+            for algo_name, perf in algo_performance.items():
+                if algo_name not in type_weights or algo_name.startswith("_"):
+                    continue
+                
+                win_rate = perf['wins'] / total_combos if total_combos > 0 else 0
+                avg_speedup = sum(perf['speedups']) / len(perf['speedups']) if perf['speedups'] else 1.0
+                
+                # Adjust bias based on win rate and average speedup
+                current_bias = type_weights[algo_name].get('bias', 0.5)
+                
+                # Bias adjustment: scale by win rate (0-50%) and avg speedup
+                adjustment = (win_rate - 0.1) * 0.5 + (avg_speedup - 1.0) * 0.1
+                new_bias = max(0.1, min(1.0, current_bias + adjustment))
+                
+                type_weights[algo_name]['bias'] = round(new_bias, 4)
+                
+                # Store performance metadata
+                type_weights[algo_name]['_metadata'] = type_weights[algo_name].get('_metadata', {})
+                type_weights[algo_name]['_metadata'].update({
+                    f'{graph_type}_win_rate': round(win_rate, 4),
+                    f'{graph_type}_avg_speedup': round(avg_speedup, 4),
+                    f'{graph_type}_sample_count': perf['count']
+                })
+        
+        # Save to type-specific file
+        if graph_type == GRAPH_TYPE_GENERIC:
+            output_file = base_weights_file  # Generic is the base file
+        else:
+            base_name = os.path.basename(base_weights_file).replace('.json', '')
+            output_file = os.path.join(output_dir, f"{base_name}_{graph_type}.json")
+        
+        with open(output_file, 'w') as f:
+            json.dump(type_weights, f, indent=2)
+        
+        output_files[graph_type] = output_file
+        log(f"  Saved {graph_type} weights to: {output_file}")
+    
+    # Also copy to scripts directory for C++ to find
+    scripts_dir = "scripts"
+    if output_dir != scripts_dir:
+        for graph_type, weight_file in output_files.items():
+            if graph_type != GRAPH_TYPE_GENERIC:
+                dest = os.path.join(scripts_dir, os.path.basename(weight_file))
+                shutil.copy2(weight_file, dest)
+                log(f"  Synced to: {dest}")
+    
+    return output_files
+
+
 # ============================================================================
 # Phase 5b: Iterative Weight Training with Feedback Loop
 # ============================================================================
@@ -3689,8 +4112,25 @@ def analyze_adaptive_order(
             output = stdout + stderr
             modularity, num_communities, subcommunities, algo_distribution = parse_adaptive_output(output)
             
+            # Also parse global features for graph type detection
+            parsed = parse_benchmark_output(output)
+            
+            # Update graph properties cache with detected features
+            props = {
+                'modularity': modularity,
+                'degree_variance': parsed.get('degree_variance'),
+                'hub_concentration': parsed.get('hub_concentration'),
+                'graph_type': parsed.get('graph_type'),
+                'nodes': graph.nodes,
+                'edges': graph.edges,
+                'avg_degree': 2 * graph.edges / graph.nodes if graph.nodes > 0 else 0
+            }
+            update_graph_properties(graph.name, props)
+            
             log(f"  Modularity: {modularity:.4f}")
             log(f"  Communities: {num_communities}")
+            if parsed.get('graph_type'):
+                log(f"  Detected type: {parsed.get('graph_type')}")
             log(f"  Subcommunities analyzed: {len(subcommunities)}")
             log(f"  Algorithm distribution:")
             for algo, count in sorted(algo_distribution.items(), key=lambda x: -x[1])[:5]:
@@ -4135,16 +4575,37 @@ def run_experiment(args):
     if getattr(args, "fill_weights", False):
         log_section("Fill All Weights - Comprehensive Training")
         log("This mode runs all phases to populate every weight field:")
+        log("  - Phase 0: Graph Analysis (detects graph types from properties)")
         log("  - Phase 1: Reorderings (fills w_reorder_time)")
         log("  - Phase 2: Benchmarks (fills bias, w_log_*, w_density, w_avg_degree)")
         log("  - Phase 3: Cache Simulation (fills cache_l1/l2/l3_impact)")
         log("  - Phase 4: Generate base weights")
         log("  - Phase 5: Update topology weights (fills w_clustering_coeff, etc.)")
+        log("  - Phase 6: Compute per-benchmark weights")
+        log("  - Phase 7: Generate per-graph-type weight files (from detected properties)")
         log("")
+        
+        # Load existing graph properties cache if available
+        cache_dir = os.path.dirname(args.weights_file) or "results"
+        load_graph_properties_cache(cache_dir)
+        log(f"Loaded graph properties cache: {len(_graph_properties_cache)} graphs")
         
         # Force enable cache simulation for this mode
         skip_cache_original = getattr(args, 'skip_cache', False)
         args.skip_cache = False
+        
+        # Phase 0: Graph Analysis - Run AdaptiveOrder to detect graph types
+        log_section("Phase 0: Graph Property Analysis")
+        log("Running AdaptiveOrder to compute graph properties (modularity, degree variance, etc.)")
+        adaptive_results = analyze_adaptive_order(
+            graphs=graphs,
+            bin_dir=args.bin_dir,
+            output_dir=args.results_dir,
+            timeout=args.timeout_reorder
+        )
+        # Save the cache after analysis
+        save_graph_properties_cache(cache_dir)
+        log(f"Graph properties cached for {len(_graph_properties_cache)} graphs")
         
         # Phase 1: Reorderings
         log_section("Phase 1: Generate Reorderings")
@@ -4209,6 +4670,19 @@ def run_experiment(args):
             weights_file=args.weights_file,
             benchmark_results=benchmark_results
         )
+        
+        # Phase 7: Generate per-graph-type weight files
+        log_section("Phase 7: Generate Per-Graph-Type Weights")
+        generate_per_type_weights(
+            base_weights_file=args.weights_file,
+            benchmark_results=benchmark_results,
+            graphs_dir=args.graphs_dir,
+            output_dir=os.path.dirname(args.weights_file) or "scripts"
+        )
+        
+        # Save graph properties cache for future use
+        save_graph_properties_cache(output_dir=os.path.dirname(args.weights_file) or "results")
+        log(f"Saved graph properties cache to: {get_graph_properties_cache_file(os.path.dirname(args.weights_file) or 'results')}")
         
         # Restore original skip_cache setting
         args.skip_cache = skip_cache_original
@@ -4462,24 +4936,23 @@ Examples:
             if not check_and_build_binaries("."):
                 log("Build failed - attempting to continue anyway", "WARN")
         
-        # 3. Check for graphs and download if missing
+        # 3. Download ALL requested graphs FIRST (before any experiments)
+        # This ensures all graphs are ready before we start reordering/benchmarks
+        log("Downloading graphs (ensuring all are ready before experiments)...")
+        downloaded = download_graphs(
+            size_category=args.download_size,
+            graphs_dir=args.graphs_dir,
+            force=False,  # Don't re-download existing
+            max_memory_gb=args.max_memory,
+            max_disk_gb=args.max_disk
+        )
+        
+        # Now discover all available graphs
         graphs = discover_graphs(args.graphs_dir, max_memory_gb=args.max_memory)
         if not graphs:
-            log("No graphs found - downloading automatically...", "INFO")
-            download_graphs(
-                size_category=args.download_size,
-                graphs_dir=args.graphs_dir,
-                force=False,
-                max_memory_gb=args.max_memory,
-                max_disk_gb=args.max_disk
-            )
-            # Re-discover after download
-            graphs = discover_graphs(args.graphs_dir, max_memory_gb=args.max_memory)
-            if not graphs:
-                log("Still no graphs found after download - aborting", "ERROR")
-                sys.exit(1)
-        else:
-            log(f"Found {len(graphs)} graphs")
+            log("No graphs found after download - aborting", "ERROR")
+            sys.exit(1)
+        log(f"Total graphs ready: {len(graphs)}")
         
         # 4. Check for weights file and initialize if missing
         if not os.path.exists(args.weights_file):
@@ -4492,7 +4965,7 @@ Examples:
                 log("Initializing new weights file...", "INFO")
                 weights = initialize_enhanced_weights(args.weights_file)
         
-        log("Auto-setup complete\n")
+        log("Auto-setup complete - all graphs downloaded and ready\n")
     
     try:
         # Handle download-only mode
