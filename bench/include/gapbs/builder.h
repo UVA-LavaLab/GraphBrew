@@ -7,17 +7,20 @@
 #include <algorithm>
 #include <cassert>
 #include <cinttypes>
+#include <cmath>
 #include <cstring>
 #include <deque>
 #include <fstream>
 #include <functional>
 #include <iomanip>
 #include <map>
+#include <mutex>
 #include <numeric>
 #include <parallel/algorithm>
 #include <parallel/numeric>
 #include <queue>
 #include <set>
+#include <sstream>
 #include <tuple>
 #include <type_traits>
 #include <unordered_map>
@@ -1409,6 +1412,12 @@ public:
             else
                 g_final = SquishGraph(g);
         }
+        
+        // Compute and print global graph topology features ONCE before any reordering
+        // This provides clustering_coeff, avg_path_length, diameter, community_count
+        // for the Python training scripts to use
+        ComputeAndPrintGlobalTopologyFeatures(g_final);
+        
         // g_final.PrintTopology();
         pvector<NodeID_> new_ids(g_final.num_nodes(), -1);
         for (const auto &option : cli_.reorder_options())
@@ -5459,6 +5468,222 @@ public:
     };
 
     /**
+     * Compute and print global graph topology features.
+     * 
+     * This computes features ONCE for the entire graph during the build phase,
+     * BEFORE any reordering algorithm runs. These features describe the graph
+     * structure itself and are used for:
+     * 1. Perceptron-based algorithm selection
+     * 2. Graph type detection
+     * 3. Training weight data for Python scripts
+     * 
+     * Features computed:
+     * - clustering_coeff: Global clustering coefficient (sampled)
+     * - avg_path_length: Estimated average shortest path length
+     * - diameter: Estimated graph diameter
+     * - community_count: Number of communities (via fast Leiden)
+     * - degree_variance: Normalized coefficient of variation of degrees
+     * - hub_concentration: Fraction of edges from top 10% degree nodes
+     * 
+     * Output format (for Python parsing):
+     *   Graph Topology Features:
+     *   Clustering Coefficient: 0.1234
+     *   Avg Path Length:        5.6789
+     *   Diameter Estimate:      12
+     *   Community Count:        45
+     */
+    void ComputeAndPrintGlobalTopologyFeatures(const CSRGraph<NodeID_, DestID_, invert>& g) {
+        Timer t;
+        t.Start();
+        
+        const int64_t num_nodes = g.num_nodes();
+        const int64_t num_edges = g.num_edges_directed();
+        
+        if (num_nodes < 100) {
+            // Too small for meaningful topology analysis
+            return;
+        }
+        
+        // ============================================================
+        // 1. DEGREE STATISTICS (fast, already needed for other metrics)
+        // ============================================================
+        const size_t SAMPLE_SIZE = std::min(static_cast<size_t>(5000), static_cast<size_t>(num_nodes));
+        std::vector<int64_t> sampled_degrees(SAMPLE_SIZE);
+        
+        double sum = 0.0;
+        for (size_t i = 0; i < SAMPLE_SIZE; ++i) {
+            NodeID_ node = (static_cast<size_t>(num_nodes) > SAMPLE_SIZE) ? 
+                static_cast<NodeID_>((i * num_nodes) / SAMPLE_SIZE) : static_cast<NodeID_>(i);
+            sampled_degrees[i] = g.out_degree(node);
+            sum += sampled_degrees[i];
+        }
+        double avg_degree = sum / SAMPLE_SIZE;
+        
+        double sum_sq_diff = 0.0;
+        for (size_t i = 0; i < SAMPLE_SIZE; ++i) {
+            double diff = sampled_degrees[i] - avg_degree;
+            sum_sq_diff += diff * diff;
+        }
+        double variance = sum_sq_diff / (SAMPLE_SIZE - 1);
+        double degree_variance = (avg_degree > 0) ? std::sqrt(variance) / avg_degree : 0.0;
+        
+        // Hub concentration: sort degrees and see fraction from top 10%
+        std::sort(sampled_degrees.rbegin(), sampled_degrees.rend());
+        size_t top_10 = std::max(size_t(1), SAMPLE_SIZE / 10);
+        int64_t top_edge_sum = 0;
+        int64_t total_edge_sum = 0;
+        for (size_t i = 0; i < SAMPLE_SIZE; ++i) {
+            if (i < top_10) top_edge_sum += sampled_degrees[i];
+            total_edge_sum += sampled_degrees[i];
+        }
+        double hub_concentration = (total_edge_sum > 0) ? 
+            static_cast<double>(top_edge_sum) / total_edge_sum : 0.0;
+        
+        // ============================================================
+        // 2. CLUSTERING COEFFICIENT (sampled for efficiency)
+        // ============================================================
+        double clustering_coeff = 0.0;
+        const size_t MAX_CC_SAMPLES = std::min(size_t(100), static_cast<size_t>(num_nodes) / 10 + 1);
+        
+        if (num_nodes >= 500) {
+            double total_cc = 0.0;
+            size_t valid_samples = 0;
+            
+            // Sample medium-to-high degree nodes (more representative)
+            std::vector<std::pair<int64_t, NodeID_>> deg_nodes(SAMPLE_SIZE);
+            for (size_t i = 0; i < SAMPLE_SIZE; ++i) {
+                NodeID_ node = (static_cast<size_t>(num_nodes) > SAMPLE_SIZE) ? 
+                    static_cast<NodeID_>((i * num_nodes) / SAMPLE_SIZE) : static_cast<NodeID_>(i);
+                deg_nodes[i] = {g.out_degree(node), node};
+            }
+            std::partial_sort(deg_nodes.begin(), 
+                              deg_nodes.begin() + std::min(MAX_CC_SAMPLES, SAMPLE_SIZE),
+                              deg_nodes.end(),
+                              std::greater<std::pair<int64_t, NodeID_>>());
+            
+            for (size_t s = 0; s < MAX_CC_SAMPLES && s < SAMPLE_SIZE; ++s) {
+                NodeID_ node = deg_nodes[s].second;
+                int64_t deg = deg_nodes[s].first;
+                if (deg < 2 || deg > 500) continue;  // Skip extremes
+                
+                // Get neighbors into a set
+                std::unordered_set<NodeID_> neighbors;
+                for (DestID_ neighbor : g.out_neigh(node)) {
+                    neighbors.insert(static_cast<NodeID_>(neighbor));
+                }
+                
+                // Count triangles
+                size_t triangles = 0;
+                for (NodeID_ n1 : neighbors) {
+                    for (DestID_ n2_edge : g.out_neigh(n1)) {
+                        NodeID_ n2 = static_cast<NodeID_>(n2_edge);
+                        if (n2 > n1 && neighbors.count(n2)) {
+                            ++triangles;
+                        }
+                    }
+                }
+                
+                double local_cc = (2.0 * triangles) / (deg * (deg - 1));
+                total_cc += local_cc;
+                ++valid_samples;
+            }
+            
+            clustering_coeff = (valid_samples > 0) ? total_cc / valid_samples : 0.0;
+        }
+        
+        // ============================================================
+        // 3. DIAMETER & AVG PATH LENGTH (single BFS from high-degree node)
+        // ============================================================
+        double avg_path_length = 0.0;
+        int diameter_estimate = 0;
+        
+        if (num_nodes >= 500 && num_nodes <= 10000000) {  // Skip for very large graphs
+            // Find highest degree node as BFS starting point
+            NodeID_ start_node = 0;
+            int64_t max_deg = 0;
+            for (size_t i = 0; i < std::min(SAMPLE_SIZE, static_cast<size_t>(num_nodes)); ++i) {
+                NodeID_ node = (static_cast<size_t>(num_nodes) > SAMPLE_SIZE) ? 
+                    static_cast<NodeID_>((i * num_nodes) / SAMPLE_SIZE) : static_cast<NodeID_>(i);
+                if (g.out_degree(node) > max_deg) {
+                    max_deg = g.out_degree(node);
+                    start_node = node;
+                }
+            }
+            
+            // BFS with early termination for large graphs
+            std::vector<int> dist(num_nodes, -1);
+            std::queue<NodeID_> bfs_queue;
+            bfs_queue.push(start_node);
+            dist[start_node] = 0;
+            
+            double path_sum = 0.0;
+            size_t path_count = 0;
+            int max_dist = 0;
+            const size_t MAX_BFS_VISITS = std::min(static_cast<size_t>(100000), static_cast<size_t>(num_nodes));
+            size_t visits = 0;
+            
+            while (!bfs_queue.empty() && visits < MAX_BFS_VISITS) {
+                NodeID_ curr = bfs_queue.front();
+                bfs_queue.pop();
+                
+                for (DestID_ neighbor : g.out_neigh(curr)) {
+                    NodeID_ dest = static_cast<NodeID_>(neighbor);
+                    if (dist[dest] == -1) {
+                        dist[dest] = dist[curr] + 1;
+                        bfs_queue.push(dest);
+                        path_sum += dist[dest];
+                        ++path_count;
+                        ++visits;
+                        if (dist[dest] > max_dist) {
+                            max_dist = dist[dest];
+                        }
+                    }
+                }
+            }
+            
+            avg_path_length = (path_count > 0) ? path_sum / path_count : 1.0;
+            diameter_estimate = max_dist;
+        } else if (num_nodes > 10000000) {
+            // For very large graphs, use rough estimates
+            avg_path_length = std::log2(num_nodes);  // Small-world approximation
+            diameter_estimate = static_cast<int>(avg_path_length * 2);
+        }
+        
+        // ============================================================
+        // 4. COMMUNITY COUNT (fast Leiden for estimate)
+        // ============================================================
+        int community_count = 1;  // Default: 1 large component
+        
+        // For community count, we can use a rough estimate based on graph density
+        // More accurate counting is done during AdaptiveOrder when needed
+        double density = static_cast<double>(num_edges) / (static_cast<double>(num_nodes) * (num_nodes - 1));
+        if (density < 0.001 && num_nodes > 1000) {
+            // Sparse graph likely has multiple communities
+            // Rough estimate based on graph structure
+            community_count = static_cast<int>(std::sqrt(num_nodes / 100.0)) + 1;
+        } else if (hub_concentration > 0.5) {
+            // Hub-dominated graph
+            community_count = static_cast<int>(hub_concentration * 10) + 1;
+        }
+        
+        t.Stop();
+        
+        // ============================================================
+        // OUTPUT (format for Python parsing)
+        // ============================================================
+        std::cout << "=== Graph Topology Features ===" << std::endl;
+        PrintTime("Clustering Coefficient", clustering_coeff);
+        PrintTime("Avg Path Length", avg_path_length);
+        PrintTime("Diameter Estimate", diameter_estimate);
+        PrintTime("Community Count Estimate", community_count);
+        PrintTime("Degree Variance", degree_variance);
+        PrintTime("Hub Concentration", hub_concentration);
+        PrintTime("Avg Degree", avg_degree);
+        PrintTime("Topology Analysis Time", t.Seconds());
+        std::cout << "===============================" << std::endl;
+    }
+
+    /**
      * Perceptron-style Algorithm Selector
      * 
      * Uses learned weights from multi-algorithm correlation analysis to
@@ -5523,6 +5748,7 @@ public:
     // Default path for perceptron weights file (relative to project root)
     static constexpr const char* DEFAULT_WEIGHTS_FILE = "scripts/perceptron_weights.json";
     static constexpr const char* WEIGHTS_DIR = "scripts/";
+    static constexpr const char* TYPE_WEIGHTS_DIR = "scripts/weights/";  // New type-based weights directory
     
     /**
      * Graph type enum for graph-type-specific weight selection
@@ -6130,13 +6356,128 @@ public:
     }
     
     /**
+     * Find the best matching type file from the type registry.
+     * 
+     * The type registry (scripts/weights/type_registry.json) contains centroids
+     * for each auto-generated type. This function finds the closest matching type
+     * based on the graph features.
+     * 
+     * @param features Graph features (modularity, degree_variance, etc.)
+     * @param verbose Print matching details
+     * @return Best matching type name (e.g., "type_a") or empty string if no match
+     */
+    static std::string FindBestTypeFromFeatures(
+        double modularity, double degree_variance, double hub_concentration,
+        double avg_degree, size_t num_nodes, size_t num_edges, bool verbose = false) {
+        
+        // Try to load type registry
+        std::string registry_path = std::string(TYPE_WEIGHTS_DIR) + "type_registry.json";
+        std::ifstream registry_file(registry_path);
+        if (!registry_file.is_open()) {
+            if (verbose) {
+                std::cout << "Type registry not found at " << registry_path << "\n";
+            }
+            return "";
+        }
+        
+        std::string json_content((std::istreambuf_iterator<char>(registry_file)),
+                                  std::istreambuf_iterator<char>());
+        registry_file.close();
+        
+        // Simple JSON parsing for type registry
+        // Format: {"type_0": {"centroid": [...], ...}, "type_1": {...}}
+        std::string best_type = "";
+        double best_distance = 999999.0;
+        
+        // Normalize features for distance calculation
+        double log_nodes = log10(std::max(1.0, (double)num_nodes));
+        double log_edges = log10(std::max(1.0, (double)num_edges));
+        double max_log_nodes = 9.0;  // ~1 billion nodes
+        double max_log_edges = 11.0; // ~100 billion edges
+        
+        // Feature vector: [modularity, degree_variance, hub_concentration, density, 0, log_nodes_norm, log_edges_norm]
+        double max_edges = num_nodes > 1 ? num_nodes * (num_nodes - 1) / 2.0 : 1.0;
+        double density = num_edges / max_edges;
+        
+        std::vector<double> query_vec = {
+            modularity,
+            std::min(1.0, degree_variance),
+            hub_concentration,
+            std::min(0.1, density),  // Cap density contribution
+            0.0,  // Placeholder
+            log_nodes / max_log_nodes,
+            log_edges / max_log_edges
+        };
+        
+        // Parse types from JSON (simplified parsing)
+        size_t pos = 0;
+        while ((pos = json_content.find("\"type_", pos)) != std::string::npos) {
+            // Extract type name
+            size_t name_start = pos + 1;
+            size_t name_end = json_content.find("\"", name_start);
+            if (name_end == std::string::npos) break;
+            std::string type_name = json_content.substr(name_start, name_end - name_start);
+            
+            // Find centroid array
+            size_t centroid_pos = json_content.find("\"centroid\"", name_end);
+            if (centroid_pos == std::string::npos || centroid_pos > pos + 2000) {
+                pos = name_end + 1;
+                continue;
+            }
+            
+            size_t array_start = json_content.find("[", centroid_pos);
+            size_t array_end = json_content.find("]", array_start);
+            if (array_start == std::string::npos || array_end == std::string::npos) {
+                pos = name_end + 1;
+                continue;
+            }
+            
+            // Parse centroid values
+            std::string centroid_str = json_content.substr(array_start + 1, array_end - array_start - 1);
+            std::vector<double> centroid;
+            std::stringstream ss(centroid_str);
+            std::string item;
+            while (std::getline(ss, item, ',')) {
+                try {
+                    centroid.push_back(std::stod(item));
+                } catch (...) {}
+            }
+            
+            // Compute distance
+            if (centroid.size() >= query_vec.size()) {
+                double distance = 0.0;
+                for (size_t i = 0; i < query_vec.size(); i++) {
+                    double diff = query_vec[i] - centroid[i];
+                    distance += diff * diff;
+                }
+                distance = sqrt(distance);
+                
+                if (distance < best_distance) {
+                    best_distance = distance;
+                    best_type = type_name;
+                }
+            }
+            
+            pos = name_end + 1;
+        }
+        
+        if (verbose && !best_type.empty()) {
+            std::cout << "Best matching type: " << best_type 
+                      << " (distance: " << best_distance << ")\n";
+        }
+        
+        return best_type;
+    }
+    
+    /**
      * Load perceptron weights for a specific graph type.
      * 
      * Checks for weights file in this order:
      * 1. Path from PERCEPTRON_WEIGHTS_FILE environment variable (overrides all)
-     * 2. Graph-type-specific file: scripts/perceptron_weights_{type}.json
-     * 3. Default file: scripts/perceptron_weights.json
-     * 4. If none exist, returns hardcoded defaults from GetPerceptronWeights()
+     * 2. Type-based file: scripts/weights/type_*.json (if features provided)
+     * 3. Graph-type-specific file: scripts/perceptron_weights_{type}.json
+     * 4. Default file: scripts/perceptron_weights.json
+     * 5. If none exist, returns hardcoded defaults from GetPerceptronWeights()
      * 
      * @param graph_type The detected or specified graph type
      * @param verbose Print which file was loaded
@@ -6173,7 +6514,7 @@ public:
         // Build list of candidate files to try (in order of preference)
         std::vector<std::string> candidate_files;
         
-        // 1. Graph-type-specific file
+        // 1. Graph-type-specific file (semantic types: social, road, web, etc.)
         if (graph_type != GRAPH_GENERIC) {
             std::string type_file = std::string(WEIGHTS_DIR) + "perceptron_weights_" 
                                     + GraphTypeToString(graph_type) + ".json";
@@ -6204,6 +6545,114 @@ public:
                         std::cout << " (graph type: " << GraphTypeToString(graph_type) << ")";
                     }
                     std::cout << "\n";
+                }
+                return weights;
+            }
+        }
+        
+        // No files found - use defaults
+        if (verbose) {
+            std::cout << "Perceptron: Using hardcoded defaults (no weight files found)\n";
+        }
+        return weights;
+    }
+    
+    /**
+     * Load perceptron weights using graph features to find the best type match.
+     * 
+     * This function first tries to find a matching auto-generated type (type_0, type_1, etc.)
+     * from the type registry, then falls back to semantic types (social, road, etc.) and
+     * finally to the default weights.
+     * 
+     * FALLBACK MECHANISM:
+     * 1. Starts with GetPerceptronWeights() which provides defaults for ALL algorithms
+     * 2. Loads type-specific weights and OVERLAYS them on defaults
+     * 3. Any algorithm missing from the type file uses the default weights
+     * 
+     * This ensures we ALWAYS have weights for every algorithm, even if the type file
+     * was trained with only a subset of algorithms.
+     * 
+     * @param modularity Graph modularity score
+     * @param degree_variance Normalized degree variance
+     * @param hub_concentration Hub concentration metric
+     * @param avg_degree Average vertex degree
+     * @param num_nodes Number of nodes
+     * @param num_edges Number of edges
+     * @param verbose Print which file was loaded
+     */
+    static std::map<ReorderingAlgo, PerceptronWeights> LoadPerceptronWeightsForFeatures(
+        double modularity, double degree_variance, double hub_concentration,
+        double avg_degree, size_t num_nodes, size_t num_edges, bool verbose = false) {
+        
+        // Start with defaults - this ensures ALL algorithms have weights
+        auto weights = GetPerceptronWeights();
+        
+        // Check environment variable override first
+        const char* env_path = std::getenv("PERCEPTRON_WEIGHTS_FILE");
+        if (env_path != nullptr) {
+            std::ifstream file(env_path);
+            if (file.is_open()) {
+                std::string json_content((std::istreambuf_iterator<char>(file)),
+                                          std::istreambuf_iterator<char>());
+                file.close();
+                
+                std::map<ReorderingAlgo, PerceptronWeights> loaded_weights;
+                if (ParseWeightsFromJSON(json_content, loaded_weights)) {
+                    for (const auto& kv : loaded_weights) {
+                        weights[kv.first] = kv.second;
+                    }
+                    if (verbose) {
+                        std::cout << "Perceptron: Loaded " << loaded_weights.size() 
+                                  << " weights from env override: " << env_path << "\n";
+                    }
+                    return weights;
+                }
+            }
+        }
+        
+        // Build list of candidate files to try (in order of preference)
+        std::vector<std::string> candidate_files;
+        
+        // 1. Try to find matching type from type registry (type_0, type_1, etc.)
+        std::string best_type = FindBestTypeFromFeatures(
+            modularity, degree_variance, hub_concentration,
+            avg_degree, num_nodes, num_edges, verbose);
+        
+        if (!best_type.empty()) {
+            std::string type_file = std::string(TYPE_WEIGHTS_DIR) + best_type + ".json";
+            candidate_files.push_back(type_file);
+        }
+        
+        // 2. Detect semantic graph type and try type-specific file
+        GraphType detected_type = DetectGraphType(modularity, degree_variance, 
+                                                   hub_concentration, avg_degree, num_nodes);
+        if (detected_type != GRAPH_GENERIC) {
+            std::string type_file = std::string(WEIGHTS_DIR) + "perceptron_weights_" 
+                                    + GraphTypeToString(detected_type) + ".json";
+            candidate_files.push_back(type_file);
+        }
+        
+        // 3. Default file (global fallback with all algorithms)
+        candidate_files.push_back(DEFAULT_WEIGHTS_FILE);
+        
+        // Try each candidate file - overlay loaded weights on defaults
+        // This ensures algorithms missing from type files use global defaults
+        for (const auto& weights_file : candidate_files) {
+            std::ifstream file(weights_file);
+            if (!file.is_open()) continue;
+            
+            std::string json_content((std::istreambuf_iterator<char>(file)),
+                                      std::istreambuf_iterator<char>());
+            file.close();
+            
+            std::map<ReorderingAlgo, PerceptronWeights> loaded_weights;
+            if (ParseWeightsFromJSON(json_content, loaded_weights)) {
+                for (const auto& kv : loaded_weights) {
+                    weights[kv.first] = kv.second;
+                }
+                if (verbose) {
+                    std::cout << "Perceptron: Loaded " << loaded_weights.size() 
+                              << " weights from " << weights_file << "\n";
                 }
                 return weights;
             }
@@ -6280,6 +6729,45 @@ public:
                                                const std::string& benchmark_name,
                                                GraphType graph_type = GRAPH_GENERIC) {
         return SelectReorderingPerceptron(feat, GetBenchmarkType(benchmark_name), graph_type);
+    }
+    
+    /**
+     * Select best reordering algorithm using feature-based type matching.
+     * 
+     * This version first tries to find a matching auto-generated type (type_a, etc.)
+     * from the type registry based on graph features, then falls back to semantic types.
+     * 
+     * @param feat Community features for scoring
+     * @param global_modularity Global graph modularity
+     * @param global_degree_variance Global degree variance
+     * @param global_hub_concentration Global hub concentration
+     * @param num_nodes Total number of nodes
+     * @param num_edges Total number of edges
+     * @param bench Benchmark type
+     */
+    ReorderingAlgo SelectReorderingPerceptronWithFeatures(
+        const CommunityFeatures& feat,
+        double global_modularity, double global_degree_variance,
+        double global_hub_concentration, size_t num_nodes, size_t num_edges,
+        BenchmarkType bench = BENCH_GENERIC) {
+        
+        // Load weights based on features (tries type_a.json first, then semantic types)
+        auto weights = LoadPerceptronWeightsForFeatures(
+            global_modularity, global_degree_variance, global_hub_concentration,
+            feat.avg_degree, num_nodes, num_edges, false);
+        
+        ReorderingAlgo best_algo = ORIGINAL;
+        double best_score = -std::numeric_limits<double>::infinity();
+        
+        for (const auto& kv : weights) {
+            double score = kv.second.score(feat, bench);
+            if (score > best_score) {
+                best_score = score;
+                best_algo = kv.first;
+            }
+        }
+        
+        return best_algo;
     }
 
     CommunityFeatures ComputeCommunityFeatures(
@@ -6496,13 +6984,23 @@ public:
      * 
      * @param feat Community features
      * @param global_modularity Graph modularity score
+     * @param global_degree_variance Global degree variance
+     * @param global_hub_concentration Global hub concentration  
+     * @param global_avg_degree Global average degree
+     * @param num_nodes Total number of nodes in graph
+     * @param num_edges Total number of edges in graph
      * @param bench Benchmark type (default: BENCH_GENERIC for balanced performance)
      *              - BENCH_GENERIC: Optimizes for all graph algorithms equally
      *              - BENCH_PR, BENCH_BFS, etc.: Optimizes for specific benchmark
      * 
      * Fallback to heuristics for edge cases (very small communities).
      */
-    ReorderingAlgo SelectBestReorderingForCommunity(CommunityFeatures feat, double global_modularity,
+    ReorderingAlgo SelectBestReorderingForCommunity(CommunityFeatures feat, 
+                                                     double global_modularity,
+                                                     double global_degree_variance,
+                                                     double global_hub_concentration,
+                                                     double global_avg_degree,
+                                                     size_t num_nodes, size_t num_edges,
                                                      BenchmarkType bench = BENCH_GENERIC,
                                                      GraphType graph_type = GRAPH_GENERIC)
     {
@@ -6516,8 +7014,11 @@ public:
         // Set the modularity in features for perceptron scoring
         feat.modularity = global_modularity;
         
-        // Use perceptron to select best algorithm (with benchmark-specific adjustment and graph type)
-        ReorderingAlgo selected = SelectReorderingPerceptron(feat, bench, graph_type);
+        // Use feature-based perceptron to select best algorithm 
+        // This tries type_a.json, type_b.json etc. first, then falls back to semantic types
+        ReorderingAlgo selected = SelectReorderingPerceptronWithFeatures(
+            feat, global_modularity, global_degree_variance, global_hub_concentration,
+            num_nodes, num_edges, bench);
         
         // Safety check: if perceptron selects an unavailable algorithm, fallback
 #ifndef RABBIT_ENABLE
@@ -6724,8 +7225,11 @@ public:
             PrintTime("Degree Variance", global_degree_variance);
             PrintTime("Hub Concentration", global_hub_concentration);
             
-            // Preload and show which weights file is being used
-            GetCachedWeights(detected_graph_type, true);
+            // Load weights based on features (tries type_a.json first, then semantic types)
+            // This also shows which weights file is being used
+            LoadPerceptronWeightsForFeatures(
+                global_modularity, global_degree_variance, global_hub_concentration,
+                global_avg_degree, static_cast<size_t>(num_nodes), num_edges, true);
         }
 
         // Step 3: Compute features and select algorithm for each community
@@ -6777,9 +7281,12 @@ public:
                 selected_algos[c] = AdaptiveOrder;  // Mark for recursion
             }
             else {
-                // Select local algorithm based on features and detected graph type
+                // Select local algorithm based on features using type-based weights
+                // This uses LoadPerceptronWeightsForFeatures which tries type_a.json first
                 selected_algos[c] = SelectBestReorderingForCommunity(
-                    feat, global_modularity, BENCH_GENERIC, detected_graph_type);
+                    feat, global_modularity, global_degree_variance, global_hub_concentration,
+                    global_avg_degree, static_cast<size_t>(num_nodes), num_edges,
+                    BENCH_GENERIC, detected_graph_type);
             }
             
             // Print selection rationale with extended features
