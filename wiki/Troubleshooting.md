@@ -326,6 +326,45 @@ python3 -c "import json; json.load(open('scripts/perceptron_weights.json'))"
 
 # Pretty-print to find error
 python3 -m json.tool scripts/perceptron_weights.json
+
+# Check per-type weight files too
+for f in scripts/perceptron_weights_*.json; do
+    echo "Checking $f..."
+    python3 -c "import json; json.load(open('$f'))" && echo "OK" || echo "FAILED"
+done
+```
+
+### Wrong graph type detected
+
+Graph type is detected from computed properties, not graph names. If detection is wrong:
+
+```bash
+# Check what properties were detected
+cat results/graph_properties_cache.json | python3 -m json.tool | grep -A 10 "your_graph_name"
+
+# Re-run Phase 0 to recompute properties
+python3 scripts/graphbrew_experiment.py --fill-weights --graphs small
+```
+
+**Detection criteria:**
+| Type | Criteria |
+|------|----------|
+| road | modularity < 0.1, degree_variance < 0.5, avg_degree < 10 |
+| social | modularity > 0.3, degree_variance > 0.8 |
+| web | hub_concentration > 0.5, degree_variance > 1.0 |
+| powerlaw | degree_variance > 1.5, modularity < 0.3 |
+| uniform | degree_variance < 0.5, hub_concentration < 0.3, modularity < 0.1 |
+
+### Per-type weight files not generated
+
+Ensure `--fill-weights` completes all phases:
+
+```bash
+# Check Phase 7 ran
+grep "Phase 7" results/logs/*.log
+
+# Manually generate per-type weights from existing results
+python3 scripts/graphbrew_experiment.py --phase weights
 ```
 
 ---

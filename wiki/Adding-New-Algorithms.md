@@ -206,7 +206,21 @@ const map<string, ReorderingAlgo> name_to_algo = {
 
 If you want AdaptiveOrder to consider your algorithm:
 
-### Edit scripts/perceptron_weights.json
+### Edit ALL Per-Type Weight Files
+
+When adding a new algorithm, you should add weights to **all** per-graph-type weight files:
+
+```bash
+# Files to update:
+scripts/perceptron_weights.json           # Generic fallback
+scripts/perceptron_weights_social.json    # Social networks
+scripts/perceptron_weights_road.json      # Road networks
+scripts/perceptron_weights_web.json       # Web graphs
+scripts/perceptron_weights_powerlaw.json  # Power-law graphs
+scripts/perceptron_weights_uniform.json   # Uniform random
+```
+
+### Example Entry (add to each file)
 
 ```json
 {
@@ -218,10 +232,39 @@ If you want AdaptiveOrder to consider your algorithm:
     "w_density": 0.0,
     "w_avg_degree": 0.0,
     "w_degree_variance": 0.0,
-    "w_hub_concentration": 0.0
+    "w_hub_concentration": 0.0,
+    "w_clustering_coeff": 0.0,
+    "w_avg_path_length": 0.0,
+    "w_diameter": 0.0,
+    "w_community_count": 0.0,
+    "w_reorder_time": 0.0,
+    "cache_l1_impact": 0.0,
+    "cache_l2_impact": 0.0,
+    "cache_l3_impact": 0.0,
+    "cache_dram_penalty": 0.0,
+    "benchmark_weights": {
+      "pr": 1.0,
+      "bfs": 1.0,
+      "cc": 1.0,
+      "sssp": 1.0,
+      "bc": 1.0
+    }
   }
 }
 ```
+
+### Automatic Training
+
+After adding the algorithm, run `--fill-weights` to train weights from benchmarks:
+
+```bash
+python3 scripts/graphbrew_experiment.py --fill-weights --graphs small
+```
+
+This will:
+1. Benchmark your algorithm on test graphs
+2. Compute appropriate weights based on performance
+3. Generate per-type weight files automatically
 
 ### Weight Guidelines
 

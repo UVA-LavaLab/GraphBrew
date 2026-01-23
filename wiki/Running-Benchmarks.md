@@ -40,9 +40,26 @@ python3 scripts/graphbrew_experiment.py --graphs small --key-only
 # Use pre-generated label maps for consistent reordering
 python3 scripts/graphbrew_experiment.py --generate-maps --use-maps --phase benchmark
 
-# Fill ALL weight fields (cache sim, topology features, benchmark weights)
+# Fill ALL weight fields (graph type detection, cache sim, topology features, per-type weights)
 python3 scripts/graphbrew_experiment.py --fill-weights --auto-memory --download-size ALL
 ```
+
+### `--fill-weights` Phases
+
+The comprehensive `--fill-weights` mode runs these phases:
+
+| Phase | Description |
+|-------|-------------|
+| **Phase 0** | Graph Property Analysis - computes modularity, degree variance, hub concentration, detects graph type |
+| **Phase 1** | Generate Reorderings - tests all algorithms, records reorder times |
+| **Phase 2** | Execution Benchmarks - runs PR, BFS, CC, SSSP, BC with all algorithms |
+| **Phase 3** | Cache Simulation - measures L1/L2/L3 hit rates |
+| **Phase 4** | Generate Base Weights - creates initial perceptron weights |
+| **Phase 5** | Update Topology Weights - fills clustering coefficient, path length, etc. |
+| **Phase 6** | Compute Benchmark Weights - per-benchmark multipliers |
+| **Phase 7** | Generate Per-Graph-Type Weights - creates specialized weight files |
+
+Output files include `perceptron_weights_social.json`, `perceptron_weights_road.json`, etc.
 
 ### Download Options
 

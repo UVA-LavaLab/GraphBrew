@@ -22,7 +22,12 @@ GraphBrew/
 │   ├── brew/                 # Experiment runner
 │   ├── config/               # Configuration files
 │   ├── test/                 # Test scripts
-│   └── perceptron_weights.json
+│   ├── perceptron_weights.json         # Generic ML weights
+│   ├── perceptron_weights_social.json  # Social network weights
+│   ├── perceptron_weights_road.json    # Road network weights
+│   ├── perceptron_weights_web.json     # Web graph weights
+│   ├── perceptron_weights_powerlaw.json # Power-law weights
+│   └── perceptron_weights_uniform.json  # Uniform random weights
 │
 ├── test/                     # Test files
 │   ├── graphs/               # Sample graphs

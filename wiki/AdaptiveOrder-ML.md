@@ -5,14 +5,35 @@ AdaptiveOrder (algorithm 15) uses a **machine learning perceptron** to automatic
 ## Overview
 
 Instead of using one reordering algorithm for the entire graph, AdaptiveOrder:
-1. Detects communities using Leiden
-2. Computes features for each community
-3. Uses a trained perceptron to predict the best algorithm
-4. Applies different algorithms to different communities
+1. **Detects graph type** from computed properties (modularity, degree variance, hub concentration)
+2. **Loads specialized weights** for that graph type (social, road, web, powerlaw, uniform, or generic)
+3. **Detects communities** using Leiden
+4. **Computes features** for each community
+5. **Uses a trained perceptron** to predict the best algorithm
+6. **Applies different algorithms** to different communities
 
 ```
-Graph → Leiden → Communities → Features → Perceptron → Per-Community Algorithms
+Graph → Detect Type → Load Weights → Leiden → Communities → Features → Perceptron → Per-Community Algorithms
 ```
+
+## Graph Type Detection
+
+AdaptiveOrder automatically detects graph type from **computed properties** (not graph names):
+
+| Type | Detection Criteria | Typical Graphs |
+|------|-------------------|----------------|
+| `road` | modularity < 0.1, degree_variance < 0.5, avg_degree < 10 | roadNet-CA, GAP-road |
+| `social` | modularity > 0.3, degree_variance > 0.8 | soc-LiveJournal1, com-Friendster |
+| `web` | hub_concentration > 0.5, degree_variance > 1.0 | uk-2002, webbase-2001 |
+| `powerlaw` | degree_variance > 1.5, modularity < 0.3 | GAP-kron, twitter7 |
+| `uniform` | degree_variance < 0.5, hub_concentration < 0.3, modularity < 0.1 | GAP-urand |
+| `generic` | default fallback | (none match above) |
+
+**Weight File Loading Priority:**
+1. Environment variable `PERCEPTRON_WEIGHTS_FILE` (if set)
+2. Graph-type-specific file (e.g., `scripts/perceptron_weights_web.json`)
+3. Generic fallback (`scripts/perceptron_weights.json`)
+4. Hardcoded defaults
 
 ## Why Per-Community Selection?
 

@@ -74,8 +74,9 @@ All results are saved to `./results/`:
 - `benchmark_*.json` - Execution times  
 - `cache_*.json` - Cache hit rates (L1/L2/L3)
 - `mappings/` - Pre-generated label maps for consistent reordering
-- `perceptron_weights.json` - Trained ML weights with metadata
-- `perceptron_weights_*.json` - Timestamped weight backups (auto-generated)
+- `perceptron_weights.json` - Trained ML weights (generic fallback)
+- `perceptron_weights_{type}.json` - Per-graph-type weights (social, road, web, powerlaw, uniform)
+- `graph_properties_cache.json` - Cached graph properties for type detection
 
 ---
 

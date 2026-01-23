@@ -28,9 +28,10 @@ This will automatically:
 - ✅ Pre-generate label mappings for consistent reordering
 - ✅ Run performance benchmarks (PR, BFS, CC, SSSP, BC) with all 20 algorithms
 - ✅ Execute cache simulations (L1/L2/L3 hit rates)
-- ✅ Train perceptron weights for AdaptiveOrder (with cache + reorder time features)
+- ✅ Detect graph types from computed properties (modularity, degree variance, etc.)
+- ✅ Train per-graph-type perceptron weights for AdaptiveOrder
 
-All results saved to `./results/` directory.
+All results saved to `./results/` directory, with per-type weights synced to `./scripts/`.
 
 ### Download Size Options
 
