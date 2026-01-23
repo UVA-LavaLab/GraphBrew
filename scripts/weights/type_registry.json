@@ -1,0 +1,42 @@
+{
+  "type_0": {
+    "centroid": [
+      0.5,
+      0.2,
+      0.3,
+      0.08303016748016684,
+      0.0,
+      0.03903050162304775,
+      0.09713841715247361
+    ],
+    "sample_count": 29,
+    "created": "2026-01-22T21:15:35.407209",
+    "last_updated": "2026-01-22T21:23:41.866828",
+    "representative_features": {
+      "modularity": 0.5,
+      "degree_variance": 1.0,
+      "hub_concentration": 0.3,
+      "avg_degree": 5.526135062953071
+    }
+  },
+  "type_1": {
+    "centroid": [
+      0.8506374999999999,
+      0.2,
+      0.3,
+      0.05526135062953071,
+      0.0,
+      0.10279712253053187,
+      0.12899094439330896
+    ],
+    "sample_count": 16,
+    "created": "2026-01-22T21:15:36.555826",
+    "last_updated": "2026-01-22T21:23:42.462252",
+    "representative_features": {
+      "modularity": 0.84012,
+      "degree_variance": 1.0,
+      "hub_concentration": 0.3,
+      "avg_degree": 5.526135062953071
+    }
+  }
+}

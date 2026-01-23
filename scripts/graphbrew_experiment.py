@@ -101,8 +101,12 @@ DEFAULT_RESULTS_DIR = "./results"
 DEFAULT_GRAPHS_DIR = "./results/graphs"
 DEFAULT_BIN_DIR = "./bench/bin"
 DEFAULT_BIN_SIM_DIR = "./bench/bin_sim"
-DEFAULT_WEIGHTS_FILE = "./results/perceptron_weights.json"
+DEFAULT_WEIGHTS_DIR = "./scripts/weights"  # Auto-generated type weights
 DEFAULT_MAPPINGS_DIR = "./results/mappings"
+
+# Auto-clustering configuration
+CLUSTER_DISTANCE_THRESHOLD = 0.3  # Max normalized distance to join existing cluster
+MIN_SAMPLES_FOR_CLUSTER = 3  # Minimum graphs to form a stable cluster
 
 # Graph size categories (MB)
 SIZE_SMALL = 50
@@ -629,8 +633,9 @@ class PerceptronWeight:
         score += self.w_hub_concentration * features.get('hub_concentration', 0.0)
         score += self.w_clustering_coeff * features.get('clustering_coefficient', 0.0)
         score += self.w_avg_path_length * features.get('avg_path_length', 0.0) / 10.0
-        score += self.w_diameter * features.get('diameter_estimate', 0.0) / 100.0
+        score += self.w_diameter * features.get('diameter', features.get('diameter_estimate', 0.0)) / 50.0  # Match C++ normalization
         score += self.w_community_count * math.log10(features.get('community_count', 1) + 1)
+        score += self.w_reorder_time * features.get('reorder_time', 0.0)  # Penalty for slow reordering
         
         # Apply benchmark-specific multiplier
         bench_mult = self.benchmark_weights.get(benchmark.lower(), 1.0)
@@ -731,6 +736,444 @@ def get_total_disk_gb(path: str = ".") -> float:
     except:
         pass
     return 500.0
+
+
+# ============================================================================
+# Auto-Clustering Type System
+# ============================================================================
+
+# Global type registry - maps type names to centroids and metadata
+_type_registry: Dict[str, Dict] = {}
+_type_registry_file = os.path.join(DEFAULT_WEIGHTS_DIR, "type_registry.json")
+
+def _get_next_type_name() -> str:
+    """Generate next type name (type_0, type_1, etc.) - numeric for unlimited types."""
+    if not _type_registry:
+        return "type_0"
+    # Find highest existing type number
+    existing = [k for k in _type_registry.keys() if k.startswith("type_")]
+    if not existing:
+        return "type_0"
+    # Extract numbers and find max
+    numbers = []
+    for k in existing:
+        try:
+            num = int(k.replace("type_", ""))
+            numbers.append(num)
+        except ValueError:
+            # Handle legacy alphabetic names (type_a -> 0, type_b -> 1, etc.)
+            suffix = k.replace("type_", "")
+            if len(suffix) == 1 and suffix.isalpha():
+                numbers.append(ord(suffix.lower()) - ord('a'))
+    if not numbers:
+        return "type_0"
+    return f"type_{max(numbers) + 1}"
+
+def _normalize_features(features: Dict) -> List[float]:
+    """Normalize features to [0,1] range for distance calculation."""
+    import math
+    # Feature ranges (approximate) for normalization
+    ranges = {
+        'modularity': (0, 1),
+        'degree_variance': (0, 5),
+        'hub_concentration': (0, 1),
+        'avg_degree': (0, 100),
+        'clustering_coefficient': (0, 1),
+        'log_nodes': (3, 10),  # log10(1000) to log10(10B)
+        'log_edges': (3, 12),
+    }
+    
+    normalized = []
+    log_nodes = math.log10(features.get('nodes', 1000) + 1)
+    log_edges = math.log10(features.get('edges', 1000) + 1)
+    
+    for key, (lo, hi) in ranges.items():
+        if key == 'log_nodes':
+            val = log_nodes
+        elif key == 'log_edges':
+            val = log_edges
+        else:
+            val = features.get(key, (lo + hi) / 2)
+        # Clamp and normalize
+        normalized.append(max(0, min(1, (val - lo) / (hi - lo) if hi > lo else 0.5)))
+    
+    return normalized
+
+def _compute_distance(f1: List[float], f2: List[float]) -> float:
+    """Compute Euclidean distance between normalized feature vectors."""
+    import math
+    if len(f1) != len(f2):
+        return float('inf')
+    return math.sqrt(sum((a - b) ** 2 for a, b in zip(f1, f2)))
+
+def load_type_registry(weights_dir: str = DEFAULT_WEIGHTS_DIR) -> Dict[str, Dict]:
+    """Load type registry from disk."""
+    global _type_registry, _type_registry_file
+    _type_registry_file = os.path.join(weights_dir, "type_registry.json")
+    
+    if os.path.exists(_type_registry_file):
+        try:
+            with open(_type_registry_file) as f:
+                _type_registry = json.load(f)
+        except Exception as e:
+            _type_registry = {}
+    return _type_registry
+
+def save_type_registry(weights_dir: str = DEFAULT_WEIGHTS_DIR):
+    """Save type registry to disk."""
+    global _type_registry
+    os.makedirs(weights_dir, exist_ok=True)
+    registry_file = os.path.join(weights_dir, "type_registry.json")
+    with open(registry_file, 'w') as f:
+        json.dump(_type_registry, f, indent=2)
+
+def get_type_weights_file(type_name: str, weights_dir: str = DEFAULT_WEIGHTS_DIR) -> str:
+    """Get path to weights file for a type."""
+    return os.path.join(weights_dir, f"{type_name}.json")
+
+def load_type_weights(type_name: str, weights_dir: str = DEFAULT_WEIGHTS_DIR) -> Dict:
+    """Load weights for a specific type."""
+    weights_file = get_type_weights_file(type_name, weights_dir)
+    if os.path.exists(weights_file):
+        try:
+            with open(weights_file) as f:
+                return json.load(f)
+        except Exception:
+            pass
+    return {}
+
+def save_type_weights(type_name: str, weights: Dict, weights_dir: str = DEFAULT_WEIGHTS_DIR):
+    """Save weights for a specific type."""
+    os.makedirs(weights_dir, exist_ok=True)
+    weights_file = get_type_weights_file(type_name, weights_dir)
+    with open(weights_file, 'w') as f:
+        json.dump(weights, f, indent=2)
+
+def assign_graph_type(features: Dict, weights_dir: str = DEFAULT_WEIGHTS_DIR, 
+                      create_if_outlier: bool = True) -> str:
+    """
+    Assign a graph to a type based on its features.
+    
+    Uses clustering to find the closest existing type or creates a new one
+    if the graph is an outlier (distance > CLUSTER_DISTANCE_THRESHOLD).
+    
+    Args:
+        features: Dict with 'modularity', 'degree_variance', 'hub_concentration', etc.
+        weights_dir: Directory for type files
+        create_if_outlier: If True, create new type for outliers
+        
+    Returns:
+        Type name (e.g., 'type_0', 'type_1')
+    """
+    global _type_registry
+    
+    # Load registry if not loaded
+    if not _type_registry:
+        load_type_registry(weights_dir)
+    
+    # Normalize input features
+    norm_features = _normalize_features(features)
+    
+    # Find closest existing type
+    min_distance = float('inf')
+    closest_type = None
+    
+    for type_name, type_info in _type_registry.items():
+        if 'centroid' in type_info:
+            dist = _compute_distance(norm_features, type_info['centroid'])
+            if dist < min_distance:
+                min_distance = dist
+                closest_type = type_name
+    
+    # Check if close enough to existing type
+    if closest_type and min_distance < CLUSTER_DISTANCE_THRESHOLD:
+        # Update centroid (incremental mean)
+        type_info = _type_registry[closest_type]
+        count = type_info.get('sample_count', 1)
+        old_centroid = type_info['centroid']
+        # Incremental centroid update: new_centroid = old + (new - old) / (count + 1)
+        new_centroid = [
+            old + (new - old) / (count + 1) 
+            for old, new in zip(old_centroid, norm_features)
+        ]
+        _type_registry[closest_type]['centroid'] = new_centroid
+        _type_registry[closest_type]['sample_count'] = count + 1
+        _type_registry[closest_type]['last_updated'] = datetime.now().isoformat()
+        save_type_registry(weights_dir)
+        return closest_type
+    
+    # Create new type if outlier
+    if create_if_outlier:
+        new_type = _get_next_type_name()
+        _type_registry[new_type] = {
+            'centroid': norm_features,
+            'sample_count': 1,
+            'created': datetime.now().isoformat(),
+            'last_updated': datetime.now().isoformat(),
+            'representative_features': {
+                'modularity': features.get('modularity', 0.5),
+                'degree_variance': features.get('degree_variance', 1.0),
+                'hub_concentration': features.get('hub_concentration', 0.3),
+                'avg_degree': features.get('avg_degree', 10),
+            }
+        }
+        save_type_registry(weights_dir)
+        
+        # Initialize weights for new type (copy from closest if exists, else defaults)
+        if closest_type:
+            existing_weights = load_type_weights(closest_type, weights_dir)
+            if existing_weights:
+                save_type_weights(new_type, existing_weights, weights_dir)
+        
+        return new_type
+    
+    # Return closest even if above threshold (when not creating new types)
+    return closest_type or "type_0"
+
+def update_type_weights_incremental(
+    type_name: str,
+    algorithm: str,
+    benchmark: str,
+    speedup: float,
+    features: Dict,
+    cache_stats: Optional[Dict] = None,
+    reorder_time: float = 0.0,
+    weights_dir: str = DEFAULT_WEIGHTS_DIR,
+    learning_rate: float = 0.01
+):
+    """
+    Incrementally update weights for a type after a benchmark run.
+    
+    Called immediately after each benchmark completes, not at the end of experiments.
+    
+    Args:
+        type_name: The graph type (e.g., 'type_0')
+        algorithm: Algorithm name (e.g., 'HUBCLUSTERDBG')
+        benchmark: Benchmark name (e.g., 'bfs')
+        speedup: Observed speedup vs baseline
+        features: Graph features dict
+        cache_stats: Optional cache simulation results
+        reorder_time: Time to reorder the graph
+        weights_dir: Directory for type files
+        learning_rate: Learning rate for weight updates
+    """
+    import math
+    
+    weights = load_type_weights(type_name, weights_dir)
+    if not weights:
+        weights = {}
+    
+    # Initialize algorithm weights if not present
+    if algorithm not in weights:
+        weights[algorithm] = {
+            'bias': 0.5,
+            'w_modularity': 0.0,
+            'w_log_nodes': 0.0,
+            'w_log_edges': 0.0,
+            'w_density': 0.0,
+            'w_avg_degree': 0.0,
+            'w_degree_variance': 0.0,
+            'w_hub_concentration': 0.0,
+            'cache_l1_impact': 0.0,
+            'cache_l2_impact': 0.0,
+            'cache_l3_impact': 0.0,
+            'cache_dram_penalty': 0.0,
+            'w_reorder_time': 0.0,
+            'w_clustering_coeff': 0.0,
+            'w_avg_path_length': 0.0,
+            'w_diameter': 0.0,
+            'w_community_count': 0.0,
+            'benchmark_weights': {'pr': 1.0, 'bfs': 1.0, 'cc': 1.0, 'sssp': 1.0, 'bc': 1.0},
+            '_metadata': {
+                'sample_count': 0,
+                'avg_speedup': 1.0,
+                'win_count': 0,
+                'times_best': 0,
+                'win_rate': 0.0,
+            }
+        }
+    
+    algo_weights = weights[algorithm]
+    meta = algo_weights.get('_metadata', {})
+    
+    # Update sample count and running average speedup
+    count = meta.get('sample_count', 0) + 1
+    old_avg = meta.get('avg_speedup', 1.0)
+    new_avg = old_avg + (speedup - old_avg) / count
+    
+    meta['sample_count'] = count
+    meta['avg_speedup'] = new_avg
+    meta['last_updated'] = datetime.now().isoformat()
+    
+    # Track wins (speedup > 1.05 means this algorithm is notably better than baseline)
+    if speedup > 1.05:
+        meta['win_count'] = meta.get('win_count', 0) + 1
+    
+    # Track times_best (speedup > 1.0 means it beat the baseline)
+    if speedup > 1.0:
+        meta['times_best'] = meta.get('times_best', 0) + 1
+    
+    # Compute win_rate as percentage
+    meta['win_rate'] = meta['win_count'] / count if count > 0 else 0.0
+    
+    # Compute error signal (positive if better than expected, negative if worse)
+    current_score = algo_weights['bias']
+    error = (speedup - 1.0) - current_score  # How much better/worse than expected
+    
+    # Gradient update on weights
+    log_nodes = math.log10(features.get('nodes', 1) + 1)
+    log_edges = math.log10(features.get('edges', 1) + 1)
+    
+    algo_weights['bias'] += learning_rate * error
+    algo_weights['w_modularity'] += learning_rate * error * features.get('modularity', 0.5)
+    algo_weights['w_log_nodes'] += learning_rate * error * log_nodes * 0.1
+    algo_weights['w_log_edges'] += learning_rate * error * log_edges * 0.1
+    algo_weights['w_density'] += learning_rate * error * features.get('density', 0.0)
+    algo_weights['w_avg_degree'] += learning_rate * error * features.get('avg_degree', 0.0) / 100.0
+    algo_weights['w_degree_variance'] += learning_rate * error * features.get('degree_variance', 1.0)
+    algo_weights['w_hub_concentration'] += learning_rate * error * features.get('hub_concentration', 0.3)
+    algo_weights['w_clustering_coeff'] += learning_rate * error * features.get('clustering_coefficient', 0.0)
+    algo_weights['w_community_count'] += learning_rate * error * features.get('community_count', 0) / 1000.0  # Normalize
+    
+    # Extended topology features (now computed at graph load time)
+    algo_weights['w_avg_path_length'] += learning_rate * error * features.get('avg_path_length', 0.0) / 10.0
+    algo_weights['w_diameter'] += learning_rate * error * features.get('diameter', 0.0) / 50.0  # Normalize
+    
+    # Update cache weights if cache stats provided
+    if cache_stats:
+        l1_hit = cache_stats.get('l1_hit_rate', 0) / 100.0
+        l2_hit = cache_stats.get('l2_hit_rate', 0) / 100.0
+        l3_hit = cache_stats.get('l3_hit_rate', 0) / 100.0
+        dram_penalty = 1.0 - (l1_hit + l2_hit * 0.3 + l3_hit * 0.1)
+        
+        algo_weights['cache_l1_impact'] += learning_rate * error * l1_hit
+        algo_weights['cache_l2_impact'] += learning_rate * error * l2_hit
+        algo_weights['cache_l3_impact'] += learning_rate * error * l3_hit
+        algo_weights['cache_dram_penalty'] += learning_rate * error * dram_penalty
+        
+        # Track cache stats in metadata
+        meta['avg_l1_hit_rate'] = meta.get('avg_l1_hit_rate', 0) + (l1_hit * 100 - meta.get('avg_l1_hit_rate', 0)) / count
+        meta['avg_l2_hit_rate'] = meta.get('avg_l2_hit_rate', 0) + (l2_hit * 100 - meta.get('avg_l2_hit_rate', 0)) / count
+        meta['avg_l3_hit_rate'] = meta.get('avg_l3_hit_rate', 0) + (l3_hit * 100 - meta.get('avg_l3_hit_rate', 0)) / count
+    
+    # Update reorder time weight
+    if reorder_time > 0:
+        algo_weights['w_reorder_time'] += learning_rate * error * (-reorder_time / 10.0)  # Negative impact
+        meta['avg_reorder_time'] = meta.get('avg_reorder_time', 0) + (reorder_time - meta.get('avg_reorder_time', 0)) / count
+    
+    # Update benchmark-specific weight
+    bench_weights = algo_weights.get('benchmark_weights', {})
+    if benchmark.lower() in bench_weights:
+        # Adjust benchmark weight based on performance
+        current_bench_weight = bench_weights[benchmark.lower()]
+        bench_weights[benchmark.lower()] = current_bench_weight + learning_rate * error * 0.1
+    
+    algo_weights['_metadata'] = meta
+    algo_weights['benchmark_weights'] = bench_weights
+    weights[algorithm] = algo_weights
+    
+    # Save immediately
+    save_type_weights(type_name, weights, weights_dir)
+
+def get_best_algorithm_for_type(
+    type_name: str,
+    features: Dict,
+    benchmark: str = 'pr',
+    weights_dir: str = DEFAULT_WEIGHTS_DIR
+) -> Tuple[str, float]:
+    """
+    Get the best algorithm for a graph type based on learned weights.
+    
+    Returns:
+        (algorithm_name, score) tuple
+    """
+    weights = load_type_weights(type_name, weights_dir)
+    if not weights:
+        return ("ORIGINAL", 0.0)
+    
+    best_algo = None
+    best_score = float('-inf')
+    
+    for algo_name, algo_weights in weights.items():
+        if algo_name.startswith('_'):  # Skip metadata
+            continue
+        
+        # Create PerceptronWeight and compute score
+        pw = PerceptronWeight(
+            bias=algo_weights.get('bias', 0.5),
+            w_modularity=algo_weights.get('w_modularity', 0.0),
+            w_log_nodes=algo_weights.get('w_log_nodes', 0.0),
+            w_log_edges=algo_weights.get('w_log_edges', 0.0),
+            w_density=algo_weights.get('w_density', 0.0),
+            w_avg_degree=algo_weights.get('w_avg_degree', 0.0),
+            w_degree_variance=algo_weights.get('w_degree_variance', 0.0),
+            w_hub_concentration=algo_weights.get('w_hub_concentration', 0.0),
+            cache_l1_impact=algo_weights.get('cache_l1_impact', 0.0),
+            cache_l2_impact=algo_weights.get('cache_l2_impact', 0.0),
+            cache_l3_impact=algo_weights.get('cache_l3_impact', 0.0),
+            cache_dram_penalty=algo_weights.get('cache_dram_penalty', 0.0),
+            w_reorder_time=algo_weights.get('w_reorder_time', 0.0),
+            w_clustering_coeff=algo_weights.get('w_clustering_coeff', 0.0),
+            w_avg_path_length=algo_weights.get('w_avg_path_length', 0.0),
+            w_diameter=algo_weights.get('w_diameter', 0.0),
+            w_community_count=algo_weights.get('w_community_count', 0.0),
+            benchmark_weights=algo_weights.get('benchmark_weights', {})
+        )
+        
+        score = pw.compute_score(features, benchmark)
+        
+        # Add confidence boost based on sample count
+        meta = algo_weights.get('_metadata', {})
+        sample_count = meta.get('sample_count', 0)
+        confidence_boost = min(0.1, sample_count * 0.01)  # Max 0.1 boost for 10+ samples
+        score += confidence_boost
+        
+        if score > best_score:
+            best_score = score
+            best_algo = algo_name
+    
+    return (best_algo or "ORIGINAL", best_score)
+
+def list_known_types(weights_dir: str = DEFAULT_WEIGHTS_DIR) -> List[str]:
+    """List all known graph types."""
+    load_type_registry(weights_dir)
+    return list(_type_registry.keys())
+
+def get_type_summary(type_name: str, weights_dir: str = DEFAULT_WEIGHTS_DIR) -> Dict:
+    """Get summary information about a type."""
+    load_type_registry(weights_dir)
+    type_info = _type_registry.get(type_name, {})
+    weights = load_type_weights(type_name, weights_dir)
+    
+    # Count algorithms and their performance
+    algo_stats = {}
+    best_algos = {}
+    for algo_name, algo_weights in weights.items():
+        if algo_name.startswith('_'):
+            continue
+        meta = algo_weights.get('_metadata', {})
+        algo_stats[algo_name] = {
+            'sample_count': meta.get('sample_count', 0),
+            'avg_speedup': meta.get('avg_speedup', 1.0),
+            'win_count': meta.get('win_count', 0),
+        }
+        # Track best algorithm per benchmark
+        for bench, weight in algo_weights.get('benchmark_weights', {}).items():
+            if bench not in best_algos or weight > best_algos[bench][1]:
+                best_algos[bench] = (algo_name, weight)
+    
+    return {
+        'type_name': type_name,
+        'num_graphs': type_info.get('sample_count', 0),  # Renamed for clarity in display
+        'sample_count': type_info.get('sample_count', 0),
+        'created': type_info.get('created', 'unknown'),
+        'last_updated': type_info.get('last_updated', 'unknown'),
+        'centroid': type_info.get('centroid', []),
+        'representative_features': type_info.get('representative_features', {}),
+        'algorithms': algo_stats,
+        'best_algorithms': {bench: algo for bench, (algo, _) in best_algos.items()},
+    }
+
 
 # ============================================================================
 # Graph Catalog for Download
@@ -1420,6 +1863,125 @@ def download_graphs(
     
     return successful
 
+
+def ensure_prerequisites(project_dir: str = ".", 
+                         graphs_dir: str = DEFAULT_GRAPHS_DIR,
+                         results_dir: str = DEFAULT_RESULTS_DIR,
+                         weights_dir: str = DEFAULT_WEIGHTS_DIR,
+                         rebuild: bool = False) -> bool:
+    """
+    Ensure all prerequisites are in place: directories, binaries, weights folder.
+    
+    This function is called at the start of any operation to ensure the environment
+    is properly set up. If any component is missing, it attempts to create/build it.
+    
+    Args:
+        project_dir: Root project directory
+        graphs_dir: Directory for graph files
+        results_dir: Directory for results
+        weights_dir: Directory for type-based weight files
+        rebuild: If True, force rebuild even if binaries exist
+        
+    Returns:
+        True if all prerequisites are satisfied, False otherwise
+    """
+    log_section("Ensuring Prerequisites")
+    success = True
+    
+    # 1. Ensure directories exist
+    log("Checking directories...")
+    required_dirs = [
+        graphs_dir,
+        results_dir,
+        weights_dir,
+        os.path.join(project_dir, "bench", "bin"),
+        os.path.join(project_dir, "bench", "bin_sim"),
+    ]
+    
+    for dir_path in required_dirs:
+        if not os.path.exists(dir_path):
+            log(f"  Creating: {dir_path}")
+            os.makedirs(dir_path, exist_ok=True)
+        else:
+            log(f"  OK: {dir_path}")
+    
+    # 2. Check and build binaries
+    log("Checking binaries...")
+    bin_dir = os.path.join(project_dir, "bench", "bin")
+    bin_sim_dir = os.path.join(project_dir, "bench", "bin_sim")
+    
+    required_bins = ["bfs", "pr", "cc", "bc", "sssp", "tc"]
+    
+    # Check standard binaries
+    missing_bins = []
+    for binary in required_bins:
+        bin_path = os.path.join(bin_dir, binary)
+        if not os.path.exists(bin_path) or rebuild:
+            missing_bins.append(binary)
+    
+    # Check simulation binaries
+    missing_sim = []
+    for binary in required_bins:
+        sim_path = os.path.join(bin_sim_dir, binary)
+        if not os.path.exists(sim_path) or rebuild:
+            missing_sim.append(binary)
+    
+    # Build if needed
+    if missing_bins or missing_sim or rebuild:
+        makefile = os.path.join(project_dir, "Makefile")
+        if not os.path.exists(makefile):
+            log("ERROR: Makefile not found - cannot build binaries", "ERROR")
+            return False
+        
+        if missing_bins or rebuild:
+            log(f"  Building standard binaries: {', '.join(missing_bins) if missing_bins else 'all (rebuild requested)'}...")
+            cmd = f"cd {project_dir} && make clean-bin && make -j$(nproc)" if rebuild else f"cd {project_dir} && make -j$(nproc)"
+            success_build, stdout, stderr = run_command(cmd, timeout=600)
+            if not success_build:
+                log(f"  Build failed: {stderr[:200]}", "ERROR")
+                success = False
+            else:
+                log("  Standard binaries built successfully")
+        
+        if missing_sim or rebuild:
+            log(f"  Building simulation binaries: {', '.join(missing_sim) if missing_sim else 'all (rebuild requested)'}...")
+            cmd = f"cd {project_dir} && make clean-sim && make all-sim -j$(nproc)" if rebuild else f"cd {project_dir} && make all-sim -j$(nproc)"
+            success_build, stdout, stderr = run_command(cmd, timeout=600)
+            if not success_build:
+                log(f"  Simulation build failed: {stderr[:200]}", "ERROR")
+                success = False
+            else:
+                log("  Simulation binaries built successfully")
+    else:
+        log("  All binaries present")
+    
+    # 3. Initialize type registry if needed
+    log("Checking type registry...")
+    load_type_registry(weights_dir)
+    known_types = list_known_types(weights_dir)
+    if known_types:
+        log(f"  Loaded {len(known_types)} types: {', '.join(known_types)}")
+    else:
+        log("  No types yet - will be created as graphs are processed")
+    
+    # 4. Verify a binary actually works
+    log("Verifying binaries work...")
+    test_bin = os.path.join(bin_dir, "pr")
+    if os.path.exists(test_bin):
+        test_success, _, stderr = run_command(f"{test_bin} --help", timeout=5)
+        if test_success or "Usage" in stderr or "pagerank" in stderr.lower():
+            log("  Binary verification: OK")
+        else:
+            log("  Binary verification: WARNING - binary may not work correctly", "WARN")
+    
+    if success:
+        log("All prerequisites satisfied", "INFO")
+    else:
+        log("Some prerequisites failed - continuing with available resources", "WARN")
+    
+    return success
+
+
 def check_and_build_binaries(project_dir: str = ".") -> bool:
     """Check if binaries exist, build if necessary.
     
@@ -1652,9 +2214,8 @@ def parse_benchmark_output(output: str) -> Dict[str, Any]:
         result['nodes'] = int(match.group(1))
         result['edges'] = int(match.group(2))
     
-    # Timing patterns
+    # Timing patterns - base execution times
     patterns = {
-        'reorder_time': r'Reorder Time:\s+([\d.]+)',
         'trial_time': r'Trial Time:\s+([\d.]+)',
         'average_time': r'Average Time:\s+([\d.]+)',
         'total_time': r'Total Time:\s+([\d.]+)',
@@ -1664,6 +2225,29 @@ def parse_benchmark_output(output: str) -> Dict[str, Any]:
         match = re.search(pattern, output)
         if match:
             result[key] = float(match.group(1))
+    
+    # Reorder/Ordering time patterns - from various algorithms
+    # Patterns like: "RabbitOrder Map Time: 0.123", "Ordering Time: 0.456", etc.
+    reorder_patterns = [
+        r'(?:RabbitOrder|GOrder|LeidenOrder|COrder|RCMOrder|HubSort|DBG|Relabel|Sub-RabbitOrder)\s*Map Time[:\s]+([\d.]+)',
+        r'Ordering Time[:\s]+([\d.]+)',
+        r'RandOrder Time[:\s]+([\d.]+)',
+        r'Reorder Time[:\s]+([\d.]+)',
+        r'Total Reordering Time[:\s]+([\d.]+)',
+    ]
+    
+    # Collect all reorder times and use the largest (the actual reorder, not intermediate steps)
+    reorder_times = []
+    for pattern in reorder_patterns:
+        for match in re.finditer(pattern, output, re.IGNORECASE):
+            try:
+                reorder_times.append(float(match.group(1)))
+            except (ValueError, IndexError):
+                pass
+    
+    if reorder_times:
+        # Use the maximum (primary algorithm time, not sub-steps)
+        result['reorder_time'] = max(reorder_times)
     
     # Modularity
     match = re.search(r'[Mm]odularity[:\s]+([\d.]+)', output)
@@ -1680,6 +2264,31 @@ def parse_benchmark_output(output: str) -> Dict[str, Any]:
     match = re.search(r'Hub Concentration[:\s]+([\d.]+)', output)
     if match:
         result['hub_concentration'] = float(match.group(1))
+    
+    # Clustering Coefficient: 0.1234
+    match = re.search(r'Clustering Coefficient[:\s]+([\d.]+)', output)
+    if match:
+        result['clustering_coefficient'] = float(match.group(1))
+    
+    # Community Count: 123 or Number of Communities: 123 or Community Count Estimate: 123
+    match = re.search(r'(?:Community Count(?: Estimate)?|Number of Communities|communities)[:\s]+([\d.]+)', output, re.IGNORECASE)
+    if match:
+        result['community_count'] = int(float(match.group(1)))
+    
+    # Avg Path Length: 5.6789
+    match = re.search(r'Avg Path Length[:\s]+([\d.]+)', output)
+    if match:
+        result['avg_path_length'] = float(match.group(1))
+    
+    # Diameter Estimate: 12
+    match = re.search(r'Diameter Estimate[:\s]+([\d.]+)', output)
+    if match:
+        result['diameter'] = float(match.group(1))
+    
+    # Avg Degree: 10.5 (from topology features)
+    match = re.search(r'Avg Degree[:\s]+([\d.]+)', output)
+    if match:
+        result['avg_degree'] = float(match.group(1))
     
     # Graph Type: social
     match = re.search(r'Graph Type[:\s]+(\w+)', output)
@@ -2122,13 +2731,17 @@ def run_benchmarks(
     num_trials: int = 2,
     timeout: int = TIMEOUT_BENCHMARK,
     skip_slow: bool = False,
-    label_maps: Dict[str, Dict[str, str]] = None
+    label_maps: Dict[str, Dict[str, str]] = None,
+    weights_dir: str = DEFAULT_WEIGHTS_DIR,
+    update_weights: bool = True
 ) -> List[BenchmarkResult]:
     """
     Run execution benchmarks for all combinations.
     
     If label_maps is provided, uses pre-generated mappings via MAP algorithm (14)
     for consistent reordering instead of regenerating each time.
+    
+    If update_weights is True, incrementally updates type weights after each benchmark.
     """
     log_section("Phase 2: Execution Benchmarks")
     
@@ -2198,17 +2811,28 @@ def run_benchmarks(
                     nodes = parsed.get('nodes', 0)
                     edges = parsed.get('edges', 0)
                     
+                    # Compute derived properties
+                    computed_avg_degree = 2 * edges / nodes if nodes > 0 else 0
+                    max_edges = nodes * (nodes - 1) / 2 if nodes > 1 else 1
+                    computed_density = edges / max_edges if max_edges > 0 else 0.0
+                    
                     # Update graph properties cache with any parsed features
-                    if any(k in parsed for k in ['modularity', 'degree_variance', 'hub_concentration', 'graph_type']):
-                        update_graph_properties(graph.name, {
-                            'modularity': parsed.get('modularity'),
-                            'degree_variance': parsed.get('degree_variance'),
-                            'hub_concentration': parsed.get('hub_concentration'),
-                            'graph_type': parsed.get('graph_type'),
-                            'nodes': nodes,
-                            'edges': edges,
-                            'avg_degree': 2 * edges / nodes if nodes > 0 else 0
-                        })
+                    graph_features = {
+                        'modularity': parsed.get('modularity'),
+                        'degree_variance': parsed.get('degree_variance'),
+                        'hub_concentration': parsed.get('hub_concentration'),
+                        'clustering_coefficient': parsed.get('clustering_coefficient'),
+                        'community_count': parsed.get('community_count'),
+                        'graph_type': parsed.get('graph_type'),
+                        'nodes': nodes,
+                        'edges': edges,
+                        'avg_degree': computed_avg_degree,
+                        'density': computed_density,
+                    }
+                    # Only update if we got meaningful parsed data
+                    if any(k in parsed for k in ['modularity', 'degree_variance', 'hub_concentration', 
+                                                   'clustering_coefficient', 'community_count', 'graph_type']):
+                        update_graph_properties(graph.name, graph_features)
                     
                     # Record baseline for speedup (RANDOM = algo_id 1)
                     if algo_id == BASELINE_ALGO_ID:
@@ -2219,6 +2843,50 @@ def run_benchmarks(
                     speedup = baseline / trial_time if trial_time > 0 else 0.0
                     
                     log(f"    [{current}/{total}] {algo_name}: {trial_time:.4f}s (speedup: {speedup:.2f}x)")
+                    
+                    # Incremental weight update
+                    if update_weights and speedup > 0:
+                        # Get or assign graph type
+                        cached_props = _graph_properties_cache.get(graph.name, {})
+                        
+                        # Compute actual values from benchmark output
+                        actual_nodes = nodes or cached_props.get('nodes', 1000)
+                        actual_edges = edges or cached_props.get('edges', 5000)
+                        
+                        # Compute density: edges / (nodes * (nodes-1) / 2) for undirected
+                        max_edges = actual_nodes * (actual_nodes - 1) / 2 if actual_nodes > 1 else 1
+                        computed_density = actual_edges / max_edges if max_edges > 0 else 0.0
+                        
+                        # Compute avg_degree: 2 * edges / nodes
+                        computed_avg_degree = (2 * actual_edges / actual_nodes) if actual_nodes > 0 else 0.0
+                        
+                        features = {
+                            'modularity': cached_props.get('modularity', 0.5),
+                            'degree_variance': cached_props.get('degree_variance', 1.0),
+                            'hub_concentration': cached_props.get('hub_concentration', 0.3),
+                            'avg_degree': cached_props.get('avg_degree') or computed_avg_degree,
+                            'nodes': actual_nodes,
+                            'edges': actual_edges,
+                            'density': cached_props.get('density') or computed_density,
+                            'clustering_coefficient': cached_props.get('clustering_coefficient', 0.0),
+                            'community_count': cached_props.get('community_count', 0),
+                        }
+                        graph_type = assign_graph_type(features, weights_dir)
+                        
+                        # Get reorder time from benchmark output (reorder_time field from parsed output)
+                        reorder_time = parsed.get('reorder_time', 0.0) or parsed.get('ordering_time', 0.0)
+                        
+                        # Update weights for this type
+                        update_type_weights_incremental(
+                            type_name=graph_type,
+                            algorithm=algo_name,
+                            benchmark=bench,
+                            speedup=speedup,
+                            features=features,
+                            reorder_time=reorder_time,
+                            weights_dir=weights_dir
+                        )
+                    
                     results.append(BenchmarkResult(
                         graph=graph.name,
                         algorithm_id=algo_id,
@@ -2256,13 +2924,17 @@ def run_cache_simulations(
     bin_sim_dir: str,
     timeout: int = TIMEOUT_SIM,
     skip_heavy: bool = False,
-    label_maps: Dict[str, Dict[str, str]] = None
+    label_maps: Dict[str, Dict[str, str]] = None,
+    weights_dir: str = DEFAULT_WEIGHTS_DIR,
+    update_weights: bool = True
 ) -> List[CacheResult]:
     """
     Run cache simulations for all combinations.
     
     If label_maps is provided, uses pre-generated mappings via MAP algorithm (14)
     for consistent reordering instead of regenerating each time.
+    
+    If update_weights is True, updates type weights with cache stats.
     """
     log_section("Phase 3: Cache Simulations")
     
@@ -2328,6 +3000,51 @@ def run_cache_simulations(
                     l3 = parsed.get('l3_hit_rate', 0.0)
                     
                     log(f"    [{current}/{total}] {algo_name}: L1:{l1:.1f}% L2:{l2:.1f}% L3:{l3:.1f}%")
+                    
+                    # Incremental weight update with cache stats
+                    if update_weights:
+                        cached_props = _graph_properties_cache.get(graph.name, {})
+                        
+                        # Get actual node/edge counts
+                        actual_nodes = cached_props.get('nodes', 1000)
+                        actual_edges = cached_props.get('edges', 5000)
+                        
+                        # Compute density and avg_degree if not cached
+                        max_edges = actual_nodes * (actual_nodes - 1) / 2 if actual_nodes > 1 else 1
+                        computed_density = actual_edges / max_edges if max_edges > 0 else 0.0
+                        computed_avg_degree = (2 * actual_edges / actual_nodes) if actual_nodes > 0 else 0.0
+                        
+                        features = {
+                            'modularity': cached_props.get('modularity', 0.5),
+                            'degree_variance': cached_props.get('degree_variance', 1.0),
+                            'hub_concentration': cached_props.get('hub_concentration', 0.3),
+                            'avg_degree': cached_props.get('avg_degree') or computed_avg_degree,
+                            'nodes': actual_nodes,
+                            'edges': actual_edges,
+                            'density': cached_props.get('density') or computed_density,
+                            'clustering_coefficient': cached_props.get('clustering_coefficient', 0.0),
+                            'community_count': cached_props.get('community_count', 0),
+                        }
+                        graph_type = assign_graph_type(features, weights_dir, create_if_outlier=False)
+                        
+                        if graph_type:
+                            cache_stats = {
+                                'l1_hit_rate': l1,
+                                'l2_hit_rate': l2,
+                                'l3_hit_rate': l3,
+                            }
+                            # Update with cache data (speedup=1.0 since we don't have timing here)
+                            update_type_weights_incremental(
+                                type_name=graph_type,
+                                algorithm=algo_name,
+                                benchmark=bench,
+                                speedup=1.0,  # Cache-only update
+                                features=features,
+                                cache_stats=cache_stats,
+                                weights_dir=weights_dir,
+                                learning_rate=0.005  # Lower rate for cache-only updates
+                            )
+                    
                     results.append(CacheResult(
                         graph=graph.name,
                         algorithm_id=algo_id,
@@ -4406,7 +5123,9 @@ def run_experiment(args):
             num_trials=args.trials,
             timeout=args.timeout_benchmark,
             skip_slow=args.skip_slow,
-            label_maps=label_maps
+            label_maps=label_maps,
+            weights_dir=args.weights_dir,
+            update_weights=not getattr(args, 'no_incremental', False)
         )
         all_benchmark_results.extend(benchmark_results)
         
@@ -4425,7 +5144,9 @@ def run_experiment(args):
             bin_sim_dir=args.bin_sim_dir,
             timeout=args.timeout_sim,
             skip_heavy=args.skip_heavy,
-            label_maps=label_maps
+            label_maps=label_maps,
+            weights_dir=args.weights_dir,
+            update_weights=not getattr(args, 'no_incremental', False)
         )
         all_cache_results.extend(cache_results)
         
@@ -4630,7 +5351,9 @@ def run_experiment(args):
             num_trials=args.trials,
             timeout=args.timeout_benchmark,
             skip_slow=getattr(args, 'skip_slow', False),
-            label_maps={}
+            label_maps={},
+            weights_dir=args.weights_dir,
+            update_weights=True  # Always update incrementally in fill-weights
         )
         
         # Phase 3: Cache Simulation
@@ -4642,7 +5365,9 @@ def run_experiment(args):
             bin_sim_dir=args.bin_sim_dir,
             timeout=args.timeout_sim,
             skip_heavy=getattr(args, 'skip_heavy', True),
-            label_maps={}
+            label_maps={},
+            weights_dir=args.weights_dir,
+            update_weights=True  # Always update incrementally in fill-weights
         )
         
         # Phase 4: Generate Base Weights
@@ -4712,7 +5437,13 @@ def run_experiment(args):
     
     log_section("Experiment Complete")
     log(f"Results directory: {args.results_dir}")
-    log(f"Weights file: {args.weights_file}")
+    log(f"Weights directory: {args.weights_dir}")
+    
+    # Show type system summary
+    known_types = list_known_types(args.weights_dir)
+    if known_types:
+        log(f"Known types: {', '.join(known_types)}")
+        log("Run --show-types to see full type details")
 
 # ============================================================================
 # CLI
@@ -4822,8 +5553,8 @@ Examples:
                         help="Directory containing simulation binaries")
     parser.add_argument("--results-dir", default=DEFAULT_RESULTS_DIR,
                         help="Directory for results")
-    parser.add_argument("--weights-file", default=DEFAULT_WEIGHTS_FILE,
-                        help="Output perceptron weights file")
+    parser.add_argument("--weights-dir", default=DEFAULT_WEIGHTS_DIR,
+                        help="Directory for auto-generated type weight files")
     
     # Skip options
     parser.add_argument("--skip-cache", action="store_true",
@@ -4877,6 +5608,16 @@ Examples:
     parser.add_argument("--fill-weights", action="store_true",
                         help="Fill ALL weight fields: runs cache sim, graph features, benchmark analysis")
     
+    # Type system options
+    parser.add_argument("--show-types", action="store_true",
+                        help="Show all known graph types and their statistics")
+    parser.add_argument("--no-incremental", action="store_true",
+                        help="Disable incremental weight updates (don't update type weights on-the-fly)")
+    
+    # Legacy weights file (for backward compatibility with old scripts)
+    parser.add_argument("--weights-file", default="./scripts/perceptron_weights.json",
+                        help="(Legacy) Single weights file for old-style batch processing")
+    
     # Clean options
     parser.add_argument("--clean", action="store_true",
                         help="Clean results directory before running (keeps graphs and weights)")
@@ -4917,25 +5658,47 @@ Examples:
         if not (args.full or args.download_only or args.phase != "all"):
             return  # Just clean, don't run experiments
     
-    # Ensure directories exist
-    os.makedirs(args.results_dir, exist_ok=True)
+    # Handle --show-types early (informational command)
+    if getattr(args, 'show_types', False):
+        log_section("Known Graph Types")
+        load_type_registry(args.weights_dir)
+        known_types = list_known_types(args.weights_dir)
+        if not known_types:
+            log("No types defined yet. Types are auto-created when graphs are processed.")
+            log(f"Types will be stored in: {args.weights_dir}")
+        else:
+            for type_name in sorted(known_types):
+                summary = get_type_summary(type_name, args.weights_dir)
+                if summary:
+                    log(f"\n{type_name.upper()}:")
+                    log(f"  Graphs trained: {summary.get('num_graphs', 0)}")
+                    if 'best_algorithms' in summary:
+                        for bench, algo in summary['best_algorithms'].items():
+                            log(f"  Best for {bench}: {algo}")
+                    # Show representative features instead of centroid (more readable)
+                    if 'representative_features' in summary and summary['representative_features']:
+                        rf = summary['representative_features']
+                        log(f"  Features: modularity={rf.get('modularity', 0):.3f}, "
+                            f"avg_degree={rf.get('avg_degree', 0):.1f}")
+        return  # Exit after showing types
     
-    # Auto-setup: automatically handle missing components
-    if args.auto_setup or args.fill_weights or args.full:
-        log_section("Auto-Setup: Checking Prerequisites")
-        
-        # 1. Check/create directories
-        log("Checking directories...")
-        os.makedirs(args.graphs_dir, exist_ok=True)
+    # ALWAYS ensure prerequisites at start (unless skip_build is set)
+    if not getattr(args, 'skip_build', False):
+        ensure_prerequisites(
+            project_dir=".",
+            graphs_dir=args.graphs_dir,
+            results_dir=args.results_dir,
+            weights_dir=args.weights_dir,
+            rebuild=False
+        )
+    else:
+        # At least ensure directories exist
         os.makedirs(args.results_dir, exist_ok=True)
-        os.makedirs(os.path.dirname(args.weights_file), exist_ok=True)
-        
-        # 2. Check/build binaries
-        log("Checking binaries...")
-        if not args.skip_build:
-            if not check_and_build_binaries("."):
-                log("Build failed - attempting to continue anyway", "WARN")
-        
+        os.makedirs(args.weights_dir, exist_ok=True)
+    
+    # Auto-setup: download graphs if needed
+    if args.auto_setup or args.fill_weights or args.full:
+        log_section("Auto-Setup: Downloading Graphs")
         # 3. Download ALL requested graphs FIRST (before any experiments)
         # This ensures all graphs are ready before we start reordering/benchmarks
         log("Downloading graphs (ensuring all are ready before experiments)...")
@@ -4954,16 +5717,14 @@ Examples:
             sys.exit(1)
         log(f"Total graphs ready: {len(graphs)}")
         
-        # 4. Check for weights file and initialize if missing
-        if not os.path.exists(args.weights_file):
-            # Try to copy from scripts folder
-            scripts_weights = "./scripts/perceptron_weights.json"
-            if os.path.exists(scripts_weights):
-                log(f"Copying weights from {scripts_weights}", "INFO")
-                shutil.copy(scripts_weights, args.weights_file)
-            else:
-                log("Initializing new weights file...", "INFO")
-                weights = initialize_enhanced_weights(args.weights_file)
+        # 4. Initialize type registry if needed
+        load_type_registry(args.weights_dir)
+        log(f"Type registry loaded from: {args.weights_dir}")
+        known_types = list_known_types(args.weights_dir)
+        if known_types:
+            log(f"Known types: {', '.join(known_types)}")
+        else:
+            log("No existing types - will create as graphs are processed")
         
         log("Auto-setup complete - all graphs downloaded and ready\n")
     
