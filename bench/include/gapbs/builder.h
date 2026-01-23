@@ -1843,7 +1843,9 @@ public:
             GenerateLeidenDendrogramMapping(g, new_ids, reordering_options, LeidenBFS);
             break;
         case LeidenHybrid:
-            GenerateLeidenDendrogramMapping(g, new_ids, reordering_options, LeidenHybrid);
+            // LeidenHybrid uses fast path - same as LeidenOrder (sort by community + degree)
+            // No expensive dendrogram construction needed
+            GenerateLeidenMapping(g, new_ids, reordering_options);
             break;
         case GraphBrewOrder:
             GenerateGraphBrewMapping(g, new_ids, useOutdeg, reordering_options, 2);
@@ -1952,7 +1954,9 @@ public:
             GenerateLeidenDendrogramMapping(g, new_ids, reordering_options, LeidenBFS);
             break;
         case LeidenHybrid:
-            GenerateLeidenDendrogramMapping(g, new_ids, reordering_options, LeidenHybrid);
+            // LeidenHybrid uses fast path - same as LeidenOrder (sort by community + degree)
+            // No expensive dendrogram construction needed
+            GenerateLeidenMapping(g, new_ids, reordering_options);
             break;
         case GraphBrewOrder:
             GenerateGraphBrewMapping(g, new_ids, useOutdeg, reordering_options, numLevels, recursion);
@@ -4837,20 +4841,21 @@ public:
          * higher-quality community structure.
          */
         const size_t actual_passes = num_passes - 2;  // Exclude nodeID and degree columns
-        const size_t last_pass_col = (2 + actual_passes - 1);  // Last (coarsest) pass column
         
-        // Sort primarily by last-pass community (coarsest level) 
-        // with degree as secondary key within communities
+        // Sort by ALL passes (coarsest to finest) then by degree
+        // This achieves dendrogram DFS-like ordering without building the tree
         __gnu_parallel::sort(sort_indices.begin(), sort_indices.end(),
-            [&communityDataFlat, stride, last_pass_col](size_t a, size_t b) {
-                // Primary: sort by coarsest community
-                K comm_a = communityDataFlat[last_pass_col * stride + a];
-                K comm_b = communityDataFlat[last_pass_col * stride + b];
-                if (comm_a != comm_b) {
-                    return comm_a < comm_b;
+            [&communityDataFlat, stride, actual_passes](size_t a, size_t b) {
+                // Compare all passes from coarsest (last) to finest (first)
+                for (size_t p = actual_passes; p > 0; --p) {
+                    size_t pass_col = 2 + p - 1;  // Column index for this pass
+                    K comm_a = communityDataFlat[pass_col * stride + a];
+                    K comm_b = communityDataFlat[pass_col * stride + b];
+                    if (comm_a != comm_b) {
+                        return comm_a < comm_b;
+                    }
                 }
-                // Secondary: within community, sort by degree (descending)
-                // This puts hubs at the start of each community - better cache locality
+                // All passes equal - sort by degree (descending) for hub locality
                 K deg_a = communityDataFlat[stride + a];  // degree column
                 K deg_b = communityDataFlat[stride + b];
                 return deg_a > deg_b;  // High degree first (hubs together)
