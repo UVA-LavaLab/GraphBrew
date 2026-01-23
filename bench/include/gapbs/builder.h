@@ -5330,18 +5330,25 @@ public:
         PrintTime("Leiden MaxIterations", maxIterations);
         PrintTime("Leiden MaxPasses", maxPasses);
         
-        // Build Leiden-compatible graph
+        // Build Leiden-compatible graph (PARALLEL edge construction)
         tm.Start();
-        std::vector<std::tuple<size_t, size_t, double>> edges;
+        int64_t num_edges = g.num_edges_directed();
+        std::vector<std::tuple<size_t, size_t, double>> edges(num_edges);
+        
+        // Parallel edge list construction using CSR offsets
+        #pragma omp parallel for
         for (int64_t u = 0; u < num_nodes; ++u) {
+            NodeID_ out_start = g.out_offset(u);
+            NodeID_ j = 0;
             for (DestID_ neighbor : g.out_neigh(u)) {
                 if (g.is_weighted()) {
                     NodeID_ dest = static_cast<NodeWeight<NodeID_, WeightT_>>(neighbor).v;
                     WeightT_ weight = static_cast<NodeWeight<NodeID_, WeightT_>>(neighbor).w;
-                    edges.emplace_back((size_t)u, (size_t)dest, (double)weight);
+                    edges[out_start + j] = std::make_tuple((size_t)u, (size_t)dest, (double)weight);
                 } else {
-                    edges.emplace_back((size_t)u, (size_t)neighbor, 1.0);
+                    edges[out_start + j] = std::make_tuple((size_t)u, (size_t)neighbor, 1.0);
                 }
+                ++j;
             }
         }
         
