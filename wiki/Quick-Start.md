@@ -81,19 +81,38 @@ Train perceptron weights from scratch with automatic resource management:
 # Clean slate: remove old results and weights
 rm -rf results/* scripts/weights/type_*.json scripts/weights/type_registry.json
 
-# Fill weights with auto memory/disk limits, skip cache simulation for speed
-python3 scripts/graphbrew_experiment.py --fill-weights --auto-memory --auto-disk --skip-cache --graphs all
+# Comprehensive training: ALL graphs (small+medium+large) with adaptive analysis
+python3 scripts/graphbrew_experiment.py --fill-weights --auto-memory --auto-disk --skip-cache --download-size ALL --adaptive-analysis --adaptive-comparison
 ```
 
 This command:
-- ✅ Auto-detects available RAM and skips graphs that won't fit
-- ✅ Auto-detects disk space and limits downloads accordingly
+- ✅ Auto-detects available RAM and skips graphs that won't fit (e.g., sk-2005 at 65.9 GB)
+- ✅ Auto-detects disk space and limits downloads accordingly  
+- ✅ Downloads ALL graphs (~89 GB): SMALL + MEDIUM + LARGE categories
 - ✅ Skips cache simulation (faster training)
-- ✅ Processes all graph sizes (small, medium, large)
 - ✅ Generates type clusters based on graph features
 - ✅ Creates `scripts/weights/type_N.json` files for each cluster
+- ✅ Runs adaptive analysis to show algorithm distribution
+- ✅ Compares AdaptiveOrder vs fixed algorithms
 
-**Estimated time:** ~30-60 minutes depending on system and graph sizes.
+### Faster Options
+
+```bash
+# Quick test on SMALL graphs only (~62 MB, 16 graphs)
+python3 scripts/graphbrew_experiment.py --fill-weights --auto-memory --auto-disk --skip-cache --download-size SMALL
+
+# Medium-scale training (~1.1 GB, 28 graphs)
+python3 scripts/graphbrew_experiment.py --fill-weights --auto-memory --auto-disk --skip-cache --download-size MEDIUM
+
+# Large-scale training (~25 GB, 37 graphs)
+python3 scripts/graphbrew_experiment.py --fill-weights --auto-memory --auto-disk --skip-cache --download-size LARGE
+```
+
+**Estimated time:** 
+- SMALL: ~10-15 minutes
+- MEDIUM: ~30-45 minutes  
+- LARGE: ~2-4 hours
+- ALL: ~4-8 hours (depending on system)
 
 ---
 

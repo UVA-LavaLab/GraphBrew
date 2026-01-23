@@ -122,6 +122,20 @@ python3 scripts/graphbrew_experiment.py --clean-all --full --download-size SMALL
 python3 scripts/graphbrew_experiment.py --help
 ```
 
+### 🎯 Comprehensive Weight Training
+
+Train type-based perceptron weights from scratch:
+
+```bash
+# Clean slate
+rm -rf results/* scripts/weights/type_*.json scripts/weights/type_registry.json
+
+# Train on ALL graphs with adaptive analysis and comparison
+python3 scripts/graphbrew_experiment.py --fill-weights --auto-memory --auto-disk --skip-cache --download-size ALL --adaptive-analysis --adaptive-comparison
+```
+
+This trains on 85+ graphs (SMALL+MEDIUM+LARGE), auto-skipping any that exceed RAM limits.
+
 ### Graph Catalog
 
 | Size | Graphs | Total Size | Categories |
