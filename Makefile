@@ -97,7 +97,7 @@ endif
 # =========================================================
 # Targets
 # =========================================================
-KERNELS = bc bfs cc cc_sv pr pr_spmv sssp tc tc_p leiden
+KERNELS = bc bfs cc cc_sv pr pr_spmv sssp tc tc_p
 KERNELS_BIN = $(addprefix $(BIN_DIR)/,$(KERNELS))
 SUITE = $(KERNELS_BIN) $(BIN_DIR)/converter
 # =========================================================
