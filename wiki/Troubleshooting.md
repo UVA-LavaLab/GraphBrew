@@ -176,9 +176,9 @@ gdb ./bench/bin/pr
 
 3. **Invalid algorithm ID**
    ```bash
-   # Use valid IDs: 0-12, 15-20
+   # Use valid IDs: 0-13, 15-20 (14=MAP requires external file)
    ./bench/bin/pr -f graph.el -s -o 7  # Valid
-   ./bench/bin/pr -f graph.el -s -o 14 # Invalid (reserved)
+   ./bench/bin/pr -f graph.el -s -o 14 # Invalid (requires .lo file)
    ```
 
 ### Out of Memory

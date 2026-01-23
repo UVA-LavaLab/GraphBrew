@@ -273,7 +273,7 @@ python3 scripts/graphbrew_experiment.py --fill-weights --graphs small
 ```
 
 This automatically:
-1. Downloads 96 diverse graphs from SuiteSparse (with `--auto-memory`/`--auto-disk` support)
+1. Downloads 87 diverse graphs from SuiteSparse (with `--auto-memory`/`--auto-disk` support)
 2. Runs all 20 algorithms on each graph
 3. Collects cache simulation data (L1/L2/L3 hit rates)
 4. Records reorder times for each algorithm

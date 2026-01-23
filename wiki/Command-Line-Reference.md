@@ -6,17 +6,19 @@ Complete reference for all GraphBrew command-line options.
 
 ## Benchmark Binaries
 
-All binaries are located in `bench/bin/`:
+All binaries are located in `bench/bin/`. The automated pipeline uses **five** benchmarks (PR, BFS, CC, SSSP, BC):
 
-| Binary | Algorithm | Description |
-|--------|-----------|-------------|
-| `pr` | PageRank | Page importance ranking |
-| `bfs` | BFS | Breadth-first search |
-| `cc` | Connected Components | Find connected subgraphs |
-| `sssp` | Shortest Paths | Single-source shortest paths |
-| `bc` | Betweenness Centrality | Centrality measure |
-| `tc` | Triangle Counting | Count triangles |
-| `converter` | - | Convert graph formats |
+| Binary | Algorithm | Description | Automated |
+|--------|-----------|-------------|-----------|
+| `pr` | PageRank | Page importance ranking | ✅ |
+| `bfs` | BFS | Breadth-first search | ✅ |
+| `cc` | Connected Components | Find connected subgraphs | ✅ |
+| `sssp` | Shortest Paths | Single-source shortest paths | ✅ |
+| `bc` | Betweenness Centrality | Centrality measure | ✅ |
+| `tc` | Triangle Counting | Count triangles | ❌* |
+| `converter` | - | Convert graph formats | - |
+
+> **Note:** *Triangle Counting is excluded from the automated pipeline because reordering provides minimal benefit for this workload. It can still be run manually.
 
 ---
 
