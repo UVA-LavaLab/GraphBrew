@@ -1762,6 +1762,12 @@ public:
             return "LeidenHybrid";
         case LeidenCSR:
             return "LeidenCSR";
+        case LeidenCSRDFS:
+            return "LeidenCSRDFS";
+        case LeidenCSRBFS:
+            return "LeidenCSRBFS";
+        case LeidenCSRHubSort:
+            return "LeidenCSRHubSort";
         case ORIGINAL:
             return "Original";
         case Sort:
@@ -1850,8 +1856,20 @@ public:
             GenerateLeidenMapping(g, new_ids, reordering_options);
             break;
         case LeidenCSR:
-            // Fast Leiden directly on CSR - no DiGraph conversion
-            GenerateLeidenCSRMapping(g, new_ids, reordering_options);
+            // Fast Leiden directly on CSR - no DiGraph conversion (hub-first ordering)
+            GenerateLeidenCSRMapping(g, new_ids, reordering_options, LeidenCSR);
+            break;
+        case LeidenCSRDFS:
+            // Fast Leiden directly on CSR - standard DFS ordering
+            GenerateLeidenCSRMapping(g, new_ids, reordering_options, LeidenCSRDFS);
+            break;
+        case LeidenCSRBFS:
+            // Fast Leiden directly on CSR - BFS level ordering
+            GenerateLeidenCSRMapping(g, new_ids, reordering_options, LeidenCSRBFS);
+            break;
+        case LeidenCSRHubSort:
+            // Fast Leiden directly on CSR - hub sort ordering
+            GenerateLeidenCSRMapping(g, new_ids, reordering_options, LeidenCSRHubSort);
             break;
         case GraphBrewOrder:
             GenerateGraphBrewMapping(g, new_ids, useOutdeg, reordering_options, 2);
@@ -1965,8 +1983,20 @@ public:
             GenerateLeidenMapping(g, new_ids, reordering_options);
             break;
         case LeidenCSR:
-            // Fast Leiden directly on CSR - no DiGraph conversion
-            GenerateLeidenCSRMapping(g, new_ids, reordering_options);
+            // Fast Leiden directly on CSR - no DiGraph conversion (hub-first ordering)
+            GenerateLeidenCSRMapping(g, new_ids, reordering_options, LeidenCSR);
+            break;
+        case LeidenCSRDFS:
+            // Fast Leiden directly on CSR - standard DFS ordering
+            GenerateLeidenCSRMapping(g, new_ids, reordering_options, LeidenCSRDFS);
+            break;
+        case LeidenCSRBFS:
+            // Fast Leiden directly on CSR - BFS level ordering
+            GenerateLeidenCSRMapping(g, new_ids, reordering_options, LeidenCSRBFS);
+            break;
+        case LeidenCSRHubSort:
+            // Fast Leiden directly on CSR - hub sort ordering
+            GenerateLeidenCSRMapping(g, new_ids, reordering_options, LeidenCSRHubSort);
             break;
         case GraphBrewOrder:
             GenerateGraphBrewMapping(g, new_ids, useOutdeg, reordering_options, numLevels, recursion);
@@ -2040,6 +2070,12 @@ public:
             return LeidenHybrid;
         case 21:
             return LeidenCSR;
+        case 22:
+            return LeidenCSRDFS;
+        case 23:
+            return LeidenCSRBFS;
+        case 24:
+            return LeidenCSRHubSort;
         default:
             std::cerr << "Invalid ReorderingAlgo value: " << value << std::endl;
             std::exit(EXIT_FAILURE);
@@ -4859,22 +4895,29 @@ public:
      * 
      * Algorithm:
      * 1. Fast label propagation for multi-level community detection on CSR
-     * 2. Multi-pass hierarchical sort (all passes, coarsest to finest)
-     * 3. Secondary sort by degree for hub locality
+     * 2. Build dendrogram from hierarchical community structure
+     * 3. Apply ordering based on flavor (DFS, BFS, HubSort)
+     * 
+     * Flavors:
+     *   LeidenCSR (21):       DFS with hub-first (default, best cache locality)
+     *   LeidenCSRDFS (22):    Standard DFS traversal
+     *   LeidenCSRBFS (23):    BFS by level (breadth-first)
+     *   LeidenCSRHubSort (24): Sort by (community, degree) within each level
      */
     void GenerateLeidenCSRMapping(const CSRGraph<NodeID_, DestID_, invert>& g,
                                    pvector<NodeID_>& new_ids,
-                                   std::vector<std::string> reordering_options)
+                                   std::vector<std::string> reordering_options,
+                                   ReorderingAlgo flavor = LeidenCSR)
     {
         Timer tm;
         tm.Start();
         
         const int64_t num_nodes = g.num_nodes();
         
-        // Parse options
+        // Parse options - default to 1 pass since we don't do proper coarsening
         double resolution = 0.75;
         int max_iterations = 10;
-        int max_passes = 5;
+        int max_passes = 1;  // Single pass is fastest with comparable quality
         
         if (!reordering_options.empty()) {
             resolution = std::stod(reordering_options[0]);
@@ -4918,22 +4961,82 @@ public:
             sort_indices[i] = i;
         }
         
-        // Multi-pass hierarchical sort (coarsest to finest, then degree)
         const size_t num_passes = community_per_pass.size();
         
-        __gnu_parallel::sort(sort_indices.begin(), sort_indices.end(),
-            [&community_per_pass, &degrees, num_passes](size_t a, size_t b) {
-                // Compare all passes from coarsest (last) to finest (first)
-                for (size_t p = num_passes; p > 0; --p) {
-                    K comm_a = community_per_pass[p - 1][a];
-                    K comm_b = community_per_pass[p - 1][b];
-                    if (comm_a != comm_b) {
-                        return comm_a < comm_b;
+        // Apply ordering based on flavor
+        switch (flavor) {
+            case LeidenCSR:
+            case LeidenCSRDFS:
+            default: {
+                // DFS-like ordering: sort by all passes (coarsest to finest) then degree
+                // LeidenCSR uses hub-first (degree DESC), LeidenCSRDFS uses standard (degree ASC)
+                const bool hub_first = (flavor == LeidenCSR);
+                std::cout << "LeidenCSR Ordering: DFS " << (hub_first ? "(hub-first)" : "(standard)") << std::endl;
+                
+                __gnu_parallel::sort(sort_indices.begin(), sort_indices.end(),
+                    [&community_per_pass, &degrees, num_passes, hub_first](size_t a, size_t b) {
+                        // Compare all passes from coarsest (last) to finest (first)
+                        for (size_t p = num_passes; p > 0; --p) {
+                            K comm_a = community_per_pass[p - 1][a];
+                            K comm_b = community_per_pass[p - 1][b];
+                            if (comm_a != comm_b) {
+                                return comm_a < comm_b;
+                            }
+                        }
+                        // Within same community: hub-first or standard order
+                        return hub_first ? (degrees[a] > degrees[b]) : (degrees[a] < degrees[b]);
+                    });
+                break;
+            }
+            
+            case LeidenCSRBFS: {
+                // BFS-like ordering: sort by level (pass index where community changes)
+                // then by community at each level, then by degree
+                std::cout << "LeidenCSR Ordering: BFS (level-first)" << std::endl;
+                
+                // Compute level for each node (first pass where it differs from neighbors)
+                std::vector<int> node_level(num_nodes, num_passes);
+                #pragma omp parallel for
+                for (int64_t v = 0; v < num_nodes; ++v) {
+                    for (size_t p = 0; p < num_passes; ++p) {
+                        if (community_per_pass[p][v] != community_per_pass[num_passes-1][v]) {
+                            node_level[v] = p;
+                            break;
+                        }
                     }
                 }
-                // All passes equal - sort by degree (descending) for hub locality
-                return degrees[a] > degrees[b];
-            });
+                
+                __gnu_parallel::sort(sort_indices.begin(), sort_indices.end(),
+                    [&community_per_pass, &degrees, &node_level, num_passes](size_t a, size_t b) {
+                        // Primary: sort by last pass community (coarsest)
+                        K comm_a = community_per_pass[num_passes - 1][a];
+                        K comm_b = community_per_pass[num_passes - 1][b];
+                        if (comm_a != comm_b) return comm_a < comm_b;
+                        // Secondary: sort by level (BFS order)
+                        if (node_level[a] != node_level[b]) return node_level[a] < node_level[b];
+                        // Tertiary: degree descending
+                        return degrees[a] > degrees[b];
+                    });
+                break;
+            }
+            
+            case LeidenCSRHubSort: {
+                // Hub sort within communities: sort by (last community, degree DESC)
+                // Simpler than full hierarchical sort but good for hub locality
+                std::cout << "LeidenCSR Ordering: HubSort (community + degree)" << std::endl;
+                
+                __gnu_parallel::sort(sort_indices.begin(), sort_indices.end(),
+                    [&community_per_pass, &degrees, num_passes](size_t a, size_t b) {
+                        // Primary: sort by last pass community
+                        K comm_a = community_per_pass[num_passes - 1][a];
+                        K comm_b = community_per_pass[num_passes - 1][b];
+                        if (comm_a != comm_b) return comm_a < comm_b;
+                        // Secondary: degree descending (hubs first)
+                        return degrees[a] > degrees[b];
+                    });
+                break;
+            }
+        }
         
         // Assign new IDs based on sorted order
         #pragma omp parallel for
