@@ -100,7 +100,7 @@ python3 scripts/graphbrew_experiment.py --help
 #### Iterative Training (Adaptive Weight Optimization)
 | Option | Description |
 |--------|-------------|
-| `--train-adaptive` | Run iterative training feedback loop |
+| `--train-adaptive` | Run iterative training feedback loop (updates type-based weights) |
 | `--train-large` | Run large-scale training with batching and multi-benchmark support |
 | `--target-accuracy` | Target accuracy % for training (default: 80) |
 | `--max-iterations` | Maximum training iterations (default: 10) |
@@ -110,7 +110,7 @@ python3 scripts/graphbrew_experiment.py --help
 | `--init-weights` | Initialize/upgrade weights file with enhanced features |
 | `--fill-weights` | Fill ALL weight fields: graph type detection, cache sim, topology features, per-type weights |
 
-> **Note:** `--full` automatically enables `--generate-maps` and `--use-maps` for consistent results across all benchmarks.
+> **Note:** Both `--train-adaptive` and `--fill-weights` use the type-based weight system (`scripts/weights/type_*.json`).
 
 ### Examples
 

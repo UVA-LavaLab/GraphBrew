@@ -475,12 +475,13 @@ This ensures each algorithm's reordering is applied consistently, avoiding varia
 
 ## Iterative Training with Feedback Loop
 
-The most powerful way to train AdaptiveOrder is using the iterative feedback loop. This process:
+The most powerful way to train AdaptiveOrder is using the iterative feedback loop. This process uses the **type-based weight system**:
 
 1. Measures current accuracy (% of times adaptive picks the best algorithm)
 2. Identifies where adaptive made wrong predictions
-3. Adjusts weights based on what should have been selected
-4. Repeats until target accuracy is reached
+3. Detects the graph type for each subcommunity (type_0, type_1, etc.)
+4. Updates type-specific weights via `update_type_weights_incremental()`
+5. Repeats until target accuracy is reached
 
 ### Running Iterative Training
 
@@ -504,7 +505,7 @@ python3 scripts/graphbrew_experiment.py --init-weights
 python3 scripts/graphbrew_experiment.py --fill-weights --graphs small --max-graphs 5
 ```
 
-**Note:** All graph algorithms run sequentially (not in parallel) to ensure accurate performance measurements.
+**Note:** Both `--train-adaptive` and `--fill-weights` now use the same type-based weight system (`scripts/weights/type_*.json`).
 
 ### Training Output
 
@@ -522,8 +523,9 @@ Iteration 1 Accuracy:
   Adaptive in top 3: 78.0%
   Avg time ratio: 0.856
 
---- Step 2: Analyze Errors and Adjust Weights ---
+--- Step 2: Analyze Errors and Adjust Type-Based Weights ---
   Weights updated for 15 algorithm adjustments
+  Types updated: 4 (type_0, type_2, type_5, type_8)
 
 ============================================================
 TRAINING ITERATION 2/10
@@ -537,36 +539,38 @@ Iteration 2 Accuracy:
 ============================================================
 🎯 TARGET ACCURACY REACHED: 82.0% >= 80.0%
 ============================================================
-TRAINING COMPLETE
+TRAINING COMPLETE (TYPE-BASED WEIGHTS)
 Iterations run: 4
 Target accuracy: 80.0%
 Final accuracy (time): 82.0%
 Target reached: YES
 Best iteration: 4
+Total unique types updated: 6
+Type weight files: scripts/weights/type_*.json
 Training summary saved to: results/training_20250118_123045/training_summary.json
 ```
 
 ### Training Output Files
 
-The training process creates:
+The training process updates type-based weights and creates:
 
 ```
+scripts/weights/                # Type-based weights (PRIMARY - updated each iteration)
+├── type_registry.json          # Graph → type mapping + centroids
+├── type_0.json                 # Cluster 0 weights (updated)
+├── type_1.json                 # Cluster 1 weights (updated)
+└── type_N.json                 # Additional clusters (updated)
+
 results/training_20250118_123045/
 ├── training_summary.json       # Overall training results
-├── weights_iter1.json          # Weights after iteration 1
-├── weights_iter2.json          # Weights after iteration 2
+├── weights_iter1.json          # Legacy snapshot after iteration 1
+├── weights_iter2.json          # Legacy snapshot after iteration 2
 ├── ...
-├── best_weights_iter4.json     # Best weights (highest accuracy)
+├── best_weights_iter4.json     # Best snapshot (highest accuracy)
 └── brute_force_analysis_*.json # Detailed analysis per iteration
-
-scripts/weights/                # Auto-clustered type weights
-├── type_registry.json          # Graph → type mapping + centroids
-├── type_0.json                 # Cluster 0 weights
-├── type_1.json                 # Cluster 1 weights
-└── type_N.json                 # Additional clusters
 ```
 
-**Automatic Clustering:** The training process groups similar graphs into clusters and generates per-cluster weights. The type registry stores centroids for runtime matching.
+**Type-Based Training:** Each iteration classifies graphs into types and updates the corresponding `type_*.json` files. This enables fine-grained, per-graph-type algorithm selection.
 
 ### How the Learning Works
 
