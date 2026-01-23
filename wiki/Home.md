@@ -83,14 +83,14 @@ python3 scripts/graphbrew_experiment.py --full --download-size ALL --max-memory 
 
 ```bash
 # Fill ALL weight fields (cache impacts, topology features, per-benchmark weights)
-# Also generates per-graph-type weights (social, road, web, powerlaw, uniform)
+# Auto-clusters graphs and generates type_N.json files in scripts/weights/
 python3 scripts/graphbrew_experiment.py --fill-weights --graphs small --max-graphs 5
 
 # Iterative training to reach target accuracy
 python3 scripts/graphbrew_experiment.py --train-adaptive --target-accuracy 85 --graphs small
 ```
 
-**Graph Type Detection:** AdaptiveOrder automatically detects graph types from computed properties (modularity, degree variance, hub concentration) and loads specialized weights for each type.
+**Auto-Clustering Type System:** AdaptiveOrder automatically clusters graphs by feature similarity and generates per-cluster weights (type_0.json, type_1.json, etc.). At runtime, it selects the best matching cluster based on graph features.
 
 ### Download Size Options
 

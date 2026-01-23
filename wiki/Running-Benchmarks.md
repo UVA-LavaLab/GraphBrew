@@ -59,9 +59,9 @@ The comprehensive `--fill-weights` mode runs these phases:
 | **Phase 4** | Generate Base Weights - creates initial perceptron weights |
 | **Phase 5** | Update Topology Weights - fills clustering coefficient, path length, etc. |
 | **Phase 6** | Compute Benchmark Weights - per-benchmark multipliers |
-| **Phase 7** | Generate Per-Graph-Type Weights - creates specialized weight files |
+| **Phase 7** | Auto-Cluster Type Weights - clusters graphs and creates type_N.json files |
 
-Output files include `perceptron_weights_social.json`, `perceptron_weights_road.json`, etc.
+Output files are saved to `scripts/weights/`: `type_0.json`, `type_1.json`, `type_registry.json`, etc.
 
 ### Download Options
 

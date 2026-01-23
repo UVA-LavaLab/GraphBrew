@@ -261,8 +261,9 @@ python3 scripts/graphbrew_experiment.py --fill-weights --graphs-dir ./results/gr
 python3 scripts/graphbrew_experiment.py --graphs-dir ./results/graphs --max-graphs 50 --trials 2 && \
 python3 scripts/graphbrew_experiment.py --graphs-dir ./results/graphs --brute-force --bf-benchmark pr --trials 2
 
-# CHECK RESULTS: View new algorithm biases
-cat results/perceptron_weights.json | python3 -c "import sys,json; d=json.load(sys.stdin); [print(f'{k}: {v.get(\"bias\",0):.2f}') for k,v in sorted(d.items(), key=lambda x:-x[1].get('bias',0))[:10] if not k.startswith('_')]"
+# CHECK RESULTS: View type weight files
+ls -la scripts/weights/
+cat scripts/weights/type_0.json | python3 -c "import sys,json; d=json.load(sys.stdin); [print(f'{k}: {v.get(\"bias\",0):.2f}') for k,v in sorted(d.items(), key=lambda x:-x[1].get('bias',0))[:10] if not k.startswith('_')]"
 ```
 
 ### Understanding Output

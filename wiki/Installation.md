@@ -155,8 +155,7 @@ GraphBrew/
 │   ├── include/       # Header files
 │   └── src/           # Source files
 ├── graphs/            # Downloaded benchmark graphs (or use results/graphs/)
-├── results/           # Experiment outputs and weights
-│   ├── perceptron_weights.json  # ML model weights (default location)
+├── results/           # Experiment outputs
 │   ├── graphs/        # Downloaded graphs (when using --full)
 │   └── training_*/    # Iterative training outputs
 ├── scripts/           # Python analysis tools
@@ -164,7 +163,10 @@ GraphBrew/
 │   ├── requirements.txt
 │   ├── download/      # Graph download utilities
 │   ├── analysis/      # Correlation and analysis tools
-│   └── utils/         # Shared utilities
+│   ├── utils/         # Shared utilities
+│   └── weights/       # Auto-clustered type weights
+│       ├── type_registry.json  # Graph → type mappings + centroids
+│       └── type_N.json         # Per-cluster weights
 └── wiki/              # This documentation
 ```
 

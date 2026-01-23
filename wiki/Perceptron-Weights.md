@@ -1,14 +1,14 @@
 # Perceptron Weights
 
-The perceptron weights file controls how AdaptiveOrder selects algorithms for each community. This page explains the weight structure, tuning strategies, and how to customize the model.
+The perceptron weights control how AdaptiveOrder selects algorithms for each community. This page explains the weight structure, tuning strategies, and how to customize the model.
 
 ## Overview
 
 ```
-scripts/perceptron_weights.json
+scripts/weights/type_N.json   # Auto-clustered type weights
 ```
 
-This JSON file contains weights for each algorithm. When AdaptiveOrder processes a community, it computes a score for each algorithm using these weights and selects the highest-scoring one.
+Each JSON file contains weights for each algorithm. When AdaptiveOrder processes a community, it computes a score for each algorithm using these weights and selects the highest-scoring one.
 
 ---
 
@@ -16,55 +16,52 @@ This JSON file contains weights for each algorithm. When AdaptiveOrder processes
 
 ### Default Location
 ```
-GraphBrew/results/perceptron_weights.json
+GraphBrew/scripts/weights/
+├── type_registry.json    # Maps graphs → types + centroids
+├── type_0.json           # Cluster 0 weights
+├── type_1.json           # Cluster 1 weights
+└── type_N.json           # Additional clusters
+
 ```
 
-Note: The default path is defined by `DEFAULT_WEIGHTS_FILE` in `graphbrew_experiment.py` as `./results/perceptron_weights.json`.
-
-### Automatic Backup and Sync
+### Automatic Clustering and Storage
 
 When weights are saved, the script automatically:
-1. Creates a **timestamped backup** in results folder (e.g., `perceptron_weights_20260121_143052.json`)
-2. **Syncs to scripts folder** (`scripts/perceptron_weights.json`) for next experiment iteration
+1. Creates type-based weight files in `scripts/weights/` (e.g., `type_0.json`, `type_1.json`)
+2. Updates the **type registry** (`scripts/weights/type_registry.json`) with cluster centroids
 
-This ensures weights are never accidentally overwritten and the latest weights are always loaded on subsequent runs.
+This ensures weights are never accidentally overwritten and the best cluster is selected at runtime.
 
-### Graph-Type-Specific Weight Files
+### Auto-Clustering Type System
 
-AdaptiveOrder automatically detects the graph type and loads specialized weights for that type. This allows different tuning for different graph categories.
+AdaptiveOrder uses an automatic clustering system that groups graphs by feature similarity instead of predefined categories. This allows the system to scale to any number of graph types.
 
-**Supported Graph Types:**
-| Type | Detection Criteria | Example Graphs |
-|------|-------------------|----------------|
-| `social` | High modularity (>0.3), high degree variance (>0.8) | soc-LiveJournal1, com-Friendster |
-| `road` | Low modularity (<0.1), low degree variance (<0.5), low avg degree (<10) | roadNet-CA, GAP-road |
-| `web` | High hub concentration (>0.5), high degree variance (>1.0) | uk-2002, webbase-2001 |
-| `powerlaw` | Very high degree variance (>1.5), low modularity (<0.3) | GAP-kron, twitter7 |
-| `uniform` | Low degree variance (<0.5), low hub concentration (<0.3), low modularity (<0.1) | GAP-urand, ER random |
-| `generic` | Default fallback | (none of the above) |
+**How It Works:**
+1. **Feature Extraction:** For each graph, compute 9 features: modularity, log_nodes, log_edges, density, avg_degree, degree_variance, hub_concentration, clustering_coefficient, community_count
+2. **Clustering:** Group similar graphs using cosine similarity (threshold: 0.85)
+3. **Per-Cluster Training:** Train optimized weights for each cluster
+4. **Runtime Matching:** Select best cluster based on feature similarity
 
-**Weight File Naming:**
+**Type Files:**
 ```
-scripts/perceptron_weights_social.json
-scripts/perceptron_weights_road.json
-scripts/perceptron_weights_web.json
-scripts/perceptron_weights_powerlaw.json
-scripts/perceptron_weights_uniform.json
-scripts/perceptron_weights.json (generic fallback)
+scripts/weights/
+├── type_registry.json    # {graph: type_N, centroids: {...}}
+├── type_0.json           # Weights for cluster 0
+├── type_1.json           # Weights for cluster 1
+└── type_N.json           # Additional clusters as needed
 ```
 
 **Loading Order:**
 1. Environment variable `PERCEPTRON_WEIGHTS_FILE` (if set)
-2. Graph-type-specific file (e.g., `perceptron_weights_web.json`)
-3. Generic fallback (`perceptron_weights.json`)
+2. Best matching type file from `scripts/weights/type_N.json`
+3. Semantic type fallback (if type files don't exist)
 4. Hardcoded defaults
 
 **Example Output:**
 ```
-Graph Type: web
-Degree Variance:     6.07673
-Hub Concentration:   0.81701
-Perceptron: Loaded 4 weights from scripts/perceptron_weights_web.json (graph type: web)
+Finding best type match for features: mod=0.4521, deg_var=0.8012, hub=0.3421...
+Best matching type: type_0 (similarity: 0.9234)
+Loaded 21 weights from scripts/weights/type_0.json
 ```
 
 ### Environment Override
@@ -74,7 +71,7 @@ export PERCEPTRON_WEIGHTS_FILE=/path/to/custom_weights.json
 ```
 
 ### Fallback Behavior
-If the file doesn't exist, C++ uses hardcoded defaults with conservative weights that favor ORIGINAL for small communities and LeidenHybrid for larger ones.
+If no type files exist, C++ uses hardcoded defaults with conservative weights that favor ORIGINAL for small communities and LeidenHybrid for larger ones.
 
 ---
 
@@ -383,17 +380,17 @@ For BFS (benefits from bandwidth reduction):
 python3 scripts/analysis/correlation_analysis.py \
     --graphs-dir ./graphs \
     --benchmark pr bfs \
-    --output scripts/perceptron_weights.json
+    --output scripts/weights/type_0.json
 ```
 
 ### Manual: Edit JSON Directly
 
 ```bash
 # Edit the file
-nano scripts/perceptron_weights.json
+nano scripts/weights/type_0.json
 
 # Validate JSON
-python3 -c "import json; json.load(open('scripts/perceptron_weights.json'))"
+python3 -c "import json; json.load(open('scripts/weights/type_0.json'))"
 ```
 
 ### Hybrid: Start from Auto-Generated, Then Tune
@@ -403,10 +400,10 @@ python3 -c "import json; json.load(open('scripts/perceptron_weights.json'))"
 python3 scripts/graphbrew_experiment.py --phase weights
 
 # Backup
-cp results/perceptron_weights.json results/perceptron_weights.json.auto
+cp scripts/weights/type_0.json scripts/weights/type_0.json.backup
 
 # Edit manually to adjust biases
-vim results/perceptron_weights.json
+vim scripts/weights/type_0.json
 ```
 
 ---
@@ -469,7 +466,7 @@ def test_weights(weights_file):
     for algo, score in sorted(scores.items(), key=lambda x: -x[1]):
         print(f"  {algo}: {score:.3f}")
 
-test_weights("scripts/perceptron_weights.json")
+test_weights("scripts/weights/type_0.json")
 ```
 
 ---
@@ -576,7 +573,7 @@ To favor an algorithm regardless of graph features:
 cd /path/to/GraphBrew
 
 # Backup current weights
-cp results/perceptron_weights.json results/perceptron_weights.json.backup
+cp -r scripts/weights/ scripts/weights.backup/
 
 # Clean results but keep graphs
 python3 scripts/graphbrew_experiment.py --clean
@@ -637,8 +634,11 @@ python3 scripts/graphbrew_experiment.py \
 #### Step 6: View Results
 
 ```bash
-# Check algorithm biases
-cat results/perceptron_weights.json | python3 -c "
+# Check type weight files
+ls -la scripts/weights/
+
+# Check algorithm biases in type_0.json
+cat scripts/weights/type_0.json | python3 -c "
 import sys, json
 d = json.load(sys.stdin)
 print('Algorithm Biases (sorted by speedup):')
@@ -739,7 +739,7 @@ pkill -f graphbrew_experiment
 
 Check if bias is too low:
 ```bash
-cat scripts/perceptron_weights.json | grep -A 1 '"AlgorithmX"'
+cat scripts/weights/type_0.json | grep -A 1 '"AlgorithmX"'
 ```
 
 Increase bias or relevant weights.
@@ -759,8 +759,8 @@ Increase bias or relevant weights.
 
 Check file exists and is valid JSON:
 ```bash
-ls -la scripts/perceptron_weights.json
-python3 -c "import json; json.load(open('scripts/perceptron_weights.json'))"
+ls -la scripts/weights/type_*.json
+python3 -c "import json; json.load(open('scripts/weights/type_0.json'))"
 ```
 
 Check environment variable:
@@ -790,7 +790,7 @@ Always benchmark after tuning:
 ### 3. Keep Backups
 
 ```bash
-cp scripts/perceptron_weights.json scripts/perceptron_weights.json.backup
+cp -r scripts/weights/ scripts/weights.backup/
 ```
 
 ### 4. Document Changes

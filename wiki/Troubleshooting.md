@@ -322,32 +322,35 @@ make all
 
 ```bash
 # Validate JSON
-python3 -c "import json; json.load(open('scripts/perceptron_weights.json'))"
+python3 -c "import json; json.load(open('scripts/weights/type_0.json'))"
 
 # Pretty-print to find error
-python3 -m json.tool scripts/perceptron_weights.json
+python3 -m json.tool scripts/weights/type_0.json
 
-# Check per-type weight files too
-for f in scripts/perceptron_weights_*.json; do
+# Check all type weight files
+for f in scripts/weights/type_*.json; do
     echo "Checking $f..."
     python3 -c "import json; json.load(open('$f'))" && echo "OK" || echo "FAILED"
 done
 ```
 
-### Wrong graph type detected
+### Wrong type cluster selected
 
-Graph type is detected from computed properties, not graph names. If detection is wrong:
+Graph type is selected via cosine similarity with cluster centroids. If selection is wrong:
 
 ```bash
 # Check what properties were detected
 cat results/graph_properties_cache.json | python3 -m json.tool | grep -A 10 "your_graph_name"
 
+# Check type registry centroids
+cat scripts/weights/type_registry.json | python3 -m json.tool
+
 # Re-run Phase 0 to recompute properties
 python3 scripts/graphbrew_experiment.py --fill-weights --graphs small
 ```
 
-**Detection criteria:**
-| Type | Criteria |
+**Auto-clustering system:**
+Uses 9 features and cosine similarity (threshold: 0.85) to match graphs to clusters.
 |------|----------|
 | road | modularity < 0.1, degree_variance < 0.5, avg_degree < 10 |
 | social | modularity > 0.3, degree_variance > 0.8 |

@@ -377,10 +377,12 @@ def compute_perceptron_weights(
                          "w_density": -0.05, "w_avg_degree": 0.15, "w_degree_variance": 0.15, "w_hub_concentration": 0.25},
     }
     
-    # Determine output path (default: scripts/perceptron_weights.json)
+    # Determine output path (default: scripts/weights/ directory for type files)
     if output_file is None:
         script_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        output_file = os.path.join(script_dir, "perceptron_weights.json")
+        output_file = os.path.join(script_dir, "weights", "type_0.json")
+        # Ensure weights directory exists
+        os.makedirs(os.path.dirname(output_file), exist_ok=True)
     
     # Start with defaults for ALL algorithms
     perceptron_weights = {}
@@ -558,7 +560,7 @@ def main():
     parser.add_argument(
         "--weights-file", "-w",
         default=None,
-        help="Output file for perceptron weights (default: scripts/perceptron_weights.json)"
+        help="Output file for perceptron weights (default: scripts/weights/type_0.json)"
     )
     
     args = parser.parse_args()

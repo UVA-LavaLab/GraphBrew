@@ -305,7 +305,7 @@ Apply Degree-Based Grouping after GraphBrewOrder:
 AdaptiveOrder (algorithm 15) can select GraphBrewOrder for appropriate communities:
 
 ```json
-// In perceptron_weights.json
+// In scripts/weights/type_N.json
 {
   "GraphBrewOrder": {
     "bias": 0.7,

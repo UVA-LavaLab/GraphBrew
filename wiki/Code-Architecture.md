@@ -19,15 +19,14 @@ GraphBrew/
 │
 ├── scripts/                  # Python tools
 │   ├── analysis/             # Analysis scripts
-│   ├── brew/                 # Experiment runner
-│   ├── config/               # Configuration files
-│   ├── test/                 # Test scripts
-│   ├── perceptron_weights.json         # Generic ML weights
-│   ├── perceptron_weights_social.json  # Social network weights
-│   ├── perceptron_weights_road.json    # Road network weights
-│   ├── perceptron_weights_web.json     # Web graph weights
-│   ├── perceptron_weights_powerlaw.json # Power-law weights
-│   └── perceptron_weights_uniform.json  # Uniform random weights
+│   ├── benchmark/            # Benchmark runner scripts
+│   ├── download/             # Graph download utilities
+│   ├── utils/                # Shared utilities
+│   └── weights/              # Auto-generated type weights
+│       ├── type_registry.json   # Maps graphs → types + centroids
+│       ├── type_0.json          # Cluster 0 weights
+│       ├── type_1.json          # Cluster 1 weights
+│       └── type_N.json          # Additional clusters
 │
 ├── test/                     # Test files
 │   ├── graphs/               # Sample graphs
