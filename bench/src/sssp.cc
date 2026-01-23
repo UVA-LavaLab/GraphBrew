@@ -197,11 +197,13 @@ int main(int argc, char *argv[]) {
     return -1;
   WeightedBuilder b(cli);
   WGraph g = b.MakeGraph();
-  SourcePicker<WGraph> sp(g, cli.start_vertex());
+  // Create SourcePicker with pre-generated consistent sources based on num_trials
+  // This ensures all orderings use the same ORIGINAL vertex IDs as sources
+  SourcePicker<WGraph> sp(g, cli.start_vertex(), cli.num_trials());
   auto SSSPBound = [&sp, &cli](const WGraph &g) {
     return DeltaStep(g, sp.PickNext(), cli.delta(), cli.logging_en());
   };
-  SourcePicker<WGraph> vsp(g, cli.start_vertex());
+  SourcePicker<WGraph> vsp(g, cli.start_vertex(), cli.num_trials());
   auto VerifierBound = [&vsp](const WGraph &g, const pvector<WeightT> &dist) {
     return SSSPVerifier(g, vsp.PickNext(), dist);
   };

@@ -202,11 +202,11 @@ int main(int argc, char *argv[]) {
     
     CacheHierarchy cache = CacheHierarchy::fromEnvironment();
     
-    SourcePicker<Graph> sp(g, cli.start_vertex());
+    SourcePicker<Graph> sp(g, cli.start_vertex(), cli.num_trials());
     auto BFSBound = [&sp, &cache](const Graph &g) {
         return DOBFS_Sim(g, sp.PickNext(), cache);
     };
-    SourcePicker<Graph> vsp(g, cli.start_vertex());
+    SourcePicker<Graph> vsp(g, cli.start_vertex(), cli.num_trials());
     auto VerifierBound = [&vsp](const Graph &g, const pvector<NodeID> &parent) {
         return BFSVerifier(g, vsp.PickNext(), parent);
     };

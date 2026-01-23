@@ -238,11 +238,13 @@ int main(int argc, char* argv[]) {
     cout << "Warning: iterating from same source (-r & -i)" << endl;
   Builder b(cli);
   Graph g = b.MakeGraph();
-  SourcePicker<Graph> sp(g, cli.start_vertex());
+  // Create SourcePicker with pre-generated consistent sources based on num_trials
+  // This ensures all orderings use the same ORIGINAL vertex IDs as sources
+  SourcePicker<Graph> sp(g, cli.start_vertex(), cli.num_trials());
   auto BCBound = [&sp, &cli] (const Graph &g) {
     return Brandes(g, sp, cli.num_iters(), cli.logging_en());
   };
-  SourcePicker<Graph> vsp(g, cli.start_vertex());
+  SourcePicker<Graph> vsp(g, cli.start_vertex(), cli.num_trials());
   auto VerifierBound = [&vsp, &cli] (const Graph &g,
                                      const pvector<ScoreT> &scores) {
     return BCVerifier(g, vsp, cli.num_iters(), scores);
