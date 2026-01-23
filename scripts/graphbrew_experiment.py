@@ -2028,12 +2028,12 @@ def check_and_build_binaries(project_dir: str = ".") -> bool:
     return True
 
 def clean_results(results_dir: str = DEFAULT_RESULTS_DIR, keep_graphs: bool = True, keep_weights: bool = True) -> None:
-    """Clean the results directory, optionally keeping graphs and weights.
+    """Clean the results directory, optionally keeping graphs.
     
     Args:
         results_dir: Directory to clean
         keep_graphs: If True, don't delete downloaded graphs
-        keep_weights: If True, don't delete perceptron weights file
+        keep_weights: (Deprecated) Kept for backward compatibility, no longer used
     """
     print("\n" + "="*60)
     print("CLEANING RESULTS DIRECTORY")
@@ -5852,8 +5852,8 @@ Examples:
                         help="Disable incremental weight updates (don't update type weights on-the-fly)")
     
     # Legacy weights file (for backward compatibility with old scripts)
-    parser.add_argument("--weights-file", default="./scripts/perceptron_weights.json",
-                        help="(Legacy) Single weights file for old-style batch processing")
+    parser.add_argument("--weights-file", default="./results/perceptron_weights.json",
+                        help="(Intermediate) Temporary file used during fill-weights processing. Final weights saved to scripts/weights/")
     
     # Clean options
     parser.add_argument("--clean", action="store_true",
