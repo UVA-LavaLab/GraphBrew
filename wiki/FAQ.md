@@ -231,15 +231,15 @@ The auto-clustering system:
 
 Properties are computed during `--fill-weights` Phase 0 and cached in `results/graph_properties_cache.json`.
 
-### What's the difference between LeidenOrder and LeidenHybrid?
+### What's the difference between LeidenOrder and LeidenCSR?
 
 | Algorithm | Approach |
 |-----------|----------|
-| LeidenOrder (12) | Basic Leiden → contiguous community ordering |
-| LeidenDFS (16) | Leiden + DFS traversal within communities |
-| LeidenHybrid (20) | Leiden + multiple strategies + best selection |
+| LeidenOrder (15) | Basic Leiden → contiguous community ordering |
+| LeidenDendrogram (16) | Leiden + dendrogram-based traversal variants |
+| LeidenCSR (17) | Optimized Leiden with multiple variants (dfs/bfs/hubsort/fast/modularity) |
 
-LeidenHybrid is most sophisticated but has more overhead.
+LeidenCSR with "hubsort" or "fast" variant is recommended for large graphs.
 
 ### When should I use DBG vs HUBCLUSTER?
 

@@ -46,11 +46,11 @@ Graph: facebook.el (4,039 nodes, 88,234 edges)
 ├────────────────────┼──────────────┼─────────────┤
 │ ORIGINAL (0)       │ 0.0523       │ 1.00x       │
 │ HUBCLUSTERDBG (7)  │ 0.0412       │ 1.27x       │
-│ LeidenOrder (12)   │ 0.0398       │ 1.31x       │
-│ LeidenHybrid (20)  │ 0.0371       │ 1.41x ★     │
+│ LeidenOrder (15)   │ 0.0398       │ 1.31x       │
+│ LeidenCSR (17)     │ 0.0371       │ 1.41x ★     │
 │ RCM (11)           │ 0.0489       │ 1.07x       │
 └────────────────────┴──────────────┴─────────────┘
-Best: LeidenHybrid
+Best: LeidenCSR
 ```
 
 ### Step 2: Feature Extraction

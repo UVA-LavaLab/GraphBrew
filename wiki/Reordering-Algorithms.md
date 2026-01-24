@@ -368,18 +368,18 @@ done
 | Size | Nodes | Recommended |
 |------|-------|-------------|
 | Small | < 100K | Any (try several) |
-| Medium | 100K - 1M | LeidenCSR (21:hubsort) |
-| Large | 1M - 100M | LeidenCSR (21:hubsort), AdaptiveOrder (14) |
-| Very Large | > 100M | HUBCLUSTERDBG (7), LeidenCSR (21:fast) |
+| Medium | 100K - 1M | LeidenCSR (17:hubsort) |
+| Large | 1M - 100M | LeidenCSR (17:hubsort), AdaptiveOrder (14) |
+| Very Large | > 100M | HUBCLUSTERDBG (7), LeidenCSR (17:fast) |
 
 ### Quick Decision Tree
 
 ```
 Is your graph modular (has communities)?
 ├── Yes → Is it very large (>10M vertices)?
-│         ├── Yes → LeidenCSR (21:fast) for speed
-│         │         LeidenCSR (21:modularity) for quality
-│         └── No → LeidenCSR (21:hubsort)
+│         ├── Yes → LeidenCSR (17:fast) for speed
+│         │         LeidenCSR (17:modularity) for quality
+│         └── No → LeidenCSR (17:hubsort)
 └── No/Unknown → Is it a power-law graph?
               ├── Yes → HUBCLUSTERDBG (7)
               └── No → Try AdaptiveOrder (14)
@@ -398,8 +398,8 @@ Running PageRank on a social network (1M vertices, 10M edges):
 | HUBSORT (3) | 0.85s | 1.18x |
 | DBG (5) | 0.80s | 1.25x |
 | HUBCLUSTERDBG (7) | 0.72s | 1.39x |
-| LeidenOrder (12) | 0.65s | 1.54x |
-| LeidenCSR (21:hubsort) | 0.58s | 1.72x |
+| LeidenOrder (15) | 0.65s | 1.54x |
+| LeidenCSR (17:hubsort) | 0.58s | 1.72x |
 
 ---
 
