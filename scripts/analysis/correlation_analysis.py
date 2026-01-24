@@ -288,9 +288,9 @@ def generate_recommendations(
     # Find most common winners
     from collections import Counter
     
-    recommendations['large_graphs'] = Counter(large_graph_winners).most_common(1)[0][0] if large_graph_winners else "LeidenHybrid"
+    recommendations['large_graphs'] = Counter(large_graph_winners).most_common(1)[0][0] if large_graph_winners else "LeidenCSR"
     recommendations['small_graphs'] = Counter(small_graph_winners).most_common(1)[0][0] if small_graph_winners else "HUBCLUSTERDBG"
-    recommendations['dense_graphs'] = Counter(dense_graph_winners).most_common(1)[0][0] if dense_graph_winners else "LeidenHybrid"
+    recommendations['dense_graphs'] = Counter(dense_graph_winners).most_common(1)[0][0] if dense_graph_winners else "LeidenCSR"
     recommendations['sparse_graphs'] = Counter(sparse_graph_winners).most_common(1)[0][0] if sparse_graph_winners else "RCM"
     
     return recommendations
@@ -313,7 +313,7 @@ def compute_perceptron_weights(
     Output format (JSON):
     {
         "ORIGINAL": {"bias": 1.0, "w_modularity": 0.3, ...},
-        "LeidenHybrid": {"bias": 0.95, "w_modularity": 0.45, ...},
+        "LeidenCSR": {"bias": 0.95, "w_modularity": 0.45, ...},
         ...
     }
     """
@@ -373,7 +373,7 @@ def compute_perceptron_weights(
                           "w_density": -0.1, "w_avg_degree": 0.1, "w_degree_variance": 0.1, "w_hub_concentration": 0.15},
         "LeidenBFS": {"bias": 0.75, "w_modularity": 0.2, "w_log_nodes": 0.1, "w_log_edges": 0.1, 
                       "w_density": -0.1, "w_avg_degree": 0.1, "w_degree_variance": 0.1, "w_hub_concentration": 0.15},
-        "LeidenHybrid": {"bias": 0.85, "w_modularity": 0.25, "w_log_nodes": 0.1, "w_log_edges": 0.1, 
+        "LeidenCSR": {"bias": 0.85, "w_modularity": 0.25, "w_log_nodes": 0.1, "w_log_edges": 0.1, 
                          "w_density": -0.05, "w_avg_degree": 0.15, "w_degree_variance": 0.15, "w_hub_concentration": 0.25},
     }
     
