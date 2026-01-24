@@ -153,7 +153,7 @@ Compare cache efficiency across different reorderings:
 ./bench/bin_sim/pr -f graph.mtx -o 8 -n 1
 
 # Test GraphBrewOrder
-./bench/bin_sim/pr -f graph.mtx -o 13:10:17 -n 1
+./bench/bin_sim/pr -f graph.mtx -o 12:10:17 -n 1
 ```
 
 ### 2. Analyzing Cache Behavior
@@ -328,7 +328,7 @@ python3 scripts/graphbrew_experiment.py --phase cache --graphs small
 python3 scripts/graphbrew_experiment.py --phase weights
 
 # 4. Use in benchmarks with AdaptiveOrder
-./bench/bin/pr -g 18 -o 15  # AdaptiveOrder uses trained weights
+./bench/bin/pr -g 18 -o 14  # AdaptiveOrder uses trained weights
 ```
 
 Cache features are automatically integrated into perceptron weights:

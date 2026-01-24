@@ -34,17 +34,15 @@ enum ReorderingAlgo {
   GORDER = 9,
   CORDER = 10,
   RCM = 11,
-  LeidenOrder = 12,
-  GraphBrewOrder = 13,
-  // MAP = 14,  // Reserved
-  AdaptiveOrder = 15,
-  LeidenDFS = 16,
-  LeidenDFSHub = 17,
-  LeidenDFSSize = 18,
-  LeidenBFS = 19,
-  LeidenHybrid = 20,
+  GraphBrewOrder = 12,
+  MAP = 13,               // External mapping files
+  AdaptiveOrder = 14,     // ML-based perceptron selector
+  // Leiden algorithms (15-17) - consolidated with parameter-based variants
+  LeidenOrder = 15,       // Format: 15:resolution
+  LeidenDendrogram = 16,  // Format: 16:resolution:variant
+  LeidenCSR = 17,         // Format: 17:resolution:passes:variant
   // ADD YOUR ALGORITHM HERE
-  MY_NEW_ORDER = 21,
+  MY_NEW_ORDER = 18,
 };
 ```
 
@@ -380,7 +378,7 @@ case LocalitySensitiveOrder:
 
 ```bash
 make clean && make all
-./bench/bin/pr -f test/graphs/4.el -s -o 21 -n 3
+./bench/bin/pr -f test/graphs/4.el -s -o 19 -n 3
 ```
 
 ---
@@ -419,10 +417,10 @@ make clean && make all
 
 ```bash
 # Test on small graph
-./bench/bin/pr -f test/graphs/4.el -s -o 21 -n 3
+./bench/bin/pr -f test/graphs/4.el -s -o 19 -n 3
 
 # Verify ordering is valid
-./bench/bin/pr -f test/graphs/4.el -s -o 21 -n 1 2>&1 | grep -i error
+./bench/bin/pr -f test/graphs/4.el -s -o 19 -n 1 2>&1 | grep -i error
 ```
 
 ### Performance Test
@@ -430,14 +428,14 @@ make clean && make all
 ```bash
 # Compare with baseline
 ./bench/bin/pr -f large_graph.el -s -o 0 -n 5   # Baseline
-./bench/bin/pr -f large_graph.el -s -o 21 -n 5  # Your algorithm
+./bench/bin/pr -f large_graph.el -s -o 19 -n 5  # Your algorithm
 ```
 
 ### Memory Test
 
 ```bash
 # Check for leaks
-valgrind ./bench/bin/pr -f test/graphs/4.el -s -o 21 -n 1
+valgrind ./bench/bin/pr -f test/graphs/4.el -s -o 19 -n 1
 ```
 
 ---

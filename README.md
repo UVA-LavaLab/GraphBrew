@@ -28,24 +28,24 @@ Choosing the right reordering algorithm depends on your graph characteristics. F
 
 | Graph Type | Recommended Algorithm | Rationale |
 |------------|----------------------|-----------|
-| **Social Networks** (high clustering) | `LeidenHybrid (20)` or `AdaptiveOrder (15)` | Hub-aware DFS exploits community structure |
-| **Web Graphs** (power-law degree) | `LeidenDFSHub (17)` or `HubClusterDBG (7)` | Prioritizes high-degree hubs for cache efficiency |
+| **Social Networks** (high clustering) | `LeidenDendrogram (16:hybrid)` or `AdaptiveOrder (14)` | Hub-aware DFS exploits community structure |
+| **Web Graphs** (power-law degree) | `LeidenDendrogram (16:dfshub)` or `HubClusterDBG (7)` | Prioritizes high-degree hubs for cache efficiency |
 | **Road Networks** (low clustering) | `RCM (11)` or `Gorder (9)` | BFS-based approaches work well for sparse graphs |
-| **Unknown/Mixed** | `AdaptiveOrder (15)` | Let the ML perceptron choose automatically |
+| **Unknown/Mixed** | `AdaptiveOrder (14)` | Let the ML perceptron choose automatically |
 
 ### Quick Start Examples
 ```bash
 # Use AdaptiveOrder for automatic best selection
 ./bench/bin/bfs -g 20 -o 15
 
-# Use LeidenHybrid (best overall for social/web graphs)
-./bench/bin/pr -f graph.mtx -o 20
+# Use LeidenDendrogram with hybrid variant (best overall for social/web graphs)
+./bench/bin/pr -f graph.mtx -o 16:1.0:hybrid
 
-# Use GraphBrew with LeidenDFSHub for per-community ordering
-./bench/bin/pr -f graph.mtx -o 13:10:17
+# Use GraphBrew with LeidenDendrogram for per-community ordering
+./bench/bin/pr -f graph.mtx -o 12:10:16
 
 # Chain multiple orderings (Leiden then Sort refinement)
-./bench/bin/bfs -f graph.mtx -o 20 -o 2
+./bench/bin/bfs -f graph.mtx -o 16 -o 2
 ```
 
 > 📖 **More examples?** See the **[Quick Start Guide](https://github.com/UVA-LavaLab/GraphBrew/wiki/Quick-Start)** and **[Command Line Reference](https://github.com/UVA-LavaLab/GraphBrew/wiki/Command-Line-Reference)** in the wiki.
@@ -334,10 +334,10 @@ make clean-sim
 
 ```bash
 # Basic simulation with default Intel Xeon cache config
-./bench/bin_sim/pr -g 18 -o 12 -n 1
+./bench/bin_sim/pr -g 18 -o 15 -n 1
 
 # Export statistics to JSON
-CACHE_OUTPUT_JSON=cache_stats.json ./bench/bin_sim/pr -g 18 -o 12 -n 1
+CACHE_OUTPUT_JSON=cache_stats.json ./bench/bin_sim/pr -g 18 -o 15 -n 1
 
 # Custom cache configuration
 CACHE_L1_SIZE=32768 CACHE_L1_WAYS=8 CACHE_L1_POLICY=LRU \
@@ -513,11 +513,11 @@ Based on our experiments, you should observe:
 
 | Graph Type | Best Algorithm | Typical Speedup |
 |------------|---------------|-----------------|
-| Social Networks | LeidenHybrid (20) | 1.2-2.5x |
-| Web Graphs | LeidenDFSHub (17) | 1.3-2.0x |
+| Social Networks | LeidenDendrogram (16:hybrid) | 1.2-2.5x |
+| Web Graphs | LeidenDendrogram (16:dfshub) | 1.3-2.0x |
 | Road Networks | RCM (11) / Gorder (9) | 1.1-1.5x |
 | Citation Networks | HubClusterDBG (7) | 1.2-1.8x |
-| Mixed/Unknown | AdaptiveOrder (15) | Near-optimal |
+| Mixed/Unknown | AdaptiveOrder (14) | Near-optimal |
 
 > 📖 **Need help?** Check out the **[FAQ](https://github.com/UVA-LavaLab/GraphBrew/wiki/FAQ)** and **[Troubleshooting Guide](https://github.com/UVA-LavaLab/GraphBrew/wiki/Troubleshooting)** in the wiki.
 
@@ -775,49 +775,48 @@ Reordering Algorithms:
   │ GORDER         (9):  Dynamic programming BFS and windowing ordering         │
   │ CORDER        (10):  Workload balancing via graph reordering                │
   │ RCM           (11):  Reverse Cuthill-McKee algorithm (BFS-based)            │
-  │ LeidenOrder   (12):  Leiden community detection with Louvain refinement     │
   ├─────────────────────────────────────────────────────────────────────────────┤
   │ Advanced Hybrid Algorithms                                                  │
   ├─────────────────────────────────────────────────────────────────────────────┤
-  │ GraphBrewOrder(13):  Leiden clustering + configurable per-community order   │
-  │ MAP           (14):  Load reordering from file (-o 14:mapping.<lo|so>)      │
-  │ AdaptiveOrder (15):  ML-based perceptron selector for optimal algorithm     │
+  │ GraphBrewOrder(12):  Leiden clustering + configurable per-community order   │
+  │ MAP           (13):  Load reordering from file (-o 13:mapping.<lo|so>)      │
+  │ AdaptiveOrder (14):  ML-based perceptron selector for optimal algorithm     │
   ├─────────────────────────────────────────────────────────────────────────────┤
-  │ Leiden Dendrogram Variants (NEW)                                            │
+  │ Leiden Algorithms (15-17) - Parameter-based variant selection               │
   ├─────────────────────────────────────────────────────────────────────────────┤
-  │ LeidenDFS     (16):  Leiden + DFS standard traversal of dendrogram          │
-  │ LeidenDFSHub  (17):  Leiden + DFS prioritizing hub communities first        │
-  │ LeidenDFSSize (18):  Leiden + DFS prioritizing larger communities first     │
-  │ LeidenBFS     (19):  Leiden + BFS level-order traversal of dendrogram       │
-  │ LeidenHybrid  (20):  Leiden + Hybrid hub-aware DFS (RECOMMENDED)            │
+  │ LeidenOrder   (15):  Leiden via igraph (format: 15:resolution)              │
+  │ LeidenDendrogram(16): Dendrogram traversal (format: 16:res:variant)         │
+  │                      Variants: dfs, dfshub, dfssize, bfs, hybrid            │
+  │ LeidenCSR     (17):  Fast CSR-native (format: 17:res:passes:variant)        │
+  │                      Variants: dfs, bfs, hubsort, fast, modularity          │
   └─────────────────────────────────────────────────────────────────────────────┘
 
 Parameter Syntax for Composite Algorithms:
 --------------------------------------------------------------------------------
-  GraphBrewOrder (13) - Format: -o 13:<frequency>:<intra_algo>:<resolution>
+  GraphBrewOrder (12) - Format: -o 12:<frequency>:<intra_algo>:<resolution>
     <frequency>   : Frequency ordering within communities (default: 10)
-                    Options: 0-14 (any basic/community algorithm)
+                    Options: 0-11 (any basic/community algorithm)
     <intra_algo>  : Algorithm for per-community reordering (default: 8)
-                    Options: 0-20 (any algorithm including Leiden variants)
+                    Options: 0-17 (any algorithm including Leiden variants)
     <resolution>  : Leiden resolution parameter (default: 1.0)
     
     Examples:
-      -o 13                    # Default: frequency=10, intra=RabbitOrder
-      -o 13:10:17              # Use LeidenDFSHub for per-community ordering
-      -o 13:10:20:0.5          # Use LeidenHybrid with resolution 0.5
+      -o 12                    # Default: frequency=10, intra=RabbitOrder
+      -o 12:10:16              # Use LeidenDendrogram for per-community ordering
+      -o 12:10:16:0.5          # Use LeidenDendrogram with resolution 0.5
       
-  AdaptiveOrder (15) - Automatically selects optimal algorithm using ML
+  AdaptiveOrder (14) - Automatically selects optimal algorithm using ML
     Uses graph features (modularity, density, degree variance) to predict
     the best algorithm. No parameters needed.
     
     Example:
-      -o 15                    # Let perceptron choose the best algorithm
+      -o 14                    # Let perceptron choose the best algorithm
       
-  MAP (14) - Format: -o 14:<mapping_file>
+  MAP (13) - Format: -o 13:<mapping_file>
     <mapping_file>: Path to label file (.lo or .so format)
     
     Example:
-      -o 14:mapping.lo         # Load reordering from mapping.lo file
+      -o 13:mapping.lo         # Load reordering from mapping.lo file
 ```
 ### Converter Parameters (Generate Optimized Graphs)
 ```bash

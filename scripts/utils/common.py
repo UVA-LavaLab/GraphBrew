@@ -35,25 +35,27 @@ ALGORITHMS = {
     9: "GORDER",
     10: "CORDER",
     11: "RCM",
-    12: "LeidenOrder",
-    13: "GraphBrewOrder",
-    # 14: MAP - requires external file
-    15: "AdaptiveOrder",
-    16: "LeidenDFS",
-    17: "LeidenDFSHub",
-    18: "LeidenDFSSize",
-    19: "LeidenBFS",
-    20: "LeidenHybrid",
+    12: "GraphBrewOrder",
+    # 13: MAP - requires external file
+    14: "AdaptiveOrder",
+    # Leiden algorithms (15-17) - grouped together
+    15: "LeidenOrder",       # Format: 15:resolution
+    16: "LeidenDendrogram",  # Format: 16:resolution:variant
+    17: "LeidenCSR",         # Format: 17:resolution:passes:variant
 }
 
 # Algorithms that are fast to run (for quick tests)
-QUICK_ALGORITHMS = {0, 7, 8, 12, 15, 20}
+QUICK_ALGORITHMS = {0, 7, 8, 14, 15, 17}
 
 # Community-based algorithms
-COMMUNITY_ALGORITHMS = {8, 9, 10, 12, 13, 15, 16, 17, 18, 19, 20}
+COMMUNITY_ALGORITHMS = {8, 9, 10, 12, 14, 15, 16, 17}
 
 # Leiden family
-LEIDEN_ALGORITHMS = {12, 16, 17, 18, 19, 20}
+LEIDEN_ALGORITHMS = {15, 16, 17}
+
+# Leiden variant configurations for sweeping
+LEIDEN_DENDROGRAM_VARIANTS = ["dfs", "dfshub", "dfssize", "bfs", "hybrid"]
+LEIDEN_CSR_VARIANTS = ["dfs", "bfs", "hubsort", "fast", "modularity"]
 
 # Benchmarks that need multiple source nodes for stable results
 MULTI_SOURCE_BENCHMARKS = {"bfs", "sssp", "bc"}

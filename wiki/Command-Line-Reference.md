@@ -73,16 +73,13 @@ Use with `-o <id>`:
 | 9 | GORDER | Community |
 | 10 | CORDER | Community |
 | 11 | RCM | Community |
-| 12 | LeidenOrder | Leiden |
-| 13 | GraphBrewOrder | Leiden |
+| 13 | GraphBrewOrder | Community |
 | 15 | AdaptiveOrder | ML |
-| 16 | LeidenDFS | Leiden |
-| 17 | LeidenDFSHub | Leiden |
-| 18 | LeidenDFSSize | Leiden |
-| 19 | LeidenBFS | Leiden |
-| 20 | LeidenHybrid | Leiden |
+| 15 | LeidenOrder | Leiden (igraph) |
+| 16 | LeidenDendrogram | Leiden (variants: dfs/dfshub/dfssize/bfs/hybrid) |
+| 17 | LeidenCSR | Leiden (variants: dfs/bfs/hubsort/fast/modularity) |
 
-Note: ID 14 (MAP) is reserved.
+Note: ID 14 (MAP) is reserved for external mapping files.
 
 ---
 
@@ -248,7 +245,7 @@ export OMP_NUM_THREADS=8
 ```bash
 # Override default weights file (overrides type matching)
 export PERCEPTRON_WEIGHTS_FILE=/path/to/weights.json
-./bench/bin/pr -f graph.el -s -o 15 -n 3
+./bench/bin/pr -f graph.el -s -o 14 -n 3
 ```
 
 **Note:** If `PERCEPTRON_WEIGHTS_FILE` is not set, AdaptiveOrder automatically:

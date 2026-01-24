@@ -74,9 +74,9 @@ FEATURE_NAMES = STRUCTURAL_FEATURE_NAMES + CACHE_FEATURE_NAMES
 PERCEPTRON_ALGORITHMS = {
     7: "HUBCLUSTERDBG",
     8: "RABBITORDER",
-    12: "LeidenOrder",
-    17: "LeidenDFSHub",
-    20: "LeidenHybrid",
+    15: "LeidenOrder",
+    16: "LeidenDendrogram",
+    17: "LeidenCSR",
 }
 
 # Synthetic graphs for testing
@@ -187,9 +187,9 @@ def extract_features(graph_args: str, timeout: int = 300) -> Optional[Perceptron
     import re
     import subprocess
     
-    # Run with LeidenOrder to get modularity
+    # Run with LeidenOrder (ID 15) to get modularity
     binary = "./bench/bin/pr"
-    cmd = f"{binary} {graph_args} -o 12 -n 1"
+    cmd = f"{binary} {graph_args} -o 15 -n 1"
     
     try:
         result = subprocess.run(

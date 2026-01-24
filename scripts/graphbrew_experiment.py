@@ -84,29 +84,30 @@ ALGORITHMS = {
     9: "GORDER",
     10: "CORDER",
     11: "RCM",
-    12: "LeidenOrder",
-    13: "GraphBrewOrder",
-    # 14: MAP - uses external file
-    15: "AdaptiveOrder",
-    16: "LeidenDFS",
-    17: "LeidenDFSHub",
-    18: "LeidenDFSSize",
-    19: "LeidenBFS",
-    20: "LeidenHybrid",
-    21: "LeidenCSR",        # Fast CSR-native community detection
-    22: "LeidenCSRDFS",     # LeidenCSR with DFS traversal
-    23: "LeidenCSRBFS",     # LeidenCSR with BFS traversal
-    24: "LeidenCSRHubSort", # LeidenCSR with hub-sorted traversal
+    12: "GraphBrewOrder",
+    # 13: MAP - uses external file
+    14: "AdaptiveOrder",
+    # Leiden algorithms (15-17) - grouped together for easier sweeping
+    # Format: 15:resolution
+    15: "LeidenOrder",
+    # Format: 16:resolution:variant where variant = dfs/dfshub/dfssize/bfs/hybrid
+    16: "LeidenDendrogram",
+    # Format: 17:resolution:passes:variant where variant = dfs/bfs/hubsort/fast/modularity
+    17: "LeidenCSR",
 }
 
-# Algorithms to benchmark (excluding MAP=14 and AdaptiveOrder=15)
-BENCHMARK_ALGORITHMS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 16, 17, 18, 19, 20, 21, 22, 23, 24]
+# Algorithms to benchmark (excluding MAP=13)
+BENCHMARK_ALGORITHMS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 15, 16, 17]
 
 # Subset of key algorithms for quick testing
-KEY_ALGORITHMS = [0, 1, 7, 8, 9, 11, 12, 17, 20, 21, 22]  # Added LeidenCSR variants
+KEY_ALGORITHMS = [0, 1, 7, 8, 9, 11, 15, 16, 17]
 
 # Algorithms known to be slow on large graphs
 SLOW_ALGORITHMS = {9, 10, 11}  # GORDER, CORDER, RCM
+
+# Leiden variant configurations for sweeping
+LEIDEN_DENDROGRAM_VARIANTS = ["dfs", "dfshub", "dfssize", "bfs", "hybrid"]
+LEIDEN_CSR_VARIANTS = ["dfs", "bfs", "hubsort", "fast", "modularity"]
 
 # Benchmarks to run
 BENCHMARKS = ["pr", "bfs", "cc", "sssp", "bc"]
@@ -2593,7 +2594,7 @@ def generate_label_maps(
     Also records reorder times during generation.
     
     This allows consistent reordering across multiple benchmark runs
-    by using the MAP algorithm (14) with pre-generated mappings.
+    by using the MAP algorithm (13) with pre-generated mappings.
     
     Returns:
         Tuple of:
@@ -2774,7 +2775,7 @@ def run_benchmarks(
     """
     Run execution benchmarks for all combinations.
     
-    If label_maps is provided, uses pre-generated mappings via MAP algorithm (14)
+    If label_maps is provided, uses pre-generated mappings via MAP algorithm (13)
     for consistent reordering instead of regenerating each time.
     
     If update_weights is True, incrementally updates type weights after each benchmark.
@@ -2828,10 +2829,10 @@ def run_benchmarks(
                 if label_maps and algo_id != 0:  # ORIGINAL doesn't need mapping
                     label_map_path = get_label_map_path(label_maps, graph.name, algo_name)
                 
-                # Build command - use MAP algorithm (14) with label map if available
+                # Build command - use MAP algorithm (13) with label map if available
                 sym_flag = "-s" if graph.is_symmetric else ""
                 if label_map_path:
-                    # Use pre-generated mapping via MAP (algo 14)
+                    # Use pre-generated mapping via MAP (algo 13)
                     cmd = f"{binary} -f {graph.path} {sym_flag} -o 14:{label_map_path} -n {num_trials}"
                 else:
                     # Generate reordering on-the-fly
@@ -2972,7 +2973,7 @@ def run_cache_simulations(
     """
     Run cache simulations for all combinations.
     
-    If label_maps is provided, uses pre-generated mappings via MAP algorithm (14)
+    If label_maps is provided, uses pre-generated mappings via MAP algorithm (13)
     for consistent reordering instead of regenerating each time.
     
     If update_weights is True, updates type weights with cache stats.
@@ -3020,10 +3021,10 @@ def run_cache_simulations(
                 if label_maps and algo_id != 0:  # ORIGINAL doesn't need mapping
                     label_map_path = get_label_map_path(label_maps, graph.name, algo_name)
                 
-                # Build command - use MAP algorithm (14) with label map if available
+                # Build command - use MAP algorithm (13) with label map if available
                 sym_flag = "-s" if graph.is_symmetric else ""
                 if label_map_path:
-                    # Use pre-generated mapping via MAP (algo 14)
+                    # Use pre-generated mapping via MAP (algo 13)
                     cmd = f"{binary} -f {graph.path} {sym_flag} -o 14:{label_map_path} -n 1"
                 else:
                     # Generate reordering on-the-fly
@@ -3357,8 +3358,8 @@ def run_subcommunity_brute_force(
     
     results = []
     
-    # All algorithms to test (0-20, excluding MAP=14 and AdaptiveOrder=15)
-    # Test algorithms 0-20, excluding MAP=14 and AdaptiveOrder=15
+    # All algorithms to test (0-20, excluding MAP=13)
+    # Test algorithms 0-20, excluding MAP=13
     test_algorithms = [i for i in range(21) if i not in [14, 15]]
     
     # Create mapping from adaptive output names to our algorithm names
@@ -5125,7 +5126,7 @@ def analyze_adaptive_order(
             ))
             continue
         
-        # Run with AdaptiveOrder (algorithm 15)
+        # Run with AdaptiveOrder (algorithm 14)
         sym_flag = "-s" if graph.is_symmetric else ""
         cmd = f"{binary} -f {graph.path} {sym_flag} -o 15 -n 1"
         
@@ -5246,7 +5247,7 @@ def compare_adaptive_vs_fixed(
             
             sym_flag = "-s" if graph.is_symmetric else ""
             
-            # Run AdaptiveOrder (algorithm 15)
+            # Run AdaptiveOrder (algorithm 14)
             cmd_adaptive = f"{binary} -f {graph.path} {sym_flag} -o 15 -n {num_trials}"
             success, stdout, stderr = run_command(cmd_adaptive, timeout)
             
@@ -5531,7 +5532,7 @@ def run_experiment(args):
     # Phase 7: Adaptive vs Fixed Comparison
     if getattr(args, "adaptive_comparison", False):
         # Compare against top fixed algorithms
-        fixed_algos = [1, 2, 4, 7, 12, 17]  # RANDOM, SORT, HUBCLUSTER, HUBCLUSTERDBG, LeidenOrder, LeidenDFSHub
+        fixed_algos = [1, 2, 4, 7, 15, 16]  # RANDOM, SORT, HUBCLUSTER, HUBCLUSTERDBG, LeidenOrder, LeidenDendrogram
         
         comparison_results = compare_adaptive_vs_fixed(
             graphs=graphs,

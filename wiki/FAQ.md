@@ -108,7 +108,7 @@ for algo in 0 7 12 15 20; do
 done
 ```
 
-Or use AdaptiveOrder (`-o 15`) to auto-select.
+Or use AdaptiveOrder (14)`) to auto-select.
 
 ### What graph formats are supported?
 

@@ -286,7 +286,7 @@ numactl --cpunodebind=0 --membind=0 ./bench/bin/pr -f graph.el -s
 
 **Try**:
 1. Different algorithms
-2. AdaptiveOrder (`-o 15`)
+2. AdaptiveOrder (14)`)
 3. Check if graph has community structure
 
 ---

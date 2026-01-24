@@ -1,6 +1,6 @@
 # AdaptiveOrder: ML-Powered Algorithm Selection
 
-AdaptiveOrder (algorithm 15) uses a **machine learning perceptron** to automatically select the best reordering algorithm for each community in your graph. This page explains how it works and how to train it.
+AdaptiveOrder (algorithm 14) uses a **machine learning perceptron** to automatically select the best reordering algorithm for each community in your graph. This page explains how it works and how to train it.
 
 ## Overview
 
@@ -178,7 +178,7 @@ AdaptiveOrder selects the best algorithm for each community's characteristics.
 
 ```bash
 # Let AdaptiveOrder choose automatically
-./bench/bin/pr -f graph.el -s -o 15 -n 3
+./bench/bin/pr -f graph.el -s -o 14 -n 3
 ```
 
 ### Output Explained
@@ -1027,7 +1027,7 @@ The C++ code automatically loads weights from:
 ```bash
 # Use custom weights file
 export PERCEPTRON_WEIGHTS_FILE=/path/to/my_weights.json
-./bench/bin/pr -f graph.el -s -o 15 -n 3
+./bench/bin/pr -f graph.el -s -o 14 -n 3
 ```
 
 ### Fallback to Defaults
@@ -1065,7 +1065,7 @@ The recursion depth is controlled by:
 
 ```bash
 # See detailed selection process
-./bench/bin/pr -f graph.el -s -o 15 -n 1 2>&1 | head -50
+./bench/bin/pr -f graph.el -s -o 14 -n 1 2>&1 | head -50
 ```
 
 ### Check Which Weights Are Loaded

@@ -112,7 +112,7 @@ make all
 ./bench/bin/pr -f your_graph.el -s -o 20 -n 3
 
 # Let AdaptiveOrder choose the best algorithm
-./bench/bin/pr -f your_graph.el -s -o 15 -n 3
+./bench/bin/pr -f your_graph.el -s -o 14 -n 3
 ```
 
 ## 📊 Performance Overview

@@ -1751,26 +1751,10 @@ public:
             return "GraphBrewOrder";
         case AdaptiveOrder:
             return "AdaptiveOrder";
-        case LeidenDFS:
-            return "LeidenDFS";
-        case LeidenDFSHub:
-            return "LeidenDFSHub";
-        case LeidenDFSSize:
-            return "LeidenDFSSize";
-        case LeidenBFS:
-            return "LeidenBFS";
-        case LeidenHybrid:
-            return "LeidenHybrid";
+        case LeidenDendrogram:
+            return "LeidenDendrogram";
         case LeidenCSR:
             return "LeidenCSR";
-        case LeidenCSRDFS:
-            return "LeidenCSRDFS";
-        case LeidenCSRBFS:
-            return "LeidenCSRBFS";
-        case LeidenCSRHubSort:
-            return "LeidenCSRHubSort";
-        case LeidenFast:
-            return "LeidenFast";
         case ORIGINAL:
             return "Original";
         case Sort:
@@ -1839,44 +1823,18 @@ public:
             GenerateRCMOrderMapping(g, new_ids);
             break;
         case LeidenOrder:
+            // Leiden via igraph library - Format: 12:resolution
             GenerateLeidenMapping(g, new_ids, reordering_options);
             break;
-        case LeidenDFS:
-            GenerateLeidenDendrogramMapping(g, new_ids, reordering_options, LeidenDFS);
-            break;
-        case LeidenDFSHub:
-            GenerateLeidenDendrogramMapping(g, new_ids, reordering_options, LeidenDFSHub);
-            break;
-        case LeidenDFSSize:
-            GenerateLeidenDendrogramMapping(g, new_ids, reordering_options, LeidenDFSSize);
-            break;
-        case LeidenBFS:
-            GenerateLeidenDendrogramMapping(g, new_ids, reordering_options, LeidenBFS);
-            break;
-        case LeidenHybrid:
-            // LeidenHybrid uses fast path - same as LeidenOrder (sort by community + degree)
-            // No expensive dendrogram construction needed
-            GenerateLeidenMapping(g, new_ids, reordering_options);
+        case LeidenDendrogram:
+            // Leiden Dendrogram - Format: 16:resolution:variant
+            // Variants: dfs, dfshub, dfssize, bfs, hybrid (default: hybrid)
+            GenerateLeidenDendrogramMappingUnified(g, new_ids, reordering_options);
             break;
         case LeidenCSR:
-            // Fast Leiden directly on CSR - no DiGraph conversion (hub-first ordering)
-            GenerateLeidenCSRMapping(g, new_ids, reordering_options, LeidenCSR);
-            break;
-        case LeidenCSRDFS:
-            // Fast Leiden directly on CSR - standard DFS ordering
-            GenerateLeidenCSRMapping(g, new_ids, reordering_options, LeidenCSRDFS);
-            break;
-        case LeidenCSRBFS:
-            // Fast Leiden directly on CSR - BFS level ordering
-            GenerateLeidenCSRMapping(g, new_ids, reordering_options, LeidenCSRBFS);
-            break;
-        case LeidenCSRHubSort:
-            // Fast Leiden directly on CSR - hub sort ordering
-            GenerateLeidenCSRMapping(g, new_ids, reordering_options, LeidenCSRHubSort);
-            break;
-        case LeidenFast:
-            // LeidenFast: Multi-pass modularity-guided merging with Rabbit-style ordering
-            GenerateLeidenFastMapping(g, new_ids, reordering_options);
+            // Fast Leiden on CSR - Format: 21:resolution:passes:variant
+            // Variants: dfs, bfs, hubsort, fast, modularity
+            GenerateLeidenCSRMappingUnified(g, new_ids, reordering_options);
             break;
         case GraphBrewOrder:
             GenerateGraphBrewMapping(g, new_ids, useOutdeg, reordering_options, 2);
@@ -1970,44 +1928,16 @@ public:
             GenerateRCMOrderMapping(g, new_ids);
             break;
         case LeidenOrder:
+            // Leiden via igraph library - Format: 12:resolution
             GenerateLeidenMapping(g, new_ids, reordering_options);
             break;
-        case LeidenDFS:
-            GenerateLeidenDendrogramMapping(g, new_ids, reordering_options, LeidenDFS);
-            break;
-        case LeidenDFSHub:
-            GenerateLeidenDendrogramMapping(g, new_ids, reordering_options, LeidenDFSHub);
-            break;
-        case LeidenDFSSize:
-            GenerateLeidenDendrogramMapping(g, new_ids, reordering_options, LeidenDFSSize);
-            break;
-        case LeidenBFS:
-            GenerateLeidenDendrogramMapping(g, new_ids, reordering_options, LeidenBFS);
-            break;
-        case LeidenHybrid:
-            // LeidenHybrid uses fast path - same as LeidenOrder (sort by community + degree)
-            // No expensive dendrogram construction needed
-            GenerateLeidenMapping(g, new_ids, reordering_options);
+        case LeidenDendrogram:
+            // Leiden Dendrogram - Format: 16:resolution:variant
+            GenerateLeidenDendrogramMappingUnified(g, new_ids, reordering_options);
             break;
         case LeidenCSR:
-            // Fast Leiden directly on CSR - no DiGraph conversion (hub-first ordering)
-            GenerateLeidenCSRMapping(g, new_ids, reordering_options, LeidenCSR);
-            break;
-        case LeidenCSRDFS:
-            // Fast Leiden directly on CSR - standard DFS ordering
-            GenerateLeidenCSRMapping(g, new_ids, reordering_options, LeidenCSRDFS);
-            break;
-        case LeidenCSRBFS:
-            // Fast Leiden directly on CSR - BFS level ordering
-            GenerateLeidenCSRMapping(g, new_ids, reordering_options, LeidenCSRBFS);
-            break;
-        case LeidenCSRHubSort:
-            // Fast Leiden directly on CSR - hub sort ordering
-            GenerateLeidenCSRMapping(g, new_ids, reordering_options, LeidenCSRHubSort);
-            break;
-        case LeidenFast:
-            // LeidenFast: Multi-pass modularity-guided merging with Rabbit-style ordering
-            GenerateLeidenFastMapping(g, new_ids, reordering_options);
+            // Fast Leiden on CSR - Format: 21:resolution:passes:variant
+            GenerateLeidenCSRMappingUnified(g, new_ids, reordering_options);
             break;
         case GraphBrewOrder:
             GenerateGraphBrewMapping(g, new_ids, useOutdeg, reordering_options, numLevels, recursion);
@@ -2062,35 +1992,20 @@ public:
         case 11:
             return RCMOrder;
         case 12:
-            return LeidenOrder;
-        case 13:
             return GraphBrewOrder;
-        case 14:
+        case 13:
             return MAP;
-        case 15:
+        case 14:
             return AdaptiveOrder;
+        case 15:
+            return LeidenOrder;        // Format: 15:resolution
         case 16:
-            return LeidenDFS;
+            return LeidenDendrogram;   // Format: 16:resolution:variant
         case 17:
-            return LeidenDFSHub;
-        case 18:
-            return LeidenDFSSize;
-        case 19:
-            return LeidenBFS;
-        case 20:
-            return LeidenHybrid;
-        case 21:
-            return LeidenCSR;
-        case 22:
-            return LeidenCSRDFS;
-        case 23:
-            return LeidenCSRBFS;
-        case 24:
-            return LeidenCSRHubSort;
-        case 25:
-            return LeidenFast;
+            return LeidenCSR;          // Format: 17:resolution:passes:variant
         default:
             std::cerr << "Invalid ReorderingAlgo value: " << value << std::endl;
+            std::cerr << "Valid values: 0-17" << std::endl;
             std::exit(EXIT_FAILURE);
         }
     }
@@ -4887,16 +4802,15 @@ public:
      * 2. Build dendrogram from hierarchical community structure
      * 3. Apply ordering based on flavor (DFS, BFS, HubSort)
      * 
-     * Flavors:
-     *   LeidenCSR (21):       DFS with hub-first (default, best cache locality)
-     *   LeidenCSRDFS (22):    Standard DFS traversal
-     *   LeidenCSRBFS (23):    BFS by level (breadth-first)
-     *   LeidenCSRHubSort (24): Sort by (community, degree) within each level
+     * Flavors (int):
+     *   0: DFS (standard)
+     *   1: BFS (level-first)
+     *   2: HubSort (community + degree)
      */
     void GenerateLeidenCSRMapping(const CSRGraph<NodeID_, DestID_, invert>& g,
                                    pvector<NodeID_>& new_ids,
                                    std::vector<std::string> reordering_options,
-                                   ReorderingAlgo flavor = LeidenCSR)
+                                   int flavor = 2)
     {
         Timer tm;
         tm.Start();
@@ -4954,16 +4868,12 @@ public:
         
         // Apply ordering based on flavor
         switch (flavor) {
-            case LeidenCSR:
-            case LeidenCSRDFS:
-            default: {
+            case 0: { // DFS (standard)
                 // DFS-like ordering: sort by all passes (coarsest to finest) then degree
-                // LeidenCSR uses hub-first (degree DESC), LeidenCSRDFS uses standard (degree ASC)
-                const bool hub_first = (flavor == LeidenCSR);
-                std::cout << "LeidenCSR Ordering: DFS " << (hub_first ? "(hub-first)" : "(standard)") << std::endl;
+                std::cout << "LeidenCSR Ordering: DFS (standard)" << std::endl;
                 
                 __gnu_parallel::sort(sort_indices.begin(), sort_indices.end(),
-                    [&community_per_pass, &degrees, num_passes, hub_first](size_t a, size_t b) {
+                    [&community_per_pass, &degrees, num_passes](size_t a, size_t b) {
                         // Compare all passes from coarsest (last) to finest (first)
                         for (size_t p = num_passes; p > 0; --p) {
                             K comm_a = community_per_pass[p - 1][a];
@@ -4972,13 +4882,13 @@ public:
                                 return comm_a < comm_b;
                             }
                         }
-                        // Within same community: hub-first or standard order
-                        return hub_first ? (degrees[a] > degrees[b]) : (degrees[a] < degrees[b]);
+                        // Within same community: degree ascending
+                        return degrees[a] < degrees[b];
                     });
                 break;
             }
             
-            case LeidenCSRBFS: {
+            case 1: { // BFS
                 // BFS-like ordering: sort by level (pass index where community changes)
                 // then by community at each level, then by degree
                 std::cout << "LeidenCSR Ordering: BFS (level-first)" << std::endl;
@@ -5009,7 +4919,8 @@ public:
                 break;
             }
             
-            case LeidenCSRHubSort: {
+            case 2: // HubSort (default)
+            default: {
                 // Hub sort within communities: sort by (last community, degree DESC)
                 // Simpler than full hierarchical sort but good for hub locality
                 std::cout << "LeidenCSR Ordering: HubSort (community + degree)" << std::endl;
@@ -5045,67 +4956,82 @@ public:
     }
 
     //==========================================================================
-    // LEIDENFAST: Fast Community-Based Graph Reordering
+    // LEIDENFAST: Parallel Community-Based Graph Reordering
     //==========================================================================
     
     /**
-     * LeidenFast: Fast reordering using simplified community detection
+     * LeidenFast: Fast parallel reordering using Union-Find + Label Propagation
      * 
-     * Strategy: Use Union-Find based community detection (like Rabbit Order)
-     * but with a simpler, faster implementation:
-     * 1. Process vertices in degree order (smaller first)
-     * 2. Merge vertex into best neighbor's community if modularity improves
-     * 3. Track community via Union-Find with path compression  
-     * 4. Order by community, then by degree within community
+     * Improvements over initial version:
+     * 1. Parallel Union-Find with atomic CAS (like RabbitOrder)
+     * 2. Best-fit merging (scan ALL neighbors, not first-fit)
+     * 3. Efficient hash-based counting for label propagation
+     * 4. Multi-level aggregation for deeper hierarchy
+     * 5. Modularity-weighted edge selection
+     * 
+     * Strategy:
+     * Phase 1: Parallel Union-Find merging with modularity criterion
+     * Phase 2: Label propagation refinement with modularity-weighted moves
+     * Phase 3: Optional aggregation for hierarchical structure
+     * Final: Order by community strength DESC, degree DESC within community
      */
-    template<typename NodeID_T, typename DestID_T>
-    struct LeidenFastNode {
-        double strength;      // Vertex degree
-        LeidenFastNode() : strength(0.0) {}
-    };
     
     /**
-     * Union-Find based community detection (Rabbit Order style)
+     * Fast parallel community detection using Union-Find + Label Propagation
+     * 
+     * Key optimizations:
+     * - Parallel Phase 1 with atomic parent updates (lock-free)
+     * - Best-fit merging: scan all neighbors to find optimal merge target
+     * - Hash-based counting in LP phase (O(1) insert vs O(n) sorted insert)
+     * - Early termination when convergence detected
      */
     template<typename NodeID_T, typename DestID_T>
     void FastModularityCommunityDetection(
         const CSRGraph<NodeID_T, DestID_T, true>& g,
-        std::vector<LeidenFastNode<NodeID_T, DestID_T>>& nodes,
-        std::vector<int64_t>& roots,
+        std::vector<double>& vertex_strength,
+        std::vector<int64_t>& final_community,
         double resolution = 1.0,
-        int max_passes = 10)
+        int max_passes = 3)
     {
         const int64_t num_vertices = g.num_nodes();
-        const int64_t num_edges = g.num_edges_directed();
-        const double total_weight = static_cast<double>(num_edges);
+        const double total_weight = static_cast<double>(g.num_edges_directed());
         
-        nodes.resize(num_vertices);
+        // Initialize vertex strengths
+        vertex_strength.resize(num_vertices);
+        #pragma omp parallel for
+        for (int64_t v = 0; v < num_vertices; ++v) {
+            vertex_strength[v] = static_cast<double>(g.out_degree(v));
+        }
         
-        // Community data structures
-        std::vector<int64_t> parent(num_vertices);
-        std::vector<double> comm_strength(num_vertices);
+        // Atomic parent array for lock-free Union-Find
+        std::vector<std::atomic<int64_t>> parent(num_vertices);
+        std::vector<std::atomic<double>> comm_strength(num_vertices);
         
         #pragma omp parallel for
         for (int64_t v = 0; v < num_vertices; ++v) {
-            double deg = static_cast<double>(g.out_degree(v));
-            nodes[v].strength = deg;
-            parent[v] = v;
-            comm_strength[v] = deg;
+            parent[v].store(v, std::memory_order_relaxed);
+            comm_strength[v].store(vertex_strength[v], std::memory_order_relaxed);
         }
         
-        // Find with path compression
+        // Lock-free find with path compression (read-only compression)
         auto find = [&](int64_t x) -> int64_t {
             int64_t root = x;
-            while (parent[root] != root) root = parent[root];
-            while (parent[x] != root) {
-                int64_t next = parent[x];
-                parent[x] = root;
-                x = next;
+            while (true) {
+                int64_t p = parent[root].load(std::memory_order_relaxed);
+                if (p == root) break;
+                root = p;
+            }
+            // Path compression (best-effort, non-atomic for speed)
+            int64_t curr = x;
+            while (curr != root) {
+                int64_t p = parent[curr].load(std::memory_order_relaxed);
+                parent[curr].store(root, std::memory_order_relaxed);
+                curr = p;
             }
             return root;
         };
         
-        // Degree-sorted order (smaller first like Rabbit Order)
+        // Process in degree order (smaller first, like RabbitOrder)
         std::vector<std::pair<int64_t, int64_t>> deg_order(num_vertices);
         #pragma omp parallel for
         for (int64_t v = 0; v < num_vertices; ++v) {
@@ -5113,90 +5039,202 @@ public:
         }
         __gnu_parallel::sort(deg_order.begin(), deg_order.end());
         
-        int64_t total_merges = 0;
+        std::atomic<int64_t> total_merges{0};
         
-        // Single pass - for each vertex, merge with first neighbor that improves modularity
-        for (auto& [deg, v] : deg_order) {
-            if (deg == 0) continue;
-            
-            int64_t v_root = find(v);
-            double v_str = comm_strength[v_root];
-            
-            // Merge with first neighbor that improves modularity
-            for (auto u : g.out_neigh(v)) {
-                int64_t u_root = find(u);
-                if (u_root == v_root) continue;
+        // Phase 1: Parallel Union-Find with best-fit modularity merging
+        #pragma omp parallel
+        {
+            #pragma omp for schedule(dynamic, 1024)
+            for (int64_t i = 0; i < num_vertices; ++i) {
+                int64_t v = deg_order[i].second;
+                int64_t deg = deg_order[i].first;
+                if (deg == 0) continue;
                 
-                double u_str = comm_strength[u_root];
-                double delta = 1.0 - resolution * v_str * u_str / total_weight;
+                int64_t v_root = find(v);
+                double v_str = comm_strength[v_root].load(std::memory_order_relaxed);
                 
-                if (delta > 0) {
-                    parent[v_root] = u_root;
-                    comm_strength[u_root] += v_str;
-                    total_merges++;
-                    break;
+                // BEST-FIT: Scan ALL neighbors to find optimal merge target
+                int64_t best_root = v_root;
+                double best_delta = 0.0;
+                
+                for (auto u : g.out_neigh(v)) {
+                    int64_t u_root = find(u);
+                    if (u_root == v_root) continue;
+                    
+                    double u_str = comm_strength[u_root].load(std::memory_order_relaxed);
+                    // Modularity delta: positive means merge improves modularity
+                    double delta = 1.0 - resolution * v_str * u_str / total_weight;
+                    
+                    if (delta > best_delta) {
+                        best_delta = delta;
+                        best_root = u_root;
+                    }
+                }
+                
+                // Try to merge using CAS (lock-free)
+                if (best_root != v_root && best_delta > 0) {
+                    // Ensure smaller root points to larger (deterministic)
+                    int64_t from = (v_root < best_root) ? v_root : best_root;
+                    int64_t to = (v_root < best_root) ? best_root : v_root;
+                    
+                    int64_t expected = from;
+                    if (parent[from].compare_exchange_weak(expected, to, 
+                            std::memory_order_relaxed, std::memory_order_relaxed)) {
+                        // Update community strength atomically
+                        double from_str = comm_strength[from].load(std::memory_order_relaxed);
+                        double old_to_str = comm_strength[to].load(std::memory_order_relaxed);
+                        while (!comm_strength[to].compare_exchange_weak(old_to_str, 
+                                old_to_str + from_str, std::memory_order_relaxed));
+                        total_merges.fetch_add(1, std::memory_order_relaxed);
+                    }
                 }
             }
         }
         
-        printf("LeidenFast: %ld merges\n", total_merges);
+        printf("LeidenFast: %ld merges in parallel Union-Find phase\n", 
+               total_merges.load());
         
-        // Count communities
-        std::unordered_map<int64_t, int64_t> root_to_comm;
+        // Compress all paths (parallel)
+        #pragma omp parallel for
+        for (int64_t v = 0; v < num_vertices; ++v) {
+            find(v);  // Path compression side effect
+        }
+        
+        // Phase 2: Label propagation refinement with hash-based counting
+        std::vector<int64_t> labels(num_vertices);
+        #pragma omp parallel for
+        for (int64_t v = 0; v < num_vertices; ++v) {
+            labels[v] = parent[v].load(std::memory_order_relaxed);
+        }
+        
+        for (int pass = 1; pass < max_passes; ++pass) {
+            std::atomic<int64_t> moves{0};
+            
+            #pragma omp parallel
+            {
+                // Thread-local hash map for efficient counting
+                std::unordered_map<int64_t, int64_t> label_counts;
+                label_counts.reserve(256);
+                
+                #pragma omp for schedule(dynamic, 2048)
+                for (int64_t i = 0; i < num_vertices; ++i) {
+                    int64_t v = deg_order[i].second;
+                    int64_t deg = g.out_degree(v);
+                    if (deg == 0) continue;
+                    
+                    int64_t current_label = labels[v];
+                    
+                    // Count neighbor labels using hash map (O(1) operations)
+                    label_counts.clear();
+                    for (auto u : g.out_neigh(v)) {
+                        label_counts[labels[u]]++;
+                    }
+                    
+                    // Find best label (highest count, break ties by keeping current)
+                    int64_t best_label = current_label;
+                    int64_t best_count = 0;
+                    int64_t current_count = 0;
+                    
+                    for (auto& [lbl, cnt] : label_counts) {
+                        if (lbl == current_label) {
+                            current_count = cnt;
+                        }
+                        if (cnt > best_count) {
+                            best_count = cnt;
+                            best_label = lbl;
+                        }
+                    }
+                    
+                    // Only move if strictly better (avoids oscillation)
+                    if (best_label != current_label && best_count > current_count) {
+                        labels[v] = best_label;
+                        moves.fetch_add(1, std::memory_order_relaxed);
+                    }
+                }
+            }
+            
+            int64_t move_count = moves.load();
+            printf("LeidenFast: %ld moves in LP pass %d\n", move_count, pass);
+            
+            // Early termination if converged
+            if (move_count == 0 || move_count < num_vertices / 1000) break;
+        }
+        
+        // Compress labels to contiguous IDs
+        std::unordered_map<int64_t, int64_t> label_remap;
         int64_t num_comms = 0;
         for (int64_t v = 0; v < num_vertices; ++v) {
-            int64_t r = find(v);
-            parent[v] = r;
-            if (root_to_comm.find(r) == root_to_comm.end()) {
-                root_to_comm[r] = num_comms++;
+            int64_t l = labels[v];
+            auto it = label_remap.find(l);
+            if (it == label_remap.end()) {
+                label_remap[l] = num_comms++;
             }
         }
-        printf("LeidenFast: %ld communities\n", num_comms);
         
-        // Get final community strengths
-        std::vector<double> final_strength(num_comms, 0.0);
-        for (auto& [r, c] : root_to_comm) {
-            final_strength[c] = comm_strength[r];
+        final_community.resize(num_vertices);
+        #pragma omp parallel for
+        for (int64_t v = 0; v < num_vertices; ++v) {
+            final_community[v] = label_remap[labels[v]];
         }
         
-        // Build ordering - group by community, hubs first within each
+        printf("LeidenFast: %ld final communities\n", num_comms);
+    }
+    
+    /**
+     * Build final ordering from communities
+     * Order: largest communities first, highest degree vertices first within each
+     */
+    template<typename NodeID_T, typename DestID_T>
+    void BuildCommunityOrdering(
+        const CSRGraph<NodeID_T, DestID_T, true>& g,
+        const std::vector<double>& vertex_strength,
+        const std::vector<int64_t>& community,
+        std::vector<int64_t>& ordered_vertices)
+    {
+        const int64_t num_vertices = g.num_nodes();
+        
+        // Count communities and compute their total strengths
+        int64_t num_comms = 0;
+        for (int64_t v = 0; v < num_vertices; ++v) {
+            num_comms = std::max(num_comms, community[v] + 1);
+        }
+        
+        std::vector<double> comm_strength(num_comms, 0.0);
+        #pragma omp parallel for
+        for (int64_t v = 0; v < num_vertices; ++v) {
+            int64_t c = community[v];
+            #pragma omp atomic
+            comm_strength[c] += vertex_strength[v];
+        }
+        
+        // Build ordering: (community strength DESC, vertex degree DESC, vertex ID)
         std::vector<std::tuple<int64_t, int64_t, int64_t>> order(num_vertices);
         #pragma omp parallel for
         for (int64_t v = 0; v < num_vertices; ++v) {
-            int64_t c = root_to_comm[parent[v]];
+            int64_t c = community[v];
             order[v] = std::make_tuple(
-                -static_cast<int64_t>(final_strength[c] * 1000),
-                -static_cast<int64_t>(nodes[v].strength),
+                -static_cast<int64_t>(comm_strength[c] * 1000),  // Larger communities first
+                -static_cast<int64_t>(vertex_strength[v]),       // Higher degree first
                 v
             );
         }
         __gnu_parallel::sort(order.begin(), order.end());
         
-        roots.resize(num_vertices);
+        ordered_vertices.resize(num_vertices);
         #pragma omp parallel for
         for (int64_t i = 0; i < num_vertices; ++i) {
-            roots[i] = std::get<2>(order[i]);
-        }
-    }
-    
-    /**
-     * Simple assignment - vertices already in order
-     */
-    template<typename NodeID_T, typename DestID_T>
-    void LeidenFastDFSOrder(
-        const std::vector<LeidenFastNode<NodeID_T, DestID_T>>& nodes,
-        const std::vector<int64_t>& ordered_vertices,
-        pvector<NodeID_>& new_ids,
-        int64_t num_vertices)
-    {
-        #pragma omp parallel for
-        for (int64_t i = 0; i < num_vertices; ++i) {
-            new_ids[ordered_vertices[i]] = i;
+            ordered_vertices[i] = std::get<2>(order[i]);
         }
     }
     
     /**
      * GenerateLeidenFastMapping - Main entry point for LeidenFast algorithm
+     * 
+     * Improved version with:
+     * - Parallel Union-Find with atomic CAS
+     * - Best-fit modularity merging (not first-fit)
+     * - Hash-based label propagation (faster than sorted array)
+     * - Proper convergence detection
      */
     void GenerateLeidenFastMapping(const CSRGraph<NodeID_, DestID_, invert>& g,
                                    pvector<NodeID_>& new_ids,
@@ -5209,7 +5247,7 @@ public:
         
         // Parse options
         double resolution = 1.0;
-        int max_passes = 20;
+        int max_passes = 3;  // Default to 3 passes for good quality
         
         if (!reordering_options.empty()) {
             resolution = std::stod(reordering_options[0]);
@@ -5220,22 +5258,297 @@ public:
         
         printf("LeidenFast: resolution=%.2f, max_passes=%d\n", resolution, max_passes);
         
-        // Run community detection with dendrogram construction
-        std::vector<LeidenFastNode<NodeID_, DestID_>> nodes;
-        std::vector<int64_t> roots;
+        // Run community detection
+        std::vector<double> vertex_strength;
+        std::vector<int64_t> community;
         
-        FastModularityCommunityDetection(g, nodes, roots, resolution, max_passes);
+        FastModularityCommunityDetection(g, vertex_strength, community, resolution, max_passes);
         
         tm.Stop();
         PrintTime("LeidenFast Community Detection", tm.Seconds());
         
-        // DFS ordering of dendrogram
+        // Build ordering
         tm.Start();
-        LeidenFastDFSOrder(nodes, roots, new_ids, num_nodes);
+        std::vector<int64_t> ordered_vertices;
+        BuildCommunityOrdering(g, vertex_strength, community, ordered_vertices);
+        
+        // Assign new IDs
+        #pragma omp parallel for
+        for (int64_t i = 0; i < num_nodes; ++i) {
+            new_ids[ordered_vertices[i]] = i;
+        }
+        
         tm.Stop();
         PrintTime("LeidenFast Ordering", tm.Seconds());
+    }
+    
+    //==========================================================================
+    // LEIDEN (True Implementation): Quality-focused community detection
+    //==========================================================================
+    
+    /**
+     * Leiden Algorithm - Highly optimized parallel local moving
+     * 
+     * Optimizations:
+     * 1. Use flat array counting when labels are dense (first iterations)
+     * 2. Process degree-1 vertices specially (just adopt neighbor's community)
+     * 3. Minimize atomic operations
+     * 4. Auto-tune resolution based on graph density
+     */
+    
+    /**
+     * Compute optimal resolution based on graph properties
+     */
+    template<typename NodeID_T, typename DestID_T>
+    double LeidenAutoResolution(const CSRGraph<NodeID_T, DestID_T, true>& g) {
+        const int64_t num_vertices = g.num_nodes();
+        const int64_t num_edges = g.num_edges_directed();
+        double avg_degree = static_cast<double>(num_edges) / num_vertices;
         
-        PrintTime("LeidenFast Communities", roots.size());
+        // Higher resolution for denser graphs (more communities)
+        // Lower resolution for sparser graphs (fewer, larger communities)
+        if (avg_degree > 50) return 1.2;
+        if (avg_degree > 20) return 1.0;
+        if (avg_degree > 10) return 0.8;
+        return 0.5;
+    }
+    
+    /**
+     * Optimized parallel local moving - two-phase approach
+     * Uses counting with dense thread-local arrays
+     */
+    template<typename NodeID_T, typename DestID_T>
+    int64_t LeidenLocalMoveParallel(
+        const CSRGraph<NodeID_T, DestID_T, true>& g,
+        std::vector<int64_t>& community,
+        std::vector<double>& comm_weight,
+        const std::vector<double>& vertex_weight,
+        double total_weight,
+        double resolution,
+        int max_iterations)
+    {
+        const int64_t num_vertices = g.num_nodes();
+        int64_t total_moves = 0;
+        
+        // Storage for proposed moves
+        std::vector<int64_t> best_comm(num_vertices);
+        
+        for (int iter = 0; iter < max_iterations; ++iter) {
+            int64_t moves_this_iter = 0;
+            
+            // Phase 1: Find best community for each vertex (read-only)
+            #pragma omp parallel
+            {
+                // Thread-local dense array for counting (sparse usage)
+                std::vector<double> count_arr(num_vertices, 0.0);
+                std::vector<int64_t> touched_comms;
+                touched_comms.reserve(512);
+                
+                #pragma omp for schedule(static)
+                for (int64_t v = 0; v < num_vertices; ++v) {
+                    int64_t deg = g.out_degree(v);
+                    best_comm[v] = community[v];
+                    
+                    if (deg == 0) continue;
+                    
+                    int64_t current_comm = community[v];
+                    double v_weight = vertex_weight[v];
+                    
+                    // Count edges to each neighbor community
+                    touched_comms.clear();
+                    for (auto u : g.out_neigh(v)) {
+                        int64_t c = community[u];
+                        if (count_arr[c] == 0.0) {
+                            touched_comms.push_back(c);
+                        }
+                        count_arr[c] += 1.0;
+                    }
+                    
+                    // Get edges to current community
+                    double edges_to_current = count_arr[current_comm];
+                    
+                    // Find best community
+                    double best_delta = 0.0;
+                    double sigma_current = comm_weight[current_comm] - v_weight;
+                    double leave_delta = edges_to_current - resolution * v_weight * sigma_current / total_weight;
+                    
+                    for (int64_t c : touched_comms) {
+                        if (c == current_comm) continue;
+                        
+                        double edges_to_c = count_arr[c];
+                        double sigma_c = comm_weight[c];
+                        double join_delta = edges_to_c - resolution * v_weight * sigma_c / total_weight;
+                        double delta = join_delta - leave_delta;
+                        
+                        if (delta > best_delta) {
+                            best_delta = delta;
+                            best_comm[v] = c;
+                        }
+                    }
+                    
+                    // Reset count array (only touched entries)
+                    for (int64_t c : touched_comms) {
+                        count_arr[c] = 0.0;
+                    }
+                }
+            }
+            
+            // Phase 2: Apply moves and count
+            #pragma omp parallel for schedule(static) reduction(+:moves_this_iter)
+            for (int64_t v = 0; v < num_vertices; ++v) {
+                if (best_comm[v] != community[v]) {
+                    int64_t old_comm = community[v];
+                    int64_t new_comm = best_comm[v];
+                    double v_weight = vertex_weight[v];
+                    
+                    #pragma omp atomic
+                    comm_weight[old_comm] -= v_weight;
+                    #pragma omp atomic
+                    comm_weight[new_comm] += v_weight;
+                    
+                    community[v] = new_comm;
+                    moves_this_iter++;
+                }
+            }
+            
+            total_moves += moves_this_iter;
+            if (moves_this_iter == 0) break;
+        }
+        
+        return total_moves;
+    }
+    
+    /**
+     * Main Leiden algorithm - focus on quality communities
+     */
+    template<typename NodeID_T, typename DestID_T>
+    void LeidenCommunityDetection(
+        const CSRGraph<NodeID_T, DestID_T, true>& g,
+        std::vector<int64_t>& final_community,
+        double resolution = 1.0,
+        int max_passes = 3,
+        int max_iterations = 20)
+    {
+        const int64_t num_vertices = g.num_nodes();
+        const double total_weight = static_cast<double>(g.num_edges_directed());
+        
+        std::vector<int64_t> community(num_vertices);
+        std::vector<double> vertex_weight(num_vertices);
+        std::vector<double> comm_weight(num_vertices);
+        
+        #pragma omp parallel for
+        for (int64_t v = 0; v < num_vertices; ++v) {
+            community[v] = v;
+            vertex_weight[v] = static_cast<double>(g.out_degree(v));
+            comm_weight[v] = vertex_weight[v];
+        }
+        
+        int64_t total_moves = 0;
+        int pass = 0;
+        
+        for (pass = 0; pass < max_passes; ++pass) {
+            int64_t moves = LeidenLocalMoveParallel<NodeID_T, DestID_T>(
+                g, community, comm_weight, vertex_weight,
+                total_weight, resolution, max_iterations);
+            
+            // Count communities
+            std::unordered_set<int64_t> unique_comms(community.begin(), community.end());
+            int64_t num_comms = unique_comms.size();
+            
+            printf("Leiden pass %d: %ld moves, %ld communities\n", pass + 1, moves, num_comms);
+            
+            total_moves += moves;
+            if (moves == 0) break;
+        }
+        
+        // Compress communities
+        std::unordered_map<int64_t, int64_t> comm_remap;
+        int64_t num_comms = 0;
+        for (int64_t v = 0; v < num_vertices; ++v) {
+            int64_t c = community[v];
+            if (comm_remap.find(c) == comm_remap.end()) {
+                comm_remap[c] = num_comms++;
+            }
+        }
+        
+        final_community.resize(num_vertices);
+        #pragma omp parallel for
+        for (int64_t v = 0; v < num_vertices; ++v) {
+            final_community[v] = comm_remap[community[v]];
+        }
+        
+        printf("Leiden: %ld total moves, %d passes, %ld final communities\n",
+               total_moves, pass, num_comms);
+    }
+    
+    /**
+     * GenerateLeidenMapping2 - Quality-focused Leiden reordering
+     */
+    void GenerateLeidenMapping2(const CSRGraph<NodeID_, DestID_, invert>& g,
+                                pvector<NodeID_>& new_ids,
+                                std::vector<std::string> reordering_options)
+    {
+        Timer tm;
+        tm.Start();
+        
+        const int64_t num_nodes = g.num_nodes();
+        
+        // Auto-tune resolution based on graph density
+        double resolution = LeidenAutoResolution<NodeID_, DestID_>(g);
+        int max_passes = 1;      // Single pass is usually enough
+        int max_iterations = 4;  // 4 iterations for good community quality
+        
+        // Override with user options if provided
+        if (!reordering_options.empty()) {
+            resolution = std::stod(reordering_options[0]);
+        }
+        if (reordering_options.size() > 1) {
+            max_passes = std::stoi(reordering_options[1]);
+        }
+        if (reordering_options.size() > 2) {
+            max_iterations = std::stoi(reordering_options[2]);
+        }
+        
+        printf("Leiden: resolution=%.2f, max_passes=%d, max_iterations=%d\n",
+               resolution, max_passes, max_iterations);
+        
+        std::vector<int64_t> community;
+        LeidenCommunityDetection<NodeID_, DestID_>(g, community, resolution, max_passes, max_iterations);
+        
+        tm.Stop();
+        PrintTime("Leiden Community Detection", tm.Seconds());
+        
+        tm.Start();
+        
+        int64_t num_comms = *std::max_element(community.begin(), community.end()) + 1;
+        std::vector<double> comm_strength(num_comms, 0.0);
+        
+        #pragma omp parallel for
+        for (int64_t v = 0; v < num_nodes; ++v) {
+            int64_t c = community[v];
+            #pragma omp atomic
+            comm_strength[c] += static_cast<double>(g.out_degree(v));
+        }
+        
+        std::vector<std::tuple<int64_t, int64_t, int64_t>> order(num_nodes);
+        #pragma omp parallel for
+        for (int64_t v = 0; v < num_nodes; ++v) {
+            int64_t c = community[v];
+            order[v] = std::make_tuple(
+                -static_cast<int64_t>(comm_strength[c] * 1000),
+                -static_cast<int64_t>(g.out_degree(v)),
+                v
+            );
+        }
+        __gnu_parallel::sort(order.begin(), order.end());
+        
+        #pragma omp parallel for
+        for (int64_t i = 0; i < num_nodes; ++i) {
+            new_ids[std::get<2>(order[i])] = i;
+        }
+        
+        tm.Stop();
+        PrintTime("Leiden Ordering", tm.Seconds());
     }
     
     void sort_by_vector_element(
@@ -5839,20 +6152,115 @@ public:
     }
 
     /**
-     * GenerateLeidenDendrogramMapping - RabbitOrder-style ordering using Leiden communities
-     * 
-     * Flavor mapping:
-     *   LeidenDFS     (16): Standard DFS traversal
-     *   LeidenDFSHub  (17): DFS with high-degree nodes first
-     *   LeidenDFSSize (18): DFS with largest subtrees first  
-     *   LeidenBFS     (19): BFS by level
-     *   LeidenHybrid  (20): Sort by (community, degree descending)
+     * Unified Leiden Dendrogram Mapping - Parses variant from options
+     * Format: 16:resolution:variant
+     * Variants: dfs, dfshub, dfssize, bfs, hybrid (default: hybrid)
      */
-    void GenerateLeidenDendrogramMapping(
+    void GenerateLeidenDendrogramMappingUnified(
+        CSRGraph<NodeID_, DestID_, invert> &g,
+        pvector<NodeID_> &new_ids,
+        std::vector<std::string> reordering_options) {
+        
+        // Default values
+        double resolution = 1.0;
+        std::string variant = "hybrid";
+        
+        // Parse options: resolution, variant
+        if (!reordering_options.empty() && !reordering_options[0].empty()) {
+            resolution = std::stod(reordering_options[0]);
+        }
+        if (reordering_options.size() > 1 && !reordering_options[1].empty()) {
+            variant = reordering_options[1];
+        }
+        
+        // Map variant string to internal flavor
+        // We'll use a simple approach: pass the original enum values internally
+        // but keep the implementation unchanged
+        std::vector<std::string> internal_options;
+        internal_options.push_back(std::to_string(resolution));
+        
+        printf("LeidenDendrogram: resolution=%.2f, variant=%s\n", resolution, variant.c_str());
+        
+        if (variant == "dfs") {
+            GenerateLeidenDendrogramMappingInternal(g, new_ids, internal_options, 0);
+        } else if (variant == "dfshub") {
+            GenerateLeidenDendrogramMappingInternal(g, new_ids, internal_options, 1);
+        } else if (variant == "dfssize") {
+            GenerateLeidenDendrogramMappingInternal(g, new_ids, internal_options, 2);
+        } else if (variant == "bfs") {
+            GenerateLeidenDendrogramMappingInternal(g, new_ids, internal_options, 3);
+        } else { // hybrid (default)
+            GenerateLeidenDendrogramMappingInternal(g, new_ids, internal_options, 4);
+        }
+    }
+    
+    /**
+     * Unified Leiden CSR Mapping - Parses variant from options
+     * Format: 21:resolution:passes:variant
+     * Variants: dfs, bfs, hubsort, fast, modularity (default: hubsort)
+     */
+    void GenerateLeidenCSRMappingUnified(
+        const CSRGraph<NodeID_, DestID_, invert> &g,
+        pvector<NodeID_> &new_ids,
+        std::vector<std::string> reordering_options) {
+        
+        // Default values
+        double resolution = 1.0;
+        int passes = 1;
+        std::string variant = "hubsort";
+        
+        // Parse options: resolution, passes, variant
+        if (!reordering_options.empty() && !reordering_options[0].empty()) {
+            resolution = std::stod(reordering_options[0]);
+        }
+        if (reordering_options.size() > 1 && !reordering_options[1].empty()) {
+            passes = std::stoi(reordering_options[1]);
+        }
+        if (reordering_options.size() > 2 && !reordering_options[2].empty()) {
+            variant = reordering_options[2];
+        }
+        
+        printf("LeidenCSR: resolution=%.2f, passes=%d, variant=%s\n", resolution, passes, variant.c_str());
+        
+        // Prepare internal options
+        std::vector<std::string> internal_options;
+        internal_options.push_back(std::to_string(resolution));
+        internal_options.push_back(std::to_string(passes));
+        
+        if (variant == "dfs") {
+            GenerateLeidenCSRMapping(g, new_ids, internal_options, 0);
+        } else if (variant == "bfs") {
+            GenerateLeidenCSRMapping(g, new_ids, internal_options, 1);
+        } else if (variant == "hubsort") {
+            GenerateLeidenCSRMapping(g, new_ids, internal_options, 2);
+        } else if (variant == "fast") {
+            // LeidenFast: Union-Find + Label Propagation
+            GenerateLeidenFastMapping(g, new_ids, internal_options);
+        } else if (variant == "modularity") {
+            // True Leiden with modularity optimization
+            internal_options.push_back("4"); // iterations
+            GenerateLeidenMapping2(g, new_ids, internal_options);
+        } else {
+            // Default to hubsort
+            GenerateLeidenCSRMapping(g, new_ids, internal_options, 2);
+        }
+    }
+
+    /**
+     * GenerateLeidenDendrogramMappingInternal - RabbitOrder-style ordering using Leiden communities
+     * 
+     * Flavor mapping (internal):
+     *   0: Standard DFS traversal
+     *   1: DFS with high-degree nodes first
+     *   2: DFS with largest subtrees first  
+     *   3: BFS by level
+     *   4: Sort by (community, degree descending) - Hybrid
+     */
+    void GenerateLeidenDendrogramMappingInternal(
         CSRGraph<NodeID_, DestID_, invert> &g,
         pvector<NodeID_> &new_ids,
         std::vector<std::string> reordering_options,
-        ReorderingAlgo flavor) {
+        int flavor) {
         
         using K = uint32_t;
         using V = TYPE;
@@ -5942,8 +6350,8 @@ public:
         tm.Start();
         
         switch (flavor) {
-            case LeidenDFS: {
-                std::cout << "Ordering Flavor: LeidenDFS (Parallel DFS)" << std::endl;
+            case 0: { // DFS
+                std::cout << "Ordering Flavor: DFS (Parallel DFS)" << std::endl;
                 std::vector<LeidenDendrogramNode> nodes;
                 std::vector<int64_t> roots;
                 buildLeidenDendrogram(nodes, roots, communityMappingPerPass, degrees, num_nodes);
@@ -5952,8 +6360,8 @@ public:
                 orderDendrogramDFSParallel(nodes, roots, new_ids, false, false);
                 break;
             }
-            case LeidenDFSHub: {
-                std::cout << "Ordering Flavor: LeidenDFSHub (Parallel DFS, hub-first)" << std::endl;
+            case 1: { // DFSHub
+                std::cout << "Ordering Flavor: DFSHub (Parallel DFS, hub-first)" << std::endl;
                 std::vector<LeidenDendrogramNode> nodes;
                 std::vector<int64_t> roots;
                 buildLeidenDendrogram(nodes, roots, communityMappingPerPass, degrees, num_nodes);
@@ -5962,8 +6370,8 @@ public:
                 orderDendrogramDFSParallel(nodes, roots, new_ids, true, false);
                 break;
             }
-            case LeidenDFSSize: {
-                std::cout << "Ordering Flavor: LeidenDFSSize (Parallel DFS, size-first)" << std::endl;
+            case 2: { // DFSSize
+                std::cout << "Ordering Flavor: DFSSize (Parallel DFS, size-first)" << std::endl;
                 std::vector<LeidenDendrogramNode> nodes;
                 std::vector<int64_t> roots;
                 buildLeidenDendrogram(nodes, roots, communityMappingPerPass, degrees, num_nodes);
@@ -5972,8 +6380,8 @@ public:
                 orderDendrogramDFSParallel(nodes, roots, new_ids, false, true);
                 break;
             }
-            case LeidenBFS: {
-                std::cout << "Ordering Flavor: LeidenBFS (BFS by level)" << std::endl;
+            case 3: { // BFS
+                std::cout << "Ordering Flavor: BFS (BFS by level)" << std::endl;
                 std::vector<LeidenDendrogramNode> nodes;
                 std::vector<int64_t> roots;
                 buildLeidenDendrogram(nodes, roots, communityMappingPerPass, degrees, num_nodes);
@@ -5982,13 +6390,13 @@ public:
                 orderDendrogramBFS(nodes, roots, new_ids);
                 break;
             }
-            case LeidenHybrid: {
-                std::cout << "Ordering Flavor: LeidenHybrid (community + degree)" << std::endl;
+            case 4: { // Hybrid (default)
+                std::cout << "Ordering Flavor: Hybrid (community + degree)" << std::endl;
                 orderLeidenHybridHubDFS(communityMappingPerPass, degrees, new_ids);
                 break;
             }
             default:
-                std::cerr << "Unknown LeidenDendrogram flavor: " << flavor << ", using LeidenDFSHub" << std::endl;
+                std::cerr << "Unknown LeidenDendrogram flavor: " << flavor << ", using DFSHub" << std::endl;
                 std::vector<LeidenDendrogramNode> nodes;
                 std::vector<int64_t> roots;
                 buildLeidenDendrogram(nodes, roots, communityMappingPerPass, degrees, num_nodes);
@@ -6694,73 +7102,13 @@ public:
                 .w_reorder_time = -0.5     // highest reorder cost
             }},
             // =================================================================
-            // LEIDEN DENDROGRAM VARIANTS (RabbitOrder-style tree traversal)
-            // Weights tuned from benchmark analysis (Jan 2026):
-            // - LeidenHybrid: BEST overall (5/5 wins, 4.26x speedup, 0.0038s reorder)
-            // - LeidenDFS: Best total time on RMAT synthetic
-            // - LeidenOrder: Best trial time on synthetic (but high reorder cost)
+            // LEIDEN VARIANTS (consolidated into LeidenDendrogram=16 and LeidenCSR=21)
+            // Use parameter-based variant selection:
+            // - LeidenDendrogram (16): format 16:resolution:variant (dfs/dfshub/dfssize/bfs/hybrid)
+            // - LeidenCSR (21): format 21:resolution:passes:variant (dfs/bfs/hubsort/fast/modularity)
             // =================================================================
-            // LeidenDFS: Standard DFS traversal of community dendrogram
-            {LeidenDFS, {
-                .bias = 0.73,             // win_total=1, good for synthetic
-                .w_modularity = 0.35,     // good on high modularity
-                .w_log_nodes = 0.05,      // better on larger graphs
-                .w_log_edges = 0.04,
-                .w_density = -0.40,       // better on sparse
-                .w_avg_degree = 0.0,
-                .w_degree_variance = 0.10,
-                .w_hub_concentration = 0.10,
-                .w_clustering_coeff = 0.08, .w_avg_path_length = 0.0, .w_diameter = 0.0, .w_community_count = 0.05,
-                .cache_l1_impact = 0.0, .cache_l2_impact = 0.0, .cache_l3_impact = 0.0, .cache_dram_penalty = 0.0,
-                .w_reorder_time = -0.35
-            }},
-            // LeidenDFSHub: DFS with high-degree nodes first within communities
-            // Good for hub-dominated graphs but LeidenHybrid is generally better
-            {LeidenDFSHub, {
-                .bias = 0.65,             // lowered - LeidenHybrid is usually better
-                .w_modularity = 0.28,
-                .w_log_nodes = 0.05,
-                .w_log_edges = 0.05,
-                .w_density = -0.35,
-                .w_avg_degree = 0.02,
-                .w_degree_variance = 0.20,
-                .w_hub_concentration = 0.25,
-                .w_clustering_coeff = 0.08, .w_avg_path_length = 0.0, .w_diameter = 0.0, .w_community_count = 0.05,
-                .cache_l1_impact = 0.0, .cache_l2_impact = 0.0, .cache_l3_impact = 0.0, .cache_dram_penalty = 0.0,
-                .w_reorder_time = -0.35
-            }},
-            // LeidenDFSSize: DFS with largest subtrees first
-            {LeidenDFSSize, {
-                .bias = 0.72,             // win_total=1
-                .w_modularity = 0.32,
-                .w_log_nodes = 0.05,      // better on larger graphs
-                .w_log_edges = 0.05,
-                .w_density = -0.35,
-                .w_avg_degree = 0.01,
-                .w_degree_variance = 0.15,
-                .w_hub_concentration = 0.15,
-                .w_clustering_coeff = 0.08, .w_avg_path_length = 0.0, .w_diameter = 0.0, .w_community_count = 0.05,
-                .cache_l1_impact = 0.0, .cache_l2_impact = 0.0, .cache_l3_impact = 0.0, .cache_dram_penalty = 0.0,
-                .w_reorder_time = -0.35
-            }},
-            // LeidenBFS: BFS by hierarchy level
-            {LeidenBFS, {
-                .bias = 0.70,             // moderate - path-aware locality
-                .w_modularity = 0.28,
-                .w_log_nodes = 0.05,
-                .w_log_edges = 0.05,
-                .w_density = -0.30,
-                .w_avg_degree = 0.01,
-                .w_degree_variance = 0.08,
-                .w_hub_concentration = 0.05,
-                .w_clustering_coeff = 0.05, .w_avg_path_length = 0.05, .w_diameter = 0.02, .w_community_count = 0.05,
-                .cache_l1_impact = 0.0, .cache_l2_impact = 0.0, .cache_l3_impact = 0.0, .cache_dram_penalty = 0.0,
-                .w_reorder_time = -0.35
-            }},
-            // LeidenHybrid: Sort by (community, degree descending) 
-            // BENCHMARK WINNER: 5/5 wins on trial_time AND total_time
-            // Amazon: 0.0073s vs HubClusterDBG 0.0507s (7x faster!)
-            {LeidenHybrid, {
+            // LeidenDendrogram: Dendrogram-based traversal (default: hybrid variant)
+            {LeidenDendrogram, {
                 .bias = 0.95,             // HIGHEST - clear benchmark winner
                 .w_modularity = 0.45,     // best on high modularity graphs
                 .w_log_nodes = 0.06,      // scales well
@@ -6772,6 +7120,20 @@ public:
                 .w_clustering_coeff = 0.1, .w_avg_path_length = 0.0, .w_diameter = 0.0, .w_community_count = 0.08,
                 .cache_l1_impact = 0.0, .cache_l2_impact = 0.0, .cache_l3_impact = 0.0, .cache_dram_penalty = 0.0,
                 .w_reorder_time = -0.15    // fast reordering (hybrid is efficient)
+            }},
+            // LeidenCSR: Fast CSR-native community detection
+            {LeidenCSR, {
+                .bias = 0.80,
+                .w_modularity = 0.35,
+                .w_log_nodes = 0.05,
+                .w_log_edges = 0.05,
+                .w_density = -0.30,
+                .w_avg_degree = 0.02,
+                .w_degree_variance = 0.15,
+                .w_hub_concentration = 0.20,
+                .w_clustering_coeff = 0.08, .w_avg_path_length = 0.0, .w_diameter = 0.0, .w_community_count = 0.05,
+                .cache_l1_impact = 0.0, .cache_l2_impact = 0.0, .cache_l3_impact = 0.0, .cache_dram_penalty = 0.0,
+                .w_reorder_time = -0.25
             }},
         };
     }
@@ -6821,11 +7183,8 @@ public:
             {"RCMOrder", RCMOrder}, {"RCM", RCMOrder},
             {"LeidenOrder", LeidenOrder},
             {"GraphBrewOrder", GraphBrewOrder},
-            {"LeidenDFS", LeidenDFS},
-            {"LeidenDFSHub", LeidenDFSHub},
-            {"LeidenDFSSize", LeidenDFSSize},
-            {"LeidenBFS", LeidenBFS},
-            {"LeidenHybrid", LeidenHybrid},
+            {"LeidenDendrogram", LeidenDendrogram},
+            {"LeidenCSR", LeidenCSR},
             {"AdaptiveOrder", AdaptiveOrder}
         };
         

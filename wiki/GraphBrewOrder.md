@@ -1,6 +1,6 @@
 # GraphBrewOrder: Per-Community Reordering
 
-GraphBrewOrder (algorithm 13) is the core reordering algorithm that applies **different optimizations to different communities**. This page explains how it works and when to use it.
+GraphBrewOrder (algorithm 12) is the core reordering algorithm that applies **different optimizations to different communities**. This page explains how it works and when to use it.
 
 ## Overview
 
@@ -155,7 +155,7 @@ Final ordering:
 ### Basic Usage
 
 ```bash
-# Use GraphBrewOrder (algorithm 13)
+# Use GraphBrewOrder (algorithm 12)
 ./bench/bin/pr -f graph.el -s -o 13 -n 5
 ```
 
@@ -346,7 +346,7 @@ Apply Degree-Based Grouping after GraphBrewOrder:
 
 ### AdaptiveOrder Uses GraphBrewOrder
 
-AdaptiveOrder (algorithm 15) can select GraphBrewOrder for appropriate communities:
+AdaptiveOrder (14)) can select GraphBrewOrder for appropriate communities:
 
 ```json
 // In scripts/weights/type_N.json
