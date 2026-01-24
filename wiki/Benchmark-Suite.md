@@ -150,7 +150,7 @@ python3 scripts/graphbrew_experiment.py --key-only
   {
     "graph": "email-Enron",
     "algorithm_id": 20,
-    "algorithm_name": "LeidenHybrid",
+    "algorithm_name": "LeidenCSR",
     "benchmark": "pr",
     "trial_time": 0.0234,
     "speedup": 1.85,
@@ -169,7 +169,7 @@ python3 scripts/graphbrew_experiment.py --key-only
   {
     "graph": "email-Enron",
     "algorithm_id": 20,
-    "algorithm_name": "LeidenHybrid",
+    "algorithm_name": "LeidenCSR",
     "benchmark": "pr",
     "l1_hit_rate": 85.2,
     "l2_hit_rate": 92.1,
@@ -187,9 +187,9 @@ python3 scripts/graphbrew_experiment.py --key-only
   {
     "graph": "email-Enron",
     "algorithm_id": 20,
-    "algorithm_name": "LeidenHybrid",
+    "algorithm_name": "LeidenCSR",
     "reorder_time": 0.145,
-    "mapping_file": "results/mappings/email-Enron/LeidenHybrid.lo",
+    "mapping_file": "results/mappings/email-Enron/LeidenCSR.lo",
     "success": true,
     "error": ""
   }
@@ -200,7 +200,7 @@ python3 scripts/graphbrew_experiment.py --key-only
 
 ```json
 {
-  "LeidenHybrid": {
+  "LeidenCSR": {
     "bias": 0.85,
     "w_modularity": 0.25,
     "w_log_nodes": 0.1,

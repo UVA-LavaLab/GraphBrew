@@ -315,13 +315,13 @@ Average: 0.0012 seconds, 75.7 MTEPS
 ```
 === Adaptive Reordering Selection ===
 Comm    Nodes   Edges   Density Selected
-131     1662    16151   0.0117  LeidenHybrid
+131     1662    16151   0.0117  LeidenCSR
 272     103     149     0.0284  Original
 ...
 
 === Algorithm Selection Summary ===
 Original: 846 communities
-LeidenHybrid: 3 communities
+LeidenCSR: 3 communities
 HUBCLUSTERDBG: 2 communities
 ```
 

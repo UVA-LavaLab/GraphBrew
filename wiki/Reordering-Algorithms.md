@@ -23,8 +23,8 @@ Vertex 2 → 8, 1500, 3        Vertex 2 → 1, 3, 5
 | **Hub-Based** | HUBSORT, HUBCLUSTER | Power-law graphs |
 | **DBG-Based** | DBG, HUBSORTDBG, HUBCLUSTERDBG | Cache locality |
 | **Community** | RABBITORDER, GORDER, CORDER | Modular graphs |
-| **Leiden-Based** | LeidenOrder, LeidenHybrid, etc. | Strong community structure |
-| **Hybrid** | GraphBrewOrder, AdaptiveOrder | Adaptive selection |
+| **Leiden-Based** | LeidenOrder (15), LeidenDendrogram (16), LeidenCSR (17) | Strong community structure |
+| **Hybrid** | GraphBrewOrder (12), AdaptiveOrder (14) | Adaptive selection |
 
 ---
 

@@ -105,7 +105,7 @@ export PERCEPTRON_WEIGHTS_FILE=/path/to/custom_weights.json
 ```
 
 ### Fallback Behavior
-If no type files exist, C++ uses hardcoded defaults with conservative weights that favor ORIGINAL for small communities and LeidenHybrid for larger ones.
+If no type files exist, C++ uses hardcoded defaults with conservative weights that favor ORIGINAL for small communities and LeidenCSR for larger ones.
 
 ---
 
@@ -267,7 +267,7 @@ degree_variance: 45 → normalized: 0.45
 hub_concentration: 0.55
 ```
 
-LeidenHybrid score:
+LeidenCSR score:
 ```
 = 0.85                      # bias
 + 0.25 × 0.72               # modularity: +0.18
@@ -302,14 +302,12 @@ The JSON uses algorithm names, which map to IDs:
 | 9 | GORDER | Gorder |
 | 10 | CORDER | Corder |
 | 11 | RCM | Reverse Cuthill-McKee |
-| 12 | LeidenOrder | Basic Leiden ordering |
-| 13 | GraphBrewOrder | GraphBrew composite |
-| 15 | AdaptiveOrder | This perceptron model |
-| 16 | LeidenDFS | Leiden + DFS |
-| 17 | LeidenDFSHub | Leiden + DFS + Hub priority |
-| 18 | LeidenDFSSize | Leiden + DFS + Size priority |
-| 19 | LeidenBFS | Leiden + BFS |
-| 20 | LeidenHybrid | Leiden + Hybrid traversal |
+| 12 | GraphBrewOrder | GraphBrew composite (Leiden + per-community order) |
+| 13 | MAP | Load reordering from file |
+| 14 | AdaptiveOrder | This perceptron model |
+| 15 | LeidenOrder | Basic Leiden ordering (via igraph) |
+| 16 | LeidenDendrogram | Leiden + Dendrogram traversal (variants: dfs/dfshub/dfssize/bfs/hybrid) |
+| 17 | LeidenCSR | Fast CSR-native Leiden (variants: dfs/bfs/hubsort/fast/modularity) |
 
 ---
 
@@ -317,11 +315,11 @@ The JSON uses algorithm names, which map to IDs:
 
 ### Strategy 1: Favor One Algorithm
 
-Make LeidenHybrid almost always win:
+Make LeidenCSR almost always win:
 
 ```json
 {
-  "LeidenHybrid": {
+  "LeidenCSR": {
     "bias": 1.0,
     "w_modularity": 0.0,
     "w_log_nodes": 0.0,
@@ -345,7 +343,7 @@ Use simpler algorithms for small communities:
     "w_log_nodes": -0.3,
     "w_log_edges": -0.3
   },
-  "LeidenHybrid": {
+  "LeidenCSR": {
     "bias": 0.5,
     "w_log_nodes": 0.2,
     "w_log_edges": 0.2
@@ -355,7 +353,7 @@ Use simpler algorithms for small communities:
 
 Result:
 - Small communities (< 100 nodes): ORIGINAL wins
-- Large communities (> 1000 nodes): LeidenHybrid wins
+- Large communities (> 1000 nodes): LeidenCSR wins
 
 ### Strategy 3: Structure-Based Selection
 
@@ -386,7 +384,7 @@ For PageRank (benefits from hub locality):
 
 ```json
 {
-  "LeidenHybrid": {
+  "LeidenCSR": {
     "bias": 0.85,
     "w_hub_concentration": 0.35
   }
@@ -454,8 +452,8 @@ Output shows what was selected:
 ```
 === Adaptive Reordering Selection (Depth 0, Modularity: 0.835) ===
 Comm    Nodes   Edges   Density DegVar  HubConc Selected
-0       3500    45000   0.0073  89.3    0.62    LeidenHybrid
-1       2800    28000   0.0071  34.2    0.41    LeidenHybrid
+0       3500    45000   0.0073  89.3    0.62    LeidenCSR
+1       2800    28000   0.0071  34.2    0.41    LeidenCSR
 2       600     3200    0.0178  2.1     0.09    ORIGINAL
 ```
 
@@ -521,7 +519,7 @@ If no weights file exists, these defaults are used:
     "w_degree_variance": 0.0,
     "w_hub_concentration": 0.0
   },
-  "LeidenHybrid": {
+  "LeidenCSR": {
     "bias": 0.85,
     "w_modularity": 0.25,
     "w_log_nodes": 0.1,
@@ -536,7 +534,7 @@ If no weights file exists, these defaults are used:
 
 These defaults:
 - Favor ORIGINAL for small communities
-- Favor LeidenHybrid for large, modular, hub-heavy communities
+- Favor LeidenCSR for large, modular, hub-heavy communities
 
 ---
 
@@ -565,7 +563,7 @@ After training on 87 graphs, typical biases look like:
 | HUBSORT | ~26.0 | **26x faster** than random on average |
 | SORT | ~9.5 | 9.5x faster than random |
 | HUBSORTDBG | ~8.5 | 8.5x faster than random |
-| LeidenDFSHub | ~2.4 | 2.4x faster than random |
+| LeidenDendrogram | ~2.4 | 2.4x faster than random |
 | LeidenBFS | ~2.3 | 2.3x faster than random |
 | LeidenOrder | ~1.8 | 1.8x faster than random |
 | ORIGINAL | 0.5 | Baseline (no reordering) |
@@ -575,7 +573,7 @@ After training on 87 graphs, typical biases look like:
 
 ### Why Some Algorithms Have Low Bias
 
-Algorithms like `RABBITORDER`, `DBG`, and `LeidenHybrid` may show biases < 0.5, meaning they're slower than RANDOM on the training graphs. This happens because:
+Algorithms like `RABBITORDER`, `DBG`, and `LeidenCSR` may show biases < 0.5, meaning they're slower than RANDOM on the training graphs. This happens because:
 
 1. **Reordering overhead** - Complex algorithms have high setup cost
 2. **Small graph penalty** - Sophisticated ordering doesn't help small graphs
@@ -587,7 +585,7 @@ To favor an algorithm regardless of graph features:
 
 ```json
 {
-  "LeidenHybrid": {
+  "LeidenCSR": {
     "bias": 3.0,  // Force higher preference
     "w_modularity": 0.1,
     ...
@@ -936,7 +934,7 @@ cp -r scripts/weights/ scripts/weights.backup/
 
 Add comments (JSON doesn't support comments, but you can use a README):
 ```bash
-echo "2026-01-18: Increased LeidenHybrid bias for PageRank workload" >> scripts/weights_changelog.txt
+echo "2026-01-18: Increased LeidenCSR bias for PageRank workload" >> scripts/weights_changelog.txt
 ```
 
 ---

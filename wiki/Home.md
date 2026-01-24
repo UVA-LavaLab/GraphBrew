@@ -108,8 +108,11 @@ python3 scripts/graphbrew_experiment.py --train-adaptive --target-accuracy 85 --
 # Build GraphBrew
 make all
 
-# Run PageRank with LeidenHybrid reordering
-./bench/bin/pr -f your_graph.el -s -o 20 -n 3
+# Run PageRank with LeidenCSR reordering (fast variant)
+./bench/bin/pr -f your_graph.el -s -o 17:1.0:3:fast -n 3
+
+# Run PageRank with LeidenDendrogram (hybrid variant)  
+./bench/bin/pr -f your_graph.el -s -o 16:1.0:hybrid -n 3
 
 # Let AdaptiveOrder choose the best algorithm
 ./bench/bin/pr -f your_graph.el -s -o 14 -n 3

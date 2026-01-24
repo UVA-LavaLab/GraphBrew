@@ -175,7 +175,7 @@ results/
 │   └── {graph_name}/         # Per-graph mappings
 │       ├── HUBCLUSTERDBG.lo  # Label order for each algorithm
 │       ├── HUBCLUSTERDBG.time # Reorder time for this algorithm
-│       ├── LeidenHybrid.lo
+│       ├── LeidenCSR.lo
 │       └── ...
 ├── graph_properties_cache.json    # Cached graph properties (modularity, degree_variance, etc.)
 ├── reorder_times_*.json      # All reorder timings (per graph/algo)
