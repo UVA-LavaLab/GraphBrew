@@ -182,7 +182,7 @@ Cache features are stored in `results/cache_*.json` and integrated into perceptr
 
 ```json
 {
-  "LeidenHybrid": {
+  "LeidenCSR": {
     "bias": 0.85,
     "w_modularity": 0.25,
     "cache_l1_impact": 0.1,
@@ -221,7 +221,7 @@ Results are saved to `results/cache_*.json`:
 {
   "graph": "email-Enron",
   "algorithm_id": 20,
-  "algorithm_name": "LeidenHybrid",
+  "algorithm_name": "LeidenCSR",
   "benchmark": "pr",
   "l1_hit_rate": 85.2,
   "l2_hit_rate": 92.1,

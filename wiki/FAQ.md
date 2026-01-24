@@ -94,7 +94,7 @@ See [[Installation]] for detailed troubleshooting.
 | Don't know | `-o 15` (AdaptiveOrder) |
 | Social network | `-o 12` (LeidenOrder) |
 | General purpose | `-o 7` (HUBCLUSTERDBG) |
-| Large graph | `-o 20` (LeidenHybrid) |
+| Large graph | `-o 20` (LeidenCSR) |
 | Baseline | `-o 0` (no reordering) |
 
 ### How do I know which algorithm is best for my graph?

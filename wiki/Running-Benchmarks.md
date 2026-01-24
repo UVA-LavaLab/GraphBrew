@@ -306,10 +306,10 @@ Time: 1.234 seconds
 -o 13  # GraphBrewOrder
 -o 14  # AdaptiveOrder (ML)
 -o 14  # LeidenDFS
--o 16  # LeidenDFSHub
+-o 16  # LeidenDendrogram
 -o 17  # LeidenDFSSize
 -o 19  # LeidenBFS
--o 20  # LeidenHybrid
+-o 17:1.0:3:hubsort  # LeidenCSR
 ```
 
 ### Recommended Algorithms by Use Case
@@ -319,7 +319,7 @@ Time: 1.234 seconds
 | General purpose | HUBCLUSTERDBG | 7 |
 | Social networks | LeidenOrder | 12 |
 | Unknown graphs | AdaptiveOrder (14) |
-| Maximum locality | LeidenHybrid | 20 |
+| Maximum locality | LeidenCSR | 17 |
 | Road networks | RCM | 11 |
 | Quick test | ORIGINAL | 0 |
 

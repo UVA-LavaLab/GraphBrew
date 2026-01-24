@@ -186,14 +186,14 @@ AdaptiveOrder selects the best algorithm for each community's characteristics.
 ```
 === Adaptive Reordering Selection (Depth 0, Modularity: 0.0301) ===
 Comm    Nodes   Edges   Density DegVar  HubConc Selected
-131     1662    16151   0.0117  1.9441  0.5686  LeidenHybrid
+131     1662    16151   0.0117  1.9441  0.5686  LeidenCSR
 272     103     149     0.0284  2.8547  0.4329  Original
 489     178     378     0.0240  1.3353  0.3968  HUBCLUSTERDBG
 ...
 
 === Algorithm Selection Summary ===
 Original: 846 communities
-LeidenHybrid: 3 communities
+LeidenCSR: 3 communities
 HUBCLUSTERDBG: 2 communities
 ```
 
@@ -412,7 +412,7 @@ Community features:
 - degree_variance: 1.5
 - hub_concentration: 0.4
 
-LeidenHybrid score:
+LeidenCSR score:
 = 0.58                    # bias (incorporates cache/benchmark adjustments)
 + 0.0 × 0.5               # modularity
 + 0.001 × 4.0             # log_nodes
@@ -576,11 +576,11 @@ results/training_20250118_123045/
 
 For each graph where adaptive picked the wrong algorithm:
 
-1. **Identify the error**: Adaptive selected `RCM`, but `LeidenHybrid` was fastest
+1. **Identify the error**: Adaptive selected `RCM`, but `LeidenCSR` was fastest
 2. **Analyze features**: High hub_concentration (0.62), high degree_variance (1.8)
 3. **Adjust weights**:
-   - Increase `LeidenHybrid.w_hub_concentration` (should select it for hub graphs)
-   - Increase `LeidenHybrid.bias` (slightly more likely to be selected)
+   - Increase `LeidenCSR.w_hub_concentration` (should select it for hub graphs)
+   - Increase `LeidenCSR.bias` (slightly more likely to be selected)
    - Decrease `RCM.bias` (was over-selected)
 
 The learning rate controls how aggressive these adjustments are:
@@ -655,8 +655,8 @@ We create a table linking features to winning algorithms:
 ┌──────────────────┬────────────┬─────────┬─────────┬─────────┬────────────────┐
 │ Graph            │ Modularity │ Density │ HubConc │ DegVar  │ Best Algorithm │
 ├──────────────────┼────────────┼─────────┼─────────┼─────────┼────────────────┤
-│ facebook.el      │ 0.835      │ 0.011   │ 0.42    │ 52.4    │ LeidenHybrid   │
-│ twitter.el       │ 0.721      │ 0.002   │ 0.68    │ 891.2   │ LeidenDFSHub   │
+│ facebook.el      │ 0.835      │ 0.011   │ 0.42    │ 52.4    │ LeidenCSR   │
+│ twitter.el       │ 0.721      │ 0.002   │ 0.68    │ 891.2   │ LeidenDendrogram   │
 │ roadNet-CA.el    │ 0.112      │ 0.0001  │ 0.05    │ 1.2     │ RCM            │
 │ web-Google.el    │ 0.654      │ 0.008   │ 0.55    │ 234.5   │ HUBCLUSTERDBG  │
 │ citation.el      │ 0.443      │ 0.003   │ 0.31    │ 45.6    │ LeidenOrder    │
@@ -668,7 +668,7 @@ We create a table linking features to winning algorithms:
 We calculate Pearson correlation between each feature and algorithm performance:
 
 ```
-Feature Correlations with "LeidenHybrid being best":
+Feature Correlations with "LeidenCSR being best":
 ┌─────────────────────┬─────────────┬────────────────────────────────────┐
 │ Feature             │ Correlation │ Interpretation                     │
 ├─────────────────────┼─────────────┼────────────────────────────────────┤
@@ -685,7 +685,7 @@ The correlations become the perceptron weights:
 
 ```python
 # Simplified weight derivation
-weights["LeidenHybrid"] = {
+weights["LeidenCSR"] = {
     "bias": 0.5 + (win_rate * 0.5),      # Base preference from win rate
     "w_modularity": correlation_modularity * scale,      # +0.78 → +0.25
     "w_hub_concentration": correlation_hubconc * scale,  # +0.45 → +0.15
@@ -740,7 +740,7 @@ Features (normalized):
 ```
 Algorithm Scores for C0 (high hubs, high variance):
 
-LeidenHybrid:
+LeidenCSR:
   = 0.85 + (0.25×0.72) + (0.1×3.54) + (0.1×4.65) + (-0.05×0.007)
     + (0.15×0.257) + (0.15×0.893) + (0.25×0.62)
   = 0.85 + 0.18 + 0.354 + 0.465 - 0.0004 + 0.039 + 0.134 + 0.155
@@ -765,7 +765,7 @@ RCM:
   = 0.59
 ```
 
-**Result**: C0 gets **LeidenHybrid** (score 2.18)
+**Result**: C0 gets **LeidenCSR** (score 2.18)
 
 #### Phase 4: Scoring All Communities
 
@@ -773,8 +773,8 @@ RCM:
 ┌─────────┬──────────────────┬────────────────────────────────────────┐
 │ Comm    │ Selected Algo    │ Reasoning                              │
 ├─────────┼──────────────────┼────────────────────────────────────────┤
-│ C0      │ LeidenHybrid     │ High hub_conc (0.62), high deg_var     │
-│ C1      │ LeidenHybrid     │ Moderate hub_conc, good modularity     │
+│ C0      │ LeidenCSR     │ High hub_conc (0.62), high deg_var     │
+│ C1      │ LeidenCSR     │ Moderate hub_conc, good modularity     │
 │ C2      │ LeidenOrder      │ Lower hub_conc, still modular          │
 │ C3      │ HUBCLUSTERDBG    │ Small community, moderate structure    │
 │ C4      │ ORIGINAL         │ Very small, overhead not worth it      │
@@ -788,11 +788,11 @@ Final Vertex Relabeling:
 
 Original IDs → New IDs (after per-community reordering)
 
-Community C0 (LeidenHybrid applied):
+Community C0 (LeidenCSR applied):
   Vertices 0-3499 → reordered by hub-aware DFS within C0
   New IDs: 0-3499
 
-Community C1 (LeidenHybrid applied):
+Community C1 (LeidenCSR applied):
   Vertices 3500-6299 → reordered by hub-aware DFS within C1
   New IDs: 3500-6299
 
@@ -820,7 +820,7 @@ Before AdaptiveOrder:
 
 After AdaptiveOrder:
 ┌─────────────────────────────────────────────────────┐
-│ C0 (LeidenHybrid)    │ C1 (LeidenHybrid)    │ ...  │
+│ C0 (LeidenCSR)    │ C1 (LeidenCSR)    │ ...  │
 │ [hub1][hub2][n1][n2] │ [hub1][n1][n2][n3]   │      │
 │ Hubs clustered first │ Hubs clustered first │      │
 └─────────────────────────────────────────────────────┘
@@ -840,7 +840,7 @@ Not all communities have the same structure:
 ```
 Community C0: Social cluster (influencers + followers)
   → High hub concentration (0.62)
-  → LeidenHybrid groups influencers together
+  → LeidenCSR groups influencers together
   → Their followers are adjacent in memory
 
 Community C4: Small tight-knit group
@@ -859,7 +859,7 @@ PageRank on Community C0:
 ├────────────────────┼──────────────┼─────────────────┤
 │ ORIGINAL           │ 145,000      │ 12.3            │
 │ HUBCLUSTERDBG      │ 98,000       │ 8.7             │
-│ LeidenHybrid       │ 67,000       │ 6.2 ★           │
+│ LeidenCSR       │ 67,000       │ 6.2 ★           │
 └────────────────────┴──────────────┴─────────────────┘
 
 PageRank on Community C4:
@@ -867,7 +867,7 @@ PageRank on Community C4:
 │ Algorithm          │ Cache Misses │ Time (ms)       │
 ├────────────────────┼──────────────┼─────────────────┤
 │ ORIGINAL           │ 1,200        │ 0.4 ★           │
-│ LeidenHybrid       │ 1,150        │ 0.5 (+ overhead)│
+│ LeidenCSR       │ 1,150        │ 0.5 (+ overhead)│
 └────────────────────┴──────────────┴─────────────────┘
 
 AdaptiveOrder picks the best for EACH community!
@@ -926,7 +926,7 @@ GraphBrew/scripts/weights/
     "w_degree_variance": 0.0,
     "w_hub_concentration": 0.0
   },
-  "LeidenHybrid": {
+  "LeidenCSR": {
     "bias": 0.85,
     "w_modularity": 0.25,
     "w_log_nodes": 0.1,
@@ -956,10 +956,10 @@ GraphBrew/scripts/weights/
 | 13 | GraphBrewOrder |
 | 15 | AdaptiveOrder |
 | 16 | LeidenDFS |
-| 17 | LeidenDFSHub |
+| 17 | LeidenDendrogram |
 | 18 | LeidenDFSSize |
 | 19 | LeidenBFS |
-| 20 | LeidenHybrid |
+| 20 | LeidenCSR |
 
 ---
 
@@ -993,11 +993,11 @@ GraphBrew/scripts/weights/
 - Positive = better when hubs dominate
 - Hub algorithms (HUBSORT, HUBCLUSTER) should have positive values
 
-### Example: Favoring LeidenHybrid for Large Graphs
+### Example: Favoring LeidenCSR for Large Graphs
 
 ```json
 {
-  "LeidenHybrid": {
+  "LeidenCSR": {
     "bias": 0.9,
     "w_modularity": 0.3,
     "w_log_nodes": 0.2,

@@ -206,7 +206,7 @@ PageRank completed in 0.001 seconds
 | 7 | HUBCLUSTERDBG | General purpose, good default |
 | 12 | LeidenOrder | Social networks |
 | 15 | AdaptiveOrder | Auto-selection for unknown graphs |
-| 20 | LeidenHybrid | Large complex graphs |
+| 17 | LeidenCSR | Large complex graphs |
 
 ---
 

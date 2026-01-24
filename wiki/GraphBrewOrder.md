@@ -197,7 +197,7 @@ Largest communities:
 | Scalability | ✅ Fast | ⚡ Moderate |
 | Best for | Uniform hub graphs | Modular graphs |
 
-### vs LeidenOrder (algorithm 12)
+### vs LeidenOrder (algorithm 15)
 
 | Aspect | LeidenOrder | GraphBrewOrder |
 |--------|-------------|----------------|
@@ -206,14 +206,14 @@ Largest communities:
 | Hub optimization | ❌ None | ✅ Yes |
 | Best for | Basic community grouping | Hub-heavy communities |
 
-### vs LeidenHybrid (algorithm 20)
+### vs LeidenCSR (algorithm 17)
 
-| Aspect | LeidenHybrid | GraphBrewOrder |
-|--------|--------------|----------------|
+| Aspect | LeidenCSR | GraphBrewOrder |
+|--------|-----------|----------------|
 | Community detection | ✅ Leiden | ✅ Leiden |
-| Internal ordering | DFS traversal | Hub sort |
-| Complexity | Higher | Lower |
-| Best for | Complex graphs | Simple hub-based |
+| Internal ordering | Configurable (dfs/bfs/hubsort/fast) | Hub sort |
+| Speed | Very fast (CSR-native) | Moderate |
+| Best for | Large graphs, tunable quality | Simple hub-based |
 
 ---
 
@@ -386,7 +386,7 @@ Algorithm 4 (HUBCLUSTER):    Average: 0.0445 seconds
 Algorithm 7 (HUBCLUSTERDBG): Average: 0.0412 seconds
 Algorithm 12 (LeidenOrder):  Average: 0.0398 seconds
 Algorithm 13 (GraphBrewOrder): Average: 0.0385 seconds ← Good
-Algorithm 20 (LeidenHybrid): Average: 0.0371 seconds ← Better
+Algorithm 17 (LeidenCSR): Average: 0.0371 seconds ← Better
 ```
 
 ---
