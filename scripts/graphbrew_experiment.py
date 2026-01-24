@@ -93,13 +93,17 @@ ALGORITHMS = {
     18: "LeidenDFSSize",
     19: "LeidenBFS",
     20: "LeidenHybrid",
+    21: "LeidenCSR",        # Fast CSR-native community detection
+    22: "LeidenCSRDFS",     # LeidenCSR with DFS traversal
+    23: "LeidenCSRBFS",     # LeidenCSR with BFS traversal
+    24: "LeidenCSRHubSort", # LeidenCSR with hub-sorted traversal
 }
 
 # Algorithms to benchmark (excluding MAP=14 and AdaptiveOrder=15)
-BENCHMARK_ALGORITHMS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 16, 17, 18, 19, 20]
+BENCHMARK_ALGORITHMS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 16, 17, 18, 19, 20, 21, 22, 23, 24]
 
 # Subset of key algorithms for quick testing
-KEY_ALGORITHMS = [0, 1, 7, 8, 9, 11, 12, 17, 20]
+KEY_ALGORITHMS = [0, 1, 7, 8, 9, 11, 12, 17, 20, 21, 22]  # Added LeidenCSR variants
 
 # Algorithms known to be slow on large graphs
 SLOW_ALGORITHMS = {9, 10, 11}  # GORDER, CORDER, RCM
