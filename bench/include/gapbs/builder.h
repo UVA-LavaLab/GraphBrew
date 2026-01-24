@@ -5,6 +5,7 @@
 #define BUILDER_H_
 
 #include <algorithm>
+#include <atomic>
 #include <cassert>
 #include <cinttypes>
 #include <cmath>
@@ -1768,6 +1769,8 @@ public:
             return "LeidenCSRBFS";
         case LeidenCSRHubSort:
             return "LeidenCSRHubSort";
+        case LeidenFast:
+            return "LeidenFast";
         case ORIGINAL:
             return "Original";
         case Sort:
@@ -1870,6 +1873,10 @@ public:
         case LeidenCSRHubSort:
             // Fast Leiden directly on CSR - hub sort ordering
             GenerateLeidenCSRMapping(g, new_ids, reordering_options, LeidenCSRHubSort);
+            break;
+        case LeidenFast:
+            // LeidenFast: Multi-pass modularity-guided merging with Rabbit-style ordering
+            GenerateLeidenFastMapping(g, new_ids, reordering_options);
             break;
         case GraphBrewOrder:
             GenerateGraphBrewMapping(g, new_ids, useOutdeg, reordering_options, 2);
@@ -1998,6 +2005,10 @@ public:
             // Fast Leiden directly on CSR - hub sort ordering
             GenerateLeidenCSRMapping(g, new_ids, reordering_options, LeidenCSRHubSort);
             break;
+        case LeidenFast:
+            // LeidenFast: Multi-pass modularity-guided merging with Rabbit-style ordering
+            GenerateLeidenFastMapping(g, new_ids, reordering_options);
+            break;
         case GraphBrewOrder:
             GenerateGraphBrewMapping(g, new_ids, useOutdeg, reordering_options, numLevels, recursion);
             break;
@@ -2076,6 +2087,8 @@ public:
             return LeidenCSRBFS;
         case 24:
             return LeidenCSRHubSort;
+        case 25:
+            return LeidenFast;
         default:
             std::cerr << "Invalid ReorderingAlgo value: " << value << std::endl;
             std::exit(EXIT_FAILURE);
@@ -4761,6 +4774,10 @@ public:
      * Returns: vector of community assignments per pass (finest to coarsest)
      */
     template<typename NodeID_T, typename DestID_T>
+    /**
+     * Fast community detection with modularity-guided merging
+     * Based on RabbitOrder's approach: only merge if modularity improves
+     */
     std::vector<std::vector<K>> FastLabelPropagationCSR(
         const CSRGraph<NodeID_T, DestID_T, true>& g,
         double resolution = 1.0,
@@ -4769,119 +4786,91 @@ public:
     {
         const int64_t num_nodes = g.num_nodes();
         const int64_t num_edges = g.num_edges_directed();
-        const double total_weight = num_edges;  // Assuming unweighted
+        const double total_weight = static_cast<double>(num_edges);
         
         std::vector<std::vector<K>> community_per_pass;
         
-        // Current community assignment
-        std::vector<K> community(num_nodes);
-        std::vector<double> community_weight(num_nodes);  // Sum of degrees in each community
+        // Union-Find arrays
+        std::vector<K> parent(num_nodes);
+        std::vector<double> strength(num_nodes);  // sum of degrees in community
         
-        // Initialize: each node in its own community
+        // Initialize
         #pragma omp parallel for
         for (int64_t i = 0; i < num_nodes; ++i) {
-            community[i] = i;
-            community_weight[i] = g.out_degree(i);
+            parent[i] = i;
+            strength[i] = static_cast<double>(g.out_degree(i));
         }
         
-        // Degrees for modularity calculation
-        std::vector<double> degree(num_nodes);
+        // Find root with path compression
+        std::function<K(K)> find = [&](K x) -> K {
+            if (parent[x] != x) {
+                parent[x] = find(parent[x]);
+            }
+            return parent[x];
+        };
+        
+        // Degree-ordered processing (smaller degrees first, like RabbitOrder)
+        std::vector<std::pair<int64_t, K>> deg_order(num_nodes);
         #pragma omp parallel for
-        for (int64_t i = 0; i < num_nodes; ++i) {
-            degree[i] = g.out_degree(i);
+        for (int64_t v = 0; v < num_nodes; ++v) {
+            deg_order[v] = {g.out_degree(v), v};
         }
+        std::sort(deg_order.begin(), deg_order.end());
         
-        // Multi-pass community detection
-        for (int pass = 0; pass < max_passes; ++pass) {
-            bool changed = true;
-            int iteration = 0;
+        // Sequential merging with modularity criterion
+        int64_t merge_count = 0;
+        for (auto& [deg, v] : deg_order) {
+            K v_root = find(v);
+            double v_str = strength[v_root];
             
-            while (changed && iteration < max_iterations) {
-                changed = false;
-                iteration++;
+            // Find best neighbor to merge with (positive modularity delta)
+            double best_delta = 0.0;
+            K best_target = v_root;
+            
+            for (auto u : g.out_neigh(v)) {
+                K u_root = find(u);
+                if (u_root == v_root) continue;
                 
-                // Process nodes in parallel with atomic updates
-                #pragma omp parallel
-                {
-                    std::vector<std::pair<K, double>> neighbor_comm_weight;
-                    neighbor_comm_weight.reserve(1000);
-                    
-                    #pragma omp for schedule(dynamic, 1024) reduction(||:changed)
-                    for (int64_t v = 0; v < num_nodes; ++v) {
-                        K current_comm = community[v];
-                        double v_degree = degree[v];
-                        
-                        // Count edges to each neighbor community
-                        neighbor_comm_weight.clear();
-                        std::unordered_map<K, double> comm_edge_count;
-                        
-                        for (auto neighbor : g.out_neigh(v)) {
-                            K neighbor_comm = community[neighbor];
-                            comm_edge_count[neighbor_comm] += 1.0;
-                        }
-                        
-                        // Find best community (highest modularity gain)
-                        K best_comm = current_comm;
-                        double best_gain = 0.0;
-                        
-                        // Current community contribution
-                        double current_edges = comm_edge_count[current_comm];
-                        double current_weight = community_weight[current_comm];
-                        
-                        for (auto& [comm, edges_to_comm] : comm_edge_count) {
-                            if (comm == current_comm) continue;
-                            
-                            double comm_weight_val = community_weight[comm];
-                            
-                            // Modularity gain = edges_to_new - edges_to_old 
-                            //                 - resolution * degree * (new_weight - old_weight) / total_weight
-                            double gain = (edges_to_comm - current_edges) 
-                                        - resolution * v_degree * (comm_weight_val - current_weight + v_degree) / total_weight;
-                            
-                            if (gain > best_gain) {
-                                best_gain = gain;
-                                best_comm = comm;
-                            }
-                        }
-                        
-                        // Move to best community if there's improvement
-                        if (best_comm != current_comm && best_gain > 1e-10) {
-                            #pragma omp atomic
-                            community_weight[current_comm] -= v_degree;
-                            #pragma omp atomic
-                            community_weight[best_comm] += v_degree;
-                            community[v] = best_comm;
-                            changed = true;
-                        }
-                    }
+                double edge_weight = 1.0;
+                double u_str = strength[u_root];
+                
+                // Modularity delta = edge_weight - resolution * v_str * u_str / total_weight
+                double delta = edge_weight - resolution * v_str * u_str / total_weight;
+                if (delta > best_delta) {
+                    best_delta = delta;
+                    best_target = u_root;
                 }
             }
             
-            // Renumber communities to be contiguous
-            std::unordered_map<K, K> comm_renumber;
-            K next_comm = 0;
-            for (int64_t i = 0; i < num_nodes; ++i) {
-                K c = community[i];
-                if (comm_renumber.find(c) == comm_renumber.end()) {
-                    comm_renumber[c] = next_comm++;
-                }
-                community[i] = comm_renumber[c];
-            }
-            
-            // Save this pass
-            community_per_pass.push_back(community);
-            
-            // Check if we should stop (too few communities or no change)
-            if (next_comm <= 1 || next_comm == static_cast<K>(num_nodes)) {
-                break;
-            }
-            
-            // Update community weights for next pass
-            community_weight.assign(next_comm, 0.0);
-            for (int64_t i = 0; i < num_nodes; ++i) {
-                community_weight[community[i]] += degree[i];
+            // Only merge if positive modularity gain
+            if (best_target != v_root) {
+                parent[v_root] = best_target;
+                strength[best_target] += v_str;
+                merge_count++;
             }
         }
+        
+        // Extract final communities
+        std::vector<K> community(num_nodes);
+        #pragma omp parallel for
+        for (int64_t i = 0; i < num_nodes; ++i) {
+            community[i] = find(i);
+        }
+        
+        // Renumber to be contiguous
+        std::unordered_map<K, K> comm_renumber;
+        K next_comm = 0;
+        for (int64_t i = 0; i < num_nodes; ++i) {
+            K c = community[i];
+            if (comm_renumber.find(c) == comm_renumber.end()) {
+                comm_renumber[c] = next_comm++;
+            }
+            community[i] = comm_renumber[c];
+        }
+        
+        community_per_pass.push_back(community);
+        
+        printf("LeidenCSR: %ld merges, %u communities\n", merge_count, next_comm);
         
         return community_per_pass;
     }
@@ -5055,6 +5044,200 @@ public:
         }
     }
 
+    //==========================================================================
+    // LEIDENFAST: Fast Community-Based Graph Reordering
+    //==========================================================================
+    
+    /**
+     * LeidenFast: Fast reordering using simplified community detection
+     * 
+     * Strategy: Use Union-Find based community detection (like Rabbit Order)
+     * but with a simpler, faster implementation:
+     * 1. Process vertices in degree order (smaller first)
+     * 2. Merge vertex into best neighbor's community if modularity improves
+     * 3. Track community via Union-Find with path compression  
+     * 4. Order by community, then by degree within community
+     */
+    template<typename NodeID_T, typename DestID_T>
+    struct LeidenFastNode {
+        double strength;      // Vertex degree
+        LeidenFastNode() : strength(0.0) {}
+    };
+    
+    /**
+     * Union-Find based community detection (Rabbit Order style)
+     */
+    template<typename NodeID_T, typename DestID_T>
+    void FastModularityCommunityDetection(
+        const CSRGraph<NodeID_T, DestID_T, true>& g,
+        std::vector<LeidenFastNode<NodeID_T, DestID_T>>& nodes,
+        std::vector<int64_t>& roots,
+        double resolution = 1.0,
+        int max_passes = 10)
+    {
+        const int64_t num_vertices = g.num_nodes();
+        const int64_t num_edges = g.num_edges_directed();
+        const double total_weight = static_cast<double>(num_edges);
+        
+        nodes.resize(num_vertices);
+        
+        // Community data structures
+        std::vector<int64_t> parent(num_vertices);
+        std::vector<double> comm_strength(num_vertices);
+        
+        #pragma omp parallel for
+        for (int64_t v = 0; v < num_vertices; ++v) {
+            double deg = static_cast<double>(g.out_degree(v));
+            nodes[v].strength = deg;
+            parent[v] = v;
+            comm_strength[v] = deg;
+        }
+        
+        // Find with path compression
+        auto find = [&](int64_t x) -> int64_t {
+            int64_t root = x;
+            while (parent[root] != root) root = parent[root];
+            while (parent[x] != root) {
+                int64_t next = parent[x];
+                parent[x] = root;
+                x = next;
+            }
+            return root;
+        };
+        
+        // Degree-sorted order (smaller first like Rabbit Order)
+        std::vector<std::pair<int64_t, int64_t>> deg_order(num_vertices);
+        #pragma omp parallel for
+        for (int64_t v = 0; v < num_vertices; ++v) {
+            deg_order[v] = {g.out_degree(v), v};
+        }
+        __gnu_parallel::sort(deg_order.begin(), deg_order.end());
+        
+        int64_t total_merges = 0;
+        
+        // Single pass - for each vertex, merge with first neighbor that improves modularity
+        for (auto& [deg, v] : deg_order) {
+            if (deg == 0) continue;
+            
+            int64_t v_root = find(v);
+            double v_str = comm_strength[v_root];
+            
+            // Merge with first neighbor that improves modularity
+            for (auto u : g.out_neigh(v)) {
+                int64_t u_root = find(u);
+                if (u_root == v_root) continue;
+                
+                double u_str = comm_strength[u_root];
+                double delta = 1.0 - resolution * v_str * u_str / total_weight;
+                
+                if (delta > 0) {
+                    parent[v_root] = u_root;
+                    comm_strength[u_root] += v_str;
+                    total_merges++;
+                    break;
+                }
+            }
+        }
+        
+        printf("LeidenFast: %ld merges\n", total_merges);
+        
+        // Count communities
+        std::unordered_map<int64_t, int64_t> root_to_comm;
+        int64_t num_comms = 0;
+        for (int64_t v = 0; v < num_vertices; ++v) {
+            int64_t r = find(v);
+            parent[v] = r;
+            if (root_to_comm.find(r) == root_to_comm.end()) {
+                root_to_comm[r] = num_comms++;
+            }
+        }
+        printf("LeidenFast: %ld communities\n", num_comms);
+        
+        // Get final community strengths
+        std::vector<double> final_strength(num_comms, 0.0);
+        for (auto& [r, c] : root_to_comm) {
+            final_strength[c] = comm_strength[r];
+        }
+        
+        // Build ordering - group by community, hubs first within each
+        std::vector<std::tuple<int64_t, int64_t, int64_t>> order(num_vertices);
+        #pragma omp parallel for
+        for (int64_t v = 0; v < num_vertices; ++v) {
+            int64_t c = root_to_comm[parent[v]];
+            order[v] = std::make_tuple(
+                -static_cast<int64_t>(final_strength[c] * 1000),
+                -static_cast<int64_t>(nodes[v].strength),
+                v
+            );
+        }
+        __gnu_parallel::sort(order.begin(), order.end());
+        
+        roots.resize(num_vertices);
+        #pragma omp parallel for
+        for (int64_t i = 0; i < num_vertices; ++i) {
+            roots[i] = std::get<2>(order[i]);
+        }
+    }
+    
+    /**
+     * Simple assignment - vertices already in order
+     */
+    template<typename NodeID_T, typename DestID_T>
+    void LeidenFastDFSOrder(
+        const std::vector<LeidenFastNode<NodeID_T, DestID_T>>& nodes,
+        const std::vector<int64_t>& ordered_vertices,
+        pvector<NodeID_>& new_ids,
+        int64_t num_vertices)
+    {
+        #pragma omp parallel for
+        for (int64_t i = 0; i < num_vertices; ++i) {
+            new_ids[ordered_vertices[i]] = i;
+        }
+    }
+    
+    /**
+     * GenerateLeidenFastMapping - Main entry point for LeidenFast algorithm
+     */
+    void GenerateLeidenFastMapping(const CSRGraph<NodeID_, DestID_, invert>& g,
+                                   pvector<NodeID_>& new_ids,
+                                   std::vector<std::string> reordering_options)
+    {
+        Timer tm;
+        tm.Start();
+        
+        const int64_t num_nodes = g.num_nodes();
+        
+        // Parse options
+        double resolution = 1.0;
+        int max_passes = 20;
+        
+        if (!reordering_options.empty()) {
+            resolution = std::stod(reordering_options[0]);
+        }
+        if (reordering_options.size() > 1) {
+            max_passes = std::stoi(reordering_options[1]);
+        }
+        
+        printf("LeidenFast: resolution=%.2f, max_passes=%d\n", resolution, max_passes);
+        
+        // Run community detection with dendrogram construction
+        std::vector<LeidenFastNode<NodeID_, DestID_>> nodes;
+        std::vector<int64_t> roots;
+        
+        FastModularityCommunityDetection(g, nodes, roots, resolution, max_passes);
+        
+        tm.Stop();
+        PrintTime("LeidenFast Community Detection", tm.Seconds());
+        
+        // DFS ordering of dendrogram
+        tm.Start();
+        LeidenFastDFSOrder(nodes, roots, new_ids, num_nodes);
+        tm.Stop();
+        PrintTime("LeidenFast Ordering", tm.Seconds());
+        
+        PrintTime("LeidenFast Communities", roots.size());
+    }
+    
     void sort_by_vector_element(
         std::vector<std::vector<K>> &communityVectorTuplePerPass,
         size_t element_index)

@@ -49,6 +49,8 @@ enum ReorderingAlgo
     LeidenCSRDFS = 22,    // Fast Leiden CSR with standard DFS
     LeidenCSRBFS = 23,    // Fast Leiden CSR with BFS ordering  
     LeidenCSRHubSort = 24,// Fast Leiden CSR with hub sort within communities
+    // New optimized Leiden-based algorithms
+    LeidenFast = 25,      // Fast multi-pass Leiden with Rabbit-style merging
 };
 
 static const int64_t kRandSeed = 27491095;
