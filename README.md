@@ -222,7 +222,7 @@ results/
 │   ├── index.json             # Mapping index: graph → algo → path
 │   └── {graph_name}/          # Per-graph mappings
 │       ├── HUBCLUSTERDBG.lo   # Label order file for each algorithm
-│       ├── LeidenHybrid.lo
+│       ├── LeidenCSR.lo
 │       └── ...
 ├── graph_properties_cache.json # Cached graph properties for type detection
 ├── reorder_*.json             # Reordering times per algorithm
@@ -258,7 +258,7 @@ The trained weights include cache impact, reorder time, and benchmark-specific m
 
 ```json
 {
-  "LeidenHybrid": {
+  "LeidenCSR": {
     "bias": 0.85,
     "w_modularity": 0.25,
     "w_log_nodes": 0.1,

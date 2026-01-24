@@ -144,7 +144,7 @@ final_score = score × benchmark_weights[benchmark]
 | 17 | LeidenDFSHub | Leiden + DFS + Hub sort |
 | 18 | LeidenDFSSize | Leiden + size ordering |
 | 19 | LeidenBFS | Leiden + BFS traversal |
-| 20 | LeidenHybrid | Adaptive Leiden variant |
+| 17 | LeidenCSR | Adaptive Leiden variant |
 
 ---
 
