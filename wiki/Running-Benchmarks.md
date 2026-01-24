@@ -304,10 +304,10 @@ Time: 1.234 seconds
 # Leiden-based
 -o 12  # LeidenOrder
 -o 13  # GraphBrewOrder
--o 15  # AdaptiveOrder (ML)
--o 16  # LeidenDFS
--o 17  # LeidenDFSHub
--o 18  # LeidenDFSSize
+-o 14  # AdaptiveOrder (ML)
+-o 14  # LeidenDFS
+-o 16  # LeidenDFSHub
+-o 17  # LeidenDFSSize
 -o 19  # LeidenBFS
 -o 20  # LeidenHybrid
 ```
@@ -318,7 +318,7 @@ Time: 1.234 seconds
 |----------|-----------|-----|
 | General purpose | HUBCLUSTERDBG | 7 |
 | Social networks | LeidenOrder | 12 |
-| Unknown graphs | AdaptiveOrder | 15 |
+| Unknown graphs | AdaptiveOrder (14) |
 | Maximum locality | LeidenHybrid | 20 |
 | Road networks | RCM | 11 |
 | Quick test | ORIGINAL | 0 |
@@ -439,7 +439,7 @@ facebook.el,bfs,7,1,0.0012,76.9
 ```bash
 # Use custom weights file
 export PERCEPTRON_WEIGHTS_FILE=/path/to/weights.json
-./bench/bin/pr -f graph.el -s -o 15 -n 3
+./bench/bin/pr -f graph.el -s -o 14 -n 3
 ```
 
 ### OpenMP Threads

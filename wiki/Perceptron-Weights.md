@@ -101,7 +101,7 @@ Loaded 21 weights from scripts/weights/type_0.json
 ### Environment Override
 ```bash
 export PERCEPTRON_WEIGHTS_FILE=/path/to/custom_weights.json
-./bench/bin/pr -f graph.el -s -o 15 -n 3
+./bench/bin/pr -f graph.el -s -o 14 -n 3
 ```
 
 ### Fallback Behavior
@@ -447,7 +447,7 @@ vim scripts/weights/type_0.json
 ### Check Current Selections
 
 ```bash
-./bench/bin/pr -f graph.el -s -o 15 -n 1 2>&1 | grep -A 20 "Adaptive Reordering"
+./bench/bin/pr -f graph.el -s -o 14 -n 1 2>&1 | grep -A 20 "Adaptive Reordering"
 ```
 
 Output shows what was selected:
@@ -463,7 +463,7 @@ Comm    Nodes   Edges   Density DegVar  HubConc Selected
 
 Add verbose output:
 ```bash
-./bench/bin/pr -f graph.el -s -o 15 -n 1 -v
+./bench/bin/pr -f graph.el -s -o 14 -n 1 -v
 ```
 
 ### Unit Test Weights
@@ -887,7 +887,7 @@ Increase bias or relevant weights.
 
 1. Check feature values:
 ```bash
-./bench/bin/pr -f graph.el -s -o 15 -n 1 2>&1 | grep "Comm"
+./bench/bin/pr -f graph.el -s -o 14 -n 1 2>&1 | grep "Comm"
 ```
 
 2. Manually calculate scores with those features
@@ -920,10 +920,10 @@ Begin with moderate biases (0.5-0.7) and small weights (±0.1-0.2).
 Always benchmark after tuning:
 ```bash
 # Before tuning
-./bench/bin/pr -f graph.el -s -o 15 -n 10
+./bench/bin/pr -f graph.el -s -o 14 -n 10
 
 # After tuning
-./bench/bin/pr -f graph.el -s -o 15 -n 10
+./bench/bin/pr -f graph.el -s -o 14 -n 10
 ```
 
 ### 3. Keep Backups

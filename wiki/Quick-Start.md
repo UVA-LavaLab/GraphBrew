@@ -195,7 +195,7 @@ PageRank completed in 0.001 seconds
 ./bench/bin/pr -f test/graphs/4.el -s -o 12 -n 3
 
 # ML-powered selection
-./bench/bin/pr -f test/graphs/4.el -s -o 15 -n 3
+./bench/bin/pr -f test/graphs/4.el -s -o 14 -n 3
 ```
 
 ### Algorithm Quick Reference

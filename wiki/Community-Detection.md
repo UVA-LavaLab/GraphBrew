@@ -99,16 +99,13 @@ leiden/
 
 Leiden is used internally by Leiden-based algorithms:
 
-| Algorithm | Uses Leiden |
-|-----------|-------------|
-| LeidenOrder (12) | ✓ |
-| GraphBrewOrder (13) | ✓ |
-| AdaptiveOrder (15) | ✓ |
-| LeidenDFS (16) | ✓ |
-| LeidenDFSHub (17) | ✓ |
-| LeidenDFSSize (18) | ✓ |
-| LeidenBFS (19) | ✓ |
-| LeidenHybrid (20) | ✓ |
+| Algorithm | Uses Leiden | Format |
+|-----------|-------------|--------|
+| LeidenOrder (15) | ✓ | `15:resolution` |
+| LeidenDendrogram (16) | ✓ | `16:resolution:variant` |
+| LeidenCSR (17) | ✓ | `17:resolution:passes:variant` |
+| GraphBrewOrder (12) | ✓ | |
+| AdaptiveOrder (14) | ✓ | |
 
 ### Example Output
 
@@ -159,44 +156,44 @@ opts.max_iterations = 10;  // Usually converges in 2-5
 
 ## Ordering Strategies After Leiden
 
-### LeidenOrder (12)
+### LeidenOrder (15)
 
-Simple contiguous ordering:
-1. Detect communities
+Simple contiguous ordering via igraph:
+1. Detect communities using igraph Leiden
 2. Assign IDs by community order
-3. Within community: original order
+3. Within community: sorted by degree
 
 ```
 Community 0: vertices get IDs 0, 1, 2, ...
 Community 1: vertices get IDs n0, n0+1, ...
 ```
 
-### LeidenDFS (16)
+### LeidenDendrogram (16)
 
-DFS traversal within communities:
-1. Detect communities
-2. For each community: DFS from highest-degree vertex
-3. Concatenate communities
+Dendrogram traversal with variants:
+1. Detect communities using igraph Leiden
+2. Build community hierarchy
+3. Traverse using selected variant (dfs/dfshub/dfssize/bfs/hybrid)
 
-**Benefits**: Better locality for tree-like structures
+**Variants:**
+- `dfs`: Standard DFS traversal
+- `dfshub`: DFS with hub-first ordering
+- `dfssize`: DFS with size-first ordering  
+- `bfs`: BFS level-order traversal
+- `hybrid`: Sort by (community, degree) - default
 
-### LeidenBFS (19)
+### LeidenCSR (17)
 
-BFS traversal within communities:
-1. Detect communities
-2. For each community: BFS from highest-degree vertex
-3. Concatenate communities
+Fast CSR-native Leiden (no graph conversion):
+1. Community detection directly on CSR graph
+2. Apply ordering variant (dfs/bfs/hubsort/fast/modularity)
 
-**Benefits**: Better for broad, shallow structures
-
-### LeidenHybrid (20)
-
-Combines multiple strategies:
-1. Detect communities
-2. Try DFS, BFS, and hub-based ordering
-3. Select best based on estimated locality
-
-**Benefits**: Adapts to community structure
+**Variants:**
+- `dfs`: Hierarchical DFS
+- `bfs`: Level-first BFS
+- `hubsort`: Community + degree sort (default)
+- `fast`: Union-Find + Label Propagation
+- `modularity`: True Leiden with modularity optimization
 
 ---
 
@@ -226,7 +223,7 @@ Combines multiple strategies:
 ### In GraphBrew Output
 
 ```
-./bench/bin/pr -f graph.el -s -o 12 -n 1
+./bench/bin/pr -f graph.el -s -o 14 -n 1
 
 Leiden: 17 communities, modularity 0.8347
 ```

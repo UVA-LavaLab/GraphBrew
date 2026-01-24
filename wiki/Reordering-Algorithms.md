@@ -1,6 +1,6 @@
 # Graph Reordering Algorithms
 
-GraphBrew implements **20 different vertex reordering algorithms** (IDs 0-13 and 15-20), each with unique characteristics suited for different graph topologies. This page explains each algorithm in detail.
+GraphBrew implements **18 different vertex reordering algorithms** (IDs 0-11, 13, 15-18), each with unique characteristics suited for different graph topologies. This page explains each algorithm in detail.
 
 Note: Algorithm ID 14 (MAP) is reserved for external label mapping files, not a standalone reordering algorithm.
 
@@ -223,38 +223,22 @@ Larger window = better quality, slower computation
 2. BFS traversal, ordering by increasing degree
 3. Reverse the final ordering
 
-### 12. LeidenOrder ⭐ (Recommended starting point)
-**Leiden community detection**
-
-```bash
-./bench/bin/pr -f graph.el -s -o 12 -n 3
-```
-
-- **Description**: State-of-the-art community detection algorithm
-- **Complexity**: O(n log n) average
-- **Best for**: Graphs with strong community structure
-
-**Key features:**
-- Improves on Louvain algorithm
-- Guarantees well-connected communities
-- Produces high-quality modularity scores
-
 ---
 
-## Advanced Hybrid Algorithms (13-20)
+## Advanced Hybrid Algorithms (13-15)
 
 ### 13. GraphBrewOrder
 **Per-community reordering**
 
 ```bash
-# Format: -o 13:<frequency>:<intra_algo>:<resolution>
-./bench/bin/pr -f graph.el -s -o 13:10:17 -n 3
+# Format: -o 12:<frequency>:<intra_algo>:<resolution>
+./bench/bin/pr -f graph.el -s -o 12:10:17 -n 3
 ```
 
 - **Description**: Runs Leiden, then applies a different algorithm within each community
 - **Parameters**:
   - `frequency`: Hub frequency threshold (default: 10)
-  - `intra_algo`: Algorithm to use within communities (e.g., 17 = LeidenDFSHub)
+  - `intra_algo`: Algorithm to use within communities (e.g., 17 = LeidenDendrogram)
   - `resolution`: Leiden resolution parameter (default: 0.75)
 - **Best for**: Fine-grained control over per-community ordering
 
@@ -262,7 +246,7 @@ Larger window = better quality, slower computation
 **Load mapping from file**
 
 ```bash
-./bench/bin/pr -f graph.el -s -o 14:mapping.lo -n 3
+./bench/bin/pr -f graph.el -s -o 13:mapping.lo -n 3
 ```
 
 - **Description**: Loads a pre-computed vertex ordering from file
@@ -273,7 +257,7 @@ Larger window = better quality, slower computation
 **Perceptron-based algorithm selection**
 
 ```bash
-./bench/bin/pr -f graph.el -s -o 15 -n 3
+./bench/bin/pr -f graph.el -s -o 14 -n 3
 ```
 
 - **Description**: Uses ML to select the best algorithm for each community
@@ -290,81 +274,80 @@ Larger window = better quality, slower computation
 
 ---
 
-## Leiden Dendrogram Variants (16-20)
+## Leiden Variants (16-18)
 
-These algorithms use **Leiden community detection** combined with different **dendrogram traversal strategies**.
+GraphBrew consolidates Leiden algorithms into three main IDs with parameter-based variant selection for cleaner script sweeping.
 
-### What's a Dendrogram?
-
-Leiden produces a hierarchical tree of communities:
-```
-        Root
-       /    \
-    Comm1   Comm2
-    /  \      |
-  C1a  C1b   C2a
-```
-
-Different traversal orders produce different vertex orderings.
-
-### 16. LeidenDFS
-**Depth-First Search traversal**
+### 16. LeidenOrder ⭐
+**Leiden community detection via igraph library**
 
 ```bash
-./bench/bin/pr -f graph.el -s -o 16 -n 3
+# Format: 15:resolution
+./bench/bin/pr -f graph.el -s -o 14 -n 3                    # Default (res=1.0)
+./bench/bin/pr -f graph.el -s -o 15:0.75 -n 3               # Lower resolution
+./bench/bin/pr -f graph.el -s -o 15:1.5 -n 3                # Higher resolution
 ```
 
-- **Description**: Standard DFS traversal of community hierarchy
-- **Order**: Goes deep into one branch before exploring siblings
-- **Best for**: General hierarchical structure
+- **Description**: State-of-the-art community detection algorithm via igraph
+- **Complexity**: O(n log n) average
+- **Best for**: Graphs with strong community structure
 
-### 17. LeidenDFSHub
-**DFS prioritizing hub communities**
+**Key features:**
+- Improves on Louvain algorithm
+- Guarantees well-connected communities
+- Produces high-quality modularity scores
+
+### 17. LeidenDendrogram
+**Leiden community detection with dendrogram traversal**
 
 ```bash
-./bench/bin/pr -f graph.el -s -o 17 -n 3
+# Format: 16:resolution:variant
+./bench/bin/pr -f graph.el -s -o 16 -n 3                    # Default (hybrid)
+./bench/bin/pr -f graph.el -s -o 16:1.0:dfs -n 3            # DFS traversal
+./bench/bin/pr -f graph.el -s -o 16:1.0:dfshub -n 3         # DFS hub-first
+./bench/bin/pr -f graph.el -s -o 16:1.0:dfssize -n 3        # DFS size-first
+./bench/bin/pr -f graph.el -s -o 16:1.0:bfs -n 3            # BFS traversal
+./bench/bin/pr -f graph.el -s -o 16:1.0:hybrid -n 3         # Hybrid (recommended)
 ```
 
-- **Description**: DFS that visits high-degree communities first
-- **Rationale**: Hub communities are accessed more frequently
-- **Best for**: Power-law graphs
+**Variants:**
+| Variant | Description | Best For |
+|---------|-------------|----------|
+| `dfs` | Standard DFS traversal | General hierarchical |
+| `dfshub` | DFS with hub-first ordering | Power-law graphs |
+| `dfssize` | DFS with size-first ordering | Uneven community sizes |
+| `bfs` | BFS level-order traversal | Wide hierarchies |
+| `hybrid` | Sort by (community, degree) | **Default - best overall** |
 
-### 18. LeidenDFSSize
-**DFS prioritizing larger communities**
+### 18. LeidenCSR ⭐ (Fastest)
+**Fast CSR-native Leiden (no graph conversion)**
 
 ```bash
-./bench/bin/pr -f graph.el -s -o 18 -n 3
+# Format: 17:resolution:passes:variant
+./bench/bin/pr -f graph.el -s -o 17 -n 3                    # Default (hubsort)
+./bench/bin/pr -f graph.el -s -o 17:1.0:1:dfs -n 3          # DFS ordering
+./bench/bin/pr -f graph.el -s -o 17:1.0:1:bfs -n 3          # BFS ordering
+./bench/bin/pr -f graph.el -s -o 17:1.0:1:hubsort -n 3      # Hub-sorted (recommended)
+./bench/bin/pr -f graph.el -s -o 17:1.0:2:fast -n 3         # Union-Find + Label Prop
+./bench/bin/pr -f graph.el -s -o 17:1.0:1:modularity -n 3   # True Leiden (quality)
 ```
 
-- **Description**: DFS that visits larger communities first
-- **Rationale**: Larger communities contain more vertices to process
-- **Best for**: Graphs with uneven community sizes
+**Variants:**
+| Variant | Description | Speed | Quality |
+|---------|-------------|-------|---------|
+| `dfs` | Hierarchical DFS | Fast | Good |
+| `bfs` | Level-first BFS | Fast | Good |
+| `hubsort` | Community + degree sort | **Fastest** | Good |
+| `fast` | Union-Find + Label Propagation | Very Fast | Moderate |
+| `modularity` | True Leiden with modularity | Slower | **Best** |
 
-### 19. LeidenBFS
-**Breadth-First Search traversal**
-
+**Sweeping Variants Example:**
 ```bash
-./bench/bin/pr -f graph.el -s -o 19 -n 3
+# Sweep all LeidenCSR variants
+for variant in dfs bfs hubsort fast modularity; do
+    ./bench/bin/pr -f graph.mtx -s -o 17:1.0:1:$variant -n 5
+done
 ```
-
-- **Description**: Level-order traversal of community hierarchy
-- **Order**: Processes all communities at one level before going deeper
-- **Best for**: Wide, shallow community hierarchies
-
-### 20. LeidenHybrid ⭐ (Often best)
-**Hybrid hub-aware DFS**
-
-```bash
-./bench/bin/pr -f graph.el -s -o 20 -n 3
-```
-
-- **Description**: Combines hub prioritization with adaptive traversal
-- **Best for**: Most graphs - good default choice
-
-**Why it's often best:**
-- Balances hub frequency with community structure
-- Adapts traversal based on community characteristics
-- Robust across different graph types
 
 ---
 
@@ -374,31 +357,32 @@ Different traversal orders produce different vertex orderings.
 
 | Graph Type | Recommended | Alternatives |
 |------------|-------------|--------------|
-| Social Networks | LeidenHybrid (20) | LeidenDFSHub (17), AdaptiveOrder (15) |
-| Web Graphs | LeidenHybrid (20) | HUBCLUSTERDBG (7) |
+| Social Networks | LeidenDendrogram (16:hybrid) | LeidenCSR (17:hubsort) |
+| Web Graphs | LeidenCSR (17:hubsort) | HUBCLUSTERDBG (7) |
 | Road Networks | ORIGINAL (0), RCM (11) | GORDER (9) |
-| Citation Networks | LeidenOrder (12) | RABBITORDER (8) |
-| Unknown | AdaptiveOrder (15) | LeidenHybrid (20) |
+| Citation Networks | LeidenOrder (15) | RABBITORDER (8) |
+| Unknown | AdaptiveOrder (14) | LeidenCSR (17) |
 
 ### By Graph Size
 
 | Size | Nodes | Recommended |
 |------|-------|-------------|
 | Small | < 100K | Any (try several) |
-| Medium | 100K - 1M | LeidenHybrid (20) |
-| Large | 1M - 100M | LeidenHybrid (20), AdaptiveOrder (15) |
-| Very Large | > 100M | HUBCLUSTERDBG (7), LeidenOrder (12) |
+| Medium | 100K - 1M | LeidenCSR (21:hubsort) |
+| Large | 1M - 100M | LeidenCSR (21:hubsort), AdaptiveOrder (14) |
+| Very Large | > 100M | HUBCLUSTERDBG (7), LeidenCSR (21:fast) |
 
 ### Quick Decision Tree
 
 ```
 Is your graph modular (has communities)?
 ├── Yes → Is it very large (>10M vertices)?
-│         ├── Yes → LeidenOrder (12)
-│         └── No → LeidenHybrid (20)
+│         ├── Yes → LeidenCSR (21:fast) for speed
+│         │         LeidenCSR (21:modularity) for quality
+│         └── No → LeidenCSR (21:hubsort)
 └── No/Unknown → Is it a power-law graph?
               ├── Yes → HUBCLUSTERDBG (7)
-              └── No → Try AdaptiveOrder (15)
+              └── No → Try AdaptiveOrder (14)
 ```
 
 ---
@@ -415,7 +399,7 @@ Running PageRank on a social network (1M vertices, 10M edges):
 | DBG (5) | 0.80s | 1.25x |
 | HUBCLUSTERDBG (7) | 0.72s | 1.39x |
 | LeidenOrder (12) | 0.65s | 1.54x |
-| LeidenHybrid (20) | 0.58s | 1.72x |
+| LeidenCSR (21:hubsort) | 0.58s | 1.72x |
 
 ---
 

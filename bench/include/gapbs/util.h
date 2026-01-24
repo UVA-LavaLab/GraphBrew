@@ -34,23 +34,13 @@ enum ReorderingAlgo
     GOrder = 9,
     COrder = 10,
     RCMOrder = 11,
-    LeidenOrder = 12,
-    GraphBrewOrder = 13,
-    MAP = 14,
-    AdaptiveOrder = 15,  // Hierarchical adaptive reordering based on community features
-    // Leiden Dendrogram-based orderings (RabbitOrder-style traversal)
-    LeidenDFS = 16,       // Standard DFS traversal
-    LeidenDFSHub = 17,    // DFS with high-degree nodes first  
-    LeidenDFSSize = 18,   // DFS with largest subtrees first
-    LeidenBFS = 19,       // BFS by hierarchy level
-    LeidenHybrid = 20,    // Hybrid: sort by (community, degree)
-    // Fast Leiden on CSR (no DiGraph conversion) - various orderings
-    LeidenCSR = 21,       // Fast Leiden CSR with DFS hub-first ordering
-    LeidenCSRDFS = 22,    // Fast Leiden CSR with standard DFS
-    LeidenCSRBFS = 23,    // Fast Leiden CSR with BFS ordering  
-    LeidenCSRHubSort = 24,// Fast Leiden CSR with hub sort within communities
-    // New optimized Leiden-based algorithms
-    LeidenFast = 25,      // Fast multi-pass Leiden with Rabbit-style merging
+    GraphBrewOrder = 12,    // Leiden clustering + per-community ordering
+    MAP = 13,               // Load reordering from file
+    AdaptiveOrder = 14,     // ML-based perceptron selector
+    // Leiden algorithms (15-17) - grouped together for easier sweeping
+    LeidenOrder = 15,       // Format: 15:resolution (via igraph)
+    LeidenDendrogram = 16,  // Format: 16:resolution:variant (dfs/dfshub/dfssize/bfs/hybrid)
+    LeidenCSR = 17,         // Format: 17:resolution:passes:variant (dfs/bfs/hubsort/fast/modularity)
 };
 
 static const int64_t kRandSeed = 27491095;
