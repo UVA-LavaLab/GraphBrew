@@ -7102,10 +7102,10 @@ public:
                 .w_reorder_time = -0.5     // highest reorder cost
             }},
             // =================================================================
-            // LEIDEN VARIANTS (consolidated into LeidenDendrogram=16 and LeidenCSR=21)
+            // LEIDEN VARIANTS (consolidated into LeidenDendrogram=16 and LeidenCSR=17)
             // Use parameter-based variant selection:
             // - LeidenDendrogram (16): format 16:resolution:variant (dfs/dfshub/dfssize/bfs/hybrid)
-            // - LeidenCSR (21): format 21:resolution:passes:variant (dfs/bfs/hubsort/fast/modularity)
+            // - LeidenCSR (17): format 17:resolution:passes:variant (dfs/bfs/hubsort/fast/modularity)
             // =================================================================
             // LeidenDendrogram: Dendrogram-based traversal (default: hybrid variant)
             {LeidenDendrogram, {

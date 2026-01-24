@@ -621,11 +621,11 @@ Graph: facebook.el
 ├────────────────────┼──────────────┼─────────┤
 │ ORIGINAL (0)       │ 0.0523       │ 5       │
 │ HUBCLUSTERDBG (7)  │ 0.0412       │ 3       │
-│ LeidenOrder (12)   │ 0.0398       │ 2       │
-│ LeidenHybrid (20)  │ 0.0371       │ 1 ★     │
+│ LeidenOrder (15)   │ 0.0398       │ 2       │
+│ LeidenCSR (17)     │ 0.0371       │ 1 ★     │
 │ RCM (11)           │ 0.0489       │ 4       │
 └────────────────────┴──────────────┴─────────┘
-Winner: LeidenHybrid (fastest)
+Winner: LeidenCSR (fastest)
 ```
 
 ### Step 2: Extract Graph Features
