@@ -1067,7 +1067,7 @@ Examples:
     parser.add_argument("--max-count", type=int,
                        help="Maximum number of graphs to download")
     parser.add_argument("--dest", type=Path,
-                       help="Destination directory (default: graphs/)")
+                       help="Destination directory (default: results/graphs/)")
     parser.add_argument("--stats", action="store_true", help="Show catalog statistics")
     
     args = parser.parse_args()
