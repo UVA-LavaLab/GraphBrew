@@ -6735,10 +6735,10 @@ public:
      * 
      * AUTO-CLUSTERING TYPE SYSTEM:
      * The system uses auto-generated type files for specialized tuning:
-     * - scripts/weights/type_0.json    (Cluster 0 weights)
-     * - scripts/weights/type_1.json    (Cluster 1 weights)
-     * - scripts/weights/type_N.json    (Additional clusters as needed)
-     * - scripts/weights/type_registry.json (maps graph names → type + centroids)
+     * - scripts/weights/active/type_0.json    (Cluster 0 weights)
+     * - scripts/weights/active/type_1.json    (Cluster 1 weights)
+     * - scripts/weights/active/type_N.json    (Additional clusters as needed)
+     * - scripts/weights/active/type_registry.json (maps graph names → type + centroids)
      * 
      * At runtime, the system:
      * 1. Computes graph features (modularity, density, etc.)
@@ -6748,9 +6748,9 @@ public:
      */
     
     // Default path for perceptron weights file (relative to project root)
-    static constexpr const char* DEFAULT_WEIGHTS_FILE = "scripts/weights/type_0.json";
+    static constexpr const char* DEFAULT_WEIGHTS_FILE = "scripts/weights/active/type_0.json";
     static constexpr const char* WEIGHTS_DIR = "scripts/";
-    static constexpr const char* TYPE_WEIGHTS_DIR = "scripts/weights/";  // Type-based weights directory
+    static constexpr const char* TYPE_WEIGHTS_DIR = "scripts/weights/active/";  // Type-based weights directory
     
     /**
      * Graph type enum for graph-type-specific weight selection
@@ -7309,7 +7309,7 @@ public:
      * 
      * Checks for weights file in this order:
      * 1. Path from PERCEPTRON_WEIGHTS_FILE environment variable
-     * 2. scripts/weights/type_N.json files (via LoadPerceptronWeightsForGraphType)
+     * 2. scripts/weights/active/type_N.json files (via LoadPerceptronWeightsForGraphType)
      * 3. If neither exists, returns hardcoded defaults from GetPerceptronWeights()
      */
     static std::map<ReorderingAlgo, PerceptronWeights> LoadPerceptronWeights(bool verbose = false) {
@@ -7319,7 +7319,7 @@ public:
     /**
      * Find the best matching type file from the type registry.
      * 
-     * The type registry (scripts/weights/type_registry.json) contains centroids
+     * The type registry (scripts/weights/active/type_registry.json) contains centroids
      * for each auto-generated type. This function finds the closest matching type
      * based on the graph features using cosine similarity.
      * 
@@ -7435,7 +7435,7 @@ public:
      * 
      * Checks for weights file in this order:
      * 1. Path from PERCEPTRON_WEIGHTS_FILE environment variable (overrides all)
-     * 2. Type-based file: scripts/weights/type_N.json (if features provided)
+     * 2. Type-based file: scripts/weights/active/type_N.json (if features provided)
      * 3. If none exist, returns hardcoded defaults from GetPerceptronWeights()
      * 
      * @param graph_type The detected or specified graph type
