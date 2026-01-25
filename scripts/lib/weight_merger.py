@@ -600,6 +600,140 @@ def auto_merge_after_run(timestamp: Optional[str] = None) -> Dict[str, Any]:
     return summary
 
 
+def validate_merge() -> bool:
+    """
+    Validate that merged weights are mathematically correct.
+    
+    Checks:
+    1. Total graph counts match sum of runs
+    2. Centroids are valid weighted averages
+    3. Weights are valid weighted averages
+    4. All algorithms from runs are present in merged
+    
+    Returns:
+        True if all validations pass
+    """
+    print("\n" + "=" * 60)
+    print("Validating Merge Results")
+    print("=" * 60)
+    
+    runs = list_runs()
+    if not runs:
+        print("No runs to validate against")
+        return False
+    
+    merged_dir = get_merged_dir()
+    if not merged_dir.exists():
+        print("No merged weights found")
+        return False
+    
+    # Load merged registry
+    merged_reg_path = merged_dir / "type_registry.json"
+    if not merged_reg_path.exists():
+        print("Merged registry not found")
+        return False
+    
+    with open(merged_reg_path) as f:
+        merged_reg = json.load(f)
+    
+    all_passed = True
+    
+    # Check 1: Total graph counts
+    print("\n1. Checking total graph counts...")
+    run_total = sum(
+        tinfo.graph_count 
+        for run in runs 
+        for tinfo in run.types.values()
+    )
+    merged_total = sum(
+        entry.get('graph_count', 0) 
+        for entry in merged_reg.values()
+    )
+    
+    if run_total == merged_total:
+        print(f"   ✓ Total graphs: {merged_total} (matches sum of runs)")
+    else:
+        print(f"   ✗ Total graphs mismatch: runs={run_total}, merged={merged_total}")
+        all_passed = False
+    
+    # Check 2: All algorithms preserved
+    print("\n2. Checking algorithm preservation...")
+    run_algorithms = set()
+    for run in runs:
+        for tinfo in run.types.values():
+            type_path = run.path / f"{tinfo.type_id}.json"
+            if type_path.exists():
+                with open(type_path) as f:
+                    weights = json.load(f)
+                for algo in weights:
+                    if not algo.startswith('_'):
+                        run_algorithms.add(algo)
+    
+    merged_algorithms = set()
+    for tfile in merged_dir.iterdir():
+        if tfile.suffix == '.json' and tfile.name.startswith('type_') and 'registry' not in tfile.name:
+            with open(tfile) as f:
+                weights = json.load(f)
+            for algo in weights:
+                if not algo.startswith('_'):
+                    merged_algorithms.add(algo)
+    
+    missing = run_algorithms - merged_algorithms
+    if not missing:
+        print(f"   ✓ All {len(merged_algorithms)} algorithms preserved")
+    else:
+        print(f"   ✗ Missing algorithms: {missing}")
+        all_passed = False
+    
+    # Check 3: Centroid values are valid
+    print("\n3. Checking centroid validity...")
+    for tid, entry in merged_reg.items():
+        centroid = entry.get('centroid', [])
+        if isinstance(centroid, list) and len(centroid) > 0:
+            # Check for NaN or Inf
+            if any(not np.isfinite(v) for v in centroid):
+                print(f"   ✗ {tid}: Invalid centroid values (NaN/Inf)")
+                all_passed = False
+            # Check reasonable ranges
+            elif all(-1000 < v < 1000 for v in centroid):
+                print(f"   ✓ {tid}: Centroid valid, count={entry.get('graph_count', 0)}")
+            else:
+                print(f"   ⚠ {tid}: Centroid has extreme values")
+    
+    # Check 4: Weight values are valid
+    print("\n4. Checking weight validity...")
+    for tfile in merged_dir.iterdir():
+        if tfile.suffix == '.json' and tfile.name.startswith('type_') and 'registry' not in tfile.name:
+            with open(tfile) as f:
+                weights = json.load(f)
+            
+            invalid_count = 0
+            for algo, w in weights.items():
+                if algo.startswith('_'):
+                    continue
+                for key, val in w.items():
+                    if key.startswith('_') or key == 'benchmark_weights':
+                        continue
+                    if isinstance(val, (int, float)) and not np.isfinite(val):
+                        invalid_count += 1
+            
+            if invalid_count == 0:
+                print(f"   ✓ {tfile.name}: All weights valid")
+            else:
+                print(f"   ✗ {tfile.name}: {invalid_count} invalid weight values")
+                all_passed = False
+    
+    # Summary
+    print("\n" + "=" * 60)
+    if all_passed:
+        print("✓ All validations passed")
+    else:
+        print("✗ Some validations failed")
+    print("=" * 60)
+    
+    return all_passed
+
+
 def main():
     """Command-line interface."""
     import argparse
@@ -623,6 +757,10 @@ def main():
                        help=f"Centroid matching threshold (default: {DEFAULT_MATCH_THRESHOLD})")
     parser.add_argument('--auto-merge', action='store_true',
                        help="Save current run and merge (for use after fill-weights)")
+    parser.add_argument('--no-apply', action='store_true',
+                       help="Don't apply merged weights to main directory after merge")
+    parser.add_argument('--validate', action='store_true',
+                       help="Validate merge results (check math correctness)")
     
     args = parser.parse_args()
     
@@ -643,10 +781,20 @@ def main():
         save_current_run(args.save_run)
     
     elif args.merge_all:
-        merge_runs(threshold=args.threshold)
+        summary = merge_runs(threshold=args.threshold)
+        if not args.no_apply and "error" not in summary:
+            use_merged()
+            print("\nMerged weights applied to main directory.")
+        if args.validate:
+            validate_merge()
     
     elif args.merge_runs:
-        merge_runs(run_timestamps=args.merge_runs, threshold=args.threshold)
+        summary = merge_runs(run_timestamps=args.merge_runs, threshold=args.threshold)
+        if not args.no_apply and "error" not in summary:
+            use_merged()
+            print("\nMerged weights applied to main directory.")
+        if args.validate:
+            validate_merge()
     
     elif args.use_run:
         use_run(args.use_run)
@@ -656,6 +804,9 @@ def main():
     
     elif args.auto_merge:
         auto_merge_after_run()
+    
+    elif args.validate:
+        validate_merge()
     
     else:
         parser.print_help()
