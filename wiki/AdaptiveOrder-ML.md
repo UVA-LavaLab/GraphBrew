@@ -936,8 +936,8 @@ AdaptiveOrder picks the best for EACH community!
 ### Quick Training (Synthetic Graphs)
 
 ```bash
-# Quick test with generated graphs
-python3 scripts/analysis/correlation_analysis.py --quick
+# Quick test with small graphs
+python3 scripts/graphbrew_experiment.py --full --download-size SMALL --skip-cache
 ```
 
 ### Understanding the Training Output

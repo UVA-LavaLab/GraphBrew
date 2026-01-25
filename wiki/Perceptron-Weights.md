@@ -406,13 +406,14 @@ For BFS (benefits from bandwidth reduction):
 
 ## Generating Weights
 
-### Automatic: Correlation Analysis
+### Automatic: Using graphbrew_experiment.py
 
 ```bash
-python3 scripts/analysis/correlation_analysis.py \
-    --graphs-dir ./graphs \
-    --benchmark pr bfs \
-    --output scripts/weights/type_0.json
+# Full pipeline with weight generation
+python3 scripts/graphbrew_experiment.py --full --download-size SMALL
+
+# Comprehensive weight training
+python3 scripts/graphbrew_experiment.py --fill-weights --download-size MEDIUM --auto-memory
 ```
 
 ### Manual: Edit JSON Directly
