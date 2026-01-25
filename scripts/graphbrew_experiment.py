@@ -93,24 +93,26 @@ if str(_PROJECT_ROOT) not in sys.path:
 # Import shared utilities from lib/ module
 # These provide consistent definitions across all scripts
 try:
-    from scripts.lib.utils import (
+    from scripts.lib import (
+        # Core constants
         ALGORITHMS as LIB_ALGORITHMS,
         BENCHMARKS as LIB_BENCHMARKS,
         LEIDEN_CSR_VARIANTS as LIB_LEIDEN_CSR_VARIANTS,
         LEIDEN_DENDROGRAM_VARIANTS as LIB_LEIDEN_DENDROGRAM_VARIANTS,
         LEIDEN_DEFAULT_RESOLUTION as LIB_LEIDEN_DEFAULT_RESOLUTION,
         LEIDEN_DEFAULT_PASSES as LIB_LEIDEN_DEFAULT_PASSES,
+        # Paths
         PROJECT_ROOT as LIB_PROJECT_ROOT,
         BIN_DIR as LIB_BIN_DIR,
         BIN_SIM_DIR as LIB_BIN_SIM_DIR,
         GRAPHS_DIR as LIB_GRAPHS_DIR,
         RESULTS_DIR as LIB_RESULTS_DIR,
+        WEIGHTS_DIR as LIB_WEIGHTS_DIR,
+        # Utils
         Logger,
-        run_command,
-        parse_algorithm_option,
-        expand_leiden_variants,
-    )
-    from scripts.lib.download import (
+        run_command as lib_run_command,
+        get_timestamp,
+        # Download
         GRAPH_CATALOG,
         DOWNLOAD_GRAPHS_SMALL as LIB_DOWNLOAD_GRAPHS_SMALL,
         DOWNLOAD_GRAPHS_MEDIUM as LIB_DOWNLOAD_GRAPHS_MEDIUM,
@@ -121,13 +123,55 @@ try:
         download_graphs as lib_download_graphs,
         get_graph_info as lib_get_graph_info,
         get_graphs_by_size as lib_get_graphs_by_size,
-        list_available_graphs,
-        list_downloaded_graphs,
-    )
-    from scripts.lib.benchmark import (
-        BenchmarkResult as LibBenchmarkResult,
+        # Build
+        build_binaries as lib_build_binaries,
+        check_binaries as lib_check_binaries,
+        ensure_binaries as lib_ensure_binaries,
+        # Reorder
+        ReorderResult as LibReorderResult,
+        generate_reorderings as lib_generate_reorderings,
+        generate_label_maps as lib_generate_label_maps,
+        generate_reorderings_with_variants as lib_generate_reorderings_with_variants,
+        # Benchmark
         run_benchmark as lib_run_benchmark,
-        parse_benchmark_output,
+        parse_benchmark_output as lib_parse_benchmark_output,
+        # Cache
+        CacheResult as LibCacheResult,
+        run_cache_simulation as lib_run_cache_simulation,
+        run_cache_simulations as lib_run_cache_simulations,
+        parse_cache_output as lib_parse_cache_output,
+        # Weights
+        PerceptronWeight as LibPerceptronWeight,
+        load_type_registry as lib_load_type_registry,
+        save_type_registry as lib_save_type_registry,
+        assign_graph_type as lib_assign_graph_type,
+        update_type_weights_incremental as lib_update_type_weights_incremental,
+        get_best_algorithm_for_type as lib_get_best_algorithm_for_type,
+        list_known_types as lib_list_known_types,
+        # Progress
+        ProgressTracker as LibProgressTracker,
+        create_progress as lib_create_progress,
+        format_duration as lib_format_duration,
+        # Results
+        ResultsManager as LibResultsManager,
+        read_json as lib_read_json,
+        write_json as lib_write_json,
+        filter_results as lib_filter_results,
+        # Analysis
+        SubcommunityInfo as LibSubcommunityInfo,
+        AdaptiveOrderResult as LibAdaptiveOrderResult,
+        AdaptiveComparisonResult as LibAdaptiveComparisonResult,
+        GraphBruteForceAnalysis as LibGraphBruteForceAnalysis,
+        parse_adaptive_output as lib_parse_adaptive_output,
+        analyze_adaptive_order as lib_analyze_adaptive_order,
+        compare_adaptive_vs_fixed as lib_compare_adaptive_vs_fixed,
+        run_subcommunity_brute_force as lib_run_subcommunity_brute_force,
+        # Training
+        TrainingResult as LibTrainingResult,
+        TrainingIterationResult as LibTrainingIterationResult,
+        initialize_enhanced_weights as lib_initialize_enhanced_weights,
+        train_adaptive_weights_iterative as lib_train_adaptive_weights_iterative,
+        train_adaptive_weights_large_scale as lib_train_adaptive_weights_large_scale,
     )
     LIB_AVAILABLE = True
 except ImportError as e:
@@ -808,154 +852,175 @@ def compute_extended_features(nodes: int, edges: int, density: float,
     return features
 
 
-@dataclass
-class ReorderResult:
-    """Result from reordering a graph."""
-    graph: str
-    algorithm_id: int
-    algorithm_name: str
-    reorder_time: float
-    mapping_file: str = ""
-    success: bool = True
-    error: str = ""
+# =============================================================================
+# Data Classes
+# =============================================================================
+# These are now in scripts/lib/ modules. Use lib/ definitions when available.
 
-@dataclass
-class BenchmarkResult:
-    """Result from running a benchmark."""
-    graph: str
-    algorithm_id: int
-    algorithm_name: str
-    benchmark: str
-    trial_time: float
-    speedup: float = 1.0
-    nodes: int = 0
-    edges: int = 0
-    success: bool = True
-    error: str = ""
+if LIB_AVAILABLE:
+    # Use lib/ definitions (authoritative)
+    ReorderResult = LibReorderResult
+    CacheResult = LibCacheResult
+    SubcommunityInfo = LibSubcommunityInfo
+    AdaptiveOrderResult = LibAdaptiveOrderResult
+    AdaptiveComparisonResult = LibAdaptiveComparisonResult
+    PerceptronWeight = LibPerceptronWeight
+    
+    # BenchmarkResult needs a local definition as it's not in lib/
+    @dataclass
+    class BenchmarkResult:
+        """Result from running a benchmark."""
+        graph: str
+        algorithm_id: int
+        algorithm_name: str
+        benchmark: str
+        trial_time: float
+        speedup: float = 1.0
+        nodes: int = 0
+        edges: int = 0
+        success: bool = True
+        error: str = ""
+else:
+    # Fallback definitions if lib/ not available
+    @dataclass
+    class ReorderResult:
+        """Result from reordering a graph."""
+        graph: str
+        algorithm_id: int
+        algorithm_name: str
+        reorder_time: float
+        mapping_file: str = ""
+        success: bool = True
+        error: str = ""
 
-@dataclass
-class CacheResult:
-    """Result from cache simulation."""
-    graph: str
-    algorithm_id: int
-    algorithm_name: str
-    benchmark: str
-    l1_hit_rate: float = 0.0
-    l2_hit_rate: float = 0.0
-    l3_hit_rate: float = 0.0
-    success: bool = True
-    error: str = ""
+    @dataclass
+    class BenchmarkResult:
+        """Result from running a benchmark."""
+        graph: str
+        algorithm_id: int
+        algorithm_name: str
+        benchmark: str
+        trial_time: float
+        speedup: float = 1.0
+        nodes: int = 0
+        edges: int = 0
+        success: bool = True
+        error: str = ""
 
-@dataclass
-class ReorderResult:
-    """Result from reordering/label map generation."""
-    graph: str
-    algorithm_id: int
-    algorithm_name: str
-    reorder_time: float
-    mapping_file: str = ""
-    success: bool = True
-    error: str = ""
+    @dataclass
+    class CacheResult:
+        """Result from cache simulation."""
+        graph: str
+        algorithm_id: int
+        algorithm_name: str
+        benchmark: str
+        l1_hit_rate: float = 0.0
+        l2_hit_rate: float = 0.0
+        l3_hit_rate: float = 0.0
+        success: bool = True
+        error: str = ""
 
-@dataclass
-class SubcommunityInfo:
-    """Information about a subcommunity in adaptive ordering."""
-    community_id: int
-    nodes: int
-    edges: int
-    density: float
-    degree_variance: float
-    hub_concentration: float
-    selected_algorithm: str
-    # New graph structure features
-    clustering_coefficient: float = 0.0  # Local clustering coefficient
-    avg_path_length: float = 0.0  # Average shortest path (estimated)
-    diameter_estimate: float = 0.0  # BFS diameter estimate
-    community_count: int = 1  # Number of sub-communities (from Leiden)
-    
-@dataclass
-class AdaptiveOrderResult:
-    """Result from adaptive ordering analysis."""
-    graph: str
-    modularity: float
-    num_communities: int
-    subcommunities: List[SubcommunityInfo] = field(default_factory=list)
-    algorithm_distribution: Dict[str, int] = field(default_factory=dict)
-    reorder_time: float = 0.0
-    success: bool = True
-    error: str = ""
-
-@dataclass
-class AdaptiveComparisonResult:
-    """Result comparing adaptive vs fixed-algorithm approaches."""
-    graph: str
-    benchmark: str
-    adaptive_time: float
-    adaptive_speedup: float
-    fixed_results: Dict[str, float] = field(default_factory=dict)  # algo_name -> speedup
-    best_fixed_algorithm: str = ""
-    best_fixed_speedup: float = 0.0
-    adaptive_advantage: float = 0.0  # adaptive_speedup - best_fixed_speedup
-
-@dataclass
-class PerceptronWeight:
-    """Perceptron weight for an algorithm."""
-    bias: float = 0.5
-    w_modularity: float = 0.0
-    w_log_nodes: float = 0.0
-    w_log_edges: float = 0.0
-    w_density: float = 0.0
-    w_avg_degree: float = 0.0
-    w_degree_variance: float = 0.0
-    w_hub_concentration: float = 0.0
-    cache_l1_impact: float = 0.0
-    cache_l2_impact: float = 0.0
-    cache_l3_impact: float = 0.0
-    cache_dram_penalty: float = 0.0
-    w_reorder_time: float = 0.0  # weight for reorder time
-    
-    # NEW: Additional graph structure feature weights
-    w_clustering_coeff: float = 0.0  # Local clustering effect
-    w_avg_path_length: float = 0.0  # Path length sensitivity
-    w_diameter: float = 0.0  # Diameter effect
-    w_community_count: float = 0.0  # Sub-community count effect
-    
-    # NEW: Per-benchmark weight adjustments (multipliers)
-    # These modify the base weights for specific benchmarks
-    benchmark_weights: Dict[str, float] = field(default_factory=lambda: {
-        'pr': 1.0, 'bfs': 1.0, 'cc': 1.0, 'sssp': 1.0, 'bc': 1.0
-    })
-    
-    # Metadata
-    _metadata: Dict = field(default_factory=dict)
-    
-    def to_dict(self) -> Dict:
-        d = asdict(self)
-        return d
-    
-    def compute_score(self, features: Dict, benchmark: str = 'pr') -> float:
-        """Compute perceptron score for given features and benchmark."""
-        import math
-        log_nodes = math.log10(features.get('nodes', 1) + 1)
-        log_edges = math.log10(features.get('edges', 1) + 1)
+    @dataclass
+    class SubcommunityInfo:
+        """Information about a subcommunity in adaptive ordering."""
+        community_id: int
+        nodes: int
+        edges: int
+        density: float
+        degree_variance: float
+        hub_concentration: float
+        selected_algorithm: str
+        clustering_coefficient: float = 0.0
+        avg_path_length: float = 0.0
+        diameter_estimate: float = 0.0
+        community_count: int = 1
         
-        score = self.bias
-        score += self.w_modularity * features.get('modularity', 0.5)
-        score += self.w_log_nodes * log_nodes
-        score += self.w_log_edges * log_edges
-        score += self.w_density * features.get('density', 0.0)
-        score += self.w_avg_degree * features.get('avg_degree', 0.0) / 100.0
-        score += self.w_degree_variance * features.get('degree_variance', 0.0)
-        score += self.w_hub_concentration * features.get('hub_concentration', 0.0)
-        score += self.w_clustering_coeff * features.get('clustering_coefficient', 0.0)
-        score += self.w_avg_path_length * features.get('avg_path_length', 0.0) / 10.0
-        score += self.w_diameter * features.get('diameter', features.get('diameter_estimate', 0.0)) / 50.0  # Match C++ normalization
-        score += self.w_community_count * math.log10(features.get('community_count', 1) + 1)
-        score += self.w_reorder_time * features.get('reorder_time', 0.0)  # Penalty for slow reordering
+    @dataclass
+    class AdaptiveOrderResult:
+        """Result from adaptive ordering analysis."""
+        graph: str
+        modularity: float
+        num_communities: int
+        subcommunities: List[SubcommunityInfo] = field(default_factory=list)
+        algorithm_distribution: Dict[str, int] = field(default_factory=dict)
+        reorder_time: float = 0.0
+        success: bool = True
+        error: str = ""
+
+    @dataclass
+    class AdaptiveComparisonResult:
+        """Result comparing adaptive vs fixed-algorithm approaches."""
+        graph: str
+        benchmark: str
+        adaptive_time: float
+        adaptive_speedup: float
+        fixed_results: Dict[str, float] = field(default_factory=dict)
+        best_fixed_algorithm: str = ""
+        best_fixed_speedup: float = 0.0
+        adaptive_advantage: float = 0.0
+
+    @dataclass
+    class PerceptronWeight:
+        """Perceptron weight for an algorithm."""
+        bias: float = 0.5
+        w_modularity: float = 0.0
+        w_log_nodes: float = 0.0
+        w_log_edges: float = 0.0
+        w_density: float = 0.0
+        w_avg_degree: float = 0.0
+        w_degree_variance: float = 0.0
+        w_hub_concentration: float = 0.0
+        cache_l1_impact: float = 0.0
+        cache_l2_impact: float = 0.0
+        cache_l3_impact: float = 0.0
+        cache_dram_penalty: float = 0.0
+        w_reorder_time: float = 0.0
+
+# Note: AdaptiveOrderResult, AdaptiveComparisonResult, PerceptronWeight
+# are now defined conditionally above (using lib/ when available).
+# Extended PerceptronWeight with compute_score and benchmark_weights
+# is defined below for backward compatibility.
+
+# Extended PerceptronWeight (adds compute_score method not in lib/)
+# Only define if we need the extended version
+if not LIB_AVAILABLE:
+    pass  # Already defined above in fallback
+else:
+    # Extend the lib PerceptronWeight with additional methods
+    class PerceptronWeightExtended(LibPerceptronWeight):
+        """Extended PerceptronWeight with compute_score and benchmark_weights."""
+        benchmark_weights: Dict[str, float] = None  # Will be set in post_init
+        _metadata: Dict = None
         
-        # Apply benchmark-specific multiplier
-        bench_mult = self.benchmark_weights.get(benchmark.lower(), 1.0)
-        return score * bench_mult
+        def __post_init__(self):
+            if self.benchmark_weights is None:
+                self.benchmark_weights = {'pr': 1.0, 'bfs': 1.0, 'cc': 1.0, 'sssp': 1.0, 'bc': 1.0}
+            if self._metadata is None:
+                self._metadata = {}
+        
+        def compute_score(self, features: Dict, benchmark: str = 'pr') -> float:
+            """Compute perceptron score for given features and benchmark."""
+            import math
+            log_nodes = math.log10(features.get('nodes', 1) + 1)
+            log_edges = math.log10(features.get('edges', 1) + 1)
+            
+            score = self.bias
+            score += self.w_modularity * features.get('modularity', 0.5)
+            score += self.w_log_nodes * log_nodes
+            score += self.w_log_edges * log_edges
+            score += self.w_density * features.get('density', 0.0)
+            score += self.w_avg_degree * features.get('avg_degree', 0.0) / 100.0
+            score += self.w_degree_variance * features.get('degree_variance', 0.0)
+            score += self.w_hub_concentration * features.get('hub_concentration', 0.0)
+            score += getattr(self, 'w_clustering_coeff', 0.0) * features.get('clustering_coefficient', 0.0)
+            score += getattr(self, 'w_avg_path_length', 0.0) * features.get('avg_path_length', 0.0) / 10.0
+            score += getattr(self, 'w_diameter', 0.0) * features.get('diameter', features.get('diameter_estimate', 0.0)) / 50.0
+            score += getattr(self, 'w_community_count', 0.0) * math.log10(features.get('community_count', 1) + 1)
+            score += self.w_reorder_time * features.get('reorder_time', 0.0)
+            
+            # Apply benchmark-specific multiplier
+            bench_mult = self.benchmark_weights.get(benchmark.lower(), 1.0) if self.benchmark_weights else 1.0
+            return score * bench_mult
 
 @dataclass
 class DownloadableGraph:
@@ -1530,220 +1595,59 @@ else:
 # ============================================================================
 # Progress Tracking System
 # ============================================================================
+# ProgressTracker is now in scripts/lib/progress.py
+# Use lib/ definitions when available
 
-class ProgressTracker:
-    """
-    Comprehensive progress tracking for experiment pipeline.
-    Shows current step, progress bars, timing, and meaningful statistics.
-    """
-    
-    # ANSI color codes for terminal output
-    COLORS = {
-        'HEADER': '\033[95m',
-        'BLUE': '\033[94m',
-        'CYAN': '\033[96m',
-        'GREEN': '\033[92m',
-        'YELLOW': '\033[93m',
-        'RED': '\033[91m',
-        'BOLD': '\033[1m',
-        'UNDERLINE': '\033[4m',
-        'END': '\033[0m'
-    }
-    
-    def __init__(self, use_colors: bool = True):
-        self.use_colors = use_colors and sys.stdout.isatty()
-        self.start_time = time.time()
-        self.phase_start_time = None
-        self.current_phase = None
-        self.phase_history = []
-        self.stats = {
-            'graphs_processed': 0,
-            'algorithms_tested': 0,
-            'benchmarks_run': 0,
-            'total_time': 0,
-            'best_speedups': {},
-            'errors': [],
-        }
-    
-    def _color(self, text: str, color: str) -> str:
-        """Apply color to text if colors enabled."""
-        if self.use_colors and color in self.COLORS:
-            return f"{self.COLORS[color]}{text}{self.COLORS['END']}"
-        return text
-    
-    def _elapsed(self) -> str:
-        """Get elapsed time since start."""
-        elapsed = time.time() - self.start_time
-        mins, secs = divmod(int(elapsed), 60)
-        hours, mins = divmod(mins, 60)
-        if hours > 0:
-            return f"{hours}h {mins}m {secs}s"
-        elif mins > 0:
-            return f"{mins}m {secs}s"
-        return f"{secs}s"
-    
-    def _phase_elapsed(self) -> str:
-        """Get elapsed time since phase start."""
-        if self.phase_start_time is None:
-            return "0s"
-        elapsed = time.time() - self.phase_start_time
-        mins, secs = divmod(int(elapsed), 60)
-        if mins > 0:
-            return f"{mins}m {secs}s"
-        return f"{secs}s"
-    
-    def banner(self, title: str, subtitle: str = None):
-        """Print a large banner for major sections."""
-        width = 70
-        print("\n" + "╔" + "═" * (width - 2) + "╗")
-        title_padded = title.center(width - 4)
-        print("║ " + self._color(title_padded, 'BOLD') + " ║")
-        if subtitle:
-            sub_padded = subtitle.center(width - 4)
-            print("║ " + self._color(sub_padded, 'CYAN') + " ║")
-        print("╚" + "═" * (width - 2) + "╝\n")
-    
-    def phase_start(self, phase_name: str, description: str = None):
-        """Start a new phase with visual indicator."""
-        if self.current_phase:
-            # End previous phase
-            self.phase_history.append({
-                'name': self.current_phase,
-                'duration': time.time() - self.phase_start_time
-            })
-        
-        self.current_phase = phase_name
-        self.phase_start_time = time.time()
-        
-        print("\n" + "┌" + "─" * 68 + "┐")
-        header = f"  PHASE: {phase_name}"
-        print("│" + self._color(header.ljust(68), 'HEADER') + "│")
-        if description:
-            print("│  " + description.ljust(66) + "│")
-        print("│  " + f"Started at: {datetime.now().strftime('%H:%M:%S')}".ljust(66) + "│")
-        print("└" + "─" * 68 + "┘")
-    
-    def phase_end(self, summary: str = None):
-        """End current phase with summary."""
-        duration = self._phase_elapsed()
-        print("\n" + "─" * 70)
-        status = f"✓ Phase '{self.current_phase}' completed in {duration}"
-        print(self._color(status, 'GREEN'))
-        if summary:
-            print(f"  {summary}")
-        print("─" * 70)
-    
-    def step(self, current: int, total: int, item_name: str, extra_info: str = None):
-        """Show progress for a numbered step."""
-        pct = (current / total * 100) if total > 0 else 0
-        bar_width = 30
-        filled = int(bar_width * current / total) if total > 0 else 0
-        bar = "█" * filled + "░" * (bar_width - filled)
-        
-        line = f"  [{current:3d}/{total:3d}] [{bar}] {pct:5.1f}%  {item_name}"
-        if extra_info:
-            line += f"  │ {extra_info}"
-        
-        # Use \r for same-line updates when not at 100%
-        end = '\n' if current == total else '\r'
-        print(line.ljust(100), end=end, flush=True)
-    
-    def substep(self, message: str, status: str = "..."):
-        """Show a substep with status indicator."""
-        status_color = {
-            '...': 'YELLOW',
-            'OK': 'GREEN',
-            'DONE': 'GREEN',
-            'SKIP': 'CYAN',
-            'FAIL': 'RED',
-            'WARN': 'YELLOW',
-        }.get(status, 'END')
-        
-        status_str = self._color(f"[{status:4s}]", status_color)
-        print(f"    {status_str} {message}")
-    
-    def info(self, message: str, indent: int = 0):
-        """Print an info message."""
-        prefix = "  " * indent + "→ "
-        print(f"{prefix}{message}")
-    
-    def success(self, message: str):
-        """Print a success message."""
-        print(self._color(f"  ✓ {message}", 'GREEN'))
-    
-    def warning(self, message: str):
-        """Print a warning message."""
-        print(self._color(f"  ⚠ {message}", 'YELLOW'))
-    
-    def error(self, message: str):
-        """Print an error message."""
-        print(self._color(f"  ✗ {message}", 'RED'))
-        self.stats['errors'].append(message)
-    
-    def table_header(self, columns: List[Tuple[str, int]]):
-        """Print a table header with column widths."""
-        header = "  │ "
-        sep = "  ├─"
-        for name, width in columns:
-            header += name.center(width) + " │ "
-            sep += "─" * (width + 2) + "┼─"
-        sep = sep[:-2] + "┤"
-        print(sep)
-        print(header)
-        print(sep)
-    
-    def table_row(self, values: List[Tuple[str, int]], highlight: bool = False):
-        """Print a table row."""
-        row = "  │ "
-        for val, width in values:
-            if highlight:
-                row += self._color(str(val).center(width), 'GREEN') + " │ "
-            else:
-                row += str(val).center(width) + " │ "
-        print(row)
-    
-    def stats_summary(self, title: str, stats: Dict[str, Any]):
-        """Print a summary box with statistics."""
-        print("\n  ┌" + "─" * 50 + "┐")
-        print("  │ " + self._color(title.center(48), 'BOLD') + " │")
-        print("  ├" + "─" * 50 + "┤")
-        for key, value in stats.items():
-            line = f"  {key}: {value}"
-            print("  │ " + line.ljust(48) + " │")
-        print("  └" + "─" * 50 + "┘")
-    
-    def record_result(self, graph: str, algorithm: str, benchmark: str, 
-                      time_sec: float, speedup: float = None):
-        """Record a benchmark result for statistics."""
-        self.stats['benchmarks_run'] += 1
-        if speedup and speedup > 1.0:
-            key = f"{graph}/{benchmark}"
-            if key not in self.stats['best_speedups'] or speedup > self.stats['best_speedups'][key][1]:
-                self.stats['best_speedups'][key] = (algorithm, speedup)
-    
-    def final_summary(self):
-        """Print final summary of the entire experiment."""
-        total_time = time.time() - self.start_time
-        mins, secs = divmod(int(total_time), 60)
-        hours, mins = divmod(mins, 60)
-        
-        self.banner("EXPERIMENT COMPLETE", f"Total time: {hours}h {mins}m {secs}s")
-        
-        print("Phase Summary:")
-        for phase in self.phase_history:
-            dur_mins, dur_secs = divmod(int(phase['duration']), 60)
-            print(f"  • {phase['name']}: {dur_mins}m {dur_secs}s")
-        
-        if self.stats['best_speedups']:
-            print("\nBest Speedups Found:")
-            for key, (algo, speedup) in sorted(self.stats['best_speedups'].items(), 
-                                                key=lambda x: -x[1][1])[:10]:
-                print(f"  • {key}: {algo} ({speedup:.2f}x)")
-        
-        if self.stats['errors']:
-            print(self._color(f"\nErrors encountered: {len(self.stats['errors'])}", 'RED'))
-            for err in self.stats['errors'][:5]:
-                print(f"  - {err}")
+if LIB_AVAILABLE:
+    # Use lib/ ProgressTracker (full-featured)
+    ProgressTracker = LibProgressTracker
+else:
+    # Fallback minimal ProgressTracker if lib/ not available
+    class ProgressTracker:
+        """Minimal fallback progress tracker when lib/ not available."""
+        def __init__(self, use_colors: bool = True):
+            self.use_colors = use_colors and sys.stdout.isatty()
+            self.start_time = time.time()
+            self.phase_start_time = None
+            self.current_phase = None
+            self.phase_history = []
+            self.stats = {'errors': [], 'best_speedups': {}, 'benchmarks_run': 0}
+        def _color(self, text: str, color: str) -> str:
+            return text  # No colors in fallback
+        def banner(self, title: str, subtitle: str = None, width: int = 70):
+            print(f"\n{'=' * width}\n{title.center(width)}\n{'=' * width}\n")
+        def phase_start(self, phase_name: str, description: str = None):
+            self.current_phase = phase_name
+            self.phase_start_time = time.time()
+            print(f"\n[PHASE] {phase_name}" + (f" - {description}" if description else ""))
+        def phase_end(self, summary: str = None):
+            duration = time.time() - (self.phase_start_time or self.start_time)
+            print(f"[DONE] {self.current_phase} ({duration:.1f}s)" + (f" - {summary}" if summary else ""))
+            self.phase_history.append({'name': self.current_phase, 'duration': duration})
+        def step(self, current: int, total: int, item_name: str, extra_info: str = None):
+            print(f"  [{current}/{total}] {item_name}" + (f" - {extra_info}" if extra_info else ""))
+        def substep(self, message: str, status: str = "..."):
+            print(f"    [{status}] {message}")
+        def info(self, message: str, indent: int = 0):
+            print(f"{'  ' * indent}→ {message}")
+        def success(self, message: str):
+            print(f"  ✓ {message}")
+        def warning(self, message: str):
+            print(f"  ⚠ {message}")
+        def error(self, message: str):
+            print(f"  ✗ {message}")
+            self.stats['errors'].append(message)
+        def table_header(self, columns: List[Tuple[str, int]]):
+            print("  | " + " | ".join(name for name, _ in columns) + " |")
+        def table_row(self, values: List[Tuple[str, int]], highlight: bool = False):
+            print("  | " + " | ".join(str(val) for val, _ in values) + " |")
+        def stats_summary(self, title: str, stats: Dict[str, Any]):
+            print(f"\n{title}:")
+            for k, v in stats.items(): print(f"  {k}: {v}")
+        def record_result(self, graph: str, algorithm: str, benchmark: str, time_sec: float, speedup: float = None):
+            self.stats['benchmarks_run'] += 1
+        def final_summary(self):
+            print(f"\n[COMPLETE] Total time: {time.time() - self.start_time:.1f}s")
 
 
 # Global progress tracker instance
