@@ -21,14 +21,17 @@ graphs   algos      metrics    analysis     for C++
 
 ## Quick Start
 
-```bash
-# Run correlation analysis with quick test
-python3 scripts/analysis/correlation_analysis.py --quick
+The unified experiment script handles all correlation analysis:
 
-# Full analysis on real graphs
-python3 scripts/analysis/correlation_analysis.py \
-    --graphs-dir ./graphs \
-    --benchmark pr bfs
+```bash
+# Run full pipeline (includes correlation analysis)
+python3 scripts/graphbrew_experiment.py --full --download-size SMALL
+
+# Train weights with adaptive analysis
+python3 scripts/graphbrew_experiment.py --fill-weights --download-size SMALL
+
+# Phase-based: run only weights generation
+python3 scripts/graphbrew_experiment.py --phase weights --graphs small
 ```
 
 ---
@@ -155,49 +158,46 @@ weights = {
 
 ## Running Analysis
 
-### correlation_analysis.py
+### Using graphbrew_experiment.py (Recommended)
+
+The unified experiment script provides all correlation analysis functionality:
 
 ```bash
-python3 scripts/analysis/correlation_analysis.py [options]
+python3 scripts/graphbrew_experiment.py [options]
 ```
 
 ### Options
 
 | Option | Description | Default |
 |--------|-------------|---------|
-| `--graphs-dir` | Directory with graphs | `./graphs` |
-| `--benchmark` | Benchmarks to analyze | `pr bfs` |
-| `--algorithms` | Algorithm IDs | `0,7,12,15,16-20` |
-| `--output` | Output weights file | `scripts/weights/type_0.json` |
-| `--quick` | Quick test with synthetic graphs | False |
-| `--no-benchmark` | Use existing results only | False |
-| `--verbose` | Show detailed output | False |
+| `--full` | Run complete pipeline | False |
+| `--phase weights` | Run only weights generation | - |
+| `--fill-weights` | Comprehensive weight training | False |
+| `--download-size` | Graph set: SMALL, MEDIUM, LARGE, ALL | - |
+| `--graphs` | Graph size: small, medium, large, all | all |
+| `--skip-cache` | Skip cache simulation (faster) | False |
+| `--adaptive-analysis` | Show algorithm distribution | False |
 
 ### Examples
 
 #### Quick Test
 ```bash
-python3 scripts/analysis/correlation_analysis.py \
-    --quick \
-    --algorithms "0,7,12,15,20"
+python3 scripts/graphbrew_experiment.py --full --download-size SMALL --skip-cache
 ```
 
 #### Full Analysis
 ```bash
-# First download graphs
-python3 scripts/download/download_graphs.py --size MEDIUM --output-dir ./graphs
+# Download and run complete analysis
+python3 scripts/graphbrew_experiment.py --full --download-size MEDIUM
 
-# Run analysis
-python3 scripts/analysis/correlation_analysis.py \
-    --graphs-dir ./graphs \
-    --benchmark pr bfs cc \
-    --algorithms "0,5,7,11,12,15,16,17,18,19,20" \
-    --verbose
+# Or run phases separately
+python3 scripts/graphbrew_experiment.py --phase benchmark --graphs medium
+python3 scripts/graphbrew_experiment.py --phase weights
 ```
 
-#### Reanalyze Existing Results
+#### Comprehensive Weight Training
 ```bash
-python3 scripts/analysis/correlation_analysis.py \
+python3 scripts/graphbrew_experiment.py --fill-weights --download-size ALL --auto-memory
     --no-benchmark \
     --output new_weights.json
 ```
@@ -321,15 +321,23 @@ RCM:
 
 ## Visualizing Results
 
-### Generate Correlation Heatmap
+Results are saved to `results/` and can be analyzed using standard tools.
+
+### Benchmark Results
+
+After running the full pipeline, results are in JSON format:
 
 ```bash
-python3 scripts/analysis/correlation_analysis.py \
-    --graphs-dir ./graphs \
-    --plot-heatmap correlation_heatmap.png
+# View benchmark results
+cat results/benchmark_*.json | python3 -m json.tool
+
+# View generated weights
+cat scripts/weights/type_0.json | python3 -m json.tool
 ```
 
-Output:
+### Correlation Matrix
+
+The weights reflect feature correlations:
 
 ```
                   ORIG  HUBCDB  RCM   LeiOrd  LeiHyb
@@ -338,14 +346,6 @@ hub_concentration -0.08  0.67   -0.72  0.41    0.45
 degree_variance    0.02  0.45   -0.58  0.38    0.52
 density            0.15 -0.23    0.41 -0.18   -0.23
 log_edges         -0.31  0.21   -0.15  0.28    0.38
-```
-
-### Generate Performance Chart
-
-```bash
-python3 scripts/analysis/correlation_analysis.py \
-    --graphs-dir ./graphs \
-    --plot-performance performance_chart.png
 ```
 
 ---
@@ -367,10 +367,8 @@ If many weight fields are 0 or default 1.0, use the unified fill mode:
 # Fill ALL weight fields including cache impacts, topology features, and per-graph-type weights
 python3 scripts/graphbrew_experiment.py \
     --fill-weights \
-    --graphs-dir ./results/graphs \
-    --graphs small \
-    --max-graphs 5 \
-    --trials 2
+    --download-size MEDIUM \
+    --auto-memory
 ```
 
 This runs all phases sequentially:
@@ -405,22 +403,12 @@ After each weight update, the system automatically:
 2. **Generates per-cluster weights** in `scripts/weights/type_N.json`
 3. **Updates type registry** with centroids for runtime matching
 
-### Incremental Update
-
-```bash
-# Keep existing weights, only update from new data
-python3 scripts/analysis/correlation_analysis.py \
-    --graphs-dir ./new_graphs \
-    --incremental
-```
-
 ### Reset to Defaults
 
 ```bash
 # Regenerate from scratch
-rm -rf scripts/weights/
-python3 scripts/analysis/correlation_analysis.py \
-    --graphs-dir ./graphs
+rm -rf scripts/weights/type_*.json scripts/weights/type_registry.json
+python3 scripts/graphbrew_experiment.py --fill-weights --download-size SMALL
 ```
 
 ---
@@ -439,24 +427,15 @@ Include graphs with different characteristics:
 
 ```bash
 # Use at least 5-10 trials for stable measurements
-python3 scripts/analysis/correlation_analysis.py \
-    --trials 10
+python3 scripts/graphbrew_experiment.py --full --download-size MEDIUM
 ```
 
 ### 3. Target Your Workload
 
-If you mostly run PageRank:
+For specific benchmarks:
 ```bash
-python3 scripts/analysis/correlation_analysis.py \
-    --benchmark pr \  # Focus on PageRank
-    --algorithms "0,7,12,20"
-```
-
-If you run mixed workloads:
-```bash
-python3 scripts/analysis/correlation_analysis.py \
-    --benchmark pr bfs cc sssp \  # All benchmarks
-    --algorithms "0,7,12,15,16,17,18,19,20"
+# Focus on specific benchmarks
+python3 scripts/graphbrew_experiment.py --phase benchmark --benchmarks pr bfs
 ```
 
 ---
@@ -469,30 +448,25 @@ python3 scripts/analysis/correlation_analysis.py \
 
 **Fix**:
 ```bash
-# Add more graphs
-python3 scripts/download/download_graphs.py --size MEDIUM --output-dir ./graphs
+# Download more graphs
+python3 scripts/graphbrew_experiment.py --download-only --download-size MEDIUM
 
-# Re-run with more algorithms
-python3 scripts/analysis/correlation_analysis.py \
-    --algorithms "0,1,2,3,4,5,6,7,8,9,10,11,12,15,16,17,18,19,20"
+# Re-run full experiment
+python3 scripts/graphbrew_experiment.py --full --download-size MEDIUM
 ```
 
 ### "Weights look wrong"
 
-**Check correlation matrix**:
-```bash
-cat correlation_matrix.csv
-```
-
-**Verify benchmark data**:
+**Check benchmark results**:
 ```bash
 python3 -c "
 import json
-with open('benchmark_results.json') as f:
-    data = json.load(f)
-    for g, r in data.items():
-        best = min(r.items(), key=lambda x: x[1]['mean'])
-        print(f'{g}: {best[0]} ({best[1][\"mean\"]:.4f}s)')
+for f in ['results/benchmark_*.json']:
+    import glob
+    for path in glob.glob(f):
+        with open(path) as fp:
+            data = json.load(fp)
+            print(f'{path}: {len(data)} results')
 "
 ```
 
@@ -500,22 +474,19 @@ with open('benchmark_results.json') as f:
 
 ## Full Correlation Scan
 
-For comprehensive benchmarking of all algorithms across all graphs, use the full correlation scan script. This is the recommended way to generate complete benchmark data for perceptron weight training.
+For comprehensive benchmarking, use the unified experiment script:
 
 ### Running Full Scan
 
 ```bash
-# Quick test with synthetic graphs
-python3 scripts/analysis/full_correlation_scan.py --quick
+# Quick test with SMALL graphs
+python3 scripts/graphbrew_experiment.py --full --download-size SMALL
 
-# SMALL graphs only (~12MB)
-python3 scripts/analysis/full_correlation_scan.py --small
+# MEDIUM graphs (recommended for development)
+python3 scripts/graphbrew_experiment.py --full --download-size MEDIUM
 
-# SMALL + MEDIUM graphs (~600MB, recommended)
-python3 scripts/analysis/full_correlation_scan.py --medium --trials 3
-
-# All graphs including LARGE (~72GB, full experiments)
-python3 scripts/analysis/full_correlation_scan.py --full --trials 16
+# All graphs with automatic resource management
+python3 scripts/graphbrew_experiment.py --full --download-size ALL --auto-memory --auto-disk
 ```
 
 ### Key Features
@@ -532,45 +503,44 @@ Results are saved to `./results/` by default:
 
 ```
 results/
-├── logs/
-│   └── correlation_scan.log   # Detailed execution log
-├── scan_results.json          # All benchmark results (JSON)
-├── correlation_matrix.csv     # Feature-algorithm correlations
-└── summary_report.txt         # Human-readable summary
+├── mappings/              # Pre-generated label maps
+├── reorder_*.json         # Reordering times
+├── benchmark_*.json       # All benchmark results
+├── cache_*.json           # Cache simulation results
+└── logs/                  # Execution logs
 ```
 
 ### Resume Interrupted Scan
 
-If a scan is interrupted, simply re-run with the same parameters:
+If a scan is interrupted, re-run with the same parameters - the script will skip completed work:
 
 ```bash
-# Resume automatically picks up where it left off
-python3 scripts/analysis/full_correlation_scan.py --medium --resume
+# Resume automatically
+python3 scripts/graphbrew_experiment.py --full --download-size MEDIUM
 ```
 
 ### Output Format
 
-The `scan_results.json` contains structured results:
+The `benchmark_*.json` contains structured results:
 
 ```json
 {
   "metadata": {
-    "start_time": "2025-01-19T02:00:00",
+    "timestamp": "2025-01-19T02:00:00",
     "graphs_completed": 20,
-    "total_runs": 1900
+    "algorithms_tested": 18
   },
-  "results": {
-    "facebook": {
-      "pr": {
-        "1": {"time": 0.052, "speedup": 1.0},
-        "20": {"time": 0.037, "speedup": 1.41}
-      }
+  "results": [
+    {
+      "graph": "facebook",
+      "algorithm_id": 7,
+      "algorithm_name": "HUBCLUSTERDBG",
+      "benchmark": "pr",
+      "avg_time": 0.037,
+      "speedup": 1.41,
+      "success": true
     }
-  },
-  "best_algorithms": {
-    "pr": {"facebook": "LeidenCSR", "twitter": "LeidenDendrogram"},
-    "bfs": {"facebook": "RABBITORDER", "roadNet": "RCM"}
-  }
+  ]
 }
 ```
 
