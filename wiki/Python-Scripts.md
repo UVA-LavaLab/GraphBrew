@@ -17,6 +17,7 @@ scripts/
 │   ├── phases.py                # Phase orchestration (run_reorder_phase, etc.)
 │   ├── utils.py                 # Core utilities (ALGORITHMS, run_command, etc.)
 │   ├── features.py              # Graph feature computation & system utilities
+│   ├── dependencies.py          # System dependency detection & installation
 │   ├── download.py              # Graph downloading from SuiteSparse
 │   ├── build.py                 # Binary compilation utilities
 │   ├── reorder.py               # Vertex reordering generation
@@ -81,6 +82,13 @@ python3 scripts/graphbrew_experiment.py --help
 | **Brute-Force Validation** | Compares adaptive vs all algorithms |
 
 ### Command-Line Options
+
+#### Dependency Management
+| Option | Description |
+|--------|-------------|
+| `--check-deps` | Check system dependencies (g++, boost, numa, etc.) |
+| `--install-deps` | Install missing system dependencies (requires sudo) |
+| `--install-boost` | Download, compile, and install Boost 1.58.0 to /opt/boost_1_58_0 |
 
 #### Pipeline Control
 | Option | Description |
@@ -239,6 +247,34 @@ features = compute_extended_features("graph.mtx")
 
 # Detect graph type
 graph_type = detect_graph_type(features)  # "social", "web", "road", etc.
+```
+
+### lib/dependencies.py - System Dependencies
+
+Automatic system dependency detection and installation:
+
+```python
+from scripts.lib.dependencies import (
+    check_dependencies,      # Check all required dependencies
+    install_dependencies,    # Install missing dependencies (needs sudo)
+    install_boost_158,       # Download and compile Boost 1.58.0
+    check_boost_158,         # Check if Boost 1.58.0 is installed
+    detect_platform,         # Detect OS and package manager
+    get_package_manager,     # Get system package manager commands
+)
+
+# Check dependencies
+status = check_dependencies()
+# Returns dict with: g++, boost, numa, tcmalloc, python versions and status
+
+# Install missing dependencies (requires sudo)
+install_dependencies()
+
+# Install Boost 1.58.0 for RabbitOrder
+install_boost_158()  # Downloads, compiles with bootstrap/b2, installs to /opt/boost_1_58_0
+
+# Check Boost 1.58 specifically
+version = check_boost_158()  # Returns version string or None
 ```
 
 ### lib/download.py - Graph Downloading
