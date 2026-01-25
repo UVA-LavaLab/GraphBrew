@@ -145,21 +145,35 @@ System package managers often install newer versions which may cause issues.
 #### Automatic Installation (Recommended)
 
 ```bash
-# Install Boost 1.58.0 to /opt/boost_1_58_0
+# Download, compile, and install Boost 1.58.0 to /opt/boost_1_58_0
 python3 scripts/graphbrew_experiment.py --install-boost
 ```
 
-This downloads and installs Boost 1.58.0 to `/opt/boost_1_58_0`, which is the path
-expected by the GraphBrew Makefile.
+This automatically:
+1. Downloads Boost 1.58.0 source (~73MB)
+2. Runs `bootstrap.sh` to configure
+3. Compiles with `b2` using all CPU cores
+4. Installs to `/opt/boost_1_58_0` with proper `include/` and `lib/` structure
+
+**Note:** Compilation takes 10-30 minutes depending on your system.
 
 #### Manual Installation
 
 ```bash
-# Download and install Boost 1.58.0
+# Download Boost 1.58.0
 wget https://archives.boost.io/release/1.58.0/source/boost_1_58_0.tar.gz
 tar -xzf boost_1_58_0.tar.gz
-sudo mv boost_1_58_0 /opt/
-rm boost_1_58_0.tar.gz
+cd boost_1_58_0
+
+# Configure
+./bootstrap.sh --prefix=/opt/boost_1_58_0
+
+# Compile and install (uses all CPU cores)
+cpuCores=$(nproc)
+sudo ./b2 --with=all -j $cpuCores install
+
+# Cleanup
+cd .. && rm -rf boost_1_58_0 boost_1_58_0.tar.gz
 ```
 
 #### Verify Boost Installation
