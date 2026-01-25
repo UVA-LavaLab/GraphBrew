@@ -4,36 +4,49 @@ Documentation for all Python tools in the GraphBrew framework.
 
 ## Overview
 
+The scripts folder contains a modular library (`lib/`) and the main orchestration script:
+
 ```
 scripts/
-├── graphbrew_experiment.py      # ⭐ MAIN: One-click unified experiment pipeline
+├── graphbrew_experiment.py      # ⭐ MAIN: Orchestration script (~2900 lines)
 ├── requirements.txt             # Python dependencies
+│
+├── lib/                         # 📦 Modular library (~8000 lines total)
+│   ├── __init__.py              # Module exports
+│   ├── types.py                 # Data classes (GraphInfo, BenchmarkResult, etc.)
+│   ├── phases.py                # Phase orchestration (run_reorder_phase, etc.)
+│   ├── utils.py                 # Core utilities (ALGORITHMS, run_command, etc.)
+│   ├── features.py              # Graph feature computation & system utilities
+│   ├── download.py              # Graph downloading from SuiteSparse
+│   ├── build.py                 # Binary compilation utilities
+│   ├── reorder.py               # Vertex reordering generation
+│   ├── benchmark.py             # Performance benchmark execution
+│   ├── cache.py                 # Cache simulation analysis
+│   ├── weights.py               # Type-based weight management
+│   ├── training.py              # ML weight training
+│   ├── analysis.py              # Adaptive order analysis
+│   ├── progress.py              # Progress tracking & reporting
+│   └── results.py               # Result file I/O
 │
 ├── weights/                     # Auto-generated type weights
 │   ├── type_registry.json       # Maps graphs → types + centroids
 │   ├── type_0.json              # Cluster 0 weights
-│   ├── type_1.json              # Cluster 1 weights
 │   └── type_N.json              # Additional clusters as needed
 │
-├── analysis/                    # Utility libraries
-│   ├── correlation_analysis.py  # Feature-algorithm correlation functions
-│   └── perceptron_features.py   # ML feature extraction utilities
+├── examples/                    # Example scripts
+│   └── custom_pipeline.py       # Custom phase-based pipeline example
 │
-├── benchmark/                   # Specialized benchmarks
-│   └── run_pagerank_convergence.py  # PageRank iteration analysis
-│
-├── download/                    # Graph acquisition
-│   └── download_graphs.py       # Standalone graph downloader
-│
-└── utils/                       # Shared utilities
-    └── common.py                # ALGORITHMS dict, parsing helpers
+├── analysis/                    # Legacy analysis utilities
+├── benchmark/                   # Specialized benchmark scripts
+├── download/                    # Standalone downloader
+└── utils/                       # Additional shared utilities
 ```
 
 ---
 
-## ⭐ graphbrew_experiment.py - Unified Pipeline (Recommended)
+## ⭐ graphbrew_experiment.py - Main Orchestration
 
-The main script that combines all functionality into a single one-click solution.
+The main script provides orchestration over the `lib/` modules. It handles argument parsing and calls the appropriate phase functions.
 
 ### Quick Start
 
@@ -73,14 +86,14 @@ python3 scripts/graphbrew_experiment.py --help
 #### Memory Management
 | Option | Description |
 |--------|-------------|
-| `--max-memory GB` | Maximum RAM (GB) for graph processing. Graphs exceeding this limit are skipped. |
-| `--auto-memory` | Automatically detect available RAM and skip graphs that won't fit (uses 80% of total) |
+| `--max-memory GB` | Maximum RAM (GB) for graph processing |
+| `--auto-memory` | Automatically detect available RAM (uses 80% of total) |
 
 #### Disk Space Management
 | Option | Description |
 |--------|-------------|
-| `--max-disk GB` | Maximum disk space (GB) for downloads. Downloads stop when cumulative size exceeds limit. |
-| `--auto-disk` | Automatically limit downloads to available disk space (uses 80% of free space) |
+| `--max-disk GB` | Maximum disk space (GB) for downloads |
+| `--auto-disk` | Automatically limit downloads to available disk space |
 
 #### Experiment Options
 | Option | Description |
@@ -94,23 +107,16 @@ python3 scripts/graphbrew_experiment.py --help
 #### Label Mapping (Consistent Reordering)
 | Option | Description |
 |--------|-------------|
-| `--generate-maps` | Pre-generate .lo mapping files for consistent reordering |
-| `--use-maps` | Use pre-generated label maps (avoids regenerating each run) |
+| `--generate-maps` | Pre-generate .lo mapping files |
+| `--use-maps` | Use pre-generated label maps |
 
-#### Iterative Training (Adaptive Weight Optimization)
+#### Training Options
 | Option | Description |
 |--------|-------------|
-| `--train-adaptive` | Run iterative training feedback loop (updates type-based weights) |
-| `--train-large` | Run large-scale training with batching and multi-benchmark support |
-| `--target-accuracy` | Target accuracy % for training (default: 80) |
-| `--max-iterations` | Maximum training iterations (default: 10) |
-| `--learning-rate` | Weight adjustment rate (default: 0.1) |
-| `--batch-size` | Batch size for large-scale training (default: 8) |
-| `--train-benchmarks` | Benchmarks for multi-benchmark training (default: pr bfs cc) |
-| `--init-weights` | Initialize/upgrade weights file with enhanced features |
-| `--fill-weights` | Fill ALL weight fields: graph type detection, cache sim, topology features, per-type weights |
-
-> **Note:** Both `--train-adaptive` and `--fill-weights` use the type-based weight system (`scripts/weights/type_*.json`).
+| `--train-adaptive` | Run iterative training feedback loop |
+| `--train-large` | Run large-scale batched training |
+| `--target-accuracy` | Target accuracy % (default: 80) |
+| `--fill-weights` | Fill ALL weight fields with comprehensive analysis |
 
 ### Examples
 
@@ -118,211 +124,340 @@ python3 scripts/graphbrew_experiment.py --help
 # One-click full experiment
 python3 scripts/graphbrew_experiment.py --full --download-size SMALL
 
-# Download medium graphs only
-python3 scripts/graphbrew_experiment.py --download-only --download-size MEDIUM
-
-# Download all graphs that fit in 32GB RAM
-python3 scripts/graphbrew_experiment.py --download-only --download-size ALL --max-memory 32
-
-# Limit downloads to 50GB disk space
-python3 scripts/graphbrew_experiment.py --download-only --download-size ALL --max-disk 50
-
-# Auto-detect RAM and disk space limits
-python3 scripts/graphbrew_experiment.py --full --download-size ALL --auto-memory --auto-disk
-
-# Run experiment on existing graphs
-python3 scripts/graphbrew_experiment.py --phase all --graphs small
-
 # Quick test with key algorithms
 python3 scripts/graphbrew_experiment.py --graphs small --key-only
 
-# Run brute-force validation
-python3 scripts/graphbrew_experiment.py --brute-force
-
-# Generate weights from existing results
-python3 scripts/graphbrew_experiment.py --phase weights
-
-# Pre-generate label maps (also records reorder times)
+# Pre-generate label maps
 python3 scripts/graphbrew_experiment.py --generate-maps --graphs small
 
-# Iterative training to reach 90% accuracy
-python3 scripts/graphbrew_experiment.py --train-adaptive --target-accuracy 90 --graphs small
-
-# Full training with custom learning rate
-python3 scripts/graphbrew_experiment.py --train-adaptive --target-accuracy 85 --learning-rate 0.05
+# Fill ALL weight fields
+python3 scripts/graphbrew_experiment.py --fill-weights --graphs small --max-graphs 5
 
 # Clean and start fresh
 python3 scripts/graphbrew_experiment.py --clean-all --full --download-size SMALL
-
-# Fill ALL weight fields (graph type detection, cache impacts, topology features, per-type weights)
-python3 scripts/graphbrew_experiment.py --fill-weights --graphs small --max-graphs 5
-
-# Fill weights on all graphs within memory and disk limits
-python3 scripts/graphbrew_experiment.py --fill-weights --auto-memory --auto-disk --download-size ALL
-```
-
-### Output Structure
-
-All outputs go to `./results/`:
-
-```
-results/
-├── graphs/                   # Downloaded graphs (if using --full)
-│   └── {graph_name}/         # Each graph in its own directory
-│       └── {graph_name}.mtx  # Matrix Market format
-├── mappings/                 # Pre-generated label mappings
-│   ├── index.json            # Mapping index (graph → algo → path)
-│   └── {graph_name}/         # Per-graph mappings
-│       ├── HUBCLUSTERDBG.lo  # Label order for each algorithm
-│       ├── HUBCLUSTERDBG.time # Reorder time for this algorithm
-│       ├── LeidenCSR.lo
-│       └── ...
-├── graph_properties_cache.json    # Cached graph properties (modularity, degree_variance, etc.)
-├── reorder_times_*.json      # All reorder timings (per graph/algo)
-├── reorder_times_*.csv       # CSV version for analysis
-├── benchmark_*.json          # Benchmark execution results
-├── cache_*.json              # Cache simulation results (L1/L2/L3 hit rates)
-├── brute_force_*.json        # Validation results
-├── training_*/               # Iterative training output (if --train-adaptive)
-│   ├── training_summary.json # Overall training results
-│   ├── weights_iter1.json    # Weights after each iteration
-│   ├── best_weights_*.json   # Best weights (highest accuracy)
-│   └── brute_force_*.json    # Per-iteration analysis
-└── logs/                     # Execution logs
-
-scripts/weights/               # Auto-clustered type weights
-├── type_registry.json        # Maps graph names → type IDs + centroids
-├── type_0.json               # Cluster 0 weights (auto-generated)
-├── type_1.json               # Cluster 1 weights (auto-generated)
-└── type_N.json               # Additional clusters as needed
 ```
 
 ---
 
-## Data Classes
+## 📦 lib/ Module Reference
 
-The script uses these dataclasses for structured data:
+The `lib/` folder contains modular, reusable components. Each module can be used independently or via the phase orchestration system.
 
-### GraphInfo
+### lib/types.py - Data Classes
+
+Central type definitions used across all modules:
+
 ```python
-@dataclass
-class GraphInfo:
-    name: str           # Graph name
-    path: str           # Path to graph file
-    size_mb: float      # File size in MB
-    is_symmetric: bool  # Whether graph is symmetric
-    nodes: int          # Number of vertices
-    edges: int          # Number of edges
+from scripts.lib.types import GraphInfo, BenchmarkResult, CacheResult, ReorderResult
+
+# GraphInfo - Graph metadata
+GraphInfo(name="web-Stanford", path="graphs/web-Stanford/web-Stanford.mtx", 
+          size_mb=5.2, nodes=281903, edges=2312497)
+
+# BenchmarkResult - Benchmark execution result
+BenchmarkResult(graph="web-Stanford", algorithm_id=7, algorithm_name="HUBCLUSTERDBG",
+                benchmark="pr", avg_time=0.234, speedup=1.45, success=True)
+
+# CacheResult - Cache simulation result
+CacheResult(graph="web-Stanford", algorithm_id=7, algorithm_name="HUBCLUSTERDBG",
+            benchmark="pr", l1_miss_rate=0.12, l2_miss_rate=0.08, l3_miss_rate=0.02)
+
+# ReorderResult - Reordering result
+ReorderResult(graph="web-Stanford", algorithm_id=7, algorithm_name="HUBCLUSTERDBG",
+              time_seconds=1.23, mapping_file="mappings/web-Stanford/HUBCLUSTERDBG.lo")
 ```
 
-### ReorderResult
+### lib/phases.py - Phase Orchestration
+
+High-level phase functions for building custom pipelines:
+
 ```python
-@dataclass
-class ReorderResult:
-    graph: str              # Graph name
-    algorithm_id: int       # Algorithm ID (0-20)
-    algorithm_name: str     # Algorithm name
-    reorder_time: float     # Time to reorder (seconds)
-    mapping_file: str       # Path to .lo file (if generated)
-    success: bool           # Whether reordering succeeded
-    error: str              # Error message if failed
+from scripts.lib.phases import (
+    PhaseConfig,
+    run_reorder_phase,
+    run_benchmark_phase,
+    run_cache_phase,
+    run_weights_phase,
+    run_full_pipeline,
+)
+
+# Create configuration
+config = PhaseConfig(
+    benchmarks=['pr', 'bfs', 'cc'],
+    trials=3,
+    skip_slow=True
+)
+
+# Run individual phases
+reorder_results, label_maps = run_reorder_phase(graphs, algorithms, config)
+benchmark_results = run_benchmark_phase(graphs, algorithms, label_maps, config)
+
+# Or run full pipeline
+results = run_full_pipeline(graphs, algorithms, config, phases=['reorder', 'benchmark'])
 ```
 
-### BenchmarkResult
+### lib/utils.py - Core Utilities
+
+Constants and shared utilities:
+
 ```python
-@dataclass
-class BenchmarkResult:
-    graph: str              # Graph name
-    algorithm_id: int       # Algorithm ID
-    algorithm_name: str     # Algorithm name
-    benchmark: str          # Benchmark name (pr, bfs, etc.)
-    trial_time: float       # Average trial time
-    speedup: float          # Speedup vs ORIGINAL
-    nodes: int              # Graph nodes
-    edges: int              # Graph edges
-    success: bool           # Whether benchmark succeeded
-    error: str              # Error message if failed
+from scripts.lib.utils import (
+    ALGORITHMS,          # {0: "ORIGINAL", 1: "RANDOM", ...}
+    BENCHMARKS,          # ['pr', 'bfs', 'cc', 'sssp', 'bc']
+    run_command,         # Execute shell commands
+    get_timestamp,       # Formatted timestamps
+)
 ```
 
-### CacheResult
+### lib/features.py - Graph Features
+
+Graph feature computation and system utilities:
+
 ```python
-@dataclass
-class CacheResult:
-    graph: str              # Graph name
-    algorithm_id: int       # Algorithm ID
-    algorithm_name: str     # Algorithm name
-    benchmark: str          # Benchmark name
-    l1_hit_rate: float      # L1 cache hit rate (%)
-    l2_hit_rate: float      # L2 cache hit rate (%)
-    l3_hit_rate: float      # L3 cache hit rate (%)
-    success: bool           # Whether simulation succeeded
-    error: str              # Error message if failed
+from scripts.lib.features import (
+    # Graph type detection
+    detect_graph_type,
+    compute_extended_features,
+    
+    # System utilities
+    get_available_memory_gb,
+    get_num_threads,
+    estimate_graph_memory_gb,
+)
+
+# Compute graph features
+features = compute_extended_features("graph.mtx")
+# Returns: {modularity, density, avg_degree, degree_variance, clustering_coefficient, ...}
+
+# Detect graph type
+graph_type = detect_graph_type(features)  # "social", "web", "road", etc.
 ```
 
-### PerceptronWeight
+### lib/download.py - Graph Downloading
+
+Download graphs from SuiteSparse:
+
 ```python
-@dataclass
-class PerceptronWeight:
-    # Core weights
-    bias: float = 0.5               # Base preference (0.0-1.0+)
-    w_modularity: float = 0.0       # Weight for modularity
-    w_log_nodes: float = 0.0        # Weight for log(nodes)
-    w_log_edges: float = 0.0        # Weight for log(edges)
-    w_density: float = 0.0          # Weight for edge density
-    w_avg_degree: float = 0.0       # Weight for average degree
-    w_degree_variance: float = 0.0  # Weight for degree variance
-    w_hub_concentration: float = 0.0 # Weight for hub concentration
-    
-    # Cache impact weights
-    cache_l1_impact: float = 0.0    # L1 cache hit rate impact
-    cache_l2_impact: float = 0.0    # L2 cache hit rate impact
-    cache_l3_impact: float = 0.0    # L3 cache hit rate impact
-    cache_dram_penalty: float = 0.0 # DRAM access penalty
-    
-    # Reorder time weight
-    w_reorder_time: float = 0.0     # Penalty for reorder time
-    
-    # Extended graph structure features (NEW)
-    w_clustering_coeff: float = 0.0   # Local clustering coefficient effect
-    w_avg_path_length: float = 0.0    # Average path length sensitivity
-    w_diameter: float = 0.0           # Diameter effect
-    w_community_count: float = 0.0    # Sub-community count effect
-    
-    # Per-benchmark weight adjustments (NEW)
-    benchmark_weights: Dict[str, float] = field(default_factory=lambda: {
-        'pr': 1.0, 'bfs': 1.0, 'cc': 1.0, 'sssp': 1.0, 'bc': 1.0
-    })
-    
-    # Training metadata
-    _metadata: Dict = field(default_factory=dict)  # win_rate, avg_speedup, sample_count
+from scripts.lib.download import (
+    DOWNLOAD_GRAPHS_SMALL,   # 16 small graphs
+    DOWNLOAD_GRAPHS_MEDIUM,  # 28 medium graphs
+    download_graphs,
+    get_catalog_stats,
+)
+
+# Download small graphs
+download_graphs(DOWNLOAD_GRAPHS_SMALL, output_dir="./graphs")
+
+# Get catalog statistics
+stats = get_catalog_stats()
+print(f"Total graphs: {stats['total']}, Total size: {stats['total_size_gb']:.1f} GB")
 ```
 
-### DownloadableGraph
+### lib/reorder.py - Reordering
+
+Generate vertex reorderings:
+
 ```python
-@dataclass
-class DownloadableGraph:
-    name: str           # Graph name
-    url: str            # Download URL
-    size_mb: int        # Expected size in MB
-    nodes: int          # Number of nodes
-    edges: int          # Number of edges
-    symmetric: bool     # Whether graph is symmetric
-    category: str       # Category (social, web, road, etc.)
-    description: str    # Human-readable description
+from scripts.lib.reorder import (
+    generate_reorderings,
+    generate_reorderings_with_variants,
+    load_label_maps_index,
+)
+
+# Generate reorderings for all algorithms
+results = generate_reorderings(graphs, algorithms, bin_dir="bench/bin")
+
+# Load existing label maps
+label_maps = load_label_maps_index("results")
+```
+
+### lib/benchmark.py - Benchmarking
+
+Run performance benchmarks:
+
+```python
+from scripts.lib.benchmark import (
+    run_benchmark,
+    run_benchmark_suite,
+    parse_benchmark_output,
+)
+
+# Run single benchmark
+result = run_benchmark(graph_path, algorithm_id, benchmark="pr", bin_dir="bench/bin")
+
+# Run full suite
+results = run_benchmark_suite(graphs, algorithms, benchmarks=['pr', 'bfs'])
+```
+
+### lib/cache.py - Cache Simulation
+
+Run cache simulations:
+
+```python
+from scripts.lib.cache import (
+    run_cache_simulations,
+    get_cache_stats_summary,
+)
+
+# Run simulations
+results = run_cache_simulations(graphs, algorithms, benchmarks=['pr'])
+
+# Get summary statistics
+summary = get_cache_stats_summary(results)
+```
+
+### lib/weights.py - Weight Management
+
+Type-based weight management for AdaptiveOrder:
+
+```python
+from scripts.lib.weights import (
+    assign_graph_type,
+    update_type_weights_incremental,
+    get_best_algorithm_for_type,
+    load_type_registry,
+)
+
+# Assign graph to a type based on features
+type_name, is_new = assign_graph_type("web-Stanford", features)
+
+# Update weights incrementally
+update_type_weights_incremental(type_name, algorithm_name, benchmark, speedup)
+
+# Get best algorithm for a type
+best_algo = get_best_algorithm_for_type(type_name, benchmark="pr")
+```
+
+### lib/training.py - ML Training
+
+Train adaptive weights:
+
+```python
+from scripts.lib.training import (
+    train_adaptive_weights_iterative,
+    train_adaptive_weights_large_scale,
+)
+
+# Iterative training
+result = train_adaptive_weights_iterative(
+    graphs=graphs,
+    bin_dir="bench/bin",
+    target_accuracy=0.85,
+    max_iterations=10
+)
+print(f"Final accuracy: {result.final_accuracy:.2%}")
+```
+
+### lib/analysis.py - Adaptive Analysis
+
+Analyze adaptive ordering:
+
+```python
+from scripts.lib.analysis import (
+    analyze_adaptive_order,
+    compare_adaptive_vs_fixed,
+    run_subcommunity_brute_force,
+)
+
+# Analyze adaptive ordering
+results = analyze_adaptive_order(graphs, bin_dir="bench/bin")
+
+# Compare adaptive vs fixed algorithms
+comparison = compare_adaptive_vs_fixed(graphs, fixed_algorithms=[7, 15, 16])
+```
+
+### lib/progress.py - Progress Tracking
+
+Visual progress tracking:
+
+```python
+from scripts.lib.progress import ProgressTracker
+
+progress = ProgressTracker()
+progress.banner("EXPERIMENT", "Running GraphBrew benchmarks")
+progress.phase_start("REORDERING", "Generating vertex reorderings")
+progress.info("Processing graph: web-Stanford")
+progress.success("Completed 10/15 graphs")
+progress.phase_end("Reordering complete")
+```
+
+---
+
+## Custom Pipeline Example
+
+Create custom experiment pipelines using `lib/phases.py`:
+
+```python
+#!/usr/bin/env python3
+"""Custom GraphBrew pipeline example."""
+
+import sys
+sys.path.insert(0, "scripts")
+
+from lib.phases import PhaseConfig, run_reorder_phase, run_benchmark_phase
+from lib.types import GraphInfo
+from lib.progress import ProgressTracker
+
+# Discover graphs
+graphs = [
+    GraphInfo(name="web-Stanford", path="graphs/web-Stanford/web-Stanford.mtx",
+              size_mb=5.2, nodes=281903, edges=2312497)
+]
+
+# Select algorithms
+algorithms = [0, 7, 15, 16]  # ORIGINAL, HUBCLUSTERDBG, LeidenOrder, LeidenDendrogram
+
+# Create configuration
+config = PhaseConfig(
+    benchmarks=['pr', 'bfs'],
+    trials=3,
+    progress=ProgressTracker()
+)
+
+# Run phases
+reorder_results, label_maps = run_reorder_phase(graphs, algorithms, config)
+benchmark_results = run_benchmark_phase(graphs, algorithms, label_maps, config)
+
+# Print results
+for r in benchmark_results:
+    if r.success:
+        print(f"{r.graph} / {r.algorithm_name} / {r.benchmark}: {r.avg_time:.4f}s")
+```
+
+See `scripts/examples/custom_pipeline.py` for a complete example.
+
+---
+
+## Output Structure
+
+```
+results/
+├── mappings/                 # Pre-generated label mappings
+│   ├── index.json            # Mapping index
+│   └── {graph_name}/         # Per-graph mappings
+│       ├── HUBCLUSTERDBG.lo  # Label order file
+│       └── HUBCLUSTERDBG.time # Reorder timing
+├── reorder_*.json            # Reorder results
+├── benchmark_*.json          # Benchmark results
+├── cache_*.json              # Cache simulation results
+└── logs/                     # Execution logs
+
+scripts/weights/              # Type-based weights
+├── type_registry.json        # Graph → type mapping
+├── type_0.json               # Cluster 0 weights
+└── type_N.json               # Additional clusters
 ```
 
 ---
 
 ## Installation
 
-### Requirements
-
 ```bash
 cd scripts
 pip install -r requirements.txt
 ```
 
-### requirements.txt Contents
+### requirements.txt
 
 ```
 numpy>=1.19.0
@@ -335,130 +470,24 @@ tqdm>=4.50.0
 
 ---
 
-## Utility Scripts
-
-### download/download_graphs.py
-
-Standalone graph downloader (also integrated into main script).
-
-```bash
-# List available graphs
-python3 scripts/download/download_graphs.py --list
-
-# Download specific size category
-python3 scripts/download/download_graphs.py --size MEDIUM --output-dir ./graphs
-```
-
-### benchmark/run_pagerank_convergence.py
-
-Specialized PageRank convergence analysis.
-
-```bash
-# Analyze convergence iterations by reordering
-python3 scripts/benchmark/run_pagerank_convergence.py --graphs-dir ./graphs
-```
-
-### utils/common.py
-
-Shared utilities imported by other scripts:
-- `ALGORITHMS` dictionary mapping IDs to names
-- Output parsing functions
-- Graph path utilities
-
----
-
-## Library Modules
-
-### analysis/correlation_analysis.py
-
-Functions for computing feature-algorithm correlations.
-
-```python
-from scripts.analysis.correlation_analysis import compute_graph_features
-
-# Compute features for a graph
-features = compute_graph_features('graphs/my_graph.el')
-print(f"Modularity: {features['modularity']:.4f}")
-print(f"Density: {features['density']:.6f}")
-```
-
-### analysis/perceptron_features.py
-
-ML feature extraction for perceptron training.
-
-```python
-from scripts.analysis.perceptron_features import extract_features
-
-# Extract ML features
-features = extract_features(graph_path)
-```
-
----
-
-## Common Tasks
-
-### Task 1: Full Experiment from Scratch
-
-```bash
-# One command does everything
-python3 scripts/graphbrew_experiment.py --full --download-size MEDIUM
-```
-
-### Task 2: Quick Validation
-
-```bash
-# Test on small graphs with key algorithms
-python3 scripts/graphbrew_experiment.py --graphs small --key-only --skip-cache
-```
-
-### Task 3: Regenerate Weights
-
-```bash
-# After running experiments, regenerate weights
-python3 scripts/graphbrew_experiment.py --phase weights
-```
-
-### Task 4: Brute-Force Algorithm Comparison
-
-```bash
-# Test adaptive vs all 20 algorithms
-python3 scripts/graphbrew_experiment.py --brute-force --graphs small
-```
-
----
-
 ## Troubleshooting
 
 ### Import Errors
-
 ```bash
-# Install missing packages
 pip install -r scripts/requirements.txt
-
-# Check Python version
 python3 --version  # Should be 3.6+
 ```
 
 ### Binary Not Found
-
 ```bash
-# The unified script auto-builds, but manually:
 make all
 make sim  # For cache simulation
 ```
 
 ### Permission Denied
-
 ```bash
 chmod +x bench/bin/*
 chmod +x bench/bin_sim/*
-```
-
-### Download Failures
-
-```bash
-# Retry with force flag
-python3 scripts/graphbrew_experiment.py --download-only --force-download
 ```
 
 ---
@@ -467,8 +496,8 @@ python3 scripts/graphbrew_experiment.py --download-only --force-download
 
 - [[AdaptiveOrder-ML]] - ML perceptron details
 - [[Running-Benchmarks]] - Command-line usage
-- [[Benchmark-Suite]] - Automated experiments
+- [[Code-Architecture]] - Codebase structure
 
 ---
 
-[← Back to Home](Home) | [AdaptiveOrder ML →](AdaptiveOrder-ML)
+[← Back to Home](Home) | [Code Architecture →](Code-Architecture)
