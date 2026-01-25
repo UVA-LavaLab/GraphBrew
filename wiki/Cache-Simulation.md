@@ -120,22 +120,44 @@ CACHE_OUTPUT_JSON=results.json ./bench/bin_sim/pr -g 15 -n 1
 Output format:
 ```json
 {
-  "config": {
-    "l1_size": 32768,
-    "l1_ways": 8,
-    "l2_size": 262144,
-    "l2_ways": 4,
-    "l3_size": 8388608,
-    "l3_ways": 16,
+  "total_accesses": 123456789,
+  "memory_accesses": 493827,
+  "L1": {
+    "size_bytes": 32768,
+    "ways": 8,
+    "sets": 64,
     "line_size": 64,
-    "policy": "LRU"
+    "policy": "LRU",
+    "hits": 98765432,
+    "misses": 24691357,
+    "hit_rate": 0.800000,
+    "evictions": 24691000,
+    "writebacks": 0
   },
-  "levels": {
-    "L1": {"accesses": 123456789, "hits": 98765432, "misses": 24691357, "hit_rate": 0.80},
-    "L2": {"accesses": 24691357, "hits": 19753086, "misses": 4938271, "hit_rate": 0.80},
-    "L3": {"accesses": 4938271, "hits": 4444444, "misses": 493827, "hit_rate": 0.90}
+  "L2": {
+    "size_bytes": 262144,
+    "ways": 4,
+    "sets": 1024,
+    "line_size": 64,
+    "policy": "LRU",
+    "hits": 19753086,
+    "misses": 4938271,
+    "hit_rate": 0.800000,
+    "evictions": 4938000,
+    "writebacks": 0
   },
-  "feature_vector": [0.80, 0.20, 0.80, 0.20, 0.90, 0.10, 0.996, 0.004]
+  "L3": {
+    "size_bytes": 8388608,
+    "ways": 16,
+    "sets": 8192,
+    "line_size": 64,
+    "policy": "LRU",
+    "hits": 4444444,
+    "misses": 493827,
+    "hit_rate": 0.900000,
+    "evictions": 493000,
+    "writebacks": 0
+  }
 }
 ```
 
@@ -220,25 +242,18 @@ Results are saved to `results/cache_*.json`:
 ```json
 {
   "graph": "email-Enron",
-  "algorithm_id": 20,
+  "algorithm_id": 17,
   "algorithm_name": "LeidenCSR",
   "benchmark": "pr",
   "l1_hit_rate": 85.2,
   "l2_hit_rate": 92.1,
   "l3_hit_rate": 98.5,
+  "l1_misses": 0,
+  "l2_misses": 0,
+  "l3_misses": 0,
   "success": true,
   "error": ""
 }
-```
-    --algorithms pr bfs cc bc sssp tc \
-    --reorders 0 7 8 12 17 20 \
-    --graphs-dir ./graphs \
-    --output ./cache_results
-
-# The benchmark generates:
-# - cache_results_<timestamp>.json  # Raw cache statistics
-# - cache_correlations_<timestamp>.json  # Performance correlations
-# - cache_features_<timestamp>.json  # Perceptron training features
 ```
 
 ### 5. Algorithm Selection
@@ -291,7 +306,7 @@ The cache simulation features integrate with the perceptron-based algorithm sele
 
 ### Feature Vector
 
-The perceptron uses 14 features (7 structural + 7 cache):
+The perceptron uses multiple features for algorithm selection:
 
 **Structural Features:**
 | Feature | Description |
@@ -303,17 +318,23 @@ The perceptron uses 14 features (7 structural + 7 cache):
 | `avg_degree` | Average vertex degree |
 | `degree_variance` | Degree distribution heterogeneity |
 | `hub_concentration` | Power-law hub concentration |
+| `clustering_coefficient` | Local clustering coefficient |
+| `avg_path_length` | Average path length (estimated) |
+| `diameter` | Graph diameter (estimated) |
+| `community_count` | Number of detected communities |
 
 **Cache Features:**
 | Feature | Description |
 |---------|-------------|
-| `l1_hit_rate` | L1 cache hit rate (0.0-1.0) |
-| `l2_hit_rate` | L2 cache hit rate (0.0-1.0) |
-| `l3_hit_rate` | L3 cache hit rate (0.0-1.0) |
-| `dram_access_rate` | Rate of accesses reaching memory |
-| `l1_eviction_rate` | L1 cache eviction rate |
-| `l2_eviction_rate` | L2 cache eviction rate |
-| `l3_eviction_rate` | L3 cache eviction rate |
+| `cache_l1_impact` | Weight for L1 cache hit rate impact |
+| `cache_l2_impact` | Weight for L2 cache hit rate impact |
+| `cache_l3_impact` | Weight for L3 cache hit rate impact |
+| `cache_dram_penalty` | Penalty for DRAM accesses |
+
+**Other Features:**
+| Feature | Description |
+|---------|-------------|
+| `w_reorder_time` | Weight for reordering time cost |
 
 ### Training Pipeline
 
@@ -342,12 +363,16 @@ Cache features are automatically integrated into perceptron weights:
 The `getFeatures()` method in `cache_sim.h` returns the cache feature vector:
 
 ```cpp
-CacheSimulator cache;
+// Get the global cache singleton
+cache_sim::CacheHierarchy& cache = cache_sim::GlobalCache();
 // ... run simulation ...
 
 std::vector<double> features = cache.getFeatures();
 // [l1_hit_rate, l2_hit_rate, l3_hit_rate, dram_access_rate,
 //  l1_eviction_rate, l2_eviction_rate, l3_eviction_rate]
+
+// Or use the convenience macro
+std::vector<double> features = CACHE_FEATURES();
 ```
 
 ## Related Pages
