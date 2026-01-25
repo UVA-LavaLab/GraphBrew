@@ -4,14 +4,14 @@ Welcome to the **GraphBrew** wiki! This comprehensive guide will help you unders
 
 ## 🍺 What is GraphBrew?
 
-GraphBrew is a high-performance graph reordering framework that combines **community detection** with **cache-aware vertex reordering** to dramatically improve graph algorithm performance. It implements over 20 different reordering algorithms and provides tools to automatically select the best one for your specific graph.
+GraphBrew is a high-performance graph reordering framework that combines **community detection** with **cache-aware vertex reordering** to dramatically improve graph algorithm performance. It implements **18 reordering algorithms** (IDs 0-17) and provides tools to automatically select the best one for your specific graph.
 
 ### Key Features
 
-- **20 Reordering Algorithms**: From simple sorting to advanced ML-based selection (IDs 0-13, 15-20)
+- **18 Reordering Algorithms**: From simple sorting to advanced ML-based selection (IDs 0-17)
 - **Leiden Community Detection**: State-of-the-art community detection for graph partitioning
 - **AdaptiveOrder**: ML-powered perceptron that automatically selects the best algorithm
-- **Comprehensive Benchmarks**: PageRank, BFS, Connected Components, SSSP, BC (5 automated), plus Triangle Counting (manual)
+- **Comprehensive Benchmarks**: PageRank, BFS, Connected Components, SSSP, BC, Triangle Counting (6 benchmarks)
 - **Python Analysis Tools**: Correlation analysis, benchmark automation, and weight training
 - **Iterative Training**: Feedback loop to optimize adaptive algorithm selection
 
@@ -23,7 +23,7 @@ GraphBrew is a high-performance graph reordering framework that combines **commu
 - [[Supported-Graph-Formats]] - EL, MTX, GRAPH, and other formats
 
 ### Understanding the Algorithms
-- [[Reordering-Algorithms]] - Complete guide to all 20 algorithms
+- [[Reordering-Algorithms]] - Complete guide to all 18 algorithms
 - [[Graph-Benchmarks]] - PageRank, BFS, CC, SSSP, BC, TC explained
 - [[Community-Detection]] - How Leiden clustering works
 
@@ -65,7 +65,7 @@ This single command will:
 1. Download benchmark graphs from SuiteSparse (87 graphs available)
 2. Build binaries automatically
 3. Pre-generate label mappings for consistent reordering
-4. Run all benchmarks with all 20 algorithms
+4. Run all benchmarks with all 18 algorithms
 5. Execute cache simulations (L1/L2/L3 hit rates)
 6. Generate perceptron weights for AdaptiveOrder (includes cache + reorder time features)
 
@@ -83,7 +83,7 @@ python3 scripts/graphbrew_experiment.py --full --download-size ALL --max-memory 
 
 ```bash
 # Fill ALL weight fields (cache impacts, topology features, per-benchmark weights)
-# Auto-clusters graphs and generates type_N.json files in scripts/weights/
+# Auto-clusters graphs and generates type_N.json files in scripts/weights/active/
 python3 scripts/graphbrew_experiment.py --fill-weights --graphs small --max-graphs 5
 
 # Iterative training to reach target accuracy
@@ -135,7 +135,7 @@ The best algorithm depends on your graph's topology!
 | [[Installation]] | Build requirements and instructions |
 | [[Quick-Start]] | 5-minute getting started guide |
 | [[Supported-Graph-Formats]] | EL, MTX, GRAPH format specs |
-| [[Reordering-Algorithms]] | All 21 algorithms explained |
+| [[Reordering-Algorithms]] | All 18 algorithms explained |
 | [[Graph-Benchmarks]] | PR, BFS, CC, SSSP, BC, TC |
 | [[Community-Detection]] | Leiden algorithm details |
 | [[Running-Benchmarks]] | Manual benchmark execution |

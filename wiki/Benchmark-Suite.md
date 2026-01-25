@@ -6,15 +6,21 @@ The GraphBrew Benchmark Suite provides automated tools for running comprehensive
 
 ```
 scripts/
-├── graphbrew_experiment.py           # ⭐ MAIN: One-click unified pipeline
-│                                      #    Downloads, builds, benchmarks, analyzes
-├── benchmark/
-│   └── run_pagerank_convergence.py   # PageRank iteration analysis
-├── download/
-│   └── download_graphs.py            # Graph downloader (standalone)
-└── analysis/
-    ├── correlation_analysis.py       # Results analysis
-    └── perceptron_features.py        # ML feature extraction
+├── graphbrew_experiment.py     # ⭐ MAIN: One-click unified pipeline
+│                                #    Downloads, builds, benchmarks, analyzes
+├── requirements.txt            # Python dependencies
+├── lib/                        # 📦 Core modules (all functionality)
+│   ├── download.py             # Graph downloading
+│   ├── benchmark.py            # Benchmark execution
+│   ├── cache.py                # Cache simulation
+│   ├── weights.py              # Weight management
+│   ├── training.py             # ML training
+│   ├── features.py             # Graph feature extraction
+│   └── ...                     # Other modules
+└── weights/                    # Auto-clustered type weights
+    ├── active/                 # C++ reads from here
+    ├── merged/                 # Accumulated weights
+    └── runs/                   # Historical snapshots
 ```
 
 ---
@@ -59,21 +65,22 @@ The graph catalog includes diverse graph types:
 
 | Category | Examples | Count |
 |----------|----------|-------|
-| Social | soc-LiveJournal, com-Orkut, twitter7 | 12 |
-| Web | uk-2002, webbase-2001, web-Google | 10 |
-| Road | roadNet-CA, europe-osm, USA-road-d | 6 |
-| Collaboration | hollywood-2009, com-DBLP, ca-AstroPh | 8 |
+| Mesh | mesh networks, finite element | 16 |
+| Web | uk-2002, webbase-2001, web-Google | 15 |
+| Collaboration | hollywood-2009, com-DBLP, ca-AstroPh | 11 |
+| Social | soc-LiveJournal, com-Orkut | 10 |
+| Synthetic | RMAT, uniform random | 8 |
+| Road | roadNet-CA, europe-osm, USA-road-d | 7 |
+| Citation | cit-Patents, cit-HepPh | 5 |
 | Commerce | amazon0601, com-Amazon | 5 |
-| Communication | email-Enron, wiki-Talk | 4 |
-| Citation | cit-Patents, cit-HepPh | 4 |
 | P2P | p2p-Gnutella24/25/30/31 | 4 |
-| Biology | bio-CE-CX, bio-DM-CX, kmer_V1r | 4 |
-| Infrastructure | as-Skitter | 1 |
+| Communication | email-Enron, wiki-Talk | 3 |
+| Infrastructure | as-Skitter | 3 |
 
 All results are saved to `./results/`:
 - `reorder_*.json` - Reordering times
 - `benchmark_*.json` - Execution times  
-- `cache_*.json` - Cache hit rates (L1/L2/L3)
+- `cache_*.json` - Cache miss rates (L1/L2/L3)
 - `mappings/` - Pre-generated label maps for consistent reordering
 - `graph_properties_cache.json` - Cached graph properties for type detection
 
@@ -149,15 +156,15 @@ python3 scripts/graphbrew_experiment.py --key-only
 [
   {
     "graph": "email-Enron",
-    "algorithm_id": 20,
-    "algorithm_name": "LeidenCSR",
+    "algorithm": "LeidenCSR",
+    "algorithm_id": 17,
     "benchmark": "pr",
-    "trial_time": 0.0234,
-    "speedup": 1.85,
-    "nodes": 36692,
-    "edges": 183831,
+    "time_seconds": 0.0234,
+    "reorder_time": 0.0,
+    "trials": 2,
     "success": true,
-    "error": ""
+    "error": "",
+    "extra": {}
   }
 ]
 ```
@@ -168,12 +175,15 @@ python3 scripts/graphbrew_experiment.py --key-only
 [
   {
     "graph": "email-Enron",
-    "algorithm_id": 20,
+    "algorithm_id": 17,
     "algorithm_name": "LeidenCSR",
     "benchmark": "pr",
     "l1_hit_rate": 85.2,
     "l2_hit_rate": 92.1,
     "l3_hit_rate": 98.5,
+    "l1_misses": 0,
+    "l2_misses": 0,
+    "l3_misses": 0,
     "success": true,
     "error": ""
   }
@@ -186,9 +196,9 @@ python3 scripts/graphbrew_experiment.py --key-only
 [
   {
     "graph": "email-Enron",
-    "algorithm_id": 20,
+    "algorithm_id": 17,
     "algorithm_name": "LeidenCSR",
-    "reorder_time": 0.145,
+    "time_seconds": 0.145,
     "mapping_file": "results/mappings/email-Enron/LeidenCSR.lo",
     "success": true,
     "error": ""
@@ -227,53 +237,34 @@ python3 scripts/graphbrew_experiment.py --key-only
   }
 }
 ```
-      "path": "./graphs/facebook/graph.el",
-      "nodes": 4039,
-      "edges": 88234,
-      "format": "el",
-      "symmetric": true
-    },
-    "twitter": {
-      "path": "./graphs/twitter/graph.mtx",
-      "nodes": 41652230,
-      "edges": 1468365182,
-      "format": "mtx",
-      "symmetric": false
-    }
-  }
-}
-```
 
 ---
 
-## run_pagerank_convergence.py
+## PageRank Convergence Analysis
 
 Analyze how reordering affects PageRank convergence.
 
 ### Usage
 
-The main experiment script includes benchmark analysis:
+Run PageRank directly via the binary with verbose output:
+
+```bash
+# Run PR with verbose convergence output
+./bench/bin/pr -f graph.mtx -s -o 7 -n 5
+```
+
+Or include in the experiment pipeline:
 
 ```bash
 # Run benchmarks (includes convergence data in results)
 python3 scripts/graphbrew_experiment.py --phase benchmark --graphs small
 ```
 
-Or run directly via the binary:
+### Example Output
 
-```bash
-# Run PR with verbose convergence output
-./bench/bin/pr -f graph.mtx -o 7 -n 5 -v
-```
-
-### Output
-
-Shows iteration counts per algorithm:
+PageRank convergence varies by reordering algorithm:
 
 ```
-PageRank Convergence Analysis
-=============================
-
 Graph: facebook.el
 ┌────────────────────┬────────────┬──────────────┐
 │ Algorithm          │ Iterations │ Final Error  │

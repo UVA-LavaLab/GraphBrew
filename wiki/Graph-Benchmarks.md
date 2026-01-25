@@ -4,18 +4,16 @@ GraphBrew includes implementations of classic graph algorithms used to measure t
 
 ## Overview of Benchmarks
 
-The automated pipeline uses **five** benchmarks (PR, BFS, CC, SSSP, BC). Triangle Counting (TC) is available for manual use:
+The automated pipeline uses **six** benchmarks:
 
-| Benchmark | Binary | Description | Complexity | Automated |
-|-----------|--------|-------------|------------|-----------|
-| PageRank | `pr` | Importance ranking | O(n + m) per iteration | ✅ |
-| BFS | `bfs` | Shortest paths (unweighted) | O(n + m) | ✅ |
-| Connected Components | `cc` | Find connected subgraphs | O(n + m) | ✅ |
-| SSSP | `sssp` | Shortest paths (weighted) | O((n + m) log n) | ✅ |
-| Betweenness Centrality | `bc` | Node importance | O(n × (n + m)) | ✅ |
-| Triangle Counting | `tc` | Count triangles | O(m^1.5) | ❌* |
-
-> **Note:** *Triangle Counting is excluded from the automated pipeline because reordering provides minimal benefit for this workload. It can still be run manually.
+| Benchmark | Binary | Description | Complexity |
+|-----------|--------|-------------|------------|
+| PageRank | `pr` | Importance ranking | O(n + m) per iteration |
+| BFS | `bfs` | Shortest paths (unweighted) | O(n + m) |
+| Connected Components | `cc` | Find connected subgraphs | O(n + m) |
+| SSSP | `sssp` | Shortest paths (weighted) | O((n + m) log n) |
+| Betweenness Centrality | `bc` | Node importance | O(n × (n + m)) |
+| Triangle Counting | `tc` | Count triangles | O(m^1.5) |
 
 ---
 
@@ -45,7 +43,7 @@ Where:
 ./bench/bin/pr -g 20 -o 12 -n 5
 
 # Common options
-./bench/bin/pr -f graph.mtx -s -o 20 -n 3 -i 20 -t 1e-6
+./bench/bin/pr -f graph.mtx -s -o 17 -n 3 -i 20 -t 1e-6
 ```
 
 ### Options
@@ -54,10 +52,10 @@ Where:
 |------|-------------|---------|
 | `-f FILE` | Input graph file | Required |
 | `-s` | Graph is symmetric (undirected) | Off |
-| `-o N` | Reordering algorithm (0-20) | 0 |
-| `-n N` | Number of trials | 1 |
+| `-o N` | Reordering algorithm (0-17) | 0 |
+| `-n N` | Number of trials | 16 |
 | `-i N` | Max iterations | 20 |
-| `-t VAL` | Convergence tolerance | 1e-6 |
+| `-t VAL` | Convergence tolerance | 1e-4 |
 | `-g N` | Generate RMAT graph (2^N vertices) | - |
 
 ### Output Explained
@@ -97,13 +95,16 @@ Level 2: [neighbors of level 1]
 ### How to Run
 
 ```bash
-# Basic usage
+# Basic usage (3 trials from random sources)
 ./bench/bin/bfs -f graph.el -s -o 0 -n 3
 
-# With multiple source vertices (for stable timing)
-./bench/bin/bfs -f graph.el -s -o 20 -n 16
+# More trials for stable timing
+./bench/bin/bfs -f graph.el -s -o 17 -n 16
 
-# Generate graph
+# BFS from specific source vertex
+./bench/bin/bfs -f graph.el -s -o 12 -r 0 -n 3
+
+# Generate synthetic graph
 ./bench/bin/bfs -g 18 -o 12 -n 5
 ```
 
@@ -112,10 +113,10 @@ Level 2: [neighbors of level 1]
 | Flag | Description | Default |
 |------|-------------|---------|
 | `-f FILE` | Input graph file | Required |
-| `-s` | Symmetric graph | Off |
-| `-o N` | Reordering algorithm | 0 |
-| `-n N` | Number of source vertices to try | 1 |
-| `-r N` | Specific source vertex | Random |
+| `-s` | Symmetrize graph (undirected) | Off |
+| `-o N` | Reordering algorithm (0-17) | 0 |
+| `-n N` | Number of benchmark trials | 16 |
+| `-r N` | Starting source vertex | Random |
 
 ### Direction-Optimizing BFS
 
@@ -181,21 +182,24 @@ Finds the shortest weighted path from a source vertex to all other vertices. Use
 
 ```bash
 # Requires weighted graph
-./bench/bin/sssp -f weighted_graph.wel -o 12 -n 3
+./bench/bin/sssp -f weighted_graph.wel -s -o 12 -n 3
 
-# Or MTX with weights
-./bench/bin/sssp -f graph.mtx -o 20 -n 5
+# From specific source vertex
+./bench/bin/sssp -f graph.wel -s -o 17 -r 0 -n 5
+
+# With custom delta parameter
+./bench/bin/sssp -f graph.wel -s -o 12 -d 2 -n 3
 ```
 
 ### Options
 
-| Flag | Description |
-|------|-------------|
-| `-f FILE` | Input graph (must have weights) |
-| `-o N` | Reordering algorithm |
-| `-n N` | Number of source vertices |
-| `-r N` | Specific source vertex |
-| `-d N` | Delta for delta-stepping (default: auto) |
+| Flag | Description | Default |
+|------|-------------|---------|
+| `-f FILE` | Input graph (must have weights) | Required |
+| `-o N` | Reordering algorithm (0-17) | 0 |
+| `-n N` | Number of benchmark trials | 16 |
+| `-r N` | Starting source vertex | Random |
+| `-d N` | Delta for delta-stepping | 1 |
 
 ### Delta-Stepping
 
@@ -225,18 +229,33 @@ Where:
 ### How to Run
 
 ```bash
-# Full BC (expensive!)
-./bench/bin/bc -f graph.el -s -o 12 -n 1
+# Basic BC from random source
+./bench/bin/bc -f graph.el -s -o 12 -n 3
 
-# Approximate BC with k sources
-./bench/bin/bc -f graph.el -s -o 12 -n 16  # Uses 16 random sources
+# BC from specific source vertex
+./bench/bin/bc -f graph.el -s -o 12 -r 0 -n 3
+
+# Multiple iterations per trial (more thorough)
+./bench/bin/bc -f graph.el -s -o 12 -i 4 -n 3
 ```
+
+### Options
+
+| Flag | Description | Default |
+|------|-------------|---------|
+| `-f FILE` | Input graph file | Required |
+| `-s` | Symmetrize graph | Off |
+| `-o N` | Reordering algorithm (0-17) | 0 |
+| `-n N` | Number of benchmark trials | 16 |
+| `-r N` | Starting source vertex | Random |
+| `-i N` | Number of iterations per trial | 1 |
 
 ### Performance Note
 
-BC is computationally expensive: O(n × m) for the full algorithm. For large graphs:
-- Use approximate BC with `-n K` (samples K source vertices)
-- Results are proportional to true BC
+BC is computationally expensive: O(n × m) per source vertex. For large graphs:
+- Use fewer iterations (`-i 1`) for quick testing
+- The `-n` flag controls how many times the benchmark is repeated for timing accuracy
+- Each iteration uses a different random source vertex
 
 ### Why Reordering Matters Most Here
 
@@ -264,7 +283,7 @@ Triangle: A-B, B-C, C-A
 ./bench/bin/tc -f graph.el -s -o 12 -n 3
 
 # Parallel version
-./bench/bin/tc_p -f graph.el -s -o 20 -n 3
+./bench/bin/tc_p -f graph.el -s -o 17 -n 3
 ```
 
 ### Algorithms
@@ -306,7 +325,7 @@ python3 scripts/graphbrew_experiment.py --benchmarks pr bfs --graphs small
 ```bash
 #!/bin/bash
 GRAPH="./results/graphs/email-Enron/email-Enron.mtx"
-ALGOS="0 7 12 20"
+ALGOS="0 7 12 14 17"  # ORIGINAL, HUBCLUSTERDBG, GraphBrewOrder, AdaptiveOrder, LeidenCSR
 TRIALS=3
 
 for algo in $ALGOS; do
@@ -361,7 +380,7 @@ make test-topology-full
 ```bash
 # Compare outputs between algorithms
 ./bench/bin/pr -f graph.el -s -o 0 -n 1 > original.txt
-./bench/bin/pr -f graph.el -s -o 20 -n 1 > reordered.txt
+./bench/bin/pr -f graph.el -s -o 17 -n 1 > reordered.txt
 
 # Results should match (within floating point tolerance)
 ```
