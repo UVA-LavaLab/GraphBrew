@@ -26,7 +26,7 @@ from datetime import datetime
 from typing import Dict, List, Optional, Tuple, Any
 
 from .utils import (
-    PROJECT_ROOT, WEIGHTS_DIR, ALGORITHMS,
+    PROJECT_ROOT, WEIGHTS_DIR, ACTIVE_WEIGHTS_DIR, ALGORITHMS,
     Logger, get_timestamp,
 )
 
@@ -37,8 +37,8 @@ log = Logger()
 # Constants
 # =============================================================================
 
-# Default weights directory
-DEFAULT_WEIGHTS_DIR = str(WEIGHTS_DIR)
+# Default weights directory (active/ subfolder where C++ reads from)
+DEFAULT_WEIGHTS_DIR = str(ACTIVE_WEIGHTS_DIR)
 
 # Auto-clustering configuration
 CLUSTER_DISTANCE_THRESHOLD = 0.15  # Max normalized distance to join existing cluster
