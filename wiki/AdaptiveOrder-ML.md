@@ -36,9 +36,16 @@ Instead of using one reordering algorithm for the entire graph, AdaptiveOrder:
 | Parameter | Default | Description |
 |-----------|---------|-------------|
 | `max_depth` | 0 | Max recursion depth (0 = no recursion, 1+ = multi-level) |
-| `resolution` | 0.75 | Leiden resolution parameter |
+| `resolution` | auto | Leiden resolution (auto: continuous formula with CV guardrail) |
 | `min_recurse_size` | 50000 | Minimum community size for recursion |
 | `mode` | 0 | 0 = per-community, 1 = full-graph adaptive |
+
+**Auto-Resolution Formula:**
+```
+γ = clip(0.5 + 0.25 × log₁₀(avg_degree + 1), 0.5, 1.2)
+If CV(degree) > 2: γ = max(γ, 1.0)  // CV guardrail for power-law graphs
+```
+*Heuristic for stable partitions; users should sweep γ for best community quality.*
 
 ## Operating Modes
 

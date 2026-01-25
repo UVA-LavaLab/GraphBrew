@@ -4,7 +4,7 @@ GraphBrew includes implementations of classic graph algorithms used to measure t
 
 ## Overview of Benchmarks
 
-The automated pipeline uses **five** benchmarks:
+The automated pipeline runs **five** benchmarks by default (TC is available but skipped):
 
 | Benchmark | Binary | Description | Complexity |
 |-----------|--------|-------------|------------|
@@ -14,7 +14,7 @@ The automated pipeline uses **five** benchmarks:
 | SSSP | `sssp` | Shortest paths (weighted) | O((n + m) log n) |
 | Betweenness Centrality | `bc` | Node importance | O(n × (n + m)) |
 
-Triangle Counting (`tc`) is also available but excluded from the automated pipeline.
+Triangle Counting (`tc`) is available but skipped by default (minimal reorder benefit). Use `--benchmarks pr bfs cc sssp bc tc` to include it.
 
 ---
 

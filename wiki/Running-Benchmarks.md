@@ -4,7 +4,7 @@ Complete guide to running GraphBrew benchmarks with all options explained.
 
 ## Overview
 
-The automated pipeline uses **five** benchmarks (PR, BFS, CC, SSSP, BC). Triangle Counting (TC) is available for manual use:
+The automated pipeline runs **five** benchmarks by default (TC is skipped as it benefits minimally from reordering):
 
 | Benchmark | Binary | Description | Automated |
 |-----------|--------|-------------|-----------|
@@ -15,7 +15,7 @@ The automated pipeline uses **five** benchmarks (PR, BFS, CC, SSSP, BC). Triangl
 | Betweenness Centrality | `bc` | Node importance by path flow | ✅ |
 | Triangle Counting | `tc` | Count triangles in graph | ❌* |
 
-> **Note:** *Triangle Counting is excluded from the automated pipeline because reordering provides minimal benefit for this workload. It can still be run manually.
+> **Note:** *Triangle Counting is skipped by default because reordering provides minimal benefit for this workload. To include it, use `--benchmarks pr bfs cc sssp bc tc`.
 
 ---
 

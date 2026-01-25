@@ -171,15 +171,15 @@ Final ordering:
 # Format: -o 12:freq:algo:resolution:maxIterations:maxPasses
 # freq: frequency threshold for small communities (default: 10)
 # algo: per-community ordering algorithm ID (default: 8 = RabbitOrder)
-# resolution: Leiden resolution parameter (default: 0.75)
+# resolution: Leiden resolution parameter (default: auto based on density)
 # maxIterations: maximum Leiden iterations (default: 30)
 # maxPasses: maximum Leiden passes (default: 30)
 
 # Use HubClusterDBG (7) for per-community ordering with resolution 1.0
 ./bench/bin/pr -f graph.el -s -o 12:10:7:1.0
 
-# Full example with all parameters
-./bench/bin/pr -f graph.el -s -o 12:10:8:0.75:30:30
+# Full example with all parameters (explicit resolution)
+./bench/bin/pr -f graph.el -s -o 12:10:8:1.0:30:30
 ```
 
 ### With Community Output
