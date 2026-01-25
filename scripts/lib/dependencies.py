@@ -598,10 +598,11 @@ def install_boost_158(
     verbose: bool = False
 ) -> Tuple[bool, str]:
     """
-    Download and install Boost 1.58.0 for RabbitOrder compatibility.
+    Download, compile, and install Boost 1.58.0 for RabbitOrder compatibility.
     
-    This downloads Boost 1.58.0 source and installs headers to /opt/boost_1_58_0,
-    which is the path expected by the GraphBrew Makefile for RabbitOrder.
+    This downloads Boost 1.58.0 source, compiles it with bootstrap.sh and b2,
+    and installs to /opt/boost_1_58_0 with proper include/ and lib/ structure
+    as expected by the GraphBrew Makefile.
     
     Args:
         install_path: Where to install Boost (default: /opt/boost_1_58_0)
@@ -611,88 +612,112 @@ def install_boost_158(
     Returns:
         Tuple of (success, message)
     """
-    # Check if already installed
+    # Check if already installed (compiled structure with include/)
     if os.path.exists(os.path.join(install_path, "include", "boost", "version.hpp")):
         return True, f"Boost 1.58.0 already installed at {install_path}"
     
     boost_url = "https://archives.boost.io/release/1.58.0/source/boost_1_58_0.tar.gz"
     tmp_dir = "/tmp/boost_install"
-    tar_file = f"{tmp_dir}/boost_1_58_0.tar.gz"
     
-    commands = [
-        f"mkdir -p {tmp_dir}",
-        f"cd {tmp_dir} && wget -q --show-progress {boost_url}",
-        f"cd {tmp_dir} && tar -xzf boost_1_58_0.tar.gz",
-        f"sudo mv {tmp_dir}/boost_1_58_0 {install_path}",
-        f"rm -rf {tmp_dir}",
-    ]
+    # Get CPU cores for parallel compilation
+    try:
+        cpu_cores = os.cpu_count() or 4
+    except:
+        cpu_cores = 4
     
     if dry_run:
+        commands = [
+            f"mkdir -p {tmp_dir}",
+            f"cd {tmp_dir} && wget {boost_url}",
+            f"cd {tmp_dir} && tar -xzf boost_1_58_0.tar.gz",
+            f"cd {tmp_dir}/boost_1_58_0 && ./bootstrap.sh --prefix={install_path}",
+            f"cd {tmp_dir}/boost_1_58_0 && sudo ./b2 --with=all -j {cpu_cores} install",
+            f"rm -rf {tmp_dir}",
+        ]
         return True, "Would run:\n  " + "\n  ".join(commands)
     
-    log.info("Downloading and installing Boost 1.58.0 for RabbitOrder...")
+    log.info("Downloading, compiling, and installing Boost 1.58.0 for RabbitOrder...")
     log.info(f"Install path: {install_path}")
+    log.info(f"Using {cpu_cores} CPU cores for compilation")
+    log.warning("This may take 10-30 minutes depending on your system...")
     
     try:
-        # Check for wget
-        if shutil.which("wget") is None:
-            # Try curl instead
-            commands[1] = f"cd {tmp_dir} && curl -L -o boost_1_58_0.tar.gz {boost_url}"
-            if shutil.which("curl") is None:
-                return False, "Neither wget nor curl found. Please install one of them."
+        # Check for required tools
+        if shutil.which("wget") is None and shutil.which("curl") is None:
+            return False, "Neither wget nor curl found. Please install one of them."
         
         # Create temp directory
         os.makedirs(tmp_dir, exist_ok=True)
         
         # Download
-        log.info("Downloading Boost 1.58.0 (approx 73MB)...")
-        download_cmd = commands[1].split(" && ")[1]  # Get just the wget/curl part
+        log.info("Step 1/4: Downloading Boost 1.58.0 (approx 73MB)...")
+        if shutil.which("wget"):
+            download_cmd = ["wget", "-q", "--show-progress", boost_url]
+        else:
+            download_cmd = ["curl", "-L", "-o", "boost_1_58_0.tar.gz", boost_url]
+        
         result = subprocess.run(
             download_cmd,
-            shell=True,
             cwd=tmp_dir,
             timeout=600,  # 10 min timeout for download
-            capture_output=not verbose
         )
         if result.returncode != 0:
-            return False, f"Download failed. Check your internet connection."
+            return False, "Download failed. Check your internet connection."
         
         # Extract
-        log.info("Extracting...")
+        log.info("Step 2/4: Extracting...")
         result = subprocess.run(
             ["tar", "-xzf", "boost_1_58_0.tar.gz"],
             cwd=tmp_dir,
             timeout=120,
-            capture_output=not verbose
         )
         if result.returncode != 0:
             return False, "Failed to extract archive"
         
-        # Move to install path (requires sudo)
-        log.info(f"Installing to {install_path} (may require password)...")
+        boost_src = os.path.join(tmp_dir, "boost_1_58_0")
+        
+        # Bootstrap
+        log.info("Step 3/4: Running bootstrap.sh...")
         result = subprocess.run(
-            ["sudo", "mv", f"{tmp_dir}/boost_1_58_0", install_path],
-            timeout=60,
-            capture_output=not verbose
+            ["./bootstrap.sh", f"--prefix={install_path}"],
+            cwd=boost_src,
+            timeout=300,  # 5 min timeout
+            capture_output=not verbose,
         )
         if result.returncode != 0:
-            return False, f"Failed to move to {install_path}. Check sudo permissions."
+            error_msg = ""
+            if result.stderr:
+                error_msg = result.stderr.decode()[:500]
+            return False, f"bootstrap.sh failed: {error_msg}"
+        
+        # Compile and install with b2
+        log.info(f"Step 4/4: Compiling and installing (this takes a while)...")
+        log.info(f"Running: sudo ./b2 --with=all -j {cpu_cores} install")
+        result = subprocess.run(
+            ["sudo", "./b2", "--with=all", "-j", str(cpu_cores), "install"],
+            cwd=boost_src,
+            timeout=3600,  # 1 hour timeout for compilation
+        )
+        if result.returncode != 0:
+            # b2 may return non-zero but still succeed partially
+            # Check if essential files were created
+            if not os.path.exists(os.path.join(install_path, "include", "boost", "version.hpp")):
+                return False, "b2 compilation failed. Check build output."
         
         # Cleanup
+        log.info("Cleaning up temporary files...")
         shutil.rmtree(tmp_dir, ignore_errors=True)
         
-        # Verify - check both source tarball structure (boost/) and compiled structure (include/boost/)
-        source_path = os.path.join(install_path, "boost", "version.hpp")
-        compiled_path = os.path.join(install_path, "include", "boost", "version.hpp")
-        if os.path.exists(source_path) or os.path.exists(compiled_path):
-            log.success(f"Boost 1.58.0 installed successfully at {install_path}")
+        # Verify
+        if os.path.exists(os.path.join(install_path, "include", "boost", "version.hpp")):
+            log.success(f"Boost 1.58.0 compiled and installed successfully at {install_path}")
             return True, f"Boost 1.58.0 installed at {install_path}"
         else:
             return False, "Installation completed but verification failed"
             
     except subprocess.TimeoutExpired:
         shutil.rmtree(tmp_dir, ignore_errors=True)
-        return False, "Installation timed out"
+        return False, "Installation timed out (compilation can take 30+ minutes)"
     except Exception as e:
         shutil.rmtree(tmp_dir, ignore_errors=True)
         return False, f"Installation error: {e}"
@@ -762,14 +787,19 @@ Boost 1.58.0 for RabbitOrder (Required):
 RabbitOrder requires Boost 1.58.0 specifically. System package managers
 typically install newer versions which may cause compatibility issues.
 
-Automatic installation:
-    python graphbrew_experiment.py --install-boost
+Automatic installation (recommended):
+    python3 scripts/graphbrew_experiment.py --install-boost
+    
+    This downloads, compiles, and installs Boost 1.58.0 automatically.
+    Note: Compilation takes 10-30 minutes.
 
 Manual installation:
     wget https://archives.boost.io/release/1.58.0/source/boost_1_58_0.tar.gz
     tar -xzf boost_1_58_0.tar.gz
-    sudo mv boost_1_58_0 /opt/
-    rm boost_1_58_0.tar.gz
+    cd boost_1_58_0
+    ./bootstrap.sh --prefix=/opt/boost_1_58_0
+    sudo ./b2 --with=all -j $(nproc) install
+    cd .. && rm -rf boost_1_58_0 boost_1_58_0.tar.gz
 
 After installing dependencies:
     make clean && make all
