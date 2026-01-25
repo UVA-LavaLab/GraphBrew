@@ -2159,9 +2159,7 @@ def run_experiment(args):
             bin_sim_dir=args.bin_sim_dir,
             timeout=args.timeout_sim,
             skip_heavy=args.skip_heavy,
-            label_maps=label_maps,
-            weights_dir=args.weights_dir,
-            update_weights=not getattr(args, 'no_incremental', False)
+            label_maps=label_maps
         )
         all_cache_results.extend(cache_results)
         
@@ -2336,8 +2334,8 @@ def run_experiment(args):
         
         # Load existing graph properties cache if available
         cache_dir = os.path.dirname(args.weights_file) or "results"
-        load_graph_properties_cache(cache_dir)
-        log(f"Loaded graph properties cache: {len(_graph_properties_cache)} graphs")
+        props_cache = load_graph_properties_cache(cache_dir)
+        log(f"Loaded graph properties cache: {len(props_cache)} graphs")
         
         # Force enable cache simulation for this mode
         skip_cache_original = getattr(args, 'skip_cache', False)
@@ -2354,7 +2352,8 @@ def run_experiment(args):
         )
         # Save the cache after analysis
         save_graph_properties_cache(cache_dir)
-        log(f"Graph properties cached for {len(_graph_properties_cache)} graphs")
+        props_cache = load_graph_properties_cache(cache_dir)
+        log(f"Graph properties cached for {len(props_cache)} graphs")
         
         # Phase 1: Reorderings
         log_section("Phase 1: Generate Reorderings")
@@ -2394,9 +2393,7 @@ def run_experiment(args):
             bin_sim_dir=args.bin_sim_dir,
             timeout=args.timeout_sim,
             skip_heavy=getattr(args, 'skip_heavy', True),
-            label_maps={},
-            weights_dir=args.weights_dir,
-            update_weights=True  # Always update incrementally in fill-weights
+            label_maps={}
         )
         
         # Phase 4: Generate Base Weights
@@ -2418,25 +2415,27 @@ def run_experiment(args):
             reorder_results=reorder_results
         )
         
-        # Phase 6: Compute per-benchmark weights
-        log_section("Phase 6: Compute Benchmark-Specific Weights")
-        compute_benchmark_weights(
-            weights_file=args.weights_file,
-            benchmark_results=benchmark_results
-        )
-        
-        # Phase 7: Generate per-graph-type weight files
-        log_section("Phase 7: Generate Per-Graph-Type Weights")
-        generate_per_type_weights(
-            base_weights_file=args.weights_file,
-            benchmark_results=benchmark_results,
-            graphs_dir=args.graphs_dir,
-            output_dir=os.path.dirname(args.weights_file) or "scripts"
-        )
+        # Phase 6: Update type-based weights from results
+        log_section("Phase 6: Update Type-Based Weights")
+        # The type weights are updated during compute_weights_from_results
+        # Here we just verify the types were created and summarize
+        known_types = list_known_types(args.weights_dir)
+        if known_types:
+            log(f"Types created/updated: {len(known_types)}")
+            for type_name in known_types:
+                type_file = os.path.join(args.weights_dir, f"{type_name}.json")
+                if os.path.exists(type_file):
+                    with open(type_file) as f:
+                        type_data = json.load(f)
+                    algo_count = len([k for k in type_data.keys() if not k.startswith('_')])
+                    log(f"  {type_name}: {algo_count} algorithms trained")
+        else:
+            log("No types created (weights are in main perceptron_weights.json)")
         
         # Save graph properties cache for future use
         save_graph_properties_cache(output_dir=os.path.dirname(args.weights_file) or "results")
-        log(f"Saved graph properties cache to: {get_graph_properties_cache_file(os.path.dirname(args.weights_file) or 'results')}")
+        cache_file_path = os.path.join(os.path.dirname(args.weights_file) or 'results', "graph_properties_cache.json")
+        log(f"Saved graph properties cache to: {cache_file_path}")
         
         # Restore original skip_cache setting
         args.skip_cache = skip_cache_original
