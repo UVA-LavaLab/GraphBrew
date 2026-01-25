@@ -11,7 +11,7 @@ A comprehensive one-click script that runs the complete GraphBrew experiment wor
 3. Phase 1: Generate reorderings with label-mapping for consistency
 4. Phase 2: Run execution benchmarks on all graphs
 5. Phase 3: Run cache simulations (optional, skip with --skip-cache)
-6. Phase 4: Generate type-based perceptron weights (scripts/weights/type_*.json)
+6. Phase 4: Generate type-based perceptron weights (scripts/weights/active/type_*.json)
 
 **Validation & Analysis:**
 7. Phase 6: Adaptive order analysis (--adaptive-analysis)
@@ -20,7 +20,7 @@ A comprehensive one-click script that runs the complete GraphBrew experiment wor
 
 **Weight Training:**
 10. Phase 9: Iterative training with feedback loop (--train-adaptive)
-    - Uses type-based weight system (scripts/weights/type_*.json)
+    - Uses type-based weight system (scripts/weights/active/type_*.json)
     - Classifies graphs into types, updates per-type weights
 11. Phase 10: Large-scale batched training (--train-large)
 12. Fill-weights: One-pass comprehensive training (--fill-weights)
@@ -44,7 +44,7 @@ A comprehensive one-click script that runs the complete GraphBrew experiment wor
     LeidenDendrogram variants: dfs, dfshub, dfssize, bfs, hybrid
 
 All outputs are saved to the results/ directory for clean organization.
-Type-based weights are saved to scripts/weights/type_*.json.
+Type-based weights are saved to scripts/weights/active/type_*.json.
 
 Usage:
     python scripts/graphbrew_experiment.py --help
@@ -503,7 +503,7 @@ DEFAULT_RESULTS_DIR = "./results"
 DEFAULT_GRAPHS_DIR = "./results/graphs"
 DEFAULT_BIN_DIR = "./bench/bin"
 DEFAULT_BIN_SIM_DIR = "./bench/bin_sim"
-DEFAULT_WEIGHTS_DIR = "./scripts/weights"  # Auto-generated type weights
+DEFAULT_WEIGHTS_DIR = "./scripts/weights/active"  # Active weights (C++ reads from here)
 DEFAULT_MAPPINGS_DIR = "./results/mappings"
 
 # Auto-clustering configuration
@@ -2815,7 +2815,7 @@ Examples:
     
     # Legacy weights file (for backward compatibility with old scripts)
     parser.add_argument("--weights-file", default="./results/perceptron_weights.json",
-                        help="(Intermediate) Temporary file used during fill-weights processing. Final weights saved to scripts/weights/")
+                        help="(Intermediate) Temporary file used during fill-weights processing. Final weights saved to scripts/weights/active/")
     
     # Clean options
     parser.add_argument("--clean", action="store_true",
