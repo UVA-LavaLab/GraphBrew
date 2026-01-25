@@ -234,7 +234,7 @@ Binary format for fast loading. Pre-computed CSR representation.
 
 ```bash
 # Convert edge list to serialized format
-./bench/bin/converter -f graph.el -s -o graph.sg
+./bench/bin/converter -f graph.el -s -b graph.sg
 ```
 
 ### Usage
@@ -272,13 +272,11 @@ GraphBrew automatically detects format by extension:
 | `.gr` | DIMACS |
 | `.sg`, `.graph` | Serialized |
 
-### Explicit Format
+### Important Notes
 
-Force format with flags:
-```bash
-./bench/bin/pr -f graph.txt -el -s -n 3  # Force edge list
-./bench/bin/pr -f graph.txt -mtx -s -n 3 # Force MTX
-```
+- Format detection is based **solely on file extension**
+- There are no flags to force a specific input format
+- Rename files or convert them if extension doesn't match format
 
 ---
 
@@ -288,7 +286,13 @@ Force format with flags:
 
 ```bash
 # Edge list to serialized
-./bench/bin/converter -f graph.el -s -o graph.sg
+./bench/bin/converter -f graph.el -s -b graph.sg
+
+# Edge list to MTX format
+./bench/bin/converter -f graph.el -s -p graph.mtx
+
+# Edge list to Ligra format
+./bench/bin/converter -f graph.el -s -y graph.ligra
 
 # MTX to edge list (manual)
 tail -n +3 graph.mtx | awk '{print $1-1, $2-1}' > graph.el
@@ -361,7 +365,7 @@ unzip socfb-Caltech36.zip
 | Property | Requirement |
 |----------|-------------|
 | Vertices | Non-negative integers |
-| Self-loops | Allowed (removed with `-g`) |
+| Self-loops | Allowed (removed by default, use `-S` to keep) |
 | Multi-edges | Allowed (may affect results) |
 | Directed | Yes (use `-s` for undirected) |
 
@@ -439,13 +443,13 @@ split -l 10000000 graph.el graph_part_
 
 GraphBrew includes test graphs in `test/graphs/`:
 
-| File | Nodes | Edges | Description |
-|------|-------|-------|-------------|
-| `4.el` | 4 | 4 | Tiny test |
-| `5.el` | 5 | 6 | Small test |
-| `4.mtx` | 4 | 4 | MTX format |
-| `4.gr` | 4 | 4 | DIMACS format |
-| `4.wel` | 4 | 4 | Weighted |
+| File | Nodes | Edges (undirected) | Description |
+|------|-------|-------------------|-------------|
+| `4.el` | 14 | 53 | Small test graph |
+| `5.el` | 6 | 6 | Tiny test graph |
+| `4.mtx` | 14 | 53 | MTX format |
+| `4.gr` | 14 | 53 | DIMACS format |
+| `4.wel` | 14 | 53 | Weighted |
 
 Use these for quick testing:
 ```bash

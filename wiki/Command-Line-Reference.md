@@ -6,19 +6,17 @@ Complete reference for all GraphBrew command-line options.
 
 ## Benchmark Binaries
 
-All binaries are located in `bench/bin/`. The automated pipeline uses **five** benchmarks (PR, BFS, CC, SSSP, BC):
+All binaries are located in `bench/bin/`. The automated pipeline uses **six** benchmarks:
 
-| Binary | Algorithm | Description | Automated |
-|--------|-----------|-------------|-----------|
-| `pr` | PageRank | Page importance ranking | ✅ |
-| `bfs` | BFS | Breadth-first search | ✅ |
-| `cc` | Connected Components | Find connected subgraphs | ✅ |
-| `sssp` | Shortest Paths | Single-source shortest paths | ✅ |
-| `bc` | Betweenness Centrality | Centrality measure | ✅ |
-| `tc` | Triangle Counting | Count triangles | ❌* |
-| `converter` | - | Convert graph formats | - |
-
-> **Note:** *Triangle Counting is excluded from the automated pipeline because reordering provides minimal benefit for this workload. It can still be run manually.
+| Binary | Algorithm | Description |
+|--------|-----------|-------------|
+| `pr` | PageRank | Page importance ranking |
+| `bfs` | BFS | Breadth-first search |
+| `cc` | Connected Components | Find connected subgraphs |
+| `sssp` | Shortest Paths | Single-source shortest paths |
+| `bc` | Betweenness Centrality | Centrality measure |
+| `tc` | Triangle Counting | Count triangles |
+| `converter` | - | Convert graph formats |
 
 ---
 
@@ -28,30 +26,42 @@ These options work with all benchmarks:
 
 ### Input/Output
 
-| Option | Long Form | Description | Example |
-|--------|-----------|-------------|---------|
-| `-f` | `--file` | Input graph file (required) | `-f graph.el` |
-| `-o` | `--order` | Reordering algorithm ID (0-20) | `-o 7` |
-| `-s` | `--symmetrize` | Make graph undirected | `-s` |
-| `-n` | `--num-trials` | Number of benchmark trials | `-n 5` |
-
-### Format Options
-
 | Option | Description | Example |
 |--------|-------------|---------|
-| `-el` | Force edge list format | `-f data.txt -el` |
-| `-wel` | Force weighted edge list | `-f data.txt -wel` |
-| `-mtx` | Force Matrix Market format | `-f data.matrix -mtx` |
-| `-gr` | Force DIMACS format | `-f data.dimacs -gr` |
-| `-sg` | Serialized graph (binary) | `-f data.sg` |
+| `-f <file>` | Input graph file (required) | `-f graph.el` |
+| `-o <id>` | Reordering algorithm ID (0-17) | `-o 7` |
+| `-s` | Make graph undirected (symmetrize) | `-s` |
+| `-n <trials>` | Number of benchmark trials | `-n 5` |
+
+### File Format Detection
+
+GraphBrew automatically detects the file format from the file extension:
+
+| Extension | Format | Description |
+|-----------|--------|-------------|
+| `.el` | Edge list | Text file with "src dst" pairs |
+| `.wel` | Weighted edge list | Text file with "src dst weight" |
+| `.mtx` | Matrix Market | Standard sparse matrix format |
+| `.gr` | DIMACS | DIMACS graph format |
+| `.sg` | Serialized graph | Binary format (unweighted) |
+| `.wsg` | Weighted serialized | Binary format (weighted) |
+| `.graph` | METIS | METIS adjacency format |
+
+**Example:**
+```bash
+./bench/bin/pr -f graph.el -s -n 5      # Auto-detected as edge list
+./bench/bin/sssp -f graph.wel -s -n 5   # Auto-detected as weighted edge list
+```
 
 ### General Flags
 
-| Option | Long Form | Description |
-|--------|-----------|-------------|
-| `-h` | `--help` | Show help message |
-| `-v` | `--verify` | Verify results (slower) |
-| `-g` | `--generate` | Generate synthetic graph |
+| Option | Description |
+|--------|-------------|
+| `-h` | Show help message |
+| `-v` | Verify results (slower) |
+| `-g <scale>` | Generate 2^scale Kronecker graph |
+| `-u <scale>` | Generate 2^scale uniform-random graph |
+| `-k <degree>` | Average degree for synthetic graph (default: 16) |
 
 ---
 
@@ -62,24 +72,23 @@ Use with `-o <id>`:
 | ID | Algorithm | Category |
 |----|-----------|----------|
 | 0 | ORIGINAL | None |
-| 1 | RANDOM | Basic |
-| 2 | SORT | Basic |
-| 3 | HUBSORT | Hub-based |
-| 4 | HUBCLUSTER | Hub-based |
+| 1 | Random | Basic |
+| 2 | Sort | Basic |
+| 3 | HubSort | Hub-based |
+| 4 | HubCluster | Hub-based |
 | 5 | DBG | DBG-based |
-| 6 | HUBSORTDBG | DBG-based |
-| 7 | HUBCLUSTERDBG | DBG-based |
-| 8 | RABBITORDER | Community |
-| 9 | GORDER | Community |
-| 10 | CORDER | Community |
-| 11 | RCM | Community |
-| 13 | GraphBrewOrder | Community |
-| 15 | AdaptiveOrder | ML |
+| 6 | HubSortDBG | DBG-based |
+| 7 | HubClusterDBG | DBG-based |
+| 8 | RabbitOrder | Community |
+| 9 | GOrder | Community |
+| 10 | COrder | Community |
+| 11 | RCMOrder | Community |
+| 12 | GraphBrewOrder | Community |
+| 13 | MAP | External mapping |
+| 14 | AdaptiveOrder | ML |
 | 15 | LeidenOrder | Leiden (igraph) |
 | 16 | LeidenDendrogram | Leiden (variants: dfs/dfshub/dfssize/bfs/hybrid) |
 | 17 | LeidenCSR | Leiden (variants: dfs/bfs/hubsort/fast/modularity) |
-
-Note: ID 14 (MAP) is reserved for external mapping files.
 
 ---
 
@@ -94,8 +103,9 @@ Note: ID 14 (MAP) is reserved for external mapping files.
 | Option | Description | Default |
 |--------|-------------|---------|
 | `-i <iter>` | Maximum iterations | 20 |
-| `-t <tol>` | Convergence tolerance | 1e-6 |
-| `-d <damp>` | Damping factor | 0.85 |
+| `-t <tol>` | Convergence tolerance | 1e-4 |
+
+> **Note:** The damping factor is hardcoded to 0.85 in the implementation.
 
 **Examples:**
 ```bash
@@ -106,7 +116,7 @@ Note: ID 14 (MAP) is reserved for external mapping files.
 ./bench/bin/pr -f graph.el -s -i 100 -t 1e-8 -n 5
 
 # With reordering
-./bench/bin/pr -f graph.el -s -o 20 -n 5
+./bench/bin/pr -f graph.el -s -o 17 -n 5
 ```
 
 ### BFS (bfs)
@@ -179,15 +189,15 @@ No additional options.
 | Option | Description | Default |
 |--------|-------------|---------|
 | `-r <root>` | Source vertex | Random |
-| `-k <samples>` | Number of samples | All |
+| `-i <iterations>` | Number of source iterations | 1 |
 
 **Examples:**
 ```bash
 # BC from single source
 ./bench/bin/bc -f graph.el -s -r 0 -n 5
 
-# Approximate BC (faster)
-./bench/bin/bc -f graph.el -s -k 64 -n 5
+# BC with multiple iterations (more accurate)
+./bench/bin/bc -f graph.el -s -i 4 -n 5
 ```
 
 ### Triangle Counting (tc)
@@ -216,13 +226,20 @@ No additional options.
 | Option | Description |
 |--------|-------------|
 | `-f <input>` | Input file |
-| `-o <output>` | Output file (serialized) |
-| `-s` | Symmetrize |
+| `-s` | Symmetrize input |
+| `-o <id>` | Apply reordering algorithm |
+| `-b <file>` | Output serialized graph (.sg) |
+| `-e <file>` | Output edge list (.el) |
+| `-p <file>` | Output Matrix Market format (.mtx) |
+| `-y <file>` | Output Ligra format (.ligra) |
+| `-w` | Make output weighted (.wel/.wsg) |
+| `-x <file>` | Output reordered labels as text (.so) |
+| `-q <file>` | Output reordered labels as binary (.lo) |
 
 **Examples:**
 ```bash
 # Convert to binary format
-./bench/bin/converter -f graph.el -s -o graph.sg
+./bench/bin/converter -f graph.el -s -b graph.sg
 
 # Use converted graph
 ./bench/bin/pr -f graph.sg -n 5
@@ -256,9 +273,8 @@ export PERCEPTRON_WEIGHTS_FILE=/path/to/weights.json
 
 **Example output:**
 ```
-Finding best type match for features: mod=0.4521, deg_var=2.3456, hub=0.6789...
-Best matching type: type_0 (similarity: 0.9234)
-Loaded 21 weights from scripts/weights/active/type_0.json
+Best matching type: type_0 (distance: 0.4521)
+Perceptron: Loaded 5 weights from scripts/weights/active/type_0.json
 ```
 
 ### NUMA Binding
@@ -338,7 +354,7 @@ HUBCLUSTERDBG: 2 communities
 ### Compare Algorithms
 
 ```bash
-for algo in 0 7 12 15 20; do
+for algo in 0 7 14 15 17; do
     echo "=== Algorithm $algo ==="
     ./bench/bin/pr -f graph.el -s -o $algo -n 3
 done
@@ -347,7 +363,7 @@ done
 ### Run All Benchmarks
 
 ```bash
-for bench in pr bfs cc tc; do
+for bench in pr bfs cc sssp bc tc; do
     echo "=== $bench ==="
     ./bench/bin/$bench -f graph.el -s -o 7 -n 3
 done
@@ -461,7 +477,7 @@ See [[Python-Scripts]] for complete documentation.
 1. **Always use `-s`** for undirected graphs
 2. **Use `-n 5` or more** for reliable timing
 3. **Start with `-o 0`** as baseline
-4. **Use `-o 15`** (AdaptiveOrder) for unknown graphs
+4. **Use `-o 14`** (AdaptiveOrder) for unknown graphs
 5. **Verify first run** with `-v` to check correctness
 
 ---
