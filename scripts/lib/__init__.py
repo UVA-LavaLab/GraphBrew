@@ -9,6 +9,9 @@ This library provides functions for:
 - Running cache simulations
 - Managing type-based weights for AdaptiveOrder
 - Training ML weights
+- Progress tracking and reporting
+- Result file management
+- Adaptive order analysis
 
 **Module Overview:**
 - `utils`: Core constants (ALGORITHMS, BENCHMARKS), logging, command execution
@@ -18,6 +21,10 @@ This library provides functions for:
 - `benchmark`: Performance benchmark execution
 - `cache`: Cache simulation analysis
 - `weights`: Type-based weight management for AdaptiveOrder
+- `progress`: Visual progress tracking and reporting
+- `results`: Result file I/O and aggregation
+- `analysis`: Adaptive order analysis functions
+- `training`: Weight training functions
 
 **Standalone Usage:**
     python -m scripts.lib.download --size SMALL --list --stats
@@ -36,11 +43,16 @@ This library provides functions for:
     from scripts.lib.benchmark import run_benchmark, run_benchmark_suite
     from scripts.lib.cache import run_cache_simulations
     from scripts.lib.weights import assign_graph_type, update_type_weights_incremental
+    from scripts.lib.progress import ProgressTracker, create_progress
+    from scripts.lib.results import ResultsManager, read_json, write_json
+    from scripts.lib.analysis import analyze_adaptive_order, compare_adaptive_vs_fixed
+    from scripts.lib.training import train_adaptive_weights_iterative
 """
 
-__version__ = "1.1.0"
+__version__ = "1.2.0"
 __all__ = [
-    "utils", "download", "build", "reorder", "benchmark", "cache", "weights"
+    "utils", "download", "build", "reorder", "benchmark", "cache", "weights",
+    "progress", "results", "analysis", "training"
 ]
 
 # =============================================================================
@@ -144,4 +156,65 @@ from .weights import (
     list_known_types,
     get_type_summary,
     initialize_default_weights,
+)
+
+# =============================================================================
+# Progress tracking
+# =============================================================================
+from .progress import (
+    ProgressTracker,
+    ConsoleColors,
+    Timer,
+    format_duration,
+    create_progress,
+    get_progress,
+    reset_progress,
+)
+
+# =============================================================================
+# Results management
+# =============================================================================
+from .results import (
+    ResultsManager,
+    read_json,
+    write_json,
+    read_csv,
+    write_csv,
+    append_csv,
+    generate_timestamp,
+    generate_result_filename,
+    flatten_dict,
+    filter_results,
+    group_results,
+    compute_statistics,
+    ResultSchema,
+    BENCHMARK_RESULT_SCHEMA,
+    REORDER_RESULT_SCHEMA,
+    CACHE_RESULT_SCHEMA,
+)
+
+# =============================================================================
+# Analysis functions
+# =============================================================================
+from .analysis import (
+    SubcommunityInfo,
+    AdaptiveOrderResult,
+    AdaptiveComparisonResult,
+    SubcommunityBruteForceResult,
+    GraphBruteForceAnalysis,
+    parse_adaptive_output,
+    analyze_adaptive_order,
+    compare_adaptive_vs_fixed,
+    run_subcommunity_brute_force,
+)
+
+# =============================================================================
+# Training functions
+# =============================================================================
+from .training import (
+    TrainingIterationResult,
+    TrainingResult,
+    initialize_enhanced_weights,
+    train_adaptive_weights_iterative,
+    train_adaptive_weights_large_scale,
 )
