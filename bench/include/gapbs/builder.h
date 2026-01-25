@@ -6964,6 +6964,14 @@ public:
             s += w_diameter * feat.diameter_estimate / 50.0;        // normalize
             s += w_community_count * std::log10(feat.community_count + 1.0);
             
+            // Cache impact weights (learned from cache simulation)
+            // These weights encode how well the algorithm utilizes each cache level
+            // Higher impact = better cache utilization = bonus to score
+            s += cache_l1_impact * 0.5;  // L1 impact bonus (normalized)
+            s += cache_l2_impact * 0.3;  // L2 impact bonus (normalized)
+            s += cache_l3_impact * 0.2;  // L3 impact bonus (normalized)
+            s += cache_dram_penalty;     // DRAM penalty (already negative)
+            
             // Reorder time penalty (if known)
             s += w_reorder_time * feat.reorder_time;
             
