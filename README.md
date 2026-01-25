@@ -85,7 +85,7 @@ This single command will:
 2. **Build** the benchmark binaries automatically
 3. **Analyze** graph properties (modularity, degree variance, hub concentration) to detect graph types
 4. **Generate** label mappings for consistent reordering across all benchmarks
-5. **Run** performance benchmarks (BFS, PR, CC, SSSP, BC) with all 20 algorithms
+5. **Run** performance benchmarks (BFS, PR, CC, SSSP, BC) with all 18 algorithms
 6. **Execute** cache simulations for L1/L2/L3 hit rate analysis
 7. **Train** per-graph-type perceptron weights for AdaptiveOrder (social, road, web, powerlaw, uniform)
 
@@ -103,7 +103,7 @@ python3 scripts/graphbrew_experiment.py --phase all
 # Quick test with key algorithms
 python3 scripts/graphbrew_experiment.py --graphs small --key-only
 
-# Run brute-force validation (test adaptive vs all 20 algorithms)
+# Run brute-force validation (test adaptive vs all 18 algorithms)
 python3 scripts/graphbrew_experiment.py --brute-force
 
 # Use pre-generated label maps for consistent reordering
@@ -481,7 +481,7 @@ python3 scripts/graphbrew_experiment.py --phase weights
 
 ### Brute-Force Validation
 ```bash
-# Compare adaptive selection vs all 20 algorithms
+# Compare adaptive selection vs all 18 algorithms
 python3 scripts/graphbrew_experiment.py --brute-force --graphs small
 ```
 
@@ -652,7 +652,7 @@ The `CLConvert` class provides several command-line options for generating diffe
 - `-w file`: Make output weighted (`.wel` | `.wsg`| `.wligra`).
 - `-x file`: Output new reordered labels to file list (`.so`).
 - `-q file`: Output new reordered labels to file serialized (`.lo`).
-- `-o order`: Apply reordering strategy, optionally with a parameter (e.g., `-o 3`, `-o 2`, `-o 14:mapping.label`).
+- `-o order`: Apply reordering strategy, optionally with a parameter (e.g., `-o 3`, `-o 2`, `-o 13:mapping.label`).
 
 ### Example Usage
 
@@ -681,7 +681,7 @@ make run-converter GRAPH_BENCH='-f ./graph.<mtx|el|sg>' RUN_PARAMS='-b graph.sg 
 To apply a reordering strategy on the newly generated graph, use the `-o` option. For example:
 
 ```bash
-make run-converter GRAPH_BENCH='-f ./graph.<mtx|el|sg>' RUN_PARAMS='-p ./graph_3_2_14.mtx -o 3 -o 2 -o 14:mapping.<lo|so>'
+make run-converter GRAPH_BENCH='-f ./graph.<mtx|el|sg>' RUN_PARAMS='-p ./graph_3_2_13.mtx -o 3 -o 2 -o 13:mapping.<lo|so>'
 ```
 
 ### Combining Multiple Output Formats and Reordering
@@ -711,7 +711,7 @@ The graph loading infrastructure understands the following formats:
 + `.wsg` weighted serialized pre-built graph (use `converter` to make)
 
 The GraphBrew loading infrastructure understands the following formats for reordering labels:
-+ `-o 14:mapping.lo` loads new reodering labels from file `mapping.<lo|so>` is also supported
++ `-o 13:mapping.lo` loads new reodering labels from file `mapping.<lo|so>` is also supported
 + `.so` reordered serialized labels list (.so) (use `converter` to make), _node_id_ per line as _node_label_ 
 + `.lo` reordered plain-text labels list (.lo) (use `converter` to make), _node_id_ per line as _node_label_ 
 
@@ -835,7 +835,7 @@ converter
  -k <degree> : average degree for synthetic graph                           [16]
  -m          : reduces memory usage during graph building                [false]
  -o <order>  : Apply reordering strategy, optionally layer ordering 
-               [example]-o 3 -o 2 -o 14:mapping.<lo|so>               [optional]
+               [example]-o 3 -o 2 -o 13:mapping.<lo|so>               [optional]
  -z <indegree>: use indegree for ordering [Degree Based Orderings]       [false]
  -j <segments>: number of segments for the graph 
                [type:n:m] <0:GRAPHIT/Cagra> <1:TRUST>                    [0:1:1]
@@ -863,7 +863,7 @@ available Make commands:
 Example Usage:
   make all - Compile the program.
   make clean - Clean build files.
-  ./bench/bin/pr -g 15 -n 1 -o 14:mapping.lo - Execute with MAP reordering using 'mapping.<lo|so> '.
+  ./bench/bin/pr -g 15 -n 1 -o 13:mapping.lo - Execute with MAP reordering using 'mapping.<lo|so> '.
 
 ```
 
