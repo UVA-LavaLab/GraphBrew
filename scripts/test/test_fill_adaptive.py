@@ -259,7 +259,7 @@ def main():
                         help='Clean weights directory before testing')
     parser.add_argument('--skip-fill', action='store_true',
                         help='Skip fill-weights phase (use existing weights)')
-    parser.add_argument('--weights-dir', default='scripts/weights',
+    parser.add_argument('--weights-dir', default='scripts/weights/active',
                         help='Weights directory')
     parser.add_argument('--verbose', '-v', action='store_true',
                         help='Verbose output')
