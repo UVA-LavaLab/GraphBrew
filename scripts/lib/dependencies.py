@@ -220,8 +220,12 @@ def check_header_exists(header: str) -> bool:
         True if header exists
     """
     include_paths = [
+        # GraphBrew recommended path (from README)
+        "/opt/boost_1_58_0/include",
+        # Standard system paths
         "/usr/include",
         "/usr/local/include",
+        # macOS paths
         "/opt/homebrew/include",  # macOS ARM
         "/usr/local/opt/boost/include",  # macOS Intel
     ]
@@ -236,13 +240,23 @@ def get_boost_version() -> Optional[str]:
     """
     Get the installed Boost version.
     
+    Checks multiple locations:
+    1. /opt/boost_1_58_0 (GraphBrew recommended install path from README)
+    2. Standard system paths (/usr/include, /usr/local/include)
+    3. Homebrew paths (macOS)
+    
     Returns:
         Version string or None if not found
     """
     version_headers = [
+        # GraphBrew recommended path (from README installation guide)
+        "/opt/boost_1_58_0/include/boost/version.hpp",
+        # Standard system paths
         "/usr/include/boost/version.hpp",
         "/usr/local/include/boost/version.hpp",
+        # macOS Homebrew paths
         "/opt/homebrew/include/boost/version.hpp",
+        "/usr/local/opt/boost/include/boost/version.hpp",
     ]
     
     for header_path in version_headers:
