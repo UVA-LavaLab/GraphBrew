@@ -6759,7 +6759,7 @@ public:
      * benefit from different reordering strategies:
      * 
      * - SOCIAL: High modularity, community structure, power-law degrees
-     *           Best: LeidenDFS, RabbitOrder
+     *           Best: LeidenDendrogram, RabbitOrder
      * - ROAD: Mesh-like, low modularity, planar structure
      *         Best: RCMOrder (bandwidth reduction)
      * - WEB: High hub concentration, bow-tie structure
