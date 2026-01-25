@@ -234,7 +234,7 @@ Computing correlations...
 ----------------------------------------------------------------------
 Computing Perceptron Weights
 ----------------------------------------------------------------------
-Perceptron weights saved to: scripts/weights/type_0.json
+Perceptron weights saved to: scripts/weights/active/type_0.json
   18 algorithms configured
   Updated from benchmarks: ORIGINAL, HUBCLUSTERDBG, LeidenCSR, ...
 
@@ -247,8 +247,8 @@ Summary:
 
 ### Generated Files
 
-1. **scripts/weights/type_N.json** - Weights for C++ runtime (per cluster)
-2. **scripts/weights/type_registry.json** - Graph → type mappings + centroids
+1. **scripts/weights/active/type_N.json** - Weights for C++ runtime (per cluster)
+2. **scripts/weights/active/type_registry.json** - Graph → type mappings + centroids
 3. **correlation_matrix.csv** - Raw correlation data
 4. **benchmark_results.json** - Full benchmark results
 
@@ -332,7 +332,7 @@ After running the full pipeline, results are in JSON format:
 cat results/benchmark_*.json | python3 -m json.tool
 
 # View generated weights
-cat scripts/weights/type_0.json | python3 -m json.tool
+cat scripts/weights/active/type_0.json | python3 -m json.tool
 ```
 
 ### Correlation Matrix
@@ -387,10 +387,13 @@ This runs all phases sequentially:
 **Output files:**
 ```
 scripts/weights/
-├── type_registry.json    # Maps graphs → types + cluster centroids
-├── type_0.json           # Cluster 0 weights
-├── type_1.json           # Cluster 1 weights
-└── type_N.json           # Additional clusters
+├── active/                   # Active weights (C++ reads, Python writes)
+│   ├── type_registry.json    # Maps graphs → types + cluster centroids
+│   ├── type_0.json           # Cluster 0 weights
+│   ├── type_1.json           # Cluster 1 weights
+│   └── type_N.json           # Additional clusters
+├── merged/                   # Accumulated weights from all runs
+└── runs/                     # Historical snapshots
 
 results/
 └── graph_properties_cache.json  # Cached graph properties for type detection
@@ -400,14 +403,14 @@ results/
 
 After each weight update, the system automatically:
 1. **Clusters graphs** by feature similarity (cosine similarity ≥ 0.85)
-2. **Generates per-cluster weights** in `scripts/weights/type_N.json`
+2. **Generates per-cluster weights** in `scripts/weights/active/type_N.json`
 3. **Updates type registry** with centroids for runtime matching
 
 ### Reset to Defaults
 
 ```bash
 # Regenerate from scratch
-rm -rf scripts/weights/type_*.json scripts/weights/type_registry.json
+rm -rf scripts/weights/active/type_*.json scripts/weights/active/type_registry.json
 python3 scripts/graphbrew_experiment.py --fill-weights --download-size SMALL
 ```
 

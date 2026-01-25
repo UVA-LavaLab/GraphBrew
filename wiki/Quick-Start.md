@@ -79,7 +79,7 @@ Train perceptron weights from scratch with automatic resource management:
 
 ```bash
 # Clean slate: remove old results and weights
-rm -rf results/* scripts/weights/type_*.json scripts/weights/type_registry.json
+rm -rf results/* scripts/weights/active/* scripts/weights/merged/* scripts/weights/runs/*
 
 # Comprehensive training: ALL graphs (small+medium+large) with adaptive analysis
 python3 scripts/graphbrew_experiment.py --fill-weights --auto-memory --auto-disk --skip-cache --download-size ALL --adaptive-analysis --adaptive-comparison
@@ -91,7 +91,7 @@ This command:
 - ✅ Downloads ALL graphs (~89 GB): SMALL + MEDIUM + LARGE categories
 - ✅ Skips cache simulation (faster training)
 - ✅ Generates type clusters based on graph features
-- ✅ Creates `scripts/weights/type_N.json` files for each cluster
+- ✅ Creates `scripts/weights/active/type_N.json` files for each cluster
 - ✅ Runs adaptive analysis to show algorithm distribution
 - ✅ Compares AdaptiveOrder vs fixed algorithms
 
@@ -305,8 +305,8 @@ python3 scripts/graphbrew_experiment.py --graphs-dir ./results/graphs --max-grap
 python3 scripts/graphbrew_experiment.py --graphs-dir ./results/graphs --brute-force --bf-benchmark pr --trials 2
 
 # CHECK RESULTS: View type weight files
-ls -la scripts/weights/
-cat scripts/weights/type_0.json | python3 -c "import sys,json; d=json.load(sys.stdin); [print(f'{k}: {v.get(\"bias\",0):.2f}') for k,v in sorted(d.items(), key=lambda x:-x[1].get('bias',0))[:10] if not k.startswith('_')]"
+ls -la scripts/weights/active/
+cat scripts/weights/active/type_0.json | python3 -c "import sys,json; d=json.load(sys.stdin); [print(f'{k}: {v.get(\"bias\",0):.2f}') for k,v in sorted(d.items(), key=lambda x:-x[1].get('bias',0))[:10] if not k.startswith('_')]"
 ```
 
 ### Understanding Output

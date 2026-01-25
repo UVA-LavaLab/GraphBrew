@@ -209,11 +209,11 @@ If you want AdaptiveOrder to consider your algorithm:
 When adding a new algorithm, add weights to the type weight files:
 
 ```bash
-# Files to update:
-scripts/weights/type_registry.json    # Contains centroids (no algorithm weights)
-scripts/weights/type_0.json           # Cluster 0 weights
-scripts/weights/type_1.json           # Cluster 1 weights
-scripts/weights/type_N.json           # Additional clusters as needed
+# Files to update (in scripts/weights/active/):
+scripts/weights/active/type_registry.json    # Contains centroids (no algorithm weights)
+scripts/weights/active/type_0.json           # Cluster 0 weights
+scripts/weights/active/type_1.json           # Cluster 1 weights
+scripts/weights/active/type_N.json           # Additional clusters as needed
 ```
 
 ### Example Entry (add to each type_N.json file)

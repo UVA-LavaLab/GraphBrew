@@ -130,15 +130,17 @@ AdaptiveOrder uses automatic clustering to group similar graphs, rather than pre
 **Type Files:**
 ```
 scripts/weights/
-├── type_registry.json    # Maps graphs → types + stores centroids
-├── type_0.json           # Cluster 0 weights
-├── type_1.json           # Cluster 1 weights
-└── type_N.json           # Additional clusters as needed
+├── active/               # C++ reads from here
+│   ├── type_registry.json
+│   ├── type_0.json
+│   └── type_N.json
+├── merged/               # Accumulated from all runs
+└── runs/                 # Historical snapshots
 ```
 
 **Weight File Loading Priority:**
 1. Environment variable `PERCEPTRON_WEIGHTS_FILE` (if set)
-2. Best matching type file (e.g., `scripts/weights/type_0.json`)
+2. Best matching type file (e.g., `scripts/weights/active/type_0.json`)
 3. Semantic type fallback (if type files don't exist)
 4. Hardcoded defaults
 
@@ -508,8 +510,8 @@ This automatically:
 3. Collects cache simulation data (L1/L2/L3 hit rates)
 4. Records reorder times for each algorithm
 5. Auto-clusters graphs by feature similarity and generates:
-   - `scripts/weights/type_registry.json` (graph → type mapping + centroids)
-   - `scripts/weights/type_N.json` (per-cluster weights)
+   - `scripts/weights/active/type_registry.json` (graph → type mapping + centroids)
+   - `scripts/weights/active/type_N.json` (per-cluster weights)
    - Core feature weights (modularity, size, hub concentration, etc.)
    - Cache impact weights (L1/L2/L3 bonuses, DRAM penalty)
    - Reorder time penalty weight
@@ -563,7 +565,7 @@ python3 scripts/graphbrew_experiment.py --init-weights
 python3 scripts/graphbrew_experiment.py --fill-weights --graphs small --max-graphs 5
 ```
 
-**Note:** Both `--train-adaptive` and `--fill-weights` now use the same type-based weight system (`scripts/weights/type_*.json`).
+**Note:** Both `--train-adaptive` and `--fill-weights` now use the same type-based weight system (`scripts/weights/active/type_*.json`). Use `--list-runs` to see historical training runs and `--merge-runs` to consolidate weights.
 
 ### Training Output
 
@@ -604,7 +606,7 @@ Final accuracy (time): 82.0%
 Target reached: YES
 Best iteration: 4
 Total unique types updated: 6
-Type weight files: scripts/weights/type_*.json
+Type weight files: scripts/weights/active/type_*.json
 Training summary saved to: results/training_20250118_123045/training_summary.json
 ```
 
@@ -613,11 +615,15 @@ Training summary saved to: results/training_20250118_123045/training_summary.jso
 The training process updates type-based weights and creates:
 
 ```
-scripts/weights/                # Type-based weights (PRIMARY - updated each iteration)
-├── type_registry.json          # Graph → type mapping + centroids
-├── type_0.json                 # Cluster 0 weights (updated)
-├── type_1.json                 # Cluster 1 weights (updated)
-└── type_N.json                 # Additional clusters (updated)
+scripts/weights/                # Type-based weights directory
+├── active/                     # C++ reads from here (PRIMARY)
+│   ├── type_registry.json      # Graph → type mapping + centroids
+│   ├── type_0.json             # Cluster 0 weights (updated)
+│   ├── type_1.json             # Cluster 1 weights (updated)
+│   └── type_N.json             # Additional clusters (updated)
+├── merged/                     # Accumulated from all runs
+└── runs/                       # Historical snapshots
+    └── run_YYYYMMDD_*/
 
 results/training_20250118_123045/
 ├── training_summary.json       # Overall training results
@@ -950,9 +956,9 @@ Auto-clustering graphs by feature similarity...
   Created cluster type_0: 5 graphs (mod=0.45, deg_var=0.82, hub=0.35)
   Created cluster type_1: 3 graphs (mod=0.12, deg_var=0.21, hub=0.15)
 
-Weights saved to scripts/weights/type_0.json (5 graphs)
-Weights saved to scripts/weights/type_1.json (3 graphs)
-Registry saved to scripts/weights/type_registry.json
+Weights saved to scripts/weights/active/type_0.json (5 graphs)
+Weights saved to scripts/weights/active/type_1.json (3 graphs)
+Registry saved to scripts/weights/active/type_registry.json
   C++ will automatically load matching type weights at runtime
 ```
 
@@ -964,10 +970,12 @@ Registry saved to scripts/weights/type_registry.json
 
 ```
 GraphBrew/scripts/weights/
-├── type_registry.json    # Maps graphs → types + centroids
-├── type_0.json           # Cluster 0 weights
-├── type_1.json           # Cluster 1 weights
-└── type_N.json           # Additional clusters
+├── active/               # C++ reads from here
+│   ├── type_registry.json
+│   ├── type_0.json
+│   └── type_N.json
+├── merged/               # Merged weights from all runs
+└── runs/                 # Historical snapshots
 ```
 
 ### Structure
@@ -1076,7 +1084,7 @@ GraphBrew/scripts/weights/
 
 The C++ code automatically loads weights from:
 1. `PERCEPTRON_WEIGHTS_FILE` environment variable (if set)
-2. Best matching type file from `scripts/weights/type_N.json`
+2. Best matching type file from `scripts/weights/active/type_N.json`
 3. Semantic type fallback (if type files don't exist)
 4. Hardcoded defaults (if all else fails)
 
@@ -1132,17 +1140,17 @@ Look for output like:
 ```
 Finding best type match for features: mod=0.4521, deg_var=0.8012, hub=0.3421...
 Best matching type: type_0 (similarity: 0.9234)
-Loaded 21 weights from scripts/weights/type_0.json
+Loaded 21 weights from scripts/weights/active/type_0.json
 ```
 
 ### Verify Weights File
 
 ```bash
 # Check JSON is valid
-python3 -c "import json; json.load(open('scripts/weights/type_0.json'))"
+python3 -c "import json; json.load(open('scripts/weights/active/type_0.json'))"
 
 # View contents
-cat scripts/weights/type_0.json | python3 -m json.tool
+cat scripts/weights/active/type_0.json | python3 -m json.tool
 ```
 
 ---

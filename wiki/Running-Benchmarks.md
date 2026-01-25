@@ -61,7 +61,7 @@ The comprehensive `--fill-weights` mode runs these phases:
 | **Phase 6** | Compute Benchmark Weights - per-benchmark multipliers |
 | **Phase 7** | Auto-Cluster Type Weights - clusters graphs and creates type_N.json files |
 
-Output files are saved to `scripts/weights/`: `type_0.json`, `type_1.json`, `type_registry.json`, etc.
+Output files are saved to `scripts/weights/active/`: `type_0.json`, `type_1.json`, `type_registry.json`, etc.
 
 ### Download Options
 
