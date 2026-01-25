@@ -221,6 +221,17 @@ from scripts.lib import (
     run_full_pipeline,
 )
 
+# Try to import dependency manager
+try:
+    from scripts.lib.dependencies import (
+        check_dependencies as lib_check_dependencies,
+        install_dependencies as lib_install_dependencies,
+        print_install_instructions as lib_print_install_instructions,
+    )
+    HAS_DEPENDENCY_MANAGER = True
+except ImportError:
+    HAS_DEPENDENCY_MANAGER = False
+
 # ============================================================================
 # Configuration
 # ============================================================================
@@ -2663,6 +2674,12 @@ Examples:
         """
     )
     
+    # Dependency management
+    parser.add_argument("--check-deps", action="store_true",
+                        help="Check system dependencies (Boost, g++, libnuma, etc.) and exit")
+    parser.add_argument("--install-deps", action="store_true",
+                        help="Install missing system dependencies (may require sudo)")
+    
     # One-click full pipeline
     parser.add_argument("--full", action="store_true",
                         help="Run complete pipeline: download, build, experiment, weights")
@@ -2828,6 +2845,31 @@ Examples:
                         help="Automatically setup everything: create directories, build if missing, download graphs if needed")
     
     args = parser.parse_args()
+    
+    # Handle dependency management (before anything else)
+    if args.check_deps or args.install_deps:
+        if not HAS_DEPENDENCY_MANAGER:
+            print("ERROR: Dependency manager not available. Check scripts/lib/dependencies.py")
+            sys.exit(1)
+        
+        if args.check_deps:
+            all_ok, status = lib_check_dependencies(verbose=True)
+            if not all_ok:
+                print("\nTo install missing dependencies:")
+                print("  python scripts/graphbrew_experiment.py --install-deps")
+                print("\nOr see manual instructions:")
+                print("  python -m scripts.lib.dependencies --instructions")
+            sys.exit(0 if all_ok else 1)
+        
+        if args.install_deps:
+            print("Installing missing system dependencies...")
+            print("(This may require sudo password)")
+            success, msg = lib_install_dependencies(verbose=True)
+            print(msg)
+            if success:
+                print("\nVerifying installation...")
+                lib_check_dependencies(verbose=True)
+            sys.exit(0 if success else 1)
     
     # Determine memory limit
     if args.auto_memory and args.max_memory is None:
