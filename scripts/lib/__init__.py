@@ -52,7 +52,7 @@ This library provides functions for:
 __version__ = "1.2.0"
 __all__ = [
     "utils", "download", "build", "reorder", "benchmark", "cache", "weights",
-    "progress", "results", "analysis", "training"
+    "progress", "results", "analysis", "training", "features", "phases", "types"
 ]
 
 # =============================================================================
@@ -78,6 +78,46 @@ from .utils import (
     Logger,
     run_command,
     get_timestamp,
+)
+
+# =============================================================================
+# Graph features and system utilities
+# =============================================================================
+from .features import (
+    # Graph type constants
+    GRAPH_TYPE_GENERIC,
+    GRAPH_TYPE_SOCIAL,
+    GRAPH_TYPE_ROAD,
+    GRAPH_TYPE_WEB,
+    GRAPH_TYPE_POWERLAW,
+    GRAPH_TYPE_UNIFORM,
+    ALL_GRAPH_TYPES,
+    # Memory constants
+    BYTES_PER_EDGE,
+    BYTES_PER_NODE,
+    MEMORY_SAFETY_FACTOR,
+    # Graph properties cache
+    load_graph_properties_cache,
+    save_graph_properties_cache,
+    update_graph_properties,
+    get_graph_properties,
+    clear_graph_properties_cache,
+    # Graph type detection
+    detect_graph_type,
+    get_graph_type_from_name,
+    get_graph_type_from_properties,
+    # Topological features
+    compute_clustering_coefficient_sample,
+    estimate_diameter_bfs,
+    count_subcommunities_quick,
+    compute_extended_features,
+    # System utilities
+    get_available_memory_gb,
+    get_total_memory_gb,
+    estimate_graph_memory_gb,
+    get_available_disk_gb,
+    get_total_disk_gb,
+    get_num_threads,
 )
 
 # =============================================================================
@@ -150,12 +190,14 @@ from .weights import (
     save_type_registry,
     load_type_weights,
     save_type_weights,
+    get_type_weights_file,
     assign_graph_type,
     update_type_weights_incremental,
     get_best_algorithm_for_type,
     list_known_types,
     get_type_summary,
     initialize_default_weights,
+    CLUSTER_DISTANCE_THRESHOLD,
 )
 
 # =============================================================================
@@ -217,4 +259,34 @@ from .training import (
     initialize_enhanced_weights,
     train_adaptive_weights_iterative,
     train_adaptive_weights_large_scale,
+)
+# =============================================================================
+# Phase orchestration
+# =============================================================================
+from .phases import (
+    PhaseConfig,
+    run_reorder_phase,
+    run_benchmark_phase,
+    run_cache_phase,
+    run_weights_phase,
+    run_fill_weights_phase,
+    run_adaptive_analysis_phase,
+    run_comparison_phase,
+    run_brute_force_phase,
+    run_training_phase,
+    run_large_scale_training_phase,
+    run_full_pipeline,
+    quick_benchmark,
+    compare_algorithms,
+)
+
+# =============================================================================
+# Type definitions
+# =============================================================================
+from .types import (
+    GraphInfo,
+    ReorderResult,
+    BenchmarkResult,
+    CacheResult,
+    AdaptiveAnalysisResult,
 )
