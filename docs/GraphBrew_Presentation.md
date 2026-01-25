@@ -66,7 +66,7 @@
 └────────┬────────┘     └────────┬────────┘     └────────┬────────┘
          │                       │                       │
          ▼                       ▼                       ▼
-    RabbitOrder             HubClusterDBG            LeidenDFS
+    RabbitOrder             HubClusterDBG            LeidenDendrogram
 ```
 
 ---
@@ -139,12 +139,12 @@ final_score = score × benchmark_weights[benchmark]
 | 9 | GORDER | Graph reordering |
 | 10 | CORDER | Cache-optimized |
 | 11 | RCM | Reverse Cuthill-McKee (road) |
-| 15 | LeidenOrder | Modularity-based |
-| 16 | LeidenDFS | Leiden + DFS traversal |
-| 17 | LeidenDFSHub | Leiden + DFS + Hub sort |
-| 18 | LeidenDFSSize | Leiden + size ordering |
-| 19 | LeidenBFS | Leiden + BFS traversal |
-| 17 | LeidenCSR | Adaptive Leiden variant |
+| 12 | GraphBrewOrder | Per-community reordering |
+| 13 | MAP | External mapping file |
+| 14 | AdaptiveOrder | ML-powered selection |
+| 15 | LeidenOrder | Modularity-based (igraph) |
+| 16 | LeidenDendrogram | Leiden + dendrogram traversal |
+| 17 | LeidenCSR | Fast CSR-native Leiden |
 
 ---
 
@@ -385,7 +385,7 @@ benchmark_weights = {
       "win_rate": 0.68
     }
   },
-  "LeidenDFS": { ... },
+  "LeidenCSR": { ... },
   "HubClusterDBG": { ... }
 }
 ```
@@ -448,7 +448,7 @@ Input: soc-LiveJournal1 (4.8M nodes, 68M edges)
 │                                                                 │
 │ Community 1 (450K nodes): dense, high clustering                │
 │   → Features: density=0.08, hub_conc=0.38                       │
-│   → Score: RABBITORDER=2.1, LeidenDFS=1.9, HubSort=1.5          │
+│   → Score: RABBITORDER=2.1, LeidenDendrogram=1.9, HubSort=1.5          │
 │   → SELECT: RABBITORDER                                         │
 │                                                                 │
 │ Community 2 (120K nodes): sparse, hub-dominated                 │
@@ -514,7 +514,7 @@ specific memory hierarchy configurations.
 
 | Graph Type | Typical Speedup | Best Algorithm |
 |------------|-----------------|----------------|
-| Social Networks | 1.3-1.5x | LeidenDFS, RabbitOrder |
+| Social Networks | 1.3-1.5x | LeidenOrder, RabbitOrder |
 | Road Networks | 1.2-1.4x | RCM, CORDER |
 | Web Graphs | 1.4-1.6x | HubClusterDBG, DBG |
 | Power-Law | 1.3-1.5x | RabbitOrder, HubCluster |
