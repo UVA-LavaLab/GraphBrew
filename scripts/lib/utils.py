@@ -78,6 +78,7 @@ LEIDEN_DEFAULT_PASSES = 3
 
 # Benchmark definitions
 BENCHMARKS = ["pr", "bfs", "cc", "sssp", "bc", "tc"]
+BENCHMARKS_DEFAULT = ["pr", "bfs", "cc", "sssp", "bc"]  # TC skipped by default (minimal reorder benefit)
 
 # =============================================================================
 # Data Classes

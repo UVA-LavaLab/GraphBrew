@@ -4856,8 +4856,8 @@ public:
         
         const int64_t num_nodes = g.num_nodes();
         
-        // Parse options - default to 1 pass since we don't do proper coarsening
-        double resolution = 0.75;
+        // Parse options - use auto-resolution by default
+        double resolution = LeidenAutoResolution<NodeID_, DestID_>(g);
         int max_iterations = 10;
         int max_passes = 1;  // Single pass is fastest with comparable quality
         
@@ -5336,7 +5336,15 @@ public:
      */
     
     /**
-     * Compute optimal resolution based on graph properties
+     * Compute optimal resolution based on graph properties.
+     * 
+     * Heuristic for stable partitions for reordering; not a research-derived
+     * optimum. Users should sweep γ for best community quality.
+     * 
+     * Logic:
+     * - Continuous mapping: γ = clip(0.5 + 0.25*log10(avg_degree+1), 0.5, 1.2)
+     * - CV guardrail: if degree variance is high (CV > 2), nudge toward 1.0
+     *   because heavy-tailed (hubby) graphs can produce unstable mega-communities
      */
     template<typename NodeID_T, typename DestID_T>
     double LeidenAutoResolution(const CSRGraph<NodeID_T, DestID_T, true>& g) {
@@ -5344,12 +5352,30 @@ public:
         const int64_t num_edges = g.num_edges_directed();
         double avg_degree = static_cast<double>(num_edges) / num_vertices;
         
-        // Higher resolution for denser graphs (more communities)
-        // Lower resolution for sparser graphs (fewer, larger communities)
-        if (avg_degree > 50) return 1.2;
-        if (avg_degree > 20) return 1.0;
-        if (avg_degree > 10) return 0.8;
-        return 0.5;
+        // Continuous mapping (smoother than hard thresholds)
+        // γ = 0.5 + 0.25*log10(avg_degree+1), clipped to [0.5, 1.2]
+        double gamma = 0.5 + 0.25 * std::log10(avg_degree + 1.0);
+        gamma = std::max(0.5, std::min(1.2, gamma));
+        
+        // CV guardrail: detect hubby/power-law graphs via coefficient of variation
+        // CV = stddev(degree) / mean(degree)
+        // If CV > 2, graph is heavy-tailed; nudge γ toward 1.0 for stability
+        double sum_sq_diff = 0.0;
+        #pragma omp parallel for reduction(+:sum_sq_diff)
+        for (int64_t v = 0; v < num_vertices; v++) {
+            double deg = static_cast<double>(g.out_degree(v));
+            double diff = deg - avg_degree;
+            sum_sq_diff += diff * diff;
+        }
+        double stddev = std::sqrt(sum_sq_diff / num_vertices);
+        double cv = (avg_degree > 0) ? stddev / avg_degree : 0.0;
+        
+        if (cv > 2.0) {
+            // Heavy-tailed graph: nudge toward 1.0 to avoid unstable partitions
+            gamma = std::max(gamma, 1.0);
+        }
+        
+        return gamma;
     }
     
     /**
@@ -5612,7 +5638,8 @@ public:
         using V = TYPE;
         install_sigsegv();
 
-        double resolution = 0.75;
+        // Use auto-resolution based on graph density
+        double resolution = LeidenAutoResolution<NodeID_, DestID_>(g);
         int maxIterations = 30;
         /** Maximum number of passes [10]. */
         int maxPasses = 30;
@@ -6200,8 +6227,8 @@ public:
         pvector<NodeID_> &new_ids,
         std::vector<std::string> reordering_options) {
         
-        // Default values
-        double resolution = 1.0;
+        // Default values - use auto-resolution based on graph density
+        double resolution = LeidenAutoResolution<NodeID_, DestID_>(g);
         std::string variant = "hybrid";
         
         // Parse options: resolution, variant
@@ -6243,8 +6270,8 @@ public:
         pvector<NodeID_> &new_ids,
         std::vector<std::string> reordering_options) {
         
-        // Default values
-        double resolution = 1.0;
+        // Default values - use auto-resolution based on graph density
+        double resolution = LeidenAutoResolution<NodeID_, DestID_>(g);
         int passes = 1;
         std::string variant = "hubsort";
         
@@ -8263,8 +8290,8 @@ public:
         int MAX_DEPTH = 0;  // Default: no recursion
         size_t MIN_COMMUNITY_FOR_RECURSION = 50000;  // Only recurse on large communities
         
-        // Parse options
-        double resolution = 0.75;
+        // Parse options - use auto-resolution by default
+        double resolution = LeidenAutoResolution<NodeID_, DestID_>(g);
         int maxIterations = 30;
         int maxPasses = 30;
 
@@ -8690,7 +8717,7 @@ public:
         int64_t num_edges = g.num_edges_directed();
         size_t num_nodesx = num_nodes;
         size_t num_passes = 0;
-        double resolution = 0.75;
+        double resolution = LeidenAutoResolution<NodeID_, DestID_>(g);  // Auto-resolution based on density
         // double total_time = 0.0;
         int maxIterations = 30;
         /** Maximum number of passes [10]. */

@@ -232,17 +232,17 @@ Larger window = better quality, slower computation
 
 ```bash
 # Format: -o 12[:frequency[:intra_algo[:resolution[:maxIterations[:maxPasses]]]]]
-./bench/bin/pr -f graph.el -s -o 12 -n 3                # Use defaults
+./bench/bin/pr -f graph.el -s -o 12 -n 3                # Use defaults (auto-resolution)
 ./bench/bin/pr -f graph.el -s -o 12:10 -n 3             # frequency=10
 ./bench/bin/pr -f graph.el -s -o 12:10:8 -n 3           # frequency=10, intra_algo=8 (RabbitOrder)
-./bench/bin/pr -f graph.el -s -o 12:10:16:0.75 -n 3     # frequency=10, intra=16 (LeidenDendrogram), res=0.75
+./bench/bin/pr -f graph.el -s -o 12:10:16:0.75 -n 3     # frequency=10, intra=16, res=0.75
 ```
 
 - **Description**: Runs Leiden, then applies a different algorithm within each community
 - **Parameters**:
   - `frequency`: Hub frequency threshold (default: 10) - controls how edges are categorized
   - `intra_algo`: Algorithm ID to use within communities (default: 8 = RabbitOrder)
-  - `resolution`: Leiden resolution parameter (default: 0.75)
+  - `resolution`: Leiden resolution parameter (default: auto based on density)
   - `maxIterations`: Maximum Leiden iterations (default: 30)
   - `maxPasses`: Maximum Leiden passes (default: 30)
 - **Best for**: Fine-grained control over per-community ordering
@@ -282,9 +282,16 @@ Larger window = better quality, slower computation
 | Parameter | Default | Description |
 |-----------|---------|-------------|
 | `max_depth` | 0 | Max recursion depth (0 = per-community, 1+ = multi-level) |
-| `resolution` | 0.75 | Leiden resolution parameter |
+| `resolution` | auto | Leiden resolution (auto: continuous formula with CV guardrail) |
 | `min_recurse_size` | 50000 | Minimum community size for recursion |
 | `mode` | 0 | 0 = per-community, 1 = full-graph adaptive |
+
+**Auto-Resolution Formula:**
+```
+γ = clip(0.5 + 0.25 × log₁₀(avg_degree + 1), 0.5, 1.2)
+If CV(degree) > 2: γ = max(γ, 1.0)  // CV guardrail for hubby graphs
+```
+*Heuristic for stable partitions; users should sweep γ for best community quality.*
 
 **Operating Modes:**
 - **Mode 0 (default)**: Run Leiden → select best algorithm per community
@@ -304,7 +311,7 @@ GraphBrew consolidates Leiden algorithms into three main IDs with parameter-base
 
 ```bash
 # Format: -o 15:resolution
-./bench/bin/pr -f graph.el -s -o 15 -n 3                    # Default (res=0.75)
+./bench/bin/pr -f graph.el -s -o 15 -n 3                    # Default (auto-resolution)
 ./bench/bin/pr -f graph.el -s -o 15:0.75 -n 3               # Lower resolution
 ./bench/bin/pr -f graph.el -s -o 15:1.5 -n 3                # Higher resolution
 ```
@@ -312,6 +319,7 @@ GraphBrew consolidates Leiden algorithms into three main IDs with parameter-base
 - **Description**: State-of-the-art community detection algorithm via igraph
 - **Complexity**: O(n log n) average
 - **Best for**: Graphs with strong community structure
+- **Default resolution**: Auto-detected via continuous formula (0.5-1.2) with CV guardrail for power-law graphs
 
 **Key features:**
 - Improves on Louvain algorithm
@@ -323,7 +331,7 @@ GraphBrew consolidates Leiden algorithms into three main IDs with parameter-base
 
 ```bash
 # Format: -o 16:resolution:variant
-./bench/bin/pr -f graph.el -s -o 16 -n 3                    # Default (hybrid)
+./bench/bin/pr -f graph.el -s -o 16 -n 3                    # Default (auto-resolution, hybrid)
 ./bench/bin/pr -f graph.el -s -o 16:1.0:dfs -n 3            # DFS traversal
 ./bench/bin/pr -f graph.el -s -o 16:1.0:dfshub -n 3         # DFS hub-first
 ./bench/bin/pr -f graph.el -s -o 16:1.0:dfssize -n 3        # DFS size-first
@@ -345,7 +353,7 @@ GraphBrew consolidates Leiden algorithms into three main IDs with parameter-base
 
 ```bash
 # Format: -o 17:resolution:passes:variant
-./bench/bin/pr -f graph.el -s -o 17 -n 3                    # Default (hubsort)
+./bench/bin/pr -f graph.el -s -o 17 -n 3                    # Default (auto-resolution, hubsort)
 ./bench/bin/pr -f graph.el -s -o 17:1.0:1:dfs -n 3          # DFS ordering
 ./bench/bin/pr -f graph.el -s -o 17:1.0:1:bfs -n 3          # BFS ordering
 ./bench/bin/pr -f graph.el -s -o 17:1.0:1:hubsort -n 3      # Hub-sorted (recommended)
