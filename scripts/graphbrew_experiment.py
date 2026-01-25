@@ -739,7 +739,7 @@ def discover_graphs(graphs_dir: str, min_size: float = 0, max_size: float = floa
         dirs_to_scan.extend(additional_dirs)
     
     # Also check ./graphs if it exists and isn't already in the list
-    legacy_graphs_dir = "./graphs"
+    legacy_graphs_dir = "./results/graphs"
     if os.path.exists(legacy_graphs_dir) and legacy_graphs_dir not in dirs_to_scan:
         dirs_to_scan.append(legacy_graphs_dir)
     
@@ -2584,6 +2584,20 @@ def run_experiment(args):
                 bw = w["benchmark_weights"]
                 all_same = len(set(bw.values())) == 1
                 log(f"  benchmark_weights: {'○ defaults' if all_same else '✓ tuned'}")
+        
+        # Auto-merge weights from this run with previous runs
+        if not getattr(args, 'no_merge', False):
+            try:
+                from scripts.lib.weight_merger import auto_merge_after_run
+                log("\nMerging weights with previous runs...")
+                merge_summary = auto_merge_after_run()
+                if "error" not in merge_summary:
+                    log(f"  Merged {merge_summary.get('runs_merged', 0)} runs -> {merge_summary.get('total_types', 0)} types")
+                    log(f"  Merged weights saved to: {merge_summary.get('output_dir', 'scripts/weights/merged/')}")
+            except ImportError:
+                pass  # weight_merger not available
+            except Exception as e:
+                log(f"  Warning: Weight merge failed: {e}")
     
     # Show final summary with statistics
     _progress.phase_end()
@@ -2787,6 +2801,18 @@ Examples:
     parser.add_argument("--no-incremental", action="store_true",
                         help="Disable incremental weight updates (don't update type weights on-the-fly)")
     
+    # Weight merging options
+    parser.add_argument("--no-merge", action="store_true",
+                        help="Don't auto-merge weights after fill-weights (keep run isolated)")
+    parser.add_argument("--list-runs", action="store_true",
+                        help="List all saved weight runs")
+    parser.add_argument("--merge-runs", nargs="*", metavar="TIMESTAMP",
+                        help="Merge specific runs (or all if no args)")
+    parser.add_argument("--use-run", metavar="TIMESTAMP",
+                        help="Use weights from a specific run instead of merged")
+    parser.add_argument("--use-merged", action="store_true",
+                        help="Use merged weights (default after merge)")
+    
     # Legacy weights file (for backward compatibility with old scripts)
     parser.add_argument("--weights-file", default="./results/perceptron_weights.json",
                         help="(Intermediate) Temporary file used during fill-weights processing. Final weights saved to scripts/weights/")
@@ -2837,6 +2863,42 @@ Examples:
         if not (args.full or args.download_only or args.phase != "all" or 
                 getattr(args, 'validate_adaptive', False) or getattr(args, 'brute_force', False)):
             return  # Just clean cache, don't run experiments
+    
+    # Handle weight management commands early
+    if getattr(args, 'list_runs', False):
+        from scripts.lib.weight_merger import list_runs
+        runs = list_runs()
+        if not runs:
+            log("No saved runs found")
+        else:
+            log(f"Available runs ({len(runs)}):\n")
+            for run in runs:
+                log(f"  {run.timestamp}:")
+                log(f"    Types: {len(run.types)}")
+                for tid, tinfo in run.types.items():
+                    log(f"      {tid}: {tinfo.graph_count} graphs, {len(tinfo.algorithms)} algos")
+        return
+    
+    if getattr(args, 'merge_runs', None) is not None:
+        from scripts.lib.weight_merger import merge_runs, use_merged
+        run_timestamps = args.merge_runs if args.merge_runs else None
+        summary = merge_runs(run_timestamps=run_timestamps)
+        if "error" not in summary:
+            use_merged()
+            log(f"Merged {summary.get('runs_merged', 0)} runs -> {summary.get('total_types', 0)} types")
+        return
+    
+    if getattr(args, 'use_run', None):
+        from scripts.lib.weight_merger import use_run
+        if use_run(args.use_run):
+            log(f"Now using weights from run: {args.use_run}")
+        return
+    
+    if getattr(args, 'use_merged', False):
+        from scripts.lib.weight_merger import use_merged
+        if use_merged():
+            log("Now using merged weights")
+        return
     
     # Handle --show-types early (informational command)
     if getattr(args, 'show_types', False):
