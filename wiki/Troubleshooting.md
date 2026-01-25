@@ -176,9 +176,9 @@ gdb ./bench/bin/pr
 
 3. **Invalid algorithm ID**
    ```bash
-   # Use valid IDs: 0-13, 15-20 (14=MAP requires external file)
+   # Use valid IDs: 0-17 (13=MAP requires external .lo file)
    ./bench/bin/pr -f graph.el -s -o 7  # Valid
-   ./bench/bin/pr -f graph.el -s -o 14 # Invalid (requires .lo file)
+   ./bench/bin/pr -f graph.el -s -o 13 # Needs external .lo file
    ```
 
 ### Out of Memory
@@ -286,7 +286,7 @@ numactl --cpunodebind=0 --membind=0 ./bench/bin/pr -f graph.el -s
 
 **Try**:
 1. Different algorithms
-2. AdaptiveOrder (14)`)
+2. AdaptiveOrder (14)
 3. Check if graph has community structure
 
 ---
@@ -351,6 +351,8 @@ python3 scripts/graphbrew_experiment.py --fill-weights --graphs small
 
 **Auto-clustering system:**
 Uses 9 features and cosine similarity (threshold: 0.85) to match graphs to clusters.
+
+| Type | Typical Properties |
 |------|----------|
 | road | modularity < 0.1, degree_variance < 0.5, avg_degree < 10 |
 | social | modularity > 0.3, degree_variance > 0.8 |

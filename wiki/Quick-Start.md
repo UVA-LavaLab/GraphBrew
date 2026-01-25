@@ -7,7 +7,7 @@ Get up and running with GraphBrew in 5 minutes!
 - Linux or macOS
 - GCC 7+ with C++17 support
 - Make
-- Python 3.6+ (for analysis scripts)
+- Python 3.8+ (optional, for analysis scripts - no pip install needed)
 
 ---
 
@@ -26,7 +26,7 @@ This will automatically:
 - ✅ Download benchmark graphs from SuiteSparse (87 graphs available)
 - ✅ Build all binaries (standard + cache simulation)
 - ✅ Pre-generate label mappings for consistent reordering
-- ✅ Run performance benchmarks (PR, BFS, CC, SSSP, BC) with all 20 algorithms
+- ✅ Run performance benchmarks (PR, BFS, CC, SSSP, BC, TC) with all 18 algorithms
 - ✅ Execute cache simulations (L1/L2/L3 hit rates)
 - ✅ Detect graph types from computed properties (modularity, degree variance, etc.)
 - ✅ Train per-graph-type perceptron weights for AdaptiveOrder
@@ -130,7 +130,7 @@ make all
 
 # Verify build
 ls bench/bin/
-# Should see: pr bfs cc sssp bc tc
+# Should see: bc bfs cc cc_sv converter pr pr_spmv sssp tc tc_p
 ```
 
 ---
@@ -138,12 +138,15 @@ ls bench/bin/
 ## 2. Get a Test Graph (30 seconds)
 
 ```bash
-# Use the included test graph
-cat test/graphs/4.el
-# 0 1
+# Use the included test graph (12 edges, 6 nodes)
+cat test/graphs/5.el
 # 0 2
-# 1 2
-# 2 3
+# 2 5
+# 4 0
+# 4 1
+# 4 2
+# 5 1
+# ...
 ```
 
 Or download a real graph:
@@ -166,9 +169,13 @@ mv ego-Facebook.txt facebook.el
 
 Output:
 ```
-Loading graph from test/graphs/4.el...
-Graph has 4 nodes and 4 edges
-PageRank completed in 0.001 seconds
+Read Time:           0.041xx
+Build Time:          0.041xx
+Graph has 14 nodes and 53 undirected edges for degree: 3 Estimated size: 0 MB
+Trial Time:          0.000xx
+Trial Time:          0.000xx
+Trial Time:          0.004xx
+Average Time:        0.001xx
 ```
 
 ### PageRank with Reordering
@@ -191,7 +198,7 @@ PageRank completed in 0.001 seconds
 # Hub-based
 ./bench/bin/pr -f test/graphs/4.el -s -o 7 -n 3
 
-# Community-based (Leiden)
+# Community-based (GraphBrewOrder)
 ./bench/bin/pr -f test/graphs/4.el -s -o 12 -n 3
 
 # ML-powered selection
@@ -204,8 +211,9 @@ PageRank completed in 0.001 seconds
 |----|------|----------|
 | 0 | ORIGINAL | Baseline comparison |
 | 7 | HUBCLUSTERDBG | General purpose, good default |
-| 12 | LeidenOrder | Social networks |
-| 15 | AdaptiveOrder | Auto-selection for unknown graphs |
+| 12 | GraphBrewOrder | Per-community reordering |
+| 14 | AdaptiveOrder | Auto-selection for unknown graphs |
+| 15 | LeidenOrder | Social networks |
 | 17 | LeidenCSR | Large complex graphs |
 
 ---
@@ -243,7 +251,7 @@ python3 scripts/graphbrew_experiment.py --train-adaptive --graphs small --target
 |--------|-------------|---------|
 | `-f` | Input graph file | `-f graph.el` |
 | `-s` | Symmetrize (make undirected) | `-s` |
-| `-o` | Ordering algorithm (0-20) | `-o 7` |
+| `-o` | Ordering algorithm (0-17) | `-o 7` |
 | `-n` | Number of trials | `-n 5` |
 | `-r` | Root vertex (for BFS/SSSP) | `-r 0` |
 
@@ -252,7 +260,7 @@ python3 scripts/graphbrew_experiment.py --train-adaptive --graphs small --target
 ## What's Next?
 
 1. **[[Installation]]** - Detailed installation guide
-2. **[[Reordering-Algorithms]]** - Learn about all 21 algorithms
+2. **[[Reordering-Algorithms]]** - Learn about all 18 algorithms
 3. **[[Graph-Benchmarks]]** - Understanding the benchmarks
 4. **[[Running-Benchmarks]]** - Advanced usage
 5. **[[AdaptiveOrder-ML]]** - ML-powered algorithm selection

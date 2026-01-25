@@ -9,7 +9,7 @@ Common questions and answers about GraphBrew.
 ### What is GraphBrew?
 
 GraphBrew is a graph processing benchmark framework that combines:
-- **21 vertex reordering algorithms** for cache optimization
+- **18 vertex reordering algorithms** (IDs 0-17) for cache optimization
 - **6 graph algorithm benchmarks** (PageRank, BFS, CC, SSSP, BC, TC)
 - **ML-powered algorithm selection** via AdaptiveOrder
 - **Leiden community detection** integration
@@ -23,7 +23,7 @@ GraphBrew is a graph processing benchmark framework that combines:
 
 ### What makes GraphBrew different?
 
-1. **Comprehensive**: 21 reordering algorithms in one framework
+1. **Comprehensive**: 18 reordering algorithms in one framework
 2. **ML-powered**: AdaptiveOrder learns which algorithm works best
 3. **Modern**: Leiden community detection integration
 4. **Practical**: Based on GAP Benchmark Suite standards
@@ -37,7 +37,7 @@ GraphBrew is a graph processing benchmark framework that combines:
 - Linux or macOS
 - GCC 7+ with C++17 support
 - Make
-- Python 3.6+ (optional, for scripts)
+- Python 3.8+ (optional, for scripts - no pip dependencies required)
 - At least 4GB RAM (more for large graphs)
 
 ### How do I install on Ubuntu?
@@ -91,10 +91,10 @@ See [[Installation]] for detailed troubleshooting.
 
 | Situation | Recommendation |
 |-----------|----------------|
-| Don't know | `-o 15` (AdaptiveOrder) |
-| Social network | `-o 12` (LeidenOrder) |
+| Don't know | `-o 14` (AdaptiveOrder) |
+| Social network | `-o 15` (LeidenOrder) |
 | General purpose | `-o 7` (HUBCLUSTERDBG) |
-| Large graph | `-o 20` (LeidenCSR) |
+| Large graph | `-o 17` (LeidenCSR) |
 | Baseline | `-o 0` (no reordering) |
 
 ### How do I know which algorithm is best for my graph?
@@ -102,13 +102,13 @@ See [[Installation]] for detailed troubleshooting.
 Run multiple algorithms and compare:
 
 ```bash
-for algo in 0 7 12 15 20; do
+for algo in 0 7 14 15 17; do
     echo "=== Algorithm $algo ==="
     ./bench/bin/pr -f graph.el -s -o $algo -n 3
 done
 ```
 
-Or use AdaptiveOrder (14)`) to auto-select.
+Or use AdaptiveOrder (`-o 14`) to auto-select.
 
 ### What graph formats are supported?
 
@@ -151,7 +151,7 @@ Typical improvements:
 
 1. **Large file**: Use binary format
    ```bash
-   ./bench/bin/converter -f graph.el -s -o graph.sg
+   ./bench/bin/converter -f graph.el -s -b graph.sg
    ./bench/bin/pr -f graph.sg -n 3
    ```
 
@@ -208,7 +208,7 @@ Weights are saved using an auto-clustering system:
 
 **Auto-clustered type weights (primary):**
 ```
-scripts/weights/
+scripts/weights/active/
 ├── type_registry.json    # Maps graph names → type IDs + cluster centroids
 ├── type_0.json           # Cluster 0 weights
 ├── type_1.json           # Cluster 1 weights
@@ -290,14 +290,15 @@ Try different algorithms or use AdaptiveOrder.
 ### Python scripts not working
 
 ```bash
-# Install dependencies
-pip install -r scripts/requirements.txt
+# Core scripts need only Python 3.8+ standard library (no pip install needed)
+# Optional: Install for extended visualization
+pip install numpy matplotlib pandas
 
 # Check Python version
-python3 --version  # Need 3.6+
+python3 --version  # Need 3.8+
 
-# Check path
-cd scripts && python3 graph_brew.py --help
+# Check path and test script
+python3 scripts/graphbrew_experiment.py --help
 ```
 
 ---
