@@ -75,24 +75,24 @@ python scripts/examples/compare_algorithms.py --output comparison.csv
 
 | ID | Name | Description |
 |----|------|-------------|
-| 0 | original | No reordering (baseline) |
-| 1 | random | Random permutation |
-| 2 | sort | Sort by vertex ID |
-| 3 | sort-degree | Sort by degree |
-| 4 | HubSort | Hub-based sorting |
-| 5 | HubCluster | Hub clustering |
-| 6 | DBG | Degree-based grouping |
-| 7 | corder | Cache-optimized ordering |
-| 8 | gorder | Gap-based ordering |
-| 9 | rorder | Recursive ordering |
-| 10 | sorder | Slice ordering |
-| 11 | morder | Modularity-based ordering |
-| 12 | bcorder | Betweenness-centrality ordering |
-| 13 | rabbit | Rabbit ordering |
-| 14 | minla | Minimum linear arrangement |
-| 15 | rcm | Reverse Cuthill-McKee |
-| 16 | lorder | Leiden-based ordering |
-| 17 | GraphBrewOrder | Adaptive ML-based ordering |
+| 0 | ORIGINAL | No reordering (baseline) |
+| 1 | RANDOM | Random permutation |
+| 2 | SORT | Sort by degree |
+| 3 | HUBSORT | Hub-based sorting |
+| 4 | HUBCLUSTER | Hub clustering |
+| 5 | DBG | Degree-based grouping |
+| 6 | HUBSORTDBG | HubSort + DBG hybrid |
+| 7 | HUBCLUSTERDBG | HubCluster + DBG (general-purpose) |
+| 8 | RABBITORDER | Rabbit ordering (community-aware) |
+| 9 | GORDER | Graph reordering |
+| 10 | CORDER | Cache-optimized ordering |
+| 11 | RCM | Reverse Cuthill-McKee |
+| 12 | GraphBrewOrder | Per-community reordering |
+| 13 | MAP | Load from external file |
+| 14 | AdaptiveOrder | ML-powered algorithm selection |
+| 15 | LeidenOrder | Leiden community detection (igraph) |
+| 16 | LeidenDendrogram | Leiden with dendrogram traversal |
+| 17 | LeidenCSR | Fast CSR-native Leiden |
 
 ## Benchmark Reference
 
