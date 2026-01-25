@@ -93,7 +93,8 @@ def run_benchmark(
     trials: int = 3,
     symmetric: bool = True,
     timeout: int = 600,
-    extra_args: List[str] = None
+    extra_args: List[str] = None,
+    bin_dir: str = None
 ) -> BenchmarkResult:
     """
     Run a single benchmark with specified algorithm.
@@ -106,18 +107,20 @@ def run_benchmark(
         symmetric: Use symmetric graph flag (-s)
         timeout: Timeout in seconds
         extra_args: Additional command line arguments
+        bin_dir: Directory containing benchmark binaries
         
     Returns:
         BenchmarkResult with timing information
     """
     graph_path = Path(graph_path)
     graph_name = graph_path.stem
+    bin_dir_path = Path(bin_dir) if bin_dir else BIN_DIR
     
     algo_id, _ = parse_algorithm_option(algorithm)
     algo_name = get_algorithm_name(algorithm)
     
     # Build command
-    binary = BIN_DIR / benchmark
+    binary = bin_dir_path / benchmark
     if not binary.exists():
         return BenchmarkResult(
             graph=graph_name,
@@ -232,6 +235,103 @@ def run_benchmark_suite(
                 log.info(f"    {result.time_seconds:.4f}s")
             else:
                 log.warning(f"    FAILED: {result.error[:50]}")
+    
+    return results
+
+
+def run_benchmarks_multi_graph(
+    graphs: List,  # List of GraphInfo objects
+    algorithms: List[int],
+    benchmarks: List[str],
+    bin_dir: str = None,
+    num_trials: int = 3,
+    timeout: int = 600,
+    label_maps: Dict[str, Dict[str, str]] = None,
+    weights_dir: str = None,
+    update_weights: bool = True,
+    skip_slow: bool = False,
+    progress = None  # Optional ProgressTracker
+) -> List[BenchmarkResult]:
+    """
+    Run benchmarks across multiple graphs.
+    
+    This is the main multi-graph benchmarking function used by the experiment pipeline.
+    
+    Args:
+        graphs: List of GraphInfo objects
+        algorithms: List of algorithm IDs
+        benchmarks: List of benchmark names
+        bin_dir: Binary directory (default: bench/bin)
+        num_trials: Number of trials per configuration
+        timeout: Timeout in seconds
+        label_maps: Pre-computed label maps {graph_name: {algo_name: path}}
+        weights_dir: Directory for weight files
+        update_weights: Whether to update weights incrementally
+        skip_slow: Skip slow algorithms (GORDER, CORDER, RCM)
+        progress: Optional progress tracker
+        
+    Returns:
+        List of BenchmarkResult objects
+    """
+    bin_dir = bin_dir or str(BIN_DIR)
+    label_maps = label_maps or {}
+    results = []
+    
+    # Filter slow algorithms if requested
+    if skip_slow:
+        from .utils import SLOW_ALGORITHMS
+        algorithms = [a for a in algorithms if a not in SLOW_ALGORITHMS]
+    
+    total_configs = len(graphs) * len(algorithms) * len(benchmarks)
+    completed = 0
+    
+    for graph in graphs:
+        graph_name = graph.name
+        graph_path = graph.path
+        graph_label_maps = label_maps.get(graph_name, {})
+        
+        if progress:
+            progress.info(f"Benchmarking: {graph_name}")
+        
+        for bench in benchmarks:
+            if not check_binary_exists(bench, bin_dir):
+                log.warning(f"Skipping {bench}: binary not found")
+                continue
+            
+            for algo_id in algorithms:
+                algo_name = ALGORITHMS.get(algo_id, f"ALG_{algo_id}")
+                
+                # Check if we have a label map
+                label_map_path = graph_label_maps.get(algo_name, "")
+                
+                # Build algorithm option string
+                if label_map_path and algo_id == 13:  # MAP algorithm
+                    algo_opt = f"13:{label_map_path}"
+                else:
+                    algo_opt = str(algo_id)
+                
+                result = run_benchmark(
+                    benchmark=bench,
+                    graph_path=graph_path,
+                    algorithm=algo_opt,
+                    trials=num_trials,
+                    timeout=timeout,
+                    bin_dir=bin_dir
+                )
+                
+                # Enrich result with metadata
+                result.graph = graph_name
+                result.nodes = graph.nodes
+                result.edges = graph.edges
+                
+                results.append(result)
+                completed += 1
+                
+                if progress and completed % 10 == 0:
+                    progress.info(f"  Progress: {completed}/{total_configs}")
+    
+    # Note: compute_speedups returns a dict of {algorithm: {benchmark: speedup}}
+    # We don't overwrite results here - callers can use compute_speedups() separately
     
     return results
 

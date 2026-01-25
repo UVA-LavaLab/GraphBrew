@@ -264,15 +264,16 @@ def run_command(
         raise
 
 
-def check_binary_exists(binary_name: str) -> bool:
+def check_binary_exists(binary_name: str, bin_dir: str = None) -> bool:
     """Check if a benchmark binary exists."""
-    binary_path = BIN_DIR / binary_name
+    binary_dir = Path(bin_dir) if bin_dir else BIN_DIR
+    binary_path = binary_dir / binary_name
     return binary_path.exists() and os.access(binary_path, os.X_OK)
 
 
-def get_available_benchmarks() -> List[str]:
+def get_available_benchmarks(bin_dir: str = None) -> List[str]:
     """Get list of available benchmark binaries."""
-    return [b for b in BENCHMARKS if check_binary_exists(b)]
+    return [b for b in BENCHMARKS if check_binary_exists(b, bin_dir)]
 
 
 # =============================================================================
