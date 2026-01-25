@@ -204,25 +204,47 @@ log = Logger()
 # =============================================================================
 
 def run_command(
-    cmd: List[str],
+    cmd,
     timeout: Optional[int] = None,
     capture_output: bool = True,
     check: bool = False,
     cwd: Path = None
-) -> subprocess.CompletedProcess:
+):
     """
     Run a shell command with timeout and error handling.
     
     Args:
-        cmd: Command and arguments as list
+        cmd: Command as string or list of strings
         timeout: Timeout in seconds (None for no timeout)
         capture_output: Whether to capture stdout/stderr
         check: Whether to raise exception on non-zero exit
         cwd: Working directory
         
     Returns:
-        CompletedProcess instance
+        If cmd is a string: Tuple of (success, stdout, stderr)
+        If cmd is a list: CompletedProcess instance
     """
+    # Handle string commands (simple interface for other modules)
+    if isinstance(cmd, str):
+        log.debug(f"Running: {cmd}")
+        try:
+            result = subprocess.run(
+                cmd,
+                shell=True,
+                timeout=timeout,
+                capture_output=True,
+                text=True,
+                cwd=cwd
+            )
+            return result.returncode == 0, result.stdout, result.stderr
+        except subprocess.TimeoutExpired:
+            log.debug(f"Command timed out after {timeout}s")
+            return False, "", "TIMEOUT"
+        except Exception as e:
+            log.debug(f"Command failed: {e}")
+            return False, "", str(e)
+    
+    # Handle list commands (CompletedProcess interface)
     log.debug(f"Running: {' '.join(cmd)}")
     try:
         result = subprocess.run(
