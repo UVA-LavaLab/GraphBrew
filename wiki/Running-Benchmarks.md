@@ -48,18 +48,17 @@ python3 scripts/graphbrew_experiment.py --fill-weights --auto-memory --download-
 
 ### `--fill-weights` Phases
 
-The comprehensive `--fill-weights` mode runs these phases:
+The comprehensive `--fill-weights` mode runs a streamlined training pipeline:
 
-| Phase | Description |
-|-------|-------------|
-| **Phase 0** | Graph Property Analysis - computes modularity, degree variance, hub concentration, detects graph type |
-| **Phase 1** | Generate Reorderings - tests all algorithms, records reorder times |
-| **Phase 2** | Execution Benchmarks - runs PR, BFS, CC, SSSP, BC with all algorithms |
-| **Phase 3** | Cache Simulation - measures L1/L2/L3 hit rates |
-| **Phase 4** | Generate Base Weights - creates initial perceptron weights |
-| **Phase 5** | Update Topology Weights - fills clustering coefficient, path length, etc. |
-| **Phase 6** | Compute Benchmark Weights - per-benchmark multipliers |
-| **Phase 7** | Auto-Cluster Type Weights - clusters graphs and creates type_N.json files |
+| Step | Description |
+|------|-------------|
+| **Download** | Downloads graphs if not present (with `--download-size`) |
+| **Build** | Builds binaries if not present |
+| **Phase 1** | Generate reorderings with label-mapping |
+| **Phase 2** | Run execution benchmarks (PR, BFS, CC, SSSP, BC) |
+| **Phase 3** | Run cache simulation (skip with `--skip-cache`) |
+| **Phase 4** | Generate/update perceptron weights |
+| **Fill Weights** | Update zero weights with computed values |
 
 Output files are saved to `scripts/weights/active/`: `type_0.json`, `type_1.json`, `type_registry.json`, etc.
 
@@ -138,19 +137,22 @@ See [[Python-Scripts]] for full documentation.
 | Option | Description | Default |
 |--------|-------------|---------|
 | `-f <file>` | Input graph file | Required |
-| `-o <id>` | Ordering algorithm (0-20) | 0 (none) |
-| `-s` | Symmetrize graph | Off |
-| `-g` | Make graph undirected | Off |
-| `-n <num>` | Number of trials | 1 |
+| `-o <id>` | Ordering algorithm (0-17) | 0 (none) |
+| `-s` | Symmetrize graph (make undirected) | Off |
+| `-g <scale>` | Generate 2^scale kronecker graph | - |
+| `-n <num>` | Number of trials | 16 |
 
-### Graph Format Options
+### Graph Format Detection
 
-| Option | Description |
-|--------|-------------|
-| `-el` | Edge list format (default) |
-| `-mtx` | Matrix Market format |
-| `-gr` | DIMACS format |
-| `-sg` | Serialized graph |
+Format is automatically detected from file extension:
+
+| Extension | Format |
+|-----------|--------|
+| `.el` | Edge list (default) |
+| `.wel` | Weighted edge list |
+| `.mtx` | Matrix Market |
+| `.gr` | DIMACS format |
+| `.sg`, `.graph` | Serialized binary |
 
 ### Algorithm-Specific Options
 
@@ -301,15 +303,16 @@ Time: 1.234 seconds
 -o 10  # CORDER
 -o 11  # RCM
 
-# Leiden-based
--o 12  # LeidenOrder
--o 13  # GraphBrewOrder
+# Advanced hybrid
+-o 12  # GraphBrewOrder (per-community)
+-o 13  # MAP (load from file)
 -o 14  # AdaptiveOrder (ML)
--o 14  # LeidenDFS
+
+# Leiden-based
+-o 15  # LeidenOrder (igraph)
 -o 16  # LeidenDendrogram
--o 17  # LeidenDFSSize
--o 19  # LeidenBFS
--o 17:1.0:3:hubsort  # LeidenCSR
+-o 17  # LeidenCSR (fastest)
+-o 17:1.0:3:hubsort  # LeidenCSR with variant
 ```
 
 ### Recommended Algorithms by Use Case
@@ -317,8 +320,8 @@ Time: 1.234 seconds
 | Use Case | Algorithm | ID |
 |----------|-----------|-----|
 | General purpose | HUBCLUSTERDBG | 7 |
-| Social networks | LeidenOrder | 12 |
-| Unknown graphs | AdaptiveOrder (14) |
+| Social networks | LeidenOrder | 15 |
+| Unknown graphs | AdaptiveOrder | 14 |
 | Maximum locality | LeidenCSR | 17 |
 | Road networks | RCM | 11 |
 | Quick test | ORIGINAL | 0 |
@@ -334,7 +337,7 @@ Time: 1.234 seconds
 GRAPH=my_graph.el
 ORDER=7
 
-for bench in pr bfs cc tc; do
+for bench in pr bfs cc sssp bc tc; do
     echo "=== $bench ==="
     ./bench/bin/$bench -f $GRAPH -s -o $ORDER -n 5
 done
@@ -346,7 +349,7 @@ done
 #!/bin/bash
 GRAPH=my_graph.el
 
-for order in 0 7 12 15 20; do
+for order in 0 7 12 15 17; do
     echo "=== Order $order ==="
     ./bench/bin/pr -f $GRAPH -s -o $order -n 3
 done
@@ -366,26 +369,43 @@ done
 
 ## Using Python Scripts
 
-### graph_brew.py - Full Pipeline
+### graphbrew_experiment.py - Full Pipeline
+
+The main orchestration script handles downloading, building, and benchmarking:
 
 ```bash
-cd scripts
-python3 graph_brew.py \
-    --input ../graphs/my_graph.el \
-    --benchmark pr bfs \
-    --algorithms 0 7 12 20 \
-    --trials 5 \
-    --output results.csv
+# Full pipeline: download graphs, build, run all benchmarks
+python3 scripts/graphbrew_experiment.py --full --download-size SMALL
+
+# Run specific phase on existing graphs
+python3 scripts/graphbrew_experiment.py --phase benchmark --graphs small --trials 5
+
+# Run specific benchmarks with specific algorithms
+python3 scripts/graphbrew_experiment.py --phase benchmark \
+    --benchmarks pr bfs \
+    --graphs small \
+    --trials 5
+
+# Generate and use label maps for consistent reordering
+python3 scripts/graphbrew_experiment.py --generate-maps --use-maps --phase benchmark
+
+# Train perceptron weights
+python3 scripts/graphbrew_experiment.py --fill-weights --auto-memory --download-size ALL
 ```
 
-### run_experiment.py - Experiment Runner
+### Key Options
 
-```bash
-cd scripts/brew
-python3 run_experiment.py \
-    --config ../config/brew/run.json \
-    --graphs-dir ../graphs
-```
+| Option | Description |
+|--------|-------------|
+| `--full` | Run complete pipeline |
+| `--phase` | Run specific phase: download, build, benchmark, cache, weights |
+| `--graphs` | Graph size: small, medium, large, all |
+| `--benchmarks` | Specific benchmarks: pr, bfs, cc, sssp, bc |
+| `--trials N` | Number of benchmark trials |
+| `--key-only` | Only test key algorithms (faster) |
+| `--skip-cache` | Skip cache simulation |
+
+See [[Python-Scripts]] for complete documentation.
 
 ---
 
