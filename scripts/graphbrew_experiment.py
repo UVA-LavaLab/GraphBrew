@@ -160,6 +160,7 @@ from scripts.lib import (
     generate_label_maps as lib_generate_label_maps,
     generate_reorderings_with_variants as lib_generate_reorderings_with_variants,
     # Benchmark
+    BenchmarkResult,
     run_benchmark as lib_run_benchmark,
     parse_benchmark_output as lib_parse_benchmark_output,
     # Cache
@@ -557,21 +558,7 @@ class GraphInfo:
 # =============================================================================
 # Data Classes (from lib/)
 # =============================================================================
-# Core data classes are imported from lib/. Local extensions defined below.
-
-@dataclass
-class BenchmarkResult:
-    """Result from running a benchmark."""
-    graph: str
-    algorithm_id: int
-    algorithm_name: str
-    benchmark: str
-    trial_time: float
-    speedup: float = 1.0
-    nodes: int = 0
-    edges: int = 0
-    success: bool = True
-    error: str = ""
+# Core data classes are imported from lib/. BenchmarkResult comes from utils.py
 
 
 class PerceptronWeightExtended(PerceptronWeight):
@@ -1689,7 +1676,7 @@ from scripts.lib.reorder import (
     load_label_maps_index,
     get_label_map_path,
 )
-from scripts.lib.benchmark import run_benchmark_suite as run_benchmarks
+from scripts.lib.benchmark import run_benchmark_suite, run_benchmarks_multi_graph
 from scripts.lib.cache import run_cache_simulations
 from scripts.lib.analysis import (
     analyze_adaptive_order,
@@ -1719,7 +1706,7 @@ def run_benchmarks_with_variants(
     progress: 'ProgressTracker' = None
 ) -> List[BenchmarkResult]:
     """Run benchmarks with variant-expanded label maps. Delegates to lib/benchmark."""
-    from scripts.lib.benchmark import run_benchmark_suite
+    from scripts.lib.benchmark import run_benchmarks_multi_graph
     
     # Extract algorithms from label_maps
     algorithms = set()
@@ -1731,7 +1718,7 @@ def run_benchmarks_with_variants(
                     algorithms.add(algo_id)
                     break
     
-    return run_benchmark_suite(
+    return run_benchmarks_multi_graph(
         graphs=graphs,
         algorithms=list(algorithms),
         benchmarks=benchmarks,
@@ -1740,8 +1727,7 @@ def run_benchmarks_with_variants(
         timeout=timeout,
         label_maps=label_maps,
         weights_dir=weights_dir,
-        update_weights=update_weights,
-        progress=progress
+        update_weights=update_weights
     )
 
 
@@ -2086,8 +2072,7 @@ def run_experiment(args):
             timeout=args.timeout_reorder,
             skip_slow=args.skip_slow,
             generate_maps=True,  # Always generate .lo mapping files
-            force_reorder=getattr(args, "force_reorder", False),
-            progress=_progress
+            force_reorder=getattr(args, "force_reorder", False)
         )
         all_reorder_results.extend(reorder_results)
         
@@ -2135,7 +2120,7 @@ def run_experiment(args):
         else:
             # Standard benchmarking
             _progress.info("Mode: Standard benchmarking")
-            benchmark_results = run_benchmarks(
+            benchmark_results = run_benchmarks_multi_graph(
                 graphs=graphs,
                 algorithms=algorithms,
                 benchmarks=args.benchmarks,
@@ -2145,8 +2130,7 @@ def run_experiment(args):
                 skip_slow=args.skip_slow,
                 label_maps=label_maps,
                 weights_dir=args.weights_dir,
-                update_weights=not getattr(args, 'no_incremental', False),
-                progress=_progress
+                update_weights=not getattr(args, 'no_incremental', False)
             )
         all_benchmark_results.extend(benchmark_results)
         
@@ -2158,12 +2142,12 @@ def run_experiment(args):
         
         # Show summary statistics
         if benchmark_results:
-            successful = [r for r in benchmark_results if r.avg_time > 0]
-            _progress.stats_summary("Benchmark Statistics", {
+            successful = [r for r in benchmark_results if r.time_seconds > 0]
+            _progress.stats_box("Benchmark Statistics", {
                 "Total runs": len(benchmark_results),
                 "Successful": len(successful),
                 "Failed/Timeout": len(benchmark_results) - len(successful),
-                "Avg time": f"{sum(r.avg_time for r in successful) / len(successful):.4f}s" if successful else "N/A"
+                "Avg time": f"{sum(r.time_seconds for r in successful) / len(successful):.4f}s" if successful else "N/A"
             })
         
         _progress.phase_end(f"Completed {len(benchmark_results)} benchmark runs")
@@ -2391,7 +2375,7 @@ def run_experiment(args):
         # Phase 2: Benchmarks (all of them)
         log_section("Phase 2: Execution Benchmarks (All)")
         all_benchmarks = ["pr", "bfs", "cc", "sssp", "bc"]
-        benchmark_results = run_benchmarks(
+        benchmark_results = run_benchmarks_multi_graph(
             graphs=graphs,
             algorithms=algorithms,
             benchmarks=all_benchmarks,
