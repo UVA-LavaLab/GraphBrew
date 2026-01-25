@@ -253,9 +253,9 @@ GraphBrew/
 │   ├── mappings/      # Pre-generated label maps
 │   └── logs/          # Execution logs
 ├── scripts/           # Python analysis tools
-│   ├── graphbrew_experiment.py  # ⭐ Main orchestration (~3050 lines)
+│   ├── graphbrew_experiment.py  # ⭐ Main orchestration (~3100 lines)
 │   ├── requirements.txt
-│   ├── lib/           # 📦 Core modules (~11,000 lines)
+│   ├── lib/           # 📦 Core modules (~12,200 lines)
 │   │   ├── types.py         # Data classes
 │   │   ├── phases.py        # Phase orchestration
 │   │   ├── utils.py         # ALGORITHMS, constants
