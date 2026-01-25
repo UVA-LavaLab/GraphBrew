@@ -8,10 +8,10 @@ The scripts folder contains a modular library (`lib/`) and the main orchestratio
 
 ```
 scripts/
-├── graphbrew_experiment.py      # ⭐ MAIN: Orchestration script (~2900 lines)
+├── graphbrew_experiment.py      # ⭐ MAIN: Orchestration script (~3100 lines)
 ├── requirements.txt             # Python dependencies
 │
-├── lib/                         # 📦 Modular library (~8000 lines total)
+├── lib/                         # 📦 Modular library (~11000 lines total)
 │   ├── __init__.py              # Module exports
 │   ├── types.py                 # Data classes (GraphInfo, BenchmarkResult, etc.)
 │   ├── phases.py                # Phase orchestration (run_reorder_phase, etc.)
@@ -43,12 +43,11 @@ scripts/
 │   └── runs/                    # Historical snapshots
 │
 ├── examples/                    # Example scripts
-│   └── custom_pipeline.py       # Custom phase-based pipeline example
-│
-├── analysis/                    # Legacy analysis utilities
-├── benchmark/                   # Specialized benchmark scripts
-├── download/                    # Standalone downloader
-└── utils/                       # Additional shared utilities
+│   ├── batch_process.py         # Batch processing example
+│   ├── compare_algorithms.py    # Algorithm comparison example
+│   ├── custom_pipeline.py       # Custom phase-based pipeline example
+│   └── quick_test.py            # Quick testing example
+└── requirements.txt             # Python dependencies (optional)
 ```
 
 ---
@@ -75,8 +74,8 @@ python3 scripts/graphbrew_experiment.py --help
 | **Auto Build** | Compiles binaries if missing |
 | **Memory Management** | Automatically skips graphs exceeding RAM limits |
 | **Label Maps** | Pre-generates reordering maps for consistency |
-| **Reordering** | Tests all 20 algorithms |
-| **Benchmarks** | PR, BFS, CC, SSSP, BC |
+| **Reordering** | Tests all 18 algorithms |
+| **Benchmarks** | PR, BFS, CC, SSSP, BC, TC |
 | **Cache Simulation** | L1/L2/L3 hit rate analysis |
 | **Perceptron Training** | Generates weights for AdaptiveOrder |
 | **Brute-Force Validation** | Compares adaptive vs all algorithms |
@@ -212,7 +211,7 @@ Constants and shared utilities:
 ```python
 from scripts.lib.utils import (
     ALGORITHMS,          # {0: "ORIGINAL", 1: "RANDOM", ...}
-    BENCHMARKS,          # ['pr', 'bfs', 'cc', 'sssp', 'bc']
+    BENCHMARKS,          # ['pr', 'bfs', 'cc', 'sssp', 'bc', 'tc']
     run_command,         # Execute shell commands
     get_timestamp,       # Formatted timestamps
 )
@@ -452,9 +451,12 @@ results/
 └── logs/                     # Execution logs
 
 scripts/weights/              # Type-based weights
-├── type_registry.json        # Graph → type mapping
-├── type_0.json               # Cluster 0 weights
-└── type_N.json               # Additional clusters
+├── active/                   # C++ reads from here
+│   ├── type_registry.json    # Graph → type mapping
+│   ├── type_0.json           # Cluster 0 weights
+│   └── type_N.json           # Additional clusters
+├── merged/                   # Accumulated from all runs
+└── runs/                     # Historical snapshots
 ```
 
 ---
@@ -469,12 +471,15 @@ pip install -r requirements.txt
 ### requirements.txt
 
 ```
-numpy>=1.19.0
-pandas>=1.2.0
-matplotlib>=3.3.0
-scipy>=1.6.0
-networkx>=2.5
-tqdm>=4.50.0
+# Core dependencies - NONE REQUIRED
+# All benchmark scripts use only Python 3.8+ standard library
+
+# Optional: For extended analysis and visualization (uncomment if needed)
+# numpy>=1.20.0        # For statistical analysis
+# pandas>=1.3.0        # For data manipulation  
+# matplotlib>=3.4.0    # For plotting results
+# scipy>=1.7.0         # For correlation analysis
+# networkx>=2.6        # For graph analysis
 ```
 
 ---
@@ -484,7 +489,7 @@ tqdm>=4.50.0
 ### Import Errors
 ```bash
 pip install -r scripts/requirements.txt
-python3 --version  # Should be 3.6+
+python3 --version  # Should be 3.8+
 ```
 
 ### Binary Not Found
