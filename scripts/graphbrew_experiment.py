@@ -84,6 +84,50 @@ import traceback
 import urllib.request
 import urllib.error
 
+# Ensure project root is in path for lib imports
+_SCRIPT_DIR = Path(__file__).resolve().parent
+_PROJECT_ROOT = _SCRIPT_DIR.parent
+if str(_PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(_PROJECT_ROOT))
+
+# Import shared utilities from lib/ module
+# These provide consistent definitions across all scripts
+try:
+    from scripts.lib.utils import (
+        ALGORITHMS as LIB_ALGORITHMS,
+        BENCHMARKS as LIB_BENCHMARKS,
+        LEIDEN_CSR_VARIANTS as LIB_LEIDEN_CSR_VARIANTS,
+        LEIDEN_DENDROGRAM_VARIANTS as LIB_LEIDEN_DENDROGRAM_VARIANTS,
+        LEIDEN_DEFAULT_RESOLUTION as LIB_LEIDEN_DEFAULT_RESOLUTION,
+        LEIDEN_DEFAULT_PASSES as LIB_LEIDEN_DEFAULT_PASSES,
+        PROJECT_ROOT as LIB_PROJECT_ROOT,
+        BIN_DIR as LIB_BIN_DIR,
+        BIN_SIM_DIR as LIB_BIN_SIM_DIR,
+        GRAPHS_DIR as LIB_GRAPHS_DIR,
+        RESULTS_DIR as LIB_RESULTS_DIR,
+        Logger,
+        run_command,
+        parse_algorithm_option,
+        expand_leiden_variants,
+    )
+    from scripts.lib.download import (
+        GRAPH_CATALOG,
+        download_graph as lib_download_graph,
+        download_graphs as lib_download_graphs,
+        list_available_graphs,
+        list_downloaded_graphs,
+    )
+    from scripts.lib.benchmark import (
+        BenchmarkResult as LibBenchmarkResult,
+        run_benchmark as lib_run_benchmark,
+        parse_benchmark_output,
+    )
+    LIB_AVAILABLE = True
+except ImportError as e:
+    # Fallback if running from different directory or lib not available
+    LIB_AVAILABLE = False
+    print(f"Warning: lib/ modules not available: {e}", file=sys.stderr)
+
 # ============================================================================
 # Configuration
 # ============================================================================
