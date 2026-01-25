@@ -29,6 +29,13 @@ from .utils import (
     BENCHMARKS, Logger, get_timestamp,
 )
 
+# Import dependency checker (optional - graceful fallback if not available)
+try:
+    from .dependencies import check_dependencies, install_dependencies, print_install_instructions
+    HAS_DEPENDENCY_CHECKER = True
+except ImportError:
+    HAS_DEPENDENCY_CHECKER = False
+
 # Initialize logger
 log = Logger()
 
@@ -104,6 +111,17 @@ def check_build_requirements() -> Tuple[bool, List[str]]:
     """
     missing = []
     
+    # Use comprehensive dependency checker if available
+    if HAS_DEPENDENCY_CHECKER:
+        all_ok, status = check_dependencies(verbose=False)
+        if not all_ok:
+            for name, (ok, msg) in status.items():
+                if not ok and name not in ("tcmalloc",):  # tcmalloc is optional
+                    missing.append(f"{name}: {msg}")
+            return False, missing
+        return True, []
+    
+    # Fallback to basic checks
     # Check for make
     try:
         result = subprocess.run(["make", "--version"], capture_output=True, timeout=5)
@@ -129,6 +147,43 @@ def check_build_requirements() -> Tuple[bool, List[str]]:
         missing.append(f"Makefile at {makefile}")
     
     return len(missing) == 0, missing
+
+
+def ensure_dependencies(auto_install: bool = False, verbose: bool = False) -> Tuple[bool, str]:
+    """
+    Ensure all build dependencies are installed.
+    
+    Args:
+        auto_install: Automatically install missing dependencies (needs sudo)
+        verbose: Print detailed status
+        
+    Returns:
+        Tuple of (success, message)
+    """
+    if not HAS_DEPENDENCY_CHECKER:
+        can_build, missing = check_build_requirements()
+        if can_build:
+            return True, "Basic requirements met"
+        return False, f"Missing: {', '.join(missing)}"
+    
+    all_ok, status = check_dependencies(verbose=verbose)
+    
+    if all_ok:
+        return True, "All dependencies satisfied"
+    
+    if auto_install:
+        log.info("Attempting to install missing dependencies...")
+        success, msg = install_dependencies(verbose=verbose)
+        if success:
+            # Re-check
+            all_ok, _ = check_dependencies(verbose=False)
+            if all_ok:
+                return True, "Dependencies installed successfully"
+        return False, msg
+    
+    # Build manual install message
+    missing_names = [name for name, (ok, _) in status.items() if not ok]
+    return False, f"Missing dependencies: {', '.join(missing_names)}. Run: python -m scripts.lib.dependencies --install"
 
 
 def build_binaries(
