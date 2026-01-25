@@ -16,40 +16,40 @@ Adding a new algorithm involves:
 
 ### Location
 
-[bench/include/gapbs/builder.h](https://github.com/UVA-LavaLab/GraphBrew/blob/main/bench/include/gapbs/builder.h)
+[bench/include/gapbs/util.h](https://github.com/UVA-LavaLab/GraphBrew/blob/main/bench/include/gapbs/util.h)
 
 ### Find the Enum
 
 ```cpp
 enum ReorderingAlgo {
-  ORIGINAL = 0,
-  RANDOM = 1,
-  SORT = 2,
-  HUBSORT = 3,
-  HUBCLUSTER = 4,
-  DBG = 5,
-  HUBSORTDBG = 6,
-  HUBCLUSTERDBG = 7,
-  RABBITORDER = 8,
-  GORDER = 9,
-  CORDER = 10,
-  RCM = 11,
-  GraphBrewOrder = 12,
-  MAP = 13,               // External mapping files
-  AdaptiveOrder = 14,     // ML-based perceptron selector
-  // Leiden algorithms (15-17) - consolidated with parameter-based variants
-  LeidenOrder = 15,       // Format: 15:resolution
-  LeidenDendrogram = 16,  // Format: 16:resolution:variant
-  LeidenCSR = 17,         // Format: 17:resolution:passes:variant
-  // ADD YOUR ALGORITHM HERE
-  MY_NEW_ORDER = 18,
+    ORIGINAL = 0,
+    Random = 1,
+    Sort = 2,
+    HubSort = 3,
+    HubCluster = 4,
+    DBG = 5,
+    HubSortDBG = 6,
+    HubClusterDBG = 7,
+    RabbitOrder = 8,
+    GOrder = 9,
+    COrder = 10,
+    RCMOrder = 11,
+    GraphBrewOrder = 12,    // Leiden clustering + per-community ordering
+    MAP = 13,               // Load reordering from file
+    AdaptiveOrder = 14,     // ML-based perceptron selector
+    // Leiden algorithms (15-17) - grouped together for easier sweeping
+    LeidenOrder = 15,       // Format: 15:resolution (via igraph)
+    LeidenDendrogram = 16,  // Format: 16:resolution:variant (dfs/dfshub/dfssize/bfs/hybrid)
+    LeidenCSR = 17,         // Format: 17:resolution:passes:variant (dfs/bfs/hubsort/fast/modularity)
+    // ADD YOUR ALGORITHM HERE
+    MyNewOrder = 18,
 };
 ```
 
 ### Naming Convention
 
-- Use CamelCase
-- Be descriptive: `LocalitySensitiveOrder`
+- Use PascalCase (e.g., `MyNewOrder`, `LocalitySensitiveOrder`)
+- Be descriptive
 - Add comment with brief description
 
 ---
@@ -129,41 +129,57 @@ pvector<NodeID> CommunityAwareOrder(const CSRGraph<NodeID>& g) {
 
 ---
 
-## Step 3: Update the Switch Statement
+## Step 3: Update the Switch Statements
 
 ### Location
 
-In `builder.h`, find the `ReorderGraph` function:
+In `builder.h`, you need to update two switch statements:
+
+#### 1. The `GenerateMapping` Function
+
+Find the `GenerateMapping` function and add your case:
 
 ```cpp
-template <typename NodeID, typename DestID = NodeID, typename WeightT = NodeID>
-CSRGraph<NodeID, DestID, WeightT> ReorderGraph(
-    const CSRGraph<NodeID, DestID, WeightT>& g, 
-    ReorderingAlgo algo) {
-  
-  pvector<NodeID> new_ids;
-  
-  switch (algo) {
-    case ORIGINAL:
-      return g;  // No reordering
-    
-    case RANDOM:
-      new_ids = RandomOrder(g);
-      break;
-    
+void GenerateMapping(CSRGraph<NodeID_, DestID_, invert> &g,
+                     pvector<NodeID_> &new_ids,
+                     ReorderingAlgo reordering_algo, bool useOutdeg,
+                     std::vector<std::string> reordering_options)
+{
+    switch (reordering_algo)
+    {
+    case HubSort:
+        GenerateHubSortMapping(g, new_ids, useOutdeg);
+        break;
     // ... other cases ...
     
     // ADD YOUR CASE HERE
-    case MY_NEW_ORDER:
-      new_ids = MyNewReorder(g);
-      break;
+    case MyNewOrder:
+        MyNewReorder(g, new_ids);
+        break;
     
     default:
-      cerr << "Unknown reordering algorithm: " << algo << endl;
-      exit(1);
-  }
-  
-  return RelabelGraph(g, new_ids);
+        cerr << "Unknown reordering algorithm: " << reordering_algo << endl;
+        exit(1);
+    }
+}
+```
+
+#### 2. The `ReorderingAlgoStr` Function
+
+Add your algorithm name for display:
+
+```cpp
+const std::string ReorderingAlgoStr(ReorderingAlgo type)
+{
+    switch (type)
+    {
+    // ... existing cases ...
+    case MyNewOrder:
+        return "MyNewOrder";
+    default:
+        std::cerr << "Unknown Reordering Algorithm type: " << type << std::endl;
+        abort();
+    }
 }
 ```
 
@@ -171,31 +187,29 @@ CSRGraph<NodeID, DestID, WeightT> ReorderGraph(
 
 ## Step 4: Add Algorithm Name Mapping
 
-### For Display Output
+### For Perceptron Weights (in builder.h)
+
+In `builder.h`, find the `name_to_algo` map inside `ParseWeightsFromJSON` and add your algorithm:
 
 ```cpp
-string GetAlgorithmName(ReorderingAlgo algo) {
-  switch (algo) {
-    case ORIGINAL: return "Original";
-    case RANDOM: return "Random";
-    // ...
-    case MY_NEW_ORDER: return "MyNewOrder";
-    default: return "Unknown";
-  }
-}
+static const std::map<std::string, ReorderingAlgo> name_to_algo = {
+    {"ORIGINAL", ORIGINAL}, {"HubSort", HubSort}, {"HUBSORT", HubSort},
+    // ... existing entries ...
+    {"MyNewOrder", MyNewOrder},  // ADD YOUR ALGORITHM HERE
+};
 ```
 
-### For Perceptron (if using AdaptiveOrder)
+### For Python Scripts
 
-In the perceptron weights loading:
+Edit `scripts/lib/utils.py` and add to the `ALGORITHMS` dict:
 
-```cpp
-const map<string, ReorderingAlgo> name_to_algo = {
-  {"ORIGINAL", ORIGINAL},
-  {"RANDOM", RANDOM},
-  // ...
-  {"MyNewOrder", MY_NEW_ORDER},
-};
+```python
+ALGORITHMS = {
+    0: "ORIGINAL",
+    # ... existing entries ...
+    17: "LeidenCSR",
+    18: "MyNewOrder",  # ADD YOUR ALGORITHM HERE
+}
 ```
 
 ---
@@ -276,12 +290,12 @@ This will:
 
 ## Complete Example: Locality-Sensitive Ordering
 
-### 1. Add Enum
+### 1. Add Enum (in util.h)
 
 ```cpp
 enum ReorderingAlgo {
-  // ...existing...
-  LocalitySensitiveOrder = 21,
+    // ...existing...
+    LocalitySensitiveOrder = 18,  // Next available ID after LeidenCSR (17)
 };
 ```
 
@@ -374,11 +388,23 @@ case LocalitySensitiveOrder:
 }
 ```
 
-### 5. Test
+### 5. Add to Python Scripts
+
+Edit `scripts/lib/utils.py`:
+
+```python
+ALGORITHMS = {
+    # ... existing ...
+    18: "LocalitySensitiveOrder",
+}
+```
+
+### 6. Test
 
 ```bash
 make clean && make all
-./bench/bin/pr -f test/graphs/4.el -s -o 19 -n 3
+# Test your new algorithm (ID 18 = next available after existing 0-17)
+./bench/bin/pr -f test/graphs/4.el -s -o 18 -n 3
 ```
 
 ---
@@ -417,10 +443,10 @@ make clean && make all
 
 ```bash
 # Test on small graph
-./bench/bin/pr -f test/graphs/4.el -s -o 19 -n 3
+./bench/bin/pr -f test/graphs/4.el -s -o 18 -n 3
 
 # Verify ordering is valid
-./bench/bin/pr -f test/graphs/4.el -s -o 19 -n 1 2>&1 | grep -i error
+./bench/bin/pr -f test/graphs/4.el -s -o 18 -n 1 2>&1 | grep -i error
 ```
 
 ### Performance Test
@@ -428,14 +454,14 @@ make clean && make all
 ```bash
 # Compare with baseline
 ./bench/bin/pr -f large_graph.el -s -o 0 -n 5   # Baseline
-./bench/bin/pr -f large_graph.el -s -o 19 -n 5  # Your algorithm
+./bench/bin/pr -f large_graph.el -s -o 18 -n 5  # Your algorithm
 ```
 
 ### Memory Test
 
 ```bash
 # Check for leaks
-valgrind ./bench/bin/pr -f test/graphs/4.el -s -o 19 -n 1
+valgrind ./bench/bin/pr -f test/graphs/4.el -s -o 18 -n 1
 ```
 
 ---

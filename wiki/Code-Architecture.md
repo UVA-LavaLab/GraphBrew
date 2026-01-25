@@ -20,11 +20,11 @@ GraphBrew/
 │   ├── src_sim/              # Cache simulation sources
 │   └── backups/              # Backup files
 │
-├── scripts/                  # Python tools (~11,000 lines total)
-│   ├── graphbrew_experiment.py  # ⭐ Main orchestration (~2900 lines)
+├── scripts/                  # Python tools (~14,000 lines total)
+│   ├── graphbrew_experiment.py  # ⭐ Main orchestration (~3050 lines)
 │   ├── requirements.txt         # Python dependencies
 │   │
-│   ├── lib/                     # 📦 Core modules (~8000 lines)
+│   ├── lib/                     # 📦 Core modules (~11,000 lines)
 │   │   ├── __init__.py          # Module exports
 │   │   ├── types.py             # Data classes (GraphInfo, BenchmarkResult, etc.)
 │   │   ├── phases.py            # Phase orchestration
@@ -36,12 +36,16 @@ GraphBrew/
 │   │   ├── benchmark.py         # Benchmark execution
 │   │   ├── cache.py             # Cache simulation
 │   │   ├── weights.py           # Type-based weight management
+│   │   ├── weight_merger.py     # Weight file merging
 │   │   ├── training.py          # ML weight training
 │   │   ├── analysis.py          # Adaptive analysis
 │   │   ├── progress.py          # Progress tracking
 │   │   └── results.py           # Result I/O
 │   │
 │   ├── weights/                 # Auto-generated type weights
+│   │   ├── active/              # C++ runtime reads from here
+│   │   ├── merged/              # Accumulated from all runs
+│   │   ├── runs/                # Historical snapshots
 │   │   ├── type_registry.json   # Maps graphs → types + centroids
 │   │   └── type_N.json          # Cluster weights
 │   │
@@ -109,16 +113,20 @@ class CSRGraph {
 
 #### builder.h - Graph Construction
 
+`BuilderBase` is the template class; benchmarks use the typedef `Builder` from `benchmark.h`:
+
 ```cpp
-class Builder {
+// In benchmark.h
+typedef BuilderBase<NodeID, NodeID, WeightT> Builder;
+
+// BuilderBase class definition
+template <typename NodeID_, typename DestID_, typename WeightT_, bool invert>
+class BuilderBase {
  public:
-  Builder(const CLBase &cli);
+  BuilderBase(const CLBase &cli);
   
   // Main entry point
-  CSRGraph<NodeID, DestID, WeightT> MakeGraph();
-  
-  // Reordering
-  ReorderingAlgo SquashList(const CSRGraph& g, ReorderingAlgo algo);
+  CSRGraph<NodeID_, DestID_, invert> MakeGraph();
   
  private:
   // Graph loading
@@ -126,8 +134,8 @@ class Builder {
   CSRGraph MakeGraphFromEL(EdgeList& el);
   
   // Reordering implementation
-  pvector<NodeID> GenerateMapping(const CSRGraph& g, ReorderingAlgo algo);
-  CSRGraph RelabelGraph(const CSRGraph& g, const pvector<NodeID>& mapping);
+  void GenerateMapping(CSRGraph& g, pvector<NodeID_>& new_ids, 
+                       ReorderingAlgo algo, ...);
 };
 ```
 
@@ -138,23 +146,25 @@ class Builder {
 #### Hub-Based (bench/include/gapbs/builder.h)
 
 ```cpp
-// Degree-Based Grouping
-template <typename NodeID>
-pvector<NodeID> DBGOrder(const CSRGraph<NodeID>& g) {
+// Degree-Based Grouping (DBG)
+void GenerateDBGMapping(const CSRGraph& g, pvector<NodeID_>& new_ids, bool useOutdeg) {
   // Groups vertices by log2(degree)
   // Hot vertices (high degree) grouped together
 }
 
 // Hub Sorting
-template <typename NodeID>  
-pvector<NodeID> HubSortOrder(const CSRGraph<NodeID>& g, bool reverse = true) {
+void GenerateHubSortMapping(const CSRGraph& g, pvector<NodeID_>& new_ids, bool useOutdeg) {
   // Sorts by degree, high-degree first
 }
 
 // Hub Clustering
-template <typename NodeID>
-pvector<NodeID> HubClusterOrder(const CSRGraph<NodeID>& g) {
+void GenerateHubClusterMapping(const CSRGraph& g, pvector<NodeID_>& new_ids, bool useOutdeg) {
   // Clusters hot vertices together
+}
+
+// Hub Cluster with DBG
+void GenerateHubClusterDBGMapping(const CSRGraph& g, pvector<NodeID_>& new_ids, bool useOutdeg) {
+  // Combines hub clustering with DBG
 }
 ```
 
@@ -167,24 +177,26 @@ pvector<NodeID> HubClusterOrder(const CSRGraph<NodeID>& g) {
 | Corder | `corder/global.h` | Cache-aware ordering |
 | RCM | Built-in | Cuthill-McKee |
 
-#### Leiden-Based (bench/include/leiden/)
+#### Leiden-Based (bench/include/gapbs/builder.h)
 
 ```cpp
-// Community detection
-template <class G>
-auto leidenCommunities(const G& g, const LeidenOptions& opts);
+// LeidenDendrogram - hierarchical ordering with variants (dfs/bfs/hubsort/fast/modularity)
+void GenerateLeidenDendrogramMappingUnified(
+    const CSRGraph& g, pvector<NodeID_>& new_ids, 
+    const ReorderingOptions& opts);
 
-// Ordering within communities
-template <class G>
-pvector<NodeID> leidenOrder(const G& g, const Communities& comms);
+// LeidenCSR - fast CSR-native ordering with variants
+void GenerateLeidenCSRMappingUnified(
+    const CSRGraph& g, pvector<NodeID_>& new_ids, 
+    const ReorderingOptions& opts);
+```
 
-// Hybrid strategies
-template <class G>
-pvector<NodeID> leidenDFSOrder(const G& g);
-template <class G>
-pvector<NodeID> leidenBFSOrder(const G& g);
-template <class G>
-pvector<NodeID> leidenHybridOrder(const G& g);
+The Leiden community detection algorithm itself is in `bench/include/leiden/leiden.hxx`:
+
+```cpp
+// Core Leiden algorithm
+inline auto leidenStatic(RND& rnd, const G& x, const LeidenOptions& o={});
+inline auto leidenStaticOmp(RND& rnd, G& x, const LeidenOptions& o={});
 ```
 
 ---
@@ -224,8 +236,8 @@ int main(int argc, char* argv[]) {
 
 | File | Algorithm | Key Function |
 |------|-----------|--------------|
-| `pr.cc` | PageRank | `PageRankPull()` |
-| `bfs.cc` | BFS | `BFS_Direction()` |
+| `pr.cc` | PageRank | `PageRankPullGS()` |
+| `bfs.cc` | BFS | `DOBFS()` |
 | `cc.cc` | Connected Components | `Afforest()` |
 | `sssp.cc` | Shortest Paths | `DeltaStep()` |
 | `bc.cc` | Betweenness | `Brandes()` |
@@ -239,7 +251,7 @@ The Python tooling follows a modular architecture with a main orchestration scri
 
 #### graphbrew_experiment.py - Main Orchestration
 
-The main entry point (~2900 lines) handles argument parsing and delegates to `lib/phases.py`:
+The main entry point (~3050 lines) handles argument parsing and delegates to `lib/phases.py`:
 
 ```python
 def main():
@@ -293,7 +305,7 @@ from scripts.lib.types import (
     BenchmarkResult,  # Benchmark execution result
     CacheResult,      # Cache simulation result
     ReorderResult,    # Reordering result
-    WeightUpdate,     # Weight update request
+    PerceptronWeight, # Perceptron weight dataclass
 )
 ```
 
@@ -302,7 +314,7 @@ from scripts.lib.types import (
 ```python
 from scripts.lib.utils import (
     ALGORITHMS,      # {0: "ORIGINAL", 1: "RANDOM", 7: "HUBCLUSTERDBG", ...}
-    BENCHMARKS,      # ['pr', 'bfs', 'cc', 'sssp', 'bc']
+    BENCHMARKS,      # ['pr', 'bfs', 'cc', 'sssp', 'bc', 'tc']
     run_command,     # Execute shell commands with timeout
     get_timestamp,   # Formatted timestamps
 )
@@ -312,19 +324,20 @@ from scripts.lib.utils import (
 
 | Module | Lines | Purpose |
 |--------|-------|---------|
-| `phases.py` | ~900 | Phase orchestration |
-| `analysis.py` | ~850 | Adaptive analysis |
+| `download.py` | ~1120 | Graph downloading |
+| `phases.py` | ~1050 | Phase orchestration |
+| `weights.py` | ~960 | Weight management |
+| `analysis.py` | ~880 | Adaptive analysis |
 | `reorder.py` | ~850 | Vertex reordering |
+| `weight_merger.py` | ~830 | Weight merging |
 | `results.py` | ~750 | Result I/O |
 | `training.py` | ~720 | ML training |
-| `download.py` | ~700 | Graph downloading |
-| `weights.py` | ~650 | Weight management |
-| `progress.py` | ~580 | Progress tracking |
-| `features.py` | ~550 | Graph features |
-| `benchmark.py` | ~450 | Benchmark execution |
-| `utils.py` | ~435 | Core utilities |
-| `cache.py` | ~420 | Cache simulation |
-| `types.py` | ~360 | Data classes |
+| `utils.py` | ~690 | Core utilities |
+| `progress.py` | ~600 | Progress tracking |
+| `types.py` | ~595 | Data classes |
+| `benchmark.py` | ~560 | Benchmark execution |
+| `features.py` | ~555 | Graph features |
+| `cache.py` | ~455 | Cache simulation |
 | `build.py` | ~340 | Binary compilation |
 
 ---
@@ -509,7 +522,7 @@ for (NodeID n = 0; n < num_nodes; n++) {
 {
   "graphs": ["facebook.el", "twitter.el"],
   "benchmarks": ["pr", "bfs", "cc"],
-  "algorithms": [0, 7, 12, 20],
+  "algorithms": [0, 7, 12, 17],
   "trials": 5,
   "options": {
     "symmetrize": true,
@@ -518,16 +531,21 @@ for (NodeID n = 0; n < num_nodes; n++) {
 }
 ```
 
-### Config Locations
+### Data Locations
 
 ```
-scripts/config/
-├── brew/           # Standard benchmark configs
-│   ├── run.json
-│   ├── convert.json
-│   └── label.json
-├── gap/            # GAP suite compatible
-└── test/           # Testing configs
+scripts/
+├── graphbrew_experiment.py    # Main orchestration script
+├── weights/                   # Perceptron weight files
+│   ├── active/                # C++ runtime reads from here
+│   ├── merged/                # Accumulated from all runs
+│   └── runs/                  # Historical snapshots
+└── lib/                       # Python library modules
+    └── utils.py               # ALGORITHMS dict, constants
+
+results/
+├── perceptron_weights.json    # Combined weights
+└── graph_properties_cache.json # Cached features
 ```
 
 ---

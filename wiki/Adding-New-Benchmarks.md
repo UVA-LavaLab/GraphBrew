@@ -50,12 +50,11 @@ using namespace std;
  */
 
 typedef float ScoreT;  // Or appropriate type
-typedef NodeID NodeT;
 
 // Forward declarations
-ScoreT* MyAlgorithm(const Graph &g);
-void PrintMyResults(const Graph &g, const ScoreT* results);
-bool VerifyMyResults(const Graph &g, const ScoreT* results);
+pvector<ScoreT> MyAlgorithm(const Graph &g);
+void PrintMyResults(const Graph &g, const pvector<ScoreT> &results);
+bool VerifyMyResults(const Graph &g, const pvector<ScoreT> &results);
 
 int main(int argc, char* argv[]) {
   CLApp cli(argc, argv, "my_algorithm");
@@ -65,21 +64,8 @@ int main(int argc, char* argv[]) {
   Builder b(cli);
   Graph g = b.MakeGraph();
   
-  ScoreT* results;
-  BenchmarkKernel(cli, g, [&](const Graph &g) {
-    results = MyAlgorithm(g);
-    return results;
-  });
-  
-  if (cli.verify()) {
-    if (!VerifyMyResults(g, results))
-      cout << "Verification FAILED" << endl;
-    else
-      cout << "Verification PASSED" << endl;
-  }
-  
-  PrintMyResults(g, results);
-  delete[] results;
+  // BenchmarkKernel takes: cli, graph, kernel_func, print_func, verify_func
+  BenchmarkKernel(cli, g, MyAlgorithm, PrintMyResults, VerifyMyResults);
   
   return 0;
 }
@@ -92,12 +78,12 @@ int main(int argc, char* argv[]) {
 ### Basic Structure
 
 ```cpp
-ScoreT* MyAlgorithm(const Graph &g) {
+pvector<ScoreT> MyAlgorithm(const Graph &g) {
   Timer t;
   t.Start();
   
   NodeID num_nodes = g.num_nodes();
-  ScoreT* results = new ScoreT[num_nodes];
+  pvector<ScoreT> results(num_nodes);
   
   // Initialize
   #pragma omp parallel for
@@ -118,13 +104,12 @@ ScoreT* MyAlgorithm(const Graph &g) {
 ### Example: Simple Degree Centrality
 
 ```cpp
-float* DegreeCentrality(const Graph &g) {
+pvector<float> DegreeCentrality(const Graph &g) {
   Timer t;
   t.Start();
   
   NodeID num_nodes = g.num_nodes();
-  int64_t num_edges = g.num_edges();
-  float* centrality = new float[num_nodes];
+  pvector<float> centrality(num_nodes);
   
   // Compute normalized degree centrality
   #pragma omp parallel for
@@ -142,13 +127,13 @@ float* DegreeCentrality(const Graph &g) {
 ### Example: Iterative Algorithm (like PageRank)
 
 ```cpp
-float* MyIterativeAlgorithm(const Graph &g, int max_iters, float tolerance) {
+pvector<float> MyIterativeAlgorithm(const Graph &g, int max_iters, float tolerance) {
   Timer t;
   t.Start();
   
   NodeID num_nodes = g.num_nodes();
-  float* scores = new float[num_nodes];
-  float* scores_new = new float[num_nodes];
+  pvector<float> scores(num_nodes);
+  pvector<float> scores_new(num_nodes);
   
   // Initialize
   float init_value = 1.0f / num_nodes;
@@ -178,7 +163,6 @@ float* MyIterativeAlgorithm(const Graph &g, int max_iters, float tolerance) {
     iter++;
   }
   
-  delete[] scores_new;
   t.Stop();
   PrintTime("My Algorithm (" + to_string(iter) + " iterations)", t.Seconds());
   
@@ -197,7 +181,7 @@ Verification ensures your algorithm produces correct results.
 ### Example
 
 ```cpp
-bool VerifyMyResults(const Graph &g, const ScoreT* results) {
+bool VerifyMyResults(const Graph &g, const pvector<ScoreT> &results) {
   NodeID num_nodes = g.num_nodes();
   
   // Check basic properties
@@ -228,7 +212,7 @@ bool VerifyMyResults(const Graph &g, const ScoreT* results) {
 ## Step 4: Add Output Function
 
 ```cpp
-void PrintMyResults(const Graph &g, const ScoreT* results) {
+void PrintMyResults(const Graph &g, const pvector<ScoreT> &results) {
   NodeID num_nodes = g.num_nodes();
   
   // Find top-k nodes
@@ -255,10 +239,11 @@ void PrintMyResults(const Graph &g, const ScoreT* results) {
 
 ### Edit Makefile
 
-Add your binary to the `KERNELS` list:
+Add your binary to the `KERNELS` list in the Makefile:
 
 ```makefile
-KERNELS = bc bfs cc cc_sv pr pr_spmv sssp tc my_algorithm
+# Current KERNELS list:
+KERNELS = bc bfs cc cc_sv pr pr_spmv sssp tc tc_p my_algorithm
 
 # Rule is automatic if your file follows naming convention
 # bench/src/my_algorithm.cc -> bench/bin/my_algorithm
@@ -343,12 +328,12 @@ using namespace std;
 
 typedef int32_t CoreT;
 
-CoreT* KCoreDecomposition(const Graph &g) {
+pvector<CoreT> KCoreDecomposition(const Graph &g) {
   Timer t;
   t.Start();
   
   NodeID num_nodes = g.num_nodes();
-  CoreT* core_num = new CoreT[num_nodes];
+  pvector<CoreT> core_num(num_nodes);
   pvector<int32_t> degree(num_nodes);
   
   // Initialize degrees
@@ -412,7 +397,7 @@ CoreT* KCoreDecomposition(const Graph &g) {
   return core_num;
 }
 
-bool VerifyKCore(const Graph &g, const CoreT* core_num) {
+bool VerifyKCore(const Graph &g, const pvector<CoreT> &core_num) {
   NodeID num_nodes = g.num_nodes();
   
   // For each vertex, check it has at least k neighbors with core >= k
@@ -436,7 +421,7 @@ bool VerifyKCore(const Graph &g, const CoreT* core_num) {
   return true;
 }
 
-void PrintKCoreResults(const Graph &g, const CoreT* core_num) {
+void PrintKCoreResults(const Graph &g, const pvector<CoreT> &core_num) {
   NodeID num_nodes = g.num_nodes();
   
   // Count nodes per core
@@ -466,21 +451,8 @@ int main(int argc, char* argv[]) {
   Builder b(cli);
   Graph g = b.MakeGraph();
   
-  CoreT* core_num;
-  BenchmarkKernel(cli, g, [&](const Graph &g) {
-    core_num = KCoreDecomposition(g);
-    return core_num;
-  });
-  
-  if (cli.verify()) {
-    if (!VerifyKCore(g, core_num))
-      cout << "Verification FAILED" << endl;
-    else
-      cout << "Verification PASSED" << endl;
-  }
-  
-  PrintKCoreResults(g, core_num);
-  delete[] core_num;
+  // BenchmarkKernel takes: cli, graph, kernel_func, print_func, verify_func
+  BenchmarkKernel(cli, g, KCoreDecomposition, PrintKCoreResults, VerifyKCore);
   
   return 0;
 }
@@ -489,7 +461,7 @@ int main(int argc, char* argv[]) {
 ### Add to Makefile
 
 ```makefile
-KERNELS = bc bfs cc cc_sv pr pr_spmv sssp tc kcore
+KERNELS = bc bfs cc cc_sv pr pr_spmv sssp tc tc_p kcore
 ```
 
 ### Test
@@ -503,24 +475,26 @@ make kcore
 
 ## Integration with Python Scripts
 
-### Add to run_experiment.py
+### Add to lib/utils.py
 
-Edit `scripts/brew/run_experiment.py`:
+Edit `scripts/lib/utils.py` to add the benchmark to the BENCHMARKS list:
 
 ```python
-BENCHMARKS = ['pr', 'bfs', 'cc', 'sssp', 'bc', 'tc', 'kcore']
+# Current BENCHMARKS list:
+BENCHMARKS = ["pr", "bfs", "cc", "sssp", "bc", "tc", "my_algorithm"]
 ```
 
-### Add to Configuration
+### Use in Experiments
 
-Edit `scripts/config/brew/run.json`:
+Run experiments with your new benchmark:
 
-```json
-{
-  "benchmarks": ["pr", "bfs", "cc", "kcore"],
-  "algorithms": [0, 7, 12, 20],
-  "trials": 5
-}
+```bash
+# Include your benchmark in the experiment
+python3 scripts/graphbrew_experiment.py \
+    --phase benchmark \
+    --benchmarks pr bfs kcore \
+    --graphs small \
+    --trials 5
 ```
 
 ---
