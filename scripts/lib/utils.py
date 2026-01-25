@@ -32,6 +32,7 @@ BIN_SIM_DIR = BENCH_DIR / "bin_sim"
 RESULTS_DIR = PROJECT_ROOT / "results"
 GRAPHS_DIR = PROJECT_ROOT / "graphs"
 WEIGHTS_DIR = SCRIPT_DIR / "weights"
+ACTIVE_WEIGHTS_DIR = WEIGHTS_DIR / "active"  # Where C++ reads type_*.json from
 
 # =============================================================================
 # Algorithm Definitions (must match builder.h ReorderingAlgo enum)

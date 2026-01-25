@@ -8,7 +8,11 @@ might correspond to type_1 in run B based on centroid similarity).
 
 Directory Structure:
     scripts/weights/
-    ├── runs/
+    ├── active/                     # C++ reads from here
+    │   ├── type_0.json
+    │   ├── type_1.json
+    │   └── type_registry.json
+    ├── runs/                       # Historical snapshots
     │   ├── 20260125_123456/
     │   │   ├── type_0.json
     │   │   ├── type_1.json
@@ -16,7 +20,7 @@ Directory Structure:
     │   └── 20260125_134567/
     │       ├── type_0.json
     │       └── type_registry.json
-    └── merged/
+    └── merged/                     # Accumulated from all runs
         ├── type_0.json
         ├── type_1.json
         └── type_registry.json
@@ -311,10 +315,15 @@ def save_type_weights(weights: Dict[str, Dict], type_path: Path):
 
 
 def get_weights_dir() -> Path:
-    """Get the weights directory path."""
+    """Get the base weights directory path."""
     # Try to find the scripts/weights directory
     script_dir = Path(__file__).parent.parent
     return script_dir / "weights"
+
+
+def get_active_dir() -> Path:
+    """Get the active weights directory path (C++ reads from here)."""
+    return get_weights_dir() / "active"
 
 
 def get_runs_dir() -> Path:
@@ -356,20 +365,21 @@ def save_current_run(timestamp: Optional[str] = None) -> Path:
     if timestamp is None:
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     
-    weights_dir = get_weights_dir()
+    active_dir = get_active_dir()
     runs_dir = get_runs_dir()
     run_dir = runs_dir / timestamp
     
     # Create run directory
     run_dir.mkdir(parents=True, exist_ok=True)
     
-    # Copy all type files and registry
+    # Copy all type files and registry from active
     files_copied = 0
-    for item in weights_dir.iterdir():
-        if item.is_file() and item.suffix == '.json':
-            if item.name.startswith('type_') or item.name == 'type_registry.json':
-                shutil.copy2(item, run_dir / item.name)
-                files_copied += 1
+    if active_dir.exists():
+        for item in active_dir.iterdir():
+            if item.is_file() and item.suffix == '.json':
+                if item.name.startswith('type_') or item.name == 'type_registry.json':
+                    shutil.copy2(item, run_dir / item.name)
+                    files_copied += 1
     
     print(f"Saved {files_copied} files to run {timestamp}")
     return run_dir
@@ -532,18 +542,21 @@ def use_run(timestamp: str) -> bool:
         True if successful
     """
     runs_dir = get_runs_dir()
-    weights_dir = get_weights_dir()
+    active_dir = get_active_dir()
     run_dir = runs_dir / timestamp
     
     if not run_dir.exists():
         print(f"Run not found: {timestamp}")
         return False
     
-    # Copy files from run to weights directory
+    # Create active directory if needed
+    active_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Copy files from run to active directory
     files_copied = 0
     for item in run_dir.iterdir():
         if item.is_file() and item.suffix == '.json':
-            shutil.copy2(item, weights_dir / item.name)
+            shutil.copy2(item, active_dir / item.name)
             files_copied += 1
     
     print(f"Applied {files_copied} files from run {timestamp}")
@@ -552,23 +565,26 @@ def use_run(timestamp: str) -> bool:
 
 def use_merged() -> bool:
     """
-    Copy merged weights to the main weights directory.
+    Copy merged weights to the active weights directory.
     
     Returns:
         True if successful
     """
     merged_dir = get_merged_dir()
-    weights_dir = get_weights_dir()
+    active_dir = get_active_dir()
     
     if not merged_dir.exists():
         print("No merged weights found. Run merge first.")
         return False
     
-    # Copy files from merged to weights directory
+    # Create active directory if needed
+    active_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Copy files from merged to active directory
     files_copied = 0
     for item in merged_dir.iterdir():
         if item.is_file() and item.suffix == '.json':
-            shutil.copy2(item, weights_dir / item.name)
+            shutil.copy2(item, active_dir / item.name)
             files_copied += 1
     
     print(f"Applied {files_copied} files from merged weights")
