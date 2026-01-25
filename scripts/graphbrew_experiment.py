@@ -90,94 +90,88 @@ _PROJECT_ROOT = _SCRIPT_DIR.parent
 if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
-# Import shared utilities from lib/ module
-# These provide consistent definitions across all scripts
-try:
-    from scripts.lib import (
-        # Core constants
-        ALGORITHMS as LIB_ALGORITHMS,
-        BENCHMARKS as LIB_BENCHMARKS,
-        LEIDEN_CSR_VARIANTS as LIB_LEIDEN_CSR_VARIANTS,
-        LEIDEN_DENDROGRAM_VARIANTS as LIB_LEIDEN_DENDROGRAM_VARIANTS,
-        LEIDEN_DEFAULT_RESOLUTION as LIB_LEIDEN_DEFAULT_RESOLUTION,
-        LEIDEN_DEFAULT_PASSES as LIB_LEIDEN_DEFAULT_PASSES,
-        # Paths
-        PROJECT_ROOT as LIB_PROJECT_ROOT,
-        BIN_DIR as LIB_BIN_DIR,
-        BIN_SIM_DIR as LIB_BIN_SIM_DIR,
-        GRAPHS_DIR as LIB_GRAPHS_DIR,
-        RESULTS_DIR as LIB_RESULTS_DIR,
-        WEIGHTS_DIR as LIB_WEIGHTS_DIR,
-        # Utils
-        Logger,
-        run_command as lib_run_command,
-        get_timestamp,
-        # Download
-        GRAPH_CATALOG,
-        DOWNLOAD_GRAPHS_SMALL as LIB_DOWNLOAD_GRAPHS_SMALL,
-        DOWNLOAD_GRAPHS_MEDIUM as LIB_DOWNLOAD_GRAPHS_MEDIUM,
-        DOWNLOAD_GRAPHS_LARGE as LIB_DOWNLOAD_GRAPHS_LARGE,
-        DOWNLOAD_GRAPHS_XLARGE as LIB_DOWNLOAD_GRAPHS_XLARGE,
-        DownloadableGraph as LibDownloadableGraph,
-        download_graph as lib_download_graph,
-        download_graphs as lib_download_graphs,
-        get_graph_info as lib_get_graph_info,
-        get_graphs_by_size as lib_get_graphs_by_size,
-        # Build
-        build_binaries as lib_build_binaries,
-        check_binaries as lib_check_binaries,
-        ensure_binaries as lib_ensure_binaries,
-        # Reorder
-        ReorderResult as LibReorderResult,
-        generate_reorderings as lib_generate_reorderings,
-        generate_label_maps as lib_generate_label_maps,
-        generate_reorderings_with_variants as lib_generate_reorderings_with_variants,
-        # Benchmark
-        run_benchmark as lib_run_benchmark,
-        parse_benchmark_output as lib_parse_benchmark_output,
-        # Cache
-        CacheResult as LibCacheResult,
-        run_cache_simulation as lib_run_cache_simulation,
-        run_cache_simulations as lib_run_cache_simulations,
-        parse_cache_output as lib_parse_cache_output,
-        # Weights
-        PerceptronWeight as LibPerceptronWeight,
-        load_type_registry as lib_load_type_registry,
-        save_type_registry as lib_save_type_registry,
-        assign_graph_type as lib_assign_graph_type,
-        update_type_weights_incremental as lib_update_type_weights_incremental,
-        get_best_algorithm_for_type as lib_get_best_algorithm_for_type,
-        list_known_types as lib_list_known_types,
-        # Progress
-        ProgressTracker as LibProgressTracker,
-        create_progress as lib_create_progress,
-        format_duration as lib_format_duration,
-        # Results
-        ResultsManager as LibResultsManager,
-        read_json as lib_read_json,
-        write_json as lib_write_json,
-        filter_results as lib_filter_results,
-        # Analysis
-        SubcommunityInfo as LibSubcommunityInfo,
-        AdaptiveOrderResult as LibAdaptiveOrderResult,
-        AdaptiveComparisonResult as LibAdaptiveComparisonResult,
-        GraphBruteForceAnalysis as LibGraphBruteForceAnalysis,
-        parse_adaptive_output as lib_parse_adaptive_output,
-        analyze_adaptive_order as lib_analyze_adaptive_order,
-        compare_adaptive_vs_fixed as lib_compare_adaptive_vs_fixed,
-        run_subcommunity_brute_force as lib_run_subcommunity_brute_force,
-        # Training
-        TrainingResult as LibTrainingResult,
-        TrainingIterationResult as LibTrainingIterationResult,
-        initialize_enhanced_weights as lib_initialize_enhanced_weights,
-        train_adaptive_weights_iterative as lib_train_adaptive_weights_iterative,
-        train_adaptive_weights_large_scale as lib_train_adaptive_weights_large_scale,
-    )
-    LIB_AVAILABLE = True
-except ImportError as e:
-    # Fallback if running from different directory or lib not available
-    LIB_AVAILABLE = False
-    print(f"Warning: lib/ modules not available: {e}", file=sys.stderr)
+# Import shared utilities from lib/ module (REQUIRED)
+# The lib/ module is part of this project and must be available
+from scripts.lib import (
+    # Core constants
+    ALGORITHMS as LIB_ALGORITHMS,
+    BENCHMARKS as LIB_BENCHMARKS,
+    LEIDEN_CSR_VARIANTS as LIB_LEIDEN_CSR_VARIANTS,
+    LEIDEN_DENDROGRAM_VARIANTS as LIB_LEIDEN_DENDROGRAM_VARIANTS,
+    LEIDEN_DEFAULT_RESOLUTION as LIB_LEIDEN_DEFAULT_RESOLUTION,
+    LEIDEN_DEFAULT_PASSES as LIB_LEIDEN_DEFAULT_PASSES,
+    # Paths
+    PROJECT_ROOT as LIB_PROJECT_ROOT,
+    BIN_DIR as LIB_BIN_DIR,
+    BIN_SIM_DIR as LIB_BIN_SIM_DIR,
+    GRAPHS_DIR as LIB_GRAPHS_DIR,
+    RESULTS_DIR as LIB_RESULTS_DIR,
+    WEIGHTS_DIR as LIB_WEIGHTS_DIR,
+    # Utils
+    Logger,
+    run_command as lib_run_command,
+    get_timestamp,
+    # Download
+    GRAPH_CATALOG,
+    DOWNLOAD_GRAPHS_SMALL,
+    DOWNLOAD_GRAPHS_MEDIUM,
+    DOWNLOAD_GRAPHS_LARGE,
+    DOWNLOAD_GRAPHS_XLARGE,
+    DownloadableGraph,
+    download_graph as lib_download_graph,
+    download_graphs as lib_download_graphs,
+    get_graph_info as lib_get_graph_info,
+    get_graphs_by_size as lib_get_graphs_by_size,
+    # Build
+    build_binaries as lib_build_binaries,
+    check_binaries as lib_check_binaries,
+    ensure_binaries as lib_ensure_binaries,
+    # Reorder
+    ReorderResult,
+    generate_reorderings as lib_generate_reorderings,
+    generate_label_maps as lib_generate_label_maps,
+    generate_reorderings_with_variants as lib_generate_reorderings_with_variants,
+    # Benchmark
+    run_benchmark as lib_run_benchmark,
+    parse_benchmark_output as lib_parse_benchmark_output,
+    # Cache
+    CacheResult,
+    run_cache_simulation as lib_run_cache_simulation,
+    run_cache_simulations as lib_run_cache_simulations,
+    parse_cache_output as lib_parse_cache_output,
+    # Weights
+    PerceptronWeight,
+    load_type_registry as lib_load_type_registry,
+    save_type_registry as lib_save_type_registry,
+    assign_graph_type as lib_assign_graph_type,
+    update_type_weights_incremental as lib_update_type_weights_incremental,
+    get_best_algorithm_for_type as lib_get_best_algorithm_for_type,
+    list_known_types as lib_list_known_types,
+    # Progress
+    ProgressTracker,
+    create_progress as lib_create_progress,
+    format_duration as lib_format_duration,
+    # Results
+    ResultsManager,
+    read_json as lib_read_json,
+    write_json as lib_write_json,
+    filter_results as lib_filter_results,
+    # Analysis
+    SubcommunityInfo,
+    AdaptiveOrderResult,
+    AdaptiveComparisonResult,
+    GraphBruteForceAnalysis,
+    parse_adaptive_output as lib_parse_adaptive_output,
+    analyze_adaptive_order as lib_analyze_adaptive_order,
+    compare_adaptive_vs_fixed as lib_compare_adaptive_vs_fixed,
+    run_subcommunity_brute_force as lib_run_subcommunity_brute_force,
+    # Training
+    TrainingResult,
+    TrainingIterationResult,
+    initialize_enhanced_weights as lib_initialize_enhanced_weights,
+    train_adaptive_weights_iterative as lib_train_adaptive_weights_iterative,
+    train_adaptive_weights_large_scale as lib_train_adaptive_weights_large_scale,
+)
 
 # ============================================================================
 # Configuration
@@ -853,191 +847,64 @@ def compute_extended_features(nodes: int, edges: int, density: float,
 
 
 # =============================================================================
-# Data Classes
+# Data Classes (from lib/)
 # =============================================================================
-# These are now in scripts/lib/ modules. Use lib/ definitions when available.
-
-if LIB_AVAILABLE:
-    # Use lib/ definitions (authoritative)
-    ReorderResult = LibReorderResult
-    CacheResult = LibCacheResult
-    SubcommunityInfo = LibSubcommunityInfo
-    AdaptiveOrderResult = LibAdaptiveOrderResult
-    AdaptiveComparisonResult = LibAdaptiveComparisonResult
-    PerceptronWeight = LibPerceptronWeight
-    
-    # BenchmarkResult needs a local definition as it's not in lib/
-    @dataclass
-    class BenchmarkResult:
-        """Result from running a benchmark."""
-        graph: str
-        algorithm_id: int
-        algorithm_name: str
-        benchmark: str
-        trial_time: float
-        speedup: float = 1.0
-        nodes: int = 0
-        edges: int = 0
-        success: bool = True
-        error: str = ""
-else:
-    # Fallback definitions if lib/ not available
-    @dataclass
-    class ReorderResult:
-        """Result from reordering a graph."""
-        graph: str
-        algorithm_id: int
-        algorithm_name: str
-        reorder_time: float
-        mapping_file: str = ""
-        success: bool = True
-        error: str = ""
-
-    @dataclass
-    class BenchmarkResult:
-        """Result from running a benchmark."""
-        graph: str
-        algorithm_id: int
-        algorithm_name: str
-        benchmark: str
-        trial_time: float
-        speedup: float = 1.0
-        nodes: int = 0
-        edges: int = 0
-        success: bool = True
-        error: str = ""
-
-    @dataclass
-    class CacheResult:
-        """Result from cache simulation."""
-        graph: str
-        algorithm_id: int
-        algorithm_name: str
-        benchmark: str
-        l1_hit_rate: float = 0.0
-        l2_hit_rate: float = 0.0
-        l3_hit_rate: float = 0.0
-        success: bool = True
-        error: str = ""
-
-    @dataclass
-    class SubcommunityInfo:
-        """Information about a subcommunity in adaptive ordering."""
-        community_id: int
-        nodes: int
-        edges: int
-        density: float
-        degree_variance: float
-        hub_concentration: float
-        selected_algorithm: str
-        clustering_coefficient: float = 0.0
-        avg_path_length: float = 0.0
-        diameter_estimate: float = 0.0
-        community_count: int = 1
-        
-    @dataclass
-    class AdaptiveOrderResult:
-        """Result from adaptive ordering analysis."""
-        graph: str
-        modularity: float
-        num_communities: int
-        subcommunities: List[SubcommunityInfo] = field(default_factory=list)
-        algorithm_distribution: Dict[str, int] = field(default_factory=dict)
-        reorder_time: float = 0.0
-        success: bool = True
-        error: str = ""
-
-    @dataclass
-    class AdaptiveComparisonResult:
-        """Result comparing adaptive vs fixed-algorithm approaches."""
-        graph: str
-        benchmark: str
-        adaptive_time: float
-        adaptive_speedup: float
-        fixed_results: Dict[str, float] = field(default_factory=dict)
-        best_fixed_algorithm: str = ""
-        best_fixed_speedup: float = 0.0
-        adaptive_advantage: float = 0.0
-
-    @dataclass
-    class PerceptronWeight:
-        """Perceptron weight for an algorithm."""
-        bias: float = 0.5
-        w_modularity: float = 0.0
-        w_log_nodes: float = 0.0
-        w_log_edges: float = 0.0
-        w_density: float = 0.0
-        w_avg_degree: float = 0.0
-        w_degree_variance: float = 0.0
-        w_hub_concentration: float = 0.0
-        cache_l1_impact: float = 0.0
-        cache_l2_impact: float = 0.0
-        cache_l3_impact: float = 0.0
-        cache_dram_penalty: float = 0.0
-        w_reorder_time: float = 0.0
-
-# Note: AdaptiveOrderResult, AdaptiveComparisonResult, PerceptronWeight
-# are now defined conditionally above (using lib/ when available).
-# Extended PerceptronWeight with compute_score and benchmark_weights
-# is defined below for backward compatibility.
-
-# Extended PerceptronWeight (adds compute_score method not in lib/)
-# Only define if we need the extended version
-if not LIB_AVAILABLE:
-    pass  # Already defined above in fallback
-else:
-    # Extend the lib PerceptronWeight with additional methods
-    class PerceptronWeightExtended(LibPerceptronWeight):
-        """Extended PerceptronWeight with compute_score and benchmark_weights."""
-        benchmark_weights: Dict[str, float] = None  # Will be set in post_init
-        _metadata: Dict = None
-        
-        def __post_init__(self):
-            if self.benchmark_weights is None:
-                self.benchmark_weights = {'pr': 1.0, 'bfs': 1.0, 'cc': 1.0, 'sssp': 1.0, 'bc': 1.0}
-            if self._metadata is None:
-                self._metadata = {}
-        
-        def compute_score(self, features: Dict, benchmark: str = 'pr') -> float:
-            """Compute perceptron score for given features and benchmark."""
-            import math
-            log_nodes = math.log10(features.get('nodes', 1) + 1)
-            log_edges = math.log10(features.get('edges', 1) + 1)
-            
-            score = self.bias
-            score += self.w_modularity * features.get('modularity', 0.5)
-            score += self.w_log_nodes * log_nodes
-            score += self.w_log_edges * log_edges
-            score += self.w_density * features.get('density', 0.0)
-            score += self.w_avg_degree * features.get('avg_degree', 0.0) / 100.0
-            score += self.w_degree_variance * features.get('degree_variance', 0.0)
-            score += self.w_hub_concentration * features.get('hub_concentration', 0.0)
-            score += getattr(self, 'w_clustering_coeff', 0.0) * features.get('clustering_coefficient', 0.0)
-            score += getattr(self, 'w_avg_path_length', 0.0) * features.get('avg_path_length', 0.0) / 10.0
-            score += getattr(self, 'w_diameter', 0.0) * features.get('diameter', features.get('diameter_estimate', 0.0)) / 50.0
-            score += getattr(self, 'w_community_count', 0.0) * math.log10(features.get('community_count', 1) + 1)
-            score += self.w_reorder_time * features.get('reorder_time', 0.0)
-            
-            # Apply benchmark-specific multiplier
-            bench_mult = self.benchmark_weights.get(benchmark.lower(), 1.0) if self.benchmark_weights else 1.0
-            return score * bench_mult
+# Core data classes are imported from lib/. Local extensions defined below.
 
 @dataclass
-class DownloadableGraph:
-    """Information about a downloadable graph."""
-    name: str
-    url: str
-    size_mb: int
-    nodes: int
-    edges: int
-    symmetric: bool
-    category: str
-    description: str = ""
+class BenchmarkResult:
+    """Result from running a benchmark."""
+    graph: str
+    algorithm_id: int
+    algorithm_name: str
+    benchmark: str
+    trial_time: float
+    speedup: float = 1.0
+    nodes: int = 0
+    edges: int = 0
+    success: bool = True
+    error: str = ""
+
+
+class PerceptronWeightExtended(PerceptronWeight):
+    """Extended PerceptronWeight with compute_score and benchmark_weights."""
     
-    def estimated_memory_gb(self) -> float:
-        """Estimate RAM required to process this graph."""
-        memory_bytes = (self.edges * BYTES_PER_EDGE + self.nodes * BYTES_PER_NODE) * MEMORY_SAFETY_FACTOR
-        return memory_bytes / (1024 ** 3)
+    def __init__(self, *args, benchmark_weights: Dict[str, float] = None, 
+                 _metadata: Dict = None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.benchmark_weights = benchmark_weights or {'pr': 1.0, 'bfs': 1.0, 'cc': 1.0, 'sssp': 1.0, 'bc': 1.0}
+        self._metadata = _metadata or {}
+    
+    def compute_score(self, features: Dict, benchmark: str = 'pr') -> float:
+        """Compute perceptron score for given features and benchmark."""
+        log_nodes = math.log10(features.get('nodes', 1) + 1)
+        log_edges = math.log10(features.get('edges', 1) + 1)
+        
+        score = self.bias
+        score += self.w_modularity * features.get('modularity', 0.5)
+        score += self.w_log_nodes * log_nodes
+        score += self.w_log_edges * log_edges
+        score += self.w_density * features.get('density', 0.0)
+        score += self.w_avg_degree * features.get('avg_degree', 0.0) / 100.0
+        score += self.w_degree_variance * features.get('degree_variance', 0.0)
+        score += self.w_hub_concentration * features.get('hub_concentration', 0.0)
+        score += getattr(self, 'w_clustering_coeff', 0.0) * features.get('clustering_coefficient', 0.0)
+        score += getattr(self, 'w_avg_path_length', 0.0) * features.get('avg_path_length', 0.0) / 10.0
+        score += getattr(self, 'w_diameter', 0.0) * features.get('diameter', features.get('diameter_estimate', 0.0)) / 50.0
+        score += getattr(self, 'w_community_count', 0.0) * math.log10(features.get('community_count', 1) + 1)
+        score += self.w_reorder_time * features.get('reorder_time', 0.0)
+        
+        # Apply benchmark-specific multiplier
+        bench_mult = self.benchmark_weights.get(benchmark.lower(), 1.0) if self.benchmark_weights else 1.0
+        return score * bench_mult
+
+
+# Note: These are imported from lib/ directly:
+# - ReorderResult, CacheResult, SubcommunityInfo
+# - AdaptiveOrderResult, AdaptiveComparisonResult
+# - PerceptronWeight, ProgressTracker, ResultsManager
+# - TrainingResult, TrainingIterationResult, GraphBruteForceAnalysis
+# - DownloadableGraph, DOWNLOAD_GRAPHS_*
 
 
 def get_available_memory_gb() -> float:
@@ -1557,98 +1424,12 @@ def get_type_summary(type_name: str, weights_dir: str = DEFAULT_WEIGHTS_DIR) -> 
 
 
 # ============================================================================
-# Graph Catalog for Download
+# Graph Catalog and Progress Tracking (from lib/)
 # ============================================================================
-# Graph catalog is now in scripts/lib/download.py
-# Import from lib/ for the authoritative graph definitions
-if LIB_AVAILABLE:
-    # Use lib/ definitions (authoritative source)
-    DOWNLOAD_GRAPHS_SMALL = LIB_DOWNLOAD_GRAPHS_SMALL
-    DOWNLOAD_GRAPHS_MEDIUM = LIB_DOWNLOAD_GRAPHS_MEDIUM
-    DOWNLOAD_GRAPHS_LARGE = LIB_DOWNLOAD_GRAPHS_LARGE
-    DOWNLOAD_GRAPHS_XLARGE = LIB_DOWNLOAD_GRAPHS_XLARGE
-    DownloadableGraph = LibDownloadableGraph
-else:
-    # Fallback minimal catalog if lib/ not available
-    @dataclass
-    class DownloadableGraph:
-        """Information about a downloadable graph."""
-        name: str
-        url: str
-        size_mb: int
-        nodes: int
-        edges: int
-        symmetric: bool
-        category: str
-        description: str = ""
-    
-    DOWNLOAD_GRAPHS_SMALL = [
-        DownloadableGraph("email-Enron", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/email-Enron.tar.gz",
-                          5, 36692, 183831, True, "communication", "Enron email network"),
-        DownloadableGraph("ca-CondMat", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/ca-CondMat.tar.gz",
-                          2, 23133, 93497, True, "collaboration", "Condensed Matter"),
-    ]
-    DOWNLOAD_GRAPHS_MEDIUM = []
-    DOWNLOAD_GRAPHS_LARGE = []
-    DOWNLOAD_GRAPHS_XLARGE = []
-
-# ============================================================================
-# Progress Tracking System
-# ============================================================================
-# ProgressTracker is now in scripts/lib/progress.py
-# Use lib/ definitions when available
-
-if LIB_AVAILABLE:
-    # Use lib/ ProgressTracker (full-featured)
-    ProgressTracker = LibProgressTracker
-else:
-    # Fallback minimal ProgressTracker if lib/ not available
-    class ProgressTracker:
-        """Minimal fallback progress tracker when lib/ not available."""
-        def __init__(self, use_colors: bool = True):
-            self.use_colors = use_colors and sys.stdout.isatty()
-            self.start_time = time.time()
-            self.phase_start_time = None
-            self.current_phase = None
-            self.phase_history = []
-            self.stats = {'errors': [], 'best_speedups': {}, 'benchmarks_run': 0}
-        def _color(self, text: str, color: str) -> str:
-            return text  # No colors in fallback
-        def banner(self, title: str, subtitle: str = None, width: int = 70):
-            print(f"\n{'=' * width}\n{title.center(width)}\n{'=' * width}\n")
-        def phase_start(self, phase_name: str, description: str = None):
-            self.current_phase = phase_name
-            self.phase_start_time = time.time()
-            print(f"\n[PHASE] {phase_name}" + (f" - {description}" if description else ""))
-        def phase_end(self, summary: str = None):
-            duration = time.time() - (self.phase_start_time or self.start_time)
-            print(f"[DONE] {self.current_phase} ({duration:.1f}s)" + (f" - {summary}" if summary else ""))
-            self.phase_history.append({'name': self.current_phase, 'duration': duration})
-        def step(self, current: int, total: int, item_name: str, extra_info: str = None):
-            print(f"  [{current}/{total}] {item_name}" + (f" - {extra_info}" if extra_info else ""))
-        def substep(self, message: str, status: str = "..."):
-            print(f"    [{status}] {message}")
-        def info(self, message: str, indent: int = 0):
-            print(f"{'  ' * indent}→ {message}")
-        def success(self, message: str):
-            print(f"  ✓ {message}")
-        def warning(self, message: str):
-            print(f"  ⚠ {message}")
-        def error(self, message: str):
-            print(f"  ✗ {message}")
-            self.stats['errors'].append(message)
-        def table_header(self, columns: List[Tuple[str, int]]):
-            print("  | " + " | ".join(name for name, _ in columns) + " |")
-        def table_row(self, values: List[Tuple[str, int]], highlight: bool = False):
-            print("  | " + " | ".join(str(val) for val, _ in values) + " |")
-        def stats_summary(self, title: str, stats: Dict[str, Any]):
-            print(f"\n{title}:")
-            for k, v in stats.items(): print(f"  {k}: {v}")
-        def record_result(self, graph: str, algorithm: str, benchmark: str, time_sec: float, speedup: float = None):
-            self.stats['benchmarks_run'] += 1
-        def final_summary(self):
-            print(f"\n[COMPLETE] Total time: {time.time() - self.start_time:.1f}s")
-
+# These are imported directly from lib/download.py and lib/progress.py:
+# - DOWNLOAD_GRAPHS_SMALL, DOWNLOAD_GRAPHS_MEDIUM, DOWNLOAD_GRAPHS_LARGE, DOWNLOAD_GRAPHS_XLARGE
+# - DownloadableGraph
+# - ProgressTracker
 
 # Global progress tracker instance
 _progress = ProgressTracker()
