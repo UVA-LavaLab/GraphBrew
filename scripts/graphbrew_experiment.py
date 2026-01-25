@@ -112,8 +112,15 @@ try:
     )
     from scripts.lib.download import (
         GRAPH_CATALOG,
+        DOWNLOAD_GRAPHS_SMALL as LIB_DOWNLOAD_GRAPHS_SMALL,
+        DOWNLOAD_GRAPHS_MEDIUM as LIB_DOWNLOAD_GRAPHS_MEDIUM,
+        DOWNLOAD_GRAPHS_LARGE as LIB_DOWNLOAD_GRAPHS_LARGE,
+        DOWNLOAD_GRAPHS_XLARGE as LIB_DOWNLOAD_GRAPHS_XLARGE,
+        DownloadableGraph as LibDownloadableGraph,
         download_graph as lib_download_graph,
         download_graphs as lib_download_graphs,
+        get_graph_info as lib_get_graph_info,
+        get_graphs_by_size as lib_get_graphs_by_size,
         list_available_graphs,
         list_downloaded_graphs,
     )
@@ -1487,223 +1494,38 @@ def get_type_summary(type_name: str, weights_dir: str = DEFAULT_WEIGHTS_DIR) -> 
 # ============================================================================
 # Graph Catalog for Download
 # ============================================================================
-
-# Small graphs (< 20MB, good for quick testing)
-DOWNLOAD_GRAPHS_SMALL = [
-    # Communication networks
-    DownloadableGraph("email-Enron", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/email-Enron.tar.gz",
-                      5, 36692, 183831, True, "communication", "Enron email network"),
-    DownloadableGraph("email-EuAll", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/email-EuAll.tar.gz",
-                      4, 265214, 420045, False, "communication", "EU email network"),
-    # Collaboration networks
-    DownloadableGraph("ca-AstroPh", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/ca-AstroPh.tar.gz",
-                      3, 18772, 198110, True, "collaboration", "Arxiv Astro Physics"),
-    DownloadableGraph("ca-CondMat", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/ca-CondMat.tar.gz",
-                      2, 23133, 93497, True, "collaboration", "Condensed Matter"),
-    DownloadableGraph("ca-GrQc", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/ca-GrQc.tar.gz",
-                      1, 5242, 14496, True, "collaboration", "General Relativity"),
-    DownloadableGraph("ca-HepPh", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/ca-HepPh.tar.gz",
-                      2, 12008, 118521, True, "collaboration", "High Energy Physics"),
-    DownloadableGraph("ca-HepTh", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/ca-HepTh.tar.gz",
-                      1, 9877, 25998, True, "collaboration", "High Energy Physics Theory"),
-    # P2P networks
-    DownloadableGraph("p2p-Gnutella31", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/p2p-Gnutella31.tar.gz",
-                      2, 62586, 147892, False, "p2p", "Gnutella P2P network"),
-    DownloadableGraph("p2p-Gnutella30", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/p2p-Gnutella30.tar.gz",
-                      1, 36682, 88328, False, "p2p", "Gnutella P2P Aug 30"),
-    DownloadableGraph("p2p-Gnutella25", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/p2p-Gnutella25.tar.gz",
-                      1, 22687, 54705, False, "p2p", "Gnutella P2P Aug 25"),
-    DownloadableGraph("p2p-Gnutella24", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/p2p-Gnutella24.tar.gz",
-                      1, 26518, 65369, False, "p2p", "Gnutella P2P Aug 24"),
-    # Social networks (small)
-    DownloadableGraph("soc-Slashdot0811", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/soc-Slashdot0811.tar.gz",
-                      8, 77360, 905468, False, "social", "Slashdot Nov 2008"),
-    DownloadableGraph("soc-Slashdot0902", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/soc-Slashdot0902.tar.gz",
-                      9, 82168, 948464, False, "social", "Slashdot Feb 2009"),
-    DownloadableGraph("soc-sign-epinions", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/soc-sign-epinions.tar.gz",
-                      10, 131828, 841372, False, "social", "Epinions signed network"),
-    # Citation networks (small)
-    DownloadableGraph("cit-HepPh", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/cit-HepPh.tar.gz",
-                      8, 34546, 421578, False, "citation", "HEP-PH citations"),
-    DownloadableGraph("cit-HepTh", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/cit-HepTh.tar.gz",
-                      4, 27770, 352807, False, "citation", "HEP-TH citations"),
-]
-
-# Medium graphs (20MB - 200MB) - ~35 graphs
-DOWNLOAD_GRAPHS_MEDIUM = [
-    # Communication
-    DownloadableGraph("wiki-Talk", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/wiki-Talk.tar.gz",
-                      80, 2394385, 5021410, False, "communication", "Wikipedia talk"),
-    DownloadableGraph("wiki-topcats", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/wiki-topcats.tar.gz",
-                      120, 1791489, 28511807, False, "web", "Wikipedia top categories"),
-    # Citation networks
-    DownloadableGraph("cit-Patents", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/cit-Patents.tar.gz",
-                      262, 3774768, 16518948, False, "citation", "US Patent citations"),
-    # Road networks
-    DownloadableGraph("roadNet-PA", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/roadNet-PA.tar.gz",
-                      40, 1090920, 1541898, True, "road", "Pennsylvania roads"),
-    DownloadableGraph("roadNet-CA", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/roadNet-CA.tar.gz",
-                      60, 1971281, 2766607, True, "road", "California roads"),
-    DownloadableGraph("roadNet-TX", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/roadNet-TX.tar.gz",
-                      45, 1393383, 1921660, True, "road", "Texas roads"),
-    # Social networks (medium)
-    DownloadableGraph("soc-Epinions1", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/soc-Epinions1.tar.gz",
-                      12, 75888, 508837, False, "social", "Epinions social"),
-    # Commerce networks
-    DownloadableGraph("amazon0302", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/amazon0302.tar.gz",
-                      15, 262111, 1234877, False, "commerce", "Amazon Mar 2003"),
-    DownloadableGraph("amazon0312", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/amazon0312.tar.gz",
-                      18, 400727, 3200440, False, "commerce", "Amazon Dec 2003"),
-    DownloadableGraph("amazon0505", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/amazon0505.tar.gz",
-                      22, 410236, 3356824, False, "commerce", "Amazon May 2005"),
-    DownloadableGraph("amazon0601", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/amazon0601.tar.gz",
-                      25, 403394, 3387388, False, "commerce", "Amazon Jun 2001"),
-    # Web graphs
-    DownloadableGraph("web-NotreDame", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/web-NotreDame.tar.gz",
-                      15, 325729, 1497134, False, "web", "Notre Dame web"),
-    DownloadableGraph("web-Stanford", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/web-Stanford.tar.gz",
-                      20, 281903, 2312497, False, "web", "Stanford web"),
-    DownloadableGraph("web-BerkStan", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/web-BerkStan.tar.gz",
-                      50, 685230, 7600595, False, "web", "Berkeley-Stanford web"),
-    DownloadableGraph("web-Google", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/web-Google.tar.gz",
-                      35, 916428, 5105039, False, "web", "Google web graph"),
-    # Infrastructure
-    DownloadableGraph("as-Skitter", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/as-Skitter.tar.gz",
-                      90, 1696415, 11095298, True, "infrastructure", "Internet topology"),
-    # Autonomous systems
-    DownloadableGraph("Oregon-1", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/Oregon-1.tar.gz",
-                      1, 11174, 23409, False, "infrastructure", "Oregon AS peering"),
-    DownloadableGraph("Oregon-2", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/Oregon-2.tar.gz",
-                      1, 11461, 32730, False, "infrastructure", "Oregon AS peering 2"),
-    # DIMACS10 graphs (sparse)
-    DownloadableGraph("delaunay_n17", "https://suitesparse-collection-website.herokuapp.com/MM/DIMACS10/delaunay_n17.tar.gz",
-                      5, 131072, 393176, True, "mesh", "Delaunay triangulation n=17"),
-    DownloadableGraph("delaunay_n18", "https://suitesparse-collection-website.herokuapp.com/MM/DIMACS10/delaunay_n18.tar.gz",
-                      10, 262144, 786396, True, "mesh", "Delaunay triangulation n=18"),
-    DownloadableGraph("delaunay_n19", "https://suitesparse-collection-website.herokuapp.com/MM/DIMACS10/delaunay_n19.tar.gz",
-                      20, 524288, 1572823, True, "mesh", "Delaunay triangulation n=19"),
-    DownloadableGraph("delaunay_n20", "https://suitesparse-collection-website.herokuapp.com/MM/DIMACS10/delaunay_n20.tar.gz",
-                      40, 1048576, 3145686, True, "mesh", "Delaunay triangulation n=20"),
-    DownloadableGraph("rgg_n_2_17_s0", "https://suitesparse-collection-website.herokuapp.com/MM/DIMACS10/rgg_n_2_17_s0.tar.gz",
-                      15, 131072, 728753, True, "mesh", "Random geometric graph n=17"),
-    DownloadableGraph("rgg_n_2_18_s0", "https://suitesparse-collection-website.herokuapp.com/MM/DIMACS10/rgg_n_2_18_s0.tar.gz",
-                      30, 262144, 1457506, True, "mesh", "Random geometric graph n=18"),
-    DownloadableGraph("rgg_n_2_19_s0", "https://suitesparse-collection-website.herokuapp.com/MM/DIMACS10/rgg_n_2_19_s0.tar.gz",
-                      60, 524288, 2915013, True, "mesh", "Random geometric graph n=19"),
-    # Power-law and scale-free
-    DownloadableGraph("preferentialAttachment", "https://suitesparse-collection-website.herokuapp.com/MM/DIMACS10/preferentialAttachment.tar.gz",
-                      10, 100000, 499985, True, "synthetic", "Preferential attachment model"),
-    DownloadableGraph("smallworld", "https://suitesparse-collection-website.herokuapp.com/MM/DIMACS10/smallworld.tar.gz",
-                      10, 100000, 499998, True, "synthetic", "Small world model"),
-    # Additional web graphs
-    DownloadableGraph("cnr-2000", "https://suitesparse-collection-website.herokuapp.com/MM/LAW/cnr-2000.tar.gz",
-                      30, 325557, 3216152, False, "web", "Italian CNR web 2000"),
-]
-
-# Large graphs (200MB - 2GB) - ~40 graphs  
-DOWNLOAD_GRAPHS_LARGE = [
-    # Social networks (large)
-    DownloadableGraph("soc-LiveJournal1", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/soc-LiveJournal1.tar.gz",
-                      1024, 4847571, 68993773, False, "social", "LiveJournal social"),
-    DownloadableGraph("com-Orkut", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/com-Orkut.tar.gz",
-                      800, 3072441, 117185083, True, "social", "Orkut social network"),
-    DownloadableGraph("com-Youtube", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/com-Youtube.tar.gz",
-                      250, 1134890, 2987624, True, "social", "Youtube social network"),
-    DownloadableGraph("com-Amazon", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/com-Amazon.tar.gz",
-                      220, 334863, 925872, True, "commerce", "Amazon product network"),
-    DownloadableGraph("com-DBLP", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/com-DBLP.tar.gz",
-                      200, 317080, 1049866, True, "collaboration", "DBLP collaboration"),
-    # Collaboration
-    DownloadableGraph("hollywood-2009", "https://suitesparse-collection-website.herokuapp.com/MM/LAW/hollywood-2009.tar.gz",
-                      600, 1139905, 57515616, True, "collaboration", "Hollywood actors"),
-    DownloadableGraph("dblp-2010", "https://suitesparse-collection-website.herokuapp.com/MM/LAW/dblp-2010.tar.gz",
-                      200, 326186, 1615400, True, "collaboration", "DBLP 2010"),
-    # Web graphs (large)
-    DownloadableGraph("in-2004", "https://suitesparse-collection-website.herokuapp.com/MM/LAW/in-2004.tar.gz",
-                      450, 1382908, 16917053, False, "web", "Indian web 2004"),
-    DownloadableGraph("eu-2005", "https://suitesparse-collection-website.herokuapp.com/MM/LAW/eu-2005.tar.gz",
-                      500, 862664, 19235140, False, "web", "European web 2005"),
-    DownloadableGraph("uk-2002", "https://suitesparse-collection-website.herokuapp.com/MM/LAW/uk-2002.tar.gz",
-                      2500, 18520486, 298113762, False, "web", "UK web 2002"),
-    DownloadableGraph("arabic-2005", "https://suitesparse-collection-website.herokuapp.com/MM/LAW/arabic-2005.tar.gz",
-                      2200, 22744080, 639999458, False, "web", "Arabic web 2005"),
-    DownloadableGraph("indochina-2004", "https://suitesparse-collection-website.herokuapp.com/MM/LAW/indochina-2004.tar.gz",
-                      600, 7414866, 194109311, False, "web", "Indochina web 2004"),
-    DownloadableGraph("sk-2005", "https://suitesparse-collection-website.herokuapp.com/MM/LAW/sk-2005.tar.gz",
-                      1100, 50636154, 1949412601, False, "web", "Slovakia web 2005"),
-    # Road networks (large) - OSM graphs extract with subdirectory structure
-    DownloadableGraph("europe-osm", "https://suitesparse-collection-website.herokuapp.com/MM/DIMACS10/europe_osm.tar.gz",
-                      1200, 50912018, 108109320, True, "road", "European OSM roads"),
-    DownloadableGraph("asia-osm", "https://suitesparse-collection-website.herokuapp.com/MM/DIMACS10/asia_osm.tar.gz",
-                      600, 11950757, 25423206, True, "road", "Asian OSM roads"),
-    DownloadableGraph("great-britain-osm", "https://suitesparse-collection-website.herokuapp.com/MM/DIMACS10/great-britain_osm.tar.gz",
-                      250, 7733822, 16313034, True, "road", "Great Britain OSM roads"),
-    DownloadableGraph("germany-osm", "https://suitesparse-collection-website.herokuapp.com/MM/DIMACS10/germany_osm.tar.gz",
-                      300, 11548845, 24738362, True, "road", "Germany OSM roads"),
-    # DIMACS10 large meshes
-    DownloadableGraph("delaunay_n21", "https://suitesparse-collection-website.herokuapp.com/MM/DIMACS10/delaunay_n21.tar.gz",
-                      80, 2097152, 6291372, True, "mesh", "Delaunay triangulation n=21"),
-    DownloadableGraph("delaunay_n22", "https://suitesparse-collection-website.herokuapp.com/MM/DIMACS10/delaunay_n22.tar.gz",
-                      160, 4194304, 12582869, True, "mesh", "Delaunay triangulation n=22"),
-    DownloadableGraph("delaunay_n23", "https://suitesparse-collection-website.herokuapp.com/MM/DIMACS10/delaunay_n23.tar.gz",
-                      320, 8388608, 25165784, True, "mesh", "Delaunay triangulation n=23"),
-    DownloadableGraph("delaunay_n24", "https://suitesparse-collection-website.herokuapp.com/MM/DIMACS10/delaunay_n24.tar.gz",
-                      640, 16777216, 50331601, True, "mesh", "Delaunay triangulation n=24"),
-    DownloadableGraph("rgg_n_2_20_s0", "https://suitesparse-collection-website.herokuapp.com/MM/DIMACS10/rgg_n_2_20_s0.tar.gz",
-                      120, 1048576, 5830030, True, "mesh", "Random geometric graph n=20"),
-    DownloadableGraph("rgg_n_2_21_s0", "https://suitesparse-collection-website.herokuapp.com/MM/DIMACS10/rgg_n_2_21_s0.tar.gz",
-                      240, 2097152, 11660061, True, "mesh", "Random geometric graph n=21"),
-    DownloadableGraph("rgg_n_2_22_s0", "https://suitesparse-collection-website.herokuapp.com/MM/DIMACS10/rgg_n_2_22_s0.tar.gz",
-                      480, 4194304, 23320130, True, "mesh", "Random geometric graph n=22"),
-    DownloadableGraph("rgg_n_2_23_s0", "https://suitesparse-collection-website.herokuapp.com/MM/DIMACS10/rgg_n_2_23_s0.tar.gz",
-                      960, 8388608, 46640257, True, "mesh", "Random geometric graph n=23"),
-    DownloadableGraph("rgg_n_2_24_s0", "https://suitesparse-collection-website.herokuapp.com/MM/DIMACS10/rgg_n_2_24_s0.tar.gz",
-                      1920, 16777216, 93280513, True, "mesh", "Random geometric graph n=24"),
-    # Clustering benchmarks
-    DownloadableGraph("coPapersDBLP", "https://suitesparse-collection-website.herokuapp.com/MM/DIMACS10/coPapersDBLP.tar.gz",
-                      400, 540486, 15245729, True, "collaboration", "DBLP co-author papers"),
-    DownloadableGraph("coPapersCiteseer", "https://suitesparse-collection-website.herokuapp.com/MM/DIMACS10/coPapersCiteseer.tar.gz",
-                      450, 434102, 16036720, True, "citation", "Citeseer co-papers"),
-    DownloadableGraph("citationCiteseer", "https://suitesparse-collection-website.herokuapp.com/MM/DIMACS10/citationCiteseer.tar.gz",
-                      350, 268495, 1156647, False, "citation", "Citeseer citations"),
-    DownloadableGraph("coAuthorsDBLP", "https://suitesparse-collection-website.herokuapp.com/MM/DIMACS10/coAuthorsDBLP.tar.gz",
-                      200, 299067, 977676, True, "collaboration", "DBLP co-authors"),
-    DownloadableGraph("coAuthorsCiteseer", "https://suitesparse-collection-website.herokuapp.com/MM/DIMACS10/coAuthorsCiteseer.tar.gz",
-                      160, 227320, 814134, True, "collaboration", "Citeseer co-authors"),
-    # Wikipedia graphs
-    DownloadableGraph("wiki-Vote", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/wiki-Vote.tar.gz",
-                      2, 7115, 103689, False, "social", "Wikipedia adminship votes"),
-    # Kron graphs (synthetic power-law)
-    DownloadableGraph("kron_g500-logn16", "https://suitesparse-collection-website.herokuapp.com/MM/DIMACS10/kron_g500-logn16.tar.gz",
-                      200, 65536, 4912201, True, "synthetic", "Kronecker graph logn=16"),
-    DownloadableGraph("kron_g500-logn17", "https://suitesparse-collection-website.herokuapp.com/MM/DIMACS10/kron_g500-logn17.tar.gz",
-                      400, 131072, 10228360, True, "synthetic", "Kronecker graph logn=17"),
-    DownloadableGraph("kron_g500-logn18", "https://suitesparse-collection-website.herokuapp.com/MM/DIMACS10/kron_g500-logn18.tar.gz",
-                      800, 262144, 21165908, True, "synthetic", "Kronecker graph logn=18"),
-    DownloadableGraph("kron_g500-logn19", "https://suitesparse-collection-website.herokuapp.com/MM/DIMACS10/kron_g500-logn19.tar.gz",
-                      1600, 524288, 43561574, True, "synthetic", "Kronecker graph logn=19"),
-    DownloadableGraph("kron_g500-logn20", "https://suitesparse-collection-website.herokuapp.com/MM/DIMACS10/kron_g500-logn20.tar.gz",
-                      3200, 1048576, 89239674, True, "synthetic", "Kronecker graph logn=20"),
-]
-
-# Extra-large graphs (>2GB) - requires significant memory
-DOWNLOAD_GRAPHS_XLARGE = [
-    # Massive web graphs
-    DownloadableGraph("uk-2005", "https://suitesparse-collection-website.herokuapp.com/MM/LAW/uk-2005.tar.gz",
-                      3200, 39459925, 936364282, False, "web", "UK web 2005"),
-    DownloadableGraph("webbase-2001", "https://suitesparse-collection-website.herokuapp.com/MM/LAW/webbase-2001.tar.gz",
-                      8500, 118142155, 1019903190, False, "web", "WebBase 2001 crawl"),
-    DownloadableGraph("it-2004", "https://suitesparse-collection-website.herokuapp.com/MM/LAW/it-2004.tar.gz",
-                      3500, 41291594, 1150725436, False, "web", "Italian web 2004"),
-    # Massive social
-    DownloadableGraph("com-Friendster", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/com-Friendster.tar.gz",
-                      31000, 65608366, 1806067135, True, "social", "Friendster social network"),
-    DownloadableGraph("twitter7", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/twitter7.tar.gz",
-                      12000, 41652230, 1468365182, False, "social", "Twitter follower network"),
-    # Large meshes
-    DownloadableGraph("kron_g500-logn21", "https://suitesparse-collection-website.herokuapp.com/MM/DIMACS10/kron_g500-logn21.tar.gz",
-                      6400, 2097152, 182081864, True, "synthetic", "Kronecker graph logn=21"),
-]
+# Graph catalog is now in scripts/lib/download.py
+# Import from lib/ for the authoritative graph definitions
+if LIB_AVAILABLE:
+    # Use lib/ definitions (authoritative source)
+    DOWNLOAD_GRAPHS_SMALL = LIB_DOWNLOAD_GRAPHS_SMALL
+    DOWNLOAD_GRAPHS_MEDIUM = LIB_DOWNLOAD_GRAPHS_MEDIUM
+    DOWNLOAD_GRAPHS_LARGE = LIB_DOWNLOAD_GRAPHS_LARGE
+    DOWNLOAD_GRAPHS_XLARGE = LIB_DOWNLOAD_GRAPHS_XLARGE
+    DownloadableGraph = LibDownloadableGraph
+else:
+    # Fallback minimal catalog if lib/ not available
+    @dataclass
+    class DownloadableGraph:
+        """Information about a downloadable graph."""
+        name: str
+        url: str
+        size_mb: int
+        nodes: int
+        edges: int
+        symmetric: bool
+        category: str
+        description: str = ""
+    
+    DOWNLOAD_GRAPHS_SMALL = [
+        DownloadableGraph("email-Enron", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/email-Enron.tar.gz",
+                          5, 36692, 183831, True, "communication", "Enron email network"),
+        DownloadableGraph("ca-CondMat", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/ca-CondMat.tar.gz",
+                          2, 23133, 93497, True, "collaboration", "Condensed Matter"),
+    ]
+    DOWNLOAD_GRAPHS_MEDIUM = []
+    DOWNLOAD_GRAPHS_LARGE = []
+    DOWNLOAD_GRAPHS_XLARGE = []
 
 # ============================================================================
 # Progress Tracking System

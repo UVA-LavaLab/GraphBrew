@@ -10,10 +10,12 @@ This library provides functions for:
 Usage as library:
     from scripts.lib.utils import ALGORITHMS, BENCHMARKS, Logger
     from scripts.lib.download import download_graphs, GRAPH_CATALOG
+    from scripts.lib.download import DOWNLOAD_GRAPHS_SMALL, DOWNLOAD_GRAPHS_MEDIUM
     from scripts.lib.benchmark import run_benchmark, BenchmarkResult
     
 Each module can also run standalone:
     python -m scripts.lib.download --size SMALL
+    python -m scripts.lib.download --list --stats
     python -m scripts.lib.benchmark --graph test.mtx --algorithms 0,1,8
     python -m scripts.lib.utils --list-algorithms
 """
@@ -34,5 +36,17 @@ from .utils import (
     Logger,
     BenchmarkResult,
 )
-from .download import GRAPH_CATALOG, download_graph, download_graphs
+from .download import (
+    GRAPH_CATALOG,
+    DOWNLOAD_GRAPHS_SMALL,
+    DOWNLOAD_GRAPHS_MEDIUM,
+    DOWNLOAD_GRAPHS_LARGE,
+    DOWNLOAD_GRAPHS_XLARGE,
+    DownloadableGraph,
+    download_graph,
+    download_graphs,
+    get_graph_info,
+    get_graphs_by_size,
+    get_catalog_stats,
+)
 from .benchmark import run_benchmark
