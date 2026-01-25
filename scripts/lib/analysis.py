@@ -234,6 +234,31 @@ def parse_benchmark_output(output: str) -> Dict[str, Any]:
     if hc_match:
         parsed['hub_concentration'] = float(hc_match.group(1))
     
+    # Parse clustering coefficient
+    cc_match = re.search(r'Clustering Coefficient:\s*([\d.]+)', output)
+    if cc_match:
+        parsed['clustering_coefficient'] = float(cc_match.group(1))
+    
+    # Parse average path length
+    apl_match = re.search(r'Avg Path Length:\s*([\d.]+)', output)
+    if apl_match:
+        parsed['avg_path_length'] = float(apl_match.group(1))
+    
+    # Parse diameter estimate
+    diam_match = re.search(r'Diameter Estimate:\s*([\d.]+)', output)
+    if diam_match:
+        parsed['diameter'] = float(diam_match.group(1))
+    
+    # Parse community count estimate
+    comm_match = re.search(r'Community Count Estimate:\s*([\d.]+)', output)
+    if comm_match:
+        parsed['community_count'] = float(comm_match.group(1))
+    
+    # Parse avg degree
+    ad_match = re.search(r'Avg Degree:\s*([\d.]+)', output)
+    if ad_match:
+        parsed['avg_degree'] = float(ad_match.group(1))
+    
     # Parse graph type
     type_match = re.search(r'Graph Type:\s*(\w+)', output)
     if type_match:
