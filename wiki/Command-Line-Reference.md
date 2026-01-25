@@ -267,7 +267,7 @@ export PERCEPTRON_WEIGHTS_FILE=/path/to/weights.json
 
 **Note:** If `PERCEPTRON_WEIGHTS_FILE` is not set, AdaptiveOrder automatically:
 1. Computes graph features (modularity, degree variance, hub concentration, etc.)
-2. Finds the best matching type file using cosine similarity
+2. Finds the best matching type file using Euclidean distance to centroids
 3. Loads weights from `scripts/weights/active/type_N.json`
 4. Falls back to hardcoded defaults if no type files exist
 

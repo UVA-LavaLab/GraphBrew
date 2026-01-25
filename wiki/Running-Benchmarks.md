@@ -4,7 +4,7 @@ Complete guide to running GraphBrew benchmarks with all options explained.
 
 ## Overview
 
-GraphBrew includes six graph algorithm benchmark binaries from the GAP Benchmark Suite. The automated pipeline uses **five** benchmarks (PR, BFS, CC, SSSP, BC), while Triangle Counting (TC) is available for manual use:
+The automated pipeline uses **five** benchmarks (PR, BFS, CC, SSSP, BC). Triangle Counting (TC) is available for manual use:
 
 | Benchmark | Binary | Description | Automated |
 |-----------|--------|-------------|-----------|

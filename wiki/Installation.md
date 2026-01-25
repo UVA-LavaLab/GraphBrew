@@ -324,5 +324,3 @@ make -j2 all  # Instead of default parallel
 ---
 
 [← Back to Home](Home) | [Quick Start →](Quick-Start)
-
-[← Back to Home](Home)
