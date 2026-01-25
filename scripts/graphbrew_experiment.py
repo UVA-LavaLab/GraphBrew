@@ -2679,6 +2679,8 @@ Examples:
                         help="Check system dependencies (Boost, g++, libnuma, etc.) and exit")
     parser.add_argument("--install-deps", action="store_true",
                         help="Install missing system dependencies (may require sudo)")
+    parser.add_argument("--install-boost", action="store_true",
+                        help="Download and install Boost 1.58.0 for RabbitOrder compatibility")
     
     # One-click full pipeline
     parser.add_argument("--full", action="store_true",
@@ -2847,10 +2849,34 @@ Examples:
     args = parser.parse_args()
     
     # Handle dependency management (before anything else)
-    if args.check_deps or args.install_deps:
+    if args.check_deps or args.install_deps or args.install_boost:
         if not HAS_DEPENDENCY_MANAGER:
             print("ERROR: Dependency manager not available. Check scripts/lib/dependencies.py")
             sys.exit(1)
+        
+        if args.install_boost:
+            # Import Boost-specific functions
+            try:
+                from scripts.lib.dependencies import install_boost_158, check_boost_158
+            except ImportError:
+                print("ERROR: Could not import Boost installation functions")
+                sys.exit(1)
+            
+            # Check if already installed
+            is_installed, msg = check_boost_158()
+            if is_installed:
+                print(f"✓ {msg}")
+                sys.exit(0)
+            
+            print("Downloading and installing Boost 1.58.0 for RabbitOrder...")
+            print("(This may require sudo password)")
+            success, msg = install_boost_158(verbose=True)
+            print(msg)
+            if success:
+                print("\nVerifying installation...")
+                is_ok, verify_msg = check_boost_158()
+                print(f"  {'✓' if is_ok else '✗'} {verify_msg}")
+            sys.exit(0 if success else 1)
         
         if args.check_deps:
             all_ok, status = lib_check_dependencies(verbose=True)

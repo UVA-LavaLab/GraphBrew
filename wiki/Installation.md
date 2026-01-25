@@ -137,15 +137,46 @@ make cc    # Connected Components
 | `DEBUG=1` | Build with debug symbols | `DEBUG=1 make all` |
 | `SANITIZE=1` | Enable address sanitizer | `SANITIZE=1 make all` |
 
-### Rabbit Order
+### Rabbit Order and Boost 1.58
 
-Rabbit Order (algorithm 8) requires Boost 1.58+ and is **enabled by default**:
+Rabbit Order (algorithm 8) requires **Boost 1.58.0** specifically for compatibility.
+System package managers often install newer versions which may cause issues.
+
+#### Automatic Installation (Recommended)
 
 ```bash
-# Check Boost version
-cat /usr/include/boost/version.hpp | grep "BOOST_LIB_VERSION"
+# Install Boost 1.58.0 to /opt/boost_1_58_0
+python3 scripts/graphbrew_experiment.py --install-boost
+```
 
-# Build (Rabbit Order enabled by default)
+This downloads and installs Boost 1.58.0 to `/opt/boost_1_58_0`, which is the path
+expected by the GraphBrew Makefile.
+
+#### Manual Installation
+
+```bash
+# Download and install Boost 1.58.0
+wget https://archives.boost.io/release/1.58.0/source/boost_1_58_0.tar.gz
+tar -xzf boost_1_58_0.tar.gz
+sudo mv boost_1_58_0 /opt/
+rm boost_1_58_0.tar.gz
+```
+
+#### Verify Boost Installation
+
+```bash
+# Check Boost version at GraphBrew expected path
+cat /opt/boost_1_58_0/include/boost/version.hpp | grep "BOOST_LIB_VERSION"
+# Should show: #define BOOST_LIB_VERSION "1_58"
+
+# Or use the dependency checker
+python3 scripts/graphbrew_experiment.py --check-deps
+```
+
+#### Building with Rabbit Order
+
+```bash
+# Build (Rabbit Order enabled by default with Boost at /opt/boost_1_58_0)
 make all
 
 # Or disable Rabbit Order if Boost is not available
