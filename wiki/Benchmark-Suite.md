@@ -252,10 +252,18 @@ Analyze how reordering affects PageRank convergence.
 
 ### Usage
 
+The main experiment script includes benchmark analysis:
+
 ```bash
-python3 scripts/benchmark/run_pagerank_convergence.py \
-    --graphs-config ./graphs/graphs.json \
-    --algorithms 0,7,12,20
+# Run benchmarks (includes convergence data in results)
+python3 scripts/graphbrew_experiment.py --phase benchmark --graphs small
+```
+
+Or run directly via the binary:
+
+```bash
+# Run PR with verbose convergence output
+./bench/bin/pr -f graph.mtx -o 7 -n 5 -v
 ```
 
 ### Output
