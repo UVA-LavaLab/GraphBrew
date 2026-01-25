@@ -168,6 +168,8 @@ try:
     from .dependencies import (
         check_dependencies,
         install_dependencies,
+        install_boost_158,
+        check_boost_158,
         print_install_instructions,
         detect_platform,
         get_package_manager,

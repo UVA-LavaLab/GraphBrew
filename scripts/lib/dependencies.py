@@ -588,6 +588,135 @@ def install_dependencies(
         return False, f"Installation error: {e}"
 
 
+def install_boost_158(
+    install_path: str = "/opt/boost_1_58_0",
+    dry_run: bool = False,
+    verbose: bool = False
+) -> Tuple[bool, str]:
+    """
+    Download and install Boost 1.58.0 for RabbitOrder compatibility.
+    
+    This downloads Boost 1.58.0 source and installs headers to /opt/boost_1_58_0,
+    which is the path expected by the GraphBrew Makefile for RabbitOrder.
+    
+    Args:
+        install_path: Where to install Boost (default: /opt/boost_1_58_0)
+        dry_run: Just print commands without executing
+        verbose: Print detailed output
+        
+    Returns:
+        Tuple of (success, message)
+    """
+    # Check if already installed
+    if os.path.exists(os.path.join(install_path, "include", "boost", "version.hpp")):
+        return True, f"Boost 1.58.0 already installed at {install_path}"
+    
+    boost_url = "https://archives.boost.io/release/1.58.0/source/boost_1_58_0.tar.gz"
+    tmp_dir = "/tmp/boost_install"
+    tar_file = f"{tmp_dir}/boost_1_58_0.tar.gz"
+    
+    commands = [
+        f"mkdir -p {tmp_dir}",
+        f"cd {tmp_dir} && wget -q --show-progress {boost_url}",
+        f"cd {tmp_dir} && tar -xzf boost_1_58_0.tar.gz",
+        f"sudo mv {tmp_dir}/boost_1_58_0 {install_path}",
+        f"rm -rf {tmp_dir}",
+    ]
+    
+    if dry_run:
+        return True, "Would run:\n  " + "\n  ".join(commands)
+    
+    log.info("Downloading and installing Boost 1.58.0 for RabbitOrder...")
+    log.info(f"Install path: {install_path}")
+    
+    try:
+        # Check for wget
+        if shutil.which("wget") is None:
+            # Try curl instead
+            commands[1] = f"cd {tmp_dir} && curl -L -o boost_1_58_0.tar.gz {boost_url}"
+            if shutil.which("curl") is None:
+                return False, "Neither wget nor curl found. Please install one of them."
+        
+        # Create temp directory
+        os.makedirs(tmp_dir, exist_ok=True)
+        
+        # Download
+        log.info("Downloading Boost 1.58.0 (approx 73MB)...")
+        download_cmd = commands[1].split(" && ")[1]  # Get just the wget/curl part
+        result = subprocess.run(
+            download_cmd,
+            shell=True,
+            cwd=tmp_dir,
+            timeout=600,  # 10 min timeout for download
+            capture_output=not verbose
+        )
+        if result.returncode != 0:
+            return False, f"Download failed. Check your internet connection."
+        
+        # Extract
+        log.info("Extracting...")
+        result = subprocess.run(
+            ["tar", "-xzf", "boost_1_58_0.tar.gz"],
+            cwd=tmp_dir,
+            timeout=120,
+            capture_output=not verbose
+        )
+        if result.returncode != 0:
+            return False, "Failed to extract archive"
+        
+        # Move to install path (requires sudo)
+        log.info(f"Installing to {install_path} (may require password)...")
+        result = subprocess.run(
+            ["sudo", "mv", f"{tmp_dir}/boost_1_58_0", install_path],
+            timeout=60,
+            capture_output=not verbose
+        )
+        if result.returncode != 0:
+            return False, f"Failed to move to {install_path}. Check sudo permissions."
+        
+        # Cleanup
+        shutil.rmtree(tmp_dir, ignore_errors=True)
+        
+        # Verify
+        if os.path.exists(os.path.join(install_path, "include", "boost", "version.hpp")):
+            log.success(f"Boost 1.58.0 installed successfully at {install_path}")
+            return True, f"Boost 1.58.0 installed at {install_path}"
+        else:
+            return False, "Installation completed but verification failed"
+            
+    except subprocess.TimeoutExpired:
+        shutil.rmtree(tmp_dir, ignore_errors=True)
+        return False, "Installation timed out"
+    except Exception as e:
+        shutil.rmtree(tmp_dir, ignore_errors=True)
+        return False, f"Installation error: {e}"
+
+
+def check_boost_158() -> Tuple[bool, str]:
+    """
+    Check if Boost 1.58.0 is installed at the expected path for RabbitOrder.
+    
+    Returns:
+        Tuple of (is_installed, message)
+    """
+    install_path = "/opt/boost_1_58_0"
+    version_file = os.path.join(install_path, "include", "boost", "version.hpp")
+    
+    if not os.path.exists(version_file):
+        return False, f"Boost 1.58.0 not found at {install_path}"
+    
+    # Verify it's actually 1.58
+    try:
+        with open(version_file, "r") as f:
+            content = f.read()
+            if "105800" in content:  # BOOST_VERSION for 1.58.0
+                return True, f"Boost 1.58.0 found at {install_path}"
+            else:
+                return False, f"Boost at {install_path} is not version 1.58.0"
+    except Exception as e:
+        return False, f"Error reading version: {e}"
+
+
 def print_install_instructions():
     """Print manual installation instructions for all platforms."""
     print("""
@@ -599,7 +728,6 @@ Ubuntu/Debian:
     sudo apt-get install -y \\
         build-essential \\
         g++ \\
-        libboost-all-dev \\
         libnuma-dev \\
         google-perftools
 
@@ -607,20 +735,32 @@ Fedora/RHEL/CentOS:
     sudo dnf install -y \\
         gcc-c++ \\
         make \\
-        boost-devel \\
         numactl-devel \\
         gperftools
 
 Arch Linux:
     sudo pacman -S \\
         base-devel \\
-        boost \\
         numactl \\
         gperftools
 
 macOS (with Homebrew):
     xcode-select --install
-    brew install gcc boost google-perftools
+    brew install gcc google-perftools
+
+Boost 1.58.0 for RabbitOrder (Required):
+----------------------------------------
+RabbitOrder requires Boost 1.58.0 specifically. System package managers
+typically install newer versions which may cause compatibility issues.
+
+Automatic installation:
+    python graphbrew_experiment.py --install-boost
+
+Manual installation:
+    wget https://archives.boost.io/release/1.58.0/source/boost_1_58_0.tar.gz
+    tar -xzf boost_1_58_0.tar.gz
+    sudo mv boost_1_58_0 /opt/
+    rm boost_1_58_0.tar.gz
 
 After installing dependencies:
     make clean && make all
@@ -643,6 +783,7 @@ Examples:
     python -m scripts.lib.dependencies --check           # Check dependencies
     python -m scripts.lib.dependencies --check --verbose # Detailed status
     python -m scripts.lib.dependencies --install         # Install missing
+    python -m scripts.lib.dependencies --install-boost   # Install Boost 1.58
     python -m scripts.lib.dependencies --install --dry-run  # Show what would install
     python -m scripts.lib.dependencies --instructions    # Print install guide
 """
@@ -652,6 +793,8 @@ Examples:
                         help="Check if dependencies are installed")
     parser.add_argument("--install", action="store_true",
                         help="Install missing dependencies (may need sudo)")
+    parser.add_argument("--install-boost", action="store_true",
+                        help="Download and install Boost 1.58.0 for RabbitOrder")
     parser.add_argument("--dry-run", action="store_true",
                         help="Show what would be installed without doing it")
     parser.add_argument("--instructions", action="store_true",
@@ -664,6 +807,22 @@ Examples:
     if args.instructions:
         print_install_instructions()
         sys.exit(0)
+    
+    if args.install_boost:
+        # Check current status first
+        is_installed, msg = check_boost_158()
+        if is_installed:
+            print(f"✓ {msg}")
+            sys.exit(0)
+        
+        # Install Boost 1.58
+        success, msg = install_boost_158(dry_run=args.dry_run, verbose=args.verbose)
+        print(msg)
+        if success and not args.dry_run:
+            print("\nVerifying installation...")
+            is_ok, verify_msg = check_boost_158()
+            print(f"  {'✓' if is_ok else '✗'} {verify_msg}")
+        sys.exit(0 if success else 1)
     
     if args.check or (not args.install):
         all_ok, status = check_dependencies(verbose=True)
