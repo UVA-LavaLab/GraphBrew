@@ -8,25 +8,47 @@ Understanding the GraphBrew codebase structure for developers.
 GraphBrew/
 ├── bench/                    # Core C++ benchmark code
 │   ├── bin/                  # Compiled binaries
+│   ├── bin_sim/              # Cache simulation binaries
 │   ├── include/              # Header libraries
+│   │   ├── cache/            # Cache simulation headers
 │   │   ├── corder/           # Corder reordering
 │   │   ├── gapbs/            # GAP Benchmark Suite core
 │   │   ├── gorder/           # Gorder reordering
 │   │   ├── leiden/           # Leiden community detection
 │   │   └── rabbit/           # Rabbit Order reordering
 │   ├── src/                  # Benchmark source files
+│   ├── src_sim/              # Cache simulation sources
 │   └── backups/              # Backup files
 │
-├── scripts/                  # Python tools
-│   ├── analysis/             # Analysis scripts
-│   ├── benchmark/            # Benchmark runner scripts
-│   ├── download/             # Graph download utilities
-│   ├── utils/                # Shared utilities
-│   └── weights/              # Auto-generated type weights
-│       ├── type_registry.json   # Maps graphs → types + centroids
-│       ├── type_0.json          # Cluster 0 weights
-│       ├── type_1.json          # Cluster 1 weights
-│       └── type_N.json          # Additional clusters
+├── scripts/                  # Python tools (~11,000 lines total)
+│   ├── graphbrew_experiment.py  # ⭐ Main orchestration (~2900 lines)
+│   ├── requirements.txt         # Python dependencies
+│   │
+│   ├── lib/                     # 📦 Core modules (~8000 lines)
+│   │   ├── __init__.py          # Module exports
+│   │   ├── types.py             # Data classes (GraphInfo, BenchmarkResult, etc.)
+│   │   ├── phases.py            # Phase orchestration
+│   │   ├── utils.py             # ALGORITHMS dict, run_command, constants
+│   │   ├── features.py          # Graph feature computation
+│   │   ├── download.py          # Graph downloading
+│   │   ├── build.py             # Binary compilation
+│   │   ├── reorder.py           # Vertex reordering
+│   │   ├── benchmark.py         # Benchmark execution
+│   │   ├── cache.py             # Cache simulation
+│   │   ├── weights.py           # Type-based weight management
+│   │   ├── training.py          # ML weight training
+│   │   ├── analysis.py          # Adaptive analysis
+│   │   ├── progress.py          # Progress tracking
+│   │   └── results.py           # Result I/O
+│   │
+│   ├── weights/                 # Auto-generated type weights
+│   │   ├── type_registry.json   # Maps graphs → types + centroids
+│   │   └── type_N.json          # Cluster weights
+│   │
+│   ├── analysis/                # Legacy analysis utilities
+│   ├── benchmark/               # Specialized scripts
+│   ├── download/                # Standalone downloader
+│   └── utils/                   # Additional utilities
 │
 ├── test/                     # Test files
 │   ├── graphs/               # Sample graphs
@@ -213,43 +235,97 @@ int main(int argc, char* argv[]) {
 
 ### Python Scripts (scripts/)
 
-#### graph_brew.py - Main Runner
+The Python tooling follows a modular architecture with a main orchestration script delegating to specialized `lib/` modules.
+
+#### graphbrew_experiment.py - Main Orchestration
+
+The main entry point (~2900 lines) handles argument parsing and delegates to `lib/phases.py`:
 
 ```python
 def main():
-    # Parse arguments
     args = parse_args()
     
-    # Load configuration
-    config = load_config(args.config)
+    # Discover graphs
+    graphs = discover_graphs(args.graphs_dir)
     
-    # Run benchmarks
-    results = []
-    for graph in config['graphs']:
-        for algorithm in config['algorithms']:
-            for benchmark in config['benchmarks']:
-                result = run_benchmark(graph, algorithm, benchmark)
-                results.append(result)
+    # Create phase configuration
+    config = PhaseConfig(
+        benchmarks=args.benchmarks,
+        trials=args.trials,
+        progress=ProgressTracker()
+    )
     
-    # Output results
-    save_results(results, args.output)
+    # Run phases via lib/phases.py
+    if 'reorder' in args.phases:
+        run_reorder_phase(graphs, algorithms, config)
+    if 'benchmark' in args.phases:
+        run_benchmark_phase(graphs, algorithms, label_maps, config)
+    if 'weights' in args.phases:
+        run_weights_phase(graphs, results, config)
 ```
 
-#### analysis/correlation_analysis.py
+#### lib/phases.py - Phase Orchestration
+
+High-level phase functions for building custom pipelines:
 
 ```python
-def compute_perceptron_weights(results_df, weights_file):
-    """
-    Compute weights from benchmark results.
-    
-    1. Load existing weights (or use defaults)
-    2. For each algorithm with results:
-       - Extract features
-       - Correlate with performance
-       - Update weights
-    3. Save merged weights
-    """
+from scripts.lib.phases import (
+    PhaseConfig,
+    run_reorder_phase,      # Generate vertex reorderings
+    run_benchmark_phase,    # Run performance benchmarks
+    run_cache_phase,        # Cache simulation
+    run_weights_phase,      # Update ML weights
+    run_adaptive_phase,     # Adaptive analysis
+    run_full_pipeline,      # Complete pipeline
+)
+
+config = PhaseConfig(benchmarks=['pr', 'bfs'], trials=3)
+results = run_full_pipeline(graphs, algorithms, config)
 ```
+
+#### lib/types.py - Central Data Classes
+
+All data classes are centralized in `types.py`:
+
+```python
+from scripts.lib.types import (
+    GraphInfo,        # Graph metadata (name, path, size, nodes, edges)
+    BenchmarkResult,  # Benchmark execution result
+    CacheResult,      # Cache simulation result
+    ReorderResult,    # Reordering result
+    WeightUpdate,     # Weight update request
+)
+```
+
+#### lib/utils.py - Core Utilities
+
+```python
+from scripts.lib.utils import (
+    ALGORITHMS,      # {0: "ORIGINAL", 1: "RANDOM", 7: "HUBCLUSTERDBG", ...}
+    BENCHMARKS,      # ['pr', 'bfs', 'cc', 'sssp', 'bc']
+    run_command,     # Execute shell commands with timeout
+    get_timestamp,   # Formatted timestamps
+)
+```
+
+#### Module Overview
+
+| Module | Lines | Purpose |
+|--------|-------|---------|
+| `phases.py` | ~900 | Phase orchestration |
+| `analysis.py` | ~850 | Adaptive analysis |
+| `reorder.py` | ~850 | Vertex reordering |
+| `results.py` | ~750 | Result I/O |
+| `training.py` | ~720 | ML training |
+| `download.py` | ~700 | Graph downloading |
+| `weights.py` | ~650 | Weight management |
+| `progress.py` | ~580 | Progress tracking |
+| `features.py` | ~550 | Graph features |
+| `benchmark.py` | ~450 | Benchmark execution |
+| `utils.py` | ~435 | Core utilities |
+| `cache.py` | ~420 | Cache simulation |
+| `types.py` | ~360 | Data classes |
+| `build.py` | ~340 | Binary compilation |
 
 ---
 
