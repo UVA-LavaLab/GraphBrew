@@ -138,11 +138,11 @@ pip3 install numpy matplotlib pandas
 ### Verify Python Scripts
 
 ```bash
-# Test the download script
-python3 scripts/download/download_graphs.py --list --size SMALL
+# Quick verification of lib/ module imports
+python3 -c "from scripts.lib import ALGORITHMS; print(f'Loaded {len(ALGORITHMS)} algorithms')"
 
-# Test correlation analysis
-python3 scripts/analysis/correlation_analysis.py --quick
+# Or run the main script with help
+python3 scripts/graphbrew_experiment.py --help
 ```
 
 ## Directory Structure After Build
@@ -154,16 +154,28 @@ GraphBrew/
 │   ├── bin_sim/       # Cache simulation binaries
 │   ├── include/       # Header files
 │   └── src/           # Source files
-├── graphs/            # Downloaded benchmark graphs (or use results/graphs/)
+├── graphs/            # Downloaded benchmark graphs
 ├── results/           # Experiment outputs
-│   ├── graphs/        # Downloaded graphs (when using --full)
-│   └── training_*/    # Iterative training outputs
-├── scripts/           # Python analysis tools
-│   ├── graphbrew_experiment.py  # Main experiment script
+│   ├── mappings/      # Pre-generated label maps
+│   └── logs/          # Execution logs
+├── scripts/           # Python analysis tools (~11,000 lines)
+│   ├── graphbrew_experiment.py  # ⭐ Main orchestration (~2900 lines)
 │   ├── requirements.txt
-│   ├── download/      # Graph download utilities
-│   ├── analysis/      # Correlation and analysis tools
-│   ├── utils/         # Shared utilities
+│   ├── lib/           # 📦 Core modules (~8000 lines)
+│   │   ├── types.py      # Data classes
+│   │   ├── phases.py     # Phase orchestration
+│   │   ├── utils.py      # ALGORITHMS, constants
+│   │   ├── features.py   # Graph features
+│   │   ├── download.py   # Graph downloading
+│   │   ├── build.py      # Binary compilation
+│   │   ├── reorder.py    # Vertex reordering
+│   │   ├── benchmark.py  # Benchmark execution
+│   │   ├── cache.py      # Cache simulation
+│   │   ├── weights.py    # Weight management
+│   │   ├── training.py   # ML training
+│   │   ├── analysis.py   # Adaptive analysis
+│   │   ├── progress.py   # Progress tracking
+│   │   └── results.py    # Result I/O
 │   └── weights/       # Auto-clustered type weights
 │       ├── type_registry.json  # Graph → type mappings + centroids
 │       └── type_N.json         # Per-cluster weights
