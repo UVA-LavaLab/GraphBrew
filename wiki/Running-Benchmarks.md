@@ -280,48 +280,75 @@ Time: 1.234 seconds
 
 ### All Available Algorithms
 
+GraphBrew supports **18 reordering algorithms** (IDs 0-17). See [[Reordering-Algorithms]] for detailed descriptions.
+
 ```bash
-# No reordering
--o 0   # ORIGINAL
+# No reordering (baseline)
+-o 0   # ORIGINAL - keep original vertex order
 
 # Basic reordering
--o 1   # RANDOM
--o 2   # SORT (by degree)
+-o 1   # RANDOM - random permutation
+-o 2   # SORT - sort by vertex ID
 
-# Hub-based
--o 3   # HUBSORT
--o 4   # HUBCLUSTER
--o 5   # DBG
--o 6   # HUBSORTDBG
--o 7   # HUBCLUSTERDBG
+# Hub-based (good for power-law graphs)
+-o 3   # HUBSORT - sort by degree (hubs first)
+-o 4   # HUBCLUSTER - cluster hubs with neighbors
+-o 5   # DBG - degree-based grouping into buckets
+-o 6   # HUBSORTDBG - HUBSORT within DBG buckets
+-o 7   # HUBCLUSTERDBG - HUBCLUSTER within DBG buckets ⭐
 
-# Community-based
--o 8   # RABBITORDER
--o 9   # GORDER
--o 10  # CORDER
--o 11  # RCM
+# Community-based (requires community detection)
+-o 8   # RABBITORDER - hierarchical community aggregation
+-o 9   # GORDER - sliding window optimization
+-o 10  # CORDER - cache-aware ordering
+-o 11  # RCM - Reverse Cuthill-McKee (bandwidth reduction)
 
-# Leiden-based
--o 12  # LeidenOrder
--o 13  # GraphBrewOrder
--o 14  # AdaptiveOrder (ML)
--o 14  # LeidenDFS
--o 16  # LeidenDendrogram
--o 17  # LeidenDFSSize
--o 19  # LeidenBFS
--o 17:1.0:3:hubsort  # LeidenCSR
+# Hybrid algorithms
+-o 12  # GraphBrewOrder - per-community reordering
+-o 13  # MAP - load mapping from external file
+-o 14  # AdaptiveOrder - ML-powered algorithm selection ⭐
+
+# Leiden-based (state-of-the-art community detection)
+-o 15             # LeidenOrder - igraph-based Leiden
+-o 15:0.75        # LeidenOrder with custom resolution
+-o 16             # LeidenDendrogram - Leiden + dendrogram traversal
+-o 16:1.0:hybrid  # LeidenDendrogram with variant (dfs/dfshub/dfssize/bfs/hybrid)
+-o 17             # LeidenCSR - fast CSR-native Leiden ⭐
+-o 17:1.0:3:hubsort  # LeidenCSR with resolution:passes:variant
 ```
+
+### Leiden Variant Reference
+
+**LeidenDendrogram (16)** variants:
+| Variant | Format | Description |
+|---------|--------|-------------|
+| `dfs` | `-o 16:1.0:dfs` | Standard DFS traversal |
+| `dfshub` | `-o 16:1.0:dfshub` | DFS with hub-first ordering |
+| `dfssize` | `-o 16:1.0:dfssize` | DFS with size-first ordering |
+| `bfs` | `-o 16:1.0:bfs` | BFS level-order traversal |
+| `hybrid` | `-o 16:1.0:hybrid` | Sort by (community, degree) ⭐ |
+
+**LeidenCSR (17)** variants:
+| Variant | Format | Description |
+|---------|--------|-------------|
+| `dfs` | `-o 17:1.0:3:dfs` | Hierarchical DFS ordering |
+| `bfs` | `-o 17:1.0:3:bfs` | Level-first BFS ordering |
+| `hubsort` | `-o 17:1.0:3:hubsort` | Community + degree sort ⭐ |
+| `fast` | `-o 17:1.0:3:fast` | Union-Find + Label Propagation |
+| `modularity` | `-o 17:1.0:3:modularity` | True Leiden (best quality) |
 
 ### Recommended Algorithms by Use Case
 
-| Use Case | Algorithm | ID |
-|----------|-----------|-----|
-| General purpose | HUBCLUSTERDBG | 7 |
-| Social networks | LeidenOrder | 12 |
-| Unknown graphs | AdaptiveOrder (14) |
-| Maximum locality | LeidenCSR | 17 |
-| Road networks | RCM | 11 |
-| Quick test | ORIGINAL | 0 |
+| Use Case | Algorithm | Command |
+|----------|-----------|-------------|
+| General purpose | HUBCLUSTERDBG | `-o 7` |
+| Social networks | LeidenCSR (hubsort) | `-o 17:1.0:3:hubsort` |
+| Web graphs | LeidenDendrogram | `-o 16:1.0:hybrid` |
+| Road networks | RCM | `-o 11` |
+| Unknown graphs | AdaptiveOrder (ML) | `-o 14` |
+| Maximum quality | LeidenCSR (modularity) | `-o 17:1.0:3:modularity` |
+| Maximum speed | LeidenCSR (fast) | `-o 17:1.0:3:fast` |
+| Baseline comparison | ORIGINAL | `-o 0` |
 
 ---
 

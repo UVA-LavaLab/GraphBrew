@@ -1,8 +1,29 @@
 # Graph Reordering Algorithms
 
-GraphBrew implements **18 different vertex reordering algorithms** (IDs 0-11, 13, 15-18), each with unique characteristics suited for different graph topologies. This page explains each algorithm in detail.
+GraphBrew implements **18 vertex reordering algorithms** (IDs 0-17), each with unique characteristics suited for different graph topologies. This page explains each algorithm in detail.
 
-Note: Algorithm ID 14 (MAP) is reserved for external label mapping files, not a standalone reordering algorithm.
+## Algorithm ID Quick Reference
+
+| ID | Name | Category | Description |
+|----|------|----------|-------------|
+| 0 | ORIGINAL | Basic | Keep original ordering |
+| 1 | RANDOM | Basic | Random permutation |
+| 2 | SORT | Basic | Sort by vertex ID |
+| 3 | HUBSORT | Hub-based | Sort by degree (hubs first) |
+| 4 | HUBCLUSTER | Hub-based | Cluster hubs with neighbors |
+| 5 | DBG | Hub-based | Degree-based grouping |
+| 6 | HUBSORTDBG | Hub-based | HUBSORT within DBG |
+| 7 | HUBCLUSTERDBG | Hub-based | HUBCLUSTER within DBG ⭐ |
+| 8 | RABBITORDER | Community | Hierarchical aggregation |
+| 9 | GORDER | Community | Sliding window optimization |
+| 10 | CORDER | Community | Cache-aware ordering |
+| 11 | RCM | Community | Reverse Cuthill-McKee |
+| 12 | GraphBrewOrder | Hybrid | Per-community reordering |
+| 13 | MAP | Hybrid | Load from external file |
+| 14 | AdaptiveOrder | Hybrid | ML-powered selection ⭐ |
+| 15 | LeidenOrder | Leiden | igraph-based Leiden |
+| 16 | LeidenDendrogram | Leiden | Dendrogram traversal variants |
+| 17 | LeidenCSR | Leiden | Fast CSR-native Leiden ⭐ |
 
 ## Why Reorder Graphs?
 
@@ -225,24 +246,24 @@ Larger window = better quality, slower computation
 
 ---
 
-## Advanced Hybrid Algorithms (13-15)
+## GraphBrewOrder and Hybrid Algorithms (12-14)
 
-### 13. GraphBrewOrder
+### 12. GraphBrewOrder
 **Per-community reordering**
 
 ```bash
 # Format: -o 12:<frequency>:<intra_algo>:<resolution>
-./bench/bin/pr -f graph.el -s -o 12:10:17 -n 3
+./bench/bin/pr -f graph.el -s -o 12:10:7 -n 3
 ```
 
 - **Description**: Runs Leiden, then applies a different algorithm within each community
 - **Parameters**:
   - `frequency`: Hub frequency threshold (default: 10)
-  - `intra_algo`: Algorithm to use within communities (e.g., 17 = LeidenDendrogram)
+  - `intra_algo`: Algorithm to use within communities (e.g., 7 = HUBCLUSTERDBG)
   - `resolution`: Leiden resolution parameter (default: 0.75)
 - **Best for**: Fine-grained control over per-community ordering
 
-### 14. MAP
+### 13. MAP
 **Load mapping from file**
 
 ```bash
@@ -253,7 +274,7 @@ Larger window = better quality, slower computation
 - **File formats**: `.lo` (list order) or `.so` (source order)
 - **Best for**: Using externally computed orderings
 
-### 15. AdaptiveOrder ⭐ (ML-powered)
+### 14. AdaptiveOrder ⭐ (ML-powered)
 **Perceptron-based algorithm selection**
 
 ```bash
@@ -290,16 +311,16 @@ Larger window = better quality, slower computation
 
 ---
 
-## Leiden Variants (16-18)
+## Leiden Variants (15-17)
 
 GraphBrew consolidates Leiden algorithms into three main IDs with parameter-based variant selection for cleaner script sweeping.
 
-### 16. LeidenOrder ⭐
+### 15. LeidenOrder ⭐
 **Leiden community detection via igraph library**
 
 ```bash
-# Format: 15:resolution
-./bench/bin/pr -f graph.el -s -o 14 -n 3                    # Default (res=1.0)
+# Format: -o 15:resolution
+./bench/bin/pr -f graph.el -s -o 15 -n 3                    # Default (res=1.0)
 ./bench/bin/pr -f graph.el -s -o 15:0.75 -n 3               # Lower resolution
 ./bench/bin/pr -f graph.el -s -o 15:1.5 -n 3                # Higher resolution
 ```
@@ -313,11 +334,11 @@ GraphBrew consolidates Leiden algorithms into three main IDs with parameter-base
 - Guarantees well-connected communities
 - Produces high-quality modularity scores
 
-### 17. LeidenDendrogram
+### 16. LeidenDendrogram
 **Leiden community detection with dendrogram traversal**
 
 ```bash
-# Format: 16:resolution:variant
+# Format: -o 16:resolution:variant
 ./bench/bin/pr -f graph.el -s -o 16 -n 3                    # Default (hybrid)
 ./bench/bin/pr -f graph.el -s -o 16:1.0:dfs -n 3            # DFS traversal
 ./bench/bin/pr -f graph.el -s -o 16:1.0:dfshub -n 3         # DFS hub-first
@@ -335,17 +356,17 @@ GraphBrew consolidates Leiden algorithms into three main IDs with parameter-base
 | `bfs` | BFS level-order traversal | Wide hierarchies |
 | `hybrid` | Sort by (community, degree) | **Default - best overall** |
 
-### 18. LeidenCSR ⭐ (Fastest)
+### 17. LeidenCSR ⭐ (Fastest)
 **Fast CSR-native Leiden (no graph conversion)**
 
 ```bash
-# Format: 17:resolution:passes:variant
+# Format: -o 17:resolution:passes:variant
 ./bench/bin/pr -f graph.el -s -o 17 -n 3                    # Default (hubsort)
-./bench/bin/pr -f graph.el -s -o 17:1.0:1:dfs -n 3          # DFS ordering
-./bench/bin/pr -f graph.el -s -o 17:1.0:1:bfs -n 3          # BFS ordering
-./bench/bin/pr -f graph.el -s -o 17:1.0:1:hubsort -n 3      # Hub-sorted (recommended)
-./bench/bin/pr -f graph.el -s -o 17:1.0:2:fast -n 3         # Union-Find + Label Prop
-./bench/bin/pr -f graph.el -s -o 17:1.0:1:modularity -n 3   # True Leiden (quality)
+./bench/bin/pr -f graph.el -s -o 17:1.0:3:dfs -n 3          # DFS ordering
+./bench/bin/pr -f graph.el -s -o 17:1.0:3:bfs -n 3          # BFS ordering
+./bench/bin/pr -f graph.el -s -o 17:1.0:3:hubsort -n 3      # Hub-sorted (recommended)
+./bench/bin/pr -f graph.el -s -o 17:1.0:3:fast -n 3         # Union-Find + Label Prop
+./bench/bin/pr -f graph.el -s -o 17:1.0:3:modularity -n 3   # True Leiden (quality)
 ```
 
 **Variants:**
