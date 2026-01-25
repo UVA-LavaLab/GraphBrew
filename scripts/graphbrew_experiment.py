@@ -25,6 +25,24 @@ A comprehensive one-click script that runs the complete GraphBrew experiment wor
 11. Phase 10: Large-scale batched training (--train-large)
 12. Fill-weights: One-pass comprehensive training (--fill-weights)
 
+**Leiden Variant Expansion:**
+    For LeidenCSR (17) and LeidenDendrogram (16), you can expand into separate
+    variant mappings and train variant-specific weights:
+    
+    # Generate variant-expanded mappings
+    python scripts/graphbrew_experiment.py --generate-maps --expand-variants --graphs small
+    
+    # With custom parameters
+    python scripts/graphbrew_experiment.py --generate-maps --expand-variants \\
+        --leiden-resolution 1.0 --leiden-passes 3 \\
+        --leiden-csr-variants fast hubsort modularity
+    
+    # Run benchmarks with variant mappings (trains weights for each variant)
+    python scripts/graphbrew_experiment.py --phase benchmark --expand-variants --use-maps
+    
+    LeidenCSR variants: dfs, bfs, hubsort, fast, modularity
+    LeidenDendrogram variants: dfs, dfshub, dfssize, bfs, hybrid
+
 All outputs are saved to the results/ directory for clean organization.
 Type-based weights are saved to scripts/weights/type_*.json.
 
@@ -108,6 +126,234 @@ SLOW_ALGORITHMS = {9, 10, 11}  # GORDER, CORDER, RCM
 # Leiden variant configurations for sweeping
 LEIDEN_DENDROGRAM_VARIANTS = ["dfs", "dfshub", "dfssize", "bfs", "hybrid"]
 LEIDEN_CSR_VARIANTS = ["dfs", "bfs", "hubsort", "fast", "modularity"]
+
+# Default Leiden parameters
+LEIDEN_DEFAULT_RESOLUTION = 1.0
+LEIDEN_DEFAULT_PASSES = 3
+
+# ============================================================================
+# Algorithm Configuration with Variant Support
+# ============================================================================
+
+@dataclass
+class AlgorithmConfig:
+    """Configuration for an algorithm, including variant support."""
+    algo_id: int           # Base algorithm ID (e.g., 17 for LeidenCSR)
+    name: str              # Display name (e.g., "LeidenCSR_fast")
+    option_string: str     # Full option string for -o flag (e.g., "17:1.0:3:fast")
+    variant: str = ""      # Variant name if applicable (e.g., "fast")
+    resolution: float = 1.0
+    passes: int = 3
+    
+    @property
+    def base_name(self) -> str:
+        """Get base algorithm name without variant suffix."""
+        return ALGORITHMS.get(self.algo_id, f"ALGO_{self.algo_id}")
+
+
+def expand_algorithms_with_variants(
+    algorithms: List[int],
+    expand_leiden_variants: bool = False,
+    leiden_resolution: float = LEIDEN_DEFAULT_RESOLUTION,
+    leiden_passes: int = LEIDEN_DEFAULT_PASSES,
+    leiden_csr_variants: List[str] = None,
+    leiden_dendrogram_variants: List[str] = None
+) -> List[AlgorithmConfig]:
+    """
+    Expand algorithm IDs into AlgorithmConfig objects.
+    
+    For Leiden algorithms (16, 17), optionally expand into their variants.
+    
+    Args:
+        algorithms: List of algorithm IDs
+        expand_leiden_variants: If True, expand LeidenCSR/LeidenDendrogram into variants
+        leiden_resolution: Resolution parameter for Leiden algorithms
+        leiden_passes: Number of passes for LeidenCSR
+        leiden_csr_variants: Which LeidenCSR variants to include (default: all)
+        leiden_dendrogram_variants: Which LeidenDendrogram variants to include (default: all)
+    
+    Returns:
+        List of AlgorithmConfig objects
+    """
+    if leiden_csr_variants is None:
+        leiden_csr_variants = LEIDEN_CSR_VARIANTS
+    if leiden_dendrogram_variants is None:
+        leiden_dendrogram_variants = LEIDEN_DENDROGRAM_VARIANTS
+    
+    configs = []
+    
+    for algo_id in algorithms:
+        base_name = ALGORITHMS.get(algo_id, f"ALGO_{algo_id}")
+        
+        if algo_id == 17 and expand_leiden_variants:
+            # LeidenCSR: expand into variants
+            for variant in leiden_csr_variants:
+                option_str = f"{algo_id}:{leiden_resolution}:{leiden_passes}:{variant}"
+                configs.append(AlgorithmConfig(
+                    algo_id=algo_id,
+                    name=f"LeidenCSR_{variant}",
+                    option_string=option_str,
+                    variant=variant,
+                    resolution=leiden_resolution,
+                    passes=leiden_passes
+                ))
+        elif algo_id == 16 and expand_leiden_variants:
+            # LeidenDendrogram: expand into variants
+            for variant in leiden_dendrogram_variants:
+                option_str = f"{algo_id}:{leiden_resolution}:{variant}"
+                configs.append(AlgorithmConfig(
+                    algo_id=algo_id,
+                    name=f"LeidenDendrogram_{variant}",
+                    option_string=option_str,
+                    variant=variant,
+                    resolution=leiden_resolution
+                ))
+        elif algo_id == 15:
+            # LeidenOrder: just resolution
+            option_str = f"{algo_id}:{leiden_resolution}"
+            configs.append(AlgorithmConfig(
+                algo_id=algo_id,
+                name=base_name,
+                option_string=option_str,
+                resolution=leiden_resolution
+            ))
+        else:
+            # Non-Leiden algorithms: just use ID
+            configs.append(AlgorithmConfig(
+                algo_id=algo_id,
+                name=base_name,
+                option_string=str(algo_id)
+            ))
+    
+    return configs
+
+
+def get_algorithm_config_by_name(name: str, configs: List[AlgorithmConfig]) -> Optional[AlgorithmConfig]:
+    """Find an AlgorithmConfig by name."""
+    for cfg in configs:
+        if cfg.name == name:
+            return cfg
+    return None
+
+
+def get_best_leiden_variant(
+    type_name: str,
+    base_algo_id: int,
+    benchmark: str = 'pr',
+    weights_dir: str = None
+) -> Optional[str]:
+    """
+    Get the best variant for a Leiden algorithm based on learned weights.
+    
+    For LeidenCSR (17), variants are: dfs, bfs, hubsort, fast, modularity
+    For LeidenDendrogram (16), variants are: dfs, dfshub, dfssize, bfs, hybrid
+    
+    Args:
+        type_name: Graph type (e.g., 'type_0')
+        base_algo_id: Algorithm ID (16 or 17)
+        benchmark: Benchmark to optimize for
+        weights_dir: Directory containing type weights
+    
+    Returns:
+        Best variant name or None if no data available
+    """
+    if weights_dir is None:
+        weights_dir = DEFAULT_WEIGHTS_DIR
+    
+    # Get variants for this algorithm
+    if base_algo_id == 17:
+        base_name = "LeidenCSR"
+        variants = LEIDEN_CSR_VARIANTS
+    elif base_algo_id == 16:
+        base_name = "LeidenDendrogram"
+        variants = LEIDEN_DENDROGRAM_VARIANTS
+    else:
+        return None  # Not a Leiden algorithm
+    
+    # Load type weights
+    weights = load_type_weights(type_name, weights_dir)
+    if not weights:
+        return variants[0]  # Default to first variant if no weights
+    
+    # Find best variant based on win rate and average speedup
+    best_variant = None
+    best_score = float('-inf')
+    
+    for variant in variants:
+        variant_name = f"{base_name}_{variant}"
+        if variant_name in weights:
+            algo_weights = weights[variant_name]
+            meta = algo_weights.get('_metadata', {})
+            
+            # Score = win_rate * 0.7 + normalized_avg_speedup * 0.3
+            win_rate = meta.get('win_rate', 0.0)
+            avg_speedup = meta.get('avg_speedup', 1.0)
+            
+            # Benchmark-specific bonus
+            bench_weights = algo_weights.get('benchmark_weights', {})
+            bench_bonus = bench_weights.get(benchmark.lower(), 1.0) - 1.0
+            
+            score = win_rate * 0.7 + (avg_speedup - 1.0) * 0.3 + bench_bonus * 0.1
+            
+            if score > best_score:
+                best_score = score
+                best_variant = variant
+    
+    return best_variant if best_variant else variants[0]
+
+
+def get_leiden_variant_rankings(
+    type_name: str,
+    base_algo_id: int,
+    benchmark: str = 'pr',
+    weights_dir: str = None
+) -> List[Tuple[str, float]]:
+    """
+    Get ranked list of Leiden variants with their scores.
+    
+    Args:
+        type_name: Graph type
+        base_algo_id: Algorithm ID (16 or 17)
+        benchmark: Benchmark to optimize for
+        weights_dir: Directory containing type weights
+    
+    Returns:
+        List of (variant_name, score) tuples, sorted by score descending
+    """
+    if weights_dir is None:
+        weights_dir = DEFAULT_WEIGHTS_DIR
+    
+    if base_algo_id == 17:
+        base_name = "LeidenCSR"
+        variants = LEIDEN_CSR_VARIANTS
+    elif base_algo_id == 16:
+        base_name = "LeidenDendrogram"
+        variants = LEIDEN_DENDROGRAM_VARIANTS
+    else:
+        return []
+    
+    weights = load_type_weights(type_name, weights_dir)
+    rankings = []
+    
+    for variant in variants:
+        variant_name = f"{base_name}_{variant}"
+        if variant_name in weights:
+            algo_weights = weights[variant_name]
+            meta = algo_weights.get('_metadata', {})
+            
+            win_rate = meta.get('win_rate', 0.0)
+            avg_speedup = meta.get('avg_speedup', 1.0)
+            bench_weights = algo_weights.get('benchmark_weights', {})
+            bench_bonus = bench_weights.get(benchmark.lower(), 1.0) - 1.0
+            
+            score = win_rate * 0.7 + (avg_speedup - 1.0) * 0.3 + bench_bonus * 0.1
+            rankings.append((variant_name, score))
+        else:
+            rankings.append((variant_name, 0.0))  # No data yet
+    
+    rankings.sort(key=lambda x: x[1], reverse=True)
+    return rankings
+
 
 # Benchmarks to run
 BENCHMARKS = ["pr", "bfs", "cc", "sssp", "bc"]
@@ -1416,19 +1662,248 @@ DOWNLOAD_GRAPHS_XLARGE = [
 ]
 
 # ============================================================================
+# Progress Tracking System
+# ============================================================================
+
+class ProgressTracker:
+    """
+    Comprehensive progress tracking for experiment pipeline.
+    Shows current step, progress bars, timing, and meaningful statistics.
+    """
+    
+    # ANSI color codes for terminal output
+    COLORS = {
+        'HEADER': '\033[95m',
+        'BLUE': '\033[94m',
+        'CYAN': '\033[96m',
+        'GREEN': '\033[92m',
+        'YELLOW': '\033[93m',
+        'RED': '\033[91m',
+        'BOLD': '\033[1m',
+        'UNDERLINE': '\033[4m',
+        'END': '\033[0m'
+    }
+    
+    def __init__(self, use_colors: bool = True):
+        self.use_colors = use_colors and sys.stdout.isatty()
+        self.start_time = time.time()
+        self.phase_start_time = None
+        self.current_phase = None
+        self.phase_history = []
+        self.stats = {
+            'graphs_processed': 0,
+            'algorithms_tested': 0,
+            'benchmarks_run': 0,
+            'total_time': 0,
+            'best_speedups': {},
+            'errors': [],
+        }
+    
+    def _color(self, text: str, color: str) -> str:
+        """Apply color to text if colors enabled."""
+        if self.use_colors and color in self.COLORS:
+            return f"{self.COLORS[color]}{text}{self.COLORS['END']}"
+        return text
+    
+    def _elapsed(self) -> str:
+        """Get elapsed time since start."""
+        elapsed = time.time() - self.start_time
+        mins, secs = divmod(int(elapsed), 60)
+        hours, mins = divmod(mins, 60)
+        if hours > 0:
+            return f"{hours}h {mins}m {secs}s"
+        elif mins > 0:
+            return f"{mins}m {secs}s"
+        return f"{secs}s"
+    
+    def _phase_elapsed(self) -> str:
+        """Get elapsed time since phase start."""
+        if self.phase_start_time is None:
+            return "0s"
+        elapsed = time.time() - self.phase_start_time
+        mins, secs = divmod(int(elapsed), 60)
+        if mins > 0:
+            return f"{mins}m {secs}s"
+        return f"{secs}s"
+    
+    def banner(self, title: str, subtitle: str = None):
+        """Print a large banner for major sections."""
+        width = 70
+        print("\n" + "╔" + "═" * (width - 2) + "╗")
+        title_padded = title.center(width - 4)
+        print("║ " + self._color(title_padded, 'BOLD') + " ║")
+        if subtitle:
+            sub_padded = subtitle.center(width - 4)
+            print("║ " + self._color(sub_padded, 'CYAN') + " ║")
+        print("╚" + "═" * (width - 2) + "╝\n")
+    
+    def phase_start(self, phase_name: str, description: str = None):
+        """Start a new phase with visual indicator."""
+        if self.current_phase:
+            # End previous phase
+            self.phase_history.append({
+                'name': self.current_phase,
+                'duration': time.time() - self.phase_start_time
+            })
+        
+        self.current_phase = phase_name
+        self.phase_start_time = time.time()
+        
+        print("\n" + "┌" + "─" * 68 + "┐")
+        header = f"  PHASE: {phase_name}"
+        print("│" + self._color(header.ljust(68), 'HEADER') + "│")
+        if description:
+            print("│  " + description.ljust(66) + "│")
+        print("│  " + f"Started at: {datetime.now().strftime('%H:%M:%S')}".ljust(66) + "│")
+        print("└" + "─" * 68 + "┘")
+    
+    def phase_end(self, summary: str = None):
+        """End current phase with summary."""
+        duration = self._phase_elapsed()
+        print("\n" + "─" * 70)
+        status = f"✓ Phase '{self.current_phase}' completed in {duration}"
+        print(self._color(status, 'GREEN'))
+        if summary:
+            print(f"  {summary}")
+        print("─" * 70)
+    
+    def step(self, current: int, total: int, item_name: str, extra_info: str = None):
+        """Show progress for a numbered step."""
+        pct = (current / total * 100) if total > 0 else 0
+        bar_width = 30
+        filled = int(bar_width * current / total) if total > 0 else 0
+        bar = "█" * filled + "░" * (bar_width - filled)
+        
+        line = f"  [{current:3d}/{total:3d}] [{bar}] {pct:5.1f}%  {item_name}"
+        if extra_info:
+            line += f"  │ {extra_info}"
+        
+        # Use \r for same-line updates when not at 100%
+        end = '\n' if current == total else '\r'
+        print(line.ljust(100), end=end, flush=True)
+    
+    def substep(self, message: str, status: str = "..."):
+        """Show a substep with status indicator."""
+        status_color = {
+            '...': 'YELLOW',
+            'OK': 'GREEN',
+            'DONE': 'GREEN',
+            'SKIP': 'CYAN',
+            'FAIL': 'RED',
+            'WARN': 'YELLOW',
+        }.get(status, 'END')
+        
+        status_str = self._color(f"[{status:4s}]", status_color)
+        print(f"    {status_str} {message}")
+    
+    def info(self, message: str, indent: int = 0):
+        """Print an info message."""
+        prefix = "  " * indent + "→ "
+        print(f"{prefix}{message}")
+    
+    def success(self, message: str):
+        """Print a success message."""
+        print(self._color(f"  ✓ {message}", 'GREEN'))
+    
+    def warning(self, message: str):
+        """Print a warning message."""
+        print(self._color(f"  ⚠ {message}", 'YELLOW'))
+    
+    def error(self, message: str):
+        """Print an error message."""
+        print(self._color(f"  ✗ {message}", 'RED'))
+        self.stats['errors'].append(message)
+    
+    def table_header(self, columns: List[Tuple[str, int]]):
+        """Print a table header with column widths."""
+        header = "  │ "
+        sep = "  ├─"
+        for name, width in columns:
+            header += name.center(width) + " │ "
+            sep += "─" * (width + 2) + "┼─"
+        sep = sep[:-2] + "┤"
+        print(sep)
+        print(header)
+        print(sep)
+    
+    def table_row(self, values: List[Tuple[str, int]], highlight: bool = False):
+        """Print a table row."""
+        row = "  │ "
+        for val, width in values:
+            if highlight:
+                row += self._color(str(val).center(width), 'GREEN') + " │ "
+            else:
+                row += str(val).center(width) + " │ "
+        print(row)
+    
+    def stats_summary(self, title: str, stats: Dict[str, Any]):
+        """Print a summary box with statistics."""
+        print("\n  ┌" + "─" * 50 + "┐")
+        print("  │ " + self._color(title.center(48), 'BOLD') + " │")
+        print("  ├" + "─" * 50 + "┤")
+        for key, value in stats.items():
+            line = f"  {key}: {value}"
+            print("  │ " + line.ljust(48) + " │")
+        print("  └" + "─" * 50 + "┘")
+    
+    def record_result(self, graph: str, algorithm: str, benchmark: str, 
+                      time_sec: float, speedup: float = None):
+        """Record a benchmark result for statistics."""
+        self.stats['benchmarks_run'] += 1
+        if speedup and speedup > 1.0:
+            key = f"{graph}/{benchmark}"
+            if key not in self.stats['best_speedups'] or speedup > self.stats['best_speedups'][key][1]:
+                self.stats['best_speedups'][key] = (algorithm, speedup)
+    
+    def final_summary(self):
+        """Print final summary of the entire experiment."""
+        total_time = time.time() - self.start_time
+        mins, secs = divmod(int(total_time), 60)
+        hours, mins = divmod(mins, 60)
+        
+        self.banner("EXPERIMENT COMPLETE", f"Total time: {hours}h {mins}m {secs}s")
+        
+        print("Phase Summary:")
+        for phase in self.phase_history:
+            dur_mins, dur_secs = divmod(int(phase['duration']), 60)
+            print(f"  • {phase['name']}: {dur_mins}m {dur_secs}s")
+        
+        if self.stats['best_speedups']:
+            print("\nBest Speedups Found:")
+            for key, (algo, speedup) in sorted(self.stats['best_speedups'].items(), 
+                                                key=lambda x: -x[1][1])[:10]:
+                print(f"  • {key}: {algo} ({speedup:.2f}x)")
+        
+        if self.stats['errors']:
+            print(self._color(f"\nErrors encountered: {len(self.stats['errors'])}", 'RED'))
+            for err in self.stats['errors'][:5]:
+                print(f"  - {err}")
+
+
+# Global progress tracker instance
+_progress = ProgressTracker()
+
+
+# ============================================================================
 # Utility Functions
 # ============================================================================
 
 def log(msg: str, level: str = "INFO"):
     """Print a timestamped log message."""
     timestamp = datetime.now().strftime("%H:%M:%S")
-    print(f"[{timestamp}] [{level}] {msg}")
+    level_colors = {
+        'INFO': '',
+        'WARN': '\033[93m',
+        'ERROR': '\033[91m',
+        'SUCCESS': '\033[92m',
+    }
+    color = level_colors.get(level, '')
+    end_color = '\033[0m' if color else ''
+    print(f"[{timestamp}] {color}[{level}]{end_color} {msg}")
 
 def log_section(title: str):
     """Print a section header."""
-    print("\n" + "=" * 70)
-    print(title)
-    print("=" * 70 + "\n")
+    _progress.phase_start(title)
 
 # NOTE: Legacy backup_and_sync_weights removed - now using type-based weights in scripts/weights/
 
@@ -2113,13 +2588,14 @@ def clean_all(project_dir: str = ".", confirm: bool = False) -> None:
     - All results (including graphs)
     - All label.map files in graph directories
     - Downloaded graphs
+    - Compiled binaries (bench/bin/, bench/bin_sim/)
     
     Args:
         project_dir: Project root directory
         confirm: If True, skip confirmation prompt
     """
     if not confirm:
-        response = input("This will delete ALL generated data including downloaded graphs. Continue? [y/N] ")
+        response = input("This will delete ALL generated data including downloaded graphs and binaries. Continue? [y/N] ")
         if response.lower() != 'y':
             print("Cancelled")
             return
@@ -2135,6 +2611,20 @@ def clean_all(project_dir: str = ".", confirm: bool = False) -> None:
         shutil.rmtree(results_dir)
         os.makedirs(results_dir)  # Recreate empty
         print("  Done")
+    
+    # Clean compiled binaries
+    bin_dirs = [
+        os.path.join(project_dir, "bench", "bin"),
+        os.path.join(project_dir, "bench", "bin_sim"),
+    ]
+    for bin_dir in bin_dirs:
+        if os.path.exists(bin_dir):
+            # Remove all files in bin directory but keep the directory
+            for f in os.listdir(bin_dir):
+                fpath = os.path.join(bin_dir, f)
+                if os.path.isfile(fpath):
+                    os.remove(fpath)
+            print(f"Cleaned binaries in {bin_dir}/")
     
     # Clean label.map files in graphs directory
     graphs_dir = os.path.join(project_dir, "graphs")
@@ -2404,7 +2894,8 @@ def generate_reorderings(
     timeout: int = TIMEOUT_REORDER,
     skip_slow: bool = False,
     generate_maps: bool = True,
-    force_reorder: bool = False
+    force_reorder: bool = False,
+    progress: 'ProgressTracker' = None
 ) -> List[ReorderResult]:
     """
     Generate reorderings for all graphs and algorithms.
@@ -2419,8 +2910,10 @@ def generate_reorderings(
         skip_slow: Skip slow algorithms on large graphs
         generate_maps: If True, generate .lo mapping files (default: True)
         force_reorder: If True, regenerate even if .lo/.time files exist
+        progress: Optional ProgressTracker for status updates
     """
-    log_section("Phase 1: Generate Reorderings")
+    if progress is None:
+        log_section("Phase 1: Generate Reorderings")
     
     if force_reorder:
         log("Force reorder enabled - will regenerate all reorderings")
@@ -2433,8 +2926,11 @@ def generate_reorderings(
     mappings_dir = os.path.join(output_dir, "mappings")
     os.makedirs(mappings_dir, exist_ok=True)
     
-    for graph in graphs:
-        log(f"\nGraph: {graph.name} ({graph.size_mb:.1f}MB)")
+    for graph_idx, graph in enumerate(graphs, 1):
+        if progress:
+            progress.info(f"Graph [{graph_idx}/{len(graphs)}]: {graph.name} ({graph.size_mb:.1f}MB)", indent=0)
+        else:
+            log(f"\nGraph: {graph.name} ({graph.size_mb:.1f}MB)")
         
         # Create per-graph mappings directory
         graph_mappings_dir = os.path.join(mappings_dir, graph.name)
@@ -2447,7 +2943,10 @@ def generate_reorderings(
             
             # Skip slow algorithms on large graphs if requested
             if skip_slow and algo_id in SLOW_ALGORITHMS and graph.size_mb > SIZE_MEDIUM:
-                log(f"  [{current}/{total}] {algo_name}: SKIPPED (slow on large graphs)")
+                if progress:
+                    progress.substep(f"{algo_name}: SKIPPED (slow on large graphs)", "SKIP")
+                else:
+                    log(f"  [{current}/{total}] {algo_name}: SKIPPED (slow on large graphs)")
                 results.append(ReorderResult(
                     graph=graph.name,
                     algorithm_id=algo_id,
@@ -2460,7 +2959,10 @@ def generate_reorderings(
             
             # ORIGINAL doesn't need reordering
             if algo_id == 0:
-                log(f"  [{current}/{total}] {algo_name}: 0.0000s (no reorder)")
+                if progress:
+                    progress.substep(f"{algo_name}: 0.0000s (no reorder)", "OK")
+                else:
+                    log(f"  [{current}/{total}] {algo_name}: 0.0000s (no reorder)")
                 results.append(ReorderResult(
                     graph=graph.name,
                     algorithm_id=algo_id,
@@ -2587,7 +3089,8 @@ def generate_label_maps(
     bin_dir: str,
     output_dir: str,
     timeout: int = TIMEOUT_REORDER,
-    skip_slow: bool = False
+    skip_slow: bool = False,
+    progress: 'ProgressTracker' = None
 ) -> Tuple[Dict[str, Dict[str, str]], List[ReorderResult]]:
     """
     Pre-generate label.map files for each graph/algorithm combination.
@@ -2601,7 +3104,8 @@ def generate_label_maps(
         - Dictionary mapping (graph, algorithm) to label map file path
         - List of ReorderResult with timing information
     """
-    log_section("Pre-generate Label Maps + Record Reorder Times")
+    if progress is None:
+        log_section("Pre-generate Label Maps + Record Reorder Times")
     
     # Create mappings directory
     mappings_dir = os.path.join(output_dir, "mappings")
@@ -2612,8 +3116,11 @@ def generate_label_maps(
     total = len(graphs) * len(algorithms)
     current = 0
     
-    for graph in graphs:
-        log(f"\nGraph: {graph.name} ({graph.size_mb:.1f}MB)")
+    for graph_idx, graph in enumerate(graphs, 1):
+        if progress:
+            progress.info(f"Graph [{graph_idx}/{len(graphs)}]: {graph.name} ({graph.size_mb:.1f}MB)")
+        else:
+            log(f"\nGraph: {graph.name} ({graph.size_mb:.1f}MB)")
         label_maps[graph.name] = {}
         graph_mappings_dir = os.path.join(mappings_dir, graph.name)
         os.makedirs(graph_mappings_dir, exist_ok=True)
@@ -2624,7 +3131,10 @@ def generate_label_maps(
             
             # Skip ORIGINAL (no mapping needed)
             if algo_id == 0:
-                log(f"  [{current}/{total}] {algo_name}: no map needed (0.0000s)")
+                if progress:
+                    progress.substep(f"{algo_name}: no map needed (0.0000s)", "OK")
+                else:
+                    log(f"  [{current}/{total}] {algo_name}: no map needed (0.0000s)")
                 reorder_results.append(ReorderResult(
                     graph=graph.name,
                     algorithm_id=algo_id,
@@ -2637,7 +3147,10 @@ def generate_label_maps(
             
             # Skip slow algorithms on large graphs if requested
             if skip_slow and algo_id in SLOW_ALGORITHMS and graph.size_mb > SIZE_MEDIUM:
-                log(f"  [{current}/{total}] {algo_name}: SKIPPED (slow)")
+                if progress:
+                    progress.substep(f"{algo_name}: SKIPPED (slow)", "SKIP")
+                else:
+                    log(f"  [{current}/{total}] {algo_name}: SKIPPED (slow)")
                 reorder_results.append(ReorderResult(
                     graph=graph.name,
                     algorithm_id=algo_id,
@@ -2756,6 +3269,440 @@ def load_label_maps_index(results_dir: str) -> Dict[str, Dict[str, str]]:
             return json.load(f)
     return {}
 
+
+def generate_reorderings_with_variants(
+    graphs: List[GraphInfo],
+    algorithms: List[int],
+    bin_dir: str,
+    output_dir: str,
+    expand_leiden_variants: bool = True,
+    leiden_resolution: float = LEIDEN_DEFAULT_RESOLUTION,
+    leiden_passes: int = LEIDEN_DEFAULT_PASSES,
+    leiden_csr_variants: List[str] = None,
+    leiden_dendrogram_variants: List[str] = None,
+    timeout: int = TIMEOUT_REORDER,
+    skip_slow: bool = False,
+    force_reorder: bool = False,
+    progress: 'ProgressTracker' = None
+) -> Tuple[Dict[str, Dict[str, str]], List[ReorderResult]]:
+    """
+    Generate reorderings for all graphs and algorithms, with variant expansion.
+    
+    For Leiden algorithms (16, 17), expands into separate mappings for each variant.
+    Creates files like:
+        - LeidenCSR_fast.lo
+        - LeidenCSR_hubsort.lo
+        - LeidenDendrogram_hybrid.lo
+    
+    Args:
+        graphs: List of graphs to process
+        algorithms: List of algorithm IDs to use
+        bin_dir: Directory containing binaries
+        output_dir: Directory for outputs (mappings will be in output_dir/mappings/)
+        expand_leiden_variants: If True, expand LeidenCSR/LeidenDendrogram into variants
+        leiden_resolution: Resolution parameter for Leiden algorithms
+        leiden_passes: Number of passes for LeidenCSR
+        leiden_csr_variants: Which LeidenCSR variants to include (default: all)
+        leiden_dendrogram_variants: Which LeidenDendrogram variants to include (default: all)
+        timeout: Timeout for each reordering
+        skip_slow: Skip slow algorithms on large graphs
+        force_reorder: If True, regenerate even if .lo/.time files exist
+        progress: Optional ProgressTracker for status updates
+    
+    Returns:
+        Tuple of:
+        - Dictionary mapping (graph_name, algo_name) to label map file path
+        - List of ReorderResult with timing information
+    """
+    if progress is None:
+        log_section("Generate Reorderings with Variant Expansion")
+    
+    if expand_leiden_variants:
+        if progress:
+            progress.info(f"Leiden variant expansion enabled")
+            progress.info(f"  LeidenCSR variants: {leiden_csr_variants or LEIDEN_CSR_VARIANTS}", indent=1)
+            progress.info(f"  LeidenDendrogram variants: {leiden_dendrogram_variants or LEIDEN_DENDROGRAM_VARIANTS}", indent=1)
+            progress.info(f"  Resolution: {leiden_resolution}, Passes: {leiden_passes}", indent=1)
+        else:
+            log(f"Leiden variant expansion enabled:")
+            log(f"  - LeidenCSR variants: {leiden_csr_variants or LEIDEN_CSR_VARIANTS}")
+            log(f"  - LeidenDendrogram variants: {leiden_dendrogram_variants or LEIDEN_DENDROGRAM_VARIANTS}")
+            log(f"  - Resolution: {leiden_resolution}, Passes: {leiden_passes}")
+    
+    # Expand algorithms to configs
+    configs = expand_algorithms_with_variants(
+        algorithms,
+        expand_leiden_variants=expand_leiden_variants,
+        leiden_resolution=leiden_resolution,
+        leiden_passes=leiden_passes,
+        leiden_csr_variants=leiden_csr_variants,
+        leiden_dendrogram_variants=leiden_dendrogram_variants
+    )
+    
+    if force_reorder:
+        log("Force reorder enabled - will regenerate all reorderings")
+    
+    results = []
+    label_maps = {}  # {graph_name: {algo_name: path}}
+    total = len(graphs) * len(configs)
+    current = 0
+    
+    # Create output directory for mappings
+    mappings_dir = os.path.join(output_dir, "mappings")
+    os.makedirs(mappings_dir, exist_ok=True)
+    
+    for graph_idx, graph in enumerate(graphs, 1):
+        if progress:
+            progress.info(f"Graph [{graph_idx}/{len(graphs)}]: {graph.name} ({graph.size_mb:.1f}MB)")
+        else:
+            log(f"\nGraph: {graph.name} ({graph.size_mb:.1f}MB)")
+        label_maps[graph.name] = {}
+        
+        # Create per-graph mappings directory
+        graph_mappings_dir = os.path.join(mappings_dir, graph.name)
+        os.makedirs(graph_mappings_dir, exist_ok=True)
+        
+        for cfg in configs:
+            current += 1
+            
+            # Skip slow algorithms on large graphs if requested
+            if skip_slow and cfg.algo_id in SLOW_ALGORITHMS and graph.size_mb > SIZE_MEDIUM:
+                if progress:
+                    progress.substep(f"{cfg.name}: SKIPPED (slow on large graphs)", "SKIP")
+                else:
+                    log(f"  [{current}/{total}] {cfg.name}: SKIPPED (slow on large graphs)")
+                results.append(ReorderResult(
+                    graph=graph.name,
+                    algorithm_id=cfg.algo_id,
+                    algorithm_name=cfg.name,
+                    reorder_time=0.0,
+                    success=False,
+                    error="SKIPPED"
+                ))
+                continue
+            
+            # ORIGINAL doesn't need reordering
+            if cfg.algo_id == 0:
+                log(f"  [{current}/{total}] {cfg.name}: 0.0000s (no reorder)")
+                results.append(ReorderResult(
+                    graph=graph.name,
+                    algorithm_id=cfg.algo_id,
+                    algorithm_name=cfg.name,
+                    reorder_time=0.0,
+                    success=True
+                ))
+                continue
+            
+            # Output mapping file path
+            map_file = os.path.join(graph_mappings_dir, f"{cfg.name}.lo")
+            timing_file = os.path.join(graph_mappings_dir, f"{cfg.name}.time")
+            
+            # Check if mapping already exists (unless force_reorder is set)
+            if os.path.exists(map_file) and not force_reorder:
+                # Load existing timing if available
+                if os.path.exists(timing_file):
+                    with open(timing_file) as f:
+                        reorder_time = float(f.read().strip())
+                else:
+                    reorder_time = 0.0
+                
+                log(f"  [{current}/{total}] {cfg.name}: exists ({reorder_time:.4f}s)")
+                label_maps[graph.name][cfg.name] = map_file
+                results.append(ReorderResult(
+                    graph=graph.name,
+                    algorithm_id=cfg.algo_id,
+                    algorithm_name=cfg.name,
+                    reorder_time=reorder_time,
+                    mapping_file=map_file,
+                    success=True
+                ))
+                continue
+            
+            # Remove existing files if force_reorder
+            if force_reorder:
+                if os.path.exists(map_file):
+                    os.remove(map_file)
+                if os.path.exists(timing_file):
+                    os.remove(timing_file)
+            
+            # Generate mapping with converter using full option string
+            binary = os.path.join(bin_dir, "converter")
+            sym_flag = "-s" if graph.is_symmetric else ""
+            cmd = f"{binary} -f {graph.path} {sym_flag} -o {cfg.option_string} -q {map_file}"
+            
+            # Run and parse
+            start_time = time.time()
+            success, stdout, stderr = run_command(cmd, timeout)
+            elapsed = time.time() - start_time
+            
+            if success and os.path.exists(map_file):
+                output = stdout + stderr
+                
+                # Parse actual reorder time from converter output
+                actual_reorder_time = parse_reorder_time_from_converter(output)
+                if actual_reorder_time is not None:
+                    reorder_time = actual_reorder_time
+                else:
+                    reorder_time = elapsed
+                
+                # Save timing to file for future reference
+                with open(timing_file, 'w') as f:
+                    f.write(f"{reorder_time:.6f}")
+                
+                log(f"  [{current}/{total}] {cfg.name}: {reorder_time:.4f}s (map: {cfg.name}.lo)")
+                label_maps[graph.name][cfg.name] = map_file
+                results.append(ReorderResult(
+                    graph=graph.name,
+                    algorithm_id=cfg.algo_id,
+                    algorithm_name=cfg.name,
+                    reorder_time=reorder_time,
+                    mapping_file=map_file,
+                    success=True
+                ))
+            else:
+                error = "TIMEOUT" if "TIMEOUT" in stderr else stderr[:100] if stderr else "Unknown error"
+                log(f"  [{current}/{total}] {cfg.name}: FAILED ({error})")
+                results.append(ReorderResult(
+                    graph=graph.name,
+                    algorithm_id=cfg.algo_id,
+                    algorithm_name=cfg.name,
+                    reorder_time=elapsed,
+                    success=False,
+                    error=error
+                ))
+    
+    # Save mapping index
+    index_file = os.path.join(mappings_dir, "index.json")
+    with open(index_file, 'w') as f:
+        json.dump(label_maps, f, indent=2)
+    log(f"\nLabel map index saved to: {index_file}")
+    
+    # Save reorder times to JSON
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    reorder_json = os.path.join(output_dir, f"reorder_times_variants_{timestamp}.json")
+    with open(reorder_json, 'w') as f:
+        json.dump([asdict(r) for r in results], f, indent=2)
+    log(f"Reorder times saved to: {reorder_json}")
+    
+    # Summary statistics
+    successful = [r for r in results if r.success]
+    by_variant = {}
+    for r in successful:
+        if '_' in r.algorithm_name:
+            base, variant = r.algorithm_name.rsplit('_', 1)
+            by_variant.setdefault(base, {})[variant] = by_variant.get(base, {}).get(variant, 0) + 1
+    
+    log(f"\nSummary: {len(successful)}/{len(results)} reorderings succeeded")
+    if by_variant:
+        log("Variants generated:")
+        for base, variants in by_variant.items():
+            log(f"  {base}: {', '.join(f'{v}={c}' for v, c in variants.items())}")
+    
+    return label_maps, results
+
+
+def run_benchmarks_with_variants(
+    graphs: List[GraphInfo],
+    label_maps: Dict[str, Dict[str, str]],
+    benchmarks: List[str],
+    bin_dir: str,
+    num_trials: int = 2,
+    timeout: int = TIMEOUT_BENCHMARK,
+    weights_dir: str = DEFAULT_WEIGHTS_DIR,
+    update_weights: bool = True,
+    progress: 'ProgressTracker' = None
+) -> List[BenchmarkResult]:
+    """
+    Run benchmarks using pre-generated variant mappings.
+    
+    Uses label_maps with variant-specific entries (e.g., 'LeidenCSR_fast')
+    and records results with the full variant name for weight training.
+    
+    Args:
+        graphs: List of graphs to benchmark
+        label_maps: Dict from generate_reorderings_with_variants
+        benchmarks: List of benchmark names
+        bin_dir: Directory with benchmark binaries
+        num_trials: Number of trials per benchmark
+        timeout: Timeout for each benchmark
+        weights_dir: Directory for type weights
+        update_weights: Whether to update type weights incrementally
+        progress: Optional ProgressTracker for status updates
+    
+    Returns:
+        List of BenchmarkResult with variant-specific algorithm names
+    """
+    if progress is None:
+        log_section("Run Benchmarks with Variants")
+    
+    results = []
+    BASELINE_ALGO_ID = 1  # RANDOM for baseline
+    
+    for graph_idx, graph in enumerate(graphs, 1):
+        if progress:
+            progress.info(f"Graph [{graph_idx}/{len(graphs)}]: {graph.name} ({graph.size_mb:.1f}MB)")
+        else:
+            log(f"\nGraph: {graph.name} ({graph.size_mb:.1f}MB)")
+        
+        # Get all algorithms available for this graph from label_maps
+        graph_maps = label_maps.get(graph.name, {})
+        if not graph_maps:
+            if progress:
+                progress.warning(f"No label maps found for {graph.name}")
+            else:
+                log(f"  No label maps found for {graph.name}", "WARN")
+            continue
+        
+        algo_names = list(graph_maps.keys())
+        total = len(algo_names) * len(benchmarks)
+        current = 0
+        
+        baseline_times = {}
+        
+        for bench in benchmarks:
+            if progress:
+                progress.info(f"  Benchmark: {bench.upper()}", indent=1)
+            else:
+                log(f"  {bench.upper()}:")
+            binary = os.path.join(bin_dir, bench)
+            
+            if not os.path.exists(binary):
+                log(f"    Binary not found: {binary}")
+                continue
+            
+            for algo_name in algo_names:
+                current += 1
+                label_map_path = graph_maps.get(algo_name)
+                
+                # Build command - use MAP algorithm (13) with label map
+                sym_flag = "-s" if graph.is_symmetric else ""
+                if label_map_path and os.path.exists(label_map_path):
+                    cmd = f"{binary} -f {graph.path} {sym_flag} -o 13:{label_map_path} -n {num_trials}"
+                else:
+                    # Fallback - generate on-the-fly
+                    # Try to parse algo_id from name
+                    algo_id = 0
+                    for aid, aname in ALGORITHMS.items():
+                        if algo_name == aname or algo_name.startswith(aname + "_"):
+                            algo_id = aid
+                            break
+                    cmd = f"{binary} -f {graph.path} {sym_flag} -o {algo_id} -n {num_trials}"
+                
+                # Run
+                success, stdout, stderr = run_command(cmd, timeout)
+                
+                if success:
+                    output = stdout + stderr
+                    parsed = parse_benchmark_output(output)
+                    trial_time = parsed.get('average_time', parsed.get('trial_time', 0.0))
+                    nodes = parsed.get('nodes', 0)
+                    edges = parsed.get('edges', 0)
+                    
+                    # Record RANDOM baseline
+                    if algo_name == "RANDOM":
+                        baseline_times[bench] = trial_time
+                    
+                    # Calculate speedup vs RANDOM
+                    baseline = baseline_times.get(bench, trial_time)
+                    speedup = baseline / trial_time if trial_time > 0 else 0.0
+                    
+                    log(f"    [{current}/{total}] {algo_name}: {trial_time:.4f}s (speedup: {speedup:.2f}x)")
+                    
+                    # Get algo_id for BenchmarkResult
+                    algo_id = 0
+                    for aid, aname in ALGORITHMS.items():
+                        if algo_name == aname or algo_name.startswith(aname + "_"):
+                            algo_id = aid
+                            break
+                    
+                    # Incremental weight update with variant name
+                    if update_weights and speedup > 0:
+                        cached_props = _graph_properties_cache.get(graph.name, {})
+                        
+                        actual_nodes = nodes or cached_props.get('nodes', 1000)
+                        actual_edges = edges or cached_props.get('edges', 5000)
+                        max_edges = actual_nodes * (actual_nodes - 1) / 2 if actual_nodes > 1 else 1
+                        computed_density = actual_edges / max_edges if max_edges > 0 else 0.0
+                        computed_avg_degree = (2 * actual_edges / actual_nodes) if actual_nodes > 0 else 0.0
+                        
+                        features = {
+                            'modularity': cached_props.get('modularity', 0.5),
+                            'degree_variance': cached_props.get('degree_variance', 1.0),
+                            'hub_concentration': cached_props.get('hub_concentration', 0.3),
+                            'avg_degree': cached_props.get('avg_degree') or computed_avg_degree,
+                            'nodes': actual_nodes,
+                            'edges': actual_edges,
+                            'density': cached_props.get('density') or computed_density,
+                        }
+                        graph_type = assign_graph_type(features, weights_dir)
+                        
+                        reorder_time = parsed.get('reorder_time', 0.0) or parsed.get('ordering_time', 0.0)
+                        
+                        # Update weights using the full variant name (e.g., "LeidenCSR_fast")
+                        update_type_weights_incremental(
+                            type_name=graph_type,
+                            algorithm=algo_name,  # Use variant-specific name
+                            benchmark=bench,
+                            speedup=speedup,
+                            features=features,
+                            reorder_time=reorder_time,
+                            weights_dir=weights_dir
+                        )
+                    
+                    results.append(BenchmarkResult(
+                        graph=graph.name,
+                        algorithm_id=algo_id,
+                        algorithm_name=algo_name,  # Uses variant name
+                        benchmark=bench,
+                        trial_time=trial_time,
+                        speedup=speedup,
+                        nodes=nodes,
+                        edges=edges,
+                        success=True
+                    ))
+                else:
+                    error = "TIMEOUT" if "TIMEOUT" in stderr else "FAILED"
+                    log(f"    [{current}/{total}] {algo_name}: {error}")
+                    
+                    algo_id = 0
+                    for aid, aname in ALGORITHMS.items():
+                        if algo_name == aname or algo_name.startswith(aname + "_"):
+                            algo_id = aid
+                            break
+                    
+                    results.append(BenchmarkResult(
+                        graph=graph.name,
+                        algorithm_id=algo_id,
+                        algorithm_name=algo_name,
+                        benchmark=bench,
+                        trial_time=0.0,
+                        success=False,
+                        error=error
+                    ))
+    
+    # Summary
+    successful = [r for r in results if r.success]
+    by_algo = {}
+    for r in successful:
+        by_algo[r.algorithm_name] = by_algo.get(r.algorithm_name, 0) + 1
+    
+    log(f"\nSummary: {len(successful)}/{len(results)} benchmarks succeeded")
+    
+    # Group by base algorithm
+    leiden_variants = {}
+    for algo_name, count in by_algo.items():
+        if '_' in algo_name and (algo_name.startswith('LeidenCSR') or algo_name.startswith('LeidenDendrogram')):
+            base, variant = algo_name.rsplit('_', 1)
+            leiden_variants.setdefault(base, {})[variant] = count
+    
+    if leiden_variants:
+        log("\nLeiden variant results:")
+        for base, variants in leiden_variants.items():
+            log(f"  {base}: {', '.join(f'{v}={c}' for v, c in variants.items())}")
+    
+    return results
+
+
 # ============================================================================
 # Phase 2: Run Execution Benchmarks
 # ============================================================================
@@ -2770,7 +3717,8 @@ def run_benchmarks(
     skip_slow: bool = False,
     label_maps: Dict[str, Dict[str, str]] = None,
     weights_dir: str = DEFAULT_WEIGHTS_DIR,
-    update_weights: bool = True
+    update_weights: bool = True,
+    progress: 'ProgressTracker' = None
 ) -> List[BenchmarkResult]:
     """
     Run execution benchmarks for all combinations.
@@ -2780,7 +3728,8 @@ def run_benchmarks(
     
     If update_weights is True, incrementally updates type weights after each benchmark.
     """
-    log_section("Phase 2: Execution Benchmarks")
+    if progress is None:
+        log_section("Phase 2: Execution Benchmarks")
     
     if label_maps:
         log(f"Using pre-generated label maps for {len(label_maps)} graphs")
@@ -2793,14 +3742,20 @@ def run_benchmarks(
     # RANDOM represents the worst-case random ordering, so speedups are meaningful
     BASELINE_ALGO_ID = 1
     
-    for graph in graphs:
-        log(f"\nGraph: {graph.name} ({graph.size_mb:.1f}MB)")
+    for graph_idx, graph in enumerate(graphs, 1):
+        if progress:
+            progress.info(f"Graph [{graph_idx}/{len(graphs)}]: {graph.name} ({graph.size_mb:.1f}MB)")
+        else:
+            log(f"\nGraph: {graph.name} ({graph.size_mb:.1f}MB)")
         
         # Store baseline times for speedup calculation (using RANDOM as baseline)
         baseline_times = {}
         
         for bench in benchmarks:
-            log(f"  {bench.upper()}:")
+            if progress:
+                progress.info(f"  Benchmark: {bench.upper()}", indent=1)
+            else:
+                log(f"  {bench.upper()}:")
             binary = os.path.join(bin_dir, bench)
             
             if not os.path.exists(binary):
@@ -2833,7 +3788,7 @@ def run_benchmarks(
                 sym_flag = "-s" if graph.is_symmetric else ""
                 if label_map_path:
                     # Use pre-generated mapping via MAP (algo 13)
-                    cmd = f"{binary} -f {graph.path} {sym_flag} -o 14:{label_map_path} -n {num_trials}"
+                    cmd = f"{binary} -f {graph.path} {sym_flag} -o 13:{label_map_path} -n {num_trials}"
                 else:
                     # Generate reordering on-the-fly
                     cmd = f"{binary} -f {graph.path} {sym_flag} -o {algo_id} -n {num_trials}"
@@ -3025,7 +3980,7 @@ def run_cache_simulations(
                 sym_flag = "-s" if graph.is_symmetric else ""
                 if label_map_path:
                     # Use pre-generated mapping via MAP (algo 13)
-                    cmd = f"{binary} -f {graph.path} {sym_flag} -o 14:{label_map_path} -n 1"
+                    cmd = f"{binary} -f {graph.path} {sym_flag} -o 13:{label_map_path} -n 1"
                 else:
                     # Generate reordering on-the-fly
                     cmd = f"{binary} -f {graph.path} {sym_flag} -o {algo_id} -n 1"
@@ -5336,13 +6291,36 @@ def compare_adaptive_vs_fixed(
 # ============================================================================
 
 def run_experiment(args):
-    """Run the complete experiment pipeline."""
+    """Run the complete experiment pipeline with comprehensive progress tracking."""
+    
+    global _progress
+    _progress = ProgressTracker()
     
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     
-    # Discover graphs - use explicit min/max if provided
+    # Show experiment banner
+    _progress.banner(
+        "GRAPHBREW EXPERIMENT PIPELINE",
+        f"Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+    )
+    
+    # Phase 0: Configuration Summary
+    _progress.phase_start("CONFIGURATION", "Gathering experiment parameters")
+    _progress.info(f"Results directory: {args.results_dir}")
+    _progress.info(f"Graphs directory: {args.graphs_dir}")
+    _progress.info(f"Bin directory: {args.bin_dir}")
+    _progress.info(f"Phase to run: {args.phase}")
+    _progress.info(f"Benchmarks: {', '.join(args.benchmarks)}")
+    _progress.info(f"Trials per benchmark: {args.trials}")
+    if getattr(args, 'expand_variants', False):
+        _progress.info("Leiden variant expansion: ENABLED")
+    _progress.phase_end()
+    
+    # Discover graphs
+    _progress.phase_start("GRAPH DISCOVERY", "Finding available graph datasets")
+    
+    # Determine size range
     if args.min_size > 0 or args.max_size < float('inf'):
-        # Custom size range specified via --min-size / --max-size
         min_size, max_size = args.min_size, args.max_size
     elif args.graphs == "all":
         min_size, max_size = 0, float('inf')
@@ -5355,18 +6333,29 @@ def run_experiment(args):
     else:
         min_size, max_size = args.min_size, args.max_size
     
+    _progress.info(f"Size filter: {min_size:.1f}MB - {max_size:.1f}MB")
+    
     graphs = discover_graphs(args.graphs_dir, min_size, max_size, max_memory_gb=args.max_memory)
     
     if args.max_graphs:
         graphs = graphs[:args.max_graphs]
     
-    log(f"Found {len(graphs)} graphs:")
-    for g in graphs:
-        log(f"  {g.name}: {g.size_mb:.1f}MB")
-    
     if not graphs:
-        log("No graphs found!", "ERROR")
+        _progress.error("No graphs found!")
+        _progress.phase_end("No graphs available")
         return
+    
+    # Display discovered graphs in a table
+    _progress.success(f"Found {len(graphs)} graphs")
+    total_size = sum(g.size_mb for g in graphs)
+    _progress.info(f"Total size: {total_size:.1f} MB")
+    print()
+    for i, g in enumerate(graphs, 1):
+        nodes_str = f"{g.nodes:,}" if g.nodes else "?"
+        edges_str = f"{g.edges:,}" if g.edges else "?"
+        print(f"    {i:2d}. {g.name:<25} {g.size_mb:8.1f} MB  │ V={nodes_str:<12} E={edges_str}")
+    
+    _progress.phase_end(f"Found {len(graphs)} graphs totaling {total_size:.1f} MB")
     
     # Select algorithms
     if args.key_only:
@@ -5374,8 +6363,17 @@ def run_experiment(args):
     else:
         algorithms = BENCHMARK_ALGORITHMS
     
-    log(f"\nAlgorithms to test: {len(algorithms)}")
-    log(f"Benchmarks: {args.benchmarks}")
+    _progress.phase_start("ALGORITHM SELECTION", "Determining which algorithms to test")
+    _progress.info(f"Algorithm set: {'KEY (fast subset)' if args.key_only else 'FULL benchmark set'}")
+    _progress.info(f"Total algorithms: {len(algorithms)}")
+    algo_names = [ALGORITHMS.get(a, f"ALG_{a}") for a in algorithms[:10]]
+    _progress.info(f"Algorithms: {', '.join(algo_names)}{'...' if len(algorithms) > 10 else ''}")
+    _progress.info(f"Benchmarks: {', '.join(args.benchmarks)}")
+    
+    # Calculate total operations
+    total_ops = len(graphs) * len(algorithms) * len(args.benchmarks) * args.trials
+    _progress.info(f"Estimated operations: {total_ops:,} (graphs × algorithms × benchmarks × trials)")
+    _progress.phase_end()
     
     # Initialize result storage
     all_reorder_results = []
@@ -5385,26 +6383,57 @@ def run_experiment(args):
     
     # Pre-generate label maps if requested (also records reorder times)
     if getattr(args, "generate_maps", False):
-        label_maps, reorder_timing_results = generate_label_maps(
-            graphs=graphs,
-            algorithms=algorithms,
-            bin_dir=args.bin_dir,
-            output_dir=args.results_dir,
-            timeout=args.timeout_reorder,
-            skip_slow=args.skip_slow
-        )
+        _progress.phase_start("LABEL MAP GENERATION", "Pre-generating reordering mappings (.lo files)")
+        
+        # Check if variant expansion is requested
+        if getattr(args, "expand_variants", False):
+            _progress.info("Leiden variant expansion: ENABLED")
+            _progress.info(f"  Resolution: {getattr(args, 'leiden_resolution', LEIDEN_DEFAULT_RESOLUTION)}")
+            _progress.info(f"  Passes: {getattr(args, 'leiden_passes', LEIDEN_DEFAULT_PASSES)}")
+            
+            # Use variant-aware mapping generation
+            label_maps, reorder_timing_results = generate_reorderings_with_variants(
+                graphs=graphs,
+                algorithms=algorithms,
+                bin_dir=args.bin_dir,
+                output_dir=args.results_dir,
+                expand_leiden_variants=True,
+                leiden_resolution=getattr(args, "leiden_resolution", LEIDEN_DEFAULT_RESOLUTION),
+                leiden_passes=getattr(args, "leiden_passes", LEIDEN_DEFAULT_PASSES),
+                leiden_csr_variants=getattr(args, "leiden_csr_variants", None),
+                leiden_dendrogram_variants=getattr(args, "leiden_dendrogram_variants", None),
+                timeout=args.timeout_reorder,
+                skip_slow=args.skip_slow,
+                force_reorder=getattr(args, "force_reorder", False),
+                progress=_progress
+            )
+        else:
+            # Use standard mapping generation (no variant expansion)
+            label_maps, reorder_timing_results = generate_label_maps(
+                graphs=graphs,
+                algorithms=algorithms,
+                bin_dir=args.bin_dir,
+                output_dir=args.results_dir,
+                timeout=args.timeout_reorder,
+                skip_slow=args.skip_slow,
+                progress=_progress
+            )
         all_reorder_results.extend(reorder_timing_results)
+        _progress.phase_end(f"Generated {len(label_maps)} graph mappings")
     
     # Load existing label maps if requested
     if getattr(args, "use_maps", False):
+        _progress.phase_start("LOADING EXISTING MAPS", "Loading pre-generated label mappings")
         label_maps = load_label_maps_index(args.results_dir)
         if label_maps:
-            log(f"Loaded label maps for {len(label_maps)} graphs")
+            _progress.success(f"Loaded label maps for {len(label_maps)} graphs")
         else:
-            log("No existing label maps found", "WARN")
+            _progress.warning("No existing label maps found")
+        _progress.phase_end()
     
     # Phase 1: Reordering
     if args.phase in ["all", "reorder"]:
+        _progress.phase_start("REORDERING", "Generating vertex reorderings for all graphs")
         reorder_results = generate_reorderings(
             graphs=graphs,
             algorithms=algorithms,
@@ -5413,7 +6442,8 @@ def run_experiment(args):
             timeout=args.timeout_reorder,
             skip_slow=args.skip_slow,
             generate_maps=True,  # Always generate .lo mapping files
-            force_reorder=getattr(args, "force_reorder", False)
+            force_reorder=getattr(args, "force_reorder", False),
+            progress=_progress
         )
         all_reorder_results.extend(reorder_results)
         
@@ -5421,32 +6451,82 @@ def run_experiment(args):
         reorder_file = os.path.join(args.results_dir, f"reorder_{timestamp}.json")
         with open(reorder_file, 'w') as f:
             json.dump([asdict(r) for r in reorder_results], f, indent=2)
-        log(f"Reorder results saved to: {reorder_file}")
+        _progress.success(f"Reorder results saved to: {reorder_file}")
+        
+        # Build label_maps from successful reorder results if not already populated
+        if not label_maps:
+            label_maps = {}
+            for r in reorder_results:
+                if r.success and r.mapping_file:
+                    if r.graph not in label_maps:
+                        label_maps[r.graph] = {}
+                    label_maps[r.graph][r.algorithm_name] = r.mapping_file
+            if label_maps:
+                _progress.info(f"Built label_maps for {len(label_maps)} graphs from reorder results")
+        
+        _progress.phase_end(f"Generated {len(reorder_results)} reorderings")
     
     # Phase 2: Benchmarks
     if args.phase in ["all", "benchmark"]:
-        benchmark_results = run_benchmarks(
-            graphs=graphs,
-            algorithms=algorithms,
-            benchmarks=args.benchmarks,
-            bin_dir=args.bin_dir,
-            num_trials=args.trials,
-            timeout=args.timeout_benchmark,
-            skip_slow=args.skip_slow,
-            label_maps=label_maps,
-            weights_dir=args.weights_dir,
-            update_weights=not getattr(args, 'no_incremental', False)
-        )
+        _progress.phase_start("BENCHMARKING", "Running performance benchmarks")
+        
+        # Check if we have variant-expanded label maps
+        has_variant_maps = (label_maps and 
+                           any('_' in algo_name for g in label_maps.values() for algo_name in g.keys()))
+        
+        if has_variant_maps and getattr(args, "expand_variants", False):
+            # Use variant-aware benchmarking with pre-generated variant mappings
+            _progress.info("Mode: Variant-aware benchmarking (LeidenCSR_fast, LeidenCSR_hubsort, etc.)")
+            benchmark_results = run_benchmarks_with_variants(
+                graphs=graphs,
+                label_maps=label_maps,
+                benchmarks=args.benchmarks,
+                bin_dir=args.bin_dir,
+                num_trials=args.trials,
+                timeout=args.timeout_benchmark,
+                weights_dir=args.weights_dir,
+                update_weights=not getattr(args, 'no_incremental', False),
+                progress=_progress
+            )
+        else:
+            # Standard benchmarking
+            _progress.info("Mode: Standard benchmarking")
+            benchmark_results = run_benchmarks(
+                graphs=graphs,
+                algorithms=algorithms,
+                benchmarks=args.benchmarks,
+                bin_dir=args.bin_dir,
+                num_trials=args.trials,
+                timeout=args.timeout_benchmark,
+                skip_slow=args.skip_slow,
+                label_maps=label_maps,
+                weights_dir=args.weights_dir,
+                update_weights=not getattr(args, 'no_incremental', False),
+                progress=_progress
+            )
         all_benchmark_results.extend(benchmark_results)
         
         # Save intermediate results
         bench_file = os.path.join(args.results_dir, f"benchmark_{timestamp}.json")
         with open(bench_file, 'w') as f:
             json.dump([asdict(r) for r in benchmark_results], f, indent=2)
-        log(f"Benchmark results saved to: {bench_file}")
+        _progress.success(f"Benchmark results saved to: {bench_file}")
+        
+        # Show summary statistics
+        if benchmark_results:
+            successful = [r for r in benchmark_results if r.avg_time > 0]
+            _progress.stats_summary("Benchmark Statistics", {
+                "Total runs": len(benchmark_results),
+                "Successful": len(successful),
+                "Failed/Timeout": len(benchmark_results) - len(successful),
+                "Avg time": f"{sum(r.avg_time for r in successful) / len(successful):.4f}s" if successful else "N/A"
+            })
+        
+        _progress.phase_end(f"Completed {len(benchmark_results)} benchmark runs")
     
     # Phase 3: Cache Simulations
     if args.phase in ["all", "cache"] and not args.skip_cache:
+        _progress.phase_start("CACHE SIMULATION", "Running cache miss simulations")
         cache_results = run_cache_simulations(
             graphs=graphs,
             algorithms=algorithms,
@@ -5759,7 +6839,10 @@ def run_experiment(args):
                 all_same = len(set(bw.values())) == 1
                 log(f"  benchmark_weights: {'○ defaults' if all_same else '✓ tuned'}")
     
-    log_section("Experiment Complete")
+    # Show final summary with statistics
+    _progress.phase_end()
+    _progress.final_summary()
+    
     log(f"Results directory: {args.results_dir}")
     log(f"Weights directory: {args.weights_dir}")
     
@@ -5910,6 +6993,20 @@ Examples:
     parser.add_argument("--clean-reorder-cache", action="store_true",
                         help="Remove all .lo and .time files to force fresh reordering")
     
+    # Leiden variant expansion options
+    parser.add_argument("--expand-variants", action="store_true",
+                        help="Expand Leiden algorithms (16,17) into separate variants (fast, hubsort, etc.)")
+    parser.add_argument("--leiden-resolution", type=float, default=1.0,
+                        help="Resolution parameter for Leiden algorithms (default: 1.0)")
+    parser.add_argument("--leiden-passes", type=int, default=3,
+                        help="Number of passes for LeidenCSR (default: 3)")
+    parser.add_argument("--leiden-csr-variants", nargs="+", 
+                        default=None, choices=["dfs", "bfs", "hubsort", "fast", "modularity"],
+                        help="LeidenCSR variants to include (default: all)")
+    parser.add_argument("--leiden-dendrogram-variants", nargs="+",
+                        default=None, choices=["dfs", "dfshub", "dfssize", "bfs", "hybrid"],
+                        help="LeidenDendrogram variants to include (default: all)")
+    
     # Brute-force validation
     parser.add_argument("--brute-force", action="store_true",
                         help="Run brute-force validation: test all 20 algorithms vs adaptive choice")
@@ -6017,6 +7114,21 @@ Examples:
                         rf = summary['representative_features']
                         log(f"  Features: modularity={rf.get('modularity', 0):.3f}, "
                             f"avg_degree={rf.get('avg_degree', 0):.1f}")
+                    
+                    # Show best Leiden variants for each benchmark
+                    log(f"  Leiden variant rankings:")
+                    for bench in ['pr', 'bfs', 'cc']:
+                        # LeidenCSR variants
+                        csr_rankings = get_leiden_variant_rankings(type_name, 17, bench, args.weights_dir)
+                        if csr_rankings and csr_rankings[0][1] > 0:
+                            best_csr = csr_rankings[0]
+                            log(f"    {bench}/LeidenCSR: {best_csr[0].split('_')[-1]} (score: {best_csr[1]:.3f})")
+                        
+                        # LeidenDendrogram variants
+                        dendro_rankings = get_leiden_variant_rankings(type_name, 16, bench, args.weights_dir)
+                        if dendro_rankings and dendro_rankings[0][1] > 0:
+                            best_dendro = dendro_rankings[0]
+                            log(f"    {bench}/LeidenDendro: {best_dendro[0].split('_')[-1]} (score: {best_dendro[1]:.3f})")
         return  # Exit after showing types
     
     # ALWAYS ensure prerequisites at start (unless skip_build is set)
