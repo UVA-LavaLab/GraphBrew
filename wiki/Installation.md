@@ -256,20 +256,21 @@ GraphBrew/
 │   ├── graphbrew_experiment.py  # ⭐ Main orchestration (~3050 lines)
 │   ├── requirements.txt
 │   ├── lib/           # 📦 Core modules (~11,000 lines)
-│   │   ├── types.py      # Data classes
-│   │   ├── phases.py     # Phase orchestration
-│   │   ├── utils.py      # ALGORITHMS, constants
-│   │   ├── features.py   # Graph features
-│   │   ├── download.py   # Graph downloading
-│   │   ├── build.py      # Binary compilation
-│   │   ├── reorder.py    # Vertex reordering
-│   │   ├── benchmark.py  # Benchmark execution
-│   │   ├── cache.py      # Cache simulation
-│   │   ├── weights.py    # Weight management
-│   │   ├── training.py   # ML training
-│   │   ├── analysis.py   # Adaptive analysis
-│   │   ├── progress.py   # Progress tracking
-│   │   └── results.py    # Result I/O
+│   │   ├── types.py         # Data classes
+│   │   ├── phases.py        # Phase orchestration
+│   │   ├── utils.py         # ALGORITHMS, constants
+│   │   ├── features.py      # Graph features
+│   │   ├── dependencies.py  # System dependency management
+│   │   ├── download.py      # Graph downloading
+│   │   ├── build.py         # Binary compilation
+│   │   ├── reorder.py       # Vertex reordering
+│   │   ├── benchmark.py     # Benchmark execution
+│   │   ├── cache.py         # Cache simulation
+│   │   ├── weights.py       # Weight management
+│   │   ├── training.py      # ML training
+│   │   ├── analysis.py      # Adaptive analysis
+│   │   ├── progress.py      # Progress tracking
+│   │   └── results.py       # Result I/O
 │   └── weights/       # Auto-clustered type weights
 │       ├── active/            # C++ reads from here
 │       │   ├── type_registry.json  # Graph → type mappings + centroids

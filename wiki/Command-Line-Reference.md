@@ -395,6 +395,14 @@ done
 
 The unified experiment script provides comprehensive options for training and benchmarking.
 
+### Dependency Management
+
+| Option | Description |
+|--------|-------------|
+| `--check-deps` | Check system dependencies (g++, boost, numa, etc.) |
+| `--install-deps` | Install missing system dependencies (requires sudo) |
+| `--install-boost` | Download, compile, and install Boost 1.58.0 to /opt/boost_1_58_0 |
+
 ### Pipeline Options
 
 | Option | Description |
