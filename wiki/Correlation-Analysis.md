@@ -371,18 +371,15 @@ python3 scripts/graphbrew_experiment.py \
     --auto-memory
 ```
 
-This runs all phases sequentially:
+This runs phases sequentially:
 
 | Phase | Description | Weight Fields Updated |
 |-------|-------------|----------------------|
-| **Phase 0** | Graph Property Analysis | Detects graph types (social, road, web, etc.) |
-| **Phase 1** | Reorderings | `w_reorder_time` |
-| **Phase 2** | Benchmarks | `bias`, `w_log_edges`, `w_avg_degree` |
+| **Phase 1** | Reordering | `w_reorder_time` via reorder timings |
+| **Phase 2** | Benchmarks | `bias`, win rates from benchmark results |
 | **Phase 3** | Cache simulation | `cache_l1_impact`, `cache_l2_impact`, `cache_l3_impact` |
-| **Phase 4** | Base weights | `w_density`, `w_degree_variance`, `w_hub_concentration` |
-| **Phase 5** | Topology features | `w_clustering_coeff`, `w_avg_path_length`, `w_diameter` |
-| **Phase 6** | Per-benchmark weights | `benchmark_weights.{pr,bfs,cc,sssp,bc}` |
-| **Phase 7** | Auto-cluster types | Generates type_N.json weight files |
+| **Phase 4** | Weight generation | Core weights from correlations |
+| **Phase 5** | Fill weights | Update zero fields from results |
 
 **Output files:**
 ```
@@ -402,7 +399,7 @@ results/
 ### Automatic Clustering
 
 After each weight update, the system automatically:
-1. **Clusters graphs** by feature similarity (cosine similarity ≥ 0.85)
+1. **Clusters graphs** by feature similarity
 2. **Generates per-cluster weights** in `scripts/weights/active/type_N.json`
 3. **Updates type registry** with centroids for runtime matching
 
@@ -495,10 +492,9 @@ python3 scripts/graphbrew_experiment.py --full --download-size ALL --auto-memory
 ### Key Features
 
 - **Sequential Execution**: One benchmark at a time for full CPU utilization
-- **RANDOM Baseline**: Uses RANDOM (1) for all speedup calculations
-- **All Algorithms**: Tests IDs 0-12, 16-20 (skips 13=GraphBrewOrder, 14=MAP, 15=AdaptiveOrder)
+- **Speedup Baseline**: Uses ORIGINAL for adaptive analysis, RANDOM for general speedup calculations
+- **All Algorithms**: Tests IDs 0-17 (typically skips 13=MAP which needs external file)
 - **Incremental Save**: Progress saved to allow resumption on interruption
-- **Skip TC**: Triangle counting excluded (reordering doesn't help)
 
 ### Results Directory
 
@@ -524,27 +520,23 @@ python3 scripts/graphbrew_experiment.py --full --download-size MEDIUM
 
 ### Output Format
 
-The `benchmark_*.json` contains structured results:
+The `benchmark_*.json` contains an array of results:
 
 ```json
-{
-  "metadata": {
-    "timestamp": "2025-01-19T02:00:00",
-    "graphs_completed": 20,
-    "algorithms_tested": 18
-  },
-  "results": [
-    {
-      "graph": "facebook",
-      "algorithm_id": 7,
-      "algorithm_name": "HUBCLUSTERDBG",
-      "benchmark": "pr",
-      "avg_time": 0.037,
-      "speedup": 1.41,
-      "success": true
-    }
-  ]
-}
+[
+  {
+    "graph": "facebook",
+    "algorithm": "HUBCLUSTERDBG",
+    "algorithm_id": 7,
+    "benchmark": "pr",
+    "time_seconds": 0.037,
+    "reorder_time": 0.012,
+    "trials": 2,
+    "success": true,
+    "error": "",
+    "extra": {}
+  }
+]
 ```
 
 ---

@@ -1,407 +1,310 @@
 # Configuration Files
 
-Guide to GraphBrew configuration files for automated experiments.
+Guide to GraphBrew configuration and data files.
 
 ---
 
 ## Overview
 
-Configuration files control automated experiments via Python scripts:
+GraphBrew uses several configuration and data files:
 
 ```
-scripts/config/
-├── brew/               # Standard GraphBrew configs
-│   ├── run.json        # Benchmark run settings
-│   ├── convert.json    # Format conversion
-│   └── label.json      # Graph labeling
+scripts/
+├── graphbrew_experiment.py    # Main script (uses CLI args)
+├── requirements.txt           # Python dependencies
 │
-├── gap/                # GAP suite compatible
-│   └── ...
+├── weights/                   # Perceptron weight files
+│   ├── active/                # C++ runtime reads from here
+│   │   ├── type_registry.json # Graph clusters + centroids
+│   │   ├── type_0.json        # Cluster 0 algorithm weights
+│   │   └── type_N.json        # Additional cluster weights
+│   ├── merged/                # Accumulated weights from runs
+│   └── runs/                  # Historical run snapshots
 │
-└── test/               # Quick testing
-    └── ...
+└── lib/                       # Python library modules
+    ├── utils.py               # ALGORITHMS dict, constants
+    ├── benchmark.py           # Benchmark execution
+    ├── cache.py               # Cache simulation
+    ├── weights.py             # Weight management
+    ├── features.py            # Graph feature extraction
+    └── ...                    # Additional modules
+
+results/
+├── perceptron_weights.json    # Combined weights
+├── graph_properties_cache.json # Cached graph features
+├── benchmark_*.json           # Benchmark result files
+├── cache_*.json               # Cache simulation results
+└── reorder_*.json             # Reorder timing results
 ```
 
 ---
 
-## run.json - Benchmark Configuration
+## Command-Line Configuration
 
-The main configuration for running experiments.
+GraphBrew uses command-line arguments instead of JSON config files:
 
-### Full Structure
+### Basic Usage
 
-```json
-{
-  "description": "Experiment description",
-  
-  "paths": {
-    "graphs_dir": "../../graphs",
-    "output_dir": "../../results",
-    "bin_dir": "../../bench/bin"
-  },
-  
-  "benchmarks": ["pr", "bfs", "cc", "sssp", "bc", "tc"],
-  
-  "algorithms": [0, 7, 12, 15, 20],
-  
-  "trials": 5,
-  
-  "options": {
-    "symmetrize": true,
-    "verify": false,
-    "timeout": 3600,
-    "root_vertex": -1
-  },
-  
-  "filters": {
-    "min_nodes": 100,
-    "max_nodes": 100000000,
-    "extensions": [".el", ".mtx", ".gr"]
-  },
-  
-  "output": {
-    "format": "csv",
-    "include_raw": true,
-    "include_summary": true
-  }
-}
+```bash
+# Full pipeline with defaults
+python3 scripts/graphbrew_experiment.py --full --download-size SMALL
+
+# Customize experiments via command line
+python3 scripts/graphbrew_experiment.py \
+    --phase benchmark \
+    --graphs small \
+    --benchmarks pr bfs cc \
+    --trials 5
 ```
 
-### Field Descriptions
-
-#### paths
-
-| Field | Description | Default |
-|-------|-------------|---------|
-| `graphs_dir` | Directory containing graph files | Required |
-| `output_dir` | Where to save results | `./results` |
-| `bin_dir` | Location of benchmark binaries | `../../bench/bin` |
-
-#### benchmarks
-
-List of benchmarks to run:
-
-```json
-"benchmarks": ["pr", "bfs", "cc", "sssp", "bc", "tc"]
-```
-
-#### algorithms
-
-List of reordering algorithm IDs:
-
-```json
-"algorithms": [0, 7, 12, 15, 20]
-```
-
-See [[Command-Line-Reference]] for all IDs.
-
-#### options
+### Common Options
 
 | Option | Description | Default |
 |--------|-------------|---------|
-| `symmetrize` | Make graphs undirected | `true` |
-| `verify` | Verify results | `false` |
-| `timeout` | Max seconds per run | `3600` |
-| `root_vertex` | BFS/SSSP root (-1 = random) | `-1` |
+| `--full` | Run complete pipeline | - |
+| `--download-size` | SMALL, MEDIUM, LARGE, ALL | - |
+| `--phase` | all, reorder, benchmark, cache, weights | all |
+| `--graphs` | small, medium, large, all, custom | all |
+| `--benchmarks` | pr, bfs, cc, sssp, bc, tc | all 6 |
+| `--trials` | Number of benchmark trials | 2 |
+| `--key-only` | Only test key algorithms | false |
+| `--skip-cache` | Skip cache simulation | false |
 
-#### filters
-
-| Filter | Description | Default |
-|--------|-------------|---------|
-| `min_nodes` | Skip small graphs | `0` |
-| `max_nodes` | Skip huge graphs | `∞` |
-| `extensions` | File types to include | `[".el"]` |
-
----
-
-## Example Configurations
-
-### Minimal Config
-
-```json
-{
-  "graphs_dir": "./graphs",
-  "benchmarks": ["pr"],
-  "algorithms": [0, 7],
-  "trials": 3
-}
-```
-
-### Quick Test Config
-
-```json
-{
-  "description": "Quick functionality test",
-  "paths": {
-    "graphs_dir": "../../test/graphs"
-  },
-  "benchmarks": ["pr", "bfs"],
-  "algorithms": [0, 7, 12],
-  "trials": 1,
-  "options": {
-    "symmetrize": true,
-    "verify": true,
-    "timeout": 60
-  }
-}
-```
-
-### Full Benchmark Config
-
-```json
-{
-  "description": "Complete benchmark suite",
-  "paths": {
-    "graphs_dir": "../../graphs",
-    "output_dir": "../../results/full_benchmark"
-  },
-  "benchmarks": ["pr", "bfs", "cc", "sssp", "bc", "tc"],
-  "algorithms": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 15, 16, 17, 18, 19, 20],
-  "trials": 10,
-  "options": {
-    "symmetrize": true,
-    "verify": false,
-    "timeout": 7200
-  },
-  "filters": {
-    "min_nodes": 1000,
-    "extensions": [".el", ".mtx"]
-  }
-}
-```
-
-### Leiden-Only Config
-
-```json
-{
-  "description": "Test Leiden-based algorithms",
-  "benchmarks": ["pr", "tc"],
-  "algorithms": [0, 12, 16, 17, 18, 19, 20],
-  "trials": 5
-}
-```
-
----
-
-## convert.json - Format Conversion
-
-Settings for converting between graph formats.
-
-```json
-{
-  "description": "Graph format conversion settings",
-  
-  "input": {
-    "formats": ["csv", "tsv", "mtx", "gr"],
-    "delimiter": "auto"
-  },
-  
-  "output": {
-    "format": "el",
-    "dir": "./converted"
-  },
-  
-  "transformations": {
-    "remove_self_loops": true,
-    "remove_multi_edges": true,
-    "to_zero_indexed": true,
-    "symmetrize": false
-  }
-}
-```
-
-### Transformation Options
-
-| Option | Description | Default |
-|--------|-------------|---------|
-| `remove_self_loops` | Remove edges v→v | `true` |
-| `remove_multi_edges` | Keep only first edge | `true` |
-| `to_zero_indexed` | Convert 1-indexed to 0-indexed | `true` |
-| `symmetrize` | Add reverse edges | `false` |
-
----
-
-## label.json - Graph Labeling
-
-Settings for generating graph metadata.
-
-```json
-{
-  "description": "Graph labeling configuration",
-  
-  "metrics": [
-    "num_nodes",
-    "num_edges",
-    "density",
-    "avg_degree",
-    "max_degree",
-    "modularity",
-    "diameter",
-    "clustering_coefficient"
-  ],
-  
-  "output": {
-    "format": "json",
-    "file": "graph_metadata.json"
-  },
-  
-  "options": {
-    "compute_modularity": true,
-    "sample_diameter": true,
-    "sample_size": 100
-  }
-}
-```
-
----
-
-## Using Configurations
-
-### With run_experiment.py
+### Memory and Disk Limits
 
 ```bash
-cd scripts/brew
-python3 run_experiment.py --config ../config/brew/run.json
+# Auto-detect available resources
+python3 scripts/graphbrew_experiment.py --full --auto-memory --auto-disk
+
+# Set explicit limits
+python3 scripts/graphbrew_experiment.py --full --max-memory 32 --max-disk 100
 ```
 
-### Overriding Config Options
+---
 
-```bash
-# Override trials
-python3 run_experiment.py \
-    --config ../config/brew/run.json \
-    --trials 3
+## Perceptron Weight Files
 
-# Override output
-python3 run_experiment.py \
-    --config ../config/brew/run.json \
-    --output ./my_results
+### Type Registry (type_registry.json)
+
+Maps graph types to clusters with centroid feature vectors:
+
+```json
+{
+  "type_0": {
+    "centroid": [0.811, 0.263, 0.420, 0.054, 0.512, 6.2e-05, 4.8e-05],
+    "graph_count": 2,
+    "algorithms": [],
+    "graphs": []
+  },
+  "type_1": {
+    "centroid": [0.479, 0.357, 0.426, 0.025, 0.002, 6.2e-05, 4.8e-05],
+    "graph_count": 4
+  }
+}
 ```
 
-### Multiple Configs
+Centroid array indices: [modularity, degree_variance, hub_concentration, avg_degree, clustering_coeff, avg_path_length, diameter]
+```
 
-```bash
-# Run test first
-python3 run_experiment.py --config ../config/test/run.json
+### Type Weight Files (type_N.json)
 
-# Then full benchmark
-python3 run_experiment.py --config ../config/brew/run.json
+Per-algorithm weights for each cluster:
+
+```json
+{
+  "RABBITORDER": {
+    "bias": 2.5,
+    "w_modularity": 0.15,
+    "w_log_nodes": 0.02,
+    "w_density": -0.05,
+    "w_hub_concentration": 0.12,
+    "benchmark_weights": {
+      "pr": 1.2,
+      "bfs": 0.9,
+      "cc": 1.0
+    }
+  },
+  "LeidenCSR": {
+    "bias": 3.2,
+    "w_modularity": 0.20,
+    "w_log_nodes": 0.01
+  }
+}
+```
+
+### Weight Field Descriptions
+
+| Field | Description | Impact |
+|-------|-------------|--------|
+| `bias` | Base preference (higher = more likely selected) | Algorithm's inherent quality |
+| `w_modularity` | Weight for graph modularity | Positive → good for modular graphs |
+| `w_log_nodes` | Weight for log(node count) | Positive → scales better |
+| `w_log_edges` | Weight for log(edge count) | Positive → handles large edge sets |
+| `w_density` | Weight for edge density | Positive → good for dense graphs |
+| `w_avg_degree` | Weight for average degree | Connectivity effect |
+| `w_hub_concentration` | Weight for hub concentration | Positive → good for hub-heavy graphs |
+| `w_degree_variance` | Weight for degree variance | Positive → handles skewed degrees |
+| `w_clustering_coeff` | Weight for clustering coefficient | Local clustering effect |
+| `w_avg_path_length` | Weight for average path length | Graph diameter sensitivity |
+| `w_diameter` | Weight for graph diameter | Diameter effect |
+| `w_community_count` | Weight for community count | Sub-community complexity |
+| `cache_l1_impact` | Bonus for high L1 cache hit rate | Cache locality |
+| `cache_l2_impact` | Bonus for high L2 cache hit rate | Cache locality |
+| `cache_l3_impact` | Bonus for high L3 cache hit rate | Cache locality |
+| `cache_dram_penalty` | Penalty for DRAM accesses | Memory bandwidth |
+| `w_reorder_time` | Penalty for slow reordering | Negative → prefers fast algorithms |
+
+---
+
+## Results Files
+
+### Graph Properties Cache (graph_properties_cache.json)
+
+Cached graph features to avoid recomputation:
+
+```json
+{
+  "email-Enron": {
+    "modularity": 0.586,
+    "degree_variance": 8.234,
+    "hub_concentration": 0.412,
+    "clustering_coefficient": 0.497,
+    "avg_degree": 10.02,
+    "avg_path_length": 4.25,
+    "diameter": 10.0,
+    "community_count": 45.0,
+    "nodes": 36692,
+    "edges": 183831,
+    "graph_type": "social"
+  }
+}
+```
+
+### Benchmark Results (benchmark_*.json)
+
+JSON array of benchmark results:
+
+```json
+[
+  {
+    "graph": "email-Enron",
+    "algorithm": "HUBCLUSTERDBG",
+    "algorithm_id": 7,
+    "benchmark": "pr",
+    "time_seconds": 0.0189,
+    "reorder_time": 0.032,
+    "trials": 2,
+    "success": true,
+    "error": "",
+    "extra": {}
+  }
+]
 ```
 
 ---
 
 ## Environment Variables
 
-Configs can reference environment variables:
+### Perceptron Weights Override
 
-```json
-{
-  "paths": {
-    "graphs_dir": "${GRAPHS_DIR}",
-    "output_dir": "${OUTPUT_DIR:-./results}"
-  }
-}
+```bash
+# Use custom weights file (overrides type matching)
+export PERCEPTRON_WEIGHTS_FILE=/path/to/custom_weights.json
+./bench/bin/pr -f graph.el -s -o 14 -n 3
 ```
 
-Usage:
+### OpenMP Threads
+
 ```bash
-export GRAPHS_DIR=/data/large_graphs
-python3 run_experiment.py --config run.json
+# Control parallelism
+export OMP_NUM_THREADS=8
+./bench/bin/pr -f graph.el -s -n 5
 ```
 
 ---
 
-## Creating Custom Configs
+## Example Workflows
 
-### Step 1: Copy Template
-
-```bash
-cp config/brew/run.json config/my_experiment.json
-```
-
-### Step 2: Edit Settings
+### Quick Test
 
 ```bash
-# Edit with your favorite editor
-vim config/my_experiment.json
+# Test on small graphs with few algorithms
+python3 scripts/graphbrew_experiment.py \
+    --phase benchmark \
+    --graphs small \
+    --key-only \
+    --trials 1
 ```
 
-### Step 3: Validate JSON
+### Full Benchmark
 
 ```bash
-python3 -c "import json; json.load(open('config/my_experiment.json'))"
+# Complete benchmark with all algorithms
+python3 scripts/graphbrew_experiment.py \
+    --full \
+    --download-size MEDIUM \
+    --trials 5 \
+    --auto-memory
 ```
 
-### Step 4: Run
+### Weight Training Only
 
 ```bash
-python3 run_experiment.py --config config/my_experiment.json
+# Train perceptron weights from existing results
+python3 scripts/graphbrew_experiment.py \
+    --fill-weights \
+    --skip-cache \
+    --graphs small
 ```
 
----
+### Adaptive Validation
 
-## Output Files
-
-### Results CSV
-
-```csv
-graph,benchmark,algorithm,trial,time,metric,reorder_time
-facebook.el,pr,0,1,0.0234,,0
-facebook.el,pr,0,2,0.0231,,0
-facebook.el,pr,7,1,0.0189,,0.045
-facebook.el,bfs,0,1,0.0012,76.9,0
-```
-
-### Summary JSON
-
-```json
-{
-  "experiment": "Full Benchmark",
-  "date": "2024-01-15",
-  "config": "run.json",
-  "results": {
-    "facebook.el": {
-      "pr": {
-        "0": {"mean": 0.0232, "std": 0.0002},
-        "7": {"mean": 0.0189, "std": 0.0003}
-      }
-    }
-  }
-}
+```bash
+# Compare AdaptiveOrder vs all algorithms
+python3 scripts/graphbrew_experiment.py \
+    --brute-force \
+    --graphs small
 ```
 
 ---
 
 ## Troubleshooting
 
-### "Config file not found"
+### "Weight file not found"
 
 ```bash
-# Check path
-ls -la config/brew/run.json
+# Check weight files exist
+ls -la scripts/weights/active/
 
-# Use absolute path
-python3 run_experiment.py --config /full/path/to/run.json
+# Regenerate weights
+python3 scripts/graphbrew_experiment.py --fill-weights --graphs small
+```
+
+### "No graphs found"
+
+```bash
+# Download graphs first
+python3 scripts/graphbrew_experiment.py --download-only --download-size SMALL
+
+# Check graphs directory
+ls -la graphs/
 ```
 
 ### "Invalid JSON"
 
 ```bash
-# Validate and find error
-python3 -m json.tool config/my_config.json
+# Validate JSON files
+python3 -m json.tool scripts/weights/active/type_0.json
 ```
-
-### "No graphs found"
-
-Check `graphs_dir` path and `filters.extensions`.
 
 ---
 
 ## Next Steps
 
-- [[Running-Benchmarks]] - Command-line usage
-- [[Python-Scripts]] - Script documentation
-- [[Command-Line-Reference]] - All options
+- [[Running-Benchmarks]] - Command-line benchmark usage
+- [[Python-Scripts]] - Full script documentation
+- [[Perceptron-Weights]] - Weight system details
+- [[AdaptiveOrder-ML]] - ML algorithm selection
 
 ---
 

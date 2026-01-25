@@ -8,11 +8,11 @@ Unlike traditional reordering that treats the entire graph uniformly, GraphBrewO
 
 1. **Detects communities** using Leiden
 2. **Analyzes each community's structure**
-3. **Applies hub-based reordering** within communities
+3. **Applies configurable reordering** within communities (default: RabbitOrder)
 4. **Preserves community locality** in the final ordering
 
 ```
-Input Graph → Leiden → Communities → Per-Community Hub Order → Output Graph
+Input Graph → Leiden → Communities → Per-Community Reorder → Output Graph
 ```
 
 ## Architecture Flow Diagram
@@ -39,9 +39,9 @@ Input Graph → Leiden → Communities → Per-Community Hub Order → Output Gr
     |         |         |
     v         v         v
 +-------+ +-------+ +-------+
-| HUB   | | HUB   | | HUB   |
-| SORT  | | SORT  | | SORT  |
-| (int) | | (int) | | (int) |
+|REORDER| |REORDER| |REORDER|
+| (per- | | (per- | | (per- |
+| comm) | | comm) | | comm) |
 +---+---+ +---+---+ +---+---+
     |         |         |
     +----+----+----+----+
@@ -85,8 +85,8 @@ GraphBrewOrder keeps communities together while optimizing within each:
 GraphBrewOrder:
 ┌─────────────────────────────────────────────────────────┐
 │ [Community 0     ] [Community 1     ] [Community 2     ]│
-│ [hubs][non-hubs ] [hubs][non-hubs ] [hubs][non-hubs ] │
-│ Both community AND hub locality!                        │
+│ [  reordered    ] [  reordered    ] [  reordered    ] │
+│ Both community AND cache locality!                      │
 └─────────────────────────────────────────────────────────┘
 ```
 
@@ -112,31 +112,37 @@ auto communities = leidenCommunityDetection(graph);
 For each community, compute:
 
 ```cpp
-struct CommunityStats {
-    int32_t num_nodes;
-    int64_t num_edges;
-    double density;
+struct CommunityFeatures {
+    size_t num_nodes;
+    size_t num_edges;
+    double internal_density;     // edges / possible_edges
     double avg_degree;
-    double degree_variance;
-    double hub_concentration;  // edges to top 10%
+    double degree_variance;      // normalized variance in degrees
+    double hub_concentration;    // fraction of edges from top 10% nodes
+    double modularity;           // community/subgraph modularity
+    double clustering_coeff;     // local clustering coefficient (sampled)
+    double avg_path_length;      // estimated average path length
+    double diameter_estimate;    // estimated graph diameter
+    double community_count;      // number of sub-communities
+    double reorder_time;         // estimated reorder time (if known)
 };
 ```
 
 ### Step 3: Per-Community Ordering
 
-Within each community, vertices are ordered by degree (hub priority):
+Within each community, vertices are reordered using a configurable algorithm (default: RabbitOrder):
 
 ```
 Community 0 (before):
   Vertices: [45, 12, 89, 3, 67, 23]
-  Degrees:  [5,  120, 8, 95, 12, 45]
-
-Community 0 (after hub sort):
-  Vertices: [12, 3, 23, 67, 89, 45]
-  Degrees:  [120, 95, 45, 12, 8, 5]
   
-  Hubs first, then non-hubs
+Community 0 (after per-community reordering):
+  Vertices: [12, 3, 23, 67, 89, 45]
+  
+  RabbitOrder optimizes cache locality within the community subgraph
 ```
+
+The algorithm used for per-community ordering can be configured via the format string (see Usage section).
 
 ### Step 4: Combine Communities
 
@@ -145,7 +151,7 @@ Communities are concatenated in order of size (largest first):
 ```
 Final ordering:
 [Community 2 (5000 nodes)] [Community 0 (3000 nodes)] [Community 1 (1500 nodes)]
-[hub-sorted internally  ] [hub-sorted internally  ] [hub-sorted internally  ]
+[reordered internally   ] [reordered internally   ] [reordered internally   ]
 ```
 
 ---
@@ -156,14 +162,31 @@ Final ordering:
 
 ```bash
 # Use GraphBrewOrder (algorithm 12)
-./bench/bin/pr -f graph.el -s -o 13 -n 5
+./bench/bin/pr -f graph.el -s -o 12 -n 5
+```
+
+### With Options
+
+```bash
+# Format: -o 12:freq:algo:resolution:maxIterations:maxPasses
+# freq: frequency threshold for small communities (default: 10)
+# algo: per-community ordering algorithm ID (default: 8 = RabbitOrder)
+# resolution: Leiden resolution parameter (default: 0.75)
+# maxIterations: maximum Leiden iterations (default: 30)
+# maxPasses: maximum Leiden passes (default: 30)
+
+# Use HubClusterDBG (7) for per-community ordering with resolution 1.0
+./bench/bin/pr -f graph.el -s -o 12:10:7:1.0
+
+# Full example with all parameters
+./bench/bin/pr -f graph.el -s -o 12:10:8:0.75:30:30
 ```
 
 ### With Community Output
 
 ```bash
 # Verbose output shows community breakdown
-./bench/bin/pr -f graph.el -s -o 13 -n 1 2>&1 | head -30
+./bench/bin/pr -f graph.el -s -o 12 -n 1 2>&1 | head -30
 ```
 
 Output:
@@ -202,18 +225,18 @@ Largest communities:
 | Aspect | LeidenOrder | GraphBrewOrder |
 |--------|-------------|----------------|
 | Community detection | ✅ Leiden | ✅ Leiden |
-| Internal ordering | Original | Hub-sorted |
-| Hub optimization | ❌ None | ✅ Yes |
-| Best for | Basic community grouping | Hub-heavy communities |
+| Internal ordering | Original | Per-community (RabbitOrder) |
+| Cache optimization | ❌ None | ✅ Yes |
+| Best for | Basic community grouping | Better cache locality |
 
 ### vs LeidenCSR (algorithm 17)
 
 | Aspect | LeidenCSR | GraphBrewOrder |
 |--------|-----------|----------------|
 | Community detection | ✅ Leiden | ✅ Leiden |
-| Internal ordering | Configurable (dfs/bfs/hubsort/fast) | Hub sort |
+| Internal ordering | Configurable (dfs/bfs/hubsort/fast) | Configurable (default: RabbitOrder) |
 | Speed | Very fast (CSR-native) | Moderate |
-| Best for | Large graphs, tunable quality | Simple hub-based |
+| Best for | Large graphs, tunable quality | Modular graphs |
 
 ---
 
@@ -232,11 +255,11 @@ Cache lines load vertices from multiple communities
 
 ### After GraphBrewOrder
 ```
-Communities grouped, hubs first within each:
+Communities grouped, optimized within each:
 
 Memory: [v12][v234][v167][v892][v45][v8923][v5601][v4501]...
         └──Community 0──────┘└──Community 1──┘└──Community 2─┘
-        └hubs┘└─non-hubs───┘ └hub┘└─non-hub─┘ └hub──┘└non-hub┘
+        └── optimized ─────┘ └── optimized ─┘ └─ optimized ─┘
 
 Sequential access within communities
 = Fewer cache misses
@@ -284,13 +307,17 @@ sort(communities.begin(), communities.end(),
      [](auto& a, auto& b) { return a.size > b.size; });
 ```
 
-### Hub Threshold
+### Per-Community Reordering
 
-Within each community, "hubs" are defined as:
+Each community subgraph is reordered using the configurable algorithm:
 
 ```cpp
-// Top 10% by degree within the community
-int hub_threshold = community_degrees[community_size * 0.9];
+// Default: RabbitOrder (algorithm 8)
+// Can be changed via format string: -o 12:freq:algo:resolution
+ReorderingAlgo algo = getReorderingAlgo(reorderingOptions[1].c_str());  // default: "8"
+
+// Apply the selected algorithm to each community subgraph
+GenerateMappingLocalEdgelist(g, edge_list, new_ids_sub, algo, ...);
 ```
 
 ### Vertex Relabeling
@@ -309,25 +336,28 @@ new_id = community_start_offset + position_within_community
 
 ## Configuring GraphBrewOrder
 
-### Minimum Community Size
+### Community Size Thresholds
 
-Small communities don't benefit from hub sorting:
+The implementation uses several size thresholds for optimization:
 
 ```cpp
-// Communities smaller than threshold keep original order
-const int MIN_COMMUNITY_FOR_ORDERING = 50;
+// Communities smaller than this use simplified processing
+const size_t MIN_COMMUNITY_SIZE = 200;
+
+// Minimum community size for local reordering
+const size_t MIN_COMMUNITY_FOR_LOCAL_REORDER = 500;
+
+// Large communities get full parallelism during reordering
+const size_t LARGE_COMMUNITY_THRESHOLD = 500000;  // 500K edges
 ```
 
-### Hub Percentile
+### Frequency Threshold
 
-Adjust what fraction of vertices are considered "hubs":
+Communities with fewer vertices than the frequency threshold are merged:
 
 ```cpp
-// Default: top 10%
-const double HUB_PERCENTILE = 0.10;
-
-// More aggressive (top 5%)
-const double HUB_PERCENTILE = 0.05;
+// Default frequency threshold (configurable via format string)
+size_t frequency_threshold = 10;
 ```
 
 ---
@@ -340,23 +370,34 @@ Apply Degree-Based Grouping after GraphBrewOrder:
 
 ```bash
 # First apply GraphBrewOrder, then DBG
-./bench/bin/pr -f graph.el -s -o 13 -n 1  # GraphBrewOrder
+./bench/bin/pr -f graph.el -s -o 12 -n 1  # GraphBrewOrder
 # Manual DBG pass would need code modification
 ```
 
 ### AdaptiveOrder Uses GraphBrewOrder
 
-AdaptiveOrder (14)) can select GraphBrewOrder for appropriate communities:
+AdaptiveOrder (14) can select GraphBrewOrder for appropriate communities. Per-type perceptron weights are stored in:
 
-```json
-// In scripts/weights/active/type_N.json
-{
-  "GraphBrewOrder": {
-    "bias": 0.7,
-    "w_modularity": 0.2,
-    "w_hub_concentration": 0.25
-  }
-}
+```bash
+scripts/weights/active/type_N.json    # Per-cluster weights
+scripts/weights/active/type_registry.json  # Graph → type mapping
+```
+
+GraphBrewOrder default weights (from builder.h):
+
+```cpp
+// GraphBrewOrder: Leiden + per-community RabbitOrder
+{GraphBrewOrder, {
+    .bias = 0.6,
+    .w_modularity = -0.25,    // better on low-mod graphs
+    .w_log_nodes = 0.1,       // scales well
+    .w_log_edges = 0.08,
+    .w_density = -0.3,
+    .w_avg_degree = 0.0,
+    .w_degree_variance = 0.2,
+    .w_hub_concentration = 0.1,
+    .w_reorder_time = -0.5    // highest reorder cost
+}}
 ```
 
 ---
@@ -365,13 +406,13 @@ AdaptiveOrder (14)) can select GraphBrewOrder for appropriate communities:
 
 ### Single Benchmark
 ```bash
-./bench/bin/pr -f graph.el -s -o 13 -n 10
+./bench/bin/pr -f graph.el -s -o 12 -n 10
 ```
 
 ### Compare with Alternatives
 ```bash
 # Test different algorithms
-for algo in 0 4 7 12 13 20; do
+for algo in 0 4 7 12 15 17; do
     echo "Algorithm $algo:"
     ./bench/bin/pr -f graph.el -s -o $algo -n 5 2>&1 | grep "Average"
 done
@@ -384,9 +425,9 @@ For social networks:
 Algorithm 0 (ORIGINAL):      Average: 0.0523 seconds
 Algorithm 4 (HUBCLUSTER):    Average: 0.0445 seconds
 Algorithm 7 (HUBCLUSTERDBG): Average: 0.0412 seconds
-Algorithm 12 (LeidenOrder):  Average: 0.0398 seconds
-Algorithm 13 (GraphBrewOrder): Average: 0.0385 seconds ← Good
-Algorithm 17 (LeidenCSR): Average: 0.0371 seconds ← Better
+Algorithm 12 (GraphBrewOrder): Average: 0.0385 seconds ← Good
+Algorithm 15 (LeidenOrder):  Average: 0.0398 seconds
+Algorithm 17 (LeidenCSR):    Average: 0.0371 seconds ← Better
 ```
 
 ---
@@ -399,7 +440,7 @@ If Leiden creates too many tiny communities:
 
 ```bash
 # Check community distribution
-./bench/bin/pr -f graph.el -s -o 13 -n 1 2>&1 | grep -A 10 "Community Size"
+./bench/bin/pr -f graph.el -s -o 12 -n 1 2>&1 | grep -A 10 "Community Size"
 ```
 
 If most communities have < 10 vertices, the graph may have weak community structure.
@@ -411,7 +452,7 @@ For graphs without clear communities, global hub ordering may be better:
 ```bash
 # Compare
 ./bench/bin/pr -f graph.el -s -o 7 -n 5   # HUBCLUSTERDBG
-./bench/bin/pr -f graph.el -s -o 13 -n 5  # GraphBrewOrder
+./bench/bin/pr -f graph.el -s -o 12 -n 5  # GraphBrewOrder
 ```
 
 If HUBCLUSTERDBG is faster, the graph has weak community structure.

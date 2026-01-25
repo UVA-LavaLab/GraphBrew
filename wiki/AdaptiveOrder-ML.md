@@ -105,7 +105,7 @@ Level 2:      [SubA2a]  [SubA2b]
 +---+---+ +---+---+ +---+---+
     |         |         |
     v         v         v
- Rabbit    HubClust  LeidenDFS
+ Rabbit    HubClust  LeidenCSR
  Order       DBG
     |         |         |
     +----+----+----+----+
@@ -228,7 +228,7 @@ def find_best_type(graph_features, type_registry):
 Different parts of a graph have different structures:
 - **Hub communities**: Dense cores with high-degree vertices → HUBCLUSTERDBG works well
 - **Sparse communities**: Mesh-like structures → RCM or ORIGINAL may be better
-- **Hierarchical communities**: Tree-like → LeidenDFS variants excel
+- **Hierarchical communities**: Tree-like → LeidenDendrogram variants excel
 
 AdaptiveOrder selects the best algorithm for each community's characteristics.
 
@@ -314,7 +314,7 @@ diameter: 16      --*---> w_di: 0.05 ----+
 ALGORITHM SELECTION:
 ====================
 RABBITORDER:    score = 2.31  <-- WINNER
-LeidenDFS:      score = 2.18
+LeidenCSR:      score = 2.18
 HubClusterDBG:  score = 1.95
 GORDER:         score = 1.82
 ORIGINAL:       score = 0.50
@@ -345,7 +345,7 @@ Each algorithm has weights for each feature. The weights file supports multiple 
 
 ```json
 {
-  "LeidenDFS": {
+  "LeidenCSR": {
     "bias": 0.58,
     "w_modularity": 0.0,
     "w_log_nodes": 0.001,
@@ -506,7 +506,7 @@ python3 scripts/graphbrew_experiment.py --fill-weights --graphs small
 
 This automatically:
 1. Downloads 87 diverse graphs from SuiteSparse (with `--auto-memory`/`--auto-disk` support)
-2. Runs all 20 algorithms on each graph
+2. Runs all 18 algorithms on each graph
 3. Collects cache simulation data (L1/L2/L3 hit rates)
 4. Records reorder times for each algorithm
 5. Auto-clusters graphs by feature similarity and generates:
@@ -980,22 +980,42 @@ GraphBrew/scripts/weights/
 
 ### Structure
 
+Each weight file contains algorithm-specific weights. The C++ code reads the core weights; additional metadata is used by the Python training system:
+
 ```json
 {
-  "ORIGINAL": {
-    "bias": 0.6,
-    "w_modularity": 0.0,
-    "w_log_nodes": -0.1,
-    "w_log_edges": -0.1,
-    "w_density": 0.1,
-    "w_avg_degree": 0.0,
-    "w_degree_variance": 0.0,
-    "w_hub_concentration": 0.0
+  "SORT": {
+    "bias": 0.5,
+    "w_modularity": 0.00018,
+    "w_log_nodes": 6.5e-06,
+    "w_log_edges": 6.5e-06,
+    "w_density": 0.0,
+    "w_avg_degree": 1.2e-05,
+    "w_degree_variance": 0.00031,
+    "w_hub_concentration": 9.7e-05,
+    "w_clustering_coeff": 0.00017,
+    "w_avg_path_length": 9.2e-05,
+    "w_diameter": 4.3e-05,
+    "w_community_count": 2.2e-07,
+    "w_reorder_time": -6.9e-07,
+    "cache_l1_impact": 0.00021,
+    "cache_l2_impact": 0.00019,
+    "cache_l3_impact": 0.00021,
+    "cache_dram_penalty": -7.9e-05,
+    "benchmark_weights": {
+      "pr": 1.0, "bfs": 1.0, "cc": 1.0, "sssp": 1.0, "bc": 1.0, "tc": 1.0
+    },
+    "_metadata": {
+      "sample_count": 1,
+      "avg_speedup": 1.52,
+      "win_count": 1,
+      "win_rate": 1.0,
+      "last_updated": "2026-01-25T01:11:16"
+    }
   },
   "LeidenCSR": {
     "bias": 0.85,
     "w_modularity": 0.25,
-    "w_log_nodes": 0.1,
     ...
   },
   ...
@@ -1018,14 +1038,12 @@ GraphBrew/scripts/weights/
 | 9 | GORDER |
 | 10 | CORDER |
 | 11 | RCM |
-| 12 | LeidenOrder |
-| 13 | GraphBrewOrder |
-| 15 | AdaptiveOrder |
-| 16 | LeidenDFS |
-| 17 | LeidenDendrogram |
-| 18 | LeidenDFSSize |
-| 19 | LeidenBFS |
-| 20 | LeidenCSR |
+| 12 | GraphBrewOrder |
+| 13 | MAP |
+| 14 | AdaptiveOrder |
+| 15 | LeidenOrder |
+| 16 | LeidenDendrogram |
+| 17 | LeidenCSR |
 
 ---
 
@@ -1138,9 +1156,8 @@ The recursion depth is controlled by:
 
 Look for output like:
 ```
-Finding best type match for features: mod=0.4521, deg_var=0.8012, hub=0.3421...
-Best matching type: type_0 (similarity: 0.9234)
-Loaded 21 weights from scripts/weights/active/type_0.json
+Best matching type: type_0 (distance: 0.4521)
+Perceptron: Loaded 5 weights from scripts/weights/active/type_0.json
 ```
 
 ### Verify Weights File
