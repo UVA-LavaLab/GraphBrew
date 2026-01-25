@@ -1,8 +1,8 @@
 # Graph Reordering Algorithms
 
-GraphBrew implements **18 different vertex reordering algorithms** (IDs 0-11, 13, 15-18), each with unique characteristics suited for different graph topologies. This page explains each algorithm in detail.
+GraphBrew implements **18 different vertex reordering algorithms** (IDs 0-17), each with unique characteristics suited for different graph topologies. This page explains each algorithm in detail.
 
-Note: Algorithm ID 14 (MAP) is reserved for external label mapping files, not a standalone reordering algorithm.
+Note: Algorithm ID 13 (MAP) is reserved for external label mapping files, not a standalone reordering algorithm.
 
 ## Why Reorder Graphs?
 
@@ -22,9 +22,10 @@ Vertex 2 → 8, 1500, 3        Vertex 2 → 1, 3, 5
 | **Basic** | ORIGINAL, RANDOM, SORT | Baseline comparisons |
 | **Hub-Based** | HUBSORT, HUBCLUSTER | Power-law graphs |
 | **DBG-Based** | DBG, HUBSORTDBG, HUBCLUSTERDBG | Cache locality |
-| **Community** | RABBITORDER, GORDER, CORDER | Modular graphs |
+| **Community** | RABBITORDER | Hierarchical communities |
+| **Classic** | GORDER, CORDER, RCM | Bandwidth reduction |
 | **Leiden-Based** | LeidenOrder (15), LeidenDendrogram (16), LeidenCSR (17) | Strong community structure |
-| **Hybrid** | GraphBrewOrder (12), AdaptiveOrder (14) | Adaptive selection |
+| **Hybrid** | GraphBrewOrder (12), MAP (13), AdaptiveOrder (14) | External/Adaptive selection |
 
 ---
 
@@ -159,21 +160,20 @@ Bucket 3: degree 8-15
 
 ---
 
-## Community-Based Algorithms (8-12)
+## Community & Classic Algorithms (8-11)
 
-These algorithms detect **communities** (densely connected subgraphs) and reorder to keep community members together.
+These algorithms use different approaches: RabbitOrder detects communities, while GORDER, CORDER, and RCM focus on bandwidth reduction and cache optimization.
 
 ### 8. RABBITORDER
 **Rabbit Order (community + incremental aggregation)**
 
 ```bash
-RABBIT_ENABLE=1 make pr
 ./bench/bin/pr -f graph.el -s -o 8 -n 3
 ```
 
 - **Description**: Hierarchical community detection with incremental aggregation
 - **Complexity**: O(n log n) average
-- **Requires**: Build with `RABBIT_ENABLE=1`
+- **Note**: RabbitOrder is enabled by default (`RABBIT_ENABLE=1` in Makefile)
 - **Best for**: Large graphs with hierarchical community structure
 
 **Key insight**: Uses a "rabbit" metaphor where vertices "hop" to form communities.
@@ -225,24 +225,29 @@ Larger window = better quality, slower computation
 
 ---
 
-## Advanced Hybrid Algorithms (13-15)
+## Advanced Hybrid Algorithms (12-14)
 
-### 13. GraphBrewOrder
+### 12. GraphBrewOrder
 **Per-community reordering**
 
 ```bash
-# Format: -o 12:<frequency>:<intra_algo>:<resolution>
-./bench/bin/pr -f graph.el -s -o 12:10:17 -n 3
+# Format: -o 12[:frequency[:intra_algo[:resolution[:maxIterations[:maxPasses]]]]]
+./bench/bin/pr -f graph.el -s -o 12 -n 3                # Use defaults
+./bench/bin/pr -f graph.el -s -o 12:10 -n 3             # frequency=10
+./bench/bin/pr -f graph.el -s -o 12:10:8 -n 3           # frequency=10, intra_algo=8 (RabbitOrder)
+./bench/bin/pr -f graph.el -s -o 12:10:16:0.75 -n 3     # frequency=10, intra=16 (LeidenDendrogram), res=0.75
 ```
 
 - **Description**: Runs Leiden, then applies a different algorithm within each community
 - **Parameters**:
-  - `frequency`: Hub frequency threshold (default: 10)
-  - `intra_algo`: Algorithm to use within communities (e.g., 17 = LeidenDendrogram)
+  - `frequency`: Hub frequency threshold (default: 10) - controls how edges are categorized
+  - `intra_algo`: Algorithm ID to use within communities (default: 8 = RabbitOrder)
   - `resolution`: Leiden resolution parameter (default: 0.75)
+  - `maxIterations`: Maximum Leiden iterations (default: 30)
+  - `maxPasses`: Maximum Leiden passes (default: 30)
 - **Best for**: Fine-grained control over per-community ordering
 
-### 14. MAP
+### 13. MAP
 **Load mapping from file**
 
 ```bash
@@ -253,7 +258,7 @@ Larger window = better quality, slower computation
 - **File formats**: `.lo` (list order) or `.so` (source order)
 - **Best for**: Using externally computed orderings
 
-### 15. AdaptiveOrder ⭐ (ML-powered)
+### 14. AdaptiveOrder ⭐ (ML-powered)
 **Perceptron-based algorithm selection**
 
 ```bash
@@ -290,16 +295,16 @@ Larger window = better quality, slower computation
 
 ---
 
-## Leiden Variants (16-18)
+## Leiden Variants (15-17)
 
 GraphBrew consolidates Leiden algorithms into three main IDs with parameter-based variant selection for cleaner script sweeping.
 
-### 16. LeidenOrder ⭐
+### 15. LeidenOrder ⭐
 **Leiden community detection via igraph library**
 
 ```bash
-# Format: 15:resolution
-./bench/bin/pr -f graph.el -s -o 14 -n 3                    # Default (res=1.0)
+# Format: -o 15:resolution
+./bench/bin/pr -f graph.el -s -o 15 -n 3                    # Default (res=0.75)
 ./bench/bin/pr -f graph.el -s -o 15:0.75 -n 3               # Lower resolution
 ./bench/bin/pr -f graph.el -s -o 15:1.5 -n 3                # Higher resolution
 ```
@@ -313,11 +318,11 @@ GraphBrew consolidates Leiden algorithms into three main IDs with parameter-base
 - Guarantees well-connected communities
 - Produces high-quality modularity scores
 
-### 17. LeidenDendrogram
+### 16. LeidenDendrogram
 **Leiden community detection with dendrogram traversal**
 
 ```bash
-# Format: 16:resolution:variant
+# Format: -o 16:resolution:variant
 ./bench/bin/pr -f graph.el -s -o 16 -n 3                    # Default (hybrid)
 ./bench/bin/pr -f graph.el -s -o 16:1.0:dfs -n 3            # DFS traversal
 ./bench/bin/pr -f graph.el -s -o 16:1.0:dfshub -n 3         # DFS hub-first
@@ -335,11 +340,11 @@ GraphBrew consolidates Leiden algorithms into three main IDs with parameter-base
 | `bfs` | BFS level-order traversal | Wide hierarchies |
 | `hybrid` | Sort by (community, degree) | **Default - best overall** |
 
-### 18. LeidenCSR ⭐ (Fastest)
+### 17. LeidenCSR ⭐ (Fastest)
 **Fast CSR-native Leiden (no graph conversion)**
 
 ```bash
-# Format: 17:resolution:passes:variant
+# Format: -o 17:resolution:passes:variant
 ./bench/bin/pr -f graph.el -s -o 17 -n 3                    # Default (hubsort)
 ./bench/bin/pr -f graph.el -s -o 17:1.0:1:dfs -n 3          # DFS ordering
 ./bench/bin/pr -f graph.el -s -o 17:1.0:1:bfs -n 3          # BFS ordering

@@ -88,11 +88,16 @@ GraphBrew includes a full Leiden implementation in `bench/include/leiden/`:
 
 ```
 leiden/
-├── leiden.hxx       # Main algorithm
-├── louvain.hxx      # Louvain base
+├── leiden.hxx       # Main Leiden algorithm (LeidenOptions struct)
+├── louvain.hxx      # Louvain base implementation
 ├── Graph.hxx        # Graph representation
-├── properties.hxx   # Community properties
-└── ...
+├── csr.hxx          # CSR-native operations
+├── dfs.hxx          # DFS traversal utilities
+├── bfs.hxx          # BFS traversal utilities
+├── batch.hxx        # Batch processing support
+├── rak.hxx          # Random neighbor sampling
+├── properties.hxx   # Graph property computation
+└── ...              # Additional utilities
 ```
 
 ### Usage
@@ -101,11 +106,11 @@ Leiden is used internally by Leiden-based algorithms:
 
 | Algorithm | Uses Leiden | Format |
 |-----------|-------------|--------|
-| LeidenOrder (15) | ✓ | `15:resolution` |
-| LeidenDendrogram (16) | ✓ | `16:resolution:variant` |
-| LeidenCSR (17) | ✓ | `17:resolution:passes:variant` |
-| GraphBrewOrder (12) | ✓ | |
-| AdaptiveOrder (14) | ✓ | |
+| LeidenOrder (15) | ✓ | `-o 15:resolution` |
+| LeidenDendrogram (16) | ✓ | `-o 16:resolution:variant` |
+| LeidenCSR (17) | ✓ | `-o 17:resolution:passes:variant` |
+| GraphBrewOrder (12) | ✓ | `-o 12:freq:algo:resolution` |
+| AdaptiveOrder (14) | ✓ | `-o 14:resolution:minsize:mode` |
 
 ### Example Output
 
@@ -149,7 +154,8 @@ opts.resolution = 1.0;  // Default
 Maximum refinement iterations:
 
 ```cpp
-opts.max_iterations = 10;  // Usually converges in 2-5
+opts.maxIterations = 20;  // Default, usually converges in 2-5
+opts.maxPasses = 10;      // Maximum number of passes
 ```
 
 ---
@@ -158,14 +164,16 @@ opts.max_iterations = 10;  // Usually converges in 2-5
 
 ### LeidenOrder (15)
 
-Simple contiguous ordering via igraph:
-1. Detect communities using igraph Leiden
-2. Assign IDs by community order
-3. Within community: sorted by degree
+Hierarchical dendrogram-like ordering:
+1. Detect communities using Leiden (multi-pass)
+2. Sort vertices by all passes (coarsest to finest)
+3. Within same sub-community: sorted by degree (descending)
+
+This achieves RabbitOrder-like locality using Leiden's community structure.
 
 ```
-Community 0: vertices get IDs 0, 1, 2, ...
-Community 1: vertices get IDs n0, n0+1, ...
+Sort key: (pass_N, pass_N-1, ..., pass_0, degree)
+Result: Vertices in same sub-sub-community are adjacent
 ```
 
 ### LeidenDendrogram (16)
@@ -250,27 +258,31 @@ For each community, GraphBrew computes:
 |---------|-------------|
 | `num_nodes` | Community size |
 | `num_edges` | Internal edges |
-| `density` | edges / max_edges |
+| `internal_density` | edges / possible_edges |
 | `avg_degree` | Mean degree |
-| `degree_variance` | Degree spread |
-| `hub_concentration` | Fraction to top 10% |
+| `degree_variance` | Normalized variance in degrees |
+| `hub_concentration` | Fraction of edges from top 10% nodes |
+| `clustering_coeff` | Local clustering coefficient (sampled) |
+| `modularity` | Community modularity |
 
 ### Feature Extraction Code
 
 ```cpp
-// Simplified from builder.h
+// From builder.h
 struct CommunityFeatures {
-    int64_t num_nodes;
-    int64_t num_edges;
-    double density;
+    size_t num_nodes;
+    size_t num_edges;
+    double internal_density;     // edges / possible_edges
     double avg_degree;
-    double degree_variance;
-    double hub_concentration;
+    double degree_variance;      // normalized variance in degrees
+    double hub_concentration;    // fraction of edges from top 10% nodes
+    double modularity;           // community/subgraph modularity
+    // Extended features
+    double clustering_coeff;
+    double avg_path_length;
+    double diameter_estimate;
+    double community_count;
 };
-
-CommunityFeatures ComputeFeatures(const Community& c) {
-    // ... compute statistics
-}
 ```
 
 ---
@@ -311,13 +323,13 @@ For very large graphs:
 
 ### "Wrong number of communities"
 
-Adjust resolution:
+Adjust resolution via the algorithm parameter:
 ```bash
-# More communities
-export LEIDEN_RESOLUTION=1.5
+# More communities (higher resolution)
+./bench/bin/pr -f graph.el -s -o 17:1.5:10:hubsort -n 3
 
-# Fewer communities  
-export LEIDEN_RESOLUTION=0.5
+# Fewer communities (lower resolution)
+./bench/bin/pr -f graph.el -s -o 17:0.5:10:hubsort -n 3
 ```
 
 ---
