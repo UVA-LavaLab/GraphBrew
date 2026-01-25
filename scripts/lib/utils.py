@@ -151,48 +151,166 @@ class Colors:
     """ANSI color codes for terminal output."""
     HEADER = '\033[95m'
     BLUE = '\033[94m'
+    CYAN = '\033[96m'
     GREEN = '\033[92m'
     YELLOW = '\033[93m'
     RED = '\033[91m'
     BOLD = '\033[1m'
+    DIM = '\033[2m'
     RESET = '\033[0m'
 
 
 class Logger:
-    """Simple logger with levels and optional file output."""
+    """
+    Simple logger with levels, colors, and optional file output.
+    
+    Provides clean, consistent output formatting across all GraphBrew modules.
+    Supports color output when running in a terminal.
+    """
     
     LEVELS = {"DEBUG": 0, "INFO": 1, "WARNING": 2, "ERROR": 3}
     
-    def __init__(self, level: str = "INFO", log_file: Optional[Path] = None):
+    # Status symbols for visual feedback
+    SYMBOLS = {
+        "success": "✓",
+        "error": "✗",
+        "warning": "⚠",
+        "info": "→",
+        "debug": "·",
+        "progress": "↓",
+        "done": "●",
+        "skip": "○",
+    }
+    
+    def __init__(self, level: str = "INFO", log_file: Optional[Path] = None, 
+                 use_colors: bool = True, compact: bool = False):
+        """
+        Initialize logger.
+        
+        Args:
+            level: Minimum log level (DEBUG, INFO, WARNING, ERROR)
+            log_file: Optional file to write logs to
+            use_colors: Enable colored output (auto-disabled if not TTY)
+            compact: Use compact output format (no timestamps)
+        """
         self.level = self.LEVELS.get(level.upper(), 1)
         self.log_file = log_file
+        self.use_colors = use_colors and sys.stdout.isatty()
+        self.compact = compact
         
-    def _log(self, level: str, message: str, color: str = "") -> None:
-        if self.LEVELS.get(level, 0) >= self.level:
-            timestamp = datetime.now().strftime("%H:%M:%S")
-            formatted = f"[{timestamp}] [{level}] {message}"
-            if color and sys.stdout.isatty():
-                print(f"{color}{formatted}{Colors.RESET}")
+    def _colorize(self, text: str, color: str) -> str:
+        """Apply color if colors are enabled."""
+        if self.use_colors:
+            return f"{color}{text}{Colors.RESET}"
+        return text
+        
+    def _log(self, level: str, message: str, color: str = "", 
+             symbol: str = "", prefix: str = "") -> None:
+        """Internal log method."""
+        if self.LEVELS.get(level, 0) < self.level:
+            return
+            
+        # Build formatted message
+        if self.compact:
+            if symbol:
+                formatted = f"  {symbol} {message}"
+            elif prefix:
+                formatted = f"  {prefix} {message}"
             else:
-                print(formatted)
-            if self.log_file:
-                with open(self.log_file, "a") as f:
-                    f.write(formatted + "\n")
+                formatted = f"  {message}"
+        else:
+            timestamp = datetime.now().strftime("%H:%M:%S")
+            if symbol:
+                formatted = f"[{timestamp}] {symbol} {message}"
+            else:
+                formatted = f"[{timestamp}] [{level}] {message}"
+        
+        # Print with optional color
+        if color and self.use_colors:
+            print(f"{color}{formatted}{Colors.RESET}")
+        else:
+            print(formatted)
+            
+        # Write to file (no colors)
+        if self.log_file:
+            with open(self.log_file, "a") as f:
+                clean = formatted if not color else formatted
+                f.write(clean + "\n")
     
     def debug(self, message: str) -> None:
-        self._log("DEBUG", message)
+        """Log debug message (dimmed)."""
+        self._log("DEBUG", message, Colors.DIM, self.SYMBOLS["debug"])
     
     def info(self, message: str) -> None:
+        """Log info message."""
         self._log("INFO", message)
     
     def success(self, message: str) -> None:
-        self._log("INFO", message, Colors.GREEN)
+        """Log success message (green with checkmark)."""
+        self._log("INFO", message, Colors.GREEN, self.SYMBOLS["success"])
     
     def warning(self, message: str) -> None:
-        self._log("WARNING", message, Colors.YELLOW)
+        """Log warning message (yellow with warning symbol)."""
+        self._log("WARNING", message, Colors.YELLOW, self.SYMBOLS["warning"])
     
     def error(self, message: str) -> None:
-        self._log("ERROR", message, Colors.RED)
+        """Log error message (red with X)."""
+        self._log("ERROR", message, Colors.RED, self.SYMBOLS["error"])
+    
+    def progress(self, current: int, total: int, item: str = "", 
+                 extra: str = "") -> None:
+        """
+        Log progress update (overwrites previous line).
+        
+        Args:
+            current: Current item number (1-indexed)
+            total: Total number of items
+            item: Name of current item
+            extra: Additional info to display
+        """
+        if self.LEVELS.get("INFO", 1) < self.level:
+            return
+            
+        pct = (current / total * 100) if total > 0 else 0
+        bar_width = 20
+        filled = int(bar_width * current / total) if total > 0 else 0
+        bar = "█" * filled + "░" * (bar_width - filled)
+        
+        line = f"  [{current:3d}/{total:3d}] [{bar}] {pct:5.1f}%"
+        if item:
+            line += f"  {item}"
+        if extra:
+            line += f" │ {extra}"
+        
+        # Use carriage return for in-place updates
+        end = '\n' if current == total else '\r'
+        print(line.ljust(100), end=end, flush=True)
+    
+    def header(self, text: str, char: str = "═", width: int = 60) -> None:
+        """Print a section header."""
+        print()
+        print(char * width)
+        if self.use_colors:
+            print(f"  {Colors.BOLD}{text}{Colors.RESET}")
+        else:
+            print(f"  {text}")
+        print(char * width)
+    
+    def section(self, text: str) -> None:
+        """Print a subsection header."""
+        print()
+        if self.use_colors:
+            print(f"  {Colors.CYAN}▸ {text}{Colors.RESET}")
+        else:
+            print(f"  ▸ {text}")
+    
+    def item(self, key: str, value: Any = None, indent: int = 0) -> None:
+        """Print a key-value item."""
+        prefix = "  " * (indent + 1) + "• "
+        if value is not None:
+            print(f"{prefix}{key}: {value}")
+        else:
+            print(f"{prefix}{key}")
 
 
 # Global logger instance
@@ -380,6 +498,140 @@ def find_graphs(graph_dir: Path = None, extensions: List[str] = None) -> List[Pa
 def get_graph_name(graph_path: Path) -> str:
     """Extract clean graph name from path."""
     return graph_path.stem
+
+
+# =============================================================================
+# Output Formatting Utilities
+# =============================================================================
+
+def format_size(size_bytes: int) -> str:
+    """Format size in bytes to human-readable string."""
+    for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
+        if abs(size_bytes) < 1024.0:
+            return f"{size_bytes:.1f}{unit}"
+        size_bytes /= 1024.0
+    return f"{size_bytes:.1f}PB"
+
+
+def format_duration(seconds: float) -> str:
+    """Format duration in seconds to human-readable string."""
+    if seconds < 0:
+        return "0s"
+    
+    mins, secs = divmod(int(seconds), 60)
+    hours, mins = divmod(mins, 60)
+    days, hours = divmod(hours, 24)
+    
+    if days > 0:
+        return f"{days}d {hours}h {mins}m"
+    elif hours > 0:
+        return f"{hours}h {mins}m {secs}s"
+    elif mins > 0:
+        return f"{mins}m {secs}s"
+    elif seconds >= 1:
+        return f"{secs}s"
+    else:
+        return f"{seconds*1000:.0f}ms"
+
+
+def format_number(num: int) -> str:
+    """Format large numbers with commas."""
+    return f"{num:,}"
+
+
+def format_table(
+    headers: List[str],
+    rows: List[List[Any]],
+    alignments: List[str] = None,
+    title: str = None
+) -> str:
+    """
+    Format data as an ASCII table.
+    
+    Args:
+        headers: Column headers
+        rows: Data rows (list of lists)
+        alignments: Column alignments ('l', 'c', 'r') per column
+        title: Optional table title
+        
+    Returns:
+        Formatted table string
+    """
+    if not rows:
+        return "No data"
+    
+    # Determine column widths
+    widths = [len(str(h)) for h in headers]
+    for row in rows:
+        for i, cell in enumerate(row):
+            widths[i] = max(widths[i], len(str(cell)))
+    
+    # Default alignments (right for numbers, left for text)
+    if alignments is None:
+        alignments = ['r' if isinstance(rows[0][i], (int, float)) else 'l' 
+                      for i in range(len(headers))]
+    
+    # Build format string
+    def align(text: str, width: int, alignment: str) -> str:
+        text = str(text)
+        if alignment == 'l':
+            return text.ljust(width)
+        elif alignment == 'r':
+            return text.rjust(width)
+        else:
+            return text.center(width)
+    
+    lines = []
+    
+    # Title
+    if title:
+        total_width = sum(widths) + 3 * (len(headers) - 1) + 4
+        lines.append("")
+        lines.append("  " + "─" * (total_width - 2))
+        lines.append(f"  {title}")
+        lines.append("  " + "─" * (total_width - 2))
+    
+    # Header
+    header_line = "  │ " + " │ ".join(
+        align(h, widths[i], 'c') for i, h in enumerate(headers)
+    ) + " │"
+    lines.append(header_line)
+    
+    # Separator
+    sep_line = "  ├─" + "─┼─".join("─" * w for w in widths) + "─┤"
+    lines.append(sep_line)
+    
+    # Rows
+    for row in rows:
+        row_line = "  │ " + " │ ".join(
+            align(cell, widths[i], alignments[i]) for i, cell in enumerate(row)
+        ) + " │"
+        lines.append(row_line)
+    
+    # Footer
+    footer_line = "  └─" + "─┴─".join("─" * w for w in widths) + "─┘"
+    lines.append(footer_line)
+    
+    return "\n".join(lines)
+
+
+def print_summary_box(title: str, items: Dict[str, Any], width: int = 50) -> None:
+    """
+    Print a summary box with key-value pairs.
+    
+    Args:
+        title: Box title
+        items: Dictionary of items to display
+        width: Box width
+    """
+    print()
+    print("  ┌" + "─" * width + "┐")
+    print("  │ " + title.center(width - 2) + " │")
+    print("  ├" + "─" * width + "┤")
+    for key, value in items.items():
+        line = f"  {key}: {value}"
+        print("  │ " + line.ljust(width - 2) + " │")
+    print("  └" + "─" * width + "┘")
 
 
 # =============================================================================

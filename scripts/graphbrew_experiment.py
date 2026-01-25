@@ -148,6 +148,7 @@ from scripts.lib import (
     DownloadableGraph,
     download_graph as lib_download_graph,
     download_graphs as lib_download_graphs,
+    download_graphs_parallel as lib_download_graphs_parallel,
     get_graph_info as lib_get_graph_info,
     get_graphs_by_size as lib_get_graphs_by_size,
     # Build
@@ -970,9 +971,15 @@ def download_graphs(
     graphs_dir: str = DEFAULT_GRAPHS_DIR,
     force: bool = False,
     max_memory_gb: float = None,
-    max_disk_gb: float = None
+    max_disk_gb: float = None,
+    parallel: bool = True,
+    max_workers: int = 4,
 ) -> List[str]:
     """Download graphs by size category with optional memory and disk filtering.
+    
+    Downloads are performed in parallel to optimize bandwidth utilization.
+    The function blocks until ALL downloads complete before returning,
+    ensuring graphs are ready before running experiments.
     
     Args:
         size_category: One of "SMALL", "MEDIUM", "LARGE", "XLARGE", "ALL"
@@ -980,14 +987,12 @@ def download_graphs(
         force: If True, re-download existing graphs
         max_memory_gb: If set, skip graphs exceeding this memory requirement
         max_disk_gb: If set, skip downloads that would exceed this disk space
+        parallel: If True, download graphs in parallel (default: True)
+        max_workers: Number of parallel download threads (default: 4)
         
     Returns:
         List of successfully downloaded graph names
     """
-    print("\n" + "="*60)
-    print("GRAPH DOWNLOAD")
-    print("="*60)
-    
     # Select graphs based on category
     graphs_to_download = []
     
@@ -1008,7 +1013,6 @@ def download_graphs(
     # Apply memory filtering if specified
     skipped_memory = []
     if max_memory_gb is not None:
-        original_count = len(graphs_to_download)
         filtered = []
         for g in graphs_to_download:
             mem_required = g.estimated_memory_gb()
@@ -1017,13 +1021,6 @@ def download_graphs(
             else:
                 skipped_memory.append((g.name, mem_required))
         graphs_to_download = filtered
-        if skipped_memory:
-            print(f"Memory limit: {max_memory_gb:.1f} GB")
-            print(f"Skipped {len(skipped_memory)} graphs exceeding memory limit:")
-            for name, mem in skipped_memory[:5]:
-                print(f"  - {name}: requires {mem:.1f} GB")
-            if len(skipped_memory) > 5:
-                print(f"  ... and {len(skipped_memory) - 5} more")
     
     # Apply disk space filtering if specified
     skipped_disk = []
@@ -1040,45 +1037,45 @@ def download_graphs(
             else:
                 skipped_disk.append((g.name, g.size_mb))
         graphs_to_download = filtered
-        if skipped_disk:
-            print(f"Disk space limit: {max_disk_gb:.1f} GB")
-            print(f"Skipped {len(skipped_disk)} graphs due to disk space limit:")
-            for name, size in skipped_disk[:5]:
-                print(f"  - {name}: {size:.1f} MB")
-            if len(skipped_disk) > 5:
-                print(f"  ... and {len(skipped_disk) - 5} more")
     
-    print(f"Category: {size_category}")
-    print(f"Graphs to download: {len(graphs_to_download)}")
-    print(f"Target directory: {graphs_dir}")
+    if not graphs_to_download:
+        print("No graphs to download after filtering")
+        return []
     
-    total_size = sum(g.size_mb for g in graphs_to_download)
-    print(f"Total estimated download size: {total_size:.1f} MB")
-    
-    total_memory = sum(g.estimated_memory_gb() for g in graphs_to_download)
-    print(f"Max graph memory requirement: {max(g.estimated_memory_gb() for g in graphs_to_download):.1f} GB")
+    # Print filtering summary if any graphs were skipped
+    if skipped_memory:
+        print(f"\n  ⚠ Skipped {len(skipped_memory)} graphs exceeding memory limit ({max_memory_gb:.1f} GB)")
+    if skipped_disk:
+        print(f"\n  ⚠ Skipped {len(skipped_disk)} graphs exceeding disk limit ({max_disk_gb:.1f} GB)")
     
     # Create graphs directory
     os.makedirs(graphs_dir, exist_ok=True)
     
-    # Download each graph
-    successful = []
-    failed = []
-    
-    for i, graph in enumerate(graphs_to_download, 1):
-        print(f"\n[{i}/{len(graphs_to_download)}] {graph.name}")
+    # Use parallel download (blocks until all complete)
+    if parallel:
+        successful_paths, failed_names = lib_download_graphs_parallel(
+            graphs=[g.name for g in graphs_to_download],
+            dest_dir=Path(graphs_dir),
+            max_workers=max_workers,
+            force=force,
+            show_progress=True,
+            wait_for_all=True,  # Always wait for all downloads
+        )
+        successful = [p.parent.name for p in successful_paths]
+    else:
+        # Sequential fallback
+        print("\n" + "="*60)
+        print("  GRAPH DOWNLOAD (Sequential)")
+        print("="*60)
         
-        if download_graph(graph, graphs_dir, force):
-            successful.append(graph.name)
-        else:
-            failed.append(graph.name)
-    
-    # Summary
-    print("\n" + "-"*40)
-    print(f"Download complete: {len(successful)}/{len(graphs_to_download)} successful")
-    
-    if failed:
-        print(f"Failed: {', '.join(failed)}")
+        successful = []
+        for i, graph in enumerate(graphs_to_download, 1):
+            print(f"\n[{i}/{len(graphs_to_download)}] {graph.name}")
+            if download_graph(graph, graphs_dir, force):
+                successful.append(graph.name)
+        
+        print("\n" + "-"*40)
+        print(f"Download complete: {len(successful)}/{len(graphs_to_download)} successful")
     
     return successful
 
