@@ -257,18 +257,34 @@ Larger window = better quality, slower computation
 **Perceptron-based algorithm selection**
 
 ```bash
+# Format: -o 14[:max_depth[:resolution[:min_recurse_size[:mode]]]]
+
+# Default: per-community selection
 ./bench/bin/pr -f graph.el -s -o 14 -n 3
+
+# Multi-level: recurse into large communities (depth=2)
+./bench/bin/pr -f graph.el -s -o 14:2 -n 3
+
+# Full-graph mode: pick single best algorithm for entire graph
+./bench/bin/pr -f graph.el -s -o 14:0:0.75:50000:1 -n 3
 ```
 
 - **Description**: Uses ML to select the best algorithm for each community
 - **Complexity**: O(n log n) + perceptron inference
 - **Best for**: Unknown graphs, automated pipelines
 
-**How it works:**
-1. Run Leiden to detect communities
-2. Compute features for each community (size, density, hub concentration)
-3. Use trained perceptron to select best algorithm per community
-4. Apply selected algorithm to each community
+**Parameters:**
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `max_depth` | 0 | Max recursion depth (0 = per-community, 1+ = multi-level) |
+| `resolution` | 0.75 | Leiden resolution parameter |
+| `min_recurse_size` | 50000 | Minimum community size for recursion |
+| `mode` | 0 | 0 = per-community, 1 = full-graph adaptive |
+
+**Operating Modes:**
+- **Mode 0 (default)**: Run Leiden → select best algorithm per community
+- **Mode 1 (full-graph)**: Skip Leiden → pick single best algorithm for entire graph
+- **Multi-level (depth>0)**: Recursively apply AdaptiveOrder to large sub-communities
 
 **See**: [[AdaptiveOrder-ML]] for details on the ML model.
 

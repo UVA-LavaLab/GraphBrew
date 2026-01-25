@@ -13,6 +13,64 @@ Instead of using one reordering algorithm for the entire graph, AdaptiveOrder:
 6. **Uses a trained perceptron** to predict the best algorithm
 7. **Applies different algorithms** to different communities
 
+## Command-Line Format
+
+```bash
+# Format: -o 14[:max_depth[:resolution[:min_recurse_size[:mode]]]]
+
+# Default: per-community selection, no recursion
+./bench/bin/pr -f graph.el -s -o 14 -n 3
+
+# Multi-level adaptive: recurse up to depth 2
+./bench/bin/pr -f graph.el -s -o 14:2 -n 3
+
+# With custom resolution (more communities)
+./bench/bin/pr -f graph.el -s -o 14:1:1.0 -n 3
+
+# Full-graph mode: pick single best algorithm for entire graph
+./bench/bin/pr -f graph.el -s -o 14:0:0.75:50000:1 -n 3
+```
+
+### Parameters
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `max_depth` | 0 | Max recursion depth (0 = no recursion, 1+ = multi-level) |
+| `resolution` | 0.75 | Leiden resolution parameter |
+| `min_recurse_size` | 50000 | Minimum community size for recursion |
+| `mode` | 0 | 0 = per-community, 1 = full-graph adaptive |
+
+## Operating Modes
+
+### Mode 0: Per-Community Selection (Default)
+The standard mode runs Leiden to detect communities, then uses the perceptron to select the best algorithm for each community independently.
+
+### Mode 1: Full-Graph Adaptive
+Skips Leiden community detection entirely. Instead:
+1. Computes global graph features
+2. Uses perceptron to select the single best algorithm for the entire graph
+3. Applies that algorithm
+
+**Use full-graph mode when:**
+- Graph has weak community structure (low modularity)
+- You want to quickly identify the best single algorithm
+- Comparing against per-community selection
+
+### Multi-Level Recursion (max_depth > 0)
+When `max_depth > 0`, AdaptiveOrder can recurse into large communities:
+1. Detect communities at level 0
+2. For communities larger than `min_recurse_size`, run Leiden again
+3. Select algorithms for sub-communities
+4. Repeat until `max_depth` is reached
+
+```
+Level 0:  [   Community A   ]  [Community B]  [C]
+                  |
+Level 1:  [SubA1]  [SubA2]  [SubA3]
+                      |
+Level 2:      [SubA2a]  [SubA2b]
+```
+
 ## Architecture Diagram
 
 ```
