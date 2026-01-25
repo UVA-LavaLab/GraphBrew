@@ -81,7 +81,7 @@ Instead of applying one algorithm globally, GraphBrew **selects the best algorit
 +---+---+ +---+---+ +---+---+
     |         |         |
     v         v         v
- Rabbit    HubClust  LeidenDFS
+ Rabbit    HubClust  LeidenCSR
  Order       DBG
     |         |         |
     +----+----+----+----+
@@ -166,7 +166,7 @@ diameter: 16      --*---> w_di: 0.05 ----+
 ALGORITHM SELECTION:
 ====================
 RABBITORDER:    score = 2.31  <-- WINNER
-LeidenDFS:      score = 2.18
+LeidenCSR:      score = 2.18
 HubClusterDBG:  score = 1.95
 GORDER:         score = 1.82
 ORIGINAL:       score = 0.50
@@ -490,7 +490,7 @@ For each community:
 [Load Type Weights] --> type_3.json (based on global features)
      |
      v
-[Perceptron Scoring] --> RABBITORDER=2.1, LeidenDFS=1.9, ...
+[Perceptron Scoring] --> RABBITORDER=2.1, LeidenCSR=1.9, ...
      |
      v
 [Select Best] --> RABBITORDER
@@ -520,12 +520,12 @@ For each community:
 | 9 | GORDER | Graph reordering |
 | 10 | CORDER | Cache-optimized |
 | 11 | RCM | Reverse Cuthill-McKee (road) |
-| 15 | LeidenOrder | Modularity-based |
-| 16 | LeidenDFS | Leiden + DFS traversal |
-| 17 | LeidenDFSHub | Leiden + DFS + Hub sort |
-| 18 | LeidenDFSSize | Leiden + size ordering |
-| 19 | LeidenBFS | Leiden + BFS traversal |
-| 17 | LeidenCSR | Adaptive Leiden variant |
+| 12 | GraphBrewOrder | Per-community reordering |
+| 13 | MAP | External mapping file |
+| 14 | AdaptiveOrder | ML-powered selection |
+| 15 | LeidenOrder | Modularity-based (igraph) |
+| 16 | LeidenDendrogram | Leiden + dendrogram traversal |
+| 17 | LeidenCSR | Fast CSR-native Leiden |
 
 ---
 
@@ -870,7 +870,7 @@ Optional cache simulation data helps tune weights for specific memory hierarchie
 
 | Graph Type | Typical Speedup | Best Algorithm |
 |------------|-----------------|----------------|
-| Social Networks | 1.3-1.5x | LeidenDFS, RabbitOrder |
+| Social Networks | 1.3-1.5x | LeidenOrder, RabbitOrder |
 | Road Networks | 1.2-1.4x | RCM, CORDER |
 | Web Graphs | 1.4-1.6x | HubClusterDBG, DBG |
 | Power-Law | 1.3-1.5x | RabbitOrder, HubCluster |
