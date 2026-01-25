@@ -220,7 +220,9 @@ def check_header_exists(header: str) -> bool:
         True if header exists
     """
     include_paths = [
-        # GraphBrew recommended path (from README)
+        # GraphBrew recommended path - source tarball structure
+        "/opt/boost_1_58_0",
+        # GraphBrew recommended path - compiled structure
         "/opt/boost_1_58_0/include",
         # Standard system paths
         "/usr/include",
@@ -249,7 +251,9 @@ def get_boost_version() -> Optional[str]:
         Version string or None if not found
     """
     version_headers = [
-        # GraphBrew recommended path (from README installation guide)
+        # GraphBrew recommended path - source tarball structure
+        "/opt/boost_1_58_0/boost/version.hpp",
+        # GraphBrew recommended path - compiled structure  
         "/opt/boost_1_58_0/include/boost/version.hpp",
         # Standard system paths
         "/usr/include/boost/version.hpp",
@@ -677,8 +681,10 @@ def install_boost_158(
         # Cleanup
         shutil.rmtree(tmp_dir, ignore_errors=True)
         
-        # Verify
-        if os.path.exists(os.path.join(install_path, "include", "boost", "version.hpp")):
+        # Verify - check both source tarball structure (boost/) and compiled structure (include/boost/)
+        source_path = os.path.join(install_path, "boost", "version.hpp")
+        compiled_path = os.path.join(install_path, "include", "boost", "version.hpp")
+        if os.path.exists(source_path) or os.path.exists(compiled_path):
             log.success(f"Boost 1.58.0 installed successfully at {install_path}")
             return True, f"Boost 1.58.0 installed at {install_path}"
         else:
@@ -700,7 +706,10 @@ def check_boost_158() -> Tuple[bool, str]:
         Tuple of (is_installed, message)
     """
     install_path = "/opt/boost_1_58_0"
-    version_file = os.path.join(install_path, "include", "boost", "version.hpp")
+    # Check both source tarball structure (boost/) and compiled structure (include/boost/)
+    version_file = os.path.join(install_path, "boost", "version.hpp")
+    if not os.path.exists(version_file):
+        version_file = os.path.join(install_path, "include", "boost", "version.hpp")
     
     if not os.path.exists(version_file):
         return False, f"Boost 1.58.0 not found at {install_path}"
