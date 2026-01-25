@@ -2416,12 +2416,121 @@ def run_experiment(args):
         )
         
         # Phase 6: Update type-based weights from results
-        log_section("Phase 6: Update Type-Based Weights")
-        # The type weights are updated during compute_weights_from_results
-        # Here we just verify the types were created and summarize
+        log_section("Phase 6: Assign Graph Types & Update Weights")
+        
+        # Extract features for each graph and assign to types
+        for graph_info in graphs:
+            graph_name = graph_info.name
+            graph_path = getattr(graph_info, 'mtx_path', None) or graph_info.path
+            
+            # Get modularity from adaptive results
+            modularity = 0.5
+            for ar in adaptive_results:
+                if ar.graph == graph_name:
+                    modularity = ar.modularity
+                    break
+            
+            # Run a quick benchmark to get topology features
+            binary = os.path.join(args.bin_dir, "pr")
+            cmd = f"{binary} -f {graph_path} -a 0 -n 1"
+            try:
+                import subprocess
+                result = subprocess.run(cmd.split(), capture_output=True, text=True, timeout=60)
+                output = result.stdout + result.stderr
+                
+                # Parse all topology features from C++ output
+                dv_match = re.search(r'Degree Variance:\s*([\d.]+)', output)
+                hc_match = re.search(r'Hub Concentration:\s*([\d.]+)', output)
+                ad_match = re.search(r'Avg Degree:\s*([\d.]+)', output)
+                cc_match = re.search(r'Clustering Coefficient:\s*([\d.]+)', output)
+                apl_match = re.search(r'Avg Path Length:\s*([\d.]+)', output)
+                diam_match = re.search(r'Diameter Estimate:\s*([\d.]+)', output)
+                comm_match = re.search(r'Community Count Estimate:\s*([\d.]+)', output)
+                
+                degree_variance = float(dv_match.group(1)) if dv_match else 1.0
+                hub_concentration = float(hc_match.group(1)) if hc_match else 0.3
+                avg_degree = float(ad_match.group(1)) if ad_match else 10.0
+                clustering_coeff = float(cc_match.group(1)) if cc_match else 0.0
+                avg_path_length = float(apl_match.group(1)) if apl_match else 0.0
+                diameter = float(diam_match.group(1)) if diam_match else 0.0
+                community_count = float(comm_match.group(1)) if comm_match else 0.0
+                
+                # Assign to type
+                features = {
+                    'modularity': modularity,
+                    'degree_variance': degree_variance,
+                    'hub_concentration': hub_concentration,
+                    'avg_degree': avg_degree,
+                    'clustering_coefficient': clustering_coeff,
+                    'avg_path_length': avg_path_length,
+                    'diameter': diameter,
+                    'community_count': community_count,
+                }
+                
+                # Save all features to graph properties cache
+                update_graph_properties(graph_name, {
+                    'modularity': modularity,
+                    'degree_variance': degree_variance,
+                    'hub_concentration': hub_concentration,
+                    'avg_degree': avg_degree,
+                    'clustering_coefficient': clustering_coeff,
+                    'avg_path_length': avg_path_length,
+                    'diameter': diameter,
+                    'community_count': community_count,
+                    'nodes': getattr(graph_info, 'nodes', 0),
+                    'edges': getattr(graph_info, 'edges', 0),
+                })
+                
+                type_name = assign_graph_type(features, args.weights_dir, create_if_outlier=True)
+                log(f"  {graph_name} → {type_name} (mod={modularity:.3f}, dv={degree_variance:.3f}, hc={hub_concentration:.3f})")
+                
+                # Update type weights with benchmark results for this graph
+                graph_benchmark_results = [r for r in benchmark_results if r.graph == graph_name]
+                graph_cache_results = [r for r in cache_results if r.graph == graph_name]
+                
+                # Find best algorithm for each benchmark
+                for bench in set(r.benchmark for r in graph_benchmark_results):
+                    bench_results = [r for r in graph_benchmark_results if r.benchmark == bench and r.success]
+                    if not bench_results:
+                        continue
+                    
+                    # Find baseline and best
+                    baseline = next((r for r in bench_results if 'ORIGINAL' in r.algorithm), bench_results[0])
+                    best = min(bench_results, key=lambda r: r.time_seconds)
+                    
+                    if baseline.time_seconds > 0:
+                        speedup = baseline.time_seconds / best.time_seconds
+                        
+                        # Get cache stats for best algorithm
+                        cache_stat = next((c for c in graph_cache_results 
+                                          if c.algorithm_name == best.algorithm and c.benchmark == bench), None)
+                        
+                        # Get reorder time
+                        reorder = next((r for r in reorder_results 
+                                       if r.graph == graph_name and r.algorithm_name == best.algorithm), None)
+                        reorder_time = reorder.reorder_time if reorder else 0.0
+                        
+                        # Update type weights
+                        update_type_weights_incremental(
+                            type_name=type_name,
+                            algorithm=best.algorithm,
+                            benchmark=bench,
+                            speedup=speedup,
+                            features=features,
+                            cache_stats={'l1_hit_rate': (1.0 - cache_stat.l1_miss_rate) * 100 if cache_stat else 0,
+                                        'l2_hit_rate': (1.0 - cache_stat.l2_miss_rate) * 100 if cache_stat else 0,
+                                        'l3_hit_rate': (1.0 - cache_stat.l3_miss_rate) * 100 if cache_stat else 0} if cache_stat else None,
+                            reorder_time=reorder_time,
+                            weights_dir=args.weights_dir
+                        )
+                        
+            except Exception as e:
+                log(f"  {graph_name}: could not extract features ({e})")
+        
+        # Show types summary
         known_types = list_known_types(args.weights_dir)
         if known_types:
-            log(f"Types created/updated: {len(known_types)}")
+            log(f"\nTypes created/updated: {len(known_types)}")
             for type_name in known_types:
                 type_file = os.path.join(args.weights_dir, f"{type_name}.json")
                 if os.path.exists(type_file):
@@ -2437,6 +2546,16 @@ def run_experiment(args):
         cache_file_path = os.path.join(os.path.dirname(args.weights_file) or 'results', "graph_properties_cache.json")
         log(f"Saved graph properties cache to: {cache_file_path}")
         
+        # Re-run weight update now that graph properties cache is populated
+        # This ensures feature weights (w_modularity, etc.) are computed
+        update_zero_weights(
+            weights_file=args.weights_file,
+            graphs_dir=os.path.dirname(args.weights_file) or "results",
+            benchmark_results=benchmark_results,
+            cache_results=cache_results,
+            reorder_results=reorder_results
+        )
+        
         # Restore original skip_cache setting
         args.skip_cache = skip_cache_original
         
@@ -2449,7 +2568,10 @@ def run_experiment(args):
             final_weights = json.load(f)
         
         log("\nWeight field population summary:")
-        sample_algo = next((k for k in final_weights if not k.startswith("_")), None)
+        # Pick a non-ORIGINAL algorithm to show (ORIGINAL doesn't learn feature weights)
+        sample_algo = next((k for k in final_weights if not k.startswith("_") and k != "ORIGINAL"), None)
+        if not sample_algo:
+            sample_algo = next((k for k in final_weights if not k.startswith("_")), None)
         if sample_algo:
             w = final_weights[sample_algo]
             for key, val in w.items():
