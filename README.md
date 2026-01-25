@@ -11,7 +11,7 @@ This repository contains the GAP Benchmarks Suite [(GAPBS)](https://github.com/s
 ## Enhancements with Cache Friendly Graphs (Graph Brewing)
 
 * **GraphBrew:** Graph reordering (multi-layered) for improved cache performance. See **[GraphBrewOrder Wiki](https://github.com/UVA-LavaLab/GraphBrew/wiki/GraphBrewOrder)**.
-* **Leiden Order:** [link](https://github.com/puzzlef/leiden-communities-openmp) Community clustering order with Louvian/refinement step. See **[Community Detection Wiki](https://github.com/UVA-LavaLab/GraphBrew/wiki/Community-Detection)**.
+* **Leiden Order:** [link](https://github.com/puzzlef/leiden-communities-openmp) Community clustering order with Louvain/refinement step. See **[Community Detection Wiki](https://github.com/UVA-LavaLab/GraphBrew/wiki/Community-Detection)**.
 * **Rabbit Order:** [link](https://github.com/araij/rabbit_order) Community clustering order with incremental aggregation.
 * **Degree-Based Grouping:** [link](https://github.com/ease-lab/dbg) Implementing degree-based grouping strategies to test benchmark performance.
 * **Gorder:** [link](https://github.com/datourat/Gorder) Window based ordering with reverse Cuthill-McKee (RCM) algorithm.
@@ -176,17 +176,17 @@ make RABBIT_ENABLE=1
 
 # GraphBrew Analysis Scripts
 
-The `scripts/` directory contains a modular Python library (~11,000 lines) for comprehensive benchmarking and analysis. For detailed usage, see **[Python Scripts Wiki](https://github.com/UVA-LavaLab/GraphBrew/wiki/Python-Scripts)**.
+The `scripts/` directory contains a modular Python library (~15,000 lines) for comprehensive benchmarking and analysis. For detailed usage, see **[Python Scripts Wiki](https://github.com/UVA-LavaLab/GraphBrew/wiki/Python-Scripts)**.
 
 **Main Script and Core Modules:**
 ```
 scripts/
-├── graphbrew_experiment.py    # ⭐ Main orchestration script (~2900 lines)
+├── graphbrew_experiment.py    # ⭐ Main orchestration script (~3100 lines)
 │                              #    - CLI argument parsing
 │                              #    - Delegates to lib/ modules
 ├── requirements.txt           # Python dependencies
 │
-├── lib/                       # 📦 Core modules (~8000 lines)
+├── lib/                       # 📦 Core modules (~12200 lines)
 │   ├── types.py               # Data classes (GraphInfo, BenchmarkResult, etc.)
 │   ├── phases.py              # Phase orchestration (run_reorder_phase, etc.)
 │   ├── utils.py               # ALGORITHMS dict, run_command, constants

@@ -20,11 +20,11 @@ GraphBrew/
 │   ├── src_sim/              # Cache simulation sources
 │   └── backups/              # Backup files
 │
-├── scripts/                  # Python tools (~14,000 lines total)
-│   ├── graphbrew_experiment.py  # ⭐ Main orchestration (~3050 lines)
+├── scripts/                  # Python tools (~15,300 lines total)
+│   ├── graphbrew_experiment.py  # ⭐ Main orchestration (~3100 lines)
 │   ├── requirements.txt         # Python dependencies
 │   │
-│   ├── lib/                     # 📦 Core modules (~11,000 lines)
+│   ├── lib/                     # 📦 Core modules (~12,200 lines)
 │   │   ├── __init__.py          # Module exports
 │   │   ├── types.py             # Data classes (GraphInfo, BenchmarkResult, etc.)
 │   │   ├── phases.py            # Phase orchestration

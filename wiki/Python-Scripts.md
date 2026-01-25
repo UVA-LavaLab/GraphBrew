@@ -11,7 +11,7 @@ scripts/
 ├── graphbrew_experiment.py      # ⭐ MAIN: Orchestration script (~3100 lines)
 ├── requirements.txt             # Python dependencies
 │
-├── lib/                         # 📦 Modular library (~11000 lines total)
+├── lib/                         # 📦 Modular library (~12200 lines total)
 │   ├── __init__.py              # Module exports
 │   ├── types.py                 # Data classes (GraphInfo, BenchmarkResult, etc.)
 │   ├── phases.py                # Phase orchestration (run_reorder_phase, etc.)
