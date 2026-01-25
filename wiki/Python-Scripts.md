@@ -23,15 +23,24 @@ scripts/
 │   ├── benchmark.py             # Performance benchmark execution
 │   ├── cache.py                 # Cache simulation analysis
 │   ├── weights.py               # Type-based weight management
+│   ├── weight_merger.py         # Cross-run weight consolidation
 │   ├── training.py              # ML weight training
 │   ├── analysis.py              # Adaptive order analysis
 │   ├── progress.py              # Progress tracking & reporting
 │   └── results.py               # Result file I/O
 │
-├── weights/                     # Auto-generated type weights
-│   ├── type_registry.json       # Maps graphs → types + centroids
-│   ├── type_0.json              # Cluster 0 weights
-│   └── type_N.json              # Additional clusters as needed
+├── test/                        # Test suite
+│   ├── test_weight_flow.py      # Weight generation/loading tests
+│   ├── test_weight_merger.py    # Merger consolidation tests
+│   └── test_fill_adaptive.py    # Fill-weights pipeline tests
+│
+├── weights/                     # Type-based weight files
+│   ├── active/                  # C++ reads from here (working copy)
+│   │   ├── type_registry.json   # Maps graphs → types + centroids
+│   │   ├── type_0.json          # Cluster 0 weights
+│   │   └── type_N.json          # Additional clusters
+│   ├── merged/                  # Accumulated from all runs
+│   └── runs/                    # Historical snapshots
 │
 ├── examples/                    # Example scripts
 │   └── custom_pipeline.py       # Custom phase-based pipeline example

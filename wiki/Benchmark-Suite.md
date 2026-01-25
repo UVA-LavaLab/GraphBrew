@@ -77,7 +77,7 @@ All results are saved to `./results/`:
 - `mappings/` - Pre-generated label maps for consistent reordering
 - `graph_properties_cache.json` - Cached graph properties for type detection
 
-Auto-clustered weights are saved to `./scripts/weights/`:
+Auto-clustered weights are saved to `./scripts/weights/active/`:
 - `type_registry.json` - Maps graph names to type IDs + cluster centroids
 - `type_N.json` - Per-cluster trained ML weights (type_0.json, type_1.json, etc.)
 
@@ -196,7 +196,7 @@ python3 scripts/graphbrew_experiment.py --key-only
 ]
 ```
 
-### Perceptron Weights (scripts/weights/type_N.json)
+### Perceptron Weights (scripts/weights/active/type_N.json)
 
 ```json
 {

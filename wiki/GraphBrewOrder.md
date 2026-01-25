@@ -349,7 +349,7 @@ Apply Degree-Based Grouping after GraphBrewOrder:
 AdaptiveOrder (14)) can select GraphBrewOrder for appropriate communities:
 
 ```json
-// In scripts/weights/type_N.json
+// In scripts/weights/active/type_N.json
 {
   "GraphBrewOrder": {
     "bias": 0.7,

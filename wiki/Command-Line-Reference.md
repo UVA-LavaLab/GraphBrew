@@ -251,14 +251,14 @@ export PERCEPTRON_WEIGHTS_FILE=/path/to/weights.json
 **Note:** If `PERCEPTRON_WEIGHTS_FILE` is not set, AdaptiveOrder automatically:
 1. Computes graph features (modularity, degree variance, hub concentration, etc.)
 2. Finds the best matching type file using cosine similarity
-3. Loads weights from `scripts/weights/type_N.json`
+3. Loads weights from `scripts/weights/active/type_N.json`
 4. Falls back to hardcoded defaults if no type files exist
 
 **Example output:**
 ```
 Finding best type match for features: mod=0.4521, deg_var=2.3456, hub=0.6789...
 Best matching type: type_0 (similarity: 0.9234)
-Loaded 21 weights from scripts/weights/type_0.json
+Loaded 21 weights from scripts/weights/active/type_0.json
 ```
 
 ### NUMA Binding
@@ -415,6 +415,16 @@ Memory estimation: `(edges × 24 bytes + nodes × 8 bytes) × 1.5`
 | `--learning-rate N` | Weight adjustment rate (default: 0.1) |
 | `--fill-weights` | Fill ALL weight fields: runs cache sim, graph features, benchmark analysis |
 | `--init-weights` | Initialize/upgrade weights file with enhanced features |
+
+### Weight Run Management
+
+| Option | Description |
+|--------|-------------|
+| `--list-runs` | List all saved weight runs in `scripts/weights/runs/` |
+| `--merge-runs [TIMESTAMP ...]` | Merge specific runs (or all if no args) into `merged/` |
+| `--use-run TIMESTAMP` | Use weights from a specific run (copy to `active/`) |
+| `--use-merged` | Use merged weights (copy `merged/` to `active/`) |
+| `--no-merge` | Don't auto-merge weights after `--fill-weights` (keep run isolated) |
 
 ### Label Map Options
 

@@ -5,7 +5,13 @@ The perceptron weights control how AdaptiveOrder selects algorithms for each com
 ## Overview
 
 ```
-scripts/weights/type_N.json   # Auto-clustered type weights
+scripts/weights/
+├── active/               # C++ reads from here (working copy)
+│   ├── type_registry.json
+│   ├── type_0.json
+│   └── type_N.json
+├── merged/               # Accumulated from all runs
+└── runs/                 # Historical snapshots
 ```
 
 Each JSON file contains weights for each algorithm. When AdaptiveOrder processes a community, it computes a score for each algorithm using these weights and selects the highest-scoring one.
@@ -51,18 +57,22 @@ ORIGINAL:       score = 0.50
 ### Default Location
 ```
 GraphBrew/scripts/weights/
-├── type_registry.json    # Maps graphs → types + centroids
-├── type_0.json           # Cluster 0 weights
-├── type_1.json           # Cluster 1 weights
-└── type_N.json           # Additional clusters
-
+├── active/               # C++ reads from here
+│   ├── type_registry.json # Maps graphs → types + centroids
+│   ├── type_0.json        # Cluster 0 weights
+│   ├── type_1.json        # Cluster 1 weights
+│   └── type_N.json        # Additional clusters
+├── merged/               # Accumulated weights from all runs
+└── runs/                 # Historical run snapshots
+    └── run_YYYYMMDD_*/
 ```
 
 ### Automatic Clustering and Storage
 
 When weights are saved, the script automatically:
-1. Creates type-based weight files in `scripts/weights/` (e.g., `type_0.json`, `type_1.json`)
-2. Updates the **type registry** (`scripts/weights/type_registry.json`) with cluster centroids
+1. Creates type-based weight files in `scripts/weights/active/` (e.g., `type_0.json`, `type_1.json`)
+2. Updates the **type registry** (`scripts/weights/active/type_registry.json`) with cluster centroids
+3. Optionally saves a snapshot to `scripts/weights/runs/` for merging later
 
 This ensures weights are never accidentally overwritten and the best cluster is selected at runtime.
 
@@ -79,15 +89,16 @@ AdaptiveOrder uses an automatic clustering system that groups graphs by feature 
 **Type Files:**
 ```
 scripts/weights/
-├── type_registry.json    # {graph: type_N, centroids: {...}}
-├── type_0.json           # Weights for cluster 0
-├── type_1.json           # Weights for cluster 1
-└── type_N.json           # Additional clusters as needed
+├── active/               # C++ reads from here
+│   ├── type_registry.json
+│   └── type_N.json
+├── merged/               # Merged weights from all runs
+└── runs/                 # Historical snapshots
 ```
 
 **Loading Order:**
 1. Environment variable `PERCEPTRON_WEIGHTS_FILE` (if set)
-2. Best matching type file from `scripts/weights/type_N.json`
+2. Best matching type file from `scripts/weights/active/type_N.json`
 3. Semantic type fallback (if type files don't exist)
 4. Hardcoded defaults
 
@@ -95,7 +106,7 @@ scripts/weights/
 ```
 Finding best type match for features: mod=0.4521, deg_var=0.8012, hub=0.3421...
 Best matching type: type_0 (distance: 0.12)
-Loaded 21 weights from scripts/weights/type_0.json
+Loaded 21 weights from scripts/weights/active/type_0.json
 ```
 
 ### Environment Override
@@ -420,10 +431,10 @@ python3 scripts/graphbrew_experiment.py --fill-weights --download-size MEDIUM --
 
 ```bash
 # Edit the file
-nano scripts/weights/type_0.json
+nano scripts/weights/active/type_0.json
 
 # Validate JSON
-python3 -c "import json; json.load(open('scripts/weights/type_0.json'))"
+python3 -c "import json; json.load(open('scripts/weights/active/type_0.json'))"
 ```
 
 ### Hybrid: Start from Auto-Generated, Then Tune
@@ -433,10 +444,10 @@ python3 -c "import json; json.load(open('scripts/weights/type_0.json'))"
 python3 scripts/graphbrew_experiment.py --phase weights
 
 # Backup
-cp scripts/weights/type_0.json scripts/weights/type_0.json.backup
+cp scripts/weights/active/type_0.json scripts/weights/active/type_0.json.backup
 
 # Edit manually to adjust biases
-vim scripts/weights/type_0.json
+vim scripts/weights/active/type_0.json
 ```
 
 ---
@@ -499,7 +510,7 @@ def test_weights(weights_file):
     for algo, score in sorted(scores.items(), key=lambda x: -x[1]):
         print(f"  {algo}: {score:.3f}")
 
-test_weights("scripts/weights/type_0.json")
+test_weights("scripts/weights/active/type_0.json")
 ```
 
 ---
@@ -656,6 +667,9 @@ cp -r scripts/weights/ scripts/weights.backup/
 
 # Clean results but keep graphs
 python3 scripts/graphbrew_experiment.py --clean
+
+# Or clean all weights
+rm -rf scripts/weights/active/* scripts/weights/merged/* scripts/weights/runs/*
 ```
 
 #### Step 2: Generate Reorderings for All Graphs
@@ -714,10 +728,10 @@ python3 scripts/graphbrew_experiment.py \
 
 ```bash
 # Check type weight files
-ls -la scripts/weights/
+ls -la scripts/weights/active/
 
 # Check algorithm biases in type_0.json
-cat scripts/weights/type_0.json | python3 -c "
+cat scripts/weights/active/type_0.json | python3 -c "
 import sys, json
 d = json.load(sys.stdin)
 print('Algorithm Biases (sorted by speedup):')
@@ -877,7 +891,7 @@ pkill -f graphbrew_experiment
 
 Check if bias is too low:
 ```bash
-cat scripts/weights/type_0.json | grep -A 1 '"AlgorithmX"'
+cat scripts/weights/active/type_0.json | grep -A 1 '"AlgorithmX"'
 ```
 
 Increase bias or relevant weights.
@@ -897,8 +911,8 @@ Increase bias or relevant weights.
 
 Check file exists and is valid JSON:
 ```bash
-ls -la scripts/weights/type_*.json
-python3 -c "import json; json.load(open('scripts/weights/type_0.json'))"
+ls -la scripts/weights/active/type_*.json
+python3 -c "import json; json.load(open('scripts/weights/active/type_0.json'))"
 ```
 
 Check environment variable:

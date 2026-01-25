@@ -322,13 +322,13 @@ make all
 
 ```bash
 # Validate JSON
-python3 -c "import json; json.load(open('scripts/weights/type_0.json'))"
+python3 -c "import json; json.load(open('scripts/weights/active/type_0.json'))"
 
 # Pretty-print to find error
-python3 -m json.tool scripts/weights/type_0.json
+python3 -m json.tool scripts/weights/active/type_0.json
 
 # Check all type weight files
-for f in scripts/weights/type_*.json; do
+for f in scripts/weights/active/type_*.json; do
     echo "Checking $f..."
     python3 -c "import json; json.load(open('$f'))" && echo "OK" || echo "FAILED"
 done
@@ -343,7 +343,7 @@ Graph type is selected via cosine similarity with cluster centroids. If selectio
 cat results/graph_properties_cache.json | python3 -m json.tool | grep -A 10 "your_graph_name"
 
 # Check type registry centroids
-cat scripts/weights/type_registry.json | python3 -m json.tool
+cat scripts/weights/active/type_registry.json | python3 -m json.tool
 
 # Re-run Phase 0 to recompute properties
 python3 scripts/graphbrew_experiment.py --fill-weights --graphs small
