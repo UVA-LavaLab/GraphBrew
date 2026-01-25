@@ -444,6 +444,28 @@ class ProgressTracker:
             self._output("  │ " + line.ljust(width - 2) + " │")
         self._output("  └" + "─" * width + "┘")
     
+    def stats_summary(self, title: str, stats: Dict[str, Any]):
+        """
+        Print a compact inline statistics summary.
+        
+        This is a simpler alternative to stats_box for showing quick summaries.
+        
+        Args:
+            title: Summary title
+            stats: Dictionary of stats to display
+        
+        Example:
+            progress.stats_summary("Benchmark Results", {
+                "Total runs": 100,
+                "Successful": 95,
+                "Avg time": "0.0234s"
+            })
+        """
+        self._output("")
+        self._output(self._color(f"  {title}:", 'BOLD'))
+        for key, value in stats.items():
+            self._output(f"    • {key}: {value}")
+    
     def record_stat(self, key: str, value: Any):
         """Record a custom statistic."""
         self.stats[key] = value

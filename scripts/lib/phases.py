@@ -1,22 +1,98 @@
 """
 GraphBrew Phase Orchestration Module
+=====================================
 
-This module provides clean phase orchestration functions that wrap the underlying
-lib modules. Each phase function:
-1. Takes configuration parameters
-2. Calls the appropriate lib module functions
-3. Handles saving intermediate results
-4. Returns results for chaining
+This module provides clean, reusable phase orchestration functions that wrap
+the underlying lib modules. It's designed to make building custom experiment
+pipelines simple and maintainable.
 
-Usage:
-    from lib.phases import run_reorder_phase, run_benchmark_phase, run_cache_phase
+**Architecture Overview:**
+
+    ┌─────────────────────────────────────────────────────────────────────┐
+    │                     YOUR EXPERIMENT SCRIPT                          │
+    │  (e.g., graphbrew_experiment.py or custom_pipeline.py)             │
+    └─────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+    ┌─────────────────────────────────────────────────────────────────────┐
+    │                      lib/phases.py (THIS MODULE)                    │
+    │  Provides: run_reorder_phase, run_benchmark_phase, etc.            │
+    │  Handles: Configuration, progress tracking, result saving          │
+    └─────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+    ┌─────────────────────────────────────────────────────────────────────┐
+    │                     LOW-LEVEL LIB MODULES                           │
+    │  lib/reorder.py, lib/benchmark.py, lib/cache.py, lib/weights.py   │
+    │  These do the actual work but require manual setup                  │
+    └─────────────────────────────────────────────────────────────────────┘
+
+**Available Phases:**
+
+    1. REORDER    - Generate vertex reorderings (label maps)
+    2. BENCHMARK  - Run performance benchmarks
+    3. CACHE      - Run cache miss simulations  
+    4. WEIGHTS    - Generate perceptron weights from results
+    5. FILL       - Update zero weights with defaults
+    6. ADAPTIVE   - Analyze adaptive ordering decisions
+    7. COMPARISON - Compare adaptive vs fixed algorithms
+    8. BRUTE      - Brute-force validate all algorithms
+    9. TRAINING   - Iteratively train adaptive weights
+    10. LARGE_TRAINING - Batched training for large datasets
+
+**Usage Examples:**
+
+    # Simple: Run full pipeline
+    from lib.phases import run_full_pipeline, PhaseConfig
     
-    # Run individual phases
-    reorder_results = run_reorder_phase(graphs, algorithms, config)
+    config = PhaseConfig(benchmarks=['pr', 'bfs', 'cc'])
+    results = run_full_pipeline(graphs, algorithms, config)
+    
+    # Custom: Run specific phases
+    from lib.phases import run_reorder_phase, run_benchmark_phase
+    
+    reorder_results, label_maps = run_reorder_phase(graphs, algorithms, config)
     benchmark_results = run_benchmark_phase(graphs, algorithms, label_maps, config)
     
-    # Or create custom pipelines
-    results = run_full_pipeline(graphs, algorithms, config)
+    # Quick: Benchmark a single graph
+    from lib.phases import quick_benchmark
+    
+    results = quick_benchmark("graphs/email-Enron/email-Enron.mtx")
+
+**Configuration:**
+
+    Use PhaseConfig to customize behavior:
+    
+    config = PhaseConfig(
+        bin_dir="bench/bin",      # Directory with binaries
+        results_dir="results",     # Where to save results
+        benchmarks=['pr', 'bfs'], # Which benchmarks to run
+        trials=3,                  # Trials per configuration
+        skip_slow=True,           # Skip slow algorithms (GORDER, etc)
+        expand_variants=True,     # Test all Leiden variants
+    )
+
+**Phase Results:**
+
+    Each phase returns specific result types:
+    - reorder  -> (List[ReorderResult], Dict[str, Dict[str, str]])
+    - benchmark -> List[BenchmarkResult]
+    - cache    -> List[CacheResult]
+    - adaptive -> List[AdaptiveAnalysisResult]
+    - training -> TrainingResult
+
+**Error Handling:**
+
+    Phases are designed to be resilient:
+    - Individual failures don't stop the pipeline
+    - Errors are captured in result objects (result.error)
+    - Progress tracker records warnings/errors
+    - Results are auto-saved after each phase
+
+See Also:
+    - lib/types.py for data class definitions
+    - lib/progress.py for progress tracking
+    - scripts/examples/ for usage examples
 """
 
 import os
@@ -58,27 +134,91 @@ from .progress import ProgressTracker
 # =============================================================================
 
 class PhaseConfig:
-    """Configuration for pipeline phases."""
+    """
+    Configuration container for pipeline phases.
+    
+    This class centralizes all settings needed by the various phases.
+    Using a single config object makes it easy to:
+    - Pass consistent settings across phases
+    - Create from command-line arguments
+    - Modify settings for different experiments
+    
+    Attributes:
+        bin_dir: Path to benchmark binaries (default: "bench/bin")
+        bin_sim_dir: Path to cache simulation binaries (default: "bench/bin_sim")
+        graphs_dir: Path to graph files (default: "graphs")
+        results_dir: Where to save results (default: "results")
+        weights_dir: Where perceptron weights are stored (default: "scripts/weights")
+        
+        timeout_reorder: Max seconds for reordering (default: 300)
+        timeout_benchmark: Max seconds per benchmark (default: 120)
+        timeout_sim: Max seconds for cache simulation (default: 600)
+        
+        benchmarks: List of benchmarks to run (default: ['pr', 'bfs', 'cc'])
+        trials: Number of trials per configuration (default: 3)
+        
+        skip_slow: Skip slow algorithms like GORDER, CORDER, RCM (default: False)
+        skip_cache: Skip cache simulation phase (default: False)
+        skip_heavy: Skip heavy simulations for BC/SSSP (default: False)
+        force_reorder: Re-generate reorderings even if they exist (default: False)
+        expand_variants: Expand Leiden algorithms to all variants (default: False)
+        update_weights: Update weights incrementally during phases (default: True)
+        
+        leiden_resolution: Resolution parameter for Leiden (default: 1.0)
+        leiden_passes: Number of Leiden optimization passes (default: 10)
+        leiden_csr_variants: LeidenCSR variants to test
+        leiden_dendrogram_variants: LeidenDendrogram variants to test
+        
+        target_accuracy: Target accuracy for training (default: 0.95)
+        max_iterations: Max training iterations (default: 10)
+        learning_rate: Learning rate for weight updates (default: 0.1)
+        batch_size: Batch size for large-scale training (default: 5)
+        
+        progress: ProgressTracker instance for visual feedback
+    
+    Example:
+        # Basic usage
+        config = PhaseConfig(benchmarks=['pr', 'bfs'], trials=5)
+        
+        # From argparse
+        args = parser.parse_args()
+        config = PhaseConfig.from_args(args)
+        
+        # Quick testing setup
+        config = PhaseConfig(
+            skip_slow=True,
+            skip_cache=True,
+            trials=1
+        )
+    """
     
     def __init__(
         self,
-        # Directories
+        # ─────────────────────────────────────────────────────────────────────
+        # Directory paths
+        # ─────────────────────────────────────────────────────────────────────
         bin_dir: str = "bench/bin",
         bin_sim_dir: str = "bench/bin_sim",
         graphs_dir: str = "graphs",
         results_dir: str = "results",
         weights_dir: str = "scripts/weights",
         
-        # Timeouts
+        # ─────────────────────────────────────────────────────────────────────
+        # Timeout settings (seconds)
+        # ─────────────────────────────────────────────────────────────────────
         timeout_reorder: int = 300,
         timeout_benchmark: int = 120,
         timeout_sim: int = 600,
         
+        # ─────────────────────────────────────────────────────────────────────
         # Benchmark settings
+        # ─────────────────────────────────────────────────────────────────────
         benchmarks: List[str] = None,
         trials: int = 3,
         
-        # Flags
+        # ─────────────────────────────────────────────────────────────────────
+        # Feature flags
+        # ─────────────────────────────────────────────────────────────────────
         skip_slow: bool = False,
         skip_cache: bool = False,
         skip_heavy: bool = False,
@@ -86,34 +226,45 @@ class PhaseConfig:
         expand_variants: bool = False,
         update_weights: bool = True,
         
-        # Leiden settings
+        # ─────────────────────────────────────────────────────────────────────
+        # Leiden-specific settings
+        # ─────────────────────────────────────────────────────────────────────
         leiden_resolution: float = 1.0,
         leiden_passes: int = 10,
         leiden_csr_variants: List[str] = None,
         leiden_dendrogram_variants: List[str] = None,
         
+        # ─────────────────────────────────────────────────────────────────────
         # Training settings
+        # ─────────────────────────────────────────────────────────────────────
         target_accuracy: float = 0.95,
         max_iterations: int = 10,
         learning_rate: float = 0.1,
         batch_size: int = 5,
         
-        # Progress tracker
+        # ─────────────────────────────────────────────────────────────────────
+        # Progress tracking
+        # ─────────────────────────────────────────────────────────────────────
         progress: ProgressTracker = None,
     ):
+        """Initialize configuration with given settings."""
+        # Directories
         self.bin_dir = bin_dir
         self.bin_sim_dir = bin_sim_dir
         self.graphs_dir = graphs_dir
         self.results_dir = results_dir
         self.weights_dir = weights_dir
         
+        # Timeouts
         self.timeout_reorder = timeout_reorder
         self.timeout_benchmark = timeout_benchmark
         self.timeout_sim = timeout_sim
         
+        # Benchmarks
         self.benchmarks = benchmarks or ['pr', 'bfs', 'cc']
         self.trials = trials
         
+        # Feature flags
         self.skip_slow = skip_slow
         self.skip_cache = skip_cache
         self.skip_heavy = skip_heavy
@@ -121,16 +272,19 @@ class PhaseConfig:
         self.expand_variants = expand_variants
         self.update_weights = update_weights
         
+        # Leiden settings
         self.leiden_resolution = leiden_resolution
         self.leiden_passes = leiden_passes
         self.leiden_csr_variants = leiden_csr_variants or ['dfs', 'bfs', 'hubsort', 'fast']
         self.leiden_dendrogram_variants = leiden_dendrogram_variants or ['dfs', 'dfshub', 'dfssize', 'bfs', 'hybrid']
         
+        # Training settings
         self.target_accuracy = target_accuracy
         self.max_iterations = max_iterations
         self.learning_rate = learning_rate
         self.batch_size = batch_size
         
+        # Progress tracker (create default if not provided)
         self.progress = progress or ProgressTracker()
     
     @classmethod
