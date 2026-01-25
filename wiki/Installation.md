@@ -4,15 +4,24 @@ This guide covers installing GraphBrew on Linux systems.
 
 ## 🚀 Quick Install (One-Click)
 
-The fastest way to get started - builds automatically and downloads test graphs:
+The fastest way to get started - automatically checks dependencies, builds, and downloads test graphs:
 
 ```bash
 git clone https://github.com/UVA-LavaLab/GraphBrew.git
 cd GraphBrew
+
+# Check what dependencies are missing
+python3 scripts/graphbrew_experiment.py --check-deps
+
+# Auto-install missing dependencies (needs sudo)
+python3 scripts/graphbrew_experiment.py --install-deps
+
+# Run full pipeline
 python3 scripts/graphbrew_experiment.py --full --download-size SMALL
 ```
 
-This single command will:
+This will:
+- Verify all system dependencies (Boost, g++, libnuma, etc.)
 - Build all binaries automatically
 - Download benchmark graphs from SuiteSparse
 - Run the complete experiment pipeline
@@ -23,18 +32,44 @@ This single command will:
 
 ### Minimum Requirements
 - **OS**: Linux (Ubuntu 20.04+ recommended)
-- **Compiler**: GCC 9+ or Clang 10+ with C++17 support
+- **Compiler**: GCC 7+ with C++17 support
 - **Memory**: 8GB RAM (16GB+ recommended for large graphs)
 - **Disk**: 50GB+ for benchmark graphs
 
-### Required Dependencies
+### Automatic Dependency Check
+
+GraphBrew can check and install dependencies automatically:
+
+```bash
+# Check all dependencies
+python3 scripts/graphbrew_experiment.py --check-deps
+
+# Sample output:
+# GraphBrew Dependency Status:
+# ==================================================
+#   ✓ make             GNU Make 4.3
+#   ✓ c++ compiler     g++ 11.4.0
+#   ✓ boost            v1.74
+#   ✓ numa             found
+#   ✓ tcmalloc         found
+#   ✓ python           v3.10.12
+# ==================================================
+#   All required dependencies satisfied!
+
+# Install missing dependencies (Ubuntu/Debian/Fedora/macOS)
+python3 scripts/graphbrew_experiment.py --install-deps
+```
+
+### Manual Dependency Installation
+
+If automatic installation doesn't work, install manually:
 
 ```bash
 # Ubuntu/Debian
 sudo apt-get update
 sudo apt-get install -y \
     build-essential \
-    g++-9 \
+    g++ \
     libboost-all-dev \
     libnuma-dev \
     google-perftools \
@@ -44,20 +79,29 @@ sudo apt-get install -y \
 # Fedora/RHEL
 sudo dnf install -y \
     gcc-c++ \
+    make \
     boost-devel \
     numactl-devel \
     gperftools \
     python3 \
     python3-pip
+
+# Arch Linux
+sudo pacman -S \
+    base-devel \
+    boost \
+    numactl \
+    gperftools
+
+# macOS (with Homebrew)
+xcode-select --install
+brew install gcc boost google-perftools
 ```
 
 ### Optional Dependencies
 
 ```bash
-# For Rabbit Order support (requires Boost 1.58+)
-# Usually included in libboost-all-dev
-
-# For visualization and analysis
+# For visualization and analysis (optional)
 pip3 install numpy matplotlib pandas
 ```
 
