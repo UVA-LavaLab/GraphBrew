@@ -688,6 +688,10 @@ def update_zero_weights(
     cache_results = cache_results or []
     reorder_results = reorder_results or []
     
+    # Load graph properties cache for features
+    from .features import load_graph_properties_cache
+    graph_props = load_graph_properties_cache(graphs_dir or "results")
+    
     # Load existing weights or initialize
     weights = {}
     if weights_file and os.path.exists(weights_file):
@@ -706,8 +710,9 @@ def update_zero_weights(
         algo = r.algorithm_name
         if algo not in reorder_times:
             reorder_times[algo] = []
-        if hasattr(r, 'time_seconds') and r.time_seconds > 0:
-            reorder_times[algo].append(r.time_seconds)
+        reorder_time = getattr(r, 'reorder_time', 0.0) or getattr(r, 'time_seconds', 0.0)
+        if reorder_time > 0:
+            reorder_times[algo].append(reorder_time)
     
     for algo, times in reorder_times.items():
         if algo in weights and times:
@@ -716,16 +721,163 @@ def update_zero_weights(
             weights[algo]['w_reorder_time'] = -avg_time / 10.0  # Normalize
     
     # Update cache impact weights from cache results
+    # Aggregate by algorithm, then average
+    cache_stats = {}
     for r in cache_results:
+        if not r.success:
+            continue
         algo = r.algorithm_name if hasattr(r, 'algorithm_name') else str(r.algorithm_id)
+        if algo not in cache_stats:
+            cache_stats[algo] = {'l1': [], 'l2': [], 'l3': []}
+        
+        l1_miss = getattr(r, 'l1_miss_rate', 0.0)
+        l2_miss = getattr(r, 'l2_miss_rate', 0.0)
+        l3_miss = getattr(r, 'l3_miss_rate', 0.0)
+        
+        cache_stats[algo]['l1'].append(l1_miss)
+        cache_stats[algo]['l2'].append(l2_miss)
+        cache_stats[algo]['l3'].append(l3_miss)
+    
+    for algo, stats in cache_stats.items():
         if algo in weights:
-            if hasattr(r, 'l1_miss_rate') and r.l1_miss_rate > 0:
-                # Better cache = positive impact
-                weights[algo]['cache_l1_impact'] = 1.0 - r.l1_miss_rate
-            if hasattr(r, 'l2_miss_rate') and r.l2_miss_rate > 0:
-                weights[algo]['cache_l2_impact'] = 1.0 - r.l2_miss_rate
-            if hasattr(r, 'l3_miss_rate') and r.l3_miss_rate > 0:
-                weights[algo]['cache_l3_impact'] = 1.0 - r.l3_miss_rate
+            # Cache impact = (1 - miss_rate), so lower miss = higher impact
+            if stats['l1']:
+                avg_l1_miss = sum(stats['l1']) / len(stats['l1'])
+                weights[algo]['cache_l1_impact'] = 1.0 - avg_l1_miss
+            if stats['l2']:
+                avg_l2_miss = sum(stats['l2']) / len(stats['l2'])
+                weights[algo]['cache_l2_impact'] = 1.0 - avg_l2_miss
+            if stats['l3']:
+                avg_l3_miss = sum(stats['l3']) / len(stats['l3'])
+                weights[algo]['cache_l3_impact'] = 1.0 - avg_l3_miss
+            
+            # DRAM penalty = average miss rate across all levels (normalized)
+            all_misses = stats['l1'] + stats['l2'] + stats['l3']
+            if all_misses:
+                avg_miss = sum(all_misses) / len(all_misses)
+                weights[algo]['cache_dram_penalty'] = -avg_miss * 0.5  # Penalty (negative weight)
+    
+    # Update feature weights from benchmark results
+    # Group results by graph and benchmark to compute correlations
+    if benchmark_results:
+        import math
+        
+        # Collect speedups and features per algorithm
+        algo_speedups = {}  # algo -> [(speedup, features), ...]
+        
+        for r in benchmark_results:
+            if not r.success or r.time_seconds <= 0:
+                continue
+            
+            algo = r.algorithm
+            if algo not in algo_speedups:
+                algo_speedups[algo] = []
+            
+            # Get features from graph properties cache first, then fallback to result
+            graph_name = r.graph
+            props = graph_props.get(graph_name, {})
+            
+            features = {
+                'modularity': props.get('modularity', getattr(r, 'modularity', 0.5)),
+                'degree_variance': props.get('degree_variance', getattr(r, 'degree_variance', 1.0)),
+                'hub_concentration': props.get('hub_concentration', getattr(r, 'hub_concentration', 0.3)),
+                'avg_degree': props.get('avg_degree', getattr(r, 'avg_degree', 10.0)),
+                'nodes': props.get('nodes', getattr(r, 'nodes', 1000)),
+                'edges': props.get('edges', getattr(r, 'edges', 5000)),
+                'clustering_coefficient': props.get('clustering_coefficient', 0.0),
+                'avg_path_length': props.get('avg_path_length', 0.0),
+                'diameter': props.get('diameter', 0.0),
+                'community_count': props.get('community_count', 0.0),
+            }
+            
+            # Compute derived features
+            nodes = features['nodes']
+            edges = features['edges']
+            features['log_nodes'] = math.log10(nodes + 1) if nodes > 0 else 0
+            features['log_edges'] = math.log10(edges + 1) if edges > 0 else 0
+            features['density'] = 2 * edges / (nodes * (nodes - 1)) if nodes > 1 else 0
+            
+            # Estimate speedup by comparing to baseline
+            algo_speedups[algo].append({
+                'time': r.time_seconds,
+                'graph': r.graph,
+                'features': features
+            })
+        
+        # Find baseline times per graph for speedup calculation
+        baseline_times = {}
+        for algo, results in algo_speedups.items():
+            if 'ORIGINAL' in algo:
+                for r in results:
+                    baseline_times[r['graph']] = r['time']
+        
+        # Update feature weights using simple correlation-based heuristics
+        for algo, results in algo_speedups.items():
+            if algo not in weights or 'ORIGINAL' in algo:
+                continue
+            
+            # Collect feature arrays for correlation
+            speedups = []
+            feature_arrays = {
+                'modularity': [], 'degree_variance': [], 'hub_concentration': [],
+                'log_nodes': [], 'log_edges': [], 'density': [], 'avg_degree': [],
+                'clustering_coefficient': [], 'avg_path_length': [], 
+                'diameter': [], 'community_count': []
+            }
+            
+            for r in results:
+                graph = r['graph']
+                baseline = baseline_times.get(graph, r['time'])
+                if baseline > 0:
+                    speedup = baseline / r['time']
+                    speedups.append(speedup)
+                    for feat_name in feature_arrays:
+                        feature_arrays[feat_name].append(r['features'].get(feat_name, 0))
+            
+            if len(speedups) >= 2:
+                # Simple correlation-based weight update
+                avg_speedup = sum(speedups) / len(speedups)
+                
+                # Update bias based on average speedup
+                if avg_speedup > 1.0:
+                    weights[algo]['bias'] = 0.5 + (avg_speedup - 1.0) * 0.5
+                
+                # Update feature weights based on correlation direction
+                # (positive correlation = feature helps this algo, negative = hurts)
+                def correlation(x, y):
+                    if len(x) < 2:
+                        return 0.0
+                    n = len(x)
+                    mean_x = sum(x) / n
+                    mean_y = sum(y) / n
+                    num = sum((xi - mean_x) * (yi - mean_y) for xi, yi in zip(x, y))
+                    den_x = math.sqrt(sum((xi - mean_x) ** 2 for xi in x))
+                    den_y = math.sqrt(sum((yi - mean_y) ** 2 for yi in y))
+                    if den_x * den_y > 0:
+                        return num / (den_x * den_y)
+                    return 0.0
+                
+                # Compute correlations and update all feature weights
+                weight_map = {
+                    'modularity': ('w_modularity', 0.5),
+                    'degree_variance': ('w_degree_variance', 0.3),
+                    'hub_concentration': ('w_hub_concentration', 0.3),
+                    'log_nodes': ('w_log_nodes', 0.2),
+                    'log_edges': ('w_log_edges', 0.2),
+                    'density': ('w_density', 0.3),
+                    'avg_degree': ('w_avg_degree', 0.2),
+                    'clustering_coefficient': ('w_clustering_coeff', 0.3),
+                    'avg_path_length': ('w_avg_path_length', 0.2),
+                    'diameter': ('w_diameter', 0.2),
+                    'community_count': ('w_community_count', 0.2),
+                }
+                
+                for feat_name, (weight_name, scale) in weight_map.items():
+                    feat_vals = feature_arrays[feat_name]
+                    # Only compute if we have variance in the feature
+                    if len(set(feat_vals)) > 1:
+                        corr = correlation(feat_vals, speedups)
+                        weights[algo][weight_name] = corr * scale
     
     # Save updated weights
     if weights_file:
