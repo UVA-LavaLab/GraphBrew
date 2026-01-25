@@ -89,20 +89,23 @@ make cc    # Connected Components
 
 | Option | Description | Example |
 |--------|-------------|---------|
-| `RABBIT_ENABLE=1` | Enable Rabbit Order algorithm | `RABBIT_ENABLE=1 make all` |
+| `RABBIT_ENABLE=0` | Disable Rabbit Order (enabled by default) | `RABBIT_ENABLE=0 make all` |
 | `DEBUG=1` | Build with debug symbols | `DEBUG=1 make all` |
 | `SANITIZE=1` | Enable address sanitizer | `SANITIZE=1 make all` |
 
-### Build with Rabbit Order
+### Rabbit Order
 
-Rabbit Order requires Boost 1.58+:
+Rabbit Order (algorithm 8) requires Boost 1.58+ and is **enabled by default**:
 
 ```bash
 # Check Boost version
 cat /usr/include/boost/version.hpp | grep "BOOST_LIB_VERSION"
 
-# Build with Rabbit Order
-RABBIT_ENABLE=1 make all
+# Build (Rabbit Order enabled by default)
+make all
+
+# Or disable Rabbit Order if Boost is not available
+RABBIT_ENABLE=0 make all
 ```
 
 ### Verify Installation
@@ -127,11 +130,13 @@ Trial Time:          0.00xxx
 
 ### Install Python Dependencies
 
+The core Python scripts require only Python 3.8+ standard library. Optional dependencies provide extended analysis:
+
 ```bash
 cd GraphBrew
-pip3 install -r scripts/requirements.txt
 
-# Or manually:
+# Core scripts work without any pip installs!
+# Optional: Install for extended visualization and analysis
 pip3 install numpy matplotlib pandas
 ```
 
@@ -158,10 +163,10 @@ GraphBrew/
 ├── results/           # Experiment outputs
 │   ├── mappings/      # Pre-generated label maps
 │   └── logs/          # Execution logs
-├── scripts/           # Python analysis tools (~11,000 lines)
-│   ├── graphbrew_experiment.py  # ⭐ Main orchestration (~2900 lines)
+├── scripts/           # Python analysis tools
+│   ├── graphbrew_experiment.py  # ⭐ Main orchestration (~3050 lines)
 │   ├── requirements.txt
-│   ├── lib/           # 📦 Core modules (~8000 lines)
+│   ├── lib/           # 📦 Core modules (~11,000 lines)
 │   │   ├── types.py      # Data classes
 │   │   ├── phases.py     # Phase orchestration
 │   │   ├── utils.py      # ALGORITHMS, constants
@@ -177,8 +182,11 @@ GraphBrew/
 │   │   ├── progress.py   # Progress tracking
 │   │   └── results.py    # Result I/O
 │   └── weights/       # Auto-clustered type weights
-│       ├── type_registry.json  # Graph → type mappings + centroids
-│       └── type_N.json         # Per-cluster weights
+│       ├── active/            # C++ reads from here
+│       │   ├── type_registry.json  # Graph → type mappings + centroids
+│       │   └── type_N.json         # Per-cluster weights
+│       ├── merged/            # Accumulated weights
+│       └── runs/              # Historical snapshots
 └── wiki/              # This documentation
 ```
 
@@ -224,5 +232,7 @@ make -j2 all  # Instead of default parallel
 - [[Reordering-Algorithms]] - Understand the algorithms
 
 ---
+
+[← Back to Home](Home) | [Quick Start →](Quick-Start)
 
 [← Back to Home](Home)
