@@ -56,9 +56,9 @@ class CacheResult:
     algorithm_id: int
     algorithm_name: str
     benchmark: str
-    l1_hit_rate: float = 0.0
-    l2_hit_rate: float = 0.0
-    l3_hit_rate: float = 0.0
+    l1_miss_rate: float = 0.0
+    l2_miss_rate: float = 0.0
+    l3_miss_rate: float = 0.0
     l1_misses: int = 0
     l2_misses: int = 0
     l3_misses: int = 0
@@ -91,6 +91,13 @@ def parse_cache_output(output: str) -> Dict:
         
     Returns:
         Dict with l1_hit_rate, l2_hit_rate, l3_hit_rate, and miss counts
+        
+    Note:
+        The output format has blocks like:
+        ║ L1 Cache (32KB, 8-way, LRU)                              ║
+        ║   Hits:                      8360511                          ║
+        ║   Misses:                    1267633                          ║
+        ║   Hit Rate:                 86.8341%                          ║
     """
     result = {
         'l1_hit_rate': 0.0,
@@ -101,30 +108,39 @@ def parse_cache_output(output: str) -> Dict:
         'l3_misses': 0,
     }
     
-    # Cache hit rate patterns
-    # Format: "L1 Hit Rate: 95.5%" or "L1 hit rate: 95.5"
-    patterns = {
-        'l1_hit_rate': r'L1\s*(?:Hit\s*)?Rate[:\s]*([\d.]+)',
-        'l2_hit_rate': r'L2\s*(?:Hit\s*)?Rate[:\s]*([\d.]+)',
-        'l3_hit_rate': r'L3\s*(?:Hit\s*)?Rate[:\s]*([\d.]+)',
-    }
+    # Parse by finding each cache level block and extracting its values
+    # L1 Cache block
+    l1_match = re.search(r'L1\s*Cache[^\n]*\n((?:.*?\n)*?)(?=L2\s*Cache|SUMMARY|$)', output, re.IGNORECASE)
+    if l1_match:
+        block = l1_match.group(1)
+        hit_match = re.search(r'Hit\s*Rate[:\s]*([\d.]+)', block, re.IGNORECASE)
+        miss_match = re.search(r'Misses[:\s]*(\d+)', block, re.IGNORECASE)
+        if hit_match:
+            result['l1_hit_rate'] = float(hit_match.group(1))
+        if miss_match:
+            result['l1_misses'] = int(miss_match.group(1))
     
-    for key, pattern in patterns.items():
-        match = re.search(pattern, output, re.IGNORECASE)
-        if match:
-            result[key] = float(match.group(1))
+    # L2 Cache block
+    l2_match = re.search(r'L2\s*Cache[^\n]*\n((?:.*?\n)*?)(?=L3\s*Cache|SUMMARY|$)', output, re.IGNORECASE)
+    if l2_match:
+        block = l2_match.group(1)
+        hit_match = re.search(r'Hit\s*Rate[:\s]*([\d.]+)', block, re.IGNORECASE)
+        miss_match = re.search(r'Misses[:\s]*(\d+)', block, re.IGNORECASE)
+        if hit_match:
+            result['l2_hit_rate'] = float(hit_match.group(1))
+        if miss_match:
+            result['l2_misses'] = int(miss_match.group(1))
     
-    # Cache miss patterns
-    miss_patterns = {
-        'l1_misses': r'L1\s*(?:Cache\s*)?Misses[:\s]*(\d+)',
-        'l2_misses': r'L2\s*(?:Cache\s*)?Misses[:\s]*(\d+)',
-        'l3_misses': r'L3\s*(?:Cache\s*)?Misses[:\s]*(\d+)',
-    }
-    
-    for key, pattern in miss_patterns.items():
-        match = re.search(pattern, output, re.IGNORECASE)
-        if match:
-            result[key] = int(match.group(1))
+    # L3 Cache block
+    l3_match = re.search(r'L3\s*Cache[^\n]*\n((?:.*?\n)*?)(?=SUMMARY|$)', output, re.IGNORECASE)
+    if l3_match:
+        block = l3_match.group(1)
+        hit_match = re.search(r'Hit\s*Rate[:\s]*([\d.]+)', block, re.IGNORECASE)
+        miss_match = re.search(r'Misses[:\s]*(\d+)', block, re.IGNORECASE)
+        if hit_match:
+            result['l3_hit_rate'] = float(hit_match.group(1))
+        if miss_match:
+            result['l3_misses'] = int(miss_match.group(1))
     
     return result
 
@@ -190,14 +206,20 @@ def run_cache_simulation(
         output = stdout + stderr
         parsed = parse_cache_output(output)
         
+        # Convert hit rate (percentage) to miss rate (0.0 to 1.0)
+        # hit_rate is in percentage (e.g., 86.8%), so miss_rate = (100 - hit_rate) / 100
+        l1_miss = (100.0 - parsed['l1_hit_rate']) / 100.0 if parsed['l1_hit_rate'] > 0 else 0.0
+        l2_miss = (100.0 - parsed['l2_hit_rate']) / 100.0 if parsed['l2_hit_rate'] > 0 else 0.0
+        l3_miss = (100.0 - parsed['l3_hit_rate']) / 100.0 if parsed['l3_hit_rate'] > 0 else 0.0
+        
         return CacheResult(
             graph=graph_name,
             algorithm_id=algorithm,
             algorithm_name=algo_name,
             benchmark=benchmark,
-            l1_hit_rate=parsed['l1_hit_rate'],
-            l2_hit_rate=parsed['l2_hit_rate'],
-            l3_hit_rate=parsed['l3_hit_rate'],
+            l1_miss_rate=l1_miss,
+            l2_miss_rate=l2_miss,
+            l3_miss_rate=l3_miss,
             l1_misses=parsed['l1_misses'],
             l2_misses=parsed['l2_misses'],
             l3_misses=parsed['l3_misses'],
@@ -298,7 +320,11 @@ def run_cache_simulations(
                 )
                 
                 if result.success:
-                    log.info(f"    [{current}/{total}] {algo_name}: L1:{result.l1_hit_rate:.1f}% L2:{result.l2_hit_rate:.1f}% L3:{result.l3_hit_rate:.1f}%")
+                    # Display hit rates for user (computed from miss rates)
+                    l1_hit = (1.0 - result.l1_miss_rate) * 100
+                    l2_hit = (1.0 - result.l2_miss_rate) * 100
+                    l3_hit = (1.0 - result.l3_miss_rate) * 100
+                    log.info(f"    [{current}/{total}] {algo_name}: L1:{l1_hit:.1f}% L2:{l2_hit:.1f}% L3:{l3_hit:.1f}%")
                 else:
                     log.error(f"    [{current}/{total}] {algo_name}: {result.error}")
                 
@@ -332,11 +358,18 @@ def get_cache_stats_summary(results: List[CacheResult]) -> Dict:
     # Compute averages
     algo_stats = {}
     for algo, algo_results in by_algo.items():
+        # Convert miss rates back to hit rates for display
+        avg_l1_miss = sum(r.l1_miss_rate for r in algo_results) / len(algo_results)
+        avg_l2_miss = sum(r.l2_miss_rate for r in algo_results) / len(algo_results)
+        avg_l3_miss = sum(r.l3_miss_rate for r in algo_results) / len(algo_results)
         algo_stats[algo] = {
             "count": len(algo_results),
-            "avg_l1_hit_rate": sum(r.l1_hit_rate for r in algo_results) / len(algo_results),
-            "avg_l2_hit_rate": sum(r.l2_hit_rate for r in algo_results) / len(algo_results),
-            "avg_l3_hit_rate": sum(r.l3_hit_rate for r in algo_results) / len(algo_results),
+            "avg_l1_hit_rate": (1.0 - avg_l1_miss) * 100,
+            "avg_l2_hit_rate": (1.0 - avg_l2_miss) * 100,
+            "avg_l3_hit_rate": (1.0 - avg_l3_miss) * 100,
+            "avg_l1_miss_rate": avg_l1_miss,
+            "avg_l2_miss_rate": avg_l2_miss,
+            "avg_l3_miss_rate": avg_l3_miss,
         }
     
     return {
