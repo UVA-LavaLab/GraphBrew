@@ -6,6 +6,12 @@ This emulator replicates the C++ AdaptiveOrder algorithm selection logic:
   Layer 1: Graph type matching (Euclidean distance to centroids)
   Layer 2: Algorithm selection (perceptron scoring)
 
+Selection Modes:
+  - fastest-reorder:    Minimize reordering time only
+  - fastest-execution:  Minimize algorithm execution time (default)
+  - best-endtoend:      Minimize (reorder_time + execution_time)
+  - best-amortization:  Minimize iterations needed to amortize reordering cost
+
 Features:
   - Toggle individual weights on/off to analyze their impact
   - Compare emulated selections against actual benchmark results
@@ -15,6 +21,7 @@ Usage:
   python3 scripts/adaptive_emulator.py --graph results/graphs/email-Enron/email-Enron.mtx
   python3 scripts/adaptive_emulator.py --all-graphs --disable-weight w_modularity
   python3 scripts/adaptive_emulator.py --compare-benchmark results/benchmark_*.json
+  python3 scripts/adaptive_emulator.py --mode best-endtoend --compare-benchmark results/benchmark.json
 """
 
 import argparse
@@ -23,9 +30,23 @@ import math
 import subprocess
 import sys
 from dataclasses import dataclass, field
+from enum import Enum
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Any
 from collections import defaultdict
+
+
+# =============================================================================
+# Selection Modes
+# =============================================================================
+
+class SelectionMode(Enum):
+    """Algorithm selection optimization target."""
+    FASTEST_REORDER = "fastest-reorder"      # Minimize reordering time
+    FASTEST_EXECUTION = "fastest-execution"  # Minimize execution time (default)
+    BEST_ENDTOEND = "best-endtoend"          # Minimize reorder + execution time
+    BEST_AMORTIZATION = "best-amortization"  # Minimize iterations to amortize
+
 
 # =============================================================================
 # Constants
@@ -530,20 +551,50 @@ class AdaptiveOrderEmulator:
         self.type_matcher = TypeMatcher()
         self.algorithm_selector = AlgorithmSelector(weights_dir)
         self.config = WeightConfig()
+        self.selection_mode = SelectionMode.FASTEST_EXECUTION  # Default mode
+        self._reorder_times_cache: Dict[str, Dict[str, float]] = {}
+    
+    def load_reorder_times(self, graph_name: str) -> Dict[str, float]:
+        """Load reorder times for a graph from mappings."""
+        if graph_name in self._reorder_times_cache:
+            return self._reorder_times_cache[graph_name]
+        
+        times = load_reorder_times_from_mappings(graph_name)
+        self._reorder_times_cache[graph_name] = times
+        return times
     
     def emulate(
         self,
         features: GraphFeatures,
-        benchmark: str = None
+        benchmark: str = None,
+        mode: SelectionMode = None
     ) -> EmulationResult:
         """Emulate AdaptiveOrder for given graph features."""
+        mode = mode or self.selection_mode
+        
         # Layer 1: Type matching
         matched_type, type_distance = self.type_matcher.find_best_type(features)
         
-        # Layer 2: Algorithm selection
-        selected_algo, scores = self.algorithm_selector.select_algorithm(
-            matched_type, features, self.config, benchmark
-        )
+        # Layer 2: Algorithm selection (mode-dependent)
+        if mode == SelectionMode.FASTEST_REORDER:
+            selected_algo, scores = self._select_fastest_reorder(features)
+        elif mode == SelectionMode.FASTEST_EXECUTION:
+            selected_algo, scores = self.algorithm_selector.select_algorithm(
+                matched_type, features, self.config, benchmark
+            )
+        elif mode == SelectionMode.BEST_ENDTOEND:
+            # Use standard selection but weight reorder_time heavily
+            selected_algo, scores = self._select_best_endtoend(
+                matched_type, features, benchmark
+            )
+        elif mode == SelectionMode.BEST_AMORTIZATION:
+            selected_algo, scores = self._select_best_amortization(
+                matched_type, features, benchmark
+            )
+        else:
+            selected_algo, scores = self.algorithm_selector.select_algorithm(
+                matched_type, features, self.config, benchmark
+            )
         
         return EmulationResult(
             graph_name=features.name,
@@ -553,6 +604,103 @@ class AdaptiveOrderEmulator:
             algorithm_scores=scores,
             features=features,
         )
+    
+    def _select_fastest_reorder(
+        self,
+        features: GraphFeatures
+    ) -> Tuple[str, Dict[str, float]]:
+        """Select algorithm with fastest reorder time."""
+        reorder_times = self.load_reorder_times(features.name)
+        
+        if not reorder_times:
+            # Fall back to heuristics: simple algorithms are fastest
+            fast_algorithms = ["RANDOM", "SORT", "HUBSORT", "DBG", "HUBCLUSTERDBG"]
+            return fast_algorithms[0], {a: 1.0/float(i+1) for i, a in enumerate(fast_algorithms)}
+        
+        # Exclude ORIGINAL (no reordering)
+        reorder_scores = {}
+        for algo, rt in reorder_times.items():
+            if algo != "ORIGINAL" and rt >= 0:
+                # Convert to score: lower time = higher score
+                reorder_scores[algo] = 1.0 / (rt + 0.001)  # Add small epsilon
+        
+        if not reorder_scores:
+            return "RANDOM", {"RANDOM": 1.0}
+        
+        best_algo = max(reorder_scores, key=reorder_scores.get)
+        return best_algo, reorder_scores
+    
+    def _select_best_endtoend(
+        self,
+        matched_type: str,
+        features: GraphFeatures,
+        benchmark: str = None
+    ) -> Tuple[str, Dict[str, float]]:
+        """Select algorithm with best end-to-end (reorder + execution) time."""
+        # Get execution time scores from perceptron
+        _, exec_scores = self.algorithm_selector.select_algorithm(
+            matched_type, features, self.config, benchmark
+        )
+        
+        # Get reorder times
+        reorder_times = self.load_reorder_times(features.name)
+        
+        # Combine: penalize high reorder times
+        combined_scores = {}
+        for algo, exec_score in exec_scores.items():
+            reorder_time = reorder_times.get(algo, 0.1)  # Default penalty if unknown
+            # Score = exec_score - reorder_time_penalty
+            # Lower reorder time = less penalty
+            reorder_penalty = reorder_time * 10  # Weight reorder time
+            combined_scores[algo] = exec_score - reorder_penalty
+        
+        # ORIGINAL has no reorder time, give it exec score directly
+        if "ORIGINAL" not in combined_scores:
+            combined_scores["ORIGINAL"] = exec_scores.get("ORIGINAL", 0.5)
+        
+        if not combined_scores:
+            return "ORIGINAL", {"ORIGINAL": 1.0}
+        
+        best_algo = max(combined_scores, key=combined_scores.get)
+        return best_algo, combined_scores
+    
+    def _select_best_amortization(
+        self,
+        matched_type: str,
+        features: GraphFeatures,
+        benchmark: str = None
+    ) -> Tuple[str, Dict[str, float]]:
+        """Select algorithm that needs fewest iterations to amortize reordering cost."""
+        # Get execution time scores from perceptron (higher = faster)
+        _, exec_scores = self.algorithm_selector.select_algorithm(
+            matched_type, features, self.config, benchmark
+        )
+        
+        # Get reorder times
+        reorder_times = self.load_reorder_times(features.name)
+        
+        # Estimate speedup from scores: higher exec_score = more speedup
+        # Amortization iterations = reorder_time / speedup_per_iteration
+        combined_scores = {}
+        baseline_score = exec_scores.get("ORIGINAL", 0.5)
+        
+        for algo, exec_score in exec_scores.items():
+            if algo == "ORIGINAL":
+                continue  # ORIGINAL has no amortization benefit
+            
+            reorder_time = reorder_times.get(algo, 0.1)
+            # Estimate speedup: score difference from baseline
+            speedup = max(exec_score - baseline_score, 0.01)
+            
+            # Fewer iterations = better, so invert for score
+            amortization_iters = reorder_time / speedup
+            combined_scores[algo] = 1.0 / (amortization_iters + 0.01)
+        
+        if not combined_scores:
+            return "ORIGINAL", {"ORIGINAL": 1.0}
+        
+        best_algo = max(combined_scores, key=combined_scores.get)
+        return best_algo, combined_scores
     
     def emulate_with_config(
         self,
@@ -738,19 +886,46 @@ def print_weight_impact(impacts: Dict[str, Dict], graph_name: str):
         print(f"{weight:<25} {info.get('selected', 'N/A'):<20} {changed_marker:<10}")
 
 
-def compare_with_benchmark(
-    emulator: AdaptiveOrderEmulator,
-    benchmark_path: Path,
-    features_cache: Dict[str, GraphFeatures]
-) -> Dict:
-    """Compare emulated selections against actual benchmark results."""
+def load_reorder_times_from_mappings(graph_name: str) -> Dict[str, float]:
+    """Load reorder times from .time files in mappings directory."""
+    mappings_dir = RESULTS_DIR / "mappings" / graph_name
+    reorder_times = {}
+    
+    if not mappings_dir.exists():
+        return reorder_times
+    
+    for time_file in mappings_dir.glob("*.time"):
+        algo_name = time_file.stem
+        try:
+            with open(time_file) as f:
+                reorder_times[algo_name] = float(f.read().strip())
+        except (ValueError, IOError):
+            pass
+    
+    # Add ORIGINAL with 0 reorder time
+    reorder_times["ORIGINAL"] = 0.0
+    
+    return reorder_times
+
+
+def load_benchmark_data(benchmark_path: Path) -> Dict:
+    """Load and parse benchmark data into structured format."""
     with open(benchmark_path) as f:
         benchmark_data = json.load(f)
     
-    # Group by graph and benchmark, find actual best and all times
-    from collections import defaultdict
-    actual_best = defaultdict(dict)
-    all_times = defaultdict(dict)  # (graph, bench) -> {algo: time}
+    # Collect all graphs to load reorder times
+    graphs = set()
+    for entry in benchmark_data:
+        if entry.get("success"):
+            graphs.add(entry["graph"])
+    
+    # Load reorder times from mappings
+    reorder_times_by_graph = {}
+    for graph in graphs:
+        reorder_times_by_graph[graph] = load_reorder_times_from_mappings(graph)
+    
+    # Collect all data by (graph, benchmark, algorithm)
+    all_data = defaultdict(lambda: defaultdict(dict))  # graph -> bench -> algo -> {time, reorder_time}
     
     for entry in benchmark_data:
         if not entry.get("success", False):
@@ -758,75 +933,191 @@ def compare_with_benchmark(
         graph = entry["graph"]
         bench = entry["benchmark"]
         algo = entry["algorithm"]
-        time = entry["time_seconds"]
+        exec_time = entry.get("time_seconds", 999)
         
-        key = (graph, bench)
-        all_times[key][algo] = time
-        if key not in actual_best or time < actual_best[key]["time"]:
-            actual_best[key] = {"algorithm": algo, "time": time}
+        # Get reorder time: prefer from benchmark, then from mappings
+        reorder_time = entry.get("reorder_time", 0) or entry.get("reorder_time_seconds", 0)
+        if reorder_time == 0 and graph in reorder_times_by_graph:
+            reorder_time = reorder_times_by_graph[graph].get(algo, 0)
+        
+        all_data[graph][bench][algo] = {
+            "exec_time": exec_time,
+            "reorder_time": reorder_time,
+            "endtoend_time": reorder_time + exec_time,
+        }
     
-    # Compare emulated vs actual
+    return all_data
+
+
+def find_optimal_algorithm(
+    algo_data: Dict[str, Dict],
+    mode: SelectionMode,
+    original_time: float = None
+) -> Tuple[str, Dict]:
+    """Find the optimal algorithm based on selection mode."""
+    if not algo_data:
+        return "ORIGINAL", {}
+    
+    # Get ORIGINAL execution time for amortization calculation
+    if original_time is None:
+        original_time = algo_data.get("ORIGINAL", {}).get("exec_time", 999)
+    
+    best_algo = None
+    best_value = float('inf')
+    metrics = {}
+    
+    for algo, data in algo_data.items():
+        exec_time = data.get("exec_time", 999)
+        reorder_time = data.get("reorder_time", 0)
+        
+        if mode == SelectionMode.FASTEST_REORDER:
+            # Skip ORIGINAL for reorder comparison (it has no reordering)
+            if algo == "ORIGINAL":
+                value = float('inf')  # ORIGINAL doesn't reorder
+            else:
+                value = reorder_time
+        
+        elif mode == SelectionMode.FASTEST_EXECUTION:
+            value = exec_time
+        
+        elif mode == SelectionMode.BEST_ENDTOEND:
+            value = reorder_time + exec_time
+        
+        elif mode == SelectionMode.BEST_AMORTIZATION:
+            # Iterations to amortize = reorder_time / time_saved_per_iteration
+            # time_saved = original_time - exec_time
+            time_saved = original_time - exec_time
+            if algo == "ORIGINAL" or time_saved <= 0:
+                value = float('inf')  # No benefit or slower than original
+            else:
+                value = reorder_time / time_saved  # iterations needed
+        
+        else:
+            value = exec_time  # default
+        
+        metrics[algo] = {
+            "exec_time": exec_time,
+            "reorder_time": reorder_time,
+            "endtoend_time": reorder_time + exec_time,
+            "value": value,
+        }
+        
+        # Calculate amortization
+        time_saved = original_time - exec_time
+        if time_saved > 0 and reorder_time > 0:
+            metrics[algo]["amortization_iters"] = reorder_time / time_saved
+        else:
+            metrics[algo]["amortization_iters"] = float('inf') if algo != "ORIGINAL" else 0
+        
+        if value < best_value:
+            best_value = value
+            best_algo = algo
+    
+    return best_algo, metrics
+
+
+def compare_with_benchmark(
+    emulator: "AdaptiveOrderEmulator",
+    benchmark_path: Path,
+    features_cache: Dict[str, "GraphFeatures"],
+    mode: SelectionMode = SelectionMode.FASTEST_EXECUTION
+) -> Dict:
+    """Compare emulated selections against actual benchmark results for a given mode."""
+    all_data = load_benchmark_data(benchmark_path)
+    
     results = {
+        "mode": mode.value,
         "matches": 0,
         "top_2": 0,
         "top_3": 0,
         "total": 0,
-        "avg_speedup_gap": 0.0,
+        "avg_gap": 0.0,
         "details": []
     }
     
-    speedup_gaps = []
+    gaps = []
     
-    for (graph, bench), best in actual_best.items():
+    for graph, bench_data in all_data.items():
         if graph not in features_cache:
             continue
         
         features = features_cache[graph]
-        emulated = emulator.emulate(features, bench)
         
-        emulated_algo = emulated.selected_algorithm
-        best_algo = best["algorithm"]
-        best_time = best["time"]
-        
-        # Get the time for the emulated algorithm
-        emulated_time = all_times[(graph, bench)].get(emulated_algo, best_time * 10)
-        
-        # Calculate speedup gap: how much slower than optimal
-        speedup_gap = emulated_time / best_time if best_time > 0 else 1.0
-        speedup_gaps.append(speedup_gap)
-        
-        # Rank of emulated algorithm
-        sorted_algos = sorted(all_times[(graph, bench)].items(), key=lambda x: x[1])
-        rank = 1
-        for i, (algo, time) in enumerate(sorted_algos):
-            if algo == emulated_algo:
-                rank = i + 1
-                break
-        
-        match = emulated_algo == best_algo
-        results["total"] += 1
-        if match:
-            results["matches"] += 1
-        if rank <= 2:
-            results["top_2"] += 1
-        if rank <= 3:
-            results["top_3"] += 1
-        
-        results["details"].append({
-            "graph": graph,
-            "benchmark": bench,
-            "emulated": emulated_algo,
-            "actual_best": best_algo,
-            "match": match,
-            "rank": rank,
-            "speedup_gap": speedup_gap,
-            "emulated_time": emulated_time,
-            "best_time": best_time,
-        })
+        for bench, algo_data in bench_data.items():
+            # Find actual optimal for this mode
+            original_time = algo_data.get("ORIGINAL", {}).get("exec_time", 999)
+            optimal_algo, metrics = find_optimal_algorithm(algo_data, mode, original_time)
+            
+            if optimal_algo is None:
+                continue
+            
+            # Get emulated selection with mode-specific logic
+            emulated = emulator.emulate(features, bench, mode)
+            emulated_algo = emulated.selected_algorithm
+            
+            # Get metrics for emulated algorithm
+            emulated_metrics = metrics.get(emulated_algo, {})
+            optimal_metrics = metrics.get(optimal_algo, {})
+            
+            emulated_value = emulated_metrics.get("value", float('inf'))
+            optimal_value = optimal_metrics.get("value", 1.0)
+            
+            # Calculate gap (ratio of emulated / optimal)
+            if optimal_value > 0 and optimal_value != float('inf'):
+                gap = emulated_value / optimal_value if emulated_value != float('inf') else 100
+            else:
+                gap = 1.0 if emulated_algo == optimal_algo else 100
+            gaps.append(min(gap, 100))  # Cap at 100x
+            
+            # Rank of emulated algorithm
+            sorted_algos = sorted(
+                [(a, m.get("value", float('inf'))) for a, m in metrics.items()],
+                key=lambda x: x[1]
+            )
+            rank = next((i + 1 for i, (a, _) in enumerate(sorted_algos) if a == emulated_algo), 999)
+            
+            match = emulated_algo == optimal_algo
+            results["total"] += 1
+            if match:
+                results["matches"] += 1
+            if rank <= 2:
+                results["top_2"] += 1
+            if rank <= 3:
+                results["top_3"] += 1
+            
+            results["details"].append({
+                "graph": graph,
+                "benchmark": bench,
+                "emulated": emulated_algo,
+                "optimal": optimal_algo,
+                "match": match,
+                "rank": rank,
+                "gap": gap,
+                "emulated_value": emulated_value,
+                "optimal_value": optimal_value,
+                "emulated_exec": emulated_metrics.get("exec_time", 0),
+                "emulated_reorder": emulated_metrics.get("reorder_time", 0),
+                "emulated_amortization": emulated_metrics.get("amortization_iters", 0),
+                "optimal_exec": optimal_metrics.get("exec_time", 0),
+                "optimal_reorder": optimal_metrics.get("reorder_time", 0),
+                "optimal_amortization": optimal_metrics.get("amortization_iters", 0),
+            })
     
-    if speedup_gaps:
-        results["avg_speedup_gap"] = sum(speedup_gaps) / len(speedup_gaps)
+    if gaps:
+        results["avg_gap"] = sum(gaps) / len(gaps)
     
+    return results
+
+
+def compare_all_modes(
+    emulator: "AdaptiveOrderEmulator",
+    benchmark_path: Path,
+    features_cache: Dict[str, "GraphFeatures"]
+) -> Dict[str, Dict]:
+    """Compare against all selection modes."""
+    results = {}
+    for mode in SelectionMode:
+        results[mode.value] = compare_with_benchmark(emulator, benchmark_path, features_cache, mode)
     return results
 
 
@@ -839,6 +1130,16 @@ def main():
     parser.add_argument("--graph", "-g", type=str, help="Path to a single graph file")
     parser.add_argument("--all-graphs", "-a", action="store_true", help="Process all graphs in results/graphs")
     parser.add_argument("--use-cache", action="store_true", help="Use cached features instead of extracting")
+    
+    # Selection mode
+    parser.add_argument("--mode", "-m", type=str, default="fastest-execution",
+                        choices=["fastest-reorder", "fastest-execution", "best-endtoend", "best-amortization", "all"],
+                        help="Selection optimization target: "
+                             "fastest-reorder (min reorder time), "
+                             "fastest-execution (min exec time, default), "
+                             "best-endtoend (min reorder+exec), "
+                             "best-amortization (min iterations to amortize), "
+                             "all (evaluate all modes)")
     
     # Weight configuration
     parser.add_argument("--disable-weight", "-d", type=str, action="append", 
@@ -869,6 +1170,12 @@ def main():
     parser.add_argument("--json", action="store_true", help="Output as JSON")
     
     args = parser.parse_args()
+    
+    # Parse selection mode
+    if args.mode == "all":
+        selection_mode = None  # Will run all modes
+    else:
+        selection_mode = SelectionMode(args.mode)
     
     # Initialize emulator
     emulator = AdaptiveOrderEmulator()
@@ -953,25 +1260,59 @@ def main():
     if args.compare_benchmark:
         benchmark_path = Path(args.compare_benchmark)
         if benchmark_path.exists():
-            comparison = compare_with_benchmark(emulator, benchmark_path, features_cache)
-            
-            print(f"\n{'='*80}")
-            print("COMPARISON WITH ACTUAL BENCHMARK RESULTS")
-            print(f"{'='*80}")
-            total = comparison['total']
-            if total > 0:
-                print(f"Exact Matches:     {comparison['matches']:3d}/{total} ({comparison['matches']/total*100:5.1f}%)")
-                print(f"Top 2 (rank ≤ 2):  {comparison['top_2']:3d}/{total} ({comparison['top_2']/total*100:5.1f}%)")
-                print(f"Top 3 (rank ≤ 3):  {comparison['top_3']:3d}/{total} ({comparison['top_3']/total*100:5.1f}%)")
-                print(f"Avg Slowdown:      {comparison['avg_speedup_gap']:.2f}x (1.0 = optimal)")
-            
-            if args.verbose:
-                print(f"\n{'Graph':<20} {'Bench':<6} {'Emulated':<15} {'Actual Best':<15} {'Rank':>4} {'Gap':>6}")
-                print("-" * 75)
-                for d in sorted(comparison["details"], key=lambda x: (x["graph"], x["benchmark"])):
-                    match_marker = "✓" if d["match"] else " "
-                    print(f"{d['graph']:<20} {d['benchmark']:<6} {d['emulated']:<15} "
-                          f"{d['actual_best']:<15} {d['rank']:>4} {d['speedup_gap']:>5.2f}x {match_marker}")
+            if selection_mode is None:
+                # Run all modes
+                all_results = compare_all_modes(emulator, benchmark_path, features_cache)
+                
+                print(f"\n{'='*90}")
+                print("COMPARISON WITH ACTUAL BENCHMARK RESULTS - ALL MODES")
+                print(f"{'='*90}")
+                print(f"\n{'Mode':<22} {'Match%':>8} {'Top2%':>8} {'Top3%':>8} {'AvgGap':>10}")
+                print("-" * 60)
+                
+                for mode_name, comparison in all_results.items():
+                    total = comparison['total']
+                    if total > 0:
+                        print(f"{mode_name:<22} {comparison['matches']/total*100:>7.1f}% "
+                              f"{comparison['top_2']/total*100:>7.1f}% "
+                              f"{comparison['top_3']/total*100:>7.1f}% "
+                              f"{comparison['avg_gap']:>9.2f}x")
+                
+                # Detailed output for all modes if verbose
+                if args.verbose:
+                    for mode_name, comparison in all_results.items():
+                        print(f"\n{'='*90}")
+                        print(f"MODE: {mode_name.upper()}")
+                        print(f"{'='*90}")
+                        print(f"\n{'Graph':<18} {'Bench':<6} {'Emulated':<15} {'Optimal':<15} {'Rank':>4} {'Gap':>8}")
+                        print("-" * 75)
+                        for d in sorted(comparison["details"], key=lambda x: (x["graph"], x["benchmark"])):
+                            match_marker = "✓" if d["match"] else " "
+                            gap_str = f"{d['gap']:.2f}x" if d['gap'] < 100 else "inf"
+                            print(f"{d['graph']:<18} {d['benchmark']:<6} {d['emulated']:<15} "
+                                  f"{d['optimal']:<15} {d['rank']:>4} {gap_str:>8} {match_marker}")
+            else:
+                # Single mode comparison
+                comparison = compare_with_benchmark(emulator, benchmark_path, features_cache, selection_mode)
+                
+                print(f"\n{'='*80}")
+                print(f"COMPARISON WITH ACTUAL BENCHMARK RESULTS - {selection_mode.value.upper()}")
+                print(f"{'='*80}")
+                total = comparison['total']
+                if total > 0:
+                    print(f"Exact Matches:     {comparison['matches']:3d}/{total} ({comparison['matches']/total*100:5.1f}%)")
+                    print(f"Top 2 (rank ≤ 2):  {comparison['top_2']:3d}/{total} ({comparison['top_2']/total*100:5.1f}%)")
+                    print(f"Top 3 (rank ≤ 3):  {comparison['top_3']:3d}/{total} ({comparison['top_3']/total*100:5.1f}%)")
+                    print(f"Avg Gap:           {comparison['avg_gap']:.2f}x (1.0 = optimal)")
+                
+                if args.verbose:
+                    print(f"\n{'Graph':<18} {'Bench':<6} {'Emulated':<15} {'Optimal':<15} {'Rank':>4} {'Gap':>8}")
+                    print("-" * 75)
+                    for d in sorted(comparison["details"], key=lambda x: (x["graph"], x["benchmark"])):
+                        match_marker = "✓" if d["match"] else " "
+                        gap_str = f"{d['gap']:.2f}x" if d['gap'] < 100 else "inf"
+                        print(f"{d['graph']:<18} {d['benchmark']:<6} {d['emulated']:<15} "
+                              f"{d['optimal']:<15} {d['rank']:>4} {gap_str:>8} {match_marker}")
     
     # Grid search for optimal caps
     if args.grid_search and args.compare_benchmark:
