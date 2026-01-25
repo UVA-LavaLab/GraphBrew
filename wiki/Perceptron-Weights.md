@@ -42,7 +42,7 @@ diameter: 16      --*---> w_di: 0.05 ----+
 ALGORITHM SELECTION:
 ====================
 RABBITORDER:    score = 2.31  <-- WINNER
-LeidenDFS:      score = 2.18
+LeidenCSR:      score = 2.18
 HubClusterDBG:  score = 1.95
 GORDER:         score = 1.82
 ORIGINAL:       score = 0.50
@@ -81,7 +81,7 @@ This ensures weights are never accidentally overwritten and the best cluster is 
 AdaptiveOrder uses an automatic clustering system that groups graphs by feature similarity instead of predefined categories. This allows the system to scale to any number of graph types.
 
 **How It Works:**
-1. **Feature Extraction:** For each graph, compute 9 features: modularity, log_nodes, log_edges, density, avg_degree, degree_variance, hub_concentration, clustering_coefficient, community_count
+1. **Feature Extraction:** For each graph, compute 7 clustering features: modularity, degree_variance, hub_concentration, clustering_coeff, avg_path_length, diameter, community_count
 2. **Clustering:** Group similar graphs using k-means-like clustering
 3. **Per-Cluster Training:** Train optimized weights for each cluster
 4. **Runtime Matching:** Select best cluster based on Euclidean distance to centroid
@@ -104,9 +104,8 @@ scripts/weights/
 
 **Example Output:**
 ```
-Finding best type match for features: mod=0.4521, deg_var=0.8012, hub=0.3421...
 Best matching type: type_0 (distance: 0.12)
-Loaded 21 weights from scripts/weights/active/type_0.json
+Perceptron: Loaded 5 weights from scripts/weights/active/type_0.json
 ```
 
 ### Environment Override
@@ -126,7 +125,7 @@ If no type files exist, C++ uses hardcoded defaults with conservative weights th
 
 ```json
 {
-  "Original": {
+  "ORIGINAL": {
     "bias": 0.5,
     "w_modularity": 0.1,
     "w_density": 0.05,
@@ -143,10 +142,11 @@ If no type files exist, C++ uses hardcoded defaults with conservative weights th
       "bfs": 1.0,
       "cc": 1.0,
       "sssp": 1.0,
-      "bc": 1.0
+      "bc": 1.0,
+      "tc": 1.0
     }
   },
-  "LeidenDFS": {
+  "LeidenCSR": {
     "bias": 3.5,
     "w_modularity": 0.1,
     "w_density": 0.05,
@@ -163,7 +163,8 @@ If no type files exist, C++ uses hardcoded defaults with conservative weights th
       "bfs": 1.0,
       "cc": 1.0,
       "sssp": 1.0,
-      "bc": 1.0
+      "bc": 1.0,
+      "tc": 1.0
     }
   },
   "_metadata": {
@@ -173,7 +174,7 @@ If no type files exist, C++ uses hardcoded defaults with conservative weights th
 }
 ```
 
-Note: Algorithm names in the weights file use the format from `initialize_enhanced_weights()` (e.g., `Original`, `LeidenDFS`, `RabbitOrder`) rather than the C++ uppercase format.
+Note: Algorithm names in the weights file match the names from `scripts/lib/utils.py` ALGORITHMS dict (e.g., `ORIGINAL`, `LeidenCSR`, `RABBITORDER`).
 
 ---
 
@@ -576,7 +577,7 @@ After training on 87 graphs, typical biases look like:
 | SORT | ~9.5 | 9.5x faster than random |
 | HUBSORTDBG | ~8.5 | 8.5x faster than random |
 | LeidenDendrogram | ~2.4 | 2.4x faster than random |
-| LeidenBFS | ~2.3 | 2.3x faster than random |
+| LeidenCSR | ~2.3 | 2.3x faster than random |
 | LeidenOrder | ~1.8 | 1.8x faster than random |
 | ORIGINAL | 0.5 | Baseline (no reordering) |
 | RANDOM | 0.5 | Baseline (1.00x) |
@@ -715,7 +716,7 @@ python3 scripts/graphbrew_experiment.py \
 #### Step 5: Run Brute-Force Validation
 
 ```bash
-# Test all 20 algorithms vs adaptive choice
+# Test all 18 algorithms vs adaptive choice
 python3 scripts/graphbrew_experiment.py \
     --graphs-dir ./results/graphs \
     --max-graphs 50 \
@@ -784,7 +785,7 @@ This runs all 6 phases sequentially:
 3. **Phase 3 (Cache Sim)**: Fills `cache_l1_impact`, `cache_l2_impact`, `cache_l3_impact`
 4. **Phase 4 (Base Weights)**: Fills `w_density`, `w_degree_variance`, `w_hub_concentration`
 5. **Phase 5 (Topology)**: Fills `w_clustering_coeff`, `w_avg_path_length`, `w_diameter`
-6. **Phase 6 (Benchmark Weights)**: Fills `benchmark_weights.{pr,bfs,cc,sssp,bc}`
+6. **Phase 6 (Benchmark Weights)**: Fills `benchmark_weights.{pr,bfs,cc,sssp,bc,tc}`
 
 ---
 
