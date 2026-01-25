@@ -128,7 +128,7 @@ Train type-based perceptron weights from scratch:
 
 ```bash
 # Clean slate
-rm -rf results/* scripts/weights/type_*.json scripts/weights/type_registry.json
+rm -rf results/* scripts/weights/active/* scripts/weights/merged/* scripts/weights/runs/*
 
 # Train on ALL graphs with adaptive analysis and comparison
 python3 scripts/graphbrew_experiment.py --fill-weights --auto-memory --auto-disk --skip-cache --download-size ALL --adaptive-analysis --adaptive-comparison
@@ -197,18 +197,27 @@ scripts/
 │   ├── benchmark.py           # Performance benchmark execution
 │   ├── cache.py               # Cache simulation analysis
 │   ├── weights.py             # Type-based weight management
+│   ├── weight_merger.py       # Cross-run weight consolidation
 │   ├── training.py            # ML weight training
 │   ├── analysis.py            # Adaptive analysis
 │   ├── progress.py            # Progress tracking & reporting
 │   └── results.py             # Result file I/O
 │
+├── test/                      # Test modules
+│   ├── test_weight_flow.py    # Weight generation/loading tests
+│   ├── test_weight_merger.py  # Merger consolidation tests
+│   └── test_fill_adaptive.py  # Fill-weights pipeline tests
+│
 ├── examples/                  # Example scripts
 │   └── custom_pipeline.py     # Custom phase-based pipeline
 │
-└── weights/                   # Auto-generated type-based weight files
-    ├── type_registry.json     # Maps graph names → type assignments
-    ├── type_0.json            # Cluster 0 weights (auto-generated)
-    └── type_N.json            # Additional clusters as needed
+└── weights/                   # Type-based weight files
+    ├── active/                # C++ reads from here (working copy)
+    │   ├── type_registry.json # Maps graph names → type assignments
+    │   ├── type_0.json        # Cluster 0 weights
+    │   └── type_N.json        # Additional clusters as needed
+    ├── merged/                # Accumulated from all experiment runs
+    └── runs/                  # Historical run snapshots
 ```
 
 ## Results Directory Structure
@@ -246,10 +255,13 @@ AdaptiveOrder uses an automatic clustering system that groups graphs by their fe
 **Type Files:**
 ```
 scripts/weights/
-├── type_registry.json    # {graph_name: type_N, ...}
-├── type_0.json           # Weights for cluster 0
-├── type_1.json           # Weights for cluster 1
-└── type_N.json           # Additional clusters as needed
+├── active/               # C++ reads from here
+│   ├── type_registry.json
+│   ├── type_0.json
+│   └── type_N.json
+├── merged/               # Accumulated from all runs
+└── runs/                 # Historical snapshots
+    └── run_20260125_*/
 ```
 
 **C++ Integration:** At runtime, `AdaptiveOrder` computes graph features and finds the best matching type using `FindBestTypeFromFeatures()`.
@@ -479,9 +491,11 @@ All results are saved to `./results/`:
 - `cache_*.json` - L1/L2/L3 cache hit rates
 - `reorder_*.json` - Reordering times per algorithm
 
-Weight files are saved to `./scripts/weights/`:
+Weight files are saved to `./scripts/weights/active/`:
 - `type_registry.json` - Maps graph names to type IDs
 - `type_N.json` - Per-cluster trained ML weights
+
+Use `--list-runs` to see historical runs, `--merge-runs` to consolidate.
 
 > 📖 **Understanding perceptron weights?** See **[AdaptiveOrder ML Wiki](https://github.com/UVA-LavaLab/GraphBrew/wiki/AdaptiveOrder-ML)** and **[Perceptron Weights Wiki](https://github.com/UVA-LavaLab/GraphBrew/wiki/Perceptron-Weights)**.
 
