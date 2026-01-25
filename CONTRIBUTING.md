@@ -46,7 +46,7 @@ See the [Wiki: Adding New Algorithms](https://github.com/UVA-LavaLab/GraphBrew/w
 Quick overview:
 1. Add your algorithm to `bench/include/gapbs/benchmark.h`
 2. Register it in the `ReorderingAlgo` enum
-3. Add training support in `scripts/analysis/correlation_analysis.py`
+3. Add training support in `scripts/lib/utils.py` (ALGORITHMS dict)
 
 ### Adding New Benchmarks
 
