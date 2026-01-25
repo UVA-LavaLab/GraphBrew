@@ -336,7 +336,7 @@ done
 
 ### Wrong type cluster selected
 
-Graph type is selected via cosine similarity with cluster centroids. If selection is wrong:
+Graph type is selected via Euclidean distance to cluster centroids. If selection is wrong:
 
 ```bash
 # Check what properties were detected
@@ -350,7 +350,7 @@ python3 scripts/graphbrew_experiment.py --fill-weights --graphs small
 ```
 
 **Auto-clustering system:**
-Uses 9 features and cosine similarity (threshold: 0.85) to match graphs to clusters.
+Uses 9 features and Euclidean distance to match graphs to the nearest cluster centroid.
 
 | Type | Typical Properties |
 |------|----------|

@@ -7321,7 +7321,7 @@ public:
      * 
      * The type registry (scripts/weights/active/type_registry.json) contains centroids
      * for each auto-generated type. This function finds the closest matching type
-     * based on the graph features using cosine similarity.
+     * based on the graph features using Euclidean distance.
      * 
      * @param features Graph features (modularity, degree_variance, etc.)
      * @param verbose Print matching details

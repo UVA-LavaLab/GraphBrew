@@ -10,7 +10,7 @@ Common questions and answers about GraphBrew.
 
 GraphBrew is a graph processing benchmark framework that combines:
 - **18 vertex reordering algorithms** (IDs 0-17) for cache optimization
-- **6 graph algorithm benchmarks** (PageRank, BFS, CC, SSSP, BC, TC)
+- **5 automated benchmarks** (PageRank, BFS, CC, SSSP, BC) plus Triangle Counting
 - **ML-powered algorithm selection** via AdaptiveOrder
 - **Leiden community detection** integration
 
@@ -217,7 +217,7 @@ scripts/weights/active/
 
 **Loading priority (C++ runtime):**
 1. Environment variable `PERCEPTRON_WEIGHTS_FILE` (if set)
-2. Best matching type file via cosine similarity (e.g., `type_0.json`)
+2. Best matching type file via Euclidean distance to centroids (e.g., `type_0.json`)
 3. Semantic type fallback (if type files don't exist)
 4. Hardcoded defaults
 
@@ -225,7 +225,7 @@ scripts/weights/active/
 
 The auto-clustering system:
 1. **Extracts 9 features** per graph: modularity, log_nodes, log_edges, density, avg_degree, degree_variance, hub_concentration, clustering_coefficient, community_count
-2. **Clusters similar graphs** using cosine similarity (threshold: 0.85)
+2. **Clusters similar graphs** using Euclidean distance to centroids
 3. **Stores centroids** in `type_registry.json`
 4. **At runtime**, finds best matching cluster based on feature similarity
 

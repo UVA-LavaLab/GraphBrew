@@ -36,7 +36,7 @@ Choosing the right reordering algorithm depends on your graph characteristics. F
 ### Quick Start Examples
 ```bash
 # Use AdaptiveOrder for automatic best selection
-./bench/bin/bfs -g 20 -o 15
+./bench/bin/bfs -g 20 -o 14
 
 # Use LeidenDendrogram with hybrid variant (best overall for social/web graphs)
 ./bench/bin/pr -f graph.mtx -o 16:1.0:hybrid
@@ -248,7 +248,7 @@ results/
 AdaptiveOrder uses an automatic clustering system that groups graphs by their feature similarity. Instead of predefined categories (social, road, web), the system:
 
 1. **Computes 9 features** for each graph: modularity, log_nodes, log_edges, density, avg_degree, degree_variance, hub_concentration, clustering_coefficient, community_count
-2. **Clusters similar graphs** using cosine similarity (threshold: 0.85)
+2. **Clusters similar graphs** using Euclidean distance to centroids
 3. **Trains per-cluster weights** optimized for graphs in that cluster
 4. **Assigns new graphs** to the best matching cluster at runtime
 
