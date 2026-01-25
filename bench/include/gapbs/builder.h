@@ -1871,8 +1871,28 @@ public:
                                  ReorderingAlgo reordering_algo, bool useOutdeg,
                                  std::vector<std::string> reordering_options, int numLevels = 1, bool recursion = false)
     {
-
-        omp_set_nested(1);
+        // CRITICAL: Disable nested parallelism to avoid thread explosion
+        // For small subgraphs (<100K edges), nested parallelism causes massive
+        // overhead (30K+ thread creates) making it 50x slower than sequential
+        const size_t MIN_EDGES_FOR_PARALLEL = 100000;
+        const bool is_small_subgraph = el.size() < MIN_EDGES_FOR_PARALLEL;
+        
+        // Save current settings
+        int prev_nested = omp_get_nested();
+        int prev_max_levels = omp_get_max_active_levels();
+        int prev_num_threads = omp_get_max_threads();
+        
+        if (is_small_subgraph) {
+            // For small subgraphs: run sequentially to avoid thread overhead
+            omp_set_nested(0);
+            omp_set_max_active_levels(1);
+            omp_set_num_threads(1);
+        } else {
+            // For large subgraphs: enable limited parallelism
+            omp_set_nested(1);
+            omp_set_max_active_levels(2);  // Limit nesting depth
+        }
+        
         CSRGraph<NodeID_, DestID_, invert> g = MakeLocalGraphFromEL(el);
         g.copy_org_ids(g_org.get_org_ids());
 
@@ -1911,10 +1931,23 @@ public:
 
             GenerateRabbitOrderMapping(g, new_ids_local_2);
 
-            #pragma omp parallel for
-            for (NodeID_ n = 0; n < g_org.num_nodes(); n++)
-            {
-                new_ids[n] = new_ids_local_2[new_ids_local[n]];
+            // Only parallelize final merge for large graphs
+            // CRITICAL: Only process nodes that were in the subgraph (have valid mapping)
+            if (is_small_subgraph) {
+                for (NodeID_ n = 0; n < g_org.num_nodes(); n++)
+                {
+                    if (new_ids_local[n] != (NodeID_)-1 && new_ids_local[n] < g_org.num_nodes()) {
+                        new_ids[n] = new_ids_local_2[new_ids_local[n]];
+                    }
+                }
+            } else {
+                #pragma omp parallel for
+                for (NodeID_ n = 0; n < g_org.num_nodes(); n++)
+                {
+                    if (new_ids_local[n] != (NodeID_)-1 && new_ids_local[n] < g_org.num_nodes()) {
+                        new_ids[n] = new_ids_local_2[new_ids_local[n]];
+                    }
+                }
             }
         }
         break;
@@ -1956,6 +1989,12 @@ public:
                       << std::endl;
             std::abort();
         }
+        
+        // Restore OpenMP settings
+        omp_set_nested(prev_nested);
+        omp_set_max_active_levels(prev_max_levels);
+        omp_set_num_threads(prev_num_threads);
+        
 #ifdef _DEBUG
         VerifyMapping(g, new_ids);
         // exit(-1);
@@ -7960,12 +7999,227 @@ public:
      * 
      * Unlike GraphBrew which always uses RabbitOrder for communities,
      * this adaptively picks the best algorithm based on each community's characteristics.
+     * 
+     * Format: -o 14[:max_depth[:resolution[:min_recurse_size[:mode]]]]
+     * - max_depth: Maximum recursion depth (0 = no recursion, 1+ = multi-level)
+     * - resolution: Leiden resolution parameter (default: 0.75)
+     * - min_recurse_size: Minimum community size for recursion (default: 50000)
+     * - mode: 0 = normal (per-community), 1 = full-graph adaptive (skip Leiden, pick best algo for whole graph)
+     * 
+     * Examples:
+     *   -o 14                   # Default: depth=0, res=0.75, per-community selection
+     *   -o 14:2                 # Multi-level: depth=2, allowing sub-community recursion
+     *   -o 14:0:1.0             # Higher resolution for more communities
+     *   -o 14:0:0.75:50000:1    # Full-graph mode: pick best algo for entire graph (no Leiden)
      */
-    void GenerateAdaptiveMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
+    void GenerateAdaptiveMapping(CSRGraph<NodeID_, DestID_, invert> &g,
                                  pvector<NodeID_> &new_ids, bool useOutdeg,
                                  std::vector<std::string> reordering_options)
     {
-        GenerateAdaptiveMappingRecursive(g, new_ids, useOutdeg, reordering_options, 0, true);
+        // Parse mode option (last parameter)
+        int adaptive_mode = 0;  // 0 = per-community, 1 = full-graph
+        if (reordering_options.size() > 3) {
+            adaptive_mode = std::stoi(reordering_options[3]);
+        }
+        
+        if (adaptive_mode == 1) {
+            // Full-graph adaptive mode: skip Leiden, pick best algorithm for entire graph
+            GenerateAdaptiveMappingFullGraph(g, new_ids, useOutdeg, reordering_options);
+        } else {
+            // Per-community mode (default): Leiden + per-community algorithm selection
+            GenerateAdaptiveMappingRecursive(g, new_ids, useOutdeg, reordering_options, 0, true);
+        }
+    }
+    
+    /**
+     * Full-Graph Adaptive Mode
+     * 
+     * Instead of running Leiden and selecting per-community, this mode:
+     * 1. Computes global graph features
+     * 2. Uses the perceptron to select the SINGLE best algorithm for the entire graph
+     * 3. Applies that algorithm to the whole graph
+     * 
+     * This is useful when:
+     * - The graph has weak community structure (low modularity)
+     * - You want to quickly find the best single algorithm
+     * - You're comparing against per-community selection
+     */
+    void GenerateAdaptiveMappingFullGraph(CSRGraph<NodeID_, DestID_, invert> &g,
+                                          pvector<NodeID_> &new_ids, bool useOutdeg,
+                                          std::vector<std::string> reordering_options)
+    {
+        Timer tm;
+        tm.Start();
+        
+        int64_t num_nodes = g.num_nodes();
+        int64_t num_edges = g.num_edges_directed();
+        
+        std::cout << "=== Full-Graph Adaptive Mode ===\n";
+        std::cout << "Nodes: " << static_cast<long long>(num_nodes) << ", Edges: " << static_cast<long long>(num_edges) << "\n";
+        
+        // Compute global features
+        double global_modularity = 0.0;  // Will estimate from clustering coefficient
+        double global_degree_variance = 0.0;
+        double global_hub_concentration = 0.0;
+        double global_avg_degree = static_cast<double>(num_edges) / num_nodes;
+        
+        // Sample-based feature computation (fast)
+        const size_t SAMPLE_SIZE = std::min(static_cast<size_t>(10000), static_cast<size_t>(num_nodes));
+        std::vector<int64_t> sampled_degrees(SAMPLE_SIZE);
+        
+        double sum = 0.0;
+        for (size_t i = 0; i < SAMPLE_SIZE; ++i) {
+            NodeID_ node = (num_nodes > static_cast<int64_t>(SAMPLE_SIZE)) ? 
+                static_cast<NodeID_>((i * num_nodes) / SAMPLE_SIZE) : static_cast<NodeID_>(i);
+            sampled_degrees[i] = g.out_degree(node);
+            sum += sampled_degrees[i];
+        }
+        double sample_mean = sum / SAMPLE_SIZE;
+        
+        double sum_sq_diff = 0.0;
+        for (size_t i = 0; i < SAMPLE_SIZE; ++i) {
+            double diff = sampled_degrees[i] - sample_mean;
+            sum_sq_diff += diff * diff;
+        }
+        double variance = sum_sq_diff / (SAMPLE_SIZE - 1);
+        global_degree_variance = (sample_mean > 0) ? std::sqrt(variance) / sample_mean : 0.0;
+        
+        // Hub concentration: fraction of edges from top 10% degree nodes
+        std::sort(sampled_degrees.rbegin(), sampled_degrees.rend());
+        size_t top_10 = std::max(size_t(1), SAMPLE_SIZE / 10);
+        int64_t top_edge_sum = 0, total_edge_sum = 0;
+        for (size_t i = 0; i < SAMPLE_SIZE; ++i) {
+            if (i < top_10) top_edge_sum += sampled_degrees[i];
+            total_edge_sum += sampled_degrees[i];
+        }
+        global_hub_concentration = (total_edge_sum > 0) ? 
+            static_cast<double>(top_edge_sum) / total_edge_sum : 0.0;
+        
+        // Estimate modularity from clustering coefficient (rough approximation)
+        // Higher clustering often correlates with higher modularity
+        double clustering_coeff = 0.0;
+        size_t triangles_sampled = 0;
+        size_t triplets_sampled = 0;
+        
+        for (size_t i = 0; i < std::min(SAMPLE_SIZE, static_cast<size_t>(1000)); ++i) {
+            NodeID_ node = (num_nodes > static_cast<int64_t>(SAMPLE_SIZE)) ? 
+                static_cast<NodeID_>((i * num_nodes) / SAMPLE_SIZE) : static_cast<NodeID_>(i);
+            
+            int64_t deg = g.out_degree(node);
+            if (deg < 2) continue;
+            
+            triplets_sampled += deg * (deg - 1) / 2;
+            
+            // Count actual triangles (for small neighborhoods only)
+            if (deg <= 100) {
+                std::unordered_set<NodeID_> neighbors;
+                for (auto n : g.out_neigh(node)) {
+                    neighbors.insert(static_cast<NodeID_>(n));
+                }
+                for (auto n1 : g.out_neigh(node)) {
+                    for (auto n2 : g.out_neigh(static_cast<NodeID_>(n1))) {
+                        if (neighbors.count(static_cast<NodeID_>(n2))) {
+                            triangles_sampled++;
+                        }
+                    }
+                }
+            }
+        }
+        clustering_coeff = (triplets_sampled > 0) ? 
+            static_cast<double>(triangles_sampled) / (2 * triplets_sampled) : 0.0;
+        
+        // Rough modularity estimate: higher clustering = higher likely modularity
+        global_modularity = std::min(0.9, clustering_coeff * 1.5);
+        
+        // Detect graph type
+        GraphType detected_graph_type = DetectGraphType(
+            global_modularity, global_degree_variance, global_hub_concentration, 
+            global_avg_degree, static_cast<size_t>(num_nodes));
+        
+        std::cout << "Graph Type: " << GraphTypeToString(detected_graph_type) << "\n";
+        PrintTime("Degree Variance", global_degree_variance);
+        PrintTime("Hub Concentration", global_hub_concentration);
+        PrintTime("Est. Modularity", global_modularity);
+        PrintTime("Clustering Coeff", clustering_coeff);
+        
+        // Create a "fake" community feature that represents the whole graph
+        CommunityFeatures global_feat;
+        global_feat.num_nodes = num_nodes;
+        global_feat.num_edges = num_edges;
+        global_feat.internal_density = global_avg_degree / (num_nodes - 1);
+        global_feat.degree_variance = global_degree_variance;
+        global_feat.hub_concentration = global_hub_concentration;
+        global_feat.clustering_coeff = clustering_coeff;
+        
+        // Select best algorithm for entire graph
+        ReorderingAlgo best_algo = SelectBestReorderingForCommunity(
+            global_feat, global_modularity, global_degree_variance, global_hub_concentration,
+            global_avg_degree, static_cast<size_t>(num_nodes), num_edges,
+            BENCH_GENERIC, detected_graph_type);
+        
+        std::cout << "\n=== Selected Algorithm: " << ReorderingAlgoStr(best_algo) << " ===\n";
+        
+        // Apply selected algorithm to entire graph
+        switch (best_algo) {
+            case HubSort:
+                GenerateHubSortMapping(g, new_ids, useOutdeg);
+                break;
+            case HubCluster:
+                GenerateHubClusterMapping(g, new_ids, useOutdeg);
+                break;
+            case DBG:
+                GenerateDBGMapping(g, new_ids, useOutdeg);
+                break;
+            case HubSortDBG:
+                GenerateHubSortDBGMapping(g, new_ids, useOutdeg);
+                break;
+            case HubClusterDBG:
+                GenerateHubClusterDBGMapping(g, new_ids, useOutdeg);
+                break;
+            case RCMOrder:
+                GenerateRCMOrderMapping(g, new_ids);
+                break;
+#ifdef RABBIT_ENABLE
+            case RabbitOrder:
+            {
+                pvector<NodeID_> temp_ids(num_nodes, -1);
+                GenerateSortMappingRabbit(g, temp_ids, true, true);
+                CSRGraph<NodeID_, DestID_, invert> g_trans = RelabelByMapping(g, temp_ids);
+                pvector<NodeID_> temp_ids2(num_nodes, -1);
+                GenerateRabbitOrderMapping(g_trans, temp_ids2);
+                #pragma omp parallel for
+                for (NodeID_ n = 0; n < num_nodes; n++) {
+                    new_ids[n] = temp_ids2[temp_ids[n]];
+                }
+            }
+            break;
+#endif
+            case LeidenCSR:
+            {
+                std::vector<std::string> leiden_opts = {"1.0", "3", "fast"};
+                GenerateLeidenCSRMappingUnified(g, new_ids, leiden_opts);
+            }
+            break;
+            case LeidenDendrogram:
+            {
+                std::vector<std::string> leiden_opts = {"1.0", "hybrid"};
+                GenerateLeidenDendrogramMappingUnified(g, new_ids, leiden_opts);
+            }
+            break;
+            case LeidenOrder:
+            {
+                std::vector<std::string> leiden_opts = {"1.0"};
+                GenerateLeidenMapping(g, new_ids, leiden_opts);
+            }
+            break;
+            default:
+                // Original ordering
+                GenerateOriginalMapping(g, new_ids);
+                break;
+        }
+        
+        tm.Stop();
+        PrintTime("Full-Graph Adaptive Time", tm.Seconds());
     }
 
     /**
@@ -7997,26 +8251,40 @@ public:
         int64_t num_nodes = g.num_nodes();
         int64_t num_edges = g.num_edges_directed();
         
-        const int MAX_DEPTH = 0;  // Disable recursion (too expensive - runs Leiden on subgraphs)
-        const size_t MIN_COMMUNITY_FOR_RECURSION = 100000;  // Only recurse on very large communities
+        // Parse options: max_depth, resolution, min_recurse_size, mode
+        int MAX_DEPTH = 0;  // Default: no recursion
+        size_t MIN_COMMUNITY_FOR_RECURSION = 50000;  // Only recurse on large communities
         
         // Parse options
         double resolution = 0.75;
         int maxIterations = 30;
         int maxPasses = 30;
 
+        // New format: -o 14[:max_depth[:resolution[:min_recurse_size[:mode]]]]
+        // For backward compatibility, also check old format
         if (reordering_options.size() > 0) {
-            resolution = std::stod(reordering_options[0]);
+            // First param could be max_depth (int) or resolution (float)
+            double first_val = std::stod(reordering_options[0]);
+            if (first_val >= 0 && first_val <= 10 && std::floor(first_val) == first_val) {
+                // Looks like max_depth (integer 0-10)
+                MAX_DEPTH = static_cast<int>(first_val);
+            } else {
+                // Assume it's resolution (old format)
+                resolution = first_val;
+            }
         }
         if (reordering_options.size() > 1) {
-            maxIterations = std::stoi(reordering_options[1]);
+            resolution = std::stod(reordering_options[1]);
         }
         if (reordering_options.size() > 2) {
-            maxPasses = std::stoi(reordering_options[2]);
+            MIN_COMMUNITY_FOR_RECURSION = std::stoul(reordering_options[2]);
         }
+        // Note: mode (param 3) is parsed in GenerateAdaptiveMapping
 
         if (depth == 0 && verbose) {
-            PrintTime("Adaptive Resolution", resolution);
+            PrintTime("Max Depth", static_cast<double>(MAX_DEPTH));
+            PrintTime("Resolution", resolution);
+            PrintTime("Min Recurse Size", static_cast<double>(MIN_COMMUNITY_FOR_RECURSION));
         }
         
         // Step 1: Run Leiden community detection
@@ -8559,11 +8827,12 @@ public:
         // Get the last pass community assignment for further processing
         const K* sort_key_col = &communityDataFlat[(num_passes - 1) * stride];
 
-        // Extract comm_ids in sorted order
+        // Extract comm_ids by node ID (not sorted order)
+        // comm_ids[node_id] = community of node_id
         #pragma omp parallel for
         for (size_t i = 0; i < num_nodesx; ++i)
         {
-            comm_ids[i] = sort_key_col[sort_indices[i]];
+            comm_ids[i] = sort_key_col[i];
         }
 
         // std::cout << std::endl;
@@ -8847,109 +9116,87 @@ public:
 
         tm_2.Start();
 
-        // Hoist allocations outside the loop to avoid repeated allocation
-        const int num_threads_inner = omp_get_max_threads();
-        std::vector<std::vector<std::pair<size_t, NodeID_>>> thread_local_mappings(num_threads_inner);
+        // Save OMP settings
+        const int saved_omp_threads = omp_get_max_threads();
+        const int saved_omp_nested = omp_get_nested();
+        
+        // Threshold: communities larger than this get full parallelism inside RabbitOrder
+        const size_t LARGE_COMMUNITY_THRESHOLD = 500000; // 500K edges
+        
+        // Process all communities sequentially but control parallelism dynamically
+        // Large communities: let RabbitOrder use all threads
+        // Small communities: run RabbitOrder single-threaded to avoid overhead
         pvector<NodeID_> new_ids_sub(num_nodes);
-
-        for (size_t idx = 0; idx < top_communities.size(); ++idx)
-        {
+        
+        for (size_t idx = 0; idx < top_communities.size(); ++idx) {
             size_t comm_id = top_communities[idx];
             auto &edge_list = community_edge_lists[comm_id];
             
-            // Reset new_ids_sub instead of reallocating
-            #pragma omp parallel for
-            for (size_t i = 0; i < static_cast<size_t>(num_nodes); ++i)
-            {
-                new_ids_sub[i] = -1;
+            if (edge_list.empty()) continue;
+            
+            const bool is_large = edge_list.size() >= LARGE_COMMUNITY_THRESHOLD;
+            
+            // Set parallelism based on community size
+            if (is_large) {
+                omp_set_num_threads(saved_omp_threads);
+                std::cout << "Community ID " << comm_id 
+                          << " edge list: " << edge_list.size() 
+                          << " [LARGE - full parallelism]\n";
+            } else {
+                omp_set_num_threads(1);  // Single-threaded for small communities
+                std::cout << "Community ID " << comm_id 
+                          << " edge list: " << edge_list.size() 
+                          << " [small - sequential]\n";
             }
-            // GenerateRabbitOrderMappingEdgelist(edge_list, new_ids_sub);
-
-            // double modularity =
-            //     GenerateRabbitModularityEdgelist(edge_list, g.is_weighted());
-
-            // PrintTime("Sub-Modularity", modularity);
-            std::cout << "Community ID " << comm_id
-                      << " edge list: " << edge_list.size() << "\n";
-
-
+            
+            // Reset new_ids_sub
+            std::fill(new_ids_sub.begin(), new_ids_sub.end(), (NodeID_)-1);
+            
+            // Determine algorithm and options
             ReorderingAlgo reordering_algo_nest = algo;
+            std::vector<std::string> local_reordering_options = reordering_options;
 
-            if (numLevels > 1 && idx == 0)
-            {
-                reordering_algo_nest = ReorderingAlgo::GraphBrewOrder;
-                // reordering_options[0] = std::to_string(static_cast<int>(frequency_threshold * 1.5));
-                if (reordering_options.size() > 2)
-                {
-                    reordering_options[2] = std::to_string(static_cast<double>(resolution));
-                }
-                else
-                {
-                    reordering_options.push_back(std::to_string(static_cast<double>(resolution)));
-                }
-            }
-
-            // if (numLevels == 1 && idx == 0)
-            // {
-            //     reordering_algo_nest = ReorderingAlgo::RabbitOrder;
+            // NOTE: Disabled recursive GraphBrew for now to fix segfault
+            // if (numLevels > 1 && idx == 0) {
+            //     reordering_algo_nest = ReorderingAlgo::GraphBrewOrder;
+            //     if (local_reordering_options.size() > 2) {
+            //         local_reordering_options[2] = std::to_string(static_cast<double>(resolution));
+            //     } else {
+            //         local_reordering_options.push_back(std::to_string(static_cast<double>(resolution)));
+            //     }
             // }
 
-
-            // Initialize with default values
             std::vector<std::string> leiden_reordering_options = {"1.0", "30", "30"};
             std::vector<std::string> next_reordering_options;
 
-            if (reordering_algo_nest == ReorderingAlgo::LeidenOrder)
-            {
-                // Customize options for LeidenOrder
-                leiden_reordering_options[0] = reordering_options[2];
+            if (reordering_algo_nest == ReorderingAlgo::LeidenOrder) {
+                leiden_reordering_options[0] = local_reordering_options.size() > 2 ? local_reordering_options[2] : "1.0";
                 leiden_reordering_options[1] = std::to_string(static_cast<int>(maxIterations));
                 leiden_reordering_options[2] = std::to_string(static_cast<int>(maxPasses));
-                std::cout << "Resolution Next: " << reordering_options[2] << std::endl;
             }
 
+            next_reordering_options = (reordering_algo_nest == ReorderingAlgo::LeidenOrder) 
+                                      ? leiden_reordering_options : local_reordering_options;
 
-            next_reordering_options = (reordering_algo_nest == ReorderingAlgo::LeidenOrder) ? leiden_reordering_options : reordering_options;
-
-
-            if(edge_list.size() > 0)
-                GenerateMappingLocalEdgelist(g, edge_list, new_ids_sub, reordering_algo_nest, true,
-                                             next_reordering_options, numLevels, true);
-            else
-                return;
-
-            // Add id pairs to the corresponding community list using thread-local buffers
-            // to avoid critical section bottleneck (buffers hoisted outside loop)
-            // Clear thread-local buffers for reuse (parallel clear)
-            #pragma omp parallel for
-            for (int t = 0; t < num_threads_inner; ++t) {
-                thread_local_mappings[t].clear();
-            }
+            // Process this community
+            GenerateMappingLocalEdgelist(g, edge_list, new_ids_sub, reordering_algo_nest, true,
+                                         next_reordering_options, numLevels, true);
             
-            #pragma omp parallel
-            {
-                int tid = omp_get_thread_num();
-                auto& local_buf = thread_local_mappings[tid];
-                
-                #pragma omp for nowait
-                for (size_t i = 0; i < new_ids_sub.size(); ++i)
-                {
-                    size_t src_comm_id = comm_ids[i];
-                    if (new_ids_sub[i] != -1 && comm_id == src_comm_id)
-                    {
-                        local_buf.emplace_back(i, new_ids_sub[i]);
-                    }
+            // Collect results for this community (with bounds checking)
+            if (comm_id > num_comm) {
+                std::cerr << "ERROR: comm_id " << comm_id << " > num_comm " << num_comm << std::endl;
+                continue;
+            }
+            for (size_t i = 0; i < new_ids_sub.size(); ++i) {
+                if (new_ids_sub[i] != (NodeID_)-1 && comm_ids[i] == comm_id) {
+                    community_id_mappings[comm_id].emplace_back(i, new_ids_sub[i]);
                 }
             }
-            
-            // Merge thread-local buffers (single-threaded merge is fast for this)
-            for (int t = 0; t < num_threads_inner; ++t) {
-                auto& target = community_id_mappings[comm_id];
-                target.insert(target.end(), 
-                              thread_local_mappings[t].begin(), 
-                              thread_local_mappings[t].end());
-            }
         }
+        
+        // Restore OMP settings
+        omp_set_num_threads(saved_omp_threads);
+        omp_set_nested(saved_omp_nested);
 
         tm_2.Stop();
 
