@@ -535,6 +535,96 @@ def get_type_summary(type_name: str, weights_dir: str = DEFAULT_WEIGHTS_DIR) -> 
     }
 
 
+def compute_weights_from_results(
+    benchmark_results: List,
+    cache_results: List = None,
+    reorder_results: List = None,
+    output_file: str = None
+) -> Dict:
+    """
+    Compute perceptron weights from benchmark results.
+    
+    This function analyzes benchmark results to determine which algorithms
+    perform best for different graph types, and computes weights accordingly.
+    
+    Args:
+        benchmark_results: List of BenchmarkResult objects
+        cache_results: Optional list of CacheResult objects
+        reorder_results: Optional list of ReorderResult objects
+        output_file: Optional file to save weights
+        
+    Returns:
+        Dict of weights by algorithm
+    """
+    cache_results = cache_results or []
+    reorder_results = reorder_results or []
+    
+    # Initialize weights
+    weights = initialize_default_weights()
+    
+    # Group results by graph and benchmark
+    results_by_graph = {}
+    for r in benchmark_results:
+        if not r.success or r.time_seconds <= 0:
+            continue
+        
+        graph_name = r.graph
+        if graph_name not in results_by_graph:
+            results_by_graph[graph_name] = {}
+        
+        bench = r.benchmark
+        if bench not in results_by_graph[graph_name]:
+            results_by_graph[graph_name][bench] = []
+        
+        results_by_graph[graph_name][bench].append(r)
+    
+    # Find best algorithm per (graph, benchmark) and update weights
+    for graph_name, benchmarks in results_by_graph.items():
+        for bench, results in benchmarks.items():
+            if not results:
+                continue
+            
+            # Find baseline (ORIGINAL or first result)
+            baseline_time = None
+            for r in results:
+                if 'ORIGINAL' in r.algorithm:
+                    baseline_time = r.time_seconds
+                    break
+            if baseline_time is None:
+                baseline_time = results[0].time_seconds
+            
+            # Find best and update weights
+            best_result = min(results, key=lambda r: r.time_seconds)
+            best_algo = best_result.algorithm
+            
+            if best_algo in weights and baseline_time > 0:
+                speedup = baseline_time / best_result.time_seconds
+                
+                # Update metadata
+                meta = weights[best_algo].get('_metadata', {})
+                meta['sample_count'] = meta.get('sample_count', 0) + 1
+                meta['win_count'] = meta.get('win_count', 0) + 1
+                
+                old_avg = meta.get('avg_speedup', 1.0)
+                n = meta['sample_count']
+                meta['avg_speedup'] = (old_avg * (n - 1) + speedup) / n
+                
+                weights[best_algo]['_metadata'] = meta
+                
+                # Boost bias for winners
+                weights[best_algo]['bias'] = min(1.5, weights[best_algo]['bias'] + 0.1)
+    
+    # Save if output file specified
+    if output_file:
+        import json
+        import os
+        os.makedirs(os.path.dirname(output_file), exist_ok=True)
+        with open(output_file, 'w') as f:
+            json.dump(weights, f, indent=2)
+    
+    return weights
+
+
 def initialize_default_weights(weights_dir: str = DEFAULT_WEIGHTS_DIR) -> Dict:
     """Initialize default weights for all algorithms."""
     weights = {}
@@ -572,6 +662,76 @@ def initialize_default_weights(weights_dir: str = DEFAULT_WEIGHTS_DIR) -> Dict:
         }
     
     return weights
+
+
+def update_zero_weights(
+    weights_file: str = None,
+    benchmark_results: List = None,
+    cache_results: List = None,
+    reorder_results: List = None,
+    graphs_dir: str = None
+) -> None:
+    """
+    Update zero/default weights with actual benchmark data.
+    
+    This fills in missing weight values based on empirical benchmark results.
+    Useful for bootstrapping the weight system with real performance data.
+    
+    Args:
+        weights_file: Path to weights file to update
+        benchmark_results: List of BenchmarkResult objects
+        cache_results: Optional list of CacheResult objects
+        reorder_results: Optional list of ReorderResult objects
+        graphs_dir: Directory containing graphs (for feature extraction)
+    """
+    benchmark_results = benchmark_results or []
+    cache_results = cache_results or []
+    reorder_results = reorder_results or []
+    
+    # Load existing weights or initialize
+    weights = {}
+    if weights_file and os.path.exists(weights_file):
+        try:
+            with open(weights_file) as f:
+                weights = json.load(f)
+        except:
+            pass
+    
+    if not weights:
+        weights = initialize_default_weights()
+    
+    # Update reorder time weights from reorder results
+    reorder_times = {}
+    for r in reorder_results:
+        algo = r.algorithm_name
+        if algo not in reorder_times:
+            reorder_times[algo] = []
+        if hasattr(r, 'time_seconds') and r.time_seconds > 0:
+            reorder_times[algo].append(r.time_seconds)
+    
+    for algo, times in reorder_times.items():
+        if algo in weights and times:
+            avg_time = sum(times) / len(times)
+            # Penalize slow reordering algorithms
+            weights[algo]['w_reorder_time'] = -avg_time / 10.0  # Normalize
+    
+    # Update cache impact weights from cache results
+    for r in cache_results:
+        algo = r.algorithm_name if hasattr(r, 'algorithm_name') else str(r.algorithm_id)
+        if algo in weights:
+            if hasattr(r, 'l1_miss_rate') and r.l1_miss_rate > 0:
+                # Better cache = positive impact
+                weights[algo]['cache_l1_impact'] = 1.0 - r.l1_miss_rate
+            if hasattr(r, 'l2_miss_rate') and r.l2_miss_rate > 0:
+                weights[algo]['cache_l2_impact'] = 1.0 - r.l2_miss_rate
+            if hasattr(r, 'l3_miss_rate') and r.l3_miss_rate > 0:
+                weights[algo]['cache_l3_impact'] = 1.0 - r.l3_miss_rate
+    
+    # Save updated weights
+    if weights_file:
+        os.makedirs(os.path.dirname(weights_file), exist_ok=True)
+        with open(weights_file, 'w') as f:
+            json.dump(weights, f, indent=2)
 
 
 # =============================================================================
