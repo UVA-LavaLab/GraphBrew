@@ -76,8 +76,15 @@ from .utils import (
     WEIGHTS_DIR,
     # Utilities
     Logger,
+    Colors,
     run_command,
     get_timestamp,
+    # Formatting
+    format_size,
+    format_duration,
+    format_number,
+    format_table,
+    print_summary_box,
 )
 
 # =============================================================================
@@ -132,6 +139,10 @@ from .download import (
     DownloadableGraph,
     download_graph,
     download_graphs,
+    download_graphs_parallel,
+    ParallelDownloadManager,
+    DownloadStatus,
+    DownloadProgress,
     get_graph_info,
     get_graphs_by_size,
     get_catalog_stats,

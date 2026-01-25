@@ -19,15 +19,19 @@ Library usage:
 """
 
 import os
+import sys
 import tarfile
 import gzip
 import shutil
 import urllib.request
 import urllib.error
+import threading
+import time
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
-from dataclasses import dataclass
+from typing import Dict, List, Optional, Tuple, Callable
+from dataclasses import dataclass, field
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from enum import Enum
 
 from .utils import GRAPHS_DIR, RESULTS_DIR, log, ensure_directories
 
@@ -341,6 +345,416 @@ def get_catalog_stats() -> Dict:
             "categories": list(set(g.category for g in DOWNLOAD_GRAPHS_XLARGE))
         },
     }
+
+
+# =============================================================================
+# Parallel Download Status Tracking
+# =============================================================================
+
+class DownloadStatus(Enum):
+    """Status of a download."""
+    PENDING = "pending"
+    DOWNLOADING = "downloading"
+    EXTRACTING = "extracting"
+    DONE = "done"
+    SKIPPED = "skipped"
+    FAILED = "failed"
+
+
+@dataclass
+class DownloadProgress:
+    """Progress tracking for a single download."""
+    graph: DownloadableGraph
+    status: DownloadStatus = DownloadStatus.PENDING
+    bytes_downloaded: int = 0
+    total_bytes: int = 0
+    start_time: float = 0.0
+    end_time: float = 0.0
+    error: str = ""
+    result_path: Optional[Path] = None
+    
+    @property
+    def elapsed(self) -> float:
+        """Elapsed time in seconds."""
+        if self.start_time == 0:
+            return 0.0
+        end = self.end_time if self.end_time > 0 else time.time()
+        return end - self.start_time
+    
+    @property
+    def speed_mbps(self) -> float:
+        """Download speed in MB/s."""
+        if self.elapsed <= 0 or self.bytes_downloaded <= 0:
+            return 0.0
+        return (self.bytes_downloaded / (1024 * 1024)) / self.elapsed
+    
+    @property
+    def progress_pct(self) -> float:
+        """Download progress percentage."""
+        if self.total_bytes <= 0:
+            return 0.0
+        return min(100.0, (self.bytes_downloaded / self.total_bytes) * 100)
+
+
+class ParallelDownloadManager:
+    """
+    Manages parallel downloads with live status reporting.
+    
+    Provides:
+    - Parallel downloads to maximize bandwidth
+    - Live progress display with per-download status
+    - Blocks until all downloads complete
+    - Detailed summary at the end
+    """
+    
+    def __init__(self, max_workers: int = 4, show_progress: bool = True):
+        self.max_workers = max_workers
+        self.show_progress = show_progress
+        self.progress: Dict[str, DownloadProgress] = {}
+        self._lock = threading.Lock()
+        self._stop_display = threading.Event()
+    
+    def _update_status(self, name: str, **kwargs):
+        """Thread-safe status update."""
+        with self._lock:
+            if name in self.progress:
+                for key, value in kwargs.items():
+                    setattr(self.progress[name], key, value)
+    
+    def _download_with_progress(self, url: str, dest_path: Path, name: str) -> bool:
+        """Download a file with progress tracking."""
+        try:
+            self._update_status(name, status=DownloadStatus.DOWNLOADING, start_time=time.time())
+            
+            # Open URL and get size
+            req = urllib.request.Request(url, headers={'User-Agent': 'GraphBrew/1.0'})
+            response = urllib.request.urlopen(req, timeout=300)
+            total_size = int(response.headers.get('content-length', 0))
+            self._update_status(name, total_bytes=total_size)
+            
+            # Download with progress tracking
+            block_size = 8192
+            bytes_downloaded = 0
+            
+            with open(dest_path, 'wb') as f:
+                while True:
+                    data = response.read(block_size)
+                    if not data:
+                        break
+                    f.write(data)
+                    bytes_downloaded += len(data)
+                    self._update_status(name, bytes_downloaded=bytes_downloaded)
+            
+            return True
+        except Exception as e:
+            self._update_status(name, status=DownloadStatus.FAILED, error=str(e), end_time=time.time())
+            return False
+    
+    def _download_single(self, graph: DownloadableGraph, dest_dir: Path, force: bool) -> Optional[Path]:
+        """Download and extract a single graph with status tracking."""
+        name = graph.name
+        graph_dir = dest_dir / name
+        
+        # Check if already exists
+        if graph_dir.exists() and not force:
+            mtx_path = find_mtx_file(graph_dir)
+            if mtx_path and mtx_path.exists():
+                self._update_status(name, status=DownloadStatus.SKIPPED, 
+                                  result_path=mtx_path, end_time=time.time())
+                return mtx_path
+        
+        # Create directory
+        graph_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Download
+        tar_path = graph_dir / f"{name}.tar.gz"
+        if not self._download_with_progress(graph.url, tar_path, name):
+            return None
+        
+        # Extract
+        self._update_status(name, status=DownloadStatus.EXTRACTING)
+        if not extract_tarball(tar_path, graph_dir):
+            self._update_status(name, status=DownloadStatus.FAILED, 
+                              error="Extraction failed", end_time=time.time())
+            return None
+        
+        # Clean up tarball
+        try:
+            tar_path.unlink()
+        except:
+            pass
+        
+        # Find extracted .mtx file
+        mtx_path = find_mtx_file(graph_dir)
+        if not mtx_path:
+            self._update_status(name, status=DownloadStatus.FAILED, 
+                              error="No .mtx file found", end_time=time.time())
+            return None
+        
+        self._update_status(name, status=DownloadStatus.DONE, 
+                          result_path=mtx_path, end_time=time.time())
+        return mtx_path
+    
+    def _display_progress(self):
+        """Display live progress for all downloads."""
+        status_symbols = {
+            DownloadStatus.PENDING: "⋯",
+            DownloadStatus.DOWNLOADING: "↓",
+            DownloadStatus.EXTRACTING: "⚙",
+            DownloadStatus.DONE: "✓",
+            DownloadStatus.SKIPPED: "○",
+            DownloadStatus.FAILED: "✗",
+        }
+        status_colors = {
+            DownloadStatus.PENDING: "",
+            DownloadStatus.DOWNLOADING: "\033[94m",  # Blue
+            DownloadStatus.EXTRACTING: "\033[93m",   # Yellow
+            DownloadStatus.DONE: "\033[92m",         # Green
+            DownloadStatus.SKIPPED: "\033[96m",      # Cyan
+            DownloadStatus.FAILED: "\033[91m",       # Red
+        }
+        reset = "\033[0m"
+        
+        # Count completed
+        with self._lock:
+            items = list(self.progress.items())
+        
+        # Clear previous output and show current status
+        done = sum(1 for _, p in items if p.status in (DownloadStatus.DONE, DownloadStatus.SKIPPED, DownloadStatus.FAILED))
+        total = len(items)
+        active = [p for _, p in items if p.status in (DownloadStatus.DOWNLOADING, DownloadStatus.EXTRACTING)]
+        
+        # Build status line
+        lines = []
+        lines.append(f"\r  Progress: {done}/{total} complete")
+        
+        # Show active downloads (up to 4)
+        for prog in active[:4]:
+            sym = status_symbols[prog.status]
+            color = status_colors[prog.status]
+            name = prog.graph.name[:20].ljust(20)
+            if prog.status == DownloadStatus.DOWNLOADING:
+                pct = prog.progress_pct
+                speed = prog.speed_mbps
+                line = f"    {color}{sym}{reset} {name} {pct:5.1f}% @ {speed:.1f} MB/s"
+            else:
+                line = f"    {color}{sym}{reset} {name} extracting..."
+            lines.append(line)
+        
+        if len(active) > 4:
+            lines.append(f"    ... and {len(active) - 4} more")
+        
+        # Print (with newlines for active items)
+        output = lines[0]
+        if active:
+            output += " | " + " | ".join([l.strip() for l in lines[1:]])
+        
+        print(output.ljust(120), end='\r', flush=True)
+    
+    def download_all(
+        self,
+        graphs: List[DownloadableGraph],
+        dest_dir: Path = None,
+        force: bool = False,
+    ) -> Tuple[List[Path], List[str]]:
+        """
+        Download all graphs in parallel, blocking until complete.
+        
+        Args:
+            graphs: List of graphs to download
+            dest_dir: Destination directory
+            force: Force re-download
+            
+        Returns:
+            Tuple of (successful_paths, failed_names)
+        """
+        if dest_dir is None:
+            dest_dir = GRAPHS_DIR
+        
+        ensure_directories()
+        
+        # Initialize progress tracking
+        for graph in graphs:
+            self.progress[graph.name] = DownloadProgress(graph=graph)
+        
+        successful = []
+        failed = []
+        
+        # Start progress display thread
+        display_thread = None
+        if self.show_progress and sys.stdout.isatty():
+            def display_loop():
+                while not self._stop_display.is_set():
+                    self._display_progress()
+                    time.sleep(0.5)
+            display_thread = threading.Thread(target=display_loop, daemon=True)
+            display_thread.start()
+        
+        try:
+            # Download with thread pool
+            with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
+                futures = {
+                    executor.submit(self._download_single, g, dest_dir, force): g.name
+                    for g in graphs
+                }
+                
+                for future in as_completed(futures):
+                    name = futures[future]
+                    try:
+                        result = future.result()
+                        if result:
+                            successful.append(result)
+                        else:
+                            failed.append(name)
+                    except Exception as e:
+                        self._update_status(name, status=DownloadStatus.FAILED, 
+                                          error=str(e), end_time=time.time())
+                        failed.append(name)
+        finally:
+            # Stop display thread
+            self._stop_display.set()
+            if display_thread:
+                display_thread.join(timeout=1.0)
+            
+            # Clear progress line
+            print(" " * 120, end='\r')
+        
+        return successful, failed
+    
+    def print_summary(self):
+        """Print detailed summary of all downloads."""
+        print("\n" + "─" * 70)
+        print("  DOWNLOAD SUMMARY")
+        print("─" * 70)
+        
+        done = []
+        skipped = []
+        failed = []
+        
+        for name, prog in self.progress.items():
+            if prog.status == DownloadStatus.DONE:
+                done.append(prog)
+            elif prog.status == DownloadStatus.SKIPPED:
+                skipped.append(prog)
+            elif prog.status == DownloadStatus.FAILED:
+                failed.append(prog)
+        
+        total_mb = sum(p.graph.size_mb for p in done)
+        total_time = sum(p.elapsed for p in done)
+        avg_speed = total_mb / total_time if total_time > 0 else 0
+        
+        print(f"\n  \033[92m✓ Downloaded:\033[0m {len(done)} graphs ({total_mb:.0f} MB)")
+        if done and total_time > 0:
+            print(f"    Average speed: {avg_speed:.1f} MB/s")
+            print(f"    Total time: {total_time:.1f}s")
+        
+        if skipped:
+            print(f"\n  \033[96m○ Skipped (already exist):\033[0m {len(skipped)} graphs")
+            for prog in skipped[:5]:
+                print(f"      {prog.graph.name}")
+            if len(skipped) > 5:
+                print(f"      ... and {len(skipped) - 5} more")
+        
+        if failed:
+            print(f"\n  \033[91m✗ Failed:\033[0m {len(failed)} graphs")
+            for prog in failed:
+                print(f"      {prog.graph.name}: {prog.error}")
+        
+        print("─" * 70)
+
+
+def download_graphs_parallel(
+    size: str = "SMALL",
+    graphs: List[str] = None,
+    category: str = None,
+    dest_dir: Path = None,
+    max_workers: int = 4,
+    force: bool = False,
+    max_size_mb: int = None,
+    max_count: int = None,
+    show_progress: bool = True,
+    wait_for_all: bool = True,
+) -> Tuple[List[Path], List[str]]:
+    """
+    Download graphs in parallel for maximum bandwidth utilization.
+    
+    This function downloads multiple graphs concurrently to optimize internet
+    bandwidth usage. It blocks until ALL downloads complete before returning,
+    ensuring graphs are ready before running experiments.
+    
+    Args:
+        size: Size category ("SMALL", "MEDIUM", "LARGE", "XLARGE", "ALL")
+        graphs: Specific graph names to download (overrides size)
+        category: Filter by category (e.g., "social", "web", "road")
+        dest_dir: Destination directory
+        max_workers: Number of parallel download threads (default: 4)
+        force: Force re-download even if exists
+        max_size_mb: Skip graphs larger than this
+        max_count: Maximum number of graphs to download
+        show_progress: Show live download progress
+        wait_for_all: Always True - blocks until all downloads complete
+        
+    Returns:
+        Tuple of (successful_paths, failed_names)
+        
+    Example:
+        # Download small graphs in parallel
+        paths, failed = download_graphs_parallel(size="SMALL", max_workers=4)
+        
+        # Experiment only starts after downloads complete
+        for path in paths:
+            run_experiment(path)
+    """
+    ensure_directories()
+    
+    if dest_dir is None:
+        dest_dir = GRAPHS_DIR
+    
+    # Build download list
+    if graphs:
+        download_list = []
+        for name in graphs:
+            info = get_graph_info(name)
+            if info:
+                download_list.append(info)
+            else:
+                log.warning(f"Unknown graph: {name}")
+    else:
+        download_list = get_graphs_by_size(size)
+    
+    # Apply filters
+    if category:
+        download_list = [g for g in download_list if g.category == category]
+    
+    if max_size_mb:
+        download_list = [g for g in download_list if g.size_mb <= max_size_mb]
+    
+    if max_count and len(download_list) > max_count:
+        download_list = download_list[:max_count]
+    
+    if not download_list:
+        log.warning("No graphs match the specified criteria")
+        return [], []
+    
+    total_mb = sum(g.size_mb for g in download_list)
+    
+    print("\n" + "═" * 70)
+    print("  PARALLEL GRAPH DOWNLOAD")
+    print("═" * 70)
+    print(f"  Graphs to download: {len(download_list)}")
+    print(f"  Total size: ~{total_mb:,} MB")
+    print(f"  Parallel workers: {max_workers}")
+    print(f"  Destination: {dest_dir}")
+    print("═" * 70 + "\n")
+    
+    # Create manager and download
+    manager = ParallelDownloadManager(max_workers=max_workers, show_progress=show_progress)
+    successful, failed = manager.download_all(download_list, dest_dir, force)
+    
+    # Print summary
+    manager.print_summary()
+    
+    return successful, failed
 
 
 # =============================================================================
