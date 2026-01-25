@@ -52,7 +52,8 @@ This library provides functions for:
 __version__ = "1.2.0"
 __all__ = [
     "utils", "download", "build", "reorder", "benchmark", "cache", "weights",
-    "progress", "results", "analysis", "training", "features", "phases", "types"
+    "progress", "results", "analysis", "training", "features", "phases", "types",
+    "dependencies"
 ]
 
 # =============================================================================
@@ -157,7 +158,24 @@ from .build import (
     clean_build,
     ensure_binaries,
     check_build_requirements,
+    ensure_dependencies,
 )
+
+# =============================================================================
+# Dependency management
+# =============================================================================
+try:
+    from .dependencies import (
+        check_dependencies,
+        install_dependencies,
+        print_install_instructions,
+        detect_platform,
+        get_package_manager,
+        get_boost_version,
+    )
+except ImportError:
+    # Dependencies module may not be available in minimal installs
+    pass
 
 # =============================================================================
 # Reordering
