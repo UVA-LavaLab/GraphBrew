@@ -5802,9 +5802,18 @@ public:
             new_ids[communityDataFlat[sort_indices[i]]] = (NodeID_)i;
         }
 
+        // Count unique communities in last pass
+        size_t num_communities = 0;
+        if (!x.communityMappingPerPass.empty()) {
+            const auto& last_pass = x.communityMappingPerPass.back();
+            std::set<K> unique_comms(last_pass.begin(), last_pass.end());
+            num_communities = unique_comms.size();
+        }
+
         tm.Stop();
         PrintTime("GenID Time", tm.Seconds());
         PrintTime("Num Passes", x.communityMappingPerPass.size());
+        PrintTime("Num Communities", num_communities);
         PrintTime("Resolution", resolution);
     }
 
@@ -6414,6 +6423,15 @@ public:
         // Get community mappings per pass
         std::vector<std::vector<K>> communityMappingPerPass = x.communityMappingPerPass;
         PrintTime("Community Passes Stored", communityMappingPerPass.size());
+        
+        // Count unique communities in last pass for consistency with other Leiden variants
+        size_t num_communities = 0;
+        if (!communityMappingPerPass.empty()) {
+            const auto& last_pass = communityMappingPerPass.back();
+            std::set<K> unique_comms(last_pass.begin(), last_pass.end());
+            num_communities = unique_comms.size();
+        }
+        PrintTime("Num Communities", num_communities);
         
         // Get degrees
         std::vector<K> degrees(num_nodes);
