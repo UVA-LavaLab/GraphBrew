@@ -4781,60 +4781,67 @@ public:
         }
         std::sort(deg_order.begin(), deg_order.end());
         
-        // Sequential merging with modularity criterion
-        int64_t merge_count = 0;
-        for (auto& [deg, v] : deg_order) {
-            K v_root = find(v);
-            double v_str = strength[v_root];
+        // Multi-pass refinement loop
+        for (int pass = 0; pass < max_passes; ++pass) {
+            int64_t merge_count = 0;
             
-            // Find best neighbor to merge with (positive modularity delta)
-            double best_delta = 0.0;
-            K best_target = v_root;
-            
-            for (auto u : g.out_neigh(v)) {
-                K u_root = find(u);
-                if (u_root == v_root) continue;
+            // Sequential merging with modularity criterion
+            for (auto& [deg, v] : deg_order) {
+                K v_root = find(v);
+                double v_str = strength[v_root];
                 
-                double edge_weight = 1.0;
-                double u_str = strength[u_root];
+                // Find best neighbor to merge with (positive modularity delta)
+                double best_delta = 0.0;
+                K best_target = v_root;
                 
-                // Modularity delta = edge_weight - resolution * v_str * u_str / total_weight
-                double delta = edge_weight - resolution * v_str * u_str / total_weight;
-                if (delta > best_delta) {
-                    best_delta = delta;
-                    best_target = u_root;
+                for (auto u : g.out_neigh(v)) {
+                    K u_root = find(u);
+                    if (u_root == v_root) continue;
+                    
+                    double edge_weight = 1.0;
+                    double u_str = strength[u_root];
+                    
+                    // Modularity delta = edge_weight - resolution * v_str * u_str / total_weight
+                    double delta = edge_weight - resolution * v_str * u_str / total_weight;
+                    if (delta > best_delta) {
+                        best_delta = delta;
+                        best_target = u_root;
+                    }
+                }
+                
+                // Only merge if positive modularity gain
+                if (best_target != v_root) {
+                    parent[v_root] = best_target;
+                    strength[best_target] += v_str;
+                    merge_count++;
                 }
             }
             
-            // Only merge if positive modularity gain
-            if (best_target != v_root) {
-                parent[v_root] = best_target;
-                strength[best_target] += v_str;
-                merge_count++;
+            // Extract communities for this pass
+            std::vector<K> community(num_nodes);
+            #pragma omp parallel for
+            for (int64_t i = 0; i < num_nodes; ++i) {
+                community[i] = find(i);
             }
-        }
-        
-        // Extract final communities
-        std::vector<K> community(num_nodes);
-        #pragma omp parallel for
-        for (int64_t i = 0; i < num_nodes; ++i) {
-            community[i] = find(i);
-        }
-        
-        // Renumber to be contiguous
-        std::unordered_map<K, K> comm_renumber;
-        K next_comm = 0;
-        for (int64_t i = 0; i < num_nodes; ++i) {
-            K c = community[i];
-            if (comm_renumber.find(c) == comm_renumber.end()) {
-                comm_renumber[c] = next_comm++;
+            
+            // Renumber to be contiguous
+            std::unordered_map<K, K> comm_renumber;
+            K next_comm = 0;
+            for (int64_t i = 0; i < num_nodes; ++i) {
+                K c = community[i];
+                if (comm_renumber.find(c) == comm_renumber.end()) {
+                    comm_renumber[c] = next_comm++;
+                }
+                community[i] = comm_renumber[c];
             }
-            community[i] = comm_renumber[c];
+            
+            community_per_pass.push_back(community);
+            
+            printf("LeidenCSR pass %d: %ld merges, %u communities\n", pass + 1, merge_count, next_comm);
+            
+            // Stop if no more merges possible
+            if (merge_count == 0) break;
         }
-        
-        community_per_pass.push_back(community);
-        
-        printf("LeidenCSR: %ld merges, %u communities\n", merge_count, next_comm);
         
         return community_per_pass;
     }
@@ -6291,26 +6298,34 @@ public:
         
         // Default values - use auto-resolution based on graph density
         double resolution = LeidenAutoResolution<NodeID_, DestID_>(g);
-        int passes = 1;
+        int max_passes = 1;
+        int max_iterations = 10;
         std::string variant = "hubsort";
         
-        // Parse options: resolution, passes, variant
+        // Parse options: variant, resolution, max_iterations, max_passes
+        // CLI format: -o 17:variant:resolution:max_iterations:max_passes
+        // e.g., -o 17:hubsort:1.0:10:5
         if (!reordering_options.empty() && !reordering_options[0].empty()) {
-            resolution = std::stod(reordering_options[0]);
+            variant = reordering_options[0];
         }
         if (reordering_options.size() > 1 && !reordering_options[1].empty()) {
-            passes = std::stoi(reordering_options[1]);
+            resolution = std::stod(reordering_options[1]);
         }
         if (reordering_options.size() > 2 && !reordering_options[2].empty()) {
-            variant = reordering_options[2];
+            max_iterations = std::stoi(reordering_options[2]);
+        }
+        if (reordering_options.size() > 3 && !reordering_options[3].empty()) {
+            max_passes = std::stoi(reordering_options[3]);
         }
         
-        printf("LeidenCSR: resolution=%.2f, passes=%d, variant=%s\n", resolution, passes, variant.c_str());
+        printf("LeidenCSR: resolution=%.2f, max_passes=%d, max_iterations=%d, variant=%s\n", 
+               resolution, max_passes, max_iterations, variant.c_str());
         
-        // Prepare internal options
+        // Prepare internal options: resolution, max_iterations, max_passes
         std::vector<std::string> internal_options;
         internal_options.push_back(std::to_string(resolution));
-        internal_options.push_back(std::to_string(passes));
+        internal_options.push_back(std::to_string(max_iterations));
+        internal_options.push_back(std::to_string(max_passes));
         
         if (variant == "dfs") {
             GenerateLeidenCSRMapping(g, new_ids, internal_options, 0);
