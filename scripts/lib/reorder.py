@@ -194,11 +194,13 @@ def parse_reorder_time_from_converter(output: str) -> Optional[float]:
     
     CONVERSION OVERHEAD TO EXCLUDE:
     - "DiGraph Build Time:"     - CSR → igraph DiGraph (LeidenDendrogram)
+    - "DiGraph graph:"          - CSR → DiGraph (LeidenOrder - legacy naming)
     - "GOrder graph:"           - CSR → GOrder internal format
     - "Sort Map Time:" + first "Relabel Map Time:" - RabbitOrder preprocessing
     
     ALGORITHM TIME TO INCLUDE:
     - "Leiden Time:" + "Ordering Time:"           - LeidenDendrogram algorithm
+    - "LeidenOrder Map Time:" + "GenID Time:"     - LeidenOrder algorithm
     - "LeidenCSR Community Detection/Ordering:"   - LeidenCSR (native CSR, fast)
     - "GOrder Map Time:"                          - GOrder actual ordering
     - "RabbitOrder Map Time:"                     - RabbitOrder actual ordering
@@ -226,7 +228,17 @@ def parse_reorder_time_from_converter(output: str) -> Optional[float]:
         return leiden_time + ordering_time
     
     # -------------------------------------------------------------------------
-    # 2. LeidenCSR: Community Detection + Ordering (native CSR, all included)
+    # 2. LeidenOrder (legacy): LeidenOrder Map Time + GenID Time (exclude DiGraph graph)
+    # -------------------------------------------------------------------------
+    leiden_order_time = get_time(r'^LeidenOrder Map Time:\s*([\d.]+)')
+    genid_time = get_time(r'^GenID Time:\s*([\d.]+)')
+    
+    if leiden_order_time is not None and genid_time is not None:
+        # LeidenOrder detected: sum algorithm parts only
+        return leiden_order_time + genid_time
+    
+    # -------------------------------------------------------------------------
+    # 3. LeidenCSR: Community Detection + Ordering (native CSR, all included)
     # -------------------------------------------------------------------------
     leiden_csr_community = get_time(r'^LeidenCSR Community Detection:\s*([\d.]+)')
     leiden_csr_ordering = get_time(r'^LeidenCSR Ordering:\s*([\d.]+)')
@@ -235,14 +247,14 @@ def parse_reorder_time_from_converter(output: str) -> Optional[float]:
         return leiden_csr_community + leiden_csr_ordering
     
     # -------------------------------------------------------------------------
-    # 3. GOrder: Only GOrder Map Time (exclude "GOrder graph:" build time)
+    # 4. GOrder: Only GOrder Map Time (exclude "GOrder graph:" build time)
     # -------------------------------------------------------------------------
     gorder_map_time = get_time(r'^GOrder Map Time:\s*([\d.]+)')
     if gorder_map_time is not None:
         return gorder_map_time
     
     # -------------------------------------------------------------------------
-    # 4. RabbitOrder: Only RabbitOrder Map Time (exclude Sort + Relabel prep)
+    # 5. RabbitOrder: Only RabbitOrder Map Time (exclude Sort + Relabel prep)
     # -------------------------------------------------------------------------
     rabbit_map_time = get_time(r'^RabbitOrder Map Time:\s*([\d.]+)')
     if rabbit_map_time is not None:
