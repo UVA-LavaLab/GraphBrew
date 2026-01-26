@@ -310,7 +310,7 @@ The JSON uses algorithm names, which map to IDs:
 | 5 | DBG | Degree-based grouping |
 | 6 | HUBSORTDBG | Hub sort + DBG |
 | 7 | HUBCLUSTERDBG | Hub cluster + DBG |
-| 8 | RABBITORDER | Rabbit Order |
+| 8 | RABBITORDER | Rabbit Order (variants: csr/boost, default: csr) |
 | 9 | GORDER | Gorder |
 | 10 | CORDER | Corder |
 | 11 | RCM | Reverse Cuthill-McKee |
@@ -319,7 +319,7 @@ The JSON uses algorithm names, which map to IDs:
 | 14 | AdaptiveOrder | This perceptron model |
 | 15 | LeidenOrder | Basic Leiden ordering (via igraph) |
 | 16 | LeidenDendrogram | Leiden + Dendrogram traversal (variants: dfs/dfshub/dfssize/bfs/hybrid) |
-| 17 | LeidenCSR | Fast CSR-native Leiden (variants: dfs/bfs/hubsort/fast/modularity) |
+| 17 | LeidenCSR | Fast CSR-native Leiden (variants: gve/dfs/bfs/hubsort/fast/modularity, default: gve) |
 
 ---
 

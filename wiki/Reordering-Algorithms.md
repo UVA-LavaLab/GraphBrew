@@ -168,11 +168,17 @@ These algorithms use different approaches: RabbitOrder detects communities, whil
 **Rabbit Order (community + incremental aggregation using Louvain)**
 
 ```bash
-./bench/bin/pr -f graph.el -s -o 8 -n 3
+# Format: -o 8[:variant] where variant = csr (default) or boost
+./bench/bin/pr -f graph.el -s -o 8 -n 3         # Default: CSR variant (native, fast)
+./bench/bin/pr -f graph.el -s -o 8:csr -n 3     # Explicit CSR variant
+./bench/bin/pr -f graph.el -s -o 8:boost -n 3   # Original Boost-based variant
 ```
 
 - **Description**: Hierarchical community detection with incremental aggregation (Louvain-based)
 - **Complexity**: O(n log n) average
+- **Variants**:
+  - `csr` (default): Native CSR implementation - faster, no external dependencies
+  - `boost`: Original Boost-based implementation - requires Boost library
 - **Note**: RabbitOrder is enabled by default (`RABBIT_ENABLE=1` in Makefile)
 - **Best for**: Large graphs with hierarchical community structure
 - **Limitation**: Uses Louvain (no refinement), can over-merge communities
@@ -339,13 +345,13 @@ GraphBrew consolidates Leiden algorithms into three main IDs with parameter-base
 **Leiden community detection with dendrogram traversal**
 
 ```bash
-# Format: -o 16:resolution:variant
+# Format: -o 16:variant:resolution
 ./bench/bin/pr -f graph.el -s -o 16 -n 3                    # Default (auto-resolution, hybrid)
-./bench/bin/pr -f graph.el -s -o 16:1.0:dfs -n 3            # DFS traversal
-./bench/bin/pr -f graph.el -s -o 16:1.0:dfshub -n 3         # DFS hub-first
-./bench/bin/pr -f graph.el -s -o 16:1.0:dfssize -n 3        # DFS size-first
-./bench/bin/pr -f graph.el -s -o 16:1.0:bfs -n 3            # BFS traversal
-./bench/bin/pr -f graph.el -s -o 16:1.0:hybrid -n 3         # Hybrid (recommended)
+./bench/bin/pr -f graph.el -s -o 16:dfs:1.0 -n 3            # DFS traversal
+./bench/bin/pr -f graph.el -s -o 16:dfshub:1.0 -n 3         # DFS hub-first
+./bench/bin/pr -f graph.el -s -o 16:dfssize:1.0 -n 3        # DFS size-first
+./bench/bin/pr -f graph.el -s -o 16:bfs:1.0 -n 3            # BFS traversal
+./bench/bin/pr -f graph.el -s -o 16:hybrid:1.0 -n 3         # Hybrid (recommended)
 ```
 
 **Variants:**
@@ -363,22 +369,24 @@ GraphBrew consolidates Leiden algorithms into three main IDs with parameter-base
 Implements the full Leiden algorithm from: *"Fast Leiden Algorithm for Community Detection in Shared Memory Setting"* (ACM DOI 10.1145/3673038.3673146)
 
 ```bash
-# Format: -o 17:variant:resolution:passes
-./bench/bin/pr -f graph.el -s -o 17 -n 3                    # Default: gve variant
-./bench/bin/pr -f graph.el -s -o 17:gve:1.0:20 -n 3         # GVE-Leiden (recommended)
-./bench/bin/pr -f graph.el -s -o 17:dfs:1.0:1 -n 3          # DFS ordering
-./bench/bin/pr -f graph.el -s -o 17:hubsort:1.0:1 -n 3      # Hub-sorted
-./bench/bin/pr -f graph.el -s -o 17:fast:1.0:2 -n 3         # Union-Find + Label Prop
+# Format: -o 17[:variant:resolution:iterations:passes]
+./bench/bin/pr -f graph.el -s -o 17 -n 3                    # Default: GVE-Leiden (best quality)
+./bench/bin/pr -f graph.el -s -o 17:gve:1.0:20:5 -n 3       # GVE-Leiden explicit params
+./bench/bin/pr -f graph.el -s -o 17:hubsort:1.0:10:3 -n 3   # Hub-sorted variant
+./bench/bin/pr -f graph.el -s -o 17:fast:1.0:10:2 -n 3      # Union-Find + Label Prop
+./bench/bin/pr -f graph.el -s -o 17:dfs:1.0:10:1 -n 3       # DFS ordering
+./bench/bin/pr -f graph.el -s -o 17:bfs:1.0:10:1 -n 3       # BFS ordering
 ```
 
 **Variants:**
 | Variant | Description | Speed | Quality |
 |---------|-------------|-------|---------|
-| `gve` | **GVE-Leiden with refinement** | Fast | **Best** |
+| `gve` | **GVE-Leiden with refinement (DEFAULT)** | Fast | **Best** |
 | `dfs` | Hierarchical DFS | Fast | Good |
 | `bfs` | Level-first BFS | Fast | Good |
 | `hubsort` | Community + degree sort | Fastest | Good |
 | `fast` | Union-Find + Label Propagation | Very Fast | Moderate |
+| `modularity` | Modularity optimization | Fast | Good |
 
 **GVE-Leiden Algorithm (3-phase)**:
 1. **Phase 1: Local-moving** - Greedily move vertices to maximize modularity
@@ -395,9 +403,9 @@ Implements the full Leiden algorithm from: *"Fast Leiden Algorithm for Community
 
 **Sweeping Variants Example:**
 ```bash
-# Sweep all LeidenCSR variants
-for variant in dfs bfs hubsort fast modularity; do
-    ./bench/bin/pr -f graph.mtx -s -o 17:1.0:1:$variant -n 5
+# Sweep all LeidenCSR variants (format: 17:variant:resolution:iterations:passes)
+for variant in gve dfs bfs hubsort fast modularity; do
+    ./bench/bin/pr -f graph.mtx -s -o 17:$variant:1.0:20:5 -n 5
 done
 ```
 
@@ -430,8 +438,8 @@ done
 Is your graph modular (has communities)?
 ├── Yes → Is it very large (>10M vertices)?
 │         ├── Yes → LeidenCSR (17:fast) for speed
-│         │         LeidenCSR (17:modularity) for quality
-│         └── No → LeidenCSR (17:hubsort)
+│         │         LeidenCSR (17:gve) for quality
+│         └── No → LeidenCSR (17) or (17:gve) - best quality
 └── No/Unknown → Is it a power-law graph?
               ├── Yes → HUBCLUSTERDBG (7)
               └── No → Try AdaptiveOrder (14)
@@ -450,8 +458,9 @@ Running PageRank on a social network (1M vertices, 10M edges):
 | HUBSORT (3) | 0.85s | 1.18x |
 | DBG (5) | 0.80s | 1.25x |
 | HUBCLUSTERDBG (7) | 0.72s | 1.39x |
+| RabbitOrder (8) | 0.68s | 1.47x |
 | LeidenOrder (15) | 0.65s | 1.54x |
-| LeidenCSR (17:hubsort) | 0.58s | 1.72x |
+| LeidenCSR (17:gve) | 0.55s | 1.82x |
 
 ---
 

@@ -38,11 +38,20 @@ Choosing the right reordering algorithm depends on your graph characteristics. F
 # Use AdaptiveOrder for automatic best selection
 ./bench/bin/bfs -g 20 -o 14
 
-# Use LeidenDendrogram with hybrid variant (best overall for social/web graphs)
-./bench/bin/pr -f graph.mtx -o 16:1.0:hybrid
+# Use LeidenCSR with GVE-Leiden (default, best quality)
+./bench/bin/pr -f graph.mtx -o 17
 
-# Use GraphBrew with LeidenDendrogram for per-community ordering
-./bench/bin/pr -f graph.mtx -o 12:10:16
+# Use LeidenCSR with explicit GVE-Leiden parameters
+./bench/bin/pr -f graph.mtx -o 17:gve:1.0:20:5
+
+# Use LeidenDendrogram with hybrid variant (best for social/web graphs)
+./bench/bin/pr -f graph.mtx -o 16:hybrid:1.0
+
+# Use RabbitOrder (default CSR variant - fast, no Boost needed)
+./bench/bin/pr -f graph.mtx -o 8
+
+# Use RabbitOrder with original Boost variant
+./bench/bin/pr -f graph.mtx -o 8:boost
 
 # Chain multiple orderings (Leiden then Sort refinement)
 ./bench/bin/bfs -f graph.mtx -o 16 -o 2
