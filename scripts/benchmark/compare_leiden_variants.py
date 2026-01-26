@@ -147,14 +147,14 @@ def run_leiden_variant(converter: Path, graph: Path, algo_id: int,
                        variant: str = "", resolution: float = None) -> Optional[LeidenResult]:
     """Run a single Leiden variant and collect metrics"""
     
-    # Build command
-    cmd = [str(converter), "-f", str(graph), "-b", "/tmp/leiden_test.sg", "-o", str(algo_id)]
+    # Build command - format: -o algo_id:options
+    # For LeidenCSR (17): -o 17:variant:resolution:iterations:passes
+    cmd = [str(converter), "-f", str(graph), "-b", "/tmp/leiden_test.sg"]
     
-    # Add variant/options if specified
     if variant:
-        cmd.extend(["-r", variant])
-    elif resolution:
-        cmd.extend(["-r", str(resolution)])
+        cmd.extend(["-o", f"{algo_id}:{variant}"])
+    else:
+        cmd.extend(["-o", str(algo_id)])
     
     algo_names = {
         12: "GraphBrewOrder",
@@ -173,7 +173,7 @@ def run_leiden_variant(converter: Path, graph: Path, algo_id: int,
             algorithm=algo_names.get(algo_id, f"Algorithm_{algo_id}"),
             algo_id=algo_id,
             variant=variant or "default",
-            reorder_time=metrics["reorder_time"],
+            reorder_time=metrics["reorder_time"] or 0.0,
             num_communities=int(metrics["num_communities"]),
             num_passes=int(metrics["num_passes"]),
             resolution=metrics["resolution"],
@@ -195,6 +195,8 @@ def compare_leiden_variants(graph: Path, graph_info: Dict,
     results = []
     
     # Define variants to test
+    # Format for CLI: -o algo:variant:resolution:iterations:passes
+    # LeidenCSR (17): -o 17:hubsort:1.0:10:5
     variants_to_test = [
         # (algo_id, variant_options, description)
         (15, "", "LeidenOrder (native Leiden)"),
@@ -202,9 +204,10 @@ def compare_leiden_variants(graph: Path, graph_info: Dict,
         (16, "dfs", "LeidenDendrogram-dfs"),
         (16, "dfshub", "LeidenDendrogram-dfshub"),
         (16, "bfs", "LeidenDendrogram-bfs"),
-        (17, "hubsort", "LeidenCSR-hubsort"),
-        (17, "dfs", "LeidenCSR-dfs"),
-        (17, "bfs", "LeidenCSR-bfs"),
+        (17, "hubsort:1.0:10:1", "LeidenCSR-hubsort-1pass"),
+        (17, "hubsort:1.0:10:5", "LeidenCSR-hubsort-5pass"),
+        (17, "hubsort:1.0:10:10", "LeidenCSR-hubsort-10pass"),
+        (17, "dfs:1.0:10:5", "LeidenCSR-dfs-5pass"),
         (12, "", "GraphBrewOrder"),
     ]
     
@@ -213,7 +216,7 @@ def compare_leiden_variants(graph: Path, graph_info: Dict,
         variants_to_test = [
             (15, "", "LeidenOrder"),
             (16, "hybrid", "LeidenDendrogram"),
-            (17, "hubsort", "LeidenCSR"),
+            (17, "hubsort:1.0:10:5", "LeidenCSR-5pass"),
             (12, "", "GraphBrewOrder"),
         ]
     
