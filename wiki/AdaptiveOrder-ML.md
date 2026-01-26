@@ -1041,7 +1041,7 @@ Each weight file contains algorithm-specific weights. The C++ code reads the cor
 | 5 | DBG |
 | 6 | HUBSORTDBG |
 | 7 | HUBCLUSTERDBG |
-| 8 | RABBITORDER |
+| 8 | RABBITORDER (variants: csr/boost) |
 | 9 | GORDER |
 | 10 | CORDER |
 | 11 | RCM |
@@ -1050,7 +1050,7 @@ Each weight file contains algorithm-specific weights. The C++ code reads the cor
 | 14 | AdaptiveOrder |
 | 15 | LeidenOrder |
 | 16 | LeidenDendrogram |
-| 17 | LeidenCSR |
+| 17 | LeidenCSR (variants: gve/dfs/bfs/hubsort/fast/modularity) |
 
 ---
 

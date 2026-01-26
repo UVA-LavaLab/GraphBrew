@@ -79,7 +79,7 @@ Use with `-o <id>`:
 | 5 | DBG | DBG-based |
 | 6 | HubSortDBG | DBG-based |
 | 7 | HubClusterDBG | DBG-based |
-| 8 | RabbitOrder | Community |
+| 8 | RabbitOrder | Community (variants: csr/boost, default: csr) |
 | 9 | GOrder | Community |
 | 10 | COrder | Community |
 | 11 | RCMOrder | Community |
@@ -88,7 +88,7 @@ Use with `-o <id>`:
 | 14 | AdaptiveOrder | ML |
 | 15 | LeidenOrder | Leiden (igraph) |
 | 16 | LeidenDendrogram | Leiden (variants: dfs/dfshub/dfssize/bfs/hybrid) |
-| 17 | LeidenCSR | Leiden (variants: dfs/bfs/hubsort/fast/modularity) |
+| 17 | LeidenCSR | Leiden (variants: gve/dfs/bfs/hubsort/fast/modularity, default: gve) |
 
 ---
 

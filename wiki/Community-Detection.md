@@ -108,7 +108,7 @@ Leiden is used internally by Leiden-based algorithms:
 |-----------|-------------|--------|
 | LeidenOrder (15) | ✓ | `-o 15:resolution` |
 | LeidenDendrogram (16) | ✓ | `-o 16:resolution:variant` |
-| LeidenCSR (17) | ✓ | `-o 17:resolution:passes:variant` |
+| LeidenCSR (17) | ✓ | `-o 17:variant:resolution:iterations:passes` |
 | GraphBrewOrder (12) | ✓ | `-o 12:freq:algo:resolution` |
 | AdaptiveOrder (14) | ✓ | `-o 14:resolution:minsize:mode` |
 
@@ -194,12 +194,13 @@ Dendrogram traversal with variants:
 
 Fast CSR-native Leiden (no graph conversion):
 1. Community detection directly on CSR graph
-2. Apply ordering variant (dfs/bfs/hubsort/fast/modularity)
+2. Apply ordering variant (gve/dfs/bfs/hubsort/fast/modularity)
 
 **Variants:**
+- `gve`: GVE-Leiden algorithm (default) - 3-phase: local move, refine, aggregate
 - `dfs`: Hierarchical DFS
 - `bfs`: Level-first BFS
-- `hubsort`: Community + degree sort (default)
+- `hubsort`: Community + degree sort
 - `fast`: Union-Find + Label Propagation
 - `modularity`: True Leiden with modularity optimization
 
@@ -345,10 +346,10 @@ For very large graphs:
 Adjust resolution via the algorithm parameter:
 ```bash
 # More communities (higher resolution)
-./bench/bin/pr -f graph.el -s -o 17:1.5:10:hubsort -n 3
+./bench/bin/pr -f graph.el -s -o 17:gve:1.5:20:10 -n 3
 
 # Fewer communities (lower resolution)
-./bench/bin/pr -f graph.el -s -o 17:0.5:10:hubsort -n 3
+./bench/bin/pr -f graph.el -s -o 17:gve:0.5:20:10 -n 3
 ```
 
 ---
