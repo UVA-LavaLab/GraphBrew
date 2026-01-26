@@ -159,17 +159,32 @@ class GraphFeatures:
         return math.log10(self.num_edges) if self.num_edges > 0 else 0
     
     def to_type_vector(self) -> List[float]:
-        """Convert to feature vector for type matching."""
+        """Convert to normalized feature vector for type matching.
+        
+        MUST match the training format from lib/weights.py _normalize_features():
+        [modularity, degree_variance, hub_concentration, avg_degree, 
+         clustering_coefficient, log_nodes, log_edges]
+        
+        Features are normalized to [0,1] ranges:
+        - modularity: [0, 1]
+        - degree_variance: [0, 5]
+        - hub_concentration: [0, 1]
+        - avg_degree: [0, 100]
+        - clustering_coefficient: [0, 1]
+        - log_nodes: [3, 10]
+        - log_edges: [3, 12]
+        """
+        def normalize(val, lo, hi):
+            return max(0.0, min(1.0, (val - lo) / (hi - lo) if hi > lo else 0.5))
+        
         return [
-            self.modularity,
-            self.log_nodes,
-            self.log_edges,
-            self.density,
-            self.avg_degree,
-            self.degree_variance,
-            self.hub_concentration,
-            self.clustering_coeff,
-            self.community_count,
+            normalize(self.modularity, 0, 1),
+            normalize(self.degree_variance, 0, 5),
+            normalize(self.hub_concentration, 0, 1),
+            normalize(self.avg_degree, 0, 100),
+            normalize(self.clustering_coeff, 0, 1),
+            normalize(self.log_nodes, 3, 10),
+            normalize(self.log_edges, 3, 12),
         ]
     
     def to_scoring_dict(self) -> Dict[str, float]:
