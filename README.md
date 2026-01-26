@@ -74,67 +74,72 @@ This project contains a collection of Graph Analytics for Performance [(GAPBS)](
 Run the complete GraphBrew experiment workflow with a single command:
 
 ```bash
-# Clone and run - that's it!
+# Clone and train - that's it!
 git clone https://github.com/UVA-LavaLab/GraphBrew.git
 cd GraphBrew
-python3 scripts/graphbrew_experiment.py --full --download-size SMALL
+
+# Full training with ALL graphs, all algorithm variants, 5 trials
+python3 scripts/graphbrew_experiment.py --fill-weights --expand-variants \
+    --download-size ALL --min-edges 100000 --auto-memory --auto-disk --trials 5
 ```
 
 This single command will:
 1. **Download** benchmark graphs from SuiteSparse collection (87 graphs available)
-2. **Build** the benchmark binaries automatically
-3. **Analyze** graph properties (modularity, degree variance, hub concentration) to detect graph types
-4. **Generate** label mappings for consistent reordering across all benchmarks
-5. **Run** performance benchmarks (BFS, PR, CC, SSSP, BC) with all 18 algorithms
-6. **Execute** cache simulations for L1/L2/L3 hit rate analysis
-7. **Train** per-graph-type perceptron weights for AdaptiveOrder (social, road, web, powerlaw, uniform)
+2. **Auto-detect** RAM and disk limits, skip graphs that won't fit
+3. **Skip** small graphs (<100k edges) that introduce training noise
+4. **Build** the benchmark binaries automatically
+5. **Expand** Leiden algorithms into all variants (dfs, bfs, hubsort, etc.)
+6. **Run** 5 trials per benchmark for statistical reliability
+7. **Train** per-graph-type perceptron weights for AdaptiveOrder
 
-All results are saved to `./results/` with per-type weights synced to `./scripts/`.
+All results are saved to `./results/` with per-type weights synced to `./scripts/weights/active/`.
 
-### Available Options
+### Key Parameters
+
+| Parameter | Description |
+|-----------|-------------|
+| `--fill-weights` | Run comprehensive weight training pipeline |
+| `--expand-variants` | Include all Leiden algorithm variants |
+| `--download-size SIZE` | Which graphs: `SMALL`, `MEDIUM`, `LARGE`, `XLARGE`, `ALL` |
+| `--min-edges N` | Skip graphs with fewer than N edges (reduces noise) |
+| `--auto-memory` | Auto-detect RAM, skip graphs that won't fit |
+| `--auto-disk` | Auto-detect disk space, limit downloads accordingly |
+| `--trials N` | Number of benchmark trials (default: 2, recommended: 5) |
+
+### Training by Scale
+
+```bash
+# Quick test (~10 min): SMALL graphs
+python3 scripts/graphbrew_experiment.py --fill-weights --expand-variants \
+    --download-size SMALL --min-edges 50000 --auto-memory --auto-disk --trials 3
+
+# Standard training (~1 hour): MEDIUM graphs  
+python3 scripts/graphbrew_experiment.py --fill-weights --expand-variants \
+    --download-size MEDIUM --min-edges 100000 --auto-memory --auto-disk --trials 5
+
+# Full training (~4-8 hours): ALL graphs
+python3 scripts/graphbrew_experiment.py --fill-weights --expand-variants \
+    --download-size ALL --min-edges 100000 --auto-memory --auto-disk --trials 5
+```
+
+### More Options
 
 ```bash
 # Download graphs only
 python3 scripts/graphbrew_experiment.py --download-only --download-size MEDIUM
 
-# Run experiment on existing graphs
-python3 scripts/graphbrew_experiment.py --phase all
+# Run full pipeline (alternative to fill-weights)
+python3 scripts/graphbrew_experiment.py --full --download-size SMALL --auto-memory --auto-disk
 
-# Quick test with key algorithms
-python3 scripts/graphbrew_experiment.py --graphs small --key-only
-
-# Run brute-force validation (test adaptive vs all 18 algorithms)
+# Run brute-force validation (test adaptive vs all algorithms)
 python3 scripts/graphbrew_experiment.py --brute-force
 
-# Use pre-generated label maps for consistent reordering
-python3 scripts/graphbrew_experiment.py --generate-maps --use-maps
-
-# Auto-detect RAM and disk limits (skips graphs that won't fit)
-python3 scripts/graphbrew_experiment.py --full --download-size ALL --auto-memory --auto-disk
-
-# Set explicit memory/disk limits
-python3 scripts/graphbrew_experiment.py --full --download-size ALL --max-memory 32 --max-disk 100
-
 # Clean and start fresh
-python3 scripts/graphbrew_experiment.py --clean-all --full --download-size SMALL
+python3 scripts/graphbrew_experiment.py --clean-all
 
 # See all options
 python3 scripts/graphbrew_experiment.py --help
 ```
-
-### 🎯 Comprehensive Weight Training
-
-Train type-based perceptron weights from scratch:
-
-```bash
-# Clean slate
-rm -rf results/* scripts/weights/active/* scripts/weights/merged/* scripts/weights/runs/*
-
-# Train on ALL graphs with adaptive analysis and comparison
-python3 scripts/graphbrew_experiment.py --fill-weights --auto-memory --auto-disk --skip-cache --download-size ALL --adaptive-analysis --adaptive-comparison
-```
-
-This trains on 85+ graphs (SMALL+MEDIUM+LARGE), auto-skipping any that exceed RAM limits.
 
 ### Graph Catalog
 
@@ -145,15 +150,6 @@ This trains on 85+ graphs (SMALL+MEDIUM+LARGE), auto-skipping any that exceed RA
 | `LARGE` | 37 | ~25 GB | social, web, collaboration, road, mesh, synthetic |
 | `XLARGE` | 6 | ~63 GB | massive web (twitter7, webbase-2001), Kronecker |
 | `ALL` | **87** | ~89 GB | Complete benchmark set |
-
-### Resource Management
-
-| Option | Description |
-|--------|-------------|
-| `--max-memory GB` | Skip graphs requiring more than this RAM |
-| `--auto-memory` | Auto-detect RAM, use 80% as limit |
-| `--max-disk GB` | Limit total download size |
-| `--auto-disk` | Auto-detect disk space, use 80% as limit |
 
 ## Prerequisites
 
