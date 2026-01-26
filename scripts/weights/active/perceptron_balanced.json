@@ -1,0 +1,347 @@
+{
+  "SORT": {
+    "bias": 0.54375,
+    "benchmark_weights": {
+      "bfs": 1.0,
+      "pr": 1.0625,
+      "cc": 1.375,
+      "sssp": 1.0,
+      "bc": 1.0
+    },
+    "w_modularity": 0.0,
+    "w_degree_variance": 0.0,
+    "w_hub_concentration": 0.0,
+    "w_avg_degree": 0.0,
+    "w_clustering_coeff": 0.0,
+    "w_log_nodes": 0.0,
+    "w_log_edges": 0.0,
+    "w_reorder_time": 0.0,
+    "_metadata": {
+      "overall_win_rate": 0.0875,
+      "sample_count": 80,
+      "win_count": 7
+    }
+  },
+  "RANDOM": {
+    "bias": 0.5375,
+    "benchmark_weights": {
+      "bfs": 1.0,
+      "pr": 1.375,
+      "cc": 1.0,
+      "sssp": 1.0,
+      "bc": 1.0
+    },
+    "w_modularity": 0.0,
+    "w_degree_variance": 0.0,
+    "w_hub_concentration": 0.0,
+    "w_avg_degree": 0.0,
+    "w_clustering_coeff": 0.0,
+    "w_log_nodes": 0.0,
+    "w_log_edges": 0.0,
+    "w_reorder_time": 0.0,
+    "_metadata": {
+      "overall_win_rate": 0.075,
+      "sample_count": 80,
+      "win_count": 6
+    }
+  },
+  "HUBSORT": {
+    "bias": 0.50625,
+    "benchmark_weights": {
+      "bfs": 1.0625,
+      "pr": 1.0,
+      "cc": 1.0,
+      "sssp": 1.0,
+      "bc": 1.0
+    },
+    "w_modularity": 0.0,
+    "w_degree_variance": 0.0,
+    "w_hub_concentration": 0.0,
+    "w_avg_degree": 0.0,
+    "w_clustering_coeff": 0.0,
+    "w_log_nodes": 0.0,
+    "w_log_edges": 0.0,
+    "w_reorder_time": 0.0,
+    "_metadata": {
+      "overall_win_rate": 0.0125,
+      "sample_count": 80,
+      "win_count": 1
+    }
+  },
+  "HUBCLUSTER": {
+    "bias": 0.51875,
+    "benchmark_weights": {
+      "bfs": 1.125,
+      "pr": 1.0,
+      "cc": 1.0625,
+      "sssp": 1.0,
+      "bc": 1.0
+    },
+    "w_modularity": 0.0,
+    "w_degree_variance": 0.0,
+    "w_hub_concentration": 0.0,
+    "w_avg_degree": 0.0,
+    "w_clustering_coeff": 0.0,
+    "w_log_nodes": 0.0,
+    "w_log_edges": 0.0,
+    "w_reorder_time": 0.0,
+    "_metadata": {
+      "overall_win_rate": 0.0375,
+      "sample_count": 80,
+      "win_count": 3
+    }
+  },
+  "DBG": {
+    "bias": 0.5125,
+    "benchmark_weights": {
+      "bfs": 1.0,
+      "pr": 1.125,
+      "cc": 1.0,
+      "sssp": 1.0,
+      "bc": 1.0
+    },
+    "w_modularity": 0.0,
+    "w_degree_variance": 0.0,
+    "w_hub_concentration": 0.0,
+    "w_avg_degree": 0.0,
+    "w_clustering_coeff": 0.0,
+    "w_log_nodes": 0.0,
+    "w_log_edges": 0.0,
+    "w_reorder_time": 0.0,
+    "_metadata": {
+      "overall_win_rate": 0.025,
+      "sample_count": 80,
+      "win_count": 2
+    }
+  },
+  "HUBSORTDBG": {
+    "bias": 0.5066666666666667,
+    "benchmark_weights": {
+      "bfs": 1.0,
+      "pr": 1.0,
+      "cc": 1.0,
+      "sssp": 1.0,
+      "bc": 1.0666666666666667
+    },
+    "w_modularity": 0.0,
+    "w_degree_variance": 0.0,
+    "w_hub_concentration": 0.0,
+    "w_avg_degree": 0.0,
+    "w_clustering_coeff": 0.0,
+    "w_log_nodes": 0.0,
+    "w_log_edges": 0.0,
+    "w_reorder_time": 0.0,
+    "_metadata": {
+      "overall_win_rate": 0.013333333333333334,
+      "sample_count": 75,
+      "win_count": 1
+    }
+  },
+  "HUBCLUSTERDBG": {
+    "bias": 0.512987012987013,
+    "benchmark_weights": {
+      "bfs": 1.0625,
+      "pr": 1.0,
+      "cc": 1.0666666666666667,
+      "sssp": 1.0,
+      "bc": 1.0
+    },
+    "w_modularity": 0.0,
+    "w_degree_variance": 0.0,
+    "w_hub_concentration": 0.0,
+    "w_avg_degree": 0.0,
+    "w_clustering_coeff": 0.0,
+    "w_log_nodes": 0.0,
+    "w_log_edges": 0.0,
+    "w_reorder_time": 0.0,
+    "_metadata": {
+      "overall_win_rate": 0.025974025974025976,
+      "sample_count": 77,
+      "win_count": 2
+    }
+  },
+  "RABBITORDER": {
+    "bias": 0.575,
+    "benchmark_weights": {
+      "bfs": 1.125,
+      "pr": 1.0625,
+      "cc": 1.0,
+      "sssp": 1.25,
+      "bc": 1.3125
+    },
+    "w_modularity": 0.0,
+    "w_degree_variance": 0.0,
+    "w_hub_concentration": 0.0,
+    "w_avg_degree": 0.0,
+    "w_clustering_coeff": 0.0,
+    "w_log_nodes": 0.0,
+    "w_log_edges": 0.0,
+    "w_reorder_time": 0.0,
+    "_metadata": {
+      "overall_win_rate": 0.15,
+      "sample_count": 80,
+      "win_count": 12
+    }
+  },
+  "GORDER": {
+    "bias": 0.55625,
+    "benchmark_weights": {
+      "bfs": 1.0625,
+      "pr": 1.0,
+      "cc": 1.25,
+      "sssp": 1.1875,
+      "bc": 1.0625
+    },
+    "w_modularity": 0.0,
+    "w_degree_variance": 0.0,
+    "w_hub_concentration": 0.0,
+    "w_avg_degree": 0.0,
+    "w_clustering_coeff": 0.0,
+    "w_log_nodes": 0.0,
+    "w_log_edges": 0.0,
+    "w_reorder_time": 0.0,
+    "_metadata": {
+      "overall_win_rate": 0.1125,
+      "sample_count": 80,
+      "win_count": 9
+    }
+  },
+  "CORDER": {
+    "bias": 0.51875,
+    "benchmark_weights": {
+      "bfs": 1.0625,
+      "pr": 1.0,
+      "cc": 1.0,
+      "sssp": 1.0,
+      "bc": 1.125
+    },
+    "w_modularity": 0.0,
+    "w_degree_variance": 0.0,
+    "w_hub_concentration": 0.0,
+    "w_avg_degree": 0.0,
+    "w_clustering_coeff": 0.0,
+    "w_log_nodes": 0.0,
+    "w_log_edges": 0.0,
+    "w_reorder_time": 0.0,
+    "_metadata": {
+      "overall_win_rate": 0.0375,
+      "sample_count": 80,
+      "win_count": 3
+    }
+  },
+  "RCM": {
+    "bias": 0.55,
+    "benchmark_weights": {
+      "bfs": 1.1875,
+      "pr": 1.0,
+      "cc": 1.0,
+      "sssp": 1.1875,
+      "bc": 1.125
+    },
+    "w_modularity": 0.0,
+    "w_degree_variance": 0.0,
+    "w_hub_concentration": 0.0,
+    "w_avg_degree": 0.0,
+    "w_clustering_coeff": 0.0,
+    "w_log_nodes": 0.0,
+    "w_log_edges": 0.0,
+    "w_reorder_time": 0.0,
+    "_metadata": {
+      "overall_win_rate": 0.1,
+      "sample_count": 80,
+      "win_count": 8
+    }
+  },
+  "GraphBrewOrder": {
+    "bias": 0.5375,
+    "benchmark_weights": {
+      "bfs": 1.125,
+      "pr": 1.1875,
+      "cc": 1.0,
+      "sssp": 1.0,
+      "bc": 1.0625
+    },
+    "w_modularity": 0.0,
+    "w_degree_variance": 0.0,
+    "w_hub_concentration": 0.0,
+    "w_avg_degree": 0.0,
+    "w_clustering_coeff": 0.0,
+    "w_log_nodes": 0.0,
+    "w_log_edges": 0.0,
+    "w_reorder_time": 0.0,
+    "_metadata": {
+      "overall_win_rate": 0.075,
+      "sample_count": 80,
+      "win_count": 6
+    }
+  },
+  "LeidenOrder": {
+    "bias": 0.5375,
+    "benchmark_weights": {
+      "bfs": 1.0625,
+      "pr": 1.0,
+      "cc": 1.0,
+      "sssp": 1.1875,
+      "bc": 1.125
+    },
+    "w_modularity": 0.0,
+    "w_degree_variance": 0.0,
+    "w_hub_concentration": 0.0,
+    "w_avg_degree": 0.0,
+    "w_clustering_coeff": 0.0,
+    "w_log_nodes": 0.0,
+    "w_log_edges": 0.0,
+    "w_reorder_time": 0.0,
+    "_metadata": {
+      "overall_win_rate": 0.075,
+      "sample_count": 80,
+      "win_count": 6
+    }
+  },
+  "LeidenDendrogram": {
+    "bias": 0.5375,
+    "benchmark_weights": {
+      "bfs": 1.0625,
+      "pr": 1.0625,
+      "cc": 1.125,
+      "sssp": 1.125,
+      "bc": 1.0
+    },
+    "w_modularity": 0.0,
+    "w_degree_variance": 0.0,
+    "w_hub_concentration": 0.0,
+    "w_avg_degree": 0.0,
+    "w_clustering_coeff": 0.0,
+    "w_log_nodes": 0.0,
+    "w_log_edges": 0.0,
+    "w_reorder_time": 0.0,
+    "_metadata": {
+      "overall_win_rate": 0.075,
+      "sample_count": 80,
+      "win_count": 6
+    }
+  },
+  "LeidenCSR": {
+    "bias": 0.55,
+    "benchmark_weights": {
+      "bfs": 1.0625,
+      "pr": 1.125,
+      "cc": 1.125,
+      "sssp": 1.0625,
+      "bc": 1.125
+    },
+    "w_modularity": 0.0,
+    "w_degree_variance": 0.0,
+    "w_hub_concentration": 0.0,
+    "w_avg_degree": 0.0,
+    "w_clustering_coeff": 0.0,
+    "w_log_nodes": 0.0,
+    "w_log_edges": 0.0,
+    "w_reorder_time": 0.0,
+    "_metadata": {
+      "overall_win_rate": 0.1,
+      "sample_count": 80,
+      "win_count": 8
+    }
+  }
+}
