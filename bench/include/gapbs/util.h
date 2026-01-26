@@ -41,6 +41,8 @@ enum ReorderingAlgo
     LeidenOrder = 15,       // Format: 15:resolution (via igraph)
     LeidenDendrogram = 16,  // Format: 16:resolution:variant (dfs/dfshub/dfssize/bfs/hybrid)
     LeidenCSR = 17,         // Format: 17:resolution:passes:variant (dfs/bfs/hubsort/fast/modularity)
+    // Native CSR implementations of external algorithms
+    RabbitOrderCSR = 18,    // Native CSR Rabbit Order (no external library)
 };
 
 static const int64_t kRandSeed = 27491095;
