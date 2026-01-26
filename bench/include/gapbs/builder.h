@@ -6916,6 +6916,160 @@ public:
         return BENCH_GENERIC;  // Default to generic for any unrecognized name
     }
     
+    /**
+     * Selection mode for AdaptiveOrder algorithm selection
+     * 
+     * Controls how AdaptiveOrder selects the best reordering algorithm:
+     * 
+     * FASTEST_REORDER (0): Select algorithm with lowest reordering time
+     *   - Use when reordering cost dominates (single execution)
+     *   - Reads actual .time files from results/mappings/<graph>/
+     *   - Falls back to this mode for UNKNOWN/UNTRAINED graphs
+     * 
+     * FASTEST_EXECUTION (1): Select algorithm with best cache performance
+     *   - Use for repeated algorithm executions
+     *   - Uses perceptron weights to predict execution speedup
+     *   - Ignores reordering overhead
+     * 
+     * BEST_ENDTOEND (2): Minimize (reorder_time + execution_time)
+     *   - Balanced approach for typical workloads
+     *   - Combines perceptron score with reorder time penalty
+     * 
+     * BEST_AMORTIZATION (3): Minimize iterations to amortize reorder cost
+     *   - For scenarios where you need minimum runs to break even
+     *   - Considers: reorder_time / (predicted_speedup - 1.0)
+     */
+    enum SelectionMode {
+        MODE_FASTEST_REORDER = 0,      // Minimize reordering time (fallback for unknown graphs)
+        MODE_FASTEST_EXECUTION = 1,    // Minimize execution time (perceptron-based)
+        MODE_BEST_ENDTOEND = 2,        // Minimize total (reorder + execution) time
+        MODE_BEST_AMORTIZATION = 3     // Minimize iterations to amortize reorder cost
+    };
+    
+    /**
+     * Convert selection mode to string
+     */
+    static std::string SelectionModeToString(SelectionMode mode) {
+        switch (mode) {
+            case MODE_FASTEST_REORDER:    return "fastest-reorder";
+            case MODE_FASTEST_EXECUTION:  return "fastest-execution";
+            case MODE_BEST_ENDTOEND:      return "best-endtoend";
+            case MODE_BEST_AMORTIZATION:  return "best-amortization";
+            default:                      return "unknown";
+        }
+    }
+    
+    /**
+     * Convert string to selection mode
+     */
+    static SelectionMode GetSelectionMode(const std::string& name) {
+        if (name == "0" || name == "fastest-reorder" || name == "reorder") return MODE_FASTEST_REORDER;
+        if (name == "1" || name == "fastest-execution" || name == "execution" || name == "cache") return MODE_FASTEST_EXECUTION;
+        if (name == "2" || name == "best-endtoend" || name == "endtoend" || name == "e2e") return MODE_BEST_ENDTOEND;
+        if (name == "3" || name == "best-amortization" || name == "amortization" || name == "amortize") return MODE_BEST_AMORTIZATION;
+        return MODE_FASTEST_EXECUTION;  // Default to perceptron-based selection
+    }
+    
+    // Directory for precomputed reorder time files
+    static constexpr const char* REORDER_TIMES_DIR = "results/mappings/";
+    
+    /**
+     * Load precomputed reorder times from .time files
+     * 
+     * Files are stored at: results/mappings/<graph_name>/<ALGORITHM>.time
+     * Each file contains a single floating-point value (reorder time in seconds)
+     * 
+     * @param graph_name Name of the graph (e.g., "ca-GrQc", "soc-LiveJournal1")
+     * @param verbose Print loaded times
+     * @return Map from algorithm enum to reorder time in seconds
+     */
+    static std::map<ReorderingAlgo, double> LoadReorderTimesForGraph(
+        const std::string& graph_name, bool verbose = false) {
+        
+        std::map<ReorderingAlgo, double> times;
+        std::string dir_path = std::string(REORDER_TIMES_DIR) + graph_name + "/";
+        
+        // Try to load time for each known algorithm
+        // Note: enum uses Sort, Random etc (capitalized), files use SORT, RANDOM (uppercase)
+        static const std::vector<std::pair<ReorderingAlgo, std::string>> algo_files = {
+            {ORIGINAL, "ORIGINAL"},
+            {Random, "RANDOM"},
+            {Sort, "SORT"},
+            {HubSort, "HUBSORT"},
+            {HubCluster, "HUBCLUSTER"},
+            {DBG, "DBG"},
+            {HubSortDBG, "HUBSORTDBG"},
+            {HubClusterDBG, "HUBCLUSTERDBG"},
+            {RabbitOrder, "RABBITORDER"},
+            {GOrder, "GORDER"},
+            {COrder, "CORDER"},
+            {RCMOrder, "RCM"},
+            {GraphBrewOrder, "GraphBrewOrder"},
+            {LeidenCSR, "LeidenCSR"},
+            {LeidenDendrogram, "LeidenDendrogram"},
+            {LeidenOrder, "LeidenOrder"}
+        };
+        
+        for (const auto& [algo, name] : algo_files) {
+            std::string filepath = dir_path + name + ".time";
+            std::ifstream file(filepath);
+            if (file.is_open()) {
+                double time_val;
+                if (file >> time_val) {
+                    times[algo] = time_val;
+                    if (verbose) {
+                        std::cout << "Loaded reorder time: " << name << " = " << time_val << "s\n";
+                    }
+                }
+                file.close();
+            }
+        }
+        
+        if (verbose && times.empty()) {
+            std::cout << "No precomputed reorder times found for graph: " << graph_name << "\n";
+        }
+        
+        return times;
+    }
+    
+    /**
+     * Select algorithm with fastest reorder time
+     * 
+     * @param graph_name Name of the graph for loading .time files
+     * @param verbose Print selection details
+     * @return Best algorithm (or ORIGINAL if no times available)
+     */
+    static ReorderingAlgo SelectFastestReorderAlgorithm(
+        const std::string& graph_name, bool verbose = false) {
+        
+        auto times = LoadReorderTimesForGraph(graph_name, verbose);
+        
+        if (times.empty()) {
+            if (verbose) {
+                std::cout << "No reorder times available, defaulting to ORIGINAL\n";
+            }
+            return ORIGINAL;
+        }
+        
+        // Find algorithm with minimum reorder time
+        ReorderingAlgo best_algo = ORIGINAL;
+        double best_time = std::numeric_limits<double>::infinity();
+        
+        for (const auto& [algo, time] : times) {
+            if (time < best_time) {
+                best_time = time;
+                best_algo = algo;
+            }
+        }
+        
+        if (verbose) {
+            std::cout << "Selected fastest-reorder: algo=" << static_cast<int>(best_algo) 
+                      << " (time: " << best_time << "s)\n";
+        }
+        
+        return best_algo;
+    }
+    
     struct PerceptronWeights {
         // Core weights (original)
         double bias;                // baseline score
@@ -7458,6 +7612,125 @@ public:
     }
     
     /**
+     * Find the best matching type AND return the distance.
+     * 
+     * This is used to determine if a graph is "unknown" (distance > threshold).
+     * For unknown graphs, we fall back to fastest-reorder mode.
+     * 
+     * @param out_distance Output parameter: Euclidean distance to best centroid
+     * @return Best matching type name, or empty string if no registry
+     */
+    static std::string FindBestTypeWithDistance(
+        double modularity, double degree_variance, double hub_concentration,
+        double avg_degree, size_t num_nodes, size_t num_edges,
+        double& out_distance, bool verbose = false) {
+        
+        out_distance = 999999.0;  // Default: very high distance (unknown)
+        
+        // Try to load type registry
+        std::string registry_path = std::string(TYPE_WEIGHTS_DIR) + "type_registry.json";
+        std::ifstream registry_file(registry_path);
+        if (!registry_file.is_open()) {
+            if (verbose) {
+                std::cout << "Type registry not found at " << registry_path << "\n";
+            }
+            return "";
+        }
+        
+        std::string json_content((std::istreambuf_iterator<char>(registry_file)),
+                                  std::istreambuf_iterator<char>());
+        registry_file.close();
+        
+        std::string best_type = "";
+        double best_distance = 999999.0;
+        
+        // Normalize features for distance calculation
+        double log_nodes = log10(std::max(1.0, (double)num_nodes));
+        double log_edges = log10(std::max(1.0, (double)num_edges));
+        double max_log_nodes = 9.0;
+        double max_log_edges = 11.0;
+        double max_edges = num_nodes > 1 ? num_nodes * (num_nodes - 1) / 2.0 : 1.0;
+        double density = num_edges / max_edges;
+        
+        std::vector<double> query_vec = {
+            modularity,
+            std::min(1.0, degree_variance),
+            hub_concentration,
+            std::min(0.1, density),
+            0.0,
+            log_nodes / max_log_nodes,
+            log_edges / max_log_edges
+        };
+        
+        // Parse types from JSON
+        size_t pos = 0;
+        while ((pos = json_content.find("\"type_", pos)) != std::string::npos) {
+            size_t name_start = pos + 1;
+            size_t name_end = json_content.find("\"", name_start);
+            if (name_end == std::string::npos) break;
+            std::string type_name = json_content.substr(name_start, name_end - name_start);
+            
+            size_t centroid_pos = json_content.find("\"centroid\"", name_end);
+            if (centroid_pos == std::string::npos || centroid_pos > pos + 2000) {
+                pos = name_end + 1;
+                continue;
+            }
+            
+            size_t array_start = json_content.find("[", centroid_pos);
+            size_t array_end = json_content.find("]", array_start);
+            if (array_start == std::string::npos || array_end == std::string::npos) {
+                pos = name_end + 1;
+                continue;
+            }
+            
+            std::string centroid_str = json_content.substr(array_start + 1, array_end - array_start - 1);
+            std::vector<double> centroid;
+            std::stringstream ss(centroid_str);
+            std::string item;
+            while (std::getline(ss, item, ',')) {
+                try { centroid.push_back(std::stod(item)); } catch (...) {}
+            }
+            
+            if (centroid.size() >= query_vec.size()) {
+                double distance = 0.0;
+                for (size_t i = 0; i < query_vec.size(); i++) {
+                    double diff = query_vec[i] - centroid[i];
+                    distance += diff * diff;
+                }
+                distance = sqrt(distance);
+                
+                if (distance < best_distance) {
+                    best_distance = distance;
+                    best_type = type_name;
+                }
+            }
+            
+            pos = name_end + 1;
+        }
+        
+        out_distance = best_distance;
+        
+        if (verbose && !best_type.empty()) {
+            std::cout << "Best matching type: " << best_type 
+                      << " (distance: " << best_distance << ")\n";
+        }
+        
+        return best_type;
+    }
+    
+    // Threshold for considering a graph "unknown" - if distance > this, use fastest-reorder
+    // Calibrated based on typical type distances (range: 7-50+)
+    // Graphs with distance > 50 are true outliers not seen during training
+    static constexpr double UNKNOWN_TYPE_DISTANCE_THRESHOLD = 50.0;
+    
+    /**
+     * Check if a graph should be considered "unknown" based on type distance
+     */
+    static bool IsUnknownGraphType(double type_distance) {
+        return type_distance > UNKNOWN_TYPE_DISTANCE_THRESHOLD;
+    }
+    
+    /**
      * Load perceptron weights for a specific graph type.
      * 
      * Checks for weights file in this order:
@@ -7755,6 +8028,168 @@ public:
         
         return best_algo;
     }
+    
+    /**
+     * Select best reordering algorithm with MODE-AWARE selection.
+     * 
+     * This is the main entry point for AdaptiveOrder algorithm selection.
+     * It supports different selection modes:
+     * 
+     * - FASTEST_REORDER: Select algorithm with lowest reordering time
+     *   → Used automatically for UNKNOWN graphs (high type distance)
+     * - FASTEST_EXECUTION: Use perceptron to predict best cache performance
+     * - BEST_ENDTOEND: Balance perceptron score with reorder time penalty
+     * - BEST_AMORTIZATION: Minimize iterations to amortize reorder cost
+     * 
+     * @param feat Community features for scoring
+     * @param global_modularity Global graph modularity
+     * @param global_degree_variance Global degree variance
+     * @param global_hub_concentration Global hub concentration
+     * @param num_nodes Total number of nodes
+     * @param num_edges Total number of edges
+     * @param mode Selection mode (see SelectionMode enum)
+     * @param graph_name Name of the graph (for loading .time files)
+     * @param bench Benchmark type
+     * @param verbose Print selection details
+     */
+    ReorderingAlgo SelectReorderingWithMode(
+        const CommunityFeatures& feat,
+        double global_modularity, double global_degree_variance,
+        double global_hub_concentration, size_t num_nodes, size_t num_edges,
+        SelectionMode mode, const std::string& graph_name = "",
+        BenchmarkType bench = BENCH_GENERIC, bool verbose = false) {
+        
+        // Check if this is an UNKNOWN graph type
+        double type_distance = 0.0;
+        std::string best_type = FindBestTypeWithDistance(
+            global_modularity, global_degree_variance, global_hub_concentration,
+            feat.avg_degree, num_nodes, num_edges, type_distance, verbose);
+        
+        bool is_unknown = IsUnknownGraphType(type_distance) || best_type.empty();
+        
+        // For UNKNOWN graphs, always fall back to FASTEST_REORDER mode
+        if (is_unknown && mode != MODE_FASTEST_REORDER) {
+            if (verbose) {
+                std::cout << "Graph type UNKNOWN (distance: " << type_distance 
+                          << " > " << UNKNOWN_TYPE_DISTANCE_THRESHOLD 
+                          << ") - falling back to fastest-reorder mode\n";
+            }
+            mode = MODE_FASTEST_REORDER;
+        }
+        
+        // Handle each mode
+        switch (mode) {
+            case MODE_FASTEST_REORDER: {
+                // Select algorithm with lowest reorder time
+                if (!graph_name.empty()) {
+                    ReorderingAlgo fastest = SelectFastestReorderAlgorithm(graph_name, verbose);
+                    if (fastest != ORIGINAL || verbose) {
+                        if (verbose) {
+                            std::cout << "Mode: fastest-reorder → algo=" << static_cast<int>(fastest) << "\n";
+                        }
+                        return fastest;
+                    }
+                }
+                // Fallback if no .time files: use RANDOM (typically fast)
+                if (verbose) {
+                    std::cout << "No reorder times available, using RANDOM as fast default\n";
+                }
+                return Random;
+            }
+            
+            case MODE_FASTEST_EXECUTION: {
+                // Use perceptron to select best cache performance
+                ReorderingAlgo best = SelectReorderingPerceptronWithFeatures(
+                    feat, global_modularity, global_degree_variance,
+                    global_hub_concentration, num_nodes, num_edges, bench);
+                if (verbose) {
+                    std::cout << "Mode: fastest-execution → algo=" << static_cast<int>(best) << "\n";
+                }
+                return best;
+            }
+            
+            case MODE_BEST_ENDTOEND: {
+                // Load perceptron weights and reorder times
+                auto weights = LoadPerceptronWeightsForFeatures(
+                    global_modularity, global_degree_variance, global_hub_concentration,
+                    feat.avg_degree, num_nodes, num_edges, false);
+                auto reorder_times = LoadReorderTimesForGraph(graph_name, false);
+                
+                ReorderingAlgo best_algo = ORIGINAL;
+                double best_score = -std::numeric_limits<double>::infinity();
+                
+                // Penalty factor: how much to penalize reorder time
+                // Higher = more emphasis on fast reordering
+                const double REORDER_PENALTY = 10.0;  // 1 second reorder = -10 from score
+                
+                for (const auto& kv : weights) {
+                    double exec_score = kv.second.score(feat, bench);
+                    double reorder_penalty = 0.0;
+                    
+                    auto time_it = reorder_times.find(kv.first);
+                    if (time_it != reorder_times.end()) {
+                        reorder_penalty = time_it->second * REORDER_PENALTY;
+                    }
+                    
+                    double total_score = exec_score - reorder_penalty;
+                    if (total_score > best_score) {
+                        best_score = total_score;
+                        best_algo = kv.first;
+                    }
+                }
+                
+                if (verbose) {
+                    std::cout << "Mode: best-endtoend → algo=" << static_cast<int>(best_algo) << "\n";
+                }
+                return best_algo;
+            }
+            
+            case MODE_BEST_AMORTIZATION: {
+                // Minimize iterations to amortize reorder cost
+                auto weights = LoadPerceptronWeightsForFeatures(
+                    global_modularity, global_degree_variance, global_hub_concentration,
+                    feat.avg_degree, num_nodes, num_edges, false);
+                auto reorder_times = LoadReorderTimesForGraph(graph_name, false);
+                
+                ReorderingAlgo best_algo = ORIGINAL;
+                double best_score = -std::numeric_limits<double>::infinity();
+                
+                for (const auto& kv : weights) {
+                    double exec_score = kv.second.score(feat, bench);
+                    
+                    // Estimated speedup = (score - baseline) / baseline, assume baseline ~0.5
+                    double speedup = std::max(1.001, exec_score / 0.5);
+                    
+                    double reorder_time = 0.001;  // Default: 1ms
+                    auto time_it = reorder_times.find(kv.first);
+                    if (time_it != reorder_times.end()) {
+                        reorder_time = std::max(0.001, time_it->second);
+                    }
+                    
+                    // Amortization score: inverse of iterations needed
+                    // iterations_to_amortize = reorder_time / (speedup - 1.0)
+                    // We want to maximize 1.0 / iterations_to_amortize
+                    double amort_score = (speedup - 1.0) / reorder_time;
+                    
+                    if (amort_score > best_score) {
+                        best_score = amort_score;
+                        best_algo = kv.first;
+                    }
+                }
+                
+                if (verbose) {
+                    std::cout << "Mode: best-amortization → algo=" << static_cast<int>(best_algo) << "\n";
+                }
+                return best_algo;
+            }
+            
+            default:
+                // Default to perceptron-based selection
+                return SelectReorderingPerceptronWithFeatures(
+                    feat, global_modularity, global_degree_variance,
+                    global_hub_concentration, num_nodes, num_edges, bench);
+        }
+    }
 
     CommunityFeatures ComputeCommunityFeatures(
         const std::vector<NodeID_>& comm_nodes,
@@ -7978,6 +8413,8 @@ public:
      * @param bench Benchmark type (default: BENCH_GENERIC for balanced performance)
      *              - BENCH_GENERIC: Optimizes for all graph algorithms equally
      *              - BENCH_PR, BENCH_BFS, etc.: Optimizes for specific benchmark
+     * @param mode Selection mode (default: MODE_FASTEST_EXECUTION for perceptron-based)
+     * @param graph_name Graph name for loading reorder times (needed for modes 0,2,3)
      * 
      * Fallback to heuristics for edge cases (very small communities).
      */
@@ -7988,7 +8425,9 @@ public:
                                                      double global_avg_degree,
                                                      size_t num_nodes, size_t num_edges,
                                                      BenchmarkType bench = BENCH_GENERIC,
-                                                     GraphType graph_type = GRAPH_GENERIC)
+                                                     GraphType graph_type = GRAPH_GENERIC,
+                                                     SelectionMode mode = MODE_FASTEST_EXECUTION,
+                                                     const std::string& graph_name = "")
     {
         // Small communities: reordering overhead exceeds benefit
         const size_t MIN_COMMUNITY_SIZE = 200;
@@ -8000,11 +8439,10 @@ public:
         // Set the modularity in features for perceptron scoring
         feat.modularity = global_modularity;
         
-        // Use feature-based perceptron to select best algorithm 
-        // This tries type_0.json, type_1.json etc. first, then falls back to semantic types
-        ReorderingAlgo selected = SelectReorderingPerceptronWithFeatures(
+        // Use MODE-AWARE selection (handles unknown graph fallback automatically)
+        ReorderingAlgo selected = SelectReorderingWithMode(
             feat, global_modularity, global_degree_variance, global_hub_concentration,
-            num_nodes, num_edges, bench);
+            num_nodes, num_edges, mode, graph_name, bench, false);
         
         // Safety check: if perceptron selects an unavailable algorithm, fallback
 #ifndef RABBIT_ENABLE
@@ -8035,35 +8473,60 @@ public:
      * Unlike GraphBrew which always uses RabbitOrder for communities,
      * this adaptively picks the best algorithm based on each community's characteristics.
      * 
-     * Format: -o 14[:max_depth[:resolution[:min_recurse_size[:mode]]]]
+     * Format: -o 14[:max_depth[:resolution[:min_recurse_size[:selection_mode[:graph_name]]]]]
      * - max_depth: Maximum recursion depth (0 = no recursion, 1+ = multi-level)
-     * - resolution: Leiden resolution parameter (default: 0.75)
+     * - resolution: Leiden resolution parameter (default: auto)
      * - min_recurse_size: Minimum community size for recursion (default: 50000)
-     * - mode: 0 = normal (per-community), 1 = full-graph adaptive (skip Leiden, pick best algo for whole graph)
+     * - selection_mode: 0=fastest-reorder, 1=fastest-execution (default), 2=best-endtoend, 3=best-amortization
+     * - graph_name: Name of the graph for loading reorder times (optional)
      * 
      * Examples:
-     *   -o 14                   # Default: depth=0, res=0.75, per-community selection
-     *   -o 14:2                 # Multi-level: depth=2, allowing sub-community recursion
-     *   -o 14:0:1.0             # Higher resolution for more communities
-     *   -o 14:0:0.75:50000:1    # Full-graph mode: pick best algo for entire graph (no Leiden)
+     *   -o 14                         # Default: depth=0, mode=1 (perceptron)
+     *   -o 14:2                       # Multi-level: depth=2
+     *   -o 14:0:1.0:50000:0           # fastest-reorder mode (for unknown graphs)
+     *   -o 14:0:1.0:50000:1:ca-GrQc   # perceptron mode with graph name for hybrid scoring
+     *   -o 14:0:1.0:50000:2:ca-GrQc   # best-endtoend mode
      */
     void GenerateAdaptiveMapping(CSRGraph<NodeID_, DestID_, invert> &g,
                                  pvector<NodeID_> &new_ids, bool useOutdeg,
                                  std::vector<std::string> reordering_options)
     {
-        // Parse mode option (last parameter)
-        int adaptive_mode = 0;  // 0 = per-community, 1 = full-graph
+        // Parse selection mode option (4th parameter, 0-indexed: param 3)
+        SelectionMode selection_mode = MODE_FASTEST_EXECUTION;  // Default: perceptron
+        std::string graph_name = "";  // Optional graph name for .time file lookup
+        
         if (reordering_options.size() > 3) {
-            adaptive_mode = std::stoi(reordering_options[3]);
+            // Check if it's a number (selection mode) or "1" for legacy full-graph mode
+            try {
+                int mode_val = std::stoi(reordering_options[3]);
+                if (mode_val >= 0 && mode_val <= 3) {
+                    selection_mode = static_cast<SelectionMode>(mode_val);
+                } else if (mode_val == 100) {
+                    // Legacy: mode=100 means full-graph adaptive (deprecated)
+                    GenerateAdaptiveMappingFullGraph(g, new_ids, useOutdeg, reordering_options);
+                    return;
+                }
+            } catch (...) {
+                // Not a number - might be a graph name or mode string
+                selection_mode = GetSelectionMode(reordering_options[3]);
+            }
         }
         
-        if (adaptive_mode == 1) {
-            // Full-graph adaptive mode: skip Leiden, pick best algorithm for entire graph
-            GenerateAdaptiveMappingFullGraph(g, new_ids, useOutdeg, reordering_options);
-        } else {
-            // Per-community mode (default): Leiden + per-community algorithm selection
-            GenerateAdaptiveMappingRecursive(g, new_ids, useOutdeg, reordering_options, 0, true);
+        // Parse graph name (5th parameter, 0-indexed: param 4)
+        if (reordering_options.size() > 4) {
+            graph_name = reordering_options[4];
         }
+        
+        // Print mode info
+        std::cout << "Selection Mode: " << SelectionModeToString(selection_mode);
+        if (!graph_name.empty()) {
+            std::cout << " (graph: " << graph_name << ")";
+        }
+        std::cout << "\n";
+        
+        // Per-community mode: Leiden + per-community algorithm selection with mode
+        GenerateAdaptiveMappingRecursive(g, new_ids, useOutdeg, reordering_options, 
+                                          0, true, selection_mode, graph_name);
     }
     
     /**
@@ -8268,6 +8731,9 @@ public:
      * 
      * This is the key insight: instead of always using RabbitOrder like GraphBrew,
      * we adaptively pick the best algorithm for each community's characteristics.
+     * 
+     * @param selection_mode Selection mode for algorithm picking
+     * @param graph_name Graph name for loading .time files (fastest-reorder mode)
      */
     void GenerateAdaptiveMappingRecursive(
         const CSRGraph<NodeID_, DestID_, invert> &g,
@@ -8275,7 +8741,9 @@ public:
         bool useOutdeg,
         std::vector<std::string> reordering_options,
         int depth = 0,
-        bool verbose = true)
+        bool verbose = true,
+        SelectionMode selection_mode = MODE_FASTEST_EXECUTION,
+        const std::string& graph_name = "")
     {
         Timer tm;
         tm.Start();
@@ -8497,11 +8965,11 @@ public:
             }
             else {
                 // Select local algorithm based on features using type-based weights
-                // This uses LoadPerceptronWeightsForFeatures which tries type_0.json first
+                // This uses MODE-AWARE selection with fallback to fastest-reorder for unknown graphs
                 selected_algos[c] = SelectBestReorderingForCommunity(
                     feat, global_modularity, global_degree_variance, global_hub_concentration,
                     global_avg_degree, static_cast<size_t>(num_nodes), num_edges,
-                    BENCH_GENERIC, detected_graph_type);
+                    BENCH_GENERIC, detected_graph_type, selection_mode, graph_name);
             }
             
             // Print selection rationale with extended features
@@ -8575,9 +9043,10 @@ public:
                 CSRGraph<NodeID_, DestID_, invert> sub_g = MakeLocalGraphFromEL(sub_edges);
                 pvector<NodeID_> sub_new_ids(comm_size, -1);
                 
-                // RECURSIVE CALL with increased depth
+                // RECURSIVE CALL with increased depth (pass mode and graph_name)
                 GenerateAdaptiveMappingRecursive(sub_g, sub_new_ids, useOutdeg, 
-                                                  reordering_options, depth + 1, false);
+                                                  reordering_options, depth + 1, false,
+                                                  selection_mode, graph_name);
                 
                 // Map local reordered IDs back to global IDs
                 std::vector<NodeID_> reordered_nodes(comm_size);
