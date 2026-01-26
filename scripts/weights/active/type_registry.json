@@ -82,5 +82,31 @@
     "graph_count": 3,
     "algorithms": [],
     "graphs": []
+  },
+  "type_large": {
+    "centroid": [
+      0.554274,
+      0.5406556,
+      0.5614220000000001,
+      0.106053,
+      0.155025,
+      0.2434706979531692,
+      0.2828852667344806
+    ],
+    "graph_count": 10,
+    "graphs": [
+      "ca-HepPh",
+      "p2p-Gnutella31",
+      "email-Enron",
+      "ca-AstroPh",
+      "cit-HepTh",
+      "email-EuAll",
+      "cit-HepPh",
+      "soc-Slashdot0811",
+      "soc-Slashdot0902",
+      "soc-sign-epinions"
+    ],
+    "min_edges": 100000,
+    "description": "Trained on large graphs only (>100k edges)"
   }
 }
