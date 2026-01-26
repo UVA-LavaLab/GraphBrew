@@ -6970,106 +6970,9 @@ public:
         return MODE_FASTEST_EXECUTION;  // Default to perceptron-based selection
     }
     
-    // Directory for precomputed reorder time files
-    static constexpr const char* REORDER_TIMES_DIR = "results/mappings/";
-    
-    /**
-     * Load precomputed reorder times from .time files
-     * 
-     * Files are stored at: results/mappings/<graph_name>/<ALGORITHM>.time
-     * Each file contains a single floating-point value (reorder time in seconds)
-     * 
-     * @param graph_name Name of the graph (e.g., "ca-GrQc", "soc-LiveJournal1")
-     * @param verbose Print loaded times
-     * @return Map from algorithm enum to reorder time in seconds
-     */
-    static std::map<ReorderingAlgo, double> LoadReorderTimesForGraph(
-        const std::string& graph_name, bool verbose = false) {
-        
-        std::map<ReorderingAlgo, double> times;
-        std::string dir_path = std::string(REORDER_TIMES_DIR) + graph_name + "/";
-        
-        // Try to load time for each known algorithm
-        // Note: enum uses Sort, Random etc (capitalized), files use SORT, RANDOM (uppercase)
-        static const std::vector<std::pair<ReorderingAlgo, std::string>> algo_files = {
-            {ORIGINAL, "ORIGINAL"},
-            {Random, "RANDOM"},
-            {Sort, "SORT"},
-            {HubSort, "HUBSORT"},
-            {HubCluster, "HUBCLUSTER"},
-            {DBG, "DBG"},
-            {HubSortDBG, "HUBSORTDBG"},
-            {HubClusterDBG, "HUBCLUSTERDBG"},
-            {RabbitOrder, "RABBITORDER"},
-            {GOrder, "GORDER"},
-            {COrder, "CORDER"},
-            {RCMOrder, "RCM"},
-            {GraphBrewOrder, "GraphBrewOrder"},
-            {LeidenCSR, "LeidenCSR"},
-            {LeidenDendrogram, "LeidenDendrogram"},
-            {LeidenOrder, "LeidenOrder"}
-        };
-        
-        for (const auto& [algo, name] : algo_files) {
-            std::string filepath = dir_path + name + ".time";
-            std::ifstream file(filepath);
-            if (file.is_open()) {
-                double time_val;
-                if (file >> time_val) {
-                    times[algo] = time_val;
-                    if (verbose) {
-                        std::cout << "Loaded reorder time: " << name << " = " << time_val << "s\n";
-                    }
-                }
-                file.close();
-            }
-        }
-        
-        if (verbose && times.empty()) {
-            std::cout << "No precomputed reorder times found for graph: " << graph_name << "\n";
-        }
-        
-        return times;
-    }
-    
-    /**
-     * Select algorithm with fastest reorder time
-     * 
-     * @param graph_name Name of the graph for loading .time files
-     * @param verbose Print selection details
-     * @return Best algorithm (or ORIGINAL if no times available)
-     */
-    static ReorderingAlgo SelectFastestReorderAlgorithm(
-        const std::string& graph_name, bool verbose = false) {
-        
-        auto times = LoadReorderTimesForGraph(graph_name, verbose);
-        
-        if (times.empty()) {
-            if (verbose) {
-                std::cout << "No reorder times available, defaulting to ORIGINAL\n";
-            }
-            return ORIGINAL;
-        }
-        
-        // Find algorithm with minimum reorder time
-        ReorderingAlgo best_algo = ORIGINAL;
-        double best_time = std::numeric_limits<double>::infinity();
-        
-        for (const auto& [algo, time] : times) {
-            if (time < best_time) {
-                best_time = time;
-                best_algo = algo;
-            }
-        }
-        
-        if (verbose) {
-            std::cout << "Selected fastest-reorder: algo=" << static_cast<int>(best_algo) 
-                      << " (time: " << best_time << "s)\n";
-        }
-        
-        return best_algo;
-    }
-    
+    // Directory for precomputed reorder time files (DEPRECATED - use w_reorder_time from type weights)
+    // static constexpr const char* REORDER_TIMES_DIR = "results/mappings/";
+
     struct PerceptronWeights {
         // Core weights (original)
         double bias;                // baseline score
@@ -7495,6 +7398,50 @@ public:
      */
     static std::map<ReorderingAlgo, PerceptronWeights> LoadPerceptronWeights(bool verbose = false) {
         return LoadPerceptronWeightsForGraphType(GRAPH_GENERIC, verbose);
+    }
+    
+    /**
+     * Select algorithm with fastest reorder time based on w_reorder_time weight.
+     * 
+     * The w_reorder_time weight encodes how fast each algorithm is at reordering:
+     * - Higher (less negative) = faster reordering
+     * - Lower (more negative) = slower reordering
+     * 
+     * This uses the type_X.json weights directly, no .time files needed.
+     * 
+     * @param weights Map of algorithm -> perceptron weights
+     * @param verbose Print selection details
+     * @return Algorithm with highest w_reorder_time (fastest reorder)
+     */
+    static ReorderingAlgo SelectFastestReorderFromWeights(
+        const std::map<ReorderingAlgo, PerceptronWeights>& weights, bool verbose = false) {
+        
+        if (weights.empty()) {
+            if (verbose) {
+                std::cout << "No weights available, defaulting to Random\n";
+            }
+            return Random;
+        }
+        
+        // Find algorithm with highest w_reorder_time (least negative = fastest)
+        ReorderingAlgo best_algo = Random;
+        double best_reorder_weight = -std::numeric_limits<double>::infinity();
+        
+        for (const auto& [algo, w] : weights) {
+            if (algo == ORIGINAL) continue;  // Skip ORIGINAL (no reordering)
+            
+            if (w.w_reorder_time > best_reorder_weight) {
+                best_reorder_weight = w.w_reorder_time;
+                best_algo = algo;
+            }
+        }
+        
+        if (verbose) {
+            std::cout << "Selected fastest-reorder: algo=" << static_cast<int>(best_algo) 
+                      << " (w_reorder_time: " << best_reorder_weight << ")\n";
+        }
+        
+        return best_algo;
     }
     
     /**
@@ -8078,21 +8025,17 @@ public:
         // Handle each mode
         switch (mode) {
             case MODE_FASTEST_REORDER: {
-                // Select algorithm with lowest reorder time
-                if (!graph_name.empty()) {
-                    ReorderingAlgo fastest = SelectFastestReorderAlgorithm(graph_name, verbose);
-                    if (fastest != ORIGINAL || verbose) {
-                        if (verbose) {
-                            std::cout << "Mode: fastest-reorder → algo=" << static_cast<int>(fastest) << "\n";
-                        }
-                        return fastest;
-                    }
-                }
-                // Fallback if no .time files: use RANDOM (typically fast)
+                // Load weights for the matched type
+                auto weights = LoadPerceptronWeightsForFeatures(
+                    global_modularity, global_degree_variance, global_hub_concentration,
+                    feat.avg_degree, num_nodes, num_edges, false);
+                
+                // Select algorithm with highest w_reorder_time (fastest reorder)
+                ReorderingAlgo fastest = SelectFastestReorderFromWeights(weights, verbose);
                 if (verbose) {
-                    std::cout << "No reorder times available, using RANDOM as fast default\n";
+                    std::cout << "Mode: fastest-reorder → algo=" << static_cast<int>(fastest) << "\n";
                 }
-                return Random;
+                return fastest;
             }
             
             case MODE_FASTEST_EXECUTION: {
@@ -8107,32 +8050,31 @@ public:
             }
             
             case MODE_BEST_ENDTOEND: {
-                // Load perceptron weights and reorder times
+                // The perceptron score already includes w_reorder_time!
+                // So the standard perceptron selection naturally balances execution + reorder time.
+                // We can optionally increase the w_reorder_time weight multiplier here.
                 auto weights = LoadPerceptronWeightsForFeatures(
                     global_modularity, global_degree_variance, global_hub_concentration,
                     feat.avg_degree, num_nodes, num_edges, false);
-                auto reorder_times = LoadReorderTimesForGraph(graph_name, false);
                 
                 ReorderingAlgo best_algo = ORIGINAL;
                 double best_score = -std::numeric_limits<double>::infinity();
                 
-                // Penalty factor: how much to penalize reorder time
-                // Higher = more emphasis on fast reordering
-                const double REORDER_PENALTY = 10.0;  // 1 second reorder = -10 from score
+                // Extra weight multiplier for reorder time in end-to-end mode
+                // This makes fast-reordering algorithms more favorable
+                const double REORDER_WEIGHT_BOOST = 2.0;
                 
-                for (const auto& kv : weights) {
-                    double exec_score = kv.second.score(feat, bench);
-                    double reorder_penalty = 0.0;
+                for (const auto& [algo, w] : weights) {
+                    // Compute base score
+                    double exec_score = w.score(feat, bench);
+                    // Add extra emphasis on fast reordering (w_reorder_time is already in score,
+                    // but we add more weight to it here)
+                    double reorder_bonus = w.w_reorder_time * REORDER_WEIGHT_BOOST;
+                    double total_score = exec_score + reorder_bonus;
                     
-                    auto time_it = reorder_times.find(kv.first);
-                    if (time_it != reorder_times.end()) {
-                        reorder_penalty = time_it->second * REORDER_PENALTY;
-                    }
-                    
-                    double total_score = exec_score - reorder_penalty;
                     if (total_score > best_score) {
                         best_score = total_score;
-                        best_algo = kv.first;
+                        best_algo = algo;
                     }
                 }
                 
@@ -8143,35 +8085,34 @@ public:
             }
             
             case MODE_BEST_AMORTIZATION: {
-                // Minimize iterations to amortize reorder cost
+                // Balance speedup potential vs reorder cost
+                // Use w_reorder_time as proxy for reorder speed
                 auto weights = LoadPerceptronWeightsForFeatures(
                     global_modularity, global_degree_variance, global_hub_concentration,
                     feat.avg_degree, num_nodes, num_edges, false);
-                auto reorder_times = LoadReorderTimesForGraph(graph_name, false);
                 
                 ReorderingAlgo best_algo = ORIGINAL;
                 double best_score = -std::numeric_limits<double>::infinity();
                 
-                for (const auto& kv : weights) {
-                    double exec_score = kv.second.score(feat, bench);
+                for (const auto& [algo, w] : weights) {
+                    double exec_score = w.score(feat, bench);
                     
-                    // Estimated speedup = (score - baseline) / baseline, assume baseline ~0.5
+                    // Estimated speedup = (score - baseline) / baseline
                     double speedup = std::max(1.001, exec_score / 0.5);
                     
-                    double reorder_time = 0.001;  // Default: 1ms
-                    auto time_it = reorder_times.find(kv.first);
-                    if (time_it != reorder_times.end()) {
-                        reorder_time = std::max(0.001, time_it->second);
-                    }
+                    // Use w_reorder_time as proxy for reorder cost
+                    // Higher (less negative) w_reorder_time = faster reorder
+                    // Convert to "reorder speed factor": 1.0 for w=0, higher for positive, lower for negative
+                    double reorder_speed_factor = 1.0 + w.w_reorder_time;  // e.g., -0.5 → 0.5, 0 → 1.0
+                    if (reorder_speed_factor < 0.1) reorder_speed_factor = 0.1;  // Clamp minimum
                     
-                    // Amortization score: inverse of iterations needed
-                    // iterations_to_amortize = reorder_time / (speedup - 1.0)
-                    // We want to maximize 1.0 / iterations_to_amortize
-                    double amort_score = (speedup - 1.0) / reorder_time;
+                    // Amortization score: how quickly does this algorithm pay off?
+                    // Higher speedup AND higher reorder_speed = better amortization
+                    double amort_score = (speedup - 1.0) * reorder_speed_factor;
                     
                     if (amort_score > best_score) {
                         best_score = amort_score;
-                        best_algo = kv.first;
+                        best_algo = algo;
                     }
                 }
                 
