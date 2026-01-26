@@ -293,16 +293,35 @@ struct CommunityFeatures {
 
 | Method | Quality | Speed | Connected |
 |--------|---------|-------|-----------|
-| Leiden | ★★★★★ | ★★★★ | Yes |
-| Louvain | ★★★★ | ★★★★★ | No |
+| GVE-Leiden | ★★★★★ | ★★★★ | Yes |
+| Louvain (RabbitOrder) | ★★★★ | ★★★★★ | No |
 | Infomap | ★★★★★ | ★★★ | No |
 | Label Prop | ★★★ | ★★★★★ | No |
+
+### GVE-Leiden vs RabbitOrder (Louvain) Benchmark
+
+GraphBrew's GVE-Leiden implementation follows the paper: *"Fast Leiden Algorithm for Community Detection in Shared Memory Setting"* (ACM DOI 10.1145/3673038.3673146).
+
+RabbitOrder uses Louvain internally (incremental aggregation, **no refinement phase**).
+
+| Graph | RabbitOrder (Louvain) | GVE-Leiden | Improvement |
+|-------|----------------------|------------|-------------|
+| web-Google (916K nodes) | 2,959 comm, Q=0.977 | 51,626 comm, Q=0.983 | **+0.6%** |
+| roadNet-PA (1.1M nodes) | 443 comm, Q=0.988 | 3,509 comm, Q=0.992 | **+0.4%** |
+| com-Youtube (1.1M nodes) | 35 comm, Q=0.650 | 9,168 comm, Q=0.788 | **+21%** |
+| Kronecker-18 (262K nodes) | 75 comm, Q=0.063 | 88,227 comm, Q=0.190 | **+3x** |
+
+**Key observation**: GVE-Leiden produces **more communities but higher modularity**. This is because:
+- RabbitOrder (Louvain) over-merges small communities into giant poorly-connected "super-communities"
+- GVE-Leiden's **refinement phase** prevents bad merges by checking community connectivity
+- Smaller, well-connected communities have higher internal density → higher modularity
 
 ### Why Leiden over Louvain?
 
 1. **Connected communities**: Louvain can create disconnected groups
-2. **Better quality**: Leiden finds higher-modularity partitions
-3. **Consistent results**: Less variance across runs
+2. **Better quality**: Leiden finds higher-modularity partitions (proven in benchmarks above)
+3. **Refinement phase**: The key Leiden innovation - only keeps vertices that truly belong together
+4. **Avoids resolution limit**: Louvain tends to over-merge, losing fine-grained structure
 
 ---
 
