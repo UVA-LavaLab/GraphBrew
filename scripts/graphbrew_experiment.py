@@ -674,11 +674,15 @@ def get_graph_path(graphs_dir: str, graph_name: str) -> Optional[str]:
     """Get the path to a graph file."""
     graph_folder = os.path.join(graphs_dir, graph_name)
     
+    # Try variations of the graph name (hyphen vs underscore)
+    name_variants = [graph_name, graph_name.replace('-', '_'), graph_name.replace('_', '-')]
+    
     # Check for graph files with the graph name (downloaded format)
-    for ext in [".mtx", ".el", ".sg"]:
-        path = os.path.join(graph_folder, f"{graph_name}{ext}")
-        if os.path.exists(path):
-            return path
+    for name in name_variants:
+        for ext in [".mtx", ".el", ".sg"]:
+            path = os.path.join(graph_folder, f"{name}{ext}")
+            if os.path.exists(path):
+                return path
     
     # Check for generic "graph" name (legacy format)
     for ext in [".mtx", ".el", ".sg"]:
@@ -691,11 +695,25 @@ def get_graph_path(graphs_dir: str, graph_name: str) -> Optional[str]:
     if os.path.isfile(direct):
         return direct
     
-    # Look for any .mtx file in the folder
+    # Look in subdirectories (e.g., germany-osm/germany_osm/germany_osm.mtx)
     if os.path.isdir(graph_folder):
-        for f in os.listdir(graph_folder):
-            if f.endswith('.mtx') and not f.endswith('_nodename.mtx') and not f.endswith('_Categories.mtx'):
-                return os.path.join(graph_folder, f)
+        for subdir in os.listdir(graph_folder):
+            subdir_path = os.path.join(graph_folder, subdir)
+            if os.path.isdir(subdir_path):
+                for name in name_variants + [subdir]:
+                    for ext in [".mtx", ".el", ".sg"]:
+                        path = os.path.join(subdir_path, f"{name}{ext}")
+                        if os.path.exists(path):
+                            return path
+    
+    # Last resort: look for any .mtx file in the folder (excluding auxiliary files)
+    if os.path.isdir(graph_folder):
+        for f in sorted(os.listdir(graph_folder)):
+            # Skip auxiliary files (coords, nodenames, categories, etc.)
+            if f.endswith('.mtx') and not any(skip in f for skip in ['_coord', '_nodename', '_Categories', '_b.mtx']):
+                full_path = os.path.join(graph_folder, f)
+                if os.path.isfile(full_path):
+                    return full_path
     
     return None
 
@@ -2921,10 +2939,10 @@ Examples:
     
     # Determine memory limit
     if args.auto_memory and args.max_memory is None:
-        # Auto-detect available memory, use 80% of total as safe limit
+        # Auto-detect available memory, use 60% of total as safe limit
         total_mem = get_total_memory_gb()
-        args.max_memory = total_mem * 0.8
-        log(f"Auto-detected memory limit: {args.max_memory:.1f} GB (80% of {total_mem:.1f} GB total)", "INFO")
+        args.max_memory = total_mem * 0.6
+        log(f"Auto-detected memory limit: {args.max_memory:.1f} GB (60% of {total_mem:.1f} GB total)", "INFO")
     elif args.max_memory is not None:
         log(f"Using specified memory limit: {args.max_memory:.1f} GB", "INFO")
     
