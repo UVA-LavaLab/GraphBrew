@@ -181,51 +181,99 @@ def expand_algorithms_with_variants(
 
 def parse_reorder_time_from_converter(output: str) -> Optional[float]:
     """
-    Parse the actual reorder time from converter output.
+    Parse the actual reordering algorithm time from converter output.
     
-    UNIFIED FORMAT (preferred - always use if available):
-        === Reorder Summary ===
-        Algorithm:           HubSort
-        Reorder Time:        0.04500
-        
-    This unified format is printed by the C++ converter after every reordering
-    algorithm completes, making parsing simple and consistent.
+    FAIR TIMING PHILOSOPHY:
+    - INCLUDE: Actual algorithm work (community detection, ordering generation)
+    - EXCLUDE: Data structure conversion overhead (library-specific preprocessing)
     
-    LEGACY PATTERNS (fallback for older binaries):
-        HubSort Map Time:    0.05982
-        GOrder Map Time:     0.25328
-        etc.
+    Why exclude conversion overhead?
+    External libraries (RabbitOrder, GOrder, Leiden via igraph) require their own
+    data structures. If we had native CSR implementations, there would be no
+    conversion. For fair comparison, we only measure the actual ordering algorithm.
+    
+    CONVERSION OVERHEAD TO EXCLUDE:
+    - "DiGraph Build Time:"     - CSR → igraph DiGraph (LeidenDendrogram)
+    - "GOrder graph:"           - CSR → GOrder internal format
+    - "Sort Map Time:" + first "Relabel Map Time:" - RabbitOrder preprocessing
+    
+    ALGORITHM TIME TO INCLUDE:
+    - "Leiden Time:" + "Ordering Time:"           - LeidenDendrogram algorithm
+    - "LeidenCSR Community Detection/Ordering:"   - LeidenCSR (native CSR, fast)
+    - "GOrder Map Time:"                          - GOrder actual ordering
+    - "RabbitOrder Map Time:"                     - RabbitOrder actual ordering
+    - "*Map Time:" for native CSR algorithms      - HubSort, DBG, Sort, Random, etc.
     
     Returns the reorder time in seconds, or None if not found.
     """
-    # PRIMARY: Look for unified "Reorder Time:" in the summary block
-    # This is the preferred format - simple and consistent
-    reorder_time_match = re.search(r'^Reorder Time:\s*([\d.]+)', output, re.MULTILINE)
-    if reorder_time_match:
-        return float(reorder_time_match.group(1))
+    # =========================================================================
+    # STRATEGY: Parse detailed component times and sum only algorithm work
+    # =========================================================================
     
-    # FALLBACK: Legacy patterns for older binaries without unified format
-    # Standard Map Time pattern for other algorithms
+    # Helper to parse a time value from a pattern
+    def get_time(pattern: str) -> Optional[float]:
+        match = re.search(pattern, output, re.MULTILINE)
+        return float(match.group(1)) if match else None
+    
+    # -------------------------------------------------------------------------
+    # 1. LeidenDendrogram: Leiden Time + Ordering Time (exclude DiGraph Build)
+    # -------------------------------------------------------------------------
+    leiden_time = get_time(r'^Leiden Time:\s*([\d.]+)')
+    ordering_time = get_time(r'^Ordering Time:\s*([\d.]+)')
+    
+    if leiden_time is not None and ordering_time is not None:
+        # LeidenDendrogram detected: sum algorithm parts only
+        return leiden_time + ordering_time
+    
+    # -------------------------------------------------------------------------
+    # 2. LeidenCSR: Community Detection + Ordering (native CSR, all included)
+    # -------------------------------------------------------------------------
+    leiden_csr_community = get_time(r'^LeidenCSR Community Detection:\s*([\d.]+)')
+    leiden_csr_ordering = get_time(r'^LeidenCSR Ordering:\s*([\d.]+)')
+    
+    if leiden_csr_community is not None and leiden_csr_ordering is not None:
+        return leiden_csr_community + leiden_csr_ordering
+    
+    # -------------------------------------------------------------------------
+    # 3. GOrder: Only GOrder Map Time (exclude "GOrder graph:" build time)
+    # -------------------------------------------------------------------------
+    gorder_map_time = get_time(r'^GOrder Map Time:\s*([\d.]+)')
+    if gorder_map_time is not None:
+        return gorder_map_time
+    
+    # -------------------------------------------------------------------------
+    # 4. RabbitOrder: Only RabbitOrder Map Time (exclude Sort + Relabel prep)
+    # -------------------------------------------------------------------------
+    rabbit_map_time = get_time(r'^RabbitOrder Map Time:\s*([\d.]+)')
+    if rabbit_map_time is not None:
+        return rabbit_map_time
+    
+    # -------------------------------------------------------------------------
+    # 5. Native CSR algorithms: Use their Map Time directly (no conversion)
+    #    HubSort, HubCluster, DBG, Sort, Random, COrder, RCMOrder, etc.
+    # -------------------------------------------------------------------------
+    # Standard Map Time pattern
     pattern = r'^([A-Za-z]+)\s+Map Time:\s*([\d.]+)'
     matches = re.findall(pattern, output, re.MULTILINE)
     
-    # Filter out Relabel entries and get the last actual reorder
-    valid_times = [(name, float(t)) for name, t in matches if name.lower() != 'relabel']
-    
-    if valid_times:
-        return valid_times[-1][1]
-    
-    # Legacy Leiden patterns (for old binaries)
-    leiden_patterns = [
-        r'LeidenCSR Ordering[:\s]+([\d.]+)',
-        r'Leiden Ordering[:\s]+([\d.]+)',
-        r'Ordering Time[:\s]+([\d.]+)',
+    # Filter out intermediate steps (Relabel, Sort) and get actual algorithm time
+    excluded_names = {'relabel', 'sort', 'gorder'}  # Already handled above
+    valid_times = [
+        (name, float(t)) for name, t in matches 
+        if name.lower() not in excluded_names
     ]
     
-    for pat in leiden_patterns:
-        match = re.search(pat, output)
-        if match:
-            return float(match.group(1))
+    if valid_times:
+        # Return the last valid algorithm time
+        return valid_times[-1][1]
+    
+    # -------------------------------------------------------------------------
+    # FALLBACK: Unified "Reorder Time:" (total wall clock - may include overhead)
+    # Only use if no detailed component parsing succeeded
+    # -------------------------------------------------------------------------
+    reorder_time_match = get_time(r'^Reorder Time:\s*([\d.]+)')
+    if reorder_time_match is not None:
+        return reorder_time_match
     
     return None
 
