@@ -544,6 +544,12 @@ def load_cached_features(cache_path: Path = None) -> Dict[str, GraphFeatures]:
 # Emulator
 # =============================================================================
 
+# Threshold for considering a graph "unknown" - if type distance > this, fall back to fastest-reorder
+# This is calibrated based on typical type distances (range: 7-50+)
+# Graphs with distance > 50 are true outliers that weren't seen during training
+UNKNOWN_TYPE_DISTANCE_THRESHOLD = 50.0
+
+
 class AdaptiveOrderEmulator:
     """Main emulator class combining type matching and algorithm selection."""
     
@@ -563,17 +569,34 @@ class AdaptiveOrderEmulator:
         self._reorder_times_cache[graph_name] = times
         return times
     
+    def is_unknown_graph_type(self, type_distance: float) -> bool:
+        """Check if a graph should be considered 'unknown' based on type distance."""
+        return type_distance > UNKNOWN_TYPE_DISTANCE_THRESHOLD
+    
     def emulate(
         self,
         features: GraphFeatures,
         benchmark: str = None,
         mode: SelectionMode = None
     ) -> EmulationResult:
-        """Emulate AdaptiveOrder for given graph features."""
+        """Emulate AdaptiveOrder for given graph features.
+        
+        For UNKNOWN graphs (type_distance > UNKNOWN_TYPE_DISTANCE_THRESHOLD),
+        automatically falls back to FASTEST_REORDER mode regardless of the
+        requested mode. This matches the C++ AdaptiveOrder behavior.
+        """
         mode = mode or self.selection_mode
         
         # Layer 1: Type matching
         matched_type, type_distance = self.type_matcher.find_best_type(features)
+        
+        # FALLBACK FOR UNKNOWN GRAPHS: If type distance is too high, 
+        # we don't trust the perceptron weights and use fastest-reorder instead
+        original_mode = mode
+        is_unknown = self.is_unknown_graph_type(type_distance)
+        if is_unknown and mode != SelectionMode.FASTEST_REORDER:
+            # Force fallback to fastest-reorder for unknown graphs
+            mode = SelectionMode.FASTEST_REORDER
         
         # Layer 2: Algorithm selection (mode-dependent)
         if mode == SelectionMode.FASTEST_REORDER:
