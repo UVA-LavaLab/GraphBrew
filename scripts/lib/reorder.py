@@ -183,69 +183,28 @@ def parse_reorder_time_from_converter(output: str) -> Optional[float]:
     """
     Parse the actual reorder time from converter output.
     
-    The converter outputs lines like:
+    UNIFIED FORMAT (preferred - always use if available):
+        === Reorder Summary ===
+        Algorithm:           HubSort
+        Reorder Time:        0.04500
+        
+    This unified format is printed by the C++ converter after every reordering
+    algorithm completes, making parsing simple and consistent.
+    
+    LEGACY PATTERNS (fallback for older binaries):
         HubSort Map Time:    0.05982
         GOrder Map Time:     0.25328
-        RabbitOrder Map Time:0.09335
-        COrder Map Time:     0.00910
-        
-    For Leiden algorithms, there are different patterns:
+        etc.
     
-    LeidenCSR (variants: dfs, bfs, hubsort, fast):
-        LeidenCSR Community Detection:0.00985
-        LeidenCSR Ordering:  0.02654
-        
-    LeidenCSR (variant: modularity) / LeidenOrder:
-        Leiden Community Detection:0.01558
-        Leiden Ordering:     0.00750
-        
-    LeidenDendrogram:
-        DiGraph Build Time:  0.02586  (EXCLUDED - graph conversion overhead)
-        Leiden Time:         0.03776
-        Ordering Time:       0.01054
-    
-    Returns the LAST non-Relabel "*Map Time:" entry as that's the final reorder.
-    For Leiden, returns Community Detection + Ordering (excluding DiGraph build).
+    Returns the reorder time in seconds, or None if not found.
     """
-    total = 0.0
-    found_leiden = False
+    # PRIMARY: Look for unified "Reorder Time:" in the summary block
+    # This is the preferred format - simple and consistent
+    reorder_time_match = re.search(r'^Reorder Time:\s*([\d.]+)', output, re.MULTILINE)
+    if reorder_time_match:
+        return float(reorder_time_match.group(1))
     
-    # LeidenCSR patterns (fast variants)
-    leidencsr_community = re.search(r'LeidenCSR Community Detection[:\s]+([\d.]+)', output)
-    leidencsr_ordering = re.search(r'LeidenCSR Ordering[:\s]+([\d.]+)', output)
-    
-    if leidencsr_community or leidencsr_ordering:
-        found_leiden = True
-        if leidencsr_community:
-            total += float(leidencsr_community.group(1))
-        if leidencsr_ordering:
-            total += float(leidencsr_ordering.group(1))
-    
-    # Leiden (modularity variant) patterns
-    leiden_community = re.search(r'Leiden Community Detection[:\s]+([\d.]+)', output)
-    leiden_ordering = re.search(r'Leiden Ordering[:\s]+([\d.]+)', output)
-    
-    if leiden_community or leiden_ordering:
-        found_leiden = True
-        if leiden_community:
-            total += float(leiden_community.group(1))
-        if leiden_ordering:
-            total += float(leiden_ordering.group(1))
-    
-    # LeidenDendrogram patterns (uses DiGraph - exclude build time)
-    leiden_time = re.search(r'Leiden Time[:\s]+([\d.]+)', output)
-    ordering_time = re.search(r'Ordering Time[:\s]+([\d.]+)', output)
-    
-    if leiden_time or ordering_time:
-        found_leiden = True
-        if leiden_time:
-            total += float(leiden_time.group(1))
-        if ordering_time:
-            total += float(ordering_time.group(1))
-    
-    if found_leiden and total > 0:
-        return total
-    
+    # FALLBACK: Legacy patterns for older binaries without unified format
     # Standard Map Time pattern for other algorithms
     pattern = r'^([A-Za-z]+)\s+Map Time:\s*([\d.]+)'
     matches = re.findall(pattern, output, re.MULTILINE)
@@ -256,14 +215,15 @@ def parse_reorder_time_from_converter(output: str) -> Optional[float]:
     if valid_times:
         return valid_times[-1][1]
     
-    # Fallback: look for generic timing patterns (not Leiden-specific)
-    patterns = [
-        r'Reorder Time[:\s]+([\d.]+)',
-        r'Total Reordering Time[:\s]+([\d.]+)',
+    # Legacy Leiden patterns (for old binaries)
+    leiden_patterns = [
+        r'LeidenCSR Ordering[:\s]+([\d.]+)',
+        r'Leiden Ordering[:\s]+([\d.]+)',
+        r'Ordering Time[:\s]+([\d.]+)',
     ]
     
-    for pat in patterns:
-        match = re.search(pat, output, re.IGNORECASE)
+    for pat in leiden_patterns:
+        match = re.search(pat, output)
         if match:
             return float(match.group(1))
     
