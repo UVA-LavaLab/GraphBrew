@@ -46,6 +46,7 @@ class SelectionMode(Enum):
     FASTEST_EXECUTION = "fastest-execution"  # Minimize execution time (default)
     BEST_ENDTOEND = "best-endtoend"          # Minimize reorder + execution time
     BEST_AMORTIZATION = "best-amortization"  # Minimize iterations to amortize
+    HEURISTIC = "heuristic"                  # Feature-based heuristic (more robust)
 
 
 # =============================================================================
@@ -618,6 +619,8 @@ class AdaptiveOrderEmulator:
         # All modes use the type weights - no .time files needed
         if mode == SelectionMode.FASTEST_REORDER:
             selected_algo, scores = self._select_fastest_reorder(matched_type, features)
+        elif mode == SelectionMode.HEURISTIC:
+            selected_algo, scores = self._select_by_heuristic(features)
         elif mode == SelectionMode.FASTEST_EXECUTION:
             selected_algo, scores = self.algorithm_selector.select_algorithm(
                 matched_type, features, self.config, benchmark
@@ -644,6 +647,77 @@ class AdaptiveOrderEmulator:
             algorithm_scores=scores,
             features=features,
         )
+    
+    def _select_by_heuristic(
+        self,
+        features: GraphFeatures
+    ) -> Tuple[str, Dict[str, float]]:
+        """Select algorithm using feature-based heuristics.
+        
+        This is more robust than the perceptron when weights are overfitted.
+        Based on empirical analysis of graph characteristics and algorithm performance.
+        """
+        cluster = features.clustering_coeff
+        avg_deg = features.avg_degree
+        hub = features.hub_concentration
+        n = features.num_nodes
+        
+        all_algos = list(ALGORITHMS.values())
+        scores = {a: 0.1 for a in all_algos}
+        
+        # Rule 1: Very low clustering (<0.01) - sparse graphs like p2p networks
+        # These benefit from simple algorithms or hub-based clustering
+        if cluster < 0.01:
+            scores['RANDOM'] = 1.0
+            scores['HUBCLUSTER'] = 0.95
+            scores['HUBCLUSTERDBG'] = 0.93
+            scores['SORT'] = 0.9
+            scores['DBG'] = 0.85
+            scores['LeidenCSR'] = 0.8
+        
+        # Rule 2: High clustering (>0.5) - strong community structure
+        # Community-detection and hub-based algorithms work well
+        elif cluster > 0.5:
+            scores['DBG'] = 1.0
+            scores['HUBSORT'] = 0.95
+            scores['LeidenOrder'] = 0.9
+            scores['LeidenCSR'] = 0.85
+            scores['RABBITORDER'] = 0.8
+        
+        # Rule 3: Medium clustering (0.1-0.5) - moderate community structure
+        # Leiden algorithms typically perform well
+        elif cluster > 0.1:
+            scores['LeidenCSR'] = 1.0
+            scores['LeidenDendrogram'] = 0.95
+            scores['DBG'] = 0.9
+            scores['SORT'] = 0.85
+            scores['RABBITORDER'] = 0.8
+        
+        # Rule 4: Low-medium clustering (0.01-0.1)
+        # DBG and sorting work well
+        else:
+            scores['DBG'] = 1.0
+            scores['SORT'] = 0.95
+            scores['RANDOM'] = 0.9
+            scores['RCM'] = 0.85
+        
+        # Adjust for graph size: larger graphs benefit more from sophisticated reordering
+        if n > 100000:
+            # Large graphs: boost community-based algorithms
+            scores['RABBITORDER'] = scores.get('RABBITORDER', 0.5) + 0.2
+            scores['LeidenOrder'] = scores.get('LeidenOrder', 0.5) + 0.15
+        elif n < 10000:
+            # Small graphs: simple algorithms are often sufficient
+            scores['SORT'] = scores.get('SORT', 0.5) + 0.1
+            scores['RANDOM'] = scores.get('RANDOM', 0.5) + 0.1
+        
+        # Exclude GORDER and CORDER (known to have overfitted weights)
+        # Keep them with low score in case user wants them
+        scores['GORDER'] = 0.05
+        scores['CORDER'] = 0.05
+        
+        best_algo = max(scores, key=scores.get)
+        return best_algo, scores
     
     def _select_fastest_reorder(
         self,
