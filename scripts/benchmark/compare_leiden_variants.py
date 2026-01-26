@@ -112,6 +112,7 @@ def parse_leiden_output(output: str, algo_id: int) -> Dict:
             r"Num Communities:\s*([\d.]+)",
             r"Num Comm:\s*([\d.]+)",  # GraphBrewOrder uses this
             r"LeidenCSR Communities:\s*([\d.]+)",
+            r"GVELeiden Communities:\s*([\d.]+)",
             r"Dendrogram Roots:\s*([\d.]+)",
             r"communities:\s*(\d+)",
         ],
@@ -120,6 +121,7 @@ def parse_leiden_output(output: str, algo_id: int) -> Dict:
             r"LeidenCSR Passes:\s*([\d.]+)",
             r"Leiden Passes:\s*([\d.]+)",
             r"Community Passes Stored:\s*([\d.]+)",
+            r"GVELeiden.*?(\d+) passes",
         ],
         "resolution": [
             r"Resolution:\s*([\d.]+)",
@@ -128,6 +130,8 @@ def parse_leiden_output(output: str, algo_id: int) -> Dict:
         ],
         "modularity": [
             r"Modularity:\s*([\d.]+)",
+            r"GVELeiden Modularity:\s*([\d.]+)",
+            r"modularity=([\d.]+)",
         ],
     }
     
@@ -196,7 +200,8 @@ def compare_leiden_variants(graph: Path, graph_info: Dict,
     
     # Define variants to test
     # Format for CLI: -o algo:variant:resolution:iterations:passes
-    # LeidenCSR (17): -o 17:hubsort:1.0:10:5
+    # LeidenCSR (17): -o 17:hubsort:resolution:iterations:passes
+    # Use empty resolution to let C++ auto-detect based on graph density
     variants_to_test = [
         # (algo_id, variant_options, description)
         (15, "", "LeidenOrder (native Leiden)"),
@@ -204,19 +209,19 @@ def compare_leiden_variants(graph: Path, graph_info: Dict,
         (16, "dfs", "LeidenDendrogram-dfs"),
         (16, "dfshub", "LeidenDendrogram-dfshub"),
         (16, "bfs", "LeidenDendrogram-bfs"),
-        (17, "hubsort:1.0:10:1", "LeidenCSR-hubsort-1pass"),
-        (17, "hubsort:1.0:10:5", "LeidenCSR-hubsort-5pass"),
-        (17, "hubsort:1.0:10:10", "LeidenCSR-hubsort-10pass"),
-        (17, "dfs:1.0:10:5", "LeidenCSR-dfs-5pass"),
+        (17, "hubsort::10:10", "LeidenCSR-hubsort-10pass"),  # auto-resolution, 10 passes
+        (17, "dfs::10:10", "LeidenCSR-dfs-10pass"),          # auto-resolution, 10 passes
+        (17, "gve::20:10", "LeidenCSR-gve (True Leiden)"),    # GVE-Leiden: auto-resolution, 20 iter, 10 passes
         (12, "", "GraphBrewOrder"),
     ]
     
     if not include_variants:
-        # Just test default variants
+        # Just test default variants - all use auto-resolution and 10 passes
         variants_to_test = [
             (15, "", "LeidenOrder"),
             (16, "hybrid", "LeidenDendrogram"),
-            (17, "hubsort:1.0:10:5", "LeidenCSR-5pass"),
+            (17, "hubsort::10:10", "LeidenCSR-10pass"),  # auto-resolution, 10 passes
+            (17, "gve::20:10", "LeidenCSR-gve"),         # GVE-Leiden
             (12, "", "GraphBrewOrder"),
         ]
     
