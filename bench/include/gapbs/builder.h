@@ -6257,12 +6257,26 @@ public:
         double resolution = LeidenAutoResolution<NodeID_, DestID_>(g);
         std::string variant = "hybrid";
         
-        // Parse options: resolution, variant
+        // Parse options: variant, resolution (flexible order)
+        // Format: -o 16:variant:resolution or -o 16:variant or -o 16
+        // e.g., -o 16:hybrid:0.7 or -o 16:dfs
         if (!reordering_options.empty() && !reordering_options[0].empty()) {
-            resolution = std::stod(reordering_options[0]);
-        }
-        if (reordering_options.size() > 1 && !reordering_options[1].empty()) {
-            variant = reordering_options[1];
+            std::string first_opt = reordering_options[0];
+            // Check if first option is a variant name or a number (resolution)
+            if (first_opt == "dfs" || first_opt == "dfshub" || first_opt == "dfssize" || 
+                first_opt == "bfs" || first_opt == "hybrid") {
+                variant = first_opt;
+                // Check for optional resolution
+                if (reordering_options.size() > 1 && !reordering_options[1].empty()) {
+                    resolution = std::stod(reordering_options[1]);
+                }
+            } else {
+                // Assume it's resolution (old format)
+                resolution = std::stod(first_opt);
+                if (reordering_options.size() > 1 && !reordering_options[1].empty()) {
+                    variant = reordering_options[1];
+                }
+            }
         }
         
         // Map variant string to internal flavor
