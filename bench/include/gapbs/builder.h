@@ -1755,6 +1755,8 @@ public:
             return "LeidenDendrogram";
         case LeidenCSR:
             return "LeidenCSR";
+        case RabbitOrderCSR:
+            return "RabbitOrderCSR";
         case ORIGINAL:
             return "Original";
         case Sort:
@@ -1802,13 +1804,25 @@ public:
             break;
         case RabbitOrder:
         {
-            // MakeLocalGraphFromEL(partitions_el_dest[i]);
+            // RabbitOrder with variants: csr (default), boost
+            // Format: -o 8:variant (e.g., -o 8:boost for original Boost-based)
+            std::string variant = "csr";  // Default to CSR (faster, no external deps)
+            if (!reordering_options.empty() && !reordering_options[0].empty()) {
+                variant = reordering_options[0];
+            }
+            
             pvector<NodeID_> new_ids_local(g.num_nodes(), -1);
             pvector<NodeID_> new_ids_local_2(g.num_nodes(), -1);
-            // partition_g = SquishGraph(partition_g);
             GenerateSortMappingRabbit(g, new_ids_local, true, true);
             CSRGraph<NodeID_, DestID_, invert> g_trans = RelabelByMapping(g, new_ids_local);
-            GenerateRabbitOrderMapping(g_trans, new_ids_local_2);
+            
+            if (variant == "boost") {
+                // Original Boost-based RabbitOrder
+                GenerateRabbitOrderMapping(g_trans, new_ids_local_2);
+            } else {
+                // Default: Native CSR implementation (faster, no Boost dependency)
+                GenerateRabbitOrderCSRMapping(g_trans, new_ids_local_2);
+            }
 
             #pragma omp parallel for
             for (NodeID_ n = 0; n < g.num_nodes(); n++)
@@ -1849,6 +1863,22 @@ public:
         case MAP:
             LoadMappingFromFile(g, new_ids, reordering_options);
             break;
+        case RabbitOrderCSR:
+        {
+            // Apply same preprocessing as original RabbitOrder for fair comparison
+            pvector<NodeID_> new_ids_local(g.num_nodes(), -1);
+            pvector<NodeID_> new_ids_local_2(g.num_nodes(), -1);
+            GenerateSortMappingRabbit(g, new_ids_local, true, true);
+            CSRGraph<NodeID_, DestID_, invert> g_trans = RelabelByMapping(g, new_ids_local);
+            GenerateRabbitOrderCSRMapping(g_trans, new_ids_local_2);
+
+            #pragma omp parallel for
+            for (NodeID_ n = 0; n < g.num_nodes(); n++)
+            {
+                new_ids[n] = new_ids_local_2[new_ids_local[n]];
+            }
+        }
+        break;
         case ORIGINAL:
             GenerateOriginalMapping(g, new_ids);
             break;
@@ -1932,14 +1962,22 @@ public:
             break;
         case RabbitOrder:
         {
-            // MakeLocalGraphFromEL(partitions_el_dest[i]);
+            // RabbitOrder with variants: csr (default), boost
+            std::string variant = "csr";  // Default to CSR
+            if (!reordering_options.empty() && !reordering_options[0].empty()) {
+                variant = reordering_options[0];
+            }
+            
             pvector<NodeID_> new_ids_local(g_org.num_nodes(), -1);
             pvector<NodeID_> new_ids_local_2(g_org.num_nodes(), -1);
-            // partition_g = SquishGraph(partition_g);
             GenerateSortMappingRabbit(g, new_ids_local, true, true);
             g = RelabelByMapping(g, new_ids_local);
 
-            GenerateRabbitOrderMapping(g, new_ids_local_2);
+            if (variant == "boost") {
+                GenerateRabbitOrderMapping(g, new_ids_local_2);
+            } else {
+                GenerateRabbitOrderCSRMapping(g, new_ids_local_2);
+            }
 
             // Only parallelize final merge for large graphs
             // CRITICAL: Only process nodes that were in the subgraph (have valid mapping)
@@ -2052,9 +2090,11 @@ public:
             return LeidenDendrogram;   // Format: 16:resolution:variant
         case 17:
             return LeidenCSR;          // Format: 17:resolution:passes:variant
+        case 18:
+            return RabbitOrderCSR;     // Native CSR Rabbit Order (no Boost library)
         default:
             std::cerr << "Invalid ReorderingAlgo value: " << value << std::endl;
-            std::cerr << "Valid values: 0-17" << std::endl;
+            std::cerr << "Valid values: 0-18" << std::endl;
             std::exit(EXIT_FAILURE);
         }
     }
@@ -5477,11 +5517,18 @@ public:
                     num_nodes, g, graph_is_symmetric, M, resolution);
                 
                 // Renumber refined communities contiguously
-                std::unordered_map<K, K> refine_renumber;
+                // First find max community ID
+                K max_comm = 0;
+                for (int64_t v = 0; v < num_nodes; ++v) {
+                    max_comm = std::max(max_comm, vcom_refined[v]);
+                }
+                
+                // Build renumber table as vector for thread-safe parallel access
+                std::vector<K> refine_renumber(max_comm + 1, K(-1));
                 K next_refined_id = 0;
                 for (int64_t v = 0; v < num_nodes; ++v) {
                     K rc = vcom_refined[v];
-                    if (refine_renumber.find(rc) == refine_renumber.end()) {
+                    if (refine_renumber[rc] == K(-1)) {
                         refine_renumber[rc] = next_refined_id++;
                     }
                 }
@@ -5493,13 +5540,35 @@ public:
                 
                 num_refined_communities = static_cast<size_t>(next_refined_id);
             } else {
-                // Subsequent passes: use communities directly (Louvain-style)
-                // This allows better hierarchical merging
+                // Subsequent passes: vcom contains community IDs from previous pass
+                // These IDs are sparse (not contiguous), so we need to renumber
                 #pragma omp parallel for
                 for (int64_t v = 0; v < num_nodes; ++v) {
                     vcom_refined[v] = vcom[v];
                 }
-                num_refined_communities = num_communities_after_local;
+                
+                // Find max community ID in vcom
+                K max_comm = 0;
+                for (int64_t v = 0; v < num_nodes; ++v) {
+                    max_comm = std::max(max_comm, vcom_refined[v]);
+                }
+                
+                // Renumber to contiguous IDs
+                std::vector<K> refine_renumber(max_comm + 1, K(-1));
+                K next_refined_id = 0;
+                for (int64_t v = 0; v < num_nodes; ++v) {
+                    K rc = vcom_refined[v];
+                    if (refine_renumber[rc] == K(-1)) {
+                        refine_renumber[rc] = next_refined_id++;
+                    }
+                }
+                
+                #pragma omp parallel for
+                for (int64_t v = 0; v < num_nodes; ++v) {
+                    vcom_refined[v] = refine_renumber[vcom_refined[v]];
+                }
+                
+                num_refined_communities = static_cast<size_t>(next_refined_id);
             }
             
             // Map refined communities to their bound communities
@@ -5664,11 +5733,18 @@ public:
             }
             
             // Renumber final communities contiguously
-            std::unordered_map<K, K> final_renumber;
+            // First find max community ID for vector sizing
+            K max_final_comm = 0;
+            for (int64_t v = 0; v < num_nodes; ++v) {
+                max_final_comm = std::max(max_final_comm, vcom[v]);
+            }
+            
+            // Build renumber table as vector for thread-safe parallel access
+            std::vector<K> final_renumber(max_final_comm + 1, K(-1));
             K next_final_id = 0;
             for (int64_t v = 0; v < num_nodes; ++v) {
                 K c = vcom[v];
-                if (final_renumber.find(c) == final_renumber.end()) {
+                if (final_renumber[c] == K(-1)) {
                     final_renumber[c] = next_final_id++;
                 }
             }
@@ -7346,7 +7422,7 @@ public:
     /**
      * Unified Leiden CSR Mapping - Parses variant from options
      * Format: 21:resolution:passes:variant
-     * Variants: dfs, bfs, hubsort, fast, modularity (default: hubsort)
+     * Variants: gve (default), dfs, bfs, hubsort, fast, modularity
      */
     void GenerateLeidenCSRMappingUnified(
         const CSRGraph<NodeID_, DestID_, invert> &g,
@@ -7357,7 +7433,7 @@ public:
         double resolution = LeidenAutoResolution<NodeID_, DestID_>(g);
         int max_passes = 1;
         int max_iterations = 10;
-        std::string variant = "hubsort";
+        std::string variant = "gve";  // Default to GVE-Leiden (best quality)
         
         // Parse options: variant, resolution, max_iterations, max_passes
         // CLI format: -o 17:variant:resolution:max_iterations:max_passes
@@ -7512,6 +7588,632 @@ public:
         PrintTime("GVELeiden Communities", static_cast<double>(num_communities));
         PrintTime("GVELeiden Modularity", result.modularity);
         PrintTime("GVELeiden Map Time", ordering_time);  // Total map time (community detection already printed separately)
+    }
+
+    // ========================================================================
+    // RabbitOrderCSR - Native CSR implementation of Rabbit Order
+    // 
+    // Faithful implementation following the IPDPS 2016 paper:
+    // "Rabbit Order: Just-in-time Parallel Reordering for Fast Graph Analysis"
+    // by Arai et al.
+    //
+    // Algorithm overview:
+    // 1. Community Detection via Parallel Incremental Aggregation
+    //    - Process vertices in increasing order of degree
+    //    - For each vertex u, find best neighbor v that maximizes ΔQ(u,v)
+    //    - If ΔQ > 0, merge u into v (lazy aggregation with CAS)
+    //    - Build dendrogram during merging
+    //
+    // 2. Ordering Generation via DFS on Dendrogram
+    //    - Perform DFS from each top-level vertex
+    //    - Assign new IDs in DFS visit order
+    //    - Concatenate orderings from all communities
+    //
+    // Modularity gain formula (Equation 1 in paper):
+    //   ΔQ(u,v) = 2 * (w_uv / (2m) - d(u)*d(v) / (2m)^2)
+    // ========================================================================
+
+    // RabbitOrderCSR data structures
+    // Packed atom structure for atomic CAS (must be 8 bytes for lock-free CAS)
+    struct RabbitCSRAtomPacked {
+        float str;       // Total weighted degree of community (negative = locked)
+        uint32_t child;  // Last vertex merged into this vertex (UINT32_MAX = none)
+        
+        // Default constructor - leave uninitialized for trivial copyability
+        RabbitCSRAtomPacked() = default;
+        RabbitCSRAtomPacked(float s, uint32_t c) : str(s), child(c) {}
+        
+        // Make sure it's trivially copyable
+        RabbitCSRAtomPacked(const RabbitCSRAtomPacked&) = default;
+        RabbitCSRAtomPacked& operator=(const RabbitCSRAtomPacked&) = default;
+    };
+    static_assert(sizeof(RabbitCSRAtomPacked) == 8, "RabbitCSRAtomPacked must be 8 bytes");
+    static_assert(std::is_trivially_copyable<RabbitCSRAtomPacked>::value, "RabbitCSRAtomPacked must be trivially copyable");
+
+    struct RabbitCSRVertex {
+        std::atomic<uint64_t> atom_raw;  // Packed {str, child} for atomic CAS
+        std::atomic<uint32_t> sibling;   // Previous vertex merged to same destination
+        uint32_t united_child;           // Last child that has been edge-aggregated
+        
+        RabbitCSRVertex() : atom_raw(0), sibling(UINT32_MAX), united_child(UINT32_MAX) {
+            // Initialize with str=0.0f, child=UINT32_MAX
+            RabbitCSRAtomPacked init(0.0f, UINT32_MAX);
+            atom_raw.store(pack_atom(init), std::memory_order_relaxed);
+        }
+        
+        static uint64_t pack_atom(const RabbitCSRAtomPacked& a) {
+            uint64_t result;
+            static_assert(sizeof(RabbitCSRAtomPacked) == sizeof(uint64_t), "Size mismatch");
+            memcpy(&result, &a, sizeof(uint64_t));
+            return result;
+        }
+        
+        static RabbitCSRAtomPacked unpack_atom(uint64_t raw) {
+            RabbitCSRAtomPacked result;
+            memcpy(&result, &raw, sizeof(uint64_t));
+            return result;
+        }
+        
+        RabbitCSRAtomPacked load_atom(std::memory_order order = std::memory_order_acquire) const {
+            return unpack_atom(atom_raw.load(order));
+        }
+        
+        void store_atom(const RabbitCSRAtomPacked& a, std::memory_order order = std::memory_order_release) {
+            atom_raw.store(pack_atom(a), order);
+        }
+        
+        bool cas_atom(RabbitCSRAtomPacked& expected, const RabbitCSRAtomPacked& desired) {
+            uint64_t exp_raw = pack_atom(expected);
+            uint64_t des_raw = pack_atom(desired);
+            bool success = atom_raw.compare_exchange_weak(exp_raw, des_raw,
+                std::memory_order_acq_rel, std::memory_order_acquire);
+            if (!success) {
+                expected = unpack_atom(exp_raw);
+            }
+            return success;
+        }
+        
+        // Exchange strength, return old value (used for locking)
+        float exchange_str(float new_str) {
+            RabbitCSRAtomPacked old_atom, new_atom;
+            do {
+                old_atom = load_atom();
+                new_atom = RabbitCSRAtomPacked(new_str, old_atom.child);
+            } while (!cas_atom(old_atom, new_atom));
+            return old_atom.str;
+        }
+        
+        void init(float str) {
+            store_atom(RabbitCSRAtomPacked(str, UINT32_MAX), std::memory_order_relaxed);
+            sibling.store(UINT32_MAX, std::memory_order_relaxed);
+            united_child = UINT32_MAX;
+        }
+    };
+
+    // RabbitOrderCSR graph representation
+    struct RabbitCSRGraph {
+        std::atomic<uint32_t>* coms;     // Vertex -> community ID
+        RabbitCSRVertex* vs;              // Vertex attributes
+        std::vector<std::vector<std::pair<uint32_t, float>>> es;  // Adjacency list (neighbor, weight)
+        double tot_wgt;                   // Total edge weight
+        std::vector<uint32_t> tops;       // Top-level vertices (roots)
+        uint32_t num_vertices;
+        
+        // Performance counters
+        std::atomic<size_t> n_reunite{0};
+        std::atomic<size_t> n_fail_lock{0};
+        std::atomic<size_t> n_fail_cas{0};
+        std::atomic<size_t> tot_nbrs{0};
+        
+        RabbitCSRGraph() : coms(nullptr), vs(nullptr), tot_wgt(0.0), num_vertices(0) {}
+        
+        ~RabbitCSRGraph() {
+            if (coms) delete[] coms;
+            if (vs) delete[] vs;
+        }
+        
+        void allocate(uint32_t n) {
+            num_vertices = n;
+            coms = new std::atomic<uint32_t>[n];
+            vs = new RabbitCSRVertex[n];
+            es.resize(n);
+            for (uint32_t i = 0; i < n; ++i) {
+                coms[i].store(i, std::memory_order_relaxed);
+            }
+        }
+        
+        uint32_t n() const { return num_vertices; }
+    };
+
+    /**
+     * Trace community: Find the root community that vertex v belongs to
+     * Uses path compression for efficiency
+     */
+    uint32_t rabbitCSRTraceCom(uint32_t v, RabbitCSRGraph& g) {
+        uint32_t com = v;
+        while (true) {
+            uint32_t c = g.coms[com].load(std::memory_order_acquire);
+            if (c == com) break;
+            com = c;
+        }
+        // Path compression: update v's community pointer if it changed
+        if (v != com && g.coms[v].load(std::memory_order_acquire) != com) {
+            g.coms[v].store(com, std::memory_order_release);
+        }
+        return com;
+    }
+
+    /**
+     * Aggregate duplicate edges and compact the neighbor list
+     */
+    void rabbitCSRCompactEdges(std::vector<std::pair<uint32_t, float>>& edges) {
+        if (edges.empty()) return;
+        
+        std::sort(edges.begin(), edges.end(), 
+            [](const auto& a, const auto& b) { return a.first < b.first; });
+        
+        size_t write_pos = 0;
+        for (size_t i = 1; i < edges.size(); ++i) {
+            if (edges[i].first == edges[write_pos].first) {
+                edges[write_pos].second += edges[i].second;
+            } else {
+                ++write_pos;
+                edges[write_pos] = edges[i];
+            }
+        }
+        edges.resize(write_pos + 1);
+    }
+
+    /**
+     * Unite: Aggregate edges of vertex v and all vertices merged into v
+     * This is the lazy aggregation step - edges are aggregated just before merging
+     */
+    void rabbitCSRUnite(uint32_t v, std::vector<std::pair<uint32_t, float>>& nbrs, 
+                        RabbitCSRGraph& g) {
+        nbrs.clear();
+        
+        // Helper to push edges from a vertex
+        auto push_edges = [&](uint32_t u) {
+            for (const auto& e : g.es[u]) {
+                uint32_t c = rabbitCSRTraceCom(e.first, g);
+                if (c != v) {  // Skip self-loops
+                    nbrs.push_back({c, e.second});
+                }
+            }
+            // Compact periodically to avoid memory blowup
+            if (nbrs.size() >= 2048) {
+                rabbitCSRCompactEdges(nbrs);
+            }
+        };
+        
+        push_edges(v);
+        
+        // Aggregate edges from all children that haven't been united yet
+        RabbitCSRAtomPacked v_atom = g.vs[v].load_atom();
+        while (g.vs[v].united_child != v_atom.child) {
+            uint32_t c = v_atom.child;
+            uint32_t w = c;
+            while (w != UINT32_MAX && w != g.vs[v].united_child) {
+                push_edges(w);
+                w = g.vs[w].sibling.load(std::memory_order_acquire);
+            }
+            g.vs[v].united_child = c;
+            v_atom = g.vs[v].load_atom();  // Reload in case it changed
+        }
+        
+        g.tot_nbrs.fetch_add(nbrs.size(), std::memory_order_relaxed);
+        
+        // Compact and store aggregated edges
+        g.es[v].clear();
+        rabbitCSRCompactEdges(nbrs);
+        g.es[v] = std::move(nbrs);
+        nbrs.clear();  // Ensure nbrs is valid after move
+    }
+
+    /**
+     * Find best destination: Find neighbor v that maximizes ΔQ(u,v)
+     * 
+     * ΔQ(u,v) = 2 * (w_uv / (2m) - d(u)*d(v) / (2m)^2)
+     *         = w_uv - d(u)*d(v) / tot_wgt  (simplified form from original code)
+     */
+    uint32_t rabbitCSRFindBest(const RabbitCSRGraph& g, uint32_t u, float u_strength) {
+        double dmax = 0.0;
+        uint32_t best = u;
+        
+        for (const auto& e : g.es[u]) {
+            RabbitCSRAtomPacked v_atom = g.vs[e.first].load_atom();
+            if (v_atom.str < 0.0f) continue;  // Skip locked vertices
+            
+            // ΔQ = w_uv - d(u)*d(v) / tot_wgt (same as original rabbit_order.hpp)
+            double delta_q = static_cast<double>(e.second) - 
+                             static_cast<double>(u_strength) * static_cast<double>(v_atom.str) / g.tot_wgt;
+            
+            if (delta_q > dmax) {
+                dmax = delta_q;
+                best = e.first;
+            }
+        }
+        return best;
+    }
+
+    /**
+     * Merge vertex v into its best neighbor
+     * Returns: v if v becomes top-level, destination if merged, UINT32_MAX if failed (retry later)
+     */
+    uint32_t rabbitCSRMerge(uint32_t v, std::vector<std::pair<uint32_t, float>>& nbrs,
+                           RabbitCSRGraph& g) {
+        // Aggregate edges of community members before locking
+        rabbitCSRUnite(v, nbrs, g);
+        
+        // Lock v by setting strength to negative (exchange returns old value)
+        float vstr = g.vs[v].exchange_str(-1.0f);
+        
+        // If child was modified between unite and lock, re-aggregate
+        RabbitCSRAtomPacked v_atom = g.vs[v].load_atom();
+        if (v_atom.child != g.vs[v].united_child) {
+            rabbitCSRUnite(v, nbrs, g);
+            g.n_reunite.fetch_add(1, std::memory_order_relaxed);
+        }
+        
+        uint32_t u = rabbitCSRFindBest(g, v, vstr);
+        
+        if (u == v) {
+            // No neighbor improves modularity - v becomes top-level
+            // Restore strength
+            RabbitCSRAtomPacked new_v_atom = g.vs[v].load_atom();
+            new_v_atom.str = vstr;
+            g.vs[v].store_atom(new_v_atom);
+            return v;
+        }
+        
+        // Attempt to merge v into u using CAS
+        RabbitCSRAtomPacked u_atom = g.vs[u].load_atom();
+        
+        // Check if u is valid (not locked)
+        if (u_atom.str < 0.0f) {
+            // u is locked - rollback and retry later
+            RabbitCSRAtomPacked new_v_atom = g.vs[v].load_atom();
+            new_v_atom.str = vstr;
+            g.vs[v].store_atom(new_v_atom);
+            g.n_fail_lock.fetch_add(1, std::memory_order_relaxed);
+            return UINT32_MAX;
+        }
+        
+        // Set sibling before CAS (will be visible after successful merge)
+        g.vs[v].sibling.store(u_atom.child, std::memory_order_release);
+        
+        // CAS to atomically update u's (strength, child)
+        // This is the key operation that must be atomic
+        RabbitCSRAtomPacked new_u_atom(u_atom.str + vstr, v);
+        if (!g.vs[u].cas_atom(u_atom, new_u_atom)) {
+            // CAS failed - rollback
+            g.vs[v].sibling.store(UINT32_MAX, std::memory_order_release);
+            RabbitCSRAtomPacked new_v_atom = g.vs[v].load_atom();
+            new_v_atom.str = vstr;
+            g.vs[v].store_atom(new_v_atom);
+            g.n_fail_cas.fetch_add(1, std::memory_order_relaxed);
+            return UINT32_MAX;
+        }
+        
+        // Successfully merged - update v's community pointer
+        g.coms[v].store(u, std::memory_order_release);
+        
+        return u;
+    }
+
+    /**
+     * Parallel incremental aggregation (Algorithm 3 from paper)
+     */
+    void rabbitCSRAggregate(RabbitCSRGraph& g) {
+        const uint32_t n = g.n();
+        const int np = omp_get_max_threads();
+        
+        // Sort vertices by degree (ascending) - same as original
+        std::vector<std::pair<uint32_t, uint32_t>> ord(n);
+        #pragma omp parallel for
+        for (uint32_t v = 0; v < n; ++v) {
+            ord[v] = {v, static_cast<uint32_t>(g.es[v].size())};
+        }
+        __gnu_parallel::sort(ord.begin(), ord.end(),
+            [](const auto& a, const auto& b) { return a.second < b.second; });
+        
+        std::vector<std::deque<uint32_t>> topss(np);
+        
+        #pragma omp parallel
+        {
+            const int tid = omp_get_thread_num();
+            std::deque<uint32_t> tops;
+            std::deque<uint32_t> pends;  // Pending vertices to retry
+            std::vector<std::pair<uint32_t, float>> nbrs;
+            nbrs.reserve(n * 2);  // Same heuristic as original
+            
+            // Use schedule(static, 1) to match original behavior
+            // This ensures vertices are processed in consistent order across threads
+            #pragma omp for schedule(static, 1)
+            for (uint32_t i = 0; i < n; ++i) {
+                // First, retry pending vertices
+                auto it = pends.begin();
+                while (it != pends.end()) {
+                    uint32_t u = rabbitCSRMerge(*it, nbrs, g);
+                    if (u == *it) {
+                        tops.push_back(*it);
+                        it = pends.erase(it);
+                    } else if (u != UINT32_MAX) {
+                        it = pends.erase(it);  // Successfully merged
+                    } else {
+                        ++it;  // Failed, keep pending
+                    }
+                }
+                
+                // Process current vertex
+                uint32_t v = ord[i].first;
+                uint32_t u = rabbitCSRMerge(v, nbrs, g);
+                if (u == v) {
+                    tops.push_back(v);
+                } else if (u == UINT32_MAX) {
+                    pends.push_back(v);
+                }
+            }
+            
+            // Process remaining pending vertices (critical section)
+            #pragma omp barrier
+            #pragma omp critical
+            {
+                for (uint32_t v : pends) {
+                    uint32_t u = rabbitCSRMerge(v, nbrs, g);
+                    if (u == v) {
+                        tops.push_back(v);
+                    }
+                    // After barrier, merges should not fail (no contention)
+                }
+                topss[tid] = std::move(tops);
+            }
+        }
+        
+        // Collect all top-level vertices
+        for (int t = 0; t < np; ++t) {
+            for (uint32_t v : topss[t]) {
+                g.tops.push_back(v);
+            }
+        }
+    }
+
+    /**
+     * DFS traversal to collect descendants in dendrogram
+     */
+    void rabbitCSRDescendants(const RabbitCSRGraph& g, uint32_t v,
+                              std::vector<uint32_t>& result) {
+        result.push_back(v);
+        RabbitCSRAtomPacked atom = g.vs[v].load_atom();
+        uint32_t child = atom.child;
+        while (child != UINT32_MAX) {
+            result.push_back(child);
+            atom = g.vs[child].load_atom();
+            child = atom.child;
+        }
+    }
+
+    /**
+     * Compute permutation from dendrogram via DFS (Algorithm 2, OrderingGeneration)
+     */
+    void rabbitCSRComputePerm(const RabbitCSRGraph& g, pvector<NodeID_>& perm) {
+        const uint32_t n = g.n();
+        const uint32_t ncom = static_cast<uint32_t>(g.tops.size());
+        
+        std::vector<uint32_t> coms(n);     // Vertex -> community index
+        std::vector<uint32_t> local_ids(n); // Local ID within community
+        std::vector<uint32_t> offsets(ncom + 1, 0);
+        
+        const int np = omp_get_max_threads();
+        const uint32_t ntask = std::min<uint32_t>(ncom, 128 * np);
+        
+        #pragma omp parallel
+        {
+            std::vector<uint32_t> stack;
+            
+            #pragma omp for schedule(dynamic, 1)
+            for (uint32_t i = 0; i < ntask; ++i) {
+                for (uint32_t comid = i; comid < ncom; comid += ntask) {
+                    uint32_t newid = 0;
+                    stack.clear();
+                    
+                    // Start DFS from top-level vertex
+                    rabbitCSRDescendants(g, g.tops[comid], stack);
+                    
+                    while (!stack.empty()) {
+                        uint32_t v = stack.back();
+                        stack.pop_back();
+                        
+                        coms[v] = comid;
+                        local_ids[v] = newid++;
+                        
+                        // Add siblings to stack
+                        uint32_t sib = g.vs[v].sibling.load(std::memory_order_acquire);
+                        if (sib != UINT32_MAX) {
+                            rabbitCSRDescendants(g, sib, stack);
+                        }
+                    }
+                    
+                    offsets[comid + 1] = newid;
+                }
+            }
+        }
+        
+        // Compute prefix sums for offsets
+        for (uint32_t i = 1; i <= ncom; ++i) {
+            offsets[i] += offsets[i - 1];
+        }
+        
+        // Assign final permutation
+        #pragma omp parallel for schedule(static)
+        for (uint32_t v = 0; v < n; ++v) {
+            perm[v] = offsets[coms[v]] + local_ids[v];
+        }
+    }
+
+    /**
+     * Compute modularity of the community structure using original CSR graph
+     * Matches the formula used in original rabbit_order.hpp
+     */
+    template<typename G>
+    double rabbitCSRComputeModularityCSR(const G& csr_g, const RabbitCSRGraph& rg) {
+        const uint32_t n = rg.n();
+        double m2 = 0.0;  // Total edge weight (sum over all adjacency lists)
+        
+        // Build community assignment
+        std::vector<uint32_t> community(n);
+        #pragma omp parallel for
+        for (uint32_t v = 0; v < n; ++v) {
+            community[v] = rabbitCSRTraceCom(v, const_cast<RabbitCSRGraph&>(rg));
+        }
+        
+        // Find max community ID
+        uint32_t max_com = 0;
+        for (uint32_t v = 0; v < n; ++v) {
+            if (community[v] > max_com) max_com = community[v];
+        }
+        const size_t com_array_size = static_cast<size_t>(max_com) + 1;
+        
+        // degs_all[c] = sum of degrees of vertices in community c
+        // degs_loop[c] = sum of edge weights within community c
+        std::vector<double> degs_all(com_array_size, 0.0);
+        std::vector<double> degs_loop(com_array_size, 0.0);
+        
+        // Use the ORIGINAL CSR graph for modularity calculation
+        for (int64_t v = 0; v < static_cast<int64_t>(n); ++v) {
+            uint32_t c = community[v];
+            for (auto neighbor : csr_g.out_neigh(v)) {
+                NodeID_ dest;
+                float weight = 1.0f;
+                if (csr_g.is_weighted()) {
+                    dest = static_cast<NodeWeight<NodeID_, WeightT_>>(neighbor).v;
+                    weight = static_cast<float>(
+                        static_cast<NodeWeight<NodeID_, WeightT_>>(neighbor).w);
+                } else {
+                    dest = static_cast<NodeID_>(neighbor);
+                }
+                
+                m2 += weight;
+                degs_all[c] += weight;
+                if (community[static_cast<uint32_t>(dest)] == c) {
+                    degs_loop[c] += weight;
+                }
+            }
+        }
+        
+        // Modularity: Q = sum_c (loop_c/m2 - (all_c/m2)^2)
+        double q = 0.0;
+        for (size_t c = 0; c < com_array_size; ++c) {
+            double all = degs_all[c];
+            double loop = degs_loop[c];
+            if (all > 0.0) {
+                q += loop / m2 - (all / m2) * (all / m2);
+            }
+        }
+        
+        return q;
+    }
+
+    /**
+     * Main entry point: GenerateRabbitOrderCSRMapping
+     * 
+     * Native CSR implementation of Rabbit Order algorithm
+     */
+    void GenerateRabbitOrderCSRMapping(const CSRGraph<NodeID_, DestID_, invert>& g,
+                                       pvector<NodeID_>& new_ids) {
+        Timer tm;
+        tm.Start();
+        
+        const int64_t num_nodes = g.num_nodes();
+        const int64_t num_edges = g.num_edges_directed();
+        
+        std::cout << "=== RabbitOrderCSR (Native CSR Implementation) ===\n";
+        std::cout << "Nodes: " << static_cast<long long>(num_nodes) << ", Edges: " << static_cast<long long>(num_edges) << "\n";
+        
+        // Build RabbitCSRGraph from CSRGraph
+        RabbitCSRGraph rg;
+        rg.allocate(static_cast<uint32_t>(num_nodes));
+        rg.tot_wgt = 0.0;
+        
+        // Initialize vertices and edges, aggregating multi-edges
+        #pragma omp parallel
+        {
+            double local_wgt = 0.0;
+            
+            #pragma omp for schedule(static)
+            for (int64_t v = 0; v < num_nodes; ++v) {
+                // Collect all edges for this vertex
+                std::vector<std::pair<uint32_t, float>> temp_edges;
+                for (DestID_ neighbor : g.out_neigh(v)) {
+                    NodeID_ dest;
+                    float weight = 1.0f;
+                    
+                    if (g.is_weighted()) {
+                        dest = static_cast<NodeWeight<NodeID_, WeightT_>>(neighbor).v;
+                        weight = static_cast<float>(
+                            static_cast<NodeWeight<NodeID_, WeightT_>>(neighbor).w);
+                    } else {
+                        dest = static_cast<NodeID_>(neighbor);
+                    }
+                    
+                    // Skip self-loops
+                    if (dest == v) continue;
+                    
+                    temp_edges.push_back({static_cast<uint32_t>(dest), weight});
+                }
+                
+                // Sort by destination and aggregate multi-edges
+                std::sort(temp_edges.begin(), temp_edges.end(),
+                    [](const auto& a, const auto& b) { return a.first < b.first; });
+                
+                float vertex_strength = 0.0f;
+                for (size_t i = 0; i < temp_edges.size(); ) {
+                    uint32_t dest = temp_edges[i].first;
+                    float combined_weight = 0.0f;
+                    while (i < temp_edges.size() && temp_edges[i].first == dest) {
+                        combined_weight += temp_edges[i].second;
+                        ++i;
+                    }
+                    rg.es[v].push_back({dest, combined_weight});
+                    vertex_strength += combined_weight;
+                }
+                
+                rg.vs[v].init(vertex_strength);
+                local_wgt += static_cast<double>(vertex_strength);
+            }
+            
+            #pragma omp atomic
+            rg.tot_wgt += local_wgt;
+        }
+        
+        double build_time = tm.Seconds();
+        tm.Start();
+        
+        // Run parallel incremental aggregation (community detection)
+        rabbitCSRAggregate(rg);
+        
+        double agg_time = tm.Seconds();
+        tm.Start();
+        
+        // Generate ordering via DFS on dendrogram
+        rabbitCSRComputePerm(rg, new_ids);
+        
+        double perm_time = tm.Seconds();
+        
+        // Compute modularity using original CSR graph
+        double modularity = rabbitCSRComputeModularityCSR(g, rg);
+        
+        // Report statistics
+        std::cout << "RabbitOrderCSR Statistics:\n";
+        PrintTime("Build Time", build_time);
+        PrintTime("Aggregation Time", agg_time);
+        PrintTime("Permutation Time", perm_time);
+        PrintTime("Total Map Time", build_time + agg_time + perm_time);
+        PrintTime("Communities", static_cast<double>(rg.tops.size()));
+        PrintTime("Modularity", modularity);
+        PrintTime("Reunite calls", static_cast<double>(rg.n_reunite.load()));
+        PrintTime("Lock failures", static_cast<double>(rg.n_fail_lock.load()));
+        PrintTime("CAS failures", static_cast<double>(rg.n_fail_cas.load()));
     }
 
     /**
