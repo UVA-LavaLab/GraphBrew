@@ -526,6 +526,9 @@ SIZE_SMALL = 50
 SIZE_MEDIUM = 500
 SIZE_LARGE = 2000
 
+# Minimum edges for training (skip small graphs that introduce noise/skew)
+MIN_EDGES_FOR_TRAINING = 100000  # 100K edges - graphs below this are too noisy for perceptron training
+
 # Memory estimation constants (bytes per edge/node for graph algorithms)
 # Based on CSR format: ~24 bytes/edge + 8 bytes/node for working memory
 BYTES_PER_EDGE = 24
@@ -730,7 +733,8 @@ def get_graph_dimensions(path: str) -> Tuple[int, int]:
 
 
 def discover_graphs(graphs_dir: str, min_size: float = 0, max_size: float = float('inf'), 
-                    additional_dirs: List[str] = None, max_memory_gb: float = None) -> List[GraphInfo]:
+                    additional_dirs: List[str] = None, max_memory_gb: float = None,
+                    min_edges: int = 0) -> List[GraphInfo]:
     """Discover available graphs in the directory and additional directories.
     
     Args:
@@ -739,10 +743,12 @@ def discover_graphs(graphs_dir: str, min_size: float = 0, max_size: float = floa
         max_size: Maximum graph size in MB
         additional_dirs: Additional directories to scan (e.g., ./graphs for pre-existing graphs)
         max_memory_gb: If set, skip graphs requiring more than this memory (auto-detects if None)
+        min_edges: Minimum number of edges (skip smaller graphs - they introduce noise in training)
     """
     graphs = []
     seen_names = set()
     skipped_memory = []
+    skipped_edges = []
     
     # Build list of directories to scan
     dirs_to_scan = [graphs_dir]
@@ -790,6 +796,11 @@ def discover_graphs(graphs_dir: str, min_size: float = 0, max_size: float = floa
                         # Read actual node/edge counts from MTX file
                         nodes, edges = get_graph_dimensions(graph_path)
                         
+                        # Skip graphs with too few edges (they introduce noise in training)
+                        if min_edges > 0 and edges > 0 and edges < min_edges:
+                            skipped_edges.append((entry, edges))
+                            continue
+                        
                         # Check memory requirements if limit specified
                         if max_memory_gb is not None and nodes > 0 and edges > 0:
                             mem_required = estimate_graph_memory_gb(nodes, edges)
@@ -814,6 +825,13 @@ def discover_graphs(graphs_dir: str, min_size: float = 0, max_size: float = floa
             log(f"  - {name}: requires {mem:.1f} GB", "INFO")
         if len(skipped_memory) > 5:
             log(f"  ... and {len(skipped_memory) - 5} more", "INFO")
+    
+    if skipped_edges:
+        log(f"Skipped {len(skipped_edges)} graphs with fewer than {min_edges:,} edges:", "INFO")
+        for name, edge_count in skipped_edges[:5]:
+            log(f"  - {name}: {edge_count:,} edges", "INFO")
+        if len(skipped_edges) > 5:
+            log(f"  ... and {len(skipped_edges) - 5} more", "INFO")
     
     # Sort by size
     graphs.sort(key=lambda g: g.size_mb)
@@ -1973,7 +1991,8 @@ def run_experiment(args):
     
     _progress.info(f"Size filter: {min_size:.1f}MB - {max_size:.1f}MB")
     
-    graphs = discover_graphs(args.graphs_dir, min_size, max_size, max_memory_gb=args.max_memory)
+    graphs = discover_graphs(args.graphs_dir, min_size, max_size, max_memory_gb=args.max_memory,
+                             min_edges=getattr(args, 'min_edges', 0))
     
     if args.max_graphs:
         graphs = graphs[:args.max_graphs]
@@ -2703,6 +2722,9 @@ Examples:
                              "download size would exceed this limit.")
     parser.add_argument("--auto-disk", action="store_true",
                         help="Automatically limit downloads to available disk space (uses 80%% of free space)")
+    parser.add_argument("--min-edges", type=int, default=0,
+                        help="Minimum number of edges for graph inclusion. Graphs with fewer edges are skipped. "
+                             f"Recommended: {MIN_EDGES_FOR_TRAINING:,} for weight training to avoid noise.")
     
     # Phase selection
     parser.add_argument("--phase", choices=["all", "reorder", "benchmark", "cache", "weights", "adaptive"],
@@ -2915,6 +2937,10 @@ Examples:
     elif args.max_disk is not None:
         log(f"Using specified disk limit: {args.max_disk:.1f} GB", "INFO")
     
+    # Log min_edges filter if specified (works with any download_size)
+    if getattr(args, 'min_edges', 0) > 0:
+        log(f"Min edges filter: {args.min_edges:,} (graphs with fewer edges will be skipped for training)", "INFO")
+    
     # Handle clean operations first
     if args.clean_all:
         clean_all(".", confirm=False)
@@ -3036,7 +3062,8 @@ Examples:
         )
         
         # Now discover all available graphs
-        graphs = discover_graphs(args.graphs_dir, max_memory_gb=args.max_memory)
+        graphs = discover_graphs(args.graphs_dir, max_memory_gb=args.max_memory,
+                                 min_edges=getattr(args, 'min_edges', 0))
         if not graphs:
             log("No graphs found after download - aborting", "ERROR")
             sys.exit(1)

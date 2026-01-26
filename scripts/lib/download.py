@@ -56,6 +56,19 @@ class DownloadableGraph:
     def avg_degree(self) -> float:
         """Average degree (edges/nodes)."""
         return self.edges / self.nodes if self.nodes > 0 else 0
+    
+    def estimated_memory_gb(self) -> float:
+        """Estimate memory required to process this graph in GB.
+        
+        Based on CSR format: approximately 12 bytes per edge (offsets + neighbors)
+        plus some overhead for node data.
+        """
+        bytes_per_edge = 12  # 4 bytes offset + 8 bytes for edge data
+        bytes_per_node = 8   # Node data overhead
+        edge_bytes = self.edges * bytes_per_edge
+        node_bytes = self.nodes * bytes_per_node
+        overhead = 1.5  # Safety factor for algorithm workspace
+        return (edge_bytes + node_bytes) * overhead / (1024 ** 3)
 
 
 # =============================================================================
