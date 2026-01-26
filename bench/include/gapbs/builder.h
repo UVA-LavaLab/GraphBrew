@@ -1772,6 +1772,10 @@ public:
                          ReorderingAlgo reordering_algo, bool useOutdeg,
                          std::vector<std::string> reordering_options)
     {
+        // Unified timing wrapper for all reordering algorithms
+        Timer reorder_timer;
+        reorder_timer.Start();
+        
         switch (reordering_algo)
         {
         case HubSort:
@@ -1853,6 +1857,12 @@ public:
                       << std::endl;
             std::abort();
         }
+        
+        // Print unified reorder time for easy parsing
+        reorder_timer.Stop();
+        std::cout << "=== Reorder Summary ===" << std::endl;
+        PrintLabel("Algorithm", ReorderingAlgoStr(reordering_algo));
+        PrintTime("Reorder Time", reorder_timer.Seconds());
 
         // std::cout << std::endl;
         // for (size_t i = 0; i < new_ids.size(); ++i)
