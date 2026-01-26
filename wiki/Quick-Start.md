@@ -11,27 +11,41 @@ Get up and running with GraphBrew in 5 minutes!
 
 ---
 
-## 🚀 One-Click Full Pipeline (Easiest)
+## 🚀 One-Command Training (Recommended)
 
-Run the complete GraphBrew experiment with a single command:
+Train perceptron weights with all algorithm variants in a single command:
 
 ```bash
-# Clone and run - that's it!
+# Clone and train - that's it!
 git clone https://github.com/UVA-LavaLab/GraphBrew.git
 cd GraphBrew
-python3 scripts/graphbrew_experiment.py --full --download-size SMALL
+
+# Full training with ALL graphs, all variants, 5 trials
+python3 scripts/graphbrew_experiment.py --fill-weights --expand-variants \
+    --download-size ALL --min-edges 100000 --auto-memory --auto-disk --trials 5
 ```
 
 This will automatically:
 - ✅ Download benchmark graphs from SuiteSparse (87 graphs available)
+- ✅ Auto-detect RAM and skip graphs that won't fit
+- ✅ Auto-detect disk space and limit downloads accordingly
+- ✅ Skip small graphs (<100k edges) that introduce training noise
 - ✅ Build all binaries (standard + cache simulation)
-- ✅ Pre-generate label mappings for consistent reordering
-- ✅ Run performance benchmarks (PR, BFS, CC, SSSP, BC, TC) with all 18 algorithms
-- ✅ Execute cache simulations (L1/L2/L3 hit rates)
-- ✅ Detect graph types from computed properties (modularity, degree variance, etc.)
+- ✅ Expand Leiden algorithms into all variants (dfs, bfs, hubsort, etc.)
+- ✅ Run 5 trials per benchmark for statistical reliability
 - ✅ Train per-graph-type perceptron weights for AdaptiveOrder
 
-All results saved to `./results/` directory, with per-type weights synced to `./scripts/`.
+### Key Parameters Explained
+
+| Parameter | Description |
+|-----------|-------------|
+| `--fill-weights` | Run comprehensive weight training pipeline |
+| `--expand-variants` | Include all Leiden algorithm variants |
+| `--download-size SIZE` | Which graphs to download: `SMALL`, `MEDIUM`, `LARGE`, `XLARGE`, `ALL` |
+| `--min-edges N` | Skip graphs with fewer than N edges (reduces noise) |
+| `--auto-memory` | Auto-detect RAM, skip graphs that won't fit |
+| `--auto-disk` | Auto-detect disk space, limit downloads accordingly |
+| `--trials N` | Number of benchmark trials (default: 2, recommended: 5) |
 
 ### Download Size Options
 
@@ -43,23 +57,37 @@ All results saved to `./results/` directory, with per-type weights synced to `./
 | `XLARGE` | 6 | ~63 GB | Massive graphs (twitter7, webbase, Kronecker) |
 | `ALL` | **87** | ~89 GB | Complete benchmark set |
 
-### Memory Management
-
-GraphBrew automatically detects system RAM and can skip graphs that won't fit:
+### Training Examples by Scale
 
 ```bash
-# Auto-detect RAM and skip graphs that won't fit
-python3 scripts/graphbrew_experiment.py --full --download-size ALL --auto-memory
+# Quick test (~10 min): SMALL graphs, skip tiny ones
+python3 scripts/graphbrew_experiment.py --fill-weights --expand-variants \
+    --download-size SMALL --min-edges 50000 --auto-memory --auto-disk --trials 3
 
-# Set explicit memory limit (e.g., 32 GB)
-python3 scripts/graphbrew_experiment.py --full --download-size ALL --max-memory 32
+# Standard training (~1 hour): MEDIUM graphs
+python3 scripts/graphbrew_experiment.py --fill-weights --expand-variants \
+    --download-size MEDIUM --min-edges 100000 --auto-memory --auto-disk --trials 5
+
+# Full training (~4-8 hours): ALL graphs
+python3 scripts/graphbrew_experiment.py --fill-weights --expand-variants \
+    --download-size ALL --min-edges 100000 --auto-memory --auto-disk --trials 5
 ```
 
-### More Examples
+---
+
+## 🎯 Quick Full Pipeline
+
+Run the complete GraphBrew experiment with a single command:
 
 ```bash
-# Download medium graphs and run
-python3 scripts/graphbrew_experiment.py --full --download-size MEDIUM
+python3 scripts/graphbrew_experiment.py --full --download-size SMALL --auto-memory --auto-disk
+```
+
+### More Pipeline Examples
+
+```bash
+# Download medium graphs and run full pipeline
+python3 scripts/graphbrew_experiment.py --full --download-size MEDIUM --auto-memory --auto-disk
 
 # Just download graphs (no experiments)
 python3 scripts/graphbrew_experiment.py --download-only --download-size MEDIUM
@@ -68,51 +96,13 @@ python3 scripts/graphbrew_experiment.py --download-only --download-size MEDIUM
 python3 scripts/graphbrew_experiment.py --generate-maps --use-maps --phase benchmark
 
 # Clean start (remove all generated data)
-python3 scripts/graphbrew_experiment.py --clean-all --full --download-size SMALL
+python3 scripts/graphbrew_experiment.py --clean-all
+python3 scripts/graphbrew_experiment.py --full --download-size SMALL --auto-memory --auto-disk
 ```
 
 ---
 
-## 🎯 Quick Weight Training (Recommended)
-
-Train perceptron weights from scratch with automatic resource management:
-
-```bash
-# Clean slate: remove old results and weights
-rm -rf results/* scripts/weights/active/* scripts/weights/merged/* scripts/weights/runs/*
-
-# Comprehensive training: ALL graphs (small+medium+large) with adaptive analysis
-python3 scripts/graphbrew_experiment.py --fill-weights --auto-memory --auto-disk --skip-cache --download-size ALL --adaptive-analysis --adaptive-comparison
-```
-
-This command:
-- ✅ Auto-detects available RAM and skips graphs that won't fit (e.g., sk-2005 at 65.9 GB)
-- ✅ Auto-detects disk space and limits downloads accordingly  
-- ✅ Downloads ALL graphs (~89 GB): SMALL + MEDIUM + LARGE categories
-- ✅ Skips cache simulation (faster training)
-- ✅ Generates type clusters based on graph features
-- ✅ Creates `scripts/weights/active/type_N.json` files for each cluster
-- ✅ Runs adaptive analysis to show algorithm distribution
-- ✅ Compares AdaptiveOrder vs fixed algorithms
-
-### Faster Options
-
-```bash
-# Quick test on SMALL graphs only (~62 MB, 16 graphs)
-python3 scripts/graphbrew_experiment.py --fill-weights --auto-memory --auto-disk --skip-cache --download-size SMALL
-
-# Medium-scale training (~1.1 GB, 28 graphs)
-python3 scripts/graphbrew_experiment.py --fill-weights --auto-memory --auto-disk --skip-cache --download-size MEDIUM
-
-# Large-scale training (~25 GB, 37 graphs)
-python3 scripts/graphbrew_experiment.py --fill-weights --auto-memory --auto-disk --skip-cache --download-size LARGE
-```
-
-**Estimated time:** 
-- SMALL: ~10-15 minutes
-- MEDIUM: ~30-45 minutes  
-- LARGE: ~2-4 hours
-- ALL: ~4-8 hours (depending on system)
+## ⚡ Faster Training Options
 
 ---
 
