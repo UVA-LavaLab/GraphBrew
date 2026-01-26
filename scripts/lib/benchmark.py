@@ -12,7 +12,7 @@ Standalone usage:
 Library usage:
     from scripts.lib.benchmark import run_benchmark, run_benchmark_suite
     
-    result = run_benchmark("pr", "graph.mtx", algorithm="16:1.0:hybrid")
+    result = run_benchmark("pr", "graph.mtx", algorithm="16:hybrid:1.0")
     results = run_benchmark_suite("graph.mtx", algorithms=["0", "1", "8"])
 """
 
@@ -102,7 +102,7 @@ def run_benchmark(
     Args:
         benchmark: Benchmark name (pr, bfs, cc, etc.)
         graph_path: Path to graph file
-        algorithm: Algorithm option string (e.g., "0", "16:1.0:hybrid")
+        algorithm: Algorithm option string (e.g., "0", "16:hybrid:1.0", "17:gve:1.0:20:10")
         trials: Number of trials
         symmetric: Use symmetric graph flag (-s)
         timeout: Timeout in seconds
@@ -369,13 +369,13 @@ def run_leiden_variant_comparison(
     # LeidenOrder (15)
     algorithms.append("15")
     
-    # LeidenDendrogram variants (16)
+    # LeidenDendrogram variants (16) - format: 16:variant:resolution
     for variant in LEIDEN_DENDROGRAM_VARIANTS:
-        algorithms.append(f"16:1.0:{variant}")
+        algorithms.append(f"16:{variant}:1.0")
     
-    # LeidenCSR variants (17)
+    # LeidenCSR variants (17) - format: 17:variant:resolution:iterations:passes
     for variant in LEIDEN_CSR_VARIANTS:
-        algorithms.append(f"17:1.0:3:{variant}")
+        algorithms.append(f"17:{variant}:1.0:20:10")
     
     return run_benchmark_suite(graph_path, algorithms, benchmarks, trials)
 
@@ -520,9 +520,9 @@ Examples:
             for algo in algorithms:
                 algo_id, _ = parse_algorithm_option(algo)
                 if algo_id == 16:
-                    expanded.extend([f"16:1.0:{v}" for v in LEIDEN_DENDROGRAM_VARIANTS])
+                    expanded.extend([f"16:{v}:1.0" for v in LEIDEN_DENDROGRAM_VARIANTS])
                 elif algo_id == 17:
-                    expanded.extend([f"17:1.0:3:{v}" for v in LEIDEN_CSR_VARIANTS])
+                    expanded.extend([f"17:{v}:1.0:20:10" for v in LEIDEN_CSR_VARIANTS])
                 else:
                     expanded.append(algo)
             algorithms = expanded
