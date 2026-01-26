@@ -7718,15 +7718,16 @@ public:
         return best_type;
     }
     
-    // Threshold for considering a graph "unknown" - if distance > this, use fastest-reorder
+    // Threshold for flagging a graph as "distant" from known types (for verbose output)
     // Calibrated based on typical type distances (range: 7-50+)
-    // Graphs with distance > 50 are true outliers not seen during training
+    // Note: Does NOT trigger fallback - perceptron still uses closest type's weights
     static constexpr double UNKNOWN_TYPE_DISTANCE_THRESHOLD = 50.0;
     
     /**
-     * Check if a graph should be considered "unknown" based on type distance
+     * Check if a graph is far from known types (for informational/verbose output only)
+     * The perceptron still works with the closest type's weights.
      */
-    static bool IsUnknownGraphType(double type_distance) {
+    static bool IsDistantGraphType(double type_distance) {
         return type_distance > UNKNOWN_TYPE_DISTANCE_THRESHOLD;
     }
     
@@ -8059,22 +8060,19 @@ public:
         SelectionMode mode, const std::string& graph_name = "",
         BenchmarkType bench = BENCH_GENERIC, bool verbose = false) {
         
-        // Check if this is an UNKNOWN graph type
+        // Check graph type for verbose output (but don't change selection behavior)
         double type_distance = 0.0;
         std::string best_type = FindBestTypeWithDistance(
             global_modularity, global_degree_variance, global_hub_concentration,
             feat.avg_degree, num_nodes, num_edges, type_distance, verbose);
         
-        bool is_unknown = IsUnknownGraphType(type_distance) || best_type.empty();
-        
-        // For UNKNOWN graphs, always fall back to FASTEST_REORDER mode
-        if (is_unknown && mode != MODE_FASTEST_REORDER) {
-            if (verbose) {
-                std::cout << "Graph type UNKNOWN (distance: " << type_distance 
-                          << " > " << UNKNOWN_TYPE_DISTANCE_THRESHOLD 
-                          << ") - falling back to fastest-reorder mode\n";
-            }
-            mode = MODE_FASTEST_REORDER;
+        // For UNKNOWN graphs (high distance), we still use perceptron with the
+        // closest type's weights - that's the whole point of type-based matching.
+        // The perceptron extracts features and finds the best matching type,
+        // then uses those weights to select the best algorithm.
+        if (verbose && (type_distance > UNKNOWN_TYPE_DISTANCE_THRESHOLD || best_type.empty())) {
+            std::cout << "Note: Graph has high type distance (" << type_distance 
+                      << ") - using closest type '" << best_type << "' for perceptron weights\n";
         }
         
         // Handle each mode
