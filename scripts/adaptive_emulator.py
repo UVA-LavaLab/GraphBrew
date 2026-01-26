@@ -558,16 +558,20 @@ class AdaptiveOrderEmulator:
         self.algorithm_selector = AlgorithmSelector(weights_dir)
         self.config = WeightConfig()
         self.selection_mode = SelectionMode.FASTEST_EXECUTION  # Default mode
-        self._reorder_times_cache: Dict[str, Dict[str, float]] = {}
     
-    def load_reorder_times(self, graph_name: str) -> Dict[str, float]:
-        """Load reorder times for a graph from mappings."""
-        if graph_name in self._reorder_times_cache:
-            return self._reorder_times_cache[graph_name]
+    def get_reorder_time_weights(self, type_name: str) -> Dict[str, float]:
+        """Get w_reorder_time weights for all algorithms from type weights.
         
-        times = load_reorder_times_from_mappings(graph_name)
-        self._reorder_times_cache[graph_name] = times
-        return times
+        Higher (less negative) w_reorder_time = faster reordering.
+        """
+        weights = self.algorithm_selector.load_weights(type_name)
+        reorder_weights = {}
+        for algo, w in weights.items():
+            if algo.startswith("_"):
+                continue
+            if isinstance(w, dict):
+                reorder_weights[algo] = w.get("w_reorder_time", 0.0)
+        return reorder_weights
     
     def is_distant_graph_type(self, type_distance: float) -> bool:
         """Check if a graph is far from known types (for informational purposes only)."""
@@ -596,8 +600,9 @@ class AdaptiveOrderEmulator:
         # graph type, and we use those learned weights. No fallback needed.
         
         # Layer 2: Algorithm selection (mode-dependent)
+        # All modes use the type weights - no .time files needed
         if mode == SelectionMode.FASTEST_REORDER:
-            selected_algo, scores = self._select_fastest_reorder(features)
+            selected_algo, scores = self._select_fastest_reorder(matched_type, features)
         elif mode == SelectionMode.FASTEST_EXECUTION:
             selected_algo, scores = self.algorithm_selector.select_algorithm(
                 matched_type, features, self.config, benchmark
@@ -627,22 +632,28 @@ class AdaptiveOrderEmulator:
     
     def _select_fastest_reorder(
         self,
+        matched_type: str,
         features: GraphFeatures
     ) -> Tuple[str, Dict[str, float]]:
-        """Select algorithm with fastest reorder time."""
-        reorder_times = self.load_reorder_times(features.name)
+        """Select algorithm with fastest reorder time using w_reorder_time weights.
         
-        if not reorder_times:
+        Higher w_reorder_time = faster reordering.
+        """
+        reorder_weights = self.get_reorder_time_weights(matched_type)
+        
+        if not reorder_weights:
             # Fall back to heuristics: simple algorithms are fastest
             fast_algorithms = ["RANDOM", "SORT", "HUBSORT", "DBG", "HUBCLUSTERDBG"]
             return fast_algorithms[0], {a: 1.0/float(i+1) for i, a in enumerate(fast_algorithms)}
         
         # Exclude ORIGINAL (no reordering)
+        # Higher w_reorder_time = faster, so we want max
         reorder_scores = {}
-        for algo, rt in reorder_times.items():
-            if algo != "ORIGINAL" and rt >= 0:
-                # Convert to score: lower time = higher score
-                reorder_scores[algo] = 1.0 / (rt + 0.001)  # Add small epsilon
+        for algo, w_rt in reorder_weights.items():
+            if algo != "ORIGINAL":
+                # Convert to positive score: higher = faster
+                # w_reorder_time is typically negative, so negate it
+                reorder_scores[algo] = -w_rt  # More negative w_rt → lower score
         
         if not reorder_scores:
             return "RANDOM", {"RANDOM": 1.0}
@@ -656,27 +667,27 @@ class AdaptiveOrderEmulator:
         features: GraphFeatures,
         benchmark: str = None
     ) -> Tuple[str, Dict[str, float]]:
-        """Select algorithm with best end-to-end (reorder + execution) time."""
+        """Select algorithm with best end-to-end (reorder + execution) time.
+        
+        Uses perceptron scores (which already include w_reorder_time) and
+        adds extra weight to w_reorder_time for end-to-end optimization.
+        """
         # Get execution time scores from perceptron
         _, exec_scores = self.algorithm_selector.select_algorithm(
             matched_type, features, self.config, benchmark
         )
         
-        # Get reorder times
-        reorder_times = self.load_reorder_times(features.name)
+        # Get reorder time weights from type
+        reorder_weights = self.get_reorder_time_weights(matched_type)
         
-        # Combine: penalize high reorder times
+        # Combine: add extra boost for fast reordering
+        REORDER_WEIGHT_BOOST = 2.0
         combined_scores = {}
         for algo, exec_score in exec_scores.items():
-            reorder_time = reorder_times.get(algo, 0.1)  # Default penalty if unknown
-            # Score = exec_score - reorder_time_penalty
-            # Lower reorder time = less penalty
-            reorder_penalty = reorder_time * 10  # Weight reorder time
-            combined_scores[algo] = exec_score - reorder_penalty
-        
-        # ORIGINAL has no reorder time, give it exec score directly
-        if "ORIGINAL" not in combined_scores:
-            combined_scores["ORIGINAL"] = exec_scores.get("ORIGINAL", 0.5)
+            w_rt = reorder_weights.get(algo, 0.0)
+            # w_reorder_time is already part of exec_score, add extra boost
+            reorder_bonus = w_rt * REORDER_WEIGHT_BOOST
+            combined_scores[algo] = exec_score + reorder_bonus
         
         if not combined_scores:
             return "ORIGINAL", {"ORIGINAL": 1.0}
@@ -690,31 +701,39 @@ class AdaptiveOrderEmulator:
         features: GraphFeatures,
         benchmark: str = None
     ) -> Tuple[str, Dict[str, float]]:
-        """Select algorithm that needs fewest iterations to amortize reordering cost."""
+        """Select algorithm that needs fewest iterations to amortize reordering cost.
+        
+        Uses w_reorder_time as proxy for reorder speed.
+        """
         # Get execution time scores from perceptron (higher = faster)
         _, exec_scores = self.algorithm_selector.select_algorithm(
             matched_type, features, self.config, benchmark
         )
         
-        # Get reorder times
-        reorder_times = self.load_reorder_times(features.name)
+        # Get reorder time weights from type
+        reorder_weights = self.get_reorder_time_weights(matched_type)
         
-        # Estimate speedup from scores: higher exec_score = more speedup
-        # Amortization iterations = reorder_time / speedup_per_iteration
-        combined_scores = {}
+        # Estimate speedup from scores and compute amortization
         baseline_score = exec_scores.get("ORIGINAL", 0.5)
+        combined_scores = {}
         
         for algo, exec_score in exec_scores.items():
             if algo == "ORIGINAL":
                 continue  # ORIGINAL has no amortization benefit
             
-            reorder_time = reorder_times.get(algo, 0.1)
             # Estimate speedup: score difference from baseline
             speedup = max(exec_score - baseline_score, 0.01)
             
-            # Fewer iterations = better, so invert for score
-            amortization_iters = reorder_time / speedup
-            combined_scores[algo] = 1.0 / (amortization_iters + 0.01)
+            # Use w_reorder_time as proxy for reorder speed
+            # Higher (less negative) = faster reorder
+            w_rt = reorder_weights.get(algo, 0.0)
+            reorder_speed_factor = 1.0 + w_rt  # e.g., -0.5 → 0.5, 0 → 1.0
+            if reorder_speed_factor < 0.1:
+                reorder_speed_factor = 0.1  # Clamp minimum
+            
+            # Amortization score: speedup * reorder_speed
+            # Higher = pays off faster
+            combined_scores[algo] = speedup * reorder_speed_factor
         
         if not combined_scores:
             return "ORIGINAL", {"ORIGINAL": 1.0}
