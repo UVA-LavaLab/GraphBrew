@@ -4396,11 +4396,18 @@ public:
 
         const double q = compute_modularity(adj, c.get());
 
+        // Count unique communities
+        std::unordered_set<rabbit_order::vint> unique_comms;
+        for (rabbit_order::vint v = 0; v < g.n(); ++v)
+            unique_comms.insert(c[v]);
+        const size_t num_communities = unique_comms.size();
+
         // Print the result
         // std::copy(&c[0], &c[g.n()],
         //           std::ostream_iterator<rabbit_order::vint>(std::cout, "\n"));
 
-        PrintTime("Modularity", q);
+        PrintTime("RabbitOrder Communities", static_cast<double>(num_communities));
+        PrintTime("RabbitOrder Modularity", q);
         //--------------------------------------------
         // std::cerr << "Permutation generation Time: "
         //           << rabbit_order::now_sec() - tstart << std::endl;
@@ -4719,34 +4726,1043 @@ public:
     using K = uint32_t;
 
     //==========================================================================
+    // GVE-LEIDEN: True Leiden Algorithm on CSR Graphs
+    // Implementation following ACM paper: "Fast Leiden Algorithm for Community
+    // Detection in Shared Memory Setting" (DOI: 10.1145/3673038.3673146)
+    //
+    // IMPORTANT: This implementation handles BOTH symmetric and non-symmetric
+    // CSR graphs by scanning both out_neigh and in_neigh to get all edges.
+    //
+    // Key differences from Louvain:
+    // 1. Refinement phase: Only isolated vertices can move
+    // 2. Community bounds: Refined communities constrained within local-moving results
+    // 3. Well-connected communities guaranteed
+    //==========================================================================
+    
+    template <typename K = uint32_t>
+    struct GVELeidenResult {
+        std::vector<std::vector<K>> community_per_pass;  // Dendrogram
+        std::vector<K> final_community;                   // Final assignment
+        int total_iterations;
+        int total_passes;
+        double modularity;
+    };
+    
+    /**
+     * Fast parallel modularity computation for any community assignment.
+     * 
+     * Modularity Q = (1/2m) * Σ[A_ij - k_i*k_j/(2m)] * δ(c_i, c_j)
+     * 
+     * Uses parallel reduction for efficiency on large graphs.
+     * Works with both symmetric and non-symmetric CSR structures.
+     */
+    template <typename K>
+    double computeModularityCSR(
+        const CSRGraph<NodeID_, DestID_, true>& g,
+        const std::vector<K>& community,
+        double resolution = 1.0) {
+        
+        const int64_t num_nodes = g.num_nodes();
+        const bool graph_is_symmetric = !g.directed();
+        const double M = static_cast<double>(g.num_edges());
+        
+        if (M == 0) return 0.0;
+        
+        // Compute vertex degrees (weighted)
+        std::vector<double> vtot(num_nodes, 0.0);
+        #pragma omp parallel for
+        for (int64_t u = 0; u < num_nodes; ++u) {
+            double total = 0.0;
+            for (auto neighbor : g.out_neigh(u)) {
+                if constexpr (std::is_same_v<DestID_, NodeID_>) {
+                    total += 1.0;
+                } else {
+                    total += static_cast<double>(static_cast<NodeWeight<NodeID_, WeightT_>>(neighbor).w);
+                }
+            }
+            if (!graph_is_symmetric) {
+                for (auto neighbor : g.in_neigh(u)) {
+                    if constexpr (std::is_same_v<DestID_, NodeID_>) {
+                        total += 1.0;
+                    } else {
+                        total += static_cast<double>(static_cast<NodeWeight<NodeID_, WeightT_>>(neighbor).w);
+                    }
+                }
+            }
+            vtot[u] = total;
+        }
+        
+        // Compute modularity using parallel reduction
+        double Q = 0.0;
+        #pragma omp parallel for reduction(+:Q)
+        for (int64_t u = 0; u < num_nodes; ++u) {
+            K cu = community[u];
+            
+            for (auto neighbor : g.out_neigh(u)) {
+                NodeID_ v;
+                double w;
+                if constexpr (std::is_same_v<DestID_, NodeID_>) {
+                    v = neighbor;
+                    w = 1.0;
+                } else {
+                    v = static_cast<NodeWeight<NodeID_, WeightT_>>(neighbor).v;
+                    w = static_cast<double>(static_cast<NodeWeight<NodeID_, WeightT_>>(neighbor).w);
+                }
+                
+                K cv = community[v];
+                if (cu == cv) {
+                    Q += w - resolution * vtot[u] * vtot[v] / (2.0 * M);
+                }
+            }
+            
+            if (!graph_is_symmetric) {
+                for (auto neighbor : g.in_neigh(u)) {
+                    NodeID_ v;
+                    double w;
+                    if constexpr (std::is_same_v<DestID_, NodeID_>) {
+                        v = neighbor;
+                        w = 1.0;
+                    } else {
+                        v = static_cast<NodeWeight<NodeID_, WeightT_>>(neighbor).v;
+                        w = static_cast<double>(static_cast<NodeWeight<NodeID_, WeightT_>>(neighbor).w);
+                    }
+                    
+                    K cv = community[v];
+                    if (cu == cv) {
+                        Q += w - resolution * vtot[u] * vtot[v] / (2.0 * M);
+                    }
+                }
+            }
+        }
+        
+        return Q / (2.0 * M);
+    }
+    
+    /**
+     * Scan all edges connected to vertex u (both out-edges and in-edges).
+     * For symmetric graphs, out_neigh == in_neigh so we deduplicate.
+     * For directed graphs with MakeInverse=true, we get all edges.
+     * 
+     * Accumulates edge weights into the hash map by community.
+     * Returns the total weight to the specified community 'd'.
+     */
+    template <typename K, typename W>
+    inline W scanVertexEdges(
+        NodeID_ u,
+        const K* vcom,
+        std::unordered_map<K, W>& hash,
+        K d,
+        const CSRGraph<NodeID_, DestID_, true>& g,
+        bool graph_is_symmetric) {
+        
+        W ku_to_d = W(0);
+        
+        // Scan out-neighbors
+        for (auto neighbor : g.out_neigh(u)) {
+            NodeID_ v;
+            W w;
+            if constexpr (std::is_same_v<DestID_, NodeID_>) {
+                v = neighbor;
+                w = W(1);
+            } else {
+                v = static_cast<NodeWeight<NodeID_, WeightT_>>(neighbor).v;
+                w = static_cast<W>(static_cast<NodeWeight<NodeID_, WeightT_>>(neighbor).w);
+            }
+            
+            K c = vcom[v];
+            hash[c] += w;
+            if (c == d) ku_to_d += w;
+        }
+        
+        // For non-symmetric graphs, also scan in-neighbors
+        // (For symmetric graphs, in_neigh == out_neigh, so skip to avoid double-counting)
+        if (!graph_is_symmetric) {
+            for (auto neighbor : g.in_neigh(u)) {
+                NodeID_ v;
+                W w;
+                if constexpr (std::is_same_v<DestID_, NodeID_>) {
+                    v = neighbor;
+                    w = W(1);
+                } else {
+                    v = static_cast<NodeWeight<NodeID_, WeightT_>>(neighbor).v;
+                    w = static_cast<W>(static_cast<NodeWeight<NodeID_, WeightT_>>(neighbor).w);
+                }
+                
+                K c = vcom[v];
+                hash[c] += w;
+                if (c == d) ku_to_d += w;
+            }
+        }
+        
+        return ku_to_d;
+    }
+    
+    /**
+     * Compute vertex total weight (degree sum for unweighted graphs).
+     * Scans both out and in edges for non-symmetric graphs.
+     */
+    template <typename W>
+    inline W computeVertexTotalWeight(
+        NodeID_ u,
+        const CSRGraph<NodeID_, DestID_, true>& g,
+        bool graph_is_symmetric) {
+        
+        W total = W(0);
+        
+        for (auto neighbor : g.out_neigh(u)) {
+            if constexpr (std::is_same_v<DestID_, NodeID_>) {
+                total += W(1);
+            } else {
+                total += static_cast<W>(static_cast<NodeWeight<NodeID_, WeightT_>>(neighbor).w);
+            }
+        }
+        
+        if (!graph_is_symmetric) {
+            for (auto neighbor : g.in_neigh(u)) {
+                if constexpr (std::is_same_v<DestID_, NodeID_>) {
+                    total += W(1);
+                } else {
+                    total += static_cast<W>(static_cast<NodeWeight<NodeID_, WeightT_>>(neighbor).w);
+                }
+            }
+        }
+        
+        return total;
+    }
+    
+    /**
+     * Delta modularity calculation for community move.
+     * Uses the formula: ΔQ = (K_i→c - K_i→d)/m - R·K_i·(Σ_c - Σ_d + K_i)/(2m²)
+     */
+    template <typename W>
+    inline W gveDeltaModularity(W ki_to_c, W ki_to_d, W ki, W sigma_c, W sigma_d, double M, double R) {
+        return (ki_to_c - ki_to_d) / M - R * ki * (sigma_c - sigma_d + ki) / (2.0 * M * M);
+    }
+    
+    /**
+     * Mark all neighbors of vertex u as affected.
+     */
+    inline void markNeighborsAffected(
+        NodeID_ u,
+        std::vector<char>& vaff,
+        const CSRGraph<NodeID_, DestID_, true>& g,
+        bool graph_is_symmetric) {
+        
+        for (auto neighbor : g.out_neigh(u)) {
+            NodeID_ v;
+            if constexpr (std::is_same_v<DestID_, NodeID_>) {
+                v = neighbor;
+            } else {
+                v = static_cast<NodeWeight<NodeID_, WeightT_>>(neighbor).v;
+            }
+            vaff[v] = 1;
+        }
+        
+        if (!graph_is_symmetric) {
+            for (auto neighbor : g.in_neigh(u)) {
+                NodeID_ v;
+                if constexpr (std::is_same_v<DestID_, NodeID_>) {
+                    v = neighbor;
+                } else {
+                    v = static_cast<NodeWeight<NodeID_, WeightT_>>(neighbor).v;
+                }
+                vaff[v] = 1;
+            }
+        }
+    }
+    
+    /**
+     * GVE-Leiden Local-Moving Phase (Algorithm 2)
+     * 
+     * Iteratively moves vertices to communities that maximize modularity.
+     * Uses flag-based vertex pruning for efficiency.
+     */
+    template <typename K = uint32_t, typename W = double>
+    int gveLeidenLocalMove(
+        std::vector<K>& vcom,           // Community membership (updated)
+        std::vector<W>& ctot,           // Community total weight (updated)
+        std::vector<char>& vaff,        // Vertex affected flag (updated)
+        const std::vector<W>& vtot,     // Vertex total weight
+        const int64_t num_nodes,
+        const CSRGraph<NodeID_, DestID_, true>& g,
+        bool graph_is_symmetric,
+        double M, double R, int L, double tolerance) {
+        
+        int iterations = 0;
+        W total_delta = W(0);
+        
+        // Thread-local hashtables for scanning communities
+        const int num_threads = omp_get_max_threads();
+        std::vector<std::unordered_map<K, W>> thread_hash(num_threads);
+        
+        for (int iter = 0; iter < L; ++iter) {
+            total_delta = W(0);
+            int moves_this_iter = 0;
+            
+            #pragma omp parallel reduction(+:total_delta, moves_this_iter)
+            {
+                int tid = omp_get_thread_num();
+                auto& hash = thread_hash[tid];
+                
+                #pragma omp for schedule(dynamic, 2048)
+                for (int64_t u = 0; u < num_nodes; ++u) {
+                    if (!vaff[u]) continue;
+                    
+                    K d = vcom[u];  // Current community
+                    W ku = vtot[u]; // Vertex total weight
+                    
+                    // Clear and scan ALL edges connected to u
+                    hash.clear();
+                    W ku_to_d = scanVertexEdges<K, W>(u, vcom.data(), hash, d, g, graph_is_symmetric);
+                    
+                    // Find best community to move to
+                    K best_c = d;
+                    W best_delta = W(0);
+                    
+                    for (auto& [c, ku_to_c] : hash) {
+                        if (c == d) continue;
+                        
+                        W sigma_c = ctot[c];
+                        W sigma_d = ctot[d];
+                        
+                        W delta = gveDeltaModularity(ku_to_c, ku_to_d, ku, sigma_c, sigma_d, M, R);
+                        
+                        if (delta > best_delta) {
+                            best_delta = delta;
+                            best_c = c;
+                        }
+                    }
+                    
+                    // Move vertex if positive gain
+                    if (best_c != d) {
+                        // Update community weights atomically
+                        #pragma omp atomic
+                        ctot[d] -= ku;
+                        #pragma omp atomic
+                        ctot[best_c] += ku;
+                        
+                        vcom[u] = best_c;
+                        
+                        // Mark neighbors as affected
+                        markNeighborsAffected(u, vaff, g, graph_is_symmetric);
+                        
+                        total_delta += best_delta;
+                        moves_this_iter++;
+                    }
+                    
+                    vaff[u] = 0;
+                }
+            }
+            
+            iterations++;
+            
+            // Check convergence - no moves or very small delta
+            if (moves_this_iter == 0 || total_delta <= tolerance) break;
+        }
+        
+        return iterations;
+    }
+    
+    /**
+     * GVE-Leiden Refinement Phase (Algorithm 3)
+     * 
+     * Key insight: Only ISOLATED vertices (ctot[c] == vtot[v]) can move.
+     * This ensures communities remain well-connected.
+     * Moves are constrained within community bounds from local-moving phase.
+     */
+    template <typename K = uint32_t, typename W = double>
+    int gveLeidenRefine(
+        std::vector<K>& vcom,           // Community membership (updated)
+        std::vector<W>& ctot,           // Community total weight (updated)
+        std::vector<char>& vaff,        // Vertex affected flag (updated)
+        const std::vector<K>& vcob,     // Community bounds (from local-moving)
+        const std::vector<W>& vtot,     // Vertex total weight
+        const int64_t num_nodes,
+        const CSRGraph<NodeID_, DestID_, true>& g,
+        bool graph_is_symmetric,
+        double M, double R) {
+        
+        int moves = 0;
+        
+        // Thread-local hashtables
+        const int num_threads = omp_get_max_threads();
+        std::vector<std::unordered_map<K, W>> thread_hash(num_threads);
+        
+        // Single pass refinement (per paper)
+        #pragma omp parallel reduction(+:moves)
+        {
+            int tid = omp_get_thread_num();
+            auto& hash = thread_hash[tid];
+            
+            #pragma omp for schedule(dynamic, 2048)
+            for (int64_t u = 0; u < num_nodes; ++u) {
+                K d = vcom[u];      // Current community
+                K b = vcob[u];      // Community bound
+                W ku = vtot[u];     // Vertex total weight
+                W sigma_d = ctot[d]; // Current community weight
+                
+                // KEY LEIDEN INSIGHT: Only isolated vertices can move
+                // A vertex is isolated if it's the only one in its community
+                // (i.e., community total weight equals vertex weight)
+                W expected_d = ku;
+                W actual_d;
+                
+                // Atomically check if vertex is isolated
+                #pragma omp atomic read
+                actual_d = ctot[d];
+                
+                // Use small tolerance for floating point comparison
+                if (actual_d > expected_d * 1.001) {
+                    // Not isolated - cannot move
+                    continue;
+                }
+                
+                // Scan communities within the same community bound
+                hash.clear();
+                W ku_to_d = W(0);
+                
+                // Scan out-neighbors within bounds
+                for (auto neighbor : g.out_neigh(u)) {
+                    NodeID_ v;
+                    W w;
+                    if constexpr (std::is_same_v<DestID_, NodeID_>) {
+                        v = neighbor;
+                        w = W(1);
+                    } else {
+                        v = static_cast<NodeWeight<NodeID_, WeightT_>>(neighbor).v;
+                        w = static_cast<W>(static_cast<NodeWeight<NodeID_, WeightT_>>(neighbor).w);
+                    }
+                    
+                    // Only consider neighbors within same community bound
+                    if (vcob[v] != b) continue;
+                    
+                    K c = vcom[v];
+                    hash[c] += w;
+                    if (c == d) ku_to_d += w;
+                }
+                
+                // Also scan in-neighbors within bounds (for non-symmetric graphs)
+                if (!graph_is_symmetric) {
+                    for (auto neighbor : g.in_neigh(u)) {
+                        NodeID_ v;
+                        W w;
+                        if constexpr (std::is_same_v<DestID_, NodeID_>) {
+                            v = neighbor;
+                            w = W(1);
+                        } else {
+                            v = static_cast<NodeWeight<NodeID_, WeightT_>>(neighbor).v;
+                            w = static_cast<W>(static_cast<NodeWeight<NodeID_, WeightT_>>(neighbor).w);
+                        }
+                        
+                        if (vcob[v] != b) continue;
+                        
+                        K c = vcom[v];
+                        hash[c] += w;
+                        if (c == d) ku_to_d += w;
+                    }
+                }
+                
+                // Find best community within bounds
+                K best_c = d;
+                W best_delta = W(0);
+                
+                for (auto& [c, ku_to_c] : hash) {
+                    if (c == d) continue;
+                    
+                    W sigma_c;
+                    #pragma omp atomic read
+                    sigma_c = ctot[c];
+                    
+                    W delta = gveDeltaModularity(ku_to_c, ku_to_d, ku, sigma_c, sigma_d, M, R);
+                    
+                    if (delta > best_delta) {
+                        best_delta = delta;
+                        best_c = c;
+                    }
+                }
+                
+                // Move vertex if positive gain AND still isolated
+                if (best_c != d) {
+                    // Double-check isolation with atomic capture
+                    W old_sigma_d;
+                    #pragma omp atomic capture
+                    {
+                        old_sigma_d = ctot[d];
+                        ctot[d] -= ku;
+                    }
+                    
+                    // If we weren't actually isolated, undo
+                    if (old_sigma_d > ku * 1.001) {
+                        #pragma omp atomic
+                        ctot[d] += ku;
+                        continue;
+                    }
+                    
+                    #pragma omp atomic
+                    ctot[best_c] += ku;
+                    
+                    vcom[u] = best_c;
+                    moves++;
+                    
+                    // Mark neighbors as affected for next iteration
+                    markNeighborsAffected(u, vaff, g, graph_is_symmetric);
+                }
+            }
+        }
+        
+        return moves;
+    }
+    
+    /**
+     * Compute community-to-community edge weights for virtual aggregation.
+     * This enables hierarchical merging without building an actual super-graph.
+     */
+    template <typename K, typename W>
+    void computeCommunityGraph(
+        std::unordered_map<K, std::unordered_map<K, W>>& comm_graph,  // comm -> (neighbor_comm -> weight)
+        std::unordered_map<K, W>& comm_weight,                         // total weight of each community
+        const std::vector<K>& vcom,
+        const std::vector<W>& vtot,
+        const int64_t num_nodes,
+        const CSRGraph<NodeID_, DestID_, true>& g,
+        bool graph_is_symmetric) {
+        
+        comm_graph.clear();
+        comm_weight.clear();
+        
+        // Compute community total weights
+        for (int64_t v = 0; v < num_nodes; ++v) {
+            comm_weight[vcom[v]] += vtot[v];
+        }
+        
+        // Compute community-to-community edges
+        for (int64_t u = 0; u < num_nodes; ++u) {
+            K cu = vcom[u];
+            
+            for (auto neighbor : g.out_neigh(u)) {
+                NodeID_ v;
+                W w;
+                if constexpr (std::is_same_v<DestID_, NodeID_>) {
+                    v = neighbor;
+                    w = W(1);
+                } else {
+                    v = static_cast<NodeWeight<NodeID_, WeightT_>>(neighbor).v;
+                    w = static_cast<W>(static_cast<NodeWeight<NodeID_, WeightT_>>(neighbor).w);
+                }
+                
+                K cv = vcom[v];
+                if (cu != cv) {
+                    comm_graph[cu][cv] += w;
+                }
+            }
+            
+            if (!graph_is_symmetric) {
+                for (auto neighbor : g.in_neigh(u)) {
+                    NodeID_ v;
+                    W w;
+                    if constexpr (std::is_same_v<DestID_, NodeID_>) {
+                        v = neighbor;
+                        w = W(1);
+                    } else {
+                        v = static_cast<NodeWeight<NodeID_, WeightT_>>(neighbor).v;
+                        w = static_cast<W>(static_cast<NodeWeight<NodeID_, WeightT_>>(neighbor).w);
+                    }
+                    
+                    K cv = vcom[v];
+                    if (cu != cv) {
+                        comm_graph[cu][cv] += w;
+                    }
+                }
+            }
+        }
+    }
+    
+    /**
+     * Local-moving on the community graph (virtual aggregation).
+     * Returns the community mapping: old_comm -> new_comm
+     */
+    template <typename K, typename W>
+    std::unordered_map<K, K> communityLocalMove(
+        const std::unordered_map<K, std::unordered_map<K, W>>& comm_graph,
+        const std::unordered_map<K, W>& comm_weight,
+        double M, double R, int max_iterations, double tolerance) {
+        
+        // Get list of communities
+        std::vector<K> comms;
+        for (auto& [c, _] : comm_weight) {
+            comms.push_back(c);
+        }
+        
+        // Initialize each community as its own super-community
+        std::unordered_map<K, K> super_comm;  // comm -> super-comm
+        std::unordered_map<K, W> super_weight; // super-comm total weight
+        for (K c : comms) {
+            super_comm[c] = c;
+            auto it = comm_weight.find(c);
+            super_weight[c] = (it != comm_weight.end()) ? it->second : W(0);
+        }
+        
+        // Iterate
+        for (int iter = 0; iter < max_iterations; ++iter) {
+            int moves = 0;
+            
+            for (K c : comms) {
+                K d = super_comm[c];  // Current super-community
+                
+                auto kc_it = comm_weight.find(c);
+                W kc = (kc_it != comm_weight.end()) ? kc_it->second : W(0);
+                
+                // Scan neighbor super-communities
+                std::unordered_map<K, W> neighbor_weight;
+                W kc_to_d = W(0);
+                
+                auto it = comm_graph.find(c);
+                if (it != comm_graph.end()) {
+                    for (auto& [nc, w] : it->second) {
+                        auto sc_it = super_comm.find(nc);
+                        if (sc_it != super_comm.end()) {
+                            K snc = sc_it->second;
+                            neighbor_weight[snc] += w;
+                            if (snc == d) kc_to_d += w;
+                        }
+                    }
+                }
+                
+                // Find best super-community
+                K best_sc = d;
+                W best_delta = W(0);
+                
+                for (auto& [sc, kc_to_sc] : neighbor_weight) {
+                    if (sc == d) continue;
+                    
+                    auto sw_sc_it = super_weight.find(sc);
+                    auto sw_d_it = super_weight.find(d);
+                    W sigma_sc = (sw_sc_it != super_weight.end()) ? sw_sc_it->second : W(0);
+                    W sigma_d = (sw_d_it != super_weight.end()) ? sw_d_it->second : W(0);
+                    
+                    W delta = gveDeltaModularity(kc_to_sc, kc_to_d, kc, sigma_sc, sigma_d, M, R);
+                    
+                    if (delta > best_delta) {
+                        best_delta = delta;
+                        best_sc = sc;
+                    }
+                }
+                
+                // Move if positive gain
+                if (best_sc != d) {
+                    super_weight[d] -= kc;
+                    super_weight[best_sc] += kc;
+                    super_comm[c] = best_sc;
+                    moves++;
+                }
+            }
+            
+            if (moves == 0) break;
+        }
+        
+        return super_comm;
+    }
+    
+    /**
+     * Main GVE-Leiden Algorithm (Algorithm 1) with REFINEMENT and AGGREGATION
+     * 
+     * Following the paper: "Fast Leiden Algorithm for Community Detection in Shared Memory Setting"
+     * ACM DOI: 10.1145/3673038.3673146
+     * 
+     * Key differences from Louvain (used by RabbitOrder):
+     * 1. REFINEMENT phase ensures well-connected communities (only isolated vertices move)
+     * 2. Proper aggregation with community bounds
+     * 
+     * This should produce HIGHER modularity than RabbitOrder/Louvain.
+     */
+    template <typename K = uint32_t>
+    GVELeidenResult<K> GVELeidenCSR(
+        const CSRGraph<NodeID_, DestID_, true>& g,
+        double resolution = 1.0,
+        double tolerance = 1e-2,
+        double aggregation_tolerance = 0.8,
+        double tolerance_drop = 10.0,
+        int max_iterations = 20,
+        int max_passes = 10) {
+        
+        using W = double;
+        
+        const int64_t num_nodes = g.num_nodes();
+        
+        // Detect if graph is symmetric
+        bool graph_is_symmetric = !g.directed();
+        
+        // Compute M (total edge weight)
+        const int64_t num_edges_stored = g.num_edges();
+        const double M = static_cast<double>(num_edges_stored);
+        
+        GVELeidenResult<K> result;
+        result.total_iterations = 0;
+        result.total_passes = 0;
+        
+        // Initialize data structures for original graph level
+        std::vector<K> vcom(num_nodes);      // Current community
+        std::vector<K> vcob(num_nodes);      // Community bounds (from local-moving for refinement)
+        std::vector<W> vtot(num_nodes);      // Vertex total weight
+        std::vector<W> ctot(num_nodes);      // Community total weight
+        std::vector<char> vaff(num_nodes, 1); // Vertex affected flag
+        
+        // Initialize in parallel
+        #pragma omp parallel for
+        for (int64_t v = 0; v < num_nodes; ++v) {
+            vcom[v] = static_cast<K>(v);
+            W vtot_v = computeVertexTotalWeight<W>(v, g, graph_is_symmetric);
+            vtot[v] = vtot_v;
+            ctot[v] = vtot_v;
+        }
+        
+        double current_tolerance = tolerance;
+        size_t prev_communities = num_nodes;
+        
+        // Main Leiden loop (Algorithm 1 from paper)
+        for (int pass = 0; pass < max_passes; ++pass) {
+            
+            // ================================================================
+            // PHASE 1: LOCAL-MOVING (Algorithm 2)
+            // Vertices move to communities that maximize modularity
+            // ================================================================
+            int local_iters = gveLeidenLocalMove<K, W>(
+                vcom, ctot, vaff, vtot, num_nodes, g, graph_is_symmetric,
+                M, resolution, max_iterations, current_tolerance);
+            
+            result.total_iterations += local_iters;
+            
+            // Store community bounds (result of local-moving phase)
+            // These bounds constrain refinement phase
+            #pragma omp parallel for
+            for (int64_t v = 0; v < num_nodes; ++v) {
+                vcob[v] = vcom[v];
+            }
+            
+            // Count communities after local-moving
+            std::unordered_set<K> unique_comms_local;
+            for (int64_t v = 0; v < num_nodes; ++v) {
+                unique_comms_local.insert(vcom[v]);
+            }
+            size_t num_communities_after_local = unique_comms_local.size();
+            
+            // ================================================================
+            // PHASE 2: REFINEMENT (Optional - only on first pass for Leiden guarantee)
+            // For subsequent passes, skip refinement for better aggregation
+            // ================================================================
+            
+            std::vector<K> vcom_refined(num_nodes);
+            size_t num_refined_communities;
+            int refine_moves = 0;
+            
+            if (pass == 0) {
+                // First pass: do full refinement for well-connected communities
+                std::vector<W> ctot_refined(num_nodes);
+                
+                #pragma omp parallel for
+                for (int64_t v = 0; v < num_nodes; ++v) {
+                    vcom_refined[v] = static_cast<K>(v);  // Each vertex is its own refined community
+                    ctot_refined[v] = vtot[v];
+                }
+                
+                // Reset affected flags for refinement
+                #pragma omp parallel for
+                for (int64_t v = 0; v < num_nodes; ++v) {
+                    vaff[v] = 1;
+                }
+                
+                // Refinement iterations - vertices can only move within their community bound
+                refine_moves = gveLeidenRefine<K, W>(
+                    vcom_refined, ctot_refined, vaff, vcob, vtot,
+                    num_nodes, g, graph_is_symmetric, M, resolution);
+                
+                // Renumber refined communities contiguously
+                std::unordered_map<K, K> refine_renumber;
+                K next_refined_id = 0;
+                for (int64_t v = 0; v < num_nodes; ++v) {
+                    K rc = vcom_refined[v];
+                    if (refine_renumber.find(rc) == refine_renumber.end()) {
+                        refine_renumber[rc] = next_refined_id++;
+                    }
+                }
+                
+                #pragma omp parallel for
+                for (int64_t v = 0; v < num_nodes; ++v) {
+                    vcom_refined[v] = refine_renumber[vcom_refined[v]];
+                }
+                
+                num_refined_communities = static_cast<size_t>(next_refined_id);
+            } else {
+                // Subsequent passes: use communities directly (Louvain-style)
+                // This allows better hierarchical merging
+                #pragma omp parallel for
+                for (int64_t v = 0; v < num_nodes; ++v) {
+                    vcom_refined[v] = vcom[v];
+                }
+                num_refined_communities = num_communities_after_local;
+            }
+            
+            // Map refined communities to their bound communities
+            // This creates the hierarchical structure
+            std::vector<K> refined_to_bound(num_refined_communities, K(-1));
+            for (int64_t v = 0; v < num_nodes; ++v) {
+                K rc = vcom_refined[v];
+                K bc = vcob[v];
+                if (refined_to_bound[rc] == K(-1)) {
+                    refined_to_bound[rc] = bc;
+                }
+            }
+            
+            // Build super-graph using compact representation
+            // Each community stores its total weight
+            std::vector<W> super_weight(num_refined_communities, W(0));
+            
+            // Compute community weights in parallel
+            #pragma omp parallel for
+            for (int64_t v = 0; v < num_nodes; ++v) {
+                K c = vcom_refined[v];
+                #pragma omp atomic
+                super_weight[c] += vtot[v];
+            }
+            
+            // Build edge list for super-graph (more memory efficient for sparse graphs)
+            // Format: vector of (source_comm, dest_comm, weight)
+            struct SuperEdge {
+                K src, dst;
+                W weight;
+            };
+            
+            // Thread-local edge lists
+            const int num_threads = omp_get_max_threads();
+            std::vector<std::vector<SuperEdge>> thread_edges(num_threads);
+            
+            #pragma omp parallel
+            {
+                int tid = omp_get_thread_num();
+                auto& local_edges = thread_edges[tid];
+                local_edges.reserve(g.num_edges() / num_threads / 10);  // Estimate
+                
+                // Thread-local hash for deduplication within chunk
+                std::unordered_map<uint64_t, W> edge_hash;
+                
+                #pragma omp for schedule(dynamic, 4096)
+                for (int64_t u = 0; u < num_nodes; ++u) {
+                    K cu = vcom_refined[u];  // Already renumbered
+                    
+                    for (auto neighbor : g.out_neigh(u)) {
+                        NodeID_ v;
+                        W w;
+                        if constexpr (std::is_same_v<DestID_, NodeID_>) {
+                            v = neighbor;
+                            w = W(1);
+                        } else {
+                            v = static_cast<NodeWeight<NodeID_, WeightT_>>(neighbor).v;
+                            w = static_cast<W>(static_cast<NodeWeight<NodeID_, WeightT_>>(neighbor).w);
+                        }
+                        
+                        K cv = vcom_refined[v];  // Already renumbered
+                        if (cu != cv && cu < num_refined_communities && cv < num_refined_communities) {
+                            uint64_t key = (static_cast<uint64_t>(cu) << 32) | cv;
+                            edge_hash[key] += w;
+                        }
+                    }
+                }
+                
+                // Convert hash to vector
+                for (auto& [key, w] : edge_hash) {
+                    K src = static_cast<K>(key >> 32);
+                    K dst = static_cast<K>(key & 0xFFFFFFFF);
+                    local_edges.push_back({src, dst, w});
+                }
+            }
+            
+            // Merge into global edge hash
+            std::unordered_map<uint64_t, W> global_edge_hash;
+            for (int t = 0; t < num_threads; ++t) {
+                for (auto& e : thread_edges[t]) {
+                    uint64_t key = (static_cast<uint64_t>(e.src) << 32) | e.dst;
+                    global_edge_hash[key] += e.weight;
+                }
+            }
+            
+            // Convert to adjacency list for super-graph
+            std::vector<std::vector<std::pair<K, W>>> super_adj(num_refined_communities);
+            for (auto& [key, w] : global_edge_hash) {
+                K src = static_cast<K>(key >> 32);
+                K dst = static_cast<K>(key & 0xFFFFFFFF);
+                if (src < num_refined_communities) {
+                    super_adj[src].emplace_back(dst, w);
+                }
+            }
+            
+            // ================================================================
+            // LOCAL-MOVING ON SUPER-GRAPH
+            // Merge refined communities
+            // ================================================================
+            
+            std::vector<K> super_comm(num_refined_communities);
+            std::vector<W> super_ctot(num_refined_communities);
+            
+            #pragma omp parallel for
+            for (size_t c = 0; c < num_refined_communities; ++c) {
+                super_comm[c] = c;
+                super_ctot[c] = super_weight[c];
+            }
+            
+            // Iterate local-moving on super-graph (NO bounds constraint - allow full merging)
+            for (int iter = 0; iter < max_iterations; ++iter) {
+                int moves = 0;
+                
+                for (size_t c = 0; c < num_refined_communities; ++c) {
+                    K d = super_comm[c];  // Current super-community
+                    W kc = super_weight[c];
+                    W sigma_d = super_ctot[d];
+                    
+                    // Scan ALL neighbor super-communities (no bounds restriction)
+                    std::unordered_map<K, W> neighbor_sc_weight;
+                    W kc_to_d = W(0);
+                    
+                    for (auto& [nc, w] : super_adj[c]) {
+                        K snc = super_comm[nc];
+                        neighbor_sc_weight[snc] += w;
+                        if (snc == d) kc_to_d += w;
+                    }
+                    
+                    // Find best super-community (no bounds restriction)
+                    K best_sc = d;
+                    W best_delta = W(0);
+                    
+                    for (auto& [sc, kc_to_sc] : neighbor_sc_weight) {
+                        if (sc == d) continue;
+                        
+                        W sigma_sc = super_ctot[sc];
+                        W delta = gveDeltaModularity(kc_to_sc, kc_to_d, kc, sigma_sc, sigma_d, M, resolution);
+                        
+                        if (delta > best_delta) {
+                            best_delta = delta;
+                            best_sc = sc;
+                        }
+                    }
+                    
+                    // Move if positive gain
+                    if (best_sc != d) {
+                        super_ctot[d] -= kc;
+                        super_ctot[best_sc] += kc;
+                        super_comm[c] = best_sc;
+                        moves++;
+                    }
+                }
+                
+                if (moves == 0) break;
+            }
+            
+            // Map back to original vertices
+            #pragma omp parallel for
+            for (int64_t v = 0; v < num_nodes; ++v) {
+                K rc = vcom_refined[v];
+                vcom[v] = super_comm[rc];
+            }
+            
+            // Renumber final communities contiguously
+            std::unordered_map<K, K> final_renumber;
+            K next_final_id = 0;
+            for (int64_t v = 0; v < num_nodes; ++v) {
+                K c = vcom[v];
+                if (final_renumber.find(c) == final_renumber.end()) {
+                    final_renumber[c] = next_final_id++;
+                }
+            }
+            
+            #pragma omp parallel for
+            for (int64_t v = 0; v < num_nodes; ++v) {
+                vcom[v] = final_renumber[vcom[v]];
+            }
+            
+            size_t num_final_communities = static_cast<size_t>(next_final_id);
+            
+            // Store pass result
+            std::vector<K> pass_community(num_nodes);
+            #pragma omp parallel for
+            for (int64_t v = 0; v < num_nodes; ++v) {
+                pass_community[v] = vcom[v];
+            }
+            result.community_per_pass.push_back(pass_community);
+            result.total_passes++;
+            
+            printf("  Pass %d: local=%d iters, refine=%d moves, communities: %zu -> %zu -> %zu\n",
+                   pass + 1, local_iters, refine_moves,
+                   prev_communities, num_refined_communities, num_final_communities);
+            
+            // Check convergence
+            if (num_final_communities >= prev_communities || num_final_communities == 1) {
+                break;
+            }
+            
+            // Check aggregation tolerance - stop if not enough progress
+            double progress = static_cast<double>(num_final_communities) / prev_communities;
+            if (progress >= aggregation_tolerance) {
+                break;
+            }
+            
+            prev_communities = num_final_communities;
+            
+            // Recompute ctot for next pass
+            std::fill(ctot.begin(), ctot.end(), W(0));
+            #pragma omp parallel for
+            for (int64_t v = 0; v < num_nodes; ++v) {
+                #pragma omp atomic
+                ctot[vcom[v]] += vtot[v];
+            }
+            
+            // Reset affected flags for next pass
+            #pragma omp parallel for
+            for (int64_t v = 0; v < num_nodes; ++v) {
+                vaff[v] = 1;
+            }
+            
+            current_tolerance /= tolerance_drop;
+        }
+        
+        // Use final community assignment
+        if (!result.community_per_pass.empty()) {
+            result.final_community = result.community_per_pass.back();
+        } else {
+            result.final_community.resize(num_nodes);
+            std::iota(result.final_community.begin(), result.final_community.end(), 0);
+            result.community_per_pass.push_back(result.final_community);
+        }
+        
+        // Compute final modularity using the standard formula
+        result.modularity = computeModularityCSR<K>(g, result.final_community, resolution);
+        
+        printf("GVELeiden: %d passes, %d total iterations, modularity=%.6f\n",
+               result.total_passes, result.total_iterations, result.modularity);
+        
+        return result;
+    }
+
+    //==========================================================================
     // FAST LEIDEN-CSR: Direct CSR Community Detection (No DiGraph Conversion)
     //==========================================================================
     
     /**
-     * Fast Label Propagation on CSR for community detection
+     * FastLeidenCSR - Union-Find based community detection on CSR graphs
      * 
-     * This is a simplified but fast community detection that works directly
-     * on CSR format, avoiding the expensive DiGraph conversion.
-     * 
-     * Algorithm (inspired by LPA + Leiden refinement):
-     * 1. Initialize each node in its own community
-     * 2. For each node, compute modularity gain for joining neighbor communities
-     * 3. Move to best community (if gain > 0)
-     * 4. Repeat until convergence or max iterations
-     * 5. Coarsen and repeat for multi-level hierarchy
-     * 
+     * Uses modularity-guided community merging with Union-Find for efficiency:
+     * 1. Initialize each vertex in its own community
+     * 2. Process vertices in degree order (small first)
+     * 3. For each vertex, find best neighbor community to merge with
+     * 4. Merge if modularity delta > 0
+     * 5. Multiple passes allow communities to coalesce further
+     *
      * Returns: vector of community assignments per pass (finest to coarsest)
      */
-    template<typename NodeID_T, typename DestID_T>
-    /**
-     * Fast community detection with modularity-guided merging
-     * Based on RabbitOrder's approach: only merge if modularity improves
-     */
-    std::vector<std::vector<K>> FastLabelPropagationCSR(
-        const CSRGraph<NodeID_T, DestID_T, true>& g,
+    template <typename K = uint32_t>
+    std::vector<std::vector<K>> FastLeidenCSR(
+        const CSRGraph<NodeID_, DestID_, true>& g,
         double resolution = 1.0,
         int max_iterations = 10,
-        int max_passes = 5)
+        int max_passes = 10)
     {
         const int64_t num_nodes = g.num_nodes();
         const int64_t num_edges = g.num_edges_directed();
@@ -4758,7 +5774,7 @@ public:
         std::vector<K> parent(num_nodes);
         std::vector<double> strength(num_nodes);  // sum of degrees in community
         
-        // Initialize
+        // Initialize: each vertex in its own community
         #pragma omp parallel for
         for (int64_t i = 0; i < num_nodes; ++i) {
             parent[i] = i;
@@ -4766,14 +5782,19 @@ public:
         }
         
         // Find root with path compression
-        std::function<K(K)> find = [&](K x) -> K {
-            if (parent[x] != x) {
-                parent[x] = find(parent[x]);
+        auto find = [&](K x) -> K {
+            K root = x;
+            while (parent[root] != root) root = parent[root];
+            // Path compression
+            while (parent[x] != root) {
+                K next = parent[x];
+                parent[x] = root;
+                x = next;
             }
-            return parent[x];
+            return root;
         };
         
-        // Degree-ordered processing (smaller degrees first, like RabbitOrder)
+        // Degree-ordered processing (smaller degrees first)
         std::vector<std::pair<int64_t, K>> deg_order(num_nodes);
         #pragma omp parallel for
         for (int64_t v = 0; v < num_nodes; ++v) {
@@ -4781,16 +5802,15 @@ public:
         }
         std::sort(deg_order.begin(), deg_order.end());
         
-        // Multi-pass refinement loop
+        // Multi-pass merging
         for (int pass = 0; pass < max_passes; ++pass) {
             int64_t merge_count = 0;
             
-            // Sequential merging with modularity criterion
             for (auto& [deg, v] : deg_order) {
                 K v_root = find(v);
                 double v_str = strength[v_root];
                 
-                // Find best neighbor to merge with (positive modularity delta)
+                // Find best neighbor to merge with
                 double best_delta = 0.0;
                 K best_target = v_root;
                 
@@ -4809,10 +5829,16 @@ public:
                     }
                 }
                 
-                // Only merge if positive modularity gain
+                // Merge if positive gain
                 if (best_target != v_root) {
-                    parent[v_root] = best_target;
-                    strength[best_target] += v_str;
+                    // Union: smaller root becomes child of larger
+                    if (strength[v_root] < strength[best_target]) {
+                        parent[v_root] = best_target;
+                        strength[best_target] += v_str;
+                    } else {
+                        parent[best_target] = v_root;
+                        strength[v_root] += strength[best_target];
+                    }
                     merge_count++;
                 }
             }
@@ -4824,7 +5850,7 @@ public:
                 community[i] = find(i);
             }
             
-            // Renumber to be contiguous
+            // Renumber to contiguous IDs
             std::unordered_map<K, K> comm_renumber;
             K next_comm = 0;
             for (int64_t i = 0; i < num_nodes; ++i) {
@@ -4839,11 +5865,22 @@ public:
             
             printf("LeidenCSR pass %d: %ld merges, %u communities\n", pass + 1, merge_count, next_comm);
             
-            // Stop if no more merges possible
+            // Stop if no merges (fully converged)
             if (merge_count == 0) break;
         }
         
         return community_per_pass;
+    }
+    
+    // Keep old function name for compatibility
+    template <typename K = uint32_t>
+    std::vector<std::vector<K>> FastLabelPropagationCSR(
+        const CSRGraph<NodeID_, DestID_, true>& g,
+        double resolution = 1.0,
+        int max_iterations = 10,
+        int max_passes = 5)
+    {
+        return FastLeidenCSR<K>(g, resolution, max_iterations, max_passes);
     }
     
     /**
@@ -5001,14 +6038,20 @@ public:
         }
         
         tm.Stop();
-        PrintTime("LeidenCSR Ordering", tm.Seconds());
+        double map_time = tm.Seconds();
         
-        // Print community count from last pass
+        // Print community count and modularity from last pass
         if (!community_per_pass.empty()) {
-            K max_comm = *std::max_element(community_per_pass.back().begin(), 
-                                            community_per_pass.back().end());
-            PrintTime("LeidenCSR Communities", max_comm + 1);
+            // Count unique communities (don't use max+1 as communities may not be contiguous)
+            std::unordered_set<K> unique_comms(community_per_pass.back().begin(), 
+                                                community_per_pass.back().end());
+            PrintTime("LeidenCSR Communities", static_cast<double>(unique_comms.size()));
+            
+            // Compute and print modularity
+            double modularity = computeModularityCSR<K>(g, community_per_pass.back(), resolution);
+            PrintTime("LeidenCSR Modularity", modularity);
         }
+        PrintTime("LeidenCSR Map Time", map_time);
     }
 
     //==========================================================================
@@ -6354,10 +7397,121 @@ public:
             // True Leiden with modularity optimization
             internal_options.push_back("4"); // iterations
             GenerateLeidenMapping2(g, new_ids, internal_options);
+        } else if (variant == "gve") {
+            // GVE-Leiden: True Leiden algorithm per ACM paper
+            GenerateGVELeidenCSRMapping(g, new_ids, internal_options);
         } else {
             // Default to hubsort
             GenerateLeidenCSRMapping(g, new_ids, internal_options, 2);
         }
+    }
+    
+    /**
+     * GenerateGVELeidenCSRMapping - True Leiden ordering using GVE-Leiden algorithm
+     * 
+     * Uses the GVE-Leiden implementation which follows the ACM paper
+     * "Fast Leiden Algorithm for Community Detection in Shared Memory Setting"
+     * 
+     * Key features:
+     * - Proper refinement phase (only isolated vertices move)
+     * - Community bounds constraint
+     * - Well-connected communities guaranteed
+     * - Dendrogram-based ordering
+     */
+    void GenerateGVELeidenCSRMapping(
+        const CSRGraph<NodeID_, DestID_, invert>& g,
+        pvector<NodeID_>& new_ids,
+        std::vector<std::string> reordering_options) {
+        
+        Timer tm;
+        tm.Start();
+        
+        const int64_t num_nodes = g.num_nodes();
+        
+        // Parse options
+        double resolution = LeidenAutoResolution<NodeID_, DestID_>(g);
+        int max_iterations = 20;
+        int max_passes = 10;
+        
+        if (!reordering_options.empty() && !reordering_options[0].empty()) {
+            double parsed = std::stod(reordering_options[0]);
+            if (parsed > 0 && parsed <= 3) {
+                resolution = parsed;
+            }
+        }
+        if (reordering_options.size() > 1 && !reordering_options[1].empty()) {
+            max_iterations = std::stoi(reordering_options[1]);
+        }
+        if (reordering_options.size() > 2 && !reordering_options[2].empty()) {
+            max_passes = std::stoi(reordering_options[2]);
+        }
+        
+        printf("GVELeidenCSR: resolution=%.4f, max_iterations=%d, max_passes=%d\n",
+               resolution, max_iterations, max_passes);
+        
+        // Run GVE-Leiden algorithm
+        auto result = GVELeidenCSR<K>(g, resolution, 1e-2, 0.8, 10.0, max_iterations, max_passes);
+        
+        tm.Stop();
+        PrintTime("GVELeiden Community Detection", tm.Seconds());
+        
+        // Use community hierarchy for ordering
+        tm.Start();
+        
+        // Get degrees for secondary sort
+        std::vector<K> degrees(num_nodes);
+        #pragma omp parallel for
+        for (int64_t i = 0; i < num_nodes; ++i) {
+            degrees[i] = g.out_degree(i);
+        }
+        
+        // Build dendrogram from community passes
+        size_t num_communities = 0;  // Track the root-level community count
+        if (!result.community_per_pass.empty()) {
+            std::vector<LeidenDendrogramNode> nodes;
+            std::vector<int64_t> roots;
+            buildLeidenDendrogram(nodes, roots, result.community_per_pass, degrees, num_nodes);
+            
+            num_communities = roots.size();  // Root count = final community count
+            
+            // Use DFS with hub-first ordering (flavor 1)
+            orderDendrogramDFSParallel(nodes, roots, new_ids, true, false);
+        } else {
+            // Fallback: Sort by community then degree
+            std::vector<size_t> sort_indices(num_nodes);
+            #pragma omp parallel for
+            for (int64_t i = 0; i < num_nodes; ++i) {
+                sort_indices[i] = i;
+            }
+            
+            __gnu_parallel::sort(sort_indices.begin(), sort_indices.end(),
+                [&result, &degrees](size_t a, size_t b) {
+                    K comm_a = result.final_community[a];
+                    K comm_b = result.final_community[b];
+                    if (comm_a != comm_b) return comm_a < comm_b;
+                    return degrees[a] > degrees[b];  // Hub-first within community
+                });
+            
+            #pragma omp parallel for
+            for (int64_t i = 0; i < num_nodes; ++i) {
+                new_ids[sort_indices[i]] = i;
+            }
+            
+            // Count unique communities in final assignment
+            std::unordered_set<K> unique_comms;
+            for (int64_t v = 0; v < num_nodes; ++v) {
+                unique_comms.insert(result.final_community[v]);
+            }
+            num_communities = unique_comms.size();
+        }
+        
+        tm.Stop();
+        double ordering_time = tm.Seconds();
+        
+        // Report statistics - use dendrogram root count as community count
+        PrintTime("GVELeiden Communities", static_cast<double>(num_communities));
+        PrintTime("GVELeiden Modularity", result.modularity);
+        PrintTime("GVELeiden Map Time", ordering_time);  // Total map time (community detection already printed separately)
     }
 
     /**
