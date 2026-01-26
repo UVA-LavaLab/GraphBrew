@@ -1600,33 +1600,6 @@ def parse_benchmark_output(output: str) -> Dict[str, Any]:
     return result
 
 
-def parse_reorder_time_from_converter(output: str) -> Optional[float]:
-    """
-    Parse the actual reorder time from converter output.
-    
-    The converter outputs lines like:
-        HubSort Map Time:    0.05982
-        GOrder Map Time:     0.25328
-        RabbitOrder Map Time:0.09335
-        COrder Map Time:     0.00910
-        DBG Map Time:        0.01234
-        etc.
-    
-    We look for the LAST non-Relabel "*Map Time:" entry as that's the final reorder.
-    """
-    # Match lines like 'AlgoName Map Time:' but NOT 'Relabel Map Time:'
-    pattern = r'^([A-Za-z]+)\s+Map Time:\s*([\d.]+)'
-    matches = re.findall(pattern, output, re.MULTILINE)
-    
-    # Filter out Relabel entries
-    matches = [(name, time) for name, time in matches if name != 'Relabel']
-    
-    if matches:
-        # Return the last one (the actual reorder algorithm time)
-        return float(matches[-1][1])
-    
-    return None
-
 def parse_cache_output(output: str) -> Dict[str, float]:
     """Parse cache simulation output."""
     result = {}
