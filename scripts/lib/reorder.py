@@ -71,11 +71,11 @@ class ReorderResult:
 class AlgorithmConfig:
     """Configuration for an algorithm, including variant support."""
     algo_id: int           # Base algorithm ID (e.g., 17 for LeidenCSR)
-    name: str              # Display name (e.g., "LeidenCSR_fast")
-    option_string: str     # Full option string for -o flag (e.g., "17:1.0:3:fast")
-    variant: str = ""      # Variant name if applicable (e.g., "fast")
+    name: str              # Display name (e.g., "LeidenCSR_gve")
+    option_string: str     # Full option string for -o flag (e.g., "17:gve:1.0:20:10")
+    variant: str = ""      # Variant name if applicable (e.g., "gve")
     resolution: float = 1.0
-    passes: int = 3
+    passes: int = 10
     
     @property
     def base_name(self) -> str:

@@ -2,11 +2,16 @@
 """
 Compare Leiden Variants - Community Quality and Performance Benchmark
 
-This script compares all Leiden-based reordering algorithms:
+This script compares all community-based reordering algorithms:
+- RabbitOrder (8): Louvain-based with variants: csr (default), boost
 - LeidenOrder (15): Native optimized Leiden library (reference for quality)
 - LeidenDendrogram (16): Leiden + dendrogram traversal variants
-- LeidenCSR (17): Fast native CSR implementation  
+- LeidenCSR (17): Fast native CSR implementation with GVE-Leiden (default)
 - GraphBrewOrder (12): Leiden + per-community RabbitOrder
+
+Defaults (as of Jan 2026):
+- RabbitOrder: CSR variant (native, faster, no Boost dependency)
+- LeidenCSR: GVE variant (best modularity quality)
 
 Metrics compared:
 - Number of communities detected
@@ -200,28 +205,32 @@ def compare_leiden_variants(graph: Path, graph_info: Dict,
     
     # Define variants to test
     # Format for CLI: -o algo:variant:resolution:iterations:passes
-    # LeidenCSR (17): -o 17:hubsort:resolution:iterations:passes
+    # LeidenCSR (17): -o 17:gve:resolution:iterations:passes (gve is now default)
+    # RabbitOrder (8): -o 8:variant (csr is now default, boost optional)
     # Use empty resolution to let C++ auto-detect based on graph density
     variants_to_test = [
         # (algo_id, variant_options, description)
+        (8, "", "RabbitOrder (default=CSR)"),      # CSR is now default
+        (8, "boost", "RabbitOrder-boost"),          # Original Boost-based
         (15, "", "LeidenOrder (native Leiden)"),
         (16, "hybrid", "LeidenDendrogram-hybrid"),
         (16, "dfs", "LeidenDendrogram-dfs"),
         (16, "dfshub", "LeidenDendrogram-dfshub"),
         (16, "bfs", "LeidenDendrogram-bfs"),
-        (17, "hubsort::10:10", "LeidenCSR-hubsort-10pass"),  # auto-resolution, 10 passes
-        (17, "dfs::10:10", "LeidenCSR-dfs-10pass"),          # auto-resolution, 10 passes
-        (17, "gve::20:10", "LeidenCSR-gve (True Leiden)"),    # GVE-Leiden: auto-resolution, 20 iter, 10 passes
+        (17, "", "LeidenCSR (default=GVE)"),       # GVE-Leiden is now default
+        (17, "gve::20:5", "LeidenCSR-gve-5pass"),   # GVE-Leiden explicit: 20 iter, 5 passes
+        (17, "hubsort::10:3", "LeidenCSR-hubsort"),
+        (17, "fast::10:3", "LeidenCSR-fast"),
         (12, "", "GraphBrewOrder"),
     ]
     
     if not include_variants:
-        # Just test default variants - all use auto-resolution and 10 passes
+        # Just test default variants - all use auto-resolution
         variants_to_test = [
+            (8, "", "RabbitOrder (CSR)"),           # CSR default
             (15, "", "LeidenOrder"),
             (16, "hybrid", "LeidenDendrogram"),
-            (17, "hubsort::10:10", "LeidenCSR-10pass"),  # auto-resolution, 10 passes
-            (17, "gve::20:10", "LeidenCSR-gve"),         # GVE-Leiden
+            (17, "", "LeidenCSR (GVE)"),            # GVE default
             (12, "", "GraphBrewOrder"),
         ]
     
@@ -307,13 +316,14 @@ def main():
     args = parser.parse_args()
     
     print("="*80)
-    print("LEIDEN VARIANTS COMMUNITY QUALITY COMPARISON")
+    print("COMMUNITY-BASED REORDERING COMPARISON")
     print("="*80)
     print()
     print("Comparing:")
+    print("  - RabbitOrder (8): Louvain-based [csr=default, boost=optional]")
     print("  - LeidenOrder (15): Native optimized Leiden library [REFERENCE]")
     print("  - LeidenDendrogram (16): Leiden + dendrogram traversal")
-    print("  - LeidenCSR (17): Fast native CSR implementation")
+    print("  - LeidenCSR (17): GVE-Leiden [gve=default, best quality]")
     print("  - GraphBrewOrder (12): Leiden + per-community RabbitOrder")
     print()
     

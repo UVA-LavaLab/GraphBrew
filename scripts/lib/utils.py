@@ -68,9 +68,17 @@ SLOW_ALGORITHMS = {9, 10, 11}  # Gorder, Corder, RCM - can be slow on large grap
 LEIDEN_ALGORITHMS = {15, 16, 17}
 COMMUNITY_ALGORITHMS = {8, 12, 14, 15, 16, 17}
 
+# RabbitOrder variant definitions (default: csr)
+# Format: -o 8:variant where variant = csr (default) or boost
+RABBITORDER_VARIANTS = ["csr", "boost"]
+RABBITORDER_DEFAULT_VARIANT = "csr"  # Native CSR (faster, no external deps)
+
 # Leiden variant definitions
 LEIDEN_DENDROGRAM_VARIANTS = ["dfs", "dfshub", "dfssize", "bfs", "hybrid"]
-LEIDEN_CSR_VARIANTS = ["dfs", "bfs", "hubsort", "fast", "modularity"]
+# LeidenCSR variants (default: gve for best quality)
+# Format: -o 17:variant:resolution:iterations:passes
+LEIDEN_CSR_VARIANTS = ["gve", "dfs", "bfs", "hubsort", "fast", "modularity"]
+LEIDEN_CSR_DEFAULT_VARIANT = "gve"  # GVE-Leiden (best modularity quality)
 
 # Leiden default parameters
 LEIDEN_DEFAULT_RESOLUTION = 1.0
@@ -406,8 +414,8 @@ def parse_algorithm_option(option: str) -> Tuple[int, List[str]]:
     
     Examples:
         "0" -> (0, [])
-        "16:1.0:hybrid" -> (16, ["1.0", "hybrid"])
-        "17:1.0:3:fast" -> (17, ["1.0", "3", "fast"])
+        "16:hybrid:1.0" -> (16, ["hybrid", "1.0"])
+        "17:gve:1.0:20:10" -> (17, ["gve", "1.0", "20", "10"])
     """
     parts = option.split(":")
     algo_id = int(parts[0])
@@ -436,11 +444,12 @@ def expand_leiden_variants(algo_id: int) -> List[str]:
     Expand Leiden algorithm ID to all its variants.
     
     Returns list of option strings for all variants.
+    Format: 16:variant:resolution or 17:variant:resolution:iterations:passes
     """
     if algo_id == 16:  # LeidenDendrogram
-        return [f"16:1.0:{v}" for v in LEIDEN_DENDROGRAM_VARIANTS]
+        return [f"16:{v}:1.0" for v in LEIDEN_DENDROGRAM_VARIANTS]
     elif algo_id == 17:  # LeidenCSR
-        return [f"17:1.0:3:{v}" for v in LEIDEN_CSR_VARIANTS]
+        return [f"17:{v}:1.0:20:10" for v in LEIDEN_CSR_VARIANTS]
     else:
         return [str(algo_id)]
 
@@ -678,12 +687,12 @@ def main():
             print(f"  {aid:2d}: {name}")
     
     if args.list_leiden_variants:
-        print("LeidenDendrogram (16) variants:")
+        print("LeidenDendrogram (16) variants (format: 16:variant:resolution):")
         for v in LEIDEN_DENDROGRAM_VARIANTS:
-            print(f"  -o 16:1.0:{v}")
-        print("\nLeidenCSR (17) variants:")
+            print(f"  -o 16:{v}:1.0")
+        print("\nLeidenCSR (17) variants (format: 17:variant:resolution:iterations:passes):")
         for v in LEIDEN_CSR_VARIANTS:
-            print(f"  -o 17:1.0:3:{v}")
+            print(f"  -o 17:{v}:1.0:20:10")
 
 
 if __name__ == "__main__":

@@ -35,13 +35,14 @@ A comprehensive one-click script that runs the complete GraphBrew experiment wor
     # With custom parameters
     python scripts/graphbrew_experiment.py --generate-maps --expand-variants \\
         --leiden-resolution 1.0 --leiden-passes 3 \\
-        --leiden-csr-variants fast hubsort modularity
+        --leiden-csr-variants gve fast hubsort
     
     # Run benchmarks with variant mappings (trains weights for each variant)
     python scripts/graphbrew_experiment.py --phase benchmark --expand-variants --use-maps
     
-    LeidenCSR variants: dfs, bfs, hubsort, fast, modularity
-    LeidenDendrogram variants: dfs, dfshub, dfssize, bfs, hybrid
+    RabbitOrder (8) variants: csr (default), boost
+    LeidenCSR (17) variants: gve (default), dfs, bfs, hubsort, fast, modularity
+    LeidenDendrogram (16) variants: dfs, dfshub, dfssize, bfs, hybrid
 
 All outputs are saved to the results/ directory for clean organization.
 Type-based weights are saved to scripts/weights/active/type_*.json.
@@ -96,7 +97,12 @@ from scripts.lib import (
     # Core constants
     ALGORITHMS as LIB_ALGORITHMS,
     BENCHMARKS as LIB_BENCHMARKS,
+    # RabbitOrder variants (csr default)
+    RABBITORDER_VARIANTS as LIB_RABBITORDER_VARIANTS,
+    RABBITORDER_DEFAULT_VARIANT as LIB_RABBITORDER_DEFAULT_VARIANT,
+    # Leiden variants (gve default for LeidenCSR)
     LEIDEN_CSR_VARIANTS as LIB_LEIDEN_CSR_VARIANTS,
+    LEIDEN_CSR_DEFAULT_VARIANT as LIB_LEIDEN_CSR_DEFAULT_VARIANT,
     LEIDEN_DENDROGRAM_VARIANTS as LIB_LEIDEN_DENDROGRAM_VARIANTS,
     LEIDEN_DEFAULT_RESOLUTION as LIB_LEIDEN_DEFAULT_RESOLUTION,
     LEIDEN_DEFAULT_PASSES as LIB_LEIDEN_DEFAULT_PASSES,
@@ -256,9 +262,9 @@ ALGORITHMS = {
     # Leiden algorithms (15-17) - grouped together for easier sweeping
     # Format: 15:resolution
     15: "LeidenOrder",
-    # Format: 16:resolution:variant where variant = dfs/dfshub/dfssize/bfs/hybrid
+    # Format: 16:variant:resolution where variant = dfs/dfshub/dfssize/bfs/hybrid
     16: "LeidenDendrogram",
-    # Format: 17:resolution:passes:variant where variant = dfs/bfs/hubsort/fast/modularity
+    # Format: 17:variant:resolution:iterations:passes where variant = gve (default)/dfs/bfs/hubsort/fast/modularity
     17: "LeidenCSR",
 }
 
@@ -271,9 +277,16 @@ KEY_ALGORITHMS = [0, 1, 7, 8, 9, 11, 15, 16, 17]
 # Algorithms known to be slow on large graphs
 SLOW_ALGORITHMS = {9, 10, 11}  # GORDER, CORDER, RCM
 
+# RabbitOrder variant configurations (default: csr)
+# Format: -o 8:variant where variant = csr (default, native CSR) or boost (original Boost-based)
+RABBITORDER_VARIANTS = ["csr", "boost"]
+RABBITORDER_DEFAULT_VARIANT = "csr"
+
 # Leiden variant configurations for sweeping
 LEIDEN_DENDROGRAM_VARIANTS = ["dfs", "dfshub", "dfssize", "bfs", "hybrid"]
-LEIDEN_CSR_VARIANTS = ["dfs", "bfs", "hubsort", "fast", "modularity"]
+# LeidenCSR variants - gve (GVE-Leiden) is default for best modularity quality
+LEIDEN_CSR_VARIANTS = ["gve", "dfs", "bfs", "hubsort", "fast", "modularity"]
+LEIDEN_CSR_DEFAULT_VARIANT = "gve"
 
 # Default Leiden parameters
 LEIDEN_DEFAULT_RESOLUTION = 1.0
@@ -287,11 +300,11 @@ LEIDEN_DEFAULT_PASSES = 3
 class AlgorithmConfig:
     """Configuration for an algorithm, including variant support."""
     algo_id: int           # Base algorithm ID (e.g., 17 for LeidenCSR)
-    name: str              # Display name (e.g., "LeidenCSR_fast")
-    option_string: str     # Full option string for -o flag (e.g., "17:1.0:3:fast")
-    variant: str = ""      # Variant name if applicable (e.g., "fast")
+    name: str              # Display name (e.g., "LeidenCSR_gve")
+    option_string: str     # Full option string for -o flag (e.g., "17:gve:1.0:20:10")
+    variant: str = ""      # Variant name if applicable (e.g., "gve")
     resolution: float = 1.0
-    passes: int = 3
+    passes: int = 10
     
     @property
     def base_name(self) -> str:
@@ -393,7 +406,7 @@ def get_best_leiden_variant(
     """
     Get the best variant for a Leiden algorithm based on learned weights.
     
-    For LeidenCSR (17), variants are: dfs, bfs, hubsort, fast, modularity
+    For LeidenCSR (17), variants are: gve (default), dfs, bfs, hubsort, fast, modularity
     For LeidenDendrogram (16), variants are: dfs, dfshub, dfssize, bfs, hybrid
     
     Args:
@@ -2787,14 +2800,14 @@ Examples:
     
     # Leiden variant expansion options
     parser.add_argument("--expand-variants", action="store_true",
-                        help="Expand Leiden algorithms (16,17) into separate variants (fast, hubsort, etc.)")
+                        help="Expand Leiden algorithms (16,17) into separate variants (gve, fast, hubsort, etc.)")
     parser.add_argument("--leiden-resolution", type=float, default=1.0,
                         help="Resolution parameter for Leiden algorithms (default: 1.0)")
     parser.add_argument("--leiden-passes", type=int, default=3,
                         help="Number of passes for LeidenCSR (default: 3)")
     parser.add_argument("--leiden-csr-variants", nargs="+", 
-                        default=None, choices=["dfs", "bfs", "hubsort", "fast", "modularity"],
-                        help="LeidenCSR variants to include (default: all)")
+                        default=None, choices=["gve", "dfs", "bfs", "hubsort", "fast", "modularity"],
+                        help="LeidenCSR variants to include (default: all, gve recommended)")
     parser.add_argument("--leiden-dendrogram-variants", nargs="+",
                         default=None, choices=["dfs", "dfshub", "dfssize", "bfs", "hybrid"],
                         help="LeidenDendrogram variants to include (default: all)")

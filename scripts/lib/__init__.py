@@ -64,7 +64,12 @@ from .utils import (
     ALGORITHMS,
     ALGORITHM_IDS,
     BENCHMARKS,
+    # RabbitOrder variants (csr default, boost optional)
+    RABBITORDER_VARIANTS,
+    RABBITORDER_DEFAULT_VARIANT,
+    # Leiden variants (gve default for LeidenCSR)
     LEIDEN_CSR_VARIANTS,
+    LEIDEN_CSR_DEFAULT_VARIANT,
     LEIDEN_DENDROGRAM_VARIANTS,
     LEIDEN_DEFAULT_RESOLUTION,
     LEIDEN_DEFAULT_PASSES,
