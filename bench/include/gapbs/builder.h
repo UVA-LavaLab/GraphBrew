@@ -6999,6 +6999,10 @@ public:
         // Reorder time weight (NEW)
         double w_reorder_time = 0.0;       // penalty for slow reordering
         
+        // Metadata from training (for amortization calculation)
+        double avg_speedup = 1.0;          // average speedup observed during training
+        double avg_reorder_time = 0.0;     // average reorder time in seconds
+        
         // Benchmark-specific weights (NEW - multipliers per benchmark type)
         double bench_pr = 1.0;      // PageRank weight multiplier
         double bench_bfs = 1.0;     // BFS weight multiplier
@@ -7006,6 +7010,28 @@ public:
         double bench_sssp = 1.0;    // SSSP weight multiplier
         double bench_bc = 1.0;      // BC weight multiplier
         double bench_tc = 1.0;      // TC weight multiplier
+        
+        /**
+         * Calculate iterations needed to amortize reorder cost.
+         * 
+         * Formula: iterations = reorder_time / time_saved_per_iteration
+         * Where time_saved ≈ baseline_time * (1 - 1/speedup)
+         * 
+         * Lower = better (pays off faster)
+         * Returns INFINITY if speedup <= 1.0 (never pays off)
+         */
+        double iterationsToAmortize() const {
+            if (avg_speedup <= 1.0) {
+                return std::numeric_limits<double>::infinity();
+            }
+            // Assume baseline iteration time of 1 second for normalization
+            // time_saved_per_iter = 1.0 * (1 - 1/speedup) = (speedup - 1) / speedup
+            double time_saved_per_iter = (avg_speedup - 1.0) / avg_speedup;
+            if (time_saved_per_iter <= 0) {
+                return std::numeric_limits<double>::infinity();
+            }
+            return avg_reorder_time / time_saved_per_iter;
+        }
         
         /**
          * Get benchmark-specific multiplier
@@ -7356,6 +7382,20 @@ public:
             
             // Reorder time weight
             w.w_reorder_time = find_double(block, "w_reorder_time");
+            
+            // Parse _metadata block for avg_speedup and avg_reorder_time
+            size_t meta_pos = block.find("\"_metadata\"");
+            if (meta_pos != std::string::npos) {
+                size_t meta_start = block.find('{', meta_pos);
+                size_t meta_end = block.find('}', meta_start);
+                if (meta_start != std::string::npos && meta_end != std::string::npos) {
+                    std::string meta_block = block.substr(meta_start, meta_end - meta_start + 1);
+                    double speedup = find_double(meta_block, "avg_speedup");
+                    double reorder_time = find_double(meta_block, "avg_reorder_time");
+                    w.avg_speedup = (speedup > 0) ? speedup : 1.0;
+                    w.avg_reorder_time = (reorder_time > 0) ? reorder_time : 0.0;
+                }
+            }
             
             // Benchmark-specific weights (parse nested benchmark_weights object)
             // Find the benchmark_weights block within the algorithm block
@@ -8085,39 +8125,38 @@ public:
             }
             
             case MODE_BEST_AMORTIZATION: {
-                // Balance speedup potential vs reorder cost
-                // Use w_reorder_time as proxy for reorder speed
+                // Select algorithm that amortizes reorder cost fastest
+                // Uses actual avg_speedup and avg_reorder_time from training metadata
                 auto weights = LoadPerceptronWeightsForFeatures(
                     global_modularity, global_degree_variance, global_hub_concentration,
                     feat.avg_degree, num_nodes, num_edges, false);
                 
                 ReorderingAlgo best_algo = ORIGINAL;
-                double best_score = -std::numeric_limits<double>::infinity();
+                double best_iters = std::numeric_limits<double>::infinity();
                 
                 for (const auto& [algo, w] : weights) {
-                    double exec_score = w.score(feat, bench);
+                    if (algo == ORIGINAL) continue;  // ORIGINAL has no reorder cost
                     
-                    // Estimated speedup = (score - baseline) / baseline
-                    double speedup = std::max(1.001, exec_score / 0.5);
+                    // Use actual metadata: iterations = reorder_time / time_saved_per_iter
+                    // time_saved_per_iter = (speedup - 1) / speedup (normalized to 1s baseline)
+                    double iters = w.iterationsToAmortize();
                     
-                    // Use w_reorder_time as proxy for reorder cost
-                    // Higher (less negative) w_reorder_time = faster reorder
-                    // Convert to "reorder speed factor": 1.0 for w=0, higher for positive, lower for negative
-                    double reorder_speed_factor = 1.0 + w.w_reorder_time;  // e.g., -0.5 → 0.5, 0 → 1.0
-                    if (reorder_speed_factor < 0.1) reorder_speed_factor = 0.1;  // Clamp minimum
+                    if (verbose) {
+                        std::cout << "  " << static_cast<int>(algo) 
+                                  << ": speedup=" << w.avg_speedup
+                                  << ", reorder=" << w.avg_reorder_time << "s"
+                                  << ", iters_to_amortize=" << iters << "\n";
+                    }
                     
-                    // Amortization score: how quickly does this algorithm pay off?
-                    // Higher speedup AND higher reorder_speed = better amortization
-                    double amort_score = (speedup - 1.0) * reorder_speed_factor;
-                    
-                    if (amort_score > best_score) {
-                        best_score = amort_score;
+                    if (iters < best_iters) {
+                        best_iters = iters;
                         best_algo = algo;
                     }
                 }
                 
                 if (verbose) {
-                    std::cout << "Mode: best-amortization → algo=" << static_cast<int>(best_algo) << "\n";
+                    std::cout << "Mode: best-amortization → algo=" << static_cast<int>(best_algo) 
+                              << " (amortizes in " << best_iters << " iterations)\n";
                 }
                 return best_algo;
             }

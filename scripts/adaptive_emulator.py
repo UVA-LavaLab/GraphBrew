@@ -695,6 +695,21 @@ class AdaptiveOrderEmulator:
         best_algo = max(combined_scores, key=combined_scores.get)
         return best_algo, combined_scores
     
+    def get_algorithm_metadata(self, type_name: str) -> Dict[str, Dict[str, float]]:
+        """Get metadata (avg_speedup, avg_reorder_time) for all algorithms from type weights."""
+        weights = self.algorithm_selector.load_weights(type_name)
+        metadata = {}
+        for algo, w in weights.items():
+            if algo.startswith("_"):
+                continue
+            if isinstance(w, dict):
+                meta = w.get("_metadata", {})
+                metadata[algo] = {
+                    "avg_speedup": meta.get("avg_speedup", 1.0),
+                    "avg_reorder_time": meta.get("avg_reorder_time", 0.0),
+                }
+        return metadata
+    
     def _select_best_amortization(
         self,
         matched_type: str,
@@ -703,43 +718,52 @@ class AdaptiveOrderEmulator:
     ) -> Tuple[str, Dict[str, float]]:
         """Select algorithm that needs fewest iterations to amortize reordering cost.
         
-        Uses w_reorder_time as proxy for reorder speed.
+        Uses actual avg_speedup and avg_reorder_time from training metadata.
+        
+        Formula: iterations_to_amortize = reorder_time / time_saved_per_iter
+        Where: time_saved_per_iter = (speedup - 1) / speedup  (normalized to 1s baseline)
+        
+        Lower iterations = better (amortizes faster)
         """
-        # Get execution time scores from perceptron (higher = faster)
-        _, exec_scores = self.algorithm_selector.select_algorithm(
-            matched_type, features, self.config, benchmark
-        )
+        # Get metadata for all algorithms
+        metadata = self.get_algorithm_metadata(matched_type)
         
-        # Get reorder time weights from type
-        reorder_weights = self.get_reorder_time_weights(matched_type)
+        # Calculate iterations to amortize for each algorithm
+        iterations_scores = {}  # Lower = better
         
-        # Estimate speedup from scores and compute amortization
-        baseline_score = exec_scores.get("ORIGINAL", 0.5)
-        combined_scores = {}
-        
-        for algo, exec_score in exec_scores.items():
+        for algo, meta in metadata.items():
             if algo == "ORIGINAL":
-                continue  # ORIGINAL has no amortization benefit
+                continue  # ORIGINAL has no reorder cost
             
-            # Estimate speedup: score difference from baseline
-            speedup = max(exec_score - baseline_score, 0.01)
+            speedup = meta.get("avg_speedup", 1.0)
+            reorder_time = meta.get("avg_reorder_time", 0.0)
             
-            # Use w_reorder_time as proxy for reorder speed
-            # Higher (less negative) = faster reorder
-            w_rt = reorder_weights.get(algo, 0.0)
-            reorder_speed_factor = 1.0 + w_rt  # e.g., -0.5 → 0.5, 0 → 1.0
-            if reorder_speed_factor < 0.1:
-                reorder_speed_factor = 0.1  # Clamp minimum
-            
-            # Amortization score: speedup * reorder_speed
-            # Higher = pays off faster
-            combined_scores[algo] = speedup * reorder_speed_factor
+            if speedup <= 1.0:
+                # No speedup = never amortizes
+                iterations_scores[algo] = float('inf')
+            else:
+                # time_saved_per_iter = (speedup - 1) / speedup
+                time_saved_per_iter = (speedup - 1.0) / speedup
+                if time_saved_per_iter <= 0:
+                    iterations_scores[algo] = float('inf')
+                else:
+                    iterations_scores[algo] = reorder_time / time_saved_per_iter
         
-        if not combined_scores:
+        if not iterations_scores:
             return "ORIGINAL", {"ORIGINAL": 1.0}
         
-        best_algo = max(combined_scores, key=combined_scores.get)
-        return best_algo, combined_scores
+        # Select algorithm with minimum iterations (fastest amortization)
+        best_algo = min(iterations_scores, key=iterations_scores.get)
+        
+        # Convert to scores (inverse of iterations, so higher = better for display)
+        display_scores = {}
+        for algo, iters in iterations_scores.items():
+            if iters == float('inf'):
+                display_scores[algo] = 0.0
+            else:
+                display_scores[algo] = 1.0 / (iters + 0.001)  # Avoid div by zero
+        
+        return best_algo, display_scores
     
     def emulate_with_config(
         self,
