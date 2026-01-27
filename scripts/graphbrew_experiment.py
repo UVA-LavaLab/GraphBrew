@@ -2066,8 +2066,7 @@ def run_experiment(args):
                 leiden_dendrogram_variants=getattr(args, "leiden_dendrogram_variants", None),
                 timeout=args.timeout_reorder,
                 skip_slow=args.skip_slow,
-                force_reorder=getattr(args, "force_reorder", False),
-                progress=_progress
+                force_reorder=getattr(args, "force_reorder", False)
             )
         else:
             # Use standard mapping generation (no variant expansion)
@@ -2077,8 +2076,7 @@ def run_experiment(args):
                 bin_dir=args.bin_dir,
                 output_dir=args.results_dir,
                 timeout=args.timeout_reorder,
-                skip_slow=args.skip_slow,
-                progress=_progress
+                skip_slow=args.skip_slow
             )
         all_reorder_results.extend(reorder_timing_results)
         _progress.phase_end(f"Generated {len(label_maps)} graph mappings")
