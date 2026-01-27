@@ -330,9 +330,10 @@ from .types import (
 )
 
 # =============================================================================
-# Per-graph data storage
+# Per-graph data storage and run logging
 # =============================================================================
 from .graph_data import (
+    # Data store
     GraphDataStore,
     GraphFeatures,
     AlgorithmBenchmarkData,
@@ -345,4 +346,11 @@ from .graph_data import (
     load_all_graph_data,
     export_to_csv as export_graph_data_csv,
     compute_and_save_weights,
+    # Run logging
+    LOGS_DIR,
+    save_run_log,
+    list_graph_logs,
+    read_log,
+    get_latest_log,
+    cleanup_old_logs,
 )

@@ -17,6 +17,7 @@ Library usage:
 """
 
 import re
+import time
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
@@ -26,6 +27,9 @@ from .utils import (
     BenchmarkResult, log, run_command, check_binary_exists,
     get_results_file, save_json, get_algorithm_name, parse_algorithm_option
 )
+
+# Enable run logging (saves command outputs per graph)
+ENABLE_RUN_LOGGING = True
 
 
 # =============================================================================
@@ -142,7 +146,26 @@ def run_benchmark(
     
     # Run benchmark
     try:
+        start_time = time.time()
         result = run_command(cmd, timeout=timeout, check=False)
+        elapsed = time.time() - start_time
+        
+        # Save run log
+        if ENABLE_RUN_LOGGING:
+            try:
+                from .graph_data import save_run_log
+                save_run_log(
+                    graph_name=graph_name,
+                    operation='benchmark',
+                    algorithm=algo_name,
+                    benchmark=benchmark,
+                    output=result.stdout + "\n--- STDERR ---\n" + result.stderr if result.stderr else result.stdout,
+                    command=' '.join(str(c) for c in cmd),
+                    exit_code=result.returncode,
+                    duration=elapsed
+                )
+            except Exception as e:
+                log.debug(f"Failed to save run log: {e}")
         
         if result.returncode != 0:
             error_msg = result.stderr[:500] if result.stderr else f"Exit code {result.returncode}"
