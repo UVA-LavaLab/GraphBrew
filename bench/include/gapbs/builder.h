@@ -4207,21 +4207,8 @@ public:
 #ifdef RABBIT_ENABLE
         using boost::adaptors::transformed;
 
-        // std::cerr << "Number of threads: " << omp_get_num_threads() << std::endl;
-        // omp_set_num_threads(omp_get_max_threads());
-
-        // std::cerr << "Number of threads: " << omp_get_max_threads() << std::endl;
         auto adj = readRabbitOrderGraphCSR(g);
-        // const auto m =
-        //     boost::accumulate(adj | transformed([](auto &es) { return es.size();
-        //     }),
-        //                       static_cast<size_t>(0));
-        // std::cerr << "Number of vertices: " << adj.size() << std::endl;
-        // std::cerr << "Number of edges: " << m << std::endl;
 
-        // if (commode)
-        //   detect_community(std::move(adj));
-        // else
         reorder_internal(std::move(adj), new_ids);
 #else
         GenerateOriginalMapping(g, new_ids);
@@ -4421,14 +4408,11 @@ public:
 
     void reorder_internal(adjacency_list adj, pvector<NodeID_> &new_ids)
     {
-        // std::cerr << "Generating a permutation...\n";
         auto _adj = adj; // copy `adj` because it is used for computing modularity
         const double tstart = rabbit_order::now_sec();
-        //--------------------------------------------
         auto g = rabbit_order::aggregate(std::move(_adj));
         const auto p = rabbit_order::compute_perm(g);
         const double tend = rabbit_order::now_sec();
-        //--------------------------------------------
         const auto c = std::make_unique<rabbit_order::vint[]>(g.n());
         #pragma omp parallel for
         for (rabbit_order::vint v = 0; v < g.n(); ++v)
@@ -8279,6 +8263,7 @@ public:
      * - Community bounds constraint
      * - Well-connected communities guaranteed
      * - Dendrogram-based ordering
+     * - Isolated vertex separation (degree-0 vertices grouped at end)
      */
     void GenerateGVELeidenCSRMapping(
         const CSRGraph<NodeID_, DestID_, invert>& g,
@@ -8308,8 +8293,33 @@ public:
             max_passes = std::stoi(reordering_options[2]);
         }
         
+        // ================================================================
+        // ISOLATED VERTEX SEPARATION
+        // Identify vertices with degree 0 - they don't participate in
+        // community detection and should be grouped at the end
+        // ================================================================
+        std::vector<int64_t> isolated_vertices;
+        std::vector<int64_t> active_vertices;
+        isolated_vertices.reserve(num_nodes / 10);
+        active_vertices.reserve(num_nodes);
+        
+        for (int64_t v = 0; v < num_nodes; ++v) {
+            if (g.out_degree(v) == 0) {
+                isolated_vertices.push_back(v);
+            } else {
+                active_vertices.push_back(v);
+            }
+        }
+        
+        const int64_t num_isolated = isolated_vertices.size();
+        const int64_t num_active = active_vertices.size();
+        
         printf("GVELeidenCSR: resolution=%.4f, max_iterations=%d, max_passes=%d\n",
                resolution, max_iterations, max_passes);
+        if (num_isolated > 0) {
+            printf("GVELeidenCSR: %ld active vertices, %ld isolated vertices (%.1f%%)\n",
+                   num_active, num_isolated, 100.0 * num_isolated / num_nodes);
+        }
         
         // Run GVE-Leiden algorithm
         auto result = GVELeidenCSR<K>(g, resolution, 1e-2, 0.8, 10.0, max_iterations, max_passes);
@@ -8328,22 +8338,55 @@ public:
         }
         
         // Build dendrogram from community passes
-        size_t num_communities = 0;  // Track the root-level community count
+        size_t num_communities = 0;
+        int64_t current_id = 0;
+        
         if (!result.community_per_pass.empty()) {
             std::vector<LeidenDendrogramNode> nodes;
             std::vector<int64_t> roots;
             buildLeidenDendrogram(nodes, roots, result.community_per_pass, degrees, num_nodes);
             
-            num_communities = roots.size();  // Root count = final community count
+            // Count real communities (exclude isolated vertex communities)
+            size_t real_communities = 0;
+            for (int64_t r : roots) {
+                if (degrees[r] > 0) {
+                    real_communities++;
+                }
+            }
+            num_communities = real_communities;
             
-            // Use DFS with hub-first ordering (flavor 1)
+            // Use DFS with hub-first ordering
             orderDendrogramDFSParallel(nodes, roots, new_ids, true, false);
+            
+            // Post-process: Move isolated vertices to the end
+            std::vector<int64_t> active_order;
+            active_order.reserve(num_active);
+            for (int64_t v = 0; v < num_nodes; ++v) {
+                if (degrees[v] > 0) {
+                    active_order.push_back(v);
+                }
+            }
+            
+            // Sort active vertices by their assigned new_ids to preserve DFS order
+            std::sort(active_order.begin(), active_order.end(),
+                [&new_ids](int64_t a, int64_t b) {
+                    return new_ids[a] < new_ids[b];
+                });
+            
+            // Reassign: active vertices first, then isolated
+            current_id = 0;
+            for (int64_t v : active_order) {
+                new_ids[v] = current_id++;
+            }
+            for (int64_t v : isolated_vertices) {
+                new_ids[v] = current_id++;
+            }
         } else {
-            // Fallback: Sort by community then degree
-            std::vector<size_t> sort_indices(num_nodes);
-            #pragma omp parallel for
-            for (int64_t i = 0; i < num_nodes; ++i) {
-                sort_indices[i] = i;
+            // Fallback: Sort by community then degree, excluding isolated
+            std::vector<size_t> sort_indices;
+            sort_indices.reserve(num_active);
+            for (int64_t v : active_vertices) {
+                sort_indices.push_back(v);
             }
             
             __gnu_parallel::sort(sort_indices.begin(), sort_indices.end(),
@@ -8351,17 +8394,21 @@ public:
                     K comm_a = result.final_community[a];
                     K comm_b = result.final_community[b];
                     if (comm_a != comm_b) return comm_a < comm_b;
-                    return degrees[a] > degrees[b];  // Hub-first within community
+                    return degrees[a] > degrees[b];
                 });
             
-            #pragma omp parallel for
-            for (int64_t i = 0; i < num_nodes; ++i) {
-                new_ids[sort_indices[i]] = i;
+            // Assign IDs: active vertices first, then isolated
+            current_id = 0;
+            for (size_t v : sort_indices) {
+                new_ids[v] = current_id++;
+            }
+            for (int64_t v : isolated_vertices) {
+                new_ids[v] = current_id++;
             }
             
-            // Count unique communities in final assignment
+            // Count real communities
             std::unordered_set<K> unique_comms;
-            for (int64_t v = 0; v < num_nodes; ++v) {
+            for (int64_t v : active_vertices) {
                 unique_comms.insert(result.final_community[v]);
             }
             num_communities = unique_comms.size();
@@ -8370,10 +8417,12 @@ public:
         tm.Stop();
         double ordering_time = tm.Seconds();
         
-        // Report statistics - use dendrogram root count as community count
         PrintTime("GVELeiden Communities", static_cast<double>(num_communities));
+        if (num_isolated > 0) {
+            PrintTime("GVELeiden Isolated", static_cast<double>(num_isolated));
+        }
         PrintTime("GVELeiden Modularity", result.modularity);
-        PrintTime("GVELeiden Map Time", ordering_time);  // Total map time (community detection already printed separately)
+        PrintTime("GVELeiden Map Time", ordering_time);
     }
 
     /**
@@ -8413,10 +8462,33 @@ public:
             max_passes = std::stoi(reordering_options[2]);
         }
         
+        // ================================================================
+        // ISOLATED VERTEX SEPARATION
+        // Identify vertices with degree 0 - they don't participate in
+        // community detection and should be grouped at the end
+        // ================================================================
+        std::vector<int64_t> isolated_vertices;
+        std::vector<int64_t> active_vertices;
+        isolated_vertices.reserve(num_nodes / 10);  // Typically <10% isolated
+        active_vertices.reserve(num_nodes);
+        
+        for (int64_t v = 0; v < num_nodes; ++v) {
+            if (g.out_degree(v) == 0) {
+                isolated_vertices.push_back(v);
+            } else {
+                active_vertices.push_back(v);
+            }
+        }
+        
+        const int64_t num_isolated = isolated_vertices.size();
+        const int64_t num_active = active_vertices.size();
+        
         printf("GVELeidenOpt: resolution=%.4f, max_iterations=%d, max_passes=%d\n",
                resolution, max_iterations, max_passes);
+        printf("GVELeidenOpt: %ld active vertices, %ld isolated vertices (%.1f%%)\n",
+               num_active, num_isolated, 100.0 * num_isolated / num_nodes);
         
-        // Run optimized GVE-Leiden algorithm
+        // Run optimized GVE-Leiden algorithm (processes all vertices but isolated don't affect communities)
         auto result = GVELeidenOpt<K>(g, resolution, 1e-2, 0.8, 10.0, max_iterations, max_passes);
         
         tm.Stop();
@@ -8432,23 +8504,67 @@ public:
             degrees[i] = g.out_degree(i);
         }
         
-        // Build dendrogram from community passes
+        // Build dendrogram from community passes (only for active vertices)
         size_t num_communities = 0;
+        int64_t current_id = 0;
+        
         if (!result.community_per_pass.empty()) {
             std::vector<LeidenDendrogramNode> nodes;
             std::vector<int64_t> roots;
             buildLeidenDendrogram(nodes, roots, result.community_per_pass, degrees, num_nodes);
             
-            num_communities = roots.size();
+            // Count real communities (exclude isolated vertex communities)
+            size_t real_communities = 0;
+            for (int64_t r : roots) {
+                // A root is a real community if it has degree > 0
+                if (degrees[r] > 0) {
+                    real_communities++;
+                }
+            }
+            num_communities = real_communities;
             
-            // Use DFS with hub-first ordering
+            // Use DFS with hub-first ordering, but we'll post-process for isolated vertices
             orderDendrogramDFSParallel(nodes, roots, new_ids, true, false);
+            
+            // Post-process: Move isolated vertices to the end
+            // Find the maximum assigned ID for active vertices
+            int64_t max_active_id = -1;
+            for (int64_t v = 0; v < num_nodes; ++v) {
+                if (degrees[v] > 0) {
+                    max_active_id = std::max(max_active_id, (int64_t)new_ids[v]);
+                }
+            }
+            
+            // Compact active vertex IDs and place isolated at end
+            std::vector<int64_t> active_order;
+            active_order.reserve(num_active);
+            for (int64_t v = 0; v < num_nodes; ++v) {
+                if (degrees[v] > 0) {
+                    active_order.push_back(v);
+                }
+            }
+            
+            // Sort active vertices by their assigned new_ids to preserve DFS order
+            std::sort(active_order.begin(), active_order.end(),
+                [&new_ids](int64_t a, int64_t b) {
+                    return new_ids[a] < new_ids[b];
+                });
+            
+            // Reassign: active vertices first (in DFS order), then isolated
+            current_id = 0;
+            for (int64_t v : active_order) {
+                new_ids[v] = current_id++;
+            }
+            for (int64_t v : isolated_vertices) {
+                new_ids[v] = current_id++;
+            }
+            
         } else {
-            // Fallback: Sort by community then degree
-            std::vector<size_t> sort_indices(num_nodes);
-            #pragma omp parallel for
-            for (int64_t i = 0; i < num_nodes; ++i) {
-                sort_indices[i] = i;
+            // Fallback: Sort by community then degree, excluding isolated
+            std::vector<size_t> sort_indices;
+            sort_indices.reserve(num_active);
+            for (int64_t v : active_vertices) {
+                sort_indices.push_back(v);
             }
             
             __gnu_parallel::sort(sort_indices.begin(), sort_indices.end(),
@@ -8459,13 +8575,18 @@ public:
                     return degrees[a] > degrees[b];
                 });
             
-            #pragma omp parallel for
-            for (int64_t i = 0; i < num_nodes; ++i) {
-                new_ids[sort_indices[i]] = i;
+            // Assign IDs: active vertices first, then isolated
+            current_id = 0;
+            for (size_t v : sort_indices) {
+                new_ids[v] = current_id++;
+            }
+            for (int64_t v : isolated_vertices) {
+                new_ids[v] = current_id++;
             }
             
+            // Count real communities (exclude isolated)
             std::unordered_set<K> unique_comms;
-            for (int64_t v = 0; v < num_nodes; ++v) {
+            for (int64_t v : active_vertices) {
                 unique_comms.insert(result.final_community[v]);
             }
             num_communities = unique_comms.size();
@@ -8475,6 +8596,7 @@ public:
         double ordering_time = tm.Seconds();
         
         PrintTime("GVELeidenOpt Communities", static_cast<double>(num_communities));
+        PrintTime("GVELeidenOpt Isolated", static_cast<double>(num_isolated));
         PrintTime("GVELeidenOpt Modularity", result.modularity);
         PrintTime("GVELeidenOpt Map Time", ordering_time);
     }
@@ -8629,8 +8751,9 @@ public:
             c = g.coms[com].load(std::memory_order_relaxed);
         } while (c != com);
         
-        // Path compression
-        if (v != com) {
+        // Path compression (only if needed to avoid cache invalidation)
+        // Note: v != com is already guaranteed here since we passed the fast path check
+        if (g.coms[v].load(std::memory_order_relaxed) != com) {
             g.coms[v].store(com, std::memory_order_relaxed);
         }
         return com;
@@ -8825,6 +8948,9 @@ public:
      * 
      * ΔQ(u,v) = 2 * (w_uv / (2m) - d(u)*d(v) / (2m)^2)
      *         = w_uv - d(u)*d(v) / tot_wgt  (simplified form from original code)
+     * 
+     * NOTE: Like the original rabbit_order.hpp, we use the current str value
+     * directly, even if negative (locked). The lock check happens AFTER.
      */
     uint32_t rabbitCSRFindBest(const RabbitCSRGraph& g, uint32_t u, float u_strength) {
         double dmax = 0.0;
@@ -8832,9 +8958,9 @@ public:
         
         for (const auto& e : g.es[u]) {
             RabbitCSRAtomPacked v_atom = g.vs[e.first].load_atom();
-            if (v_atom.str < 0.0f) continue;  // Skip locked vertices
             
             // ΔQ = w_uv - d(u)*d(v) / tot_wgt (same as original rabbit_order.hpp)
+            // NOTE: Uses str directly, even if negative (locked vertex)
             double delta_q = static_cast<double>(e.second) - 
                              static_cast<double>(u_strength) * static_cast<double>(v_atom.str) / g.tot_wgt;
             
@@ -8918,15 +9044,29 @@ public:
         const uint32_t n = g.n();
         const int np = omp_get_max_threads();
         
-        // Sort vertices by degree (ascending) - same as original
-        std::vector<std::pair<uint32_t, uint32_t>> ord(n);
-        #pragma omp parallel for
+        // Identify isolated vertices (degree 0) - they won't participate in merging
+        std::vector<uint32_t> isolated_vertices;
+        std::vector<uint32_t> non_isolated_vertices;
+        
         for (uint32_t v = 0; v < n; ++v) {
-            ord[v] = {v, static_cast<uint32_t>(g.es[v].size())};
+            if (g.es[v].empty()) {
+                isolated_vertices.push_back(v);
+            } else {
+                non_isolated_vertices.push_back(v);
+            }
+        }
+        
+        // Sort non-isolated vertices by degree (ascending) - same as original
+        std::vector<std::pair<uint32_t, uint32_t>> ord(non_isolated_vertices.size());
+        #pragma omp parallel for
+        for (size_t i = 0; i < non_isolated_vertices.size(); ++i) {
+            uint32_t v = non_isolated_vertices[i];
+            ord[i] = {v, static_cast<uint32_t>(g.es[v].size())};
         }
         __gnu_parallel::sort(ord.begin(), ord.end(),
             [](const auto& a, const auto& b) { return a.second < b.second; });
         
+        const uint32_t n_active = static_cast<uint32_t>(ord.size());
         std::vector<std::deque<uint32_t>> topss(np);
         
         #pragma omp parallel
@@ -8940,7 +9080,7 @@ public:
             // Use schedule(static, 1) to match original behavior
             // This ensures vertices are processed in consistent order across threads
             #pragma omp for schedule(static, 1)
-            for (uint32_t i = 0; i < n; ++i) {
+            for (uint32_t i = 0; i < n_active; ++i) {
                 // First, retry pending vertices
                 auto it = pends.begin();
                 while (it != pends.end()) {
@@ -8980,11 +9120,17 @@ public:
             }
         }
         
-        // Collect all top-level vertices
+        // Collect all top-level vertices from non-isolated processing
         for (int t = 0; t < np; ++t) {
             for (uint32_t v : topss[t]) {
                 g.tops.push_back(v);
             }
+        }
+        
+        // Add isolated vertices as separate top-level communities
+        // (they're stored separately and will be placed at the end of permutation)
+        for (uint32_t v : isolated_vertices) {
+            g.tops.push_back(v);
         }
     }
 
@@ -9005,59 +9151,102 @@ public:
 
     /**
      * Compute permutation from dendrogram via DFS (Algorithm 2, OrderingGeneration)
+     * 
+     * Groups isolated vertices (single-vertex communities) at the end to improve
+     * cache locality for non-isolated vertices. This matches Boost's behavior where
+     * isolated vertices are effectively excluded from the main ordering.
      */
     void rabbitCSRComputePerm(const RabbitCSRGraph& g, pvector<NodeID_>& perm) {
         const uint32_t n = g.n();
         const uint32_t ncom = static_cast<uint32_t>(g.tops.size());
         
-        std::vector<uint32_t> coms(n);     // Vertex -> community index
-        std::vector<uint32_t> local_ids(n); // Local ID within community
-        std::vector<uint32_t> offsets(ncom + 1, 0);
+        // Separate isolated (single-vertex) communities from multi-vertex ones
+        std::vector<uint32_t> multi_vertex_tops;
+        std::vector<uint32_t> isolated_vertices;
         
-        const int np = omp_get_max_threads();
-        const uint32_t ntask = std::min<uint32_t>(ncom, 128 * np);
-        
-        #pragma omp parallel
-        {
-            std::vector<uint32_t> stack;
-            
-            #pragma omp for schedule(dynamic, 1)
-            for (uint32_t i = 0; i < ntask; ++i) {
-                for (uint32_t comid = i; comid < ncom; comid += ntask) {
-                    uint32_t newid = 0;
-                    stack.clear();
-                    
-                    // Start DFS from top-level vertex
-                    rabbitCSRDescendants(g, g.tops[comid], stack);
-                    
-                    while (!stack.empty()) {
-                        uint32_t v = stack.back();
-                        stack.pop_back();
-                        
-                        coms[v] = comid;
-                        local_ids[v] = newid++;
-                        
-                        // Add siblings to stack
-                        uint32_t sib = g.vs[v].sibling.load(std::memory_order_acquire);
-                        if (sib != UINT32_MAX) {
-                            rabbitCSRDescendants(g, sib, stack);
-                        }
-                    }
-                    
-                    offsets[comid + 1] = newid;
-                }
+        for (uint32_t i = 0; i < ncom; ++i) {
+            uint32_t top = g.tops[i];
+            // A community is isolated if the top vertex has no children
+            RabbitCSRAtomPacked atom = g.vs[top].load_atom();
+            if (atom.child == UINT32_MAX) {
+                // Single vertex community - mark as isolated
+                isolated_vertices.push_back(top);
+            } else {
+                multi_vertex_tops.push_back(top);
             }
         }
         
-        // Compute prefix sums for offsets
-        for (uint32_t i = 1; i <= ncom; ++i) {
-            offsets[i] += offsets[i - 1];
+        // Mark which vertices are isolated (for quick lookup)
+        std::vector<bool> is_isolated(n, false);
+        for (uint32_t v : isolated_vertices) {
+            is_isolated[v] = true;
         }
         
-        // Assign final permutation
+        std::vector<uint32_t> coms(n, UINT32_MAX);     // Vertex -> community index
+        std::vector<uint32_t> local_ids(n, UINT32_MAX); // Local ID within community
+        
+        const int np = omp_get_max_threads();
+        const uint32_t n_multi = static_cast<uint32_t>(multi_vertex_tops.size());
+        std::vector<uint32_t> multi_offsets(n_multi + 1, 0);
+        
+        // Process multi-vertex communities
+        if (n_multi > 0) {
+            const uint32_t ntask = std::min<uint32_t>(n_multi, 128 * np);
+            
+            #pragma omp parallel
+            {
+                std::vector<uint32_t> stack;
+                
+                #pragma omp for schedule(dynamic, 1)
+                for (uint32_t i = 0; i < ntask; ++i) {
+                    for (uint32_t idx = i; idx < n_multi; idx += ntask) {
+                        uint32_t newid = 0;
+                        stack.clear();
+                        
+                        // Start DFS from top-level vertex
+                        rabbitCSRDescendants(g, multi_vertex_tops[idx], stack);
+                        
+                        while (!stack.empty()) {
+                            uint32_t v = stack.back();
+                            stack.pop_back();
+                            
+                            coms[v] = idx;
+                            local_ids[v] = newid++;
+                            
+                            // Add siblings to stack
+                            uint32_t sib = g.vs[v].sibling.load(std::memory_order_acquire);
+                            if (sib != UINT32_MAX) {
+                                rabbitCSRDescendants(g, sib, stack);
+                            }
+                        }
+                        
+                        multi_offsets[idx + 1] = newid;
+                    }
+                }
+            }
+            
+            // Compute prefix sums
+            for (uint32_t i = 1; i <= n_multi; ++i) {
+                multi_offsets[i] += multi_offsets[i - 1];
+            }
+        }
+        
+        uint32_t global_offset = (n_multi > 0) ? multi_offsets[n_multi] : 0;
+        
+        // Assign permutation for all vertices
         #pragma omp parallel for schedule(static)
         for (uint32_t v = 0; v < n; ++v) {
-            perm[v] = offsets[coms[v]] + local_ids[v];
+            if (!is_isolated[v] && coms[v] != UINT32_MAX) {
+                // Multi-vertex community member
+                perm[v] = multi_offsets[coms[v]] + local_ids[v];
+            }
+        }
+        
+        // Assign isolated vertices at the end
+        #pragma omp parallel for schedule(static)
+        for (size_t i = 0; i < isolated_vertices.size(); ++i) {
+            uint32_t v = isolated_vertices[i];
+            perm[v] = global_offset + static_cast<uint32_t>(i);
         }
     }
 
@@ -9195,6 +9384,10 @@ public:
             #pragma omp atomic
             rg.tot_wgt += local_wgt;
         }
+        
+        // Match Boost behavior: Boost symmetrizes the edge list, effectively doubling
+        // the total weight. For symmetric graphs, we need to do the same.
+        rg.tot_wgt *= 2.0;
         
         double build_time = tm.Seconds();
         tm.Start();
