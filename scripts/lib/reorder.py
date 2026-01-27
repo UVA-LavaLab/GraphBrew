@@ -47,7 +47,8 @@ TIMEOUT_REORDER = 43200  # 12 hours for reordering (some algorithms like GORDER 
 # Graph size thresholds (MB)
 SIZE_MEDIUM = 500
 
-
+# Enable run logging (saves command outputs per graph)
+ENABLE_RUN_LOGGING = True
 # =============================================================================
 # Data Classes
 # =============================================================================
@@ -420,6 +421,22 @@ def generate_reorderings(
             success, stdout, stderr = run_command(cmd, timeout)
             elapsed = time.time() - start_time
             
+            # Save run log
+            if ENABLE_RUN_LOGGING:
+                try:
+                    from .graph_data import save_run_log
+                    save_run_log(
+                        graph_name=graph.name,
+                        operation='reorder',
+                        algorithm=algo_name,
+                        output=stdout + "\n--- STDERR ---\n" + stderr if stderr else stdout,
+                        command=cmd,
+                        exit_code=0 if success else 1,
+                        duration=elapsed
+                    )
+                except Exception as e:
+                    log.debug(f"Failed to save run log: {e}")
+            
             if success:
                 output = stdout + stderr
                 
@@ -585,6 +602,22 @@ def generate_label_maps(
             start_time = time.time()
             success, stdout, stderr = run_command(cmd, timeout)
             elapsed = time.time() - start_time
+            
+            # Save run log
+            if ENABLE_RUN_LOGGING:
+                try:
+                    from .graph_data import save_run_log
+                    save_run_log(
+                        graph_name=graph.name,
+                        operation='reorder',
+                        algorithm=algo_name,
+                        output=stdout + "\n--- STDERR ---\n" + stderr if stderr else stdout,
+                        command=cmd,
+                        exit_code=0 if success else 1,
+                        duration=elapsed
+                    )
+                except Exception as e:
+                    log.debug(f"Failed to save run log: {e}")
             
             if success and os.path.exists(map_file):
                 # Save timing
@@ -770,6 +803,22 @@ def generate_reorderings_with_variants(
             start_time = time.time()
             success, stdout, stderr = run_command(cmd, timeout)
             elapsed = time.time() - start_time
+            
+            # Save run log
+            if ENABLE_RUN_LOGGING:
+                try:
+                    from .graph_data import save_run_log
+                    save_run_log(
+                        graph_name=graph.name,
+                        operation='reorder',
+                        algorithm=cfg.name,
+                        output=stdout + "\n--- STDERR ---\n" + stderr if stderr else stdout,
+                        command=cmd,
+                        exit_code=0 if success else 1,
+                        duration=elapsed
+                    )
+                except Exception as e:
+                    log.debug(f"Failed to save run log: {e}")
             
             if success and os.path.exists(map_file):
                 actual_time = parse_reorder_time_from_converter(stdout + stderr)

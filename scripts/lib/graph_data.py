@@ -18,21 +18,29 @@ Directory structure:
             <algorithm>.json - Reorder time and mapping info
         weights/
             perceptron.json  - Per-graph computed weights
+    
+    results/logs/<graph_name>/
+        reorder_<algorithm>_<timestamp>.log   - Reorder command output
+        benchmark_<bench>_<algorithm>_<timestamp>.log - Benchmark output
             
 Standalone usage:
     python -m scripts.lib.graph_data --list-graphs
     python -m scripts.lib.graph_data --show-graph email-Enron
     python -m scripts.lib.graph_data --export-csv results/all_data.csv
+    python -m scripts.lib.graph_data --list-logs email-Enron
+    python -m scripts.lib.graph_data --show-log email-Enron reorder_HUBCLUSTERDBG_20260127_123456.log
 
 Library usage:
     from scripts.lib.graph_data import (
         GraphDataStore, save_graph_features, save_benchmark_result,
-        save_reorder_result, load_all_graph_data
+        save_reorder_result, load_all_graph_data,
+        save_run_log, list_graph_logs, read_log
     )
 """
 
 import os
 import json
+import glob
 from pathlib import Path
 from dataclasses import dataclass, field, asdict
 from datetime import datetime
@@ -51,6 +59,225 @@ log = Logger()
 # =============================================================================
 
 GRAPH_DATA_DIR = os.path.join(RESULTS_DIR, "graphs")
+LOGS_DIR = os.path.join(RESULTS_DIR, "logs")
+
+
+# =============================================================================
+# Run Logging Functions
+# =============================================================================
+
+def get_log_dir(graph_name: str, logs_dir: str = LOGS_DIR) -> str:
+    """Get log directory for a graph, creating if needed."""
+    log_dir = os.path.join(logs_dir, graph_name)
+    os.makedirs(log_dir, exist_ok=True)
+    return log_dir
+
+
+def save_run_log(
+    graph_name: str,
+    operation: str,
+    algorithm: str,
+    output: str,
+    benchmark: str = None,
+    command: str = None,
+    exit_code: int = None,
+    duration: float = None,
+    logs_dir: str = LOGS_DIR
+) -> str:
+    """
+    Save command output to a timestamped log file.
+    
+    Args:
+        graph_name: Name of the graph
+        operation: Type of operation ('reorder', 'benchmark', 'cache')
+        algorithm: Algorithm name (e.g., 'HUBCLUSTERDBG', 'LeidenCSR')
+        output: Command stdout/stderr output
+        benchmark: Benchmark name for benchmark operations (e.g., 'pr', 'bfs')
+        command: The command that was run
+        exit_code: Command exit code
+        duration: Execution duration in seconds
+        logs_dir: Base logs directory
+    
+    Returns:
+        Path to the saved log file
+    """
+    log_dir = get_log_dir(graph_name, logs_dir)
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    
+    # Build filename
+    if benchmark:
+        filename = f"{operation}_{benchmark}_{algorithm}_{timestamp}.log"
+    else:
+        filename = f"{operation}_{algorithm}_{timestamp}.log"
+    
+    filepath = os.path.join(log_dir, filename)
+    
+    # Build log content with metadata header
+    header_lines = [
+        f"# GraphBrew Run Log",
+        f"# Graph: {graph_name}",
+        f"# Operation: {operation}",
+        f"# Algorithm: {algorithm}",
+    ]
+    if benchmark:
+        header_lines.append(f"# Benchmark: {benchmark}")
+    header_lines.append(f"# Timestamp: {timestamp}")
+    if command:
+        header_lines.append(f"# Command: {command}")
+    if exit_code is not None:
+        header_lines.append(f"# Exit Code: {exit_code}")
+    if duration is not None:
+        header_lines.append(f"# Duration: {duration:.3f}s")
+    header_lines.append("#" + "=" * 70)
+    header_lines.append("")
+    
+    content = "\n".join(header_lines) + output
+    
+    with open(filepath, 'w') as f:
+        f.write(content)
+    
+    log.debug(f"Saved run log: {filepath}")
+    return filepath
+
+
+def list_graph_logs(graph_name: str, logs_dir: str = LOGS_DIR) -> List[Dict]:
+    """
+    List all log files for a graph.
+    
+    Returns:
+        List of dicts with 'filename', 'operation', 'algorithm', 'benchmark', 'timestamp'
+    """
+    log_dir = os.path.join(logs_dir, graph_name)
+    if not os.path.exists(log_dir):
+        return []
+    
+    logs = []
+    for filename in sorted(os.listdir(log_dir)):
+        if not filename.endswith('.log'):
+            continue
+        
+        # Parse filename: operation_[benchmark_]algorithm_timestamp.log
+        parts = filename[:-4].split('_')  # Remove .log
+        
+        if len(parts) >= 3:
+            operation = parts[0]
+            timestamp = '_'.join(parts[-2:])  # Last two parts are YYYYMMDD_HHMMSS
+            
+            # Check if there's a benchmark (4+ parts means benchmark is present)
+            if len(parts) >= 4 and operation == 'benchmark':
+                benchmark = parts[1]
+                algorithm = '_'.join(parts[2:-2])
+            else:
+                benchmark = None
+                algorithm = '_'.join(parts[1:-2])
+            
+            logs.append({
+                'filename': filename,
+                'filepath': os.path.join(log_dir, filename),
+                'operation': operation,
+                'algorithm': algorithm,
+                'benchmark': benchmark,
+                'timestamp': timestamp,
+            })
+    
+    return logs
+
+
+def read_log(graph_name: str, filename: str, logs_dir: str = LOGS_DIR) -> Optional[str]:
+    """Read contents of a log file."""
+    filepath = os.path.join(logs_dir, graph_name, filename)
+    if not os.path.exists(filepath):
+        return None
+    with open(filepath) as f:
+        return f.read()
+
+
+def get_latest_log(
+    graph_name: str,
+    operation: str = None,
+    algorithm: str = None,
+    benchmark: str = None,
+    logs_dir: str = LOGS_DIR
+) -> Optional[str]:
+    """
+    Get the most recent log file matching the criteria.
+    
+    Returns:
+        Path to the latest matching log file, or None
+    """
+    logs = list_graph_logs(graph_name, logs_dir)
+    
+    # Filter by criteria
+    if operation:
+        logs = [l for l in logs if l['operation'] == operation]
+    if algorithm:
+        logs = [l for l in logs if l['algorithm'] == algorithm]
+    if benchmark:
+        logs = [l for l in logs if l['benchmark'] == benchmark]
+    
+    if not logs:
+        return None
+    
+    # Sort by timestamp (already sorted by filename, but be explicit)
+    logs.sort(key=lambda x: x['timestamp'], reverse=True)
+    return logs[0]['filepath']
+
+
+def cleanup_old_logs(
+    graph_name: str = None,
+    max_logs_per_graph: int = 100,
+    max_age_days: int = 30,
+    logs_dir: str = LOGS_DIR
+) -> int:
+    """
+    Clean up old log files to prevent disk bloat.
+    
+    Args:
+        graph_name: Specific graph to clean, or None for all
+        max_logs_per_graph: Keep at most this many logs per graph
+        max_age_days: Delete logs older than this
+        logs_dir: Base logs directory
+    
+    Returns:
+        Number of files deleted
+    """
+    deleted = 0
+    cutoff_time = datetime.now().timestamp() - (max_age_days * 24 * 60 * 60)
+    
+    if graph_name:
+        graphs = [graph_name]
+    else:
+        graphs = [d for d in os.listdir(logs_dir) 
+                  if os.path.isdir(os.path.join(logs_dir, d))]
+    
+    for graph in graphs:
+        graph_log_dir = os.path.join(logs_dir, graph)
+        if not os.path.exists(graph_log_dir):
+            continue
+        
+        log_files = []
+        for filename in os.listdir(graph_log_dir):
+            if filename.endswith('.log'):
+                filepath = os.path.join(graph_log_dir, filename)
+                mtime = os.path.getmtime(filepath)
+                log_files.append((filepath, mtime))
+        
+        # Sort by modification time (newest first)
+        log_files.sort(key=lambda x: x[1], reverse=True)
+        
+        for i, (filepath, mtime) in enumerate(log_files):
+            # Delete if too old or exceeds max count
+            if mtime < cutoff_time or i >= max_logs_per_graph:
+                try:
+                    os.remove(filepath)
+                    deleted += 1
+                except OSError:
+                    pass
+    
+    if deleted > 0:
+        log.info(f"Cleaned up {deleted} old log files")
+    
+    return deleted
 
 
 # =============================================================================
@@ -648,6 +875,22 @@ def main():
     parser.add_argument("--compute-all-weights", action="store_true",
                        help="Compute weights for all graphs")
     
+    # Log management options
+    parser.add_argument("--list-logs", type=str, metavar="GRAPH",
+                       help="List all logs for a specific graph")
+    parser.add_argument("--show-log", nargs=2, metavar=("GRAPH", "FILENAME"),
+                       help="Show contents of a specific log file")
+    parser.add_argument("--latest-log", type=str, metavar="GRAPH",
+                       help="Show the latest log for a graph")
+    parser.add_argument("--cleanup-logs", action="store_true",
+                       help="Clean up old log files")
+    parser.add_argument("--max-logs", type=int, default=100,
+                       help="Max logs per graph for cleanup (default: 100)")
+    parser.add_argument("--max-age-days", type=int, default=30,
+                       help="Max age in days for cleanup (default: 30)")
+    parser.add_argument("--logs-dir", type=str, default=LOGS_DIR,
+                       help="Logs directory")
+    
     args = parser.parse_args()
     
     if args.list_graphs:
@@ -681,6 +924,38 @@ def main():
             weights = compute_and_save_weights(graph, args.data_dir)
             if weights:
                 print(f"  {graph}: best_algo = {weights.best_algo}")
+    
+    elif args.list_logs:
+        logs = list_graph_logs(args.list_logs, args.logs_dir)
+        print(f"\nLogs for {args.list_logs} ({len(logs)} total):")
+        for l in logs:
+            bench_str = f" [{l['benchmark']}]" if l['benchmark'] else ""
+            print(f"  {l['filename']}: {l['operation']}{bench_str} {l['algorithm']}")
+    
+    elif args.show_log:
+        graph, filename = args.show_log
+        content = read_log(graph, filename, args.logs_dir)
+        if content:
+            print(content)
+        else:
+            print(f"Log not found: {graph}/{filename}")
+    
+    elif args.latest_log:
+        filepath = get_latest_log(args.latest_log, logs_dir=args.logs_dir)
+        if filepath:
+            print(f"Latest log: {filepath}")
+            with open(filepath) as f:
+                print(f.read())
+        else:
+            print(f"No logs found for {args.latest_log}")
+    
+    elif args.cleanup_logs:
+        deleted = cleanup_old_logs(
+            max_logs_per_graph=args.max_logs,
+            max_age_days=args.max_age_days,
+            logs_dir=args.logs_dir
+        )
+        print(f"Cleaned up {deleted} old log files")
     
     else:
         parser.print_help()

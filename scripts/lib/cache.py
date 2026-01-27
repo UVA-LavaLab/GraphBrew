@@ -17,6 +17,7 @@ Library usage:
 
 import os
 import re
+import time
 from pathlib import Path
 from dataclasses import dataclass, asdict
 from typing import Dict, List, Optional, Tuple
@@ -43,6 +44,9 @@ HEAVY_SIM_BENCHMARKS = {"bc", "sssp"}
 
 # Graph size threshold (MB)
 SIZE_MEDIUM = 500
+
+# Enable run logging
+ENABLE_RUN_LOGGING = True
 
 
 # =============================================================================
@@ -200,7 +204,26 @@ def run_cache_simulation(
         cmd = f"{binary} -f {graph_path} {sym_flag} -o {algorithm} -n 1"
     
     # Run simulation
+    start_time = time.time()
     success, stdout, stderr = run_command(cmd, timeout)
+    elapsed = time.time() - start_time
+    
+    # Save run log
+    if ENABLE_RUN_LOGGING:
+        try:
+            from .graph_data import save_run_log
+            save_run_log(
+                graph_name=graph_name,
+                operation='cache',
+                algorithm=algo_name,
+                benchmark=benchmark,
+                output=stdout + "\n--- STDERR ---\n" + stderr if stderr else stdout,
+                command=cmd,
+                exit_code=0 if success else 1,
+                duration=elapsed
+            )
+        except Exception as e:
+            log.debug(f"Failed to save run log: {e}")
     
     if success:
         output = stdout + stderr
