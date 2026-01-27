@@ -139,7 +139,13 @@ make cc    # Connected Components
 
 ### Rabbit Order and Boost 1.58
 
-Rabbit Order (algorithm 8) requires **Boost 1.58.0** specifically for compatibility.
+Rabbit Order (algorithm 8) has two variants:
+- **`csr` (default)**: Native CSR implementation - faster, no external dependencies
+- **`boost`**: Original Boost-based implementation - requires Boost 1.58.0
+
+**Note:** The `csr` variant is used by default and does not require Boost. Only install Boost 1.58 if you need the original `boost` variant.
+
+The `boost` variant requires **Boost 1.58.0** specifically for compatibility.
 System package managers often install newer versions which may cause issues.
 
 #### Automatic Installation (Recommended)
@@ -190,12 +196,18 @@ python3 scripts/graphbrew_experiment.py --check-deps
 #### Building with Rabbit Order
 
 ```bash
-# Build (Rabbit Order enabled by default with Boost at /opt/boost_1_58_0)
+# Build with RabbitOrder CSR variant (default, no Boost required)
 make all
 
-# Or disable Rabbit Order if Boost is not available
+# Build with Boost support for RabbitOrder boost variant (requires Boost 1.58)
+RABBIT_ENABLE=1 make all  # Boost at /opt/boost_1_58_0
+
+# Or disable Rabbit Order boost support entirely
 RABBIT_ENABLE=0 make all
 ```
+
+**Note:** The `csr` variant works without Boost. `RABBIT_ENABLE` controls whether
+the Boost-based `boost` variant is compiled.
 
 ### Verify Installation
 

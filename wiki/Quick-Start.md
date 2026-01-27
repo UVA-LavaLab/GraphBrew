@@ -205,7 +205,7 @@ Average Time:        0.001xx
 | 12 | GraphBrewOrder | Per-community reordering |
 | 14 | AdaptiveOrder | Auto-selection for unknown graphs |
 | 15 | LeidenOrder | Social networks |
-| 17 | LeidenCSR | Large complex graphs (variants: gve/dfs/bfs/hubsort/fast/modularity, default: gve) |
+| 17 | LeidenCSR | Large complex graphs (variants: gve/gveopt/dfs/bfs/hubsort/fast/modularity, default: gve) |
 
 ---
 

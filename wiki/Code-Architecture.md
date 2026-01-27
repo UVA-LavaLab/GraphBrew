@@ -180,7 +180,7 @@ void GenerateHubClusterDBGMapping(const CSRGraph& g, pvector<NodeID_>& new_ids, 
 #### Leiden-Based (bench/include/gapbs/builder.h)
 
 ```cpp
-// LeidenDendrogram - hierarchical ordering with variants (dfs/bfs/hubsort/fast/modularity)
+// LeidenDendrogram - hierarchical ordering with variants (dfs/dfshub/dfssize/bfs/hybrid)
 void GenerateLeidenDendrogramMappingUnified(
     const CSRGraph& g, pvector<NodeID_>& new_ids, 
     const ReorderingOptions& opts);

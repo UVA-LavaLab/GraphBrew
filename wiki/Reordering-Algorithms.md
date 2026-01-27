@@ -382,6 +382,7 @@ Implements the full Leiden algorithm from: *"Fast Leiden Algorithm for Community
 | Variant | Description | Speed | Quality |
 |---------|-------------|-------|---------|
 | `gve` | **GVE-Leiden with refinement (DEFAULT)** | Fast | **Best** |
+| `gveopt` | Cache-optimized GVE with prefetching | **Faster** | **Best** |
 | `dfs` | Hierarchical DFS | Fast | Good |
 | `bfs` | Level-first BFS | Fast | Good |
 | `hubsort` | Community + degree sort | Fastest | Good |
@@ -404,7 +405,7 @@ Implements the full Leiden algorithm from: *"Fast Leiden Algorithm for Community
 **Sweeping Variants Example:**
 ```bash
 # Sweep all LeidenCSR variants (format: 17:variant:resolution:iterations:passes)
-for variant in gve dfs bfs hubsort fast modularity; do
+for variant in gve gveopt dfs bfs hubsort fast modularity; do
     ./bench/bin/pr -f graph.mtx -s -o 17:$variant:1.0:20:5 -n 5
 done
 ```
