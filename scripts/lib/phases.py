@@ -146,7 +146,7 @@ class PhaseConfig:
     Attributes:
         bin_dir: Path to benchmark binaries (default: "bench/bin")
         bin_sim_dir: Path to cache simulation binaries (default: "bench/bin_sim")
-        graphs_dir: Path to graph files (default: "graphs")
+        graphs_dir: Path to graph files (default: "results/graphs")
         results_dir: Where to save results (default: "results")
         weights_dir: Where perceptron weights are stored (default: "scripts/weights/active")
         
@@ -199,7 +199,7 @@ class PhaseConfig:
         # ─────────────────────────────────────────────────────────────────────
         bin_dir: str = "bench/bin",
         bin_sim_dir: str = "bench/bin_sim",
-        graphs_dir: str = "graphs",
+        graphs_dir: str = "results/graphs",
         results_dir: str = "results",
         weights_dir: str = "scripts/weights/active",
         
@@ -275,7 +275,7 @@ class PhaseConfig:
         # Leiden settings
         self.leiden_resolution = leiden_resolution
         self.leiden_passes = leiden_passes
-        self.leiden_csr_variants = leiden_csr_variants or ['gve', 'dfs', 'bfs', 'hubsort', 'fast', 'modularity']
+        self.leiden_csr_variants = leiden_csr_variants or ['gve', 'gveopt', 'dfs', 'bfs', 'hubsort', 'fast', 'modularity']
         self.leiden_dendrogram_variants = leiden_dendrogram_variants or ['dfs', 'dfshub', 'dfssize', 'bfs', 'hybrid']
         
         # Training settings
@@ -293,7 +293,7 @@ class PhaseConfig:
         return cls(
             bin_dir=getattr(args, 'bin_dir', 'bench/bin'),
             bin_sim_dir=getattr(args, 'bin_sim_dir', 'bench/bin_sim'),
-            graphs_dir=getattr(args, 'graphs_dir', 'graphs'),
+            graphs_dir=getattr(args, 'graphs_dir', 'results/graphs'),
             results_dir=getattr(args, 'results_dir', 'results'),
             weights_dir=getattr(args, 'weights_dir', 'scripts/weights/active'),
             timeout_reorder=getattr(args, 'timeout_reorder', 300),
@@ -1039,7 +1039,7 @@ def main():
     import argparse
     
     parser = argparse.ArgumentParser(description="Test phase orchestration")
-    parser.add_argument('--graphs-dir', default='graphs', help='Graphs directory')
+    parser.add_argument('--graphs-dir', default='results/graphs', help='Graphs directory')
     parser.add_argument('--phase', choices=['reorder', 'benchmark', 'cache', 'weights', 'all'],
                         default='all', help='Phase to run')
     args = parser.parse_args()

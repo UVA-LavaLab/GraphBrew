@@ -230,8 +230,8 @@ Algorithm IDs:
   15=rcm  16=lorder  17=GraphBrewOrder
         """
     )
-    parser.add_argument('--graphs-dir', '-d', default='graphs',
-                        help='Graphs directory (default: graphs)')
+    parser.add_argument('--graphs-dir', '-d', default='results/graphs',
+                        help='Graphs directory (default: results/graphs)')
     parser.add_argument('--graphs', '-g', nargs='+',
                         help='Specific graph names to test')
     parser.add_argument('--algorithms', '-a', type=int, nargs='+',

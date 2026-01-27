@@ -41,7 +41,7 @@ log = Logger()
 progress = ProgressTracker()
 
 
-def find_test_graph(graphs_dir: str = "graphs") -> tuple:
+def find_test_graph(graphs_dir: str = "results/graphs") -> tuple:
     """Find a small graph suitable for testing."""
     # Preferred small graphs for testing
     preferred = [
