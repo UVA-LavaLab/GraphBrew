@@ -183,6 +183,8 @@ These algorithms use different approaches: RabbitOrder detects communities, whil
 - **Best for**: Large graphs with hierarchical community structure
 - **Limitation**: Uses Louvain (no refinement), can over-merge communities
 
+**Isolated Vertex Handling**: Both variants group isolated (degree-0) vertices at the end of the permutation, matching Boost's original behavior and improving cache locality for non-isolated vertices.
+
 **Key insight**: Uses a "rabbit" metaphor where vertices "hop" to form communities.
 
 **Comparison with GVE-Leiden (Algorithm 17)**:
@@ -393,6 +395,8 @@ Implements the full Leiden algorithm from: *"Fast Leiden Algorithm for Community
 1. **Phase 1: Local-moving** - Greedily move vertices to maximize modularity
 2. **Phase 2: Refinement** - Only allow isolated vertices to move, ensuring well-connected communities
 3. **Phase 3: Aggregation** - Build super-graph and repeat hierarchically
+
+**Isolated Vertex Handling**: Degree-0 vertices are automatically identified and grouped at the end of the permutation. This improves cache locality for active vertices during graph traversals. The algorithm reports the number of isolated vertices found.
 
 **Why GVE-Leiden beats RabbitOrder (Louvain)**:
 | Graph Type | RabbitOrder Q | GVE-Leiden Q | Improvement |
