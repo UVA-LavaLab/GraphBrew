@@ -664,12 +664,176 @@ def initialize_default_weights(weights_dir: str = DEFAULT_WEIGHTS_DIR) -> Dict:
     return weights
 
 
+def store_per_graph_results(
+    benchmark_results: List = None,
+    cache_results: List = None,
+    reorder_results: List = None,
+    graphs_dir: str = None,
+    data_dir: str = None
+) -> None:
+    """
+    Store benchmark/reorder/cache results per-graph for later analysis.
+    
+    This enables:
+    1. Re-analyzing data without re-running experiments
+    2. Partial experiment runs (redo specific graphs)
+    3. Multiple perceptron flavors comparison
+    4. Historical tracking
+    
+    Args:
+        benchmark_results: List of BenchmarkResult objects
+        cache_results: List of CacheResult objects
+        reorder_results: List of ReorderResult objects
+        graphs_dir: Directory with graph files (for feature extraction)
+        data_dir: Output directory for per-graph data (default: results/graphs/)
+    """
+    benchmark_results = benchmark_results or []
+    cache_results = cache_results or []
+    reorder_results = reorder_results or []
+    
+    if data_dir is None:
+        from .utils import RESULTS_DIR
+        data_dir = os.path.join(RESULTS_DIR, "graphs")
+    
+    # Import graph_data module
+    from .graph_data import (
+        GraphDataStore, GraphFeatures,
+        AlgorithmBenchmarkData, AlgorithmReorderData,
+    )
+    
+    # Load graph properties for features
+    from .features import load_graph_properties_cache
+    graph_props = load_graph_properties_cache(graphs_dir or "results")
+    
+    # Group results by graph
+    graph_benchmarks = {}  # graph_name -> [BenchmarkResult, ...]
+    graph_reorders = {}    # graph_name -> [ReorderResult, ...]
+    graph_caches = {}      # graph_name -> [CacheResult, ...]
+    
+    for r in benchmark_results:
+        graph_name = r.graph
+        if graph_name not in graph_benchmarks:
+            graph_benchmarks[graph_name] = []
+        graph_benchmarks[graph_name].append(r)
+    
+    for r in reorder_results:
+        graph_name = r.graph
+        if graph_name not in graph_reorders:
+            graph_reorders[graph_name] = []
+        graph_reorders[graph_name].append(r)
+    
+    for r in cache_results:
+        graph_name = r.graph if hasattr(r, 'graph') else getattr(r, 'graph_name', 'unknown')
+        if graph_name not in graph_caches:
+            graph_caches[graph_name] = []
+        graph_caches[graph_name].append(r)
+    
+    # Get all unique graphs
+    all_graphs = set(graph_benchmarks.keys()) | set(graph_reorders.keys()) | set(graph_caches.keys())
+    
+    log.info(f"Storing per-graph data for {len(all_graphs)} graphs")
+    
+    for graph_name in all_graphs:
+        store = GraphDataStore(graph_name, data_dir)
+        
+        # Store features from properties cache
+        props = graph_props.get(graph_name, {})
+        if props:
+            features = GraphFeatures(
+                graph_name=graph_name,
+                nodes=props.get('nodes', 0),
+                edges=props.get('edges', 0),
+                avg_degree=props.get('avg_degree', 0.0),
+                density=props.get('density', 0.0),
+                modularity=props.get('modularity', 0.0),
+                degree_variance=props.get('degree_variance', 0.0),
+                hub_concentration=props.get('hub_concentration', 0.0),
+                clustering_coefficient=props.get('clustering_coefficient', 0.0),
+                avg_path_length=props.get('avg_path_length', 0.0),
+                diameter_estimate=props.get('diameter', 0.0),
+                community_count=props.get('community_count', 0),
+                graph_type=props.get('graph_type', 'unknown'),
+            )
+            store.save_features(features)
+        
+        # Store benchmark results
+        # Compute baseline time for speedup calculation
+        benchmarks = graph_benchmarks.get(graph_name, [])
+        baseline_times = {}  # benchmark -> baseline time (algo=0 or ORIGINAL)
+        
+        for r in benchmarks:
+            if r.algorithm_id == 0 or r.algorithm_name == 'ORIGINAL':
+                bench = r.benchmark
+                time_val = getattr(r, 'avg_time', 0) or getattr(r, 'time_seconds', 0)
+                if time_val > 0:
+                    baseline_times[bench] = time_val
+        
+        for r in benchmarks:
+            time_val = getattr(r, 'avg_time', 0) or getattr(r, 'time_seconds', 0)
+            trial_times = getattr(r, 'trial_times', [time_val]) if hasattr(r, 'trial_times') else [time_val]
+            
+            # Compute speedup vs baseline
+            baseline = baseline_times.get(r.benchmark, time_val)
+            speedup = baseline / time_val if time_val > 0 else 1.0
+            
+            bench_data = AlgorithmBenchmarkData(
+                graph_name=graph_name,
+                algorithm_id=r.algorithm_id,
+                algorithm_name=r.algorithm_name,
+                benchmark=r.benchmark,
+                avg_time=time_val,
+                trial_times=trial_times,
+                speedup=speedup,
+                num_trials=len(trial_times),
+                success=getattr(r, 'success', True),
+                error=getattr(r, 'error', ''),
+            )
+            store.save_benchmark_result(bench_data)
+        
+        # Store reorder results
+        for r in graph_reorders.get(graph_name, []):
+            reorder_time = getattr(r, 'reorder_time', 0.0) or getattr(r, 'time_seconds', 0.0)
+            
+            reorder_data = AlgorithmReorderData(
+                graph_name=graph_name,
+                algorithm_id=r.algorithm_id,
+                algorithm_name=r.algorithm_name,
+                reorder_time=reorder_time,
+                modularity=getattr(r, 'modularity', 0.0),
+                communities=getattr(r, 'communities', 0),
+                isolated_vertices=getattr(r, 'isolated_vertices', 0),
+                mapping_file=getattr(r, 'mapping_file', ''),
+                success=getattr(r, 'success', True),
+                error=getattr(r, 'error', ''),
+            )
+            store.save_reorder_result(reorder_data)
+        
+        # Store cache stats with benchmark results
+        for r in graph_caches.get(graph_name, []):
+            # Find matching benchmark and update cache stats
+            algo_name = r.algorithm_name if hasattr(r, 'algorithm_name') else str(getattr(r, 'algorithm_id', 0))
+            bench = getattr(r, 'benchmark', 'pr')
+            
+            # Load existing benchmark and update with cache stats
+            existing = store.load_benchmark_result(bench, algo_name)
+            if existing:
+                existing.l1_hit_rate = 100.0 - getattr(r, 'l1_miss_rate', 0.0)
+                existing.l2_hit_rate = 100.0 - getattr(r, 'l2_miss_rate', 0.0) 
+                existing.l3_hit_rate = 100.0 - getattr(r, 'l3_miss_rate', 0.0)
+                existing.llc_misses = getattr(r, 'llc_misses', 0)
+                store.save_benchmark_result(existing)
+    
+    log.info(f"Stored per-graph data in {data_dir}")
+
+
 def update_zero_weights(
     weights_file: str = None,
     benchmark_results: List = None,
     cache_results: List = None,
     reorder_results: List = None,
-    graphs_dir: str = None
+    graphs_dir: str = None,
+    store_per_graph: bool = True,
+    weights_dir: str = None,  # Alias for weights_file (for backward compatibility)
 ) -> None:
     """
     Update zero/default weights with actual benchmark data.
@@ -683,10 +847,28 @@ def update_zero_weights(
         cache_results: Optional list of CacheResult objects
         reorder_results: Optional list of ReorderResult objects
         graphs_dir: Directory containing graphs (for feature extraction)
+        store_per_graph: If True, also store results in per-graph directory structure
+        weights_dir: Alias for weights_file (for backward compatibility)
     """
+    # Handle alias
+    if weights_dir and not weights_file:
+        weights_file = weights_dir
+        
     benchmark_results = benchmark_results or []
     cache_results = cache_results or []
     reorder_results = reorder_results or []
+    
+    # Store per-graph results for later analysis (before aggregation)
+    if store_per_graph:
+        try:
+            store_per_graph_results(
+                benchmark_results=benchmark_results,
+                cache_results=cache_results,
+                reorder_results=reorder_results,
+                graphs_dir=graphs_dir
+            )
+        except Exception as e:
+            log.warning(f"Failed to store per-graph results: {e}")
     
     # Load graph properties cache for features
     from .features import load_graph_properties_cache

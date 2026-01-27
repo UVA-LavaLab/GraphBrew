@@ -53,7 +53,7 @@ __version__ = "1.2.0"
 __all__ = [
     "utils", "download", "build", "reorder", "benchmark", "cache", "weights",
     "progress", "results", "analysis", "training", "features", "phases", "types",
-    "dependencies"
+    "dependencies", "graph_data"
 ]
 
 # =============================================================================
@@ -233,6 +233,8 @@ from .weights import (
     list_known_types,
     get_type_summary,
     initialize_default_weights,
+    update_zero_weights,
+    store_per_graph_results,
     CLUSTER_DISTANCE_THRESHOLD,
 )
 
@@ -325,4 +327,22 @@ from .types import (
     BenchmarkResult,
     CacheResult,
     AdaptiveAnalysisResult,
+)
+
+# =============================================================================
+# Per-graph data storage
+# =============================================================================
+from .graph_data import (
+    GraphDataStore,
+    GraphFeatures,
+    AlgorithmBenchmarkData,
+    AlgorithmReorderData,
+    GraphPerceptronWeights,
+    save_graph_features,
+    save_benchmark_result,
+    save_reorder_result,
+    list_graphs as list_graph_data,
+    load_all_graph_data,
+    export_to_csv as export_graph_data_csv,
+    compute_and_save_weights,
 )

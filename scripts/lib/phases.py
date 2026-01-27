@@ -648,7 +648,8 @@ def run_fill_weights_phase(
         benchmark_results=benchmark_results,
         cache_results=cache_results or [],
         reorder_results=reorder_results or [],
-        graphs_dir=config.graphs_dir
+        graphs_dir=config.graphs_dir,
+        store_per_graph=True,  # Enable per-graph data storage for analysis
     )
     
     config.progress.phase_end("Zero weights updated")
