@@ -526,7 +526,7 @@ class PipelineConfig:
     # Directories
     bin_dir: str = "bench/bin"
     bin_sim_dir: str = "bench/bin_sim"
-    graphs_dir: str = "graphs"
+    graphs_dir: str = "results/graphs"
     results_dir: str = "results"
     weights_dir: str = "scripts/weights/active"
     

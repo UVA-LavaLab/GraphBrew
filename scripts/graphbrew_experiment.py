@@ -35,13 +35,13 @@ A comprehensive one-click script that runs the complete GraphBrew experiment wor
     # With custom parameters
     python scripts/graphbrew_experiment.py --generate-maps --expand-variants \\
         --leiden-resolution 1.0 --leiden-passes 3 \\
-        --leiden-csr-variants gve fast hubsort
+        --leiden-csr-variants gve gveopt fast hubsort
     
     # Run benchmarks with variant mappings (trains weights for each variant)
     python scripts/graphbrew_experiment.py --phase benchmark --expand-variants --use-maps
     
     RabbitOrder (8) variants: csr (default), boost
-    LeidenCSR (17) variants: gve (default), dfs, bfs, hubsort, fast, modularity
+    LeidenCSR (17) variants: gve (default), gveopt (cache-optimized), dfs, bfs, hubsort, fast, modularity
     LeidenDendrogram (16) variants: dfs, dfshub, dfssize, bfs, hybrid
 
 All outputs are saved to the results/ directory for clean organization.
@@ -264,7 +264,7 @@ ALGORITHMS = {
     15: "LeidenOrder",
     # Format: 16:variant:resolution where variant = dfs/dfshub/dfssize/bfs/hybrid
     16: "LeidenDendrogram",
-    # Format: 17:variant:resolution:iterations:passes where variant = gve (default)/dfs/bfs/hubsort/fast/modularity
+    # Format: 17:variant:resolution:iterations:passes where variant = gve (default)/gveopt/dfs/bfs/hubsort/fast/modularity
     17: "LeidenCSR",
 }
 
@@ -285,7 +285,8 @@ RABBITORDER_DEFAULT_VARIANT = "csr"
 # Leiden variant configurations for sweeping
 LEIDEN_DENDROGRAM_VARIANTS = ["dfs", "dfshub", "dfssize", "bfs", "hybrid"]
 # LeidenCSR variants - gve (GVE-Leiden) is default for best modularity quality
-LEIDEN_CSR_VARIANTS = ["gve", "dfs", "bfs", "hubsort", "fast", "modularity"]
+# gveopt is cache-optimized with prefetching and flat arrays for large graphs
+LEIDEN_CSR_VARIANTS = ["gve", "gveopt", "dfs", "bfs", "hubsort", "fast", "modularity"]
 LEIDEN_CSR_DEFAULT_VARIANT = "gve"
 
 # Default Leiden parameters
@@ -406,7 +407,7 @@ def get_best_leiden_variant(
     """
     Get the best variant for a Leiden algorithm based on learned weights.
     
-    For LeidenCSR (17), variants are: gve (default), dfs, bfs, hubsort, fast, modularity
+    For LeidenCSR (17), variants are: gve (default), gveopt, dfs, bfs, hubsort, fast, modularity
     For LeidenDendrogram (16), variants are: dfs, dfshub, dfssize, bfs, hybrid
     
     Args:
@@ -1432,7 +1433,7 @@ def clean_all(project_dir: str = ".", confirm: bool = False) -> None:
             print(f"Cleaned binaries in {bin_dir}/")
     
     # Clean label.map files in graphs directory
-    graphs_dir = os.path.join(project_dir, "graphs")
+    graphs_dir = os.path.join(project_dir, "results", "graphs")
     if os.path.exists(graphs_dir):
         map_files = glob.glob(os.path.join(graphs_dir, "**/label.map"), recursive=True)
         if map_files:
@@ -2806,7 +2807,7 @@ Examples:
     parser.add_argument("--leiden-passes", type=int, default=3,
                         help="Number of passes for LeidenCSR (default: 3)")
     parser.add_argument("--leiden-csr-variants", nargs="+", 
-                        default=None, choices=["gve", "dfs", "bfs", "hubsort", "fast", "modularity"],
+                        default=None, choices=["gve", "gveopt", "dfs", "bfs", "hubsort", "fast", "modularity"],
                         help="LeidenCSR variants to include (default: all, gve recommended)")
     parser.add_argument("--leiden-dendrogram-variants", nargs="+",
                         default=None, choices=["dfs", "dfshub", "dfssize", "bfs", "hybrid"],

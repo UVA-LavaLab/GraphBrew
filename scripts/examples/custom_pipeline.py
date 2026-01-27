@@ -255,7 +255,7 @@ Examples:
         """
     )
     
-    parser.add_argument('--graphs-dir', default='graphs', 
+    parser.add_argument('--graphs-dir', default='results/graphs', 
                         help='Directory containing graph folders')
     parser.add_argument('--graph', 
                         help='Single graph directory to benchmark')
