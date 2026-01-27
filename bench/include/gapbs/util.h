@@ -30,7 +30,7 @@ enum ReorderingAlgo
     DBG = 5,
     HubSortDBG = 6,
     HubClusterDBG = 7,
-    RabbitOrder = 8,
+    RabbitOrder = 8,        // -o 8:variant (csr=default, boost) | Native CSR is faster, no Boost deps
     GOrder = 9,
     COrder = 10,
     RCMOrder = 11,
@@ -38,9 +38,9 @@ enum ReorderingAlgo
     MAP = 13,               // Load reordering from file
     AdaptiveOrder = 14,     // ML-based perceptron selector
     // Leiden algorithms (15-17) - grouped together for easier sweeping
-    LeidenOrder = 15,       // Format: 15:resolution (via igraph)
-    LeidenDendrogram = 16,  // Format: 16:resolution:variant (dfs/dfshub/dfssize/bfs/hybrid)
-    LeidenCSR = 17,         // Format: 17:resolution:passes:variant (dfs/bfs/hubsort/fast/modularity)
+    LeidenOrder = 15,       // -o 15:resolution (via igraph)
+    LeidenDendrogram = 16,  // -o 16:variant:resolution (dfs/dfshub/dfssize/bfs/hybrid)
+    LeidenCSR = 17,         // -o 17:variant:resolution:iters:passes (gve=default, gveopt, dfs, bfs, hubsort, fast, modularity)
     // Native CSR implementations of external algorithms
     RabbitOrderCSR = 18,    // Native CSR Rabbit Order (no external library)
 };
