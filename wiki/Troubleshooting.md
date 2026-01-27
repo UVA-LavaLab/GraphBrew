@@ -68,6 +68,36 @@ make clean
 make CXXFLAGS="-fopenmp -std=c++17 -O3"
 ```
 
+### RabbitOrder Boost Variant Build Issues
+
+**Error**: "boost/graph/adjacency_list.hpp: No such file"
+
+**Cause**: Boost 1.58 not installed but trying to use RabbitOrder `boost` variant.
+
+**Solutions**:
+
+1. **Use the CSR variant (recommended)** - No Boost needed:
+   ```bash
+   # CSR variant is default, no build changes needed
+   ./bench/bin/pr -f graph.el -o 8 -n 1      # Uses csr variant
+   ./bench/bin/pr -f graph.el -o 8:csr -n 1  # Explicit csr
+   ```
+
+2. **Install Boost 1.58 for the boost variant**:
+   ```bash
+   python3 scripts/graphbrew_experiment.py --install-boost
+   make clean && make all
+   ./bench/bin/pr -f graph.el -o 8:boost -n 1
+   ```
+
+3. **Disable Boost support entirely**:
+   ```bash
+   RABBIT_ENABLE=0 make all
+   ```
+
+**Note**: The `csr` variant is faster and has no dependencies. The `boost` variant 
+is the original implementation requiring Boost 1.58.0 specifically.
+
 ---
 
 ## Graph Loading Issues

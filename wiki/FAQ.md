@@ -179,6 +179,20 @@ Leiden is a community detection algorithm that finds densely connected groups of
 
 GraphBrew uses Leiden to guide reordering decisions.
 
+### What are RabbitOrder variants?
+
+RabbitOrder (algorithm 8) has two variants:
+
+| Variant | Command | Description |
+|---------|---------|-------------|
+| `csr` | `-o 8` or `-o 8:csr` | Native CSR implementation (default) |
+| `boost` | `-o 8:boost` | Original Boost-based implementation |
+
+**Recommendations:**
+- Use `csr` (default) - faster, no external dependencies
+- Use `boost` only if you need the original implementation behavior
+- The `boost` variant requires Boost 1.58.0: `--install-boost`
+
 ### How does AdaptiveOrder work?
 
 1. Detects communities using Leiden
@@ -237,7 +251,7 @@ Properties are computed during `--fill-weights` Phase 0 and cached in `results/g
 |-----------|----------|
 | LeidenOrder (15) | Basic Leiden → contiguous community ordering |
 | LeidenDendrogram (16) | Leiden + dendrogram-based traversal variants |
-| LeidenCSR (17) | Optimized Leiden with multiple variants (dfs/bfs/hubsort/fast/modularity) |
+| LeidenCSR (17) | Optimized Leiden with multiple variants (gve/gveopt/dfs/bfs/hubsort/fast/modularity) |
 
 LeidenCSR with "hubsort" or "fast" variant is recommended for large graphs.
 

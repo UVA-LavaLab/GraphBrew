@@ -234,7 +234,7 @@ Largest communities:
 | Aspect | LeidenCSR | GraphBrewOrder |
 |--------|-----------|----------------|
 | Community detection | ✅ Leiden | ✅ Leiden |
-| Internal ordering | Configurable (gve/dfs/bfs/hubsort/fast/modularity) | Configurable (default: RabbitOrder) |
+| Internal ordering | Configurable (gve/gveopt/dfs/bfs/hubsort/fast/modularity) | Configurable (default: RabbitOrder) |
 | Speed | Very fast (CSR-native) | Moderate |
 | Best for | Large graphs, tunable quality | Modular graphs |
 
@@ -312,7 +312,8 @@ sort(communities.begin(), communities.end(),
 Each community subgraph is reordered using the configurable algorithm:
 
 ```cpp
-// Default: RabbitOrder (algorithm 8)
+// Default: RabbitOrder (algorithm 8 with csr variant)
+// RabbitOrder has variants: csr (default), boost
 // Can be changed via format string: -o 12:freq:algo:resolution
 ReorderingAlgo algo = getReorderingAlgo(reorderingOptions[1].c_str());  // default: "8"
 

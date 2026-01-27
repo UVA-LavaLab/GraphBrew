@@ -1050,7 +1050,7 @@ Each weight file contains algorithm-specific weights. The C++ code reads the cor
 | 14 | AdaptiveOrder |
 | 15 | LeidenOrder |
 | 16 | LeidenDendrogram |
-| 17 | LeidenCSR (variants: gve/dfs/bfs/hubsort/fast/modularity) |
+| 17 | LeidenCSR (variants: gve/gveopt/dfs/bfs/hubsort/fast/modularity) |
 
 ---
 
