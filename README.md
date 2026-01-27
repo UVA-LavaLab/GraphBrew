@@ -44,6 +44,9 @@ Choosing the right reordering algorithm depends on your graph characteristics. F
 # Use LeidenCSR with explicit GVE-Leiden parameters
 ./bench/bin/pr -f graph.mtx -o 17:gve:1.0:20:5
 
+# Use LeidenCSR with cache-optimized GVE (faster on large graphs)
+./bench/bin/pr -f graph.mtx -o 17:gveopt:1.0:20:5
+
 # Use LeidenDendrogram with hybrid variant (best for social/web graphs)
 ./bench/bin/pr -f graph.mtx -o 16:hybrid:1.0
 
@@ -607,10 +610,12 @@ All parameters [(section)](#graphbrew-parameters) can be passed through the bina
 ### Relabeling the graph
    * `converter` is used to convert graphs and apply new labeling to them.
    * Please check converter parameters and pass them to `RUN_PARAMS='-p ./graph_8.mtx -o 8'`.
+   * Note: RabbitOrder (8) supports variants: `-o 8` (csr default) or `-o 8:boost`
 ```bash
 make run-converter GRAPH_BENCH='-f ./graph.<mtx|el|sg>' RUN_PARAMS='-p ./graph_8.mtx -o 8' 
 <OR>
 ./bench/bin/converter -f ./graph.<mtx|el|sg> -p ./graph_8.mtx -o 8
+# With explicit boost variant: -o 8:boost
 ```
 
 ### Debugging
@@ -780,7 +785,7 @@ Reordering Algorithms:
   ├─────────────────────────────────────────────────────────────────────────────┤
   │ Community-Based Algorithms                                                  │
   ├─────────────────────────────────────────────────────────────────────────────┤
-  │ RABBITORDER    (8):  Community clustering with incremental aggregation      │
+  │ RABBITORDER    (8):  Community clustering (variants: csr/boost, default: csr)│
   │ GORDER         (9):  Dynamic programming BFS and windowing ordering         │
   │ CORDER        (10):  Workload balancing via graph reordering                │
   │ RCM           (11):  Reverse Cuthill-McKee algorithm (BFS-based)            │
@@ -797,7 +802,7 @@ Reordering Algorithms:
   │ LeidenDendrogram(16): Dendrogram traversal (format: 16:res:variant)         │
   │                      Variants: dfs, dfshub, dfssize, bfs, hybrid            │
   │ LeidenCSR     (17):  Fast CSR-native (format: 17:res:passes:variant)        │
-  │                      Variants: dfs, bfs, hubsort, fast, modularity          │
+  │                      Variants: gve (default), gveopt, dfs, bfs, hubsort, fast│
   └─────────────────────────────────────────────────────────────────────────────┘
 
 Parameter Syntax for Composite Algorithms:
