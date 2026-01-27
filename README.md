@@ -47,6 +47,9 @@ Choosing the right reordering algorithm depends on your graph characteristics. F
 # Use LeidenCSR with cache-optimized GVE (faster on large graphs)
 ./bench/bin/pr -f graph.mtx -o 17:gveopt:1.0:20:5
 
+# Use LeidenCSR with GVE-Rabbit hybrid (fastest, good quality)
+./bench/bin/pr -f graph.mtx -o 17:gverabbit:1.0:5
+
 # Use LeidenDendrogram with hybrid variant (best for social/web graphs)
 ./bench/bin/pr -f graph.mtx -o 16:hybrid:1.0
 
