@@ -762,7 +762,9 @@ def store_per_graph_results(
         baseline_times = {}  # benchmark -> baseline time (algo=0 or ORIGINAL)
         
         for r in benchmarks:
-            if r.algorithm_id == 0 or r.algorithm_name == 'ORIGINAL':
+            # Handle both algorithm_name (types.py) and algorithm (utils.py) attributes
+            algo_name = getattr(r, 'algorithm_name', None) or getattr(r, 'algorithm', '')
+            if r.algorithm_id == 0 or algo_name == 'ORIGINAL':
                 bench = r.benchmark
                 time_val = getattr(r, 'avg_time', 0) or getattr(r, 'time_seconds', 0)
                 if time_val > 0:
@@ -771,6 +773,8 @@ def store_per_graph_results(
         for r in benchmarks:
             time_val = getattr(r, 'avg_time', 0) or getattr(r, 'time_seconds', 0)
             trial_times = getattr(r, 'trial_times', [time_val]) if hasattr(r, 'trial_times') else [time_val]
+            # Handle both algorithm_name (types.py) and algorithm (utils.py) attributes
+            algo_name = getattr(r, 'algorithm_name', None) or getattr(r, 'algorithm', '')
             
             # Compute speedup vs baseline
             baseline = baseline_times.get(r.benchmark, time_val)
@@ -779,7 +783,7 @@ def store_per_graph_results(
             bench_data = AlgorithmBenchmarkData(
                 graph_name=graph_name,
                 algorithm_id=r.algorithm_id,
-                algorithm_name=r.algorithm_name,
+                algorithm_name=algo_name,
                 benchmark=r.benchmark,
                 avg_time=time_val,
                 trial_times=trial_times,
@@ -793,11 +797,13 @@ def store_per_graph_results(
         # Store reorder results
         for r in graph_reorders.get(graph_name, []):
             reorder_time = getattr(r, 'reorder_time', 0.0) or getattr(r, 'time_seconds', 0.0)
+            # Handle both algorithm_name (types.py) and algorithm (utils.py) attributes
+            algo_name = getattr(r, 'algorithm_name', None) or getattr(r, 'algorithm', '')
             
             reorder_data = AlgorithmReorderData(
                 graph_name=graph_name,
                 algorithm_id=r.algorithm_id,
-                algorithm_name=r.algorithm_name,
+                algorithm_name=algo_name,
                 reorder_time=reorder_time,
                 modularity=getattr(r, 'modularity', 0.0),
                 communities=getattr(r, 'communities', 0),

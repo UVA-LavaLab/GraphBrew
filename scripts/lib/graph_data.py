@@ -163,8 +163,10 @@ def list_graph_logs(graph_name: str, logs_dir: str = LOGS_DIR) -> List[Dict]:
             operation = parts[0]
             timestamp = '_'.join(parts[-2:])  # Last two parts are YYYYMMDD_HHMMSS
             
-            # Check if there's a benchmark (4+ parts means benchmark is present)
-            if len(parts) >= 4 and operation == 'benchmark':
+            # Check if there's a benchmark (operations: benchmark, cache have benchmarks)
+            # Format with benchmark: operation_benchmark_algorithm_YYYYMMDD_HHMMSS.log (5+ parts)
+            # Format without: operation_algorithm_YYYYMMDD_HHMMSS.log (4 parts)
+            if len(parts) >= 5 and operation in ('benchmark', 'cache'):
                 benchmark = parts[1]
                 algorithm = '_'.join(parts[2:-2])
             else:
