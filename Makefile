@@ -316,7 +316,7 @@ help-%: $(BIN_DIR)/%
 	@echo "  │ LeidenDendrogram(16): Dendrogram traversal (format: 16:variant:res)         │"
 	@echo "  │                      Variants: dfs, dfshub, dfssize, bfs, hybrid (default)  │"
 	@echo "  │ LeidenCSR     (17):  GVE-Leiden CSR-native (format: 17:variant:res:iter:pass)│"
-	@echo "  │                      Variants: gve (default), dfs, bfs, hubsort, fast, mod  │"
+	@echo "  │                      Variants: gve (default), gveopt, dfs, bfs, hubsort, fast│"
 	@echo "  └─────────────────────────────────────────────────────────────────────────────┘"
 	@echo ""
 	@echo "Example Usage:"
