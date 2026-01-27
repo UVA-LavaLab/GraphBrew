@@ -88,7 +88,7 @@ Use with `-o <id>`:
 | 14 | AdaptiveOrder | ML |
 | 15 | LeidenOrder | Leiden (igraph) |
 | 16 | LeidenDendrogram | Leiden (variants: dfs/dfshub/dfssize/bfs/hybrid) |
-| 17 | LeidenCSR | Leiden (variants: gve/gveopt/dfs/bfs/hubsort/fast/modularity, default: gve) |
+| 17 | LeidenCSR | Leiden (variants: gve/gveopt/gverabbit/dfs/bfs/hubsort/fast/modularity, default: gve) |
 
 ---
 

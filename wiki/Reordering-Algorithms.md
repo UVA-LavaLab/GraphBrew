@@ -374,6 +374,8 @@ Implements the full Leiden algorithm from: *"Fast Leiden Algorithm for Community
 # Format: -o 17[:variant:resolution:iterations:passes]
 ./bench/bin/pr -f graph.el -s -o 17 -n 3                    # Default: GVE-Leiden (best quality)
 ./bench/bin/pr -f graph.el -s -o 17:gve:1.0:20:5 -n 3       # GVE-Leiden explicit params
+./bench/bin/pr -f graph.el -s -o 17:gveopt:1.0:20:5 -n 3    # Cache-optimized GVE
+./bench/bin/pr -f graph.el -s -o 17:gverabbit:1.0:5 -n 3    # GVE-Rabbit hybrid (fast)
 ./bench/bin/pr -f graph.el -s -o 17:hubsort:1.0:10:3 -n 3   # Hub-sorted variant
 ./bench/bin/pr -f graph.el -s -o 17:fast:1.0:10:2 -n 3      # Union-Find + Label Prop
 ./bench/bin/pr -f graph.el -s -o 17:dfs:1.0:10:1 -n 3       # DFS ordering
@@ -385,9 +387,10 @@ Implements the full Leiden algorithm from: *"Fast Leiden Algorithm for Community
 |---------|-------------|-------|---------|
 | `gve` | **GVE-Leiden with refinement (DEFAULT)** | Fast | **Best** |
 | `gveopt` | Cache-optimized GVE with prefetching | **Faster** | **Best** |
+| `gverabbit` | **GVE-Rabbit hybrid (limited iterations, single pass)** | **Fastest** | Good |
 | `dfs` | Hierarchical DFS | Fast | Good |
 | `bfs` | Level-first BFS | Fast | Good |
-| `hubsort` | Community + degree sort | Fastest | Good |
+| `hubsort` | Community + degree sort | Fast | Good |
 | `fast` | Union-Find + Label Propagation | Very Fast | Moderate |
 | `modularity` | Modularity optimization | Fast | Good |
 
@@ -409,7 +412,7 @@ Implements the full Leiden algorithm from: *"Fast Leiden Algorithm for Community
 **Sweeping Variants Example:**
 ```bash
 # Sweep all LeidenCSR variants (format: 17:variant:resolution:iterations:passes)
-for variant in gve gveopt dfs bfs hubsort fast modularity; do
+for variant in gve gveopt gverabbit dfs bfs hubsort fast modularity; do
     ./bench/bin/pr -f graph.mtx -s -o 17:$variant:1.0:20:5 -n 5
 done
 ```
