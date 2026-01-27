@@ -782,9 +782,16 @@ macOS (with Homebrew):
     xcode-select --install
     brew install gcc google-perftools
 
-Boost 1.58.0 for RabbitOrder (Required):
-----------------------------------------
-RabbitOrder requires Boost 1.58.0 specifically. System package managers
+Boost 1.58.0 for RabbitOrder 'boost' variant (Optional):
+--------------------------------------------------------
+RabbitOrder (algorithm 8) has two variants:
+  - csr (default): Native CSR implementation - no external dependencies
+  - boost: Original Boost-based implementation - requires Boost 1.58.0
+
+The 'csr' variant is used by default and does NOT require Boost.
+Only install Boost 1.58.0 if you need the original 'boost' variant.
+
+The 'boost' variant requires Boost 1.58.0 specifically. System package managers
 typically install newer versions which may cause compatibility issues.
 
 Automatic installation (recommended):
