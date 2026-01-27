@@ -7729,22 +7729,109 @@ public:
      * Trace community: Find the root community that vertex v belongs to
      * Uses path compression for efficiency
      */
-    uint32_t rabbitCSRTraceCom(uint32_t v, RabbitCSRGraph& g) {
+    inline uint32_t rabbitCSRTraceCom(uint32_t v, RabbitCSRGraph& g) {
         uint32_t com = v;
-        while (true) {
-            uint32_t c = g.coms[com].load(std::memory_order_acquire);
-            if (c == com) break;
+        uint32_t c = g.coms[com].load(std::memory_order_relaxed);
+        if (c == com) return com;  // Fast path: already at root
+        
+        // Follow the chain
+        do {
             com = c;
-        }
-        // Path compression: update v's community pointer if it changed
-        if (v != com && g.coms[v].load(std::memory_order_acquire) != com) {
-            g.coms[v].store(com, std::memory_order_release);
+            c = g.coms[com].load(std::memory_order_relaxed);
+        } while (c != com);
+        
+        // Path compression
+        if (v != com) {
+            g.coms[v].store(com, std::memory_order_relaxed);
         }
         return com;
     }
 
     /**
-     * Aggregate duplicate edges and compact the neighbor list
+     * Aggregate duplicate edges using incremental compaction
+     * Returns the new end position after compaction
+     */
+    size_t rabbitCSRCompactEdgesIncremental(
+        std::vector<std::pair<uint32_t, float>>& edges, 
+        size_t start_pos) {
+        
+        if (start_pos >= edges.size()) return edges.size();
+        
+        // Sort only the new portion
+        std::sort(edges.begin() + start_pos, edges.end(),
+            [](const auto& a, const auto& b) { return a.first < b.first; });
+        
+        // Merge with already-sorted prefix using a merge step
+        if (start_pos == 0) {
+            // Simple in-place dedup
+            size_t write_pos = 0;
+            for (size_t i = 1; i < edges.size(); ++i) {
+                if (edges[i].first == edges[write_pos].first) {
+                    edges[write_pos].second += edges[i].second;
+                } else {
+                    ++write_pos;
+                    if (write_pos != i) {
+                        edges[write_pos] = edges[i];
+                    }
+                }
+            }
+            edges.resize(write_pos + 1);
+            return edges.size();
+        }
+        
+        // Merge sorted ranges
+        std::vector<std::pair<uint32_t, float>> merged;
+        merged.reserve(edges.size());
+        
+        size_t i = 0, j = start_pos;
+        while (i < start_pos && j < edges.size()) {
+            if (edges[i].first < edges[j].first) {
+                if (!merged.empty() && merged.back().first == edges[i].first) {
+                    merged.back().second += edges[i].second;
+                } else {
+                    merged.push_back(edges[i]);
+                }
+                ++i;
+            } else if (edges[i].first > edges[j].first) {
+                if (!merged.empty() && merged.back().first == edges[j].first) {
+                    merged.back().second += edges[j].second;
+                } else {
+                    merged.push_back(edges[j]);
+                }
+                ++j;
+            } else {
+                // Equal - combine
+                if (!merged.empty() && merged.back().first == edges[i].first) {
+                    merged.back().second += edges[i].second + edges[j].second;
+                } else {
+                    merged.push_back({edges[i].first, edges[i].second + edges[j].second});
+                }
+                ++i; ++j;
+            }
+        }
+        while (i < start_pos) {
+            if (!merged.empty() && merged.back().first == edges[i].first) {
+                merged.back().second += edges[i].second;
+            } else {
+                merged.push_back(edges[i]);
+            }
+            ++i;
+        }
+        while (j < edges.size()) {
+            if (!merged.empty() && merged.back().first == edges[j].first) {
+                merged.back().second += edges[j].second;
+            } else {
+                merged.push_back(edges[j]);
+            }
+            ++j;
+        }
+        
+        edges = std::move(merged);
+        return edges.size();
+    }
+
+    /**
+     * Simple compact for final aggregation
      */
     void rabbitCSRCompactEdges(std::vector<std::pair<uint32_t, float>>& edges) {
         if (edges.empty()) return;
@@ -7758,7 +7845,9 @@ public:
                 edges[write_pos].second += edges[i].second;
             } else {
                 ++write_pos;
-                edges[write_pos] = edges[i];
+                if (write_pos != i) {
+                    edges[write_pos] = edges[i];
+                }
             }
         }
         edges.resize(write_pos + 1);
@@ -7766,23 +7855,55 @@ public:
 
     /**
      * Unite: Aggregate edges of vertex v and all vertices merged into v
-     * This is the lazy aggregation step - edges are aggregated just before merging
+     * Optimized with prefetching like the original boost implementation
      */
     void rabbitCSRUnite(uint32_t v, std::vector<std::pair<uint32_t, float>>& nbrs, 
                         RabbitCSRGraph& g) {
+        size_t icmb = 0;  // Track compacted portion for incremental compaction
         nbrs.clear();
         
-        // Helper to push edges from a vertex
+        // Helper to push edges from a vertex with prefetching
         auto push_edges = [&](uint32_t u) {
-            for (const auto& e : g.es[u]) {
-                uint32_t c = rabbitCSRTraceCom(e.first, g);
+            const auto& es = g.es[u];
+            const size_t es_size = es.size();
+            constexpr size_t npre = 8;  // Prefetch distance
+            
+            // Prefetch initial batch
+            for (size_t i = 0; i < es_size && i < npre; ++i) {
+                __builtin_prefetch(&g.coms[es[i].first], 0, 3);
+            }
+            
+            for (size_t i = 0; i < es_size; ++i) {
+                // Prefetch ahead
+                if (i + npre < es_size) {
+                    __builtin_prefetch(&g.coms[es[i + npre].first], 0, 3);
+                }
+                
+                uint32_t c = rabbitCSRTraceCom(es[i].first, g);
                 if (c != v) {  // Skip self-loops
-                    nbrs.push_back({c, e.second});
+                    nbrs.push_back({c, es[i].second});
                 }
             }
-            // Compact periodically to avoid memory blowup
-            if (nbrs.size() >= 2048) {
-                rabbitCSRCompactEdges(nbrs);
+            
+            // Compact periodically to fit in L2 cache
+            if (nbrs.size() - icmb >= 2048) {
+                std::sort(nbrs.begin() + icmb, nbrs.end(),
+                    [](const auto& a, const auto& b) { return a.first < b.first; });
+                
+                // In-place dedup of new portion
+                size_t write_pos = icmb;
+                for (size_t i = icmb + 1; i < nbrs.size(); ++i) {
+                    if (nbrs[i].first == nbrs[write_pos].first) {
+                        nbrs[write_pos].second += nbrs[i].second;
+                    } else {
+                        ++write_pos;
+                        if (write_pos != i) {
+                            nbrs[write_pos] = nbrs[i];
+                        }
+                    }
+                }
+                nbrs.resize(write_pos + 1);
+                icmb = nbrs.size();
             }
         };
         
@@ -7792,22 +7913,22 @@ public:
         RabbitCSRAtomPacked v_atom = g.vs[v].load_atom();
         while (g.vs[v].united_child != v_atom.child) {
             uint32_t c = v_atom.child;
-            uint32_t w = c;
-            while (w != UINT32_MAX && w != g.vs[v].united_child) {
+            for (uint32_t w = c; w != UINT32_MAX && w != g.vs[v].united_child; 
+                 w = g.vs[w].sibling.load(std::memory_order_relaxed)) {
                 push_edges(w);
-                w = g.vs[w].sibling.load(std::memory_order_acquire);
             }
             g.vs[v].united_child = c;
-            v_atom = g.vs[v].load_atom();  // Reload in case it changed
+            v_atom = g.vs[v].load_atom();
         }
         
         g.tot_nbrs.fetch_add(nbrs.size(), std::memory_order_relaxed);
         
-        // Compact and store aggregated edges
+        // Final compact and store directly into es[v]
         g.es[v].clear();
-        rabbitCSRCompactEdges(nbrs);
-        g.es[v] = std::move(nbrs);
-        nbrs.clear();  // Ensure nbrs is valid after move
+        if (!nbrs.empty()) {
+            rabbitCSRCompactEdges(nbrs);
+            g.es[v] = std::move(nbrs);
+        }
     }
 
     /**
