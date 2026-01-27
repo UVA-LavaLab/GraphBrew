@@ -6,7 +6,7 @@ This script compares all community-based reordering algorithms:
 - RabbitOrder (8): Louvain-based with variants: csr (default), boost
 - LeidenOrder (15): Native optimized Leiden library (reference for quality)
 - LeidenDendrogram (16): Leiden + dendrogram traversal variants
-- LeidenCSR (17): Fast native CSR implementation with GVE-Leiden (default)
+- LeidenCSR (17): Fast native CSR implementation with GVE-Leiden (default) or gveopt (cache-optimized)
 - GraphBrewOrder (12): Leiden + per-community RabbitOrder
 
 Defaults (as of Jan 2026):
@@ -218,6 +218,7 @@ def compare_leiden_variants(graph: Path, graph_info: Dict,
         (16, "dfshub", "LeidenDendrogram-dfshub"),
         (16, "bfs", "LeidenDendrogram-bfs"),
         (17, "", "LeidenCSR (default=GVE)"),       # GVE-Leiden is now default
+        (17, "gveopt::20:5", "LeidenCSR-gveopt"),   # GVE-Leiden Optimized: cache-optimized
         (17, "gve::20:5", "LeidenCSR-gve-5pass"),   # GVE-Leiden explicit: 20 iter, 5 passes
         (17, "hubsort::10:3", "LeidenCSR-hubsort"),
         (17, "fast::10:3", "LeidenCSR-fast"),
