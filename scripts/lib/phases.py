@@ -226,13 +226,14 @@ class PhaseConfig:
         expand_variants: bool = False,
         update_weights: bool = True,
         
-        # ─────────────────────────────────────────────────────────────────────
+        # ─────────────────────────────────────────────────────────────────
         # Leiden-specific settings
         # ─────────────────────────────────────────────────────────────────────
         leiden_resolution: float = 1.0,
         leiden_passes: int = 10,
         leiden_csr_variants: List[str] = None,
         leiden_dendrogram_variants: List[str] = None,
+        rabbit_variants: List[str] = None,
         
         # ─────────────────────────────────────────────────────────────────────
         # Training settings
@@ -277,6 +278,7 @@ class PhaseConfig:
         self.leiden_passes = leiden_passes
         self.leiden_csr_variants = leiden_csr_variants or ['gve', 'gveopt', 'dfs', 'bfs', 'hubsort', 'fast', 'modularity']
         self.leiden_dendrogram_variants = leiden_dendrogram_variants or ['dfs', 'dfshub', 'dfssize', 'bfs', 'hybrid']
+        self.rabbit_variants = rabbit_variants or ['csr']  # Default: csr only
         
         # Training settings
         self.target_accuracy = target_accuracy
@@ -375,11 +377,13 @@ def run_reorder_phase(
     label_maps = label_maps or {}
     
     if config.expand_variants:
-        # Expand to include Leiden variants
+        # Expand to include Leiden and RabbitOrder variants
         expanded_algorithms = expand_algorithms_with_variants(
             algorithms,
-            csr_variants=config.leiden_csr_variants,
-            dendrogram_variants=config.leiden_dendrogram_variants
+            expand_leiden_variants=True,
+            leiden_csr_variants=config.leiden_csr_variants,
+            leiden_dendrogram_variants=config.leiden_dendrogram_variants,
+            rabbit_variants=config.rabbit_variants
         )
         
         results = generate_reorderings_with_variants(
