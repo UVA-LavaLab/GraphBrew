@@ -194,11 +194,12 @@ Dendrogram traversal with variants:
 
 Fast CSR-native Leiden (no graph conversion):
 1. Community detection directly on CSR graph
-2. Apply ordering variant (gve/gveopt/dfs/bfs/hubsort/fast/modularity)
+2. Apply ordering variant (gve/gveopt/gverabbit/dfs/bfs/hubsort/fast/modularity)
 
 **Variants:**
 - `gve`: GVE-Leiden algorithm (default) - 3-phase: local move, refine, aggregate
 - `gveopt`: Cache-optimized GVE with prefetching and flat arrays (faster on large graphs)
+- `gverabbit`: GVE-Leiden with RabbitOrder-style intra-community ordering
 - `dfs`: Hierarchical DFS
 - `bfs`: Level-first BFS
 - `hubsort`: Community + degree sort

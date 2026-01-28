@@ -40,7 +40,7 @@ enum ReorderingAlgo {
     // Leiden algorithms (15-17) - grouped together for easier sweeping
     LeidenOrder = 15,       // Format: 15:resolution (via igraph)
     LeidenDendrogram = 16,  // Format: 16:variant:resolution (dfs/dfshub/dfssize/bfs/hybrid)
-    LeidenCSR = 17,         // Format: 17:variant:resolution:iterations:passes (gve/gveopt/dfs/bfs/hubsort/fast/modularity, default: gve)
+    LeidenCSR = 17,         // Format: 17:variant:resolution:iterations:passes (gve/gveopt/gverabbit/dfs/bfs/hubsort/fast/modularity, default: gve)
     // ADD YOUR ALGORITHM HERE
     MyNewOrder = 18,
 };
