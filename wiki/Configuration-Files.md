@@ -59,7 +59,7 @@ GraphBrew uses command-line arguments instead of JSON config files:
 
 ```bash
 # Full pipeline with defaults
-python3 scripts/graphbrew_experiment.py --full --download-size SMALL
+python3 scripts/graphbrew_experiment.py --full --size small
 
 # Customize experiments via command line
 python3 scripts/graphbrew_experiment.py \
@@ -296,7 +296,7 @@ python3 scripts/graphbrew_experiment.py --train --size small
 
 ```bash
 # Download graphs first
-python3 scripts/graphbrew_experiment.py --download-only --download-size SMALL
+python3 scripts/graphbrew_experiment.py --download-only --size small
 
 # Check graphs directory
 ls -la graphs/

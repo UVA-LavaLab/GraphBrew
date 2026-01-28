@@ -25,13 +25,13 @@ For comprehensive benchmarking, use the unified experiment script:
 
 ```bash
 # One-click: downloads graphs, builds, runs all benchmarks
-python3 scripts/graphbrew_experiment.py --full --download-size SMALL
+python3 scripts/graphbrew_experiment.py --full --size small
 
 # Auto-detect RAM and skip graphs that won't fit
-python3 scripts/graphbrew_experiment.py --full --download-size ALL --auto-memory
+python3 scripts/graphbrew_experiment.py --full --size all --auto-memory
 
 # Specify maximum memory (e.g., 32 GB system)
-python3 scripts/graphbrew_experiment.py --full --download-size ALL --max-memory 32
+python3 scripts/graphbrew_experiment.py --full --size all --max-memory 32
 
 # Run benchmarks on existing graphs
 python3 scripts/graphbrew_experiment.py --phase benchmark --size small
@@ -52,7 +52,7 @@ The comprehensive `--train` mode runs a streamlined training pipeline:
 
 | Step | Description |
 |------|-------------|
-| **Download** | Downloads graphs if not present (with `--download-size`) |
+| **Download** | Downloads graphs if not present (with `--size`) |
 | **Build** | Builds binaries if not present |
 | **Phase 1** | Generate reorderings with label-mapping |
 | **Phase 2** | Run execution benchmarks (PR, BFS, CC, SSSP, BC) |
@@ -383,7 +383,7 @@ The main orchestration script handles downloading, building, and benchmarking:
 
 ```bash
 # Full pipeline: download graphs, build, run all benchmarks
-python3 scripts/graphbrew_experiment.py --full --download-size SMALL
+python3 scripts/graphbrew_experiment.py --full --size small
 
 # Run specific phase on existing graphs
 python3 scripts/graphbrew_experiment.py --phase benchmark --graphs small --trials 5

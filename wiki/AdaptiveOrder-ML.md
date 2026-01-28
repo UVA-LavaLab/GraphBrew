@@ -950,7 +950,7 @@ AdaptiveOrder picks the best for EACH community!
 
 ```bash
 # Quick test with small graphs
-python3 scripts/graphbrew_experiment.py --full --download-size SMALL --skip-cache
+python3 scripts/graphbrew_experiment.py --full --size small --skip-cache
 ```
 
 ### Understanding the Training Output

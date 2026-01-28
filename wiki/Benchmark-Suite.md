@@ -31,7 +31,7 @@ The unified script handles everything automatically:
 
 ```bash
 # Full pipeline: download → build → benchmark → analyze → train
-python3 scripts/graphbrew_experiment.py --full --download-size SMALL
+python3 scripts/graphbrew_experiment.py --full --size small
 
 # Just run benchmarks on existing graphs
 python3 scripts/graphbrew_experiment.py --phase benchmark
@@ -98,10 +98,10 @@ If you prefer more control, you can use specific phases of the unified script:
 
 ```bash
 # List available graphs
-python3 scripts/graphbrew_experiment.py --download-only --download-size SMALL
+python3 scripts/graphbrew_experiment.py --download-only --size small
 
 # Download specific size category
-python3 scripts/graphbrew_experiment.py --download-only --download-size MEDIUM
+python3 scripts/graphbrew_experiment.py --download-only --size medium
 
 # Force re-download
 python3 scripts/graphbrew_experiment.py --download-only --force-download
@@ -304,7 +304,7 @@ This automatically:
 cd GraphBrew
 
 # 1. Download specific size graphs
-python3 scripts/graphbrew_experiment.py --download-only --download-size MEDIUM
+python3 scripts/graphbrew_experiment.py --download-only --size medium
 
 # 2. Generate label maps once
 python3 scripts/graphbrew_experiment.py --generate-maps --graphs medium
@@ -331,7 +331,7 @@ python3 scripts/graphbrew_experiment.py --brute-force --graphs medium
 ```bash
 # Control OpenMP threads
 export OMP_NUM_THREADS=8
-python3 scripts/graphbrew_experiment.py --full --download-size SMALL
+python3 scripts/graphbrew_experiment.py --full --size small
 ```
 
 ### Skip Heavy Operations
