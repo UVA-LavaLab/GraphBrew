@@ -333,24 +333,33 @@ from .types import (
 # Per-graph data storage and run logging
 # =============================================================================
 from .graph_data import (
-    # Data store
+    # Data stores
     GraphDataStore,
+    GraphFeaturesStore,
+    GraphRunStore,
+    # Data classes
     GraphFeatures,
     AlgorithmBenchmarkData,
     AlgorithmReorderData,
     GraphPerceptronWeights,
+    # Convenience functions
     save_graph_features,
-    save_benchmark_result,
-    save_reorder_result,
     list_graphs as list_graph_data,
     load_all_graph_data,
     export_to_csv as export_graph_data_csv,
-    compute_and_save_weights,
+    # Run management
+    list_runs,
+    get_latest_run,
+    cleanup_old_runs,
     # Run logging
     LOGS_DIR,
+    GRAPH_DATA_DIR,
     save_run_log,
     list_graph_logs,
     read_log,
     get_latest_log,
     cleanup_old_logs,
+    # Migration
+    migrate_old_structure,
+    migrate_all_graphs,
 )
