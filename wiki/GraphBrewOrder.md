@@ -234,7 +234,7 @@ Largest communities:
 | Aspect | LeidenCSR | GraphBrewOrder |
 |--------|-----------|----------------|
 | Community detection | ✅ Leiden | ✅ Leiden |
-| Internal ordering | Configurable (gve/gveopt/dfs/bfs/hubsort/fast/modularity) | Configurable (default: RabbitOrder) |
+| Internal ordering | Configurable (gve/gveopt/gverabbit/dfs/bfs/hubsort/fast/modularity) | Configurable (default: RabbitOrder) |
 | Speed | Very fast (CSR-native) | Moderate |
 | Best for | Large graphs, tunable quality | Modular graphs |
 

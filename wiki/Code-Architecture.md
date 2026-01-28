@@ -255,7 +255,7 @@ The Python tooling follows a modular architecture with a main orchestration scri
 
 #### graphbrew_experiment.py - Main Orchestration
 
-The main entry point (~3050 lines) handles argument parsing and delegates to `lib/phases.py`:
+The main entry point (~3500 lines) handles argument parsing and delegates to `lib/phases.py`:
 
 ```python
 def main():
@@ -328,20 +328,22 @@ from scripts.lib.utils import (
 
 | Module | Lines | Purpose |
 |--------|-------|---------|
-| `download.py` | ~1120 | Graph downloading |
-| `phases.py` | ~1050 | Phase orchestration |
-| `weights.py` | ~960 | Weight management |
+| `weights.py` | ~1290 | Weight management |
+| `graph_data.py` | ~1220 | Per-graph data storage |
+| `download.py` | ~1130 | Graph downloading |
+| `phases.py` | ~1080 | Phase orchestration |
+| `reorder.py` | ~1070 | Vertex reordering |
+| `dependencies.py` | ~890 | Dependency management |
 | `analysis.py` | ~880 | Adaptive analysis |
-| `reorder.py` | ~850 | Vertex reordering |
 | `weight_merger.py` | ~830 | Weight merging |
 | `results.py` | ~750 | Result I/O |
+| `utils.py` | ~730 | Core utilities |
 | `training.py` | ~720 | ML training |
-| `utils.py` | ~690 | Core utilities |
+| `cache.py` | ~630 | Cache simulation |
 | `progress.py` | ~600 | Progress tracking |
 | `types.py` | ~595 | Data classes |
 | `benchmark.py` | ~560 | Benchmark execution |
 | `features.py` | ~555 | Graph features |
-| `cache.py` | ~455 | Cache simulation |
 | `build.py` | ~340 | Binary compilation |
 
 ---
