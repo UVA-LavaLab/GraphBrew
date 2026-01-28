@@ -81,6 +81,76 @@ python3 scripts/graphbrew_experiment.py --help
 | **Perceptron Training** | Generates weights for AdaptiveOrder |
 | **Brute-Force Validation** | Compares adaptive vs all algorithms |
 
+---
+
+## 🧪 perceptron_experiment.py - ML Experimentation
+
+**Experiment with perceptron configurations WITHOUT re-running expensive phases.**
+
+This script loads existing benchmark results and lets you:
+- Try different weight training methods (speedup, winrate, rank, hybrid)
+- Run grid search to find optimal configurations
+- Interactively tweak weights and evaluate accuracy
+- Export optimized weights to active directory for C++ to use
+
+### Quick Start
+
+```bash
+# Show current weights and accuracy
+python3 scripts/perceptron_experiment.py --show
+
+# Run grid search to find best configuration
+python3 scripts/perceptron_experiment.py --grid-search
+
+# Train with specific method and export
+python3 scripts/perceptron_experiment.py --train --method hybrid --export
+
+# Interactive mode for manual tuning
+python3 scripts/perceptron_experiment.py --interactive
+```
+
+### Training Methods
+
+| Method | Description |
+|--------|-------------|
+| `speedup` | Bias = average speedup over ORIGINAL baseline |
+| `winrate` | Bias = win rate (how often algorithm is best) |
+| `rank` | Bias = inverse average rank across benchmarks |
+| `hybrid` | Weighted combination: 0.4×speedup + 0.4×winrate + 0.2×rank |
+
+### Command-Line Options
+
+| Option | Description |
+|--------|-------------|
+| `--show` | Show current weights and evaluate accuracy |
+| `--grid-search` | Run grid search over 32 configurations |
+| `--train` | Train new weights with specified method |
+| `--method METHOD` | Training method: speedup, winrate, rank, hybrid |
+| `--scale SCALE` | Bias scale factor (default: 1.0) |
+| `--benchmark BENCH` | Benchmark to evaluate (default: pr) |
+| `--export` | Export weights to `scripts/weights/active/` |
+| `--interactive` | Enter interactive mode for manual tuning |
+
+### Example: Reproducible Experimentation
+
+```bash
+# 1. Run expensive phases once
+python3 scripts/graphbrew_experiment.py --full --size medium --auto
+
+# 2. Experiment with different perceptron configs (fast, no re-running)
+python3 scripts/perceptron_experiment.py --grid-search
+
+# 3. Export best configuration
+python3 scripts/perceptron_experiment.py --train --method winrate --export
+
+# 4. Validate with AdaptiveOrder
+./bench/bin/pr -f graph.el -s -o 14 -n 3
+```
+
+---
+
+## ⭐ graphbrew_experiment.py - Main Orchestration (continued)
+
 ### Command-Line Options
 
 #### Dependency Management
