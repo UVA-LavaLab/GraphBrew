@@ -58,7 +58,7 @@ GraphBrew is a high-performance graph reordering framework that combines **commu
 # Clone, download graphs, build, and run complete experiment
 git clone https://github.com/UVA-LavaLab/GraphBrew.git
 cd GraphBrew
-python3 scripts/graphbrew_experiment.py --full --download-size SMALL
+python3 scripts/graphbrew_experiment.py --full --size small
 ```
 
 This single command will:
@@ -73,10 +73,10 @@ This single command will:
 
 ```bash
 # Auto-detect RAM and disk limits
-python3 scripts/graphbrew_experiment.py --full --download-size ALL --auto-memory --auto-disk
+python3 scripts/graphbrew_experiment.py --full --size all --auto
 
 # Set explicit limits
-python3 scripts/graphbrew_experiment.py --full --download-size ALL --max-memory 32 --max-disk 100
+python3 scripts/graphbrew_experiment.py --full --size all --max-memory 32 --max-disk 100
 ```
 
 ### Training Options

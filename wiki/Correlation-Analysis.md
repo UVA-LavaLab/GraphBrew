@@ -172,9 +172,8 @@ python3 scripts/graphbrew_experiment.py [options]
 |--------|-------------|---------|
 | `--full` | Run complete pipeline | False |
 | `--phase weights` | Run only weights generation | - |
-| `--fill-weights` | Comprehensive weight training | False |
-| `--download-size` | Graph set: SMALL, MEDIUM, LARGE, ALL | - |
-| `--graphs` | Graph size: small, medium, large, all | all |
+| `--train` | Comprehensive weight training | False |
+| `--size` | Graph set: small, medium, large, xlarge, all | all |
 | `--skip-cache` | Skip cache simulation (faster) | False |
 | `--adaptive-analysis` | Show algorithm distribution | False |
 
@@ -427,7 +426,7 @@ Include graphs with different characteristics:
 
 ```bash
 # Use at least 5-10 trials for stable measurements
-python3 scripts/graphbrew_experiment.py --full --download-size MEDIUM
+python3 scripts/graphbrew_experiment.py --full --size medium
 ```
 
 ### 3. Target Your Workload
@@ -449,10 +448,10 @@ python3 scripts/graphbrew_experiment.py --phase benchmark --benchmarks pr bfs
 **Fix**:
 ```bash
 # Download more graphs
-python3 scripts/graphbrew_experiment.py --download-only --download-size MEDIUM
+python3 scripts/graphbrew_experiment.py --download-only --size medium
 
 # Re-run full experiment
-python3 scripts/graphbrew_experiment.py --full --download-size MEDIUM
+python3 scripts/graphbrew_experiment.py --full --size medium
 ```
 
 ### "Weights look wrong"
@@ -479,14 +478,14 @@ For comprehensive benchmarking, use the unified experiment script:
 ### Running Full Scan
 
 ```bash
-# Quick test with SMALL graphs
-python3 scripts/graphbrew_experiment.py --full --download-size SMALL
+# Quick test with small graphs
+python3 scripts/graphbrew_experiment.py --full --size small
 
-# MEDIUM graphs (recommended for development)
-python3 scripts/graphbrew_experiment.py --full --download-size MEDIUM
+# medium graphs (recommended for development)
+python3 scripts/graphbrew_experiment.py --full --size medium
 
 # All graphs with automatic resource management
-python3 scripts/graphbrew_experiment.py --full --download-size ALL --auto-memory --auto-disk
+python3 scripts/graphbrew_experiment.py --full --size all --auto
 ```
 
 ### Key Features
@@ -515,7 +514,7 @@ If a scan is interrupted, re-run with the same parameters - the script will skip
 
 ```bash
 # Resume automatically
-python3 scripts/graphbrew_experiment.py --full --download-size MEDIUM
+python3 scripts/graphbrew_experiment.py --full --size medium
 ```
 
 ### Output Format

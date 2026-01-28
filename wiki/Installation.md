@@ -17,7 +17,7 @@ python3 scripts/graphbrew_experiment.py --check-deps
 python3 scripts/graphbrew_experiment.py --install-deps
 
 # Run full pipeline
-python3 scripts/graphbrew_experiment.py --full --download-size SMALL
+python3 scripts/graphbrew_experiment.py --full --size small
 ```
 
 This will:
