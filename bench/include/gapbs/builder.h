@@ -1755,8 +1755,6 @@ public:
             return "LeidenDendrogram";
         case LeidenCSR:
             return "LeidenCSR";
-        case RabbitOrderCSR:
-            return "RabbitOrderCSR";
         case ORIGINAL:
             return "Original";
         case Sort:
@@ -1863,22 +1861,6 @@ public:
         case MAP:
             LoadMappingFromFile(g, new_ids, reordering_options);
             break;
-        case RabbitOrderCSR:
-        {
-            // Apply same preprocessing as original RabbitOrder for fair comparison
-            pvector<NodeID_> new_ids_local(g.num_nodes(), -1);
-            pvector<NodeID_> new_ids_local_2(g.num_nodes(), -1);
-            GenerateSortMappingRabbit(g, new_ids_local, true, true);
-            CSRGraph<NodeID_, DestID_, invert> g_trans = RelabelByMapping(g, new_ids_local);
-            GenerateRabbitOrderCSRMapping(g_trans, new_ids_local_2);
-
-            #pragma omp parallel for
-            for (NodeID_ n = 0; n < g.num_nodes(); n++)
-            {
-                new_ids[n] = new_ids_local_2[new_ids_local[n]];
-            }
-        }
-        break;
         case ORIGINAL:
             GenerateOriginalMapping(g, new_ids);
             break;
@@ -2090,11 +2072,9 @@ public:
             return LeidenDendrogram;   // Format: 16:resolution:variant
         case 17:
             return LeidenCSR;          // Format: 17:resolution:passes:variant
-        case 18:
-            return RabbitOrderCSR;     // Native CSR Rabbit Order (no Boost library)
         default:
             std::cerr << "Invalid ReorderingAlgo value: " << value << std::endl;
-            std::cerr << "Valid values: 0-18" << std::endl;
+            std::cerr << "Valid values: 0-17" << std::endl;
             std::exit(EXIT_FAILURE);
         }
     }
