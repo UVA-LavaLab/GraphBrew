@@ -62,6 +62,12 @@ The comprehensive `--fill-weights` mode runs a streamlined training pipeline:
 
 Output files are saved to `scripts/weights/active/`: `type_0.json`, `type_1.json`, `type_registry.json`, etc.
 
+Per-graph data is stored in a structured format:
+- **Static features**: `results/graphs/<graph>/features.json` (topology metrics, computed once)
+- **Run-specific data**: `results/logs/<graph>/runs/<timestamp>/` (benchmarks, reorder timings, weights)
+
+Each experiment run creates a new timestamped directory to preserve historical data.
+
 ### Download Options
 
 | Size | Graphs | Total | Categories |

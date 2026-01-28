@@ -457,6 +457,27 @@ Memory estimation: `(edges × 24 bytes + nodes × 8 bytes) × 1.5`
 | `--generate-maps` | Pre-generate .lo mapping files for consistent reordering |
 | `--use-maps` | Use pre-generated label maps instead of regenerating |
 
+### Algorithm Variant Options
+
+| Option | Description |
+|--------|-------------|
+| `--expand-variants` | Expand Leiden algorithms (16,17) and RabbitOrder (8) into separate variants |
+| `--leiden-csr-variants LIST` | LeidenCSR variants to include: gve, gveopt, dfs, bfs, hubsort, fast, modularity |
+| `--leiden-dendrogram-variants LIST` | LeidenDendrogram variants to include: dfs, dfshub, dfssize, bfs, hybrid |
+| `--rabbit-variants LIST` | RabbitOrder variants to include: csr (default), boost (requires libboost-graph-dev) |
+| `--leiden-resolution FLOAT` | Resolution parameter for Leiden algorithms (default: 1.0) |
+| `--leiden-passes INT` | Number of passes for LeidenCSR (default: 3) |
+
+### Per-Graph Data Management
+
+| Option | Description |
+|--------|-------------|
+| `--list-runs GRAPH` | List all experiment runs for a graph |
+| `--show-run GRAPH TIMESTAMP` | Show details of a specific run |
+| `--cleanup-runs` | Remove old runs (keep --max-runs most recent) |
+| `--max-runs N` | Number of runs to keep per graph (default: 10) |
+| `--migrate` | Migrate old data structure to new (run once after upgrade) |
+
 ### Examples
 
 ```bash
@@ -466,15 +487,19 @@ python3 scripts/graphbrew_experiment.py --full --download-size ALL --auto-memory
 # Set explicit 32GB memory and 100GB disk limits
 python3 scripts/graphbrew_experiment.py --full --download-size ALL --max-memory 32 --max-disk 100
 
-# Fill all weight fields comprehensively
-python3 scripts/graphbrew_experiment.py --fill-weights --auto-memory --auto-disk --download-size ALL
+# Fill all weight fields with specific Leiden variants
+python3 scripts/graphbrew_experiment.py --fill-weights --expand-variants \
+    --leiden-csr-variants gve fast --leiden-dendrogram-variants dfs hybrid
 
-# Iterative training to 85% accuracy
-python3 scripts/graphbrew_experiment.py --train-adaptive --target-accuracy 85 --graphs small
+# Test all RabbitOrder variants
+python3 scripts/graphbrew_experiment.py --fill-weights --expand-variants \
+    --rabbit-variants csr boost --graphs small --max-graphs 5
 
-# Download and run full pipeline
-python3 scripts/graphbrew_experiment.py --full --download-size SMALL
-```
+# List experiment runs for a graph
+python3 -m scripts.lib.graph_data --list-runs ca-GrQc
+
+# Show specific run details
+python3 -m scripts.lib.graph_data --show-run ca-GrQc 20260127_152449
 
 See [[Python-Scripts]] for complete documentation.
 
