@@ -79,7 +79,7 @@ ALGORITHM_TAXONOMY = {
     'hub': ['HUBSORT', 'HUBCLUSTER', 'DBG', 'HUBSORTDBG', 'HUBCLUSTERDBG'],
     'community': ['RABBITORDER', 'RABBITORDER_csr', 'RABBITORDER_boost', 'GORDER', 'CORDER', 'RCM'],
     'leiden': ['LeidenOrder', 'LeidenCSR', 'LeidenDendrogram',
-               'LeidenCSR_gve', 'LeidenCSR_gveopt', 'LeidenCSR_dfs', 'LeidenCSR_bfs',
+               'LeidenCSR_gve', 'LeidenCSR_gveopt', 'LeidenCSR_gverabbit', 'LeidenCSR_dfs', 'LeidenCSR_bfs',
                'LeidenCSR_hubsort', 'LeidenCSR_fast', 'LeidenCSR_modularity',
                'LeidenDendrogram_dfs', 'LeidenDendrogram_dfshub', 'LeidenDendrogram_dfssize',
                'LeidenDendrogram_bfs', 'LeidenDendrogram_hybrid'],
