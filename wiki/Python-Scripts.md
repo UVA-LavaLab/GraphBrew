@@ -4,11 +4,13 @@ Documentation for all Python tools in the GraphBrew framework.
 
 ## Overview
 
-The scripts folder contains a modular library (`lib/`) and the main orchestration script:
+The scripts folder contains a modular library (`lib/`) and orchestration tools:
 
 ```
 scripts/
 ├── graphbrew_experiment.py      # ⭐ MAIN: Orchestration script (~3100 lines)
+├── perceptron_experiment.py     # 🧪 ML weight experimentation (without re-running phases)
+├── adaptive_emulator.py         # 🔍 C++ AdaptiveOrder logic emulation (Python)
 ├── requirements.txt             # Python dependencies
 │
 ├── lib/                         # 📦 Modular library (~12200 lines total)
@@ -117,19 +119,42 @@ python3 scripts/perceptron_experiment.py --interactive
 | `winrate` | Bias = win rate (how often algorithm is best) |
 | `rank` | Bias = inverse average rank across benchmarks |
 | `hybrid` | Weighted combination: 0.4×speedup + 0.4×winrate + 0.2×rank |
+| `per_benchmark` | Benchmark-specific multipliers (generates `benchmark_weights` per algorithm) |
 
 ### Command-Line Options
 
 | Option | Description |
 |--------|-------------|
 | `--show` | Show current weights and evaluate accuracy |
+| `--analyze` | Taxonomy analysis: best algorithms per category per benchmark |
 | `--grid-search` | Run grid search over 32 configurations |
 | `--train` | Train new weights with specified method |
-| `--method METHOD` | Training method: speedup, winrate, rank, hybrid |
+| `--method METHOD` | Training method: speedup, winrate, rank, hybrid, per_benchmark |
 | `--scale SCALE` | Bias scale factor (default: 1.0) |
 | `--benchmark BENCH` | Benchmark to evaluate (default: pr) |
 | `--export` | Export weights to `scripts/weights/active/` |
 | `--interactive` | Enter interactive mode for manual tuning |
+
+### Taxonomy Analysis (--analyze)
+
+The `--analyze` command provides insights into which algorithms work best for different graph types and benchmarks:
+
+```bash
+python3 scripts/perceptron_experiment.py --analyze
+```
+
+**Output includes:**
+- **Algorithm Taxonomy:** Categorizes algorithms into groups (basic, hub, community, leiden, composite)
+- **Graph Type Detection:** Identifies graph type (social, web, road, citation, p2p, email, random)
+- **Best Algorithm per Category:** Shows which algorithm from each category performs best per benchmark
+- **Overall Winners:** Which algorithm wins most often for each graph type
+
+**Algorithm Categories:**
+- `basic`: ORIGINAL, RANDOM, SORT
+- `hub`: HUBSORT, HUBCLUSTER, DBG, HUBSORTDBG, HUBCLUSTERDBG
+- `community`: GORDER, RABBITORDER, CORDER, RCM
+- `leiden`: LeidenOrder, LeidenDendrogram, LeidenCSR
+- `composite`: AdaptiveOrder, GraphBrewOrder
 
 ### Example: Reproducible Experimentation
 
@@ -140,12 +165,80 @@ python3 scripts/graphbrew_experiment.py --full --size medium --auto
 # 2. Experiment with different perceptron configs (fast, no re-running)
 python3 scripts/perceptron_experiment.py --grid-search
 
-# 3. Export best configuration
-python3 scripts/perceptron_experiment.py --train --method winrate --export
+# 3. Analyze which algorithms work best per benchmark/graph type
+python3 scripts/perceptron_experiment.py --analyze
 
-# 4. Validate with AdaptiveOrder
+# 4. Train with per-benchmark weights
+python3 scripts/perceptron_experiment.py --train --method per_benchmark --export
+
+# 5. Validate with AdaptiveOrder
 ./bench/bin/pr -f graph.el -s -o 14 -n 3
 ```
+
+---
+
+## 🔍 adaptive_emulator.py - C++ Logic Emulation
+
+**Pure Python emulator that replicates C++ AdaptiveOrder logic without recompiling.**
+
+This is useful for:
+- Analyzing how weight changes affect algorithm selection
+- Testing weight configurations quickly in Python
+- Understanding the two-layer selection process (type matching + perceptron)
+- Debugging why a specific algorithm was chosen
+
+### Quick Start
+
+```bash
+# Emulate for a single graph
+python3 scripts/adaptive_emulator.py --graph graphs/email-Enron/email-Enron.mtx
+
+# Compare emulation vs actual benchmark results
+python3 scripts/adaptive_emulator.py --compare-benchmark results/benchmark_*.json
+
+# Disable a weight to see its impact
+python3 scripts/adaptive_emulator.py --all-graphs --disable-weight w_modularity
+
+# Different selection modes
+python3 scripts/adaptive_emulator.py --mode best-endtoend --compare-benchmark results/benchmark.json
+```
+
+### Selection Modes
+
+| Mode | Description |
+|------|-------------|
+| `fastest-reorder` | Minimize reordering time only |
+| `fastest-execution` | Minimize algorithm execution time (default) |
+| `best-endtoend` | Minimize (reorder_time + execution_time) |
+| `best-amortization` | Minimize iterations needed to amortize reordering cost |
+| `heuristic` | Feature-based heuristic (more robust) |
+| `type-bench` | Type+benchmark recommendations (best accuracy) |
+
+### How It Works
+
+The emulator replicates the C++ AdaptiveOrder two-layer selection:
+
+```
+Layer 1: Type Matching
+  - Compute graph features → normalized vector
+  - Find closest type centroid (Euclidean distance)
+  - Load that type's weights
+
+Layer 2: Algorithm Selection
+  - Compute perceptron scores for each algorithm
+  - Score = bias + Σ(weight_i × feature_i)
+  - Select algorithm with highest score
+```
+
+### vs perceptron_experiment.py
+
+| Tool | Purpose |
+|------|---------|
+| `adaptive_emulator.py` | Emulate C++ selection logic, analyze weight impact |
+| `perceptron_experiment.py` | Train new weights from benchmark data |
+
+Use **adaptive_emulator.py** when you want to understand why a specific algorithm was selected.
+Use **perceptron_experiment.py** when you want to train better weights.
 
 ---
 
