@@ -75,7 +75,7 @@ python3 scripts/graphbrew_experiment.py \
 |--------|-------------|---------|
 | `--full` | Run complete pipeline | - |
 | `--size` | small, medium, large, xlarge, all | all |
-| `--phase` | all, reorder, benchmark, cache, weights | all |
+| `--phase` | all, reorder, benchmark, cache, weights, adaptive | all |
 | `--benchmarks` | pr, bfs, cc, sssp, bc, tc | all 6 |
 | `--trials` | Number of benchmark trials | 2 |
 | `--quick` | Only test key algorithms | false |
