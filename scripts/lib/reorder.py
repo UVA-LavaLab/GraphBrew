@@ -355,8 +355,9 @@ def parse_reorder_time_from_converter(output: str) -> Optional[float]:
     pattern = r'^([A-Za-z]+)\s+Map Time:\s*([\d.]+)'
     matches = re.findall(pattern, output, re.MULTILINE)
     
-    # Filter out intermediate steps (Relabel, Sort) and get actual algorithm time
-    excluded_names = {'relabel', 'sort', 'gorder'}  # Already handled above
+    # Filter out intermediate steps (Relabel, Sort, Total) and get actual algorithm time
+    # 'total' excluded: RabbitOrderCSR outputs "Total Map Time: 0.00000" as a statistic
+    excluded_names = {'relabel', 'sort', 'gorder', 'total'}  # Already handled above
     valid_times = [
         (name, float(t)) for name, t in matches 
         if name.lower() not in excluded_names

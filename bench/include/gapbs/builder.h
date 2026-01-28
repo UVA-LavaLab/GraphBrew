@@ -1809,23 +1809,23 @@ public:
                 variant = reordering_options[0];
             }
             
-            pvector<NodeID_> new_ids_local(g.num_nodes(), -1);
-            pvector<NodeID_> new_ids_local_2(g.num_nodes(), -1);
-            GenerateSortMappingRabbit(g, new_ids_local, true, true);
-            CSRGraph<NodeID_, DestID_, invert> g_trans = RelabelByMapping(g, new_ids_local);
-            
             if (variant == "boost") {
-                // Original Boost-based RabbitOrder
+                // Original Boost-based RabbitOrder needs preprocessing
+                pvector<NodeID_> new_ids_local(g.num_nodes(), -1);
+                pvector<NodeID_> new_ids_local_2(g.num_nodes(), -1);
+                GenerateSortMappingRabbit(g, new_ids_local, true, true);
+                CSRGraph<NodeID_, DestID_, invert> g_trans = RelabelByMapping(g, new_ids_local);
                 GenerateRabbitOrderMapping(g_trans, new_ids_local_2);
+                
+                #pragma omp parallel for
+                for (NodeID_ n = 0; n < g.num_nodes(); n++)
+                {
+                    new_ids[n] = new_ids_local_2[new_ids_local[n]];
+                }
             } else {
-                // Default: Native CSR implementation (faster, no Boost dependency)
-                GenerateRabbitOrderCSRMapping(g_trans, new_ids_local_2);
-            }
-
-            #pragma omp parallel for
-            for (NodeID_ n = 0; n < g.num_nodes(); n++)
-            {
-                new_ids[n] = new_ids_local_2[new_ids_local[n]];
+                // Native CSR implementation - works directly on original graph
+                // No preprocessing needed; handles graph structure internally
+                GenerateRabbitOrderCSRMapping(g, new_ids);
             }
         }
         break;
@@ -1848,8 +1848,8 @@ public:
             GenerateLeidenDendrogramMappingUnified(g, new_ids, reordering_options);
             break;
         case LeidenCSR:
-            // Fast Leiden on CSR - Format: 21:resolution:passes:variant
-            // Variants: gve (default), gveopt, dfs, bfs, hubsort, fast, modularity
+            // Fast Leiden on CSR - Format: 17:variant:resolution:iterations:passes
+            // Variants: gve (default), gveopt, gverabbit, dfs, bfs, hubsort, fast, modularity
             GenerateLeidenCSRMappingUnified(g, new_ids, reordering_options);
             break;
         case GraphBrewOrder:
@@ -1950,34 +1950,36 @@ public:
                 variant = reordering_options[0];
             }
             
-            pvector<NodeID_> new_ids_local(g_org.num_nodes(), -1);
-            pvector<NodeID_> new_ids_local_2(g_org.num_nodes(), -1);
-            GenerateSortMappingRabbit(g, new_ids_local, true, true);
-            g = RelabelByMapping(g, new_ids_local);
-
             if (variant == "boost") {
+                // Original Boost-based RabbitOrder needs preprocessing
+                pvector<NodeID_> new_ids_local(g_org.num_nodes(), -1);
+                pvector<NodeID_> new_ids_local_2(g_org.num_nodes(), -1);
+                GenerateSortMappingRabbit(g, new_ids_local, true, true);
+                g = RelabelByMapping(g, new_ids_local);
                 GenerateRabbitOrderMapping(g, new_ids_local_2);
-            } else {
-                GenerateRabbitOrderCSRMapping(g, new_ids_local_2);
-            }
 
-            // Only parallelize final merge for large graphs
-            // CRITICAL: Only process nodes that were in the subgraph (have valid mapping)
-            if (is_small_subgraph) {
-                for (NodeID_ n = 0; n < g_org.num_nodes(); n++)
-                {
-                    if (new_ids_local[n] != (NodeID_)-1 && new_ids_local[n] < g_org.num_nodes()) {
-                        new_ids[n] = new_ids_local_2[new_ids_local[n]];
+                // Only parallelize final merge for large graphs
+                // CRITICAL: Only process nodes that were in the subgraph (have valid mapping)
+                if (is_small_subgraph) {
+                    for (NodeID_ n = 0; n < g_org.num_nodes(); n++)
+                    {
+                        if (new_ids_local[n] != (NodeID_)-1 && new_ids_local[n] < g_org.num_nodes()) {
+                            new_ids[n] = new_ids_local_2[new_ids_local[n]];
+                        }
+                    }
+                } else {
+                    #pragma omp parallel for
+                    for (NodeID_ n = 0; n < g_org.num_nodes(); n++)
+                    {
+                        if (new_ids_local[n] != (NodeID_)-1 && new_ids_local[n] < g_org.num_nodes()) {
+                            new_ids[n] = new_ids_local_2[new_ids_local[n]];
+                        }
                     }
                 }
             } else {
-                #pragma omp parallel for
-                for (NodeID_ n = 0; n < g_org.num_nodes(); n++)
-                {
-                    if (new_ids_local[n] != (NodeID_)-1 && new_ids_local[n] < g_org.num_nodes()) {
-                        new_ids[n] = new_ids_local_2[new_ids_local[n]];
-                    }
-                }
+                // Native CSR implementation - works directly on original graph
+                // No preprocessing needed; handles graph structure internally
+                GenerateRabbitOrderCSRMapping(g, new_ids);
             }
         }
         break;
@@ -1999,7 +2001,7 @@ public:
             GenerateLeidenDendrogramMappingUnified(g, new_ids, reordering_options);
             break;
         case LeidenCSR:
-            // Fast Leiden on CSR - Format: 21:resolution:passes:variant
+            // Fast Leiden on CSR - Format: 17:variant:resolution:iterations:passes
             GenerateLeidenCSRMappingUnified(g, new_ids, reordering_options);
             break;
         case GraphBrewOrder:
@@ -8168,8 +8170,8 @@ public:
     
     /**
      * Unified Leiden CSR Mapping - Parses variant from options
-     * Format: 21:resolution:passes:variant
-     * Variants: gve (default), gveopt, dfs, bfs, hubsort, fast, modularity
+     * Format: 17:variant:resolution:iterations:passes
+     * Variants: gve (default), gveopt, gverabbit, dfs, bfs, hubsort, fast, modularity
      */
     void GenerateLeidenCSRMappingUnified(
         const CSRGraph<NodeID_, DestID_, invert> &g,

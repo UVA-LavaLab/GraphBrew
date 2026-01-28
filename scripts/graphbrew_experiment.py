@@ -31,7 +31,7 @@ A comprehensive one-click script that runs the complete GraphBrew experiment wor
     python scripts/graphbrew_experiment.py --train --all-variants --size small
     
     # Test specific variants only
-    python scripts/graphbrew_experiment.py --train --csr-variants gve fast --size small
+    python scripts/graphbrew_experiment.py --train --csr-variants gve gveopt --size small
     
     # With custom Leiden parameters
     python scripts/graphbrew_experiment.py --train --all-variants \\
@@ -283,7 +283,8 @@ RABBITORDER_DEFAULT_VARIANT = "csr"
 LEIDEN_DENDROGRAM_VARIANTS = ["dfs", "dfshub", "dfssize", "bfs", "hybrid"]
 # LeidenCSR variants - gve (GVE-Leiden) is default for best modularity quality
 # gveopt is cache-optimized with prefetching and flat arrays for large graphs
-LEIDEN_CSR_VARIANTS = ["gve", "gveopt", "dfs", "bfs", "hubsort", "fast", "modularity"]
+# gverabbit is GVE-Rabbit hybrid (fastest, good quality)
+LEIDEN_CSR_VARIANTS = ["gve", "gveopt", "gverabbit", "dfs", "bfs", "hubsort", "modularity"]
 LEIDEN_CSR_DEFAULT_VARIANT = "gve"
 
 # Default Leiden parameters
@@ -342,7 +343,8 @@ def expand_algorithms_with_variants(
     if leiden_dendrogram_variants is None:
         leiden_dendrogram_variants = LEIDEN_DENDROGRAM_VARIANTS
     if rabbit_variants is None:
-        rabbit_variants = [RABBITORDER_DEFAULT_VARIANT]  # Default: csr only
+        # When expand_leiden_variants is True (--all-variants), include both RabbitOrder variants
+        rabbit_variants = RABBITORDER_VARIANTS if expand_leiden_variants else [RABBITORDER_DEFAULT_VARIANT]
     
     configs = []
     
@@ -3081,7 +3083,7 @@ def main():
     parser.add_argument("--all-variants", action="store_true", dest="expand_variants",
                         help="Test ALL algorithm variants (Leiden, RabbitOrder) instead of just defaults")
     parser.add_argument("--csr-variants", nargs="+", dest="leiden_csr_variants",
-                        default=None, choices=["gve", "gveopt", "dfs", "bfs", "hubsort", "fast", "modularity"],
+                        default=None, choices=["gve", "gveopt", "gverabbit", "dfs", "bfs", "hubsort", "modularity"],
                         help="LeidenCSR variants: gve (default, best quality), gveopt, dfs, bfs, hubsort, fast, modularity")
     parser.add_argument("--dendrogram-variants", nargs="+", dest="leiden_dendrogram_variants",
                         default=None, choices=["dfs", "dfshub", "dfssize", "bfs", "hybrid"],

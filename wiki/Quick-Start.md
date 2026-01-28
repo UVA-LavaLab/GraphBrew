@@ -52,7 +52,7 @@ This will automatically:
 | Parameter | Description |
 |-----------|-------------|
 | `--all-variants` | Test ALL algorithm variants (Leiden, RabbitOrder) |
-| `--csr-variants LIST` | LeidenCSR variants: gve (default), gveopt, gverabbit, dfs, bfs, hubsort, fast, modularity |
+| `--csr-variants LIST` | LeidenCSR variants: gve (default), gveopt, gverabbit, dfs, bfs, hubsort, modularity |
 | `--dendrogram-variants LIST` | LeidenDendrogram variants: dfs, dfshub, dfssize, bfs, hybrid |
 | `--rabbit-variants LIST` | RabbitOrder variants: csr (default), boost (requires libboost-graph-dev) |
 | `--resolution FLOAT` | Leiden resolution - higher = more communities (default: 1.0) |
