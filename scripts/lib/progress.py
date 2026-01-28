@@ -192,22 +192,23 @@ class ProgressTracker:
     # Banners and Headers
     # ─────────────────────────────────────────────────────────────────────────
     
-    def banner(self, title: str, subtitle: str = None, width: int = 70):
+    def banner(self, title: str, *subtitles: str, width: int = 70):
         """
         Print a large banner for major sections.
         
         Args:
             title: Main banner title
-            subtitle: Optional subtitle
+            *subtitles: Optional subtitle lines
             width: Banner width in characters
         """
         self._output("")
         self._output("╔" + "═" * (width - 2) + "╗")
         title_padded = title.center(width - 4)
         self._output("║ " + self._color(title_padded, 'BOLD') + " ║")
-        if subtitle:
-            sub_padded = subtitle.center(width - 4)
-            self._output("║ " + self._color(sub_padded, 'CYAN') + " ║")
+        for subtitle in subtitles:
+            if subtitle:
+                sub_padded = subtitle.center(width - 4)
+                self._output("║ " + self._color(sub_padded, 'CYAN') + " ║")
         self._output("╚" + "═" * (width - 2) + "╝")
         self._output("")
     

@@ -2133,10 +2133,15 @@ def run_experiment(args):
     
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     
+    # Initialize session for log grouping
+    from scripts.lib.graph_data import set_session_id
+    session_id = set_session_id(timestamp)
+    
     # Show experiment banner
     _progress.banner(
         "GRAPHBREW EXPERIMENT PIPELINE",
-        f"Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+        f"Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+        f"Session: {session_id}"
     )
     
     # Phase 0: Configuration Summary

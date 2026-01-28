@@ -71,14 +71,55 @@ GRAPH_DATA_DIR = os.path.join(RESULTS_DIR, "graphs")
 # Run-specific data and logs go here
 LOGS_DIR = os.path.join(RESULTS_DIR, "logs")
 
+# Global session ID for grouping logs from one experiment run
+_current_session_id = None
+
+
+def set_session_id(session_id: str = None) -> str:
+    """
+    Set the current session ID for log grouping.
+    
+    If session_id is None, generates a new timestamp-based ID.
+    Returns the session ID.
+    """
+    global _current_session_id
+    if session_id is None:
+        _current_session_id = datetime.now().strftime("%Y%m%d_%H%M%S")
+    else:
+        _current_session_id = session_id
+    return _current_session_id
+
+
+def get_session_id() -> str:
+    """Get current session ID, creating one if needed."""
+    global _current_session_id
+    if _current_session_id is None:
+        set_session_id()
+    return _current_session_id
+
+
+def clear_session_id():
+    """Clear the session ID (for testing or manual runs)."""
+    global _current_session_id
+    _current_session_id = None
+
 
 # =============================================================================
 # Run Logging Functions (Individual Operation Logs)
 # =============================================================================
 
-def get_log_dir(graph_name: str, logs_dir: str = LOGS_DIR) -> str:
-    """Get log directory for a graph, creating if needed."""
-    log_dir = os.path.join(logs_dir, graph_name)
+def get_log_dir(graph_name: str, logs_dir: str = LOGS_DIR, use_session: bool = True) -> str:
+    """
+    Get log directory for a graph, creating if needed.
+    
+    Structure: logs/run_YYYYMMDD_HHMMSS/graph_name/
+    Or without session: logs/graph_name/
+    """
+    if use_session:
+        session_id = get_session_id()
+        log_dir = os.path.join(logs_dir, f"run_{session_id}", graph_name)
+    else:
+        log_dir = os.path.join(logs_dir, graph_name)
     os.makedirs(log_dir, exist_ok=True)
     return log_dir
 
@@ -92,10 +133,14 @@ def save_run_log(
     command: str = None,
     exit_code: int = None,
     duration: float = None,
-    logs_dir: str = LOGS_DIR
+    logs_dir: str = LOGS_DIR,
+    use_session: bool = True
 ) -> str:
     """
     Save command output to a timestamped log file.
+    
+    Logs are organized by session (experiment run):
+        logs/run_YYYYMMDD_HHMMSS/graph_name/operation_algorithm_timestamp.log
     
     Args:
         graph_name: Name of the graph
@@ -107,11 +152,12 @@ def save_run_log(
         exit_code: Command exit code
         duration: Execution duration in seconds
         logs_dir: Base logs directory
+        use_session: If True, group logs under session folder
     
     Returns:
         Path to the saved log file
     """
-    log_dir = get_log_dir(graph_name, logs_dir)
+    log_dir = get_log_dir(graph_name, logs_dir, use_session=use_session)
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     
     # Build filename
@@ -154,15 +200,35 @@ def list_graph_logs(graph_name: str, logs_dir: str = LOGS_DIR) -> List[Dict]:
     """
     List all log files for a graph.
     
-    Returns:
-        List of dicts with 'filename', 'operation', 'algorithm', 'benchmark', 'timestamp'
-    """
-    log_dir = os.path.join(logs_dir, graph_name)
-    if not os.path.exists(log_dir):
-        return []
+    Searches both session-based and legacy (flat) log directories.
     
+    Returns:
+        List of dicts with 'filename', 'operation', 'algorithm', 'benchmark', 'timestamp', 'session'
+    """
     logs = []
-    for filename in sorted(os.listdir(log_dir)):
+    
+    # Check session-based directories (logs/run_*/graph_name/)
+    if os.path.exists(logs_dir):
+        for entry in os.listdir(logs_dir):
+            if entry.startswith('run_'):
+                session_log_dir = os.path.join(logs_dir, entry, graph_name)
+                if os.path.exists(session_log_dir):
+                    logs.extend(_parse_log_dir(session_log_dir, session=entry[4:]))  # Remove 'run_' prefix
+    
+    # Check legacy flat directory (logs/graph_name/)
+    legacy_dir = os.path.join(logs_dir, graph_name)
+    if os.path.exists(legacy_dir) and os.path.isdir(legacy_dir):
+        # Only if it's not a run_* directory
+        if not graph_name.startswith('run_'):
+            logs.extend(_parse_log_dir(legacy_dir, session=None))
+    
+    return sorted(logs, key=lambda x: x.get('timestamp', ''), reverse=True)
+
+
+def _parse_log_dir(log_dir: str, session: str = None) -> List[Dict]:
+    """Parse log files from a directory."""
+    logs = []
+    for filename in os.listdir(log_dir):
         if not filename.endswith('.log'):
             continue
         
@@ -190,14 +256,61 @@ def list_graph_logs(graph_name: str, logs_dir: str = LOGS_DIR) -> List[Dict]:
                 'algorithm': algorithm,
                 'benchmark': benchmark,
                 'timestamp': timestamp,
+                'session': session,
             })
     
     return logs
 
 
-def read_log(graph_name: str, filename: str, logs_dir: str = LOGS_DIR) -> Optional[str]:
-    """Read contents of a log file."""
-    filepath = os.path.join(logs_dir, graph_name, filename)
+def list_sessions(logs_dir: str = LOGS_DIR) -> List[Dict]:
+    """
+    List all experiment sessions.
+    
+    Returns:
+        List of dicts with 'session_id', 'path', 'graphs'
+    """
+    sessions = []
+    if not os.path.exists(logs_dir):
+        return sessions
+    
+    for entry in sorted(os.listdir(logs_dir), reverse=True):
+        if entry.startswith('run_'):
+            session_dir = os.path.join(logs_dir, entry)
+            if os.path.isdir(session_dir):
+                graphs = [g for g in os.listdir(session_dir) if os.path.isdir(os.path.join(session_dir, g))]
+                sessions.append({
+                    'session_id': entry[4:],  # Remove 'run_' prefix
+                    'path': session_dir,
+                    'graphs': graphs,
+                    'graph_count': len(graphs),
+                })
+    
+    return sessions
+
+
+def read_log(filepath: str) -> Optional[str]:
+    """Read contents of a log file by its full path."""
+    if not os.path.exists(filepath):
+        return None
+    with open(filepath) as f:
+        return f.read()
+
+
+def read_log_by_name(graph_name: str, filename: str, logs_dir: str = LOGS_DIR, session: str = None) -> Optional[str]:
+    """
+    Read contents of a log file by graph name and filename.
+    
+    Args:
+        graph_name: Name of the graph
+        filename: Log filename
+        logs_dir: Base logs directory
+        session: Session ID (if None, searches legacy directory)
+    """
+    if session:
+        filepath = os.path.join(logs_dir, f"run_{session}", graph_name, filename)
+    else:
+        filepath = os.path.join(logs_dir, graph_name, filename)
+    
     if not os.path.exists(filepath):
         return None
     with open(filepath) as f:
