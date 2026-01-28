@@ -165,7 +165,8 @@ def expand_algorithms_with_variants(
     if leiden_dendrogram_variants is None:
         leiden_dendrogram_variants = LEIDEN_DENDROGRAM_VARIANTS
     if rabbit_variants is None:
-        rabbit_variants = [RABBITORDER_DEFAULT_VARIANT]  # Default: csr only
+        # When expanding variants, include both RabbitOrder variants; otherwise just csr
+        rabbit_variants = RABBITORDER_VARIANTS if expand_leiden_variants else [RABBITORDER_DEFAULT_VARIANT]
     
     configs = []
     
