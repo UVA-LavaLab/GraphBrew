@@ -1,318 +1,6 @@
 {
-  "GORDER": {
-    "bias": 1.1816,
-    "w_modularity": 0.0,
-    "w_log_nodes": 0.0,
-    "w_log_edges": 0.0,
-    "w_density": 0.0,
-    "w_avg_degree": 0.0,
-    "w_degree_variance": 0.0,
-    "w_hub_concentration": 0.0,
-    "cache_l1_impact": 0.0,
-    "cache_l2_impact": 0.0,
-    "cache_l3_impact": 0.0,
-    "cache_dram_penalty": 0.0,
-    "w_reorder_time": 0.0,
-    "w_clustering_coeff": 0.0,
-    "w_avg_path_length": 0.0,
-    "w_diameter": 0.0,
-    "w_community_count": 0.0,
-    "benchmark_weights": {
-      "pr": 0.7025,
-      "bfs": 0.9071,
-      "cc": 1.5375,
-      "sssp": 0.9706,
-      "bc": 1.036,
-      "tc": 0.8463
-    },
-    "_metadata": {
-      "method": "per_benchmark",
-      "bench_scores": {
-        "pr": 0.8300964868876795,
-        "bfs": 1.071794871794872,
-        "cc": 1.8166666666666669,
-        "sssp": 1.1468253968253967,
-        "bc": 1.2240740740740739,
-        "tc": 1.0
-      },
-      "avg_speedup": 1.1815762493747815
-    }
-  },
-  "HUBCLUSTERDBG": {
-    "bias": 0.9782,
-    "w_modularity": 0.0,
-    "w_log_nodes": 0.0,
-    "w_log_edges": 0.0,
-    "w_density": 0.0,
-    "w_avg_degree": 0.0,
-    "w_degree_variance": 0.0,
-    "w_hub_concentration": 0.0,
-    "cache_l1_impact": 0.0,
-    "cache_l2_impact": 0.0,
-    "cache_l3_impact": 0.0,
-    "cache_dram_penalty": 0.0,
-    "w_reorder_time": 0.0,
-    "w_clustering_coeff": 0.0,
-    "w_avg_path_length": 0.0,
-    "w_diameter": 0.0,
-    "w_community_count": 0.0,
-    "benchmark_weights": {
-      "pr": 0.8932,
-      "bfs": 0.9582,
-      "cc": 1.0921,
-      "sssp": 1.0223,
-      "bc": 1.0118,
-      "tc": 1.0223
-    },
-    "_metadata": {
-      "method": "per_benchmark",
-      "bench_scores": {
-        "pr": 0.8736658456486043,
-        "bfs": 0.9372549019607843,
-        "cc": 1.068287037037037,
-        "sssp": 1.0,
-        "bc": 0.9896969696969696,
-        "tc": 1.0
-      },
-      "avg_speedup": 0.9781507923905659
-    }
-  },
-  "RABBITORDER_csr": {
-    "bias": 1.0845,
-    "w_modularity": 0.0,
-    "w_log_nodes": 0.0,
-    "w_log_edges": 0.0,
-    "w_density": 0.0,
-    "w_avg_degree": 0.0,
-    "w_degree_variance": 0.0,
-    "w_hub_concentration": 0.0,
-    "cache_l1_impact": 0.0,
-    "cache_l2_impact": 0.0,
-    "cache_l3_impact": 0.0,
-    "cache_dram_penalty": 0.0,
-    "w_reorder_time": 0.0,
-    "w_clustering_coeff": 0.0,
-    "w_avg_path_length": 0.0,
-    "w_diameter": 0.0,
-    "w_community_count": 0.0,
-    "benchmark_weights": {
-      "pr": 0.7872,
-      "bfs": 1.0297,
-      "cc": 1.0368,
-      "sssp": 1.0955,
-      "bc": 1.1287,
-      "tc": 0.9221
-    },
-    "_metadata": {
-      "method": "per_benchmark",
-      "bench_scores": {
-        "pr": 0.8537039456493337,
-        "bfs": 1.1166666666666667,
-        "cc": 1.1243589743589744,
-        "sssp": 1.1880341880341878,
-        "bc": 1.2240740740740739,
-        "tc": 1.0
-      },
-      "avg_speedup": 1.0844729747972062
-    }
-  },
   "RANDOM": {
-    "bias": 1.0092,
-    "w_modularity": 0.0,
-    "w_log_nodes": 0.0,
-    "w_log_edges": 0.0,
-    "w_density": 0.0,
-    "w_avg_degree": 0.0,
-    "w_degree_variance": 0.0,
-    "w_hub_concentration": 0.0,
-    "cache_l1_impact": 0.0,
-    "cache_l2_impact": 0.0,
-    "cache_l3_impact": 0.0,
-    "cache_dram_penalty": 0.0,
-    "w_reorder_time": 0.0,
-    "w_clustering_coeff": 0.0,
-    "w_avg_path_length": 0.0,
-    "w_diameter": 0.0,
-    "w_community_count": 0.0,
-    "benchmark_weights": {
-      "pr": 1.0352,
-      "bfs": 0.9618,
-      "cc": 0.9909,
-      "sssp": 1.0405,
-      "bc": 0.9807,
-      "tc": 0.9909
-    },
-    "_metadata": {
-      "method": "per_benchmark",
-      "bench_scores": {
-        "pr": 1.0446673189823876,
-        "bfs": 0.9705882352941176,
-        "cc": 1.0,
-        "sssp": 1.05,
-        "bc": 0.9896969696969696,
-        "tc": 1.0
-      },
-      "avg_speedup": 1.009158753995579
-    }
-  },
-  "LeidenOrder": {
-    "bias": 1.0943,
-    "w_modularity": 0.0,
-    "w_log_nodes": 0.0,
-    "w_log_edges": 0.0,
-    "w_density": 0.0,
-    "w_avg_degree": 0.0,
-    "w_degree_variance": 0.0,
-    "w_hub_concentration": 0.0,
-    "cache_l1_impact": 0.0,
-    "cache_l2_impact": 0.0,
-    "cache_l3_impact": 0.0,
-    "cache_dram_penalty": 0.0,
-    "w_reorder_time": 0.0,
-    "w_clustering_coeff": 0.0,
-    "w_avg_path_length": 0.0,
-    "w_diameter": 0.0,
-    "w_community_count": 0.0,
-    "benchmark_weights": {
-      "pr": 0.763,
-      "bfs": 0.9794,
-      "cc": 1.1571,
-      "sssp": 1.048,
-      "bc": 1.1387,
-      "tc": 0.9138
-    },
-    "_metadata": {
-      "method": "per_benchmark",
-      "bench_scores": {
-        "pr": 0.834956304619226,
-        "bfs": 1.071794871794872,
-        "cc": 1.2662337662337664,
-        "sssp": 1.1468253968253967,
-        "bc": 1.2461538461538462,
-        "tc": 1.0
-      },
-      "avg_speedup": 1.0943273642711846
-    }
-  },
-  "LeidenCSR_gve": {
-    "bias": 1.1596,
-    "w_modularity": 0.0,
-    "w_log_nodes": 0.0,
-    "w_log_edges": 0.0,
-    "w_density": 0.0,
-    "w_avg_degree": 0.0,
-    "w_degree_variance": 0.0,
-    "w_hub_concentration": 0.0,
-    "cache_l1_impact": 0.0,
-    "cache_l2_impact": 0.0,
-    "cache_l3_impact": 0.0,
-    "cache_dram_penalty": 0.0,
-    "w_reorder_time": 0.0,
-    "w_clustering_coeff": 0.0,
-    "w_avg_path_length": 0.0,
-    "w_diameter": 0.0,
-    "w_community_count": 0.0,
-    "benchmark_weights": {
-      "pr": 0.8163,
-      "bfs": 0.9243,
-      "cc": 1.3611,
-      "sssp": 1.0246,
-      "bc": 1.0113,
-      "tc": 0.8624
-    },
-    "_metadata": {
-      "method": "per_benchmark",
-      "bench_scores": {
-        "pr": 0.9465894465894467,
-        "bfs": 1.071794871794872,
-        "cc": 1.5782828282828283,
-        "sssp": 1.1880341880341878,
-        "bc": 1.1726190476190474,
-        "tc": 1.0
-      },
-      "avg_speedup": 1.159553397053397
-    }
-  },
-  "RCM": {
-    "bias": 1.0612,
-    "w_modularity": 0.0,
-    "w_log_nodes": 0.0,
-    "w_log_edges": 0.0,
-    "w_density": 0.0,
-    "w_avg_degree": 0.0,
-    "w_degree_variance": 0.0,
-    "w_hub_concentration": 0.0,
-    "cache_l1_impact": 0.0,
-    "cache_l2_impact": 0.0,
-    "cache_l3_impact": 0.0,
-    "cache_dram_penalty": 0.0,
-    "w_reorder_time": 0.0,
-    "w_clustering_coeff": 0.0,
-    "w_avg_path_length": 0.0,
-    "w_diameter": 0.0,
-    "w_community_count": 0.0,
-    "benchmark_weights": {
-      "pr": 0.8511,
-      "bfs": 0.9423,
-      "cc": 1.0595,
-      "sssp": 1.0806,
-      "bc": 1.1243,
-      "tc": 0.9423
-    },
-    "_metadata": {
-      "method": "per_benchmark",
-      "bench_scores": {
-        "pr": 0.9031763417305586,
-        "bfs": 1.0,
-        "cc": 1.1243589743589744,
-        "sssp": 1.1468253968253967,
-        "bc": 1.193121693121693,
-        "tc": 1.0
-      },
-      "avg_speedup": 1.0612470676727705
-    }
-  },
-  "LeidenDendrogram_dfs": {
-    "bias": 1.1461,
-    "w_modularity": 0.0,
-    "w_log_nodes": 0.0,
-    "w_log_edges": 0.0,
-    "w_density": 0.0,
-    "w_avg_degree": 0.0,
-    "w_degree_variance": 0.0,
-    "w_hub_concentration": 0.0,
-    "cache_l1_impact": 0.0,
-    "cache_l2_impact": 0.0,
-    "cache_l3_impact": 0.0,
-    "cache_dram_penalty": 0.0,
-    "w_reorder_time": 0.0,
-    "w_clustering_coeff": 0.0,
-    "w_avg_path_length": 0.0,
-    "w_diameter": 0.0,
-    "w_community_count": 0.0,
-    "benchmark_weights": {
-      "pr": 0.922,
-      "bfs": 0.9351,
-      "cc": 1.2363,
-      "sssp": 1.0006,
-      "bc": 1.0335,
-      "tc": 0.8725
-    },
-    "_metadata": {
-      "method": "per_benchmark",
-      "bench_scores": {
-        "pr": 1.0567418546365914,
-        "bfs": 1.071794871794872,
-        "cc": 1.417004048582996,
-        "sssp": 1.1468253968253967,
-        "bc": 1.1844827586206894,
-        "tc": 1.0
-      },
-      "avg_speedup": 1.146141488410091
-    }
-  },
-  "ORIGINAL": {
-    "bias": 1.0,
+    "bias": 0.87,
     "w_modularity": 0.0,
     "w_log_nodes": 0.0,
     "w_log_edges": 0.0,
@@ -334,29 +22,269 @@
       "bfs": 1.0,
       "cc": 1.0,
       "sssp": 1.0,
-      "bc": 1.0,
-      "tc": 1.0
+      "bc": 1.0
     },
     "_metadata": {
-      "method": "per_benchmark",
-      "bench_scores": {
-        "pr": 1.0,
-        "bfs": 1.0,
-        "cc": 1.0,
-        "sssp": 1.0,
-        "bc": 1.0,
-        "tc": 1.0
-      },
-      "avg_speedup": 1.0
+      "method": "speedup",
+      "sample_count": 10,
+      "avg_speedup": 0.87
+    }
+  },
+  "GORDER": {
+    "bias": 1.0496,
+    "w_modularity": 0.0,
+    "w_log_nodes": 0.0,
+    "w_log_edges": 0.0,
+    "w_density": 0.0,
+    "w_avg_degree": 0.0,
+    "w_degree_variance": 0.0,
+    "w_hub_concentration": 0.0,
+    "cache_l1_impact": 0.0,
+    "cache_l2_impact": 0.0,
+    "cache_l3_impact": 0.0,
+    "cache_dram_penalty": 0.0,
+    "w_reorder_time": 0.0,
+    "w_clustering_coeff": 0.0,
+    "w_avg_path_length": 0.0,
+    "w_diameter": 0.0,
+    "w_community_count": 0.0,
+    "benchmark_weights": {
+      "pr": 1.0,
+      "bfs": 1.0,
+      "cc": 1.0,
+      "sssp": 1.0,
+      "bc": 1.0
+    },
+    "_metadata": {
+      "method": "speedup",
+      "sample_count": 10,
+      "avg_speedup": 1.0496
+    }
+  },
+  "HUBCLUSTERDBG": {
+    "bias": 0.8348,
+    "w_modularity": 0.0,
+    "w_log_nodes": 0.0,
+    "w_log_edges": 0.0,
+    "w_density": 0.0,
+    "w_avg_degree": 0.0,
+    "w_degree_variance": 0.0,
+    "w_hub_concentration": 0.0,
+    "cache_l1_impact": 0.0,
+    "cache_l2_impact": 0.0,
+    "cache_l3_impact": 0.0,
+    "cache_dram_penalty": 0.0,
+    "w_reorder_time": 0.0,
+    "w_clustering_coeff": 0.0,
+    "w_avg_path_length": 0.0,
+    "w_diameter": 0.0,
+    "w_community_count": 0.0,
+    "benchmark_weights": {
+      "pr": 1.0,
+      "bfs": 1.0,
+      "cc": 1.0,
+      "sssp": 1.0,
+      "bc": 1.0
+    },
+    "_metadata": {
+      "method": "speedup",
+      "sample_count": 10,
+      "avg_speedup": 0.8348
+    }
+  },
+  "RCM": {
+    "bias": 0.9083,
+    "w_modularity": 0.0,
+    "w_log_nodes": 0.0,
+    "w_log_edges": 0.0,
+    "w_density": 0.0,
+    "w_avg_degree": 0.0,
+    "w_degree_variance": 0.0,
+    "w_hub_concentration": 0.0,
+    "cache_l1_impact": 0.0,
+    "cache_l2_impact": 0.0,
+    "cache_l3_impact": 0.0,
+    "cache_dram_penalty": 0.0,
+    "w_reorder_time": 0.0,
+    "w_clustering_coeff": 0.0,
+    "w_avg_path_length": 0.0,
+    "w_diameter": 0.0,
+    "w_community_count": 0.0,
+    "benchmark_weights": {
+      "pr": 1.0,
+      "bfs": 1.0,
+      "cc": 1.0,
+      "sssp": 1.0,
+      "bc": 1.0
+    },
+    "_metadata": {
+      "method": "speedup",
+      "sample_count": 10,
+      "avg_speedup": 0.9083
+    }
+  },
+  "ORIGINAL": {
+    "bias": 0.86,
+    "w_modularity": 0.0,
+    "w_log_nodes": 0.0,
+    "w_log_edges": 0.0,
+    "w_density": 0.0,
+    "w_avg_degree": 0.0,
+    "w_degree_variance": 0.0,
+    "w_hub_concentration": 0.0,
+    "cache_l1_impact": 0.0,
+    "cache_l2_impact": 0.0,
+    "cache_l3_impact": 0.0,
+    "cache_dram_penalty": 0.0,
+    "w_reorder_time": 0.0,
+    "w_clustering_coeff": 0.0,
+    "w_avg_path_length": 0.0,
+    "w_diameter": 0.0,
+    "w_community_count": 0.0,
+    "benchmark_weights": {
+      "pr": 1.0,
+      "bfs": 1.0,
+      "cc": 1.0,
+      "sssp": 1.0,
+      "bc": 1.0
+    },
+    "_metadata": {
+      "method": "speedup",
+      "sample_count": 10,
+      "avg_speedup": 0.86
+    }
+  },
+  "LeidenDendrogram_dfs": {
+    "bias": 1.011,
+    "w_modularity": 0.0,
+    "w_log_nodes": 0.0,
+    "w_log_edges": 0.0,
+    "w_density": 0.0,
+    "w_avg_degree": 0.0,
+    "w_degree_variance": 0.0,
+    "w_hub_concentration": 0.0,
+    "cache_l1_impact": 0.0,
+    "cache_l2_impact": 0.0,
+    "cache_l3_impact": 0.0,
+    "cache_dram_penalty": 0.0,
+    "w_reorder_time": 0.0,
+    "w_clustering_coeff": 0.0,
+    "w_avg_path_length": 0.0,
+    "w_diameter": 0.0,
+    "w_community_count": 0.0,
+    "benchmark_weights": {
+      "pr": 1.0,
+      "bfs": 1.0,
+      "cc": 1.0,
+      "sssp": 1.0,
+      "bc": 1.0
+    },
+    "_metadata": {
+      "method": "speedup",
+      "sample_count": 10,
+      "avg_speedup": 1.011
+    }
+  },
+  "LeidenOrder": {
+    "bias": 0.9427,
+    "w_modularity": 0.0,
+    "w_log_nodes": 0.0,
+    "w_log_edges": 0.0,
+    "w_density": 0.0,
+    "w_avg_degree": 0.0,
+    "w_degree_variance": 0.0,
+    "w_hub_concentration": 0.0,
+    "cache_l1_impact": 0.0,
+    "cache_l2_impact": 0.0,
+    "cache_l3_impact": 0.0,
+    "cache_dram_penalty": 0.0,
+    "w_reorder_time": 0.0,
+    "w_clustering_coeff": 0.0,
+    "w_avg_path_length": 0.0,
+    "w_diameter": 0.0,
+    "w_community_count": 0.0,
+    "benchmark_weights": {
+      "pr": 1.0,
+      "bfs": 1.0,
+      "cc": 1.0,
+      "sssp": 1.0,
+      "bc": 1.0
+    },
+    "_metadata": {
+      "method": "speedup",
+      "sample_count": 10,
+      "avg_speedup": 0.9427
+    }
+  },
+  "RABBITORDER_csr": {
+    "bias": 0.9314,
+    "w_modularity": 0.0,
+    "w_log_nodes": 0.0,
+    "w_log_edges": 0.0,
+    "w_density": 0.0,
+    "w_avg_degree": 0.0,
+    "w_degree_variance": 0.0,
+    "w_hub_concentration": 0.0,
+    "cache_l1_impact": 0.0,
+    "cache_l2_impact": 0.0,
+    "cache_l3_impact": 0.0,
+    "cache_dram_penalty": 0.0,
+    "w_reorder_time": 0.0,
+    "w_clustering_coeff": 0.0,
+    "w_avg_path_length": 0.0,
+    "w_diameter": 0.0,
+    "w_community_count": 0.0,
+    "benchmark_weights": {
+      "pr": 1.0,
+      "bfs": 1.0,
+      "cc": 1.0,
+      "sssp": 1.0,
+      "bc": 1.0
+    },
+    "_metadata": {
+      "method": "speedup",
+      "sample_count": 10,
+      "avg_speedup": 0.9314
+    }
+  },
+  "LeidenCSR_gve": {
+    "bias": 1.0267,
+    "w_modularity": 0.0,
+    "w_log_nodes": 0.0,
+    "w_log_edges": 0.0,
+    "w_density": 0.0,
+    "w_avg_degree": 0.0,
+    "w_degree_variance": 0.0,
+    "w_hub_concentration": 0.0,
+    "cache_l1_impact": 0.0,
+    "cache_l2_impact": 0.0,
+    "cache_l3_impact": 0.0,
+    "cache_dram_penalty": 0.0,
+    "w_reorder_time": 0.0,
+    "w_clustering_coeff": 0.0,
+    "w_avg_path_length": 0.0,
+    "w_diameter": 0.0,
+    "w_community_count": 0.0,
+    "benchmark_weights": {
+      "pr": 1.0,
+      "bfs": 1.0,
+      "cc": 1.0,
+      "sssp": 1.0,
+      "bc": 1.0
+    },
+    "_metadata": {
+      "method": "speedup",
+      "sample_count": 10,
+      "avg_speedup": 1.0267
     }
   },
   "_metadata": {
-    "method": "per_benchmark",
+    "method": "speedup",
     "scale": 1.0,
     "graphs": [
       "ca-GrQc",
       "ca-HepTh"
     ],
-    "created": "2026-01-28T00:50:43.979004"
+    "created": "2026-01-28T00:32:28.949243"
   }
 }

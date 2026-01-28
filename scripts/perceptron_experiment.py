@@ -73,6 +73,49 @@ CLUSTER_FEATURES = [
 # Benchmarks to evaluate
 BENCHMARKS = ['pr', 'bfs', 'cc', 'sssp', 'bc', 'tc']
 
+# Algorithm taxonomy - group by type for analysis
+ALGORITHM_TAXONOMY = {
+    'basic': ['ORIGINAL', 'RANDOM', 'SORT'],
+    'hub': ['HUBSORT', 'HUBCLUSTER', 'DBG', 'HUBSORTDBG', 'HUBCLUSTERDBG'],
+    'community': ['RABBITORDER', 'RABBITORDER_csr', 'RABBITORDER_boost', 'GORDER', 'CORDER', 'RCM'],
+    'leiden': ['LeidenOrder', 'LeidenCSR', 'LeidenDendrogram',
+               'LeidenCSR_gve', 'LeidenCSR_gveopt', 'LeidenCSR_dfs', 'LeidenCSR_bfs',
+               'LeidenCSR_hubsort', 'LeidenCSR_fast', 'LeidenCSR_modularity',
+               'LeidenDendrogram_dfs', 'LeidenDendrogram_dfshub', 'LeidenDendrogram_dfssize',
+               'LeidenDendrogram_bfs', 'LeidenDendrogram_hybrid'],
+    'composite': ['GraphBrewOrder', 'AdaptiveOrder'],
+}
+
+# Reverse mapping: algorithm -> category
+ALGO_TO_CATEGORY = {}
+for cat, algos in ALGORITHM_TAXONOMY.items():
+    for algo in algos:
+        ALGO_TO_CATEGORY[algo] = cat
+
+# Graph type heuristics based on name patterns
+GRAPH_TYPE_PATTERNS = {
+    'social': ['soc-', 'facebook', 'twitter', 'friendster'],
+    'web': ['web-', 'uk-', 'it-', 'arabic-', 'indochina-'],
+    'road': ['road', 'Road', 'GAP-road'],
+    'citation': ['cit-', 'ca-', 'hep'],
+    'p2p': ['p2p-', 'gnutella'],
+    'email': ['email-', 'enron'],
+    'random': ['GAP-urand', 'GAP-kron', 'random', 'er-'],
+}
+
+def get_graph_type(graph_name: str) -> str:
+    """Infer graph type from name."""
+    name_lower = graph_name.lower()
+    for gtype, patterns in GRAPH_TYPE_PATTERNS.items():
+        for pattern in patterns:
+            if pattern.lower() in name_lower:
+                return gtype
+    return 'unknown'
+
+def get_algo_category(algo_name: str) -> str:
+    """Get algorithm category."""
+    return ALGO_TO_CATEGORY.get(algo_name, 'unknown')
+
 
 # =============================================================================
 # Data Loading
@@ -132,9 +175,21 @@ def load_all_results() -> Dict[str, Any]:
     results['graphs'] = sorted(results['graphs'])
     results['algorithms'] = sorted(results['algorithms'])
     
+    # Track which phases are available
+    results['has_benchmarks'] = len(results['benchmarks']) > 0
+    results['has_reorder'] = len(results['reorder_times']) > 0
+    results['has_cache'] = len(results['cache']) > 0
+    
     log.info(f"Loaded {len(results['benchmarks'])} benchmark results")
     log.info(f"Loaded {len(results['reorder_times'])} reorder times")
-    log.info(f"Loaded {len(results['cache'])} cache results")
+    if results['has_cache']:
+        log.info(f"Loaded {len(results['cache'])} cache results")
+    else:
+        log.warn("No cache results (--skip-cache was used)")
+    
+    # Categorize graphs and algorithms
+    results['graph_types'] = {g: get_graph_type(g) for g in results['graphs']}
+    results['algo_categories'] = {a: get_algo_category(a) for a in results['algorithms']}
     log.info(f"Graphs: {len(results['graphs'])}, Algorithms: {len(results['algorithms'])}")
     
     return results
@@ -392,6 +447,76 @@ def train_weights_rank(
             'method': 'rank',
             'avg_rank': round(rank_sums[algo]/rank_counts[algo], 2) if rank_counts[algo] > 0 else 0,
             'n_samples': rank_counts[algo],
+        }
+    
+    return weights
+
+
+def train_weights_per_benchmark(
+    perf_matrix: Dict,
+    graphs: List[str],
+    config: PerceptronConfig,
+) -> Dict[str, Dict]:
+    """
+    Train weights with per-benchmark multipliers.
+    
+    Each algorithm gets benchmark-specific weights that affect selection
+    when a specific benchmark is being run.
+    """
+    weights = {}
+    algorithms = set()
+    
+    for graph in graphs:
+        if graph in perf_matrix:
+            algorithms.update(perf_matrix[graph].keys())
+    
+    # For each algorithm, compute performance per benchmark
+    for algo in algorithms:
+        bench_scores = {}
+        
+        for bench in BENCHMARKS:
+            speedups = []
+            for graph in graphs:
+                if graph not in perf_matrix or algo not in perf_matrix[graph]:
+                    continue
+                if bench not in perf_matrix[graph][algo]:
+                    continue
+                
+                time = perf_matrix[graph][algo][bench]
+                baseline = perf_matrix[graph].get('ORIGINAL', {}).get(bench, time)
+                
+                if baseline > 0 and time > 0:
+                    speedups.append(baseline / time)
+            
+            if speedups:
+                bench_scores[bench] = sum(speedups) / len(speedups)
+            else:
+                bench_scores[bench] = 1.0
+        
+        # Compute base bias as average speedup
+        if bench_scores:
+            avg_speedup = sum(bench_scores.values()) / len(bench_scores)
+        else:
+            avg_speedup = 0.5
+        
+        weights[algo] = _create_default_weight_entry()
+        weights[algo]['bias'] = round(avg_speedup * config.bias_scale, 4)
+        
+        # Add benchmark-specific multipliers
+        # If algorithm is better than average for a benchmark, boost it
+        weights[algo]['benchmark_weights'] = {}
+        for bench, score in bench_scores.items():
+            # Relative to this algorithm's average
+            if avg_speedup > 0:
+                multiplier = score / avg_speedup
+            else:
+                multiplier = 1.0
+            weights[algo]['benchmark_weights'][bench] = round(multiplier, 4)
+        
+        weights[algo]['_metadata'] = {
+            'method': 'per_benchmark',
+            'bench_scores': bench_scores,
+            'avg_speedup': avg_speedup,
         }
     
     return weights
@@ -949,11 +1074,13 @@ Examples:
     
     parser.add_argument('--show', action='store_true',
                        help='Show current weights and evaluate accuracy')
+    parser.add_argument('--analyze', action='store_true',
+                       help='Analyze data: show graph types, algorithm categories, best per category')
     parser.add_argument('--grid-search', action='store_true',
                        help='Run grid search over configurations')
     parser.add_argument('--train', action='store_true',
                        help='Train new weights')
-    parser.add_argument('--method', choices=['speedup', 'winrate', 'rank', 'hybrid'],
+    parser.add_argument('--method', choices=['speedup', 'winrate', 'rank', 'hybrid', 'per_benchmark'],
                        default='hybrid', help='Training method (default: hybrid)')
     parser.add_argument('--scale', type=float, default=1.0,
                        help='Bias scale factor (default: 1.0)')
@@ -986,6 +1113,81 @@ Examples:
     
     if args.interactive:
         interactive_mode(perf_matrix, graphs, all_results)
+        return
+    
+    if args.analyze:
+        # Analyze data taxonomy
+        print("\n" + "="*60)
+        print("DATA TAXONOMY ANALYSIS")
+        print("="*60)
+        
+        # Graph types
+        print("\n📊 GRAPHS BY TYPE:")
+        graph_types = all_results.get('graph_types', {})
+        by_type = defaultdict(list)
+        for g, t in graph_types.items():
+            by_type[t].append(g)
+        for gtype, glist in sorted(by_type.items()):
+            print(f"  {gtype:12s}: {', '.join(glist)}")
+        
+        # Algorithm categories
+        print("\n🔧 ALGORITHMS BY CATEGORY:")
+        algo_cats = all_results.get('algo_categories', {})
+        by_cat = defaultdict(list)
+        for a, c in algo_cats.items():
+            by_cat[c].append(a)
+        for cat, alist in sorted(by_cat.items()):
+            print(f"  {cat:12s}: {', '.join(sorted(alist))}")
+        
+        # Best algorithm per category per benchmark
+        print("\n🏆 BEST ALGORITHM BY CATEGORY (per benchmark):")
+        for bench in ['pr', 'bfs', 'cc', 'sssp', 'bc']:
+            has_data = any(
+                bench in perf_matrix.get(g, {}).get(a, {})
+                for g in graphs for a in perf_matrix.get(g, {}).keys()
+            )
+            if not has_data:
+                continue
+            
+            print(f"\n  {bench.upper()}:")
+            cat_winners = defaultdict(lambda: {'algo': None, 'wins': 0, 'total_speedup': 0})
+            
+            for g in graphs:
+                if g not in perf_matrix:
+                    continue
+                
+                # Find best in each category for this graph
+                for cat in ['basic', 'hub', 'community', 'leiden']:
+                    best_algo = None
+                    best_time = float('inf')
+                    
+                    for algo in by_cat.get(cat, []):
+                        if algo in perf_matrix[g] and bench in perf_matrix[g][algo]:
+                            t = perf_matrix[g][algo][bench]
+                            if t < best_time:
+                                best_time = t
+                                best_algo = algo
+                    
+                    if best_algo:
+                        # Check if this is overall best
+                        overall_best, overall_time = find_best_algorithm(perf_matrix, g, bench)
+                        if best_algo == overall_best:
+                            cat_winners[cat]['wins'] += 1
+                        if overall_time > 0:
+                            cat_winners[cat]['total_speedup'] += overall_time / best_time
+                        cat_winners[cat]['algo'] = best_algo
+            
+            for cat in ['basic', 'hub', 'community', 'leiden']:
+                w = cat_winners[cat]
+                if w['algo']:
+                    print(f"    {cat:12s}: {w['algo']:25s} (wins: {w['wins']}/{len(graphs)})")
+        
+        # Data availability
+        print("\n📁 DATA AVAILABILITY:")
+        print(f"  Benchmarks: {'✅' if all_results['has_benchmarks'] else '❌'} ({len(all_results['benchmarks'])} records)")
+        print(f"  Reorder:    {'✅' if all_results['has_reorder'] else '❌'} ({len(all_results['reorder_times'])} records)")
+        print(f"  Cache:      {'✅' if all_results['has_cache'] else '⚠️ skipped'} ({len(all_results['cache'])} records)")
+        
         return
     
     if args.show:
@@ -1067,6 +1269,8 @@ Examples:
             weights = train_weights_winrate(perf_matrix, graphs, config)
         elif args.method == 'rank':
             weights = train_weights_rank(perf_matrix, graphs, config)
+        elif args.method == 'per_benchmark':
+            weights = train_weights_per_benchmark(perf_matrix, graphs, config)
         else:
             weights = train_weights_hybrid(perf_matrix, graphs, config)
         
