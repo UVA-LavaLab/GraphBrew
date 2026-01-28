@@ -12,16 +12,21 @@ per-graph, enabling:
 Directory structure:
     results/graphs/<graph_name>/
         features.json       - Graph topology features (nodes, edges, modularity, etc.)
-        benchmarks/
-            <benchmark>_<algorithm>.json  - Benchmark results per algo
-        reorder/
-            <algorithm>.json - Reorder time and mapping info
-        weights/
-            perceptron.json  - Per-graph computed weights
+                             This is STATIC data about the graph itself
     
     results/logs/<graph_name>/
+        runs/<timestamp>/
+            benchmarks/
+                <benchmark>_<algorithm>.json  - Benchmark results
+            reorder/
+                <algorithm>.json - Reorder time and mapping info
+            weights/
+                perceptron.json  - Per-graph computed weights
+            summary.json         - Run summary with metadata
+        
         reorder_<algorithm>_<timestamp>.log   - Reorder command output
         benchmark_<bench>_<algorithm>_<timestamp>.log - Benchmark output
+        cache_<bench>_<algorithm>_<timestamp>.log    - Cache simulation output
             
 Standalone usage:
     python -m scripts.lib.graph_data --list-graphs
@@ -29,18 +34,20 @@ Standalone usage:
     python -m scripts.lib.graph_data --export-csv results/all_data.csv
     python -m scripts.lib.graph_data --list-logs email-Enron
     python -m scripts.lib.graph_data --show-log email-Enron reorder_HUBCLUSTERDBG_20260127_123456.log
+    python -m scripts.lib.graph_data --list-runs email-Enron
+    python -m scripts.lib.graph_data --show-run email-Enron 20260127_145547
 
 Library usage:
     from scripts.lib.graph_data import (
-        GraphDataStore, save_graph_features, save_benchmark_result,
-        save_reorder_result, load_all_graph_data,
-        save_run_log, list_graph_logs, read_log
+        GraphDataStore, GraphRunStore, save_graph_features,
+        save_run_log, list_graph_logs, read_log, get_latest_run
     )
 """
 
 import os
 import json
 import glob
+import shutil
 from pathlib import Path
 from dataclasses import dataclass, field, asdict
 from datetime import datetime
@@ -58,12 +65,15 @@ log = Logger()
 # Constants
 # =============================================================================
 
+# Static graph features go here (topology data)
 GRAPH_DATA_DIR = os.path.join(RESULTS_DIR, "graphs")
+
+# Run-specific data and logs go here
 LOGS_DIR = os.path.join(RESULTS_DIR, "logs")
 
 
 # =============================================================================
-# Run Logging Functions
+# Run Logging Functions (Individual Operation Logs)
 # =============================================================================
 
 def get_log_dir(graph_name: str, logs_dir: str = LOGS_DIR) -> str:
@@ -288,7 +298,7 @@ def cleanup_old_logs(
 
 @dataclass
 class GraphFeatures:
-    """Graph topology features for perceptron training."""
+    """Graph topology features (STATIC - stored in graphs/ folder)."""
     graph_name: str
     nodes: int = 0
     edges: int = 0
@@ -317,7 +327,7 @@ class GraphFeatures:
 
 @dataclass
 class AlgorithmBenchmarkData:
-    """Benchmark data for a single algorithm on a single graph."""
+    """Benchmark data for a single algorithm on a single graph (run-specific)."""
     graph_name: str
     algorithm_id: int
     algorithm_name: str
@@ -350,7 +360,7 @@ class AlgorithmBenchmarkData:
 
 @dataclass
 class AlgorithmReorderData:
-    """Reorder data for a single algorithm on a single graph."""
+    """Reorder data for a single algorithm on a single graph (run-specific)."""
     graph_name: str
     algorithm_id: int
     algorithm_name: str
@@ -381,7 +391,7 @@ class AlgorithmReorderData:
 
 @dataclass 
 class GraphPerceptronWeights:
-    """Per-graph computed perceptron weights (for analysis)."""
+    """Per-graph computed perceptron weights (run-specific, for analysis)."""
     graph_name: str
     
     # Best algorithm per benchmark
@@ -410,40 +420,22 @@ class GraphPerceptronWeights:
 
 
 # =============================================================================
-# Graph Data Store
+# Graph Features Store (Static Data - in graphs/ folder)
 # =============================================================================
 
-class GraphDataStore:
+class GraphFeaturesStore:
     """
-    Manages per-graph experiment data storage.
+    Manages STATIC graph topology features.
     
-    Example:
-        store = GraphDataStore("email-Enron")
-        store.save_features(features)
-        store.save_benchmark_result(result)
-        store.save_reorder_result(reorder)
-        
-        # Later, load all data
-        all_data = store.load_all()
+    Features are stored in results/graphs/<graph>/ since they describe
+    the graph itself and don't change between experiment runs.
     """
     
     def __init__(self, graph_name: str, data_dir: str = GRAPH_DATA_DIR):
         """Initialize store for a specific graph."""
         self.graph_name = graph_name
         self.base_dir = os.path.join(data_dir, graph_name)
-        self.benchmarks_dir = os.path.join(self.base_dir, "benchmarks")
-        self.reorder_dir = os.path.join(self.base_dir, "reorder")
-        self.weights_dir = os.path.join(self.base_dir, "weights")
-        
-        # Create directories
         os.makedirs(self.base_dir, exist_ok=True)
-        os.makedirs(self.benchmarks_dir, exist_ok=True)
-        os.makedirs(self.reorder_dir, exist_ok=True)
-        os.makedirs(self.weights_dir, exist_ok=True)
-    
-    # -------------------------------------------------------------------------
-    # Features
-    # -------------------------------------------------------------------------
     
     def save_features(self, features: GraphFeatures) -> None:
         """Save graph topology features."""
@@ -465,6 +457,50 @@ class GraphDataStore:
         except Exception as e:
             log.warn(f"Failed to load features for {self.graph_name}: {e}")
             return None
+
+
+# =============================================================================
+# Graph Run Store (Run-Specific Data - in logs/ folder)
+# =============================================================================
+
+class GraphRunStore:
+    """
+    Manages RUN-SPECIFIC experiment data (benchmarks, reorder times, weights).
+    
+    Each run is stored in results/logs/<graph>/runs/<timestamp>/ with:
+    - benchmarks/<bench>_<algo>.json
+    - reorder/<algo>.json
+    - weights/perceptron.json
+    - summary.json
+    
+    This allows keeping historical run data while the static features
+    remain in the graphs/ folder.
+    """
+    
+    def __init__(self, graph_name: str, run_timestamp: str = None, logs_dir: str = LOGS_DIR):
+        """
+        Initialize store for a specific graph run.
+        
+        Args:
+            graph_name: Name of the graph
+            run_timestamp: Timestamp for this run (default: current time)
+            logs_dir: Base logs directory
+        """
+        self.graph_name = graph_name
+        self.run_timestamp = run_timestamp or get_timestamp()
+        self.logs_dir = logs_dir
+        
+        self.runs_dir = os.path.join(logs_dir, graph_name, "runs")
+        self.run_dir = os.path.join(self.runs_dir, self.run_timestamp)
+        self.benchmarks_dir = os.path.join(self.run_dir, "benchmarks")
+        self.reorder_dir = os.path.join(self.run_dir, "reorder")
+        self.weights_dir = os.path.join(self.run_dir, "weights")
+        
+        # Create directories
+        os.makedirs(self.run_dir, exist_ok=True)
+        os.makedirs(self.benchmarks_dir, exist_ok=True)
+        os.makedirs(self.reorder_dir, exist_ok=True)
+        os.makedirs(self.weights_dir, exist_ok=True)
     
     # -------------------------------------------------------------------------
     # Benchmark Results
@@ -472,7 +508,7 @@ class GraphDataStore:
     
     def save_benchmark_result(self, result: AlgorithmBenchmarkData) -> None:
         """Save benchmark result for an algorithm."""
-        result.timestamp = get_timestamp()
+        result.timestamp = self.run_timestamp
         filename = f"{result.benchmark}_{result.algorithm_name}.json"
         filepath = os.path.join(self.benchmarks_dir, filename)
         with open(filepath, 'w') as f:
@@ -490,11 +526,11 @@ class GraphDataStore:
                 data = json.load(f)
             return AlgorithmBenchmarkData.from_dict(data)
         except Exception as e:
-            log.warn(f"Failed to load benchmark {benchmark}/{algorithm_name} for {self.graph_name}: {e}")
+            log.warn(f"Failed to load benchmark {benchmark}/{algorithm_name}: {e}")
             return None
     
     def load_all_benchmarks(self) -> List[AlgorithmBenchmarkData]:
-        """Load all benchmark results for this graph."""
+        """Load all benchmark results for this run."""
         results = []
         if not os.path.exists(self.benchmarks_dir):
             return results
@@ -516,7 +552,7 @@ class GraphDataStore:
     
     def save_reorder_result(self, result: AlgorithmReorderData) -> None:
         """Save reorder result for an algorithm."""
-        result.timestamp = get_timestamp()
+        result.timestamp = self.run_timestamp
         filename = f"{result.algorithm_name}.json"
         filepath = os.path.join(self.reorder_dir, filename)
         with open(filepath, 'w') as f:
@@ -534,11 +570,11 @@ class GraphDataStore:
                 data = json.load(f)
             return AlgorithmReorderData.from_dict(data)
         except Exception as e:
-            log.warn(f"Failed to load reorder {algorithm_name} for {self.graph_name}: {e}")
+            log.warn(f"Failed to load reorder {algorithm_name}: {e}")
             return None
     
     def load_all_reorders(self) -> List[AlgorithmReorderData]:
-        """Load all reorder results for this graph."""
+        """Load all reorder results for this run."""
         results = []
         if not os.path.exists(self.reorder_dir):
             return results
@@ -559,15 +595,15 @@ class GraphDataStore:
     # -------------------------------------------------------------------------
     
     def save_weights(self, weights: GraphPerceptronWeights) -> None:
-        """Save computed perceptron weights for this graph."""
-        weights.timestamp = get_timestamp()
+        """Save computed perceptron weights for this run."""
+        weights.timestamp = self.run_timestamp
         weights_file = os.path.join(self.weights_dir, "perceptron.json")
         with open(weights_file, 'w') as f:
             json.dump(weights.to_dict(), f, indent=2)
         log.debug(f"Saved weights for {self.graph_name}")
     
     def load_weights(self) -> Optional[GraphPerceptronWeights]:
-        """Load computed perceptron weights for this graph."""
+        """Load computed perceptron weights for this run."""
         weights_file = os.path.join(self.weights_dir, "perceptron.json")
         if not os.path.exists(weights_file):
             return None
@@ -576,42 +612,285 @@ class GraphDataStore:
                 data = json.load(f)
             return GraphPerceptronWeights.from_dict(data)
         except Exception as e:
-            log.warn(f"Failed to load weights for {self.graph_name}: {e}")
+            log.warn(f"Failed to load weights: {e}")
             return None
     
     # -------------------------------------------------------------------------
     # Summary
     # -------------------------------------------------------------------------
     
+    def save_summary(self, metadata: Dict = None) -> None:
+        """Save run summary."""
+        benchmarks = self.load_all_benchmarks()
+        reorders = self.load_all_reorders()
+        
+        # Find best per benchmark
+        best_per_bench = {}
+        for br in benchmarks:
+            bench = br.benchmark
+            if bench not in best_per_bench or br.speedup > best_per_bench[bench]['speedup']:
+                best_per_bench[bench] = {
+                    'algorithm': br.algorithm_name,
+                    'speedup': br.speedup,
+                    'time': br.avg_time
+                }
+        
+        summary = {
+            'graph_name': self.graph_name,
+            'run_timestamp': self.run_timestamp,
+            'num_benchmarks': len(benchmarks),
+            'num_reorders': len(reorders),
+            'best_per_benchmark': best_per_bench,
+            'algorithms_tested': list(set(b.algorithm_name for b in benchmarks)),
+            'benchmarks_run': list(set(b.benchmark for b in benchmarks)),
+            'metadata': metadata or {},
+        }
+        
+        summary_file = os.path.join(self.run_dir, "summary.json")
+        with open(summary_file, 'w') as f:
+            json.dump(summary, f, indent=2)
+    
+    def load_summary(self) -> Optional[Dict]:
+        """Load run summary."""
+        summary_file = os.path.join(self.run_dir, "summary.json")
+        if not os.path.exists(summary_file):
+            return None
+        try:
+            with open(summary_file) as f:
+                return json.load(f)
+        except Exception:
+            return None
+    
     def get_summary(self) -> Dict:
-        """Get summary of all data for this graph."""
-        features = self.load_features()
+        """Get summary (load or compute)."""
+        summary = self.load_summary()
+        if summary:
+            return summary
+        
+        # Compute on the fly
         benchmarks = self.load_all_benchmarks()
         reorders = self.load_all_reorders()
         weights = self.load_weights()
         
-        # Find best algorithm per benchmark
         best_per_bench = {}
-        for bench_result in benchmarks:
-            bench = bench_result.benchmark
-            if bench not in best_per_bench or bench_result.speedup > best_per_bench[bench]['speedup']:
+        for br in benchmarks:
+            bench = br.benchmark
+            if bench not in best_per_bench or br.speedup > best_per_bench[bench]['speedup']:
                 best_per_bench[bench] = {
-                    'algorithm': bench_result.algorithm_name,
-                    'speedup': bench_result.speedup,
-                    'time': bench_result.avg_time
+                    'algorithm': br.algorithm_name,
+                    'speedup': br.speedup,
+                    'time': br.avg_time
                 }
         
         return {
             'graph_name': self.graph_name,
-            'has_features': features is not None,
+            'run_timestamp': self.run_timestamp,
             'num_benchmarks': len(benchmarks),
             'num_reorders': len(reorders),
             'has_weights': weights is not None,
-            'features': features.to_dict() if features else None,
             'best_per_benchmark': best_per_bench,
             'algorithms_tested': list(set(b.algorithm_name for b in benchmarks)),
             'benchmarks_run': list(set(b.benchmark for b in benchmarks)),
         }
+
+
+# =============================================================================
+# Combined Graph Data Store (for backward compatibility)
+# =============================================================================
+
+class GraphDataStore:
+    """
+    Unified interface for graph data (features + latest run data).
+    
+    This maintains backward compatibility with the previous API while
+    using the new separated storage structure:
+    - Static features in results/graphs/<graph>/
+    - Run data in results/logs/<graph>/runs/<timestamp>/
+    """
+    
+    def __init__(self, graph_name: str, data_dir: str = GRAPH_DATA_DIR, 
+                 logs_dir: str = LOGS_DIR, run_timestamp: str = None,
+                 create_new_run: bool = False):
+        """
+        Initialize combined store.
+        
+        Args:
+            graph_name: Name of the graph
+            data_dir: Directory for static features (default: results/graphs/)
+            logs_dir: Directory for run data (default: results/logs/)
+            run_timestamp: Specific run timestamp to use (default: use latest or create new)
+            create_new_run: If True, always create a new run instead of using latest
+        """
+        self.graph_name = graph_name
+        self.data_dir = data_dir
+        self.logs_dir = logs_dir
+        
+        # Features store (static)
+        self.features_store = GraphFeaturesStore(graph_name, data_dir)
+        
+        # Run store (dynamic) - use latest if not specified, or create new
+        if run_timestamp is not None:
+            # Explicit timestamp provided
+            self.run_timestamp = run_timestamp
+        elif create_new_run:
+            # Force new run
+            self.run_timestamp = get_timestamp()
+        else:
+            # Use latest or create new
+            self.run_timestamp = self._get_latest_run_timestamp() or get_timestamp()
+        
+        self.run_store = GraphRunStore(graph_name, self.run_timestamp, logs_dir)
+        
+        # Legacy compatibility paths
+        self.base_dir = self.features_store.base_dir
+        self.benchmarks_dir = self.run_store.benchmarks_dir
+        self.reorder_dir = self.run_store.reorder_dir
+        self.weights_dir = self.run_store.weights_dir
+    
+    def _get_latest_run_timestamp(self) -> Optional[str]:
+        """Get the most recent run timestamp for this graph."""
+        runs_dir = os.path.join(self.logs_dir, self.graph_name, "runs")
+        if not os.path.exists(runs_dir):
+            return None
+        runs = sorted([d for d in os.listdir(runs_dir) 
+                      if os.path.isdir(os.path.join(runs_dir, d))], reverse=True)
+        return runs[0] if runs else None
+    
+    # -------------------------------------------------------------------------
+    # Features (static - delegates to features store)
+    # -------------------------------------------------------------------------
+    
+    def save_features(self, features: GraphFeatures) -> None:
+        """Save graph topology features."""
+        self.features_store.save_features(features)
+    
+    def load_features(self) -> Optional[GraphFeatures]:
+        """Load graph topology features."""
+        return self.features_store.load_features()
+    
+    # -------------------------------------------------------------------------
+    # Benchmark Results (run-specific - delegates to run store)
+    # -------------------------------------------------------------------------
+    
+    def save_benchmark_result(self, result: AlgorithmBenchmarkData) -> None:
+        """Save benchmark result."""
+        self.run_store.save_benchmark_result(result)
+    
+    def load_benchmark_result(self, benchmark: str, algorithm_name: str) -> Optional[AlgorithmBenchmarkData]:
+        """Load benchmark result."""
+        return self.run_store.load_benchmark_result(benchmark, algorithm_name)
+    
+    def load_all_benchmarks(self) -> List[AlgorithmBenchmarkData]:
+        """Load all benchmarks from latest run."""
+        return self.run_store.load_all_benchmarks()
+    
+    # -------------------------------------------------------------------------
+    # Reorder Results (run-specific - delegates to run store)
+    # -------------------------------------------------------------------------
+    
+    def save_reorder_result(self, result: AlgorithmReorderData) -> None:
+        """Save reorder result."""
+        self.run_store.save_reorder_result(result)
+    
+    def load_reorder_result(self, algorithm_name: str) -> Optional[AlgorithmReorderData]:
+        """Load reorder result."""
+        return self.run_store.load_reorder_result(algorithm_name)
+    
+    def load_all_reorders(self) -> List[AlgorithmReorderData]:
+        """Load all reorders from latest run."""
+        return self.run_store.load_all_reorders()
+    
+    # -------------------------------------------------------------------------
+    # Weights (run-specific - delegates to run store)
+    # -------------------------------------------------------------------------
+    
+    def save_weights(self, weights: GraphPerceptronWeights) -> None:
+        """Save weights."""
+        self.run_store.save_weights(weights)
+    
+    def load_weights(self) -> Optional[GraphPerceptronWeights]:
+        """Load weights."""
+        return self.run_store.load_weights()
+    
+    # -------------------------------------------------------------------------
+    # Summary
+    # -------------------------------------------------------------------------
+    
+    def get_summary(self) -> Dict:
+        """Get combined summary of features + latest run."""
+        features = self.load_features()
+        run_summary = self.run_store.get_summary()
+        
+        return {
+            'graph_name': self.graph_name,
+            'has_features': features is not None,
+            'features': features.to_dict() if features else None,
+            'run_timestamp': self.run_timestamp,
+            'num_benchmarks': run_summary.get('num_benchmarks', 0),
+            'num_reorders': run_summary.get('num_reorders', 0),
+            'has_weights': run_summary.get('has_weights', False),
+            'best_per_benchmark': run_summary.get('best_per_benchmark', {}),
+            'algorithms_tested': run_summary.get('algorithms_tested', []),
+            'benchmarks_run': run_summary.get('benchmarks_run', []),
+        }
+
+
+# =============================================================================
+# Run Management Functions
+# =============================================================================
+
+def list_runs(graph_name: str, logs_dir: str = LOGS_DIR) -> List[str]:
+    """List all run timestamps for a graph."""
+    runs_dir = os.path.join(logs_dir, graph_name, "runs")
+    if not os.path.exists(runs_dir):
+        return []
+    return sorted([d for d in os.listdir(runs_dir) 
+                   if os.path.isdir(os.path.join(runs_dir, d))], reverse=True)
+
+
+def get_latest_run(graph_name: str, logs_dir: str = LOGS_DIR) -> Optional[GraphRunStore]:
+    """Get the latest run store for a graph."""
+    runs = list_runs(graph_name, logs_dir)
+    if not runs:
+        return None
+    return GraphRunStore(graph_name, runs[0], logs_dir)
+
+
+def cleanup_old_runs(
+    graph_name: str = None,
+    max_runs_per_graph: int = 10,
+    logs_dir: str = LOGS_DIR
+) -> int:
+    """
+    Clean up old run directories to prevent disk bloat.
+    
+    Returns:
+        Number of runs deleted
+    """
+    deleted = 0
+    
+    if graph_name:
+        graphs = [graph_name]
+    else:
+        graphs = [d for d in os.listdir(logs_dir) 
+                  if os.path.isdir(os.path.join(logs_dir, d))]
+    
+    for graph in graphs:
+        runs = list_runs(graph, logs_dir)
+        
+        # Keep only the newest max_runs_per_graph
+        for run_ts in runs[max_runs_per_graph:]:
+            run_dir = os.path.join(logs_dir, graph, "runs", run_ts)
+            try:
+                shutil.rmtree(run_dir)
+                deleted += 1
+            except OSError:
+                pass
+    
+    if deleted > 0:
+        log.info(f"Cleaned up {deleted} old run directories")
+    
+    return deleted
 
 
 # =============================================================================
@@ -620,7 +899,7 @@ class GraphDataStore:
 
 def save_graph_features(graph_name: str, features: Dict, data_dir: str = GRAPH_DATA_DIR) -> None:
     """Save features for a graph from a dictionary."""
-    store = GraphDataStore(graph_name, data_dir)
+    store = GraphFeaturesStore(graph_name, data_dir)
     graph_features = GraphFeatures(
         graph_name=graph_name,
         nodes=features.get('nodes', 0),
@@ -640,78 +919,20 @@ def save_graph_features(graph_name: str, features: Dict, data_dir: str = GRAPH_D
     store.save_features(graph_features)
 
 
-def save_benchmark_result(
-    graph_name: str,
-    algorithm_id: int,
-    algorithm_name: str,
-    benchmark: str,
-    avg_time: float,
-    trial_times: List[float],
-    speedup: float,
-    cache_stats: Optional[Dict] = None,
-    data_dir: str = GRAPH_DATA_DIR
-) -> None:
-    """Save a single benchmark result."""
-    store = GraphDataStore(graph_name, data_dir)
-    result = AlgorithmBenchmarkData(
-        graph_name=graph_name,
-        algorithm_id=algorithm_id,
-        algorithm_name=algorithm_name,
-        benchmark=benchmark,
-        avg_time=avg_time,
-        trial_times=trial_times,
-        speedup=speedup,
-        l1_hit_rate=cache_stats.get('l1_hit_rate', 0.0) if cache_stats else 0.0,
-        l2_hit_rate=cache_stats.get('l2_hit_rate', 0.0) if cache_stats else 0.0,
-        l3_hit_rate=cache_stats.get('l3_hit_rate', 0.0) if cache_stats else 0.0,
-        llc_misses=cache_stats.get('llc_misses', 0) if cache_stats else 0,
-        num_trials=len(trial_times),
-        success=True,
-    )
-    store.save_benchmark_result(result)
-
-
-def save_reorder_result(
-    graph_name: str,
-    algorithm_id: int,
-    algorithm_name: str,
-    reorder_time: float,
-    modularity: float = 0.0,
-    communities: int = 0,
-    isolated_vertices: int = 0,
-    mapping_file: str = "",
-    data_dir: str = GRAPH_DATA_DIR
-) -> None:
-    """Save a single reorder result."""
-    store = GraphDataStore(graph_name, data_dir)
-    result = AlgorithmReorderData(
-        graph_name=graph_name,
-        algorithm_id=algorithm_id,
-        algorithm_name=algorithm_name,
-        reorder_time=reorder_time,
-        modularity=modularity,
-        communities=communities,
-        isolated_vertices=isolated_vertices,
-        mapping_file=mapping_file,
-        success=True,
-    )
-    store.save_reorder_result(result)
-
-
 def list_graphs(data_dir: str = GRAPH_DATA_DIR) -> List[str]:
-    """List all graphs with stored data."""
+    """List all graphs with stored data (features)."""
     if not os.path.exists(data_dir):
         return []
     return [d for d in os.listdir(data_dir) 
             if os.path.isdir(os.path.join(data_dir, d))]
 
 
-def load_all_graph_data(data_dir: str = GRAPH_DATA_DIR) -> Dict[str, Dict]:
+def load_all_graph_data(data_dir: str = GRAPH_DATA_DIR, logs_dir: str = LOGS_DIR) -> Dict[str, Dict]:
     """Load summary data for all graphs."""
     graphs = list_graphs(data_dir)
     all_data = {}
     for graph_name in graphs:
-        store = GraphDataStore(graph_name, data_dir)
+        store = GraphDataStore(graph_name, data_dir, logs_dir)
         all_data[graph_name] = store.get_summary()
     return all_data
 
@@ -719,11 +940,12 @@ def load_all_graph_data(data_dir: str = GRAPH_DATA_DIR) -> Dict[str, Dict]:
 def export_to_csv(
     output_file: str,
     data_dir: str = GRAPH_DATA_DIR,
+    logs_dir: str = LOGS_DIR,
     benchmarks: List[str] = None
 ) -> None:
     """Export all graph data to CSV for analysis."""
     benchmarks = benchmarks or ['pr', 'bfs', 'cc', 'sssp', 'bc']
-    all_data = load_all_graph_data(data_dir)
+    all_data = load_all_graph_data(data_dir, logs_dir)
     
     # Collect all algorithms
     all_algos = set()
@@ -762,7 +984,7 @@ def export_to_csv(
             best_per_bench = data.get('best_per_benchmark', {})
             
             # Load full benchmark data
-            store = GraphDataStore(graph_name, data_dir)
+            store = GraphDataStore(graph_name, data_dir, logs_dir)
             all_benchmarks = store.load_all_benchmarks()
             
             # Organize by benchmark and algorithm
@@ -790,69 +1012,73 @@ def export_to_csv(
     log.info(f"Exported {len(all_data)} graphs to {output_file}")
 
 
-def compute_and_save_weights(
-    graph_name: str,
-    data_dir: str = GRAPH_DATA_DIR,
-    weights_module = None
-) -> Optional[GraphPerceptronWeights]:
+# =============================================================================
+# Migration Helper
+# =============================================================================
+
+def migrate_old_structure(graph_name: str, data_dir: str = GRAPH_DATA_DIR, 
+                          logs_dir: str = LOGS_DIR) -> bool:
     """
-    Compute perceptron weights for a graph based on its benchmark data.
+    Migrate data from old structure (all in graphs/) to new structure.
     
-    This analyzes the benchmark results to determine:
-    - Which algorithm performed best for each benchmark
-    - Relative speedups
-    - Correlation with graph features
+    Old: results/graphs/<graph>/benchmarks/, reorder/, weights/
+    New: results/logs/<graph>/runs/<timestamp>/benchmarks/, reorder/, weights/
     """
-    store = GraphDataStore(graph_name, data_dir)
-    features = store.load_features()
-    benchmarks = store.load_all_benchmarks()
+    old_base = os.path.join(data_dir, graph_name)
+    old_benchmarks = os.path.join(old_base, "benchmarks")
+    old_reorder = os.path.join(old_base, "reorder")
+    old_weights = os.path.join(old_base, "weights")
     
-    if not features or not benchmarks:
-        log.warn(f"Insufficient data to compute weights for {graph_name}")
-        return None
+    # Check if old structure exists
+    has_old_data = (os.path.exists(old_benchmarks) or 
+                    os.path.exists(old_reorder) or 
+                    os.path.exists(old_weights))
     
-    # Group by benchmark
-    by_benchmark: Dict[str, List[AlgorithmBenchmarkData]] = {}
-    for br in benchmarks:
-        if br.benchmark not in by_benchmark:
-            by_benchmark[br.benchmark] = []
-        by_benchmark[br.benchmark].append(br)
+    if not has_old_data:
+        return False
     
-    # Find best per benchmark
-    best_algo = {}
-    best_speedup = {}
-    algo_scores = {}
+    # Create new run with migration timestamp
+    migration_ts = get_timestamp()
+    new_run = GraphRunStore(graph_name, f"migrated_{migration_ts}", logs_dir)
     
-    for bench, results in by_benchmark.items():
-        best = max(results, key=lambda x: x.speedup)
-        best_algo[bench] = best.algorithm_name
-        best_speedup[bench] = best.speedup
-        
-        # Store all scores
-        algo_scores[bench] = {r.algorithm_name: r.speedup for r in results}
+    # Move benchmarks
+    if os.path.exists(old_benchmarks):
+        for f in os.listdir(old_benchmarks):
+            src = os.path.join(old_benchmarks, f)
+            dst = os.path.join(new_run.benchmarks_dir, f)
+            shutil.copy2(src, dst)
+        shutil.rmtree(old_benchmarks)
     
-    # Create weights object
-    weights = GraphPerceptronWeights(
-        graph_name=graph_name,
-        best_algo=best_algo,
-        best_speedup=best_speedup,
-        algo_scores=algo_scores,
-    )
+    # Move reorder
+    if os.path.exists(old_reorder):
+        for f in os.listdir(old_reorder):
+            src = os.path.join(old_reorder, f)
+            dst = os.path.join(new_run.reorder_dir, f)
+            shutil.copy2(src, dst)
+        shutil.rmtree(old_reorder)
     
-    # Assign type if weights module available
-    if weights_module:
-        try:
-            features_dict = features.to_dict()
-            type_name = weights_module.assign_graph_type(
-                features_dict,
-                graph_name=graph_name
-            )
-            weights.assigned_type = type_name
-        except Exception as e:
-            log.warn(f"Could not assign type for {graph_name}: {e}")
+    # Move weights
+    if os.path.exists(old_weights):
+        for f in os.listdir(old_weights):
+            src = os.path.join(old_weights, f)
+            dst = os.path.join(new_run.weights_dir, f)
+            shutil.copy2(src, dst)
+        shutil.rmtree(old_weights)
     
-    store.save_weights(weights)
-    return weights
+    # Save summary
+    new_run.save_summary({'migrated_from': 'old_structure', 'migration_ts': migration_ts})
+    
+    log.info(f"Migrated {graph_name} data to new structure")
+    return True
+
+
+def migrate_all_graphs(data_dir: str = GRAPH_DATA_DIR, logs_dir: str = LOGS_DIR) -> int:
+    """Migrate all graphs from old structure to new."""
+    migrated = 0
+    for graph_name in list_graphs(data_dir):
+        if migrate_old_structure(graph_name, data_dir, logs_dir):
+            migrated += 1
+    return migrated
 
 
 # =============================================================================
@@ -871,11 +1097,17 @@ def main():
     parser.add_argument("--export-csv", type=str,
                        help="Export all data to CSV file")
     parser.add_argument("--data-dir", type=str, default=GRAPH_DATA_DIR,
-                       help="Data directory")
-    parser.add_argument("--compute-weights", type=str,
-                       help="Compute weights for a specific graph")
-    parser.add_argument("--compute-all-weights", action="store_true",
-                       help="Compute weights for all graphs")
+                       help="Data directory (for features)")
+    
+    # Run management
+    parser.add_argument("--list-runs", type=str, metavar="GRAPH",
+                       help="List all runs for a specific graph")
+    parser.add_argument("--show-run", nargs=2, metavar=("GRAPH", "TIMESTAMP"),
+                       help="Show summary for a specific run")
+    parser.add_argument("--cleanup-runs", action="store_true",
+                       help="Clean up old run directories")
+    parser.add_argument("--max-runs", type=int, default=10,
+                       help="Max runs per graph for cleanup (default: 10)")
     
     # Log management options
     parser.add_argument("--list-logs", type=str, metavar="GRAPH",
@@ -893,39 +1125,54 @@ def main():
     parser.add_argument("--logs-dir", type=str, default=LOGS_DIR,
                        help="Logs directory")
     
+    # Migration
+    parser.add_argument("--migrate", action="store_true",
+                       help="Migrate old data structure to new")
+    parser.add_argument("--migrate-graph", type=str,
+                       help="Migrate a specific graph")
+    
     args = parser.parse_args()
     
     if args.list_graphs:
         graphs = list_graphs(args.data_dir)
         print(f"\nGraphs with stored data ({len(graphs)} total):")
         for g in sorted(graphs):
-            store = GraphDataStore(g, args.data_dir)
+            store = GraphDataStore(g, args.data_dir, args.logs_dir)
             summary = store.get_summary()
+            runs = list_runs(g, args.logs_dir)
             print(f"  {g}: {summary['num_benchmarks']} benchmarks, "
                   f"{summary['num_reorders']} reorders, "
-                  f"features={'✓' if summary['has_features'] else '✗'}")
+                  f"features={'✓' if summary['has_features'] else '✗'}, "
+                  f"runs={len(runs)}")
     
     elif args.show_graph:
-        store = GraphDataStore(args.show_graph, args.data_dir)
+        store = GraphDataStore(args.show_graph, args.data_dir, args.logs_dir)
         summary = store.get_summary()
         print(f"\nGraph: {args.show_graph}")
         print(json.dumps(summary, indent=2))
     
+    elif args.list_runs:
+        runs = list_runs(args.list_runs, args.logs_dir)
+        print(f"\nRuns for {args.list_runs} ({len(runs)} total):")
+        for run_ts in runs:
+            run_store = GraphRunStore(args.list_runs, run_ts, args.logs_dir)
+            summary = run_store.get_summary()
+            print(f"  {run_ts}: {summary['num_benchmarks']} benchmarks, "
+                  f"{summary['num_reorders']} reorders")
+    
+    elif args.show_run:
+        graph, timestamp = args.show_run
+        run_store = GraphRunStore(graph, timestamp, args.logs_dir)
+        summary = run_store.get_summary()
+        print(f"\nRun {timestamp} for {graph}:")
+        print(json.dumps(summary, indent=2))
+    
+    elif args.cleanup_runs:
+        deleted = cleanup_old_runs(max_runs_per_graph=args.max_runs, logs_dir=args.logs_dir)
+        print(f"Cleaned up {deleted} old run directories")
+    
     elif args.export_csv:
-        export_to_csv(args.export_csv, args.data_dir)
-    
-    elif args.compute_weights:
-        weights = compute_and_save_weights(args.compute_weights, args.data_dir)
-        if weights:
-            print(f"Computed weights for {args.compute_weights}")
-            print(json.dumps(weights.to_dict(), indent=2))
-    
-    elif args.compute_all_weights:
-        graphs = list_graphs(args.data_dir)
-        for graph in graphs:
-            weights = compute_and_save_weights(graph, args.data_dir)
-            if weights:
-                print(f"  {graph}: best_algo = {weights.best_algo}")
+        export_to_csv(args.export_csv, args.data_dir, args.logs_dir)
     
     elif args.list_logs:
         logs = list_graph_logs(args.list_logs, args.logs_dir)
@@ -958,6 +1205,16 @@ def main():
             logs_dir=args.logs_dir
         )
         print(f"Cleaned up {deleted} old log files")
+    
+    elif args.migrate:
+        migrated = migrate_all_graphs(args.data_dir, args.logs_dir)
+        print(f"Migrated {migrated} graphs to new structure")
+    
+    elif args.migrate_graph:
+        if migrate_old_structure(args.migrate_graph, args.data_dir, args.logs_dir):
+            print(f"Migrated {args.migrate_graph} to new structure")
+        else:
+            print(f"No old data found for {args.migrate_graph}")
     
     else:
         parser.print_help()

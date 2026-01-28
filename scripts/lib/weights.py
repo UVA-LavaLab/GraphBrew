@@ -669,8 +669,10 @@ def store_per_graph_results(
     cache_results: List = None,
     reorder_results: List = None,
     graphs_dir: str = None,
-    data_dir: str = None
-) -> None:
+    data_dir: str = None,
+    run_timestamp: str = None,
+    create_new_run: bool = True,
+) -> str:
     """
     Store benchmark/reorder/cache results per-graph for later analysis.
     
@@ -686,7 +688,14 @@ def store_per_graph_results(
         reorder_results: List of ReorderResult objects
         graphs_dir: Directory with graph files (for feature extraction)
         data_dir: Output directory for per-graph data (default: results/graphs/)
+        run_timestamp: Explicit timestamp for this run (default: generate new)
+        create_new_run: If True, create a new run instead of updating latest (default: True)
+        
+    Returns:
+        The run timestamp used for storage
     """
+    from .utils import get_timestamp
+    
     benchmark_results = benchmark_results or []
     cache_results = cache_results or []
     reorder_results = reorder_results or []
@@ -694,6 +703,10 @@ def store_per_graph_results(
     if data_dir is None:
         from .utils import RESULTS_DIR
         data_dir = os.path.join(RESULTS_DIR, "graphs")
+    
+    # Generate a shared timestamp for all graphs in this run
+    if run_timestamp is None and create_new_run:
+        run_timestamp = get_timestamp()
     
     # Import graph_data module
     from .graph_data import (
@@ -734,7 +747,9 @@ def store_per_graph_results(
     log.info(f"Storing per-graph data for {len(all_graphs)} graphs")
     
     for graph_name in all_graphs:
-        store = GraphDataStore(graph_name, data_dir)
+        # Use shared timestamp for all graphs in this run
+        store = GraphDataStore(graph_name, data_dir, run_timestamp=run_timestamp, 
+                              create_new_run=create_new_run)
         
         # Store features from properties cache
         props = graph_props.get(graph_name, {})
@@ -829,7 +844,11 @@ def store_per_graph_results(
                 existing.llc_misses = getattr(r, 'llc_misses', 0)
                 store.save_benchmark_result(existing)
     
-    log.info(f"Stored per-graph data in {data_dir}")
+    # Use the actual timestamp used (could be existing or new)
+    used_timestamp = run_timestamp or store.run_timestamp if all_graphs else run_timestamp
+    log.info(f"Stored per-graph data in {data_dir} (run: {used_timestamp})")
+    
+    return used_timestamp
 
 
 def update_zero_weights(
