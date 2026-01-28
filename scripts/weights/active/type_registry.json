@@ -10,23 +10,50 @@
       0.5
     ],
     "sample_count": 1,
-    "graph_count": 2,
+    "graph_count": 8,
     "algorithms": [
-      "GORDER",
-      "HUBCLUSTERDBG",
-      "RABBITORDER_csr",
+      "ORIGINAL",
       "RANDOM",
-      "LeidenOrder",
-      "LeidenCSR_gve",
+      "SORT",
+      "HUBSORT",
+      "HUBCLUSTER",
+      "DBG",
+      "HUBSORTDBG",
+      "HUBCLUSTERDBG",
+      "RABBITORDER",
+      "GORDER",
+      "CORDER",
       "RCM",
-      "LeidenDendrogram_dfs",
-      "ORIGINAL"
+      "GraphBrewOrder",
+      "LeidenOrder",
+      "LeidenDendrogram",
+      "LeidenCSR",
+      "LeidenDendrogram_bfs",
+      "RABBITORDER_csr",
+      "LeidenDendrogram_dfssize",
+      "LeidenDendrogram_hybrid",
+      "LeidenCSR_gve",
+      "LeidenCSR_hubsort",
+      "LeidenCSR_gverabbit",
+      "LeidenCSR_modularity",
+      "LeidenDendrogram_dfshub",
+      "RABBITORDER_boost",
+      "LeidenCSR_bfs",
+      "LeidenCSR_gveopt",
+      "LeidenCSR_dfs",
+      "LeidenDendrogram_dfs"
     ],
     "graphs": [
       "ca-GrQc",
-      "ca-HepTh"
+      "ca-HepTh",
+      "as-Skitter",
+      "wiki-Talk",
+      "wiki-topcats",
+      "cit-Patents",
+      "web-BerkStan",
+      "web-Google"
     ],
     "created": "2026-01-27T23:45:14.345252",
-    "last_updated": "2026-01-28T00:50:43.979918"
+    "last_updated": "2026-01-28T12:29:43.687151"
   }
 }

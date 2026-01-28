@@ -2605,7 +2605,8 @@ def run_experiment(args):
         log("")
         
         # Load existing graph properties cache if available
-        cache_dir = os.path.dirname(args.weights_file) or "results"
+        weights_file = getattr(args, 'weights_file', None) or os.path.join(args.weights_dir, 'weights.json')
+        cache_dir = os.path.dirname(weights_file) or args.weights_dir
         props_cache = load_graph_properties_cache(cache_dir)
         log(f"Loaded graph properties cache: {len(props_cache)} graphs")
         
