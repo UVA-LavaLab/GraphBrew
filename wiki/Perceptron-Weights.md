@@ -81,7 +81,7 @@ This ensures weights are never accidentally overwritten and the best cluster is 
 AdaptiveOrder uses an automatic clustering system that groups graphs by feature similarity instead of predefined categories. This allows the system to scale to any number of graph types.
 
 **How It Works:**
-1. **Feature Extraction:** For each graph, compute 9 clustering features: modularity, log_nodes, log_edges, density, avg_degree, degree_variance, hub_concentration, clustering_coeff, community_count
+1. **Feature Extraction:** For each graph, compute 7 clustering features: modularity, log_nodes, log_edges, avg_degree, degree_variance, hub_concentration, clustering_coefficient
 2. **Clustering:** Group similar graphs using k-means-like clustering
 3. **Per-Cluster Training:** Train optimized weights for each cluster
 4. **Runtime Matching:** Select best cluster based on Euclidean distance to centroid
