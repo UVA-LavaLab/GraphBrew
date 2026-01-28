@@ -40,7 +40,7 @@ enum ReorderingAlgo
     // Leiden algorithms (15-17) - grouped together for easier sweeping
     LeidenOrder = 15,       // -o 15:resolution (via igraph)
     LeidenDendrogram = 16,  // -o 16:variant:resolution (dfs/dfshub/dfssize/bfs/hybrid)
-    LeidenCSR = 17,         // -o 17:variant:resolution:iters:passes (gve=default, gveopt, dfs, bfs, hubsort, fast, modularity)
+    LeidenCSR = 17,         // -o 17:variant:resolution:iters:passes (gve=default, gveopt, gverabbit, dfs, bfs, hubsort, fast, modularity)
     // Native CSR implementations of external algorithms
     RabbitOrderCSR = 18,    // Native CSR Rabbit Order (no external library)
 };
