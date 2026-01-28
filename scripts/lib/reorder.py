@@ -31,6 +31,7 @@ from .utils import (
     ALGORITHMS, ALGORITHM_IDS, SLOW_ALGORITHMS,
     LEIDEN_CSR_VARIANTS, LEIDEN_DENDROGRAM_VARIANTS,
     LEIDEN_DEFAULT_RESOLUTION, LEIDEN_DEFAULT_PASSES,
+    RABBITORDER_VARIANTS, RABBITORDER_DEFAULT_VARIANT,
     Logger, run_command, get_timestamp,
 )
 
@@ -105,12 +106,14 @@ def expand_algorithms_with_variants(
     leiden_resolution: float = LEIDEN_DEFAULT_RESOLUTION,
     leiden_passes: int = LEIDEN_DEFAULT_PASSES,
     leiden_csr_variants: List[str] = None,
-    leiden_dendrogram_variants: List[str] = None
+    leiden_dendrogram_variants: List[str] = None,
+    rabbit_variants: List[str] = None
 ) -> List[AlgorithmConfig]:
     """
     Expand algorithm IDs into AlgorithmConfig objects.
     
     For Leiden algorithms (16, 17), optionally expand into their variants.
+    For RabbitOrder (8), optionally expand into csr/boost variants.
     
     Args:
         algorithms: List of algorithm IDs
@@ -119,6 +122,7 @@ def expand_algorithms_with_variants(
         leiden_passes: Number of passes for LeidenCSR
         leiden_csr_variants: Which LeidenCSR variants to include (default: all)
         leiden_dendrogram_variants: Which LeidenDendrogram variants to include (default: all)
+        rabbit_variants: Which RabbitOrder variants to include (default: csr only)
     
     Returns:
         List of AlgorithmConfig objects
@@ -127,6 +131,8 @@ def expand_algorithms_with_variants(
         leiden_csr_variants = LEIDEN_CSR_VARIANTS
     if leiden_dendrogram_variants is None:
         leiden_dendrogram_variants = LEIDEN_DENDROGRAM_VARIANTS
+    if rabbit_variants is None:
+        rabbit_variants = [RABBITORDER_DEFAULT_VARIANT]  # Default: csr only
     
     configs = []
     
@@ -156,6 +162,26 @@ def expand_algorithms_with_variants(
                     variant=variant,
                     resolution=leiden_resolution
                 ))
+        elif algo_id == 8 and expand_leiden_variants and len(rabbit_variants) > 1:
+            # RabbitOrder: expand into variants if multiple specified
+            for variant in rabbit_variants:
+                option_str = f"{algo_id}:{variant}"
+                configs.append(AlgorithmConfig(
+                    algo_id=algo_id,
+                    name=f"RABBITORDER_{variant}",
+                    option_string=option_str,
+                    variant=variant
+                ))
+        elif algo_id == 8:
+            # RabbitOrder: use specified variant (default: csr)
+            variant = rabbit_variants[0] if rabbit_variants else RABBITORDER_DEFAULT_VARIANT
+            option_str = f"{algo_id}:{variant}"
+            configs.append(AlgorithmConfig(
+                algo_id=algo_id,
+                name=base_name,
+                option_string=option_str,
+                variant=variant
+            ))
         elif algo_id == 15:
             # LeidenOrder: just resolution
             option_str = f"{algo_id}:{leiden_resolution}"
@@ -672,6 +698,7 @@ def generate_reorderings_with_variants(
     leiden_passes: int = LEIDEN_DEFAULT_PASSES,
     leiden_csr_variants: List[str] = None,
     leiden_dendrogram_variants: List[str] = None,
+    rabbit_variants: List[str] = None,
     timeout: int = TIMEOUT_REORDER,
     skip_slow: bool = False,
     force_reorder: bool = False
@@ -718,7 +745,8 @@ def generate_reorderings_with_variants(
         leiden_resolution=leiden_resolution,
         leiden_passes=leiden_passes,
         leiden_csr_variants=leiden_csr_variants,
-        leiden_dendrogram_variants=leiden_dendrogram_variants
+        leiden_dendrogram_variants=leiden_dendrogram_variants,
+        rabbit_variants=rabbit_variants
     )
     
     results = []
