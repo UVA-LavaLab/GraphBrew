@@ -233,25 +233,53 @@ scripts/
 
 ## Results Directory Structure
 
-Benchmark results are organized in the `results/` folder:
+Benchmark results are organized in the `results/` folder with a separation between static graph features and run-specific experiment data:
 
 ```
 results/
-├── graphs/                    # Downloaded graphs (if using --full)
-│   └── {graph_name}/          # Each graph in its own directory
-│       └── {name}.mtx         # Matrix Market format
+├── graphs/                    # Per-graph static features
+│   └── {graph_name}/
+│       └── features.json      # Graph topology features (nodes, edges, modularity, etc.)
+│
+├── logs/                      # Per-graph run data and command logs
+│   └── {graph_name}/
+│       ├── runs/              # Timestamped experiment runs
+│       │   └── {timestamp}/
+│       │       ├── benchmarks/   # Benchmark results per algorithm
+│       │       ├── reorder/      # Reorder times and mapping info  
+│       │       ├── weights/      # Computed perceptron weights
+│       │       └── summary.json  # Run metadata
+│       ├── reorder_*.log         # Individual reorder command outputs
+│       ├── benchmark_*.log       # Individual benchmark outputs
+│       └── cache_*.log           # Individual cache sim outputs
+│
 ├── mappings/                  # Pre-generated label orderings
 │   ├── index.json             # Mapping index: graph → algo → path
 │   └── {graph_name}/          # Per-graph mappings
 │       ├── HUBCLUSTERDBG.lo   # Label order file for each algorithm
 │       ├── LeidenCSR.lo
 │       └── ...
+│
 ├── graph_properties_cache.json # Cached graph properties for type detection
-├── reorder_*.json             # Reordering times per algorithm
-├── benchmark_*.json           # Benchmark execution results  
-├── cache_*.json               # Cache simulation results (L1/L2/L3)
-├── brute_force_*.json         # Validation results
-└── logs/                      # Execution logs
+├── reorder_*.json             # Aggregate reordering times
+├── benchmark_*.json           # Aggregate benchmark results  
+└── cache_*.json               # Aggregate cache simulation results
+```
+
+### Managing Experiment Runs
+
+```bash
+# List all runs for a graph
+python3 -m scripts.lib.graph_data --list-runs ca-GrQc
+
+# Show details of a specific run  
+python3 -m scripts.lib.graph_data --show-run ca-GrQc 20260127_152449
+
+# Clean up old runs (keep last 5)
+python3 -m scripts.lib.graph_data --cleanup-runs --max-runs 5
+
+# Migrate old data structure to new
+python3 -m scripts.lib.graph_data --migrate
 ```
 
 ### Auto-Clustered Type System

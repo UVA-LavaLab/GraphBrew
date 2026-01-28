@@ -27,14 +27,26 @@ scripts/
     ├── cache.py               # Cache simulation
     ├── weights.py             # Weight management
     ├── features.py            # Graph feature extraction
+    ├── graph_data.py          # Per-graph data storage
     └── ...                    # Additional modules
 
 results/
-├── perceptron_weights.json    # Combined weights
+├── graphs/                    # Static per-graph features
+│   └── {graph_name}/
+│       └── features.json      # Graph topology (nodes, edges, modularity, etc.)
+│
+├── logs/                      # Run-specific data and command logs
+│   └── {graph_name}/
+│       ├── runs/{timestamp}/  # Timestamped experiment data
+│       │   ├── benchmarks/    # Per-algorithm benchmark results
+│       │   ├── reorder/       # Reorder times and mapping info
+│       │   └── weights/       # Computed perceptron weights
+│       └── *.log              # Individual operation logs
+│
 ├── graph_properties_cache.json # Cached graph features
-├── benchmark_*.json           # Benchmark result files
-├── cache_*.json               # Cache simulation results
-└── reorder_*.json             # Reorder timing results
+├── benchmark_*.json           # Aggregate benchmark result files
+├── cache_*.json               # Aggregate cache simulation results
+└── reorder_*.json             # Aggregate reorder timing results
 ```
 
 ---

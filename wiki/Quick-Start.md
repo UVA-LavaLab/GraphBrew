@@ -40,12 +40,20 @@ This will automatically:
 | Parameter | Description |
 |-----------|-------------|
 | `--fill-weights` | Run comprehensive weight training pipeline |
-| `--expand-variants` | Include all Leiden algorithm variants |
+| `--expand-variants` | Include all Leiden and RabbitOrder variants |
 | `--download-size SIZE` | Which graphs to download: `SMALL`, `MEDIUM`, `LARGE`, `XLARGE`, `ALL` |
 | `--min-edges N` | Skip graphs with fewer than N edges (reduces noise) |
 | `--auto-memory` | Auto-detect RAM, skip graphs that won't fit |
 | `--auto-disk` | Auto-detect disk space, limit downloads accordingly |
 | `--trials N` | Number of benchmark trials (default: 2, recommended: 5) |
+
+### Algorithm Variant Options
+
+| Parameter | Description |
+|-----------|-------------|
+| `--leiden-csr-variants LIST` | LeidenCSR variants: gve, gveopt, dfs, bfs, hubsort, fast, modularity |
+| `--leiden-dendrogram-variants LIST` | LeidenDendrogram variants: dfs, dfshub, dfssize, bfs, hybrid |
+| `--rabbit-variants LIST` | RabbitOrder variants: csr (default), boost (requires libboost-graph-dev) |
 
 ### Download Size Options
 

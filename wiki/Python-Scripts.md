@@ -474,17 +474,35 @@ See `scripts/examples/custom_pipeline.py` for a complete example.
 
 ## Output Structure
 
+GraphBrew separates **static graph features** from **run-specific experiment data**:
+
 ```
 results/
+├── graphs/                   # Static per-graph features
+│   └── {graph_name}/
+│       └── features.json     # Graph topology (nodes, edges, modularity, etc.)
+│
+├── logs/                     # Run-specific data and command logs
+│   └── {graph_name}/
+│       ├── runs/             # Timestamped experiment runs
+│       │   └── {timestamp}/
+│       │       ├── benchmarks/   # Per-algorithm benchmark results
+│       │       ├── reorder/      # Reorder times and mapping info
+│       │       ├── weights/      # Computed perceptron weights
+│       │       └── summary.json  # Run metadata
+│       ├── reorder_*.log         # Individual reorder command outputs
+│       ├── benchmark_*.log       # Individual benchmark outputs
+│       └── cache_*.log           # Individual cache sim outputs
+│
 ├── mappings/                 # Pre-generated label mappings
 │   ├── index.json            # Mapping index
 │   └── {graph_name}/         # Per-graph mappings
 │       ├── HUBCLUSTERDBG.lo  # Label order file
 │       └── HUBCLUSTERDBG.time # Reorder timing
-├── reorder_*.json            # Reorder results
-├── benchmark_*.json          # Benchmark results
-├── cache_*.json              # Cache simulation results
-└── logs/                     # Execution logs
+│
+├── reorder_*.json            # Aggregate reorder results
+├── benchmark_*.json          # Aggregate benchmark results
+└── cache_*.json              # Aggregate cache simulation results
 
 scripts/weights/              # Type-based weights
 ├── active/                   # C++ reads from here
@@ -493,6 +511,22 @@ scripts/weights/              # Type-based weights
 │   └── type_N.json           # Additional clusters
 ├── merged/                   # Accumulated from all runs
 └── runs/                     # Historical snapshots
+```
+
+### Managing Experiment Runs
+
+```bash
+# List all runs for a graph
+python3 -m scripts.lib.graph_data --list-runs ca-GrQc
+
+# Show details of a specific run
+python3 -m scripts.lib.graph_data --show-run ca-GrQc 20260127_152449
+
+# Clean up old runs (keep last 5)
+python3 -m scripts.lib.graph_data --cleanup-runs --max-runs 5
+
+# Migrate old data structure to new
+python3 -m scripts.lib.graph_data --migrate
 ```
 
 ---

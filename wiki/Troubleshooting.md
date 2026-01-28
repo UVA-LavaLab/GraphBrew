@@ -451,6 +451,48 @@ export OMP_NUM_THREADS=1
 
 ---
 
+## Data Migration Issues
+
+### Old Data Structure After Upgrade
+
+**Symptom**: After updating GraphBrew, per-graph data is in `results/graphs/<graph>/benchmarks/` instead of the new `results/logs/<graph>/runs/<timestamp>/` structure.
+
+**Solution**: Run the migration script:
+
+```bash
+# Migrate all graphs to new structure
+python3 -m scripts.lib.graph_data --migrate
+
+# Migrate a specific graph
+python3 -m scripts.lib.graph_data --migrate-graph ca-GrQc
+
+# Verify migration
+python3 -m scripts.lib.graph_data --list-runs ca-GrQc
+```
+
+### Managing Multiple Experiment Runs
+
+**List runs for a graph**:
+```bash
+python3 -m scripts.lib.graph_data --list-runs ca-GrQc
+# Output: Runs for ca-GrQc (3 total):
+#   20260127_152449: 80 benchmarks, 16 reorders
+#   20260127_152437: 80 benchmarks, 16 reorders
+#   migrated_20260127_151844: 80 benchmarks, 16 reorders
+```
+
+**Show specific run details**:
+```bash
+python3 -m scripts.lib.graph_data --show-run ca-GrQc 20260127_152449
+```
+
+**Clean up old runs** (keep most recent N):
+```bash
+python3 -m scripts.lib.graph_data --cleanup-runs --max-runs 5
+```
+
+---
+
 ## Quick Diagnostic Commands
 
 ```bash
@@ -469,6 +511,10 @@ ls -la bench/bin/
 file graph.el
 wc -l graph.el
 head -5 graph.el
+
+# Per-graph data check
+python3 -m scripts.lib.graph_data --list-graphs
+python3 -m scripts.lib.graph_data --list-runs ca-GrQc
 
 # Resource monitoring
 top -d 1 -p $(pgrep -f "bench/bin")
