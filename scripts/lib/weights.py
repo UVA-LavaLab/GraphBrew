@@ -227,7 +227,8 @@ def save_type_weights(type_name: str, weights: Dict, weights_dir: str = DEFAULT_
 def assign_graph_type(
     features: Dict,
     weights_dir: str = DEFAULT_WEIGHTS_DIR,
-    create_if_outlier: bool = True
+    create_if_outlier: bool = True,
+    graph_name: str = None,
 ) -> str:
     """
     Assign a graph to a type based on its features.
@@ -239,6 +240,7 @@ def assign_graph_type(
         features: Dict with 'modularity', 'degree_variance', 'hub_concentration', etc.
         weights_dir: Directory for type files
         create_if_outlier: If True, create new type for outliers
+        graph_name: Optional graph name to track in registry
         
     Returns:
         Type name (e.g., 'type_0', 'type_1')
@@ -272,7 +274,16 @@ def assign_graph_type(
         ]
         _type_registry[closest_type]['centroid'] = new_centroid
         _type_registry[closest_type]['sample_count'] = count + 1
+        _type_registry[closest_type]['graph_count'] = count + 1
         _type_registry[closest_type]['last_updated'] = datetime.now().isoformat()
+        
+        # Track graph names
+        if graph_name:
+            if 'graphs' not in _type_registry[closest_type]:
+                _type_registry[closest_type]['graphs'] = []
+            if graph_name not in _type_registry[closest_type]['graphs']:
+                _type_registry[closest_type]['graphs'].append(graph_name)
+        
         save_type_registry(weights_dir)
         return closest_type
     
@@ -282,6 +293,9 @@ def assign_graph_type(
         _type_registry[new_type] = {
             'centroid': norm_features,
             'sample_count': 1,
+            'graph_count': 1,
+            'algorithms': [],
+            'graphs': [graph_name] if graph_name else [],
             'created': datetime.now().isoformat(),
             'last_updated': datetime.now().isoformat(),
             'representative_features': {
@@ -332,35 +346,20 @@ def update_type_weights_incremental(
     if not weights:
         weights = {}
     
+    # Track algorithm in type registry
+    global _type_registry
+    if not _type_registry:
+        load_type_registry(weights_dir)
+    if type_name in _type_registry:
+        if 'algorithms' not in _type_registry[type_name]:
+            _type_registry[type_name]['algorithms'] = []
+        if algorithm not in _type_registry[type_name]['algorithms']:
+            _type_registry[type_name]['algorithms'].append(algorithm)
+            save_type_registry(weights_dir)
+    
     # Initialize algorithm weights if not present
     if algorithm not in weights:
-        weights[algorithm] = {
-            'bias': 0.5,
-            'w_modularity': 0.0,
-            'w_log_nodes': 0.0,
-            'w_log_edges': 0.0,
-            'w_density': 0.0,
-            'w_avg_degree': 0.0,
-            'w_degree_variance': 0.0,
-            'w_hub_concentration': 0.0,
-            'cache_l1_impact': 0.0,
-            'cache_l2_impact': 0.0,
-            'cache_l3_impact': 0.0,
-            'cache_dram_penalty': 0.0,
-            'w_reorder_time': 0.0,
-            'w_clustering_coeff': 0.0,
-            'w_avg_path_length': 0.0,
-            'w_diameter': 0.0,
-            'w_community_count': 0.0,
-            'benchmark_weights': {'pr': 1.0, 'bfs': 1.0, 'cc': 1.0, 'sssp': 1.0, 'bc': 1.0},
-            '_metadata': {
-                'sample_count': 0,
-                'avg_speedup': 1.0,
-                'win_count': 0,
-                'times_best': 0,
-                'win_rate': 0.0,
-            }
-        }
+        weights[algorithm] = _create_default_weight_entry()
     
     algo_weights = weights[algorithm]
     meta = algo_weights.get('_metadata', {})
@@ -539,7 +538,8 @@ def compute_weights_from_results(
     benchmark_results: List,
     cache_results: List = None,
     reorder_results: List = None,
-    output_file: str = None
+    output_file: str = None,
+    weights_dir: str = None,
 ) -> Dict:
     """
     Compute perceptron weights from benchmark results.
@@ -552,15 +552,33 @@ def compute_weights_from_results(
         cache_results: Optional list of CacheResult objects
         reorder_results: Optional list of ReorderResult objects
         output_file: Optional file to save weights
+        weights_dir: Optional directory to save type-based weights
         
     Returns:
         Dict of weights by algorithm
     """
     cache_results = cache_results or []
     reorder_results = reorder_results or []
+    if weights_dir is None:
+        weights_dir = DEFAULT_WEIGHTS_DIR
     
-    # Initialize weights
+    # Initialize weights - start with default then add from results
     weights = initialize_default_weights()
+    
+    # Collect all unique algorithm names from results (includes variants)
+    all_algo_names = set()
+    for r in benchmark_results:
+        if r.algorithm:
+            all_algo_names.add(r.algorithm)
+    for r in reorder_results:
+        algo_name = getattr(r, 'algorithm_name', None) or getattr(r, 'algorithm', '')
+        if algo_name:
+            all_algo_names.add(algo_name)
+    
+    # Add variant algorithms that aren't in default weights
+    for algo_name in all_algo_names:
+        if algo_name not in weights and not algo_name.startswith('_'):
+            weights[algo_name] = _create_default_weight_entry()
     
     # Group results by graph and benchmark
     results_by_graph = {}
@@ -614,7 +632,7 @@ def compute_weights_from_results(
                 # Boost bias for winners
                 weights[best_algo]['bias'] = min(1.5, weights[best_algo]['bias'] + 0.1)
     
-    # Save if output file specified
+    # Save if output file specified (DEPRECATED - kept for backward compatibility)
     if output_file:
         import json
         import os
@@ -622,7 +640,110 @@ def compute_weights_from_results(
         with open(output_file, 'w') as f:
             json.dump(weights, f, indent=2)
     
+    # Always save to type_0.json in active weights directory (used by C++)
+    save_weights_to_active_type(weights, weights_dir, type_name="type_0")
+    
     return weights
+
+
+def save_weights_to_active_type(
+    weights: Dict,
+    weights_dir: str = None,
+    type_name: str = "type_0",
+    graphs: List[str] = None,
+) -> str:
+    """
+    Save weights to active type-based weights directory for C++ to use.
+    
+    This creates/updates:
+    - scripts/weights/active/type_N.json - Algorithm weights
+    - scripts/weights/active/type_registry.json - Type registry
+    
+    Args:
+        weights: Dictionary of algorithm weights
+        weights_dir: Directory to save (default: scripts/weights/active/)
+        type_name: Type name (default: type_0)
+        graphs: Optional list of graph names that contributed to these weights
+        
+    Returns:
+        Path to saved type file
+    """
+    global _type_registry
+    
+    if weights_dir is None:
+        weights_dir = DEFAULT_WEIGHTS_DIR
+    
+    os.makedirs(weights_dir, exist_ok=True)
+    
+    # Save weights to type file
+    type_file = os.path.join(weights_dir, f"{type_name}.json")
+    with open(type_file, 'w') as f:
+        json.dump(weights, f, indent=2)
+    
+    # Update type registry
+    if not _type_registry:
+        load_type_registry(weights_dir)
+    
+    # Get list of algorithms from weights
+    algo_list = [k for k in weights.keys() if not k.startswith('_')]
+    
+    # Create or update registry entry
+    if type_name not in _type_registry:
+        _type_registry[type_name] = {
+            'centroid': [0.5] * 7,  # Default centroid
+            'sample_count': 1,
+            'graph_count': len(graphs) if graphs else 1,
+            'algorithms': algo_list,
+            'graphs': graphs or [],
+            'created': datetime.now().isoformat(),
+            'last_updated': datetime.now().isoformat(),
+        }
+    else:
+        _type_registry[type_name]['algorithms'] = algo_list
+        _type_registry[type_name]['last_updated'] = datetime.now().isoformat()
+        if graphs:
+            existing_graphs = _type_registry[type_name].get('graphs', [])
+            for g in graphs:
+                if g not in existing_graphs:
+                    existing_graphs.append(g)
+            _type_registry[type_name]['graphs'] = existing_graphs
+            _type_registry[type_name]['graph_count'] = len(existing_graphs)
+    
+    save_type_registry(weights_dir)
+    log.info(f"Saved weights to {type_file} ({len(algo_list)} algorithms)")
+    
+    return type_file
+
+
+def _create_default_weight_entry() -> Dict:
+    """Create a default weight entry for an algorithm."""
+    return {
+        'bias': 0.5,
+        'w_modularity': 0.0,
+        'w_log_nodes': 0.0,
+        'w_log_edges': 0.0,
+        'w_density': 0.0,
+        'w_avg_degree': 0.0,
+        'w_degree_variance': 0.0,
+        'w_hub_concentration': 0.0,
+        'cache_l1_impact': 0.0,
+        'cache_l2_impact': 0.0,
+        'cache_l3_impact': 0.0,
+        'cache_dram_penalty': 0.0,
+        'w_reorder_time': 0.0,
+        'w_clustering_coeff': 0.0,
+        'w_avg_path_length': 0.0,
+        'w_diameter': 0.0,
+        'w_community_count': 0.0,
+        'benchmark_weights': {'pr': 1.0, 'bfs': 1.0, 'cc': 1.0, 'sssp': 1.0, 'bc': 1.0},
+        '_metadata': {
+            'sample_count': 0,
+            'avg_speedup': 1.0,
+            'win_count': 0,
+            'times_best': 0,
+            'win_rate': 0.0,
+        }
+    }
 
 
 def initialize_default_weights(weights_dir: str = DEFAULT_WEIGHTS_DIR) -> Dict:
@@ -633,33 +754,7 @@ def initialize_default_weights(weights_dir: str = DEFAULT_WEIGHTS_DIR) -> Dict:
         if algo_name in ['MAP', 'AdaptiveOrder']:
             continue
         
-        weights[algo_name] = {
-            'bias': 0.5,
-            'w_modularity': 0.0,
-            'w_log_nodes': 0.0,
-            'w_log_edges': 0.0,
-            'w_density': 0.0,
-            'w_avg_degree': 0.0,
-            'w_degree_variance': 0.0,
-            'w_hub_concentration': 0.0,
-            'cache_l1_impact': 0.0,
-            'cache_l2_impact': 0.0,
-            'cache_l3_impact': 0.0,
-            'cache_dram_penalty': 0.0,
-            'w_reorder_time': 0.0,
-            'w_clustering_coeff': 0.0,
-            'w_avg_path_length': 0.0,
-            'w_diameter': 0.0,
-            'w_community_count': 0.0,
-            'benchmark_weights': {'pr': 1.0, 'bfs': 1.0, 'cc': 1.0, 'sssp': 1.0, 'bc': 1.0},
-            '_metadata': {
-                'sample_count': 0,
-                'avg_speedup': 1.0,
-                'win_count': 0,
-                'times_best': 0,
-                'win_rate': 0.0,
-            }
-        }
+        weights[algo_name] = _create_default_weight_entry()
     
     return weights
 
@@ -911,6 +1006,22 @@ def update_zero_weights(
     if not weights:
         weights = initialize_default_weights()
     
+    # Collect all unique algorithm names from results (includes variants)
+    all_algo_names = set()
+    for r in benchmark_results:
+        algo = getattr(r, 'algorithm', None) or getattr(r, 'algorithm_name', '')
+        if algo:
+            all_algo_names.add(algo)
+    for r in reorder_results:
+        algo = getattr(r, 'algorithm_name', None) or getattr(r, 'algorithm', '')
+        if algo:
+            all_algo_names.add(algo)
+    
+    # Add variant algorithms that aren't in weights yet
+    for algo_name in all_algo_names:
+        if algo_name not in weights and not algo_name.startswith('_'):
+            weights[algo_name] = _create_default_weight_entry()
+    
     # Update reorder time weights from reorder results
     reorder_times = {}
     for r in reorder_results:
@@ -1086,11 +1197,20 @@ def update_zero_weights(
                         corr = correlation(feat_vals, speedups)
                         weights[algo][weight_name] = corr * scale
     
-    # Save updated weights
+    # Save updated weights (DEPRECATED flat file - kept for backward compatibility)
     if weights_file:
         os.makedirs(os.path.dirname(weights_file), exist_ok=True)
         with open(weights_file, 'w') as f:
             json.dump(weights, f, indent=2)
+    
+    # Always save to type_0.json in active weights directory (used by C++)
+    # Get list of unique graphs from results
+    graph_names = list(set(r.graph for r in benchmark_results if hasattr(r, 'graph')))
+    save_weights_to_active_type(weights, DEFAULT_WEIGHTS_DIR, type_name="type_0", graphs=graph_names)
+
+
+# Alias for backward compatibility and phases.py import
+generate_perceptron_weights_from_results = compute_weights_from_results
 
 
 # =============================================================================

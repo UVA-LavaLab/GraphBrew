@@ -37,7 +37,7 @@ python3 scripts/graphbrew_experiment.py --full --download-size SMALL
 python3 scripts/graphbrew_experiment.py --phase benchmark
 
 # Quick test with key algorithms
-python3 scripts/graphbrew_experiment.py --graphs small --key-only
+python3 scripts/graphbrew_experiment.py --size small --quick
 
 # Skip cache simulations (faster)
 python3 scripts/graphbrew_experiment.py --phase all --skip-cache
@@ -45,8 +45,8 @@ python3 scripts/graphbrew_experiment.py --phase all --skip-cache
 # Run brute-force validation
 python3 scripts/graphbrew_experiment.py --brute-force
 
-# Fill ALL weight fields (cache impacts, topology features, benchmark weights)
-python3 scripts/graphbrew_experiment.py --fill-weights --graphs small --max-graphs 5
+# Complete training pipeline: reorder → benchmark → cache sim → update weights
+python3 scripts/graphbrew_experiment.py --train --size small --max-graphs 5
 ```
 
 ### Download Size Options
@@ -143,7 +143,7 @@ python3 scripts/graphbrew_experiment.py --max-graphs 10
 python3 scripts/graphbrew_experiment.py --trials 10
 
 # Key algorithms only (faster)
-python3 scripts/graphbrew_experiment.py --key-only
+python3 scripts/graphbrew_experiment.py --quick
 ```
 
 ---
@@ -284,7 +284,7 @@ Graph: facebook.el
 
 ```bash
 # One-click full experiment
-python3 scripts/graphbrew_experiment.py --full --download-size MEDIUM
+python3 scripts/graphbrew_experiment.py --full --size medium
 ```
 
 This automatically:
@@ -338,10 +338,10 @@ python3 scripts/graphbrew_experiment.py --full --download-size SMALL
 
 ```bash
 # Skip slow algorithms on large graphs
-python3 scripts/graphbrew_experiment.py --skip-slow --graphs large
+python3 scripts/graphbrew_experiment.py --skip-slow --size large
 
-# Skip heavy cache simulations (BC, SSSP)
-python3 scripts/graphbrew_experiment.py --skip-heavy --phase cache
+# Skip expensive cache simulations (BC, SSSP)
+python3 scripts/graphbrew_experiment.py --skip-expensive --phase cache
 ```
 
 ---

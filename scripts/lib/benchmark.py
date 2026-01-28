@@ -27,6 +27,7 @@ from .utils import (
     BenchmarkResult, log, run_command, check_binary_exists,
     get_results_file, save_json, get_algorithm_name, parse_algorithm_option
 )
+from .reorder import get_algorithm_name_with_variant
 
 # Enable run logging (saves command outputs per graph)
 ENABLE_RUN_LOGGING = True
@@ -322,7 +323,8 @@ def run_benchmarks_multi_graph(
                 continue
             
             for algo_id in algorithms:
-                algo_name = ALGORITHMS.get(algo_id, f"ALG_{algo_id}")
+                # Always include variant in name for algorithms that have variants
+                algo_name = get_algorithm_name_with_variant(algo_id)
                 
                 # Check if we have a label map
                 label_map_path = graph_label_maps.get(algo_name, "")

@@ -431,11 +431,38 @@ def format_algorithm_option(algo_id: int, params: List[str] = None) -> str:
 
 
 def get_algorithm_name(option: str) -> str:
-    """Get display name for algorithm option string."""
+    """
+    Get display name for algorithm option string.
+    
+    ALWAYS includes variant in name for algorithms that have variants:
+    - RABBITORDER: RABBITORDER_csr (default) or RABBITORDER_boost
+    - LeidenCSR (17): LeidenCSR_gve (default), LeidenCSR_fast, etc.
+    - LeidenDendrogram (16): LeidenDendrogram_mod (default), etc.
+    
+    For other algorithms, returns the base name.
+    """
     algo_id, params = parse_algorithm_option(option)
     base_name = ALGORITHMS.get(algo_id, f"Unknown({algo_id})")
+    
+    # If params provided, use them to build name
     if params:
-        return f"{base_name}_{':'.join(params)}"
+        # For Leiden algorithms, extract just the variant (first param)
+        if algo_id in [16, 17]:
+            return f"{base_name}_{params[0]}"
+        # For RabbitOrder, include variant
+        elif algo_id == 8:
+            return f"RABBITORDER_{params[0]}"
+        else:
+            return f"{base_name}_{':'.join(params)}"
+    
+    # No params - use default variant for algorithms that have variants
+    if algo_id == 8:  # RABBITORDER
+        return f"RABBITORDER_{RABBITORDER_DEFAULT_VARIANT}"
+    elif algo_id == 17:  # LeidenCSR
+        return f"{base_name}_{LEIDEN_CSR_VARIANTS[0]}"  # Default: gve
+    elif algo_id == 16:  # LeidenDendrogram
+        return f"{base_name}_{LEIDEN_DENDROGRAM_VARIANTS[0]}"  # Default: mod
+    
     return base_name
 
 

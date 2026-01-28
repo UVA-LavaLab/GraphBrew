@@ -82,12 +82,12 @@ python3 scripts/graphbrew_experiment.py --full --download-size ALL --max-memory 
 ### Training Options
 
 ```bash
-# Fill ALL weight fields (cache impacts, topology features, per-benchmark weights)
+# Complete training pipeline: reorder → benchmark → cache sim → update weights
 # Auto-clusters graphs and generates type_N.json files in scripts/weights/active/
-python3 scripts/graphbrew_experiment.py --fill-weights --graphs small --max-graphs 5
+python3 scripts/graphbrew_experiment.py --train --size small --max-graphs 5
 
 # Iterative training to reach target accuracy
-python3 scripts/graphbrew_experiment.py --train-adaptive --target-accuracy 85 --graphs small
+python3 scripts/graphbrew_experiment.py --train-iterative --target-accuracy 85 --size small
 ```
 
 **Auto-Clustering Type System:** AdaptiveOrder automatically clusters graphs by feature similarity and generates per-cluster weights (type_0.json, type_1.json, etc.). At runtime, it selects the best matching cluster based on graph features.

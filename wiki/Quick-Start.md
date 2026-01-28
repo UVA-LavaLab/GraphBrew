@@ -21,8 +21,8 @@ git clone https://github.com/UVA-LavaLab/GraphBrew.git
 cd GraphBrew
 
 # Full training with ALL graphs, all variants, 5 trials
-python3 scripts/graphbrew_experiment.py --fill-weights --expand-variants \
-    --download-size ALL --min-edges 100000 --auto-memory --auto-disk --trials 5
+python3 scripts/graphbrew_experiment.py --train --all-variants \
+    --size all --min-edges 100000 --auto --trials 5
 ```
 
 This will automatically:
@@ -39,46 +39,49 @@ This will automatically:
 
 | Parameter | Description |
 |-----------|-------------|
-| `--fill-weights` | Run comprehensive weight training pipeline |
-| `--expand-variants` | Include all Leiden and RabbitOrder variants |
-| `--download-size SIZE` | Which graphs to download: `SMALL`, `MEDIUM`, `LARGE`, `XLARGE`, `ALL` |
+| `--train` | Train perceptron weights (runs complete pipeline) |
+| `--all-variants` | Test ALL algorithm variants (Leiden, RabbitOrder) |
+| `--size SIZE` | Graph size category: `small`, `medium`, `large`, `xlarge`, `all` |
 | `--min-edges N` | Skip graphs with fewer than N edges (reduces noise) |
-| `--auto-memory` | Auto-detect RAM, skip graphs that won't fit |
-| `--auto-disk` | Auto-detect disk space, limit downloads accordingly |
+| `--auto` | Auto-detect RAM and disk space limits |
 | `--trials N` | Number of benchmark trials (default: 2, recommended: 5) |
+| `--skip-download` | Skip graph download phase (use existing graphs) |
 
 ### Algorithm Variant Options
 
 | Parameter | Description |
 |-----------|-------------|
-| `--leiden-csr-variants LIST` | LeidenCSR variants: gve, gveopt, dfs, bfs, hubsort, fast, modularity |
-| `--leiden-dendrogram-variants LIST` | LeidenDendrogram variants: dfs, dfshub, dfssize, bfs, hybrid |
+| `--all-variants` | Test ALL algorithm variants (Leiden, RabbitOrder) |
+| `--csr-variants LIST` | LeidenCSR variants: gve (default), gveopt, dfs, bfs, hubsort, fast, modularity |
+| `--dendrogram-variants LIST` | LeidenDendrogram variants: dfs, dfshub, dfssize, bfs, hybrid |
 | `--rabbit-variants LIST` | RabbitOrder variants: csr (default), boost (requires libboost-graph-dev) |
+| `--resolution FLOAT` | Leiden resolution - higher = more communities (default: 1.0) |
+| `--passes INT` | LeidenCSR refinement passes (default: 3) |
 
-### Download Size Options
+### Size Categories
 
 | Size | Graphs | Total Size | Use Case |
 |------|--------|------------|----------|
-| `SMALL` | 16 | ~62 MB | Quick testing (communication, p2p, social) |
-| `MEDIUM` | 28 | ~1.1 GB | Standard experiments (web, road, mesh, synthetic) |
-| `LARGE` | 37 | ~25 GB | Full evaluation (social, web, collaboration) |
-| `XLARGE` | 6 | ~63 GB | Massive graphs (twitter7, webbase, Kronecker) |
-| `ALL` | **87** | ~89 GB | Complete benchmark set |
+| `small` | 16 | ~62 MB | Quick testing (communication, p2p, social) |
+| `medium` | 28 | ~1.1 GB | Standard experiments (web, road, mesh, synthetic) |
+| `large` | 37 | ~25 GB | Full evaluation (social, web, collaboration) |
+| `xlarge` | 6 | ~63 GB | Massive graphs (twitter7, webbase, Kronecker) |
+| `all` | **87** | ~89 GB | Complete benchmark set |
 
 ### Training Examples by Scale
 
 ```bash
-# Quick test (~10 min): SMALL graphs, skip tiny ones
-python3 scripts/graphbrew_experiment.py --fill-weights --expand-variants \
-    --download-size SMALL --min-edges 50000 --auto-memory --auto-disk --trials 3
+# Quick test (~10 min): small graphs, skip tiny ones
+python3 scripts/graphbrew_experiment.py --train --all-variants \
+    --size small --min-edges 50000 --auto --trials 3
 
-# Standard training (~1 hour): MEDIUM graphs
-python3 scripts/graphbrew_experiment.py --fill-weights --expand-variants \
-    --download-size MEDIUM --min-edges 100000 --auto-memory --auto-disk --trials 5
+# Standard training (~1 hour): medium graphs
+python3 scripts/graphbrew_experiment.py --train --all-variants \
+    --size medium --min-edges 100000 --auto --trials 5
 
-# Full training (~4-8 hours): ALL graphs
-python3 scripts/graphbrew_experiment.py --fill-weights --expand-variants \
-    --download-size ALL --min-edges 100000 --auto-memory --auto-disk --trials 5
+# Full training (~4-8 hours): all graphs
+python3 scripts/graphbrew_experiment.py --train --all-variants \
+    --size all --min-edges 100000 --auto --trials 5
 ```
 
 ---
@@ -88,24 +91,27 @@ python3 scripts/graphbrew_experiment.py --fill-weights --expand-variants \
 Run the complete GraphBrew experiment with a single command:
 
 ```bash
-python3 scripts/graphbrew_experiment.py --full --download-size SMALL --auto-memory --auto-disk
+python3 scripts/graphbrew_experiment.py --full --size small --auto
 ```
 
 ### More Pipeline Examples
 
 ```bash
 # Download medium graphs and run full pipeline
-python3 scripts/graphbrew_experiment.py --full --download-size MEDIUM --auto-memory --auto-disk
+python3 scripts/graphbrew_experiment.py --full --size medium --auto
 
 # Just download graphs (no experiments)
-python3 scripts/graphbrew_experiment.py --download-only --download-size MEDIUM
+python3 scripts/graphbrew_experiment.py --download-only --size medium
 
 # Use pre-generated label maps for faster, consistent reordering
 python3 scripts/graphbrew_experiment.py --generate-maps --use-maps --phase benchmark
 
+# Skip download phase (use existing graphs)
+python3 scripts/graphbrew_experiment.py --full --size large --skip-download
+
 # Clean start (remove all generated data)
 python3 scripts/graphbrew_experiment.py --clean-all
-python3 scripts/graphbrew_experiment.py --full --download-size SMALL --auto-memory --auto-disk
+python3 scripts/graphbrew_experiment.py --full --size small --auto
 ```
 
 ---
@@ -236,10 +242,10 @@ done
 python3 scripts/graphbrew_experiment.py --help
 
 # Run brute-force validation
-python3 scripts/graphbrew_experiment.py --brute-force --graphs small
+python3 scripts/graphbrew_experiment.py --brute-force --size small
 
 # Train adaptive weights with iterative learning
-python3 scripts/graphbrew_experiment.py --train-adaptive --graphs small --target-accuracy 50
+python3 scripts/graphbrew_experiment.py --train-iterative --size small --target-accuracy 50
 ```
 
 ---
@@ -302,14 +308,14 @@ chmod +x bench/bin/*
 
 ```bash
 # QUICK: Test on 3 small graphs (5-10 min)
-python3 scripts/graphbrew_experiment.py --graphs-dir ./results/graphs --graphs small --max-graphs 3 --trials 1
+python3 scripts/graphbrew_experiment.py --size small --max-graphs 3 --trials 1
 
-# FILL ALL WEIGHTS: Populate cache impacts, topology features, benchmark weights (30-60 min)
-python3 scripts/graphbrew_experiment.py --fill-weights --graphs-dir ./results/graphs --graphs small --max-graphs 5 --trials 2
+# TRAIN WEIGHTS: Complete training pipeline (30-60 min)
+python3 scripts/graphbrew_experiment.py --train --size small --max-graphs 5 --trials 2
 
 # FULL: Train on all graphs with validation (1-2 hours)
-python3 scripts/graphbrew_experiment.py --graphs-dir ./results/graphs --max-graphs 50 --trials 2 && \
-python3 scripts/graphbrew_experiment.py --graphs-dir ./results/graphs --brute-force --bf-benchmark pr --trials 2
+python3 scripts/graphbrew_experiment.py --train --size medium --max-graphs 50 --trials 2 && \
+python3 scripts/graphbrew_experiment.py --brute-force --validation-benchmark pr --trials 2
 
 # CHECK RESULTS: View type weight files
 ls -la scripts/weights/active/

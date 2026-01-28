@@ -34,21 +34,21 @@ python3 scripts/graphbrew_experiment.py --full --download-size ALL --auto-memory
 python3 scripts/graphbrew_experiment.py --full --download-size ALL --max-memory 32
 
 # Run benchmarks on existing graphs
-python3 scripts/graphbrew_experiment.py --phase benchmark --graphs small
+python3 scripts/graphbrew_experiment.py --phase benchmark --size small
 
 # Quick test with key algorithms only
-python3 scripts/graphbrew_experiment.py --graphs small --key-only
+python3 scripts/graphbrew_experiment.py --size small --quick
 
 # Use pre-generated label maps for consistent reordering
-python3 scripts/graphbrew_experiment.py --generate-maps --use-maps --phase benchmark
+python3 scripts/graphbrew_experiment.py --precompute --phase benchmark
 
-# Fill ALL weight fields (graph type detection, cache sim, topology features, per-type weights)
-python3 scripts/graphbrew_experiment.py --fill-weights --auto-memory --download-size ALL
+# Train: complete pipeline (reorder → benchmark → cache sim → weights)
+python3 scripts/graphbrew_experiment.py --train --auto --size all
 ```
 
-### `--fill-weights` Phases
+### `--train` Phases
 
-The comprehensive `--fill-weights` mode runs a streamlined training pipeline:
+The comprehensive `--train` mode runs a streamlined training pipeline:
 
 | Step | Description |
 |------|-------------|
@@ -395,10 +395,10 @@ python3 scripts/graphbrew_experiment.py --phase benchmark \
     --trials 5
 
 # Generate and use label maps for consistent reordering
-python3 scripts/graphbrew_experiment.py --generate-maps --use-maps --phase benchmark
+python3 scripts/graphbrew_experiment.py --precompute --phase benchmark
 
 # Train perceptron weights
-python3 scripts/graphbrew_experiment.py --fill-weights --auto-memory --download-size ALL
+python3 scripts/graphbrew_experiment.py --train --auto --size all
 ```
 
 ### Key Options
@@ -407,11 +407,12 @@ python3 scripts/graphbrew_experiment.py --fill-weights --auto-memory --download-
 |--------|-------------|
 | `--full` | Run complete pipeline |
 | `--phase` | Run specific phase: download, build, benchmark, cache, weights |
-| `--graphs` | Graph size: small, medium, large, all |
+| `--size` | Graph size: small, medium, large, xlarge, all |
 | `--benchmarks` | Specific benchmarks: pr, bfs, cc, sssp, bc |
 | `--trials N` | Number of benchmark trials |
-| `--key-only` | Only test key algorithms (faster) |
+| `--quick` | Only test key algorithms (faster) |
 | `--skip-cache` | Skip cache simulation |
+| `--train` | Complete training pipeline |
 
 See [[Python-Scripts]] for complete documentation.
 

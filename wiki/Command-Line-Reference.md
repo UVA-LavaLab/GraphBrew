@@ -4,6 +4,67 @@ Complete reference for all GraphBrew command-line options.
 
 ---
 
+## Quick Reference: Evaluation vs Training
+
+### Evaluation Modes (No Weight Updates)
+
+| Mode | Command | Description |
+|------|---------|-------------|
+| **Reorder Only** | `--phase reorder --size small` | Test reordering algorithms only |
+| **Benchmark Only** | `--phase benchmark --size small --skip-cache` | Run graph algorithm benchmarks (BFS, PR, etc.) |
+| **End-to-End** | `--full --size small --auto` | Full evaluation pipeline without training |
+| **Validation** | `--brute-force --validation-benchmark pr` | Compare AdaptiveOrder vs all algorithms |
+
+### Training Modes (Updates Weights)
+
+| Mode | Command | Description |
+|------|---------|-------------|
+| **Standard** | `--train --size small --auto` | One-pass training: reorder → benchmark → cache → weights |
+| **Iterative** | `--train-iterative --target-accuracy 90` | Repeated training until target accuracy |
+| **Batched** | `--train-batched --size medium --batch-size 8` | Large-scale batched training |
+
+### Common Modifiers
+
+| Modifier | Description |
+|----------|-------------|
+| `--quick` | Key algorithms only (faster) |
+| `--skip-cache` | Skip cache simulation (faster) |
+| `--skip-expensive` | Skip BC/SSSP benchmarks |
+| `--all-variants` | Test all algorithm variants |
+| `--auto` | Auto-detect memory/disk limits |
+| `--precompute` | Use pre-generated label maps |
+
+### Run Phases Separately
+
+You can run each phase independently. Later phases automatically load results from earlier phases:
+
+| Phase | Command | Description |
+|-------|---------|-------------|
+| **Phase 1** | `--phase reorder` | Generate reordered graphs (.lo label maps) |
+| **Phase 2** | `--phase benchmark` | Run graph algorithm benchmarks (BFS, PR, etc.) |
+| **Phase 3** | `--phase cache` | Run cache simulation |
+| **Phase 4** | `--phase weights` | Generate perceptron weights from results |
+
+```bash
+# Run each phase separately
+python3 scripts/graphbrew_experiment.py --phase reorder --size small
+python3 scripts/graphbrew_experiment.py --phase benchmark --size small
+python3 scripts/graphbrew_experiment.py --phase cache --size small
+python3 scripts/graphbrew_experiment.py --phase weights
+
+# Or chain them
+python3 scripts/graphbrew_experiment.py --phase reorder --size small && \
+python3 scripts/graphbrew_experiment.py --phase benchmark --size small && \
+python3 scripts/graphbrew_experiment.py --phase cache --size small && \
+python3 scripts/graphbrew_experiment.py --phase weights
+```
+
+**Note:** Results are saved to `results/` directory after each phase. Later phases automatically load:
+- Phase 2 & 3: Load `.lo` label maps from Phase 1
+- Phase 4: Load `benchmark_*.json`, `cache_*.json`, `reorder_*.json` from Phases 1-3
+
+---
+
 ## Benchmark Binaries
 
 All binaries are located in `bench/bin/`. The automated pipeline uses **six** benchmarks:
@@ -409,51 +470,64 @@ The unified experiment script provides comprehensive options for training and be
 |--------|-------------|
 | `--full` | Run complete pipeline (download → build → experiment → weights) |
 | `--download-only` | Only download graphs |
-| `--download-size SIZE` | SMALL (16), MEDIUM (28), LARGE (37), XLARGE (6), ALL (87 graphs) |
+| `--skip-download` | Skip graph download phase (use existing graphs) |
+| `--size SIZE` | **Unified size parameter:** `small`, `medium`, `large`, `xlarge`, `all` |
 | `--phase PHASE` | Run specific phase: all, reorder, benchmark, cache, weights, adaptive |
 
-### Memory Management
+> **Note:** The `--size` parameter automatically sets both the download size and graph filter in one step. Use lowercase values: `small`, `medium`, `large`, `xlarge`, or `all`.
+
+### Resource Management
 
 | Option | Description |
 |--------|-------------|
-| `--max-memory GB` | Maximum RAM (GB) for graph processing. Graphs exceeding this are skipped. |
-| `--auto-memory` | Automatically detect available RAM and skip graphs that won't fit (uses 80% of total) |
+| `--auto` | **Unified auto-detection:** Auto-detect both RAM and disk space limits |
+| `--auto-memory` | Auto-detect available RAM (uses 80% of total) |
+| `--auto-disk` | Auto-detect available disk space (uses 80% of free) |
+| `--max-memory GB` | Maximum RAM (GB) for graph processing |
+| `--max-disk GB` | Maximum disk space (GB) for downloads |
 
 Memory estimation: `(edges × 24 bytes + nodes × 8 bytes) × 1.5`
 
-### Disk Space Management
+### Quick Mode & Filtering
 
 | Option | Description |
 |--------|-------------|
-| `--max-disk GB` | Maximum disk space (GB) for downloads. Downloads stop when limit is reached. |
-| `--auto-disk` | Automatically limit downloads to available disk space (uses 80% of free space) |
+| `--quick` | Quick mode: test only key algorithms (faster than all 18) |
+| `--skip-slow` | Skip slow algorithms (Gorder, Corder, RCM) on large graphs |
+| `--skip-expensive` | Skip expensive benchmarks (BC, SSSP) on large graphs (>100MB) |
+| `--skip-cache` | Skip cache simulations (saves time, loses cache analysis data) |
+| `--min-mb N` | Minimum graph file size in MB (for custom filtering) |
+| `--max-mb N` | Maximum graph file size in MB (for custom filtering) |
+| `--max-graphs N` | Maximum number of graphs to test |
 
 ### Training Options
 
 | Option | Description |
 |--------|-------------|
-| `--train-adaptive` | Run iterative training feedback loop |
-| `--train-large` | Large-scale training with batching and multi-benchmark support |
-| `--target-accuracy N` | Target accuracy % for training (default: 80) |
+| `--train` | **Train perceptron weights:** runs reorder → benchmark → cache sim → compute weights |
+| `--train-iterative` | Iterative training: repeatedly adjust weights until target accuracy |
+| `--train-batched` | Batched training: process graphs in batches with multiple benchmarks |
+| `--init-weights` | Initialize empty weights file (run once before first training) |
+| `--target-accuracy N` | Target accuracy % for iterative training (default: 80) |
 | `--max-iterations N` | Maximum training iterations (default: 10) |
 | `--learning-rate N` | Weight adjustment rate (default: 0.1) |
-| `--fill-weights` | Fill ALL weight fields: runs cache sim, graph features, benchmark analysis |
-| `--init-weights` | Initialize/upgrade weights file with enhanced features |
 
 ### Weight Run Management
 
 | Option | Description |
 |--------|-------------|
+| `--isolate-run` | Keep this run's weights isolated (don't merge with previous runs) |
+| `--batch-only` | Only update weights at end of run (disable per-graph incremental updates) |
 | `--list-runs` | List all saved weight runs in `scripts/weights/runs/` |
 | `--merge-runs [TIMESTAMP ...]` | Merge specific runs (or all if no args) into `merged/` |
 | `--use-run TIMESTAMP` | Use weights from a specific run (copy to `active/`) |
 | `--use-merged` | Use merged weights (copy `merged/` to `active/`) |
-| `--no-merge` | Don't auto-merge weights after `--fill-weights` (keep run isolated) |
 
 ### Label Map Options
 
 | Option | Description |
 |--------|-------------|
+| `--precompute` | **Pre-generate and use label maps** (combines --generate-maps --use-maps) |
 | `--generate-maps` | Pre-generate .lo mapping files for consistent reordering |
 | `--use-maps` | Use pre-generated label maps instead of regenerating |
 
@@ -461,45 +535,72 @@ Memory estimation: `(edges × 24 bytes + nodes × 8 bytes) × 1.5`
 
 | Option | Description |
 |--------|-------------|
-| `--expand-variants` | Expand Leiden algorithms (16,17) and RabbitOrder (8) into separate variants |
-| `--leiden-csr-variants LIST` | LeidenCSR variants to include: gve, gveopt, dfs, bfs, hubsort, fast, modularity |
-| `--leiden-dendrogram-variants LIST` | LeidenDendrogram variants to include: dfs, dfshub, dfssize, bfs, hybrid |
-| `--rabbit-variants LIST` | RabbitOrder variants to include: csr (default), boost (requires libboost-graph-dev) |
-| `--leiden-resolution FLOAT` | Resolution parameter for Leiden algorithms (default: 1.0) |
-| `--leiden-passes INT` | Number of passes for LeidenCSR (default: 3) |
+| `--all-variants` | Test ALL algorithm variants (Leiden, RabbitOrder) instead of defaults |
+| `--csr-variants LIST` | LeidenCSR variants: gve (default), gveopt, dfs, bfs, hubsort, fast, modularity |
+| `--dendrogram-variants LIST` | LeidenDendrogram variants: dfs, dfshub, dfssize, bfs, hybrid |
+| `--rabbit-variants LIST` | RabbitOrder variants: csr (default), boost (requires libboost-graph-dev) |
+| `--resolution FLOAT` | Leiden resolution - higher = more communities (default: 1.0) |
+| `--passes INT` | LeidenCSR refinement passes - higher = better quality (default: 3) |
 
-### Per-Graph Data Management
+> **Note:** Specifying any variant list (e.g., `--csr-variants gve`) automatically enables variant expansion.
+
+### Validation Options
 
 | Option | Description |
 |--------|-------------|
-| `--list-runs GRAPH` | List all experiment runs for a graph |
-| `--show-run GRAPH TIMESTAMP` | Show details of a specific run |
-| `--cleanup-runs` | Remove old runs (keep --max-runs most recent) |
-| `--max-runs N` | Number of runs to keep per graph (default: 10) |
-| `--migrate` | Migrate old data structure to new (run once after upgrade) |
+| `--brute-force` | Run brute-force validation: test all algorithms vs AdaptiveOrder choice |
+| `--validation-benchmark NAME` | Benchmark to use for brute-force validation (default: pr) |
+| `--validate-adaptive` | Validate adaptive algorithm accuracy: compare predicted vs actual best |
+
+### Deprecated Parameters
+
+These parameters still work for backwards compatibility but are deprecated:
+
+| Deprecated | Use Instead |
+|------------|-------------|
+| `--graphs SIZE` | `--size SIZE` |
+| `--download-size SIZE` | `--size SIZE` |
+| `--auto-memory --auto-disk` | `--auto` |
+| `--key-only` | `--quick` |
+| `--skip-heavy` | `--skip-expensive` |
+| `--no-merge` | `--isolate-run` |
+| `--no-incremental` | `--batch-only` |
+| `--bf-benchmark` | `--validation-benchmark` |
+| `--min-size` / `--max-size` | `--min-mb` / `--max-mb` |
+| `--expand-variants` | `--all-variants` |
+| `--leiden-csr-variants` | `--csr-variants` |
+| `--leiden-dendrogram-variants` | `--dendrogram-variants` |
+| `--leiden-resolution` | `--resolution` |
+| `--leiden-passes` | `--passes` |
+| `--fill-weights` | `--train` |
+| `--train-adaptive` | `--train-iterative` |
+| `--train-large` | `--train-batched` |
+| `--weights-file` | Weights now auto-save to `scripts/weights/active/type_0.json` |
 
 ### Examples
 
 ```bash
-# Auto-detect RAM and disk limits, run on all fitting graphs
-python3 scripts/graphbrew_experiment.py --full --download-size ALL --auto-memory --auto-disk
+# Quick run with auto resource detection
+python3 scripts/graphbrew_experiment.py --full --size small --auto --quick
 
-# Set explicit 32GB memory and 100GB disk limits
-python3 scripts/graphbrew_experiment.py --full --download-size ALL --max-memory 32 --max-disk 100
+# Train perceptron weights with precomputed label maps
+python3 scripts/graphbrew_experiment.py --train --size medium --auto --precompute
 
-# Fill all weight fields with specific Leiden variants
-python3 scripts/graphbrew_experiment.py --fill-weights --expand-variants \
-    --leiden-csr-variants gve fast --leiden-dendrogram-variants dfs hybrid
+# Train all algorithm variants
+python3 scripts/graphbrew_experiment.py --train --all-variants --size small --auto
 
-# Test all RabbitOrder variants
-python3 scripts/graphbrew_experiment.py --fill-weights --expand-variants \
-    --rabbit-variants csr boost --graphs small --max-graphs 5
+# Skip expensive operations for faster testing
+python3 scripts/graphbrew_experiment.py --full --size large --skip-expensive --skip-cache
 
-# List experiment runs for a graph
-python3 -m scripts.lib.graph_data --list-runs ca-GrQc
+# Run brute-force validation with BFS benchmark
+python3 scripts/graphbrew_experiment.py --brute-force --validation-benchmark bfs
 
-# Show specific run details
-python3 -m scripts.lib.graph_data --show-run ca-GrQc 20260127_152449
+# Keep run isolated (don't merge weights)
+python3 scripts/graphbrew_experiment.py --train --size small --isolate-run
+
+# Filter by file size
+python3 scripts/graphbrew_experiment.py --full --min-mb 10 --max-mb 100 --auto
+```
 
 See [[Python-Scripts]] for complete documentation.
 

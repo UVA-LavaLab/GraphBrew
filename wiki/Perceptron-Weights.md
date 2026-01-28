@@ -422,10 +422,10 @@ For BFS (benefits from bandwidth reduction):
 
 ```bash
 # Full pipeline with weight generation
-python3 scripts/graphbrew_experiment.py --full --download-size SMALL
+python3 scripts/graphbrew_experiment.py --full --size small
 
 # Comprehensive weight training
-python3 scripts/graphbrew_experiment.py --fill-weights --download-size MEDIUM --auto-memory
+python3 scripts/graphbrew_experiment.py --train --size medium --auto
 ```
 
 ### Manual: Edit JSON Directly
@@ -718,10 +718,9 @@ python3 scripts/graphbrew_experiment.py \
 ```bash
 # Test all 18 algorithms vs adaptive choice
 python3 scripts/graphbrew_experiment.py \
-    --graphs-dir ./results/graphs \
     --max-graphs 50 \
     --brute-force \
-    --bf-benchmark pr \
+    --validation-benchmark pr \
     --trials 2
 ```
 
@@ -757,24 +756,22 @@ For fast iteration during development:
 ```bash
 # Quick training on 3 small graphs, 1 trial each
 python3 scripts/graphbrew_experiment.py \
-    --graphs-dir ./results/graphs \
-    --graphs small \
+    --size small \
     --max-graphs 3 \
     --trials 1 \
     --skip-cache \
     2>&1 | tee /tmp/training.log
 ```
 
-### Fill All Weight Fields (Comprehensive)
+### Complete Training Pipeline
 
-If many weight fields show as 0 or default 1.0, use `--fill-weights` to populate ALL fields:
+If many weight fields show as 0 or default 1.0, use `--train` to run the complete pipeline:
 
 ```bash
-# Fill ALL weight fields including cache impacts and topology features
+# Complete training: reorder → benchmark → cache sim → update weights
 python3 scripts/graphbrew_experiment.py \
-    --fill-weights \
-    --graphs-dir ./results/graphs \
-    --graphs small \
+    --train \
+    --size small \
     --max-graphs 5 \
     --trials 2
 ```
@@ -863,10 +860,9 @@ python3 scripts/graphbrew_experiment.py \
 
 # Follow with brute-force validation
 python3 scripts/graphbrew_experiment.py \
-    --graphs-dir ./results/graphs \
     --max-graphs 50 \
     --brute-force \
-    --bf-benchmark pr \
+    --validation-benchmark pr \
     --trials 2 \
     2>&1 | tee results/validation.log
 ```

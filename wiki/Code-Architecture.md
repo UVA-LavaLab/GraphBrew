@@ -537,15 +537,19 @@ for (NodeID n = 0; n < num_nodes; n++) {
 scripts/
 ├── graphbrew_experiment.py    # Main orchestration script
 ├── weights/                   # Perceptron weight files
-│   ├── active/                # C++ runtime reads from here
+│   ├── active/                # C++ runtime reads from here (type_0.json, etc.)
+│   │   ├── type_registry.json # Maps graphs → types + algorithm list
+│   │   └── type_N.json        # Per-cluster weights
 │   ├── merged/                # Accumulated from all runs
 │   └── runs/                  # Historical snapshots
 └── lib/                       # Python library modules
-    └── utils.py               # ALGORITHMS dict, constants
+    ├── utils.py               # ALGORITHMS dict, constants
+    └── weights.py             # Weight management and computation
 
 results/
-├── perceptron_weights.json    # Combined weights
-└── graph_properties_cache.json # Cached features
+├── graphs/{name}/features.json # Per-graph static features
+├── logs/{name}/runs/          # Timestamped experiment data
+└── graph_properties_cache.json # Cached properties for type detection
 ```
 
 ---

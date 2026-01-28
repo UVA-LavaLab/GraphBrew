@@ -313,6 +313,7 @@ class PhaseConfig:
             leiden_passes=getattr(args, 'leiden_passes', 10),
             leiden_csr_variants=getattr(args, 'leiden_csr_variants', None),
             leiden_dendrogram_variants=getattr(args, 'leiden_dendrogram_variants', None),
+            rabbit_variants=getattr(args, 'rabbit_variants', None),
             target_accuracy=getattr(args, 'target_accuracy', 0.95),
             max_iterations=getattr(args, 'max_iterations', 10),
             learning_rate=getattr(args, 'learning_rate', 0.1),
@@ -386,7 +387,8 @@ def run_reorder_phase(
             rabbit_variants=config.rabbit_variants
         )
         
-        results = generate_reorderings_with_variants(
+        # generate_reorderings_with_variants returns (label_maps, results) tuple
+        variant_label_maps, results = generate_reorderings_with_variants(
             graphs=graphs,
             algorithms=expanded_algorithms,
             bin_dir=config.bin_dir,
@@ -395,9 +397,13 @@ def run_reorder_phase(
             skip_slow=config.skip_slow,
             force_reorder=config.force_reorder,
             leiden_resolution=config.leiden_resolution,
-            leiden_passes=config.leiden_passes,
-            progress=config.progress
+            leiden_passes=config.leiden_passes
         )
+        # Merge the variant label maps into our label_maps
+        for graph_name, algo_maps in variant_label_maps.items():
+            if graph_name not in label_maps:
+                label_maps[graph_name] = {}
+            label_maps[graph_name].update(algo_maps)
     else:
         results = generate_reorderings(
             graphs=graphs,
@@ -410,17 +416,16 @@ def run_reorder_phase(
             force_reorder=config.force_reorder,
             progress=config.progress
         )
+        # Update label maps from results (non-variant mode)
+        for r in results:
+            if r.success and r.mapping_file:
+                if r.graph not in label_maps:
+                    label_maps[r.graph] = {}
+                label_maps[r.graph][r.algorithm_name] = r.mapping_file
     
     # Save results
     filepath = _save_results(results, f"reorder_{timestamp}.json", config.results_dir)
     config.progress.success(f"Reorder results saved to: {filepath}")
-    
-    # Update label maps
-    for r in results:
-        if r.success and r.mapping_file:
-            if r.graph not in label_maps:
-                label_maps[r.graph] = {}
-            label_maps[r.graph][r.algorithm_name] = r.mapping_file
     
     config.progress.phase_end(f"Generated {len(results)} reorderings")
     return results, label_maps
@@ -535,17 +540,37 @@ def run_cache_phase(
     
     timestamp = _get_timestamp()
     
-    results = run_cache_simulations(
-        graphs=graphs,
-        algorithms=algorithms,
-        benchmarks=config.benchmarks,
-        bin_sim_dir=config.bin_sim_dir,
-        timeout=config.timeout_sim,
-        skip_heavy=config.skip_heavy,
-        label_maps=label_maps,
-        weights_dir=config.weights_dir,
-        update_weights=config.update_weights
-    )
+    # Check if we have variant-expanded label maps
+    has_variant_maps = (label_maps and 
+                       any('_' in algo_name for g in label_maps.values() for algo_name in g.keys()))
+    
+    if has_variant_maps and config.expand_variants:
+        config.progress.info("Mode: Variant-aware cache simulation")
+        # Use variant-aware cache simulation
+        from .cache import run_cache_simulations_with_variants
+        results = run_cache_simulations_with_variants(
+            graphs=graphs,
+            label_maps=label_maps,
+            benchmarks=config.benchmarks,
+            bin_sim_dir=config.bin_sim_dir,
+            timeout=config.timeout_sim,
+            skip_heavy=config.skip_heavy,
+            weights_dir=config.weights_dir,
+            update_weights=config.update_weights
+        )
+    else:
+        config.progress.info("Mode: Standard cache simulation")
+        results = run_cache_simulations(
+            graphs=graphs,
+            algorithms=algorithms,
+            benchmarks=config.benchmarks,
+            bin_sim_dir=config.bin_sim_dir,
+            timeout=config.timeout_sim,
+            skip_heavy=config.skip_heavy,
+            label_maps=label_maps,
+            weights_dir=config.weights_dir,
+            update_weights=config.update_weights
+        )
     
     # Save results
     filepath = _save_results(results, f"cache_{timestamp}.json", config.results_dir)

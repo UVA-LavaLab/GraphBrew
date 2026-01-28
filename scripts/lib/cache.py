@@ -24,9 +24,9 @@ from typing import Dict, List, Optional, Tuple
 
 from .utils import (
     PROJECT_ROOT, BIN_SIM_DIR, RESULTS_DIR,
-    ALGORITHMS, Logger, run_command,
+    ALGORITHMS, Logger, run_command, get_algorithm_name,
 )
-from .reorder import get_label_map_path
+from .reorder import get_label_map_path, get_algorithm_name_with_variant
 
 # Initialize logger
 log = Logger()
@@ -182,7 +182,8 @@ def run_cache_simulation(
     
     graph_path = Path(graph_path)
     graph_name = graph_path.stem
-    algo_name = ALGORITHMS.get(algorithm, f"ALGO_{algorithm}")
+    # Always include variant in name for algorithms that have variants
+    algo_name = get_algorithm_name_with_variant(algorithm)
     
     binary = Path(bin_sim_dir) / benchmark
     if not binary.exists():
@@ -314,7 +315,7 @@ def run_cache_simulations(
                     results.append(CacheResult(
                         graph=graph.name,
                         algorithm_id=algo_id,
-                        algorithm_name=ALGORITHMS.get(algo_id, f"ALGO_{algo_id}"),
+                        algorithm_name=get_algorithm_name_with_variant(algo_id),
                         benchmark=bench,
                         success=False,
                         error="SKIPPED"
@@ -325,7 +326,8 @@ def run_cache_simulations(
             
             for algo_id in algorithms:
                 current += 1
-                algo_name = ALGORITHMS.get(algo_id, f"ALGO_{algo_id}")
+                # Always include variant in name for algorithms that have variants
+                algo_name = get_algorithm_name_with_variant(algo_id)
                 
                 # Check for pre-generated label map
                 label_map_path = None
@@ -354,6 +356,151 @@ def run_cache_simulations(
                 results.append(result)
     
     return results
+
+
+def run_cache_simulations_with_variants(
+    graphs: List[GraphInfo],
+    label_maps: Dict[str, Dict[str, str]],
+    benchmarks: List[str],
+    bin_sim_dir: str = None,
+    timeout: int = TIMEOUT_SIM,
+    skip_heavy: bool = False,
+    weights_dir: str = None,
+    update_weights: bool = True,
+    progress = None
+) -> List[CacheResult]:
+    """
+    Run cache simulations using variant-expanded label maps.
+    
+    This function iterates over all algorithm names found in label_maps
+    (including variant names like LeidenCSR_gve, LeidenDendrogram_dfs),
+    rather than iterating over base algorithm IDs.
+    
+    Args:
+        graphs: List of graphs to process
+        label_maps: Dict mapping graph_name -> {algo_name -> map_path}
+        benchmarks: List of benchmark names
+        bin_sim_dir: Directory containing simulation binaries
+        timeout: Timeout per simulation
+        skip_heavy: Skip heavy benchmarks on large graphs
+        weights_dir: Directory for weight updates
+        update_weights: Whether to update weights
+        progress: Optional progress tracker
+        
+    Returns:
+        List of CacheResult with hit rates and miss counts
+    """
+    if bin_sim_dir is None:
+        bin_sim_dir = str(BIN_SIM_DIR)
+    
+    # Extract unique algorithm names from label_maps, preserving order
+    all_algo_names = []
+    seen = set()
+    for graph_name, algo_maps in label_maps.items():
+        for algo_name in algo_maps.keys():
+            if algo_name not in seen:
+                all_algo_names.append(algo_name)
+                seen.add(algo_name)
+    
+    # Always include ORIGINAL (algo 0) at the start
+    if 'ORIGINAL' not in seen:
+        all_algo_names.insert(0, 'ORIGINAL')
+    
+    log.info(f"Running cache simulations: {len(graphs)} graphs × {len(all_algo_names)} algorithms × {len(benchmarks)} benchmarks")
+    
+    results = []
+    total = len(graphs) * len(all_algo_names) * len(benchmarks)
+    current = 0
+    
+    for graph in graphs:
+        log.info(f"Graph: {graph.name} ({graph.size_mb:.1f}MB)")
+        
+        graph_label_maps = label_maps.get(graph.name, {})
+        
+        for bench in benchmarks:
+            binary = os.path.join(bin_sim_dir, bench)
+            
+            if not os.path.exists(binary):
+                log.warning(f"  Binary not found: {binary}")
+                continue
+            
+            # Use longer timeout for heavy benchmarks
+            bench_timeout = TIMEOUT_SIM_HEAVY if bench in HEAVY_SIM_BENCHMARKS else timeout
+            
+            # Skip heavy simulations on large graphs if requested
+            if skip_heavy and bench in HEAVY_SIM_BENCHMARKS and graph.size_mb > SIZE_MEDIUM:
+                log.info(f"  {bench.upper()}: SKIPPED (heavy on large graph)")
+                for algo_name in all_algo_names:
+                    current += 1
+                    # Map variant name back to base algo ID
+                    algo_id = _get_algo_id_from_name(algo_name)
+                    results.append(CacheResult(
+                        graph=graph.name,
+                        algorithm_id=algo_id,
+                        algorithm_name=algo_name,
+                        benchmark=bench,
+                        success=False,
+                        error="SKIPPED"
+                    ))
+                continue
+            
+            log.info(f"  {bench.upper()} (simulation):")
+            
+            for algo_name in all_algo_names:
+                current += 1
+                
+                # Map variant name back to base algo ID
+                algo_id = _get_algo_id_from_name(algo_name)
+                
+                # Check for pre-generated label map
+                label_map_path = graph_label_maps.get(algo_name)
+                
+                result = run_cache_simulation(
+                    benchmark=bench,
+                    graph_path=graph.path,
+                    algorithm=algo_id,
+                    label_map_path=label_map_path,
+                    symmetric=graph.is_symmetric,
+                    timeout=bench_timeout,
+                    bin_sim_dir=bin_sim_dir
+                )
+                
+                # Override algorithm_name with the variant name
+                result.algorithm_name = algo_name
+                
+                if result.success:
+                    # Display hit rates for user (computed from miss rates)
+                    l1_hit = (1.0 - result.l1_miss_rate) * 100
+                    l2_hit = (1.0 - result.l2_miss_rate) * 100
+                    l3_hit = (1.0 - result.l3_miss_rate) * 100
+                    log.info(f"    [{current}/{total}] {algo_name}: L1:{l1_hit:.1f}% L2:{l2_hit:.1f}% L3:{l3_hit:.1f}%")
+                else:
+                    log.error(f"    [{current}/{total}] {algo_name}: {result.error}")
+                
+                results.append(result)
+    
+    return results
+
+
+def _get_algo_id_from_name(algo_name: str) -> int:
+    """Map algorithm name (including variants) back to base algorithm ID."""
+    # Check for exact match first
+    for algo_id, name in ALGORITHMS.items():
+        if algo_name == name:
+            return algo_id
+    
+    # Check for variant prefix (e.g., LeidenCSR_gve -> LeidenCSR -> 17)
+    for algo_id, name in ALGORITHMS.items():
+        if algo_name.startswith(name + "_"):
+            return algo_id
+        if algo_name.startswith(name.upper() + "_"):
+            return algo_id
+    
+    # Handle RABBITORDER_csr -> 8
+    if algo_name.startswith("RABBITORDER"):
+        return 8
+    
+    return 0  # Default to ORIGINAL
 
 
 def get_cache_stats_summary(results: List[CacheResult]) -> Dict:

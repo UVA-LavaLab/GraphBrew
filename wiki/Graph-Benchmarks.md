@@ -312,13 +312,13 @@ Triangle counting benefits from processing vertices in degree order:
 
 ```bash
 # One-click: downloads graphs, runs all benchmarks with all algorithms
-python3 scripts/graphbrew_experiment.py --full --download-size SMALL
+python3 scripts/graphbrew_experiment.py --full --size small
 
 # Run benchmarks on specific graphs
-python3 scripts/graphbrew_experiment.py --phase benchmark --graphs small --trials 3
+python3 scripts/graphbrew_experiment.py --phase benchmark --size small --trials 3
 
 # Run specific benchmarks only
-python3 scripts/graphbrew_experiment.py --benchmarks pr bfs --graphs small
+python3 scripts/graphbrew_experiment.py --benchmarks pr bfs --size small
 ```
 
 ### Quick Comparison Script

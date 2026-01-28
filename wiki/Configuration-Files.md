@@ -74,19 +74,19 @@ python3 scripts/graphbrew_experiment.py \
 | Option | Description | Default |
 |--------|-------------|---------|
 | `--full` | Run complete pipeline | - |
-| `--download-size` | SMALL, MEDIUM, LARGE, ALL | - |
+| `--size` | small, medium, large, xlarge, all | all |
 | `--phase` | all, reorder, benchmark, cache, weights | all |
-| `--graphs` | small, medium, large, all, custom | all |
 | `--benchmarks` | pr, bfs, cc, sssp, bc, tc | all 6 |
 | `--trials` | Number of benchmark trials | 2 |
-| `--key-only` | Only test key algorithms | false |
+| `--quick` | Only test key algorithms | false |
 | `--skip-cache` | Skip cache simulation | false |
+| `--train` | Complete training pipeline | false |
 
 ### Memory and Disk Limits
 
 ```bash
 # Auto-detect available resources
-python3 scripts/graphbrew_experiment.py --full --auto-memory --auto-disk
+python3 scripts/graphbrew_experiment.py --full --auto
 
 # Set explicit limits
 python3 scripts/graphbrew_experiment.py --full --max-memory 32 --max-disk 100
@@ -243,8 +243,8 @@ export OMP_NUM_THREADS=8
 # Test on small graphs with few algorithms
 python3 scripts/graphbrew_experiment.py \
     --phase benchmark \
-    --graphs small \
-    --key-only \
+    --size small \
+    --quick \
     --trials 1
 ```
 
@@ -254,9 +254,9 @@ python3 scripts/graphbrew_experiment.py \
 # Complete benchmark with all algorithms
 python3 scripts/graphbrew_experiment.py \
     --full \
-    --download-size MEDIUM \
+    --size medium \
     --trials 5 \
-    --auto-memory
+    --auto
 ```
 
 ### Weight Training Only
@@ -264,9 +264,9 @@ python3 scripts/graphbrew_experiment.py \
 ```bash
 # Train perceptron weights from existing results
 python3 scripts/graphbrew_experiment.py \
-    --fill-weights \
+    --train \
     --skip-cache \
-    --graphs small
+    --size small
 ```
 
 ### Adaptive Validation
@@ -275,7 +275,7 @@ python3 scripts/graphbrew_experiment.py \
 # Compare AdaptiveOrder vs all algorithms
 python3 scripts/graphbrew_experiment.py \
     --brute-force \
-    --graphs small
+    --size small
 ```
 
 ---
@@ -289,7 +289,7 @@ python3 scripts/graphbrew_experiment.py \
 ls -la scripts/weights/active/
 
 # Regenerate weights
-python3 scripts/graphbrew_experiment.py --fill-weights --graphs small
+python3 scripts/graphbrew_experiment.py --train --size small
 ```
 
 ### "No graphs found"
