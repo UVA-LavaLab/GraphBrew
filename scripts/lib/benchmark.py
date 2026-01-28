@@ -16,6 +16,7 @@ Library usage:
     results = run_benchmark_suite("graph.mtx", algorithms=["0", "1", "8"])
 """
 
+import os
 import re
 import time
 from pathlib import Path
@@ -330,10 +331,13 @@ def run_benchmarks_multi_graph(
                 label_map_path = graph_label_maps.get(algo_name, "")
                 
                 # Build algorithm option string
-                if label_map_path and algo_id == 13:  # MAP algorithm
+                # Use MAP (algo 13) with label map when available, except for ORIGINAL (algo 0)
+                if label_map_path and os.path.exists(label_map_path) and algo_id != 0:
                     algo_opt = f"13:{label_map_path}"
+                    using_label_map = True
                 else:
                     algo_opt = str(algo_id)
+                    using_label_map = False
                 
                 result = run_benchmark(
                     benchmark=bench,
@@ -348,6 +352,11 @@ def run_benchmarks_multi_graph(
                 result.graph = graph_name
                 result.nodes = graph.nodes
                 result.edges = graph.edges
+                
+                # Preserve original algorithm name when using label map
+                if using_label_map:
+                    result.algorithm = algo_name
+                    result.algorithm_id = algo_id
                 
                 results.append(result)
                 completed += 1
