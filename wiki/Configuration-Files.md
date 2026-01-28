@@ -109,13 +109,13 @@ Maps graph types to clusters with centroid feature vectors:
     "graphs": []
   },
   "type_1": {
-    "centroid": [0.479, 0.357, 0.426, 0.025, 0.002, 6.2e-05, 4.8e-05],
+    "centroid": [0.479, 0.357, 0.426, 0.025, 0.5, 0.6, 0.7],
     "graph_count": 4
   }
 }
 ```
 
-Centroid array indices: [modularity, degree_variance, hub_concentration, avg_degree, clustering_coeff, avg_path_length, diameter]
+Centroid array indices: [modularity, degree_variance, hub_concentration, avg_degree, clustering_coefficient, log_nodes, log_edges]
 ```
 
 ### Type Weight Files (type_N.json)
