@@ -12,24 +12,14 @@
     "sample_count": 1,
     "graph_count": 2,
     "algorithms": [
-      "ORIGINAL",
-      "RANDOM",
-      "SORT",
-      "HUBSORT",
-      "HUBCLUSTER",
-      "DBG",
-      "HUBSORTDBG",
-      "HUBCLUSTERDBG",
-      "RABBITORDER",
-      "GORDER",
-      "CORDER",
-      "RCM",
-      "GraphBrewOrder",
-      "LeidenOrder",
-      "LeidenDendrogram",
-      "LeidenCSR",
-      "RABBITORDER_csr",
       "LeidenCSR_gve",
+      "RCM",
+      "GORDER",
+      "RABBITORDER_csr",
+      "LeidenOrder",
+      "HUBCLUSTERDBG",
+      "RANDOM",
+      "ORIGINAL",
       "LeidenDendrogram_dfs"
     ],
     "graphs": [
@@ -37,6 +27,6 @@
       "ca-HepTh"
     ],
     "created": "2026-01-27T23:45:14.345252",
-    "last_updated": "2026-01-27T23:45:49.236000"
+    "last_updated": "2026-01-28T00:29:11.613881"
   }
 }

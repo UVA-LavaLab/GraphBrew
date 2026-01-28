@@ -199,6 +199,10 @@ scripts/
 ├── graphbrew_experiment.py    # ⭐ Main orchestration script (~3100 lines)
 │                              #    - CLI argument parsing
 │                              #    - Delegates to lib/ modules
+├── perceptron_experiment.py   # 🧪 Perceptron experimentation (no re-running phases)
+│                              #    - Grid search over configurations
+│                              #    - Interactive weight tweaking
+│                              #    - Reproducible ML experimentation
 ├── requirements.txt           # Python dependencies
 │
 ├── lib/                       # 📦 Core modules (~12200 lines)
