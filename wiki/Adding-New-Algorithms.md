@@ -265,10 +265,10 @@ scripts/weights/active/type_N.json           # Additional clusters as needed
 
 ### Automatic Training
 
-After adding the algorithm, run `--fill-weights` to train weights from benchmarks:
+After adding the algorithm, run `--train` to train weights from benchmarks:
 
 ```bash
-python3 scripts/graphbrew_experiment.py --fill-weights --graphs small
+python3 scripts/graphbrew_experiment.py --train --size small
 ```
 
 This will:

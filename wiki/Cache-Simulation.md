@@ -197,7 +197,7 @@ The cache simulator provides features for the ML-based algorithm selector. The u
 
 ```bash
 # Run cache simulation as part of the full pipeline
-python3 scripts/graphbrew_experiment.py --full --download-size SMALL
+python3 scripts/graphbrew_experiment.py --full --size small
 
 # Or just the cache phase
 python3 scripts/graphbrew_experiment.py --phase cache
@@ -233,11 +233,11 @@ Run comprehensive cache benchmarks using the unified script:
 # Run cache simulation on all graphs
 python3 scripts/graphbrew_experiment.py --phase cache
 
-# Skip heavy simulations (BC, SSSP) on large graphs
-python3 scripts/graphbrew_experiment.py --phase cache --skip-heavy
+# Skip expensive simulations (BC, SSSP) on large graphs
+python3 scripts/graphbrew_experiment.py --phase cache --skip-expensive
 
 # Full pipeline includes cache simulation automatically
-python3 scripts/graphbrew_experiment.py --full --download-size MEDIUM
+python3 scripts/graphbrew_experiment.py --full --size medium
 ```
 
 Results are saved to `results/cache_*.json`:
@@ -343,10 +343,10 @@ The perceptron uses multiple features for algorithm selection:
 
 ```bash
 # 1. Run full pipeline (includes cache simulation)
-python3 scripts/graphbrew_experiment.py --full --download-size SMALL
+python3 scripts/graphbrew_experiment.py --full --size small
 
 # 2. Or run cache phase separately
-python3 scripts/graphbrew_experiment.py --phase cache --graphs small
+python3 scripts/graphbrew_experiment.py --phase cache --size small
 
 # 3. Generate weights with cache features
 python3 scripts/graphbrew_experiment.py --phase weights

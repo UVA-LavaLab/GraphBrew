@@ -41,7 +41,7 @@ This library provides functions for:
     from scripts.lib.build import build_binaries, check_binaries
     from scripts.lib.reorder import generate_reorderings, generate_label_maps
     from scripts.lib.benchmark import run_benchmark, run_benchmark_suite
-    from scripts.lib.cache import run_cache_simulations
+    from scripts.lib.cache import run_cache_simulations, run_cache_simulations_with_variants
     from scripts.lib.weights import assign_graph_type, update_type_weights_incremental
     from scripts.lib.progress import ProgressTracker, create_progress
     from scripts.lib.results import ResultsManager, read_json, write_json
@@ -196,6 +196,7 @@ from .reorder import (
     expand_algorithms_with_variants,
     load_label_maps_index,
     get_label_map_path,
+    get_algorithm_name_with_variant,
 )
 
 # =============================================================================
@@ -213,6 +214,7 @@ from .cache import (
     CacheResult,
     run_cache_simulation,
     run_cache_simulations,
+    run_cache_simulations_with_variants,
     parse_cache_output,
     get_cache_stats_summary,
 )

@@ -61,7 +61,7 @@ The main script provides orchestration over the `lib/` modules. It handles argum
 
 ```bash
 # Full pipeline: download → build → experiment → weights
-python3 scripts/graphbrew_experiment.py --full --download-size SMALL
+python3 scripts/graphbrew_experiment.py --full --size small
 
 # See all options
 python3 scripts/graphbrew_experiment.py --help
@@ -95,62 +95,76 @@ python3 scripts/graphbrew_experiment.py --help
 |--------|-------------|
 | `--full` | Run complete pipeline (download → build → experiment → weights) |
 | `--download-only` | Only download graphs |
-| `--download-size` | SMALL (16), MEDIUM (28), LARGE (37), XLARGE (6), ALL (87 graphs) |
+| `--skip-download` | Skip graph download phase (use existing graphs) |
+| `--size SIZE` | **Unified size parameter:** `small`, `medium`, `large`, `xlarge`, `all` |
 | `--clean` | Clean results (keep graphs/weights) |
 | `--clean-all` | Full reset for fresh start |
 
 #### Memory Management
 | Option | Description |
 |--------|-------------|
+| `--auto` | **Unified auto-detection:** Auto-detect both RAM and disk limits |
+| `--auto-memory` | Auto-detect available RAM (uses 80% of total) |
+| `--auto-disk` | Auto-detect available disk space (uses 80% of free) |
 | `--max-memory GB` | Maximum RAM (GB) for graph processing |
-| `--auto-memory` | Automatically detect available RAM (uses 80% of total) |
-
-#### Disk Space Management
-| Option | Description |
-|--------|-------------|
 | `--max-disk GB` | Maximum disk space (GB) for downloads |
-| `--auto-disk` | Automatically limit downloads to available disk space |
 
 #### Experiment Options
 | Option | Description |
 |--------|-------------|
 | `--phase` | Run specific phase: all, reorder, benchmark, cache, weights, adaptive |
-| `--graphs` | Graph size: all, small, medium, large, custom |
-| `--key-only` | Only test key algorithms (faster) |
+| `--quick` | Only test key algorithms (faster) |
 | `--skip-cache` | Skip cache simulations |
+| `--skip-expensive` | Skip BC/SSSP on large graphs |
 | `--brute-force` | Run brute-force validation |
 
 #### Label Mapping (Consistent Reordering)
 | Option | Description |
 |--------|-------------|
+| `--precompute` | Pre-generate and use label maps |
 | `--generate-maps` | Pre-generate .lo mapping files |
 | `--use-maps` | Use pre-generated label maps |
 
 #### Training Options
 | Option | Description |
 |--------|-------------|
-| `--train-adaptive` | Run iterative training feedback loop |
-| `--train-large` | Run large-scale batched training |
+| `--train` | Complete training pipeline: reorder → benchmark → cache sim → update weights |
+| `--train-iterative` | Run iterative training feedback loop |
+| `--train-batched` | Run large-scale batched training |
 | `--target-accuracy` | Target accuracy % (default: 80) |
-| `--fill-weights` | Fill ALL weight fields with comprehensive analysis |
+
+#### Deprecated Parameters
+
+| Deprecated | Use Instead |
+|------------|-------------|
+| `--graphs SIZE` | `--size SIZE` |
+| `--download-size SIZE` | `--size SIZE` |
+| `--auto-memory --auto-disk` | `--auto` |
+| `--key-only` | `--quick` |
+| `--fill-weights` | `--train` |
+| `--train-adaptive` | `--train-iterative` |
+| `--train-large` | `--train-batched` |
 
 ### Examples
 
 ```bash
 # One-click full experiment
-python3 scripts/graphbrew_experiment.py --full --download-size SMALL
+python3 scripts/graphbrew_experiment.py --full --size small
 
 # Quick test with key algorithms
-python3 scripts/graphbrew_experiment.py --graphs small --key-only
+python3 scripts/graphbrew_experiment.py --size small --quick
 
 # Pre-generate label maps
-python3 scripts/graphbrew_experiment.py --generate-maps --graphs small
+python3 scripts/graphbrew_experiment.py --generate-maps --size small
 
-# Fill ALL weight fields
-python3 scripts/graphbrew_experiment.py --fill-weights --graphs small --max-graphs 5
+# Train: complete pipeline (cache sim, weights, everything)
+python3 scripts/graphbrew_experiment.py --train --size small --max-graphs 5
+
+# Skip download phase (use existing graphs)
+python3 scripts/graphbrew_experiment.py --full --size large --skip-download
 
 # Clean and start fresh
-python3 scripts/graphbrew_experiment.py --clean-all --full --download-size SMALL
+python3 scripts/graphbrew_experiment.py --clean-all --full --size small
 ```
 
 ---

@@ -502,13 +502,13 @@ The easiest way to train is using the unified experiment script:
 
 ```bash
 # One-click: downloads graphs, runs benchmarks, generates weights
-python3 scripts/graphbrew_experiment.py --full --download-size SMALL
+python3 scripts/graphbrew_experiment.py --full --size small
 
 # Or train from existing benchmark/cache results
 python3 scripts/graphbrew_experiment.py --phase weights
 
-# Fill ALL weight fields comprehensively
-python3 scripts/graphbrew_experiment.py --fill-weights --graphs small
+# Complete training pipeline
+python3 scripts/graphbrew_experiment.py --train --size small
 ```
 
 This automatically:
@@ -554,25 +554,25 @@ The most powerful way to train AdaptiveOrder is using the iterative feedback loo
 
 ```bash
 # Basic iterative training (default: 80% accuracy, 10 iterations)
-python3 scripts/graphbrew_experiment.py --train-adaptive --graphs small
+python3 scripts/graphbrew_experiment.py --train-iterative --size small
 
 # Target 90% accuracy with more iterations
-python3 scripts/graphbrew_experiment.py --train-adaptive --target-accuracy 90 --max-iterations 20
+python3 scripts/graphbrew_experiment.py --train-iterative --target-accuracy 90 --max-iterations 20
 
 # Use slower learning rate for fine-tuning
-python3 scripts/graphbrew_experiment.py --train-adaptive --target-accuracy 85 --learning-rate 0.05
+python3 scripts/graphbrew_experiment.py --train-iterative --target-accuracy 85 --learning-rate 0.05
 
 # Large-scale training with batching and multi-benchmark support
-python3 scripts/graphbrew_experiment.py --train-large --graphs medium --batch-size 8 --train-benchmarks pr bfs cc
+python3 scripts/graphbrew_experiment.py --train-batched --size medium --batch-size 8 --train-benchmarks pr bfs cc
 
 # Initialize/upgrade weights with enhanced features before training
 python3 scripts/graphbrew_experiment.py --init-weights
 
-# Fill ALL weight fields (cache impacts, topology features, benchmark weights)
-python3 scripts/graphbrew_experiment.py --fill-weights --graphs small --max-graphs 5
+# Complete training pipeline (cache impacts, topology features, benchmark weights)
+python3 scripts/graphbrew_experiment.py --train --size small --max-graphs 5
 ```
 
-**Note:** Both `--train-adaptive` and `--fill-weights` now use the same type-based weight system (`scripts/weights/active/type_*.json`). Use `--list-runs` to see historical training runs and `--merge-runs` to consolidate weights.
+**Note:** Both `--train-iterative` and `--train` now use the same type-based weight system (`scripts/weights/active/type_*.json`). Use `--list-runs` to see historical training runs and `--merge-runs` to consolidate weights.
 
 ### Training Output
 
@@ -668,13 +668,13 @@ The learning rate controls how aggressive these adjustments are:
 ```bash
 # Recommended training progression:
 # Step 1: Quick training on small graphs
-python3 scripts/graphbrew_experiment.py --train-adaptive --graphs small --target-accuracy 75
+python3 scripts/graphbrew_experiment.py --train-iterative --size small --target-accuracy 75
 
 # Step 2: Fine-tune with medium graphs
-python3 scripts/graphbrew_experiment.py --train-adaptive --graphs medium --target-accuracy 80 --learning-rate 0.05
+python3 scripts/graphbrew_experiment.py --train-iterative --size medium --target-accuracy 80 --learning-rate 0.05
 
 # Step 3: Validate on large graphs
-python3 scripts/graphbrew_experiment.py --brute-force --graphs large
+python3 scripts/graphbrew_experiment.py --brute-force --size large
 ```
 
 ---

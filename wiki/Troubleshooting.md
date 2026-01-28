@@ -376,7 +376,7 @@ cat results/graph_properties_cache.json | python3 -m json.tool | grep -A 10 "you
 cat scripts/weights/active/type_registry.json | python3 -m json.tool
 
 # Re-run Phase 0 to recompute properties
-python3 scripts/graphbrew_experiment.py --fill-weights --graphs small
+python3 scripts/graphbrew_experiment.py --train --size small
 ```
 
 **Auto-clustering system:**
@@ -392,7 +392,7 @@ Uses 9 features and Euclidean distance to match graphs to the nearest cluster ce
 
 ### Per-type weight files not generated
 
-Ensure `--fill-weights` completes all phases:
+Ensure `--train` completes all phases:
 
 ```bash
 # Check Phase 7 ran

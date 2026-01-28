@@ -25,13 +25,13 @@ The unified experiment script handles all correlation analysis:
 
 ```bash
 # Run full pipeline (includes correlation analysis)
-python3 scripts/graphbrew_experiment.py --full --download-size SMALL
+python3 scripts/graphbrew_experiment.py --full --size small
 
-# Train weights with adaptive analysis
-python3 scripts/graphbrew_experiment.py --fill-weights --download-size SMALL
+# Train weights with complete pipeline
+python3 scripts/graphbrew_experiment.py --train --size small
 
 # Phase-based: run only weights generation
-python3 scripts/graphbrew_experiment.py --phase weights --graphs small
+python3 scripts/graphbrew_experiment.py --phase weights --size small
 ```
 
 ---
@@ -182,22 +182,22 @@ python3 scripts/graphbrew_experiment.py [options]
 
 #### Quick Test
 ```bash
-python3 scripts/graphbrew_experiment.py --full --download-size SMALL --skip-cache
+python3 scripts/graphbrew_experiment.py --full --size small --skip-cache
 ```
 
 #### Full Analysis
 ```bash
 # Download and run complete analysis
-python3 scripts/graphbrew_experiment.py --full --download-size MEDIUM
+python3 scripts/graphbrew_experiment.py --full --size medium
 
 # Or run phases separately
-python3 scripts/graphbrew_experiment.py --phase benchmark --graphs medium
+python3 scripts/graphbrew_experiment.py --phase benchmark --size medium
 python3 scripts/graphbrew_experiment.py --phase weights
 ```
 
 #### Comprehensive Weight Training
 ```bash
-python3 scripts/graphbrew_experiment.py --fill-weights --download-size ALL --auto-memory
+python3 scripts/graphbrew_experiment.py --train --size all --auto
     --no-benchmark \
     --output new_weights.json
 ```
@@ -359,16 +359,16 @@ log_edges         -0.31  0.21   -0.15  0.28    0.38
 3. **Changed target benchmarks** (pr vs bfs vs sssp)
 4. **Noticed poor predictions** in production
 
-### Using --fill-weights for Comprehensive Updates
+### Using --train for Comprehensive Updates
 
-If many weight fields are 0 or default 1.0, use the unified fill mode:
+If many weight fields are 0 or default 1.0, use the training mode:
 
 ```bash
-# Fill ALL weight fields including cache impacts, topology features, and per-graph-type weights
+# Complete training: cache impacts, topology features, and per-graph-type weights
 python3 scripts/graphbrew_experiment.py \
-    --fill-weights \
-    --download-size MEDIUM \
-    --auto-memory
+    --train \
+    --size medium \
+    --auto
 ```
 
 This runs phases sequentially:
@@ -408,7 +408,7 @@ After each weight update, the system automatically:
 ```bash
 # Regenerate from scratch
 rm -rf scripts/weights/active/type_*.json scripts/weights/active/type_registry.json
-python3 scripts/graphbrew_experiment.py --fill-weights --download-size SMALL
+python3 scripts/graphbrew_experiment.py --train --size small
 ```
 
 ---

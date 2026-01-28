@@ -94,8 +94,8 @@ git clone https://github.com/UVA-LavaLab/GraphBrew.git
 cd GraphBrew
 
 # Full training with ALL graphs, all algorithm variants, 5 trials
-python3 scripts/graphbrew_experiment.py --fill-weights --expand-variants \
-    --download-size ALL --min-edges 100000 --auto-memory --auto-disk --trials 5
+python3 scripts/graphbrew_experiment.py --train --all-variants \
+    --size all --min-edges 100000 --auto --trials 5
 ```
 
 This single command will:
@@ -113,38 +113,42 @@ All results are saved to `./results/` with per-type weights synced to `./scripts
 
 | Parameter | Description |
 |-----------|-------------|
-| `--fill-weights` | Run comprehensive weight training pipeline |
-| `--expand-variants` | Include all Leiden algorithm variants |
-| `--download-size SIZE` | Which graphs: `SMALL`, `MEDIUM`, `LARGE`, `XLARGE`, `ALL` |
+| `--train` | Train perceptron weights (runs complete pipeline) |
+| `--all-variants` | Test ALL algorithm variants (Leiden, RabbitOrder) |
+| `--size SIZE` | Graph size category: `small`, `medium`, `large`, `xlarge`, `all` |
 | `--min-edges N` | Skip graphs with fewer than N edges (reduces noise) |
-| `--auto-memory` | Auto-detect RAM, skip graphs that won't fit |
-| `--auto-disk` | Auto-detect disk space, limit downloads accordingly |
+| `--auto` | Auto-detect RAM and disk space limits |
 | `--trials N` | Number of benchmark trials (default: 2, recommended: 5) |
+| `--skip-download` | Skip graph download phase (use existing graphs) |
+| `--quick` | Quick mode: test only key algorithms (faster) |
 
 ### Training by Scale
 
 ```bash
-# Quick test (~10 min): SMALL graphs
-python3 scripts/graphbrew_experiment.py --fill-weights --expand-variants \
-    --download-size SMALL --min-edges 50000 --auto-memory --auto-disk --trials 3
+# Quick test (~10 min): small graphs
+python3 scripts/graphbrew_experiment.py --train --all-variants \
+    --size small --min-edges 50000 --auto --trials 3
 
-# Standard training (~1 hour): MEDIUM graphs  
-python3 scripts/graphbrew_experiment.py --fill-weights --expand-variants \
-    --download-size MEDIUM --min-edges 100000 --auto-memory --auto-disk --trials 5
+# Standard training (~1 hour): medium graphs  
+python3 scripts/graphbrew_experiment.py --train --all-variants \
+    --size medium --min-edges 100000 --auto --trials 5
 
-# Full training (~4-8 hours): ALL graphs
-python3 scripts/graphbrew_experiment.py --fill-weights --expand-variants \
-    --download-size ALL --min-edges 100000 --auto-memory --auto-disk --trials 5
+# Full training (~4-8 hours): all graphs
+python3 scripts/graphbrew_experiment.py --train --all-variants \
+    --size all --min-edges 100000 --auto --trials 5
 ```
 
 ### More Options
 
 ```bash
 # Download graphs only
-python3 scripts/graphbrew_experiment.py --download-only --download-size MEDIUM
+python3 scripts/graphbrew_experiment.py --download-only --size medium
 
-# Run full pipeline (alternative to fill-weights)
-python3 scripts/graphbrew_experiment.py --full --download-size SMALL --auto-memory --auto-disk
+# Run full pipeline (end-to-end evaluation)
+python3 scripts/graphbrew_experiment.py --full --size small --auto
+
+# Skip download phase (use existing graphs)
+python3 scripts/graphbrew_experiment.py --full --size large --skip-download
 
 # Run brute-force validation (test adaptive vs all algorithms)
 python3 scripts/graphbrew_experiment.py --brute-force
@@ -404,13 +408,13 @@ The unified experiment script includes comprehensive cache analysis:
 
 ```bash
 # One-click: includes cache simulation
-python3 scripts/graphbrew_experiment.py --full --download-size SMALL
+python3 scripts/graphbrew_experiment.py --full --size small
 
 # Cache simulation only
-python3 scripts/graphbrew_experiment.py --phase cache --graphs small
+python3 scripts/graphbrew_experiment.py --phase cache --size small
 
-# Skip heavy simulations (BC, SSSP) on large graphs
-python3 scripts/graphbrew_experiment.py --phase cache --skip-heavy
+# Skip expensive simulations (BC, SSSP) on large graphs
+python3 scripts/graphbrew_experiment.py --phase cache --skip-expensive
 ```
 
 Results are saved to `results/cache_*.json` with L1/L2/L3 hit rates for each graph/algorithm combination.
@@ -463,13 +467,13 @@ make clean && make RABBIT_ENABLE=1 all
 
 ```bash
 # Download MEDIUM graphs (~600MB, good for testing)
-python3 scripts/graphbrew_experiment.py --download-only --download-size MEDIUM
+python3 scripts/graphbrew_experiment.py --download-only --size medium
 
 # Download ALL graphs including LARGE (~72GB, for full experiments)
-python3 scripts/graphbrew_experiment.py --download-only --download-size ALL
+python3 scripts/graphbrew_experiment.py --download-only --size all
 
 # Download with automatic disk limit
-python3 scripts/graphbrew_experiment.py --download-only --download-size ALL --auto-disk
+python3 scripts/graphbrew_experiment.py --download-only --size all --auto
 ```
 
 **Available Graph Sizes:**
@@ -486,22 +490,22 @@ python3 scripts/graphbrew_experiment.py --download-only --download-size ALL --au
 ### Quick Validation (5-10 minutes)
 ```bash
 # One-click full pipeline (recommended)
-python3 scripts/graphbrew_experiment.py --full --download-size SMALL
+python3 scripts/graphbrew_experiment.py --full --size small
 
 # Quick test with key algorithms
-python3 scripts/graphbrew_experiment.py --graphs small --key-only --skip-cache
+python3 scripts/graphbrew_experiment.py --size small --quick --skip-cache
 ```
 
 ### Full Benchmark Suite (several hours)
 ```bash
 # Run all algorithms on all graphs with cache simulation
-python3 scripts/graphbrew_experiment.py --full --download-size MEDIUM
+python3 scripts/graphbrew_experiment.py --full --size medium
 
 # Run with automatic memory/disk filtering
-python3 scripts/graphbrew_experiment.py --full --download-size ALL --auto-memory --auto-disk
+python3 scripts/graphbrew_experiment.py --full --size all --auto
 
 # Or run benchmarks separately from downloads
-python3 scripts/graphbrew_experiment.py --phase benchmark --graphs medium --trials 16
+python3 scripts/graphbrew_experiment.py --phase benchmark --size medium --trials 16
 ```
 
 ### Multi-Source Benchmarks (BFS, SSSP, BC)
@@ -521,7 +525,7 @@ python3 scripts/graphbrew_experiment.py --phase weights
 ### Brute-Force Validation
 ```bash
 # Compare adaptive selection vs all 18 algorithms
-python3 scripts/graphbrew_experiment.py --brute-force --graphs small
+python3 scripts/graphbrew_experiment.py --brute-force --size small
 ```
 
 ### Results Location

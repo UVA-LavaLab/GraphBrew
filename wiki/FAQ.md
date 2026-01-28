@@ -209,9 +209,9 @@ Weight fields remain at 0 or default 1.0 when:
 2. **Graph features weren't computed** - no topology metrics
 3. **No benchmark data** - no per-benchmark weights
 
-**Fix**: Run the comprehensive fill-weights mode:
+**Fix**: Run the comprehensive training mode:
 ```bash
-python3 scripts/graphbrew_experiment.py --fill-weights --graphs small --max-graphs 5 --trials 2
+python3 scripts/graphbrew_experiment.py --train --size small --max-graphs 5 --trials 2
 ```
 
 This populates all fields including `cache_l1/l2/l3_impact`, `w_clustering_coeff`, `w_diameter`, and `benchmark_weights`.
@@ -243,7 +243,7 @@ The auto-clustering system:
 3. **Stores centroids** in `type_registry.json`
 4. **At runtime**, finds best matching cluster based on feature similarity
 
-Properties are computed during `--fill-weights` Phase 0 and cached in `results/graph_properties_cache.json`.
+Properties are computed during `--train` Phase 0 and cached in `results/graph_properties_cache.json`.
 
 ### What's the difference between LeidenOrder and LeidenCSR?
 

@@ -18,30 +18,27 @@ A comprehensive one-click script that runs the complete GraphBrew experiment wor
 8. Phase 7: Adaptive vs fixed comparison (--adaptive-comparison)
 9. Phase 8: Brute-force validation (--brute-force)
 
-**Weight Training:**
-10. Phase 9: Iterative training with feedback loop (--train-adaptive)
-    - Uses type-based weight system (scripts/weights/active/type_*.json)
-    - Classifies graphs into types, updates per-type weights
-11. Phase 10: Large-scale batched training (--train-large)
-12. Fill-weights: One-pass comprehensive training (--fill-weights)
+**Training Modes:**
+10. Standard training (--train): One-pass pipeline that runs all phases
+11. Iterative training (--train-iterative): Repeatedly adjusts weights until target accuracy
+12. Batched training (--train-batched): Process graphs in batches for large datasets
 
-**Leiden Variant Expansion:**
-    For LeidenCSR (17) and LeidenDendrogram (16), you can expand into separate
-    variant mappings and train variant-specific weights:
+**Algorithm Variant Testing:**
+    For LeidenCSR (17), LeidenDendrogram (16), and RabbitOrder (8), you can test
+    specific variants or all variants:
     
-    # Generate variant-expanded mappings
-    python scripts/graphbrew_experiment.py --generate-maps --expand-variants --graphs small
+    # Test all algorithm variants
+    python scripts/graphbrew_experiment.py --train --all-variants --size small
     
-    # With custom parameters
-    python scripts/graphbrew_experiment.py --generate-maps --expand-variants \\
-        --leiden-resolution 1.0 --leiden-passes 3 \\
-        --leiden-csr-variants gve gveopt fast hubsort
+    # Test specific variants only
+    python scripts/graphbrew_experiment.py --train --csr-variants gve fast --size small
     
-    # Run benchmarks with variant mappings (trains weights for each variant)
-    python scripts/graphbrew_experiment.py --phase benchmark --expand-variants --use-maps
+    # With custom Leiden parameters
+    python scripts/graphbrew_experiment.py --train --all-variants \\
+        --resolution 1.0 --passes 5 --size medium
     
     RabbitOrder (8) variants: csr (default), boost
-    LeidenCSR (17) variants: gve (default), gveopt (cache-optimized), dfs, bfs, hubsort, fast, modularity
+    LeidenCSR (17) variants: gve (default), gveopt, dfs, bfs, hubsort, fast, modularity
     LeidenDendrogram (16) variants: dfs, dfshub, dfssize, bfs, hybrid
 
 All outputs are saved to the results/ directory for clean organization.
@@ -49,16 +46,16 @@ Type-based weights are saved to scripts/weights/active/type_*.json.
 
 Usage:
     python scripts/graphbrew_experiment.py --help
-    python scripts/graphbrew_experiment.py --full                  # Full pipeline from scratch
+    python scripts/graphbrew_experiment.py --full --size small     # Full pipeline with small graphs
+    python scripts/graphbrew_experiment.py --train --size medium   # Train on medium graphs
     python scripts/graphbrew_experiment.py --download-only         # Just download graphs
     python scripts/graphbrew_experiment.py --phase all             # Run all experiment phases
     python scripts/graphbrew_experiment.py --brute-force           # Run brute-force validation
-    python scripts/graphbrew_experiment.py --train-adaptive        # Iterative type-based training
-    python scripts/graphbrew_experiment.py --fill-weights          # One-pass comprehensive training
 
 Quick Start (One-Click):
-    python scripts/graphbrew_experiment.py --full --graphs small   # Full run with small graphs
-    python scripts/graphbrew_experiment.py --fill-weights --auto-memory --auto-disk --graphs all
+    python scripts/graphbrew_experiment.py --full --size small --auto              # Small graphs, auto resources
+    python scripts/graphbrew_experiment.py --full --size large --auto --quick      # Large graphs, quick mode
+    python scripts/graphbrew_experiment.py --train --all-variants --auto --size medium  # Train all variants
 
 Author: GraphBrew Team
 """
@@ -354,8 +351,10 @@ def expand_algorithms_with_variants(
         
         if algo_id == 17 and expand_leiden_variants:
             # LeidenCSR: expand into variants
+            # Format: 17:variant:resolution:max_iterations:max_passes
             for variant in leiden_csr_variants:
-                option_str = f"{algo_id}:{leiden_resolution}:{leiden_passes}:{variant}"
+                max_iterations = 20  # Default iterations
+                option_str = f"{algo_id}:{variant}:{leiden_resolution}:{max_iterations}:{leiden_passes}"
                 configs.append(AlgorithmConfig(
                     algo_id=algo_id,
                     name=f"LeidenCSR_{variant}",
@@ -366,8 +365,9 @@ def expand_algorithms_with_variants(
                 ))
         elif algo_id == 16 and expand_leiden_variants:
             # LeidenDendrogram: expand into variants
+            # Format: 16:variant:resolution
             for variant in leiden_dendrogram_variants:
-                option_str = f"{algo_id}:{leiden_resolution}:{variant}"
+                option_str = f"{algo_id}:{variant}:{leiden_resolution}"
                 configs.append(AlgorithmConfig(
                     algo_id=algo_id,
                     name=f"LeidenDendrogram_{variant}",
@@ -1733,7 +1733,7 @@ from scripts.lib.reorder import (
     get_label_map_path,
 )
 from scripts.lib.benchmark import run_benchmark_suite, run_benchmarks_multi_graph
-from scripts.lib.cache import run_cache_simulations
+from scripts.lib.cache import run_cache_simulations, run_cache_simulations_with_variants
 from scripts.lib.analysis import (
     analyze_adaptive_order,
     compare_adaptive_vs_fixed,
@@ -1761,30 +1761,114 @@ def run_benchmarks_with_variants(
     update_weights: bool = True,
     progress: 'ProgressTracker' = None
 ) -> List[BenchmarkResult]:
-    """Run benchmarks with variant-expanded label maps. Delegates to lib/benchmark."""
-    from scripts.lib.benchmark import run_benchmarks_multi_graph
+    """
+    Run benchmarks with variant-expanded label maps.
     
-    # Extract algorithms from label_maps
-    algorithms = set()
+    This iterates directly over the algorithm names in label_maps (which include
+    variant suffixes like LeidenCSR_gve, RABBITORDER_csr) to ensure the results
+    contain the full variant names.
+    
+    When using .lo files (MAP mode), loads reorder_time from the corresponding
+    .time file instead of parsing from benchmark output.
+    """
+    from scripts.lib.benchmark import run_benchmark, check_binary_exists
+    from pathlib import Path
+    
+    def load_reorder_time(label_map_path: str) -> float:
+        """Load reorder time from .time file corresponding to .lo file."""
+        if not label_map_path:
+            return 0.0
+        time_file = Path(label_map_path).with_suffix('.time')
+        if time_file.exists():
+            try:
+                return float(time_file.read_text().strip())
+            except (ValueError, IOError):
+                return 0.0
+        return 0.0
+    
+    results = []
+    
+    # Collect all unique algorithm names from label_maps
+    all_algo_names = set()
     for graph_maps in label_maps.values():
-        for algo_name in graph_maps.keys():
-            # Map algorithm names back to IDs
-            for algo_id, name in ALGORITHMS.items():
-                if name == algo_name or algo_name.startswith(name):
-                    algorithms.add(algo_id)
-                    break
+        all_algo_names.update(graph_maps.keys())
     
-    return run_benchmarks_multi_graph(
-        graphs=graphs,
-        algorithms=list(algorithms),
-        benchmarks=benchmarks,
-        bin_dir=bin_dir,
-        num_trials=num_trials,
-        timeout=timeout,
-        label_maps=label_maps,
-        weights_dir=weights_dir,
-        update_weights=update_weights
-    )
+    # Always include ORIGINAL (algo_id=0) - it doesn't need a label map
+    all_algo_names.add("ORIGINAL")
+    
+    # Sort for consistent ordering (ORIGINAL first, then alphabetically)
+    algo_names_sorted = ["ORIGINAL"] + sorted([n for n in all_algo_names if n != "ORIGINAL"])
+    
+    total_configs = len(graphs) * len(algo_names_sorted) * len(benchmarks)
+    completed = 0
+    
+    for graph in graphs:
+        graph_name = graph.name
+        graph_path = graph.path
+        graph_label_maps = label_maps.get(graph_name, {})
+        
+        if progress:
+            progress.info(f"Benchmarking: {graph_name} ({graph.size_mb:.1f}MB)")
+        
+        for bench in benchmarks:
+            if not check_binary_exists(bench, bin_dir):
+                log.warning(f"Skipping {bench}: binary not found")
+                continue
+            
+            if progress:
+                progress.info(f"  {bench.upper()}:")
+            
+            for algo_name in algo_names_sorted:
+                # Determine algorithm ID from name
+                algo_id = 0
+                for aid, aname in ALGORITHMS.items():
+                    if algo_name == aname or algo_name.startswith(aname + "_"):
+                        algo_id = aid
+                        break
+                
+                # Get label map path for this algorithm (if not ORIGINAL)
+                label_map_path = ""
+                if algo_name == "ORIGINAL":
+                    # ORIGINAL uses algo_id=0, no label map needed
+                    algo_opt = "0"
+                else:
+                    label_map_path = graph_label_maps.get(algo_name, "")
+                    if not label_map_path:
+                        # Skip if no label map for this graph/algorithm combo
+                        continue
+                    # Use MAP mode with label file
+                    algo_opt = f"13:{label_map_path}"
+                
+                result = run_benchmark(
+                    benchmark=bench,
+                    graph_path=graph_path,
+                    algorithm=algo_opt,
+                    trials=num_trials,
+                    timeout=timeout,
+                    bin_dir=bin_dir
+                )
+                
+                # Set the algorithm name to include variant suffix
+                result.algorithm = algo_name
+                result.algorithm_id = algo_id
+                result.graph = graph_name
+                result.nodes = graph.nodes
+                result.edges = graph.edges
+                
+                # Load reorder_time from .time file when using .lo files (MAP mode)
+                if label_map_path:
+                    result.reorder_time = load_reorder_time(label_map_path)
+                
+                results.append(result)
+                completed += 1
+                
+                # Log progress
+                status = "✓" if result.success else "✗"
+                time_str = f"{result.time_seconds:.4f}s" if result.success else result.error[:30]
+                if progress:
+                    progress.info(f"    [{completed}/{total_configs}] {algo_name}: {time_str}")
+    
+    return results
 
 
 def generate_perceptron_weights(
@@ -1873,8 +1957,71 @@ def run_phases(args, graphs: List[GraphInfo], algorithms: List[int]) -> Dict[str
         'label_maps': {},
     }
     
-    # Load existing label maps if requested
-    if getattr(args, "use_maps", False):
+    # ==========================================================================
+    # Load previous results when running individual phases
+    # This allows running phases separately: --phase reorder, then --phase benchmark, etc.
+    # ==========================================================================
+    def load_previous_results():
+        """Load results from previous phase runs."""
+        loaded_any = False
+        
+        # Load label maps (needed for benchmark and cache phases)
+        if args.phase in ["benchmark", "cache"] or getattr(args, "use_maps", False):
+            from scripts.lib.reorder import load_label_maps_index
+            results['label_maps'] = load_label_maps_index(args.results_dir)
+            if results['label_maps']:
+                config.progress.info(f"Loaded label maps for {len(results['label_maps'])} graphs")
+                loaded_any = True
+        
+        # Load reorder results (needed for weights phase)
+        if args.phase in ["weights"]:
+            latest_reorder = max(glob.glob(os.path.join(args.results_dir, "reorder_*.json")), default=None, key=os.path.getmtime)
+            if latest_reorder:
+                try:
+                    with open(latest_reorder) as f:
+                        results['reorder'] = [ReorderResult(**r) for r in json.load(f)]
+                    config.progress.info(f"Loaded {len(results['reorder'])} reorder results from {os.path.basename(latest_reorder)}")
+                    loaded_any = True
+                except Exception as e:
+                    config.progress.warning(f"Failed to load reorder results: {e}")
+        
+        # Load benchmark results (needed for weights phase)
+        if args.phase in ["weights"]:
+            latest_bench = max(glob.glob(os.path.join(args.results_dir, "benchmark_*.json")), default=None, key=os.path.getmtime)
+            if latest_bench:
+                try:
+                    with open(latest_bench) as f:
+                        results['benchmark'] = [BenchmarkResult(**r) for r in json.load(f)]
+                    config.progress.info(f"Loaded {len(results['benchmark'])} benchmark results from {os.path.basename(latest_bench)}")
+                    loaded_any = True
+                except Exception as e:
+                    config.progress.warning(f"Failed to load benchmark results: {e}")
+        
+        # Load cache results (needed for weights phase)
+        if args.phase in ["weights"] and not args.skip_cache:
+            latest_cache = max(glob.glob(os.path.join(args.results_dir, "cache_*.json")), default=None, key=os.path.getmtime)
+            if latest_cache:
+                try:
+                    with open(latest_cache) as f:
+                        results['cache'] = [CacheResult(**r) for r in json.load(f)]
+                    config.progress.info(f"Loaded {len(results['cache'])} cache results from {os.path.basename(latest_cache)}")
+                    loaded_any = True
+                except Exception as e:
+                    config.progress.warning(f"Failed to load cache results: {e}")
+        
+        return loaded_any
+    
+    # Load previous results if running a phase that needs them
+    if args.phase != "all":
+        config.progress.phase_start("LOADING PREVIOUS RESULTS", f"Preparing for --phase {args.phase}")
+        if load_previous_results():
+            config.progress.success("Previous results loaded")
+        else:
+            config.progress.info("No previous results found (this may be the first run)")
+        config.progress.phase_end()
+    
+    # Load existing label maps if explicitly requested
+    if getattr(args, "use_maps", False) and not results['label_maps']:
         config.progress.phase_start("LOADING MAPS", "Loading pre-generated label mappings")
         from scripts.lib.reorder import load_label_maps_index
         results['label_maps'] = load_label_maps_index(args.results_dir)
@@ -2119,16 +2266,56 @@ def run_experiment(args):
     # Phase 1: Reordering
     if args.phase in ["all", "reorder"]:
         _progress.phase_start("REORDERING", "Generating vertex reorderings for all graphs")
-        reorder_results = generate_reorderings(
-            graphs=graphs,
-            algorithms=algorithms,
-            bin_dir=args.bin_dir,
-            output_dir=args.results_dir,
-            timeout=args.timeout_reorder,
-            skip_slow=args.skip_slow,
-            generate_maps=True,  # Always generate .lo mapping files
-            force_reorder=getattr(args, "force_reorder", False)
-        )
+        
+        # Check if variant expansion is requested
+        if getattr(args, "expand_variants", False):
+            _progress.info("Leiden/RabbitOrder variant expansion: ENABLED")
+            
+            # Use variant-aware reordering
+            variant_label_maps, reorder_results = generate_reorderings_with_variants(
+                graphs=graphs,
+                algorithms=algorithms,
+                bin_dir=args.bin_dir,
+                output_dir=args.results_dir,
+                expand_leiden_variants=True,
+                leiden_resolution=getattr(args, "leiden_resolution", LEIDEN_DEFAULT_RESOLUTION),
+                leiden_passes=getattr(args, "leiden_passes", LEIDEN_DEFAULT_PASSES),
+                leiden_csr_variants=getattr(args, "leiden_csr_variants", None),
+                leiden_dendrogram_variants=getattr(args, "leiden_dendrogram_variants", None),
+                rabbit_variants=getattr(args, "rabbit_variants", None),
+                timeout=args.timeout_reorder,
+                skip_slow=args.skip_slow,
+                force_reorder=getattr(args, "force_reorder", False)
+            )
+            
+            # Merge variant label maps into main label_maps
+            for graph_name, algo_maps in variant_label_maps.items():
+                if graph_name not in label_maps:
+                    label_maps[graph_name] = {}
+                label_maps[graph_name].update(algo_maps)
+        else:
+            # Standard reordering (no variant expansion)
+            reorder_results = generate_reorderings(
+                graphs=graphs,
+                algorithms=algorithms,
+                bin_dir=args.bin_dir,
+                output_dir=args.results_dir,
+                timeout=args.timeout_reorder,
+                skip_slow=args.skip_slow,
+                generate_maps=True,  # Always generate .lo mapping files
+                force_reorder=getattr(args, "force_reorder", False)
+            )
+            
+            # Build label_maps from successful reorder results if not already populated
+            if not label_maps:
+                for r in reorder_results:
+                    if r.success and r.mapping_file:
+                        if r.graph not in label_maps:
+                            label_maps[r.graph] = {}
+                        label_maps[r.graph][r.algorithm_name] = r.mapping_file
+                if label_maps:
+                    _progress.info(f"Built label_maps for {len(label_maps)} graphs from reorder results")
+        
         all_reorder_results.extend(reorder_results)
         
         # Save intermediate results
@@ -2136,17 +2323,6 @@ def run_experiment(args):
         with open(reorder_file, 'w') as f:
             json.dump([asdict(r) for r in reorder_results], f, indent=2)
         _progress.success(f"Reorder results saved to: {reorder_file}")
-        
-        # Build label_maps from successful reorder results if not already populated
-        if not label_maps:
-            label_maps = {}
-            for r in reorder_results:
-                if r.success and r.mapping_file:
-                    if r.graph not in label_maps:
-                        label_maps[r.graph] = {}
-                    label_maps[r.graph][r.algorithm_name] = r.mapping_file
-            if label_maps:
-                _progress.info(f"Built label_maps for {len(label_maps)} graphs from reorder results")
         
         _progress.phase_end(f"Generated {len(reorder_results)} reorderings")
     
@@ -2210,15 +2386,34 @@ def run_experiment(args):
     # Phase 3: Cache Simulations
     if args.phase in ["all", "cache"] and not args.skip_cache:
         _progress.phase_start("CACHE SIMULATION", "Running cache miss simulations")
-        cache_results = run_cache_simulations(
-            graphs=graphs,
-            algorithms=algorithms,
-            benchmarks=args.benchmarks,
-            bin_sim_dir=args.bin_sim_dir,
-            timeout=args.timeout_sim,
-            skip_heavy=args.skip_heavy,
-            label_maps=label_maps
-        )
+        
+        # Check if we have variant-expanded label maps
+        has_variant_maps = (label_maps and 
+                           any('_' in algo_name for g in label_maps.values() for algo_name in g.keys()))
+        
+        if has_variant_maps and getattr(args, "expand_variants", False):
+            # Use variant-aware cache simulation
+            _progress.info("Mode: Variant-aware cache simulation (LeidenCSR_fast, LeidenCSR_hubsort, etc.)")
+            cache_results = run_cache_simulations_with_variants(
+                graphs=graphs,
+                label_maps=label_maps,
+                benchmarks=args.benchmarks,
+                bin_sim_dir=args.bin_sim_dir,
+                timeout=args.timeout_sim,
+                skip_heavy=args.skip_heavy
+            )
+        else:
+            # Standard cache simulation
+            _progress.info("Mode: Standard cache simulation")
+            cache_results = run_cache_simulations(
+                graphs=graphs,
+                algorithms=algorithms,
+                benchmarks=args.benchmarks,
+                bin_sim_dir=args.bin_sim_dir,
+                timeout=args.timeout_sim,
+                skip_heavy=args.skip_heavy,
+                label_maps=label_maps
+            )
         all_cache_results.extend(cache_results)
         
         # Save intermediate results
@@ -2230,11 +2425,19 @@ def run_experiment(args):
     # Phase 4: Generate Weights
     if args.phase in ["all", "weights"]:
         # Load previous results if not running full pipeline
+        # Note: Multiple Result classes exist with different field names.
+        # - utils.py: BenchmarkResult (algorithm, time_seconds)
+        # - reorder.py: ReorderResult (reorder_time)
+        # - types.py: ReorderResult (time_seconds), BenchmarkResult (algorithm_name, avg_time)
+        # The JSON files are saved using the working versions (utils/reorder), so we import those
+        
         if not all_benchmark_results:
             latest_bench = max(glob.glob(os.path.join(args.results_dir, "benchmark_*.json")), default=None)
             if latest_bench:
                 with open(latest_bench) as f:
-                    all_benchmark_results = [BenchmarkResult(**r) for r in json.load(f)]
+                    raw_results = json.load(f)
+                    from scripts.lib.utils import BenchmarkResult as UtilsBenchmarkResult
+                    all_benchmark_results = [UtilsBenchmarkResult(**r) for r in raw_results]
         
         if not all_cache_results and not args.skip_cache:
             latest_cache = max(glob.glob(os.path.join(args.results_dir, "cache_*.json")), default=None)
@@ -2246,24 +2449,28 @@ def run_experiment(args):
             latest_reorder = max(glob.glob(os.path.join(args.results_dir, "reorder_*.json")), default=None)
             if latest_reorder:
                 with open(latest_reorder) as f:
-                    all_reorder_results = [ReorderResult(**r) for r in json.load(f)]
+                    # Use reorder.py version which has 'reorder_time' field
+                    from scripts.lib.reorder import ReorderResult as ReorderReorderResult
+                    all_reorder_results = [ReorderReorderResult(**r) for r in json.load(f)]
         
         if all_benchmark_results:
+            _progress.phase_start("WEIGHTS", "Generating perceptron weights")
             generate_perceptron_weights(
                 benchmark_results=all_benchmark_results,
                 cache_results=all_cache_results,
                 reorder_results=all_reorder_results,
-                output_file=args.weights_file
+                output_file=args.weights_file  # Deprecated, but kept for compatibility
             )
             
             # Update zero weights with comprehensive analysis
             update_zero_weights(
-                weights_file=args.weights_file,
+                weights_file=args.weights_file,  # Deprecated, but kept for compatibility
                 benchmark_results=all_benchmark_results,
                 cache_results=all_cache_results,
                 reorder_results=all_reorder_results,
                 graphs_dir=args.graphs_dir
             )
+            _progress.phase_end("Weights saved to scripts/weights/active/type_0.json")
     
     # Phase 6: Adaptive Order Analysis
     if args.phase in ["all", "adaptive"] or getattr(args, "adaptive_analysis", False):
@@ -2679,45 +2886,72 @@ def main():
         description="GraphBrew Unified Experiment Pipeline",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
-Examples:
-  # ONE-CLICK: Download graphs, build, run full experiment pipeline
-  python scripts/graphbrew_experiment.py --full --download-size SMALL
-  
-  # Download graphs only
-  python scripts/graphbrew_experiment.py --download-only --download-size MEDIUM
-  
-  # Run full experiment on all graphs
-  python scripts/graphbrew_experiment.py --phase all
-  
-  # Quick test on small graphs
-  python scripts/graphbrew_experiment.py --graphs small --key-only
-  
-  # Only run benchmarks (skip cache simulation)
-  python scripts/graphbrew_experiment.py --phase benchmark --skip-cache
-  
-  # Generate weights from existing results
+=== EVALUATION MODES ===
+
+  # REORDER EVALUATION: Test reordering algorithms only (no graph algorithm benchmarks)
+  python scripts/graphbrew_experiment.py --phase reorder --size small
+
+  # BENCHMARK EVALUATION: Run graph algorithm benchmarks (BFS, PR, CC, etc.)
+  python scripts/graphbrew_experiment.py --phase benchmark --size small --skip-cache
+
+  # END-TO-END EVALUATION: Full pipeline without weight training
+  python scripts/graphbrew_experiment.py --full --size small --auto
+
+  # VALIDATION: Compare AdaptiveOrder vs all fixed algorithms
+  python scripts/graphbrew_experiment.py --brute-force --validation-benchmark pr --size small
+
+=== TRAINING MODES ===
+
+  # TRAIN: Complete training pipeline (reorder → benchmark → cache sim → weights)
+  python scripts/graphbrew_experiment.py --train --size small --auto
+
+  # TRAIN ITERATIVE: Repeatedly adjust weights until target accuracy
+  python scripts/graphbrew_experiment.py --train-iterative --target-accuracy 90 --size small
+
+  # TRAIN BATCHED: Process graphs in batches for large datasets
+  python scripts/graphbrew_experiment.py --train-batched --size medium --batch-size 8
+
+=== QUICK START ===
+
+  # ONE-CLICK: Download, build, run full experiment
+  python scripts/graphbrew_experiment.py --full --size small --auto
+
+  # QUICK TEST: Key algorithms only (faster)
+  python scripts/graphbrew_experiment.py --full --size small --quick --auto
+
+  # ALL VARIANTS: Test all algorithm variants
+  python scripts/graphbrew_experiment.py --train --all-variants --size small
+
+=== RUN PHASES SEPARATELY ===
+
+  # Phase 1: Reordering only (generates .lo label maps)
+  python scripts/graphbrew_experiment.py --phase reorder --size small
+
+  # Phase 2: Benchmarking only (uses .lo maps from Phase 1)
+  python scripts/graphbrew_experiment.py --phase benchmark --size small
+
+  # Phase 3: Cache simulation only (uses .lo maps from Phase 1)
+  python scripts/graphbrew_experiment.py --phase cache --size small
+
+  # Phase 4: Generate weights (loads benchmark + cache results from files)
   python scripts/graphbrew_experiment.py --phase weights
-  
-  # Custom graph size range
-  python scripts/graphbrew_experiment.py --min-size 100 --max-size 1000
-  
-  # Run adaptive order analysis
-  python scripts/graphbrew_experiment.py --phase adaptive
-  
-  # Compare adaptive vs fixed algorithms
-  python scripts/graphbrew_experiment.py --adaptive-comparison
-  
-  # Run brute-force validation experiment
-  python scripts/graphbrew_experiment.py --brute-force --graphs small
-  
-  # Pre-generate label maps and record reorder times
-  python scripts/graphbrew_experiment.py --generate-maps --graphs small
-  
-  # Iterative training to reach 90% accuracy
-  python scripts/graphbrew_experiment.py --train-adaptive --target-accuracy 90 --graphs small
-  
-  # Full training pipeline with custom learning rate
-  python scripts/graphbrew_experiment.py --train-adaptive --target-accuracy 85 --max-iterations 15 --learning-rate 0.05
+
+  # Run phases sequentially (no --train needed)
+  python scripts/graphbrew_experiment.py --phase reorder --size small && \\
+  python scripts/graphbrew_experiment.py --phase benchmark --size small && \\
+  python scripts/graphbrew_experiment.py --phase cache --size small && \\
+  python scripts/graphbrew_experiment.py --phase weights
+
+=== UTILITY COMMANDS ===
+
+  # Download graphs only
+  python scripts/graphbrew_experiment.py --download-only --size medium
+
+  # Pre-generate label maps for consistent reordering
+  python scripts/graphbrew_experiment.py --precompute --size small
+
+  # Clean and start fresh
+  python scripts/graphbrew_experiment.py --clean-all
         """
     )
     
@@ -2734,22 +2968,40 @@ Examples:
                         help="Run complete pipeline: download, build, experiment, weights")
     parser.add_argument("--download-only", action="store_true",
                         help="Only download graphs (no experiments)")
+    
+    # Unified size parameter (user-friendly)
+    parser.add_argument("--size", choices=["small", "medium", "large", "xlarge", "all"],
+                        default=None, 
+                        help="Graph size category - controls both download and filtering. "
+                             "small=<50MB, medium=50-500MB, large=500MB-2GB, xlarge=>2GB, all=everything")
+    
+    # Legacy parameter (kept for backwards compatibility)
     parser.add_argument("--download-size", choices=["SMALL", "MEDIUM", "LARGE", "XLARGE", "ALL"],
-                        default="SMALL", help="Size category of graphs to download")
+                        default=None, help="[DEPRECATED: use --size instead] Size category of graphs to download")
+    
     parser.add_argument("--force-download", action="store_true",
                         help="Re-download graphs even if they exist")
     parser.add_argument("--skip-build", action="store_true",
                         help="Skip build check (assume binaries exist)")
+    parser.add_argument("--skip-download", action="store_true",
+                        help="Skip graph download phase (use existing graphs only)")
+    
+    # Resource limits
     parser.add_argument("--max-memory", type=float, default=None,
                         help="Maximum RAM (GB) for graph processing. Auto-detects available memory if not set. "
                              "Graphs requiring more memory are automatically skipped.")
-    parser.add_argument("--auto-memory", action="store_true",
-                        help="Automatically skip graphs that won't fit in available system RAM")
     parser.add_argument("--max-disk", type=float, default=None,
                         help="Maximum disk space (GB) for graph downloads. Graphs are skipped if total "
                              "download size would exceed this limit.")
+    
+    # Auto resource detection (user-friendly combined flag)
+    parser.add_argument("--auto", action="store_true",
+                        help="Automatically detect memory and disk limits (combines --auto-memory and --auto-disk)")
+    parser.add_argument("--auto-memory", action="store_true",
+                        help="Automatically skip graphs that won't fit in available system RAM")
     parser.add_argument("--auto-disk", action="store_true",
                         help="Automatically limit downloads to available disk space (uses 80%% of free space)")
+    
     parser.add_argument("--min-edges", type=int, default=0,
                         help="Minimum number of edges for graph inclusion. Graphs with fewer edges are skipped. "
                              f"Recommended: {MIN_EDGES_FOR_TRAINING:,} for weight training to avoid noise.")
@@ -2758,23 +3010,24 @@ Examples:
     parser.add_argument("--phase", choices=["all", "reorder", "benchmark", "cache", "weights", "adaptive"],
                         default="all", help="Which phase(s) to run")
     
-    # Graph selection
+    # Graph selection (kept for backwards compatibility, use --size instead)
     parser.add_argument("--graphs", choices=["all", "small", "medium", "large", "custom"],
-                        default="all", help="Graph size category")
+                        default=None, help="[DEPRECATED: use --size instead] Graph size category filter")
     parser.add_argument("--graphs-dir", default=DEFAULT_GRAPHS_DIR,
                         help="Directory containing graph datasets")
-    parser.add_argument("--min-size", type=float, default=0,
-                        help="Minimum graph size in MB")
-    parser.add_argument("--max-size", type=float, default=float('inf'),
-                        help="Maximum graph size in MB")
+    parser.add_argument("--min-mb", type=float, default=0, dest="min_size",
+                        help="Minimum graph file size in MB (for custom filtering)")
+    parser.add_argument("--max-mb", type=float, default=float('inf'), dest="max_size",
+                        help="Maximum graph file size in MB (for custom filtering)")
     parser.add_argument("--max-graphs", type=int, default=None,
                         help="Maximum number of graphs to test")
     
     # Algorithm selection
-    parser.add_argument("--key-only", action="store_true",
-                        help="Only test key algorithms (faster)")
+    parser.add_argument("--quick", action="store_true", dest="key_only",
+                        help="Quick mode: test only key algorithms (Original, Random, HubClusterDBG, "
+                             "RabbitOrder, Gorder, RCM, Leiden, LeidenDendrogram, LeidenCSR)")
     parser.add_argument("--skip-slow", action="store_true",
-                        help="Skip slow algorithms on large graphs")
+                        help="Skip slow algorithms (Gorder, Corder, RCM) on large graphs")
     
     # Benchmark selection
     parser.add_argument("--benchmarks", nargs="+", default=BENCHMARKS,
@@ -2794,9 +3047,9 @@ Examples:
     
     # Skip options
     parser.add_argument("--skip-cache", action="store_true",
-                        help="Skip cache simulations")
-    parser.add_argument("--skip-heavy", action="store_true",
-                        help="Skip heavy simulations (BC, SSSP) on large graphs")
+                        help="Skip cache simulations (saves time, loses cache analysis data)")
+    parser.add_argument("--skip-expensive", action="store_true", dest="skip_heavy",
+                        help="Skip expensive benchmarks (BC, SSSP) on large graphs (>100MB)")
     
     # Timeouts
     parser.add_argument("--timeout-reorder", type=int, default=TIMEOUT_REORDER,
@@ -2812,46 +3065,50 @@ Examples:
     parser.add_argument("--adaptive-comparison", action="store_true",
                         help="Compare adaptive vs fixed algorithm performance")
     
-    # Label map options
+    # Label map options (for consistent, reproducible reorderings)
+    parser.add_argument("--precompute", action="store_true",
+                        help="Pre-generate and use label maps for consistent reordering (combines --generate-maps --use-maps)")
     parser.add_argument("--generate-maps", action="store_true",
-                        help="Pre-generate label.map files for consistent reordering")
+                        help="Pre-generate .lo label map files for each algorithm")
     parser.add_argument("--use-maps", action="store_true",
-                        help="Use pre-generated label maps instead of regenerating reorderings")
+                        help="Use pre-generated label maps (faster, reproducible results)")
     parser.add_argument("--force-reorder", action="store_true",
                         help="Force regeneration of reorderings even if .lo/.time files exist")
     parser.add_argument("--clean-reorder-cache", action="store_true",
                         help="Remove all .lo and .time files to force fresh reordering")
     
     # Leiden variant expansion options
-    parser.add_argument("--expand-variants", action="store_true",
-                        help="Expand Leiden algorithms (16,17) into separate variants (gve, fast, hubsort, etc.)")
-    parser.add_argument("--leiden-resolution", type=float, default=1.0,
-                        help="Resolution parameter for Leiden algorithms (default: 1.0)")
-    parser.add_argument("--leiden-passes", type=int, default=3,
-                        help="Number of passes for LeidenCSR (default: 3)")
-    parser.add_argument("--leiden-csr-variants", nargs="+", 
+    parser.add_argument("--all-variants", action="store_true", dest="expand_variants",
+                        help="Test ALL algorithm variants (Leiden, RabbitOrder) instead of just defaults")
+    parser.add_argument("--csr-variants", nargs="+", dest="leiden_csr_variants",
                         default=None, choices=["gve", "gveopt", "dfs", "bfs", "hubsort", "fast", "modularity"],
-                        help="LeidenCSR variants to include (default: all, gve recommended)")
-    parser.add_argument("--leiden-dendrogram-variants", nargs="+",
+                        help="LeidenCSR variants: gve (default, best quality), gveopt, dfs, bfs, hubsort, fast, modularity")
+    parser.add_argument("--dendrogram-variants", nargs="+", dest="leiden_dendrogram_variants",
                         default=None, choices=["dfs", "dfshub", "dfssize", "bfs", "hybrid"],
-                        help="LeidenDendrogram variants to include (default: all)")
+                        help="LeidenDendrogram variants: dfs, dfshub, dfssize, bfs, hybrid")
     parser.add_argument("--rabbit-variants", nargs="+",
                         default=None, choices=["csr", "boost"],
-                        help="RabbitOrder variants to include (default: csr only, boost requires libboost-graph-dev)")
+                        help="RabbitOrder variants: csr (default, no deps), boost (requires libboost-graph-dev)")
+    parser.add_argument("--resolution", type=float, default=1.0, dest="leiden_resolution",
+                        help="Leiden resolution parameter - higher = more communities (default: 1.0)")
+    parser.add_argument("--passes", type=int, default=3, dest="leiden_passes",
+                        help="LeidenCSR refinement passes - higher = better quality (default: 3)")
     
     # Brute-force validation
     parser.add_argument("--brute-force", action="store_true",
-                        help="Run brute-force validation: test all 20 algorithms vs adaptive choice")
-    parser.add_argument("--bf-benchmark", default="pr",
+                        help="Run brute-force validation: test all algorithms vs AdaptiveOrder choice")
+    parser.add_argument("--validation-benchmark", default="pr", dest="bf_benchmark",
                         help="Benchmark to use for brute-force validation (default: pr)")
     parser.add_argument("--validate-adaptive", action="store_true",
                         help="Validate adaptive algorithm accuracy: compare predicted vs actual best")
     
-    # Iterative training options
-    parser.add_argument("--train-adaptive", action="store_true",
-                        help="Run iterative training loop to optimize adaptive algorithm weights")
-    parser.add_argument("--train-large", action="store_true",
-                        help="Run large-scale training with batching and multi-benchmark support")
+    # Training options
+    parser.add_argument("--train", action="store_true", dest="fill_weights",
+                        help="Train perceptron weights: runs reorder → benchmark → cache sim → compute weights")
+    parser.add_argument("--train-iterative", action="store_true", dest="train_adaptive",
+                        help="Iterative training: repeatedly adjust weights until target accuracy is reached")
+    parser.add_argument("--train-batched", action="store_true", dest="train_large",
+                        help="Batched training: process graphs in batches with multiple benchmarks")
     parser.add_argument("--target-accuracy", type=float, default=80.0,
                         help="Target accuracy %% for iterative training (default: 80)")
     parser.add_argument("--max-iterations", type=int, default=10,
@@ -2859,23 +3116,21 @@ Examples:
     parser.add_argument("--learning-rate", type=float, default=0.1,
                         help="Learning rate for weight adjustments (default: 0.1)")
     parser.add_argument("--batch-size", type=int, default=8,
-                        help="Batch size for large-scale training (default: 8)")
+                        help="Batch size for batched training (default: 8)")
     parser.add_argument("--train-benchmarks", nargs="+", default=['pr', 'bfs', 'cc'],
                         help="Benchmarks to use for multi-benchmark training (default: pr bfs cc)")
     parser.add_argument("--init-weights", action="store_true",
-                        help="Initialize/upgrade weights file with enhanced features")
-    parser.add_argument("--fill-weights", action="store_true",
-                        help="Fill ALL weight fields: runs cache sim, graph features, benchmark analysis")
+                        help="Initialize empty weights file (run once before first training)")
     
     # Type system options
     parser.add_argument("--show-types", action="store_true",
                         help="Show all known graph types and their statistics")
-    parser.add_argument("--no-incremental", action="store_true",
-                        help="Disable incremental weight updates (don't update type weights on-the-fly)")
+    parser.add_argument("--batch-only", action="store_true", dest="no_incremental",
+                        help="Only update weights at end of run (disable per-graph incremental updates)")
     
     # Weight merging options
-    parser.add_argument("--no-merge", action="store_true",
-                        help="Don't auto-merge weights after fill-weights (keep run isolated)")
+    parser.add_argument("--isolate-run", action="store_true", dest="no_merge",
+                        help="Keep this run's weights isolated (don't merge with previous runs)")
     parser.add_argument("--list-runs", action="store_true",
                         help="List all saved weight runs")
     parser.add_argument("--merge-runs", nargs="*", metavar="TIMESTAMP",
@@ -2885,9 +3140,9 @@ Examples:
     parser.add_argument("--use-merged", action="store_true",
                         help="Use merged weights (default after merge)")
     
-    # Legacy weights file (for backward compatibility with old scripts)
-    parser.add_argument("--weights-file", default="./results/perceptron_weights.json",
-                        help="(Intermediate) Temporary file used during fill-weights processing. Final weights saved to scripts/weights/active/")
+    # Legacy weights file (DEPRECATED - weights now saved to scripts/weights/active/type_0.json)
+    parser.add_argument("--weights-file", default=None,
+                        help="(DEPRECATED) Legacy flat file. Weights are now saved to scripts/weights/active/type_0.json for C++ to use.")
     
     # Clean options
     parser.add_argument("--clean", action="store_true",
@@ -2900,6 +3155,47 @@ Examples:
                         help="Automatically setup everything: create directories, build if missing, download graphs if needed")
     
     args = parser.parse_args()
+    
+    # ==========================================================================
+    # Parameter Resolution: Unify related flags
+    # ==========================================================================
+    
+    # Resolve --auto flag (combines --auto-memory and --auto-disk)
+    if args.auto:
+        args.auto_memory = True
+        args.auto_disk = True
+    
+    # Resolve --precompute flag (combines --generate-maps and --use-maps)
+    if args.precompute:
+        args.generate_maps = True
+        args.use_maps = True
+    
+    # Auto-enable --all-variants when specific variant lists are provided
+    if (args.leiden_csr_variants or args.leiden_dendrogram_variants or args.rabbit_variants):
+        if not args.expand_variants:
+            args.expand_variants = True
+            log("Auto-enabling variant expansion (specific variants requested)", "INFO")
+    
+    # Resolve unified --size parameter
+    # Priority: --size > --graphs > --download-size > default (all)
+    if args.size is not None:
+        # New unified --size parameter takes precedence
+        size_lower = args.size.lower()
+        args.graphs = size_lower if size_lower != "xlarge" else "all"
+        args.download_size = args.size.upper()
+        log(f"Using --size {args.size}: graphs={args.graphs}, download={args.download_size}", "INFO")
+    elif args.graphs is not None:
+        # Legacy --graphs parameter
+        args.download_size = args.graphs.upper() if args.download_size is None else args.download_size
+        log(f"Using --graphs {args.graphs} (deprecated, use --size instead)", "INFO")
+    elif args.download_size is not None:
+        # Legacy --download-size parameter
+        args.graphs = args.download_size.lower() if args.download_size != "XLARGE" else "all"
+        log(f"Using --download-size {args.download_size} (deprecated, use --size instead)", "INFO")
+    else:
+        # Default: all graphs
+        args.graphs = "all"
+        args.download_size = "SMALL"  # Conservative default for downloads
     
     # Handle dependency management (before anything else)
     if args.check_deps or args.install_deps or args.install_boost:
@@ -3129,19 +3425,23 @@ Examples:
             log("="*60, "INFO")
             log("GRAPHBREW ONE-CLICK EXPERIMENT PIPELINE", "INFO")
             log("="*60, "INFO")
+            log(f"Configuration: size={args.download_size}, graphs={args.graphs}", "INFO")
             
-            # Step 1: Download graphs
-            downloaded = download_graphs(
-                size_category=args.download_size,
-                graphs_dir=args.graphs_dir,
-                force=args.force_download,
-                max_memory_gb=args.max_memory,
-                max_disk_gb=args.max_disk
-            )
-            
-            if not downloaded:
-                log("No graphs downloaded - aborting", "ERROR")
-                sys.exit(1)
+            # Step 1: Download graphs (unless --skip-download is set)
+            if not args.skip_download:
+                downloaded = download_graphs(
+                    size_category=args.download_size,
+                    graphs_dir=args.graphs_dir,
+                    force=args.force_download,
+                    max_memory_gb=args.max_memory,
+                    max_disk_gb=args.max_disk
+                )
+                
+                if not downloaded:
+                    log("No graphs downloaded - aborting", "ERROR")
+                    sys.exit(1)
+            else:
+                log("Skipping download (--skip-download), using existing graphs", "INFO")
             
             # Step 2: Build binaries
             if not args.skip_build:
@@ -3153,22 +3453,10 @@ Examples:
             args.generate_maps = True
             args.use_maps = True
             
-            # Step 4: Run experiment (adjust graphs setting based on download size)
+            # Step 4: Run experiment
             log("\nStarting experiments...", "INFO")
-            
-            # Set graph size range based on download category
-            if args.download_size == "SMALL":
-                args.graphs = "small"
-                args.max_size = 50
-            elif args.download_size == "MEDIUM":
-                args.graphs = "medium"
-                args.max_size = 200
-            elif args.download_size == "LARGE":
-                args.graphs = "large"
-            elif args.download_size == "XLARGE":
-                args.graphs = "all"
-            else:
-                args.graphs = "all"
+            # Note: args.graphs and args.download_size are already synchronized
+            # by the parameter resolution at the top of main()
         
         run_experiment(args)
         

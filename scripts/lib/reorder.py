@@ -96,6 +96,39 @@ class GraphInfo:
     edges: int = 0
 
 
+def get_algorithm_name_with_variant(algo_id: int, variant: str = None) -> str:
+    """
+    Get algorithm name with variant suffix for algorithms that have variants.
+    
+    ALWAYS includes variant in name for:
+    - RABBITORDER: RABBITORDER_csr or RABBITORDER_boost
+    - LeidenCSR (17): LeidenCSR_gve, LeidenCSR_fast, etc.
+    - LeidenDendrogram (16): LeidenDendrogram_mod, LeidenDendrogram_cpm, etc.
+    
+    For other algorithms, returns the base name.
+    
+    Args:
+        algo_id: Algorithm ID
+        variant: Variant name (optional, uses default if not provided)
+        
+    Returns:
+        Algorithm name with variant suffix where applicable
+    """
+    base_name = ALGORITHMS.get(algo_id, f"ALGO_{algo_id}")
+    
+    if algo_id == 8:  # RABBITORDER
+        variant = variant or RABBITORDER_DEFAULT_VARIANT
+        return f"RABBITORDER_{variant}"
+    elif algo_id == 17:  # LeidenCSR
+        variant = variant or LEIDEN_CSR_VARIANTS[0]  # Default: gve
+        return f"LeidenCSR_{variant}"
+    elif algo_id == 16:  # LeidenDendrogram
+        variant = variant or LEIDEN_DENDROGRAM_VARIANTS[0]  # Default: mod
+        return f"LeidenDendrogram_{variant}"
+    else:
+        return base_name
+
+
 # =============================================================================
 # Algorithm Configuration
 # =============================================================================
@@ -141,8 +174,10 @@ def expand_algorithms_with_variants(
         
         if algo_id == 17 and expand_leiden_variants:
             # LeidenCSR: expand into variants
+            # Format: 17:variant:resolution:iterations:passes
             for variant in leiden_csr_variants:
-                option_str = f"{algo_id}:{leiden_resolution}:{leiden_passes}:{variant}"
+                max_iterations = 20  # Default iterations
+                option_str = f"{algo_id}:{variant}:{leiden_resolution}:{max_iterations}:{leiden_passes}"
                 configs.append(AlgorithmConfig(
                     algo_id=algo_id,
                     name=f"LeidenCSR_{variant}",
@@ -153,8 +188,9 @@ def expand_algorithms_with_variants(
                 ))
         elif algo_id == 16 and expand_leiden_variants:
             # LeidenDendrogram: expand into variants
+            # Format: 16:variant:resolution
             for variant in leiden_dendrogram_variants:
-                option_str = f"{algo_id}:{leiden_resolution}:{variant}"
+                option_str = f"{algo_id}:{variant}:{leiden_resolution}"
                 configs.append(AlgorithmConfig(
                     algo_id=algo_id,
                     name=f"LeidenDendrogram_{variant}",
@@ -173,14 +209,38 @@ def expand_algorithms_with_variants(
                     variant=variant
                 ))
         elif algo_id == 8:
-            # RabbitOrder: use specified variant (default: csr)
+            # RabbitOrder: use specified variant (default: csr) - ALWAYS include variant in name
             variant = rabbit_variants[0] if rabbit_variants else RABBITORDER_DEFAULT_VARIANT
             option_str = f"{algo_id}:{variant}"
             configs.append(AlgorithmConfig(
                 algo_id=algo_id,
-                name=base_name,
+                name=f"RABBITORDER_{variant}",  # Always show variant
                 option_string=option_str,
                 variant=variant
+            ))
+        elif algo_id == 17:
+            # LeidenCSR: use default variant when not expanding - ALWAYS include variant in name
+            variant = leiden_csr_variants[0] if leiden_csr_variants else LEIDEN_CSR_VARIANTS[0]
+            max_iterations = 20
+            option_str = f"{algo_id}:{variant}:{leiden_resolution}:{max_iterations}:{leiden_passes}"
+            configs.append(AlgorithmConfig(
+                algo_id=algo_id,
+                name=f"LeidenCSR_{variant}",  # Always show variant
+                option_string=option_str,
+                variant=variant,
+                resolution=leiden_resolution,
+                passes=leiden_passes
+            ))
+        elif algo_id == 16:
+            # LeidenDendrogram: use default variant when not expanding - ALWAYS include variant in name
+            variant = leiden_dendrogram_variants[0] if leiden_dendrogram_variants else LEIDEN_DENDROGRAM_VARIANTS[0]
+            option_str = f"{algo_id}:{variant}:{leiden_resolution}"
+            configs.append(AlgorithmConfig(
+                algo_id=algo_id,
+                name=f"LeidenDendrogram_{variant}",  # Always show variant
+                option_string=option_str,
+                variant=variant,
+                resolution=leiden_resolution
             ))
         elif algo_id == 15:
             # LeidenOrder: just resolution
@@ -375,7 +435,8 @@ def generate_reorderings(
         
         for algo_id in algorithms:
             current += 1
-            algo_name = ALGORITHMS.get(algo_id, f"ALGO_{algo_id}")
+            # Always include variant in name for algorithms that have variants
+            algo_name = get_algorithm_name_with_variant(algo_id)
             
             # Skip slow algorithms on large graphs if requested
             if skip_slow and algo_id in SLOW_ALGORITHMS and graph.size_mb > SIZE_MEDIUM:
@@ -567,7 +628,8 @@ def generate_label_maps(
         
         for algo_id in algorithms:
             current += 1
-            algo_name = ALGORITHMS.get(algo_id, f"ALGO_{algo_id}")
+            # Always include variant in name for algorithms that have variants
+            algo_name = get_algorithm_name_with_variant(algo_id)
             
             # Skip ORIGINAL (no mapping needed)
             if algo_id == 0:
