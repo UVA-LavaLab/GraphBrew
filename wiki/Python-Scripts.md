@@ -13,7 +13,7 @@ scripts/
 ├── adaptive_emulator.py         # 🔍 C++ AdaptiveOrder logic emulation (Python)
 ├── requirements.txt             # Python dependencies
 │
-├── lib/                         # 📦 Modular library (~12200 lines total)
+├── lib/                         # 📦 Modular library (~13400 lines total)
 │   ├── __init__.py              # Module exports
 │   ├── types.py                 # Data classes (GraphInfo, BenchmarkResult, etc.)
 │   ├── phases.py                # Phase orchestration (run_reorder_phase, etc.)
@@ -29,6 +29,7 @@ scripts/
 │   ├── weight_merger.py         # Cross-run weight consolidation
 │   ├── training.py              # ML weight training
 │   ├── analysis.py              # Adaptive order analysis
+│   ├── graph_data.py            # Per-graph data storage & retrieval
 │   ├── progress.py              # Progress tracking & reporting
 │   └── results.py               # Result file I/O
 │
@@ -131,9 +132,11 @@ python3 scripts/perceptron_experiment.py --interactive
 | `--train` | Train new weights with specified method |
 | `--method METHOD` | Training method: speedup, winrate, rank, hybrid, per_benchmark |
 | `--scale SCALE` | Bias scale factor (default: 1.0) |
+| `--clusters N` | Number of graph clusters for type-based weights (default: 1) |
 | `--benchmark BENCH` | Benchmark to evaluate (default: pr) |
 | `--export` | Export weights to `scripts/weights/active/` |
 | `--interactive` | Enter interactive mode for manual tuning |
+| `--save-results FILE` | Save experiment results to JSON file |
 
 ### Taxonomy Analysis (--analyze)
 
@@ -602,6 +605,81 @@ progress.success("Completed 10/15 graphs")
 progress.phase_end("Reordering complete")
 ```
 
+### lib/graph_data.py - Per-Graph Data Storage
+
+Organized storage and retrieval of per-graph experiment data:
+
+```python
+from scripts.lib.graph_data import (
+    GraphDataStore,
+    list_all_graphs,
+    list_runs_for_graph,
+    get_latest_run,
+)
+
+# Initialize data store
+store = GraphDataStore("results")
+
+# Save features for a graph
+store.save_features("web-Stanford", {
+    "nodes": 281903,
+    "edges": 2312497,
+    "modularity": 0.45,
+    "degree_variance": 1.8,
+})
+
+# Save benchmark result for a run
+store.save_benchmark_result("web-Stanford", run_timestamp, "pr", "HUBCLUSTERDBG", {
+    "avg_time": 0.234,
+    "speedup": 1.45,
+})
+
+# Get all data for a graph
+all_data = store.get_graph_data("web-Stanford")
+
+# List all graphs with data
+graphs = list_all_graphs("results")
+
+# List runs for a specific graph
+runs = list_runs_for_graph("results", "web-Stanford")
+```
+
+**CLI Usage:**
+```bash
+# List all graphs
+python3 -m scripts.lib.graph_data --list-graphs
+
+# Show graph details
+python3 -m scripts.lib.graph_data --show-graph email-Enron
+
+# Export to CSV
+python3 -m scripts.lib.graph_data --export-csv results/all_data.csv
+
+# List runs for a graph
+python3 -m scripts.lib.graph_data --list-runs email-Enron
+
+# Show run details
+python3 -m scripts.lib.graph_data --show-run email-Enron 20260127_145547
+```
+
+### lib/results.py - Result File I/O
+
+Read and write result files:
+
+```python
+from scripts.lib.results import (
+    save_results,
+    load_results,
+    find_latest_results,
+)
+
+# Save results with timestamp
+save_results(benchmark_results, "results", "benchmark")
+
+# Load latest results
+results = find_latest_results("results", "benchmark")
+```
+
 ---
 
 ## Custom Pipeline Example
@@ -691,6 +769,8 @@ scripts/weights/              # Type-based weights
 ```
 
 ### Managing Experiment Runs
+
+Use `graph_data.py` CLI to manage per-graph experiment data:
 
 ```bash
 # List all runs for a graph

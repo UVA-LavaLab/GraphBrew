@@ -20,16 +20,19 @@ GraphBrew/
 │   ├── src_sim/              # Cache simulation sources
 │   └── backups/              # Backup files
 │
-├── scripts/                  # Python tools (~15,300 lines total)
+├── scripts/                  # Python tools (~18,000 lines total)
 │   ├── graphbrew_experiment.py  # ⭐ Main orchestration (~3100 lines)
+│   ├── perceptron_experiment.py # 🧪 ML weight experimentation
+│   ├── adaptive_emulator.py     # 🔍 C++ logic emulation
 │   ├── requirements.txt         # Python dependencies
 │   │
-│   ├── lib/                     # 📦 Core modules (~12,200 lines)
+│   ├── lib/                     # 📦 Core modules (~13,400 lines)
 │   │   ├── __init__.py          # Module exports
 │   │   ├── types.py             # Data classes (GraphInfo, BenchmarkResult, etc.)
 │   │   ├── phases.py            # Phase orchestration
 │   │   ├── utils.py             # ALGORITHMS dict, run_command, constants
 │   │   ├── features.py          # Graph feature computation
+│   │   ├── dependencies.py      # System dependency detection
 │   │   ├── download.py          # Graph downloading
 │   │   ├── build.py             # Binary compilation
 │   │   ├── reorder.py           # Vertex reordering
@@ -39,6 +42,7 @@ GraphBrew/
 │   │   ├── weight_merger.py     # Weight file merging
 │   │   ├── training.py          # ML weight training
 │   │   ├── analysis.py          # Adaptive analysis
+│   │   ├── graph_data.py        # Per-graph data storage
 │   │   ├── progress.py          # Progress tracking
 │   │   └── results.py           # Result I/O
 │   │
