@@ -129,7 +129,7 @@ Level 2:      [SubA2a]  [SubA2b]
 AdaptiveOrder uses automatic clustering to group similar graphs, rather than predefined categories:
 
 **How It Works:**
-1. Extract 9 features per graph: modularity, log_nodes, log_edges, density, avg_degree, degree_variance, hub_concentration, clustering_coefficient, community_count
+1. Extract 7 features per graph: modularity, log_nodes, log_edges, avg_degree, degree_variance, hub_concentration, clustering_coefficient
 2. Cluster similar graphs using k-means-like clustering
 3. Train optimized weights for each cluster
 4. At runtime, find best matching cluster based on Euclidean distance to centroids

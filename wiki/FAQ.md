@@ -238,7 +238,7 @@ scripts/weights/active/
 ### How does graph type matching work?
 
 The auto-clustering system:
-1. **Extracts 9 features** per graph: modularity, log_nodes, log_edges, density, avg_degree, degree_variance, hub_concentration, clustering_coefficient, community_count
+1. **Extracts 7 features** per graph: modularity, log_nodes, log_edges, avg_degree, degree_variance, hub_concentration, clustering_coefficient
 2. **Clusters similar graphs** using Euclidean distance to centroids
 3. **Stores centroids** in `type_registry.json`
 4. **At runtime**, finds best matching cluster based on feature similarity

@@ -380,7 +380,7 @@ python3 scripts/graphbrew_experiment.py --train --size small
 ```
 
 **Auto-clustering system:**
-Uses 9 features and Euclidean distance to match graphs to the nearest cluster centroid.
+Uses 7 features and Euclidean distance to match graphs to the nearest cluster centroid.
 
 | Type | Typical Properties |
 |------|----------|
