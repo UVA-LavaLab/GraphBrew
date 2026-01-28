@@ -52,7 +52,7 @@ This will automatically:
 | Parameter | Description |
 |-----------|-------------|
 | `--all-variants` | Test ALL algorithm variants (Leiden, RabbitOrder) |
-| `--csr-variants LIST` | LeidenCSR variants: gve (default), gveopt, dfs, bfs, hubsort, fast, modularity |
+| `--csr-variants LIST` | LeidenCSR variants: gve (default), gveopt, gverabbit, dfs, bfs, hubsort, fast, modularity |
 | `--dendrogram-variants LIST` | LeidenDendrogram variants: dfs, dfshub, dfssize, bfs, hybrid |
 | `--rabbit-variants LIST` | RabbitOrder variants: csr (default), boost (requires libboost-graph-dev) |
 | `--resolution FLOAT` | Leiden resolution - higher = more communities (default: 1.0) |
@@ -219,7 +219,7 @@ Average Time:        0.001xx
 | 12 | GraphBrewOrder | Per-community reordering |
 | 14 | AdaptiveOrder | Auto-selection for unknown graphs |
 | 15 | LeidenOrder | Social networks |
-| 17 | LeidenCSR | Large complex graphs (variants: gve/gveopt/dfs/bfs/hubsort/fast/modularity, default: gve) |
+| 17 | LeidenCSR | Large complex graphs (variants: gve/gveopt/gverabbit/dfs/bfs/hubsort/fast/modularity, default: gve) |
 
 ---
 

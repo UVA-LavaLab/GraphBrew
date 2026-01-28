@@ -8,12 +8,12 @@ The scripts folder contains a modular library (`lib/`) and orchestration tools:
 
 ```
 scripts/
-├── graphbrew_experiment.py      # ⭐ MAIN: Orchestration script (~3100 lines)
+├── graphbrew_experiment.py      # ⭐ MAIN: Orchestration script (~3500 lines)
 ├── perceptron_experiment.py     # 🧪 ML weight experimentation (without re-running phases)
 ├── adaptive_emulator.py         # 🔍 C++ AdaptiveOrder logic emulation (Python)
 ├── requirements.txt             # Python dependencies
 │
-├── lib/                         # 📦 Modular library (~13400 lines total)
+├── lib/                         # 📦 Modular library (~14300 lines total)
 │   ├── __init__.py              # Module exports
 │   ├── types.py                 # Data classes (GraphInfo, BenchmarkResult, etc.)
 │   ├── phases.py                # Phase orchestration (run_reorder_phase, etc.)

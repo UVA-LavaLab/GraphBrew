@@ -77,7 +77,7 @@ RABBITORDER_DEFAULT_VARIANT = "csr"  # Native CSR (faster, no external deps)
 LEIDEN_DENDROGRAM_VARIANTS = ["dfs", "dfshub", "dfssize", "bfs", "hybrid"]
 # LeidenCSR variants (default: gve for best quality)
 # Format: -o 17:variant:resolution:iterations:passes
-LEIDEN_CSR_VARIANTS = ["gve", "gveopt", "dfs", "bfs", "hubsort", "fast", "modularity"]
+LEIDEN_CSR_VARIANTS = ["gve", "gveopt", "gverabbit", "dfs", "bfs", "hubsort", "fast", "modularity"]
 LEIDEN_CSR_DEFAULT_VARIANT = "gve"  # GVE-Leiden (best modularity quality)
 
 # Leiden default parameters
