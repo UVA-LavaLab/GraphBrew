@@ -21,8 +21,9 @@ using namespace cache_sim;
 
 typedef float ScoreT;
 
+template<typename CacheType>
 void BCBFS_Sim(const Graph &g, NodeID source, 
-               pvector<ScoreT> &scores, CacheHierarchy &cache) {
+               pvector<ScoreT> &scores, CacheType &cache) {
     pvector<int32_t> depths(g.num_nodes(), -1);
     depths[source] = 0;
     
@@ -50,16 +51,16 @@ void BCBFS_Sim(const Graph &g, NodeID source,
         for (auto q_iter = queue.begin(); q_iter < queue.end(); q_iter++) {
             NodeID u = *q_iter;
             // Track depth read
-            CACHE_READ(cache, depths.data(), u);
+            SIM_CACHE_READ(cache, depths.data(), u);
             
             for (NodeID v : g.out_neigh(u)) {
                 // Track depth and path_counts accesses
-                CACHE_READ(cache, depths.data(), v);
-                CACHE_READ(cache, path_counts.data(), v);
+                SIM_CACHE_READ(cache, depths.data(), v);
+                SIM_CACHE_READ(cache, path_counts.data(), v);
                 
                 if (depths[v] == -1 && 
                     compare_and_swap(depths[v], static_cast<int32_t>(-1), depth)) {
-                    CACHE_WRITE(cache, depths.data(), v);
+                    SIM_CACHE_WRITE(cache, depths.data(), v);
                     queue.push_back(v);
                 }
                 
@@ -69,7 +70,7 @@ void BCBFS_Sim(const Graph &g, NodeID source,
                         succ.push_back(v);
                         fetch_and_add(succ_start[u + 1], 1);
                         fetch_and_add(path_counts[v], path_counts[u]);
-                        CACHE_WRITE(cache, path_counts.data(), v);
+                        SIM_CACHE_WRITE(cache, path_counts.data(), v);
                     }
                 }
             }
@@ -90,29 +91,30 @@ void BCBFS_Sim(const Graph &g, NodeID source,
         for (auto it = depth_index[d]; it < depth_index[d + 1]; it++) {
             NodeID u = *it;
             // Track path_counts and deltas reads
-            CACHE_READ(cache, path_counts.data(), u);
-            CACHE_READ(cache, deltas.data(), u);
+            SIM_CACHE_READ(cache, path_counts.data(), u);
+            SIM_CACHE_READ(cache, deltas.data(), u);
             
             ScoreT delta_u = 0;
             for (int64_t i = succ_start[u]; i < succ_start[u + 1]; i++) {
                 NodeID v = succ[i];
                 // Track path_counts and deltas accesses
-                CACHE_READ(cache, path_counts.data(), v);
-                CACHE_READ(cache, deltas.data(), v);
+                SIM_CACHE_READ(cache, path_counts.data(), v);
+                SIM_CACHE_READ(cache, deltas.data(), v);
                 delta_u += static_cast<ScoreT>(path_counts[u]) / 
                            static_cast<ScoreT>(path_counts[v]) * (1 + deltas[v]);
             }
             deltas[u] = delta_u;
-            CACHE_WRITE(cache, deltas.data(), u);
+            SIM_CACHE_WRITE(cache, deltas.data(), u);
             
             #pragma omp atomic
             scores[u] += delta_u;
-            CACHE_WRITE(cache, scores.data(), u);
+            SIM_CACHE_WRITE(cache, scores.data(), u);
         }
     }
 }
 
-pvector<ScoreT> BC_Sim(const Graph &g, int num_iters, CacheHierarchy &cache) {
+template<typename CacheType>
+pvector<ScoreT> BC_Sim(const Graph &g, int num_iters, CacheType &cache) {
     pvector<ScoreT> scores(g.num_nodes(), 0);
     
     SourcePicker<Graph> sp(g);
@@ -155,26 +157,78 @@ int main(int argc, char *argv[]) {
     Builder b(cli);
     Graph g = b.MakeGraph();
     
-    CacheHierarchy cache = CacheHierarchy::fromEnvironment();
+    bool multicore = IsMultiCoreMode();
+    bool fast = IsFastMode();
     
-    auto BCBound = [&cli, &cache](const Graph &g) {
-        return BC_Sim(g, cli.num_iters(), cache);
-    };
-    auto VerifierBound = [&cli](const Graph &g, const pvector<ScoreT> &scores) {
-        return BCVerifier(g, scores, cli.num_iters());
-    };
-    
-    BenchmarkKernel(cli, g, BCBound, PrintBCStats, VerifierBound);
-    
-    cout << endl;
-    cache.printStats();
-    
-    const char* json_file = getenv("CACHE_OUTPUT_JSON");
-    if (json_file) {
-        ofstream ofs(json_file);
-        if (ofs.is_open()) {
-            ofs << cache.toJSON() << endl;
-            ofs.close();
+    if (multicore) {
+        MultiCoreCacheHierarchy cache = MultiCoreCacheHierarchy::fromEnvironment();
+        
+        auto BCBound = [&cli, &cache](const Graph &g) {
+            return BC_Sim(g, cli.num_iters(), cache);
+        };
+        auto VerifierBound = [&cli](const Graph &g, const pvector<ScoreT> &scores) {
+            return BCVerifier(g, scores, cli.num_iters());
+        };
+        
+        BenchmarkKernel(cli, g, BCBound, PrintBCStats, VerifierBound);
+        
+        cout << endl;
+        cache.printStats();
+        
+        const char* json_file = getenv("CACHE_OUTPUT_JSON");
+        if (json_file) {
+            ofstream ofs(json_file);
+            if (ofs.is_open()) {
+                ofs << cache.toJSON() << endl;
+                ofs.close();
+            }
+        }
+    } else if (fast) {
+        // FAST single-core cache simulation (no locks, ~10x faster)
+        FastCacheHierarchy cache = FastCacheHierarchy::fromEnvironment();
+        
+        auto BCBound = [&cli, &cache](const Graph &g) {
+            return BC_Sim(g, cli.num_iters(), cache);
+        };
+        auto VerifierBound = [&cli](const Graph &g, const pvector<ScoreT> &scores) {
+            return BCVerifier(g, scores, cli.num_iters());
+        };
+        
+        BenchmarkKernel(cli, g, BCBound, PrintBCStats, VerifierBound);
+        
+        cout << endl;
+        cache.printStats();
+        
+        const char* json_file = getenv("CACHE_OUTPUT_JSON");
+        if (json_file) {
+            ofstream ofs(json_file);
+            if (ofs.is_open()) {
+                ofs << cache.toJSON() << endl;
+                ofs.close();
+            }
+        }
+    } else {
+        CacheHierarchy cache = CacheHierarchy::fromEnvironment();
+        
+        auto BCBound = [&cli, &cache](const Graph &g) {
+            return BC_Sim(g, cli.num_iters(), cache);
+        };
+        auto VerifierBound = [&cli](const Graph &g, const pvector<ScoreT> &scores) {
+            return BCVerifier(g, scores, cli.num_iters());
+        };
+        
+        BenchmarkKernel(cli, g, BCBound, PrintBCStats, VerifierBound);
+        
+        cout << endl;
+        cache.printStats();
+        
+        const char* json_file = getenv("CACHE_OUTPUT_JSON");
+        if (json_file) {
+            ofstream ofs(json_file);
+            if (ofs.is_open()) {
+                ofs << cache.toJSON() << endl;
+                ofs.close();
+            }
         }
     }
     

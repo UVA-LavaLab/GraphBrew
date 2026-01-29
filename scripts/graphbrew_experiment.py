@@ -283,8 +283,9 @@ RABBITORDER_DEFAULT_VARIANT = "csr"
 LEIDEN_DENDROGRAM_VARIANTS = ["dfs", "dfshub", "dfssize", "bfs", "hybrid"]
 # LeidenCSR variants - gve (GVE-Leiden) is default for best modularity quality
 # gveopt is cache-optimized with prefetching and flat arrays for large graphs
+# gvedendo/gveoptdendo: RabbitOrder-inspired incremental dendrogram building
 # gverabbit is GVE-Rabbit hybrid (fastest, good quality)
-LEIDEN_CSR_VARIANTS = ["gve", "gveopt", "gverabbit", "dfs", "bfs", "hubsort", "modularity"]
+LEIDEN_CSR_VARIANTS = ["gve", "gveopt", "gvedendo", "gveoptdendo", "gverabbit", "dfs", "bfs", "hubsort", "modularity"]
 LEIDEN_CSR_DEFAULT_VARIANT = "gve"
 
 # Default Leiden parameters
@@ -2178,6 +2179,30 @@ def run_experiment(args):
     graphs = discover_graphs(args.graphs_dir, min_size, max_size, max_memory_gb=args.max_memory,
                              min_edges=getattr(args, 'min_edges', 0))
     
+    # Filter by specific graph name(s) if provided
+    if args.graph_list:
+        # Multiple graphs specified
+        graph_names_lower = [n.lower() for n in args.graph_list]
+        filtered = []
+        for g in graphs:
+            if g.name.lower() in graph_names_lower or any(n in g.name.lower() for n in graph_names_lower):
+                filtered.append(g)
+        if not filtered:
+            _progress.error(f"None of the specified graphs found: {args.graph_list}")
+            _progress.phase_end("Graphs not available")
+            return
+        graphs = filtered
+        _progress.info(f"Filtered to {len(graphs)} graphs: {', '.join(g.name for g in graphs)}")
+    elif args.graph_name:
+        # Single graph specified
+        graphs = [g for g in graphs if g.name.lower() == args.graph_name.lower() or 
+                  args.graph_name.lower() in g.name.lower()]
+        if not graphs:
+            _progress.error(f"Graph '{args.graph_name}' not found!")
+            _progress.phase_end("Graph not available")
+            return
+        _progress.info(f"Filtered to graph: {args.graph_name}")
+    
     if args.max_graphs:
         graphs = graphs[:args.max_graphs]
     
@@ -2204,6 +2229,45 @@ def run_experiment(args):
     else:
         algorithms = BENCHMARK_ALGORITHMS
     
+    # Filter by specific algorithm name(s) if provided
+    algo_filter_names = args.algo_list if args.algo_list else ([args.algo_name] if args.algo_name else None)
+    if algo_filter_names:
+        # Build reverse mapping from name to id
+        name_to_id = {v.upper(): k for k, v in ALGORITHMS.items()}
+        # Also add common variants
+        name_to_id.update({
+            "RABBIT": 8, "RABBITORDER_BOOST": 8, "RABBITORDER_CSR": 8,
+            "LEIDEN": 15, "LEIDENORDER": 15,
+            "LEIDENDENDROGRAM": 16, "LEIDEN_DENDROGRAM": 16,
+            "LEIDENCSR": 17, "LEIDEN_CSR": 17, "LEIDENCSR_GVE": 17, "GVE": 17,
+        })
+        
+        filtered_algos = set()
+        filtered_names = []
+        for name in algo_filter_names:
+            name_upper = name.upper().replace("-", "_")
+            if name_upper in name_to_id:
+                filtered_algos.add(name_to_id[name_upper])
+                filtered_names.append(name)
+            else:
+                # Try partial match
+                for algo_name, algo_id in name_to_id.items():
+                    if name_upper in algo_name or algo_name in name_upper:
+                        filtered_algos.add(algo_id)
+                        filtered_names.append(ALGORITHMS.get(algo_id, name))
+                        break
+        
+        if filtered_algos:
+            algorithms = [a for a in algorithms if a in filtered_algos]
+            if not algorithms:
+                # If no overlap with current set, use filtered set directly
+                algorithms = sorted(list(filtered_algos))
+            _progress.info(f"Filtered to {len(algorithms)} algorithms: {', '.join(filtered_names)}")
+        else:
+            _progress.error(f"No matching algorithms found for: {algo_filter_names}")
+            _progress.info(f"Available algorithms: {', '.join(ALGORITHMS.values())}")
+            return
+
     _progress.phase_start("ALGORITHM SELECTION", "Determining which algorithms to test")
     _progress.info(f"Algorithm set: {'KEY (fast subset)' if args.key_only else 'FULL benchmark set'}")
     _progress.info(f"Total algorithms: {len(algorithms)}")
@@ -2410,8 +2474,18 @@ def run_experiment(args):
                 skip_heavy=args.skip_heavy
             )
         else:
-            # Standard cache simulation
+            # Standard cache simulation with variant support
             _progress.info("Mode: Standard cache simulation")
+            
+            # Pass variant lists if specified
+            leiden_csr_variants = getattr(args, 'leiden_csr_variants', None)
+            rabbit_variants = getattr(args, 'rabbit_variants', None)
+            leiden_dendrogram_variants = getattr(args, 'leiden_dendrogram_variants', None)
+            
+            if leiden_csr_variants or rabbit_variants or leiden_dendrogram_variants:
+                _progress.info(f"  LeidenCSR variants: {leiden_csr_variants or ['gve (default)']}")
+                _progress.info(f"  RabbitOrder variants: {rabbit_variants or ['csr (default)']}")
+            
             cache_results = run_cache_simulations(
                 graphs=graphs,
                 algorithms=algorithms,
@@ -2419,7 +2493,12 @@ def run_experiment(args):
                 bin_sim_dir=args.bin_sim_dir,
                 timeout=args.timeout_sim,
                 skip_heavy=args.skip_heavy,
-                label_maps=label_maps
+                label_maps=label_maps,
+                leiden_csr_variants=leiden_csr_variants,
+                rabbit_variants=rabbit_variants,
+                leiden_dendrogram_variants=leiden_dendrogram_variants,
+                resolution=getattr(args, 'leiden_resolution', 1.0),
+                passes=getattr(args, 'leiden_passes', 3)
             )
         all_cache_results.extend(cache_results)
         
@@ -3023,6 +3102,10 @@ def main():
                         default=None, help="[DEPRECATED: use --size instead] Graph size category filter")
     parser.add_argument("--graphs-dir", default=DEFAULT_GRAPHS_DIR,
                         help="Directory containing graph datasets")
+    parser.add_argument("--graph", "--graph-name", type=str, default=None, dest="graph_name",
+                        help="Run on a specific graph by name (e.g., wiki-Talk)")
+    parser.add_argument("--graph-list", nargs="+", type=str, default=None, dest="graph_list",
+                        help="Run on specific graphs (e.g., --graph-list wiki-Talk web-Google)")
     parser.add_argument("--min-mb", type=float, default=0, dest="min_size",
                         help="Minimum graph file size in MB (for custom filtering)")
     parser.add_argument("--max-mb", type=float, default=float('inf'), dest="max_size",
@@ -3034,6 +3117,10 @@ def main():
     parser.add_argument("--quick", action="store_true", dest="key_only",
                         help="Quick mode: test only key algorithms (Original, Random, HubClusterDBG, "
                              "RabbitOrder, Gorder, RCM, Leiden, LeidenDendrogram, LeidenCSR)")
+    parser.add_argument("--algo", "--algorithm", type=str, default=None, dest="algo_name",
+                        help="Run only a specific algorithm (e.g., RABBITORDER_boost, LeidenCSR_gve)")
+    parser.add_argument("--algo-list", nargs="+", type=str, default=None, dest="algo_list",
+                        help="Run specific algorithms (e.g., --algo-list RABBITORDER_boost LeidenCSR_gve GORDER)")
     parser.add_argument("--skip-slow", action="store_true",
                         help="Skip slow algorithms (Gorder, Corder, RCM) on large graphs")
     
@@ -3089,8 +3176,8 @@ def main():
     parser.add_argument("--all-variants", action="store_true", dest="expand_variants",
                         help="Test ALL algorithm variants (Leiden, RabbitOrder) instead of just defaults")
     parser.add_argument("--csr-variants", nargs="+", dest="leiden_csr_variants",
-                        default=None, choices=["gve", "gveopt", "gverabbit", "dfs", "bfs", "hubsort", "modularity"],
-                        help="LeidenCSR variants: gve (default, best quality), gveopt, dfs, bfs, hubsort, fast, modularity")
+                        default=None, choices=["gve", "gveopt", "gvedendo", "gveoptdendo", "gverabbit", "dfs", "bfs", "hubsort", "modularity"],
+                        help="LeidenCSR variants: gve (default), gveopt, gvedendo, gveoptdendo, gverabbit, dfs, bfs, hubsort, modularity")
     parser.add_argument("--dendrogram-variants", nargs="+", dest="leiden_dendrogram_variants",
                         default=None, choices=["dfs", "dfshub", "dfssize", "bfs", "hybrid"],
                         help="LeidenDendrogram variants: dfs, dfshub, dfssize, bfs, hybrid")

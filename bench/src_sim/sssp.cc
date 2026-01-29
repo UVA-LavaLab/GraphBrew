@@ -23,8 +23,9 @@ using namespace cache_sim;
 const WeightT kDistInf = numeric_limits<WeightT>::max() / 2;
 const size_t kMaxBin = numeric_limits<size_t>::max() / 2;
 
+template<typename CacheType>
 pvector<WeightT> DeltaStep_Sim(const WGraph &g, NodeID source, 
-                                WeightT delta, CacheHierarchy &cache) {
+                                WeightT delta, CacheType &cache) {
     pvector<WeightT> dist(g.num_nodes(), kDistInf);
     dist[source] = 0;
     
@@ -47,15 +48,15 @@ pvector<WeightT> DeltaStep_Sim(const WGraph &g, NodeID source,
             for (size_t i = 0; i < curr_frontier_tail; i++) {
                 NodeID u = frontier[i];
                 // Track: read dist[u]
-                CACHE_READ(cache, dist.data(), u);
+                SIM_CACHE_READ(cache, dist.data(), u);
                 if (dist[u] >= delta * static_cast<WeightT>(curr_bin_index)) {
                     for (WNode wn : g.out_neigh(u)) {
                         WeightT old_dist = dist[wn.v];
                         WeightT new_dist = dist[u] + wn.w;
                         // Track: read/write dist[wn.v]
-                        CACHE_READ(cache, dist.data(), wn.v);
+                        SIM_CACHE_READ(cache, dist.data(), wn.v);
                         if (new_dist < old_dist) {
-                            CACHE_WRITE(cache, dist.data(), wn.v);
+                            SIM_CACHE_WRITE(cache, dist.data(), wn.v);
                             bool changed_dist = true;
                             while (!compare_and_swap(dist[wn.v], old_dist, new_dist)) {
                                 old_dist = dist[wn.v];
@@ -150,28 +151,84 @@ int main(int argc, char *argv[]) {
     WeightedBuilder b(cli);
     WGraph g = b.MakeGraph();
     
-    CacheHierarchy cache = CacheHierarchy::fromEnvironment();
+    bool multicore = IsMultiCoreMode();
+    bool fast = IsFastMode();
     
-    SourcePicker<WGraph> sp(g, cli.start_vertex(), cli.num_trials());
-    auto SSSPBound = [&sp, &cli, &cache](const WGraph &g) {
-        return DeltaStep_Sim(g, sp.PickNext(), cli.delta(), cache);
-    };
-    SourcePicker<WGraph> vsp(g, cli.start_vertex(), cli.num_trials());
-    auto VerifierBound = [&vsp](const WGraph &g, const pvector<WeightT> &dist) {
-        return SSSPVerifier(g, vsp.PickNext(), dist);
-    };
-    
-    BenchmarkKernel(cli, g, SSSPBound, PrintSSSPStats, VerifierBound);
-    
-    cout << endl;
-    cache.printStats();
-    
-    const char* json_file = getenv("CACHE_OUTPUT_JSON");
-    if (json_file) {
-        ofstream ofs(json_file);
-        if (ofs.is_open()) {
-            ofs << cache.toJSON() << endl;
-            ofs.close();
+    if (multicore) {
+        MultiCoreCacheHierarchy cache = MultiCoreCacheHierarchy::fromEnvironment();
+        
+        SourcePicker<WGraph> sp(g, cli.start_vertex(), cli.num_trials());
+        auto SSSPBound = [&sp, &cli, &cache](const WGraph &g) {
+            return DeltaStep_Sim(g, sp.PickNext(), cli.delta(), cache);
+        };
+        SourcePicker<WGraph> vsp(g, cli.start_vertex(), cli.num_trials());
+        auto VerifierBound = [&vsp](const WGraph &g, const pvector<WeightT> &dist) {
+            return SSSPVerifier(g, vsp.PickNext(), dist);
+        };
+        
+        BenchmarkKernel(cli, g, SSSPBound, PrintSSSPStats, VerifierBound);
+        
+        cout << endl;
+        cache.printStats();
+        
+        const char* json_file = getenv("CACHE_OUTPUT_JSON");
+        if (json_file) {
+            ofstream ofs(json_file);
+            if (ofs.is_open()) {
+                ofs << cache.toJSON() << endl;
+                ofs.close();
+            }
+        }
+    } else if (fast) {
+        // FAST single-core cache simulation (no locks, ~10x faster)
+        FastCacheHierarchy cache = FastCacheHierarchy::fromEnvironment();
+        
+        SourcePicker<WGraph> sp(g, cli.start_vertex(), cli.num_trials());
+        auto SSSPBound = [&sp, &cli, &cache](const WGraph &g) {
+            return DeltaStep_Sim(g, sp.PickNext(), cli.delta(), cache);
+        };
+        SourcePicker<WGraph> vsp(g, cli.start_vertex(), cli.num_trials());
+        auto VerifierBound = [&vsp](const WGraph &g, const pvector<WeightT> &dist) {
+            return SSSPVerifier(g, vsp.PickNext(), dist);
+        };
+        
+        BenchmarkKernel(cli, g, SSSPBound, PrintSSSPStats, VerifierBound);
+        
+        cout << endl;
+        cache.printStats();
+        
+        const char* json_file = getenv("CACHE_OUTPUT_JSON");
+        if (json_file) {
+            ofstream ofs(json_file);
+            if (ofs.is_open()) {
+                ofs << cache.toJSON() << endl;
+                ofs.close();
+            }
+        }
+    } else {
+        CacheHierarchy cache = CacheHierarchy::fromEnvironment();
+        
+        SourcePicker<WGraph> sp(g, cli.start_vertex(), cli.num_trials());
+        auto SSSPBound = [&sp, &cli, &cache](const WGraph &g) {
+            return DeltaStep_Sim(g, sp.PickNext(), cli.delta(), cache);
+        };
+        SourcePicker<WGraph> vsp(g, cli.start_vertex(), cli.num_trials());
+        auto VerifierBound = [&vsp](const WGraph &g, const pvector<WeightT> &dist) {
+            return SSSPVerifier(g, vsp.PickNext(), dist);
+        };
+        
+        BenchmarkKernel(cli, g, SSSPBound, PrintSSSPStats, VerifierBound);
+        
+        cout << endl;
+        cache.printStats();
+        
+        const char* json_file = getenv("CACHE_OUTPUT_JSON");
+        if (json_file) {
+            ofstream ofs(json_file);
+            if (ofs.is_open()) {
+                ofs << cache.toJSON() << endl;
+                ofs.close();
+            }
         }
     }
     

@@ -13,14 +13,15 @@ namespace cache_sim {
 
 // ============================================================================
 // SimArray: Wrapper for property arrays with cache tracking
+// Works with both single-core CacheHierarchy and MultiCoreCacheHierarchy
 // ============================================================================
-template<typename T>
+template<typename T, typename CacheType = CacheHierarchy>
 class SimArray {
 public:
-    SimArray(pvector<T>& arr, CacheHierarchy& cache)
+    SimArray(pvector<T>& arr, CacheType& cache)
         : data_(arr.data()), size_(arr.size()), cache_(cache) {}
     
-    SimArray(T* data, size_t size, CacheHierarchy& cache)
+    SimArray(T* data, size_t size, CacheType& cache)
         : data_(data), size_(size), cache_(cache) {}
 
     // Read with tracking
@@ -51,23 +52,24 @@ public:
 private:
     T* data_;
     size_t size_;
-    CacheHierarchy& cache_;
+    CacheType& cache_;
 };
 
 // ============================================================================
-// Convenience macros for cache tracking
+// Convenience macros for cache tracking with explicit cache instance
+// (Use these in simulation code that passes a specific cache object)
 // ============================================================================
 
-// Track reading from array element
-#define CACHE_READ(cache, arr, idx) \
+// Track reading from array element (with explicit cache instance)
+#define SIM_CACHE_READ(cache, arr, idx) \
     (cache).access(reinterpret_cast<uint64_t>(&(arr)[idx]), false)
 
-// Track writing to array element
-#define CACHE_WRITE(cache, arr, idx) \
+// Track writing to array element (with explicit cache instance)
+#define SIM_CACHE_WRITE(cache, arr, idx) \
     (cache).access(reinterpret_cast<uint64_t>(&(arr)[idx]), true)
 
 // Track reading neighbor iteration (one cache access per neighbor)
-#define CACHE_TRACK_NEIGHBOR(cache, neighbor_ptr) \
+#define SIM_CACHE_TRACK_NEIGHBOR(cache, neighbor_ptr) \
     (cache).access(reinterpret_cast<uint64_t>(neighbor_ptr), false)
 
 } // namespace cache_sim

@@ -20,7 +20,8 @@ using namespace cache_sim;
 
 // Count triangles by iterating over edges and finding common neighbors
 // Uses the edge-iterator algorithm with cache tracking
-size_t CountTriangles_Sim(const Graph &g, CacheHierarchy &cache) {
+template<typename CacheType>
+size_t CountTriangles_Sim(const Graph &g, CacheType &cache) {
     size_t total = 0;
     
     #pragma omp parallel reduction(+ : total)
@@ -36,8 +37,8 @@ size_t CountTriangles_Sim(const Graph &g, CacheHierarchy &cache) {
                     auto v_end = g.out_neigh(v).end();
                     
                     // Track neighbor list accesses
-                    CACHE_TRACK_NEIGHBOR(cache, u_begin);
-                    CACHE_TRACK_NEIGHBOR(cache, v_begin);
+                    SIM_CACHE_TRACK_NEIGHBOR(cache, u_begin);
+                    SIM_CACHE_TRACK_NEIGHBOR(cache, v_begin);
                     
                     // Set intersection to count common neighbors > v
                     while (u_begin < u_end && v_begin < v_end) {
@@ -63,24 +64,25 @@ size_t CountTriangles_Sim(const Graph &g, CacheHierarchy &cache) {
 }
 
 // Ordered Triangle Counting (low degree to high degree)
-size_t OrderedCount_Sim(const Graph &g, CacheHierarchy &cache) {
+template<typename CacheType>
+size_t OrderedCount_Sim(const Graph &g, CacheType &cache) {
     size_t total = 0;
     
     // Create degree ordering
     pvector<NodeID> degrees(g.num_nodes());
     for (NodeID n : g.vertices()) {
         degrees[n] = g.out_degree(n);
-        CACHE_WRITE(cache, degrees.data(), n);
+        SIM_CACHE_WRITE(cache, degrees.data(), n);
     }
     
     #pragma omp parallel reduction(+ : total)
     {
         #pragma omp for schedule(dynamic, 64)
         for (NodeID u = 0; u < g.num_nodes(); u++) {
-            CACHE_READ(cache, degrees.data(), u);
+            SIM_CACHE_READ(cache, degrees.data(), u);
             
             for (NodeID v : g.out_neigh(u)) {
-                CACHE_READ(cache, degrees.data(), v);
+                SIM_CACHE_READ(cache, degrees.data(), v);
                 
                 // Only process edges where degree[u] < degree[v] 
                 // or (degree[u] == degree[v] && u < v)
@@ -93,15 +95,15 @@ size_t OrderedCount_Sim(const Graph &g, CacheHierarchy &cache) {
                     auto v_it = g.out_neigh(v).begin();
                     auto v_end = g.out_neigh(v).end();
                     
-                    CACHE_TRACK_NEIGHBOR(cache, u_it);
-                    CACHE_TRACK_NEIGHBOR(cache, v_it);
+                    SIM_CACHE_TRACK_NEIGHBOR(cache, u_it);
+                    SIM_CACHE_TRACK_NEIGHBOR(cache, v_it);
                     
                     while (u_it < u_end && v_it < v_end) {
                         NodeID w1 = *u_it;
                         NodeID w2 = *v_it;
                         
                         if (w1 == w2) {
-                            CACHE_READ(cache, degrees.data(), w1);
+                            SIM_CACHE_READ(cache, degrees.data(), w1);
                             // Check ordering
                             if (degrees[v] < degrees[w1] || 
                                 (degrees[v] == degrees[w1] && v < w1)) {
@@ -169,27 +171,78 @@ int main(int argc, char *argv[]) {
     Builder b(cli);
     Graph g = b.MakeGraph();
     
-    CacheHierarchy cache = CacheHierarchy::fromEnvironment();
+    bool multicore = IsMultiCoreMode();
+    bool fast = IsFastMode();
     
-    // Use ordered count for better performance
-    auto TCBound = [&cache](const Graph &g) {
-        return OrderedCount_Sim(g, cache);
-    };
-    auto VerifierBound = [](const Graph &g, size_t triangles) {
-        return TCVerifier(g, triangles);
-    };
-    
-    BenchmarkKernel(cli, g, TCBound, PrintTriangleStats, VerifierBound);
-    
-    cout << endl;
-    cache.printStats();
-    
-    const char* json_file = getenv("CACHE_OUTPUT_JSON");
-    if (json_file) {
-        ofstream ofs(json_file);
-        if (ofs.is_open()) {
-            ofs << cache.toJSON() << endl;
-            ofs.close();
+    if (multicore) {
+        MultiCoreCacheHierarchy cache = MultiCoreCacheHierarchy::fromEnvironment();
+        
+        auto TCBound = [&cache](const Graph &g) {
+            return OrderedCount_Sim(g, cache);
+        };
+        auto VerifierBound = [](const Graph &g, size_t triangles) {
+            return TCVerifier(g, triangles);
+        };
+        
+        BenchmarkKernel(cli, g, TCBound, PrintTriangleStats, VerifierBound);
+        
+        cout << endl;
+        cache.printStats();
+        
+        const char* json_file = getenv("CACHE_OUTPUT_JSON");
+        if (json_file) {
+            ofstream ofs(json_file);
+            if (ofs.is_open()) {
+                ofs << cache.toJSON() << endl;
+                ofs.close();
+            }
+        }
+    } else if (fast) {
+        // FAST single-core cache simulation (no locks, ~10x faster)
+        FastCacheHierarchy cache = FastCacheHierarchy::fromEnvironment();
+        
+        auto TCBound = [&cache](const Graph &g) {
+            return OrderedCount_Sim(g, cache);
+        };
+        auto VerifierBound = [](const Graph &g, size_t triangles) {
+            return TCVerifier(g, triangles);
+        };
+        
+        BenchmarkKernel(cli, g, TCBound, PrintTriangleStats, VerifierBound);
+        
+        cout << endl;
+        cache.printStats();
+        
+        const char* json_file = getenv("CACHE_OUTPUT_JSON");
+        if (json_file) {
+            ofstream ofs(json_file);
+            if (ofs.is_open()) {
+                ofs << cache.toJSON() << endl;
+                ofs.close();
+            }
+        }
+    } else {
+        CacheHierarchy cache = CacheHierarchy::fromEnvironment();
+        
+        auto TCBound = [&cache](const Graph &g) {
+            return OrderedCount_Sim(g, cache);
+        };
+        auto VerifierBound = [](const Graph &g, size_t triangles) {
+            return TCVerifier(g, triangles);
+        };
+        
+        BenchmarkKernel(cli, g, TCBound, PrintTriangleStats, VerifierBound);
+        
+        cout << endl;
+        cache.printStats();
+        
+        const char* json_file = getenv("CACHE_OUTPUT_JSON");
+        if (json_file) {
+            ofstream ofs(json_file);
+            if (ofs.is_open()) {
+                ofs << cache.toJSON() << endl;
+                ofs.close();
+            }
         }
     }
     

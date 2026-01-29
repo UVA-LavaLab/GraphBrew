@@ -21,20 +21,21 @@
 using namespace std;
 using namespace cache_sim;
 
+template<typename CacheType>
 int64_t BUStep_Sim(const Graph &g, pvector<NodeID> &parent, Bitmap &front,
-                   Bitmap &next, CacheHierarchy &cache) {
+                   Bitmap &next, CacheType &cache) {
     int64_t awake_count = 0;
     next.reset();
     #pragma omp parallel for reduction(+ : awake_count) schedule(dynamic, 1024)
     for (NodeID u = 0; u < g.num_nodes(); u++) {
         // Track: read parent[u]
-        CACHE_READ(cache, parent.data(), u);
+        SIM_CACHE_READ(cache, parent.data(), u);
         if (parent[u] < 0) {
             for (NodeID v : g.in_neigh(u)) {
                 // Track: check if v is in frontier
                 if (front.get_bit(v)) {
                     // Track: write parent[u]
-                    CACHE_WRITE(cache, parent.data(), u);
+                    SIM_CACHE_WRITE(cache, parent.data(), u);
                     parent[u] = v;
                     awake_count++;
                     next.set_bit(u);
@@ -46,8 +47,9 @@ int64_t BUStep_Sim(const Graph &g, pvector<NodeID> &parent, Bitmap &front,
     return awake_count;
 }
 
+template<typename CacheType>
 int64_t TDStep_Sim(const Graph &g, pvector<NodeID> &parent,
-                   SlidingQueue<NodeID> &queue, CacheHierarchy &cache) {
+                   SlidingQueue<NodeID> &queue, CacheType &cache) {
     int64_t scout_count = 0;
     #pragma omp parallel
     {
@@ -57,11 +59,11 @@ int64_t TDStep_Sim(const Graph &g, pvector<NodeID> &parent,
             NodeID u = *q_iter;
             for (NodeID v : g.out_neigh(u)) {
                 // Track: read parent[v]
-                CACHE_READ(cache, parent.data(), v);
+                SIM_CACHE_READ(cache, parent.data(), v);
                 NodeID curr_val = parent[v];
                 if (curr_val < 0) {
                     // Track: write parent[v]
-                    CACHE_WRITE(cache, parent.data(), v);
+                    SIM_CACHE_WRITE(cache, parent.data(), v);
                     if (compare_and_swap(parent[v], curr_val, u)) {
                         lqueue.push_back(v);
                         scout_count += -curr_val;
@@ -104,7 +106,8 @@ pvector<NodeID> InitParent(const Graph &g) {
     return parent;
 }
 
-pvector<NodeID> DOBFS_Sim(const Graph &g, NodeID source, CacheHierarchy &cache,
+template<typename CacheType>
+pvector<NodeID> DOBFS_Sim(const Graph &g, NodeID source, CacheType &cache,
                           int alpha = 15, int beta = 18) {
     pvector<NodeID> parent = InitParent(g);
     parent[source] = source;
@@ -200,29 +203,87 @@ int main(int argc, char *argv[]) {
     Builder b(cli);
     Graph g = b.MakeGraph();
     
-    CacheHierarchy cache = CacheHierarchy::fromEnvironment();
+    bool multicore = IsMultiCoreMode();
+    bool fast = IsFastMode();
     
-    SourcePicker<Graph> sp(g, cli.start_vertex(), cli.num_trials());
-    auto BFSBound = [&sp, &cache](const Graph &g) {
-        return DOBFS_Sim(g, sp.PickNext(), cache);
-    };
-    SourcePicker<Graph> vsp(g, cli.start_vertex(), cli.num_trials());
-    auto VerifierBound = [&vsp](const Graph &g, const pvector<NodeID> &parent) {
-        return BFSVerifier(g, vsp.PickNext(), parent);
-    };
-    
-    BenchmarkKernel(cli, g, BFSBound, PrintBFSStats, VerifierBound);
-    
-    cout << endl;
-    cache.printStats();
-    
-    const char* json_file = getenv("CACHE_OUTPUT_JSON");
-    if (json_file) {
-        ofstream ofs(json_file);
-        if (ofs.is_open()) {
-            ofs << cache.toJSON() << endl;
-            ofs.close();
-            cout << "Cache stats exported to: " << json_file << endl;
+    if (multicore) {
+        MultiCoreCacheHierarchy cache = MultiCoreCacheHierarchy::fromEnvironment();
+        
+        SourcePicker<Graph> sp(g, cli.start_vertex(), cli.num_trials());
+        auto BFSBound = [&sp, &cache](const Graph &g) {
+            return DOBFS_Sim(g, sp.PickNext(), cache);
+        };
+        SourcePicker<Graph> vsp(g, cli.start_vertex(), cli.num_trials());
+        auto VerifierBound = [&vsp](const Graph &g, const pvector<NodeID> &parent) {
+            return BFSVerifier(g, vsp.PickNext(), parent);
+        };
+        
+        BenchmarkKernel(cli, g, BFSBound, PrintBFSStats, VerifierBound);
+        
+        cout << endl;
+        cache.printStats();
+        
+        const char* json_file = getenv("CACHE_OUTPUT_JSON");
+        if (json_file) {
+            ofstream ofs(json_file);
+            if (ofs.is_open()) {
+                ofs << cache.toJSON() << endl;
+                ofs.close();
+                cout << "Cache stats exported to: " << json_file << endl;
+            }
+        }
+    } else if (fast) {
+        // FAST single-core cache simulation (no locks, ~10x faster)
+        FastCacheHierarchy cache = FastCacheHierarchy::fromEnvironment();
+        
+        SourcePicker<Graph> sp(g, cli.start_vertex(), cli.num_trials());
+        auto BFSBound = [&sp, &cache](const Graph &g) {
+            return DOBFS_Sim(g, sp.PickNext(), cache);
+        };
+        SourcePicker<Graph> vsp(g, cli.start_vertex(), cli.num_trials());
+        auto VerifierBound = [&vsp](const Graph &g, const pvector<NodeID> &parent) {
+            return BFSVerifier(g, vsp.PickNext(), parent);
+        };
+        
+        BenchmarkKernel(cli, g, BFSBound, PrintBFSStats, VerifierBound);
+        
+        cout << endl;
+        cache.printStats();
+        
+        const char* json_file = getenv("CACHE_OUTPUT_JSON");
+        if (json_file) {
+            ofstream ofs(json_file);
+            if (ofs.is_open()) {
+                ofs << cache.toJSON() << endl;
+                ofs.close();
+                cout << "Cache stats exported to: " << json_file << endl;
+            }
+        }
+    } else {
+        CacheHierarchy cache = CacheHierarchy::fromEnvironment();
+        
+        SourcePicker<Graph> sp(g, cli.start_vertex(), cli.num_trials());
+        auto BFSBound = [&sp, &cache](const Graph &g) {
+            return DOBFS_Sim(g, sp.PickNext(), cache);
+        };
+        SourcePicker<Graph> vsp(g, cli.start_vertex(), cli.num_trials());
+        auto VerifierBound = [&vsp](const Graph &g, const pvector<NodeID> &parent) {
+            return BFSVerifier(g, vsp.PickNext(), parent);
+        };
+        
+        BenchmarkKernel(cli, g, BFSBound, PrintBFSStats, VerifierBound);
+        
+        cout << endl;
+        cache.printStats();
+        
+        const char* json_file = getenv("CACHE_OUTPUT_JSON");
+        if (json_file) {
+            ofstream ofs(json_file);
+            if (ofs.is_open()) {
+                ofs << cache.toJSON() << endl;
+                ofs.close();
+                cout << "Cache stats exported to: " << json_file << endl;
+            }
         }
     }
     

@@ -276,7 +276,7 @@ class PhaseConfig:
         # Leiden settings
         self.leiden_resolution = leiden_resolution
         self.leiden_passes = leiden_passes
-        self.leiden_csr_variants = leiden_csr_variants or ['gve', 'gveopt', 'gverabbit', 'dfs', 'bfs', 'hubsort', 'modularity']
+        self.leiden_csr_variants = leiden_csr_variants or ['gve', 'gveopt', 'gvedendo', 'gveoptdendo', 'gverabbit', 'dfs', 'bfs', 'hubsort', 'modularity']
         self.leiden_dendrogram_variants = leiden_dendrogram_variants or ['dfs', 'dfshub', 'dfssize', 'bfs', 'hybrid']
         self.rabbit_variants = rabbit_variants or ['csr']  # Default: csr only
         
