@@ -28,20 +28,10 @@
       "LeidenOrder",
       "LeidenDendrogram",
       "LeidenCSR",
-      "LeidenDendrogram_bfs",
-      "RABBITORDER_csr",
-      "LeidenDendrogram_dfssize",
-      "LeidenDendrogram_hybrid",
-      "LeidenCSR_gve",
-      "LeidenCSR_hubsort",
-      "LeidenCSR_gverabbit",
-      "LeidenCSR_modularity",
-      "LeidenDendrogram_dfshub",
-      "RABBITORDER_boost",
-      "LeidenCSR_bfs",
       "LeidenCSR_gveopt",
-      "LeidenCSR_dfs",
-      "LeidenDendrogram_dfs"
+      "LeidenCSR_gve",
+      "RABBITORDER_boost",
+      "RABBITORDER_csr"
     ],
     "graphs": [
       "ca-GrQc",
@@ -54,6 +44,34 @@
       "web-Google"
     ],
     "created": "2026-01-27T23:45:14.345252",
-    "last_updated": "2026-01-28T12:29:43.687151"
+    "last_updated": "2026-01-28T16:56:58.503772"
+  },
+  "type_1": {
+    "centroid": [
+      0.58247,
+      1,
+      1,
+      0.014006000000000001,
+      0.09635,
+      6.2011068474112e-05,
+      4.823083103542045e-05
+    ],
+    "sample_count": 1,
+    "graph_count": 1,
+    "algorithms": [
+      "RANDOM",
+      "DBG",
+      "LeidenOrder",
+      "LeidenDendrogram_dfs"
+    ],
+    "graphs": [],
+    "created": "2026-01-28T14:30:37.390917",
+    "last_updated": "2026-01-28T14:30:37.390923",
+    "representative_features": {
+      "modularity": 0.58247,
+      "degree_variance": 23.9834,
+      "hub_concentration": 1.0,
+      "avg_degree": 1.4006
+    }
   }
 }

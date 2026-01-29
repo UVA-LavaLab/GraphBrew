@@ -22,6 +22,9 @@ from pathlib import Path
 from dataclasses import dataclass, asdict
 from typing import Dict, List, Optional, Tuple
 
+# Enable ULTRAFAST cache simulation mode by default (packed structures, ~1.5x faster)
+os.environ.setdefault('CACHE_ULTRAFAST', '1')
+
 from .utils import (
     PROJECT_ROOT, BIN_SIM_DIR, RESULTS_DIR,
     ALGORITHMS, Logger, run_command, get_algorithm_name,
@@ -160,7 +163,10 @@ def run_cache_simulation(
     label_map_path: str = None,
     symmetric: bool = True,
     timeout: int = TIMEOUT_SIM,
-    bin_sim_dir: str = None
+    bin_sim_dir: str = None,
+    variant: str = None,
+    resolution: float = 1.0,
+    passes: int = 3
 ) -> CacheResult:
     """
     Run a single cache simulation.
@@ -173,6 +179,9 @@ def run_cache_simulation(
         symmetric: Use symmetric graph flag
         timeout: Timeout in seconds
         bin_sim_dir: Directory containing simulation binaries
+        variant: Optional variant name for LeidenCSR/RabbitOrder (e.g., 'gve', 'gveopt', 'boost')
+        resolution: Leiden resolution parameter (default: 1.0)
+        passes: Leiden passes parameter (default: 3)
         
     Returns:
         CacheResult with hit rates and miss counts
@@ -182,8 +191,12 @@ def run_cache_simulation(
     
     graph_path = Path(graph_path)
     graph_name = graph_path.stem
-    # Always include variant in name for algorithms that have variants
-    algo_name = get_algorithm_name_with_variant(algorithm)
+    
+    # Build algorithm name with variant
+    if variant:
+        algo_name = f"{ALGORITHMS.get(algorithm, f'ALG{algorithm}')}_{variant}"
+    else:
+        algo_name = get_algorithm_name_with_variant(algorithm)
     
     binary = Path(bin_sim_dir) / benchmark
     if not binary.exists():
@@ -202,7 +215,16 @@ def run_cache_simulation(
         # Use pre-generated mapping via MAP (algo 13)
         cmd = f"{binary} -f {graph_path} {sym_flag} -o 13:{label_map_path} -n 1"
     else:
-        cmd = f"{binary} -f {graph_path} {sym_flag} -o {algorithm} -n 1"
+        # Build algorithm option string with variant if specified
+        if variant and algorithm == 17:  # LeidenCSR
+            algo_opt = f"{algorithm}:{variant}:{resolution}:20:{passes}"
+        elif variant and algorithm == 8:  # RabbitOrder
+            algo_opt = f"{algorithm}:{variant}"
+        elif variant and algorithm == 16:  # LeidenDendrogram
+            algo_opt = f"{algorithm}:{variant}:{resolution}"
+        else:
+            algo_opt = str(algorithm)
+        cmd = f"{binary} -f {graph_path} {sym_flag} -o {algo_opt} -n 1"
     
     # Run simulation
     start_time = time.time()
@@ -268,7 +290,12 @@ def run_cache_simulations(
     bin_sim_dir: str = None,
     timeout: int = TIMEOUT_SIM,
     skip_heavy: bool = False,
-    label_maps: Dict[str, Dict[str, str]] = None
+    label_maps: Dict[str, Dict[str, str]] = None,
+    leiden_csr_variants: List[str] = None,
+    rabbit_variants: List[str] = None,
+    leiden_dendrogram_variants: List[str] = None,
+    resolution: float = 1.0,
+    passes: int = 3
 ) -> List[CacheResult]:
     """
     Run cache simulations for all combinations.
@@ -281,6 +308,11 @@ def run_cache_simulations(
         timeout: Timeout per simulation
         skip_heavy: Skip heavy benchmarks on large graphs
         label_maps: Optional pre-generated label maps
+        leiden_csr_variants: List of LeidenCSR variants (e.g., ['gve', 'gveopt', 'gvedendo'])
+        rabbit_variants: List of RabbitOrder variants (e.g., ['csr', 'boost'])
+        leiden_dendrogram_variants: List of LeidenDendrogram variants
+        resolution: Leiden resolution parameter
+        passes: Leiden passes parameter
         
     Returns:
         List of CacheResult with hit rates and miss counts
@@ -288,10 +320,25 @@ def run_cache_simulations(
     if bin_sim_dir is None:
         bin_sim_dir = str(BIN_SIM_DIR)
     
-    log.info(f"Running cache simulations: {len(graphs)} graphs × {len(algorithms)} algorithms × {len(benchmarks)} benchmarks")
+    # Build expanded algorithm list with variants
+    expanded_algos = []
+    for algo_id in algorithms:
+        if algo_id == 17 and leiden_csr_variants:  # LeidenCSR
+            for variant in leiden_csr_variants:
+                expanded_algos.append((algo_id, variant))
+        elif algo_id == 8 and rabbit_variants:  # RabbitOrder
+            for variant in rabbit_variants:
+                expanded_algos.append((algo_id, variant))
+        elif algo_id == 16 and leiden_dendrogram_variants:  # LeidenDendrogram
+            for variant in leiden_dendrogram_variants:
+                expanded_algos.append((algo_id, variant))
+        else:
+            expanded_algos.append((algo_id, None))
+    
+    log.info(f"Running cache simulations: {len(graphs)} graphs × {len(expanded_algos)} algorithms × {len(benchmarks)} benchmarks")
     
     results = []
-    total = len(graphs) * len(algorithms) * len(benchmarks)
+    total = len(graphs) * len(expanded_algos) * len(benchmarks)
     current = 0
     
     for graph in graphs:
@@ -310,12 +357,13 @@ def run_cache_simulations(
             # Skip heavy simulations on large graphs if requested
             if skip_heavy and bench in HEAVY_SIM_BENCHMARKS and graph.size_mb > SIZE_MEDIUM:
                 log.info(f"  {bench.upper()}: SKIPPED (heavy on large graph)")
-                for algo_id in algorithms:
+                for algo_id, variant in expanded_algos:
                     current += 1
+                    algo_name = f"{ALGORITHMS.get(algo_id, f'ALG{algo_id}')}_{variant}" if variant else get_algorithm_name_with_variant(algo_id)
                     results.append(CacheResult(
                         graph=graph.name,
                         algorithm_id=algo_id,
-                        algorithm_name=get_algorithm_name_with_variant(algo_id),
+                        algorithm_name=algo_name,
                         benchmark=bench,
                         success=False,
                         error="SKIPPED"
@@ -324,10 +372,13 @@ def run_cache_simulations(
             
             log.info(f"  {bench.upper()} (simulation):")
             
-            for algo_id in algorithms:
+            for algo_id, variant in expanded_algos:
                 current += 1
-                # Always include variant in name for algorithms that have variants
-                algo_name = get_algorithm_name_with_variant(algo_id)
+                # Build algorithm name with variant
+                if variant:
+                    algo_name = f"{ALGORITHMS.get(algo_id, f'ALG{algo_id}')}_{variant}"
+                else:
+                    algo_name = get_algorithm_name_with_variant(algo_id)
                 
                 # Check for pre-generated label map
                 label_map_path = None
@@ -341,7 +392,10 @@ def run_cache_simulations(
                     label_map_path=label_map_path,
                     symmetric=graph.is_symmetric,
                     timeout=bench_timeout,
-                    bin_sim_dir=bin_sim_dir
+                    bin_sim_dir=bin_sim_dir,
+                    variant=variant,
+                    resolution=resolution,
+                    passes=passes
                 )
                 
                 if result.success:

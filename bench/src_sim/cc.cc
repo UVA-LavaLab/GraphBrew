@@ -17,12 +17,13 @@
 using namespace std;
 using namespace cache_sim;
 
-pvector<NodeID> ShiloachVishkin_Sim(const Graph &g, CacheHierarchy &cache) {
+template<typename CacheType>
+pvector<NodeID> ShiloachVishkin_Sim(const Graph &g, CacheType &cache) {
     pvector<NodeID> comp(g.num_nodes());
     
     #pragma omp parallel for
     for (NodeID n = 0; n < g.num_nodes(); n++) {
-        CACHE_WRITE(cache, comp.data(), n);
+        SIM_CACHE_WRITE(cache, comp.data(), n);
         comp[n] = n;
     }
     
@@ -33,8 +34,8 @@ pvector<NodeID> ShiloachVishkin_Sim(const Graph &g, CacheHierarchy &cache) {
         for (NodeID u = 0; u < g.num_nodes(); u++) {
             for (NodeID v : g.out_neigh(u)) {
                 // Track: read comp[u] and comp[v]
-                CACHE_READ(cache, comp.data(), u);
-                CACHE_READ(cache, comp.data(), v);
+                SIM_CACHE_READ(cache, comp.data(), u);
+                SIM_CACHE_READ(cache, comp.data(), v);
                 NodeID comp_u = comp[u];
                 NodeID comp_v = comp[v];
                 
@@ -44,7 +45,7 @@ pvector<NodeID> ShiloachVishkin_Sim(const Graph &g, CacheHierarchy &cache) {
                 if (high == comp[high]) {
                     change = true;
                     // Track: write comp[high]
-                    CACHE_WRITE(cache, comp.data(), high);
+                    SIM_CACHE_WRITE(cache, comp.data(), high);
                     comp[high] = low;
                 }
             }
@@ -54,9 +55,9 @@ pvector<NodeID> ShiloachVishkin_Sim(const Graph &g, CacheHierarchy &cache) {
         for (NodeID n = 0; n < g.num_nodes(); n++) {
             while (comp[n] != comp[comp[n]]) {
                 // Track: read comp[n], comp[comp[n]]
-                CACHE_READ(cache, comp.data(), n);
-                CACHE_READ(cache, comp.data(), comp[n]);
-                CACHE_WRITE(cache, comp.data(), n);
+                SIM_CACHE_READ(cache, comp.data(), n);
+                SIM_CACHE_READ(cache, comp.data(), comp[n]);
+                SIM_CACHE_WRITE(cache, comp.data(), n);
                 comp[n] = comp[comp[n]];
             }
         }
@@ -125,23 +126,69 @@ int main(int argc, char *argv[]) {
     Builder b(cli);
     Graph g = b.MakeGraph();
     
-    CacheHierarchy cache = CacheHierarchy::fromEnvironment();
+    bool multicore = IsMultiCoreMode();
+    bool fast = IsFastMode();
     
-    auto CCBound = [&cache](const Graph &g) {
-        return ShiloachVishkin_Sim(g, cache);
-    };
-    
-    BenchmarkKernel(cli, g, CCBound, PrintCompStats, CCVerifier);
-    
-    cout << endl;
-    cache.printStats();
-    
-    const char* json_file = getenv("CACHE_OUTPUT_JSON");
-    if (json_file) {
-        ofstream ofs(json_file);
-        if (ofs.is_open()) {
-            ofs << cache.toJSON() << endl;
-            ofs.close();
+    if (multicore) {
+        MultiCoreCacheHierarchy cache = MultiCoreCacheHierarchy::fromEnvironment();
+        
+        auto CCBound = [&cache](const Graph &g) {
+            return ShiloachVishkin_Sim(g, cache);
+        };
+        
+        BenchmarkKernel(cli, g, CCBound, PrintCompStats, CCVerifier);
+        
+        cout << endl;
+        cache.printStats();
+        
+        const char* json_file = getenv("CACHE_OUTPUT_JSON");
+        if (json_file) {
+            ofstream ofs(json_file);
+            if (ofs.is_open()) {
+                ofs << cache.toJSON() << endl;
+                ofs.close();
+            }
+        }
+    } else if (fast) {
+        // FAST single-core cache simulation (no locks, ~10x faster)
+        FastCacheHierarchy cache = FastCacheHierarchy::fromEnvironment();
+        
+        auto CCBound = [&cache](const Graph &g) {
+            return ShiloachVishkin_Sim(g, cache);
+        };
+        
+        BenchmarkKernel(cli, g, CCBound, PrintCompStats, CCVerifier);
+        
+        cout << endl;
+        cache.printStats();
+        
+        const char* json_file = getenv("CACHE_OUTPUT_JSON");
+        if (json_file) {
+            ofstream ofs(json_file);
+            if (ofs.is_open()) {
+                ofs << cache.toJSON() << endl;
+                ofs.close();
+            }
+        }
+    } else {
+        CacheHierarchy cache = CacheHierarchy::fromEnvironment();
+        
+        auto CCBound = [&cache](const Graph &g) {
+            return ShiloachVishkin_Sim(g, cache);
+        };
+        
+        BenchmarkKernel(cli, g, CCBound, PrintCompStats, CCVerifier);
+        
+        cout << endl;
+        cache.printStats();
+        
+        const char* json_file = getenv("CACHE_OUTPUT_JSON");
+        if (json_file) {
+            ofstream ofs(json_file);
+            if (ofs.is_open()) {
+                ofs << cache.toJSON() << endl;
+                ofs.close();
+            }
         }
     }
     

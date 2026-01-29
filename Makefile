@@ -225,7 +225,7 @@ $(BIN_SIM_DIR)/%: $(SRC_SIM_DIR)/%.cc $(DEP_GAPBS) $(DEP_CACHE) | $(BIN_SIM_DIR)
 	$(CXX) $(CXXFLAGS) $(INCLUDES) -I$(INCLUDE_CACHE) $< $(LDLIBS) -o $@
 
 # Convenience targets for simulation builds
-.PHONY: sim-% all-sim clean-sim run-sim-%
+.PHONY: sim-% all-sim clean-sim run-sim-% run-sim-multicore-%
 
 sim-%: $(BIN_SIM_DIR)/%
 	@echo "Built simulation version: $<"
@@ -236,10 +236,15 @@ all-sim: $(addprefix $(BIN_SIM_DIR)/, $(KERNELS_SIM))
 clean-sim:
 	rm -rf $(BIN_SIM_DIR)
 
-# Run simulation with default parameters
+# Run simulation with default parameters (single-core mode)
 run-sim-%: $(BIN_SIM_DIR)/%
-	@echo "Running cache simulation: $<"
+	@echo "Running cache simulation (single-core): $<"
 	@./$< -g 10 -n 1
+
+# Run multi-core simulation (8 cores with private L1/L2, shared L3)
+run-sim-multicore-%: $(BIN_SIM_DIR)/%
+	@echo "Running cache simulation (multi-core, 8 cores): $<"
+	@CACHE_MULTICORE=1 CACHE_NUM_CORES=8 ./$< -g 10 -n 1
 
 # =========================================================
 # Help
@@ -252,20 +257,23 @@ help: help-pr
 	@echo "  clean          - Removes all build artifacts"
 	@echo ""
 	@echo "Cache Simulation:"
-	@echo "  all-sim        - Builds all cache simulation binaries (pr bfs bc cc sssp tc)"
-	@echo "  sim-%          - Build simulation version of specified algorithm"
-	@echo "  run-sim-%      - Run cache simulation with default graph"
-	@echo "  clean-sim      - Remove simulation build artifacts"
+	@echo "  all-sim          - Builds all cache simulation binaries (pr bfs bc cc sssp tc)"
+	@echo "  sim-%            - Build simulation version of specified algorithm"
+	@echo "  run-sim-%        - Run cache simulation (single-core mode)"
+	@echo "  run-sim-multicore-% - Run multi-core simulation (8 cores, private L1/L2, shared L3)"
+	@echo "  clean-sim        - Remove simulation build artifacts"
 	@echo ""
 	@echo "Cache Simulation Environment Variables:"
 	@echo "  CACHE_L1_SIZE=32768       - L1 cache size in bytes (default: 32KB)"
 	@echo "  CACHE_L1_WAYS=8           - L1 associativity (default: 8-way)"
 	@echo "  CACHE_L2_SIZE=262144      - L2 cache size in bytes (default: 256KB)"
-	@echo "  CACHE_L2_WAYS=4           - L2 associativity (default: 4-way)"
+	@echo "  CACHE_L2_WAYS=8           - L2 associativity (default: 8-way)"
 	@echo "  CACHE_L3_SIZE=8388608     - L3 cache size in bytes (default: 8MB)"
 	@echo "  CACHE_L3_WAYS=16          - L3 associativity (default: 16-way)"
 	@echo "  CACHE_LINE_SIZE=64        - Cache line size in bytes (default: 64)"
 	@echo "  CACHE_POLICY=LRU          - Eviction policy: LRU, FIFO, RANDOM, LFU, PLRU, SRRIP"
+	@echo "  CACHE_MULTICORE=1         - Enable multi-core mode (private L1/L2, shared L3)"
+	@echo "  CACHE_NUM_CORES=8         - Number of cores for multi-core mode"
 	@echo "  CACHE_OUTPUT_JSON=file    - Export stats to JSON file"
 	@echo ""
 	@echo "Other:"

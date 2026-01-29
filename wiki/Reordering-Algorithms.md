@@ -375,6 +375,8 @@ Implements the full Leiden algorithm from: *"Fast Leiden Algorithm for Community
 ./bench/bin/pr -f graph.el -s -o 17 -n 3                    # Default: GVE-Leiden (best quality)
 ./bench/bin/pr -f graph.el -s -o 17:gve:1.0:20:5 -n 3       # GVE-Leiden explicit params
 ./bench/bin/pr -f graph.el -s -o 17:gveopt:1.0:20:5 -n 3    # Cache-optimized GVE
+./bench/bin/pr -f graph.el -s -o 17:gvedendo:1.0:20:5 -n 3  # GVE with incremental dendrogram
+./bench/bin/pr -f graph.el -s -o 17:gveoptdendo:1.0:20:5 -n 3 # GVEopt with incremental dendrogram
 ./bench/bin/pr -f graph.el -s -o 17:gverabbit:1.0:5 -n 3    # GVE-Rabbit hybrid (fast)
 ./bench/bin/pr -f graph.el -s -o 17:hubsort:1.0:10:3 -n 3   # Hub-sorted variant
 ./bench/bin/pr -f graph.el -s -o 17:fast:1.0:10:2 -n 3      # Union-Find + Label Prop
@@ -387,12 +389,20 @@ Implements the full Leiden algorithm from: *"Fast Leiden Algorithm for Community
 |---------|-------------|-------|---------|
 | `gve` | **GVE-Leiden with refinement (DEFAULT)** | Fast | **Best** |
 | `gveopt` | Cache-optimized GVE with prefetching | **Faster** | **Best** |
+| `gvedendo` | GVE with RabbitOrder-style incremental dendrogram | Fast | **Best** |
+| `gveoptdendo` | GVEopt with incremental dendrogram | **Faster** | **Best** |
 | `gverabbit` | **GVE-Rabbit hybrid (limited iterations, single pass)** | **Fastest** | Good |
 | `dfs` | Hierarchical DFS | Fast | Good |
 | `bfs` | Level-first BFS | Fast | Good |
 | `hubsort` | Community + degree sort | Fast | Good |
 | `fast` | Union-Find + Label Propagation | Very Fast | Moderate |
 | `modularity` | Modularity optimization | Fast | Good |
+
+**GVE-Dendo Variants (New)**:
+The `gvedendo` and `gveoptdendo` variants implement incremental dendrogram building inspired by RabbitOrder's approach:
+- **Standard GVE**: Stores `community_per_pass` history and rebuilds the dendrogram tree in post-processing
+- **GVE-Dendo**: Builds parent-child relationships incrementally during the refinement phase using atomic operations
+- Benefits: Avoids post-processing tree reconstruction, preserves same modularity quality
 
 **GVE-Leiden Algorithm (3-phase)**:
 1. **Phase 1: Local-moving** - Greedily move vertices to maximize modularity

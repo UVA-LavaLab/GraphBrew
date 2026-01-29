@@ -284,6 +284,40 @@ Use **perceptron_experiment.py** when you want to train better weights.
 | `--skip-expensive` | Skip BC/SSSP on large graphs |
 | `--brute-force` | Run brute-force validation |
 
+#### Algorithm Variant Testing
+| Option | Description |
+|--------|-------------|
+| `--all-variants` | Test ALL algorithm variants instead of just defaults |
+| `--csr-variants` | LeidenCSR variants: `gve`, `gveopt`, `gvedendo`, `gveoptdendo`, `gverabbit`, `dfs`, `bfs`, `hubsort`, `modularity` |
+| `--rabbit-variants` | RabbitOrder variants: `csr` (default), `boost` |
+| `--dendrogram-variants` | LeidenDendrogram variants: `dfs`, `dfshub`, `dfssize`, `bfs`, `hybrid` |
+| `--resolution` | Leiden resolution parameter (default: 1.0) |
+| `--passes` | Leiden passes parameter (default: 3) |
+
+**LeidenCSR Variants:**
+| Variant | Description |
+|---------|-------------|
+| `gve` | **Default.** GVE-Leiden with refinement phase (best modularity) |
+| `gveopt` | Cache-optimized GVE with prefetching |
+| `gvedendo` | GVE with RabbitOrder-style incremental dendrogram building |
+| `gveoptdendo` | GVEopt with incremental dendrogram building |
+| `gverabbit` | GVE-Rabbit hybrid (fastest, single-pass) |
+| `dfs` | Hierarchical DFS ordering |
+| `bfs` | Level-first BFS ordering |
+| `hubsort` | Community + degree sort |
+| `modularity` | Modularity-optimized ordering |
+
+**Example - Compare GVE variants on 5 largest graphs:**
+```bash
+python3 scripts/graphbrew_experiment.py \
+  --phase cache \
+  --graph-list wiki-topcats cit-Patents as-Skitter web-BerkStan web-Google \
+  --csr-variants gve gveopt gvedendo gveoptdendo \
+  --rabbit-variants csr boost \
+  --benchmarks pr bfs cc sssp \
+  --skip-build --auto
+```
+
 #### Label Mapping (Consistent Reordering)
 | Option | Description |
 |--------|-------------|
