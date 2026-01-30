@@ -2431,4 +2431,338 @@ GVELeidenResult<K> GVELeidenOptCSR(
     return result;
 }
 
+/**
+ * GVELeidenDendo - GVE-Leiden with INCREMENTAL atomic dendrogram building
+ * 
+ * This is a clone of GVELeidenCSR that builds the dendrogram incrementally
+ * using RabbitOrder-style atomic CAS instead of post-processing.
+ * 
+ * Key optimization: Instead of storing community_per_pass and rebuilding
+ * the tree in post-processing, we build parent-child relationships as
+ * vertices merge during detection using lock-free atomic operations.
+ * 
+ * @tparam K Community ID type (default uint32_t)
+ * @tparam W Weight type (should be double)
+ * @tparam NodeID_T Node ID type from graph
+ * @tparam DestID_T Destination ID type (may include weights)
+ */
+template <typename K, typename W, typename NodeID_T, typename DestID_T>
+GVEDendroResult<K> GVELeidenDendoCSR(
+    const CSRGraph<NodeID_T, DestID_T, true>& g,
+    double resolution = 1.0,
+    double tolerance = 1e-2,
+    double aggregation_tolerance = 0.8,
+    double tolerance_drop = 10.0,
+    int max_iterations = 20,
+    int max_passes = 10) {
+    
+    const int64_t num_nodes = g.num_nodes();
+    bool graph_is_symmetric = !g.directed();
+    const int64_t num_edges_stored = g.num_edges();
+    const double M = static_cast<double>(num_edges_stored);
+    
+    // Initialize atomic dendrogram (replaces community_per_pass storage)
+    GVEAtomicDendroResult<K> atomic_dendro;
+    std::vector<W> vtot(num_nodes);
+    
+    #pragma omp parallel for
+    for (int64_t v = 0; v < num_nodes; ++v) {
+        vtot[v] = computeVertexTotalWeightCSR<W, NodeID_T, DestID_T>(v, g, graph_is_symmetric);
+    }
+    atomic_dendro.init(num_nodes, vtot);
+    
+    // Initialize data structures (same as GVELeidenCSR)
+    std::vector<K> vcom(num_nodes);
+    std::vector<K> vcob(num_nodes);
+    std::vector<W> ctot(num_nodes);
+    std::vector<char> vaff(num_nodes, 1);
+    
+    #pragma omp parallel for
+    for (int64_t v = 0; v < num_nodes; ++v) {
+        vcom[v] = static_cast<K>(v);
+        ctot[v] = vtot[v];
+    }
+    
+    double current_tolerance = tolerance;
+    size_t prev_communities = num_nodes;
+    std::atomic<int64_t> total_merges(0);
+    
+    // Main Leiden loop (same structure as GVELeidenCSR)
+    for (int pass = 0; pass < max_passes; ++pass) {
+        
+        // PHASE 1: LOCAL-MOVING
+        int local_iters = gveLeidenLocalMoveCSR<K, W, NodeID_T, DestID_T>(
+            vcom, ctot, vaff, vtot, num_nodes, g, graph_is_symmetric,
+            M, resolution, max_iterations, current_tolerance);
+        
+        atomic_dendro.total_iterations += local_iters;
+        
+        // Store community bounds
+        #pragma omp parallel for
+        for (int64_t v = 0; v < num_nodes; ++v) {
+            vcob[v] = vcom[v];
+        }
+        
+        // PHASE 2: REFINEMENT (same as GVELeidenCSR)
+        std::vector<K> vcom_refined(num_nodes);
+        size_t num_refined_communities;
+        int refine_moves = 0;
+        
+        if (pass == 0) {
+            std::vector<W> ctot_refined(num_nodes);
+            
+            #pragma omp parallel for
+            for (int64_t v = 0; v < num_nodes; ++v) {
+                vcom_refined[v] = static_cast<K>(v);
+                ctot_refined[v] = vtot[v];
+                vaff[v] = 1;
+            }
+            
+            refine_moves = gveLeidenRefineCSR<K, W, NodeID_T, DestID_T>(
+                vcom_refined, ctot_refined, vaff, vcob, vtot,
+                num_nodes, g, graph_is_symmetric, M, resolution);
+            
+            // === ATOMIC DENDROGRAM UPDATE during refinement ===
+            // Vertices that moved in refinement get merged into their new representative
+            for (int64_t v = 0; v < num_nodes; ++v) {
+                K rc = vcom_refined[v];
+                if (rc != static_cast<K>(v)) {
+                    if (atomicMergeToDendro<K>(atomic_dendro, v, rc)) {
+                        total_merges.fetch_add(1, std::memory_order_relaxed);
+                    }
+                }
+            }
+            
+            // Renumber refined communities
+            K max_comm = 0;
+            for (int64_t v = 0; v < num_nodes; ++v) {
+                max_comm = std::max(max_comm, vcom_refined[v]);
+            }
+            
+            std::vector<K> refine_renumber(max_comm + 1, K(-1));
+            K next_refined_id = 0;
+            for (int64_t v = 0; v < num_nodes; ++v) {
+                K rc = vcom_refined[v];
+                if (refine_renumber[rc] == K(-1)) {
+                    refine_renumber[rc] = next_refined_id++;
+                }
+            }
+            
+            #pragma omp parallel for
+            for (int64_t v = 0; v < num_nodes; ++v) {
+                vcom_refined[v] = refine_renumber[vcom_refined[v]];
+            }
+            
+            num_refined_communities = static_cast<size_t>(next_refined_id);
+        } else {
+            #pragma omp parallel for
+            for (int64_t v = 0; v < num_nodes; ++v) {
+                vcom_refined[v] = vcom[v];
+            }
+            
+            K max_comm = 0;
+            for (int64_t v = 0; v < num_nodes; ++v) {
+                max_comm = std::max(max_comm, vcom_refined[v]);
+            }
+            
+            std::vector<K> refine_renumber(max_comm + 1, K(-1));
+            K next_refined_id = 0;
+            for (int64_t v = 0; v < num_nodes; ++v) {
+                K rc = vcom_refined[v];
+                if (refine_renumber[rc] == K(-1)) {
+                    refine_renumber[rc] = next_refined_id++;
+                }
+            }
+            
+            #pragma omp parallel for
+            for (int64_t v = 0; v < num_nodes; ++v) {
+                vcom_refined[v] = refine_renumber[vcom_refined[v]];
+            }
+            
+            num_refined_communities = static_cast<size_t>(next_refined_id);
+        }
+        
+        // Build super-graph (same as GVELeidenCSR)
+        std::vector<W> super_weight(num_refined_communities, W(0));
+        #pragma omp parallel for
+        for (int64_t v = 0; v < num_nodes; ++v) {
+            K c = vcom_refined[v];
+            #pragma omp atomic
+            super_weight[c] += vtot[v];
+        }
+        
+        const int num_threads = omp_get_max_threads();
+        std::vector<std::unordered_map<uint64_t, W>> thread_edge_hash(num_threads);
+        
+        #pragma omp parallel
+        {
+            int tid = omp_get_thread_num();
+            auto& edge_hash = thread_edge_hash[tid];
+            
+            #pragma omp for schedule(dynamic, 4096)
+            for (int64_t u = 0; u < num_nodes; ++u) {
+                K cu = vcom_refined[u];
+                for (auto neighbor : g.out_neigh(u)) {
+                    NodeID_T v;
+                    W w;
+                    if constexpr (std::is_same_v<DestID_T, NodeID_T>) {
+                        v = neighbor;
+                        w = W(1);
+                    } else {
+                        v = neighbor.v;
+                        w = static_cast<W>(neighbor.w);
+                    }
+                    K cv = vcom_refined[v];
+                    if (cu != cv && cu < num_refined_communities && cv < num_refined_communities) {
+                        uint64_t key = (static_cast<uint64_t>(cu) << 32) | cv;
+                        edge_hash[key] += w;
+                    }
+                }
+            }
+        }
+        
+        std::unordered_map<uint64_t, W> global_edge_hash;
+        for (int t = 0; t < num_threads; ++t) {
+            for (auto& [key, w] : thread_edge_hash[t]) {
+                global_edge_hash[key] += w;
+            }
+        }
+        
+        std::vector<std::vector<std::pair<K, W>>> super_adj(num_refined_communities);
+        for (auto& [key, w] : global_edge_hash) {
+            K src = static_cast<K>(key >> 32);
+            K dst = static_cast<K>(key & 0xFFFFFFFF);
+            if (src < num_refined_communities) {
+                super_adj[src].emplace_back(dst, w);
+            }
+        }
+        
+        // LOCAL-MOVING ON SUPER-GRAPH
+        std::vector<K> super_comm(num_refined_communities);
+        std::vector<W> super_ctot(num_refined_communities);
+        
+        #pragma omp parallel for
+        for (size_t c = 0; c < num_refined_communities; ++c) {
+            super_comm[c] = c;
+            super_ctot[c] = super_weight[c];
+        }
+        
+        for (int iter = 0; iter < max_iterations; ++iter) {
+            int moves = 0;
+            for (size_t c = 0; c < num_refined_communities; ++c) {
+                K d = super_comm[c];
+                W kc = super_weight[c];
+                W sigma_d = super_ctot[d];
+                
+                std::unordered_map<K, W> neighbor_sc_weight;
+                W kc_to_d = W(0);
+                
+                for (auto& [nc, w] : super_adj[c]) {
+                    K snc = super_comm[nc];
+                    neighbor_sc_weight[snc] += w;
+                    if (snc == d) kc_to_d += w;
+                }
+                
+                K best_sc = d;
+                W best_delta = W(0);
+                
+                for (auto& [sc, kc_to_sc] : neighbor_sc_weight) {
+                    if (sc == d) continue;
+                    W sigma_sc = super_ctot[sc];
+                    W delta = graphbrew::leiden::gveDeltaModularity<W>(kc_to_sc, kc_to_d, kc, sigma_sc, sigma_d, M, resolution);
+                    if (delta > best_delta) {
+                        best_delta = delta;
+                        best_sc = sc;
+                    }
+                }
+                
+                if (best_sc != d) {
+                    super_ctot[d] -= kc;
+                    super_ctot[best_sc] += kc;
+                    super_comm[c] = best_sc;
+                    moves++;
+                }
+            }
+            if (moves == 0) break;
+        }
+        
+        // Map back to original vertices
+        #pragma omp parallel for
+        for (int64_t v = 0; v < num_nodes; ++v) {
+            K rc = vcom_refined[v];
+            vcom[v] = super_comm[rc];
+        }
+        
+        // Renumber final communities
+        K max_final_comm = 0;
+        for (int64_t v = 0; v < num_nodes; ++v) {
+            max_final_comm = std::max(max_final_comm, vcom[v]);
+        }
+        
+        std::vector<K> final_renumber(max_final_comm + 1, K(-1));
+        K next_final_id = 0;
+        for (int64_t v = 0; v < num_nodes; ++v) {
+            K c = vcom[v];
+            if (final_renumber[c] == K(-1)) {
+                final_renumber[c] = next_final_id++;
+            }
+        }
+        
+        #pragma omp parallel for
+        for (int64_t v = 0; v < num_nodes; ++v) {
+            vcom[v] = final_renumber[vcom[v]];
+        }
+        
+        size_t num_final_communities = static_cast<size_t>(next_final_id);
+        
+        atomic_dendro.total_passes++;
+        
+        printf("  Pass %d: local=%d iters, refine=%d, merges=%lld, communities: %zu -> %zu -> %zu\n",
+               pass + 1, local_iters, refine_moves, total_merges.load(),
+               prev_communities, num_refined_communities, num_final_communities);
+        
+        // Check convergence
+        if (num_final_communities >= prev_communities || num_final_communities == 1) break;
+        
+        double progress = static_cast<double>(num_final_communities) / prev_communities;
+        if (progress >= aggregation_tolerance) break;
+        
+        prev_communities = num_final_communities;
+        
+        // Recompute for next pass
+        std::fill(ctot.begin(), ctot.end(), W(0));
+        #pragma omp parallel for
+        for (int64_t v = 0; v < num_nodes; ++v) {
+            #pragma omp atomic
+            ctot[vcom[v]] += vtot[v];
+            vaff[v] = 1;
+        }
+        
+        current_tolerance /= tolerance_drop;
+    }
+    
+    // Convert to non-atomic result
+    auto result = atomic_dendro.toNonAtomic();
+    result.final_community = vcom;
+    result.modularity = computeModularityCSR<K, NodeID_T, DestID_T>(g, vcom, resolution);
+    
+    // Build final dendrogram from community assignment
+    // (This fills in any vertices not yet merged)
+    buildDendrogramFromCommunities<K, W>(result, vcom, vtot, num_nodes);
+    
+    // Update roots
+    result.roots.clear();
+    for (int64_t v = 0; v < num_nodes; ++v) {
+        if (result.parent[v] == -1) {
+            result.roots.push_back(v);
+        }
+    }
+    
+    printf("GVELeidenDendo: %d passes, %d iters, modularity=%.6f, roots=%zu, merges=%lld\n",
+           result.total_passes, result.total_iterations, result.modularity,
+           result.roots.size(), total_merges.load());
+    
+    return result;
+}
+
 #endif // REORDER_LEIDEN_H_
