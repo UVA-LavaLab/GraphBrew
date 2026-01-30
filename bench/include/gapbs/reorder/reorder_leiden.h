@@ -2837,4 +2837,138 @@ GVEDendroResult<K> GVELeidenOptDendoCSR(
     return result;
 }
 
+/**
+ * FastLeidenCSR - Union-Find based community detection on CSR graphs
+ * 
+ * Uses modularity-guided community merging with Union-Find for efficiency:
+ * 1. Initialize each vertex in its own community
+ * 2. Process vertices in degree order (small first)
+ * 3. For each vertex, find best neighbor community to merge with
+ * 4. Merge if modularity delta > 0
+ * 5. Multiple passes allow communities to coalesce further
+ *
+ * @tparam K Community ID type (default uint32_t)
+ * @tparam NodeID_T Node ID type from graph
+ * @tparam DestID_T Destination ID type (may include weights)
+ * @param g Input CSR graph
+ * @param resolution Resolution parameter for modularity
+ * @param max_iterations Max iterations (unused, for API compatibility)
+ * @param max_passes Maximum number of merge passes
+ * @return Vector of community assignments per pass (finest to coarsest)
+ */
+template <typename K, typename NodeID_T, typename DestID_T>
+std::vector<std::vector<K>> FastLeidenCSR(
+    const CSRGraph<NodeID_T, DestID_T, true>& g,
+    double resolution = 1.0,
+    int max_iterations = 10,
+    int max_passes = 10)
+{
+    const int64_t num_nodes = g.num_nodes();
+    const int64_t num_edges = g.num_edges_directed();
+    const double total_weight = static_cast<double>(num_edges);
+    
+    std::vector<std::vector<K>> community_per_pass;
+    
+    // Union-Find arrays
+    std::vector<K> parent(num_nodes);
+    std::vector<double> strength(num_nodes);  // sum of degrees in community
+    
+    // Initialize: each vertex in its own community
+    #pragma omp parallel for
+    for (int64_t i = 0; i < num_nodes; ++i) {
+        parent[i] = i;
+        strength[i] = static_cast<double>(g.out_degree(i));
+    }
+    
+    // Find root with path compression
+    auto find = [&](K x) -> K {
+        K root = x;
+        while (parent[root] != root) root = parent[root];
+        // Path compression
+        while (parent[x] != root) {
+            K next = parent[x];
+            parent[x] = root;
+            x = next;
+        }
+        return root;
+    };
+    
+    // Degree-ordered processing (smaller degrees first)
+    std::vector<std::pair<int64_t, K>> deg_order(num_nodes);
+    #pragma omp parallel for
+    for (int64_t v = 0; v < num_nodes; ++v) {
+        deg_order[v] = {g.out_degree(v), v};
+    }
+    std::sort(deg_order.begin(), deg_order.end());
+    
+    // Multi-pass merging
+    for (int pass = 0; pass < max_passes; ++pass) {
+        int64_t merge_count = 0;
+        
+        for (auto& [deg, v] : deg_order) {
+            K v_root = find(v);
+            double v_str = strength[v_root];
+            
+            // Find best neighbor to merge with
+            double best_delta = 0.0;
+            K best_target = v_root;
+            
+            for (auto u : g.out_neigh(v)) {
+                K u_root = find(u);
+                if (u_root == v_root) continue;
+                
+                double edge_weight = 1.0;
+                double u_str = strength[u_root];
+                
+                // Modularity delta = edge_weight - resolution * v_str * u_str / total_weight
+                double delta = edge_weight - resolution * v_str * u_str / total_weight;
+                if (delta > best_delta) {
+                    best_delta = delta;
+                    best_target = u_root;
+                }
+            }
+            
+            // Merge if positive gain
+            if (best_target != v_root) {
+                // Union: smaller root becomes child of larger
+                if (strength[v_root] < strength[best_target]) {
+                    parent[v_root] = best_target;
+                    strength[best_target] += v_str;
+                } else {
+                    parent[best_target] = v_root;
+                    strength[v_root] += strength[best_target];
+                }
+                merge_count++;
+            }
+        }
+        
+        // Extract communities for this pass
+        std::vector<K> community(num_nodes);
+        #pragma omp parallel for
+        for (int64_t i = 0; i < num_nodes; ++i) {
+            community[i] = find(i);
+        }
+        
+        // Renumber to contiguous IDs
+        std::unordered_map<K, K> comm_renumber;
+        K next_comm = 0;
+        for (int64_t i = 0; i < num_nodes; ++i) {
+            K c = community[i];
+            if (comm_renumber.find(c) == comm_renumber.end()) {
+                comm_renumber[c] = next_comm++;
+            }
+            community[i] = comm_renumber[c];
+        }
+        
+        community_per_pass.push_back(community);
+        
+        printf("LeidenCSR pass %d: %ld merges, %u communities\n", pass + 1, merge_count, next_comm);
+        
+        // Stop if no merges (fully converged)
+        if (merge_count == 0) break;
+    }
+    
+    return community_per_pass;
+}
+
 #endif // REORDER_LEIDEN_H_
