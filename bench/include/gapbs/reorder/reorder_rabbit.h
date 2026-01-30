@@ -26,7 +26,11 @@
 #include <unordered_set>
 #include <algorithm>
 #include <iterator>
+#include <atomic>
+#include <cstring>
+#include <deque>
 #include <omp.h>
+#include <parallel/algorithm>
 
 #include "../pvector.h"
 #include "../timer.h"
@@ -462,5 +466,571 @@ double GenerateRabbitModularityEdgelist(
     return compute_modularity_rabbit(adj, c.get());
 }
 #endif  // RABBIT_ENABLE
+
+// ============================================================================
+// RABBITORDERCSR - Native CSR Implementation (No Boost dependency)
+// 
+// Faithful implementation following the IPDPS 2016 paper:
+// "Rabbit Order: Just-in-time Parallel Reordering for Fast Graph Analysis"
+// by Arai et al.
+//
+// Algorithm overview:
+// 1. Community Detection via Parallel Incremental Aggregation
+//    - Process vertices in increasing order of degree
+//    - For each vertex u, find best neighbor v that maximizes ΔQ(u,v)
+//    - If ΔQ > 0, merge u into v (lazy aggregation with CAS)
+//    - Build dendrogram during merging
+//
+// 2. Ordering Generation via DFS on Dendrogram
+//    - Perform DFS from each top-level vertex
+//    - Assign new IDs in DFS visit order
+//    - Concatenate orderings from all communities
+//
+// Modularity gain formula (Equation 1 in paper):
+//   ΔQ(u,v) = 2 * (w_uv / (2m) - d(u)*d(v) / (2m)^2)
+// ============================================================================
+
+/**
+ * Packed atom structure for atomic CAS (must be 8 bytes for lock-free CAS)
+ */
+struct RabbitCSRAtomPacked {
+    float str;       // Total weighted degree of community (negative = locked)
+    uint32_t child;  // Last vertex merged into this vertex (UINT32_MAX = none)
+    
+    RabbitCSRAtomPacked() = default;
+    RabbitCSRAtomPacked(float s, uint32_t c) : str(s), child(c) {}
+    RabbitCSRAtomPacked(const RabbitCSRAtomPacked&) = default;
+    RabbitCSRAtomPacked& operator=(const RabbitCSRAtomPacked&) = default;
+};
+static_assert(sizeof(RabbitCSRAtomPacked) == 8, "RabbitCSRAtomPacked must be 8 bytes");
+static_assert(std::is_trivially_copyable<RabbitCSRAtomPacked>::value, "RabbitCSRAtomPacked must be trivially copyable");
+
+/**
+ * Vertex structure for RabbitOrderCSR with atomic CAS support
+ */
+struct RabbitCSRVertex {
+    std::atomic<uint64_t> atom_raw;  // Packed {str, child} for atomic CAS
+    std::atomic<uint32_t> sibling;   // Previous vertex merged to same destination
+    uint32_t united_child;           // Last child that has been edge-aggregated
+    
+    RabbitCSRVertex() : atom_raw(0), sibling(UINT32_MAX), united_child(UINT32_MAX) {
+        RabbitCSRAtomPacked init(0.0f, UINT32_MAX);
+        atom_raw.store(pack_atom(init), std::memory_order_relaxed);
+    }
+    
+    static uint64_t pack_atom(const RabbitCSRAtomPacked& a) {
+        uint64_t result;
+        static_assert(sizeof(RabbitCSRAtomPacked) == sizeof(uint64_t), "Size mismatch");
+        memcpy(&result, &a, sizeof(uint64_t));
+        return result;
+    }
+    
+    static RabbitCSRAtomPacked unpack_atom(uint64_t raw) {
+        RabbitCSRAtomPacked result;
+        memcpy(&result, &raw, sizeof(uint64_t));
+        return result;
+    }
+    
+    RabbitCSRAtomPacked load_atom(std::memory_order order = std::memory_order_acquire) const {
+        return unpack_atom(atom_raw.load(order));
+    }
+    
+    void store_atom(const RabbitCSRAtomPacked& a, std::memory_order order = std::memory_order_release) {
+        atom_raw.store(pack_atom(a), order);
+    }
+    
+    bool cas_atom(RabbitCSRAtomPacked& expected, const RabbitCSRAtomPacked& desired) {
+        uint64_t exp_raw = pack_atom(expected);
+        uint64_t des_raw = pack_atom(desired);
+        bool success = atom_raw.compare_exchange_weak(exp_raw, des_raw,
+            std::memory_order_acq_rel, std::memory_order_acquire);
+        if (!success) {
+            expected = unpack_atom(exp_raw);
+        }
+        return success;
+    }
+    
+    float exchange_str(float new_str) {
+        RabbitCSRAtomPacked old_atom, new_atom;
+        do {
+            old_atom = load_atom();
+            new_atom = RabbitCSRAtomPacked(new_str, old_atom.child);
+        } while (!cas_atom(old_atom, new_atom));
+        return old_atom.str;
+    }
+    
+    void init(float str) {
+        store_atom(RabbitCSRAtomPacked(str, UINT32_MAX), std::memory_order_relaxed);
+        sibling.store(UINT32_MAX, std::memory_order_relaxed);
+        united_child = UINT32_MAX;
+    }
+};
+
+/**
+ * RabbitOrderCSR graph representation
+ */
+struct RabbitCSRGraph {
+    std::atomic<uint32_t>* coms;     // Vertex -> community ID
+    RabbitCSRVertex* vs;              // Vertex attributes
+    std::vector<std::vector<std::pair<uint32_t, float>>> es;  // Adjacency list (neighbor, weight)
+    double tot_wgt;                   // Total edge weight
+    std::vector<uint32_t> tops;       // Top-level vertices (roots)
+    uint32_t num_vertices;
+    
+    // Performance counters
+    std::atomic<size_t> n_reunite{0};
+    std::atomic<size_t> n_fail_lock{0};
+    std::atomic<size_t> n_fail_cas{0};
+    std::atomic<size_t> tot_nbrs{0};
+    
+    RabbitCSRGraph() : coms(nullptr), vs(nullptr), tot_wgt(0.0), num_vertices(0) {}
+    
+    ~RabbitCSRGraph() {
+        if (coms) delete[] coms;
+        if (vs) delete[] vs;
+    }
+    
+    void allocate(uint32_t n) {
+        num_vertices = n;
+        coms = new std::atomic<uint32_t>[n];
+        vs = new RabbitCSRVertex[n];
+        es.resize(n);
+        for (uint32_t i = 0; i < n; ++i) {
+            coms[i].store(i, std::memory_order_relaxed);
+        }
+    }
+    
+    uint32_t n() const { return num_vertices; }
+};
+
+/**
+ * Trace community: Find the root community that vertex v belongs to
+ * Uses path compression for efficiency
+ */
+inline uint32_t rabbitCSRTraceCom(uint32_t v, RabbitCSRGraph& g) {
+    uint32_t com = v;
+    uint32_t c = g.coms[com].load(std::memory_order_relaxed);
+    if (c == com) return com;  // Fast path: already at root
+    
+    do {
+        com = c;
+        c = g.coms[com].load(std::memory_order_relaxed);
+    } while (c != com);
+    
+    if (g.coms[v].load(std::memory_order_relaxed) != com) {
+        g.coms[v].store(com, std::memory_order_relaxed);
+    }
+    return com;
+}
+
+/**
+ * Simple compact for final aggregation
+ */
+inline void rabbitCSRCompactEdges(std::vector<std::pair<uint32_t, float>>& edges) {
+    if (edges.empty()) return;
+    
+    std::sort(edges.begin(), edges.end(), 
+        [](const auto& a, const auto& b) { return a.first < b.first; });
+    
+    size_t write_pos = 0;
+    for (size_t i = 1; i < edges.size(); ++i) {
+        if (edges[i].first == edges[write_pos].first) {
+            edges[write_pos].second += edges[i].second;
+        } else {
+            ++write_pos;
+            if (write_pos != i) {
+                edges[write_pos] = edges[i];
+            }
+        }
+    }
+    edges.resize(write_pos + 1);
+}
+
+/**
+ * Unite: Aggregate edges of vertex v and all vertices merged into v
+ * Optimized with prefetching like the original boost implementation
+ */
+inline void rabbitCSRUnite(uint32_t v, std::vector<std::pair<uint32_t, float>>& nbrs, 
+                    RabbitCSRGraph& g) {
+    size_t icmb = 0;
+    nbrs.clear();
+    
+    auto push_edges = [&](uint32_t u) {
+        const auto& es = g.es[u];
+        const size_t es_size = es.size();
+        constexpr size_t npre = 8;
+        
+        for (size_t i = 0; i < es_size && i < npre; ++i) {
+            __builtin_prefetch(&g.coms[es[i].first], 0, 3);
+        }
+        
+        for (size_t i = 0; i < es_size; ++i) {
+            if (i + npre < es_size) {
+                __builtin_prefetch(&g.coms[es[i + npre].first], 0, 3);
+            }
+            
+            uint32_t c = rabbitCSRTraceCom(es[i].first, g);
+            if (c != v) {
+                nbrs.push_back({c, es[i].second});
+            }
+        }
+        
+        if (nbrs.size() - icmb >= 2048) {
+            std::sort(nbrs.begin() + icmb, nbrs.end(),
+                [](const auto& a, const auto& b) { return a.first < b.first; });
+            
+            size_t write_pos = icmb;
+            for (size_t i = icmb + 1; i < nbrs.size(); ++i) {
+                if (nbrs[i].first == nbrs[write_pos].first) {
+                    nbrs[write_pos].second += nbrs[i].second;
+                } else {
+                    ++write_pos;
+                    if (write_pos != i) {
+                        nbrs[write_pos] = nbrs[i];
+                    }
+                }
+            }
+            nbrs.resize(write_pos + 1);
+            icmb = nbrs.size();
+        }
+    };
+    
+    push_edges(v);
+    
+    RabbitCSRAtomPacked v_atom = g.vs[v].load_atom();
+    while (g.vs[v].united_child != v_atom.child) {
+        uint32_t c = v_atom.child;
+        for (uint32_t w = c; w != UINT32_MAX && w != g.vs[v].united_child; 
+             w = g.vs[w].sibling.load(std::memory_order_relaxed)) {
+            push_edges(w);
+        }
+        g.vs[v].united_child = c;
+        v_atom = g.vs[v].load_atom();
+    }
+    
+    g.tot_nbrs.fetch_add(nbrs.size(), std::memory_order_relaxed);
+    
+    g.es[v].clear();
+    if (!nbrs.empty()) {
+        rabbitCSRCompactEdges(nbrs);
+        g.es[v] = std::move(nbrs);
+    }
+}
+
+/**
+ * Find best destination: Find neighbor v that maximizes ΔQ(u,v)
+ */
+inline uint32_t rabbitCSRFindBest(const RabbitCSRGraph& g, uint32_t u, float u_strength) {
+    double dmax = 0.0;
+    uint32_t best = u;
+    
+    for (const auto& e : g.es[u]) {
+        RabbitCSRAtomPacked v_atom = g.vs[e.first].load_atom();
+        double delta_q = static_cast<double>(e.second) - 
+                         static_cast<double>(u_strength) * static_cast<double>(v_atom.str) / g.tot_wgt;
+        
+        if (delta_q > dmax) {
+            dmax = delta_q;
+            best = e.first;
+        }
+    }
+    return best;
+}
+
+/**
+ * Merge vertex v into its best neighbor
+ * Returns: v if v becomes top-level, destination if merged, UINT32_MAX if failed
+ */
+inline uint32_t rabbitCSRMerge(uint32_t v, std::vector<std::pair<uint32_t, float>>& nbrs,
+                        RabbitCSRGraph& g) {
+    rabbitCSRUnite(v, nbrs, g);
+    
+    float vstr = g.vs[v].exchange_str(-1.0f);
+    
+    RabbitCSRAtomPacked v_atom = g.vs[v].load_atom();
+    if (v_atom.child != g.vs[v].united_child) {
+        rabbitCSRUnite(v, nbrs, g);
+        g.n_reunite.fetch_add(1, std::memory_order_relaxed);
+    }
+    
+    uint32_t u = rabbitCSRFindBest(g, v, vstr);
+    
+    if (u == v) {
+        RabbitCSRAtomPacked new_v_atom = g.vs[v].load_atom();
+        new_v_atom.str = vstr;
+        g.vs[v].store_atom(new_v_atom);
+        return v;
+    }
+    
+    RabbitCSRAtomPacked u_atom = g.vs[u].load_atom();
+    
+    if (u_atom.str < 0.0f) {
+        RabbitCSRAtomPacked new_v_atom = g.vs[v].load_atom();
+        new_v_atom.str = vstr;
+        g.vs[v].store_atom(new_v_atom);
+        g.n_fail_lock.fetch_add(1, std::memory_order_relaxed);
+        return UINT32_MAX;
+    }
+    
+    g.vs[v].sibling.store(u_atom.child, std::memory_order_release);
+    
+    RabbitCSRAtomPacked new_u_atom(u_atom.str + vstr, v);
+    if (!g.vs[u].cas_atom(u_atom, new_u_atom)) {
+        g.vs[v].sibling.store(UINT32_MAX, std::memory_order_release);
+        RabbitCSRAtomPacked new_v_atom = g.vs[v].load_atom();
+        new_v_atom.str = vstr;
+        g.vs[v].store_atom(new_v_atom);
+        g.n_fail_cas.fetch_add(1, std::memory_order_relaxed);
+        return UINT32_MAX;
+    }
+    
+    g.coms[v].store(u, std::memory_order_release);
+    return u;
+}
+
+/**
+ * Parallel incremental aggregation (Algorithm 3 from paper)
+ */
+inline void rabbitCSRAggregate(RabbitCSRGraph& g) {
+    const uint32_t n = g.n();
+    const int np = omp_get_max_threads();
+    
+    std::vector<uint32_t> isolated_vertices;
+    std::vector<uint32_t> non_isolated_vertices;
+    
+    for (uint32_t v = 0; v < n; ++v) {
+        if (g.es[v].empty()) {
+            isolated_vertices.push_back(v);
+        } else {
+            non_isolated_vertices.push_back(v);
+        }
+    }
+    
+    std::vector<std::pair<uint32_t, uint32_t>> ord(non_isolated_vertices.size());
+    #pragma omp parallel for
+    for (size_t i = 0; i < non_isolated_vertices.size(); ++i) {
+        uint32_t v = non_isolated_vertices[i];
+        ord[i] = {v, static_cast<uint32_t>(g.es[v].size())};
+    }
+    __gnu_parallel::sort(ord.begin(), ord.end(),
+        [](const auto& a, const auto& b) { return a.second < b.second; });
+    
+    const uint32_t n_active = static_cast<uint32_t>(ord.size());
+    std::vector<std::deque<uint32_t>> topss(np);
+    
+    #pragma omp parallel
+    {
+        const int tid = omp_get_thread_num();
+        std::deque<uint32_t> tops;
+        std::deque<uint32_t> pends;
+        std::vector<std::pair<uint32_t, float>> nbrs;
+        nbrs.reserve(n * 2);
+        
+        #pragma omp for schedule(static, 1)
+        for (uint32_t i = 0; i < n_active; ++i) {
+            auto it = pends.begin();
+            while (it != pends.end()) {
+                uint32_t u = rabbitCSRMerge(*it, nbrs, g);
+                if (u == *it) {
+                    tops.push_back(*it);
+                    it = pends.erase(it);
+                } else if (u != UINT32_MAX) {
+                    it = pends.erase(it);
+                } else {
+                    ++it;
+                }
+            }
+            
+            uint32_t v = ord[i].first;
+            uint32_t u = rabbitCSRMerge(v, nbrs, g);
+            if (u == v) {
+                tops.push_back(v);
+            } else if (u == UINT32_MAX) {
+                pends.push_back(v);
+            }
+        }
+        
+        #pragma omp barrier
+        #pragma omp critical
+        {
+            for (uint32_t v : pends) {
+                uint32_t u = rabbitCSRMerge(v, nbrs, g);
+                if (u == v) {
+                    tops.push_back(v);
+                }
+            }
+            topss[tid] = std::move(tops);
+        }
+    }
+    
+    for (int t = 0; t < np; ++t) {
+        for (uint32_t v : topss[t]) {
+            g.tops.push_back(v);
+        }
+    }
+    
+    for (uint32_t v : isolated_vertices) {
+        g.tops.push_back(v);
+    }
+}
+
+/**
+ * DFS traversal to collect descendants in dendrogram
+ */
+inline void rabbitCSRDescendants(const RabbitCSRGraph& g, uint32_t v,
+                          std::vector<uint32_t>& result) {
+    result.push_back(v);
+    RabbitCSRAtomPacked atom = g.vs[v].load_atom();
+    uint32_t child = atom.child;
+    while (child != UINT32_MAX) {
+        result.push_back(child);
+        atom = g.vs[child].load_atom();
+        child = atom.child;
+    }
+}
+
+/**
+ * Compute permutation from dendrogram via DFS
+ */
+template <typename NodeID_>
+void rabbitCSRComputePerm(const RabbitCSRGraph& g, pvector<NodeID_>& perm) {
+    const uint32_t n = g.n();
+    const uint32_t ncom = static_cast<uint32_t>(g.tops.size());
+    
+    std::vector<uint32_t> multi_vertex_tops;
+    std::vector<uint32_t> isolated_vertices;
+    
+    for (uint32_t i = 0; i < ncom; ++i) {
+        uint32_t top = g.tops[i];
+        RabbitCSRAtomPacked atom = g.vs[top].load_atom();
+        if (atom.child == UINT32_MAX) {
+            isolated_vertices.push_back(top);
+        } else {
+            multi_vertex_tops.push_back(top);
+        }
+    }
+    
+    std::vector<bool> is_isolated(n, false);
+    for (uint32_t v : isolated_vertices) {
+        is_isolated[v] = true;
+    }
+    
+    std::vector<uint32_t> coms(n, UINT32_MAX);
+    std::vector<uint32_t> local_ids(n, UINT32_MAX);
+    
+    const int np = omp_get_max_threads();
+    const uint32_t n_multi = static_cast<uint32_t>(multi_vertex_tops.size());
+    std::vector<uint32_t> multi_offsets(n_multi + 1, 0);
+    
+    if (n_multi > 0) {
+        const uint32_t ntask = std::min<uint32_t>(n_multi, 128 * np);
+        
+        #pragma omp parallel
+        {
+            std::vector<uint32_t> stack;
+            
+            #pragma omp for schedule(dynamic, 1)
+            for (uint32_t i = 0; i < ntask; ++i) {
+                for (uint32_t idx = i; idx < n_multi; idx += ntask) {
+                    uint32_t newid = 0;
+                    stack.clear();
+                    
+                    rabbitCSRDescendants(g, multi_vertex_tops[idx], stack);
+                    
+                    while (!stack.empty()) {
+                        uint32_t v = stack.back();
+                        stack.pop_back();
+                        
+                        coms[v] = idx;
+                        local_ids[v] = newid++;
+                        
+                        uint32_t sib = g.vs[v].sibling.load(std::memory_order_acquire);
+                        if (sib != UINT32_MAX) {
+                            rabbitCSRDescendants(g, sib, stack);
+                        }
+                    }
+                    
+                    multi_offsets[idx + 1] = newid;
+                }
+            }
+        }
+        
+        for (uint32_t i = 1; i <= n_multi; ++i) {
+            multi_offsets[i] += multi_offsets[i - 1];
+        }
+    }
+    
+    uint32_t global_offset = (n_multi > 0) ? multi_offsets[n_multi] : 0;
+    
+    #pragma omp parallel for schedule(static)
+    for (uint32_t v = 0; v < n; ++v) {
+        if (!is_isolated[v] && coms[v] != UINT32_MAX) {
+            perm[v] = multi_offsets[coms[v]] + local_ids[v];
+        }
+    }
+    
+    #pragma omp parallel for schedule(static)
+    for (size_t i = 0; i < isolated_vertices.size(); ++i) {
+        uint32_t v = isolated_vertices[i];
+        perm[v] = global_offset + static_cast<uint32_t>(i);
+    }
+}
+
+/**
+ * Compute modularity of the community structure using original CSR graph
+ */
+template<typename NodeID_, typename DestID_, typename WeightT_, bool invert>
+double rabbitCSRComputeModularityCSR(const CSRGraph<NodeID_, DestID_, invert>& csr_g, 
+                                      RabbitCSRGraph& rg) {
+    const uint32_t n = rg.n();
+    double m2 = 0.0;
+    
+    std::vector<uint32_t> community(n);
+    #pragma omp parallel for
+    for (uint32_t v = 0; v < n; ++v) {
+        community[v] = rabbitCSRTraceCom(v, rg);
+    }
+    
+    uint32_t max_com = 0;
+    for (uint32_t v = 0; v < n; ++v) {
+        if (community[v] > max_com) max_com = community[v];
+    }
+    const size_t com_array_size = static_cast<size_t>(max_com) + 1;
+    
+    std::vector<double> degs_all(com_array_size, 0.0);
+    std::vector<double> degs_loop(com_array_size, 0.0);
+    
+    for (int64_t v = 0; v < static_cast<int64_t>(n); ++v) {
+        uint32_t c = community[v];
+        for (auto neighbor : csr_g.out_neigh(v)) {
+            NodeID_ dest;
+            float weight = 1.0f;
+            if (csr_g.is_weighted()) {
+                dest = static_cast<NodeWeight<NodeID_, WeightT_>>(neighbor).v;
+                weight = static_cast<float>(
+                    static_cast<NodeWeight<NodeID_, WeightT_>>(neighbor).w);
+            } else {
+                dest = static_cast<NodeID_>(neighbor);
+            }
+            
+            m2 += weight;
+            degs_all[c] += weight;
+            if (community[static_cast<uint32_t>(dest)] == c) {
+                degs_loop[c] += weight;
+            }
+        }
+    }
+    
+    double q = 0.0;
+    for (size_t c = 0; c < com_array_size; ++c) {
+        double all = degs_all[c];
+        double loop = degs_loop[c];
+        if (all > 0.0) {
+            q += loop / m2 - (all / m2) * (all / m2);
+        }
+    }
+    
+    return q;
+}
 
 #endif  // REORDER_RABBIT_H_
