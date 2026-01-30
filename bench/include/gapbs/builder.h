@@ -4743,6 +4743,7 @@ public:
      * Traverse dendrogram using DFS, assigning new IDs.
      * Orders vertices so that community members are contiguous.
      * Hub-first: Higher weight children are visited first.
+     * Delegates to ::traverseDendrogramDFS in reorder/reorder_types.h
      */
     template <typename K = uint32_t>
     void traverseDendrogramDFS(
@@ -4750,58 +4751,14 @@ public:
         pvector<NodeID_>& new_ids,
         bool hub_first = true) {
         
-        const int64_t num_nodes = static_cast<int64_t>(dendro.parent.size());
+        // Convert pvector to std::vector for the standalone function
+        std::vector<NodeID_> temp_ids(new_ids.size());
+        ::traverseDendrogramDFS<K, NodeID_>(dendro, temp_ids, hub_first);
         
-        // Find root nodes (nodes with no parent)
-        std::vector<int64_t> roots;
-        for (int64_t v = 0; v < num_nodes; ++v) {
-            if (dendro.parent[v] == -1) {
-                roots.push_back(v);
-            }
-        }
-        
-        // Sort roots by weight (hub-first)
-        if (hub_first) {
-            std::sort(roots.begin(), roots.end(),
-                [&dendro](int64_t a, int64_t b) {
-                    return dendro.weight[a] > dendro.weight[b];
-                });
-        }
-        
-        // DFS traversal with stack
-        std::vector<int64_t> stack;
-        int64_t current_id = 0;
-        
-        for (int64_t root : roots) {
-            stack.push_back(root);
-            
-            while (!stack.empty()) {
-                int64_t v = stack.back();
-                stack.pop_back();
-                
-                // Assign new ID
-                new_ids[v] = current_id++;
-                
-                // Collect children and sort by weight if hub-first
-                std::vector<int64_t> children;
-                int64_t child = dendro.first_child[v];
-                while (child != -1) {
-                    children.push_back(child);
-                    child = dendro.sibling[child];
-                }
-                
-                if (hub_first && !children.empty()) {
-                    std::sort(children.begin(), children.end(),
-                        [&dendro](int64_t a, int64_t b) {
-                            return dendro.weight[a] < dendro.weight[b]; // Reverse for stack
-                        });
-                }
-                
-                // Push children to stack (in reverse order for correct DFS)
-                for (int64_t c : children) {
-                    stack.push_back(c);
-                }
-            }
+        // Copy back to pvector
+        #pragma omp parallel for
+        for (size_t i = 0; i < temp_ids.size(); ++i) {
+            new_ids[i] = temp_ids[i];
         }
     }
     
