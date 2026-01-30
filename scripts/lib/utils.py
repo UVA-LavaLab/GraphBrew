@@ -442,9 +442,10 @@ def get_algorithm_name(option: str) -> str:
     Get display name for algorithm option string.
     
     ALWAYS includes variant in name for algorithms that have variants:
-    - RABBITORDER: RABBITORDER_csr (default) or RABBITORDER_boost
-    - LeidenCSR (17): LeidenCSR_gve (default), LeidenCSR_fast, etc.
-    - LeidenDendrogram (16): LeidenDendrogram_mod (default), etc.
+    - RABBITORDER (8): RABBITORDER_csr (default) or RABBITORDER_boost
+    - GraphBrewOrder (12): GraphBrewOrder_leiden (default), GraphBrewOrder_gve, etc.
+    - LeidenDendrogram (16): LeidenDendrogram_dfs (default), etc.
+    - LeidenCSR (17): LeidenCSR_gve (default), LeidenCSR_gveopt, etc.
     
     For other algorithms, returns the base name.
     """
@@ -453,8 +454,8 @@ def get_algorithm_name(option: str) -> str:
     
     # If params provided, use them to build name
     if params:
-        # For Leiden algorithms, extract just the variant (first param)
-        if algo_id in [16, 17]:
+        # For variant-based algorithms, extract just the variant (first param)
+        if algo_id in [12, 16, 17]:  # GraphBrewOrder, LeidenDendrogram, LeidenCSR
             return f"{base_name}_{params[0]}"
         # For RabbitOrder, include variant
         elif algo_id == 8:
@@ -465,27 +466,43 @@ def get_algorithm_name(option: str) -> str:
     # No params - use default variant for algorithms that have variants
     if algo_id == 8:  # RABBITORDER
         return f"RABBITORDER_{RABBITORDER_DEFAULT_VARIANT}"
+    elif algo_id == 12:  # GraphBrewOrder
+        return f"{base_name}_{GRAPHBREW_DEFAULT_VARIANT}"
     elif algo_id == 17:  # LeidenCSR
-        return f"{base_name}_{LEIDEN_CSR_VARIANTS[0]}"  # Default: gve
+        return f"{base_name}_{LEIDEN_CSR_DEFAULT_VARIANT}"
     elif algo_id == 16:  # LeidenDendrogram
-        return f"{base_name}_{LEIDEN_DENDROGRAM_VARIANTS[0]}"  # Default: mod
+        return f"{base_name}_{LEIDEN_DENDROGRAM_VARIANTS[0]}"  # Default: dfs
     
     return base_name
 
 
-def expand_leiden_variants(algo_id: int) -> List[str]:
+def expand_algorithm_variants(algo_id: int) -> List[str]:
     """
-    Expand Leiden algorithm ID to all its variants.
+    Expand algorithm ID to all its variants.
     
     Returns list of option strings for all variants.
-    Format: 16:variant:resolution or 17:variant:resolution:iterations:passes
+    Supported:
+    - RabbitOrder (8): 8:csr, 8:boost
+    - GraphBrewOrder (12): 12:leiden, 12:gve, 12:gveopt, 12:rabbit, 12:hubcluster
+    - LeidenDendrogram (16): 16:dfs, 16:dfshub, etc.
+    - LeidenCSR (17): 17:gve, 17:gveopt, 17:gvedendo, etc.
     """
-    if algo_id == 16:  # LeidenDendrogram
+    if algo_id == 8:  # RABBITORDER
+        return [f"8:{v}" for v in RABBITORDER_VARIANTS]
+    elif algo_id == 12:  # GraphBrewOrder
+        return [f"12:{v}" for v in GRAPHBREW_VARIANTS]
+    elif algo_id == 16:  # LeidenDendrogram
         return [f"16:{v}:1.0" for v in LEIDEN_DENDROGRAM_VARIANTS]
     elif algo_id == 17:  # LeidenCSR
         return [f"17:{v}:1.0:20:10" for v in LEIDEN_CSR_VARIANTS]
     else:
         return [str(algo_id)]
+
+
+# Backward compatibility alias
+def expand_leiden_variants(algo_id: int) -> List[str]:
+    """Deprecated: Use expand_algorithm_variants instead."""
+    return expand_algorithm_variants(algo_id)
 
 
 # =============================================================================

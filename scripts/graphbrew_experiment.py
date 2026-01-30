@@ -97,6 +97,9 @@ from scripts.lib import (
     # RabbitOrder variants (csr default)
     RABBITORDER_VARIANTS as LIB_RABBITORDER_VARIANTS,
     RABBITORDER_DEFAULT_VARIANT as LIB_RABBITORDER_DEFAULT_VARIANT,
+    # GraphBrewOrder variants (leiden default for backward compat)
+    GRAPHBREW_VARIANTS as LIB_GRAPHBREW_VARIANTS,
+    GRAPHBREW_DEFAULT_VARIANT as LIB_GRAPHBREW_DEFAULT_VARIANT,
     # Leiden variants (gve default for LeidenCSR)
     LEIDEN_CSR_VARIANTS as LIB_LEIDEN_CSR_VARIANTS,
     LEIDEN_CSR_DEFAULT_VARIANT as LIB_LEIDEN_CSR_DEFAULT_VARIANT,
@@ -279,6 +282,12 @@ SLOW_ALGORITHMS = {9, 10, 11}  # GORDER, CORDER, RCM
 RABBITORDER_VARIANTS = ["csr", "boost"]
 RABBITORDER_DEFAULT_VARIANT = "csr"
 
+# GraphBrewOrder variant configurations (default: leiden for backward compat)
+# Format: -o 12:cluster_variant:final_algo:resolution:levels
+# cluster_variant: leiden (default), gve, gveopt, rabbit, hubcluster
+GRAPHBREW_VARIANTS = ["leiden", "gve", "gveopt", "rabbit", "hubcluster"]
+GRAPHBREW_DEFAULT_VARIANT = "leiden"  # Original Leiden library (backward compatible)
+
 # Leiden variant configurations for sweeping
 LEIDEN_DENDROGRAM_VARIANTS = ["dfs", "dfshub", "dfssize", "bfs", "hybrid"]
 # LeidenCSR variants - gve (GVE-Leiden) is default for best modularity quality
@@ -319,22 +328,25 @@ def expand_algorithms_with_variants(
     leiden_passes: int = LEIDEN_DEFAULT_PASSES,
     leiden_csr_variants: List[str] = None,
     leiden_dendrogram_variants: List[str] = None,
-    rabbit_variants: List[str] = None
+    rabbit_variants: List[str] = None,
+    graphbrew_variants: List[str] = None
 ) -> List[AlgorithmConfig]:
     """
     Expand algorithm IDs into AlgorithmConfig objects.
     
     For Leiden algorithms (16, 17), optionally expand into their variants.
     For RabbitOrder (8), optionally expand into csr/boost variants.
+    For GraphBrewOrder (12), optionally expand into leiden/gve/gveopt/rabbit/hubcluster variants.
     
     Args:
         algorithms: List of algorithm IDs
-        expand_leiden_variants: If True, expand LeidenCSR/LeidenDendrogram into variants
+        expand_leiden_variants: If True, expand variant algorithms into all their variants
         leiden_resolution: Resolution parameter for Leiden algorithms
         leiden_passes: Number of passes for LeidenCSR
         leiden_csr_variants: Which LeidenCSR variants to include (default: all)
         leiden_dendrogram_variants: Which LeidenDendrogram variants to include (default: all)
         rabbit_variants: Which RabbitOrder variants to include (default: csr only)
+        graphbrew_variants: Which GraphBrewOrder variants to include (default: leiden only)
     
     Returns:
         List of AlgorithmConfig objects
@@ -346,6 +358,9 @@ def expand_algorithms_with_variants(
     if rabbit_variants is None:
         # When expand_leiden_variants is True (--all-variants), include both RabbitOrder variants
         rabbit_variants = RABBITORDER_VARIANTS if expand_leiden_variants else [RABBITORDER_DEFAULT_VARIANT]
+    if graphbrew_variants is None:
+        # When expand_leiden_variants is True (--all-variants), include all GraphBrewOrder variants
+        graphbrew_variants = GRAPHBREW_VARIANTS if expand_leiden_variants else [GRAPHBREW_DEFAULT_VARIANT]
     
     configs = []
     
@@ -388,6 +403,30 @@ def expand_algorithms_with_variants(
                     option_string=option_str,
                     variant=variant
                 ))
+        elif algo_id == 12 and expand_leiden_variants:
+            # GraphBrewOrder: expand into clustering variants
+            # Format: 12:cluster_variant:final_algo:resolution:levels
+            for variant in graphbrew_variants:
+                # Default: final_algo=8 (RabbitOrder), resolution=1.0, levels=2
+                option_str = f"{algo_id}:{variant}"
+                configs.append(AlgorithmConfig(
+                    algo_id=algo_id,
+                    name=f"GraphBrewOrder_{variant}",
+                    option_string=option_str,
+                    variant=variant,
+                    resolution=leiden_resolution
+                ))
+        elif algo_id == 12:
+            # GraphBrewOrder: use specified variant (default: leiden)
+            variant = graphbrew_variants[0] if graphbrew_variants else GRAPHBREW_DEFAULT_VARIANT
+            option_str = f"{algo_id}:{variant}"
+            configs.append(AlgorithmConfig(
+                algo_id=algo_id,
+                name=f"GraphBrewOrder_{variant}",
+                option_string=option_str,
+                variant=variant,
+                resolution=leiden_resolution
+            ))
         elif algo_id == 8:
             # RabbitOrder: use specified variant (default: csr)
             variant = rabbit_variants[0] if rabbit_variants else RABBITORDER_DEFAULT_VARIANT
