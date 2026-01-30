@@ -1364,7 +1364,7 @@ int gveOptLocalMove(
                     W sigma_c = ctot[c];
                     W sigma_d = ctot[d];
                     
-                    W delta = gveDeltaModularity(ku_to_c, ku_to_d, ku, sigma_c, sigma_d, M, R);
+                    W delta = gveDeltaModularity<W>(ku_to_c, ku_to_d, ku, sigma_c, sigma_d, static_cast<W>(M), static_cast<W>(R));
                     
                     if (delta > best_delta) {
                         best_delta = delta;
@@ -1550,7 +1550,7 @@ int gveOptRefine(
                 #pragma omp atomic read
                 sigma_c = ctot[c];
                 
-                W delta = gveDeltaModularity(ku_to_c, ku_to_d, ku, sigma_c, sigma_d, M, R);
+                W delta = gveDeltaModularity<W>(ku_to_c, ku_to_d, ku, sigma_c, sigma_d, static_cast<W>(M), static_cast<W>(R));
                 
                 if (delta > best_delta) {
                     best_delta = delta;
@@ -3295,6 +3295,351 @@ void GenerateLeidenMapping2(
     
     tm.Stop();
     PrintTime("Leiden Ordering", tm.Seconds());
+}
+
+//==========================================================================
+// GenerateGVELeidenCSRMapping - True Leiden ordering using GVE-Leiden
+//==========================================================================
+
+/**
+ * GenerateGVELeidenCSRMapping - True Leiden ordering using GVE-Leiden algorithm
+ * 
+ * Uses the GVE-Leiden implementation which follows the ACM paper
+ * "Fast Leiden Algorithm for Community Detection in Shared Memory Setting"
+ * 
+ * Key features:
+ * - Proper refinement phase (only isolated vertices move)
+ * - Community bounds constraint
+ * - Well-connected communities guaranteed
+ * - Dendrogram-based ordering
+ * - Isolated vertex separation (degree-0 vertices grouped at end)
+ * 
+ * @param g Input graph (CSR format, symmetric)
+ * @param new_ids Output permutation array
+ * @param reordering_options [resolution, max_iterations, max_passes]
+ */
+template <typename K = uint32_t, typename NodeID_T, typename DestID_T>
+void GenerateGVELeidenCSRMapping(
+    const CSRGraph<NodeID_T, DestID_T, true>& g,
+    pvector<NodeID_T>& new_ids,
+    const std::vector<std::string>& reordering_options) {
+    
+    Timer tm;
+    tm.Start();
+    
+    const int64_t num_nodes = g.num_nodes();
+    
+    // Parse options
+    double resolution = computeAutoResolution<NodeID_T, DestID_T>(g);
+    int max_iterations = 20;
+    int max_passes = 10;
+    
+    if (!reordering_options.empty() && !reordering_options[0].empty()) {
+        double parsed = std::stod(reordering_options[0]);
+        if (parsed > 0 && parsed <= 3) {
+            resolution = parsed;
+        }
+    }
+    if (reordering_options.size() > 1 && !reordering_options[1].empty()) {
+        max_iterations = std::stoi(reordering_options[1]);
+    }
+    if (reordering_options.size() > 2 && !reordering_options[2].empty()) {
+        max_passes = std::stoi(reordering_options[2]);
+    }
+    
+    // ================================================================
+    // ISOLATED VERTEX SEPARATION
+    // ================================================================
+    std::vector<int64_t> isolated_vertices;
+    std::vector<int64_t> active_vertices;
+    isolated_vertices.reserve(num_nodes / 10);
+    active_vertices.reserve(num_nodes);
+    
+    for (int64_t v = 0; v < num_nodes; ++v) {
+        if (g.out_degree(v) == 0) {
+            isolated_vertices.push_back(v);
+        } else {
+            active_vertices.push_back(v);
+        }
+    }
+    
+    const int64_t num_isolated = isolated_vertices.size();
+    const int64_t num_active = active_vertices.size();
+    
+    printf("GVELeidenCSR: resolution=%.4f, max_iterations=%d, max_passes=%d\n",
+           resolution, max_iterations, max_passes);
+    if (num_isolated > 0) {
+        printf("GVELeidenCSR: %ld active vertices, %ld isolated vertices (%.1f%%)\n",
+               num_active, num_isolated, 100.0 * num_isolated / num_nodes);
+    }
+    
+    // Run GVE-Leiden algorithm
+    auto result = GVELeidenCSR<K, NodeID_T, DestID_T>(g, resolution, 1e-2, 0.8, 10.0, max_iterations, max_passes);
+    
+    tm.Stop();
+    PrintTime("GVELeiden Community Detection", tm.Seconds());
+    
+    // Use community hierarchy for ordering
+    tm.Start();
+    
+    // Get degrees for secondary sort
+    std::vector<K> degrees(num_nodes);
+    #pragma omp parallel for
+    for (int64_t i = 0; i < num_nodes; ++i) {
+        degrees[i] = g.out_degree(i);
+    }
+    
+    // Build dendrogram from community passes
+    size_t num_communities = 0;
+    int64_t current_id = 0;
+    
+    if (!result.community_per_pass.empty()) {
+        std::vector<LeidenDendrogramNode> nodes;
+        std::vector<int64_t> roots;
+        buildLeidenDendrogram(nodes, roots, result.community_per_pass, degrees, num_nodes);
+        
+        // Count real communities
+        size_t real_communities = 0;
+        for (int64_t r : roots) {
+            if (degrees[r] > 0) {
+                real_communities++;
+            }
+        }
+        num_communities = real_communities;
+        
+        // Use DFS with hub-first ordering
+        orderDendrogramDFSParallel(nodes, roots, new_ids, true, false);
+        
+        // Post-process: Move isolated vertices to the end
+        std::vector<int64_t> active_order;
+        active_order.reserve(num_active);
+        for (int64_t v = 0; v < num_nodes; ++v) {
+            if (degrees[v] > 0) {
+                active_order.push_back(v);
+            }
+        }
+        
+        std::sort(active_order.begin(), active_order.end(),
+            [&new_ids](int64_t a, int64_t b) {
+                return new_ids[a] < new_ids[b];
+            });
+        
+        current_id = 0;
+        for (int64_t v : active_order) {
+            new_ids[v] = current_id++;
+        }
+        for (int64_t v : isolated_vertices) {
+            new_ids[v] = current_id++;
+        }
+    } else {
+        // Fallback: Sort by community then degree
+        std::vector<size_t> sort_indices;
+        sort_indices.reserve(num_active);
+        for (int64_t v : active_vertices) {
+            sort_indices.push_back(v);
+        }
+        
+        __gnu_parallel::sort(sort_indices.begin(), sort_indices.end(),
+            [&result, &degrees](size_t a, size_t b) {
+                K comm_a = result.final_community[a];
+                K comm_b = result.final_community[b];
+                if (comm_a != comm_b) return comm_a < comm_b;
+                return degrees[a] > degrees[b];
+            });
+        
+        current_id = 0;
+        for (size_t v : sort_indices) {
+            new_ids[v] = current_id++;
+        }
+        for (int64_t v : isolated_vertices) {
+            new_ids[v] = current_id++;
+        }
+        
+        std::unordered_set<K> unique_comms;
+        for (int64_t v : active_vertices) {
+            unique_comms.insert(result.final_community[v]);
+        }
+        num_communities = unique_comms.size();
+    }
+    
+    tm.Stop();
+    double ordering_time = tm.Seconds();
+    
+    PrintTime("GVELeiden Communities", static_cast<double>(num_communities));
+    if (num_isolated > 0) {
+        PrintTime("GVELeiden Isolated", static_cast<double>(num_isolated));
+    }
+    PrintTime("GVELeiden Modularity", result.modularity);
+    PrintTime("GVELeiden Map Time", ordering_time);
+}
+
+//==========================================================================
+// GenerateGVELeidenOptMapping - Optimized GVE-Leiden ordering
+//==========================================================================
+
+/**
+ * GenerateGVELeidenOptMapping - Optimized GVE-Leiden ordering
+ * 
+ * Uses the optimized GVE-Leiden implementation with:
+ * - Flat arrays instead of hash maps
+ * - Prefetching for community lookups
+ * - Guided scheduling for better load balancing
+ * - Sorted edge merging for super-graph construction
+ * 
+ * @param g Input graph (CSR format, symmetric)
+ * @param new_ids Output permutation array
+ * @param reordering_options [resolution, max_iterations, max_passes]
+ */
+template <typename K = uint32_t, typename NodeID_T, typename DestID_T>
+void GenerateGVELeidenOptMapping(
+    const CSRGraph<NodeID_T, DestID_T, true>& g,
+    pvector<NodeID_T>& new_ids,
+    const std::vector<std::string>& reordering_options) {
+    
+    Timer tm;
+    tm.Start();
+    
+    const int64_t num_nodes = g.num_nodes();
+    
+    // Parse options
+    double resolution = computeAutoResolution<NodeID_T, DestID_T>(g);
+    int max_iterations = 20;
+    int max_passes = 10;
+    
+    if (!reordering_options.empty() && !reordering_options[0].empty()) {
+        double parsed = std::stod(reordering_options[0]);
+        if (parsed > 0 && parsed <= 3) {
+            resolution = parsed;
+        }
+    }
+    if (reordering_options.size() > 1 && !reordering_options[1].empty()) {
+        max_iterations = std::stoi(reordering_options[1]);
+    }
+    if (reordering_options.size() > 2 && !reordering_options[2].empty()) {
+        max_passes = std::stoi(reordering_options[2]);
+    }
+    
+    // ================================================================
+    // ISOLATED VERTEX SEPARATION
+    // ================================================================
+    std::vector<int64_t> isolated_vertices;
+    std::vector<int64_t> active_vertices;
+    isolated_vertices.reserve(num_nodes / 10);
+    active_vertices.reserve(num_nodes);
+    
+    for (int64_t v = 0; v < num_nodes; ++v) {
+        if (g.out_degree(v) == 0) {
+            isolated_vertices.push_back(v);
+        } else {
+            active_vertices.push_back(v);
+        }
+    }
+    
+    const int64_t num_isolated = isolated_vertices.size();
+    const int64_t num_active = active_vertices.size();
+    
+    printf("GVELeidenOpt: resolution=%.4f, max_iterations=%d, max_passes=%d\n",
+           resolution, max_iterations, max_passes);
+    printf("GVELeidenOpt: %ld active vertices, %ld isolated vertices (%.1f%%)\n",
+           num_active, num_isolated, 100.0 * num_isolated / num_nodes);
+    
+    // Run optimized GVE-Leiden algorithm
+    auto result = GVELeidenOptCSR<K, NodeID_T, DestID_T>(g, resolution, 1e-2, 0.8, 10.0, max_iterations, max_passes);
+    
+    tm.Stop();
+    PrintTime("GVELeidenOpt Community Detection", tm.Seconds());
+    
+    // Use community hierarchy for ordering
+    tm.Start();
+    
+    // Get degrees for secondary sort
+    std::vector<K> degrees(num_nodes);
+    #pragma omp parallel for
+    for (int64_t i = 0; i < num_nodes; ++i) {
+        degrees[i] = g.out_degree(i);
+    }
+    
+    // Build dendrogram from community passes
+    size_t num_communities = 0;
+    int64_t current_id = 0;
+    
+    if (!result.community_per_pass.empty()) {
+        std::vector<LeidenDendrogramNode> nodes;
+        std::vector<int64_t> roots;
+        buildLeidenDendrogram(nodes, roots, result.community_per_pass, degrees, num_nodes);
+        
+        // Count real communities
+        size_t real_communities = 0;
+        for (int64_t r : roots) {
+            if (degrees[r] > 0) {
+                real_communities++;
+            }
+        }
+        num_communities = real_communities;
+        
+        // Use DFS with hub-first ordering
+        orderDendrogramDFSParallel(nodes, roots, new_ids, true, false);
+        
+        // Post-process: Move isolated vertices to the end
+        std::vector<int64_t> active_order;
+        active_order.reserve(num_active);
+        for (int64_t v = 0; v < num_nodes; ++v) {
+            if (degrees[v] > 0) {
+                active_order.push_back(v);
+            }
+        }
+        
+        std::sort(active_order.begin(), active_order.end(),
+            [&new_ids](int64_t a, int64_t b) {
+                return new_ids[a] < new_ids[b];
+            });
+        
+        current_id = 0;
+        for (int64_t v : active_order) {
+            new_ids[v] = current_id++;
+        }
+        for (int64_t v : isolated_vertices) {
+            new_ids[v] = current_id++;
+        }
+        
+    } else {
+        // Fallback: Sort by community then degree
+        std::vector<size_t> sort_indices;
+        sort_indices.reserve(num_active);
+        for (int64_t v : active_vertices) {
+            sort_indices.push_back(v);
+        }
+        
+        __gnu_parallel::sort(sort_indices.begin(), sort_indices.end(),
+            [&result, &degrees](size_t a, size_t b) {
+                K comm_a = result.final_community[a];
+                K comm_b = result.final_community[b];
+                if (comm_a != comm_b) return comm_a < comm_b;
+                return degrees[a] > degrees[b];
+            });
+        
+        current_id = 0;
+        for (size_t v : sort_indices) {
+            new_ids[v] = current_id++;
+        }
+        for (int64_t v : isolated_vertices) {
+            new_ids[v] = current_id++;
+        }
+        
+        std::unordered_set<K> unique_comms;
+        for (int64_t v : active_vertices) {
+            unique_comms.insert(result.final_community[v]);
+        }
+        num_communities = unique_comms.size();
+    }
+    
+    tm.Stop();
+    double ordering_time = tm.Seconds();
+    
+    PrintTime("GVELeidenOpt Communities", static_cast<double>(num_communities));
+    PrintTime("GVELeidenOpt Isolated", static_cast<double>(num_isolated));
+    PrintTime("GVELeidenOpt Modularity", result.modularity);
+    PrintTime("GVELeidenOpt Map Time", ordering_time);
 }
 
 #endif // REORDER_LEIDEN_H_
