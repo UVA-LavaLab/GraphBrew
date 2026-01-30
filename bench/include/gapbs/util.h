@@ -34,7 +34,7 @@ enum ReorderingAlgo
     GOrder = 9,
     COrder = 10,
     RCMOrder = 11,
-    GraphBrewOrder = 12,    // Leiden clustering + per-community ordering
+    GraphBrewOrder = 12,    // -o 12:cluster:final:res:levels (leiden=default, gve, gveopt, rabbit, hubcluster)
     MAP = 13,               // Load reordering from file
     AdaptiveOrder = 14,     // ML-based perceptron selector
     // Leiden algorithms (15-17) - grouped together for easier sweeping
