@@ -144,7 +144,7 @@ Use with `-o <id>`:
 | 9 | GOrder | Community |
 | 10 | COrder | Community |
 | 11 | RCMOrder | Community |
-| 12 | GraphBrewOrder | Community |
+| 12 | GraphBrewOrder | Community (variants: leiden/gve/gveopt/gvefast/gveoptfast/rabbit/hubcluster, default: leiden) |
 | 13 | MAP | External mapping |
 | 14 | AdaptiveOrder | ML |
 | 15 | LeidenOrder | Leiden (igraph) |
@@ -535,7 +535,8 @@ Memory estimation: `(edges × 24 bytes + nodes × 8 bytes) × 1.5`
 
 | Option | Description |
 |--------|-------------|
-| `--all-variants` | Test ALL algorithm variants (Leiden, RabbitOrder) instead of defaults |
+| `--all-variants` | Test ALL algorithm variants (Leiden, RabbitOrder, GraphBrewOrder) instead of defaults |
+| `--graphbrew-variants LIST` | GraphBrewOrder variants: leiden (default), gve, gveopt, gvefast, gveoptfast, rabbit, hubcluster |
 | `--csr-variants LIST` | LeidenCSR variants: gve (default), gveopt, gverabbit, dfs, bfs, hubsort, modularity |
 | `--dendrogram-variants LIST` | LeidenDendrogram variants: dfs, dfshub, dfssize, bfs, hybrid |
 | `--rabbit-variants LIST` | RabbitOrder variants: csr (default), boost (requires libboost-graph-dev) |

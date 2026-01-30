@@ -245,23 +245,33 @@ Larger window = better quality, slower computation
 ## Advanced Hybrid Algorithms (12-14)
 
 ### 12. GraphBrewOrder
-**Per-community reordering**
+**Per-community reordering with variant support**
 
 ```bash
-# Format: -o 12[:frequency[:intra_algo[:resolution[:maxIterations[:maxPasses]]]]]
-./bench/bin/pr -f graph.el -s -o 12 -n 3                # Use defaults (auto-resolution)
-./bench/bin/pr -f graph.el -s -o 12:10 -n 3             # frequency=10
-./bench/bin/pr -f graph.el -s -o 12:10:8 -n 3           # frequency=10, intra_algo=8 (RabbitOrder)
-./bench/bin/pr -f graph.el -s -o 12:10:16:0.75 -n 3     # frequency=10, intra=16, res=0.75
+# Format: -o 12[:variant[:frequency[:intra_algo[:resolution[:maxIterations[:maxPasses]]]]]]
+./bench/bin/pr -f graph.el -s -o 12 -n 3                   # Use defaults (leiden variant)
+./bench/bin/pr -f graph.el -s -o 12:leiden -n 3            # Explicit leiden variant
+./bench/bin/pr -f graph.el -s -o 12:gve -n 3               # GVE-Leiden variant (faster)
+./bench/bin/pr -f graph.el -s -o 12:gveopt -n 3            # Cache-optimized GVE
+./bench/bin/pr -f graph.el -s -o 12:gve:10:8 -n 3          # gve variant, freq=10, intra=RabbitOrder
 ```
 
-- **Description**: Runs Leiden, then applies a different algorithm within each community
+- **Description**: Runs community detection, then applies per-community reordering
+- **Variants**:
+  - `leiden`: Original Leiden library (igraph-based) - **default**
+  - `gve`: GVE-Leiden CSR-native implementation
+  - `gveopt`: Cache-optimized GVE with prefetching
+  - `gvefast`: Single-pass GVE (faster, less refinement)
+  - `gveoptfast`: Cache-optimized single-pass GVE
+  - `rabbit`: RabbitOrder-based community detection
+  - `hubcluster`: Hub-clustering based approach
 - **Parameters**:
   - `frequency`: Hub frequency threshold (default: 10) - controls how edges are categorized
   - `intra_algo`: Algorithm ID to use within communities (default: 8 = RabbitOrder)
   - `resolution`: Leiden resolution parameter (default: auto based on density)
   - `maxIterations`: Maximum Leiden iterations (default: 30)
   - `maxPasses`: Maximum Leiden passes (default: 30)
+- **Dynamic thresholds**: Community size thresholds are computed dynamically based on `avg_community_size/4` and `sqrt(N)`
 - **Best for**: Fine-grained control over per-community ordering
 
 ### 13. MAP

@@ -335,30 +335,93 @@ new_id = community_start_offset + position_within_community
 
 ---
 
-## Configuring GraphBrewOrder
+## GraphBrewOrder Variants
 
-### Community Size Thresholds
+GraphBrewOrder supports multiple community detection backends via variant selection:
 
-The implementation uses several size thresholds for optimization:
+| Variant | Description |
+|---------|-------------|
+| `leiden` | **Default.** Original Leiden library (igraph-based) |
+| `gve` | GVE-Leiden CSR-native implementation |
+| `gveopt` | Cache-optimized GVE with prefetching |
+| `gvefast` | Single-pass GVE (faster, less refinement) |
+| `gveoptfast` | Cache-optimized single-pass GVE |
+| `rabbit` | RabbitOrder-based community detection |
+| `hubcluster` | Hub-clustering based approach |
 
-```cpp
-// Communities smaller than this use simplified processing
-const size_t MIN_COMMUNITY_SIZE = 200;
+### Usage in Python scripts
 
-// Minimum community size for local reordering
-const size_t MIN_COMMUNITY_FOR_LOCAL_REORDER = 500;
-
-// Large communities get full parallelism during reordering
-const size_t LARGE_COMMUNITY_THRESHOLD = 500000;  // 500K edges
+```bash
+# Test specific GraphBrewOrder variants
+python3 scripts/graphbrew_experiment.py --phase benchmark \
+  --graph wiki-topcats \
+  --algo-list GraphBrewOrder \
+  --all-variants \
+  --graphbrew-variants leiden gve gveopt \
+  --benchmarks pr --trials 3
 ```
 
-### Frequency Threshold
+### Usage with C++ binaries
 
-Communities with fewer vertices than the frequency threshold are merged:
+```bash
+# Format: -o 12:variant
+./bench/bin/pr -f graph.el -s -o 12:leiden -n 5   # Original Leiden
+./bench/bin/pr -f graph.el -s -o 12:gve -n 5      # GVE-Leiden
+./bench/bin/pr -f graph.el -s -o 12:gveopt -n 5   # Cache-optimized GVE
+```
+
+---
+
+## Configuring GraphBrewOrder
+
+### Dynamic Community Size Thresholds
+
+The implementation uses **dynamic** thresholds based on graph statistics:
 
 ```cpp
-// Default frequency threshold (configurable via format string)
-size_t frequency_threshold = 10;
+// Dynamic threshold formula:
+// min_size = max(ABSOLUTE_MIN, min(avg_community_size / FACTOR, sqrt(N)))
+// Capped at MAX_THRESHOLD (2000)
+
+size_t ComputeDynamicMinCommunitySize(size_t num_nodes, 
+                                       size_t num_communities,
+                                       size_t avg_community_size) {
+    const size_t ABSOLUTE_MIN = 50;
+    const size_t MAX_THRESHOLD = 2000;
+    const size_t FACTOR = 4;
+    
+    size_t dynamic_threshold = std::max(ABSOLUTE_MIN,
+        std::min(avg_community_size / FACTOR, 
+                 static_cast<size_t>(std::sqrt(num_nodes))));
+    
+    return std::min(dynamic_threshold, MAX_THRESHOLD);
+}
+```
+
+This ensures thresholds scale appropriately across different graph sizes.
+
+### Local Reorder Threshold
+
+Communities must exceed this size to apply internal reordering:
+
+```cpp
+// Local reorder threshold = 2 × min_community_size (capped at 5000)
+size_t ComputeDynamicLocalReorderThreshold(size_t num_nodes,
+                                            size_t num_communities,
+                                            size_t avg_community_size) {
+    size_t min_size = ComputeDynamicMinCommunitySize(...);
+    return std::min(min_size * 2, static_cast<size_t>(5000));
+}
+```
+
+### Grouped Small Communities
+
+Small communities (below the threshold) are grouped together and processed as a single "mega community" using feature-based algorithm selection:
+
+```cpp
+// Small communities grouped together
+// Features computed for the entire group
+// Algorithm selected via perceptron (AdaptiveOrder) or heuristic (GraphBrew)
 ```
 
 ---

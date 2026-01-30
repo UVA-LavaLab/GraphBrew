@@ -51,7 +51,8 @@ This will automatically:
 
 | Parameter | Description |
 |-----------|-------------|
-| `--all-variants` | Test ALL algorithm variants (Leiden, RabbitOrder) |
+| `--all-variants` | Test ALL algorithm variants (Leiden, RabbitOrder, GraphBrewOrder) |
+| `--graphbrew-variants LIST` | GraphBrewOrder variants: leiden (default), gve, gveopt, gvefast, gveoptfast, rabbit, hubcluster |
 | `--csr-variants LIST` | LeidenCSR variants: gve (default), gveopt, gverabbit, dfs, bfs, hubsort, modularity |
 | `--dendrogram-variants LIST` | LeidenDendrogram variants: dfs, dfshub, dfssize, bfs, hybrid |
 | `--rabbit-variants LIST` | RabbitOrder variants: csr (default), boost (requires libboost-graph-dev) |

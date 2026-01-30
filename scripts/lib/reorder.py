@@ -32,6 +32,7 @@ from .utils import (
     LEIDEN_CSR_VARIANTS, LEIDEN_DENDROGRAM_VARIANTS,
     LEIDEN_DEFAULT_RESOLUTION, LEIDEN_DEFAULT_PASSES,
     RABBITORDER_VARIANTS, RABBITORDER_DEFAULT_VARIANT,
+    GRAPHBREW_VARIANTS, GRAPHBREW_DEFAULT_VARIANT,
     Logger, run_command, get_timestamp,
 )
 
@@ -140,13 +141,15 @@ def expand_algorithms_with_variants(
     leiden_passes: int = LEIDEN_DEFAULT_PASSES,
     leiden_csr_variants: List[str] = None,
     leiden_dendrogram_variants: List[str] = None,
-    rabbit_variants: List[str] = None
+    rabbit_variants: List[str] = None,
+    graphbrew_variants: List[str] = None
 ) -> List[AlgorithmConfig]:
     """
     Expand algorithm IDs into AlgorithmConfig objects.
     
     For Leiden algorithms (16, 17), optionally expand into their variants.
     For RabbitOrder (8), optionally expand into csr/boost variants.
+    For GraphBrewOrder (12), optionally expand into leiden/gve/gveopt/rabbit/hubcluster variants.
     
     Args:
         algorithms: List of algorithm IDs
@@ -156,6 +159,7 @@ def expand_algorithms_with_variants(
         leiden_csr_variants: Which LeidenCSR variants to include (default: all)
         leiden_dendrogram_variants: Which LeidenDendrogram variants to include (default: all)
         rabbit_variants: Which RabbitOrder variants to include (default: csr only)
+        graphbrew_variants: Which GraphBrewOrder variants to include (default: leiden only)
     
     Returns:
         List of AlgorithmConfig objects
@@ -167,6 +171,9 @@ def expand_algorithms_with_variants(
     if rabbit_variants is None:
         # When expanding variants, include both RabbitOrder variants; otherwise just csr
         rabbit_variants = RABBITORDER_VARIANTS if expand_leiden_variants else [RABBITORDER_DEFAULT_VARIANT]
+    if graphbrew_variants is None:
+        # When expanding variants, include all GraphBrewOrder variants; otherwise just leiden
+        graphbrew_variants = GRAPHBREW_VARIANTS if expand_leiden_variants else [GRAPHBREW_DEFAULT_VARIANT]
     
     configs = []
     
@@ -250,6 +257,29 @@ def expand_algorithms_with_variants(
                 algo_id=algo_id,
                 name=base_name,
                 option_string=option_str,
+                resolution=leiden_resolution
+            ))
+        elif algo_id == 12 and expand_leiden_variants:
+            # GraphBrewOrder: expand into clustering variants
+            # Format: 12:variant
+            for variant in graphbrew_variants:
+                option_str = f"{algo_id}:{variant}"
+                configs.append(AlgorithmConfig(
+                    algo_id=algo_id,
+                    name=f"GraphBrewOrder_{variant}",
+                    option_string=option_str,
+                    variant=variant,
+                    resolution=leiden_resolution
+                ))
+        elif algo_id == 12:
+            # GraphBrewOrder: use default variant (leiden) - ALWAYS include variant in name
+            variant = graphbrew_variants[0] if graphbrew_variants else GRAPHBREW_DEFAULT_VARIANT
+            option_str = f"{algo_id}:{variant}"
+            configs.append(AlgorithmConfig(
+                algo_id=algo_id,
+                name=f"GraphBrewOrder_{variant}",  # Always show variant
+                option_string=option_str,
+                variant=variant,
                 resolution=leiden_resolution
             ))
         else:
@@ -763,6 +793,7 @@ def generate_reorderings_with_variants(
     leiden_csr_variants: List[str] = None,
     leiden_dendrogram_variants: List[str] = None,
     rabbit_variants: List[str] = None,
+    graphbrew_variants: List[str] = None,
     timeout: int = TIMEOUT_REORDER,
     skip_slow: bool = False,
     force_reorder: bool = False
@@ -774,10 +805,12 @@ def generate_reorderings_with_variants(
         - LeidenCSR_fast.lo
         - LeidenCSR_hubsort.lo
         - LeidenDendrogram_hybrid.lo
+        - GraphBrewOrder_leiden.lo
+        - GraphBrewOrder_gve.lo
     
     Args:
         graphs: List of graphs to process
-        algorithms: List of algorithm IDs
+        algorithms: List of algorithm IDs or AlgorithmConfig objects
         bin_dir: Directory containing binaries
         output_dir: Directory for outputs
         expand_leiden_variants: If True, expand Leiden into variants
@@ -785,6 +818,7 @@ def generate_reorderings_with_variants(
         leiden_passes: Number of passes for LeidenCSR
         leiden_csr_variants: Which LeidenCSR variants
         leiden_dendrogram_variants: Which LeidenDendrogram variants
+        graphbrew_variants: Which GraphBrewOrder variants
         timeout: Timeout for each reordering
         skip_slow: Skip slow algorithms on large graphs
         force_reorder: Regenerate even if files exist
@@ -802,16 +836,22 @@ def generate_reorderings_with_variants(
         log.info(f"  LeidenCSR variants: {leiden_csr_variants or LEIDEN_CSR_VARIANTS}")
         log.info(f"  LeidenDendrogram variants: {leiden_dendrogram_variants or LEIDEN_DENDROGRAM_VARIANTS}")
     
-    # Expand algorithms to configs
-    configs = expand_algorithms_with_variants(
-        algorithms,
-        expand_leiden_variants=expand_leiden_variants,
-        leiden_resolution=leiden_resolution,
-        leiden_passes=leiden_passes,
-        leiden_csr_variants=leiden_csr_variants,
-        leiden_dendrogram_variants=leiden_dendrogram_variants,
-        rabbit_variants=rabbit_variants
-    )
+    # Handle both algorithm ID lists and pre-expanded AlgorithmConfig lists
+    if algorithms and isinstance(algorithms[0], AlgorithmConfig):
+        # Already expanded - use directly
+        configs = algorithms
+    else:
+        # Expand algorithm IDs to configs
+        configs = expand_algorithms_with_variants(
+            algorithms,
+            expand_leiden_variants=expand_leiden_variants,
+            leiden_resolution=leiden_resolution,
+            leiden_passes=leiden_passes,
+            leiden_csr_variants=leiden_csr_variants,
+            leiden_dendrogram_variants=leiden_dendrogram_variants,
+            rabbit_variants=rabbit_variants,
+            graphbrew_variants=graphbrew_variants
+        )
     
     results = []
     label_maps = {}

@@ -284,8 +284,8 @@ RABBITORDER_DEFAULT_VARIANT = "csr"
 
 # GraphBrewOrder variant configurations (default: leiden for backward compat)
 # Format: -o 12:cluster_variant:final_algo:resolution:levels
-# cluster_variant: leiden (default), gve, gveopt, rabbit, hubcluster
-GRAPHBREW_VARIANTS = ["leiden", "gve", "gveopt", "rabbit", "hubcluster"]
+# cluster_variant: leiden (default), gve, gveopt, gvefast, gveoptfast, rabbit, hubcluster
+GRAPHBREW_VARIANTS = ["leiden", "gve", "gveopt", "gvefast", "gveoptfast", "rabbit", "hubcluster"]
 GRAPHBREW_DEFAULT_VARIANT = "leiden"  # Original Leiden library (backward compatible)
 
 # Leiden variant configurations for sweeping
@@ -2393,6 +2393,7 @@ def run_experiment(args):
                 leiden_csr_variants=getattr(args, "leiden_csr_variants", None),
                 leiden_dendrogram_variants=getattr(args, "leiden_dendrogram_variants", None),
                 rabbit_variants=getattr(args, "rabbit_variants", None),
+                graphbrew_variants=getattr(args, "graphbrew_variants", None),
                 timeout=args.timeout_reorder,
                 skip_slow=args.skip_slow,
                 force_reorder=getattr(args, "force_reorder", False)
@@ -3223,6 +3224,9 @@ def main():
     parser.add_argument("--rabbit-variants", nargs="+",
                         default=None, choices=["csr", "boost"],
                         help="RabbitOrder variants: csr (default, no deps), boost (requires libboost-graph-dev)")
+    parser.add_argument("--graphbrew-variants", nargs="+", dest="graphbrew_variants",
+                        default=None, choices=["leiden", "gve", "gveopt", "gvefast", "gveoptfast", "rabbit", "hubcluster"],
+                        help="GraphBrewOrder variants: leiden (default), gve, gveopt, gvefast, gveoptfast, rabbit, hubcluster")
     parser.add_argument("--resolution", type=float, default=1.0, dest="leiden_resolution",
                         help="Leiden resolution parameter - higher = more communities (default: 1.0)")
     parser.add_argument("--passes", type=int, default=3, dest="leiden_passes",
