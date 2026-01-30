@@ -3784,4 +3784,187 @@ void GenerateGVELeidenOptDendoMapping(
     PrintTime("GVELeidenOptDendo Map Time", ordering_time);
 }
 
+/**
+ * GVERabbitCoreResult - Local result structure for GVERabbitCore
+ * 
+ * This is a simplified result structure that contains the information
+ * needed by GenerateGVERabbitMapping. It's separate from GVERabbitResult
+ * in reorder_types.h which has a more complex structure.
+ */
+template <typename K = uint32_t>
+struct GVERabbitCoreResult {
+    std::vector<K> community;       // Final community assignment
+    double modularity;
+    double aggregation_time;
+    double refinement_time;
+};
+
+/**
+ * GVERabbitCore - GVE-Leiden with limited iterations for speed
+ * 
+ * Fast community detection hybrid using GVE-Leiden's local moving
+ * with fewer iterations and single pass for RabbitOrder-style speed.
+ * 
+ * @tparam K Community ID type
+ * @tparam NodeID_T Node ID type
+ * @tparam DestID_T Destination type
+ * @param g Input graph (must be symmetric)
+ * @param resolution Resolution parameter (default 1.0)
+ * @param max_iterations Maximum iterations (default 5)
+ * @return GVERabbitCoreResult with community assignments and metadata
+ */
+template <typename K = uint32_t, typename NodeID_T, typename DestID_T>
+GVERabbitCoreResult<K> GVERabbitCore(
+    const CSRGraph<NodeID_T, DestID_T, true>& g,
+    double resolution = 1.0,
+    int max_iterations = 5) {
+    
+    Timer tm;
+    tm.Start();
+    
+    // Use GVE-Leiden with limited iterations for speed
+    // Parameters: resolution, tolerance, agg_tolerance, tolerance_drop, max_iterations, max_passes
+    // Fewer iterations (3) and single pass (1) for speed
+    auto leiden_result = GVELeidenCSR<K, double, NodeID_T, DestID_T>(g, resolution, 
+        0.01,    // tolerance
+        0.8,     // aggregation_tolerance  
+        10.0,    // tolerance_drop
+        std::min(max_iterations, 5),  // max_iterations (cap at 5 for speed)
+        1);      // max_passes (single pass)
+    
+    tm.Stop();
+    
+    // Convert to GVERabbitCoreResult
+    GVERabbitCoreResult<K> result;
+    result.community = std::move(leiden_result.final_community);
+    result.modularity = leiden_result.modularity;
+    result.aggregation_time = tm.Seconds();
+    result.refinement_time = 0;
+    
+    return result;
+}
+
+/**
+ * GenerateGVERabbitMapping - GVE-Rabbit hybrid ordering
+ * 
+ * Fast variant of GVE-Leiden:
+ * - Uses GVE-Leiden's optimized local moving
+ * - Limited iterations for speed
+ * - Single aggregation pass
+ * 
+ * @tparam K Community ID type (default uint32_t)
+ * @tparam NodeID_T Node ID type
+ * @tparam DestID_T Destination type
+ * @param g Input graph (must be symmetric)
+ * @param new_ids Output mapping vector
+ * @param reordering_options Options: [resolution, max_iterations]
+ */
+template <typename K = uint32_t, typename NodeID_T, typename DestID_T>
+void GenerateGVERabbitMapping(
+    const CSRGraph<NodeID_T, DestID_T, true>& g,
+    pvector<NodeID_T>& new_ids,
+    const std::vector<std::string>& reordering_options) {
+    
+    Timer tm;
+    tm.Start();
+    
+    const int64_t num_nodes = g.num_nodes();
+    
+    // Parse options
+    double resolution = 1.0;
+    int max_iterations = 5;  // Fewer iterations for speed
+    
+    if (!reordering_options.empty() && !reordering_options[0].empty()) {
+        resolution = std::stod(reordering_options[0]);
+    }
+    if (reordering_options.size() > 1 && !reordering_options[1].empty()) {
+        max_iterations = std::stoi(reordering_options[1]);
+    }
+    
+    // Isolated vertex separation
+    std::vector<int64_t> isolated_vertices;
+    std::vector<int64_t> active_vertices;
+    isolated_vertices.reserve(num_nodes / 10);
+    active_vertices.reserve(num_nodes);
+    
+    for (int64_t v = 0; v < num_nodes; ++v) {
+        if (g.out_degree(v) == 0) {
+            isolated_vertices.push_back(v);
+        } else {
+            active_vertices.push_back(v);
+        }
+    }
+    
+    const int64_t num_isolated = isolated_vertices.size();
+    const int64_t num_active = active_vertices.size();
+    
+    printf("GVERabbit: resolution=%.4f, max_iterations=%d\n", resolution, max_iterations);
+    if (num_isolated > 0) {
+        printf("GVERabbit: %ld active vertices, %ld isolated vertices (%.1f%%)\n",
+               num_active, num_isolated, 100.0 * num_isolated / num_nodes);
+    }
+    
+    // Run GVE-Rabbit algorithm (uses GVELeidenCSR with limited iterations)
+    auto result = GVERabbitCore<K, NodeID_T, DestID_T>(g, resolution, max_iterations);
+    
+    PrintTime("GVERabbit Aggregation", result.aggregation_time);
+    PrintTime("GVERabbit Refinement", result.refinement_time);
+    
+    tm.Stop();
+    double total_time = tm.Seconds();
+    
+    // Build ordering from communities
+    tm.Start();
+    
+    // Get degrees for hub-first ordering
+    std::vector<K> degrees(num_nodes);
+    #pragma omp parallel for
+    for (int64_t v = 0; v < num_nodes; ++v) {
+        degrees[v] = g.out_degree(v);
+    }
+    
+    // Sort vertices by (community, -degree) for locality
+    std::vector<std::pair<K, int64_t>> order_keys(num_nodes);
+    #pragma omp parallel for
+    for (int64_t v = 0; v < num_nodes; ++v) {
+        order_keys[v] = {result.community[v], v};
+    }
+    
+    // Sort: group by community, hub-first within community
+    __gnu_parallel::sort(order_keys.begin(), order_keys.end(),
+        [&degrees](const auto& a, const auto& b) {
+            if (a.first != b.first) return a.first < b.first;
+            return degrees[a.second] > degrees[b.second];  // Hub-first
+        });
+    
+    // Assign new IDs: active vertices first, isolated at end
+    int64_t current_id = 0;
+    for (const auto& [comm, v] : order_keys) {
+        if (degrees[v] > 0) {
+            new_ids[v] = current_id++;
+        }
+    }
+    for (int64_t v : isolated_vertices) {
+        new_ids[v] = current_id++;
+    }
+    
+    tm.Stop();
+    double ordering_time = tm.Seconds();
+    
+    // Count real communities (exclude isolated)
+    std::unordered_set<K> unique_comms;
+    for (int64_t v : active_vertices) {
+        unique_comms.insert(result.community[v]);
+    }
+    size_t num_communities = unique_comms.size();
+    
+    PrintTime("GVERabbit Communities", static_cast<double>(num_communities));
+    if (num_isolated > 0) {
+        PrintTime("GVERabbit Isolated", static_cast<double>(num_isolated));
+    }
+    PrintTime("GVERabbit Modularity", result.modularity);
+    PrintTime("GVERabbit Ordering", ordering_time);
+    PrintTime("GVERabbit Total", total_time + ordering_time);
+}
+
 #endif // REORDER_LEIDEN_H_
