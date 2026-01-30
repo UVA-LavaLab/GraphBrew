@@ -890,4 +890,74 @@ void buildDendrogramFromCommunities(
     }
 }
 
+/**
+ * Traverse dendrogram in DFS order to produce vertex ordering.
+ * 
+ * @tparam K Community ID type
+ * @tparam NodeID_T Node ID type for new_ids array
+ * @param dendro The dendrogram structure to traverse
+ * @param new_ids Output array mapping original vertex -> new position
+ * @param hub_first If true, visit higher-weight children first
+ */
+template <typename K, typename NodeID_T>
+void traverseDendrogramDFS(
+    const GVEDendroResult<K>& dendro,
+    std::vector<NodeID_T>& new_ids,
+    bool hub_first = true) {
+    
+    const int64_t num_nodes = static_cast<int64_t>(dendro.parent.size());
+    
+    // Find root nodes (nodes with no parent)
+    std::vector<int64_t> roots;
+    for (int64_t v = 0; v < num_nodes; ++v) {
+        if (dendro.parent[v] == -1) {
+            roots.push_back(v);
+        }
+    }
+    
+    // Sort roots by weight (hub-first)
+    if (hub_first) {
+        std::sort(roots.begin(), roots.end(),
+            [&dendro](int64_t a, int64_t b) {
+                return dendro.weight[a] > dendro.weight[b];
+            });
+    }
+    
+    // DFS traversal with stack
+    std::vector<int64_t> stack;
+    int64_t current_id = 0;
+    
+    for (int64_t root : roots) {
+        stack.push_back(root);
+        
+        while (!stack.empty()) {
+            int64_t v = stack.back();
+            stack.pop_back();
+            
+            // Assign new ID
+            new_ids[v] = current_id++;
+            
+            // Collect children and sort by weight if hub-first
+            std::vector<int64_t> children;
+            int64_t child = dendro.first_child[v];
+            while (child != -1) {
+                children.push_back(child);
+                child = dendro.sibling[child];
+            }
+            
+            if (hub_first && !children.empty()) {
+                std::sort(children.begin(), children.end(),
+                    [&dendro](int64_t a, int64_t b) {
+                        return dendro.weight[a] < dendro.weight[b]; // Reverse for stack
+                    });
+            }
+            
+            // Push children to stack (in reverse order for correct DFS)
+            for (int64_t c : children) {
+                stack.push_back(c);
+            }
+        }
+    }
+}
+
 #endif  // REORDER_TYPES_H_
