@@ -5106,6 +5106,8 @@ public:
      * 
      * Clone of GVELeidenOpt with atomic dendrogram building.
      * Uses optimized flat-array scanning plus lock-free tree construction.
+     * 
+     * Delegates to ::GVELeidenOptDendoCSR in reorder/reorder_leiden.h
      */
     template <typename K = uint32_t>
     GVEDendroResult<K> GVELeidenOptDendo(
@@ -5117,55 +5119,9 @@ public:
         int max_iterations = 20,
         int max_passes = 10) {
         
-        // For OptDendo, we use the same approach as GVELeidenOpt
-        // but build dendrogram from the final community assignment
-        
-        using W = double;
-        const int64_t num_nodes = g.num_nodes();
-        bool graph_is_symmetric = !g.directed();
-        
-        // Run the optimized GVE-Leiden algorithm
-        auto gve_result = GVELeidenOpt<K>(g, resolution, tolerance, aggregation_tolerance,
-                                          tolerance_drop, max_iterations, max_passes);
-        
-        // Compute vertex weights for dendrogram
-        std::vector<W> vtot(num_nodes);
-        #pragma omp parallel for
-        for (int64_t v = 0; v < num_nodes; ++v) {
-            vtot[v] = computeVertexTotalWeight<W>(v, g, graph_is_symmetric);
-        }
-        
-        // Build dendrogram from final communities
-        GVEDendroResult<K> result;
-        result.total_iterations = gve_result.total_iterations;
-        result.total_passes = gve_result.total_passes;
-        result.modularity = gve_result.modularity;
-        result.final_community = gve_result.final_community;
-        
-        result.parent.resize(num_nodes, -1);
-        result.first_child.resize(num_nodes, -1);
-        result.sibling.resize(num_nodes, -1);
-        result.subtree_size.resize(num_nodes, 1);
-        result.weight.resize(num_nodes);
-        
-        #pragma omp parallel for
-        for (int64_t v = 0; v < num_nodes; ++v) {
-            result.weight[v] = vtot[v];
-        }
-        
-        buildDendrogramFromCommunities<K, W>(result, result.final_community, vtot, num_nodes);
-        
-        // Collect roots
-        for (int64_t v = 0; v < num_nodes; ++v) {
-            if (result.parent[v] == -1) {
-                result.roots.push_back(v);
-            }
-        }
-        
-        printf("GVELeidenOptDendo: %d passes, %d iters, modularity=%.6f, roots=%zu\n",
-               result.total_passes, result.total_iterations, result.modularity, result.roots.size());
-        
-        return result;
+        return ::GVELeidenOptDendoCSR<K, double, NodeID_, DestID_>(
+            g, resolution, tolerance, aggregation_tolerance,
+            tolerance_drop, max_iterations, max_passes);
     }
     
     /**
