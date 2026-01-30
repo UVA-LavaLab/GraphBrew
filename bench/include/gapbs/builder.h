@@ -40,6 +40,7 @@
 #include "util.h"
 
 #include "reorder/reorder_leiden.h"
+#include "reorder/reorder_graphbrew.h"
 /*
    GAP Benchmark Suite
    Class:  BuilderBase
@@ -11118,52 +11119,18 @@ public:
                                                   size_t num_communities,
                                                   size_t avg_community_size = 0)
     {
-        const size_t ABSOLUTE_MIN = 50;      // Never go below this
-        const size_t FACTOR = 4;             // Communities < avg/4 are "small"
-        const size_t MAX_THRESHOLD = 2000;   // Cap for very large graphs
-        
-        // Compute average if not provided
-        if (avg_community_size == 0 && num_communities > 0) {
-            avg_community_size = num_nodes / num_communities;
-        }
-        
-        // Threshold based on average community size
-        size_t avg_based = (avg_community_size > 0) ? avg_community_size / FACTOR : ABSOLUTE_MIN;
-        
-        // Threshold based on sqrt(N) - classic heuristic
-        size_t sqrt_based = static_cast<size_t>(std::sqrt(static_cast<double>(num_nodes)));
-        
-        // Take minimum of avg-based and sqrt-based (don't want threshold too high)
-        // But ensure at least ABSOLUTE_MIN
-        size_t threshold = std::max(ABSOLUTE_MIN, std::min(avg_based, sqrt_based));
-        
-        // Cap at MAX_THRESHOLD for very large graphs
-        threshold = std::min(threshold, MAX_THRESHOLD);
-        
-        return threshold;
+        return graphbrew::ComputeDynamicMinCommunitySize(num_nodes, num_communities, avg_community_size);
     }
     
     /**
      * Compute dynamic threshold for when to apply local reordering.
-     * Communities smaller than this get simple degree-sorting instead of
-     * expensive subgraph construction + algorithm application.
-     * 
-     * This is slightly higher than min_community_size because subgraph
-     * construction has overhead.
-     * 
-     * @param num_nodes Total nodes in graph
-     * @param num_communities Number of communities
-     * @param avg_community_size Average community size
-     * @return Threshold for local reordering (higher = more batching)
+     * Delegates to graphbrew::ComputeDynamicLocalReorderThreshold
      */
     static size_t ComputeDynamicLocalReorderThreshold(size_t num_nodes,
                                                        size_t num_communities,
                                                        size_t avg_community_size = 0)
     {
-        // Local reorder threshold is 2x the min community size
-        // because subgraph construction has significant overhead
-        size_t min_size = ComputeDynamicMinCommunitySize(num_nodes, num_communities, avg_community_size);
-        return std::min(min_size * 2, static_cast<size_t>(5000));  // Cap at 5000
+        return graphbrew::ComputeDynamicLocalReorderThreshold(num_nodes, num_communities, avg_community_size);
     }
 
     /**
