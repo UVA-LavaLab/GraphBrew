@@ -39,6 +39,7 @@
 #include "timer.h"
 #include "util.h"
 
+#include "reorder/reorder_leiden.h"
 /*
    GAP Benchmark Suite
    Class:  BuilderBase
@@ -4377,48 +4378,6 @@ public:
         return q;
     }
 
-    void detect_community(adjacency_list adj)
-    {
-        auto _adj = adj; // copy `adj` because it is used for computing modularity
-
-        // std::cerr << "Detecting communities...\n";
-        const double tstart = rabbit_order::now_sec();
-        //--------------------------------------------
-        auto g = rabbit_order::aggregate(std::move(_adj));
-        const auto c = std::make_unique<rabbit_order::vint[]>(g.n());
-        #pragma omp parallel for
-        for (rabbit_order::vint v = 0; v < g.n(); ++v)
-            c[v] = rabbit_order::trace_com(v, &g);
-        //--------------------------------------------
-        // std::cerr << "Community detection Time"
-        //           << rabbit_order::now_sec() - tstart << std::endl;
-        PrintTime("Community Time", rabbit_order::now_sec() - tstart);
-
-        // Print the result
-        // std::copy(&c[0], &c[g.n()],
-        //           std::ostream_iterator<rabbit_order::vint>(std::cout, "\n"));
-
-        // std::cerr << "Computing modularity of the result...\n";
-        const double q = compute_modularity(adj, c.get());
-        std::cerr << "Modularity: " << q << std::endl;
-    }
-
-    void reorder(adjacency_list adj)
-    {
-        // std::cerr << "Generating a permutation...\n";
-        const double tstart = rabbit_order::now_sec();
-        //--------------------------------------------
-        const auto g = rabbit_order::aggregate(std::move(adj));
-        const auto p = rabbit_order::compute_perm(g);
-        //--------------------------------------------
-        // std::cerr << "Permutation generation Time: "
-        //           << rabbit_order::now_sec() - tstart << std::endl;
-        PrintTime("Permutation generation Time", rabbit_order::now_sec() - tstart);
-        // Print the result
-        std::copy(&p[0], &p[g.n()],
-                  std::ostream_iterator<rabbit_order::vint>(std::cout, "\n"));
-    }
-
     void reorder_internal(adjacency_list adj, pvector<NodeID_> &new_ids)
     {
         auto _adj = adj; // copy `adj` because it is used for computing modularity
@@ -4774,238 +4733,10 @@ public:
     // 1. Refinement phase: Only isolated vertices can move
     // 2. Community bounds: Refined communities constrained within local-moving results
     // 3. Well-connected communities guaranteed
-    //==========================================================================
-    
-    template <typename K = uint32_t>
-    struct GVELeidenResult {
-        std::vector<std::vector<K>> community_per_pass;  // Dendrogram
-        std::vector<K> final_community;                   // Final assignment
-        int total_iterations;
-        int total_passes;
-        double modularity;
-    };
-    
-    //==========================================================================
-    // INCREMENTAL DENDROGRAM STRUCTURE (RabbitOrder-inspired)
-    // 
-    // Instead of storing community_per_pass and rebuilding the tree,
-    // we build the dendrogram incrementally during community detection.
-    // This approach is inspired by RabbitOrder's efficient tree building.
     //
-    // Key data structures:
-    // - parent[v]: Parent vertex in the dendrogram (-1 if root)
-    // - first_child[v]: First child in the dendrogram (-1 if leaf)
-    // - sibling[v]: Next sibling at the same level (-1 if last)
-    // - subtree_size[v]: Number of vertices in subtree rooted at v
-    // - weight[v]: Degree weight of vertex or sum of children weights
+    // Note: GVELeidenResult, GVEDendroResult, GVEAtomicDendroResult structures,
+    // atomicMergeToDendro, mergeToDendro, and initDendrogram are now in reorder/reorder_types.h
     //==========================================================================
-    
-    template <typename K = uint32_t>
-    struct GVEDendroResult {
-        std::vector<K> final_community;        // Final community assignment
-        std::vector<int64_t> parent;           // Dendrogram parent (-1 = root)
-        std::vector<int64_t> first_child;      // First child (-1 = leaf)
-        std::vector<int64_t> sibling;          // Next sibling (-1 = last)
-        std::vector<int64_t> subtree_size;     // Size of subtree
-        std::vector<double> weight;            // Node weight (degree)
-        std::vector<int64_t> roots;            // Root nodes (top-level communities)
-        int total_iterations;
-        int total_passes;
-        double modularity;
-    };
-    
-    //==========================================================================
-    // ATOMIC DENDROGRAM STRUCTURE (RabbitOrder-style lock-free)
-    // 
-    // Uses atomic CAS for O(1) lock-free dendrogram updates during merging.
-    // This enables incremental tree building in parallel without contention.
-    //
-    // Key insight from RabbitOrder:
-    // - Set sibling BEFORE CAS (will be visible only after successful merge)
-    // - CAS atomically updates first_child pointer
-    // - On CAS failure, retry with updated sibling
-    //
-    // Note: Uses unique_ptr arrays since std::vector<std::atomic> doesn't work
-    //==========================================================================
-    
-    template <typename K = uint32_t>
-    struct GVEAtomicDendroResult {
-        std::vector<K> final_community;                        // Final community assignment
-        std::unique_ptr<std::atomic<int64_t>[]> parent;        // Dendrogram parent (-1 = root)
-        std::unique_ptr<std::atomic<int64_t>[]> first_child;   // First child (-1 = leaf)
-        std::unique_ptr<std::atomic<int64_t>[]> sibling;       // Next sibling (-1 = last)
-        std::unique_ptr<std::atomic<int64_t>[]> subtree_size;  // Size of subtree
-        std::vector<double> weight;                             // Node weight (degree)
-        std::vector<int64_t> roots;                             // Root nodes
-        int64_t num_nodes;
-        int total_iterations;
-        int total_passes;
-        double modularity;
-        
-        GVEAtomicDendroResult() : num_nodes(0), total_iterations(0), total_passes(0), modularity(0.0) {}
-        
-        // Initialize atomic dendrogram for n vertices
-        void init(int64_t n, const std::vector<double>& vtot) {
-            num_nodes = n;
-            final_community.resize(n);
-            parent = std::make_unique<std::atomic<int64_t>[]>(n);
-            first_child = std::make_unique<std::atomic<int64_t>[]>(n);
-            sibling = std::make_unique<std::atomic<int64_t>[]>(n);
-            subtree_size = std::make_unique<std::atomic<int64_t>[]>(n);
-            weight.resize(n);
-            
-            #pragma omp parallel for
-            for (int64_t v = 0; v < n; ++v) {
-                final_community[v] = static_cast<K>(v);
-                parent[v].store(-1, std::memory_order_relaxed);
-                first_child[v].store(-1, std::memory_order_relaxed);
-                sibling[v].store(-1, std::memory_order_relaxed);
-                subtree_size[v].store(1, std::memory_order_relaxed);
-                weight[v] = vtot[v];
-            }
-            
-            total_iterations = 0;
-            total_passes = 0;
-            modularity = 0.0;
-        }
-        
-        // Convert atomic result to non-atomic for traversal
-        GVEDendroResult<K> toNonAtomic() const {
-            GVEDendroResult<K> result;
-            
-            result.final_community = final_community;
-            result.parent.resize(num_nodes);
-            result.first_child.resize(num_nodes);
-            result.sibling.resize(num_nodes);
-            result.subtree_size.resize(num_nodes);
-            result.weight = weight;
-            result.total_iterations = total_iterations;
-            result.total_passes = total_passes;
-            result.modularity = modularity;
-            
-            #pragma omp parallel for
-            for (int64_t v = 0; v < num_nodes; ++v) {
-                result.parent[v] = parent[v].load(std::memory_order_relaxed);
-                result.first_child[v] = first_child[v].load(std::memory_order_relaxed);
-                result.sibling[v] = sibling[v].load(std::memory_order_relaxed);
-                result.subtree_size[v] = subtree_size[v].load(std::memory_order_relaxed);
-            }
-            
-            // Collect roots
-            for (int64_t v = 0; v < num_nodes; ++v) {
-                if (result.parent[v] == -1) {
-                    result.roots.push_back(v);
-                }
-            }
-            
-            return result;
-        }
-    };
-    
-    /**
-     * Lock-free atomic merge: Prepend vertex v to u's child list using CAS.
-     * 
-     * This is the core RabbitOrder-style operation:
-     * 1. Check if v already has a parent (skip if so)
-     * 2. Load u's current first_child
-     * 3. Set v's sibling to that value
-     * 4. CAS u's first_child from old value to v
-     * 5. If CAS fails, retry with updated sibling
-     * 
-     * Returns true if merge was performed, false if v == u or already parented.
-     */
-    template <typename K = uint32_t>
-    inline bool atomicMergeToDendro(
-        GVEAtomicDendroResult<K>& dendro,
-        int64_t v,      // Vertex being merged
-        int64_t u) {    // Community representative (parent)
-        
-        if (v == u) return false;  // Same vertex
-        if (u < 0 || u >= dendro.num_nodes) return false;  // Invalid parent
-        
-        // Skip if v already has a parent (already merged in earlier iteration)
-        if (dendro.parent[v].load(std::memory_order_acquire) != -1) {
-            return false;
-        }
-        
-        // Try to claim v by setting its parent to u (CAS from -1 to u)
-        int64_t expected_parent = -1;
-        if (!dendro.parent[v].compare_exchange_strong(expected_parent, u,
-                std::memory_order_acq_rel, std::memory_order_acquire)) {
-            // Another thread already claimed v
-            return false;
-        }
-        
-        // Successfully claimed v - now add to u's child list
-        int64_t old_child = dendro.first_child[u].load(std::memory_order_acquire);
-        
-        // CAS loop: atomically prepend v to u's child list
-        do {
-            // Set v's sibling to u's current first child
-            dendro.sibling[v].store(old_child, std::memory_order_release);
-            
-            // Try to set u's first_child from old_child to v
-        } while (!dendro.first_child[u].compare_exchange_weak(
-            old_child, v,
-            std::memory_order_acq_rel,
-            std::memory_order_acquire));
-        
-        // Atomically update subtree size
-        dendro.subtree_size[u].fetch_add(
-            dendro.subtree_size[v].load(std::memory_order_relaxed),
-            std::memory_order_relaxed);
-        
-        return true;
-    }
-    
-    /**
-     * Initialize incremental dendrogram with leaf nodes.
-     * Each vertex starts as its own community (leaf node).
-     */
-    template <typename K = uint32_t>
-    void initDendrogram(
-        GVEDendroResult<K>& dendro,
-        const int64_t num_nodes,
-        const std::vector<double>& vtot) {
-        
-        dendro.parent.resize(num_nodes, -1);
-        dendro.first_child.resize(num_nodes, -1);
-        dendro.sibling.resize(num_nodes, -1);
-        dendro.subtree_size.resize(num_nodes, 1);
-        dendro.weight.resize(num_nodes);
-        
-        #pragma omp parallel for
-        for (int64_t v = 0; v < num_nodes; ++v) {
-            dendro.weight[v] = vtot[v];
-        }
-    }
-    
-    /**
-     * Merge vertex v into community represented by parent u in the dendrogram.
-     * This creates a parent-child relationship and updates the sibling chain.
-     * 
-     * Like RabbitOrder, we prepend to the child list for O(1) insertion:
-     * - v.sibling = u.first_child (v's sibling is u's previous first child)
-     * - u.first_child = v (v becomes u's new first child)
-     * - v.parent = u
-     */
-    template <typename K = uint32_t>
-    inline void mergeToDendro(
-        GVEDendroResult<K>& dendro,
-        int64_t v,      // Vertex being merged
-        int64_t u) {    // Community representative (parent)
-        
-        if (v == u) return;  // Already in same community
-        
-        // Prepend v to u's child list
-        dendro.sibling[v] = dendro.first_child[u];
-        dendro.first_child[u] = v;
-        dendro.parent[v] = u;
-        
-        // Update subtree sizes up the tree
-        dendro.subtree_size[u] += dendro.subtree_size[v];
-        dendro.weight[u] += dendro.weight[v];
-    }
     
     /**
      * Traverse dendrogram using DFS, assigning new IDs.
@@ -5078,98 +4809,19 @@ public:
      * 
      * Modularity Q = (1/2m) * Σ[A_ij - k_i*k_j/(2m)] * δ(c_i, c_j)
      * 
-     * Uses parallel reduction for efficiency on large graphs.
-     * Works with both symmetric and non-symmetric CSR structures.
+     * Delegates to ::computeModularityCSR in reorder/reorder_types.h
      */
     template <typename K>
     double computeModularityCSR(
         const CSRGraph<NodeID_, DestID_, true>& g,
         const std::vector<K>& community,
         double resolution = 1.0) {
-        
-        const int64_t num_nodes = g.num_nodes();
-        const bool graph_is_symmetric = !g.directed();
-        const double M = static_cast<double>(g.num_edges());
-        
-        if (M == 0) return 0.0;
-        
-        // Compute vertex degrees (weighted)
-        std::vector<double> vtot(num_nodes, 0.0);
-        #pragma omp parallel for
-        for (int64_t u = 0; u < num_nodes; ++u) {
-            double total = 0.0;
-            for (auto neighbor : g.out_neigh(u)) {
-                if constexpr (std::is_same_v<DestID_, NodeID_>) {
-                    total += 1.0;
-                } else {
-                    total += static_cast<double>(static_cast<NodeWeight<NodeID_, WeightT_>>(neighbor).w);
-                }
-            }
-            if (!graph_is_symmetric) {
-                for (auto neighbor : g.in_neigh(u)) {
-                    if constexpr (std::is_same_v<DestID_, NodeID_>) {
-                        total += 1.0;
-                    } else {
-                        total += static_cast<double>(static_cast<NodeWeight<NodeID_, WeightT_>>(neighbor).w);
-                    }
-                }
-            }
-            vtot[u] = total;
-        }
-        
-        // Compute modularity using parallel reduction
-        double Q = 0.0;
-        #pragma omp parallel for reduction(+:Q)
-        for (int64_t u = 0; u < num_nodes; ++u) {
-            K cu = community[u];
-            
-            for (auto neighbor : g.out_neigh(u)) {
-                NodeID_ v;
-                double w;
-                if constexpr (std::is_same_v<DestID_, NodeID_>) {
-                    v = neighbor;
-                    w = 1.0;
-                } else {
-                    v = static_cast<NodeWeight<NodeID_, WeightT_>>(neighbor).v;
-                    w = static_cast<double>(static_cast<NodeWeight<NodeID_, WeightT_>>(neighbor).w);
-                }
-                
-                K cv = community[v];
-                if (cu == cv) {
-                    Q += w - resolution * vtot[u] * vtot[v] / (2.0 * M);
-                }
-            }
-            
-            if (!graph_is_symmetric) {
-                for (auto neighbor : g.in_neigh(u)) {
-                    NodeID_ v;
-                    double w;
-                    if constexpr (std::is_same_v<DestID_, NodeID_>) {
-                        v = neighbor;
-                        w = 1.0;
-                    } else {
-                        v = static_cast<NodeWeight<NodeID_, WeightT_>>(neighbor).v;
-                        w = static_cast<double>(static_cast<NodeWeight<NodeID_, WeightT_>>(neighbor).w);
-                    }
-                    
-                    K cv = community[v];
-                    if (cu == cv) {
-                        Q += w - resolution * vtot[u] * vtot[v] / (2.0 * M);
-                    }
-                }
-            }
-        }
-        
-        return Q / (2.0 * M);
+        return ::computeModularityCSR<K, NodeID_, DestID_>(g, community, resolution);
     }
     
     /**
      * Scan all edges connected to vertex u (both out-edges and in-edges).
-     * For symmetric graphs, out_neigh == in_neigh so we deduplicate.
-     * For directed graphs with MakeInverse=true, we get all edges.
-     * 
-     * Accumulates edge weights into the hash map by community.
-     * Returns the total weight to the specified community 'd'.
+     * Delegates to ::scanVertexEdges in reorder/reorder_types.h
      */
     template <typename K, typename W>
     inline W scanVertexEdges(
@@ -5179,513 +4831,107 @@ public:
         K d,
         const CSRGraph<NodeID_, DestID_, true>& g,
         bool graph_is_symmetric) {
-        
-        W ku_to_d = W(0);
-        
-        // Scan out-neighbors
-        for (auto neighbor : g.out_neigh(u)) {
-            NodeID_ v;
-            W w;
-            if constexpr (std::is_same_v<DestID_, NodeID_>) {
-                v = neighbor;
-                w = W(1);
-            } else {
-                v = static_cast<NodeWeight<NodeID_, WeightT_>>(neighbor).v;
-                w = static_cast<W>(static_cast<NodeWeight<NodeID_, WeightT_>>(neighbor).w);
-            }
-            
-            K c = vcom[v];
-            hash[c] += w;
-            if (c == d) ku_to_d += w;
-        }
-        
-        // For non-symmetric graphs, also scan in-neighbors
-        // (For symmetric graphs, in_neigh == out_neigh, so skip to avoid double-counting)
-        if (!graph_is_symmetric) {
-            for (auto neighbor : g.in_neigh(u)) {
-                NodeID_ v;
-                W w;
-                if constexpr (std::is_same_v<DestID_, NodeID_>) {
-                    v = neighbor;
-                    w = W(1);
-                } else {
-                    v = static_cast<NodeWeight<NodeID_, WeightT_>>(neighbor).v;
-                    w = static_cast<W>(static_cast<NodeWeight<NodeID_, WeightT_>>(neighbor).w);
-                }
-                
-                K c = vcom[v];
-                hash[c] += w;
-                if (c == d) ku_to_d += w;
-            }
-        }
-        
-        return ku_to_d;
+        return ::scanVertexEdges<K, W, NodeID_, DestID_>(u, vcom, hash, d, g, graph_is_symmetric);
     }
     
     /**
      * Compute vertex total weight (degree sum for unweighted graphs).
-     * Scans both out and in edges for non-symmetric graphs.
+     * Delegates to ::computeVertexTotalWeightCSR in reorder/reorder_types.h
      */
     template <typename W>
     inline W computeVertexTotalWeight(
         NodeID_ u,
         const CSRGraph<NodeID_, DestID_, true>& g,
         bool graph_is_symmetric) {
-        
-        W total = W(0);
-        
-        for (auto neighbor : g.out_neigh(u)) {
-            if constexpr (std::is_same_v<DestID_, NodeID_>) {
-                total += W(1);
-            } else {
-                total += static_cast<W>(static_cast<NodeWeight<NodeID_, WeightT_>>(neighbor).w);
-            }
-        }
-        
-        if (!graph_is_symmetric) {
-            for (auto neighbor : g.in_neigh(u)) {
-                if constexpr (std::is_same_v<DestID_, NodeID_>) {
-                    total += W(1);
-                } else {
-                    total += static_cast<W>(static_cast<NodeWeight<NodeID_, WeightT_>>(neighbor).w);
-                }
-            }
-        }
-        
-        return total;
-    }
-    
-    /**
-     * Delta modularity calculation for community move.
-     * Uses the formula: ΔQ = (K_i→c - K_i→d)/m - R·K_i·(Σ_c - Σ_d + K_i)/(2m²)
-     */
-    template <typename W>
-    inline W gveDeltaModularity(W ki_to_c, W ki_to_d, W ki, W sigma_c, W sigma_d, double M, double R) {
-        return (ki_to_c - ki_to_d) / M - R * ki * (sigma_c - sigma_d + ki) / (2.0 * M * M);
+        return ::computeVertexTotalWeightCSR<W, NodeID_, DestID_>(u, g, graph_is_symmetric);
     }
     
     /**
      * Mark all neighbors of vertex u as affected.
+     * Delegates to ::markNeighborsAffected in reorder/reorder_types.h
      */
     inline void markNeighborsAffected(
         NodeID_ u,
         std::vector<char>& vaff,
         const CSRGraph<NodeID_, DestID_, true>& g,
         bool graph_is_symmetric) {
-        
-        for (auto neighbor : g.out_neigh(u)) {
-            NodeID_ v;
-            if constexpr (std::is_same_v<DestID_, NodeID_>) {
-                v = neighbor;
-            } else {
-                v = static_cast<NodeWeight<NodeID_, WeightT_>>(neighbor).v;
-            }
-            vaff[v] = 1;
-        }
-        
-        if (!graph_is_symmetric) {
-            for (auto neighbor : g.in_neigh(u)) {
-                NodeID_ v;
-                if constexpr (std::is_same_v<DestID_, NodeID_>) {
-                    v = neighbor;
-                } else {
-                    v = static_cast<NodeWeight<NodeID_, WeightT_>>(neighbor).v;
-                }
-                vaff[v] = 1;
-            }
-        }
+        ::markNeighborsAffected<NodeID_, DestID_>(u, vaff, g, graph_is_symmetric);
+    }
+    
+    /**
+     * Delta modularity calculation for community move.
+     * Delegates to graphbrew::leiden::gveDeltaModularity in reorder/reorder_leiden.h
+     */
+    template <typename W>
+    inline W gveDeltaModularity(W ki_to_c, W ki_to_d, W ki, W sigma_c, W sigma_d, double M, double R) {
+        return graphbrew::leiden::gveDeltaModularity<W>(
+            ki_to_c, ki_to_d, ki, sigma_c, sigma_d, static_cast<W>(M), static_cast<W>(R));
     }
     
     /**
      * GVE-Leiden Local-Moving Phase (Algorithm 2)
-     * 
-     * Iteratively moves vertices to communities that maximize modularity.
-     * Uses flag-based vertex pruning for efficiency.
+     * Delegates to ::gveLeidenLocalMoveCSR in reorder/reorder_leiden.h
      */
     template <typename K = uint32_t, typename W = double>
     int gveLeidenLocalMove(
-        std::vector<K>& vcom,           // Community membership (updated)
-        std::vector<W>& ctot,           // Community total weight (updated)
-        std::vector<char>& vaff,        // Vertex affected flag (updated)
-        const std::vector<W>& vtot,     // Vertex total weight
+        std::vector<K>& vcom,
+        std::vector<W>& ctot,
+        std::vector<char>& vaff,
+        const std::vector<W>& vtot,
         const int64_t num_nodes,
         const CSRGraph<NodeID_, DestID_, true>& g,
         bool graph_is_symmetric,
         double M, double R, int L, double tolerance) {
-        
-        int iterations = 0;
-        W total_delta = W(0);
-        
-        // Thread-local hashtables for scanning communities
-        const int num_threads = omp_get_max_threads();
-        std::vector<std::unordered_map<K, W>> thread_hash(num_threads);
-        
-        for (int iter = 0; iter < L; ++iter) {
-            total_delta = W(0);
-            int moves_this_iter = 0;
-            
-            #pragma omp parallel reduction(+:total_delta, moves_this_iter)
-            {
-                int tid = omp_get_thread_num();
-                auto& hash = thread_hash[tid];
-                
-                #pragma omp for schedule(dynamic, 2048)
-                for (int64_t u = 0; u < num_nodes; ++u) {
-                    if (!vaff[u]) continue;
-                    
-                    K d = vcom[u];  // Current community
-                    W ku = vtot[u]; // Vertex total weight
-                    
-                    // Clear and scan ALL edges connected to u
-                    hash.clear();
-                    W ku_to_d = scanVertexEdges<K, W>(u, vcom.data(), hash, d, g, graph_is_symmetric);
-                    
-                    // Find best community to move to
-                    K best_c = d;
-                    W best_delta = W(0);
-                    
-                    for (auto& [c, ku_to_c] : hash) {
-                        if (c == d) continue;
-                        
-                        W sigma_c = ctot[c];
-                        W sigma_d = ctot[d];
-                        
-                        W delta = gveDeltaModularity(ku_to_c, ku_to_d, ku, sigma_c, sigma_d, M, R);
-                        
-                        if (delta > best_delta) {
-                            best_delta = delta;
-                            best_c = c;
-                        }
-                    }
-                    
-                    // Move vertex if positive gain
-                    if (best_c != d) {
-                        // Update community weights atomically
-                        #pragma omp atomic
-                        ctot[d] -= ku;
-                        #pragma omp atomic
-                        ctot[best_c] += ku;
-                        
-                        vcom[u] = best_c;
-                        
-                        // Mark neighbors as affected
-                        markNeighborsAffected(u, vaff, g, graph_is_symmetric);
-                        
-                        total_delta += best_delta;
-                        moves_this_iter++;
-                    }
-                    
-                    vaff[u] = 0;
-                }
-            }
-            
-            iterations++;
-            
-            // Check convergence - no moves or very small delta
-            if (moves_this_iter == 0 || total_delta <= tolerance) break;
-        }
-        
-        return iterations;
+        return ::gveLeidenLocalMoveCSR<K, W, NodeID_, DestID_>(
+            vcom, ctot, vaff, vtot, num_nodes, g, graph_is_symmetric, M, R, L, tolerance);
     }
     
     /**
      * GVE-Leiden Refinement Phase (Algorithm 3)
-     * 
-     * Key insight: Only ISOLATED vertices (ctot[c] == vtot[v]) can move.
-     * This ensures communities remain well-connected.
-     * Moves are constrained within community bounds from local-moving phase.
+     * Delegates to ::gveLeidenRefineCSR in reorder/reorder_leiden.h
      */
     template <typename K = uint32_t, typename W = double>
     int gveLeidenRefine(
-        std::vector<K>& vcom,           // Community membership (updated)
-        std::vector<W>& ctot,           // Community total weight (updated)
-        std::vector<char>& vaff,        // Vertex affected flag (updated)
-        const std::vector<K>& vcob,     // Community bounds (from local-moving)
-        const std::vector<W>& vtot,     // Vertex total weight
+        std::vector<K>& vcom,
+        std::vector<W>& ctot,
+        std::vector<char>& vaff,
+        const std::vector<K>& vcob,
+        const std::vector<W>& vtot,
         const int64_t num_nodes,
         const CSRGraph<NodeID_, DestID_, true>& g,
         bool graph_is_symmetric,
         double M, double R) {
-        
-        int moves = 0;
-        
-        // Thread-local hashtables
-        const int num_threads = omp_get_max_threads();
-        std::vector<std::unordered_map<K, W>> thread_hash(num_threads);
-        
-        // Single pass refinement (per paper)
-        #pragma omp parallel reduction(+:moves)
-        {
-            int tid = omp_get_thread_num();
-            auto& hash = thread_hash[tid];
-            
-            #pragma omp for schedule(dynamic, 2048)
-            for (int64_t u = 0; u < num_nodes; ++u) {
-                K d = vcom[u];      // Current community
-                K b = vcob[u];      // Community bound
-                W ku = vtot[u];     // Vertex total weight
-                W sigma_d = ctot[d]; // Current community weight
-                
-                // KEY LEIDEN INSIGHT: Only isolated vertices can move
-                // A vertex is isolated if it's the only one in its community
-                // (i.e., community total weight equals vertex weight)
-                W expected_d = ku;
-                W actual_d;
-                
-                // Atomically check if vertex is isolated
-                #pragma omp atomic read
-                actual_d = ctot[d];
-                
-                // Use small tolerance for floating point comparison
-                if (actual_d > expected_d * 1.001) {
-                    // Not isolated - cannot move
-                    continue;
-                }
-                
-                // Scan communities within the same community bound
-                hash.clear();
-                W ku_to_d = W(0);
-                
-                // Scan out-neighbors within bounds
-                for (auto neighbor : g.out_neigh(u)) {
-                    NodeID_ v;
-                    W w;
-                    if constexpr (std::is_same_v<DestID_, NodeID_>) {
-                        v = neighbor;
-                        w = W(1);
-                    } else {
-                        v = static_cast<NodeWeight<NodeID_, WeightT_>>(neighbor).v;
-                        w = static_cast<W>(static_cast<NodeWeight<NodeID_, WeightT_>>(neighbor).w);
-                    }
-                    
-                    // Only consider neighbors within same community bound
-                    if (vcob[v] != b) continue;
-                    
-                    K c = vcom[v];
-                    hash[c] += w;
-                    if (c == d) ku_to_d += w;
-                }
-                
-                // Also scan in-neighbors within bounds (for non-symmetric graphs)
-                if (!graph_is_symmetric) {
-                    for (auto neighbor : g.in_neigh(u)) {
-                        NodeID_ v;
-                        W w;
-                        if constexpr (std::is_same_v<DestID_, NodeID_>) {
-                            v = neighbor;
-                            w = W(1);
-                        } else {
-                            v = static_cast<NodeWeight<NodeID_, WeightT_>>(neighbor).v;
-                            w = static_cast<W>(static_cast<NodeWeight<NodeID_, WeightT_>>(neighbor).w);
-                        }
-                        
-                        if (vcob[v] != b) continue;
-                        
-                        K c = vcom[v];
-                        hash[c] += w;
-                        if (c == d) ku_to_d += w;
-                    }
-                }
-                
-                // Find best community within bounds
-                K best_c = d;
-                W best_delta = W(0);
-                
-                for (auto& [c, ku_to_c] : hash) {
-                    if (c == d) continue;
-                    
-                    W sigma_c;
-                    #pragma omp atomic read
-                    sigma_c = ctot[c];
-                    
-                    W delta = gveDeltaModularity(ku_to_c, ku_to_d, ku, sigma_c, sigma_d, M, R);
-                    
-                    if (delta > best_delta) {
-                        best_delta = delta;
-                        best_c = c;
-                    }
-                }
-                
-                // Move vertex if positive gain AND still isolated
-                if (best_c != d) {
-                    // Double-check isolation with atomic capture
-                    W old_sigma_d;
-                    #pragma omp atomic capture
-                    {
-                        old_sigma_d = ctot[d];
-                        ctot[d] -= ku;
-                    }
-                    
-                    // If we weren't actually isolated, undo
-                    if (old_sigma_d > ku * 1.001) {
-                        #pragma omp atomic
-                        ctot[d] += ku;
-                        continue;
-                    }
-                    
-                    #pragma omp atomic
-                    ctot[best_c] += ku;
-                    
-                    vcom[u] = best_c;
-                    moves++;
-                    
-                    // Mark neighbors as affected for next iteration
-                    markNeighborsAffected(u, vaff, g, graph_is_symmetric);
-                }
-            }
-        }
-        
-        return moves;
+        return ::gveLeidenRefineCSR<K, W, NodeID_, DestID_>(
+            vcom, ctot, vaff, vcob, vtot, num_nodes, g, graph_is_symmetric, M, R);
     }
     
     /**
      * Compute community-to-community edge weights for virtual aggregation.
-     * This enables hierarchical merging without building an actual super-graph.
+     * Delegates to ::computeCommunityGraphCSR in reorder/reorder_leiden.h
      */
     template <typename K, typename W>
     void computeCommunityGraph(
-        std::unordered_map<K, std::unordered_map<K, W>>& comm_graph,  // comm -> (neighbor_comm -> weight)
-        std::unordered_map<K, W>& comm_weight,                         // total weight of each community
+        std::unordered_map<K, std::unordered_map<K, W>>& comm_graph,
+        std::unordered_map<K, W>& comm_weight,
         const std::vector<K>& vcom,
         const std::vector<W>& vtot,
         const int64_t num_nodes,
         const CSRGraph<NodeID_, DestID_, true>& g,
         bool graph_is_symmetric) {
-        
-        comm_graph.clear();
-        comm_weight.clear();
-        
-        // Compute community total weights
-        for (int64_t v = 0; v < num_nodes; ++v) {
-            comm_weight[vcom[v]] += vtot[v];
-        }
-        
-        // Compute community-to-community edges
-        for (int64_t u = 0; u < num_nodes; ++u) {
-            K cu = vcom[u];
-            
-            for (auto neighbor : g.out_neigh(u)) {
-                NodeID_ v;
-                W w;
-                if constexpr (std::is_same_v<DestID_, NodeID_>) {
-                    v = neighbor;
-                    w = W(1);
-                } else {
-                    v = static_cast<NodeWeight<NodeID_, WeightT_>>(neighbor).v;
-                    w = static_cast<W>(static_cast<NodeWeight<NodeID_, WeightT_>>(neighbor).w);
-                }
-                
-                K cv = vcom[v];
-                if (cu != cv) {
-                    comm_graph[cu][cv] += w;
-                }
-            }
-            
-            if (!graph_is_symmetric) {
-                for (auto neighbor : g.in_neigh(u)) {
-                    NodeID_ v;
-                    W w;
-                    if constexpr (std::is_same_v<DestID_, NodeID_>) {
-                        v = neighbor;
-                        w = W(1);
-                    } else {
-                        v = static_cast<NodeWeight<NodeID_, WeightT_>>(neighbor).v;
-                        w = static_cast<W>(static_cast<NodeWeight<NodeID_, WeightT_>>(neighbor).w);
-                    }
-                    
-                    K cv = vcom[v];
-                    if (cu != cv) {
-                        comm_graph[cu][cv] += w;
-                    }
-                }
-            }
-        }
+        ::computeCommunityGraphCSR<K, W, NodeID_, DestID_>(
+            comm_graph, comm_weight, vcom, vtot, num_nodes, g, graph_is_symmetric);
     }
     
     /**
      * Local-moving on the community graph (virtual aggregation).
-     * Returns the community mapping: old_comm -> new_comm
+     * Delegates to ::communityLocalMove in reorder/reorder_leiden.h
      */
     template <typename K, typename W>
     std::unordered_map<K, K> communityLocalMove(
         const std::unordered_map<K, std::unordered_map<K, W>>& comm_graph,
         const std::unordered_map<K, W>& comm_weight,
         double M, double R, int max_iterations, double tolerance) {
-        
-        // Get list of communities
-        std::vector<K> comms;
-        for (auto& [c, _] : comm_weight) {
-            comms.push_back(c);
-        }
-        
-        // Initialize each community as its own super-community
-        std::unordered_map<K, K> super_comm;  // comm -> super-comm
-        std::unordered_map<K, W> super_weight; // super-comm total weight
-        for (K c : comms) {
-            super_comm[c] = c;
-            auto it = comm_weight.find(c);
-            super_weight[c] = (it != comm_weight.end()) ? it->second : W(0);
-        }
-        
-        // Iterate
-        for (int iter = 0; iter < max_iterations; ++iter) {
-            int moves = 0;
-            
-            for (K c : comms) {
-                K d = super_comm[c];  // Current super-community
-                
-                auto kc_it = comm_weight.find(c);
-                W kc = (kc_it != comm_weight.end()) ? kc_it->second : W(0);
-                
-                // Scan neighbor super-communities
-                std::unordered_map<K, W> neighbor_weight;
-                W kc_to_d = W(0);
-                
-                auto it = comm_graph.find(c);
-                if (it != comm_graph.end()) {
-                    for (auto& [nc, w] : it->second) {
-                        auto sc_it = super_comm.find(nc);
-                        if (sc_it != super_comm.end()) {
-                            K snc = sc_it->second;
-                            neighbor_weight[snc] += w;
-                            if (snc == d) kc_to_d += w;
-                        }
-                    }
-                }
-                
-                // Find best super-community
-                K best_sc = d;
-                W best_delta = W(0);
-                
-                for (auto& [sc, kc_to_sc] : neighbor_weight) {
-                    if (sc == d) continue;
-                    
-                    auto sw_sc_it = super_weight.find(sc);
-                    auto sw_d_it = super_weight.find(d);
-                    W sigma_sc = (sw_sc_it != super_weight.end()) ? sw_sc_it->second : W(0);
-                    W sigma_d = (sw_d_it != super_weight.end()) ? sw_d_it->second : W(0);
-                    
-                    W delta = gveDeltaModularity(kc_to_sc, kc_to_d, kc, sigma_sc, sigma_d, M, R);
-                    
-                    if (delta > best_delta) {
-                        best_delta = delta;
-                        best_sc = sc;
-                    }
-                }
-                
-                // Move if positive gain
-                if (best_sc != d) {
-                    super_weight[d] -= kc;
-                    super_weight[best_sc] += kc;
-                    super_comm[c] = best_sc;
-                    moves++;
-                }
-            }
-            
-            if (moves == 0) break;
-        }
-        
-        return super_comm;
+        return ::communityLocalMove<K, W>(comm_graph, comm_weight, M, R, max_iterations, tolerance);
     }
     
     /**
@@ -7787,12 +7033,7 @@ public:
     
     /**
      * Fast parallel community detection using Union-Find + Label Propagation
-     * 
-     * Key optimizations:
-     * - Parallel Phase 1 with atomic parent updates (lock-free)
-     * - Best-fit merging: scan all neighbors to find optimal merge target
-     * - Hash-based counting in LP phase (O(1) insert vs O(n) sorted insert)
-     * - Early termination when convergence detected
+     * Delegates to ::FastModularityCommunityDetection in reorder/reorder_leiden.h
      */
     template<typename NodeID_T, typename DestID_T>
     void FastModularityCommunityDetection(
@@ -7802,196 +7043,13 @@ public:
         double resolution = 1.0,
         int max_passes = 3)
     {
-        const int64_t num_vertices = g.num_nodes();
-        const double total_weight = static_cast<double>(g.num_edges_directed());
-        
-        // Initialize vertex strengths
-        vertex_strength.resize(num_vertices);
-        #pragma omp parallel for
-        for (int64_t v = 0; v < num_vertices; ++v) {
-            vertex_strength[v] = static_cast<double>(g.out_degree(v));
-        }
-        
-        // Atomic parent array for lock-free Union-Find
-        std::vector<std::atomic<int64_t>> parent(num_vertices);
-        std::vector<std::atomic<double>> comm_strength(num_vertices);
-        
-        #pragma omp parallel for
-        for (int64_t v = 0; v < num_vertices; ++v) {
-            parent[v].store(v, std::memory_order_relaxed);
-            comm_strength[v].store(vertex_strength[v], std::memory_order_relaxed);
-        }
-        
-        // Lock-free find with path compression (read-only compression)
-        auto find = [&](int64_t x) -> int64_t {
-            int64_t root = x;
-            while (true) {
-                int64_t p = parent[root].load(std::memory_order_relaxed);
-                if (p == root) break;
-                root = p;
-            }
-            // Path compression (best-effort, non-atomic for speed)
-            int64_t curr = x;
-            while (curr != root) {
-                int64_t p = parent[curr].load(std::memory_order_relaxed);
-                parent[curr].store(root, std::memory_order_relaxed);
-                curr = p;
-            }
-            return root;
-        };
-        
-        // Process in degree order (smaller first, like RabbitOrder)
-        std::vector<std::pair<int64_t, int64_t>> deg_order(num_vertices);
-        #pragma omp parallel for
-        for (int64_t v = 0; v < num_vertices; ++v) {
-            deg_order[v] = {g.out_degree(v), v};
-        }
-        __gnu_parallel::sort(deg_order.begin(), deg_order.end());
-        
-        std::atomic<int64_t> total_merges{0};
-        
-        // Phase 1: Parallel Union-Find with best-fit modularity merging
-        #pragma omp parallel
-        {
-            #pragma omp for schedule(dynamic, 1024)
-            for (int64_t i = 0; i < num_vertices; ++i) {
-                int64_t v = deg_order[i].second;
-                int64_t deg = deg_order[i].first;
-                if (deg == 0) continue;
-                
-                int64_t v_root = find(v);
-                double v_str = comm_strength[v_root].load(std::memory_order_relaxed);
-                
-                // BEST-FIT: Scan ALL neighbors to find optimal merge target
-                int64_t best_root = v_root;
-                double best_delta = 0.0;
-                
-                for (auto u : g.out_neigh(v)) {
-                    int64_t u_root = find(u);
-                    if (u_root == v_root) continue;
-                    
-                    double u_str = comm_strength[u_root].load(std::memory_order_relaxed);
-                    // Modularity delta: positive means merge improves modularity
-                    double delta = 1.0 - resolution * v_str * u_str / total_weight;
-                    
-                    if (delta > best_delta) {
-                        best_delta = delta;
-                        best_root = u_root;
-                    }
-                }
-                
-                // Try to merge using CAS (lock-free)
-                if (best_root != v_root && best_delta > 0) {
-                    // Ensure smaller root points to larger (deterministic)
-                    int64_t from = (v_root < best_root) ? v_root : best_root;
-                    int64_t to = (v_root < best_root) ? best_root : v_root;
-                    
-                    int64_t expected = from;
-                    if (parent[from].compare_exchange_weak(expected, to, 
-                            std::memory_order_relaxed, std::memory_order_relaxed)) {
-                        // Update community strength atomically
-                        double from_str = comm_strength[from].load(std::memory_order_relaxed);
-                        double old_to_str = comm_strength[to].load(std::memory_order_relaxed);
-                        while (!comm_strength[to].compare_exchange_weak(old_to_str, 
-                                old_to_str + from_str, std::memory_order_relaxed));
-                        total_merges.fetch_add(1, std::memory_order_relaxed);
-                    }
-                }
-            }
-        }
-        
-        printf("LeidenFast: %ld merges in parallel Union-Find phase\n", 
-               total_merges.load());
-        
-        // Compress all paths (parallel)
-        #pragma omp parallel for
-        for (int64_t v = 0; v < num_vertices; ++v) {
-            find(v);  // Path compression side effect
-        }
-        
-        // Phase 2: Label propagation refinement with hash-based counting
-        std::vector<int64_t> labels(num_vertices);
-        #pragma omp parallel for
-        for (int64_t v = 0; v < num_vertices; ++v) {
-            labels[v] = parent[v].load(std::memory_order_relaxed);
-        }
-        
-        for (int pass = 1; pass < max_passes; ++pass) {
-            std::atomic<int64_t> moves{0};
-            
-            #pragma omp parallel
-            {
-                // Thread-local hash map for efficient counting
-                std::unordered_map<int64_t, int64_t> label_counts;
-                label_counts.reserve(256);
-                
-                #pragma omp for schedule(dynamic, 2048)
-                for (int64_t i = 0; i < num_vertices; ++i) {
-                    int64_t v = deg_order[i].second;
-                    int64_t deg = g.out_degree(v);
-                    if (deg == 0) continue;
-                    
-                    int64_t current_label = labels[v];
-                    
-                    // Count neighbor labels using hash map (O(1) operations)
-                    label_counts.clear();
-                    for (auto u : g.out_neigh(v)) {
-                        label_counts[labels[u]]++;
-                    }
-                    
-                    // Find best label (highest count, break ties by keeping current)
-                    int64_t best_label = current_label;
-                    int64_t best_count = 0;
-                    int64_t current_count = 0;
-                    
-                    for (auto& [lbl, cnt] : label_counts) {
-                        if (lbl == current_label) {
-                            current_count = cnt;
-                        }
-                        if (cnt > best_count) {
-                            best_count = cnt;
-                            best_label = lbl;
-                        }
-                    }
-                    
-                    // Only move if strictly better (avoids oscillation)
-                    if (best_label != current_label && best_count > current_count) {
-                        labels[v] = best_label;
-                        moves.fetch_add(1, std::memory_order_relaxed);
-                    }
-                }
-            }
-            
-            int64_t move_count = moves.load();
-            printf("LeidenFast: %ld moves in LP pass %d\n", move_count, pass);
-            
-            // Early termination if converged
-            if (move_count == 0 || move_count < num_vertices / 1000) break;
-        }
-        
-        // Compress labels to contiguous IDs
-        std::unordered_map<int64_t, int64_t> label_remap;
-        int64_t num_comms = 0;
-        for (int64_t v = 0; v < num_vertices; ++v) {
-            int64_t l = labels[v];
-            auto it = label_remap.find(l);
-            if (it == label_remap.end()) {
-                label_remap[l] = num_comms++;
-            }
-        }
-        
-        final_community.resize(num_vertices);
-        #pragma omp parallel for
-        for (int64_t v = 0; v < num_vertices; ++v) {
-            final_community[v] = label_remap[labels[v]];
-        }
-        
-        printf("LeidenFast: %ld final communities\n", num_comms);
+        ::FastModularityCommunityDetection<NodeID_T, DestID_T>(
+            g, vertex_strength, final_community, resolution, max_passes);
     }
     
     /**
      * Build final ordering from communities
-     * Order: largest communities first, highest degree vertices first within each
+     * Delegates to ::BuildCommunityOrdering in reorder/reorder_leiden.h
      */
     template<typename NodeID_T, typename DestID_T>
     void BuildCommunityOrdering(
@@ -8000,40 +7058,8 @@ public:
         const std::vector<int64_t>& community,
         std::vector<int64_t>& ordered_vertices)
     {
-        const int64_t num_vertices = g.num_nodes();
-        
-        // Count communities and compute their total strengths
-        int64_t num_comms = 0;
-        for (int64_t v = 0; v < num_vertices; ++v) {
-            num_comms = std::max(num_comms, community[v] + 1);
-        }
-        
-        std::vector<double> comm_strength(num_comms, 0.0);
-        #pragma omp parallel for
-        for (int64_t v = 0; v < num_vertices; ++v) {
-            int64_t c = community[v];
-            #pragma omp atomic
-            comm_strength[c] += vertex_strength[v];
-        }
-        
-        // Build ordering: (community strength DESC, vertex degree DESC, vertex ID)
-        std::vector<std::tuple<int64_t, int64_t, int64_t>> order(num_vertices);
-        #pragma omp parallel for
-        for (int64_t v = 0; v < num_vertices; ++v) {
-            int64_t c = community[v];
-            order[v] = std::make_tuple(
-                -static_cast<int64_t>(comm_strength[c] * 1000),  // Larger communities first
-                -static_cast<int64_t>(vertex_strength[v]),       // Higher degree first
-                v
-            );
-        }
-        __gnu_parallel::sort(order.begin(), order.end());
-        
-        ordered_vertices.resize(num_vertices);
-        #pragma omp parallel for
-        for (int64_t i = 0; i < num_vertices; ++i) {
-            ordered_vertices[i] = std::get<2>(order[i]);
-        }
+        ::BuildCommunityOrdering<NodeID_T, DestID_T>(
+            g, vertex_strength, community, ordered_vertices);
     }
     
     /**
@@ -8118,39 +7144,12 @@ public:
      */
     template<typename NodeID_T, typename DestID_T>
     double LeidenAutoResolution(const CSRGraph<NodeID_T, DestID_T, true>& g) {
-        const int64_t num_vertices = g.num_nodes();
-        const int64_t num_edges = g.num_edges_directed();
-        double avg_degree = static_cast<double>(num_edges) / num_vertices;
-        
-        // Continuous mapping (smoother than hard thresholds)
-        // γ = 0.5 + 0.25*log10(avg_degree+1), clipped to [0.5, 1.2]
-        double gamma = 0.5 + 0.25 * std::log10(avg_degree + 1.0);
-        gamma = std::max(0.5, std::min(1.2, gamma));
-        
-        // CV guardrail: detect hubby/power-law graphs via coefficient of variation
-        // CV = stddev(degree) / mean(degree)
-        // If CV > 2, graph is heavy-tailed; nudge γ toward 1.0 for stability
-        double sum_sq_diff = 0.0;
-        #pragma omp parallel for reduction(+:sum_sq_diff)
-        for (int64_t v = 0; v < num_vertices; v++) {
-            double deg = static_cast<double>(g.out_degree(v));
-            double diff = deg - avg_degree;
-            sum_sq_diff += diff * diff;
-        }
-        double stddev = std::sqrt(sum_sq_diff / num_vertices);
-        double cv = (avg_degree > 0) ? stddev / avg_degree : 0.0;
-        
-        if (cv > 2.0) {
-            // Heavy-tailed graph: nudge toward 1.0 to avoid unstable partitions
-            gamma = std::max(gamma, 1.0);
-        }
-        
-        return gamma;
+        return computeAutoResolution<NodeID_T, DestID_T>(g);
     }
     
     /**
      * Optimized parallel local moving - two-phase approach
-     * Uses counting with dense thread-local arrays
+     * Delegates to ::LeidenLocalMoveParallel in reorder/reorder_leiden.h
      */
     template<typename NodeID_T, typename DestID_T>
     int64_t LeidenLocalMoveParallel(
@@ -8162,99 +7161,14 @@ public:
         double resolution,
         int max_iterations)
     {
-        const int64_t num_vertices = g.num_nodes();
-        int64_t total_moves = 0;
-        
-        // Storage for proposed moves
-        std::vector<int64_t> best_comm(num_vertices);
-        
-        for (int iter = 0; iter < max_iterations; ++iter) {
-            int64_t moves_this_iter = 0;
-            
-            // Phase 1: Find best community for each vertex (read-only)
-            #pragma omp parallel
-            {
-                // Thread-local dense array for counting (sparse usage)
-                std::vector<double> count_arr(num_vertices, 0.0);
-                std::vector<int64_t> touched_comms;
-                touched_comms.reserve(512);
-                
-                #pragma omp for schedule(static)
-                for (int64_t v = 0; v < num_vertices; ++v) {
-                    int64_t deg = g.out_degree(v);
-                    best_comm[v] = community[v];
-                    
-                    if (deg == 0) continue;
-                    
-                    int64_t current_comm = community[v];
-                    double v_weight = vertex_weight[v];
-                    
-                    // Count edges to each neighbor community
-                    touched_comms.clear();
-                    for (auto u : g.out_neigh(v)) {
-                        int64_t c = community[u];
-                        if (count_arr[c] == 0.0) {
-                            touched_comms.push_back(c);
-                        }
-                        count_arr[c] += 1.0;
-                    }
-                    
-                    // Get edges to current community
-                    double edges_to_current = count_arr[current_comm];
-                    
-                    // Find best community
-                    double best_delta = 0.0;
-                    double sigma_current = comm_weight[current_comm] - v_weight;
-                    double leave_delta = edges_to_current - resolution * v_weight * sigma_current / total_weight;
-                    
-                    for (int64_t c : touched_comms) {
-                        if (c == current_comm) continue;
-                        
-                        double edges_to_c = count_arr[c];
-                        double sigma_c = comm_weight[c];
-                        double join_delta = edges_to_c - resolution * v_weight * sigma_c / total_weight;
-                        double delta = join_delta - leave_delta;
-                        
-                        if (delta > best_delta) {
-                            best_delta = delta;
-                            best_comm[v] = c;
-                        }
-                    }
-                    
-                    // Reset count array (only touched entries)
-                    for (int64_t c : touched_comms) {
-                        count_arr[c] = 0.0;
-                    }
-                }
-            }
-            
-            // Phase 2: Apply moves and count
-            #pragma omp parallel for schedule(static) reduction(+:moves_this_iter)
-            for (int64_t v = 0; v < num_vertices; ++v) {
-                if (best_comm[v] != community[v]) {
-                    int64_t old_comm = community[v];
-                    int64_t new_comm = best_comm[v];
-                    double v_weight = vertex_weight[v];
-                    
-                    #pragma omp atomic
-                    comm_weight[old_comm] -= v_weight;
-                    #pragma omp atomic
-                    comm_weight[new_comm] += v_weight;
-                    
-                    community[v] = new_comm;
-                    moves_this_iter++;
-                }
-            }
-            
-            total_moves += moves_this_iter;
-            if (moves_this_iter == 0) break;
-        }
-        
-        return total_moves;
+        return ::LeidenLocalMoveParallel<NodeID_T, DestID_T>(
+            g, community, comm_weight, vertex_weight,
+            total_weight, resolution, max_iterations);
     }
     
     /**
      * Main Leiden algorithm - focus on quality communities
+     * Delegates to ::LeidenCommunityDetection in reorder/reorder_leiden.h
      */
     template<typename NodeID_T, typename DestID_T>
     void LeidenCommunityDetection(
@@ -8264,56 +7178,8 @@ public:
         int max_passes = 3,
         int max_iterations = 20)
     {
-        const int64_t num_vertices = g.num_nodes();
-        const double total_weight = static_cast<double>(g.num_edges_directed());
-        
-        std::vector<int64_t> community(num_vertices);
-        std::vector<double> vertex_weight(num_vertices);
-        std::vector<double> comm_weight(num_vertices);
-        
-        #pragma omp parallel for
-        for (int64_t v = 0; v < num_vertices; ++v) {
-            community[v] = v;
-            vertex_weight[v] = static_cast<double>(g.out_degree(v));
-            comm_weight[v] = vertex_weight[v];
-        }
-        
-        int64_t total_moves = 0;
-        int pass = 0;
-        
-        for (pass = 0; pass < max_passes; ++pass) {
-            int64_t moves = LeidenLocalMoveParallel<NodeID_T, DestID_T>(
-                g, community, comm_weight, vertex_weight,
-                total_weight, resolution, max_iterations);
-            
-            // Count communities
-            std::unordered_set<int64_t> unique_comms(community.begin(), community.end());
-            int64_t num_comms = unique_comms.size();
-            
-            printf("Leiden pass %d: %ld moves, %ld communities\n", pass + 1, moves, num_comms);
-            
-            total_moves += moves;
-            if (moves == 0) break;
-        }
-        
-        // Compress communities
-        std::unordered_map<int64_t, int64_t> comm_remap;
-        int64_t num_comms = 0;
-        for (int64_t v = 0; v < num_vertices; ++v) {
-            int64_t c = community[v];
-            if (comm_remap.find(c) == comm_remap.end()) {
-                comm_remap[c] = num_comms++;
-            }
-        }
-        
-        final_community.resize(num_vertices);
-        #pragma omp parallel for
-        for (int64_t v = 0; v < num_vertices; ++v) {
-            final_community[v] = comm_remap[community[v]];
-        }
-        
-        printf("Leiden: %ld total moves, %d passes, %ld final communities\n",
-               total_moves, pass, num_comms);
+        ::LeidenCommunityDetection<NodeID_T, DestID_T>(
+            g, final_community, resolution, max_passes, max_iterations);
     }
     
     /**
@@ -15039,294 +13905,6 @@ public:
         PrintTime("Resolution", resolution);
     }
 
-    void GenerateLeidenFullMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
-                                   pvector<NodeID_> &new_ids)
-    {
-
-        Timer tm;
-        Timer tm2;
-
-        using V = TYPE;
-        install_sigsegv();
-
-        int64_t num_nodes = g.num_nodes();
-        int64_t num_edges = g.num_edges();
-
-        // Pre-allocate edges array with exact size
-        std::vector<std::tuple<size_t, size_t, double>> edges(num_edges);
-        const bool is_weighted = g.is_weighted();
-        
-        // Parallel edge construction
-        #pragma omp parallel for schedule(dynamic, 1024)
-        for (NodeID_ i = 0; i < g.num_nodes(); i++)
-        {
-            NodeID_ out_start = g.out_offset(i);
-            NodeID_ idx = 0;
-            for (DestID_ j : g.out_neigh(i))
-            {
-                auto& edge = edges[out_start + idx];
-                if (is_weighted) {
-                    std::get<0>(edge) = i;
-                    std::get<1>(edge) = static_cast<NodeWeight<NodeID_, WeightT_>>(j).v;
-                    std::get<2>(edge) = static_cast<NodeWeight<NodeID_, WeightT_>>(j).w;
-                } else {
-                    std::get<0>(edge) = i;
-                    std::get<1>(edge) = j;
-                    std::get<2>(edge) = 1.0;
-                }
-                ++idx;
-            }
-        }
-
-        if (g.directed())
-        {
-            if (num_edges < g.num_edges_directed())
-            {
-                // Count additional edges needed from in-neighbors
-                int64_t additional_edges = g.num_edges_directed() - num_edges;
-                size_t old_size = edges.size();
-                edges.resize(old_size + additional_edges);
-                
-                // Count in-degrees to compute offsets
-                pvector<NodeID_> in_degrees(g.num_nodes());
-                #pragma omp parallel for
-                for (NodeID_ i = 0; i < g.num_nodes(); i++)
-                {
-                    in_degrees[i] = g.in_degree(i);
-                }
-                
-                // Use parallel prefix sum for write positions
-                pvector<SGOffset> in_offsets_base = ParallelPrefixSum(in_degrees);
-                
-                // Parallel edge construction
-                bool is_weighted = g.is_weighted();
-                #pragma omp parallel for schedule(dynamic, 1024)
-                for (NodeID_ i = 0; i < g.num_nodes(); i++)
-                {
-                    int64_t write_idx = old_size + in_offsets_base[i];
-                    for (DestID_ j : g.in_neigh(i))
-                    {
-                        auto &edge = edges[write_idx++];
-                        if (is_weighted)
-                        {
-                            std::get<0>(edge) = i;
-                            std::get<1>(edge) = static_cast<NodeWeight<NodeID_, WeightT_>>(j).v;
-                            std::get<2>(edge) = static_cast<NodeWeight<NodeID_, WeightT_>>(j).w;
-                        }
-                        else
-                        {
-                            std::get<0>(edge) = i;
-                            std::get<1>(edge) = j;
-                            std::get<2>(edge) = 1.0;
-                        }
-                    }
-                }
-            }
-        }
-
-        // No need for shrink_to_fit since we sized exactly
-
-        tm.Start();
-        bool symmetric = false;
-        bool weighted = g.is_weighted();
-        DiGraph<K, None, V> x;
-        readVecOmpW(x, edges, num_nodes, symmetric,
-                    weighted); // LOG(""); println(x);
-        edges.clear();
-        if (!symmetric)
-        {
-            x = symmetricizeOmp(x);
-        } //; LOG(""); print(x); printf(" (->symmetricize)\n"); }
-        tm.Stop();
-        PrintTime("DiGraph graph", tm.Seconds());
-
-        tm.Start();
-        runExperiment(x);
-        tm.Stop();
-
-        size_t num_nodesx;
-        size_t num_passes;
-        num_nodesx = x.span();
-        num_passes = x.communityMappingPerPass.size() + 2;
-
-        // Use flat array with stride for better cache locality (SoA pattern)
-        const size_t stride = num_nodesx;
-        std::vector<K> communityDataFlat(num_nodesx * num_passes);
-        
-        #pragma omp parallel for
-        for (size_t i = 0; i < num_nodesx; ++i)
-        {
-            communityDataFlat[i] = i;                    // column 0: node ID
-            communityDataFlat[stride + i] = x.degree(i); // column 1: degree
-        }
-
-        for (size_t p = 0; p < num_passes - 2; ++p)
-        {
-            K* dest_col = &communityDataFlat[(2 + p) * stride];
-            #pragma omp parallel for
-            for (size_t j = 0; j < num_nodesx; ++j)
-            {
-                dest_col[j] = x.communityMappingPerPass[p][j];
-            }
-        }
-
-        // Sort by each pass using index array
-        std::vector<size_t> sort_indices(num_nodesx);
-        #pragma omp parallel for
-        for (size_t i = 0; i < num_nodesx; ++i) {
-            sort_indices[i] = i;
-        }
-        
-        for (size_t p = 1; p < num_passes; ++p)
-        {
-            const K* sort_key_col = &communityDataFlat[p * stride];
-            __gnu_parallel::stable_sort(sort_indices.begin(), sort_indices.end(),
-                [sort_key_col](size_t a, size_t b) {
-                    return sort_key_col[a] < sort_key_col[b];
-                });
-        }
-
-        pvector<NodeID_> interim_ids(num_nodes, -1);
-
-        #pragma omp parallel for
-        for (int64_t i = 0; i < num_nodes; i++)
-        {
-            interim_ids[communityDataFlat[sort_indices[i]]] = (NodeID_)i;
-        }
-
-        tm2.Start();
-        GenerateDBGMappingInterim(g, new_ids, interim_ids, true);
-        tm2.Stop();
-
-        // tm.Stop();
-        PrintTime("LeidenFullOrder Map Time", tm.Seconds() + tm2.Seconds());
-    }
-
-    void GenerateDBGMappingInterim(const CSRGraph<NodeID_, DestID_, invert> &g,
-                                   pvector<NodeID_> &new_ids,
-                                   pvector<NodeID_> &interim_ids,
-                                   bool useOutdeg)
-    {
-        // Timer t;
-        // t.Start();
-
-        int64_t num_nodes = g.num_nodes();
-        int64_t num_edges = g.num_edges();
-
-        pvector<NodeID_> interim_ids_inv(num_nodes, -1);
-        pvector<NodeID_> new_ids_interim(num_nodes, -1);
-
-        #pragma omp parallel for
-        for (NodeID_ n = 0; n < num_nodes_; n++)
-        {
-            // assert(interim_ids_inv[interim_ids[n]] == -1);
-            interim_ids_inv[interim_ids[n]] = n;
-            // std::cout << "Node " << n << " | interim_ids: " << interim_ids[n] << "
-            // | interim_ids_inv: " << interim_ids_inv[interim_ids[n]] << std::endl;
-        }
-
-        uint32_t avg_vertex = num_edges / num_nodes;
-        const uint32_t &av = avg_vertex;
-
-        uint32_t bucket_threshold[] =
-        {
-            av / 2,   av,       av * 2,   av * 4,
-            av * 8,   av * 16,  av * 32,  av * 64,
-            av * 128, av * 256, av * 512, static_cast<uint32_t>(-1)
-        };
-        int num_buckets = 11;
-        if (num_buckets > 11)
-        {
-            // if you really want to increase the bucket count, add more thresholds to
-            // the bucket_threshold above.
-            std::cout << "Unsupported bucket size: " << num_buckets << std::endl;
-            assert(0);
-        }
-        bucket_threshold[num_buckets - 1] = static_cast<uint32_t>(-1);
-
-        vector<uint32_t> bucket_vertices[num_buckets];
-        const int num_threads = omp_get_max_threads();
-        vector<uint32_t> local_buckets[num_threads][num_buckets];
-
-        if (useOutdeg)
-        {
-            // This loop relies on a static scheduling
-            #pragma omp parallel for schedule(static)
-            for (int64_t i = 0; i < num_nodes; i++)
-            {
-                for (int j = 0; j < num_buckets; j++)
-                {
-                    const int64_t &count = g.out_degree(interim_ids_inv[i]);
-                    if (count <= bucket_threshold[j])
-                    {
-                        local_buckets[omp_get_thread_num()][j].push_back(i);
-                        break;
-                    }
-                }
-            }
-        }
-        else
-        {
-            #pragma omp parallel for schedule(static)
-            for (int64_t i = 0; i < num_nodes; i++)
-            {
-                for (int j = 0; j < num_buckets; j++)
-                {
-                    const int64_t &count = g.in_degree(interim_ids_inv[i]);
-                    if (count <= bucket_threshold[j])
-                    {
-                        local_buckets[omp_get_thread_num()][j].push_back(i);
-                        break;
-                    }
-                }
-            }
-        }
-
-        int temp_k = 0;
-        uint32_t start_k[num_threads][num_buckets];
-        for (int32_t j = num_buckets - 1; j >= 0; j--)
-        {
-            for (int t = 0; t < num_threads; t++)
-            {
-                start_k[t][j] = temp_k;
-                temp_k += local_buckets[t][j].size();
-            }
-        }
-
-        #pragma omp parallel for schedule(static)
-        for (int t = 0; t < num_threads; t++)
-        {
-            for (int j = num_buckets - 1; j >= 0; j--)
-            {
-                const vector<uint32_t> &current_bucket = local_buckets[t][j];
-                int k = start_k[t][j];
-                const size_t &size = current_bucket.size();
-                for (uint32_t i = 0; i < size; i++)
-                {
-                    new_ids_interim[current_bucket[i]] = k++;
-                }
-            }
-        }
-
-        for (int i = 0; i < num_threads; i++)
-        {
-            for (int j = 0; j < num_buckets; j++)
-            {
-                local_buckets[i][j].clear();
-            }
-        }
-
-        #pragma omp parallel for
-        for (NodeID_ n = 0; n < num_nodes_; n++)
-        {
-            new_ids[n] = new_ids_interim[interim_ids[n]];
-            // std::cout << "Node " << n << " | new_ids: " << new_ids[n] << " |
-            // new_ids_interim: " << new_ids_interim[interim_ids[n]] << std::endl;
-        }
-
-        // t.Stop();
-        // PrintTime("DBG Map Time", t.Seconds());
-    }
 };
 
 #endif // BUILDER_H_

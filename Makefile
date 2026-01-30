@@ -32,7 +32,7 @@ INCLUDE_LEIDEN = $(INC_DIR)/leiden
 # =========================================================
 INCLUDE_BOOST  = /opt/boost_1_58_0/include  
 # =========================================================
-DEP_GAPBS  = $(wildcard $(INC_DIR)/gapbs/*.h)
+DEP_GAPBS  = $(wildcard $(INC_DIR)/gapbs/*.h) $(wildcard $(INC_DIR)/gapbs/reorder/*.h)
 DEP_RABBIT = $(wildcard $(INC_DIR)/rabbit/*.hpp)
 DEP_GORDER = $(wildcard $(INC_DIR)/gorder/*.h)
 DEP_CORDER = $(wildcard $(INC_DIR)/corder/*.h)
