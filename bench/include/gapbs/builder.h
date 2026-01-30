@@ -13413,6 +13413,21 @@ public:
             } else {
                 // New format: cluster_variant:final_algo:resolution:levels
                 cluster_variant = first_opt;
+                
+                // Handle "fast" suffix variants - use HubSortDBG (6) instead of RabbitOrder (8)
+                bool use_fast_final = false;
+                if (cluster_variant.size() >= 4 && 
+                    cluster_variant.substr(cluster_variant.size() - 4) == "fast") {
+                    use_fast_final = true;
+                    cluster_variant = cluster_variant.substr(0, cluster_variant.size() - 4);
+                    if (cluster_variant.empty()) cluster_variant = "gve";  // "fast" alone = "gvefast"
+                }
+                
+                // Set default final algorithm based on fast flag
+                if (use_fast_final) {
+                    final_algo_id = 6;  // HubSortDBG - fast but good quality
+                }
+                
                 if (reordering_options.size() > 1 && !reordering_options[1].empty()) {
                     final_algo_id = std::stoi(reordering_options[1]);
                 }
