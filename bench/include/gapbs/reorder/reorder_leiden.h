@@ -2971,4 +2971,330 @@ std::vector<std::vector<K>> FastLeidenCSR(
     return community_per_pass;
 }
 
+//==========================================================================
+// GenerateLeidenCSRMapping - Standalone function for CSR-based Leiden ordering
+//==========================================================================
+
+/**
+ * GenerateLeidenCSRMapping - Fast Leiden-style ordering directly on CSR
+ * 
+ * Uses fast label propagation directly on CSR for community detection,
+ * then orders vertices by community + degree.
+ * 
+ * @param g Input graph (CSR format, symmetric)
+ * @param new_ids Output permutation array
+ * @param reordering_options [resolution, max_iterations, max_passes]
+ * @param flavor Ordering flavor: 0=DFS, 1=BFS, 2=HubSort (default)
+ * 
+ * Template parameters:
+ * - K: Community ID type (typically uint32_t)
+ * - NodeID_T: Node ID type
+ * - DestID_T: Destination ID type (may include weight)
+ */
+template <typename K = uint32_t, typename NodeID_T, typename DestID_T>
+void GenerateLeidenCSRMapping(
+    const CSRGraph<NodeID_T, DestID_T, true>& g,
+    pvector<NodeID_T>& new_ids,
+    const std::vector<std::string>& reordering_options,
+    int flavor = 2)
+{
+    Timer tm;
+    tm.Start();
+    
+    const int64_t num_nodes = g.num_nodes();
+    
+    // Parse options - use auto-resolution by default
+    double resolution = computeAutoResolution<NodeID_T, DestID_T>(g);
+    int max_iterations = 10;
+    int max_passes = 1;  // Single pass is fastest with comparable quality
+    
+    if (!reordering_options.empty()) {
+        resolution = std::stod(reordering_options[0]);
+        resolution = (resolution > 3) ? 1.0 : resolution;
+    }
+    if (reordering_options.size() > 1) {
+        max_iterations = std::stoi(reordering_options[1]);
+    }
+    if (reordering_options.size() > 2) {
+        max_passes = std::stoi(reordering_options[2]);
+    }
+    
+    // Run fast label propagation directly on CSR
+    auto community_per_pass = FastLeidenCSR<K, NodeID_T, DestID_T>(g, resolution, max_iterations, max_passes);
+    
+    tm.Stop();
+    PrintTime("LeidenCSR Community Detection", tm.Seconds());
+    PrintTime("LeidenCSR Passes", community_per_pass.size());
+    
+    if (community_per_pass.empty()) {
+        // Fallback: original ordering
+        #pragma omp parallel for
+        for (int64_t i = 0; i < num_nodes; ++i) {
+            new_ids[i] = i;
+        }
+        return;
+    }
+    
+    // Get degrees for secondary sort
+    tm.Start();
+    std::vector<K> degrees(num_nodes);
+    #pragma omp parallel for
+    for (int64_t i = 0; i < num_nodes; ++i) {
+        degrees[i] = g.out_degree(i);
+    }
+    
+    // Create sort indices
+    std::vector<size_t> sort_indices(num_nodes);
+    #pragma omp parallel for
+    for (int64_t i = 0; i < num_nodes; ++i) {
+        sort_indices[i] = i;
+    }
+    
+    const size_t num_passes = community_per_pass.size();
+    
+    // Apply ordering based on flavor
+    switch (flavor) {
+        case 0: { // DFS (standard)
+            // DFS-like ordering: sort by all passes (coarsest to finest) then degree
+            std::cout << "LeidenCSR Ordering: DFS (standard)" << std::endl;
+            
+            __gnu_parallel::sort(sort_indices.begin(), sort_indices.end(),
+                [&community_per_pass, &degrees, num_passes](size_t a, size_t b) {
+                    // Compare all passes from coarsest (last) to finest (first)
+                    for (size_t p = num_passes; p > 0; --p) {
+                        K comm_a = community_per_pass[p - 1][a];
+                        K comm_b = community_per_pass[p - 1][b];
+                        if (comm_a != comm_b) {
+                            return comm_a < comm_b;
+                        }
+                    }
+                    // Within same community: degree ascending
+                    return degrees[a] < degrees[b];
+                });
+            break;
+        }
+        
+        case 1: { // BFS
+            // BFS-like ordering: sort by level (pass index where community changes)
+            // then by community at each level, then by degree
+            std::cout << "LeidenCSR Ordering: BFS (level-first)" << std::endl;
+            
+            // Compute level for each node (first pass where it differs from neighbors)
+            std::vector<int> node_level(num_nodes, num_passes);
+            #pragma omp parallel for
+            for (int64_t v = 0; v < num_nodes; ++v) {
+                for (size_t p = 0; p < num_passes; ++p) {
+                    if (community_per_pass[p][v] != community_per_pass[num_passes-1][v]) {
+                        node_level[v] = p;
+                        break;
+                    }
+                }
+            }
+            
+            __gnu_parallel::sort(sort_indices.begin(), sort_indices.end(),
+                [&community_per_pass, &degrees, &node_level, num_passes](size_t a, size_t b) {
+                    // Primary: sort by last pass community (coarsest)
+                    K comm_a = community_per_pass[num_passes - 1][a];
+                    K comm_b = community_per_pass[num_passes - 1][b];
+                    if (comm_a != comm_b) return comm_a < comm_b;
+                    // Secondary: sort by level (BFS order)
+                    if (node_level[a] != node_level[b]) return node_level[a] < node_level[b];
+                    // Tertiary: degree descending
+                    return degrees[a] > degrees[b];
+                });
+            break;
+        }
+        
+        case 2: // HubSort (default)
+        default: {
+            // Hub sort within communities: sort by (last community, degree DESC)
+            // Simpler than full hierarchical sort but good for hub locality
+            std::cout << "LeidenCSR Ordering: HubSort (community + degree)" << std::endl;
+            
+            __gnu_parallel::sort(sort_indices.begin(), sort_indices.end(),
+                [&community_per_pass, &degrees, num_passes](size_t a, size_t b) {
+                    // Primary: sort by last pass community
+                    K comm_a = community_per_pass[num_passes - 1][a];
+                    K comm_b = community_per_pass[num_passes - 1][b];
+                    if (comm_a != comm_b) return comm_a < comm_b;
+                    // Secondary: degree descending (hubs first)
+                    return degrees[a] > degrees[b];
+                });
+            break;
+        }
+    }
+    
+    // Assign new IDs based on sorted order
+    #pragma omp parallel for
+    for (int64_t i = 0; i < num_nodes; ++i) {
+        new_ids[sort_indices[i]] = i;
+    }
+    
+    tm.Stop();
+    double map_time = tm.Seconds();
+    
+    // Print community count and modularity from last pass
+    if (!community_per_pass.empty()) {
+        // Count unique communities (don't use max+1 as communities may not be contiguous)
+        std::unordered_set<K> unique_comms(community_per_pass.back().begin(), 
+                                            community_per_pass.back().end());
+        PrintTime("LeidenCSR Communities", static_cast<double>(unique_comms.size()));
+        
+        // Compute and print modularity
+        double modularity = computeModularityCSR<K, NodeID_T, DestID_T>(g, community_per_pass.back(), resolution);
+        PrintTime("LeidenCSR Modularity", modularity);
+    }
+    PrintTime("LeidenCSR Map Time", map_time);
+}
+
+//==========================================================================
+// GenerateLeidenFastMapping - Union-Find + Label Propagation based ordering
+//==========================================================================
+
+/**
+ * GenerateLeidenFastMapping - Main entry point for LeidenFast algorithm
+ * 
+ * Improved version with:
+ * - Parallel Union-Find with atomic CAS
+ * - Best-fit modularity merging (not first-fit)
+ * - Hash-based label propagation (faster than sorted array)
+ * - Proper convergence detection
+ * 
+ * @param g Input graph (CSR format, symmetric)
+ * @param new_ids Output permutation array
+ * @param reordering_options [resolution, max_passes]
+ */
+template <typename NodeID_T, typename DestID_T>
+void GenerateLeidenFastMapping(
+    const CSRGraph<NodeID_T, DestID_T, true>& g,
+    pvector<NodeID_T>& new_ids,
+    const std::vector<std::string>& reordering_options)
+{
+    Timer tm;
+    tm.Start();
+    
+    const int64_t num_nodes = g.num_nodes();
+    
+    // Parse options
+    double resolution = 1.0;
+    int max_passes = 3;  // Default to 3 passes for good quality
+    
+    if (!reordering_options.empty()) {
+        resolution = std::stod(reordering_options[0]);
+    }
+    if (reordering_options.size() > 1) {
+        max_passes = std::stoi(reordering_options[1]);
+    }
+    
+    printf("LeidenFast: resolution=%.2f, max_passes=%d\n", resolution, max_passes);
+    
+    // Run community detection
+    std::vector<double> vertex_strength;
+    std::vector<int64_t> community;
+    
+    FastModularityCommunityDetection<NodeID_T, DestID_T>(
+        g, vertex_strength, community, resolution, max_passes);
+    
+    tm.Stop();
+    PrintTime("LeidenFast Community Detection", tm.Seconds());
+    
+    // Build ordering
+    tm.Start();
+    std::vector<int64_t> ordered_vertices;
+    BuildCommunityOrdering<NodeID_T, DestID_T>(
+        g, vertex_strength, community, ordered_vertices);
+    
+    // Assign new IDs
+    #pragma omp parallel for
+    for (int64_t i = 0; i < num_nodes; ++i) {
+        new_ids[ordered_vertices[i]] = i;
+    }
+    
+    tm.Stop();
+    PrintTime("LeidenFast Ordering", tm.Seconds());
+}
+
+//==========================================================================
+// GenerateLeidenMapping2 - Quality-focused Leiden reordering
+//==========================================================================
+
+/**
+ * GenerateLeidenMapping2 - Quality-focused Leiden reordering
+ * 
+ * Uses LeidenCommunityDetection for high-quality communities, then
+ * orders by community strength (degree sum) and vertex degree.
+ * 
+ * @param g Input graph (CSR format, symmetric)
+ * @param new_ids Output permutation array
+ * @param reordering_options [resolution, max_passes, max_iterations]
+ */
+template <typename NodeID_T, typename DestID_T>
+void GenerateLeidenMapping2(
+    const CSRGraph<NodeID_T, DestID_T, true>& g,
+    pvector<NodeID_T>& new_ids,
+    const std::vector<std::string>& reordering_options)
+{
+    Timer tm;
+    tm.Start();
+    
+    const int64_t num_nodes = g.num_nodes();
+    
+    // Auto-tune resolution based on graph density
+    double resolution = computeAutoResolution<NodeID_T, DestID_T>(g);
+    int max_passes = 1;      // Single pass is usually enough
+    int max_iterations = 4;  // 4 iterations for good community quality
+    
+    // Override with user options if provided
+    if (!reordering_options.empty()) {
+        resolution = std::stod(reordering_options[0]);
+    }
+    if (reordering_options.size() > 1) {
+        max_passes = std::stoi(reordering_options[1]);
+    }
+    if (reordering_options.size() > 2) {
+        max_iterations = std::stoi(reordering_options[2]);
+    }
+    
+    printf("Leiden: resolution=%.2f, max_passes=%d, max_iterations=%d\n",
+           resolution, max_passes, max_iterations);
+    
+    std::vector<int64_t> community;
+    LeidenCommunityDetection<NodeID_T, DestID_T>(g, community, resolution, max_passes, max_iterations);
+    
+    tm.Stop();
+    PrintTime("Leiden Community Detection", tm.Seconds());
+    
+    tm.Start();
+    
+    int64_t num_comms = *std::max_element(community.begin(), community.end()) + 1;
+    std::vector<double> comm_strength(num_comms, 0.0);
+    
+    #pragma omp parallel for
+    for (int64_t v = 0; v < num_nodes; ++v) {
+        int64_t c = community[v];
+        #pragma omp atomic
+        comm_strength[c] += static_cast<double>(g.out_degree(v));
+    }
+    
+    std::vector<std::tuple<int64_t, int64_t, int64_t>> order(num_nodes);
+    #pragma omp parallel for
+    for (int64_t v = 0; v < num_nodes; ++v) {
+        int64_t c = community[v];
+        order[v] = std::make_tuple(
+            -static_cast<int64_t>(comm_strength[c] * 1000),
+            -static_cast<int64_t>(g.out_degree(v)),
+            v
+        );
+    }
+    __gnu_parallel::sort(order.begin(), order.end());
+    
+    #pragma omp parallel for
+    for (int64_t i = 0; i < num_nodes; ++i) {
+        new_ids[std::get<2>(order[i])] = i;
+    }
+    
+    tm.Stop();
+    PrintTime("Leiden Ordering", tm.Seconds());
+}
+
 #endif // REORDER_LEIDEN_H_

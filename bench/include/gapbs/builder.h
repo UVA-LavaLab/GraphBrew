@@ -41,6 +41,9 @@
 
 #include "reorder/reorder_leiden.h"
 #include "reorder/reorder_graphbrew.h"
+#include "reorder/reorder_hub.h"
+#include "reorder/reorder_basic.h"
+#include "reorder/reorder_classic.h"
 /*
    GAP Benchmark Suite
    Class:  BuilderBase
@@ -2244,70 +2247,22 @@ public:
         PrintTime("Load Map Time", t.Seconds());
     }
 
+    /**
+     * @brief Identity mapping - keeps original vertex IDs
+     * Delegates to ::GenerateOriginalMapping in reorder/reorder_basic.h
+     */
     void GenerateOriginalMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
-                                 pvector<NodeID_> &new_ids)
-    {
-        int64_t num_nodes = g.num_nodes();
-
-        Timer t;
-        t.Start();
-        #pragma omp parallel for
-        for (int64_t i = 0; i < num_nodes; i++)
-        {
-            new_ids[i] = (NodeID_)i;
-        }
-        t.Stop();
-        PrintTime("Original Map Time", t.Seconds());
+                                 pvector<NodeID_> &new_ids) {
+        ::GenerateOriginalMapping<NodeID_, DestID_, invert>(g, new_ids);
     }
 
+    /**
+     * @brief Random permutation of vertex IDs
+     * Delegates to ::GenerateRandomMapping in reorder/reorder_basic.h
+     */
     void GenerateRandomMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
-                               pvector<NodeID_> &new_ids)
-    {
-        Timer t;
-        t.Start();
-        std::srand(0); // so that the random graph generated is the same
-        int64_t num_nodes = g.num_nodes();
-        // int64_t num_edges = g.num_edges_directed();
-
-        NodeID_ granularity = 1;
-        NodeID_ slice = (num_nodes - granularity + 1) / granularity;
-        NodeID_ artificial_num_nodes = slice * granularity;
-        assert(artificial_num_nodes <= num_nodes);
-        pvector<NodeID_> slice_index;
-        slice_index.resize(slice);
-
-        #pragma omp parallel for
-        for (NodeID_ i = 0; i < slice; i++)
-        {
-            slice_index[i] = i;
-        }
-
-        __gnu_parallel::random_shuffle(slice_index.begin(), slice_index.end());
-
-        {
-            #pragma omp parallel for
-            for (NodeID_ i = 0; i < slice; i++)
-            {
-                NodeID_ new_index = slice_index[i] * granularity;
-                for (NodeID_ j = 0; j < granularity; j++)
-                {
-                    NodeID_ v = (i * granularity) + j;
-                    if (v < artificial_num_nodes)
-                    {
-                        new_ids[v] = new_index + j;
-                    }
-                }
-            }
-        }
-
-        for (NodeID_ i = artificial_num_nodes; i < num_nodes; i++)
-        {
-            new_ids[i] = i;
-        }
-        slice_index.clear();
-
-        t.Stop();
-        PrintTime("Random Map Time", t.Seconds());
+                               pvector<NodeID_> &new_ids) {
+        ::GenerateRandomMapping<NodeID_, DestID_, invert>(g, new_ids);
     }
 
     void GenerateRandomMapping_v2(const CSRGraph<NodeID_, DestID_, invert> &g,
@@ -2348,368 +2303,41 @@ public:
         PrintTime("Random Map Time", t.Seconds());
     }
 
+    /**
+     * @brief HubSort within DBG buckets
+     * Delegates to ::GenerateHubSortDBGMapping in reorder/reorder_hub.h
+     */
     void GenerateHubSortDBGMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
-                                   pvector<NodeID_> &new_ids, bool useOutdeg)
-    {
-
-        typedef std::pair<int64_t, NodeID_> degree_nodeid_t;
-
-        Timer t;
-        t.Start();
-
-        int64_t num_nodes = g.num_nodes();
-        int64_t num_edges = g.num_edges();
-
-        int64_t avgDegree = num_edges / num_nodes;
-        size_t hubCount{0};
-
-        const int num_threads = omp_get_max_threads();
-        pvector<degree_nodeid_t> local_degree_id_pairs[num_threads];
-        int64_t slice = num_nodes / num_threads;
-        int64_t start[num_threads];
-        int64_t end[num_threads];
-        int64_t hub_count[num_threads];
-        int64_t non_hub_count[num_threads];
-        int64_t new_index[num_threads];
-        for (int t = 0; t < num_threads; t++)
-        {
-            start[t] = t * slice;
-            end[t] = (t + 1) * slice;
-            hub_count[t] = 0;
-        }
-        end[num_threads - 1] = num_nodes;
-
-        #pragma omp parallel for schedule(static) num_threads(num_threads)
-        for (int64_t t = 0; t < num_threads; t++)
-        {
-            for (int64_t v = start[t]; v < end[t]; ++v)
-            {
-                if (useOutdeg)
-                {
-                    int64_t out_degree_v = g.out_degree(v);
-                    if (out_degree_v > avgDegree)
-                    {
-                        local_degree_id_pairs[t].push_back(std::make_pair(out_degree_v, v));
-                    }
-                }
-                else
-                {
-                    int64_t in_degree_v = g.in_degree(v);
-                    if (in_degree_v > avgDegree)
-                    {
-                        local_degree_id_pairs[t].push_back(std::make_pair(in_degree_v, v));
-                    }
-                }
-            }
-        }
-        for (int t = 0; t < num_threads; t++)
-        {
-            hub_count[t] = local_degree_id_pairs[t].size();
-            hubCount += hub_count[t];
-            non_hub_count[t] = end[t] - start[t] - hub_count[t];
-        }
-        new_index[0] = hubCount;
-        for (int t = 1; t < num_threads; t++)
-        {
-            new_index[t] = new_index[t - 1] + non_hub_count[t - 1];
-        }
-        pvector<degree_nodeid_t> degree_id_pairs(hubCount);
-
-        size_t k = 0;
-        for (int i = 0; i < num_threads; i++)
-        {
-            for (size_t j = 0; j < local_degree_id_pairs[i].size(); j++)
-            {
-                degree_id_pairs[k++] = local_degree_id_pairs[i][j];
-            }
-            local_degree_id_pairs[i].clear();
-        }
-        assert(degree_id_pairs.size() == hubCount);
-        assert(k == hubCount);
-
-        __gnu_parallel::stable_sort(degree_id_pairs.begin(), degree_id_pairs.end(),
-                                    std::greater<degree_nodeid_t>());
-
-        #pragma omp parallel for
-        for (size_t n = 0; n < hubCount; ++n)
-        {
-            new_ids[degree_id_pairs[n].second] = n;
-        }
-        pvector<degree_nodeid_t>().swap(degree_id_pairs);
-
-        #pragma omp parallel for schedule(static) num_threads(num_threads)
-        for (int t = 0; t < num_threads; t++)
-        {
-            for (int64_t v = start[t]; v < end[t]; ++v)
-            {
-                if (new_ids[v] == (NodeID_)UINT_E_MAX)
-                {
-                    new_ids[v] = new_index[t]++;
-                }
-            }
-        }
-
-        t.Stop();
-        PrintTime("HubSortDBG Map Time", t.Seconds());
+                                   pvector<NodeID_> &new_ids, bool useOutdeg) {
+        ::GenerateHubSortDBGMapping<NodeID_, DestID_, invert>(g, new_ids, useOutdeg);
     }
 
+    /**
+     * @brief HubCluster within DBG buckets (2-bucket version)
+     * Delegates to ::GenerateHubClusterDBGMapping in reorder/reorder_hub.h
+     */
     void GenerateHubClusterDBGMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
-                                      pvector<NodeID_> &new_ids, bool useOutdeg)
-    {
-        Timer t;
-        t.Start();
-
-        int64_t num_nodes = g.num_nodes();
-        int64_t num_edges = g.num_edges();
-
-        uint32_t avg_vertex = num_edges / num_nodes;
-
-        const int num_buckets = 2;
-        avg_vertex = avg_vertex;
-        uint32_t bucket_threshold[] = {avg_vertex, static_cast<uint32_t>(-1)};
-
-        vector<uint32_t> bucket_vertices[num_buckets];
-        const int num_threads = omp_get_max_threads();
-        vector<uint32_t> local_buckets[num_threads][num_buckets];
-
-        if (useOutdeg)
-        {
-            // This loop relies on a static scheduling
-            #pragma omp parallel for schedule(static)
-            for (int64_t i = 0; i < num_nodes; i++)
-            {
-                for (unsigned int j = 0; j < num_buckets; j++)
-                {
-                    const int64_t &count = g.out_degree(i);
-                    if (count <= bucket_threshold[j])
-                    {
-                        local_buckets[omp_get_thread_num()][j].push_back(i);
-                        break;
-                    }
-                }
-            }
-        }
-        else
-        {
-            #pragma omp parallel for schedule(static)
-            for (int64_t i = 0; i < num_nodes; i++)
-            {
-                for (unsigned int j = 0; j < num_buckets; j++)
-                {
-                    const int64_t &count = g.in_degree(i);
-                    if (count <= bucket_threshold[j])
-                    {
-                        local_buckets[omp_get_thread_num()][j].push_back(i);
-                        break;
-                    }
-                }
-            }
-        }
-
-        int temp_k = 0;
-        uint32_t start_k[num_threads][num_buckets];
-        for (int32_t j = num_buckets - 1; j >= 0; j--)
-        {
-            for (int t = 0; t < num_threads; t++)
-            {
-                start_k[t][j] = temp_k;
-                temp_k += local_buckets[t][j].size();
-            }
-        }
-
-        #pragma omp parallel for schedule(static)
-        for (int t = 0; t < num_threads; t++)
-        {
-            for (int32_t j = num_buckets - 1; j >= 0; j--)
-            {
-                const vector<uint32_t> &current_bucket = local_buckets[t][j];
-                int k = start_k[t][j];
-                const size_t &size = current_bucket.size();
-                for (uint32_t i = 0; i < size; i++)
-                {
-                    new_ids[current_bucket[i]] = k++;
-                }
-            }
-        }
-
-        for (int i = 0; i < num_threads; i++)
-        {
-            for (unsigned int j = 0; j < num_buckets; j++)
-            {
-                local_buckets[i][j].clear();
-            }
-        }
-
-        t.Stop();
-        PrintTime("HubClusterDBG Map Time", t.Seconds());
+                                      pvector<NodeID_> &new_ids, bool useOutdeg) {
+        ::GenerateHubClusterDBGMapping<NodeID_, DestID_, invert>(g, new_ids, useOutdeg);
     }
 
+    /**
+     * @brief Sort vertices by degree, placing hubs first
+     * Delegates to ::GenerateHubSortMapping in reorder/reorder_hub.h
+     */
     void GenerateHubSortMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
-                                pvector<NodeID_> &new_ids, bool useOutdeg)
-    {
-
-        typedef std::pair<int64_t, NodeID_> degree_nodeid_t;
-
-        Timer t;
-        t.Start();
-
-        int64_t num_nodes = g.num_nodes();
-        int64_t num_edges = g.num_edges();
-
-        pvector<degree_nodeid_t> degree_id_pairs(num_nodes);
-        int64_t avgDegree = num_edges / num_nodes;
-        size_t hubCount{0};
-
-        /* STEP I - collect degrees of all vertices */
-        #pragma omp parallel for reduction(+ : hubCount)
-        for (int64_t v = 0; v < num_nodes; ++v)
-        {
-            if (useOutdeg)
-            {
-                int64_t out_degree_v = g.out_degree(v);
-                degree_id_pairs[v] = std::make_pair(out_degree_v, v);
-                if (out_degree_v > avgDegree)
-                {
-                    ++hubCount;
-                }
-            }
-            else
-            {
-                int64_t in_degree_v = g.in_degree(v);
-                degree_id_pairs[v] = std::make_pair(in_degree_v, v);
-                if (in_degree_v > avgDegree)
-                {
-                    ++hubCount;
-                }
-            }
-        }
-
-        /* Step II - sort the degrees in parallel */
-        __gnu_parallel::stable_sort(degree_id_pairs.begin(), degree_id_pairs.end(),
-                                    std::greater<degree_nodeid_t>());
-
-        /* Step III - make a remap based on the sorted degree list [Only for hubs]
-         */
-        #pragma omp parallel for
-        for (size_t n = 0; n < hubCount; ++n)
-        {
-            new_ids[degree_id_pairs[n].second] = n;
-        }
-        // clearing space from degree pairs
-        pvector<degree_nodeid_t>().swap(degree_id_pairs);
-
-        /* Step IV - assigning a remap for (easy) non hub vertices */
-        auto numHubs = hubCount;
-        SlidingQueue<int64_t> queue(numHubs);
-        #pragma omp parallel
-        {
-            QueueBuffer<int64_t> lqueue(queue, numHubs / omp_get_max_threads());
-            #pragma omp for
-            for (int64_t n = numHubs; n < num_nodes; ++n)
-            {
-                if (new_ids[n] == (NodeID_)UINT_E_MAX)
-                {
-                    // This steps preserves the ordering of the original graph (as much as
-                    // possible)
-                    new_ids[n] = n;
-                }
-                else
-                {
-                    int64_t remappedTo = new_ids[n];
-                    if (new_ids[remappedTo] == (NodeID_)UINT_E_MAX)
-                    {
-                        // safe to swap Ids because the original vertex is a non-hub
-                        new_ids[remappedTo] = n;
-                    }
-                    else
-                    {
-                        // Cannot swap ids because original vertex was a hub (swapping
-                        // would disturb sorted ordering of hubs - not allowed)
-                        lqueue.push_back(n);
-                    }
-                }
-            }
-            lqueue.flush();
-        }
-        queue.slide_window(); // the queue keeps a list of vertices where a simple
-        // swap of locations is not possible
-        /* Step V - assigning remaps for remaining non hubs */
-        int64_t unassignedCtr{0};
-        auto q_iter = queue.begin();
-        #pragma omp parallel for
-        for (size_t n = 0; n < numHubs; ++n)
-        {
-            if (new_ids[n] == (NodeID_)UINT_E_MAX)
-            {
-                int64_t u = *(q_iter + __sync_fetch_and_add(&unassignedCtr, 1));
-                new_ids[n] = u;
-            }
-        }
-
-        t.Stop();
-        PrintTime("HubSort Map Time", t.Seconds());
+                                pvector<NodeID_> &new_ids, bool useOutdeg) {
+        ::GenerateHubSortMapping<NodeID_, DestID_, invert>(g, new_ids, useOutdeg);
     }
 
+    /**
+     * @brief Sort all vertices by degree
+     * Delegates to ::GenerateSortMapping in reorder/reorder_basic.h
+     */
     void GenerateSortMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
                              pvector<NodeID_> &new_ids, bool useOutdeg,
-                             bool lesser = false)
-    {
-
-        typedef std::pair<int64_t, NodeID_> degree_nodeid_t;
-
-        Timer t;
-        t.Start();
-
-        int64_t num_nodes = g.num_nodes();
-        // int64_t num_edges = g.num_edges_directed();
-
-        pvector<degree_nodeid_t> degree_id_pairs(num_nodes);
-
-        if (useOutdeg)
-        {
-            #pragma omp parallel for
-            for (int64_t v = 0; v < num_nodes; ++v)
-            {
-
-                int64_t out_degree_v = g.out_degree(v);
-                degree_id_pairs[v] = std::make_pair(out_degree_v, v);
-
-            }
-        }
-        else
-        {
-            #pragma omp parallel for
-            for (int64_t v = 0; v < num_nodes; ++v)
-            {
-                int64_t in_degree_v = g.in_degree(v);
-                degree_id_pairs[v] = std::make_pair(in_degree_v, v);
-
-            }
-        }
-
-        auto custom_comparator = [lesser](const degree_nodeid_t &a, const degree_nodeid_t &b)
-        {
-            // if (a.first == 0 && b.first == 0) return false; // Keep relative order of zero-degree nodes
-            // if (a.first == 0) return false; // Zero-degree nodes should be "greater"
-            // if (b.first == 0) return true;  // Zero-degree nodes should be "greater"
-            return lesser ? (a.first < b.first) : (a.first > b.first);
-
-            // return a.first > b.first;
-        };
-
-        __gnu_parallel::stable_sort(degree_id_pairs.begin(), degree_id_pairs.end(), custom_comparator);
-
-
-        #pragma omp parallel for
-        for (int64_t n = 0; n < num_nodes; ++n)
-        {
-            new_ids[degree_id_pairs[n].second] = n;
-        }
-
-        pvector<degree_nodeid_t>().swap(degree_id_pairs);
-
-        t.Stop();
-        PrintTime("Sort Map Time", t.Seconds());
+                             bool lesser = false) {
+        ::GenerateSortMapping<NodeID_, DestID_, invert>(g, new_ids, useOutdeg, lesser);
     }
 
     void GenerateSortMappingRabbit(const CSRGraph<NodeID_, DestID_, invert> &g,
@@ -2761,316 +2389,31 @@ public:
         PrintTime("Sort Map Time", t.Seconds());
     }
 
+    /**
+     * @brief Degree-Based Grouping into logarithmic buckets
+     * Delegates to ::GenerateDBGMapping in reorder/reorder_hub.h
+     */
     void GenerateDBGMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
-                            pvector<NodeID_> &new_ids, bool useOutdeg)
-    {
-        Timer t;
-        t.Start();
-
-        int64_t num_nodes = g.num_nodes();
-        int64_t num_edges = g.num_edges();
-
-        uint32_t avg_vertex = num_edges / num_nodes;
-        const uint32_t &av = avg_vertex;
-
-        // uint32_t bucket_threshold[] = {
-        //   av / 2,   av,       av * 2,   av * 4,
-        //   av * 8,   av * 16,  av * 32,  av * 64,
-        //   av * 128, av * 256, av * 512, static_cast<uint32_t>(-1)};
-
-        uint32_t bucket_threshold[] = {av / 2, av, av * 2, av * 4, av * 8, av * 16, av * 32, av * 64, av * 128, av * 256, av * 512, static_cast<uint32_t>(-1)};
-        int num_buckets = 8;
-        if ( num_buckets > 11 )
-        {
-            // if you really want to increase the bucket count, add more thresholds to the bucket_threshold above.
-            std::cout << "Unsupported bucket size: " << num_buckets << std::endl;
-            assert(0);
-        }
-        bucket_threshold[num_buckets - 1] = static_cast<uint32_t>(-1);
-
-        vector<uint32_t> bucket_vertices[num_buckets];
-        const int num_threads = omp_get_max_threads();
-        vector<uint32_t> local_buckets[num_threads][num_buckets];
-
-        if (useOutdeg)
-        {
-            // This loop relies on a static scheduling
-            #pragma omp parallel for schedule(static)
-            for (int64_t i = 0; i < num_nodes; i++)
-            {
-                for (int j = 0; j < num_buckets; j++)
-                {
-                    const int64_t &count = g.out_degree(i);
-                    if (count <= bucket_threshold[j])
-                    {
-                        local_buckets[omp_get_thread_num()][j].push_back(i);
-                        break;
-                    }
-                }
-            }
-        }
-        else
-        {
-            #pragma omp parallel for schedule(static)
-            for (int64_t i = 0; i < num_nodes; i++)
-            {
-                for (int j = 0; j < num_buckets; j++)
-                {
-                    const int64_t &count = g.in_degree(i);
-                    if (count <= bucket_threshold[j])
-                    {
-                        local_buckets[omp_get_thread_num()][j].push_back(i);
-                        break;
-                    }
-                }
-            }
-        }
-
-        int temp_k = 0;
-        uint32_t start_k[num_threads][num_buckets];
-        for (int32_t j = num_buckets - 1; j >= 0; j--)
-        {
-            for (int t = 0; t < num_threads; t++)
-            {
-                start_k[t][j] = temp_k;
-                temp_k += local_buckets[t][j].size();
-            }
-        }
-
-        #pragma omp parallel for schedule(static)
-        for (int t = 0; t < num_threads; t++)
-        {
-            for (int j = num_buckets - 1; j >= 0; j--)
-            {
-                const vector<uint32_t> &current_bucket = local_buckets[t][j];
-                int k = start_k[t][j];
-                const size_t &size = current_bucket.size();
-                for (uint32_t i = 0; i < size; i++)
-                {
-                    new_ids[current_bucket[i]] = k++;
-                }
-            }
-        }
-
-        for (int i = 0; i < num_threads; i++)
-        {
-            for (int j = 0; j < num_buckets; j++)
-            {
-                local_buckets[i][j].clear();
-            }
-        }
-
-        t.Stop();
-        PrintTime("DBG Map Time", t.Seconds());
+                            pvector<NodeID_> &new_ids, bool useOutdeg) {
+        ::GenerateDBGMapping<NodeID_, DestID_, invert>(g, new_ids, useOutdeg);
     }
 
+    /**
+     * @brief Cluster hub vertices with partition-aware locality
+     * Delegates to ::GenerateHubClusterMapping in reorder/reorder_hub.h
+     */
     void GenerateHubClusterMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
-                                   pvector<NodeID_> &new_ids, bool useOutdeg)
-    {
-
-        typedef std::pair<int64_t, NodeID_> degree_nodeid_t;
-
-        Timer t;
-        t.Start();
-
-        int64_t num_nodes = g.num_nodes();
-        int64_t num_edges = g.num_edges();
-
-        pvector<degree_nodeid_t> degree_id_pairs(num_nodes);
-        int64_t avgDegree = num_edges / num_nodes;
-        // size_t hubCount {0};
-
-        const int PADDING = 64 / sizeof(uintE);
-        int64_t *localOffsets = new int64_t[omp_get_max_threads() * PADDING]();
-        int64_t partitionSz = num_nodes / omp_get_max_threads();
-
-        #pragma omp parallel
-        {
-            int tid = omp_get_thread_num();
-            int startID = partitionSz * tid;
-            int stopID = partitionSz * (tid + 1);
-            if (tid == omp_get_max_threads() - 1)
-            {
-                stopID = num_nodes;
-            }
-            for (int n = startID; n < stopID; ++n)
-            {
-                if (useOutdeg)
-                {
-                    int64_t out_degree_n = g.out_degree(n);
-                    if (out_degree_n > avgDegree)
-                    {
-                        ++localOffsets[tid * PADDING];
-                        new_ids[n] = 1;
-                    }
-                }
-                else
-                {
-                    int64_t in_degree_n = g.in_degree(n);
-                    if (in_degree_n > avgDegree)
-                    {
-                        ++localOffsets[tid * PADDING];
-                        new_ids[n] = 1;
-                    }
-                }
-            }
-        }
-        int64_t sum{0};
-        for (int tid = 0; tid < omp_get_max_threads(); ++tid)
-        {
-            auto origCount = localOffsets[tid * PADDING];
-            localOffsets[tid * PADDING] = sum;
-            sum += origCount;
-        }
-
-        /* Step II - assign a remap for the hub vertices first */
-        #pragma omp parallel
-        {
-            int64_t localCtr{0};
-            int tid = omp_get_thread_num();
-            int64_t startID = partitionSz * tid;
-            int64_t stopID = partitionSz * (tid + 1);
-            if (tid == omp_get_max_threads() - 1)
-            {
-                stopID = num_nodes;
-            }
-            for (int64_t n = startID; n < stopID; ++n)
-            {
-                if (new_ids[n] != (NodeID_)UINT_E_MAX)
-                {
-                    new_ids[n] = (NodeID_)localOffsets[tid * PADDING] + (NodeID_)localCtr;
-                    ++localCtr;
-                }
-            }
-        }
-        delete[] localOffsets;
-
-        /* Step III - assigning a remap for (easy) non hub vertices */
-        auto numHubs = sum;
-        SlidingQueue<int64_t> queue(numHubs);
-        #pragma omp parallel
-        {
-            // assert(omp_get_max_threads() == 56);
-            QueueBuffer<int64_t> lqueue(queue, numHubs / omp_get_max_threads());
-            #pragma omp for
-            for (int64_t n = numHubs; n < num_nodes; ++n)
-            {
-                if (new_ids[n] == (NodeID_)UINT_E_MAX)
-                {
-                    // This steps preserves the ordering of the original graph (as much as
-                    // possible)
-                    new_ids[n] = (NodeID_)n;
-                }
-                else
-                {
-                    int64_t remappedTo = new_ids[n];
-                    if (new_ids[remappedTo] == (NodeID_)UINT_E_MAX)
-                    {
-                        // safe to swap Ids because the original vertex is a non-hub
-                        new_ids[remappedTo] = (NodeID_)n;
-                    }
-                    else
-                    {
-                        // Cannot swap ids because original vertex was a hub (swapping
-                        // would disturb sorted ordering of hubs - not allowed)
-                        lqueue.push_back(n);
-                    }
-                }
-            }
-            lqueue.flush();
-        }
-        queue.slide_window(); // the queue keeps a list of vertices where a simple
-        // swap of locations is not possible
-
-        /* Step IV - assigning remaps for remaining non hubs */
-        int64_t unassignedCtr{0};
-        auto q_iter = queue.begin();
-        #pragma omp parallel for
-        for (int64_t n = 0; n < numHubs; ++n)
-        {
-            if (new_ids[n] == (NodeID_)UINT_E_MAX)
-            {
-                int64_t u = *(q_iter + __sync_fetch_and_add(&unassignedCtr, 1));
-                new_ids[n] = (NodeID_)u;
-            }
-        }
-
-        t.Stop();
-        PrintTime("HubCluster Map Time", t.Seconds());
+                                   pvector<NodeID_> &new_ids, bool useOutdeg) {
+        ::GenerateHubClusterMapping<NodeID_, DestID_, invert>(g, new_ids, useOutdeg);
     }
 
+    /**
+     * @brief Cache-aware workload balancing ordering
+     * Delegates to ::GenerateCOrderMapping in reorder/reorder_classic.h
+     */
     void GenerateCOrderMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
-                               pvector<NodeID_> &new_ids)
-    {
-        Timer t;
-        t.Start();
-
-        auto num_nodes = g.num_nodes();
-        auto num_edges = g.num_edges();
-        unsigned average_degree = num_edges / num_nodes;
-        params::partition_size = 1024;
-        params::num_partitions = (num_nodes - 1) / params::partition_size + 1;
-        unsigned num_partitions = params::num_partitions;
-        // unsigned max_threads = omp_get_max_threads();
-        std::vector<unsigned> segment_large;
-        segment_large.reserve(num_nodes);
-        std::vector<unsigned> segment_small;
-        segment_small.reserve(num_nodes / 2);
-
-        for (unsigned i = 0; i < num_nodes; i++)
-            if (g.out_degree(i) > 1 * average_degree)
-                segment_large.push_back(i);
-            else
-                segment_small.push_back(i);
-
-        unsigned num_large_per_seg =
-            ceil((float)segment_large.size() / num_partitions);
-        params::overflow_ceil = num_large_per_seg;
-
-        unsigned num_small_per_seg = params::partition_size - num_large_per_seg;
-
-        // std::cout << "partition size: " << params::partition_size
-        //           << " num of large: " << num_large_per_seg
-        //           << " num of small: " << num_small_per_seg << '\n';
-        unsigned last_cls = num_partitions - 1;
-
-        while ((num_large_per_seg * last_cls > segment_large.size()) ||
-                (num_small_per_seg * last_cls > segment_small.size()))
-        {
-            last_cls -= 1;
-        }
-
-        #pragma omp parallel for schedule(static)
-        for (unsigned i = 0; i < last_cls; i++)
-        {
-            unsigned index = i * params::partition_size;
-            for (unsigned j = 0; j < num_large_per_seg; j++)
-            {
-                new_ids[segment_large[i * num_large_per_seg + j]] = index++;
-            }
-            for (unsigned j = 0; j < num_small_per_seg; j++)
-                new_ids[segment_small[i * num_small_per_seg + j]] = index++;
-        }
-
-        auto last_large = num_large_per_seg * last_cls;
-        auto last_small = num_small_per_seg * last_cls;
-        unsigned index = last_cls * params::partition_size;
-
-        #pragma omp parallel for
-        for (unsigned i = last_large; i < segment_large.size(); i++)
-        {
-            unsigned local_index = __sync_fetch_and_add(&index, 1);
-            new_ids[segment_large[i]] = local_index;
-        }
-
-        #pragma omp parallel for
-        for (unsigned i = last_small; i < segment_small.size(); i++)
-        {
-            unsigned local_index = __sync_fetch_and_add(&index, 1);
-            new_ids[segment_small[i]] = local_index;
-        }
-        t.Stop();
-        PrintTime("COrder Map Time", t.Seconds());
+                               pvector<NodeID_> &new_ids) {
+        ::GenerateCOrderMapping<NodeID_, DestID_, invert>(g, new_ids);
     }
 
     void GenerateCOrderMapping_v2(const CSRGraph<NodeID_, DestID_, invert> &g,
@@ -4483,144 +3826,22 @@ public:
        DEALINGS IN THE SOFTWARE.
      */
 
+    /**
+     * @brief GOrder - Graph Ordering using dynamic programming and windowing
+     * Delegates to ::GenerateGOrderMapping in reorder/reorder_classic.h
+     */
     void GenerateGOrderMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
-                               pvector<NodeID_> &new_ids)
-    {
-
-        int window = 7;
-
-        int64_t num_nodes = g.num_nodes();
-        int64_t num_edges = g.num_edges_directed();
-
-        std::vector<std::pair<int, int>> edges(num_edges);
-        edges.reserve(num_edges);
-        // Parallel loop to construct the edge list
-        #pragma omp parallel for
-        for (NodeID_ i = 0; i < num_nodes; ++i)
-        {
-            NodeID_ out_start = g.out_offset(i);
-
-            NodeID_ j = 0;
-            for (DestID_ neighbor : g.out_neigh(i))
-            {
-                if (g.is_weighted())
-                {
-                    NodeID_ dest = static_cast<NodeWeight<NodeID_, WeightT_>>(neighbor).v;
-                    // WeightT_ weight =
-                    //     static_cast<NodeWeight<NodeID_, WeightT_>>(neighbor).w;
-
-                    std::pair<int, int>edge =
-                        std::make_pair(i, dest);
-                    edges[out_start + j] = edge;
-                }
-                else
-                {
-                    std::pair<int, int> edge =
-                        std::make_pair(i, neighbor);
-                    edges[out_start + j] = edge;
-                }
-                ++j;
-            }
-        }
-
-        Gorder::GoGraph go;
-        vector<int> order;
-        Timer tm;
-        std::string name;
-        name = GorderUtil::extractFilename(cli_.filename().c_str());
-        go.setFilename(name);
-
-        tm.Start();
-        go.readGraphEdgelist(edges, g.num_nodes());
-        edges.clear();
-        // go.readGraph(cli_.filename().c_str());
-        go.Transform();
-        tm.Stop();
-        PrintTime("GOrder graph", tm.Seconds());
-
-        tm.Start();
-        go.GorderGreedy(order, window);
-        tm.Stop();
-        PrintTime("GOrder Map Time", tm.Seconds());
-
-        if (new_ids.size() < (size_t)go.vsize)
-            new_ids.resize(go.vsize);
-
-        #pragma omp parallel for
-        for (int i = 0; i < go.vsize; i++)
-        {
-            int u = order[go.order_l1[i]];
-            new_ids[i] = (NodeID_)u;
-        }
+                               pvector<NodeID_> &new_ids) {
+        ::GenerateGOrderMapping<NodeID_, DestID_, WeightT_, invert>(g, new_ids, cli_.filename());
     }
 
+    /**
+     * @brief Reverse Cuthill-McKee ordering for bandwidth reduction
+     * Delegates to ::GenerateRCMOrderMapping in reorder/reorder_classic.h
+     */
     void GenerateRCMOrderMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
-                                 pvector<NodeID_> &new_ids)
-    {
-
-        int64_t num_nodes = g.num_nodes();
-        int64_t num_edges = g.num_edges_directed();
-
-        std::vector<std::pair<int, int>> edges(num_edges);
-        edges.reserve(num_edges);
-        // Parallel loop to construct the edge list
-        #pragma omp parallel for
-        for (NodeID_ i = 0; i < num_nodes; ++i)
-        {
-            NodeID_ out_start = g.out_offset(i);
-
-            NodeID_ j = 0;
-            for (DestID_ neighbor : g.out_neigh(i))
-            {
-                if (g.is_weighted())
-                {
-                    NodeID_ dest = static_cast<NodeWeight<NodeID_, WeightT_>>(neighbor).v;
-                    // WeightT_ weight =
-                    //     static_cast<NodeWeight<NodeID_, WeightT_>>(neighbor).w;
-
-                    std::pair<int, int>edge =
-                        std::make_pair(i, dest);
-                    edges[out_start + j] = edge;
-                }
-                else
-                {
-                    std::pair<int, int> edge =
-                        std::make_pair(i, neighbor);
-                    edges[out_start + j] = edge;
-                }
-                ++j;
-            }
-        }
-
-        Gorder::GoGraph go;
-        vector<int> order;
-        Timer tm;
-        std::string name;
-        name = GorderUtil::extractFilename(cli_.filename().c_str());
-        go.setFilename(name);
-
-        tm.Start();
-        go.readGraphEdgelist(edges, g.num_nodes());
-        edges.clear();
-        // go.readGraph(cli_.filename().c_str());
-        go.Transform();
-        tm.Stop();
-        PrintTime("RCMOrder graph", tm.Seconds());
-
-        tm.Start();
-        go.RCMOrder(order);
-        tm.Stop();
-        PrintTime("RCMOrder Map Time", tm.Seconds());
-
-        if (new_ids.size() < (size_t)go.vsize)
-            new_ids.resize(go.vsize);
-
-        #pragma omp parallel for
-        for (int i = 0; i < go.vsize; i++)
-        {
-            int u = order[go.order_l1[i]];
-            new_ids[i] = (NodeID_)u;
-        }
+                                 pvector<NodeID_> &new_ids) {
+        ::GenerateRCMOrderMapping<NodeID_, DestID_, WeightT_, invert>(g, new_ids, cli_.filename());
     }
 
     // HELPERS
@@ -5237,158 +4458,16 @@ public:
      *   1: BFS (level-first)
      *   2: HubSort (community + degree)
      */
+    /**
+     * GenerateLeidenCSRMapping - Fast Leiden-style ordering directly on CSR
+     * 
+     * Delegates to ::GenerateLeidenCSRMapping in reorder/reorder_leiden.h
+     */
     void GenerateLeidenCSRMapping(const CSRGraph<NodeID_, DestID_, invert>& g,
                                    pvector<NodeID_>& new_ids,
                                    std::vector<std::string> reordering_options,
-                                   int flavor = 2)
-    {
-        Timer tm;
-        tm.Start();
-        
-        const int64_t num_nodes = g.num_nodes();
-        
-        // Parse options - use auto-resolution by default
-        double resolution = LeidenAutoResolution<NodeID_, DestID_>(g);
-        int max_iterations = 10;
-        int max_passes = 1;  // Single pass is fastest with comparable quality
-        
-        if (!reordering_options.empty()) {
-            resolution = std::stod(reordering_options[0]);
-            resolution = (resolution > 3) ? 1.0 : resolution;
-        }
-        if (reordering_options.size() > 1) {
-            max_iterations = std::stoi(reordering_options[1]);
-        }
-        if (reordering_options.size() > 2) {
-            max_passes = std::stoi(reordering_options[2]);
-        }
-        
-        // Run fast label propagation directly on CSR
-        auto community_per_pass = FastLabelPropagationCSR(g, resolution, max_iterations, max_passes);
-        
-        tm.Stop();
-        PrintTime("LeidenCSR Community Detection", tm.Seconds());
-        PrintTime("LeidenCSR Passes", community_per_pass.size());
-        
-        if (community_per_pass.empty()) {
-            // Fallback: original ordering
-            #pragma omp parallel for
-            for (int64_t i = 0; i < num_nodes; ++i) {
-                new_ids[i] = i;
-            }
-            return;
-        }
-        
-        // Get degrees for secondary sort
-        tm.Start();
-        std::vector<K> degrees(num_nodes);
-        #pragma omp parallel for
-        for (int64_t i = 0; i < num_nodes; ++i) {
-            degrees[i] = g.out_degree(i);
-        }
-        
-        // Create sort indices
-        std::vector<size_t> sort_indices(num_nodes);
-        #pragma omp parallel for
-        for (int64_t i = 0; i < num_nodes; ++i) {
-            sort_indices[i] = i;
-        }
-        
-        const size_t num_passes = community_per_pass.size();
-        
-        // Apply ordering based on flavor
-        switch (flavor) {
-            case 0: { // DFS (standard)
-                // DFS-like ordering: sort by all passes (coarsest to finest) then degree
-                std::cout << "LeidenCSR Ordering: DFS (standard)" << std::endl;
-                
-                __gnu_parallel::sort(sort_indices.begin(), sort_indices.end(),
-                    [&community_per_pass, &degrees, num_passes](size_t a, size_t b) {
-                        // Compare all passes from coarsest (last) to finest (first)
-                        for (size_t p = num_passes; p > 0; --p) {
-                            K comm_a = community_per_pass[p - 1][a];
-                            K comm_b = community_per_pass[p - 1][b];
-                            if (comm_a != comm_b) {
-                                return comm_a < comm_b;
-                            }
-                        }
-                        // Within same community: degree ascending
-                        return degrees[a] < degrees[b];
-                    });
-                break;
-            }
-            
-            case 1: { // BFS
-                // BFS-like ordering: sort by level (pass index where community changes)
-                // then by community at each level, then by degree
-                std::cout << "LeidenCSR Ordering: BFS (level-first)" << std::endl;
-                
-                // Compute level for each node (first pass where it differs from neighbors)
-                std::vector<int> node_level(num_nodes, num_passes);
-                #pragma omp parallel for
-                for (int64_t v = 0; v < num_nodes; ++v) {
-                    for (size_t p = 0; p < num_passes; ++p) {
-                        if (community_per_pass[p][v] != community_per_pass[num_passes-1][v]) {
-                            node_level[v] = p;
-                            break;
-                        }
-                    }
-                }
-                
-                __gnu_parallel::sort(sort_indices.begin(), sort_indices.end(),
-                    [&community_per_pass, &degrees, &node_level, num_passes](size_t a, size_t b) {
-                        // Primary: sort by last pass community (coarsest)
-                        K comm_a = community_per_pass[num_passes - 1][a];
-                        K comm_b = community_per_pass[num_passes - 1][b];
-                        if (comm_a != comm_b) return comm_a < comm_b;
-                        // Secondary: sort by level (BFS order)
-                        if (node_level[a] != node_level[b]) return node_level[a] < node_level[b];
-                        // Tertiary: degree descending
-                        return degrees[a] > degrees[b];
-                    });
-                break;
-            }
-            
-            case 2: // HubSort (default)
-            default: {
-                // Hub sort within communities: sort by (last community, degree DESC)
-                // Simpler than full hierarchical sort but good for hub locality
-                std::cout << "LeidenCSR Ordering: HubSort (community + degree)" << std::endl;
-                
-                __gnu_parallel::sort(sort_indices.begin(), sort_indices.end(),
-                    [&community_per_pass, &degrees, num_passes](size_t a, size_t b) {
-                        // Primary: sort by last pass community
-                        K comm_a = community_per_pass[num_passes - 1][a];
-                        K comm_b = community_per_pass[num_passes - 1][b];
-                        if (comm_a != comm_b) return comm_a < comm_b;
-                        // Secondary: degree descending (hubs first)
-                        return degrees[a] > degrees[b];
-                    });
-                break;
-            }
-        }
-        
-        // Assign new IDs based on sorted order
-        #pragma omp parallel for
-        for (int64_t i = 0; i < num_nodes; ++i) {
-            new_ids[sort_indices[i]] = i;
-        }
-        
-        tm.Stop();
-        double map_time = tm.Seconds();
-        
-        // Print community count and modularity from last pass
-        if (!community_per_pass.empty()) {
-            // Count unique communities (don't use max+1 as communities may not be contiguous)
-            std::unordered_set<K> unique_comms(community_per_pass.back().begin(), 
-                                                community_per_pass.back().end());
-            PrintTime("LeidenCSR Communities", static_cast<double>(unique_comms.size()));
-            
-            // Compute and print modularity
-            double modularity = computeModularityCSR<K>(g, community_per_pass.back(), resolution);
-            PrintTime("LeidenCSR Modularity", modularity);
-        }
-        PrintTime("LeidenCSR Map Time", map_time);
+                                   int flavor = 2) {
+        ::GenerateLeidenCSRMapping<K, NodeID_, DestID_>(g, new_ids, reordering_options, flavor);
     }
 
     //==========================================================================
@@ -5451,51 +4530,13 @@ public:
      * - Best-fit modularity merging (not first-fit)
      * - Hash-based label propagation (faster than sorted array)
      * - Proper convergence detection
+     * 
+     * Delegates to ::GenerateLeidenFastMapping in reorder/reorder_leiden.h
      */
     void GenerateLeidenFastMapping(const CSRGraph<NodeID_, DestID_, invert>& g,
                                    pvector<NodeID_>& new_ids,
-                                   std::vector<std::string> reordering_options)
-    {
-        Timer tm;
-        tm.Start();
-        
-        const int64_t num_nodes = g.num_nodes();
-        
-        // Parse options
-        double resolution = 1.0;
-        int max_passes = 3;  // Default to 3 passes for good quality
-        
-        if (!reordering_options.empty()) {
-            resolution = std::stod(reordering_options[0]);
-        }
-        if (reordering_options.size() > 1) {
-            max_passes = std::stoi(reordering_options[1]);
-        }
-        
-        printf("LeidenFast: resolution=%.2f, max_passes=%d\n", resolution, max_passes);
-        
-        // Run community detection
-        std::vector<double> vertex_strength;
-        std::vector<int64_t> community;
-        
-        FastModularityCommunityDetection(g, vertex_strength, community, resolution, max_passes);
-        
-        tm.Stop();
-        PrintTime("LeidenFast Community Detection", tm.Seconds());
-        
-        // Build ordering
-        tm.Start();
-        std::vector<int64_t> ordered_vertices;
-        BuildCommunityOrdering(g, vertex_strength, community, ordered_vertices);
-        
-        // Assign new IDs
-        #pragma omp parallel for
-        for (int64_t i = 0; i < num_nodes; ++i) {
-            new_ids[ordered_vertices[i]] = i;
-        }
-        
-        tm.Stop();
-        PrintTime("LeidenFast Ordering", tm.Seconds());
+                                   std::vector<std::string> reordering_options) {
+        ::GenerateLeidenFastMapping<NodeID_, DestID_>(g, new_ids, reordering_options);
     }
     
     //==========================================================================
@@ -5565,72 +4606,12 @@ public:
     
     /**
      * GenerateLeidenMapping2 - Quality-focused Leiden reordering
+     * Delegates to ::GenerateLeidenMapping2 in reorder/reorder_leiden.h
      */
     void GenerateLeidenMapping2(const CSRGraph<NodeID_, DestID_, invert>& g,
                                 pvector<NodeID_>& new_ids,
-                                std::vector<std::string> reordering_options)
-    {
-        Timer tm;
-        tm.Start();
-        
-        const int64_t num_nodes = g.num_nodes();
-        
-        // Auto-tune resolution based on graph density
-        double resolution = LeidenAutoResolution<NodeID_, DestID_>(g);
-        int max_passes = 1;      // Single pass is usually enough
-        int max_iterations = 4;  // 4 iterations for good community quality
-        
-        // Override with user options if provided
-        if (!reordering_options.empty()) {
-            resolution = std::stod(reordering_options[0]);
-        }
-        if (reordering_options.size() > 1) {
-            max_passes = std::stoi(reordering_options[1]);
-        }
-        if (reordering_options.size() > 2) {
-            max_iterations = std::stoi(reordering_options[2]);
-        }
-        
-        printf("Leiden: resolution=%.2f, max_passes=%d, max_iterations=%d\n",
-               resolution, max_passes, max_iterations);
-        
-        std::vector<int64_t> community;
-        LeidenCommunityDetection<NodeID_, DestID_>(g, community, resolution, max_passes, max_iterations);
-        
-        tm.Stop();
-        PrintTime("Leiden Community Detection", tm.Seconds());
-        
-        tm.Start();
-        
-        int64_t num_comms = *std::max_element(community.begin(), community.end()) + 1;
-        std::vector<double> comm_strength(num_comms, 0.0);
-        
-        #pragma omp parallel for
-        for (int64_t v = 0; v < num_nodes; ++v) {
-            int64_t c = community[v];
-            #pragma omp atomic
-            comm_strength[c] += static_cast<double>(g.out_degree(v));
-        }
-        
-        std::vector<std::tuple<int64_t, int64_t, int64_t>> order(num_nodes);
-        #pragma omp parallel for
-        for (int64_t v = 0; v < num_nodes; ++v) {
-            int64_t c = community[v];
-            order[v] = std::make_tuple(
-                -static_cast<int64_t>(comm_strength[c] * 1000),
-                -static_cast<int64_t>(g.out_degree(v)),
-                v
-            );
-        }
-        __gnu_parallel::sort(order.begin(), order.end());
-        
-        #pragma omp parallel for
-        for (int64_t i = 0; i < num_nodes; ++i) {
-            new_ids[std::get<2>(order[i])] = i;
-        }
-        
-        tm.Stop();
-        PrintTime("Leiden Ordering", tm.Seconds());
+                                std::vector<std::string> reordering_options) {
+        ::GenerateLeidenMapping2<NodeID_, DestID_>(g, new_ids, reordering_options);
     }
     
     void sort_by_vector_element(
