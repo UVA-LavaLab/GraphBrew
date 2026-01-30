@@ -3642,4 +3642,146 @@ void GenerateGVELeidenOptMapping(
     PrintTime("GVELeidenOpt Map Time", ordering_time);
 }
 
+/**
+ * GenerateGVELeidenDendoMapping - GVE-Leiden with incremental dendrogram
+ * 
+ * Uses GVELeidenDendoCSR for community detection with atomic dendrogram building,
+ * then traverses dendrogram to generate vertex ordering.
+ * 
+ * @tparam K Community ID type (default uint32_t)
+ * @tparam NodeID_T Node ID type
+ * @tparam DestID_T Destination type
+ * @param g Input graph (must be symmetric for Leiden)
+ * @param new_ids Output mapping vector
+ * @param reordering_options Options: [resolution, max_iterations, max_passes]
+ */
+template <typename K = uint32_t, typename NodeID_T, typename DestID_T>
+void GenerateGVELeidenDendoMapping(
+    const CSRGraph<NodeID_T, DestID_T, true>& g,
+    pvector<NodeID_T>& new_ids,
+    const std::vector<std::string>& reordering_options) {
+    
+    Timer tm;
+    tm.Start();
+    
+    // Parse options
+    double resolution = computeAutoResolution<NodeID_T, DestID_T>(g);
+    int max_iterations = 20;
+    int max_passes = 10;
+    
+    if (!reordering_options.empty() && !reordering_options[0].empty()) {
+        double parsed = std::stod(reordering_options[0]);
+        if (parsed > 0 && parsed <= 3) resolution = parsed;
+    }
+    if (reordering_options.size() > 1 && !reordering_options[1].empty()) {
+        max_iterations = std::stoi(reordering_options[1]);
+    }
+    if (reordering_options.size() > 2 && !reordering_options[2].empty()) {
+        max_passes = std::stoi(reordering_options[2]);
+    }
+    
+    printf("GVELeidenDendo: resolution=%.4f, max_iterations=%d, max_passes=%d\n",
+           resolution, max_iterations, max_passes);
+    
+    // Run algorithm
+    auto result = GVELeidenDendoCSR<K, double, NodeID_T, DestID_T>(
+        g, resolution, 1e-2, 0.8, 10.0, max_iterations, max_passes);
+    
+    tm.Stop();
+    double detection_time = tm.Seconds();
+    PrintTime("GVELeidenDendo Community Detection", detection_time);
+    
+    Timer tm2;
+    tm2.Start();
+    
+    // Traverse dendrogram to generate ordering
+    // Convert pvector to std::vector for the standalone function
+    std::vector<NodeID_T> temp_ids(new_ids.size());
+    traverseDendrogramDFS<K, NodeID_T>(result, temp_ids, true);  // hub_first = true
+    
+    // Copy back to pvector
+    #pragma omp parallel for
+    for (size_t i = 0; i < temp_ids.size(); ++i) {
+        new_ids[i] = temp_ids[i];
+    }
+    
+    tm2.Stop();
+    double ordering_time = tm2.Seconds();
+    
+    PrintTime("GVELeidenDendo Communities", static_cast<double>(result.roots.size()));
+    PrintTime("GVELeidenDendo Modularity", result.modularity);
+    PrintTime("GVELeidenDendo Map Time", ordering_time);
+}
+
+/**
+ * GenerateGVELeidenOptDendoMapping - Optimized GVE-Leiden with incremental dendrogram
+ * 
+ * Uses GVELeidenOptDendoCSR for community detection with atomic dendrogram building
+ * and flat-array optimizations, then traverses dendrogram to generate vertex ordering.
+ * 
+ * @tparam K Community ID type (default uint32_t)
+ * @tparam NodeID_T Node ID type
+ * @tparam DestID_T Destination type
+ * @param g Input graph (must be symmetric for Leiden)
+ * @param new_ids Output mapping vector
+ * @param reordering_options Options: [resolution, max_iterations, max_passes]
+ */
+template <typename K = uint32_t, typename NodeID_T, typename DestID_T>
+void GenerateGVELeidenOptDendoMapping(
+    const CSRGraph<NodeID_T, DestID_T, true>& g,
+    pvector<NodeID_T>& new_ids,
+    const std::vector<std::string>& reordering_options) {
+    
+    Timer tm;
+    tm.Start();
+    
+    // Parse options
+    double resolution = computeAutoResolution<NodeID_T, DestID_T>(g);
+    int max_iterations = 20;
+    int max_passes = 10;
+    
+    if (!reordering_options.empty() && !reordering_options[0].empty()) {
+        double parsed = std::stod(reordering_options[0]);
+        if (parsed > 0 && parsed <= 3) resolution = parsed;
+    }
+    if (reordering_options.size() > 1 && !reordering_options[1].empty()) {
+        max_iterations = std::stoi(reordering_options[1]);
+    }
+    if (reordering_options.size() > 2 && !reordering_options[2].empty()) {
+        max_passes = std::stoi(reordering_options[2]);
+    }
+    
+    printf("GVELeidenOptDendo: resolution=%.4f, max_iterations=%d, max_passes=%d\n",
+           resolution, max_iterations, max_passes);
+    
+    // Run algorithm
+    auto result = GVELeidenOptDendoCSR<K, double, NodeID_T, DestID_T>(
+        g, resolution, 1e-2, 0.8, 10.0, max_iterations, max_passes);
+    
+    tm.Stop();
+    double detection_time = tm.Seconds();
+    PrintTime("GVELeidenOptDendo Community Detection", detection_time);
+    
+    Timer tm2;
+    tm2.Start();
+    
+    // Traverse dendrogram to generate ordering
+    // Convert pvector to std::vector for the standalone function
+    std::vector<NodeID_T> temp_ids(new_ids.size());
+    traverseDendrogramDFS<K, NodeID_T>(result, temp_ids, true);  // hub_first = true
+    
+    // Copy back to pvector
+    #pragma omp parallel for
+    for (size_t i = 0; i < temp_ids.size(); ++i) {
+        new_ids[i] = temp_ids[i];
+    }
+    
+    tm2.Stop();
+    double ordering_time = tm2.Seconds();
+    
+    PrintTime("GVELeidenOptDendo Communities", static_cast<double>(result.roots.size()));
+    PrintTime("GVELeidenOptDendo Modularity", result.modularity);
+    PrintTime("GVELeidenOptDendo Map Time", ordering_time);
+}
+
 #endif // REORDER_LEIDEN_H_
