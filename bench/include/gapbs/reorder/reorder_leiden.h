@@ -3374,7 +3374,7 @@ void GenerateGVELeidenCSRMapping(
     }
     
     // Run GVE-Leiden algorithm
-    auto result = GVELeidenCSR<K, NodeID_T, DestID_T>(g, resolution, 1e-2, 0.8, 10.0, max_iterations, max_passes);
+    auto result = GVELeidenCSR<K, double, NodeID_T, DestID_T>(g, resolution, 1e-2, 0.8, 10.0, max_iterations, max_passes);
     
     tm.Stop();
     PrintTime("GVELeiden Community Detection", tm.Seconds());
@@ -3544,7 +3544,7 @@ void GenerateGVELeidenOptMapping(
            num_active, num_isolated, 100.0 * num_isolated / num_nodes);
     
     // Run optimized GVE-Leiden algorithm
-    auto result = GVELeidenOptCSR<K, NodeID_T, DestID_T>(g, resolution, 1e-2, 0.8, 10.0, max_iterations, max_passes);
+    auto result = GVELeidenOptCSR<K, double, NodeID_T, DestID_T>(g, resolution, 1e-2, 0.8, 10.0, max_iterations, max_passes);
     
     tm.Stop();
     PrintTime("GVELeidenOpt Community Detection", tm.Seconds());
