@@ -5355,377 +5355,57 @@ public:
     /**
      * Optimized local move scan using flat array instead of hash map.
      * Uses prefetching for better cache performance.
+     * Delegates to external implementation in reorder_leiden.h
      */
     template <typename K = uint32_t, typename W = double>
     inline W gveOptScanVertex(
         NodeID_ u,
         const K* __restrict__ vcom,
-        W* __restrict__ comm_weights,  // Pre-allocated flat array [num_communities]
-        K* __restrict__ touched_comms, // List of touched communities
+        W* __restrict__ comm_weights,
+        K* __restrict__ touched_comms,
         int& num_touched,
-        K d,  // Current community
+        K d,
         const CSRGraph<NodeID_, DestID_, true>& g,
         bool graph_is_symmetric) {
-        
-        W ku_to_d = W(0);
-        num_touched = 0;
-        
-        // Scan out-neighbors with prefetching
-        auto out_begin = g.out_neigh(u).begin();
-        auto out_end = g.out_neigh(u).end();
-        const int PREFETCH_DIST = 8;
-        
-        for (auto it = out_begin; it != out_end; ++it) {
-            // Prefetch ahead
-            if (it + PREFETCH_DIST < out_end) {
-                NodeID_ prefetch_v;
-                if constexpr (std::is_same_v<DestID_, NodeID_>) {
-                    prefetch_v = *(it + PREFETCH_DIST);
-                } else {
-                    prefetch_v = static_cast<NodeWeight<NodeID_, WeightT_>>(*(it + PREFETCH_DIST)).v;
-                }
-                __builtin_prefetch(&vcom[prefetch_v], 0, 3);
-            }
-            
-            NodeID_ v;
-            W w;
-            if constexpr (std::is_same_v<DestID_, NodeID_>) {
-                v = *it;
-                w = W(1);
-            } else {
-                v = static_cast<NodeWeight<NodeID_, WeightT_>>(*it).v;
-                w = static_cast<W>(static_cast<NodeWeight<NodeID_, WeightT_>>(*it).w);
-            }
-            
-            K c = vcom[v];
-            if (comm_weights[c] == W(0)) {
-                touched_comms[num_touched++] = c;
-            }
-            comm_weights[c] += w;
-            if (c == d) ku_to_d += w;
-        }
-        
-        // For non-symmetric graphs, also scan in-neighbors
-        if (!graph_is_symmetric) {
-            auto in_begin = g.in_neigh(u).begin();
-            auto in_end = g.in_neigh(u).end();
-            
-            for (auto it = in_begin; it != in_end; ++it) {
-                if (it + PREFETCH_DIST < in_end) {
-                    NodeID_ prefetch_v;
-                    if constexpr (std::is_same_v<DestID_, NodeID_>) {
-                        prefetch_v = *(it + PREFETCH_DIST);
-                    } else {
-                        prefetch_v = static_cast<NodeWeight<NodeID_, WeightT_>>(*(it + PREFETCH_DIST)).v;
-                    }
-                    __builtin_prefetch(&vcom[prefetch_v], 0, 3);
-                }
-                
-                NodeID_ v;
-                W w;
-                if constexpr (std::is_same_v<DestID_, NodeID_>) {
-                    v = *it;
-                    w = W(1);
-                } else {
-                    v = static_cast<NodeWeight<NodeID_, WeightT_>>(*it).v;
-                    w = static_cast<W>(static_cast<NodeWeight<NodeID_, WeightT_>>(*it).w);
-                }
-                
-                K c = vcom[v];
-                if (comm_weights[c] == W(0)) {
-                    touched_comms[num_touched++] = c;
-                }
-                comm_weights[c] += w;
-                if (c == d) ku_to_d += w;
-            }
-        }
-        
-        return ku_to_d;
+        return ::gveOptScanVertex<K, W, NodeID_, DestID_, WeightT_>(
+            u, vcom, comm_weights, touched_comms, num_touched, d, g, graph_is_symmetric);
     }
     
     /**
      * Optimized GVE-Leiden Local-Moving Phase
-     * Uses flat arrays instead of hash maps for better cache performance.
+     * Delegates to external implementation in reorder_leiden.h
      */
     template <typename K = uint32_t, typename W = double>
     int gveOptLocalMove(
-        std::vector<K>& vcom,           // Community membership (updated)
-        std::vector<W>& ctot,           // Community total weight (updated)
-        std::vector<char>& vaff,        // Vertex affected flag (updated)
-        const std::vector<W>& vtot,     // Vertex total weight
+        std::vector<K>& vcom,
+        std::vector<W>& ctot,
+        std::vector<char>& vaff,
+        const std::vector<W>& vtot,
         const int64_t num_nodes,
         const CSRGraph<NodeID_, DestID_, true>& g,
         bool graph_is_symmetric,
         double M, double R, int L, double tolerance) {
-        
-        int iterations = 0;
-        W total_delta = W(0);
-        
-        const int num_threads = omp_get_max_threads();
-        
-        // Thread-local flat arrays for scanning (much faster than hash maps)
-        std::vector<std::vector<W>> thread_comm_weights(num_threads);
-        std::vector<std::vector<K>> thread_touched_comms(num_threads);
-        
-        // Pre-allocate for each thread
-        for (int t = 0; t < num_threads; ++t) {
-            thread_comm_weights[t].resize(num_nodes, W(0));
-            thread_touched_comms[t].resize(g.num_edges() / num_threads + 1000);
-        }
-        
-        for (int iter = 0; iter < L; ++iter) {
-            total_delta = W(0);
-            int moves_this_iter = 0;
-            
-            #pragma omp parallel reduction(+:total_delta, moves_this_iter)
-            {
-                int tid = omp_get_thread_num();
-                W* comm_weights = thread_comm_weights[tid].data();
-                K* touched_comms = thread_touched_comms[tid].data();
-                
-                #pragma omp for schedule(guided, 1024)
-                for (int64_t u = 0; u < num_nodes; ++u) {
-                    if (!vaff[u]) continue;
-                    
-                    K d = vcom[u];  // Current community
-                    W ku = vtot[u]; // Vertex total weight
-                    
-                    // Scan neighbors using flat array
-                    int num_touched = 0;
-                    W ku_to_d = gveOptScanVertex<K, W>(
-                        u, vcom.data(), comm_weights, touched_comms, num_touched,
-                        d, g, graph_is_symmetric);
-                    
-                    // Find best community
-                    K best_c = d;
-                    W best_delta = W(0);
-                    
-                    for (int i = 0; i < num_touched; ++i) {
-                        K c = touched_comms[i];
-                        if (c == d) continue;
-                        
-                        W ku_to_c = comm_weights[c];
-                        W sigma_c = ctot[c];
-                        W sigma_d = ctot[d];
-                        
-                        W delta = gveDeltaModularity(ku_to_c, ku_to_d, ku, sigma_c, sigma_d, M, R);
-                        
-                        if (delta > best_delta) {
-                            best_delta = delta;
-                            best_c = c;
-                        }
-                    }
-                    
-                    // Clear touched communities (reset for next vertex)
-                    for (int i = 0; i < num_touched; ++i) {
-                        comm_weights[touched_comms[i]] = W(0);
-                    }
-                    
-                    // Move vertex if positive gain
-                    if (best_c != d) {
-                        #pragma omp atomic
-                        ctot[d] -= ku;
-                        #pragma omp atomic
-                        ctot[best_c] += ku;
-                        
-                        vcom[u] = best_c;
-                        
-                        // Mark neighbors as affected
-                        markNeighborsAffected(u, vaff, g, graph_is_symmetric);
-                        
-                        total_delta += best_delta;
-                        moves_this_iter++;
-                    }
-                    
-                    vaff[u] = 0;
-                }
-            }
-            
-            iterations++;
-            if (moves_this_iter == 0 || total_delta <= tolerance) break;
-        }
-        
-        return iterations;
+        return ::gveOptLocalMove<K, W, NodeID_, DestID_, WeightT_>(
+            vcom, ctot, vaff, vtot, num_nodes, g, graph_is_symmetric, M, R, L, tolerance);
     }
     
     /**
      * Optimized GVE-Leiden Refinement Phase
-     * Uses flat arrays and prefetching for better cache performance.
+     * Delegates to external implementation in reorder_leiden.h
      */
     template <typename K = uint32_t, typename W = double>
     int gveOptRefine(
-        std::vector<K>& vcom,           // Community membership (updated)
-        std::vector<W>& ctot,           // Community total weight (updated)
-        std::vector<char>& vaff,        // Vertex affected flag (updated)
-        const std::vector<K>& vcob,     // Community bounds (from local-moving)
-        const std::vector<W>& vtot,     // Vertex total weight
+        std::vector<K>& vcom,
+        std::vector<W>& ctot,
+        std::vector<char>& vaff,
+        const std::vector<K>& vcob,
+        const std::vector<W>& vtot,
         const int64_t num_nodes,
         const CSRGraph<NodeID_, DestID_, true>& g,
         bool graph_is_symmetric,
         double M, double R) {
-        
-        int moves = 0;
-        
-        const int num_threads = omp_get_max_threads();
-        std::vector<std::vector<W>> thread_comm_weights(num_threads);
-        std::vector<std::vector<K>> thread_touched_comms(num_threads);
-        
-        for (int t = 0; t < num_threads; ++t) {
-            thread_comm_weights[t].resize(num_nodes, W(0));
-            thread_touched_comms[t].resize(g.num_edges() / num_threads + 1000);
-        }
-        
-        #pragma omp parallel reduction(+:moves)
-        {
-            int tid = omp_get_thread_num();
-            W* comm_weights = thread_comm_weights[tid].data();
-            K* touched_comms = thread_touched_comms[tid].data();
-            
-            #pragma omp for schedule(guided, 1024)
-            for (int64_t u = 0; u < num_nodes; ++u) {
-                K d = vcom[u];
-                K b = vcob[u];
-                W ku = vtot[u];
-                
-                // Check if isolated
-                W actual_d;
-                #pragma omp atomic read
-                actual_d = ctot[d];
-                
-                if (actual_d > ku * 1.001) continue;
-                
-                // Scan communities within bounds
-                int num_touched = 0;
-                W ku_to_d = W(0);
-                
-                // Scan with prefetching
-                auto out_begin = g.out_neigh(u).begin();
-                auto out_end = g.out_neigh(u).end();
-                const int PREFETCH_DIST = 8;
-                
-                for (auto it = out_begin; it != out_end; ++it) {
-                    if (it + PREFETCH_DIST < out_end) {
-                        NodeID_ prefetch_v;
-                        if constexpr (std::is_same_v<DestID_, NodeID_>) {
-                            prefetch_v = *(it + PREFETCH_DIST);
-                        } else {
-                            prefetch_v = static_cast<NodeWeight<NodeID_, WeightT_>>(*(it + PREFETCH_DIST)).v;
-                        }
-                        __builtin_prefetch(&vcom[prefetch_v], 0, 3);
-                        __builtin_prefetch(&vcob[prefetch_v], 0, 3);
-                    }
-                    
-                    NodeID_ v;
-                    W w;
-                    if constexpr (std::is_same_v<DestID_, NodeID_>) {
-                        v = *it;
-                        w = W(1);
-                    } else {
-                        v = static_cast<NodeWeight<NodeID_, WeightT_>>(*it).v;
-                        w = static_cast<W>(static_cast<NodeWeight<NodeID_, WeightT_>>(*it).w);
-                    }
-                    
-                    if (vcob[v] != b) continue;
-                    
-                    K c = vcom[v];
-                    if (comm_weights[c] == W(0)) {
-                        touched_comms[num_touched++] = c;
-                    }
-                    comm_weights[c] += w;
-                    if (c == d) ku_to_d += w;
-                }
-                
-                if (!graph_is_symmetric) {
-                    auto in_begin = g.in_neigh(u).begin();
-                    auto in_end = g.in_neigh(u).end();
-                    
-                    for (auto it = in_begin; it != in_end; ++it) {
-                        if (it + PREFETCH_DIST < in_end) {
-                            NodeID_ prefetch_v;
-                            if constexpr (std::is_same_v<DestID_, NodeID_>) {
-                                prefetch_v = *(it + PREFETCH_DIST);
-                            } else {
-                                prefetch_v = static_cast<NodeWeight<NodeID_, WeightT_>>(*(it + PREFETCH_DIST)).v;
-                            }
-                            __builtin_prefetch(&vcom[prefetch_v], 0, 3);
-                            __builtin_prefetch(&vcob[prefetch_v], 0, 3);
-                        }
-                        
-                        NodeID_ v;
-                        W w;
-                        if constexpr (std::is_same_v<DestID_, NodeID_>) {
-                            v = *it;
-                            w = W(1);
-                        } else {
-                            v = static_cast<NodeWeight<NodeID_, WeightT_>>(*it).v;
-                            w = static_cast<W>(static_cast<NodeWeight<NodeID_, WeightT_>>(*it).w);
-                        }
-                        
-                        if (vcob[v] != b) continue;
-                        
-                        K c = vcom[v];
-                        if (comm_weights[c] == W(0)) {
-                            touched_comms[num_touched++] = c;
-                        }
-                        comm_weights[c] += w;
-                        if (c == d) ku_to_d += w;
-                    }
-                }
-                
-                // Find best community within bounds
-                K best_c = d;
-                W best_delta = W(0);
-                W sigma_d = actual_d;
-                
-                for (int i = 0; i < num_touched; ++i) {
-                    K c = touched_comms[i];
-                    if (c == d) continue;
-                    
-                    W ku_to_c = comm_weights[c];
-                    W sigma_c;
-                    #pragma omp atomic read
-                    sigma_c = ctot[c];
-                    
-                    W delta = gveDeltaModularity(ku_to_c, ku_to_d, ku, sigma_c, sigma_d, M, R);
-                    
-                    if (delta > best_delta) {
-                        best_delta = delta;
-                        best_c = c;
-                    }
-                }
-                
-                // Clear touched communities
-                for (int i = 0; i < num_touched; ++i) {
-                    comm_weights[touched_comms[i]] = W(0);
-                }
-                
-                // Move if positive gain and still isolated
-                if (best_c != d) {
-                    W old_sigma_d;
-                    #pragma omp atomic capture
-                    {
-                        old_sigma_d = ctot[d];
-                        ctot[d] -= ku;
-                    }
-                    
-                    if (old_sigma_d > ku * 1.001) {
-                        #pragma omp atomic
-                        ctot[d] += ku;
-                        continue;
-                    }
-                    
-                    #pragma omp atomic
-                    ctot[best_c] += ku;
-                    
-                    vcom[u] = best_c;
-                    moves++;
-                    
-                    markNeighborsAffected(u, vaff, g, graph_is_symmetric);
-                }
-            }
-        }
-        
-        return moves;
+        return ::gveOptRefine<K, W, NodeID_, DestID_, WeightT_>(
+            vcom, ctot, vaff, vcob, vtot, num_nodes, g, graph_is_symmetric, M, R);
     }
     
     /**
