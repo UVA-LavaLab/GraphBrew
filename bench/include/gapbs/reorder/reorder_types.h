@@ -832,4 +832,62 @@ inline void markNeighborsAffected(
     }
 }
 
+/**
+ * @brief Build dendrogram from community assignments
+ * 
+ * Creates a hierarchical structure from flat community assignments.
+ * For each community, the vertex with highest weight becomes the representative (root),
+ * and all other vertices in that community become children of the representative.
+ *
+ * @tparam K Community ID type
+ * @tparam W Weight type
+ * @param dendro Dendrogram result structure to populate
+ * @param vcom Community assignment for each vertex
+ * @param vtot Total weight (degree) of each vertex
+ * @param num_nodes Number of nodes in the graph
+ */
+template <typename K, typename W>
+void buildDendrogramFromCommunities(
+    GVEDendroResult<K>& dendro,
+    const std::vector<K>& vcom,
+    const std::vector<W>& vtot,
+    int64_t num_nodes) {
+    
+    // Use vector instead of unordered_map for efficiency (community ID = vertex ID)
+    // Track representative per community: rep[c] = vertex with max weight in community c
+    std::vector<int64_t> comm_rep(num_nodes, -1);
+    
+    // Find representative (highest weight vertex) for each community
+    for (int64_t v = 0; v < num_nodes; ++v) {
+        K c = vcom[v];
+        if (comm_rep[c] == -1 || vtot[v] > vtot[comm_rep[c]]) {
+            comm_rep[c] = v;
+        }
+    }
+    
+    // Clear existing dendrogram structure (rebuild fresh each pass)
+    #pragma omp parallel for
+    for (int64_t v = 0; v < num_nodes; ++v) {
+        dendro.first_child[v] = -1;
+        dendro.sibling[v] = -1;
+        dendro.parent[v] = -1;
+        dendro.subtree_size[v] = 1;
+        dendro.weight[v] = vtot[v];
+    }
+    
+    // Link non-representatives to their representative (sequential to avoid races)
+    for (int64_t v = 0; v < num_nodes; ++v) {
+        K c = vcom[v];
+        int64_t rep = comm_rep[c];
+        if (v != rep && rep >= 0) {
+            // Prepend v to rep's child list
+            dendro.sibling[v] = dendro.first_child[rep];
+            dendro.first_child[rep] = v;
+            dendro.parent[v] = rep;
+            dendro.subtree_size[rep] += dendro.subtree_size[v];
+            dendro.weight[rep] += dendro.weight[v];
+        }
+    }
+}
+
 #endif  // REORDER_TYPES_H_
