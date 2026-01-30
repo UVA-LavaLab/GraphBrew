@@ -234,6 +234,7 @@ class PhaseConfig:
         leiden_csr_variants: List[str] = None,
         leiden_dendrogram_variants: List[str] = None,
         rabbit_variants: List[str] = None,
+        graphbrew_variants: List[str] = None,
         
         # ─────────────────────────────────────────────────────────────────────
         # Training settings
@@ -279,6 +280,7 @@ class PhaseConfig:
         self.leiden_csr_variants = leiden_csr_variants or ['gve', 'gveopt', 'gvedendo', 'gveoptdendo', 'gverabbit', 'dfs', 'bfs', 'hubsort', 'modularity']
         self.leiden_dendrogram_variants = leiden_dendrogram_variants or ['dfs', 'dfshub', 'dfssize', 'bfs', 'hybrid']
         self.rabbit_variants = rabbit_variants or ['csr']  # Default: csr only
+        self.graphbrew_variants = graphbrew_variants or ['leiden']  # Default: leiden only
         
         # Training settings
         self.target_accuracy = target_accuracy
@@ -314,6 +316,7 @@ class PhaseConfig:
             leiden_csr_variants=getattr(args, 'leiden_csr_variants', None),
             leiden_dendrogram_variants=getattr(args, 'leiden_dendrogram_variants', None),
             rabbit_variants=getattr(args, 'rabbit_variants', None),
+            graphbrew_variants=getattr(args, 'graphbrew_variants', None),
             target_accuracy=getattr(args, 'target_accuracy', 0.95),
             max_iterations=getattr(args, 'max_iterations', 10),
             learning_rate=getattr(args, 'learning_rate', 0.1),
@@ -378,13 +381,14 @@ def run_reorder_phase(
     label_maps = label_maps or {}
     
     if config.expand_variants:
-        # Expand to include Leiden and RabbitOrder variants
+        # Expand to include Leiden, RabbitOrder, and GraphBrewOrder variants
         expanded_algorithms = expand_algorithms_with_variants(
             algorithms,
             expand_leiden_variants=True,
             leiden_csr_variants=config.leiden_csr_variants,
             leiden_dendrogram_variants=config.leiden_dendrogram_variants,
-            rabbit_variants=config.rabbit_variants
+            rabbit_variants=config.rabbit_variants,
+            graphbrew_variants=config.graphbrew_variants
         )
         
         # generate_reorderings_with_variants returns (label_maps, results) tuple

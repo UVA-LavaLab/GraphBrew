@@ -12581,6 +12581,84 @@ public:
     }
 
     /**
+     * Compute dynamic minimum community size threshold.
+     * 
+     * Instead of hardcoded thresholds (200, 500, etc.), this derives a meaningful
+     * minimum based on graph statistics. Communities smaller than this threshold
+     * are grouped together for batch processing rather than individual reordering.
+     * 
+     * The threshold is computed as:
+     *   max(ABSOLUTE_MIN, min(avg_size / FACTOR, sqrt(N)))
+     * 
+     * Where:
+     * - ABSOLUTE_MIN = 50 (never go below this)
+     * - FACTOR = 4-5 (communities < 1/4 of average are "small")
+     * - sqrt(N) = classic graph algorithm heuristic
+     * 
+     * This ensures:
+     * 1. On small graphs (1K nodes), threshold might be ~30-50
+     * 2. On medium graphs (100K nodes), threshold might be ~300
+     * 3. On large graphs (1M+ nodes), threshold might be ~1000
+     * 4. Always relative to community structure discovered
+     * 
+     * @param num_nodes Total nodes in graph
+     * @param num_communities Number of communities detected
+     * @param avg_community_size Average community size (num_nodes / num_communities)
+     * @return Dynamic threshold for minimum community size
+     */
+    static size_t ComputeDynamicMinCommunitySize(size_t num_nodes, 
+                                                  size_t num_communities,
+                                                  size_t avg_community_size = 0)
+    {
+        const size_t ABSOLUTE_MIN = 50;      // Never go below this
+        const size_t FACTOR = 4;             // Communities < avg/4 are "small"
+        const size_t MAX_THRESHOLD = 2000;   // Cap for very large graphs
+        
+        // Compute average if not provided
+        if (avg_community_size == 0 && num_communities > 0) {
+            avg_community_size = num_nodes / num_communities;
+        }
+        
+        // Threshold based on average community size
+        size_t avg_based = (avg_community_size > 0) ? avg_community_size / FACTOR : ABSOLUTE_MIN;
+        
+        // Threshold based on sqrt(N) - classic heuristic
+        size_t sqrt_based = static_cast<size_t>(std::sqrt(static_cast<double>(num_nodes)));
+        
+        // Take minimum of avg-based and sqrt-based (don't want threshold too high)
+        // But ensure at least ABSOLUTE_MIN
+        size_t threshold = std::max(ABSOLUTE_MIN, std::min(avg_based, sqrt_based));
+        
+        // Cap at MAX_THRESHOLD for very large graphs
+        threshold = std::min(threshold, MAX_THRESHOLD);
+        
+        return threshold;
+    }
+    
+    /**
+     * Compute dynamic threshold for when to apply local reordering.
+     * Communities smaller than this get simple degree-sorting instead of
+     * expensive subgraph construction + algorithm application.
+     * 
+     * This is slightly higher than min_community_size because subgraph
+     * construction has overhead.
+     * 
+     * @param num_nodes Total nodes in graph
+     * @param num_communities Number of communities
+     * @param avg_community_size Average community size
+     * @return Threshold for local reordering (higher = more batching)
+     */
+    static size_t ComputeDynamicLocalReorderThreshold(size_t num_nodes,
+                                                       size_t num_communities,
+                                                       size_t avg_community_size = 0)
+    {
+        // Local reorder threshold is 2x the min community size
+        // because subgraph construction has significant overhead
+        size_t min_size = ComputeDynamicMinCommunitySize(num_nodes, num_communities, avg_community_size);
+        return std::min(min_size * 2, static_cast<size_t>(5000));  // Cap at 5000
+    }
+
+    /**
      * Select best reordering algorithm based on community features.
      * 
      * Uses a PERCEPTRON-STYLE neural network approach:
@@ -12617,10 +12695,13 @@ public:
                                                      BenchmarkType bench = BENCH_GENERIC,
                                                      GraphType graph_type = GRAPH_GENERIC,
                                                      SelectionMode mode = MODE_FASTEST_EXECUTION,
-                                                     const std::string& graph_name = "")
+                                                     const std::string& graph_name = "",
+                                                     size_t dynamic_min_size = 0)
     {
         // Small communities: reordering overhead exceeds benefit
-        const size_t MIN_COMMUNITY_SIZE = 200;
+        // Use dynamic threshold if provided, otherwise fall back to reasonable default
+        const size_t MIN_COMMUNITY_SIZE = (dynamic_min_size > 0) ? dynamic_min_size : 
+            ComputeDynamicMinCommunitySize(num_nodes, 1, feat.num_nodes);
         
         if (feat.num_nodes < MIN_COMMUNITY_SIZE) {
             return ORIGINAL;
@@ -12708,11 +12789,12 @@ public:
         }
         
         // Print mode info
-        std::cout << "Selection Mode: " << SelectionModeToString(selection_mode);
+        printf("AdaptiveOrder: Selection Mode: %s", SelectionModeToString(selection_mode).c_str());
         if (!graph_name.empty()) {
-            std::cout << " (graph: " << graph_name << ")";
+            printf(" (graph: %s)", graph_name.c_str());
         }
-        std::cout << "\n";
+        printf("\n");
+        fflush(stdout);
         
         // Per-community mode: Leiden + per-community algorithm selection with mode
         GenerateAdaptiveMappingRecursive(g, new_ids, useOutdeg, reordering_options, 
@@ -13110,15 +13192,32 @@ public:
         std::vector<CommunityFeatures> all_features(num_comm);
         std::vector<bool> should_recurse(num_comm, false);
         
+        // Compute average community size for dynamic thresholds
+        size_t total_nodes_in_communities = 0;
+        size_t non_empty_communities = 0;
+        for (size_t c = 0; c < num_comm; ++c) {
+            if (!community_nodes[c].empty()) {
+                total_nodes_in_communities += community_nodes[c].size();
+                non_empty_communities++;
+            }
+        }
+        size_t avg_community_size = (non_empty_communities > 0) ? 
+            total_nodes_in_communities / non_empty_communities : static_cast<size_t>(num_nodes);
+        
+        // Dynamic thresholds based on graph/community statistics
+        const size_t MIN_SIZE_FOR_FEATURES = ComputeDynamicMinCommunitySize(
+            static_cast<size_t>(num_nodes), non_empty_communities, avg_community_size);
+        const size_t MIN_COMMUNITY_FOR_LOCAL_REORDER = ComputeDynamicLocalReorderThreshold(
+            static_cast<size_t>(num_nodes), non_empty_communities, avg_community_size);
+        
         if (depth == 0 && verbose) {
             std::cout << "\n=== Adaptive Reordering Selection (Depth " << depth 
                       << ", Modularity: " << std::fixed << std::setprecision(4) 
                       << global_modularity << ") ===\n";
+            printf("Dynamic thresholds: MIN_FEATURES=%zu, MIN_LOCAL_REORDER=%zu (avg_comm=%zu, num_comm=%zu)\n",
+                   MIN_SIZE_FOR_FEATURES, MIN_COMMUNITY_FOR_LOCAL_REORDER, avg_community_size, non_empty_communities);
             std::cout << "Comm\tNodes\tEdges\tDensity\tDegVar\tHubConc\tClustC\tAvgPath\tDiam\tSubComm\tSelected\n";
         }
-        
-        // Minimum size to compute features and consider reordering
-        const size_t MIN_SIZE_FOR_FEATURES = 200;
         
         for (size_t c = 0; c < num_comm; ++c) {
             if (community_nodes[c].empty()) {
@@ -13186,26 +13285,197 @@ public:
                 return community_nodes[a].size() > community_nodes[b].size();
             });
 
+        // Step 4b: Collect small communities into one merged group for batch sorting
+        // Instead of skipping them entirely, we group and apply a fast sort
+        // Uses dynamic MIN_COMMUNITY_FOR_LOCAL_REORDER computed earlier
+        std::vector<NodeID_> small_community_nodes;
+        std::vector<size_t> large_sorted_comms;
+        
+        for (size_t c : sorted_comms) {
+            size_t comm_size = community_nodes[c].size();
+            if (comm_size < MIN_COMMUNITY_FOR_LOCAL_REORDER || selected_algos[c] == ORIGINAL) {
+                // Collect nodes from small/ORIGINAL communities
+                for (NodeID_ node : community_nodes[c]) {
+                    small_community_nodes.push_back(node);
+                }
+            } else {
+                large_sorted_comms.push_back(c);
+            }
+        }
+
         // Step 5: Apply per-community reordering and assign global IDs
         NodeID_ current_id = 0;
         
-        // Minimum size to bother with local reordering (building subgraph is expensive)
-        const size_t MIN_COMMUNITY_FOR_LOCAL_REORDER = 500;
+        // First: Process the merged small communities as one "mega community"
+        // Use perceptron to select the best algorithm for this group
+        if (!small_community_nodes.empty()) {
+            size_t small_group_size = small_community_nodes.size();
+            
+            // Compute features for the merged small community group
+            std::unordered_set<NodeID_> small_node_set(
+                small_community_nodes.begin(), small_community_nodes.end());
+            
+            // Fast feature computation for the merged group
+            CommunityFeatures small_feat;
+            small_feat.num_nodes = small_group_size;
+            small_feat.num_edges = 0;
+            
+            // Count internal edges and compute degree stats
+            std::vector<int64_t> degrees(small_group_size);
+            size_t idx = 0;
+            int64_t total_deg = 0;
+            for (NodeID_ node : small_community_nodes) {
+                int64_t deg = 0;
+                for (DestID_ neighbor : g.out_neigh(node)) {
+                    NodeID_ dest = static_cast<NodeID_>(neighbor);
+                    if (small_node_set.count(dest)) {
+                        deg++;
+                        small_feat.num_edges++;
+                    }
+                }
+                degrees[idx++] = deg;
+                total_deg += deg;
+            }
+            small_feat.num_edges /= 2;  // Undirected
+            
+            // Compute feature statistics
+            double avg_deg = (small_group_size > 0) ? static_cast<double>(total_deg) / small_group_size : 0;
+            small_feat.internal_density = (small_group_size > 1) ? 
+                avg_deg / (small_group_size - 1) : 0.0;
+            
+            // Degree variance
+            double sum_sq_diff = 0;
+            for (auto d : degrees) {
+                double diff = d - avg_deg;
+                sum_sq_diff += diff * diff;
+            }
+            small_feat.degree_variance = (small_group_size > 1 && avg_deg > 0) ? 
+                std::sqrt(sum_sq_diff / (small_group_size - 1)) / avg_deg : 0.0;
+            
+            // Hub concentration (simplified - sample top 10%)
+            std::sort(degrees.rbegin(), degrees.rend());
+            size_t top_10 = std::max(size_t(1), small_group_size / 10);
+            int64_t top_sum = 0;
+            for (size_t i = 0; i < top_10 && i < degrees.size(); ++i) {
+                top_sum += degrees[i];
+            }
+            small_feat.hub_concentration = (total_deg > 0) ? 
+                static_cast<double>(top_sum) / total_deg : 0.0;
+            
+            // Use perceptron to select algorithm for merged small communities
+            ReorderingAlgo small_algo = SelectBestReorderingForCommunity(
+                small_feat, global_modularity, global_degree_variance, global_hub_concentration,
+                global_avg_degree, static_cast<size_t>(num_nodes), num_edges,
+                BENCH_GENERIC, detected_graph_type, selection_mode, graph_name,
+                50);  // Use lower threshold since this is already a merged group
+            
+            if (depth == 0) {
+                printf("AdaptiveOrder: Grouped %zu small communities (%zu nodes, %zu edges) -> %s\n",
+                       sorted_comms.size() - large_sorted_comms.size(), 
+                       small_group_size, small_feat.num_edges,
+                       ReorderingAlgoStr(small_algo).c_str());
+            }
+            
+            // Apply selected algorithm to merged small communities
+            if (small_algo == ORIGINAL || small_group_size < 100) {
+                // Just assign sequential IDs sorted by degree
+                std::vector<std::pair<int64_t, NodeID_>> degree_node_pairs;
+                degree_node_pairs.reserve(small_group_size);
+                for (NodeID_ node : small_community_nodes) {
+                    int64_t deg = useOutdeg ? g.out_degree(node) : g.in_degree(node);
+                    degree_node_pairs.emplace_back(-deg, node);
+                }
+                if (degree_node_pairs.size() > 10000) {
+                    __gnu_parallel::sort(degree_node_pairs.begin(), degree_node_pairs.end());
+                } else {
+                    std::sort(degree_node_pairs.begin(), degree_node_pairs.end());
+                }
+                for (auto& [neg_deg, node] : degree_node_pairs) {
+                    new_ids[node] = current_id++;
+                }
+            } else {
+                // Build subgraph and apply selected algorithm
+                std::unordered_map<NodeID_, NodeID_> global_to_local;
+                std::vector<NodeID_> local_to_global(small_group_size);
+                for (size_t i = 0; i < small_group_size; ++i) {
+                    global_to_local[small_community_nodes[i]] = static_cast<NodeID_>(i);
+                    local_to_global[i] = small_community_nodes[i];
+                }
+                
+                EdgeList sub_edges;
+                for (NodeID_ node : small_community_nodes) {
+                    NodeID_ local_src = global_to_local[node];
+                    for (DestID_ neighbor : g.out_neigh(node)) {
+                        NodeID_ dest = static_cast<NodeID_>(neighbor);
+                        if (small_node_set.count(dest)) {
+                            NodeID_ local_dst = global_to_local[dest];
+                            sub_edges.push_back(Edge(local_src, local_dst));
+                        }
+                    }
+                }
+                
+                CSRGraph<NodeID_, DestID_, invert> sub_g = MakeLocalGraphFromEL(sub_edges);
+                pvector<NodeID_> sub_new_ids(small_group_size, -1);
+                
+                // Apply selected algorithm
+                switch (small_algo) {
+                    case HubSort:
+                        GenerateHubSortMapping(sub_g, sub_new_ids, useOutdeg);
+                        break;
+                    case HubCluster:
+                        GenerateHubClusterMapping(sub_g, sub_new_ids, useOutdeg);
+                        break;
+                    case DBG:
+                        GenerateDBGMapping(sub_g, sub_new_ids, useOutdeg);
+                        break;
+                    case HubSortDBG:
+                        GenerateHubSortDBGMapping(sub_g, sub_new_ids, useOutdeg);
+                        break;
+                    case HubClusterDBG:
+                        GenerateHubClusterDBGMapping(sub_g, sub_new_ids, useOutdeg);
+                        break;
+                    case RCMOrder:
+                        GenerateRCMOrderMapping(sub_g, sub_new_ids);
+                        break;
+#ifdef RABBIT_ENABLE
+                    case RabbitOrder:
+                        GenerateRabbitOrderMapping(sub_g, sub_new_ids);
+                        break;
+#endif
+                    default:
+                        // Fallback to HubSort for fast reordering
+                        GenerateHubSortMapping(sub_g, sub_new_ids, useOutdeg);
+                        break;
+                }
+                
+                // Map back to global IDs
+                std::vector<NodeID_> reordered_nodes(small_group_size);
+                for (size_t i = 0; i < small_group_size; ++i) {
+                    if (sub_new_ids[i] >= 0 && sub_new_ids[i] < static_cast<NodeID_>(small_group_size)) {
+                        reordered_nodes[sub_new_ids[i]] = local_to_global[i];
+                    } else {
+                        reordered_nodes[i] = local_to_global[i];
+                    }
+                }
+                
+                for (NodeID_ node : reordered_nodes) {
+                    new_ids[node] = current_id++;
+                }
+            }
+        }
         
-        for (size_t c : sorted_comms) {
+        // Then: Process large communities with their selected algorithms
+        for (size_t c : large_sorted_comms) {
             auto& nodes = community_nodes[c];
             if (nodes.empty()) continue;
             
             size_t comm_size = nodes.size();
             ReorderingAlgo algo = selected_algos[c];
             
-            if (comm_size < MIN_COMMUNITY_FOR_LOCAL_REORDER || algo == ORIGINAL) {
-                // Small or ORIGINAL: just assign sequentially (no subgraph overhead)
-                for (NodeID_ node : nodes) {
-                    new_ids[node] = current_id++;
-                }
-            }
-            else if (should_recurse[c]) {
+            // All nodes in large_sorted_comms are >= MIN_COMMUNITY_FOR_LOCAL_REORDER
+            // and algo != ORIGINAL (those were handled in small_community_nodes batch)
+            
+            if (should_recurse[c]) {
                 // RECURSIVE CASE: Build subgraph and call AdaptiveOrder recursively
                 std::unordered_map<NodeID_, NodeID_> global_to_local;
                 std::vector<NodeID_> local_to_global(comm_size);
@@ -13544,43 +13814,68 @@ public:
         tm.Stop();
         PrintTime("GraphBrewGVE Community Detection", tm.Seconds());
         
-        // Apply frequency threshold - merge small communities
+        // Count community sizes and compute statistics for dynamic thresholds
         std::vector<size_t> comm_freq(num_communities, 0);
         for (int64_t v = 0; v < num_nodes; ++v) {
             comm_freq[comm_ids[v]]++;
         }
         
-        // Find target community for small ones
+        // Compute average community size for dynamic threshold
+        size_t non_empty_communities = 0;
+        for (size_t c = 0; c < num_communities; ++c) {
+            if (comm_freq[c] > 0) non_empty_communities++;
+        }
+        size_t avg_community_size = (non_empty_communities > 0) ? 
+            static_cast<size_t>(num_nodes) / non_empty_communities : static_cast<size_t>(num_nodes);
+        
+        // Dynamic threshold for minimum community size
+        const size_t MIN_COMMUNITY_SIZE = ComputeDynamicMinCommunitySize(
+            static_cast<size_t>(num_nodes), non_empty_communities, avg_community_size);
+        
+        // Find target community for small ones (largest community)
         size_t largest_comm = std::distance(comm_freq.begin(), 
             std::max_element(comm_freq.begin(), comm_freq.end()));
         
-        // Compute actual threshold from top-k communities
-        std::vector<size_t> sorted_freq = comm_freq;
-        if (frequency_threshold > 0 && frequency_threshold <= sorted_freq.size()) {
+        // If frequency_threshold is specified as top-K, convert to actual size threshold
+        // Otherwise use dynamic threshold
+        size_t actual_freq_threshold;
+        if (frequency_threshold > 0 && frequency_threshold < non_empty_communities) {
+            // User specified top-K communities
+            std::vector<size_t> sorted_freq = comm_freq;
             std::nth_element(sorted_freq.begin(), 
                              sorted_freq.begin() + frequency_threshold - 1,
                              sorted_freq.end(),
                              std::greater<size_t>());
-            frequency_threshold = sorted_freq[frequency_threshold - 1];
+            actual_freq_threshold = sorted_freq[frequency_threshold - 1];
+        } else {
+            // Use dynamic threshold based on community statistics
+            actual_freq_threshold = MIN_COMMUNITY_SIZE;
         }
         
-        // Merge small communities
-        #pragma omp parallel for
-        for (int64_t v = 0; v < num_nodes; ++v) {
-            if (comm_freq[comm_ids[v]] < frequency_threshold) {
-                comm_ids[v] = largest_comm;
+        printf("GraphBrewGVE: Dynamic threshold=%zu (avg_comm=%zu, num_comm=%zu)\n",
+               actual_freq_threshold, avg_community_size, non_empty_communities);
+        
+        // Collect small community nodes for batch processing instead of merging into largest
+        std::vector<NodeID_> small_community_nodes;
+        std::vector<bool> is_small_community(num_communities, false);
+        
+        for (size_t c = 0; c < num_communities; ++c) {
+            if (comm_freq[c] > 0 && comm_freq[c] < actual_freq_threshold) {
+                is_small_community[c] = true;
             }
         }
         
-        // Recount and sort communities by size
-        std::fill(comm_freq.begin(), comm_freq.end(), 0);
+        // Collect small community nodes
         for (int64_t v = 0; v < num_nodes; ++v) {
-            comm_freq[comm_ids[v]]++;
+            if (is_small_community[comm_ids[v]]) {
+                small_community_nodes.push_back(static_cast<NodeID_>(v));
+            }
         }
         
+        // Get large communities only (excluding small ones)
         std::vector<std::pair<size_t, size_t>> freq_comm_pairs;
         for (size_t c = 0; c < num_communities; ++c) {
-            if (comm_freq[c] > 0) {
+            if (comm_freq[c] > 0 && !is_small_community[c]) {
                 freq_comm_pairs.emplace_back(comm_freq[c], c);
             }
         }
@@ -13593,7 +13888,7 @@ public:
             is_top_community[comm] = true;
         }
         
-        printf("GraphBrewGVE: %zu active communities after filtering\n", top_communities.size());
+        printf("GraphBrewGVE: %zu large communities for reordering\n", top_communities.size());
         
         // Build edge lists per community (same as original GraphBrew)
         tm_2.Start();
@@ -13706,16 +14001,156 @@ public:
         tm_2.Stop();
         
         // Compute final mapping
+        // First: process small communities as one merged group with algorithm selection
+        NodeID_ current_id = 0;
+        
+        if (!small_community_nodes.empty()) {
+            size_t small_group_size = small_community_nodes.size();
+            
+            // Compute features for merged small community group
+            std::unordered_set<NodeID_> small_node_set(
+                small_community_nodes.begin(), small_community_nodes.end());
+            
+            // Count internal edges and compute stats
+            size_t small_edges = 0;
+            std::vector<int64_t> degrees(small_group_size);
+            int64_t total_deg = 0;
+            size_t idx = 0;
+            
+            for (NodeID_ node : small_community_nodes) {
+                int64_t deg = 0;
+                for (DestID_ neighbor : g.out_neigh(node)) {
+                    NodeID_ dest = static_cast<NodeID_>(neighbor);
+                    if (small_node_set.count(dest)) {
+                        deg++;
+                        small_edges++;
+                    }
+                }
+                degrees[idx++] = deg;
+                total_deg += deg;
+            }
+            small_edges /= 2;
+            
+            // Compute features
+            double avg_deg = (small_group_size > 0) ? static_cast<double>(total_deg) / small_group_size : 0;
+            double density = (small_group_size > 1) ? avg_deg / (small_group_size - 1) : 0.0;
+            
+            double sum_sq_diff = 0;
+            for (auto d : degrees) {
+                double diff = d - avg_deg;
+                sum_sq_diff += diff * diff;
+            }
+            double deg_variance = (small_group_size > 1 && avg_deg > 0) ? 
+                std::sqrt(sum_sq_diff / (small_group_size - 1)) / avg_deg : 0.0;
+            
+            std::sort(degrees.rbegin(), degrees.rend());
+            size_t top_10 = std::max(size_t(1), small_group_size / 10);
+            int64_t top_sum = 0;
+            for (size_t i = 0; i < top_10 && i < degrees.size(); ++i) {
+                top_sum += degrees[i];
+            }
+            double hub_conc = (total_deg > 0) ? static_cast<double>(top_sum) / total_deg : 0.0;
+            
+            // Simple algorithm selection based on features (similar to perceptron logic)
+            // For GraphBrew, we use heuristics since we don't have full perceptron here
+            ReorderingAlgo small_algo;
+            if (small_group_size < 100) {
+                small_algo = ORIGINAL;  // Too small, just degree sort
+            } else if (hub_conc > 0.5 && deg_variance > 1.5) {
+                small_algo = HubClusterDBG;  // Hub-dominated with variance
+            } else if (hub_conc > 0.4) {
+                small_algo = HubSort;  // Hub-dominated
+            } else if (density > 0.05) {
+                small_algo = DBG;  // Dense
+            } else {
+                small_algo = HubSortDBG;  // Default for sparse
+            }
+            
+            printf("GraphBrewGVE: Grouped %zu nodes from small communities (%zu edges) -> %s\n",
+                   small_group_size, small_edges, ReorderingAlgoStr(small_algo).c_str());
+            
+            if (small_algo == ORIGINAL || small_group_size < 100) {
+                // Simple degree sort
+                std::vector<std::pair<int64_t, NodeID_>> degree_node_pairs;
+                degree_node_pairs.reserve(small_group_size);
+                for (NodeID_ node : small_community_nodes) {
+                    int64_t deg = useOutdeg ? g.out_degree(node) : g.in_degree(node);
+                    degree_node_pairs.emplace_back(-deg, node);
+                }
+                if (degree_node_pairs.size() > 10000) {
+                    __gnu_parallel::sort(degree_node_pairs.begin(), degree_node_pairs.end());
+                } else {
+                    std::sort(degree_node_pairs.begin(), degree_node_pairs.end());
+                }
+                for (auto& [neg_deg, node] : degree_node_pairs) {
+                    new_ids[node] = current_id++;
+                }
+            } else {
+                // Build subgraph and apply selected algorithm
+                std::unordered_map<NodeID_, NodeID_> global_to_local;
+                std::vector<NodeID_> local_to_global(small_group_size);
+                for (size_t i = 0; i < small_group_size; ++i) {
+                    global_to_local[small_community_nodes[i]] = static_cast<NodeID_>(i);
+                    local_to_global[i] = small_community_nodes[i];
+                }
+                
+                EdgeList sub_edges;
+                for (NodeID_ node : small_community_nodes) {
+                    NodeID_ local_src = global_to_local[node];
+                    for (DestID_ neighbor : g.out_neigh(node)) {
+                        NodeID_ dest = static_cast<NodeID_>(neighbor);
+                        if (small_node_set.count(dest)) {
+                            NodeID_ local_dst = global_to_local[dest];
+                            sub_edges.push_back(Edge(local_src, local_dst));
+                        }
+                    }
+                }
+                
+                CSRGraph<NodeID_, DestID_, invert> sub_g = MakeLocalGraphFromEL(sub_edges);
+                pvector<NodeID_> sub_new_ids(small_group_size, -1);
+                
+                switch (small_algo) {
+                    case HubSort:
+                        GenerateHubSortMapping(sub_g, sub_new_ids, useOutdeg);
+                        break;
+                    case HubCluster:
+                        GenerateHubClusterMapping(sub_g, sub_new_ids, useOutdeg);
+                        break;
+                    case DBG:
+                        GenerateDBGMapping(sub_g, sub_new_ids, useOutdeg);
+                        break;
+                    case HubSortDBG:
+                        GenerateHubSortDBGMapping(sub_g, sub_new_ids, useOutdeg);
+                        break;
+                    case HubClusterDBG:
+                        GenerateHubClusterDBGMapping(sub_g, sub_new_ids, useOutdeg);
+                        break;
+                    default:
+                        GenerateHubSortMapping(sub_g, sub_new_ids, useOutdeg);
+                        break;
+                }
+                
+                std::vector<NodeID_> reordered_nodes(small_group_size);
+                for (size_t i = 0; i < small_group_size; ++i) {
+                    if (sub_new_ids[i] >= 0 && sub_new_ids[i] < static_cast<NodeID_>(small_group_size)) {
+                        reordered_nodes[sub_new_ids[i]] = local_to_global[i];
+                    } else {
+                        reordered_nodes[i] = local_to_global[i];
+                    }
+                }
+                
+                for (NodeID_ node : reordered_nodes) {
+                    new_ids[node] = current_id++;
+                }
+            }
+        }
+        
+        // Then: process large communities with their reordering
         std::vector<size_t> comm_start_indices(top_communities.size() + 1);
-        comm_start_indices[0] = 0;
+        comm_start_indices[0] = current_id;  // Start after small community nodes
         for (size_t c = 0; c < top_communities.size(); ++c) {
             comm_start_indices[c + 1] = comm_start_indices[c] + 
                 community_id_mappings[top_communities[c]].size();
-        }
-        
-        #pragma omp parallel for
-        for (size_t i = 0; i < new_ids.size(); ++i) {
-            new_ids[i] = (NodeID_)-1;
         }
         
         #pragma omp parallel for schedule(dynamic)
@@ -14077,33 +14512,62 @@ public:
                                         frequency_array_pre.end()) -
             frequency_array_pre.begin();
 
-        // Reassign nodes with frequency below the threshold
-
-        if (!frequency_array_pre.empty())
+        // Compute dynamic threshold based on community statistics
+        size_t non_empty_communities = 0;
+        for (size_t c = 0; c <= num_comm; ++c) {
+            if (frequency_array_pre[c] > 0) non_empty_communities++;
+        }
+        size_t avg_community_size = (non_empty_communities > 0) ? 
+            num_nodesx / non_empty_communities : num_nodesx;
+        
+        // Dynamic minimum community size
+        const size_t dynamic_min_size = ComputeDynamicMinCommunitySize(
+            num_nodesx, non_empty_communities, avg_community_size);
+        
+        // Determine actual threshold: if user specified top-K, use that; else use dynamic
+        size_t actual_threshold;
+        if (frequency_threshold > 0 && frequency_threshold < non_empty_communities)
         {
-            // Use nth_element instead of full sort - we only need the k-th largest value
+            // User specified top-K communities
             std::vector<size_t> sorted_freq_array = frequency_array_pre;
-            if (frequency_threshold > 0 && frequency_threshold <= sorted_freq_array.size())
-            {
-                // nth_element is O(n) vs O(n log n) for full sort
-                std::nth_element(sorted_freq_array.begin(), 
-                                 sorted_freq_array.begin() + frequency_threshold - 1,
-                                 sorted_freq_array.end(),
-                                 std::greater<size_t>());
-                frequency_threshold = sorted_freq_array[frequency_threshold - 1];
-            }
-            else
-            {
-                frequency_threshold = *std::min_element(sorted_freq_array.begin(), sorted_freq_array.end());
+            std::nth_element(sorted_freq_array.begin(), 
+                             sorted_freq_array.begin() + frequency_threshold - 1,
+                             sorted_freq_array.end(),
+                             std::greater<size_t>());
+            actual_threshold = sorted_freq_array[frequency_threshold - 1];
+        }
+        else
+        {
+            // Use dynamic threshold
+            actual_threshold = dynamic_min_size;
+        }
+        
+        printf("GraphBrew: Dynamic threshold=%zu (avg_comm=%zu, num_comm=%zu)\n",
+               actual_threshold, avg_community_size, non_empty_communities);
+
+        // Collect small community nodes for batch processing
+        std::vector<NodeID_> small_community_nodes;
+        std::vector<bool> is_small_community(num_comm + 1, false);
+        
+        for (size_t c = 0; c <= num_comm; ++c) {
+            if (frequency_array_pre[c] > 0 && frequency_array_pre[c] < actual_threshold) {
+                is_small_community[c] = true;
             }
         }
-
+        
+        for (size_t i = 0; i < comm_ids.size(); ++i) {
+            if (is_small_community[comm_ids[i]]) {
+                small_community_nodes.push_back(static_cast<NodeID_>(i));
+            }
+        }
+        
+        // Mark small communities - they won't be processed individually
         #pragma omp parallel for
         for (size_t i = 0; i < comm_ids.size(); ++i)
         {
-            if (frequency_array_pre[comm_ids[i]] < frequency_threshold)
+            if (is_small_community[comm_ids[i]])
             {
-                comm_ids[i] = min_freq_comm_id;
+                comm_ids[i] = min_freq_comm_id;  // Temporarily assign to prevent individual processing
             }
         }
 
@@ -14391,21 +14855,157 @@ public:
         tm_2.Stop();
 
         // Calculate the total size and assign consecutive indices directly
-        // Note: The sort was redundant since we overwrite id_pairs[i].second = i anyway
+        // First: process small communities as one merged group with algorithm selection
+        NodeID_ current_id = 0;
+        
+        if (!small_community_nodes.empty()) {
+            size_t small_group_size = small_community_nodes.size();
+            
+            // Compute features for merged small community group
+            std::unordered_set<NodeID_> small_node_set(
+                small_community_nodes.begin(), small_community_nodes.end());
+            
+            // Count internal edges and compute stats
+            size_t small_edges = 0;
+            std::vector<int64_t> degrees(small_group_size);
+            int64_t total_deg = 0;
+            size_t idx = 0;
+            
+            for (NodeID_ node : small_community_nodes) {
+                int64_t deg = 0;
+                for (DestID_ neighbor : g.out_neigh(node)) {
+                    NodeID_ dest = static_cast<NodeID_>(neighbor);
+                    if (small_node_set.count(dest)) {
+                        deg++;
+                        small_edges++;
+                    }
+                }
+                degrees[idx++] = deg;
+                total_deg += deg;
+            }
+            small_edges /= 2;
+            
+            // Compute features
+            double avg_deg = (small_group_size > 0) ? static_cast<double>(total_deg) / small_group_size : 0;
+            double density = (small_group_size > 1) ? avg_deg / (small_group_size - 1) : 0.0;
+            
+            double sum_sq_diff = 0;
+            for (auto d : degrees) {
+                double diff = d - avg_deg;
+                sum_sq_diff += diff * diff;
+            }
+            double deg_variance = (small_group_size > 1 && avg_deg > 0) ? 
+                std::sqrt(sum_sq_diff / (small_group_size - 1)) / avg_deg : 0.0;
+            
+            std::sort(degrees.rbegin(), degrees.rend());
+            size_t top_10 = std::max(size_t(1), small_group_size / 10);
+            int64_t top_sum = 0;
+            for (size_t i = 0; i < top_10 && i < degrees.size(); ++i) {
+                top_sum += degrees[i];
+            }
+            double hub_conc = (total_deg > 0) ? static_cast<double>(top_sum) / total_deg : 0.0;
+            
+            // Simple algorithm selection based on features
+            ReorderingAlgo small_algo;
+            if (small_group_size < 100) {
+                small_algo = ORIGINAL;
+            } else if (hub_conc > 0.5 && deg_variance > 1.5) {
+                small_algo = HubClusterDBG;
+            } else if (hub_conc > 0.4) {
+                small_algo = HubSort;
+            } else if (density > 0.05) {
+                small_algo = DBG;
+            } else {
+                small_algo = HubSortDBG;
+            }
+            
+            printf("GraphBrew: Grouped %zu nodes from small communities (%zu edges) -> %s\n",
+                   small_group_size, small_edges, ReorderingAlgoStr(small_algo).c_str());
+            
+            if (small_algo == ORIGINAL || small_group_size < 100) {
+                // Simple degree sort
+                std::vector<std::pair<int64_t, NodeID_>> degree_node_pairs;
+                degree_node_pairs.reserve(small_group_size);
+                for (NodeID_ node : small_community_nodes) {
+                    int64_t deg = useOutdeg ? g.out_degree(node) : g.in_degree(node);
+                    degree_node_pairs.emplace_back(-deg, node);
+                }
+                if (degree_node_pairs.size() > 10000) {
+                    __gnu_parallel::sort(degree_node_pairs.begin(), degree_node_pairs.end());
+                } else {
+                    std::sort(degree_node_pairs.begin(), degree_node_pairs.end());
+                }
+                for (auto& [neg_deg, node] : degree_node_pairs) {
+                    new_ids[node] = current_id++;
+                }
+            } else {
+                // Build subgraph and apply selected algorithm
+                std::unordered_map<NodeID_, NodeID_> global_to_local;
+                std::vector<NodeID_> local_to_global(small_group_size);
+                for (size_t i = 0; i < small_group_size; ++i) {
+                    global_to_local[small_community_nodes[i]] = static_cast<NodeID_>(i);
+                    local_to_global[i] = small_community_nodes[i];
+                }
+                
+                EdgeList sub_edges;
+                for (NodeID_ node : small_community_nodes) {
+                    NodeID_ local_src = global_to_local[node];
+                    for (DestID_ neighbor : g.out_neigh(node)) {
+                        NodeID_ dest = static_cast<NodeID_>(neighbor);
+                        if (small_node_set.count(dest)) {
+                            NodeID_ local_dst = global_to_local[dest];
+                            sub_edges.push_back(Edge(local_src, local_dst));
+                        }
+                    }
+                }
+                
+                CSRGraph<NodeID_, DestID_, invert> sub_g = MakeLocalGraphFromEL(sub_edges);
+                pvector<NodeID_> sub_new_ids(small_group_size, -1);
+                
+                switch (small_algo) {
+                    case HubSort:
+                        GenerateHubSortMapping(sub_g, sub_new_ids, useOutdeg);
+                        break;
+                    case HubCluster:
+                        GenerateHubClusterMapping(sub_g, sub_new_ids, useOutdeg);
+                        break;
+                    case DBG:
+                        GenerateDBGMapping(sub_g, sub_new_ids, useOutdeg);
+                        break;
+                    case HubSortDBG:
+                        GenerateHubSortDBGMapping(sub_g, sub_new_ids, useOutdeg);
+                        break;
+                    case HubClusterDBG:
+                        GenerateHubClusterDBGMapping(sub_g, sub_new_ids, useOutdeg);
+                        break;
+                    default:
+                        GenerateHubSortMapping(sub_g, sub_new_ids, useOutdeg);
+                        break;
+                }
+                
+                std::vector<NodeID_> reordered_nodes(small_group_size);
+                for (size_t i = 0; i < small_group_size; ++i) {
+                    if (sub_new_ids[i] >= 0 && sub_new_ids[i] < static_cast<NodeID_>(small_group_size)) {
+                        reordered_nodes[sub_new_ids[i]] = local_to_global[i];
+                    } else {
+                        reordered_nodes[i] = local_to_global[i];
+                    }
+                }
+                
+                for (NodeID_ node : reordered_nodes) {
+                    new_ids[node] = current_id++;
+                }
+            }
+        }
+        
+        // Then: process large communities with their reordering
         // Compute prefix sums for running indices (allows parallelization)
         std::vector<size_t> comm_start_indices(top_communities.size() + 1);
-        comm_start_indices[0] = 0;
+        comm_start_indices[0] = current_id;  // Start after small community nodes
         for (size_t c = 0; c < top_communities.size(); ++c)
         {
             comm_start_indices[c + 1] = comm_start_indices[c] + 
                 community_id_mappings[top_communities[c]].size();
-        }
-        
-        // Initialize new_ids and assign indices in a single parallel pass
-        #pragma omp parallel for
-        for (size_t i = 0; i < new_ids.size(); ++i)
-        {
-            new_ids[i] = (NodeID_)-1;
         }
         
         // Parallel index assignment and new_ids population (fused loops)

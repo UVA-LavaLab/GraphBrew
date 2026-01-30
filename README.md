@@ -38,6 +38,12 @@ Choosing the right reordering algorithm depends on your graph characteristics. F
 # Use AdaptiveOrder for automatic best selection
 ./bench/bin/bfs -g 20 -o 14
 
+# Use GraphBrewOrder with GVE-Leiden variant (fast)
+./bench/bin/pr -f graph.mtx -o 12:gve
+
+# Use GraphBrewOrder with cache-optimized GVE
+./bench/bin/pr -f graph.mtx -o 12:gveopt
+
 # Use LeidenCSR with GVE-Leiden (default, best quality)
 ./bench/bin/pr -f graph.mtx -o 17
 
