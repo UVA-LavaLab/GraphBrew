@@ -4304,108 +4304,24 @@ public:
     
     /**
      * Generate mapping using GVELeidenDendo algorithm
+     * Delegates to ::GenerateGVELeidenDendoMapping in reorder/reorder_leiden.h
      */
     void GenerateGVELeidenDendoMapping(
         const CSRGraph<NodeID_, DestID_, invert>& g,
         pvector<NodeID_>& new_ids,
         std::vector<std::string> reordering_options) {
-        
-        Timer tm;
-        tm.Start();
-        
-        const int64_t num_nodes = g.num_nodes();
-        
-        // Parse options
-        double resolution = LeidenAutoResolution<NodeID_, DestID_>(g);
-        int max_iterations = 20;
-        int max_passes = 10;
-        
-        if (!reordering_options.empty() && !reordering_options[0].empty()) {
-            double parsed = std::stod(reordering_options[0]);
-            if (parsed > 0 && parsed <= 3) resolution = parsed;
-        }
-        if (reordering_options.size() > 1 && !reordering_options[1].empty()) {
-            max_iterations = std::stoi(reordering_options[1]);
-        }
-        if (reordering_options.size() > 2 && !reordering_options[2].empty()) {
-            max_passes = std::stoi(reordering_options[2]);
-        }
-        
-        printf("GVELeidenDendo: resolution=%.4f, max_iterations=%d, max_passes=%d\n",
-               resolution, max_iterations, max_passes);
-        
-        // Run algorithm
-        auto result = GVELeidenDendo<K>(g, resolution, 1e-2, 0.8, 10.0, max_iterations, max_passes);
-        
-        tm.Stop();
-        double detection_time = tm.Seconds();
-        PrintTime("GVELeidenDendo Community Detection", detection_time);
-        
-        Timer tm2;
-        tm2.Start();
-        
-        // Traverse dendrogram to generate ordering
-        traverseDendrogramDFS<K>(result, new_ids, true);  // hub_first = true
-        
-        tm2.Stop();
-        double ordering_time = tm2.Seconds();
-        
-        PrintTime("GVELeidenDendo Communities", static_cast<double>(result.roots.size()));
-        PrintTime("GVELeidenDendo Modularity", result.modularity);
-        PrintTime("GVELeidenDendo Map Time", ordering_time);
+        ::GenerateGVELeidenDendoMapping<K, NodeID_, DestID_>(g, new_ids, reordering_options);
     }
     
     /**
      * Generate mapping using GVELeidenOptDendo algorithm
+     * Delegates to ::GenerateGVELeidenOptDendoMapping in reorder/reorder_leiden.h
      */
     void GenerateGVELeidenOptDendoMapping(
         const CSRGraph<NodeID_, DestID_, invert>& g,
         pvector<NodeID_>& new_ids,
         std::vector<std::string> reordering_options) {
-        
-        Timer tm;
-        tm.Start();
-        
-        const int64_t num_nodes = g.num_nodes();
-        
-        // Parse options
-        double resolution = LeidenAutoResolution<NodeID_, DestID_>(g);
-        int max_iterations = 20;
-        int max_passes = 10;
-        
-        if (!reordering_options.empty() && !reordering_options[0].empty()) {
-            double parsed = std::stod(reordering_options[0]);
-            if (parsed > 0 && parsed <= 3) resolution = parsed;
-        }
-        if (reordering_options.size() > 1 && !reordering_options[1].empty()) {
-            max_iterations = std::stoi(reordering_options[1]);
-        }
-        if (reordering_options.size() > 2 && !reordering_options[2].empty()) {
-            max_passes = std::stoi(reordering_options[2]);
-        }
-        
-        printf("GVELeidenOptDendo: resolution=%.4f, max_iterations=%d, max_passes=%d\n",
-               resolution, max_iterations, max_passes);
-        
-        // Run algorithm
-        auto result = GVELeidenOptDendo<K>(g, resolution, 1e-2, 0.8, 10.0, max_iterations, max_passes);
-        
-        tm.Stop();
-        double detection_time = tm.Seconds();
-        PrintTime("GVELeidenOptDendo Community Detection", detection_time);
-        
-        Timer tm2;
-        tm2.Start();
-        
-        // Traverse dendrogram to generate ordering
-        traverseDendrogramDFS<K>(result, new_ids, true);  // hub_first = true
-        
-        tm2.Stop();
-        double ordering_time = tm2.Seconds();
-        
-        PrintTime("GVELeidenOptDendo Communities", static_cast<double>(result.roots.size()));
-        PrintTime("GVELeidenOptDendo Modularity", result.modularity);
-        PrintTime("GVELeidenOptDendo Map Time", ordering_time);
+        ::GenerateGVELeidenOptDendoMapping<K, NodeID_, DestID_>(g, new_ids, reordering_options);
     }
 
     //==========================================================================
