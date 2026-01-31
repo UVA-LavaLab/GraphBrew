@@ -2908,4 +2908,122 @@ inline ReorderingAlgo SelectBestReorderingForCommunity(
     return selected;
 }
 
+// ============================================================================
+// SAMPLED DEGREE FEATURE COMPUTATION
+// ============================================================================
+
+/**
+ * @brief Result structure for sampled degree features
+ * 
+ * Contains key graph features computed via fast sampling.
+ */
+struct SampledDegreeFeatures {
+    double degree_variance = 0.0;      ///< Normalized degree variance (CV)
+    double hub_concentration = 0.0;    ///< Fraction of edges from top 10% degree nodes
+    double avg_degree = 0.0;           ///< Sampled average degree
+    double clustering_coeff = 0.0;     ///< Estimated clustering coefficient
+    double estimated_modularity = 0.0; ///< Rough modularity estimate
+};
+
+/**
+ * @brief Compute degree-based features via sampling
+ * 
+ * This is a fast feature computation method that samples vertices
+ * to estimate degree variance and hub concentration without scanning
+ * the entire graph.
+ * 
+ * @tparam GraphT Graph type (must support out_degree, out_neigh)
+ * @param g Input graph
+ * @param sample_size Number of vertices to sample (default: 5000)
+ * @param compute_clustering Whether to compute clustering coefficient (slower)
+ * @return SampledDegreeFeatures with computed features
+ */
+template<typename GraphT>
+inline SampledDegreeFeatures ComputeSampledDegreeFeatures(
+    const GraphT& g,
+    size_t sample_size = 5000,
+    bool compute_clustering = false)
+{
+    SampledDegreeFeatures result;
+    
+    const int64_t num_nodes = g.num_nodes();
+    if (num_nodes < 10) return result;
+    
+    // Adjust sample size to graph size
+    sample_size = std::min(sample_size, static_cast<size_t>(num_nodes));
+    std::vector<int64_t> sampled_degrees(sample_size);
+    
+    // Sample degrees evenly across the graph
+    double sum = 0.0;
+    for (size_t i = 0; i < sample_size; ++i) {
+        int64_t node = (num_nodes > static_cast<int64_t>(sample_size)) ? 
+            static_cast<int64_t>((i * num_nodes) / sample_size) : static_cast<int64_t>(i);
+        sampled_degrees[i] = g.out_degree(node);
+        sum += sampled_degrees[i];
+    }
+    double sample_mean = sum / sample_size;
+    result.avg_degree = sample_mean;
+    
+    // Compute variance
+    double sum_sq_diff = 0.0;
+    for (size_t i = 0; i < sample_size; ++i) {
+        double diff = sampled_degrees[i] - sample_mean;
+        sum_sq_diff += diff * diff;
+    }
+    double variance = (sample_size > 1) ? sum_sq_diff / (sample_size - 1) : 0.0;
+    result.degree_variance = (sample_mean > 0) ? std::sqrt(variance) / sample_mean : 0.0;
+    
+    // Hub concentration: fraction of edges from top 10% degree nodes
+    std::sort(sampled_degrees.rbegin(), sampled_degrees.rend());
+    size_t top_10 = std::max(size_t(1), sample_size / 10);
+    int64_t top_edge_sum = 0;
+    int64_t total_edge_sum = 0;
+    for (size_t i = 0; i < sample_size; ++i) {
+        if (i < top_10) top_edge_sum += sampled_degrees[i];
+        total_edge_sum += sampled_degrees[i];
+    }
+    result.hub_concentration = (total_edge_sum > 0) ? 
+        static_cast<double>(top_edge_sum) / total_edge_sum : 0.0;
+    
+    // Optional: Compute clustering coefficient (expensive but useful)
+    if (compute_clustering && sample_size >= 100) {
+        size_t triangles_sampled = 0;
+        size_t triplets_sampled = 0;
+        
+        size_t cc_samples = std::min(sample_size, static_cast<size_t>(1000));
+        for (size_t i = 0; i < cc_samples; ++i) {
+            int64_t node = (num_nodes > static_cast<int64_t>(sample_size)) ? 
+                static_cast<int64_t>((i * num_nodes) / sample_size) : static_cast<int64_t>(i);
+            
+            int64_t deg = g.out_degree(node);
+            if (deg < 2) continue;
+            
+            triplets_sampled += deg * (deg - 1) / 2;
+            
+            // Count triangles (only for small neighborhoods)
+            if (deg <= 100) {
+                std::unordered_set<int64_t> neighbors;
+                for (auto n : g.out_neigh(node)) {
+                    neighbors.insert(static_cast<int64_t>(n));
+                }
+                for (auto n1 : g.out_neigh(node)) {
+                    for (auto n2 : g.out_neigh(static_cast<int64_t>(n1))) {
+                        if (neighbors.count(static_cast<int64_t>(n2))) {
+                            triangles_sampled++;
+                        }
+                    }
+                }
+            }
+        }
+        
+        result.clustering_coeff = (triplets_sampled > 0) ? 
+            static_cast<double>(triangles_sampled) / (2 * triplets_sampled) : 0.0;
+        
+        // Rough modularity estimate: higher clustering = higher likely modularity
+        result.estimated_modularity = std::min(0.9, result.clustering_coeff * 1.5);
+    }
+    
+    return result;
+}
+
 #endif  // REORDER_TYPES_H_
