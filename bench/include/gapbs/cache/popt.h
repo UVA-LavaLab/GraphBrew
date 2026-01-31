@@ -28,6 +28,11 @@
 #ifndef POPT_CACHE_ALIAS_H_
 #define POPT_CACHE_ALIAS_H_
 // Alias shim: prefer gapbs/partitioning/popt.h
+#if defined(__GNUC__)
+#warning "Include <gapbs/partitioning/popt.h> instead of <gapbs/cache/popt.h>"
+#elif defined(_MSC_VER)
+#pragma message("Include <gapbs/partitioning/popt.h> instead of <gapbs/cache/popt.h>")
+#endif
 #include "../partitioning/popt.h"
 #include "../timer.h"
 
