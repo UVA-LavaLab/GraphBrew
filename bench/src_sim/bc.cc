@@ -13,8 +13,8 @@
 #include "sliding_queue.h"
 #include "timer.h"
 
-#include "cache_sim.h"
-#include "graph_sim.h"
+#include "cache_sim/cache_sim.h"
+#include "cache_sim/graph_sim.h"
 
 using namespace std;
 using namespace cache_sim;
