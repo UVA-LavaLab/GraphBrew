@@ -1772,6 +1772,59 @@ public:
             abort();
         }
     }
+    
+    /**
+     * Apply a basic reordering algorithm to a subgraph.
+     * 
+     * This is a helper for per-community reordering that handles the common
+     * basic algorithms. It does NOT handle complex algorithms like Leiden,
+     * GraphBrew, or AdaptiveOrder (use GenerateMappingLocalEdgelist for those).
+     * 
+     * @param sub_g The subgraph to reorder
+     * @param sub_new_ids Output mapping (must be pre-sized to sub_g.num_nodes())
+     * @param algo Algorithm to apply
+     * @param useOutdeg Whether to use out-degree (true) or in-degree (false)
+     */
+    void ApplyBasicReordering(CSRGraph<NodeID_, DestID_, invert>& sub_g,
+                              pvector<NodeID_>& sub_new_ids,
+                              ReorderingAlgo algo,
+                              bool useOutdeg) {
+        switch (algo) {
+            case HubSort:
+                GenerateHubSortMapping(sub_g, sub_new_ids, useOutdeg);
+                break;
+            case HubCluster:
+                GenerateHubClusterMapping(sub_g, sub_new_ids, useOutdeg);
+                break;
+            case DBG:
+                GenerateDBGMapping(sub_g, sub_new_ids, useOutdeg);
+                break;
+            case HubSortDBG:
+                GenerateHubSortDBGMapping(sub_g, sub_new_ids, useOutdeg);
+                break;
+            case HubClusterDBG:
+                GenerateHubClusterDBGMapping(sub_g, sub_new_ids, useOutdeg);
+                break;
+            case RCMOrder:
+                GenerateRCMOrderMapping(sub_g, sub_new_ids);
+                break;
+            case Sort:
+                GenerateSortMapping(sub_g, sub_new_ids, useOutdeg);
+                break;
+            case Random:
+                GenerateRandomMapping(sub_g, sub_new_ids);
+                break;
+#ifdef RABBIT_ENABLE
+            case RabbitOrder:
+                GenerateRabbitOrderMapping(sub_g, sub_new_ids);
+                break;
+#endif
+            case ORIGINAL:
+            default:
+                GenerateOriginalMapping(sub_g, sub_new_ids);
+                break;
+        }
+    }
 
     void GenerateMapping(CSRGraph<NodeID_, DestID_, invert> &g,
                          pvector<NodeID_> &new_ids,
@@ -6297,36 +6350,8 @@ public:
                 CSRGraph<NodeID_, DestID_, invert> sub_g = MakeLocalGraphFromEL(sub_edges);
                 pvector<NodeID_> sub_new_ids(small_group_size, -1);
                 
-                // Apply selected algorithm
-                switch (small_algo) {
-                    case HubSort:
-                        GenerateHubSortMapping(sub_g, sub_new_ids, useOutdeg);
-                        break;
-                    case HubCluster:
-                        GenerateHubClusterMapping(sub_g, sub_new_ids, useOutdeg);
-                        break;
-                    case DBG:
-                        GenerateDBGMapping(sub_g, sub_new_ids, useOutdeg);
-                        break;
-                    case HubSortDBG:
-                        GenerateHubSortDBGMapping(sub_g, sub_new_ids, useOutdeg);
-                        break;
-                    case HubClusterDBG:
-                        GenerateHubClusterDBGMapping(sub_g, sub_new_ids, useOutdeg);
-                        break;
-                    case RCMOrder:
-                        GenerateRCMOrderMapping(sub_g, sub_new_ids);
-                        break;
-#ifdef RABBIT_ENABLE
-                    case RabbitOrder:
-                        GenerateRabbitOrderMapping(sub_g, sub_new_ids);
-                        break;
-#endif
-                    default:
-                        // Fallback to HubSort for fast reordering
-                        GenerateHubSortMapping(sub_g, sub_new_ids, useOutdeg);
-                        break;
-                }
+                // Apply selected algorithm using helper
+                ApplyBasicReordering(sub_g, sub_new_ids, small_algo, useOutdeg);
                 
                 // Map back to global IDs
                 std::vector<NodeID_> reordered_nodes(small_group_size);
@@ -6431,32 +6456,8 @@ public:
                 CSRGraph<NodeID_, DestID_, invert> sub_g = MakeLocalGraphFromEL(sub_edges);
                 pvector<NodeID_> sub_new_ids(comm_size, -1);
                 
-                // Apply the selected local algorithm
-                switch (algo) {
-                    case HubSort:
-                        GenerateHubSortMapping(sub_g, sub_new_ids, useOutdeg);
-                        break;
-                    case HubCluster:
-                        GenerateHubClusterMapping(sub_g, sub_new_ids, useOutdeg);
-                        break;
-                    case DBG:
-                        GenerateDBGMapping(sub_g, sub_new_ids, useOutdeg);
-                        break;
-                    case HubClusterDBG:
-                        GenerateHubClusterDBGMapping(sub_g, sub_new_ids, useOutdeg);
-                        break;
-                    case RCMOrder:
-                        GenerateRCMOrderMapping(sub_g, sub_new_ids);
-                        break;
-#ifdef RABBIT_ENABLE
-                    case RabbitOrder:
-                        GenerateRabbitOrderMapping(sub_g, sub_new_ids);
-                        break;
-#endif
-                    default:
-                        GenerateOriginalMapping(sub_g, sub_new_ids);
-                        break;
-                }
+                // Apply the selected local algorithm using helper
+                ApplyBasicReordering(sub_g, sub_new_ids, algo, useOutdeg);
                 
                 // Map local reordered IDs back to global IDs
                 std::vector<NodeID_> reordered_nodes(comm_size);
