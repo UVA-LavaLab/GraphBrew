@@ -76,8 +76,8 @@
 // Unified reorder header - provides all algorithm implementations
 #include "reorder/reorder.h"
 
-// Cache optimization functions (P-OPT paper)
-#include "cache/popt.h"
+// Cagra/GraphIT partitioning helpers (P-OPT)
+#include "partitioning/popt.h"
 
 // Graph partitioning (TRUST algorithm)
 #include "partition/trust.h"
