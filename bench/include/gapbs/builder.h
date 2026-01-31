@@ -5747,36 +5747,14 @@ public:
     }
 
     /**
+    /**
      * Compute dynamic minimum community size threshold.
-     * 
-     * Instead of hardcoded thresholds (200, 500, etc.), this derives a meaningful
-     * minimum based on graph statistics. Communities smaller than this threshold
-     * are grouped together for batch processing rather than individual reordering.
-     * 
-     * The threshold is computed as:
-     *   max(ABSOLUTE_MIN, min(avg_size / FACTOR, sqrt(N)))
-     * 
-     * Where:
-     * - ABSOLUTE_MIN = 50 (never go below this)
-     * - FACTOR = 4-5 (communities < 1/4 of average are "small")
-     * - sqrt(N) = classic graph algorithm heuristic
-     * 
-     * This ensures:
-     * 1. On small graphs (1K nodes), threshold might be ~30-50
-     * 2. On medium graphs (100K nodes), threshold might be ~300
-     * 3. On large graphs (1M+ nodes), threshold might be ~1000
-     * 4. Always relative to community structure discovered
-     * 
-     * @param num_nodes Total nodes in graph
-     * @param num_communities Number of communities detected
-     * @param avg_community_size Average community size (num_nodes / num_communities)
-     * @return Dynamic threshold for minimum community size
+     * Delegates to the global ::ComputeDynamicMinCommunitySize in reorder_types.h.
      */
     static size_t ComputeDynamicMinCommunitySize(size_t num_nodes, 
                                                   size_t num_communities,
-                                                  size_t avg_community_size = 0)
-    {
-        return graphbrew::ComputeDynamicMinCommunitySize(num_nodes, num_communities, avg_community_size);
+                                                  size_t avg_community_size = 0) {
+        return ::ComputeDynamicMinCommunitySize(num_nodes, num_communities, avg_community_size);
     }
     
     /**
@@ -5785,38 +5763,13 @@ public:
      */
     static size_t ComputeDynamicLocalReorderThreshold(size_t num_nodes,
                                                        size_t num_communities,
-                                                       size_t avg_community_size = 0)
-    {
+                                                       size_t avg_community_size = 0) {
         return graphbrew::ComputeDynamicLocalReorderThreshold(num_nodes, num_communities, avg_community_size);
     }
 
     /**
      * Select best reordering algorithm based on community features.
-     * 
-     * Uses a PERCEPTRON-STYLE neural network approach:
-     * 1. Each candidate algorithm has learned weights for each feature
-     * 2. Compute score = weighted sum of features for each algorithm
-     * 3. Select algorithm with highest score
-     * 
-     * This replaces the hand-tuned heuristics with data-driven selection.
-     * Weights were trained from multi-algorithm benchmarks across:
-     * - Graph algorithms: BFS, PageRank, SSSP, BC, CC
-     * - Graph types: SBM (varying modularity), RMAT (power-law)
-     * 
-     * @param feat Community features
-     * @param global_modularity Graph modularity score
-     * @param global_degree_variance Global degree variance
-     * @param global_hub_concentration Global hub concentration  
-     * @param global_avg_degree Global average degree
-     * @param num_nodes Total number of nodes in graph
-     * @param num_edges Total number of edges in graph
-     * @param bench Benchmark type (default: BENCH_GENERIC for balanced performance)
-     *              - BENCH_GENERIC: Optimizes for all graph algorithms equally
-     *              - BENCH_PR, BENCH_BFS, etc.: Optimizes for specific benchmark
-     * @param mode Selection mode (default: MODE_FASTEST_EXECUTION for perceptron-based)
-     * @param graph_name Graph name for loading reorder times (needed for modes 0,2,3)
-     * 
-     * Fallback to heuristics for edge cases (very small communities).
+     * Delegates to the global ::SelectBestReorderingForCommunity in reorder_types.h.
      */
     ReorderingAlgo SelectBestReorderingForCommunity(CommunityFeatures feat, 
                                                      double global_modularity,
@@ -5828,40 +5781,11 @@ public:
                                                      GraphType graph_type = GRAPH_GENERIC,
                                                      SelectionMode mode = MODE_FASTEST_EXECUTION,
                                                      const std::string& graph_name = "",
-                                                     size_t dynamic_min_size = 0)
-    {
-        // Small communities: reordering overhead exceeds benefit
-        // Use dynamic threshold if provided, otherwise fall back to reasonable default
-        const size_t MIN_COMMUNITY_SIZE = (dynamic_min_size > 0) ? dynamic_min_size : 
-            ComputeDynamicMinCommunitySize(num_nodes, 1, feat.num_nodes);
-        
-        if (feat.num_nodes < MIN_COMMUNITY_SIZE) {
-            return ORIGINAL;
-        }
-        
-        // Set the modularity in features for perceptron scoring
-        feat.modularity = global_modularity;
-        
-        // Use MODE-AWARE selection (handles unknown graph fallback automatically)
-        ReorderingAlgo selected = SelectReorderingWithMode(
-            feat, global_modularity, global_degree_variance, global_hub_concentration,
-            num_nodes, num_edges, mode, graph_name, bench, false);
-        
-        // Safety check: if perceptron selects an unavailable algorithm, fallback
-#ifndef RABBIT_ENABLE
-        if (selected == RabbitOrder) {
-            // Recompute without RabbitOrder by using heuristic fallback
-            if (feat.degree_variance > 0.8) {
-                selected = HubClusterDBG;
-            } else if (feat.hub_concentration > 0.3) {
-                selected = HubSort;
-            } else {
-                selected = DBG;
-            }
-        }
-#endif
-        
-        return selected;
+                                                     size_t dynamic_min_size = 0) {
+        return ::SelectBestReorderingForCommunity(feat, global_modularity, global_degree_variance,
+                                                   global_hub_concentration, global_avg_degree,
+                                                   num_nodes, num_edges, bench, graph_type,
+                                                   mode, graph_name, dynamic_min_size);
     }
 
     /**
