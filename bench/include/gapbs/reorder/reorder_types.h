@@ -64,6 +64,203 @@
 using CommunityID = uint32_t;
 
 // ============================================================================
+// STANDALONE GRAPH BUILDING UTILITIES
+// ============================================================================
+// These functions enable building CSR graphs from edge lists without
+// requiring a BuilderBase instance. Used by extracted reordering functions.
+
+/**
+ * @brief Helper to extract NodeID from DestID_ (handles both weighted and unweighted)
+ * 
+ * For unweighted graphs: DestID_ == NodeID_, just return the value
+ * For weighted graphs: DestID_ == NodeWeight<NodeID_, WeightT_>, extract the .v member
+ */
+template <typename NodeID_, typename DestID_>
+inline NodeID_ GetNodeID(const DestID_& dest) {
+    if constexpr (std::is_same_v<NodeID_, DestID_>) {
+        // Unweighted: DestID_ == NodeID_
+        return dest;
+    } else {
+        // Weighted: DestID_ == NodeWeight<NodeID_, WeightT_>
+        return dest.v;
+    }
+}
+
+/**
+ * @brief Find maximum node ID in edge list (standalone)
+ */
+template <typename NodeID_, typename DestID_>
+NodeID_ FindMaxNodeIDStandalone(const std::vector<std::pair<NodeID_, DestID_>>& el) {
+    NodeID_ max_seen = 0;
+    #pragma omp parallel for reduction(max : max_seen)
+    for (size_t i = 0; i < el.size(); ++i) {
+        max_seen = std::max(max_seen, el[i].first);
+        max_seen = std::max(max_seen, GetNodeID<NodeID_, DestID_>(el[i].second));
+    }
+    return max_seen;
+}
+
+/**
+ * @brief Count degrees from edge list (standalone)
+ */
+template <typename NodeID_, typename DestID_>
+pvector<NodeID_> CountLocalDegreesStandalone(
+    const std::vector<std::pair<NodeID_, DestID_>>& el, 
+    bool transpose, 
+    int64_t num_nodes_local) 
+{
+    pvector<NodeID_> degrees(num_nodes_local, 0);
+    #pragma omp parallel for
+    for (size_t i = 0; i < el.size(); ++i) {
+        if (!transpose)
+            fetch_and_add(degrees[el[i].first], 1);
+        else
+            fetch_and_add(degrees[GetNodeID<NodeID_, DestID_>(el[i].second)], 1);
+    }
+    return degrees;
+}
+
+/**
+ * @brief Parallel prefix sum (standalone)
+ */
+template <typename NodeID_>
+pvector<SGOffset> ParallelPrefixSumStandalone(const pvector<NodeID_>& degrees) {
+    const size_t block_size = 1 << 20;
+    const size_t num_blocks = (degrees.size() + block_size - 1) / block_size;
+    pvector<SGOffset> local_sums(num_blocks);
+    pvector<SGOffset> bulk_prefix(num_blocks + 1);
+    pvector<SGOffset> sums(degrees.size() + 1);
+    
+    #pragma omp parallel for
+    for (size_t block = 0; block < num_blocks; block++) {
+        SGOffset lsum = 0;
+        size_t block_end = std::min((block + 1) * block_size, degrees.size());
+        for (size_t i = block * block_size; i < block_end; i++)
+            lsum += degrees[i];
+        local_sums[block] = lsum;
+    }
+    
+    bulk_prefix[0] = 0;
+    for (size_t block = 0; block < num_blocks; block++)
+        bulk_prefix[block + 1] = bulk_prefix[block] + local_sums[block];
+    
+    #pragma omp parallel for
+    for (size_t block = 0; block < num_blocks; block++) {
+        SGOffset local_total = bulk_prefix[block];
+        size_t block_end = std::min((block + 1) * block_size, degrees.size());
+        for (size_t i = block * block_size; i < block_end; i++) {
+            sums[i] = local_total;
+            local_total += degrees[i];
+        }
+    }
+    sums[degrees.size()] = bulk_prefix[num_blocks];
+    return sums;
+}
+
+/**
+ * @brief Squish CSR to remove gaps (standalone)
+ */
+template <typename NodeID_, typename DestID_, bool invert>
+void SquishCSRStandalone(
+    const CSRGraph<NodeID_, DestID_, invert>& g, 
+    bool transpose,
+    DestID_*** index, 
+    DestID_** neighs) 
+{
+    int64_t num_nodes = g.num_nodes();
+    pvector<NodeID_> degrees(num_nodes);
+    
+    #pragma omp parallel for
+    for (NodeID_ n = 0; n < num_nodes; n++) {
+        degrees[n] = transpose ? g.in_degree(n) : g.out_degree(n);
+    }
+    
+    pvector<SGOffset> offsets = ParallelPrefixSumStandalone(degrees);
+    *neighs = new DestID_[offsets[num_nodes]];
+    *index = CSRGraph<NodeID_, DestID_>::GenIndex(offsets, *neighs);
+    
+    #pragma omp parallel for
+    for (NodeID_ n = 0; n < num_nodes; n++) {
+        if (transpose) {
+            for (DestID_ neighbor : g.in_neigh(n))
+                (*neighs)[offsets[n]++] = neighbor;
+        } else {
+            for (DestID_ neighbor : g.out_neigh(n))
+                (*neighs)[offsets[n]++] = neighbor;
+        }
+    }
+}
+
+/**
+ * @brief Squish graph to remove gaps (standalone)
+ */
+template <typename NodeID_, typename DestID_, bool invert>
+CSRGraph<NodeID_, DestID_, invert> SquishGraphStandalone(
+    const CSRGraph<NodeID_, DestID_, invert>& g) 
+{
+    DestID_ **out_index, *out_neighs;
+    SquishCSRStandalone<NodeID_, DestID_, invert>(g, false, &out_index, &out_neighs);
+    
+    if (g.directed() && invert) {
+        DestID_ **in_index, *in_neighs;
+        SquishCSRStandalone<NodeID_, DestID_, invert>(g, true, &in_index, &in_neighs);
+        return CSRGraph<NodeID_, DestID_, invert>(
+            g.num_nodes(), out_index, out_neighs, in_index, in_neighs);
+    }
+    return CSRGraph<NodeID_, DestID_, invert>(g.num_nodes(), out_index, out_neighs);
+}
+
+/**
+ * @brief Build CSR graph from edge list (standalone)
+ * 
+ * This is a standalone version of MakeLocalGraphFromEL that doesn't
+ * require a BuilderBase instance.
+ */
+template <typename NodeID_, typename DestID_, bool invert>
+CSRGraph<NodeID_, DestID_, invert> MakeLocalGraphFromELStandalone(
+    std::vector<std::pair<NodeID_, DestID_>>& el, 
+    bool verbose = false) 
+{
+    Timer t;
+    t.Start();
+    
+    if (el.empty()) {
+        return CSRGraph<NodeID_, DestID_, invert>(0, nullptr, nullptr);
+    }
+    
+    int64_t num_nodes_local = FindMaxNodeIDStandalone<NodeID_, DestID_>(el) + 1;
+    pvector<NodeID_> degrees = CountLocalDegreesStandalone<NodeID_, DestID_>(el, false, num_nodes_local);
+    pvector<SGOffset> offsets = ParallelPrefixSumStandalone(degrees);
+    
+    DestID_* neighs = new DestID_[offsets[num_nodes_local]];
+    DestID_** index = CSRGraph<NodeID_, DestID_>::GenIndex(offsets, neighs);
+    
+    #pragma omp parallel for
+    for (size_t i = 0; i < el.size(); ++i) {
+        neighs[fetch_and_add(offsets[el[i].first], 1)] = el[i].second;
+    }
+    
+    CSRGraph<NodeID_, DestID_, invert> g(num_nodes_local, index, neighs);
+    g = SquishGraphStandalone<NodeID_, DestID_, invert>(g);
+    
+    t.Stop();
+    if (verbose) {
+        PrintTime("Local Build Time", t.Seconds());
+    }
+    return g;
+}
+
+/**
+ * @brief Convert EdgeList to simple pair vector for standalone processing
+ */
+template <typename NodeID_, typename DestID_>
+std::vector<std::pair<NodeID_, DestID_>> EdgeListToVector(
+    const std::vector<std::pair<NodeID_, DestID_>>& el) 
+{
+    return el;  // Already in the right format
+}
+
+// ============================================================================
 // RESULT STRUCTURES
 // ============================================================================
 
@@ -3171,6 +3368,214 @@ inline CommunityFeatures MergedToCommunityFeatures(const MergedCommunityFeatures
     feat.diameter_estimate = 0.0;
     feat.community_count = 1.0;
     feat.modularity = 0.0;
+    return feat;
+}
+
+// ============================================================================
+// COMMUNITY FEATURE COMPUTATION (Standalone version)
+// ============================================================================
+
+/**
+ * @brief Compute features for a community (standalone template function)
+ * 
+ * This is a standalone version that can be used outside of BuilderBase.
+ * Computes structural features useful for algorithm selection.
+ * 
+ * @tparam NodeID_ Node ID type
+ * @tparam DestID_ Destination ID type (may include weights)
+ * @tparam invert Whether graph stores incoming edges
+ * @param comm_nodes Vector of node IDs in the community
+ * @param g The graph
+ * @param node_set Set of nodes for O(1) membership test
+ * @param compute_extended Whether to compute expensive features (clustering, diameter)
+ * @return CommunityFeatures struct with computed features
+ */
+template <typename NodeID_, typename DestID_, bool invert>
+CommunityFeatures ComputeCommunityFeaturesStandalone(
+    const std::vector<NodeID_>& comm_nodes,
+    const CSRGraph<NodeID_, DestID_, invert>& g,
+    const std::unordered_set<NodeID_>& node_set,
+    bool compute_extended = true)
+{
+    CommunityFeatures feat;
+    feat.num_nodes = comm_nodes.size();
+    feat.modularity = 0.0;  // Set externally if needed
+    
+    if (feat.num_nodes < 2) {
+        feat.num_edges = 0;
+        feat.internal_density = 0.0;
+        feat.avg_degree = 0.0;
+        feat.degree_variance = 0.0;
+        feat.hub_concentration = 0.0;
+        feat.clustering_coeff = 0.0;
+        feat.avg_path_length = 0.0;
+        feat.diameter_estimate = 0.0;
+        feat.community_count = 1.0;
+        return feat;
+    }
+
+    // Count internal edges and compute degrees
+    std::vector<size_t> internal_degrees(feat.num_nodes, 0);
+    size_t total_internal_edges = 0;
+    
+    #pragma omp parallel for reduction(+:total_internal_edges)
+    for (size_t i = 0; i < feat.num_nodes; ++i) {
+        NodeID_ node = comm_nodes[i];
+        size_t local_internal = 0;
+        for (DestID_ neighbor : g.out_neigh(node)) {
+            NodeID_ dest = static_cast<NodeID_>(neighbor);
+            if (node_set.count(dest)) {
+                ++local_internal;
+            }
+        }
+        internal_degrees[i] = local_internal;
+        total_internal_edges += local_internal;
+    }
+    
+    feat.num_edges = total_internal_edges / 2; // undirected
+    
+    // Internal density: actual edges / possible edges
+    size_t possible_edges = feat.num_nodes * (feat.num_nodes - 1) / 2;
+    feat.internal_density = (possible_edges > 0) ? 
+        static_cast<double>(feat.num_edges) / possible_edges : 0.0;
+    
+    // Average degree
+    feat.avg_degree = (feat.num_nodes > 0) ? 
+        static_cast<double>(total_internal_edges) / feat.num_nodes : 0.0;
+    
+    // Degree variance (normalized)
+    double sum_sq_diff = 0.0;
+    #pragma omp parallel for reduction(+:sum_sq_diff)
+    for (size_t i = 0; i < feat.num_nodes; ++i) {
+        double diff = internal_degrees[i] - feat.avg_degree;
+        sum_sq_diff += diff * diff;
+    }
+    double variance = (feat.num_nodes > 1) ? sum_sq_diff / (feat.num_nodes - 1) : 0.0;
+    feat.degree_variance = (feat.avg_degree > 0) ? 
+        std::sqrt(variance) / feat.avg_degree : 0.0; // coefficient of variation
+    
+    // Hub concentration: fraction of edges from top 10% degree nodes
+    std::vector<size_t> sorted_degrees = internal_degrees;
+    std::sort(sorted_degrees.rbegin(), sorted_degrees.rend());
+    size_t top_10_percent = std::max(size_t(1), feat.num_nodes / 10);
+    size_t top_edges = 0;
+    for (size_t i = 0; i < top_10_percent; ++i) {
+        top_edges += sorted_degrees[i];
+    }
+    feat.hub_concentration = (total_internal_edges > 0) ? 
+        static_cast<double>(top_edges) / total_internal_edges : 0.0;
+    
+    // Extended features (only for large communities)
+    const size_t MIN_SIZE_FOR_EXTENDED = 1000;
+    
+    if (compute_extended && feat.num_nodes >= MIN_SIZE_FOR_EXTENDED) {
+        // Clustering coefficient (fast sampled estimate)
+        const size_t MAX_SAMPLES_CC = std::min(size_t(50), feat.num_nodes / 20 + 1);
+        double total_cc = 0.0;
+        size_t valid_cc_samples = 0;
+        
+        // Find high-degree nodes for sampling
+        std::vector<std::pair<size_t, size_t>> deg_idx(feat.num_nodes);
+        for (size_t i = 0; i < feat.num_nodes; ++i) {
+            deg_idx[i] = {internal_degrees[i], i};
+        }
+        std::partial_sort(deg_idx.begin(), 
+                          deg_idx.begin() + std::min(MAX_SAMPLES_CC, feat.num_nodes),
+                          deg_idx.end(),
+                          std::greater<std::pair<size_t, size_t>>());
+        
+        for (size_t s = 0; s < MAX_SAMPLES_CC && s < feat.num_nodes; ++s) {
+            size_t idx = deg_idx[s].second;
+            NodeID_ node = comm_nodes[idx];
+            size_t deg = internal_degrees[idx];
+            if (deg < 2 || deg > 500) continue;
+            
+            std::unordered_set<NodeID_> neighbor_set;
+            for (DestID_ neighbor : g.out_neigh(node)) {
+                NodeID_ dest = static_cast<NodeID_>(neighbor);
+                if (node_set.count(dest)) {
+                    neighbor_set.insert(dest);
+                }
+            }
+            
+            size_t triangles = 0;
+            for (NodeID_ n1 : neighbor_set) {
+                for (DestID_ n2_edge : g.out_neigh(n1)) {
+                    NodeID_ n2 = static_cast<NodeID_>(n2_edge);
+                    if (n2 > n1 && neighbor_set.count(n2)) {
+                        ++triangles;
+                    }
+                }
+            }
+            
+            double local_cc = (2.0 * triangles) / (deg * (deg - 1));
+            total_cc += local_cc;
+            ++valid_cc_samples;
+        }
+        feat.clustering_coeff = (valid_cc_samples > 0) ? 
+            total_cc / valid_cc_samples : 0.0;
+        
+        // Diameter & Avg Path (single BFS from highest degree node)
+        if (!deg_idx.empty()) {
+            size_t start_idx = deg_idx[0].second;
+            std::vector<int> dist(feat.num_nodes, -1);
+            std::queue<size_t> bfs_queue;
+            bfs_queue.push(start_idx);
+            dist[start_idx] = 0;
+            
+            std::unordered_map<NodeID_, size_t> node_to_idx;
+            node_to_idx.reserve(feat.num_nodes);
+            for (size_t i = 0; i < feat.num_nodes; ++i) {
+                node_to_idx[comm_nodes[i]] = i;
+            }
+            
+            double path_sum = 0.0;
+            size_t path_count = 0;
+            size_t max_dist = 0;
+            
+            while (!bfs_queue.empty()) {
+                size_t curr_idx = bfs_queue.front();
+                bfs_queue.pop();
+                NodeID_ curr_node = comm_nodes[curr_idx];
+                
+                for (DestID_ neighbor : g.out_neigh(curr_node)) {
+                    NodeID_ dest = static_cast<NodeID_>(neighbor);
+                    auto it = node_to_idx.find(dest);
+                    if (it != node_to_idx.end() && dist[it->second] == -1) {
+                        size_t dest_idx = it->second;
+                        dist[dest_idx] = dist[curr_idx] + 1;
+                        bfs_queue.push(dest_idx);
+                        path_sum += dist[dest_idx];
+                        ++path_count;
+                        if (static_cast<size_t>(dist[dest_idx]) > max_dist) {
+                            max_dist = dist[dest_idx];
+                        }
+                    }
+                }
+            }
+            
+            feat.avg_path_length = (path_count > 0) ? path_sum / path_count : 1.0;
+            feat.diameter_estimate = static_cast<double>(max_dist);
+            
+            size_t unreached = 0;
+            for (size_t i = 0; i < feat.num_nodes; ++i) {
+                if (dist[i] == -1) ++unreached;
+            }
+            feat.community_count = (unreached > 0) ? 2.0 : 1.0;
+        } else {
+            feat.avg_path_length = 1.0;
+            feat.diameter_estimate = 1.0;
+            feat.community_count = 1.0;
+        }
+    } else {
+        // Small community - use fast estimates
+        feat.clustering_coeff = feat.internal_density;
+        feat.avg_path_length = (feat.internal_density > 0.1) ? 1.5 : 
+                               std::log2(feat.num_nodes + 1);
+        feat.diameter_estimate = feat.avg_path_length * 2.0;
+        feat.community_count = 1.0;
+    }
+    
     return feat;
 }
 

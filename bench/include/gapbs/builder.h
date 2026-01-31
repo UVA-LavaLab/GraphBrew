@@ -39,12 +39,9 @@
 #include "timer.h"
 #include "util.h"
 
-#include "reorder/reorder_leiden.h"
-#include "reorder/reorder_graphbrew.h"
-#include "reorder/reorder_rabbit.h"
-#include "reorder/reorder_hub.h"
-#include "reorder/reorder_basic.h"
-#include "reorder/reorder_classic.h"
+// Include the unified reorder header which provides all algorithm implementations
+#include "reorder/reorder.h"
+
 /*
    GAP Benchmark Suite
    Class:  BuilderBase
@@ -1727,50 +1724,13 @@ public:
         return g_relabel;
     }
 
+    /**
+     * Convert ReorderingAlgo to string.
+     * Delegates to the global ::ReorderingAlgoStr in reorder/reorder.h.
+     */
     const std::string ReorderingAlgoStr(ReorderingAlgo type)
     {
-        switch (type)
-        {
-        case HubSort:
-            return "HubSort";
-        case DBG:
-            return "DBG";
-        case HubClusterDBG:
-            return "HubClusterDBG";
-        case HubSortDBG:
-            return "HubSortDBG";
-        case HubCluster:
-            return "HubCluster";
-        case Random:
-            return "Random";
-        case RabbitOrder:
-            return "RabbitOrder";
-        case GOrder:
-            return "GOrder";
-        case COrder:
-            return "COrder";
-        case RCMOrder:
-            return "RCMOrder";
-        case LeidenOrder:
-            return "LeidenOrder";
-        case GraphBrewOrder:
-            return "GraphBrewOrder";
-        case AdaptiveOrder:
-            return "AdaptiveOrder";
-        case LeidenDendrogram:
-            return "LeidenDendrogram";
-        case LeidenCSR:
-            return "LeidenCSR";
-        case ORIGINAL:
-            return "Original";
-        case Sort:
-            return "Sort";
-        case MAP:
-            return "MAP";
-        default:
-            std::cerr << "Unknown Reordering Algorithm type: " << type << std::endl;
-            abort();
-        }
+        return ::ReorderingAlgoStr(type);
     }
     
     /**
@@ -1789,41 +1749,9 @@ public:
                               pvector<NodeID_>& sub_new_ids,
                               ReorderingAlgo algo,
                               bool useOutdeg) {
-        switch (algo) {
-            case HubSort:
-                GenerateHubSortMapping(sub_g, sub_new_ids, useOutdeg);
-                break;
-            case HubCluster:
-                GenerateHubClusterMapping(sub_g, sub_new_ids, useOutdeg);
-                break;
-            case DBG:
-                GenerateDBGMapping(sub_g, sub_new_ids, useOutdeg);
-                break;
-            case HubSortDBG:
-                GenerateHubSortDBGMapping(sub_g, sub_new_ids, useOutdeg);
-                break;
-            case HubClusterDBG:
-                GenerateHubClusterDBGMapping(sub_g, sub_new_ids, useOutdeg);
-                break;
-            case RCMOrder:
-                GenerateRCMOrderMapping(sub_g, sub_new_ids);
-                break;
-            case Sort:
-                GenerateSortMapping(sub_g, sub_new_ids, useOutdeg);
-                break;
-            case Random:
-                GenerateRandomMapping(sub_g, sub_new_ids);
-                break;
-#ifdef RABBIT_ENABLE
-            case RabbitOrder:
-                GenerateRabbitOrderMapping(sub_g, sub_new_ids);
-                break;
-#endif
-            case ORIGINAL:
-            default:
-                GenerateOriginalMapping(sub_g, sub_new_ids);
-                break;
-        }
+        // Delegate to standalone function in reorder_types.h
+        ::ApplyBasicReorderingStandalone<NodeID_, DestID_, WeightT_, invert>(
+            sub_g, sub_new_ids, algo, useOutdeg, cli_.filename());
     }
     
     /**
@@ -1837,7 +1765,7 @@ public:
      * 5. Map local reordered IDs back to global IDs
      * 6. Assign sequential global IDs to the reordered nodes
      * 
-     * Used by: GenerateAdaptiveMappingRecursive, GenerateGraphBrewGVEMapping
+     * Delegates to ::ReorderCommunitySubgraphStandalone in reorder/reorder.h
      * 
      * @param g The full graph
      * @param nodes Nodes in this community
@@ -1856,49 +1784,8 @@ public:
         pvector<NodeID_>& new_ids,
         NodeID_& current_id)
     {
-        const size_t comm_size = nodes.size();
-        if (comm_size == 0) return;
-        
-        // Build global-to-local / local-to-global mappings
-        std::unordered_map<NodeID_, NodeID_> global_to_local;
-        std::vector<NodeID_> local_to_global(comm_size);
-        for (size_t i = 0; i < comm_size; ++i) {
-            global_to_local[nodes[i]] = static_cast<NodeID_>(i);
-            local_to_global[i] = nodes[i];
-        }
-        
-        // Create edge list for induced subgraph
-        EdgeList sub_edges;
-        for (NodeID_ node : nodes) {
-            NodeID_ local_src = global_to_local[node];
-            for (DestID_ neighbor : g.out_neigh(node)) {
-                NodeID_ dest = static_cast<NodeID_>(neighbor);
-                if (node_set.count(dest)) {
-                    NodeID_ local_dst = global_to_local[dest];
-                    sub_edges.push_back(Edge(local_src, local_dst));
-                }
-            }
-        }
-        
-        // Build CSR graph and apply reordering
-        CSRGraph<NodeID_, DestID_, invert> sub_g = MakeLocalGraphFromEL(sub_edges);
-        pvector<NodeID_> sub_new_ids(comm_size, -1);
-        ApplyBasicReordering(sub_g, sub_new_ids, algo, useOutdeg);
-        
-        // Map local reordered IDs back to global IDs
-        std::vector<NodeID_> reordered_nodes(comm_size);
-        for (size_t i = 0; i < comm_size; ++i) {
-            if (sub_new_ids[i] >= 0 && sub_new_ids[i] < static_cast<NodeID_>(comm_size)) {
-                reordered_nodes[sub_new_ids[i]] = local_to_global[i];
-            } else {
-                reordered_nodes[i] = local_to_global[i];
-            }
-        }
-        
-        // Assign global IDs
-        for (NodeID_ node : reordered_nodes) {
-            new_ids[node] = current_id++;
-        }
+        ::ReorderCommunitySubgraphStandalone<NodeID_, DestID_, WeightT_, invert>(
+            g, nodes, node_set, algo, useOutdeg, new_ids, current_id);
     }
 
     void GenerateMapping(CSRGraph<NodeID_, DestID_, invert> &g,
@@ -2198,52 +2085,13 @@ public:
 #endif
     }
 
+    /**
+     * Convert string argument to ReorderingAlgo.
+     * Delegates to the global ::getReorderingAlgo in reorder/reorder.h.
+     */
     ReorderingAlgo getReorderingAlgo(const char *arg)
     {
-        int value = std::atoi(arg);
-        switch (value)
-        {
-        case 0:
-            return ORIGINAL;
-        case 1:
-            return Random;
-        case 2:
-            return Sort;
-        case 3:
-            return HubSort;
-        case 4:
-            return HubCluster;
-        case 5:
-            return DBG;
-        case 6:
-            return HubSortDBG;
-        case 7:
-            return HubClusterDBG;
-        case 8:
-            return RabbitOrder;
-        case 9:
-            return GOrder;
-        case 10:
-            return COrder;
-        case 11:
-            return RCMOrder;
-        case 12:
-            return GraphBrewOrder;
-        case 13:
-            return MAP;
-        case 14:
-            return AdaptiveOrder;
-        case 15:
-            return LeidenOrder;        // Format: 15:resolution
-        case 16:
-            return LeidenDendrogram;   // Format: 16:resolution:variant
-        case 17:
-            return LeidenCSR;          // Format: 17:resolution:passes:variant
-        default:
-            std::cerr << "Invalid ReorderingAlgo value: " << value << std::endl;
-            std::cerr << "Valid values: 0-17" << std::endl;
-            std::exit(EXIT_FAILURE);
-        }
+        return ::getReorderingAlgo(arg);
     }
 
     void VerifyMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
@@ -5604,197 +5452,9 @@ public:
         const std::unordered_set<NodeID_>& node_set,
         bool compute_extended = true)
     {
-        CommunityFeatures feat;
-        feat.num_nodes = comm_nodes.size();
-        feat.modularity = 0.0;  // Set externally if needed
-        
-        if (feat.num_nodes < 2) {
-            feat.num_edges = 0;
-            feat.internal_density = 0.0;
-            feat.avg_degree = 0.0;
-            feat.degree_variance = 0.0;
-            feat.hub_concentration = 0.0;
-            feat.clustering_coeff = 0.0;
-            feat.avg_path_length = 0.0;
-            feat.diameter_estimate = 0.0;
-            feat.community_count = 1.0;
-            return feat;
-        }
-
-        // Count internal edges and compute degrees
-        std::vector<size_t> internal_degrees(feat.num_nodes, 0);
-        size_t total_internal_edges = 0;
-        
-        #pragma omp parallel for reduction(+:total_internal_edges)
-        for (size_t i = 0; i < feat.num_nodes; ++i) {
-            NodeID_ node = comm_nodes[i];
-            size_t local_internal = 0;
-            for (DestID_ neighbor : g.out_neigh(node)) {
-                NodeID_ dest = static_cast<NodeID_>(neighbor);
-                if (node_set.count(dest)) {
-                    ++local_internal;
-                }
-            }
-            internal_degrees[i] = local_internal;
-            total_internal_edges += local_internal;
-        }
-        
-        feat.num_edges = total_internal_edges / 2; // undirected
-        
-        // Internal density: actual edges / possible edges
-        size_t possible_edges = feat.num_nodes * (feat.num_nodes - 1) / 2;
-        feat.internal_density = (possible_edges > 0) ? 
-            static_cast<double>(feat.num_edges) / possible_edges : 0.0;
-        
-        // Average degree
-        feat.avg_degree = (feat.num_nodes > 0) ? 
-            static_cast<double>(total_internal_edges) / feat.num_nodes : 0.0;
-        
-        // Degree variance (normalized)
-        double sum_sq_diff = 0.0;
-        #pragma omp parallel for reduction(+:sum_sq_diff)
-        for (size_t i = 0; i < feat.num_nodes; ++i) {
-            double diff = internal_degrees[i] - feat.avg_degree;
-            sum_sq_diff += diff * diff;
-        }
-        double variance = (feat.num_nodes > 1) ? sum_sq_diff / (feat.num_nodes - 1) : 0.0;
-        feat.degree_variance = (feat.avg_degree > 0) ? 
-            std::sqrt(variance) / feat.avg_degree : 0.0; // coefficient of variation
-        
-        // Hub concentration: fraction of edges from top 10% degree nodes
-        std::vector<size_t> sorted_degrees = internal_degrees;
-        std::sort(sorted_degrees.rbegin(), sorted_degrees.rend());
-        size_t top_10_percent = std::max(size_t(1), feat.num_nodes / 10);
-        size_t top_edges = 0;
-        for (size_t i = 0; i < top_10_percent; ++i) {
-            top_edges += sorted_degrees[i];
-        }
-        feat.hub_concentration = (total_internal_edges > 0) ? 
-            static_cast<double>(top_edges) / total_internal_edges : 0.0;
-        
-        // ============================================================
-        // EXTENDED FEATURES (computed via fast sampling for efficiency)
-        // Only compute for larger communities where it matters
-        // ============================================================
-        const size_t MIN_SIZE_FOR_EXTENDED = 1000;  // Skip for small communities
-        
-        if (compute_extended && feat.num_nodes >= MIN_SIZE_FOR_EXTENDED) {
-            
-            // --- Clustering Coefficient (fast sampled estimate) ---
-            // Sample only a few high-degree nodes and use hash set for O(1) neighbor lookup
-            const size_t MAX_SAMPLES_CC = std::min(size_t(50), feat.num_nodes / 20 + 1);
-            double total_cc = 0.0;
-            size_t valid_cc_samples = 0;
-            
-            // Find high-degree nodes for sampling (they're more informative)
-            std::vector<std::pair<size_t, size_t>> deg_idx(feat.num_nodes);
-            for (size_t i = 0; i < feat.num_nodes; ++i) {
-                deg_idx[i] = {internal_degrees[i], i};
-            }
-            std::partial_sort(deg_idx.begin(), 
-                              deg_idx.begin() + std::min(MAX_SAMPLES_CC, feat.num_nodes),
-                              deg_idx.end(),
-                              std::greater<std::pair<size_t, size_t>>());
-            
-            for (size_t s = 0; s < MAX_SAMPLES_CC && s < feat.num_nodes; ++s) {
-                size_t idx = deg_idx[s].second;
-                NodeID_ node = comm_nodes[idx];
-                size_t deg = internal_degrees[idx];
-                if (deg < 2 || deg > 500) continue;  // Skip very high degree (too slow)
-                
-                // Get internal neighbors into a hash set for O(1) lookup
-                std::unordered_set<NodeID_> neighbor_set;
-                for (DestID_ neighbor : g.out_neigh(node)) {
-                    NodeID_ dest = static_cast<NodeID_>(neighbor);
-                    if (node_set.count(dest)) {
-                        neighbor_set.insert(dest);
-                    }
-                }
-                
-                // Count triangles using hash set lookup
-                size_t triangles = 0;
-                for (NodeID_ n1 : neighbor_set) {
-                    for (DestID_ n2_edge : g.out_neigh(n1)) {
-                        NodeID_ n2 = static_cast<NodeID_>(n2_edge);
-                        if (n2 > n1 && neighbor_set.count(n2)) {  // n2 > n1 avoids double counting
-                            ++triangles;
-                        }
-                    }
-                }
-                
-                double local_cc = (2.0 * triangles) / (deg * (deg - 1));
-                total_cc += local_cc;
-                ++valid_cc_samples;
-            }
-            feat.clustering_coeff = (valid_cc_samples > 0) ? 
-                total_cc / valid_cc_samples : 0.0;
-            
-            // --- Diameter & Avg Path (single BFS from highest degree node) ---
-            // Just one BFS is enough for a rough estimate
-            if (!deg_idx.empty()) {
-                size_t start_idx = deg_idx[0].second;
-                std::vector<int> dist(feat.num_nodes, -1);
-                std::queue<size_t> bfs_queue;
-                bfs_queue.push(start_idx);
-                dist[start_idx] = 0;
-                
-                // Build local index map (reuse node_set which we already have)
-                std::unordered_map<NodeID_, size_t> node_to_idx;
-                node_to_idx.reserve(feat.num_nodes);
-                for (size_t i = 0; i < feat.num_nodes; ++i) {
-                    node_to_idx[comm_nodes[i]] = i;
-                }
-                
-                double path_sum = 0.0;
-                size_t path_count = 0;
-                size_t max_dist = 0;
-                
-                while (!bfs_queue.empty()) {
-                    size_t curr_idx = bfs_queue.front();
-                    bfs_queue.pop();
-                    NodeID_ curr_node = comm_nodes[curr_idx];
-                    
-                    for (DestID_ neighbor : g.out_neigh(curr_node)) {
-                        NodeID_ dest = static_cast<NodeID_>(neighbor);
-                        auto it = node_to_idx.find(dest);
-                        if (it != node_to_idx.end() && dist[it->second] == -1) {
-                            size_t dest_idx = it->second;
-                            dist[dest_idx] = dist[curr_idx] + 1;
-                            bfs_queue.push(dest_idx);
-                            path_sum += dist[dest_idx];
-                            ++path_count;
-                            if (static_cast<size_t>(dist[dest_idx]) > max_dist) {
-                                max_dist = dist[dest_idx];
-                            }
-                        }
-                    }
-                }
-                
-                feat.avg_path_length = (path_count > 0) ? path_sum / path_count : 1.0;
-                feat.diameter_estimate = static_cast<double>(max_dist);
-                
-                // Community count = number of unreached nodes + 1 (connected component)
-                size_t unreached = 0;
-                for (size_t i = 0; i < feat.num_nodes; ++i) {
-                    if (dist[i] == -1) ++unreached;
-                }
-                feat.community_count = (unreached > 0) ? 2.0 : 1.0;  // Simplified: connected or not
-            } else {
-                feat.avg_path_length = 1.0;
-                feat.diameter_estimate = 1.0;
-                feat.community_count = 1.0;
-            }
-            
-        } else {
-            // Small community or extended features disabled - use fast estimates
-            feat.clustering_coeff = feat.internal_density;  // Rough proxy
-            feat.avg_path_length = (feat.internal_density > 0.1) ? 1.5 : 
-                                   std::log2(feat.num_nodes + 1);  // Small-world estimate
-            feat.diameter_estimate = feat.avg_path_length * 2.0;
-            feat.community_count = 1.0;
-        }
-        
-        return feat;
+        // Delegate to standalone function in reorder_types.h
+        return ::ComputeCommunityFeaturesStandalone<NodeID_, DestID_, invert>(
+            comm_nodes, g, node_set, compute_extended);
     }
 
     /**
