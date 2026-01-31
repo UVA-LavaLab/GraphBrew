@@ -1825,6 +1825,81 @@ public:
                 break;
         }
     }
+    
+    /**
+     * Reorder a community's nodes and assign global IDs.
+     * 
+     * This helper encapsulates the common pattern:
+     * 1. Build global-to-local / local-to-global mappings
+     * 2. Create edge list for the induced subgraph
+     * 3. Build CSR graph from edge list
+     * 4. Apply reordering algorithm
+     * 5. Map local reordered IDs back to global IDs
+     * 6. Assign sequential global IDs to the reordered nodes
+     * 
+     * Used by: GenerateAdaptiveMappingRecursive, GenerateGraphBrewGVEMapping
+     * 
+     * @param g The full graph
+     * @param nodes Nodes in this community
+     * @param node_set Set version for O(1) membership lookup
+     * @param algo Algorithm to apply
+     * @param useOutdeg Use out-degree (true) or in-degree (false)
+     * @param new_ids Output global mapping (modified in place)
+     * @param current_id Starting global ID (updated after assignment)
+     */
+    void ReorderCommunitySubgraph(
+        const CSRGraph<NodeID_, DestID_, invert>& g,
+        const std::vector<NodeID_>& nodes,
+        const std::unordered_set<NodeID_>& node_set,
+        ReorderingAlgo algo,
+        bool useOutdeg,
+        pvector<NodeID_>& new_ids,
+        NodeID_& current_id)
+    {
+        const size_t comm_size = nodes.size();
+        if (comm_size == 0) return;
+        
+        // Build global-to-local / local-to-global mappings
+        std::unordered_map<NodeID_, NodeID_> global_to_local;
+        std::vector<NodeID_> local_to_global(comm_size);
+        for (size_t i = 0; i < comm_size; ++i) {
+            global_to_local[nodes[i]] = static_cast<NodeID_>(i);
+            local_to_global[i] = nodes[i];
+        }
+        
+        // Create edge list for induced subgraph
+        EdgeList sub_edges;
+        for (NodeID_ node : nodes) {
+            NodeID_ local_src = global_to_local[node];
+            for (DestID_ neighbor : g.out_neigh(node)) {
+                NodeID_ dest = static_cast<NodeID_>(neighbor);
+                if (node_set.count(dest)) {
+                    NodeID_ local_dst = global_to_local[dest];
+                    sub_edges.push_back(Edge(local_src, local_dst));
+                }
+            }
+        }
+        
+        // Build CSR graph and apply reordering
+        CSRGraph<NodeID_, DestID_, invert> sub_g = MakeLocalGraphFromEL(sub_edges);
+        pvector<NodeID_> sub_new_ids(comm_size, -1);
+        ApplyBasicReordering(sub_g, sub_new_ids, algo, useOutdeg);
+        
+        // Map local reordered IDs back to global IDs
+        std::vector<NodeID_> reordered_nodes(comm_size);
+        for (size_t i = 0; i < comm_size; ++i) {
+            if (sub_new_ids[i] >= 0 && sub_new_ids[i] < static_cast<NodeID_>(comm_size)) {
+                reordered_nodes[sub_new_ids[i]] = local_to_global[i];
+            } else {
+                reordered_nodes[i] = local_to_global[i];
+            }
+        }
+        
+        // Assign global IDs
+        for (NodeID_ node : reordered_nodes) {
+            new_ids[node] = current_id++;
+        }
+    }
 
     void GenerateMapping(CSRGraph<NodeID_, DestID_, invert> &g,
                          pvector<NodeID_> &new_ids,
@@ -6285,45 +6360,9 @@ public:
                     new_ids[node] = current_id++;
                 }
             } else {
-                // Build subgraph and apply selected algorithm
-                std::unordered_map<NodeID_, NodeID_> global_to_local;
-                std::vector<NodeID_> local_to_global(small_group_size);
-                for (size_t i = 0; i < small_group_size; ++i) {
-                    global_to_local[small_community_nodes[i]] = static_cast<NodeID_>(i);
-                    local_to_global[i] = small_community_nodes[i];
-                }
-                
-                EdgeList sub_edges;
-                for (NodeID_ node : small_community_nodes) {
-                    NodeID_ local_src = global_to_local[node];
-                    for (DestID_ neighbor : g.out_neigh(node)) {
-                        NodeID_ dest = static_cast<NodeID_>(neighbor);
-                        if (small_node_set.count(dest)) {
-                            NodeID_ local_dst = global_to_local[dest];
-                            sub_edges.push_back(Edge(local_src, local_dst));
-                        }
-                    }
-                }
-                
-                CSRGraph<NodeID_, DestID_, invert> sub_g = MakeLocalGraphFromEL(sub_edges);
-                pvector<NodeID_> sub_new_ids(small_group_size, -1);
-                
-                // Apply selected algorithm using helper
-                ApplyBasicReordering(sub_g, sub_new_ids, small_algo, useOutdeg);
-                
-                // Map back to global IDs
-                std::vector<NodeID_> reordered_nodes(small_group_size);
-                for (size_t i = 0; i < small_group_size; ++i) {
-                    if (sub_new_ids[i] >= 0 && sub_new_ids[i] < static_cast<NodeID_>(small_group_size)) {
-                        reordered_nodes[sub_new_ids[i]] = local_to_global[i];
-                    } else {
-                        reordered_nodes[i] = local_to_global[i];
-                    }
-                }
-                
-                for (NodeID_ node : reordered_nodes) {
-                    new_ids[node] = current_id++;
-                }
+                // Use helper to build subgraph, apply algorithm, and map back
+                ReorderCommunitySubgraph(g, small_community_nodes, small_node_set,
+                                          small_algo, useOutdeg, new_ids, current_id);
             }
         }
         
@@ -6387,50 +6426,9 @@ public:
                 }
             }
             else {
-                // LOCAL REORDERING CASE
-                std::unordered_map<NodeID_, NodeID_> global_to_local;
-                std::vector<NodeID_> local_to_global(comm_size);
-                for (size_t i = 0; i < comm_size; ++i) {
-                    global_to_local[nodes[i]] = static_cast<NodeID_>(i);
-                    local_to_global[i] = nodes[i];
-                }
-                
-                // Create edge list for subgraph
-                EdgeList sub_edges;
+                // LOCAL REORDERING CASE: Use helper to build subgraph, apply, and map back
                 std::unordered_set<NodeID_> node_set(nodes.begin(), nodes.end());
-                
-                for (NodeID_ node : nodes) {
-                    NodeID_ local_src = global_to_local[node];
-                    for (DestID_ neighbor : g.out_neigh(node)) {
-                        NodeID_ dest = static_cast<NodeID_>(neighbor);
-                        if (node_set.count(dest)) {
-                            NodeID_ local_dst = global_to_local[dest];
-                            sub_edges.push_back(Edge(local_src, local_dst));
-                        }
-                    }
-                }
-                
-                // Build local graph
-                CSRGraph<NodeID_, DestID_, invert> sub_g = MakeLocalGraphFromEL(sub_edges);
-                pvector<NodeID_> sub_new_ids(comm_size, -1);
-                
-                // Apply the selected local algorithm using helper
-                ApplyBasicReordering(sub_g, sub_new_ids, algo, useOutdeg);
-                
-                // Map local reordered IDs back to global IDs
-                std::vector<NodeID_> reordered_nodes(comm_size);
-                for (size_t i = 0; i < comm_size; ++i) {
-                    if (sub_new_ids[i] >= 0 && sub_new_ids[i] < static_cast<NodeID_>(comm_size)) {
-                        reordered_nodes[sub_new_ids[i]] = local_to_global[i];
-                    } else {
-                        reordered_nodes[i] = local_to_global[i];
-                    }
-                }
-                
-                // Assign global IDs
-                for (NodeID_ node : reordered_nodes) {
-                    new_ids[node] = current_id++;
-                }
+                ReorderCommunitySubgraph(g, nodes, node_set, algo, useOutdeg, new_ids, current_id);
             }
         }
         
@@ -6823,44 +6821,9 @@ public:
                     new_ids[node] = current_id++;
                 }
             } else {
-                // Build subgraph and apply selected algorithm
-                std::unordered_map<NodeID_, NodeID_> global_to_local;
-                std::vector<NodeID_> local_to_global(small_group_size);
-                for (size_t i = 0; i < small_group_size; ++i) {
-                    global_to_local[small_community_nodes[i]] = static_cast<NodeID_>(i);
-                    local_to_global[i] = small_community_nodes[i];
-                }
-                
-                EdgeList sub_edges;
-                for (NodeID_ node : small_community_nodes) {
-                    NodeID_ local_src = global_to_local[node];
-                    for (DestID_ neighbor : g.out_neigh(node)) {
-                        NodeID_ dest = static_cast<NodeID_>(neighbor);
-                        if (small_node_set.count(dest)) {
-                            NodeID_ local_dst = global_to_local[dest];
-                            sub_edges.push_back(Edge(local_src, local_dst));
-                        }
-                    }
-                }
-                
-                CSRGraph<NodeID_, DestID_, invert> sub_g = MakeLocalGraphFromEL(sub_edges);
-                pvector<NodeID_> sub_new_ids(small_group_size, -1);
-                
-                // Apply selected algorithm using helper
-                ApplyBasicReordering(sub_g, sub_new_ids, small_algo, useOutdeg);
-                
-                std::vector<NodeID_> reordered_nodes(small_group_size);
-                for (size_t i = 0; i < small_group_size; ++i) {
-                    if (sub_new_ids[i] >= 0 && sub_new_ids[i] < static_cast<NodeID_>(small_group_size)) {
-                        reordered_nodes[sub_new_ids[i]] = local_to_global[i];
-                    } else {
-                        reordered_nodes[i] = local_to_global[i];
-                    }
-                }
-                
-                for (NodeID_ node : reordered_nodes) {
-                    new_ids[node] = current_id++;
-                }
+                // Use helper to build subgraph, apply algorithm, and map back
+                ReorderCommunitySubgraph(g, small_community_nodes, small_node_set,
+                                          small_algo, useOutdeg, new_ids, current_id);
             }
         }
         
@@ -7580,66 +7543,17 @@ public:
         if (!small_community_nodes.empty()) {
             size_t small_group_size = small_community_nodes.size();
             
-            // Compute features for merged small community group
+            // Compute features for merged small community group using shared utility
             std::unordered_set<NodeID_> small_node_set(
                 small_community_nodes.begin(), small_community_nodes.end());
             
-            // Count internal edges and compute stats
-            size_t small_edges = 0;
-            std::vector<int64_t> degrees(small_group_size);
-            int64_t total_deg = 0;
-            size_t idx = 0;
+            auto merged_feat = ::ComputeMergedCommunityFeatures(g, small_community_nodes, small_node_set);
             
-            for (NodeID_ node : small_community_nodes) {
-                int64_t deg = 0;
-                for (DestID_ neighbor : g.out_neigh(node)) {
-                    NodeID_ dest = static_cast<NodeID_>(neighbor);
-                    if (small_node_set.count(dest)) {
-                        deg++;
-                        small_edges++;
-                    }
-                }
-                degrees[idx++] = deg;
-                total_deg += deg;
-            }
-            small_edges /= 2;
-            
-            // Compute features
-            double avg_deg = (small_group_size > 0) ? static_cast<double>(total_deg) / small_group_size : 0;
-            double density = (small_group_size > 1) ? avg_deg / (small_group_size - 1) : 0.0;
-            
-            double sum_sq_diff = 0;
-            for (auto d : degrees) {
-                double diff = d - avg_deg;
-                sum_sq_diff += diff * diff;
-            }
-            double deg_variance = (small_group_size > 1 && avg_deg > 0) ? 
-                std::sqrt(sum_sq_diff / (small_group_size - 1)) / avg_deg : 0.0;
-            
-            std::sort(degrees.rbegin(), degrees.rend());
-            size_t top_10 = std::max(size_t(1), small_group_size / 10);
-            int64_t top_sum = 0;
-            for (size_t i = 0; i < top_10 && i < degrees.size(); ++i) {
-                top_sum += degrees[i];
-            }
-            double hub_conc = (total_deg > 0) ? static_cast<double>(top_sum) / total_deg : 0.0;
-            
-            // Simple algorithm selection based on features
-            ReorderingAlgo small_algo;
-            if (small_group_size < 100) {
-                small_algo = ORIGINAL;
-            } else if (hub_conc > 0.5 && deg_variance > 1.5) {
-                small_algo = HubClusterDBG;
-            } else if (hub_conc > 0.4) {
-                small_algo = HubSort;
-            } else if (density > 0.05) {
-                small_algo = DBG;
-            } else {
-                small_algo = HubSortDBG;
-            }
+            // Use heuristic algorithm selection for GraphBrew (faster than perceptron)
+            ReorderingAlgo small_algo = ::SelectAlgorithmForSmallGroup(merged_feat);
             
             printf("GraphBrew: Grouped %zu nodes from small communities (%zu edges) -> %s\n",
-                   small_group_size, small_edges, ReorderingAlgoStr(small_algo).c_str());
+                   small_group_size, merged_feat.num_edges, ReorderingAlgoStr(small_algo).c_str());
             
             if (small_algo == ORIGINAL || small_group_size < 100) {
                 // Simple degree sort
@@ -7658,44 +7572,9 @@ public:
                     new_ids[node] = current_id++;
                 }
             } else {
-                // Build subgraph and apply selected algorithm
-                std::unordered_map<NodeID_, NodeID_> global_to_local;
-                std::vector<NodeID_> local_to_global(small_group_size);
-                for (size_t i = 0; i < small_group_size; ++i) {
-                    global_to_local[small_community_nodes[i]] = static_cast<NodeID_>(i);
-                    local_to_global[i] = small_community_nodes[i];
-                }
-                
-                EdgeList sub_edges;
-                for (NodeID_ node : small_community_nodes) {
-                    NodeID_ local_src = global_to_local[node];
-                    for (DestID_ neighbor : g.out_neigh(node)) {
-                        NodeID_ dest = static_cast<NodeID_>(neighbor);
-                        if (small_node_set.count(dest)) {
-                            NodeID_ local_dst = global_to_local[dest];
-                            sub_edges.push_back(Edge(local_src, local_dst));
-                        }
-                    }
-                }
-                
-                CSRGraph<NodeID_, DestID_, invert> sub_g = MakeLocalGraphFromEL(sub_edges);
-                pvector<NodeID_> sub_new_ids(small_group_size, -1);
-                
-                // Apply selected algorithm using helper
-                ApplyBasicReordering(sub_g, sub_new_ids, small_algo, useOutdeg);
-                
-                std::vector<NodeID_> reordered_nodes(small_group_size);
-                for (size_t i = 0; i < small_group_size; ++i) {
-                    if (sub_new_ids[i] >= 0 && sub_new_ids[i] < static_cast<NodeID_>(small_group_size)) {
-                        reordered_nodes[sub_new_ids[i]] = local_to_global[i];
-                    } else {
-                        reordered_nodes[i] = local_to_global[i];
-                    }
-                }
-                
-                for (NodeID_ node : reordered_nodes) {
-                    new_ids[node] = current_id++;
-                }
+                // Use helper to build subgraph, apply algorithm, and map back
+                ReorderCommunitySubgraph(g, small_community_nodes, small_node_set,
+                                          small_algo, useOutdeg, new_ids, current_id);
             }
         }
         
