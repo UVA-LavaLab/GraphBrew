@@ -272,125 +272,16 @@ inline bool hasVariants(ReorderingAlgo algo) {
 /**
  * @brief Get default perceptron weights for AdaptiveOrder
  * 
- * These weights are used when no trained weights are available.
- * They encode domain knowledge about when each algorithm performs well.
+ * Delegates to the comprehensive GetPerceptronWeights() function in reorder_types.h
+ * which contains weights for all algorithms.
  * 
  * Positive weight = algorithm prefers higher values of that feature
  * Negative weight = algorithm prefers lower values
  * 
- * NOTE: The comprehensive weights with all algorithms are in BuilderBase::GetPerceptronWeights().
- * This function provides a minimal subset for quick reference.
- * 
  * @return Map of algorithm enum to default PerceptronWeights
  */
 inline const std::map<ReorderingAlgo, PerceptronWeights>& getDefaultPerceptronWeights() {
-    static const std::map<ReorderingAlgo, PerceptronWeights> default_weights = {
-        // ORIGINAL: Baseline, no strong preferences
-        {ORIGINAL, {
-            .bias = 0.0,
-            .w_modularity = 0.0,
-            .w_log_nodes = 0.0,
-            .w_log_edges = 0.0,
-            .w_density = 0.0,
-            .w_avg_degree = 0.0,
-            .w_degree_variance = 0.0,
-            .w_hub_concentration = 0.0,
-            .w_clustering_coeff = 0.0,
-            .w_avg_path_length = 0.0,
-            .w_diameter = 0.0,
-            .w_community_count = 0.0,
-            .cache_l1_impact = 0.0,
-            .cache_l2_impact = 0.0,
-            .cache_l3_impact = 0.0,
-            .cache_dram_penalty = 0.0,
-            .w_reorder_time = 0.0
-        }},
-        
-        // HUBCLUSTERDBG: Good for power-law graphs
-        {HubClusterDBG, {
-            .bias = 0.7,
-            .w_modularity = -0.1,
-            .w_log_nodes = 0.05,
-            .w_log_edges = 0.05,
-            .w_density = -0.2,
-            .w_avg_degree = 0.0,
-            .w_degree_variance = 0.3,
-            .w_hub_concentration = 0.4,
-            .w_clustering_coeff = 0.0,
-            .w_avg_path_length = 0.0,
-            .w_diameter = 0.0,
-            .w_community_count = 0.0,
-            .cache_l1_impact = 0.0,
-            .cache_l2_impact = 0.0,
-            .cache_l3_impact = 0.0,
-            .cache_dram_penalty = 0.0,
-            .w_reorder_time = 0.1
-        }},
-        
-        // RABBITORDER: Good for community-structured graphs
-        {RabbitOrder, {
-            .bias = 0.6,
-            .w_modularity = 0.25,
-            .w_log_nodes = 0.08,
-            .w_log_edges = 0.08,
-            .w_density = -0.15,
-            .w_avg_degree = 0.05,
-            .w_degree_variance = 0.1,
-            .w_hub_concentration = 0.1,
-            .w_clustering_coeff = 0.0,
-            .w_avg_path_length = 0.0,
-            .w_diameter = 0.0,
-            .w_community_count = 0.0,
-            .cache_l1_impact = 0.0,
-            .cache_l2_impact = 0.0,
-            .cache_l3_impact = 0.0,
-            .cache_dram_penalty = 0.0,
-            .w_reorder_time = -0.1
-        }},
-        
-        // LEIDENCSR: Best quality for community graphs
-        {LeidenCSR, {
-            .bias = 0.65,
-            .w_modularity = 0.3,
-            .w_log_nodes = 0.1,
-            .w_log_edges = 0.1,
-            .w_density = -0.1,
-            .w_avg_degree = 0.05,
-            .w_degree_variance = 0.15,
-            .w_hub_concentration = 0.1,
-            .w_clustering_coeff = 0.0,
-            .w_avg_path_length = 0.0,
-            .w_diameter = 0.0,
-            .w_community_count = 0.0,
-            .cache_l1_impact = 0.0,
-            .cache_l2_impact = 0.0,
-            .cache_l3_impact = 0.0,
-            .cache_dram_penalty = 0.0,
-            .w_reorder_time = -0.2
-        }},
-        
-        // GRAPHBREWORDER: Leiden + per-community ordering
-        {GraphBrewOrder, {
-            .bias = 0.6,
-            .w_modularity = 0.25,
-            .w_log_nodes = 0.1,
-            .w_log_edges = 0.08,
-            .w_density = -0.3,
-            .w_avg_degree = 0.0,
-            .w_degree_variance = 0.2,
-            .w_hub_concentration = 0.1,
-            .w_clustering_coeff = 0.0,
-            .w_avg_path_length = 0.0,
-            .w_diameter = 0.0,
-            .w_community_count = 0.0,
-            .cache_l1_impact = 0.0,
-            .cache_l2_impact = 0.0,
-            .cache_l3_impact = 0.0,
-            .cache_dram_penalty = 0.0,
-            .w_reorder_time = -0.5
-        }},
-    };
-    return default_weights;
+    return GetPerceptronWeights();
 }
 
 #endif  // REORDER_H_

@@ -1687,4 +1687,193 @@ void orderLeidenHybridHubDFS(
     }
 }
 
+// ============================================================================
+// DEFAULT PERCEPTRON WEIGHTS FOR ALL ALGORITHMS
+// ============================================================================
+
+/**
+ * @brief Get default perceptron weights for all reordering algorithms
+ * 
+ * These weights are used by AdaptiveOrder when no trained weights are available.
+ * They encode domain knowledge about when each algorithm performs well:
+ * 
+ * Weight interpretation:
+ * - Positive weight = algorithm prefers higher values of that feature
+ * - Negative weight = algorithm prefers lower values
+ * 
+ * Key observations from benchmarks:
+ * - LeidenDendrogram: Best overall (avg 2.86x speedup), wins on high-mod graphs
+ * - RabbitOrder: Best on low-modularity synthetic graphs (4.06x)
+ * - HubClusterDBG: Good general-purpose (2.38x), fast reordering
+ * - RCMOrder: Best for sparse graphs (high w_density penalty on dense)
+ * - GraphBrewOrder: Mixed - good baseline but overhead matters on small graphs
+ * - AdaptiveOrder: Recursive application shows benefit on large communities
+ * 
+ * @return Map of algorithm enum to default PerceptronWeights
+ */
+inline const std::map<ReorderingAlgo, PerceptronWeights>& GetPerceptronWeights() {
+    static const std::map<ReorderingAlgo, PerceptronWeights> weights = {
+        // ORIGINAL: baseline, no reordering overhead
+        {ORIGINAL, {
+            .bias = 1.0,
+            .w_modularity = 0.3,      // good on high-mod (no overhead)
+            .w_log_nodes = -0.05,     // worse as graph grows
+            .w_log_edges = -0.02,
+            .w_density = 0.0,
+            .w_avg_degree = 0.0,
+            .w_degree_variance = -0.1,
+            .w_hub_concentration = -0.1,
+            .w_clustering_coeff = 0.0, .w_avg_path_length = 0.0, .w_diameter = 0.0, .w_community_count = 0.0,
+            .cache_l1_impact = 0.0, .cache_l2_impact = 0.0, .cache_l3_impact = 0.0, .cache_dram_penalty = 0.0,
+            .w_reorder_time = 0.0
+        }},
+        // HubSort: light reordering, puts hubs first
+        {HubSort, {
+            .bias = 0.85,
+            .w_modularity = 0.0,
+            .w_log_nodes = 0.02,
+            .w_log_edges = 0.02,
+            .w_density = -0.5,        // worse on dense
+            .w_avg_degree = 0.02,
+            .w_degree_variance = 0.15,
+            .w_hub_concentration = 0.25,  // best when hubs dominate
+            .w_clustering_coeff = 0.0, .w_avg_path_length = 0.0, .w_diameter = 0.0, .w_community_count = 0.0,
+            .cache_l1_impact = 0.0, .cache_l2_impact = 0.0, .cache_l3_impact = 0.0, .cache_dram_penalty = 0.0,
+            .w_reorder_time = -0.1     // fast reordering
+        }},
+        // HubCluster: groups hubs together
+        {HubCluster, {
+            .bias = 0.82,
+            .w_modularity = 0.05,
+            .w_log_nodes = 0.03,
+            .w_log_edges = 0.03,
+            .w_density = -0.3,
+            .w_avg_degree = 0.03,
+            .w_degree_variance = 0.2,
+            .w_hub_concentration = 0.3,
+            .w_clustering_coeff = 0.0, .w_avg_path_length = 0.0, .w_diameter = 0.0, .w_community_count = 0.0,
+            .cache_l1_impact = 0.0, .cache_l2_impact = 0.0, .cache_l3_impact = 0.0, .cache_dram_penalty = 0.0,
+            .w_reorder_time = -0.1
+        }},
+        // DBG: degree-based grouping
+        {DBG, {
+            .bias = 0.8,
+            .w_modularity = -0.1,     // better on low-mod
+            .w_log_nodes = 0.02,
+            .w_log_edges = 0.02,
+            .w_density = -0.4,
+            .w_avg_degree = 0.0,
+            .w_degree_variance = 0.25,    // best with varied degrees
+            .w_hub_concentration = 0.1,
+            .w_clustering_coeff = 0.0, .w_avg_path_length = 0.0, .w_diameter = 0.0, .w_community_count = 0.0,
+            .cache_l1_impact = 0.0, .cache_l2_impact = 0.0, .cache_l3_impact = 0.0, .cache_dram_penalty = 0.0,
+            .w_reorder_time = -0.05
+        }},
+        // HubClusterDBG: combination approach
+        // Benchmark: avg_speedup=2.38x, good but outperformed by Leiden variants
+        {HubClusterDBG, {
+            .bias = 0.62,             // lowered - Leiden variants are better
+            .w_modularity = 0.10,     // better on higher mod
+            .w_log_nodes = 0.04,
+            .w_log_edges = 0.04,
+            .w_density = -0.20,
+            .w_avg_degree = 0.02,
+            .w_degree_variance = 0.25,
+            .w_hub_concentration = 0.20,
+            .w_clustering_coeff = 0.0, .w_avg_path_length = 0.0, .w_diameter = 0.0, .w_community_count = 0.0,
+            .cache_l1_impact = 0.0, .cache_l2_impact = 0.0, .cache_l3_impact = 0.0, .cache_dram_penalty = 0.0,
+            .w_reorder_time = -0.1
+        }},
+#ifdef RABBIT_ENABLE
+        // RabbitOrder: recursive bisection
+        // Benchmark: avg_speedup=4.06x, good on social networks
+        {RabbitOrder, {
+            .bias = 0.70,
+            .w_modularity = -0.30,    // better on LOW modularity (synth graphs)
+            .w_log_nodes = 0.05,      // scales well
+            .w_log_edges = 0.05,
+            .w_density = -0.30,       // worse on dense
+            .w_avg_degree = 0.0,
+            .w_degree_variance = 0.20,
+            .w_hub_concentration = 0.15,
+            .w_clustering_coeff = 0.05, .w_avg_path_length = -0.02, .w_diameter = 0.0, .w_community_count = 0.0,
+            .cache_l1_impact = 0.0, .cache_l2_impact = 0.0, .cache_l3_impact = 0.0, .cache_dram_penalty = 0.0,
+            .w_reorder_time = -0.3     // higher reorder cost
+        }},
+#endif
+        // RCMOrder: reverse Cuthill-McKee
+        {RCMOrder, {
+            .bias = 0.7,
+            .w_modularity = 0.0,
+            .w_log_nodes = 0.03,
+            .w_log_edges = 0.02,
+            .w_density = -0.8,        // strong penalty on dense
+            .w_avg_degree = -0.03,    // worse on high degree
+            .w_degree_variance = 0.05,
+            .w_hub_concentration = 0.0,
+            .w_clustering_coeff = 0.0, .w_avg_path_length = 0.1, .w_diameter = 0.05, .w_community_count = 0.0,
+            .cache_l1_impact = 0.0, .cache_l2_impact = 0.0, .cache_l3_impact = 0.0, .cache_dram_penalty = 0.0,
+            .w_reorder_time = -0.2
+        }},
+        // LeidenOrder: community-based
+        // Benchmark: avg_speedup=4.40x (highest trial speedup but high reorder cost)
+        {LeidenOrder, {
+            .bias = 0.76,             // win_trial=2, high trial speedup
+            .w_modularity = 0.40,     // best on high modularity
+            .w_log_nodes = 0.05,
+            .w_log_edges = 0.05,
+            .w_density = -0.20,
+            .w_avg_degree = 0.01,
+            .w_degree_variance = 0.10,
+            .w_hub_concentration = 0.10,
+            .w_clustering_coeff = 0.1, .w_avg_path_length = 0.0, .w_diameter = 0.0, .w_community_count = 0.05,
+            .cache_l1_impact = 0.0, .cache_l2_impact = 0.0, .cache_l3_impact = 0.0, .cache_dram_penalty = 0.0,
+            .w_reorder_time = -0.4     // high reorder cost
+        }},
+        // GraphBrewOrder: Leiden + per-community RabbitOrder
+        {GraphBrewOrder, {
+            .bias = 0.6,
+            .w_modularity = -0.25,    // better on low-mod (community reorder helps)
+            .w_log_nodes = 0.1,       // scales well
+            .w_log_edges = 0.08,
+            .w_density = -0.3,
+            .w_avg_degree = 0.0,
+            .w_degree_variance = 0.2,
+            .w_hub_concentration = 0.1,
+            .w_clustering_coeff = 0.05, .w_avg_path_length = -0.02, .w_diameter = 0.0, .w_community_count = 0.1,
+            .cache_l1_impact = 0.0, .cache_l2_impact = 0.0, .cache_l3_impact = 0.0, .cache_dram_penalty = 0.0,
+            .w_reorder_time = -0.5     // highest reorder cost
+        }},
+        // LeidenDendrogram: Dendrogram-based traversal (default: hybrid variant)
+        {LeidenDendrogram, {
+            .bias = 0.95,             // HIGHEST - clear benchmark winner
+            .w_modularity = 0.45,     // best on high modularity graphs
+            .w_log_nodes = 0.06,      // scales well
+            .w_log_edges = 0.06,
+            .w_density = -0.15,       // tolerates density better
+            .w_avg_degree = 0.02,
+            .w_degree_variance = 0.15,
+            .w_hub_concentration = 0.25,  // also good with hubs
+            .w_clustering_coeff = 0.1, .w_avg_path_length = 0.0, .w_diameter = 0.0, .w_community_count = 0.08,
+            .cache_l1_impact = 0.0, .cache_l2_impact = 0.0, .cache_l3_impact = 0.0, .cache_dram_penalty = 0.0,
+            .w_reorder_time = -0.15    // fast reordering (hybrid is efficient)
+        }},
+        // LeidenCSR: Fast CSR-native community detection
+        {LeidenCSR, {
+            .bias = 0.80,
+            .w_modularity = 0.35,
+            .w_log_nodes = 0.05,
+            .w_log_edges = 0.05,
+            .w_density = -0.30,
+            .w_avg_degree = 0.02,
+            .w_degree_variance = 0.15,
+            .w_hub_concentration = 0.20,
+            .w_clustering_coeff = 0.08, .w_avg_path_length = 0.0, .w_diameter = 0.0, .w_community_count = 0.05,
+            .cache_l1_impact = 0.0, .cache_l2_impact = 0.0, .cache_l3_impact = 0.0, .cache_dram_penalty = 0.0,
+            .w_reorder_time = -0.25
+        }},
+    };
+    return weights;
+}
+
 #endif  // REORDER_TYPES_H_
