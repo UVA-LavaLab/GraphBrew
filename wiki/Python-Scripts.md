@@ -33,7 +33,7 @@ scripts/
 │   ├── progress.py              # Progress tracking & reporting
 │   └── results.py               # Result file I/O
 │
-├── test/                        # (Deprecated) legacy test suite; use scripts/test/
+├── scripts/test/                # Pytest suite
 │   ├── test_weight_flow.py      # Weight generation/loading tests
 │   ├── test_weight_merger.py    # Merger consolidation tests
 │   └── test_fill_adaptive.py    # Fill-weights pipeline tests

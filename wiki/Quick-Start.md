@@ -144,7 +144,7 @@ ls bench/bin/
 
 ```bash
 # Use the included test graph (12 edges, 6 nodes)
-cat test/graphs/5.el
+cat scripts/test/graphs/tiny/tiny.el
 # 0 2
 # 2 5
 # 4 0

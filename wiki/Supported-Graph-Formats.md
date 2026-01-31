@@ -441,7 +441,7 @@ split -l 10000000 graph.el graph_part_
 
 ## Test Graphs
 
-GraphBrew includes test graphs in `test/graphs/`:
+GraphBrew includes test graphs in `scripts/test/graphs/`:
 
 | File | Nodes | Edges (undirected) | Description |
 |------|-------|-------------------|-------------|

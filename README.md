@@ -7,7 +7,6 @@ pip install -r scripts/requirements.txt
 pytest scripts/test -q
 ```
 
-> **Deprecated:** root `test/` is kept for legacy references; new tests should be added under `scripts/test/`.
 
 [![Build Status](https://app.travis-ci.com/UVA-LavaLab/GraphBrew.svg?branch=main)](https://app.travis-ci.com/UVA-LavaLab/GraphBrew)
 [![Wiki](https://img.shields.io/badge/📚_Wiki-Documentation-blue?style=flat)](https://github.com/UVA-LavaLab/GraphBrew/wiki)
@@ -239,8 +238,7 @@ scripts/
 │   ├── progress.py            # Progress tracking & reporting
 │   └── results.py             # Result file I/O
 │
-├── test/                      # (Deprecated) legacy tests
-│   └── See scripts/test/ for active pytest suite
+├── scripts/test/              # Active pytest suite
 │
 ├── examples/                  # Example scripts
 │   └── custom_pipeline.py     # Custom phase-based pipeline
@@ -655,7 +653,7 @@ make run-bfs
 ### Parameters Makefile
 All parameters [(section)](#graphbrew-parameters) can be passed through the Make command via:
    * `RUN_PARAMS='-n1 -o11'`, for controlling aspects of the algorithm and reordering.
-   * `GRAPH_BENCH ='-f ./scripts/test/graphs/tiny/tiny.el'`, for controlling the graph path. (Legacy: `./test/graphs/4.el` is deprecated.)
+   * `GRAPH_BENCH ='-f ./scripts/test/graphs/tiny/tiny.el'`, for controlling the graph path.
 ### Parameters Binary
 All parameters [(section)](#graphbrew-parameters) can be passed through the binary command via:
    * `./bench/bin/<benchmark_name> -f ./scripts/test/graphs/tiny/tiny.el -n1 -o11`
@@ -785,7 +783,7 @@ All parameters can be passed through the make command via:
    * Reorder the graph, orders can be layered.
    * Segment the graph for scalability, requires modifying the algorithm to iterate through segments.
    * `RUN_PARAMS='-n1 -o11'`, for controlling aspects of the algorithm and reordering.
-   * `GRAPH_BENCH ='-f ./scripts/test/graphs/tiny/tiny.el'`, for controlling the graph path. (Legacy: `./test/graphs/4.el` is deprecated.)
+   * `GRAPH_BENCH ='-f ./scripts/test/graphs/tiny/tiny.el'`, for controlling the graph path.
 
 ### GAP Parameters (PageRank example)
 ```bash

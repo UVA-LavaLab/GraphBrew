@@ -115,7 +115,7 @@ FLUSH_CACHE=1
 # =========================================================
 # Running Benchmarks
 # =========================================================
-# GRAPH_BENCH = -f ./test/graphs/4.el
+# GRAPH_BENCH = -f ./scripts/test/graphs/tiny/tiny.el
 GRAPH_BENCH = -g 12 
 RUN_PARAMS =  -o5 -n 2 -l
 # =========================================================
