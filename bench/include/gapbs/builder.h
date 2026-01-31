@@ -5004,30 +5004,9 @@ public:
         PrintTime("Ordering Time", tm.Seconds());
     }
 
-    /**
-     * Community Features for Adaptive Reordering Selection
-     * 
-     * Based on empirical correlation analysis:
-     * - Low density (sparse) communities: RCM works best
-     * - Medium density + high degree variance: DBG works best  
-     * - High density + uniform degrees: HubSort/HubCluster works best
-     * - Very high density (tight clusters): Original or LeidenOrder
-     */
-    struct CommunityFeatures {
-        size_t num_nodes;
-        size_t num_edges;
-        double internal_density;     // edges / possible_edges
-        double avg_degree;
-        double degree_variance;      // normalized variance in degrees
-        double hub_concentration;    // fraction of edges from top 10% nodes
-        double modularity;           // community/subgraph modularity (set externally)
-        // Extended features (computed when available)
-        double clustering_coeff = 0.0;    // local clustering coefficient (sampled)
-        double avg_path_length = 0.0;     // estimated average path length
-        double diameter_estimate = 0.0;   // estimated graph diameter  
-        double community_count = 0.0;     // number of sub-communities
-        double reorder_time = 0.0;        // estimated reorder time (if known)
-    };
+    // CommunityFeatures is now defined in reorder/reorder_types.h
+    // Alias for backward compatibility within BuilderBase
+    using CommunityFeatures = ::CommunityFeatures;
 
     /**
      * Compute and print global graph topology features.
@@ -5410,41 +5389,13 @@ public:
         return GRAPH_GENERIC;
     }
     
-    /**
-     * Benchmark type enum for benchmark-specific weight selection
-     * 
-     * Use BENCH_GENERIC (default) when:
-     * - Reordering for general-purpose graph processing
-     * - Benchmark type is not known at reorder time
-     * - You want balanced performance across all algorithms
-     * 
-     * Use specific types (BENCH_PR, BENCH_BFS, etc.) when:
-     * - You know which benchmark will run on this graph
-     * - You want to optimize reordering for that specific workload
-     */
-    enum BenchmarkType {
-        BENCH_GENERIC = 0,  // Generic/default - no benchmark-specific adjustment (multiplier = 1.0)
-        BENCH_PR,           // PageRank - iterative, benefits from cache locality
-        BENCH_BFS,          // Breadth-First Search - traversal-heavy
-        BENCH_CC,           // Connected Components - union-find based
-        BENCH_SSSP,         // Single-Source Shortest Path - priority queue based
-        BENCH_BC,           // Betweenness Centrality - all-pairs traversal
-        BENCH_TC            // Triangle Counting - neighborhood intersection
-    };
+    // BenchmarkType is now defined in reorder/reorder_types.h
+    // Alias for backward compatibility within BuilderBase
+    using BenchmarkType = ::BenchmarkType;
     
-    /**
-     * Convert benchmark name string to enum
-     * Returns BENCH_GENERIC if name is empty, "generic", or unrecognized
-     */
+    // Use global GetBenchmarkType function
     static BenchmarkType GetBenchmarkType(const std::string& name) {
-        if (name.empty() || name == "generic" || name == "GENERIC" || name == "all") return BENCH_GENERIC;
-        if (name == "pr" || name == "PR" || name == "pagerank" || name == "PageRank") return BENCH_PR;
-        if (name == "bfs" || name == "BFS") return BENCH_BFS;
-        if (name == "cc" || name == "CC") return BENCH_CC;
-        if (name == "sssp" || name == "SSSP") return BENCH_SSSP;
-        if (name == "bc" || name == "BC") return BENCH_BC;
-        if (name == "tc" || name == "TC") return BENCH_TC;
-        return BENCH_GENERIC;  // Default to generic for any unrecognized name
+        return ::GetBenchmarkType(name);
     }
     
     /**
@@ -5501,144 +5452,9 @@ public:
         return MODE_FASTEST_EXECUTION;  // Default to perceptron-based selection
     }
     
-    // Directory for precomputed reorder time files (DEPRECATED - use w_reorder_time from type weights)
-    // static constexpr const char* REORDER_TIMES_DIR = "results/mappings/";
-
-    struct PerceptronWeights {
-        // Core weights (original)
-        double bias;                // baseline score
-        double w_modularity;        // correlation with modularity
-        double w_log_nodes;         // scale effect
-        double w_log_edges;         // size effect  
-        double w_density;           // sparsity effect
-        double w_avg_degree;        // connectivity effect
-        double w_degree_variance;   // power-law / uniformity effect
-        double w_hub_concentration; // hub dominance effect
-        
-        // Extended graph structure weights (NEW)
-        double w_clustering_coeff = 0.0;   // local clustering coefficient effect
-        double w_avg_path_length = 0.0;    // average path length sensitivity
-        double w_diameter = 0.0;           // diameter effect
-        double w_community_count = 0.0;    // sub-community count effect
-        
-        // Cache impact weights (NEW - from cache simulation)
-        double cache_l1_impact = 0.0;      // bonus for high L1 hit rate
-        double cache_l2_impact = 0.0;      // bonus for high L2 hit rate
-        double cache_l3_impact = 0.0;      // bonus for high L3 hit rate
-        double cache_dram_penalty = 0.0;   // penalty for DRAM accesses
-        
-        // Reorder time weight (NEW)
-        double w_reorder_time = 0.0;       // penalty for slow reordering
-        
-        // Metadata from training (for amortization calculation)
-        double avg_speedup = 1.0;          // average speedup observed during training
-        double avg_reorder_time = 0.0;     // average reorder time in seconds
-        
-        // Benchmark-specific weights (NEW - multipliers per benchmark type)
-        double bench_pr = 1.0;      // PageRank weight multiplier
-        double bench_bfs = 1.0;     // BFS weight multiplier
-        double bench_cc = 1.0;      // CC weight multiplier
-        double bench_sssp = 1.0;    // SSSP weight multiplier
-        double bench_bc = 1.0;      // BC weight multiplier
-        double bench_tc = 1.0;      // TC weight multiplier
-        
-        /**
-         * Calculate iterations needed to amortize reorder cost.
-         * 
-         * Formula: iterations = reorder_time / time_saved_per_iteration
-         * Where time_saved ≈ baseline_time * (1 - 1/speedup)
-         * 
-         * Lower = better (pays off faster)
-         * Returns INFINITY if speedup <= 1.0 (never pays off)
-         */
-        double iterationsToAmortize() const {
-            if (avg_speedup <= 1.0) {
-                return std::numeric_limits<double>::infinity();
-            }
-            // Assume baseline iteration time of 1 second for normalization
-            // time_saved_per_iter = 1.0 * (1 - 1/speedup) = (speedup - 1) / speedup
-            double time_saved_per_iter = (avg_speedup - 1.0) / avg_speedup;
-            if (time_saved_per_iter <= 0) {
-                return std::numeric_limits<double>::infinity();
-            }
-            return avg_reorder_time / time_saved_per_iter;
-        }
-        
-        /**
-         * Get benchmark-specific multiplier
-         * Returns 1.0 for BENCH_GENERIC (no adjustment)
-         */
-        double getBenchmarkMultiplier(BenchmarkType bench) const {
-            switch (bench) {
-                case BENCH_PR:   return bench_pr;
-                case BENCH_BFS:  return bench_bfs;
-                case BENCH_CC:   return bench_cc;
-                case BENCH_SSSP: return bench_sssp;
-                case BENCH_BC:   return bench_bc;
-                case BENCH_TC:   return bench_tc;
-                case BENCH_GENERIC:
-                default:         return 1.0;  // Generic - no benchmark-specific adjustment
-            }
-        }
-        
-        /**
-         * Compute base score (without benchmark adjustment)
-         * This is used for generic/default scoring across all algorithms
-         */
-        double scoreBase(const CommunityFeatures& feat) const {
-            double log_nodes = std::log10(static_cast<double>(feat.num_nodes) + 1.0);
-            double log_edges = std::log10(static_cast<double>(feat.num_edges) + 1.0);
-            
-            // Core score (original features)
-            double s = bias 
-                 + w_modularity * feat.modularity
-                 + w_log_nodes * log_nodes
-                 + w_log_edges * log_edges
-                 + w_density * feat.internal_density
-                 + w_avg_degree * feat.avg_degree / 100.0  // normalize
-                 + w_degree_variance * feat.degree_variance
-                 + w_hub_concentration * feat.hub_concentration;
-            
-            // Extended features (if available)
-            s += w_clustering_coeff * feat.clustering_coeff;
-            s += w_avg_path_length * feat.avg_path_length / 10.0;  // normalize
-            s += w_diameter * feat.diameter_estimate / 50.0;        // normalize
-            s += w_community_count * std::log10(feat.community_count + 1.0);
-            
-            // Cache impact weights (learned from cache simulation)
-            // These weights encode how well the algorithm utilizes each cache level
-            // Higher impact = better cache utilization = bonus to score
-            s += cache_l1_impact * 0.5;  // L1 impact bonus (normalized)
-            s += cache_l2_impact * 0.3;  // L2 impact bonus (normalized)
-            s += cache_l3_impact * 0.2;  // L3 impact bonus (normalized)
-            s += cache_dram_penalty;     // DRAM penalty (already negative)
-            
-            // Reorder time penalty (if known)
-            s += w_reorder_time * feat.reorder_time;
-            
-            return s;
-        }
-        
-        /**
-         * Compute score with optional benchmark-specific adjustment
-         * 
-         * @param feat Community features to evaluate
-         * @param bench Benchmark type (default: BENCH_GENERIC for balanced performance)
-         * 
-         * For generic use (no specific benchmark), multiplier = 1.0 and score = base score.
-         * For specific benchmarks, score = base score * benchmark_multiplier.
-         */
-        double score(const CommunityFeatures& feat, BenchmarkType bench = BENCH_GENERIC) const {
-            double base = scoreBase(feat);
-            double multiplier = getBenchmarkMultiplier(bench);
-            return base * multiplier;
-        }
-        
-        // Legacy overload for backward compatibility (uses generic/default scoring)
-        double score(const CommunityFeatures& feat) const {
-            return scoreBase(feat);
-        }
-    };
+    // PerceptronWeights is now defined in reorder/reorder_types.h
+    // Alias for backward compatibility within BuilderBase
+    using PerceptronWeights = ::PerceptronWeights;
 
     /**
      * Learned Perceptron Weights for each reordering algorithm

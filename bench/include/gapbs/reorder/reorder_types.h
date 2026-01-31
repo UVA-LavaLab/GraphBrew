@@ -381,6 +381,49 @@ struct LeidenDendrogramNode {
 };
 
 // ============================================================================
+// BENCHMARK TYPE FOR ALGORITHM SELECTION
+// ============================================================================
+
+/**
+ * @brief Benchmark types for workload-specific algorithm selection
+ * 
+ * Different benchmarks have different access patterns:
+ * - PR (PageRank): Iterative, benefits from cache locality
+ * - BFS: Traversal-heavy, frontier-based access
+ * - CC: Union-find based, irregular access
+ * - SSSP: Priority queue based
+ * - BC: All-pairs traversal
+ * - TC: Neighborhood intersection
+ * 
+ * Use BENCH_GENERIC when the benchmark is unknown or for balanced selection.
+ */
+enum BenchmarkType {
+    BENCH_GENERIC = 0,  ///< Generic/default - no benchmark-specific adjustment
+    BENCH_PR,           ///< PageRank - iterative, benefits from cache locality
+    BENCH_BFS,          ///< Breadth-First Search - traversal-heavy
+    BENCH_CC,           ///< Connected Components - union-find based
+    BENCH_SSSP,         ///< Single-Source Shortest Path - priority queue based
+    BENCH_BC,           ///< Betweenness Centrality - all-pairs traversal
+    BENCH_TC            ///< Triangle Counting - neighborhood intersection
+};
+
+/**
+ * @brief Convert benchmark name string to enum
+ * @param name Benchmark name (e.g., "pr", "bfs", "generic")
+ * @return Corresponding BenchmarkType enum value
+ */
+inline BenchmarkType GetBenchmarkType(const std::string& name) {
+    if (name.empty() || name == "generic" || name == "GENERIC" || name == "all") return BENCH_GENERIC;
+    if (name == "pr" || name == "PR" || name == "pagerank" || name == "PageRank") return BENCH_PR;
+    if (name == "bfs" || name == "BFS") return BENCH_BFS;
+    if (name == "cc" || name == "CC") return BENCH_CC;
+    if (name == "sssp" || name == "SSSP") return BENCH_SSSP;
+    if (name == "bc" || name == "BC") return BENCH_BC;
+    if (name == "tc" || name == "TC") return BENCH_TC;
+    return BENCH_GENERIC;
+}
+
+// ============================================================================
 // PERCEPTRON WEIGHTS FOR ADAPTIVE ORDER
 // ============================================================================
 
@@ -391,13 +434,13 @@ struct LeidenDendrogramNode {
  * reordering algorithm based on graph features. The algorithm
  * with the highest score is selected.
  * 
- * Score = bias + sum(weight_i * feature_i)
+ * Score = bias + sum(weight_i * feature_i) * benchmark_multiplier
  */
 struct PerceptronWeights {
     // ---------- Base ----------
     double bias = 0.0;              ///< Base preference for this algorithm
     
-    // ---------- Feature Weights ----------
+    // ---------- Feature Weights (core) ----------
     double w_modularity = 0.0;       ///< Weight for modularity feature
     double w_log_nodes = 0.0;        ///< Weight for log(num_nodes)
     double w_log_edges = 0.0;        ///< Weight for log(num_edges)
@@ -405,11 +448,12 @@ struct PerceptronWeights {
     double w_avg_degree = 0.0;       ///< Weight for average degree
     double w_degree_variance = 0.0;  ///< Weight for degree variance
     double w_hub_concentration = 0.0;///< Weight for hub concentration
+    
+    // ---------- Feature Weights (extended) ----------
     double w_clustering_coeff = 0.0; ///< Weight for clustering coefficient
     double w_avg_path_length = 0.0;  ///< Weight for average path length
     double w_diameter = 0.0;         ///< Weight for diameter estimate
     double w_community_count = 0.0;  ///< Weight for community count
-    double w_reorder_time = 0.0;     ///< Weight for reorder time estimate
     
     // ---------- Cache Impact Weights ----------
     double cache_l1_impact = 0.0;    ///< L1 cache impact weight
@@ -417,8 +461,104 @@ struct PerceptronWeights {
     double cache_l3_impact = 0.0;    ///< L3 cache impact weight
     double cache_dram_penalty = 0.0; ///< DRAM access penalty weight
     
-    // ---------- Per-Benchmark Weights ----------
-    std::map<std::string, double> benchmark_weights;
+    // ---------- Reorder Time Weight ----------
+    double w_reorder_time = 0.0;     ///< Weight for reorder time estimate
+    
+    // ---------- Metadata from Training ----------
+    double avg_speedup = 1.0;        ///< Average speedup observed during training
+    double avg_reorder_time = 0.0;   ///< Average reorder time in seconds
+    
+    // ---------- Per-Benchmark Multipliers ----------
+    double bench_pr = 1.0;           ///< PageRank weight multiplier
+    double bench_bfs = 1.0;          ///< BFS weight multiplier
+    double bench_cc = 1.0;           ///< CC weight multiplier
+    double bench_sssp = 1.0;         ///< SSSP weight multiplier
+    double bench_bc = 1.0;           ///< BC weight multiplier
+    double bench_tc = 1.0;           ///< TC weight multiplier
+    
+    /**
+     * @brief Calculate iterations needed to amortize reorder cost
+     * 
+     * Formula: iterations = reorder_time / time_saved_per_iteration
+     * Where time_saved ≈ baseline_time * (1 - 1/speedup)
+     * 
+     * @return Number of iterations to amortize (INFINITY if never pays off)
+     */
+    double iterationsToAmortize() const {
+        if (avg_speedup <= 1.0) {
+            return std::numeric_limits<double>::infinity();
+        }
+        double time_saved_per_iter = (avg_speedup - 1.0) / avg_speedup;
+        if (time_saved_per_iter <= 0) {
+            return std::numeric_limits<double>::infinity();
+        }
+        return avg_reorder_time / time_saved_per_iter;
+    }
+    
+    /**
+     * @brief Get benchmark-specific multiplier
+     * @param bench Benchmark type
+     * @return Multiplier for that benchmark (1.0 for GENERIC)
+     */
+    double getBenchmarkMultiplier(BenchmarkType bench) const {
+        switch (bench) {
+            case BENCH_PR:   return bench_pr;
+            case BENCH_BFS:  return bench_bfs;
+            case BENCH_CC:   return bench_cc;
+            case BENCH_SSSP: return bench_sssp;
+            case BENCH_BC:   return bench_bc;
+            case BENCH_TC:   return bench_tc;
+            case BENCH_GENERIC:
+            default:         return 1.0;
+        }
+    }
+    
+    /**
+     * @brief Compute base score (without benchmark adjustment)
+     * @param feat Community features to evaluate
+     * @return Base score for this algorithm
+     */
+    double scoreBase(const CommunityFeatures& feat) const {
+        double log_nodes = std::log10(static_cast<double>(feat.num_nodes) + 1.0);
+        double log_edges = std::log10(static_cast<double>(feat.num_edges) + 1.0);
+        
+        // Core score
+        double s = bias 
+             + w_modularity * feat.modularity
+             + w_log_nodes * log_nodes
+             + w_log_edges * log_edges
+             + w_density * feat.internal_density
+             + w_avg_degree * feat.avg_degree / 100.0
+             + w_degree_variance * feat.degree_variance
+             + w_hub_concentration * feat.hub_concentration;
+        
+        // Extended features
+        s += w_clustering_coeff * feat.clustering_coeff;
+        s += w_avg_path_length * feat.avg_path_length / 10.0;
+        s += w_diameter * feat.diameter_estimate / 50.0;
+        s += w_community_count * std::log10(feat.community_count + 1.0);
+        
+        // Cache impact weights
+        s += cache_l1_impact * 0.5;
+        s += cache_l2_impact * 0.3;
+        s += cache_l3_impact * 0.2;
+        s += cache_dram_penalty;
+        
+        // Reorder time penalty
+        s += w_reorder_time * feat.reorder_time;
+        
+        return s;
+    }
+    
+    /**
+     * @brief Compute score with benchmark-specific adjustment
+     * @param feat Community features to evaluate
+     * @param bench Benchmark type for adjustment
+     * @return Adjusted score for this algorithm
+     */
+    double score(const CommunityFeatures& feat, BenchmarkType bench = BENCH_GENERIC) const {
+        return scoreBase(feat) * getBenchmarkMultiplier(bench);
+    }
 };
 
 // ============================================================================
