@@ -212,7 +212,7 @@ clean-results:
 # =========================================================
 SRC_SIM_DIR = $(BENCH_DIR)/src_sim
 BIN_SIM_DIR = $(BENCH_DIR)/bin_sim
-INCLUDE_CACHE = $(INC_DIR)/cache
+INCLUDE_CACHE = $(INC_DIR)/cache_sim
 DEP_CACHE = $(wildcard $(INCLUDE_CACHE)/*.h)
 
 # Simulation kernels (algorithms with cache instrumentation)
