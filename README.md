@@ -1079,8 +1079,13 @@ cat /opt/boost_1_58_0/include/boost/version.hpp | grep "BOOST_LIB_VERSION"
 #define BOOST_LIB_VERSION "1_58"
 ```
 
+## Developer Tooling
+
+- `make lint-includes` — check for legacy include paths
+- `python3 scripts/check_includes.py` — same as above
+
 How to Cite
------------
+------------
 
 Please cite the following papers if you find this repository useful.
 + S. Beamer, K. Asanović, and D. Patterson, “The GAP Benchmark Suite,” arXiv:1508.03619 [cs], May 2017.
