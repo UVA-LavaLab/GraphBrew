@@ -3,11 +3,21 @@
 // Tracks L1/L2/L3 cache hits and misses with configurable parameters
 // Supports multi-core architecture: private L1/L2 per core, shared L3
 
-#ifndef CACHE_SIM_ALIAS_H_
-#define CACHE_SIM_ALIAS_H_
+#ifndef CACHE_SIM_H_
+#define CACHE_SIM_H_
 
-// Alias shim: prefer bench/include/cache_sim/cache_sim.h
-#include "../cache_sim/cache_sim.h"
+#include <cstdint>
+#include <cstdlib>
+#include <cstring>
+#include <vector>
+#include <unordered_map>
+#include <list>
+#include <random>
+#include <algorithm>
+#include <iostream>
+#include <iomanip>
+#include <fstream>
+#include <string>
 #include <mutex>
 #include <atomic>
 #include <omp.h>
@@ -1896,4 +1906,4 @@ inline bool IsFastMode() {
 
 }  // namespace cache_sim
 
-#endif  // CACHE_SIM_ALIAS_H_
+#endif  // CACHE_SIM_H_

@@ -25,10 +25,19 @@
 // License: See LICENSE.txt
 // ============================================================================
 
-#ifndef POPT_CACHE_ALIAS_H_
-#define POPT_CACHE_ALIAS_H_
-// Alias shim: prefer gapbs/partitioning/popt.h
-#include "../partitioning/popt.h"
+#ifndef POPT_CACHE_H_
+#define POPT_CACHE_H_
+
+#include <algorithm>
+#include <cassert>
+#include <cstdlib>
+#include <iostream>
+#include <parallel/algorithm>
+#include <set>
+#include <vector>
+
+#include "../graph.h"
+#include "../pvector.h"
 #include "../timer.h"
 
 // ============================================================================
@@ -880,4 +889,4 @@ RandOrder(const CSRGraph<NodeID_, DestID_, invert> &g,
     }
 }
 
-#endif  // POPT_CACHE_ALIAS_H_
+#endif  // POPT_CACHE_H_

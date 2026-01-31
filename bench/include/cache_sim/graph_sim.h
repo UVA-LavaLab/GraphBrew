@@ -2,11 +2,12 @@
 // Graph Simulation Helper for Cache Tracking
 // Provides helper functions and macros for cache simulation
 
-// Alias shim: prefer bench/include/cache_sim/graph_sim.h
-#ifndef GRAPH_SIM_ALIAS_H_
-#define GRAPH_SIM_ALIAS_H_
+#ifndef GRAPH_SIM_H_
+#define GRAPH_SIM_H_
 
-#include "../cache_sim/graph_sim.h"
+#include "cache_sim.h"
+#include "../gapbs/graph.h"
+#include "../gapbs/pvector.h"
 
 namespace cache_sim {
 
@@ -73,4 +74,4 @@ private:
 
 } // namespace cache_sim
 
-#endif // GRAPH_SIM_ALIAS_H_
+#endif // GRAPH_SIM_H_
