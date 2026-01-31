@@ -13,6 +13,7 @@ GraphBrew/
 │   │   ├── cache/            # Cache simulation headers
 │   │   ├── corder/           # Corder reordering
 │   │   ├── gapbs/            # GAP Benchmark Suite core
+│   │   │   └── reorder/      # 📦 Modular reorder headers (~10K lines)
 │   │   ├── gorder/           # Gorder reordering
 │   │   ├── leiden/           # Leiden community detection
 │   │   └── rabbit/           # Rabbit Order reordering
@@ -78,14 +79,92 @@ The foundation is built on the GAP Benchmark Suite with extensions.
 
 #### Key Files
 
-| File | Purpose |
-|------|---------|
-| [graph.h](https://github.com/UVA-LavaLab/GraphBrew/blob/main/bench/include/gapbs/graph.h) | CSRGraph class, core data structure |
-| [builder.h](https://github.com/UVA-LavaLab/GraphBrew/blob/main/bench/include/gapbs/builder.h) | Graph loading and reordering |
-| [benchmark.h](https://github.com/UVA-LavaLab/GraphBrew/blob/main/bench/include/gapbs/benchmark.h) | Benchmark harness |
-| [command_line.h](https://github.com/UVA-LavaLab/GraphBrew/blob/main/bench/include/gapbs/command_line.h) | CLI parsing |
-| [pvector.h](https://github.com/UVA-LavaLab/GraphBrew/blob/main/bench/include/gapbs/pvector.h) | Parallel-friendly vector |
-| [timer.h](https://github.com/UVA-LavaLab/GraphBrew/blob/main/bench/include/gapbs/timer.h) | High-resolution timing |
+| File | Lines | Purpose |
+|------|-------|---------|
+| [graph.h](https://github.com/UVA-LavaLab/GraphBrew/blob/main/bench/include/gapbs/graph.h) | ~500 | CSRGraph class, core data structure |
+| [builder.h](https://github.com/UVA-LavaLab/GraphBrew/blob/main/bench/include/gapbs/builder.h) | ~7,800 | Graph loading and reordering dispatcher |
+| [benchmark.h](https://github.com/UVA-LavaLab/GraphBrew/blob/main/bench/include/gapbs/benchmark.h) | ~150 | Benchmark harness |
+| [command_line.h](https://github.com/UVA-LavaLab/GraphBrew/blob/main/bench/include/gapbs/command_line.h) | ~300 | CLI parsing |
+| [pvector.h](https://github.com/UVA-LavaLab/GraphBrew/blob/main/bench/include/gapbs/pvector.h) | ~150 | Parallel-friendly vector |
+| [timer.h](https://github.com/UVA-LavaLab/GraphBrew/blob/main/bench/include/gapbs/timer.h) | ~50 | High-resolution timing |
+
+#### Reorder Module (bench/include/gapbs/reorder/)
+
+The reorder module is a modular header library that extracts reusable components from `builder.h`. It follows an include hierarchy where `reorder_types.h` is the base, and specialized headers extend it.
+
+```
+reorder/
+├── reorder_types.h      # Base module - types, perceptron, feature computation
+├── reorder_adaptive.h   # AdaptiveOrder config and utilities
+├── reorder_graphbrew.h  # GraphBrew config and cluster variants
+├── reorder_rabbit.h     # RabbitOrder CSR implementation
+├── reorder_leiden.h     # GVE-Leiden implementations
+├── reorder_hub.h        # Hub-based algorithms (DBG, HubSort, HubCluster)
+├── reorder_classic.h    # Classic algorithms (GOrder, COrder, RCM)
+└── reorder_basic.h      # Basic algorithms (Original, Random, Sort)
+```
+
+| File | Lines | Purpose |
+|------|-------|---------|
+| `reorder_types.h` | ~3,030 | Common types, perceptron model, selection functions, `ComputeSampledDegreeFeatures` |
+| `reorder_adaptive.h` | ~300 | `AdaptiveConfig` struct, adaptive selection utilities |
+| `reorder_graphbrew.h` | ~450 | `GraphBrewConfig` struct, `GraphBrewClusterVariant` enum |
+| `reorder_leiden.h` | ~3,970 | GVE-Leiden algorithm, dendrogram traversal variants |
+| `reorder_rabbit.h` | ~1,040 | RabbitOrder CSR native implementation |
+| `reorder_hub.h` | ~600 | Hub-based algorithms (DBG, HubSort, HubCluster, HubClusterDBG) |
+| `reorder_classic.h` | ~500 | Classic algorithms (GOrder, COrder, RCM dispatch) |
+| `reorder_basic.h` | ~320 | Basic algorithms (Original, Random, Sort) |
+
+**Key Utilities in reorder_types.h:**
+
+```cpp
+// Perceptron model for ML-based algorithm selection
+struct PerceptronWeights {
+    std::map<int, AlgorithmWeights> per_algorithm_weights;
+    double ComputeScore(int algo_id, const FeatureVector& features);
+};
+
+// Type registry for graph clustering
+struct TypeRegistry {
+    std::map<std::string, TypeInfo> types;
+    std::string FindBestType(const FeatureVector& features);
+};
+
+// Sampled degree features for fast topology analysis
+struct SampledDegreeFeatures {
+    double degree_variance;
+    double hub_concentration;
+    double avg_degree;
+    double clustering_coeff;
+};
+
+template<typename GraphT>
+SampledDegreeFeatures ComputeSampledDegreeFeatures(const GraphT& g, size_t sample_size = 1000);
+```
+
+**Key Configs:**
+
+```cpp
+// AdaptiveConfig (reorder_adaptive.h)
+struct AdaptiveConfig {
+    int max_depth;
+    double resolution;
+    int min_recurse_size;
+    int mode;  // 0 = per-community, 1 = full-graph
+    static AdaptiveConfig FromOptions(const std::string& options);
+};
+
+// GraphBrewConfig (reorder_graphbrew.h)
+struct GraphBrewConfig {
+    GraphBrewClusterVariant variant;  // leiden, gve, gveopt, etc.
+    int frequency;
+    int intra_algo;
+    double resolution;
+    int maxIterations;
+    int maxPasses;
+    static GraphBrewConfig FromOptions(const std::string& options);
+};
+```
 
 #### graph.h - CSRGraph Class
 

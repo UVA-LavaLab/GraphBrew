@@ -346,6 +346,77 @@ The C++ code computes these features for each community at runtime:
 | `community_count` | `w_community_count` | log10(sub-communities) | 0 - 3.0 |
 | `reorder_time` | `w_reorder_time` | estimated reorder time | 0 - 100s |
 
+### C++ Code Architecture
+
+AdaptiveOrder's implementation is split across modular header files in `bench/include/gapbs/reorder/`:
+
+| File | Purpose |
+|------|---------|
+| `reorder_types.h` | Base types, perceptron model, `ComputeSampledDegreeFeatures` |
+| `reorder_adaptive.h` | `AdaptiveConfig` struct, adaptive selection utilities |
+
+**AdaptiveConfig Struct:**
+
+```cpp
+// bench/include/gapbs/reorder/reorder_adaptive.h
+struct AdaptiveConfig {
+    int max_depth = 0;           // Recursion depth (0 = per-community only)
+    double resolution = 0.0;     // Leiden resolution (0 = auto)
+    int min_recurse_size = 50000; // Min nodes for recursion
+    int mode = 0;                // 0 = per-community, 1 = full-graph
+
+    static AdaptiveConfig FromOptions(const std::string& options);
+    void print() const;
+};
+
+// Usage in builder.h:
+AdaptiveConfig config = AdaptiveConfig::FromOptions("2:0.75:50000:0");
+// → max_depth=2, resolution=0.75, min_recurse_size=50000, mode=0
+```
+
+**ComputeSampledDegreeFeatures Utility:**
+
+For fast topology analysis without computing over the entire graph:
+
+```cpp
+// bench/include/gapbs/reorder/reorder_types.h
+struct SampledDegreeFeatures {
+    double degree_variance;
+    double hub_concentration;
+    double avg_degree;
+    double clustering_coeff;
+};
+
+template<typename GraphT>
+SampledDegreeFeatures ComputeSampledDegreeFeatures(
+    const GraphT& g, 
+    size_t sample_size = 1000
+);
+
+// Samples ~1000 vertices to estimate graph topology features
+// Used by: GenerateAdaptiveMappingFullGraph, GenerateAdaptiveMappingRecursive,
+//          ComputeAndPrintGlobalTopologyFeatures
+```
+
+**Key Functions in builder.h:**
+
+```cpp
+// Per-community adaptive selection (mode=0)
+void GenerateAdaptiveMappingRecursive(
+    const CSRGraph& g, pvector<NodeID_>& new_ids,
+    const ReorderingOptions& opts, int depth = 0);
+
+// Full-graph adaptive selection (mode=1)
+void GenerateAdaptiveMappingFullGraph(
+    const CSRGraph& g, pvector<NodeID_>& new_ids,
+    const ReorderingOptions& opts);
+
+// Unified entry point
+void GenerateAdaptiveMappingUnified(
+    const CSRGraph& g, pvector<NodeID_>& new_ids,
+    const ReorderingOptions& opts);
+```
+
 ### Weight Structure
 
 Each algorithm has weights for each feature. The weights file supports multiple categories:
