@@ -2742,4 +2742,121 @@ inline ReorderingAlgo SelectReorderingWithMode(
     }
 }
 
+// ============================================================================
+// COMMUNITY-BASED ALGORITHM SELECTION
+// ============================================================================
+
+/**
+ * Compute dynamic minimum community size threshold.
+ * 
+ * Communities smaller than this threshold will use ORIGINAL ordering
+ * (reordering overhead exceeds benefit for small subgraphs).
+ * 
+ * Formula: max(ABSOLUTE_MIN, min(avg_size / FACTOR, sqrt(N)))
+ * - ABSOLUTE_MIN = 50 (never go below this)
+ * - FACTOR = 4 (communities < 1/4 of average are "small")
+ * - sqrt(N) = classic graph algorithm heuristic
+ * 
+ * @param num_nodes Total nodes in graph
+ * @param num_communities Number of communities detected
+ * @param avg_community_size Average community size (num_nodes / num_communities)
+ * @return Dynamic threshold for minimum community size
+ */
+inline size_t ComputeDynamicMinCommunitySize(size_t num_nodes, 
+                                              size_t num_communities,
+                                              size_t avg_community_size = 0)
+{
+    const size_t ABSOLUTE_MIN = 50;      // Never go below this
+    const size_t FACTOR = 4;             // Communities < avg/4 are "small"
+    const size_t MAX_THRESHOLD = 2000;   // Cap for very large graphs
+    
+    // Compute average if not provided
+    if (avg_community_size == 0 && num_communities > 0) {
+        avg_community_size = num_nodes / num_communities;
+    }
+    
+    // Threshold based on average community size
+    size_t avg_based = (avg_community_size > 0) ? avg_community_size / FACTOR : ABSOLUTE_MIN;
+    
+    // Threshold based on sqrt(N) - classic heuristic
+    size_t sqrt_based = static_cast<size_t>(std::sqrt(static_cast<double>(num_nodes)));
+    
+    // Take minimum of avg-based and sqrt-based (don't want threshold too high)
+    // But ensure at least ABSOLUTE_MIN
+    size_t threshold = std::max(ABSOLUTE_MIN, std::min(avg_based, sqrt_based));
+    
+    // Cap at MAX_THRESHOLD for very large graphs
+    return std::min(threshold, MAX_THRESHOLD);
+}
+
+/**
+ * Select best reordering algorithm for a community/subgraph.
+ * 
+ * This is the main entry point for community-aware algorithm selection.
+ * It handles small community optimization and delegates to the perceptron-based
+ * selection system for larger communities.
+ * 
+ * @param feat Community features for scoring
+ * @param global_modularity Global graph modularity
+ * @param global_degree_variance Global degree variance
+ * @param global_hub_concentration Global hub concentration
+ * @param global_avg_degree Global average degree (currently unused)
+ * @param num_nodes Total graph nodes
+ * @param num_edges Total graph edges
+ * @param bench Benchmark type for optimization
+ * @param graph_type Detected graph type
+ * @param mode Selection mode (default: MODE_FASTEST_EXECUTION)
+ * @param graph_name Graph name for loading reorder times
+ * @param dynamic_min_size Minimum size threshold (0 = auto-compute)
+ * @return Best algorithm for this community
+ */
+inline ReorderingAlgo SelectBestReorderingForCommunity(
+    CommunityFeatures feat, 
+    double global_modularity,
+    double global_degree_variance,
+    double global_hub_concentration,
+    double global_avg_degree,
+    size_t num_nodes, size_t num_edges,
+    BenchmarkType bench = BENCH_GENERIC,
+    GraphType graph_type = GRAPH_GENERIC,
+    SelectionMode mode = MODE_FASTEST_EXECUTION,
+    const std::string& graph_name = "",
+    size_t dynamic_min_size = 0)
+{
+    (void)global_avg_degree;  // Reserved for future use
+    (void)graph_type;         // Type is auto-detected from features
+    
+    // Small communities: reordering overhead exceeds benefit
+    const size_t MIN_COMMUNITY_SIZE = (dynamic_min_size > 0) ? dynamic_min_size : 
+        ComputeDynamicMinCommunitySize(num_nodes, 1, feat.num_nodes);
+    
+    if (feat.num_nodes < MIN_COMMUNITY_SIZE) {
+        return ORIGINAL;
+    }
+    
+    // Set the modularity in features for perceptron scoring
+    feat.modularity = global_modularity;
+    
+    // Use MODE-AWARE selection (handles unknown graph fallback automatically)
+    ReorderingAlgo selected = SelectReorderingWithMode(
+        feat, global_modularity, global_degree_variance, global_hub_concentration,
+        num_nodes, num_edges, mode, graph_name, bench, false);
+    
+    // Safety check: if perceptron selects an unavailable algorithm, fallback
+#ifndef RABBIT_ENABLE
+    if (selected == RabbitOrder) {
+        // Recompute without RabbitOrder by using heuristic fallback
+        if (feat.degree_variance > 0.8) {
+            selected = HubClusterDBG;
+        } else if (feat.hub_concentration > 0.3) {
+            selected = HubSort;
+        } else {
+            selected = DBG;
+        }
+    }
+#endif
+    
+    return selected;
+}
+
 #endif  // REORDER_TYPES_H_
