@@ -54,7 +54,7 @@ GraphBrew/
 │   │   ├── type_registry.json   # Maps graphs → types + centroids
 │   │   └── type_N.json          # Cluster weights
 │   │
-│   ├── analysis/                # Legacy analysis utilities
+│   ├── analysis/                # Analysis utilities
 │   ├── benchmark/               # Specialized scripts
 │   ├── download/                # Standalone downloader
 │   └── utils/                   # Additional utilities

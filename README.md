@@ -587,9 +587,9 @@ Based on our experiments, you should observe:
 
 ---
 
-# Legacy Experiment Configuration
+# Manual Experiment Configuration (Advanced)
 
-> **Note:** The sections below describe the legacy experiment system. For new experiments, we recommend using the Python scripts described above.
+> The sections below describe the manual experiment system. For typical workflows, use the Python scripts described above.
 
 ## Manual Graph Download (Alternative)
 

@@ -705,8 +705,8 @@ scripts/weights/                # Type-based weights directory
 
 results/training_20250118_123045/
 ├── training_summary.json       # Overall training results
-├── weights_iter1.json          # Legacy snapshot after iteration 1
-├── weights_iter2.json          # Legacy snapshot after iteration 2
+├── weights_iter1.json          # Snapshot after iteration 1
+├── weights_iter2.json          # Snapshot after iteration 2
 ├── ...
 ├── best_weights_iter4.json     # Best snapshot (highest accuracy)
 └── brute_force_analysis_*.json # Detailed analysis per iteration
