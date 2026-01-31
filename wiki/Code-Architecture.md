@@ -59,7 +59,7 @@ GraphBrew/
 │   ├── download/                # Standalone downloader
 │   └── utils/                   # Additional utilities
 │
-├── test/                     # (Deprecated) legacy test files; use scripts/test/
+├── scripts/test/             # Pytest suite
 │   ├── graphs/               # Sample graphs
 │   └── reference/            # Reference outputs
 │

@@ -530,7 +530,7 @@ python3 scripts/graphbrew_experiment.py \
 ### Correctness
 
 1. **Add verification**: Catch bugs early
-2. **Test on small graphs**: Use test/graphs/
+2. **Test on small graphs**: Use scripts/test/graphs/tiny/
 3. **Compare with reference**: Use known implementations
 
 ### Documentation
