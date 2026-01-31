@@ -9,6 +9,7 @@ results
 00_*
 nohup.out
 __pycache__/
+.pytest_cache/
 .venv/
 *.pyc
 graphs/
