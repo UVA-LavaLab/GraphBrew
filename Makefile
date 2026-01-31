@@ -11,6 +11,8 @@ PYTHON=@python3
 PIP=@pip
 # =========================================================
 SCRIPT_DIR  = scripts
+# Lint
+LINT_INCLUDES = $(PYTHON) $(SCRIPT_DIR)/check_includes.py
 BENCH_DIR   = bench
 CONFIG_DIR  = $(SCRIPT_DIR)/config
 # =========================================================
@@ -236,6 +238,10 @@ all-sim: $(addprefix $(BIN_SIM_DIR)/, $(KERNELS_SIM))
 clean-sim:
 	rm -rf $(BIN_SIM_DIR)
 
+.PHONY: lint-includes
+lint-includes:
+	@$(LINT_INCLUDES)
+
 # Run simulation with default parameters (single-core mode)
 run-sim-%: $(BIN_SIM_DIR)/%
 	@echo "Running cache simulation (single-core): $<"
@@ -255,6 +261,7 @@ help: help-pr
 	@echo "  run-%          - Runs the specified GAP benchmark (bc bfs cc cc_sv pr pr_spmv sssp tc)"
 	@echo "  help-%         - Print the specified Help (bc bfs cc cc_sv pr pr_spmv sssp tc)"
 	@echo "  clean          - Removes all build artifacts"
+	@echo "  lint-includes  - Check for legacy include paths"
 	@echo ""
 	@echo "Cache Simulation:"
 	@echo "  all-sim          - Builds all cache simulation binaries (pr bfs bc cc sssp tc)"
