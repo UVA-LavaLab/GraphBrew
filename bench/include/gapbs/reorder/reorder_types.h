@@ -1233,4 +1233,159 @@ void orderDendrogramDFSParallel(
     }
 }
 
+/**
+ * Sequential DFS ordering of dendrogram (original version for comparison)
+ * 
+ * @param nodes Dendrogram nodes
+ * @param roots Root node indices
+ * @param new_ids Output permutation array
+ * @param hub_first Sort children by weight (hub-first) if true
+ * @param size_first Sort children by subtree size if true
+ */
+template <typename NodeID_>
+void orderDendrogramDFS(
+    const std::vector<LeidenDendrogramNode>& nodes,
+    const std::vector<int64_t>& roots,
+    pvector<NodeID_>& new_ids,
+    bool hub_first,
+    bool size_first) {
+    
+    NodeID_ current_id = 0;
+    std::deque<int64_t> stack;
+    
+    for (int64_t root : roots) {
+        stack.push_back(root);
+        
+        while (!stack.empty()) {
+            int64_t node_id = stack.back();
+            stack.pop_back();
+            
+            const auto& node = nodes[node_id];
+            
+            if (node.vertex_id >= 0) {
+                new_ids[node.vertex_id] = current_id++;
+            } else {
+                std::vector<int64_t> children;
+                int64_t child = node.first_child;
+                while (child >= 0) {
+                    children.push_back(child);
+                    child = nodes[child].sibling;
+                }
+                
+                if (hub_first) {
+                    std::sort(children.begin(), children.end(), 
+                         [&nodes](int64_t a, int64_t b) {
+                             return nodes[a].weight > nodes[b].weight;
+                         });
+                } else if (size_first) {
+                    std::sort(children.begin(), children.end(),
+                         [&nodes](int64_t a, int64_t b) {
+                             return nodes[a].subtree_size > nodes[b].subtree_size;
+                         });
+                }
+                
+                for (auto it = children.rbegin(); it != children.rend(); ++it) {
+                    stack.push_back(*it);
+                }
+            }
+        }
+    }
+}
+
+/**
+ * BFS ordering of dendrogram (by level)
+ * 
+ * @param nodes Dendrogram nodes
+ * @param roots Root node indices
+ * @param new_ids Output permutation array
+ */
+template <typename NodeID_>
+void orderDendrogramBFS(
+    const std::vector<LeidenDendrogramNode>& nodes,
+    const std::vector<int64_t>& roots,
+    pvector<NodeID_>& new_ids) {
+    
+    NodeID_ current_id = 0;
+    std::deque<int64_t> queue;
+    
+    for (int64_t root : roots) {
+        queue.push_back(root);
+    }
+    
+    while (!queue.empty()) {
+        int64_t node_id = queue.front();
+        queue.pop_front();
+        
+        const auto& node = nodes[node_id];
+        
+        if (node.vertex_id >= 0) {
+            new_ids[node.vertex_id] = current_id++;
+        } else {
+            int64_t child = node.first_child;
+            while (child >= 0) {
+                queue.push_back(child);
+                child = nodes[child].sibling;
+            }
+        }
+    }
+}
+
+/**
+ * Hybrid ordering: sort by (community, degree descending)
+ * 
+ * This is a simple ordering that places vertices within the same community
+ * together, with higher-degree vertices first within each community.
+ * 
+ * @tparam K Community ID type
+ * @tparam NodeID_ Node ID type
+ * @param communityMappingPerPass Community assignments per Leiden pass
+ * @param degrees Degree of each vertex
+ * @param new_ids Output permutation array
+ */
+template<typename K, typename NodeID_>
+void orderLeidenHybridHubDFS(
+    const std::vector<std::vector<K>>& communityMappingPerPass,
+    const std::vector<K>& degrees,
+    pvector<NodeID_>& new_ids) {
+    
+    const size_t n = degrees.size();
+    
+    if (communityMappingPerPass.empty()) {
+        // No community - sort by degree
+        std::vector<std::pair<K, size_t>> deg_vertex(n);
+        #pragma omp parallel for
+        for (size_t v = 0; v < n; ++v) {
+            deg_vertex[v] = {degrees[v], v};
+        }
+        __gnu_parallel::sort(deg_vertex.begin(), deg_vertex.end(), std::greater<>());
+        #pragma omp parallel for
+        for (size_t i = 0; i < n; ++i) {
+            new_ids[deg_vertex[i].second] = i;
+        }
+        return;
+    }
+    
+    // Get last-pass communities
+    const auto& last_pass = communityMappingPerPass.back();
+    
+    // Create (vertex, community, degree) tuples
+    std::vector<std::tuple<size_t, K, K>> vertices(n);
+    #pragma omp parallel for
+    for (size_t v = 0; v < n; ++v) {
+        vertices[v] = std::make_tuple(v, last_pass[v], degrees[v]);
+    }
+    
+    // Sort by (community, degree descending)
+    __gnu_parallel::sort(vertices.begin(), vertices.end(),
+        [](const auto& a, const auto& b) {
+            if (std::get<1>(a) != std::get<1>(b)) return std::get<1>(a) < std::get<1>(b);
+            return std::get<2>(a) > std::get<2>(b);
+        });
+    
+    #pragma omp parallel for
+    for (size_t i = 0; i < n; ++i) {
+        new_ids[std::get<0>(vertices[i])] = i;
+    }
+}
+
 #endif  // REORDER_TYPES_H_
