@@ -129,39 +129,14 @@ namespace thresholds {
 }
 
 // ============================================================================
-// ADAPTIVE MODE ENUM
+// ADAPTIVE MODE - imported from reorder_types.h
 // ============================================================================
-
-/**
- * @brief Selection mode for AdaptiveOrder
- */
-enum class AdaptiveMode {
-    FullGraph = 0,    ///< Analyze entire graph, select one algorithm
-    PerCommunity = 1, ///< Select algorithm per community (default)
-    Recursive = 2     ///< Recursively partition and select
-};
-
-inline AdaptiveMode ParseAdaptiveMode(int mode) {
-    switch (mode) {
-        case 0: return AdaptiveMode::FullGraph;
-        case 1: return AdaptiveMode::PerCommunity;
-        case 2: return AdaptiveMode::Recursive;
-        default: return AdaptiveMode::PerCommunity;
-    }
-}
-
-inline std::string AdaptiveModeToString(AdaptiveMode m) {
-    switch (m) {
-        case AdaptiveMode::FullGraph: return "full_graph";
-        case AdaptiveMode::PerCommunity: return "per_community";
-        case AdaptiveMode::Recursive: return "recursive";
-        default: return "unknown";
-    }
-}
-
-inline int AdaptiveModeToInt(AdaptiveMode m) {
-    return static_cast<int>(m);
-}
+// AdaptiveMode, ParseAdaptiveMode, AdaptiveModeToString, AdaptiveModeToInt
+// are defined in reorder_types.h at global scope
+using ::AdaptiveMode;
+using ::ParseAdaptiveMode;
+using ::AdaptiveModeToString;
+using ::AdaptiveModeToInt;
 
 // ============================================================================
 // CONFIGURATION STRUCTURE

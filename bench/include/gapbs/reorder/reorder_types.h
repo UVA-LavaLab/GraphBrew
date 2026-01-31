@@ -641,6 +641,55 @@ inline SelectionMode GetSelectionMode(const std::string& name) {
 }
 
 // ============================================================================
+// ADAPTIVE MODE FOR MULTI-LEVEL ORDERING
+// ============================================================================
+
+/**
+ * @brief Adaptive algorithm selection mode
+ * 
+ * Controls how AdaptiveOrder processes the graph:
+ * - FullGraph: Analyze entire graph, select single best algorithm
+ * - PerCommunity: Run community detection, select algorithm per community
+ * - Recursive: Recursively partition and select for sub-communities
+ */
+enum class AdaptiveMode {
+    FullGraph = 0,    ///< Analyze entire graph, select one algorithm
+    PerCommunity = 1, ///< Select algorithm per community (default)
+    Recursive = 2     ///< Recursively partition and select
+};
+
+/**
+ * @brief Parse integer to AdaptiveMode enum
+ */
+inline AdaptiveMode ParseAdaptiveMode(int mode) {
+    switch (mode) {
+        case 0: return AdaptiveMode::FullGraph;
+        case 1: return AdaptiveMode::PerCommunity;
+        case 2: return AdaptiveMode::Recursive;
+        default: return AdaptiveMode::PerCommunity;
+    }
+}
+
+/**
+ * @brief Convert AdaptiveMode to string
+ */
+inline std::string AdaptiveModeToString(AdaptiveMode m) {
+    switch (m) {
+        case AdaptiveMode::FullGraph: return "full_graph";
+        case AdaptiveMode::PerCommunity: return "per_community";
+        case AdaptiveMode::Recursive: return "recursive";
+        default: return "unknown";
+    }
+}
+
+/**
+ * @brief Convert AdaptiveMode to integer
+ */
+inline int AdaptiveModeToInt(AdaptiveMode m) {
+    return static_cast<int>(m);
+}
+
+// ============================================================================
 // PERCEPTRON WEIGHTS FOR ADAPTIVE ORDER
 // ============================================================================
 
