@@ -19,6 +19,10 @@
 | Symbol | File | Notes |
 |--------|------|-------|
 | `BuilderBase::MakePartitionedGraph` | `bench/include/gapbs/builder.h` | Dispatches `-j` to Cagra or TRUST |
+## Umbrella
+| Symbol | File | Notes |
+|--------|------|-------|
+| `graphbrew.h` | `bench/include/graphbrew/graphbrew.h` | Umbrella: builder, reorder, partitioning, cache_sim |
 | `BuilderBase::GenerateMapping` | `bench/include/gapbs/builder.h` | Reordering dispatcher (IDs 0–17) |
 
 ## Cache Simulation
