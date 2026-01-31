@@ -240,4 +240,156 @@ inline const std::map<ReorderingAlgo, PerceptronWeights>& getDefaultPerceptronWe
     return GetPerceptronWeights();
 }
 
+
+// ============================================================================
+// BASIC REORDERING DISPATCHER
+// ============================================================================
+
+/**
+ * @brief Apply a basic reordering algorithm to a graph (standalone version)
+ * 
+ * This dispatcher calls the appropriate reordering function based on the 
+ * algorithm ID. Used by GraphBrew, Adaptive, and other multi-level algorithms
+ * that need to apply per-community reordering.
+ * 
+ * Supports algorithms: ORIGINAL, Random, Sort, HubSort, HubCluster, DBG,
+ * HubSortDBG, HubClusterDBG, GOrder, COrder, RCMOrder
+ * 
+ * @tparam NodeID_ Node ID type
+ * @tparam DestID_ Destination ID type
+ * @tparam WeightT_ Edge weight type (for GOrder/RCMOrder)
+ * @tparam invert Whether graph has inverse edges
+ * @param g Input graph
+ * @param new_ids Output permutation
+ * @param algo Algorithm to apply
+ * @param useOutdeg Use out-degree (true) or in-degree (false)
+ * @param filename Optional filename for GOrder/RCMOrder
+ */
+template <typename NodeID_, typename DestID_, typename WeightT_, bool invert>
+inline void ApplyBasicReorderingStandalone(
+    const CSRGraph<NodeID_, DestID_, invert>& g,
+    pvector<NodeID_>& new_ids,
+    ReorderingAlgo algo,
+    bool useOutdeg,
+    const std::string& filename = "") {
+    
+    switch (algo) {
+        case HubSort:
+            ::GenerateHubSortMapping<NodeID_, DestID_, invert>(g, new_ids, useOutdeg);
+            break;
+        case HubCluster:
+            ::GenerateHubClusterMapping<NodeID_, DestID_, invert>(g, new_ids, useOutdeg);
+            break;
+        case DBG:
+            ::GenerateDBGMapping<NodeID_, DestID_, invert>(g, new_ids, useOutdeg);
+            break;
+        case HubSortDBG:
+            ::GenerateHubSortDBGMapping<NodeID_, DestID_, invert>(g, new_ids, useOutdeg);
+            break;
+        case HubClusterDBG:
+            ::GenerateHubClusterDBGMapping<NodeID_, DestID_, invert>(g, new_ids, useOutdeg);
+            break;
+        case Sort:
+            ::GenerateSortMapping<NodeID_, DestID_, invert>(g, new_ids, useOutdeg, false);
+            break;
+        case Random:
+            ::GenerateRandomMapping<NodeID_, DestID_, invert>(g, new_ids);
+            break;
+        case GOrder:
+            ::GenerateGOrderMapping<NodeID_, DestID_, WeightT_, invert>(g, new_ids, filename);
+            break;
+        case COrder:
+            ::GenerateCOrderMapping<NodeID_, DestID_, invert>(g, new_ids);
+            break;
+        case RCMOrder:
+            ::GenerateRCMOrderMapping<NodeID_, DestID_, WeightT_, invert>(g, new_ids, filename);
+            break;
+        case ORIGINAL:
+        default:
+            ::GenerateOriginalMapping<NodeID_, DestID_, invert>(g, new_ids);
+            break;
+    }
+}
+
+// ============================================================================
+// COMMUNITY SUBGRAPH REORDERING (Standalone)
+// ============================================================================
+
+/**
+ * @brief Reorder a community subgraph and assign global IDs (standalone version)
+ * 
+ * This function:
+ * 1. Extracts induced subgraph for the community nodes
+ * 2. Applies the specified reordering algorithm
+ * 3. Maps local IDs back to global IDs
+ * 
+ * @tparam NodeID_ Node ID type
+ * @tparam DestID_ Destination ID type  
+ * @tparam WeightT_ Edge weight type
+ * @tparam invert Whether graph has inverse edges
+ * @param g The full graph
+ * @param nodes Community node IDs
+ * @param node_set Set for O(1) membership test
+ * @param algo Algorithm to apply
+ * @param useOutdeg Use out-degree (true) or in-degree (false)
+ * @param new_ids Output global mapping (modified in place)
+ * @param current_id Starting global ID (updated after assignment)
+ */
+template <typename NodeID_, typename DestID_, typename WeightT_, bool invert>
+void ReorderCommunitySubgraphStandalone(
+    const CSRGraph<NodeID_, DestID_, invert>& g,
+    const std::vector<NodeID_>& nodes,
+    const std::unordered_set<NodeID_>& node_set,
+    ReorderingAlgo algo,
+    bool useOutdeg,
+    pvector<NodeID_>& new_ids,
+    NodeID_& current_id)
+{
+    const size_t comm_size = nodes.size();
+    if (comm_size == 0) return;
+    
+    // Build global-to-local / local-to-global mappings
+    std::unordered_map<NodeID_, NodeID_> global_to_local;
+    std::vector<NodeID_> local_to_global(comm_size);
+    for (size_t i = 0; i < comm_size; ++i) {
+        global_to_local[nodes[i]] = static_cast<NodeID_>(i);
+        local_to_global[i] = nodes[i];
+    }
+    
+    // Create edge list for induced subgraph
+    std::vector<std::pair<NodeID_, DestID_>> sub_edges;
+    for (NodeID_ node : nodes) {
+        NodeID_ local_src = global_to_local[node];
+        for (DestID_ neighbor : g.out_neigh(node)) {
+            NodeID_ dest = static_cast<NodeID_>(neighbor);
+            if (node_set.count(dest)) {
+                NodeID_ local_dst = global_to_local[dest];
+                sub_edges.push_back({local_src, static_cast<DestID_>(local_dst)});
+            }
+        }
+    }
+    
+    // Build CSR graph from edge list and apply reordering
+    CSRGraph<NodeID_, DestID_, invert> sub_g = 
+        MakeLocalGraphFromELStandalone<NodeID_, DestID_, invert>(sub_edges, false);
+    pvector<NodeID_> sub_new_ids(comm_size, -1);
+    ApplyBasicReorderingStandalone<NodeID_, DestID_, WeightT_, invert>(
+        sub_g, sub_new_ids, algo, useOutdeg);
+    
+    // Map local reordered IDs back to global IDs
+    std::vector<NodeID_> reordered_nodes(comm_size);
+    for (size_t i = 0; i < comm_size; ++i) {
+        if (sub_new_ids[i] >= 0 && sub_new_ids[i] < static_cast<NodeID_>(comm_size)) {
+            reordered_nodes[sub_new_ids[i]] = local_to_global[i];
+        } else {
+            reordered_nodes[i] = local_to_global[i];
+        }
+    }
+    
+    // Assign global IDs
+    for (NodeID_ node : reordered_nodes) {
+        new_ids[node] = current_id++;
+    }
+}
+
 #endif  // REORDER_H_
