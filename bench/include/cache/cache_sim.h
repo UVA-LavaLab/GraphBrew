@@ -7,6 +7,11 @@
 #define CACHE_SIM_ALIAS_H_
 
 // Alias shim: prefer bench/include/cache_sim/cache_sim.h
+#if defined(__GNUC__)
+#warning "Include <cache_sim/cache_sim.h> instead of <cache/cache_sim.h>"
+#elif defined(_MSC_VER)
+#pragma message("Include <cache_sim/cache_sim.h> instead of <cache/cache_sim.h>")
+#endif
 #include "../cache_sim/cache_sim.h"
 #include <mutex>
 #include <atomic>

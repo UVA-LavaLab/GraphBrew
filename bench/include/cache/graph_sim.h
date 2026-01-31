@@ -3,6 +3,11 @@
 // Provides helper functions and macros for cache simulation
 
 // Alias shim: prefer bench/include/cache_sim/graph_sim.h
+#if defined(__GNUC__)
+#warning "Include <cache_sim/graph_sim.h> instead of <cache/graph_sim.h>"
+#elif defined(_MSC_VER)
+#pragma message("Include <cache_sim/graph_sim.h> instead of <cache/graph_sim.h>")
+#endif
 #ifndef GRAPH_SIM_ALIAS_H_
 #define GRAPH_SIM_ALIAS_H_
 
