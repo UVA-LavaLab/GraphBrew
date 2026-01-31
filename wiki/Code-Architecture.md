@@ -95,6 +95,8 @@ The foundation is built on the GAP Benchmark Suite with extensions.
 | `cache/popt.h` | `graphSlicer` and `MakeCagraPartitionedGraph` (Cagra/GraphIT CSR partitioning) |
 | `partition/trust.h` | `TrustPartitioner::MakeTrustPartitionedGraph` (TRUST triangle-count partitioning) |
 
+> **Cache vs Cagra:** Cache **simulation** lives in `bench/include/cache/` (`cache_sim.h`, `graph_sim.h`). Cagra **partitioning** helpers live in `bench/include/gapbs/cache/` (`popt.h`). See `docs/INDEX.md` and folder READMEs for a quick map.
+
 #### Reorder Module (bench/include/gapbs/reorder/)
 
 The reorder module is a modular header library that extracts reusable components from `builder.h`. It follows an include hierarchy where `reorder_types.h` is the base, and specialized headers extend it.

@@ -132,6 +132,8 @@ GraphBrew automatically detects the file format from the file extension:
 | `0` | **Cagra/GraphIT** CSR slicing | `cache/popt.h` → `MakeCagraPartitionedGraph` | Uses `graphSlicer`, honors `-z` (use out-degree) |
 | `1` | **TRUST** (triangle counting) | `partition/trust.h` → `TrustPartitioner::MakeTrustPartitionedGraph` | Orients edges, partitions p_n × p_m |
 
+> **Tip:** Cache **simulation** headers live in `bench/include/cache/` (`cache_sim.h`, `graph_sim.h`). Cagra partition helpers live in `bench/include/gapbs/cache/` (`popt.h`). See `docs/INDEX.md` and `docs/SYMBOLS.md` for a quick map.
+
 Examples:
 ```bash
 # Cagra partitioning into 2x2 segments (out-degree)
