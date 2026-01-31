@@ -1033,4 +1033,129 @@ double rabbitCSRComputeModularityCSR(const CSRGraph<NodeID_, DestID_, invert>& c
     return q;
 }
 
+// ============================================================================
+// RABBIT ORDER CSR MAPPING (Native CSR Implementation)
+// ============================================================================
+
+/**
+ * @brief Generate RabbitOrder mapping using native CSR (no Boost)
+ * 
+ * This is a native CSR implementation of the RabbitOrder algorithm that:
+ * 1. Builds a RabbitCSRGraph from the input CSR graph
+ * 2. Runs parallel incremental aggregation (community detection)
+ * 3. Generates ordering via DFS on the dendrogram
+ * 
+ * Unlike the Boost-based implementation, this version works directly
+ * with CSR graphs and doesn't require converting to Boost graph types.
+ * 
+ * @tparam NodeID_ Node ID type
+ * @tparam DestID_ Destination type
+ * @tparam WeightT_ Edge weight type
+ * @tparam invert Whether graph has inverse edges
+ * @param g Input graph in CSR format
+ * @param new_ids Output permutation vector
+ */
+template<typename NodeID_, typename DestID_, typename WeightT_, bool invert>
+void GenerateRabbitOrderCSRMapping(const CSRGraph<NodeID_, DestID_, invert>& g,
+                                   pvector<NodeID_>& new_ids) {
+    Timer tm;
+    tm.Start();
+    
+    const int64_t num_nodes = g.num_nodes();
+    const int64_t num_edges = g.num_edges_directed();
+    
+    std::cout << "=== RabbitOrderCSR (Native CSR Implementation) ===\n";
+    std::cout << "Nodes: " << static_cast<long long>(num_nodes) 
+              << ", Edges: " << static_cast<long long>(num_edges) << "\n";
+    
+    // Build RabbitCSRGraph from CSRGraph
+    RabbitCSRGraph rg;
+    rg.allocate(static_cast<uint32_t>(num_nodes));
+    rg.tot_wgt = 0.0;
+    
+    // Initialize vertices and edges, aggregating multi-edges
+    #pragma omp parallel
+    {
+        double local_wgt = 0.0;
+        
+        #pragma omp for schedule(static)
+        for (int64_t v = 0; v < num_nodes; ++v) {
+            // Collect all edges for this vertex
+            std::vector<std::pair<uint32_t, float>> temp_edges;
+            for (DestID_ neighbor : g.out_neigh(v)) {
+                NodeID_ dest;
+                float weight = 1.0f;
+                
+                if (g.is_weighted()) {
+                    dest = static_cast<NodeWeight<NodeID_, WeightT_>>(neighbor).v;
+                    weight = static_cast<float>(
+                        static_cast<NodeWeight<NodeID_, WeightT_>>(neighbor).w);
+                } else {
+                    dest = static_cast<NodeID_>(neighbor);
+                }
+                
+                // Skip self-loops
+                if (dest == static_cast<NodeID_>(v)) continue;
+                
+                temp_edges.push_back({static_cast<uint32_t>(dest), weight});
+            }
+            
+            // Sort by destination and aggregate multi-edges
+            std::sort(temp_edges.begin(), temp_edges.end(),
+                [](const auto& a, const auto& b) { return a.first < b.first; });
+            
+            float vertex_strength = 0.0f;
+            for (size_t i = 0; i < temp_edges.size(); ) {
+                uint32_t dest = temp_edges[i].first;
+                float combined_weight = 0.0f;
+                while (i < temp_edges.size() && temp_edges[i].first == dest) {
+                    combined_weight += temp_edges[i].second;
+                    ++i;
+                }
+                rg.es[v].push_back({dest, combined_weight});
+                vertex_strength += combined_weight;
+            }
+            
+            rg.vs[v].init(vertex_strength);
+            local_wgt += static_cast<double>(vertex_strength);
+        }
+        
+        #pragma omp atomic
+        rg.tot_wgt += local_wgt;
+    }
+    
+    // Match Boost behavior: Boost symmetrizes the edge list, effectively doubling
+    // the total weight. For symmetric graphs, we need to do the same.
+    rg.tot_wgt *= 2.0;
+    
+    double build_time = tm.Seconds();
+    tm.Start();
+    
+    // Run parallel incremental aggregation (community detection)
+    rabbitCSRAggregate(rg);
+    
+    double agg_time = tm.Seconds();
+    tm.Start();
+    
+    // Generate ordering via DFS on dendrogram
+    rabbitCSRComputePerm(rg, new_ids);
+    
+    double perm_time = tm.Seconds();
+    
+    // Compute modularity using original CSR graph
+    double modularity = rabbitCSRComputeModularityCSR<NodeID_, DestID_, WeightT_, invert>(g, rg);
+    
+    // Report statistics
+    std::cout << "RabbitOrderCSR Statistics:\n";
+    PrintTime("Build Time", build_time);
+    PrintTime("Aggregation Time", agg_time);
+    PrintTime("Permutation Time", perm_time);
+    PrintTime("Total Map Time", build_time + agg_time + perm_time);
+    PrintTime("Communities", static_cast<double>(rg.tops.size()));
+    PrintTime("Modularity", modularity);
+    PrintTime("Reunite calls", static_cast<double>(rg.n_reunite.load()));
+    PrintTime("Lock failures", static_cast<double>(rg.n_fail_lock.load()));
+    PrintTime("CAS failures", static_cast<double>(rg.n_fail_cas.load()));
+}
+
 #endif  // REORDER_RABBIT_H_

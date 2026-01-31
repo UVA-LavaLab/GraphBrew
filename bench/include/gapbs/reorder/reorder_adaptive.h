@@ -297,4 +297,342 @@ using adaptive::AdaptiveConfig;
 using adaptive::SelectHeuristicFallback;
 using adaptive::ShouldRecurse;
 
+// ============================================================================
+// STANDALONE ADAPTIVE IMPLEMENTATIONS
+// ============================================================================
+
+/**
+ * @brief Full-Graph Adaptive Mode (Standalone)
+ * 
+ * Analyzes entire graph features and selects a single best algorithm.
+ * Uses ApplyBasicReorderingStandalone for algorithm dispatch.
+ */
+template <typename NodeID_, typename DestID_, typename WeightT_, bool invert>
+void GenerateAdaptiveMappingFullGraphStandalone(
+    const CSRGraph<NodeID_, DestID_, invert>& g,
+    pvector<NodeID_>& new_ids,
+    bool useOutdeg,
+    const std::vector<std::string>& reordering_options = {}) {
+    
+    Timer tm;
+    tm.Start();
+    
+    const int64_t num_nodes = g.num_nodes();
+    const int64_t num_edges = g.num_edges_directed();
+    
+    std::cout << "=== Full-Graph Adaptive Mode (Standalone) ===\n";
+    std::cout << "Nodes: " << num_nodes << ", Edges: " << num_edges << "\n";
+    
+    // Compute global features
+    auto features = ::ComputeSampledDegreeFeatures(g, 10000, true);
+    
+    double global_modularity = features.estimated_modularity;
+    double global_degree_variance = features.degree_variance;
+    double global_hub_concentration = features.hub_concentration;
+    double global_avg_degree = static_cast<double>(num_edges) / num_nodes;
+    double clustering_coeff = features.clustering_coeff;
+    
+    // Detect graph type
+    GraphType detected_graph_type = DetectGraphType(
+        global_modularity, global_degree_variance, global_hub_concentration,
+        global_avg_degree, static_cast<size_t>(num_nodes));
+    
+    std::cout << "Graph Type: " << GraphTypeToString(detected_graph_type) << "\n";
+    PrintTime("Degree Variance", global_degree_variance);
+    PrintTime("Hub Concentration", global_hub_concentration);
+    
+    // Create community features for the whole graph
+    CommunityFeatures global_feat;
+    global_feat.num_nodes = num_nodes;
+    global_feat.num_edges = num_edges;
+    global_feat.internal_density = global_avg_degree / (num_nodes - 1);
+    global_feat.degree_variance = global_degree_variance;
+    global_feat.hub_concentration = global_hub_concentration;
+    global_feat.clustering_coeff = clustering_coeff;
+    
+    // Select best algorithm
+    ReorderingAlgo best_algo = SelectBestReorderingForCommunity(
+        global_feat, global_modularity, global_degree_variance, global_hub_concentration,
+        global_avg_degree, static_cast<size_t>(num_nodes), num_edges,
+        BENCH_GENERIC, detected_graph_type);
+    
+    std::cout << "\n=== Selected Algorithm: " << ReorderingAlgoStr(best_algo) << " ===\n";
+    
+    // Use standalone dispatcher
+    ApplyBasicReorderingStandalone<NodeID_, DestID_, WeightT_, invert>(
+        g, new_ids, best_algo, useOutdeg, "");
+    
+    tm.Stop();
+    PrintTime("Full-Graph Adaptive Time", tm.Seconds());
+}
+
+/**
+ * @brief Recursive Adaptive Mapping (Standalone)
+ * 
+ * Uses GVE-Leiden for community detection (native, no external library).
+ * For each community, selects best algorithm based on features.
+ */
+template <typename NodeID_, typename DestID_, typename WeightT_, bool invert>
+void GenerateAdaptiveMappingRecursiveStandalone(
+    const CSRGraph<NodeID_, DestID_, invert>& g,
+    pvector<NodeID_>& new_ids,
+    bool useOutdeg,
+    const std::vector<std::string>& reordering_options,
+    int depth = 0,
+    bool verbose = true,
+    SelectionMode selection_mode = MODE_FASTEST_EXECUTION,
+    const std::string& graph_name = "") {
+    
+    Timer tm;
+    tm.Start();
+    
+    const int64_t num_nodes = g.num_nodes();
+    const int64_t num_edges = g.num_edges_directed();
+    
+    // Parse options
+    int MAX_DEPTH = 0;
+    size_t MIN_COMMUNITY_FOR_RECURSION = 50000;
+    double resolution = LeidenAutoResolution<NodeID_, DestID_>(g);
+    int max_iterations = 30;
+    int max_passes = 30;
+    
+    if (reordering_options.size() > 0) {
+        double first_val = std::stod(reordering_options[0]);
+        if (first_val >= 0 && first_val <= 10 && std::floor(first_val) == first_val) {
+            MAX_DEPTH = static_cast<int>(first_val);
+        } else {
+            resolution = first_val;
+        }
+    }
+    if (reordering_options.size() > 1) {
+        resolution = std::stod(reordering_options[1]);
+    }
+    if (reordering_options.size() > 2) {
+        MIN_COMMUNITY_FOR_RECURSION = std::stoul(reordering_options[2]);
+    }
+    
+    if (depth == 0 && verbose) {
+        PrintTime("Max Depth", static_cast<double>(MAX_DEPTH));
+        PrintTime("Resolution", resolution);
+        PrintTime("Min Recurse Size", static_cast<double>(MIN_COMMUNITY_FOR_RECURSION));
+    }
+    
+    // Use GVE-Leiden for community detection (native CSR)
+    auto leiden_result = GVELeidenOptCSR<K, WeightT_, NodeID_, DestID_>(
+        g, resolution, 1e-2, 0.8, 10.0, max_iterations, max_passes);
+    
+    std::vector<K> comm_ids_k = leiden_result.final_community;
+    double global_modularity = leiden_result.modularity;
+    
+    // Convert to size_t
+    std::vector<size_t> comm_ids(num_nodes);
+    K max_comm = 0;
+    for (int64_t v = 0; v < num_nodes; ++v) {
+        comm_ids[v] = static_cast<size_t>(comm_ids_k[v]);
+        max_comm = std::max(max_comm, comm_ids_k[v]);
+    }
+    size_t num_communities = static_cast<size_t>(max_comm + 1);
+    
+    if (depth == 0 && verbose) {
+        PrintTime("Modularity", global_modularity);
+        PrintTime("Num Communities", static_cast<double>(num_communities));
+    }
+    
+    // Compute global features
+    auto deg_features = ::ComputeSampledDegreeFeatures(g, 10000, true);
+    double global_degree_variance = deg_features.degree_variance;
+    double global_hub_concentration = deg_features.hub_concentration;
+    double global_avg_degree = static_cast<double>(num_edges) / num_nodes;
+    
+    // Detect graph type
+    GraphType detected_graph_type = DetectGraphType(
+        global_modularity, global_degree_variance, global_hub_concentration,
+        global_avg_degree, static_cast<size_t>(num_nodes));
+    
+    if (depth == 0 && verbose) {
+        std::cout << "Graph Type: " << GraphTypeToString(detected_graph_type) << "\n";
+        PrintTime("Degree Variance", global_degree_variance);
+        PrintTime("Hub Concentration", global_hub_concentration);
+    }
+    
+    // Count community sizes
+    std::vector<size_t> comm_freq(num_communities, 0);
+    for (int64_t v = 0; v < num_nodes; ++v) {
+        comm_freq[comm_ids[v]]++;
+    }
+    
+    // Compute dynamic thresholds
+    size_t non_empty_communities = 0;
+    for (size_t c = 0; c < num_communities; ++c) {
+        if (comm_freq[c] > 0) non_empty_communities++;
+    }
+    size_t avg_community_size = (non_empty_communities > 0) ?
+        static_cast<size_t>(num_nodes) / non_empty_communities : static_cast<size_t>(num_nodes);
+    
+    const size_t MIN_FEATURES_SAMPLE = ComputeDynamicMinCommunitySize(
+        static_cast<size_t>(num_nodes), non_empty_communities, avg_community_size);
+    const size_t MIN_LOCAL_REORDER = ComputeDynamicLocalReorderThreshold(
+        static_cast<size_t>(num_nodes), non_empty_communities, avg_community_size);
+    
+    if (depth == 0 && verbose) {
+        printf("\n=== Adaptive Reordering Selection (Depth %d, Modularity: %.4f) ===\n",
+               depth, global_modularity);
+        printf("Dynamic thresholds: MIN_FEATURES=%zu, MIN_LOCAL_REORDER=%zu (avg_comm=%zu, num_comm=%zu)\n",
+               MIN_FEATURES_SAMPLE, MIN_LOCAL_REORDER, avg_community_size, non_empty_communities);
+    }
+    
+    // Collect small community nodes
+    std::vector<NodeID_> small_community_nodes;
+    std::vector<bool> is_small_community(num_communities, false);
+    
+    for (size_t c = 0; c < num_communities; ++c) {
+        if (comm_freq[c] > 0 && comm_freq[c] < MIN_LOCAL_REORDER) {
+            is_small_community[c] = true;
+        }
+    }
+    
+    for (int64_t v = 0; v < num_nodes; ++v) {
+        if (is_small_community[comm_ids[v]]) {
+            small_community_nodes.push_back(static_cast<NodeID_>(v));
+        }
+    }
+    
+    // Get large communities
+    std::vector<std::pair<size_t, size_t>> freq_comm_pairs;
+    for (size_t c = 0; c < num_communities; ++c) {
+        if (comm_freq[c] >= MIN_LOCAL_REORDER) {
+            freq_comm_pairs.emplace_back(comm_freq[c], c);
+        }
+    }
+    std::sort(freq_comm_pairs.begin(), freq_comm_pairs.end(), std::greater<>());
+    
+    std::vector<size_t> top_communities;
+    std::vector<bool> is_top_community(num_communities, false);
+    for (auto& [freq, comm] : freq_comm_pairs) {
+        top_communities.push_back(comm);
+        is_top_community[comm] = true;
+    }
+    
+    // Process communities and assign new IDs
+    NodeID_ current_id = 0;
+    
+    // First: handle small communities
+    if (!small_community_nodes.empty()) {
+        std::unordered_set<NodeID_> small_node_set(
+            small_community_nodes.begin(), small_community_nodes.end());
+        
+        auto merged_feat = ::ComputeMergedCommunityFeatures(g, small_community_nodes, small_node_set);
+        ReorderingAlgo small_algo = ::SelectAlgorithmForSmallGroup(merged_feat);
+        
+        if (verbose) {
+            printf("AdaptiveOrder: Grouped %zu small communities (%zu nodes, %zu edges) -> %s\n",
+                   non_empty_communities - top_communities.size(),
+                   small_community_nodes.size(), merged_feat.num_edges,
+                   ReorderingAlgoStr(small_algo).c_str());
+        }
+        
+        if (small_algo == ORIGINAL || small_community_nodes.size() < 100) {
+            // Simple degree sort
+            std::vector<std::pair<int64_t, NodeID_>> degree_node_pairs;
+            degree_node_pairs.reserve(small_community_nodes.size());
+            for (NodeID_ node : small_community_nodes) {
+                int64_t deg = useOutdeg ? g.out_degree(node) : g.in_degree(node);
+                degree_node_pairs.emplace_back(-deg, node);
+            }
+            std::sort(degree_node_pairs.begin(), degree_node_pairs.end());
+            for (auto& [neg_deg, node] : degree_node_pairs) {
+                new_ids[node] = current_id++;
+            }
+        } else {
+            ReorderCommunitySubgraphStandalone<NodeID_, DestID_, WeightT_, invert>(
+                g, small_community_nodes, small_node_set, small_algo, useOutdeg, new_ids, current_id);
+        }
+    }
+    
+    // Then: process large communities
+    for (size_t comm_id : top_communities) {
+        // Collect nodes in this community
+        std::vector<NodeID_> comm_nodes;
+        comm_nodes.reserve(comm_freq[comm_id]);
+        for (int64_t v = 0; v < num_nodes; ++v) {
+            if (comm_ids[v] == comm_id) {
+                comm_nodes.push_back(static_cast<NodeID_>(v));
+            }
+        }
+        
+        std::unordered_set<NodeID_> comm_node_set(comm_nodes.begin(), comm_nodes.end());
+        
+        // Compute features for this community
+        auto feat = ComputeCommunityFeaturesStandalone<NodeID_, DestID_, invert>(
+            comm_nodes, g, comm_node_set);
+        
+        // Select algorithm for this community
+        ReorderingAlgo selected_algo = SelectBestReorderingForCommunity(
+            feat, global_modularity, global_degree_variance, global_hub_concentration,
+            global_avg_degree, static_cast<size_t>(num_nodes), num_edges,
+            BENCH_GENERIC, detected_graph_type);
+        
+        if (verbose && comm_nodes.size() >= MIN_FEATURES_SAMPLE) {
+            printf("  Community %zu: %zu nodes, %zu edges -> %s\n",
+                   comm_id, comm_nodes.size(), feat.num_edges, 
+                   ReorderingAlgoStr(selected_algo).c_str());
+        }
+        
+        // Apply algorithm
+        ReorderCommunitySubgraphStandalone<NodeID_, DestID_, WeightT_, invert>(
+            g, comm_nodes, comm_node_set, selected_algo, useOutdeg, new_ids, current_id);
+    }
+    
+    tm.Stop();
+    if (!verbose || depth == 0) {
+        PrintTime("Adaptive Map Time", tm.Seconds());
+    }
+}
+
+/**
+ * @brief Main Adaptive entry point (Standalone)
+ * 
+ * Parses options and dispatches to appropriate mode.
+ */
+template <typename NodeID_, typename DestID_, typename WeightT_, bool invert>
+void GenerateAdaptiveMappingStandalone(
+    const CSRGraph<NodeID_, DestID_, invert>& g,
+    pvector<NodeID_>& new_ids,
+    bool useOutdeg,
+    const std::vector<std::string>& reordering_options) {
+    
+    SelectionMode selection_mode = MODE_FASTEST_EXECUTION;
+    std::string graph_name = "";
+    
+    if (reordering_options.size() > 3) {
+        try {
+            int mode_val = std::stoi(reordering_options[3]);
+            if (mode_val >= 0 && mode_val <= 3) {
+                selection_mode = static_cast<SelectionMode>(mode_val);
+            } else if (mode_val == 100) {
+                // Legacy full-graph mode
+                GenerateAdaptiveMappingFullGraphStandalone<NodeID_, DestID_, WeightT_, invert>(
+                    g, new_ids, useOutdeg, reordering_options);
+                return;
+            }
+        } catch (...) {
+            selection_mode = GetSelectionMode(reordering_options[3]);
+        }
+    }
+    
+    if (reordering_options.size() > 4) {
+        graph_name = reordering_options[4];
+    }
+    
+    printf("AdaptiveOrder: Selection Mode: %s", SelectionModeToString(selection_mode).c_str());
+    if (!graph_name.empty()) {
+        printf(" (graph: %s)", graph_name.c_str());
+    }
+    printf("\n");
+    fflush(stdout);
+    
+    GenerateAdaptiveMappingRecursiveStandalone<NodeID_, DestID_, WeightT_, invert>(
+        g, new_ids, useOutdeg, reordering_options, 0, true, selection_mode, graph_name);
+}
+
 #endif // REORDER_ADAPTIVE_H_
