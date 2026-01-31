@@ -241,6 +241,62 @@ graphSlicer(const CSRGraph<NodeID_, DestID_, invert> &g,
 }
 
 // ============================================================================
+// CAGRA PARTITIONING (CSR-segmenting based partitioning)
+// ============================================================================
+
+/**
+ * @brief Partition a graph using Cagra/GraphIT style CSR-segmenting
+ * 
+ * Divides graph into p_n x p_m partitions using graphSlicer.
+ * Each partition contains edges to vertices in a contiguous ID range.
+ * 
+ * @tparam NodeID_ Node ID type
+ * @tparam DestID_ Destination ID type
+ * @tparam invert Whether graph has inverse edges
+ * @param g Input graph
+ * @param p_n Number of row partitions
+ * @param p_m Number of column partitions
+ * @param outDegree If true, partition by out-edges; else by in-edges
+ * @return Vector of partitioned graphs (p_n x p_m partitions)
+ */
+template <typename NodeID_, typename DestID_, bool invert>
+std::vector<CSRGraph<NodeID_, DestID_, invert>>
+MakeCagraPartitionedGraph(const CSRGraph<NodeID_, DestID_, invert> &g,
+                          int p_n = 1, int p_m = 1, bool outDegree = false)
+{
+    std::vector<CSRGraph<NodeID_, DestID_, invert>> partitions;
+    int p_num = p_n * p_m;
+    
+    if (p_num <= 0)
+    {
+        throw std::invalid_argument(
+            "Number of partitions must be greater than 0");
+    }
+    
+    // Determine the number of nodes in each partition
+    NodeID_ total_nodes = g.num_nodes();
+    NodeID_ nodes_per_partition = total_nodes / p_num;
+    NodeID_ remaining_nodes = total_nodes % p_num;
+
+    NodeID_ startID = 0;
+    for (int i = 0; i < p_num; ++i)
+    {
+        NodeID_ stopID = startID + nodes_per_partition;
+        if (i < remaining_nodes)
+        {
+            stopID += 1; // Distribute remaining nodes
+        }
+        // Create a partition using graphSlicer
+        CSRGraph<NodeID_, DestID_, invert> partition =
+            graphSlicer<NodeID_, DestID_, invert>(g, startID, stopID, outDegree);
+        partitions.emplace_back(std::move(partition));
+        startID = stopID;
+    }
+
+    return partitions;
+}
+
+// ============================================================================
 // GRAPH QUANTIZATION (For cache analysis)
 // ============================================================================
 

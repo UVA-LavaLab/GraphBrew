@@ -88,6 +88,13 @@ The foundation is built on the GAP Benchmark Suite with extensions.
 | [pvector.h](https://github.com/UVA-LavaLab/GraphBrew/blob/main/bench/include/gapbs/pvector.h) | ~150 | Parallel-friendly vector |
 | [timer.h](https://github.com/UVA-LavaLab/GraphBrew/blob/main/bench/include/gapbs/timer.h) | ~50 | High-resolution timing |
 
+#### Partitioning Modules
+
+| File | Purpose |
+|------|---------|
+| `cache/popt.h` | `graphSlicer` and `MakeCagraPartitionedGraph` (Cagra/GraphIT CSR partitioning) |
+| `partition/trust.h` | `TrustPartitioner::MakeTrustPartitionedGraph` (TRUST triangle-count partitioning) |
+
 #### Reorder Module (bench/include/gapbs/reorder/)
 
 The reorder module is a modular header library that extracts reusable components from `builder.h`. It follows an include hierarchy where `reorder_types.h` is the base, and specialized headers extend it.

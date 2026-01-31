@@ -678,7 +678,7 @@ public:
      * TRUST partitioning method based on the input type.
      *
      * For TRUST partitioning, uses TrustPartitioner from partition/trust.h
-     * For Cagra partitioning, uses graphSlicer from cache/popt.h
+     * For Cagra partitioning, uses MakeCagraPartitionedGraph from cache/popt.h
      *
      * @return std::vector<CSRGraph<NodeID_, DestID_, invert>> The partitions of
      * the graph.
@@ -700,7 +700,8 @@ public:
         switch (p_type)
         {
         case 0: // <0:GRAPHIT/Cagra>
-            partitions = MakeCagraPartitionedGraph(g, p_n, p_m);
+            partitions = ::MakeCagraPartitionedGraph<NodeID_, DestID_, invert>(
+                g, p_n, p_m, cli_.use_out_degree());
             break;
         case 1: // <1:TRUST>
             {
@@ -710,7 +711,8 @@ public:
             }
             break;
         default:
-            partitions = MakeCagraPartitionedGraph(g, p_n, p_m);
+            partitions = ::MakeCagraPartitionedGraph<NodeID_, DestID_, invert>(
+                g, p_n, p_m, cli_.use_out_degree());
             break;
         }
 
@@ -725,45 +727,6 @@ public:
             std::cout << "Partition " << i << ":" << std::endl;
             partitions[i].PrintTopology();
         }
-    }
-
-    /**
-     * @brief Partitions a graph using Cagra/GraphIT style CSR-segmenting
-     * 
-     * Uses graphSlicer from cache/popt.h to create partitions.
-     */
-    std::vector<CSRGraph<NodeID_, DestID_, invert>>
-            MakeCagraPartitionedGraph(const CSRGraph<NodeID_, DestID_, invert> &g,
-                                      int p_n = 1, int p_m = 1)
-    {
-        std::vector<CSRGraph<NodeID_, DestID_, invert>> partitions;
-        int p_num = p_n * p_m;
-        if (p_num <= 0)
-        {
-            throw std::invalid_argument(
-                "Number of partitions must be greater than 0");
-        }
-        // Determine the number of nodes in each partition
-        NodeID_ total_nodes = g.num_nodes();
-        NodeID_ nodes_per_partition = total_nodes / p_num;
-        NodeID_ remaining_nodes = total_nodes % p_num;
-
-        NodeID_ startID = 0;
-        for (int i = 0; i < p_num; ++i)
-        {
-            NodeID_ stopID = startID + nodes_per_partition;
-            if (i < remaining_nodes)
-            {
-                stopID += 1; // Distribute remaining nodes
-            }
-            // Create a partition using graphSlicer from cache/popt.h
-            CSRGraph<NodeID_, DestID_, invert> partition =
-                ::graphSlicer<NodeID_, DestID_, invert>(g, startID, stopID, cli_.use_out_degree());
-            partitions.emplace_back(std::move(partition));
-            startID = stopID;
-        }
-
-        return partitions;
     }
 
     CSRGraph<NodeID_, DestID_, invert> MakeGraph()
