@@ -5284,10 +5284,11 @@ public:
      * 4. Falls back to hardcoded defaults if no type file exists
      */
     
-    // Default path for perceptron weights file (relative to project root)
-    static constexpr const char* DEFAULT_WEIGHTS_FILE = "scripts/weights/active/type_0.json";
-    static constexpr const char* WEIGHTS_DIR = "scripts/";
-    static constexpr const char* TYPE_WEIGHTS_DIR = "scripts/weights/active/";  // Type-based weights directory
+    // Weight path constants - now defined in reorder/reorder_types.h
+    // Aliased here for backward compatibility
+    static constexpr const char* DEFAULT_WEIGHTS_FILE = ::DEFAULT_WEIGHTS_FILE;
+    static constexpr const char* WEIGHTS_DIR = ::WEIGHTS_DIR;
+    static constexpr const char* TYPE_WEIGHTS_DIR = ::TYPE_WEIGHTS_DIR;
     
     /**
      * Graph type enum for graph-type-specific weight selection
@@ -5423,473 +5424,71 @@ public:
     /**
      * Select algorithm with fastest reorder time based on w_reorder_time weight.
      * 
+     * Delegates to the global ::SelectFastestReorderFromWeights in reorder_types.h.
      * The w_reorder_time weight encodes how fast each algorithm is at reordering:
      * - Higher (less negative) = faster reordering
      * - Lower (more negative) = slower reordering
-     * 
-     * This uses the type_X.json weights directly, no .time files needed.
-     * 
-     * @param weights Map of algorithm -> perceptron weights
-     * @param verbose Print selection details
-     * @return Algorithm with highest w_reorder_time (fastest reorder)
      */
     static ReorderingAlgo SelectFastestReorderFromWeights(
         const std::map<ReorderingAlgo, PerceptronWeights>& weights, bool verbose = false) {
-        
-        if (weights.empty()) {
-            if (verbose) {
-                std::cout << "No weights available, defaulting to Random\n";
-            }
-            return Random;
-        }
-        
-        // Find algorithm with highest w_reorder_time (least negative = fastest)
-        ReorderingAlgo best_algo = Random;
-        double best_reorder_weight = -std::numeric_limits<double>::infinity();
-        
-        for (const auto& [algo, w] : weights) {
-            if (algo == ORIGINAL) continue;  // Skip ORIGINAL (no reordering)
-            
-            if (w.w_reorder_time > best_reorder_weight) {
-                best_reorder_weight = w.w_reorder_time;
-                best_algo = algo;
-            }
-        }
-        
-        if (verbose) {
-            std::cout << "Selected fastest-reorder: algo=" << static_cast<int>(best_algo) 
-                      << " (w_reorder_time: " << best_reorder_weight << ")\n";
-        }
-        
-        return best_algo;
+        return ::SelectFastestReorderFromWeights(weights, verbose);
     }
     
     /**
      * Find the best matching type file from the type registry.
      * 
-     * The type registry (scripts/weights/active/type_registry.json) contains centroids
-     * for each auto-generated type. This function finds the closest matching type
-     * based on the graph features using Euclidean distance.
-     * 
-     * @param features Graph features (modularity, degree_variance, etc.)
-     * @param verbose Print matching details
-     * @return Best matching type name (e.g., "type_0") or empty string if no match
+    /**
+     * Find the best matching type file from the type registry.
+     * Delegates to the global ::FindBestTypeFromFeatures in reorder_types.h.
      */
     static std::string FindBestTypeFromFeatures(
         double modularity, double degree_variance, double hub_concentration,
         double avg_degree, size_t num_nodes, size_t num_edges, bool verbose = false) {
-        
-        // Try to load type registry
-        std::string registry_path = std::string(TYPE_WEIGHTS_DIR) + "type_registry.json";
-        std::ifstream registry_file(registry_path);
-        if (!registry_file.is_open()) {
-            if (verbose) {
-                std::cout << "Type registry not found at " << registry_path << "\n";
-            }
-            return "";
-        }
-        
-        std::string json_content((std::istreambuf_iterator<char>(registry_file)),
-                                  std::istreambuf_iterator<char>());
-        registry_file.close();
-        
-        // Simple JSON parsing for type registry
-        // Format: {"type_0": {"centroid": [...], ...}, "type_1": {...}}
-        std::string best_type = "";
-        double best_distance = 999999.0;
-        
-        // Normalize features for distance calculation
-        double log_nodes = log10(std::max(1.0, (double)num_nodes));
-        double log_edges = log10(std::max(1.0, (double)num_edges));
-        double max_log_nodes = 9.0;  // ~1 billion nodes
-        double max_log_edges = 11.0; // ~100 billion edges
-        
-        // Feature vector: [modularity, degree_variance, hub_concentration, density, 0, log_nodes_norm, log_edges_norm]
-        double max_edges = num_nodes > 1 ? num_nodes * (num_nodes - 1) / 2.0 : 1.0;
-        double density = num_edges / max_edges;
-        
-        std::vector<double> query_vec = {
-            modularity,
-            std::min(1.0, degree_variance),
-            hub_concentration,
-            std::min(0.1, density),  // Cap density contribution
-            0.0,  // Placeholder
-            log_nodes / max_log_nodes,
-            log_edges / max_log_edges
-        };
-        
-        // Parse types from JSON (simplified parsing)
-        size_t pos = 0;
-        while ((pos = json_content.find("\"type_", pos)) != std::string::npos) {
-            // Extract type name
-            size_t name_start = pos + 1;
-            size_t name_end = json_content.find("\"", name_start);
-            if (name_end == std::string::npos) break;
-            std::string type_name = json_content.substr(name_start, name_end - name_start);
-            
-            // Find centroid array
-            size_t centroid_pos = json_content.find("\"centroid\"", name_end);
-            if (centroid_pos == std::string::npos || centroid_pos > pos + 2000) {
-                pos = name_end + 1;
-                continue;
-            }
-            
-            size_t array_start = json_content.find("[", centroid_pos);
-            size_t array_end = json_content.find("]", array_start);
-            if (array_start == std::string::npos || array_end == std::string::npos) {
-                pos = name_end + 1;
-                continue;
-            }
-            
-            // Parse centroid values
-            std::string centroid_str = json_content.substr(array_start + 1, array_end - array_start - 1);
-            std::vector<double> centroid;
-            std::stringstream ss(centroid_str);
-            std::string item;
-            while (std::getline(ss, item, ',')) {
-                try {
-                    centroid.push_back(std::stod(item));
-                } catch (...) {}
-            }
-            
-            // Compute distance
-            if (centroid.size() >= query_vec.size()) {
-                double distance = 0.0;
-                for (size_t i = 0; i < query_vec.size(); i++) {
-                    double diff = query_vec[i] - centroid[i];
-                    distance += diff * diff;
-                }
-                distance = sqrt(distance);
-                
-                if (distance < best_distance) {
-                    best_distance = distance;
-                    best_type = type_name;
-                }
-            }
-            
-            pos = name_end + 1;
-        }
-        
-        if (verbose && !best_type.empty()) {
-            std::cout << "Best matching type: " << best_type 
-                      << " (distance: " << best_distance << ")\n";
-        }
-        
-        return best_type;
+        return ::FindBestTypeFromFeatures(modularity, degree_variance, hub_concentration,
+                                          avg_degree, num_nodes, num_edges, verbose);
     }
     
     /**
      * Find the best matching type AND return the distance.
-     * 
-     * This is used to determine if a graph is "unknown" (distance > threshold).
-     * For unknown graphs, we fall back to fastest-reorder mode.
-     * 
-     * @param out_distance Output parameter: Euclidean distance to best centroid
-     * @return Best matching type name, or empty string if no registry
+     * Delegates to the global ::FindBestTypeWithDistance in reorder_types.h.
      */
     static std::string FindBestTypeWithDistance(
         double modularity, double degree_variance, double hub_concentration,
         double avg_degree, size_t num_nodes, size_t num_edges,
         double& out_distance, bool verbose = false) {
-        
-        out_distance = 999999.0;  // Default: very high distance (unknown)
-        
-        // Try to load type registry
-        std::string registry_path = std::string(TYPE_WEIGHTS_DIR) + "type_registry.json";
-        std::ifstream registry_file(registry_path);
-        if (!registry_file.is_open()) {
-            if (verbose) {
-                std::cout << "Type registry not found at " << registry_path << "\n";
-            }
-            return "";
-        }
-        
-        std::string json_content((std::istreambuf_iterator<char>(registry_file)),
-                                  std::istreambuf_iterator<char>());
-        registry_file.close();
-        
-        std::string best_type = "";
-        double best_distance = 999999.0;
-        
-        // Normalize features for distance calculation
-        double log_nodes = log10(std::max(1.0, (double)num_nodes));
-        double log_edges = log10(std::max(1.0, (double)num_edges));
-        double max_log_nodes = 9.0;
-        double max_log_edges = 11.0;
-        double max_edges = num_nodes > 1 ? num_nodes * (num_nodes - 1) / 2.0 : 1.0;
-        double density = num_edges / max_edges;
-        
-        std::vector<double> query_vec = {
-            modularity,
-            std::min(1.0, degree_variance),
-            hub_concentration,
-            std::min(0.1, density),
-            0.0,
-            log_nodes / max_log_nodes,
-            log_edges / max_log_edges
-        };
-        
-        // Parse types from JSON
-        size_t pos = 0;
-        while ((pos = json_content.find("\"type_", pos)) != std::string::npos) {
-            size_t name_start = pos + 1;
-            size_t name_end = json_content.find("\"", name_start);
-            if (name_end == std::string::npos) break;
-            std::string type_name = json_content.substr(name_start, name_end - name_start);
-            
-            size_t centroid_pos = json_content.find("\"centroid\"", name_end);
-            if (centroid_pos == std::string::npos || centroid_pos > pos + 2000) {
-                pos = name_end + 1;
-                continue;
-            }
-            
-            size_t array_start = json_content.find("[", centroid_pos);
-            size_t array_end = json_content.find("]", array_start);
-            if (array_start == std::string::npos || array_end == std::string::npos) {
-                pos = name_end + 1;
-                continue;
-            }
-            
-            std::string centroid_str = json_content.substr(array_start + 1, array_end - array_start - 1);
-            std::vector<double> centroid;
-            std::stringstream ss(centroid_str);
-            std::string item;
-            while (std::getline(ss, item, ',')) {
-                try { centroid.push_back(std::stod(item)); } catch (...) {}
-            }
-            
-            if (centroid.size() >= query_vec.size()) {
-                double distance = 0.0;
-                for (size_t i = 0; i < query_vec.size(); i++) {
-                    double diff = query_vec[i] - centroid[i];
-                    distance += diff * diff;
-                }
-                distance = sqrt(distance);
-                
-                if (distance < best_distance) {
-                    best_distance = distance;
-                    best_type = type_name;
-                }
-            }
-            
-            pos = name_end + 1;
-        }
-        
-        out_distance = best_distance;
-        
-        if (verbose && !best_type.empty()) {
-            std::cout << "Best matching type: " << best_type 
-                      << " (distance: " << best_distance << ")\n";
-        }
-        
-        return best_type;
+        return ::FindBestTypeWithDistance(modularity, degree_variance, hub_concentration,
+                                          avg_degree, num_nodes, num_edges, out_distance, verbose);
     }
     
-    // Threshold for flagging a graph as "distant" from known types (for verbose output)
-    // Calibrated based on typical type distances (range: 7-50+)
-    // Note: Does NOT trigger fallback - perceptron still uses closest type's weights
-    static constexpr double UNKNOWN_TYPE_DISTANCE_THRESHOLD = 50.0;
+    // Threshold constant now defined in reorder/reorder_types.h
+    // Alias for backward compatibility
+    static constexpr double UNKNOWN_TYPE_DISTANCE_THRESHOLD = ::UNKNOWN_TYPE_DISTANCE_THRESHOLD;
     
     /**
-     * Check if a graph is far from known types (for informational/verbose output only)
-     * The perceptron still works with the closest type's weights.
+     * Check if a graph is far from known types (delegates to global function)
      */
     static bool IsDistantGraphType(double type_distance) {
-        return type_distance > UNKNOWN_TYPE_DISTANCE_THRESHOLD;
+        return ::IsDistantGraphType(type_distance);
     }
     
     /**
      * Load perceptron weights for a specific graph type.
-     * 
-     * Checks for weights file in this order:
-     * 1. Path from PERCEPTRON_WEIGHTS_FILE environment variable (overrides all)
-     * 2. Type-based file: scripts/weights/active/type_N.json (if features provided)
-     * 3. If none exist, returns hardcoded defaults from GetPerceptronWeights()
-     * 
-     * @param graph_type The detected or specified graph type
-     * @param verbose Print which file was loaded
+     * Delegates to the global ::LoadPerceptronWeightsForGraphType in reorder_types.h.
      */
     static std::map<ReorderingAlgo, PerceptronWeights> LoadPerceptronWeightsForGraphType(
         GraphType graph_type, bool verbose = false) {
-        
-        // Start with defaults
-        auto weights = GetPerceptronWeights();
-        
-        // Check environment variable override first
-        const char* env_path = std::getenv("PERCEPTRON_WEIGHTS_FILE");
-        if (env_path != nullptr) {
-            std::ifstream file(env_path);
-            if (file.is_open()) {
-                std::string json_content((std::istreambuf_iterator<char>(file)),
-                                          std::istreambuf_iterator<char>());
-                file.close();
-                
-                std::map<ReorderingAlgo, PerceptronWeights> loaded_weights;
-                if (ParseWeightsFromJSON(json_content, loaded_weights)) {
-                    for (const auto& kv : loaded_weights) {
-                        weights[kv.first] = kv.second;
-                    }
-                    if (verbose) {
-                        std::cout << "Perceptron: Loaded " << loaded_weights.size() 
-                                  << " weights from env override: " << env_path << "\n";
-                    }
-                    return weights;
-                }
-            }
-        }
-        
-        // Build list of candidate files to try (in order of preference)
-        std::vector<std::string> candidate_files;
-        
-        // 1. Graph-type-specific file (semantic types: social, road, web, etc.)
-        if (graph_type != GRAPH_GENERIC) {
-            std::string type_file = std::string(WEIGHTS_DIR) + "perceptron_weights_" 
-                                    + GraphTypeToString(graph_type) + ".json";
-            candidate_files.push_back(type_file);
-        }
-        
-        // 2. Default file
-        candidate_files.push_back(DEFAULT_WEIGHTS_FILE);
-        
-        // Try each candidate file
-        for (const auto& weights_file : candidate_files) {
-            std::ifstream file(weights_file);
-            if (!file.is_open()) continue;
-            
-            std::string json_content((std::istreambuf_iterator<char>(file)),
-                                      std::istreambuf_iterator<char>());
-            file.close();
-            
-            std::map<ReorderingAlgo, PerceptronWeights> loaded_weights;
-            if (ParseWeightsFromJSON(json_content, loaded_weights)) {
-                for (const auto& kv : loaded_weights) {
-                    weights[kv.first] = kv.second;
-                }
-                if (verbose) {
-                    std::cout << "Perceptron: Loaded " << loaded_weights.size() 
-                              << " weights from " << weights_file;
-                    if (graph_type != GRAPH_GENERIC) {
-                        std::cout << " (graph type: " << GraphTypeToString(graph_type) << ")";
-                    }
-                    std::cout << "\n";
-                }
-                return weights;
-            }
-        }
-        
-        // No files found - use defaults
-        if (verbose) {
-            std::cout << "Perceptron: Using hardcoded defaults (no weight files found)\n";
-        }
-        return weights;
+        return ::LoadPerceptronWeightsForGraphType(graph_type, verbose);
     }
     
     /**
      * Load perceptron weights using graph features to find the best type match.
-     * 
-     * This function first tries to find a matching auto-generated type (type_0, type_1, etc.)
-     * from the type registry, then falls back to semantic types (social, road, etc.) and
-     * finally to the default weights.
-     * 
-     * FALLBACK MECHANISM:
-     * 1. Starts with GetPerceptronWeights() which provides defaults for ALL algorithms
-     * 2. Loads type-specific weights and OVERLAYS them on defaults
-     * 3. Any algorithm missing from the type file uses the default weights
-     * 
-     * This ensures we ALWAYS have weights for every algorithm, even if the type file
-     * was trained with only a subset of algorithms.
-     * 
-     * @param modularity Graph modularity score
-     * @param degree_variance Normalized degree variance
-     * @param hub_concentration Hub concentration metric
-     * @param avg_degree Average vertex degree
-     * @param num_nodes Number of nodes
-     * @param num_edges Number of edges
-     * @param verbose Print which file was loaded
+     * Delegates to the global ::LoadPerceptronWeightsForFeatures in reorder_types.h.
      */
     static std::map<ReorderingAlgo, PerceptronWeights> LoadPerceptronWeightsForFeatures(
         double modularity, double degree_variance, double hub_concentration,
         double avg_degree, size_t num_nodes, size_t num_edges, bool verbose = false) {
-        
-        // Start with defaults - this ensures ALL algorithms have weights
-        auto weights = GetPerceptronWeights();
-        
-        // Check environment variable override first
-        const char* env_path = std::getenv("PERCEPTRON_WEIGHTS_FILE");
-        if (env_path != nullptr) {
-            std::ifstream file(env_path);
-            if (file.is_open()) {
-                std::string json_content((std::istreambuf_iterator<char>(file)),
-                                          std::istreambuf_iterator<char>());
-                file.close();
-                
-                std::map<ReorderingAlgo, PerceptronWeights> loaded_weights;
-                if (ParseWeightsFromJSON(json_content, loaded_weights)) {
-                    for (const auto& kv : loaded_weights) {
-                        weights[kv.first] = kv.second;
-                    }
-                    if (verbose) {
-                        std::cout << "Perceptron: Loaded " << loaded_weights.size() 
-                                  << " weights from env override: " << env_path << "\n";
-                    }
-                    return weights;
-                }
-            }
-        }
-        
-        // Build list of candidate files to try (in order of preference)
-        std::vector<std::string> candidate_files;
-        
-        // 1. Try to find matching type from type registry (type_0, type_1, etc.)
-        std::string best_type = FindBestTypeFromFeatures(
-            modularity, degree_variance, hub_concentration,
-            avg_degree, num_nodes, num_edges, verbose);
-        
-        if (!best_type.empty()) {
-            std::string type_file = std::string(TYPE_WEIGHTS_DIR) + best_type + ".json";
-            candidate_files.push_back(type_file);
-        }
-        
-        // 2. Detect semantic graph type and try type-specific file
-        GraphType detected_type = DetectGraphType(modularity, degree_variance, 
-                                                   hub_concentration, avg_degree, num_nodes);
-        if (detected_type != GRAPH_GENERIC) {
-            std::string type_file = std::string(WEIGHTS_DIR) + "perceptron_weights_" 
-                                    + GraphTypeToString(detected_type) + ".json";
-            candidate_files.push_back(type_file);
-        }
-        
-        // 3. Default file (global fallback with all algorithms)
-        candidate_files.push_back(DEFAULT_WEIGHTS_FILE);
-        
-        // Try each candidate file - overlay loaded weights on defaults
-        // This ensures algorithms missing from type files use global defaults
-        for (const auto& weights_file : candidate_files) {
-            std::ifstream file(weights_file);
-            if (!file.is_open()) continue;
-            
-            std::string json_content((std::istreambuf_iterator<char>(file)),
-                                      std::istreambuf_iterator<char>());
-            file.close();
-            
-            std::map<ReorderingAlgo, PerceptronWeights> loaded_weights;
-            if (ParseWeightsFromJSON(json_content, loaded_weights)) {
-                for (const auto& kv : loaded_weights) {
-                    weights[kv.first] = kv.second;
-                }
-                if (verbose) {
-                    std::cout << "Perceptron: Loaded " << loaded_weights.size() 
-                              << " weights from " << weights_file << "\n";
-                }
-                return weights;
-            }
-        }
-        
-        // No files found - use defaults
-        if (verbose) {
-            std::cout << "Perceptron: Using hardcoded defaults (no weight files found)\n";
-        }
-        return weights;
+        return ::LoadPerceptronWeightsForFeatures(modularity, degree_variance, hub_concentration,
+                                                   avg_degree, num_nodes, num_edges, verbose);
     }
     
     /**
