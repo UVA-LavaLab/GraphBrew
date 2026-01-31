@@ -2417,202 +2417,13 @@ public:
         ::GenerateCOrderMapping<NodeID_, DestID_, invert>(g, new_ids);
     }
 
+    /**
+     * COrder v2 - Optimized parallel version using Vector2d
+     * Delegates to ::GenerateCOrderMapping_v2 in reorder/reorder_classic.h
+     */
     void GenerateCOrderMapping_v2(const CSRGraph<NodeID_, DestID_, invert> &g,
-                                  pvector<NodeID_> &new_ids)
-    {
-        Timer t;
-        t.Start();
-
-        auto num_nodes = g.num_nodes();
-        auto num_edges = g.num_edges();
-
-        params::partition_size = 1024;
-        params::num_partitions = (num_nodes - 1) / params::partition_size + 1;
-        unsigned num_partitions = params::num_partitions;
-
-        uint32_t average_degree = num_edges / num_nodes;
-
-        const int max_threads = omp_get_max_threads();
-
-        Vector2d<unsigned> large_segment(max_threads);
-        Vector2d<unsigned> small_segment(max_threads);
-
-        #pragma omp parallel for schedule(static, 1024) num_threads(max_threads)
-        for (unsigned i = 0; i < num_nodes; i++)
-        {
-            if (g.out_degree(i) > average_degree)
-            {
-                large_segment[omp_get_thread_num()].push_back(i);
-            }
-            else
-            {
-                small_segment[omp_get_thread_num()].push_back(i);
-            }
-        }
-
-        std::vector<unsigned> large_offset(max_threads + 1, 0);
-        std::vector<unsigned> small_offset(max_threads + 1, 0);
-
-        large_offset[1] = large_segment[0].size();
-        small_offset[1] = small_segment[0].size();
-        for (int i = 0; i < max_threads; i++)
-        {
-            large_offset[i + 1] = large_offset[i] + large_segment[i].size();
-            small_offset[i + 1] = small_offset[i] + small_segment[i].size();
-        }
-
-        unsigned total_large = large_offset[max_threads];
-        unsigned total_small = small_offset[max_threads];
-
-        unsigned cluster_size = params::partition_size;
-        unsigned num_clusters = num_partitions;
-        unsigned num_large_per_seg = ceil((float)total_large / num_clusters);
-        unsigned num_small_per_seg = cluster_size - num_large_per_seg;
-
-        // Parallelize constructing partitions based on the classified hot/cold
-        // vertices
-
-        #pragma omp parallel for schedule(static) num_threads(max_threads)
-        for (unsigned i = 0; i < num_clusters; i++)
-        {
-
-            // Debug output for current cluster's state across all threads
-
-            unsigned index = i * cluster_size;
-            unsigned num_large =
-                (i != num_clusters - 1) ? (i + 1) * num_large_per_seg : total_large;
-            unsigned large_start_t = 0;
-            unsigned large_end_t = 0;
-            unsigned large_start_v = 0;
-            unsigned large_end_v = 0;
-            unsigned large_per_seg = (i != num_clusters - 1)
-                                     ? num_large_per_seg
-                                     : total_large - i * num_large_per_seg;
-
-            unsigned num_small =
-                (i != num_clusters - 1) ? (i + 1) * num_small_per_seg : total_small;
-            unsigned small_start_t = 0;
-            unsigned small_end_t = 0;
-            unsigned small_start_v = 0;
-            unsigned small_end_v = 0;
-            unsigned small_per_seg = (i != num_clusters - 1)
-                                     ? num_small_per_seg
-                                     : total_small - i * num_small_per_seg;
-
-            // HOT find the starting segment and starting vertex
-            for (int t = 0; t < max_threads; t++)
-            {
-                if (large_offset[t + 1] > num_large - large_per_seg)
-                {
-                    large_start_t = t;
-                    large_start_v = num_large - large_per_seg - large_offset[t];
-                    break;
-                }
-            }
-            // HOT find the ending segment and ending vertex
-            for (int t = large_start_t; t < max_threads; t++)
-            {
-                if (large_offset[t + 1] >= num_large)
-                {
-                    large_end_t = t;
-                    large_end_v = num_large - large_offset[t] - 1;
-                    break;
-                }
-            }
-
-            // COLD find the starting segment and starting vertex
-            for (int t = 0; t < max_threads; t++)
-            {
-                if (small_offset[t + 1] > num_small - small_per_seg)
-                {
-                    small_start_t = t;
-                    small_start_v = num_small - small_per_seg - small_offset[t];
-                    break;
-                }
-            }
-            // COLD find the ending segment and ending vertex
-            for (int t = small_start_t; t < max_threads; t++)
-            {
-                if (small_offset[t + 1] >= num_small)
-                {
-                    small_end_t = t;
-                    small_end_v = num_small - small_offset[t] - 1;
-                    break;
-                }
-            }
-
-            if (large_start_t == large_end_t)
-            {
-                if (!large_segment[large_start_t].empty())
-                {
-                    for (unsigned j = large_start_v; j <= large_end_v; j++)
-                    {
-                        assert(large_start_t < large_segment.size());
-                        assert(j < large_segment[large_start_t].size());
-                        new_ids[large_segment[large_start_t][j]] = index++;
-                    }
-                }
-            }
-            else
-            {
-                for (unsigned t = large_start_t; t < large_end_t; t++)
-                {
-                    if (t != large_start_t)
-                        large_start_v = 0;
-                    if (!large_segment[t].empty())
-                    {
-                        for (unsigned j = large_start_v; j < large_segment[t].size(); j++)
-                        {
-                            new_ids[large_segment[t][j]] = index++;
-                        }
-                    }
-                }
-                if (!large_segment[large_end_t].empty())
-                {
-                    for (unsigned j = 0; j <= large_end_v; j++)
-                    {
-                        new_ids[large_segment[large_end_t][j]] = index++;
-                    }
-                }
-            }
-
-            if (small_start_t == small_end_t)
-            {
-                if (!small_segment[small_start_t].empty())
-                {
-                    for (unsigned j = small_start_v; j <= small_end_v; j++)
-                    {
-                        assert(small_start_t < small_segment.size());
-                        assert(j < small_segment[small_start_t].size());
-                        new_ids[small_segment[small_start_t][j]] = index++;
-                    }
-                }
-            }
-            else
-            {
-                for (unsigned t = small_start_t; t < small_end_t; t++)
-                {
-                    if (t != small_start_t)
-                        small_start_v = 0;
-                    if (!small_segment[t].empty())
-                    {
-                        for (unsigned j = small_start_v; j < small_segment[t].size(); j++)
-                        {
-                            new_ids[small_segment[t][j]] = index++;
-                        }
-                    }
-                }
-                if (!small_segment[small_end_t].empty())
-                {
-                    for (unsigned j = 0; j <= small_end_v; j++)
-                    {
-                        new_ids[small_segment[small_end_t][j]] = index++;
-                    }
-                }
-            }
-        }
-        t.Stop();
-        PrintTime("COrder Map Time", t.Seconds());
+                                  pvector<NodeID_> &new_ids) {
+        ::GenerateCOrderMapping_v2<NodeID_, DestID_, invert>(g, new_ids);
     }
 
     // @inproceedings{popt-hpca21,
@@ -4729,7 +4540,8 @@ public:
     //==========================================================================
 
     /**
-     * DFS ordering of dendrogram (original sequential version for comparison)
+     * DFS ordering of dendrogram (sequential version)
+     * Delegates to ::orderDendrogramDFS in reorder/reorder_types.h
      */
     void orderDendrogramDFS(
         const std::vector<LeidenDendrogramNode>& nodes,
@@ -4737,129 +4549,30 @@ public:
         pvector<NodeID_>& new_ids,
         bool hub_first,
         bool size_first) {
-        
-        NodeID_ current_id = 0;
-        std::deque<int64_t> stack;
-        
-        for (int64_t root : roots) {
-            stack.push_back(root);
-            
-            while (!stack.empty()) {
-                int64_t node_id = stack.back();
-                stack.pop_back();
-                
-                const auto& node = nodes[node_id];
-                
-                if (node.vertex_id >= 0) {
-                    new_ids[node.vertex_id] = current_id++;
-                } else {
-                    std::vector<int64_t> children;
-                    int64_t child = node.first_child;
-                    while (child >= 0) {
-                        children.push_back(child);
-                        child = nodes[child].sibling;
-                    }
-                    
-                    if (hub_first) {
-                        std::sort(children.begin(), children.end(), 
-                             [&nodes](int64_t a, int64_t b) {
-                                 return nodes[a].weight > nodes[b].weight;
-                             });
-                    } else if (size_first) {
-                        std::sort(children.begin(), children.end(),
-                             [&nodes](int64_t a, int64_t b) {
-                                 return nodes[a].subtree_size > nodes[b].subtree_size;
-                             });
-                    }
-                    
-                    for (auto it = children.rbegin(); it != children.rend(); ++it) {
-                        stack.push_back(*it);
-                    }
-                }
-            }
-        }
+        ::orderDendrogramDFS<NodeID_>(nodes, roots, new_ids, hub_first, size_first);
     }
 
     /**
      * BFS ordering of dendrogram (by level)
+     * Delegates to ::orderDendrogramBFS in reorder/reorder_types.h
      */
     void orderDendrogramBFS(
         const std::vector<LeidenDendrogramNode>& nodes,
         const std::vector<int64_t>& roots,
         pvector<NodeID_>& new_ids) {
-        
-        NodeID_ current_id = 0;
-        std::deque<int64_t> queue;
-        
-        for (int64_t root : roots) {
-            queue.push_back(root);
-        }
-        
-        while (!queue.empty()) {
-            int64_t node_id = queue.front();
-            queue.pop_front();
-            
-            const auto& node = nodes[node_id];
-            
-            if (node.vertex_id >= 0) {
-                new_ids[node.vertex_id] = current_id++;
-            } else {
-                int64_t child = node.first_child;
-                while (child >= 0) {
-                    queue.push_back(child);
-                    child = nodes[child].sibling;
-                }
-            }
-        }
+        ::orderDendrogramBFS<NodeID_>(nodes, roots, new_ids);
     }
 
     /**
      * Hybrid ordering: sort by (community, degree descending)
+     * Delegates to ::orderLeidenHybridHubDFS in reorder/reorder_types.h
      */
     template<typename K>
     void orderLeidenHybridHubDFS(
         const std::vector<std::vector<K>>& communityMappingPerPass,
         const std::vector<K>& degrees,
         pvector<NodeID_>& new_ids) {
-        
-        const size_t n = degrees.size();
-        
-        if (communityMappingPerPass.empty()) {
-            // No community - sort by degree
-            std::vector<std::pair<K, size_t>> deg_vertex(n);
-            #pragma omp parallel for
-            for (size_t v = 0; v < n; ++v) {
-                deg_vertex[v] = {degrees[v], v};
-            }
-            __gnu_parallel::sort(deg_vertex.begin(), deg_vertex.end(), std::greater<>());
-            #pragma omp parallel for
-            for (size_t i = 0; i < n; ++i) {
-                new_ids[deg_vertex[i].second] = i;
-            }
-            return;
-        }
-        
-        // Get last-pass communities
-        const auto& last_pass = communityMappingPerPass.back();
-        
-        // Create (vertex, community, degree) tuples
-        std::vector<std::tuple<size_t, K, K>> vertices(n);
-        #pragma omp parallel for
-        for (size_t v = 0; v < n; ++v) {
-            vertices[v] = std::make_tuple(v, last_pass[v], degrees[v]);
-        }
-        
-        // Sort by (community, degree descending)
-        __gnu_parallel::sort(vertices.begin(), vertices.end(),
-            [](const auto& a, const auto& b) {
-                if (std::get<1>(a) != std::get<1>(b)) return std::get<1>(a) < std::get<1>(b);
-                return std::get<2>(a) > std::get<2>(b);
-            });
-        
-        #pragma omp parallel for
-        for (size_t i = 0; i < n; ++i) {
-            new_ids[std::get<0>(vertices[i])] = i;
-        }
+        ::orderLeidenHybridHubDFS<K, NodeID_>(communityMappingPerPass, degrees, new_ids);
     }
 
     /**
