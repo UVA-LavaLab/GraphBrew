@@ -308,32 +308,10 @@ using ::SelectReorderingPerceptronWithFeatures;
 // ============================================================================
 // DYNAMIC THRESHOLD COMPUTATION
 // ============================================================================
+// These functions are defined in reorder_types.h and imported here for convenience
 
-// ComputeDynamicMinCommunitySize is now in reorder_types.h at global scope
 using ::ComputeDynamicMinCommunitySize;
-
-/**
- * Compute dynamic threshold for when to apply local reordering.
- * Communities smaller than this get simple degree-sorting instead of
- * expensive subgraph construction + algorithm application.
- * 
- * This is slightly higher than min_community_size because subgraph
- * construction has overhead.
- * 
- * @param num_nodes Total nodes in graph
- * @param num_communities Number of communities
- * @param avg_community_size Average community size
- * @return Threshold for local reordering (higher = more batching)
- */
-inline size_t ComputeDynamicLocalReorderThreshold(size_t num_nodes,
-                                                   size_t num_communities,
-                                                   size_t avg_community_size = 0)
-{
-    // Local reorder threshold is 2x the min community size
-    // because subgraph construction has significant overhead
-    size_t min_size = ComputeDynamicMinCommunitySize(num_nodes, num_communities, avg_community_size);
-    return std::min(min_size * 2, static_cast<size_t>(5000));  // Cap at 5000
-}
+using ::ComputeDynamicLocalReorderThreshold;
 
 // ============================================================================
 // GRAPHBREW CONFIGURATION
@@ -442,5 +420,450 @@ struct GraphBrewConfig {
 };
 
 } // namespace graphbrew
+
+// ============================================================================
+// GRAPHBREW STANDALONE IMPLEMENTATIONS
+// ============================================================================
+// These implementations use global types from reorder_types.h and can be
+// called without a BuilderBase instance.
+
+/**
+ * @brief GraphBrew with GVE-Leiden clustering (standalone)
+ * 
+ * Uses GVE-Leiden or GVE-LeidenOpt for community detection, then applies
+ * the final reordering algorithm to each community.
+ * 
+ * @tparam NodeID_ Node ID type
+ * @tparam DestID_ Destination type  
+ * @tparam WeightT_ Edge weight type
+ * @tparam invert Whether graph has inverse edges
+ */
+template <typename NodeID_, typename DestID_, typename WeightT_, bool invert>
+void GenerateGraphBrewGVEMappingStandalone(
+    const CSRGraph<NodeID_, DestID_, invert>& g,
+    pvector<NodeID_>& new_ids,
+    bool useOutdeg,
+    std::vector<std::string> reordering_options,
+    int numLevels = 2,
+    bool recursion = false,
+    bool use_optimized = false) {
+    
+    Timer tm, tm_2;
+    using EL = EdgeList<NodeID_, DestID_>;
+    using EP = EdgePair<NodeID_, DestID_>;
+    
+    const int64_t num_nodes = g.num_nodes();
+    
+    // Parse options
+    size_t frequency_threshold = 10;
+    int final_algo_id = 8;  // RabbitOrder
+    double resolution = LeidenAutoResolution<NodeID_, DestID_>(g);
+    int max_iterations = 20;
+    int max_passes = 10;
+    
+    if (!reordering_options.empty()) {
+        frequency_threshold = std::stoi(reordering_options[0]);
+    }
+    if (reordering_options.size() > 1) {
+        final_algo_id = std::stoi(reordering_options[1]);
+    }
+    if (reordering_options.size() > 2) {
+        resolution = std::stod(reordering_options[2]);
+        if (resolution > 3) resolution = 1.0;
+    }
+    
+    ReorderingAlgo final_algo = static_cast<ReorderingAlgo>(final_algo_id);
+    
+    if (recursion && numLevels > 0) {
+        numLevels -= 1;
+    }
+    
+    printf("GraphBrewGVE: resolution=%.4f, final_algo=%s, levels=%d, optimized=%d\n",
+           resolution, ReorderingAlgoStr(final_algo).c_str(), numLevels, use_optimized);
+    
+    tm.Start();
+    
+    // Run GVE-Leiden community detection
+    std::vector<K> comm_ids(num_nodes);
+    size_t num_communities;
+    
+    if (use_optimized) {
+        auto result = GVELeidenOptCSR<K, WeightT_, NodeID_, DestID_>(g, resolution, 1e-2, 0.8, 10.0, max_iterations, max_passes);
+        comm_ids = result.final_community;
+        K max_comm = 0;
+        for (int64_t v = 0; v < num_nodes; ++v) {
+            max_comm = std::max(max_comm, comm_ids[v]);
+        }
+        num_communities = static_cast<size_t>(max_comm + 1);
+        printf("GVELeidenOpt: %d passes, modularity=%.6f, communities=%zu\n",
+               result.total_passes, result.modularity, num_communities);
+    } else {
+        auto result = GVELeidenCSR<K, WeightT_, NodeID_, DestID_>(g, resolution, 1e-2, 0.8, 10.0, max_iterations, max_passes);
+        comm_ids = result.final_community;
+        K max_comm = 0;
+        for (int64_t v = 0; v < num_nodes; ++v) {
+            max_comm = std::max(max_comm, comm_ids[v]);
+        }
+        num_communities = static_cast<size_t>(max_comm + 1);
+        printf("GVELeidenCSR: %d passes, modularity=%.6f, communities=%zu\n",
+               result.total_passes, result.modularity, num_communities);
+    }
+    
+    tm.Stop();
+    PrintTime("GraphBrewGVE Community Detection", tm.Seconds());
+    
+    // Count community sizes
+    std::vector<size_t> comm_freq(num_communities, 0);
+    for (int64_t v = 0; v < num_nodes; ++v) {
+        comm_freq[comm_ids[v]]++;
+    }
+    
+    // Compute average community size for dynamic threshold
+    size_t non_empty_communities = 0;
+    for (size_t c = 0; c < num_communities; ++c) {
+        if (comm_freq[c] > 0) non_empty_communities++;
+    }
+    size_t avg_community_size = (non_empty_communities > 0) ? 
+        static_cast<size_t>(num_nodes) / non_empty_communities : static_cast<size_t>(num_nodes);
+    
+    // Dynamic threshold for minimum community size
+    const size_t MIN_COMMUNITY_SIZE = ComputeDynamicMinCommunitySize(
+        static_cast<size_t>(num_nodes), non_empty_communities, avg_community_size);
+    
+    // Determine actual threshold
+    size_t actual_freq_threshold;
+    if (frequency_threshold > 0 && frequency_threshold < non_empty_communities) {
+        std::vector<size_t> sorted_freq = comm_freq;
+        std::nth_element(sorted_freq.begin(), 
+                         sorted_freq.begin() + frequency_threshold - 1,
+                         sorted_freq.end(),
+                         std::greater<size_t>());
+        actual_freq_threshold = sorted_freq[frequency_threshold - 1];
+    } else {
+        actual_freq_threshold = MIN_COMMUNITY_SIZE;
+    }
+    
+    printf("GraphBrewGVE: Dynamic threshold=%zu (avg_comm=%zu, num_comm=%zu)\n",
+           actual_freq_threshold, avg_community_size, non_empty_communities);
+    
+    // Classify communities
+    std::vector<NodeID_> small_community_nodes;
+    std::vector<bool> is_small_community(num_communities, false);
+    
+    for (size_t c = 0; c < num_communities; ++c) {
+        if (comm_freq[c] > 0 && comm_freq[c] < actual_freq_threshold) {
+            is_small_community[c] = true;
+        }
+    }
+    
+    for (int64_t v = 0; v < num_nodes; ++v) {
+        if (is_small_community[comm_ids[v]]) {
+            small_community_nodes.push_back(static_cast<NodeID_>(v));
+        }
+    }
+    
+    // Get large communities
+    std::vector<std::pair<size_t, size_t>> freq_comm_pairs;
+    for (size_t c = 0; c < num_communities; ++c) {
+        if (comm_freq[c] > 0 && !is_small_community[c]) {
+            freq_comm_pairs.emplace_back(comm_freq[c], c);
+        }
+    }
+    std::sort(freq_comm_pairs.begin(), freq_comm_pairs.end(), std::greater<>());
+    
+    std::vector<size_t> top_communities;
+    std::vector<bool> is_top_community(num_communities, false);
+    for (auto& [freq, comm] : freq_comm_pairs) {
+        top_communities.push_back(comm);
+        is_top_community[comm] = true;
+    }
+    
+    printf("GraphBrewGVE: %zu large communities for reordering\n", top_communities.size());
+    
+    // Build edge lists per community
+    tm_2.Start();
+    
+    const int num_threads = omp_get_max_threads();
+    std::vector<std::vector<EL>> thread_edge_lists(num_threads);
+    
+    #pragma omp parallel for
+    for (int t = 0; t < num_threads; ++t) {
+        thread_edge_lists[t].resize(num_communities);
+    }
+    
+    const NodeID_ BLOCK_SIZE = 1024;
+    const bool graph_is_weighted = g.is_weighted();
+    
+    #pragma omp parallel
+    {
+        int tid = omp_get_thread_num();
+        auto& local_edge_lists = thread_edge_lists[tid];
+        
+        #pragma omp for schedule(dynamic, 1) nowait
+        for (NodeID_ block_start = 0; block_start < num_nodes; block_start += BLOCK_SIZE) {
+            NodeID_ block_end = std::min(block_start + BLOCK_SIZE, static_cast<NodeID_>(num_nodes));
+            
+            for (NodeID_ i = block_start; i < block_end; ++i) {
+                size_t src_comm = comm_ids[i];
+                if (is_top_community[src_comm]) {
+                    auto& target_list = local_edge_lists[src_comm];
+                    if (graph_is_weighted) {
+                        for (DestID_ neighbor : g.out_neigh(i)) {
+                            NodeID_ dest = static_cast<NodeWeight<NodeID_, WeightT_>>(neighbor).v;
+                            WeightT_ weight = static_cast<NodeWeight<NodeID_, WeightT_>>(neighbor).w;
+                            target_list.push_back(EP(i, NodeWeight<NodeID_, WeightT_>(dest, weight)));
+                        }
+                    } else {
+                        for (DestID_ neighbor : g.out_neigh(i)) {
+                            target_list.push_back(EP(i, neighbor));
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    // Merge thread edge lists
+    std::vector<size_t> comm_sizes(num_communities, 0);
+    #pragma omp parallel for
+    for (size_t c = 0; c < num_communities; ++c) {
+        for (int t = 0; t < num_threads; ++t) {
+            comm_sizes[c] += thread_edge_lists[t][c].size();
+        }
+    }
+    
+    std::vector<EL> community_edge_lists(num_communities);
+    #pragma omp parallel for
+    for (size_t c = 0; c < num_communities; ++c) {
+        if (comm_sizes[c] > 0) {
+            community_edge_lists[c].reserve(comm_sizes[c]);
+        }
+    }
+    
+    #pragma omp parallel for schedule(dynamic)
+    for (size_t c = 0; c < num_communities; ++c) {
+        if (comm_sizes[c] > 0) {
+            auto& comm_edge_list = community_edge_lists[c];
+            for (const auto& local_lists : thread_edge_lists) {
+                const auto& local_list = local_lists[c];
+                comm_edge_list.insert(comm_edge_list.end(), local_list.begin(), local_list.end());
+            }
+        }
+    }
+    
+    // Apply final reordering to each community
+    const size_t LARGE_COMMUNITY_THRESHOLD = 500000;
+    const int saved_omp_threads = omp_get_max_threads();
+    
+    std::vector<std::vector<std::pair<size_t, NodeID_>>> community_id_mappings(num_communities);
+    pvector<NodeID_> new_ids_sub(num_nodes);
+    
+    for (size_t idx = 0; idx < top_communities.size(); ++idx) {
+        size_t comm_id = top_communities[idx];
+        auto& edge_list = community_edge_lists[comm_id];
+        
+        if (edge_list.empty()) continue;
+        
+        const bool is_large = edge_list.size() >= LARGE_COMMUNITY_THRESHOLD;
+        
+        if (is_large) {
+            omp_set_num_threads(saved_omp_threads);
+        } else {
+            omp_set_num_threads(1);
+        }
+        
+        std::fill(new_ids_sub.begin(), new_ids_sub.end(), (NodeID_)-1);
+        
+        // Use standalone edge-list reordering
+        GenerateMappingLocalEdgelistStandalone<NodeID_, DestID_, WeightT_, invert>(
+            edge_list, new_ids_sub, final_algo, useOutdeg, reordering_options);
+        
+        // Collect results
+        for (size_t i = 0; i < new_ids_sub.size(); ++i) {
+            if (new_ids_sub[i] != (NodeID_)-1 && comm_ids[i] == comm_id) {
+                community_id_mappings[comm_id].emplace_back(i, new_ids_sub[i]);
+            }
+        }
+    }
+    
+    omp_set_num_threads(saved_omp_threads);
+    tm_2.Stop();
+    
+    // Compute final mapping
+    NodeID_ current_id = 0;
+    
+    // Process small communities first
+    if (!small_community_nodes.empty()) {
+        std::unordered_set<NodeID_> small_node_set(
+            small_community_nodes.begin(), small_community_nodes.end());
+        
+        auto merged_feat = ComputeMergedCommunityFeatures(g, small_community_nodes, small_node_set);
+        ReorderingAlgo small_algo = SelectAlgorithmForSmallGroup(merged_feat);
+        
+        printf("GraphBrewGVE: Grouped %zu nodes from small communities -> %s\n",
+               small_community_nodes.size(), ReorderingAlgoStr(small_algo).c_str());
+        
+        if (small_algo == ORIGINAL || small_community_nodes.size() < 100) {
+            std::vector<std::pair<int64_t, NodeID_>> degree_node_pairs;
+            degree_node_pairs.reserve(small_community_nodes.size());
+            for (NodeID_ node : small_community_nodes) {
+                int64_t deg = useOutdeg ? g.out_degree(node) : g.in_degree(node);
+                degree_node_pairs.emplace_back(-deg, node);
+            }
+            std::sort(degree_node_pairs.begin(), degree_node_pairs.end());
+            for (auto& [neg_deg, node] : degree_node_pairs) {
+                new_ids[node] = current_id++;
+            }
+        } else {
+            ReorderCommunitySubgraphStandalone<NodeID_, DestID_, WeightT_, invert>(
+                g, small_community_nodes, small_node_set, small_algo, useOutdeg, 
+                new_ids, current_id);
+        }
+    }
+    
+    // Process large communities
+    std::vector<size_t> comm_start_indices(top_communities.size() + 1);
+    comm_start_indices[0] = current_id;
+    for (size_t c = 0; c < top_communities.size(); ++c) {
+        comm_start_indices[c + 1] = comm_start_indices[c] + 
+            community_id_mappings[top_communities[c]].size();
+    }
+    
+    #pragma omp parallel for schedule(dynamic)
+    for (size_t c = 0; c < top_communities.size(); ++c) {
+        size_t comm_id = top_communities[c];
+        auto& id_pairs = community_id_mappings[comm_id];
+        const size_t start_idx = comm_start_indices[c];
+        
+        for (size_t i = 0; i < id_pairs.size(); ++i) {
+            id_pairs[i].second = start_idx + i;
+            new_ids[id_pairs[i].first] = (NodeID_)(start_idx + i);
+        }
+    }
+    
+    if (!recursion) {
+        PrintTime("GraphBrewGVE Map Time", tm_2.Seconds());
+    }
+    PrintTime("GraphBrewGVE Total Time", tm.Seconds() + tm_2.Seconds());
+}
+
+/**
+ * @brief GraphBrew with HubCluster-based grouping (standalone)
+ */
+template <typename NodeID_, typename DestID_, typename WeightT_, bool invert>
+void GenerateGraphBrewHubClusterMappingStandalone(
+    const CSRGraph<NodeID_, DestID_, invert>& g,
+    pvector<NodeID_>& new_ids,
+    bool useOutdeg,
+    std::vector<std::string> reordering_options,
+    int numLevels = 2) {
+    
+    Timer tm;
+    tm.Start();
+    
+    const int64_t num_nodes = g.num_nodes();
+    const int64_t num_edges = g.num_edges();
+    const int64_t avg_degree = num_edges / num_nodes;
+    
+    int final_algo_id = 8;
+    if (reordering_options.size() > 1) {
+        final_algo_id = std::stoi(reordering_options[1]);
+    }
+    ReorderingAlgo final_algo = static_cast<ReorderingAlgo>(final_algo_id);
+    
+    printf("GraphBrewHubCluster: final_algo=%s, avg_degree=%lld\n",
+           ReorderingAlgoStr(final_algo).c_str(), (long long)avg_degree);
+    
+    // Hub-based clustering
+    std::vector<K> comm_ids(num_nodes);
+    std::vector<int64_t> hub_vertices;
+    
+    for (int64_t v = 0; v < num_nodes; ++v) {
+        if (g.out_degree(v) > 2 * avg_degree) {
+            hub_vertices.push_back(v);
+        }
+    }
+    
+    std::fill(comm_ids.begin(), comm_ids.end(), 0);
+    
+    K next_comm = 1;
+    for (int64_t hub : hub_vertices) {
+        comm_ids[hub] = next_comm;
+        for (DestID_ neighbor : g.out_neigh(hub)) {
+            NodeID_ n;
+            if constexpr (std::is_same_v<DestID_, NodeID_>) {
+                n = neighbor;
+            } else {
+                n = static_cast<NodeWeight<NodeID_, WeightT_>>(neighbor).v;
+            }
+            if (comm_ids[n] == 0) {
+                comm_ids[n] = next_comm;
+            }
+        }
+        next_comm++;
+    }
+    
+    printf("GraphBrewHubCluster: %zu hubs, %u communities\n", 
+           hub_vertices.size(), next_comm);
+    
+    tm.Stop();
+    PrintTime("GraphBrewHubCluster Community Detection", tm.Seconds());
+    
+    // Degree-sorted ordering within communities
+    typedef std::pair<K, std::pair<int64_t, NodeID_>> comm_deg_node_t;
+    std::vector<comm_deg_node_t> sort_keys(num_nodes);
+    
+    #pragma omp parallel for
+    for (int64_t v = 0; v < num_nodes; ++v) {
+        sort_keys[v] = {comm_ids[v], {-g.out_degree(v), static_cast<NodeID_>(v)}};
+    }
+    
+    __gnu_parallel::sort(sort_keys.begin(), sort_keys.end());
+    
+    #pragma omp parallel for
+    for (int64_t i = 0; i < num_nodes; ++i) {
+        new_ids[sort_keys[i].second.second] = static_cast<NodeID_>(i);
+    }
+    
+    PrintTime("GraphBrewHubCluster Map Time", tm.Seconds());
+}
+
+/**
+ * @brief Unified GraphBrew entry point (standalone)
+ */
+template <typename NodeID_, typename DestID_, typename WeightT_, bool invert>
+void GenerateGraphBrewMappingUnifiedStandalone(
+    const CSRGraph<NodeID_, DestID_, invert>& g,
+    pvector<NodeID_>& new_ids,
+    bool useOutdeg,
+    std::vector<std::string> reordering_options) {
+    
+    double auto_resolution = LeidenAutoResolution<NodeID_, DestID_>(g);
+    auto cfg = graphbrew::GraphBrewConfig::FromOptions(reordering_options, auto_resolution);
+    cfg.print();
+    
+    auto internal_options = cfg.toInternalOptions();
+    
+    switch (cfg.cluster) {
+        case graphbrew::GraphBrewCluster::GVE:
+            GenerateGraphBrewGVEMappingStandalone<NodeID_, DestID_, WeightT_, invert>(
+                g, new_ids, useOutdeg, internal_options, cfg.num_levels, false, false);
+            break;
+        case graphbrew::GraphBrewCluster::GVEOpt:
+            GenerateGraphBrewGVEMappingStandalone<NodeID_, DestID_, WeightT_, invert>(
+                g, new_ids, useOutdeg, internal_options, cfg.num_levels, false, true);
+            break;
+        case graphbrew::GraphBrewCluster::HubCluster:
+            GenerateGraphBrewHubClusterMappingStandalone<NodeID_, DestID_, WeightT_, invert>(
+                g, new_ids, useOutdeg, internal_options, cfg.num_levels);
+            break;
+        case graphbrew::GraphBrewCluster::Rabbit:
+        case graphbrew::GraphBrewCluster::Leiden:
+        default:
+            GenerateGraphBrewGVEMappingStandalone<NodeID_, DestID_, WeightT_, invert>(
+                g, new_ids, useOutdeg, internal_options, cfg.num_levels, false, true);
+            break;
+    }
+}
 
 #endif // REORDER_GRAPHBREW_H_
