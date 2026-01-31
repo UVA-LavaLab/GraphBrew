@@ -2487,4 +2487,259 @@ inline std::map<ReorderingAlgo, PerceptronWeights> LoadPerceptronWeightsForFeatu
     return weights;
 }
 
+// ============================================================================
+// PERCEPTRON WEIGHT CACHING
+// ============================================================================
+
+/**
+ * Get cached weights for a specific graph type.
+ * Uses thread-safe cache to avoid repeated file loading.
+ * 
+ * @param graph_type The graph type to get weights for
+ * @param verbose_first_load Print debug info on first load
+ * @return Reference to cached weights map
+ */
+inline const std::map<ReorderingAlgo, PerceptronWeights>& GetCachedWeights(
+    GraphType graph_type, bool verbose_first_load = false) {
+    // Cache weights per graph type (static map persists across calls)
+    static std::map<GraphType, std::map<ReorderingAlgo, PerceptronWeights>> weight_cache;
+    static std::mutex cache_mutex;
+    
+    std::lock_guard<std::mutex> lock(cache_mutex);
+    
+    auto it = weight_cache.find(graph_type);
+    if (it != weight_cache.end()) {
+        return it->second;
+    }
+    
+    // Load and cache (with verbose output if requested)
+    weight_cache[graph_type] = LoadPerceptronWeightsForGraphType(graph_type, verbose_first_load);
+    return weight_cache[graph_type];
+}
+
+// ============================================================================
+// PERCEPTRON-BASED ALGORITHM SELECTION
+// ============================================================================
+
+/**
+ * Select best reordering algorithm using perceptron scores.
+ * 
+ * Evaluates all candidate algorithms and returns the one with
+ * the highest perceptron score based on community features.
+ * 
+ * @param feat Community features for scoring
+ * @param weights Pre-loaded perceptron weights
+ * @param bench Benchmark type (default: BENCH_GENERIC for balanced performance)
+ * @return Best algorithm based on perceptron scoring
+ */
+inline ReorderingAlgo SelectReorderingFromWeights(
+    const CommunityFeatures& feat,
+    const std::map<ReorderingAlgo, PerceptronWeights>& weights,
+    BenchmarkType bench = BENCH_GENERIC) {
+    
+    ReorderingAlgo best_algo = ORIGINAL;
+    double best_score = -std::numeric_limits<double>::infinity();
+    
+    for (const auto& kv : weights) {
+        double score = kv.second.score(feat, bench);
+        if (score > best_score) {
+            best_score = score;
+            best_algo = kv.first;
+        }
+    }
+    
+    return best_algo;
+}
+
+/**
+ * Select best reordering algorithm using perceptron scores and cached weights.
+ * 
+ * This is a convenience function that loads/caches weights for the given graph type.
+ * 
+ * @param feat Community features for scoring
+ * @param bench Benchmark type
+ * @param graph_type The detected graph type for loading appropriate weights
+ * @return Best algorithm based on perceptron scoring
+ */
+inline ReorderingAlgo SelectReorderingPerceptron(
+    const CommunityFeatures& feat, 
+    BenchmarkType bench = BENCH_GENERIC,
+    GraphType graph_type = GRAPH_GENERIC) {
+    const auto& weights = GetCachedWeights(graph_type);
+    return SelectReorderingFromWeights(feat, weights, bench);
+}
+
+/**
+ * Select best reordering algorithm using feature-based type matching.
+ * 
+ * This version first tries to find a matching auto-generated type (type_0, etc.)
+ * from the type registry based on graph features, then falls back to semantic types.
+ * 
+ * @param feat Community features for scoring
+ * @param global_modularity Global graph modularity
+ * @param global_degree_variance Global degree variance
+ * @param global_hub_concentration Global hub concentration
+ * @param num_nodes Total number of nodes
+ * @param num_edges Total number of edges
+ * @param bench Benchmark type
+ * @return Best algorithm based on perceptron scoring with feature-matched weights
+ */
+inline ReorderingAlgo SelectReorderingPerceptronWithFeatures(
+    const CommunityFeatures& feat,
+    double global_modularity, double global_degree_variance,
+    double global_hub_concentration, size_t num_nodes, size_t num_edges,
+    BenchmarkType bench = BENCH_GENERIC) {
+    
+    // Load weights based on features (tries type_0.json first, then semantic types)
+    auto weights = LoadPerceptronWeightsForFeatures(
+        global_modularity, global_degree_variance, global_hub_concentration,
+        feat.avg_degree, num_nodes, num_edges, false);
+    
+    return SelectReorderingFromWeights(feat, weights, bench);
+}
+
+/**
+ * Select best reordering algorithm with MODE-AWARE selection.
+ * 
+ * This is the main entry point for AdaptiveOrder algorithm selection.
+ * It supports different selection modes:
+ * 
+ * - MODE_FASTEST_REORDER: Select algorithm with lowest reordering time
+ * - MODE_FASTEST_EXECUTION: Use perceptron to predict best cache performance
+ * - MODE_BEST_ENDTOEND: Balance perceptron score with reorder time penalty
+ * - MODE_BEST_AMORTIZATION: Minimize iterations to amortize reorder cost
+ * 
+ * @param feat Community features for scoring
+ * @param global_modularity Global graph modularity
+ * @param global_degree_variance Global degree variance
+ * @param global_hub_concentration Global hub concentration
+ * @param num_nodes Total number of nodes
+ * @param num_edges Total number of edges
+ * @param mode Selection mode (see SelectionMode enum)
+ * @param graph_name Name of the graph (currently unused, for future .time file support)
+ * @param bench Benchmark type
+ * @param verbose Print selection details
+ * @return Best algorithm based on the specified mode
+ */
+inline ReorderingAlgo SelectReorderingWithMode(
+    const CommunityFeatures& feat,
+    double global_modularity, double global_degree_variance,
+    double global_hub_concentration, size_t num_nodes, size_t num_edges,
+    SelectionMode mode, const std::string& graph_name = "",
+    BenchmarkType bench = BENCH_GENERIC, bool verbose = false) {
+    
+    (void)graph_name;  // Reserved for future .time file support
+    
+    // Check graph type for verbose output (but don't change selection behavior)
+    double type_distance = 0.0;
+    std::string best_type = FindBestTypeWithDistance(
+        global_modularity, global_degree_variance, global_hub_concentration,
+        feat.avg_degree, num_nodes, num_edges, type_distance, verbose);
+    
+    // For UNKNOWN graphs (high distance), we still use perceptron with the
+    // closest type's weights - that's the whole point of type-based matching.
+    if (verbose && (type_distance > UNKNOWN_TYPE_DISTANCE_THRESHOLD || best_type.empty())) {
+        std::cout << "Note: Graph has high type distance (" << type_distance 
+                  << ") - using closest type '" << best_type << "' for perceptron weights\n";
+    }
+    
+    // Handle each mode
+    switch (mode) {
+        case MODE_FASTEST_REORDER: {
+            // Load weights for the matched type
+            auto weights = LoadPerceptronWeightsForFeatures(
+                global_modularity, global_degree_variance, global_hub_concentration,
+                feat.avg_degree, num_nodes, num_edges, false);
+            
+            // Select algorithm with highest w_reorder_time (fastest reorder)
+            ReorderingAlgo fastest = SelectFastestReorderFromWeights(weights, verbose);
+            if (verbose) {
+                std::cout << "Mode: fastest-reorder → algo=" << static_cast<int>(fastest) << "\n";
+            }
+            return fastest;
+        }
+        
+        case MODE_FASTEST_EXECUTION: {
+            // Use perceptron to select best cache performance
+            ReorderingAlgo best = SelectReorderingPerceptronWithFeatures(
+                feat, global_modularity, global_degree_variance,
+                global_hub_concentration, num_nodes, num_edges, bench);
+            if (verbose) {
+                std::cout << "Mode: fastest-execution → algo=" << static_cast<int>(best) << "\n";
+            }
+            return best;
+        }
+        
+        case MODE_BEST_ENDTOEND: {
+            // The perceptron score already includes w_reorder_time!
+            // We add an extra multiplier here for end-to-end optimization.
+            auto weights = LoadPerceptronWeightsForFeatures(
+                global_modularity, global_degree_variance, global_hub_concentration,
+                feat.avg_degree, num_nodes, num_edges, false);
+            
+            ReorderingAlgo best_algo = ORIGINAL;
+            double best_score = -std::numeric_limits<double>::infinity();
+            
+            // Extra weight multiplier for reorder time in end-to-end mode
+            const double REORDER_WEIGHT_BOOST = 2.0;
+            
+            for (const auto& [algo, w] : weights) {
+                double exec_score = w.score(feat, bench);
+                double reorder_bonus = w.w_reorder_time * REORDER_WEIGHT_BOOST;
+                double total_score = exec_score + reorder_bonus;
+                
+                if (total_score > best_score) {
+                    best_score = total_score;
+                    best_algo = algo;
+                }
+            }
+            
+            if (verbose) {
+                std::cout << "Mode: best-endtoend → algo=" << static_cast<int>(best_algo) << "\n";
+            }
+            return best_algo;
+        }
+        
+        case MODE_BEST_AMORTIZATION: {
+            // Select algorithm that amortizes reorder cost fastest
+            auto weights = LoadPerceptronWeightsForFeatures(
+                global_modularity, global_degree_variance, global_hub_concentration,
+                feat.avg_degree, num_nodes, num_edges, false);
+            
+            ReorderingAlgo best_algo = ORIGINAL;
+            double best_iters = std::numeric_limits<double>::infinity();
+            
+            for (const auto& [algo, w] : weights) {
+                if (algo == ORIGINAL) continue;  // ORIGINAL has no reorder cost
+                
+                double iters = w.iterationsToAmortize();
+                
+                if (verbose) {
+                    std::cout << "  " << static_cast<int>(algo) 
+                              << ": speedup=" << w.avg_speedup
+                              << ", reorder=" << w.avg_reorder_time << "s"
+                              << ", iters_to_amortize=" << iters << "\n";
+                }
+                
+                if (iters < best_iters) {
+                    best_iters = iters;
+                    best_algo = algo;
+                }
+            }
+            
+            if (verbose) {
+                std::cout << "Mode: best-amortization → algo=" << static_cast<int>(best_algo) 
+                          << " (amortizes in " << best_iters << " iterations)\n";
+            }
+            return best_algo;
+        }
+        
+        default:
+            // Default to perceptron-based selection
+            return SelectReorderingPerceptronWithFeatures(
+                feat, global_modularity, global_degree_variance,
+                global_hub_concentration, num_nodes, num_edges, bench);
+    }
+}
+
 #endif  // REORDER_TYPES_H_
