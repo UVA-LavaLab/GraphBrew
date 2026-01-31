@@ -424,6 +424,64 @@ inline BenchmarkType GetBenchmarkType(const std::string& name) {
 }
 
 // ============================================================================
+// ALGORITHM NAME MAPPING
+// ============================================================================
+
+/**
+ * @brief Map algorithm name strings to enum values
+ * 
+ * Used when loading perceptron weights from JSON files.
+ * Supports both camelCase and UPPERCASE naming conventions.
+ * 
+ * @return Const reference to static map of string -> ReorderingAlgo
+ */
+inline const std::map<std::string, ReorderingAlgo>& getAlgorithmNameMap() {
+    static const std::map<std::string, ReorderingAlgo> name_to_algo = {
+        // Standard names
+        {"ORIGINAL", ORIGINAL},
+        {"Original", ORIGINAL},
+        {"RANDOM", Random},
+        {"Random", Random},
+        {"SORT", Sort},
+        {"Sort", Sort},
+        {"HubSort", HubSort},
+        {"HUBSORT", HubSort},
+        {"HubCluster", HubCluster},
+        {"HUBCLUSTER", HubCluster},
+        {"DBG", DBG},
+        {"HubSortDBG", HubSortDBG},
+        {"HUBSORTDBG", HubSortDBG},
+        {"HubClusterDBG", HubClusterDBG},
+        {"HUBCLUSTERDBG", HubClusterDBG},
+#ifdef RABBIT_ENABLE
+        {"RabbitOrder", RabbitOrder},
+        {"RABBITORDER", RabbitOrder},
+#endif
+        {"GOrder", GOrder},
+        {"GORDER", GOrder},
+        {"COrder", COrder},
+        {"CORDER", COrder},
+        {"RCMOrder", RCMOrder},
+        {"RCMORDER", RCMOrder},
+        {"RCM", RCMOrder},
+        {"GraphBrewOrder", GraphBrewOrder},
+        {"GRAPHBREWORDER", GraphBrewOrder},
+        {"MAP", MAP},
+        {"AdaptiveOrder", AdaptiveOrder},
+        {"ADAPTIVEORDER", AdaptiveOrder},
+        {"LeidenOrder", LeidenOrder},
+        {"LEIDENORDER", LeidenOrder},
+        {"LeidenDendrogram", LeidenDendrogram},
+        {"LEIDENDENDROGRAM", LeidenDendrogram},
+        {"LeidenCSR", LeidenCSR},
+        {"LEIDENCSR", LeidenCSR},
+    };
+    return name_to_algo;
+}
+
+// Note: ParseWeightsFromJSON is defined later in this file after PerceptronWeights
+
+// ============================================================================
 // GRAPH TYPE CLASSIFICATION
 // ============================================================================
 
@@ -1685,6 +1743,126 @@ void orderLeidenHybridHubDFS(
     for (size_t i = 0; i < n; ++i) {
         new_ids[std::get<0>(vertices[i])] = i;
     }
+}
+
+// ============================================================================
+// JSON PARSING FOR PERCEPTRON WEIGHTS
+// ============================================================================
+
+/**
+ * @brief Simple JSON parser for perceptron weights file
+ * 
+ * Parses a JSON file with format:
+ * {
+ *   "ORIGINAL": {"bias": 1.0, "w_modularity": 0.3, ...},
+ *   "LeidenHybrid": {"bias": 0.95, ...},
+ *   ...
+ * }
+ * 
+ * @param json_content String containing JSON content
+ * @param weights Output map to populate with parsed weights
+ * @return true if at least one algorithm was successfully parsed
+ */
+inline bool ParseWeightsFromJSON(const std::string& json_content, 
+                                  std::map<ReorderingAlgo, PerceptronWeights>& weights) {
+    // Simple JSON parser - looks for algorithm names and their weights
+    auto find_double = [](const std::string& s, const std::string& key) -> double {
+        size_t pos = s.find("\"" + key + "\"");
+        if (pos == std::string::npos) return 0.0;
+        pos = s.find(':', pos);
+        if (pos == std::string::npos) return 0.0;
+        pos++;
+        while (pos < s.size() && (s[pos] == ' ' || s[pos] == '\t')) pos++;
+        size_t end = pos;
+        while (end < s.size() && (isdigit(s[end]) || s[end] == '.' || s[end] == '-' || s[end] == 'e' || s[end] == 'E' || s[end] == '+')) end++;
+        try {
+            return std::stod(s.substr(pos, end - pos));
+        } catch (...) {
+            return 0.0;
+        }
+    };
+    
+    // Use the shared algorithm name map
+    const auto& name_to_algo = getAlgorithmNameMap();
+    
+    for (const auto& kv : name_to_algo) {
+        size_t pos = json_content.find("\"" + kv.first + "\"");
+        if (pos == std::string::npos) continue;
+        
+        // Find the block for this algorithm
+        size_t start = json_content.find('{', pos);
+        if (start == std::string::npos) continue;
+        size_t end = json_content.find('}', start);
+        if (end == std::string::npos) continue;
+        
+        std::string block = json_content.substr(start, end - start + 1);
+        
+        PerceptronWeights w;
+        // Core weights
+        w.bias = find_double(block, "bias");
+        w.w_modularity = find_double(block, "w_modularity");
+        w.w_log_nodes = find_double(block, "w_log_nodes");
+        w.w_log_edges = find_double(block, "w_log_edges");
+        w.w_density = find_double(block, "w_density");
+        w.w_avg_degree = find_double(block, "w_avg_degree");
+        w.w_degree_variance = find_double(block, "w_degree_variance");
+        w.w_hub_concentration = find_double(block, "w_hub_concentration");
+        
+        // Extended graph structure weights
+        w.w_clustering_coeff = find_double(block, "w_clustering_coeff");
+        w.w_avg_path_length = find_double(block, "w_avg_path_length");
+        w.w_diameter = find_double(block, "w_diameter");
+        w.w_community_count = find_double(block, "w_community_count");
+        
+        // Cache impact weights
+        w.cache_l1_impact = find_double(block, "cache_l1_impact");
+        w.cache_l2_impact = find_double(block, "cache_l2_impact");
+        w.cache_l3_impact = find_double(block, "cache_l3_impact");
+        w.cache_dram_penalty = find_double(block, "cache_dram_penalty");
+        
+        // Reorder time weight
+        w.w_reorder_time = find_double(block, "w_reorder_time");
+        
+        // Parse _metadata block for avg_speedup and avg_reorder_time
+        size_t meta_pos = block.find("\"_metadata\"");
+        if (meta_pos != std::string::npos) {
+            size_t meta_start = block.find('{', meta_pos);
+            size_t meta_end = block.find('}', meta_start);
+            if (meta_start != std::string::npos && meta_end != std::string::npos) {
+                std::string meta_block = block.substr(meta_start, meta_end - meta_start + 1);
+                double speedup = find_double(meta_block, "avg_speedup");
+                double reorder_time = find_double(meta_block, "avg_reorder_time");
+                w.avg_speedup = (speedup > 0) ? speedup : 1.0;
+                w.avg_reorder_time = (reorder_time > 0) ? reorder_time : 0.0;
+            }
+        }
+        
+        // Benchmark-specific weights (parse nested benchmark_weights object)
+        size_t bw_pos = block.find("\"benchmark_weights\"");
+        if (bw_pos != std::string::npos) {
+            size_t bw_start = block.find('{', bw_pos);
+            size_t bw_end = block.find('}', bw_start);
+            if (bw_start != std::string::npos && bw_end != std::string::npos) {
+                std::string bw_block = block.substr(bw_start, bw_end - bw_start + 1);
+                double pr_w = find_double(bw_block, "pr");
+                double bfs_w = find_double(bw_block, "bfs");
+                double cc_w = find_double(bw_block, "cc");
+                double sssp_w = find_double(bw_block, "sssp");
+                double bc_w = find_double(bw_block, "bc");
+                double tc_w = find_double(bw_block, "tc");
+                w.bench_pr = (pr_w != 0.0) ? pr_w : 1.0;
+                w.bench_bfs = (bfs_w != 0.0) ? bfs_w : 1.0;
+                w.bench_cc = (cc_w != 0.0) ? cc_w : 1.0;
+                w.bench_sssp = (sssp_w != 0.0) ? sssp_w : 1.0;
+                w.bench_bc = (bc_w != 0.0) ? bc_w : 1.0;
+                w.bench_tc = (tc_w != 0.0) ? tc_w : 1.0;
+            }
+        }
+        
+        weights[kv.second] = w;
+    }
+    
+    return !weights.empty();
 }
 
 // ============================================================================

@@ -164,53 +164,8 @@ inline ReorderingAlgo getReorderingAlgo(const char* arg) {
 // ALGORITHM NAME TO ENUM MAPPING (for perceptron weights)
 // ============================================================================
 
-/**
- * @brief Map algorithm name strings to enum values
- * 
- * Used when loading perceptron weights from JSON files.
- * Supports both camelCase and UPPERCASE naming conventions.
- */
-inline const std::map<std::string, ReorderingAlgo>& getAlgorithmNameMap() {
-    static const std::map<std::string, ReorderingAlgo> name_to_algo = {
-        // Standard names
-        {"ORIGINAL", ORIGINAL},
-        {"Original", ORIGINAL},
-        {"RANDOM", Random},
-        {"Random", Random},
-        {"SORT", Sort},
-        {"Sort", Sort},
-        {"HubSort", HubSort},
-        {"HUBSORT", HubSort},
-        {"HubCluster", HubCluster},
-        {"HUBCLUSTER", HubCluster},
-        {"DBG", DBG},
-        {"HubSortDBG", HubSortDBG},
-        {"HUBSORTDBG", HubSortDBG},
-        {"HubClusterDBG", HubClusterDBG},
-        {"HUBCLUSTERDBG", HubClusterDBG},
-        {"RabbitOrder", RabbitOrder},
-        {"RABBITORDER", RabbitOrder},
-        {"GOrder", GOrder},
-        {"GORDER", GOrder},
-        {"COrder", COrder},
-        {"CORDER", COrder},
-        {"RCMOrder", RCMOrder},
-        {"RCMORDER", RCMOrder},
-        {"RCM", RCMOrder},
-        {"GraphBrewOrder", GraphBrewOrder},
-        {"GRAPHBREWORDER", GraphBrewOrder},
-        {"MAP", MAP},
-        {"AdaptiveOrder", AdaptiveOrder},
-        {"ADAPTIVEORDER", AdaptiveOrder},
-        {"LeidenOrder", LeidenOrder},
-        {"LEIDENORDER", LeidenOrder},
-        {"LeidenDendrogram", LeidenDendrogram},
-        {"LEIDENDENDROGRAM", LeidenDendrogram},
-        {"LeidenCSR", LeidenCSR},
-        {"LEIDENCSR", LeidenCSR},
-    };
-    return name_to_algo;
-}
+// Note: getAlgorithmNameMap() is now defined in reorder_types.h
+// Use the global function directly.
 
 // ============================================================================
 // ALGORITHM CATEGORY HELPERS
