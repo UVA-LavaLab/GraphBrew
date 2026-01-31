@@ -5306,87 +5306,40 @@ public:
      * - UNIFORM: Random graphs, uniform degree distribution
      *            Best: Original or light reordering (DBG)
      * - GENERIC: Unknown or mixed - use default weights
+     * 
+     * GraphType enum is now defined in reorder/reorder_graphbrew.h
+     * Import into class scope for backward compatibility.
      */
-    enum GraphType {
-        GRAPH_GENERIC = 0,  // Unknown or mixed graph type
-        GRAPH_SOCIAL,       // Social networks (Facebook, Twitter)
-        GRAPH_ROAD,         // Road networks (planar, mesh-like)
-        GRAPH_WEB,          // Web graphs (bow-tie structure)
-        GRAPH_POWERLAW,     // Power-law/RMAT graphs
-        GRAPH_UNIFORM       // Uniform random graphs
-    };
+    using GraphType = ::GraphType;
+    static constexpr GraphType GRAPH_GENERIC  = ::GRAPH_GENERIC;
+    static constexpr GraphType GRAPH_SOCIAL   = ::GRAPH_SOCIAL;
+    static constexpr GraphType GRAPH_ROAD     = ::GRAPH_ROAD;
+    static constexpr GraphType GRAPH_WEB      = ::GRAPH_WEB;
+    static constexpr GraphType GRAPH_POWERLAW = ::GRAPH_POWERLAW;
+    static constexpr GraphType GRAPH_UNIFORM  = ::GRAPH_UNIFORM;
     
     /**
-     * Convert graph type enum to string (for file naming)
+     * Convert graph type enum to string (delegates to global function)
      */
     static std::string GraphTypeToString(GraphType type) {
-        switch (type) {
-            case GRAPH_SOCIAL:   return "social";
-            case GRAPH_ROAD:     return "road";
-            case GRAPH_WEB:      return "web";
-            case GRAPH_POWERLAW: return "powerlaw";
-            case GRAPH_UNIFORM:  return "uniform";
-            case GRAPH_GENERIC:
-            default:             return "generic";
-        }
+        return ::GraphTypeToString(type);
     }
     
     /**
-     * Convert string to graph type enum
+     * Convert string to graph type enum (delegates to global function)
      */
     static GraphType GetGraphType(const std::string& name) {
-        if (name.empty() || name == "generic" || name == "GENERIC" || name == "default") return GRAPH_GENERIC;
-        if (name == "social" || name == "SOCIAL") return GRAPH_SOCIAL;
-        if (name == "road" || name == "ROAD" || name == "mesh") return GRAPH_ROAD;
-        if (name == "web" || name == "WEB") return GRAPH_WEB;
-        if (name == "powerlaw" || name == "POWERLAW" || name == "rmat" || name == "RMAT") return GRAPH_POWERLAW;
-        if (name == "uniform" || name == "UNIFORM" || name == "random") return GRAPH_UNIFORM;
-        return GRAPH_GENERIC;
+        return ::GetGraphType(name);
     }
     
     /**
-     * Auto-detect graph type from graph features
-     * 
-     * Uses a decision tree based on empirical observations:
-     * 1. High modularity (>0.3) + power-law degrees → SOCIAL
-     * 2. Low modularity (<0.1) + low degree variance → ROAD
-     * 3. High hub concentration (>0.5) → WEB
-     * 4. High degree variance (>1.5) + low modularity → POWERLAW
-     * 5. Low degree variance (<0.5) + low hub concentration → UNIFORM
-     * 6. Otherwise → GENERIC
+     * Auto-detect graph type from graph features (delegates to global function)
      */
     static GraphType DetectGraphType(double modularity, double degree_variance, 
                                       double hub_concentration, double avg_degree,
                                       size_t num_nodes) {
-        // Decision tree for graph type classification
-        
-        // Road networks: low modularity, mesh-like (low variance, moderate degree)
-        if (modularity < 0.1 && degree_variance < 0.5 && avg_degree < 10) {
-            return GRAPH_ROAD;
-        }
-        
-        // Social networks: high modularity with community structure
-        if (modularity > 0.3 && degree_variance > 0.8) {
-            return GRAPH_SOCIAL;
-        }
-        
-        // Web graphs: extreme hub concentration (bow-tie structure)
-        if (hub_concentration > 0.5 && degree_variance > 1.0) {
-            return GRAPH_WEB;
-        }
-        
-        // Power-law (RMAT): high skew but lower modularity than social
-        if (degree_variance > 1.5 && modularity < 0.3) {
-            return GRAPH_POWERLAW;
-        }
-        
-        // Uniform random: low variance, low hub concentration
-        if (degree_variance < 0.5 && hub_concentration < 0.3 && modularity < 0.1) {
-            return GRAPH_UNIFORM;
-        }
-        
-        // Default to generic
-        return GRAPH_GENERIC;
+        return ::DetectGraphType(modularity, degree_variance, hub_concentration, 
+                                 avg_degree, num_nodes);
     }
     
     // BenchmarkType is now defined in reorder/reorder_types.h
@@ -5401,55 +5354,27 @@ public:
     /**
      * Selection mode for AdaptiveOrder algorithm selection
      * 
-     * Controls how AdaptiveOrder selects the best reordering algorithm:
-     * 
-     * FASTEST_REORDER (0): Select algorithm with lowest reordering time
-     *   - Use when reordering cost dominates (single execution)
-     *   - Reads actual .time files from results/mappings/<graph>/
-     *   - Falls back to this mode for UNKNOWN/UNTRAINED graphs
-     * 
-     * FASTEST_EXECUTION (1): Select algorithm with best cache performance
-     *   - Use for repeated algorithm executions
-     *   - Uses perceptron weights to predict execution speedup
-     *   - Ignores reordering overhead
-     * 
-     * BEST_ENDTOEND (2): Minimize (reorder_time + execution_time)
-     *   - Balanced approach for typical workloads
-     *   - Combines perceptron score with reorder time penalty
-     * 
-     * BEST_AMORTIZATION (3): Minimize iterations to amortize reorder cost
-     *   - For scenarios where you need minimum runs to break even
-     *   - Considers: reorder_time / (predicted_speedup - 1.0)
+     * SelectionMode enum is now defined in reorder/reorder_graphbrew.h
+     * Import into class scope for backward compatibility.
      */
-    enum SelectionMode {
-        MODE_FASTEST_REORDER = 0,      // Minimize reordering time (fallback for unknown graphs)
-        MODE_FASTEST_EXECUTION = 1,    // Minimize execution time (perceptron-based)
-        MODE_BEST_ENDTOEND = 2,        // Minimize total (reorder + execution) time
-        MODE_BEST_AMORTIZATION = 3     // Minimize iterations to amortize reorder cost
-    };
+    using SelectionMode = ::SelectionMode;
+    static constexpr SelectionMode MODE_FASTEST_REORDER    = ::MODE_FASTEST_REORDER;
+    static constexpr SelectionMode MODE_FASTEST_EXECUTION  = ::MODE_FASTEST_EXECUTION;
+    static constexpr SelectionMode MODE_BEST_ENDTOEND      = ::MODE_BEST_ENDTOEND;
+    static constexpr SelectionMode MODE_BEST_AMORTIZATION  = ::MODE_BEST_AMORTIZATION;
     
     /**
-     * Convert selection mode to string
+     * Convert selection mode to string (delegates to global function)
      */
     static std::string SelectionModeToString(SelectionMode mode) {
-        switch (mode) {
-            case MODE_FASTEST_REORDER:    return "fastest-reorder";
-            case MODE_FASTEST_EXECUTION:  return "fastest-execution";
-            case MODE_BEST_ENDTOEND:      return "best-endtoend";
-            case MODE_BEST_AMORTIZATION:  return "best-amortization";
-            default:                      return "unknown";
-        }
+        return ::SelectionModeToString(mode);
     }
     
     /**
-     * Convert string to selection mode
+     * Convert string to selection mode (delegates to global function)
      */
     static SelectionMode GetSelectionMode(const std::string& name) {
-        if (name == "0" || name == "fastest-reorder" || name == "reorder") return MODE_FASTEST_REORDER;
-        if (name == "1" || name == "fastest-execution" || name == "execution" || name == "cache") return MODE_FASTEST_EXECUTION;
-        if (name == "2" || name == "best-endtoend" || name == "endtoend" || name == "e2e") return MODE_BEST_ENDTOEND;
-        if (name == "3" || name == "best-amortization" || name == "amortization" || name == "amortize") return MODE_BEST_AMORTIZATION;
-        return MODE_FASTEST_EXECUTION;  // Default to perceptron-based selection
+        return ::GetSelectionMode(name);
     }
     
     // PerceptronWeights is now defined in reorder/reorder_types.h

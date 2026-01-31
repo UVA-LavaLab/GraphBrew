@@ -424,6 +424,165 @@ inline BenchmarkType GetBenchmarkType(const std::string& name) {
 }
 
 // ============================================================================
+// GRAPH TYPE CLASSIFICATION
+// ============================================================================
+
+/**
+ * @brief Graph type for algorithm selection
+ * 
+ * Used to classify graphs into categories for type-specific algorithm selection.
+ * The classification is based on structural features like modularity, degree
+ * distribution, and hub concentration.
+ */
+enum GraphType {
+    GRAPH_GENERIC = 0,  ///< Unknown or mixed graph type
+    GRAPH_SOCIAL,       ///< Social networks (Facebook, Twitter)
+    GRAPH_ROAD,         ///< Road networks (planar, mesh-like)
+    GRAPH_WEB,          ///< Web graphs (bow-tie structure)
+    GRAPH_POWERLAW,     ///< Power-law/RMAT graphs
+    GRAPH_UNIFORM       ///< Uniform random graphs
+};
+
+/**
+ * @brief Convert graph type enum to string
+ */
+inline std::string GraphTypeToString(GraphType type) {
+    switch (type) {
+        case GRAPH_SOCIAL:   return "social";
+        case GRAPH_ROAD:     return "road";
+        case GRAPH_WEB:      return "web";
+        case GRAPH_POWERLAW: return "powerlaw";
+        case GRAPH_UNIFORM:  return "uniform";
+        case GRAPH_GENERIC:
+        default:             return "generic";
+    }
+}
+
+/**
+ * @brief Convert string to graph type enum
+ */
+inline GraphType GetGraphType(const std::string& name) {
+    if (name.empty() || name == "generic" || name == "GENERIC" || name == "default") return GRAPH_GENERIC;
+    if (name == "social" || name == "SOCIAL") return GRAPH_SOCIAL;
+    if (name == "road" || name == "ROAD" || name == "mesh") return GRAPH_ROAD;
+    if (name == "web" || name == "WEB") return GRAPH_WEB;
+    if (name == "powerlaw" || name == "POWERLAW" || name == "rmat" || name == "RMAT") return GRAPH_POWERLAW;
+    if (name == "uniform" || name == "UNIFORM" || name == "random") return GRAPH_UNIFORM;
+    return GRAPH_GENERIC;
+}
+
+/**
+ * @brief Auto-detect graph type from graph features
+ * 
+ * Uses a decision tree based on empirical observations:
+ * 1. High modularity (>0.3) + power-law degrees → SOCIAL
+ * 2. Low modularity (<0.1) + low degree variance → ROAD
+ * 3. High hub concentration (>0.5) → WEB
+ * 4. High degree variance (>1.5) + low modularity → POWERLAW
+ * 5. Low degree variance (<0.5) + low hub concentration → UNIFORM
+ * 6. Otherwise → GENERIC
+ * 
+ * @param modularity Graph modularity score
+ * @param degree_variance Coefficient of variation of degree distribution
+ * @param hub_concentration Fraction of edges from top 10% degree nodes
+ * @param avg_degree Average node degree
+ * @param num_nodes Number of nodes in graph
+ * @return Detected GraphType
+ */
+inline GraphType DetectGraphType(double modularity, double degree_variance, 
+                                  double hub_concentration, double avg_degree,
+                                  size_t num_nodes) {
+    (void)num_nodes;  // Unused but kept for API compatibility
+    
+    // Decision tree for graph type classification
+    
+    // Road networks: low modularity, mesh-like (low variance, moderate degree)
+    if (modularity < 0.1 && degree_variance < 0.5 && avg_degree < 10) {
+        return GRAPH_ROAD;
+    }
+    
+    // Social networks: high modularity with community structure
+    if (modularity > 0.3 && degree_variance > 0.8) {
+        return GRAPH_SOCIAL;
+    }
+    
+    // Web graphs: extreme hub concentration (bow-tie structure)
+    if (hub_concentration > 0.5 && degree_variance > 1.0) {
+        return GRAPH_WEB;
+    }
+    
+    // Power-law (RMAT): high skew but lower modularity than social
+    if (degree_variance > 1.5 && modularity < 0.3) {
+        return GRAPH_POWERLAW;
+    }
+    
+    // Uniform random: low variance, low hub concentration
+    if (degree_variance < 0.5 && hub_concentration < 0.3 && modularity < 0.1) {
+        return GRAPH_UNIFORM;
+    }
+    
+    // Default to generic
+    return GRAPH_GENERIC;
+}
+
+// ============================================================================
+// SELECTION MODE FOR ADAPTIVE ORDER
+// ============================================================================
+
+/**
+ * @brief Selection mode for AdaptiveOrder algorithm selection
+ * 
+ * Controls how AdaptiveOrder selects the best reordering algorithm:
+ * 
+ * FASTEST_REORDER (0): Select algorithm with lowest reordering time
+ *   - Use when reordering cost dominates (single execution)
+ *   - Falls back to this mode for UNKNOWN/UNTRAINED graphs
+ * 
+ * FASTEST_EXECUTION (1): Select algorithm with best cache performance
+ *   - Use for repeated algorithm executions
+ *   - Uses perceptron weights to predict execution speedup
+ *   - Ignores reordering overhead
+ * 
+ * BEST_ENDTOEND (2): Minimize (reorder_time + execution_time)
+ *   - Balanced approach for typical workloads
+ *   - Combines perceptron score with reorder time penalty
+ * 
+ * BEST_AMORTIZATION (3): Minimize iterations to amortize reorder cost
+ *   - For scenarios where you need minimum runs to break even
+ *   - Considers: reorder_time / (predicted_speedup - 1.0)
+ */
+enum SelectionMode {
+    MODE_FASTEST_REORDER = 0,      ///< Minimize reordering time
+    MODE_FASTEST_EXECUTION = 1,    ///< Minimize execution time (perceptron)
+    MODE_BEST_ENDTOEND = 2,        ///< Minimize total time
+    MODE_BEST_AMORTIZATION = 3     ///< Minimize iterations to amortize
+};
+
+/**
+ * @brief Convert selection mode to string
+ */
+inline std::string SelectionModeToString(SelectionMode mode) {
+    switch (mode) {
+        case MODE_FASTEST_REORDER:    return "fastest-reorder";
+        case MODE_FASTEST_EXECUTION:  return "fastest-execution";
+        case MODE_BEST_ENDTOEND:      return "best-endtoend";
+        case MODE_BEST_AMORTIZATION:  return "best-amortization";
+        default:                      return "unknown";
+    }
+}
+
+/**
+ * @brief Convert string to selection mode
+ */
+inline SelectionMode GetSelectionMode(const std::string& name) {
+    if (name == "0" || name == "fastest-reorder" || name == "reorder") return MODE_FASTEST_REORDER;
+    if (name == "1" || name == "fastest-execution" || name == "execution" || name == "cache") return MODE_FASTEST_EXECUTION;
+    if (name == "2" || name == "best-endtoend" || name == "endtoend" || name == "e2e") return MODE_BEST_ENDTOEND;
+    if (name == "3" || name == "best-amortization" || name == "amortization" || name == "amortize") return MODE_BEST_AMORTIZATION;
+    return MODE_FASTEST_EXECUTION;  // Default
+}
+
+// ============================================================================
 // PERCEPTRON WEIGHTS FOR ADAPTIVE ORDER
 // ============================================================================
 
