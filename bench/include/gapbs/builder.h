@@ -6610,86 +6610,34 @@ public:
         bool useOutdeg,
         std::vector<std::string> reordering_options) {
         
-        // Default values (backward compatible)
-        std::string cluster_variant = "leiden";  // Default: original Leiden library
-        int final_algo_id = 8;                   // Default: RabbitOrder
-        double resolution = LeidenAutoResolution<NodeID_, DestID_>(g);
-        int num_levels = 2;                      // Default: 2 levels
-        size_t frequency_threshold = 10;         // Community size threshold
-        
-        // Parse options: cluster_variant:final_algo:resolution:levels
-        // Also support old format: frequency_threshold:final_algo:resolution:iterations:passes
-        if (!reordering_options.empty() && !reordering_options[0].empty()) {
-            // Check if first option is a variant name or a number
-            const std::string& first_opt = reordering_options[0];
-            bool is_numeric = !first_opt.empty() && 
-                std::all_of(first_opt.begin(), first_opt.end(), ::isdigit);
-            
-            if (is_numeric) {
-                // Old format: frequency_threshold:final_algo:resolution:iterations:passes
-                frequency_threshold = std::stoi(first_opt);
-                if (reordering_options.size() > 1 && !reordering_options[1].empty()) {
-                    final_algo_id = std::stoi(reordering_options[1]);
-                }
-                if (reordering_options.size() > 2 && !reordering_options[2].empty()) {
-                    resolution = std::stod(reordering_options[2]);
-                    if (resolution > 3) resolution = 1.0;
-                }
-                // Keep leiden as default for backward compatibility
-                cluster_variant = "leiden";
-            } else {
-                // New format: cluster_variant:final_algo:resolution:levels
-                cluster_variant = first_opt;
-                
-                // Handle "fast" suffix variants - use HubSortDBG (6) instead of RabbitOrder (8)
-                bool use_fast_final = false;
-                if (cluster_variant.size() >= 4 && 
-                    cluster_variant.substr(cluster_variant.size() - 4) == "fast") {
-                    use_fast_final = true;
-                    cluster_variant = cluster_variant.substr(0, cluster_variant.size() - 4);
-                    if (cluster_variant.empty()) cluster_variant = "gve";  // "fast" alone = "gvefast"
-                }
-                
-                // Set default final algorithm based on fast flag
-                if (use_fast_final) {
-                    final_algo_id = 6;  // HubSortDBG - fast but good quality
-                }
-                
-                if (reordering_options.size() > 1 && !reordering_options[1].empty()) {
-                    final_algo_id = std::stoi(reordering_options[1]);
-                }
-                if (reordering_options.size() > 2 && !reordering_options[2].empty()) {
-                    resolution = std::stod(reordering_options[2]);
-                    if (resolution > 3) resolution = 1.0;
-                }
-                if (reordering_options.size() > 3 && !reordering_options[3].empty()) {
-                    num_levels = std::stoi(reordering_options[3]);
-                }
-            }
-        }
-        
-        printf("GraphBrewOrder: cluster=%s, final_algo=%d, resolution=%.2f, levels=%d\n",
-               cluster_variant.c_str(), final_algo_id, resolution, num_levels);
+        // Parse options using shared config (auto-computes resolution if not specified)
+        double auto_resolution = LeidenAutoResolution<NodeID_, DestID_>(g);
+        auto cfg = graphbrew::GraphBrewConfig::FromOptions(reordering_options, auto_resolution);
+        cfg.print();
         
         // Build internal options for the specific variant
-        std::vector<std::string> internal_options;
-        internal_options.push_back(std::to_string(frequency_threshold));
-        internal_options.push_back(std::to_string(final_algo_id));
-        internal_options.push_back(std::to_string(resolution));
+        auto internal_options = cfg.toInternalOptions();
         
-        if (cluster_variant == "gve" || cluster_variant == "gveopt") {
-            // Use native GVE-Leiden clustering
-            GenerateGraphBrewGVEMapping(g, new_ids, useOutdeg, internal_options, 
-                                        num_levels, false, cluster_variant == "gveopt");
-        } else if (cluster_variant == "rabbit") {
-            // Use RabbitOrder's internal clustering
-            GenerateGraphBrewRabbitMapping(g, new_ids, useOutdeg, internal_options, num_levels);
-        } else if (cluster_variant == "hubcluster") {
-            // Use simple hub-based clustering
-            GenerateGraphBrewHubClusterMapping(g, new_ids, useOutdeg, internal_options, num_levels);
-        } else {
-            // Default: original Leiden library (backward compatible)
-            GenerateGraphBrewMapping(g, new_ids, useOutdeg, internal_options, num_levels, false);
+        // Dispatch to appropriate implementation
+        switch (cfg.cluster) {
+            case graphbrew::GraphBrewCluster::GVE:
+                GenerateGraphBrewGVEMapping(g, new_ids, useOutdeg, internal_options, 
+                                            cfg.num_levels, false, false);
+                break;
+            case graphbrew::GraphBrewCluster::GVEOpt:
+                GenerateGraphBrewGVEMapping(g, new_ids, useOutdeg, internal_options, 
+                                            cfg.num_levels, false, true);
+                break;
+            case graphbrew::GraphBrewCluster::Rabbit:
+                GenerateGraphBrewRabbitMapping(g, new_ids, useOutdeg, internal_options, cfg.num_levels);
+                break;
+            case graphbrew::GraphBrewCluster::HubCluster:
+                GenerateGraphBrewHubClusterMapping(g, new_ids, useOutdeg, internal_options, cfg.num_levels);
+                break;
+            case graphbrew::GraphBrewCluster::Leiden:
+            default:
+                GenerateGraphBrewMapping(g, new_ids, useOutdeg, internal_options, cfg.num_levels, false);
+                break;
         }
     }
     
