@@ -5883,79 +5883,14 @@ public:
         std::cout << "=== Full-Graph Adaptive Mode ===\n";
         std::cout << "Nodes: " << static_cast<long long>(num_nodes) << ", Edges: " << static_cast<long long>(num_edges) << "\n";
         
-        // Compute global features
-        double global_modularity = 0.0;  // Will estimate from clustering coefficient
-        double global_degree_variance = 0.0;
-        double global_hub_concentration = 0.0;
+        // Compute global features using the shared utility function
+        auto features = ::ComputeSampledDegreeFeatures(g, 10000, true);
+        
+        double global_modularity = features.estimated_modularity;
+        double global_degree_variance = features.degree_variance;
+        double global_hub_concentration = features.hub_concentration;
         double global_avg_degree = static_cast<double>(num_edges) / num_nodes;
-        
-        // Sample-based feature computation (fast)
-        const size_t SAMPLE_SIZE = std::min(static_cast<size_t>(10000), static_cast<size_t>(num_nodes));
-        std::vector<int64_t> sampled_degrees(SAMPLE_SIZE);
-        
-        double sum = 0.0;
-        for (size_t i = 0; i < SAMPLE_SIZE; ++i) {
-            NodeID_ node = (num_nodes > static_cast<int64_t>(SAMPLE_SIZE)) ? 
-                static_cast<NodeID_>((i * num_nodes) / SAMPLE_SIZE) : static_cast<NodeID_>(i);
-            sampled_degrees[i] = g.out_degree(node);
-            sum += sampled_degrees[i];
-        }
-        double sample_mean = sum / SAMPLE_SIZE;
-        
-        double sum_sq_diff = 0.0;
-        for (size_t i = 0; i < SAMPLE_SIZE; ++i) {
-            double diff = sampled_degrees[i] - sample_mean;
-            sum_sq_diff += diff * diff;
-        }
-        double variance = sum_sq_diff / (SAMPLE_SIZE - 1);
-        global_degree_variance = (sample_mean > 0) ? std::sqrt(variance) / sample_mean : 0.0;
-        
-        // Hub concentration: fraction of edges from top 10% degree nodes
-        std::sort(sampled_degrees.rbegin(), sampled_degrees.rend());
-        size_t top_10 = std::max(size_t(1), SAMPLE_SIZE / 10);
-        int64_t top_edge_sum = 0, total_edge_sum = 0;
-        for (size_t i = 0; i < SAMPLE_SIZE; ++i) {
-            if (i < top_10) top_edge_sum += sampled_degrees[i];
-            total_edge_sum += sampled_degrees[i];
-        }
-        global_hub_concentration = (total_edge_sum > 0) ? 
-            static_cast<double>(top_edge_sum) / total_edge_sum : 0.0;
-        
-        // Estimate modularity from clustering coefficient (rough approximation)
-        // Higher clustering often correlates with higher modularity
-        double clustering_coeff = 0.0;
-        size_t triangles_sampled = 0;
-        size_t triplets_sampled = 0;
-        
-        for (size_t i = 0; i < std::min(SAMPLE_SIZE, static_cast<size_t>(1000)); ++i) {
-            NodeID_ node = (num_nodes > static_cast<int64_t>(SAMPLE_SIZE)) ? 
-                static_cast<NodeID_>((i * num_nodes) / SAMPLE_SIZE) : static_cast<NodeID_>(i);
-            
-            int64_t deg = g.out_degree(node);
-            if (deg < 2) continue;
-            
-            triplets_sampled += deg * (deg - 1) / 2;
-            
-            // Count actual triangles (for small neighborhoods only)
-            if (deg <= 100) {
-                std::unordered_set<NodeID_> neighbors;
-                for (auto n : g.out_neigh(node)) {
-                    neighbors.insert(static_cast<NodeID_>(n));
-                }
-                for (auto n1 : g.out_neigh(node)) {
-                    for (auto n2 : g.out_neigh(static_cast<NodeID_>(n1))) {
-                        if (neighbors.count(static_cast<NodeID_>(n2))) {
-                            triangles_sampled++;
-                        }
-                    }
-                }
-            }
-        }
-        clustering_coeff = (triplets_sampled > 0) ? 
-            static_cast<double>(triangles_sampled) / (2 * triplets_sampled) : 0.0;
-        
-        // Rough modularity estimate: higher clustering = higher likely modularity
-        global_modularity = std::min(0.9, clustering_coeff * 1.5);
+        double clustering_coeff = features.clustering_coeff;
         
         // Detect graph type
         GraphType detected_graph_type = DetectGraphType(
@@ -6186,45 +6121,11 @@ public:
         }
 
         // Step 2.5: Compute quick global features for graph type detection
-        // We use lightweight features here since we're at the graph level
-        double global_degree_variance = 0.0;
-        double global_hub_concentration = 0.0;
+        // Use shared utility function for degree-based features
+        auto deg_features = ::ComputeSampledDegreeFeatures(g, 5000, false);
+        double global_degree_variance = deg_features.degree_variance;
+        double global_hub_concentration = deg_features.hub_concentration;
         double global_avg_degree = static_cast<double>(num_edges) / num_nodes;
-        
-        {
-            // Compute degree statistics for graph type detection (fast sampling)
-            const size_t SAMPLE_SIZE = std::min(static_cast<size_t>(5000), static_cast<size_t>(num_nodes));
-            std::vector<int64_t> sampled_degrees(SAMPLE_SIZE);
-            
-            double sum = 0.0;
-            for (size_t i = 0; i < SAMPLE_SIZE; ++i) {
-                NodeID_ node = (num_nodes > SAMPLE_SIZE) ? 
-                    static_cast<NodeID_>((i * num_nodes) / SAMPLE_SIZE) : static_cast<NodeID_>(i);
-                sampled_degrees[i] = g.out_degree(node);
-                sum += sampled_degrees[i];
-            }
-            double sample_mean = sum / SAMPLE_SIZE;
-            
-            double sum_sq_diff = 0.0;
-            for (size_t i = 0; i < SAMPLE_SIZE; ++i) {
-                double diff = sampled_degrees[i] - sample_mean;
-                sum_sq_diff += diff * diff;
-            }
-            double variance = sum_sq_diff / (SAMPLE_SIZE - 1);
-            global_degree_variance = (sample_mean > 0) ? std::sqrt(variance) / sample_mean : 0.0;
-            
-            // Hub concentration: sort degrees and see fraction from top 10%
-            std::sort(sampled_degrees.rbegin(), sampled_degrees.rend());
-            size_t top_10 = std::max(size_t(1), SAMPLE_SIZE / 10);
-            int64_t top_edge_sum = 0;
-            int64_t total_edge_sum = 0;
-            for (size_t i = 0; i < SAMPLE_SIZE; ++i) {
-                if (i < top_10) top_edge_sum += sampled_degrees[i];
-                total_edge_sum += sampled_degrees[i];
-            }
-            global_hub_concentration = (total_edge_sum > 0) ? 
-                static_cast<double>(top_edge_sum) / total_edge_sum : 0.0;
-        }
         
         // Detect graph type based on global features
         GraphType detected_graph_type = DetectGraphType(
