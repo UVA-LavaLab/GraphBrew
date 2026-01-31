@@ -59,7 +59,7 @@ GraphBrew/
 │   ├── download/                # Standalone downloader
 │   └── utils/                   # Additional utilities
 │
-├── test/                     # Test files
+├── test/                     # (Deprecated) legacy test files; use scripts/test/
 │   ├── graphs/               # Sample graphs
 │   └── reference/            # Reference outputs
 │
@@ -683,13 +683,13 @@ try {
 make clean && make all
 
 # Quick test
-./bench/bin/pr -f test/graphs/4.el -s -n 1
+./bench/bin/pr -f scripts/test/graphs/tiny/tiny.el -s -n 1
 
 # Full test
 make test
 
 # Memory check
-valgrind ./bench/bin/pr -f test/graphs/4.el -s -n 1
+valgrind ./bench/bin/pr -f scripts/test/graphs/tiny/tiny.el -s -n 1
 ```
 
 ### Code Style

@@ -409,7 +409,7 @@ HUBCLUSTERDBG: 2 communities
 ### Quick Test
 
 ```bash
-./bench/bin/pr -f test/graphs/4.el -s -n 1
+./bench/bin/pr -f scripts/test/graphs/tiny/tiny.el -s -n 1
 ```
 
 ### Compare Algorithms

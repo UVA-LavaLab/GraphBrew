@@ -24,9 +24,12 @@ before_install:
 
 # Define the script to run for building your project
 script:
-  - echo "Building project"
-  - make all -j RABBIT_ENABLE=0
-  - make run-all FLUSH_CACHE=0
+  - echo "Installing Python deps"
+  - pip3 install -r scripts/requirements.txt
+  - echo "Building binaries for tests (pr, pr_sim)"
+  - make bench/bin/pr bench/bin_sim/pr -j2 RABBIT_ENABLE=0
+  - echo "Running pytest (scripts/test)"
+  - pytest scripts/test -q
 
 # Optionally define after successful build actions
 after_success:

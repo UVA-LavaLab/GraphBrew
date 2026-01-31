@@ -1,3 +1,4 @@
+import pytest
 #!/usr/bin/env python3
 """
 Test suite for weight_merger module.
@@ -30,6 +31,21 @@ from scripts.lib.weight_merger import (
 )
 
 
+@pytest.fixture(autouse=True)
+def wm_env(tmp_path, monkeypatch):
+    import scripts.lib.weight_merger as wm
+    tmp_runs = tmp_path / "runs"
+    tmp_merged = tmp_path / "merged"
+    tmp_active = tmp_path / "active"
+    for d in [tmp_runs, tmp_merged, tmp_active]:
+        d.mkdir(parents=True, exist_ok=True)
+    monkeypatch.setattr(wm, "get_runs_dir", lambda: tmp_runs)
+    monkeypatch.setattr(wm, "get_merged_dir", lambda: tmp_merged)
+    monkeypatch.setattr(wm, "get_active_dir", lambda: tmp_active)
+    monkeypatch.setattr(wm, "get_weights_dir", lambda: tmp_path)
+    return tmp_runs, tmp_merged, tmp_active
+
+
 def test_centroid_distance():
     """Test centroid distance calculation."""
     print("Testing centroid_distance...")
@@ -52,7 +68,6 @@ def test_centroid_distance():
     print(f"  Distance to very different centroid: {dist2:.4f}")
     
     print("  ✓ centroid_distance tests passed")
-    return True
 
 
 def test_find_matching_type():
@@ -104,7 +119,6 @@ def test_find_matching_type():
     print(f"  Very different correctly unmatched: {match}")
     
     print("  ✓ find_matching_type tests passed")
-    return True
 
 
 def test_merge_centroids():
@@ -142,7 +156,6 @@ def test_merge_centroids():
     print(f"  Equal weight merge: {merged_eq} == {expected_eq}")
     
     print("  ✓ merge_centroids tests passed")
-    return True
 
 
 def test_merge_weights():
@@ -192,7 +205,6 @@ def test_merge_weights():
     assert merged["_metadata"]["version"] == 2, "Should keep newer metadata"
     
     print("  ✓ merge_weights tests passed")
-    return True
 
 
 def test_full_merge_flow():
@@ -347,8 +359,6 @@ def test_full_merge_flow():
                     break
         
         print("  ✓ Full merge flow tests passed")
-    
-    return True
 
 
 def run_all_tests():
@@ -387,7 +397,7 @@ def run_all_tests():
     print(f"Results: {passed} passed, {failed} failed")
     print("=" * 60)
     
-    return failed == 0
+    assert failed == 0
 
 
 if __name__ == "__main__":
