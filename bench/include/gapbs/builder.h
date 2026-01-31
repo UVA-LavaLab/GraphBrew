@@ -2266,42 +2266,13 @@ public:
         ::GenerateRandomMapping<NodeID_, DestID_, invert>(g, new_ids);
     }
 
+    /**
+     * @brief Random permutation using atomic compare-and-swap (legacy v2)
+     * Delegates to ::GenerateRandomMapping_v2 in reorder/reorder_basic.h
+     */
     void GenerateRandomMapping_v2(const CSRGraph<NodeID_, DestID_, invert> &g,
-                                  pvector<NodeID_> &new_ids)
-    {
-        Timer t;
-        t.Start();
-        std::srand(0); // so that the random graph generated is the same
-        // everytime
-
-        // Step I: create a random permutation - SLOW implementation
-        pvector<NodeID_> claimedVtxs(g.num_nodes(), 0);
-
-        #pragma omp parallel for
-        for (NodeID_ v = 0; v < g.num_nodes(); ++v)
-        {
-            while (true)
-            {
-                NodeID_ randID = std::rand() % g.num_nodes();
-                if (claimedVtxs[randID] != 1)
-                {
-                    if (compare_and_swap(claimedVtxs[randID], 0, 1) == true)
-                    {
-                        new_ids[v] = randID;
-                        break;
-                    }
-                    else
-                        continue;
-                }
-            }
-        }
-
-        #pragma omp parallel for
-        for (NodeID_ v = 0; v < g.num_nodes(); ++v)
-            assert(new_ids[v] != -1);
-
-        t.Stop();
-        PrintTime("Random Map Time", t.Seconds());
+                                  pvector<NodeID_> &new_ids) {
+        ::GenerateRandomMapping_v2<NodeID_, DestID_, invert>(g, new_ids);
     }
 
     /**
@@ -2341,53 +2312,14 @@ public:
         ::GenerateSortMapping<NodeID_, DestID_, invert>(g, new_ids, useOutdeg, lesser);
     }
 
+    /**
+     * Sort by (out-degree, in-degree) descending with RabbitOrder-style handling
+     * Delegates to ::GenerateSortMappingRabbit in reorder/reorder_basic.h
+     */
     void GenerateSortMappingRabbit(const CSRGraph<NodeID_, DestID_, invert> &g,
                                    pvector<NodeID_> &new_ids, bool useOutdeg,
-                                   bool lesser = false)
-    {
-
-        typedef std::tuple<int64_t, int64_t, NodeID_> degree_nodeid_t;
-
-        Timer t;
-        t.Start();
-
-        int64_t num_nodes = g.num_nodes();
-        pvector<degree_nodeid_t> degree_id_pairs(num_nodes);
-
-        #pragma omp parallel for
-        for (int64_t v = 0; v < num_nodes; ++v)
-        {
-            int64_t out_degree_v = g.out_degree(v);
-            int64_t in_degree_v = g.in_degree(v);
-            degree_id_pairs[v] = std::make_tuple(out_degree_v, in_degree_v, v);
-        }
-
-        auto custom_comparator = [](const degree_nodeid_t &a, const degree_nodeid_t &b)
-        {
-            int64_t out_a = std::get<0>(a);
-            int64_t out_b = std::get<0>(b);
-            int64_t in_a = std::get<1>(a);
-            int64_t in_b = std::get<1>(b);
-
-            if (out_a == 0 && in_a == 0) return false; // Keep relative order of zero-degree nodes
-            if (out_b == 0 && in_b == 0) return true;  // Zero-degree nodes should be "greater"
-
-            if (out_a != out_b) return out_a > out_b; // Primary sort by out-degree
-            return in_a > in_b;                       // Secondary sort by in-degree
-        };
-
-        __gnu_parallel::stable_sort(degree_id_pairs.begin(), degree_id_pairs.end(), custom_comparator);
-
-        #pragma omp parallel for
-        for (int64_t n = 0; n < num_nodes; ++n)
-        {
-            new_ids[std::get<2>(degree_id_pairs[n])] = n;
-        }
-
-        pvector<degree_nodeid_t>().swap(degree_id_pairs);
-
-        t.Stop();
-        PrintTime("Sort Map Time", t.Seconds());
+                                   bool lesser = false) {
+        ::GenerateSortMappingRabbit<NodeID_, DestID_, invert>(g, new_ids, useOutdeg, lesser);
     }
 
     /**
