@@ -553,9 +553,9 @@ Memory estimation: `(edges × 24 bytes + nodes × 8 bytes) × 1.5`
 | `--validation-benchmark NAME` | Benchmark to use for brute-force validation (default: pr) |
 | `--validate-adaptive` | Validate adaptive algorithm accuracy: compare predicted vs actual best |
 
-### Deprecated Parameters
+### Parameter Aliases (Backwards Compatibility)
 
-These parameters still work for backwards compatibility but are deprecated:
+These parameters are still supported as aliases:
 
 | Deprecated | Use Instead |
 |------------|-------------|
