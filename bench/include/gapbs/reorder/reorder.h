@@ -72,9 +72,10 @@
 #include "reorder_rabbit.h"  // RABBITORDER (8)
 #include "reorder_classic.h" // GORDER, CORDER, RCM (9-11)
 
-// The following are documentation headers for complex algorithms still in builder.h:
-#include "reorder_leiden.h"    // LEIDENORDER, LEIDENDENDROGRAM, LEIDENCSR (15-17) docs
-#include "reorder_graphbrew.h" // GRAPHBREWORDER, ADAPTIVEORDER (12, 14) docs
+// Advanced algorithm headers:
+#include "reorder_leiden.h"    // LEIDENORDER, LEIDENDENDROGRAM, LEIDENCSR (15-17)
+#include "reorder_graphbrew.h" // GRAPHBREWORDER (12) types and config
+#include "reorder_adaptive.h"  // ADAPTIVEORDER (14) types and config
 
 // ============================================================================
 // ALGORITHM STRING CONVERSION
