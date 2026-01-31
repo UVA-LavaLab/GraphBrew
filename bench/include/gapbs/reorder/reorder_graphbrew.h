@@ -335,6 +335,112 @@ inline size_t ComputeDynamicLocalReorderThreshold(size_t num_nodes,
     return std::min(min_size * 2, static_cast<size_t>(5000));  // Cap at 5000
 }
 
+// ============================================================================
+// GRAPHBREW CONFIGURATION
+// ============================================================================
+
+/**
+ * @brief Configuration for GraphBrew reordering algorithm
+ * 
+ * Parses command-line options and provides a unified configuration
+ * for all GraphBrew variants.
+ */
+struct GraphBrewConfig {
+    GraphBrewCluster cluster = GraphBrewCluster::Leiden;
+    int final_algo_id = DEFAULT_FINAL_ALGO;
+    double resolution = DEFAULT_GRAPHBREW_RESOLUTION;
+    int num_levels = DEFAULT_GRAPHBREW_LEVELS;
+    size_t frequency_threshold = 10;
+    bool use_fast_final = false;
+    
+    /**
+     * Parse configuration from reordering options
+     * 
+     * Supports two formats:
+     * 1. New format: cluster_variant:final_algo:resolution:levels
+     * 2. Old format: frequency_threshold:final_algo:resolution:iterations:passes
+     * 
+     * @param options Vector of option strings
+     * @param auto_resolution Default resolution if not specified
+     * @return Parsed configuration
+     */
+    static GraphBrewConfig FromOptions(const std::vector<std::string>& options,
+                                        double auto_resolution = DEFAULT_GRAPHBREW_RESOLUTION) {
+        GraphBrewConfig cfg;
+        cfg.resolution = auto_resolution;
+        
+        if (options.empty() || options[0].empty()) {
+            return cfg;
+        }
+        
+        const std::string& first_opt = options[0];
+        bool is_numeric = !first_opt.empty() && 
+            std::all_of(first_opt.begin(), first_opt.end(), ::isdigit);
+        
+        if (is_numeric) {
+            // Old format: frequency_threshold:final_algo:resolution:iterations:passes
+            cfg.frequency_threshold = std::stoi(first_opt);
+            if (options.size() > 1 && !options[1].empty()) {
+                cfg.final_algo_id = std::stoi(options[1]);
+            }
+            if (options.size() > 2 && !options[2].empty()) {
+                cfg.resolution = std::stod(options[2]);
+                if (cfg.resolution > 3) cfg.resolution = 1.0;
+            }
+            cfg.cluster = GraphBrewCluster::Leiden;
+        } else {
+            // New format: cluster_variant:final_algo:resolution:levels
+            std::string variant = first_opt;
+            
+            // Handle "fast" suffix variants
+            if (variant.size() >= 4 && variant.substr(variant.size() - 4) == "fast") {
+                cfg.use_fast_final = true;
+                variant = variant.substr(0, variant.size() - 4);
+                if (variant.empty()) variant = "gve";
+            }
+            
+            cfg.cluster = ParseGraphBrewCluster(variant);
+            
+            // Set default final algorithm based on fast flag
+            if (cfg.use_fast_final) {
+                cfg.final_algo_id = 6;  // HubSortDBG
+            }
+            
+            if (options.size() > 1 && !options[1].empty()) {
+                cfg.final_algo_id = std::stoi(options[1]);
+            }
+            if (options.size() > 2 && !options[2].empty()) {
+                cfg.resolution = std::stod(options[2]);
+                if (cfg.resolution > 3) cfg.resolution = 1.0;
+            }
+            if (options.size() > 3 && !options[3].empty()) {
+                cfg.num_levels = std::stoi(options[3]);
+            }
+        }
+        
+        return cfg;
+    }
+    
+    /**
+     * Print configuration for verbose output
+     */
+    void print() const {
+        printf("GraphBrewOrder: cluster=%s, final_algo=%d, resolution=%.2f, levels=%d\n",
+               GraphBrewClusterToString(cluster).c_str(), final_algo_id, resolution, num_levels);
+    }
+    
+    /**
+     * Build internal options vector for backward compatibility
+     */
+    std::vector<std::string> toInternalOptions() const {
+        std::vector<std::string> opts;
+        opts.push_back(std::to_string(frequency_threshold));
+        opts.push_back(std::to_string(final_algo_id));
+        opts.push_back(std::to_string(resolution));
+        return opts;
+    }
+};
+
 } // namespace graphbrew
 
 #endif // REORDER_GRAPHBREW_H_
