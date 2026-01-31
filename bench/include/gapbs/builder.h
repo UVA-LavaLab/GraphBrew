@@ -5983,7 +5983,7 @@ public:
         bool verbose = true,
         SelectionMode selection_mode = MODE_FASTEST_EXECUTION,
         const std::string& graph_name = "")
-    {
+{
         Timer tm;
         tm.Start();
 
@@ -6244,58 +6244,16 @@ public:
         if (!small_community_nodes.empty()) {
             size_t small_group_size = small_community_nodes.size();
             
-            // Compute features for the merged small community group
+            // Compute features for the merged small community group using shared utility
             std::unordered_set<NodeID_> small_node_set(
                 small_community_nodes.begin(), small_community_nodes.end());
             
-            // Fast feature computation for the merged group
-            CommunityFeatures small_feat;
-            small_feat.num_nodes = small_group_size;
-            small_feat.num_edges = 0;
-            
-            // Count internal edges and compute degree stats
-            std::vector<int64_t> degrees(small_group_size);
-            size_t idx = 0;
-            int64_t total_deg = 0;
-            for (NodeID_ node : small_community_nodes) {
-                int64_t deg = 0;
-                for (DestID_ neighbor : g.out_neigh(node)) {
-                    NodeID_ dest = static_cast<NodeID_>(neighbor);
-                    if (small_node_set.count(dest)) {
-                        deg++;
-                        small_feat.num_edges++;
-                    }
-                }
-                degrees[idx++] = deg;
-                total_deg += deg;
-            }
-            small_feat.num_edges /= 2;  // Undirected
-            
-            // Compute feature statistics
-            double avg_deg = (small_group_size > 0) ? static_cast<double>(total_deg) / small_group_size : 0;
-            small_feat.internal_density = (small_group_size > 1) ? 
-                avg_deg / (small_group_size - 1) : 0.0;
-            
-            // Degree variance
-            double sum_sq_diff = 0;
-            for (auto d : degrees) {
-                double diff = d - avg_deg;
-                sum_sq_diff += diff * diff;
-            }
-            small_feat.degree_variance = (small_group_size > 1 && avg_deg > 0) ? 
-                std::sqrt(sum_sq_diff / (small_group_size - 1)) / avg_deg : 0.0;
-            
-            // Hub concentration (simplified - sample top 10%)
-            std::sort(degrees.rbegin(), degrees.rend());
-            size_t top_10 = std::max(size_t(1), small_group_size / 10);
-            int64_t top_sum = 0;
-            for (size_t i = 0; i < top_10 && i < degrees.size(); ++i) {
-                top_sum += degrees[i];
-            }
-            small_feat.hub_concentration = (total_deg > 0) ? 
-                static_cast<double>(top_sum) / total_deg : 0.0;
+            auto merged_feat = ::ComputeMergedCommunityFeatures(g, small_community_nodes, small_node_set);
             
             // Use perceptron to select algorithm for merged small communities
+            // Convert to CommunityFeatures for perceptron selection
+            CommunityFeatures small_feat = ::MergedToCommunityFeatures(merged_feat);
+            
             ReorderingAlgo small_algo = SelectBestReorderingForCommunity(
                 small_feat, global_modularity, global_degree_variance, global_hub_concentration,
                 global_avg_degree, static_cast<size_t>(num_nodes), num_edges,
@@ -6836,67 +6794,17 @@ public:
         if (!small_community_nodes.empty()) {
             size_t small_group_size = small_community_nodes.size();
             
-            // Compute features for merged small community group
+            // Compute features for merged small community group using shared utility
             std::unordered_set<NodeID_> small_node_set(
                 small_community_nodes.begin(), small_community_nodes.end());
             
-            // Count internal edges and compute stats
-            size_t small_edges = 0;
-            std::vector<int64_t> degrees(small_group_size);
-            int64_t total_deg = 0;
-            size_t idx = 0;
+            auto merged_feat = ::ComputeMergedCommunityFeatures(g, small_community_nodes, small_node_set);
             
-            for (NodeID_ node : small_community_nodes) {
-                int64_t deg = 0;
-                for (DestID_ neighbor : g.out_neigh(node)) {
-                    NodeID_ dest = static_cast<NodeID_>(neighbor);
-                    if (small_node_set.count(dest)) {
-                        deg++;
-                        small_edges++;
-                    }
-                }
-                degrees[idx++] = deg;
-                total_deg += deg;
-            }
-            small_edges /= 2;
-            
-            // Compute features
-            double avg_deg = (small_group_size > 0) ? static_cast<double>(total_deg) / small_group_size : 0;
-            double density = (small_group_size > 1) ? avg_deg / (small_group_size - 1) : 0.0;
-            
-            double sum_sq_diff = 0;
-            for (auto d : degrees) {
-                double diff = d - avg_deg;
-                sum_sq_diff += diff * diff;
-            }
-            double deg_variance = (small_group_size > 1 && avg_deg > 0) ? 
-                std::sqrt(sum_sq_diff / (small_group_size - 1)) / avg_deg : 0.0;
-            
-            std::sort(degrees.rbegin(), degrees.rend());
-            size_t top_10 = std::max(size_t(1), small_group_size / 10);
-            int64_t top_sum = 0;
-            for (size_t i = 0; i < top_10 && i < degrees.size(); ++i) {
-                top_sum += degrees[i];
-            }
-            double hub_conc = (total_deg > 0) ? static_cast<double>(top_sum) / total_deg : 0.0;
-            
-            // Simple algorithm selection based on features (similar to perceptron logic)
-            // For GraphBrew, we use heuristics since we don't have full perceptron here
-            ReorderingAlgo small_algo;
-            if (small_group_size < 100) {
-                small_algo = ORIGINAL;  // Too small, just degree sort
-            } else if (hub_conc > 0.5 && deg_variance > 1.5) {
-                small_algo = HubClusterDBG;  // Hub-dominated with variance
-            } else if (hub_conc > 0.4) {
-                small_algo = HubSort;  // Hub-dominated
-            } else if (density > 0.05) {
-                small_algo = DBG;  // Dense
-            } else {
-                small_algo = HubSortDBG;  // Default for sparse
-            }
+            // Use heuristic algorithm selection for GraphBrew (faster than perceptron)
+            ReorderingAlgo small_algo = ::SelectAlgorithmForSmallGroup(merged_feat);
             
             printf("GraphBrewGVE: Grouped %zu nodes from small communities (%zu edges) -> %s\n",
-                   small_group_size, small_edges, ReorderingAlgoStr(small_algo).c_str());
+                   small_group_size, merged_feat.num_edges, ReorderingAlgoStr(small_algo).c_str());
             
             if (small_algo == ORIGINAL || small_group_size < 100) {
                 // Simple degree sort
