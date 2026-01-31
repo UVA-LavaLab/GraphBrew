@@ -5046,100 +5046,23 @@ public:
         }
         
         // ============================================================
-        // 1. DEGREE STATISTICS (fast, already needed for other metrics)
+        // 1. DEGREE STATISTICS (use shared utility function)
         // ============================================================
-        const size_t SAMPLE_SIZE = std::min(static_cast<size_t>(5000), static_cast<size_t>(num_nodes));
-        std::vector<int64_t> sampled_degrees(SAMPLE_SIZE);
-        
-        double sum = 0.0;
-        for (size_t i = 0; i < SAMPLE_SIZE; ++i) {
-            NodeID_ node = (static_cast<size_t>(num_nodes) > SAMPLE_SIZE) ? 
-                static_cast<NodeID_>((i * num_nodes) / SAMPLE_SIZE) : static_cast<NodeID_>(i);
-            sampled_degrees[i] = g.out_degree(node);
-            sum += sampled_degrees[i];
-        }
-        double avg_degree = sum / SAMPLE_SIZE;
-        
-        double sum_sq_diff = 0.0;
-        for (size_t i = 0; i < SAMPLE_SIZE; ++i) {
-            double diff = sampled_degrees[i] - avg_degree;
-            sum_sq_diff += diff * diff;
-        }
-        double variance = sum_sq_diff / (SAMPLE_SIZE - 1);
-        double degree_variance = (avg_degree > 0) ? std::sqrt(variance) / avg_degree : 0.0;
-        
-        // Hub concentration: sort degrees and see fraction from top 10%
-        std::sort(sampled_degrees.rbegin(), sampled_degrees.rend());
-        size_t top_10 = std::max(size_t(1), SAMPLE_SIZE / 10);
-        int64_t top_edge_sum = 0;
-        int64_t total_edge_sum = 0;
-        for (size_t i = 0; i < SAMPLE_SIZE; ++i) {
-            if (i < top_10) top_edge_sum += sampled_degrees[i];
-            total_edge_sum += sampled_degrees[i];
-        }
-        double hub_concentration = (total_edge_sum > 0) ? 
-            static_cast<double>(top_edge_sum) / total_edge_sum : 0.0;
+        auto deg_features = ::ComputeSampledDegreeFeatures(g, 5000, true);
+        double avg_degree = deg_features.avg_degree;
+        double degree_variance = deg_features.degree_variance;
+        double hub_concentration = deg_features.hub_concentration;
+        double clustering_coeff = deg_features.clustering_coeff;
         
         // ============================================================
-        // 2. CLUSTERING COEFFICIENT (sampled for efficiency)
-        // ============================================================
-        double clustering_coeff = 0.0;
-        const size_t MAX_CC_SAMPLES = std::min(size_t(100), static_cast<size_t>(num_nodes) / 10 + 1);
-        
-        if (num_nodes >= 500) {
-            double total_cc = 0.0;
-            size_t valid_samples = 0;
-            
-            // Sample medium-to-high degree nodes (more representative)
-            std::vector<std::pair<int64_t, NodeID_>> deg_nodes(SAMPLE_SIZE);
-            for (size_t i = 0; i < SAMPLE_SIZE; ++i) {
-                NodeID_ node = (static_cast<size_t>(num_nodes) > SAMPLE_SIZE) ? 
-                    static_cast<NodeID_>((i * num_nodes) / SAMPLE_SIZE) : static_cast<NodeID_>(i);
-                deg_nodes[i] = {g.out_degree(node), node};
-            }
-            std::partial_sort(deg_nodes.begin(), 
-                              deg_nodes.begin() + std::min(MAX_CC_SAMPLES, SAMPLE_SIZE),
-                              deg_nodes.end(),
-                              std::greater<std::pair<int64_t, NodeID_>>());
-            
-            for (size_t s = 0; s < MAX_CC_SAMPLES && s < SAMPLE_SIZE; ++s) {
-                NodeID_ node = deg_nodes[s].second;
-                int64_t deg = deg_nodes[s].first;
-                if (deg < 2 || deg > 500) continue;  // Skip extremes
-                
-                // Get neighbors into a set
-                std::unordered_set<NodeID_> neighbors;
-                for (DestID_ neighbor : g.out_neigh(node)) {
-                    neighbors.insert(static_cast<NodeID_>(neighbor));
-                }
-                
-                // Count triangles
-                size_t triangles = 0;
-                for (NodeID_ n1 : neighbors) {
-                    for (DestID_ n2_edge : g.out_neigh(n1)) {
-                        NodeID_ n2 = static_cast<NodeID_>(n2_edge);
-                        if (n2 > n1 && neighbors.count(n2)) {
-                            ++triangles;
-                        }
-                    }
-                }
-                
-                double local_cc = (2.0 * triangles) / (deg * (deg - 1));
-                total_cc += local_cc;
-                ++valid_samples;
-            }
-            
-            clustering_coeff = (valid_samples > 0) ? total_cc / valid_samples : 0.0;
-        }
-        
-        // ============================================================
-        // 3. DIAMETER & AVG PATH LENGTH (single BFS from high-degree node)
+        // 2. DIAMETER & AVG PATH LENGTH (single BFS from high-degree node)
         // ============================================================
         double avg_path_length = 0.0;
         int diameter_estimate = 0;
         
         if (num_nodes >= 500 && num_nodes <= 10000000) {  // Skip for very large graphs
             // Find highest degree node as BFS starting point
+            const size_t SAMPLE_SIZE = std::min(static_cast<size_t>(5000), static_cast<size_t>(num_nodes));
             NodeID_ start_node = 0;
             int64_t max_deg = 0;
             for (size_t i = 0; i < std::min(SAMPLE_SIZE, static_cast<size_t>(num_nodes)); ++i) {
@@ -5191,7 +5114,7 @@ public:
         }
         
         // ============================================================
-        // 4. COMMUNITY COUNT (fast Leiden for estimate)
+        // 3. COMMUNITY COUNT (fast Leiden for estimate)
         // ============================================================
         int community_count = 1;  // Default: 1 large component
         
