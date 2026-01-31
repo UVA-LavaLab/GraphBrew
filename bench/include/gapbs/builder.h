@@ -6938,26 +6938,8 @@ public:
                 CSRGraph<NodeID_, DestID_, invert> sub_g = MakeLocalGraphFromEL(sub_edges);
                 pvector<NodeID_> sub_new_ids(small_group_size, -1);
                 
-                switch (small_algo) {
-                    case HubSort:
-                        GenerateHubSortMapping(sub_g, sub_new_ids, useOutdeg);
-                        break;
-                    case HubCluster:
-                        GenerateHubClusterMapping(sub_g, sub_new_ids, useOutdeg);
-                        break;
-                    case DBG:
-                        GenerateDBGMapping(sub_g, sub_new_ids, useOutdeg);
-                        break;
-                    case HubSortDBG:
-                        GenerateHubSortDBGMapping(sub_g, sub_new_ids, useOutdeg);
-                        break;
-                    case HubClusterDBG:
-                        GenerateHubClusterDBGMapping(sub_g, sub_new_ids, useOutdeg);
-                        break;
-                    default:
-                        GenerateHubSortMapping(sub_g, sub_new_ids, useOutdeg);
-                        break;
-                }
+                // Apply selected algorithm using helper
+                ApplyBasicReordering(sub_g, sub_new_ids, small_algo, useOutdeg);
                 
                 std::vector<NodeID_> reordered_nodes(small_group_size);
                 for (size_t i = 0; i < small_group_size; ++i) {
@@ -7791,26 +7773,8 @@ public:
                 CSRGraph<NodeID_, DestID_, invert> sub_g = MakeLocalGraphFromEL(sub_edges);
                 pvector<NodeID_> sub_new_ids(small_group_size, -1);
                 
-                switch (small_algo) {
-                    case HubSort:
-                        GenerateHubSortMapping(sub_g, sub_new_ids, useOutdeg);
-                        break;
-                    case HubCluster:
-                        GenerateHubClusterMapping(sub_g, sub_new_ids, useOutdeg);
-                        break;
-                    case DBG:
-                        GenerateDBGMapping(sub_g, sub_new_ids, useOutdeg);
-                        break;
-                    case HubSortDBG:
-                        GenerateHubSortDBGMapping(sub_g, sub_new_ids, useOutdeg);
-                        break;
-                    case HubClusterDBG:
-                        GenerateHubClusterDBGMapping(sub_g, sub_new_ids, useOutdeg);
-                        break;
-                    default:
-                        GenerateHubSortMapping(sub_g, sub_new_ids, useOutdeg);
-                        break;
-                }
+                // Apply selected algorithm using helper
+                ApplyBasicReordering(sub_g, sub_new_ids, small_algo, useOutdeg);
                 
                 std::vector<NodeID_> reordered_nodes(small_group_size);
                 for (size_t i = 0; i < small_group_size; ++i) {
