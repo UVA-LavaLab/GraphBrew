@@ -5,6 +5,7 @@
 - `wiki/` — Detailed guides (Quick Start, Command-Line Reference, Benchmarks)
 
 ## Core C++ Modules
+- `bench/include/graphbrew/` — Umbrella headers (`graphbrew.h`, builder, reorder, partitioning, cache_sim)
 - `bench/include/gapbs/builder.h` — Graph construction, reordering, partitioning
 - `bench/include/gapbs/reorder/` — Reordering algorithms (basic, hub, rabbit, leiden, adaptive, graphbrew)
 - `bench/include/gapbs/partition/` — TRUST partitioning (`trust.h`)
