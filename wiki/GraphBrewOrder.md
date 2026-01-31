@@ -296,6 +296,66 @@ For graphs > 10K vertices, the overhead is usually recovered through better cach
 
 ## Implementation Details
 
+### C++ Code Architecture
+
+GraphBrewOrder's implementation is organized in modular header files in `bench/include/gapbs/reorder/`:
+
+| File | Purpose |
+|------|---------|
+| `reorder_graphbrew.h` | `GraphBrewConfig` struct, `GraphBrewClusterVariant` enum |
+| `reorder_types.h` | Base types, perceptron model, feature computation |
+
+**GraphBrewClusterVariant Enum:**
+
+```cpp
+// bench/include/gapbs/reorder/reorder_graphbrew.h
+enum class GraphBrewClusterVariant {
+    LEIDEN,      // Original Leiden library (igraph)
+    GVE,         // GVE-Leiden CSR-native
+    GVEOPT,      // Cache-optimized GVE
+    GVEFAST,     // Single-pass GVE
+    GVEOPTFAST,  // Cache-optimized single-pass
+    RABBIT,      // RabbitOrder-based
+    HUBCLUSTER   // Hub-clustering based
+};
+```
+
+**GraphBrewConfig Struct:**
+
+```cpp
+// bench/include/gapbs/reorder/reorder_graphbrew.h
+struct GraphBrewConfig {
+    GraphBrewClusterVariant variant = GraphBrewClusterVariant::LEIDEN;
+    int frequency = 10;           // Hub frequency threshold
+    int intra_algo = 8;           // Algorithm ID for within-community reordering
+    double resolution = -1.0;     // Leiden resolution (-1 = auto)
+    int maxIterations = 30;       // Max Leiden iterations
+    int maxPasses = 30;           // Max Leiden passes
+
+    // Parse from command-line options string
+    static GraphBrewConfig FromOptions(const std::string& options);
+    
+    // Convert to internal reordering options
+    ReorderingOptions toInternalOptions() const;
+    
+    // Print configuration for debugging
+    void print() const;
+};
+
+// Usage in builder.h:
+GraphBrewConfig config = GraphBrewConfig::FromOptions("gve:10:8:1.0:30:30");
+// → variant=GVE, frequency=10, intra_algo=8, resolution=1.0, etc.
+```
+
+**Key Functions in builder.h:**
+
+```cpp
+// Unified entry point for GraphBrewOrder
+void GenerateGraphBrewMappingUnified(
+    const CSRGraph& g, pvector<NodeID_>& new_ids,
+    const ReorderingOptions& opts);
+```
+
 ### Community Ordering Strategy
 
 Communities are processed in this order:
