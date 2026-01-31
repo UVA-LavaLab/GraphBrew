@@ -1,3 +1,14 @@
+### Tests
+
+Active tests live in `scripts/test/` and are run with:
+
+```bash
+pip install -r scripts/requirements.txt
+pytest scripts/test -q
+```
+
+> **Deprecated:** root `test/` is kept for legacy references; new tests should be added under `scripts/test/`.
+
 [![Build Status](https://app.travis-ci.com/UVA-LavaLab/GraphBrew.svg?branch=main)](https://app.travis-ci.com/UVA-LavaLab/GraphBrew)
 [![Wiki](https://img.shields.io/badge/📚_Wiki-Documentation-blue?style=flat)](https://github.com/UVA-LavaLab/GraphBrew/wiki)
 [<p align="center"><img src="./docs/figures/logo.svg" width="200" ></p>](#graphbrew)
@@ -228,10 +239,8 @@ scripts/
 │   ├── progress.py            # Progress tracking & reporting
 │   └── results.py             # Result file I/O
 │
-├── test/                      # Test modules
-│   ├── test_weight_flow.py    # Weight generation/loading tests
-│   ├── test_weight_merger.py  # Merger consolidation tests
-│   └── test_fill_adaptive.py  # Fill-weights pipeline tests
+├── test/                      # (Deprecated) legacy tests
+│   └── See scripts/test/ for active pytest suite
 │
 ├── examples/                  # Example scripts
 │   └── custom_pipeline.py     # Custom phase-based pipeline
@@ -646,10 +655,10 @@ make run-bfs
 ### Parameters Makefile
 All parameters [(section)](#graphbrew-parameters) can be passed through the Make command via:
    * `RUN_PARAMS='-n1 -o11'`, for controlling aspects of the algorithm and reordering.
-   * `GRAPH_BENCH ='-f ./test/graphs/4.el'`,`GRAPH_BENCH ='-g 4'`, for controlling the graph path, or kron/random generation.
+   * `GRAPH_BENCH ='-f ./scripts/test/graphs/tiny/tiny.el'`, for controlling the graph path. (Legacy: `./test/graphs/4.el` is deprecated.)
 ### Parameters Binary
 All parameters [(section)](#graphbrew-parameters) can be passed through the binary command via:
-   * `./bench/bin/<benchmark_name> -f ./test/graphs/4.el -n1 -o11`
+   * `./bench/bin/<benchmark_name> -f ./scripts/test/graphs/tiny/tiny.el -n1 -o11`
    * `./bench/bin/<benchmark_name> -g 4 -n1 -o11`
 
 ### Relabeling the graph
@@ -776,7 +785,7 @@ All parameters can be passed through the make command via:
    * Reorder the graph, orders can be layered.
    * Segment the graph for scalability, requires modifying the algorithm to iterate through segments.
    * `RUN_PARAMS='-n1 -o11'`, for controlling aspects of the algorithm and reordering.
-   * `GRAPH_BENCH ='-f ./test/graphs/4.el'`,`GRAPH_BENCH ='-g 4'`, for controlling the graph path, or kron/random generation.
+   * `GRAPH_BENCH ='-f ./scripts/test/graphs/tiny/tiny.el'`, for controlling the graph path. (Legacy: `./test/graphs/4.el` is deprecated.)
 
 ### GAP Parameters (PageRank example)
 ```bash

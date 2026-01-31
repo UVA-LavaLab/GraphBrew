@@ -404,7 +404,7 @@ ALGORITHMS = {
 ```bash
 make clean && make all
 # Test your new algorithm (ID 18 = next available after existing 0-17)
-./bench/bin/pr -f test/graphs/4.el -s -o 18 -n 3
+./bench/bin/pr -f scripts/test/graphs/tiny/tiny.el -s -o 18 -n 3
 ```
 
 ---
@@ -427,7 +427,7 @@ make clean && make all
 
 1. **Return valid permutation**: Every vertex must have a new ID
 2. **Handle disconnected graphs**: Don't assume connectivity
-3. **Test with small graphs first**: Use test/graphs/4.el
+3. **Test with small graphs first**: Use scripts/test/graphs/tiny/tiny.el
 
 ### Integration
 
@@ -443,10 +443,10 @@ make clean && make all
 
 ```bash
 # Test on small graph
-./bench/bin/pr -f test/graphs/4.el -s -o 18 -n 3
+./bench/bin/pr -f scripts/test/graphs/tiny/tiny.el -s -o 18 -n 3
 
 # Verify ordering is valid
-./bench/bin/pr -f test/graphs/4.el -s -o 18 -n 1 2>&1 | grep -i error
+./bench/bin/pr -f scripts/test/graphs/tiny/tiny.el -s -o 18 -n 1 2>&1 | grep -i error
 ```
 
 ### Performance Test
@@ -461,7 +461,7 @@ make clean && make all
 
 ```bash
 # Check for leaks
-valgrind ./bench/bin/pr -f test/graphs/4.el -s -o 18 -n 1
+valgrind ./bench/bin/pr -f scripts/test/graphs/tiny/tiny.el -s -o 18 -n 1
 ```
 
 ---

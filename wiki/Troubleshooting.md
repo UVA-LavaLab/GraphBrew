@@ -422,7 +422,7 @@ python3 scripts/graphbrew_experiment.py --phase weights
 **Debug**:
 ```bash
 # Run with smaller graph
-./bench/bin/pr -f test/graphs/4.el -s -v -n 1
+./bench/bin/pr -f scripts/test/graphs/tiny/tiny.el -s -v -n 1
 ```
 
 ---
@@ -505,7 +505,7 @@ free -h
 # GraphBrew check
 ls -la bench/bin/
 ./bench/bin/pr --help
-./bench/bin/pr -f test/graphs/4.el -s -n 1
+./bench/bin/pr -f scripts/test/graphs/tiny/tiny.el -s -n 1
 
 # Graph file check
 file graph.el

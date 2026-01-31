@@ -1,3 +1,4 @@
+import pytest
 #!/usr/bin/env python3
 """
 Test Weight Flow - Verify weights are generated and read from correct locations.
@@ -46,7 +47,7 @@ from scripts.lib.weight_merger import (
 )
 
 
-class TestResults:
+class ResultsTracker:
     """Track test results."""
     def __init__(self):
         self.passed = 0
@@ -76,7 +77,50 @@ class TestResults:
         return self.failed == 0
 
 
-def test_path_constants(results: TestResults):
+@pytest.fixture
+def results():
+    return ResultsTracker()
+
+
+@pytest.fixture(autouse=True)
+def weights_env(tmp_path, monkeypatch):
+    import scripts.lib.utils as utils
+    import scripts.lib.weights as weights
+    import scripts.lib.weight_merger as wm
+
+    tmp_weights = tmp_path / "weights"
+    tmp_active = tmp_weights / "active"
+    tmp_runs = tmp_weights / "runs"
+    tmp_merged = tmp_weights / "merged"
+    for d in [tmp_active, tmp_runs, tmp_merged]:
+        d.mkdir(parents=True, exist_ok=True)
+
+    # Patch utils
+    monkeypatch.setattr(utils, "WEIGHTS_DIR", tmp_weights)
+    monkeypatch.setattr(utils, "ACTIVE_WEIGHTS_DIR", tmp_active)
+
+    # Patch weights module
+    monkeypatch.setattr(weights, "DEFAULT_WEIGHTS_DIR", str(tmp_active))
+
+    # Patch weight_merger path functions
+    monkeypatch.setattr(wm, "get_weights_dir", lambda: tmp_weights)
+    monkeypatch.setattr(wm, "get_active_dir", lambda: tmp_active)
+    monkeypatch.setattr(wm, "get_runs_dir", lambda: tmp_runs)
+    monkeypatch.setattr(wm, "get_merged_dir", lambda: tmp_merged)
+
+    # Seed default files
+    default_weights = {
+        "Algo0": {"bias": 0.5, "w_modularity": 0.1, "w_log_nodes": 0.0}
+    }
+    (tmp_active / "type_0.json").write_text(json.dumps(default_weights))
+    (tmp_active / "type_registry.json").write_text(json.dumps({
+        "type_0": {"centroid": [0]*7, "graph_count": 1, "algorithms": ["Algo0"]}
+    }))
+
+    return tmp_weights, tmp_active, tmp_runs, tmp_merged
+
+
+def test_path_constants(results: ResultsTracker):
     """Test that path constants are correct."""
     print("\n1. Testing Path Constants")
     print("-" * 40)
@@ -121,7 +165,7 @@ def test_path_constants(results: TestResults):
     )
 
 
-def test_directory_structure(results: TestResults):
+def test_directory_structure(results: ResultsTracker):
     """Test that directory structure exists."""
     print("\n2. Testing Directory Structure")
     print("-" * 40)
@@ -150,7 +194,7 @@ def test_directory_structure(results: TestResults):
     )
 
 
-def test_weights_write_to_active(results: TestResults):
+def test_weights_write_to_active(results: ResultsTracker):
     """Test that weights.py writes to active/ directory."""
     print("\n3. Testing Weights Write to Active")
     print("-" * 40)
@@ -188,7 +232,7 @@ def test_weights_write_to_active(results: TestResults):
         print(f"  [cleanup] Removed {test_type}.json")
 
 
-def test_cpp_path_constants(results: TestResults):
+def test_cpp_path_constants(results: ResultsTracker):
     """Test that C++ header has correct paths."""
     print("\n4. Testing C++ Path Constants")
     print("-" * 40)
@@ -216,7 +260,7 @@ def test_cpp_path_constants(results: TestResults):
         )
 
 
-def test_weight_merger_flow(results: TestResults):
+def test_weight_merger_flow(results: ResultsTracker):
     """Test weight merger save/use flow."""
     print("\n5. Testing Weight Merger Flow")
     print("-" * 40)
@@ -290,7 +334,7 @@ def test_weight_merger_flow(results: TestResults):
         print(f"  [cleanup] Restored original registry")
 
 
-def test_existing_weights_valid(results: TestResults):
+def test_existing_weights_valid(results: ResultsTracker):
     """Test that existing weights in active/ are valid."""
     print("\n6. Testing Existing Weights Validity")
     print("-" * 40)

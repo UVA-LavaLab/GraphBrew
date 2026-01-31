@@ -253,7 +253,7 @@ KERNELS = bc bfs cc cc_sv pr pr_spmv sssp tc tc_p my_algorithm
 
 ```bash
 make my_algorithm
-./bench/bin/my_algorithm -f test/graphs/4.el -s -n 3
+./bench/bin/my_algorithm -f scripts/test/graphs/tiny/tiny.el -s -n 3
 ```
 
 ---
@@ -468,7 +468,7 @@ KERNELS = bc bfs cc cc_sv pr pr_spmv sssp tc tc_p kcore
 
 ```bash
 make kcore
-./bench/bin/kcore -f test/graphs/4.el -s -n 3 -v
+./bench/bin/kcore -f scripts/test/graphs/tiny/tiny.el -s -n 3 -v
 ```
 
 ---
@@ -583,7 +583,7 @@ for (NodeID u = 0; u < num_nodes; u++) {
 
 ```bash
 # Check with valgrind
-valgrind --leak-check=full ./bench/bin/my_algorithm -f test/graphs/4.el -s
+valgrind --leak-check=full ./bench/bin/my_algorithm -f scripts/test/graphs/tiny/tiny.el -s
 ```
 
 ---

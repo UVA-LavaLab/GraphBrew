@@ -169,7 +169,7 @@ mv ego-Facebook.txt facebook.el
 ### PageRank with Default (No Reordering)
 
 ```bash
-./bench/bin/pr -f test/graphs/4.el -s -n 3
+./bench/bin/pr -f scripts/test/graphs/tiny/tiny.el -s -n 3
 ```
 
 Output:
@@ -187,7 +187,7 @@ Average Time:        0.001xx
 
 ```bash
 # Using HUBCLUSTERDBG (algorithm 7)
-./bench/bin/pr -f test/graphs/4.el -s -o 7 -n 3
+./bench/bin/pr -f scripts/test/graphs/tiny/tiny.el -s -o 7 -n 3
 ```
 
 ---
@@ -198,16 +198,16 @@ Average Time:        0.001xx
 
 ```bash
 # No reordering (baseline)
-./bench/bin/pr -f test/graphs/4.el -s -o 0 -n 3
+./bench/bin/pr -f scripts/test/graphs/tiny/tiny.el -s -o 0 -n 3
 
 # Hub-based
-./bench/bin/pr -f test/graphs/4.el -s -o 7 -n 3
+./bench/bin/pr -f scripts/test/graphs/tiny/tiny.el -s -o 7 -n 3
 
 # Community-based (GraphBrewOrder)
-./bench/bin/pr -f test/graphs/4.el -s -o 12 -n 3
+./bench/bin/pr -f scripts/test/graphs/tiny/tiny.el -s -o 12 -n 3
 
 # ML-powered selection
-./bench/bin/pr -f test/graphs/4.el -s -o 14 -n 3
+./bench/bin/pr -f scripts/test/graphs/tiny/tiny.el -s -o 14 -n 3
 ```
 
 ### Algorithm Quick Reference
@@ -230,7 +230,7 @@ Average Time:        0.001xx
 # Create a simple test script
 for bench in pr bfs cc sssp bc tc; do
     echo "=== $bench ==="
-    ./bench/bin/$bench -f test/graphs/4.el -s -o 7 -n 1
+    ./bench/bin/$bench -f scripts/test/graphs/tiny/tiny.el -s -o 7 -n 1
 done
 ```
 

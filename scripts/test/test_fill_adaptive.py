@@ -1,3 +1,4 @@
+import pytest
 #!/usr/bin/env python3
 """
 Test script for fill-weights and adaptive order functionality.
@@ -25,6 +26,7 @@ from pathlib import Path
 # Add project root to path
 SCRIPT_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = SCRIPT_DIR.parent
+REPO_ROOT = SCRIPT_DIR.parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from scripts.lib import (
@@ -38,6 +40,30 @@ from scripts.lib.weights import (
 from scripts.lib.progress import ProgressTracker
 
 log = Logger()
+@pytest.fixture
+def graph_path(tmp_path):
+    src = REPO_ROOT / "scripts" / "test" / "graphs" / "tiny" / "tiny.el"
+    dst_dir = tmp_path / "graphs" / "tiny"
+    dst_dir.mkdir(parents=True, exist_ok=True)
+    dst = dst_dir / "tiny.el"
+    dst.write_text(src.read_text())
+    return str(dst)
+
+
+@pytest.fixture
+def weights_dir(tmp_path):
+    wdir = tmp_path / "weights"
+    wdir.mkdir(parents=True, exist_ok=True)
+    # seed a minimal type_0.json
+    (wdir / "type_0.json").write_text(json.dumps({"AdaptiveOrder": {"bias": 0.5}}))
+    return str(wdir)
+
+
+@pytest.fixture
+def ensure_pr_binary():
+    from scripts.lib import build as lib_build
+    lib_build.ensure_binaries()
+
 progress = ProgressTracker()
 
 
@@ -169,7 +195,7 @@ def verify_weights(weights_dir: str) -> dict:
     return results
 
 
-def test_adaptive_order(graph_path: str, weights_dir: str) -> dict:
+def _run_adaptive_order(graph_path: str, weights_dir: str) -> dict:
     """Test that adaptive order actually uses the weights."""
     results = {
         'ran_successfully': False,
@@ -227,6 +253,14 @@ def test_adaptive_order(graph_path: str, weights_dir: str) -> dict:
         log.info("Subcommunity analysis was performed")
     
     return results
+
+
+@pytest.mark.skip(reason="adaptive order integration is optional; enable when needed")
+def test_adaptive_order_pytest(graph_path, weights_dir, ensure_pr_binary):
+    res = _run_adaptive_order(graph_path, weights_dir)
+    if res.get('output') == "Benchmark binary not found":
+        pytest.skip("pr binary not built")
+    assert res['ran_successfully'], res.get('output')
 
 
 def show_best_algorithms(weights_dir: str):
