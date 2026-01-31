@@ -259,33 +259,36 @@ inline std::string AdaptiveModeToString(AdaptiveMode m) {
     }
 }
 
-// ============================================================================
-// GRAPH TYPE CLASSIFICATION
-// ============================================================================
-
-/**
- * @brief Graph type for algorithm selection
- */
-enum class GraphType {
-    Social,   ///< Social networks (high clustering)
-    Web,      ///< Web graphs (high max degree ratio)
-    Road,     ///< Road networks (low degree variance)
-    Random,   ///< Random graphs (low modularity)
-    Kron,     ///< Kronecker/synthetic graphs
-    Unknown   ///< Unknown/mixed type
-};
-
-inline std::string GraphTypeToString(GraphType t) {
-    switch (t) {
-        case GraphType::Social: return "social";
-        case GraphType::Web: return "web";
-        case GraphType::Road: return "road";
-        case GraphType::Random: return "random";
-        case GraphType::Kron: return "kron";
-        case GraphType::Unknown: return "unknown";
-        default: return "unknown";
-    }
-}
+// Note: GraphType, DetectGraphType, GetGraphType, GraphTypeToString, BenchmarkType, 
+// GetBenchmarkType, SelectionMode, SelectionModeToString, GetSelectionMode are now 
+// defined in reorder_types.h at global scope.
+// Import them into graphbrew namespace for backward compatibility.
+using ::GraphType;
+using ::GRAPH_GENERIC;
+using ::GRAPH_SOCIAL;
+using ::GRAPH_ROAD;
+using ::GRAPH_WEB;
+using ::GRAPH_POWERLAW;
+using ::GRAPH_UNIFORM;
+using ::GraphTypeToString;
+using ::GetGraphType;
+using ::DetectGraphType;
+using ::BenchmarkType;
+using ::BENCH_GENERIC;
+using ::BENCH_PR;
+using ::BENCH_BFS;
+using ::BENCH_CC;
+using ::BENCH_SSSP;
+using ::BENCH_BC;
+using ::BENCH_TC;
+using ::GetBenchmarkType;
+using ::SelectionMode;
+using ::MODE_FASTEST_REORDER;
+using ::MODE_FASTEST_EXECUTION;
+using ::MODE_BEST_ENDTOEND;
+using ::MODE_BEST_AMORTIZATION;
+using ::SelectionModeToString;
+using ::GetSelectionMode;
 
 // ============================================================================
 // DEFAULT PARAMETERS
@@ -315,221 +318,9 @@ namespace thresholds {
     constexpr double RANDOM_MAX_MODULARITY = 0.2;
 }
 
-// ============================================================================
-// BENCHMARK AND SELECTION TYPES
-// ============================================================================
-
-/**
- * @brief Benchmark types for algorithm selection
- * 
- * Different graph algorithms have different access patterns:
- * - PageRank: Iterative, benefits from cache locality
- * - BFS: Traversal-heavy, benefits from frontier locality
- * - CC: Union-find based, benefits from parent locality
- * - SSSP: Priority queue based, benefits from distance locality
- * - BC: All-pairs traversal, benefits from both
- * - TC: Neighborhood intersection, benefits from neighbor locality
- */
-enum BenchmarkType {
-    BENCH_GENERIC = 0,  ///< Generic/default - no benchmark-specific adjustment
-    BENCH_PR,           ///< PageRank - iterative, benefits from cache locality
-    BENCH_BFS,          ///< Breadth-First Search - traversal-heavy
-    BENCH_CC,           ///< Connected Components - union-find based
-    BENCH_SSSP,         ///< Single-Source Shortest Path - priority queue based
-    BENCH_BC,           ///< Betweenness Centrality - all-pairs traversal
-    BENCH_TC            ///< Triangle Counting - neighborhood intersection
-};
-
-/**
- * @brief Convert benchmark name string to enum
- * @param name Benchmark name (e.g., "pr", "bfs", "cc")
- * @return BenchmarkType enum value (BENCH_GENERIC if unrecognized)
- */
-inline BenchmarkType GetBenchmarkType(const std::string& name) {
-    if (name.empty() || name == "generic" || name == "GENERIC" || name == "all") return BENCH_GENERIC;
-    if (name == "pr" || name == "PR" || name == "pagerank" || name == "PageRank") return BENCH_PR;
-    if (name == "bfs" || name == "BFS") return BENCH_BFS;
-    if (name == "cc" || name == "CC") return BENCH_CC;
-    if (name == "sssp" || name == "SSSP") return BENCH_SSSP;
-    if (name == "bc" || name == "BC") return BENCH_BC;
-    if (name == "tc" || name == "TC") return BENCH_TC;
-    return BENCH_GENERIC;
-}
-
-/**
- * @brief Selection mode for AdaptiveOrder algorithm selection
- * 
- * Controls how AdaptiveOrder selects the best reordering algorithm:
- * 
- * FASTEST_REORDER (0): Select algorithm with lowest reordering time
- *   - Use when reordering cost dominates (single execution)
- *   - Falls back to this mode for UNKNOWN/UNTRAINED graphs
- * 
- * FASTEST_EXECUTION (1): Select algorithm with best cache performance
- *   - Use for repeated algorithm executions
- *   - Uses perceptron weights to predict execution speedup
- *   - Ignores reordering overhead
- * 
- * BEST_ENDTOEND (2): Minimize (reorder_time + execution_time)
- *   - Balanced approach for typical workloads
- *   - Combines perceptron score with reorder time penalty
- * 
- * BEST_AMORTIZATION (3): Minimize iterations to amortize reorder cost
- *   - For scenarios where you need minimum runs to break even
- *   - Considers: reorder_time / (predicted_speedup - 1.0)
- */
-enum SelectionMode {
-    MODE_FASTEST_REORDER = 0,      ///< Minimize reordering time
-    MODE_FASTEST_EXECUTION = 1,    ///< Minimize execution time (perceptron)
-    MODE_BEST_ENDTOEND = 2,        ///< Minimize total time
-    MODE_BEST_AMORTIZATION = 3     ///< Minimize iterations to amortize
-};
-
-/**
- * @brief Convert selection mode to string
- */
-inline std::string SelectionModeToString(SelectionMode mode) {
-    switch (mode) {
-        case MODE_FASTEST_REORDER:    return "fastest-reorder";
-        case MODE_FASTEST_EXECUTION:  return "fastest-execution";
-        case MODE_BEST_ENDTOEND:      return "best-endtoend";
-        case MODE_BEST_AMORTIZATION:  return "best-amortization";
-        default:                      return "unknown";
-    }
-}
-
-/**
- * @brief Convert string to selection mode
- */
-inline SelectionMode GetSelectionMode(const std::string& name) {
-    if (name == "0" || name == "fastest-reorder" || name == "reorder") return MODE_FASTEST_REORDER;
-    if (name == "1" || name == "fastest-execution" || name == "execution" || name == "cache") return MODE_FASTEST_EXECUTION;
-    if (name == "2" || name == "best-endtoend" || name == "endtoend" || name == "e2e") return MODE_BEST_ENDTOEND;
-    if (name == "3" || name == "best-amortization" || name == "amortization" || name == "amortize") return MODE_BEST_AMORTIZATION;
-    return MODE_FASTEST_EXECUTION;  // Default
-}
-
-/**
- * @brief Perceptron weights for algorithm selection
- * 
- * These weights are used by AdaptiveOrder to score each candidate algorithm.
- * Higher scores indicate better predicted performance for the given features.
- */
-struct PerceptronWeights {
-    // Core weights
-    double bias;                ///< baseline score
-    double w_modularity;        ///< correlation with modularity
-    double w_log_nodes;         ///< scale effect
-    double w_log_edges;         ///< size effect  
-    double w_density;           ///< sparsity effect
-    double w_avg_degree;        ///< connectivity effect
-    double w_degree_variance;   ///< power-law / uniformity effect
-    double w_hub_concentration; ///< hub dominance effect
-    
-    // Extended graph structure weights
-    double w_clustering_coeff = 0.0;   ///< local clustering coefficient effect
-    double w_avg_path_length = 0.0;    ///< average path length sensitivity
-    double w_diameter = 0.0;           ///< diameter effect
-    double w_community_count = 0.0;    ///< sub-community count effect
-    
-    // Cache impact weights
-    double cache_l1_impact = 0.0;      ///< bonus for high L1 hit rate
-    double cache_l2_impact = 0.0;      ///< bonus for high L2 hit rate
-    double cache_l3_impact = 0.0;      ///< bonus for high L3 hit rate
-    double cache_dram_penalty = 0.0;   ///< penalty for DRAM accesses
-    
-    // Reorder time weight
-    double w_reorder_time = 0.0;       ///< penalty for slow reordering
-    
-    // Metadata from training
-    double avg_speedup = 1.0;          ///< average speedup observed
-    double avg_reorder_time = 0.0;     ///< average reorder time in seconds
-    
-    // Benchmark-specific multipliers
-    double bench_pr = 1.0;
-    double bench_bfs = 1.0;
-    double bench_cc = 1.0;
-    double bench_sssp = 1.0;
-    double bench_bc = 1.0;
-    double bench_tc = 1.0;
-    
-    /**
-     * Calculate iterations needed to amortize reorder cost.
-     * Lower = better (pays off faster)
-     * Returns INFINITY if speedup <= 1.0 (never pays off)
-     */
-    double iterationsToAmortize() const {
-        if (avg_speedup <= 1.0) {
-            return std::numeric_limits<double>::infinity();
-        }
-        double time_saved_per_iter = (avg_speedup - 1.0) / avg_speedup;
-        if (time_saved_per_iter <= 0) {
-            return std::numeric_limits<double>::infinity();
-        }
-        return avg_reorder_time / time_saved_per_iter;
-    }
-    
-    /**
-     * Get benchmark-specific multiplier
-     */
-    double getBenchmarkMultiplier(BenchmarkType bench) const {
-        switch (bench) {
-            case BENCH_PR:   return bench_pr;
-            case BENCH_BFS:  return bench_bfs;
-            case BENCH_CC:   return bench_cc;
-            case BENCH_SSSP: return bench_sssp;
-            case BENCH_BC:   return bench_bc;
-            case BENCH_TC:   return bench_tc;
-            case BENCH_GENERIC:
-            default:         return 1.0;
-        }
-    }
-    
-    /**
-     * Compute base score (without benchmark adjustment)
-     */
-    double scoreBase(const CommunityFeatures& feat) const {
-        double log_nodes = std::log10(static_cast<double>(feat.num_nodes) + 1.0);
-        double log_edges = std::log10(static_cast<double>(feat.num_edges) + 1.0);
-        
-        double s = bias 
-             + w_modularity * feat.modularity
-             + w_log_nodes * log_nodes
-             + w_log_edges * log_edges
-             + w_density * feat.internal_density
-             + w_avg_degree * feat.avg_degree / 100.0
-             + w_degree_variance * feat.degree_variance
-             + w_hub_concentration * feat.hub_concentration;
-        
-        s += w_clustering_coeff * feat.clustering_coeff;
-        s += w_avg_path_length * feat.avg_path_length / 10.0;
-        s += w_diameter * feat.diameter_estimate / 50.0;
-        s += w_community_count * std::log10(feat.community_count + 1.0);
-        
-        s += cache_l1_impact * 0.5;
-        s += cache_l2_impact * 0.3;
-        s += cache_l3_impact * 0.2;
-        s += cache_dram_penalty;
-        
-        s += w_reorder_time * feat.reorder_time;
-        
-        return s;
-    }
-    
-    /**
-     * Compute score with optional benchmark-specific adjustment
-     */
-    double score(const CommunityFeatures& feat, BenchmarkType bench = BENCH_GENERIC) const {
-        return scoreBase(feat) * getBenchmarkMultiplier(bench);
-    }
-    
-    /**
-     * Compute score (backward compatible)
-     */
-    double score(const CommunityFeatures& feat) const {
-        return scoreBase(feat);
-    }
-};
+// PerceptronWeights and CommunityFeatures are defined in reorder_types.h at global scope
+using ::PerceptronWeights;
+using ::CommunityFeatures;
 
 // ============================================================================
 // DYNAMIC THRESHOLD COMPUTATION
