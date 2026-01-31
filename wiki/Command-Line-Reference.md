@@ -92,6 +92,7 @@ These options work with all benchmarks:
 | `-f <file>` | Input graph file (required) | `-f graph.el` |
 | `-o <id>` | Reordering algorithm ID (0-17) | `-o 7` |
 | `-s` | Make graph undirected (symmetrize) | `-s` |
+| `-j type:n:m` | Partition graph (`type=0` Cagra, `1` TRUST), default `0:1:1` | `-j 0:2:2` |
 | `-n <trials>` | Number of benchmark trials | `-n 5` |
 
 ### File Format Detection
@@ -123,6 +124,22 @@ GraphBrew automatically detects the file format from the file extension:
 | `-g <scale>` | Generate 2^scale Kronecker graph |
 | `-u <scale>` | Generate 2^scale uniform-random graph |
 | `-k <degree>` | Average degree for synthetic graph (default: 16) |
+
+### Partitioning / Segmentation
+
+| Type | Partitioning | Implementation | Notes |
+|------|--------------|----------------|-------|
+| `0` | **Cagra/GraphIT** CSR slicing | `cache/popt.h` → `MakeCagraPartitionedGraph` | Uses `graphSlicer`, honors `-z` (use out-degree) |
+| `1` | **TRUST** (triangle counting) | `partition/trust.h` → `TrustPartitioner::MakeTrustPartitionedGraph` | Orients edges, partitions p_n × p_m |
+
+Examples:
+```bash
+# Cagra partitioning into 2x2 segments (out-degree)
+./bench/bin/pr -f graph.mtx -j 0:2:2
+
+# TRUST partitioning into 2x2 segments
+./bench/bin/tc -f graph.mtx -j 1:2:2
+```
 
 ---
 

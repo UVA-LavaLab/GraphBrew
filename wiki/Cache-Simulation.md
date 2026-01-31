@@ -34,6 +34,7 @@ bench/
 ├── include/cache/
 │   ├── cache_sim.h     # Cache simulator core
 │   └── graph_sim.h     # Graph wrappers for tracking
+│   └── popt.h          # P-OPT helpers: graphSlicer, MakeCagraPartitionedGraph (Cagra partitions)
 ├── src_sim/            # Instrumented algorithms
 │   ├── pr.cc           # PageRank
 │   ├── bfs.cc          # Breadth-First Search

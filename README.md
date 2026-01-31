@@ -82,6 +82,22 @@ Choosing the right reordering algorithm depends on your graph characteristics. F
 > 📖 **More examples?** See the **[Quick Start Guide](https://github.com/UVA-LavaLab/GraphBrew/wiki/Quick-Start)** and **[Command Line Reference](https://github.com/UVA-LavaLab/GraphBrew/wiki/Command-Line-Reference)** in the wiki.
 
 ## Segmentation for Scalable Graph Processing
+Use `-j type:n:m` to enable partitioning (defaults to `0:1:1`).
+
+| type | Partitioning | Impl | Notes |
+|------|---------------|------|-------|
+| `0` | **Cagra/GraphIT** (CSR slice) | `cache/popt.h` → `MakeCagraPartitionedGraph` | Uses `graphSlicer`, honors `-z` (use out-degree) |
+| `1` | **TRUST** (triangle counting)** | `partition/trust.h` → `TrustPartitioner::MakeTrustPartitionedGraph` | Orients edges, partitions p_n × p_m |
+
+Examples:
+```bash
+# Cagra partitioning into 2x2 segments (out-degree)
+./bench/bin/pr -f graph.mtx -j 0:2:2
+
+# TRUST partitioning into 2x2 segments
+./bench/bin/tc -f graph.mtx -j 1:2:2
+```
+
 * **Cagra:** [link1](https://github.com/CMUAbstract/POPT-CacheSim-HPCA21)/[link2](https://github.com/GraphIt-DSL/graphit) Integration of P-OPT/GraphIt-DSL segment graphs to improve locality.
 * **Trust:** [link](https://github.com/wzbxpy/TRUST) Graph partition for Triangle counting on large graph.
 
