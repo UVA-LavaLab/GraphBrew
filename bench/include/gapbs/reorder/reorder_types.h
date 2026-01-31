@@ -3026,4 +3026,152 @@ inline SampledDegreeFeatures ComputeSampledDegreeFeatures(
     return result;
 }
 
+// ============================================================================
+// MERGED COMMUNITY FEATURES
+// ============================================================================
+
+/**
+ * @brief Features computed for a merged group of small communities
+ * 
+ * When processing many small communities together as one "mega community",
+ * we compute features to decide which algorithm to use.
+ */
+struct MergedCommunityFeatures {
+    size_t num_nodes = 0;
+    size_t num_edges = 0;
+    double density = 0.0;
+    double degree_variance = 0.0;
+    double hub_concentration = 0.0;
+    double avg_degree = 0.0;
+};
+
+/**
+ * Compute features for a merged group of nodes (small communities processed together).
+ * 
+ * This is used when many small communities are grouped together for batch processing.
+ * We compute features of the induced subgraph to decide which algorithm to apply.
+ * 
+ * @tparam GraphT CSRGraph type
+ * @tparam NodeID_ Node ID type
+ * @param g The graph
+ * @param nodes Vector of nodes in the merged group
+ * @param node_set Set of nodes for fast membership lookup
+ * @return Computed features
+ */
+template<typename GraphT, typename NodeID_>
+MergedCommunityFeatures ComputeMergedCommunityFeatures(
+    const GraphT& g,
+    const std::vector<NodeID_>& nodes,
+    const std::unordered_set<NodeID_>& node_set)
+{
+    MergedCommunityFeatures feat;
+    feat.num_nodes = nodes.size();
+    
+    if (feat.num_nodes == 0) return feat;
+    
+    // Count internal edges and compute degree stats
+    std::vector<int64_t> degrees(feat.num_nodes);
+    int64_t total_deg = 0;
+    
+    for (size_t idx = 0; idx < feat.num_nodes; ++idx) {
+        int64_t deg = 0;
+        for (auto neighbor : g.out_neigh(nodes[idx])) {
+            NodeID_ dest = static_cast<NodeID_>(neighbor);
+            if (node_set.count(dest)) {
+                deg++;
+            }
+        }
+        degrees[idx] = deg;
+        total_deg += deg;
+    }
+    
+    // Each edge counted twice (once from each endpoint)
+    feat.num_edges = total_deg / 2;
+    
+    // Average degree
+    feat.avg_degree = (feat.num_nodes > 0) ? 
+        static_cast<double>(total_deg) / feat.num_nodes : 0.0;
+    
+    // Density
+    feat.density = (feat.num_nodes > 1) ? 
+        feat.avg_degree / (feat.num_nodes - 1) : 0.0;
+    
+    // Degree variance (coefficient of variation)
+    double sum_sq_diff = 0;
+    for (auto d : degrees) {
+        double diff = d - feat.avg_degree;
+        sum_sq_diff += diff * diff;
+    }
+    feat.degree_variance = (feat.num_nodes > 1 && feat.avg_degree > 0) ? 
+        std::sqrt(sum_sq_diff / (feat.num_nodes - 1)) / feat.avg_degree : 0.0;
+    
+    // Hub concentration: fraction of edges from top 10% degree nodes
+    std::sort(degrees.rbegin(), degrees.rend());
+    size_t top_10 = std::max(size_t(1), feat.num_nodes / 10);
+    int64_t top_sum = 0;
+    for (size_t i = 0; i < top_10 && i < degrees.size(); ++i) {
+        top_sum += degrees[i];
+    }
+    feat.hub_concentration = (total_deg > 0) ? 
+        static_cast<double>(top_sum) / total_deg : 0.0;
+    
+    return feat;
+}
+
+/**
+ * Select algorithm for a merged group of small communities using heuristics.
+ * 
+ * This is a fast heuristic-based selection that doesn't require full perceptron
+ * weights. Used for GraphBrew and as fallback for AdaptiveOrder.
+ * 
+ * @param feat Features of the merged community group
+ * @return Selected reordering algorithm
+ */
+inline ReorderingAlgo SelectAlgorithmForSmallGroup(const MergedCommunityFeatures& feat) {
+    // Too small - just degree sort via ORIGINAL
+    if (feat.num_nodes < 100) {
+        return ORIGINAL;
+    }
+    
+    // Hub-dominated with high variance → HubClusterDBG
+    if (feat.hub_concentration > 0.5 && feat.degree_variance > 1.5) {
+        return HubClusterDBG;
+    }
+    
+    // Hub-dominated → HubSort
+    if (feat.hub_concentration > 0.4) {
+        return HubSort;
+    }
+    
+    // Dense graph → DBG
+    if (feat.density > 0.05) {
+        return DBG;
+    }
+    
+    // Default for sparse graphs
+    return HubSortDBG;
+}
+
+/**
+ * Convert MergedCommunityFeatures to CommunityFeatures for perceptron selection.
+ * 
+ * @param merged Merged community features
+ * @return CommunityFeatures struct compatible with SelectBestReorderingForCommunity
+ */
+inline CommunityFeatures MergedToCommunityFeatures(const MergedCommunityFeatures& merged) {
+    CommunityFeatures feat;
+    feat.num_nodes = merged.num_nodes;
+    feat.num_edges = merged.num_edges;
+    feat.internal_density = merged.density;
+    feat.degree_variance = merged.degree_variance;
+    feat.hub_concentration = merged.hub_concentration;
+    feat.avg_degree = merged.avg_degree;
+    feat.clustering_coeff = 0.0;  // Not computed for merged groups
+    feat.avg_path_length = 0.0;
+    feat.diameter_estimate = 0.0;
+    feat.community_count = 1.0;
+    feat.modularity = 0.0;
+    return feat;
+}
+
 #endif  // REORDER_TYPES_H_
