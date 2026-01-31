@@ -3,8 +3,8 @@
 ## Partitioning
 | Symbol | File | Notes |
 |--------|------|-------|
-| `MakeCagraPartitionedGraph` | `bench/include/gapbs/cache/popt.h` | Cagra/GraphIT CSR slicing, uses `graphSlicer`, honors `outDegree` (CLI `-z`) |
-| `graphSlicer` | `bench/include/gapbs/cache/popt.h` | Slice CSR by vertex range |
+| `MakeCagraPartitionedGraph` | `bench/include/gapbs/partitioning/popt.h` | Cagra/GraphIT CSR slicing, uses `graphSlicer`, honors `outDegree` (CLI `-z`) |
+| `graphSlicer` | `bench/include/gapbs/partitioning/popt.h` | Slice CSR by vertex range |
 | `TrustPartitioner::MakeTrustPartitionedGraph` | `bench/include/gapbs/partition/trust.h` | TRUST partitioning for triangle counting |
 
 ## Reordering
@@ -24,8 +24,8 @@
 ## Cache Simulation
 | Symbol | File | Notes |
 |--------|------|-------|
-| `cache_sim.h` | `bench/include/cache/cache_sim.h` | Cache simulation core |
-| `graph_sim.h` | `bench/include/cache/graph_sim.h` | Graph wrappers for cache sim |
+| `cache_sim.h` | `bench/include/cache_sim/cache_sim.h` | Cache simulation core |
+| `graph_sim.h` | `bench/include/cache_sim/graph_sim.h` | Graph wrappers for cache sim |
 
 ---
 *See `docs/INDEX.md` for directory map and `wiki/Command-Line-Reference.md` for CLI.*
