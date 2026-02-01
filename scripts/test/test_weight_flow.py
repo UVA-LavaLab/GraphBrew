@@ -237,7 +237,7 @@ def test_cpp_path_constants(results: ResultsTracker):
     print("\n4. Testing C++ Path Constants")
     print("-" * 40)
     
-    builder_h = PROJECT_ROOT / "bench" / "include" / "gapbs" / "builder.h"
+    builder_h = PROJECT_ROOT / "bench" / "include" / "graphbrew" / "builder.h"
     
     results.check(
         builder_h.exists(),

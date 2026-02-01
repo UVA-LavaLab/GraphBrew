@@ -28,6 +28,18 @@ This repository contains the GAP Benchmarks Suite [(GAPBS)](https://github.com/s
 * **Corder:** [link](https://github.com/yuang-chen/Corder-TPDS-21) Workload Balancing via Graph Reordering on Multicore Systems.
 * **Leiden Dendrogram Variants:** New algorithms that exploit community hierarchy for optimal node ordering.
 * **AdaptiveOrder:** ML-based perceptron selector that automatically chooses the best algorithm. See **[AdaptiveOrder ML Wiki](https://github.com/UVA-LavaLab/GraphBrew/wiki/AdaptiveOrder-ML)**.
+## Include Layout
+
+```
+bench/include/
+├── graphbrew/            # Core runtime (builder, reorder, partition, util)
+│   ├── partition/        # TRUST (trust.h), Cagra (cagra/popt.h)
+├── cache_sim/            # Cache simulation headers
+└── external/             # External modules (rabbit, gorder, corder, leiden)
+```
+
+Run `make lint-includes` to detect legacy include paths.
+
 
 <!-- * **P-OPT Segmentation:** [link](https://github.com/CMUAbstract/POPT-CacheSim-HPCA21) Exploring graph caching techniques for efficient handling of large-scale graphs.
 * **GraphIt-DSL:** [link](https://github.com/GraphIt-DSL/graphit) Integration of GraphIt-DSL segment graphs to improve locality. -->

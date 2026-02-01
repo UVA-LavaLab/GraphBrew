@@ -84,7 +84,7 @@ Higher modularity = better community structure.
 
 ### Integration
 
-GraphBrew includes a full Leiden implementation in `bench/include/leiden/`:
+GraphBrew includes a full Leiden implementation in `bench/include/external/leiden/`:
 
 ```
 leiden/

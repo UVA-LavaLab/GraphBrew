@@ -63,6 +63,107 @@
 // Community ID type - uint32_t supports up to 4B communities
 using CommunityID = uint32_t;
 
+// K type used in Leiden algorithms  
+using K = uint32_t;
+
+// Edge type alias - represents an edge as (source, destination) pair
+// For weighted graphs, DestID_ will be NodeWeight<NodeID_, WeightT_>
+template <typename NodeID_, typename DestID_ = NodeID_>
+using Edge = EdgePair<NodeID_, DestID_>;
+
+// EdgeList type alias - a vector of edges
+// Used throughout reordering algorithms for edge-list graph representation
+template <typename NodeID_, typename DestID_ = NodeID_>
+using EdgeList = pvector<Edge<NodeID_, DestID_>>;
+
+// ============================================================================
+// REORDERING ALGORITHM STRING CONVERSION
+// ============================================================================
+
+/**
+ * @brief Convert ReorderingAlgo enum to human-readable string
+ * 
+ * Used for logging, debugging, and output formatting.
+ * 
+ * @param algo The reordering algorithm enum value
+ * @return String name of the algorithm
+ */
+inline const std::string ReorderingAlgoStr(ReorderingAlgo algo) {
+    switch (algo) {
+        case ORIGINAL:        return "Original";
+        case Random:          return "Random";
+        case Sort:            return "Sort";
+        case HubSort:         return "HubSort";
+        case HubCluster:      return "HubCluster";
+        case DBG:             return "DBG";
+        case HubSortDBG:      return "HubSortDBG";
+        case HubClusterDBG:   return "HubClusterDBG";
+        case RabbitOrder:     return "RabbitOrder";
+        case GOrder:          return "GOrder";
+        case COrder:          return "COrder";
+        case RCMOrder:        return "RCMOrder";
+        case GraphBrewOrder:  return "GraphBrewOrder";
+        case MAP:             return "MAP";
+        case AdaptiveOrder:   return "AdaptiveOrder";
+        case LeidenOrder:     return "LeidenOrder";
+        case LeidenDendrogram: return "LeidenDendrogram";
+        case LeidenCSR:       return "LeidenCSR";
+        default:
+            std::cerr << "Unknown Reordering Algorithm: " << static_cast<int>(algo) << std::endl;
+            std::abort();
+    }
+}
+
+/**
+ * @brief Convert integer ID to ReorderingAlgo enum
+ * 
+ * Used when parsing command-line arguments.
+ * 
+ * @param value Integer algorithm ID (0-17)
+ * @return Corresponding ReorderingAlgo enum value
+ */
+inline ReorderingAlgo getReorderingAlgo(int value) {
+    switch (value) {
+        case 0:  return ORIGINAL;
+        case 1:  return Random;
+        case 2:  return Sort;
+        case 3:  return HubSort;
+        case 4:  return HubCluster;
+        case 5:  return DBG;
+        case 6:  return HubSortDBG;
+        case 7:  return HubClusterDBG;
+        case 8:  return RabbitOrder;
+        case 9:  return GOrder;
+        case 10: return COrder;
+        case 11: return RCMOrder;
+        case 12: return GraphBrewOrder;
+        case 13: return MAP;
+        case 14: return AdaptiveOrder;
+        case 15: return LeidenOrder;
+        case 16: return LeidenDendrogram;
+        case 17: return LeidenCSR;
+        default:
+            std::cerr << "Unknown algorithm ID: " << value << std::endl;
+            std::abort();
+    }
+}
+
+/**
+ * @brief Convert string argument to ReorderingAlgo enum
+ * 
+ * Parses command-line format: "algo_id[:param1[:param2...]]"
+ * 
+ * @param arg Command line argument string
+ * @return Corresponding ReorderingAlgo enum value
+ */
+inline ReorderingAlgo getReorderingAlgo(const char* arg) {
+    // Parse "algo_id:options" format
+    std::string s(arg);
+    std::string algo_str = s.substr(0, s.find(':'));
+    int algo_id = std::stoi(algo_str);
+    return getReorderingAlgo(algo_id);
+}
+
 // ============================================================================
 // STANDALONE GRAPH BUILDING UTILITIES
 // ============================================================================
@@ -84,6 +185,28 @@ inline NodeID_ GetNodeID(const DestID_& dest) {
         // Weighted: DestID_ == NodeWeight<NodeID_, WeightT_>
         return dest.v;
     }
+}
+
+// Trait to extract WeightT_ from DestID_; defaults to NodeID_ for unweighted graphs
+template <typename DestID_, typename NodeID_>
+struct WeightTFromDestID {
+    using type = NodeID_;
+};
+
+template <typename NodeID_, typename WeightT_>
+struct WeightTFromDestID<NodeWeight<NodeID_, WeightT_>, NodeID_> {
+    using type = WeightT_;
+};
+
+// Helper to extract edge weight as double
+template <typename DestID_>
+inline double GetWeight(const DestID_&) {
+    return 1.0;
+}
+
+template <typename NodeID_, typename WeightT_>
+inline double GetWeight(const NodeWeight<NodeID_, WeightT_>& dest) {
+    return static_cast<double>(dest.w);
 }
 
 /**
@@ -258,6 +381,156 @@ std::vector<std::pair<NodeID_, DestID_>> EdgeListToVector(
     const std::vector<std::pair<NodeID_, DestID_>>& el) 
 {
     return el;  // Already in the right format
+}
+
+// ============================================================================
+// CSR GRAPH RELABELING (STANDALONE)
+// ============================================================================
+
+/**
+ * @brief Relabel graph vertices according to a new ID mapping (standalone)
+ * 
+ * Creates a new CSR graph where vertices are renumbered according to new_ids.
+ * Handles both directed and undirected graphs. For directed graphs, maintains
+ * both in-neighbor and out-neighbor CSR arrays.
+ * 
+ * This is a standalone version that doesn't require a BuilderBase instance.
+ * 
+ * @tparam NodeID_ Node identifier type
+ * @tparam DestID_ Destination type (NodeID_ for unweighted, NodeWeight for weighted)
+ * @tparam invert Whether to invert edge direction
+ * @param g Source graph to relabel
+ * @param new_ids Mapping where new_ids[v] = new ID for vertex v (-1 means assign next available)
+ * @return New graph with relabeled vertices
+ */
+template <typename NodeID_, typename DestID_, bool invert>
+CSRGraph<NodeID_, DestID_, invert> RelabelByMappingStandalone(
+    const CSRGraph<NodeID_, DestID_, invert>& g,
+    pvector<NodeID_>& new_ids) 
+{
+    Timer t;
+    t.Start();
+    
+    bool outDegree = true;
+    CSRGraph<NodeID_, DestID_, invert> g_relabel;
+
+    // Find max assigned ID and assign IDs to any unmapped vertices
+    auto max_iter = __gnu_parallel::max_element(new_ids.begin(), new_ids.end());
+    size_t max_id = *max_iter;
+
+    #pragma omp parallel for
+    for (NodeID_ v = 0; v < g.num_nodes(); ++v) {
+        if (new_ids[v] == static_cast<NodeID_>(-1)) {
+            // Assign new IDs starting from max_id atomically
+            NodeID_ local_max = __sync_fetch_and_add(&max_id, 1);
+            new_ids[v] = local_max + 1;
+        }
+    }
+
+    if (g.directed()) {
+        // Directed graph: build both in-neighbor and out-neighbor CSRs
+        
+        #pragma omp parallel for
+        for (NodeID_ v = 0; v < g.num_nodes(); ++v)
+            assert(new_ids[v] != static_cast<NodeID_>(-1));
+
+        // Compute degrees in new ordering
+        pvector<NodeID_> degrees(g.num_nodes());
+        pvector<NodeID_> inv_degrees(g.num_nodes());
+        
+        if (outDegree) {
+            #pragma omp parallel for
+            for (NodeID_ n = 0; n < g.num_nodes(); n++) {
+                degrees[new_ids[n]] = g.out_degree(n);
+                inv_degrees[new_ids[n]] = g.in_degree(n);
+            }
+        } else {
+            #pragma omp parallel for
+            for (NodeID_ n = 0; n < g.num_nodes(); n++) {
+                degrees[new_ids[n]] = g.in_degree(n);
+                inv_degrees[new_ids[n]] = g.out_degree(n);
+            }
+        }
+
+        // Build in-neighbor CSR (transpose)
+        pvector<SGOffset> offsets = ParallelPrefixSumStandalone(inv_degrees);
+        DestID_* neighs = new DestID_[offsets[g.num_nodes()]];
+        DestID_** index = CSRGraph<NodeID_, DestID_>::GenIndex(offsets, neighs);
+        
+        #pragma omp parallel for schedule(dynamic, 1024)
+        for (NodeID_ u = 0; u < g.num_nodes(); u++) {
+            if (outDegree) {
+                for (NodeID_ v : g.in_neigh(u))
+                    neighs[offsets[new_ids[u]]++] = new_ids[v];
+            } else {
+                for (NodeID_ v : g.out_neigh(u))
+                    neighs[offsets[new_ids[u]]++] = new_ids[v];
+            }
+            std::sort(index[new_ids[u]], index[new_ids[u] + 1]);
+        }
+
+        // Build out-neighbor CSR
+        pvector<SGOffset> inv_offsets = ParallelPrefixSumStandalone(degrees);
+        DestID_* inv_neighs = new DestID_[inv_offsets[g.num_nodes()]];
+        DestID_** inv_index = CSRGraph<NodeID_, DestID_>::GenIndex(inv_offsets, inv_neighs);
+        
+        #pragma omp parallel for schedule(dynamic, 1024)
+        for (NodeID_ u = 0; u < g.num_nodes(); u++) {
+            if (outDegree) {
+                for (NodeID_ v : g.out_neigh(u))
+                    inv_neighs[inv_offsets[new_ids[u]]++] = new_ids[v];
+            } else {
+                for (NodeID_ v : g.in_neigh(u))
+                    inv_neighs[inv_offsets[new_ids[u]]++] = new_ids[v];
+            }
+            std::sort(inv_index[new_ids[u]], inv_index[new_ids[u] + 1]);
+        }
+
+        t.Stop();
+        PrintTime("Relabel Map Time", t.Seconds());
+        
+        if (outDegree) {
+            g_relabel = CSRGraph<NodeID_, DestID_, invert>(
+                g.num_nodes(), inv_index, inv_neighs, index, neighs);
+        } else {
+            g_relabel = CSRGraph<NodeID_, DestID_, invert>(
+                g.num_nodes(), index, neighs, inv_index, inv_neighs);
+        }
+    } else {
+        // Undirected graph: single CSR for both directions
+        
+        #pragma omp parallel for
+        for (NodeID_ v = 0; v < g.num_nodes(); ++v)
+            assert(new_ids[v] != static_cast<NodeID_>(-1));
+
+        // Compute degrees in new ordering
+        pvector<NodeID_> degrees(g.num_nodes());
+        #pragma omp parallel for
+        for (NodeID_ n = 0; n < g.num_nodes(); n++) {
+            degrees[new_ids[n]] = g.out_degree(n);
+        }
+
+        // Build CSR
+        pvector<SGOffset> offsets = ParallelPrefixSumStandalone(degrees);
+        DestID_* neighs = new DestID_[offsets[g.num_nodes()]];
+        DestID_** index = CSRGraph<NodeID_, DestID_>::GenIndex(offsets, neighs);
+        
+        #pragma omp parallel for schedule(dynamic, 1024)
+        for (NodeID_ u = 0; u < g.num_nodes(); u++) {
+            for (NodeID_ v : g.out_neigh(u))
+                neighs[offsets[new_ids[u]]++] = new_ids[v];
+            std::sort(index[new_ids[u]], index[new_ids[u] + 1]);
+        }
+
+        t.Stop();
+        PrintTime("Relabel Map Time", t.Seconds());
+        g_relabel = CSRGraph<NodeID_, DestID_, invert>(g.num_nodes(), index, neighs);
+    }
+
+    // Copy and update original ID tracking
+    g_relabel.copy_org_ids(g.get_org_ids());
+    g_relabel.update_org_ids(new_ids);
+    return g_relabel;
 }
 
 // ============================================================================
@@ -1154,12 +1427,6 @@ double computeAutoResolution(const CSRGraph<NodeID_, DestID_, true>& g) {
     }
     
     return resolution;
-}
-
-// Wrapper to maintain API parity with builder.h
-template<typename NodeID_, typename DestID_>
-inline double LeidenAutoResolution(const CSRGraph<NodeID_, DestID_, true>& g) {
-    return computeAutoResolution<NodeID_, DestID_>(g);
 }
 
 // ============================================================================
@@ -3042,6 +3309,26 @@ inline size_t ComputeDynamicMinCommunitySize(size_t num_nodes,
 }
 
 /**
+ * @brief Compute dynamic threshold for local reordering
+ * 
+ * Local reordering (e.g., per-community) has overhead for subgraph construction. We
+ * set a threshold higher than the minimum community size to ensure worthwhile work.
+ * 
+ * @param num_nodes Total nodes in graph
+ * @param num_communities Number of communities
+ * @param avg_community_size Average community size (optional)
+ * @return Threshold for local reordering (higher = more batching)
+ */
+inline size_t ComputeDynamicLocalReorderThreshold(size_t num_nodes,
+                                                   size_t num_communities,
+                                                   size_t avg_community_size = 0)
+{
+    // Local reorder threshold is 2x the min community size due to subgraph overhead
+    size_t min_size = ComputeDynamicMinCommunitySize(num_nodes, num_communities, avg_community_size);
+    return std::min(min_size * 2, static_cast<size_t>(5000));  // Cap at 5000
+}
+
+/**
  * Select best reordering algorithm for a community/subgraph.
  * 
  * This is the main entry point for community-aware algorithm selection.
@@ -3227,6 +3514,23 @@ inline SampledDegreeFeatures ComputeSampledDegreeFeatures(
     }
     
     return result;
+}
+
+// Wrapper to compute modularity using membership result structure
+template <class G, class R>
+inline double getModularity(const G &x, const R &a, double M)
+{
+    auto fc = [&](auto u)
+    {
+        return a.membership[u];
+    };
+    return modularityByOmp(x, fc, M, 1.0);
+}
+
+// Auto-resolution helper for Leiden based on graph density and degree stats
+template<typename NodeID_, typename DestID_>
+double LeidenAutoResolution(const CSRGraph<NodeID_, DestID_, true>& g) {
+    return computeAutoResolution<NodeID_, DestID_>(g);
 }
 
 // ============================================================================

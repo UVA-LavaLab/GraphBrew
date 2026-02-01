@@ -16,7 +16,7 @@ Adding a new algorithm involves:
 
 ### Location
 
-[bench/include/gapbs/util.h](https://github.com/UVA-LavaLab/GraphBrew/blob/main/bench/include/gapbs/util.h)
+[bench/include/graphbrew/util.h](https://github.com/UVA-LavaLab/GraphBrew/blob/main/bench/include/graphbrew/util.h)
 
 ### Find the Enum
 

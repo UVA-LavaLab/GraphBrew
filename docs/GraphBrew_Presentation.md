@@ -578,7 +578,7 @@ python3 scripts/graphbrew_experiment.py --fill-weights --graphs all
 │                           ▼                                         │
 │  ┌──────────────────────────────────────────────────────────────┐   │
 │  │              C++ Runtime Engine                               │   │
-│  │  (bench/include/gapbs/builder.h)                             │   │
+│  │  (bench/include/graphbrew/builder.h)                          │   │
 │  │                                                               │   │
 │  │  • Leiden community detection (integrated)                    │   │
 │  │  • Community feature computation                              │   │
