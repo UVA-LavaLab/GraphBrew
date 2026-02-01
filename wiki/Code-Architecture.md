@@ -73,7 +73,15 @@ GraphBrew/
 
 ## Core Components
 
-### GAP Benchmark Suite (bench/include/gapbs/)
+### GraphBrew (bench/include/graphbrew/)
+### External Modules (bench/include/external/)
+
+| Module | Notes |
+|--------|-------|
+| rabbit/ | RabbitOrder community clustering |
+| gorder/ | GOrder implementation |
+| corder/ | COrder (cache-aware ordering) |
+| leiden/ | Leiden community detection |
 
 The foundation is built on the GAP Benchmark Suite with extensions.
 
@@ -81,23 +89,23 @@ The foundation is built on the GAP Benchmark Suite with extensions.
 
 | File | Lines | Purpose |
 |------|-------|---------|
-| [graph.h](https://github.com/UVA-LavaLab/GraphBrew/blob/main/bench/include/gapbs/graph.h) | ~500 | CSRGraph class, core data structure |
-| [builder.h](https://github.com/UVA-LavaLab/GraphBrew/blob/main/bench/include/gapbs/builder.h) | ~7,800 | Graph loading and reordering dispatcher |
-| [benchmark.h](https://github.com/UVA-LavaLab/GraphBrew/blob/main/bench/include/gapbs/benchmark.h) | ~150 | Benchmark harness |
-| [command_line.h](https://github.com/UVA-LavaLab/GraphBrew/blob/main/bench/include/gapbs/command_line.h) | ~300 | CLI parsing |
-| [pvector.h](https://github.com/UVA-LavaLab/GraphBrew/blob/main/bench/include/gapbs/pvector.h) | ~150 | Parallel-friendly vector |
-| [timer.h](https://github.com/UVA-LavaLab/GraphBrew/blob/main/bench/include/gapbs/timer.h) | ~50 | High-resolution timing |
+| [graph.h](https://github.com/UVA-LavaLab/GraphBrew/blob/main/bench/include/graphbrew/graph.h) | ~500 | CSRGraph class, core data structure |
+| [builder.h](https://github.com/UVA-LavaLab/GraphBrew/blob/main/bench/include/graphbrew/builder.h) | ~7,800 | Graph loading and reordering dispatcher |
+| [benchmark.h](https://github.com/UVA-LavaLab/GraphBrew/blob/main/bench/include/graphbrew/benchmark.h) | ~150 | Benchmark harness |
+| [command_line.h](https://github.com/UVA-LavaLab/GraphBrew/blob/main/bench/include/graphbrew/command_line.h) | ~300 | CLI parsing |
+| [pvector.h](https://github.com/UVA-LavaLab/GraphBrew/blob/main/bench/include/graphbrew/pvector.h) | ~150 | Parallel-friendly vector |
+| [timer.h](https://github.com/UVA-LavaLab/GraphBrew/blob/main/bench/include/graphbrew/timer.h) | ~50 | High-resolution timing |
 
 #### Partitioning Modules
 
 | File | Purpose |
 |------|---------|
-| `cache/popt.h` | `graphSlicer` and `MakeCagraPartitionedGraph` (Cagra/GraphIT CSR partitioning) |
+| `partition/cagra/popt.h` | `graphSlicer` and `MakeCagraPartitionedGraph` (Cagra/GraphIT CSR partitioning) |
 | `partition/trust.h` | `TrustPartitioner::MakeTrustPartitionedGraph` (TRUST triangle-count partitioning) |
 
-> **Cache vs Cagra:** Cache **simulation** lives in `bench/include/cache/` (`cache_sim.h`, `graph_sim.h`). Cagra **partitioning** helpers live in `bench/include/gapbs/cache/` (`popt.h`). See `docs/INDEX.md` and folder READMEs for a quick map.
+> **Cache vs Cagra:** Cache **simulation** lives in `bench/include/cache_sim/` (`cache_sim.h`, `graph_sim.h`). Cagra **partitioning** helpers live in `bench/include/graphbrew/partition/cagra/` (`popt.h`). See `docs/INDEX.md` and folder READMEs for a quick map.
 
-#### Reorder Module (bench/include/gapbs/reorder/)
+#### Reorder Module (bench/include/graphbrew/reorder/)
 
 The reorder module is a modular header library that extracts reusable components from `builder.h`. It follows an include hierarchy where `reorder_types.h` is the base, and specialized headers extend it.
 
@@ -235,7 +243,7 @@ class BuilderBase {
 
 ### Reordering Algorithms
 
-#### Hub-Based (bench/include/gapbs/builder.h)
+#### Hub-Based (bench/include/graphbrew/builder.h)
 
 ```cpp
 // Degree-Based Grouping (DBG)
@@ -269,7 +277,7 @@ void GenerateHubClusterDBGMapping(const CSRGraph& g, pvector<NodeID_>& new_ids, 
 | Corder | `corder/global.h` | Cache-aware ordering |
 | RCM | Built-in | Cuthill-McKee |
 
-#### Leiden-Based (bench/include/gapbs/builder.h)
+#### Leiden-Based (bench/include/graphbrew/builder.h)
 
 ```cpp
 // LeidenDendrogram - hierarchical ordering with variants (dfs/dfshub/dfssize/bfs/hybrid)
@@ -283,7 +291,7 @@ void GenerateLeidenCSRMappingUnified(
     const ReorderingOptions& opts);
 ```
 
-The Leiden community detection algorithm itself is in `bench/include/leiden/leiden.hxx`:
+The Leiden community detection algorithm itself is in `bench/include/external/leiden/leiden.hxx`:
 
 ```cpp
 // Core Leiden algorithm

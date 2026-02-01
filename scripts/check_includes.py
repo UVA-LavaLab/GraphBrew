@@ -5,9 +5,9 @@ check_includes.py
 Scan repository for legacy include paths and fail if found.
 
 Legacy → Preferred:
-- cache/cache_sim.h      → cache_sim/cache_sim.h
-- cache/graph_sim.h      → cache_sim/graph_sim.h
-- gapbs/cache/popt.h     → gapbs/partitioning/popt.h
+- cache/cache_sim.h         → cache_sim/cache_sim.h
+- cache/graph_sim.h         → cache_sim/graph_sim.h
+- graphbrew/cache/popt.h    → graphbrew/partition/cagra/popt.h
 
 Usage:
     python3 scripts/check_includes.py [--root DIR]
@@ -22,7 +22,8 @@ from pathlib import Path
 LEGACY_MAP = {
     "cache/cache_sim.h": "cache_sim/cache_sim.h",
     "cache/graph_sim.h": "cache_sim/graph_sim.h",
-    "gapbs/cache/popt.h": "gapbs/partitioning/popt.h",
+    "graphbrew/cache/popt.h": "graphbrew/partition/cagra/popt.h",
+    "graphbrew/partitioning/popt.h": "graphbrew/partition/cagra/popt.h",
 }
 
 INCLUDE_RE = re.compile(r"^\s*#\s*include\s*[<\"]([^\"<>]+)[\"\"]")

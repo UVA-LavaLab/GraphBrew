@@ -348,7 +348,7 @@ The C++ code computes these features for each community at runtime:
 
 ### C++ Code Architecture
 
-AdaptiveOrder's implementation is split across modular header files in `bench/include/gapbs/reorder/`:
+AdaptiveOrder's implementation is split across modular header files in `bench/include/graphbrew/reorder/`:
 
 | File | Purpose |
 |------|---------|
@@ -358,7 +358,7 @@ AdaptiveOrder's implementation is split across modular header files in `bench/in
 **AdaptiveConfig Struct:**
 
 ```cpp
-// bench/include/gapbs/reorder/reorder_adaptive.h
+// bench/include/graphbrew/reorder/reorder_adaptive.h
 struct AdaptiveConfig {
     int max_depth = 0;           // Recursion depth (0 = per-community only)
     double resolution = 0.0;     // Leiden resolution (0 = auto)
@@ -379,7 +379,7 @@ AdaptiveConfig config = AdaptiveConfig::FromOptions("2:0.75:50000:0");
 For fast topology analysis without computing over the entire graph:
 
 ```cpp
-// bench/include/gapbs/reorder/reorder_types.h
+// bench/include/graphbrew/reorder/reorder_types.h
 struct SampledDegreeFeatures {
     double degree_variance;
     double hub_concentration;

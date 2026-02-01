@@ -6,8 +6,8 @@
 #define GRAPH_SIM_H_
 
 #include "cache_sim.h"
-#include "../gapbs/graph.h"
-#include "../gapbs/pvector.h"
+#include "../graphbrew/graph.h"
+#include "../graphbrew/pvector.h"
 
 namespace cache_sim {
 

@@ -26,19 +26,20 @@ INC_DIR = $(BENCH_DIR)/include
 OBJ_DIR = $(BENCH_DIR)/obj
 
 # =========================================================
-INCLUDE_GAPBS  = $(INC_DIR)/gapbs 
-INCLUDE_RABBIT = $(INC_DIR)/rabbit
-INCLUDE_GORDER = $(INC_DIR)/gorder
-INCLUDE_CORDER = $(INC_DIR)/corder
-INCLUDE_LEIDEN = $(INC_DIR)/leiden
+INCLUDE_GRAPHBREW  = $(INC_DIR)/graphbrew
+INCLUDE_EXTERNAL = $(INC_DIR)/external
+INCLUDE_RABBIT = $(INCLUDE_EXTERNAL)/rabbit
+INCLUDE_GORDER = $(INCLUDE_EXTERNAL)/gorder
+INCLUDE_CORDER = $(INCLUDE_EXTERNAL)/corder
+INCLUDE_LEIDEN = $(INCLUDE_EXTERNAL)/leiden
 # =========================================================
 INCLUDE_BOOST  = /opt/boost_1_58_0/include  
 # =========================================================
-DEP_GAPBS  = $(wildcard $(INC_DIR)/gapbs/*.h) $(wildcard $(INC_DIR)/gapbs/reorder/*.h)
-DEP_RABBIT = $(wildcard $(INC_DIR)/rabbit/*.hpp)
-DEP_GORDER = $(wildcard $(INC_DIR)/gorder/*.h)
-DEP_CORDER = $(wildcard $(INC_DIR)/corder/*.h)
-DEP_LEIDEN = $(wildcard $(INC_DIR)/leiden/*.hxx)
+DEP_GRAPHBREW  = $(wildcard $(INC_DIR)/graphbrew/*.h) $(wildcard $(INC_DIR)/graphbrew/reorder/*.h)
+DEP_RABBIT = $(wildcard $(INCLUDE_RABBIT)/*.hpp)
+DEP_GORDER = $(wildcard $(INCLUDE_GORDER)/*.h)
+DEP_CORDER = $(wildcard $(INCLUDE_CORDER)/*.h)
+DEP_LEIDEN = $(wildcard $(INCLUDE_LEIDEN)/*.hxx)
 # =========================================================
 
 # =========================================================
@@ -88,7 +89,7 @@ LDLIBS_BOOST    += -L$(BOOST_LIB_DIR)
 CXXFLAGS = $(CXXFLAGS_GAP) $(CXXFLAGS_GORDER) $(CXXFLAGS_LEIDEN) $(CXXFLAGS_RABBIT)
 LDLIBS  = 
 # =========================================================
-INCLUDES = -I$(INCLUDE_GAPBS) -I$(INCLUDE_GORDER) -I$(INCLUDE_CORDER) -I$(INCLUDE_LEIDEN) -I$(INCLUDE_BOOST)
+INCLUDES = -I$(INCLUDE_GRAPHBREW) -I$(INCLUDE_GORDER) -I$(INCLUDE_CORDER) -I$(INCLUDE_LEIDEN) -I$(INCLUDE_BOOST)
 # =========================================================
 # Optional RABBIT includes
 ifeq ($(RABBIT_ENABLE), 1)

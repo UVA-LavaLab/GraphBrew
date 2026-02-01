@@ -298,7 +298,7 @@ For graphs > 10K vertices, the overhead is usually recovered through better cach
 
 ### C++ Code Architecture
 
-GraphBrewOrder's implementation is organized in modular header files in `bench/include/gapbs/reorder/`:
+GraphBrewOrder's implementation is organized in modular header files in `bench/include/graphbrew/reorder/`:
 
 | File | Purpose |
 |------|---------|
@@ -308,7 +308,7 @@ GraphBrewOrder's implementation is organized in modular header files in `bench/i
 **GraphBrewClusterVariant Enum:**
 
 ```cpp
-// bench/include/gapbs/reorder/reorder_graphbrew.h
+// bench/include/graphbrew/reorder/reorder_graphbrew.h
 enum class GraphBrewClusterVariant {
     LEIDEN,      // Original Leiden library (igraph)
     GVE,         // GVE-Leiden CSR-native
@@ -323,7 +323,7 @@ enum class GraphBrewClusterVariant {
 **GraphBrewConfig Struct:**
 
 ```cpp
-// bench/include/gapbs/reorder/reorder_graphbrew.h
+// bench/include/graphbrew/reorder/reorder_graphbrew.h
 struct GraphBrewConfig {
     GraphBrewClusterVariant variant = GraphBrewClusterVariant::LEIDEN;
     int frequency = 10;           // Hub frequency threshold

@@ -71,79 +71,16 @@
 #include "reorder_hub.h"     // HUBSORT, HUBCLUSTER, DBG variants (3-7)
 #include "reorder_rabbit.h"  // RABBITORDER (8)
 #include "reorder_classic.h" // GORDER, CORDER, RCM (9-11)
+#include "reorder_leiden.h"  // LEIDENORDER, LEIDENDENDROGRAM, LEIDENCSR (15-17)
 
-// Advanced algorithm headers:
-#include "reorder_leiden.h"    // LEIDENORDER, LEIDENDENDROGRAM, LEIDENCSR (15-17)
-#include "reorder_graphbrew.h" // GRAPHBREWORDER (12) types and config
-#include "reorder_adaptive.h"  // ADAPTIVEORDER (14) types and config
+// Note: reorder_graphbrew.h and reorder_adaptive.h are included at the END of this file
+// after all dispatcher functions are defined.
 
 // ============================================================================
 // ALGORITHM STRING CONVERSION
 // ============================================================================
-
-/**
- * @brief Convert ReorderingAlgo enum to human-readable string
- * 
- * Used for logging, debugging, and output formatting.
- * 
- * @param algo The reordering algorithm enum value
- * @return String name of the algorithm
- */
-using ::ReorderingAlgoStr;
-
-
-/**
- * @brief Convert integer ID to ReorderingAlgo enum
- * 
- * Used when parsing command-line arguments.
- * 
- * @param value Integer algorithm ID (0-17)
- * @return Corresponding ReorderingAlgo enum value
- */
-inline ReorderingAlgo getReorderingAlgo(int value) {
-    switch (value) {
-        case 0:  return ORIGINAL;
-        case 1:  return Random;
-        case 2:  return Sort;
-        case 3:  return HubSort;
-        case 4:  return HubCluster;
-        case 5:  return DBG;
-        case 6:  return HubSortDBG;
-        case 7:  return HubClusterDBG;
-        case 8:  return RabbitOrder;
-        case 9:  return GOrder;
-        case 10: return COrder;
-        case 11: return RCMOrder;
-        case 12: return GraphBrewOrder;
-        case 13: return MAP;
-        case 14: return AdaptiveOrder;
-        case 15: return LeidenOrder;
-        case 16: return LeidenDendrogram;
-        case 17: return LeidenCSR;
-        default:
-            std::cerr << "Unknown algorithm ID: " << value << std::endl;
-            return ORIGINAL;
-    }
-}
-
-/**
- * @brief Convert string to ReorderingAlgo enum
- * 
- * Parses command-line argument string (may be just a number).
- * 
- * @param arg String representation (e.g., "7" or "7:option")
- * @return Corresponding ReorderingAlgo enum value
- */
-inline ReorderingAlgo getReorderingAlgo(const char* arg) {
-    return getReorderingAlgo(std::atoi(arg));
-}
-
-// ============================================================================
-// ALGORITHM NAME TO ENUM MAPPING (for perceptron weights)
-// ============================================================================
-
-// Note: getAlgorithmNameMap() is now defined in reorder_types.h
-// Use the global function directly.
+// NOTE: ReorderingAlgoStr and getReorderingAlgo are now defined in reorder_types.h
+// to allow use by reorder_graphbrew.h and reorder_adaptive.h before this file.
 
 // ============================================================================
 // ALGORITHM CATEGORY HELPERS
@@ -368,5 +305,177 @@ void ReorderCommunitySubgraphStandalone(
         new_ids[node] = current_id++;
     }
 }
+
+// ============================================================================
+// EDGELIST-BASED REORDERING DISPATCHER (Standalone)
+// ============================================================================
+
+/**
+ * @brief Apply reordering algorithm to an edge list (standalone version)
+ * 
+ * This dispatcher creates a local graph from the edge list and applies
+ * the specified reordering algorithm. Used by GraphBrew and Adaptive
+ * for per-community reordering.
+ * 
+ * Handles both basic algorithms (0-11) and RabbitOrder (8) specially.
+ * For RabbitOrder, supports "csr" (default) and "boost" variants.
+ * 
+ * CRITICAL: For small subgraphs (<100K edges), disables nested parallelism
+ * to avoid thread explosion overhead.
+ * 
+ * @tparam NodeID_ Node ID type
+ * @tparam DestID_ Destination ID type
+ * @tparam WeightT_ Edge weight type
+ * @tparam invert Whether graph has inverse edges
+ * @param el Edge list to reorder
+ * @param new_ids Output permutation
+ * @param algo Algorithm to apply
+ * @param useOutdeg Use out-degree (true) or in-degree (false)
+ * @param reordering_options Algorithm-specific options
+ */
+template <typename NodeID_, typename DestID_, typename WeightT_, bool invert>
+void GenerateMappingLocalEdgelistStandalone(
+    EdgeList<NodeID_, DestID_>& el,
+    pvector<NodeID_>& new_ids,
+    ReorderingAlgo algo,
+    bool useOutdeg,
+    const std::vector<std::string>& reordering_options = {})
+{
+    // CRITICAL: Disable nested parallelism for small subgraphs
+    const size_t MIN_EDGES_FOR_PARALLEL = 100000;
+    const bool is_small_subgraph = el.size() < MIN_EDGES_FOR_PARALLEL;
+    
+    // Save current settings
+    int prev_nested = omp_get_nested();
+    int prev_max_levels = omp_get_max_active_levels();
+    int prev_num_threads = omp_get_max_threads();
+    
+    if (is_small_subgraph) {
+        omp_set_nested(0);
+        omp_set_max_active_levels(1);
+        omp_set_num_threads(1);
+    } else {
+        omp_set_nested(1);
+        omp_set_max_active_levels(2);
+    }
+    
+    // Convert EdgeList (pvector<Edge>) to vector<pair> for standalone functions
+    std::vector<std::pair<NodeID_, DestID_>> edges_vec(el.size());
+    #pragma omp parallel for
+    for (size_t i = 0; i < el.size(); ++i) {
+        edges_vec[i] = {el[i].u, el[i].v};
+    }
+    
+    // Build CSR graph from edge list
+    CSRGraph<NodeID_, DestID_, invert> g = 
+        MakeLocalGraphFromELStandalone<NodeID_, DestID_, invert>(edges_vec);
+    
+    // Dispatch to appropriate algorithm
+    switch (algo) {
+        case HubSort:
+            ::GenerateHubSortMapping<NodeID_, DestID_, invert>(g, new_ids, useOutdeg);
+            break;
+        case HubCluster:
+            ::GenerateHubClusterMapping<NodeID_, DestID_, invert>(g, new_ids, useOutdeg);
+            break;
+        case DBG:
+            ::GenerateDBGMapping<NodeID_, DestID_, invert>(g, new_ids, useOutdeg);
+            break;
+        case HubSortDBG:
+            ::GenerateHubSortDBGMapping<NodeID_, DestID_, invert>(g, new_ids, useOutdeg);
+            break;
+        case HubClusterDBG:
+            ::GenerateHubClusterDBGMapping<NodeID_, DestID_, invert>(g, new_ids, useOutdeg);
+            break;
+        case Sort:
+            ::GenerateSortMapping<NodeID_, DestID_, invert>(g, new_ids, useOutdeg, false);
+            break;
+        case Random:
+            ::GenerateRandomMapping<NodeID_, DestID_, invert>(g, new_ids);
+            break;
+        case RabbitOrder:
+        {
+            // RabbitOrder with variants: csr (default), boost
+            std::string variant = "csr";
+            if (!reordering_options.empty() && !reordering_options[0].empty()) {
+                variant = reordering_options[0];
+            }
+            
+            if (variant == "boost") {
+                // Boost-based RabbitOrder needs preprocessing
+                pvector<NodeID_> new_ids_local(g.num_nodes(), -1);
+                pvector<NodeID_> new_ids_local_2(g.num_nodes(), -1);
+                ::GenerateSortMappingRabbit<NodeID_, DestID_, invert>(g, new_ids_local, true, true);
+                auto g_trans = RelabelByMappingStandalone<NodeID_, DestID_, invert>(g, new_ids_local);
+                ::GenerateRabbitOrderMapping<NodeID_, DestID_, WeightT_, invert>(g_trans, new_ids_local_2);
+                
+                // Combine mappings
+                if (is_small_subgraph) {
+                    for (NodeID_ n = 0; n < g.num_nodes(); n++) {
+                        if (new_ids_local[n] != static_cast<NodeID_>(-1) && 
+                            new_ids_local[n] < g.num_nodes()) {
+                            new_ids[n] = new_ids_local_2[new_ids_local[n]];
+                        }
+                    }
+                } else {
+                    #pragma omp parallel for
+                    for (NodeID_ n = 0; n < g.num_nodes(); n++) {
+                        if (new_ids_local[n] != static_cast<NodeID_>(-1) && 
+                            new_ids_local[n] < g.num_nodes()) {
+                            new_ids[n] = new_ids_local_2[new_ids_local[n]];
+                        }
+                    }
+                }
+            } else {
+                // Native CSR implementation with degree preprocessing
+                pvector<NodeID_> new_ids_local(g.num_nodes(), -1);
+                pvector<NodeID_> new_ids_local_2(g.num_nodes(), -1);
+                ::GenerateSortMappingRabbit<NodeID_, DestID_, invert>(g, new_ids_local, true, true);
+                auto g_trans = RelabelByMappingStandalone<NodeID_, DestID_, invert>(g, new_ids_local);
+                ::GenerateRabbitOrderCSRMapping<NodeID_, DestID_, WeightT_, invert>(g_trans, new_ids_local_2);
+                
+                // Combine mappings
+                if (is_small_subgraph) {
+                    for (NodeID_ n = 0; n < g.num_nodes(); n++) {
+                        new_ids[n] = new_ids_local_2[new_ids_local[n]];
+                    }
+                } else {
+                    #pragma omp parallel for
+                    for (NodeID_ n = 0; n < g.num_nodes(); n++) {
+                        new_ids[n] = new_ids_local_2[new_ids_local[n]];
+                    }
+                }
+            }
+        }
+        break;
+        case GOrder:
+            ::GenerateGOrderMapping<NodeID_, DestID_, WeightT_, invert>(g, new_ids, "");
+            break;
+        case COrder:
+            ::GenerateCOrderMapping<NodeID_, DestID_, invert>(g, new_ids);
+            break;
+        case RCMOrder:
+            ::GenerateRCMOrderMapping<NodeID_, DestID_, WeightT_, invert>(g, new_ids, "");
+            break;
+        case ORIGINAL:
+        default:
+            ::GenerateOriginalMapping<NodeID_, DestID_, invert>(g, new_ids);
+            break;
+    }
+    
+    // Restore OpenMP settings
+    omp_set_nested(prev_nested);
+    omp_set_max_active_levels(prev_max_levels);
+    omp_set_num_threads(prev_num_threads);
+}
+
+// ============================================================================
+// INCLUDE GRAPHBREW AND ADAPTIVE HEADERS
+// ============================================================================
+// These are included last because they depend on functions defined above
+// (GenerateMappingLocalEdgelistStandalone, ReorderCommunitySubgraphStandalone)
+
+#include "reorder_graphbrew.h" // GRAPHBREWORDER (12) with standalone implementations
+#include "reorder_adaptive.h"  // ADAPTIVEORDER (14) config (implementations in builder.h)
 
 #endif  // REORDER_H_
