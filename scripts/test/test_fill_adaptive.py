@@ -1,4 +1,3 @@
-import pytest
 #!/usr/bin/env python3
 """
 Test script for fill-weights and adaptive order functionality.
@@ -10,11 +9,13 @@ This script:
 4. Displays detailed output of the process
 
 Usage:
-    python scripts/test_fill_adaptive.py
-    python scripts/test_fill_adaptive.py --graph graphs/email-Enron
-    python scripts/test_fill_adaptive.py --clean   # Clean and re-run
+    pytest scripts/test/test_fill_adaptive.py -v
+    python scripts/test/test_fill_adaptive.py
+    python scripts/test/test_fill_adaptive.py --graph graphs/email-Enron
+    python scripts/test/test_fill_adaptive.py --clean   # Clean and re-run
 """
 
+import pytest
 import argparse
 import json
 import os

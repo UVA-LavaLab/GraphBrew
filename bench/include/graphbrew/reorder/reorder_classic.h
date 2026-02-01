@@ -24,9 +24,9 @@
 
 // External headers required for these algorithms
 // These are part of the GraphBrew include tree
-#include "../../gorder/GoGraph.h"
-#include "../../gorder/GoUtil.h"
-#include "../../corder/vec2d.h"
+#include <gorder/GoGraph.h>
+#include <gorder/GoUtil.h>
+#include <corder/vec2d.h>
 
 // ============================================================================
 // CORDER PARAMETERS

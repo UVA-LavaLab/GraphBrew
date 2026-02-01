@@ -46,10 +46,10 @@
 
 // Include the full graph.h instead of forward declaring CSRGraph
 // This ensures template parameters match
-#include "../graph.h"
-#include "../pvector.h"
-#include "../timer.h"
-#include "../util.h"
+#include <graph.h>
+#include <pvector.h>
+#include <timer.h>
+#include <util.h>
 
 // ============================================================================
 // TYPE ALIASES

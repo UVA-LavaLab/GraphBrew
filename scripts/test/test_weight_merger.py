@@ -1,4 +1,3 @@
-import pytest
 #!/usr/bin/env python3
 """
 Test suite for weight_merger module.
@@ -9,8 +8,12 @@ Validates:
 3. Weight weighted average computation
 4. Multi-run merge correctness
 5. Edge cases (empty runs, single type, etc.)
+
+Usage:
+    pytest scripts/test/test_weight_merger.py -v
 """
 
+import pytest
 import os
 import sys
 import json

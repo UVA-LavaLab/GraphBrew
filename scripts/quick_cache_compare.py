@@ -1,6 +1,28 @@
 #!/usr/bin/env python3
 """
-Quick cache comparison script for GVE variants vs RabbitOrder.
+Quick Cache Comparison - Compare GVE Variants vs RabbitOrder
+============================================================
+
+Runs cache simulation benchmarks comparing different community detection
+variants to measure their impact on cache performance:
+
+- GVE-Leiden variants (gve, gveopt, gvedendo, gveoptdendo)
+- RabbitOrder variants (csr, boost)
+
+Outputs:
+- L1/L2 hit rates
+- Memory accesses  
+- Reorder time
+- Modularity (if available)
+
+Usage:
+    python scripts/quick_cache_compare.py
+
+Prerequisites:
+    - Cache simulation binaries built: make sim
+    - Graphs downloaded: python scripts/graphbrew_experiment.py --download-only
+
+Author: GraphBrew Team
 """
 import subprocess
 import re

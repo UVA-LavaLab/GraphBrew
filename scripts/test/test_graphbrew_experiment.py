@@ -1,3 +1,21 @@
+#!/usr/bin/env python3
+"""
+GraphBrew Experiment Integration Tests
+======================================
+
+Tests for the main experiment pipeline components:
+- Binary building
+- Graph reordering with label mapping
+- Benchmark execution
+- Mapping file I/O
+
+These tests use a tiny bundled graph (4 nodes, 5 edges) for fast execution.
+
+Usage:
+    pytest scripts/test/test_graphbrew_experiment.py -v
+    pytest scripts/test/test_graphbrew_experiment.py::test_reorder_tiny -v
+"""
+
 import os
 import sys
 import subprocess

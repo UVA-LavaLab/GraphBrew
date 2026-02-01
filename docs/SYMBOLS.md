@@ -18,12 +18,13 @@
 ## Builder Entrypoints
 | Symbol | File | Notes |
 |--------|------|-------|
-| `BuilderBase::MakePartitionedGraph` | `bench/include/graphbrew/builder.h` | Dispatches `-j` to Cagra or TRUST |
+| `BuilderBase::MakePartitionedGraph` | `bench/include/external/gapbs/builder.h` | Dispatches `-j` to Cagra or TRUST |
+| `BuilderBase::GenerateMapping` | `bench/include/external/gapbs/builder.h` | Reordering dispatcher (IDs 0–17) |
+
 ## Umbrella
 | Symbol | File | Notes |
 |--------|------|-------|
 | `graphbrew.h` | `bench/include/graphbrew/graphbrew.h` | Umbrella: builder, reorder, partitioning, cache_sim |
-| `BuilderBase::GenerateMapping` | `bench/include/graphbrew/builder.h` | Reordering dispatcher (IDs 0–17) |
 
 ## Cache Simulation
 | Symbol | File | Notes |
