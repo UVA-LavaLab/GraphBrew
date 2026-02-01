@@ -21,7 +21,7 @@
 #define REORDER_HUB_H_
 
 #include "reorder_types.h"
-#include "../sliding_queue.h"
+#include <sliding_queue.h>
 
 // Forward declaration for UINT_E_MAX used as sentinel value
 #ifndef UINT_E_MAX

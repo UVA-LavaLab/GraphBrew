@@ -32,10 +32,17 @@ This repository contains the GAP Benchmarks Suite [(GAPBS)](https://github.com/s
 
 ```
 bench/include/
-├── graphbrew/            # Core runtime (builder, reorder, partition, util)
-│   ├── partition/        # TRUST (trust.h), Cagra (cagra/popt.h)
-├── cache_sim/            # Cache simulation headers
-└── external/             # External modules (rabbit, gorder, corder, leiden)
+├── graphbrew/              # GraphBrew extensions
+│   ├── graphbrew.h         # Umbrella header (includes everything)
+│   ├── reorder/            # Reordering algorithms
+│   └── partition/          # Partitioning (trust.h, cagra/popt.h)
+├── external/               # External libraries (bundled)
+│   ├── gapbs/              # Core GAPBS runtime (builder, graph, benchmark, etc.)
+│   ├── rabbit/             # RabbitOrder
+│   ├── gorder/             # GOrder
+│   ├── corder/             # COrder
+│   └── leiden/             # GVE-Leiden
+└── cache_sim/              # Cache simulation headers
 ```
 
 Run `make lint-includes` to detect legacy include paths.

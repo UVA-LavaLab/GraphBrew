@@ -286,7 +286,7 @@ inline W gveDeltaModularity(W ki_to_c, W ki_to_d, W ki, W sigma_c, W sigma_d, W 
 // These are standalone template functions that work with CSRGraph directly
 // ============================================================================
 
-#include "../graph.h"
+#include <graph.h>
 #include <vector>
 #include <unordered_set>
 #include <unordered_map>

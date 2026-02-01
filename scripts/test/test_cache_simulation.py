@@ -1,3 +1,21 @@
+#!/usr/bin/env python3
+"""
+Cache Simulation Integration Tests
+==================================
+
+Tests for the cache simulation pipeline:
+- Running cache simulations with different configurations
+- Parsing simulation output
+- Verifying cache metrics
+
+These tests use a tiny bundled graph (4 nodes, 5 edges) for fast execution.
+Requires cache simulation binaries to be built (make sim).
+
+Usage:
+    pytest scripts/test/test_cache_simulation.py -v
+    pytest scripts/test/test_cache_simulation.py -k "test_sim" -v
+"""
+
 import os
 import sys
 from pathlib import Path

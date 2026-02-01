@@ -16,7 +16,7 @@ Adding a new algorithm involves:
 
 ### Location
 
-[bench/include/graphbrew/util.h](https://github.com/UVA-LavaLab/GraphBrew/blob/main/bench/include/graphbrew/util.h)
+[bench/include/graphbrew/reorder/reorder_types.h](https://github.com/UVA-LavaLab/GraphBrew/blob/main/bench/include/graphbrew/reorder/reorder_types.h)
 
 ### Find the Enum
 
@@ -133,11 +133,11 @@ pvector<NodeID> CommunityAwareOrder(const CSRGraph<NodeID>& g) {
 
 ### Location
 
-In `builder.h`, you need to update two switch statements:
+The main dispatcher is in `bench/include/external/gapbs/builder.h`. The `GenerateMapping` function delegates to standalone implementations in the `reorder/*.h` headers.
 
 #### 1. The `GenerateMapping` Function
 
-Find the `GenerateMapping` function and add your case:
+Find the `GenerateMapping` function in `builder.h` and add your case:
 
 ```cpp
 void GenerateMapping(CSRGraph<NodeID_, DestID_, invert> &g,

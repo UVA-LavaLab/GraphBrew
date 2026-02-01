@@ -31,9 +31,9 @@
 #include <parallel/numeric>
 #include <vector>
 
-#include "../graph.h"
-#include "../pvector.h"
-#include "../timer.h"
+#include <graph.h>
+#include <pvector.h>
+#include <timer.h>
 
 // ============================================================================
 // TRUST EDGE LIST STRUCTURE

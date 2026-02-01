@@ -33,10 +33,13 @@ scripts/
 │   ├── progress.py              # Progress tracking & reporting
 │   └── results.py               # Result file I/O
 │
-├── scripts/test/                # Pytest suite
+├── test/                        # Pytest suite
 │   ├── test_weight_flow.py      # Weight generation/loading tests
 │   ├── test_weight_merger.py    # Merger consolidation tests
-│   └── test_fill_adaptive.py    # Fill-weights pipeline tests
+│   ├── test_fill_adaptive.py    # Fill-weights pipeline tests
+│   ├── test_cache_simulation.py # Cache simulation tests
+│   ├── test_graphbrew_experiment.py # Main experiment tests
+│   └── graphs/                  # Test graph fixtures
 │
 ├── weights/                     # Type-based weight files
 │   ├── active/                  # C++ reads from here (working copy)

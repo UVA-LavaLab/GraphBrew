@@ -36,9 +36,9 @@
 #include <set>
 #include <vector>
 
-#include "../graph.h"
-#include "../pvector.h"
-#include "../timer.h"
+#include <graph.h>
+#include <pvector.h>
+#include <timer.h>
 
 // ============================================================================
 // GRAPH SLICING (CSR-Segmenting from Cagra paper)

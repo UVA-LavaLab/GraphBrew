@@ -10,13 +10,17 @@ GraphBrew/
 │   ├── bin/                  # Compiled binaries
 │   ├── bin_sim/              # Cache simulation binaries
 │   ├── include/              # Header libraries
-│   │   ├── cache/            # Cache simulation headers
-│   │   ├── corder/           # Corder reordering
-│   │   ├── gapbs/            # GAP Benchmark Suite core
-│   │   │   └── reorder/      # 📦 Modular reorder headers (~10K lines)
-│   │   ├── gorder/           # Gorder reordering
-│   │   ├── leiden/           # Leiden community detection
-│   │   └── rabbit/           # Rabbit Order reordering
+│   │   ├── graphbrew/        # 📦 GraphBrew extensions
+│   │   │   ├── graphbrew.h   # Umbrella header
+│   │   │   ├── reorder/      # Reordering algorithms (~12,435 lines)
+│   │   │   └── partition/    # Partitioning (trust.h, cagra/popt.h)
+│   │   ├── external/         # External libraries (bundled)
+│   │   │   ├── gapbs/        # Core GAPBS runtime (builder.h ~3,747 lines)
+│   │   │   ├── rabbit/       # RabbitOrder
+│   │   │   ├── gorder/       # GOrder
+│   │   │   ├── corder/       # COrder
+│   │   │   └── leiden/       # GVE-Leiden
+│   │   └── cache_sim/        # Cache simulation headers
 │   ├── src/                  # Benchmark source files
 │   ├── src_sim/              # Cache simulation sources
 │   └── backups/              # Backup files
@@ -59,6 +63,7 @@ GraphBrew/
 │   ├── download/                # Standalone downloader
 │   └── utils/                   # Additional utilities
 │
+│
 ├── scripts/test/             # Pytest suite
 │   ├── graphs/               # Sample graphs
 │   └── reference/            # Reference outputs
@@ -73,11 +78,19 @@ GraphBrew/
 
 ## Core Components
 
-### GraphBrew (bench/include/graphbrew/)
-### External Modules (bench/include/external/)
+### GraphBrew Extensions (bench/include/graphbrew/)
+
+| Module | Purpose |
+|--------|---------|
+| graphbrew.h | Umbrella header (includes everything) |
+| reorder/ | Reordering algorithm implementations |
+| partition/ | Partitioning (trust.h, cagra/popt.h) |
+
+### External Libraries (bench/include/external/)
 
 | Module | Notes |
 |--------|-------|
+| gapbs/ | Core GAPBS runtime (builder.h, graph.h, etc.) |
 | rabbit/ | RabbitOrder community clustering |
 | gorder/ | GOrder implementation |
 | corder/ | COrder (cache-aware ordering) |
@@ -89,48 +102,52 @@ The foundation is built on the GAP Benchmark Suite with extensions.
 
 | File | Lines | Purpose |
 |------|-------|---------|
-| [graph.h](https://github.com/UVA-LavaLab/GraphBrew/blob/main/bench/include/graphbrew/graph.h) | ~500 | CSRGraph class, core data structure |
-| [builder.h](https://github.com/UVA-LavaLab/GraphBrew/blob/main/bench/include/graphbrew/builder.h) | ~7,800 | Graph loading and reordering dispatcher |
-| [benchmark.h](https://github.com/UVA-LavaLab/GraphBrew/blob/main/bench/include/graphbrew/benchmark.h) | ~150 | Benchmark harness |
-| [command_line.h](https://github.com/UVA-LavaLab/GraphBrew/blob/main/bench/include/graphbrew/command_line.h) | ~300 | CLI parsing |
-| [pvector.h](https://github.com/UVA-LavaLab/GraphBrew/blob/main/bench/include/graphbrew/pvector.h) | ~150 | Parallel-friendly vector |
-| [timer.h](https://github.com/UVA-LavaLab/GraphBrew/blob/main/bench/include/graphbrew/timer.h) | ~50 | High-resolution timing |
+| [graph.h](https://github.com/UVA-LavaLab/GraphBrew/blob/main/bench/include/external/gapbs/graph.h) | ~500 | CSRGraph class, core data structure |
+| [builder.h](https://github.com/UVA-LavaLab/GraphBrew/blob/main/bench/include/external/gapbs/builder.h) | ~3,747 | Graph loading and reordering dispatcher |
+| [benchmark.h](https://github.com/UVA-LavaLab/GraphBrew/blob/main/bench/include/external/gapbs/benchmark.h) | ~150 | Benchmark harness |
+| [command_line.h](https://github.com/UVA-LavaLab/GraphBrew/blob/main/bench/include/external/gapbs/command_line.h) | ~300 | CLI parsing |
+| [pvector.h](https://github.com/UVA-LavaLab/GraphBrew/blob/main/bench/include/external/gapbs/pvector.h) | ~150 | Parallel-friendly vector |
+| [timer.h](https://github.com/UVA-LavaLab/GraphBrew/blob/main/bench/include/external/gapbs/timer.h) | ~50 | High-resolution timing |
 
 #### Partitioning Modules
 
-| File | Purpose |
-|------|---------|
-| `partition/cagra/popt.h` | `graphSlicer` and `MakeCagraPartitionedGraph` (Cagra/GraphIT CSR partitioning) |
-| `partition/trust.h` | `TrustPartitioner::MakeTrustPartitionedGraph` (TRUST triangle-count partitioning) |
+| File | Lines | Purpose |
+|------|-------|---------|
+| `partition/cagra/popt.h` | ~892 | `graphSlicer`, `MakeCagraPartitionedGraph`, cache optimization (P-OPT) |
+| `partition/trust.h` | ~751 | `TrustPartitioner` class for triangle-count partitioning |
 
 > **Cache vs Cagra:** Cache **simulation** lives in `bench/include/cache_sim/` (`cache_sim.h`, `graph_sim.h`). Cagra **partitioning** helpers live in `bench/include/graphbrew/partition/cagra/` (`popt.h`). See `docs/INDEX.md` and folder READMEs for a quick map.
 
 #### Reorder Module (bench/include/graphbrew/reorder/)
 
-The reorder module is a modular header library that extracts reusable components from `builder.h`. It follows an include hierarchy where `reorder_types.h` is the base, and specialized headers extend it.
+The reorder module is a modular header library with standalone template functions. It follows an include hierarchy where `reorder_types.h` is the base, and specialized headers extend it.
 
 ```
 reorder/
-├── reorder_types.h      # Base module - types, perceptron, feature computation
-├── reorder_adaptive.h   # AdaptiveOrder config and utilities
-├── reorder_graphbrew.h  # GraphBrew config and cluster variants
-├── reorder_rabbit.h     # RabbitOrder CSR implementation
-├── reorder_leiden.h     # GVE-Leiden implementations
-├── reorder_hub.h        # Hub-based algorithms (DBG, HubSort, HubCluster)
-├── reorder_classic.h    # Classic algorithms (GOrder, COrder, RCM)
-└── reorder_basic.h      # Basic algorithms (Original, Random, Sort)
+├── reorder_types.h      # Base: types, perceptron, feature computation (~3,892 lines)
+├── reorder_basic.h      # Original, Random, Sort (algo 0-2) (~324 lines)
+├── reorder_hub.h        # HubSort, HubCluster, DBG variants (algo 3-7) (~598 lines)
+├── reorder_rabbit.h     # RabbitOrder native CSR (algo 8) (~1,161 lines)
+├── reorder_classic.h    # GOrder, COrder, RCMOrder (algo 9-11) (~502 lines)
+├── reorder_graphbrew.h  # GraphBrew multi-level (algo 12) (~869 lines)
+├── reorder_adaptive.h   # ML-based selection (algo 14) (~638 lines)
+├── reorder_leiden.h     # Leiden community detection (algo 15-17) (~3,970 lines)
+└── reorder.h            # Main dispatcher (~481 lines)
 ```
+
+**Total: ~12,435 lines**
 
 | File | Lines | Purpose |
 |------|-------|---------|
-| `reorder_types.h` | ~3,030 | Common types, perceptron model, selection functions, `ComputeSampledDegreeFeatures` |
-| `reorder_adaptive.h` | ~300 | `AdaptiveConfig` struct, adaptive selection utilities |
-| `reorder_graphbrew.h` | ~450 | `GraphBrewConfig` struct, `GraphBrewClusterVariant` enum |
+| `reorder_types.h` | ~3,892 | Common types, perceptron model, `EdgeList`, threshold functions |
 | `reorder_leiden.h` | ~3,970 | GVE-Leiden algorithm, dendrogram traversal variants |
-| `reorder_rabbit.h` | ~1,040 | RabbitOrder CSR native implementation |
-| `reorder_hub.h` | ~600 | Hub-based algorithms (DBG, HubSort, HubCluster, HubClusterDBG) |
-| `reorder_classic.h` | ~500 | Classic algorithms (GOrder, COrder, RCM dispatch) |
-| `reorder_basic.h` | ~320 | Basic algorithms (Original, Random, Sort) |
+| `reorder_rabbit.h` | ~1,161 | RabbitOrder CSR native implementation |
+| `reorder_graphbrew.h` | ~869 | `GraphBrewConfig`, cluster variants, multi-level reordering |
+| `reorder_adaptive.h` | ~638 | `AdaptiveConfig`, ML-based per-community algorithm selection |
+| `reorder_hub.h` | ~598 | Hub-based algorithms (DBG, HubSort, HubCluster) |
+| `reorder_classic.h` | ~502 | Classic algorithms (GOrder, COrder, RCM dispatch) |
+| `reorder.h` | ~481 | Main dispatcher, `ApplyBasicReorderingStandalone` |
+| `reorder_basic.h` | ~324 | Basic algorithms (Original, Random, Sort) |
 
 **Key Utilities in reorder_types.h:**
 
@@ -243,27 +260,35 @@ class BuilderBase {
 
 ### Reordering Algorithms
 
-#### Hub-Based (bench/include/graphbrew/builder.h)
+#### Hub-Based (bench/include/graphbrew/reorder/reorder_hub.h)
 
 ```cpp
-// Degree-Based Grouping (DBG)
-void GenerateDBGMapping(const CSRGraph& g, pvector<NodeID_>& new_ids, bool useOutdeg) {
+// Degree-Based Grouping (DBG) - standalone template function
+template<typename NodeID_, typename DestID_, typename WeightT_, bool invert>
+void GenerateDBGMappingStandalone(const CSRGraph<NodeID_, DestID_, invert>& g,
+                                   pvector<NodeID_>& new_ids, bool useOutdeg) {
   // Groups vertices by log2(degree)
   // Hot vertices (high degree) grouped together
 }
 
 // Hub Sorting
-void GenerateHubSortMapping(const CSRGraph& g, pvector<NodeID_>& new_ids, bool useOutdeg) {
+template<typename NodeID_, typename DestID_, typename WeightT_, bool invert>
+void GenerateHubSortMappingStandalone(const CSRGraph<NodeID_, DestID_, invert>& g,
+                                       pvector<NodeID_>& new_ids, bool useOutdeg) {
   // Sorts by degree, high-degree first
 }
 
 // Hub Clustering
-void GenerateHubClusterMapping(const CSRGraph& g, pvector<NodeID_>& new_ids, bool useOutdeg) {
+template<typename NodeID_, typename DestID_, typename WeightT_, bool invert>
+void GenerateHubClusterMappingStandalone(const CSRGraph<NodeID_, DestID_, invert>& g,
+                                          pvector<NodeID_>& new_ids, bool useOutdeg) {
   // Clusters hot vertices together
 }
 
 // Hub Cluster with DBG
-void GenerateHubClusterDBGMapping(const CSRGraph& g, pvector<NodeID_>& new_ids, bool useOutdeg) {
+template<typename NodeID_, typename DestID_, typename WeightT_, bool invert>
+void GenerateHubClusterDBGMappingStandalone(const CSRGraph<NodeID_, DestID_, invert>& g,
+                                             pvector<NodeID_>& new_ids, bool useOutdeg) {
   // Combines hub clustering with DBG
 }
 ```
@@ -272,29 +297,31 @@ void GenerateHubClusterDBGMapping(const CSRGraph& g, pvector<NodeID_>& new_ids, 
 
 | Algorithm | File | Method |
 |-----------|------|--------|
-| RabbitOrder | `rabbit/rabbit_order.hpp` | Community + recursion |
-| Gorder | `gorder/GoGraph.h` | Window optimization |
-| Corder | `corder/global.h` | Cache-aware ordering |
-| RCM | Built-in | Cuthill-McKee |
+| RabbitOrder | `graphbrew/reorder/reorder_rabbit.h` | Native CSR community detection + recursion |
+| Gorder | `external/gorder/GoGraph.h` | Window optimization |
+| Corder | `external/corder/global.h` | Cache-aware ordering |
+| RCM | `graphbrew/reorder/reorder_classic.h` | Cuthill-McKee dispatch |
 
-#### Leiden-Based (bench/include/graphbrew/builder.h)
+#### Leiden-Based (bench/include/graphbrew/reorder/reorder_leiden.h)
 
 ```cpp
 // LeidenDendrogram - hierarchical ordering with variants (dfs/dfshub/dfssize/bfs/hybrid)
+template<typename NodeID_, typename DestID_, typename WeightT_, bool invert>
 void GenerateLeidenDendrogramMappingUnified(
-    const CSRGraph& g, pvector<NodeID_>& new_ids, 
+    const CSRGraph<NodeID_, DestID_, invert>& g, pvector<NodeID_>& new_ids,
     const ReorderingOptions& opts);
 
-// LeidenCSR - fast CSR-native ordering with variants
+// LeidenCSR - fast CSR-native ordering with GVE-Leiden variants
+template<typename NodeID_, typename DestID_, typename WeightT_, bool invert>
 void GenerateLeidenCSRMappingUnified(
-    const CSRGraph& g, pvector<NodeID_>& new_ids, 
+    const CSRGraph<NodeID_, DestID_, invert>& g, pvector<NodeID_>& new_ids,
     const ReorderingOptions& opts);
 ```
 
 The Leiden community detection algorithm itself is in `bench/include/external/leiden/leiden.hxx`:
 
 ```cpp
-// Core Leiden algorithm
+// Core Leiden algorithm (GVE-Leiden)
 inline auto leidenStatic(RND& rnd, const G& x, const LeidenOptions& o={});
 inline auto leidenStaticOmp(RND& rnd, G& x, const LeidenOptions& o={});
 ```

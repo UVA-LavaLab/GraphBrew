@@ -32,20 +32,20 @@
 #include <omp.h>
 #include <parallel/algorithm>
 
-#include "../pvector.h"
-#include "../timer.h"
-#include "../graph.h"
+#include <pvector.h>
+#include <timer.h>
+#include <graph.h>
 
 #ifdef RABBIT_ENABLE
-#include "../../rabbit/edge_list.hpp"
-#include "../../rabbit/rabbit_order.hpp"
+#include <rabbit/edge_list.hpp>
+#include <rabbit/rabbit_order.hpp>
 #include <boost/range/adaptor/transformed.hpp>
 #include <boost/range/algorithm.hpp>
 #endif
 
 // Include the full graph header instead of forward declaration
 // CSRGraph has 6 template parameters which makes forward declaration complex
-#include "../graph.h"
+#include <graph.h>
 
 // ============================================================================
 // TYPE DEFINITIONS

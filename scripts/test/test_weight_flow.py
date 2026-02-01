@@ -1,4 +1,3 @@
-import pytest
 #!/usr/bin/env python3
 """
 Test Weight Flow - Verify weights are generated and read from correct locations.
@@ -11,10 +10,11 @@ This test verifies:
 5. Use-run and use-merged copy to active/
 
 Usage:
+    pytest scripts/test/test_weight_flow.py -v
     python -m scripts.test.test_weight_flow
-    python -m scripts.test.test_weight_flow -v  # verbose
 """
 
+import pytest
 import os
 import sys
 import json

@@ -74,29 +74,29 @@
 #include "util.h"
 
 // Unified reorder header - provides all algorithm implementations
-#include "reorder/reorder.h"
+#include <reorder/reorder.h>
 
 // Cagra/GraphIT partitioning helpers (P-OPT)
-#include "partition/cagra/popt.h"
+#include <partition/cagra/popt.h>
 
 // Graph partitioning (TRUST algorithm)
-#include "partition/trust.h"
+#include <partition/trust.h>
 
 // ============================================================================
 // EXTERNAL LIBRARY INCLUDES
 // ============================================================================
 
 #ifdef RABBIT_ENABLE
-#include "edge_list.hpp"
-#include "rabbit_order.hpp"
+#include <rabbit/edge_list.hpp>
+#include <rabbit/rabbit_order.hpp>
 #include <boost/range/adaptor/transformed.hpp>
 #include <boost/range/algorithm/count.hpp>
 using namespace edge_list;
 #endif
 
 // GOrder includes (MIT License - Hao Wei, 2016)
-#include "GoGraph.h"
-#include "GoUtil.h"
+#include <gorder/GoGraph.h>
+#include <gorder/GoUtil.h>
 
 /*
  * @author Priyank Faldu <Priyank.Faldu@ed.ac.uk> <http://faldupriyank.com>
@@ -116,7 +116,7 @@ using namespace edge_list;
  * limitations under the License.
  *
  */
-#include "vec2d.h"
+#include <corder/vec2d.h>
 
 #ifndef TYPE
 /** Type of edge weights. */
@@ -131,7 +131,7 @@ using namespace edge_list;
 #define MAX_THREADS 16
 #endif
 
-#include "main.hxx"
+#include <leiden/main.hxx>
 
 template <typename NodeID_, typename DestID_ = NodeID_,
           typename WeightT_ = NodeID_, bool invert = true,
