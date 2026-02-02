@@ -1387,10 +1387,18 @@ size_t countUniqueCommunities(const std::vector<K>& communities) {
  * @brief Auto-compute Leiden resolution based on graph density
  * 
  * Higher resolution = more communities
+ /**
+ * @brief Compute auto-resolution for Leiden based on graph properties
+ * 
+ * Higher resolution = more, smaller communities
  * Lower resolution = fewer, larger communities
  * 
  * Formula: γ = clip(0.5 + 0.25 × log₁₀(avg_degree + 1), 0.5, 1.2)
- * If CV(degree) > 2: γ = max(γ, 1.0)  // Guardrail for power-law graphs
+ * 
+ * CV guardrail for power-law/hubby graphs:
+ * - High CV (> 2.0) indicates heavy-tailed degree distribution (social/web graphs)
+ * - These graphs benefit from LOWER resolution (coarser communities)
+ * - Cap resolution at 0.75 for high-CV graphs to get better cache locality
  * 
  * @tparam NodeID_ Node ID type
  * @tparam DestID_ Destination ID type
@@ -1406,7 +1414,7 @@ double computeAutoResolution(const CSRGraph<NodeID_, DestID_, true>& g) {
     
     double avg_degree = static_cast<double>(m) / n;
     
-    // Compute degree variance for CV guardrail
+    // Compute degree variance for CV-based adjustment
     double sum_sq = 0.0;
     #pragma omp parallel for reduction(+:sum_sq)
     for (int64_t v = 0; v < n; ++v) {
@@ -1421,9 +1429,14 @@ double computeAutoResolution(const CSRGraph<NodeID_, DestID_, true>& g) {
     double resolution = 0.5 + 0.25 * std::log10(avg_degree + 1);
     resolution = std::max(0.5, std::min(1.2, resolution));
     
-    // CV guardrail for power-law/hubby graphs
+    // CV-based adjustment for power-law/hubby graphs
+    // High-CV graphs (social networks, web graphs) benefit from coarser communities
+    // which provide better cache locality for graph traversals
     if (cv > 2.0) {
-        resolution = std::max(resolution, 1.0);
+        // Scale down resolution: higher CV → lower resolution
+        // CV=2 → factor=1.0, CV=50 → factor≈0.6
+        double factor = 2.0 / std::max(2.0, std::sqrt(cv));
+        resolution = std::max(0.5, resolution * factor);
     }
     
     return resolution;
