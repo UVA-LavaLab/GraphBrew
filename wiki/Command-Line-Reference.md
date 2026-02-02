@@ -163,12 +163,28 @@ Use with `-o <id>`:
 | 9 | GOrder | Community |
 | 10 | COrder | Community |
 | 11 | RCMOrder | Community |
-| 12 | GraphBrewOrder | Community (variants: leiden/gve/gveopt/gvefast/gveoptfast/rabbit/hubcluster, default: leiden) |
+| 12 | GraphBrewOrder | Community (format: `-o 12:variant:final_algo:resolution:levels`) |
 | 13 | MAP | External mapping |
 | 14 | AdaptiveOrder | ML |
 | 15 | LeidenOrder | Leiden (igraph) |
 | 16 | LeidenDendrogram | Leiden (variants: dfs/dfshub/dfssize/bfs/hybrid) |
 | 17 | LeidenCSR | Leiden (variants: gve/gveopt/gverabbit/dfs/bfs/hubsort/fast/modularity, default: gve) |
+
+### GraphBrewOrder Variants (Algorithm 12)
+
+| Variant | Description | Resolution | Final Algo |
+|---------|-------------|------------|------------|
+| `leiden` | GVE-Leiden optimized (default) | auto | RabbitOrder |
+| `gve` | GVE-Leiden non-optimized | auto | RabbitOrder |
+| `gveopt` | GVE-Leiden with cache optimization | auto | RabbitOrder |
+| `gvefast` | GVE-Leiden non-optimized | auto | HubSortDBG |
+| `gveoptfast` | GVE-Leiden optimized | auto | HubSortDBG |
+| `rabbit` | GVE-Leiden with coarse communities | 0.50 | RabbitOrder |
+| `hubcluster` | Hub-degree based clustering | N/A | RabbitOrder |
+
+**Auto-Resolution:** Automatically computed based on graph's coefficient of variation (CV):
+- High-CV graphs (social/web): resolution ≈ 0.50 (coarser communities, better locality)
+- Low-CV graphs (road networks): resolution ≈ 0.60-0.77 (finer communities)
 
 ---
 

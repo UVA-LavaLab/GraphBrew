@@ -161,19 +161,33 @@ Final ordering:
 ### Basic Usage
 
 ```bash
-# Use GraphBrewOrder (algorithm 12)
+# Use GraphBrewOrder (algorithm 12) with auto-resolution
 ./bench/bin/pr -f graph.el -s -o 12 -n 5
 ```
 
-### With Options
+### New Format (Recommended)
+
+```bash
+# Format: -o 12:cluster_variant:final_algo:resolution:levels
+# cluster_variant: leiden (default), gve, gveopt, rabbit, hubcluster, gvefast, gveoptfast
+# final_algo: per-community ordering algorithm ID (default: 8 = RabbitOrder)
+# resolution: Leiden resolution parameter (default: auto based on graph CV)
+# levels: recursion depth (default: 1)
+
+# Examples:
+./bench/bin/pr -f graph.el -s -o 12:gveopt -n 5           # GVE-Leiden optimized, auto-resolution
+./bench/bin/pr -f graph.el -s -o 12:rabbit -n 5           # Coarse communities (resolution=0.5)
+./bench/bin/pr -f graph.el -s -o 12:gveopt:6 -n 5         # Use HubSortDBG as final algorithm
+./bench/bin/pr -f graph.el -s -o 12:gveopt:8:0.75 -n 5    # Custom resolution 0.75
+```
+
+### Old Format (Backward Compatible)
 
 ```bash
 # Format: -o 12:freq:algo:resolution:maxIterations:maxPasses
 # freq: frequency threshold for small communities (default: 10)
 # algo: per-community ordering algorithm ID (default: 8 = RabbitOrder)
-# resolution: Leiden resolution parameter (default: auto based on density)
-# maxIterations: maximum Leiden iterations (default: 30)
-# maxPasses: maximum Leiden passes (default: 30)
+# resolution: Leiden resolution parameter (default: auto)
 
 # Use HubClusterDBG (7) for per-community ordering with resolution 1.0
 ./bench/bin/pr -f graph.el -s -o 12:10:7:1.0
@@ -399,15 +413,15 @@ new_id = community_start_offset + position_within_community
 
 GraphBrewOrder supports multiple community detection backends via variant selection:
 
-| Variant | Description |
-|---------|-------------|
-| `leiden` | **Default.** Original Leiden library (igraph-based) |
-| `gve` | GVE-Leiden CSR-native implementation |
-| `gveopt` | Cache-optimized GVE with prefetching |
-| `gvefast` | Single-pass GVE (faster, less refinement) |
-| `gveoptfast` | Cache-optimized single-pass GVE |
-| `rabbit` | RabbitOrder-based community detection |
-| `hubcluster` | Hub-clustering based approach |
+| Variant | Description | Final Algorithm |
+|---------|-------------|----------------|
+| `leiden` | **Default.** GVE-Leiden optimized, auto-resolution | RabbitOrder |
+| `gve` | GVE-Leiden CSR-native (non-optimized) | RabbitOrder |
+| `gveopt` | GVE-Leiden with cache optimization | RabbitOrder |
+| `gvefast` | GVE-Leiden (non-optimized) | HubSortDBG |
+| `gveoptfast` | GVE-Leiden optimized | HubSortDBG |
+| `rabbit` | GVE-Leiden with resolution=0.5 (coarser communities) | RabbitOrder |
+| `hubcluster` | Hub-degree based clustering | RabbitOrder |
 
 ### Usage in Python scripts
 
@@ -424,10 +438,13 @@ python3 scripts/graphbrew_experiment.py --phase benchmark \
 ### Usage with C++ binaries
 
 ```bash
-# Format: -o 12:variant
-./bench/bin/pr -f graph.el -s -o 12:leiden -n 5   # Original Leiden
-./bench/bin/pr -f graph.el -s -o 12:gve -n 5      # GVE-Leiden
-./bench/bin/pr -f graph.el -s -o 12:gveopt -n 5   # Cache-optimized GVE
+# Format: -o 12:variant:final_algo:resolution:levels
+./bench/bin/pr -f graph.el -s -o 12:leiden -n 5       # Default (GVE-Leiden optimized)
+./bench/bin/pr -f graph.el -s -o 12:gve -n 5          # GVE-Leiden non-optimized
+./bench/bin/pr -f graph.el -s -o 12:gveopt -n 5       # GVE-Leiden optimized
+./bench/bin/pr -f graph.el -s -o 12:rabbit -n 5       # Coarse communities (resolution=0.5)
+./bench/bin/pr -f graph.el -s -o 12:gveopt:6 -n 5     # Custom final algo (HubSortDBG)
+./bench/bin/pr -f graph.el -s -o 12:gveopt:8:0.75 -n 5 # Custom resolution
 ```
 
 ---
