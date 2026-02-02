@@ -89,7 +89,7 @@ LDLIBS_BOOST    += -L$(BOOST_LIB_DIR)
 CXXFLAGS = $(CXXFLAGS_GAP) $(CXXFLAGS_GORDER) $(CXXFLAGS_LEIDEN) $(CXXFLAGS_RABBIT)
 LDLIBS  = 
 # =========================================================
-INCLUDES = -I$(INCLUDE_GAPBS) -I$(INCLUDE_GRAPHBREW) -I$(INCLUDE_EXTERNAL) -I$(INCLUDE_CACHE) -I$(INCLUDE_BOOST)
+INCLUDES = -I$(INCLUDE_GAPBS) -I$(INCLUDE_GRAPHBREW) -I$(INCLUDE_EXTERNAL) -I$(INC_DIR) -I$(INCLUDE_BOOST)
 # =========================================================
 # Optional RABBIT includes
 ifeq ($(RABBIT_ENABLE), 1)
