@@ -369,29 +369,28 @@ def expand_algorithms_with_variants(
         
         if algo_id == 17 and expand_leiden_variants:
             # LeidenCSR: expand into variants
-            # Format: 17:variant:resolution:max_iterations:max_passes
+            # Format: 17:variant (let C++ use auto-resolution)
             for variant in leiden_csr_variants:
-                max_iterations = 20  # Default iterations
-                option_str = f"{algo_id}:{variant}:{leiden_resolution}:{max_iterations}:{leiden_passes}"
+                option_str = f"{algo_id}:{variant}"
                 configs.append(AlgorithmConfig(
                     algo_id=algo_id,
                     name=f"LeidenCSR_{variant}",
                     option_string=option_str,
                     variant=variant,
-                    resolution=leiden_resolution,
+                    resolution=-1.0,  # -1 indicates auto-resolution
                     passes=leiden_passes
                 ))
         elif algo_id == 16 and expand_leiden_variants:
             # LeidenDendrogram: expand into variants
-            # Format: 16:variant:resolution
+            # Format: 16:variant (let C++ use auto-resolution)
             for variant in leiden_dendrogram_variants:
-                option_str = f"{algo_id}:{variant}:{leiden_resolution}"
+                option_str = f"{algo_id}:{variant}"
                 configs.append(AlgorithmConfig(
                     algo_id=algo_id,
                     name=f"LeidenDendrogram_{variant}",
                     option_string=option_str,
                     variant=variant,
-                    resolution=leiden_resolution
+                    resolution=-1.0  # -1 indicates auto-resolution
                 ))
         elif algo_id == 8 and expand_leiden_variants and len(rabbit_variants) > 1:
             # RabbitOrder: expand into variants if multiple specified
@@ -425,7 +424,7 @@ def expand_algorithms_with_variants(
                 name=f"GraphBrewOrder_{variant}",
                 option_string=option_str,
                 variant=variant,
-                resolution=leiden_resolution
+                resolution=-1.0  # -1 indicates auto-resolution
             ))
         elif algo_id == 8:
             # RabbitOrder: use specified variant (default: csr)
@@ -438,13 +437,13 @@ def expand_algorithms_with_variants(
                 variant=variant
             ))
         elif algo_id == 15:
-            # LeidenOrder: just resolution
-            option_str = f"{algo_id}:{leiden_resolution}"
+            # LeidenOrder: no parameters (use auto-resolution)
+            option_str = f"{algo_id}"
             configs.append(AlgorithmConfig(
                 algo_id=algo_id,
                 name=base_name,
                 option_string=option_str,
-                resolution=leiden_resolution
+                resolution=-1.0  # -1 indicates auto-resolution
             ))
         else:
             # Non-Leiden algorithms: just use ID
