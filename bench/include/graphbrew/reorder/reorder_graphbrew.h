@@ -488,7 +488,8 @@ void GenerateGraphBrewGVEMappingStandalone(
     size_t num_communities;
     
     if (use_optimized) {
-        auto result = GVELeidenOptCSR<K, WeightT_, NodeID_, DestID_>(g, resolution, 1e-2, 0.8, 10.0, max_iterations, max_passes);
+        // IMPORTANT: Always use double for weight type in Leiden calculations
+        auto result = GVELeidenOptCSR<K, double, NodeID_, DestID_>(g, resolution, 1e-2, 0.8, 10.0, max_iterations, max_passes);
         comm_ids = result.final_community;
         K max_comm = 0;
         for (int64_t v = 0; v < num_nodes; ++v) {
@@ -498,7 +499,8 @@ void GenerateGraphBrewGVEMappingStandalone(
         printf("GVELeidenOpt: %d passes, modularity=%.6f, communities=%zu\n",
                result.total_passes, result.modularity, num_communities);
     } else {
-        auto result = GVELeidenCSR<K, WeightT_, NodeID_, DestID_>(g, resolution, 1e-2, 0.8, 10.0, max_iterations, max_passes);
+        // IMPORTANT: Always use double for weight type in Leiden calculations
+        auto result = GVELeidenCSR<K, double, NodeID_, DestID_>(g, resolution, 1e-2, 0.8, 10.0, max_iterations, max_passes);
         comm_ids = result.final_community;
         K max_comm = 0;
         for (int64_t v = 0; v < num_nodes; ++v) {
