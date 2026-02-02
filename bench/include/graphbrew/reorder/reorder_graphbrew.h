@@ -271,6 +271,15 @@ using ::GetSelectionMode;
 // DEFAULT PARAMETERS
 // ============================================================================
 
+// Unified Leiden defaults - for fair comparison across all Leiden algorithms
+// These match the constants in builder.h
+#ifndef LEIDEN_DEFAULT_ITERATIONS
+#define LEIDEN_DEFAULT_ITERATIONS 20
+#endif
+#ifndef LEIDEN_DEFAULT_PASSES
+#define LEIDEN_DEFAULT_PASSES 10
+#endif
+
 // GraphBrew defaults
 constexpr double DEFAULT_GRAPHBREW_RESOLUTION = 0.75;
 constexpr int DEFAULT_GRAPHBREW_LEVELS = 1;
@@ -460,12 +469,12 @@ void GenerateGraphBrewGVEMappingStandalone(
     
     const int64_t num_nodes = g.num_nodes();
     
-    // Parse options
+    // Parse options - use unified constants from builder.h
     size_t frequency_threshold = 10;
     int final_algo_id = 8;  // RabbitOrder
     double resolution = LeidenAutoResolution<NodeID_, DestID_>(g);
-    int max_iterations = 20;
-    int max_passes = 10;
+    int max_iterations = LEIDEN_DEFAULT_ITERATIONS;
+    int max_passes = LEIDEN_DEFAULT_PASSES;
     
     if (!reordering_options.empty()) {
         frequency_threshold = std::stoi(reordering_options[0]);

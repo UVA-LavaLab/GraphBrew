@@ -131,6 +131,18 @@ using namespace edge_list;
 #define MAX_THREADS 16
 #endif
 
+// ============================================================================
+// UNIFIED LEIDEN DEFAULTS - For fair comparison across all Leiden algorithms
+// ============================================================================
+#ifndef LEIDEN_DEFAULT_ITERATIONS
+/** Number of iterations per Leiden pass - controls local move refinement */
+#define LEIDEN_DEFAULT_ITERATIONS 20
+#endif
+#ifndef LEIDEN_DEFAULT_PASSES
+/** Number of Leiden passes - controls coarsening depth */
+#define LEIDEN_DEFAULT_PASSES 10
+#endif
+
 #include <leiden/main.hxx>
 
 template <typename NodeID_, typename DestID_ = NodeID_,
@@ -2482,9 +2494,9 @@ public:
 
         // Use auto-resolution based on graph density
         double resolution = LeidenAutoResolution<NodeID_, DestID_>(g);
-        int maxIterations = 30;
-        /** Maximum number of passes [10]. */
-        int maxPasses = 30;
+        // Unified defaults across all Leiden algorithms for fair comparison
+        int maxIterations = LEIDEN_DEFAULT_ITERATIONS;
+        int maxPasses = LEIDEN_DEFAULT_PASSES;
 
         if (!reordering_options.empty())
         {
@@ -2760,8 +2772,9 @@ public:
         
         // Default values - use auto-resolution based on graph density
         double resolution = LeidenAutoResolution<NodeID_, DestID_>(g);
-        int max_passes = 1;
-        int max_iterations = 10;
+        // Unified defaults across all Leiden algorithms for fair comparison
+        int max_iterations = LEIDEN_DEFAULT_ITERATIONS;
+        int max_passes = LEIDEN_DEFAULT_PASSES;
         std::string variant = "gve";  // Default to GVE-Leiden (best quality)
         
         // Parse options: variant, resolution, max_iterations, max_passes
@@ -2945,10 +2958,10 @@ public:
         Timer tm;
         int64_t num_nodes = g.num_nodes();
         
-        // Default Leiden parameters
+        // Default Leiden parameters - use unified constants for fair comparison
         double resolution = 1.0;
-        int maxIterations = 20;
-        int maxPasses = 10;
+        int maxIterations = LEIDEN_DEFAULT_ITERATIONS;
+        int maxPasses = LEIDEN_DEFAULT_PASSES;
         
         // Parse options if provided
         if (!reordering_options.empty() && reordering_options[0].size() > 0) {
