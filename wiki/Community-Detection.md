@@ -139,15 +139,27 @@ Controls community granularity:
 
 | Resolution | Effect |
 |------------|--------|
-| < 1.0 | Fewer, larger communities |
+| < 1.0 | Fewer, larger communities (better for high-CV graphs) |
 | 1.0 | Default balance |
 | > 1.0 | More, smaller communities |
 
-```cpp
-// In builder.h
-LeidenOptions opts;
-opts.resolution = 1.0;  // Default
+**Auto-Resolution Formula:**
 ```
+Base: γ = clip(0.5 + 0.25 × log₁₀(avg_degree + 1), 0.5, 1.2)
+
+CV Adjustment (for power-law graphs with CV > 2.0):
+  factor = 2.0 / sqrt(max(2.0, sqrt(cv)))
+  γ = max(0.5, γ × factor)
+```
+
+**Auto-Resolution by Graph Type:**
+| Graph Type | CV | Auto-Resolution |
+|------------|-----|----------------|
+| Social networks (wiki-Talk) | High (~50) | 0.50 |
+| Web graphs | High | 0.50 |
+| Email networks | Medium | 0.52 |
+| Road networks | Low | 0.60 |
+| Co-authorship | Low | 0.77 |
 
 ### Iterations
 
