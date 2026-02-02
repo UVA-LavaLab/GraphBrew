@@ -384,6 +384,12 @@ struct GraphBrewConfig {
                 cfg.final_algo_id = 6;  // HubSortDBG
             }
             
+            // Rabbit variant uses lower resolution (0.5) for coarser communities
+            // This matches RabbitOrder's Louvain-style behavior
+            if (cfg.cluster == GraphBrewCluster::Rabbit) {
+                cfg.resolution = 0.5;  // Override to coarser communities
+            }
+            
             if (options.size() > 1 && !options[1].empty()) {
                 cfg.final_algo_id = std::stoi(options[1]);
             }
@@ -860,6 +866,11 @@ void GenerateGraphBrewMappingUnifiedStandalone(
                 g, new_ids, useOutdeg, internal_options, cfg.num_levels);
             break;
         case graphbrew::GraphBrewCluster::Rabbit:
+            // Rabbit uses GVE-Leiden optimized with coarser communities (resolution=0.5)
+            printf("GraphBrewRabbit: Using GVE-Leiden with RabbitOrder-style coarse communities\n");
+            GenerateGraphBrewGVEMappingStandalone<NodeID_, DestID_, WeightT_, invert>(
+                g, new_ids, useOutdeg, internal_options, cfg.num_levels, false, true);
+            break;
         case graphbrew::GraphBrewCluster::Leiden:
         default:
             GenerateGraphBrewGVEMappingStandalone<NodeID_, DestID_, WeightT_, invert>(

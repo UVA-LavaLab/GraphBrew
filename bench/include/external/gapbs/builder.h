@@ -3685,6 +3685,25 @@ public:
     // ========================================================================
     
     /**
+     * Legacy GraphBrew entry point - delegates to unified implementation.
+     * Previously used external igraph Leiden library, now uses GVE-Leiden.
+     * 
+     * Note: numLevels and recursion params preserved for backward compatibility
+     * but are now handled internally by the unified implementation.
+     */
+    void GenerateGraphBrewMapping(
+        const CSRGraph<NodeID_, DestID_, invert>& g,
+        pvector<NodeID_>& new_ids,
+        bool useOutdeg,
+        std::vector<std::string> reordering_options,
+        int numLevels = 1,
+        bool recursion = false) {
+        // Delegate to unified implementation (GVE-Leiden based)
+        ::GenerateGraphBrewMappingUnifiedStandalone<NodeID_, DestID_, WeightT_, invert>(
+            g, new_ids, useOutdeg, reordering_options);
+    }
+    
+    /**
      * Unified GraphBrew entry point - delegates to standalone implementation.
      * See reorder_graphbrew.h for full implementation.
      */
