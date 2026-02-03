@@ -584,7 +584,7 @@ Memory estimation: `(edges × 24 bytes + nodes × 8 bytes) × 1.5`
 | `--csr-variants LIST` | LeidenCSR variants: gve, gveopt, gveopt2, gveadaptive, gveoptsort, gveturbo, gvefast, gvedendo, gveoptdendo, gverabbit, dfs, bfs, hubsort, modularity |
 | `--dendrogram-variants LIST` | LeidenDendrogram variants: dfs, dfshub, dfssize, bfs, hybrid |
 | `--rabbit-variants LIST` | RabbitOrder variants: csr (default), boost (requires libboost-graph-dev) |
-| `--resolution VALUE` | Leiden resolution: auto, dynamic, dynamic_2.0, or fixed (1.5) (default: auto) |
+| `--resolution VALUE` | Leiden resolution: dynamic (default, best PR), auto, fixed (1.5), dynamic_2.0 |
 | `--passes INT` | LeidenCSR refinement passes - higher = better quality (default: 3) |
 
 > **Note:** Specifying any variant list (e.g., `--csr-variants gve`) automatically enables variant expansion.

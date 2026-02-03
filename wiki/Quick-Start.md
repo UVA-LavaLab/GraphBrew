@@ -56,7 +56,7 @@ This will automatically:
 | `--csr-variants LIST` | LeidenCSR variants: gve, gveopt, gveopt2, gveadaptive, gveoptsort, gveturbo, gvefast, gvedendo, gveoptdendo, gverabbit |
 | `--dendrogram-variants LIST` | LeidenDendrogram variants: dfs, dfshub, dfssize, bfs, hybrid |
 | `--rabbit-variants LIST` | RabbitOrder variants: csr (default), boost (requires libboost-graph-dev) |
-| `--resolution VALUE` | Leiden resolution: auto, dynamic, dynamic_2.0, or fixed (1.5) (default: auto) |
+| `--resolution VALUE` | Leiden resolution: dynamic (default, best PR), auto, fixed (1.5), dynamic_2.0 |
 | `--passes INT` | LeidenCSR refinement passes (default: 3) |
 
 ### Size Categories

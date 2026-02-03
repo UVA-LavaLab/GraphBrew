@@ -902,12 +902,12 @@ Parameter Syntax for Composite Algorithms:
                     Options: 0-11 (any basic/community algorithm)
     <intra_algo>  : Algorithm for per-community reordering (default: 8)
                     Options: 0-17 (any algorithm including Leiden variants)
-    <resolution>  : Leiden resolution parameter (default: 1.0)
+    <resolution>  : Leiden resolution parameter (default: dynamic)
     
     Examples:
       -o 12                    # Default: frequency=10, intra=RabbitOrder
       -o 12:10:16              # Use LeidenDendrogram for per-community ordering
-      -o 12:10:16:0.5          # Use LeidenDendrogram with resolution 0.5
+      -o 12:10:16:dynamic      # Use LeidenDendrogram with dynamic resolution
       
   AdaptiveOrder (14) - Automatically selects optimal algorithm using ML
     Uses graph features (modularity, density, degree variance) to predict
