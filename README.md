@@ -76,11 +76,14 @@ Choosing the right reordering algorithm depends on your graph characteristics. F
 # Use LeidenCSR with GVE-Leiden (default, best quality)
 ./bench/bin/pr -f graph.mtx -o 17
 
-# Use LeidenCSR with explicit GVE-Leiden parameters
-./bench/bin/pr -f graph.mtx -o 17:gve:1.0:20:5
+# Use LeidenCSR with CSR-based aggregation (best overall)
+./bench/bin/pr -f graph.mtx -o 17:gveopt2:auto
 
-# Use LeidenCSR with cache-optimized GVE (faster on large graphs)
-./bench/bin/pr -f graph.mtx -o 17:gveopt:1.0:20:5
+# Use LeidenCSR with dynamic resolution (best for unknown graphs)
+./bench/bin/pr -f graph.mtx -o 17:gveadaptive:dynamic
+
+# Use LeidenCSR with fixed resolution 2.0 (best PR performance)
+./bench/bin/pr -f graph.mtx -o 17:gveopt2:2.0
 
 # Use LeidenCSR with GVE-Rabbit hybrid (fastest, good quality)
 ./bench/bin/pr -f graph.mtx -o 17:gverabbit:1.0:5

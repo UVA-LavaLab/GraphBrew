@@ -137,11 +137,25 @@ Community sizes:
 
 Controls community granularity:
 
-| Resolution | Effect |
-|------------|--------|
-| < 1.0 | Fewer, larger communities (better for high-CV graphs) |
-| 1.0 | Default balance |
-| > 1.0 | More, smaller communities |
+| Resolution | Effect | Best For |
+|------------|--------|----------|
+| < 1.0 | Fewer, larger communities | True community detection, high modularity |
+| 1.0 | Default balance | General use |
+| > 1.0 | More, smaller communities | **Cache locality / graph reordering** |
+
+**Key Insight: Resolution Trade-off**
+
+For **graph reordering** (optimizing cache locality for algorithms like PageRank), higher resolution often produces better results:
+
+| Resolution | Modularity | PR Execution | Use Case |
+|------------|-----------|--------------|----------|
+| 0.3-0.5 | High (0.66-0.74) | Slower | Finding "true" communities |
+| 1.0-2.0 | Lower (0.55-0.59) | **Faster** | Cache locality optimization |
+
+This is because:
+- Low resolution creates giant communities (high internal density = good modularity)
+- But giant communities are too big for cache → poor locality → slow algorithms
+- Higher resolution creates balanced, cache-sized communities → faster execution
 
 **Auto-Resolution Formula:**
 ```
@@ -160,6 +174,22 @@ CV Adjustment (for power-law graphs with CV > 2.0):
 | Email networks | Medium | 0.52 |
 | Road networks | Low | 0.60 |
 | Co-authorship | Low | 0.77 |
+
+### Dynamic/Adaptive Resolution
+
+The **GVEAdaptive** variant (Algorithm 17:gveadaptive) dynamically adjusts resolution at each Leiden pass based on runtime metrics:
+
+1. **Community reduction rate** - If reducing too fast → raise resolution
+2. **Size imbalance** - If giant communities exist → raise resolution to break them
+3. **Convergence speed** - If converges in 1 iteration → communities too stable, raise resolution
+4. **Super-graph density** - Denser super-graphs need higher resolution
+
+Example evolution on wiki-Talk:
+```
+Pass 0: res=0.500 → 2.4M→64K comms, imbalance=1600x → next_res=1.07
+Pass 1: res=1.070 → 64K→4K comms, imbalance=720x  → next_res=1.50
+Pass 2: res=1.500 → 4K→3K comms, imbalance=540x   → next_res=2.26
+```
 
 ### Iterations
 
@@ -206,17 +236,69 @@ Dendrogram traversal with variants:
 
 Fast CSR-native Leiden (no graph conversion):
 1. Community detection directly on CSR graph
-2. Apply ordering variant (gve/gveopt/gverabbit/dfs/bfs/hubsort/fast/modularity)
+2. Apply ordering variant
 
-**Variants:**
-- `gve`: GVE-Leiden algorithm (default) - 3-phase: local move, refine, aggregate
-- `gveopt`: Cache-optimized GVE with prefetching and flat arrays (faster on large graphs)
-- `gverabbit`: GVE-Leiden with RabbitOrder-style intra-community ordering
-- `dfs`: Hierarchical DFS
-- `bfs`: Level-first BFS
-- `hubsort`: Community + degree sort
-- `fast`: Union-Find + Label Propagation
-- `modularity`: True Leiden with modularity optimization
+**Variants (Best to Try First):**
+
+| Variant | Description | Speed | Quality | Recommendation |
+|---------|-------------|-------|---------|----------------|
+| `gveopt2` | **CSR-based aggregation** | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | **Best overall** |
+| `gveadaptive` | **Dynamic resolution** | ⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | **Unknown graphs** |
+| `gve` | Standard GVE-Leiden | ⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | Default |
+| `gveopt` | Cache-optimized GVE | ⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | Large graphs |
+| `gveoptsort` | Multi-level sort | ⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | Hierarchical |
+| `gveturbo` | Speed-optimized | ⭐⭐⭐⭐⭐ | ⭐⭐⭐ | Speed priority |
+| `gvefast` | CSR buffer reuse | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | Large graphs |
+| `gverabbit` | GVE-Rabbit hybrid | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐ | Very large graphs |
+
+**Resolution Modes:**
+
+| Mode | Syntax | Description |
+|------|--------|-------------|
+| Fixed | `1.5` | Use specified value |
+| Auto | `auto` or `0` | Compute from graph density/CV |
+| Dynamic | `dynamic` | Auto initial, adjust each pass |
+| Dynamic+Init | `dynamic_2.0` | Start at 2.0, adjust each pass |
+
+**Example usage:**
+```bash
+# Fixed resolution (1.5-2.0 often best for social networks)
+./bench/bin/pr -f graph.mtx -s -o 17:gveopt2:2.0 -n 3
+
+# Auto resolution (recommended for unknown graphs)
+./bench/bin/pr -f graph.mtx -s -o 17:gveopt2:auto -n 3
+
+# Dynamic resolution (gveadaptive only)
+./bench/bin/pr -f graph.mtx -s -o 17:gveadaptive:dynamic -n 3
+
+# Dynamic with initial value
+./bench/bin/pr -f graph.mtx -s -o 17:gveadaptive:dynamic_2.0 -n 3
+
+# Standard GVE-Leiden with explicit parameters
+./bench/bin/pr -f graph.mtx -s -o 17:gve:1.0:20:10 -n 3
+```
+
+**Benchmark Results (wiki-Talk: 2.4M nodes):**
+
+| Variant | Reorder Time | PR Execution | vs LeidenOrder |
+|---------|--------------|--------------|----------------|
+| LeidenOrder (15) | 1.62s | 0.042s | baseline |
+| GVEOpt2 res=2.0 | 1.29s | **0.033s** | **21% faster PR** |
+| GVEAdaptive res=2.0 | **1.14s** | 0.035s | **30% faster reorder** |
+
+**Comprehensive Benchmark Results (as-Skitter: 1.7M nodes, 11M edges):**
+
+| Variant | Description | Reorder(s) | PR Time(s) | Modularity |
+|---------|-------------|------------|------------|------------|
+| gve | Standard GVE-Leiden | 3.70 | 0.082 | 0.881 |
+| gveopt | Cache-optimized | 1.95 | 0.090 | 0.892 |
+| **gveopt2** | **CSR aggregation** | **1.44** | **0.070** | 0.858 |
+| gveadaptive | Dynamic resolution | 1.55 | 0.138 | 0.857 |
+| gveoptsort | Multi-level sort | 1.72 | 0.095 | 0.893 |
+| **gveturbo** | **Speed-optimized** | **0.77** | 0.076 | 0.873 |
+| gvefast | CSR buffer reuse | 0.40 | - | 0.768 |
+
+*Takeaway*: `gveopt2` offers the best balance of speed and PR performance. `gveturbo` is fastest for reordering.
 
 ---
 

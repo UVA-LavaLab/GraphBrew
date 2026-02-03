@@ -319,7 +319,7 @@ The JSON uses algorithm names, which map to IDs:
 | 14 | AdaptiveOrder | This perceptron model |
 | 15 | LeidenOrder | Basic Leiden ordering (via igraph) |
 | 16 | LeidenDendrogram | Leiden + Dendrogram traversal (variants: dfs/dfshub/dfssize/bfs/hybrid) |
-| 17 | LeidenCSR | Fast CSR-native Leiden (variants: gve/gveopt/gverabbit/dfs/bfs/hubsort/modularity, default: gve) |
+| 17 | LeidenCSR | Fast CSR-native Leiden (variants: gve/gveopt/gveopt2/gveadaptive/gveturbo/gvefast/gverabbit/dfs/bfs/hubsort/modularity, default: gve) |
 
 ---
 

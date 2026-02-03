@@ -1443,6 +1443,119 @@ double computeAutoResolution(const CSRGraph<NodeID_, DestID_, true>& g) {
 }
 
 // ============================================================================
+// UNIFIED RESOLUTION CONFIGURATION
+// ============================================================================
+
+/**
+ * @brief Resolution mode for Leiden-based algorithms
+ */
+enum class ResolutionMode {
+    FIXED,      ///< Use user-specified fixed value
+    AUTO,       ///< Compute from graph properties (computeAutoResolution)
+    DYNAMIC     ///< Adjust per-pass based on runtime metrics (GVELeidenAdaptiveCSR)
+};
+
+/**
+ * @brief Resolution configuration parsed from command-line options
+ */
+struct ResolutionConfig {
+    ResolutionMode mode = ResolutionMode::AUTO;
+    double value = 1.0;           ///< Used if FIXED or computed if AUTO
+    double initial_value = 1.0;   ///< Starting value if DYNAMIC
+    
+    /// Check if dynamic mode is requested
+    bool isDynamic() const { return mode == ResolutionMode::DYNAMIC; }
+    
+    /// Get the effective resolution value (for non-dynamic algorithms)
+    double getResolution() const {
+        return (mode == ResolutionMode::DYNAMIC) ? initial_value : value;
+    }
+};
+
+/**
+ * @brief Parse resolution from command-line option string
+ * 
+ * Supports multiple formats:
+ *   - "auto" or "0" or empty → AUTO mode (compute from graph)
+ *   - "dynamic" → DYNAMIC mode with auto-computed initial
+ *   - "dynamic_2.0" → DYNAMIC mode with specified initial value (use _ not :)
+ *   - "1.5" → FIXED mode with value 1.5
+ *   - ">3.0" → AUTO mode (legacy: values >3 trigger auto)
+ * 
+ * @tparam NodeID_T Node ID type
+ * @tparam DestID_T Destination ID type
+ * @param option Option string from command line
+ * @param g CSR graph (used for auto-resolution computation)
+ * @return ResolutionConfig with parsed mode and values
+ */
+template <typename NodeID_T, typename DestID_T>
+ResolutionConfig parseResolution(
+    const std::string& option,
+    const CSRGraph<NodeID_T, DestID_T, true>& g) {
+    
+    ResolutionConfig cfg;
+    
+    // Empty or "auto" or "0" → AUTO mode
+    if (option.empty() || option == "auto" || option == "0") {
+        cfg.mode = ResolutionMode::AUTO;
+        cfg.value = computeAutoResolution<NodeID_T, DestID_T>(g);
+        cfg.initial_value = cfg.value;
+        return cfg;
+    }
+    
+    // "dynamic" or "dynamic_X" → DYNAMIC mode (use underscore to avoid CLI colon issues)
+    if (option.rfind("dynamic", 0) == 0) {  // starts_with
+        cfg.mode = ResolutionMode::DYNAMIC;
+        // Check for underscore delimiter (e.g., "dynamic_2.0")
+        size_t sep_pos = option.find('_');
+        if (sep_pos == std::string::npos) {
+            // Also support colon for programmatic use (e.g., "dynamic:2.0")
+            sep_pos = option.find(':');
+        }
+        if (sep_pos != std::string::npos && sep_pos + 1 < option.size()) {
+            cfg.initial_value = std::stod(option.substr(sep_pos + 1));
+        } else {
+            cfg.initial_value = computeAutoResolution<NodeID_T, DestID_T>(g);
+        }
+        cfg.value = cfg.initial_value;
+        return cfg;
+    }
+    
+    // Numeric value
+    try {
+        double parsed = std::stod(option);
+        if (parsed > 3.0 || parsed <= 0) {
+            // Legacy: values >3 or <=0 trigger auto-resolution
+            cfg.mode = ResolutionMode::AUTO;
+            cfg.value = computeAutoResolution<NodeID_T, DestID_T>(g);
+        } else {
+            cfg.mode = ResolutionMode::FIXED;
+            cfg.value = parsed;
+        }
+        cfg.initial_value = cfg.value;
+    } catch (...) {
+        // Parse error → fallback to AUTO
+        cfg.mode = ResolutionMode::AUTO;
+        cfg.value = computeAutoResolution<NodeID_T, DestID_T>(g);
+        cfg.initial_value = cfg.value;
+    }
+    
+    return cfg;
+}
+
+/**
+ * @brief Get resolution string for logging
+ */
+inline std::string resolutionModeString(ResolutionMode mode) {
+    switch (mode) {
+        case ResolutionMode::FIXED:   return "fixed";
+        case ResolutionMode::AUTO:    return "auto";
+        case ResolutionMode::DYNAMIC: return "dynamic";
+        default: return "unknown";
+    }
+}
+
+// ============================================================================
 // SIGNAL HANDLER FOR DEBUGGING
 // ============================================================================
 

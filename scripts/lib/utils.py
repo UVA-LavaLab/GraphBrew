@@ -85,12 +85,33 @@ GRAPHBREW_DEFAULT_VARIANT = "leiden"  # Original Leiden library (backward compat
 LEIDEN_DENDROGRAM_VARIANTS = ["dfs", "dfshub", "dfssize", "bfs", "hybrid"]
 # LeidenCSR variants (default: gve for best quality)
 # Format: -o 17:variant:resolution:iterations:passes
-# gvedendo/gveoptdendo: RabbitOrder-inspired incremental dendrogram building
-LEIDEN_CSR_VARIANTS = ["gve", "gveopt", "gvedendo", "gveoptdendo", "gverabbit", "dfs", "bfs", "hubsort", "modularity"]
+# Resolution modes:
+#   - Fixed: 1.5 (use specified value)
+#   - Auto: "auto" or "0" (compute from graph density/CV)
+#   - Dynamic: "dynamic" (adjust per-pass, gveadaptive only)
+#   - Dynamic+Init: "dynamic_2.0" (start at 2.0, adjust per-pass)
+# New optimized variants:
+#   gveopt2: CSR-based aggregation (fastest reordering, best PR performance)
+#   gveadaptive: Dynamic resolution adjustment (best for unknown graphs)
+#   gveoptsort: Multi-level sort ordering (LeidenOrder-style)
+#   gveturbo: Speed-optimized (optional refinement skip)
+#   gvefast: CSR buffer reuse (leiden.hxx style)
+# Legacy variants: gvedendo/gveoptdendo (incremental dendrogram)
+LEIDEN_CSR_VARIANTS = [
+    "gve", "gveopt", "gveopt2", "gveadaptive", "gveoptsort", "gveturbo", "gvefast",
+    "gvedendo", "gveoptdendo", "gverabbit", "dfs", "bfs", "hubsort", "modularity"
+]
 LEIDEN_CSR_DEFAULT_VARIANT = "gve"  # GVE-Leiden (best modularity quality)
 
+# Recommended variants for different use cases
+LEIDEN_CSR_FAST_VARIANTS = ["gveopt2", "gveadaptive", "gveturbo", "gvefast", "gverabbit"]  # Speed priority
+LEIDEN_CSR_QUALITY_VARIANTS = ["gve", "gveopt", "gveopt2", "gveadaptive"]  # Quality priority
+
+# Resolution modes
+LEIDEN_RESOLUTION_MODES = ["auto", "dynamic", "1.0", "1.5", "2.0"]
+
 # Leiden default parameters
-LEIDEN_DEFAULT_RESOLUTION = 1.0
+LEIDEN_DEFAULT_RESOLUTION = "auto"  # Auto-compute from graph
 LEIDEN_DEFAULT_PASSES = 3
 
 # Benchmark definitions

@@ -75,9 +75,9 @@ class AlgorithmConfig:
     """Configuration for an algorithm, including variant support."""
     algo_id: int           # Base algorithm ID (e.g., 17 for LeidenCSR)
     name: str              # Display name (e.g., "LeidenCSR_gve")
-    option_string: str     # Full option string for -o flag (e.g., "17:gve:1.0:20:10")
+    option_string: str     # Full option string for -o flag (e.g., "17:gve:auto:20:10")
     variant: str = ""      # Variant name if applicable (e.g., "gve")
-    resolution: float = 1.0
+    resolution: str = "auto"  # Resolution: "auto", "dynamic", "1.0", etc.
     passes: int = 10
     
     @property
@@ -137,7 +137,7 @@ def get_algorithm_name_with_variant(algo_id: int, variant: str = None) -> str:
 def expand_algorithms_with_variants(
     algorithms: List[int],
     expand_leiden_variants: bool = False,
-    leiden_resolution: float = LEIDEN_DEFAULT_RESOLUTION,
+    leiden_resolution: str = LEIDEN_DEFAULT_RESOLUTION,
     leiden_passes: int = LEIDEN_DEFAULT_PASSES,
     leiden_csr_variants: List[str] = None,
     leiden_dendrogram_variants: List[str] = None,

@@ -168,7 +168,16 @@ Use with `-o <id>`:
 | 14 | AdaptiveOrder | ML |
 | 15 | LeidenOrder | Leiden (igraph) |
 | 16 | LeidenDendrogram | Leiden (variants: dfs/dfshub/dfssize/bfs/hybrid) |
-| 17 | LeidenCSR | Leiden (variants: gve/gveopt/gverabbit/dfs/bfs/hubsort/fast/modularity, default: gve) |
+| 17 | LeidenCSR | Leiden (variants: gve/gveopt/gveopt2/gveadaptive/gvefast/gverabbit/...) |
+
+### LeidenCSR Resolution Modes (Algorithm 17)
+
+| Mode | Syntax | Example | Description |
+|------|--------|---------|-------------|
+| **Fixed** | `<value>` | `-o 17:gveopt2:1.5` | Use specified resolution |
+| **Auto** | `auto` or `0` | `-o 17:gveopt2:auto` | Compute from graph density |
+| **Dynamic** | `dynamic` | `-o 17:gveadaptive:dynamic` | Auto initial, adjust per-pass |
+| **Dynamic+Init** | `dynamic_<val>` | `-o 17:gveadaptive:dynamic_2.0` | Start at value, adjust per-pass |
 
 ### GraphBrewOrder Variants (Algorithm 12)
 
@@ -572,10 +581,10 @@ Memory estimation: `(edges × 24 bytes + nodes × 8 bytes) × 1.5`
 |--------|-------------|
 | `--all-variants` | Test ALL algorithm variants (Leiden, RabbitOrder, GraphBrewOrder) instead of defaults |
 | `--graphbrew-variants LIST` | GraphBrewOrder variants: leiden (default), gve, gveopt, gvefast, gveoptfast, rabbit, hubcluster |
-| `--csr-variants LIST` | LeidenCSR variants: gve (default), gveopt, gverabbit, dfs, bfs, hubsort, modularity |
+| `--csr-variants LIST` | LeidenCSR variants: gve, gveopt, gveopt2, gveadaptive, gveoptsort, gveturbo, gvefast, gvedendo, gveoptdendo, gverabbit, dfs, bfs, hubsort, modularity |
 | `--dendrogram-variants LIST` | LeidenDendrogram variants: dfs, dfshub, dfssize, bfs, hybrid |
 | `--rabbit-variants LIST` | RabbitOrder variants: csr (default), boost (requires libboost-graph-dev) |
-| `--resolution FLOAT` | Leiden resolution - higher = more communities (default: 1.0) |
+| `--resolution VALUE` | Leiden resolution: auto, dynamic, dynamic_2.0, or fixed (1.5) (default: auto) |
 | `--passes INT` | LeidenCSR refinement passes - higher = better quality (default: 3) |
 
 > **Note:** Specifying any variant list (e.g., `--csr-variants gve`) automatically enables variant expansion.

@@ -347,6 +347,11 @@ struct GraphBrewConfig {
      * 1. New format: cluster_variant:final_algo:resolution:levels
      * 2. Old format: frequency_threshold:final_algo:resolution:iterations:passes
      * 
+     * Resolution can be:
+     * - Numeric value (e.g., "1.5")
+     * - "auto" or "0" for auto-computed resolution
+     * - "dynamic" for dynamic resolution (only with gveadaptive)
+     * 
      * @param options Vector of option strings
      * @param auto_resolution Default resolution if not specified
      * @return Parsed configuration
@@ -371,8 +376,18 @@ struct GraphBrewConfig {
                 cfg.final_algo_id = std::stoi(options[1]);
             }
             if (options.size() > 2 && !options[2].empty()) {
-                cfg.resolution = std::stod(options[2]);
-                if (cfg.resolution > 3) cfg.resolution = 1.0;
+                const std::string& res_opt = options[2];
+                // Support "auto" keyword
+                if (res_opt == "auto" || res_opt == "0") {
+                    // Keep auto_resolution
+                } else if (res_opt.rfind("dynamic", 0) == 0) {
+                    // Dynamic mode - keep auto_resolution as initial
+                } else {
+                    cfg.resolution = std::stod(res_opt);
+                    if (cfg.resolution > 3 || cfg.resolution <= 0) {
+                        cfg.resolution = auto_resolution;
+                    }
+                }
             }
             cfg.cluster = GraphBrewCluster::Leiden;
         } else {
@@ -403,8 +418,18 @@ struct GraphBrewConfig {
                 cfg.final_algo_id = std::stoi(options[1]);
             }
             if (options.size() > 2 && !options[2].empty()) {
-                cfg.resolution = std::stod(options[2]);
-                if (cfg.resolution > 3) cfg.resolution = 1.0;
+                const std::string& res_opt = options[2];
+                // Support "auto" and "dynamic" keywords
+                if (res_opt == "auto" || res_opt == "0") {
+                    // Keep auto_resolution
+                } else if (res_opt.rfind("dynamic", 0) == 0) {
+                    // Dynamic mode - keep auto_resolution, algorithm handles it
+                } else {
+                    cfg.resolution = std::stod(res_opt);
+                    if (cfg.resolution > 3 || cfg.resolution <= 0) {
+                        cfg.resolution = auto_resolution;
+                    }
+                }
             }
             if (options.size() > 3 && !options[3].empty()) {
                 cfg.num_levels = std::stoi(options[3]);

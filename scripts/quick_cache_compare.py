@@ -6,7 +6,7 @@ Quick Cache Comparison - Compare GVE Variants vs RabbitOrder
 Runs cache simulation benchmarks comparing different community detection
 variants to measure their impact on cache performance:
 
-- GVE-Leiden variants (gve, gveopt, gvedendo, gveoptdendo)
+- GVE-Leiden variants (gve, gveopt, gveopt2, gveadaptive, gvedendo, gveoptdendo)
 - RabbitOrder variants (csr, boost)
 
 Outputs:
@@ -31,12 +31,19 @@ import os
 from pathlib import Path
 
 # Config
-GRAPHS = ["web-Google", "web-BerkStan", "as-Skitter"]  # Start with smaller graphs
+GRAPHS = ["web-Google", "web-BerkStan", "as-Skitter", "wiki-Talk", "roadNet-CA"]  # Variety of graph types
 VARIANTS = [
-    ("17:gve:1.0:20:3", "GVE"),
-    ("17:gveopt:1.0:20:3", "GVEOpt"),
-    ("17:gvedendo:1.0:20:3", "GVEDendo"),
-    ("17:gveoptdendo:1.0:20:3", "GVEOptDendo"),
+    ("17:gve:auto", "GVE-Auto"),
+    ("17:gveopt:auto", "GVEOpt-Auto"),
+    ("17:gveopt2:auto", "GVEOpt2-Auto"),          # CSR-based aggregation, auto resolution
+    ("17:gveopt2:2.0", "GVEOpt2-R2.0"),           # CSR-based aggregation, fixed resolution
+    ("17:gveadaptive:dynamic", "GVEAdaptive"),    # Dynamic resolution adjustment
+    ("17:gveadaptive:dynamic_2.0", "GVEAdaptive-2.0"),  # Dynamic starting at 2.0
+    ("17:gveoptsort:auto", "GVEOptSort"),         # Multi-level sort
+    ("17:gveturbo:auto", "GVETurbo"),             # Speed-optimized
+    ("17:gvefast:auto", "GVEFast"),               # CSR buffer reuse
+    ("17:gvedendo:auto", "GVEDendo"),
+    ("17:gveoptdendo:auto", "GVEOptDendo"),
     ("8:csr", "RabbitCSR"),
     ("8:boost", "RabbitBoost"),
 ]

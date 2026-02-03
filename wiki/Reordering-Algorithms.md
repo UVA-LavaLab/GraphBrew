@@ -384,9 +384,12 @@ Implements the full Leiden algorithm from: *"Fast Leiden Algorithm for Community
 # Format: -o 17[:variant:resolution:iterations:passes]
 ./bench/bin/pr -f graph.el -s -o 17 -n 3                    # Default: GVE-Leiden (best quality)
 ./bench/bin/pr -f graph.el -s -o 17:gve:1.0:20:5 -n 3       # GVE-Leiden explicit params
-./bench/bin/pr -f graph.el -s -o 17:gveopt:1.0:20:5 -n 3    # Cache-optimized GVE
+./bench/bin/pr -f graph.el -s -o 17:gveopt:auto -n 3        # Cache-optimized GVE, auto resolution
+./bench/bin/pr -f graph.el -s -o 17:gveopt2:2.0:20:10 -n 3  # CSR-based aggregation (fastest)
+./bench/bin/pr -f graph.el -s -o 17:gveadaptive:dynamic -n 3 # Dynamic resolution adjustment
 ./bench/bin/pr -f graph.el -s -o 17:gvedendo:1.0:20:5 -n 3  # GVE with incremental dendrogram
-./bench/bin/pr -f graph.el -s -o 17:gveoptdendo:1.0:20:5 -n 3 # GVEopt with incremental dendrogram
+./bench/bin/pr -f graph.el -s -o 17:gveoptsort:auto -n 3    # Multi-level sort ordering
+./bench/bin/pr -f graph.el -s -o 17:gveturbo:1.0:5:10 -n 3  # Speed-optimized (skip refinement)
 ./bench/bin/pr -f graph.el -s -o 17:gverabbit:1.0:5 -n 3    # GVE-Rabbit hybrid (fast)
 ./bench/bin/pr -f graph.el -s -o 17:hubsort:1.0:10:3 -n 3   # Hub-sorted variant
 ./bench/bin/pr -f graph.el -s -o 17:fast:1.0:10:2 -n 3      # Union-Find + Label Prop
@@ -394,21 +397,87 @@ Implements the full Leiden algorithm from: *"Fast Leiden Algorithm for Community
 ./bench/bin/pr -f graph.el -s -o 17:bfs:1.0:10:1 -n 3       # BFS ordering
 ```
 
-**Variants:**
-| Variant | Description | Speed | Quality |
-|---------|-------------|-------|---------|
-| `gve` | **GVE-Leiden with refinement (DEFAULT)** | Fast | **Best** |
-| `gveopt` | Cache-optimized GVE with prefetching | **Faster** | **Best** |
-| `gvedendo` | GVE with RabbitOrder-style incremental dendrogram | Fast | **Best** |
-| `gveoptdendo` | GVEopt with incremental dendrogram | **Faster** | **Best** |
-| `gverabbit` | **GVE-Rabbit hybrid (limited iterations, single pass)** | **Fastest** | Good |
-| `dfs` | Hierarchical DFS | Fast | Good |
-| `bfs` | Level-first BFS | Fast | Good |
-| `hubsort` | Community + degree sort | Fast | Good |
-| `fast` | Union-Find + Label Propagation | Very Fast | Moderate |
-| `modularity` | Modularity optimization | Fast | Good |
+**Resolution Parameter Modes:**
 
-**GVE-Dendo Variants (New)**:
+| Mode | Syntax | Description |
+|------|--------|-------------|
+| **Fixed** | `1.5` | Use specified resolution value |
+| **Auto** | `auto` or `0` | Compute from graph density and CV |
+| **Dynamic** | `dynamic` | Auto initial, adjust per-pass (gveadaptive only) |
+| **Dynamic+Initial** | `dynamic_2.0` | Start at 2.0, adjust per-pass |
+
+```bash
+# Resolution modes examples
+./bench/bin/pr -f graph.el -s -o 17:gveopt2:1.5 -n 3       # Fixed resolution
+./bench/bin/pr -f graph.el -s -o 17:gveopt2:auto -n 3      # Auto-computed resolution
+./bench/bin/pr -f graph.el -s -o 17:gveopt2:0 -n 3         # Same as auto
+./bench/bin/pr -f graph.el -s -o 17:gveadaptive:dynamic -n 3      # Dynamic adjustment
+./bench/bin/pr -f graph.el -s -o 17:gveadaptive:dynamic_2.0 -n 3  # Dynamic, start at 2.0
+```
+
+**Variants:**
+| Variant | Description | Speed | Quality | Best For |
+|---------|-------------|-------|---------|----------|
+| `gve` | **GVE-Leiden with refinement (DEFAULT)** | Fast | **Best** | General use |
+| `gveopt` | Cache-optimized GVE with prefetching | **Faster** | **Best** | Large graphs |
+| `gveopt2` | **CSR-based aggregation (no sort)** | **Fastest** | **Best** | Best overall ⭐ |
+| `gveadaptive` | **Dynamic resolution adjustment** | Fast | **Best** | Unknown graphs ⭐ |
+| `gveoptsort` | Multi-level sort ordering (LeidenOrder-style) | Fast | **Best** | Hierarchical |
+| `gveturbo` | Speed-optimized (optional refinement skip) | **Fastest** | Good | Speed priority |
+| `gvedendo` | GVE with incremental dendrogram | Fast | **Best** | Dendrogram needs |
+| `gveoptdendo` | GVEopt with incremental dendrogram | **Faster** | **Best** | Dendrogram needs |
+| `gvefast` | CSR buffer reuse (leiden.hxx style) | **Fastest** | **Best** | Large graphs |
+| `gverabbit` | GVE-Rabbit hybrid (limited iterations) | **Fastest** | Good | Very large graphs |
+| `dfs` | Hierarchical DFS | Fast | Good | Tree structures |
+| `bfs` | Level-first BFS | Fast | Good | Wide hierarchies |
+| `hubsort` | Community + degree sort | Fast | Good | Power-law graphs |
+| `fast` | Union-Find + Label Propagation | Very Fast | Moderate | Speed priority |
+| `modularity` | Modularity optimization | Fast | Good | Quality focus |
+
+**New Optimized Variants (GVEOpt2 & GVEAdaptive)**:
+
+**GVEOpt2** - CSR-based aggregation replaces O(E log E) sort with O(E) community-first scanning:
+```bash
+# Auto-resolution (recommended for unknown graphs)
+./bench/bin/pr -f graph.mtx -s -o 17:gveopt2:auto -n 3
+
+# Fixed resolution (1.5-2.0 often best for social networks)
+./bench/bin/pr -f graph.mtx -s -o 17:gveopt2:2.0 -n 3
+```
+
+**GVEAdaptive** - Dynamically adjusts resolution at each pass based on runtime metrics:
+```bash
+# Dynamic mode (auto initial, adjusts each pass)
+./bench/bin/pr -f graph.mtx -s -o 17:gveadaptive:dynamic -n 3
+
+# Dynamic mode with initial resolution 2.0
+./bench/bin/pr -f graph.mtx -s -o 17:gveadaptive:dynamic_2.0 -n 3
+```
+
+The adaptive algorithm monitors 4 signals each pass:
+1. **Community reduction rate** - Too fast? Raise resolution. Too slow? Lower it.
+2. **Size imbalance** - Giant communities? Raise resolution to break them.
+3. **Convergence speed** - 1 iteration? Communities too stable, raise resolution.
+4. **Super-graph density** - Denser graphs need higher resolution.
+
+**Resolution and Cache Locality Trade-off**:
+| Resolution | Modularity | Communities | PR Speed | Best For |
+|------------|-----------|-------------|----------|----------|
+| Low (0.3-0.5) | High (0.66-0.74) | Few large | Slow | True community detection |
+| High (1.0-2.0) | Lower (0.55-0.59) | Many small | **Fast** | Cache locality / reordering |
+
+*Key insight*: For graph reordering, we optimize for **cache locality**, not sociological correctness. Higher resolution creates more balanced communities that fit better in cache.
+
+**Benchmark Results (wiki-Talk: 2.4M nodes, 5M edges)**:
+| Variant | Reorder Time | PR Execution | vs LeidenOrder |
+|---------|--------------|--------------|----------------|
+| LeidenOrder (15) | 1.62s | 0.042s | baseline |
+| GVEOpt2 res=2.0 | 1.29s | **0.033s** | **21% faster PR** |
+| GVEAdaptive res=2.0 | **1.14s** | 0.035s | **30% faster reorder** |
+| GVEOpt | 1.83s | 0.077s | slower |
+| GVETurbo | 1.24s | 0.093s | fast reorder, slow PR |
+
+**GVE-Dendo Variants**:
 The `gvedendo` and `gveoptdendo` variants implement incremental dendrogram building inspired by RabbitOrder's approach:
 - **Standard GVE**: Stores `community_per_pass` history and rebuilds the dendrogram tree in post-processing
 - **GVE-Dendo**: Builds parent-child relationships incrementally during the refinement phase using atomic operations
@@ -429,11 +498,28 @@ The `gvedendo` and `gveoptdendo` variants implement incremental dendrogram build
 | Social networks | 0.650 | 0.788 | +21% |
 | Synthetic (Kronecker) | 0.063 | 0.190 | +3x |
 
+**Comprehensive Variant Benchmark (as-Skitter: 1.7M nodes, 11M edges)**:
+| Variant | Reorder(s) | PR Time(s) | Modularity | Communities |
+|---------|------------|------------|------------|-------------|
+| gve | 3.70 | 0.082 | 0.881 | 12 |
+| gveopt | 1.95 | 0.090 | 0.892 | 675 |
+| **gveopt2** | **1.44** | **0.070** | 0.858 | 1,712 |
+| gveadaptive | 1.55 | 0.138 | 0.857 | 2,066 |
+| gveoptsort | 1.72 | 0.095 | 0.893 | 1,378 |
+| **gveturbo** | **0.77** | 0.076 | 0.873 | 1,480 |
+
+*Key insight*: For **speed priority**, use `gveturbo` or `gveopt2`. For **quality priority**, use `gve` or `gveopt`.
+
 **Sweeping Variants Example:**
 ```bash
 # Sweep all LeidenCSR variants (format: 17:variant:resolution:iterations:passes)
-for variant in gve gveopt gverabbit dfs bfs hubsort fast modularity; do
-    ./bench/bin/pr -f graph.mtx -s -o 17:$variant:1.0:20:5 -n 5
+for variant in gve gveopt gveopt2 gveadaptive gveoptsort gveturbo gvefast gverabbit; do
+    ./bench/bin/pr -f graph.mtx -s -o 17:$variant:1.0:20:10 -n 5
+done
+
+# Resolution sweep for optimal cache locality
+for res in 0.5 1.0 1.5 2.0; do
+    ./bench/bin/pr -f graph.mtx -s -o 17:gveopt2:$res -n 5
 done
 ```
 
@@ -445,20 +531,21 @@ done
 
 | Graph Type | Recommended | Alternatives |
 |------------|-------------|--------------|
-| Social Networks | LeidenDendrogram (16:hybrid) | LeidenCSR (17:hubsort) |
-| Web Graphs | LeidenCSR (17:hubsort) | HUBCLUSTERDBG (7) |
-| Road Networks | ORIGINAL (0), RCM (11) | GORDER (9) |
-| Citation Networks | LeidenOrder (15) | RABBITORDER (8) |
-| Unknown | AdaptiveOrder (14) | LeidenCSR (17) |
+| Social Networks | LeidenCSR (17:gveopt2) | LeidenDendrogram (16:hybrid) |
+| Web Graphs | LeidenCSR (17:gveopt2) | HUBCLUSTERDBG (7) |
+| Road Networks | ORIGINAL (0), RCM (11) | LeidenCSR (17:gveadaptive) |
+| Citation Networks | LeidenCSR (17:gve) | LeidenOrder (15) |
+| Random Geometric | LeidenCSR (17:gveopt2) | DBG (5) |
+| Unknown | LeidenCSR (17:gveadaptive) | AdaptiveOrder (14) |
 
 ### By Graph Size
 
 | Size | Nodes | Recommended |
 |------|-------|-------------|
 | Small | < 100K | Any (try several) |
-| Medium | 100K - 1M | LeidenCSR (17:hubsort) |
-| Large | 1M - 100M | LeidenCSR (17:hubsort), AdaptiveOrder (14) |
-| Very Large | > 100M | HUBCLUSTERDBG (7), LeidenCSR (17:fast) |
+| Medium | 100K - 1M | LeidenCSR (17:gveopt2) |
+| Large | 1M - 100M | LeidenCSR (17:gveopt2), LeidenCSR (17:gveturbo) |
+| Very Large | > 100M | LeidenCSR (17:gveturbo), HUBCLUSTERDBG (7) |
 
 ### Quick Decision Tree
 
