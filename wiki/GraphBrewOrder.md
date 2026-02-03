@@ -171,7 +171,7 @@ Final ordering:
 # Format: -o 12:cluster_variant:final_algo:resolution:levels
 # cluster_variant: leiden (default), gve, gveopt, rabbit, hubcluster, gvefast, gveoptfast
 # final_algo: per-community ordering algorithm ID (default: 8 = RabbitOrder)
-# resolution: Leiden resolution parameter (default: auto based on graph CV)
+# resolution: Leiden resolution parameter (default: dynamic for best PR)
 # levels: recursion depth (default: 1)
 
 # Examples:
@@ -187,7 +187,7 @@ Final ordering:
 # Format: -o 12:freq:algo:resolution:maxIterations:maxPasses
 # freq: frequency threshold for small communities (default: 10)
 # algo: per-community ordering algorithm ID (default: 8 = RabbitOrder)
-# resolution: Leiden resolution parameter (default: auto)
+# resolution: Leiden resolution parameter (default: dynamic)
 
 # Use HubClusterDBG (7) for per-community ordering with resolution 1.0
 ./bench/bin/pr -f graph.el -s -o 12:10:7:1.0

@@ -33,19 +33,32 @@ from pathlib import Path
 # Config
 GRAPHS = ["web-Google", "web-BerkStan", "as-Skitter", "wiki-Talk", "roadNet-CA"]  # Variety of graph types
 VARIANTS = [
-    ("17:gve:auto", "GVE-Auto"),
-    ("17:gveopt:auto", "GVEOpt-Auto"),
-    ("17:gveopt2:auto", "GVEOpt2-Auto"),          # CSR-based aggregation, auto resolution
-    ("17:gveopt2:2.0", "GVEOpt2-R2.0"),           # CSR-based aggregation, fixed resolution
-    ("17:gveadaptive:dynamic", "GVEAdaptive"),    # Dynamic resolution adjustment
+    # GVE variants with different resolutions
+    ("17:gve:dynamic", "GVE-Dynamic"),           # Dynamic resolution (best PR)
+    ("17:gve:auto", "GVE-Auto"),                 # Auto-computed resolution
+    ("17:gveopt:dynamic", "GVEOpt-Dynamic"),     # Cache-optimized, dynamic
+    ("17:gveopt:auto", "GVEOpt-Auto"),           # Cache-optimized, auto
+    ("17:gveopt2:dynamic", "GVEOpt2-Dynamic"),   # CSR aggregation, dynamic (BEST)
+    ("17:gveopt2:auto", "GVEOpt2-Auto"),         # CSR aggregation, auto
+    ("17:gveopt2:2.0", "GVEOpt2-R2.0"),          # CSR aggregation, fixed high
+    ("17:gveadaptive:dynamic", "GVEAdaptive"),   # Dynamic resolution adjustment
     ("17:gveadaptive:dynamic_2.0", "GVEAdaptive-2.0"),  # Dynamic starting at 2.0
-    ("17:gveoptsort:auto", "GVEOptSort"),         # Multi-level sort
-    ("17:gveturbo:auto", "GVETurbo"),             # Speed-optimized
-    ("17:gvefast:auto", "GVEFast"),               # CSR buffer reuse
-    ("17:gvedendo:auto", "GVEDendo"),
-    ("17:gveoptdendo:auto", "GVEOptDendo"),
-    ("8:csr", "RabbitCSR"),
-    ("8:boost", "RabbitBoost"),
+    ("17:gveoptsort:dynamic", "GVEOptSort"),     # Multi-level sort
+    ("17:gveturbo:dynamic", "GVETurbo"),         # Speed-optimized
+    ("17:gvefast:dynamic", "GVEFast"),           # CSR buffer reuse
+    ("17:gvedendo:auto", "GVEDendo"),            # Incremental dendrogram
+    ("17:gveoptdendo:auto", "GVEOptDendo"),      # Opt + dendrogram
+    ("17:gverabbit:auto", "GVERabbit"),          # GVE-Rabbit hybrid (fastest)
+    # Alternative ordering strategies
+    ("17:dfs:dynamic", "LeidenDFS"),             # DFS ordering
+    ("17:bfs:dynamic", "LeidenBFS"),             # BFS ordering  
+    ("17:hubsort:dynamic", "LeidenHubSort"),     # Hub-sorted
+    ("17:modularity:dynamic", "LeidenModularity"), # Modularity optimization
+    # RabbitOrder variants
+    ("8:csr", "RabbitCSR"),                      # Native CSR (fast, no deps)
+    ("8:boost", "RabbitBoost"),                  # Boost-based
+    # LeidenOrder baseline
+    ("15", "LeidenOrder"),                       # Original igraph Leiden
 ]
 BENCHMARKS = ["pr"]  # Just PR for now
 BIN_SIM = "bench/bin_sim"

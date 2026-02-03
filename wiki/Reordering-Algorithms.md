@@ -268,7 +268,7 @@ Larger window = better quality, slower computation
 - **Parameters**:
   - `frequency`: Hub frequency threshold (default: 10) - controls how edges are categorized
   - `intra_algo`: Algorithm ID to use within communities (default: 8 = RabbitOrder)
-  - `resolution`: Leiden resolution parameter (default: auto based on density)
+  - `resolution`: Leiden resolution parameter (default: dynamic for best PR performance)
   - `maxIterations`: Maximum Leiden iterations (default: 30)
   - `maxPasses`: Maximum Leiden passes (default: 30)
 - **Dynamic thresholds**: Community size thresholds are computed dynamically based on `avg_community_size/4` and `sqrt(N)`

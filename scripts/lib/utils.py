@@ -111,7 +111,9 @@ LEIDEN_CSR_QUALITY_VARIANTS = ["gve", "gveopt", "gveopt2", "gveadaptive"]  # Qua
 LEIDEN_RESOLUTION_MODES = ["auto", "dynamic", "1.0", "1.5", "2.0"]
 
 # Leiden default parameters
-LEIDEN_DEFAULT_RESOLUTION = "auto"  # Auto-compute from graph
+# "dynamic" gives best PR performance on most graphs (especially web graphs)
+# "auto" is good for unknown graphs, fixed values for specific tuning
+LEIDEN_DEFAULT_RESOLUTION = "dynamic"  # Dynamic adjustment per-pass
 LEIDEN_DEFAULT_PASSES = 3
 
 # Benchmark definitions

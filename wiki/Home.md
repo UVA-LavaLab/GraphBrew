@@ -111,14 +111,14 @@ make all
 # Run PageRank with LeidenCSR reordering (GVE-Leiden, default)
 ./bench/bin/pr -f your_graph.el -s -o 17 -n 3
 
-# Run PageRank with LeidenCSR (best overall: gveopt2 with auto resolution)
-./bench/bin/pr -f your_graph.el -s -o 17:gveopt2:auto -n 3
+# Run PageRank with LeidenCSR (best overall: gveopt2 with dynamic resolution)
+./bench/bin/pr -f your_graph.el -s -o 17:gveopt2:dynamic -n 3
 
-# Run PageRank with dynamic resolution (best for unknown graphs)
-./bench/bin/pr -f your_graph.el -s -o 17:gveadaptive:dynamic -n 3
+# Run PageRank with auto resolution (good for unknown graphs)
+./bench/bin/pr -f your_graph.el -s -o 17:gveadaptive:auto -n 3
 
 # Run PageRank with LeidenDendrogram (format: 16:variant:resolution)  
-./bench/bin/pr -f your_graph.el -s -o 16:hybrid:1.0 -n 3
+./bench/bin/pr -f your_graph.el -s -o 16:hybrid:dynamic -n 3
 
 # Let AdaptiveOrder choose the best algorithm
 ./bench/bin/pr -f your_graph.el -s -o 14 -n 3

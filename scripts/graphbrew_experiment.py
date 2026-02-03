@@ -337,7 +337,9 @@ LEIDEN_CSR_QUALITY_VARIANTS = ["gve", "gveopt", "gveopt2", "gveadaptive"]  # Qua
 LEIDEN_RESOLUTION_MODES = ["auto", "dynamic", "1.0", "1.5", "2.0"]
 
 # Default Leiden parameters
-LEIDEN_DEFAULT_RESOLUTION = "auto"  # Auto-compute from graph (or use "dynamic", "1.0", etc)
+# Use "dynamic" for best PR performance on most graphs (especially web graphs)
+# "auto" is good for unknown graphs, "1.0"-"2.0" for fixed tuning
+LEIDEN_DEFAULT_RESOLUTION = "dynamic"  # Dynamic adjustment per-pass (best overall)
 LEIDEN_DEFAULT_PASSES = 3
 
 # ============================================================================
@@ -349,9 +351,9 @@ class AlgorithmConfig:
     """Configuration for an algorithm, including variant support."""
     algo_id: int           # Base algorithm ID (e.g., 17 for LeidenCSR)
     name: str              # Display name (e.g., "LeidenCSR_gve")
-    option_string: str     # Full option string for -o flag (e.g., "17:gve:1.0:20:10")
+    option_string: str     # Full option string for -o flag (e.g., "17:gve:dynamic")
     variant: str = ""      # Variant name if applicable (e.g., "gve")
-    resolution: float = 1.0
+    resolution: str = "dynamic"  # Resolution mode: "dynamic", "auto", "1.0", etc.
     passes: int = 10
     
     @property
@@ -408,28 +410,30 @@ def expand_algorithms_with_variants(
         
         if algo_id == 17 and expand_leiden_variants:
             # LeidenCSR: expand into variants
-            # Format: 17:variant (let C++ use auto-resolution)
+            # Format: 17:variant:resolution (pass resolution to C++)
             for variant in leiden_csr_variants:
-                option_str = f"{algo_id}:{variant}"
+                # Include resolution in option string for C++ to use
+                option_str = f"{algo_id}:{variant}:{leiden_resolution}"
                 configs.append(AlgorithmConfig(
                     algo_id=algo_id,
                     name=f"LeidenCSR_{variant}",
                     option_string=option_str,
                     variant=variant,
-                    resolution=-1.0,  # -1 indicates auto-resolution
+                    resolution=leiden_resolution,
                     passes=leiden_passes
                 ))
         elif algo_id == 16 and expand_leiden_variants:
             # LeidenDendrogram: expand into variants
-            # Format: 16:variant (let C++ use auto-resolution)
+            # Format: 16:variant:resolution (pass resolution to C++)
             for variant in leiden_dendrogram_variants:
-                option_str = f"{algo_id}:{variant}"
+                # Include resolution in option string for C++ to use
+                option_str = f"{algo_id}:{variant}:{leiden_resolution}"
                 configs.append(AlgorithmConfig(
                     algo_id=algo_id,
                     name=f"LeidenDendrogram_{variant}",
                     option_string=option_str,
                     variant=variant,
-                    resolution=-1.0  # -1 indicates auto-resolution
+                    resolution=leiden_resolution
                 ))
         elif algo_id == 8 and expand_leiden_variants and len(rabbit_variants) > 1:
             # RabbitOrder: expand into variants if multiple specified
@@ -3267,8 +3271,8 @@ def main():
     parser.add_argument("--graphbrew-variants", nargs="+", dest="graphbrew_variants",
                         default=None, choices=["leiden", "gve", "gveopt", "gvefast", "gveoptfast", "rabbit", "hubcluster"],
                         help="GraphBrewOrder variants: leiden (default), gve, gveopt, gvefast, gveoptfast, rabbit, hubcluster")
-    parser.add_argument("--resolution", type=str, default="1.0", dest="leiden_resolution",
-                        help="Leiden resolution: fixed (1.5), auto, 0, dynamic, dynamic_2.0 (default: 1.0)")
+    parser.add_argument("--resolution", type=str, default="dynamic", dest="leiden_resolution",
+                        help="Leiden resolution: dynamic (default, best PR), auto, fixed (1.5), dynamic_2.0")
     parser.add_argument("--passes", type=int, default=3, dest="leiden_passes",
                         help="LeidenCSR refinement passes - higher = better quality (default: 3)")
     
