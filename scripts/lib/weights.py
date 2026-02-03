@@ -28,6 +28,8 @@ from typing import Dict, List, Optional, Tuple, Any
 from .utils import (
     PROJECT_ROOT, WEIGHTS_DIR, ACTIVE_WEIGHTS_DIR, ALGORITHMS,
     Logger, get_timestamp,
+    WEIGHT_PATH_LENGTH_NORMALIZATION, WEIGHT_REORDER_TIME_NORMALIZATION,
+    WEIGHT_AVG_DEGREE_DEFAULT,
 )
 
 # Initialize logger
@@ -91,7 +93,7 @@ class PerceptronWeight:
         score += self.w_degree_variance * features.get('degree_variance', 0.0)
         score += self.w_hub_concentration * features.get('hub_concentration', 0.0)
         score += self.w_clustering_coeff * features.get('clustering_coefficient', 0.0)
-        score += self.w_avg_path_length * features.get('avg_path_length', 0.0) / 10.0
+        score += self.w_avg_path_length * features.get('avg_path_length', 0.0) / WEIGHT_PATH_LENGTH_NORMALIZATION
         score += self.w_diameter * features.get('diameter', features.get('diameter_estimate', 0.0)) / 50.0
         score += self.w_community_count * math.log10(features.get('community_count', 1) + 1)
         score += self.w_reorder_time * features.get('reorder_time', 0.0)
@@ -398,7 +400,7 @@ def update_type_weights_incremental(
     algo_weights['w_hub_concentration'] += learning_rate * error * features.get('hub_concentration', 0.3)
     algo_weights['w_clustering_coeff'] += learning_rate * error * features.get('clustering_coefficient', 0.0)
     algo_weights['w_community_count'] += learning_rate * error * features.get('community_count', 0) / 1000.0
-    algo_weights['w_avg_path_length'] += learning_rate * error * features.get('avg_path_length', 0.0) / 10.0
+    algo_weights['w_avg_path_length'] += learning_rate * error * features.get('avg_path_length', 0.0) / WEIGHT_PATH_LENGTH_NORMALIZATION
     algo_weights['w_diameter'] += learning_rate * error * features.get('diameter', 0.0) / 50.0
     
     # Update cache weights
@@ -418,7 +420,7 @@ def update_type_weights_incremental(
         meta['avg_l3_hit_rate'] = meta.get('avg_l3_hit_rate', 0) + (l3_hit * 100 - meta.get('avg_l3_hit_rate', 0)) / count
     
     if reorder_time > 0:
-        algo_weights['w_reorder_time'] += learning_rate * error * (-reorder_time / 10.0)
+        algo_weights['w_reorder_time'] += learning_rate * error * (-reorder_time / WEIGHT_REORDER_TIME_NORMALIZATION)
         meta['avg_reorder_time'] = meta.get('avg_reorder_time', 0) + (reorder_time - meta.get('avg_reorder_time', 0)) / count
     
     # Update benchmark-specific weight
@@ -872,7 +874,7 @@ def store_per_graph_results(
         baseline_times = {}  # benchmark -> baseline time (algo=0 or ORIGINAL)
         
         for r in benchmarks:
-            # Handle both algorithm_name (types.py) and algorithm (utils.py) attributes
+            # Handle both algorithm_name (graph_types.py) and algorithm (utils.py) attributes
             algo_name = getattr(r, 'algorithm_name', None) or getattr(r, 'algorithm', '')
             if r.algorithm_id == 0 or algo_name == 'ORIGINAL':
                 bench = r.benchmark
@@ -883,7 +885,7 @@ def store_per_graph_results(
         for r in benchmarks:
             time_val = getattr(r, 'avg_time', 0) or getattr(r, 'time_seconds', 0)
             trial_times = getattr(r, 'trial_times', [time_val]) if hasattr(r, 'trial_times') else [time_val]
-            # Handle both algorithm_name (types.py) and algorithm (utils.py) attributes
+            # Handle both algorithm_name (graph_types.py) and algorithm (utils.py) attributes
             algo_name = getattr(r, 'algorithm_name', None) or getattr(r, 'algorithm', '')
             
             # Compute speedup vs baseline
@@ -907,7 +909,7 @@ def store_per_graph_results(
         # Store reorder results
         for r in graph_reorders.get(graph_name, []):
             reorder_time = getattr(r, 'reorder_time', 0.0) or getattr(r, 'time_seconds', 0.0)
-            # Handle both algorithm_name (types.py) and algorithm (utils.py) attributes
+            # Handle both algorithm_name (graph_types.py) and algorithm (utils.py) attributes
             algo_name = getattr(r, 'algorithm_name', None) or getattr(r, 'algorithm', '')
             
             reorder_data = AlgorithmReorderData(
@@ -1036,7 +1038,7 @@ def update_zero_weights(
         if algo in weights and times:
             avg_time = sum(times) / len(times)
             # Penalize slow reordering algorithms
-            weights[algo]['w_reorder_time'] = -avg_time / 10.0  # Normalize
+            weights[algo]['w_reorder_time'] = -avg_time / WEIGHT_REORDER_TIME_NORMALIZATION  # Normalize
     
     # Update cache impact weights from cache results
     # Aggregate by algorithm, then average
@@ -1099,7 +1101,7 @@ def update_zero_weights(
                 'modularity': props.get('modularity', getattr(r, 'modularity', 0.5)),
                 'degree_variance': props.get('degree_variance', getattr(r, 'degree_variance', 1.0)),
                 'hub_concentration': props.get('hub_concentration', getattr(r, 'hub_concentration', 0.3)),
-                'avg_degree': props.get('avg_degree', getattr(r, 'avg_degree', 10.0)),
+                'avg_degree': props.get('avg_degree', getattr(r, 'avg_degree', WEIGHT_AVG_DEGREE_DEFAULT)),
                 'nodes': props.get('nodes', getattr(r, 'nodes', 1000)),
                 'edges': props.get('edges', getattr(r, 'edges', 5000)),
                 'clustering_coefficient': props.get('clustering_coefficient', 0.0),

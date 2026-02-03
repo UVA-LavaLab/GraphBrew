@@ -29,6 +29,7 @@ from .utils import (
     get_results_file, save_json, get_algorithm_name, parse_algorithm_option
 )
 from .reorder import get_algorithm_name_with_variant
+from .features import update_graph_properties, save_graph_properties_cache
 
 # Enable run logging (saves command outputs per graph)
 ENABLE_RUN_LOGGING = True
@@ -84,6 +85,40 @@ def parse_benchmark_output(output: str) -> Tuple[float, float, Dict]:
             match = re.search(r"(\d+)\s*iteration", line_lower)
             if match:
                 extra["iterations"] = int(match.group(1))
+    
+    # Extract topology features for weight learning
+    # These are printed by the C++ code during graph loading
+    dv_match = re.search(r'Degree Variance:\s*([\d.]+)', output)
+    if dv_match:
+        extra['degree_variance'] = float(dv_match.group(1))
+    
+    hc_match = re.search(r'Hub Concentration:\s*([\d.]+)', output)
+    if hc_match:
+        extra['hub_concentration'] = float(hc_match.group(1))
+    
+    ad_match = re.search(r'Avg Degree:\s*([\d.]+)', output)
+    if ad_match:
+        extra['avg_degree'] = float(ad_match.group(1))
+    
+    cc_match = re.search(r'Clustering Coefficient:\s*([\d.]+)', output)
+    if cc_match:
+        extra['clustering_coefficient'] = float(cc_match.group(1))
+    
+    apl_match = re.search(r'Avg Path Length:\s*([\d.]+)', output)
+    if apl_match:
+        extra['avg_path_length'] = float(apl_match.group(1))
+    
+    diam_match = re.search(r'Diameter Estimate:\s*([\d.]+)', output)
+    if diam_match:
+        extra['diameter'] = float(diam_match.group(1))
+    
+    comm_match = re.search(r'Community Count Estimate:\s*([\d.]+)', output)
+    if comm_match:
+        extra['community_count'] = float(comm_match.group(1))
+    
+    mod_match = re.search(r'Modularity:\s*([\d.]+)', output)
+    if mod_match:
+        extra['modularity'] = float(mod_match.group(1))
     
     return avg_time, reorder_time, extra
 
@@ -353,6 +388,18 @@ def run_benchmarks_multi_graph(
                 result.nodes = graph.nodes
                 result.edges = graph.edges
                 
+                # Cache graph features from first successful benchmark run
+                # The extra dict now contains topology features parsed from C++ output
+                if result.success and result.extra:
+                    features_to_cache = {k: v for k, v in result.extra.items() 
+                                        if k in ('degree_variance', 'hub_concentration', 'avg_degree',
+                                                'clustering_coefficient', 'avg_path_length', 
+                                                'diameter', 'community_count', 'modularity')}
+                    if features_to_cache:
+                        features_to_cache['nodes'] = graph.nodes
+                        features_to_cache['edges'] = graph.edges
+                        update_graph_properties(graph_name, features_to_cache, "results")
+                
                 # Preserve original algorithm name when using label map
                 if using_label_map:
                     result.algorithm = algo_name
@@ -363,6 +410,12 @@ def run_benchmarks_multi_graph(
                 
                 if progress and completed % 10 == 0:
                     progress.info(f"  Progress: {completed}/{total_configs}")
+    
+    # Save the graph properties cache after all benchmarks
+    try:
+        save_graph_properties_cache("results")
+    except Exception as e:
+        log.warning(f"Failed to save graph properties cache: {e}")
     
     # Note: compute_speedups returns a dict of {algorithm: {benchmark: speedup}}
     # We don't overwrite results here - callers can use compute_speedups() separately

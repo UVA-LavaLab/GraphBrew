@@ -425,7 +425,8 @@ void GenerateAdaptiveMappingRecursiveStandalone(
     }
     
     // Use GVE-Leiden for community detection (native CSR)
-    auto leiden_result = GVELeidenOptCSR<K, WeightT_, NodeID_, DestID_>(
+    // Note: W must be double for proper modularity computation (not WeightT_)
+    auto leiden_result = GVELeidenOptCSR<K, double, NodeID_, DestID_>(
         g, resolution, DEFAULT_TOLERANCE, DEFAULT_AGGREGATION_TOLERANCE,
         DEFAULT_QUALITY_FACTOR, max_iterations, max_passes);
     

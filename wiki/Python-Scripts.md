@@ -15,7 +15,7 @@ scripts/
 │
 ├── lib/                         # 📦 Modular library (~14300 lines total)
 │   ├── __init__.py              # Module exports
-│   ├── types.py                 # Data classes (GraphInfo, BenchmarkResult, etc.)
+│   ├── graph_types.py                 # Data classes (GraphInfo, BenchmarkResult, etc.)
 │   ├── phases.py                # Phase orchestration (run_reorder_phase, etc.)
 │   ├── utils.py                 # Core utilities (ALGORITHMS, run_command, etc.)
 │   ├── features.py              # Graph feature computation & system utilities
@@ -381,7 +381,7 @@ python3 scripts/graphbrew_experiment.py --clean-all --full --size small
 
 The `lib/` folder contains modular, reusable components. Each module can be used independently or via the phase orchestration system.
 
-### lib/types.py - Data Classes
+### lib/graph_types.py - Data Classes
 
 Central type definitions used across all modules:
 
@@ -753,7 +753,7 @@ import sys
 sys.path.insert(0, "scripts")
 
 from lib.phases import PhaseConfig, run_reorder_phase, run_benchmark_phase
-from lib.types import GraphInfo
+from lib.graph_types import GraphInfo
 from lib.progress import ProgressTracker
 
 # Discover graphs

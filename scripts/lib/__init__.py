@@ -79,6 +79,18 @@ from .utils import (
     LEIDEN_DEFAULT_RESOLUTION,
     LEIDEN_DEFAULT_PASSES,
     LEIDEN_RESOLUTION_MODES,
+    # Leiden SSOT constants (match C++ reorder_leiden.h)
+    LEIDEN_DEFAULT_TOLERANCE,
+    LEIDEN_DEFAULT_AGGREGATION_TOLERANCE,
+    LEIDEN_DEFAULT_QUALITY_FACTOR,
+    LEIDEN_DEFAULT_MAX_ITERATIONS,
+    LEIDEN_DEFAULT_MAX_PASSES,
+    LEIDEN_MODULARITY_MAX_ITERATIONS,
+    LEIDEN_MODULARITY_MAX_PASSES,
+    # Weight normalization constants
+    WEIGHT_PATH_LENGTH_NORMALIZATION,
+    WEIGHT_REORDER_TIME_NORMALIZATION,
+    WEIGHT_AVG_DEGREE_DEFAULT,
     # Paths
     PROJECT_ROOT,
     BIN_DIR,
@@ -329,7 +341,7 @@ from .phases import (
 # =============================================================================
 # Type definitions
 # =============================================================================
-from .types import (
+from .graph_types import (
     GraphInfo,
     ReorderResult,
     BenchmarkResult,

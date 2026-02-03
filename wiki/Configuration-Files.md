@@ -282,6 +282,54 @@ python3 scripts/graphbrew_experiment.py \
 
 ---
 
+## Single Source of Truth (SSOT) Constants
+
+All tunable constants are defined in **one location** to ensure consistency between C++ and Python.
+
+### Python Constants (scripts/lib/utils.py)
+
+```python
+# Leiden Algorithm Parameters (match C++ reorder_leiden.h)
+LEIDEN_DEFAULT_RESOLUTION = 0.75          # Community detection resolution
+LEIDEN_DEFAULT_TOLERANCE = 1e-2           # Convergence tolerance (0.01)
+LEIDEN_DEFAULT_AGGREGATION_TOLERANCE = 0.8
+LEIDEN_DEFAULT_QUALITY_FACTOR = 10.0
+LEIDEN_DEFAULT_MAX_ITERATIONS = 10        # Standard mode
+LEIDEN_DEFAULT_MAX_PASSES = 10
+LEIDEN_MODULARITY_MAX_ITERATIONS = 20     # Quality-focused mode
+LEIDEN_MODULARITY_MAX_PASSES = 20
+
+# Weight Computation Normalization
+WEIGHT_PATH_LENGTH_NORMALIZATION = 10.0   # Normalize avg_path_length
+WEIGHT_REORDER_TIME_NORMALIZATION = 10.0  # Normalize reorder_time penalty
+WEIGHT_AVG_DEGREE_DEFAULT = 10.0          # Default avg_degree fallback
+
+# Timeout Constants (seconds)
+TIMEOUT_REORDER = 43200      # 12 hours (GOrder can be slow)
+TIMEOUT_BENCHMARK = 600      # 10 minutes
+TIMEOUT_SIM = 1200           # 20 minutes
+TIMEOUT_SIM_HEAVY = 3600     # 1 hour (bc, sssp simulations)
+```
+
+### C++ Constants (bench/include/graphbrew/reorder/reorder_leiden.h)
+
+```cpp
+namespace graphbrew::leiden {
+constexpr double DEFAULT_RESOLUTION = 0.75;
+constexpr double DEFAULT_TOLERANCE = 1e-2;
+constexpr double DEFAULT_AGGREGATION_TOLERANCE = 0.8;
+constexpr double DEFAULT_QUALITY_FACTOR = 10.0;
+constexpr int DEFAULT_MAX_ITERATIONS = 10;
+constexpr int DEFAULT_MAX_PASSES = 10;
+constexpr int MODULARITY_MAX_ITERATIONS = 20;
+constexpr int MODULARITY_MAX_PASSES = 20;
+}
+```
+
+> ⚠️ **Important**: When changing constants, update **both** `utils.py` and `reorder_leiden.h` to keep them synchronized.
+
+---
+
 ## Troubleshooting
 
 ### "Weight file not found"

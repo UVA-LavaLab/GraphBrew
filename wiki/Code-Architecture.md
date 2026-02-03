@@ -33,9 +33,9 @@ GraphBrew/
 │   │
 │   ├── lib/                     # 📦 Core modules (~14,300 lines)
 │   │   ├── __init__.py          # Module exports
-│   │   ├── types.py             # Data classes (GraphInfo, BenchmarkResult, etc.)
+│   │   ├── graph_types.py       # Data classes (GraphInfo, BenchmarkResult, etc.)
 │   │   ├── phases.py            # Phase orchestration
-│   │   ├── utils.py             # ALGORITHMS dict, run_command, constants
+│   │   ├── utils.py             # ALGORITHMS dict, run_command, SSOT constants
 │   │   ├── features.py          # Graph feature computation
 │   │   ├── dependencies.py      # System dependency detection
 │   │   ├── download.py          # Graph downloading
@@ -506,12 +506,12 @@ config = PhaseConfig(benchmarks=['pr', 'bfs'], trials=3)
 results = run_full_pipeline(graphs, algorithms, config)
 ```
 
-#### lib/types.py - Central Data Classes
+#### lib/graph_types.py - Central Data Classes
 
-All data classes are centralized in `types.py`:
+All data classes are centralized in `graph_types.py`:
 
 ```python
-from scripts.lib.types import (
+from scripts.lib.graph_types import (
     GraphInfo,        # Graph metadata (name, path, size, nodes, edges)
     BenchmarkResult,  # Benchmark execution result
     CacheResult,      # Cache simulation result
@@ -550,13 +550,28 @@ from scripts.lib.utils import (
     TIMEOUT_SIM,         # 1200 (20 min)
     TIMEOUT_SIM_HEAVY,   # 3600 (1 hour)
     
+    # Leiden algorithm constants (match C++ reorder_leiden.h)
+    LEIDEN_DEFAULT_RESOLUTION,          # 0.75
+    LEIDEN_DEFAULT_TOLERANCE,           # 1e-2 (0.01)
+    LEIDEN_DEFAULT_AGGREGATION_TOLERANCE,  # 0.8
+    LEIDEN_DEFAULT_QUALITY_FACTOR,      # 10.0
+    LEIDEN_DEFAULT_MAX_ITERATIONS,      # 10
+    LEIDEN_DEFAULT_MAX_PASSES,          # 10
+    LEIDEN_MODULARITY_MAX_ITERATIONS,   # 20 (quality-focused)
+    LEIDEN_MODULARITY_MAX_PASSES,       # 20
+    
+    # Weight computation normalization factors
+    WEIGHT_PATH_LENGTH_NORMALIZATION,   # 10.0
+    WEIGHT_REORDER_TIME_NORMALIZATION,  # 10.0
+    WEIGHT_AVG_DEGREE_DEFAULT,          # 10.0
+    
     # Utilities
     run_command,     # Execute shell commands with timeout
     get_timestamp,   # Formatted timestamps
 )
 ```
 
-> ⚠️ **Important**: All constants (algorithms, variants, sizes, benchmarks, timeouts) are defined ONLY in `utils.py`. Other modules import from here - never duplicate these definitions.
+> ⚠️ **Important**: All constants (algorithms, variants, sizes, benchmarks, timeouts, Leiden parameters) are defined ONLY in `utils.py`. Other modules import from here - never duplicate these definitions.
 
 #### Module Overview
 
@@ -575,7 +590,7 @@ from scripts.lib.utils import (
 | `training.py` | ~720 | ML training |
 | `cache.py` | ~630 | Cache simulation |
 | `progress.py` | ~600 | Progress tracking |
-| `types.py` | ~595 | Data classes |
+| `graph_types.py` | ~595 | Data classes |
 | `benchmark.py` | ~560 | Benchmark execution |
 | `features.py` | ~555 | Graph features |
 | `build.py` | ~340 | Binary compilation |

@@ -449,7 +449,7 @@ void LeidenCommunityDetection(
     std::vector<int64_t>& final_community,
     double resolution = 1.0,
     int max_passes = 3,
-    int max_iterations = 20)
+    int max_iterations = MODULARITY_MAX_ITERATIONS)
 {
     const int64_t num_vertices = g.num_nodes();
     // Guard against zero edges to prevent FPE
@@ -1649,11 +1649,11 @@ template <typename K, typename W, typename NodeID_T, typename DestID_T>
 GVELeidenResult<K> GVELeidenCSR(
     const CSRGraph<NodeID_T, DestID_T, true>& g,
     double resolution = 1.0,
-    double tolerance = 1e-2,
+    double tolerance = DEFAULT_TOLERANCE,
     double aggregation_tolerance = DEFAULT_AGGREGATION_TOLERANCE,
     double tolerance_drop = DEFAULT_QUALITY_FACTOR,
-    int max_iterations = 20,
-    int max_passes = 10) {
+    int max_iterations = MODULARITY_MAX_ITERATIONS,
+    int max_passes = DEFAULT_MAX_PASSES) {
     
     const int64_t num_nodes = g.num_nodes();
     
@@ -2075,11 +2075,11 @@ template <typename K, typename W, typename NodeID_T, typename DestID_T>
 GVELeidenResult<K> GVELeidenOptCSR(
     const CSRGraph<NodeID_T, DestID_T, true>& g,
     double resolution = 1.0,
-    double tolerance = 1e-2,
+    double tolerance = DEFAULT_TOLERANCE,
     double aggregation_tolerance = DEFAULT_AGGREGATION_TOLERANCE,
     double tolerance_drop = DEFAULT_QUALITY_FACTOR,
-    int max_iterations = 20,
-    int max_passes = 10,
+    int max_iterations = MODULARITY_MAX_ITERATIONS,
+    int max_passes = DEFAULT_MAX_PASSES,
     bool skip_refine = false) {
     
     const int64_t num_nodes = g.num_nodes();
@@ -2718,11 +2718,11 @@ template <typename K, typename W, typename NodeID_T, typename DestID_T>
 GVELeidenResult<K> GVELeidenAdaptiveCSR(
     const CSRGraph<NodeID_T, DestID_T, true>& g,
     double initial_resolution = 1.0,
-    double tolerance = 1e-2,
+    double tolerance = DEFAULT_TOLERANCE,
     double aggregation_tolerance = DEFAULT_AGGREGATION_TOLERANCE,
     double tolerance_drop = DEFAULT_QUALITY_FACTOR,
-    int max_iterations = 20,
-    int max_passes = 10) {
+    int max_iterations = MODULARITY_MAX_ITERATIONS,
+    int max_passes = DEFAULT_MAX_PASSES) {
     
     const int64_t num_nodes = g.num_nodes();
     
@@ -3048,11 +3048,11 @@ template <typename K, typename W, typename NodeID_T, typename DestID_T>
 GVELeidenResult<K> GVELeidenOpt2CSR(
     const CSRGraph<NodeID_T, DestID_T, true>& g,
     double resolution = 1.0,
-    double tolerance = 1e-2,
+    double tolerance = DEFAULT_TOLERANCE,
     double aggregation_tolerance = DEFAULT_AGGREGATION_TOLERANCE,
     double tolerance_drop = DEFAULT_QUALITY_FACTOR,
-    int max_iterations = 20,
-    int max_passes = 10,
+    int max_iterations = MODULARITY_MAX_ITERATIONS,
+    int max_passes = DEFAULT_MAX_PASSES,
     bool skip_refine = false) {
     
     const int64_t num_nodes = g.num_nodes();
@@ -3581,11 +3581,11 @@ template <typename K, typename W, typename NodeID_T, typename DestID_T>
 GVELeidenResult<K> GVELeidenFastCSR(
     const CSRGraph<NodeID_T, DestID_T, true>& g,
     double resolution = 1.0,
-    double tolerance = 1e-2,
+    double tolerance = DEFAULT_TOLERANCE,
     double aggregation_tolerance = DEFAULT_AGGREGATION_TOLERANCE,
     double tolerance_drop = DEFAULT_QUALITY_FACTOR,
-    int max_iterations = 20,
-    int max_passes = 10) {
+    int max_iterations = MODULARITY_MAX_ITERATIONS,
+    int max_passes = DEFAULT_MAX_PASSES) {
     
     const int64_t num_nodes = g.num_nodes();
     bool graph_is_symmetric = !g.directed();
@@ -3816,7 +3816,7 @@ GVELeidenResult<K> GVELeidenTurboCSR(
     const CSRGraph<NodeID_T, DestID_T, true>& g,
     double resolution = 1.0,
     int max_iterations = 5,
-    int max_passes = 10,
+    int max_passes = DEFAULT_MAX_PASSES,
     double early_stop_threshold = 0.001) {
     
     const int64_t num_nodes = g.num_nodes();
@@ -4117,11 +4117,11 @@ template <typename K, typename W, typename NodeID_T, typename DestID_T>
 GVEDendroResult<K> GVELeidenDendoCSR(
     const CSRGraph<NodeID_T, DestID_T, true>& g,
     double resolution = 1.0,
-    double tolerance = 1e-2,
+    double tolerance = DEFAULT_TOLERANCE,
     double aggregation_tolerance = DEFAULT_AGGREGATION_TOLERANCE,
     double tolerance_drop = DEFAULT_QUALITY_FACTOR,
-    int max_iterations = 20,
-    int max_passes = 10) {
+    int max_iterations = MODULARITY_MAX_ITERATIONS,
+    int max_passes = DEFAULT_MAX_PASSES) {
     
     const int64_t num_nodes = g.num_nodes();
     bool graph_is_symmetric = !g.directed();
@@ -4447,11 +4447,11 @@ template <typename K, typename W, typename NodeID_T, typename DestID_T>
 GVEDendroResult<K> GVELeidenOptDendoCSR(
     const CSRGraph<NodeID_T, DestID_T, true>& g,
     double resolution = 1.0,
-    double tolerance = 1e-2,
+    double tolerance = DEFAULT_TOLERANCE,
     double aggregation_tolerance = DEFAULT_AGGREGATION_TOLERANCE,
     double tolerance_drop = DEFAULT_QUALITY_FACTOR,
-    int max_iterations = 20,
-    int max_passes = 10) {
+    int max_iterations = MODULARITY_MAX_ITERATIONS,
+    int max_passes = DEFAULT_MAX_PASSES) {
     
     // For OptDendo, we use the same approach as GVELeidenOpt
     // but build dendrogram from the final community assignment
@@ -4528,7 +4528,7 @@ std::vector<std::vector<K>> FastLeidenCSR(
     const CSRGraph<NodeID_T, DestID_T, true>& g,
     double resolution = 1.0,
     int max_iterations = 10,
-    int max_passes = 10)
+    int max_passes = DEFAULT_MAX_PASSES)
 {
     const int64_t num_nodes = g.num_nodes();
     const int64_t num_edges = g.num_edges_directed();
@@ -5035,8 +5035,8 @@ void GenerateGVELeidenCSRMapping(
     
     // Parse options using unified resolution parser
     ResolutionConfig res_cfg;
-    int max_iterations = 20;
-    int max_passes = 10;
+    int max_iterations = MODULARITY_MAX_ITERATIONS;
+    int max_passes = DEFAULT_MAX_PASSES;
     
     if (!reordering_options.empty() && !reordering_options[0].empty()) {
         res_cfg = parseResolution<NodeID_T, DestID_T>(reordering_options[0], g);
@@ -5209,8 +5209,8 @@ void GenerateGVELeidenOptMapping(
     
     // Parse options using unified resolution parser
     ResolutionConfig res_cfg;
-    int max_iterations = 20;
-    int max_passes = 10;
+    int max_iterations = MODULARITY_MAX_ITERATIONS;
+    int max_passes = DEFAULT_MAX_PASSES;
     
     if (!reordering_options.empty() && !reordering_options[0].empty()) {
         res_cfg = parseResolution<NodeID_T, DestID_T>(reordering_options[0], g);
@@ -5367,8 +5367,8 @@ void GenerateGVELeidenOpt2Mapping(
     
     // Parse options using unified resolution parser
     ResolutionConfig res_cfg;
-    int max_iterations = 20;
-    int max_passes = 10;
+    int max_iterations = MODULARITY_MAX_ITERATIONS;
+    int max_passes = DEFAULT_MAX_PASSES;
     
     if (!reordering_options.empty() && !reordering_options[0].empty()) {
         res_cfg = parseResolution<NodeID_T, DestID_T>(reordering_options[0], g);
@@ -5484,8 +5484,8 @@ void GenerateGVELeidenAdaptiveMapping(
     
     // Parse options using unified resolution parser
     ResolutionConfig res_cfg;
-    int max_iterations = 20;
-    int max_passes = 10;
+    int max_iterations = MODULARITY_MAX_ITERATIONS;
+    int max_passes = DEFAULT_MAX_PASSES;
     
     if (!reordering_options.empty() && !reordering_options[0].empty()) {
         res_cfg = parseResolution<NodeID_T, DestID_T>(reordering_options[0], g);
@@ -5602,8 +5602,8 @@ void GenerateGVELeidenDendoMapping(
     
     // Parse options using unified resolution parser
     ResolutionConfig res_cfg;
-    int max_iterations = 20;
-    int max_passes = 10;
+    int max_iterations = MODULARITY_MAX_ITERATIONS;
+    int max_passes = DEFAULT_MAX_PASSES;
     
     if (!reordering_options.empty() && !reordering_options[0].empty()) {
         res_cfg = parseResolution<NodeID_T, DestID_T>(reordering_options[0], g);
@@ -5677,8 +5677,8 @@ void GenerateGVELeidenOptDendoMapping(
     
     // Parse options using unified resolution parser
     ResolutionConfig res_cfg;
-    int max_iterations = 20;
-    int max_passes = 10;
+    int max_iterations = MODULARITY_MAX_ITERATIONS;
+    int max_passes = DEFAULT_MAX_PASSES;
     
     if (!reordering_options.empty() && !reordering_options[0].empty()) {
         res_cfg = parseResolution<NodeID_T, DestID_T>(reordering_options[0], g);
@@ -5760,8 +5760,8 @@ void GenerateGVELeidenFastMapping(
     
     // Parse options using unified resolution parser
     ResolutionConfig res_cfg;
-    int max_iterations = 20;
-    int max_passes = 10;
+    int max_iterations = MODULARITY_MAX_ITERATIONS;
+    int max_passes = DEFAULT_MAX_PASSES;
     
     if (!reordering_options.empty() && !reordering_options[0].empty()) {
         res_cfg = parseResolution<NodeID_T, DestID_T>(reordering_options[0], g);
@@ -5885,8 +5885,8 @@ void GenerateGVELeidenOptSortMapping(
     
     // Parse options using unified resolution parser
     ResolutionConfig res_cfg;
-    int max_iterations = 20;
-    int max_passes = 10;
+    int max_iterations = MODULARITY_MAX_ITERATIONS;
+    int max_passes = DEFAULT_MAX_PASSES;
     
     if (!reordering_options.empty() && !reordering_options[0].empty()) {
         res_cfg = parseResolution<NodeID_T, DestID_T>(reordering_options[0], g);
@@ -6013,7 +6013,7 @@ void GenerateGVELeidenTurboMapping(
     // Parse options using unified resolution parser
     ResolutionConfig res_cfg;
     int max_iterations = 5;  // Lower default for turbo
-    int max_passes = 10;
+    int max_passes = DEFAULT_MAX_PASSES;
     
     if (!reordering_options.empty() && !reordering_options[0].empty()) {
         res_cfg = parseResolution<NodeID_T, DestID_T>(reordering_options[0], g);
@@ -6145,11 +6145,11 @@ GVERabbitCoreResult<K> GVERabbitCore(
     // Parameters: resolution, tolerance, agg_tolerance, tolerance_drop, max_iterations, max_passes
     // Fewer iterations (3) and single pass (1) for speed
     auto leiden_result = GVELeidenCSR<K, double, NodeID_T, DestID_T>(g, resolution, 
-        0.01,    // tolerance
-        0.8,     // aggregation_tolerance  
-        10.0,    // tolerance_drop
-        std::min(max_iterations, 5),  // max_iterations (cap at 5 for speed)
-        1);      // max_passes (single pass)
+        DEFAULT_TOLERANCE,              // tolerance
+        DEFAULT_AGGREGATION_TOLERANCE,  // aggregation_tolerance  
+        DEFAULT_QUALITY_FACTOR,         // tolerance_drop
+        std::min(max_iterations, 5),    // max_iterations (cap at 5 for speed)
+        1);                             // max_passes (single pass)
     
     tm.Stop();
     

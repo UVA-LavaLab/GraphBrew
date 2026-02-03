@@ -67,7 +67,7 @@ from lib import (
     ALGORITHMS,
     format_table,
 )
-from lib.types import GraphInfo
+from lib.graph_types import GraphInfo
 
 
 # =============================================================================
