@@ -323,13 +323,20 @@ void GenerateAdaptiveMappingFullGraphStandalone(
     std::cout << "=== Full-Graph Adaptive Mode (Standalone) ===\n";
     std::cout << "Nodes: " << num_nodes << ", Edges: " << num_edges << "\n";
     
+    // GUARD: Empty graph - create identity mapping
+    if (num_nodes == 0) {
+        tm.Stop();
+        PrintTime("AdaptiveOrder Total Time", tm.Seconds());
+        return;
+    }
+    
     // Compute global features
     auto features = ::ComputeSampledDegreeFeatures(g, 10000, true);
     
     double global_modularity = features.estimated_modularity;
     double global_degree_variance = features.degree_variance;
     double global_hub_concentration = features.hub_concentration;
-    double global_avg_degree = static_cast<double>(num_edges) / num_nodes;
+    double global_avg_degree = (num_nodes > 0) ? static_cast<double>(num_edges) / num_nodes : 0.0;
     double clustering_coeff = features.clustering_coeff;
     
     // Detect graph type
@@ -419,7 +426,8 @@ void GenerateAdaptiveMappingRecursiveStandalone(
     
     // Use GVE-Leiden for community detection (native CSR)
     auto leiden_result = GVELeidenOptCSR<K, WeightT_, NodeID_, DestID_>(
-        g, resolution, 1e-2, 0.8, 10.0, max_iterations, max_passes);
+        g, resolution, DEFAULT_TOLERANCE, DEFAULT_AGGREGATION_TOLERANCE,
+        DEFAULT_QUALITY_FACTOR, max_iterations, max_passes);
     
     std::vector<K> comm_ids_k = leiden_result.final_community;
     double global_modularity = leiden_result.modularity;
@@ -442,7 +450,7 @@ void GenerateAdaptiveMappingRecursiveStandalone(
     auto deg_features = ::ComputeSampledDegreeFeatures(g, 10000, true);
     double global_degree_variance = deg_features.degree_variance;
     double global_hub_concentration = deg_features.hub_concentration;
-    double global_avg_degree = static_cast<double>(num_edges) / num_nodes;
+    double global_avg_degree = (num_nodes > 0) ? static_cast<double>(num_edges) / num_nodes : 0.0;
     
     // Detect graph type
     GraphType detected_graph_type = DetectGraphType(

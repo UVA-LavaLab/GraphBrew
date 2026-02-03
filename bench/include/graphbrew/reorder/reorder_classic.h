@@ -273,6 +273,14 @@ void GenerateCOrderMapping(const CSRGraph<NodeID_, DestID_, invert>& g,
     
     const auto num_nodes = g.num_nodes();
     const auto num_edges = g.num_edges();
+    
+    // GUARD: Empty graph - nothing to do
+    if (num_nodes == 0) {
+        t.Stop();
+        PrintTime("COrder Map Time", t.Seconds());
+        return;
+    }
+    
     const unsigned average_degree = num_edges / num_nodes;
     
     // Configure partitioning
@@ -364,6 +372,13 @@ void GenerateCOrderMapping_v2(const CSRGraph<NodeID_, DestID_, invert>& g,
     
     const auto num_nodes = g.num_nodes();
     const auto num_edges = g.num_edges();
+    
+    // GUARD: Empty graph - nothing to do
+    if (num_nodes == 0) {
+        t.Stop();
+        PrintTime("COrder_v2 Map Time", t.Seconds());
+        return;
+    }
     
     corder_params::partition_size = 1024;
     corder_params::num_partitions = (num_nodes - 1) / corder_params::partition_size + 1;

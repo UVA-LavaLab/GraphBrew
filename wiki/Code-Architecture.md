@@ -200,6 +200,61 @@ struct GraphBrewConfig {
 };
 ```
 
+**Leiden Algorithm Constants (reorder_leiden.h):**
+
+All Leiden-related functions use these centralized constants for consistency. Function default arguments also use these constants instead of hardcoded values:
+
+```cpp
+namespace graphbrew {
+namespace leiden {
+// Default parameters - Single Source of Truth for C++ Leiden
+constexpr double DEFAULT_RESOLUTION = 0.75;
+constexpr double DEFAULT_TOLERANCE = 1e-2;
+constexpr double DEFAULT_AGGREGATION_TOLERANCE = 0.8;
+constexpr double DEFAULT_QUALITY_FACTOR = 10.0;
+constexpr int DEFAULT_MAX_ITERATIONS = 10;
+constexpr int DEFAULT_MAX_PASSES = 10;
+
+// Variant-specific parameters
+constexpr int FAST_MAX_ITERATIONS = 5;
+constexpr int FAST_MAX_PASSES = 5;
+constexpr int MODULARITY_MAX_ITERATIONS = 20;
+constexpr int MODULARITY_MAX_PASSES = 20;
+constexpr double SORT_AGGREGATION_TOLERANCE = 0.95;  // Allows more passes
+} // namespace leiden
+} // namespace graphbrew
+
+// After namespace close, bring constants into global scope for backward compatibility
+using graphbrew::leiden::DEFAULT_TOLERANCE;
+using graphbrew::leiden::DEFAULT_AGGREGATION_TOLERANCE;
+using graphbrew::leiden::DEFAULT_QUALITY_FACTOR;
+// ... (all except DEFAULT_RESOLUTION which conflicts with adaptive)
+
+// Function signatures use constants for default arguments:
+template <typename K, typename W, typename NodeID_T, typename DestID_T>
+GVELeidenResult<K> GVELeidenCSR(
+    const CSRGraph<NodeID_T, DestID_T, true>& g,
+    double resolution = 1.0,
+    double tolerance = DEFAULT_TOLERANCE,
+    double aggregation_tolerance = DEFAULT_AGGREGATION_TOLERANCE,
+    double tolerance_drop = DEFAULT_QUALITY_FACTOR,
+    int max_iterations = 20,
+    int max_passes = DEFAULT_MAX_PASSES);
+```
+
+**Adaptive Algorithm Constants (reorder_adaptive.h):**
+
+```cpp
+namespace adaptive {
+constexpr int DEFAULT_MODE = 1;           // Per-community
+constexpr int DEFAULT_RECURSION_DEPTH = 0;
+constexpr double DEFAULT_RESOLUTION = 1.0;  // Different from leiden::DEFAULT_RESOLUTION
+constexpr size_t DEFAULT_MIN_RECURSE_SIZE = 50000;
+} // namespace adaptive
+```
+
+> ⚠️ **Important**: Use `graphbrew::leiden::DEFAULT_RESOLUTION` or `adaptive::DEFAULT_RESOLUTION` explicitly to avoid ambiguity.
+
 #### graph.h - CSRGraph Class
 
 ```cpp
@@ -292,6 +347,35 @@ void GenerateHubClusterDBGMappingStandalone(const CSRGraph<NodeID_, DestID_, inv
   // Combines hub clustering with DBG
 }
 ```
+
+**Edge Case Guards:**
+
+All reordering functions include guards for empty graphs to prevent division-by-zero (FPE) when computing average degree:
+
+```cpp
+// In each function (GenerateHubSort, GenerateDBG, COrder, GVELeiden, etc.):
+const int64_t num_nodes = g.num_nodes();
+const int64_t num_edges = g.num_edges();
+
+// GUARD: Empty graph - nothing to do
+if (num_nodes == 0) {
+    t.Stop();
+    PrintTime("Algorithm Map Time", t.Seconds());
+    return;
+}
+
+const int64_t avgDegree = num_edges / num_nodes;  // Safe now
+```
+
+**Files with FPE guards:**
+- `reorder_hub.h` - All 5 hub-based functions
+- `reorder_classic.h` - COrder and COrder_v2
+- `reorder_graphbrew.h` - GraphBrewHubCluster
+- `reorder_leiden.h` - GVELeidenAdaptiveCSR
+- `reorder_adaptive.h` - Adaptive algorithm selection
+- `reorder.h` - ReorderCommunitySubgraphStandalone
+
+This is important for GraphBrewOrder which may create empty subgraphs for communities with no internal edges (e.g., on Kronecker graphs).
 
 #### Community-Based
 
@@ -438,14 +522,41 @@ from scripts.lib.types import (
 
 #### lib/utils.py - Core Utilities
 
+**Single Source of Truth** for all algorithm/variant/size/timeout constants:
+
 ```python
 from scripts.lib.utils import (
-    ALGORITHMS,      # {0: "ORIGINAL", 1: "RANDOM", 7: "HUBCLUSTERDBG", ...}
+    # Algorithm definitions
+    ALGORITHMS,      # {0: "ORIGINAL", 1: "RANDOM", ..., 17: "LeidenCSR"}
+    ALGORITHM_IDS,   # Reverse: {"ORIGINAL": 0, ...}
+    SLOW_ALGORITHMS, # {9, 10, 11} - Gorder, Corder, RCM
     BENCHMARKS,      # ['pr', 'bfs', 'cc', 'sssp', 'bc', 'tc']
+    
+    # Variant lists (authoritative definitions)
+    LEIDEN_CSR_VARIANTS,        # ['gve', 'gveopt', 'gveopt2', ...]
+    GRAPHBREW_VARIANTS,         # ['leiden', 'gve', 'gveopt', ...]
+    RABBITORDER_VARIANTS,       # ['csr', 'boost']
+    LEIDEN_DENDROGRAM_VARIANTS, # ['dfs', 'dfshub', 'dfssize', 'bfs', 'hybrid']
+    
+    # Graph size thresholds (MB)
+    SIZE_SMALL,      # 50 MB
+    SIZE_MEDIUM,     # 500 MB
+    SIZE_LARGE,      # 2000 MB
+    SIZE_XLARGE,     # 10000 MB
+    
+    # Timeout constants (seconds)
+    TIMEOUT_REORDER,     # 43200 (12 hours)
+    TIMEOUT_BENCHMARK,   # 600 (10 min)
+    TIMEOUT_SIM,         # 1200 (20 min)
+    TIMEOUT_SIM_HEAVY,   # 3600 (1 hour)
+    
+    # Utilities
     run_command,     # Execute shell commands with timeout
     get_timestamp,   # Formatted timestamps
 )
 ```
+
+> ⚠️ **Important**: All constants (algorithms, variants, sizes, benchmarks, timeouts) are defined ONLY in `utils.py`. Other modules import from here - never duplicate these definitions.
 
 #### Module Overview
 

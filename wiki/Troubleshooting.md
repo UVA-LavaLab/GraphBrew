@@ -211,6 +211,34 @@ gdb ./bench/bin/pr
    ./bench/bin/pr -f graph.el -s -o 13 # Needs external .lo file
    ```
 
+### Floating Point Exception (FPE)
+
+**Symptoms**: "Floating point exception (core dumped)" error, especially with GraphBrewOrder (12) on Kronecker graphs or graphs with extreme community structure.
+
+**Root Cause**: 
+Integer division by zero can occur when processing communities with no internal edges. This happens on graphs with extreme structure (e.g., Kronecker graphs) where:
+- Leiden creates many small communities
+- Some communities have nodes only connected to OTHER communities
+- The induced subgraph has 0 internal edges → empty graph → division by zero in `avgDegree = num_edges / num_nodes`
+
+**Solution**: 
+This issue was fixed in the codebase with guards in:
+- `ReorderCommunitySubgraphStandalone` - Skips reordering for empty subgraphs
+- `GenerateHubSortMapping`, `GenerateHubClusterMapping`, `GenerateDBGMapping`, etc. - Guard against `num_nodes == 0`
+- `GenerateCOrderMapping`, `GenerateCOrderMapping_v2` - Guard against empty graphs
+- `GVELeidenAdaptiveCSR` - Returns empty result for empty graphs
+
+If you encounter this error, ensure you have the latest version:
+```bash
+git pull origin main
+make clean && make all
+```
+
+**Graphs that may trigger this (now handled)**:
+- Kronecker graphs (kron_g500-logn*)
+- Synthetic power-law graphs with extreme degree distributions
+- Graphs with highly disconnected community structure
+
 ### Out of Memory
 
 **Symptoms**: Killed, OOM killer, very slow

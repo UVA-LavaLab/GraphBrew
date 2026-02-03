@@ -26,7 +26,8 @@ from typing import Dict, List, Optional, Tuple
 os.environ.setdefault('CACHE_ULTRAFAST', '1')
 
 from .utils import (
-    PROJECT_ROOT, BIN_SIM_DIR, RESULTS_DIR,
+    PROJECT_ROOT, BIN_SIM_DIR, RESULTS_DIR, SIZE_MEDIUM,
+    TIMEOUT_SIM, TIMEOUT_SIM_HEAVY,
     ALGORITHMS, Logger, run_command, get_algorithm_name,
 )
 from .reorder import get_label_map_path, get_algorithm_name_with_variant
@@ -38,15 +39,8 @@ log = Logger()
 # Constants
 # =============================================================================
 
-# Default timeouts (seconds)
-TIMEOUT_SIM = 1200          # 20 min for simulations
-TIMEOUT_SIM_HEAVY = 3600    # 1 hour for heavy simulations
-
 # Heavy benchmarks (computationally intensive)
 HEAVY_SIM_BENCHMARKS = {"bc", "sssp"}
-
-# Graph size threshold (MB)
-SIZE_MEDIUM = 500
 
 # Enable run logging
 ENABLE_RUN_LOGGING = True

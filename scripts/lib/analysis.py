@@ -160,17 +160,72 @@ def parse_adaptive_output(output: str) -> Tuple[float, int, List[SubcommunityInf
     subcommunities = []
     algo_distribution = {}
     
-    # Parse modularity
+    # Parse modularity (from GVE-Leiden output or direct)
     mod_match = re.search(r'Modularity:\s*([\d.]+)', output)
     if mod_match:
         modularity = float(mod_match.group(1))
+    # Also try GVE format
+    gve_mod_match = re.search(r'modularity=([\d.]+)', output)
+    if gve_mod_match and modularity == 0.0:
+        modularity = float(gve_mod_match.group(1))
     
     # Parse number of communities
     num_match = re.search(r'Num Communities:\s*([\d.]+)', output)
     if num_match:
         num_communities = int(float(num_match.group(1)))
     
-    # Parse subcommunity table
+    # Parse graph type
+    graph_type = "unknown"
+    type_match = re.search(r'Graph Type:\s*(\w+)', output)
+    if type_match:
+        graph_type = type_match.group(1)
+    
+    # Parse algorithm selections from AdaptiveOrder output
+    # Format: "AdaptiveOrder: Grouped X small communities (Y nodes, Z edges) -> Algorithm"
+    grouped_match = re.search(
+        r'AdaptiveOrder: Grouped (\d+) small communities \((\d+) nodes, (\d+) edges\) -> (\w+)',
+        output
+    )
+    if grouped_match:
+        nodes = int(grouped_match.group(2))
+        edges = int(grouped_match.group(3))
+        selected = grouped_match.group(4)
+        
+        subcommunities.append(SubcommunityInfo(
+            community_id=0,
+            nodes=nodes,
+            edges=edges,
+            density=2.0 * edges / (nodes * (nodes - 1)) if nodes > 1 else 0.0,
+            degree_variance=0.0,
+            hub_concentration=0.0,
+            selected_algorithm=selected
+        ))
+        algo_distribution[selected] = algo_distribution.get(selected, 0) + 1
+    
+    # Parse individual community selections
+    # Format: "Community N: algo=Algorithm, nodes=X, edges=Y" or similar
+    comm_pattern = re.compile(
+        r'Community\s+(\d+):\s*algo=(\w+),\s*nodes=(\d+),\s*edges=(\d+)',
+        re.IGNORECASE
+    )
+    for match in comm_pattern.finditer(output):
+        comm_id = int(match.group(1))
+        selected = match.group(2)
+        nodes = int(match.group(3))
+        edges = int(match.group(4))
+        
+        subcommunities.append(SubcommunityInfo(
+            community_id=comm_id,
+            nodes=nodes,
+            edges=edges,
+            density=2.0 * edges / (nodes * (nodes - 1)) if nodes > 1 else 0.0,
+            degree_variance=0.0,
+            hub_concentration=0.0,
+            selected_algorithm=selected
+        ))
+        algo_distribution[selected] = algo_distribution.get(selected, 0) + 1
+    
+    # Parse subcommunity table (legacy format)
     table_pattern = re.compile(
         r'^(\d+)\s+(\d+)\s+(\d+)\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)\s+(\w+)',
         re.MULTILINE
@@ -342,9 +397,9 @@ def analyze_adaptive_order(
             ))
             continue
         
-        # Run with AdaptiveOrder (algorithm 15)
+        # Run with AdaptiveOrder (algorithm 14)
         sym_flag = "-s" if graph.is_symmetric else ""
-        cmd = f"{binary} -f {graph.path} {sym_flag} -o 15 -n 1"
+        cmd = f"{binary} -f {graph.path} {sym_flag} -o 14 -n 1"
         
         start_time = time.time()
         success, stdout, stderr = run_command(cmd, timeout)

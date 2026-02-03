@@ -2498,18 +2498,30 @@ public:
         int maxIterations = LEIDEN_DEFAULT_ITERATIONS;
         int maxPasses = LEIDEN_DEFAULT_PASSES;
 
-        if (!reordering_options.empty())
+        if (!reordering_options.empty() && !reordering_options[0].empty())
         {
-            resolution = std::stod(reordering_options[0]);
-            resolution = (resolution > 3) ? 1.0 : resolution;
+            const std::string& res_opt = reordering_options[0];
+            // Handle special keywords like LeidenCSR does
+            if (res_opt == "auto" || res_opt == "0" || res_opt.rfind("dynamic", 0) == 0) {
+                // Keep auto-resolution
+            } else {
+                try {
+                    double parsed = std::stod(res_opt);
+                    if (parsed > 0 && parsed <= 3) {
+                        resolution = parsed;
+                    }
+                } catch (...) {
+                    // Parse error, keep auto-resolution
+                }
+            }
         }
-        if (reordering_options.size() > 1)
+        if (reordering_options.size() > 1 && !reordering_options[1].empty())
         {
-            maxIterations = std::stoi(reordering_options[1]);
+            try { maxIterations = std::stoi(reordering_options[1]); } catch (...) {}
         }
-        if (reordering_options.size() > 2)
+        if (reordering_options.size() > 2 && !reordering_options[2].empty())
         {
-            maxPasses = std::stoi(reordering_options[2]);
+            try { maxPasses = std::stoi(reordering_options[2]); } catch (...) {}
         }
 
         int64_t num_nodes = g.num_nodes();
@@ -2719,7 +2731,8 @@ public:
         
         // Parse options: variant, resolution (flexible order)
         // Format: -o 16:variant:resolution or -o 16:variant or -o 16
-        // e.g., -o 16:hybrid:0.7 or -o 16:dfs
+        // Resolution can be: "auto", "0", "dynamic", "dynamic:2.0", or numeric
+        // e.g., -o 16:hybrid:0.7 or -o 16:dfs or -o 16:dfs:dynamic
         if (!reordering_options.empty() && !reordering_options[0].empty()) {
             std::string first_opt = reordering_options[0];
             // Check if first option is a variant name or a number (resolution)
@@ -2728,11 +2741,35 @@ public:
                 variant = first_opt;
                 // Check for optional resolution
                 if (reordering_options.size() > 1 && !reordering_options[1].empty()) {
-                    resolution = std::stod(reordering_options[1]);
+                    const std::string& res_opt = reordering_options[1];
+                    // Handle special keywords
+                    if (res_opt == "auto" || res_opt == "0" || res_opt.rfind("dynamic", 0) == 0) {
+                        // Keep auto-resolution
+                    } else {
+                        try {
+                            double parsed = std::stod(res_opt);
+                            if (parsed > 0 && parsed <= 3) {
+                                resolution = parsed;
+                            }
+                        } catch (...) {
+                            // Parse error, keep auto-resolution
+                        }
+                    }
                 }
             } else {
-                // Assume it's resolution (old format)
-                resolution = std::stod(first_opt);
+                // Check if first option is a special keyword or numeric resolution
+                if (first_opt == "auto" || first_opt == "0" || first_opt.rfind("dynamic", 0) == 0) {
+                    // Keep auto-resolution
+                } else {
+                    try {
+                        double parsed = std::stod(first_opt);
+                        if (parsed > 0 && parsed <= 3) {
+                            resolution = parsed;
+                        }
+                    } catch (...) {
+                        // Parse error, keep auto-resolution
+                    }
+                }
                 if (reordering_options.size() > 1 && !reordering_options[1].empty()) {
                     variant = reordering_options[1];
                 }
@@ -2847,8 +2884,17 @@ public:
             GenerateLeidenFastMapping(g, new_ids, internal_options);
         } else if (variant == "modularity") {
             // True Leiden with modularity optimization
-            internal_options.push_back("4"); // iterations
-            GenerateLeidenMapping2(g, new_ids, internal_options);
+            // GenerateLeidenMapping2 expects: [resolution, max_passes, max_iterations]
+            // Override to use 1 pass with 4 iterations for quality-focused detection
+            std::vector<std::string> modularity_options;
+            if (reordering_options.size() > 1 && !reordering_options[1].empty()) {
+                modularity_options.push_back(reordering_options[1]);  // resolution
+            } else {
+                modularity_options.push_back(std::to_string(resolution));
+            }
+            modularity_options.push_back("1");  // max_passes = 1
+            modularity_options.push_back("4");  // max_iterations = 4
+            GenerateLeidenMapping2(g, new_ids, modularity_options);
         } else if (variant == "gve") {
             // GVE-Leiden: True Leiden algorithm per ACM paper
             GenerateGVELeidenCSRMapping(g, new_ids, internal_options);
@@ -3063,19 +3109,31 @@ public:
         int64_t num_nodes = g.num_nodes();
         
         // Default Leiden parameters - use unified constants for fair comparison
-        double resolution = 1.0;
+        double resolution = LeidenAutoResolution<NodeID_, DestID_>(g);
         int maxIterations = LEIDEN_DEFAULT_ITERATIONS;
         int maxPasses = LEIDEN_DEFAULT_PASSES;
         
-        // Parse options if provided
+        // Parse options if provided - handle "auto", "dynamic", or numeric
         if (!reordering_options.empty() && reordering_options[0].size() > 0) {
-            resolution = std::stod(reordering_options[0]);
+            const std::string& res_opt = reordering_options[0];
+            if (res_opt == "auto" || res_opt == "0" || res_opt.rfind("dynamic", 0) == 0) {
+                // Keep auto-resolution
+            } else {
+                try {
+                    double parsed = std::stod(res_opt);
+                    if (parsed > 0 && parsed <= 3) {
+                        resolution = parsed;
+                    }
+                } catch (...) {
+                    // Parse error, keep auto-resolution
+                }
+            }
         }
         if (reordering_options.size() > 1 && reordering_options[1].size() > 0) {
-            maxIterations = std::stoi(reordering_options[1]);
+            try { maxIterations = std::stoi(reordering_options[1]); } catch (...) {}
         }
         if (reordering_options.size() > 2 && reordering_options[2].size() > 0) {
-            maxPasses = std::stoi(reordering_options[2]);
+            try { maxPasses = std::stoi(reordering_options[2]); } catch (...) {}
         }
         
         PrintTime("Leiden Resolution", resolution);

@@ -216,11 +216,13 @@ Average Time:        0.001xx
 |----|------|----------|
 | 0 | ORIGINAL | Baseline comparison |
 | 7 | HUBCLUSTERDBG | General purpose, good default |
-| 8 | RabbitOrder | Community-based (variants: csr/boost, default: csr) |
-| 12 | GraphBrewOrder | Per-community reordering |
+| 8 | RabbitOrder | Community-based (has variants) |
+| 12 | GraphBrewOrder | Per-community reordering (has variants) |
 | 14 | AdaptiveOrder | Auto-selection for unknown graphs |
 | 15 | LeidenOrder | Social networks |
-| 17 | LeidenCSR | Large complex graphs (see variants below) |
+| 17 | LeidenCSR | Large complex graphs (has variants) |
+
+> **Note:** For current variant lists, see `scripts/lib/utils.py`.
 
 ### LeidenCSR Variants (Algorithm 17)
 

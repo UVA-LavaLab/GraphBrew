@@ -235,7 +235,8 @@ inline std::string DendrogramTraversalToString(DendrogramTraversal t) {
 }
 
 // ============================================================================
-// DEFAULT PARAMETERS
+// DEFAULT PARAMETERS - Leiden Algorithm Constants
+// These are in graphbrew::leiden namespace (not nested further)
 // ============================================================================
 
 constexpr double DEFAULT_RESOLUTION = 0.75;
@@ -253,6 +254,9 @@ constexpr int FAST_MAX_PASSES = 5;
 constexpr int MODULARITY_MAX_ITERATIONS = 20;
 constexpr int MODULARITY_MAX_PASSES = 20;
 
+// Sort variant uses higher tolerance to allow more passes
+constexpr double SORT_AGGREGATION_TOLERANCE = 0.95;
+
 // ============================================================================
 // MODULARITY CALCULATION UTILITIES
 // ============================================================================
@@ -269,12 +273,14 @@ constexpr int MODULARITY_MAX_PASSES = 20;
  * @param ki Total weight of vertex i (degree)
  * @param sigma_c Total weight of community c
  * @param sigma_d Total weight of community d
- * @param M Total edge weight in graph
+ * @param M Total edge weight in graph (must be > 0)
  * @param R Resolution parameter
- * @return Delta modularity (positive = beneficial move)
+ * @return Delta modularity (positive = beneficial move), or 0 if M is zero
  */
 template <typename W>
 inline W gveDeltaModularity(W ki_to_c, W ki_to_d, W ki, W sigma_c, W sigma_d, W M, W R) {
+    // Guard against division by zero (can happen with degenerate graphs)
+    if (M <= W(0)) return W(0);
     return (ki_to_c - ki_to_d) / M - R * ki * (sigma_c - sigma_d + ki) / (W(2.0) * M * M);
 }
 
@@ -285,6 +291,19 @@ inline W gveDeltaModularity(W ki_to_c, W ki_to_d, W ki, W sigma_c, W sigma_d, W 
 // LEIDEN ALGORITHM IMPLEMENTATIONS
 // These are standalone template functions that work with CSRGraph directly
 // ============================================================================
+
+// Bring leiden constants into global scope for implementations below
+using graphbrew::leiden::DEFAULT_TOLERANCE;
+using graphbrew::leiden::DEFAULT_AGGREGATION_TOLERANCE;
+using graphbrew::leiden::DEFAULT_QUALITY_FACTOR;
+using graphbrew::leiden::DEFAULT_MAX_ITERATIONS;
+using graphbrew::leiden::DEFAULT_MAX_PASSES;
+using graphbrew::leiden::FAST_MAX_ITERATIONS;
+using graphbrew::leiden::FAST_MAX_PASSES;
+using graphbrew::leiden::MODULARITY_MAX_ITERATIONS;
+using graphbrew::leiden::MODULARITY_MAX_PASSES;
+using graphbrew::leiden::SORT_AGGREGATION_TOLERANCE;
+// Note: DEFAULT_RESOLUTION not brought to global scope to avoid conflict with adaptive::DEFAULT_RESOLUTION
 
 #include <graph.h>
 #include <vector>
@@ -433,7 +452,8 @@ void LeidenCommunityDetection(
     int max_iterations = 20)
 {
     const int64_t num_vertices = g.num_nodes();
-    const double total_weight = static_cast<double>(g.num_edges_directed());
+    // Guard against zero edges to prevent FPE
+    const double total_weight = std::max(1.0, static_cast<double>(g.num_edges_directed()));
     
     std::vector<int64_t> community(num_vertices);
     std::vector<double> vertex_weight(num_vertices);
@@ -449,14 +469,23 @@ void LeidenCommunityDetection(
     int64_t total_moves = 0;
     int pass = 0;
     
+    // Use bitmap instead of unordered_set for O(1) community counting
+    std::vector<char> comm_exists(num_vertices, 0);
+    
     for (pass = 0; pass < max_passes; ++pass) {
         int64_t moves = LeidenLocalMoveParallel<NodeID_T, DestID_T>(
             g, community, comm_weight, vertex_weight,
             total_weight, resolution, max_iterations);
         
-        // Count communities
-        std::unordered_set<int64_t> unique_comms(community.begin(), community.end());
-        int64_t num_comms = unique_comms.size();
+        // Count communities using bitmap (O(N) instead of hash table)
+        std::fill(comm_exists.begin(), comm_exists.end(), 0);
+        for (int64_t v = 0; v < num_vertices; ++v) {
+            comm_exists[community[v]] = 1;
+        }
+        int64_t num_comms = 0;
+        for (int64_t c = 0; c < num_vertices; ++c) {
+            if (comm_exists[c]) num_comms++;
+        }
         
         printf("Leiden pass %d: %ld moves, %ld communities\n", pass + 1, moves, num_comms);
         
@@ -464,12 +493,12 @@ void LeidenCommunityDetection(
         if (moves == 0) break;
     }
     
-    // Compress communities
-    std::unordered_map<int64_t, int64_t> comm_remap;
+    // Compress communities using array-based remapping (O(N) instead of hash table)
+    std::vector<int64_t> comm_remap(num_vertices, -1);
     int64_t num_comms = 0;
     for (int64_t v = 0; v < num_vertices; ++v) {
         int64_t c = community[v];
-        if (comm_remap.find(c) == comm_remap.end()) {
+        if (comm_remap[c] == -1) {
             comm_remap[c] = num_comms++;
         }
     }
@@ -509,7 +538,8 @@ void FastModularityCommunityDetection(
     int max_passes = 3)
 {
     const int64_t num_vertices = g.num_nodes();
-    const double total_weight = static_cast<double>(g.num_edges_directed());
+    // Guard against zero edges to prevent FPE
+    const double total_weight = std::max(1.0, static_cast<double>(g.num_edges_directed()));
     
     // Initialize vertex strengths
     vertex_strength.resize(num_vertices);
@@ -1620,8 +1650,8 @@ GVELeidenResult<K> GVELeidenCSR(
     const CSRGraph<NodeID_T, DestID_T, true>& g,
     double resolution = 1.0,
     double tolerance = 1e-2,
-    double aggregation_tolerance = 0.8,
-    double tolerance_drop = 10.0,
+    double aggregation_tolerance = DEFAULT_AGGREGATION_TOLERANCE,
+    double tolerance_drop = DEFAULT_QUALITY_FACTOR,
     int max_iterations = 20,
     int max_passes = 10) {
     
@@ -1632,7 +1662,8 @@ GVELeidenResult<K> GVELeidenCSR(
     
     // Compute M (total edge weight)
     const int64_t num_edges_stored = g.num_edges();
-    const double M = static_cast<double>(num_edges_stored);
+    // Guard against zero edges (degenerate graph)
+    const double M = std::max(1.0, static_cast<double>(num_edges_stored));
     
     GVELeidenResult<K> result;
     result.total_iterations = 0;
@@ -2045,8 +2076,8 @@ GVELeidenResult<K> GVELeidenOptCSR(
     const CSRGraph<NodeID_T, DestID_T, true>& g,
     double resolution = 1.0,
     double tolerance = 1e-2,
-    double aggregation_tolerance = 0.8,
-    double tolerance_drop = 10.0,
+    double aggregation_tolerance = DEFAULT_AGGREGATION_TOLERANCE,
+    double tolerance_drop = DEFAULT_QUALITY_FACTOR,
     int max_iterations = 20,
     int max_passes = 10,
     bool skip_refine = false) {
@@ -2054,7 +2085,7 @@ GVELeidenResult<K> GVELeidenOptCSR(
     const int64_t num_nodes = g.num_nodes();
     bool graph_is_symmetric = !g.directed();
     const int64_t num_edges_stored = g.num_edges();
-    const double M = static_cast<double>(num_edges_stored);
+    const double M = std::max(1.0, static_cast<double>(num_edges_stored));  // Guard against zero edges
     
     GVELeidenResult<K> result;
     result.total_iterations = 0;
@@ -2688,15 +2719,24 @@ GVELeidenResult<K> GVELeidenAdaptiveCSR(
     const CSRGraph<NodeID_T, DestID_T, true>& g,
     double initial_resolution = 1.0,
     double tolerance = 1e-2,
-    double aggregation_tolerance = 0.8,
-    double tolerance_drop = 10.0,
+    double aggregation_tolerance = DEFAULT_AGGREGATION_TOLERANCE,
+    double tolerance_drop = DEFAULT_QUALITY_FACTOR,
     int max_iterations = 20,
     int max_passes = 10) {
     
     const int64_t num_nodes = g.num_nodes();
+    
+    // GUARD: Empty graph - return empty result
+    if (num_nodes == 0) {
+        GVELeidenResult<K> empty_result;
+        empty_result.total_iterations = 0;
+        empty_result.total_passes = 0;
+        return empty_result;
+    }
+    
     bool graph_is_symmetric = !g.directed();
     const int64_t num_edges_stored = g.num_edges();
-    const double M = static_cast<double>(num_edges_stored);
+    const double M = std::max(1.0, static_cast<double>(num_edges_stored));  // Guard against zero edges
     
     // Compute original graph's average degree for density comparison
     const double original_avg_degree = static_cast<double>(num_edges_stored) / num_nodes;
@@ -3009,8 +3049,8 @@ GVELeidenResult<K> GVELeidenOpt2CSR(
     const CSRGraph<NodeID_T, DestID_T, true>& g,
     double resolution = 1.0,
     double tolerance = 1e-2,
-    double aggregation_tolerance = 0.8,
-    double tolerance_drop = 10.0,
+    double aggregation_tolerance = DEFAULT_AGGREGATION_TOLERANCE,
+    double tolerance_drop = DEFAULT_QUALITY_FACTOR,
     int max_iterations = 20,
     int max_passes = 10,
     bool skip_refine = false) {
@@ -3018,7 +3058,7 @@ GVELeidenResult<K> GVELeidenOpt2CSR(
     const int64_t num_nodes = g.num_nodes();
     bool graph_is_symmetric = !g.directed();
     const int64_t num_edges_stored = g.num_edges();
-    const double M = static_cast<double>(num_edges_stored);
+    const double M = std::max(1.0, static_cast<double>(num_edges_stored));  // Guard against zero edges
     
     GVELeidenResult<K> result;
     result.total_iterations = 0;
@@ -3146,14 +3186,31 @@ GVELeidenResult<K> GVELeidenOpt2CSR(
             }
         }
         
-        // PHASE 3: AGGREGATION - Using CSR-based approach (NEW!)
-        std::vector<W> super_weight(num_refined_communities, W(0));
+        // PHASE 3: AGGREGATION - Using optimized approach
+        // Use thread-local reduction instead of atomics
+        const int num_threads = omp_get_max_threads();
+        std::vector<std::vector<W>> thread_super_weight(num_threads);
+        for (int t = 0; t < num_threads; ++t) {
+            thread_super_weight[t].resize(num_refined_communities, W(0));
+        }
         
-        #pragma omp parallel for
-        for (int64_t v = 0; v < num_nodes; ++v) {
-            K c = vcom_refined[v];
-            #pragma omp atomic
-            super_weight[c] += vtot[v];
+        #pragma omp parallel
+        {
+            int tid = omp_get_thread_num();
+            auto& local_weight = thread_super_weight[tid];
+            
+            #pragma omp for
+            for (int64_t v = 0; v < num_nodes; ++v) {
+                K c = vcom_refined[v];
+                local_weight[c] += vtot[v];
+            }
+        }
+        
+        std::vector<W> super_weight(num_refined_communities, W(0));
+        for (int t = 0; t < num_threads; ++t) {
+            for (size_t c = 0; c < num_refined_communities; ++c) {
+                super_weight[c] += thread_super_weight[t][c];
+            }
         }
         
         // Build super-graph edges using CSR-based community scanning
@@ -3171,11 +3228,15 @@ GVELeidenResult<K> GVELeidenOpt2CSR(
             super_ctot[c] = super_weight[c];
         }
         
+        // Limit super-graph iterations for speed (main optimization!)
+        // Large graphs don't need many iterations on the coarsened graph
+        int super_max_iter = std::min(3, max_iterations);
+        
         // Use flat array for super-graph local move
         std::vector<W> sg_comm_weights(num_refined_communities, W(0));
         std::vector<K> sg_touched(num_refined_communities);
         
-        for (int iter = 0; iter < max_iterations; ++iter) {
+        for (int iter = 0; iter < super_max_iter; ++iter) {
             int moves = 0;
             
             for (size_t c = 0; c < num_refined_communities; ++c) {
@@ -3279,12 +3340,18 @@ GVELeidenResult<K> GVELeidenOpt2CSR(
             break;
         }
         
-        // Reinitialize for next pass
-        #pragma omp parallel for
+        // Reinitialize for next pass (use sequential clear + parallel fill for simplicity)
+        K max_comm_reinit = 0;
         for (int64_t v = 0; v < num_nodes; ++v) {
-            ctot[vcom[v]] = W(0);
+            max_comm_reinit = std::max(max_comm_reinit, vcom[v]);
         }
         
+        // Clear only used communities
+        for (K c = 0; c <= max_comm_reinit; ++c) {
+            ctot[c] = W(0);
+        }
+        
+        // Parallel fill using shared vector (unavoidable atomics here, but fewer)
         #pragma omp parallel for
         for (int64_t v = 0; v < num_nodes; ++v) {
             #pragma omp atomic
@@ -3515,15 +3582,15 @@ GVELeidenResult<K> GVELeidenFastCSR(
     const CSRGraph<NodeID_T, DestID_T, true>& g,
     double resolution = 1.0,
     double tolerance = 1e-2,
-    double aggregation_tolerance = 0.8,
-    double tolerance_drop = 10.0,
+    double aggregation_tolerance = DEFAULT_AGGREGATION_TOLERANCE,
+    double tolerance_drop = DEFAULT_QUALITY_FACTOR,
     int max_iterations = 20,
     int max_passes = 10) {
     
     const int64_t num_nodes = g.num_nodes();
     bool graph_is_symmetric = !g.directed();
     const int64_t num_edges_stored = g.num_edges();
-    const double M = static_cast<double>(num_edges_stored);
+    const double M = std::max(1.0, static_cast<double>(num_edges_stored));  // Guard against zero edges
     
     GVELeidenResult<K> result;
     result.total_iterations = 0;
@@ -3755,7 +3822,7 @@ GVELeidenResult<K> GVELeidenTurboCSR(
     const int64_t num_nodes = g.num_nodes();
     bool graph_is_symmetric = !g.directed();
     const int64_t num_edges_stored = g.num_edges();
-    const double M = static_cast<double>(num_edges_stored);
+    const double M = std::max(1.0, static_cast<double>(num_edges_stored));  // Guard against zero edges
     
     GVELeidenResult<K> result;
     result.total_iterations = 0;
@@ -4051,15 +4118,15 @@ GVEDendroResult<K> GVELeidenDendoCSR(
     const CSRGraph<NodeID_T, DestID_T, true>& g,
     double resolution = 1.0,
     double tolerance = 1e-2,
-    double aggregation_tolerance = 0.8,
-    double tolerance_drop = 10.0,
+    double aggregation_tolerance = DEFAULT_AGGREGATION_TOLERANCE,
+    double tolerance_drop = DEFAULT_QUALITY_FACTOR,
     int max_iterations = 20,
     int max_passes = 10) {
     
     const int64_t num_nodes = g.num_nodes();
     bool graph_is_symmetric = !g.directed();
     const int64_t num_edges_stored = g.num_edges();
-    const double M = static_cast<double>(num_edges_stored);
+    const double M = std::max(1.0, static_cast<double>(num_edges_stored));  // Guard against zero edges
     
     // Initialize atomic dendrogram (replaces community_per_pass storage)
     GVEAtomicDendroResult<K> atomic_dendro;
@@ -4381,8 +4448,8 @@ GVEDendroResult<K> GVELeidenOptDendoCSR(
     const CSRGraph<NodeID_T, DestID_T, true>& g,
     double resolution = 1.0,
     double tolerance = 1e-2,
-    double aggregation_tolerance = 0.8,
-    double tolerance_drop = 10.0,
+    double aggregation_tolerance = DEFAULT_AGGREGATION_TOLERANCE,
+    double tolerance_drop = DEFAULT_QUALITY_FACTOR,
     int max_iterations = 20,
     int max_passes = 10) {
     
@@ -4465,7 +4532,8 @@ std::vector<std::vector<K>> FastLeidenCSR(
 {
     const int64_t num_nodes = g.num_nodes();
     const int64_t num_edges = g.num_edges_directed();
-    const double total_weight = static_cast<double>(num_edges);
+    // Guard against zero edges to prevent FPE
+    const double total_weight = std::max(1.0, static_cast<double>(num_edges));
     
     std::vector<std::vector<K>> community_per_pass;
     
@@ -4886,11 +4954,30 @@ void GenerateLeidenMapping2(
     int64_t num_comms = *std::max_element(community.begin(), community.end()) + 1;
     std::vector<double> comm_strength(num_comms, 0.0);
     
-    #pragma omp parallel for
-    for (int64_t v = 0; v < num_nodes; ++v) {
-        int64_t c = community[v];
-        #pragma omp atomic
-        comm_strength[c] += static_cast<double>(g.out_degree(v));
+    // Use thread-local reduction instead of atomics for better performance
+    const int num_threads = omp_get_max_threads();
+    std::vector<std::vector<double>> thread_strength(num_threads);
+    for (int t = 0; t < num_threads; ++t) {
+        thread_strength[t].resize(num_comms, 0.0);
+    }
+    
+    #pragma omp parallel
+    {
+        int tid = omp_get_thread_num();
+        auto& local_strength = thread_strength[tid];
+        
+        #pragma omp for
+        for (int64_t v = 0; v < num_nodes; ++v) {
+            int64_t c = community[v];
+            local_strength[c] += static_cast<double>(g.out_degree(v));
+        }
+    }
+    
+    // Merge thread-local results
+    for (int t = 0; t < num_threads; ++t) {
+        for (int64_t c = 0; c < num_comms; ++c) {
+            comm_strength[c] += thread_strength[t][c];
+        }
     }
     
     std::vector<std::tuple<int64_t, int64_t, int64_t>> order(num_nodes);
@@ -4993,7 +5080,7 @@ void GenerateGVELeidenCSRMapping(
     }
     
     // Run GVE-Leiden algorithm
-    auto result = GVELeidenCSR<K, double, NodeID_T, DestID_T>(g, resolution, 1e-2, 0.8, 10.0, max_iterations, max_passes);
+    auto result = GVELeidenCSR<K, double, NodeID_T, DestID_T>(g, resolution, DEFAULT_TOLERANCE, DEFAULT_AGGREGATION_TOLERANCE, DEFAULT_QUALITY_FACTOR, max_iterations, max_passes);
     
     tm.Stop();
     PrintTime("GVELeiden Community Detection", tm.Seconds());
@@ -5165,7 +5252,7 @@ void GenerateGVELeidenOptMapping(
            num_active, num_isolated, 100.0 * num_isolated / num_nodes);
     
     // Run optimized GVE-Leiden algorithm
-    auto result = GVELeidenOptCSR<K, double, NodeID_T, DestID_T>(g, resolution, 1e-2, 0.8, 10.0, max_iterations, max_passes);
+    auto result = GVELeidenOptCSR<K, double, NodeID_T, DestID_T>(g, resolution, DEFAULT_TOLERANCE, DEFAULT_AGGREGATION_TOLERANCE, DEFAULT_QUALITY_FACTOR, max_iterations, max_passes);
     
     tm.Stop();
     PrintTime("GVELeidenOpt Community Detection", tm.Seconds());
@@ -5303,7 +5390,7 @@ void GenerateGVELeidenOpt2Mapping(
     
     // Run GVE-Leiden Opt2 with CSR aggregation
     auto result = GVELeidenOpt2CSR<K, double, NodeID_T, DestID_T>(
-        g, resolution, 1e-2, 0.8, 10.0, max_iterations, max_passes);
+        g, resolution, DEFAULT_TOLERANCE, DEFAULT_AGGREGATION_TOLERANCE, DEFAULT_QUALITY_FACTOR, max_iterations, max_passes);
     
     tm.Stop();
     double detection_time = tm.Seconds();
@@ -5420,7 +5507,7 @@ void GenerateGVELeidenAdaptiveMapping(
     
     // Run adaptive GVE-Leiden
     auto result = GVELeidenAdaptiveCSR<K, double, NodeID_T, DestID_T>(
-        g, initial_resolution, 1e-2, 0.8, 10.0, max_iterations, max_passes);
+        g, initial_resolution, DEFAULT_TOLERANCE, DEFAULT_AGGREGATION_TOLERANCE, DEFAULT_QUALITY_FACTOR, max_iterations, max_passes);
     
     tm.Stop();
     double detection_time = tm.Seconds();
@@ -5538,7 +5625,7 @@ void GenerateGVELeidenDendoMapping(
     
     // Run algorithm
     auto result = GVELeidenDendoCSR<K, double, NodeID_T, DestID_T>(
-        g, resolution, 1e-2, 0.8, 10.0, max_iterations, max_passes);
+        g, resolution, DEFAULT_TOLERANCE, DEFAULT_AGGREGATION_TOLERANCE, DEFAULT_QUALITY_FACTOR, max_iterations, max_passes);
     
     tm.Stop();
     double detection_time = tm.Seconds();
@@ -5613,7 +5700,7 @@ void GenerateGVELeidenOptDendoMapping(
     
     // Run algorithm
     auto result = GVELeidenOptDendoCSR<K, double, NodeID_T, DestID_T>(
-        g, resolution, 1e-2, 0.8, 10.0, max_iterations, max_passes);
+        g, resolution, DEFAULT_TOLERANCE, DEFAULT_AGGREGATION_TOLERANCE, DEFAULT_QUALITY_FACTOR, max_iterations, max_passes);
     
     tm.Stop();
     double detection_time = tm.Seconds();
@@ -5696,7 +5783,7 @@ void GenerateGVELeidenFastMapping(
     
     // Run GVE-Leiden with CSR buffer reuse (faster aggregation)
     auto result = GVELeidenFastCSR<K, double, NodeID_T, DestID_T>(
-        g, resolution, 1e-2, 0.8, 10.0, max_iterations, max_passes);
+        g, resolution, DEFAULT_TOLERANCE, DEFAULT_AGGREGATION_TOLERANCE, DEFAULT_QUALITY_FACTOR, max_iterations, max_passes);
     
     tm.Stop();
     double detection_time = tm.Seconds();
@@ -5820,9 +5907,9 @@ void GenerateGVELeidenOptSortMapping(
            resolution, resolutionModeString(res_cfg.mode).c_str(), max_iterations, max_passes);
     
     // Run optimized GVE-Leiden with lower aggregation_tolerance to allow more passes
-    // (0.95 instead of 0.8 - continue even if only 5% reduction per pass)
+    // (SORT_AGGREGATION_TOLERANCE instead of DEFAULT - continue even if only 5% reduction per pass)
     auto result = GVELeidenOptCSR<K, double, NodeID_T, DestID_T>(
-        g, resolution, 1e-2, 0.95, 10.0, max_iterations, max_passes);
+        g, resolution, DEFAULT_TOLERANCE, SORT_AGGREGATION_TOLERANCE, DEFAULT_QUALITY_FACTOR, max_iterations, max_passes);
     
     tm.Stop();
     double detection_time = tm.Seconds();
@@ -5948,7 +6035,7 @@ void GenerateGVELeidenTurboMapping(
     
     // Run optimized GVE-Leiden with refinement SKIPPED for speed
     auto result = GVELeidenOptCSR<K, double, NodeID_T, DestID_T>(
-        g, resolution, 1e-2, 0.8, 10.0, max_iterations, max_passes, true);  // skip_refine=true
+        g, resolution, DEFAULT_TOLERANCE, DEFAULT_AGGREGATION_TOLERANCE, DEFAULT_QUALITY_FACTOR, max_iterations, max_passes, true);  // skip_refine=true
     
     tm.Stop();
     double detection_time = tm.Seconds();
@@ -6154,34 +6241,56 @@ void GenerateGVERabbitMapping(
     // Build ordering from communities
     tm.Start();
     
-    // Get degrees for hub-first ordering
-    std::vector<K> degrees(num_nodes);
+    // Get degrees for hub-first ordering - use int64_t for sort key optimization
+    std::vector<int64_t> degrees(num_nodes);
     #pragma omp parallel for
     for (int64_t v = 0; v < num_nodes; ++v) {
         degrees[v] = g.out_degree(v);
     }
     
-    // Sort vertices by (community, -degree) for locality
-    std::vector<std::pair<K, int64_t>> order_keys(num_nodes);
+    // Optimized sort: embed negative degree in sort key to avoid lambda cache misses
+    // Key format: (community << 32) | (MAX_DEGREE - degree) for hub-first
+    struct SortKey {
+        K community;
+        int64_t neg_degree;  // Store negative for descending degree
+        int64_t vertex;
+        
+        bool operator<(const SortKey& o) const {
+            if (community != o.community) return community < o.community;
+            if (neg_degree != o.neg_degree) return neg_degree < o.neg_degree;
+            return vertex < o.vertex;
+        }
+    };
+    
+    std::vector<SortKey> order_keys(num_nodes);
     #pragma omp parallel for
     for (int64_t v = 0; v < num_nodes; ++v) {
-        order_keys[v] = {result.community[v], v};
+        order_keys[v] = {result.community[v], -degrees[v], v};
     }
     
-    // Sort: group by community, hub-first within community
-    __gnu_parallel::sort(order_keys.begin(), order_keys.end(),
-        [&degrees](const auto& a, const auto& b) {
-            if (a.first != b.first) return a.first < b.first;
-            return degrees[a.second] > degrees[b.second];  // Hub-first
-        });
+    // Sort: group by community, hub-first within community (using operator<)
+    __gnu_parallel::sort(order_keys.begin(), order_keys.end());
     
-    // Assign new IDs: active vertices first, isolated at end
+    // Assign new IDs: active vertices first, isolated at end (parallelized)
+    new_ids.resize(num_nodes);
+    
+    // First pass: count active vertices
+    int64_t num_active_from_sort = 0;
+    for (int64_t i = 0; i < num_nodes; ++i) {
+        if (degrees[order_keys[i].vertex] > 0) {
+            num_active_from_sort++;
+        }
+    }
+    
+    // Assign IDs in sorted order for active vertices
     int64_t current_id = 0;
-    for (const auto& [comm, v] : order_keys) {
+    for (int64_t i = 0; i < num_nodes; ++i) {
+        int64_t v = order_keys[i].vertex;
         if (degrees[v] > 0) {
             new_ids[v] = current_id++;
         }
     }
+    // Assign remaining IDs to isolated vertices
     for (int64_t v : isolated_vertices) {
         new_ids[v] = current_id++;
     }
@@ -6189,12 +6298,20 @@ void GenerateGVERabbitMapping(
     tm.Stop();
     double ordering_time = tm.Seconds();
     
-    // Count real communities (exclude isolated)
-    std::unordered_set<K> unique_comms;
+    // Count real communities using bitmap instead of unordered_set
+    K max_comm = 0;
     for (int64_t v : active_vertices) {
-        unique_comms.insert(result.community[v]);
+        max_comm = std::max(max_comm, result.community[v]);
     }
-    size_t num_communities = unique_comms.size();
+    std::vector<char> comm_seen(max_comm + 1, 0);
+    size_t num_communities = 0;
+    for (int64_t v : active_vertices) {
+        K c = result.community[v];
+        if (!comm_seen[c]) {
+            comm_seen[c] = 1;
+            num_communities++;
+        }
+    }
     
     PrintTime("GVERabbit Communities", static_cast<double>(num_communities));
     if (num_isolated > 0) {

@@ -284,6 +284,18 @@ void ReorderCommunitySubgraphStandalone(
     }
     
     // Build CSR graph from edge list and apply reordering
+    // GUARD: If subgraph has no internal edges (all edges go to other communities),
+    // skip reordering and just assign nodes in original order. This can happen on
+    // graphs with extreme structure like Kronecker graphs where small communities
+    // may have nodes only connected to other communities.
+    if (sub_edges.empty()) {
+        // No internal edges - assign nodes in original order
+        for (NodeID_ node : nodes) {
+            new_ids[node] = current_id++;
+        }
+        return;
+    }
+    
     CSRGraph<NodeID_, DestID_, invert> sub_g = 
         MakeLocalGraphFromELStandalone<NodeID_, DestID_, invert>(sub_edges, false);
     pvector<NodeID_> sub_new_ids(comm_size, -1);

@@ -110,24 +110,31 @@ SCORING_FEATURES = [
     ("reorder_time", "w_reorder_time"),
 ]
 
-ALGORITHMS = {
-    0: "ORIGINAL",
-    1: "RANDOM",
-    2: "SORT",
-    3: "HUBSORT",
-    4: "HUBCLUSTER",
-    5: "DBG",
-    6: "HUBSORTDBG",
-    7: "HUBCLUSTERDBG",
-    8: "RABBITORDER",
-    9: "GORDER",
-    10: "CORDER",
-    11: "RCM",
-    12: "GraphBrewOrder",
-    15: "LeidenOrder",
-    16: "LeidenDendrogram",
-    17: "LeidenCSR",
-}
+# Import ALGORITHMS from lib/utils.py (Single Source of Truth)
+try:
+    from scripts.lib.utils import ALGORITHMS
+except ImportError:
+    # Fallback for standalone usage
+    ALGORITHMS = {
+        0: "ORIGINAL",
+        1: "RANDOM",
+        2: "SORT",
+        3: "HUBSORT",
+        4: "HUBCLUSTER",
+        5: "DBG",
+        6: "HUBSORTDBG",
+        7: "HUBCLUSTERDBG",
+        8: "RABBITORDER",
+        9: "GORDER",
+        10: "CORDER",
+        11: "RCM",
+        12: "GraphBrewOrder",
+        13: "MAP",
+        14: "AdaptiveOrder",
+        15: "LeidenOrder",
+        16: "LeidenDendrogram",
+        17: "LeidenCSR",
+    }
 
 # =============================================================================
 # Data Classes

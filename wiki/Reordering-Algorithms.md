@@ -158,6 +158,20 @@ Bucket 3: degree 8-15
 - **Complexity**: O(n + m)
 - **Best for**: Power-law graphs with clear hub structure
 
+### Edge Case Handling (Hub-Based Algorithms)
+
+All hub-based algorithms (HUBSORT, HUBCLUSTER, DBG, HUBSORTDBG, HUBCLUSTERDBG) include guards for empty subgraphs:
+
+```cpp
+// Guard against empty graphs (prevents division by zero)
+if (num_nodes == 0) {
+    return;  // Nothing to reorder
+}
+const int64_t avgDegree = num_edges / num_nodes;
+```
+
+This is important when these algorithms are used as the **final algorithm** in GraphBrewOrder, where community subgraphs may have no internal edges on graphs with extreme structure (e.g., Kronecker graphs).
+
 ---
 
 ## Community & Classic Algorithms (8-11)

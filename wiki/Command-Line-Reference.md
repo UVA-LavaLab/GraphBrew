@@ -159,16 +159,20 @@ Use with `-o <id>`:
 | 5 | DBG | DBG-based |
 | 6 | HubSortDBG | DBG-based |
 | 7 | HubClusterDBG | DBG-based |
-| 8 | RabbitOrder | Community (variants: csr/boost, default: csr) |
+| 8 | RabbitOrder | Community (has variants, see below) |
 | 9 | GOrder | Community |
 | 10 | COrder | Community |
 | 11 | RCMOrder | Community |
-| 12 | GraphBrewOrder | Community (format: `-o 12:variant:final_algo:resolution:levels`) |
+| 12 | GraphBrewOrder | Community (has variants, see below) |
 | 13 | MAP | External mapping |
 | 14 | AdaptiveOrder | ML |
 | 15 | LeidenOrder | Leiden (igraph) |
-| 16 | LeidenDendrogram | Leiden (variants: dfs/dfshub/dfssize/bfs/hybrid) |
-| 17 | LeidenCSR | Leiden (variants: gve/gveopt/gveopt2/gveadaptive/gvefast/gverabbit/...) |
+| 16 | LeidenDendrogram | Leiden (has variants, see below) |
+| 17 | LeidenCSR | Leiden (has variants, see below) |
+
+> **Note:** For current variant lists, see `scripts/lib/utils.py` which defines:
+> - `RABBITORDER_VARIANTS`, `GRAPHBREW_VARIANTS`
+> - `LEIDEN_DENDROGRAM_VARIANTS`, `LEIDEN_CSR_VARIANTS`
 
 ### LeidenCSR Resolution Modes (Algorithm 17)
 
@@ -577,14 +581,17 @@ Memory estimation: `(edges × 24 bytes + nodes × 8 bytes) × 1.5`
 
 ### Algorithm Variant Options
 
+> **Note:** For the current list of supported variants, see `scripts/lib/utils.py` which defines:
+> `GRAPHBREW_VARIANTS`, `LEIDEN_CSR_VARIANTS`, `LEIDEN_DENDROGRAM_VARIANTS`, `RABBITORDER_VARIANTS`
+
 | Option | Description |
 |--------|-------------|
 | `--all-variants` | Test ALL algorithm variants (Leiden, RabbitOrder, GraphBrewOrder) instead of defaults |
-| `--graphbrew-variants LIST` | GraphBrewOrder variants: leiden (default), gve, gveopt, gvefast, gveoptfast, rabbit, hubcluster |
-| `--csr-variants LIST` | LeidenCSR variants: gve, gveopt, gveopt2, gveadaptive, gveoptsort, gveturbo, gvefast, gvedendo, gveoptdendo, gverabbit, dfs, bfs, hubsort, modularity |
-| `--dendrogram-variants LIST` | LeidenDendrogram variants: dfs, dfshub, dfssize, bfs, hybrid |
-| `--rabbit-variants LIST` | RabbitOrder variants: csr (default), boost (requires libboost-graph-dev) |
-| `--resolution VALUE` | Leiden resolution: dynamic (default, best PR), auto, fixed (1.5), dynamic_2.0 |
+| `--graphbrew-variants LIST` | GraphBrewOrder clustering variants (default: `leiden`) |
+| `--csr-variants LIST` | LeidenCSR variants (default: `gve`) |
+| `--dendrogram-variants LIST` | LeidenDendrogram variants (default: `hybrid`) |
+| `--rabbit-variants LIST` | RabbitOrder variants (default: `csr`) |
+| `--resolution VALUE` | Leiden resolution: `dynamic` (default), `auto`, fixed (e.g., `1.5`), `dynamic_2.0` |
 | `--passes INT` | LeidenCSR refinement passes - higher = better quality (default: 3) |
 
 > **Note:** Specifying any variant list (e.g., `--csr-variants gve`) automatically enables variant expansion.
