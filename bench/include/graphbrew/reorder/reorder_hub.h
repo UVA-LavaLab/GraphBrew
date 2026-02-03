@@ -75,6 +75,14 @@ void GenerateHubSortMapping(const CSRGraph<NodeID_, DestID_, invert>& g,
     
     const int64_t num_nodes = g.num_nodes();
     const int64_t num_edges = g.num_edges();
+    
+    // GUARD: Empty graph - nothing to do
+    if (num_nodes == 0) {
+        t.Stop();
+        PrintTime("HubSort Map Time", t.Seconds());
+        return;
+    }
+    
     const int64_t avgDegree = num_edges / num_nodes;
     
     pvector<DegreeNodePair> degree_id_pairs(num_nodes);
@@ -184,6 +192,14 @@ void GenerateHubClusterMapping(const CSRGraph<NodeID_, DestID_, invert>& g,
     
     const int64_t num_nodes = g.num_nodes();
     const int64_t num_edges = g.num_edges();
+    
+    // GUARD: Empty graph - nothing to do
+    if (num_nodes == 0) {
+        t.Stop();
+        PrintTime("HubCluster Map Time", t.Seconds());
+        return;
+    }
+    
     const int64_t avgDegree = num_edges / num_nodes;
     
     // Padding to avoid false sharing
@@ -313,6 +329,14 @@ void GenerateDBGMapping(const CSRGraph<NodeID_, DestID_, invert>& g,
     
     const int64_t num_nodes = g.num_nodes();
     const int64_t num_edges = g.num_edges();
+    
+    // GUARD: Empty graph - nothing to do
+    if (num_nodes == 0) {
+        t.Stop();
+        PrintTime("DBG Map Time", t.Seconds());
+        return;
+    }
+    
     const uint32_t avg_degree = num_edges / num_nodes;
     
     // Define bucket thresholds (logarithmic scaling)
@@ -421,6 +445,14 @@ void GenerateHubSortDBGMapping(const CSRGraph<NodeID_, DestID_, invert>& g,
     
     const int64_t num_nodes = g.num_nodes();
     const int64_t num_edges = g.num_edges();
+    
+    // GUARD: Empty graph - nothing to do
+    if (num_nodes == 0) {
+        t.Stop();
+        PrintTime("HubSortDBG Map Time", t.Seconds());
+        return;
+    }
+    
     const int64_t avgDegree = num_edges / num_nodes;
     
     const int num_threads = omp_get_max_threads();
@@ -535,6 +567,14 @@ void GenerateHubClusterDBGMapping(const CSRGraph<NodeID_, DestID_, invert>& g,
     
     const int64_t num_nodes = g.num_nodes();
     const int64_t num_edges = g.num_edges();
+    
+    // GUARD: Empty graph - nothing to do
+    if (num_nodes == 0) {
+        t.Stop();
+        PrintTime("HubClusterDBG Map Time", t.Seconds());
+        return;
+    }
+    
     const uint32_t avg_degree = num_edges / num_nodes;
     
     // Two buckets: non-hubs (degree <= avg) and hubs (degree > avg)

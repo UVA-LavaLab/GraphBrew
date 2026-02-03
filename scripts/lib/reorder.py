@@ -28,11 +28,12 @@ from typing import Dict, List, Optional, Tuple, Any
 
 from .utils import (
     PROJECT_ROOT, BIN_DIR, RESULTS_DIR,
-    ALGORITHMS, ALGORITHM_IDS, SLOW_ALGORITHMS,
+    ALGORITHMS, ALGORITHM_IDS, SLOW_ALGORITHMS, SIZE_MEDIUM,
     LEIDEN_CSR_VARIANTS, LEIDEN_DENDROGRAM_VARIANTS,
     LEIDEN_DEFAULT_RESOLUTION, LEIDEN_DEFAULT_PASSES,
     RABBITORDER_VARIANTS, RABBITORDER_DEFAULT_VARIANT,
     GRAPHBREW_VARIANTS, GRAPHBREW_DEFAULT_VARIANT,
+    TIMEOUT_REORDER,
     Logger, run_command, get_timestamp,
 )
 
@@ -42,12 +43,6 @@ log = Logger()
 # =============================================================================
 # Constants
 # =============================================================================
-
-# Default timeouts (seconds)
-TIMEOUT_REORDER = 43200  # 12 hours for reordering (some algorithms like GORDER are slow)
-
-# Graph size thresholds (MB)
-SIZE_MEDIUM = 500
 
 # Enable run logging (saves command outputs per graph)
 ENABLE_RUN_LOGGING = True

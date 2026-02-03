@@ -891,9 +891,12 @@ Reordering Algorithms:
   │ LeidenOrder   (15):  Leiden via igraph (format: 15:resolution)              │
   │ LeidenDendrogram(16): Dendrogram traversal (format: 16:res:variant)         │
   │                      Variants: dfs, dfshub, dfssize, bfs, hybrid            │
-  │ LeidenCSR     (17):  Fast CSR-native (format: 17:res:passes:variant)        │
-  │                      Variants: gve (default), gveopt, dfs, bfs, hubsort, fast│
+  │ LeidenCSR     (17):  Fast CSR-native (format: 17:variant:res:passes)        │
+  │                      Speed: gveopt2, gveturbo, gvefast, gverabbit           │
+  │                      Quality: gve (default), gveopt, gveadaptive, modularity│
+  │                      Legacy: gvedendo, gveoptdendo, dfs, bfs, hubsort       │
   └─────────────────────────────────────────────────────────────────────────────┘
+  See scripts/lib/utils.py for authoritative variant definitions.
 
 Parameter Syntax for Composite Algorithms:
 --------------------------------------------------------------------------------

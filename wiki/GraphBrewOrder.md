@@ -395,6 +395,32 @@ ReorderingAlgo algo = getReorderingAlgo(reorderingOptions[1].c_str());  // defau
 GenerateMappingLocalEdgelist(g, edge_list, new_ids_sub, algo, ...);
 ```
 
+### Edge Case Handling
+
+GraphBrewOrder includes guards for graphs with extreme community structure (e.g., Kronecker graphs):
+
+```cpp
+// In ReorderCommunitySubgraphStandalone (reorder.h):
+// If community has no internal edges (all edges go to other communities),
+// skip reordering and assign nodes in original order
+if (sub_edges.empty()) {
+    for (NodeID_ node : nodes) {
+        new_ids[node] = current_id++;
+    }
+    return;
+}
+```
+
+This prevents division-by-zero errors when:
+- Leiden creates communities where nodes only connect to OTHER communities
+- The induced subgraph has 0 edges
+- Hub-based algorithms compute `avgDegree = num_edges / num_nodes`
+
+**Graphs that benefit from this handling:**
+- Kronecker graphs (kron_g500-logn*)
+- Synthetic power-law graphs with extreme degree distributions
+- Graphs with highly disconnected community structure
+
 ### Vertex Relabeling
 
 ```cpp

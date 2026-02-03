@@ -1112,16 +1112,19 @@ Each weight file contains algorithm-specific weights. The C++ code reads the cor
 | 5 | DBG |
 | 6 | HUBSORTDBG |
 | 7 | HUBCLUSTERDBG |
-| 8 | RABBITORDER (variants: csr/boost) |
+| 8 | RABBITORDER (has variants) |
 | 9 | GORDER |
 | 10 | CORDER |
 | 11 | RCM |
-| 12 | GraphBrewOrder |
+| 12 | GraphBrewOrder (has variants) |
 | 13 | MAP |
 | 14 | AdaptiveOrder |
 | 15 | LeidenOrder |
-| 16 | LeidenDendrogram |
-| 17 | LeidenCSR (variants: gve/gveopt/gveopt2/gveadaptive/gveturbo/gvefast/gverabbit/dfs/bfs/hubsort/modularity) |
+| 16 | LeidenDendrogram (has variants) |
+| 17 | LeidenCSR (has variants) |
+
+> **Note:** For current variant lists, see `scripts/lib/utils.py` which defines:
+> `RABBITORDER_VARIANTS`, `GRAPHBREW_VARIANTS`, `LEIDEN_DENDROGRAM_VARIANTS`, `LEIDEN_CSR_VARIANTS`
 
 ---
 

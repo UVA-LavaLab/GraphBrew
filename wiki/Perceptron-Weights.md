@@ -310,16 +310,18 @@ The JSON uses algorithm names, which map to IDs:
 | 5 | DBG | Degree-based grouping |
 | 6 | HUBSORTDBG | Hub sort + DBG |
 | 7 | HUBCLUSTERDBG | Hub cluster + DBG |
-| 8 | RABBITORDER | Rabbit Order (variants: csr/boost, default: csr) |
+| 8 | RABBITORDER | Rabbit Order (has variants) |
 | 9 | GORDER | Gorder |
 | 10 | CORDER | Corder |
 | 11 | RCM | Reverse Cuthill-McKee |
-| 12 | GraphBrewOrder | GraphBrew composite (Leiden + per-community order) |
+| 12 | GraphBrewOrder | GraphBrew composite (has variants) |
 | 13 | MAP | Load reordering from file |
 | 14 | AdaptiveOrder | This perceptron model |
 | 15 | LeidenOrder | Basic Leiden ordering (via igraph) |
-| 16 | LeidenDendrogram | Leiden + Dendrogram traversal (variants: dfs/dfshub/dfssize/bfs/hybrid) |
-| 17 | LeidenCSR | Fast CSR-native Leiden (variants: gve/gveopt/gveopt2/gveadaptive/gveturbo/gvefast/gverabbit/dfs/bfs/hubsort/modularity, default: gve) |
+| 16 | LeidenDendrogram | Leiden + Dendrogram traversal (has variants) |
+| 17 | LeidenCSR | Fast CSR-native Leiden (has variants) |
+
+> **Note:** For current variant lists, see `scripts/lib/utils.py`.
 
 ---
 

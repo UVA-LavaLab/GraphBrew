@@ -258,35 +258,15 @@ except ImportError:
     HAS_DEPENDENCY_MANAGER = False
 
 # ============================================================================
-# Configuration
+# Configuration - Import from Single Source of Truth (lib/utils.py)
 # ============================================================================
 
-# Algorithm definitions
-ALGORITHMS = {
-    0: "ORIGINAL",
-    1: "RANDOM",
-    2: "SORT",
-    3: "HUBSORT",
-    4: "HUBCLUSTER",
-    5: "DBG",
-    6: "HUBSORTDBG",
-    7: "HUBCLUSTERDBG",
-    8: "RABBITORDER",
-    9: "GORDER",
-    10: "CORDER",
-    11: "RCM",
-    12: "GraphBrewOrder",
-    # 13: MAP - uses external file
-    14: "AdaptiveOrder",
-    # Leiden algorithms (15-17) - grouped together for easier sweeping
-    # Format: 15:resolution
-    15: "LeidenOrder",
-    # Format: 16:variant:resolution where variant = dfs/dfshub/dfssize/bfs/hybrid
-    16: "LeidenDendrogram",
-    # Format: 17:variant:resolution:iterations:passes
-    # Resolution: fixed (e.g., 1.5), auto, 0, dynamic, dynamic_2.0
-    17: "LeidenCSR",
-}
+# Import algorithm definitions from utils.py (Single Source of Truth)
+from scripts.lib.utils import (
+    ALGORITHMS, SLOW_ALGORITHMS, ALGORITHM_IDS,
+    QUICK_ALGORITHMS, LEIDEN_ALGORITHMS, COMMUNITY_ALGORITHMS,
+    SIZE_SMALL, SIZE_MEDIUM, SIZE_LARGE, SIZE_XLARGE,
+)
 
 # Algorithms to benchmark (excluding MAP=13)
 BENCHMARK_ALGORITHMS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 15, 16, 17]
@@ -294,53 +274,29 @@ BENCHMARK_ALGORITHMS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 15, 16, 17]
 # Subset of key algorithms for quick testing
 KEY_ALGORITHMS = [0, 1, 7, 8, 9, 11, 15, 16, 17]
 
-# Algorithms known to be slow on large graphs
-SLOW_ALGORITHMS = {9, 10, 11}  # GORDER, CORDER, RCM
+# ============================================================================
+# VARIANT DEFINITIONS - Single Source of Truth in lib/utils.py
+# ============================================================================
+# All variant lists are imported from lib/utils.py to ensure consistency.
+# To add new variants, edit scripts/lib/utils.py - changes will propagate here.
+#
+# Re-export from lib for backward compatibility with code that imports from here:
+RABBITORDER_VARIANTS = LIB_RABBITORDER_VARIANTS
+RABBITORDER_DEFAULT_VARIANT = LIB_RABBITORDER_DEFAULT_VARIANT
+GRAPHBREW_VARIANTS = LIB_GRAPHBREW_VARIANTS
+GRAPHBREW_DEFAULT_VARIANT = LIB_GRAPHBREW_DEFAULT_VARIANT
+LEIDEN_DENDROGRAM_VARIANTS = LIB_LEIDEN_DENDROGRAM_VARIANTS
+LEIDEN_CSR_VARIANTS = LIB_LEIDEN_CSR_VARIANTS
+LEIDEN_CSR_DEFAULT_VARIANT = LIB_LEIDEN_CSR_DEFAULT_VARIANT
 
-# RabbitOrder variant configurations (default: csr)
-# Format: -o 8:variant where variant = csr (default, native CSR) or boost (original Boost-based)
-RABBITORDER_VARIANTS = ["csr", "boost"]
-RABBITORDER_DEFAULT_VARIANT = "csr"
-
-# GraphBrewOrder variant configurations (default: leiden for backward compat)
-# Format: -o 12:cluster_variant:final_algo:resolution:levels
-# cluster_variant: leiden (default), gve, gveopt, gvefast, gveoptfast, rabbit, hubcluster
-GRAPHBREW_VARIANTS = ["leiden", "gve", "gveopt", "gvefast", "gveoptfast", "rabbit", "hubcluster"]
-GRAPHBREW_DEFAULT_VARIANT = "leiden"  # Original Leiden library (backward compatible)
-
-# Leiden variant configurations for sweeping
-LEIDEN_DENDROGRAM_VARIANTS = ["dfs", "dfshub", "dfssize", "bfs", "hybrid"]
-# LeidenCSR variants - gve (GVE-Leiden) is default for best modularity quality
-# gveopt is cache-optimized with prefetching and flat arrays for large graphs
-# gveopt2 uses CSR-based aggregation (fastest reordering, best PR performance)
-# gveadaptive dynamically adjusts resolution at each pass based on runtime metrics
-# gveoptsort uses LeidenOrder-style multi-level sort ordering
-# gveturbo is speed-optimized (optional refinement skip)
-# gvefast uses CSR buffer reuse (leiden.hxx style aggregation)
-# gvedendo/gveoptdendo: RabbitOrder-inspired incremental dendrogram building
-# gverabbit is GVE-Rabbit hybrid (fastest, good quality)
-LEIDEN_CSR_VARIANTS = [
-    "gve", "gveopt", "gveopt2", "gveadaptive", "gveoptsort", "gveturbo",
-    "gvefast", "gvedendo", "gveoptdendo", "gverabbit", "dfs", "bfs", "hubsort", "modularity"
-]
-LEIDEN_CSR_DEFAULT_VARIANT = "gve"
-
-# Recommended variants for different use cases
-LEIDEN_CSR_FAST_VARIANTS = ["gveopt2", "gveadaptive", "gveturbo", "gvefast", "gverabbit"]  # Speed priority
-LEIDEN_CSR_QUALITY_VARIANTS = ["gve", "gveopt", "gveopt2", "gveadaptive"]  # Quality priority
-
-# Resolution modes for LeidenCSR
-# - Fixed: numeric value (e.g., "1.5")
-# - Auto: "auto" or "0" (compute from graph density/CV)
-# - Dynamic: "dynamic" (adjust per-pass, gveadaptive only)
-# - Dynamic+Init: "dynamic_2.0" (start at 2.0, adjust per-pass)
-LEIDEN_RESOLUTION_MODES = ["auto", "dynamic", "1.0", "1.5", "2.0"]
-
-# Default Leiden parameters
-# Use "dynamic" for best PR performance on most graphs (especially web graphs)
-# "auto" is good for unknown graphs, "1.0"-"2.0" for fixed tuning
-LEIDEN_DEFAULT_RESOLUTION = "dynamic"  # Dynamic adjustment per-pass (best overall)
-LEIDEN_DEFAULT_PASSES = 3
+# Import recommended variant subsets from lib
+from scripts.lib.utils import (
+    LEIDEN_CSR_FAST_VARIANTS,
+    LEIDEN_CSR_QUALITY_VARIANTS,
+    LEIDEN_RESOLUTION_MODES,
+    LEIDEN_DEFAULT_RESOLUTION,
+    LEIDEN_DEFAULT_PASSES,
+)
 
 # ============================================================================
 # Algorithm Configuration with Variant Support
@@ -644,10 +600,7 @@ DEFAULT_MAPPINGS_DIR = "./results/mappings"
 CLUSTER_DISTANCE_THRESHOLD = 0.15  # Max normalized distance to join existing cluster (lower = more clusters)
 MIN_SAMPLES_FOR_CLUSTER = 2  # Minimum graphs to form a stable cluster
 
-# Graph size categories (MB)
-SIZE_SMALL = 50
-SIZE_MEDIUM = 500
-SIZE_LARGE = 2000
+# Graph size thresholds imported from lib/utils.py (SIZE_SMALL, SIZE_MEDIUM, SIZE_LARGE, SIZE_XLARGE)
 
 # Minimum edges for training (skip small graphs that introduce noise/skew)
 MIN_EDGES_FOR_TRAINING = 100000  # 100K edges - graphs below this are too noisy for perceptron training
@@ -658,11 +611,10 @@ BYTES_PER_EDGE = 24
 BYTES_PER_NODE = 8
 MEMORY_SAFETY_FACTOR = 1.5  # Add 50% buffer for algorithm overhead
 
-# Default timeouts (seconds)
-TIMEOUT_REORDER = 43200     # 12 hours for reordering (some algorithms like GORDER are slow on large graphs)
-TIMEOUT_BENCHMARK = 600     # 10 min for benchmarks
-TIMEOUT_SIM = 1200          # 20 min for simulations
-TIMEOUT_SIM_HEAVY = 3600    # 1 hour for heavy simulations
+# Timeout constants imported from lib/utils.py (Single Source of Truth)
+from scripts.lib.utils import (
+    TIMEOUT_REORDER, TIMEOUT_BENCHMARK, TIMEOUT_SIM, TIMEOUT_SIM_HEAVY
+)
 
 # ============================================================================
 # Data Classes
@@ -2771,9 +2723,8 @@ def run_experiment(args):
         props_cache = load_graph_properties_cache(cache_dir)
         log(f"Loaded graph properties cache: {len(props_cache)} graphs")
         
-        # Force enable cache simulation for this mode
+        # Respect --skip-cache flag (previously forced to False)
         skip_cache_original = getattr(args, 'skip_cache', False)
-        args.skip_cache = False
         
         # Phase 0: Graph Analysis - Run AdaptiveOrder to detect graph types
         log_section("Phase 0: Graph Property Analysis")
@@ -2820,15 +2771,28 @@ def run_experiment(args):
         
         # Phase 3: Cache Simulation
         log_section("Phase 3: Cache Simulation")
-        cache_results = run_cache_simulations(
-            graphs=graphs,
-            algorithms=algorithms,
-            benchmarks=["pr", "bfs"],  # Key benchmarks for cache
-            bin_sim_dir=args.bin_sim_dir,
-            timeout=args.timeout_sim,
-            skip_heavy=getattr(args, 'skip_heavy', True),
-            label_maps={}
-        )
+        if skip_cache_original:
+            log("SKIPPED (--skip-cache specified)")
+            cache_results = []
+        else:
+            # Get variant lists for expanded cache simulation
+            expand_variants = getattr(args, 'expand_variants', False)
+            leiden_csr_variants = getattr(args, 'leiden_csr_variants', None) or LEIDENCSR_VARIANTS
+            rabbit_variants = getattr(args, 'rabbit_variants', None) or RABBITORDER_VARIANTS
+            leiden_dendrogram_variants = getattr(args, 'leiden_dendrogram_variants', None) or LEIDENDENDROGRAM_VARIANTS
+            
+            cache_results = run_cache_simulations(
+                graphs=graphs,
+                algorithms=algorithms,
+                benchmarks=["pr", "bfs"],  # Key benchmarks for cache
+                bin_sim_dir=args.bin_sim_dir,
+                timeout=args.timeout_sim,
+                skip_heavy=getattr(args, 'skip_heavy', True),
+                label_maps={},
+                leiden_csr_variants=leiden_csr_variants if expand_variants else ['gve'],
+                rabbit_variants=rabbit_variants if expand_variants else ['csr'],
+                leiden_dendrogram_variants=leiden_dendrogram_variants if expand_variants else ['dfs']
+            )
         
         # Phase 4: Generate Base Weights
         log_section("Phase 4: Generate Perceptron Weights")
@@ -2976,48 +2940,61 @@ def run_experiment(args):
             log("No types created (weights are in main perceptron_weights.json)")
         
         # Save graph properties cache for future use
-        save_graph_properties_cache(output_dir=os.path.dirname(args.weights_file) or "results")
-        cache_file_path = os.path.join(os.path.dirname(args.weights_file) or 'results', "graph_properties_cache.json")
+        cache_output_dir = args.weights_dir or "results"
+        save_graph_properties_cache(output_dir=cache_output_dir)
+        cache_file_path = os.path.join(cache_output_dir, "graph_properties_cache.json")
         log(f"Saved graph properties cache to: {cache_file_path}")
         
         # Re-run weight update now that graph properties cache is populated
         # This ensures feature weights (w_modularity, etc.) are computed
-        update_zero_weights(
-            weights_file=args.weights_file,
-            graphs_dir=os.path.dirname(args.weights_file) or "results",
-            benchmark_results=benchmark_results,
-            cache_results=cache_results,
-            reorder_results=reorder_results
-        )
+        # Only if we have a legacy weights file
+        if args.weights_file:
+            update_zero_weights(
+                weights_file=args.weights_file,
+                graphs_dir=os.path.dirname(args.weights_file) or "results",
+                benchmark_results=benchmark_results,
+                cache_results=cache_results,
+                reorder_results=reorder_results
+            )
         
         # Restore original skip_cache setting
         args.skip_cache = skip_cache_original
         
         log_section("Fill Weights Complete")
         log(f"All weight fields have been populated")
-        log(f"Weights file: {args.weights_file}")
+        log(f"Weights directory: {args.weights_dir}")
         
-        # Show summary
-        with open(args.weights_file) as f:
-            final_weights = json.load(f)
+        # Show summary from type-based weights
+        summary_weights_file = None
+        if args.weights_file and os.path.exists(args.weights_file):
+            summary_weights_file = args.weights_file
+        else:
+            # Try type_0.json as the main type-based weights file
+            type_0_file = os.path.join(args.weights_dir, "type_0.json")
+            if os.path.exists(type_0_file):
+                summary_weights_file = type_0_file
         
-        log("\nWeight field population summary:")
-        # Pick a non-ORIGINAL algorithm to show (ORIGINAL doesn't learn feature weights)
-        sample_algo = next((k for k in final_weights if not k.startswith("_") and k != "ORIGINAL"), None)
-        if not sample_algo:
-            sample_algo = next((k for k in final_weights if not k.startswith("_")), None)
-        if sample_algo:
-            w = final_weights[sample_algo]
-            for key, val in w.items():
-                if key.startswith("_") or key == "benchmark_weights":
-                    continue
-                status = "✓ filled" if val != 0 else "○ zero"
-                log(f"  {key}: {status}")
+        if summary_weights_file:
+            with open(summary_weights_file) as f:
+                final_weights = json.load(f)
             
-            if "benchmark_weights" in w:
-                bw = w["benchmark_weights"]
-                all_same = len(set(bw.values())) == 1
-                log(f"  benchmark_weights: {'○ defaults' if all_same else '✓ tuned'}")
+            log("\nWeight field population summary:")
+            # Pick a non-ORIGINAL algorithm to show (ORIGINAL doesn't learn feature weights)
+            sample_algo = next((k for k in final_weights if not k.startswith("_") and k != "ORIGINAL"), None)
+            if not sample_algo:
+                sample_algo = next((k for k in final_weights if not k.startswith("_")), None)
+            if sample_algo:
+                w = final_weights[sample_algo]
+                for key, val in w.items():
+                    if key.startswith("_") or key == "benchmark_weights":
+                        continue
+                    status = "✓ filled" if val != 0 else "○ zero"
+                    log(f"  {key}: {status}")
+                
+                if "benchmark_weights" in w:
+                    bw = w["benchmark_weights"]
+                    all_same = len(set(bw.values())) == 1
+                    log(f"  benchmark_weights: {'○ defaults' if all_same else '✓ tuned'}")
         
         # Auto-merge weights from this run with previous runs
         if not getattr(args, 'no_merge', False):

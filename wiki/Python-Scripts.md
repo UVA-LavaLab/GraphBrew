@@ -288,35 +288,39 @@ Use **perceptron_experiment.py** when you want to train better weights.
 | `--brute-force` | Run brute-force validation |
 
 #### Algorithm Variant Testing
+
+> **Note:** Variant lists are defined in `scripts/lib/utils.py`. Check that file for the most up-to-date list of supported variants.
+
 | Option | Description |
 |--------|-------------|
 | `--all-variants` | Test ALL algorithm variants instead of just defaults |
-| `--graphbrew-variants` | GraphBrewOrder variants: `leiden` (default), `gve`, `gveopt`, `gvefast`, `gveoptfast`, `rabbit`, `hubcluster` |
-| `--csr-variants` | LeidenCSR variants: `gve`, `gveopt`, `gveopt2`, `gveadaptive`, `gveoptsort`, `gveturbo`, `gvefast`, `gvedendo`, `gveoptdendo`, `gverabbit`, `dfs`, `bfs`, `hubsort`, `modularity` |
-| `--rabbit-variants` | RabbitOrder variants: `csr` (default), `boost` |
-| `--dendrogram-variants` | LeidenDendrogram variants: `dfs`, `dfshub`, `dfssize`, `bfs`, `hybrid` |
-| `--resolution` | Leiden resolution: dynamic (default, best PR), auto, fixed (1.5), dynamic_2.0 |
+| `--graphbrew-variants` | GraphBrewOrder clustering variants (see `GRAPHBREW_VARIANTS` in utils.py) |
+| `--csr-variants` | LeidenCSR variants (see `LEIDEN_CSR_VARIANTS` in utils.py) |
+| `--rabbit-variants` | RabbitOrder variants (see `RABBITORDER_VARIANTS` in utils.py) |
+| `--dendrogram-variants` | LeidenDendrogram variants (see `LEIDEN_DENDROGRAM_VARIANTS` in utils.py) |
+| `--resolution` | Leiden resolution: `dynamic` (default, best PR), `auto`, fixed (e.g., `1.5`), `dynamic_2.0` |
 | `--passes` | Leiden passes parameter (default: 3) |
 
-**LeidenCSR Variants:**
-| Variant | Description |
-|---------|-------------|
-| `gve` | **Default.** GVE-Leiden with refinement phase (best modularity) |
-| `gveopt` | Cache-optimized GVE with prefetching |
-| `gvedendo` | GVE with RabbitOrder-style incremental dendrogram building |
-| `gveoptdendo` | GVEopt with incremental dendrogram building |
-| `gverabbit` | GVE-Rabbit hybrid (fastest, single-pass) |
-| `dfs` | Hierarchical DFS ordering |
-| `bfs` | Level-first BFS ordering |
-| `hubsort` | Community + degree sort |
-| `modularity` | Modularity-optimized ordering |
+**Current Default Variants:**
+- **GraphBrewOrder:** `leiden` (original Leiden library)
+- **LeidenCSR:** `gve` (GVE-Leiden with refinement, best modularity)
+- **RabbitOrder:** `csr` (native CSR, faster, no external deps)
+- **LeidenDendrogram:** `hybrid` (adaptive traversal)
+
+**LeidenCSR Variant Categories:**
+| Category | Variants | Use Case |
+|----------|----------|----------|
+| Quality | `gve`, `gveopt`, `gveopt2`, `gveadaptive` | Best modularity/cache performance |
+| Speed | `gveopt2`, `gveadaptive`, `gveturbo`, `gvefast`, `gverabbit` | Fastest reordering |
+| Traversal | `dfs`, `bfs`, `hubsort` | Specific ordering patterns |
+| Special | `modularity`, `gvedendo`, `gveoptdendo` | Modularity-optimized, dendrogram-based |
 
 **Example - Compare GVE variants on 5 largest graphs:**
 ```bash
 python3 scripts/graphbrew_experiment.py \
   --phase cache \
   --graph-list wiki-topcats cit-Patents as-Skitter web-BerkStan web-Google \
-  --csr-variants gve gveopt gvedendo gveoptdendo \
+  --csr-variants gve gveopt gveopt2 gveadaptive \
   --rabbit-variants csr boost \
   --benchmarks pr bfs cc sssp \
   --skip-build --auto
@@ -432,12 +436,29 @@ results = run_full_pipeline(graphs, algorithms, config, phases=['reorder', 'benc
 
 ### lib/utils.py - Core Utilities
 
-Constants and shared utilities:
+**Single Source of Truth** for all shared constants. Never duplicate these elsewhere:
 
 ```python
 from scripts.lib.utils import (
-    ALGORITHMS,          # {0: "ORIGINAL", 1: "RANDOM", ...}
+    # Algorithm definitions
+    ALGORITHMS,          # {0: "ORIGINAL", 1: "RANDOM", ..., 17: "LeidenCSR"}
+    SLOW_ALGORITHMS,     # {9, 10, 11} - Gorder, Corder, RCM
     BENCHMARKS,          # ['pr', 'bfs', 'cc', 'sssp', 'bc', 'tc']
+    
+    # Variant lists
+    LEIDEN_CSR_VARIANTS, GRAPHBREW_VARIANTS,
+    RABBITORDER_VARIANTS, LEIDEN_DENDROGRAM_VARIANTS,
+    
+    # Size thresholds (MB)
+    SIZE_SMALL, SIZE_MEDIUM, SIZE_LARGE, SIZE_XLARGE,
+    
+    # Timeout constants (seconds)
+    TIMEOUT_REORDER,     # 43200 (12 hours)
+    TIMEOUT_BENCHMARK,   # 600 (10 min)
+    TIMEOUT_SIM,         # 1200 (20 min)
+    TIMEOUT_SIM_HEAVY,   # 3600 (1 hour)
+    
+    # Utilities
     run_command,         # Execute shell commands
     get_timestamp,       # Formatted timestamps
 )

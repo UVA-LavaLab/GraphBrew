@@ -127,6 +127,14 @@ from .weights import (
     initialize_default_weights
 )
 from .progress import ProgressTracker
+from .utils import (
+    LEIDEN_CSR_VARIANTS,
+    LEIDEN_DENDROGRAM_VARIANTS,
+    RABBITORDER_VARIANTS,
+    GRAPHBREW_VARIANTS,
+    LEIDEN_DEFAULT_RESOLUTION,
+    LEIDEN_DEFAULT_PASSES,
+)
 
 
 # =============================================================================
@@ -274,16 +282,13 @@ class PhaseConfig:
         self.expand_variants = expand_variants
         self.update_weights = update_weights
         
-        # Leiden settings
+        # Leiden settings - use lib/utils.py as single source of truth
         self.leiden_resolution = leiden_resolution
         self.leiden_passes = leiden_passes
-        self.leiden_csr_variants = leiden_csr_variants or [
-            'gve', 'gveopt', 'gveopt2', 'gveadaptive', 'gveoptsort', 'gveturbo', 'gvefast',
-            'gvedendo', 'gveoptdendo', 'gverabbit', 'dfs', 'bfs', 'hubsort', 'modularity'
-        ]
-        self.leiden_dendrogram_variants = leiden_dendrogram_variants or ['dfs', 'dfshub', 'dfssize', 'bfs', 'hybrid']
-        self.rabbit_variants = rabbit_variants or ['csr']  # Default: csr only
-        self.graphbrew_variants = graphbrew_variants or ['leiden']  # Default: leiden only
+        self.leiden_csr_variants = leiden_csr_variants or LEIDEN_CSR_VARIANTS
+        self.leiden_dendrogram_variants = leiden_dendrogram_variants or LEIDEN_DENDROGRAM_VARIANTS
+        self.rabbit_variants = rabbit_variants or ['csr']  # Default: csr only (not all variants)
+        self.graphbrew_variants = graphbrew_variants or ['leiden']  # Default: leiden only (not all variants)
         
         # Training settings
         self.target_accuracy = target_accuracy

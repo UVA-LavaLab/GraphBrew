@@ -121,6 +121,23 @@ BENCHMARKS = ["pr", "bfs", "cc", "sssp", "bc", "tc"]
 BENCHMARKS_DEFAULT = ["pr", "bfs", "cc", "sssp", "bc"]  # TC skipped by default (minimal reorder benefit)
 
 # =============================================================================
+# Graph Size Thresholds (MB) - Single Source of Truth
+# =============================================================================
+# Used for skip logic (slow algorithms, heavy simulations) and categorization
+SIZE_SMALL = 50       # < 50 MB: quick experiments
+SIZE_MEDIUM = 500     # < 500 MB: moderate size, may skip slow algorithms
+SIZE_LARGE = 2000     # < 2 GB: large graphs, skip heavy operations
+SIZE_XLARGE = 10000   # >= 2 GB: very large graphs
+
+# =============================================================================
+# Timeout Constants (seconds) - Single Source of Truth
+# =============================================================================
+TIMEOUT_REORDER = 43200       # 12 hours for reordering (GORDER can be slow)
+TIMEOUT_BENCHMARK = 600       # 10 min for benchmarks
+TIMEOUT_SIM = 1200            # 20 min for cache simulations
+TIMEOUT_SIM_HEAVY = 3600      # 1 hour for heavy simulations (bc, sssp)
+
+# =============================================================================
 # Data Classes
 # =============================================================================
 

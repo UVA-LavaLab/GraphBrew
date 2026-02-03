@@ -529,7 +529,9 @@ void GenerateGraphBrewGVEMappingStandalone(
     
     if (use_optimized) {
         // IMPORTANT: Always use double for weight type in Leiden calculations
-        auto result = GVELeidenOptCSR<K, double, NodeID_, DestID_>(g, resolution, 1e-2, 0.8, 10.0, max_iterations, max_passes);
+        auto result = GVELeidenOptCSR<K, double, NodeID_, DestID_>(
+            g, resolution, DEFAULT_TOLERANCE, DEFAULT_AGGREGATION_TOLERANCE, 
+            DEFAULT_QUALITY_FACTOR, max_iterations, max_passes);
         comm_ids = result.final_community;
         K max_comm = 0;
         for (int64_t v = 0; v < num_nodes; ++v) {
@@ -540,7 +542,9 @@ void GenerateGraphBrewGVEMappingStandalone(
                result.total_passes, result.modularity, num_communities);
     } else {
         // IMPORTANT: Always use double for weight type in Leiden calculations
-        auto result = GVELeidenCSR<K, double, NodeID_, DestID_>(g, resolution, 1e-2, 0.8, 10.0, max_iterations, max_passes);
+        auto result = GVELeidenCSR<K, double, NodeID_, DestID_>(
+            g, resolution, DEFAULT_TOLERANCE, DEFAULT_AGGREGATION_TOLERANCE,
+            DEFAULT_QUALITY_FACTOR, max_iterations, max_passes);
         comm_ids = result.final_community;
         K max_comm = 0;
         for (int64_t v = 0; v < num_nodes; ++v) {
@@ -805,6 +809,14 @@ void GenerateGraphBrewHubClusterMappingStandalone(
     
     const int64_t num_nodes = g.num_nodes();
     const int64_t num_edges = g.num_edges();
+    
+    // GUARD: Empty graph - nothing to do
+    if (num_nodes == 0) {
+        tm.Stop();
+        PrintTime("GraphBrewHubCluster Total Time", tm.Seconds());
+        return;
+    }
+    
     const int64_t avg_degree = num_edges / num_nodes;
     
     int final_algo_id = 8;

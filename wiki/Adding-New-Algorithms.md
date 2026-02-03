@@ -30,20 +30,22 @@ enum ReorderingAlgo {
     DBG = 5,
     HubSortDBG = 6,
     HubClusterDBG = 7,
-    RabbitOrder = 8,        // Format: 8:variant (csr/boost, default: csr)
+    RabbitOrder = 8,        // Has variants (see RABBITORDER_VARIANTS in utils.py)
     GOrder = 9,
     COrder = 10,
     RCMOrder = 11,
-    GraphBrewOrder = 12,    // Leiden clustering + per-community ordering
+    GraphBrewOrder = 12,    // Has variants (see GRAPHBREW_VARIANTS in utils.py)
     MAP = 13,               // Load reordering from file
     AdaptiveOrder = 14,     // ML-based perceptron selector
     // Leiden algorithms (15-17) - grouped together for easier sweeping
     LeidenOrder = 15,       // Format: 15:resolution (via igraph)
-    LeidenDendrogram = 16,  // Format: 16:variant:resolution (dfs/dfshub/dfssize/bfs/hybrid)
-    LeidenCSR = 17,         // Format: 17:variant:resolution:iterations:passes (gve/gveopt/gveopt2/gveadaptive/gveoptsort/gveturbo/gvefast/gverabbit/dfs/bfs/hubsort/modularity, default: gve)
+    LeidenDendrogram = 16,  // Has variants (see LEIDEN_DENDROGRAM_VARIANTS in utils.py)
+    LeidenCSR = 17,         // Has variants (see LEIDEN_CSR_VARIANTS in utils.py)
     // ADD YOUR ALGORITHM HERE
     MyNewOrder = 18,
 };
+
+// Note: Variant lists are defined in scripts/lib/utils.py for Python integration
 ```
 
 ### Naming Convention

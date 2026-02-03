@@ -48,6 +48,22 @@ Quick overview:
 2. Register it in the `ReorderingAlgo` enum
 3. Add training support in `scripts/lib/utils.py` (ALGORITHMS dict)
 
+### Adding Algorithm Variants
+
+Algorithm variant lists are defined in `scripts/lib/utils.py` as the **single source of truth**:
+- `LEIDEN_CSR_VARIANTS` - LeidenCSR algorithm variants
+- `GRAPHBREW_VARIANTS` - GraphBrewOrder clustering variants  
+- `RABBITORDER_VARIANTS` - RabbitOrder variants (csr, boost)
+- `LEIDEN_DENDROGRAM_VARIANTS` - LeidenDendrogram traversal variants
+
+Other constants also centralized in `utils.py`:
+- `ALGORITHMS` / `SLOW_ALGORITHMS` - Algorithm definitions
+- `BENCHMARKS` - Benchmark list
+- `SIZE_SMALL` / `SIZE_MEDIUM` / `SIZE_LARGE` / `SIZE_XLARGE` - Size thresholds (MB)
+- `TIMEOUT_REORDER` / `TIMEOUT_BENCHMARK` / `TIMEOUT_SIM` / `TIMEOUT_SIM_HEAVY` - Timeouts (seconds)
+
+**Never duplicate these definitions** in other files - always import from `utils.py`.
+
 ### Adding New Benchmarks
 
 See the [Wiki: Adding New Benchmarks](https://github.com/UVA-LavaLab/GraphBrew/wiki/Adding-New-Benchmarks) for detailed instructions.

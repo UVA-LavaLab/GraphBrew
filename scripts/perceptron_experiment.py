@@ -47,7 +47,7 @@ import copy
 PROJECT_ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from scripts.lib.utils import ALGORITHMS, Logger, PROJECT_ROOT as PR
+from scripts.lib.utils import ALGORITHMS, Logger, PROJECT_ROOT as PR, BENCHMARKS
 from scripts.lib.weights import (
     save_weights_to_active_type, load_type_weights,
     PerceptronWeight, _create_default_weight_entry
@@ -70,8 +70,7 @@ CLUSTER_FEATURES = [
     'avg_degree', 'degree_variance', 'hub_concentration'
 ]
 
-# Benchmarks to evaluate
-BENCHMARKS = ['pr', 'bfs', 'cc', 'sssp', 'bc', 'tc']
+# BENCHMARKS imported from lib/utils.py (Single Source of Truth)
 
 # Algorithm taxonomy - group by type for analysis
 ALGORITHM_TAXONOMY = {

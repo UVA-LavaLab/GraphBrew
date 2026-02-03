@@ -251,9 +251,9 @@ Properties are computed during `--train` Phase 0 and cached in `results/graph_pr
 |-----------|----------|
 | LeidenOrder (15) | Basic Leiden → contiguous community ordering |
 | LeidenDendrogram (16) | Leiden + dendrogram-based traversal variants |
-| LeidenCSR (17) | Optimized Leiden with multiple variants (gve/gveopt/gveopt2/gveadaptive/gveturbo/gvefast/gverabbit/dfs/bfs/hubsort/modularity) |
+| LeidenCSR (17) | Optimized Leiden with multiple variants (see `LEIDEN_CSR_VARIANTS` in `scripts/lib/utils.py`) |
 
-LeidenCSR with "hubsort" or "fast" variant is recommended for large graphs.
+LeidenCSR with `gveopt2` or `gvefast` variant is recommended for large graphs.
 
 ### When should I use DBG vs HUBCLUSTER?
 
