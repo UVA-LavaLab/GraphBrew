@@ -90,7 +90,7 @@ pipelines simple and maintainable.
     - Results are auto-saved after each phase
 
 See Also:
-    - lib/types.py for data class definitions
+    - lib/graph_types.py for data class definitions
     - lib/progress.py for progress tracking
     - scripts/examples/ for usage examples
 """
@@ -103,7 +103,7 @@ from dataclasses import asdict
 from typing import List, Dict, Optional, Any, Tuple
 
 # Import from lib modules
-from .types import (
+from .graph_types import (
     GraphInfo, ReorderResult, BenchmarkResult, CacheResult,
     AdaptiveAnalysisResult, TrainingResult
 )
@@ -238,7 +238,7 @@ class PhaseConfig:
         # Leiden-specific settings
         # ─────────────────────────────────────────────────────────────────────
         leiden_resolution: str = "dynamic",  # "dynamic" (default), "auto", "1.0", etc.
-        leiden_passes: int = 10,
+        leiden_passes: int = LEIDEN_DEFAULT_PASSES,
         leiden_csr_variants: List[str] = None,
         leiden_dendrogram_variants: List[str] = None,
         rabbit_variants: List[str] = None,

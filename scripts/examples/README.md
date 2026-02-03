@@ -145,4 +145,4 @@ for r in results:
 
 - [Python Scripts Documentation](../../wiki/Python-Scripts.md)
 - [Phases Architecture](../../scripts/lib/phases.py)
-- [Type Definitions](../../scripts/lib/types.py)
+- [Type Definitions](../../scripts/lib/graph_types.py)

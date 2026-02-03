@@ -34,6 +34,7 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
 
 from .utils import ALGORITHMS, run_command, Logger
+from .features import update_graph_properties, save_graph_properties_cache
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -409,8 +410,19 @@ def analyze_adaptive_order(
             output = stdout + stderr
             modularity, num_communities, subcommunities, algo_distribution = parse_adaptive_output(output)
             
+            # Parse and cache topology features for weight computation
+            features = parse_benchmark_features(output)
+            features['modularity'] = modularity
+            features['nodes'] = getattr(graph, 'nodes', 0)
+            features['edges'] = getattr(graph, 'edges', 0)
+            update_graph_properties(graph.name, features, output_dir)
+            
             log(f"  Modularity: {modularity:.4f}")
             log(f"  Communities: {num_communities}")
+            if features.get('degree_variance'):
+                log(f"  Degree Variance: {features.get('degree_variance', 0):.4f}")
+            if features.get('hub_concentration'):
+                log(f"  Hub Concentration: {features.get('hub_concentration', 0):.4f}")
             log(f"  Subcommunities analyzed: {len(subcommunities)}")
             log(f"  Algorithm distribution:")
             for algo, count in sorted(algo_distribution.items(), key=lambda x: -x[1])[:5]:
@@ -467,6 +479,10 @@ def analyze_adaptive_order(
     
     with open(results_file, 'w') as f:
         json.dump(results_data, f, indent=2)
+    
+    # Save the graph properties cache with all extracted features
+    save_graph_properties_cache(output_dir)
+    log(f"\nGraph properties cached for {len(results)} graphs")
     
     log(f"\nAdaptive analysis saved to: {results_file}")
     

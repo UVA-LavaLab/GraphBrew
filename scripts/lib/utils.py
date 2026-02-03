@@ -35,6 +35,24 @@ WEIGHTS_DIR = SCRIPT_DIR / "weights"
 ACTIVE_WEIGHTS_DIR = WEIGHTS_DIR / "active"  # Where C++ reads type_*.json from
 
 # =============================================================================
+# Leiden Algorithm Constants (match C++ reorder_leiden.h)
+# =============================================================================
+
+LEIDEN_DEFAULT_RESOLUTION = 0.75
+LEIDEN_DEFAULT_TOLERANCE = 1e-2  # 0.01
+LEIDEN_DEFAULT_AGGREGATION_TOLERANCE = 0.8
+LEIDEN_DEFAULT_QUALITY_FACTOR = 10.0
+LEIDEN_DEFAULT_MAX_ITERATIONS = 10
+LEIDEN_DEFAULT_MAX_PASSES = 10
+LEIDEN_MODULARITY_MAX_ITERATIONS = 20  # For quality-focused runs
+LEIDEN_MODULARITY_MAX_PASSES = 20
+
+# Normalization factors for weight computation
+WEIGHT_PATH_LENGTH_NORMALIZATION = 10.0
+WEIGHT_REORDER_TIME_NORMALIZATION = 10.0
+WEIGHT_AVG_DEGREE_DEFAULT = 10.0
+
+# =============================================================================
 # Algorithm Definitions (must match builder.h ReorderingAlgo enum)
 # =============================================================================
 

@@ -260,7 +260,7 @@ scripts/
 ├── requirements.txt           # Python dependencies
 │
 ├── lib/                       # 📦 Core modules (~12200 lines)
-│   ├── types.py               # Data classes (GraphInfo, BenchmarkResult, etc.)
+│   ├── graph_types.py               # Data classes (GraphInfo, BenchmarkResult, etc.)
 │   ├── phases.py              # Phase orchestration (run_reorder_phase, etc.)
 │   ├── utils.py               # ALGORITHMS dict, run_command, constants
 │   ├── features.py            # Graph feature computation

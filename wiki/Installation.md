@@ -268,7 +268,7 @@ GraphBrew/
 │   ├── graphbrew_experiment.py  # ⭐ Main orchestration (~3500 lines)
 │   ├── requirements.txt
 │   ├── lib/           # 📦 Core modules (~14,300 lines)
-│   │   ├── types.py         # Data classes
+│   │   ├── graph_types.py         # Data classes
 │   │   ├── phases.py        # Phase orchestration
 │   │   ├── utils.py         # ALGORITHMS, constants
 │   │   ├── features.py      # Graph features

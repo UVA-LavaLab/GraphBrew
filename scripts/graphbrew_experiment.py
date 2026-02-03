@@ -2548,7 +2548,7 @@ def run_experiment(args):
         # Note: Multiple Result classes exist with different field names.
         # - utils.py: BenchmarkResult (algorithm, time_seconds)
         # - reorder.py: ReorderResult (reorder_time)
-        # - types.py: ReorderResult (time_seconds), BenchmarkResult (algorithm_name, avg_time)
+        # - graph_types.py: ReorderResult (time_seconds), BenchmarkResult (algorithm_name, avg_time)
         # The JSON files are saved using the working versions (utils/reorder), so we import those
         
         if not all_benchmark_results:

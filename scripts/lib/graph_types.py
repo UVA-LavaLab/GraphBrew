@@ -39,14 +39,14 @@ Usage Examples
 --------------
 Import individual types:
 
-    >>> from lib.types import GraphInfo, BenchmarkResult
+    >>> from lib.graph_types import GraphInfo, BenchmarkResult
     >>> info = GraphInfo(name="test", path="/path/to/graph", nodes=100, edges=500)
     >>> print(info.avg_degree)  # Auto-calculated
     10.0
 
 Import all types:
 
-    >>> from lib.types import *
+    >>> from lib.graph_types import *
     >>> result = BenchmarkResult(
     ...     graph="test",
     ...     algorithm_id=8,
@@ -59,7 +59,7 @@ Type Checking
 -------------
 All types are dataclasses with type hints for IDE support:
 
-    >>> from lib.types import ReorderResult
+    >>> from lib.graph_types import ReorderResult
     >>> def process_result(result: ReorderResult) -> float:
     ...     return result.time_seconds
 

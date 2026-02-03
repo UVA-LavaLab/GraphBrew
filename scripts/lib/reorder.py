@@ -31,6 +31,7 @@ from .utils import (
     ALGORITHMS, ALGORITHM_IDS, SLOW_ALGORITHMS, SIZE_MEDIUM,
     LEIDEN_CSR_VARIANTS, LEIDEN_DENDROGRAM_VARIANTS,
     LEIDEN_DEFAULT_RESOLUTION, LEIDEN_DEFAULT_PASSES,
+    LEIDEN_MODULARITY_MAX_ITERATIONS,
     RABBITORDER_VARIANTS, RABBITORDER_DEFAULT_VARIANT,
     GRAPHBREW_VARIANTS, GRAPHBREW_DEFAULT_VARIANT,
     TIMEOUT_REORDER,
@@ -73,7 +74,7 @@ class AlgorithmConfig:
     option_string: str     # Full option string for -o flag (e.g., "17:gve:auto:20:10")
     variant: str = ""      # Variant name if applicable (e.g., "gve")
     resolution: str = "auto"  # Resolution: "auto", "dynamic", "1.0", etc.
-    passes: int = 10
+    passes: int = LEIDEN_DEFAULT_PASSES
     
     @property
     def base_name(self) -> str:
@@ -179,7 +180,7 @@ def expand_algorithms_with_variants(
             # LeidenCSR: expand into variants
             # Format: 17:variant:resolution:iterations:passes
             for variant in leiden_csr_variants:
-                max_iterations = 20  # Default iterations
+                max_iterations = LEIDEN_MODULARITY_MAX_ITERATIONS
                 option_str = f"{algo_id}:{variant}:{leiden_resolution}:{max_iterations}:{leiden_passes}"
                 configs.append(AlgorithmConfig(
                     algo_id=algo_id,
@@ -224,7 +225,7 @@ def expand_algorithms_with_variants(
         elif algo_id == 17:
             # LeidenCSR: use default variant when not expanding - ALWAYS include variant in name
             variant = leiden_csr_variants[0] if leiden_csr_variants else LEIDEN_CSR_VARIANTS[0]
-            max_iterations = 20
+            max_iterations = LEIDEN_MODULARITY_MAX_ITERATIONS
             option_str = f"{algo_id}:{variant}:{leiden_resolution}:{max_iterations}:{leiden_passes}"
             configs.append(AlgorithmConfig(
                 algo_id=algo_id,

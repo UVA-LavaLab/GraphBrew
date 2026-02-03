@@ -37,7 +37,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from lib.phases import PhaseConfig, run_reorder_phase, run_benchmark_phase
 from lib.progress import ProgressTracker
-from lib.types import BenchmarkResult
+from lib.graph_types import BenchmarkResult
 
 
 def discover_graphs(base_dir: str, pattern: str = "*") -> list:
