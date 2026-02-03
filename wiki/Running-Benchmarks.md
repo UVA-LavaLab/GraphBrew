@@ -320,7 +320,9 @@ Time: 1.234 seconds
 -o 15  # LeidenOrder (igraph)
 -o 16  # LeidenDendrogram
 -o 17  # LeidenCSR (uses GVE-Leiden by default)
--o 17:gve:1.0:20:10  # LeidenCSR with explicit variant (gve/gveopt/gverabbit/dfs/bfs/hubsort/fast/modularity)
+-o 17:gveopt2:auto   # LeidenCSR with CSR aggregation + auto resolution (best overall)
+-o 17:gveadaptive:dynamic  # Dynamic resolution adjustment (best for unknown graphs)
+-o 17:gve:1.0:20:10  # Explicit GVE-Leiden with fixed resolution
 ```
 
 ### Recommended Algorithms by Use Case

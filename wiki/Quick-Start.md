@@ -53,10 +53,10 @@ This will automatically:
 |-----------|-------------|
 | `--all-variants` | Test ALL algorithm variants (Leiden, RabbitOrder, GraphBrewOrder) |
 | `--graphbrew-variants LIST` | GraphBrewOrder variants: leiden (default), gve, gveopt, gvefast, gveoptfast, rabbit, hubcluster |
-| `--csr-variants LIST` | LeidenCSR variants: gve (default), gveopt, gverabbit, dfs, bfs, hubsort, modularity |
+| `--csr-variants LIST` | LeidenCSR variants: gve, gveopt, gveopt2, gveadaptive, gveoptsort, gveturbo, gvefast, gvedendo, gveoptdendo, gverabbit |
 | `--dendrogram-variants LIST` | LeidenDendrogram variants: dfs, dfshub, dfssize, bfs, hybrid |
 | `--rabbit-variants LIST` | RabbitOrder variants: csr (default), boost (requires libboost-graph-dev) |
-| `--resolution FLOAT` | Leiden resolution - higher = more communities (default: 1.0) |
+| `--resolution VALUE` | Leiden resolution: auto, dynamic, dynamic_2.0, or fixed (1.5) (default: auto) |
 | `--passes INT` | LeidenCSR refinement passes (default: 3) |
 
 ### Size Categories
@@ -220,7 +220,22 @@ Average Time:        0.001xx
 | 12 | GraphBrewOrder | Per-community reordering |
 | 14 | AdaptiveOrder | Auto-selection for unknown graphs |
 | 15 | LeidenOrder | Social networks |
-| 17 | LeidenCSR | Large complex graphs (variants: gve/gveopt/gverabbit/dfs/bfs/hubsort/fast/modularity, default: gve) |
+| 17 | LeidenCSR | Large complex graphs (see variants below) |
+
+### LeidenCSR Variants (Algorithm 17)
+
+**Best variants for most cases:**
+```bash
+./bench/bin/pr -f graph.el -s -o 17:gveopt2:auto -n 3      # Best overall
+./bench/bin/pr -f graph.el -s -o 17:gveadaptive:dynamic -n 3  # Unknown graphs
+```
+
+**Resolution modes:**
+| Mode | Syntax | Description |
+|------|--------|-------------|
+| Fixed | `1.5` | Use specified resolution |
+| Auto | `auto` or `0` | Compute from graph |
+| Dynamic | `dynamic` | Adjust each pass |
 
 ---
 

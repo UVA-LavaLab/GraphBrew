@@ -2776,15 +2776,44 @@ public:
         int max_iterations = LEIDEN_DEFAULT_ITERATIONS;
         int max_passes = LEIDEN_DEFAULT_PASSES;
         std::string variant = "gve";  // Default to GVE-Leiden (best quality)
+        std::string resolution_mode = "auto";
         
         // Parse options: variant, resolution, max_iterations, max_passes
         // CLI format: -o 17:variant:resolution:max_iterations:max_passes
         // e.g., -o 17:hubsort:1.0:10:5
+        // Resolution can be: "auto", "0", "dynamic", "dynamic:2.0", or numeric
         if (!reordering_options.empty() && !reordering_options[0].empty()) {
             variant = reordering_options[0];
         }
         if (reordering_options.size() > 1 && !reordering_options[1].empty()) {
-            resolution = std::stod(reordering_options[1]);
+            const std::string& res_opt = reordering_options[1];
+            resolution_mode = res_opt;
+            
+            // Handle special keywords
+            if (res_opt == "auto" || res_opt == "0") {
+                // Keep auto-resolution
+            } else if (res_opt.rfind("dynamic", 0) == 0) {
+                // Dynamic mode - extract initial value if provided (use underscore delimiter)
+                size_t sep_pos = res_opt.find('_');
+                if (sep_pos == std::string::npos) sep_pos = res_opt.find(':');
+                if (sep_pos != std::string::npos && sep_pos + 1 < res_opt.size()) {
+                    resolution = std::stod(res_opt.substr(sep_pos + 1));
+                }
+                // Keep auto-resolution as base, algorithms will handle dynamic
+            } else {
+                // Try numeric parsing
+                try {
+                    double parsed = std::stod(res_opt);
+                    // Only override auto-resolution if value is in valid range (0, 3]
+                    if (parsed > 0 && parsed <= 3) {
+                        resolution = parsed;
+                        resolution_mode = "fixed";
+                    }
+                    // If parsed <= 0 or > 3, keep auto-resolution
+                } catch (...) {
+                    // Parse error, keep auto-resolution
+                }
+            }
         }
         if (reordering_options.size() > 2 && !reordering_options[2].empty()) {
             max_iterations = std::stoi(reordering_options[2]);
@@ -2796,9 +2825,14 @@ public:
         printf("LeidenCSR: resolution=%.2f, max_passes=%d, max_iterations=%d, variant=%s\n", 
                resolution, max_passes, max_iterations, variant.c_str());
         
-        // Prepare internal options: resolution, max_iterations, max_passes
+        // Prepare internal options: resolution (or mode string), max_iterations, max_passes
         std::vector<std::string> internal_options;
-        internal_options.push_back(std::to_string(resolution));
+        // Pass through the original resolution string to let individual functions parse it
+        if (reordering_options.size() > 1 && !reordering_options[1].empty()) {
+            internal_options.push_back(reordering_options[1]);
+        } else {
+            internal_options.push_back(std::to_string(resolution));
+        }
         internal_options.push_back(std::to_string(max_iterations));
         internal_options.push_back(std::to_string(max_passes));
         
@@ -2827,6 +2861,21 @@ public:
         } else if (variant == "gveoptdendo" || variant == "optdendo") {
             // GVE-Leiden Optimized with incremental dendrogram
             GenerateGVELeidenOptDendoMapping(g, new_ids, internal_options);
+        } else if (variant == "gveoptsort" || variant == "optsort") {
+            // GVE-Leiden Optimized with LeidenOrder-style multi-level sort (Strategy 1)
+            GenerateGVELeidenOptSortMapping(g, new_ids, internal_options);
+        } else if (variant == "gveopt2" || variant == "opt2") {
+            // GVE-Leiden Opt2: CSR-based aggregation (faster than sort-based)
+            GenerateGVELeidenOpt2Mapping(g, new_ids, internal_options);
+        } else if (variant == "gveadaptive" || variant == "adaptive") {
+            // GVE-Leiden Adaptive: Dynamic resolution adjustment each pass
+            GenerateGVELeidenAdaptiveMapping(g, new_ids, internal_options);
+        } else if (variant == "gvefast" || variant == "fast2") {
+            // GVE-Leiden Fast: CSR buffer reuse (leiden.hxx style aggregation)
+            GenerateGVELeidenFastMapping(g, new_ids, internal_options);
+        } else if (variant == "gveturbo" || variant == "turbo") {
+            // GVE-Leiden Turbo: Maximum speed (no refinement, early termination)
+            GenerateGVELeidenTurboMapping(g, new_ids, internal_options);
         } else if (variant == "gverabbit" || variant == "rabbit") {
             // GVE-Rabbit: Hybrid RabbitOrder speed + Leiden quality
             GenerateGVERabbitMapping(g, new_ids, internal_options);
@@ -2856,6 +2905,61 @@ public:
         pvector<NodeID_>& new_ids,
         std::vector<std::string> reordering_options) {
         ::GenerateGVELeidenOptMapping<K, NodeID_, DestID_>(g, new_ids, reordering_options);
+    }
+
+    /**
+     * GenerateGVELeidenOpt2Mapping - GVE-Leiden with CSR-based aggregation
+     * Delegates to ::GenerateGVELeidenOpt2Mapping in reorder/reorder_leiden.h
+     */
+    void GenerateGVELeidenOpt2Mapping(
+        const CSRGraph<NodeID_, DestID_, invert>& g,
+        pvector<NodeID_>& new_ids,
+        std::vector<std::string> reordering_options) {
+        ::GenerateGVELeidenOpt2Mapping<K, NodeID_, DestID_>(g, new_ids, reordering_options);
+    }
+
+    /**
+     * GenerateGVELeidenAdaptiveMapping - GVE-Leiden with dynamic resolution
+     * Delegates to ::GenerateGVELeidenAdaptiveMapping in reorder/reorder_leiden.h
+     */
+    void GenerateGVELeidenAdaptiveMapping(
+        const CSRGraph<NodeID_, DestID_, invert>& g,
+        pvector<NodeID_>& new_ids,
+        std::vector<std::string> reordering_options) {
+        ::GenerateGVELeidenAdaptiveMapping<K, NodeID_, DestID_>(g, new_ids, reordering_options);
+    }
+
+    /**
+     * GenerateGVELeidenOptSortMapping - Optimized GVE-Leiden with sort-based ordering
+     * Delegates to ::GenerateGVELeidenOptSortMapping in reorder/reorder_leiden.h
+     */
+    void GenerateGVELeidenOptSortMapping(
+        const CSRGraph<NodeID_, DestID_, invert>& g,
+        pvector<NodeID_>& new_ids,
+        std::vector<std::string> reordering_options) {
+        ::GenerateGVELeidenOptSortMapping<K, NodeID_, DestID_>(g, new_ids, reordering_options);
+    }
+
+    /**
+     * GenerateGVELeidenTurboMapping - Maximum speed GVE-Leiden variant
+     * Delegates to ::GenerateGVELeidenTurboMapping in reorder/reorder_leiden.h
+     */
+    void GenerateGVELeidenTurboMapping(
+        const CSRGraph<NodeID_, DestID_, invert>& g,
+        pvector<NodeID_>& new_ids,
+        std::vector<std::string> reordering_options) {
+        ::GenerateGVELeidenTurboMapping<K, NodeID_, DestID_>(g, new_ids, reordering_options);
+    }
+
+    /**
+     * GenerateGVELeidenFastMapping - CSR buffer reuse variant
+     * Delegates to ::GenerateGVELeidenFastMapping in reorder/reorder_leiden.h
+     */
+    void GenerateGVELeidenFastMapping(
+        const CSRGraph<NodeID_, DestID_, invert>& g,
+        pvector<NodeID_>& new_ids,
+        std::vector<std::string> reordering_options) {
+        ::GenerateGVELeidenFastMapping<K, NodeID_, DestID_>(g, new_ids, reordering_options);
     }
 
     // ========================================================================

@@ -31,15 +31,34 @@ A comprehensive one-click script that runs the complete GraphBrew experiment wor
     python scripts/graphbrew_experiment.py --train --all-variants --size small
     
     # Test specific variants only
-    python scripts/graphbrew_experiment.py --train --csr-variants gve gveopt --size small
+    python scripts/graphbrew_experiment.py --train --csr-variants gve gveopt gveopt2 --size small
+    
+    # Test new optimized variants (best performance)
+    python scripts/graphbrew_experiment.py --train --csr-variants gveopt2 gveadaptive --size medium
     
     # With custom Leiden parameters
     python scripts/graphbrew_experiment.py --train --all-variants \\
         --resolution 1.0 --passes 5 --size medium
     
     RabbitOrder (8) variants: csr (default), boost
-    LeidenCSR (17) variants: gve (default), gveopt, dfs, bfs, hubsort, fast, modularity
+    LeidenCSR (17) variants:
+      - gve (default): Standard GVE-Leiden with refinement
+      - gveopt: Cache-optimized with prefetching
+      - gveopt2: CSR-based aggregation (fastest reordering) ⭐
+      - gveadaptive: Dynamic resolution adjustment (best for unknown graphs) ⭐
+      - gveoptsort: Multi-level sort ordering
+      - gveturbo: Speed-optimized (optional refinement skip)
+      - gvefast: CSR buffer reuse (leiden.hxx style)
+      - gvedendo/gveoptdendo: Incremental dendrogram building
+      - gverabbit: GVE-Rabbit hybrid (fastest)
+      - dfs, bfs, hubsort, modularity: Alternative ordering strategies
     LeidenDendrogram (16) variants: dfs, dfshub, dfssize, bfs, hybrid
+    
+    Resolution modes (for --resolution):
+      - Fixed: 1.5 (use specified value)
+      - Auto: auto or 0 (compute from graph density/CV)
+      - Dynamic: dynamic (adjust per-pass, gveadaptive only)
+      - Dynamic+Init: dynamic_2.0 (start at 2.0, adjust per-pass)
 
 All outputs are saved to the results/ directory for clean organization.
 Type-based weights are saved to scripts/weights/active/type_*.json.
@@ -264,7 +283,8 @@ ALGORITHMS = {
     15: "LeidenOrder",
     # Format: 16:variant:resolution where variant = dfs/dfshub/dfssize/bfs/hybrid
     16: "LeidenDendrogram",
-    # Format: 17:variant:resolution:iterations:passes where variant = gve (default)/gveopt/dfs/bfs/hubsort/fast/modularity
+    # Format: 17:variant:resolution:iterations:passes
+    # Resolution: fixed (e.g., 1.5), auto, 0, dynamic, dynamic_2.0
     17: "LeidenCSR",
 }
 
@@ -292,13 +312,32 @@ GRAPHBREW_DEFAULT_VARIANT = "leiden"  # Original Leiden library (backward compat
 LEIDEN_DENDROGRAM_VARIANTS = ["dfs", "dfshub", "dfssize", "bfs", "hybrid"]
 # LeidenCSR variants - gve (GVE-Leiden) is default for best modularity quality
 # gveopt is cache-optimized with prefetching and flat arrays for large graphs
+# gveopt2 uses CSR-based aggregation (fastest reordering, best PR performance)
+# gveadaptive dynamically adjusts resolution at each pass based on runtime metrics
+# gveoptsort uses LeidenOrder-style multi-level sort ordering
+# gveturbo is speed-optimized (optional refinement skip)
+# gvefast uses CSR buffer reuse (leiden.hxx style aggregation)
 # gvedendo/gveoptdendo: RabbitOrder-inspired incremental dendrogram building
 # gverabbit is GVE-Rabbit hybrid (fastest, good quality)
-LEIDEN_CSR_VARIANTS = ["gve", "gveopt", "gvedendo", "gveoptdendo", "gverabbit", "dfs", "bfs", "hubsort", "modularity"]
+LEIDEN_CSR_VARIANTS = [
+    "gve", "gveopt", "gveopt2", "gveadaptive", "gveoptsort", "gveturbo",
+    "gvefast", "gvedendo", "gveoptdendo", "gverabbit", "dfs", "bfs", "hubsort", "modularity"
+]
 LEIDEN_CSR_DEFAULT_VARIANT = "gve"
 
+# Recommended variants for different use cases
+LEIDEN_CSR_FAST_VARIANTS = ["gveopt2", "gveadaptive", "gveturbo", "gvefast", "gverabbit"]  # Speed priority
+LEIDEN_CSR_QUALITY_VARIANTS = ["gve", "gveopt", "gveopt2", "gveadaptive"]  # Quality priority
+
+# Resolution modes for LeidenCSR
+# - Fixed: numeric value (e.g., "1.5")
+# - Auto: "auto" or "0" (compute from graph density/CV)
+# - Dynamic: "dynamic" (adjust per-pass, gveadaptive only)
+# - Dynamic+Init: "dynamic_2.0" (start at 2.0, adjust per-pass)
+LEIDEN_RESOLUTION_MODES = ["auto", "dynamic", "1.0", "1.5", "2.0"]
+
 # Default Leiden parameters
-LEIDEN_DEFAULT_RESOLUTION = 1.0
+LEIDEN_DEFAULT_RESOLUTION = "auto"  # Auto-compute from graph (or use "dynamic", "1.0", etc)
 LEIDEN_DEFAULT_PASSES = 3
 
 # ============================================================================
@@ -324,7 +363,7 @@ class AlgorithmConfig:
 def expand_algorithms_with_variants(
     algorithms: List[int],
     expand_leiden_variants: bool = False,
-    leiden_resolution: float = LEIDEN_DEFAULT_RESOLUTION,
+    leiden_resolution: str = LEIDEN_DEFAULT_RESOLUTION,
     leiden_passes: int = LEIDEN_DEFAULT_PASSES,
     leiden_csr_variants: List[str] = None,
     leiden_dendrogram_variants: List[str] = None,
@@ -3215,8 +3254,10 @@ def main():
     parser.add_argument("--all-variants", action="store_true", dest="expand_variants",
                         help="Test ALL algorithm variants (Leiden, RabbitOrder) instead of just defaults")
     parser.add_argument("--csr-variants", nargs="+", dest="leiden_csr_variants",
-                        default=None, choices=["gve", "gveopt", "gvedendo", "gveoptdendo", "gverabbit", "dfs", "bfs", "hubsort", "modularity"],
-                        help="LeidenCSR variants: gve (default), gveopt, gvedendo, gveoptdendo, gverabbit, dfs, bfs, hubsort, modularity")
+                        default=None, choices=["gve", "gveopt", "gveopt2", "gveadaptive", "gveoptsort", "gveturbo", "gvefast",
+                                               "gvedendo", "gveoptdendo", "gverabbit", "dfs", "bfs", "hubsort", "modularity"],
+                        help="LeidenCSR variants: gve, gveopt, gveopt2 (CSR aggregation), gveadaptive (dynamic resolution), "
+                             "gveoptsort, gveturbo, gvefast (CSR buffer reuse), gvedendo, gveoptdendo, gverabbit, dfs, bfs, hubsort, modularity")
     parser.add_argument("--dendrogram-variants", nargs="+", dest="leiden_dendrogram_variants",
                         default=None, choices=["dfs", "dfshub", "dfssize", "bfs", "hybrid"],
                         help="LeidenDendrogram variants: dfs, dfshub, dfssize, bfs, hybrid")
@@ -3226,8 +3267,8 @@ def main():
     parser.add_argument("--graphbrew-variants", nargs="+", dest="graphbrew_variants",
                         default=None, choices=["leiden", "gve", "gveopt", "gvefast", "gveoptfast", "rabbit", "hubcluster"],
                         help="GraphBrewOrder variants: leiden (default), gve, gveopt, gvefast, gveoptfast, rabbit, hubcluster")
-    parser.add_argument("--resolution", type=float, default=1.0, dest="leiden_resolution",
-                        help="Leiden resolution parameter - higher = more communities (default: 1.0)")
+    parser.add_argument("--resolution", type=str, default="1.0", dest="leiden_resolution",
+                        help="Leiden resolution: fixed (1.5), auto, 0, dynamic, dynamic_2.0 (default: 1.0)")
     parser.add_argument("--passes", type=int, default=3, dest="leiden_passes",
                         help="LeidenCSR refinement passes - higher = better quality (default: 3)")
     

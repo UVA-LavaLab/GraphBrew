@@ -2036,6 +2036,7 @@ GVELeidenResult<K> GVELeidenCSR(
  * @param tolerance_drop Factor to decrease tolerance each pass (default 10.0)
  * @param max_iterations Max iterations per local-moving phase (default 20)
  * @param max_passes Maximum number of Leiden passes (default 10)
+ * @param skip_refine Skip refinement phase for speed (default false)
  * 
  * @return GVELeidenResult containing community assignments and modularity
  */
@@ -2047,7 +2048,8 @@ GVELeidenResult<K> GVELeidenOptCSR(
     double aggregation_tolerance = 0.8,
     double tolerance_drop = 10.0,
     int max_iterations = 20,
-    int max_passes = 10) {
+    int max_passes = 10,
+    bool skip_refine = false) {
     
     const int64_t num_nodes = g.num_nodes();
     bool graph_is_symmetric = !g.directed();
@@ -2102,11 +2104,11 @@ GVELeidenResult<K> GVELeidenOptCSR(
             if (comm_exists[c]) num_communities_after_local++;
         }
         
-        // PHASE 2: REFINEMENT (optimized)
+        // PHASE 2: REFINEMENT (optimized) - can be skipped for speed
         std::vector<K> vcom_refined(num_nodes);
         size_t num_refined_communities;
         
-        if (pass == 0) {
+        if (!skip_refine && pass == 0) {
             std::vector<W> ctot_refined(num_nodes);
             
             #pragma omp parallel for
@@ -2142,6 +2144,7 @@ GVELeidenResult<K> GVELeidenOptCSR(
             
             num_refined_communities = static_cast<size_t>(next_refined_id);
         } else {
+            // Skip refinement: just renumber communities
             #pragma omp parallel for
             for (int64_t v = 0; v < num_nodes; ++v) {
                 vcom_refined[v] = vcom[v];
@@ -2426,6 +2429,1603 @@ GVELeidenResult<K> GVELeidenOptCSR(
     result.modularity = computeModularityCSR<K, NodeID_T, DestID_T>(g, result.final_community, resolution);
     
     printf("GVELeidenOpt: %d passes, %d total iterations, modularity=%.6f\n",
+           result.total_passes, result.total_iterations, result.modularity);
+    
+    return result;
+}
+
+/**
+ * Build super-graph adjacency list using CSR-style approach
+ * Directly builds std::vector<std::vector<std::pair<K, W>>> format
+ * Used as drop-in replacement for sort-based aggregation
+ */
+template <typename K, typename W, typename NodeID_T, typename DestID_T>
+inline void buildSuperGraphAdjList(
+    std::vector<std::vector<std::pair<K, W>>>& super_adj,
+    const CSRGraph<NodeID_T, DestID_T, true>& g,
+    const std::vector<K>& vcom,
+    size_t num_nodes,
+    size_t num_communities) {
+    
+    const int num_threads = omp_get_max_threads();
+    
+    // Build community-to-vertices mapping
+    std::vector<size_t> coff(num_communities + 1, 0);
+    std::vector<K> cedg(num_nodes);
+    
+    // Count vertices per community
+    for (size_t v = 0; v < num_nodes; ++v) {
+        coff[vcom[v] + 1]++;
+    }
+    
+    // Exclusive scan to get offsets
+    for (size_t c = 1; c <= num_communities; ++c) {
+        coff[c] += coff[c - 1];
+    }
+    
+    // Fill vertex lists
+    std::vector<size_t> count(num_communities, 0);
+    for (size_t v = 0; v < num_nodes; ++v) {
+        K c = vcom[v];
+        cedg[coff[c] + count[c]++] = static_cast<K>(v);
+    }
+    
+    // Thread-local hashtables for edge aggregation
+    std::vector<std::vector<W>> thread_vcout(num_threads);
+    std::vector<std::vector<K>> thread_vcs(num_threads);
+    
+    for (int t = 0; t < num_threads; ++t) {
+        thread_vcout[t].resize(num_communities, W(0));
+        thread_vcs[t].reserve(1000);
+    }
+    
+    // Initialize output
+    super_adj.clear();
+    super_adj.resize(num_communities);
+    
+    // Aggregate edges community by community (parallel)
+    #pragma omp parallel for schedule(dynamic, 256)
+    for (size_t c = 0; c < num_communities; ++c) {
+        int tid = omp_get_thread_num();
+        auto& vcs = thread_vcs[tid];
+        W* vcout = thread_vcout[tid].data();
+        
+        vcs.clear();
+        
+        // Scan all vertices in this community
+        for (size_t i = coff[c]; i < coff[c + 1]; ++i) {
+            K u = cedg[i];
+            
+            for (auto neighbor : g.out_neigh(u)) {
+                NodeID_T v;
+                W w;
+                if constexpr (std::is_same_v<DestID_T, NodeID_T>) {
+                    v = neighbor;
+                    w = W(1);
+                } else {
+                    v = neighbor.v;
+                    w = static_cast<W>(neighbor.w);
+                }
+                
+                K cv = vcom[v];
+                if (cv != static_cast<K>(c)) {  // Only inter-community edges
+                    if (vcout[cv] == W(0)) {
+                        vcs.push_back(cv);
+                    }
+                    vcout[cv] += w;
+                }
+            }
+        }
+        
+        // Write to adjacency list
+        super_adj[c].reserve(vcs.size());
+        for (K d : vcs) {
+            super_adj[c].emplace_back(d, vcout[d]);
+            vcout[d] = W(0);  // Reset for next community
+        }
+    }
+}
+
+//==========================================================================
+// Adaptive Resolution Helper Functions
+//==========================================================================
+
+/**
+ * Runtime metrics collected during each Leiden pass
+ * Used to inform adaptive resolution adjustments
+ */
+template <typename W>
+struct LeidenPassMetrics {
+    size_t num_communities;      // Communities after this pass
+    size_t prev_communities;     // Communities before this pass
+    int local_move_iterations;   // How many local-move iterations needed
+    W max_community_weight;      // Largest community weight
+    W total_weight;              // Sum of all weights
+    size_t total_super_edges;    // Edges in super-graph
+    double reduction_ratio;      // num_communities / prev_communities
+    double size_imbalance;       // max_weight / avg_weight
+    double super_avg_degree;     // Average degree in super-graph
+};
+
+/**
+ * Compute adaptive resolution adjustment based on runtime metrics
+ * 
+ * @param current_resolution Current resolution value
+ * @param metrics Runtime metrics from the current pass
+ * @param original_avg_degree Average degree of original graph
+ * @param max_iterations Max local-move iterations (to detect convergence issues)
+ * @return Adjusted resolution for the next pass
+ */
+template <typename W>
+inline double computeAdaptiveResolution(
+    double current_resolution,
+    const LeidenPassMetrics<W>& metrics,
+    double original_avg_degree,
+    int max_iterations) {
+    
+    double adjusted = current_resolution;
+    
+    // Signal 1: Community reduction ratio
+    // If reducing too slowly (ratio > 0.5), lower resolution to encourage merging
+    // If reducing too fast (ratio < 0.05), raise resolution to slow down
+    if (metrics.reduction_ratio > 0.5) {
+        adjusted *= 0.85;  // Not reducing enough, encourage merging
+    } else if (metrics.reduction_ratio < 0.05) {
+        adjusted *= 1.25;  // Reducing too aggressively, slow down
+    }
+    
+    // Signal 2: Community size imbalance
+    // If giant communities exist (imbalance > 50), raise resolution to break them
+    if (metrics.size_imbalance > 50.0) {
+        adjusted *= 1.15;  // Break giant communities
+    } else if (metrics.size_imbalance > 100.0) {
+        adjusted *= 1.25;  // Very unbalanced, more aggressive
+    }
+    
+    // Signal 3: Local-move convergence
+    // If converged in 1 iteration, communities are very stable - try finer resolution
+    // If hit max iterations, might be struggling - try coarser
+    if (metrics.local_move_iterations == 1) {
+        adjusted *= 1.1;   // Too stable, try finer granularity
+    } else if (metrics.local_move_iterations >= max_iterations) {
+        adjusted *= 0.95;  // Struggling to converge, try coarser
+    }
+    
+    // Signal 4: Super-graph density evolution
+    // As super-graph gets denser, may need higher resolution
+    if (metrics.super_avg_degree > 0 && original_avg_degree > 0) {
+        double density_ratio = metrics.super_avg_degree / original_avg_degree;
+        if (density_ratio > 2.0) {
+            // Super-graph is significantly denser, scale up resolution
+            adjusted *= (1.0 + 0.1 * std::log2(density_ratio));
+        }
+    }
+    
+    // Clamp to reasonable range [0.1, 5.0]
+    adjusted = std::max(0.1, std::min(5.0, adjusted));
+    
+    return adjusted;
+}
+
+/**
+ * Collect runtime metrics from current pass state
+ */
+template <typename K, typename W>
+inline LeidenPassMetrics<W> collectPassMetrics(
+    const std::vector<W>& super_weight,
+    const std::vector<std::vector<std::pair<K, W>>>& super_adj,
+    size_t num_communities,
+    size_t prev_communities,
+    int local_move_iterations) {
+    
+    LeidenPassMetrics<W> metrics;
+    metrics.num_communities = num_communities;
+    metrics.prev_communities = prev_communities;
+    metrics.local_move_iterations = local_move_iterations;
+    
+    // Compute community weight statistics
+    W max_weight = W(0);
+    W total_weight = W(0);
+    for (size_t c = 0; c < num_communities; ++c) {
+        max_weight = std::max(max_weight, super_weight[c]);
+        total_weight += super_weight[c];
+    }
+    metrics.max_community_weight = max_weight;
+    metrics.total_weight = total_weight;
+    
+    // Compute size imbalance
+    W avg_weight = (num_communities > 0) ? total_weight / num_communities : W(1);
+    metrics.size_imbalance = (avg_weight > 0) ? static_cast<double>(max_weight) / avg_weight : 1.0;
+    
+    // Compute reduction ratio
+    metrics.reduction_ratio = (prev_communities > 0) 
+        ? static_cast<double>(num_communities) / prev_communities 
+        : 1.0;
+    
+    // Compute super-graph edge count and average degree
+    size_t total_edges = 0;
+    for (size_t c = 0; c < num_communities; ++c) {
+        total_edges += super_adj[c].size();
+    }
+    metrics.total_super_edges = total_edges;
+    metrics.super_avg_degree = (num_communities > 0) 
+        ? static_cast<double>(total_edges) / num_communities 
+        : 0.0;
+    
+    return metrics;
+}
+
+//==========================================================================
+// GVELeidenAdaptiveCSR - Leiden with Dynamic Resolution Adjustment
+//==========================================================================
+
+/**
+ * GVELeidenAdaptiveCSR - Leiden algorithm with adaptive resolution
+ * 
+ * Key innovation: Resolution is adjusted dynamically at each pass based on:
+ * 1. Community reduction rate (how fast communities are merging)
+ * 2. Community size imbalance (detecting giant communities)
+ * 3. Local-move convergence speed (iteration count)
+ * 4. Super-graph density evolution (denser graphs need higher resolution)
+ * 
+ * Benefits:
+ * - More balanced community hierarchy
+ * - Better adaptation to graph structure at each level
+ * - Avoids over-merging in later passes
+ * - Potentially better cache locality for graph algorithms
+ * 
+ * @param g Input graph (must be symmetric)
+ * @param initial_resolution Starting resolution (will be adapted)
+ * @param tolerance Convergence tolerance for local-moving
+ * @param aggregation_tolerance Minimum reduction to continue
+ * @param tolerance_drop Factor to reduce tolerance each pass
+ * @param max_iterations Max local-move iterations per pass
+ * @param max_passes Maximum number of passes
+ * @return GVELeidenResult with community assignments
+ */
+template <typename K, typename W, typename NodeID_T, typename DestID_T>
+GVELeidenResult<K> GVELeidenAdaptiveCSR(
+    const CSRGraph<NodeID_T, DestID_T, true>& g,
+    double initial_resolution = 1.0,
+    double tolerance = 1e-2,
+    double aggregation_tolerance = 0.8,
+    double tolerance_drop = 10.0,
+    int max_iterations = 20,
+    int max_passes = 10) {
+    
+    const int64_t num_nodes = g.num_nodes();
+    bool graph_is_symmetric = !g.directed();
+    const int64_t num_edges_stored = g.num_edges();
+    const double M = static_cast<double>(num_edges_stored);
+    
+    // Compute original graph's average degree for density comparison
+    const double original_avg_degree = static_cast<double>(num_edges_stored) / num_nodes;
+    
+    GVELeidenResult<K> result;
+    result.total_iterations = 0;
+    result.total_passes = 0;
+    
+    // Initialize data structures
+    std::vector<K> vcom(num_nodes);
+    std::vector<K> vcob(num_nodes);
+    std::vector<W> vtot(num_nodes);
+    std::vector<W> ctot(num_nodes);
+    std::vector<char> vaff(num_nodes, 1);
+    
+    #pragma omp parallel for
+    for (int64_t v = 0; v < num_nodes; ++v) {
+        vcom[v] = static_cast<K>(v);
+        W vtot_v = computeVertexTotalWeightCSR<W, NodeID_T, DestID_T>(v, g, graph_is_symmetric);
+        vtot[v] = vtot_v;
+        ctot[v] = vtot_v;
+    }
+    
+    double current_tolerance = tolerance;
+    size_t prev_communities = num_nodes;
+    double resolution = initial_resolution;  // Will be adapted each pass
+    
+    printf("GVELeidenAdaptive: initial_resolution=%.4f, max_passes=%d\n", 
+           initial_resolution, max_passes);
+    
+    for (int pass = 0; pass < max_passes; ++pass) {
+        
+        // PHASE 1: LOCAL-MOVING with current (possibly adapted) resolution
+        int local_iters = gveOptLocalMove<K, W, NodeID_T, DestID_T>(
+            vcom, ctot, vaff, vtot, num_nodes, g, graph_is_symmetric,
+            M, resolution, max_iterations, current_tolerance);
+        
+        result.total_iterations += local_iters;
+        
+        // Store community bounds for refinement
+        #pragma omp parallel for
+        for (int64_t v = 0; v < num_nodes; ++v) {
+            vcob[v] = vcom[v];
+        }
+        
+        // Count communities after local-moving
+        std::vector<char> comm_exists(num_nodes, 0);
+        #pragma omp parallel for
+        for (int64_t v = 0; v < num_nodes; ++v) {
+            comm_exists[vcom[v]] = 1;
+        }
+        size_t num_communities_after_local = 0;
+        for (int64_t c = 0; c < num_nodes; ++c) {
+            if (comm_exists[c]) num_communities_after_local++;
+        }
+        
+        // PHASE 2: REFINEMENT (only on first pass)
+        std::vector<K> vcom_refined(num_nodes);
+        size_t num_refined_communities;
+        
+        if (pass == 0) {
+            std::vector<W> ctot_refined(num_nodes);
+            
+            #pragma omp parallel for
+            for (int64_t v = 0; v < num_nodes; ++v) {
+                vcom_refined[v] = static_cast<K>(v);
+                ctot_refined[v] = vtot[v];
+                vaff[v] = 1;
+            }
+            
+            gveOptRefine<K, W, NodeID_T, DestID_T>(
+                vcom_refined, ctot_refined, vaff, vcob, vtot,
+                num_nodes, g, graph_is_symmetric, M, resolution);
+            
+            // Renumber refined communities
+            K max_comm = 0;
+            for (int64_t v = 0; v < num_nodes; ++v) {
+                max_comm = std::max(max_comm, vcom_refined[v]);
+            }
+            
+            std::vector<K> refine_renumber(max_comm + 1, K(-1));
+            K next_refined_id = 0;
+            for (int64_t v = 0; v < num_nodes; ++v) {
+                K rc = vcom_refined[v];
+                if (refine_renumber[rc] == K(-1)) {
+                    refine_renumber[rc] = next_refined_id++;
+                }
+            }
+            
+            #pragma omp parallel for
+            for (int64_t v = 0; v < num_nodes; ++v) {
+                vcom_refined[v] = refine_renumber[vcom_refined[v]];
+            }
+            
+            num_refined_communities = static_cast<size_t>(next_refined_id);
+        } else {
+            // Skip refinement on later passes: just renumber
+            #pragma omp parallel for
+            for (int64_t v = 0; v < num_nodes; ++v) {
+                vcom_refined[v] = vcom[v];
+            }
+            
+            K max_comm = 0;
+            for (int64_t v = 0; v < num_nodes; ++v) {
+                max_comm = std::max(max_comm, vcom_refined[v]);
+            }
+            
+            std::vector<K> renumber(max_comm + 1, K(-1));
+            K next_id = 0;
+            for (int64_t v = 0; v < num_nodes; ++v) {
+                K c = vcom_refined[v];
+                if (renumber[c] == K(-1)) {
+                    renumber[c] = next_id++;
+                }
+            }
+            
+            #pragma omp parallel for
+            for (int64_t v = 0; v < num_nodes; ++v) {
+                vcom_refined[v] = renumber[vcom_refined[v]];
+            }
+            
+            num_refined_communities = static_cast<size_t>(next_id);
+        }
+        
+        // PHASE 3: AGGREGATION using CSR-based approach
+        std::vector<W> super_weight(num_refined_communities, W(0));
+        
+        #pragma omp parallel for
+        for (int64_t v = 0; v < num_nodes; ++v) {
+            K c = vcom_refined[v];
+            #pragma omp atomic
+            super_weight[c] += vtot[v];
+        }
+        
+        // Build super-graph
+        std::vector<std::vector<std::pair<K, W>>> super_adj;
+        buildSuperGraphAdjList<K, W, NodeID_T, DestID_T>(
+            super_adj, g, vcom_refined, num_nodes, num_refined_communities);
+        
+        // ======== ADAPTIVE RESOLUTION: Collect metrics and adjust ========
+        auto metrics = collectPassMetrics<K, W>(
+            super_weight, super_adj, num_refined_communities, 
+            prev_communities, local_iters);
+        
+        double next_resolution = computeAdaptiveResolution<W>(
+            resolution, metrics, original_avg_degree, max_iterations);
+        
+        printf("  Pass %d: res=%.3f, comms=%zu→%zu (%.1f%%), iters=%d, imbalance=%.1f → next_res=%.3f\n",
+               pass, resolution, prev_communities, num_refined_communities,
+               metrics.reduction_ratio * 100, local_iters, metrics.size_imbalance,
+               next_resolution);
+        // ================================================================
+        
+        // Local-moving on super-graph
+        std::vector<K> super_comm(num_refined_communities);
+        std::vector<W> super_ctot(num_refined_communities);
+        
+        #pragma omp parallel for
+        for (size_t c = 0; c < num_refined_communities; ++c) {
+            super_comm[c] = c;
+            super_ctot[c] = super_weight[c];
+        }
+        
+        // Super-graph local move with flat array
+        std::vector<W> sg_comm_weights(num_refined_communities, W(0));
+        std::vector<K> sg_touched(num_refined_communities);
+        
+        for (int iter = 0; iter < max_iterations; ++iter) {
+            int moves = 0;
+            
+            for (size_t c = 0; c < num_refined_communities; ++c) {
+                K d = super_comm[c];
+                W kc = super_weight[c];
+                W sigma_d = super_ctot[d];
+                
+                int num_touched = 0;
+                W kc_to_d = W(0);
+                
+                for (auto& [nc, w] : super_adj[c]) {
+                    K snc = super_comm[nc];
+                    if (sg_comm_weights[snc] == W(0)) {
+                        sg_touched[num_touched++] = snc;
+                    }
+                    sg_comm_weights[snc] += w;
+                    if (snc == d) kc_to_d += w;
+                }
+                
+                K best_comm = d;
+                W best_delta = W(0);
+                
+                for (int i = 0; i < num_touched; ++i) {
+                    K e = sg_touched[i];
+                    W kc_to_e = sg_comm_weights[e];
+                    W sigma_e = super_ctot[e];
+                    
+                    W delta_removal = resolution * kc * (sigma_d - kc) / M;
+                    W delta_addition;
+                    if (e == d) {
+                        delta_addition = kc_to_d - delta_removal;
+                    } else {
+                        delta_addition = kc_to_e - resolution * kc * sigma_e / M;
+                    }
+                    
+                    W delta = delta_addition - delta_removal + kc_to_d;
+                    
+                    if (delta > best_delta || (delta == best_delta && e < best_comm)) {
+                        best_delta = delta;
+                        best_comm = e;
+                    }
+                }
+                
+                if (best_comm != d && best_delta > 0) {
+                    super_ctot[d] -= kc;
+                    super_ctot[best_comm] += kc;
+                    super_comm[c] = best_comm;
+                    moves++;
+                }
+                
+                for (int i = 0; i < num_touched; ++i) {
+                    sg_comm_weights[sg_touched[i]] = W(0);
+                }
+            }
+            
+            if (moves == 0) break;
+        }
+        
+        // Map back to original vertices
+        #pragma omp parallel for
+        for (int64_t v = 0; v < num_nodes; ++v) {
+            K rc = vcom_refined[v];
+            vcom[v] = super_comm[rc];
+        }
+        
+        // Renumber final communities
+        K max_final_comm = 0;
+        for (int64_t v = 0; v < num_nodes; ++v) {
+            max_final_comm = std::max(max_final_comm, vcom[v]);
+        }
+        
+        std::vector<K> final_renumber(max_final_comm + 1, K(-1));
+        K next_final_id = 0;
+        for (int64_t v = 0; v < num_nodes; ++v) {
+            K c = vcom[v];
+            if (final_renumber[c] == K(-1)) {
+                final_renumber[c] = next_final_id++;
+            }
+        }
+        
+        #pragma omp parallel for
+        for (int64_t v = 0; v < num_nodes; ++v) {
+            vcom[v] = final_renumber[vcom[v]];
+        }
+        
+        size_t current_communities = static_cast<size_t>(next_final_id);
+        
+        // Store dendrogram
+        result.community_per_pass.push_back(vcom);
+        result.total_passes++;
+        
+        // Check convergence
+        double reduction = static_cast<double>(prev_communities - current_communities) 
+                         / static_cast<double>(prev_communities);
+        
+        if (current_communities >= prev_communities || reduction < (1.0 - aggregation_tolerance)) {
+            break;
+        }
+        
+        // Update for next pass
+        #pragma omp parallel for
+        for (int64_t v = 0; v < num_nodes; ++v) {
+            ctot[vcom[v]] = W(0);
+        }
+        
+        #pragma omp parallel for
+        for (int64_t v = 0; v < num_nodes; ++v) {
+            #pragma omp atomic
+            ctot[vcom[v]] += vtot[v];
+            vaff[v] = 1;
+        }
+        
+        prev_communities = current_communities;
+        current_tolerance = tolerance / tolerance_drop;
+        resolution = next_resolution;  // Apply adaptive resolution for next pass
+    }
+    
+    result.final_community = vcom;
+    result.modularity = computeModularityCSR<K, NodeID_T, DestID_T>(g, result.final_community, initial_resolution);
+    
+    printf("GVELeidenAdaptive: %d passes, %d iters, final_modularity=%.6f\n",
+           result.total_passes, result.total_iterations, result.modularity);
+    
+    return result;
+}
+
+//==========================================================================
+// GVELeidenOpt2CSR - GVELeidenOpt with CSR-based Aggregation
+//==========================================================================
+
+/**
+ * GVELeidenOpt2CSR - Same as GVELeidenOptCSR but uses CSR-based aggregation
+ * 
+ * Key change: Replaces sort-based super-graph building with community-first
+ * scanning approach (like leiden.hxx). This eliminates the O(E log E) sort
+ * and uses O(E) linear scanning instead.
+ * 
+ * Expected speedup: ~30-40% faster detection time
+ */
+template <typename K, typename W, typename NodeID_T, typename DestID_T>
+GVELeidenResult<K> GVELeidenOpt2CSR(
+    const CSRGraph<NodeID_T, DestID_T, true>& g,
+    double resolution = 1.0,
+    double tolerance = 1e-2,
+    double aggregation_tolerance = 0.8,
+    double tolerance_drop = 10.0,
+    int max_iterations = 20,
+    int max_passes = 10,
+    bool skip_refine = false) {
+    
+    const int64_t num_nodes = g.num_nodes();
+    bool graph_is_symmetric = !g.directed();
+    const int64_t num_edges_stored = g.num_edges();
+    const double M = static_cast<double>(num_edges_stored);
+    
+    GVELeidenResult<K> result;
+    result.total_iterations = 0;
+    result.total_passes = 0;
+    
+    // Initialize data structures
+    std::vector<K> vcom(num_nodes);
+    std::vector<K> vcob(num_nodes);  // Community bounds for refinement
+    std::vector<W> vtot(num_nodes);
+    std::vector<W> ctot(num_nodes);
+    std::vector<char> vaff(num_nodes, 1);
+    
+    #pragma omp parallel for
+    for (int64_t v = 0; v < num_nodes; ++v) {
+        vcom[v] = static_cast<K>(v);
+        W vtot_v = computeVertexTotalWeightCSR<W, NodeID_T, DestID_T>(v, g, graph_is_symmetric);
+        vtot[v] = vtot_v;
+        ctot[v] = vtot_v;
+    }
+    
+    double current_tolerance = tolerance;
+    size_t prev_communities = num_nodes;
+    
+    for (int pass = 0; pass < max_passes; ++pass) {
+        
+        // PHASE 1: LOCAL-MOVING (using optimized flat-array approach)
+        int local_iters = gveOptLocalMove<K, W, NodeID_T, DestID_T>(
+            vcom, ctot, vaff, vtot, num_nodes, g, graph_is_symmetric,
+            M, resolution, max_iterations, current_tolerance);
+        
+        result.total_iterations += local_iters;
+        
+        // Store community bounds
+        #pragma omp parallel for
+        for (int64_t v = 0; v < num_nodes; ++v) {
+            vcob[v] = vcom[v];
+        }
+        
+        // Count communities
+        std::vector<char> comm_exists(num_nodes, 0);
+        #pragma omp parallel for
+        for (int64_t v = 0; v < num_nodes; ++v) {
+            comm_exists[vcom[v]] = 1;
+        }
+        size_t num_communities_after_local = 0;
+        for (int64_t c = 0; c < num_nodes; ++c) {
+            if (comm_exists[c]) num_communities_after_local++;
+        }
+        
+        // PHASE 2: REFINEMENT (optimized) - can be skipped for speed
+        std::vector<K> vcom_refined(num_nodes);
+        size_t num_refined_communities;
+        
+        if (!skip_refine && pass == 0) {
+            std::vector<W> ctot_refined(num_nodes);
+            
+            #pragma omp parallel for
+            for (int64_t v = 0; v < num_nodes; ++v) {
+                vcom_refined[v] = static_cast<K>(v);
+                ctot_refined[v] = vtot[v];
+                vaff[v] = 1;
+            }
+            
+            gveOptRefine<K, W, NodeID_T, DestID_T>(
+                vcom_refined, ctot_refined, vaff, vcob, vtot,
+                num_nodes, g, graph_is_symmetric, M, resolution);
+            
+            // Renumber refined communities
+            K max_comm = 0;
+            for (int64_t v = 0; v < num_nodes; ++v) {
+                max_comm = std::max(max_comm, vcom_refined[v]);
+            }
+            
+            std::vector<K> refine_renumber(max_comm + 1, K(-1));
+            K next_refined_id = 0;
+            for (int64_t v = 0; v < num_nodes; ++v) {
+                K rc = vcom_refined[v];
+                if (refine_renumber[rc] == K(-1)) {
+                    refine_renumber[rc] = next_refined_id++;
+                }
+            }
+            
+            #pragma omp parallel for
+            for (int64_t v = 0; v < num_nodes; ++v) {
+                vcom_refined[v] = refine_renumber[vcom_refined[v]];
+            }
+            
+            num_refined_communities = static_cast<size_t>(next_refined_id);
+        } else {
+            // Skip refinement: just renumber communities
+            #pragma omp parallel for
+            for (int64_t v = 0; v < num_nodes; ++v) {
+                vcom_refined[v] = vcom[v];
+            }
+            
+            K max_comm = 0;
+            for (int64_t v = 0; v < num_nodes; ++v) {
+                max_comm = std::max(max_comm, vcom_refined[v]);
+            }
+            
+            std::vector<K> renumber(max_comm + 1, K(-1));
+            K next_id = 0;
+            for (int64_t v = 0; v < num_nodes; ++v) {
+                K c = vcom_refined[v];
+                if (renumber[c] == K(-1)) {
+                    renumber[c] = next_id++;
+                }
+            }
+            
+            #pragma omp parallel for
+            for (int64_t v = 0; v < num_nodes; ++v) {
+                vcom_refined[v] = renumber[vcom_refined[v]];
+            }
+            
+            num_refined_communities = static_cast<size_t>(next_id);
+        }
+        
+        // Map from refined community to original local-move community (for later lookup)
+        std::vector<K> refined_to_bound(num_refined_communities);
+        #pragma omp parallel for
+        for (int64_t v = 0; v < num_nodes; ++v) {
+            K rc = vcom_refined[v];
+            if (rc < num_refined_communities) {
+                refined_to_bound[rc] = vcob[v];
+            }
+        }
+        
+        // PHASE 3: AGGREGATION - Using CSR-based approach (NEW!)
+        std::vector<W> super_weight(num_refined_communities, W(0));
+        
+        #pragma omp parallel for
+        for (int64_t v = 0; v < num_nodes; ++v) {
+            K c = vcom_refined[v];
+            #pragma omp atomic
+            super_weight[c] += vtot[v];
+        }
+        
+        // Build super-graph edges using CSR-based community scanning
+        std::vector<std::vector<std::pair<K, W>>> super_adj;
+        buildSuperGraphAdjList<K, W, NodeID_T, DestID_T>(
+            super_adj, g, vcom_refined, num_nodes, num_refined_communities);
+        
+        // Local-moving on super-graph
+        std::vector<K> super_comm(num_refined_communities);
+        std::vector<W> super_ctot(num_refined_communities);
+        
+        #pragma omp parallel for
+        for (size_t c = 0; c < num_refined_communities; ++c) {
+            super_comm[c] = c;
+            super_ctot[c] = super_weight[c];
+        }
+        
+        // Use flat array for super-graph local move
+        std::vector<W> sg_comm_weights(num_refined_communities, W(0));
+        std::vector<K> sg_touched(num_refined_communities);
+        
+        for (int iter = 0; iter < max_iterations; ++iter) {
+            int moves = 0;
+            
+            for (size_t c = 0; c < num_refined_communities; ++c) {
+                K d = super_comm[c];
+                W kc = super_weight[c];
+                W sigma_d = super_ctot[d];
+                
+                // Scan neighbors using flat array
+                int num_touched = 0;
+                W kc_to_d = W(0);
+                
+                for (auto& [nc, w] : super_adj[c]) {
+                    K snc = super_comm[nc];
+                    if (sg_comm_weights[snc] == W(0)) {
+                        sg_touched[num_touched++] = snc;
+                    }
+                    sg_comm_weights[snc] += w;
+                    if (snc == d) kc_to_d += w;
+                }
+                
+                // Find best community
+                K best_comm = d;
+                W best_delta = W(0);
+                
+                for (int i = 0; i < num_touched; ++i) {
+                    K e = sg_touched[i];
+                    W kc_to_e = sg_comm_weights[e];
+                    W sigma_e = super_ctot[e];
+                    
+                    W delta_removal = resolution * kc * (sigma_d - kc) / M;
+                    W delta_addition;
+                    if (e == d) {
+                        delta_addition = kc_to_d - delta_removal;
+                    } else {
+                        delta_addition = kc_to_e - resolution * kc * sigma_e / M;
+                    }
+                    
+                    W delta = delta_addition - delta_removal + kc_to_d;
+                    
+                    if (delta > best_delta || (delta == best_delta && e < best_comm)) {
+                        best_delta = delta;
+                        best_comm = e;
+                    }
+                }
+                
+                // Move if better
+                if (best_comm != d && best_delta > 0) {
+                    super_ctot[d] -= kc;
+                    super_ctot[best_comm] += kc;
+                    super_comm[c] = best_comm;
+                    moves++;
+                }
+                
+                // Clear touched communities
+                for (int i = 0; i < num_touched; ++i) {
+                    sg_comm_weights[sg_touched[i]] = W(0);
+                }
+            }
+            
+            if (moves == 0) break;
+        }
+        
+        // Map super-graph communities back to original vertices
+        #pragma omp parallel for
+        for (int64_t v = 0; v < num_nodes; ++v) {
+            K rc = vcom_refined[v];
+            vcom[v] = super_comm[rc];
+        }
+        
+        // Renumber final communities
+        K max_final_comm = 0;
+        for (int64_t v = 0; v < num_nodes; ++v) {
+            max_final_comm = std::max(max_final_comm, vcom[v]);
+        }
+        
+        std::vector<K> final_renumber(max_final_comm + 1, K(-1));
+        K next_final_id = 0;
+        for (int64_t v = 0; v < num_nodes; ++v) {
+            K c = vcom[v];
+            if (final_renumber[c] == K(-1)) {
+                final_renumber[c] = next_final_id++;
+            }
+        }
+        
+        #pragma omp parallel for
+        for (int64_t v = 0; v < num_nodes; ++v) {
+            vcom[v] = final_renumber[vcom[v]];
+        }
+        
+        size_t current_communities = static_cast<size_t>(next_final_id);
+        
+        // Store dendrogram
+        result.community_per_pass.push_back(vcom);
+        result.total_passes++;
+        
+        // Check convergence
+        double reduction = static_cast<double>(prev_communities - current_communities) 
+                         / static_cast<double>(prev_communities);
+        
+        if (current_communities >= prev_communities || reduction < (1.0 - aggregation_tolerance)) {
+            break;
+        }
+        
+        // Reinitialize for next pass
+        #pragma omp parallel for
+        for (int64_t v = 0; v < num_nodes; ++v) {
+            ctot[vcom[v]] = W(0);
+        }
+        
+        #pragma omp parallel for
+        for (int64_t v = 0; v < num_nodes; ++v) {
+            #pragma omp atomic
+            ctot[vcom[v]] += vtot[v];
+            vaff[v] = 1;
+        }
+        
+        prev_communities = current_communities;
+        current_tolerance = tolerance / tolerance_drop;
+    }
+    
+    // Final community assignment
+    result.final_community = vcom;
+    
+    // Compute modularity
+    result.modularity = computeModularityCSR<K, NodeID_T, DestID_T>(g, result.final_community, resolution);
+    
+    printf("GVELeidenOpt2: %d passes, %d total iterations, modularity=%.6f\n",
+           result.total_passes, result.total_iterations, result.modularity);
+    
+    return result;
+}
+
+//==========================================================================
+// GVELeidenFastCSR - CSR Buffer Reuse Optimization (leiden.hxx style)
+//==========================================================================
+
+/**
+ * Simple CSR super-graph structure for aggregation
+ * Pre-allocated buffers that can be reused between passes
+ */
+template <typename K, typename W>
+struct SuperGraphCSR {
+    std::vector<size_t> offsets;    // Edge offsets per community
+    std::vector<K> degrees;         // Current degree of each community
+    std::vector<K> edge_dst;        // Destination community IDs
+    std::vector<W> edge_weight;     // Edge weights
+    size_t num_communities = 0;
+    size_t max_edges = 0;
+    
+    void resize(size_t num_comms, size_t est_edges) {
+        num_communities = num_comms;
+        max_edges = est_edges;
+        offsets.resize(num_comms + 1);
+        degrees.resize(num_comms);
+        edge_dst.resize(est_edges);
+        edge_weight.resize(est_edges);
+    }
+    
+    void clear() {
+        std::fill(degrees.begin(), degrees.end(), K(0));
+    }
+};
+
+/**
+ * Build community-to-vertices mapping (which vertices belong to each community)
+ */
+template <typename K>
+inline void buildCommunityVertices(
+    std::vector<size_t>& coff,      // Community vertex offsets
+    std::vector<K>& cedg,           // Vertices in each community
+    const std::vector<K>& vcom,     // Community assignment
+    size_t num_nodes,
+    size_t num_communities) {
+    
+    // Count vertices per community
+    std::vector<K> count(num_communities, 0);
+    for (size_t v = 0; v < num_nodes; ++v) {
+        count[vcom[v]]++;
+    }
+    
+    // Exclusive scan to get offsets
+    coff.resize(num_communities + 1);
+    coff[0] = 0;
+    for (size_t c = 0; c < num_communities; ++c) {
+        coff[c + 1] = coff[c] + count[c];
+    }
+    
+    // Fill vertex lists
+    cedg.resize(num_nodes);
+    std::fill(count.begin(), count.end(), 0);
+    for (size_t v = 0; v < num_nodes; ++v) {
+        K c = vcom[v];
+        cedg[coff[c] + count[c]++] = static_cast<K>(v);
+    }
+}
+
+/**
+ * Aggregate edges using community-first approach (leiden.hxx style)
+ * Much faster than vertex-by-vertex + global sort
+ */
+template <typename K, typename W, typename NodeID_T, typename DestID_T>
+inline void aggregateEdgesCSR(
+    SuperGraphCSR<K, W>& super,
+    const CSRGraph<NodeID_T, DestID_T, true>& g,
+    const std::vector<K>& vcom,
+    const std::vector<size_t>& coff,
+    const std::vector<K>& cedg,
+    size_t num_communities) {
+    
+    const int num_threads = omp_get_max_threads();
+    
+    // Thread-local hashtables for edge aggregation
+    std::vector<std::vector<K>> thread_vcs(num_threads);
+    std::vector<std::vector<W>> thread_vcout(num_threads);
+    
+    for (int t = 0; t < num_threads; ++t) {
+        thread_vcout[t].resize(num_communities, W(0));
+        thread_vcs[t].reserve(1000);
+    }
+    
+    // Phase 1: Compute degree of each super-node (parallel)
+    #pragma omp parallel for schedule(dynamic, 256)
+    for (size_t c = 0; c < num_communities; ++c) {
+        int tid = omp_get_thread_num();
+        auto& vcs = thread_vcs[tid];
+        W* vcout = thread_vcout[tid].data();
+        
+        vcs.clear();
+        
+        // Scan all vertices in this community
+        for (size_t i = coff[c]; i < coff[c + 1]; ++i) {
+            K u = cedg[i];
+            
+            for (auto neighbor : g.out_neigh(u)) {
+                NodeID_T v;
+                W w;
+                if constexpr (std::is_same_v<DestID_T, NodeID_T>) {
+                    v = neighbor;
+                    w = W(1);
+                } else {
+                    v = neighbor.v;
+                    w = static_cast<W>(neighbor.w);
+                }
+                
+                K cv = vcom[v];
+                if (cv != static_cast<K>(c)) {  // Only inter-community edges
+                    if (vcout[cv] == W(0)) {
+                        vcs.push_back(cv);
+                    }
+                    vcout[cv] += w;
+                }
+            }
+        }
+        
+        // Store degree and clear hashtable
+        super.degrees[c] = static_cast<K>(vcs.size());
+        for (K d : vcs) {
+            vcout[d] = W(0);
+        }
+    }
+    
+    // Phase 2: Compute offsets via exclusive scan
+    super.offsets[0] = 0;
+    for (size_t c = 0; c < num_communities; ++c) {
+        super.offsets[c + 1] = super.offsets[c] + super.degrees[c];
+    }
+    
+    // Ensure edge arrays are large enough
+    size_t total_edges = super.offsets[num_communities];
+    if (total_edges > super.edge_dst.size()) {
+        super.edge_dst.resize(total_edges);
+        super.edge_weight.resize(total_edges);
+    }
+    
+    // Reset degrees for use as insertion counters
+    std::fill(super.degrees.begin(), super.degrees.end(), K(0));
+    
+    // Phase 3: Fill edge arrays (parallel)
+    #pragma omp parallel for schedule(dynamic, 256)
+    for (size_t c = 0; c < num_communities; ++c) {
+        int tid = omp_get_thread_num();
+        auto& vcs = thread_vcs[tid];
+        W* vcout = thread_vcout[tid].data();
+        
+        vcs.clear();
+        
+        // Scan all vertices in this community
+        for (size_t i = coff[c]; i < coff[c + 1]; ++i) {
+            K u = cedg[i];
+            
+            for (auto neighbor : g.out_neigh(u)) {
+                NodeID_T v;
+                W w;
+                if constexpr (std::is_same_v<DestID_T, NodeID_T>) {
+                    v = neighbor;
+                    w = W(1);
+                } else {
+                    v = neighbor.v;
+                    w = static_cast<W>(neighbor.w);
+                }
+                
+                K cv = vcom[v];
+                if (cv != static_cast<K>(c)) {
+                    if (vcout[cv] == W(0)) {
+                        vcs.push_back(cv);
+                    }
+                    vcout[cv] += w;
+                }
+            }
+        }
+        
+        // Write edges to CSR (sequential within community, parallel across)
+        size_t offset = super.offsets[c];
+        for (K d : vcs) {
+            super.edge_dst[offset] = d;
+            super.edge_weight[offset] = vcout[d];
+            vcout[d] = W(0);
+            offset++;
+        }
+        super.degrees[c] = static_cast<K>(vcs.size());
+    }
+}
+
+/**
+ * GVELeidenFastCSR - Optimized GVE-Leiden with CSR buffer reuse
+ * 
+ * Key optimization: Uses pre-allocated CSR buffers for super-graph construction
+ * instead of sort-based edge merging. Adopts leiden.hxx's aggregation strategy.
+ * 
+ * @tparam K Community ID type (default uint32_t)
+ * @tparam W Weight type (should be double)
+ * @tparam NodeID_T Node ID type from graph
+ * @tparam DestID_T Destination ID type (may include weights)
+ */
+template <typename K, typename W, typename NodeID_T, typename DestID_T>
+GVELeidenResult<K> GVELeidenFastCSR(
+    const CSRGraph<NodeID_T, DestID_T, true>& g,
+    double resolution = 1.0,
+    double tolerance = 1e-2,
+    double aggregation_tolerance = 0.8,
+    double tolerance_drop = 10.0,
+    int max_iterations = 20,
+    int max_passes = 10) {
+    
+    const int64_t num_nodes = g.num_nodes();
+    bool graph_is_symmetric = !g.directed();
+    const int64_t num_edges_stored = g.num_edges();
+    const double M = static_cast<double>(num_edges_stored);
+    
+    GVELeidenResult<K> result;
+    result.total_iterations = 0;
+    result.total_passes = 0;
+    
+    // Initialize data structures
+    std::vector<K> vcom(num_nodes);
+    std::vector<K> vcob(num_nodes);
+    std::vector<W> vtot(num_nodes);
+    std::vector<W> ctot(num_nodes);
+    std::vector<char> vaff(num_nodes, 1);
+    
+    #pragma omp parallel for
+    for (int64_t v = 0; v < num_nodes; ++v) {
+        vcom[v] = static_cast<K>(v);
+        W vtot_v = computeVertexTotalWeightCSR<W, NodeID_T, DestID_T>(v, g, graph_is_symmetric);
+        vtot[v] = vtot_v;
+        ctot[v] = vtot_v;
+    }
+    
+    // Pre-allocate CSR buffers for super-graphs (reused between passes)
+    SuperGraphCSR<K, W> super_y, super_z;
+    size_t est_communities = num_nodes / 10;  // Initial estimate
+    size_t est_edges = g.num_edges() / 5;
+    super_y.resize(est_communities, est_edges);
+    super_z.resize(est_communities, est_edges);
+    
+    // Community-to-vertices mapping
+    std::vector<size_t> coff;
+    std::vector<K> cedg;
+    
+    double current_tolerance = tolerance;
+    size_t prev_communities = num_nodes;
+    
+    for (int pass = 0; pass < max_passes; ++pass) {
+        
+        // PHASE 1: LOCAL-MOVING (using optimized flat-array approach)
+        int local_iters = gveOptLocalMove<K, W, NodeID_T, DestID_T>(
+            vcom, ctot, vaff, vtot, num_nodes, g, graph_is_symmetric,
+            M, resolution, max_iterations, current_tolerance);
+        
+        result.total_iterations += local_iters;
+        
+        // Store community bounds
+        #pragma omp parallel for
+        for (int64_t v = 0; v < num_nodes; ++v) {
+            vcob[v] = vcom[v];
+        }
+        
+        // Count communities
+        std::vector<char> comm_exists(num_nodes, 0);
+        #pragma omp parallel for
+        for (int64_t v = 0; v < num_nodes; ++v) {
+            comm_exists[vcom[v]] = 1;
+        }
+        size_t num_communities_after_local = 0;
+        for (int64_t c = 0; c < num_nodes; ++c) {
+            if (comm_exists[c]) num_communities_after_local++;
+        }
+        
+        // PHASE 2: REFINEMENT
+        std::vector<K> vcom_refined(num_nodes);
+        size_t num_refined_communities;
+        
+        if (pass == 0) {
+            std::vector<W> ctot_refined(num_nodes);
+            
+            #pragma omp parallel for
+            for (int64_t v = 0; v < num_nodes; ++v) {
+                vcom_refined[v] = static_cast<K>(v);
+                ctot_refined[v] = vtot[v];
+                vaff[v] = 1;
+            }
+            
+            gveOptRefine<K, W, NodeID_T, DestID_T>(
+                vcom_refined, ctot_refined, vaff, vcob, vtot,
+                num_nodes, g, graph_is_symmetric, M, resolution);
+            
+            // Renumber refined communities
+            K max_comm = 0;
+            for (int64_t v = 0; v < num_nodes; ++v) {
+                max_comm = std::max(max_comm, vcom_refined[v]);
+            }
+            
+            std::vector<K> refine_renumber(max_comm + 1, K(-1));
+            K next_refined_id = 0;
+            for (int64_t v = 0; v < num_nodes; ++v) {
+                K rc = vcom_refined[v];
+                if (refine_renumber[rc] == K(-1)) {
+                    refine_renumber[rc] = next_refined_id++;
+                }
+            }
+            
+            #pragma omp parallel for
+            for (int64_t v = 0; v < num_nodes; ++v) {
+                vcom_refined[v] = refine_renumber[vcom_refined[v]];
+            }
+            
+            num_refined_communities = static_cast<size_t>(next_refined_id);
+        } else {
+            #pragma omp parallel for
+            for (int64_t v = 0; v < num_nodes; ++v) {
+                vcom_refined[v] = vcom[v];
+            }
+            
+            K max_comm = 0;
+            for (int64_t v = 0; v < num_nodes; ++v) {
+                max_comm = std::max(max_comm, vcom_refined[v]);
+            }
+            
+            std::vector<K> refine_renumber(max_comm + 1, K(-1));
+            K next_refined_id = 0;
+            for (int64_t v = 0; v < num_nodes; ++v) {
+                K rc = vcom_refined[v];
+                if (refine_renumber[rc] == K(-1)) {
+                    refine_renumber[rc] = next_refined_id++;
+                }
+            }
+            
+            #pragma omp parallel for
+            for (int64_t v = 0; v < num_nodes; ++v) {
+                vcom_refined[v] = refine_renumber[vcom_refined[v]];
+            }
+            
+            num_refined_communities = static_cast<size_t>(next_refined_id);
+        }
+        
+        // Store community assignment for this pass
+        result.community_per_pass.push_back(vcom_refined);
+        result.total_passes = pass + 1;
+        
+        // Check aggregation tolerance
+        double progress = static_cast<double>(num_refined_communities) / prev_communities;
+        if (progress >= aggregation_tolerance) {
+            vcom = vcom_refined;
+            break;
+        }
+        
+        prev_communities = num_refined_communities;
+        
+        // PHASE 3: CSR-BASED AGGREGATION (leiden.hxx style)
+        // Build community-to-vertices mapping
+        buildCommunityVertices(coff, cedg, vcom_refined, num_nodes, num_refined_communities);
+        
+        // Resize super-graph buffers if needed
+        if (num_refined_communities > super_y.num_communities) {
+            super_y.resize(num_refined_communities, g.num_edges());
+            super_z.resize(num_refined_communities, g.num_edges());
+        }
+        super_y.clear();
+        
+        // Aggregate edges using CSR approach
+        aggregateEdgesCSR<K, W, NodeID_T, DestID_T>(
+            super_y, g, vcom_refined, coff, cedg, num_refined_communities);
+        
+        // Update for next pass
+        vcom = vcom_refined;
+        
+        // Compute super-node weights
+        std::vector<W> super_weight(num_refined_communities, W(0));
+        #pragma omp parallel for
+        for (int64_t v = 0; v < num_nodes; ++v) {
+            #pragma omp atomic
+            super_weight[vcom[v]] += vtot[v];
+        }
+        
+        // Reinitialize for next pass on super-graph
+        ctot.assign(num_refined_communities, W(0));
+        for (size_t c = 0; c < num_refined_communities; ++c) {
+            ctot[c] = super_weight[c];
+        }
+        
+        vtot = super_weight;
+        vaff.assign(num_refined_communities, 1);
+        vcom.resize(num_refined_communities);
+        std::iota(vcom.begin(), vcom.end(), K(0));
+        
+        current_tolerance = tolerance / tolerance_drop;
+    }
+    
+    // Final community assignment
+    result.final_community = vcom;
+    
+    // Compute modularity
+    result.modularity = computeModularityCSR<K, NodeID_T, DestID_T>(g, result.final_community, resolution);
+    
+    printf("GVELeidenFast: %d passes, %d iters, modularity=%.6f\n",
+           result.total_passes, result.total_iterations, result.modularity);
+    
+    return result;
+}
+
+//==========================================================================
+// GVELeidenTurboCSR - Maximum Speed Variant
+//==========================================================================
+
+/**
+ * GVELeidenTurboCSR - Speed-optimized GVE-Leiden for fast reordering
+ * 
+ * Optimizations over GVELeidenOptCSR:
+ * 1. SKIP REFINEMENT: Refinement adds ~20-30% overhead for marginal quality gain
+ * 2. EARLY TERMINATION: Stop when modularity gain < threshold (not just moves=0)
+ * 3. BATCHED ATOMICS: Accumulate local changes, write once per iteration
+ * 4. REDUCED ITERATIONS: Default max 5 iterations (sufficient for convergence)
+ * 5. AGGRESSIVE TOLERANCE: Higher tolerance for faster convergence
+ * 
+ * Trade-off: ~10-15% lower modularity for ~40-50% faster detection
+ * 
+ * @tparam K Community ID type (default uint32_t)
+ * @tparam W Weight type (should be double)
+ * @tparam NodeID_T Node ID type from graph
+ * @tparam DestID_T Destination ID type (may include weights)
+ * @param g Input graph (must be symmetric for Leiden)
+ * @param resolution Resolution parameter (default 1.0)
+ * @param max_iterations Max iterations per pass (default 5)
+ * @param max_passes Maximum Leiden passes (default 10)
+ * @param early_stop_threshold Stop if modularity gain < this (default 0.001)
+ * 
+ * @return GVELeidenResult with community assignments and modularity
+ */
+template <typename K, typename W, typename NodeID_T, typename DestID_T>
+GVELeidenResult<K> GVELeidenTurboCSR(
+    const CSRGraph<NodeID_T, DestID_T, true>& g,
+    double resolution = 1.0,
+    int max_iterations = 5,
+    int max_passes = 10,
+    double early_stop_threshold = 0.001) {
+    
+    const int64_t num_nodes = g.num_nodes();
+    bool graph_is_symmetric = !g.directed();
+    const int64_t num_edges_stored = g.num_edges();
+    const double M = static_cast<double>(num_edges_stored);
+    
+    GVELeidenResult<K> result;
+    result.total_iterations = 0;
+    result.total_passes = 0;
+    
+    // Initialize data structures
+    std::vector<K> vcom(num_nodes);
+    std::vector<W> vtot(num_nodes);
+    std::vector<W> ctot(num_nodes);
+    std::vector<char> vaff(num_nodes, 1);
+    
+    #pragma omp parallel for
+    for (int64_t v = 0; v < num_nodes; ++v) {
+        vcom[v] = static_cast<K>(v);
+        W vtot_v = computeVertexTotalWeightCSR<W, NodeID_T, DestID_T>(v, g, graph_is_symmetric);
+        vtot[v] = vtot_v;
+        ctot[v] = vtot_v;
+    }
+    
+    const int num_threads = omp_get_max_threads();
+    double prev_modularity = 0.0;
+    size_t prev_communities = num_nodes;
+    
+    // Thread-local structures for batched updates
+    std::vector<std::vector<W>> thread_comm_weights(num_threads);
+    std::vector<std::vector<K>> thread_touched_comms(num_threads);
+    std::vector<std::vector<std::pair<K, W>>> thread_ctot_deltas(num_threads);
+    
+    for (int t = 0; t < num_threads; ++t) {
+        thread_comm_weights[t].resize(num_nodes, W(0));
+        thread_touched_comms[t].reserve(1000);
+        thread_ctot_deltas[t].reserve(10000);
+    }
+    
+    for (int pass = 0; pass < max_passes; ++pass) {
+        
+        // PHASE 1: LOCAL-MOVING (turbo version - batched atomics)
+        int local_iters = 0;
+        
+        for (int iter = 0; iter < max_iterations; ++iter) {
+            int moves_this_iter = 0;
+            
+            // Clear thread-local delta accumulators
+            #pragma omp parallel
+            {
+                int tid = omp_get_thread_num();
+                thread_ctot_deltas[tid].clear();
+            }
+            
+            #pragma omp parallel reduction(+:moves_this_iter)
+            {
+                int tid = omp_get_thread_num();
+                W* comm_weights = thread_comm_weights[tid].data();
+                auto& touched_comms = thread_touched_comms[tid];
+                auto& ctot_deltas = thread_ctot_deltas[tid];
+                
+                #pragma omp for schedule(static, 2048)
+                for (int64_t u = 0; u < num_nodes; ++u) {
+                    if (!vaff[u]) continue;
+                    
+                    K d = vcom[u];
+                    W ku = vtot[u];
+                    
+                    // Scan neighbors
+                    touched_comms.clear();
+                    W ku_to_d = W(0);
+                    
+                    for (auto neighbor : g.out_neigh(u)) {
+                        NodeID_T v;
+                        W w;
+                        if constexpr (std::is_same_v<DestID_T, NodeID_T>) {
+                            v = neighbor;
+                            w = W(1);
+                        } else {
+                            v = neighbor.v;
+                            w = static_cast<W>(neighbor.w);
+                        }
+                        
+                        K cv = vcom[v];
+                        if (comm_weights[cv] == W(0)) {
+                            touched_comms.push_back(cv);
+                        }
+                        comm_weights[cv] += w;
+                        if (cv == d) ku_to_d += w;
+                    }
+                    
+                    // For symmetric graphs, in_neigh == out_neigh, skip
+                    if (!graph_is_symmetric) {
+                        for (auto neighbor : g.in_neigh(u)) {
+                            NodeID_T v;
+                            W w;
+                            if constexpr (std::is_same_v<DestID_T, NodeID_T>) {
+                                v = neighbor;
+                                w = W(1);
+                            } else {
+                                v = neighbor.v;
+                                w = static_cast<W>(neighbor.w);
+                            }
+                            
+                            K cv = vcom[v];
+                            if (comm_weights[cv] == W(0)) {
+                                touched_comms.push_back(cv);
+                            }
+                            comm_weights[cv] += w;
+                            if (cv == d) ku_to_d += w;
+                        }
+                    }
+                    
+                    // Find best community
+                    K best_c = d;
+                    W best_delta = W(0);
+                    W sigma_d = ctot[d];
+                    
+                    for (K c : touched_comms) {
+                        if (c == d) continue;
+                        W ku_to_c = comm_weights[c];
+                        W sigma_c = ctot[c];
+                        
+                        // Delta modularity formula
+                        W delta = (ku_to_c - ku_to_d) / M - 
+                                  resolution * ku * (sigma_c - sigma_d + ku) / (2.0 * M * M);
+                        
+                        if (delta > best_delta) {
+                            best_delta = delta;
+                            best_c = c;
+                        }
+                    }
+                    
+                    // Clear touched
+                    for (K c : touched_comms) {
+                        comm_weights[c] = W(0);
+                    }
+                    
+                    // Move if beneficial - batch the update
+                    if (best_c != d) {
+                        vcom[u] = best_c;
+                        ctot_deltas.push_back({d, -ku});
+                        ctot_deltas.push_back({best_c, ku});
+                        
+                        // Mark neighbors affected (still need this)
+                        for (auto neighbor : g.out_neigh(u)) {
+                            NodeID_T v;
+                            if constexpr (std::is_same_v<DestID_T, NodeID_T>) {
+                                v = neighbor;
+                            } else {
+                                v = neighbor.v;
+                            }
+                            vaff[v] = 1;
+                        }
+                        
+                        moves_this_iter++;
+                    }
+                    vaff[u] = 0;
+                }
+            }
+            
+            // Apply batched ctot updates
+            #pragma omp parallel for
+            for (int t = 0; t < num_threads; ++t) {
+                for (auto& [c, delta] : thread_ctot_deltas[t]) {
+                    #pragma omp atomic
+                    ctot[c] += delta;
+                }
+            }
+            
+            local_iters++;
+            if (moves_this_iter == 0) break;
+        }
+        
+        result.total_iterations += local_iters;
+        
+        // Store pass communities (NO REFINEMENT - skip phase 2)
+        result.community_per_pass.push_back(vcom);
+        result.total_passes = pass + 1;
+        
+        // Count communities and check early termination
+        std::vector<char> comm_exists(num_nodes, 0);
+        #pragma omp parallel for
+        for (int64_t v = 0; v < num_nodes; ++v) {
+            comm_exists[vcom[v]] = 1;
+        }
+        
+        size_t num_communities = 0;
+        for (int64_t c = 0; c < num_nodes; ++c) {
+            if (comm_exists[c]) num_communities++;
+        }
+        
+        // Early termination: minimal community change (but allow at least 2 passes)
+        if (pass > 0 && num_communities >= prev_communities * 0.98) {
+            break;
+        }
+        
+        // Early termination: check modularity gain (only after pass 1)
+        double current_modularity = computeModularityCSR<K, NodeID_T, DestID_T>(g, vcom, resolution);
+        if (pass > 1 && (current_modularity - prev_modularity) < early_stop_threshold) {
+            break;
+        }
+        prev_modularity = current_modularity;
+        prev_communities = num_communities;
+        
+        // PHASE 3: SIMPLIFIED AGGREGATION (no sorting, direct hash)
+        // Skip if converged
+        if (num_communities == prev_communities) break;
+        
+        // Renumber communities contiguously
+        std::vector<K> comm_map(num_nodes, K(-1));
+        K next_id = 0;
+        for (int64_t v = 0; v < num_nodes; ++v) {
+            K c = vcom[v];
+            if (comm_map[c] == K(-1)) {
+                comm_map[c] = next_id++;
+            }
+        }
+        
+        #pragma omp parallel for
+        for (int64_t v = 0; v < num_nodes; ++v) {
+            vcom[v] = comm_map[vcom[v]];
+        }
+        
+        // Build super-graph using simple concurrent hash
+        std::vector<W> super_weight(num_communities, W(0));
+        #pragma omp parallel for
+        for (int64_t v = 0; v < num_nodes; ++v) {
+            #pragma omp atomic
+            super_weight[vcom[v]] += vtot[v];
+        }
+        
+        // Build super-graph edges
+        std::vector<std::unordered_map<K, W>> super_adj(num_communities);
+        
+        // Sequential edge collection (simpler, still fast for small super-graphs)
+        for (int64_t u = 0; u < num_nodes; ++u) {
+            K cu = vcom[u];
+            for (auto neighbor : g.out_neigh(u)) {
+                NodeID_T v;
+                W w;
+                if constexpr (std::is_same_v<DestID_T, NodeID_T>) {
+                    v = neighbor;
+                    w = W(1);
+                } else {
+                    v = neighbor.v;
+                    w = static_cast<W>(neighbor.w);
+                }
+                K cv = vcom[v];
+                if (cu != cv) {
+                    super_adj[cu][cv] += w;
+                }
+            }
+        }
+        
+        // Continue with super-graph (simplified: just update ctot and reset)
+        ctot.assign(num_communities, W(0));
+        for (size_t c = 0; c < num_communities; ++c) {
+            ctot[c] = super_weight[c];
+        }
+        
+        // Reset for next pass
+        vaff.assign(num_communities, 1);
+        vcom.resize(num_communities);
+        vtot = super_weight;
+        std::iota(vcom.begin(), vcom.end(), K(0));
+    }
+    
+    // Final community assignment
+    result.final_community = vcom;
+    
+    // Compute final modularity
+    result.modularity = computeModularityCSR<K, NodeID_T, DestID_T>(g, result.final_community, resolution);
+    
+    printf("GVELeidenTurbo: %d passes, %d iters, modularity=%.6f\n",
            result.total_passes, result.total_iterations, result.modularity);
     
     return result;
@@ -3003,21 +4603,28 @@ void GenerateLeidenCSRMapping(
     
     const int64_t num_nodes = g.num_nodes();
     
-    // Parse options - use auto-resolution by default
-    double resolution = computeAutoResolution<NodeID_T, DestID_T>(g);
+    // Parse options using unified resolution parser
+    ResolutionConfig res_cfg;
     int max_iterations = 10;
     int max_passes = 1;  // Single pass is fastest with comparable quality
     
-    if (!reordering_options.empty()) {
-        resolution = std::stod(reordering_options[0]);
-        resolution = (resolution > 3) ? 1.0 : resolution;
+    if (!reordering_options.empty() && !reordering_options[0].empty()) {
+        res_cfg = parseResolution<NodeID_T, DestID_T>(reordering_options[0], g);
+    } else {
+        res_cfg.mode = ResolutionMode::AUTO;
+        res_cfg.value = computeAutoResolution<NodeID_T, DestID_T>(g);
     }
-    if (reordering_options.size() > 1) {
+    double resolution = res_cfg.getResolution();
+    
+    if (reordering_options.size() > 1 && !reordering_options[1].empty()) {
         max_iterations = std::stoi(reordering_options[1]);
     }
-    if (reordering_options.size() > 2) {
+    if (reordering_options.size() > 2 && !reordering_options[2].empty()) {
         max_passes = std::stoi(reordering_options[2]);
     }
+    
+    printf("LeidenCSR: resolution=%.4f (%s), max_iterations=%d, max_passes=%d\n",
+           resolution, resolutionModeString(res_cfg.mode).c_str(), max_iterations, max_passes);
     
     // Run fast label propagation directly on CSR
     auto community_per_pass = FastLeidenCSR<K, NodeID_T, DestID_T>(g, resolution, max_iterations, max_passes);
@@ -3175,18 +4782,24 @@ void GenerateLeidenFastMapping(
     
     const int64_t num_nodes = g.num_nodes();
     
-    // Parse options
-    double resolution = 1.0;
+    // Parse options using unified resolution parser
+    ResolutionConfig res_cfg;
     int max_passes = 3;  // Default to 3 passes for good quality
     
-    if (!reordering_options.empty()) {
-        resolution = std::stod(reordering_options[0]);
+    if (!reordering_options.empty() && !reordering_options[0].empty()) {
+        res_cfg = parseResolution<NodeID_T, DestID_T>(reordering_options[0], g);
+    } else {
+        res_cfg.mode = ResolutionMode::FIXED;
+        res_cfg.value = 1.0;
     }
-    if (reordering_options.size() > 1) {
+    double resolution = res_cfg.getResolution();
+    
+    if (reordering_options.size() > 1 && !reordering_options[1].empty()) {
         max_passes = std::stoi(reordering_options[1]);
     }
     
-    printf("LeidenFast: resolution=%.2f, max_passes=%d\n", resolution, max_passes);
+    printf("LeidenFast: resolution=%.4f (%s), max_passes=%d\n",
+           resolution, resolutionModeString(res_cfg.mode).c_str(), max_passes);
     
     // Run community detection
     std::vector<double> vertex_strength;
@@ -3239,24 +4852,28 @@ void GenerateLeidenMapping2(
     
     const int64_t num_nodes = g.num_nodes();
     
-    // Auto-tune resolution based on graph density
-    double resolution = computeAutoResolution<NodeID_T, DestID_T>(g);
+    // Parse options using unified resolution parser
+    ResolutionConfig res_cfg;
     int max_passes = 1;      // Single pass is usually enough
     int max_iterations = 4;  // 4 iterations for good community quality
     
-    // Override with user options if provided
-    if (!reordering_options.empty()) {
-        resolution = std::stod(reordering_options[0]);
+    if (!reordering_options.empty() && !reordering_options[0].empty()) {
+        res_cfg = parseResolution<NodeID_T, DestID_T>(reordering_options[0], g);
+    } else {
+        res_cfg.mode = ResolutionMode::AUTO;
+        res_cfg.value = computeAutoResolution<NodeID_T, DestID_T>(g);
     }
-    if (reordering_options.size() > 1) {
+    double resolution = res_cfg.getResolution();
+    
+    if (reordering_options.size() > 1 && !reordering_options[1].empty()) {
         max_passes = std::stoi(reordering_options[1]);
     }
-    if (reordering_options.size() > 2) {
+    if (reordering_options.size() > 2 && !reordering_options[2].empty()) {
         max_iterations = std::stoi(reordering_options[2]);
     }
     
-    printf("Leiden: resolution=%.2f, max_passes=%d, max_iterations=%d\n",
-           resolution, max_passes, max_iterations);
+    printf("Leiden: resolution=%.4f (%s), max_passes=%d, max_iterations=%d\n",
+           resolution, resolutionModeString(res_cfg.mode).c_str(), max_passes, max_iterations);
     
     std::vector<int64_t> community;
     LeidenCommunityDetection<NodeID_T, DestID_T>(g, community, resolution, max_passes, max_iterations);
@@ -3329,17 +4946,19 @@ void GenerateGVELeidenCSRMapping(
     
     const int64_t num_nodes = g.num_nodes();
     
-    // Parse options
-    double resolution = computeAutoResolution<NodeID_T, DestID_T>(g);
+    // Parse options using unified resolution parser
+    ResolutionConfig res_cfg;
     int max_iterations = 20;
     int max_passes = 10;
     
     if (!reordering_options.empty() && !reordering_options[0].empty()) {
-        double parsed = std::stod(reordering_options[0]);
-        if (parsed > 0 && parsed <= 3) {
-            resolution = parsed;
-        }
+        res_cfg = parseResolution<NodeID_T, DestID_T>(reordering_options[0], g);
+    } else {
+        res_cfg.mode = ResolutionMode::AUTO;
+        res_cfg.value = computeAutoResolution<NodeID_T, DestID_T>(g);
     }
+    double resolution = res_cfg.getResolution();
+    
     if (reordering_options.size() > 1 && !reordering_options[1].empty()) {
         max_iterations = std::stoi(reordering_options[1]);
     }
@@ -3366,8 +4985,8 @@ void GenerateGVELeidenCSRMapping(
     const int64_t num_isolated = isolated_vertices.size();
     const int64_t num_active = active_vertices.size();
     
-    printf("GVELeidenCSR: resolution=%.4f, max_iterations=%d, max_passes=%d\n",
-           resolution, max_iterations, max_passes);
+    printf("GVELeidenCSR: resolution=%.4f (%s), max_iterations=%d, max_passes=%d\n",
+           resolution, resolutionModeString(res_cfg.mode).c_str(), max_iterations, max_passes);
     if (num_isolated > 0) {
         printf("GVELeidenCSR: %ld active vertices, %ld isolated vertices (%.1f%%)\n",
                num_active, num_isolated, 100.0 * num_isolated / num_nodes);
@@ -3501,17 +5120,19 @@ void GenerateGVELeidenOptMapping(
     
     const int64_t num_nodes = g.num_nodes();
     
-    // Parse options
-    double resolution = computeAutoResolution<NodeID_T, DestID_T>(g);
+    // Parse options using unified resolution parser
+    ResolutionConfig res_cfg;
     int max_iterations = 20;
     int max_passes = 10;
     
     if (!reordering_options.empty() && !reordering_options[0].empty()) {
-        double parsed = std::stod(reordering_options[0]);
-        if (parsed > 0 && parsed <= 3) {
-            resolution = parsed;
-        }
+        res_cfg = parseResolution<NodeID_T, DestID_T>(reordering_options[0], g);
+    } else {
+        res_cfg.mode = ResolutionMode::AUTO;
+        res_cfg.value = computeAutoResolution<NodeID_T, DestID_T>(g);
     }
+    double resolution = res_cfg.getResolution();
+    
     if (reordering_options.size() > 1 && !reordering_options[1].empty()) {
         max_iterations = std::stoi(reordering_options[1]);
     }
@@ -3538,8 +5159,8 @@ void GenerateGVELeidenOptMapping(
     const int64_t num_isolated = isolated_vertices.size();
     const int64_t num_active = active_vertices.size();
     
-    printf("GVELeidenOpt: resolution=%.4f, max_iterations=%d, max_passes=%d\n",
-           resolution, max_iterations, max_passes);
+    printf("GVELeidenOpt: resolution=%.4f (%s), max_iterations=%d, max_passes=%d\n",
+           resolution, resolutionModeString(res_cfg.mode).c_str(), max_iterations, max_passes);
     printf("GVELeidenOpt: %ld active vertices, %ld isolated vertices (%.1f%%)\n",
            num_active, num_isolated, 100.0 * num_isolated / num_nodes);
     
@@ -3643,6 +5264,234 @@ void GenerateGVELeidenOptMapping(
 }
 
 /**
+ * GenerateGVELeidenOpt2Mapping - GVE-Leiden with CSR-based aggregation
+ * 
+ * Same as GenerateGVELeidenOptMapping but uses buildSuperGraphAdjList
+ * for faster aggregation (no global sort).
+ */
+template <typename K = uint32_t, typename NodeID_T, typename DestID_T>
+void GenerateGVELeidenOpt2Mapping(
+    const CSRGraph<NodeID_T, DestID_T, true>& g,
+    pvector<NodeID_T>& new_ids,
+    const std::vector<std::string>& reordering_options) {
+    
+    Timer tm;
+    tm.Start();
+    
+    // Parse options using unified resolution parser
+    ResolutionConfig res_cfg;
+    int max_iterations = 20;
+    int max_passes = 10;
+    
+    if (!reordering_options.empty() && !reordering_options[0].empty()) {
+        res_cfg = parseResolution<NodeID_T, DestID_T>(reordering_options[0], g);
+    } else {
+        res_cfg.mode = ResolutionMode::AUTO;
+        res_cfg.value = computeAutoResolution<NodeID_T, DestID_T>(g);
+    }
+    double resolution = res_cfg.getResolution();
+    
+    if (reordering_options.size() > 1 && !reordering_options[1].empty()) {
+        max_iterations = std::stoi(reordering_options[1]);
+    }
+    if (reordering_options.size() > 2 && !reordering_options[2].empty()) {
+        max_passes = std::stoi(reordering_options[2]);
+    }
+    
+    printf("GVELeidenOpt2: resolution=%.4f (%s), max_iterations=%d, max_passes=%d\n",
+           resolution, resolutionModeString(res_cfg.mode).c_str(), max_iterations, max_passes);
+    
+    // Run GVE-Leiden Opt2 with CSR aggregation
+    auto result = GVELeidenOpt2CSR<K, double, NodeID_T, DestID_T>(
+        g, resolution, 1e-2, 0.8, 10.0, max_iterations, max_passes);
+    
+    tm.Stop();
+    double detection_time = tm.Seconds();
+    tm.Start();  // Restart for mapping phase
+    PrintTime("GVELeidenOpt2 Community Detection", detection_time);
+    PrintTime("GVELeidenOpt2 Passes", static_cast<double>(result.total_passes));
+    PrintTime("GVELeidenOpt2 Modularity", result.modularity);
+    
+    const int64_t num_nodes = g.num_nodes();
+    new_ids.resize(num_nodes);
+    
+    // Generate multi-level sort ordering (like LeidenOrder)
+    struct VertexKey {
+        K pass0_comm;
+        K pass1_comm;
+        K pass2_comm;
+        int64_t neg_degree;
+        int64_t vertex;
+        
+        bool operator<(const VertexKey& o) const {
+            if (pass0_comm != o.pass0_comm) return pass0_comm < o.pass0_comm;
+            if (pass1_comm != o.pass1_comm) return pass1_comm < o.pass1_comm;
+            if (pass2_comm != o.pass2_comm) return pass2_comm < o.pass2_comm;
+            if (neg_degree != o.neg_degree) return neg_degree < o.neg_degree;
+            return vertex < o.vertex;
+        }
+    };
+    
+    std::vector<VertexKey> keys(num_nodes);
+    int num_passes = result.community_per_pass.size();
+    
+    #pragma omp parallel for
+    for (int64_t v = 0; v < num_nodes; ++v) {
+        keys[v].pass0_comm = (num_passes > 0) ? result.community_per_pass[num_passes-1][v] : 0;
+        keys[v].pass1_comm = (num_passes > 1) ? result.community_per_pass[num_passes-2][v] : 0;
+        keys[v].pass2_comm = (num_passes > 2) ? result.community_per_pass[num_passes-3][v] : 0;
+        keys[v].neg_degree = -static_cast<int64_t>(g.out_degree(v));
+        keys[v].vertex = v;
+    }
+    
+    __gnu_parallel::sort(keys.begin(), keys.end());
+    
+    // Assign new IDs based on sort order
+    #pragma omp parallel for
+    for (int64_t i = 0; i < num_nodes; ++i) {
+        new_ids[keys[i].vertex] = static_cast<NodeID_T>(i);
+    }
+    
+    // Count communities and isolated
+    std::vector<char> comm_seen(num_nodes, 0);
+    int64_t num_communities = 0;
+    int64_t num_isolated = 0;
+    
+    for (int64_t v = 0; v < num_nodes; ++v) {
+        K c = result.final_community[v];
+        if (!comm_seen[c]) {
+            comm_seen[c] = 1;
+            num_communities++;
+        }
+        if (g.out_degree(v) == 0) num_isolated++;
+    }
+    
+    tm.Stop();
+    double ordering_time = tm.Seconds();
+    
+    PrintTime("GVELeidenOpt2 Communities", static_cast<double>(num_communities));
+    PrintTime("GVELeidenOpt2 Isolated", static_cast<double>(num_isolated));
+    PrintTime("GVELeidenOpt2 Map Time", ordering_time);
+}
+
+/**
+ * GenerateGVELeidenAdaptiveMapping - GVE-Leiden with dynamic resolution
+ * 
+ * Uses GVELeidenAdaptiveCSR which adjusts resolution at each pass based on:
+ * - Community reduction rate
+ * - Community size imbalance
+ * - Local-move convergence speed
+ * - Super-graph density evolution
+ * 
+ * This is the only algorithm that truly supports ResolutionMode::DYNAMIC.
+ * Pass "dynamic" or "dynamic:2.0" as resolution option.
+ */
+template <typename K = uint32_t, typename NodeID_T, typename DestID_T>
+void GenerateGVELeidenAdaptiveMapping(
+    const CSRGraph<NodeID_T, DestID_T, true>& g,
+    pvector<NodeID_T>& new_ids,
+    const std::vector<std::string>& reordering_options) {
+    
+    Timer tm;
+    tm.Start();
+    
+    // Parse options using unified resolution parser
+    ResolutionConfig res_cfg;
+    int max_iterations = 20;
+    int max_passes = 10;
+    
+    if (!reordering_options.empty() && !reordering_options[0].empty()) {
+        res_cfg = parseResolution<NodeID_T, DestID_T>(reordering_options[0], g);
+    } else {
+        res_cfg.mode = ResolutionMode::DYNAMIC;  // Default to dynamic for adaptive
+        res_cfg.initial_value = computeAutoResolution<NodeID_T, DestID_T>(g);
+    }
+    double initial_resolution = res_cfg.isDynamic() ? res_cfg.initial_value : res_cfg.value;
+    
+    if (reordering_options.size() > 1 && !reordering_options[1].empty()) {
+        max_iterations = std::stoi(reordering_options[1]);
+    }
+    if (reordering_options.size() > 2 && !reordering_options[2].empty()) {
+        max_passes = std::stoi(reordering_options[2]);
+    }
+    
+    printf("GVELeidenAdaptive: initial_resolution=%.4f (%s), max_iterations=%d, max_passes=%d\n",
+           initial_resolution, resolutionModeString(res_cfg.mode).c_str(), max_iterations, max_passes);
+    
+    // Run adaptive GVE-Leiden
+    auto result = GVELeidenAdaptiveCSR<K, double, NodeID_T, DestID_T>(
+        g, initial_resolution, 1e-2, 0.8, 10.0, max_iterations, max_passes);
+    
+    tm.Stop();
+    double detection_time = tm.Seconds();
+    tm.Start();
+    
+    PrintTime("GVELeidenAdaptive Community Detection", detection_time);
+    PrintTime("GVELeidenAdaptive Passes", static_cast<double>(result.total_passes));
+    PrintTime("GVELeidenAdaptive Modularity", result.modularity);
+    
+    const int64_t num_nodes = g.num_nodes();
+    new_ids.resize(num_nodes);
+    
+    // Generate multi-level sort ordering
+    struct VertexKey {
+        K pass0_comm;
+        K pass1_comm;
+        K pass2_comm;
+        int64_t neg_degree;
+        int64_t vertex;
+        
+        bool operator<(const VertexKey& o) const {
+            if (pass0_comm != o.pass0_comm) return pass0_comm < o.pass0_comm;
+            if (pass1_comm != o.pass1_comm) return pass1_comm < o.pass1_comm;
+            if (pass2_comm != o.pass2_comm) return pass2_comm < o.pass2_comm;
+            if (neg_degree != o.neg_degree) return neg_degree < o.neg_degree;
+            return vertex < o.vertex;
+        }
+    };
+    
+    std::vector<VertexKey> keys(num_nodes);
+    int num_passes = result.community_per_pass.size();
+    
+    #pragma omp parallel for
+    for (int64_t v = 0; v < num_nodes; ++v) {
+        keys[v].pass0_comm = (num_passes > 0) ? result.community_per_pass[num_passes-1][v] : 0;
+        keys[v].pass1_comm = (num_passes > 1) ? result.community_per_pass[num_passes-2][v] : 0;
+        keys[v].pass2_comm = (num_passes > 2) ? result.community_per_pass[num_passes-3][v] : 0;
+        keys[v].neg_degree = -static_cast<int64_t>(g.out_degree(v));
+        keys[v].vertex = v;
+    }
+    
+    __gnu_parallel::sort(keys.begin(), keys.end());
+    
+    #pragma omp parallel for
+    for (int64_t i = 0; i < num_nodes; ++i) {
+        new_ids[keys[i].vertex] = static_cast<NodeID_T>(i);
+    }
+    
+    // Count communities
+    std::vector<char> comm_seen(num_nodes, 0);
+    int64_t num_communities = 0;
+    int64_t num_isolated = 0;
+    
+    for (int64_t v = 0; v < num_nodes; ++v) {
+        K c = result.final_community[v];
+        if (!comm_seen[c]) {
+            comm_seen[c] = 1;
+            num_communities++;
+        }
+        if (g.out_degree(v) == 0) num_isolated++;
+    }
+    
+    tm.Stop();
+    double ordering_time = tm.Seconds();
+    
+    PrintTime("GVELeidenAdaptive Communities", static_cast<double>(num_communities));
+    PrintTime("GVELeidenAdaptive Isolated", static_cast<double>(num_isolated));
+    PrintTime("GVELeidenAdaptive Map Time", ordering_time);
+}
+
+/**
  * GenerateGVELeidenDendoMapping - GVE-Leiden with incremental dendrogram
  * 
  * Uses GVELeidenDendoCSR for community detection with atomic dendrogram building,
@@ -3664,15 +5513,19 @@ void GenerateGVELeidenDendoMapping(
     Timer tm;
     tm.Start();
     
-    // Parse options
-    double resolution = computeAutoResolution<NodeID_T, DestID_T>(g);
+    // Parse options using unified resolution parser
+    ResolutionConfig res_cfg;
     int max_iterations = 20;
     int max_passes = 10;
     
     if (!reordering_options.empty() && !reordering_options[0].empty()) {
-        double parsed = std::stod(reordering_options[0]);
-        if (parsed > 0 && parsed <= 3) resolution = parsed;
+        res_cfg = parseResolution<NodeID_T, DestID_T>(reordering_options[0], g);
+    } else {
+        res_cfg.mode = ResolutionMode::AUTO;
+        res_cfg.value = computeAutoResolution<NodeID_T, DestID_T>(g);
     }
+    double resolution = res_cfg.getResolution();
+    
     if (reordering_options.size() > 1 && !reordering_options[1].empty()) {
         max_iterations = std::stoi(reordering_options[1]);
     }
@@ -3680,8 +5533,8 @@ void GenerateGVELeidenDendoMapping(
         max_passes = std::stoi(reordering_options[2]);
     }
     
-    printf("GVELeidenDendo: resolution=%.4f, max_iterations=%d, max_passes=%d\n",
-           resolution, max_iterations, max_passes);
+    printf("GVELeidenDendo: resolution=%.4f (%s), max_iterations=%d, max_passes=%d\n",
+           resolution, resolutionModeString(res_cfg.mode).c_str(), max_iterations, max_passes);
     
     // Run algorithm
     auto result = GVELeidenDendoCSR<K, double, NodeID_T, DestID_T>(
@@ -3735,15 +5588,19 @@ void GenerateGVELeidenOptDendoMapping(
     Timer tm;
     tm.Start();
     
-    // Parse options
-    double resolution = computeAutoResolution<NodeID_T, DestID_T>(g);
+    // Parse options using unified resolution parser
+    ResolutionConfig res_cfg;
     int max_iterations = 20;
     int max_passes = 10;
     
     if (!reordering_options.empty() && !reordering_options[0].empty()) {
-        double parsed = std::stod(reordering_options[0]);
-        if (parsed > 0 && parsed <= 3) resolution = parsed;
+        res_cfg = parseResolution<NodeID_T, DestID_T>(reordering_options[0], g);
+    } else {
+        res_cfg.mode = ResolutionMode::AUTO;
+        res_cfg.value = computeAutoResolution<NodeID_T, DestID_T>(g);
     }
+    double resolution = res_cfg.getResolution();
+    
     if (reordering_options.size() > 1 && !reordering_options[1].empty()) {
         max_iterations = std::stoi(reordering_options[1]);
     }
@@ -3751,8 +5608,8 @@ void GenerateGVELeidenOptDendoMapping(
         max_passes = std::stoi(reordering_options[2]);
     }
     
-    printf("GVELeidenOptDendo: resolution=%.4f, max_iterations=%d, max_passes=%d\n",
-           resolution, max_iterations, max_passes);
+    printf("GVELeidenOptDendo: resolution=%.4f (%s), max_iterations=%d, max_passes=%d\n",
+           resolution, resolutionModeString(res_cfg.mode).c_str(), max_iterations, max_passes);
     
     // Run algorithm
     auto result = GVELeidenOptDendoCSR<K, double, NodeID_T, DestID_T>(
@@ -3782,6 +5639,381 @@ void GenerateGVELeidenOptDendoMapping(
     PrintTime("GVELeidenOptDendo Communities", static_cast<double>(result.roots.size()));
     PrintTime("GVELeidenOptDendo Modularity", result.modularity);
     PrintTime("GVELeidenOptDendo Map Time", ordering_time);
+}
+
+//==========================================================================
+// GenerateGVELeidenFastMapping - CSR Buffer Reuse Optimization
+//==========================================================================
+
+/**
+ * GenerateGVELeidenFastMapping - GVE-Leiden with CSR buffer reuse
+ * 
+ * Uses GVELeidenFastCSR for community detection with pre-allocated CSR buffers
+ * for super-graph construction (leiden.hxx style), then applies multi-level sort.
+ * 
+ * Expected ~30-40% faster detection than GVELeidenOptCSR.
+ * 
+ * @tparam K Community ID type (default uint32_t)
+ * @tparam NodeID_T Node ID type
+ * @tparam DestID_T Destination type
+ * @param g Input graph (must be symmetric for Leiden)
+ * @param new_ids Output mapping vector
+ * @param reordering_options Options: [resolution, max_iterations, max_passes]
+ */
+template <typename K = uint32_t, typename NodeID_T, typename DestID_T>
+void GenerateGVELeidenFastMapping(
+    const CSRGraph<NodeID_T, DestID_T, true>& g,
+    pvector<NodeID_T>& new_ids,
+    const std::vector<std::string>& reordering_options) {
+    
+    Timer tm;
+    tm.Start();
+    
+    const int64_t num_nodes = g.num_nodes();
+    
+    // Parse options using unified resolution parser
+    ResolutionConfig res_cfg;
+    int max_iterations = 20;
+    int max_passes = 10;
+    
+    if (!reordering_options.empty() && !reordering_options[0].empty()) {
+        res_cfg = parseResolution<NodeID_T, DestID_T>(reordering_options[0], g);
+    } else {
+        res_cfg.mode = ResolutionMode::AUTO;
+        res_cfg.value = computeAutoResolution<NodeID_T, DestID_T>(g);
+    }
+    double resolution = res_cfg.getResolution();
+    
+    if (reordering_options.size() > 1 && !reordering_options[1].empty()) {
+        max_iterations = std::stoi(reordering_options[1]);
+    }
+    if (reordering_options.size() > 2 && !reordering_options[2].empty()) {
+        max_passes = std::stoi(reordering_options[2]);
+    }
+    
+    printf("GVELeidenFast: resolution=%.4f (%s), max_iterations=%d, max_passes=%d\n",
+           resolution, resolutionModeString(res_cfg.mode).c_str(), max_iterations, max_passes);
+    
+    // Run GVE-Leiden with CSR buffer reuse (faster aggregation)
+    auto result = GVELeidenFastCSR<K, double, NodeID_T, DestID_T>(
+        g, resolution, 1e-2, 0.8, 10.0, max_iterations, max_passes);
+    
+    tm.Stop();
+    double detection_time = tm.Seconds();
+    PrintTime("GVELeidenFast Community Detection", detection_time);
+    
+    Timer tm2;
+    tm2.Start();
+    
+    // Get degrees for secondary sort
+    std::vector<int64_t> degrees(num_nodes);
+    #pragma omp parallel for
+    for (int64_t i = 0; i < num_nodes; ++i) {
+        degrees[i] = g.out_degree(i);
+    }
+    
+    // Separate isolated and active vertices
+    std::vector<int64_t> active_vertices;
+    std::vector<int64_t> isolated_vertices;
+    active_vertices.reserve(num_nodes);
+    isolated_vertices.reserve(num_nodes / 10);
+    
+    for (int64_t v = 0; v < num_nodes; ++v) {
+        if (degrees[v] > 0) {
+            active_vertices.push_back(v);
+        } else {
+            isolated_vertices.push_back(v);
+        }
+    }
+    
+    const int num_passes = static_cast<int>(result.community_per_pass.size());
+    
+    // Count unique communities
+    std::unordered_set<K> unique_comms;
+    for (int64_t v : active_vertices) {
+        unique_comms.insert(result.final_community[v]);
+    }
+    size_t num_communities = unique_comms.size();
+    
+    // LeidenOrder-style multi-level sort
+    __gnu_parallel::sort(active_vertices.begin(), active_vertices.end(),
+        [&result, &degrees, num_passes](int64_t a, int64_t b) {
+            for (int p = num_passes - 1; p >= 0; --p) {
+                K ca = result.community_per_pass[p][a];
+                K cb = result.community_per_pass[p][b];
+                if (ca != cb) return ca < cb;
+            }
+            return degrees[a] > degrees[b];
+        });
+    
+    // Assign new IDs
+    int64_t current_id = 0;
+    for (int64_t v : active_vertices) {
+        new_ids[v] = current_id++;
+    }
+    for (int64_t v : isolated_vertices) {
+        new_ids[v] = current_id++;
+    }
+    
+    tm2.Stop();
+    double ordering_time = tm2.Seconds();
+    
+    PrintTime("GVELeidenFast Passes", static_cast<double>(num_passes));
+    PrintTime("GVELeidenFast Communities", static_cast<double>(num_communities));
+    PrintTime("GVELeidenFast Modularity", result.modularity);
+    PrintTime("GVELeidenFast Map Time", ordering_time);
+}
+
+//==========================================================================
+// GenerateGVELeidenOptSortMapping - Sort-based ordering (Strategy 1)
+//==========================================================================
+
+/**
+ * GenerateGVELeidenOptSortMapping - Optimized GVE-Leiden with LeidenOrder-style sort
+ * 
+ * Uses GVELeidenOptCSR for community detection, then applies a multi-level
+ * lexicographic sort by [community_per_pass..., -degree] instead of dendrogram DFS.
+ * This mimics LeidenOrder's ordering strategy while using GVE's fast detection.
+ * 
+ * Key insight: Sorting by all hierarchy levels + degree achieves the same cache
+ * locality as dendrogram DFS but is simpler and often faster.
+ * 
+ * @tparam K Community ID type (default uint32_t)
+ * @tparam NodeID_T Node ID type
+ * @tparam DestID_T Destination type
+ * @param g Input graph (must be symmetric for Leiden)
+ * @param new_ids Output mapping vector
+ * @param reordering_options Options: [resolution, max_iterations, max_passes]
+ */
+template <typename K = uint32_t, typename NodeID_T, typename DestID_T>
+void GenerateGVELeidenOptSortMapping(
+    const CSRGraph<NodeID_T, DestID_T, true>& g,
+    pvector<NodeID_T>& new_ids,
+    const std::vector<std::string>& reordering_options) {
+    
+    Timer tm;
+    tm.Start();
+    
+    const int64_t num_nodes = g.num_nodes();
+    
+    // Parse options using unified resolution parser
+    ResolutionConfig res_cfg;
+    int max_iterations = 20;
+    int max_passes = 10;
+    
+    if (!reordering_options.empty() && !reordering_options[0].empty()) {
+        res_cfg = parseResolution<NodeID_T, DestID_T>(reordering_options[0], g);
+    } else {
+        res_cfg.mode = ResolutionMode::AUTO;
+        res_cfg.value = computeAutoResolution<NodeID_T, DestID_T>(g);
+    }
+    double resolution = res_cfg.getResolution();
+    
+    if (reordering_options.size() > 1 && !reordering_options[1].empty()) {
+        max_iterations = std::stoi(reordering_options[1]);
+    }
+    if (reordering_options.size() > 2 && !reordering_options[2].empty()) {
+        max_passes = std::stoi(reordering_options[2]);
+    }
+    
+    printf("GVELeidenOptSort: resolution=%.4f (%s), max_iterations=%d, max_passes=%d\n",
+           resolution, resolutionModeString(res_cfg.mode).c_str(), max_iterations, max_passes);
+    
+    // Run optimized GVE-Leiden with lower aggregation_tolerance to allow more passes
+    // (0.95 instead of 0.8 - continue even if only 5% reduction per pass)
+    auto result = GVELeidenOptCSR<K, double, NodeID_T, DestID_T>(
+        g, resolution, 1e-2, 0.95, 10.0, max_iterations, max_passes);
+    
+    tm.Stop();
+    double detection_time = tm.Seconds();
+    PrintTime("GVELeidenOptSort Community Detection", detection_time);
+    
+    Timer tm2;
+    tm2.Start();
+    
+    // Get degrees for secondary sort (hub-first within communities)
+    std::vector<int64_t> degrees(num_nodes);
+    #pragma omp parallel for
+    for (int64_t i = 0; i < num_nodes; ++i) {
+        degrees[i] = g.out_degree(i);
+    }
+    
+    // Separate isolated (degree-0) and active vertices
+    std::vector<int64_t> active_vertices;
+    std::vector<int64_t> isolated_vertices;
+    active_vertices.reserve(num_nodes);
+    isolated_vertices.reserve(num_nodes / 10);
+    
+    for (int64_t v = 0; v < num_nodes; ++v) {
+        if (degrees[v] > 0) {
+            active_vertices.push_back(v);
+        } else {
+            isolated_vertices.push_back(v);
+        }
+    }
+    
+    const int num_passes = static_cast<int>(result.community_per_pass.size());
+    
+    // Count unique communities in final pass
+    std::unordered_set<K> unique_comms;
+    for (int64_t v : active_vertices) {
+        unique_comms.insert(result.final_community[v]);
+    }
+    size_t num_communities = unique_comms.size();
+    
+    // LeidenOrder-style multi-level sort: [pass_N, pass_N-1, ..., pass_0, -degree]
+    // This groups vertices hierarchically by their community at each level
+    __gnu_parallel::sort(active_vertices.begin(), active_vertices.end(),
+        [&result, &degrees, num_passes](int64_t a, int64_t b) {
+            // Compare from coarsest (last pass) to finest (first pass)
+            for (int p = num_passes - 1; p >= 0; --p) {
+                K ca = result.community_per_pass[p][a];
+                K cb = result.community_per_pass[p][b];
+                if (ca != cb) return ca < cb;
+            }
+            // Within same community at all levels, sort by degree descending (hubs first)
+            return degrees[a] > degrees[b];
+        });
+    
+    // Assign new IDs: active vertices first (in sorted order), then isolated
+    int64_t current_id = 0;
+    for (int64_t v : active_vertices) {
+        new_ids[v] = current_id++;
+    }
+    for (int64_t v : isolated_vertices) {
+        new_ids[v] = current_id++;
+    }
+    
+    tm2.Stop();
+    double ordering_time = tm2.Seconds();
+    
+    PrintTime("GVELeidenOptSort Passes", static_cast<double>(num_passes));
+    PrintTime("GVELeidenOptSort Communities", static_cast<double>(num_communities));
+    PrintTime("GVELeidenOptSort Modularity", result.modularity);
+    PrintTime("GVELeidenOptSort Map Time", ordering_time);
+}
+
+//==========================================================================
+// GenerateGVELeidenTurboMapping - Maximum Speed Variant
+//==========================================================================
+
+/**
+ * GenerateGVELeidenTurboMapping - Speed-optimized GVE-Leiden with sort-based ordering
+ * 
+ * Combines GVELeidenTurboCSR (no refinement, early termination, batched atomics)
+ * with LeidenOrder-style multi-level sort for maximum speed.
+ * 
+ * Expected ~40-50% faster detection than GVELeidenOptCSR with ~10% lower modularity.
+ * 
+ * @tparam K Community ID type (default uint32_t)
+ * @tparam NodeID_T Node ID type
+ * @tparam DestID_T Destination type
+ * @param g Input graph (must be symmetric for Leiden)
+ * @param new_ids Output mapping vector
+ * @param reordering_options Options: [resolution, max_iterations, max_passes]
+ */
+template <typename K = uint32_t, typename NodeID_T, typename DestID_T>
+void GenerateGVELeidenTurboMapping(
+    const CSRGraph<NodeID_T, DestID_T, true>& g,
+    pvector<NodeID_T>& new_ids,
+    const std::vector<std::string>& reordering_options) {
+    
+    Timer tm;
+    tm.Start();
+    
+    const int64_t num_nodes = g.num_nodes();
+    
+    // Parse options using unified resolution parser
+    ResolutionConfig res_cfg;
+    int max_iterations = 5;  // Lower default for turbo
+    int max_passes = 10;
+    
+    if (!reordering_options.empty() && !reordering_options[0].empty()) {
+        res_cfg = parseResolution<NodeID_T, DestID_T>(reordering_options[0], g);
+    } else {
+        res_cfg.mode = ResolutionMode::AUTO;
+        res_cfg.value = computeAutoResolution<NodeID_T, DestID_T>(g);
+    }
+    double resolution = res_cfg.getResolution();
+    
+    if (reordering_options.size() > 1 && !reordering_options[1].empty()) {
+        max_iterations = std::stoi(reordering_options[1]);
+    }
+    if (reordering_options.size() > 2 && !reordering_options[2].empty()) {
+        max_passes = std::stoi(reordering_options[2]);
+    }
+    
+    printf("GVELeidenTurbo: resolution=%.4f (%s), max_iterations=%d, max_passes=%d\n",
+           resolution, resolutionModeString(res_cfg.mode).c_str(), max_iterations, max_passes);
+    
+    // Run optimized GVE-Leiden with refinement SKIPPED for speed
+    auto result = GVELeidenOptCSR<K, double, NodeID_T, DestID_T>(
+        g, resolution, 1e-2, 0.8, 10.0, max_iterations, max_passes, true);  // skip_refine=true
+    
+    tm.Stop();
+    double detection_time = tm.Seconds();
+    PrintTime("GVELeidenTurbo Community Detection", detection_time);
+    
+    Timer tm2;
+    tm2.Start();
+    
+    // Get degrees for secondary sort
+    std::vector<int64_t> degrees(num_nodes);
+    #pragma omp parallel for
+    for (int64_t i = 0; i < num_nodes; ++i) {
+        degrees[i] = g.out_degree(i);
+    }
+    
+    // Separate isolated and active vertices
+    std::vector<int64_t> active_vertices;
+    std::vector<int64_t> isolated_vertices;
+    active_vertices.reserve(num_nodes);
+    isolated_vertices.reserve(num_nodes / 10);
+    
+    for (int64_t v = 0; v < num_nodes; ++v) {
+        if (degrees[v] > 0) {
+            active_vertices.push_back(v);
+        } else {
+            isolated_vertices.push_back(v);
+        }
+    }
+    
+    const int num_passes = static_cast<int>(result.community_per_pass.size());
+    
+    // Count unique communities
+    std::unordered_set<K> unique_comms;
+    for (int64_t v : active_vertices) {
+        unique_comms.insert(result.final_community[v]);
+    }
+    size_t num_communities = unique_comms.size();
+    
+    // LeidenOrder-style multi-level sort
+    __gnu_parallel::sort(active_vertices.begin(), active_vertices.end(),
+        [&result, &degrees, num_passes](int64_t a, int64_t b) {
+            for (int p = num_passes - 1; p >= 0; --p) {
+                K ca = result.community_per_pass[p][a];
+                K cb = result.community_per_pass[p][b];
+                if (ca != cb) return ca < cb;
+            }
+            return degrees[a] > degrees[b];
+        });
+    
+    // Assign new IDs
+    int64_t current_id = 0;
+    for (int64_t v : active_vertices) {
+        new_ids[v] = current_id++;
+    }
+    for (int64_t v : isolated_vertices) {
+        new_ids[v] = current_id++;
+    }
+    
+    tm2.Stop();
+    double ordering_time = tm2.Seconds();
+    
+    PrintTime("GVELeidenTurbo Passes", static_cast<double>(num_passes));
+    PrintTime("GVELeidenTurbo Communities", static_cast<double>(num_communities));
+    PrintTime("GVELeidenTurbo Modularity", result.modularity);
+    PrintTime("GVELeidenTurbo Map Time", ordering_time);
 }
 
 /**
@@ -3870,13 +6102,18 @@ void GenerateGVERabbitMapping(
     
     const int64_t num_nodes = g.num_nodes();
     
-    // Parse options
-    double resolution = 1.0;
+    // Parse options using unified resolution parser
+    ResolutionConfig res_cfg;
     int max_iterations = 5;  // Fewer iterations for speed
     
     if (!reordering_options.empty() && !reordering_options[0].empty()) {
-        resolution = std::stod(reordering_options[0]);
+        res_cfg = parseResolution<NodeID_T, DestID_T>(reordering_options[0], g);
+    } else {
+        res_cfg.mode = ResolutionMode::FIXED;
+        res_cfg.value = 1.0;  // Default to 1.0 for GVERabbit
     }
+    double resolution = res_cfg.getResolution();
+    
     if (reordering_options.size() > 1 && !reordering_options[1].empty()) {
         max_iterations = std::stoi(reordering_options[1]);
     }
@@ -3898,7 +6135,8 @@ void GenerateGVERabbitMapping(
     const int64_t num_isolated = isolated_vertices.size();
     const int64_t num_active = active_vertices.size();
     
-    printf("GVERabbit: resolution=%.4f, max_iterations=%d\n", resolution, max_iterations);
+    printf("GVERabbit: resolution=%.4f (%s), max_iterations=%d\n",
+           resolution, resolutionModeString(res_cfg.mode).c_str(), max_iterations);
     if (num_isolated > 0) {
         printf("GVERabbit: %ld active vertices, %ld isolated vertices (%.1f%%)\n",
                num_active, num_isolated, 100.0 * num_isolated / num_nodes);

@@ -164,7 +164,7 @@ class PhaseConfig:
         expand_variants: Expand Leiden algorithms to all variants (default: False)
         update_weights: Update weights incrementally during phases (default: True)
         
-        leiden_resolution: Resolution parameter for Leiden (default: 1.0)
+        leiden_resolution: Resolution: "auto", "dynamic", "1.0", etc. (default: "auto")
         leiden_passes: Number of Leiden optimization passes (default: 10)
         leiden_csr_variants: LeidenCSR variants to test
         leiden_dendrogram_variants: LeidenDendrogram variants to test
@@ -229,7 +229,7 @@ class PhaseConfig:
         # ─────────────────────────────────────────────────────────────────
         # Leiden-specific settings
         # ─────────────────────────────────────────────────────────────────────
-        leiden_resolution: float = 1.0,
+        leiden_resolution: str = "auto",  # "auto", "dynamic", "1.0", etc.
         leiden_passes: int = 10,
         leiden_csr_variants: List[str] = None,
         leiden_dendrogram_variants: List[str] = None,
@@ -277,7 +277,10 @@ class PhaseConfig:
         # Leiden settings
         self.leiden_resolution = leiden_resolution
         self.leiden_passes = leiden_passes
-        self.leiden_csr_variants = leiden_csr_variants or ['gve', 'gveopt', 'gvedendo', 'gveoptdendo', 'gverabbit', 'dfs', 'bfs', 'hubsort', 'modularity']
+        self.leiden_csr_variants = leiden_csr_variants or [
+            'gve', 'gveopt', 'gveopt2', 'gveadaptive', 'gveoptsort', 'gveturbo', 'gvefast',
+            'gvedendo', 'gveoptdendo', 'gverabbit', 'dfs', 'bfs', 'hubsort', 'modularity'
+        ]
         self.leiden_dendrogram_variants = leiden_dendrogram_variants or ['dfs', 'dfshub', 'dfssize', 'bfs', 'hybrid']
         self.rabbit_variants = rabbit_variants or ['csr']  # Default: csr only
         self.graphbrew_variants = graphbrew_variants or ['leiden']  # Default: leiden only
@@ -311,7 +314,7 @@ class PhaseConfig:
             force_reorder=getattr(args, 'force_reorder', False),
             expand_variants=getattr(args, 'expand_variants', False),
             update_weights=not getattr(args, 'no_incremental', False),
-            leiden_resolution=getattr(args, 'leiden_resolution', 1.0),
+            leiden_resolution=getattr(args, 'leiden_resolution', 'auto'),
             leiden_passes=getattr(args, 'leiden_passes', 10),
             leiden_csr_variants=getattr(args, 'leiden_csr_variants', None),
             leiden_dendrogram_variants=getattr(args, 'leiden_dendrogram_variants', None),

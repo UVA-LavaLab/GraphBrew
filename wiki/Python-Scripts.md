@@ -292,10 +292,10 @@ Use **perceptron_experiment.py** when you want to train better weights.
 |--------|-------------|
 | `--all-variants` | Test ALL algorithm variants instead of just defaults |
 | `--graphbrew-variants` | GraphBrewOrder variants: `leiden` (default), `gve`, `gveopt`, `gvefast`, `gveoptfast`, `rabbit`, `hubcluster` |
-| `--csr-variants` | LeidenCSR variants: `gve`, `gveopt`, `gvedendo`, `gveoptdendo`, `gverabbit`, `dfs`, `bfs`, `hubsort`, `modularity` |
+| `--csr-variants` | LeidenCSR variants: `gve`, `gveopt`, `gveopt2`, `gveadaptive`, `gveoptsort`, `gveturbo`, `gvefast`, `gvedendo`, `gveoptdendo`, `gverabbit`, `dfs`, `bfs`, `hubsort`, `modularity` |
 | `--rabbit-variants` | RabbitOrder variants: `csr` (default), `boost` |
 | `--dendrogram-variants` | LeidenDendrogram variants: `dfs`, `dfshub`, `dfssize`, `bfs`, `hybrid` |
-| `--resolution` | Leiden resolution parameter (default: 1.0) |
+| `--resolution` | Leiden resolution: fixed (1.5), auto, dynamic, dynamic_2.0 (default: auto) |
 | `--passes` | Leiden passes parameter (default: 3) |
 
 **LeidenCSR Variants:**
