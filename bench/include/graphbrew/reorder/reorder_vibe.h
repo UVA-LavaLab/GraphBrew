@@ -658,6 +658,8 @@ void scanCommunities(
 
 /**
  * Scan communities on super-graph
+ * 
+ * Optimization: Prefetch neighbor community data ahead of access
  */
 template <bool REFINE, typename K, typename W>
 void scanCommunitiesSuperGraph(
@@ -665,7 +667,8 @@ void scanCommunitiesSuperGraph(
     const SuperGraph<K, W>& sg,
     K u,
     const std::vector<K>& vcom,
-    const std::vector<K>& vcob) {
+    const std::vector<K>& vcob,
+    const VibeConfig& config) {
     
     scanner.clear();
     K bound_u = vcob[u];
@@ -673,7 +676,20 @@ void scanCommunitiesSuperGraph(
     size_t start = sg.offsets[u];
     size_t end = sg.offsets[u] + sg.degrees[u];
     
+    // Prefetch community data for upcoming neighbors
+    if (config.usePrefetch && end > start) {
+        const size_t prefetchAhead = std::min(config.prefetchDistance, end - start);
+        for (size_t i = 0; i < prefetchAhead; ++i) {
+            __builtin_prefetch(&vcom[sg.neighbors[start + i]], 0, 1);
+        }
+    }
+    
     for (size_t i = start; i < end; ++i) {
+        // Prefetch next batch of community data
+        if (config.usePrefetch && i + config.prefetchDistance < end) {
+            __builtin_prefetch(&vcom[sg.neighbors[i + config.prefetchDistance]], 0, 1);
+        }
+        
         K v = sg.neighbors[i];
         W w = sg.weights[i];
         
@@ -903,7 +919,7 @@ int localMovingPhaseSuperGraph(
                     if (ctot[d] > vtot[u]) continue;
                 }
                 
-                scanCommunitiesSuperGraph<REFINE>(scanner, sg, static_cast<K>(u), vcom, vcob);
+                scanCommunitiesSuperGraph<REFINE>(scanner, sg, static_cast<K>(u), vcom, vcob, config);
                 
                 auto [best_c, delta] = chooseCommunityGreedy<K, Weight>(
                     static_cast<K>(u), d, scanner, vtot, ctot, M, R);
@@ -1094,7 +1110,23 @@ void aggregateGraphLeiden(
         for (size_t c = 0; c < C; ++c) {
             scanner.clear();
             
-            for (size_t i = coff[c]; i < coff[c + 1]; ++i) {
+            const size_t commStart = coff[c];
+            const size_t commEnd = coff[c + 1];
+            
+            // Prefetch community membership data for upcoming vertices
+            if (config.usePrefetch && commEnd > commStart) {
+                const size_t prefetchCount = std::min(config.prefetchDistance, commEnd - commStart);
+                for (size_t p = 0; p < prefetchCount; ++p) {
+                    __builtin_prefetch(&vcom[cvtx[commStart + p]], 0, 1);
+                }
+            }
+            
+            for (size_t i = commStart; i < commEnd; ++i) {
+                // Prefetch community membership for next vertex's neighbors
+                if (config.usePrefetch && i + config.prefetchDistance < commEnd) {
+                    __builtin_prefetch(&vcom[cvtx[i + config.prefetchDistance]], 0, 1);
+                }
+                
                 K u = cvtx[i];
                 for (auto neighbor : g.out_neigh(u)) {
                     NodeID_T v;
