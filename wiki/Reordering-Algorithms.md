@@ -528,7 +528,7 @@ The `gvedendo` and `gveoptdendo` variants implement incremental dendrogram build
 ```bash
 # Sweep all LeidenCSR variants (format: 17:variant:resolution:iterations:passes)
 for variant in gve gveopt gveopt2 gveadaptive gveoptsort gveturbo gvefast gverabbit; do
-    ./bench/bin/pr -f graph.mtx -s -o 17:$variant:1.0:20:10 -n 5
+    ./bench/bin/pr -f graph.mtx -s -o 17:$variant:1.0:10:10 -n 5
 done
 
 # Resolution sweep for optimal cache locality
@@ -536,6 +536,84 @@ for res in 0.5 1.0 1.5 2.0; do
     ./bench/bin/pr -f graph.mtx -s -o 17:gveopt2:$res -n 5
 done
 ```
+
+### VIBE: Unified Reordering Framework
+
+**VIBE (Vertex Indexing for Better Efficiency)** provides a unified interface for graph reordering with two main algorithms and configurable ordering strategies. All VIBE variants use the unified `reorder::ReorderConfig` defaults:
+
+- **Resolution**: Auto-computed from graph properties (density, degree distribution)
+- **Max Iterations**: 10 per pass
+- **Max Passes**: 10 total
+- **Dynamic Resolution**: Optional per-pass adjustment based on runtime metrics
+
+```bash
+# Format: -o 17:vibe[:algorithm][:ordering][:aggregation][:resolution_mode]
+
+# Leiden-based VIBE (multi-pass community detection)
+./bench/bin/pr -f graph.mtx -s -o 17:vibe -n 3            # Hierarchical ordering (default)
+./bench/bin/pr -f graph.mtx -s -o 17:vibe:dfs -n 3        # DFS dendrogram traversal
+./bench/bin/pr -f graph.mtx -s -o 17:vibe:bfs -n 3        # BFS dendrogram traversal
+./bench/bin/pr -f graph.mtx -s -o 17:vibe:dbg -n 3        # DBG within each community
+./bench/bin/pr -f graph.mtx -s -o 17:vibe:corder -n 3     # Hot/cold within communities
+./bench/bin/pr -f graph.mtx -s -o 17:vibe:dbg-global -n 3 # DBG across all vertices
+./bench/bin/pr -f graph.mtx -s -o 17:vibe:streaming -n 3  # Lazy aggregation (faster)
+
+# Resolution modes
+./bench/bin/pr -f graph.mtx -s -o 17:vibe:auto -n 3       # Auto (graph-adaptive, computed once)
+./bench/bin/pr -f graph.mtx -s -o 17:vibe:dynamic -n 3    # Dynamic (adjusted per-pass)
+./bench/bin/pr -f graph.mtx -s -o 17:vibe:0.75 -n 3       # Fixed resolution 0.75
+
+# RabbitOrder-based VIBE (single-pass parallel aggregation)
+./bench/bin/pr -f graph.mtx -s -o 17:vibe:rabbit -n 3           # RabbitOrder (DFS default)
+./bench/bin/pr -f graph.mtx -s -o 17:vibe:rabbit:dfs -n 3       # + DFS post-ordering
+./bench/bin/pr -f graph.mtx -s -o 17:vibe:rabbit:bfs -n 3       # + BFS post-ordering
+./bench/bin/pr -f graph.mtx -s -o 17:vibe:rabbit:dbg -n 3       # + DBG post-ordering
+./bench/bin/pr -f graph.mtx -s -o 17:vibe:rabbit:corder -n 3    # + COrder post-ordering
+```
+
+**VIBE Resolution Modes:**
+
+| Mode | Option | Description |
+|------|--------|-------------|
+| Auto | `vibe:auto` or `vibe` | Computed once from graph properties (default) |
+| Dynamic | `vibe:dynamic` | Adjusted per-pass based on runtime metrics |
+| Fixed | `vibe:0.75` | User-specified fixed value |
+
+**VIBE Algorithm Comparison:**
+
+| Aspect | `vibe` (Leiden) | `vibe:rabbit` (RabbitOrder) |
+|--------|-----------------|----------------------------|
+| **Passes** | Multi-pass (2-5) | Single-pass |
+| **Vertex Order** | Random/parallel | Sorted by degree (ascending) |
+| **Aggregation** | Explicit super-graph or lazy | Implicit union-find + edge cache |
+| **Parallelism** | Per-pass parallel | Lock-free 64-bit CAS |
+| **Dendrogram** | Built after detection | Built during merges |
+| **Communities** | Many fine (~50K) | Fewer coarse (~2K) |
+| **Ordering** | Configurable | DFS (configurable post) |
+| **Best For** | Quality communities | Fast reordering |
+
+**VIBE Ordering Strategies (for Leiden-based):**
+
+| Strategy | Option | Description |
+|----------|--------|-------------|
+| HIERARCHICAL | `vibe` | Sort by community, then by degree |
+| DENDROGRAM_DFS | `vibe:dfs` | DFS traversal of dendrogram |
+| DENDROGRAM_BFS | `vibe:bfs` | BFS traversal of dendrogram |
+| DBG | `vibe:dbg` | DBG algorithm within each community |
+| CORDER | `vibe:corder` | Hot/cold separation within communities |
+| DBG_GLOBAL | `vibe:dbg-global` | DBG across all vertices (post-clustering) |
+| CORDER_GLOBAL | `vibe:corder-global` | Hot/cold across all vertices |
+
+**VIBE vs 8:csr (Native Rabbit) Benchmark:**
+
+| Graph | 8:csr Reorder | 8:csr PR | vibe:rabbit Reorder | vibe:rabbit PR |
+|-------|---------------|----------|---------------------|----------------|
+| web-Google | 0.22s | 0.016s | 0.22s | 0.015s |
+| wiki-Talk | 0.47s | 0.043s | **0.43s** | **0.038s** |
+| soc-Epinions1 | 0.04s | 0.008s | **0.03s** | **0.007s** |
+| roadNet-CA | 0.29s | 0.018s | 0.30s | 0.018s |
+| cit-Patents | **1.01s** | 0.123s | 1.07s | **0.115s** |
+| web-BerkStan | 0.27s | 0.030s | **0.13s** | **0.026s** |
 
 ---
 

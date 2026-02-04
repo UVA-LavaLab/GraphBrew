@@ -177,12 +177,23 @@ CV Adjustment (for power-law graphs with CV > 2.0):
 
 ### Dynamic/Adaptive Resolution
 
-The **GVEAdaptive** variant (Algorithm 17:gveadaptive) dynamically adjusts resolution at each Leiden pass based on runtime metrics:
+The **GVEAdaptive** variant (Algorithm 17:gveadaptive) and **VIBE** (Algorithm 17:vibe:dynamic) dynamically adjust resolution at each Leiden pass based on runtime metrics:
 
 1. **Community reduction rate** - If reducing too fast → raise resolution
 2. **Size imbalance** - If giant communities exist → raise resolution to break them
 3. **Convergence speed** - If converges in 1 iteration → communities too stable, raise resolution
 4. **Super-graph density** - Denser super-graphs need higher resolution
+
+**Algorithms with dynamic resolution support:**
+
+| Algorithm | Syntax | Description |
+|-----------|--------|-------------|
+| `gveadaptive` | `-o 17:gveadaptive:dynamic` | GVE-Leiden with dynamic |
+| `vibe` | `-o 17:vibe:dynamic` | VIBE unified framework |
+| `vibe:dfs` | `-o 17:vibe:dfs:dynamic` | VIBE + DFS ordering |
+| `vibe:streaming` | `-o 17:vibe:streaming:dynamic` | VIBE + lazy aggregation |
+
+> **Note:** RabbitOrder variants (`vibe:rabbit`) do not support dynamic resolution and fall back to auto.
 
 Example evolution on wiki-Talk:
 ```
@@ -193,11 +204,16 @@ Pass 2: res=1.500 → 4K→3K comms, imbalance=540x   → next_res=2.26
 
 ### Iterations
 
-Maximum refinement iterations:
+Maximum refinement iterations (unified defaults from `reorder::ReorderConfig`):
 
 ```cpp
-opts.maxIterations = 20;  // Default, usually converges in 2-5
-opts.maxPasses = 10;      // Maximum number of passes
+// From reorder_types.h - single source of truth
+opts.maxIterations = reorder::DEFAULT_MAX_ITERATIONS;  // 10, usually converges in 2-5
+opts.maxPasses = reorder::DEFAULT_MAX_PASSES;          // 10 maximum passes
+
+// Or use unified config directly:
+reorder::ReorderConfig cfg = reorder::ReorderConfig::FromOptions(options);
+cfg.applyAutoResolution(graph);  // Graph-adaptive resolution
 ```
 
 ---
@@ -244,6 +260,8 @@ Fast CSR-native Leiden (no graph conversion):
 |---------|-------------|-------|---------|----------------|
 | `gveopt2` | **CSR-based aggregation** | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | **Best overall** |
 | `gveadaptive` | **Dynamic resolution** | ⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | **Unknown graphs** |
+| `vibe` | **VIBE unified framework** | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | **Configurable** |
+| `vibe:dynamic` | **VIBE + per-pass adjustment** | ⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | **Unknown graphs** |
 | `gve` | Standard GVE-Leiden | ⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | Default |
 | `gveopt` | Cache-optimized GVE | ⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | Large graphs |
 | `gveoptsort` | Multi-level sort | ⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | Hierarchical |
@@ -268,8 +286,11 @@ Fast CSR-native Leiden (no graph conversion):
 # Auto resolution (recommended for unknown graphs)
 ./bench/bin/pr -f graph.mtx -s -o 17:gveopt2:auto -n 3
 
-# Dynamic resolution (gveadaptive only)
+# Dynamic resolution (gveadaptive)
 ./bench/bin/pr -f graph.mtx -s -o 17:gveadaptive:dynamic -n 3
+
+# VIBE with dynamic resolution (recommended unified approach)
+./bench/bin/pr -f graph.mtx -s -o 17:vibe:dynamic -n 3
 
 # Dynamic with initial value
 ./bench/bin/pr -f graph.mtx -s -o 17:gveadaptive:dynamic_2.0 -n 3

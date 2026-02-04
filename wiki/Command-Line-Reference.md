@@ -168,11 +168,12 @@ Use with `-o <id>`:
 | 14 | AdaptiveOrder | ML |
 | 15 | LeidenOrder | Leiden (igraph) |
 | 16 | LeidenDendrogram | Leiden (has variants, see below) |
-| 17 | LeidenCSR | Leiden (has variants, see below) |
+| 17 | LeidenCSR | Leiden (has variants, including VIBE) |
 
 > **Note:** For current variant lists, see `scripts/lib/utils.py` which defines:
 > - `RABBITORDER_VARIANTS`, `GRAPHBREW_VARIANTS`
 > - `LEIDEN_DENDROGRAM_VARIANTS`, `LEIDEN_CSR_VARIANTS`
+> - `VIBE_LEIDEN_VARIANTS`, `VIBE_RABBIT_VARIANTS`
 
 ### LeidenCSR Resolution Modes (Algorithm 17)
 
@@ -182,6 +183,48 @@ Use with `-o <id>`:
 | **Auto** | `auto` or `0` | `-o 17:gveopt2:auto` | Compute from graph density |
 | **Dynamic** | `dynamic` | `-o 17:gveadaptive:dynamic` | Auto initial, adjust per-pass |
 | **Dynamic+Init** | `dynamic_<val>` | `-o 17:gveadaptive:dynamic_2.0` | Start at value, adjust per-pass |
+
+### VIBE Variants (Algorithm 17)
+
+VIBE (Vertex Indexing for Better Efficiency) provides a unified reordering framework with two algorithms:
+
+**Leiden-based VIBE** (multi-pass community detection):
+
+| Variant | Example | Description |
+|---------|---------|-------------|
+| `vibe` | `-o 17:vibe` | Hierarchical ordering (default) |
+| `vibe:dfs` | `-o 17:vibe:dfs` | DFS dendrogram traversal |
+| `vibe:bfs` | `-o 17:vibe:bfs` | BFS dendrogram traversal |
+| `vibe:dbg` | `-o 17:vibe:dbg` | DBG within each community |
+| `vibe:corder` | `-o 17:vibe:corder` | Hot/cold within communities |
+| `vibe:dbg-global` | `-o 17:vibe:dbg-global` | DBG across all vertices |
+| `vibe:corder-global` | `-o 17:vibe:corder-global` | Hot/cold across all vertices |
+| `vibe:streaming` | `-o 17:vibe:streaming` | Leiden + lazy aggregation |
+| `vibe:auto` | `-o 17:vibe:auto` | Auto-computed resolution (computed once) |
+| `vibe:dynamic` | `-o 17:vibe:dynamic` | Dynamic resolution (adjusted per-pass) |
+
+**VIBE Resolution Modes:**
+
+| Mode | Syntax | Description |
+|------|--------|-------------|
+| Auto | `-o 17:vibe:auto` or `-o 17:vibe` | Compute resolution from graph density/CV (fixed) |
+| Dynamic | `-o 17:vibe:dynamic` | Auto initial, adjust each pass based on metrics |
+| Fixed | `-o 17:vibe:1.5` | Use specified resolution value |
+| Dynamic+Init | `-o 17:vibe:dynamic_2.0` | Start at 2.0, adjust each pass |
+
+> **Note:** Dynamic resolution adjusts based on community reduction rate, size imbalance, and convergence speed. Use for unknown graphs.
+
+**RabbitOrder-based VIBE** (single-pass parallel aggregation):
+
+| Variant | Example | Description |
+|---------|---------|-------------|
+| `vibe:rabbit` | `-o 17:vibe:rabbit` | RabbitOrder algorithm (DFS default) |
+| `vibe:rabbit:dfs` | `-o 17:vibe:rabbit:dfs` | RabbitOrder + DFS post-ordering |
+| `vibe:rabbit:bfs` | `-o 17:vibe:rabbit:bfs` | RabbitOrder + BFS post-ordering |
+| `vibe:rabbit:dbg` | `-o 17:vibe:rabbit:dbg` | RabbitOrder + DBG post-ordering |
+| `vibe:rabbit:corder` | `-o 17:vibe:rabbit:corder` | RabbitOrder + COrder post-ordering |
+
+> **Note:** RabbitOrder variants do not support dynamic resolution (falls back to auto).
 
 ### GraphBrewOrder Variants (Algorithm 12)
 

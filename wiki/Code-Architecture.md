@@ -200,29 +200,35 @@ struct GraphBrewConfig {
 };
 ```
 
-**Leiden Algorithm Constants (reorder_leiden.h):**
+**Unified Reorder Configuration (reorder_types.h):**
 
-All Leiden-related functions use these centralized constants for consistency. Function default arguments also use these constants instead of hardcoded values:
+All community-based reordering algorithms (VIBE, Leiden, GraphBrew, RabbitOrder, Adaptive) use these centralized constants for consistency:
 
 ```cpp
-namespace graphbrew {
-namespace leiden {
-// Default parameters - Single Source of Truth for C++ Leiden
-constexpr double DEFAULT_RESOLUTION = 0.75;
-constexpr double DEFAULT_TOLERANCE = 1e-2;
+namespace reorder {
+// Default parameters - Single Source of Truth for ALL reordering algorithms
+constexpr double DEFAULT_RESOLUTION = 1.0;           // Modularity resolution (auto-computed)
+constexpr double DEFAULT_TOLERANCE = 1e-2;           // Node movement convergence
 constexpr double DEFAULT_AGGREGATION_TOLERANCE = 0.8;
-constexpr double DEFAULT_QUALITY_FACTOR = 10.0;
-constexpr int DEFAULT_MAX_ITERATIONS = 10;
-constexpr int DEFAULT_MAX_PASSES = 10;
+constexpr double DEFAULT_TOLERANCE_DROP = 10.0;      // Tolerance reduction per pass
+constexpr int DEFAULT_MAX_ITERATIONS = 10;           // Max iterations per pass
+constexpr int DEFAULT_MAX_PASSES = 10;               // Max aggregation passes
+constexpr size_t DEFAULT_TILE_SIZE = 4096;           // Cache blocking tile size
+constexpr size_t DEFAULT_PREFETCH_DISTANCE = 8;      // Prefetch lookahead
 
-// Variant-specific parameters
-constexpr int FAST_MAX_ITERATIONS = 5;
-constexpr int FAST_MAX_PASSES = 5;
-constexpr int MODULARITY_MAX_ITERATIONS = 20;
-constexpr int MODULARITY_MAX_PASSES = 20;
-constexpr double SORT_AGGREGATION_TOLERANCE = 0.95;  // Allows more passes
-} // namespace leiden
-} // namespace graphbrew
+// Unified configuration struct
+struct ReorderConfig {
+    ResolutionMode resolutionMode = ResolutionMode::AUTO;
+    double resolution = DEFAULT_RESOLUTION;
+    double tolerance = DEFAULT_TOLERANCE;
+    int maxIterations = DEFAULT_MAX_ITERATIONS;
+    int maxPasses = DEFAULT_MAX_PASSES;
+    OrderingStrategy ordering = OrderingStrategy::HIERARCHICAL;
+    AggregationStrategy aggregation = AggregationStrategy::CSR_BUFFER;
+    bool useRefinement = true;
+    // ... methods: FromOptions(), applyAutoResolution(), computeGraphAdaptiveResolution()
+};
+} // namespace reorder
 
 // After namespace close, bring constants into global scope for backward compatibility
 using graphbrew::leiden::DEFAULT_TOLERANCE;
@@ -533,10 +539,12 @@ from scripts.lib.utils import (
     BENCHMARKS,      # ['pr', 'bfs', 'cc', 'sssp', 'bc', 'tc']
     
     # Variant lists (authoritative definitions)
-    LEIDEN_CSR_VARIANTS,        # ['gve', 'gveopt', 'gveopt2', ...]
+    LEIDEN_CSR_VARIANTS,        # ['gve', 'gveopt', 'gveopt2', ..., 'vibe', ...]
     GRAPHBREW_VARIANTS,         # ['leiden', 'gve', 'gveopt', ...]
     RABBITORDER_VARIANTS,       # ['csr', 'boost']
     LEIDEN_DENDROGRAM_VARIANTS, # ['dfs', 'dfshub', 'dfssize', 'bfs', 'hybrid']
+    VIBE_LEIDEN_VARIANTS,       # ['vibe', 'vibe:dfs', 'vibe:bfs', ...]
+    VIBE_RABBIT_VARIANTS,       # ['vibe:rabbit', 'vibe:rabbit:dfs', ...]
     
     # Graph size thresholds (MB)
     SIZE_SMALL,      # 50 MB
@@ -550,15 +558,19 @@ from scripts.lib.utils import (
     TIMEOUT_SIM,         # 1200 (20 min)
     TIMEOUT_SIM_HEAVY,   # 3600 (1 hour)
     
-    # Leiden algorithm constants (match C++ reorder_leiden.h)
-    LEIDEN_DEFAULT_RESOLUTION,          # 0.75
-    LEIDEN_DEFAULT_TOLERANCE,           # 1e-2 (0.01)
-    LEIDEN_DEFAULT_AGGREGATION_TOLERANCE,  # 0.8
-    LEIDEN_DEFAULT_QUALITY_FACTOR,      # 10.0
-    LEIDEN_DEFAULT_MAX_ITERATIONS,      # 10
-    LEIDEN_DEFAULT_MAX_PASSES,          # 10
-    LEIDEN_MODULARITY_MAX_ITERATIONS,   # 20 (quality-focused)
-    LEIDEN_MODULARITY_MAX_PASSES,       # 20
+    # Unified reorder configuration (match C++ reorder::ReorderConfig)
+    REORDER_DEFAULT_RESOLUTION,          # 1.0 (auto-computed from graph)
+    REORDER_DEFAULT_TOLERANCE,           # 1e-2 (0.01)
+    REORDER_DEFAULT_AGGREGATION_TOLERANCE,  # 0.8
+    REORDER_DEFAULT_TOLERANCE_DROP,      # 10.0
+    REORDER_DEFAULT_MAX_ITERATIONS,      # 10
+    REORDER_DEFAULT_MAX_PASSES,          # 10
+    
+    # Backward-compatible aliases
+    LEIDEN_DEFAULT_RESOLUTION,           # = REORDER_DEFAULT_RESOLUTION
+    LEIDEN_DEFAULT_MAX_ITERATIONS,       # = REORDER_DEFAULT_MAX_ITERATIONS
+    LEIDEN_MODULARITY_MAX_ITERATIONS,    # 20 (quality-focused)
+    LEIDEN_MODULARITY_MAX_PASSES,        # 20
     
     # Weight computation normalization factors
     WEIGHT_PATH_LENGTH_NORMALIZATION,   # 10.0
@@ -571,7 +583,7 @@ from scripts.lib.utils import (
 )
 ```
 
-> ⚠️ **Important**: All constants (algorithms, variants, sizes, benchmarks, timeouts, Leiden parameters) are defined ONLY in `utils.py`. Other modules import from here - never duplicate these definitions.
+> ⚠️ **Important**: All constants are defined ONLY in `utils.py`. Reorder defaults match C++ `reorder::ReorderConfig` in `reorder_types.h`.
 
 #### Module Overview
 
