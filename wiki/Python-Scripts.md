@@ -316,7 +316,7 @@ Use **perceptron_experiment.py** when you want to train better weights.
 | Speed | `gveopt2`, `gveadaptive`, `gveturbo`, `gvefast`, `gverabbit` | Fastest reordering |
 | Traversal | `dfs`, `bfs`, `hubsort` | Specific ordering patterns |
 | Special | `modularity`, `gvedendo`, `gveoptdendo` | Modularity-optimized, dendrogram-based |
-| **VIBE** | `vibe`, `vibe:dfs`, `vibe:dbg`, `vibe:streaming`, `vibe:dynamic` | Leiden + configurable ordering |
+| **VIBE** | `vibe`, `vibe:dfs`, `vibe:dbg`, `vibe:streaming`, `vibe:lazyupdate`, `vibe:dynamic` | Leiden + configurable ordering |
 | **VIBE Rabbit** | `vibe:rabbit`, `vibe:rabbit:dfs`, `vibe:rabbit:dbg` | RabbitOrder + post-ordering |
 
 **VIBE Variants (Unified Framework):**
@@ -326,6 +326,7 @@ Use **perceptron_experiment.py** when you want to train better weights.
 | `vibe:dfs` | Leiden | + DFS dendrogram traversal |
 | `vibe:dbg` | Leiden | + DBG within each community |
 | `vibe:streaming` | Leiden | + Lazy aggregation (faster) |
+| `vibe:lazyupdate` | Leiden | + Batched community weight updates (reduces atomics) |
 | `vibe:dynamic` | Leiden | + Per-pass resolution adjustment |
 | `vibe:rabbit` | RabbitOrder | Single-pass parallel aggregation |
 | `vibe:rabbit:dfs` | RabbitOrder | + DFS post-ordering |

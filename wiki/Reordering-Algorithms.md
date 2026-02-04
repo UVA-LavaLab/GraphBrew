@@ -557,6 +557,7 @@ done
 ./bench/bin/pr -f graph.mtx -s -o 17:vibe:corder -n 3     # Hot/cold within communities
 ./bench/bin/pr -f graph.mtx -s -o 17:vibe:dbg-global -n 3 # DBG across all vertices
 ./bench/bin/pr -f graph.mtx -s -o 17:vibe:streaming -n 3  # Lazy aggregation (faster)
+./bench/bin/pr -f graph.mtx -s -o 17:vibe:lazyupdate -n 3 # Batched ctot updates (reduces atomics)
 
 # Resolution modes
 ./bench/bin/pr -f graph.mtx -s -o 17:vibe:auto -n 3       # Auto (graph-adaptive, computed once)

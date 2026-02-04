@@ -126,13 +126,14 @@ LEIDEN_DENDROGRAM_VARIANTS = ["dfs", "dfshub", "dfssize", "bfs", "hybrid"]
 #   gveturbo: Speed-optimized (optional refinement skip)
 #   gvefast: CSR buffer reuse (leiden.hxx style)
 # Legacy variants: gvedendo/gveoptdendo (incremental dendrogram)
-# VIBE variants: vibe (Leiden-based), vibe:rabbit (RabbitOrder), vibe:streaming (lazy aggregation)
+# VIBE variants: vibe (Leiden-based), vibe:rabbit (RabbitOrder), vibe:streaming (lazy aggregation), vibe:lazyupdate (batched ctot)
 LEIDEN_CSR_VARIANTS = [
     "gve", "gveopt", "gveopt2", "gveadaptive", "gveoptsort", "gveturbo", "gvefast",
     "gvedendo", "gveoptdendo", "gverabbit", "dfs", "bfs", "hubsort", "modularity",
     # VIBE variants (new unified reordering framework)
     "vibe", "vibe:dfs", "vibe:bfs", "vibe:dbg", "vibe:corder", "vibe:dbg-global", "vibe:corder-global",
     "vibe:streaming", "vibe:streaming:dfs",  # Leiden + lazy aggregation
+    "vibe:lazyupdate",  # Batched community weight updates (reduces atomics)
     "vibe:rabbit", "vibe:rabbit:dfs", "vibe:rabbit:bfs", "vibe:rabbit:dbg", "vibe:rabbit:corder"  # RabbitOrder
 ]
 LEIDEN_CSR_DEFAULT_VARIANT = "gve"  # GVE-Leiden (best modularity quality)
@@ -142,7 +143,7 @@ LEIDEN_CSR_FAST_VARIANTS = ["gveopt2", "gveadaptive", "gveturbo", "gvefast", "gv
 LEIDEN_CSR_QUALITY_VARIANTS = ["gve", "gveopt", "gveopt2", "gveadaptive", "vibe", "vibe:dfs"]  # Quality priority
 
 # VIBE-specific variant groups
-VIBE_LEIDEN_VARIANTS = ["vibe", "vibe:dfs", "vibe:bfs", "vibe:dbg", "vibe:corder", "vibe:dbg-global", "vibe:corder-global", "vibe:streaming"]
+VIBE_LEIDEN_VARIANTS = ["vibe", "vibe:dfs", "vibe:bfs", "vibe:dbg", "vibe:corder", "vibe:dbg-global", "vibe:corder-global", "vibe:streaming", "vibe:lazyupdate"]
 VIBE_RABBIT_VARIANTS = ["vibe:rabbit", "vibe:rabbit:dfs", "vibe:rabbit:bfs", "vibe:rabbit:dbg", "vibe:rabbit:corder"]
 
 # Resolution modes
