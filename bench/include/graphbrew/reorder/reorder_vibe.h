@@ -284,7 +284,7 @@ struct VibeConfig {
     
     // Memory optimizations
     bool useLazyUpdates = false;       ///< Batch community weight updates (reduces atomics) [TODO: not yet wired up]
-    bool useRelaxedMemory = false;     ///< Use relaxed memory ordering where safe [TODO: not yet wired up]
+    bool useRelaxedMemory = false;     ///< Use relaxed memory ordering in LazyUpdateBuffer [requires useLazyUpdates]
     bool reuseBuffers = true;          ///< Reuse SuperGraph buffers across passes (avoids reallocation)
     
     // Cache optimization - use unified defaults
