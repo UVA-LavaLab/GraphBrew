@@ -2777,9 +2777,9 @@ def run_experiment(args):
         else:
             # Get variant lists for expanded cache simulation
             expand_variants = getattr(args, 'expand_variants', False)
-            leiden_csr_variants = getattr(args, 'leiden_csr_variants', None) or LEIDENCSR_VARIANTS
+            leiden_csr_variants = getattr(args, 'leiden_csr_variants', None) or LEIDEN_CSR_VARIANTS
             rabbit_variants = getattr(args, 'rabbit_variants', None) or RABBITORDER_VARIANTS
-            leiden_dendrogram_variants = getattr(args, 'leiden_dendrogram_variants', None) or LEIDENDENDROGRAM_VARIANTS
+            leiden_dendrogram_variants = getattr(args, 'leiden_dendrogram_variants', None) or LEIDEN_DENDROGRAM_VARIANTS
             
             cache_results = run_cache_simulations(
                 graphs=graphs,
