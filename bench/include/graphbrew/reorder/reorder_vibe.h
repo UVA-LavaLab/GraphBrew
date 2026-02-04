@@ -191,6 +191,7 @@
 
 #ifdef OPENMP
 #include <omp.h>
+#include <parallel/algorithm>  // For __gnu_parallel::sort
 #endif
 
 #include <graph.h>
@@ -279,6 +280,7 @@ struct VibeConfig {
     bool useParallelSort = true;       ///< Use parallel sorting
     bool verifyTopology = false;       ///< Verify topology after reordering
     bool useDynamicResolution = false; ///< Enable per-pass resolution adjustment
+    bool useDegreeSorting = false;     ///< Process vertices by ascending degree (adds sorting overhead)
     
     // Cache optimization - use unified defaults
     size_t tileSize = reorder::DEFAULT_TILE_SIZE;              ///< Tile size for cache blocking
@@ -797,6 +799,10 @@ bool changeCommunity(
 /**
  * Leiden local-moving phase on original graph
  * 
+ * Optimization: Process vertices in ascending degree order (low-degree first)
+ * This reduces contention since high-degree hubs are processed after
+ * low-degree vertices have settled into communities.
+ * 
  * @tparam REFINE If true, this is refinement phase
  */
 template <bool REFINE, typename K, typename NodeID_T, typename DestID_T>
@@ -820,6 +826,28 @@ int localMovingPhase(
         scanners.emplace_back(N);
     }
     
+    // Build degree-sorted vertex order (ascending - low degree first)
+    // This is a key optimization from RabbitOrder: process low-degree vertices
+    // first so they settle into communities before high-degree hubs
+    std::vector<NodeID_T> vertexOrder(N);
+    std::iota(vertexOrder.begin(), vertexOrder.end(), 0);
+    
+    if (config.useDegreeSorting) {
+        if (config.useParallelSort) {
+            // Parallel sort by degree
+            __gnu_parallel::sort(vertexOrder.begin(), vertexOrder.end(),
+                [&](NodeID_T a, NodeID_T b) {
+                    return g.out_degree(a) < g.out_degree(b);
+                });
+        } else {
+            std::sort(vertexOrder.begin(), vertexOrder.end(),
+                [&](NodeID_T a, NodeID_T b) {
+                    return g.out_degree(a) < g.out_degree(b);
+                });
+        }
+        VIBE_TRACE("localMovingPhase: using degree-sorted order");
+    }
+    
     VIBE_TRACE("localMovingPhase<%s>: N=%ld", REFINE ? "REFINE" : "NORMAL", N);
     
     for (int iter = 0; iter < config.maxIterations; ++iter) {
@@ -831,7 +859,8 @@ int localMovingPhase(
             auto& scanner = scanners[tid];
             
             #pragma omp for schedule(dynamic, config.tileSize)
-            for (int64_t u = 0; u < N; ++u) {
+            for (int64_t i = 0; i < N; ++i) {
+                NodeID_T u = vertexOrder[i];
                 if (!vaff[u]) continue;
                 
                 K d = vcom[u];
