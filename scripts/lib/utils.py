@@ -35,16 +35,27 @@ WEIGHTS_DIR = SCRIPT_DIR / "weights"
 ACTIVE_WEIGHTS_DIR = WEIGHTS_DIR / "active"  # Where C++ reads type_*.json from
 
 # =============================================================================
-# Leiden Algorithm Constants (match C++ reorder_leiden.h)
+# Unified Reorder Configuration Constants
+# Match C++ reorder::ReorderConfig in reorder_types.h
+# Used by: VIBE, Leiden, GraphBrew, RabbitOrder, Adaptive
 # =============================================================================
 
-LEIDEN_DEFAULT_RESOLUTION = 0.75
-LEIDEN_DEFAULT_TOLERANCE = 1e-2  # 0.01
-LEIDEN_DEFAULT_AGGREGATION_TOLERANCE = 0.8
-LEIDEN_DEFAULT_QUALITY_FACTOR = 10.0
-LEIDEN_DEFAULT_MAX_ITERATIONS = 10
-LEIDEN_DEFAULT_MAX_PASSES = 10
-LEIDEN_MODULARITY_MAX_ITERATIONS = 20  # For quality-focused runs
+# Core defaults (single source of truth)
+REORDER_DEFAULT_RESOLUTION = 1.0         # Modularity resolution (auto-computed from graph)
+REORDER_DEFAULT_TOLERANCE = 1e-2         # Node movement convergence (0.01)
+REORDER_DEFAULT_AGGREGATION_TOLERANCE = 0.8
+REORDER_DEFAULT_TOLERANCE_DROP = 10.0    # Tolerance reduction per pass
+REORDER_DEFAULT_MAX_ITERATIONS = 10      # Max iterations per pass
+REORDER_DEFAULT_MAX_PASSES = 10          # Max aggregation passes
+
+# Aliases for backward compatibility
+LEIDEN_DEFAULT_RESOLUTION = REORDER_DEFAULT_RESOLUTION
+LEIDEN_DEFAULT_TOLERANCE = REORDER_DEFAULT_TOLERANCE
+LEIDEN_DEFAULT_AGGREGATION_TOLERANCE = REORDER_DEFAULT_AGGREGATION_TOLERANCE
+LEIDEN_DEFAULT_QUALITY_FACTOR = REORDER_DEFAULT_TOLERANCE_DROP
+LEIDEN_DEFAULT_MAX_ITERATIONS = REORDER_DEFAULT_MAX_ITERATIONS
+LEIDEN_DEFAULT_MAX_PASSES = REORDER_DEFAULT_MAX_PASSES
+LEIDEN_MODULARITY_MAX_ITERATIONS = 20    # For quality-focused runs
 LEIDEN_MODULARITY_MAX_PASSES = 20
 
 # Normalization factors for weight computation
@@ -115,23 +126,33 @@ LEIDEN_DENDROGRAM_VARIANTS = ["dfs", "dfshub", "dfssize", "bfs", "hybrid"]
 #   gveturbo: Speed-optimized (optional refinement skip)
 #   gvefast: CSR buffer reuse (leiden.hxx style)
 # Legacy variants: gvedendo/gveoptdendo (incremental dendrogram)
+# VIBE variants: vibe (Leiden-based), vibe:rabbit (RabbitOrder), vibe:streaming (lazy aggregation)
 LEIDEN_CSR_VARIANTS = [
     "gve", "gveopt", "gveopt2", "gveadaptive", "gveoptsort", "gveturbo", "gvefast",
-    "gvedendo", "gveoptdendo", "gverabbit", "dfs", "bfs", "hubsort", "modularity"
+    "gvedendo", "gveoptdendo", "gverabbit", "dfs", "bfs", "hubsort", "modularity",
+    # VIBE variants (new unified reordering framework)
+    "vibe", "vibe:dfs", "vibe:bfs", "vibe:dbg", "vibe:corder", "vibe:dbg-global", "vibe:corder-global",
+    "vibe:streaming", "vibe:streaming:dfs",  # Leiden + lazy aggregation
+    "vibe:rabbit", "vibe:rabbit:dfs", "vibe:rabbit:bfs", "vibe:rabbit:dbg", "vibe:rabbit:corder"  # RabbitOrder
 ]
 LEIDEN_CSR_DEFAULT_VARIANT = "gve"  # GVE-Leiden (best modularity quality)
 
 # Recommended variants for different use cases
-LEIDEN_CSR_FAST_VARIANTS = ["gveopt2", "gveadaptive", "gveturbo", "gvefast", "gverabbit"]  # Speed priority
-LEIDEN_CSR_QUALITY_VARIANTS = ["gve", "gveopt", "gveopt2", "gveadaptive"]  # Quality priority
+LEIDEN_CSR_FAST_VARIANTS = ["gveopt2", "gveadaptive", "gveturbo", "gvefast", "gverabbit", "vibe:rabbit"]  # Speed priority
+LEIDEN_CSR_QUALITY_VARIANTS = ["gve", "gveopt", "gveopt2", "gveadaptive", "vibe", "vibe:dfs"]  # Quality priority
+
+# VIBE-specific variant groups
+VIBE_LEIDEN_VARIANTS = ["vibe", "vibe:dfs", "vibe:bfs", "vibe:dbg", "vibe:corder", "vibe:dbg-global", "vibe:corder-global", "vibe:streaming"]
+VIBE_RABBIT_VARIANTS = ["vibe:rabbit", "vibe:rabbit:dfs", "vibe:rabbit:bfs", "vibe:rabbit:dbg", "vibe:rabbit:corder"]
 
 # Resolution modes
 LEIDEN_RESOLUTION_MODES = ["auto", "dynamic", "1.0", "1.5", "2.0"]
 
-# Leiden default parameters
-# "dynamic" gives best PR performance on most graphs (especially web graphs)
-# "auto" is good for unknown graphs, fixed values for specific tuning
-LEIDEN_DEFAULT_RESOLUTION = "dynamic"  # Dynamic adjustment per-pass
+# Leiden default resolution mode for experiments
+# NOTE: LEIDEN_DEFAULT_RESOLUTION constant (= 1.0) defined above is for algorithm defaults
+# "dynamic" gives best PR performance on web graphs (adjusts per-pass)
+# "auto" computes once from graph properties (density, degree CV)
+LEIDEN_DEFAULT_RESOLUTION_MODE = "dynamic"  # Per-pass adjustment for experiments
 LEIDEN_DEFAULT_PASSES = 3
 
 # Benchmark definitions
