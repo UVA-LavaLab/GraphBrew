@@ -230,6 +230,7 @@ Average Time:        0.001xx
 ```bash
 ./bench/bin/pr -f graph.el -s -o 17:gveopt2:auto -n 3      # Best overall
 ./bench/bin/pr -f graph.el -s -o 17:gveadaptive:dynamic -n 3  # Unknown graphs
+./bench/bin/pr -f graph.el -s -o 17:vibe:dynamic -n 3      # VIBE unified framework
 ```
 
 **Resolution modes:**
@@ -238,6 +239,8 @@ Average Time:        0.001xx
 | Fixed | `1.5` | Use specified resolution |
 | Auto | `auto` or `0` | Compute from graph |
 | Dynamic | `dynamic` | Adjust each pass |
+
+> **Note:** Dynamic resolution is supported by `gveadaptive` and `vibe` variants. RabbitOrder variants (`vibe:rabbit`) fall back to auto.
 
 ---
 

@@ -298,6 +298,7 @@ Use **perceptron_experiment.py** when you want to train better weights.
 | `--csr-variants` | LeidenCSR variants (see `LEIDEN_CSR_VARIANTS` in utils.py) |
 | `--rabbit-variants` | RabbitOrder variants (see `RABBITORDER_VARIANTS` in utils.py) |
 | `--dendrogram-variants` | LeidenDendrogram variants (see `LEIDEN_DENDROGRAM_VARIANTS` in utils.py) |
+| `--vibe-variants` | VIBE variants (see `VIBE_LEIDEN_VARIANTS`, `VIBE_RABBIT_VARIANTS` in utils.py) |
 | `--resolution` | Leiden resolution: `dynamic` (default, best PR), `auto`, fixed (e.g., `1.5`), `dynamic_2.0` |
 | `--passes` | Leiden passes parameter (default: 3) |
 
@@ -306,6 +307,7 @@ Use **perceptron_experiment.py** when you want to train better weights.
 - **LeidenCSR:** `gve` (GVE-Leiden with refinement, best modularity)
 - **RabbitOrder:** `csr` (native CSR, faster, no external deps)
 - **LeidenDendrogram:** `hybrid` (adaptive traversal)
+- **VIBE:** `vibe` (Leiden-based, hierarchical ordering)
 
 **LeidenCSR Variant Categories:**
 | Category | Variants | Use Case |
@@ -314,6 +316,27 @@ Use **perceptron_experiment.py** when you want to train better weights.
 | Speed | `gveopt2`, `gveadaptive`, `gveturbo`, `gvefast`, `gverabbit` | Fastest reordering |
 | Traversal | `dfs`, `bfs`, `hubsort` | Specific ordering patterns |
 | Special | `modularity`, `gvedendo`, `gveoptdendo` | Modularity-optimized, dendrogram-based |
+| **VIBE** | `vibe`, `vibe:dfs`, `vibe:dbg`, `vibe:streaming`, `vibe:dynamic` | Leiden + configurable ordering |
+| **VIBE Rabbit** | `vibe:rabbit`, `vibe:rabbit:dfs`, `vibe:rabbit:dbg` | RabbitOrder + post-ordering |
+
+**VIBE Variants (Unified Framework):**
+| Variant | Algorithm | Description |
+|---------|-----------|-------------|
+| `vibe` | Leiden | Multi-pass community detection + hierarchical ordering |
+| `vibe:dfs` | Leiden | + DFS dendrogram traversal |
+| `vibe:dbg` | Leiden | + DBG within each community |
+| `vibe:streaming` | Leiden | + Lazy aggregation (faster) |
+| `vibe:dynamic` | Leiden | + Per-pass resolution adjustment |
+| `vibe:rabbit` | RabbitOrder | Single-pass parallel aggregation |
+| `vibe:rabbit:dfs` | RabbitOrder | + DFS post-ordering |
+| `vibe:rabbit:dbg` | RabbitOrder | + DBG post-ordering |
+
+**VIBE Resolution Modes:**
+| Mode | Option | Description |
+|------|--------|-------------|
+| Auto | `vibe:auto` | Graph-adaptive resolution (computed once, default) |
+| Dynamic | `vibe:dynamic` | Adjusted per-pass based on runtime metrics |
+| Fixed | `vibe:0.75` | User-specified fixed value |
 
 **Example - Compare GVE variants on 5 largest graphs:**
 ```bash
@@ -323,6 +346,16 @@ python3 scripts/graphbrew_experiment.py \
   --csr-variants gve gveopt gveopt2 gveadaptive \
   --rabbit-variants csr boost \
   --benchmarks pr bfs cc sssp \
+  --skip-build --auto
+```
+
+**Example - Test VIBE variants:**
+```bash
+python3 scripts/graphbrew_experiment.py \
+  --phase benchmark \
+  --graph-list web-Google wiki-Talk \
+  --csr-variants vibe vibe:dfs vibe:dbg vibe:dynamic vibe:rabbit vibe:rabbit:dfs \
+  --benchmarks pr bfs \
   --skip-build --auto
 ```
 
@@ -448,6 +481,8 @@ from scripts.lib.utils import (
     # Variant lists
     LEIDEN_CSR_VARIANTS, GRAPHBREW_VARIANTS,
     RABBITORDER_VARIANTS, LEIDEN_DENDROGRAM_VARIANTS,
+    VIBE_LEIDEN_VARIANTS,   # ['vibe', 'vibe:dfs', 'vibe:dbg', ...]
+    VIBE_RABBIT_VARIANTS,   # ['vibe:rabbit', 'vibe:rabbit:dfs', ...]
     
     # Size thresholds (MB)
     SIZE_SMALL, SIZE_MEDIUM, SIZE_LARGE, SIZE_XLARGE,

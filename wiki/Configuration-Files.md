@@ -289,13 +289,18 @@ All tunable constants are defined in **one location** to ensure consistency betw
 ### Python Constants (scripts/lib/utils.py)
 
 ```python
-# Leiden Algorithm Parameters (match C++ reorder_leiden.h)
-LEIDEN_DEFAULT_RESOLUTION = 0.75          # Community detection resolution
-LEIDEN_DEFAULT_TOLERANCE = 1e-2           # Convergence tolerance (0.01)
-LEIDEN_DEFAULT_AGGREGATION_TOLERANCE = 0.8
-LEIDEN_DEFAULT_QUALITY_FACTOR = 10.0
-LEIDEN_DEFAULT_MAX_ITERATIONS = 10        # Standard mode
-LEIDEN_DEFAULT_MAX_PASSES = 10
+# Unified Reorder Configuration (match C++ reorder::ReorderConfig in reorder_types.h)
+# Used by: VIBE, Leiden, GraphBrew, RabbitOrder, Adaptive
+REORDER_DEFAULT_RESOLUTION = 1.0          # Modularity resolution (auto-computed from graph)
+REORDER_DEFAULT_TOLERANCE = 1e-2          # Convergence tolerance (0.01)
+REORDER_DEFAULT_AGGREGATION_TOLERANCE = 0.8
+REORDER_DEFAULT_TOLERANCE_DROP = 10.0     # Tolerance reduction per pass
+REORDER_DEFAULT_MAX_ITERATIONS = 10       # Max iterations per pass
+REORDER_DEFAULT_MAX_PASSES = 10           # Max aggregation passes
+
+# Backward-compatible aliases
+LEIDEN_DEFAULT_RESOLUTION = REORDER_DEFAULT_RESOLUTION
+LEIDEN_DEFAULT_MAX_ITERATIONS = REORDER_DEFAULT_MAX_ITERATIONS
 LEIDEN_MODULARITY_MAX_ITERATIONS = 20     # Quality-focused mode
 LEIDEN_MODULARITY_MAX_PASSES = 20
 
@@ -311,22 +316,30 @@ TIMEOUT_SIM = 1200           # 20 minutes
 TIMEOUT_SIM_HEAVY = 3600     # 1 hour (bc, sssp simulations)
 ```
 
-### C++ Constants (bench/include/graphbrew/reorder/reorder_leiden.h)
+### C++ Constants (bench/include/graphbrew/reorder/reorder_types.h)
 
 ```cpp
-namespace graphbrew::leiden {
-constexpr double DEFAULT_RESOLUTION = 0.75;
-constexpr double DEFAULT_TOLERANCE = 1e-2;
+namespace reorder {
+// Unified defaults for ALL community-based reordering
+constexpr double DEFAULT_RESOLUTION = 1.0;           // Modularity (auto-computed)
+constexpr double DEFAULT_TOLERANCE = 1e-2;           // Convergence
 constexpr double DEFAULT_AGGREGATION_TOLERANCE = 0.8;
-constexpr double DEFAULT_QUALITY_FACTOR = 10.0;
-constexpr int DEFAULT_MAX_ITERATIONS = 10;
-constexpr int DEFAULT_MAX_PASSES = 10;
-constexpr int MODULARITY_MAX_ITERATIONS = 20;
-constexpr int MODULARITY_MAX_PASSES = 20;
+constexpr double DEFAULT_TOLERANCE_DROP = 10.0;      // Per-pass reduction
+constexpr int DEFAULT_MAX_ITERATIONS = 10;           // Per-pass limit
+constexpr int DEFAULT_MAX_PASSES = 10;               // Total passes
+
+struct ReorderConfig {
+    ResolutionMode resolutionMode = ResolutionMode::AUTO;
+    double resolution = DEFAULT_RESOLUTION;
+    int maxIterations = DEFAULT_MAX_ITERATIONS;
+    int maxPasses = DEFAULT_MAX_PASSES;
+    OrderingStrategy ordering = OrderingStrategy::HIERARCHICAL;
+    // ... full config with FromOptions(), applyAutoResolution()
+};
 }
 ```
 
-> ⚠️ **Important**: When changing constants, update **both** `utils.py` and `reorder_leiden.h` to keep them synchronized.
+> ⚠️ **Important**: When changing defaults, update `reorder_types.h` (single source of truth). `reorder_leiden.h` and other headers reference these unified constants.
 
 ---
 
