@@ -2852,11 +2852,19 @@ public:
                 }
             }
         }
-        if (reordering_options.size() > 2 && !reordering_options[2].empty()) {
-            max_iterations = std::stoi(reordering_options[2]);
-        }
-        if (reordering_options.size() > 3 && !reordering_options[3].empty()) {
-            max_passes = std::stoi(reordering_options[3]);
+        
+        // For VIBE variants, skip integer parsing - VIBE has its own flexible parser
+        // that handles options like "vibe:rabbit:bfs" where later args aren't integers
+        bool isVibeVariant = (variant == "vibe" || variant.rfind("vibe", 0) == 0);
+        
+        if (!isVibeVariant) {
+            // Only try to parse iterations/passes for non-VIBE variants
+            if (reordering_options.size() > 2 && !reordering_options[2].empty()) {
+                try { max_iterations = std::stoi(reordering_options[2]); } catch (...) {}
+            }
+            if (reordering_options.size() > 3 && !reordering_options[3].empty()) {
+                try { max_passes = std::stoi(reordering_options[3]); } catch (...) {}
+            }
         }
         
         printf("LeidenCSR: resolution=%.2f, max_passes=%d, max_iterations=%d, variant=%s\n", 
@@ -2898,6 +2906,9 @@ public:
         } else if (variant == "gve") {
             // GVE-Leiden: True Leiden algorithm per ACM paper
             GenerateGVELeidenCSRMapping(g, new_ids, internal_options);
+        } else if (variant == "gve2") {
+            // GVE-Leiden2: Double-buffered super-graph (leiden.hxx style) - faster
+            GenerateGVELeidenCSR2Mapping(g, new_ids, internal_options);
         } else if (variant == "gveopt") {
             // GVE-Leiden Optimized: Cache-optimized Leiden with prefetching
             GenerateGVELeidenOptMapping(g, new_ids, internal_options);
@@ -2925,6 +2936,36 @@ public:
         } else if (variant == "gverabbit" || variant == "rabbit") {
             // GVE-Rabbit: Hybrid RabbitOrder speed + Leiden quality
             GenerateGVERabbitMapping(g, new_ids, internal_options);
+        } else if (variant == "faithful") {
+            // Faithful 1:1 Leiden implementation (matches leiden.hxx exactly)
+            GenerateFaithfulMapping(g, new_ids, internal_options);
+        } else if (variant == "vibe" || variant.rfind("vibe:", 0) == 0 || variant.rfind("vibe", 0) == 0) {
+            // VIBE: Fully modular implementation
+            // Supports combinations like: vibe, vibe:dfs, vibe:rabbit:bfs, etc.
+            // Pass ALL reordering_options (except variant) through VIBE config parser
+            std::vector<std::string> vibe_options;
+            
+            // If variant has colon-separated parts after "vibe", split them first
+            if (variant.length() > 4) {
+                std::string rest = variant.substr(4); // Skip "vibe"
+                if (!rest.empty() && rest[0] == ':') rest = rest.substr(1);
+                std::stringstream ss(rest);
+                std::string part;
+                while (std::getline(ss, part, ':')) {
+                    if (!part.empty()) vibe_options.push_back(part);
+                }
+            }
+            
+            // Add all options from reordering_options[1:] (skip the variant itself)
+            // This captures things like "rabbit", "bfs", resolution, etc.
+            for (size_t i = 1; i < reordering_options.size(); ++i) {
+                if (!reordering_options[i].empty()) {
+                    vibe_options.push_back(reordering_options[i]);
+                }
+            }
+            
+            // Let VIBE parser handle everything
+            GenerateVibeMapping(g, new_ids, vibe_options);
         } else {
             // Default to GVE-Leiden (best quality)
             GenerateGVELeidenCSRMapping(g, new_ids, internal_options);
@@ -3063,6 +3104,32 @@ public:
         pvector<NodeID_>& new_ids,
         std::vector<std::string> reordering_options) {
         ::GenerateGVERabbitMapping<K, NodeID_, DestID_>(g, new_ids, reordering_options);
+    }
+
+    /**
+     * GenerateFaithfulMapping - Faithful 1:1 Leiden implementation
+     * Uses the new vibe::leiden() algorithm that exactly matches leiden.hxx
+     * Delegates to ::GenerateFaithfulMapping in reorder/reorder_leiden.h
+     */
+    void GenerateFaithfulMapping(
+        const CSRGraph<NodeID_, DestID_, invert>& g,
+        pvector<NodeID_>& new_ids,
+        std::vector<std::string> reordering_options) {
+        ::GenerateFaithfulMapping<K, NodeID_, DestID_>(g, new_ids, reordering_options);
+    }
+
+    /**
+     * GenerateVibeMapping - VIBE: Fully modular Leiden implementation
+     * Configurable ordering and aggregation strategies
+     * Delegates to ::GenerateVibeMapping in reorder/reorder_leiden.h
+     */
+    void GenerateVibeMapping(
+        const CSRGraph<NodeID_, DestID_, invert>& g,
+        pvector<NodeID_>& new_ids,
+        std::vector<std::string> reordering_options,
+        vibe::OrderingStrategy ordering = vibe::OrderingStrategy::HIERARCHICAL,
+        vibe::AggregationStrategy aggregation = vibe::AggregationStrategy::LEIDEN_CSR) {
+        ::GenerateVibeMapping<K, NodeID_, DestID_>(g, new_ids, reordering_options, ordering, aggregation);
     }
 
     // ========================================================================

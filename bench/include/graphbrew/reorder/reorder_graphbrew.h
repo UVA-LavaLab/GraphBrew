@@ -272,16 +272,16 @@ using ::GetSelectionMode;
 // ============================================================================
 
 // Unified Leiden defaults - for fair comparison across all Leiden algorithms
-// These match the constants in builder.h
+// Use unified defaults from reorder namespace for consistency
 #ifndef LEIDEN_DEFAULT_ITERATIONS
-#define LEIDEN_DEFAULT_ITERATIONS 20
+#define LEIDEN_DEFAULT_ITERATIONS reorder::DEFAULT_MAX_ITERATIONS
 #endif
 #ifndef LEIDEN_DEFAULT_PASSES
-#define LEIDEN_DEFAULT_PASSES 10
+#define LEIDEN_DEFAULT_PASSES reorder::DEFAULT_MAX_PASSES
 #endif
 
-// GraphBrew defaults
-constexpr double DEFAULT_GRAPHBREW_RESOLUTION = 0.75;
+// GraphBrew defaults - use unified resolution
+constexpr double DEFAULT_GRAPHBREW_RESOLUTION = reorder::DEFAULT_RESOLUTION;
 constexpr int DEFAULT_GRAPHBREW_LEVELS = 1;
 constexpr int DEFAULT_FINAL_ALGO = 8;  // RabbitOrder
 
