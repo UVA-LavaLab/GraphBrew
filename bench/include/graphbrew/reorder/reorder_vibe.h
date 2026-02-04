@@ -283,7 +283,7 @@ struct VibeConfig {
     bool useDegreeSorting = false;     ///< Process vertices by ascending degree (adds sorting overhead)
     
     // Memory optimizations
-    bool useLazyUpdates = false;       ///< Batch community weight updates (reduces atomics) [TODO: not yet wired up]
+    bool useLazyUpdates = false;       ///< Batch community weight updates (reduces atomics in non-REFINE phase)
     bool useRelaxedMemory = false;     ///< Use relaxed memory ordering in LazyUpdateBuffer [requires useLazyUpdates]
     bool reuseBuffers = true;          ///< Reuse SuperGraph buffers across passes (avoids reallocation)
     
@@ -543,10 +543,9 @@ struct CommunityScanner {
  * we batch updates and apply them at the end of each iteration.
  * This reduces atomic contention significantly.
  * 
- * NOTE: This is infrastructure for future optimization. Currently not wired up
- * to changeCommunity() because it requires refactoring the local-moving phase
- * to apply batched updates at iteration boundaries with proper synchronization.
- * Enable via config.useLazyUpdates when implemented.
+ * Used in non-REFINE phase when config.useLazyUpdates=true.
+ * REFINE phase still uses immediate atomics due to read-modify dependency
+ * (must check ctot before deciding to move).
  */
 template <typename K, typename W>
 struct LazyUpdateBuffer {
@@ -918,12 +917,18 @@ int localMovingPhase(
     const int64_t N = g.num_nodes();
     int iterations = 0;
     
-    // Allocate per-thread scanners
+    // Allocate per-thread scanners and lazy update buffers
     const int numThreads = omp_get_max_threads();
     std::vector<CommunityScanner<K, Weight>> scanners;
+    std::vector<LazyUpdateBuffer<K, Weight>> lazyBuffers;
     for (int t = 0; t < numThreads; ++t) {
         scanners.emplace_back(N);
+        lazyBuffers.emplace_back();
     }
+    
+    // Decide whether to use lazy updates this phase
+    // REFINE phase cannot use lazy due to read-modify dependency on ctot
+    const bool useLazy = config.useLazyUpdates && !REFINE;
     
     // Build degree-sorted vertex order (ascending - low degree first)
     // This is a key optimization from RabbitOrder: process low-degree vertices
@@ -956,6 +961,11 @@ int localMovingPhase(
         {
             int tid = omp_get_thread_num();
             auto& scanner = scanners[tid];
+            auto& lazyBuffer = lazyBuffers[tid];
+            
+            if (useLazy) {
+                lazyBuffer.clear();
+            }
             
             #pragma omp for schedule(dynamic, config.tileSize)
             for (int64_t i = 0; i < N; ++i) {
@@ -976,7 +986,20 @@ int localMovingPhase(
                     static_cast<K>(u), d, scanner, vtot, ctot, M, R);
                 
                 if (best_c != K(0)) {
-                    if (changeCommunity<REFINE>(vcom, ctot, static_cast<K>(u), best_c, vtot)) {
+                    bool moved = false;
+                    
+                    if (useLazy) {
+                        // Lazy mode: record move, defer ctot update
+                        K old_comm = vcom[u];
+                        vcom[u] = best_c;
+                        lazyBuffer.recordMove(old_comm, best_c, vtot[u]);
+                        moved = true;
+                    } else {
+                        // Immediate mode: atomic ctot update
+                        moved = changeCommunity<REFINE>(vcom, ctot, static_cast<K>(u), best_c, vtot);
+                    }
+                    
+                    if (moved) {
                         for (auto neighbor : g.out_neigh(static_cast<NodeID_T>(u))) {
                             NodeID_T v;
                             if constexpr (std::is_same_v<DestID_T, NodeID_T>) {
@@ -992,10 +1015,17 @@ int localMovingPhase(
                 vaff[u] = 0;
                 totalDelta += delta;
             }
+            
+            // Barrier before applying lazy updates
+            if (useLazy) {
+                #pragma omp barrier
+                // Apply this thread's batched updates
+                lazyBuffer.applyTo(ctot, config.useRelaxedMemory);
+            }
         }
         
         ++iterations;
-        VIBE_TRACE("  iter %d: totalDelta=%.6f", iter, totalDelta);
+        VIBE_TRACE("  iter %d: totalDelta=%.6f%s", iter, totalDelta, useLazy ? " (lazy)" : "");
         
         if constexpr (REFINE) break;  // Refinement: single pass
         if (totalDelta <= config.tolerance) break;
@@ -1023,11 +1053,16 @@ int localMovingPhaseSuperGraph(
     
     const int numThreads = omp_get_max_threads();
     std::vector<CommunityScanner<K, Weight>> scanners;
+    std::vector<LazyUpdateBuffer<K, Weight>> lazyBuffers;
     for (int t = 0; t < numThreads; ++t) {
         scanners.emplace_back(N);
+        lazyBuffers.emplace_back();
     }
     
-    VIBE_TRACE("localMovingPhaseSuperGraph<%s>: N=%zu", REFINE ? "REFINE" : "NORMAL", N);
+    // Decide whether to use lazy updates this phase
+    const bool useLazy = config.useLazyUpdates && !REFINE;
+    
+    VIBE_TRACE("localMovingPhaseSuperGraph<%s>: N=%zu%s", REFINE ? "REFINE" : "NORMAL", N, useLazy ? " (lazy)" : "");
     
     for (int iter = 0; iter < config.maxIterations; ++iter) {
         Weight totalDelta = Weight(0);
@@ -1036,6 +1071,11 @@ int localMovingPhaseSuperGraph(
         {
             int tid = omp_get_thread_num();
             auto& scanner = scanners[tid];
+            auto& lazyBuffer = lazyBuffers[tid];
+            
+            if (useLazy) {
+                lazyBuffer.clear();
+            }
             
             #pragma omp for schedule(dynamic, std::min(config.tileSize, size_t(256)))
             for (size_t u = 0; u < N; ++u) {
@@ -1053,7 +1093,20 @@ int localMovingPhaseSuperGraph(
                     static_cast<K>(u), d, scanner, vtot, ctot, M, R);
                 
                 if (best_c != K(0)) {
-                    if (changeCommunity<REFINE>(vcom, ctot, static_cast<K>(u), best_c, vtot)) {
+                    bool moved = false;
+                    
+                    if (useLazy) {
+                        // Lazy mode: record move, defer ctot update
+                        K old_comm = vcom[u];
+                        vcom[u] = best_c;
+                        lazyBuffer.recordMove(old_comm, best_c, vtot[u]);
+                        moved = true;
+                    } else {
+                        // Immediate mode: atomic ctot update
+                        moved = changeCommunity<REFINE>(vcom, ctot, static_cast<K>(u), best_c, vtot);
+                    }
+                    
+                    if (moved) {
                         size_t start = sg.offsets[u];
                         size_t end = sg.offsets[u] + sg.degrees[u];
                         for (size_t i = start; i < end; ++i) {
@@ -1064,6 +1117,12 @@ int localMovingPhaseSuperGraph(
                 
                 vaff[u] = 0;
                 totalDelta += delta;
+            }
+            
+            // Barrier before applying lazy updates
+            if (useLazy) {
+                #pragma omp barrier
+                lazyBuffer.applyTo(ctot, config.useRelaxedMemory);
             }
         }
         
@@ -3387,6 +3446,10 @@ inline VibeConfig parseVibeConfig(const std::vector<std::string>& options) {
         // Check for refinement
         else if (opt == "norefine") {
             config.useRefinement = false;
+        }
+        // Check for lazy community weight updates
+        else if (opt == "lazyupdate" || opt == "lazyupdates") {
+            config.useLazyUpdates = true;
         }
         // Check for verification
         else if (opt == "verify") {
