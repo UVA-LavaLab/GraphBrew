@@ -200,6 +200,7 @@ VIBE (Vertex Indexing for Better Efficiency) provides a unified reordering frame
 | `vibe:dbg-global` | `-o 17:vibe:dbg-global` | DBG across all vertices |
 | `vibe:corder-global` | `-o 17:vibe:corder-global` | Hot/cold across all vertices |
 | `vibe:streaming` | `-o 17:vibe:streaming` | Leiden + lazy aggregation |
+| `vibe:lazyupdate` | `-o 17:vibe:lazyupdate` | Batched community weight updates (reduces atomics) |
 | `vibe:auto` | `-o 17:vibe:auto` | Auto-computed resolution (computed once) |
 | `vibe:dynamic` | `-o 17:vibe:dynamic` | Dynamic resolution (adjusted per-pass) |
 

@@ -102,6 +102,7 @@ Choosing the right reordering algorithm depends on your graph characteristics. F
 ./bench/bin/pr -f graph.mtx -o 17:vibe:dfs             # Leiden + DFS dendrogram
 ./bench/bin/pr -f graph.mtx -o 17:vibe:dbg             # Leiden + DBG per community
 ./bench/bin/pr -f graph.mtx -o 17:vibe:streaming       # Leiden + lazy aggregation
+./bench/bin/pr -f graph.mtx -o 17:vibe:lazyupdate      # Batched community updates (reduces atomics)
 ./bench/bin/pr -f graph.mtx -o 17:vibe:dynamic         # Leiden + per-pass resolution adjustment
 ./bench/bin/pr -f graph.mtx -o 17:vibe:rabbit          # RabbitOrder algorithm
 ./bench/bin/pr -f graph.mtx -o 17:vibe:rabbit:dfs      # RabbitOrder + DFS post-ordering

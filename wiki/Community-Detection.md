@@ -192,6 +192,7 @@ The **GVEAdaptive** variant (Algorithm 17:gveadaptive) and **VIBE** (Algorithm 1
 | `vibe` | `-o 17:vibe:dynamic` | VIBE unified framework |
 | `vibe:dfs` | `-o 17:vibe:dfs:dynamic` | VIBE + DFS ordering |
 | `vibe:streaming` | `-o 17:vibe:streaming:dynamic` | VIBE + lazy aggregation |
+| `vibe:lazyupdate` | `-o 17:vibe:lazyupdate` | VIBE + batched ctot updates |
 
 > **Note:** RabbitOrder variants (`vibe:rabbit`) do not support dynamic resolution and fall back to auto.
 

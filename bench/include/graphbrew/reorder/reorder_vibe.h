@@ -102,6 +102,7 @@
  *   ./bench/bin/pr -f graph.mtx -o 17:vibe:dfs -n 5       # DFS ordering
  *   ./bench/bin/pr -f graph.mtx -o 17:vibe:dbg -n 5       # DBG per community
  *   ./bench/bin/pr -f graph.mtx -o 17:vibe:streaming -n 5 # Lazy aggregation
+ *   ./bench/bin/pr -f graph.mtx -o 17:vibe:lazyupdate -n 5 # Batched ctot updates (reduces atomics)
  *   ./bench/bin/pr -f graph.mtx -o 17:vibe:auto -n 5      # Auto-computed resolution (fixed)
  *   ./bench/bin/pr -f graph.mtx -o 17:vibe:dynamic -n 5   # Dynamic resolution (per-pass adjustment)
  *   ./bench/bin/pr -f graph.mtx -o 17:vibe:0.75 -n 5      # Fixed resolution (0.75)
