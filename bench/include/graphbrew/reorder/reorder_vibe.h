@@ -283,9 +283,9 @@ struct VibeConfig {
     bool useDegreeSorting = false;     ///< Process vertices by ascending degree (adds sorting overhead)
     
     // Memory optimizations
-    bool useLazyUpdates = true;        ///< Batch community weight updates (reduces atomics)
-    bool useRelaxedMemory = true;      ///< Use relaxed memory ordering where safe
-    bool reuseBuffers = true;          ///< Reuse SuperGraph buffers across passes
+    bool useLazyUpdates = false;       ///< Batch community weight updates (reduces atomics) [TODO: not yet wired up]
+    bool useRelaxedMemory = false;     ///< Use relaxed memory ordering where safe [TODO: not yet wired up]
+    bool reuseBuffers = true;          ///< Reuse SuperGraph buffers across passes (avoids reallocation)
     
     // Cache optimization - use unified defaults
     size_t tileSize = reorder::DEFAULT_TILE_SIZE;              ///< Tile size for cache blocking
@@ -542,6 +542,11 @@ struct CommunityScanner {
  * Instead of atomically updating ctot on every vertex move,
  * we batch updates and apply them at the end of each iteration.
  * This reduces atomic contention significantly.
+ * 
+ * NOTE: This is infrastructure for future optimization. Currently not wired up
+ * to changeCommunity() because it requires refactoring the local-moving phase
+ * to apply batched updates at iteration boundaries with proper synchronization.
+ * Enable via config.useLazyUpdates when implemented.
  */
 template <typename K, typename W>
 struct LazyUpdateBuffer {
@@ -2935,6 +2940,15 @@ VibeResult<K> runVibe(
     std::vector<size_t> coff;
     std::vector<K> cvtx;
     
+    // Pre-allocate SuperGraph buffers if reusing (estimate: N nodes, 2*edges)
+    if (config.reuseBuffers) {
+        const size_t estNodes = N;
+        const size_t estEdges = g.num_edges();
+        sgY.reserve(estNodes, estEdges);
+        sgZ.reserve(estNodes, estEdges);
+        VIBE_TRACE("reuseBuffers: reserved %zu nodes, %zu edges", estNodes, estEdges);
+    }
+    
     // Step 1: Compute vertex weights
     Timer phaseTimer;
     phaseTimer.Start();
@@ -3089,7 +3103,12 @@ VibeResult<K> runVibe(
         phaseTimer.Stop();
         result.aggregationTime += phaseTimer.Seconds();
         
+        // Swap buffers - sgZ becomes the new sgY
+        // If reuseBuffers, the old sgY keeps its reserved capacity for next aggregation
         std::swap(sgY, sgZ);
+        if (config.reuseBuffers) {
+            sgZ.softClear();  // Clear counts but keep allocated memory
+        }
         VIBE_TRACE("  aggregation: C=%zu, %.4fs", C, phaseTimer.Seconds());
         
         // ================================================================
