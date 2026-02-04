@@ -4,14 +4,28 @@
 // This header defines common types, structures, and utility functions used
 // across all reordering algorithm implementations.
 //
+// UNIFIED CONFIGURATION (reorder::ReorderConfig):
+//   All community-based reordering algorithms (VIBE, Leiden, GraphBrew,
+//   RabbitOrder, Adaptive) use the unified defaults defined in the
+//   reorder:: namespace. This ensures:
+//   - Consistent behavior across all algorithms
+//   - Single source of truth for default parameters
+//   - Fair benchmarking comparisons
+//
+//   Key defaults:
+//     reorder::DEFAULT_RESOLUTION = 1.0       (auto-computed from graph)
+//     reorder::DEFAULT_MAX_ITERATIONS = 10    (per pass)
+//     reorder::DEFAULT_MAX_PASSES = 10        (total)
+//
 // Architecture:
-//   - reorder_types.h     : Types, forward declarations, utilities (this file)
+//   - reorder_types.h     : Types, ReorderConfig, utilities (this file)
 //   - reorder_basic.h     : Basic algorithms (Original, Random, Sort)
 //   - reorder_hub.h       : Hub-based algorithms (HubSort, HubCluster, DBG)
 //   - reorder_rabbit.h    : RabbitOrder (Louvain-based community detection)
 //   - reorder_classic.h   : Classic algorithms (GOrder, COrder, RCM)
 //   - reorder_gve_leiden.h: GVE-Leiden core algorithm implementation
 //   - reorder_leiden.h    : Leiden-based orderings (LeidenOrder, LeidenCSR, etc.)
+//   - reorder_vibe.h      : VIBE unified reordering framework
 //   - reorder_graphbrew.h : GraphBrew hybrid and Adaptive algorithms
 //   - reorder.h           : Main dispatcher that includes all headers
 //
@@ -163,6 +177,288 @@ inline ReorderingAlgo getReorderingAlgo(const char* arg) {
     int algo_id = std::stoi(algo_str);
     return getReorderingAlgo(algo_id);
 }
+
+// ============================================================================
+// UNIFIED REORDER CONFIGURATION
+// ============================================================================
+// All reordering algorithms (VIBE, Leiden, GraphBrew, RabbitOrder, Adaptive)
+// should use these unified defaults for consistency and fair comparison.
+//
+// Design rationale:
+//   - Single source of truth for default parameters
+//   - Consistent behavior across all community-detection-based algorithms
+//   - Easy to modify defaults in one place
+//   - Supports both fixed and auto-computed resolution
+// ============================================================================
+
+/**
+ * @brief Unified default constants for all reordering algorithms
+ * 
+ * These values are used by VIBE, Leiden, GraphBrew, RabbitOrder, and Adaptive.
+ * They provide consistency across all community-based reordering algorithms.
+ */
+namespace reorder {
+
+// Resolution parameter (modularity): Controls community granularity
+// - Lower values → larger communities (coarser)
+// - Higher values → smaller communities (finer)
+// - 1.0 is standard modularity, <1.0 favors larger communities
+constexpr double DEFAULT_RESOLUTION = 1.0;      ///< Standard modularity resolution
+
+// Convergence thresholds
+constexpr double DEFAULT_TOLERANCE = 1e-2;      ///< Node movement convergence
+constexpr double DEFAULT_AGGREGATION_TOLERANCE = 0.8;  ///< When to stop aggregating
+constexpr double DEFAULT_TOLERANCE_DROP = 10.0; ///< Tolerance reduction factor per pass
+
+// Iteration limits
+constexpr int DEFAULT_MAX_ITERATIONS = 10;      ///< Max iterations per pass (local moving)
+constexpr int DEFAULT_MAX_PASSES = 10;          ///< Max aggregation passes
+
+// Cache optimization
+constexpr size_t DEFAULT_TILE_SIZE = 4096;      ///< Tile size for cache blocking
+constexpr size_t DEFAULT_PREFETCH_DISTANCE = 8; ///< Prefetch lookahead
+
+/**
+ * @brief Resolution mode for community-based algorithms
+ */
+enum class ResolutionMode {
+    FIXED,      ///< Use user-specified fixed value
+    AUTO,       ///< Compute from graph properties (density-based)
+    DYNAMIC     ///< Adjust per-pass based on runtime metrics
+};
+
+/**
+ * @brief Ordering strategy for final vertex ordering
+ */
+enum class OrderingStrategy {
+    HIERARCHICAL,   ///< Sort communities then by degree within (default)
+    DFS,            ///< DFS traversal of community hierarchy
+    BFS,            ///< BFS traversal of community hierarchy
+    DBG,            ///< Degree-Based Grouping within communities
+    CORDER,         ///< COrder-style cache-aware ordering
+    HUB_CLUSTER,    ///< Hub clustering with community awareness
+    COMMUNITY_SORT  ///< Simple community-then-node-id sort
+};
+
+/**
+ * @brief Aggregation strategy for multi-level algorithms
+ */
+enum class AggregationStrategy {
+    CSR_BUFFER,     ///< Standard CSR-based aggregation (Leiden-style)
+    LAZY_STREAMING, ///< Lazy aggregation (RabbitOrder-style)
+    HYBRID          ///< Auto-select based on graph density
+};
+
+/**
+ * @brief Unified configuration for all reordering algorithms
+ * 
+ * This structure provides a consistent interface for configuring any
+ * community-detection-based reordering algorithm in GraphBrew.
+ * 
+ * Usage:
+ *   ReorderConfig cfg;
+ *   cfg.resolution = 0.75;
+ *   cfg.maxIterations = 20;
+ *   // Pass to any algorithm: VIBE, Leiden, GraphBrew, etc.
+ */
+struct ReorderConfig {
+    // ========================================================================
+    // RESOLUTION PARAMETERS
+    // ========================================================================
+    ResolutionMode resolutionMode = ResolutionMode::AUTO;  ///< How resolution is determined
+    double resolution = DEFAULT_RESOLUTION;     ///< Modularity resolution parameter
+    double initialResolution = DEFAULT_RESOLUTION;  ///< Initial value for dynamic mode
+    
+    // ========================================================================
+    // CONVERGENCE PARAMETERS
+    // ========================================================================
+    double tolerance = DEFAULT_TOLERANCE;       ///< Node movement convergence threshold
+    double aggregationTolerance = DEFAULT_AGGREGATION_TOLERANCE; ///< Aggregation stop threshold
+    double toleranceDrop = DEFAULT_TOLERANCE_DROP;  ///< Tolerance reduction per pass
+    
+    // ========================================================================
+    // ITERATION LIMITS
+    // ========================================================================
+    int maxIterations = DEFAULT_MAX_ITERATIONS; ///< Max iterations per pass
+    int maxPasses = DEFAULT_MAX_PASSES;         ///< Max aggregation passes
+    
+    // ========================================================================
+    // ALGORITHM SELECTION
+    // ========================================================================
+    OrderingStrategy ordering = OrderingStrategy::HIERARCHICAL;
+    AggregationStrategy aggregation = AggregationStrategy::CSR_BUFFER;
+    
+    // ========================================================================
+    // FEATURE FLAGS
+    // ========================================================================
+    bool useRefinement = true;      ///< Enable Leiden refinement step
+    bool usePrefetch = true;        ///< Enable cache prefetching
+    bool useParallelSort = true;    ///< Use parallel sorting
+    bool verifyTopology = false;    ///< Verify topology after reordering
+    bool verbose = false;           ///< Print debug/progress info
+    
+    // ========================================================================
+    // CACHE OPTIMIZATION
+    // ========================================================================
+    size_t tileSize = DEFAULT_TILE_SIZE;           ///< Tile size for cache blocking
+    size_t prefetchDistance = DEFAULT_PREFETCH_DISTANCE;  ///< Prefetch lookahead
+    
+    // ========================================================================
+    // HELPER METHODS
+    // ========================================================================
+    
+    /// Check if dynamic resolution mode
+    bool isDynamic() const { return resolutionMode == ResolutionMode::DYNAMIC; }
+    
+    /// Check if auto resolution mode
+    bool isAuto() const { return resolutionMode == ResolutionMode::AUTO; }
+    
+    /// Get effective resolution (for non-dynamic algorithms)
+    double getResolution() const {
+        return isDynamic() ? initialResolution : resolution;
+    }
+    
+    /// Apply auto-resolution from graph properties
+    template <typename NodeID_T, typename DestID_T>
+    void applyAutoResolution(const CSRGraph<NodeID_T, DestID_T, true>& g) {
+        if (resolutionMode == ResolutionMode::AUTO) {
+            resolution = computeGraphAdaptiveResolution(g);
+        } else if (resolutionMode == ResolutionMode::DYNAMIC) {
+            initialResolution = computeGraphAdaptiveResolution(g);
+        }
+    }
+    
+    /// Compute graph-adaptive resolution based on density and degree distribution
+    template <typename NodeID_T, typename DestID_T>
+    static double computeGraphAdaptiveResolution(const CSRGraph<NodeID_T, DestID_T, true>& g) {
+        const int64_t n = g.num_nodes();
+        const int64_t m = g.num_edges();
+        
+        if (n == 0) return DEFAULT_RESOLUTION;
+        
+        double avg_degree = static_cast<double>(m) / n;
+        
+        // Compute coefficient of variation for degree distribution
+        double sum_sq = 0.0;
+        #pragma omp parallel for reduction(+:sum_sq)
+        for (int64_t v = 0; v < n; ++v) {
+            double d = static_cast<double>(g.out_degree(v));
+            double diff = d - avg_degree;
+            sum_sq += diff * diff;
+        }
+        double variance = sum_sq / n;
+        double cv = (avg_degree > 0) ? std::sqrt(variance) / avg_degree : 0.0;
+        
+        // Base resolution from average degree
+        double res = 0.5 + 0.25 * std::log10(avg_degree + 1);
+        res = std::max(0.5, std::min(1.2, res));
+        
+        // Adjust for power-law/hubby graphs (high CV)
+        if (cv > 2.0) {
+            double factor = 2.0 / std::max(2.0, std::sqrt(cv));
+            res = std::max(0.5, res * factor);
+        }
+        
+        return res;
+    }
+    
+    /**
+     * @brief Parse configuration from command-line options
+     * 
+     * Supports formats:
+     *   - Numeric: resolution, iterations, passes (positional)
+     *   - Keywords: auto, dynamic, dfs, bfs, dbg, corder, streaming, norefine
+     * 
+     * Example: {"0.75", "20", "10"} → resolution=0.75, iters=20, passes=10
+     * Example: {"auto", "dfs"} → auto-resolution, DFS ordering
+     */
+    static ReorderConfig FromOptions(const std::vector<std::string>& options) {
+        ReorderConfig cfg;
+        
+        for (const auto& opt : options) {
+            if (opt.empty()) continue;
+            
+            // Resolution mode keywords
+            if (opt == "auto" || opt == "0") {
+                cfg.resolutionMode = ResolutionMode::AUTO;
+            } else if (opt == "dynamic") {
+                cfg.resolutionMode = ResolutionMode::DYNAMIC;
+            }
+            // Ordering keywords
+            else if (opt == "dfs") {
+                cfg.ordering = OrderingStrategy::DFS;
+            } else if (opt == "bfs") {
+                cfg.ordering = OrderingStrategy::BFS;
+            } else if (opt == "dbg") {
+                cfg.ordering = OrderingStrategy::DBG;
+            } else if (opt == "corder") {
+                cfg.ordering = OrderingStrategy::CORDER;
+            } else if (opt == "hubcluster" || opt == "hub") {
+                cfg.ordering = OrderingStrategy::HUB_CLUSTER;
+            } else if (opt == "community" || opt == "sort") {
+                cfg.ordering = OrderingStrategy::COMMUNITY_SORT;
+            }
+            // Aggregation keywords
+            else if (opt == "streaming" || opt == "lazy") {
+                cfg.aggregation = AggregationStrategy::LAZY_STREAMING;
+            } else if (opt == "hybrid") {
+                cfg.aggregation = AggregationStrategy::HYBRID;
+            }
+            // Feature flags
+            else if (opt == "norefine") {
+                cfg.useRefinement = false;
+            } else if (opt == "verify") {
+                cfg.verifyTopology = true;
+            } else if (opt == "verbose") {
+                cfg.verbose = true;
+            }
+            // Numeric values: resolution, iterations, passes
+            else {
+                try {
+                    double val = std::stod(opt);
+                    if (val > 0 && val <= 3 && (opt.find('.') != std::string::npos || val < 1)) {
+                        cfg.resolution = val;
+                        cfg.resolutionMode = ResolutionMode::FIXED;
+                    } else if (val >= 1 && val <= 100) {
+                        int intVal = static_cast<int>(val);
+                        if (cfg.maxIterations == DEFAULT_MAX_ITERATIONS) {
+                            cfg.maxIterations = intVal;
+                        } else {
+                            cfg.maxPasses = intVal;
+                        }
+                    } else if (val > 0 && val <= 3) {
+                        cfg.resolution = val;
+                        cfg.resolutionMode = ResolutionMode::FIXED;
+                    }
+                } catch (...) {
+                    // Ignore parsing errors
+                }
+            }
+        }
+        
+        return cfg;
+    }
+    
+    /// Print configuration summary
+    void print() const {
+        printf("ReorderConfig: resolution=%.4f (%s), iters=%d, passes=%d\n",
+               resolution,
+               resolutionMode == ResolutionMode::AUTO ? "auto" :
+               resolutionMode == ResolutionMode::DYNAMIC ? "dynamic" : "fixed",
+               maxIterations, maxPasses);
+        printf("  ordering=%s, aggregation=%s, refinement=%s\n",
+               ordering == OrderingStrategy::HIERARCHICAL ? "hierarchical" :
+               ordering == OrderingStrategy::DFS ? "dfs" :
+               ordering == OrderingStrategy::BFS ? "bfs" :
+               ordering == OrderingStrategy::DBG ? "dbg" :
+               ordering == OrderingStrategy::CORDER ? "corder" : "other",
+               aggregation == AggregationStrategy::CSR_BUFFER ? "csr" :
+               aggregation == AggregationStrategy::LAZY_STREAMING ? "streaming" : "hybrid",
+               useRefinement ? "on" : "off");
+    }
+};
+
+} // namespace reorder
 
 // ============================================================================
 // STANDALONE GRAPH BUILDING UTILITIES
