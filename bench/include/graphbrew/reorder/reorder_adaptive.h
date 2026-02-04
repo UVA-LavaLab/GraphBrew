@@ -110,10 +110,10 @@ namespace adaptive {
 // CONFIGURATION CONSTANTS
 // ============================================================================
 
-// Default parameters for AdaptiveOrder
+// Default parameters for AdaptiveOrder - use unified defaults
 constexpr int DEFAULT_MODE = 1;           // Per-community
 constexpr int DEFAULT_RECURSION_DEPTH = 0;
-constexpr double DEFAULT_RESOLUTION = 1.0;
+constexpr double DEFAULT_RESOLUTION = reorder::DEFAULT_RESOLUTION;
 constexpr size_t DEFAULT_MIN_RECURSE_SIZE = 50000;
 
 // Thresholds for recursion decisions
