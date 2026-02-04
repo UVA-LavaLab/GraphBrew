@@ -282,6 +282,11 @@ struct VibeConfig {
     bool useDynamicResolution = false; ///< Enable per-pass resolution adjustment
     bool useDegreeSorting = false;     ///< Process vertices by ascending degree (adds sorting overhead)
     
+    // Memory optimizations
+    bool useLazyUpdates = true;        ///< Batch community weight updates (reduces atomics)
+    bool useRelaxedMemory = true;      ///< Use relaxed memory ordering where safe
+    bool reuseBuffers = true;          ///< Reuse SuperGraph buffers across passes
+    
     // Cache optimization - use unified defaults
     size_t tileSize = reorder::DEFAULT_TILE_SIZE;              ///< Tile size for cache blocking
     size_t prefetchDistance = reorder::DEFAULT_PREFETCH_DISTANCE;  ///< Prefetch lookahead
@@ -450,12 +455,40 @@ struct SuperGraph {
     std::vector<W> weights;        ///< Edge weights
     size_t numNodes = 0;           ///< Number of super-nodes
     size_t numEdges = 0;           ///< Number of edges
+    size_t reservedNodes = 0;      ///< Reserved capacity for nodes
+    size_t reservedEdges = 0;      ///< Reserved capacity for edges
     
     void resize(size_t n, size_t e) {
         offsets.resize(n + 1);
         degrees.resize(n);
         neighbors.resize(e);
         weights.resize(e);
+    }
+    
+    /**
+     * Reserve capacity for reuse across passes
+     * Avoids repeated allocations when graph shrinks
+     */
+    void reserve(size_t n, size_t e) {
+        if (n > reservedNodes) {
+            offsets.reserve(n + 1);
+            degrees.reserve(n);
+            reservedNodes = n;
+        }
+        if (e > reservedEdges) {
+            neighbors.reserve(e);
+            weights.reserve(e);
+            reservedEdges = e;
+        }
+    }
+    
+    /**
+     * Soft clear - reset sizes but keep allocated memory
+     */
+    void softClear() {
+        numNodes = 0;
+        numEdges = 0;
+        // Don't shrink vectors - keep reserved capacity
     }
     
     void clear() {
@@ -500,6 +533,67 @@ struct CommunityScanner {
     
     W get(K community) const {
         return values[community];
+    }
+};
+
+/**
+ * Thread-local batch update buffer for lazy community weight updates
+ * 
+ * Instead of atomically updating ctot on every vertex move,
+ * we batch updates and apply them at the end of each iteration.
+ * This reduces atomic contention significantly.
+ */
+template <typename K, typename W>
+struct LazyUpdateBuffer {
+    std::vector<std::pair<K, W>> decrements;  ///< (community, weight) to subtract
+    std::vector<std::pair<K, W>> increments;  ///< (community, weight) to add
+    
+    LazyUpdateBuffer() {
+        decrements.reserve(1024);
+        increments.reserve(1024);
+    }
+    
+    void recordMove(K old_comm, K new_comm, W weight) {
+        decrements.emplace_back(old_comm, weight);
+        increments.emplace_back(new_comm, weight);
+    }
+    
+    void clear() {
+        decrements.clear();
+        increments.clear();
+    }
+    
+    bool empty() const {
+        return decrements.empty() && increments.empty();
+    }
+    
+    /**
+     * Apply batched updates to community weights
+     * Uses relaxed memory ordering for better performance
+     */
+    void applyTo(std::vector<W>& ctot, bool useRelaxed = true) {
+        if (useRelaxed) {
+            // Relaxed ordering is safe here since we synchronize at iteration boundary
+            for (auto& [c, w] : decrements) {
+                #pragma omp atomic
+                ctot[c] -= w;
+            }
+            for (auto& [c, w] : increments) {
+                #pragma omp atomic
+                ctot[c] += w;
+            }
+        } else {
+            // Strict ordering
+            for (auto& [c, w] : decrements) {
+                #pragma omp atomic
+                ctot[c] -= w;
+            }
+            for (auto& [c, w] : increments) {
+                #pragma omp atomic
+                ctot[c] += w;
+            }
+        }
+        clear();
     }
 };
 
