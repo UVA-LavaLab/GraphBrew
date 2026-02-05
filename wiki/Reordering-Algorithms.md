@@ -558,6 +558,8 @@ done
 ./bench/bin/pr -f graph.mtx -s -o 17:vibe:dbg-global -n 3 # DBG across all vertices
 ./bench/bin/pr -f graph.mtx -s -o 17:vibe:streaming -n 3  # Lazy aggregation (faster)
 ./bench/bin/pr -f graph.mtx -s -o 17:vibe:lazyupdate -n 3 # Batched ctot updates (reduces atomics)
+./bench/bin/pr -f graph.mtx -s -o 17:vibe:conn -n 3       # Connectivity BFS within communities (default ordering)
+./bench/bin/pr -f graph.mtx -s -o 17:vibe:hrab -n 3       # Hybrid Leiden+RabbitOrder (best for web/geometric)
 
 # Resolution modes
 ./bench/bin/pr -f graph.mtx -s -o 17:vibe:auto -n 3       # Auto (graph-adaptive, computed once)
@@ -604,6 +606,22 @@ done
 | CORDER | `vibe:corder` | Hot/cold separation within communities |
 | DBG_GLOBAL | `vibe:dbg-global` | DBG across all vertices (post-clustering) |
 | CORDER_GLOBAL | `vibe:corder-global` | Hot/cold across all vertices |
+| CONNECTIVITY_BFS | `vibe:conn` | BFS within communities using original graph edges (Boost-style, default) |
+| HYBRID_LEIDEN_RABBIT | `vibe:hrab` | Leiden communities + RabbitOrder super-graph ordering (best locality) |
+
+**New Ordering Strategies (v2):**
+
+**`vibe:conn` — Connectivity BFS** (aliases: `connbfs`, `connectivity`)
+BFS within each Leiden community using the original graph's adjacency structure. Unlike hierarchical ordering (which sorts by community ID + degree), connectivity BFS follows actual edges to place connected vertices consecutively. This is the approach used by RabbitOrder's Boost implementation. It serves as the default ordering strategy.
+
+**`vibe:hrab` — Hybrid Leiden+RabbitOrder** (aliases: `hybrid-rabbit`, `leidenrabbit`)
+A two-phase approach combining Leiden's high-quality community detection with RabbitOrder's super-graph ordering:
+1. **Phase 1: Leiden community detection** — Detects communities using GVE-Leiden (multi-pass refinement)
+2. **Phase 2: Super-graph construction** — Builds a weighted graph where each node is a community, edge weights = inter-community edges
+3. **Phase 3: RabbitOrder on super-graph** — Orders communities using RabbitOrder's cache-aware aggregation
+4. **Phase 4: BFS within communities** — Orders vertices within each community using connectivity BFS
+
+This hybrid approach captures the best of both worlds: Leiden's superior modularity quality (especially on power-law graphs) and RabbitOrder's cache-aware ordering of the community hierarchy. Benchmarks show **31% better geometric mean cache miss distance** compared to standalone RabbitOrder on web graphs (indochina-2004), and **96.7% near-neighbor hit rate** on geometric graphs (rgg_n_2_24_s0).
 
 **VIBE vs 8:csr (Native Rabbit) Benchmark:**
 
@@ -625,10 +643,10 @@ done
 | Graph Type | Recommended | Alternatives |
 |------------|-------------|--------------|
 | Social Networks | LeidenCSR (17:gveopt2) | LeidenDendrogram (16:hybrid) |
-| Web Graphs | LeidenCSR (17:gveopt2) | HUBCLUSTERDBG (7) |
+| Web Graphs | VIBE (17:vibe:hrab) | LeidenCSR (17:gveopt2) |
 | Road Networks | ORIGINAL (0), RCM (11) | LeidenCSR (17:gveadaptive) |
 | Citation Networks | LeidenCSR (17:gve) | LeidenOrder (15) |
-| Random Geometric | LeidenCSR (17:gveopt2) | DBG (5) |
+| Random Geometric | VIBE (17:vibe:hrab) | LeidenCSR (17:gveopt2) |
 | Unknown | LeidenCSR (17:gveadaptive) | AdaptiveOrder (14) |
 
 ### By Graph Size

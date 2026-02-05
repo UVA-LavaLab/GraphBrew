@@ -482,7 +482,7 @@ from scripts.lib.utils import (
     # Variant lists
     LEIDEN_CSR_VARIANTS, GRAPHBREW_VARIANTS,
     RABBITORDER_VARIANTS, LEIDEN_DENDROGRAM_VARIANTS,
-    VIBE_LEIDEN_VARIANTS,   # ['vibe', 'vibe:dfs', 'vibe:dbg', ...]
+    VIBE_LEIDEN_VARIANTS,   # ['vibe', 'vibe:dfs', 'vibe:dbg', ..., 'vibe:conn', 'vibe:hrab']
     VIBE_RABBIT_VARIANTS,   # ['vibe:rabbit', 'vibe:rabbit:dfs', ...]
     
     # Size thresholds (MB)

@@ -231,6 +231,8 @@ Average Time:        0.001xx
 ./bench/bin/pr -f graph.el -s -o 17:gveopt2:auto -n 3      # Best overall
 ./bench/bin/pr -f graph.el -s -o 17:gveadaptive:dynamic -n 3  # Unknown graphs
 ./bench/bin/pr -f graph.el -s -o 17:vibe:dynamic -n 3      # VIBE unified framework
+./bench/bin/pr -f graph.el -s -o 17:vibe:hrab -n 3         # Best locality (web/geometric graphs)
+./bench/bin/pr -f graph.el -s -o 17:vibe:conn -n 3         # Connectivity BFS ordering (default)
 ```
 
 **Resolution modes:**
