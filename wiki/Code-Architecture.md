@@ -543,7 +543,7 @@ from scripts.lib.utils import (
     GRAPHBREW_VARIANTS,         # ['leiden', 'gve', 'gveopt', ...]
     RABBITORDER_VARIANTS,       # ['csr', 'boost']
     LEIDEN_DENDROGRAM_VARIANTS, # ['dfs', 'dfshub', 'dfssize', 'bfs', 'hybrid']
-    VIBE_LEIDEN_VARIANTS,       # ['vibe', 'vibe:dfs', 'vibe:bfs', ...]
+    VIBE_LEIDEN_VARIANTS,       # ['vibe', 'vibe:dfs', 'vibe:bfs', ..., 'vibe:conn', 'vibe:hrab']
     VIBE_RABBIT_VARIANTS,       # ['vibe:rabbit', 'vibe:rabbit:dfs', ...]
     
     # Graph size thresholds (MB)

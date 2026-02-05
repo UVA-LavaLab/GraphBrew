@@ -58,8 +58,9 @@ Choosing the right reordering algorithm depends on your graph characteristics. F
 | Graph Type | Recommended Algorithm | Rationale |
 |------------|----------------------|-----------|
 | **Social Networks** (high clustering) | `LeidenDendrogram (16:hybrid)` or `AdaptiveOrder (14)` | Hub-aware DFS exploits community structure |
-| **Web Graphs** (power-law degree) | `LeidenDendrogram (16:dfshub)` or `HubClusterDBG (7)` | Prioritizes high-degree hubs for cache efficiency |
+| **Web Graphs** (power-law degree) | `VIBE (17:vibe:hrab)` or `LeidenDendrogram (16:dfshub)` | Hybrid Leiden+Rabbit best locality on web crawls |
 | **Road Networks** (low clustering) | `RCM (11)` or `Gorder (9)` | BFS-based approaches work well for sparse graphs |
+| **Random Geometric** | `VIBE (17:vibe:hrab)` | Hybrid ordering dominates on geometric structure |
 | **Unknown/Mixed** | `AdaptiveOrder (14)` | Let the ML perceptron choose automatically |
 
 ### Quick Start Examples
@@ -104,6 +105,8 @@ Choosing the right reordering algorithm depends on your graph characteristics. F
 ./bench/bin/pr -f graph.mtx -o 17:vibe:streaming       # Leiden + lazy aggregation
 ./bench/bin/pr -f graph.mtx -o 17:vibe:lazyupdate      # Batched community updates (reduces atomics)
 ./bench/bin/pr -f graph.mtx -o 17:vibe:dynamic         # Leiden + per-pass resolution adjustment
+./bench/bin/pr -f graph.mtx -o 17:vibe:conn            # Connectivity BFS within communities (default ordering)
+./bench/bin/pr -f graph.mtx -o 17:vibe:hrab            # Hybrid Leiden+RabbitOrder (best for web/geometric)
 ./bench/bin/pr -f graph.mtx -o 17:vibe:rabbit          # RabbitOrder algorithm
 ./bench/bin/pr -f graph.mtx -o 17:vibe:rabbit:dfs      # RabbitOrder + DFS post-ordering
 

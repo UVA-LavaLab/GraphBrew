@@ -2209,6 +2209,17 @@ def run_experiment(args):
     
     _progress.info(f"Size filter: {min_size:.1f}MB - {max_size:.1f}MB")
     
+    # Auto-download: ensure all graphs for the size category are downloaded first
+    if args.auto and not getattr(args, 'skip_download', False):
+        _progress.info(f"Auto-download: ensuring all {args.download_size} graphs are available...")
+        download_graphs(
+            size_category=args.download_size,
+            graphs_dir=args.graphs_dir,
+            force=False,  # Don't re-download existing
+            max_memory_gb=args.max_memory,
+            max_disk_gb=args.max_disk
+        )
+    
     graphs = discover_graphs(args.graphs_dir, min_size, max_size, max_memory_gb=args.max_memory,
                              min_edges=getattr(args, 'min_edges', 0))
     
