@@ -303,45 +303,17 @@ Larger window = better quality, slower computation
 **Perceptron-based algorithm selection**
 
 ```bash
-# Format: -o 14[:max_depth[:resolution[:min_recurse_size[:mode]]]]
-
-# Default: per-community selection
-./bench/bin/pr -f graph.el -s -o 14 -n 3
-
-# Multi-level: recurse into large communities (depth=2)
-./bench/bin/pr -f graph.el -s -o 14:2 -n 3
-
-# Full-graph mode: pick single best algorithm for entire graph
-./bench/bin/pr -f graph.el -s -o 14:0:0.75:50000:1 -n 3
+./bench/bin/pr -f graph.el -s -o 14 -n 3           # Default: per-community
+./bench/bin/pr -f graph.el -s -o 14:2 -n 3          # Multi-level (depth=2)
+./bench/bin/pr -f graph.el -s -o 14:0:0.75:50000:1 -n 3  # Full-graph mode
 ```
 
 - **Description**: Uses ML to select the best algorithm for each community
-- **Complexity**: O(n log n) + perceptron inference
-- **Best for**: Unknown graphs, automated pipelines
-- **Features**: 15 linear features + 3 quadratic cross-terms + convergence-aware scoring
-- **Safety**: OOD guardrail (unfamiliar graphs → ORIGINAL), ORIGINAL margin fallback
+- **Features**: 15 linear + 3 quadratic cross-terms + convergence bonus
+- **Safety**: OOD guardrail, ORIGINAL margin fallback
+- **Parameters**: `max_depth` (0), `resolution` (auto), `min_recurse_size` (50000), `mode` (0=per-community, 1=full-graph)
 
-**Parameters:**
-| Parameter | Default | Description |
-|-----------|---------|-------------|
-| `max_depth` | 0 | Max recursion depth (0 = per-community, 1+ = multi-level) |
-| `resolution` | auto | Leiden resolution (auto: continuous formula with CV guardrail) |
-| `min_recurse_size` | 50000 | Minimum community size for recursion |
-| `mode` | 0 | 0 = per-community, 1 = full-graph adaptive |
-
-**Auto-Resolution Formula:**
-```
-γ = clip(0.5 + 0.25 × log₁₀(avg_degree + 1), 0.5, 1.2)
-If CV(degree) > 2: γ = max(γ, 1.0)  // CV guardrail for hubby graphs
-```
-*Heuristic for stable partitions; users should sweep γ for best community quality.*
-
-**Operating Modes:**
-- **Mode 0 (default)**: Run Leiden → select best algorithm per community
-- **Mode 1 (full-graph)**: Skip Leiden → pick single best algorithm for entire graph
-- **Multi-level (depth>0)**: Recursively apply AdaptiveOrder to large sub-communities
-
-**See**: [[AdaptiveOrder-ML]] for details on the ML model.
+See [[AdaptiveOrder-ML]] for the full ML model details.
 
 ---
 
@@ -450,191 +422,31 @@ Implements the full Leiden algorithm from: *"Fast Leiden Algorithm for Community
 | `fast` | Union-Find + Label Propagation | Very Fast | Moderate | Speed priority |
 | `modularity` | Modularity optimization | Fast | Good | Quality focus |
 
-**New Optimized Variants (GVEOpt2 & GVEAdaptive)**:
+**Key Recommendations:**
+- **Best overall**: `gveopt2` — CSR-based aggregation, fastest + best quality
+- **Unknown graphs**: `gveadaptive:dynamic` — adjusts resolution per-pass
+- **Speed priority**: `gveturbo` — optional refinement skip
+- **High resolution** (1.0-2.0) creates more communities that fit better in cache — optimizing for locality, not sociological accuracy
 
-**GVEOpt2** - CSR-based aggregation replaces O(E log E) sort with O(E) community-first scanning:
-```bash
-# Auto-resolution (recommended for unknown graphs)
-./bench/bin/pr -f graph.mtx -s -o 17:gveopt2:auto -n 3
-
-# Fixed resolution (1.5-2.0 often best for social networks)
-./bench/bin/pr -f graph.mtx -s -o 17:gveopt2:2.0 -n 3
-```
-
-**GVEAdaptive** - Dynamically adjusts resolution at each pass based on runtime metrics:
-```bash
-# Dynamic mode (auto initial, adjusts each pass)
-./bench/bin/pr -f graph.mtx -s -o 17:gveadaptive:dynamic -n 3
-
-# Dynamic mode with initial resolution 2.0
-./bench/bin/pr -f graph.mtx -s -o 17:gveadaptive:dynamic_2.0 -n 3
-```
-
-The adaptive algorithm monitors 4 signals each pass:
-1. **Community reduction rate** - Too fast? Raise resolution. Too slow? Lower it.
-2. **Size imbalance** - Giant communities? Raise resolution to break them.
-3. **Convergence speed** - 1 iteration? Communities too stable, raise resolution.
-4. **Super-graph density** - Denser graphs need higher resolution.
-
-**Resolution and Cache Locality Trade-off**:
-| Resolution | Modularity | Communities | PR Speed | Best For |
-|------------|-----------|-------------|----------|----------|
-| Low (0.3-0.5) | High (0.66-0.74) | Few large | Slow | True community detection |
-| High (1.0-2.0) | Lower (0.55-0.59) | Many small | **Fast** | Cache locality / reordering |
-
-*Key insight*: For graph reordering, we optimize for **cache locality**, not sociological correctness. Higher resolution creates more balanced communities that fit better in cache.
-
-**Benchmark Results (wiki-Talk: 2.4M nodes, 5M edges)**:
-| Variant | Reorder Time | PR Execution | vs LeidenOrder |
-|---------|--------------|--------------|----------------|
-| LeidenOrder (15) | 1.62s | 0.042s | baseline |
-| GVEOpt2 res=2.0 | 1.29s | **0.033s** | **21% faster PR** |
-| GVEAdaptive res=2.0 | **1.14s** | 0.035s | **30% faster reorder** |
-| GVEOpt | 1.83s | 0.077s | slower |
-| GVETurbo | 1.24s | 0.093s | fast reorder, slow PR |
-
-**GVE-Dendo Variants**:
-The `gvedendo` and `gveoptdendo` variants implement incremental dendrogram building inspired by RabbitOrder's approach:
-- **Standard GVE**: Stores `community_per_pass` history and rebuilds the dendrogram tree in post-processing
-- **GVE-Dendo**: Builds parent-child relationships incrementally during the refinement phase using atomic operations
-- Benefits: Avoids post-processing tree reconstruction, preserves same modularity quality
-
-**GVE-Leiden Algorithm (3-phase)**:
-1. **Phase 1: Local-moving** - Greedily move vertices to maximize modularity
-2. **Phase 2: Refinement** - Only allow isolated vertices to move, ensuring well-connected communities
-3. **Phase 3: Aggregation** - Build super-graph and repeat hierarchically
-
-**Isolated Vertex Handling**: Degree-0 vertices are automatically identified and grouped at the end of the permutation. This improves cache locality for active vertices during graph traversals. The algorithm reports the number of isolated vertices found.
-
-**Why GVE-Leiden beats RabbitOrder (Louvain)**:
-| Graph Type | RabbitOrder Q | GVE-Leiden Q | Improvement |
-|------------|---------------|--------------|-------------|
-| Web graphs | 0.977 | 0.983 | +0.6% |
-| Road networks | 0.988 | 0.992 | +0.4% |
-| Social networks | 0.650 | 0.788 | +21% |
-| Synthetic (Kronecker) | 0.063 | 0.190 | +3x |
-
-**Comprehensive Variant Benchmark (as-Skitter: 1.7M nodes, 11M edges)**:
-| Variant | Reorder(s) | PR Time(s) | Modularity | Communities |
-|---------|------------|------------|------------|-------------|
-| gve | 3.70 | 0.082 | 0.881 | 12 |
-| gveopt | 1.95 | 0.090 | 0.892 | 675 |
-| **gveopt2** | **1.44** | **0.070** | 0.858 | 1,712 |
-| gveadaptive | 1.55 | 0.138 | 0.857 | 2,066 |
-| gveoptsort | 1.72 | 0.095 | 0.893 | 1,378 |
-| **gveturbo** | **0.77** | 0.076 | 0.873 | 1,480 |
-
-*Key insight*: For **speed priority**, use `gveturbo` or `gveopt2`. For **quality priority**, use `gve` or `gveopt`.
-
-**Sweeping Variants Example:**
-```bash
-# Sweep all LeidenCSR variants (format: 17:variant:resolution:iterations:passes)
-for variant in gve gveopt gveopt2 gveadaptive gveoptsort gveturbo gvefast gverabbit; do
-    ./bench/bin/pr -f graph.mtx -s -o 17:$variant:1.0:10:10 -n 5
-done
-
-# Resolution sweep for optimal cache locality
-for res in 0.5 1.0 1.5 2.0; do
-    ./bench/bin/pr -f graph.mtx -s -o 17:gveopt2:$res -n 5
-done
-```
+See [[Command-Line-Reference#leidencsr-resolution-modes]] for resolution mode syntax.
 
 ### VIBE: Unified Reordering Framework
 
-**VIBE (Vertex Indexing for Better Efficiency)** provides a unified interface for graph reordering with two main algorithms and configurable ordering strategies. All VIBE variants use the unified `reorder::ReorderConfig` defaults:
-
-- **Resolution**: Auto-computed from graph properties (density, degree distribution)
-- **Max Iterations**: 10 per pass
-- **Max Passes**: 10 total
-- **Dynamic Resolution**: Optional per-pass adjustment based on runtime metrics
+**VIBE (Vertex Indexing for Better Efficiency)** provides a unified interface for graph reordering with two main algorithms (`vibe` Leiden-based, `vibe:rabbit` RabbitOrder-based) and configurable ordering strategies.
 
 ```bash
 # Format: -o 17:vibe[:algorithm][:ordering][:aggregation][:resolution_mode]
-
-# Leiden-based VIBE (multi-pass community detection)
-./bench/bin/pr -f graph.mtx -s -o 17:vibe -n 3            # Hierarchical ordering (default)
-./bench/bin/pr -f graph.mtx -s -o 17:vibe:dfs -n 3        # DFS dendrogram traversal
-./bench/bin/pr -f graph.mtx -s -o 17:vibe:bfs -n 3        # BFS dendrogram traversal
-./bench/bin/pr -f graph.mtx -s -o 17:vibe:dbg -n 3        # DBG within each community
-./bench/bin/pr -f graph.mtx -s -o 17:vibe:corder -n 3     # Hot/cold within communities
-./bench/bin/pr -f graph.mtx -s -o 17:vibe:dbg-global -n 3 # DBG across all vertices
-./bench/bin/pr -f graph.mtx -s -o 17:vibe:streaming -n 3  # Lazy aggregation (faster)
-./bench/bin/pr -f graph.mtx -s -o 17:vibe:lazyupdate -n 3 # Batched ctot updates (reduces atomics)
-./bench/bin/pr -f graph.mtx -s -o 17:vibe:conn -n 3       # Connectivity BFS within communities (default ordering)
-./bench/bin/pr -f graph.mtx -s -o 17:vibe:hrab -n 3       # Hybrid Leiden+RabbitOrder (best for web/geometric)
-
-# Resolution modes
-./bench/bin/pr -f graph.mtx -s -o 17:vibe:auto -n 3       # Auto (graph-adaptive, computed once)
-./bench/bin/pr -f graph.mtx -s -o 17:vibe:dynamic -n 3    # Dynamic (adjusted per-pass)
-./bench/bin/pr -f graph.mtx -s -o 17:vibe:0.75 -n 3       # Fixed resolution 0.75
-
-# RabbitOrder-based VIBE (single-pass parallel aggregation)
-./bench/bin/pr -f graph.mtx -s -o 17:vibe:rabbit -n 3           # RabbitOrder (DFS default)
-./bench/bin/pr -f graph.mtx -s -o 17:vibe:rabbit:dfs -n 3       # + DFS post-ordering
-./bench/bin/pr -f graph.mtx -s -o 17:vibe:rabbit:bfs -n 3       # + BFS post-ordering
-./bench/bin/pr -f graph.mtx -s -o 17:vibe:rabbit:dbg -n 3       # + DBG post-ordering
-./bench/bin/pr -f graph.mtx -s -o 17:vibe:rabbit:corder -n 3    # + COrder post-ordering
+./bench/bin/pr -f graph.mtx -s -o 17:vibe -n 3         # Leiden-based (default)
+./bench/bin/pr -f graph.mtx -s -o 17:vibe:conn -n 3    # Connectivity BFS ordering (default strategy)
+./bench/bin/pr -f graph.mtx -s -o 17:vibe:hrab -n 3    # Hybrid Leiden+RabbitOrder (best locality)
+./bench/bin/pr -f graph.mtx -s -o 17:vibe:rabbit -n 3  # RabbitOrder-based (single-pass)
+./bench/bin/pr -f graph.mtx -s -o 17:vibe:dynamic -n 3 # Dynamic resolution (adjusted per-pass)
+./bench/bin/pr -f graph.mtx -s -o 17:vibe:0.75 -n 3    # Fixed resolution
 ```
 
-**VIBE Resolution Modes:**
+**Key ordering strategies:** `vibe` (hierarchical), `vibe:dfs`/`bfs` (dendrogram traversal), `vibe:dbg`/`corder` (within communities), `vibe:conn` (connectivity BFS, default), `vibe:hrab` (hybrid Leiden+RabbitOrder — best for web/geometric graphs).
 
-| Mode | Option | Description |
-|------|--------|-------------|
-| Auto | `vibe:auto` or `vibe` | Computed once from graph properties (default) |
-| Dynamic | `vibe:dynamic` | Adjusted per-pass based on runtime metrics |
-| Fixed | `vibe:0.75` | User-specified fixed value |
-
-**VIBE Algorithm Comparison:**
-
-| Aspect | `vibe` (Leiden) | `vibe:rabbit` (RabbitOrder) |
-|--------|-----------------|----------------------------|
-| **Passes** | Multi-pass (2-5) | Single-pass |
-| **Vertex Order** | Random/parallel | Sorted by degree (ascending) |
-| **Aggregation** | Explicit super-graph or lazy | Implicit union-find + edge cache |
-| **Parallelism** | Per-pass parallel | Lock-free 64-bit CAS |
-| **Dendrogram** | Built after detection | Built during merges |
-| **Communities** | Many fine (~50K) | Fewer coarse (~2K) |
-| **Ordering** | Configurable | DFS (configurable post) |
-| **Best For** | Quality communities | Fast reordering |
-
-**VIBE Ordering Strategies (for Leiden-based):**
-
-| Strategy | Option | Description |
-|----------|--------|-------------|
-| HIERARCHICAL | `vibe` | Sort by community, then by degree |
-| DENDROGRAM_DFS | `vibe:dfs` | DFS traversal of dendrogram |
-| DENDROGRAM_BFS | `vibe:bfs` | BFS traversal of dendrogram |
-| DBG | `vibe:dbg` | DBG algorithm within each community |
-| CORDER | `vibe:corder` | Hot/cold separation within communities |
-| DBG_GLOBAL | `vibe:dbg-global` | DBG across all vertices (post-clustering) |
-| CORDER_GLOBAL | `vibe:corder-global` | Hot/cold across all vertices |
-| CONNECTIVITY_BFS | `vibe:conn` | BFS within communities using original graph edges (Boost-style, default) |
-| HYBRID_LEIDEN_RABBIT | `vibe:hrab` | Leiden communities + RabbitOrder super-graph ordering (best locality) |
-
-**New Ordering Strategies (v2):**
-
-**`vibe:conn` — Connectivity BFS** (aliases: `connbfs`, `connectivity`)
-BFS within each Leiden community using the original graph's adjacency structure. Unlike hierarchical ordering (which sorts by community ID + degree), connectivity BFS follows actual edges to place connected vertices consecutively. This is the approach used by RabbitOrder's Boost implementation. It serves as the default ordering strategy.
-
-**`vibe:hrab` — Hybrid Leiden+RabbitOrder** (aliases: `hybrid-rabbit`, `leidenrabbit`)
-A two-phase approach combining Leiden's high-quality community detection with RabbitOrder's super-graph ordering:
-1. **Phase 1: Leiden community detection** — Detects communities using GVE-Leiden (multi-pass refinement)
-2. **Phase 2: Super-graph construction** — Builds a weighted graph where each node is a community, edge weights = inter-community edges
-3. **Phase 3: RabbitOrder on super-graph** — Orders communities using RabbitOrder's cache-aware aggregation
-4. **Phase 4: BFS within communities** — Orders vertices within each community using connectivity BFS
-
-This hybrid approach captures the best of both worlds: Leiden's superior modularity quality (especially on power-law graphs) and RabbitOrder's cache-aware ordering of the community hierarchy. Benchmarks show **31% better geometric mean cache miss distance** compared to standalone RabbitOrder on web graphs (indochina-2004), and **96.7% near-neighbor hit rate** on geometric graphs (rgg_n_2_24_s0).
-
-**VIBE vs 8:csr (Native Rabbit) Benchmark:**
-
-| Graph | 8:csr Reorder | 8:csr PR | vibe:rabbit Reorder | vibe:rabbit PR |
-|-------|---------------|----------|---------------------|----------------|
-| web-Google | 0.22s | 0.016s | 0.22s | 0.015s |
-| wiki-Talk | 0.47s | 0.043s | **0.43s** | **0.038s** |
-| soc-Epinions1 | 0.04s | 0.008s | **0.03s** | **0.007s** |
-| roadNet-CA | 0.29s | 0.018s | 0.30s | 0.018s |
-| cit-Patents | **1.01s** | 0.123s | 1.07s | **0.115s** |
-| web-BerkStan | 0.27s | 0.030s | **0.13s** | **0.026s** |
+See [[Command-Line-Reference#vibe-variants]] for full option reference and [[Community-Detection]] for algorithm details.
 
 ---
 

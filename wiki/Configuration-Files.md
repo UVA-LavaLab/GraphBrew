@@ -148,32 +148,7 @@ Per-algorithm weights for each cluster:
 
 ### Weight Field Descriptions
 
-| Field | Description | Impact |
-|-------|-------------|--------|
-| `bias` | Base preference (higher = more likely selected) | Algorithm's inherent quality |
-| `w_modularity` | Weight for graph modularity | Positive → good for modular graphs |
-| `w_log_nodes` | Weight for log(node count) | Positive → scales better |
-| `w_log_edges` | Weight for log(edge count) | Positive → handles large edge sets |
-| `w_density` | Weight for edge density | Positive → good for dense graphs |
-| `w_avg_degree` | Weight for average degree | Connectivity effect |
-| `w_hub_concentration` | Weight for hub concentration | Positive → good for hub-heavy graphs |
-| `w_degree_variance` | Weight for degree variance | Positive → handles skewed degrees |
-| `w_clustering_coeff` | Weight for clustering coefficient | Local clustering effect |
-| `w_avg_path_length` | Weight for average path length | Graph diameter sensitivity |
-| `w_diameter` | Weight for graph diameter | Diameter effect |
-| `w_community_count` | Weight for community count | Sub-community complexity |
-| `w_packing_factor` | Weight for avg_degree / max_degree | Degree uniformity (0-1) |
-| `w_forward_edge_fraction` | Weight for edges to higher-ID vertices | Ordering quality |
-| `w_working_set_ratio` | Weight for log₂(graph_bytes/LLC + 1) | Cache pressure |
-| `w_dv_x_hub` | Quadratic: degree_var × hub_conc | Power-law indicator |
-| `w_mod_x_logn` | Quadratic: modularity × log₁₀(nodes) | Large modular graph effect |
-| `w_pf_x_wsr` | Quadratic: packing × log₂(wsr+1) | Uniform-degree + cache overflow |
-| `w_fef_convergence` | Convergence bonus (PR/SSSP only) | Iterative convergence |
-| `cache_l1_impact` | Bonus for high L1 cache hit rate | Cache locality |
-| `cache_l2_impact` | Bonus for high L2 cache hit rate | Cache locality |
-| `cache_l3_impact` | Bonus for high L3 cache hit rate | Cache locality |
-| `cache_dram_penalty` | Penalty for DRAM accesses | Memory bandwidth |
-| `w_reorder_time` | Penalty for slow reordering | Negative → prefers fast algorithms |
+See [[Perceptron-Weights#weight-definitions]] for the complete 24-field reference including core weights, cache impacts, quadratic cross-terms, and per-benchmark multipliers.
 
 ---
 
@@ -226,66 +201,20 @@ JSON array of benchmark results:
 
 ## Environment Variables
 
-### Perceptron Weights Override
-
-```bash
-# Use custom weights file (overrides type matching)
-export PERCEPTRON_WEIGHTS_FILE=/path/to/custom_weights.json
-./bench/bin/pr -f graph.el -s -o 14 -n 3
-```
-
-### OpenMP Threads
-
-```bash
-# Control parallelism
-export OMP_NUM_THREADS=8
-./bench/bin/pr -f graph.el -s -n 5
-```
+See [[Command-Line-Reference#environment-variables]] for `PERCEPTRON_WEIGHTS_FILE`, `OMP_NUM_THREADS`, and NUMA binding.
 
 ---
 
 ## Example Workflows
 
-### Quick Test
-
 ```bash
-# Test on small graphs with few algorithms
-python3 scripts/graphbrew_experiment.py \
-    --phase benchmark \
-    --size small \
-    --quick \
-    --trials 1
+python3 scripts/graphbrew_experiment.py --phase benchmark --size small --quick --trials 1  # Quick test
+python3 scripts/graphbrew_experiment.py --full --size medium --trials 5 --auto              # Full benchmark
+python3 scripts/graphbrew_experiment.py --train --skip-cache --size small                   # Weight training
+python3 scripts/graphbrew_experiment.py --brute-force --size small                          # Validation
 ```
 
-### Full Benchmark
-
-```bash
-# Complete benchmark with all algorithms
-python3 scripts/graphbrew_experiment.py \
-    --full \
-    --size medium \
-    --trials 5 \
-    --auto
-```
-
-### Weight Training Only
-
-```bash
-# Train perceptron weights from existing results
-python3 scripts/graphbrew_experiment.py \
-    --train \
-    --skip-cache \
-    --size small
-```
-
-### Adaptive Validation
-
-```bash
-# Compare AdaptiveOrder vs all algorithms
-python3 scripts/graphbrew_experiment.py \
-    --brute-force \
-    --size small
-```
+See [[Command-Line-Reference]] for all options.
 
 ---
 

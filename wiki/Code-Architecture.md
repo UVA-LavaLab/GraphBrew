@@ -25,39 +25,9 @@ GraphBrew/
 │   ├── src_sim/              # Cache simulation sources
 │   └── backups/              # Backup files
 │
-├── scripts/                  # Python tools (~20,700 lines total)
-│   ├── graphbrew_experiment.py  # ⭐ Main orchestration (~3500 lines)
-│   ├── perceptron_experiment.py # 🧪 ML weight experimentation
-│   ├── adaptive_emulator.py     # 🔍 C++ logic emulation
-│   ├── eval_weights.py          # 📊 Train + simulate C++ scoring + accuracy/regret report
-│   ├── requirements.txt         # Python dependencies
-│   │
-│   ├── lib/                     # 📦 Core modules (~14,300 lines)
-│   │   ├── __init__.py          # Module exports
-│   │   ├── graph_types.py       # Data classes (GraphInfo, BenchmarkResult, etc.)
-│   │   ├── phases.py            # Phase orchestration
-│   │   ├── utils.py             # ALGORITHMS dict, run_command, SSOT constants
-│   │   ├── features.py          # Graph feature computation
-│   │   ├── dependencies.py      # System dependency detection
-│   │   ├── download.py          # Graph downloading
-│   │   ├── build.py             # Binary compilation
-│   │   ├── reorder.py           # Vertex reordering
-│   │   ├── benchmark.py         # Benchmark execution
-│   │   ├── cache.py             # Cache simulation
-│   │   ├── weights.py           # Type-based weight management
-│   │   ├── weight_merger.py     # Weight file merging
-│   │   ├── training.py          # ML weight training
-│   │   ├── analysis.py          # Adaptive analysis
-│   │   ├── graph_data.py        # Per-graph data storage
-│   │   ├── progress.py          # Progress tracking
-│   │   └── results.py           # Result I/O
-│   │
-│   ├── weights/                 # Auto-generated type weights
-│   │   ├── active/              # C++ runtime reads from here
-│   │   ├── merged/              # Accumulated from all runs
-│   │   ├── runs/                # Historical snapshots
-│   │   ├── type_registry.json   # Maps graphs → types + centroids
-│   │   └── type_N.json          # Cluster weights
+├── scripts/                  # Python tools (~20,700 lines)
+│   └── See [[Python-Scripts]] for full structure
+│
 │   │
 │   ├── analysis/                # Analysis utilities
 │   ├── benchmark/               # Specialized scripts
@@ -154,126 +124,23 @@ reorder/
 
 **Key Utilities in reorder_types.h:**
 
-```cpp
-// Perceptron model for ML-based algorithm selection
-struct PerceptronWeights {
-    std::map<int, AlgorithmWeights> per_algorithm_weights;
-    double ComputeScore(int algo_id, const FeatureVector& features);
-};
-
-// Type registry for graph clustering
-struct TypeRegistry {
-    std::map<std::string, TypeInfo> types;
-    std::string FindBestType(const FeatureVector& features);
-};
-
-// Sampled degree features for fast topology analysis
-struct SampledDegreeFeatures {
-    double degree_variance;
-    double hub_concentration;
-    double avg_degree;
-    double clustering_coeff;
-    double working_set_ratio;   // graph_bytes / LLC_size (NEW)
-};
-
-template<typename GraphT>
-SampledDegreeFeatures ComputeSampledDegreeFeatures(const GraphT& g, size_t sample_size = 1000);
-
-// LLC detection for working_set_ratio computation (NEW)
-size_t GetLLCSizeBytes();  // sysconf on Linux, 30MB fallback
-
-// Algorithm name → enum mapping for weight file loading (58 entries)
-// Maps variant names like "LeidenCSR_gve", "GraphBrewOrder_leiden" to base enums
-std::map<std::string, ReorderingAlgo> getAlgorithmNameMap();
-
-// ParseWeightsFromJSON: when multiple variants map to the same base,
-// keeps only the highest-bias entry (variant pre-collapse)
-```
+- `PerceptronWeights` / `TypeRegistry` — ML scoring & graph clustering (see [[AdaptiveOrder-ML]])
+- `SampledDegreeFeatures` — 5-feature topology vector: degree_variance, hub_concentration, avg_degree, clustering_coeff, working_set_ratio
+- `ComputeSampledDegreeFeatures()` — Samples ~1000 nodes for fast feature extraction
+- `GetLLCSizeBytes()` — LLC detection (sysconf on Linux, 30MB fallback) for working_set_ratio
+- `getAlgorithmNameMap()` — 58-entry variant→enum mapping (see [[Command-Line-Reference]])
 
 **Key Configs:**
 
-```cpp
-// AdaptiveConfig (reorder_adaptive.h)
-struct AdaptiveConfig {
-    int max_depth;
-    double resolution;
-    int min_recurse_size;
-    int mode;  // 0 = per-community, 1 = full-graph
-    static AdaptiveConfig FromOptions(const std::string& options);
-};
+| Struct | Header | Key Fields |
+|--------|--------|------------|
+| `AdaptiveConfig` | `reorder_adaptive.h` | max_depth, resolution, min_recurse_size, mode (0=per-community, 1=full-graph) |
+| `GraphBrewConfig` | `reorder_graphbrew.h` | variant, frequency, intra_algo, resolution, maxIterations, maxPasses |
+| `ReorderConfig` | `reorder_types.h` | Unified config: resolutionMode(AUTO), tolerance(1e-2), maxIterations(10), maxPasses(10), ordering(HIERARCHICAL) |
 
-// GraphBrewConfig (reorder_graphbrew.h)
-struct GraphBrewConfig {
-    GraphBrewClusterVariant variant;  // leiden, gve, gveopt, etc.
-    int frequency;
-    int intra_algo;
-    double resolution;
-    int maxIterations;
-    int maxPasses;
-    static GraphBrewConfig FromOptions(const std::string& options);
-};
-```
+All configs parse from CLI options via `FromOptions()`. Defaults are centralized constants in `reorder_types.h` (see [[AdaptiveOrder-ML#unified-configuration]]).
 
-**Unified Reorder Configuration (reorder_types.h):**
-
-All community-based reordering algorithms (VIBE, Leiden, GraphBrew, RabbitOrder, Adaptive) use these centralized constants for consistency:
-
-```cpp
-namespace reorder {
-// Default parameters - Single Source of Truth for ALL reordering algorithms
-constexpr double DEFAULT_RESOLUTION = 1.0;           // Modularity resolution (auto-computed)
-constexpr double DEFAULT_TOLERANCE = 1e-2;           // Node movement convergence
-constexpr double DEFAULT_AGGREGATION_TOLERANCE = 0.8;
-constexpr double DEFAULT_TOLERANCE_DROP = 10.0;      // Tolerance reduction per pass
-constexpr int DEFAULT_MAX_ITERATIONS = 10;           // Max iterations per pass
-constexpr int DEFAULT_MAX_PASSES = 10;               // Max aggregation passes
-constexpr size_t DEFAULT_TILE_SIZE = 4096;           // Cache blocking tile size
-constexpr size_t DEFAULT_PREFETCH_DISTANCE = 8;      // Prefetch lookahead
-
-// Unified configuration struct
-struct ReorderConfig {
-    ResolutionMode resolutionMode = ResolutionMode::AUTO;
-    double resolution = DEFAULT_RESOLUTION;
-    double tolerance = DEFAULT_TOLERANCE;
-    int maxIterations = DEFAULT_MAX_ITERATIONS;
-    int maxPasses = DEFAULT_MAX_PASSES;
-    OrderingStrategy ordering = OrderingStrategy::HIERARCHICAL;
-    AggregationStrategy aggregation = AggregationStrategy::CSR_BUFFER;
-    bool useRefinement = true;
-    // ... methods: FromOptions(), applyAutoResolution(), computeGraphAdaptiveResolution()
-};
-} // namespace reorder
-
-// After namespace close, bring constants into global scope for backward compatibility
-using graphbrew::leiden::DEFAULT_TOLERANCE;
-using graphbrew::leiden::DEFAULT_AGGREGATION_TOLERANCE;
-using graphbrew::leiden::DEFAULT_QUALITY_FACTOR;
-// ... (all except DEFAULT_RESOLUTION which conflicts with adaptive)
-
-// Function signatures use constants for default arguments:
-template <typename K, typename W, typename NodeID_T, typename DestID_T>
-GVELeidenResult<K> GVELeidenCSR(
-    const CSRGraph<NodeID_T, DestID_T, true>& g,
-    double resolution = 1.0,
-    double tolerance = DEFAULT_TOLERANCE,
-    double aggregation_tolerance = DEFAULT_AGGREGATION_TOLERANCE,
-    double tolerance_drop = DEFAULT_QUALITY_FACTOR,
-    int max_iterations = 20,
-    int max_passes = DEFAULT_MAX_PASSES);
-```
-
-**Adaptive Algorithm Constants (reorder_adaptive.h):**
-
-```cpp
-namespace adaptive {
-constexpr int DEFAULT_MODE = 1;           // Per-community
-constexpr int DEFAULT_RECURSION_DEPTH = 0;
-constexpr double DEFAULT_RESOLUTION = 1.0;  // Different from leiden::DEFAULT_RESOLUTION
-constexpr size_t DEFAULT_MIN_RECURSE_SIZE = 50000;
-} // namespace adaptive
-```
-
-> ⚠️ **Important**: Use `graphbrew::leiden::DEFAULT_RESOLUTION` or `adaptive::DEFAULT_RESOLUTION` explicitly to avoid ambiguity.
+> ⚠️ Use `graphbrew::leiden::DEFAULT_RESOLUTION` or `adaptive::DEFAULT_RESOLUTION` explicitly — they are separate namespaces.
 
 #### graph.h - CSRGraph Class
 
@@ -337,65 +204,21 @@ class BuilderBase {
 
 #### Hub-Based (bench/include/graphbrew/reorder/reorder_hub.h)
 
+All hub functions share the same template signature:
 ```cpp
-// Degree-Based Grouping (DBG) - standalone template function
 template<typename NodeID_, typename DestID_, typename WeightT_, bool invert>
-void GenerateDBGMappingStandalone(const CSRGraph<NodeID_, DestID_, invert>& g,
-                                   pvector<NodeID_>& new_ids, bool useOutdeg) {
-  // Groups vertices by log2(degree)
-  // Hot vertices (high degree) grouped together
-}
-
-// Hub Sorting
-template<typename NodeID_, typename DestID_, typename WeightT_, bool invert>
-void GenerateHubSortMappingStandalone(const CSRGraph<NodeID_, DestID_, invert>& g,
-                                       pvector<NodeID_>& new_ids, bool useOutdeg) {
-  // Sorts by degree, high-degree first
-}
-
-// Hub Clustering
-template<typename NodeID_, typename DestID_, typename WeightT_, bool invert>
-void GenerateHubClusterMappingStandalone(const CSRGraph<NodeID_, DestID_, invert>& g,
-                                          pvector<NodeID_>& new_ids, bool useOutdeg) {
-  // Clusters hot vertices together
-}
-
-// Hub Cluster with DBG
-template<typename NodeID_, typename DestID_, typename WeightT_, bool invert>
-void GenerateHubClusterDBGMappingStandalone(const CSRGraph<NodeID_, DestID_, invert>& g,
-                                             pvector<NodeID_>& new_ids, bool useOutdeg) {
-  // Combines hub clustering with DBG
-}
+void Generate{Algorithm}MappingStandalone(const CSRGraph<...>& g,
+    pvector<NodeID_>& new_ids, bool useOutdeg);
 ```
 
-**Edge Case Guards:**
+| Function | Strategy |
+|----------|----------|
+| `GenerateDBGMapping` | Groups vertices by log₂(degree) |
+| `GenerateHubSortMapping` | Sorts by degree, high-degree first |
+| `GenerateHubClusterMapping` | Clusters hot vertices together |
+| `GenerateHubClusterDBGMapping` | Combines hub clustering with DBG |
 
-All reordering functions include guards for empty graphs to prevent division-by-zero (FPE) when computing average degree:
-
-```cpp
-// In each function (GenerateHubSort, GenerateDBG, COrder, GVELeiden, etc.):
-const int64_t num_nodes = g.num_nodes();
-const int64_t num_edges = g.num_edges();
-
-// GUARD: Empty graph - nothing to do
-if (num_nodes == 0) {
-    t.Stop();
-    PrintTime("Algorithm Map Time", t.Seconds());
-    return;
-}
-
-const int64_t avgDegree = num_edges / num_nodes;  // Safe now
-```
-
-**Files with FPE guards:**
-- `reorder_hub.h` - All 5 hub-based functions
-- `reorder_classic.h` - COrder and COrder_v2
-- `reorder_graphbrew.h` - GraphBrewHubCluster
-- `reorder_leiden.h` - GVELeidenAdaptiveCSR
-- `reorder_adaptive.h` - Adaptive algorithm selection
-- `reorder.h` - ReorderCommunitySubgraphStandalone
-
-This is important for GraphBrewOrder which may create empty subgraphs for communities with no internal edges (e.g., on Kronecker graphs).
+**Edge Case Guard:** All reordering functions check `num_nodes == 0` to prevent FPE on empty subgraphs (important for GraphBrewOrder on Kronecker graphs).
 
 #### Community-Based
 
@@ -478,148 +301,14 @@ int main(int argc, char* argv[]) {
 
 ### Python Scripts (scripts/)
 
-The Python tooling follows a modular architecture with a main orchestration script delegating to specialized `lib/` modules.
+See [[Python-Scripts]] for full documentation of the Python tooling.
 
-#### graphbrew_experiment.py - Main Orchestration
-
-The main entry point (~3500 lines) handles argument parsing and delegates to `lib/phases.py`:
-
-```python
-def main():
-    args = parse_args()
-    
-    # Discover graphs
-    graphs = discover_graphs(args.graphs_dir)
-    
-    # Create phase configuration
-    config = PhaseConfig(
-        benchmarks=args.benchmarks,
-        trials=args.trials,
-        progress=ProgressTracker()
-    )
-    
-    # Run phases via lib/phases.py
-    if 'reorder' in args.phases:
-        run_reorder_phase(graphs, algorithms, config)
-    if 'benchmark' in args.phases:
-        run_benchmark_phase(graphs, algorithms, label_maps, config)
-    if 'weights' in args.phases:
-        run_weights_phase(graphs, results, config)
-```
-
-#### lib/phases.py - Phase Orchestration
-
-High-level phase functions for building custom pipelines:
-
-```python
-from scripts.lib.phases import (
-    PhaseConfig,
-    run_reorder_phase,      # Generate vertex reorderings
-    run_benchmark_phase,    # Run performance benchmarks
-    run_cache_phase,        # Cache simulation
-    run_weights_phase,      # Update ML weights
-    run_adaptive_phase,     # Adaptive analysis
-    run_full_pipeline,      # Complete pipeline
-)
-
-config = PhaseConfig(benchmarks=['pr', 'bfs'], trials=3)
-results = run_full_pipeline(graphs, algorithms, config)
-```
-
-#### lib/graph_types.py - Central Data Classes
-
-All data classes are centralized in `graph_types.py`:
-
-```python
-from scripts.lib.graph_types import (
-    GraphInfo,        # Graph metadata (name, path, size, nodes, edges)
-    BenchmarkResult,  # Benchmark execution result
-    CacheResult,      # Cache simulation result
-    ReorderResult,    # Reordering result
-    PerceptronWeight, # Perceptron weight dataclass
-)
-```
-
-#### lib/utils.py - Core Utilities
-
-**Single Source of Truth** for all algorithm/variant/size/timeout constants:
-
-```python
-from scripts.lib.utils import (
-    # Algorithm definitions
-    ALGORITHMS,      # {0: "ORIGINAL", 1: "RANDOM", ..., 17: "LeidenCSR"}
-    ALGORITHM_IDS,   # Reverse: {"ORIGINAL": 0, ...}
-    SLOW_ALGORITHMS, # {9, 10, 11} - Gorder, Corder, RCM
-    BENCHMARKS,      # ['pr', 'bfs', 'cc', 'sssp', 'bc', 'tc']
-    
-    # Variant lists (authoritative definitions)
-    LEIDEN_CSR_VARIANTS,        # ['gve', 'gveopt', 'gveopt2', ..., 'vibe', ...]
-    GRAPHBREW_VARIANTS,         # ['leiden', 'gve', 'gveopt', ...]
-    RABBITORDER_VARIANTS,       # ['csr', 'boost']
-    LEIDEN_DENDROGRAM_VARIANTS, # ['dfs', 'dfshub', 'dfssize', 'bfs', 'hybrid']
-    VIBE_LEIDEN_VARIANTS,       # ['vibe', 'vibe:dfs', 'vibe:bfs', ..., 'vibe:conn', 'vibe:hrab']
-    VIBE_RABBIT_VARIANTS,       # ['vibe:rabbit', 'vibe:rabbit:dfs', ...]
-    
-    # Graph size thresholds (MB)
-    SIZE_SMALL,      # 50 MB
-    SIZE_MEDIUM,     # 500 MB
-    SIZE_LARGE,      # 2000 MB
-    SIZE_XLARGE,     # 10000 MB
-    
-    # Timeout constants (seconds)
-    TIMEOUT_REORDER,     # 43200 (12 hours)
-    TIMEOUT_BENCHMARK,   # 600 (10 min)
-    TIMEOUT_SIM,         # 1200 (20 min)
-    TIMEOUT_SIM_HEAVY,   # 3600 (1 hour)
-    
-    # Unified reorder configuration (match C++ reorder::ReorderConfig)
-    REORDER_DEFAULT_RESOLUTION,          # 1.0 (auto-computed from graph)
-    REORDER_DEFAULT_TOLERANCE,           # 1e-2 (0.01)
-    REORDER_DEFAULT_AGGREGATION_TOLERANCE,  # 0.8
-    REORDER_DEFAULT_TOLERANCE_DROP,      # 10.0
-    REORDER_DEFAULT_MAX_ITERATIONS,      # 10
-    REORDER_DEFAULT_MAX_PASSES,          # 10
-    
-    # Backward-compatible aliases
-    LEIDEN_DEFAULT_RESOLUTION,           # = REORDER_DEFAULT_RESOLUTION
-    LEIDEN_DEFAULT_MAX_ITERATIONS,       # = REORDER_DEFAULT_MAX_ITERATIONS
-    LEIDEN_MODULARITY_MAX_ITERATIONS,    # 20 (quality-focused)
-    LEIDEN_MODULARITY_MAX_PASSES,        # 20
-    
-    # Weight computation normalization factors
-    WEIGHT_PATH_LENGTH_NORMALIZATION,   # 10.0
-    WEIGHT_REORDER_TIME_NORMALIZATION,  # 10.0
-    WEIGHT_AVG_DEGREE_DEFAULT,          # 10.0
-    
-    # Utilities
-    run_command,     # Execute shell commands with timeout
-    get_timestamp,   # Formatted timestamps
-)
-```
-
-> ⚠️ **Important**: All constants are defined ONLY in `utils.py`. Reorder defaults match C++ `reorder::ReorderConfig` in `reorder_types.h`.
-
-#### Module Overview
-
-| Module | Lines | Purpose |
-|--------|-------|---------|
-| `weights.py` | ~1510 | Weight management, cross-validation |
-| `graph_data.py` | ~1220 | Per-graph data storage |
-| `download.py` | ~1130 | Graph downloading |
-| `phases.py` | ~1080 | Phase orchestration |
-| `reorder.py` | ~1070 | Vertex reordering |
-| `dependencies.py` | ~890 | Dependency management |
-| `analysis.py` | ~880 | Adaptive analysis |
-| `weight_merger.py` | ~830 | Weight merging |
-| `results.py` | ~750 | Result I/O |
-| `utils.py` | ~730 | Core utilities |
-| `training.py` | ~720 | ML training |
-| `cache.py` | ~630 | Cache simulation |
-| `progress.py` | ~600 | Progress tracking |
-| `graph_types.py` | ~595 | Data classes |
-| `benchmark.py` | ~560 | Benchmark execution |
-| `features.py` | ~555 | Graph features |
-| `build.py` | ~340 | Binary compilation |
+Key entry points:
+- `graphbrew_experiment.py` — Main orchestration (~3500 lines)
+- `perceptron_experiment.py` — ML weight experimentation
+- `adaptive_emulator.py` — C++ logic emulation
+- `eval_weights.py` — Weight evaluation & accuracy reporting
+- `lib/` — 17 reusable modules (~14,300 lines total)
 
 ---
 
@@ -653,185 +342,24 @@ CSRGraph → Warmup → Trials → Timer → Results → Output
 
 ## Key Data Structures
 
-### pvector<T>
+| Type | Header | Purpose |
+|------|--------|---------|
+| `CSRGraph<NodeID_, DestID_, WeightT_>` | `graph.h` | Core graph: CSR row pointers + column indices |
+| `pvector<T>` | `pvector.h` | Parallel-friendly aligned vector |
+| `SlidingQueue<T>` | `sliding_queue.h` | Lock-free queue for BFS frontier |
+| `Bitmap` | `bitmap.h` | Efficient bit vector (set/get/reset, atomic ops) |
 
-Parallel-friendly vector with aligned memory:
+**Parallelization:** OpenMP `parallel for` with `reduction` for sums, `atomic` for counters, and thread-local buffers merged via `critical` sections.
 
-```cpp
-template <typename T>
-class pvector {
- public:
-  pvector(size_t n);
-  pvector(size_t n, T init_val);
-  
-  T& operator[](size_t n);
-  size_t size() const;
-  T* data();
-  
-  // Iterators
-  iterator begin();
-  iterator end();
-};
-```
-
-### SlidingQueue<T>
-
-Lock-free queue for BFS:
-
-```cpp
-template <typename T>
-class SlidingQueue {
- public:
-  void push_back(T to_add);
-  void slide_window();
-  
-  // Thread-local buffers for parallel push
-  QueueBuffer<T> queue_buf;
-};
-```
-
-### Bitmap
-
-Efficient bit vector:
-
-```cpp
-class Bitmap {
- public:
-  Bitmap(size_t size);
-  
-  void set_bit(size_t pos);
-  void set_bit_atomic(size_t pos);
-  bool get_bit(size_t pos) const;
-  void reset();
-};
-```
+**CSR layout:** Nodes index into a flat neighbor array — sequential iteration is cache-friendly, and reordering places community members in adjacent positions.
 
 ---
 
-## Parallelization Strategy
+## Configuration & Data Locations
 
-### OpenMP Usage
+JSON config: specify `graphs`, `benchmarks`, `algorithms`, `trials`, and `options` (symmetrize, verify). See [[Configuration-Files]] for format.
 
-```cpp
-// Parallel initialization
-#pragma omp parallel for
-for (NodeID n = 0; n < num_nodes; n++) {
-  scores[n] = init_value;
-}
-
-// Parallel with reduction
-float sum = 0;
-#pragma omp parallel for reduction(+:sum)
-for (NodeID n = 0; n < num_nodes; n++) {
-  sum += scores[n];
-}
-
-// Parallel with atomic
-#pragma omp parallel for
-for (NodeID u = 0; u < num_nodes; u++) {
-  for (NodeID v : g.out_neigh(u)) {
-    #pragma omp atomic
-    counts[v]++;
-  }
-}
-```
-
-### Thread-Local Buffers
-
-For reducing contention:
-
-```cpp
-#pragma omp parallel
-{
-  // Thread-local buffer
-  vector<NodeID> local_frontier;
-  
-  #pragma omp for
-  for (NodeID u : current_frontier) {
-    for (NodeID v : g.out_neigh(u)) {
-      if (try_visit(v)) {
-        local_frontier.push_back(v);
-      }
-    }
-  }
-  
-  // Merge into global
-  #pragma omp critical
-  next_frontier.insert(next_frontier.end(), 
-                       local_frontier.begin(), 
-                       local_frontier.end());
-}
-```
-
----
-
-## Memory Layout
-
-### CSR (Compressed Sparse Row)
-
-```
-Nodes:     [0] [1] [2] [3]
-           ↓   ↓   ↓   ↓
-Index:     [0] [2] [4] [6] [8]  ← Offsets into neighbors
-                                
-Neighbors: [1,2|0,2|0,1,3|2]    ← Concatenated adjacency lists
-           0's  1's  2's   3's
-```
-
-### Memory Access Pattern
-
-```cpp
-// Good: Sequential access (cache-friendly)
-for (NodeID n = 0; n < num_nodes; n++) {
-  for (NodeID v : g.out_neigh(n)) {
-    // Neighbors are contiguous in memory
-  }
-}
-
-// After reordering: frequently accessed nodes are close
-// Nodes 0,1,2,3 might become 1000,1001,1002,1003
-// if they're in the same community
-```
-
----
-
-## Configuration System
-
-### JSON Config Structure
-
-```json
-{
-  "graphs": ["facebook.el", "twitter.el"],
-  "benchmarks": ["pr", "bfs", "cc"],
-  "algorithms": [0, 7, 12, 17],
-  "trials": 5,
-  "options": {
-    "symmetrize": true,
-    "verify": false
-  }
-}
-```
-
-### Data Locations
-
-```
-scripts/
-├── graphbrew_experiment.py    # Main orchestration script
-├── weights/                   # Perceptron weight files
-│   ├── active/                # C++ runtime reads from here (type_0.json, etc.)
-│   │   ├── type_registry.json # Maps graphs → types + algorithm list
-│   │   └── type_N.json        # Per-cluster weights
-│   ├── merged/                # Accumulated from all runs
-│   └── runs/                  # Historical snapshots
-└── lib/                       # Python library modules
-    ├── utils.py               # ALGORITHMS dict, constants
-    └── weights.py             # Weight management and computation
-
-results/
-├── graphs/{name}/features.json # Per-graph static features
-├── logs/{name}/runs/          # Timestamped experiment data
-└── graph_properties_cache.json # Cached properties for type detection
-```
+Weight files: `scripts/weights/active/type_*.json` (see [[Perceptron-Weights]]). Results: `results/graphs/`, `results/logs/`, `results/mappings/` (see [[Python-Scripts#output-structure]]).
 
 ---
 

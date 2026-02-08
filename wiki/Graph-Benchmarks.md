@@ -37,46 +37,12 @@ Where:
 ### How to Run
 
 ```bash
-# Basic usage
-./bench/bin/pr -f graph.el -s -o 0 -n 3
-
-# With generated RMAT graph
-./bench/bin/pr -g 20 -o 12 -n 5
-
-# Common options
-./bench/bin/pr -f graph.mtx -s -o 17 -n 3 -i 20 -t 1e-6
+./bench/bin/pr -f graph.el -s -o 17 -n 3
 ```
 
-### Options
+See [[Command-Line-Reference]] for all options (`-i` iterations, `-t` tolerance, `-g` synthetic graph).
 
-| Flag | Description | Default |
-|------|-------------|---------|
-| `-f FILE` | Input graph file | Required |
-| `-s` | Graph is symmetric (undirected) | Off |
-| `-o N` | Reordering algorithm (0-17) | 0 |
-| `-n N` | Number of trials | 16 |
-| `-i N` | Max iterations | 20 |
-| `-t VAL` | Convergence tolerance | 1e-4 |
-| `-g N` | Generate RMAT graph (2^N vertices) | - |
-
-### Output Explained
-
-```
-Generate Time:       0.02229    # Time to generate/load graph
-Build Time:          0.01802    # Time to build CSR structure
-Trial Time:          0.00175    # Time for one PageRank execution
-Average Time:        0.00175    # Average over all trials
-```
-
-### Why Reordering Helps
-
-PageRank iterates over all vertices multiple times. Each iteration:
-1. Reads the current rank of each neighbor
-2. Accumulates contributions
-3. Writes new rank
-
-**With good ordering**: Neighbors are in cache → fast reads
-**With bad ordering**: Neighbors scattered → cache misses → slow
+**Why reordering helps:** PR iterates over all vertices, reading neighbor ranks each iteration. Good ordering = neighbors in cache = fast reads.
 
 ---
 
@@ -96,43 +62,13 @@ Level 2: [neighbors of level 1]
 ### How to Run
 
 ```bash
-# Basic usage (3 trials from random sources)
-./bench/bin/bfs -f graph.el -s -o 0 -n 3
-
-# More trials for stable timing
 ./bench/bin/bfs -f graph.el -s -o 17 -n 16
-
-# BFS from specific source vertex
-./bench/bin/bfs -f graph.el -s -o 12 -r 0 -n 3
-
-# Generate synthetic graph
-./bench/bin/bfs -g 18 -o 12 -n 5
+./bench/bin/bfs -f graph.el -s -o 12 -r 0 -n 3  # specific source
 ```
 
-### Options
+See [[Command-Line-Reference]] for all options. GraphBrew implements **direction-optimizing BFS** (top-down/bottom-up switching) for ~10-20x speedup on high-diameter graphs.
 
-| Flag | Description | Default |
-|------|-------------|---------|
-| `-f FILE` | Input graph file | Required |
-| `-s` | Symmetrize graph (undirected) | Off |
-| `-o N` | Reordering algorithm (0-17) | 0 |
-| `-n N` | Number of benchmark trials | 16 |
-| `-r N` | Starting source vertex | Random |
-
-### Direction-Optimizing BFS
-
-GraphBrew implements **direction-optimizing BFS** which switches between:
-- **Top-down**: From frontier to neighbors (when frontier is small)
-- **Bottom-up**: Check all unvisited if they connect to frontier (when frontier is large)
-
-This optimization provides ~10-20x speedup on high-diameter graphs!
-
-### Why Reordering Helps
-
-BFS accesses vertices level by level. Good ordering ensures:
-- Vertices at the same level are nearby in memory
-- Frontier vertices are cached together
-- Neighbor lists have spatial locality
+**Why reordering helps:** Vertices at the same BFS level stay nearby in memory → better frontier locality.
 
 ---
 
@@ -182,32 +118,11 @@ Finds the shortest weighted path from a source vertex to all other vertices. Use
 ### How to Run
 
 ```bash
-# Requires weighted graph
-./bench/bin/sssp -f weighted_graph.wel -s -o 12 -n 3
-
-# From specific source vertex
-./bench/bin/sssp -f graph.wel -s -o 17 -r 0 -n 5
-
-# With custom delta parameter
-./bench/bin/sssp -f graph.wel -s -o 12 -d 2 -n 3
+./bench/bin/sssp -f graph.wel -s -o 12 -n 3
+./bench/bin/sssp -f graph.wel -s -o 17 -r 0 -d 2 -n 5  # source 0, delta=2
 ```
 
-### Options
-
-| Flag | Description | Default |
-|------|-------------|---------|
-| `-f FILE` | Input graph (must have weights) | Required |
-| `-o N` | Reordering algorithm (0-17) | 0 |
-| `-n N` | Number of benchmark trials | 16 |
-| `-r N` | Starting source vertex | Random |
-| `-d N` | Delta for delta-stepping | 1 |
-
-### Delta-Stepping
-
-GraphBrew uses **delta-stepping SSSP**, which:
-- Groups vertices by distance into "buckets"
-- Processes buckets in parallel
-- Balances work across threads
+Requires weighted graph (`.wel`). Uses delta-stepping SSSP with parallel bucket processing. See [[Command-Line-Reference]] for options.
 
 ---
 
@@ -230,37 +145,11 @@ Where:
 ### How to Run
 
 ```bash
-# Basic BC from random source
 ./bench/bin/bc -f graph.el -s -o 12 -n 3
-
-# BC from specific source vertex
-./bench/bin/bc -f graph.el -s -o 12 -r 0 -n 3
-
-# Multiple iterations per trial (more thorough)
-./bench/bin/bc -f graph.el -s -o 12 -i 4 -n 3
+./bench/bin/bc -f graph.el -s -o 12 -r 0 -i 4 -n 3  # source 0, 4 iters
 ```
 
-### Options
-
-| Flag | Description | Default |
-|------|-------------|---------|
-| `-f FILE` | Input graph file | Required |
-| `-s` | Symmetrize graph | Off |
-| `-o N` | Reordering algorithm (0-17) | 0 |
-| `-n N` | Number of benchmark trials | 16 |
-| `-r N` | Starting source vertex | Random |
-| `-i N` | Number of iterations per trial | 1 |
-
-### Performance Note
-
-BC is computationally expensive: O(n × m) per source vertex. For large graphs:
-- Use fewer iterations (`-i 1`) for quick testing
-- The `-n` flag controls how many times the benchmark is repeated for timing accuracy
-- Each iteration uses a different random source vertex
-
-### Why Reordering Matters Most Here
-
-BC requires running BFS from many source vertices. Each BFS benefits from reordering, so the total benefit compounds!
+BC is O(n × m) per source vertex. Use `-i 1` for quick testing. Each BFS benefits from reordering, so total benefit **compounds** across iterations. See [[Command-Line-Reference]] for options.
 
 ---
 
@@ -308,32 +197,15 @@ Triangle counting benefits from processing vertices in degree order:
 
 ## Running Multiple Benchmarks
 
-### Using the Unified Script (Recommended)
-
 ```bash
 # One-click: downloads graphs, runs all benchmarks with all algorithms
 python3 scripts/graphbrew_experiment.py --full --size small
 
-# Run benchmarks on specific graphs
-python3 scripts/graphbrew_experiment.py --phase benchmark --size small --trials 3
-
-# Run specific benchmarks only
+# Specific benchmarks only
 python3 scripts/graphbrew_experiment.py --benchmarks pr bfs --size small
 ```
 
-### Quick Comparison Script
-
-```bash
-#!/bin/bash
-GRAPH="./results/graphs/email-Enron/email-Enron.mtx"
-ALGOS="0 7 12 14 17"  # ORIGINAL, HUBCLUSTERDBG, GraphBrewOrder, AdaptiveOrder, LeidenCSR
-TRIALS=3
-
-for algo in $ALGOS; do
-    echo "=== Algorithm $algo ==="
-    ./bench/bin/pr -f $GRAPH -s -o $algo -n $TRIALS 2>&1 | grep "Average Time"
-done
-```
+See [[Benchmark-Suite]] for automated experiments and [[Running-Benchmarks]] for manual usage.
 
 ---
 

@@ -139,83 +139,17 @@ Controls community granularity:
 
 | Resolution | Effect | Best For |
 |------------|--------|----------|
-| < 1.0 | Fewer, larger communities | True community detection, high modularity |
+| < 1.0 | Fewer, larger communities | True community detection |
 | 1.0 | Default balance | General use |
 | > 1.0 | More, smaller communities | **Cache locality / graph reordering** |
 
-**Key Insight: Resolution Trade-off**
+**Key insight:** Higher resolution produces smaller, cache-sized communities → better locality → faster algorithms, despite lower modularity.
 
-For **graph reordering** (optimizing cache locality for algorithms like PageRank), higher resolution often produces better results:
-
-| Resolution | Modularity | PR Execution | Use Case |
-|------------|-----------|--------------|----------|
-| 0.3-0.5 | High (0.66-0.74) | Slower | Finding "true" communities |
-| 1.0-2.0 | Lower (0.55-0.59) | **Faster** | Cache locality optimization |
-
-This is because:
-- Low resolution creates giant communities (high internal density = good modularity)
-- But giant communities are too big for cache → poor locality → slow algorithms
-- Higher resolution creates balanced, cache-sized communities → faster execution
-
-**Auto-Resolution Formula:**
-```
-Base: γ = clip(0.5 + 0.25 × log₁₀(avg_degree + 1), 0.5, 1.2)
-
-CV Adjustment (for power-law graphs with CV > 2.0):
-  factor = 2.0 / sqrt(max(2.0, sqrt(cv)))
-  γ = max(0.5, γ × factor)
-```
-
-**Auto-Resolution by Graph Type:**
-| Graph Type | CV | Auto-Resolution |
-|------------|-----|----------------|
-| Social networks (wiki-Talk) | High (~50) | 0.50 |
-| Web graphs | High | 0.50 |
-| Email networks | Medium | 0.52 |
-| Road networks | Low | 0.60 |
-| Co-authorship | Low | 0.77 |
-
-### Dynamic/Adaptive Resolution
-
-The **GVEAdaptive** variant (Algorithm 17:gveadaptive) and **VIBE** (Algorithm 17:vibe:dynamic) dynamically adjust resolution at each Leiden pass based on runtime metrics:
-
-1. **Community reduction rate** - If reducing too fast → raise resolution
-2. **Size imbalance** - If giant communities exist → raise resolution to break them
-3. **Convergence speed** - If converges in 1 iteration → communities too stable, raise resolution
-4. **Super-graph density** - Denser super-graphs need higher resolution
-
-**Algorithms with dynamic resolution support:**
-
-| Algorithm | Syntax | Description |
-|-----------|--------|-------------|
-| `gveadaptive` | `-o 17:gveadaptive:dynamic` | GVE-Leiden with dynamic |
-| `vibe` | `-o 17:vibe:dynamic` | VIBE unified framework |
-| `vibe:dfs` | `-o 17:vibe:dfs:dynamic` | VIBE + DFS ordering |
-| `vibe:streaming` | `-o 17:vibe:streaming:dynamic` | VIBE + lazy aggregation |
-| `vibe:lazyupdate` | `-o 17:vibe:lazyupdate` | VIBE + batched ctot updates |
-
-> **Note:** RabbitOrder variants (`vibe:rabbit`) do not support dynamic resolution and fall back to auto.
-
-Example evolution on wiki-Talk:
-```
-Pass 0: res=0.500 → 2.4M→64K comms, imbalance=1600x → next_res=1.07
-Pass 1: res=1.070 → 64K→4K comms, imbalance=720x  → next_res=1.50
-Pass 2: res=1.500 → 4K→3K comms, imbalance=540x   → next_res=2.26
-```
+See [[AdaptiveOrder-ML#auto-resolution]] for the auto-resolution formula, graph-type table, and dynamic/adaptive resolution details.
 
 ### Iterations
 
-Maximum refinement iterations (unified defaults from `reorder::ReorderConfig`):
-
-```cpp
-// From reorder_types.h - single source of truth
-opts.maxIterations = reorder::DEFAULT_MAX_ITERATIONS;  // 10, usually converges in 2-5
-opts.maxPasses = reorder::DEFAULT_MAX_PASSES;          // 10 maximum passes
-
-// Or use unified config directly:
-reorder::ReorderConfig cfg = reorder::ReorderConfig::FromOptions(options);
-cfg.applyAutoResolution(graph);  // Graph-adaptive resolution
-```
+Defaults from `reorder::ReorderConfig`: `maxIterations=10`, `maxPasses=10`. Usually converges in 2-5 iterations.
 
 ---
 
@@ -251,76 +185,7 @@ Dendrogram traversal with variants:
 
 ### LeidenCSR (17)
 
-Fast CSR-native Leiden (no graph conversion):
-1. Community detection directly on CSR graph
-2. Apply ordering variant
-
-**Variants (Best to Try First):**
-
-| Variant | Description | Speed | Quality | Recommendation |
-|---------|-------------|-------|---------|----------------|
-| `gveopt2` | **CSR-based aggregation** | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | **Best overall** |
-| `gveadaptive` | **Dynamic resolution** | ⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | **Unknown graphs** |
-| `vibe` | **VIBE unified framework** | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | **Configurable** |
-| `vibe:dynamic` | **VIBE + per-pass adjustment** | ⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | **Unknown graphs** |
-| `gve` | Standard GVE-Leiden | ⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | Default |
-| `gveopt` | Cache-optimized GVE | ⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | Large graphs |
-| `gveoptsort` | Multi-level sort | ⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | Hierarchical |
-| `gveturbo` | Speed-optimized | ⭐⭐⭐⭐⭐ | ⭐⭐⭐ | Speed priority |
-| `gvefast` | CSR buffer reuse | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | Large graphs |
-| `gverabbit` | GVE-Rabbit hybrid | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐ | Very large graphs |
-
-**Resolution Modes:**
-
-| Mode | Syntax | Description |
-|------|--------|-------------|
-| Fixed | `1.5` | Use specified value |
-| Auto | `auto` or `0` | Compute from graph density/CV |
-| Dynamic | `dynamic` | Auto initial, adjust each pass |
-| Dynamic+Init | `dynamic_2.0` | Start at 2.0, adjust each pass |
-
-**Example usage:**
-```bash
-# Fixed resolution (1.5-2.0 often best for social networks)
-./bench/bin/pr -f graph.mtx -s -o 17:gveopt2:2.0 -n 3
-
-# Auto resolution (recommended for unknown graphs)
-./bench/bin/pr -f graph.mtx -s -o 17:gveopt2:auto -n 3
-
-# Dynamic resolution (gveadaptive)
-./bench/bin/pr -f graph.mtx -s -o 17:gveadaptive:dynamic -n 3
-
-# VIBE with dynamic resolution (recommended unified approach)
-./bench/bin/pr -f graph.mtx -s -o 17:vibe:dynamic -n 3
-
-# Dynamic with initial value
-./bench/bin/pr -f graph.mtx -s -o 17:gveadaptive:dynamic_2.0 -n 3
-
-# Standard GVE-Leiden with explicit parameters
-./bench/bin/pr -f graph.mtx -s -o 17:gve:1.0:20:10 -n 3
-```
-
-**Benchmark Results (wiki-Talk: 2.4M nodes):**
-
-| Variant | Reorder Time | PR Execution | vs LeidenOrder |
-|---------|--------------|--------------|----------------|
-| LeidenOrder (15) | 1.62s | 0.042s | baseline |
-| GVEOpt2 res=2.0 | 1.29s | **0.033s** | **21% faster PR** |
-| GVEAdaptive res=2.0 | **1.14s** | 0.035s | **30% faster reorder** |
-
-**Comprehensive Benchmark Results (as-Skitter: 1.7M nodes, 11M edges):**
-
-| Variant | Description | Reorder(s) | PR Time(s) | Modularity |
-|---------|-------------|------------|------------|------------|
-| gve | Standard GVE-Leiden | 3.70 | 0.082 | 0.881 |
-| gveopt | Cache-optimized | 1.95 | 0.090 | 0.892 |
-| **gveopt2** | **CSR aggregation** | **1.44** | **0.070** | 0.858 |
-| gveadaptive | Dynamic resolution | 1.55 | 0.138 | 0.857 |
-| gveoptsort | Multi-level sort | 1.72 | 0.095 | 0.893 |
-| **gveturbo** | **Speed-optimized** | **0.77** | 0.076 | 0.873 |
-| gvefast | CSR buffer reuse | 0.40 | - | 0.768 |
-
-*Takeaway*: `gveopt2` offers the best balance of speed and PR performance. `gveturbo` is fastest for reordering.
+Fast CSR-native Leiden (no graph conversion). See [[Reordering-Algorithms#leidencsr-csrnative-leiden-reordering]] for variant table, resolution modes, benchmark results, and usage examples.
 
 ---
 
@@ -369,113 +234,22 @@ Leiden: 17 communities, modularity 0.8347
 
 ## Advanced: Per-Community Analysis
 
-### Community Features (AdaptiveOrder)
-
-For each community, GraphBrew computes:
-
-| Feature | Description |
-|---------|-------------|
-| `num_nodes` | Community size |
-| `num_edges` | Internal edges |
-| `internal_density` | edges / possible_edges |
-| `avg_degree` | Mean degree |
-| `degree_variance` | Normalized variance in degrees |
-| `hub_concentration` | Fraction of edges from top 10% nodes |
-| `clustering_coeff` | Local clustering coefficient (sampled) |
-| `modularity` | Community modularity |
-
-### Feature Extraction Code
-
-```cpp
-// From builder.h
-struct CommunityFeatures {
-    size_t num_nodes;
-    size_t num_edges;
-    double internal_density;     // edges / possible_edges
-    double avg_degree;
-    double degree_variance;      // normalized variance in degrees
-    double hub_concentration;    // fraction of edges from top 10% nodes
-    double modularity;           // community/subgraph modularity
-    // Extended features
-    double clustering_coeff;
-    double avg_path_length;
-    double diameter_estimate;
-    double community_count;
-};
-```
+For each community, GraphBrew computes structural features (num_nodes, num_edges, density, avg_degree, degree_variance, hub_concentration, clustering_coeff, modularity). See [[Code-Architecture#community-features]] for the full `CommunityFeatures` struct.
 
 ---
 
 ## Leiden vs Other Methods
 
-### Comparison
-
-| Method | Quality | Speed | Connected |
-|--------|---------|-------|-----------|
+| Method | Quality | Speed | Connected Communities |
+|--------|---------|-------|-----------------------|
 | GVE-Leiden | ★★★★★ | ★★★★ | Yes |
 | Louvain (RabbitOrder) | ★★★★ | ★★★★★ | No |
 | Infomap | ★★★★★ | ★★★ | No |
 | Label Prop | ★★★ | ★★★★★ | No |
 
-### GVE-Leiden vs RabbitOrder (Louvain) Benchmark
+**Why Leiden over Louvain?** Leiden's refinement phase prevents bad merges, producing higher modularity with connected communities. Benchmarks show +0.4% to +21% modularity improvement over RabbitOrder's Louvain (e.g., com-Youtube: Q=0.788 vs Q=0.650).
 
-GraphBrew's GVE-Leiden implementation follows the paper: *"Fast Leiden Algorithm for Community Detection in Shared Memory Setting"* (ACM DOI 10.1145/3673038.3673146).
-
-RabbitOrder uses Louvain internally (incremental aggregation, **no refinement phase**).
-
-| Graph | RabbitOrder (Louvain) | GVE-Leiden | Improvement |
-|-------|----------------------|------------|-------------|
-| web-Google (916K nodes) | 2,959 comm, Q=0.977 | 51,626 comm, Q=0.983 | **+0.6%** |
-| roadNet-PA (1.1M nodes) | 443 comm, Q=0.988 | 3,509 comm, Q=0.992 | **+0.4%** |
-| com-Youtube (1.1M nodes) | 35 comm, Q=0.650 | 9,168 comm, Q=0.788 | **+21%** |
-| Kronecker-18 (262K nodes) | 75 comm, Q=0.063 | 88,227 comm, Q=0.190 | **+3x** |
-
-**Key observation**: GVE-Leiden produces **more communities but higher modularity**. This is because:
-- RabbitOrder (Louvain) over-merges small communities into giant poorly-connected "super-communities"
-- GVE-Leiden's **refinement phase** prevents bad merges by checking community connectivity
-- Smaller, well-connected communities have higher internal density → higher modularity
-
-### Why Leiden over Louvain?
-
-1. **Connected communities**: Louvain can create disconnected groups
-2. **Better quality**: Leiden finds higher-modularity partitions (proven in benchmarks above)
-3. **Refinement phase**: The key Leiden innovation - only keeps vertices that truly belong together
-4. **Avoids resolution limit**: Louvain tends to over-merge, losing fine-grained structure
-
----
-
-## Troubleshooting
-
-### "Low modularity, no improvement"
-
-Your graph may lack community structure. Try:
-- Hub-based algorithms instead (5-7)
-- Check if graph is designed for communities
-
-### "Leiden takes too long"
-
-For very large graphs:
-- Reduce resolution (larger communities)
-- Limit iterations
-- Consider approximate methods
-
-### "Wrong number of communities"
-
-Adjust resolution via the algorithm parameter:
-```bash
-# More communities (higher resolution)
-./bench/bin/pr -f graph.el -s -o 17:gve:1.5:20:10 -n 3
-
-# Fewer communities (lower resolution)
-./bench/bin/pr -f graph.el -s -o 17:gve:0.5:20:10 -n 3
-```
-
----
-
-## References
-
-- Traag, V.A., Waltman, L., & van Eck, N.J. (2019). From Louvain to Leiden: guaranteeing well-connected communities. *Scientific Reports*, 9, 5233.
-- [Leiden Algorithm Wikipedia](https://en.wikipedia.org/wiki/Leiden_algorithm)
+Ref: Traag et al. (2019). *From Louvain to Leiden.* Scientific Reports 9, 5233.
 
 ---
 

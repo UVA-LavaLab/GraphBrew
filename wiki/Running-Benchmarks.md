@@ -46,70 +46,7 @@ python3 scripts/graphbrew_experiment.py --precompute --phase benchmark
 python3 scripts/graphbrew_experiment.py --train --auto --size all
 ```
 
-### `--train` Phases
-
-The comprehensive `--train` mode runs a streamlined training pipeline:
-
-| Step | Description |
-|------|-------------|
-| **Download** | Downloads graphs if not present (with `--size`) |
-| **Build** | Builds binaries if not present |
-| **Phase 1** | Generate reorderings with label-mapping |
-| **Phase 2** | Run execution benchmarks (PR, BFS, CC, SSSP, BC) |
-| **Phase 3** | Run cache simulation (skip with `--skip-cache`) |
-| **Phase 4** | Generate/update perceptron weights |
-| **Fill Weights** | Update zero weights with computed values |
-
-Output files are saved to `scripts/weights/active/`: `type_0.json`, `type_1.json`, `type_registry.json`, etc.
-
-Per-graph data is stored in a structured format:
-- **Static features**: `results/graphs/<graph>/features.json` (topology metrics, computed once)
-- **Run-specific data**: `results/logs/<graph>/runs/<timestamp>/` (benchmarks, reorder timings, weights)
-
-Each experiment run creates a new timestamped directory to preserve historical data.
-
-### Download Options
-
-| Size | Graphs | Total | Categories |
-|------|--------|-------|------------|
-| `SMALL` | 16 | ~62 MB | communication, p2p, social |
-| `MEDIUM` | 28 | ~1.1 GB | web, road, commerce, mesh, synthetic |
-| `LARGE` | 37 | ~25 GB | social, web, collaboration, road |
-| `XLARGE` | 6 | ~63 GB | massive web (twitter7, webbase), Kronecker |
-| `ALL` | **87** | ~89 GB | Complete benchmark set |
-
-### Memory Management
-
-The script automatically estimates memory requirements for each graph:
-
-```
-Memory ≈ (edges × 24 bytes + nodes × 8 bytes) × 1.5 safety factor
-```
-
-| Option | Description |
-|--------|-------------|
-| `--max-memory GB` | Skip graphs requiring more than this RAM |
-| `--auto-memory` | Use 80% of total system RAM as limit |
-
-Example memory requirements:
-| Graph | Nodes | Edges | Memory Required |
-|-------|-------|-------|-----------------|
-| email-Enron | 37K | 184K | ~0.01 GB |
-| soc-LiveJournal1 | 4.8M | 69M | ~2.4 GB |
-| com-Orkut | 3.1M | 117M | ~4.0 GB |
-| uk-2005 | 39M | 936M | ~32 GB |
-| twitter7 | 42M | 1.5B | ~52 GB |
-
-### Disk Space Management
-
-The script can limit downloads based on available disk space:
-
-| Option | Description |
-|--------|-------------|
-| `--max-disk GB` | Stop downloads when cumulative size exceeds this limit |
-| `--auto-disk` | Use 80% of available disk space as limit |
-
-See [[Python-Scripts]] for full documentation.
+See [[Command-Line-Reference]] for `--train` phases, download size options, and memory/disk management. See [[Python-Scripts]] for full script documentation.
 
 ---
 
@@ -286,46 +223,7 @@ Time: 1.234 seconds
 
 ## Reordering Options
 
-### All Available Algorithms
-
-```bash
-# No reordering
--o 0   # ORIGINAL
-
-# Basic reordering
--o 1   # RANDOM
--o 2   # SORT (by degree)
-
-# Hub-based
--o 3   # HUBSORT
--o 4   # HUBCLUSTER
--o 5   # DBG
--o 6   # HUBSORTDBG
--o 7   # HUBCLUSTERDBG
-
-# Community-based
--o 8   # RABBITORDER (uses CSR variant by default)
--o 8:csr    # Explicit CSR variant (native, no Boost dependency)
--o 8:boost  # Boost variant (faster reorder, requires Boost library)
--o 9   # GORDER
--o 10  # CORDER
--o 11  # RCM
-
-# Advanced hybrid
--o 12  # GraphBrewOrder (per-community)
--o 13  # MAP (load from file)
--o 14  # AdaptiveOrder (ML)
-
-# Leiden-based
--o 15  # LeidenOrder (igraph)
--o 16  # LeidenDendrogram
--o 17  # LeidenCSR (uses GVE-Leiden by default)
--o 17:gveopt2:auto   # LeidenCSR with CSR aggregation + auto resolution (best overall)
--o 17:gveadaptive:dynamic  # Dynamic resolution adjustment (best for unknown graphs)
--o 17:gve:1.0:20:10  # Explicit GVE-Leiden with fixed resolution
-```
-
-### Recommended Algorithms by Use Case
+See [[Command-Line-Reference#reordering-algorithm-ids]] for the full algorithm table (IDs 0-17) and variant syntax.
 
 | Use Case | Algorithm | ID |
 |----------|-----------|-----|
@@ -334,159 +232,30 @@ Time: 1.234 seconds
 | Unknown graphs | AdaptiveOrder | 14 |
 | Maximum locality | LeidenCSR | 17 |
 | Road networks | RCM | 11 |
-| Quick test | ORIGINAL | 0 |
 
 ---
 
 ## Batch Benchmarking
 
-### Run All Benchmarks on One Graph
-
-```bash
-#!/bin/bash
-GRAPH=my_graph.el
-ORDER=7
-
-for bench in pr bfs cc sssp bc tc; do
-    echo "=== $bench ==="
-    ./bench/bin/$bench -f $GRAPH -s -o $ORDER -n 5
-done
-```
-
-### Compare Multiple Orderings
-
-```bash
-#!/bin/bash
-GRAPH=my_graph.el
-
-for order in 0 7 12 15 17; do
-    echo "=== Order $order ==="
-    ./bench/bin/pr -f $GRAPH -s -o $order -n 3
-done
-```
-
-### Run on Multiple Graphs
-
-```bash
-#!/bin/bash
-for graph in graphs/*.el; do
-    echo "=== $graph ==="
-    ./bench/bin/pr -f "$graph" -s -o 7 -n 3
-done
-```
+See [[Command-Line-Reference#common-command-patterns]] for batch scripts (all benchmarks, compare orderings, multiple graphs).
 
 ---
 
 ## Using Python Scripts
 
-### graphbrew_experiment.py - Full Pipeline
-
-The main orchestration script handles downloading, building, and benchmarking:
-
-```bash
-# Full pipeline: download graphs, build, run all benchmarks
-python3 scripts/graphbrew_experiment.py --full --size small
-
-# Run specific phase on existing graphs
-python3 scripts/graphbrew_experiment.py --phase benchmark --size small --trials 5
-
-# Run specific benchmarks with specific algorithms
-python3 scripts/graphbrew_experiment.py --phase benchmark \
-    --benchmarks pr bfs \
-    --size small \
-    --trials 5
-
-# Generate and use label maps for consistent reordering
-python3 scripts/graphbrew_experiment.py --precompute --phase benchmark
-
-# Train perceptron weights
-python3 scripts/graphbrew_experiment.py --train --auto --size all
-```
-
-### Key Options
-
-| Option | Description |
-|--------|-------------|
-| `--full` | Run complete pipeline |
-| `--phase` | Run specific phase: download, build, benchmark, cache, weights |
-| `--size` | Graph size: small, medium, large, xlarge, all |
-| `--benchmarks` | Specific benchmarks: pr, bfs, cc, sssp, bc |
-| `--trials N` | Number of benchmark trials |
-| `--quick` | Only test key algorithms (faster) |
-| `--skip-cache` | Skip cache simulation |
-| `--train` | Complete training pipeline |
-
-See [[Python-Scripts]] for complete documentation.
+See [[Python-Scripts]] for the full orchestration script reference and [[Command-Line-Reference#python-script-options-graphbrew_experimentpy]] for CLI options.
 
 ---
 
 ## Output Formats
 
-### Standard Output
-
-```
-Loading graph from graph.el...
-Reordering with HUBCLUSTERDBG...
-Graph has 4039 nodes and 88234 edges
-
-Trial   Time(s)
-1       0.0234
-2       0.0231
-3       0.0229
-4       0.0232
-5       0.0230
-
-Average: 0.0231 seconds
-Std Dev: 0.0002 seconds
-```
-
-### Timing Breakdown (Verbose)
-
-With reordering, additional timing info:
-```
-=== Timing Breakdown ===
-Graph loading:     0.012s
-Community detection: 0.045s
-Reordering:        0.023s
-Benchmark (avg):   0.0231s
-Total:             0.103s
-```
-
-### CSV Output (with scripts)
-
-```csv
-graph,algorithm,order,trial,time,metric
-facebook.el,pr,7,1,0.0234,
-facebook.el,pr,7,2,0.0231,
-facebook.el,bfs,7,1,0.0012,76.9
-```
+See [[Command-Line-Reference#output-format]] for standard, BFS, and AdaptiveOrder output examples.
 
 ---
 
 ## Environment Variables
 
-### Perceptron Weights
-
-```bash
-# Use custom weights file
-export PERCEPTRON_WEIGHTS_FILE=/path/to/weights.json
-./bench/bin/pr -f graph.el -s -o 14 -n 3
-```
-
-### OpenMP Threads
-
-```bash
-# Control parallelism
-export OMP_NUM_THREADS=8
-./bench/bin/pr -f graph.el -s -o 7 -n 3
-```
-
-### Numa Binding
-
-```bash
-# Bind to specific NUMA node
-numactl --cpunodebind=0 --membind=0 ./bench/bin/pr -f graph.el -s -n 5
-```
+See [[Command-Line-Reference#environment-variables]] for `OMP_NUM_THREADS`, `PERCEPTRON_WEIGHTS_FILE`, and NUMA binding.
 
 ---
 
@@ -516,56 +285,7 @@ numactl --cpunodebind=0 --membind=0 ./bench/bin/pr -f graph.el -s -n 5
 
 ## Troubleshooting
 
-### "File not found"
-
-```bash
-# Check file exists
-ls -la graph.el
-
-# Use absolute path
-./bench/bin/pr -f /full/path/to/graph.el -s
-```
-
-### "Invalid format"
-
-```bash
-# Check file format
-head -5 graph.el
-# Should be: node1 node2 [weight]
-
-# Remove headers if present
-tail -n +2 graph.el > graph_clean.el
-```
-
-### "Out of memory"
-
-```bash
-# Check available memory
-free -h
-
-# Try smaller graph or more RAM
-```
-
-### "Segmentation fault"
-
-```bash
-# Build with debug
-make clean
-make DEBUG=1
-
-# Run with debugger
-gdb ./bench/bin/pr
-```
-
-### Slow Performance
-
-```bash
-# Check thread count
-echo $OMP_NUM_THREADS
-
-# Use all cores
-export OMP_NUM_THREADS=$(nproc)
-```
+See [[Troubleshooting]] for solutions to common issues (file not found, invalid format, OOM, segfaults, slow performance).
 
 ---
 

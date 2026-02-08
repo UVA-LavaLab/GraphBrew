@@ -227,70 +227,22 @@ Build Time:          0.01xxx
 Trial Time:          0.00xxx
 ```
 
-## Python Environment Setup
+## Python Environment
 
-### Install Python Dependencies
-
-The core Python scripts require only Python 3.8+ standard library. Optional dependencies provide extended analysis:
+Core scripts require only Python 3.8+ standard library. Optional: `pip3 install numpy matplotlib pandas` for visualization.
 
 ```bash
-cd GraphBrew
-
-# Core scripts work without any pip installs!
-# Optional: Install for extended visualization and analysis
-pip3 install numpy matplotlib pandas
-```
-
-### Verify Python Scripts
-
-```bash
-# Quick verification of lib/ module imports
-python3 -c "from scripts.lib import ALGORITHMS; print(f'Loaded {len(ALGORITHMS)} algorithms')"
-
-# Or run the main script with help
-python3 scripts/graphbrew_experiment.py --help
+python3 scripts/graphbrew_experiment.py --help  # Verify scripts work
 ```
 
 ## Directory Structure After Build
 
-```
-GraphBrew/
-├── bench/
-│   ├── bin/           # Compiled binaries (pr, bfs, cc, etc.)
-│   ├── bin_sim/       # Cache simulation binaries
-│   ├── include/       # Header files
-│   └── src/           # Source files
-├── graphs/            # Downloaded benchmark graphs
-├── results/           # Experiment outputs
-│   ├── mappings/      # Pre-generated label maps
-│   └── logs/          # Execution logs
-├── scripts/           # Python analysis tools
-│   ├── graphbrew_experiment.py  # ⭐ Main orchestration (~3500 lines)
-│   ├── requirements.txt
-│   ├── lib/           # 📦 Core modules (~14,300 lines)
-│   │   ├── graph_types.py         # Data classes
-│   │   ├── phases.py        # Phase orchestration
-│   │   ├── utils.py         # ALGORITHMS, constants
-│   │   ├── features.py      # Graph features
-│   │   ├── dependencies.py  # System dependency management
-│   │   ├── download.py      # Graph downloading
-│   │   ├── build.py         # Binary compilation
-│   │   ├── reorder.py       # Vertex reordering
-│   │   ├── benchmark.py     # Benchmark execution
-│   │   ├── cache.py         # Cache simulation
-│   │   ├── weights.py       # Weight management
-│   │   ├── training.py      # ML training
-│   │   ├── analysis.py      # Adaptive analysis
-│   │   ├── progress.py      # Progress tracking
-│   │   └── results.py       # Result I/O
-│   └── weights/       # Auto-clustered type weights
-│       ├── active/            # C++ reads from here
-│       │   ├── type_registry.json  # Graph → type mappings + centroids
-│       │   └── type_N.json         # Per-cluster weights
-│       ├── merged/            # Accumulated weights
-│       └── runs/              # Historical snapshots
-└── wiki/              # This documentation
-```
+See [[Code-Architecture]] for full directory layout. Key paths:
+- `bench/bin/` — Compiled binaries (pr, bfs, cc, etc.)
+- `bench/bin_sim/` — Cache simulation binaries
+- `scripts/lib/` — Core Python modules
+- `scripts/weights/active/` — Perceptron weight files
+- `results/` — Experiment outputs
 
 ## Troubleshooting Build Issues
 
