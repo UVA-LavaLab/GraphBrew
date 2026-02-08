@@ -164,9 +164,10 @@ namespace leiden {
  * @brief Variant selection for LeidenCSR (-o 17)
  */
 enum class LeidenCSRVariant {
-    GVE,        ///< Standard GVE-Leiden (default)
+    GVE,        ///< Standard GVE-Leiden
     GVE2,       ///< Double-buffered super-graph (leiden.hxx style)
     GVEOpt,     ///< Cache-optimized GVE-Leiden
+    GVEOpt2,    ///< CSR-based aggregation (default - fastest + best quality)
     GVERabbit,  ///< GVE + RabbitOrder within communities
     DFS,        ///< DFS ordering of community tree
     BFS,        ///< BFS ordering of community tree
@@ -196,9 +197,10 @@ enum class DendrogramTraversal {
 // ============================================================================
 
 inline LeidenCSRVariant ParseLeidenCSRVariant(const std::string& s) {
-    if (s == "gve" || s.empty()) return LeidenCSRVariant::GVE;
+    if (s == "gve") return LeidenCSRVariant::GVE;
     if (s == "gve2") return LeidenCSRVariant::GVE2;
     if (s == "gveopt") return LeidenCSRVariant::GVEOpt;
+    if (s == "gveopt2" || s == "opt2" || s.empty()) return LeidenCSRVariant::GVEOpt2;
     if (s == "gverabbit") return LeidenCSRVariant::GVERabbit;
     if (s == "dfs") return LeidenCSRVariant::DFS;
     if (s == "bfs") return LeidenCSRVariant::BFS;
@@ -210,7 +212,7 @@ inline LeidenCSRVariant ParseLeidenCSRVariant(const std::string& s) {
     if (s == "vibe:dfs" || s == "vibedfs") return LeidenCSRVariant::VibeDFS;
     if (s == "vibe:bfs" || s == "vibebfs") return LeidenCSRVariant::VibeBFS;
     if (s == "vibe:rabbit" || s == "viberabbit") return LeidenCSRVariant::VibeRabbit;
-    return LeidenCSRVariant::GVE;
+    return LeidenCSRVariant::GVEOpt2;  // Unknown variant defaults to gveopt2
 }
 
 inline DendrogramTraversal ParseDendrogramTraversal(const std::string& s) {
@@ -227,6 +229,7 @@ inline std::string LeidenCSRVariantToString(LeidenCSRVariant v) {
         case LeidenCSRVariant::GVE: return "gve";
         case LeidenCSRVariant::GVE2: return "gve2";
         case LeidenCSRVariant::GVEOpt: return "gveopt";
+        case LeidenCSRVariant::GVEOpt2: return "gveopt2";
         case LeidenCSRVariant::GVERabbit: return "gverabbit";
         case LeidenCSRVariant::DFS: return "dfs";
         case LeidenCSRVariant::BFS: return "bfs";

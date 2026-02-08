@@ -905,8 +905,10 @@ Reordering Algorithms:
   │ LeidenDendrogram(16): Dendrogram traversal (format: 16:res:variant)         │
   │                      Variants: dfs, dfshub, dfssize, bfs, hybrid            │
   │ LeidenCSR     (17):  Fast CSR-native (format: 17:variant:res:passes)        │
-  │                      Speed: gveopt2, gveturbo, gvefast, gverabbit           │
-  │                      Quality: gve (default), gveopt, gveadaptive, modularity│
+  │                      Default: gveopt2 (fastest + best quality) ⭐             │
+  │                      Speed: gveturbo, gvefast, gverabbit                    │
+  │                      Quality: gve, gveopt, gveadaptive, modularity          │
+  │                      VIBE: vibe, vibe:hrab (best locality), vibe:rabbit     │
   │                      Legacy: gvedendo, gveoptdendo, dfs, bfs, hubsort       │
   └─────────────────────────────────────────────────────────────────────────────┘
   See scripts/lib/utils.py for authoritative variant definitions.
