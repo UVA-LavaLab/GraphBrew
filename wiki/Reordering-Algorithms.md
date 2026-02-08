@@ -370,7 +370,7 @@ Implements the full Leiden algorithm from: *"Fast Leiden Algorithm for Community
 
 ```bash
 # Format: -o 17[:variant:resolution:iterations:passes]
-./bench/bin/pr -f graph.el -s -o 17 -n 3                    # Default: GVE-Leiden (best quality)
+./bench/bin/pr -f graph.el -s -o 17 -n 3                    # Default: gveopt2 (fastest + best quality)
 ./bench/bin/pr -f graph.el -s -o 17:gve:1.0:20:5 -n 3       # GVE-Leiden explicit params
 ./bench/bin/pr -f graph.el -s -o 17:gveopt:auto -n 3        # Cache-optimized GVE, auto resolution
 ./bench/bin/pr -f graph.el -s -o 17:gveopt2:2.0:20:10 -n 3  # CSR-based aggregation (fastest)
@@ -406,9 +406,9 @@ Implements the full Leiden algorithm from: *"Fast Leiden Algorithm for Community
 **Variants:**
 | Variant | Description | Speed | Quality | Best For |
 |---------|-------------|-------|---------|----------|
-| `gve` | **GVE-Leiden with refinement (DEFAULT)** | Fast | **Best** | General use |
+| `gve` | GVE-Leiden with refinement | Fast | **Best** | Modularity quality |
 | `gveopt` | Cache-optimized GVE with prefetching | **Faster** | **Best** | Large graphs |
-| `gveopt2` | **CSR-based aggregation (no sort)** | **Fastest** | **Best** | Best overall ⭐ |
+| `gveopt2` | **CSR-based aggregation (DEFAULT)** | **Fastest** | **Best** | Best overall ⭐ |
 | `gveadaptive` | **Dynamic resolution adjustment** | Fast | **Best** | Unknown graphs ⭐ |
 | `gveoptsort` | Multi-level sort ordering (LeidenOrder-style) | Fast | **Best** | Hierarchical |
 | `gveturbo` | Speed-optimized (optional refinement skip) | **Fastest** | Good | Speed priority |

@@ -42,9 +42,9 @@ A comprehensive one-click script that runs the complete GraphBrew experiment wor
     
     RabbitOrder (8) variants: csr (default), boost
     LeidenCSR (17) variants:
-      - gve (default): Standard GVE-Leiden with refinement
+      - gveopt2 (default): CSR-based aggregation (fastest + best quality) ⭐
+      - gve: Standard GVE-Leiden with refinement
       - gveopt: Cache-optimized with prefetching
-      - gveopt2: CSR-based aggregation (fastest reordering) ⭐
       - gveadaptive: Dynamic resolution adjustment (best for unknown graphs) ⭐
       - gveoptsort: Multi-level sort ordering
       - gveturbo: Speed-optimized (optional refinement skip)
@@ -472,7 +472,7 @@ def get_best_leiden_variant(
     """
     Get the best variant for a Leiden algorithm based on learned weights.
     
-    For LeidenCSR (17), variants are: gve (default), gveopt, dfs, bfs, hubsort, fast, modularity
+    For LeidenCSR (17), variants are: gveopt2 (default), gve, gveopt, dfs, bfs, hubsort, fast, modularity
     For LeidenDendrogram (16), variants are: dfs, dfshub, dfssize, bfs, hybrid
     
     Args:
@@ -3281,7 +3281,7 @@ def main():
                         help="Test ALL algorithm variants (Leiden, RabbitOrder) instead of just defaults")
     parser.add_argument("--csr-variants", nargs="+", dest="leiden_csr_variants",
                         default=None, choices=LEIDEN_CSR_VARIANTS,
-                        help="LeidenCSR/VIBE variants to test. Key variants: gve (default), gveopt2, gveadaptive, "
+                        help="LeidenCSR/VIBE variants to test. Key variants: gveopt2 (default), gve, gveadaptive, "
                              "vibe:rabbit (RabbitOrder), vibe:hrab (Hybrid Leiden+Rabbit BFS), "
                              "vibe:hrab:gordi (Hybrid Leiden+Rabbit Gorder). Use --all-variants for all.")
     parser.add_argument("--dendrogram-variants", nargs="+", dest="leiden_dendrogram_variants",

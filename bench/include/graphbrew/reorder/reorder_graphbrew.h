@@ -398,7 +398,7 @@ struct GraphBrewConfig {
             if (variant.size() >= 4 && variant.substr(variant.size() - 4) == "fast") {
                 cfg.use_fast_final = true;
                 variant = variant.substr(0, variant.size() - 4);
-                if (variant.empty()) variant = "gve";
+                if (variant.empty()) variant = "gveopt2";
             }
             
             cfg.cluster = ParseGraphBrewCluster(variant);

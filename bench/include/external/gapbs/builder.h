@@ -2800,7 +2800,7 @@ public:
     /**
      * Unified Leiden CSR Mapping - Parses variant from options
      * Format: 17:variant:resolution:iterations:passes
-     * Variants: gve (default), gveopt, gverabbit, dfs, bfs, hubsort, fast, modularity
+     * Variants: gveopt2 (default), gve, gveopt, gverabbit, dfs, bfs, hubsort, fast, modularity
      */
     void GenerateLeidenCSRMappingUnified(
         const CSRGraph<NodeID_, DestID_, invert> &g,
@@ -2812,7 +2812,7 @@ public:
         // Unified defaults across all Leiden algorithms for fair comparison
         int max_iterations = LEIDEN_DEFAULT_ITERATIONS;
         int max_passes = LEIDEN_DEFAULT_PASSES;
-        std::string variant = "gve";  // Default to GVE-Leiden (best quality)
+        std::string variant = "gveopt2";  // Default to GVE-Leiden Opt2 (fastest + best quality)
         std::string resolution_mode = "auto";
         
         // Parse options: variant, resolution, max_iterations, max_passes

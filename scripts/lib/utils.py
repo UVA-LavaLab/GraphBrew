@@ -139,7 +139,7 @@ LEIDEN_CSR_VARIANTS = [
     "vibe:hrab:gordi",  # Hybrid Leiden+RabbitOrder with Gorder intra-community (best locality)
     "vibe:rabbit", "vibe:rabbit:dfs", "vibe:rabbit:bfs", "vibe:rabbit:dbg", "vibe:rabbit:corder"  # RabbitOrder
 ]
-LEIDEN_CSR_DEFAULT_VARIANT = "gve"  # GVE-Leiden (best modularity quality)
+LEIDEN_CSR_DEFAULT_VARIANT = "gveopt2"  # CSR-based aggregation (fastest + best quality)
 
 # Recommended variants for different use cases
 LEIDEN_CSR_FAST_VARIANTS = ["gveopt2", "gveadaptive", "gveturbo", "gvefast", "gverabbit", "vibe:rabbit"]  # Speed priority
