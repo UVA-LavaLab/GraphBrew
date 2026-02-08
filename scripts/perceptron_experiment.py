@@ -149,7 +149,7 @@ def load_all_results() -> Dict[str, Any]:
                         results['graphs'].add(item.get('graph', ''))
                         results['algorithms'].add(item.get('algorithm', ''))
         except Exception as e:
-            log.warn(f"Failed to load {bf}: {e}")
+            log.warning(f"Failed to load {bf}: {e}")
     
     # Load all reorder times
     for rf in reorder_files:
@@ -159,7 +159,7 @@ def load_all_results() -> Dict[str, Any]:
                 if isinstance(data, list):
                     results['reorder_times'].extend(data)
         except Exception as e:
-            log.warn(f"Failed to load {rf}: {e}")
+            log.warning(f"Failed to load {rf}: {e}")
     
     # Load all cache results
     for cf in cache_files:
@@ -169,7 +169,7 @@ def load_all_results() -> Dict[str, Any]:
                 if isinstance(data, list):
                     results['cache'].extend(data)
         except Exception as e:
-            log.warn(f"Failed to load {cf}: {e}")
+            log.warning(f"Failed to load {cf}: {e}")
     
     results['graphs'] = sorted(results['graphs'])
     results['algorithms'] = sorted(results['algorithms'])
@@ -184,7 +184,7 @@ def load_all_results() -> Dict[str, Any]:
     if results['has_cache']:
         log.info(f"Loaded {len(results['cache'])} cache results")
     else:
-        log.warn("No cache results (--skip-cache was used)")
+        log.warning("No cache results (--skip-cache was used)")
     
     # Categorize graphs and algorithms
     results['graph_types'] = {g: get_graph_type(g) for g in results['graphs']}
@@ -198,7 +198,9 @@ def compute_graph_features(graph_name: str, results: Dict) -> Dict[str, float]:
     """
     Compute/estimate graph features from available data.
     
-    Since we don't have full topology analysis cached, we estimate from benchmark metadata.
+    Merges features from per-graph features.json AND graph_properties_cache.json,
+    preferring non-zero values over zero/default ones so that partial data from
+    one source doesn't overwrite richer data from another.
     """
     features = {
         'modularity': 0.5,
@@ -211,25 +213,43 @@ def compute_graph_features(graph_name: str, results: Dict) -> Dict[str, float]:
         'clustering_coefficient': 0.1,
         'community_count': 10,
     }
-    
-    # Try to load from graph properties cache
+
+    # Metadata keys that should always be overwritten (not numeric features)
+    _metadata_keys = {'graph_name', 'graph_type', 'source_file', 'last_updated'}
+
+    def _smart_merge(dst: dict, src: dict) -> None:
+        """Merge src into dst, but never overwrite a non-zero numeric with zero."""
+        for k, v in src.items():
+            if k in _metadata_keys:
+                dst[k] = v
+                continue
+            if isinstance(v, (int, float)):
+                # Only overwrite if new value is non-zero or destination is still default
+                existing = dst.get(k)
+                if v != 0 or existing is None:
+                    dst[k] = v
+            else:
+                dst[k] = v
+
+    # Load from per-graph features.json first (may have 0.0 for some fields)
+    feat_file = RESULTS_DIR / "graphs" / graph_name / "features.json"
+    if feat_file.exists():
+        try:
+            with open(feat_file) as f:
+                _smart_merge(features, json.load(f))
+        except Exception:
+            pass
+
+    # Load from graph_properties_cache.json last — it typically has the richest
+    # data including modularity, density, etc. computed from full graph analysis.
     cache_file = RESULTS_DIR / "graph_properties_cache.json"
     if cache_file.exists():
         try:
             with open(cache_file) as f:
                 cache = json.load(f)
                 if graph_name in cache:
-                    features.update(cache[graph_name])
-        except:
-            pass
-    
-    # Try to load from per-graph features
-    feat_file = RESULTS_DIR / "graphs" / graph_name / "features.json"
-    if feat_file.exists():
-        try:
-            with open(feat_file) as f:
-                features.update(json.load(f))
-        except:
+                    _smart_merge(features, cache[graph_name])
+        except Exception:
             pass
     
     # Compute derived features
@@ -558,6 +578,157 @@ def train_weights_hybrid(
     return weights
 
 
+def train_weights_perceptron(
+    perf_matrix: Dict,
+    graphs: List[str],
+    config: PerceptronConfig,
+    results: Dict,
+    learning_rate: float = 0.1,
+    epochs: int = 50,
+) -> Dict[str, Dict]:
+    """
+    Train weights using an online perceptron update rule.
+
+    For each graph/benchmark, the algorithm with the highest score should be the
+    actual best algorithm.  When the predicted best differs from the actual best,
+    we push the actual-best score up and the predicted-best score down by
+    adjusting bias and feature weights proportionally.
+
+    This is the only training method that produces non-zero feature weights,
+    enabling the perceptron to specialize its selections per-graph.
+    """
+    # Collect all algorithms
+    algorithms = set()
+    for graph in graphs:
+        if graph in perf_matrix:
+            algorithms.update(perf_matrix[graph].keys())
+    algorithms = sorted(algorithms)
+
+    # Initialize weights from rank-based bias (good starting point)
+    weights = train_weights_rank(perf_matrix, graphs, config)
+    # Ensure all algorithms have entries
+    for algo in algorithms:
+        if algo not in weights:
+            weights[algo] = _create_default_weight_entry()
+
+    # Compute features once
+    graph_features = {g: compute_graph_features(g, results) for g in graphs}
+
+    # Feature names and their weight keys (same mapping as add_feature_weights)
+    feat_map = {
+        'modularity': 'w_modularity',
+        'density': 'w_density',
+        'degree_variance': 'w_degree_variance',
+        'hub_concentration': 'w_hub_concentration',
+        'clustering_coefficient': 'w_clustering_coeff',
+        'avg_degree': 'w_avg_degree',
+        'packing_factor': 'w_packing_factor',
+        'forward_edge_fraction': 'w_forward_edge_fraction',
+        'working_set_ratio': 'w_working_set_ratio',
+        'community_count': 'w_community_count',
+    }
+
+    # Identify benchmarks that have data
+    active_benchmarks = set()
+    for g in graphs:
+        for algo in perf_matrix.get(g, {}):
+            for b in perf_matrix[g][algo]:
+                active_benchmarks.add(b)
+    active_benchmarks = sorted(active_benchmarks)
+
+    updates = 0
+
+    for epoch in range(epochs):
+        # Shuffle training order for stability
+        order = list(graphs)
+        random.shuffle(order)
+        epoch_updates = 0
+
+        for graph in order:
+            if graph not in perf_matrix:
+                continue
+            features = graph_features.get(graph, {})
+
+            for bench in active_benchmarks:
+                # Find actual best algorithm for this graph/benchmark
+                actual_best, actual_time = find_best_algorithm(perf_matrix, graph, bench)
+                if actual_time == float('inf') or actual_best not in weights:
+                    continue
+
+                # Find predicted best (highest score)
+                best_score = float('-inf')
+                predicted_best = None
+                for algo, w in weights.items():
+                    if algo.startswith('_') or not isinstance(w, dict):
+                        continue
+                    if algo not in perf_matrix.get(graph, {}):
+                        continue
+                    if bench not in perf_matrix[graph][algo]:
+                        continue
+                    pw = PerceptronWeight.from_dict(w)
+                    score = pw.compute_score(features, bench)
+                    if score > best_score:
+                        best_score = score
+                        predicted_best = algo
+
+                if predicted_best is None or predicted_best == actual_best:
+                    continue  # Correct prediction, no update needed
+
+                # Perceptron update: push actual_best up, predicted_best down
+                epoch_updates += 1
+
+                # Update bias
+                weights[actual_best]['bias'] += learning_rate
+                weights[predicted_best]['bias'] -= learning_rate
+
+                # Update feature weights
+                for feat_name, w_key in feat_map.items():
+                    fval = features.get(feat_name, 0.0)
+                    if fval == 0.0:
+                        continue
+                    # Normalize large features
+                    if feat_name == 'avg_degree':
+                        fval /= 100.0
+                    elif feat_name == 'community_count':
+                        fval = math.log10(fval + 1)
+                    elif feat_name == 'working_set_ratio':
+                        fval = math.log2(fval + 1.0)
+
+                    if w_key in weights[actual_best]:
+                        weights[actual_best][w_key] += learning_rate * fval
+                    if w_key in weights[predicted_best]:
+                        weights[predicted_best][w_key] -= learning_rate * fval
+
+                # Also update benchmark_weights for the specific benchmark
+                bw_key = bench.lower()
+                if bw_key in weights[actual_best].get('benchmark_weights', {}):
+                    weights[actual_best]['benchmark_weights'][bw_key] += learning_rate * 0.5
+                if bw_key in weights[predicted_best].get('benchmark_weights', {}):
+                    weights[predicted_best]['benchmark_weights'][bw_key] = max(
+                        0.1, weights[predicted_best]['benchmark_weights'][bw_key] - learning_rate * 0.5
+                    )
+
+        updates += epoch_updates
+        if epoch_updates == 0:
+            break  # Converged
+
+    # Round all weights for clean JSON output
+    for algo in weights:
+        if algo.startswith('_') or not isinstance(weights[algo], dict):
+            continue
+        for k, v in weights[algo].items():
+            if isinstance(v, float):
+                weights[algo][k] = round(v, 4)
+        weights[algo]['_metadata'] = {
+            'method': 'perceptron',
+            'epochs': epoch + 1,
+            'total_updates': updates,
+            'learning_rate': learning_rate,
+        }
+
+    return weights
+
+
 def add_feature_weights(
     weights: Dict[str, Dict],
     perf_matrix: Dict,
@@ -595,7 +766,22 @@ def add_feature_weights(
                 if baseline > 0 and time > 0:
                     speedup = baseline / time
                     
-                    for feat_name in ['modularity', 'density', 'degree_variance', 'hub_concentration']:
+                    # Map feature names to their weight-key names in the dict.
+                    # Most follow the pattern w_{feature}, but clustering_coefficient
+                    # maps to w_clustering_coeff.
+                    _FEAT_TO_WEIGHT = {
+                        'modularity': 'w_modularity',
+                        'density': 'w_density',
+                        'degree_variance': 'w_degree_variance',
+                        'hub_concentration': 'w_hub_concentration',
+                        'clustering_coefficient': 'w_clustering_coeff',
+                        'avg_degree': 'w_avg_degree',
+                        'packing_factor': 'w_packing_factor',
+                        'forward_edge_fraction': 'w_forward_edge_fraction',
+                        'working_set_ratio': 'w_working_set_ratio',
+                        'community_count': 'w_community_count',
+                    }
+                    for feat_name in _FEAT_TO_WEIGHT:
                         if feat_name in features:
                             feature_speedups[feat_name].append((features[feat_name], speedup))
         
@@ -615,7 +801,7 @@ def add_feature_weights(
                 
                 # Weight based on difference
                 diff = (high_avg - low_avg) / max(high_avg, low_avg, 0.01)
-                weight_name = f'w_{feat_name}'
+                weight_name = _FEAT_TO_WEIGHT.get(feat_name, f'w_{feat_name}')
                 
                 if weight_name in weights[algo]:
                     weights[algo][weight_name] = round(diff * 0.5, 4)
@@ -656,19 +842,22 @@ def evaluate_weights(
         actual_best, actual_time = find_best_algorithm(perf_matrix, graph, benchmark)
         
         # Find predicted best algorithm using perceptron
+        # Only consider algorithms that have benchmark data for this graph/benchmark
         best_score = float('-inf')
         predicted_best = 'ORIGINAL'
+        
+        graph_algos = perf_matrix.get(graph, {})
         
         for algo, w in weights.items():
             if algo.startswith('_') or not isinstance(w, dict):
                 continue
+            # Only consider algorithms with actual benchmark data for this graph
+            if algo not in graph_algos or benchmark not in graph_algos[algo]:
+                continue
             
-            # Compute perceptron score
-            score = w.get('bias', 0.5)
-            score += w.get('w_modularity', 0) * features.get('modularity', 0.5)
-            score += w.get('w_density', 0) * features.get('density', 0.01)
-            score += w.get('w_degree_variance', 0) * features.get('degree_variance', 1.0)
-            score += w.get('w_hub_concentration', 0) * features.get('hub_concentration', 0.3)
+            # Use canonical PerceptronWeight.compute_score() with all 24 features
+            pw = PerceptronWeight.from_dict(w)
+            score = pw.compute_score(features, benchmark)
             
             if score > best_score:
                 best_score = score
@@ -698,8 +887,16 @@ def evaluate_weights(
     accuracy = correct / total * 100 if total > 0 else 0
     avg_regret = sum(d['regret_pct'] for d in details) / len(details) if details else 0
     
+    # Tolerance-based accuracy: count predictions within X% of optimal as correct
+    within_5 = sum(1 for d in details if d['regret_pct'] <= 5.0)
+    within_10 = sum(1 for d in details if d['regret_pct'] <= 10.0)
+    within_20 = sum(1 for d in details if d['regret_pct'] <= 20.0)
+    
     return {
         'accuracy': round(accuracy, 2),
+        'accuracy_5pct': round(within_5 / total * 100, 2) if total > 0 else 0,
+        'accuracy_10pct': round(within_10 / total * 100, 2) if total > 0 else 0,
+        'accuracy_20pct': round(within_20 / total * 100, 2) if total > 0 else 0,
         'correct': correct,
         'total': total,
         'avg_regret_pct': round(avg_regret, 2),
@@ -732,14 +929,18 @@ def evaluate_all_benchmarks(
     # Compute average
     if all_results:
         avg_accuracy = sum(r['accuracy'] for r in all_results.values()) / len(all_results)
+        avg_acc_5 = sum(r.get('accuracy_5pct', 0) for r in all_results.values()) / len(all_results)
+        avg_acc_10 = sum(r.get('accuracy_10pct', 0) for r in all_results.values()) / len(all_results)
         avg_regret = sum(r['avg_regret_pct'] for r in all_results.values()) / len(all_results)
     else:
-        avg_accuracy = 0
+        avg_accuracy = avg_acc_5 = avg_acc_10 = 0
         avg_regret = 0
     
     return {
         'per_benchmark': all_results,
         'avg_accuracy': round(avg_accuracy, 2),
+        'avg_accuracy_5pct': round(avg_acc_5, 2),
+        'avg_accuracy_10pct': round(avg_acc_10, 2),
         'avg_regret_pct': round(avg_regret, 2),
     }
 
@@ -757,28 +958,35 @@ def grid_search(
     Run grid search over different configurations.
     
     Tests:
-    - Training methods: speedup, winrate, rank, hybrid
+    - Training methods: speedup, winrate, rank, hybrid, perceptron
     - Bias scales: 0.5, 1.0, 2.0, 5.0
+    - Learning rates (perceptron only): 0.01, 0.05, 0.1, 0.5
     - With/without feature weights
     """
     configs = []
     
-    methods = ['speedup', 'winrate', 'rank', 'hybrid']
-    scales = [0.5, 1.0, 2.0, 5.0]
-    
-    for method in methods:
-        for scale in scales:
+    # Classic methods with bias-only training
+    for method in ['speedup', 'winrate', 'rank', 'hybrid']:
+        for scale in [0.5, 1.0, 2.0, 5.0]:
             for use_features in [False, True]:
-                config = PerceptronConfig(
-                    method=method,
-                    bias_scale=scale,
-                )
                 configs.append({
                     'method': method,
                     'scale': scale,
                     'use_features': use_features,
-                    'config': config,
+                    'learning_rate': 0.0,
+                    'config': PerceptronConfig(method=method, bias_scale=scale),
                 })
+    
+    # Perceptron method with online learning (feature weights trained)
+    for lr in [0.01, 0.05, 0.1, 0.5]:
+        for scale in [0.5, 1.0, 2.0]:
+            configs.append({
+                'method': 'perceptron',
+                'scale': scale,
+                'use_features': True,  # always uses features
+                'learning_rate': lr,
+                'config': PerceptronConfig(method='perceptron', bias_scale=scale),
+            })
     
     results_list = []
     
@@ -786,35 +994,46 @@ def grid_search(
     
     for i, cfg in enumerate(configs):
         # Train weights
-        if cfg['method'] == 'speedup':
+        method = cfg['method']
+        if method == 'speedup':
             weights = train_weights_speedup(perf_matrix, graphs, cfg['config'])
-        elif cfg['method'] == 'winrate':
+        elif method == 'winrate':
             weights = train_weights_winrate(perf_matrix, graphs, cfg['config'])
-        elif cfg['method'] == 'rank':
+        elif method == 'rank':
             weights = train_weights_rank(perf_matrix, graphs, cfg['config'])
+        elif method == 'perceptron':
+            weights = train_weights_perceptron(
+                perf_matrix, graphs, cfg['config'], results,
+                learning_rate=cfg['learning_rate'],
+            )
         else:
             weights = train_weights_hybrid(perf_matrix, graphs, cfg['config'])
         
-        if cfg['use_features']:
+        if cfg['use_features'] and method != 'perceptron':
             weights = add_feature_weights(weights, perf_matrix, graphs, results)
         
         # Evaluate
         eval_result = evaluate_all_benchmarks(weights, perf_matrix, graphs, results)
         
+        config_desc = {'method': method, 'scale': cfg['scale'], 'use_features': cfg['use_features']}
+        if method == 'perceptron':
+            config_desc['learning_rate'] = cfg['learning_rate']
+        
         results_list.append({
-            'config': {
-                'method': cfg['method'],
-                'scale': cfg['scale'],
-                'use_features': cfg['use_features'],
-            },
+            'config': config_desc,
             'accuracy': eval_result['avg_accuracy'],
+            'accuracy_5pct': eval_result.get('avg_accuracy_5pct', 0),
+            'accuracy_10pct': eval_result.get('avg_accuracy_10pct', 0),
             'regret': eval_result['avg_regret_pct'],
             'per_benchmark': {k: v['accuracy'] for k, v in eval_result['per_benchmark'].items()},
             'weights': weights,
         })
         
-        log.info(f"  [{i+1}/{len(configs)}] {cfg['method']}, scale={cfg['scale']}, features={cfg['use_features']}: "
-                f"acc={eval_result['avg_accuracy']:.1f}%, regret={eval_result['avg_regret_pct']:.1f}%")
+        extra = f", lr={cfg['learning_rate']}" if method == 'perceptron' else ""
+        log.info(f"  [{i+1}/{len(configs)}] {method}, scale={cfg['scale']}, features={cfg['use_features']}{extra}: "
+                f"acc={eval_result['avg_accuracy']:.1f}% (≤5%:{eval_result.get('avg_accuracy_5pct',0):.0f}%, "
+                f"≤10%:{eval_result.get('avg_accuracy_10pct',0):.0f}%), "
+                f"regret={eval_result['avg_regret_pct']:.1f}%")
     
     # Sort by accuracy (descending), then regret (ascending)
     results_list.sort(key=lambda x: (-x['accuracy'], x['regret']))
@@ -1079,10 +1298,12 @@ Examples:
                        help='Run grid search over configurations')
     parser.add_argument('--train', action='store_true',
                        help='Train new weights')
-    parser.add_argument('--method', choices=['speedup', 'winrate', 'rank', 'hybrid', 'per_benchmark'],
+    parser.add_argument('--method', choices=['speedup', 'winrate', 'rank', 'hybrid', 'per_benchmark', 'perceptron'],
                        default='hybrid', help='Training method (default: hybrid)')
     parser.add_argument('--scale', type=float, default=1.0,
                        help='Bias scale factor (default: 1.0)')
+    parser.add_argument('--learning-rate', type=float, default=0.1,
+                       help='Learning rate for perceptron method (default: 0.1)')
     parser.add_argument('--clusters', type=int, default=1,
                        help='Number of graph clusters (default: 1)')
     parser.add_argument('--benchmark', default='pr',
@@ -1195,7 +1416,7 @@ Examples:
             weights = load_type_weights('type_0', str(ACTIVE_DIR))
             log.info(f"Loaded weights from {ACTIVE_DIR}/type_0.json")
         except Exception as e:
-            log.warn(f"No active weights found: {e}")
+            log.warning(f"No active weights found: {e}")
             weights = {}
         
         # Show top algorithms
@@ -1226,9 +1447,11 @@ Examples:
         print("GRID SEARCH RESULTS (sorted by accuracy)")
         print("="*60)
         
-        for i, r in enumerate(results[:10]):
+        for i, r in enumerate(results[:15]):
             print(f"\n{i+1}. {r['config']}")
-            print(f"   Accuracy: {r['accuracy']:.1f}%, Regret: {r['regret']:.1f}%")
+            acc5 = r.get('accuracy_5pct', 0)
+            acc10 = r.get('accuracy_10pct', 0)
+            print(f"   Accuracy: {r['accuracy']:.1f}% exact, ≤5%:{acc5:.0f}%, ≤10%:{acc10:.0f}%, Regret: {r['regret']:.1f}%")
             if r['per_benchmark']:
                 bench_str = ", ".join(f"{k}:{v:.0f}%" for k, v in r['per_benchmark'].items())
                 print(f"   Per-benchmark: {bench_str}")
@@ -1270,11 +1493,15 @@ Examples:
             weights = train_weights_rank(perf_matrix, graphs, config)
         elif args.method == 'per_benchmark':
             weights = train_weights_per_benchmark(perf_matrix, graphs, config)
+        elif args.method == 'perceptron':
+            weights = train_weights_perceptron(perf_matrix, graphs, config, all_results,
+                                               learning_rate=args.learning_rate)
         else:
             weights = train_weights_hybrid(perf_matrix, graphs, config)
         
-        # Add feature weights
-        weights = add_feature_weights(weights, perf_matrix, graphs, all_results)
+        # Add feature weights (perceptron already trains its own)
+        if args.method != 'perceptron':
+            weights = add_feature_weights(weights, perf_matrix, graphs, all_results)
         
         # Add metadata
         weights['_metadata'] = {
