@@ -315,6 +315,26 @@ def parse_benchmark_output(output: str) -> Dict[str, Any]:
     if ad_match:
         parsed['avg_degree'] = float(ad_match.group(1))
     
+    # Parse graph density
+    dens_match = re.search(r'Graph Density:\s*([\d.]+)', output)
+    if dens_match:
+        parsed['density'] = float(dens_match.group(1))
+    
+    # Parse packing factor
+    pf_match = re.search(r'Packing Factor:\s*([\d.]+)', output)
+    if pf_match:
+        parsed['packing_factor'] = float(pf_match.group(1))
+    
+    # Parse forward edge fraction
+    fef_match = re.search(r'Forward Edge Fraction:\s*([\d.]+)', output)
+    if fef_match:
+        parsed['forward_edge_fraction'] = float(fef_match.group(1))
+    
+    # Parse working set ratio
+    wsr_match = re.search(r'Working Set Ratio:\s*([\d.]+)', output)
+    if wsr_match:
+        parsed['working_set_ratio'] = float(wsr_match.group(1))
+    
     # Parse graph type
     type_match = re.search(r'Graph Type:\s*(\w+)', output)
     if type_match:
@@ -411,7 +431,7 @@ def analyze_adaptive_order(
             modularity, num_communities, subcommunities, algo_distribution = parse_adaptive_output(output)
             
             # Parse and cache topology features for weight computation
-            features = parse_benchmark_features(output)
+            features = parse_benchmark_output(output)
             features['modularity'] = modularity
             features['nodes'] = getattr(graph, 'nodes', 0)
             features['edges'] = getattr(graph, 'edges', 0)

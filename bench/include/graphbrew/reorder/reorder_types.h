@@ -2871,18 +2871,18 @@ inline bool ParseWeightsFromJSON(const std::string& json_content,
             size_t bw_end = block.find('}', bw_start);
             if (bw_start != std::string::npos && bw_end != std::string::npos) {
                 std::string bw_block = block.substr(bw_start, bw_end - bw_start + 1);
-                double pr_w = find_double(bw_block, "pr");
-                double bfs_w = find_double(bw_block, "bfs");
-                double cc_w = find_double(bw_block, "cc");
-                double sssp_w = find_double(bw_block, "sssp");
-                double bc_w = find_double(bw_block, "bc");
-                double tc_w = find_double(bw_block, "tc");
-                w.bench_pr = (pr_w != 0.0) ? pr_w : 1.0;
-                w.bench_bfs = (bfs_w != 0.0) ? bfs_w : 1.0;
-                w.bench_cc = (cc_w != 0.0) ? cc_w : 1.0;
-                w.bench_sssp = (sssp_w != 0.0) ? sssp_w : 1.0;
-                w.bench_bc = (bc_w != 0.0) ? bc_w : 1.0;
-                w.bench_tc = (tc_w != 0.0) ? tc_w : 1.0;
+                // Use a lambda to check if key exists in block before parsing
+                // This avoids conflating explicitly-set 0.0 with absent fields
+                auto find_bench_weight = [&](const std::string& blk, const std::string& key) -> double {
+                    if (blk.find("\"" + key + "\"") == std::string::npos) return 1.0;  // absent → default 1.0
+                    return find_double(blk, key);  // present → use actual value (even if 0.0)
+                };
+                w.bench_pr   = find_bench_weight(bw_block, "pr");
+                w.bench_bfs  = find_bench_weight(bw_block, "bfs");
+                w.bench_cc   = find_bench_weight(bw_block, "cc");
+                w.bench_sssp = find_bench_weight(bw_block, "sssp");
+                w.bench_bc   = find_bench_weight(bw_block, "bc");
+                w.bench_tc   = find_bench_weight(bw_block, "tc");
             }
         }
         

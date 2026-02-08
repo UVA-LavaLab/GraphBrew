@@ -86,6 +86,13 @@ class PerceptronWeight:
     def to_dict(self) -> Dict:
         return asdict(self)
     
+    @classmethod
+    def from_dict(cls, d: Dict) -> 'PerceptronWeight':
+        """Create PerceptronWeight from a dict (e.g., JSON weight entry)."""
+        valid_fields = {f.name for f in cls.__dataclass_fields__.values()}
+        kwargs = {k: v for k, v in d.items() if k in valid_fields}
+        return cls(**kwargs)
+    
     def compute_score(self, features: Dict, benchmark: str = 'pr') -> float:
         """Compute perceptron score for given features and benchmark.
         
