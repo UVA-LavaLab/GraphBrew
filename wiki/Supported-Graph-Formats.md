@@ -328,33 +328,12 @@ cat graph.csv | tr ',' ' ' | grep -v "source" > graph.el
 
 ## Downloading Graphs
 
-### SNAP Dataset Collection
-
+Use the unified pipeline to download graphs automatically:
 ```bash
-# Facebook social network
-wget https://snap.stanford.edu/data/facebook_combined.txt.gz
-gunzip facebook_combined.txt.gz
-mv facebook_combined.txt facebook.el
-
-# Twitter (large)
-wget https://snap.stanford.edu/data/twitter_combined.txt.gz
+python3 scripts/graphbrew_experiment.py --download-only --size small
 ```
 
-### SuiteSparse Matrix Collection
-
-```bash
-# Download MTX format
-wget https://suitesparse-collection-website.herokuapp.com/MM/SNAP/email-Enron.tar.gz
-tar xzf email-Enron.tar.gz
-```
-
-### Network Repository
-
-```bash
-# Various formats
-wget http://nrvis.com/download/data/soc/socfb-Caltech36.zip
-unzip socfb-Caltech36.zip
-```
+Manual sources: [SNAP](https://snap.stanford.edu/data/), [SuiteSparse](https://sparse.tamu.edu/), [Network Repository](http://nrvis.com/). See [[Benchmark-Suite]] for size categories.
 
 ---
 
@@ -393,49 +372,7 @@ awk '$1==$2' graph.el  # Self-loops
 
 ## Troubleshooting
 
-### "Invalid graph format"
-
-```bash
-# Check for headers
-head -3 graph.el
-
-# Check whitespace
-cat -A graph.el | head -3  # Shows special chars
-
-# Fix Windows line endings
-dos2unix graph.el
-```
-
-### "Vertex out of range"
-
-```bash
-# Check indexing (should start at 0)
-awk '{print $1, $2}' graph.el | sort -n | head -3
-
-# Convert 1-indexed to 0-indexed
-awk '{print $1-1, $2-1}' graph.el > graph_fixed.el
-```
-
-### "Graph has 0 edges"
-
-```bash
-# Check file is not empty
-ls -la graph.el
-
-# Check format matches extension
-file graph.el
-```
-
-### Memory Issues with Large Graphs
-
-```bash
-# Check estimated memory (rough: 16 bytes per edge)
-edges=$(wc -l < graph.el)
-echo "Estimated memory: $((edges * 16 / 1024 / 1024)) MB"
-
-# Use streaming for very large files
-split -l 10000000 graph.el graph_part_
-```
+Common issues: Windows line endings (`dos2unix`), 1-indexed vertices (`awk '{print $1-1, $2-1}'`), empty files. See [[Troubleshooting]] for details.
 
 ---
 

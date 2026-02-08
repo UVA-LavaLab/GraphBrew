@@ -195,136 +195,41 @@ RabbitOrder (algorithm 8) has two variants:
 
 ### How does AdaptiveOrder work?
 
-1. Detects communities using Leiden
-2. Computes features for each community (15 linear + 3 quadratic cross-terms)
-3. Uses ML perceptron to select best algorithm per community
-4. Applies safety checks (OOD guardrail, ORIGINAL margin fallback)
-5. Applies different reorderings to different parts of the graph
-
-See [[AdaptiveOrder-ML]] for details.
+Detects communities via Leiden, computes features (15 linear + 3 quadratic), uses ML perceptron to select best algorithm per community with safety checks. See [[AdaptiveOrder-ML]].
 
 ### What is the training pipeline?
 
-The `compute_weights_from_results()` function trains weights in 4 stages:
-1. **Multi-restart perceptrons** (5 restarts × 800 epochs per benchmark, z-score normalized)
-2. **Variant pre-collapse** (keep highest-bias variant per base algorithm)
-3. **Regret-aware grid search** for benchmark multipliers (30 iterations × 32 values)
-4. **Save to `type_0.json`** with metadata
-
-Validate with `python3 scripts/eval_weights.py` — simulates C++ scoring and reports accuracy/regret.
-
-### What is regret-aware optimization?
-
-When optimizing per-benchmark multipliers, the pipeline jointly maximizes `(accuracy, −mean_regret)`. This prevents degenerate solutions where always predicting the same algorithm gives high accuracy but poor real-world performance. The grid search evaluates 30 random multiplier combinations across 32 log-spaced values.
+4-stage process: multi-restart perceptrons → variant pre-collapse → regret-aware grid search → save. Validate with `python3 scripts/eval_weights.py`. See [[Perceptron-Weights]].
 
 ### Is there a single best algorithm?
 
-C++ validation on 47 graphs showed that **LeidenCSR** was selected for 99.5% of subcommunities (8,631/8,672). As a single algorithm, it achieves 2.9% median regret — very close to optimal per-community selection. LeidenCSR with `gveopt2` variant is recommended for most use cases.
-
-### What is the OOD guardrail?
-
-The **Out-of-Distribution (OOD) guardrail** prevents AdaptiveOrder from making bad predictions on unfamiliar graphs. If a graph's features are too far from any trained type centroid (Euclidean distance > 1.5 in normalized 7D space), the system returns ORIGINAL instead of risking a wrong algorithm choice.
-
-### What is convergence-aware scoring?
-
-For iterative algorithms like **PageRank** and **SSSP**, the perceptron adds a convergence bonus (`w_fef_convergence × forward_edge_fraction`) that rewards orderings where edges point to higher-numbered vertices. This captures how edge direction affects convergence speed, without affecting non-iterative benchmarks.
+LeidenCSR was selected for 99.5% of subcommunities in C++ validation. As a single algorithm, it achieves 2.9% median regret. Recommended variant: `gveopt2`.
 
 ### What are the quadratic cross-terms?
 
-The perceptron includes 3 non-linear feature interactions:
-- `w_dv_x_hub`: degree_variance × hub_concentration (power-law indicator)
-- `w_mod_x_logn`: modularity × log₁₀(nodes) (large vs small modular graphs)
-- `w_pf_x_wsr`: packing_factor × log₂(working_set_ratio+1) (uniform-degree + cache pressure)
+`w_dv_x_hub` (power-law), `w_mod_x_logn` (large modular graphs), `w_pf_x_wsr` (uniform+cache). See [[AdaptiveOrder-ML#features-used]].
 
-These capture patterns that linear features alone cannot express.
+### Why are some perceptron weights 0?
 
-### Why are some perceptron weights 0 or 1.0?
+Cache simulation was skipped, features weren't computed, or no benchmark data. Fix: `--train --size small` (full pipeline). See [[Perceptron-Weights#troubleshooting]].
 
-Weight fields remain at 0 or default 1.0 when:
-1. **Cache simulation was skipped** (`--skip-cache`) - no cache impact data
-2. **Graph features weren't computed** - no topology metrics
-3. **No benchmark data** - no per-benchmark weights
+### How do I validate trained weights?
 
-**Fix**: Run the comprehensive training mode:
 ```bash
-python3 scripts/graphbrew_experiment.py --train --size small --max-graphs 5 --trials 2
+python3 scripts/eval_weights.py  # Simulates C++ scoring, reports accuracy/regret
 ```
 
-This populates all fields including `cache_l1/l2/l3_impact`, `w_clustering_coeff`, `w_diameter`, `benchmark_weights`, and the new features (`w_packing_factor`, `w_forward_edge_fraction`, `w_working_set_ratio`, quadratic cross-terms).
-
-### How do I check if my weights are overfitting?
-
-Use Leave-One-Graph-Out (LOGO) cross-validation:
-
-```python
-from scripts.lib.weights import cross_validate_logo
-result = cross_validate_logo(benchmark_results, graph_features, type_registry)
-print(f"LOGO accuracy: {result['accuracy']:.1%}")
-print(f"Overfitting score: {result['overfitting_score']:.2f}")
-```
-
-An overfitting score > 0.2 means the model may not generalize well. Try adding more training graphs or increasing L2 regularization.
-
-### How do I validate trained weights without recompiling C++?
-
-Use `eval_weights.py`:
-```bash
-python3 scripts/eval_weights.py
-```
-
-This trains weights from your latest benchmark data, simulates C++ `scoreBase() × benchmarkMultiplier()` scoring, and reports accuracy/regret metrics. Current results: 46.8% accuracy, 2.6% base-aware median regret.
-
-### Why isn't parse_adaptive_output working?
-
-The `parse_adaptive_output()` function in `lib/analysis.py` expects C++ AdaptiveOrder output in the format:
-```
-Community 0: 12345 nodes, 67890 edges -> LeidenCSR
-```
-
-If you see parsing failures, ensure your C++ binary is up to date. The parser also supports the legacy format (`Community N: algo=Algorithm, nodes=X, edges=Y`) as a fallback.
-
-### What is L2 regularization / weight decay?
-
-After each gradient update, all feature weights (`w_*`, `cache_*`) are multiplied by `(1.0 - 1e-4)`. This prevents weights from growing unboundedly during long training runs and improves generalization to unseen graphs.
+See [[Python-Scripts#-eval_weightspy---weight-evaluation--c-scoring-simulation]].
 
 ### Where are the trained weights saved?
 
-Weights are saved using an auto-clustering system:
-
-**Auto-clustered type weights (primary):**
-```
-scripts/weights/active/
-├── type_registry.json    # Maps graph names → type IDs + cluster centroids
-├── type_0.json           # Cluster 0 weights
-├── type_1.json           # Cluster 1 weights
-└── type_N.json           # Additional clusters as needed
-```
-
-**Loading priority (C++ runtime):**
-1. Environment variable `PERCEPTRON_WEIGHTS_FILE` (if set)
-2. Best matching type file via Euclidean distance to centroids (e.g., `type_0.json`)
-3. Semantic type fallback (if type files don't exist)
-4. Hardcoded defaults
-
-### How does graph type matching work?
-
-The auto-clustering system:
-1. **Extracts 7 features** per graph: modularity, log_nodes, log_edges, avg_degree, degree_variance, hub_concentration, clustering_coefficient
-2. **Clusters similar graphs** using Euclidean distance to centroids
-3. **Stores centroids** in `type_registry.json`
-4. **At runtime**, finds best matching cluster based on feature similarity
-
-Properties are computed during `--train` Phase 0 and cached in `results/graph_properties_cache.json`.
+`scripts/weights/active/type_N.json` (per-cluster) + `type_registry.json` (graph→type map). Loading priority: env var → best type match → fallback defaults. See [[Perceptron-Weights#weight-loading-priority]].
 
 ### What's the difference between LeidenOrder and LeidenCSR?
 
-| Algorithm | Approach |
-|-----------|----------|
-| LeidenOrder (15) | Basic Leiden → contiguous community ordering |
-| LeidenDendrogram (16) | Leiden + dendrogram-based traversal variants |
-| LeidenCSR (17) | Optimized Leiden with multiple variants (see `LEIDEN_CSR_VARIANTS` in `scripts/lib/utils.py`) |
-
-LeidenCSR with `gveopt2` or `gvefast` variant is recommended for large graphs.
+- **LeidenOrder (15)**: Basic community ordering
+- **LeidenDendrogram (16)**: Dendrogram traversal variants
+- **LeidenCSR (17)**: Optimized with 15+ variants (recommended: `gveopt2` or `gvefast`)
 
 ### When should I use DBG vs HUBCLUSTER?
 
@@ -338,53 +243,12 @@ LeidenCSR with `gveopt2` or `gvefast` variant is recommended for large graphs.
 
 ## Troubleshooting
 
-### "Segmentation fault" when loading graph
+See [[Troubleshooting]] for detailed solutions. Quick answers:
 
-1. **Check file exists**: `ls -la graph.el`
-2. **Check format**: `head -5 graph.el`
-3. **Check indexing**: Vertices should start at 0
-4. **Check memory**: `free -h`
-
-### "Invalid graph format" error
-
-```bash
-# Check for issues
-head -5 graph.el        # Should be: node1 node2
-file graph.el           # Should be: ASCII text
-dos2unix graph.el       # Fix Windows line endings
-```
-
-### Results vary between runs
-
-This is normal! Use more trials (`-n 10`) and report averages.
-
-Reduce variance:
-- Disable CPU frequency scaling
-- Run on dedicated machine
-- Use `numactl` for memory binding
-
-### Algorithm X isn't giving speedup
-
-Not all algorithms help all graphs:
-- Road networks often don't benefit much
-- Small graphs have minimal cache effects
-- Already well-ordered graphs may not improve
-
-Try different algorithms or use AdaptiveOrder.
-
-### Python scripts not working
-
-```bash
-# Core scripts need only Python 3.8+ standard library (no pip install needed)
-# Optional: Install for extended visualization
-pip install numpy matplotlib pandas
-
-# Check Python version
-python3 --version  # Need 3.8+
-
-# Check path and test script
-python3 scripts/graphbrew_experiment.py --help
-```
+- **Segfault**: Check file exists, format correct (vertices start at 0), sufficient RAM
+- **Results vary**: Normal — use `-n 10`, disable frequency scaling, use `numactl`
+- **No speedup**: Not all graphs benefit — try AdaptiveOrder or different algorithm
+- **Python issues**: Need Python 3.8+ (no pip required for core scripts)
 
 ---
 

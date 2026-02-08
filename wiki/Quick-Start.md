@@ -35,39 +35,7 @@ This will automatically:
 - ✅ Run 5 trials per benchmark for statistical reliability
 - ✅ Train per-graph-type perceptron weights for AdaptiveOrder
 
-### Key Parameters Explained
-
-| Parameter | Description |
-|-----------|-------------|
-| `--train` | Train perceptron weights (runs complete pipeline) |
-| `--all-variants` | Test ALL algorithm variants (Leiden, RabbitOrder) |
-| `--size SIZE` | Graph size category: `small`, `medium`, `large`, `xlarge`, `all` |
-| `--min-edges N` | Skip graphs with fewer than N edges (reduces noise) |
-| `--auto` | Auto-detect RAM and disk space limits |
-| `--trials N` | Number of benchmark trials (default: 2, recommended: 5) |
-| `--skip-download` | Skip graph download phase (use existing graphs) |
-
-### Algorithm Variant Options
-
-| Parameter | Description |
-|-----------|-------------|
-| `--all-variants` | Test ALL algorithm variants (Leiden, RabbitOrder, GraphBrewOrder) |
-| `--graphbrew-variants LIST` | GraphBrewOrder variants: leiden (default), gve, gveopt, gvefast, gveoptfast, rabbit, hubcluster |
-| `--csr-variants LIST` | LeidenCSR variants: gve, gveopt, gveopt2, gveadaptive, gveoptsort, gveturbo, gvefast, gvedendo, gveoptdendo, gverabbit |
-| `--dendrogram-variants LIST` | LeidenDendrogram variants: dfs, dfshub, dfssize, bfs, hybrid |
-| `--rabbit-variants LIST` | RabbitOrder variants: csr (default), boost (requires libboost-graph-dev) |
-| `--resolution VALUE` | Leiden resolution: dynamic (default, best PR), auto, fixed (1.5), dynamic_2.0 |
-| `--passes INT` | LeidenCSR refinement passes (default: 3) |
-
-### Size Categories
-
-| Size | Graphs | Total Size | Use Case |
-|------|--------|------------|----------|
-| `small` | 16 | ~62 MB | Quick testing (communication, p2p, social) |
-| `medium` | 28 | ~1.1 GB | Standard experiments (web, road, mesh, synthetic) |
-| `large` | 37 | ~25 GB | Full evaluation (social, web, collaboration) |
-| `xlarge` | 6 | ~63 GB | Massive graphs (twitter7, webbase, Kronecker) |
-| `all` | **87** | ~89 GB | Complete benchmark set |
+See [[Command-Line-Reference]] for all parameters (`--size`, `--all-variants`, `--min-edges`, `--auto`, `--trials`, etc.) and [[Benchmark-Suite]] for size categories.
 
 ### Training Examples by Scale
 
@@ -214,35 +182,13 @@ Average Time:        0.001xx
 
 | ID | Name | Best For |
 |----|------|----------|
-| 0 | ORIGINAL | Baseline comparison |
-| 7 | HUBCLUSTERDBG | General purpose, good default |
-| 8 | RabbitOrder | Community-based (has variants) |
-| 12 | GraphBrewOrder | Per-community reordering (has variants) |
-| 14 | AdaptiveOrder | Auto-selection for unknown graphs |
-| 15 | LeidenOrder | Social networks |
-| 17 | LeidenCSR | Large complex graphs (has variants) |
+| 0 | ORIGINAL | Baseline |
+| 7 | HUBCLUSTERDBG | General purpose |
+| 12 | GraphBrewOrder | Modular graphs |
+| 14 | AdaptiveOrder | Auto-selection |
+| 17 | LeidenCSR | Large/complex graphs |
 
-> **Note:** For current variant lists, see `scripts/lib/utils.py`.
-
-### LeidenCSR Variants (Algorithm 17)
-
-**Best variants for most cases:**
-```bash
-./bench/bin/pr -f graph.el -s -o 17:gveopt2:auto -n 3      # Best overall
-./bench/bin/pr -f graph.el -s -o 17:gveadaptive:dynamic -n 3  # Unknown graphs
-./bench/bin/pr -f graph.el -s -o 17:vibe:dynamic -n 3      # VIBE unified framework
-./bench/bin/pr -f graph.el -s -o 17:vibe:hrab -n 3         # Best locality (web/geometric graphs)
-./bench/bin/pr -f graph.el -s -o 17:vibe:conn -n 3         # Connectivity BFS ordering (default)
-```
-
-**Resolution modes:**
-| Mode | Syntax | Description |
-|------|--------|-------------|
-| Fixed | `1.5` | Use specified resolution |
-| Auto | `auto` or `0` | Compute from graph |
-| Dynamic | `dynamic` | Adjust each pass |
-
-> **Note:** Dynamic resolution is supported by `gveadaptive` and `vibe` variants. RabbitOrder variants (`vibe:rabbit`) fall back to auto.
+Best LeidenCSR variants: `17:gveopt2:auto` (best overall), `17:vibe:hrab` (best locality), `17:gveadaptive:dynamic` (unknown graphs). See [[Reordering-Algorithms]] for all 18 algorithms and variants.
 
 ---
 
@@ -325,33 +271,20 @@ chmod +x bench/bin/*
 
 ---
 
-## Training Your Own Weights (Terminal Quick Reference)
-
-### One-Line Commands
+## Training Quick Reference
 
 ```bash
-# QUICK: Test on 3 small graphs (5-10 min)
-python3 scripts/graphbrew_experiment.py --size small --max-graphs 3 --trials 1
+# Quick test (~10 min)
+python3 scripts/graphbrew_experiment.py --train --size small --max-graphs 3 --trials 1
 
-# TRAIN WEIGHTS: Complete training pipeline (30-60 min)
-python3 scripts/graphbrew_experiment.py --train --size small --max-graphs 5 --trials 2
+# Standard training (~1 hour)
+python3 scripts/graphbrew_experiment.py --train --all-variants --size medium --auto --trials 5
 
-# FULL: Train on all graphs with validation (1-2 hours)
-python3 scripts/graphbrew_experiment.py --train --size medium --max-graphs 50 --trials 2 && \
-python3 scripts/graphbrew_experiment.py --brute-force --validation-benchmark pr --trials 2
-
-# CHECK RESULTS: View type weight files
+# Check results
 ls -la scripts/weights/active/
-cat scripts/weights/active/type_0.json | python3 -c "import sys,json; d=json.load(sys.stdin); [print(f'{k}: {v.get(\"bias\",0):.2f}') for k,v in sorted(d.items(), key=lambda x:-x[1].get('bias',0))[:10] if not k.startswith('_')]"
 ```
 
-### Understanding Output
-
-- **RANDOM is baseline** (1.00x) - all speedups measured against random ordering
-- **Higher bias = better** - HUBSORT at 26.0 means 26x faster than random
-- **Bias < 0.5** - algorithm is slower than random (not useful)
-
-See [Perceptron-Weights](Perceptron-Weights.md#step-by-step-terminal-training-guide) for detailed guide.
+**Interpreting output:** RANDOM is baseline (1.00x). Higher bias = better. Bias < 0.5 = slower than random. See [[Perceptron-Weights]] for details.
 
 ---
 

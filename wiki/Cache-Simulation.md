@@ -272,29 +272,11 @@ Cache characteristics help predict optimal algorithms:
 
 ## Instrumented Algorithms
 
-### PageRank (`pr.cc`)
-- Tracks: contribution array, score array, CSR index reads
-- Key insight: Pull-based PR has predictable access to outgoing edges
-
-### BFS (`bfs.cc`)
-- Tracks: parent array, frontier queue, bitmap, CSR traversal
-- Key insight: Direction-optimizing switch point affects cache behavior
-
-### Betweenness Centrality (`bc.cc`)
-- Tracks: path counts, depths, deltas, successor bitmaps
-- Key insight: Forward/backward passes have different access patterns
-
-### Connected Components (`cc.cc`)
-- Tracks: component array, link/compress operations
-- Key insight: Sampling phase vs. linking phase cache differences
-
-### SSSP (`sssp.cc`)
-- Tracks: distance array, delta-step buckets, weighted neighbors
-- Key insight: Delta parameter affects bucket access patterns
-
-### Triangle Counting (`tc.cc`)
-- Tracks: neighbor list traversals, intersection operations
-- Key insight: Sorted adjacency lists improve intersection cache efficiency
+All six benchmarks (`pr`, `bfs`, `bc`, `cc`, `sssp`, `tc`) have instrumented versions in `bench/src_sim/`. Key insights:
+- **PR**: Pull-based has predictable outgoing edge access
+- **BFS**: Direction-optimizing switch point affects cache behavior
+- **BC**: Forward/backward passes have different access patterns
+- **TC**: Sorted adjacency lists improve intersection cache efficiency
 
 ## Limitations
 
@@ -305,78 +287,19 @@ Cache characteristics help predict optimal algorithms:
 
 ## Perceptron Integration
 
-The cache simulation features integrate with the perceptron-based algorithm selector:
+Cache features integrate with the perceptron-based algorithm selector. See [[Perceptron-Weights]] for the full feature vector.
 
-### Feature Vector
-
-The perceptron uses multiple features for algorithm selection:
-
-**Structural Features:**
-| Feature | Description |
-|---------|-------------|
-| `modularity` | Community structure strength |
-| `log_nodes` | log₁₀(node count) |
-| `log_edges` | log₁₀(edge count) |
-| `density` | Edge density |
-| `avg_degree` | Average vertex degree |
-| `degree_variance` | Degree distribution heterogeneity |
-| `hub_concentration` | Power-law hub concentration |
-| `clustering_coefficient` | Local clustering coefficient |
-| `avg_path_length` | Average path length (estimated) |
-| `diameter` | Graph diameter (estimated) |
-| `community_count` | Number of detected communities |
-
-**Cache Features:**
-| Feature | Description |
-|---------|-------------|
-| `cache_l1_impact` | Weight for L1 cache hit rate impact |
-| `cache_l2_impact` | Weight for L2 cache hit rate impact |
-| `cache_l3_impact` | Weight for L3 cache hit rate impact |
-| `cache_dram_penalty` | Penalty for DRAM accesses |
-
-**Other Features:**
-| Feature | Description |
-|---------|-------------|
-| `w_reorder_time` | Weight for reordering time cost |
-
-### Training Pipeline
+**Cache-specific features:** `cache_l1_impact`, `cache_l2_impact`, `cache_l3_impact`, `cache_dram_penalty` — automatically collected during `--phase cache` and integrated into weight files.
 
 ```bash
-# 1. Run full pipeline (includes cache simulation)
+# Run cache simulation as part of full pipeline
 python3 scripts/graphbrew_experiment.py --full --size small
 
-# 2. Or run cache phase separately
-python3 scripts/graphbrew_experiment.py --phase cache --size small
-
-# 3. Generate weights with cache features
-python3 scripts/graphbrew_experiment.py --phase weights
-
-# 4. Use in benchmarks with AdaptiveOrder
-./bench/bin/pr -g 18 -o 14  # AdaptiveOrder uses trained weights
+# Or just the cache phase
+python3 scripts/graphbrew_experiment.py --phase cache
 ```
 
-Cache features are automatically integrated into perceptron weights:
-- `cache_l1_impact`: Bonus for high L1 hit rate
-- `cache_l2_impact`: Bonus for high L2 hit rate  
-- `cache_l3_impact`: Bonus for high L3 hit rate
-- `cache_dram_penalty`: Penalty for DRAM accesses
-
-### C++ Integration
-
-The `getFeatures()` method in `cache_sim.h` returns the cache feature vector:
-
-```cpp
-// Get the global cache singleton
-cache_sim::CacheHierarchy& cache = cache_sim::GlobalCache();
-// ... run simulation ...
-
-std::vector<double> features = cache.getFeatures();
-// [l1_hit_rate, l2_hit_rate, l3_hit_rate, dram_access_rate,
-//  l1_eviction_rate, l2_eviction_rate, l3_eviction_rate]
-
-// Or use the convenience macro
-std::vector<double> features = CACHE_FEATURES();
-```
+C++ access: `cache_sim::GlobalCache().getFeatures()` or `CACHE_FEATURES()` macro.
 
 ## Related Pages
 

@@ -420,17 +420,7 @@ export PERCEPTRON_WEIGHTS_FILE=/path/to/weights.json
 ./bench/bin/pr -f graph.el -s -o 14 -n 3
 ```
 
-**Note:** If `PERCEPTRON_WEIGHTS_FILE` is not set, AdaptiveOrder automatically:
-1. Computes graph features (modularity, degree variance, hub concentration, etc.)
-2. Finds the best matching type file using Euclidean distance to centroids
-3. Loads weights from `scripts/weights/active/type_N.json`
-4. Falls back to hardcoded defaults if no type files exist
-
-**Example output:**
-```
-Best matching type: type_0 (distance: 0.4521)
-Perceptron: Loaded 5 weights from scripts/weights/active/type_0.json
-```
+**Note:** If not set, AdaptiveOrder uses type-based weight loading (see [[Perceptron-Weights#weight-loading-priority]]).
 
 ### NUMA Binding
 
@@ -548,191 +538,35 @@ done
 
 ## Python Script Options (graphbrew_experiment.py)
 
-The unified experiment script provides comprehensive options for training and benchmarking.
+See [[Python-Scripts]] for complete script documentation and module reference.
 
-### Dependency Management
+**Key options summary:**
 
-| Option | Description |
-|--------|-------------|
-| `--check-deps` | Check system dependencies (g++, boost, numa, etc.) |
-| `--install-deps` | Install missing system dependencies (requires sudo) |
-| `--install-boost` | Download, compile, and install Boost 1.58.0 to /opt/boost_1_58_0 |
-
-### Pipeline Options
-
-| Option | Description |
-|--------|-------------|
-| `--full` | Run complete pipeline (download → build → experiment → weights) |
-| `--download-only` | Only download graphs |
-| `--skip-download` | Skip graph download phase (use existing graphs) |
-| `--size SIZE` | **Unified size parameter:** `small`, `medium`, `large`, `xlarge`, `all` |
-| `--phase PHASE` | Run specific phase: all, reorder, benchmark, cache, weights, adaptive |
-
-> **Note:** The `--size` parameter automatically sets both the download size and graph filter in one step. Use lowercase values: `small`, `medium`, `large`, `xlarge`, or `all`.
-
-### Resource Management
-
-| Option | Description |
-|--------|-------------|
-| `--auto` | **Unified auto-detection:** Auto-detect both RAM and disk space limits |
-| `--auto-memory` | Auto-detect available RAM (uses 80% of total) |
-| `--auto-disk` | Auto-detect available disk space (uses 80% of free) |
-| `--max-memory GB` | Maximum RAM (GB) for graph processing |
-| `--max-disk GB` | Maximum disk space (GB) for downloads |
-
-Memory estimation: `(edges × 24 bytes + nodes × 8 bytes) × 1.5`
-
-### Quick Mode & Filtering
-
-| Option | Description |
-|--------|-------------|
-| `--quick` | Quick mode: test only key algorithms (faster than all 18) |
-| `--skip-slow` | Skip slow algorithms (Gorder, Corder, RCM) on large graphs |
-| `--skip-expensive` | Skip expensive benchmarks (BC, SSSP) on large graphs (>100MB) |
-| `--skip-cache` | Skip cache simulations (saves time, loses cache analysis data) |
-| `--min-mb N` | Minimum graph file size in MB (for custom filtering) |
-| `--max-mb N` | Maximum graph file size in MB (for custom filtering) |
-| `--max-graphs N` | Maximum number of graphs to test |
-
-### Training Options
-
-| Option | Description |
-|--------|-------------|
-| `--train` | **Train perceptron weights:** runs reorder → benchmark → cache sim → compute weights |
-| `--train-iterative` | Iterative training: repeatedly adjust weights until target accuracy |
-| `--train-batched` | Batched training: process graphs in batches with multiple benchmarks |
-| `--init-weights` | Initialize empty weights file (run once before first training) |
-| `--target-accuracy N` | Target accuracy % for iterative training (default: 80) |
-| `--max-iterations N` | Maximum training iterations (default: 10) |
-| `--learning-rate N` | Weight adjustment rate (default: 0.1) |
-
-### Weight Run Management
-
-| Option | Description |
-|--------|-------------|
-| `--isolate-run` | Keep this run's weights isolated (don't merge with previous runs) |
-| `--batch-only` | Only update weights at end of run (disable per-graph incremental updates) |
-| `--list-runs` | List all saved weight runs in `scripts/weights/runs/` |
-| `--merge-runs [TIMESTAMP ...]` | Merge specific runs (or all if no args) into `merged/` |
-| `--use-run TIMESTAMP` | Use weights from a specific run (copy to `active/`) |
-| `--use-merged` | Use merged weights (copy `merged/` to `active/`) |
-
-### Label Map Options
-
-| Option | Description |
-|--------|-------------|
-| `--precompute` | **Pre-generate and use label maps** (combines --generate-maps --use-maps) |
-| `--generate-maps` | Pre-generate .lo mapping files for consistent reordering |
-| `--use-maps` | Use pre-generated label maps instead of regenerating |
-
-### Algorithm Variant Options
-
-> **Note:** For the current list of supported variants, see `scripts/lib/utils.py` which defines:
-> `GRAPHBREW_VARIANTS`, `LEIDEN_CSR_VARIANTS`, `LEIDEN_DENDROGRAM_VARIANTS`, `RABBITORDER_VARIANTS`
-
-| Option | Description |
-|--------|-------------|
-| `--all-variants` | Test ALL algorithm variants (Leiden, RabbitOrder, GraphBrewOrder) instead of defaults |
-| `--graphbrew-variants LIST` | GraphBrewOrder clustering variants (default: `leiden`) |
-| `--csr-variants LIST` | LeidenCSR variants (default: `gve`) |
-| `--dendrogram-variants LIST` | LeidenDendrogram variants (default: `hybrid`) |
-| `--rabbit-variants LIST` | RabbitOrder variants (default: `csr`) |
-| `--resolution VALUE` | Leiden resolution: `dynamic` (default), `auto`, fixed (e.g., `1.5`), `dynamic_2.0` |
-| `--passes INT` | LeidenCSR refinement passes - higher = better quality (default: 3) |
-
-> **Note:** Specifying any variant list (e.g., `--csr-variants gve`) automatically enables variant expansion.
-
-### Validation Options
-
-| Option | Description |
-|--------|-------------|
-| `--brute-force` | Run brute-force validation: test all algorithms vs AdaptiveOrder choice |
-| `--validation-benchmark NAME` | Benchmark to use for brute-force validation (default: pr) |
-| `--validate-adaptive` | Validate adaptive algorithm accuracy: compare predicted vs actual best |
-
-### Parameter Aliases (Backwards Compatibility)
-
-These parameters are still supported as aliases:
-
-| Deprecated | Use Instead |
-|------------|-------------|
-| `--graphs SIZE` | `--size SIZE` |
-| `--download-size SIZE` | `--size SIZE` |
-| `--auto-memory --auto-disk` | `--auto` |
-| `--key-only` | `--quick` |
-| `--skip-heavy` | `--skip-expensive` |
-| `--no-merge` | `--isolate-run` |
-| `--no-incremental` | `--batch-only` |
-| `--bf-benchmark` | `--validation-benchmark` |
-| `--min-size` / `--max-size` | `--min-mb` / `--max-mb` |
-| `--expand-variants` | `--all-variants` |
-| `--leiden-csr-variants` | `--csr-variants` |
-| `--leiden-dendrogram-variants` | `--dendrogram-variants` |
-| `--leiden-resolution` | `--resolution` |
-| `--leiden-passes` | `--passes` |
-| `--fill-weights` | `--train` |
-| `--train-adaptive` | `--train-iterative` |
-| `--train-large` | `--train-batched` |
-| `--weights-file` | Weights now auto-save to `scripts/weights/active/type_0.json` |
-
-### Examples
+| Category | Key Options |
+|----------|-------------|
+| Pipeline | `--full`, `--train`, `--train-iterative`, `--train-batched`, `--phase PHASE` |
+| Size/Resources | `--size small\|medium\|large`, `--auto`, `--max-memory GB` |
+| Speed | `--quick`, `--skip-cache`, `--skip-expensive`, `--skip-slow` |
+| Variants | `--all-variants`, `--csr-variants LIST`, `--resolution VALUE` |
+| Weights | `--isolate-run`, `--merge-runs`, `--use-run TIMESTAMP` |
+| Labels | `--precompute`, `--generate-maps`, `--use-maps` |
+| Validation | `--brute-force`, `--validation-benchmark NAME` |
+| Dependencies | `--check-deps`, `--install-deps`, `--install-boost` |
 
 ```bash
-# Quick run with auto resource detection
+# Quick examples
 python3 scripts/graphbrew_experiment.py --full --size small --auto --quick
-
-# Train perceptron weights with precomputed label maps
 python3 scripts/graphbrew_experiment.py --train --size medium --auto --precompute
-
-# Train all algorithm variants
-python3 scripts/graphbrew_experiment.py --train --all-variants --size small --auto
-
-# Skip expensive operations for faster testing
-python3 scripts/graphbrew_experiment.py --full --size large --skip-expensive --skip-cache
-
-# Run brute-force validation with BFS benchmark
 python3 scripts/graphbrew_experiment.py --brute-force --validation-benchmark bfs
-
-# Keep run isolated (don't merge weights)
-python3 scripts/graphbrew_experiment.py --train --size small --isolate-run
-
-# Filter by file size
-python3 scripts/graphbrew_experiment.py --full --min-mb 10 --max-mb 100 --auto
 ```
 
-See [[Python-Scripts]] for complete documentation.
+### eval_weights.py
 
----
-
-## eval_weights.py - Weight Evaluation
-
-Quick evaluation script that trains weights and simulates C++ scoring to report accuracy and regret metrics.
+Trains weights and simulates C++ scoring to report accuracy/regret. See [[Python-Scripts#-eval_weightspy---weight-evaluation--c-scoring-simulation]].
 
 ```bash
-# Run evaluation (no arguments needed)
-python3 scripts/eval_weights.py
+python3 scripts/eval_weights.py  # No arguments needed
 ```
-
-### What It Does
-
-1. Loads the latest `benchmark_*.json` and `reorder_*.json` from `results/`
-2. Trains weights via `compute_weights_from_results()` (multi-restart perceptrons + regret-aware grid search)
-3. Simulates C++ `scoreBase() × benchmarkMultiplier()` scoring
-4. Reports accuracy, regret, top-2 accuracy, and per-benchmark breakdown
-
-### Output Includes
-
-| Metric | Description |
-|--------|-------------|
-| Overall accuracy | % correct base-algorithm predictions |
-| Per-benchmark accuracy | Breakdown by pr, bfs, cc, sssp |
-| Average regret | Mean (predicted − best) / best |
-| Median regret | More robust than average |
-| Base-aware regret | Variant mismatches = 0% regret |
-| Top-2 accuracy | % where prediction is in top 2 |
-| Worst predictions | 10 highest-regret cases |
-
-See [[Python-Scripts#-eval_weightspy---weight-evaluation--c-scoring-simulation]] for full documentation.
 
 ---
 

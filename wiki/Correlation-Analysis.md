@@ -129,44 +129,9 @@ For RCM:
 
 ### Step 5: Generate Perceptron Weights
 
-The `compute_weights_from_results()` function converts benchmark data into perceptron weights using a multi-stage process:
+Correlations are converted to weights via `compute_weights_from_results()` — a multi-stage pipeline (multi-restart perceptrons → variant pre-collapse → regret-aware grid search). See [[Perceptron-Weights#multi-restart-training--benchmark-multipliers]] for details.
 
-1. **Multi-restart perceptron training** (`N_RESTARTS=5`, `N_EPOCHS=800` per benchmark)
-2. **Z-score feature normalization** for stable SGD gradients
-3. **Variant pre-collapse**: keeps only the highest-bias variant per base algorithm
-4. **Regret-aware grid search** for per-benchmark multipliers (30 iterations × 32 values)
-
-The final weights reflect both feature correlations and benchmark-specific performance:
-
-```python
-weights = compute_weights_from_results(
-    benchmark_results=bench_results,
-    reorder_results=reorder_results,
-    weights_dir="scripts/weights/active",
-)
-# Produces type_0.json with scoreBase weights + benchmark_weights multipliers
-```
-
-**Example result** (simplified):
-```json
-{
-  "LeidenCSR": {
-    "bias": 0.85,
-    "w_modularity": 0.27,
-    "w_hub_concentration": 0.16,
-    "w_degree_variance": 0.18,
-    "w_density": -0.08,
-    "benchmark_weights": {
-      "pr": 1.2,
-      "bfs": 0.95,
-      "cc": 1.1,
-      "sssp": 1.05
-    }
-  }
-}
-```
-
-> **Note:** The older correlation-to-weight approach (`r × scale`) has been superseded by multi-restart perceptron training which produces more robust weights. The correlation coefficients shown above remain useful for understanding *why* certain algorithms perform well on certain graph types.
+> **Note:** The older correlation-to-weight approach (`r × scale`) has been superseded by multi-restart perceptron training which produces more robust weights.
 
 ---
 
@@ -363,64 +328,15 @@ log_edges         -0.31  0.21   -0.15  0.28    0.38
 
 ## Updating Weights
 
-### When to Re-run Analysis
-
-1. **Added new graphs** to your benchmark set
-2. **Added new algorithms** to GraphBrew
-3. **Changed target benchmarks** (pr vs bfs vs sssp)
-4. **Noticed poor predictions** in production
-
-### Using --train for Comprehensive Updates
-
-If many weight fields are 0 or default 1.0, use the training mode:
+Re-run analysis when: adding new graphs, adding algorithms, changing target benchmarks, or noticing poor predictions.
 
 ```bash
-# Complete training: cache impacts, topology features, and per-graph-type weights
-python3 scripts/graphbrew_experiment.py \
-    --train \
-    --size medium \
-    --auto
+python3 scripts/graphbrew_experiment.py --train --size medium --auto
 ```
 
-This runs phases sequentially:
+After training, the system automatically clusters graphs and generates per-cluster weights in `scripts/weights/active/`. See [[Perceptron-Weights]] for weight file format and [[Python-Scripts]] for weight management.
 
-| Phase | Description | Weight Fields Updated |
-|-------|-------------|----------------------|
-| **Phase 1** | Reordering | `w_reorder_time` via reorder timings |
-| **Phase 2** | Benchmarks | `bias`, win rates from benchmark results |
-| **Phase 3** | Cache simulation | `cache_l1_impact`, `cache_l2_impact`, `cache_l3_impact` |
-| **Phase 4** | Weight generation | Core weights from correlations |
-| **Phase 5** | Fill weights | Update zero fields from results |
-
-**Output files:**
-```
-scripts/weights/
-├── active/                   # Active weights (C++ reads, Python writes)
-│   ├── type_registry.json    # Maps graphs → types + cluster centroids
-│   ├── type_0.json           # Cluster 0 weights
-│   ├── type_1.json           # Cluster 1 weights
-│   └── type_N.json           # Additional clusters
-├── merged/                   # Accumulated weights from all runs
-└── runs/                     # Historical snapshots
-
-results/
-└── graph_properties_cache.json  # Cached graph properties for type detection
-```
-
-### Automatic Clustering
-
-After each weight update, the system automatically:
-1. **Clusters graphs** by feature similarity
-2. **Generates per-cluster weights** in `scripts/weights/active/type_N.json`
-3. **Updates type registry** with centroids for runtime matching
-
-### Reset to Defaults
-
-```bash
-# Regenerate from scratch
-rm -rf scripts/weights/active/type_*.json scripts/weights/active/type_registry.json
-python3 scripts/graphbrew_experiment.py --train --size small
-```
+To reset: `rm -rf scripts/weights/active/type_*.json scripts/weights/active/type_registry.json`
 
 ---
 
@@ -485,109 +401,13 @@ for f in ['results/benchmark_*.json']:
 
 ## Full Correlation Scan
 
-For comprehensive benchmarking, use the unified experiment script:
-
-### Running Full Scan
-
-```bash
-# Quick test with small graphs
-python3 scripts/graphbrew_experiment.py --full --size small
-
-# medium graphs (recommended for development)
-python3 scripts/graphbrew_experiment.py --full --size medium
-
-# All graphs with automatic resource management
-python3 scripts/graphbrew_experiment.py --full --size all --auto
-```
-
-### Key Features
-
-- **Sequential Execution**: One benchmark at a time for full CPU utilization
-- **Speedup Baseline**: Uses ORIGINAL for adaptive analysis, RANDOM for general speedup calculations
-- **All Algorithms**: Tests IDs 0-17 (typically skips 13=MAP which needs external file)
-- **Incremental Save**: Progress saved to allow resumption on interruption
-
-### Results Directory
-
-Results are saved to `./results/` by default:
-
-```
-results/
-├── mappings/              # Pre-generated label maps
-├── reorder_*.json         # Reordering times
-├── benchmark_*.json       # All benchmark results
-├── cache_*.json           # Cache simulation results
-└── logs/                  # Execution logs
-```
-
-### Resume Interrupted Scan
-
-If a scan is interrupted, re-run with the same parameters - the script will skip completed work:
-
-```bash
-# Resume automatically
-python3 scripts/graphbrew_experiment.py --full --size medium
-```
-
-### Output Format
-
-The `benchmark_*.json` contains an array of results:
-
-```json
-[
-  {
-    "graph": "facebook",
-    "algorithm": "HUBCLUSTERDBG",
-    "algorithm_id": 7,
-    "benchmark": "pr",
-    "time_seconds": 0.037,
-    "reorder_time": 0.012,
-    "trials": 2,
-    "success": true,
-    "error": "",
-    "extra": {}
-  }
-]
-```
+See [[Benchmark-Suite]] for running complete experiments across all graph sizes, and [[Command-Line-Reference]] for all pipeline options.
 
 ---
 
 ## Mathematical Details
 
-### Perceptron Score Function
-
-```
-score(algo, community) = bias_algo + Σ(w_feature × feature_value)
-```
-
-### Weight Derivation
-
-```python
-# compute_weights_from_results() multi-stage pipeline:
-
-# Stage 1: Multi-restart perceptrons (5 restarts × 800 epochs per benchmark)
-for bench in ['pr', 'bfs', 'cc', 'sssp']:
-    for restart in range(5):
-        seed = 42 + restart * 1000 + bench_index * 100
-        # Z-score normalize features, SGD with L2 decay (1e-4)
-        perceptron = train_perceptron(data, seed, epochs=800)
-    avg_weights[bench] = average(all_restarts)
-
-# Stage 2: Average across benchmarks for scoreBase()
-scoreBase_weights = average(avg_weights.values())
-
-# Stage 3: Pre-collapse variants (keep highest-bias per base algo)
-# Stage 4: Regret-aware grid search for benchmark_weights multipliers
-#   30 iterations, 32 log-spaced values [0.1, 10.0]
-#   Objective: max(accuracy, min(-mean_regret))
-
-# Bias from win rate (capped at 1.5)
-weights[algo]["bias"] = min(1.5, 0.3 + (len(wins) / len(graphs)) * 0.7)
-
-# L2 regularization applied after each SGD update (decay = 1e-4)
-```
-
-**Validation:** After training, use `eval_weights.py` to simulate C++ scoring and measure accuracy/regret. Current results: 46.8% accuracy, 2.6% base-aware median regret on 47 graphs × 4 benchmarks.
+The perceptron score function, multi-stage training pipeline, and validation metrics are documented in [[Perceptron-Weights#score-calculation]] and [[AdaptiveOrder-ML#advanced-training-compute_weights_from_results]].
 
 ---
 

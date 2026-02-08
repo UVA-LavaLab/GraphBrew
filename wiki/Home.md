@@ -69,60 +69,23 @@ This single command will:
 5. Execute cache simulations (L1/L2/L3 hit rates)
 6. Generate perceptron weights for AdaptiveOrder (includes cache + reorder time features)
 
-### Resource Management
+### Options
 
 ```bash
 # Auto-detect RAM and disk limits
 python3 scripts/graphbrew_experiment.py --full --size all --auto
 
-# Set explicit limits
-python3 scripts/graphbrew_experiment.py --full --size all --max-memory 32 --max-disk 100
-```
+# Train perceptron weights
+python3 scripts/graphbrew_experiment.py --train --size small
 
-### Training Options
-
-```bash
-# Complete training pipeline: reorder → benchmark → cache sim → update weights
-# Auto-clusters graphs and generates type_N.json files in scripts/weights/active/
-python3 scripts/graphbrew_experiment.py --train --size small --max-graphs 5
-
-# Iterative training to reach target accuracy
-python3 scripts/graphbrew_experiment.py --train-iterative --target-accuracy 85 --size small
-```
-
-**Auto-Clustering Type System:** AdaptiveOrder automatically clusters graphs by feature similarity and generates per-cluster weights (type_0.json, type_1.json, etc.). At runtime, it selects the best matching cluster based on graph features.
-
-### Download Size Options
-
-| Size | Graphs | Total | Use Case |
-|------|--------|-------|----------|
-| `SMALL` | 16 | ~62 MB | Quick testing |
-| `MEDIUM` | 28 | ~1.1 GB | Standard experiments |
-| `LARGE` | 37 | ~25 GB | Full evaluation |
-| `XLARGE` | 6 | ~63 GB | Massive-scale testing |
-| `ALL` | **87** | ~89 GB | Complete benchmark |
-
-### Manual Usage
-
-```bash
-# Build GraphBrew
-make all
-
-# Run PageRank with LeidenCSR reordering (GVE-Leiden, default)
-./bench/bin/pr -f your_graph.el -s -o 17 -n 3
-
-# Run PageRank with LeidenCSR (best overall: gveopt2 with dynamic resolution)
+# Manual: run PageRank with best LeidenCSR variant
 ./bench/bin/pr -f your_graph.el -s -o 17:gveopt2:dynamic -n 3
-
-# Run PageRank with auto resolution (good for unknown graphs)
-./bench/bin/pr -f your_graph.el -s -o 17:gveadaptive:auto -n 3
-
-# Run PageRank with LeidenDendrogram (format: 16:variant:resolution)  
-./bench/bin/pr -f your_graph.el -s -o 16:hybrid:dynamic -n 3
 
 # Let AdaptiveOrder choose the best algorithm
 ./bench/bin/pr -f your_graph.el -s -o 14 -n 3
 ```
+
+See [[Quick-Start]] for detailed examples, [[Benchmark-Suite]] for size categories, and [[Command-Line-Reference]] for all flags.
 
 ## 📊 Performance Overview
 
