@@ -204,16 +204,23 @@ def parse_adaptive_output(output: str) -> Tuple[float, int, List[SubcommunityInf
         algo_distribution[selected] = algo_distribution.get(selected, 0) + 1
     
     # Parse individual community selections
-    # Format: "Community N: algo=Algorithm, nodes=X, edges=Y" or similar
+    # C++ format: "  Community N: X nodes, Y edges -> Algorithm"
+    # Legacy format: "Community N: algo=Algorithm, nodes=X, edges=Y"
     comm_pattern = re.compile(
+        r'Community\s+(\d+):\s*(\d+)\s+nodes,\s*(\d+)\s+edges\s*->\s*(\w+)',
+        re.IGNORECASE
+    )
+    # Also try legacy format
+    comm_pattern_legacy = re.compile(
         r'Community\s+(\d+):\s*algo=(\w+),\s*nodes=(\d+),\s*edges=(\d+)',
         re.IGNORECASE
     )
+    
     for match in comm_pattern.finditer(output):
         comm_id = int(match.group(1))
-        selected = match.group(2)
-        nodes = int(match.group(3))
-        edges = int(match.group(4))
+        nodes = int(match.group(2))
+        edges = int(match.group(3))
+        selected = match.group(4)
         
         subcommunities.append(SubcommunityInfo(
             community_id=comm_id,
@@ -225,6 +232,25 @@ def parse_adaptive_output(output: str) -> Tuple[float, int, List[SubcommunityInf
             selected_algorithm=selected
         ))
         algo_distribution[selected] = algo_distribution.get(selected, 0) + 1
+    
+    # Fallback: try legacy format if no matches found from C++ format
+    if not any(s.community_id > 0 for s in subcommunities):
+        for match in comm_pattern_legacy.finditer(output):
+            comm_id = int(match.group(1))
+            selected = match.group(2)
+            nodes = int(match.group(3))
+            edges = int(match.group(4))
+            
+            subcommunities.append(SubcommunityInfo(
+                community_id=comm_id,
+                nodes=nodes,
+                edges=edges,
+                density=2.0 * edges / (nodes * (nodes - 1)) if nodes > 1 else 0.0,
+                degree_variance=0.0,
+                hub_concentration=0.0,
+                selected_algorithm=selected
+            ))
+            algo_distribution[selected] = algo_distribution.get(selected, 0) + 1
     
     # Parse subcommunity table (legacy format)
     table_pattern = re.compile(

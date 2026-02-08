@@ -253,6 +253,7 @@ from .weights import (
     list_known_types,
     get_type_summary,
     initialize_default_weights,
+    get_all_algorithm_variant_names,
     update_zero_weights,
     store_per_graph_results,
     CLUSTER_DISTANCE_THRESHOLD,
