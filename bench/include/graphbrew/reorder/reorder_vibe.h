@@ -93,6 +93,8 @@
  * │ CONNECTIVITY_BFS│ vibe:conn          │ BFS within communities (default) │
  * │ HYBRID_LEIDEN_  │ vibe:hrab          │ Leiden + RabbitOrder super-graph  │
  * │ RABBIT          │                    │ (best locality web/geometric)    │
+ * │ TILE_QUANTIZED_ │ vibe:tqr           │ Tile-quantized RabbitOrder:       │
+ * │ RABBIT          │                    │ cache-line-aligned tile graph     │
  * 
  * =============================================================================
  * COMMAND LINE USAGE
@@ -108,6 +110,7 @@
  *   ./bench/bin/pr -f graph.mtx -o 17:vibe:lazyupdate -n 5 # Batched ctot updates (reduces atomics)
  *   ./bench/bin/pr -f graph.mtx -o 17:vibe:conn -n 5       # Connectivity BFS (default ordering)
  *   ./bench/bin/pr -f graph.mtx -o 17:vibe:hrab -n 5       # Hybrid Leiden+RabbitOrder (best locality)
+ *   ./bench/bin/pr -f graph.mtx -o 17:vibe:tqr -n 5        # Tile-Quantized RabbitOrder (cache-aligned)
  *   ./bench/bin/pr -f graph.mtx -o 17:vibe:auto -n 5      # Auto-computed resolution (fixed)
  *   ./bench/bin/pr -f graph.mtx -o 17:vibe:dynamic -n 5   # Dynamic resolution (per-pass adjustment)
  *   ./bench/bin/pr -f graph.mtx -o 17:vibe:0.75 -n 5      # Fixed resolution (0.75)
@@ -250,7 +253,8 @@ enum class OrderingStrategy {
     DBG_GLOBAL,      ///< DBG across all vertices (post-clustering)
     CORDER_GLOBAL,   ///< Corder across all vertices (post-clustering)
     HIERARCHICAL_CACHE_AWARE,  ///< Use Leiden hierarchy as dendrogram for cache-aware ordering
-    HYBRID_LEIDEN_RABBIT       ///< Leiden communities + RabbitOrder super-graph ordering (best locality)
+    HYBRID_LEIDEN_RABBIT,      ///< Leiden communities + RabbitOrder super-graph ordering (best locality)
+    TILE_QUANTIZED_RABBIT      ///< Tile-quantized graph + RabbitOrder: cache-line-aligned macro-ordering
 };
 
 /** Community detection mode */
@@ -292,6 +296,15 @@ struct VibeConfig {
     bool useDegreeSorting = false;     ///< Process vertices by ascending degree (helps vibe:rabbit, not Leiden)
     bool useCommunityMerging = false;  ///< Merge small communities for better cache locality (vibe:merge)
     size_t targetCommunities = 0;      ///< Target community count after merging (0 = auto)
+    bool useHubExtraction = false;     ///< Extract high-degree hubs before community ordering (vibe:hubx)
+    double hubExtractionPct = 0.001;   ///< Fraction of vertices to extract as hubs (default 0.1%, use hubx0.5 for 0.5%)
+    
+    // Gorder-inspired improvements (apply to hrab ordering)
+    bool useGorderIntra = false;       ///< Replace BFS with Gorder-greedy within communities (vibe:gord)
+    int  gorderWindow = 5;             ///< Sliding window size for Gorder-greedy intra-community ordering
+    int  gorderFallback = 0;           ///< Community size threshold for BFS fallback (0 = auto = N, i.e. no fallback)
+    bool useHubSort = false;           ///< Post-process: pack hub vertices contiguously sorted by descending degree (vibe:hsort)
+    bool useRCMSuper = false;          ///< Use RCM on super-graph instead of RabbitOrder dendrogram DFS (vibe:rcm)
     
     // Memory optimizations
     bool useLazyUpdates = false;       ///< Batch community weight updates (reduces atomics in non-REFINE phase)
@@ -1588,21 +1601,12 @@ size_t rabbitCommunityDetection(
     float M,
     const VibeConfig& config) {
     
+    using Edge = std::pair<K, float>;
     const size_t N = g.num_nodes();
     constexpr K INVALID = static_cast<K>(-1);
+    const int numThreads = omp_get_max_threads();
     
     VIBE_TRACE("rabbitCommunityDetection: N=%zu, M=%.0f", N, M);
-    
-    // Thread-local retry queues for failed merges
-    const int numThreads = omp_get_max_threads();
-    std::vector<std::vector<K>> retryQueues(numThreads);
-    for (auto& q : retryQueues) q.reserve(1024);
-    
-    // Thread-local scanners for finding best destination
-    std::vector<CommunityScanner<K, float>> scanners;
-    for (int t = 0; t < numThreads; ++t) {
-        scanners.emplace_back(N);
-    }
     
     // Lambda: find destination community with path compression (Algorithm 4, lines 3-5)
     auto findDest = [&](K v) -> K {
@@ -1615,249 +1619,212 @@ size_t rabbitCommunityDetection(
         return d;
     };
     
-    // Lambda: compute modularity gain ΔQ(u, v) from Equation 1
-    // Original formula: 2 * (w_uv / M - d_u * d_v / (2 * M^2))
-    auto deltaQ = [&](float w_uv, float d_u, float d_v) -> float {
-        return 2.0f * (w_uv / M - (config.resolution * d_u * d_v) / (2.0f * M * M));
-    };
-    
-    // Lambda: Unite (aggregate) edges from children into vertex u
-    // This is the key optimization - cache aggregated edges incrementally
-    // Optimization: Prefetching like Boost for better cache performance
-    auto unite = [&](K u, CommunityScanner<K, float>& scanner) -> void {
-        auto& vu = vtx[u];
-        
-        // Start with current cached edges (with prefetching)
-        scanner.clear();
-        const size_t nedges = vu.edges.size();
-        constexpr size_t PREFETCH_AHEAD = 8;
-        
-        // Prefetch first batch of dest entries
-        for (size_t i = 0; i < std::min(PREFETCH_AHEAD, nedges); ++i) {
-            __builtin_prefetch(&dest[vu.edges[i].first], 0, 3);
-        }
-        
-        for (size_t i = 0; i < nedges; ++i) {
-            // Prefetch ahead
-            if (i + PREFETCH_AHEAD < nedges) {
-                __builtin_prefetch(&dest[vu.edges[i + PREFETCH_AHEAD].first], 0, 3);
-            }
-            
-            auto& [d, w] = vu.edges[i];
-            K root = findDest(d);
-            if (root != u) {
-                scanner.add(root, w);
-            }
-        }
-        
-        // Aggregate edges from newly united children (since last unite)
-        // Use iterative approach with explicit stack to avoid stack overflow on large graphs
-        auto [_, first_child] = atom[u].load();
-        K uc = vu.united_child;
-        
-        // Stack-based iterative traversal (replaces recursive uniteRecursive)
-        // Each entry: (node, phase) where phase 0 = descend to siblings/children, phase 1 = process
-        thread_local std::vector<std::pair<K, int>> uniteStack;
-        uniteStack.clear();
-        
-        if (first_child != uc && first_child != INVALID) {
-            uniteStack.emplace_back(first_child, 0);
-        }
-        
-        while (!uniteStack.empty()) {
-            auto [c, phase] = uniteStack.back();
-            uniteStack.pop_back();
-            
-            if (c == uc || c == INVALID) continue;
-            
-            if (phase == 0) {
-                // Phase 0: Push self for processing, then push children/siblings
-                uniteStack.emplace_back(c, 1);  // Come back to process
-                
-                // Push sibling (will be processed after this node's subtree)
-                if (sibling[c] != uc && sibling[c] != INVALID) {
-                    uniteStack.emplace_back(sibling[c], 0);
-                }
-                
-                // Push children that need processing
-                auto& vc_tmp = vtx[c];
-                auto [__, child_first] = atom[c].load();
-                for (K cc = child_first; cc != vc_tmp.united_child && cc != INVALID; cc = sibling[cc]) {
-                    uniteStack.emplace_back(cc, 0);
-                }
+    // Sort-based edge compaction matching Boost's compact() exactly:
+    // sort by vertex ID, then fold adjacent duplicates by summing weights
+    auto compact = [](typename std::vector<Edge>::iterator first,
+                      typename std::vector<Edge>::iterator last,
+                      std::back_insert_iterator<std::vector<Edge>> result) {
+        if (first == last) return;
+        std::sort(first, last, [](const Edge& a, const Edge& b) {
+            return a.first < b.first;
+        });
+        // uniq_accum: fold adjacent edges with same target
+        auto x = *first;
+        while (++first != last) {
+            if (x.first == first->first) {
+                x.second += first->second;
             } else {
-                // Phase 1: Process this node
-                auto& vc = vtx[c];
-                
-                // Update united_child marker
-                auto [__, child_first] = atom[c].load();
-                vc.united_child = child_first;
-                
-                // Add child's edges with prefetching (like Boost)
-                const size_t nedges = vc.edges.size();
-                constexpr size_t PREFETCH_AHEAD = 8;
-                
-                // Prefetch first batch of dest entries
-                for (size_t i = 0; i < std::min(PREFETCH_AHEAD, nedges); ++i) {
-                    __builtin_prefetch(&dest[vc.edges[i].first], 0, 3);
-                }
-                
-                for (size_t i = 0; i < nedges; ++i) {
-                    // Prefetch ahead
-                    if (i + PREFETCH_AHEAD < nedges) {
-                        __builtin_prefetch(&dest[vc.edges[i + PREFETCH_AHEAD].first], 0, 3);
-                    }
-                    
-                    auto& [d, w] = vc.edges[i];
-                    K root = findDest(d);
-                    if (root != u) {
-                        scanner.add(root, w);
-                    }
-                }
+                *result++ = x;
+                x = *first;
             }
         }
+        *result++ = x;
+    };
+    
+    // Unite: aggregate edges of v and its merged children into nbrs buffer
+    // Matches Boost's unite() exactly: push_edges → periodic compact → writeback
+    auto unite = [&](K u, std::vector<Edge>& nbrs) -> void {
+        auto& vu = vtx[u];
+        ptrdiff_t icmb = 0;
+        nbrs.clear();
         
-        // Update cached edges and mark progress
+        // Lambda to push edges from a vertex into nbrs with prefetching + periodic compact
+        auto push_edges = [&](K w) {
+            auto& es = vtx[w].edges;
+            constexpr size_t PREFETCH_AHEAD = 8;
+            
+            for (size_t i = 0; i < es.size() && i < PREFETCH_AHEAD; ++i)
+                __builtin_prefetch(&dest[es[i].first], 0, 3);
+            
+            for (size_t i = 0; i < es.size(); ++i) {
+                if (i + PREFETCH_AHEAD < es.size())
+                    __builtin_prefetch(&dest[es[i + PREFETCH_AHEAD].first], 0, 3);
+                
+                K root = findDest(es[i].first);
+                if (root != u)
+                    nbrs.push_back({root, es[i].second});
+            }
+            
+            // Compact before uncombined edges overflow L2 cache (Boost's threshold)
+            if (static_cast<ptrdiff_t>(nbrs.size()) - icmb >= 2048) {
+                auto it = nbrs.begin() + icmb;
+                std::sort(it, nbrs.end(), [](const Edge& a, const Edge& b) {
+                    return a.first < b.first;
+                });
+                // uniq_accum in-place
+                auto out = it;
+                auto x = *it;
+                auto cur = it;
+                while (++cur != nbrs.end()) {
+                    if (x.first == cur->first) {
+                        x.second += cur->second;
+                    } else {
+                        *out++ = x;
+                        x = *cur;
+                    }
+                }
+                *out++ = x;
+                icmb = out - nbrs.begin();
+                nbrs.resize(icmb);
+            }
+        };
+        
+        // Push edges from vertex u itself
+        push_edges(u);
+        
+        // Push edges from newly merged children (Boost's while loop pattern)
+        // child may be modified concurrently — we follow Boost's exact traversal:
+        // walk the sibling chain from current child to united_child marker
+        while (vu.united_child != atom[u].load().second) {
+            K c = static_cast<K>(atom[u].load().second);
+            K w;
+            for (w = c; w != INVALID && w != vu.united_child; w = sibling[w])
+                push_edges(w);
+            vu.united_child = c;
+        }
+        
+        // Final compaction and writeback to vertex edge cache
         vu.edges.clear();
-        vu.edges.reserve(scanner.keys.size());
-        for (K d : scanner.keys) {
-            vu.edges.emplace_back(d, scanner.get(d));
-        }
-        vu.united_child = first_child;
+        compact(nbrs.begin(), nbrs.end(), std::back_inserter(vu.edges));
     };
     
-    // Lambda: Find best destination for vertex u (Algorithm 4)
-    // str_u is the pre-invalidation strength that was saved
-    // Optimization: Prefetching like Boost's rabbit_order for better cache performance
-    auto findBestDestination = [&](K u, float str_u, CommunityScanner<K, float>& scanner) -> std::pair<K, float> {
-        // Unite aggregates edges incrementally using cached edges
-        unite(u, scanner);
-        
-        // Find neighbor with maximum modularity gain
-        K bestDest = INVALID;
-        float bestDeltaQ = 0.0f;
-        
-        const size_t nkeys = scanner.keys.size();
-        constexpr size_t PREFETCH_AHEAD = 8;  // Match Boost's prefetch distance
-        
-        // Prefetch first batch of atom entries
-        for (size_t i = 0; i < std::min(PREFETCH_AHEAD, nkeys); ++i) {
-            __builtin_prefetch(&atom[scanner.keys[i]], 0, 3);
-        }
-        
-        for (size_t i = 0; i < nkeys; ++i) {
-            // Prefetch ahead for next iterations
-            if (i + PREFETCH_AHEAD < nkeys) {
-                __builtin_prefetch(&atom[scanner.keys[i + PREFETCH_AHEAD]], 0, 3);
-            }
-            
-            K d = scanner.keys[i];
-            float w_ud = scanner.get(d);
-            auto [str_d, _] = atom[d].load();
-            if (str_d == RabbitAtom::INVALID_STR) continue;  // Invalid
-            
-            float dq = deltaQ(w_ud, str_u, str_d);
-            if (dq > bestDeltaQ) {
-                bestDeltaQ = dq;
-                bestDest = d;
+    // Find best destination from already-compacted edges in vtx[u].edges
+    auto findBest = [&](K u, float str_u) -> K {
+        float dmax = 0.0f;
+        K best = u;  // Return self if no improvement (= toplevel)
+        for (const auto& [target, weight] : vtx[u].edges) {
+            auto [str_d, _] = atom[target].load();
+            if (str_d == RabbitAtom::INVALID_STR) continue;
+            float d = weight - str_u * str_d / M;
+            if (d > dmax) {
+                dmax = d;
+                best = target;
             }
         }
-        
-        return {bestDest, bestDeltaQ};
+        return best;
     };
     
-    // Main parallel incremental aggregation (Algorithm 3, lines 7-25)
-    std::atomic<size_t> numToplevel(0);
+    // Main parallel incremental aggregation
+    // Matches Boost's aggregate() exactly: unite-before-lock, inline retry, barrier+critical
+    std::vector<std::deque<K>> topss(numThreads);
     
     #pragma omp parallel
     {
         int tid = omp_get_thread_num();
-        auto& scanner = scanners[tid];
-        auto& retryQueue = retryQueues[tid];
+        std::deque<K> tops, pends;
         
-        // Fine-grained scheduling like Boost for better load balancing
-        #pragma omp for schedule(static, 1)
-        for (size_t i = 0; i < N; ++i) {
-            K u = vertexOrder[i];
+        // Thread-local edge accumulation buffer (Boost's nbrs)
+        // Pre-reserved, reused across all merge() calls — no per-call allocation
+        std::vector<Edge> nbrs;
+        nbrs.reserve(N * 2);  // Boost's heuristic
+        
+        // Merge lambda matching Boost's merge() exactly
+        // Returns: u (toplevel), INVALID (retry needed), or bestV (merged)
+        auto merge = [&](K u) -> K {
+            // Step 1: Unite BEFORE lock (shortens lock hold time)
+            unite(u, nbrs);
             
-            // Step 1: Invalidate u to prevent others from merging into it
+            // Step 2: Lock by invalidating strength
             float str_u = atom[u].invalidate();
-            
             if (str_u == RabbitAtom::INVALID_STR) {
-                continue;  // Already processed
+                return u;  // Already processed
             }
             
-            // Step 2: Find best destination (pass saved strength)
-            auto [bestV, bestDQ] = findBestDestination(u, str_u, scanner);
+            // Step 3: Re-unite if child chain changed between steps 1-2
+            if (static_cast<K>(atom[u].load().second) != vtx[u].united_child) {
+                unite(u, nbrs);
+            }
             
-            // Step 3: Check if modularity improves
-            if (bestV == INVALID || bestDQ <= 0.0f) {
-                // u becomes a top-level vertex (root)
+            // Step 4: Find best destination
+            K best = findBest(u, str_u);
+            
+            if (best == u) {
+                // No improvement — become toplevel, restore strength
                 atom[u].restore(str_u);
-                #pragma omp critical
-                {
-                    toplevel.push_back(u);
-                }
-                numToplevel++;
-                continue;
+                return u;
             }
             
-            // Step 4: Attempt to merge u into bestV using single CAS on packed atom
-            auto [str_v, child_v] = atom[bestV].load();
-            
+            // Step 5: Check if target is locked
+            auto [str_v, child_v] = atom[best].load();
             if (str_v == RabbitAtom::INVALID_STR) {
-                // bestV was invalidated, retry later
                 atom[u].restore(str_u);
-                retryQueue.push_back(u);
-                continue;
+                return INVALID;  // Target locked, retry
             }
             
-            // Prepare new values: add strengths, u becomes new first child
-            sibling[u] = child_v;  // Link to previous child
+            // Step 6: Set sibling before CAS (accessible immediately after merge)
+            sibling[u] = child_v;
             float new_str = str_v + str_u;
             
-            // Single atomic CAS on both strength and child
-            if (atom[bestV].tryMerge(str_v, child_v, new_str, static_cast<uint32_t>(u))) {
-                // Success! Update destination
-                dest[u] = bestV;
+            if (atom[best].tryMerge(str_v, child_v, new_str, static_cast<uint32_t>(u))) {
+                dest[u] = best;
+                return best;  // Merged successfully
             } else {
-                // CAS failed, retry later
                 sibling[u] = INVALID;
                 atom[u].restore(str_u);
-                retryQueue.push_back(u);
+                return INVALID;  // CAS failed, retry
             }
+        };
+        
+        #pragma omp for schedule(static, 1)
+        for (size_t i = 0; i < N; ++i) {
+            // Inline retry of pending vertices each iteration (Boost pattern)
+            pends.erase(
+                std::remove_if(pends.begin(), pends.end(), [&](K w) {
+                    K u = merge(w);
+                    if (u == w) tops.push_back(w);
+                    return u != INVALID;  // remove if handled
+                }),
+                pends.end());
+            
+            K v = vertexOrder[i];
+            K u = merge(v);
+            if (u == v)
+                tops.push_back(v);
+            else if (u == INVALID)
+                pends.push_back(v);
+        }
+        
+        // Merge remaining pending vertices after barrier
+        #pragma omp barrier
+        #pragma omp critical
+        {
+            for (K v : pends) {
+                K u = merge(v);
+                if (u == v) tops.push_back(v);
+                // After barrier, merges should always succeed
+            }
+            topss[tid] = std::move(tops);
         }
     }
     
-    // Process retry queues (sequential for simplicity, these are rare)
+    // Join thread-local toplevel lists
     for (int t = 0; t < numThreads; ++t) {
-        auto& scanner = scanners[t];
-        for (K u : retryQueues[t]) {
-            float str_u = atom[u].invalidate();
-            if (str_u == RabbitAtom::INVALID_STR) continue;
-            
-            auto [bestV, bestDQ] = findBestDestination(u, str_u, scanner);
-            
-            if (bestV == INVALID || bestDQ <= 0.0f) {
-                atom[u].restore(str_u);
-                toplevel.push_back(u);
-                numToplevel++;
-                continue;
-            }
-            
-            // Sequential merge (no CAS needed)
-            auto [str_v, child_v] = atom[bestV].load();
-            sibling[u] = child_v;
-            // Direct store since we're sequential
-            atom[bestV].packed.store(RabbitAtom::pack(str_v + str_u, static_cast<uint32_t>(u)), 
-                                     std::memory_order_release);
-            dest[u] = bestV;
-        }
+        toplevel.insert(toplevel.end(), topss[t].begin(), topss[t].end());
     }
     
-    VIBE_TRACE("rabbitCommunityDetection: %zu top-level communities", numToplevel.load());
+    VIBE_TRACE("rabbitCommunityDetection: %zu top-level communities", toplevel.size());
     
-    return numToplevel.load();
+    return toplevel.size();
 }
 
 /**
@@ -2941,7 +2908,22 @@ void orderConnectivityBFS(
     }
     
     // Step 4: BFS within each community to assign local IDs (parallel)
+    // Uses flat vector + sentinel instead of per-community unordered_map for O(1) lookup
     std::vector<K> localIds(N, static_cast<K>(-1));
+    
+    // Global vertex-to-local-index map (flat vector, sentinel = (size_t)-1)
+    // Shared across all communities but each vertex belongs to exactly one community
+    std::vector<size_t> vertToLocal(N, static_cast<size_t>(-1));
+    
+    // Pre-populate the flat map (parallel, no conflicts since each vertex has one community)
+    #pragma omp parallel for schedule(static)
+    for (size_t ci = 0; ci < numComm; ++ci) {
+        K c = commOrder[ci];
+        auto& verts = commVertices[c];
+        for (size_t i = 0; i < verts.size(); ++i) {
+            vertToLocal[verts[i]] = i;
+        }
+    }
     
     #pragma omp parallel
     {
@@ -2955,12 +2937,6 @@ void orderConnectivityBFS(
             if (verts.empty()) continue;
             
             visited.assign(verts.size(), false);
-            
-            // Build local vertex index for this community
-            std::unordered_map<K, size_t> vertToLocal;
-            for (size_t i = 0; i < verts.size(); ++i) {
-                vertToLocal[verts[i]] = i;
-            }
             
             // Find starting vertex (highest degree in community)
             K startV = verts[0];
@@ -2995,9 +2971,9 @@ void orderConnectivityBFS(
                     // Check if v is in same community
                     if (membership[v] != c) continue;
                     
-                    auto it = vertToLocal.find(static_cast<K>(v));
-                    if (it != vertToLocal.end() && !visited[it->second]) {
-                        visited[it->second] = true;
+                    size_t localIdx = vertToLocal[static_cast<K>(v)];
+                    if (localIdx != static_cast<size_t>(-1) && !visited[localIdx]) {
+                        visited[localIdx] = true;
                         bfsQueue.push(static_cast<K>(v));
                     }
                 }
@@ -3071,19 +3047,85 @@ void orderHybridLeidenRabbit(
     VIBE_TRACE("orderHybridLeidenRabbit: N=%zu", N);
     
     // ================================================================
-    // STEP 1: Build super-graph from Leiden communities
+    // STEP 0 (optional): Hub Extraction
+    // Remove top hubExtractionPct highest-degree vertices before
+    // building the community super-graph. Hubs distort community
+    // structure and RabbitOrder merging decisions. They are reinserted
+    // adjacent to their community block at the end.
     // ================================================================
     
-    // Find number of communities
+    std::vector<bool> isHub(N, false);
+    // Per-community hub lists (filled if hub extraction enabled)
+    // Indexed by community ID, each entry is a list of hub vertex IDs
+    std::vector<std::vector<K>> commHubs;
+    size_t numHubs = 0;
+    
+    // Find number of communities (needed before hub extraction)
     K maxComm = 0;
     for (size_t v = 0; v < N; ++v) {
         maxComm = std::max(maxComm, membership[v]);
     }
     const size_t C = static_cast<size_t>(maxComm) + 1;
     
+    if (config.useHubExtraction) {
+        // Determine degree threshold for hub extraction
+        // Sort degrees to find the top hubExtractionPct percentile
+        size_t activeCount = 0;
+        for (size_t v = 0; v < N; ++v) {
+            if (degrees[v] > 0) activeCount++;
+        }
+        
+        size_t hubCount = std::max(size_t(1), 
+                          static_cast<size_t>(activeCount * config.hubExtractionPct));
+        
+        // Find the hubCount-th largest degree using partial sort
+        std::vector<K> sortedDegs;
+        sortedDegs.reserve(activeCount);
+        for (size_t v = 0; v < N; ++v) {
+            if (degrees[v] > 0) sortedDegs.push_back(degrees[v]);
+        }
+        
+        // nth_element to find threshold
+        if (hubCount < sortedDegs.size()) {
+            std::nth_element(sortedDegs.begin(), 
+                             sortedDegs.begin() + hubCount,
+                             sortedDegs.end(),
+                             std::greater<K>());
+            K degThreshold = sortedDegs[hubCount];
+            
+            // Mark hubs: vertices with degree > threshold
+            // (use > to avoid extracting too many if many vertices share the threshold degree)
+            for (size_t v = 0; v < N; ++v) {
+                if (degrees[v] > degThreshold) {
+                    isHub[v] = true;
+                    numHubs++;
+                }
+            }
+        }
+        
+        printf("  hybrid-rabbit: hubx extracted %zu hubs (%.2f%% of %zu active, deg>%u)\n",
+               numHubs, 100.0 * numHubs / std::max(size_t(1), activeCount),
+               activeCount,
+               numHubs > 0 ? static_cast<unsigned>(sortedDegs[hubCount]) : 0u);
+        
+        // Build per-community hub lists
+        commHubs.resize(C);
+        for (size_t v = 0; v < N; ++v) {
+            if (isHub[v]) {
+                commHubs[membership[v]].push_back(static_cast<K>(v));
+            }
+        }
+    }
+    
     printf("  hybrid-rabbit: %zu Leiden communities\n", C);
     
+    // ================================================================
+    // STEP 1: Build super-graph from Leiden communities
+    // ================================================================
+    
     // Separate isolated (zero-degree) vertices
+    // Hubs remain in their communities for BFS ordering
+    // but are excluded from the super-graph edge computation
     std::vector<std::vector<K>> commVertices(C);
     std::vector<K> isolated;
     
@@ -3100,40 +3142,48 @@ void orderHybridLeidenRabbit(
     std::vector<std::unordered_map<K, float>> commEdges(C);
     std::vector<float> commDegrees(C, 0.0f);
     
-    #pragma omp parallel
+    // Parallel edge aggregation with per-community parallel merge
+    // (replaces previous single #pragma omp critical over ALL communities)
     {
-        // Thread-local edge accumulators
-        std::vector<std::unordered_map<K, float>> localEdges(C);
+        const int nT = omp_get_max_threads();
+        std::vector<std::vector<std::unordered_map<K, float>>> allLocalEdges(nT);
         
-        #pragma omp for schedule(dynamic, 1024)
-        for (size_t u = 0; u < N; ++u) {
-            if (degrees[u] == 0) continue;
-            K commU = membership[u];
+        #pragma omp parallel
+        {
+            int tid = omp_get_thread_num();
+            allLocalEdges[tid].resize(C);
             
-            for (auto neighbor : g.out_neigh(u)) {
-                NodeID_T v;
-                float w;
-                if constexpr (std::is_same_v<DestID_T, NodeID_T>) {
-                    v = neighbor;
-                    w = 1.0f;
-                } else {
-                    v = neighbor.v;
-                    w = static_cast<float>(neighbor.w);
-                }
+            #pragma omp for schedule(dynamic, 1024)
+            for (size_t u = 0; u < N; ++u) {
+                if (degrees[u] == 0 || isHub[u]) continue;
+                K commU = membership[u];
                 
-                K commV = membership[v];
-                // Only count each edge once (u < v) for undirected
-                if (commU <= commV) {
-                    localEdges[commU][commV] += w;
+                for (auto neighbor : g.out_neigh(u)) {
+                    NodeID_T v;
+                    float w;
+                    if constexpr (std::is_same_v<DestID_T, NodeID_T>) {
+                        v = neighbor;
+                        w = 1.0f;
+                    } else {
+                        v = neighbor.v;
+                        w = static_cast<float>(neighbor.w);
+                    }
+                    
+                    if (isHub[v]) continue;
+                    
+                    K commV = membership[v];
+                    if (commU <= commV) {
+                        allLocalEdges[tid][commU][commV] += w;
+                    }
                 }
             }
         }
         
-        // Merge thread-local edges
-        #pragma omp critical
-        {
-            for (size_t c = 0; c < C; ++c) {
-                for (auto& [d, w] : localEdges[c]) {
+        // Parallel merge: each community is independent (no locking needed)
+        #pragma omp parallel for schedule(dynamic, 64)
+        for (size_t c = 0; c < C; ++c) {
+            for (int t = 0; t < nT; ++t) {
+                for (auto& [d, w] : allLocalEdges[t][c]) {
                     commEdges[c][d] += w;
                 }
             }
@@ -3203,7 +3253,6 @@ void orderHybridLeidenRabbit(
     for (int t = 0; t < numThreads; ++t) {
         scanners.emplace_back(C);
     }
-    std::vector<std::vector<K>> retryQueues(numThreads);
     
     // Lambda: find destination with path compression
     auto findDest = [&](K v) -> K {
@@ -3281,31 +3330,37 @@ void orderHybridLeidenRabbit(
     };
     
     // Main RabbitOrder loop on super-graph
+    // Follows Boost's pattern: unite-before-lock + inline retry of pending vertices
     std::atomic<size_t> numToplevel(0);
+    std::vector<std::deque<K>> superTopss(numThreads);
     
     #pragma omp parallel
     {
         int tid = omp_get_thread_num();
         auto& scanner = scanners[tid];
-        auto& retryQueue = retryQueues[tid];
+        std::deque<K> tops, pends;
         
-        #pragma omp for schedule(static, 1)
-        for (size_t i = 0; i < C; ++i) {
-            K u = commOrder[i];
-            
-            // Skip empty communities
-            if (commDegrees[u] == 0.0f) {
-                toplevel.push_back(u);
-                numToplevel++;
-                continue;
-            }
-            
-            float str_u = atom[u].invalidate();
-            if (str_u == RabbitAtom::INVALID_STR) continue;
-            
-            // Find best destination
+        // Merge lambda: unite → lock → re-unite if changed → find_best → CAS
+        // Returns true if vertex needs retry, false if handled
+        auto tryMerge = [&](K u) -> bool {
+            // Step 1: Unite edges BEFORE locking
             unite(u, scanner);
             
+            // Step 2: Lock u
+            float str_u = atom[u].invalidate();
+            if (str_u == RabbitAtom::INVALID_STR) {
+                return false;  // Already locked/processed
+            }
+            
+            // Step 3: Re-unite if child chain changed
+            {
+                auto [_re, first_child_re] = atom[u].load();
+                if (first_child_re != vtx[u].united_child) {
+                    unite(u, scanner);
+                }
+            }
+            
+            // Step 4: Find best destination
             K bestDest = INVALID;
             float bestDeltaQ = 0.0f;
             
@@ -3323,71 +3378,76 @@ void orderHybridLeidenRabbit(
             
             if (bestDest == INVALID || bestDeltaQ <= 0.0f) {
                 atom[u].restore(str_u);
-                #pragma omp critical
-                toplevel.push_back(u);
-                numToplevel++;
-                continue;
+                tops.push_back(u);
+                return false;
             }
             
-            // Try to merge
+            // Step 5: Check if target is locked
             auto [str_v, child_v] = atom[bestDest].load();
             if (str_v == RabbitAtom::INVALID_STR) {
                 atom[u].restore(str_u);
-                retryQueue.push_back(u);
-                continue;
+                return true;
             }
             
+            // Step 6: CAS merge
             sibling[u] = child_v;
             float new_str = str_v + str_u;
             
             if (atom[bestDest].tryMerge(str_v, child_v, new_str, static_cast<uint32_t>(u))) {
                 dest[u] = bestDest;
+                return false;
             } else {
                 sibling[u] = INVALID;
                 atom[u].restore(str_u);
-                retryQueue.push_back(u);
+                return true;
             }
-        }
-    }
-    
-    // Process retries sequentially
-    for (int t = 0; t < numThreads; ++t) {
-        auto& scanner = scanners[t];
-        for (K u : retryQueues[t]) {
-            float str_u = atom[u].invalidate();
-            if (str_u == RabbitAtom::INVALID_STR) continue;
+        };
+        
+        #pragma omp for schedule(static, 1)
+        for (size_t i = 0; i < C; ++i) {
+            // Inline retry of pending vertices
+            pends.erase(
+                std::remove_if(pends.begin(), pends.end(), [&](K w) {
+                    return !tryMerge(w);
+                }),
+                pends.end());
             
-            unite(u, scanner);
+            K u = commOrder[i];
             
-            K bestDest = INVALID;
-            float bestDeltaQ = 0.0f;
-            
-            for (K d : scanner.keys) {
-                float w_ud = scanner.get(d);
-                auto [str_d, _] = atom[d].load();
-                if (str_d == RabbitAtom::INVALID_STR) continue;
-                
-                float dq = deltaQ(w_ud, str_u, str_d);
-                if (dq > bestDeltaQ) {
-                    bestDeltaQ = dq;
-                    bestDest = d;
-                }
-            }
-            
-            if (bestDest == INVALID || bestDeltaQ <= 0.0f) {
-                atom[u].restore(str_u);
-                toplevel.push_back(u);
-                numToplevel++;
+            // Skip empty communities (direct toplevel)
+            if (commDegrees[u] == 0.0f) {
+                tops.push_back(u);
                 continue;
             }
             
-            auto [str_v, child_v] = atom[bestDest].load();
-            sibling[u] = child_v;
-            atom[bestDest].packed.store(RabbitAtom::pack(str_v + str_u, static_cast<uint32_t>(u)),
-                                        std::memory_order_release);
-            dest[u] = bestDest;
+            if (tryMerge(u)) {
+                pends.push_back(u);
+            }
+        }
+        
+        // Process remaining pending vertices after barrier
+        #pragma omp barrier
+        #pragma omp critical
+        {
+            for (K u : pends) {
+                bool retry = tryMerge(u);
+                if (retry) {
+                    float str_u = atom[u].invalidate();
+                    if (str_u != RabbitAtom::INVALID_STR) {
+                        atom[u].restore(str_u);
+                    }
+                    tops.push_back(u);
+                }
+            }
+            superTopss[tid] = std::move(tops);
         }
     }
+    
+    // Join thread-local toplevel lists
+    for (int t = 0; t < numThreads; ++t) {
+        toplevel.insert(toplevel.end(), superTopss[t].begin(), superTopss[t].end());
+    }
+    numToplevel.store(toplevel.size(), std::memory_order_relaxed);
     
     printf("  hybrid-rabbit: %zu super-communities (merged from %zu)\n", 
            numToplevel.load(), C);
@@ -3463,23 +3523,122 @@ void orderHybridLeidenRabbit(
     printf("  hybrid-rabbit: assigned %u community IDs\n", static_cast<unsigned>(nextCommId));
     
     // ================================================================
-    // STEP 4: BFS within each Leiden community, ordered by RabbitOrder blocks
+    // STEP 3b (optional): RCM on super-graph instead of dendrogram DFS
+    // RCM minimizes bandwidth (max edge span) — ensures heavily-connected
+    // communities are placed near each other in the ID space. This is
+    // proximity-based rather than degree-based like dendrogram DFS.
+    // ================================================================
+    if (config.useRCMSuper) {
+        printf("  hybrid-rabbit: applying RCM on super-graph (%zu communities)\n", C);
+        
+        // Build symmetric adjacency list for super-graph
+        std::vector<std::vector<std::pair<K, float>>> superAdj(C);
+        for (size_t c = 0; c < C; ++c) {
+            for (auto& [nbr, w] : commEdges[c]) {
+                if (nbr != static_cast<K>(c)) {
+                    superAdj[c].push_back({static_cast<K>(nbr), w});
+                }
+            }
+        }
+        
+        // RCM: BFS from lowest-degree community, neighbors sorted by ascending degree
+        std::vector<K> rcmDegree(C);
+        for (size_t c = 0; c < C; ++c) {
+            rcmDegree[c] = static_cast<K>(superAdj[c].size());
+        }
+        
+        // Find lowest-degree non-empty community as seed
+        K rcmSeed = 0;
+        K minDeg = std::numeric_limits<K>::max();
+        for (size_t c = 0; c < C; ++c) {
+            if (!commVertices[c].empty() && rcmDegree[c] > 0 && rcmDegree[c] < minDeg) {
+                minDeg = rcmDegree[c];
+                rcmSeed = static_cast<K>(c);
+            }
+        }
+        
+        std::vector<bool> rcmVisited(C, false);
+        std::vector<K> rcmOrder;
+        rcmOrder.reserve(C);
+        std::queue<K> rcmQueue;
+        
+        // Multi-seed BFS (handles disconnected super-graph)
+        // Sort all communities by degree ascending for seed priority
+        std::vector<K> seedOrder(C);
+        std::iota(seedOrder.begin(), seedOrder.end(), K(0));
+        std::sort(seedOrder.begin(), seedOrder.end(),
+            [&](K a, K b) { return rcmDegree[a] < rcmDegree[b]; });
+        
+        for (K seed : seedOrder) {
+            if (rcmVisited[seed] || commVertices[seed].empty()) continue;
+            
+            rcmQueue.push(seed);
+            rcmVisited[seed] = true;
+            
+            while (!rcmQueue.empty()) {
+                K cur = rcmQueue.front();
+                rcmQueue.pop();
+                rcmOrder.push_back(cur);
+                
+                // Sort neighbors by ascending degree (RCM heuristic)
+                auto& nbrs = superAdj[cur];
+                std::sort(nbrs.begin(), nbrs.end(),
+                    [&](const std::pair<K,float>& a, const std::pair<K,float>& b) {
+                        return rcmDegree[a.first] < rcmDegree[b.first];
+                    });
+                
+                for (auto& [nbr, w] : nbrs) {
+                    if (!rcmVisited[nbr] && !commVertices[nbr].empty()) {
+                        rcmVisited[nbr] = true;
+                        rcmQueue.push(nbr);
+                    }
+                }
+            }
+        }
+        
+        // Reverse for RCM (Reverse Cuthill-McKee)
+        std::reverse(rcmOrder.begin(), rcmOrder.end());
+        
+        // Override commPerm with RCM order
+        for (size_t i = 0; i < rcmOrder.size(); ++i) {
+            commPerm[rcmOrder[i]] = static_cast<K>(i);
+        }
+        // Handle any missed communities
+        K rcmNext = static_cast<K>(rcmOrder.size());
+        for (size_t c = 0; c < C; ++c) {
+            if (!rcmVisited[c]) {
+                commPerm[c] = rcmNext++;
+            }
+        }
+        
+        printf("  hybrid-rabbit-rcm: ordered %zu communities via RCM\n", rcmOrder.size());
+    }
+    
+    // ================================================================
+    // STEP 4: Intra-community ordering, ordered by community permutation
+    // Two modes: BFS (default) or Gorder-greedy (maximizes neighbor overlap)
     // ================================================================
     
-    // Sort communities by their RabbitOrder permutation
+    // Sort communities by their permutation (RabbitOrder DFS or RCM)
     std::vector<K> sortedComms(C);
     std::iota(sortedComms.begin(), sortedComms.end(), K(0));
     std::sort(sortedComms.begin(), sortedComms.end(),
         [&](K a, K b) { return commPerm[a] < commPerm[b]; });
     
     // Create inverse mapping: commPerm value -> sorted index
-    // This maps each community to its position in the sorted order
     std::vector<K> commToSortedIdx(C);
     for (size_t i = 0; i < C; ++i) {
         commToSortedIdx[sortedComms[i]] = static_cast<K>(i);
     }
     
     // Compute vertex offsets per community (in sorted order)
+    std::vector<size_t> hubsPerComm(C, 0); // kept for stats
+    if (config.useHubExtraction) {
+        for (size_t c = 0; c < C; ++c) {
+            hubsPerComm[c] = commHubs[c].size();
+        }
+    }
+    
     std::vector<size_t> vertexOffsets(C + 1, 0);
     for (size_t i = 0; i < C; ++i) {
         K c = sortedComms[i];
@@ -3488,13 +3647,1532 @@ void orderHybridLeidenRabbit(
     
     printf("  hybrid-rabbit: total vertices in communities = %zu\n", vertexOffsets[C]);
     
-    // BFS within each community (parallel)
+    // Print community size distribution
+    {
+        size_t s1=0, s10=0, s100=0, s1k=0, s10k=0, s100k=0, sHuge=0;
+        size_t v1=0, v10=0, v100=0, v1k=0, v10k=0, v100k=0, vHuge=0;
+        size_t maxSz=0;
+        for (size_t ci = 0; ci < C; ++ci) {
+            size_t sz = commVertices[ci].size();
+            if (sz == 0) continue;
+            if (sz > maxSz) maxSz = sz;
+            if (sz <= 3)      { s1++; v1+=sz; }
+            else if (sz <= 10)   { s10++; v10+=sz; }
+            else if (sz <= 100)  { s100++; v100+=sz; }
+            else if (sz <= 1000) { s1k++; v1k+=sz; }
+            else if (sz <= 10000){ s10k++; v10k+=sz; }
+            else if (sz <= 100000) { s100k++; v100k+=sz; }
+            else                  { sHuge++; vHuge+=sz; }
+        }
+        printf("  comm-sizes: <=3: %zu comms (%zu v) | 4-10: %zu (%zu) | 11-100: %zu (%zu) | 101-1K: %zu (%zu) | 1K-10K: %zu (%zu) | >10K: %zu (%zu) | max=%zu\n",
+               s1, v1, s10, v10, s100, v100, s1k, v1k, s10k, v10k, s100k+sHuge, v100k+vHuge, maxSz);
+    }
+    
+    // Local IDs within each community
+    std::vector<K> localIds(N, static_cast<K>(-1));
+    
+    // Global vertex-to-local-index map (flat vector, O(1) lookup)
+    // Each vertex belongs to exactly one community, so no conflicts
+    std::vector<size_t> vertToLocalHrab(N, static_cast<size_t>(-1));
+    #pragma omp parallel for schedule(static)
+    for (size_t ci = 0; ci < C; ++ci) {
+        K c = sortedComms[ci];
+        auto& verts = commVertices[c];
+        for (size_t i = 0; i < verts.size(); ++i) {
+            vertToLocalHrab[verts[i]] = i;
+        }
+    }
+    
+    if (config.useGorderIntra) {
+        // ============================================================
+        // GORDER-GREEDY intra-community ordering (with UnitHeap)
+        //
+        // For each community, greedily place vertices to maximize
+        // neighbor overlap with a sliding window of recently-placed vertices.
+        //
+        // Uses a UnitHeap priority queue (adapted from Gorder, Hao Wei 2016)
+        // for O(1) amortized IncrementKey/DecrementKey/ExtractMax,
+        // reducing per-community complexity from O(sz²) to O(|E_local|).
+        // This eliminates the need for BFS fallback on large communities.
+        //
+        // Algorithm (per community):
+        // 1. Start from highest-degree vertex
+        // 2. Maintain a priority score for each unplaced vertex:
+        //    score[v] = number of v's neighbors in the last W placed vertices
+        // 3. Each step: place the vertex with highest score (via UnitHeap)
+        // 4. Update scores: boost neighbors of newly placed vertex,
+        //    decay neighbors of vertex sliding out of window
+        // ============================================================
+        const int W = config.gorderWindow;
+        
+        // With UnitHeap, gord is O(|E_local|) per community — no longer O(sz²).
+        // The BFS fallback is now only a safety net for extreme cases.
+        // Default: N (no fallback). Use gordf<threshold> to set explicitly.
+        const size_t gordThreshold = config.gorderFallback > 0 
+            ? static_cast<size_t>(config.gorderFallback) 
+            : static_cast<size_t>(N); // default: no fallback (UnitHeap handles all sizes)
+        
+        // Track stats
+        std::atomic<size_t> gordCount(0), bfsCount(0), gordVerts(0), bfsVerts(0);
+        
+        printf("  hybrid-rabbit-gord: Gorder-greedy intra-community (window=%d, fallback=%zu)\n", W, gordThreshold);
+        
+        // ============================================================
+        // UnitHeap: O(1) amortized priority queue for integer keys
+        // ============================================================
+        // Adapted from Gorder (Hao Wei, 2016, MIT License).
+        // Elements are organized in a doubly-linked list sorted by
+        // descending key. Header[k] tracks the first/last element
+        // with key=k. IncrementKey/DecrementKey just relink the
+        // element between adjacent buckets in O(1).
+        // ExtractMax pops from the front in O(1).
+        //
+        // This replaces the O(sz) linear scan per step, reducing
+        // per-community complexity from O(sz²) to O(|E_local|).
+        // ============================================================
+        struct GordHeapNode {
+            int key;    // current score
+            int prev;   // prev element in linked list (-1 = none)
+            int next;   // next element in linked list (-1 = none)
+        };
+        struct GordHeapBucket {
+            int first = -1;
+            int second = -1;  // last element in this bucket
+        };
+        struct GordHeap {
+            std::vector<GordHeapNode> nodes;
+            std::vector<GordHeapBucket> buckets;
+            int top;        // index of the max-key element
+            int maxKey;     // current maximum key value
+            
+            void init(size_t n) {
+                nodes.resize(n);
+                // All elements start with key=0, linked in order 0→1→...→n-1
+                for (size_t i = 0; i < n; ++i) {
+                    nodes[i].key = 0;
+                    nodes[i].prev = static_cast<int>(i) - 1;
+                    nodes[i].next = (i + 1 < n) ? static_cast<int>(i + 1) : -1;
+                }
+                buckets.clear();
+                buckets.resize(16); // will grow as needed
+                buckets[0].first = 0;
+                buckets[0].second = static_cast<int>(n - 1);
+                top = 0;
+                maxKey = 0;
+            }
+            
+            void ensureBucket(int k) {
+                if (k >= static_cast<int>(buckets.size())) {
+                    buckets.resize(static_cast<size_t>(k + 8));
+                }
+            }
+            
+            // Unlink element from its current position in the doubly-linked list
+            void unlink(int idx) {
+                int p = nodes[idx].prev;
+                int n = nodes[idx].next;
+                if (p >= 0) nodes[p].next = n;
+                if (n >= 0) nodes[n].prev = p;
+                
+                int k = nodes[idx].key;
+                // Update bucket pointers
+                if (buckets[k].first == idx && buckets[k].second == idx) {
+                    // Only element in bucket
+                    buckets[k].first = buckets[k].second = -1;
+                } else if (buckets[k].first == idx) {
+                    buckets[k].first = n;
+                } else if (buckets[k].second == idx) {
+                    buckets[k].second = p;
+                }
+                
+                if (top == idx) {
+                    top = n; // next element becomes new top
+                }
+            }
+            
+            // Insert element at the FRONT of bucket k (before the current first)
+            void linkToBucketFront(int idx, int k) {
+                ensureBucket(k);
+                nodes[idx].key = k;
+                
+                if (buckets[k].first < 0) {
+                    // Empty bucket — find where to splice in the linked list
+                    // We need to find the element just before where bucket k should be
+                    // (i.e., the last element of the next-higher occupied bucket)
+                    // and the element just after (first element of next-lower bucket)
+                    int afterNode = -1;
+                    for (int bk = k - 1; bk >= 0; --bk) {
+                        if (buckets[bk].first >= 0) {
+                            afterNode = buckets[bk].first;
+                            break;
+                        }
+                    }
+                    int beforeNode = -1;
+                    for (int bk = k + 1; bk <= maxKey; ++bk) {
+                        if (buckets[bk].second >= 0) {
+                            beforeNode = buckets[bk].second;
+                            break;
+                        }
+                    }
+                    
+                    nodes[idx].prev = beforeNode;
+                    nodes[idx].next = afterNode;
+                    if (beforeNode >= 0) nodes[beforeNode].next = idx;
+                    if (afterNode >= 0) nodes[afterNode].prev = idx;
+                    
+                    buckets[k].first = buckets[k].second = idx;
+                } else {
+                    // Non-empty bucket — insert before the current first
+                    int oldFirst = buckets[k].first;
+                    int beforeOldFirst = nodes[oldFirst].prev;
+                    
+                    nodes[idx].prev = beforeOldFirst;
+                    nodes[idx].next = oldFirst;
+                    nodes[oldFirst].prev = idx;
+                    if (beforeOldFirst >= 0) nodes[beforeOldFirst].next = idx;
+                    
+                    buckets[k].first = idx;
+                }
+                
+                if (k > maxKey) maxKey = k;
+                if (k >= nodes[top].key) top = idx;
+            }
+            
+            void incrementKey(int idx) {
+                int oldKey = nodes[idx].key;
+                unlink(idx);
+                linkToBucketFront(idx, oldKey + 1);
+            }
+            
+            void decrementKey(int idx) {
+                int oldKey = nodes[idx].key;
+                if (oldKey <= 0) return; // don't go negative
+                unlink(idx);
+                linkToBucketFront(idx, oldKey - 1);
+            }
+            
+            // Remove element from the heap entirely
+            void deleteElement(int idx) {
+                unlink(idx);
+                nodes[idx].prev = nodes[idx].next = -1;
+                nodes[idx].key = -1; // mark as removed
+                // Update maxKey if needed
+                while (maxKey > 0 && buckets[maxKey].first < 0) maxKey--;
+            }
+            
+            // Extract the element with the highest key
+            int extractMax() {
+                // Find the actual top (maxKey may have become empty)
+                while (maxKey > 0 && buckets[maxKey].first < 0) maxKey--;
+                int idx = buckets[maxKey].first;
+                deleteElement(idx);
+                return idx;
+            }
+        };
+        
+        #pragma omp parallel
+        {
+            // Thread-local working buffers
+            std::vector<K> placedOrder;       // order of placed vertices (for window tracking)
+            std::vector<std::vector<size_t>> localNeighbors;  // adjacency within community
+            std::queue<K> bfsQueue;           // for BFS fallback
+            GordHeap heap;                    // UnitHeap for O(1) max-extraction
+            
+            #pragma omp for schedule(dynamic, 1)
+            for (size_t ci = 0; ci < C; ++ci) {
+                K c = sortedComms[ci];
+                auto& verts = commVertices[c];
+                if (verts.empty()) continue;
+                const size_t sz = verts.size();
+                
+                // For tiny communities, simple sequential ordering
+                if (sz <= 3) {
+                    for (size_t i = 0; i < sz; ++i) {
+                        localIds[verts[i]] = static_cast<K>(i);
+                    }
+                    continue;
+                }
+                
+                // Build local vertex index: use pre-built flat vertToLocalHrab[]
+                
+                // ---- FALLBACK: BFS for large communities ----
+                if (sz > gordThreshold) {
+                    bfsVerts += sz;
+                    bfsCount++;
+                    
+                    std::vector<bool> visited(sz, false);
+                    
+                    // Find highest-degree vertex as BFS root
+                    size_t startIdx = 0;
+                    K maxDeg = degrees[verts[0]];
+                    for (size_t i = 1; i < sz; ++i) {
+                        if (degrees[verts[i]] > maxDeg) {
+                            maxDeg = degrees[verts[i]];
+                            startIdx = i;
+                        }
+                    }
+                    
+                    K localId = 0;
+                    while (!bfsQueue.empty()) bfsQueue.pop(); // clear
+                    bfsQueue.push(static_cast<K>(startIdx));
+                    visited[startIdx] = true;
+                    
+                    while (!bfsQueue.empty()) {
+                        K localU = bfsQueue.front();
+                        bfsQueue.pop();
+                        localIds[verts[localU]] = localId++;
+                        
+                        K u = verts[localU];
+                        for (auto neighbor : g.out_neigh(u)) {
+                            NodeID_T v;
+                            if constexpr (std::is_same_v<DestID_T, NodeID_T>) v = neighbor;
+                            else v = neighbor.v;
+                            if (membership[v] != c) continue;
+                            size_t localIdx = vertToLocalHrab[static_cast<K>(v)];
+                            if (localIdx != static_cast<size_t>(-1) && !visited[localIdx]) {
+                                visited[localIdx] = true;
+                                bfsQueue.push(static_cast<K>(localIdx));
+                            }
+                        }
+                    }
+                    // Handle disconnected vertices within community
+                    for (size_t i = 0; i < sz; ++i) {
+                        if (!visited[i]) {
+                            localIds[verts[i]] = localId++;
+                        }
+                    }
+                    continue;
+                }
+                
+                // ---- GORDER-GREEDY with UnitHeap: O(|E_local|) ----
+                gordVerts += sz;
+                gordCount++;
+                
+                // Build local adjacency: for each vertex, list of local neighbor indices
+                localNeighbors.resize(sz);
+                for (size_t i = 0; i < sz; ++i) {
+                    localNeighbors[i].clear();
+                }
+                for (size_t i = 0; i < sz; ++i) {
+                    K u = verts[i];
+                    for (auto neighbor : g.out_neigh(u)) {
+                        NodeID_T v;
+                        if constexpr (std::is_same_v<DestID_T, NodeID_T>) {
+                            v = neighbor;
+                        } else {
+                            v = neighbor.v;
+                        }
+                        if (membership[v] != c) continue;
+                        size_t localIdx = vertToLocalHrab[static_cast<K>(v)];
+                        if (localIdx != static_cast<size_t>(-1)) {
+                            localNeighbors[i].push_back(localIdx);
+                        }
+                    }
+                }
+                
+                // Initialize UnitHeap: all vertices start at key=0 (no neighbors placed yet)
+                // We use degree as initial key so that high-degree vertices are preferred
+                // for tie-breaking (same behavior as before).
+                // Actually, Gorder uses indegree as initial key. For our community-local
+                // setting, we initialize all at 0 and handle seeding separately.
+                heap.init(sz);
+                
+                // Seed: highest-degree vertex — extract it directly
+                size_t bestSeed = 0;
+                K maxDeg = degrees[verts[0]];
+                for (size_t i = 1; i < sz; ++i) {
+                    if (degrees[verts[i]] > maxDeg) {
+                        maxDeg = degrees[verts[i]];
+                        bestSeed = i;
+                    }
+                }
+                
+                // Remove seed from heap and place it
+                heap.deleteElement(static_cast<int>(bestSeed));
+                placedOrder.clear();
+                placedOrder.reserve(sz);
+                placedOrder.push_back(static_cast<K>(bestSeed));
+                localIds[verts[bestSeed]] = 0;
+                
+                // Boost neighbors of seed in the heap
+                for (size_t nbr : localNeighbors[bestSeed]) {
+                    if (heap.nodes[nbr].key >= 0) { // not yet removed
+                        heap.incrementKey(static_cast<int>(nbr));
+                    }
+                }
+                
+                // Greedy loop: place remaining vertices using O(1) extractMax
+                for (K localId = 1; localId < static_cast<K>(sz); ++localId) {
+                    // O(1) amortized: extract vertex with highest score
+                    int best = heap.extractMax();
+                    
+                    placedOrder.push_back(static_cast<K>(best));
+                    localIds[verts[best]] = localId;
+                    
+                    // Boost neighbors of newly placed vertex — O(deg) total across all steps
+                    for (size_t nbr : localNeighbors[best]) {
+                        if (heap.nodes[nbr].key >= 0) { // still in heap
+                            heap.incrementKey(static_cast<int>(nbr));
+                        }
+                    }
+                    
+                    // Decay: if window is full, remove influence of oldest vertex
+                    if (static_cast<int>(placedOrder.size()) > W) {
+                        size_t oldVert = placedOrder[placedOrder.size() - 1 - W];
+                        for (size_t nbr : localNeighbors[oldVert]) {
+                            if (heap.nodes[nbr].key >= 0) { // still in heap
+                                heap.decrementKey(static_cast<int>(nbr));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        printf("  hybrid-rabbit-gord: %zu comms gord (%zu verts), %zu comms bfs-fallback (%zu verts)\n",
+               gordCount.load(), gordVerts.load(), bfsCount.load(), bfsVerts.load());
+    } else {
+        // ============================================================
+        // Standard BFS within each community (default)
+        // Uses pre-built flat vertToLocalHrab[] for O(1) lookup
+        // ============================================================
+        #pragma omp parallel
+        {
+            std::queue<K> bfsQueue;
+            std::vector<bool> visited;
+            
+            #pragma omp for schedule(dynamic, 1)
+            for (size_t ci = 0; ci < C; ++ci) {
+                K c = sortedComms[ci];
+                auto& verts = commVertices[c];
+                if (verts.empty()) continue;
+                
+                visited.assign(verts.size(), false);
+                
+                // Find highest-degree vertex as start
+                K startV = verts[0];
+                K maxDeg = degrees[verts[0]];
+                for (K v : verts) {
+                    if (degrees[v] > maxDeg) {
+                        maxDeg = degrees[v];
+                        startV = v;
+                    }
+                }
+                
+                // BFS
+                K localId = 0;
+                bfsQueue.push(startV);
+                visited[vertToLocalHrab[startV]] = true;
+                
+                while (!bfsQueue.empty()) {
+                    K u = bfsQueue.front();
+                    bfsQueue.pop();
+                    
+                    localIds[u] = localId++;
+                    
+                    for (auto neighbor : g.out_neigh(u)) {
+                        NodeID_T v;
+                        if constexpr (std::is_same_v<DestID_T, NodeID_T>) {
+                            v = neighbor;
+                        } else {
+                            v = neighbor.v;
+                        }
+                        
+                        if (membership[v] != c) continue;
+                        
+                        size_t localIdx = vertToLocalHrab[static_cast<K>(v)];
+                        if (localIdx != static_cast<size_t>(-1) && !visited[localIdx]) {
+                            visited[localIdx] = true;
+                            bfsQueue.push(static_cast<K>(v));
+                        }
+                    }
+                }
+                
+                // Handle disconnected vertices
+                for (size_t i = 0; i < verts.size(); ++i) {
+                    if (!visited[i]) {
+                        localIds[verts[i]] = localId++;
+                    }
+                }
+            }
+        }
+    }
+    
+    // Compute global IDs using the sorted index mapping
+    #pragma omp parallel for
+    for (size_t v = 0; v < N; ++v) {
+        if (degrees[v] > 0) {
+            K c = membership[v];
+            K sortedIdx = commToSortedIdx[c];
+            newIds[v] = static_cast<NodeID_T>(vertexOffsets[sortedIdx] + localIds[v]);
+        }
+    }
+    
+    // Assign isolated vertices at the end
+    size_t isolatedStart = vertexOffsets[C];
+    for (size_t i = 0; i < isolated.size(); ++i) {
+        newIds[isolated[i]] = static_cast<NodeID_T>(isolatedStart + i);
+    }
+    
+    // ================================================================
+    // STEP 5 (optional): Hub Sort post-processing
+    // Pack hub vertices (degree > avgDegree) contiguously at the front
+    // of the ID space, sorted by descending degree. Non-hub vertices
+    // fill the remaining IDs preserving their relative order.
+    // This is the IISWC'18 "Hub Sorting" technique — proven to improve
+    // spatial locality for power-law graphs by packing frequently-accessed
+    // vData elements into fewer cache lines.
+    // ================================================================
+    if (config.useHubSort) {
+        // Hub threshold: use sqrt(N) like Gorder's "huge vertex" threshold.
+        // This selects only the truly high-degree vertices (typically <1% of graph),
+        // unlike avgDegree which can pack 30-70% and destroy community locality.
+        K hubThreshold = static_cast<K>(std::sqrt(static_cast<double>(N)));
+        if (hubThreshold < 10) hubThreshold = 10;  // minimum sensible threshold
+        
+        // Collect hubs (degree > sqrt(N)) sorted by descending degree
+        // and non-hubs preserving their current community-based order
+        std::vector<std::pair<K, NodeID_T>> hubs;    // (degree, vertex)
+        std::vector<std::pair<NodeID_T, NodeID_T>> nonHubs;  // (currentNewId, vertex)
+        
+        for (size_t v = 0; v < N; ++v) {
+            if (degrees[v] > hubThreshold) {
+                hubs.push_back({degrees[v], static_cast<NodeID_T>(v)});
+            } else {
+                nonHubs.push_back({newIds[v], static_cast<NodeID_T>(v)});
+            }
+        }
+        
+        // Sort hubs by descending degree
+        std::sort(hubs.begin(), hubs.end(),
+            [](const std::pair<K,NodeID_T>& a, const std::pair<K,NodeID_T>& b) {
+                return a.first > b.first;
+            });
+        
+        // Sort non-hubs by their current newId (preserve relative order)
+        std::sort(nonHubs.begin(), nonHubs.end());
+        
+        // Assign: hubs first (0, 1, 2, ...), then non-hubs
+        NodeID_T nextId = 0;
+        for (auto& [deg, v] : hubs) {
+            newIds[v] = nextId++;
+        }
+        for (auto& [oldId, v] : nonHubs) {
+            newIds[v] = nextId++;
+        }
+        
+        printf("  hybrid-rabbit-hsort: %zu hubs (deg>%u=sqrt(%zu)) packed at front, %zu non-hubs after (%.1f%%)\n",
+               hubs.size(), static_cast<unsigned>(hubThreshold), N, nonHubs.size(),
+               100.0 * hubs.size() / N);
+    }
+    
+    printf("  hybrid-rabbit: %zu blocks, %zu active vertices, %zu hubs, %zu isolated\n",
+           numBlocks, N - isolated.size() - numHubs, numHubs, isolated.size());
+    
+    VIBE_TRACE("orderHybridLeidenRabbit: %zu blocks, %zu isolated", numBlocks, isolated.size());
+}
+
+//=============================================================================
+// SECTION 16c: TILE-QUANTIZED RABBITORDER ORDERING
+//=============================================================================
+
+/**
+ * @brief Tile-Quantized RabbitOrder Ordering (vibe:tqr)
+ * 
+ * Combines cache-line-aligned tile quantization with RabbitOrder dendrogram 
+ * traversal for macro-ordering and Leiden-community-aware BFS for micro-ordering.
+ * 
+ * Algorithm:
+ * 1. QUANTIZE: Divide vertex ID space into tiles sized to match cache lines.
+ *    Each tile = ceil(N / numTiles) vertices ≈ one L3 cache line worth of vertex data.
+ * 2. BUILD TILE ADJACENCY: For each edge (u,v), accumulate weight between
+ *    tile(u) and tile(v). This yields a coarse graph where nodes are tiles.
+ * 3. RABBITORDER ON TILES: Run parallel incremental aggregation on the tile
+ *    graph. This produces a dendrogram encoding which tiles should be adjacent.
+ * 4. TILE PERMUTATION: DFS the RabbitOrder dendrogram to get the macro-order
+ *    of tiles — which tile blocks are placed next to each other.
+ * 5. COMMUNITY-AWARE BFS: Within each tile (in the permuted tile order),
+ *    vertices are sub-sorted by Leiden community, then BFS within each 
+ *    community for maximum intra-community locality.
+ * 
+ * Why this can beat vibe:hrab:
+ * - vibe:hrab builds a super-graph over Leiden communities (~100K nodes) that
+ *   have no relation to cache boundaries
+ * - vibe:tqr builds a super-graph over tiles (~131K nodes for 8MB L3) that
+ *   DIRECTLY correspond to cache line groups
+ * - RabbitOrder on tiles optimizes exactly what matters: which cache-line-sized
+ *   groups of vertices should be adjacent in memory
+ * 
+ * @tparam K Community ID type
+ * @tparam NodeID_T Node ID type
+ * @tparam DestID_T Destination ID type (may include weight)
+ */
+template <typename K, typename NodeID_T, typename DestID_T>
+void orderTileQuantizedRabbit(
+    pvector<NodeID_T>& newIds,
+    const std::vector<K>& membership,
+    const std::vector<K>& degrees,
+    const CSRGraph<NodeID_T, DestID_T, true>& g,
+    size_t N,
+    const VibeConfig& config) {
+    
+    VIBE_TRACE("orderTileQuantizedRabbit: N=%zu", N);
+    Timer phaseTimer;
+    
+    // ================================================================
+    // STEP 0: Determine tile parameters dynamically based on graph density
+    // ================================================================
+    // KEY INSIGHT: The optimal tile granularity depends on graph structure.
+    //   - Dense/social graphs (high avg degree): smaller tiles → more tiles
+    //     because edges span many tiles and we need fine-grained RabbitOrder
+    //   - Sparse/road/geometric graphs (low avg degree): larger tiles → fewer tiles
+    //     because edges are mostly local and we need enough vertices per tile
+    //     for the community BFS to be effective
+    //
+    // Formula: tileSz = clamp(baseTarget / log2(avgDeg+2), 32, 512)
+    //   - avgDeg=2 (road) → tileSz≈512, ~N/512 tiles
+    //   - avgDeg=6 (geometric) → tileSz≈128, ~N/128 tiles
+    //   - avgDeg=20 (social) → tileSz≈64, ~N/64 tiles
+    //   - avgDeg=100+ (dense social) → tileSz≈32, ~N/32 tiles
+    // Also cap numTiles at 65536 to keep tile adjacency build fast.
+    
+    const size_t EFFECTIVE_VERTEX_BYTES = 16;  // scores + contrib + graph data
+    
+    // Compute average degree
+    size_t totalEdges = 0;
+    size_t numActive = 0;
+    for (size_t v = 0; v < N; ++v) {
+        if (degrees[v] > 0) {
+            totalEdges += degrees[v];
+            numActive++;
+        }
+    }
+    double avgDeg = numActive > 0 ? static_cast<double>(totalEdges) / numActive : 1.0;
+    
+    // Dynamic tile size: inverse relationship with density
+    // Higher density → smaller tiles → more granular tile graph
+    double logFactor = std::log2(avgDeg + 2.0);  // log2(avgDeg+2) ∈ [1.6, 7+]
+    size_t baseTileSz = 512;  // base for very sparse graphs
+    size_t targetTileSz = static_cast<size_t>(baseTileSz / logFactor);
+    targetTileSz = std::max(size_t(32), std::min(size_t(512), targetTileSz));
+    
+    size_t numTiles = std::max(size_t(256), (N + targetTileSz - 1) / targetTileSz);
+    
+    // Cap at 65536 tiles to keep tile adjacency build tractable
+    // Beyond this, the O(edges) scan over the hash-free adjacency build
+    // still works fine, but RabbitOrder on 65K nodes is already substantial
+    const size_t MAX_TILES = 65536;
+    if (numTiles > MAX_TILES) {
+        numTiles = MAX_TILES;
+    }
+    
+    size_t tileSz = (N + numTiles - 1) / numTiles;
+    if (tileSz < 16) {
+        tileSz = 16;
+        numTiles = (N + tileSz - 1) / tileSz;
+    }
+    
+    printf("  tqr: N=%zu, avgDeg=%.1f, tileSz=%zu, numTiles=%zu (%.1f KB/tile)\n",
+           N, avgDeg, tileSz, numTiles, tileSz * EFFECTIVE_VERTEX_BYTES / 1024.0);
+    
+    // ================================================================
+    // STEP 1: Build community info and identify isolated vertices
+    // ================================================================
+    
+    K maxComm = 0;
+    for (size_t v = 0; v < N; ++v) {
+        maxComm = std::max(maxComm, membership[v]);
+    }
+    const size_t C = static_cast<size_t>(maxComm) + 1;
+    
+    std::vector<K> isolated;
+    std::vector<bool> isIsolated(N, false);
+    std::vector<std::vector<K>> commVertices(C);
+    for (size_t v = 0; v < N; ++v) {
+        if (degrees[v] == 0) {
+            isolated.push_back(static_cast<K>(v));
+            isIsolated[v] = true;
+        } else {
+            commVertices[membership[v]].push_back(static_cast<K>(v));
+        }
+    }
+    
+    printf("  tqr: %zu Leiden communities, %zu isolated vertices\n", C, isolated.size());
+    
+    // ================================================================
+    // STEP 2: Build tile adjacency graph (OPTIMIZED: flat sorted edges)
+    // ================================================================
+    // Instead of hash maps, each thread collects (tileU, tileV) pairs into a
+    // flat vector of packed uint64_t keys + float weights. Then we sort all
+    // keys globally, merge duplicates, and build the edge lists.
+    // This is O(E log E / T) but with much better constants than hash maps.
+    
+    phaseTimer.Start();
+    
+    auto tileOf = [tileSz](size_t v) -> K { 
+        return static_cast<K>(v / tileSz); 
+    };
+    
+    const int numThreads = omp_get_max_threads();
+    
+    // Phase 2a: Count edges per tile (for pre-allocation)
+    // Use CSR-style: for each tile, count how many inter/intra-tile edges it has
+    std::vector<std::vector<std::pair<uint64_t, float>>> threadEdges(numThreads);
+    
+    // Pre-estimate: each thread gets ~totalEdges/numThreads edges
+    for (int t = 0; t < numThreads; ++t) {
+        threadEdges[t].reserve(totalEdges / numThreads / 4);  // many edges are intra-tile
+    }
+    
+    auto packTilePair = [](K t1, K t2) -> uint64_t {
+        if (t1 > t2) std::swap(t1, t2);
+        return (static_cast<uint64_t>(t1) << 32) | static_cast<uint64_t>(t2);
+    };
+    
+    #pragma omp parallel
+    {
+        int tid = omp_get_thread_num();
+        auto& localEdges = threadEdges[tid];
+        
+        #pragma omp for schedule(dynamic, 4096)
+        for (size_t u = 0; u < N; ++u) {
+            if (isIsolated[u]) continue;
+            K tileU = tileOf(u);
+            
+            for (auto neighbor : g.out_neigh(u)) {
+                NodeID_T v;
+                float w;
+                if constexpr (std::is_same_v<DestID_T, NodeID_T>) {
+                    v = neighbor;
+                    w = 1.0f;
+                } else {
+                    v = neighbor.v;
+                    w = static_cast<float>(neighbor.w);
+                }
+                
+                K tileV = tileOf(v);
+                if (tileU <= tileV) {  // Each edge counted once
+                    localEdges.emplace_back(packTilePair(tileU, tileV), w);
+                }
+            }
+        }
+    }
+    
+    // Phase 2b: Merge all thread-local edges into one sorted array
+    // Compute total count and prefix sums for concatenation
+    size_t totalPairs = 0;
+    for (int t = 0; t < numThreads; ++t) {
+        totalPairs += threadEdges[t].size();
+    }
+    
+    std::vector<std::pair<uint64_t, float>> allEdges;
+    allEdges.reserve(totalPairs);
+    for (int t = 0; t < numThreads; ++t) {
+        allEdges.insert(allEdges.end(), 
+                        std::make_move_iterator(threadEdges[t].begin()),
+                        std::make_move_iterator(threadEdges[t].end()));
+        threadEdges[t].clear();
+        threadEdges[t].shrink_to_fit();
+    }
+    threadEdges.clear();
+    
+    // Sort by tile pair key
+    std::sort(allEdges.begin(), allEdges.end(),
+        [](const std::pair<uint64_t, float>& a, const std::pair<uint64_t, float>& b) {
+            return a.first < b.first;
+        });
+    
+    // Phase 2c: Merge duplicates and build symmetric edge lists
+    std::vector<std::vector<std::pair<K, float>>> tileEdges(numTiles);
+    std::vector<float> tileDegrees(numTiles, 0.0f);
+    
+    size_t ei = 0;
+    while (ei < allEdges.size()) {
+        uint64_t key = allEdges[ei].first;
+        float weight = 0.0f;
+        
+        // Sum all entries with the same tile pair
+        while (ei < allEdges.size() && allEdges[ei].first == key) {
+            weight += allEdges[ei].second;
+            ++ei;
+        }
+        
+        K t1 = static_cast<K>(key >> 32);
+        K t2 = static_cast<K>(key & 0xFFFFFFFF);
+        tileEdges[t1].emplace_back(t2, weight);
+        tileDegrees[t1] += weight;
+        if (t1 != t2) {
+            tileEdges[t2].emplace_back(t1, weight);
+            tileDegrees[t2] += weight;
+        }
+    }
+    allEdges.clear();
+    allEdges.shrink_to_fit();
+    
+    float M_tiles = 0.0f;
+    size_t totalTileEdges = 0;
+    for (size_t t = 0; t < numTiles; ++t) {
+        M_tiles += tileDegrees[t];
+        totalTileEdges += tileEdges[t].size();
+    }
+    M_tiles /= 2.0f;
+    
+    phaseTimer.Stop();
+    printf("  tqr: tile adjacency built in %.4fs, %.0f total weight, %zu tile-edges (%.1f avg/tile)\n",
+           phaseTimer.Seconds(), M_tiles, totalTileEdges,
+           static_cast<double>(totalTileEdges) / numTiles);
+    
+    // ================================================================
+    // STEP 3: Run RabbitOrder on tile adjacency graph
+    // ================================================================
+    // Uses modularity-based merge criterion: ΔQ = w_uv/(2M) - d_u*d_v/(4M²)
+    
+    phaseTimer.Start();
+    
+    constexpr K INVALID = static_cast<K>(-1);
+    
+    std::vector<RabbitAtom> atom(numTiles);
+    std::vector<RabbitVertex<K>> vtx(numTiles);
+    std::vector<K> dest(numTiles);
+    std::vector<K> tileSibling(numTiles, INVALID);
+    std::vector<K> toplevel;
+    toplevel.reserve(numTiles / 10);
+    
+    #pragma omp parallel for
+    for (size_t t = 0; t < numTiles; ++t) {
+        atom[t].init(tileDegrees[t]);
+        dest[t] = static_cast<K>(t);
+    }
+    
+    for (size_t t = 0; t < numTiles; ++t) {
+        vtx[t].edges = std::move(tileEdges[t]);
+    }
+    tileEdges.clear();
+    
+    std::vector<K> tileOrder(numTiles);
+    std::iota(tileOrder.begin(), tileOrder.end(), K(0));
+    std::sort(tileOrder.begin(), tileOrder.end(),
+        [&](K a, K b) { return tileDegrees[a] < tileDegrees[b]; });
+    
+    std::vector<CommunityScanner<K, float>> scanners;
+    for (int t = 0; t < numThreads; ++t) {
+        scanners.emplace_back(numTiles);
+    }
+    std::vector<std::vector<K>> retryQueues(numThreads);
+    
+    auto findDest = [&](K v) -> K {
+        K d = dest[v];
+        while (dest[d] != d) {
+            K dd = dest[d];
+            dest[v] = dd;
+            d = dd;
+        }
+        return d;
+    };
+    
+    auto unite = [&](K u, CommunityScanner<K, float>& scanner) -> void {
+        auto& vu = vtx[u];
+        scanner.clear();
+        
+        for (auto& [d, w] : vu.edges) {
+            K root = findDest(d);
+            if (root != u) {
+                scanner.add(root, w);
+            }
+        }
+        
+        auto [_, first_child] = atom[u].load();
+        K uc = vu.united_child;
+        
+        std::vector<K> childStack;
+        if (first_child != uc && first_child != INVALID) {
+            childStack.push_back(first_child);
+        }
+        
+        while (!childStack.empty()) {
+            K c = childStack.back();
+            childStack.pop_back();
+            
+            if (c == uc || c == INVALID) continue;
+            
+            auto& vc = vtx[c];
+            for (auto& [d, w] : vc.edges) {
+                K root = findDest(d);
+                if (root != u) {
+                    scanner.add(root, w);
+                }
+            }
+            
+            if (tileSibling[c] != uc && tileSibling[c] != INVALID) {
+                childStack.push_back(tileSibling[c]);
+            }
+            
+            auto [__, child_first] = atom[c].load();
+            if (child_first != vc.united_child && child_first != INVALID) {
+                childStack.push_back(child_first);
+            }
+            vc.united_child = child_first;
+        }
+        
+        vu.edges.clear();
+        for (K d : scanner.keys) {
+            vu.edges.emplace_back(d, scanner.get(d));
+        }
+        vu.united_child = first_child;
+    };
+    
+    std::atomic<size_t> numToplevel(0);
+    const float inv2M = (M_tiles > 0.0f) ? 1.0f / (2.0f * M_tiles) : 0.0f;
+    const float inv4M2 = inv2M * inv2M;
+    
+    #pragma omp parallel
+    {
+        int tid = omp_get_thread_num();
+        auto& scanner = scanners[tid];
+        auto& retryQueue = retryQueues[tid];
+        
+        #pragma omp for schedule(static, 1)
+        for (size_t i = 0; i < numTiles; ++i) {
+            K u = tileOrder[i];
+            
+            if (tileDegrees[u] == 0.0f) {
+                #pragma omp critical
+                toplevel.push_back(u);
+                numToplevel++;
+                continue;
+            }
+            
+            float str_u = atom[u].invalidate();
+            if (str_u == RabbitAtom::INVALID_STR) continue;
+            
+            unite(u, scanner);
+            
+            K bestDest = INVALID;
+            float bestDeltaQ = 0.0f;
+            
+            for (K d : scanner.keys) {
+                float w_ud = scanner.get(d);
+                auto [str_d, _] = atom[d].load();
+                if (str_d == RabbitAtom::INVALID_STR) continue;
+                
+                float dq = w_ud * inv2M - str_u * str_d * inv4M2;
+                if (dq > bestDeltaQ) {
+                    bestDeltaQ = dq;
+                    bestDest = d;
+                }
+            }
+            
+            if (bestDest == INVALID || bestDeltaQ <= 0.0f) {
+                atom[u].restore(str_u);
+                #pragma omp critical
+                toplevel.push_back(u);
+                numToplevel++;
+                continue;
+            }
+            
+            auto [str_v, child_v] = atom[bestDest].load();
+            if (str_v == RabbitAtom::INVALID_STR) {
+                atom[u].restore(str_u);
+                retryQueue.push_back(u);
+                continue;
+            }
+            
+            tileSibling[u] = child_v;
+            float new_str = str_v + str_u;
+            
+            if (atom[bestDest].tryMerge(str_v, child_v, new_str, static_cast<uint32_t>(u))) {
+                dest[u] = bestDest;
+            } else {
+                tileSibling[u] = INVALID;
+                atom[u].restore(str_u);
+                retryQueue.push_back(u);
+            }
+        }
+    }
+    
+    for (int t = 0; t < numThreads; ++t) {
+        auto& scanner = scanners[t];
+        for (K u : retryQueues[t]) {
+            float str_u = atom[u].invalidate();
+            if (str_u == RabbitAtom::INVALID_STR) continue;
+            
+            unite(u, scanner);
+            
+            K bestDest = INVALID;
+            float bestDeltaQ = 0.0f;
+            
+            for (K d : scanner.keys) {
+                float w_ud = scanner.get(d);
+                auto [str_d, _] = atom[d].load();
+                if (str_d == RabbitAtom::INVALID_STR) continue;
+                
+                float dq = w_ud * inv2M - str_u * str_d * inv4M2;
+                if (dq > bestDeltaQ) {
+                    bestDeltaQ = dq;
+                    bestDest = d;
+                }
+            }
+            
+            if (bestDest == INVALID || bestDeltaQ <= 0.0f) {
+                atom[u].restore(str_u);
+                toplevel.push_back(u);
+                numToplevel++;
+                continue;
+            }
+            
+            auto [str_v, child_v] = atom[bestDest].load();
+            tileSibling[u] = child_v;
+            atom[bestDest].packed.store(RabbitAtom::pack(str_v + str_u, static_cast<uint32_t>(u)),
+                                        std::memory_order_release);
+            dest[u] = bestDest;
+        }
+    }
+    
+    phaseTimer.Stop();
+    printf("  tqr: RabbitOrder on tiles: %zu super-tile-blocks (from %zu tiles) in %.4fs\n",
+           numToplevel.load(), numTiles, phaseTimer.Seconds());
+    
+    // ================================================================
+    // STEP 4: Generate tile permutation from RabbitOrder dendrogram
+    // ================================================================
+    
+    phaseTimer.Start();
+    
+    std::vector<K> allRoots;
+    for (size_t t = 0; t < numTiles; ++t) {
+        K root = dest[t];
+        while (dest[root] != root) root = dest[root];
+        if (root == static_cast<K>(t)) {
+            allRoots.push_back(static_cast<K>(t));
+        }
+    }
+    
+    std::vector<K> activeTop, emptyTop;
+    for (K root : allRoots) {
+        size_t tileStart = static_cast<size_t>(root) * tileSz;
+        if (tileStart >= N && tileDegrees[root] == 0.0f) {
+            emptyTop.push_back(root);
+        } else {
+            activeTop.push_back(root);
+        }
+    }
+    
+    std::sort(activeTop.begin(), activeTop.end());
+    std::sort(emptyTop.begin(), emptyTop.end());
+    
+    toplevel.clear();
+    toplevel.insert(toplevel.end(), activeTop.begin(), activeTop.end());
+    toplevel.insert(toplevel.end(), emptyTop.begin(), emptyTop.end());
+    
+    const size_t numBlocks = toplevel.size();
+    
+    // DFS dendrogram traversal → tilePerm[originalTile] = permutedPosition
+    std::vector<K> tilePerm(numTiles, static_cast<K>(-1));
+    K nextTileId = 0;
+    
+    for (size_t bi = 0; bi < numBlocks; ++bi) {
+        K root = toplevel[bi];
+        
+        std::deque<K> stack;
+        rabbitDescendants(atom, root, stack);
+        
+        while (!stack.empty()) {
+            K t = stack.back();
+            stack.pop_back();
+            
+            if (tilePerm[t] != static_cast<K>(-1)) continue;
+            
+            tilePerm[t] = nextTileId++;
+            
+            if (tileSibling[t] != INVALID) {
+                rabbitDescendants(atom, tileSibling[t], stack);
+            }
+        }
+    }
+    
+    for (size_t t = 0; t < numTiles; ++t) {
+        if (tilePerm[t] == static_cast<K>(-1)) {
+            tilePerm[t] = nextTileId++;
+        }
+    }
+    
+    // Also compute which tile-block each tile belongs to
+    std::vector<K> tileBlockId(numTiles, 0);
+    for (size_t t = 0; t < numTiles; ++t) {
+        K root = dest[t];
+        while (dest[root] != root) root = dest[root];
+        tileBlockId[t] = root;
+    }
+    
+    phaseTimer.Stop();
+    printf("  tqr: tile permutation generated in %.4fs (%zu blocks)\n",
+           phaseTimer.Seconds(), numBlocks);
+    
+    // Free tile-level RabbitOrder structures no longer needed
+    atom.clear(); atom.shrink_to_fit();
+    vtx.clear(); vtx.shrink_to_fit();
+    tileSibling.clear(); tileSibling.shrink_to_fit();
+    tileOrder.clear(); tileOrder.shrink_to_fit();
+    dest.clear(); dest.shrink_to_fit();
+    scanners.clear(); scanners.shrink_to_fit();
+    retryQueues.clear(); retryQueues.shrink_to_fit();
+    
+    // ================================================================
+    // STEP 5: HYBRID MICRO-ORDERING — RabbitOrder within tile-blocks
+    // ================================================================
+    // MACRO ordering (tiles) is done. Now we need to order communities
+    // within each tile-block. Instead of simple BFS (which ignores
+    // inter-community relationships), we run a SECOND RabbitOrder on the
+    // community super-graph. This is similar to what vibe:hrab does, but
+    // with an important twist: communities are first GROUPED by their
+    // center tile-block, and the community super-graph is ordered so that
+    // communities within the same tile-block are placed contiguously.
+    //
+    // Architecture:
+    //   1. Assign each community to its "center tile-block" (the block
+    //      containing the tile where most of its vertices live)
+    //   2. Build the community super-graph (edge weights between communities)
+    //   3. Run RabbitOrder on the community super-graph
+    //   4. Sort communities by: (tilePerm of center tile, then RabbitOrder
+    //      community permutation) — this combines macro tile ordering with
+    //      micro community ordering
+    //   5. BFS within each community for final vertex ordering
+    
+    phaseTimer.Start();
+    
+    // 5a: Compute each community's center tile and center tile-block
+    std::vector<K> commCenterTile(C, 0);
+    std::vector<K> commCenterBlock(C, 0);
+    std::vector<double> commAvgTilePerm(C, 0.0);
+    
+    #pragma omp parallel for schedule(dynamic, 64)
+    for (size_t c = 0; c < C; ++c) {
+        auto& verts = commVertices[c];
+        if (verts.empty()) {
+            commCenterTile[c] = 0;
+            commCenterBlock[c] = 0;
+            commAvgTilePerm[c] = static_cast<double>(numTiles);
+            continue;
+        }
+        
+        // Count vertices per tile for this community
+        // Use a small flat map — most communities span very few tiles
+        // (Leiden communities are small and local)
+        struct TileCount { K tile; size_t count; };
+        std::vector<TileCount> tileCounts;
+        tileCounts.reserve(8);
+        
+        double sumTilePerm = 0.0;
+        for (K v : verts) {
+            K t = tileOf(v);
+            sumTilePerm += static_cast<double>(tilePerm[t]);
+            
+            // Find or insert tile count
+            bool found = false;
+            for (auto& tc : tileCounts) {
+                if (tc.tile == t) { tc.count++; found = true; break; }
+            }
+            if (!found) tileCounts.push_back({t, 1});
+        }
+        
+        K bestTile = tileCounts[0].tile;
+        size_t bestCount = tileCounts[0].count;
+        for (size_t i = 1; i < tileCounts.size(); ++i) {
+            if (tileCounts[i].count > bestCount) {
+                bestCount = tileCounts[i].count;
+                bestTile = tileCounts[i].tile;
+            }
+        }
+        
+        commCenterTile[c] = bestTile;
+        commCenterBlock[c] = tileBlockId[bestTile];
+        commAvgTilePerm[c] = sumTilePerm / verts.size();
+    }
+    
+    phaseTimer.Stop();
+    printf("  tqr: community center-tile assignment in %.4fs\n", phaseTimer.Seconds());
+    
+    // 5b: Build community super-graph (aggregate edges between communities)
+    phaseTimer.Start();
+    
+    std::vector<std::unordered_map<K, float>> commEdges(C);
+    std::vector<float> commDeg(C, 0.0f);
+    
+    #pragma omp parallel
+    {
+        std::vector<std::unordered_map<K, float>> localEdges(C);
+        
+        #pragma omp for schedule(dynamic, 1024)
+        for (size_t u = 0; u < N; ++u) {
+            if (isIsolated[u]) continue;
+            K commU = membership[u];
+            
+            for (auto neighbor : g.out_neigh(u)) {
+                NodeID_T v;
+                float w;
+                if constexpr (std::is_same_v<DestID_T, NodeID_T>) {
+                    v = neighbor;
+                    w = 1.0f;
+                } else {
+                    v = neighbor.v;
+                    w = static_cast<float>(neighbor.w);
+                }
+                
+                K commV = membership[v];
+                if (commU <= commV) {
+                    localEdges[commU][commV] += w;
+                }
+            }
+        }
+        
+        #pragma omp critical
+        {
+            for (size_t c = 0; c < C; ++c) {
+                for (auto& [d, w] : localEdges[c]) {
+                    commEdges[c][d] += w;
+                }
+            }
+        }
+    }
+    
+    // Compute community degrees
+    for (size_t c = 0; c < C; ++c) {
+        for (auto& [d, w] : commEdges[c]) {
+            commDeg[c] += w;
+            if (d != static_cast<K>(c)) {
+                commDeg[d] += w;
+            }
+        }
+    }
+    
+    phaseTimer.Stop();
+    printf("  tqr: community super-graph built in %.4fs\n", phaseTimer.Seconds());
+    
+    // 5c: Run RabbitOrder on community super-graph
+    phaseTimer.Start();
+    
+    std::vector<RabbitAtom> commAtom(C);
+    std::vector<RabbitVertex<K>> commVtx(C);
+    std::vector<K> commDestRO(C);
+    std::vector<K> commSibling(C, INVALID);
+    std::vector<K> commToplevel;
+    commToplevel.reserve(C / 10);
+    
+    #pragma omp parallel for
+    for (size_t c = 0; c < C; ++c) {
+        commAtom[c].init(commDeg[c]);
+        commDestRO[c] = static_cast<K>(c);
+    }
+    
+    // Build symmetric edge lists for communities
+    for (size_t c = 0; c < C; ++c) {
+        for (auto& [d, w] : commEdges[c]) {
+            commVtx[c].edges.emplace_back(d, w);
+            if (d != static_cast<K>(c)) {
+                commVtx[d].edges.emplace_back(static_cast<K>(c), w);
+            }
+        }
+    }
+    commEdges.clear(); commEdges.shrink_to_fit();
+    
+    // Sort communities by degree ascending
+    std::vector<K> commOrder(C);
+    std::iota(commOrder.begin(), commOrder.end(), K(0));
+    std::sort(commOrder.begin(), commOrder.end(),
+        [&](K a, K b) { return commDeg[a] < commDeg[b]; });
+    
+    // Scanners for community-level RabbitOrder
+    std::vector<CommunityScanner<K, float>> commScanners;
+    for (int t = 0; t < numThreads; ++t) {
+        commScanners.emplace_back(C);
+    }
+    std::vector<std::vector<K>> commRetryQueues(numThreads);
+    
+    auto findCommDest = [&](K v) -> K {
+        K d = commDestRO[v];
+        while (commDestRO[d] != d) {
+            K dd = commDestRO[d];
+            commDestRO[v] = dd;
+            d = dd;
+        }
+        return d;
+    };
+    
+    auto commUnite = [&](K u, CommunityScanner<K, float>& scanner) -> void {
+        auto& vu = commVtx[u];
+        scanner.clear();
+        
+        for (auto& [d, w] : vu.edges) {
+            K root = findCommDest(d);
+            if (root != u) {
+                scanner.add(root, w);
+            }
+        }
+        
+        auto [_, first_child] = commAtom[u].load();
+        K uc = vu.united_child;
+        
+        std::vector<K> childStack;
+        if (first_child != uc && first_child != INVALID) {
+            childStack.push_back(first_child);
+        }
+        
+        while (!childStack.empty()) {
+            K c = childStack.back();
+            childStack.pop_back();
+            
+            if (c == uc || c == INVALID) continue;
+            
+            auto& vc = commVtx[c];
+            for (auto& [d, w] : vc.edges) {
+                K root = findCommDest(d);
+                if (root != u) {
+                    scanner.add(root, w);
+                }
+            }
+            
+            if (commSibling[c] != uc && commSibling[c] != INVALID) {
+                childStack.push_back(commSibling[c]);
+            }
+            
+            auto [__, child_first] = commAtom[c].load();
+            if (child_first != vc.united_child && child_first != INVALID) {
+                childStack.push_back(child_first);
+            }
+            vc.united_child = child_first;
+        }
+        
+        vu.edges.clear();
+        for (K d : scanner.keys) {
+            vu.edges.emplace_back(d, scanner.get(d));
+        }
+        vu.united_child = first_child;
+    };
+    
+    // Community-level RabbitOrder: use aggressive merge (any edge weight > 0)
+    // This is the same criterion as hrab — merge any connected communities
+    std::atomic<size_t> numCommTop(0);
+    
+    #pragma omp parallel
+    {
+        int tid = omp_get_thread_num();
+        auto& scanner = commScanners[tid];
+        auto& retryQueue = commRetryQueues[tid];
+        
+        #pragma omp for schedule(static, 1)
+        for (size_t i = 0; i < C; ++i) {
+            K u = commOrder[i];
+            
+            if (commDeg[u] == 0.0f) {
+                #pragma omp critical
+                commToplevel.push_back(u);
+                numCommTop++;
+                continue;
+            }
+            
+            float str_u = commAtom[u].invalidate();
+            if (str_u == RabbitAtom::INVALID_STR) continue;
+            
+            commUnite(u, scanner);
+            
+            K bestDest = INVALID;
+            float bestW = 0.0f;
+            
+            for (K d : scanner.keys) {
+                float w_ud = scanner.get(d);
+                auto [str_d, _] = commAtom[d].load();
+                if (str_d == RabbitAtom::INVALID_STR) continue;
+                
+                if (w_ud > bestW) {
+                    bestW = w_ud;
+                    bestDest = d;
+                }
+            }
+            
+            if (bestDest == INVALID || bestW <= 0.0f) {
+                commAtom[u].restore(str_u);
+                #pragma omp critical
+                commToplevel.push_back(u);
+                numCommTop++;
+                continue;
+            }
+            
+            auto [str_v, child_v] = commAtom[bestDest].load();
+            if (str_v == RabbitAtom::INVALID_STR) {
+                commAtom[u].restore(str_u);
+                retryQueue.push_back(u);
+                continue;
+            }
+            
+            commSibling[u] = child_v;
+            float new_str = str_v + str_u;
+            
+            if (commAtom[bestDest].tryMerge(str_v, child_v, new_str, static_cast<uint32_t>(u))) {
+                commDestRO[u] = bestDest;
+            } else {
+                commSibling[u] = INVALID;
+                commAtom[u].restore(str_u);
+                retryQueue.push_back(u);
+            }
+        }
+    }
+    
+    // Process retries
+    for (int t = 0; t < numThreads; ++t) {
+        auto& scanner = commScanners[t];
+        for (K u : commRetryQueues[t]) {
+            float str_u = commAtom[u].invalidate();
+            if (str_u == RabbitAtom::INVALID_STR) continue;
+            
+            commUnite(u, scanner);
+            
+            K bestDest = INVALID;
+            float bestW = 0.0f;
+            
+            for (K d : scanner.keys) {
+                float w_ud = scanner.get(d);
+                auto [str_d, _] = commAtom[d].load();
+                if (str_d == RabbitAtom::INVALID_STR) continue;
+                
+                if (w_ud > bestW) {
+                    bestW = w_ud;
+                    bestDest = d;
+                }
+            }
+            
+            if (bestDest == INVALID || bestW <= 0.0f) {
+                commAtom[u].restore(str_u);
+                commToplevel.push_back(u);
+                numCommTop++;
+                continue;
+            }
+            
+            auto [str_v, child_v] = commAtom[bestDest].load();
+            commSibling[u] = child_v;
+            commAtom[bestDest].packed.store(
+                RabbitAtom::pack(str_v + str_u, static_cast<uint32_t>(u)),
+                std::memory_order_release);
+            commDestRO[u] = bestDest;
+        }
+    }
+    
+    phaseTimer.Stop();
+    printf("  tqr: RabbitOrder on communities: %zu super-comms (from %zu) in %.4fs\n",
+           numCommTop.load(), C, phaseTimer.Seconds());
+    
+    // 5d: Generate community permutation from RabbitOrder dendrogram
+    phaseTimer.Start();
+    
+    // Find community roots
+    std::vector<K> commRoots;
+    for (size_t c = 0; c < C; ++c) {
+        K root = commDestRO[c];
+        while (commDestRO[root] != root) root = commDestRO[root];
+        if (root == static_cast<K>(c)) {
+            commRoots.push_back(static_cast<K>(c));
+        }
+    }
+    
+    std::vector<K> commActiveTop, commEmptyTop;
+    for (K root : commRoots) {
+        if (commDeg[root] == 0.0f && commVertices[root].empty()) {
+            commEmptyTop.push_back(root);
+        } else {
+            commActiveTop.push_back(root);
+        }
+    }
+    std::sort(commActiveTop.begin(), commActiveTop.end());
+    std::sort(commEmptyTop.begin(), commEmptyTop.end());
+    
+    commToplevel.clear();
+    commToplevel.insert(commToplevel.end(), commActiveTop.begin(), commActiveTop.end());
+    commToplevel.insert(commToplevel.end(), commEmptyTop.begin(), commEmptyTop.end());
+    
+    // DFS traversal → commPermRO[community] = RabbitOrder position
+    std::vector<K> commPermRO(C, static_cast<K>(-1));
+    K nextCommROId = 0;
+    
+    for (size_t bi = 0; bi < commToplevel.size(); ++bi) {
+        K root = commToplevel[bi];
+        
+        std::deque<K> stack;
+        rabbitDescendants(commAtom, root, stack);
+        
+        while (!stack.empty()) {
+            K c = stack.back();
+            stack.pop_back();
+            
+            if (commPermRO[c] != static_cast<K>(-1)) continue;
+            commPermRO[c] = nextCommROId++;
+            
+            if (commSibling[c] != INVALID) {
+                rabbitDescendants(commAtom, commSibling[c], stack);
+            }
+        }
+    }
+    
+    for (size_t c = 0; c < C; ++c) {
+        if (commPermRO[c] == static_cast<K>(-1)) {
+            commPermRO[c] = nextCommROId++;
+        }
+    }
+    
+    // Free community RabbitOrder structures
+    commAtom.clear(); commAtom.shrink_to_fit();
+    commVtx.clear(); commVtx.shrink_to_fit();
+    commSibling.clear(); commSibling.shrink_to_fit();
+    commDestRO.clear(); commDestRO.shrink_to_fit();
+    commOrder.clear(); commOrder.shrink_to_fit();
+    commScanners.clear(); commScanners.shrink_to_fit();
+    commRetryQueues.clear(); commRetryQueues.shrink_to_fit();
+    
+    // 5e: COMBINED SORT: tile macro-order + community micro-order
+    // Primary sort: tilePerm of community's center tile (macro-ordering from tiles)
+    // Secondary sort: commPermRO (micro-ordering from community RabbitOrder)
+    // This gives the best of both worlds:
+    //   - Tile-level RabbitOrder decides which cache regions are adjacent
+    //   - Community-level RabbitOrder decides which communities within
+    //     a tile region are adjacent
+    
+    std::vector<K> sortedComms(C);
+    std::iota(sortedComms.begin(), sortedComms.end(), K(0));
+    std::sort(sortedComms.begin(), sortedComms.end(),
+        [&](K a, K b) {
+            // Primary: tile macro-position (center tile's RabbitOrder permutation)
+            K permA = tilePerm[commCenterTile[a]];
+            K permB = tilePerm[commCenterTile[b]];
+            if (permA != permB) return permA < permB;
+            // Secondary: community RabbitOrder position (micro-ordering)
+            return commPermRO[a] < commPermRO[b];
+        });
+    
+    // Compute prefix offsets
+    std::vector<size_t> vertexOffsets(C + 1, 0);
+    for (size_t i = 0; i < C; ++i) {
+        K c = sortedComms[i];
+        vertexOffsets[i + 1] = vertexOffsets[i] + commVertices[c].size();
+    }
+    
+    size_t totalActive = vertexOffsets[C];
+    printf("  tqr: %zu active vertices, %zu communities (tile+rabbit ordered)\n", 
+           totalActive, C);
+    
+    std::vector<K> commToSortedIdx(C);
+    for (size_t i = 0; i < C; ++i) {
+        commToSortedIdx[sortedComms[i]] = static_cast<K>(i);
+    }
+    
+    phaseTimer.Stop();
+    printf("  tqr: combined ordering generated in %.4fs\n", phaseTimer.Seconds());
+    
+    // 5f: BFS within each community for final vertex ordering
+    phaseTimer.Start();
+    
     std::vector<K> localIds(N, static_cast<K>(-1));
     
     #pragma omp parallel
     {
         std::queue<K> bfsQueue;
-        std::vector<bool> visited;
         
         #pragma omp for schedule(dynamic, 1)
         for (size_t ci = 0; ci < C; ++ci) {
@@ -3502,15 +5180,17 @@ void orderHybridLeidenRabbit(
             auto& verts = commVertices[c];
             if (verts.empty()) continue;
             
-            visited.assign(verts.size(), false);
+            if (verts.size() == 1) {
+                localIds[verts[0]] = 0;
+                continue;
+            }
             
-            // Build local vertex index
+            std::vector<bool> visited(verts.size(), false);
             std::unordered_map<K, size_t> vertToLocal;
             for (size_t i = 0; i < verts.size(); ++i) {
                 vertToLocal[verts[i]] = i;
             }
             
-            // Find highest-degree vertex as start
             K startV = verts[0];
             K maxDeg = degrees[verts[0]];
             for (K v : verts) {
@@ -3520,7 +5200,6 @@ void orderHybridLeidenRabbit(
                 }
             }
             
-            // BFS
             K localId = 0;
             bfsQueue.push(startV);
             visited[vertToLocal[startV]] = true;
@@ -3549,7 +5228,6 @@ void orderHybridLeidenRabbit(
                 }
             }
             
-            // Handle disconnected vertices
             for (size_t i = 0; i < verts.size(); ++i) {
                 if (!visited[i]) {
                     localIds[verts[i]] = localId++;
@@ -3558,31 +5236,33 @@ void orderHybridLeidenRabbit(
         }
     }
     
-    // Compute global IDs using the sorted index mapping
+    // Compute global IDs
     #pragma omp parallel for
     for (size_t v = 0; v < N; ++v) {
-        if (degrees[v] > 0) {
+        if (!isIsolated[v]) {
             K c = membership[v];
-            // Use the correct mapping: community -> sorted index
             K sortedIdx = commToSortedIdx[c];
             newIds[v] = static_cast<NodeID_T>(vertexOffsets[sortedIdx] + localIds[v]);
         }
     }
     
-    // Assign isolated vertices at the end
-    size_t isolatedStart = vertexOffsets[C];
+    size_t isolatedStart = totalActive;
     for (size_t i = 0; i < isolated.size(); ++i) {
         newIds[isolated[i]] = static_cast<NodeID_T>(isolatedStart + i);
     }
     
-    printf("  hybrid-rabbit: %zu blocks, %zu active vertices, %zu isolated\n",
-           numBlocks, N - isolated.size(), isolated.size());
+    phaseTimer.Stop();
+    printf("  tqr: BFS within communities in %.4fs\n", phaseTimer.Seconds());
+    printf("  tqr: %zu tile-blocks, %zu active, %zu isolated, total=%.4fs\n",
+           numBlocks, totalActive, isolated.size(),
+           0.0);  // total time tracked externally
     
-    VIBE_TRACE("orderHybridLeidenRabbit: %zu blocks, %zu isolated", numBlocks, isolated.size());
+    VIBE_TRACE("orderTileQuantizedRabbit: %zu blocks, %zu tiles, %zu isolated",
+               numBlocks, numTiles, isolated.size());
 }
 
 //=============================================================================
-// SECTION 16c: COMMUNITY MERGING FOR CACHE LOCALITY
+// SECTION 16d: COMMUNITY MERGING FOR CACHE LOCALITY
 //=============================================================================
 
 /**
@@ -4805,14 +6485,24 @@ void generateVibeMapping(
         config.ordering == OrderingStrategy::DBG_GLOBAL ? "dbg-global" :
         config.ordering == OrderingStrategy::CORDER_GLOBAL ? "corder-global" :
         config.ordering == OrderingStrategy::HIERARCHICAL_CACHE_AWARE ? "hcache" :
-        config.ordering == OrderingStrategy::HYBRID_LEIDEN_RABBIT ? "hybrid-rabbit" : "unknown";
+        config.ordering == OrderingStrategy::HYBRID_LEIDEN_RABBIT ? "hybrid-rabbit" :
+        config.ordering == OrderingStrategy::TILE_QUANTIZED_RABBIT ? "tile-quantized-rabbit" : "unknown";
     
-    printf("VIBE: aggregation=%s, ordering=%s, refinement=%s%s\n",
+    printf("VIBE: aggregation=%s, ordering=%s, refinement=%s%s%s\n",
            config.aggregation == AggregationStrategy::LEIDEN_CSR ? "leiden" :
            config.aggregation == AggregationStrategy::RABBIT_LAZY ? "streaming" : "hybrid",
            orderingName,
            config.useRefinement ? "on" : "off",
-           config.useCommunityMerging ? ", merge=on" : "");
+           config.useCommunityMerging ? ", merge=on" : "",
+           config.useHubExtraction ? ", hubx=on" : "");
+    if (config.useGorderIntra) {
+        if (config.gorderFallback > 0)
+            printf("VIBE: gord=on (window=%d, fallback=%d)\n", config.gorderWindow, config.gorderFallback);
+        else
+            printf("VIBE: gord=on (window=%d, fallback=N)\n", config.gorderWindow);
+    }
+    if (config.useHubSort)     printf("VIBE: hsort=on\n");
+    if (config.useRCMSuper)    printf("VIBE: rcm=on\n");
     
     // Run VIBE
     Timer timer;
@@ -4972,6 +6662,9 @@ void generateVibeMapping(
         case OrderingStrategy::HYBRID_LEIDEN_RABBIT:
             orderHybridLeidenRabbit<K, NodeID_T, DestID_T>(newIds, result.membership, degrees, g, N, config);
             break;
+        case OrderingStrategy::TILE_QUANTIZED_RABBIT:
+            orderTileQuantizedRabbit<K, NodeID_T, DestID_T>(newIds, result.membership, degrees, g, N, config);
+            break;
     }
     
     orderTimer.Stop();
@@ -5098,6 +6791,8 @@ inline VibeConfig parseVibeConfig(const std::vector<std::string>& options) {
             config.ordering = OrderingStrategy::HIERARCHICAL_CACHE_AWARE;
         } else if (opt == "hrab" || opt == "hybrid-rabbit" || opt == "leidenrabbit") {
             config.ordering = OrderingStrategy::HYBRID_LEIDEN_RABBIT;
+        } else if (opt == "tqr" || opt == "tile-quantized" || opt == "tilequantized" || opt == "tilerabbit") {
+            config.ordering = OrderingStrategy::TILE_QUANTIZED_RABBIT;
         }
         // Check for aggregation strategy (for Leiden variant)
         else if (opt == "leiden") {
@@ -5110,6 +6805,46 @@ inline VibeConfig parseVibeConfig(const std::vector<std::string>& options) {
         // Check for community merging (key for cache locality!)
         else if (opt == "merge" || opt == "coarsen") {
             config.useCommunityMerging = true;
+        }
+        // Check for hub extraction (extract high-degree hubs before ordering)
+        else if (opt == "hubx" || opt == "hub-extract" || opt == "hubextract") {
+            config.useHubExtraction = true;
+        }
+        // Check for hub extraction with custom percentage: hubx0.5 = top 0.5%
+        else if (opt.size() > 4 && opt.substr(0, 4) == "hubx") {
+            config.useHubExtraction = true;
+            try {
+                double pct = std::stod(opt.substr(4));
+                if (pct > 0 && pct < 100) {
+                    config.hubExtractionPct = pct / 100.0;  // Convert percent to fraction
+                }
+            } catch (...) {}
+        }
+        // Gorder-inspired improvements
+        else if (opt == "gord" || opt == "gorder") {
+            config.useGorderIntra = true;
+        }
+        // gord with custom window: gord8 = window of 8
+        else if (opt.size() > 4 && opt.substr(0, 4) == "gord" && std::isdigit(opt[4])) {
+            config.useGorderIntra = true;
+            try {
+                int w = std::stoi(opt.substr(4));
+                if (w > 0 && w <= 100) config.gorderWindow = w;
+            } catch (...) {}
+        }
+        // gord fallback threshold: gordf5000 = BFS fallback for communities > 5000
+        else if (opt.size() > 5 && opt.substr(0, 5) == "gordf") {
+            config.useGorderIntra = true;
+            try {
+                int f = std::stoi(opt.substr(5));
+                if (f > 0) config.gorderFallback = f;
+            } catch (...) {}
+        }
+        else if (opt == "hsort" || opt == "hubsort") {
+            config.useHubSort = true;
+        }
+        else if (opt == "rcm") {
+            config.useRCMSuper = true;
         }
         // Check for refinement
         else if (opt == "norefine") {

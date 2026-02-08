@@ -356,6 +356,9 @@ void GenerateAdaptiveMappingFullGraphStandalone(
     global_feat.degree_variance = global_degree_variance;
     global_feat.hub_concentration = global_hub_concentration;
     global_feat.clustering_coeff = clustering_coeff;
+    global_feat.packing_factor = features.packing_factor;
+    global_feat.forward_edge_fraction = features.forward_edge_fraction;
+    global_feat.working_set_ratio = features.working_set_ratio;
     
     // Select best algorithm
     ReorderingAlgo best_algo = SelectBestReorderingForCommunity(

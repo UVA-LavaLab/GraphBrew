@@ -112,44 +112,44 @@ void GenerateHubSortMapping(const CSRGraph<NodeID_, DestID_, invert>& g,
     // Free memory from degree pairs
     pvector<DegreeNodePair>().swap(degree_id_pairs);
     
-    // Step 4: Handle non-hub vertices
-    // Try to preserve original ordering where possible using swap optimization
-    SlidingQueue<int64_t> queue(hubCount);
-    
-    #pragma omp parallel
+    // Step 4: Assign non-hub vertices to remaining positions (hubCount..num_nodes-1)
+    // Uses per-thread partitions with pre-computed offsets (race-free, parallel).
     {
-        QueueBuffer<int64_t> lqueue(queue, hubCount / omp_get_max_threads());
-        
-        #pragma omp for
-        for (int64_t n = hubCount; n < num_nodes; ++n) {
-            if (new_ids[n] == static_cast<NodeID_>(UINT_E_MAX)) {
-                // Not a hub, keep original position if possible
-                new_ids[n] = n;
-            } else {
-                // This position was taken by a hub
-                int64_t remappedTo = new_ids[n];
-                if (new_ids[remappedTo] == static_cast<NodeID_>(UINT_E_MAX)) {
-                    // Original vertex at remappedTo is non-hub, safe to swap
-                    new_ids[remappedTo] = n;
-                } else {
-                    // Can't swap (would disturb hub ordering)
-                    lqueue.push_back(n);
+        const int num_threads = omp_get_max_threads();
+        const int64_t slice = num_nodes / num_threads;
+        int64_t start[num_threads], end_pos[num_threads];
+        int64_t non_hub_count[num_threads];
+        int64_t new_index[num_threads];
+
+        for (int th = 0; th < num_threads; ++th) {
+            start[th] = th * slice;
+            end_pos[th] = (th == num_threads - 1) ? num_nodes : (th + 1) * slice;
+        }
+
+        // Count non-hubs per thread partition
+        #pragma omp parallel for schedule(static) num_threads(num_threads)
+        for (int th = 0; th < num_threads; ++th) {
+            int64_t cnt = 0;
+            for (int64_t v = start[th]; v < end_pos[th]; ++v) {
+                if (new_ids[v] == static_cast<NodeID_>(UINT_E_MAX)) ++cnt;
+            }
+            non_hub_count[th] = cnt;
+        }
+
+        // Prefix-sum to get each thread's starting position
+        new_index[0] = static_cast<int64_t>(hubCount);
+        for (int th = 1; th < num_threads; ++th) {
+            new_index[th] = new_index[th - 1] + non_hub_count[th - 1];
+        }
+
+        // Each thread assigns its non-hubs independently (no cross-thread deps)
+        #pragma omp parallel for schedule(static) num_threads(num_threads)
+        for (int th = 0; th < num_threads; ++th) {
+            for (int64_t v = start[th]; v < end_pos[th]; ++v) {
+                if (new_ids[v] == static_cast<NodeID_>(UINT_E_MAX)) {
+                    new_ids[v] = static_cast<NodeID_>(new_index[th]++);
                 }
             }
-        }
-        lqueue.flush();
-    }
-    queue.slide_window();
-    
-    // Step 5: Assign remaining non-hubs to unassigned positions
-    int64_t unassignedCtr = 0;
-    auto q_iter = queue.begin();
-    
-    #pragma omp parallel for
-    for (int64_t n = 0; n < static_cast<int64_t>(hubCount); ++n) {
-        if (new_ids[n] == static_cast<NodeID_>(UINT_E_MAX)) {
-            int64_t u = *(q_iter + __sync_fetch_and_add(&unassignedCtr, 1));
-            new_ids[n] = u;
         }
     }
     
@@ -251,40 +251,43 @@ void GenerateHubClusterMapping(const CSRGraph<NodeID_, DestID_, invert>& g,
     }
     delete[] localOffsets;
     
-    // Step 4: Handle non-hub vertices (similar to HubSort)
+    // Step 4: Assign non-hub vertices to remaining positions (numHubs..num_nodes-1)
+    // Uses per-thread partitions with pre-computed offsets (race-free, parallel).
     auto numHubs = sum;
-    SlidingQueue<int64_t> queue(numHubs);
-    
-    #pragma omp parallel
     {
-        QueueBuffer<int64_t> lqueue(queue, numHubs / omp_get_max_threads());
-        
-        #pragma omp for
-        for (int64_t n = numHubs; n < num_nodes; ++n) {
-            if (new_ids[n] == static_cast<NodeID_>(UINT_E_MAX)) {
-                new_ids[n] = static_cast<NodeID_>(n);
-            } else {
-                int64_t remappedTo = new_ids[n];
-                if (new_ids[remappedTo] == static_cast<NodeID_>(UINT_E_MAX)) {
-                    new_ids[remappedTo] = static_cast<NodeID_>(n);
-                } else {
-                    lqueue.push_back(n);
+        int64_t non_hub_count[num_threads];
+        int64_t new_index[num_threads];
+
+        int64_t start_pos[num_threads], end_pos[num_threads];
+        for (int th = 0; th < num_threads; ++th) {
+            start_pos[th] = partitionSz * th;
+            end_pos[th] = (th == num_threads - 1) ? num_nodes : partitionSz * (th + 1);
+        }
+
+        // Count non-hubs per thread partition
+        #pragma omp parallel for schedule(static) num_threads(num_threads)
+        for (int th = 0; th < num_threads; ++th) {
+            int64_t cnt = 0;
+            for (int64_t v = start_pos[th]; v < end_pos[th]; ++v) {
+                if (new_ids[v] == static_cast<NodeID_>(UINT_E_MAX)) ++cnt;
+            }
+            non_hub_count[th] = cnt;
+        }
+
+        // Prefix-sum to get each thread's starting position
+        new_index[0] = numHubs;
+        for (int th = 1; th < num_threads; ++th) {
+            new_index[th] = new_index[th - 1] + non_hub_count[th - 1];
+        }
+
+        // Each thread assigns its non-hubs independently (no cross-thread deps)
+        #pragma omp parallel for schedule(static) num_threads(num_threads)
+        for (int th = 0; th < num_threads; ++th) {
+            for (int64_t v = start_pos[th]; v < end_pos[th]; ++v) {
+                if (new_ids[v] == static_cast<NodeID_>(UINT_E_MAX)) {
+                    new_ids[v] = static_cast<NodeID_>(new_index[th]++);
                 }
             }
-        }
-        lqueue.flush();
-    }
-    queue.slide_window();
-    
-    // Step 5: Assign remaining non-hubs
-    int64_t unassignedCtr = 0;
-    auto q_iter = queue.begin();
-    
-    #pragma omp parallel for
-    for (int64_t n = 0; n < numHubs; ++n) {
-        if (new_ids[n] == static_cast<NodeID_>(UINT_E_MAX)) {
-            int64_t u = *(q_iter + __sync_fetch_and_add(&unassignedCtr, 1));
-            new_ids[n] = static_cast<NodeID_>(u);
         }
     }
     
