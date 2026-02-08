@@ -493,7 +493,7 @@ Run experiments with your new benchmark:
 python3 scripts/graphbrew_experiment.py \
     --phase benchmark \
     --benchmarks pr bfs kcore \
-    --graphs small \
+    --size small \
     --trials 5
 ```
 

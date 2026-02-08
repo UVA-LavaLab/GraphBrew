@@ -111,20 +111,20 @@ python3 scripts/graphbrew_experiment.py --download-only --force-download
 
 ```bash
 # Pre-generate label maps for all algorithms
-python3 scripts/graphbrew_experiment.py --generate-maps --graphs small
+python3 scripts/graphbrew_experiment.py --generate-maps --size small
 ```
 
 ### 3. Run Specific Phase
 
 ```bash
 # Just reordering phase (measure reorder times)
-python3 scripts/graphbrew_experiment.py --phase reorder --graphs small
+python3 scripts/graphbrew_experiment.py --phase reorder --size small
 
 # Just benchmarks (skip cache simulation)
-python3 scripts/graphbrew_experiment.py --phase benchmark --graphs small --skip-cache
+python3 scripts/graphbrew_experiment.py --phase benchmark --size small --skip-cache
 
 # Just cache simulation
-python3 scripts/graphbrew_experiment.py --phase cache --graphs small
+python3 scripts/graphbrew_experiment.py --phase cache --size small
 
 # Just weight generation (from existing results)
 python3 scripts/graphbrew_experiment.py --phase weights
@@ -134,7 +134,7 @@ python3 scripts/graphbrew_experiment.py --phase weights
 
 ```bash
 # Specify graph size range
-python3 scripts/graphbrew_experiment.py --min-size 10 --max-size 500
+python3 scripts/graphbrew_experiment.py --min-mb 10 --max-mb 500
 
 # Limit number of graphs
 python3 scripts/graphbrew_experiment.py --max-graphs 10
@@ -257,7 +257,7 @@ Or include in the experiment pipeline:
 
 ```bash
 # Run benchmarks (includes convergence data in results)
-python3 scripts/graphbrew_experiment.py --phase benchmark --graphs small
+python3 scripts/graphbrew_experiment.py --phase benchmark --size small
 ```
 
 ### Example Output
@@ -307,19 +307,19 @@ cd GraphBrew
 python3 scripts/graphbrew_experiment.py --download-only --size medium
 
 # 2. Generate label maps once
-python3 scripts/graphbrew_experiment.py --generate-maps --graphs medium
+python3 scripts/graphbrew_experiment.py --generate-maps --size medium
 
 # 3. Run benchmarks using pre-generated maps
-python3 scripts/graphbrew_experiment.py --use-maps --phase benchmark --graphs medium --trials 10
+python3 scripts/graphbrew_experiment.py --use-maps --phase benchmark --size medium --trials 10
 
 # 4. Run cache simulations
-python3 scripts/graphbrew_experiment.py --use-maps --phase cache --graphs medium
+python3 scripts/graphbrew_experiment.py --use-maps --phase cache --size medium
 
 # 5. Generate perceptron weights
 python3 scripts/graphbrew_experiment.py --phase weights
 
 # 6. Run brute-force validation
-python3 scripts/graphbrew_experiment.py --brute-force --graphs medium
+python3 scripts/graphbrew_experiment.py --brute-force --size medium
 ```
 
 ---
@@ -372,10 +372,10 @@ python3 scripts/graphbrew_experiment.py \
 
 ```bash
 # Use smaller graphs
-python3 scripts/graphbrew_experiment.py --graphs small
+python3 scripts/graphbrew_experiment.py --size small
 
 # Skip large graphs
-python3 scripts/graphbrew_experiment.py --max-size 500
+python3 scripts/graphbrew_experiment.py --max-mb 500
 ```
 
 ### Clean Start

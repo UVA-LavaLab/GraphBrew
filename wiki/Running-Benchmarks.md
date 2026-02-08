@@ -27,8 +27,8 @@ For comprehensive benchmarking, use the unified experiment script:
 # One-click: downloads graphs, builds, runs all benchmarks
 python3 scripts/graphbrew_experiment.py --full --size small
 
-# Auto-detect RAM and skip graphs that won't fit
-python3 scripts/graphbrew_experiment.py --full --size all --auto-memory
+# Auto-detect RAM and disk limits
+python3 scripts/graphbrew_experiment.py --full --size all --auto
 
 # Specify maximum memory (e.g., 32 GB system)
 python3 scripts/graphbrew_experiment.py --full --size all --max-memory 32
@@ -388,12 +388,12 @@ The main orchestration script handles downloading, building, and benchmarking:
 python3 scripts/graphbrew_experiment.py --full --size small
 
 # Run specific phase on existing graphs
-python3 scripts/graphbrew_experiment.py --phase benchmark --graphs small --trials 5
+python3 scripts/graphbrew_experiment.py --phase benchmark --size small --trials 5
 
 # Run specific benchmarks with specific algorithms
 python3 scripts/graphbrew_experiment.py --phase benchmark \
     --benchmarks pr bfs \
-    --graphs small \
+    --size small \
     --trials 5
 
 # Generate and use label maps for consistent reordering

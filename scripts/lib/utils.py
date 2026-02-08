@@ -135,17 +135,18 @@ LEIDEN_CSR_VARIANTS = [
     "vibe:streaming", "vibe:streaming:dfs",  # Leiden + lazy aggregation
     "vibe:lazyupdate",  # Batched community weight updates (reduces atomics)
     "vibe:conn",  # Connectivity BFS within communities (Boost-style, default ordering)
-    "vibe:hrab",  # Hybrid Leiden+RabbitOrder (best locality on web/geometric graphs)
+    "vibe:hrab",  # Hybrid Leiden+RabbitOrder with BFS intra-community (best SSSP)
+    "vibe:hrab:gordi",  # Hybrid Leiden+RabbitOrder with Gorder intra-community (best locality)
     "vibe:rabbit", "vibe:rabbit:dfs", "vibe:rabbit:bfs", "vibe:rabbit:dbg", "vibe:rabbit:corder"  # RabbitOrder
 ]
 LEIDEN_CSR_DEFAULT_VARIANT = "gve"  # GVE-Leiden (best modularity quality)
 
 # Recommended variants for different use cases
 LEIDEN_CSR_FAST_VARIANTS = ["gveopt2", "gveadaptive", "gveturbo", "gvefast", "gverabbit", "vibe:rabbit"]  # Speed priority
-LEIDEN_CSR_QUALITY_VARIANTS = ["gve", "gveopt", "gveopt2", "gveadaptive", "vibe", "vibe:dfs", "vibe:hrab"]  # Quality priority
+LEIDEN_CSR_QUALITY_VARIANTS = ["gve", "gveopt", "gveopt2", "gveadaptive", "vibe", "vibe:dfs", "vibe:hrab", "vibe:hrab:gordi"]  # Quality priority
 
 # VIBE-specific variant groups
-VIBE_LEIDEN_VARIANTS = ["vibe", "vibe:dfs", "vibe:bfs", "vibe:dbg", "vibe:corder", "vibe:dbg-global", "vibe:corder-global", "vibe:streaming", "vibe:lazyupdate", "vibe:conn", "vibe:hrab"]
+VIBE_LEIDEN_VARIANTS = ["vibe", "vibe:dfs", "vibe:bfs", "vibe:dbg", "vibe:corder", "vibe:dbg-global", "vibe:corder-global", "vibe:streaming", "vibe:lazyupdate", "vibe:conn", "vibe:hrab", "vibe:hrab:gordi"]
 VIBE_RABBIT_VARIANTS = ["vibe:rabbit", "vibe:rabbit:dfs", "vibe:rabbit:bfs", "vibe:rabbit:dbg", "vibe:rabbit:corder"]
 
 # Resolution modes

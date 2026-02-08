@@ -19,24 +19,28 @@ Each JSON file contains weights for each algorithm. When AdaptiveOrder processes
 ## How Perceptron Scoring Works
 
 ```
-INPUTS (Features)         WEIGHTS              OUTPUT
-=================         =======              ======
+INPUTS (Features)              WEIGHTS                    OUTPUT
+=================              =======                    ======
 
-modularity: 0.72  --*---> w_mod: 0.28 ---+
-                                         |
-density: 0.001    --*---> w_den: -0.15 --+
-                                         |
-degree_var: 2.1   --*---> w_dv: 0.18 ----+
-                                         |
-hub_conc: 0.45    --*---> w_hc: 0.22 ----+----> SUM ---> SCORE
-                                         |      (+bias)
-cluster_coef: 0.3 --*---> w_cc: 0.12 ----+
-                                         |
-avg_path: 5.2     --*---> w_ap: 0.08 ----+
-                                         |
-diameter: 16      --*---> w_di: 0.05 ----+
-                                         |
-...               --*---> ...       -----+
+--- Linear Features ---
+modularity: 0.72       --*---> w_mod: 0.28 ----------+
+density: 0.001         --*---> w_den: -0.15 ---------+
+degree_var: 2.1        --*---> w_dv: 0.18 -----------+
+hub_conc: 0.45         --*---> w_hc: 0.22 -----------+
+cluster_coef: 0.3      --*---> w_cc: 0.12 -----------+
+avg_path: 5.2          --*---> w_ap: 0.08 -----------+
+diameter: 16           --*---> w_di: 0.05 -----------+
+packing_factor: 0.6    --*---> w_pf: 0.10 -----------+----> SUM
+fwd_edge_frac: 0.4     --*---> w_fef: 0.08 ----------+    (+bias)
+working_set_ratio: 3.2 --*---> w_wsr: 0.12 ----------+      |
+                                                      |      |
+--- Quadratic Cross-Terms ---                         |      |
+dv × hub: 0.95         --*---> w_dv_x_hub: 0.15 -----+      |
+mod × logN: 2.88       --*---> w_mod_x_logn: 0.06 ---+      +---> SCORE
+pf × log₂(wsr+1): 1.27 --*--> w_pf_x_wsr: 0.09 -----+      |
+                                                      |      |
+--- Convergence Bonus (PR/SSSP only) ---              |      |
+fwd_edge_frac: 0.4     --*---> w_fef_conv: 0.05 -----+------+
 
 
 ALGORITHM SELECTION:
@@ -46,6 +50,11 @@ LeidenCSR:      score = 2.18
 HubClusterDBG:  score = 1.95
 GORDER:         score = 1.82
 ORIGINAL:       score = 0.50
+
+SAFETY CHECKS:
+==============
+1. OOD Guardrail: If type distance > 1.5 → force ORIGINAL
+2. ORIGINAL Margin: If best_score - ORIGINAL_score < 0.05 → keep ORIGINAL
 ```
 
 **Key Insight:** Each weight encodes "When this feature is high, how well does this algorithm perform?"
@@ -137,6 +146,18 @@ If no type files exist, C++ uses hardcoded defaults with conservative weights th
     "w_avg_path_length": 0.02,
     "w_diameter": 0.01,
     "w_community_count": 0.03,
+    "w_packing_factor": 0.0,
+    "w_forward_edge_fraction": 0.0,
+    "w_working_set_ratio": 0.0,
+    "w_dv_x_hub": 0.0,
+    "w_mod_x_logn": 0.0,
+    "w_pf_x_wsr": 0.0,
+    "w_fef_convergence": 0.0,
+    "w_reorder_time": 0.0,
+    "cache_l1_impact": 0,
+    "cache_l2_impact": 0,
+    "cache_l3_impact": 0,
+    "cache_dram_penalty": 0,
     "benchmark_weights": {
       "pr": 1.0,
       "bfs": 1.0,
@@ -144,6 +165,12 @@ If no type files exist, C++ uses hardcoded defaults with conservative weights th
       "sssp": 1.0,
       "bc": 1.0,
       "tc": 1.0
+    },
+    "_metadata": {
+      "win_rate": 0.0,
+      "avg_speedup": 1.0,
+      "sample_count": 0,
+      "avg_reorder_time": 0.0
     }
   },
   "LeidenCSR": {
@@ -158,6 +185,18 @@ If no type files exist, C++ uses hardcoded defaults with conservative weights th
     "w_avg_path_length": 0.02,
     "w_diameter": 0.01,
     "w_community_count": 0.03,
+    "w_packing_factor": 0.08,
+    "w_forward_edge_fraction": 0.05,
+    "w_working_set_ratio": 0.12,
+    "w_dv_x_hub": 0.15,
+    "w_mod_x_logn": 0.06,
+    "w_pf_x_wsr": 0.09,
+    "w_fef_convergence": 0.04,
+    "w_reorder_time": -0.0087,
+    "cache_l1_impact": 0.00021,
+    "cache_l2_impact": 0.00019,
+    "cache_l3_impact": 0.00021,
+    "cache_dram_penalty": -7.9e-05,
     "benchmark_weights": {
       "pr": 1.0,
       "bfs": 1.0,
@@ -165,11 +204,17 @@ If no type files exist, C++ uses hardcoded defaults with conservative weights th
       "sssp": 1.0,
       "bc": 1.0,
       "tc": 1.0
+    },
+    "_metadata": {
+      "win_rate": 0.8,
+      "avg_speedup": 1.45,
+      "sample_count": 20,
+      "avg_reorder_time": 8.7
     }
   },
   "_metadata": {
     "enhanced_features": true,
-    "last_updated": "2026-01-20T12:00:00"
+    "last_updated": "2026-02-02T12:00:00"
   }
 }
 ```
@@ -201,6 +246,36 @@ Note: Algorithm names in the weights file match the names from `scripts/lib/util
 | `w_avg_path_length` | avg_path_length | Average shortest path length (BFS estimate) |
 | `w_diameter` | diameter_estimate | Graph diameter (BFS estimate) |
 | `w_community_count` | community_count | Number of sub-communities |
+
+### New Graph-Aware Features
+
+These features capture additional graph structure beyond basic topology:
+
+| Weight | Feature | Description | Source |
+|--------|---------|-------------|--------|
+| `w_packing_factor` | packing_factor | Ratio of avg degree to max degree; measures degree uniformity (0-1) | IISWC'18 |
+| `w_forward_edge_fraction` | forward_edge_fraction | Fraction of edges going to higher-numbered vertices; measures ordering quality | GoGraph |
+| `w_working_set_ratio` | log₂(working_set_ratio+1) | `graph_bytes / LLC_size`; how many times the graph overflows last-level cache | P-OPT |
+
+**LLC Detection:** The `working_set_ratio` is computed using `GetLLCSizeBytes()`, which detects the system's L3 cache size via `sysconf(_SC_LEVEL3_CACHE_SIZE)` on Linux with a 30 MB fallback.
+
+### Quadratic Interaction Weights
+
+These cross-terms capture non-linear feature interactions that improve prediction:
+
+| Weight | Interaction | Description |
+|--------|-------------|-------------|
+| `w_dv_x_hub` | degree_variance × hub_concentration | High-variance + hub-heavy graphs (power-law indicators) |
+| `w_mod_x_logn` | modularity × log₁₀(nodes) | Large modular graphs vs small modular graphs |
+| `w_pf_x_wsr` | packing_factor × log₂(working_set_ratio+1) | Uniform-degree graphs that overflow cache |
+
+### Convergence-Aware Weight
+
+| Weight | Feature | Description |
+|--------|---------|-------------|
+| `w_fef_convergence` | forward_edge_fraction | Bonus applied **only for PR and SSSP** benchmarks; captures how edge direction affects iterative convergence |
+
+> **Note:** The convergence bonus is added in `score()` (not `scoreBase()`) and only activates when the benchmark type is `BENCH_PR` or `BENCH_SSSP`.
 
 ### Per-Benchmark Weights
 
@@ -260,11 +335,28 @@ SelectReorderingPerceptron(features, "bfs");    // Uses benchmark_weights.bfs
 ### Formula
 
 ```
-base_score = bias + Σ(w_feature × feature_value)
+base_score = bias
+           + Σ(w_feature × feature_value)           # linear features
+           + w_dv_x_hub × dv × hub                   # quadratic: degree_var × hub_conc
+           + w_mod_x_logn × mod × logN               # quadratic: modularity × log_nodes
+           + w_pf_x_wsr × pf × log₂(wsr+1)           # quadratic: packing × cache pressure
+
+# Convergence bonus (PR/SSSP only)
+if benchmark ∈ {PR, SSSP}:
+    base_score += w_fef_convergence × forward_edge_fraction
+
 final_score = base_score × benchmark_weights[benchmark_type]
 ```
 
 For `BENCH_GENERIC` (default when no benchmark is specified), the multiplier is 1.0.
+
+### Safety Checks
+
+**OOD (Out-of-Distribution) Guardrail:**
+If the graph's Euclidean distance to the nearest type centroid exceeds `1.5`, the system returns `ORIGINAL` instead of risking a bad prediction on an unfamiliar graph type. The 7-dimensional feature space has a max distance of √7 ≈ 2.65, so 1.5 is a meaningful threshold.
+
+**ORIGINAL Margin Fallback:**
+If the best-scoring algorithm's score exceeds ORIGINAL's score by less than `ORIGINAL_MARGIN_THRESHOLD = 0.05`, the system keeps `ORIGINAL` to avoid reordering overhead for marginal gains.
 
 ### Example Calculation
 
@@ -277,21 +369,29 @@ density: 0.02
 avg_degree: 20 → normalized: 0.2
 degree_variance: 45 → normalized: 0.45
 hub_concentration: 0.55
+packing_factor: 0.6
+forward_edge_fraction: 0.45
+working_set_ratio: 3.2 (graph is 3.2× LLC size)
 ```
 
 LeidenCSR score:
 ```
-= 0.85                      # bias
-+ 0.25 × 0.72               # modularity: +0.18
-+ 0.10 × 3.5                # log_nodes: +0.35
-+ 0.10 × 4.0                # log_edges: +0.40
-+ (-0.05) × 0.02            # density: -0.001
-+ 0.15 × 0.2                # avg_degree: +0.03
-+ 0.15 × 0.45               # degree_variance: +0.0675
-+ 0.25 × 0.55               # hub_concentration: +0.1375
+= 0.85                          # bias
++ 0.25 × 0.72                   # modularity: +0.18
++ 0.10 × 3.5                    # log_nodes: +0.35
++ 0.10 × 4.0                    # log_edges: +0.40
++ (-0.05) × 0.02                # density: -0.001
++ 0.15 × 0.2                    # avg_degree: +0.03
++ 0.15 × 0.45                   # degree_variance: +0.0675
++ 0.25 × 0.55                   # hub_concentration: +0.1375
++ 0.10 × 0.6                    # packing_factor: +0.06
++ 0.08 × 0.45                   # forward_edge_fraction: +0.036
++ 0.12 × log₂(3.2+1)            # working_set_ratio: +0.12 × 2.07 = +0.248
++ 0.15 × (0.45 × 0.55)          # dv×hub quadratic: +0.037
++ 0.06 × (0.72 × 3.5)           # mod×logN quadratic: +0.151
++ 0.09 × (0.6 × log₂(4.2))      # pf×wsr quadratic: +0.09 × 1.24 = +0.112
 
-= 0.85 + 0.18 + 0.35 + 0.40 - 0.001 + 0.03 + 0.0675 + 0.1375
-= 2.01
+≈ 2.66
 ```
 
 ---
@@ -681,7 +781,7 @@ rm -rf scripts/weights/active/* scripts/weights/merged/* scripts/weights/runs/*
 # Small graphs only (~5 minutes)
 python3 scripts/graphbrew_experiment.py \
     --graphs-dir ./results/graphs \
-    --graphs small \
+    --size small \
     --phase reorder \
     --generate-maps
 
@@ -809,6 +909,20 @@ w_density         += lr * error * density
 w_degree_variance += lr * error * degree_variance
 w_hub_concentration += lr * error * hub_concentration
 
+# New graph-aware features
+w_packing_factor         += lr * error * packing_factor
+w_forward_edge_fraction  += lr * error * forward_edge_fraction
+w_working_set_ratio      += lr * error * log2(working_set_ratio + 1)
+
+# Quadratic interaction weights
+w_dv_x_hub   += lr * error * (degree_variance * hub_concentration)
+w_mod_x_logn += lr * error * (modularity * log_nodes)
+w_pf_x_wsr   += lr * error * (packing_factor * log2(working_set_ratio + 1))
+
+# Convergence weight (PR/SSSP benchmarks only)
+if benchmark in ('pr', 'sssp'):
+    w_fef_convergence += lr * error * forward_edge_fraction
+
 # Extended topology weights
 w_avg_path_length += lr * error * (avg_path_length / 10)
 w_diameter        += lr * error * (diameter / 50)
@@ -817,7 +931,14 @@ w_clustering_coeff += lr * error * clustering_coeff
 # Cache impact weights (when simulation data available)
 w_cache_l1_impact += lr * error * l1_hit_rate
 w_cache_dram_penalty += lr * error * dram_penalty
+
+# L2 Regularization (weight decay)
+WEIGHT_DECAY = 1e-4
+for key in all_w_and_cache_keys:
+    weights[key] *= (1.0 - WEIGHT_DECAY)
 ```
+
+> **L2 Regularization:** After each gradient update, all `w_*` and `cache_*` weights are decayed by a factor of `(1.0 - 1e-4)`. This prevents weight explosion during long training runs and improves generalization.
 
 ### When Algorithm Performs Well (speedup > 1.0)
 
@@ -827,7 +948,7 @@ error = speedup - 1.0 - current_score  # positive
 # Increase weights for features that predicted this success
 w_modularity += learning_rate * error * modularity
 w_hub_concentration += learning_rate * error * hub_concentration
-# ... etc for all features
+# ... etc for all features (including new ones)
 ```
 
 **Effect**: Algorithm gets higher scores for similar graphs in future.
@@ -842,6 +963,10 @@ w_modularity += learning_rate * error * modularity
 ```
 
 **Effect**: Algorithm gets lower scores for similar graphs in future.
+
+### ORIGINAL Is Now Trained
+
+Previously, `ORIGINAL` was skipped during correlation-based weight training. It is now trained like any other algorithm, allowing the perceptron to learn when *not reordering* is the best choice (e.g., small graphs, already well-ordered graphs, or graphs with weak community structure).
 
 ---
 
@@ -881,6 +1006,45 @@ ps aux | grep graphbrew
 # Kill if needed
 pkill -f graphbrew_experiment
 ```
+
+---
+
+## Cross-Validation (LOGO)
+
+To assess whether trained weights generalize well to unseen graphs, use **Leave-One-Graph-Out (LOGO) cross-validation**:
+
+```python
+from scripts.lib.weights import cross_validate_logo
+
+result = cross_validate_logo(
+    benchmark_results,     # benchmark data from experiments
+    graph_features,        # per-graph feature dicts
+    type_registry           # type registry with centroids
+)
+
+print(f"LOGO Accuracy:     {result['accuracy']:.1%}")
+print(f"Full-Train Accuracy: {result['full_training_accuracy']:.1%}")
+print(f"Overfitting Score: {result['overfitting_score']:.2f}")
+```
+
+**How it works:**
+1. For each graph, train weights on all *other* graphs
+2. Predict the best algorithm for the held-out graph
+3. Compare prediction to actual best algorithm
+4. Repeat for every graph → compute accuracy
+
+**Output fields:**
+| Field | Description |
+|-------|-------------|
+| `accuracy` | % of held-out graphs where prediction was correct |
+| `full_training_accuracy` | % when trained on all graphs (upper bound) |
+| `overfitting_score` | `full_training_accuracy - accuracy` (higher = more overfitting) |
+| `per_graph` | Detailed predictions for each held-out graph |
+
+**Warning:** An `overfitting_score > 0.2` suggests the weights are too specialized to the training set. Consider:
+- Adding more diverse graphs to the training set
+- Increasing L2 regularization (`WEIGHT_DECAY`)
+- Reducing the number of features or interactions
 
 ---
 

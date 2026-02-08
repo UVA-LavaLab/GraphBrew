@@ -18,3 +18,4 @@ cache_results
 scripts/weights/backup_before_reset/
 scripts/weights/
 test/
+agent.md

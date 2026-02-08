@@ -66,7 +66,7 @@ python3 scripts/graphbrew_experiment.py --full --size small
 # Customize experiments via command line
 python3 scripts/graphbrew_experiment.py \
     --phase benchmark \
-    --graphs small \
+    --size small \
     --benchmarks pr bfs cc \
     --trials 5
 ```
@@ -162,6 +162,13 @@ Per-algorithm weights for each cluster:
 | `w_avg_path_length` | Weight for average path length | Graph diameter sensitivity |
 | `w_diameter` | Weight for graph diameter | Diameter effect |
 | `w_community_count` | Weight for community count | Sub-community complexity |
+| `w_packing_factor` | Weight for avg_degree / max_degree | Degree uniformity (0-1) |
+| `w_forward_edge_fraction` | Weight for edges to higher-ID vertices | Ordering quality |
+| `w_working_set_ratio` | Weight for log₂(graph_bytes/LLC + 1) | Cache pressure |
+| `w_dv_x_hub` | Quadratic: degree_var × hub_conc | Power-law indicator |
+| `w_mod_x_logn` | Quadratic: modularity × log₁₀(nodes) | Large modular graph effect |
+| `w_pf_x_wsr` | Quadratic: packing × log₂(wsr+1) | Uniform-degree + cache overflow |
+| `w_fef_convergence` | Convergence bonus (PR/SSSP only) | Iterative convergence |
 | `cache_l1_impact` | Bonus for high L1 cache hit rate | Cache locality |
 | `cache_l2_impact` | Bonus for high L2 cache hit rate | Cache locality |
 | `cache_l3_impact` | Bonus for high L3 cache hit rate | Cache locality |

@@ -197,8 +197,6 @@ python3 scripts/graphbrew_experiment.py --phase weights
 #### Comprehensive Weight Training
 ```bash
 python3 scripts/graphbrew_experiment.py --train --size all --auto
-    --no-benchmark \
-    --output new_weights.json
 ```
 
 ---
@@ -551,12 +549,12 @@ score(algo, community) = bias_algo + Σ(w_feature × feature_value)
 ### Weight Derivation
 
 ```python
-# For each algorithm
+# For each algorithm (including ORIGINAL - no longer skipped)
 for algo in algorithms:
     # Get graphs where this algo was best
     wins = [g for g in graphs if best_algo[g] == algo]
     
-    # Compute feature correlations
+    # Compute feature correlations (15 linear features)
     for feature in features:
         # Binary: 1 if algo won, 0 otherwise
         y = [1 if g in wins else 0 for g in graphs]
@@ -565,8 +563,15 @@ for algo in algorithms:
         r = pearson_correlation(x, y)
         weights[algo][f"w_{feature}"] = r * SCALE_FACTOR
     
+    # Quadratic cross-terms are also updated via gradient descent
+    # (w_dv_x_hub, w_mod_x_logn, w_pf_x_wsr)
+    
+    # Convergence weight (w_fef_convergence) only for PR/SSSP benchmarks
+    
     # Bias from win rate
     weights[algo]["bias"] = 0.3 + (len(wins) / len(graphs)) * 0.7
+    
+    # L2 regularization applied after each update (decay = 1e-4)
 ```
 
 ---

@@ -259,7 +259,8 @@ scripts/weights/active/type_N.json           # Additional clusters as needed
       "bfs": 1.0,
       "cc": 1.0,
       "sssp": 1.0,
-      "bc": 1.0
+      "bc": 1.0,
+      "tc": 1.0
     }
   }
 }
@@ -292,7 +293,7 @@ This will:
 
 ## Complete Example: Locality-Sensitive Ordering
 
-### 1. Add Enum (in util.h)
+### 1. Add Enum (in reorder_types.h)
 
 ```cpp
 enum ReorderingAlgo {

@@ -36,6 +36,41 @@ ENABLE_RUN_LOGGING = True
 
 
 # =============================================================================
+# Adaptive Timeout
+# =============================================================================
+
+def compute_adaptive_timeout(edges: int, base_timeout: int = 600) -> int:
+    """
+    Compute a timeout that scales with graph size.
+
+    Small graphs (<1M edges) get the base timeout (default 600s).
+    Medium graphs (1M–10M) get 2× base.
+    Large graphs (10M–100M) get 4× base.
+    Very large graphs (>100M) get 8× base.
+
+    This prevents false-positive timeouts on large graphs while still
+    catching hangs and bugs quickly on small ones.
+
+    Args:
+        edges: Number of edges in the graph.
+        base_timeout: Base timeout in seconds (applied to <1M-edge graphs).
+
+    Returns:
+        Adjusted timeout in seconds.
+    """
+    if edges <= 0:
+        return base_timeout
+    if edges < 1_000_000:
+        return base_timeout
+    elif edges < 10_000_000:
+        return base_timeout * 2
+    elif edges < 100_000_000:
+        return base_timeout * 4
+    else:
+        return base_timeout * 8
+
+
+# =============================================================================
 # Output Parsing
 # =============================================================================
 
@@ -344,6 +379,12 @@ def run_benchmarks_multi_graph(
     
     total_configs = len(graphs) * len(algorithms) * len(benchmarks)
     completed = 0
+    skipped = 0
+    
+    # Track (graph, benchmark) combos where ORIGINAL or first algo timed out / crashed.
+    # If the baseline is intractable, every reordering variant will be too — skip them
+    # to avoid burning hours of timeout budget on a single graph×benchmark pair.
+    timed_out_combos: set = set()
     
     for graph in graphs:
         graph_name = graph.name
@@ -353,6 +394,11 @@ def run_benchmarks_multi_graph(
         if progress:
             progress.info(f"Benchmarking: {graph_name}")
         
+        # Adaptive timeout based on graph size
+        graph_timeout = compute_adaptive_timeout(graph.edges, timeout)
+        if graph_timeout != timeout and progress:
+            progress.info(f"  Adaptive timeout: {graph_timeout}s (edges={graph.edges:,})")
+
         for bench in benchmarks:
             if not check_binary_exists(bench, bin_dir):
                 log.warning(f"Skipping {bench}: binary not found")
@@ -361,6 +407,26 @@ def run_benchmarks_multi_graph(
             for algo_id in algorithms:
                 # Always include variant in name for algorithms that have variants
                 algo_name = get_algorithm_name_with_variant(algo_id)
+                
+                # Early-exit: skip remaining algorithms if this graph×benchmark
+                # already proved intractable (timeout or crash on a prior algorithm)
+                combo_key = (graph_name, bench)
+                if combo_key in timed_out_combos:
+                    result = BenchmarkResult(
+                        graph=graph_name,
+                        algorithm=algo_name,
+                        algorithm_id=algo_id,
+                        benchmark=bench,
+                        time_seconds=0.0,
+                        success=False,
+                        error="SKIPPED: prior algorithm timed out on this graph+benchmark"
+                    )
+                    result.nodes = graph.nodes
+                    result.edges = graph.edges
+                    results.append(result)
+                    completed += 1
+                    skipped += 1
+                    continue
                 
                 # Check if we have a label map
                 label_map_path = graph_label_maps.get(algo_name, "")
@@ -379,9 +445,24 @@ def run_benchmarks_multi_graph(
                     graph_path=graph_path,
                     algorithm=algo_opt,
                     trials=num_trials,
-                    timeout=timeout,
+                    timeout=graph_timeout,
                     bin_dir=bin_dir
                 )
+                
+                # Detect timeout or crash — mark this graph×benchmark as intractable
+                if not result.success:
+                    err_lower = (result.error or "").lower()
+                    is_timeout = "timed out" in err_lower or "timeout" in err_lower
+                    is_crash = "exit code -" in err_lower or "signal" in err_lower
+                    if is_timeout or is_crash:
+                        timed_out_combos.add(combo_key)
+                        remaining = len(algorithms) - (algorithms.index(algo_id) + 1) if algo_id in algorithms else 0
+                        if progress:
+                            reason = "TIMEOUT" if is_timeout else f"CRASH ({result.error[:60]})"
+                            progress.info(
+                                f"  ⚠ {reason}: {algo_name} on {bench}/{graph_name} — "
+                                f"skipping {remaining} remaining algorithms for this combo"
+                            )
                 
                 # Enrich result with metadata
                 result.graph = graph_name
@@ -410,6 +491,9 @@ def run_benchmarks_multi_graph(
                 
                 if progress and completed % 10 == 0:
                     progress.info(f"  Progress: {completed}/{total_configs}")
+    
+    if skipped > 0:
+        log.info(f"Benchmark early-exit: skipped {skipped}/{total_configs} runs due to timeout/crash")
     
     # Save the graph properties cache after all benchmarks
     try:
