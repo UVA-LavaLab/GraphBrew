@@ -56,6 +56,10 @@
 #include <utility>
 #include <vector>
 
+#if defined(__linux__)
+#include <unistd.h>     // sysconf, _SC_LEVEL3_CACHE_SIZE
+#endif
+
 #include <omp.h>
 
 // Include the full graph.h instead of forward declaring CSRGraph
@@ -1125,6 +1129,13 @@ struct CommunityFeatures {
     
     // ---------- Performance Metrics ----------
     double reorder_time = 0.0;       ///< Estimated reordering time (if known)
+    
+    // ---------- Locality Metrics (IISWC'18 / GoGraph) ----------
+    double packing_factor = 0.0;     ///< Fraction of hub neighbors already co-located (nearby IDs)
+    double forward_edge_fraction = 0.0; ///< Fraction of edges (u,v) where ID(u) < ID(v)
+    
+    // ---------- System-Cache Metric (P-OPT) ----------
+    double working_set_ratio = 0.0;  ///< graph_bytes / LLC_size (>1 = exceeds cache)
 };
 
 /**
@@ -1487,6 +1498,21 @@ struct PerceptronWeights {
     double w_diameter = 0.0;         ///< Weight for diameter estimate
     double w_community_count = 0.0;  ///< Weight for community count
     
+    // ---------- Locality Feature Weights (IISWC'18 / GoGraph) ----------
+    double w_packing_factor = 0.0;     ///< Weight for packing factor (hub co-location)
+    double w_forward_edge_fraction = 0.0; ///< Weight for forward edge fraction (convergence)
+    
+    // ---------- System-Cache Feature Weight (P-OPT) ----------
+    double w_working_set_ratio = 0.0;  ///< Weight for working set ratio (graph_bytes / LLC)
+    
+    // ---------- Quadratic Interaction Weights ----------
+    double w_dv_x_hub = 0.0;            ///< degree_variance × hub_concentration (IISWC'18)
+    double w_mod_x_logn = 0.0;          ///< modularity × log_nodes (community-at-scale)
+    double w_pf_x_wsr = 0.0;            ///< packing_factor × working_set_ratio (cache-locality)
+    
+    // ---------- Convergence Bonus Weight (GoGraph) ----------
+    double w_fef_convergence = 0.0;     ///< Extra forward_edge_fraction weight for iterative algos (PR/SSSP)
+    
     // ---------- Cache Impact Weights ----------
     double cache_l1_impact = 0.0;    ///< L1 cache impact weight
     double cache_l2_impact = 0.0;    ///< L2 cache impact weight
@@ -1570,6 +1596,23 @@ struct PerceptronWeights {
         s += w_diameter * feat.diameter_estimate / 50.0;
         s += w_community_count * std::log10(feat.community_count + 1.0);
         
+        // Locality features (IISWC'18 Packing Factor, GoGraph forward edge fraction)
+        s += w_packing_factor * feat.packing_factor;
+        s += w_forward_edge_fraction * feat.forward_edge_fraction;
+        
+        // System-cache feature (P-OPT: cache hierarchy geometry)
+        // working_set_ratio > 1 means graph exceeds LLC, log scale to dampen
+        double log_wsr = std::log2(feat.working_set_ratio + 1.0);
+        s += w_working_set_ratio * log_wsr;
+        
+        // Quadratic interaction terms (paper-motivated cross-features)
+        // dv×hub: high variance + concentrated hubs → hub-based reordering wins
+        s += w_dv_x_hub * feat.degree_variance * feat.hub_concentration;
+        // mod×logN: community structure matters more at scale
+        s += w_mod_x_logn * feat.modularity * log_nodes;
+        // pf×wsr: packing + cache pressure interaction
+        s += w_pf_x_wsr * feat.packing_factor * log_wsr;
+        
         // Cache impact weights
         s += cache_l1_impact * 0.5;
         s += cache_l2_impact * 0.3;
@@ -1584,12 +1627,26 @@ struct PerceptronWeights {
     
     /**
      * @brief Compute score with benchmark-specific adjustment
+     * 
+     * For convergence-sensitive benchmarks (PR, SSSP), adds an extra
+     * forward_edge_fraction bonus (GoGraph: ordering direction affects
+     * Gauss-Seidel convergence speed). For traversal benchmarks (BFS,
+     * CC, TC), only locality matters.
+     *
      * @param feat Community features to evaluate
      * @param bench Benchmark type for adjustment
      * @return Adjusted score for this algorithm
      */
     double score(const CommunityFeatures& feat, BenchmarkType bench = BENCH_GENERIC) const {
-        return scoreBase(feat) * getBenchmarkMultiplier(bench);
+        double s = scoreBase(feat);
+        
+        // Convergence bonus: iterative algorithms benefit from ordering
+        // that respects data-flow direction (forward edges → faster convergence)
+        if (bench == BENCH_PR || bench == BENCH_SSSP) {
+            s += w_fef_convergence * feat.forward_edge_fraction;
+        }
+        
+        return s * getBenchmarkMultiplier(bench);
     }
 };
 
@@ -2723,6 +2780,19 @@ inline bool ParseWeightsFromJSON(const std::string& json_content,
         }
     };
     
+    // Find matching closing brace, accounting for nested objects
+    auto find_matching_brace = [](const std::string& s, size_t open_pos) -> size_t {
+        int depth = 1;
+        for (size_t i = open_pos + 1; i < s.size(); i++) {
+            if (s[i] == '{') depth++;
+            else if (s[i] == '}') {
+                depth--;
+                if (depth == 0) return i;
+            }
+        }
+        return std::string::npos;
+    };
+    
     // Use the shared algorithm name map
     const auto& name_to_algo = getAlgorithmNameMap();
     
@@ -2730,10 +2800,11 @@ inline bool ParseWeightsFromJSON(const std::string& json_content,
         size_t pos = json_content.find("\"" + kv.first + "\"");
         if (pos == std::string::npos) continue;
         
-        // Find the block for this algorithm
+        // Find the block for this algorithm (with proper brace matching
+        // to handle nested objects like benchmark_weights and _metadata)
         size_t start = json_content.find('{', pos);
         if (start == std::string::npos) continue;
-        size_t end = json_content.find('}', start);
+        size_t end = find_matching_brace(json_content, start);
         if (end == std::string::npos) continue;
         
         std::string block = json_content.substr(start, end - start + 1);
@@ -2763,6 +2834,21 @@ inline bool ParseWeightsFromJSON(const std::string& json_content,
         
         // Reorder time weight
         w.w_reorder_time = find_double(block, "w_reorder_time");
+        
+        // Locality feature weights (IISWC'18 / GoGraph)
+        w.w_packing_factor = find_double(block, "w_packing_factor");
+        w.w_forward_edge_fraction = find_double(block, "w_forward_edge_fraction");
+        
+        // System-cache feature weight (P-OPT)
+        w.w_working_set_ratio = find_double(block, "w_working_set_ratio");
+        
+        // Quadratic interaction weights
+        w.w_dv_x_hub = find_double(block, "w_dv_x_hub");
+        w.w_mod_x_logn = find_double(block, "w_mod_x_logn");
+        w.w_pf_x_wsr = find_double(block, "w_pf_x_wsr");
+        
+        // Convergence bonus weight (GoGraph)
+        w.w_fef_convergence = find_double(block, "w_fef_convergence");
         
         // Parse _metadata block for avg_speedup and avg_reorder_time
         size_t meta_pos = block.find("\"_metadata\"");
@@ -3017,9 +3103,11 @@ inline constexpr const char* TYPE_WEIGHTS_DIR = "scripts/weights/active/";
  * 
  * When the Euclidean distance to the closest type centroid exceeds this
  * threshold, the graph is considered "unknown" or "distant" from the
- * training distribution.
+ * training distribution. With [0,1]-normalized features in 7D,
+ * max possible distance is sqrt(7) ≈ 2.65. A threshold of 1.5 means
+ * the graph is ~57% of max distance from any known centroid.
  */
-inline constexpr double UNKNOWN_TYPE_DISTANCE_THRESHOLD = 50.0;
+inline constexpr double UNKNOWN_TYPE_DISTANCE_THRESHOLD = 1.5;
 
 // ============================================================================
 // PERCEPTRON WEIGHT SELECTION HELPERS
@@ -3103,9 +3191,9 @@ inline ReorderingAlgo SelectFastestReorderFromWeights(
 inline std::string FindBestTypeWithDistance(
     double modularity, double degree_variance, double hub_concentration,
     double avg_degree, size_t num_nodes, size_t num_edges,
-    double& out_distance, bool verbose = false) {
+    double& out_distance, bool verbose = false,
+    double clustering_coeff = 0.0) {
     
-    (void)avg_degree;  // Mark as intentionally unused
     out_distance = 999999.0;  // Default: very high distance (unknown)
     
     // Try to load type registry
@@ -3126,22 +3214,26 @@ inline std::string FindBestTypeWithDistance(
     double best_distance = 999999.0;
     
     // Normalize features for distance calculation
-    double log_nodes = log10(std::max(1.0, (double)num_nodes));
-    double log_edges = log10(std::max(1.0, (double)num_edges));
-    double max_log_nodes = 9.0;  // ~1 billion nodes
-    double max_log_edges = 11.0; // ~100 billion edges
-    double max_edges = num_nodes > 1 ? num_nodes * (num_nodes - 1) / 2.0 : 1.0;
-    double density = num_edges / max_edges;
+    // MUST match Python lib/weights.py _normalize_features() exactly:
+    //   ranges: modularity [0,1], degree_variance [0,5], hub_concentration [0,1],
+    //           avg_degree [0,100], clustering_coefficient [0,1],
+    //           log_nodes [3,10], log_edges [3,12]
+    //   normalize: (val - lo) / (hi - lo), clamped to [0,1]
+    double log_nodes = log10(std::max(1.0, (double)num_nodes) + 1.0);
+    double log_edges = log10(std::max(1.0, (double)num_edges) + 1.0);
     
-    // Feature vector: [modularity, degree_variance, hub_concentration, density, 0, log_nodes_norm, log_edges_norm]
+    auto clamp01 = [](double v) { return std::max(0.0, std::min(1.0, v)); };
+    
+    // Feature vector: [modularity, degree_variance, hub_concentration, avg_degree,
+    //                  clustering_coeff, log_nodes_norm, log_edges_norm]
     std::vector<double> query_vec = {
-        modularity,
-        std::min(1.0, degree_variance),
-        hub_concentration,
-        std::min(0.1, density),  // Cap density contribution
-        0.0,  // Placeholder
-        log_nodes / max_log_nodes,
-        log_edges / max_log_edges
+        clamp01(modularity),                          // [0,1] → [0,1]
+        clamp01(degree_variance / 5.0),               // [0,5] → [0,1]
+        clamp01(hub_concentration),                    // [0,1] → [0,1]
+        clamp01(avg_degree / 100.0),                   // [0,100] → [0,1]
+        clamp01(clustering_coeff),                     // [0,1] → [0,1]
+        clamp01((log_nodes - 3.0) / 7.0),             // [3,10] → [0,1]
+        clamp01((log_edges - 3.0) / 9.0)              // [3,12] → [0,1]
     };
     
     // Parse types from JSON (simplified parsing)
@@ -3220,11 +3312,13 @@ inline std::string FindBestTypeWithDistance(
  */
 inline std::string FindBestTypeFromFeatures(
     double modularity, double degree_variance, double hub_concentration,
-    double avg_degree, size_t num_nodes, size_t num_edges, bool verbose = false) {
+    double avg_degree, size_t num_nodes, size_t num_edges, bool verbose = false,
+    double clustering_coeff = 0.0) {
     
     double distance;  // Unused
     return FindBestTypeWithDistance(modularity, degree_variance, hub_concentration,
-                                    avg_degree, num_nodes, num_edges, distance, verbose);
+                                    avg_degree, num_nodes, num_edges, distance, verbose,
+                                    clustering_coeff);
 }
 
 // ============================================================================
@@ -3345,7 +3439,8 @@ inline std::map<ReorderingAlgo, PerceptronWeights> LoadPerceptronWeightsForGraph
  */
 inline std::map<ReorderingAlgo, PerceptronWeights> LoadPerceptronWeightsForFeatures(
     double modularity, double degree_variance, double hub_concentration,
-    double avg_degree, size_t num_nodes, size_t num_edges, bool verbose = false) {
+    double avg_degree, size_t num_nodes, size_t num_edges, bool verbose = false,
+    double clustering_coeff = 0.0) {
     
     // Start with defaults - this ensures ALL algorithms have weights
     auto weights = GetPerceptronWeights();
@@ -3379,7 +3474,7 @@ inline std::map<ReorderingAlgo, PerceptronWeights> LoadPerceptronWeightsForFeatu
     // 1. Try to find matching type from type registry (type_0, type_1, etc.)
     std::string best_type = FindBestTypeFromFeatures(
         modularity, degree_variance, hub_concentration,
-        avg_degree, num_nodes, num_edges, verbose);
+        avg_degree, num_nodes, num_edges, verbose, clustering_coeff);
     
     if (!best_type.empty()) {
         std::string type_file = std::string(TYPE_WEIGHTS_DIR) + best_type + ".json";
@@ -3463,10 +3558,24 @@ inline const std::map<ReorderingAlgo, PerceptronWeights>& GetCachedWeights(
 // ============================================================================
 
 /**
+ * Minimum margin by which a reordering algorithm's score must exceed ORIGINAL's
+ * score for it to be selected. This prevents reordering when the predicted
+ * benefit is too small to justify the overhead. (IISWC'18: reorder overhead
+ * often exceeds speedup for marginal cases.)
+ * 
+ * The threshold is benchmark-dependent: convergence-heavy benchmarks (PR, SSSP)
+ * may benefit more from reordering than traversal-based ones (BFS).
+ */
+constexpr double ORIGINAL_MARGIN_THRESHOLD = 0.05;
+
+/**
  * Select best reordering algorithm using perceptron scores.
  * 
  * Evaluates all candidate algorithms and returns the one with
  * the highest perceptron score based on community features.
+ * Applies a margin-based ORIGINAL fallback: if the best non-ORIGINAL
+ * algorithm doesn't exceed ORIGINAL's score by at least
+ * ORIGINAL_MARGIN_THRESHOLD, ORIGINAL is returned instead.
  * 
  * @param feat Community features for scoring
  * @param weights Pre-loaded perceptron weights
@@ -3480,12 +3589,26 @@ inline ReorderingAlgo SelectReorderingFromWeights(
     
     ReorderingAlgo best_algo = ORIGINAL;
     double best_score = -std::numeric_limits<double>::infinity();
+    double original_score = -std::numeric_limits<double>::infinity();
     
     for (const auto& kv : weights) {
         double score = kv.second.score(feat, bench);
+        if (kv.first == ORIGINAL) {
+            original_score = score;
+        }
         if (score > best_score) {
             best_score = score;
             best_algo = kv.first;
+        }
+    }
+    
+    // Margin-based ORIGINAL fallback (IISWC'18):
+    // If the best algorithm doesn't beat ORIGINAL by a sufficient margin,
+    // the reordering overhead likely exceeds the benefit.
+    if (best_algo != ORIGINAL && original_score > -1e30) {
+        double margin = best_score - original_score;
+        if (margin < ORIGINAL_MARGIN_THRESHOLD) {
+            return ORIGINAL;
         }
     }
     
@@ -3534,7 +3657,7 @@ inline ReorderingAlgo SelectReorderingPerceptronWithFeatures(
     // Load weights based on features (tries type_0.json first, then semantic types)
     auto weights = LoadPerceptronWeightsForFeatures(
         global_modularity, global_degree_variance, global_hub_concentration,
-        feat.avg_degree, num_nodes, num_edges, false);
+        feat.avg_degree, num_nodes, num_edges, false, feat.clustering_coeff);
     
     return SelectReorderingFromWeights(feat, weights, bench);
 }
@@ -3575,13 +3698,29 @@ inline ReorderingAlgo SelectReorderingWithMode(
     double type_distance = 0.0;
     std::string best_type = FindBestTypeWithDistance(
         global_modularity, global_degree_variance, global_hub_concentration,
-        feat.avg_degree, num_nodes, num_edges, type_distance, verbose);
+        feat.avg_degree, num_nodes, num_edges, type_distance, verbose,
+        feat.clustering_coeff);
     
     // For UNKNOWN graphs (high distance), we still use perceptron with the
     // closest type's weights - that's the whole point of type-based matching.
+    // However, if the distance is very high, the prediction is unreliable.
     if (verbose && (type_distance > UNKNOWN_TYPE_DISTANCE_THRESHOLD || best_type.empty())) {
         std::cout << "Note: Graph has high type distance (" << type_distance 
                   << ") - using closest type '" << best_type << "' for perceptron weights\n";
+    }
+    
+    // OOD guardrail: if graph is too far from any known type centroid,
+    // perceptron predictions are unreliable (extrapolating beyond training
+    // distribution). Fall back to ORIGINAL for safety.
+    // Exception: MODE_FASTEST_REORDER (reorder speed doesn't depend on graph features)
+    bool ood = IsDistantGraphType(type_distance) || best_type.empty();
+    if (ood && mode != MODE_FASTEST_REORDER) {
+        if (verbose) {
+            std::cout << "OOD guardrail: type_distance=" << type_distance
+                      << " > threshold=" << UNKNOWN_TYPE_DISTANCE_THRESHOLD
+                      << ", falling back to ORIGINAL\n";
+        }
+        return ORIGINAL;
     }
     
     // Handle each mode
@@ -3590,7 +3729,7 @@ inline ReorderingAlgo SelectReorderingWithMode(
             // Load weights for the matched type
             auto weights = LoadPerceptronWeightsForFeatures(
                 global_modularity, global_degree_variance, global_hub_concentration,
-                feat.avg_degree, num_nodes, num_edges, false);
+                feat.avg_degree, num_nodes, num_edges, false, feat.clustering_coeff);
             
             // Select algorithm with highest w_reorder_time (fastest reorder)
             ReorderingAlgo fastest = SelectFastestReorderFromWeights(weights, verbose);
@@ -3616,7 +3755,7 @@ inline ReorderingAlgo SelectReorderingWithMode(
             // We add an extra multiplier here for end-to-end optimization.
             auto weights = LoadPerceptronWeightsForFeatures(
                 global_modularity, global_degree_variance, global_hub_concentration,
-                feat.avg_degree, num_nodes, num_edges, false);
+                feat.avg_degree, num_nodes, num_edges, false, feat.clustering_coeff);
             
             ReorderingAlgo best_algo = ORIGINAL;
             double best_score = -std::numeric_limits<double>::infinity();
@@ -3645,7 +3784,7 @@ inline ReorderingAlgo SelectReorderingWithMode(
             // Select algorithm that amortizes reorder cost fastest
             auto weights = LoadPerceptronWeightsForFeatures(
                 global_modularity, global_degree_variance, global_hub_concentration,
-                feat.avg_degree, num_nodes, num_edges, false);
+                feat.avg_degree, num_nodes, num_edges, false, feat.clustering_coeff);
             
             ReorderingAlgo best_algo = ORIGINAL;
             double best_iters = std::numeric_limits<double>::infinity();
@@ -3835,7 +3974,25 @@ struct SampledDegreeFeatures {
     double avg_degree = 0.0;           ///< Sampled average degree
     double clustering_coeff = 0.0;     ///< Estimated clustering coefficient
     double estimated_modularity = 0.0; ///< Rough modularity estimate
+    double packing_factor = 0.0;       ///< Hub neighbor co-location (IISWC'18)
+    double forward_edge_fraction = 0.0;///< Fraction of edges (u,v) where u < v (GoGraph)
+    double working_set_ratio = 0.0;    ///< graph_bytes / LLC_size (P-OPT)
 };
+
+/**
+ * @brief Detect last-level cache (LLC) size in bytes.
+ * Uses sysconf on Linux, falls back to 30 MB (common desktop LLC).
+ */
+inline size_t GetLLCSizeBytes() {
+#if defined(__linux__)
+    // Try L3 first, fall back to L2
+    long llc = sysconf(_SC_LEVEL3_CACHE_SIZE);
+    if (llc > 0) return static_cast<size_t>(llc);
+    llc = sysconf(_SC_LEVEL2_CACHE_SIZE);
+    if (llc > 0) return static_cast<size_t>(llc);
+#endif
+    return 30ULL * 1024 * 1024;  // 30 MB fallback
+}
 
 /**
  * @brief Compute degree-based features via sampling
@@ -3896,6 +4053,82 @@ inline SampledDegreeFeatures ComputeSampledDegreeFeatures(
     }
     result.hub_concentration = (total_edge_sum > 0) ? 
         static_cast<double>(top_edge_sum) / total_edge_sum : 0.0;
+    
+    // Packing Factor (IISWC'18): measures how many hub neighbors are already
+    // co-located in memory (have nearby IDs). High packing = less benefit from
+    // hub-based reordering. Samples top-degree nodes and checks if their
+    // neighbors have IDs within a locality window.
+    {
+        size_t pf_samples = std::min(sample_size, static_cast<size_t>(500));
+        size_t hub_count = std::max(size_t(1), pf_samples / 10);
+        int64_t locality_window = std::max(int64_t(64), num_nodes / 100);
+        
+        // We already have sampled_degrees sorted in descending order
+        // Re-sample the actual hub nodes (not the sorted copy)
+        size_t total_neighbors = 0;
+        size_t colocated_neighbors = 0;
+        
+        for (size_t i = 0; i < hub_count; ++i) {
+            int64_t node = (num_nodes > static_cast<int64_t>(sample_size)) ?
+                static_cast<int64_t>((i * num_nodes) / sample_size) : static_cast<int64_t>(i);
+            int64_t deg = g.out_degree(node);
+            if (deg < 2) continue;
+            
+            for (auto n : g.out_neigh(node)) {
+                int64_t neighbor = static_cast<int64_t>(n);
+                total_neighbors++;
+                if (std::abs(neighbor - node) <= locality_window) {
+                    colocated_neighbors++;
+                }
+            }
+        }
+        
+        result.packing_factor = (total_neighbors > 0) ?
+            static_cast<double>(colocated_neighbors) / total_neighbors : 0.0;
+    }
+    
+    // Forward Edge Fraction (GoGraph): fraction of edges (u,v) where ID(u) < ID(v).
+    // High forward fraction = ordering already respects data flow direction.
+    // Important for async iterative algorithms (PR, SSSP).
+    {
+        size_t fef_samples = std::min(sample_size, static_cast<size_t>(2000));
+        size_t forward_count = 0;
+        size_t total_count = 0;
+        
+        for (size_t i = 0; i < fef_samples; ++i) {
+            int64_t node = (num_nodes > static_cast<int64_t>(fef_samples)) ?
+                static_cast<int64_t>((i * num_nodes) / fef_samples) : static_cast<int64_t>(i);
+            
+            for (auto n : g.out_neigh(node)) {
+                int64_t neighbor = static_cast<int64_t>(n);
+                total_count++;
+                if (node < neighbor) {
+                    forward_count++;
+                }
+            }
+        }
+        
+        result.forward_edge_fraction = (total_count > 0) ?
+            static_cast<double>(forward_count) / total_count : 0.5;
+    }
+    
+    // Working Set Ratio (P-OPT): graph_bytes / LLC_size
+    // Estimates how much of the graph's working set overflows the LLC.
+    // ratio ≈ 1 → graph fits in cache → reordering has limited benefit
+    // ratio >> 1 → graph exceeds cache → reordering can significantly help
+    {
+        int64_t num_edges = g.num_edges_directed();  // directed edge count
+        // CSR working set ≈ offsets array + edges array + vertex data
+        // offsets: (num_nodes+1) * sizeof(int64_t)
+        // edges:   num_edges * sizeof(int32_t)  (NodeID)
+        // vertex:  num_nodes * sizeof(double)   (PR values, distances, etc.)
+        size_t graph_bytes = static_cast<size_t>(num_nodes + 1) * sizeof(int64_t) +
+                             static_cast<size_t>(num_edges) * sizeof(int32_t) +
+                             static_cast<size_t>(num_nodes) * sizeof(double);
+        size_t llc_bytes = GetLLCSizeBytes();
+        result.working_set_ratio = (llc_bytes > 0) ?
+            static_cast<double>(graph_bytes) / llc_bytes : 0.0;
+    }
     
     // Optional: Compute clustering coefficient (expensive but useful)
     if (compute_clustering && sample_size >= 100) {
@@ -4306,6 +4539,82 @@ CommunityFeatures ComputeCommunityFeaturesStandalone(
                                std::log2(feat.num_nodes + 1);
         feat.diameter_estimate = feat.avg_path_length * 2.0;
         feat.community_count = 1.0;
+    }
+    
+    // Packing Factor (IISWC'18): for hub nodes, measure how many neighbors
+    // have nearby original IDs (already co-located in memory).
+    {
+        size_t hub_count = std::max(size_t(1), feat.num_nodes / 10);
+        int64_t locality_window = std::max(int64_t(64), 
+            static_cast<int64_t>(feat.num_nodes) / 100);
+        size_t total_neighbors = 0;
+        size_t colocated_neighbors = 0;
+        
+        size_t pf_samples = std::min(hub_count, std::min(size_t(200), feat.num_nodes));
+        
+        // Build sorted degree index for hub selection
+        std::vector<std::pair<size_t, size_t>> pf_deg_idx(feat.num_nodes);
+        for (size_t i = 0; i < feat.num_nodes; ++i) {
+            pf_deg_idx[i] = {internal_degrees[i], i};
+        }
+        std::partial_sort(pf_deg_idx.begin(),
+                          pf_deg_idx.begin() + std::min(pf_samples, feat.num_nodes),
+                          pf_deg_idx.end(),
+                          std::greater<std::pair<size_t, size_t>>());
+        
+        for (size_t i = 0; i < pf_samples; ++i) {
+            size_t idx = pf_deg_idx[i].second;
+            NodeID_ node = comm_nodes[idx];
+            
+            for (DestID_ neighbor : g.out_neigh(node)) {
+                NodeID_ dest = static_cast<NodeID_>(neighbor);
+                if (node_set.count(dest)) {
+                    total_neighbors++;
+                    if (std::abs(static_cast<int64_t>(dest) - static_cast<int64_t>(node)) 
+                        <= locality_window) {
+                        colocated_neighbors++;
+                    }
+                }
+            }
+        }
+        feat.packing_factor = (total_neighbors > 0) ?
+            static_cast<double>(colocated_neighbors) / total_neighbors : 0.0;
+    }
+    
+    // Forward Edge Fraction (GoGraph): fraction of edges where src < dst.
+    // Predicts convergence speed for async iterative algorithms.
+    {
+        size_t forward_count = 0;
+        size_t total_count = 0;
+        size_t fef_samples = std::min(feat.num_nodes, size_t(2000));
+        
+        for (size_t i = 0; i < fef_samples; ++i) {
+            size_t idx = (i * feat.num_nodes) / fef_samples;
+            NodeID_ node = comm_nodes[idx];
+            
+            for (DestID_ neighbor : g.out_neigh(node)) {
+                NodeID_ dest = static_cast<NodeID_>(neighbor);
+                if (node_set.count(dest)) {
+                    total_count++;
+                    if (static_cast<int64_t>(node) < static_cast<int64_t>(dest)) {
+                        forward_count++;
+                    }
+                }
+            }
+        }
+        feat.forward_edge_fraction = (total_count > 0) ?
+            static_cast<double>(forward_count) / total_count : 0.5;
+    }
+    
+    // Working Set Ratio (P-OPT): community_bytes / LLC_size
+    {
+        // Community CSR working set estimate
+        size_t comm_bytes = static_cast<size_t>(feat.num_nodes + 1) * sizeof(int64_t) +
+                            static_cast<size_t>(feat.num_edges * 2) * sizeof(int32_t) +
+                            static_cast<size_t>(feat.num_nodes) * sizeof(double);
+        size_t llc_bytes = GetLLCSizeBytes();
+        feat.working_set_ratio = (llc_bytes > 0) ?
+            static_cast<double>(comm_bytes) / llc_bytes : 0.0;
     }
     
     return feat;
