@@ -2544,6 +2544,19 @@ def run_experiment(args):
             })
         
         _progress.phase_end(f"Completed {len(benchmark_results)} benchmark runs")
+        
+        # Amortization report (auto-generated after benchmarking)
+        if benchmark_results and all_reorder_results:
+            try:
+                from scripts.lib.metrics import compute_amortization, format_amortization_table
+                from dataclasses import asdict as _asdict
+                _bench_dicts = [_asdict(r) for r in benchmark_results]
+                _reorder_dicts = [_asdict(r) for r in all_reorder_results]
+                _amort_report = compute_amortization(_bench_dicts, _reorder_dicts)
+                if _amort_report.entries:
+                    log("\n" + format_amortization_table(_amort_report, max_rows=25))
+            except Exception as e:
+                log(f"  Note: Amortization report skipped: {e}")
     
     # Phase 3: Cache Simulations
     if args.phase in ["all", "cache"] and not args.skip_cache:
@@ -2792,6 +2805,18 @@ def run_experiment(args):
             weights_dir=args.weights_dir,
             update_weights=True  # Always update incrementally in fill-weights
         )
+        
+        # Amortization report after fill-weights benchmarks
+        if benchmark_results and reorder_results:
+            try:
+                from scripts.lib.metrics import compute_amortization, format_amortization_table
+                _bench_dicts = [asdict(r) for r in benchmark_results]
+                _reorder_dicts = [asdict(r) for r in reorder_results]
+                _amort_report = compute_amortization(_bench_dicts, _reorder_dicts)
+                if _amort_report.entries:
+                    log("\n" + format_amortization_table(_amort_report, max_rows=25))
+            except Exception as e:
+                log(f"  Note: Amortization report skipped: {e}")
         
         # Phase 3: Cache Simulation
         log_section("Phase 3: Cache Simulation")
