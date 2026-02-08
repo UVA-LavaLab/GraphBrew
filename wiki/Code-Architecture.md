@@ -138,7 +138,7 @@ reorder/
 | `GraphBrewConfig` | `reorder_graphbrew.h` | variant, frequency, intra_algo, resolution, maxIterations, maxPasses |
 | `ReorderConfig` | `reorder_types.h` | Unified config: resolutionMode(AUTO), tolerance(1e-2), maxIterations(10), maxPasses(10), ordering(HIERARCHICAL) |
 
-All configs parse from CLI options via `FromOptions()`. Defaults are centralized constants in `reorder_types.h` (see [[AdaptiveOrder-ML#unified-configuration]]).
+All configs parse from CLI options via `FromOptions()`. Defaults are centralized constants in `reorder_types.h` (see [[AdaptiveOrder-ML#command-line-format]]).
 
 > ⚠️ Use `graphbrew::leiden::DEFAULT_RESOLUTION` or `adaptive::DEFAULT_RESOLUTION` explicitly — they are separate namespaces.
 

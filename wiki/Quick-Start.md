@@ -85,10 +85,6 @@ python3 scripts/graphbrew_experiment.py --full --size small --auto
 
 ---
 
-## ⚡ Faster Training Options
-
----
-
 ## Manual Setup (Step-by-Step)
 
 ### 1. Clone and Build (2 minutes)

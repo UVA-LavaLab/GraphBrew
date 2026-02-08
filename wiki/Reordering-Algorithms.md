@@ -428,7 +428,7 @@ Implements the full Leiden algorithm from: *"Fast Leiden Algorithm for Community
 - **Speed priority**: `gveturbo` — optional refinement skip
 - **High resolution** (1.0-2.0) creates more communities that fit better in cache — optimizing for locality, not sociological accuracy
 
-See [[Command-Line-Reference#leidencsr-resolution-modes]] for resolution mode syntax.
+See [[Command-Line-Reference#leidencsr-17]] for resolution mode syntax.
 
 ### VIBE: Unified Reordering Framework
 
@@ -446,7 +446,7 @@ See [[Command-Line-Reference#leidencsr-resolution-modes]] for resolution mode sy
 
 **Key ordering strategies:** `vibe` (hierarchical), `vibe:dfs`/`bfs` (dendrogram traversal), `vibe:dbg`/`corder` (within communities), `vibe:conn` (connectivity BFS, default), `vibe:hrab` (hybrid Leiden+RabbitOrder — best for web/geometric graphs).
 
-See [[Command-Line-Reference#vibe-variants]] for full option reference and [[Community-Detection]] for algorithm details.
+See [[Command-Line-Reference#leidencsr-17]] for full option reference and [[Community-Detection]] for algorithm details.
 
 ---
 

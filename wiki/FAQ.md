@@ -223,7 +223,7 @@ See [[Python-Scripts#-eval_weightspy---weight-evaluation--c-scoring-simulation]]
 
 ### Where are the trained weights saved?
 
-`scripts/weights/active/type_N.json` (per-cluster) + `type_registry.json` (graph→type map). Loading priority: env var → best type match → fallback defaults. See [[Perceptron-Weights#weight-loading-priority]].
+`scripts/weights/active/type_N.json` (per-cluster) + `type_registry.json` (graph→type map). Loading priority: env var → best type match → fallback defaults. See [[Perceptron-Weights#weight-file-location]].
 
 ### What's the difference between LeidenOrder and LeidenCSR?
 
@@ -257,7 +257,7 @@ See [[Troubleshooting]] for detailed solutions. Quick answers:
 ### How do I add a new reordering algorithm?
 
 See [[Adding-New-Algorithms]] for a complete guide:
-1. Add enum value in `builder.h`
+1. Add enum value in `reorder_types.h`
 2. Implement reorder function
 3. Add switch case
 4. (Optional) Add perceptron weights
