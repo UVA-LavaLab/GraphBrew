@@ -129,30 +129,44 @@ For RCM:
 
 ### Step 5: Generate Perceptron Weights
 
-Convert correlations to weights:
+The `compute_weights_from_results()` function converts benchmark data into perceptron weights using a multi-stage process:
+
+1. **Multi-restart perceptron training** (`N_RESTARTS=5`, `N_EPOCHS=800` per benchmark)
+2. **Z-score feature normalization** for stable SGD gradients
+3. **Variant pre-collapse**: keeps only the highest-bias variant per base algorithm
+4. **Regret-aware grid search** for per-benchmark multipliers (30 iterations × 32 values)
+
+The final weights reflect both feature correlations and benchmark-specific performance:
 
 ```python
-def correlation_to_weight(r, scale=0.35):
-    """Convert Pearson r to perceptron weight."""
-    # Scale and clip to reasonable range
-    return max(-0.3, min(0.3, r * scale))
+weights = compute_weights_from_results(
+    benchmark_results=bench_results,
+    reorder_results=reorder_results,
+    weights_dir="scripts/weights/active",
+)
+# Produces type_0.json with scoreBase weights + benchmark_weights multipliers
+```
 
-weights = {
-    "LeidenCSR": {
-        "bias": 0.85,  # Base preference (from win rate)
-        "w_modularity": 0.78 * 0.35,      # = 0.27
-        "w_hub_concentration": 0.45 * 0.35,  # = 0.16
-        "w_degree_variance": 0.52 * 0.35,    # = 0.18
-        "w_density": -0.23 * 0.35,           # = -0.08
-    },
-    "RCM": {
-        "bias": 0.55,
-        "w_modularity": -0.65 * 0.35,     # = -0.23
-        "w_hub_concentration": -0.72 * 0.35, # = -0.25
-        ...
+**Example result** (simplified):
+```json
+{
+  "LeidenCSR": {
+    "bias": 0.85,
+    "w_modularity": 0.27,
+    "w_hub_concentration": 0.16,
+    "w_degree_variance": 0.18,
+    "w_density": -0.08,
+    "benchmark_weights": {
+      "pr": 1.2,
+      "bfs": 0.95,
+      "cc": 1.1,
+      "sssp": 1.05
     }
+  }
 }
 ```
+
+> **Note:** The older correlation-to-weight approach (`r × scale`) has been superseded by multi-restart perceptron training which produces more robust weights. The correlation coefficients shown above remain useful for understanding *why* certain algorithms perform well on certain graph types.
 
 ---
 
@@ -549,30 +563,31 @@ score(algo, community) = bias_algo + Σ(w_feature × feature_value)
 ### Weight Derivation
 
 ```python
-# For each algorithm (including ORIGINAL - no longer skipped)
-for algo in algorithms:
-    # Get graphs where this algo was best
-    wins = [g for g in graphs if best_algo[g] == algo]
-    
-    # Compute feature correlations (15 linear features)
-    for feature in features:
-        # Binary: 1 if algo won, 0 otherwise
-        y = [1 if g in wins else 0 for g in graphs]
-        x = [feature_value[g][feature] for g in graphs]
-        
-        r = pearson_correlation(x, y)
-        weights[algo][f"w_{feature}"] = r * SCALE_FACTOR
-    
-    # Quadratic cross-terms are also updated via gradient descent
-    # (w_dv_x_hub, w_mod_x_logn, w_pf_x_wsr)
-    
-    # Convergence weight (w_fef_convergence) only for PR/SSSP benchmarks
-    
-    # Bias from win rate
-    weights[algo]["bias"] = 0.3 + (len(wins) / len(graphs)) * 0.7
-    
-    # L2 regularization applied after each update (decay = 1e-4)
+# compute_weights_from_results() multi-stage pipeline:
+
+# Stage 1: Multi-restart perceptrons (5 restarts × 800 epochs per benchmark)
+for bench in ['pr', 'bfs', 'cc', 'sssp']:
+    for restart in range(5):
+        seed = 42 + restart * 1000 + bench_index * 100
+        # Z-score normalize features, SGD with L2 decay (1e-4)
+        perceptron = train_perceptron(data, seed, epochs=800)
+    avg_weights[bench] = average(all_restarts)
+
+# Stage 2: Average across benchmarks for scoreBase()
+scoreBase_weights = average(avg_weights.values())
+
+# Stage 3: Pre-collapse variants (keep highest-bias per base algo)
+# Stage 4: Regret-aware grid search for benchmark_weights multipliers
+#   30 iterations, 32 log-spaced values [0.1, 10.0]
+#   Objective: max(accuracy, min(-mean_regret))
+
+# Bias from win rate (capped at 1.5)
+weights[algo]["bias"] = min(1.5, 0.3 + (len(wins) / len(graphs)) * 0.7)
+
+# L2 regularization applied after each SGD update (decay = 1e-4)
 ```
+
+**Validation:** After training, use `eval_weights.py` to simulate C++ scoring and measure accuracy/regret. Current results: 46.8% accuracy, 2.6% base-aware median regret on 47 graphs × 4 benchmarks.
 
 ---
 

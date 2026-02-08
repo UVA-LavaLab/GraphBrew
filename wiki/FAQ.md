@@ -203,6 +203,24 @@ RabbitOrder (algorithm 8) has two variants:
 
 See [[AdaptiveOrder-ML]] for details.
 
+### What is the training pipeline?
+
+The `compute_weights_from_results()` function trains weights in 4 stages:
+1. **Multi-restart perceptrons** (5 restarts × 800 epochs per benchmark, z-score normalized)
+2. **Variant pre-collapse** (keep highest-bias variant per base algorithm)
+3. **Regret-aware grid search** for benchmark multipliers (30 iterations × 32 values)
+4. **Save to `type_0.json`** with metadata
+
+Validate with `python3 scripts/eval_weights.py` — simulates C++ scoring and reports accuracy/regret.
+
+### What is regret-aware optimization?
+
+When optimizing per-benchmark multipliers, the pipeline jointly maximizes `(accuracy, −mean_regret)`. This prevents degenerate solutions where always predicting the same algorithm gives high accuracy but poor real-world performance. The grid search evaluates 30 random multiplier combinations across 32 log-spaced values.
+
+### Is there a single best algorithm?
+
+C++ validation on 47 graphs showed that **LeidenCSR** was selected for 99.5% of subcommunities (8,631/8,672). As a single algorithm, it achieves 2.9% median regret — very close to optimal per-community selection. LeidenCSR with `gveopt2` variant is recommended for most use cases.
+
 ### What is the OOD guardrail?
 
 The **Out-of-Distribution (OOD) guardrail** prevents AdaptiveOrder from making bad predictions on unfamiliar graphs. If a graph's features are too far from any trained type centroid (Euclidean distance > 1.5 in normalized 7D space), the system returns ORIGINAL instead of risking a wrong algorithm choice.
@@ -246,6 +264,24 @@ print(f"Overfitting score: {result['overfitting_score']:.2f}")
 ```
 
 An overfitting score > 0.2 means the model may not generalize well. Try adding more training graphs or increasing L2 regularization.
+
+### How do I validate trained weights without recompiling C++?
+
+Use `eval_weights.py`:
+```bash
+python3 scripts/eval_weights.py
+```
+
+This trains weights from your latest benchmark data, simulates C++ `scoreBase() × benchmarkMultiplier()` scoring, and reports accuracy/regret metrics. Current results: 46.8% accuracy, 2.6% base-aware median regret.
+
+### Why isn't parse_adaptive_output working?
+
+The `parse_adaptive_output()` function in `lib/analysis.py` expects C++ AdaptiveOrder output in the format:
+```
+Community 0: 12345 nodes, 67890 edges -> LeidenCSR
+```
+
+If you see parsing failures, ensure your C++ binary is up to date. The parser also supports the legacy format (`Community N: algo=Algorithm, nodes=X, edges=Y`) as a fallback.
 
 ### What is L2 regularization / weight decay?
 

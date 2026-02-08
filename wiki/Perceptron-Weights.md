@@ -731,6 +731,7 @@ To favor an algorithm regardless of graph features:
       | Reorder each  |
       | graph with    |
       | all 18 algos  |
+      | (58 variants) |
       +-------+-------+
               |
               v
@@ -742,20 +743,38 @@ To favor an algorithm regardless of graph features:
       +-------+-------+
               |
               v
-      +-------+-------+
-      | For each      |
-      | result:       |
-      | 1.Get speedup |
-      | 2.Get features|
-      | 3.Find type   |
-      | 4.Update wts  |
-      +-------+-------+
+      +-------+--------+
+      | PHASE 3:        |
+      | compute_weights |
+      | _from_results() |
+      +-------+---------+
               |
-              v
-+-------------+-------------+
-|  type_0.json | type_1.json |
-|  (social)    | (road)      |
-+--------------+-------------+
+     +--------+--------+
+     |                  |
+     v                  v
++----+-----+    +------+------+
+| Multi-   |    | Regret-Aware|
+| Restart  |    | Grid Search |
+| Percep-  |    | (benchmark  |
+| trons    |    |  multipliers)|
+| (5×800   |    | 30 iters ×  |
+|  epochs  |    | 32 values)  |
+|  per     |    +------+------+
+|  bench)  |           |
++----+-----+           |
+     |                  |
+     v                  v
++----+-----------------+----+
+| Pre-collapse variants:    |
+| keep highest-bias variant |
+| per base algorithm        |
++----+----------------------+
+     |
+     v
++----+------+---+
+| type_0.json   |
+| (C++ runtime) |
++---------------+
 ```
 
 ### Complete Training Workflow
@@ -967,6 +986,147 @@ w_modularity += learning_rate * error * modularity
 ### ORIGINAL Is Now Trained
 
 Previously, `ORIGINAL` was skipped during correlation-based weight training. It is now trained like any other algorithm, allowing the perceptron to learn when *not reordering* is the best choice (e.g., small graphs, already well-ordered graphs, or graphs with weak community structure).
+
+---
+
+## Multi-Restart Perceptron Training
+
+The `compute_weights_from_results()` function uses **multi-restart perceptrons** to avoid local minima and produce stable weights.
+
+### Configuration
+
+| Parameter | Value | Purpose |
+|-----------|-------|---------|
+| `N_RESTARTS` | 5 | Independent training runs per benchmark |
+| `N_EPOCHS` | 800 | Gradient steps per restart |
+| `WEIGHT_DECAY` | 1e-4 | L2 regularization factor |
+| `LEARNING_RATE` | 0.01 | SGD step size |
+
+### How It Works
+
+```python
+for bench in ['pr', 'bfs', 'cc', 'sssp']:
+    all_weights = []
+    for restart in range(N_RESTARTS):
+        seed = 42 + restart * 1000 + bench_index * 100  # Deterministic
+        rng = random.Random(seed)
+        
+        # Initialize weights near zero
+        weights = {algo: small_random_values(rng) for algo in algorithms}
+        
+        for epoch in range(N_EPOCHS):
+            # Z-score normalize features for stable gradients
+            features = z_score_normalize(raw_features)
+            
+            # SGD: update weights based on speedup error
+            for graph in training_graphs:
+                error = (speedup - 1.0) - current_score
+                weights[algo] += lr * error * features
+                
+            # L2 regularization
+            weights *= (1.0 - WEIGHT_DECAY)
+        
+        all_weights.append(weights)
+    
+    # Average across all restarts
+    final_weights[bench] = average(all_weights)
+
+# Average across benchmarks for scoreBase()
+scoreBase_weights = average(final_weights['pr'], final_weights['bfs'], ...)
+```
+
+### Why Multi-Restart?
+
+Single-run perceptrons are sensitive to:
+- **Weight initialization**: Different starting points find different optima
+- **Training order**: SGD shuffling creates variance
+- **Feature scaling**: Z-score normalization helps but doesn't eliminate all sensitivity
+
+By averaging 5 restarts, the bias and feature weights stabilize, reducing variance by ~√5.
+
+---
+
+## Regret-Aware Grid Search (Benchmark Multipliers)
+
+After training `scoreBase()` weights, the pipeline optimizes per-benchmark multipliers (`benchmark_weights`) using a **regret-aware grid search**.
+
+### What Are Benchmark Multipliers?
+
+The C++ score for algorithm `A` on benchmark `B` is:
+```
+finalScore(A, B) = scoreBase(A, features) × benchmarkMultiplier(A, B)
+```
+
+Different algorithms may excel at different benchmarks. The multipliers capture this:
+- `benchmarkMultiplier(LeidenCSR, pr) = 1.2` → boost for PageRank
+- `benchmarkMultiplier(DBG, bfs) = 0.8` → penalty for BFS
+
+### Grid Search Process
+
+```python
+# For each algorithm:
+for algo in algorithms:
+    best_multipliers = {b: 1.0 for b in benchmarks}
+    best_objective = (-inf, inf)  # (accuracy, mean_regret)
+    
+    for iteration in range(30):
+        # Random multiplier candidate from 32 log-spaced values [0.1, 10.0]
+        candidate = random.choice(MULTIPLIER_GRID)
+        target_bench = random.choice(benchmarks)
+        
+        trial = best_multipliers.copy()
+        trial[target_bench] = candidate
+        
+        # Simulate C++ scoring with these multipliers
+        accuracy, mean_regret = simulate_all_predictions(
+            scoreBase_weights, trial, graph_features, benchmark_results
+        )
+        
+        # Keep if better: higher accuracy OR same accuracy with lower regret
+        if (accuracy, -mean_regret) > best_objective:
+            best_multipliers = trial
+            best_objective = (accuracy, -mean_regret)
+    
+    weights[algo]['benchmark_weights'] = best_multipliers
+```
+
+### Why Regret-Aware?
+
+Pure accuracy optimization can lead to degenerate solutions (e.g., always predicting the same algorithm). By jointly optimizing `(accuracy, −mean_regret)`, the search:
+- **Prefers diverse predictions** that cover different graph types
+- **Penalizes catastrophic mispredictions** even when accuracy is high
+- **Produces practical weights** that minimize real-world performance loss
+
+### Variant Pre-Collapse
+
+Before saving to `type_0.json`, algorithm variants are collapsed:
+- Only the **highest-bias variant** per base algorithm is kept
+- Example: `LeidenCSR_gve` (bias=0.8), `LeidenCSR_gveopt2` (bias=0.9) → only `LeidenCSR` (bias=0.9) saved
+- The C++ `ParseWeightsFromJSON()` similarly keeps the highest-bias variant when loading
+
+---
+
+## Validating Weights with eval_weights.py
+
+After training, validate weights by simulating C++ scoring:
+
+```bash
+python3 scripts/eval_weights.py
+```
+
+This reports:
+- **Accuracy**: % of correct predictions (base-algorithm level)
+- **Regret**: How much slower the predicted algorithm is vs the actual best
+- **Top-2 accuracy**: % where prediction is in top 2
+- **Per-benchmark breakdown**: Accuracy per benchmark type
+
+Current metrics (47 graphs × 4 benchmarks = 188 predictions):
+- **46.8% accuracy** (88/188 correct)
+- **2.6% base-aware median regret** (selected algorithm is typically within 2.6% of optimal)
+- **64.9% top-2 accuracy**
+- **13 unique predictions** across all graphs/benchmarks
+
+See [[Python-Scripts#-eval_weightspy---weight-evaluation--c-scoring-simulation]] for details.
 
 ---
 

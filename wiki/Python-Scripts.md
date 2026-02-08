@@ -11,6 +11,7 @@ scripts/
 ├── graphbrew_experiment.py      # ⭐ MAIN: Orchestration script (~3500 lines)
 ├── perceptron_experiment.py     # 🧪 ML weight experimentation (without re-running phases)
 ├── adaptive_emulator.py         # 🔍 C++ AdaptiveOrder logic emulation (Python)
+├── eval_weights.py              # 📊 Weight evaluation: train → simulate C++ scoring → report accuracy
 ├── requirements.txt             # Python dependencies
 │
 ├── lib/                         # 📦 Modular library (~14300 lines total)
@@ -249,6 +250,90 @@ Layer 2: Algorithm Selection
 
 Use **adaptive_emulator.py** when you want to understand why a specific algorithm was selected.
 Use **perceptron_experiment.py** when you want to train better weights.
+
+---
+
+## 📊 eval_weights.py - Weight Evaluation & C++ Scoring Simulation
+
+**Quick evaluation script that trains weights, simulates C++ `scoreBase() × benchmarkMultiplier()` scoring, and reports accuracy/regret metrics.**
+
+This is the fastest way to validate that your trained weights actually produce good algorithm selections without recompiling C++ or running live benchmarks.
+
+### Quick Start
+
+```bash
+python3 scripts/eval_weights.py
+```
+
+### What It Does
+
+1. **Loads** the latest `benchmark_*.json` and `reorder_*.json` from `results/`
+2. **Trains** weights via `compute_weights_from_results()` (multi-restart perceptrons + regret-aware grid search)
+3. **Saves** weights to `scripts/weights/active/type_0.json`
+4. **Simulates** C++ scoring: for each (graph, benchmark), computes `scoreBase(algo, features) × benchmarkMultiplier(algo, bench)` for all algorithms
+5. **Compares** predicted winner vs actual fastest algorithm (base-aware: variants of same algorithm count as correct)
+6. **Reports** accuracy, regret, top-2 accuracy, and per-benchmark breakdown
+
+### Output Metrics
+
+| Metric | Description |
+|--------|-------------|
+| **Accuracy** | % of (graph, benchmark) pairs where predicted base algorithm matches actual best |
+| **Top-2 accuracy** | % where prediction is in the top 2 fastest algorithms |
+| **Avg regret** | Average (predicted_time − best_time) / best_time across all predictions |
+| **Median regret** | Median of the above (more robust to outliers) |
+| **Base-aware regret** | Same as regret, but variant mismatches within the same base = 0% |
+| **Per-benchmark accuracy** | Breakdown by pr, bfs, cc, sssp |
+
+### Example Output
+
+```
+=== Simulating C++ adaptive selection ===
+
+Overall accuracy: 88/188 = 46.8%
+Unique predicted algorithms: 13: ['DBG', 'GORDER', 'HUBCLUSTER', ...]
+
+Per-benchmark accuracy:
+  bfs: 25/47 = 53.2%
+  cc:  20/47 = 42.6%
+  pr:  22/47 = 46.8%
+  sssp: 21/47 = 44.7%
+
+Average regret: 10.1% (lower is better)
+Top-2 accuracy: 122/188 = 64.9%
+Median regret: 5.6%
+Base-aware avg regret: 6.2% (variant mismatches = 0%)
+Base-aware median regret: 2.6%
+```
+
+### How C++ Scoring Is Simulated
+
+```python
+def simulate_score(algo_data, feats, bench_type):
+    """Mimic C++ scoreBase() * benchmarkMultiplier()"""
+    s = algo_data['bias']
+    s += algo_data['w_modularity'] * feats['modularity']
+    s += algo_data['w_log_nodes'] * feats['log_nodes']
+    s += algo_data['w_log_edges'] * feats['log_edges']
+    s += algo_data['w_density'] * feats['density']
+    s += algo_data['w_avg_degree'] * feats['avg_degree'] / 100.0
+    s += algo_data['w_degree_variance'] * feats['degree_variance']
+    s += algo_data['w_hub_concentration'] * feats['hub_concentration']
+    s += algo_data['w_clustering_coeff'] * feats['clustering_coefficient']
+    # ... (all features)
+    
+    # Benchmark multiplier from regret-aware grid search
+    mult = algo_data['benchmark_weights'][bench_type]
+    return s * mult
+```
+
+### vs Other Tools
+
+| Tool | Purpose | Updates Weights? |
+|------|---------|------------------|
+| `eval_weights.py` | Train + evaluate + report accuracy/regret | ✅ Yes |
+| `adaptive_emulator.py` | Emulate C++ selection logic for debugging | ❌ No |
+| `perceptron_experiment.py` | Grid search over training configurations | ✅ Yes |
 
 ---
 
@@ -639,8 +724,9 @@ from scripts.lib.weights import (
     update_type_weights_incremental,
     get_best_algorithm_for_type,
     load_type_registry,
-    cross_validate_logo,              # NEW: Leave-One-Graph-Out validation
-    compute_weights_from_results,     # Correlation-based weight computation
+    cross_validate_logo,              # Leave-One-Graph-Out validation
+    compute_weights_from_results,     # Multi-restart perceptron + regret-aware grid search
+    get_all_algorithm_variant_names,  # All 58 variant names for training
 )
 
 # Assign graph to a type based on features
@@ -656,6 +742,44 @@ best_algo = get_best_algorithm_for_type(type_name, benchmark="pr")
 result = cross_validate_logo(benchmark_results, graph_features, type_registry)
 print(f"LOGO accuracy: {result['accuracy']:.1%}")
 print(f"Overfitting score: {result['overfitting_score']:.2f}")
+```
+
+#### `compute_weights_from_results()` — The Training Pipeline
+
+This is the primary weight training function. It trains perceptron weights from benchmark data and saves them to `type_0.json`:
+
+```python
+weights = compute_weights_from_results(
+    benchmark_results=bench_results,     # List[BenchmarkResult]
+    reorder_results=reorder_results,     # List[BenchmarkResult] (reorder timings)
+    weights_dir="scripts/weights/active",
+)
+```
+
+**Training steps:**
+
+1. **Multi-restart perceptrons** (`N_RESTARTS=5`, `N_EPOCHS=800`):
+   - For each benchmark (pr, bfs, cc, sssp), trains 5 independent perceptrons with deterministic seeding (`seed = 42 + restart*1000 + bench*100`)
+   - Uses z-score feature normalization for stable gradients
+   - SGD with L2 regularization (`WEIGHT_DECAY = 1e-4`)
+   - Averages all per-benchmark perceptron weights to produce `scoreBase()` weights
+
+2. **Pre-collapse variants**: Merges algorithm variants (e.g., `LeidenCSR_gve`, `LeidenCSR_gveopt2`) into base algorithms, keeping only the highest-bias variant
+
+3. **Regret-aware grid search** for `benchmark_weights`:
+   - 30 random iterations over 32 multiplier values per benchmark
+   - Jointly optimizes `(accuracy, −mean_regret)` to find per-benchmark multipliers
+   - Simulates C++ scoring: `scoreBase(algo, features) × benchmarkMultiplier(algo, bench)`
+
+4. **Saves** final weights to `type_0.json` with `_metadata` section
+
+#### `get_all_algorithm_variant_names()`
+
+Returns all 58 algorithm variant names used in training (matching C++ `getAlgorithmNameMap()`):
+
+```python
+names = get_all_algorithm_variant_names()
+# ['ORIGINAL', 'RANDOM', 'SORT', 'HUBSORT', ..., 'LeidenCSR_vibe_rabbit_dbg']
 ```
 
 **PerceptronWeight dataclass** fields (all used in scoring):
@@ -701,6 +825,7 @@ from scripts.lib.analysis import (
     analyze_adaptive_order,
     compare_adaptive_vs_fixed,
     run_subcommunity_brute_force,
+    parse_adaptive_output,           # Parse C++ AdaptiveOrder output
 )
 
 # Analyze adaptive ordering
@@ -708,6 +833,26 @@ results = analyze_adaptive_order(graphs, bin_dir="bench/bin")
 
 # Compare adaptive vs fixed algorithms
 comparison = compare_adaptive_vs_fixed(graphs, fixed_algorithms=[7, 15, 16])
+```
+
+#### `parse_adaptive_output(output)` — C++ Output Parser
+
+Parses the per-community algorithm assignment from C++ AdaptiveOrder (`-o 14`) stdout:
+
+```python
+communities = parse_adaptive_output(output_text)
+# Returns: [{'id': 0, 'algorithm': 'LeidenCSR', 'nodes': 12345, 'edges': 67890}, ...]
+```
+
+**Regex format** (matches C++ output):
+```
+Community 0: 12345 nodes, 67890 edges -> LeidenCSR
+```
+
+Also supports legacy format for backward compatibility:
+```
+Community 0: algo=LeidenCSR, nodes=12345, edges=67890
+```
 ```
 
 ### lib/progress.py - Progress Tracking
