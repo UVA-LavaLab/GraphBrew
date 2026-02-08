@@ -381,111 +381,18 @@ void GenerateAdaptiveMappingUnified(
 
 ### Weight Structure
 
-Each algorithm has weights for each feature. The weights file supports multiple categories:
+Each algorithm has weights for each feature. See [[Perceptron-Weights#file-structure]] for full JSON format, all weight categories, and tuning strategies.
 
-```json
-{
-  "LeidenCSR": {
-    "bias": 0.58,
-    "w_modularity": 0.0,
-    "w_log_nodes": 0.001,
-    "w_log_edges": 8.5e-05,
-    "w_density": -0.001,
-    "w_avg_degree": 0.00017,
-    "w_degree_variance": 0.001,
-    "w_hub_concentration": 0.001,
-    "w_clustering_coeff": 0.0,
-    "w_avg_path_length": 0.0,
-    "w_diameter": 0.0,
-    "w_community_count": 0.0,
-    "w_packing_factor": 0.0,
-    "w_forward_edge_fraction": 0.0,
-    "w_working_set_ratio": 0.0,
-    "w_dv_x_hub": 0.0,
-    "w_mod_x_logn": 0.0,
-    "w_pf_x_wsr": 0.0,
-    "w_fef_convergence": 0.0,
-    "w_reorder_time": -0.0087,
-    "cache_l1_impact": 0,
-    "cache_l2_impact": 0,
-    "cache_l3_impact": 0,
-    "cache_dram_penalty": 0,
-    "benchmark_weights": {
-      "pr": 1.0,
-      "bfs": 1.0,
-      "cc": 1.0,
-      "sssp": 1.0,
-      "bc": 1.0
-    },
-    "_metadata": {
-      "win_rate": 1.0,
-      "avg_speedup": 1.17,
-      "times_best": 16,
-      "sample_count": 16,
-      "avg_reorder_time": 8.7,
-      "avg_l1_hit_rate": 0.0,
-      "avg_l2_hit_rate": 0.0,
-      "avg_l3_hit_rate": 0.0
-    }
-  }
-}
-```
+### Benchmark-Specific Scoring
 
-**Weight Categories:**
-
-| Category | Fields | Usage |
-|----------|--------|-------|
-| **Core weights** | `bias`, `w_modularity`, `w_density`, `w_degree_variance`, `w_hub_concentration`, `w_log_nodes`, `w_log_edges`, `w_avg_degree` | Used in C++ runtime scoring |
-| **Extended graph structure** | `w_clustering_coeff`, `w_avg_path_length`, `w_diameter`, `w_community_count` | Used in C++ runtime if features available |
-| **New graph-aware** | `w_packing_factor`, `w_forward_edge_fraction`, `w_working_set_ratio` | Degree uniformity, ordering quality, cache pressure |
-| **Quadratic interactions** | `w_dv_x_hub`, `w_mod_x_logn`, `w_pf_x_wsr` | Non-linear feature cross-terms |
-| **Convergence** | `w_fef_convergence` | Bonus for PR/SSSP benchmarks only |
-| **Reorder time** | `w_reorder_time` | Penalty for slow reordering (used in C++) |
-| **Cache impact** | `cache_l1_impact`, `cache_l2_impact`, `cache_l3_impact`, `cache_dram_penalty` | Used during Python training to adjust `bias` |
-| **Per-benchmark multipliers** | `benchmark_weights.{pr,bfs,cc,sssp,bc,tc}` | Benchmark-specific score adjustments |
-| **Metadata** | `_metadata.*` | Statistics, not used in scoring |
-
-### Benchmark-Specific Weights (NEW)
-
-The perceptron supports **benchmark-specific tuning**. Some algorithms perform differently across workloads:
-- **PageRank**: Iterative, benefits from cache locality
-- **BFS**: Traversal-heavy, benefits from hub ordering
-- **SSSP**: Priority-queue based, different access patterns
-
-**Benchmark Types (C++ Enum):**
+The perceptron supports per-benchmark multipliers via `benchmark_weights` in each algorithm's weight entry. The final score is `base_score × benchmark_weights[type]`.
 
 ```cpp
-enum BenchmarkType {
-    BENCH_GENERIC = 0,  // Default - balanced for all algorithms
-    BENCH_PR,           // PageRank
-    BENCH_BFS,          // Breadth-First Search
-    BENCH_CC,           // Connected Components
-    BENCH_SSSP,         // Single-Source Shortest Path
-    BENCH_BC,           // Betweenness Centrality
-    BENCH_TC            // Triangle Counting
-};
+// C++ Usage:
+SelectReorderingPerceptron(features);            // BENCH_GENERIC (multiplier = 1.0)
+SelectReorderingPerceptron(features, BENCH_PR);  // PageRank-optimized
+SelectReorderingPerceptron(features, "bfs");     // BFS-optimized
 ```
-
-**How It Works:**
-
-1. Base score is computed from graph features
-2. Score is multiplied by `benchmark_weights[current_benchmark]`
-3. If no benchmark is specified, `BENCH_GENERIC` is used (multiplier = 1.0)
-
-```cpp
-// C++ Usage Examples:
-
-// Generic/default - optimizes for all algorithms equally
-ReorderingAlgo algo = SelectReorderingPerceptron(features);  // BENCH_GENERIC
-ReorderingAlgo algo = SelectReorderingPerceptron(features, BENCH_GENERIC);
-ReorderingAlgo algo = SelectReorderingPerceptron(features, "generic");
-
-// Benchmark-specific - optimizes for that workload
-ReorderingAlgo algo = SelectReorderingPerceptron(features, BENCH_PR);
-ReorderingAlgo algo = SelectReorderingPerceptron(features, "pr");
-```
-
-> **Note:** The `cache_*` and `benchmark_weights` fields are primarily used during Python training to compute the final `bias` value. At C++ runtime, you can optionally pass a benchmark type to apply the benchmark-specific multiplier.
 
 ### Score Calculation (C++ Runtime)
 
@@ -575,29 +482,14 @@ See [[Perceptron-Weights]] for the full training pipeline details, gradient upda
 
 ## Cross-Validation
 
-### Leave-One-Graph-Out (LOGO) Validation
+Leave-One-Graph-Out (LOGO) validation measures generalization: hold out one graph, train on the rest, predict the held-out graph, repeat.
 
-To measure generalization quality, use LOGO cross-validation:
-
-```bash
-# Via Python
-python3 -c "
+```python
 from scripts.lib.weights import cross_validate_logo
-# ... load benchmark_results, graph_features, type_registry ...
 result = cross_validate_logo(benchmark_results, graph_features, type_registry)
-print(f'LOGO accuracy: {result[\"accuracy\"]:.1%}')
-print(f'Overfitting score: {result[\"overfitting_score\"]:.2f}')
-"
+print(f"LOGO: {result['accuracy']:.1%}, Overfit: {result['overfitting_score']:.2f}")
 ```
 
-**Process:**
-1. Hold out one graph
-2. Train weights on all remaining graphs
-3. Predict the best algorithm for the held-out graph
-4. Compare to actual best → correct/incorrect
-5. Repeat for every graph
-
-**Interpreting Results:**
 | Metric | Good | Concerning |
 |--------|------|------------|
 | LOGO Accuracy | > 60% | < 40% |
@@ -608,48 +500,22 @@ print(f'Overfitting score: {result[\"overfitting_score\"]:.2f}')
 
 ## Advanced Training: `compute_weights_from_results()`
 
-The primary training function in `lib/weights.py` implements a multi-stage pipeline that produces production-quality weights:
+The primary training function in `lib/weights.py` implements a 4-stage pipeline:
 
-### Stage 1: Multi-Restart Perceptron Training
+1. **Multi-Restart Perceptron Training** — 5 independent perceptrons × 800 epochs per benchmark, z-score normalized features, averaged across restarts and benchmarks
+2. **Variant Pre-Collapse** — Only the highest-bias variant per base algorithm is kept (e.g., `LeidenCSR_gveopt2` beats `LeidenCSR_gve`)
+3. **Regret-Aware Benchmark Multiplier Optimization** — Grid search (30 iterations × 32 log-spaced values) maximizing accuracy while minimizing regret
+4. **Save to `type_0.json`** with `_metadata` training statistics
 
-For each of the 4 benchmarks (pr, bfs, cc, sssp), **5 independent perceptrons** are trained with 800 epochs each. Each restart uses deterministic seeding for reproducibility:
-
-```python
-seed = 42 + restart * 1000 + bench_index * 100
-```
-
-Features are **z-score normalized** (mean=0, std=1) before training for stable gradients. The 5 per-benchmark perceptrons are averaged, then all benchmark averages are combined to produce `scoreBase()` weights.
-
-### Stage 2: Variant Pre-Collapse
-
-Algorithm variants (e.g., `LeidenCSR_gve`, `LeidenCSR_gveopt2`) are merged into base algorithms. Only the **highest-bias variant** is kept for each base:
-
-```
-LeidenCSR_gve:     bias=0.72 → discarded
-LeidenCSR_gveopt2: bias=0.89 → kept as "LeidenCSR"
-```
-
-### Stage 3: Regret-Aware Benchmark Multiplier Optimization
-
-Per-benchmark multipliers are optimized via grid search (30 iterations × 32 log-spaced values). The objective is `max(accuracy, min(-mean_regret))` — jointly optimizing for correct predictions and low performance loss.
-
-### Stage 4: Save to `type_0.json`
-
-Final weights include `_metadata` with training statistics (graphs, algorithms, accuracy, regret metrics).
+See [[Perceptron-Weights#multi-restart-training--benchmark-multipliers]] for details on the training internals.
 
 ### Validation with eval_weights.py
-
-After training, run:
 
 ```bash
 python3 scripts/eval_weights.py
 ```
 
-This simulates C++ `scoreBase() × benchmarkMultiplier()` scoring for all (graph, benchmark) pairs and reports:
-- **Accuracy**: 46.8% (88/188 correct base-algorithm predictions)
-- **Base-aware median regret**: 2.6% (selected algorithm within 2.6% of optimal)
-- **Top-2 accuracy**: 64.9%
-- **13 unique predictions** across 47 graphs × 4 benchmarks
+Reports accuracy, median regret, top-2 accuracy, and unique predictions. Current metrics (47 graphs × 4 benchmarks): **46.8% accuracy**, **2.6% median regret**, **64.9% top-2 accuracy**.
 
 ### Key Finding: LeidenCSR Dominance
 
@@ -677,48 +543,7 @@ For a graph with 10,000 nodes and 5 communities, AdaptiveOrder:
 4. **Algorithm Selection** — e.g., LeidenCSR for hub-heavy communities, ORIGINAL for tiny ones
 5. **Per-Community Reordering** — Applies each selected algorithm within its community, producing a unified vertex relabeling
 
-The result: cache-friendly memory layout where hub vertices are clustered together within each community.
-
----
-
-## Why Per-Community Selection Matters
-
-Not all communities share the same structure. A large hub-heavy community (hub_concentration=0.62) benefits from LeidenCSR grouping hubs together (67K cache misses vs 145K with ORIGINAL), while a tiny 600-node community sees negligible improvement from reordering — ORIGINAL avoids the overhead.
-
----
-
----
-
-## Weight File Format
-
-Weights live in `scripts/weights/active/` as `type_registry.json` + `type_N.json` files.
-Each type file maps algorithm names to their feature weights, bias, cache impacts, benchmark weights, and training metadata.
-
-See [[Perceptron-Weights]] for the full format specification, algorithm name mapping table, and tuning guidelines.
-
----
-
----
-
-## C++ Weight Loading
-
-Weight loading priority:
-1. `PERCEPTRON_WEIGHTS_FILE` environment variable
-2. Best matching type from `scripts/weights/active/type_N.json`
-3. Semantic type fallback
-4. Hardcoded defaults
-
-```bash
-# Override with custom weights
-export PERCEPTRON_WEIGHTS_FILE=/path/to/weights.json
-./bench/bin/pr -f graph.el -s -o 14 -n 3
-```
-
----
-
-## Recursive AdaptiveOrder
-
-For large communities, AdaptiveOrder can recursively sub-partition and re-order, creating hierarchical orderings that respect structure at multiple scales.
+The result: cache-friendly memory layout where hub vertices are clustered together within each community. A large hub-heavy community (hub_concentration=0.62) benefits from LeidenCSR grouping hubs together, while a tiny 600-node community sees negligible improvement — ORIGINAL avoids the overhead.
 
 ---
 

@@ -145,7 +145,7 @@ Controls community granularity:
 
 **Key insight:** Higher resolution produces smaller, cache-sized communities → better locality → faster algorithms, despite lower modularity.
 
-See [[AdaptiveOrder-ML#auto-resolution]] for the auto-resolution formula, graph-type table, and dynamic/adaptive resolution details.
+See [[AdaptiveOrder-ML#parameters]] for the auto-resolution formula and dynamic/adaptive resolution details.
 
 ### Iterations
 
@@ -185,7 +185,7 @@ Dendrogram traversal with variants:
 
 ### LeidenCSR (17)
 
-Fast CSR-native Leiden (no graph conversion). See [[Reordering-Algorithms#leidencsr-csrnative-leiden-reordering]] for variant table, resolution modes, benchmark results, and usage examples.
+Fast CSR-native Leiden (no graph conversion). See [[Reordering-Algorithms#17-leidencsr--fastest-best-quality]] for variant table, resolution modes, and usage examples.
 
 ---
 
@@ -234,7 +234,7 @@ Leiden: 17 communities, modularity 0.8347
 
 ## Advanced: Per-Community Analysis
 
-For each community, GraphBrew computes structural features (num_nodes, num_edges, density, avg_degree, degree_variance, hub_concentration, clustering_coeff, modularity). See [[Code-Architecture#community-features]] for the full `CommunityFeatures` struct.
+For each community, GraphBrew computes structural features (num_nodes, num_edges, density, avg_degree, degree_variance, hub_concentration, clustering_coeff, modularity). See [[Code-Architecture]] for the `CommunityFeatures` struct in `reorder_types.h`.
 
 ---
 

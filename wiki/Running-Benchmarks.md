@@ -108,116 +108,29 @@ Format is automatically detected from file extension:
 
 ---
 
-## Detailed Benchmark Commands
-
-### PageRank (pr)
+## Benchmark Examples
 
 ```bash
-# Basic PageRank
-./bench/bin/pr -f graph.el -s -n 5
-
-# With ordering
+# PageRank (iterative convergence)
 ./bench/bin/pr -f graph.el -s -o 7 -n 5
 
-# Custom iterations and tolerance
-./bench/bin/pr -f graph.el -s -i 100 -t 1e-6 -n 5
-```
+# BFS from vertex 0 (traversal)
+./bench/bin/bfs -f graph.el -s -r 0 -o 12 -n 5
 
-Output:
-```
-Loading graph from graph.el...
-Graph has 4039 nodes and 88234 edges
-Trial   Time(s)
-1       0.0234
-2       0.0231
-3       0.0229
-Average: 0.0231 seconds
-```
-
-### BFS (bfs)
-
-```bash
-# BFS from vertex 0
-./bench/bin/bfs -f graph.el -s -r 0 -n 5
-
-# BFS from random vertices
-./bench/bin/bfs -f graph.el -s -n 5
-
-# With reordering
-./bench/bin/bfs -f graph.el -s -o 12 -r 0 -n 5
-```
-
-Output:
-```
-Source: 0
-Trial   Time(s)   Edges Visited   MTEPS
-1       0.0012    88234           73.5
-2       0.0011    88234           80.2
-Average: 0.0012 seconds, 76.9 MTEPS
-```
-
-### Connected Components (cc)
-
-```bash
-# Find connected components
+# Connected Components
 ./bench/bin/cc -f graph.el -s -n 5
 
-# With Afforest algorithm variant
-./bench/bin/cc -f graph.el -s -o 7 -n 5
-```
-
-Output:
-```
-Largest Component: 4039 (100.00%)
-Number of Components: 1
-Time: 0.0089 seconds
-```
-
-### Single-Source Shortest Paths (sssp)
-
-```bash
-# SSSP from vertex 0
-./bench/bin/sssp -f graph.wel -s -r 0 -n 5
-
-# With custom delta
+# SSSP (requires weighted edges, .wel format)
 ./bench/bin/sssp -f graph.wel -s -r 0 -d 2 -n 5
 
-# Using weighted edge list
-./bench/bin/sssp -f graph.wel -s -o 7 -n 5
-```
-
-Note: SSSP requires weighted edges. Use `.wel` format:
-```
-0 1 1.5
-0 2 2.0
-1 2 0.5
-```
-
-### Betweenness Centrality (bc)
-
-```bash
-# BC from single source
+# Betweenness Centrality
 ./bench/bin/bc -f graph.el -s -r 0 -n 5
 
-# BC with reordering
-./bench/bin/bc -f graph.el -s -o 12 -r 0 -n 5
-```
-
-### Triangle Counting (tc)
-
-```bash
-# Count triangles
-./bench/bin/tc -f graph.el -s -n 5
-
-# With reordering (important for TC!)
+# Triangle Counting (benefits most from reordering)
 ./bench/bin/tc -f graph.el -s -o 7 -n 5
 ```
 
-Output:
-```
-Number of triangles: 1612010
-Time: 1.234 seconds
-```
+See [[Command-Line-Reference]] for complete option reference, output format details, and batch scripting patterns.
 
 ---
 
@@ -235,27 +148,10 @@ See [[Command-Line-Reference#reordering-algorithm-ids]] for the full algorithm t
 
 ---
 
-## Batch Benchmarking
+## See Also
 
-See [[Command-Line-Reference#common-command-patterns]] for batch scripts (all benchmarks, compare orderings, multiple graphs).
-
----
-
-## Using Python Scripts
-
-See [[Python-Scripts]] for the full orchestration script reference and [[Command-Line-Reference#python-script-options-graphbrew_experimentpy]] for CLI options.
-
----
-
-## Output Formats
-
-See [[Command-Line-Reference#output-format]] for standard, BFS, and AdaptiveOrder output examples.
-
----
-
-## Environment Variables
-
-See [[Command-Line-Reference#environment-variables]] for `OMP_NUM_THREADS`, `PERCEPTRON_WEIGHTS_FILE`, and NUMA binding.
+- [[Command-Line-Reference]] — Full CLI options, batch scripts, output formats, environment variables
+- [[Python-Scripts]] — Orchestration scripts for automated experiments
 
 ---
 

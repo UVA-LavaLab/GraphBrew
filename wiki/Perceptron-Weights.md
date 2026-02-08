@@ -18,46 +18,9 @@ Each JSON file contains weights for each algorithm. When AdaptiveOrder processes
 
 ## How Perceptron Scoring Works
 
-```
-INPUTS (Features)              WEIGHTS                    OUTPUT
-=================              =======                    ======
+Each algorithm gets a score: `bias + Σ(w_feature × feature_value) + quadratic_terms + convergence_bonus`. Highest score wins, subject to OOD guardrail (distance > 1.5 → ORIGINAL) and ORIGINAL margin fallback (best − ORIGINAL < 0.05 → keep ORIGINAL).
 
---- Linear Features ---
-modularity: 0.72       --*---> w_mod: 0.28 ----------+
-density: 0.001         --*---> w_den: -0.15 ---------+
-degree_var: 2.1        --*---> w_dv: 0.18 -----------+
-hub_conc: 0.45         --*---> w_hc: 0.22 -----------+
-cluster_coef: 0.3      --*---> w_cc: 0.12 -----------+
-avg_path: 5.2          --*---> w_ap: 0.08 -----------+
-diameter: 16           --*---> w_di: 0.05 -----------+
-packing_factor: 0.6    --*---> w_pf: 0.10 -----------+----> SUM
-fwd_edge_frac: 0.4     --*---> w_fef: 0.08 ----------+    (+bias)
-working_set_ratio: 3.2 --*---> w_wsr: 0.12 ----------+      |
-                                                      |      |
---- Quadratic Cross-Terms ---                         |      |
-dv × hub: 0.95         --*---> w_dv_x_hub: 0.15 -----+      |
-mod × logN: 2.88       --*---> w_mod_x_logn: 0.06 ---+      +---> SCORE
-pf × log₂(wsr+1): 1.27 --*--> w_pf_x_wsr: 0.09 -----+      |
-                                                      |      |
---- Convergence Bonus (PR/SSSP only) ---              |      |
-fwd_edge_frac: 0.4     --*---> w_fef_conv: 0.05 -----+------+
-
-
-ALGORITHM SELECTION:
-====================
-RABBITORDER:    score = 2.31  <-- WINNER
-LeidenCSR:      score = 2.18
-HubClusterDBG:  score = 1.95
-GORDER:         score = 1.82
-ORIGINAL:       score = 0.50
-
-SAFETY CHECKS:
-==============
-1. OOD Guardrail: If type distance > 1.5 → force ORIGINAL
-2. ORIGINAL Margin: If best_score - ORIGINAL_score < 0.05 → keep ORIGINAL
-```
-
-**Key Insight:** Each weight encodes "When this feature is high, how well does this algorithm perform?"
+See [[AdaptiveOrder-ML#perceptron-scoring-diagram]] for the full scoring diagram with all 15 linear features, 3 quadratic cross-terms, and convergence bonus.
 
 ---
 
@@ -214,28 +177,17 @@ SelectReorderingPerceptron(features, "bfs");    // Uses benchmark_weights.bfs
 ### Formula
 
 ```
-base_score = bias
-           + Σ(w_feature × feature_value)           # linear features
-           + w_dv_x_hub × dv × hub                   # quadratic: degree_var × hub_conc
-           + w_mod_x_logn × mod × logN               # quadratic: modularity × log_nodes
-           + w_pf_x_wsr × pf × log₂(wsr+1)           # quadratic: packing × cache pressure
-
-# Convergence bonus (PR/SSSP only)
-if benchmark ∈ {PR, SSSP}:
-    base_score += w_fef_convergence × forward_edge_fraction
-
-final_score = base_score × benchmark_weights[benchmark_type]
+final_score = (bias + Σ(w_i × feature_i) + quadratic_terms + convergence_bonus)
+              × benchmark_weights[type]
 ```
 
-For `BENCH_GENERIC` (default when no benchmark is specified), the multiplier is 1.0.
+See [[AdaptiveOrder-ML#score-calculation-c-runtime]] for the full expanded formula with all 15 linear features, 3 quadratic terms, and safety checks.
 
 ### Safety Checks
 
-**OOD (Out-of-Distribution) Guardrail:**
-If the graph's Euclidean distance to the nearest type centroid exceeds `1.5`, the system returns `ORIGINAL` instead of risking a bad prediction on an unfamiliar graph type. The 7-dimensional feature space has a max distance of √7 ≈ 2.65, so 1.5 is a meaningful threshold.
+**OOD Guardrail:** If graph distance to nearest type centroid > 1.5 → return ORIGINAL.
 
-**ORIGINAL Margin Fallback:**
-If the best-scoring algorithm's score exceeds ORIGINAL's score by less than `ORIGINAL_MARGIN_THRESHOLD = 0.05`, the system keeps `ORIGINAL` to avoid reordering overhead for marginal gains.
+**ORIGINAL Margin:** If best − ORIGINAL < 0.05 → keep ORIGINAL to avoid reordering overhead for marginal gains.
 
 ### Example Calculation
 
@@ -327,240 +279,75 @@ Make LeidenCSR almost always win:
 
 ### Strategy 2: Size-Based Selection
 
-Use simpler algorithms for small communities:
-
-```json
-{
-  "ORIGINAL": {
-    "bias": 0.8,
-    "w_log_nodes": -0.3,
-    "w_log_edges": -0.3
-  },
-  "LeidenCSR": {
-    "bias": 0.5,
-    "w_log_nodes": 0.2,
-    "w_log_edges": 0.2
-  }
-}
-```
-
-Result:
-- Small communities (< 100 nodes): ORIGINAL wins
-- Large communities (> 1000 nodes): LeidenCSR wins
+ORIGINAL with high bias + negative `w_log_nodes`/`w_log_edges` wins for small communities; LeidenCSR with positive log weights wins for large ones.
 
 ### Strategy 3: Structure-Based Selection
 
-Use hub algorithms for hub-heavy graphs:
-
-```json
-{
-  "HUBCLUSTERDBG": {
-    "bias": 0.6,
-    "w_hub_concentration": 0.5,
-    "w_degree_variance": 0.3
-  },
-  "RCM": {
-    "bias": 0.6,
-    "w_hub_concentration": -0.4,
-    "w_degree_variance": -0.3
-  }
-}
-```
-
-Result:
-- High hub concentration: HUBCLUSTERDBG wins
-- Low hub concentration: RCM wins
+HUBCLUSTERDBG with positive `w_hub_concentration`/`w_degree_variance` wins for hub-heavy graphs; RCM with negative values wins for uniform-degree graphs.
 
 ### Strategy 4: Workload-Specific
 
-For PageRank (benefits from hub locality):
-
-```json
-{
-  "LeidenCSR": {
-    "bias": 0.85,
-    "w_hub_concentration": 0.35
-  }
-}
-```
-
-For BFS (benefits from bandwidth reduction):
-
-```json
-{
-  "RCM": {
-    "bias": 0.75,
-    "w_density": 0.2
-  }
-}
-```
+Adjust `benchmark_weights` or feature weights to favour locality-oriented algorithms for PageRank vs bandwidth-oriented algorithms for BFS.
 
 ---
 
 ## Generating Weights
 
-### Automatic: Using graphbrew_experiment.py
-
 ```bash
-# Full pipeline with weight generation
+# Full pipeline (recommended)
 python3 scripts/graphbrew_experiment.py --full --size small
 
-# Comprehensive weight training
-python3 scripts/graphbrew_experiment.py --train --size medium --auto
-```
-
-### Manual: Edit JSON Directly
-
-```bash
-# Edit the file
-nano scripts/weights/active/type_0.json
-
-# Validate JSON
-python3 -c "import json; json.load(open('scripts/weights/active/type_0.json'))"
-```
-
-### Hybrid: Start from Auto-Generated, Then Tune
-
-```bash
-# Generate weights from benchmark data
+# From existing benchmark data only
 python3 scripts/graphbrew_experiment.py --phase weights
 
-# Backup
-cp scripts/weights/active/type_0.json scripts/weights/active/type_0.json.backup
-
-# Edit manually to adjust biases
-vim scripts/weights/active/type_0.json
+# Manual edit + validate
+nano scripts/weights/active/type_0.json
+python3 -c "import json; json.load(open('scripts/weights/active/type_0.json'))"
 ```
 
 ---
 
 ## Validating Weights
 
-### Check Current Selections
-
 ```bash
+# Check what AdaptiveOrder selects
 ./bench/bin/pr -f graph.el -s -o 14 -n 1 2>&1 | grep -A 20 "Adaptive Reordering"
 ```
 
-Output shows what was selected:
-```
-=== Adaptive Reordering Selection (Depth 0, Modularity: 0.835) ===
-Comm    Nodes   Edges   Density DegVar  HubConc Selected
-0       3500    45000   0.0073  89.3    0.62    LeidenCSR
-1       2800    28000   0.0071  34.2    0.41    LeidenCSR
-2       600     3200    0.0178  2.1     0.09    ORIGINAL
-```
+Output shows per-community algorithm selection (features + selected algorithm for each).
 
-### Debug Score Calculation
-
-Add verbose output:
 ```bash
+# Verbose score details
 ./bench/bin/pr -f graph.el -s -o 14 -n 1 -v
-```
-
-### Unit Test Weights
-
-```python
-#!/usr/bin/env python3
-import json
-
-def test_weights(weights_file):
-    with open(weights_file) as f:
-        weights = json.load(f)
-    
-    # Test case: large modular community
-    features = {
-        "modularity": 0.8,
-        "log_nodes": 4.0,
-        "log_edges": 5.0,
-        "density": 0.01,
-        "avg_degree": 0.25,
-        "degree_variance": 0.5,
-        "hub_concentration": 0.4
-    }
-    
-    scores = {}
-    for algo, w in weights.items():
-        score = w.get("bias", 0.5)
-        for feat, val in features.items():
-            score += w.get(f"w_{feat}", 0) * val
-        scores[algo] = score
-    
-    best = max(scores.items(), key=lambda x: x[1])
-    print(f"Best algorithm: {best[0]} (score: {best[1]:.3f})")
-    
-    for algo, score in sorted(scores.items(), key=lambda x: -x[1]):
-        print(f"  {algo}: {score:.3f}")
-
-test_weights("scripts/weights/active/type_0.json")
 ```
 
 ---
 
 ## Default Weights
 
-If no weights file exists, these defaults are used:
+If no weights file exists, hardcoded defaults favour ORIGINAL for small communities (high bias, negative log-size weights) and LeidenCSR for large, modular, hub-heavy communities (positive `w_modularity`, `w_hub_concentration`, log-size weights).
 
-```json
-{
-  "ORIGINAL": {
-    "bias": 0.6,
-    "w_modularity": 0.0,
-    "w_log_nodes": -0.1,
-    "w_log_edges": -0.1,
-    "w_density": 0.1,
-    "w_avg_degree": 0.0,
-    "w_degree_variance": 0.0,
-    "w_hub_concentration": 0.0
-  },
-  "LeidenCSR": {
-    "bias": 0.85,
-    "w_modularity": 0.25,
-    "w_log_nodes": 0.1,
-    "w_log_edges": 0.1,
-    "w_density": -0.05,
-    "w_avg_degree": 0.15,
-    "w_degree_variance": 0.15,
-    "w_hub_concentration": 0.25
-  }
-}
-```
-
-These defaults:
-- Favor ORIGINAL for small communities
-- Favor LeidenCSR for large, modular, hub-heavy communities
-
----
-
-## Understanding Biases
-
-The **bias** is the most important weight — the base preference before features are considered. Computed as `0.5 × avg_speedup_vs_RANDOM`. Typical values: HUBSORT ~26 (26× faster than random), SORT ~9.5, LeidenCSR ~2.3, ORIGINAL 0.5 (baseline). Algorithms with bias < 0.5 are slower than RANDOM due to reordering overhead on small graphs.
+The **bias** is the most important weight — computed as `0.5 × avg_speedup_vs_RANDOM`. Typical values: HUBSORT ~26, SORT ~9.5, LeidenCSR ~2.3, ORIGINAL 0.5 (baseline).
 
 ---
 
 ## Training Pipeline
 
-The training pipeline has 3 main stages: **Reorder → Benchmark → Compute Weights**.
+Three main stages: **Reorder → Benchmark → Compute Weights**.
 
 ```bash
 # One-command full pipeline
 python3 scripts/graphbrew_experiment.py --full --size small
 
-# Or step-by-step:
+# Step-by-step:
 python3 scripts/graphbrew_experiment.py --phase reorder --generate-maps
 python3 scripts/graphbrew_experiment.py --phase benchmark --use-maps
 python3 scripts/graphbrew_experiment.py --phase weights
-
-# Complete 6-phase training (fills all weight fields)
-python3 scripts/graphbrew_experiment.py --train --size small --max-graphs 5
-
-# Validate with brute-force comparison
-python3 scripts/graphbrew_experiment.py --brute-force --validation-benchmark pr
 ```
 
-The 6 phases fill: (1) `w_reorder_time`, (2) `bias`/scale weights, (3) cache impacts, (4) structure weights, (5) topology weights, (6) benchmark multipliers.
+The 6-phase `--train` mode fills: (1) reorder_time, (2) bias/scale, (3) cache impacts, (4) structure weights, (5) topology weights, (6) benchmark multipliers.
 
-See [[AdaptiveOrder-ML#training-the-perceptron]] for training commands and iterative training.
+See [[AdaptiveOrder-ML#training-the-perceptron]] for iterative training and progression recommendations.
 
 ---
 
