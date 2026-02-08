@@ -22,6 +22,7 @@ specifically AdaptiveOrder-ML (Algorithm 14), and produce actionable results:
 | [07_DEBUG_PLAYBOOK.md](07_DEBUG_PLAYBOOK.md) | Multi-file debugging procedure + common pitfalls |
 | [08_OUTPUT_FORMATS.md](08_OUTPUT_FORMATS.md) | Required deliverable format for all agent outputs |
 | [09_PR_GUIDELINES.md](09_PR_GUIDELINES.md) | Pull request rules + how to add new algorithms/variants |
+| [10_LITERATURE.md](10_LITERATURE.md) | Paper → code mappings for 5 SOTA papers |
 
 ## Getting Started
 
