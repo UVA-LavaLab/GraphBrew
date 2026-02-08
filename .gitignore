@@ -6,7 +6,6 @@ bench/backups
 *.csv
 results
 00_Graph_Datasets/
-00_*
 nohup.out
 __pycache__/
 .pytest_cache/
@@ -18,7 +17,6 @@ cache_results
 scripts/weights/backup_before_reset/
 scripts/weights/
 test/
-agent.md
 
 # Graph data files (edge lists, weighted edge lists, serialized graphs)
 *.el
