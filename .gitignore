@@ -19,3 +19,9 @@ scripts/weights/backup_before_reset/
 scripts/weights/
 test/
 agent.md
+
+# Graph data files (edge lists, weighted edge lists, serialized graphs)
+*.el
+*.wel
+*.sg
+*.mtx
