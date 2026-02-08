@@ -30,6 +30,10 @@ from .utils import (
     Logger, get_timestamp,
     WEIGHT_PATH_LENGTH_NORMALIZATION, WEIGHT_REORDER_TIME_NORMALIZATION,
     WEIGHT_AVG_DEGREE_DEFAULT,
+    RABBITORDER_VARIANTS, RABBITORDER_DEFAULT_VARIANT,
+    GRAPHBREW_VARIANTS, GRAPHBREW_DEFAULT_VARIANT,
+    LEIDEN_CSR_VARIANTS, LEIDEN_CSR_DEFAULT_VARIANT,
+    LEIDEN_DENDROGRAM_VARIANTS,
 )
 
 # Initialize logger
@@ -246,13 +250,39 @@ def get_type_weights_file(type_name: str, weights_dir: str = DEFAULT_WEIGHTS_DIR
     return os.path.join(weights_dir, f"{type_name}.json")
 
 
+def _normalize_legacy_weight_keys(weights: Dict) -> Dict:
+    """Normalize legacy bare algorithm names in loaded weights.
+    
+    Maps old keys like 'GraphBrewOrder' → 'GraphBrewOrder_leiden' so that
+    weight lookups work consistently after the variant-everywhere change.
+    """
+    _LEGACY = {'GraphBrewOrder': 'GraphBrewOrder_leiden'}
+    normalized = {}
+    for key, value in weights.items():
+        new_key = _LEGACY.get(key, key)
+        # If the new key already exists, merge by keeping the one with higher bias
+        if new_key in normalized:
+            existing_bias = normalized[new_key].get('bias', 0)
+            new_bias = value.get('bias', 0) if isinstance(value, dict) else 0
+            if new_bias > existing_bias:
+                normalized[new_key] = value
+        else:
+            normalized[new_key] = value
+    return normalized
+
+
 def load_type_weights(type_name: str, weights_dir: str = DEFAULT_WEIGHTS_DIR) -> Dict:
-    """Load weights for a specific type."""
+    """Load weights for a specific type.
+    
+    Normalizes legacy algorithm names (e.g., 'GraphBrewOrder' →
+    'GraphBrewOrder_leiden') for backward compatibility.
+    """
     weights_file = get_type_weights_file(type_name, weights_dir)
     if os.path.exists(weights_file):
         try:
             with open(weights_file) as f:
-                return json.load(f)
+                weights = json.load(f)
+            return _normalize_legacy_weight_keys(weights)
         except Exception:
             pass
     return {}
@@ -648,6 +678,21 @@ def compute_weights_from_results(
     # Initialize weights - start with default then add from results
     weights = initialize_default_weights()
     
+    # Normalize legacy bare algo names → variant-suffixed names in results
+    # so old results keyed as "GraphBrewOrder" map to "GraphBrewOrder_leiden"
+    _LEGACY_NAME_MAP = {'GraphBrewOrder': 'GraphBrewOrder_leiden'}
+    
+    for r in benchmark_results:
+        if r.algorithm in _LEGACY_NAME_MAP:
+            r.algorithm = _LEGACY_NAME_MAP[r.algorithm]
+    for r in reorder_results:
+        algo_name = getattr(r, 'algorithm_name', None) or getattr(r, 'algorithm', '')
+        if algo_name in _LEGACY_NAME_MAP:
+            if hasattr(r, 'algorithm_name'):
+                r.algorithm_name = _LEGACY_NAME_MAP[algo_name]
+            elif hasattr(r, 'algorithm'):
+                r.algorithm = _LEGACY_NAME_MAP[algo_name]
+    
     # Collect all unique algorithm names from results (includes variants)
     all_algo_names = set()
     for r in benchmark_results:
@@ -679,11 +724,16 @@ def compute_weights_from_results(
         
         results_by_graph[graph_name][bench].append(r)
     
-    # Find best algorithm per (graph, benchmark) and update weights
+    # Find best algorithm per (graph, benchmark) and collect win statistics
+    algo_win_count = {}   # algo -> number of (graph, benchmark) contexts won
+    algo_speedups = {}    # algo -> list of speedups when winning
+    total_contexts = 0
+    
     for graph_name, benchmarks in results_by_graph.items():
         for bench, results in benchmarks.items():
             if not results:
                 continue
+            total_contexts += 1
             
             # Find baseline (ORIGINAL or first result)
             baseline_time = None
@@ -694,37 +744,630 @@ def compute_weights_from_results(
             if baseline_time is None:
                 baseline_time = results[0].time_seconds
             
-            # Find best and update weights
+            # Find best
             best_result = min(results, key=lambda r: r.time_seconds)
             best_algo = best_result.algorithm
             
             if best_algo in weights and baseline_time > 0:
                 speedup = baseline_time / best_result.time_seconds
+                algo_win_count[best_algo] = algo_win_count.get(best_algo, 0) + 1
+                if best_algo not in algo_speedups:
+                    algo_speedups[best_algo] = []
+                algo_speedups[best_algo].append(speedup)
+    
+    # Compute bias from win rate: scale to [0.3, 1.0] range
+    # This gives a max spread of 0.7 — features can easily override this
+    for algo in weights:
+        if algo.startswith('_'):
+            continue
+        wins = algo_win_count.get(algo, 0)
+        win_rate = wins / total_contexts if total_contexts > 0 else 0.0
+        # Bias = 0.3 + 0.7 * win_rate  (never won → 0.3, won everything → 1.0)
+        weights[algo]['bias'] = round(0.3 + 0.7 * win_rate, 4)
+        
+        # Update metadata
+        meta = weights[algo].get('_metadata', {})
+        meta['win_count'] = wins
+        meta['sample_count'] = wins
+        if algo in algo_speedups:
+            meta['avg_speedup'] = sum(algo_speedups[algo]) / len(algo_speedups[algo])
+        weights[algo]['_metadata'] = meta
+    
+    # =========================================================================
+    # Multi-class Perceptron Training
+    # =========================================================================
+    # Train a multi-class perceptron via the standard update rule:
+    #   For each training example (graph_features, best_algorithm):
+    #     predicted = argmax_algo score(algo, features)
+    #     if predicted != best_algorithm:
+    #       w[best] += learning_rate * features
+    #       w[predicted] -= learning_rate * features
+    # This directly optimizes for correct algorithm selection.
+    
+    import math
+    from .features import load_graph_properties_cache
+    from .utils import RESULTS_DIR
+    
+    graph_props = load_graph_properties_cache(RESULTS_DIR)
+    
+    # Feature keys used in C++ scoreBase()
+    feat_to_weight = {
+        'modularity': 'w_modularity',
+        'degree_variance': 'w_degree_variance',
+        'hub_concentration': 'w_hub_concentration',
+        'log_nodes': 'w_log_nodes',
+        'log_edges': 'w_log_edges',
+        'density': 'w_density',
+        'avg_degree': 'w_avg_degree',
+        'clustering_coefficient': 'w_clustering_coeff',
+        'avg_path_length': 'w_avg_path_length',
+        'diameter': 'w_diameter',
+        'community_count': 'w_community_count',
+    }
+    
+    # Collect features per graph
+    graph_features = {}
+    for graph_name, props in graph_props.items():
+        nodes = props.get('nodes', 1000)
+        edges = props.get('edges', 5000)
+        graph_features[graph_name] = {
+            'modularity': props.get('modularity', 0.5),
+            'degree_variance': props.get('degree_variance', 1.0),
+            'hub_concentration': props.get('hub_concentration', 0.3),
+            'avg_degree': props.get('avg_degree', WEIGHT_AVG_DEGREE_DEFAULT),
+            'log_nodes': math.log10(nodes + 1) if nodes > 0 else 0,
+            'log_edges': math.log10(edges + 1) if edges > 0 else 0,
+            'density': 2 * edges / (nodes * (nodes - 1)) if nodes > 1 else 0,
+            'clustering_coefficient': props.get('clustering_coefficient', 0.0),
+            'avg_path_length': props.get('avg_path_length', 0.0),
+            'diameter': props.get('diameter', 0.0),
+            'community_count': props.get('community_count', 0.0),
+        }
+    
+    # Build training examples: (feature_vector, best_algorithm)
+    # Map variant names to base algorithms for training (more examples per class)
+    _VARIANT_PREFIXES = [
+        'GraphBrewOrder_', 'LeidenCSR_', 'LeidenDendrogram_', 'RABBITORDER_'
+    ]
+    
+    def _get_base(name):
+        for prefix in _VARIANT_PREFIXES:
+            if name.startswith(prefix):
+                return prefix.rstrip('_')
+        return name
+    
+    training_data = []
+    for graph_name, benchmarks in results_by_graph.items():
+        if graph_name not in graph_features:
+            continue
+        feats = graph_features[graph_name]
+        
+        for bench, results in benchmarks.items():
+            if not results:
+                continue
+            best_result = min(results, key=lambda r: r.time_seconds)
+            best_algo = _get_base(best_result.algorithm)
+            
+            # Build feature vector matching C++ scoreBase() scaling
+            fv = [
+                feats['modularity'],
+                feats['degree_variance'],
+                feats['hub_concentration'],
+                feats['log_nodes'],
+                feats['log_edges'],
+                feats['density'],
+                feats['avg_degree'] / 100.0,
+                feats['clustering_coefficient'],
+                feats['avg_path_length'] / 10.0,
+                feats['diameter'] / 50.0,
+                math.log10(feats['community_count'] + 1) if feats['community_count'] > 0 else 0,
+            ]
+            
+            training_data.append((fv, best_algo))
+    
+    if training_data and graph_features:
+        # Get base algorithm names for training
+        base_algos = sorted(set(_get_base(a) for a in weights if not a.startswith('_')))
+        
+        # =====================================================================
+        # Per-benchmark perceptron training → C++ compatible output
+        # =====================================================================
+        # Strategy:
+        #   1. Train separate perceptrons per benchmark (high accuracy each)
+        #   2. Feature weights = average across benchmarks (shared scoreBase)
+        #   3. Per-bench residual → benchmark_weights multiplier
+        #   4. De-normalize features for C++ raw-feature scoring
+        #
+        # This matches C++ model: score = scoreBase(feat) * benchmarkMultiplier(bench)
+        
+        import random
+        random.seed(42)
+        
+        weight_keys = list(feat_to_weight.values())
+        n_feat = len(weight_keys)
+        
+        # Collect bench names
+        bench_names = sorted(set(
+            bench for benchmarks in results_by_graph.values()
+            for bench in benchmarks.keys()
+        ))
+        
+        # Build per-benchmark training data with raw features
+        per_bench_data_raw = {bn: [] for bn in bench_names}
+        for graph_name, benchmarks in results_by_graph.items():
+            if graph_name not in graph_features:
+                continue
+            feats = graph_features[graph_name]
+            fv = [
+                feats['modularity'],
+                feats['degree_variance'],
+                feats['hub_concentration'],
+                feats['log_nodes'],
+                feats['log_edges'],
+                feats['density'],
+                feats['avg_degree'] / 100.0,
+                feats['clustering_coefficient'],
+                feats['avg_path_length'] / 10.0,
+                feats['diameter'] / 50.0,
+                math.log10(feats['community_count'] + 1) if feats['community_count'] > 0 else 0,
+            ]
+            for bench, results in benchmarks.items():
+                if not results:
+                    continue
+                best_result = min(results, key=lambda r: r.time_seconds)
+                best_algo = _get_base(best_result.algorithm)
+                per_bench_data_raw[bench].append((fv, best_algo))
+        
+        # Feature normalization stats
+        all_fvs = [fv for bn in bench_names for fv, _ in per_bench_data_raw[bn]]
+        feat_means = [0.0] * n_feat
+        feat_stds = [1.0] * n_feat
+        if all_fvs:
+            for i in range(n_feat):
+                vals = [fv[i] for fv in all_fvs]
+                feat_means[i] = sum(vals) / len(vals)
+                var = sum((v - feat_means[i])**2 for v in vals) / len(vals)
+                feat_stds[i] = max(math.sqrt(var), 1e-8)
+        
+        # Normalize per-benchmark data
+        per_bench_data = {}
+        for bn in bench_names:
+            per_bench_data[bn] = [
+                ([(fv[i] - feat_means[i]) / feat_stds[i] for i in range(n_feat)], algo)
+                for fv, algo in per_bench_data_raw[bn]
+            ]
+        
+        # Train one perceptron per benchmark with multiple random restarts
+        per_bench_w = {}  # bench -> {base -> {'bias': float, 'w': [float]}}
+        N_RESTARTS = 5
+        N_EPOCHS = 800
+        
+        for bn in bench_names:
+            data = per_bench_data[bn]
+            if not data:
+                continue
+            
+            global_best_acc = 0
+            global_best_snap = None
+            
+            for restart in range(N_RESTARTS):
+                # Use benchmark index for deterministic seeding
+                bn_idx = bench_names.index(bn)
+                random.seed(42 + restart * 1000 + bn_idx * 100)
                 
-                # Update metadata
-                meta = weights[best_algo].get('_metadata', {})
-                meta['sample_count'] = meta.get('sample_count', 0) + 1
-                meta['win_count'] = meta.get('win_count', 0) + 1
+                # Initialize with small random weights for diversity
+                bw = {base: {
+                    'bias': random.gauss(0, 0.1),
+                    'w': [random.gauss(0, 0.1) for _ in range(n_feat)]
+                } for base in base_algos}
                 
-                old_avg = meta.get('avg_speedup', 1.0)
-                n = meta['sample_count']
-                meta['avg_speedup'] = (old_avg * (n - 1) + speedup) / n
+                lr = 0.05
+                best_acc = 0
+                best_snap = None
                 
-                weights[best_algo]['_metadata'] = meta
+                for epoch in range(N_EPOCHS):
+                    random.shuffle(data)
+                    correct = 0
+                    for fv_n, true_base in data:
+                        if true_base not in bw:
+                            continue
+                        # Predict
+                        best_s, pred = float('-inf'), None
+                        for base in base_algos:
+                            s = bw[base]['bias'] + sum(bw[base]['w'][i]*fv_n[i] for i in range(n_feat))
+                            if s > best_s:
+                                best_s, pred = s, base
+                        if pred == true_base:
+                            correct += 1
+                        else:
+                            bw[true_base]['bias'] += lr
+                            bw[pred]['bias'] -= lr
+                            for i in range(n_feat):
+                                bw[true_base]['w'][i] += lr * fv_n[i]
+                                bw[pred]['w'][i] -= lr * fv_n[i]
+                    
+                    acc = correct / len(data) if data else 0
+                    if acc > best_acc:
+                        best_acc = acc
+                        best_snap = {
+                            base: {'bias': d['bias'], 'w': list(d['w'])}
+                            for base, d in bw.items()
+                        }
+                    lr *= 0.997
                 
-                # Boost bias for winners
-                weights[best_algo]['bias'] = min(1.5, weights[best_algo]['bias'] + 0.1)
+                if best_acc > global_best_acc:
+                    global_best_acc = best_acc
+                    global_best_snap = best_snap
+            
+            if global_best_snap:
+                per_bench_w[bn] = global_best_snap
+            log.info(f"  {bn}: accuracy = {global_best_acc:.1%} ({len(data)} examples, "
+                     f"{N_RESTARTS} restarts)")
+        
+        # =====================================================================
+        # Combine into C++ weight format
+        # =====================================================================
+        # For each algo, score on all training graphs with each per-bench model.
+        # Use the per-bench model that "matches" the C++ multiplicative form best.
+        #
+        # Approach: compute each algo's ranking score on each training graph
+        # using per-bench models, then find bias + feature_weights + bench_multipliers
+        # that best reproduce those scores.
+        #
+        # =====================================================================
+        # ScoreBase from averaged per-bench perceptrons + regret-aware grid search
+        # =====================================================================
+        
+        base_weights = {}
+        bench_multipliers = {}
+        
+        # Build scoreBase from averaged per-bench perceptrons
+        for base in base_algos:
+            avg_bias = 0.0
+            avg_w = [0.0] * n_feat
+            n_benches = len(per_bench_w)
+            
+            for bn in bench_names:
+                if bn not in per_bench_w:
+                    continue
+                avg_bias += per_bench_w[bn][base]['bias']
+                for i in range(n_feat):
+                    avg_w[i] += per_bench_w[bn][base]['w'][i]
+            
+            if n_benches > 0:
+                avg_bias /= n_benches
+                avg_w = [w / n_benches for w in avg_w]
+            
+            # De-normalize for C++ raw features
+            bias_adj = sum(avg_w[i] * feat_means[i] / feat_stds[i] for i in range(n_feat))
+            denorm_bias = avg_bias - bias_adj
+            denorm_w = {weight_keys[i]: avg_w[i] / feat_stds[i] for i in range(n_feat)}
+            
+            base_weights[base] = {'bias': denorm_bias}
+            base_weights[base].update(denorm_w)
+            bench_multipliers[base] = {bn: 1.0 for bn in bench_names}
+        
+        # Helper: compute raw feature vector for a graph
+        def _make_fv(feats):
+            return [
+                feats['modularity'],
+                feats['degree_variance'],
+                feats['hub_concentration'],
+                feats['log_nodes'],
+                feats['log_edges'],
+                feats['density'],
+                feats['avg_degree'] / 100.0,
+                feats['clustering_coefficient'],
+                feats['avg_path_length'] / 10.0,
+                feats['diameter'] / 50.0,
+                math.log10(feats['community_count'] + 1) if feats['community_count'] > 0 else 0,
+            ]
+        
+        # Helper: compute scoreBase for an algo on a graph
+        def _score_base(bw, fv):
+            return bw['bias'] + sum(bw.get(weight_keys[i], 0) * fv[i] for i in range(n_feat))
+        
+        # Build ground truth + timing data for all benchmarks
+        bench_truth_all = {}  # bench -> {graph -> best_base}
+        bench_times_all = {}  # bench -> {graph -> {base: best_time}}
+        bench_best_time_all = {}  # bench -> {graph -> best_time}
+        graph_fvs = {}  # graph -> feature vector
+        
+        for gn, benchmarks_data in results_by_graph.items():
+            if gn not in graph_features:
+                continue
+            graph_fvs[gn] = _make_fv(graph_features[gn])
+            
+            for bn, results in benchmarks_data.items():
+                if not results:
+                    continue
+                best = min(results, key=lambda r: r.time_seconds)
+                
+                if bn not in bench_truth_all:
+                    bench_truth_all[bn] = {}
+                    bench_times_all[bn] = {}
+                    bench_best_time_all[bn] = {}
+                
+                bench_truth_all[bn][gn] = _get_base(best.algorithm)
+                bench_best_time_all[bn][gn] = best.time_seconds
+                
+                base_t = {}
+                for r in results:
+                    b = _get_base(r.algorithm)
+                    if b not in base_t or r.time_seconds < base_t[b]:
+                        base_t[b] = r.time_seconds
+                bench_times_all[bn][gn] = base_t
+        
+        graph_names_list = sorted(graph_fvs.keys())
+        
+        # Precompute scoreBase matrix
+        score_base_matrix = {}  # (base, graph) -> score
+        for base in base_algos:
+            bw = base_weights[base]
+            for gn in graph_names_list:
+                score_base_matrix[(base, gn)] = _score_base(bw, graph_fvs[gn])
+        
+        MULT_GRID = [0.01, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.4,
+                     0.5, 0.6, 0.7, 0.8, 0.9, 1.0,
+                     1.1, 1.2, 1.3, 1.5, 1.7, 2.0, 2.5, 3.0,
+                     3.5, 4.0, 5.0, 6.0, 7.0, 8.0, 10.0,
+                     12.0, 15.0, 20.0]
+        
+        # Regret-aware grid search for multipliers
+        for bn in bench_names:
+            if bn not in bench_truth_all:
+                continue
+            
+            current_mults = {base: 1.0 for base in base_algos}
+            
+            def _eval_bench(mults):
+                """(accuracy, -mean_regret) for tie-breaking."""
+                correct = 0
+                total_regret = 0.0
+                for gn in bench_truth_all[bn]:
+                    scores = {}
+                    for base in base_algos:
+                        scores[base] = score_base_matrix.get((base, gn), 0) * mults[base]
+                    pred = max(scores, key=scores.get)
+                    if pred == bench_truth_all[bn][gn]:
+                        correct += 1
+                    else:
+                        bt = bench_best_time_all[bn].get(gn, 1.0)
+                        pt = bench_times_all[bn].get(gn, {}).get(pred, bt * 10)
+                        total_regret += min((pt - bt) / max(bt, 1e-6), 50.0)
+                n = max(len(bench_truth_all[bn]), 1)
+                return (correct, -total_regret / n)
+            
+            for iteration in range(30):
+                improved = False
+                for opt_base in base_algos:
+                    best_mult = current_mults[opt_base]
+                    best_score = _eval_bench(current_mults)
+                    
+                    for trial_mult in MULT_GRID:
+                        old_mult = current_mults[opt_base]
+                        current_mults[opt_base] = trial_mult
+                        trial_score = _eval_bench(current_mults)
+                        if trial_score > best_score:
+                            best_score = trial_score
+                            best_mult = trial_mult
+                            improved = True
+                        current_mults[opt_base] = old_mult
+                    
+                    current_mults[opt_base] = best_mult
+                
+                if not improved:
+                    break
+            
+            for base in base_algos:
+                bench_multipliers[base][bn] = round(current_mults[base], 4)
+            
+            # Log
+            correct = 0
+            for gn in bench_truth_all[bn]:
+                scores = {}
+                for base in base_algos:
+                    scores[base] = score_base_matrix.get((base, gn), 0) * current_mults[base]
+                pred = max(scores, key=scores.get)
+                if pred == bench_truth_all[bn][gn]:
+                    correct += 1
+            total_bn = len(bench_truth_all[bn])
+            log.info(f"  {bn}: mult-opt accuracy = {correct}/{total_bn} "
+                     f"= {correct/total_bn:.1%}")
+        
+        log.info(f"Per-benchmark perceptron → C++ weights: "
+                 f"{len(bench_names)} benchmarks × {len(base_algos)} algorithms")
+        
+        # Map trained base weights to the best variant per base
+        # For each base, pick the variant with the LOWEST median slowdown
+        # relative to the best variant for each graph. This avoids picking
+        # a variant that wins often but loses catastrophically sometimes.
+        
+        # Build variant performance data: for each variant on each graph,
+        # compute ratio vs best variant of same base
+        variant_ratios = {}  # variant -> [ratio1, ratio2, ...]
+        variant_wins = {}  # variant -> win count
+        for _, benchmarks_data in results_by_graph.items():
+            for _, results in benchmarks_data.items():
+                if not results:
+                    continue
+                best = min(results, key=lambda r: r.time_seconds)
+                variant_wins[best.algorithm] = variant_wins.get(best.algorithm, 0) + 1
+                
+                # Group by base, find best per base
+                base_best = {}  # base -> best_time
+                base_variants = {}  # base -> [(variant, time)]
+                for r in results:
+                    b = _get_base(r.algorithm)
+                    if b not in base_variants:
+                        base_variants[b] = []
+                    base_variants[b].append((r.algorithm, r.time_seconds))
+                    if b not in base_best or r.time_seconds < base_best[b]:
+                        base_best[b] = r.time_seconds
+                
+                for b, variants in base_variants.items():
+                    bt = base_best[b]
+                    if bt <= 0:
+                        continue
+                    for var, t in variants:
+                        if var not in variant_ratios:
+                            variant_ratios[var] = []
+                        variant_ratios[var].append(t / bt)
+        
+        # For each base, pick variant with lowest median ratio
+        base_best_variant = {}  # base -> best variant name
+        for algo in weights:
+            if algo.startswith('_'):
+                continue
+            base = _get_base(algo)
+            ratios = variant_ratios.get(algo, [])
+            median_ratio = sorted(ratios)[len(ratios)//2] if ratios else float('inf')
+            
+            if base not in base_best_variant:
+                base_best_variant[base] = (algo, median_ratio)
+            else:
+                _, best_ratio = base_best_variant[base]
+                if median_ratio < best_ratio:
+                    base_best_variant[base] = (algo, median_ratio)
+        
+        base_best_variant = {b: v[0] for b, v in base_best_variant.items()}
+        
+        # Apply trained base weights to all variants
+        # Map per-benchmark multipliers to C++ benchmark_weights format
+        for algo in weights:
+            if algo.startswith('_'):
+                continue
+            base = _get_base(algo)
+            if base in base_weights:
+                bw = base_weights[base]
+                weights[algo]['bias'] = bw['bias']
+                for wk in feat_to_weight.values():
+                    weights[algo][wk] = bw.get(wk, 0)
+                
+                # Set benchmark_weights from per-benchmark perceptron ratios
+                bm = bench_multipliers.get(base, {})
+                bw_dict = weights[algo].get('benchmark_weights', {})
+                for bn in bench_names:
+                    bw_dict[bn] = bm.get(bn, 1.0)
+                weights[algo]['benchmark_weights'] = bw_dict
+                
+                # Give the best variant per base a small bias boost
+                # so C++ variant collapsing picks it
+                if algo == base_best_variant.get(base):
+                    weights[algo]['bias'] += 0.01
+        
+        # Restore metadata
+        for algo in [a for a in weights if not a.startswith('_')]:
+            meta = weights[algo].get('_metadata', {})
+            meta['win_count'] = algo_win_count.get(algo, 0)
+            meta['sample_count'] = algo_win_count.get(algo, 0)
+            if algo in algo_speedups:
+                meta['avg_speedup'] = sum(algo_speedups[algo]) / len(algo_speedups[algo])
+            weights[algo]['_metadata'] = meta
+    
+    # Update reorder time weights from reorder results
+    reorder_times = {}
+    for r in reorder_results:
+        algo = getattr(r, 'algorithm_name', None) or getattr(r, 'algorithm', '')
+        if not algo:
+            continue
+        if algo not in reorder_times:
+            reorder_times[algo] = []
+        reorder_time = getattr(r, 'reorder_time', 0.0) or getattr(r, 'time_seconds', 0.0)
+        if reorder_time > 0:
+            reorder_times[algo].append(reorder_time)
+    
+    for algo, times in reorder_times.items():
+        if algo in weights and times:
+            avg_time = sum(times) / len(times)
+            weights[algo]['w_reorder_time'] = -avg_time / WEIGHT_REORDER_TIME_NORMALIZATION
+            meta = weights[algo].get('_metadata', {})
+            meta['avg_reorder_time'] = avg_time
+            weights[algo]['_metadata'] = meta
     
     # Save if output file specified (DEPRECATED - kept for backward compatibility)
     if output_file:
-        import json
-        import os
         os.makedirs(os.path.dirname(output_file), exist_ok=True)
         with open(output_file, 'w') as f:
             json.dump(weights, f, indent=2)
     
-    # Always save to type_0.json in active weights directory (used by C++)
-    save_weights_to_active_type(weights, weights_dir, type_name="type_0")
+    # =========================================================================
+    # Pre-collapse variants before saving to JSON
+    # =========================================================================
+    # C++ ParseWeightsFromJSON collapses variants by highest bias, but with
+    # discriminative feature weights, different variants may be better for
+    # different graph types. To work around C++ highest-bias collapsing:
+    #   For each base algorithm, score each variant on the MEAN feature vector
+    #   of the training graphs, and keep only the best-scoring variant.
+    #   Set that variant's bias to be highest so C++ will select it.
+    
+    # Compute mean features across training graphs
+    if graph_features:
+        feat_keys = list(next(iter(graph_features.values())).keys())
+        mean_features = {}
+        for fk in feat_keys:
+            vals = [gf[fk] for gf in graph_features.values() if fk in gf]
+            mean_features[fk] = sum(vals) / len(vals) if vals else 0.0
+        
+        # Score each variant on mean features
+        def score_on_mean(data):
+            s = data.get('bias', 0.3)
+            s += data.get('w_modularity', 0) * mean_features.get('modularity', 0.5)
+            s += data.get('w_log_nodes', 0) * mean_features.get('log_nodes', 5.0)
+            s += data.get('w_log_edges', 0) * mean_features.get('log_edges', 6.0)
+            s += data.get('w_density', 0) * mean_features.get('density', 0.001)
+            s += data.get('w_degree_variance', 0) * mean_features.get('degree_variance', 1.0)
+            s += data.get('w_hub_concentration', 0) * mean_features.get('hub_concentration', 0.3)
+            s += data.get('w_avg_degree', 0) * mean_features.get('avg_degree', 10.0) / 100.0
+            return s
+        
+        # Group variants by base algorithm
+        _VARIANT_PREFIXES = [
+            'GraphBrewOrder_', 'LeidenCSR_', 'LeidenDendrogram_', 'RABBITORDER_'
+        ]
+        
+        def get_base(name):
+            for prefix in _VARIANT_PREFIXES:
+                if name.startswith(prefix):
+                    return prefix.rstrip('_')
+            return name
+        
+        base_groups = {}  # base -> [(variant_name, data, wins)]
+        for algo, data in weights.items():
+            if algo.startswith('_'):
+                continue
+            base = get_base(algo)
+            wins = variant_wins.get(algo, 0)
+            if base not in base_groups:
+                base_groups[base] = []
+            base_groups[base].append((algo, data, wins))
+        
+        # For each base with multiple variants, keep only the one with most wins
+        collapsed_weights = {}
+        for base, variants in base_groups.items():
+            if len(variants) == 1:
+                algo, data, _ = variants[0]
+                collapsed_weights[algo] = data
+            else:
+                # Sort by win count descending
+                variants.sort(key=lambda x: -x[2])
+                best_algo, best_data, best_wins = variants[0]
+                
+                # Only emit the best variant (others are redundant for C++)
+                collapsed_weights[best_algo] = best_data
+        
+        # Preserve metadata keys
+        for k, v in weights.items():
+            if k.startswith('_'):
+                collapsed_weights[k] = v
+        
+        log.info(f"Pre-collapsed {len(weights) - len(collapsed_weights)} redundant variants "
+                     f"({len(weights)} → {len(collapsed_weights)} entries)")
+        
+        save_weights_to_active_type(collapsed_weights, weights_dir, type_name="type_0")
+    else:
+        # No graph features available, save all variants
+        save_weights_to_active_type(weights, weights_dir, type_name="type_0")
     
     return weights
 
@@ -992,15 +1635,54 @@ def _create_default_weight_entry() -> Dict:
     }
 
 
-def initialize_default_weights(weights_dir: str = DEFAULT_WEIGHTS_DIR) -> Dict:
-    """Initialize default weights for all algorithms."""
-    weights = {}
+def get_all_algorithm_variant_names() -> List[str]:
+    """Get all algorithm names including variant-expanded names.
+    
+    Returns names for:
+    - Base algorithms (ORIGINAL, RANDOM, SORT, HUBSORT, etc.)
+    - RabbitOrder variants: RABBITORDER_csr, RABBITORDER_boost
+    - GraphBrewOrder variants: GraphBrewOrder_leiden, GraphBrewOrder_gve, etc.
+    - LeidenDendrogram variants: LeidenDendrogram_dfs, LeidenDendrogram_dfshub, etc.
+    - LeidenCSR variants: LeidenCSR_gve, LeidenCSR_gveopt, LeidenCSR_gveopt2, etc.
+    """
+    names = []
+    
+    # Algorithms that have variants (with their base IDs)
+    VARIANT_ALGO_IDS = {8, 12, 16, 17}  # RabbitOrder, GraphBrewOrder, LeidenDendrogram, LeidenCSR
     
     for algo_id, algo_name in ALGORITHMS.items():
         if algo_name in ['MAP', 'AdaptiveOrder']:
             continue
         
-        weights[algo_name] = _create_default_weight_entry()
+        if algo_id == 8:  # RabbitOrder → expand to RABBITORDER_csr, RABBITORDER_boost
+            for variant in RABBITORDER_VARIANTS:
+                names.append(f"RABBITORDER_{variant}")
+        elif algo_id == 12:  # GraphBrewOrder → expand to GraphBrewOrder_leiden, etc.
+            for variant in GRAPHBREW_VARIANTS:
+                names.append(f"GraphBrewOrder_{variant}")
+        elif algo_id == 16:  # LeidenDendrogram → expand to LeidenDendrogram_dfs, etc.
+            for variant in LEIDEN_DENDROGRAM_VARIANTS:
+                names.append(f"LeidenDendrogram_{variant}")
+        elif algo_id == 17:  # LeidenCSR → expand to LeidenCSR_gve, etc.
+            for variant in LEIDEN_CSR_VARIANTS:
+                names.append(f"LeidenCSR_{variant}")
+        else:
+            names.append(algo_name)
+    
+    return names
+
+
+def initialize_default_weights(weights_dir: str = DEFAULT_WEIGHTS_DIR) -> Dict:
+    """Initialize default weights for all algorithms including all variants.
+    
+    Creates entries for every variant of every algorithm so training can
+    capture performance differences between variants (e.g., LeidenCSR_gve
+    vs LeidenCSR_gveopt2 vs LeidenCSR_gveadaptive).
+    """
+    weights = {}
+    
+    for name in get_all_algorithm_variant_names():
+        weights[name] = _create_default_weight_entry()
     
     return weights
 
@@ -1412,9 +2094,15 @@ def update_zero_weights(
                 # Simple correlation-based weight update
                 avg_speedup = sum(speedups) / len(speedups)
                 
-                # Update bias based on average speedup
+                # Update bias based on average speedup (capped at 1.5)
                 if avg_speedup > 1.0:
-                    weights[algo]['bias'] = 0.5 + (avg_speedup - 1.0) * 0.5
+                    weights[algo]['bias'] = min(1.5, 0.5 + (avg_speedup - 1.0) * 0.5)
+                
+                # Update metadata to reflect the correlation-based analysis
+                meta = weights[algo].get('_metadata', {})
+                meta['sample_count'] = max(meta.get('sample_count', 0), len(speedups))
+                meta['avg_speedup'] = avg_speedup
+                weights[algo]['_metadata'] = meta
                 
                 # Update feature weights based on correlation direction
                 # (positive correlation = feature helps this algo, negative = hurts)

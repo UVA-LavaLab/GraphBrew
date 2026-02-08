@@ -2599,55 +2599,22 @@ def run_experiment(args):
             json.dump([asdict(r) for r in cache_results], f, indent=2)
         log(f"Cache results saved to: {cache_file}")
     
-    # Phase 4: Generate Weights
-    if args.phase in ["all", "weights"]:
-        # Load previous results if not running full pipeline
-        # Note: Multiple Result classes exist with different field names.
-        # - utils.py: BenchmarkResult (algorithm, time_seconds)
-        # - reorder.py: ReorderResult (reorder_time)
-        # - graph_types.py: ReorderResult (time_seconds), BenchmarkResult (algorithm_name, avg_time)
-        # The JSON files are saved using the working versions (utils/reorder), so we import those
-        
-        if not all_benchmark_results:
-            latest_bench = max(glob.glob(os.path.join(args.results_dir, "benchmark_*.json")), default=None)
-            if latest_bench:
-                with open(latest_bench) as f:
-                    raw_results = json.load(f)
-                    from scripts.lib.utils import BenchmarkResult as UtilsBenchmarkResult
-                    all_benchmark_results = [UtilsBenchmarkResult(**r) for r in raw_results]
-        
-        if not all_cache_results and not args.skip_cache:
-            latest_cache = max(glob.glob(os.path.join(args.results_dir, "cache_*.json")), default=None)
-            if latest_cache:
-                with open(latest_cache) as f:
-                    all_cache_results = [CacheResult(**r) for r in json.load(f)]
-        
-        if not all_reorder_results:
-            latest_reorder = max(glob.glob(os.path.join(args.results_dir, "reorder_*.json")), default=None)
-            if latest_reorder:
-                with open(latest_reorder) as f:
-                    # Use reorder.py version which has 'reorder_time' field
-                    from scripts.lib.reorder import ReorderResult as ReorderReorderResult
-                    all_reorder_results = [ReorderReorderResult(**r) for r in json.load(f)]
-        
-        if all_benchmark_results:
-            _progress.phase_start("WEIGHTS", "Generating perceptron weights")
-            generate_perceptron_weights(
-                benchmark_results=all_benchmark_results,
-                cache_results=all_cache_results,
-                reorder_results=all_reorder_results,
-                output_file=args.weights_file  # Deprecated, but kept for compatibility
-            )
-            
-            # Update zero weights with comprehensive analysis
-            update_zero_weights(
-                weights_file=args.weights_file,  # Deprecated, but kept for compatibility
-                benchmark_results=all_benchmark_results,
-                cache_results=all_cache_results,
-                reorder_results=all_reorder_results,
-                graphs_dir=args.graphs_dir
-            )
-            _progress.phase_end("Weights saved to scripts/weights/active/type_0.json")
+    # NOTE: Phase 4 (Weights) is handled above by run_weights_phase() from phases.py
+    # which calls compute_weights_from_results() with proper bias capping (≤1.5).
+    # The old inline Phase 4 that also called update_zero_weights() was removed
+    # because it overwrote type_0.json with uncapped biases and zero metadata.
+    
+    # Phase 5: Fill Weights (only when --train is specified)
+    if getattr(args, "fill_weights", False) and all_benchmark_results:
+        _progress.phase_start("FILL WEIGHTS", "Updating weights with correlation analysis")
+        update_zero_weights(
+            weights_file=args.weights_file,
+            benchmark_results=all_benchmark_results,
+            cache_results=all_cache_results,
+            reorder_results=all_reorder_results,
+            graphs_dir=args.graphs_dir
+        )
+        _progress.phase_end("Weights updated with correlation analysis")
     
     # Phase 6: Adaptive Order Analysis
     if args.phase in ["all", "adaptive"] or getattr(args, "adaptive_analysis", False):
@@ -3412,6 +3379,14 @@ def main():
         if not args.expand_variants:
             args.expand_variants = True
             log("Auto-enabling variant expansion (specific variants requested)", "INFO")
+    
+    # Auto-enable --all-variants when running --full pipeline
+    # Training on all variants is critical for the perceptron to learn which
+    # variant works best for each graph structure (e.g., LeidenCSR_gveopt2 vs
+    # LeidenCSR_gve, RABBITORDER_csr vs RABBITORDER_boost, etc.)
+    if getattr(args, 'full', False) and not args.expand_variants:
+        args.expand_variants = True
+        log("Auto-enabling variant expansion for --full pipeline (train on all variants)", "INFO")
     
     # Resolve unified --size parameter
     # Priority: --size > --graphs > --download-size > default (all)

@@ -48,6 +48,15 @@ log = Logger()
 # Enable run logging (saves command outputs per graph)
 ENABLE_RUN_LOGGING = True
 
+# Backward-compat: old bare algorithm names → new variant-suffixed names.
+# Before the variant-everywhere change, GraphBrewOrder was stored without a
+# variant suffix.  Old label-map indices and .lo files still use the bare
+# name so we need fallback lookups.
+_LEGACY_ALGO_NAMES = {
+    'GraphBrewOrder': 'GraphBrewOrder_leiden',
+}
+_LEGACY_ALGO_NAMES_REV = {v: k for k, v in _LEGACY_ALGO_NAMES.items()}
+
 
 def safe_filename(name: str) -> str:
     """Sanitize algorithm name for use in filenames.
@@ -108,9 +117,10 @@ def get_algorithm_name_with_variant(algo_id: int, variant: str = None) -> str:
     Get algorithm name with variant suffix for algorithms that have variants.
     
     ALWAYS includes variant in name for:
-    - RABBITORDER: RABBITORDER_csr or RABBITORDER_boost
+    - RABBITORDER (8): RABBITORDER_csr or RABBITORDER_boost
+    - GraphBrewOrder (12): GraphBrewOrder_leiden (default), GraphBrewOrder_gve, etc.
     - LeidenCSR (17): LeidenCSR_gve, LeidenCSR_fast, etc.
-    - LeidenDendrogram (16): LeidenDendrogram_mod, LeidenDendrogram_cpm, etc.
+    - LeidenDendrogram (16): LeidenDendrogram_dfs, LeidenDendrogram_dfshub, etc.
     
     For other algorithms, returns the base name.
     
@@ -126,14 +136,33 @@ def get_algorithm_name_with_variant(algo_id: int, variant: str = None) -> str:
     if algo_id == 8:  # RABBITORDER
         variant = variant or RABBITORDER_DEFAULT_VARIANT
         return f"RABBITORDER_{variant}"
+    elif algo_id == 12:  # GraphBrewOrder
+        variant = variant or GRAPHBREW_DEFAULT_VARIANT
+        return f"GraphBrewOrder_{variant}"
     elif algo_id == 17:  # LeidenCSR
         variant = variant or LEIDEN_CSR_VARIANTS[0]  # Default: gve
         return f"LeidenCSR_{variant}"
     elif algo_id == 16:  # LeidenDendrogram
-        variant = variant or LEIDEN_DENDROGRAM_VARIANTS[0]  # Default: mod
+        variant = variant or LEIDEN_DENDROGRAM_VARIANTS[0]  # Default: dfs
         return f"LeidenDendrogram_{variant}"
     else:
         return base_name
+
+
+def _find_legacy_map_file(graph_mappings_dir: str, algo_name: str) -> Optional[str]:
+    """Check for a .lo file under the legacy (bare) algorithm name.
+    
+    When algo_name is 'GraphBrewOrder_leiden', also checks for
+    'GraphBrewOrder.lo' which may exist from older runs.
+    Returns the path if found, None otherwise.
+    """
+    legacy_name = _LEGACY_ALGO_NAMES_REV.get(algo_name)
+    if not legacy_name:
+        return None
+    legacy_file = os.path.join(graph_mappings_dir, f"{safe_filename(legacy_name)}.lo")
+    if os.path.exists(legacy_file):
+        return legacy_file
+    return None
 
 
 # =============================================================================
@@ -506,8 +535,20 @@ def generate_reorderings(
             map_file = os.path.join(graph_mappings_dir, f"{safe_name}.lo") if generate_maps else None
             
             # Check if mapping already exists (unless force_reorder is set)
-            if generate_maps and map_file and os.path.exists(map_file) and not force_reorder:
+            # Also check legacy filename (e.g. GraphBrewOrder.lo → GraphBrewOrder_leiden.lo)
+            actual_map_file = map_file
+            if generate_maps and map_file and not os.path.exists(map_file) and not force_reorder:
+                legacy = _find_legacy_map_file(graph_mappings_dir, algo_name)
+                if legacy:
+                    actual_map_file = legacy
+            
+            if generate_maps and actual_map_file and os.path.exists(actual_map_file) and not force_reorder:
                 timing_file = os.path.join(graph_mappings_dir, f"{safe_name}.time")
+                # Also try legacy timing file
+                if not os.path.exists(timing_file):
+                    legacy_name = _LEGACY_ALGO_NAMES_REV.get(algo_name)
+                    if legacy_name:
+                        timing_file = os.path.join(graph_mappings_dir, f"{safe_filename(legacy_name)}.time")
                 if os.path.exists(timing_file):
                     with open(timing_file) as f:
                         reorder_time = float(f.read().strip())
@@ -520,7 +561,7 @@ def generate_reorderings(
                     algorithm_id=algo_id,
                     algorithm_name=algo_name,
                     reorder_time=reorder_time,
-                    mapping_file=map_file,
+                    mapping_file=actual_map_file,
                     success=True
                 ))
                 continue
@@ -702,22 +743,35 @@ def generate_label_maps(
             map_file = os.path.join(graph_mappings_dir, f"{safe_name}.lo")
             timing_file = os.path.join(graph_mappings_dir, f"{safe_name}.time")
             
-            # Check if already exists
-            if os.path.exists(map_file):
-                if os.path.exists(timing_file):
-                    with open(timing_file) as f:
+            # Check if already exists (also check legacy filename)
+            actual_map_file = map_file
+            if not os.path.exists(map_file):
+                legacy = _find_legacy_map_file(graph_mappings_dir, algo_name)
+                if legacy:
+                    actual_map_file = legacy
+            
+            if os.path.exists(actual_map_file):
+                actual_timing = timing_file
+                if not os.path.exists(timing_file):
+                    legacy_name = _LEGACY_ALGO_NAMES_REV.get(algo_name)
+                    if legacy_name:
+                        legacy_tf = os.path.join(graph_mappings_dir, f"{safe_filename(legacy_name)}.time")
+                        if os.path.exists(legacy_tf):
+                            actual_timing = legacy_tf
+                if os.path.exists(actual_timing):
+                    with open(actual_timing) as f:
                         reorder_time = float(f.read().strip())
                 else:
                     reorder_time = 0.0
                 
                 log.info(f"  [{current}/{total}] {algo_name}: exists ({reorder_time:.4f}s)")
-                label_maps[graph.name][algo_name] = map_file
+                label_maps[graph.name][algo_name] = actual_map_file
                 reorder_results.append(ReorderResult(
                     graph=graph.name,
                     algorithm_id=algo_id,
                     algorithm_name=algo_name,
                     reorder_time=reorder_time,
-                    mapping_file=map_file,
+                    mapping_file=actual_map_file,
                     success=True
                 ))
                 continue
@@ -909,22 +963,35 @@ def generate_reorderings_with_variants(
             map_file = os.path.join(graph_mappings_dir, f"{safe_name}.lo")
             timing_file = os.path.join(graph_mappings_dir, f"{safe_name}.time")
             
-            # Check if exists
-            if os.path.exists(map_file) and not force_reorder:
-                if os.path.exists(timing_file):
-                    with open(timing_file) as f:
+            # Check if exists (also check legacy filename for backward compat)
+            actual_map_file = map_file
+            if not os.path.exists(map_file) and not force_reorder:
+                legacy = _find_legacy_map_file(graph_mappings_dir, cfg.name)
+                if legacy:
+                    actual_map_file = legacy
+            
+            if os.path.exists(actual_map_file) and not force_reorder:
+                actual_timing = timing_file
+                if not os.path.exists(timing_file):
+                    legacy_name = _LEGACY_ALGO_NAMES_REV.get(cfg.name)
+                    if legacy_name:
+                        legacy_tf = os.path.join(graph_mappings_dir, f"{safe_filename(legacy_name)}.time")
+                        if os.path.exists(legacy_tf):
+                            actual_timing = legacy_tf
+                if os.path.exists(actual_timing):
+                    with open(actual_timing) as f:
                         reorder_time = float(f.read().strip())
                 else:
                     reorder_time = 0.0
                 
                 log.info(f"  [{current}/{total}] {cfg.name}: exists ({reorder_time:.4f}s)")
-                label_maps[graph.name][cfg.name] = map_file
+                label_maps[graph.name][cfg.name] = actual_map_file
                 results.append(ReorderResult(
                     graph=graph.name,
                     algorithm_id=cfg.algo_id,
                     algorithm_name=cfg.name,
                     reorder_time=reorder_time,
-                    mapping_file=map_file,
+                    mapping_file=actual_map_file,
                     success=True
                 ))
                 continue
@@ -1003,11 +1070,30 @@ def get_label_map_path(
     graph_name: str,
     algo_name: str
 ) -> Optional[str]:
-    """Get the path to a pre-generated label map, if available."""
-    if graph_name in label_maps and algo_name in label_maps[graph_name]:
-        path = label_maps[graph_name][algo_name]
+    """Get the path to a pre-generated label map, if available.
+    
+    Supports backward compatibility: if algo_name is 'GraphBrewOrder_leiden'
+    but the index only has 'GraphBrewOrder' (or vice versa), the fallback
+    name is tried automatically.
+    """
+    if graph_name not in label_maps:
+        return None
+    
+    graph_maps = label_maps[graph_name]
+    
+    # Try exact match first
+    if algo_name in graph_maps:
+        path = graph_maps[algo_name]
         if os.path.exists(path):
             return path
+    
+    # Try legacy fallback (new name → old bare name, or old → new)
+    fallback = _LEGACY_ALGO_NAMES_REV.get(algo_name) or _LEGACY_ALGO_NAMES.get(algo_name)
+    if fallback and fallback in graph_maps:
+        path = graph_maps[fallback]
+        if os.path.exists(path):
+            return path
+    
     return None
 
 

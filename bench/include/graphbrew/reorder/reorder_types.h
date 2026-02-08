@@ -1233,6 +1233,9 @@ inline const std::map<std::string, ReorderingAlgo>& getAlgorithmNameMap() {
 #ifdef RABBIT_ENABLE
         {"RabbitOrder", RabbitOrder},
         {"RABBITORDER", RabbitOrder},
+        // RabbitOrder variants
+        {"RABBITORDER_csr", RabbitOrder},
+        {"RABBITORDER_boost", RabbitOrder},
 #endif
         {"GOrder", GOrder},
         {"GORDER", GOrder},
@@ -1243,6 +1246,14 @@ inline const std::map<std::string, ReorderingAlgo>& getAlgorithmNameMap() {
         {"RCM", RCMOrder},
         {"GraphBrewOrder", GraphBrewOrder},
         {"GRAPHBREWORDER", GraphBrewOrder},
+        // GraphBrewOrder variants
+        {"GraphBrewOrder_leiden", GraphBrewOrder},
+        {"GraphBrewOrder_gve", GraphBrewOrder},
+        {"GraphBrewOrder_gveopt", GraphBrewOrder},
+        {"GraphBrewOrder_gvefast", GraphBrewOrder},
+        {"GraphBrewOrder_gveoptfast", GraphBrewOrder},
+        {"GraphBrewOrder_rabbit", GraphBrewOrder},
+        {"GraphBrewOrder_hubcluster", GraphBrewOrder},
         {"MAP", MAP},
         {"AdaptiveOrder", AdaptiveOrder},
         {"ADAPTIVEORDER", AdaptiveOrder},
@@ -1250,8 +1261,48 @@ inline const std::map<std::string, ReorderingAlgo>& getAlgorithmNameMap() {
         {"LEIDENORDER", LeidenOrder},
         {"LeidenDendrogram", LeidenDendrogram},
         {"LEIDENDENDROGRAM", LeidenDendrogram},
+        // LeidenDendrogram variants
+        {"LeidenDendrogram_dfs", LeidenDendrogram},
+        {"LeidenDendrogram_dfshub", LeidenDendrogram},
+        {"LeidenDendrogram_dfssize", LeidenDendrogram},
+        {"LeidenDendrogram_bfs", LeidenDendrogram},
+        {"LeidenDendrogram_hybrid", LeidenDendrogram},
         {"LeidenCSR", LeidenCSR},
         {"LEIDENCSR", LeidenCSR},
+        // LeidenCSR variants (core)
+        {"LeidenCSR_gve", LeidenCSR},
+        {"LeidenCSR_gveopt", LeidenCSR},
+        {"LeidenCSR_gveopt2", LeidenCSR},
+        {"LeidenCSR_gveadaptive", LeidenCSR},
+        {"LeidenCSR_gveoptsort", LeidenCSR},
+        {"LeidenCSR_gveturbo", LeidenCSR},
+        {"LeidenCSR_gvefast", LeidenCSR},
+        {"LeidenCSR_gvedendo", LeidenCSR},
+        {"LeidenCSR_gveoptdendo", LeidenCSR},
+        {"LeidenCSR_gverabbit", LeidenCSR},
+        {"LeidenCSR_dfs", LeidenCSR},
+        {"LeidenCSR_bfs", LeidenCSR},
+        {"LeidenCSR_hubsort", LeidenCSR},
+        {"LeidenCSR_modularity", LeidenCSR},
+        // LeidenCSR VIBE variants
+        {"LeidenCSR_vibe", LeidenCSR},
+        {"LeidenCSR_vibe:dfs", LeidenCSR},
+        {"LeidenCSR_vibe:bfs", LeidenCSR},
+        {"LeidenCSR_vibe:dbg", LeidenCSR},
+        {"LeidenCSR_vibe:corder", LeidenCSR},
+        {"LeidenCSR_vibe:dbg-global", LeidenCSR},
+        {"LeidenCSR_vibe:corder-global", LeidenCSR},
+        {"LeidenCSR_vibe:streaming", LeidenCSR},
+        {"LeidenCSR_vibe:streaming:dfs", LeidenCSR},
+        {"LeidenCSR_vibe:lazyupdate", LeidenCSR},
+        {"LeidenCSR_vibe:conn", LeidenCSR},
+        {"LeidenCSR_vibe:hrab", LeidenCSR},
+        {"LeidenCSR_vibe:hrab:gordi", LeidenCSR},
+        {"LeidenCSR_vibe:rabbit", LeidenCSR},
+        {"LeidenCSR_vibe:rabbit:dfs", LeidenCSR},
+        {"LeidenCSR_vibe:rabbit:bfs", LeidenCSR},
+        {"LeidenCSR_vibe:rabbit:dbg", LeidenCSR},
+        {"LeidenCSR_vibe:rabbit:corder", LeidenCSR},
     };
     return name_to_algo;
 }
@@ -2886,7 +2937,14 @@ inline bool ParseWeightsFromJSON(const std::string& json_content,
             }
         }
         
-        weights[kv.second] = w;
+        // When multiple variant names map to the same base algorithm (e.g.,
+        // LeidenCSR_gve, LeidenCSR_gveopt2 both map to LeidenCSR), keep the
+        // variant with the highest bias (the one training found most successful).
+        // This ensures the perceptron uses the best-performing variant's weights.
+        auto it = weights.find(kv.second);
+        if (it == weights.end() || w.bias > it->second.bias) {
+            weights[kv.second] = w;
+        }
     }
     
     return !weights.empty();
