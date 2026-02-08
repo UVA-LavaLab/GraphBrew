@@ -75,6 +75,13 @@ WEIGHT_FIELDS = [
     "w_diameter",
     "w_community_count",
     "w_reorder_time",
+    "w_packing_factor",
+    "w_forward_edge_fraction",
+    "w_working_set_ratio",
+    "w_dv_x_hub",
+    "w_mod_x_logn",
+    "w_pf_x_wsr",
+    "w_fef_convergence",
     "cache_l1_impact",
     "cache_l2_impact",
     "cache_l3_impact",
@@ -108,6 +115,13 @@ SCORING_FEATURES = [
     ("diameter", "w_diameter"),
     ("community_count", "w_community_count"),
     ("reorder_time", "w_reorder_time"),
+    ("packing_factor", "w_packing_factor"),
+    ("forward_edge_fraction", "w_forward_edge_fraction"),
+    ("working_set_ratio", "w_working_set_ratio"),
+    ("dv_x_hub", "w_dv_x_hub"),
+    ("mod_x_logn", "w_mod_x_logn"),
+    ("pf_x_wsr", "w_pf_x_wsr"),
+    ("fef_convergence", "w_fef_convergence"),
 ]
 
 # Import ALGORITHMS from lib/utils.py (Single Source of Truth)
@@ -158,14 +172,19 @@ class GraphFeatures:
     diameter: float = 0.0
     community_count: float = 0.0
     reorder_time: float = 0.0
+    packing_factor: float = 0.0
+    forward_edge_fraction: float = 0.5
+    working_set_ratio: float = 0.0
     
     @property
     def log_nodes(self) -> float:
-        return math.log10(self.num_nodes) if self.num_nodes > 0 else 0
+        """log10(num_nodes + 1) — matches C++ scoreBase() in reorder_types.h."""
+        return math.log10(self.num_nodes + 1) if self.num_nodes >= 0 else 0
     
     @property
     def log_edges(self) -> float:
-        return math.log10(self.num_edges) if self.num_edges > 0 else 0
+        """log10(num_edges + 1) — matches C++ scoreBase() in reorder_types.h."""
+        return math.log10(self.num_edges + 1) if self.num_edges >= 0 else 0
     
     def to_type_vector(self) -> List[float]:
         """Convert to normalized feature vector for type matching.
@@ -197,20 +216,38 @@ class GraphFeatures:
         ]
     
     def to_scoring_dict(self) -> Dict[str, float]:
-        """Convert to dict for algorithm scoring."""
+        """Convert to dict for algorithm scoring.
+        
+        MUST match C++ scoreBase() normalization in reorder_types.h:
+        - avg_degree: divided by 100.0
+        - degree_variance: RAW (no normalization)
+        - avg_path_length: divided by 10.0
+        - diameter: divided by 50.0
+        - community_count: log10(count + 1)
+        - log_nodes/log_edges: log10(val + 1)
+        """
         return {
             "modularity": self.modularity,
             "log_nodes": self.log_nodes,
             "log_edges": self.log_edges,
             "density": self.density,
             "avg_degree": self.avg_degree / 100.0,  # Normalized as in C++
-            "degree_variance": self.degree_variance / 100.0,  # Normalized
+            "degree_variance": self.degree_variance,  # Raw, matching C++ scoreBase()
             "hub_concentration": self.hub_concentration,
             "clustering_coeff": self.clustering_coeff,
-            "avg_path_length": self.avg_path_length / 10.0,  # Normalized
-            "diameter": self.diameter / 50.0,  # Normalized
-            "community_count": math.log10(self.community_count) if self.community_count > 0 else 0,
+            "avg_path_length": self.avg_path_length / 10.0,  # Normalized as in C++
+            "diameter": self.diameter / 50.0,  # Normalized as in C++
+            "community_count": math.log10(self.community_count + 1) if self.community_count >= 0 else 0,
             "reorder_time": self.reorder_time,
+            "packing_factor": self.packing_factor,
+            "forward_edge_fraction": self.forward_edge_fraction,
+            "working_set_ratio": math.log2(self.working_set_ratio + 1.0),
+            # Quadratic interaction terms
+            "dv_x_hub": self.degree_variance * self.hub_concentration,
+            "mod_x_logn": self.modularity * math.log10(self.num_nodes + 1),
+            "pf_x_wsr": self.packing_factor * math.log2(self.working_set_ratio + 1.0),
+            # Convergence bonus (set per-benchmark by caller, default 0 = no bonus)
+            "fef_convergence": 0.0,
         }
 
 
@@ -401,11 +438,19 @@ class AlgorithmSelector:
             
             score += weight * feature_value * multiplier
         
-        # Add cache impacts if enabled
-        for cache_weight in ["cache_l1_impact", "cache_l2_impact", "cache_l3_impact", "cache_dram_penalty"]:
+        # Cache impact weights — match C++ scoreBase() multipliers:
+        #   s += cache_l1_impact * 0.5 + cache_l2_impact * 0.3
+        #      + cache_l3_impact * 0.2 + cache_dram_penalty
+        cache_multipliers = {
+            "cache_l1_impact": 0.5,
+            "cache_l2_impact": 0.3,
+            "cache_l3_impact": 0.2,
+            "cache_dram_penalty": 1.0,
+        }
+        for cache_weight, cpp_mult in cache_multipliers.items():
             if config.is_enabled(cache_weight):
                 cache_w = config.apply_cap(algo_weights.get(cache_weight, 0.0))
-                score += cache_w * config.get_multiplier(cache_weight)
+                score += cache_w * cpp_mult * config.get_multiplier(cache_weight)
         
         # Apply benchmark-specific multiplier if available
         if benchmark:
@@ -420,14 +465,35 @@ class AlgorithmSelector:
         type_name: str,
         features: GraphFeatures,
         config: WeightConfig,
-        benchmark: str = None
+        benchmark: str = None,
+        type_distance: float = 0.0
     ) -> Tuple[str, Dict[str, float]]:
-        """Select the best algorithm for given features."""
+        """Select the best algorithm for given features.
+        
+        Args:
+            type_name: Matched graph type (e.g. "type_0")
+            features: Graph features for scoring
+            config: Weight configuration
+            benchmark: Optional benchmark name for per-benchmark multiplier
+            type_distance: Euclidean distance to nearest centroid (0 = unknown)
+        """
+        # OOD guardrail: if graph is too far from any known centroid,
+        # predictions are unreliable — fall back to ORIGINAL
+        OOD_DISTANCE_THRESHOLD = 1.5
+        if type_distance > OOD_DISTANCE_THRESHOLD:
+            return "ORIGINAL", {}
+        
         weights = self.load_weights(type_name)
         if not weights:
             return "ORIGINAL", {}
         
         feature_dict = features.to_scoring_dict()
+        
+        # Set convergence bonus feature for iterative benchmarks (PR, SSSP)
+        # Matches C++ score() which adds w_fef_convergence * forward_edge_fraction
+        if benchmark and benchmark.lower() in ('pr', 'sssp'):
+            feature_dict['fef_convergence'] = features.forward_edge_fraction
+        
         scores = {}
         
         # First pass: collect all biases for normalization if enabled
@@ -468,6 +534,16 @@ class AlgorithmSelector:
             return "ORIGINAL", {}
         
         best_algo = max(scores, key=scores.get)
+        
+        # Margin-based ORIGINAL fallback (IISWC'18):
+        # If best algorithm doesn't beat ORIGINAL by sufficient margin,
+        # reordering overhead likely exceeds the benefit.
+        ORIGINAL_MARGIN_THRESHOLD = 0.05
+        if best_algo != "ORIGINAL" and "ORIGINAL" in scores:
+            margin = scores[best_algo] - scores["ORIGINAL"]
+            if margin < ORIGINAL_MARGIN_THRESHOLD:
+                best_algo = "ORIGINAL"
+        
         return best_algo, scores
 
 

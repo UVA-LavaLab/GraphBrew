@@ -47,6 +47,16 @@ log = Logger()
 
 # Enable run logging (saves command outputs per graph)
 ENABLE_RUN_LOGGING = True
+
+
+def safe_filename(name: str) -> str:
+    """Sanitize algorithm name for use in filenames.
+    
+    Colons in filenames (e.g., LeidenCSR_vibe:rabbit.lo) break the C++ CLI
+    parser which splits -o arguments on ALL colons. Replace colons with
+    underscores to produce safe filenames (e.g., LeidenCSR_vibe_rabbit.lo).
+    """
+    return name.replace(':', '_')
 # =============================================================================
 # Data Classes
 # =============================================================================
@@ -492,11 +502,12 @@ def generate_reorderings(
                 continue
             
             # Output mapping file path
-            map_file = os.path.join(graph_mappings_dir, f"{algo_name}.lo") if generate_maps else None
+            safe_name = safe_filename(algo_name)
+            map_file = os.path.join(graph_mappings_dir, f"{safe_name}.lo") if generate_maps else None
             
             # Check if mapping already exists (unless force_reorder is set)
             if generate_maps and map_file and os.path.exists(map_file) and not force_reorder:
-                timing_file = os.path.join(graph_mappings_dir, f"{algo_name}.time")
+                timing_file = os.path.join(graph_mappings_dir, f"{safe_name}.time")
                 if os.path.exists(timing_file):
                     with open(timing_file) as f:
                         reorder_time = float(f.read().strip())
@@ -517,7 +528,7 @@ def generate_reorderings(
             # Remove existing files if force_reorder
             if force_reorder and map_file and os.path.exists(map_file):
                 os.remove(map_file)
-                timing_file = os.path.join(graph_mappings_dir, f"{algo_name}.time")
+                timing_file = os.path.join(graph_mappings_dir, f"{safe_name}.time")
                 if os.path.exists(timing_file):
                     os.remove(timing_file)
             
@@ -560,11 +571,11 @@ def generate_reorderings(
                         actual_reorder_time = parse_reorder_time_from_converter(output)
                         reorder_time = actual_reorder_time if actual_reorder_time else elapsed
                         
-                        timing_file = os.path.join(graph_mappings_dir, f"{algo_name}.time")
+                        timing_file = os.path.join(graph_mappings_dir, f"{safe_name}.time")
                         with open(timing_file, 'w') as f:
                             f.write(f"{reorder_time:.6f}")
                         
-                        log.info(f"  [{current}/{total}] {algo_name}: {reorder_time:.4f}s (map: {algo_name}.lo)")
+                        log.info(f"  [{current}/{total}] {algo_name}: {reorder_time:.4f}s (map: {safe_name}.lo)")
                         results.append(ReorderResult(
                             graph=graph.name,
                             algorithm_id=algo_id,
@@ -687,8 +698,9 @@ def generate_label_maps(
                 continue
             
             # Output mapping file path
-            map_file = os.path.join(graph_mappings_dir, f"{algo_name}.lo")
-            timing_file = os.path.join(graph_mappings_dir, f"{algo_name}.time")
+            safe_name = safe_filename(algo_name)
+            map_file = os.path.join(graph_mappings_dir, f"{safe_name}.lo")
+            timing_file = os.path.join(graph_mappings_dir, f"{safe_name}.time")
             
             # Check if already exists
             if os.path.exists(map_file):
@@ -893,8 +905,9 @@ def generate_reorderings_with_variants(
                 ))
                 continue
             
-            map_file = os.path.join(graph_mappings_dir, f"{cfg.name}.lo")
-            timing_file = os.path.join(graph_mappings_dir, f"{cfg.name}.time")
+            safe_name = safe_filename(cfg.name)
+            map_file = os.path.join(graph_mappings_dir, f"{safe_name}.lo")
+            timing_file = os.path.join(graph_mappings_dir, f"{safe_name}.time")
             
             # Check if exists
             if os.path.exists(map_file) and not force_reorder:

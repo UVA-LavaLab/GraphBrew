@@ -10,7 +10,7 @@ Common questions and answers about GraphBrew.
 
 GraphBrew is a graph processing benchmark framework that combines:
 - **18 vertex reordering algorithms** (IDs 0-17) for cache optimization
-- **5 automated benchmarks** (PageRank, BFS, CC, SSSP, BC), plus Triangle Counting available
+- **6 benchmarks** (PageRank, BFS, CC, SSSP, BC, TC) — 5 run by default, TC binary available separately
 - **ML-powered algorithm selection** via AdaptiveOrder
 - **Leiden community detection** integration
 
@@ -196,11 +196,29 @@ RabbitOrder (algorithm 8) has two variants:
 ### How does AdaptiveOrder work?
 
 1. Detects communities using Leiden
-2. Computes features for each community
+2. Computes features for each community (15 linear + 3 quadratic cross-terms)
 3. Uses ML perceptron to select best algorithm per community
-4. Applies different reorderings to different parts of the graph
+4. Applies safety checks (OOD guardrail, ORIGINAL margin fallback)
+5. Applies different reorderings to different parts of the graph
 
 See [[AdaptiveOrder-ML]] for details.
+
+### What is the OOD guardrail?
+
+The **Out-of-Distribution (OOD) guardrail** prevents AdaptiveOrder from making bad predictions on unfamiliar graphs. If a graph's features are too far from any trained type centroid (Euclidean distance > 1.5 in normalized 7D space), the system returns ORIGINAL instead of risking a wrong algorithm choice.
+
+### What is convergence-aware scoring?
+
+For iterative algorithms like **PageRank** and **SSSP**, the perceptron adds a convergence bonus (`w_fef_convergence × forward_edge_fraction`) that rewards orderings where edges point to higher-numbered vertices. This captures how edge direction affects convergence speed, without affecting non-iterative benchmarks.
+
+### What are the quadratic cross-terms?
+
+The perceptron includes 3 non-linear feature interactions:
+- `w_dv_x_hub`: degree_variance × hub_concentration (power-law indicator)
+- `w_mod_x_logn`: modularity × log₁₀(nodes) (large vs small modular graphs)
+- `w_pf_x_wsr`: packing_factor × log₂(working_set_ratio+1) (uniform-degree + cache pressure)
+
+These capture patterns that linear features alone cannot express.
 
 ### Why are some perceptron weights 0 or 1.0?
 
@@ -214,7 +232,24 @@ Weight fields remain at 0 or default 1.0 when:
 python3 scripts/graphbrew_experiment.py --train --size small --max-graphs 5 --trials 2
 ```
 
-This populates all fields including `cache_l1/l2/l3_impact`, `w_clustering_coeff`, `w_diameter`, and `benchmark_weights`.
+This populates all fields including `cache_l1/l2/l3_impact`, `w_clustering_coeff`, `w_diameter`, `benchmark_weights`, and the new features (`w_packing_factor`, `w_forward_edge_fraction`, `w_working_set_ratio`, quadratic cross-terms).
+
+### How do I check if my weights are overfitting?
+
+Use Leave-One-Graph-Out (LOGO) cross-validation:
+
+```python
+from scripts.lib.weights import cross_validate_logo
+result = cross_validate_logo(benchmark_results, graph_features, type_registry)
+print(f"LOGO accuracy: {result['accuracy']:.1%}")
+print(f"Overfitting score: {result['overfitting_score']:.2f}")
+```
+
+An overfitting score > 0.2 means the model may not generalize well. Try adding more training graphs or increasing L2 regularization.
+
+### What is L2 regularization / weight decay?
+
+After each gradient update, all feature weights (`w_*`, `cache_*`) are multiplied by `(1.0 - 1e-4)`. This prevents weights from growing unboundedly during long training runs and improves generalization to unseen graphs.
 
 ### Where are the trained weights saved?
 

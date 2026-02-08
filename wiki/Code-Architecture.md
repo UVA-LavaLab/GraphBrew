@@ -12,10 +12,10 @@ GraphBrew/
 │   ├── include/              # Header libraries
 │   │   ├── graphbrew/        # 📦 GraphBrew extensions
 │   │   │   ├── graphbrew.h   # Umbrella header
-│   │   │   ├── reorder/      # Reordering algorithms (~12,435 lines)
+│   │   │   ├── reorder/      # Reordering algorithms (~24,108 lines)
 │   │   │   └── partition/    # Partitioning (trust.h, cagra/popt.h)
 │   │   ├── external/         # External libraries (bundled)
-│   │   │   ├── gapbs/        # Core GAPBS runtime (builder.h ~3,747 lines)
+│   │   │   ├── gapbs/        # Core GAPBS runtime (builder.h ~4,014 lines)
 │   │   │   ├── rabbit/       # RabbitOrder
 │   │   │   ├── gorder/       # GOrder
 │   │   │   ├── corder/       # COrder
@@ -103,7 +103,7 @@ The foundation is built on the GAP Benchmark Suite with extensions.
 | File | Lines | Purpose |
 |------|-------|---------|
 | [graph.h](https://github.com/UVA-LavaLab/GraphBrew/blob/main/bench/include/external/gapbs/graph.h) | ~500 | CSRGraph class, core data structure |
-| [builder.h](https://github.com/UVA-LavaLab/GraphBrew/blob/main/bench/include/external/gapbs/builder.h) | ~3,747 | Graph loading and reordering dispatcher |
+| [builder.h](https://github.com/UVA-LavaLab/GraphBrew/blob/main/bench/include/external/gapbs/builder.h) | ~4,014 | Graph loading and reordering dispatcher |
 | [benchmark.h](https://github.com/UVA-LavaLab/GraphBrew/blob/main/bench/include/external/gapbs/benchmark.h) | ~150 | Benchmark harness |
 | [command_line.h](https://github.com/UVA-LavaLab/GraphBrew/blob/main/bench/include/external/gapbs/command_line.h) | ~300 | CLI parsing |
 | [pvector.h](https://github.com/UVA-LavaLab/GraphBrew/blob/main/bench/include/external/gapbs/pvector.h) | ~150 | Parallel-friendly vector |
@@ -124,29 +124,31 @@ The reorder module is a modular header library with standalone template function
 
 ```
 reorder/
-├── reorder_types.h      # Base: types, perceptron, feature computation (~3,892 lines)
+├── reorder_types.h      # Base: types, perceptron, feature computation (~4,614 lines)
 ├── reorder_basic.h      # Original, Random, Sort (algo 0-2) (~324 lines)
-├── reorder_hub.h        # HubSort, HubCluster, DBG variants (algo 3-7) (~598 lines)
+├── reorder_hub.h        # HubSort, HubCluster, DBG variants (algo 3-7) (~641 lines)
 ├── reorder_rabbit.h     # RabbitOrder native CSR (algo 8) (~1,161 lines)
-├── reorder_classic.h    # GOrder, COrder, RCMOrder (algo 9-11) (~502 lines)
-├── reorder_graphbrew.h  # GraphBrew multi-level (algo 12) (~869 lines)
-├── reorder_adaptive.h   # ML-based selection (algo 14) (~638 lines)
-├── reorder_leiden.h     # Leiden community detection (algo 15-17) (~3,970 lines)
-└── reorder.h            # Main dispatcher (~481 lines)
+├── reorder_classic.h    # GOrder, COrder, RCMOrder (algo 9-11) (~517 lines)
+├── reorder_graphbrew.h  # GraphBrew multi-level (algo 12) (~928 lines)
+├── reorder_adaptive.h   # ML-based selection (algo 14) (~650 lines)
+├── reorder_leiden.h     # Leiden community detection (algo 15-17) (~7,725 lines)
+├── reorder_vibe.h       # VIBE unified reordering framework (~7,055 lines)
+└── reorder.h            # Main dispatcher (~493 lines)
 ```
 
-**Total: ~12,435 lines**
+**Total: ~24,108 lines**
 
 | File | Lines | Purpose |
 |------|-------|---------|
-| `reorder_types.h` | ~3,892 | Common types, perceptron model, `EdgeList`, threshold functions |
-| `reorder_leiden.h` | ~3,970 | GVE-Leiden algorithm, dendrogram traversal variants |
+| `reorder_leiden.h` | ~7,725 | GVE-Leiden algorithm, dendrogram traversal variants |
+| `reorder_vibe.h` | ~7,055 | VIBE unified reordering framework |
+| `reorder_types.h` | ~4,614 | Common types, perceptron model, `EdgeList`, threshold functions, `GetLLCSizeBytes()` |
 | `reorder_rabbit.h` | ~1,161 | RabbitOrder CSR native implementation |
-| `reorder_graphbrew.h` | ~869 | `GraphBrewConfig`, cluster variants, multi-level reordering |
-| `reorder_adaptive.h` | ~638 | `AdaptiveConfig`, ML-based per-community algorithm selection |
-| `reorder_hub.h` | ~598 | Hub-based algorithms (DBG, HubSort, HubCluster) |
-| `reorder_classic.h` | ~502 | Classic algorithms (GOrder, COrder, RCM dispatch) |
-| `reorder.h` | ~481 | Main dispatcher, `ApplyBasicReorderingStandalone` |
+| `reorder_graphbrew.h` | ~928 | `GraphBrewConfig`, cluster variants, multi-level reordering |
+| `reorder_adaptive.h` | ~650 | `AdaptiveConfig`, ML-based per-community algorithm selection |
+| `reorder_hub.h` | ~641 | Hub-based algorithms (DBG, HubSort, HubCluster) |
+| `reorder_classic.h` | ~517 | Classic algorithms (GOrder, COrder, RCM dispatch) |
+| `reorder.h` | ~493 | Main dispatcher, `ApplyBasicReorderingStandalone` |
 | `reorder_basic.h` | ~324 | Basic algorithms (Original, Random, Sort) |
 
 **Key Utilities in reorder_types.h:**
@@ -170,10 +172,14 @@ struct SampledDegreeFeatures {
     double hub_concentration;
     double avg_degree;
     double clustering_coeff;
+    double working_set_ratio;   // graph_bytes / LLC_size (NEW)
 };
 
 template<typename GraphT>
 SampledDegreeFeatures ComputeSampledDegreeFeatures(const GraphT& g, size_t sample_size = 1000);
+
+// LLC detection for working_set_ratio computation (NEW)
+size_t GetLLCSizeBytes();  // sysconf on Linux, 30MB fallback
 ```
 
 **Key Configs:**
@@ -589,7 +595,7 @@ from scripts.lib.utils import (
 
 | Module | Lines | Purpose |
 |--------|-------|---------|
-| `weights.py` | ~1290 | Weight management |
+| `weights.py` | ~1510 | Weight management, cross-validation |
 | `graph_data.py` | ~1220 | Per-graph data storage |
 | `download.py` | ~1130 | Graph downloading |
 | `phases.py` | ~1080 | Phase orchestration |

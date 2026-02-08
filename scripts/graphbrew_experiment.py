@@ -652,36 +652,28 @@ class GraphInfo:
 
 
 class PerceptronWeightExtended(PerceptronWeight):
-    """Extended PerceptronWeight with compute_score and benchmark_weights."""
+    """Extended PerceptronWeight with benchmark_weights multiplier.
+    
+    Delegates scoring to the parent PerceptronWeight.compute_score() to
+    stay in sync with the canonical implementation in lib/weights.py.
+    """
     
     def __init__(self, *args, benchmark_weights: Dict[str, float] = None, 
                  _metadata: Dict = None, **kwargs):
         super().__init__(*args, **kwargs)
-        self.benchmark_weights = benchmark_weights or {'pr': 1.0, 'bfs': 1.0, 'cc': 1.0, 'sssp': 1.0, 'bc': 1.0}
+        if benchmark_weights is None:
+            # Use parent's benchmark_weights if available, else default
+            benchmark_weights = getattr(self, 'benchmark_weights', None) or {
+                'pr': 1.0, 'bfs': 1.0, 'cc': 1.0, 'sssp': 1.0, 'bc': 1.0, 'tc': 1.0
+            }
+        self.benchmark_weights = benchmark_weights
         self._metadata = _metadata or {}
     
     def compute_score(self, features: Dict, benchmark: str = 'pr') -> float:
-        """Compute perceptron score for given features and benchmark."""
-        log_nodes = math.log10(features.get('nodes', 1) + 1)
-        log_edges = math.log10(features.get('edges', 1) + 1)
-        
-        score = self.bias
-        score += self.w_modularity * features.get('modularity', 0.5)
-        score += self.w_log_nodes * log_nodes
-        score += self.w_log_edges * log_edges
-        score += self.w_density * features.get('density', 0.0)
-        score += self.w_avg_degree * features.get('avg_degree', 0.0) / 100.0
-        score += self.w_degree_variance * features.get('degree_variance', 0.0)
-        score += self.w_hub_concentration * features.get('hub_concentration', 0.0)
-        score += getattr(self, 'w_clustering_coeff', 0.0) * features.get('clustering_coefficient', 0.0)
-        score += getattr(self, 'w_avg_path_length', 0.0) * features.get('avg_path_length', 0.0) / 10.0
-        score += getattr(self, 'w_diameter', 0.0) * features.get('diameter', features.get('diameter_estimate', 0.0)) / 50.0
-        score += getattr(self, 'w_community_count', 0.0) * math.log10(features.get('community_count', 1) + 1)
-        score += self.w_reorder_time * features.get('reorder_time', 0.0)
-        
-        # Apply benchmark-specific multiplier
-        bench_mult = self.benchmark_weights.get(benchmark.lower(), 1.0) if self.benchmark_weights else 1.0
-        return score * bench_mult
+        """Compute perceptron score, delegating to parent then applying benchmark multiplier."""
+        # Delegate to canonical compute_score in PerceptronWeight (lib/weights.py)
+        score = super().compute_score(features, benchmark)
+        return score
 
 
 # Note: These are imported from lib/ directly:
@@ -1838,13 +1830,24 @@ def run_benchmarks_with_variants(
     total_configs = len(graphs) * len(algo_names_sorted) * len(benchmarks)
     completed = 0
     
+    # Import adaptive timeout from benchmark lib
+    from scripts.lib.benchmark import compute_adaptive_timeout
+
+    # Track (graph, benchmark) combos that timed out / crashed —
+    # skip remaining algorithms to avoid burning timeout budget
+    timed_out_combos: set = set()
+
     for graph in graphs:
         graph_name = graph.name
         graph_path = graph.path
         graph_label_maps = label_maps.get(graph_name, {})
         
+        # Adaptive timeout based on graph size
+        graph_timeout = compute_adaptive_timeout(graph.edges, timeout)
+
         if progress:
-            progress.info(f"Benchmarking: {graph_name} ({graph.size_mb:.1f}MB)")
+            timeout_note = f", timeout={graph_timeout}s" if graph_timeout != timeout else ""
+            progress.info(f"Benchmarking: {graph_name} ({graph.size_mb:.1f}MB, {graph.edges:,} edges{timeout_note})")
         
         for bench in benchmarks:
             if not check_binary_exists(bench, bin_dir):
@@ -1855,6 +1858,35 @@ def run_benchmarks_with_variants(
                 progress.info(f"  {bench.upper()}:")
             
             for algo_name in algo_names_sorted:
+                # Early-exit: skip remaining algorithms if this graph×benchmark
+                # already proved intractable (timeout or crash on a prior algorithm)
+                combo_key = (graph_name, bench)
+                if combo_key in timed_out_combos:
+                    # Determine algorithm ID
+                    algo_id = 0
+                    for aid, aname in ALGORITHMS.items():
+                        if algo_name == aname or algo_name.startswith(aname + "_"):
+                            algo_id = aid
+                            break
+                    # Use utils.BenchmarkResult (same as run_benchmark returns)
+                    from scripts.lib.utils import BenchmarkResult as UtilsBR
+                    result = UtilsBR(
+                        graph=graph_name,
+                        algorithm=algo_name,
+                        algorithm_id=algo_id,
+                        benchmark=bench,
+                        time_seconds=0.0,
+                        success=False,
+                        error="SKIPPED: prior algorithm timed out on this graph+benchmark"
+                    )
+                    result.nodes = graph.nodes
+                    result.edges = graph.edges
+                    results.append(result)
+                    completed += 1
+                    if progress:
+                        progress.info(f"    [{completed}/{total_configs}] {algo_name}: SKIPPED (timeout)")
+                    continue
+
                 # Determine algorithm ID from name
                 algo_id = 0
                 for aid, aname in ALGORITHMS.items():
@@ -1880,10 +1912,24 @@ def run_benchmarks_with_variants(
                     graph_path=graph_path,
                     algorithm=algo_opt,
                     trials=num_trials,
-                    timeout=timeout,
+                    timeout=graph_timeout,
                     bin_dir=bin_dir
                 )
                 
+                # Detect timeout or crash — mark this graph×benchmark as intractable
+                if not result.success:
+                    err_lower = (result.error or "").lower()
+                    is_timeout = "timed out" in err_lower or "timeout" in err_lower
+                    is_crash = "exit code -" in err_lower or "signal" in err_lower
+                    if is_timeout or is_crash:
+                        timed_out_combos.add(combo_key)
+                        reason = "TIMEOUT" if is_timeout else f"CRASH ({result.error[:60]})"
+                        if progress:
+                            progress.info(
+                                f"  ⚠ {reason}: {algo_name} on {bench}/{graph_name} — "
+                                f"skipping remaining algorithms for this combo"
+                            )
+
                 # Set the algorithm name to include variant suffix
                 result.algorithm = algo_name
                 result.algorithm_id = algo_id
@@ -2855,6 +2901,10 @@ def run_experiment(args):
                 apl_match = re.search(r'Avg Path Length:\s*([\d.]+)', output)
                 diam_match = re.search(r'Diameter Estimate:\s*([\d.]+)', output)
                 comm_match = re.search(r'Community Count Estimate:\s*([\d.]+)', output)
+                pf_match = re.search(r'Packing Factor:\s*([\d.]+)', output)
+                fef_match = re.search(r'Forward Edge Fraction:\s*([\d.]+)', output)
+                wsr_match = re.search(r'Working Set Ratio:\s*([\d.]+)', output)
+                density_match = re.search(r'Graph Density:\s*([\d.eE+-]+)', output)
                 
                 degree_variance = float(dv_match.group(1)) if dv_match else 1.0
                 hub_concentration = float(hc_match.group(1)) if hc_match else 0.3
@@ -2863,6 +2913,13 @@ def run_experiment(args):
                 avg_path_length = float(apl_match.group(1)) if apl_match else 0.0
                 diameter = float(diam_match.group(1)) if diam_match else 0.0
                 community_count = float(comm_match.group(1)) if comm_match else 0.0
+                packing_factor = float(pf_match.group(1)) if pf_match else 0.0
+                forward_edge_fraction = float(fef_match.group(1)) if fef_match else 0.5
+                working_set_ratio = float(wsr_match.group(1)) if wsr_match else 0.0
+                graph_density = float(density_match.group(1)) if density_match else 0.0
+                
+                graph_nodes = getattr(graph_info, 'nodes', 0)
+                graph_edges = getattr(graph_info, 'edges', 0)
                 
                 # Assign to type
                 features = {
@@ -2874,6 +2931,12 @@ def run_experiment(args):
                     'avg_path_length': avg_path_length,
                     'diameter': diameter,
                     'community_count': community_count,
+                    'density': graph_density,
+                    'packing_factor': packing_factor,
+                    'forward_edge_fraction': forward_edge_fraction,
+                    'working_set_ratio': working_set_ratio,
+                    'nodes': graph_nodes,
+                    'edges': graph_edges,
                 }
                 
                 # Save all features to graph properties cache
@@ -2886,8 +2949,12 @@ def run_experiment(args):
                     'avg_path_length': avg_path_length,
                     'diameter': diameter,
                     'community_count': community_count,
-                    'nodes': getattr(graph_info, 'nodes', 0),
-                    'edges': getattr(graph_info, 'edges', 0),
+                    'density': graph_density,
+                    'packing_factor': packing_factor,
+                    'forward_edge_fraction': forward_edge_fraction,
+                    'working_set_ratio': working_set_ratio,
+                    'nodes': graph_nodes,
+                    'edges': graph_edges,
                 })
                 
                 type_name = assign_graph_type(features, args.weights_dir, create_if_outlier=True)
@@ -3246,10 +3313,10 @@ def main():
     parser.add_argument("--all-variants", action="store_true", dest="expand_variants",
                         help="Test ALL algorithm variants (Leiden, RabbitOrder) instead of just defaults")
     parser.add_argument("--csr-variants", nargs="+", dest="leiden_csr_variants",
-                        default=None, choices=["gve", "gveopt", "gveopt2", "gveadaptive", "gveoptsort", "gveturbo", "gvefast",
-                                               "gvedendo", "gveoptdendo", "gverabbit", "dfs", "bfs", "hubsort", "modularity"],
-                        help="LeidenCSR variants: gve, gveopt, gveopt2 (CSR aggregation), gveadaptive (dynamic resolution), "
-                             "gveoptsort, gveturbo, gvefast (CSR buffer reuse), gvedendo, gveoptdendo, gverabbit, dfs, bfs, hubsort, modularity")
+                        default=None, choices=LEIDEN_CSR_VARIANTS,
+                        help="LeidenCSR/VIBE variants to test. Key variants: gve (default), gveopt2, gveadaptive, "
+                             "vibe:rabbit (RabbitOrder), vibe:hrab (Hybrid Leiden+Rabbit BFS), "
+                             "vibe:hrab:gordi (Hybrid Leiden+Rabbit Gorder). Use --all-variants for all.")
     parser.add_argument("--dendrogram-variants", nargs="+", dest="leiden_dendrogram_variants",
                         default=None, choices=["dfs", "dfshub", "dfssize", "bfs", "hybrid"],
                         help="LeidenDendrogram variants: dfs, dfshub, dfssize, bfs, hybrid")

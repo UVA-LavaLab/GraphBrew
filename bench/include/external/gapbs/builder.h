@@ -3384,6 +3384,9 @@ public:
         double degree_variance = deg_features.degree_variance;
         double hub_concentration = deg_features.hub_concentration;
         double clustering_coeff = deg_features.clustering_coeff;
+        double packing_factor = deg_features.packing_factor;
+        double forward_edge_fraction = deg_features.forward_edge_fraction;
+        double working_set_ratio = deg_features.working_set_ratio;
         
         // ============================================================
         // 2. DIAMETER & AVG PATH LENGTH (single BFS from high-degree node)
@@ -3474,6 +3477,10 @@ public:
         PrintTime("Degree Variance", degree_variance);
         PrintTime("Hub Concentration", hub_concentration);
         PrintTime("Avg Degree", avg_degree);
+        PrintTime("Graph Density", density);
+        PrintTime("Packing Factor", packing_factor);
+        PrintTime("Forward Edge Fraction", forward_edge_fraction);
+        PrintTime("Working Set Ratio", working_set_ratio);
         PrintTime("Topology Analysis Time", t.Seconds());
         std::cout << "===============================" << std::endl;
     }
@@ -3697,9 +3704,11 @@ public:
      */
     static std::string FindBestTypeFromFeatures(
         double modularity, double degree_variance, double hub_concentration,
-        double avg_degree, size_t num_nodes, size_t num_edges, bool verbose = false) {
+        double avg_degree, size_t num_nodes, size_t num_edges, bool verbose = false,
+        double clustering_coeff = 0.0) {
         return ::FindBestTypeFromFeatures(modularity, degree_variance, hub_concentration,
-                                          avg_degree, num_nodes, num_edges, verbose);
+                                          avg_degree, num_nodes, num_edges, verbose,
+                                          clustering_coeff);
     }
     
     /**
@@ -3709,9 +3718,11 @@ public:
     static std::string FindBestTypeWithDistance(
         double modularity, double degree_variance, double hub_concentration,
         double avg_degree, size_t num_nodes, size_t num_edges,
-        double& out_distance, bool verbose = false) {
+        double& out_distance, bool verbose = false,
+        double clustering_coeff = 0.0) {
         return ::FindBestTypeWithDistance(modularity, degree_variance, hub_concentration,
-                                          avg_degree, num_nodes, num_edges, out_distance, verbose);
+                                          avg_degree, num_nodes, num_edges, out_distance, verbose,
+                                          clustering_coeff);
     }
     
     // Threshold constant now defined in reorder/reorder_types.h
@@ -3740,9 +3751,11 @@ public:
      */
     static std::map<ReorderingAlgo, PerceptronWeights> LoadPerceptronWeightsForFeatures(
         double modularity, double degree_variance, double hub_concentration,
-        double avg_degree, size_t num_nodes, size_t num_edges, bool verbose = false) {
+        double avg_degree, size_t num_nodes, size_t num_edges, bool verbose = false,
+        double clustering_coeff = 0.0) {
         return ::LoadPerceptronWeightsForFeatures(modularity, degree_variance, hub_concentration,
-                                                   avg_degree, num_nodes, num_edges, verbose);
+                                                   avg_degree, num_nodes, num_edges, verbose,
+                                                   clustering_coeff);
     }
     
     /**

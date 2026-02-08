@@ -228,11 +228,15 @@ The emulator replicates the C++ AdaptiveOrder two-layer selection:
 Layer 1: Type Matching
   - Compute graph features → normalized vector
   - Find closest type centroid (Euclidean distance)
+  - OOD check: if distance > 1.5 → return ORIGINAL
   - Load that type's weights
 
 Layer 2: Algorithm Selection
   - Compute perceptron scores for each algorithm
   - Score = bias + Σ(weight_i × feature_i)
+          + quadratic cross-terms (dv×hub, mod×logN, pf×wsr)
+          + convergence bonus (PR/SSSP only)
+  - ORIGINAL margin check: if best - ORIGINAL < 0.05 → ORIGINAL
   - Select algorithm with highest score
 ```
 
@@ -420,7 +424,7 @@ The `lib/` folder contains modular, reusable components. Each module can be used
 Central type definitions used across all modules:
 
 ```python
-from scripts.lib.types import GraphInfo, BenchmarkResult, CacheResult, ReorderResult
+from scripts.lib.graph_types import GraphInfo, BenchmarkResult, CacheResult, ReorderResult
 
 # GraphInfo - Graph metadata
 GraphInfo(name="web-Stanford", path="graphs/web-Stanford/web-Stanford.mtx", 
@@ -635,17 +639,38 @@ from scripts.lib.weights import (
     update_type_weights_incremental,
     get_best_algorithm_for_type,
     load_type_registry,
+    cross_validate_logo,              # NEW: Leave-One-Graph-Out validation
+    compute_weights_from_results,     # Correlation-based weight computation
 )
 
 # Assign graph to a type based on features
 type_name, is_new = assign_graph_type("web-Stanford", features)
 
-# Update weights incrementally
+# Update weights incrementally (with L2 regularization)
 update_type_weights_incremental(type_name, algorithm_name, benchmark, speedup)
 
 # Get best algorithm for a type
 best_algo = get_best_algorithm_for_type(type_name, benchmark="pr")
+
+# Cross-validate with Leave-One-Graph-Out
+result = cross_validate_logo(benchmark_results, graph_features, type_registry)
+print(f"LOGO accuracy: {result['accuracy']:.1%}")
+print(f"Overfitting score: {result['overfitting_score']:.2f}")
 ```
+
+**PerceptronWeight dataclass** fields (all used in scoring):
+- Core: `bias`, `w_modularity`, `w_log_nodes`, `w_log_edges`, `w_density`, `w_avg_degree`, `w_degree_variance`, `w_hub_concentration`
+- Extended: `w_clustering_coeff`, `w_avg_path_length`, `w_diameter`, `w_community_count`
+- New graph-aware: `w_packing_factor`, `w_forward_edge_fraction`, `w_working_set_ratio`
+- Quadratic: `w_dv_x_hub`, `w_mod_x_logn`, `w_pf_x_wsr`
+- Convergence: `w_fef_convergence` (PR/SSSP only)
+- Cache: `cache_l1_impact`, `cache_l2_impact`, `cache_l3_impact`, `cache_dram_penalty`
+- Time: `w_reorder_time`
+
+**Training features:**
+- L2 regularization (`WEIGHT_DECAY = 1e-4`) prevents weight explosion
+- ORIGINAL is trained as a regular algorithm (no longer skipped)
+- `_metadata.avg_reorder_time` is calibrated from actual measurements
 
 ### lib/training.py - ML Training
 

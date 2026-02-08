@@ -71,8 +71,15 @@ class PerceptronWeight:
     w_avg_path_length: float = 0.0
     w_diameter: float = 0.0
     w_community_count: float = 0.0
+    w_packing_factor: float = 0.0
+    w_forward_edge_fraction: float = 0.0
+    w_working_set_ratio: float = 0.0
+    w_dv_x_hub: float = 0.0
+    w_mod_x_logn: float = 0.0
+    w_pf_x_wsr: float = 0.0
+    w_fef_convergence: float = 0.0
     benchmark_weights: Dict[str, float] = field(default_factory=lambda: {
-        'pr': 1.0, 'bfs': 1.0, 'cc': 1.0, 'sssp': 1.0, 'bc': 1.0
+        'pr': 1.0, 'bfs': 1.0, 'cc': 1.0, 'sssp': 1.0, 'bc': 1.0, 'tc': 1.0
     })
     _metadata: Dict = field(default_factory=dict)
     
@@ -80,26 +87,56 @@ class PerceptronWeight:
         return asdict(self)
     
     def compute_score(self, features: Dict, benchmark: str = 'pr') -> float:
-        """Compute perceptron score for given features and benchmark."""
+        """Compute perceptron score for given features and benchmark.
+        
+        Matches C++ scoreBase() + score() in reorder_types.h.
+        """
         log_nodes = math.log10(features.get('nodes', 1) + 1)
         log_edges = math.log10(features.get('edges', 1) + 1)
         
         score = self.bias
-        score += self.w_modularity * features.get('modularity', 0.5)
+        score += self.w_modularity * features.get('modularity', 0.0)
         score += self.w_log_nodes * log_nodes
         score += self.w_log_edges * log_edges
         score += self.w_density * features.get('density', 0.0)
         score += self.w_avg_degree * features.get('avg_degree', 0.0) / 100.0
         score += self.w_degree_variance * features.get('degree_variance', 0.0)
         score += self.w_hub_concentration * features.get('hub_concentration', 0.0)
-        score += self.w_clustering_coeff * features.get('clustering_coefficient', 0.0)
+        # Accept both key names for clustering (experiment uses 'clustering_coefficient',
+        # emulator/C++ use 'clustering_coeff')
+        clustering = features.get('clustering_coefficient', features.get('clustering_coeff', 0.0))
+        score += self.w_clustering_coeff * clustering
         score += self.w_avg_path_length * features.get('avg_path_length', 0.0) / WEIGHT_PATH_LENGTH_NORMALIZATION
         score += self.w_diameter * features.get('diameter', features.get('diameter_estimate', 0.0)) / 50.0
         score += self.w_community_count * math.log10(features.get('community_count', 1) + 1)
         score += self.w_reorder_time * features.get('reorder_time', 0.0)
+        score += self.w_packing_factor * features.get('packing_factor', 0.0)
+        score += self.w_forward_edge_fraction * features.get('forward_edge_fraction', 0.0)
+        score += self.w_working_set_ratio * math.log2(features.get('working_set_ratio', 0.0) + 1.0)
+        
+        # Quadratic interaction terms
+        log_wsr = math.log2(features.get('working_set_ratio', 0.0) + 1.0)
+        log_n = math.log10(features.get('nodes', 1) + 1)
+        score += self.w_dv_x_hub * features.get('degree_variance', 0.0) * features.get('hub_concentration', 0.0)
+        score += self.w_mod_x_logn * features.get('modularity', 0.0) * log_n
+        score += self.w_pf_x_wsr * features.get('packing_factor', 0.0) * log_wsr
+        
+        # Cache impact weights — matches C++ scoreBase():
+        #   s += cache_l1_impact * 0.5 + cache_l2_impact * 0.3
+        #      + cache_l3_impact * 0.2 + cache_dram_penalty
+        score += self.cache_l1_impact * 0.5
+        score += self.cache_l2_impact * 0.3
+        score += self.cache_l3_impact * 0.2
+        score += self.cache_dram_penalty
+        
+        # Convergence bonus for iterative algorithms (PR, SSSP)
+        # Use the benchmark parameter passed to this function, not from features dict
+        bench_name = benchmark if benchmark else features.get('benchmark', '')
+        if bench_name in ('pr', 'sssp'):
+            score += self.w_fef_convergence * features.get('forward_edge_fraction', 0.0)
         
         # Apply benchmark-specific multiplier
-        bench_mult = self.benchmark_weights.get(benchmark.lower(), 1.0)
+        bench_mult = self.benchmark_weights.get(bench_name.lower(), 1.0)
         return score * bench_mult
 
 
@@ -390,18 +427,38 @@ def update_type_weights_incremental(
     log_nodes = math.log10(features.get('nodes', 1) + 1)
     log_edges = math.log10(features.get('edges', 1) + 1)
     
+    # Accept both clustering key names
+    clustering = features.get('clustering_coefficient', features.get('clustering_coeff', 0.0))
+    
     algo_weights['bias'] += learning_rate * error
-    algo_weights['w_modularity'] += learning_rate * error * features.get('modularity', 0.5)
+    algo_weights['w_modularity'] += learning_rate * error * features.get('modularity', 0.0)
     algo_weights['w_log_nodes'] += learning_rate * error * log_nodes * 0.1
     algo_weights['w_log_edges'] += learning_rate * error * log_edges * 0.1
     algo_weights['w_density'] += learning_rate * error * features.get('density', 0.0)
     algo_weights['w_avg_degree'] += learning_rate * error * features.get('avg_degree', 0.0) / 100.0
-    algo_weights['w_degree_variance'] += learning_rate * error * features.get('degree_variance', 1.0)
-    algo_weights['w_hub_concentration'] += learning_rate * error * features.get('hub_concentration', 0.3)
-    algo_weights['w_clustering_coeff'] += learning_rate * error * features.get('clustering_coefficient', 0.0)
+    algo_weights['w_degree_variance'] += learning_rate * error * features.get('degree_variance', 0.0)
+    algo_weights['w_hub_concentration'] += learning_rate * error * features.get('hub_concentration', 0.0)
+    algo_weights['w_clustering_coeff'] += learning_rate * error * clustering
     algo_weights['w_community_count'] += learning_rate * error * features.get('community_count', 0) / 1000.0
     algo_weights['w_avg_path_length'] += learning_rate * error * features.get('avg_path_length', 0.0) / WEIGHT_PATH_LENGTH_NORMALIZATION
     algo_weights['w_diameter'] += learning_rate * error * features.get('diameter', 0.0) / 50.0
+    
+    # Locality features (IISWC'18 Packing Factor, GoGraph forward edge fraction)
+    algo_weights['w_packing_factor'] += learning_rate * error * features.get('packing_factor', 0.0)
+    algo_weights['w_forward_edge_fraction'] += learning_rate * error * features.get('forward_edge_fraction', 0.0)
+    algo_weights['w_working_set_ratio'] += learning_rate * error * math.log2(features.get('working_set_ratio', 0.0) + 1.0)
+    
+    # Quadratic interaction gradients
+    log_wsr = math.log2(features.get('working_set_ratio', 0.0) + 1.0)
+    log_n = math.log10(features.get('nodes', 1) + 1)
+    algo_weights['w_dv_x_hub'] = algo_weights.get('w_dv_x_hub', 0.0) + learning_rate * error * features.get('degree_variance', 0.0) * features.get('hub_concentration', 0.0)
+    algo_weights['w_mod_x_logn'] = algo_weights.get('w_mod_x_logn', 0.0) + learning_rate * error * features.get('modularity', 0.0) * log_n
+    algo_weights['w_pf_x_wsr'] = algo_weights.get('w_pf_x_wsr', 0.0) + learning_rate * error * features.get('packing_factor', 0.0) * log_wsr
+    
+    # Convergence bonus gradient (only for iterative benchmarks)
+    # Use the benchmark parameter passed to this function, not from features dict
+    if benchmark in ('pr', 'sssp'):
+        algo_weights['w_fef_convergence'] = algo_weights.get('w_fef_convergence', 0.0) + learning_rate * error * features.get('forward_edge_fraction', 0.0)
     
     # Update cache weights
     if cache_stats:
@@ -428,6 +485,16 @@ def update_type_weights_incremental(
     if benchmark.lower() in bench_weights:
         current_bench_weight = bench_weights[benchmark.lower()]
         bench_weights[benchmark.lower()] = current_bench_weight + learning_rate * error * 0.1
+    
+    # L2 weight decay (regularization) to prevent weight explosion
+    # Applied to all feature weights (not bias, not metadata, not benchmark_weights)
+    # Decay rate: 1e-4 per update — gentle enough to not interfere with learning
+    WEIGHT_DECAY = 1e-4
+    weight_keys = [k for k in algo_weights.keys() 
+                   if k.startswith('w_') or k.startswith('cache_')]
+    for k in weight_keys:
+        if isinstance(algo_weights[k], (int, float)):
+            algo_weights[k] *= (1.0 - WEIGHT_DECAY)
     
     algo_weights['_metadata'] = meta
     algo_weights['benchmark_weights'] = bench_weights
@@ -477,6 +544,13 @@ def get_best_algorithm_for_type(
             w_avg_path_length=algo_weights.get('w_avg_path_length', 0.0),
             w_diameter=algo_weights.get('w_diameter', 0.0),
             w_community_count=algo_weights.get('w_community_count', 0.0),
+            w_packing_factor=algo_weights.get('w_packing_factor', 0.0),
+            w_forward_edge_fraction=algo_weights.get('w_forward_edge_fraction', 0.0),
+            w_working_set_ratio=algo_weights.get('w_working_set_ratio', 0.0),
+            w_dv_x_hub=algo_weights.get('w_dv_x_hub', 0.0),
+            w_mod_x_logn=algo_weights.get('w_mod_x_logn', 0.0),
+            w_pf_x_wsr=algo_weights.get('w_pf_x_wsr', 0.0),
+            w_fef_convergence=algo_weights.get('w_fef_convergence', 0.0),
             benchmark_weights=algo_weights.get('benchmark_weights', {})
         )
         
@@ -648,6 +722,162 @@ def compute_weights_from_results(
     return weights
 
 
+def cross_validate_logo(
+    benchmark_results: List,
+    reorder_results: List = None,
+    weights_dir: str = None,
+) -> Dict:
+    """
+    Leave-One-Graph-Out (LOGO) cross-validation for perceptron weights.
+    
+    For each graph in the results:
+      1. Train weights on all OTHER graphs
+      2. Use trained weights to predict best algorithm for the held-out graph
+      3. Compare prediction to actual best algorithm
+    
+    Returns a summary dict with accuracy, per-graph results, and overfitting indicators.
+    
+    Args:
+        benchmark_results: List of BenchmarkResult objects
+        reorder_results: Optional list of ReorderResult objects
+        weights_dir: Weights directory (used for type registry)
+        
+    Returns:
+        Dict with keys: accuracy, per_graph, overfitting_score
+    """
+    reorder_results = reorder_results or []
+    if weights_dir is None:
+        weights_dir = DEFAULT_WEIGHTS_DIR
+    
+    # Group results by graph
+    graphs = set()
+    for r in benchmark_results:
+        if r.success and r.time_seconds > 0:
+            graphs.add(r.graph)
+    
+    graphs = sorted(graphs)
+    if len(graphs) < 3:
+        return {'accuracy': 0.0, 'per_graph': {}, 'overfitting_score': 0.0,
+                'error': 'Need at least 3 graphs for LOGO validation'}
+    
+    correct = 0
+    total = 0
+    per_graph = {}
+    
+    for held_out in graphs:
+        # Train on all graphs except held_out
+        train_results = [r for r in benchmark_results if r.graph != held_out]
+        train_reorder = [r for r in reorder_results 
+                         if getattr(r, 'graph', '') != held_out]
+        
+        # Train weights on training set (suppress file output)
+        import tempfile, os
+        with tempfile.TemporaryDirectory() as tmpdir:
+            trained_weights = compute_weights_from_results(
+                train_results, 
+                reorder_results=train_reorder,
+                weights_dir=tmpdir
+            )
+        
+        # Get actual best algorithm for held-out graph
+        held_out_results = [r for r in benchmark_results 
+                           if r.graph == held_out and r.success and r.time_seconds > 0]
+        if not held_out_results:
+            continue
+        
+        # Group by benchmark
+        by_bench = {}
+        for r in held_out_results:
+            if r.benchmark not in by_bench:
+                by_bench[r.benchmark] = []
+            by_bench[r.benchmark].append(r)
+        
+        graph_correct = 0
+        graph_total = 0
+        
+        for bench, results in by_bench.items():
+            actual_best = min(results, key=lambda r: r.time_seconds).algorithm
+            
+            # Find baseline for this graph
+            baseline_time = None
+            for r in results:
+                if 'ORIGINAL' in r.algorithm:
+                    baseline_time = r.time_seconds
+                    break
+            if baseline_time is None:
+                baseline_time = results[0].time_seconds
+            
+            # Use trained weights to predict
+            best_predicted = None
+            best_score = -float('inf')
+            for algo_name, algo_weights in trained_weights.items():
+                if algo_name.startswith('_') or not isinstance(algo_weights, dict):
+                    continue
+                bias = algo_weights.get('bias', 0.5)
+                if bias > best_score:
+                    best_score = bias
+                    best_predicted = algo_name
+            
+            if best_predicted == actual_best:
+                graph_correct += 1
+                correct += 1
+            graph_total += 1
+            total += 1
+        
+        per_graph[held_out] = {
+            'correct': graph_correct,
+            'total': graph_total,
+            'accuracy': graph_correct / graph_total if graph_total > 0 else 0.0
+        }
+    
+    accuracy = correct / total if total > 0 else 0.0
+    
+    # Overfitting score: compare LOGO accuracy to full-training accuracy
+    # Train on ALL data and evaluate
+    full_weights = compute_weights_from_results(
+        benchmark_results, reorder_results=reorder_results, weights_dir=weights_dir
+    )
+    full_correct = 0
+    full_total = 0
+    for graph_name in graphs:
+        held_out_results = [r for r in benchmark_results 
+                           if r.graph == graph_name and r.success and r.time_seconds > 0]
+        by_bench = {}
+        for r in held_out_results:
+            if r.benchmark not in by_bench:
+                by_bench[r.benchmark] = []
+            by_bench[r.benchmark].append(r)
+        
+        for bench, results in by_bench.items():
+            actual_best = min(results, key=lambda r: r.time_seconds).algorithm
+            best_predicted = None
+            best_score = -float('inf')
+            for algo_name, algo_weights in full_weights.items():
+                if algo_name.startswith('_') or not isinstance(algo_weights, dict):
+                    continue
+                bias = algo_weights.get('bias', 0.5)
+                if bias > best_score:
+                    best_score = bias
+                    best_predicted = algo_name
+            if best_predicted == actual_best:
+                full_correct += 1
+            full_total += 1
+    
+    full_accuracy = full_correct / full_total if full_total > 0 else 0.0
+    overfitting_score = full_accuracy - accuracy  # > 0.2 suggests overfitting
+    
+    return {
+        'accuracy': accuracy,
+        'full_training_accuracy': full_accuracy,
+        'overfitting_score': overfitting_score,
+        'num_graphs': len(graphs),
+        'correct': correct,
+        'total': total,
+        'per_graph': per_graph,
+        'warning': 'Possible overfitting' if overfitting_score > 0.2 else 'OK'
+    }
+
+
 def save_weights_to_active_type(
     weights: Dict,
     weights_dir: str = None,
@@ -737,7 +967,14 @@ def _create_default_weight_entry() -> Dict:
         'w_avg_path_length': 0.0,
         'w_diameter': 0.0,
         'w_community_count': 0.0,
-        'benchmark_weights': {'pr': 1.0, 'bfs': 1.0, 'cc': 1.0, 'sssp': 1.0, 'bc': 1.0},
+        'w_packing_factor': 0.0,
+        'w_forward_edge_fraction': 0.0,
+        'w_working_set_ratio': 0.0,
+        'w_dv_x_hub': 0.0,
+        'w_mod_x_logn': 0.0,
+        'w_pf_x_wsr': 0.0,
+        'w_fef_convergence': 0.0,
+        'benchmark_weights': {'pr': 1.0, 'bfs': 1.0, 'cc': 1.0, 'sssp': 1.0, 'bc': 1.0, 'tc': 1.0},
         '_metadata': {
             'sample_count': 0,
             'avg_speedup': 1.0,
@@ -1039,6 +1276,13 @@ def update_zero_weights(
             avg_time = sum(times) / len(times)
             # Penalize slow reordering algorithms
             weights[algo]['w_reorder_time'] = -avg_time / WEIGHT_REORDER_TIME_NORMALIZATION  # Normalize
+            
+            # Calibrate _metadata.avg_reorder_time from actual measurements
+            # This is critical for MODE_BEST_AMORTIZATION which uses
+            # avg_reorder_time to compute iterations-to-amortize
+            meta = weights[algo].get('_metadata', {})
+            meta['avg_reorder_time'] = avg_time
+            weights[algo]['_metadata'] = meta
     
     # Update cache impact weights from cache results
     # Aggregate by algorithm, then average
@@ -1133,8 +1377,11 @@ def update_zero_weights(
         
         # Update feature weights using simple correlation-based heuristics
         for algo, results in algo_speedups.items():
-            if algo not in weights or 'ORIGINAL' in algo:
+            if algo not in weights:
                 continue
+            # ORIGINAL is now trained as a regular algorithm:
+            # When ORIGINAL has speedup >= 1.0 (meaning no reorder beats it),
+            # its weights are updated positively so it can win perceptron selection.
             
             # Collect feature arrays for correlation
             speedups = []

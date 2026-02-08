@@ -318,6 +318,8 @@ Larger window = better quality, slower computation
 - **Description**: Uses ML to select the best algorithm for each community
 - **Complexity**: O(n log n) + perceptron inference
 - **Best for**: Unknown graphs, automated pipelines
+- **Features**: 15 linear features + 3 quadratic cross-terms + convergence-aware scoring
+- **Safety**: OOD guardrail (unfamiliar graphs → ORIGINAL), ORIGINAL margin fallback
 
 **Parameters:**
 | Parameter | Default | Description |

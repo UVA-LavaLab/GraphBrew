@@ -395,6 +395,167 @@ def count_subcommunities_quick(adjacency_list: Dict[int, List[int]],
     return len(roots)
 
 
+def compute_packing_factor(adjacency_list: Dict[int, List[int]],
+                           sample_size: int = 500) -> float:
+    """
+    Compute packing factor (IISWC'18): measures how many hub neighbors
+    are already co-located in memory (have nearby IDs).
+    
+    High packing = hub neighbors already have nearby IDs → less benefit
+    from hub-based reordering.
+    
+    Matches C++ ComputeSampledDegreeFeatures() packing factor logic.
+    
+    Args:
+        adjacency_list: Dict mapping node ID to list of neighbor IDs
+        sample_size: Number of hub nodes to sample
+    
+    Returns:
+        Fraction of hub neighbors with nearby IDs, in [0, 1]
+    """
+    if not adjacency_list:
+        return 0.0
+    
+    nodes = sorted(adjacency_list.keys())
+    num_nodes = len(nodes)
+    if num_nodes < 10:
+        return 0.0
+    
+    # Find top-degree hub nodes
+    node_degrees = [(node, len(adjacency_list[node])) for node in nodes]
+    node_degrees.sort(key=lambda x: x[1], reverse=True)
+    
+    hub_count = max(1, min(sample_size, num_nodes) // 10)
+    locality_window = max(64, num_nodes // 100)
+    
+    total_neighbors = 0
+    colocated_neighbors = 0
+    
+    for node, deg in node_degrees[:hub_count]:
+        if deg < 2:
+            continue
+        for neighbor in adjacency_list[node]:
+            total_neighbors += 1
+            if abs(neighbor - node) <= locality_window:
+                colocated_neighbors += 1
+    
+    return colocated_neighbors / total_neighbors if total_neighbors > 0 else 0.0
+
+
+def compute_forward_edge_fraction(adjacency_list: Dict[int, List[int]],
+                                  sample_size: int = 2000) -> float:
+    """
+    Compute forward edge fraction (GoGraph): fraction of edges (u,v) where
+    ID(u) < ID(v).
+    
+    High forward fraction = ordering already respects data flow direction.
+    Important for async iterative algorithms (PR, SSSP convergence).
+    
+    Matches C++ ComputeSampledDegreeFeatures() forward edge fraction logic.
+    
+    Args:
+        adjacency_list: Dict mapping node ID to list of neighbor IDs
+        sample_size: Number of nodes to sample
+    
+    Returns:
+        Fraction of forward edges, in [0, 1]
+    """
+    if not adjacency_list:
+        return 0.5
+    
+    nodes = sorted(adjacency_list.keys())
+    num_nodes = len(nodes)
+    
+    # Sample uniformly
+    if num_nodes > sample_size:
+        step = num_nodes / sample_size
+        sampled = [nodes[int(i * step)] for i in range(sample_size)]
+    else:
+        sampled = nodes
+    
+    forward_count = 0
+    total_count = 0
+    
+    for node in sampled:
+        for neighbor in adjacency_list.get(node, []):
+            total_count += 1
+            if node < neighbor:
+                forward_count += 1
+    
+    return forward_count / total_count if total_count > 0 else 0.5
+
+
+def compute_working_set_ratio(nodes: int, edges: int) -> float:
+    """
+    Compute working set ratio (P-OPT): graph_bytes / LLC_size.
+    
+    Estimates how much of the graph's working set overflows the last-level cache.
+    ratio ≈ 1 → graph fits in cache → reordering has limited benefit
+    ratio >> 1 → graph exceeds cache → reordering can significantly help
+    
+    Matches C++ ComputeSampledDegreeFeatures() working set ratio logic.
+    
+    Args:
+        nodes: Number of nodes in the graph
+        edges: Number of directed edges (or 2× undirected edges)
+    
+    Returns:
+        graph_bytes / LLC_size ratio (0 if LLC size unknown)
+    """
+    if nodes <= 0:
+        return 0.0
+    
+    # CSR working set ≈ offsets + edges + vertex data
+    # Matches C++ calculation:
+    #   offsets: (num_nodes+1) * sizeof(int64_t) = 8 bytes
+    #   edges:   num_edges * sizeof(int32_t) = 4 bytes
+    #   vertex:  num_nodes * sizeof(double)  = 8 bytes
+    graph_bytes = (nodes + 1) * 8 + edges * 4 + nodes * 8
+    
+    llc_bytes = get_llc_size_bytes()
+    return graph_bytes / llc_bytes if llc_bytes > 0 else 0.0
+
+
+def get_llc_size_bytes() -> int:
+    """
+    Get Last-Level Cache size in bytes.
+    
+    Matches C++ GetLLCSizeBytes() in reorder_types.h.
+    Reads from /sys/devices/system/cpu/ on Linux.
+    
+    Returns:
+        LLC size in bytes, or default 8MB if detection fails
+    """
+    # Try Linux sysfs
+    try:
+        import glob
+        cache_dirs = sorted(glob.glob('/sys/devices/system/cpu/cpu0/cache/index*'))
+        max_size = 0
+        for cache_dir in cache_dirs:
+            try:
+                with open(os.path.join(cache_dir, 'size'), 'r') as f:
+                    size_str = f.read().strip()
+                    # Parse "8192K" or "32M" format
+                    if size_str.endswith('K'):
+                        size = int(size_str[:-1]) * 1024
+                    elif size_str.endswith('M'):
+                        size = int(size_str[:-1]) * 1024 * 1024
+                    elif size_str.endswith('G'):
+                        size = int(size_str[:-1]) * 1024 * 1024 * 1024
+                    else:
+                        size = int(size_str)
+                    max_size = max(max_size, size)
+            except (IOError, ValueError):
+                continue
+        if max_size > 0:
+            return max_size
+    except ImportError:
+        pass
+    
+    # Default: 8MB (same as C++ GetLLCSizeBytes fallback)
+    return 8 * 1024 * 1024
+
+
 def compute_extended_features(nodes: int, edges: int, density: float, 
                               degree_variance: float, hub_concentration: float,
                               adjacency_list: Optional[Dict[int, List[int]]] = None) -> Dict:
@@ -410,7 +571,7 @@ def compute_extended_features(nodes: int, edges: int, density: float,
         adjacency_list: Optional adjacency list for computing additional features
     
     Returns:
-        Dictionary with all computed features
+        Dictionary with all computed features including locality metrics
     """
     features = {
         'nodes': nodes,
@@ -423,6 +584,9 @@ def compute_extended_features(nodes: int, edges: int, density: float,
         'avg_path_length': 0.0,
         'diameter_estimate': 0.0,
         'community_count': 1,
+        'packing_factor': 0.0,
+        'forward_edge_fraction': 0.5,
+        'working_set_ratio': 0.0,
     }
     
     # If we have the adjacency list, compute additional features
@@ -433,8 +597,15 @@ def compute_extended_features(nodes: int, edges: int, density: float,
             features['diameter_estimate'] = diameter
             features['avg_path_length'] = avg_path
             features['community_count'] = count_subcommunities_quick(adjacency_list)
+            
+            # Locality features (match C++ ComputeSampledDegreeFeatures)
+            features['packing_factor'] = compute_packing_factor(adjacency_list)
+            features['forward_edge_fraction'] = compute_forward_edge_fraction(adjacency_list)
         except Exception:
             pass  # Use defaults on error
+    
+    # Working set ratio (can compute without adjacency list)
+    features['working_set_ratio'] = compute_working_set_ratio(nodes, edges)
     
     return features
 

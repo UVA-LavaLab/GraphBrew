@@ -31,10 +31,9 @@ CACHE_L1_SIZE=65536 CACHE_POLICY=LFU ./bench/bin_sim/bfs -g 15 -n 1
 
 ```
 bench/
-├── include/cache/
+├── include/cache_sim/
 │   ├── cache_sim.h     # Cache simulator core
 │   └── graph_sim.h     # Graph wrappers for tracking
-│   └── popt.h          # P-OPT helpers: graphSlicer, MakeCagraPartitionedGraph (Cagra partitions)
 ├── src_sim/            # Instrumented algorithms
 │   ├── pr.cc           # PageRank
 │   ├── bfs.cc          # Breadth-First Search
