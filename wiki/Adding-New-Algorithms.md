@@ -189,17 +189,22 @@ const std::string ReorderingAlgoStr(ReorderingAlgo type)
 
 ## Step 4: Add Algorithm Name Mapping
 
-### For Perceptron Weights (in builder.h)
+### For Perceptron Weights (in reorder_types.h)
 
-In `builder.h`, find the `name_to_algo` map inside `ParseWeightsFromJSON` and add your algorithm:
+In `reorder_types.h`, find the `getAlgorithmNameMap()` function and add your algorithm. This map currently contains **58 entries** mapping variant names to base `ReorderingAlgo` enums:
 
 ```cpp
-static const std::map<std::string, ReorderingAlgo> name_to_algo = {
-    {"ORIGINAL", ORIGINAL}, {"HubSort", HubSort}, {"HUBSORT", HubSort},
-    // ... existing entries ...
-    {"MyNewOrder", MyNewOrder},  // ADD YOUR ALGORITHM HERE
-};
+static const std::map<std::string, ReorderingAlgo> getAlgorithmNameMap() {
+    return {
+        {"ORIGINAL", ORIGINAL}, {"RANDOM", Random}, {"SORT", Sort},
+        {"HUBSORT", HubSort}, {"HUBCLUSTER", HubCluster},
+        // ... 58 total entries including variant names ...
+        {"MyNewOrder", MyNewOrder},  // ADD YOUR ALGORITHM HERE
+    };
+}
 ```
+
+When `ParseWeightsFromJSON()` in `builder.h` loads `type_0.json`, if multiple variants (e.g., `MyNewOrder_v1`, `MyNewOrder_v2`) map to the same base enum, it keeps only the **highest-bias** entry.
 
 ### For Python Scripts
 
@@ -213,6 +218,8 @@ ALGORITHMS = {
     18: "MyNewOrder",  # ADD YOUR ALGORITHM HERE
 }
 ```
+
+If your algorithm has variants, also add them to `get_all_algorithm_variant_names()` in `scripts/lib/weights.py`.
 
 ---
 

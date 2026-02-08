@@ -29,6 +29,7 @@ GraphBrew/
 │   ├── graphbrew_experiment.py  # ⭐ Main orchestration (~3500 lines)
 │   ├── perceptron_experiment.py # 🧪 ML weight experimentation
 │   ├── adaptive_emulator.py     # 🔍 C++ logic emulation
+│   ├── eval_weights.py          # 📊 Train + simulate C++ scoring + accuracy/regret report
 │   ├── requirements.txt         # Python dependencies
 │   │
 │   ├── lib/                     # 📦 Core modules (~14,300 lines)
@@ -142,7 +143,7 @@ reorder/
 |------|-------|---------|
 | `reorder_leiden.h` | ~7,725 | GVE-Leiden algorithm, dendrogram traversal variants |
 | `reorder_vibe.h` | ~7,055 | VIBE unified reordering framework |
-| `reorder_types.h` | ~4,614 | Common types, perceptron model, `EdgeList`, threshold functions, `GetLLCSizeBytes()` |
+| `reorder_types.h` | ~4,614 | Common types, perceptron model, `EdgeList`, threshold functions, `GetLLCSizeBytes()`, `getAlgorithmNameMap()` (58 variants) |
 | `reorder_rabbit.h` | ~1,161 | RabbitOrder CSR native implementation |
 | `reorder_graphbrew.h` | ~928 | `GraphBrewConfig`, cluster variants, multi-level reordering |
 | `reorder_adaptive.h` | ~650 | `AdaptiveConfig`, ML-based per-community algorithm selection |
@@ -180,6 +181,13 @@ SampledDegreeFeatures ComputeSampledDegreeFeatures(const GraphT& g, size_t sampl
 
 // LLC detection for working_set_ratio computation (NEW)
 size_t GetLLCSizeBytes();  // sysconf on Linux, 30MB fallback
+
+// Algorithm name → enum mapping for weight file loading (58 entries)
+// Maps variant names like "LeidenCSR_gve", "GraphBrewOrder_leiden" to base enums
+std::map<std::string, ReorderingAlgo> getAlgorithmNameMap();
+
+// ParseWeightsFromJSON: when multiple variants map to the same base,
+// keeps only the highest-bias entry (variant pre-collapse)
 ```
 
 **Key Configs:**

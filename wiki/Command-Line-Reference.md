@@ -704,6 +704,38 @@ See [[Python-Scripts]] for complete documentation.
 
 ---
 
+## eval_weights.py - Weight Evaluation
+
+Quick evaluation script that trains weights and simulates C++ scoring to report accuracy and regret metrics.
+
+```bash
+# Run evaluation (no arguments needed)
+python3 scripts/eval_weights.py
+```
+
+### What It Does
+
+1. Loads the latest `benchmark_*.json` and `reorder_*.json` from `results/`
+2. Trains weights via `compute_weights_from_results()` (multi-restart perceptrons + regret-aware grid search)
+3. Simulates C++ `scoreBase() × benchmarkMultiplier()` scoring
+4. Reports accuracy, regret, top-2 accuracy, and per-benchmark breakdown
+
+### Output Includes
+
+| Metric | Description |
+|--------|-------------|
+| Overall accuracy | % correct base-algorithm predictions |
+| Per-benchmark accuracy | Breakdown by pr, bfs, cc, sssp |
+| Average regret | Mean (predicted − best) / best |
+| Median regret | More robust than average |
+| Base-aware regret | Variant mismatches = 0% regret |
+| Top-2 accuracy | % where prediction is in top 2 |
+| Worst predictions | 10 highest-regret cases |
+
+See [[Python-Scripts#-eval_weightspy---weight-evaluation--c-scoring-simulation]] for full documentation.
+
+---
+
 ## Tips
 
 1. **Always use `-s`** for undirected graphs

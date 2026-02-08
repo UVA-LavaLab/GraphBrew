@@ -904,6 +904,57 @@ print(f'Overfitting score: {result[\"overfitting_score\"]:.2f}')
 
 ---
 
+## Advanced Training: `compute_weights_from_results()`
+
+The primary training function in `lib/weights.py` implements a multi-stage pipeline that produces production-quality weights:
+
+### Stage 1: Multi-Restart Perceptron Training
+
+For each of the 4 benchmarks (pr, bfs, cc, sssp), **5 independent perceptrons** are trained with 800 epochs each. Each restart uses deterministic seeding for reproducibility:
+
+```python
+seed = 42 + restart * 1000 + bench_index * 100
+```
+
+Features are **z-score normalized** (mean=0, std=1) before training for stable gradients. The 5 per-benchmark perceptrons are averaged, then all benchmark averages are combined to produce `scoreBase()` weights.
+
+### Stage 2: Variant Pre-Collapse
+
+Algorithm variants (e.g., `LeidenCSR_gve`, `LeidenCSR_gveopt2`) are merged into base algorithms. Only the **highest-bias variant** is kept for each base:
+
+```
+LeidenCSR_gve:     bias=0.72 → discarded
+LeidenCSR_gveopt2: bias=0.89 → kept as "LeidenCSR"
+```
+
+### Stage 3: Regret-Aware Benchmark Multiplier Optimization
+
+Per-benchmark multipliers are optimized via grid search (30 iterations × 32 log-spaced values). The objective is `max(accuracy, min(-mean_regret))` — jointly optimizing for correct predictions and low performance loss.
+
+### Stage 4: Save to `type_0.json`
+
+Final weights include `_metadata` with training statistics (graphs, algorithms, accuracy, regret metrics).
+
+### Validation with eval_weights.py
+
+After training, run:
+
+```bash
+python3 scripts/eval_weights.py
+```
+
+This simulates C++ `scoreBase() × benchmarkMultiplier()` scoring for all (graph, benchmark) pairs and reports:
+- **Accuracy**: 46.8% (88/188 correct base-algorithm predictions)
+- **Base-aware median regret**: 2.6% (selected algorithm within 2.6% of optimal)
+- **Top-2 accuracy**: 64.9%
+- **13 unique predictions** across 47 graphs × 4 benchmarks
+
+### Key Finding: LeidenCSR Dominance
+
+C++ validation on 47 graphs showed that **LeidenCSR** was selected for **99.5% of subcommunities** (8,631 / 8,672). As a single algorithm, it achieves 2.9% median regret — very close to the theoretical best per-community selection. This validates that LeidenCSR is the dominant reordering algorithm for most graph types.
+
+---
+
 ## How Correlation Analysis Works
 
 ### Step 1: Benchmark All Algorithms
@@ -1277,7 +1328,9 @@ Each weight file contains algorithm-specific weights. The C++ code reads the cor
 | 16 | LeidenDendrogram (has variants) |
 | 17 | LeidenCSR (has variants) |
 
-> **Note:** For current variant lists, see `scripts/lib/utils.py` which defines:
+> **Note:** The C++ `getAlgorithmNameMap()` in `reorder_types.h` maps **58 variant names** (e.g., `LeidenCSR_gve`, `LeidenCSR_gveopt2`, `GraphBrewOrder_leiden`, `RABBITORDER_csr`) to the 18 base `ReorderingAlgo` enum values. When `ParseWeightsFromJSON()` loads `type_0.json`, if multiple variants map to the same base algorithm, it keeps only the **highest-bias** entry.
+>
+> For current variant lists, see `scripts/lib/utils.py` which defines:
 > `RABBITORDER_VARIANTS`, `GRAPHBREW_VARIANTS`, `LEIDEN_DENDROGRAM_VARIANTS`, `LEIDEN_CSR_VARIANTS`
 
 ---
