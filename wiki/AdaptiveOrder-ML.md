@@ -160,7 +160,7 @@ Each type has a **centroid** — the average feature vector of its training grap
 Different parts of a graph have different structures:
 - **Hub communities**: Dense cores with high-degree vertices → HUBCLUSTERDBG works well
 - **Sparse communities**: Mesh-like structures → RCM or ORIGINAL may be better
-- **Hierarchical communities**: Tree-like → LeidenDendrogram variants excel
+- **Hierarchical communities**: Tree-like → LeidenCSR dendrogram variants (`gvedendo`, `dfs`) excel
 
 AdaptiveOrder selects the best algorithm for each community's characteristics.
 

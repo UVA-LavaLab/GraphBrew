@@ -166,8 +166,8 @@ Use with `-o <id>`:
 | 12 | GraphBrewOrder | Community (has variants, see below) |
 | 13 | MAP | External mapping |
 | 14 | AdaptiveOrder | ML |
-| 15 | LeidenOrder | Leiden (igraph) |
-| 16 | LeidenDendrogram | Leiden (has variants, see below) |
+| 15 | LeidenOrder | Leiden (GVE-Leiden baseline) |
+| 16 | LeidenDendrogram | ⚠️ Deprecated (use LeidenCSR 17 instead) |
 | 17 | LeidenCSR | Leiden (has variants, including VIBE) |
 
 > **Note:** For current variant lists, see `scripts/lib/utils.py` which defines:

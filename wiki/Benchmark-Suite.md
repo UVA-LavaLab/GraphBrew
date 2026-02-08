@@ -57,6 +57,17 @@ See [[Command-Line-Reference]] for all options including `--min-mb`, `--max-grap
 
 Results are JSON arrays. See [[Configuration-Files]] for the complete schema of `benchmark_*.json`, `cache_*.json`, `reorder_*.json`, and `type_N.json` weight files.
 
+### Amortization Analysis
+
+After benchmarking, derive end-to-end metrics from existing result files:
+
+```bash
+python3 scripts/analyze_metrics.py --results-dir results/
+python3 scripts/analyze_metrics.py --compare RABBITORDER_csr LeidenCSR_vibe:hrab
+```
+
+See [[Python-Scripts#analyze_metrics.py]] for full details on amortization iterations, E2E speedup, and head-to-head comparisons.
+
 ---
 
 ## PageRank Convergence Analysis

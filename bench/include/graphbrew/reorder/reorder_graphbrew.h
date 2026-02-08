@@ -34,9 +34,9 @@
  *
  * Cluster Variants:
  * -----------------
- * leiden (default): Standard igraph Leiden
+ * leiden (default): Standard GVE-Leiden
  *   - High quality community detection
- *   - Requires igraph library
+ *   - Uses GVE-Leiden library (external/leiden/)
  *   
  * gve: GVE-Leiden (native CSR)
  *   - Fast parallel implementation
@@ -201,7 +201,7 @@ namespace graphbrew {
  * @brief Community detection algorithm for GraphBrewOrder
  */
 enum class GraphBrewCluster {
-    Leiden,      ///< Standard Leiden via igraph (default)
+    Leiden,      ///< Standard Leiden via GVE-Leiden library (default)
     GVE,         ///< GVE-Leiden (native CSR, fast)
     GVEOpt,      ///< Cache-optimized GVE-Leiden
     Rabbit,      ///< RabbitOrder's Louvain variant

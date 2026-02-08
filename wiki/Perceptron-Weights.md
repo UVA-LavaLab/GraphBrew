@@ -248,8 +248,8 @@ The JSON uses algorithm names, which map to IDs:
 | 12 | GraphBrewOrder | GraphBrew composite (has variants) |
 | 13 | MAP | Load reordering from file |
 | 14 | AdaptiveOrder | This perceptron model |
-| 15 | LeidenOrder | Basic Leiden ordering (via igraph) |
-| 16 | LeidenDendrogram | Leiden + Dendrogram traversal (has variants) |
+| 15 | LeidenOrder | Basic Leiden ordering via GVE-Leiden (baseline reference) |
+| 16 | LeidenDendrogram | ⚠️ Deprecated — use LeidenCSR (17) variants |
 | 17 | LeidenCSR | Fast CSR-native Leiden (has variants) |
 
 > **Note:** For current variant lists, see `scripts/lib/utils.py`.

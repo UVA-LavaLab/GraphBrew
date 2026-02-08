@@ -232,7 +232,7 @@ void Generate{Algorithm}MappingStandalone(const CSRGraph<...>& g,
 #### Leiden-Based (bench/include/graphbrew/reorder/reorder_leiden.h)
 
 ```cpp
-// LeidenDendrogram - hierarchical ordering with variants (dfs/dfshub/dfssize/bfs/hybrid)
+// LeidenDendrogram - ⚠️ DEPRECATED: use LeidenCSR variants (gvedendo, dfs, bfs) instead
 template<typename NodeID_, typename DestID_, typename WeightT_, bool invert>
 void GenerateLeidenDendrogramMappingUnified(
     const CSRGraph<NodeID_, DestID_, invert>& g, pvector<NodeID_>& new_ids,

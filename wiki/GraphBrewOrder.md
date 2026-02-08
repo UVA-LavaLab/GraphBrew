@@ -131,7 +131,7 @@ GraphBrewOrder's implementation is organized in modular header files in `bench/i
 ```cpp
 // bench/include/graphbrew/reorder/reorder_graphbrew.h
 enum class GraphBrewClusterVariant {
-    LEIDEN,      // Original Leiden library (igraph)
+    LEIDEN,      // GVE-Leiden library (external/leiden/)
     GVE,         // GVE-Leiden CSR-native
     GVEOPT,      // Cache-optimized GVE
     GVEFAST,     // Single-pass GVE

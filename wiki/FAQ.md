@@ -227,9 +227,11 @@ See [[Python-Scripts#-eval_weightspy---weight-evaluation--c-scoring-simulation]]
 
 ### What's the difference between LeidenOrder and LeidenCSR?
 
-- **LeidenOrder (15)**: Basic community ordering
-- **LeidenDendrogram (16)**: Dendrogram traversal variants
-- **LeidenCSR (17)**: Optimized with 15+ variants (recommended: `gveopt2` or `gvefast`)
+- **LeidenOrder (15)**: Baseline reference using GVE-Leiden external library (requires CSR→DiGraph conversion)
+- **LeidenDendrogram (16)**: ⚠️ **Deprecated** — use LeidenCSR (17) variants instead
+- **LeidenCSR (17)**: Production implementation with 20+ variants (recommended: `gveopt2` or `gvefast`)
+
+LeidenCSR reimplements Leiden natively on CSR (zero-copy), achieving equivalent kernel quality but **28–95× faster reorder times**. LeidenOrder is kept as a baseline to measure this improvement.
 
 ### When should I use DBG vs HUBCLUSTER?
 

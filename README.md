@@ -57,8 +57,8 @@ GraphBrew provides 18 reordering strategies. Use `-o <id>` to select one (or cha
 | 12 | GRAPHBREWORDER | Leiden clustering + configurable per-community order |
 | 13 | MAP | Load ordering from file (`-o 13:mapping.lo`) |
 | 14 | **ADAPTIVEORDER** | ML perceptron — automatically picks the best algorithm ⭐ |
-| 15 | LEIDENORDER | Leiden via igraph (`15:resolution`) |
-| 16 | LEIDENDENDROGRAM | Dendrogram traversal (`16:variant:resolution`) — variants: `dfs`, `dfshub`, `bfs`, `hybrid` |
+| 15 | LEIDENORDER | Leiden via GVE-Leiden library (`15:resolution`) — baseline reference |
+| 16 | LEIDENDENDROGRAM | ⚠️ **Deprecated** — use LeidenCSR (17) variants instead |
 | 17 | LEIDENCSR | Fast CSR-native Leiden (`17:variant:resolution:passes`) — default: `gveopt2` ⭐ |
 
 **LeidenCSR (17) variants:** `gveopt2` (default — fastest + best quality), `gve`, `gveopt`, `gveadaptive`, `gveturbo`, `gvefast`, `gverabbit`, `modularity`, `vibe`, `vibe:hrab`, `vibe:rabbit`, and more. See [Reordering Algorithms Wiki](https://github.com/UVA-LavaLab/GraphBrew/wiki/Reordering-Algorithms) for the full list.
@@ -67,8 +67,8 @@ GraphBrew provides 18 reordering strategies. Use `-o <id>` to select one (or cha
 
 | Graph Type | Recommended | Why |
 |------------|-------------|-----|
-| Social networks | `16:hybrid` or `14` | Hub-aware DFS exploits community structure |
-| Web graphs | `17:vibe:hrab` or `16:dfshub` | Hybrid Leiden+Rabbit for best locality |
+| Social networks | `17:gveopt2` or `14` | Best community detection + cache locality |
+| Web graphs | `17:vibe:hrab` or `17:gveopt2` | Hybrid Leiden+Rabbit for best locality |
 | Road networks | `11` or `9` | BFS-based approaches for sparse graphs |
 | Unknown / mixed | `14` | Let the ML perceptron decide |
 

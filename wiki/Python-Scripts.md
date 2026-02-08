@@ -12,6 +12,7 @@ scripts/
 ├── perceptron_experiment.py     # 🧪 ML weight experimentation (without re-running phases)
 ├── adaptive_emulator.py         # 🔍 C++ AdaptiveOrder logic emulation (Python)
 ├── eval_weights.py              # 📊 Weight evaluation: train → simulate C++ scoring → report accuracy
+├── analyze_metrics.py           # 📏 Amortization & end-to-end evaluation from result JSONs
 ├── requirements.txt             # Python dependencies
 │
 ├── lib/                         # 📦 Modular library (~14300 lines total)
@@ -160,7 +161,7 @@ python3 scripts/perceptron_experiment.py --analyze
 - `basic`: ORIGINAL, RANDOM, SORT
 - `hub`: HUBSORT, HUBCLUSTER, DBG, HUBSORTDBG, HUBCLUSTERDBG
 - `community`: GORDER, RABBITORDER, CORDER, RCM
-- `leiden`: LeidenOrder, LeidenDendrogram, LeidenCSR
+- `leiden`: LeidenOrder, LeidenCSR (LeidenDendrogram deprecated)
 - `composite`: AdaptiveOrder, GraphBrewOrder
 
 ### Example: Reproducible Experimentation
@@ -380,10 +381,76 @@ The `lib/` folder (~14,300 lines) contains modular, reusable components:
 | `graph_data.py` | Per-graph storage | `GraphDataStore`, `list_all_graphs`, `list_runs_for_graph` |
 | `progress.py` | Progress tracking | `ProgressTracker` (banners, phases, status) |
 | `results.py` | Result I/O | `save_results`, `load_results`, `find_latest_results` |
+| `metrics.py` | Amortization & E2E | `compute_amortization`, `compute_variant_comparison`, `AmortizationReport` |
 
 ### Key: `compute_weights_from_results()`
 
 The primary training function: multi-restart perceptrons (5×800 epochs, z-score normalized, L2 regularized) → variant pre-collapse → regret-aware grid search for benchmark multipliers → saves `type_0.json`. See [[Perceptron-Weights]] for details.
+
+---
+
+## 📏 analyze_metrics.py - Amortization & End-to-End Evaluation
+
+**Post-hoc analysis of existing benchmark results — no new benchmarks needed.**
+
+Computes derived metrics from `benchmark_*.json` and `reorder_*.json`:
+- **Amortization iterations** — how many kernel runs to break even on reorder cost
+- **E2E speedup at N iterations** — speedup including amortized reorder cost
+- **Head-to-head variant comparison** — crossover points between two algorithms
+
+### Quick Start
+
+```bash
+# Full amortization report from latest results
+python3 scripts/analyze_metrics.py --results-dir results/
+
+# Filter to specific benchmarks/graphs
+python3 scripts/analyze_metrics.py --results-dir results/ \
+  --benchmarks pr bfs --graphs web-Google soc-Slashdot0902
+
+# Head-to-head: RabbitOrder vs VIBE:hrab
+python3 scripts/analyze_metrics.py --results-dir results/ \
+  --compare RABBITORDER_csr LeidenCSR_vibe:hrab
+
+# JSON output for scripting
+python3 scripts/analyze_metrics.py --results-dir results/ --json
+```
+
+### Key Formula
+
+`iters_to_amortize = reorder_cost / (baseline_time - reordered_time)`
+
+### Verdict Categories
+
+| Verdict | Amort Iters | Meaning |
+|---------|:-----------:|---------|
+| INSTANT | < 1 | Reorder cost negligible |
+| FAST | 1–10 | Pays off quickly |
+| OK | 10–100 | Worth it for repeated use |
+| SLOW | > 100 | Only for many iterations |
+| NEVER | ∞ | Kernel is slower, never pays off |
+
+### Output Columns
+
+| Column | Description |
+|--------|-------------|
+| Kernel | Kernel-only speedup vs ORIGINAL |
+| Reorder | Time spent computing the reordering |
+| Amort | Iterations needed to break even |
+| E2E@1 | End-to-end speedup at 1 iteration |
+| E2E@10 | End-to-end speedup at 10 iterations |
+| E2E@100 | End-to-end speedup at 100 iterations |
+| Verdict | Human-readable break-even summary |
+
+### Head-to-Head Comparison
+
+The `--compare ALGO_A ALGO_B` flag produces a per-graph table showing:
+- Which variant has faster kernels
+- Which wins at E2E@1, @10, @100
+- The **crossover iteration** where the slower-to-reorder variant overtakes
+- Overall win/loss counts
+
+The amortization report is also auto-printed by `graphbrew_experiment.py` after Phase 2 (benchmark) completes.
 
 ---
 
