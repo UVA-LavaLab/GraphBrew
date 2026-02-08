@@ -13,6 +13,66 @@
 
 ---
 
+## A2) Paper-Informed Feature Ablations
+
+These ablations test features derived from specific SOTA papers.
+Each ablation zeroes one feature group and measures the impact.
+
+### Packing Factor (IISWC'18)
+**Feature:** `w_packing_factor` in `PerceptronWeights` (~L1552 of reorder_types.h)
+**Computed at:** `ComputeSampledDegreeFeatures` (~L4120) — samples top-degree hubs,
+checks if neighbours have nearby IDs (within `locality_window = max(64, N/100)`).
+
+**Ablation:** Set `w_packing_factor = 0` in all type weight files.
+**Expected outcome:** Accuracy drops on graphs with high existing locality
+(mesh, road networks) where ORIGINAL should be selected but isn't.
+**Run:**
+```bash
+# baseline
+python3 scripts/graphbrew_experiment.py --full --size medium --auto --skip-cache \
+  --benchmarks pr bfs cc sssp --trials 5
+# ablation: edit weight files to zero packing_factor, then re-run same command
+```
+
+### Forward Edge Fraction (GoGraph)
+**Features:** `w_forward_edge_fraction` (~L1554) and `w_fef_convergence` (~L1695)
+**Computed at:** ~L4150 — samples 2000 vertices, counts edges (u,v) where u < v.
+
+**Ablation:** Zero both `w_forward_edge_fraction` and `w_fef_convergence`.
+**Expected outcome:** Accuracy drops primarily on convergence-sensitive benchmarks
+(PR, SSSP) where ordering that places sources before destinations matters.
+**Separate sub-ablation:** Zero only `w_fef_convergence` (keep linear term) to
+isolate the convergence bonus from the general locality signal.
+
+### Working Set Ratio (P-OPT)
+**Feature:** `w_working_set_ratio` (~L1556)
+**Computed at:** ~L4170 — `graph_bytes / LLC_size` (LLC detected via `sysconf`).
+
+**Ablation:** Set `w_working_set_ratio = 0`.
+**Expected outcome:** Accuracy drops on large graphs that exceed LLC (working
+set ratio > 3.0) where aggressive reordering is most beneficial.
+
+### Quadratic Interaction Terms
+**Features:** `w_dv_x_hub`, `w_mod_x_logn`, `w_pf_x_wsr`
+These capture non-linear interactions between feature pairs.
+
+**Ablation:** Zero all three interaction terms simultaneously, then individually.
+**Expected outcome:** Removing `w_pf_x_wsr` (packing × working-set) should hurt
+most on graphs near the LLC boundary where locality matters conditionally.
+
+### Ablation Protocol
+For each ablation above:
+1. Record baseline accuracy on MEDIUM tier (28 graphs × 4 benchmarks × 5 trials)
+2. Zero the target weight(s) in all type files
+3. Re-run the same experiment (same graphs, same seeds)
+4. Compare: overall accuracy, per-category accuracy, geo-mean speedup
+5. Restore weights and proceed to next ablation
+
+The ablation results directly inform which features to invest in strengthening
+(see [06_SOTA_IDEAS.md](06_SOTA_IDEAS.md) Tier 1 proposals).
+
+---
+
 ## B) Evaluation Speed Tiers
 
 Pick the tier that matches how fast you need feedback. **Every tier auto-downloads
