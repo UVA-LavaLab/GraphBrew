@@ -1234,12 +1234,13 @@ public:
             GenerateRCMOrderMapping(g, new_ids);
             break;
         case LeidenOrder:
-            // Leiden via igraph library - Format: 12:resolution
+            // GVE-Leiden library (baseline reference) - Format: 15:resolution
             GenerateLeidenMapping(g, new_ids, reordering_options);
             break;
         case LeidenDendrogram:
             // Leiden Dendrogram - Format: 16:resolution:variant
             // Variants: dfs, dfshub, dfssize, bfs, hybrid (default: hybrid)
+            // ⚠️ DEPRECATED: Use LeidenCSR (17) variants instead
             GenerateLeidenDendrogramMappingUnified(g, new_ids, reordering_options);
             break;
         case LeidenCSR:
@@ -1409,11 +1410,12 @@ public:
             GenerateRCMOrderMapping(g, new_ids);
             break;
         case LeidenOrder:
-            // Leiden via igraph library - Format: 12:resolution
+            // GVE-Leiden library (baseline reference) - Format: 15:resolution
             GenerateLeidenMapping(g, new_ids, reordering_options);
             break;
         case LeidenDendrogram:
             // Leiden Dendrogram - Format: 16:resolution:variant
+            // ⚠️ DEPRECATED: Use LeidenCSR (17) variants instead
             GenerateLeidenDendrogramMappingUnified(g, new_ids, reordering_options);
             break;
         case LeidenCSR:

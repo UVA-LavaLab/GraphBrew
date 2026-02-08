@@ -10,27 +10,27 @@
  * ALGORITHM OVERVIEW
  * ============================================================================
  *
- * LEIDENORDER (ID 15) - Classic Leiden via igraph library
+ * LEIDENORDER (ID 15) - Leiden via GVE-Leiden library (baseline reference)
  *   Format: -o 15:resolution
  *   Example: ./bench/bin/pr -f graph.el -o 15:0.75
  *   
- *   Uses igraph's Leiden implementation. Good for quality-focused detection.
- *   Requires igraph library to be installed.
+ *   Uses GVE-Leiden library (external/leiden/) by Subhajit Sahu.
+ *   Requires CSR→DiGraph conversion. Kept as baseline to measure LeidenCSR improvement.
  *
- * LEIDENDENDROGRAM (ID 16) - Hierarchical Leiden reordering
+ * LEIDENDENDROGRAM (ID 16) - ⚠️ DEPRECATED
  *   Format: -o 16:resolution:variant
  *   Variants: dfs, dfshub, dfssize, bfs, hybrid (default: hybrid)
  *   Example: ./bench/bin/pr -f graph.el -o 16:0.75:hybrid
  *   
- *   Builds community hierarchy and uses tree traversal for final ordering.
- *   Best for hierarchical graph structures.
+ *   DEPRECATED: Use LeidenCSR (17) variants (gvedendo, dfs, bfs) instead.
+ *   Produces equivalent kernel quality but LeidenCSR reorders 28-95x faster.
  *
  * LEIDENCSR (ID 17) - Fast GVE-Leiden on native CSR
  *   Format: -o 17:variant:resolution:iterations:passes
  *   Variants: gve, gveopt, gverabbit, dfs, bfs, hubsort, fast, modularity
  *   Example: ./bench/bin/pr -f graph.el -o 17:gve:0.75:10:10
  *   
- *   Native CSR implementation - no igraph dependency. Multiple variants:
+ *   Native CSR implementation - no format conversion overhead. Multiple variants:
  *   - gve: Standard GVE-Leiden (default, good balance)
  *   - gveopt: Cache-optimized (faster on large graphs)
  *   - gverabbit: GVE + RabbitOrder within communities
@@ -110,7 +110,7 @@
  * ============================================================================
  *
  * Small graphs (<100K vertices):
- *   Use -o 15 (igraph) or -o 17:gve for quality
+ *   Use -o 15 (GVE-Leiden baseline) or -o 17:gve for quality
  *
  * Medium graphs (100K - 10M vertices):
  *   Use -o 17:gve or -o 17:gveopt
@@ -120,13 +120,13 @@
  *   Use -o 17:fast if quality is less critical
  *
  * Hierarchical structures:
- *   Use -o 16 with appropriate traversal variant
+ *   Use -o 17:gvedendo or -o 17:dfs (NOT deprecated algo 16)
  *
  * ============================================================================
  * EXAMPLES
  * ============================================================================
  *
- * Basic Leiden (igraph):
+ * Basic Leiden (GVE-Leiden baseline):
  *   ./bench/bin/pr -f graph.el -o 15 -n 5
  *
  * High-resolution (more communities):

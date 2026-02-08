@@ -341,12 +341,12 @@ def parse_reorder_time_from_converter(output: str) -> Optional[float]:
     - EXCLUDE: Data structure conversion overhead (library-specific preprocessing)
     
     Why exclude conversion overhead?
-    External libraries (RabbitOrder, GOrder, Leiden via igraph) require their own
+    External libraries (RabbitOrder, GOrder, GVE-Leiden) require their own
     data structures. If we had native CSR implementations, there would be no
     conversion. For fair comparison, we only measure the actual ordering algorithm.
     
     CONVERSION OVERHEAD TO EXCLUDE:
-    - "DiGraph Build Time:"     - CSR → igraph DiGraph (LeidenDendrogram)
+    - "DiGraph Build Time:"     - CSR → GVE-Leiden DiGraph (LeidenDendrogram)
     - "DiGraph graph:"          - CSR → DiGraph (LeidenOrder - legacy naming)
     - "GOrder graph:"           - CSR → GOrder internal format
     - "Sort Map Time:" + first "Relabel Map Time:" - RabbitOrder preprocessing

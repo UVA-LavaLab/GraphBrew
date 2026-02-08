@@ -38,8 +38,8 @@ enum ReorderingAlgo {
     MAP = 13,               // Load reordering from file
     AdaptiveOrder = 14,     // ML-based perceptron selector
     // Leiden algorithms (15-17) - grouped together for easier sweeping
-    LeidenOrder = 15,       // Format: 15:resolution (via igraph)
-    LeidenDendrogram = 16,  // Has variants (see LEIDEN_DENDROGRAM_VARIANTS in utils.py)
+    LeidenOrder = 15,       // Format: 15:resolution (GVE-Leiden baseline)
+    LeidenDendrogram = 16,  // ⚠️ DEPRECATED — use LeidenCSR (17) variants instead
     LeidenCSR = 17,         // Has variants (see LEIDEN_CSR_VARIANTS in utils.py)
     // ADD YOUR ALGORITHM HERE
     MyNewOrder = 18,

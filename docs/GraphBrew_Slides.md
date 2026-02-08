@@ -523,8 +523,8 @@ For each community:
 | 12 | GraphBrewOrder | Per-community reordering |
 | 13 | MAP | External mapping file |
 | 14 | AdaptiveOrder | ML-powered selection |
-| 15 | LeidenOrder | Modularity-based (igraph) |
-| 16 | LeidenDendrogram | Leiden + dendrogram traversal |
+| 15 | LeidenOrder | GVE-Leiden baseline |
+| 16 | LeidenDendrogram | Deprecated (use LeidenCSR) |
 | 17 | LeidenCSR | Fast CSR-native Leiden |
 
 ---

@@ -24,7 +24,7 @@ Vertex 2 → 8, 1500, 3        Vertex 2 → 1, 3, 5
 | **DBG-Based** | DBG, HUBSORTDBG, HUBCLUSTERDBG | Cache locality |
 | **Community** | RABBITORDER | Hierarchical communities |
 | **Classic** | GORDER, CORDER, RCM | Bandwidth reduction |
-| **Leiden-Based** | LeidenOrder (15), LeidenDendrogram (16), LeidenCSR (17) | Strong community structure |
+| **Leiden-Based** | LeidenOrder (15, baseline), ~~LeidenDendrogram (16)~~, LeidenCSR (17) | Strong community structure |
 | **Hybrid** | GraphBrewOrder (12), MAP (13), AdaptiveOrder (14) | External/Adaptive selection |
 
 ---
@@ -272,7 +272,7 @@ Larger window = better quality, slower computation
 
 - **Description**: Runs community detection, then applies per-community reordering
 - **Variants**:
-  - `leiden`: Original Leiden library (igraph-based) - **default**
+  - `leiden`: Original GVE-Leiden library - **default**
   - `gve`: GVE-Leiden CSR-native implementation
   - `gveopt`: Cache-optimized GVE with prefetching
   - `gvefast`: Single-pass GVE (faster, less refinement)
@@ -321,8 +321,8 @@ See [[AdaptiveOrder-ML]] for the full ML model details.
 
 GraphBrew consolidates Leiden algorithms into three main IDs with parameter-based variant selection for cleaner script sweeping.
 
-### 15. LeidenOrder ⭐
-**Leiden community detection via igraph library**
+### 15. LeidenOrder (Baseline Reference)
+**Leiden community detection via GVE-Leiden library**
 
 ```bash
 # Format: -o 15:resolution
@@ -331,18 +331,23 @@ GraphBrew consolidates Leiden algorithms into three main IDs with parameter-base
 ./bench/bin/pr -f graph.el -s -o 15:1.5 -n 3                # Higher resolution
 ```
 
-- **Description**: State-of-the-art community detection algorithm via igraph
+- **Description**: Leiden community detection using the external GVE-Leiden library (requires CSR→DiGraph conversion)
 - **Complexity**: O(n log n) average
-- **Best for**: Graphs with strong community structure
+- **Best for**: Baseline comparison — measures how much LeidenCSR (17) improved over the reference implementation
 - **Default resolution**: Auto-detected via continuous formula (0.5-1.2) with CV guardrail for power-law graphs
+- **Note**: LeidenCSR (17) reimplements this natively on CSR and is **28–95× faster** to reorder with equivalent kernel quality. Use LeidenCSR for production workloads.
 
 **Key features:**
-- Improves on Louvain algorithm
-- Guarantees well-connected communities
-- Produces high-quality modularity scores
+- Uses GVE-Leiden C++ library by Subhajit Sahu (`external/leiden/`)
+- Requires CSR → DiGraph format conversion (adds overhead)
+- Produces high-quality modularity scores (reference quality)
 
-### 16. LeidenDendrogram
+### 16. LeidenDendrogram ⚠️ (Deprecated)
 **Leiden community detection with dendrogram traversal**
+
+> **⚠️ Deprecated:** LeidenDendrogram is functionally superseded by LeidenCSR (17) variants
+> (`gvedendo`, `dfs`, `bfs`, `hubsort`) which produce equivalent kernel quality but reorder
+> **28–95× faster**. This algorithm is kept only for historical comparison. Use LeidenCSR (17) instead.
 
 ```bash
 # Format: -o 16:variant:resolution
@@ -456,7 +461,7 @@ See [[Command-Line-Reference#leidencsr-17]] for full option reference and [[Comm
 
 | Graph Type | Recommended | Alternatives |
 |------------|-------------|--------------|
-| Social Networks | LeidenCSR (17:gveopt2) | LeidenDendrogram (16:hybrid) |
+| Social Networks | LeidenCSR (17:gveopt2) | LeidenCSR (17:gveadaptive) |
 | Web Graphs | VIBE (17:vibe:hrab) | LeidenCSR (17:gveopt2) |
 | Road Networks | ORIGINAL (0), RCM (11) | LeidenCSR (17:gveadaptive) |
 | Citation Networks | LeidenCSR (17:gve) | LeidenOrder (15) |

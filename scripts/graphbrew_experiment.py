@@ -24,8 +24,9 @@ A comprehensive one-click script that runs the complete GraphBrew experiment wor
 12. Batched training (--train-batched): Process graphs in batches for large datasets
 
 **Algorithm Variant Testing:**
-    For LeidenCSR (17), LeidenDendrogram (16), and RabbitOrder (8), you can test
-    specific variants or all variants:
+    For LeidenCSR (17) and RabbitOrder (8), you can test
+    specific variants or all variants.
+    Note: LeidenDendrogram (16) is deprecated — use LeidenCSR (17) variants instead.
     
     # Test all algorithm variants
     python scripts/graphbrew_experiment.py --train --all-variants --size small
@@ -53,6 +54,7 @@ A comprehensive one-click script that runs the complete GraphBrew experiment wor
       - gverabbit: GVE-Rabbit hybrid (fastest)
       - dfs, bfs, hubsort, modularity: Alternative ordering strategies
     LeidenDendrogram (16) variants: dfs, dfshub, dfssize, bfs, hybrid
+      ⚠️ DEPRECATED: Use LeidenCSR (17) variants (gvedendo, dfs, bfs) instead.
     
     Resolution modes (for --resolution):
       - Fixed: 1.5 (use specified value)
@@ -2657,7 +2659,7 @@ def run_experiment(args):
     # Phase 7: Adaptive vs Fixed Comparison
     if getattr(args, "adaptive_comparison", False):
         # Compare against top fixed algorithms
-        fixed_algos = [1, 2, 4, 7, 15, 16]  # RANDOM, SORT, HUBCLUSTER, HUBCLUSTERDBG, LeidenOrder, LeidenDendrogram
+        fixed_algos = [1, 2, 4, 7, 15]  # RANDOM, SORT, HUBCLUSTER, HUBCLUSTERDBG, LeidenOrder
         
         comparison_results = compare_adaptive_vs_fixed(
             graphs=graphs,

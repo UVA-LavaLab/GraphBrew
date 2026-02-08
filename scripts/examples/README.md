@@ -90,8 +90,8 @@ python scripts/examples/compare_algorithms.py --output comparison.csv
 | 12 | GraphBrewOrder | Per-community reordering |
 | 13 | MAP | Load from external file |
 | 14 | AdaptiveOrder | ML-powered algorithm selection |
-| 15 | LeidenOrder | Leiden community detection (igraph) |
-| 16 | LeidenDendrogram | Leiden with dendrogram traversal |
+| 15 | LeidenOrder | GVE-Leiden baseline reference |
+| 16 | LeidenDendrogram | ⚠️ Deprecated (use LeidenCSR) |
 | 17 | LeidenCSR | Fast CSR-native Leiden |
 
 ## Benchmark Reference

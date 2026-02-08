@@ -58,7 +58,7 @@ VARIANTS = [
     ("8:csr", "RabbitCSR"),                      # Native CSR (fast, no deps)
     ("8:boost", "RabbitBoost"),                  # Boost-based
     # LeidenOrder baseline
-    ("15", "LeidenOrder"),                       # Original igraph Leiden
+    ("15", "LeidenOrder"),                       # GVE-Leiden baseline
 ]
 BENCHMARKS = ["pr"]  # Just PR for now
 BIN_SIM = "bench/bin_sim"
