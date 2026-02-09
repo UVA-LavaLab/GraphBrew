@@ -323,6 +323,7 @@ struct VibeConfig {
     bool useSmallCommunityMerging = false; ///< Merge small communities and apply heuristic algorithm selection
     size_t smallCommunityThreshold = 0;    ///< Min community size for individual reordering (0 = dynamic)
     int  recursiveDepth = 0;           ///< Recursive sub-community depth: 0=flat (default), 1+=recurse into large communities
+    int  subAlgoId = -1;               ///< Algo for sub-communities: -1=auto (per-sub-community adaptive), 0-11=fixed algo ID
     
     // Memory optimizations
     bool useLazyUpdates = false;       ///< Batch community weight updates (reduces atomics in non-REFINE phase)
@@ -7168,6 +7169,21 @@ inline VibeConfig parseVibeConfig(const std::vector<std::string>& options) {
                     if (config.finalAlgoId < 0) config.finalAlgoId = 8;
                 }
             } catch (...) {}
+        }
+        // Sub-community algorithm for recursive GraphBrew: "sub:auto" or "sub:3" or "subauto"
+        else if (opt == "subauto" || opt == "sub:auto") {
+            config.subAlgoId = -1;  // adaptive per-sub-community selection
+        } else if (opt.size() > 3 && opt.substr(0, 3) == "sub") {
+            std::string numStr = opt.substr(3);
+            if (!numStr.empty() && numStr[0] == ':') numStr = numStr.substr(1);
+            if (numStr == "auto") {
+                config.subAlgoId = -1;
+            } else {
+                try {
+                    int a = std::stoi(numStr);
+                    if (a >= 0 && a <= 11) config.subAlgoId = a;
+                } catch (...) {}
+            }
         }
         // Check for aggregation strategy (for Leiden variant)
         else if (opt == "leiden") {
