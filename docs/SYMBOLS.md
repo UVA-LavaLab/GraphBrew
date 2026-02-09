@@ -10,7 +10,7 @@
 ## Reordering
 | Symbol | File | Notes |
 |--------|------|-------|
-| `GenerateGraphBrewMappingUnified` | `bench/include/graphbrew/reorder/reorder_graphbrew.h` | GraphBrew clustering + final reorder |
+| `GenerateGraphBrewMappingUnified` | `bench/include/external/gapbs/builder.h` | GraphBrew clustering + final reorder (VIBE-powered) |
 | `GenerateAdaptiveMapping` | `bench/include/graphbrew/reorder/reorder_adaptive.h` | AdaptiveOrder selector |
 | `GenerateRabbitOrderCSRMapping` | `bench/include/graphbrew/reorder/reorder_rabbit.h` | Native CSR RabbitOrder |
 | `GenerateLeidenCSRMapping` | `bench/include/graphbrew/reorder/reorder_leiden.h` | GVE-Leiden CSR variants |

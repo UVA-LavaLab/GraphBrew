@@ -1411,7 +1411,7 @@ public:
             GenerateLeidenCSRMappingUnified(g, new_ids, reordering_options);
             break;
         case GraphBrewOrder:
-            GenerateGraphBrewMapping(g, new_ids, useOutdeg, reordering_options, numLevels, recursion);
+            GenerateGraphBrewMappingUnified(g, new_ids, useOutdeg, reordering_options);
             break;
         case AdaptiveOrder:
             GenerateAdaptiveMapping(g, new_ids, useOutdeg, reordering_options);
@@ -3000,7 +3000,7 @@ public:
      *            Best: Original or light reordering (DBG)
      * - GENERIC: Unknown or mixed - use default weights
      * 
-     * GraphType enum is now defined in reorder/reorder_graphbrew.h
+     * GraphType enum is defined in reorder/reorder_types.h
      * Import into class scope for backward compatibility.
      */
     using GraphType = ::GraphType;
@@ -3047,7 +3047,7 @@ public:
     /**
      * Selection mode for AdaptiveOrder algorithm selection
      * 
-     * SelectionMode enum is now defined in reorder/reorder_graphbrew.h
+     * SelectionMode enum is defined in reorder/reorder_types.h
      * Import into class scope for backward compatibility.
      */
     using SelectionMode = ::SelectionMode;
@@ -3269,12 +3269,12 @@ public:
     
     /**
      * Compute dynamic threshold for when to apply local reordering.
-     * Delegates to graphbrew::ComputeDynamicLocalReorderThreshold
+     * Delegates to ::ComputeDynamicLocalReorderThreshold in reorder_types.h
      */
     static size_t ComputeDynamicLocalReorderThreshold(size_t num_nodes,
                                                        size_t num_communities,
                                                        size_t avg_community_size = 0) {
-        return graphbrew::ComputeDynamicLocalReorderThreshold(num_nodes, num_communities, avg_community_size);
+        return ::ComputeDynamicLocalReorderThreshold(num_nodes, num_communities, avg_community_size);
     }
 
     /**
@@ -4149,19 +4149,6 @@ public:
         PrintTime("GraphBrew Total Time", totalTimer.Seconds());
     }
     
-    /**
-     * Legacy GraphBrew entry point - delegates to unified VIBE-based implementation.
-     */
-    void GenerateGraphBrewMapping(
-        const CSRGraph<NodeID_, DestID_, invert>& g,
-        pvector<NodeID_>& new_ids,
-        bool useOutdeg,
-        std::vector<std::string> reordering_options,
-        int numLevels = 1,
-        bool recursion = false) {
-        GenerateGraphBrewMappingUnified(g, new_ids, useOutdeg, reordering_options);
-    }
-
 };
 
 #endif // BUILDER_H_
