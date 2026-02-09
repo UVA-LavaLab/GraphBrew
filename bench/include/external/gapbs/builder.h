@@ -3724,54 +3724,114 @@ public:
             size_t total_sub_comms = 0, fits_l2 = 0, fits_llc = 0;
             size_t total_cross_edges = 0, total_internal_edges = 0;
             
-            // Helper: map local sub-community nodes to global IDs and apply algo
-            auto reorderSubCommunityGlobal = [&](
-                const std::vector<NodeID_>& local_nodes,
+            // Phase timing accumulators
+            double time_edge_analysis = 0, time_sub_reorder = 0;
+            std::unordered_map<int, size_t> algo_distribution;
+            
+            // Helper: reorder a sub-community using the already-built subgraph.
+            // Extracts edges from sub_g (not global graph g) to avoid redundant
+            // edge scanning and hash lookups — the key bottleneck fix.
+            auto reorderFromLocalSubgraph = [&](
+                const std::vector<NodeID_>& sc_local_nodes,
+                const CSRGraph<NodeID_, DestID_, invert>& sub_g,
                 const std::vector<NodeID_>& l2g,
-                ReorderingAlgo algo) {
-                std::vector<NodeID_> global_nodes;
-                global_nodes.reserve(local_nodes.size());
-                for (NodeID_ lv : local_nodes) {
-                    global_nodes.push_back(l2g[lv]);
+                ReorderingAlgo algo,
+                std::vector<NodeID_>& sc_map) {
+                
+                const size_t sc_size = sc_local_nodes.size();
+                if (sc_size == 0) return;
+                const size_t sg_N = static_cast<size_t>(sub_g.num_nodes());
+                
+                // Map sub_g local IDs → sub-sub sequential IDs (reuse sc_map)
+                std::vector<NodeID_> ss2g(sc_size);
+                for (size_t i = 0; i < sc_size; ++i) {
+                    NodeID_ lv = sc_local_nodes[i];
+                    if (static_cast<size_t>(lv) < sg_N) sc_map[lv] = static_cast<NodeID_>(i);
+                    ss2g[i] = (static_cast<size_t>(lv) < l2g.size()) ? l2g[lv] : lv;
                 }
-                std::unordered_set<NodeID_> global_set(global_nodes.begin(), global_nodes.end());
-                ::ReorderCommunitySubgraphStandalone<NodeID_, DestID_, WeightT_, invert>(
-                    g, global_nodes, global_set, algo, useOutdeg,
-                    new_ids, current_id);
+                
+                // Extract edges from sub_g (much smaller than global graph)
+                std::vector<std::pair<NodeID_, DestID_>> ss_edges;
+                for (NodeID_ lv : sc_local_nodes) {
+                    if (static_cast<size_t>(lv) >= sg_N) continue;
+                    NodeID_ ss_src = sc_map[lv];
+                    for (DestID_ neighbor : sub_g.out_neigh(lv)) {
+                        NodeID_ nb = static_cast<NodeID_>(neighbor);
+                        if (static_cast<size_t>(nb) < sg_N && sc_map[nb] != static_cast<NodeID_>(-1)) {
+                            ss_edges.push_back({ss_src, static_cast<DestID_>(sc_map[nb])});
+                        }
+                    }
+                }
+                
+                // Cleanup sc_map entries for reuse by next sub-community
+                for (NodeID_ lv : sc_local_nodes) {
+                    if (static_cast<size_t>(lv) < sg_N) sc_map[lv] = static_cast<NodeID_>(-1);
+                }
+                
+                if (ss_edges.empty()) {
+                    for (size_t i = 0; i < sc_size; ++i) new_ids[ss2g[i]] = current_id++;
+                    return;
+                }
+                
+                auto ss_g = MakeLocalGraphFromELStandalone<NodeID_, DestID_, invert>(ss_edges, false);
+                const size_t ss_N = static_cast<size_t>(ss_g.num_nodes());
+                pvector<NodeID_> ss_new_ids(ss_N, -1);
+                ApplyBasicReorderingStandalone<NodeID_, DestID_, WeightT_, invert>(
+                    ss_g, ss_new_ids, algo, useOutdeg);
+                
+                std::vector<NodeID_> reordered(sc_size);
+                for (size_t i = 0; i < std::min(sc_size, ss_N); ++i) {
+                    if (ss_new_ids[i] >= 0 && static_cast<size_t>(ss_new_ids[i]) < sc_size)
+                        reordered[ss_new_ids[i]] = ss2g[i];
+                    else
+                        reordered[i] = ss2g[i];
+                }
+                for (size_t i = ss_N; i < sc_size; ++i) reordered[i] = ss2g[i];
+                for (NodeID_ gv : reordered) new_ids[gv] = current_id++;
             };
             
-            // Helper: select algorithm adaptively for a sub-community
-            auto selectSubAlgo = [&](const std::vector<NodeID_>& local_nodes,
-                                     const std::vector<NodeID_>& l2g,
+            // Helper: select algorithm adaptively using sub_g degree stats.
+            // Computes features directly from subgraph (no global graph scanning).
+            auto selectSubAlgo = [&](const std::vector<NodeID_>& sc_local_nodes,
+                                     const CSRGraph<NodeID_, DestID_, invert>& sub_g,
                                      size_t sc_size) -> ReorderingAlgo {
                 if (!autoSubAlgo) return fixedSubAlgo;
-                if (sc_size < 100) return finalAlgo;  // too small for features
+                if (sc_size < 100) return finalAlgo;
                 
-                // Build global node list and set for feature computation
-                std::vector<NodeID_> global_nodes;
-                global_nodes.reserve(local_nodes.size());
-                for (NodeID_ lv : local_nodes) {
-                    global_nodes.push_back(l2g[lv]);
+                const size_t sg_N = static_cast<size_t>(sub_g.num_nodes());
+                double sum_deg = 0, sum_deg_sq = 0, max_deg = 0;
+                size_t valid_nodes = 0;
+                for (NodeID_ lv : sc_local_nodes) {
+                    if (static_cast<size_t>(lv) >= sg_N) continue;
+                    double deg = static_cast<double>(sub_g.out_degree(lv));
+                    sum_deg += deg;
+                    sum_deg_sq += deg * deg;
+                    if (deg > max_deg) max_deg = deg;
+                    valid_nodes++;
                 }
-                std::unordered_set<NodeID_> global_set(global_nodes.begin(), global_nodes.end());
-                auto feat = ComputeMergedCommunityFeatures(g, global_nodes, global_set);
+                if (valid_nodes == 0) return finalAlgo;
                 
-                // Cache-aware insight: if sub-community fits in L2, prefer lightweight
-                // algos that preserve spatial locality; if it spills to LLC, use
-                // algorithms that optimize for temporal reuse patterns
+                double avg_deg = sum_deg / valid_nodes;
+                double variance = (sum_deg_sq / valid_nodes) - (avg_deg * avg_deg);
+                double degree_variance = (avg_deg > 0) ? std::sqrt(std::max(0.0, variance)) / avg_deg : 0;
+                double hub_concentration = (sum_deg > 0) ? max_deg / sum_deg : 0;
+                double density = (valid_nodes > 1) ?
+                    sum_deg / (static_cast<double>(valid_nodes) * (valid_nodes - 1)) : 0;
+                
+                // Cache-tier-aware algorithm selection
                 if (sc_size <= l2_node_capacity) {
-                    // Fits in L2 — light touch, BFS/sort is enough
-                    if (feat.hub_concentration > 0.4) return HubSort;
+                    // Fits in L2 — light touch
+                    if (hub_concentration > 0.4) return HubSort;
                     return DBG;
                 } else if (sc_size <= llc_node_capacity) {
                     // Fits in LLC — heavier restructuring worthwhile
-                    if (feat.degree_variance > 1.5 && feat.hub_concentration > 0.5)
+                    if (degree_variance > 1.5 && hub_concentration > 0.5)
                         return HubClusterDBG;
-                    if (feat.hub_concentration > 0.3) return HubSort;
-                    return RabbitOrder;  // best general-purpose for LLC-sized
+                    if (hub_concentration > 0.3) return HubSort;
+                    return RabbitOrder;
                 } else {
                     // Exceeds LLC — maximize cache-line reuse
-                    if (feat.density > 0.01) return GOrder;
+                    if (density > 0.01) return GOrder;
                     return RabbitOrder;
                 }
             };
@@ -3872,34 +3932,41 @@ public:
                     }
                 }
                 
-                // ===== CACHE-AWARE INTER-SUB-COMMUNITY ORDERING =====
-                // Order large sub-communities by inter-connectivity: place densely
-                // connected sub-communities adjacent in the final permutation so
-                // cross-sub-community edges have short ID distance → better cache reuse.
-                //
-                // Strategy: BFS on the sub-community adjacency graph starting from
-                // the largest sub-community.
-                std::vector<K> ordered_large_sc;
-                if (large_sc_ids.size() > 2) {
-                    // Build adjacency: count inter-sub-community edges
-                    std::unordered_map<K, std::unordered_map<K, size_t>> sc_adj;
-                    for (NodeID_ lv = 0; lv < static_cast<NodeID_>(sub_N); ++lv) {
-                        K my_sc = sub_result.membership[lv];
-                        if (sub_comm_nodes[my_sc].size() < sub_threshold) continue;
-                        NodeID_ gv = l2g[lv];
-                        for (DestID_ neighbor : g.out_neigh(gv)) {
-                            NodeID_ dest = static_cast<NodeID_>(neighbor);
-                            auto it = g2l.find(dest);
-                            if (it != g2l.end() && static_cast<size_t>(it->second) < sub_N) {
-                                K nb_sc = sub_result.membership[it->second];
-                                if (nb_sc != my_sc && sub_comm_nodes[nb_sc].size() >= sub_threshold) {
-                                    sc_adj[my_sc][nb_sc]++;
-                                }
+                // ===== SINGLE-PASS EDGE ANALYSIS ON SUB_G =====
+                // Simultaneously builds inter-sub-community adjacency (for BFS ordering)
+                // and counts internal/cross edges (for cache statistics).
+                // Uses sub_g instead of global graph → eliminates g2l hash lookups.
+                Timer edgeAnalysisTimer;
+                edgeAnalysisTimer.Start();
+                std::unordered_map<K, std::unordered_map<K, size_t>> sc_adj;
+                size_t comm_internal_edges = 0, comm_cross_edges = 0;
+                for (NodeID_ lv = 0; lv < static_cast<NodeID_>(sub_N); ++lv) {
+                    K my_sc = sub_result.membership[lv];
+                    for (DestID_ neighbor : sub_g.out_neigh(lv)) {
+                        NodeID_ nb = static_cast<NodeID_>(neighbor);
+                        if (static_cast<size_t>(nb) >= sub_N) continue;
+                        K nb_sc = sub_result.membership[nb];
+                        if (my_sc == nb_sc) {
+                            comm_internal_edges++;
+                        } else {
+                            comm_cross_edges++;
+                            if (sub_comm_nodes[my_sc].size() >= sub_threshold &&
+                                sub_comm_nodes[nb_sc].size() >= sub_threshold) {
+                                sc_adj[my_sc][nb_sc]++;
                             }
                         }
                     }
-                    
-                    // BFS from largest sub-community, visiting most-connected neighbor first
+                }
+                total_internal_edges += comm_internal_edges;
+                total_cross_edges += comm_cross_edges;
+                edgeAnalysisTimer.Stop();
+                time_edge_analysis += edgeAnalysisTimer.Seconds();
+                
+                // ===== CACHE-AWARE INTER-SUB-COMMUNITY ORDERING =====
+                // BFS on pre-computed adjacency: densely connected sub-communities
+                // get adjacent placement for better cache reuse.
+                std::vector<K> ordered_large_sc;
+                if (large_sc_ids.size() > 2) {
                     K start_sc = large_sc_ids[0];
                     size_t max_sc_size = 0;
                     for (K sc_id : large_sc_ids) {
@@ -3919,7 +3986,6 @@ public:
                         bfs_q.pop();
                         ordered_large_sc.push_back(cur);
                         
-                        // Sort neighbors by edge count (descending) for greedy placement
                         std::vector<std::pair<size_t, K>> neighbors;
                         if (sc_adj.count(cur)) {
                             for (auto& [nb, cnt] : sc_adj[cur]) {
@@ -3933,61 +3999,48 @@ public:
                             }
                         }
                     }
-                    // Add any unvisited (disconnected) sub-communities
                     for (K sc_id : large_sc_ids) {
                         if (!visited.count(sc_id)) ordered_large_sc.push_back(sc_id);
-                    }
-                    
-                    // Count cross-edges for statistics
-                    for (auto& [sc, neighbors] : sc_adj) {
-                        for (auto& [nb, cnt] : neighbors) {
-                            total_cross_edges += cnt;
-                        }
                     }
                 } else {
                     ordered_large_sc = large_sc_ids;
                 }
                 
-                // Cache-fit statistics per sub-community
+                // Cache-fit statistics (size-based, no edge scanning needed)
                 size_t sc_fits_l2 = 0, sc_fits_llc = 0;
-                size_t comm_internal = 0;
                 for (K sc_id : ordered_large_sc) {
                     size_t sc_sz = sub_comm_nodes[sc_id].size();
                     total_sub_comms++;
                     if (sc_sz <= l2_node_capacity) { sc_fits_l2++; fits_l2++; }
                     else if (sc_sz <= llc_node_capacity) { sc_fits_llc++; fits_llc++; }
-                    // Count internal edges for this sub-community
-                    std::unordered_set<NodeID_> sc_set;
-                    for (NodeID_ lv : sub_comm_nodes[sc_id]) sc_set.insert(lv);
-                    for (NodeID_ lv : sub_comm_nodes[sc_id]) {
-                        if (static_cast<size_t>(lv) >= sub_N) continue;
-                        NodeID_ gv = l2g[lv];
-                        for (DestID_ neighbor : g.out_neigh(gv)) {
-                            auto it = g2l.find(static_cast<NodeID_>(neighbor));
-                            if (it != g2l.end() && sc_set.count(it->second)) {
-                                comm_internal++;
-                            }
-                        }
-                    }
                 }
-                total_internal_edges += comm_internal;
+                for (K sc_id : small_sc_ids) total_sub_comms++;
                 
+                // Allocate reusable mapping vector for sub-community reordering
+                std::vector<NodeID_> sc_map(sub_N, static_cast<NodeID_>(-1));
+                
+                double comm_locality = (comm_internal_edges + comm_cross_edges > 0) ?
+                    100.0 * comm_internal_edges / (comm_internal_edges + comm_cross_edges) : 100.0;
                 printf("  Community %u (%zu nodes): %zu sub-comms (%zu large, %zu small",
                        comm_id, nodes.size(), sub_non_empty,
                        ordered_large_sc.size(), small_sc_ids.size());
                 if (!isolated_locals.empty()) {
                     printf(", %zu isolated", isolated_locals.size());
                 }
-                printf("), cache-fit: %zu/L2 %zu/LLC\n", sc_fits_l2, sc_fits_llc);
+                printf("), cache-fit: %zu/L2 %zu/LLC, locality: %.0f%%\n",
+                       sc_fits_l2, sc_fits_llc, comm_locality);
                 
                 // ===== Process large sub-communities in cache-aware order =====
+                Timer subReorderTimer;
+                subReorderTimer.Start();
                 for (K sc_id : ordered_large_sc) {
                     auto& sc_local_nodes = sub_comm_nodes[sc_id];
                     size_t sc_size = sc_local_nodes.size();
                     
                     // Select algorithm: adaptive or fixed
-                    ReorderingAlgo sc_algo = selectSubAlgo(sc_local_nodes, l2g, sc_size);
-                    reorderSubCommunityGlobal(sc_local_nodes, l2g, sc_algo);
+                    ReorderingAlgo sc_algo = selectSubAlgo(sc_local_nodes, sub_g, sc_size);
+                    algo_distribution[static_cast<int>(sc_algo)]++;
+                    reorderFromLocalSubgraph(sc_local_nodes, sub_g, l2g, sc_algo, sc_map);
                 }
                 
                 // Collect small sub-community + isolated nodes
@@ -4004,21 +4057,12 @@ public:
                 // Handle merged small sub-community + isolated nodes
                 if (!sub_small_nodes.empty()) {
                     if (sub_small_nodes.size() >= 100) {
-                        reorderSubCommunityGlobal(sub_small_nodes, l2g,
-                            [&]() -> ReorderingAlgo {
-                                std::vector<NodeID_> global_small;
-                                global_small.reserve(sub_small_nodes.size());
-                                for (NodeID_ lv : sub_small_nodes) {
-                                    global_small.push_back(l2g[lv]);
-                                }
-                                std::unordered_set<NodeID_> gs(global_small.begin(), global_small.end());
-                                auto feat = ComputeMergedCommunityFeatures(g, global_small, gs);
-                                return SelectAlgorithmForSmallGroup(feat);
-                            }());
+                        ReorderingAlgo small_algo = selectSubAlgo(sub_small_nodes, sub_g, sub_small_nodes.size());
+                        reorderFromLocalSubgraph(sub_small_nodes, sub_g, l2g, small_algo, sc_map);
                     } else {
                         std::vector<std::pair<int64_t, NodeID_>> deg_nodes;
                         for (NodeID_ lv : sub_small_nodes) {
-                            NodeID_ gv = l2g[lv];
+                            NodeID_ gv = (static_cast<size_t>(lv) < l2g.size()) ? l2g[lv] : lv;
                             deg_nodes.push_back({-(useOutdeg ? g.out_degree(gv) : g.in_degree(gv)), gv});
                         }
                         std::sort(deg_nodes.begin(), deg_nodes.end());
@@ -4027,6 +4071,8 @@ public:
                         }
                     }
                 }
+                subReorderTimer.Stop();
+                time_sub_reorder += subReorderTimer.Seconds();
             }
             
             // ===== Print cache-locality summary =====
@@ -4042,8 +4088,37 @@ public:
                        total_sub_comms - fits_l2 - fits_llc);
                 printf("  edge locality: %.1f%% internal, cross-edges=%zu\n",
                        internal_ratio, total_cross_edges / 2);
+                printf("  phase timing: edge-analysis=%.4fs, sub-reorder=%.4fs\n",
+                       time_edge_analysis, time_sub_reorder);
                 if (autoSubAlgo) {
-                    printf("  sub-algo: adaptive (per-sub-community feature-based selection)\n");
+                    printf("  sub-algo distribution:");
+                    for (auto& [algo_id, count] : algo_distribution) {
+                        printf(" %s=%zu",
+                               ReorderingAlgoStr(static_cast<ReorderingAlgo>(algo_id)).c_str(), count);
+                    }
+                    printf("\n");
+                } else {
+                    printf("  sub-algo: fixed %s\n",
+                           ReorderingAlgoStr(fixedSubAlgo).c_str());
+                }
+                
+                // Spatial locality estimate: sample edge ID distances
+                size_t locality_samples = 0;
+                double avg_distance = 0;
+                for (int64_t v = 0; v < std::min(N, int64_t(50000)); ++v) {
+                    if (new_ids[v] == static_cast<NodeID_>(-1)) continue;
+                    for (DestID_ neighbor : g.out_neigh(v)) {
+                        NodeID_ u = static_cast<NodeID_>(neighbor);
+                        if (new_ids[u] == static_cast<NodeID_>(-1)) continue;
+                        avg_distance += std::abs(static_cast<int64_t>(new_ids[v]) - static_cast<int64_t>(new_ids[u]));
+                        locality_samples++;
+                    }
+                }
+                if (locality_samples > 0) {
+                    avg_distance /= locality_samples;
+                    double random_baseline = static_cast<double>(N) / 3.0;
+                    printf("  spatial locality: avg edge distance=%.0f (random baseline=%.0f, ratio=%.2fx)\n",
+                           avg_distance, random_baseline, avg_distance / random_baseline);
                 }
             }
         } else {
