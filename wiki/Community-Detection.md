@@ -107,8 +107,7 @@ Leiden is used internally by Leiden-based algorithms:
 | Algorithm | Uses Leiden | Format |
 |-----------|-------------|--------|
 | LeidenOrder (15) | ✓ | `-o 15:resolution` |
-| LeidenDendrogram (16) | ⚠️ Deprecated | `-o 16:resolution:variant` |
-| LeidenCSR (17) | ✓ | `-o 17:variant:resolution:iterations:passes` |
+| LeidenCSR (16) | ✓ | `-o 16:variant:resolution:iterations:passes` |
 | GraphBrewOrder (12) | ✓ | `-o 12:freq:algo:resolution` |
 | AdaptiveOrder (14) | ✓ | `-o 14:resolution:minsize:mode` |
 
@@ -169,25 +168,9 @@ Sort key: (pass_N, pass_N-1, ..., pass_0, degree)
 Result: Vertices in same sub-sub-community are adjacent
 ```
 
-### LeidenDendrogram (16) ⚠️ Deprecated
+### LeidenCSR (16)
 
-Dendrogram traversal with variants:
-1. Detect communities using GVE-Leiden
-2. Build community hierarchy
-3. Traverse using selected variant (dfs/dfshub/dfssize/bfs/hybrid)
-
-> **⚠️ Deprecated:** Use LeidenCSR (17) dendrogram variants (`gvedendo`, `dfs`, `bfs`) instead. They produce equivalent quality but reorder 28–95× faster.
-
-**Variants:**
-- `dfs`: Standard DFS traversal
-- `dfshub`: DFS with hub-first ordering
-- `dfssize`: DFS with size-first ordering  
-- `bfs`: BFS level-order traversal
-- `hybrid`: Sort by (community, degree) - default
-
-### LeidenCSR (17)
-
-Fast CSR-native Leiden (no graph conversion). See [[Reordering-Algorithms#17-leidencsr--fastest-best-quality]] for variant table, resolution modes, and usage examples.
+Fast CSR-native Leiden (no graph conversion). See [[Reordering-Algorithms#16-leidencsr--fastest-best-quality]] for variant table, resolution modes, and usage examples.
 
 ---
 

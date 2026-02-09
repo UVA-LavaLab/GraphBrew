@@ -363,7 +363,7 @@ python3 graphbrew_experiment.py --fill-weights --graphs all
 ```
 
 For each graph:
-1. Run all 18 algorithms
+1. Run all 17 algorithms
 2. Record speedups vs baseline
 3. Update weights based on which algorithms work best
 
@@ -524,8 +524,7 @@ For each community:
 | 13 | MAP | External mapping file |
 | 14 | AdaptiveOrder | ML-powered selection |
 | 15 | LeidenOrder | GVE-Leiden baseline |
-| 16 | LeidenDendrogram | Deprecated (use LeidenCSR) |
-| 17 | LeidenCSR | Fast CSR-native Leiden |
+| 16 | LeidenCSR | Fast CSR-native Leiden |
 
 ---
 
@@ -892,7 +891,7 @@ Optional cache simulation data helps tune weights for specific memory hierarchie
 - ML-based perceptron with 12 graph features
 - Online learning with incremental weight updates
 - Type-based weight specialization
-- 18 reordering algorithms supported
+- 17 reordering algorithms supported
 - 5 graph benchmarks (PR, BFS, CC, SSSP, BC)
 - Cache simulation support
 

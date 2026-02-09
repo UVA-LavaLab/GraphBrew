@@ -37,12 +37,11 @@ enum ReorderingAlgo {
     GraphBrewOrder = 12,    // Has variants (see GRAPHBREW_VARIANTS in utils.py)
     MAP = 13,               // Load reordering from file
     AdaptiveOrder = 14,     // ML-based perceptron selector
-    // Leiden algorithms (15-17) - grouped together for easier sweeping
+    // Leiden algorithms (15-16) - grouped together for easier sweeping
     LeidenOrder = 15,       // Format: 15:resolution (GVE-Leiden baseline)
-    LeidenDendrogram = 16,  // ⚠️ DEPRECATED — use LeidenCSR (17) variants instead
-    LeidenCSR = 17,         // Has variants (see LEIDEN_CSR_VARIANTS in utils.py)
+    LeidenCSR = 16,         // Has variants (see LEIDEN_CSR_VARIANTS in utils.py)
     // ADD YOUR ALGORITHM HERE
-    MyNewOrder = 18,
+    MyNewOrder = 17,
 };
 
 // Note: Variant lists are defined in scripts/lib/utils.py for Python integration
@@ -214,8 +213,8 @@ Edit `scripts/lib/utils.py` and add to the `ALGORITHMS` dict:
 ALGORITHMS = {
     0: "ORIGINAL",
     # ... existing entries ...
-    17: "LeidenCSR",
-    18: "MyNewOrder",  # ADD YOUR ALGORITHM HERE
+    16: "LeidenCSR",
+    17: "MyNewOrder",  # ADD YOUR ALGORITHM HERE
 }
 ```
 
@@ -305,7 +304,7 @@ This will:
 ```cpp
 enum ReorderingAlgo {
     // ...existing...
-    LocalitySensitiveOrder = 18,  // Next available ID after LeidenCSR (17)
+    LocalitySensitiveOrder = 17,  // Next available ID after LeidenCSR (16)
 };
 ```
 
@@ -413,8 +412,8 @@ ALGORITHMS = {
 
 ```bash
 make clean && make all
-# Test your new algorithm (ID 18 = next available after existing 0-17)
-./bench/bin/pr -f scripts/test/graphs/tiny/tiny.el -s -o 18 -n 3
+# Test your new algorithm (ID 17 = next available after existing 0-16)
+./bench/bin/pr -f scripts/test/graphs/tiny/tiny.el -s -o 17 -n 3
 ```
 
 ---

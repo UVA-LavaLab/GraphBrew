@@ -124,7 +124,6 @@ inline const std::string ReorderingAlgoStr(ReorderingAlgo algo) {
         case MAP:             return "MAP";
         case AdaptiveOrder:   return "AdaptiveOrder";
         case LeidenOrder:     return "LeidenOrder";
-        case LeidenDendrogram: return "LeidenDendrogram";
         case LeidenCSR:       return "LeidenCSR";
         default:
             std::cerr << "Unknown Reordering Algorithm: " << static_cast<int>(algo) << std::endl;
@@ -137,7 +136,7 @@ inline const std::string ReorderingAlgoStr(ReorderingAlgo algo) {
  * 
  * Used when parsing command-line arguments.
  * 
- * @param value Integer algorithm ID (0-17)
+ * @param value Integer algorithm ID (0-16)
  * @return Corresponding ReorderingAlgo enum value
  */
 inline ReorderingAlgo getReorderingAlgo(int value) {
@@ -158,8 +157,7 @@ inline ReorderingAlgo getReorderingAlgo(int value) {
         case 13: return MAP;
         case 14: return AdaptiveOrder;
         case 15: return LeidenOrder;
-        case 16: return LeidenDendrogram;
-        case 17: return LeidenCSR;
+        case 16: return LeidenCSR;
         default:
             std::cerr << "Unknown algorithm ID: " << value << std::endl;
             std::abort();
@@ -250,7 +248,8 @@ enum class OrderingStrategy {
 enum class AggregationStrategy {
     CSR_BUFFER,     ///< Standard CSR-based aggregation (Leiden-style)
     LAZY_STREAMING, ///< Lazy aggregation (RabbitOrder-style)
-    HYBRID          ///< Auto-select based on graph density
+    HYBRID,         ///< Auto-select based on graph density
+    GVE_CSR_MERGE   ///< GVE-style: explicit adjacency + super-graph local-moving merge
 };
 
 /**
@@ -1141,7 +1140,7 @@ struct CommunityFeatures {
 /**
  * @brief Dendrogram node for hierarchical community structure
  * 
- * Used by LeidenDendrogram to build and traverse the community
+ * Used internally by VIBE to build and traverse the community
  * hierarchy for ordering vertices.
  */
 struct LeidenDendrogramNode {
@@ -1259,32 +1258,9 @@ inline const std::map<std::string, ReorderingAlgo>& getAlgorithmNameMap() {
         {"ADAPTIVEORDER", AdaptiveOrder},
         {"LeidenOrder", LeidenOrder},
         {"LEIDENORDER", LeidenOrder},
-        {"LeidenDendrogram", LeidenDendrogram},
-        {"LEIDENDENDROGRAM", LeidenDendrogram},
-        // LeidenDendrogram variants
-        {"LeidenDendrogram_dfs", LeidenDendrogram},
-        {"LeidenDendrogram_dfshub", LeidenDendrogram},
-        {"LeidenDendrogram_dfssize", LeidenDendrogram},
-        {"LeidenDendrogram_bfs", LeidenDendrogram},
-        {"LeidenDendrogram_hybrid", LeidenDendrogram},
         {"LeidenCSR", LeidenCSR},
         {"LEIDENCSR", LeidenCSR},
-        // LeidenCSR variants (core)
-        {"LeidenCSR_gve", LeidenCSR},
-        {"LeidenCSR_gveopt", LeidenCSR},
-        {"LeidenCSR_gveopt2", LeidenCSR},
-        {"LeidenCSR_gveadaptive", LeidenCSR},
-        {"LeidenCSR_gveoptsort", LeidenCSR},
-        {"LeidenCSR_gveturbo", LeidenCSR},
-        {"LeidenCSR_gvefast", LeidenCSR},
-        {"LeidenCSR_gvedendo", LeidenCSR},
-        {"LeidenCSR_gveoptdendo", LeidenCSR},
-        {"LeidenCSR_gverabbit", LeidenCSR},
-        {"LeidenCSR_dfs", LeidenCSR},
-        {"LeidenCSR_bfs", LeidenCSR},
-        {"LeidenCSR_hubsort", LeidenCSR},
-        {"LeidenCSR_modularity", LeidenCSR},
-        // LeidenCSR VIBE variants
+        // LeidenCSR VIBE variants (active)
         {"LeidenCSR_vibe", LeidenCSR},
         {"LeidenCSR_vibe:dfs", LeidenCSR},
         {"LeidenCSR_vibe:bfs", LeidenCSR},
@@ -2938,7 +2914,7 @@ inline bool ParseWeightsFromJSON(const std::string& json_content,
         }
         
         // When multiple variant names map to the same base algorithm (e.g.,
-        // LeidenCSR_gve, LeidenCSR_gveopt2 both map to LeidenCSR), keep the
+        // LeidenCSR_vibe, LeidenCSR_vibe:hrab both map to LeidenCSR), keep the
         // variant with the highest bias (the one training found most successful).
         // This ensures the perceptron uses the best-performing variant's weights.
         auto it = weights.find(kv.second);
@@ -2965,7 +2941,7 @@ inline bool ParseWeightsFromJSON(const std::string& json_content,
  * - Negative weight = algorithm prefers lower values
  * 
  * Key observations from benchmarks:
- * - LeidenDendrogram: Best overall (avg 2.86x speedup), wins on high-mod graphs
+ * - LeidenCSR (VIBE): Best overall (avg 2.86x speedup), wins on high-mod graphs
  * - RabbitOrder: Best on low-modularity synthetic graphs (4.06x)
  * - HubClusterDBG: Good general-purpose (2.38x), fast reordering
  * - RCMOrder: Best for sparse graphs (high w_density penalty on dense)
@@ -3107,21 +3083,7 @@ inline const std::map<ReorderingAlgo, PerceptronWeights>& GetPerceptronWeights()
             .cache_l1_impact = 0.0, .cache_l2_impact = 0.0, .cache_l3_impact = 0.0, .cache_dram_penalty = 0.0,
             .w_reorder_time = -0.5     // highest reorder cost
         }},
-        // LeidenDendrogram: Dendrogram-based traversal (default: hybrid variant)
-        {LeidenDendrogram, {
-            .bias = 0.95,             // HIGHEST - clear benchmark winner
-            .w_modularity = 0.45,     // best on high modularity graphs
-            .w_log_nodes = 0.06,      // scales well
-            .w_log_edges = 0.06,
-            .w_density = -0.15,       // tolerates density better
-            .w_avg_degree = 0.02,
-            .w_degree_variance = 0.15,
-            .w_hub_concentration = 0.25,  // also good with hubs
-            .w_clustering_coeff = 0.1, .w_avg_path_length = 0.0, .w_diameter = 0.0, .w_community_count = 0.08,
-            .cache_l1_impact = 0.0, .cache_l2_impact = 0.0, .cache_l3_impact = 0.0, .cache_dram_penalty = 0.0,
-            .w_reorder_time = -0.15    // fast reordering (hybrid is efficient)
-        }},
-        // LeidenCSR: Fast CSR-native community detection
+        // LeidenCSR: Fast CSR-native community detection (VIBE)
         {LeidenCSR, {
             .bias = 0.80,
             .w_modularity = 0.35,

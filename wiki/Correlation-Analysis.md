@@ -50,7 +50,7 @@ Graph: facebook.el (4,039 nodes, 88,234 edges)
 │ ORIGINAL (0)       │ 0.0523       │ 1.00x       │
 │ HUBCLUSTERDBG (7)  │ 0.0412       │ 1.27x       │
 │ LeidenOrder (15)   │ 0.0398       │ 1.31x       │
-│ LeidenCSR (17)     │ 0.0371       │ 1.41x ★     │
+│ LeidenCSR (16)     │ 0.0371       │ 1.41x ★     │
 │ RCM (11)           │ 0.0489       │ 1.07x       │
 └────────────────────┴──────────────┴─────────────┘
 Best: LeidenCSR
@@ -89,13 +89,13 @@ Combine results across all graphs:
 │ Graph            │ ModQ   │ HubConc │ DegVar  │ Density │ Best Algo     │
 ├──────────────────┼────────┼─────────┼─────────┼─────────┼───────────────┤
 │ facebook         │ 0.835  │ 0.42    │ 52.4    │ 0.011   │ LeidenCSR  │
-│ twitter          │ 0.721  │ 0.68    │ 891.2   │ 0.002   │ LeidenDendrogram  │
+│ twitter          │ 0.721  │ 0.68    │ 891.2   │ 0.002   │ LeidenCSR         │
 │ roadNet-CA       │ 0.112  │ 0.05    │ 1.2     │ 0.0001  │ RCM           │
 │ web-Google       │ 0.654  │ 0.55    │ 234.5   │ 0.008   │ HUBCLUSTERDBG │
 │ citation         │ 0.443  │ 0.31    │ 45.6    │ 0.003   │ LeidenOrder   │
 │ amazon           │ 0.926  │ 0.18    │ 12.3    │ 0.0004  │ LeidenOrder   │
 │ youtube          │ 0.712  │ 0.52    │ 289.1   │ 0.001   │ LeidenCSR  │
-│ livejournal      │ 0.758  │ 0.61    │ 567.8   │ 0.0003  │ LeidenDendrogram  │
+│ livejournal      │ 0.758  │ 0.61    │ 567.8   │ 0.0003  │ LeidenCSR         │
 └──────────────────┴────────┴─────────┴─────────┴─────────┴───────────────┘
 ```
 
@@ -194,7 +194,7 @@ Found 8 graphs
 
 Running benchmarks...
   facebook.el: ORIGINAL=0.052s, HUBCLUSTERDBG=0.041s, LeidenCSR=0.037s ★
-  twitter.el: ORIGINAL=12.3s, LeidenDendrogram=8.1s ★, LeidenCSR=8.4s
+  twitter.el: ORIGINAL=12.3s, LeidenCSR=8.1s ★, LeidenCSR=8.4s
   ...
 
 Extracting features...
@@ -211,14 +211,14 @@ Computing correlations...
 Computing Perceptron Weights
 ----------------------------------------------------------------------
 Perceptron weights saved to: scripts/weights/active/type_0.json
-  18 algorithms configured
+  17 algorithms configured
   Updated from benchmarks: ORIGINAL, HUBCLUSTERDBG, LeidenCSR, ...
 
 Summary:
   Total graphs analyzed: 8
   Algorithms benchmarked: 11
   Best overall: LeidenCSR (won 4/8 graphs)
-  Second best: LeidenDendrogram (won 2/8 graphs)
+  Second best: LeidenCSR (won 2/8 graphs)
 ```
 
 ### Generated Files

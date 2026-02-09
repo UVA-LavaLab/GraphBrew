@@ -178,7 +178,7 @@ Compare cache efficiency across different reorderings:
 ./bench/bin_sim/pr -f graph.mtx -o 8:boost -n 1
 
 # Test GraphBrewOrder
-./bench/bin_sim/pr -f graph.mtx -o 12:10:17 -n 1
+./bench/bin_sim/pr -f graph.mtx -o 12:10:16 -n 1
 ```
 
 ### 2. Analyzing Cache Behavior

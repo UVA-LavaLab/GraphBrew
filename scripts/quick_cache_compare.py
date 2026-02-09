@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """
-Quick Cache Comparison - Compare GVE Variants vs RabbitOrder
-============================================================
+Quick Cache Comparison - Compare VIBE Variants vs RabbitOrder
+=============================================================
 
 Runs cache simulation benchmarks comparing different community detection
 variants to measure their impact on cache performance:
 
-- GVE-Leiden variants (gve, gveopt, gveopt2, gveadaptive, gvedendo, gveoptdendo)
+- VIBE variants (vibe, vibe:quality, vibe:hrab, vibe:rabbit, vibe:streaming, etc.)
 - RabbitOrder variants (csr, boost)
 
 Outputs:
@@ -33,27 +33,16 @@ from pathlib import Path
 # Config
 GRAPHS = ["web-Google", "web-BerkStan", "as-Skitter", "wiki-Talk", "roadNet-CA"]  # Variety of graph types
 VARIANTS = [
-    # GVE variants with different resolutions
-    ("17:gve:dynamic", "GVE-Dynamic"),           # Dynamic resolution (best PR)
-    ("17:gve:auto", "GVE-Auto"),                 # Auto-computed resolution
-    ("17:gveopt:dynamic", "GVEOpt-Dynamic"),     # Cache-optimized, dynamic
-    ("17:gveopt:auto", "GVEOpt-Auto"),           # Cache-optimized, auto
-    ("17:gveopt2:dynamic", "GVEOpt2-Dynamic"),   # CSR aggregation, dynamic (BEST)
-    ("17:gveopt2:auto", "GVEOpt2-Auto"),         # CSR aggregation, auto
-    ("17:gveopt2:2.0", "GVEOpt2-R2.0"),          # CSR aggregation, fixed high
-    ("17:gveadaptive:dynamic", "GVEAdaptive"),   # Dynamic resolution adjustment
-    ("17:gveadaptive:dynamic_2.0", "GVEAdaptive-2.0"),  # Dynamic starting at 2.0
-    ("17:gveoptsort:dynamic", "GVEOptSort"),     # Multi-level sort
-    ("17:gveturbo:dynamic", "GVETurbo"),         # Speed-optimized
-    ("17:gvefast:dynamic", "GVEFast"),           # CSR buffer reuse
-    ("17:gvedendo:auto", "GVEDendo"),            # Incremental dendrogram
-    ("17:gveoptdendo:auto", "GVEOptDendo"),      # Opt + dendrogram
-    ("17:gverabbit:auto", "GVERabbit"),          # GVE-Rabbit hybrid (fastest)
-    # Alternative ordering strategies
-    ("17:dfs:dynamic", "LeidenDFS"),             # DFS ordering
-    ("17:bfs:dynamic", "LeidenBFS"),             # BFS ordering  
-    ("17:hubsort:dynamic", "LeidenHubSort"),     # Hub-sorted
-    ("17:modularity:dynamic", "LeidenModularity"), # Modularity optimization
+    # VIBE variants
+    ("16:vibe", "VIBE"),                         # Default VIBE
+    ("16:vibe:quality", "VIBE-Quality"),          # High-quality community ordering
+    ("16:vibe:rabbit", "VIBE-Rabbit"),            # VIBE + RabbitOrder within communities
+    ("16:vibe:streaming", "VIBE-Streaming"),      # Streaming/incremental (fastest)
+    ("16:vibe:hrab", "VIBE-HRAB"),                # Hybrid Leiden+Rabbit BFS (best)
+    ("16:vibe:hrab:gordi", "VIBE-HRAB-Gordi"),    # Hybrid Leiden+Rabbit Gorder
+    ("16:vibe:dfs", "VIBE-DFS"),                  # DFS traversal ordering
+    ("16:vibe:bfs", "VIBE-BFS"),                  # BFS traversal ordering
+    ("16:vibe:dbg", "VIBE-DBG"),                  # Debug/verbose mode
     # RabbitOrder variants
     ("8:csr", "RabbitCSR"),                      # Native CSR (fast, no deps)
     ("8:boost", "RabbitBoost"),                  # Boost-based

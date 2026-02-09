@@ -24,43 +24,37 @@ A comprehensive one-click script that runs the complete GraphBrew experiment wor
 12. Batched training (--train-batched): Process graphs in batches for large datasets
 
 **Algorithm Variant Testing:**
-    For LeidenCSR (17) and RabbitOrder (8), you can test
+    For LeidenCSR (16) and RabbitOrder (8), you can test
     specific variants or all variants.
-    Note: LeidenDendrogram (16) is deprecated — use LeidenCSR (17) variants instead.
     
     # Test all algorithm variants
     python scripts/graphbrew_experiment.py --train --all-variants --size small
     
     # Test specific variants only
-    python scripts/graphbrew_experiment.py --train --csr-variants gve gveopt gveopt2 --size small
+    python scripts/graphbrew_experiment.py --train --csr-variants vibe vibe:hrab vibe:rabbit --size small
     
     # Test new optimized variants (best performance)
-    python scripts/graphbrew_experiment.py --train --csr-variants gveopt2 gveadaptive --size medium
+    python scripts/graphbrew_experiment.py --train --csr-variants vibe vibe:hrab --size medium
     
     # With custom Leiden parameters
     python scripts/graphbrew_experiment.py --train --all-variants \\
         --resolution 1.0 --passes 5 --size medium
     
     RabbitOrder (8) variants: csr (default), boost
-    LeidenCSR (17) variants:
-      - gveopt2 (default): CSR-based aggregation (fastest + best quality) ⭐
-      - gve: Standard GVE-Leiden with refinement
-      - gveopt: Cache-optimized with prefetching
-      - gveadaptive: Dynamic resolution adjustment (best for unknown graphs) ⭐
-      - gveoptsort: Multi-level sort ordering
-      - gveturbo: Speed-optimized (optional refinement skip)
-      - gvefast: CSR buffer reuse (leiden.hxx style)
-      - gvedendo/gveoptdendo: Incremental dendrogram building
-      - gverabbit: GVE-Rabbit hybrid (fastest)
-      - dfs, bfs, hubsort, modularity: Alternative ordering strategies
-    LeidenDendrogram (16) variants: dfs, dfshub, dfssize, bfs, hybrid
-      ⚠️ DEPRECATED: Use LeidenCSR (17) variants (gvedendo, dfs, bfs) instead.
+    LeidenCSR (16) variants:
+      - vibe (default): Unified reordering framework (best overall) ⭐
+      - vibe:quality: High-quality community detection + ordering
+      - vibe:rabbit: VIBE + RabbitOrder within communities
+      - vibe:streaming: Streaming/incremental ordering (fastest)
+      - vibe:hrab: Hybrid Leiden+Rabbit BFS (best amortization) ⭐
+      - vibe:hrab:gordi: Hybrid Leiden+Rabbit Gorder
+      - vibe:dfs, vibe:bfs: Alternative traversal orderings
+      - vibe:dbg: Debug/verbose mode
     
     Resolution modes (for --resolution):
       - Fixed: 1.5 (use specified value)
       - Auto: auto or 0 (compute from graph density/CV)
-      - Dynamic: dynamic (adjust per-pass, gveadaptive only)
-      - Dynamic+Init: dynamic_2.0 (start at 2.0, adjust per-pass)
+      - Dynamic: dynamic (adjust per-pass)
 
 All outputs are saved to the results/ directory for clean organization.
 Type-based weights are saved to scripts/weights/active/type_*.json.
@@ -124,7 +118,6 @@ from scripts.lib import (
     # Leiden variants (gve default for LeidenCSR)
     LEIDEN_CSR_VARIANTS as LIB_LEIDEN_CSR_VARIANTS,
     LEIDEN_CSR_DEFAULT_VARIANT as LIB_LEIDEN_CSR_DEFAULT_VARIANT,
-    LEIDEN_DENDROGRAM_VARIANTS as LIB_LEIDEN_DENDROGRAM_VARIANTS,
     LEIDEN_DEFAULT_RESOLUTION as LIB_LEIDEN_DEFAULT_RESOLUTION,
     LEIDEN_DEFAULT_PASSES as LIB_LEIDEN_DEFAULT_PASSES,
     # Paths
@@ -287,7 +280,6 @@ RABBITORDER_VARIANTS = LIB_RABBITORDER_VARIANTS
 RABBITORDER_DEFAULT_VARIANT = LIB_RABBITORDER_DEFAULT_VARIANT
 GRAPHBREW_VARIANTS = LIB_GRAPHBREW_VARIANTS
 GRAPHBREW_DEFAULT_VARIANT = LIB_GRAPHBREW_DEFAULT_VARIANT
-LEIDEN_DENDROGRAM_VARIANTS = LIB_LEIDEN_DENDROGRAM_VARIANTS
 LEIDEN_CSR_VARIANTS = LIB_LEIDEN_CSR_VARIANTS
 LEIDEN_CSR_DEFAULT_VARIANT = LIB_LEIDEN_CSR_DEFAULT_VARIANT
 
@@ -307,10 +299,10 @@ from scripts.lib.utils import (
 @dataclass
 class AlgorithmConfig:
     """Configuration for an algorithm, including variant support."""
-    algo_id: int           # Base algorithm ID (e.g., 17 for LeidenCSR)
-    name: str              # Display name (e.g., "LeidenCSR_gve")
-    option_string: str     # Full option string for -o flag (e.g., "17:gve:dynamic")
-    variant: str = ""      # Variant name if applicable (e.g., "gve")
+    algo_id: int           # Base algorithm ID (e.g., 16 for LeidenCSR)
+    name: str              # Display name (e.g., "LeidenCSR_vibe")
+    option_string: str     # Full option string for -o flag (e.g., "16:vibe:quality")
+    variant: str = ""      # Variant name if applicable (e.g., "vibe")
     resolution: str = "dynamic"  # Resolution mode: "dynamic", "auto", "1.0", etc.
     passes: int = 10
     
@@ -326,14 +318,14 @@ def expand_algorithms_with_variants(
     leiden_resolution: str = LEIDEN_DEFAULT_RESOLUTION,
     leiden_passes: int = LEIDEN_DEFAULT_PASSES,
     leiden_csr_variants: List[str] = None,
-    leiden_dendrogram_variants: List[str] = None,
+    leiden_csr_variants: List[str] = None,
     rabbit_variants: List[str] = None,
     graphbrew_variants: List[str] = None
 ) -> List[AlgorithmConfig]:
     """
     Expand algorithm IDs into AlgorithmConfig objects.
     
-    For Leiden algorithms (16, 17), optionally expand into their variants.
+    For LeidenCSR (16), optionally expand into its variants.
     For RabbitOrder (8), optionally expand into csr/boost variants.
     For GraphBrewOrder (12), optionally expand into leiden/gve/gveopt/rabbit/hubcluster variants.
     
@@ -343,7 +335,6 @@ def expand_algorithms_with_variants(
         leiden_resolution: Resolution parameter for Leiden algorithms
         leiden_passes: Number of passes for LeidenCSR
         leiden_csr_variants: Which LeidenCSR variants to include (default: all)
-        leiden_dendrogram_variants: Which LeidenDendrogram variants to include (default: all)
         rabbit_variants: Which RabbitOrder variants to include (default: csr only)
         graphbrew_variants: Which GraphBrewOrder variants to include (default: leiden only)
     
@@ -352,8 +343,6 @@ def expand_algorithms_with_variants(
     """
     if leiden_csr_variants is None:
         leiden_csr_variants = LEIDEN_CSR_VARIANTS
-    if leiden_dendrogram_variants is None:
-        leiden_dendrogram_variants = LEIDEN_DENDROGRAM_VARIANTS
     if rabbit_variants is None:
         # When expand_leiden_variants is True (--all-variants), include both RabbitOrder variants
         rabbit_variants = RABBITORDER_VARIANTS if expand_leiden_variants else [RABBITORDER_DEFAULT_VARIANT]
@@ -366,9 +355,9 @@ def expand_algorithms_with_variants(
     for algo_id in algorithms:
         base_name = ALGORITHMS.get(algo_id, f"ALGO_{algo_id}")
         
-        if algo_id == 17 and expand_leiden_variants:
+        if algo_id == 16 and expand_leiden_variants:
             # LeidenCSR: expand into variants
-            # Format: 17:variant:resolution (pass resolution to C++)
+            # Format: 16:variant:resolution (pass resolution to C++)
             for variant in leiden_csr_variants:
                 # Include resolution in option string for C++ to use
                 option_str = f"{algo_id}:{variant}:{leiden_resolution}"
@@ -379,19 +368,6 @@ def expand_algorithms_with_variants(
                     variant=variant,
                     resolution=leiden_resolution,
                     passes=leiden_passes
-                ))
-        elif algo_id == 16 and expand_leiden_variants:
-            # LeidenDendrogram: expand into variants
-            # Format: 16:variant:resolution (pass resolution to C++)
-            for variant in leiden_dendrogram_variants:
-                # Include resolution in option string for C++ to use
-                option_str = f"{algo_id}:{variant}:{leiden_resolution}"
-                configs.append(AlgorithmConfig(
-                    algo_id=algo_id,
-                    name=f"LeidenDendrogram_{variant}",
-                    option_string=option_str,
-                    variant=variant,
-                    resolution=leiden_resolution
                 ))
         elif algo_id == 8 and expand_leiden_variants and len(rabbit_variants) > 1:
             # RabbitOrder: expand into variants if multiple specified
@@ -474,12 +450,11 @@ def get_best_leiden_variant(
     """
     Get the best variant for a Leiden algorithm based on learned weights.
     
-    For LeidenCSR (17), variants are: gveopt2 (default), gve, gveopt, dfs, bfs, hubsort, fast, modularity
-    For LeidenDendrogram (16), variants are: dfs, dfshub, dfssize, bfs, hybrid
+    For LeidenCSR (16), variants are: vibe (default), vibe:quality, vibe:rabbit, vibe:hrab, vibe:streaming, vibe:dfs, vibe:bfs
     
     Args:
         type_name: Graph type (e.g., 'type_0')
-        base_algo_id: Algorithm ID (16 or 17)
+        base_algo_id: Algorithm ID (16)
         benchmark: Benchmark to optimize for
         weights_dir: Directory containing type weights
     
@@ -490,12 +465,9 @@ def get_best_leiden_variant(
         weights_dir = DEFAULT_WEIGHTS_DIR
     
     # Get variants for this algorithm
-    if base_algo_id == 17:
+    if base_algo_id == 16:
         base_name = "LeidenCSR"
         variants = LEIDEN_CSR_VARIANTS
-    elif base_algo_id == 16:
-        base_name = "LeidenDendrogram"
-        variants = LEIDEN_DENDROGRAM_VARIANTS
     else:
         return None  # Not a Leiden algorithm
     
@@ -552,12 +524,9 @@ def get_leiden_variant_rankings(
     if weights_dir is None:
         weights_dir = DEFAULT_WEIGHTS_DIR
     
-    if base_algo_id == 17:
+    if base_algo_id == 16:
         base_name = "LeidenCSR"
         variants = LEIDEN_CSR_VARIANTS
-    elif base_algo_id == 16:
-        base_name = "LeidenDendrogram"
-        variants = LEIDEN_DENDROGRAM_VARIANTS
     else:
         return []
     
@@ -1795,7 +1764,7 @@ def run_benchmarks_with_variants(
     Run benchmarks with variant-expanded label maps.
     
     This iterates directly over the algorithm names in label_maps (which include
-    variant suffixes like LeidenCSR_gve, RABBITORDER_csr) to ensure the results
+    variant suffixes like LeidenCSR_vibe, RABBITORDER_csr) to ensure the results
     contain the full variant names.
     
     When using .lo files (MAP mode), loads reorder_time from the corresponding
@@ -2330,8 +2299,7 @@ def run_experiment(args):
         name_to_id.update({
             "RABBIT": 8, "RABBITORDER_BOOST": 8, "RABBITORDER_CSR": 8,
             "LEIDEN": 15, "LEIDENORDER": 15,
-            "LEIDENDENDROGRAM": 16, "LEIDEN_DENDROGRAM": 16,
-            "LEIDENCSR": 17, "LEIDEN_CSR": 17, "LEIDENCSR_GVE": 17, "GVE": 17,
+            "LEIDENCSR": 16, "LEIDEN_CSR": 16, "LEIDENCSR_VIBE": 16, "VIBE": 16,
         })
         
         filtered_algos = set()
@@ -2398,7 +2366,6 @@ def run_experiment(args):
                 leiden_resolution=getattr(args, "leiden_resolution", LEIDEN_DEFAULT_RESOLUTION),
                 leiden_passes=getattr(args, "leiden_passes", LEIDEN_DEFAULT_PASSES),
                 leiden_csr_variants=getattr(args, "leiden_csr_variants", None),
-                leiden_dendrogram_variants=getattr(args, "leiden_dendrogram_variants", None),
                 timeout=args.timeout_reorder,
                 skip_slow=args.skip_slow,
                 force_reorder=getattr(args, "force_reorder", False)
@@ -2444,7 +2411,6 @@ def run_experiment(args):
                 leiden_resolution=getattr(args, "leiden_resolution", LEIDEN_DEFAULT_RESOLUTION),
                 leiden_passes=getattr(args, "leiden_passes", LEIDEN_DEFAULT_PASSES),
                 leiden_csr_variants=getattr(args, "leiden_csr_variants", None),
-                leiden_dendrogram_variants=getattr(args, "leiden_dendrogram_variants", None),
                 rabbit_variants=getattr(args, "rabbit_variants", None),
                 graphbrew_variants=getattr(args, "graphbrew_variants", None),
                 timeout=args.timeout_reorder,
@@ -2500,7 +2466,7 @@ def run_experiment(args):
         
         if has_variant_maps and getattr(args, "expand_variants", False):
             # Use variant-aware benchmarking with pre-generated variant mappings
-            _progress.info("Mode: Variant-aware benchmarking (LeidenCSR_fast, LeidenCSR_hubsort, etc.)")
+            _progress.info("Mode: Variant-aware benchmarking (LeidenCSR_vibe, LeidenCSR_vibe:hrab, etc.)")
             benchmark_results = run_benchmarks_with_variants(
                 graphs=graphs,
                 label_maps=label_maps,
@@ -2570,7 +2536,7 @@ def run_experiment(args):
         
         if has_variant_maps and getattr(args, "expand_variants", False):
             # Use variant-aware cache simulation
-            _progress.info("Mode: Variant-aware cache simulation (LeidenCSR_fast, LeidenCSR_hubsort, etc.)")
+            _progress.info("Mode: Variant-aware cache simulation (LeidenCSR_vibe, LeidenCSR_vibe:hrab, etc.)")
             cache_results = run_cache_simulations_with_variants(
                 graphs=graphs,
                 label_maps=label_maps,
@@ -2586,10 +2552,9 @@ def run_experiment(args):
             # Pass variant lists if specified
             leiden_csr_variants = getattr(args, 'leiden_csr_variants', None)
             rabbit_variants = getattr(args, 'rabbit_variants', None)
-            leiden_dendrogram_variants = getattr(args, 'leiden_dendrogram_variants', None)
             
-            if leiden_csr_variants or rabbit_variants or leiden_dendrogram_variants:
-                _progress.info(f"  LeidenCSR variants: {leiden_csr_variants or ['gve (default)']}")
+            if leiden_csr_variants or rabbit_variants:
+                _progress.info(f"  LeidenCSR variants: {leiden_csr_variants or ['vibe (default)']}")
                 _progress.info(f"  RabbitOrder variants: {rabbit_variants or ['csr (default)']}")
             
             cache_results = run_cache_simulations(
@@ -2602,7 +2567,6 @@ def run_experiment(args):
                 label_maps=label_maps,
                 leiden_csr_variants=leiden_csr_variants,
                 rabbit_variants=rabbit_variants,
-                leiden_dendrogram_variants=leiden_dendrogram_variants,
                 resolution=getattr(args, 'leiden_resolution', 1.0),
                 passes=getattr(args, 'leiden_passes', 3)
             )
@@ -2830,7 +2794,6 @@ def run_experiment(args):
             expand_variants = getattr(args, 'expand_variants', False)
             leiden_csr_variants = getattr(args, 'leiden_csr_variants', None) or LEIDEN_CSR_VARIANTS
             rabbit_variants = getattr(args, 'rabbit_variants', None) or RABBITORDER_VARIANTS
-            leiden_dendrogram_variants = getattr(args, 'leiden_dendrogram_variants', None) or LEIDEN_DENDROGRAM_VARIANTS
             
             cache_results = run_cache_simulations(
                 graphs=graphs,
@@ -2840,9 +2803,8 @@ def run_experiment(args):
                 timeout=args.timeout_sim,
                 skip_heavy=getattr(args, 'skip_heavy', True),
                 label_maps={},
-                leiden_csr_variants=leiden_csr_variants if expand_variants else ['gve'],
-                rabbit_variants=rabbit_variants if expand_variants else ['csr'],
-                leiden_dendrogram_variants=leiden_dendrogram_variants if expand_variants else ['dfs']
+                leiden_csr_variants=leiden_csr_variants if expand_variants else ['vibe'],
+                rabbit_variants=rabbit_variants if expand_variants else ['csr']
             )
         
         # Phase 4: Generate Base Weights
@@ -3247,11 +3209,11 @@ def main():
     # Algorithm selection
     parser.add_argument("--quick", action="store_true", dest="key_only",
                         help="Quick mode: test only key algorithms (Original, Random, HubClusterDBG, "
-                             "RabbitOrder, Gorder, RCM, Leiden, LeidenDendrogram, LeidenCSR)")
+                             "RabbitOrder, Gorder, RCM, Leiden, LeidenCSR)")
     parser.add_argument("--algo", "--algorithm", type=str, default=None, dest="algo_name",
-                        help="Run only a specific algorithm (e.g., RABBITORDER_boost, LeidenCSR_gve)")
+                        help="Run only a specific algorithm (e.g., RABBITORDER_boost, LeidenCSR_vibe)")
     parser.add_argument("--algo-list", nargs="+", type=str, default=None, dest="algo_list",
-                        help="Run specific algorithms (e.g., --algo-list RABBITORDER_boost LeidenCSR_gve GORDER)")
+                        help="Run specific algorithms (e.g., --algo-list RABBITORDER_boost LeidenCSR_vibe GORDER)")
     parser.add_argument("--skip-slow", action="store_true",
                         help="Skip slow algorithms (Gorder, Corder, RCM) on large graphs")
     
@@ -3308,12 +3270,9 @@ def main():
                         help="Test ALL algorithm variants (Leiden, RabbitOrder) instead of just defaults")
     parser.add_argument("--csr-variants", nargs="+", dest="leiden_csr_variants",
                         default=None, choices=LEIDEN_CSR_VARIANTS,
-                        help="LeidenCSR/VIBE variants to test. Key variants: gveopt2 (default), gve, gveadaptive, "
-                             "vibe:rabbit (RabbitOrder), vibe:hrab (Hybrid Leiden+Rabbit BFS), "
+                        help="LeidenCSR/VIBE variants to test. Key variants: vibe (default), vibe:quality, vibe:hrab (Hybrid), "
+                             "vibe:rabbit (RabbitOrder), vibe:streaming (fastest), "
                              "vibe:hrab:gordi (Hybrid Leiden+Rabbit Gorder). Use --all-variants for all.")
-    parser.add_argument("--dendrogram-variants", nargs="+", dest="leiden_dendrogram_variants",
-                        default=None, choices=["dfs", "dfshub", "dfssize", "bfs", "hybrid"],
-                        help="LeidenDendrogram variants: dfs, dfshub, dfssize, bfs, hybrid")
     parser.add_argument("--rabbit-variants", nargs="+",
                         default=None, choices=["csr", "boost"],
                         help="RabbitOrder variants: csr (default, no deps), boost (requires libboost-graph-dev)")
@@ -3402,15 +3361,15 @@ def main():
         args.use_maps = True
     
     # Auto-enable --all-variants when specific variant lists are provided
-    if (args.leiden_csr_variants or args.leiden_dendrogram_variants or args.rabbit_variants):
+    if (args.leiden_csr_variants or args.rabbit_variants):
         if not args.expand_variants:
             args.expand_variants = True
             log("Auto-enabling variant expansion (specific variants requested)", "INFO")
     
     # Auto-enable --all-variants when running --full pipeline
     # Training on all variants is critical for the perceptron to learn which
-    # variant works best for each graph structure (e.g., LeidenCSR_gveopt2 vs
-    # LeidenCSR_gve, RABBITORDER_csr vs RABBITORDER_boost, etc.)
+    # variant works best for each graph structure (e.g., LeidenCSR_vibe vs
+    # LeidenCSR_vibe:hrab, RABBITORDER_csr vs RABBITORDER_boost, etc.)
     if getattr(args, 'full', False) and not args.expand_variants:
         args.expand_variants = True
         log("Auto-enabling variant expansion for --full pipeline (train on all variants)", "INFO")
@@ -3587,16 +3546,10 @@ def main():
                     log(f"  Leiden variant rankings:")
                     for bench in ['pr', 'bfs', 'cc']:
                         # LeidenCSR variants
-                        csr_rankings = get_leiden_variant_rankings(type_name, 17, bench, args.weights_dir)
+                        csr_rankings = get_leiden_variant_rankings(type_name, 16, bench, args.weights_dir)
                         if csr_rankings and csr_rankings[0][1] > 0:
                             best_csr = csr_rankings[0]
                             log(f"    {bench}/LeidenCSR: {best_csr[0].split('_')[-1]} (score: {best_csr[1]:.3f})")
-                        
-                        # LeidenDendrogram variants
-                        dendro_rankings = get_leiden_variant_rankings(type_name, 16, bench, args.weights_dir)
-                        if dendro_rankings and dendro_rankings[0][1] > 0:
-                            best_dendro = dendro_rankings[0]
-                            log(f"    {bench}/LeidenDendro: {best_dendro[0].split('_')[-1]} (score: {best_dendro[1]:.3f})")
         return  # Exit after showing types
     
     # ALWAYS ensure prerequisites at start (unless skip_build is set)

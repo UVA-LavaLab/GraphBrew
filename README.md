@@ -5,7 +5,7 @@
 
 # GraphBrew <img src="./docs/figures/logo_left.png" width="50" align="center">
 
-A graph reordering and benchmarking framework built on the [GAP Benchmark Suite (GAPBS)](https://github.com/sbeamer/gapbs). GraphBrew reorders graph vertices to improve cache locality and speed up graph algorithms — with **18 reordering algorithms**, an **ML-based adaptive selector**, and a **one-click experiment pipeline**.
+A graph reordering and benchmarking framework built on the [GAP Benchmark Suite (GAPBS)](https://github.com/sbeamer/gapbs). GraphBrew reorders graph vertices to improve cache locality and speed up graph algorithms — with **17 reordering algorithms**, an **ML-based adaptive selector**, and a **one-click experiment pipeline**.
 
 > **📖 Full documentation:** [Wiki](https://github.com/UVA-LavaLab/GraphBrew/wiki) · [Quick Start](https://github.com/UVA-LavaLab/GraphBrew/wiki/Quick-Start) · [Command-Line Reference](https://github.com/UVA-LavaLab/GraphBrew/wiki/Command-Line-Reference)
 
@@ -23,7 +23,7 @@ make all
 ./bench/bin/pr -g 20 -o 14
 
 # Run BFS with LeidenCSR reordering on a graph file
-./bench/bin/bfs -f graph.mtx -o 17
+./bench/bin/bfs -f graph.mtx -o 16
 ```
 
 ### Build with RabbitOrder (optional)
@@ -38,7 +38,7 @@ make RABBIT_ENABLE=1 all
 
 ## Reordering Algorithms
 
-GraphBrew provides 18 reordering strategies. Use `-o <id>` to select one (or chain multiple with `-o <id1> -o <id2>`):
+GraphBrew provides 17 reordering strategies. Use `-o <id>` to select one (or chain multiple with `-o <id1> -o <id2>`):
 
 | ID | Algorithm | Description |
 |----|-----------|-------------|
@@ -58,17 +58,16 @@ GraphBrew provides 18 reordering strategies. Use `-o <id>` to select one (or cha
 | 13 | MAP | Load ordering from file (`-o 13:mapping.lo`) |
 | 14 | **ADAPTIVEORDER** | ML perceptron — automatically picks the best algorithm ⭐ |
 | 15 | LEIDENORDER | Leiden via GVE-Leiden library (`15:resolution`) — baseline reference |
-| 16 | LEIDENDENDROGRAM | ⚠️ **Deprecated** — use LeidenCSR (17) variants instead |
-| 17 | LEIDENCSR | Fast CSR-native Leiden (`17:variant:resolution:passes`) — default: `gveopt2` ⭐ |
+| 16 | LEIDENCSR | Fast CSR-native Leiden (`16:variant:resolution:passes`) — default: `vibe` ⭐ |
 
-**LeidenCSR (17) variants:** `gveopt2` (default — fastest + best quality), `gve`, `gveopt`, `gveadaptive`, `gveturbo`, `gvefast`, `gverabbit`, `modularity`, `vibe`, `vibe:hrab`, `vibe:rabbit`, and more. See [Reordering Algorithms Wiki](https://github.com/UVA-LavaLab/GraphBrew/wiki/Reordering-Algorithms) for the full list.
+**LeidenCSR (16) variants:** `vibe` (default — best overall), `vibe:quality`, `vibe:hrab`, `vibe:rabbit`, `vibe:streaming`, `vibe:dfs`, `vibe:bfs`, and more. See [Reordering Algorithms Wiki](https://github.com/UVA-LavaLab/GraphBrew/wiki/Reordering-Algorithms) for the full list.
 
 ### Which Algorithm Should I Use?
 
 | Graph Type | Recommended | Why |
 |------------|-------------|-----|
-| Social networks | `17:gveopt2` or `14` | Best community detection + cache locality |
-| Web graphs | `17:vibe:hrab` or `17:gveopt2` | Hybrid Leiden+Rabbit for best locality |
+| Social networks | `16:vibe` or `14` | Best community detection + cache locality |
+| Web graphs | `16:vibe:hrab` or `16:vibe` | Hybrid Leiden+Rabbit for best locality |
 | Road networks | `11` or `9` | BFS-based approaches for sparse graphs |
 | Unknown / mixed | `14` | Let the ML perceptron decide |
 
@@ -95,7 +94,7 @@ python3 scripts/graphbrew_experiment.py --train --all-variants --size medium --a
 | `--auto` | Auto-detect RAM/disk limits |
 | `--trials N` | Benchmark trials (default: 2) |
 | `--quick` | Test only key algorithms (faster) |
-| `--brute-force` | Compare adaptive selection vs all 18 algorithms |
+| `--brute-force` | Compare adaptive selection vs all 17 algorithms |
 | `--download-only` | Download graphs without running benchmarks |
 
 Results are saved to `./results/`. Trained weights go to `./scripts/weights/active/`.
@@ -129,10 +128,10 @@ Built on [GAPBS](https://github.com/sbeamer/gapbs), GraphBrew includes these ben
 make run-bfs
 
 # Run with parameters
-./bench/bin/pr -f graph.mtx -n 16 -o 17:gveopt2
+./bench/bin/pr -f graph.mtx -n 16 -o 16:vibe
 
 # Generate a reordered graph
-./bench/bin/converter -f graph.mtx -p reordered.mtx -o 17
+./bench/bin/converter -f graph.mtx -p reordered.mtx -o 16
 ```
 
 > 📖 See [Graph Benchmarks Wiki](https://github.com/UVA-LavaLab/GraphBrew/wiki/Graph-Benchmarks) for details.

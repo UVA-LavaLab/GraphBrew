@@ -129,7 +129,6 @@ from .weights import (
 from .progress import ProgressTracker
 from .utils import (
     LEIDEN_CSR_VARIANTS,
-    LEIDEN_DENDROGRAM_VARIANTS,
     RABBITORDER_VARIANTS,
     GRAPHBREW_VARIANTS,
     LEIDEN_DEFAULT_RESOLUTION,
@@ -175,7 +174,6 @@ class PhaseConfig:
         leiden_resolution: Resolution: "dynamic" (default, best PR), "auto", "1.0", etc.
         leiden_passes: Number of Leiden optimization passes (default: 10)
         leiden_csr_variants: LeidenCSR variants to test
-        leiden_dendrogram_variants: LeidenDendrogram variants to test
         
         target_accuracy: Target accuracy for training (default: 0.95)
         max_iterations: Max training iterations (default: 10)
@@ -240,7 +238,6 @@ class PhaseConfig:
         leiden_resolution: str = "dynamic",  # "dynamic" (default), "auto", "1.0", etc.
         leiden_passes: int = LEIDEN_DEFAULT_PASSES,
         leiden_csr_variants: List[str] = None,
-        leiden_dendrogram_variants: List[str] = None,
         rabbit_variants: List[str] = None,
         graphbrew_variants: List[str] = None,
         
@@ -286,7 +283,6 @@ class PhaseConfig:
         self.leiden_resolution = leiden_resolution
         self.leiden_passes = leiden_passes
         self.leiden_csr_variants = leiden_csr_variants or LEIDEN_CSR_VARIANTS
-        self.leiden_dendrogram_variants = leiden_dendrogram_variants or LEIDEN_DENDROGRAM_VARIANTS
         self.rabbit_variants = rabbit_variants or ['csr']  # Default: csr only (not all variants)
         self.graphbrew_variants = graphbrew_variants or ['leiden']  # Default: leiden only (not all variants)
         
@@ -322,7 +318,6 @@ class PhaseConfig:
             leiden_resolution=getattr(args, 'leiden_resolution', 'dynamic'),
             leiden_passes=getattr(args, 'leiden_passes', 10),
             leiden_csr_variants=getattr(args, 'leiden_csr_variants', None),
-            leiden_dendrogram_variants=getattr(args, 'leiden_dendrogram_variants', None),
             rabbit_variants=getattr(args, 'rabbit_variants', None),
             graphbrew_variants=getattr(args, 'graphbrew_variants', None),
             target_accuracy=getattr(args, 'target_accuracy', 0.95),
@@ -394,7 +389,6 @@ def run_reorder_phase(
             algorithms,
             expand_leiden_variants=True,
             leiden_csr_variants=config.leiden_csr_variants,
-            leiden_dendrogram_variants=config.leiden_dendrogram_variants,
             rabbit_variants=config.rabbit_variants,
             graphbrew_variants=config.graphbrew_variants
         )

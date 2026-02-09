@@ -24,7 +24,7 @@ from typing import Dict, List, Optional, Tuple
 
 from .utils import (
     BIN_DIR, ALGORITHMS, BENCHMARKS,
-    LEIDEN_DENDROGRAM_VARIANTS, LEIDEN_CSR_VARIANTS,
+    LEIDEN_CSR_VARIANTS,
     BenchmarkResult, log, run_command, check_binary_exists,
     get_results_file, save_json, get_algorithm_name, parse_algorithm_option
 )
@@ -540,13 +540,9 @@ def run_leiden_variant_comparison(
     # LeidenOrder (15)
     algorithms.append("15")
     
-    # LeidenDendrogram variants (16) - format: 16:variant:resolution
-    for variant in LEIDEN_DENDROGRAM_VARIANTS:
-        algorithms.append(f"16:{variant}:1.0")
-    
-    # LeidenCSR variants (17) - format: 17:variant:resolution:iterations:passes
+    # LeidenCSR variants (16) - format: 16:variant:resolution:iterations:passes
     for variant in LEIDEN_CSR_VARIANTS:
-        algorithms.append(f"17:{variant}:1.0:20:10")
+        algorithms.append(f"16:{variant}:1.0:20:10")
     
     return run_benchmark_suite(graph_path, algorithms, benchmarks, trials)
 
@@ -691,9 +687,7 @@ Examples:
             for algo in algorithms:
                 algo_id, _ = parse_algorithm_option(algo)
                 if algo_id == 16:
-                    expanded.extend([f"16:{v}:1.0" for v in LEIDEN_DENDROGRAM_VARIANTS])
-                elif algo_id == 17:
-                    expanded.extend([f"17:{v}:1.0:20:10" for v in LEIDEN_CSR_VARIANTS])
+                    expanded.extend([f"16:{v}:1.0:20:10" for v in LEIDEN_CSR_VARIANTS])
                 else:
                     expanded.append(algo)
             algorithms = expanded

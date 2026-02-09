@@ -90,7 +90,7 @@ These options work with all benchmarks:
 | Option | Description | Example |
 |--------|-------------|---------|
 | `-f <file>` | Input graph file (required) | `-f graph.el` |
-| `-o <id>` | Reordering algorithm ID (0-17) | `-o 7` |
+| `-o <id>` | Reordering algorithm ID (0-16) | `-o 7` |
 | `-s` | Make graph undirected (symmetrize) | `-s` |
 | `-j type:n:m` | Partition graph (`type=0` Cagra, `1` TRUST), default `0:1:1` | `-j 0:2:2` |
 | `-n <trials>` | Number of benchmark trials | `-n 5` |
@@ -167,24 +167,23 @@ Use with `-o <id>`:
 | 13 | MAP | External mapping |
 | 14 | AdaptiveOrder | ML |
 | 15 | LeidenOrder | Leiden (GVE-Leiden baseline) |
-| 16 | LeidenDendrogram | ⚠️ Deprecated (use LeidenCSR 17 instead) |
-| 17 | LeidenCSR | Leiden (has variants, including VIBE) |
+| 16 | LeidenCSR | Leiden (has variants, including VIBE) |
 
 > **Note:** For current variant lists, see `scripts/lib/utils.py` which defines:
 > - `RABBITORDER_VARIANTS`, `GRAPHBREW_VARIANTS`
-> - `LEIDEN_DENDROGRAM_VARIANTS`, `LEIDEN_CSR_VARIANTS`
+> - `LEIDEN_CSR_VARIANTS`
 > - `VIBE_LEIDEN_VARIANTS`, `VIBE_RABBIT_VARIANTS`
 
-### LeidenCSR Resolution Modes (Algorithm 17)
+### LeidenCSR Resolution Modes (Algorithm 16)
 
 | Mode | Syntax | Example | Description |
 |------|--------|---------|-------------|
-| **Fixed** | `<value>` | `-o 17:gveopt2:1.5` | Use specified resolution |
-| **Auto** | `auto` or `0` | `-o 17:gveopt2:auto` | Compute from graph density |
-| **Dynamic** | `dynamic` | `-o 17:gveadaptive:dynamic` | Auto initial, adjust per-pass |
-| **Dynamic+Init** | `dynamic_<val>` | `-o 17:gveadaptive:dynamic_2.0` | Start at value, adjust per-pass |
+| **Fixed** | `<value>` | `-o 16:vibe:1.5` | Use specified resolution |
+| **Auto** | `auto` or `0` | `-o 16:vibe:auto` | Compute from graph density |
+| **Dynamic** | `dynamic` | `-o 16:vibe:dynamic` | Auto initial, adjust per-pass |
+| **Dynamic+Init** | `dynamic_<val>` | `-o 16:vibe:dynamic_2.0` | Start at value, adjust per-pass |
 
-### VIBE Variants (Algorithm 17)
+### VIBE Variants (Algorithm 16)
 
 VIBE (Vertex Indexing for Better Efficiency) provides a unified reordering framework with two algorithms:
 
@@ -192,28 +191,28 @@ VIBE (Vertex Indexing for Better Efficiency) provides a unified reordering frame
 
 | Variant | Example | Description |
 |---------|---------|-------------|
-| `vibe` | `-o 17:vibe` | Hierarchical ordering (default) |
-| `vibe:dfs` | `-o 17:vibe:dfs` | DFS dendrogram traversal |
-| `vibe:bfs` | `-o 17:vibe:bfs` | BFS dendrogram traversal |
-| `vibe:dbg` | `-o 17:vibe:dbg` | DBG within each community |
-| `vibe:corder` | `-o 17:vibe:corder` | Hot/cold within communities |
-| `vibe:dbg-global` | `-o 17:vibe:dbg-global` | DBG across all vertices |
-| `vibe:corder-global` | `-o 17:vibe:corder-global` | Hot/cold across all vertices |
-| `vibe:streaming` | `-o 17:vibe:streaming` | Leiden + lazy aggregation |
-| `vibe:lazyupdate` | `-o 17:vibe:lazyupdate` | Batched community weight updates (reduces atomics) |
-| `vibe:conn` | `-o 17:vibe:conn` | Connectivity BFS within communities (Boost-style, default ordering) |
-| `vibe:hrab` | `-o 17:vibe:hrab` | Hybrid Leiden+RabbitOrder (best locality on web/geometric graphs) |
-| `vibe:auto` | `-o 17:vibe:auto` | Auto-computed resolution (computed once) |
-| `vibe:dynamic` | `-o 17:vibe:dynamic` | Dynamic resolution (adjusted per-pass) |
+| `vibe` | `-o 16:vibe` | Hierarchical ordering (default) |
+| `vibe:dfs` | `-o 16:vibe:dfs` | DFS dendrogram traversal |
+| `vibe:bfs` | `-o 16:vibe:bfs` | BFS dendrogram traversal |
+| `vibe:dbg` | `-o 16:vibe:dbg` | DBG within each community |
+| `vibe:corder` | `-o 16:vibe:corder` | Hot/cold within communities |
+| `vibe:dbg-global` | `-o 16:vibe:dbg-global` | DBG across all vertices |
+| `vibe:corder-global` | `-o 16:vibe:corder-global` | Hot/cold across all vertices |
+| `vibe:streaming` | `-o 16:vibe:streaming` | Leiden + lazy aggregation |
+| `vibe:lazyupdate` | `-o 16:vibe:lazyupdate` | Batched community weight updates (reduces atomics) |
+| `vibe:conn` | `-o 16:vibe:conn` | Connectivity BFS within communities (Boost-style, default ordering) |
+| `vibe:hrab` | `-o 16:vibe:hrab` | Hybrid Leiden+RabbitOrder (best locality on web/geometric graphs) |
+| `vibe:auto` | `-o 16:vibe:auto` | Auto-computed resolution (computed once) |
+| `vibe:dynamic` | `-o 16:vibe:dynamic` | Dynamic resolution (adjusted per-pass) |
 
 **VIBE Resolution Modes:**
 
 | Mode | Syntax | Description |
 |------|--------|-------------|
-| Auto | `-o 17:vibe:auto` or `-o 17:vibe` | Compute resolution from graph density/CV (fixed) |
-| Dynamic | `-o 17:vibe:dynamic` | Auto initial, adjust each pass based on metrics |
-| Fixed | `-o 17:vibe:1.5` | Use specified resolution value |
-| Dynamic+Init | `-o 17:vibe:dynamic_2.0` | Start at 2.0, adjust each pass |
+| Auto | `-o 16:vibe:auto` or `-o 16:vibe` | Compute resolution from graph density/CV (fixed) |
+| Dynamic | `-o 16:vibe:dynamic` | Auto initial, adjust each pass based on metrics |
+| Fixed | `-o 16:vibe:1.5` | Use specified resolution value |
+| Dynamic+Init | `-o 16:vibe:dynamic_2.0` | Start at 2.0, adjust each pass |
 
 > **Note:** Dynamic resolution adjusts based on community reduction rate, size imbalance, and convergence speed. Use for unknown graphs.
 
@@ -221,11 +220,11 @@ VIBE (Vertex Indexing for Better Efficiency) provides a unified reordering frame
 
 | Variant | Example | Description |
 |---------|---------|-------------|
-| `vibe:rabbit` | `-o 17:vibe:rabbit` | RabbitOrder algorithm (DFS default) |
-| `vibe:rabbit:dfs` | `-o 17:vibe:rabbit:dfs` | RabbitOrder + DFS post-ordering |
-| `vibe:rabbit:bfs` | `-o 17:vibe:rabbit:bfs` | RabbitOrder + BFS post-ordering |
-| `vibe:rabbit:dbg` | `-o 17:vibe:rabbit:dbg` | RabbitOrder + DBG post-ordering |
-| `vibe:rabbit:corder` | `-o 17:vibe:rabbit:corder` | RabbitOrder + COrder post-ordering |
+| `vibe:rabbit` | `-o 16:vibe:rabbit` | RabbitOrder algorithm (DFS default) |
+| `vibe:rabbit:dfs` | `-o 16:vibe:rabbit:dfs` | RabbitOrder + DFS post-ordering |
+| `vibe:rabbit:bfs` | `-o 16:vibe:rabbit:bfs` | RabbitOrder + BFS post-ordering |
+| `vibe:rabbit:dbg` | `-o 16:vibe:rabbit:dbg` | RabbitOrder + DBG post-ordering |
+| `vibe:rabbit:corder` | `-o 16:vibe:rabbit:corder` | RabbitOrder + COrder post-ordering |
 
 > **Note:** RabbitOrder variants do not support dynamic resolution (falls back to auto).
 
@@ -271,7 +270,7 @@ VIBE (Vertex Indexing for Better Efficiency) provides a unified reordering frame
 ./bench/bin/pr -f graph.el -s -i 100 -t 1e-8 -n 5
 
 # With reordering
-./bench/bin/pr -f graph.el -s -o 17 -n 5
+./bench/bin/pr -f graph.el -s -o 16 -n 5
 ```
 
 ### BFS (bfs)
@@ -499,7 +498,7 @@ HUBCLUSTERDBG: 2 communities
 ### Compare Algorithms
 
 ```bash
-for algo in 0 7 14 15 17; do
+for algo in 0 7 14 15 16; do
     echo "=== Algorithm $algo ==="
     ./bench/bin/pr -f graph.el -s -o $algo -n 3
 done

@@ -54,7 +54,6 @@ Algorithm variant lists are defined in `scripts/lib/utils.py` as the **single so
 - `LEIDEN_CSR_VARIANTS` - LeidenCSR algorithm variants
 - `GRAPHBREW_VARIANTS` - GraphBrewOrder clustering variants  
 - `RABBITORDER_VARIANTS` - RabbitOrder variants (csr, boost)
-- `LEIDEN_DENDROGRAM_VARIANTS` - LeidenDendrogram traversal variants
 
 Other constants also centralized in `utils.py`:
 - `ALGORITHMS` / `SLOW_ALGORITHMS` - Algorithm definitions

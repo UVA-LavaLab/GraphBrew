@@ -37,7 +37,7 @@ Where:
 ### How to Run
 
 ```bash
-./bench/bin/pr -f graph.el -s -o 17 -n 3
+./bench/bin/pr -f graph.el -s -o 16 -n 3
 ```
 
 See [[Command-Line-Reference]] for all options (`-i` iterations, `-t` tolerance, `-g` synthetic graph).
@@ -62,7 +62,7 @@ Level 2: [neighbors of level 1]
 ### How to Run
 
 ```bash
-./bench/bin/bfs -f graph.el -s -o 17 -n 16
+./bench/bin/bfs -f graph.el -s -o 16 -n 16
 ./bench/bin/bfs -f graph.el -s -o 12 -r 0 -n 3  # specific source
 ```
 
@@ -119,7 +119,7 @@ Finds the shortest weighted path from a source vertex to all other vertices. Use
 
 ```bash
 ./bench/bin/sssp -f graph.wel -s -o 12 -n 3
-./bench/bin/sssp -f graph.wel -s -o 17 -r 0 -d 2 -n 5  # source 0, delta=2
+./bench/bin/sssp -f graph.wel -s -o 16 -r 0 -d 2 -n 5  # source 0, delta=2
 ```
 
 Requires weighted graph (`.wel`). Uses delta-stepping SSSP with parallel bucket processing. See [[Command-Line-Reference]] for options.
@@ -173,7 +173,7 @@ Triangle: A-B, B-C, C-A
 ./bench/bin/tc -f graph.el -s -o 12 -n 3
 
 # Parallel version
-./bench/bin/tc_p -f graph.el -s -o 17 -n 3
+./bench/bin/tc_p -f graph.el -s -o 16 -n 3
 ```
 
 ### Algorithms
@@ -253,7 +253,7 @@ make test-topology-full
 ```bash
 # Compare outputs between algorithms
 ./bench/bin/pr -f graph.el -s -o 0 -n 1 > original.txt
-./bench/bin/pr -f graph.el -s -o 17 -n 1 > reordered.txt
+./bench/bin/pr -f graph.el -s -o 16 -n 1 > reordered.txt
 
 # Results should match (within floating point tolerance)
 ```

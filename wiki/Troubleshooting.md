@@ -206,7 +206,7 @@ gdb ./bench/bin/pr
 
 3. **Invalid algorithm ID**
    ```bash
-   # Use valid IDs: 0-17 (13=MAP requires external .lo file)
+   # Use valid IDs: 0-16 (13=MAP requires external .lo file)
    ./bench/bin/pr -f graph.el -s -o 7  # Valid
    ./bench/bin/pr -f graph.el -s -o 13 # Needs external .lo file
    ```

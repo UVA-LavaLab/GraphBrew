@@ -182,9 +182,9 @@ Average Time:        0.001xx
 | 7 | HUBCLUSTERDBG | General purpose |
 | 12 | GraphBrewOrder | Modular graphs |
 | 14 | AdaptiveOrder | Auto-selection |
-| 17 | LeidenCSR | Large/complex graphs |
+| 16 | LeidenCSR | Large/complex graphs |
 
-Best LeidenCSR variants: `17:gveopt2:auto` (best overall), `17:vibe:hrab` (best locality), `17:gveadaptive:dynamic` (unknown graphs). See [[Reordering-Algorithms]] for all 18 algorithms and variants.
+Best LeidenCSR variants: `16:vibe:quality` (best overall). See [[Reordering-Algorithms]] for all 17 algorithms and variants.
 
 ---
 
@@ -221,7 +221,7 @@ python3 scripts/graphbrew_experiment.py --train-iterative --size small --target-
 |--------|-------------|---------|
 | `-f` | Input graph file | `-f graph.el` |
 | `-s` | Symmetrize (make undirected) | `-s` |
-| `-o` | Ordering algorithm (0-17) | `-o 7` |
+| `-o` | Ordering algorithm (0-16) | `-o 7` |
 | `-n` | Number of trials | `-n 5` |
 | `-r` | Root vertex (for BFS/SSSP) | `-r 0` |
 
@@ -230,7 +230,7 @@ python3 scripts/graphbrew_experiment.py --train-iterative --size small --target-
 ## What's Next?
 
 1. **[[Installation]]** - Detailed installation guide
-2. **[[Reordering-Algorithms]]** - Learn about all 18 algorithms
+2. **[[Reordering-Algorithms]]** - Learn about all 17 algorithms
 3. **[[Graph-Benchmarks]]** - Understanding the benchmarks
 4. **[[Running-Benchmarks]]** - Advanced usage
 5. **[[AdaptiveOrder-ML]]** - ML-powered algorithm selection

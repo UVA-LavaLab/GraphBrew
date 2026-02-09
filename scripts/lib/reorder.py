@@ -29,7 +29,7 @@ from typing import Dict, List, Optional, Tuple, Any
 from .utils import (
     PROJECT_ROOT, BIN_DIR, RESULTS_DIR,
     ALGORITHMS, ALGORITHM_IDS, SLOW_ALGORITHMS, SIZE_MEDIUM,
-    LEIDEN_CSR_VARIANTS, LEIDEN_DENDROGRAM_VARIANTS,
+    LEIDEN_CSR_VARIANTS,
     LEIDEN_DEFAULT_RESOLUTION, LEIDEN_DEFAULT_PASSES,
     LEIDEN_MODULARITY_MAX_ITERATIONS,
     RABBITORDER_VARIANTS, RABBITORDER_DEFAULT_VARIANT,
@@ -88,10 +88,10 @@ class ReorderResult:
 @dataclass
 class AlgorithmConfig:
     """Configuration for an algorithm, including variant support."""
-    algo_id: int           # Base algorithm ID (e.g., 17 for LeidenCSR)
-    name: str              # Display name (e.g., "LeidenCSR_gve")
-    option_string: str     # Full option string for -o flag (e.g., "17:gve:auto:20:10")
-    variant: str = ""      # Variant name if applicable (e.g., "gve")
+    algo_id: int           # Base algorithm ID (e.g., 16 for LeidenCSR)
+    name: str              # Display name (e.g., "LeidenCSR_vibe")
+    option_string: str     # Full option string for -o flag (e.g., "16:vibe:quality")
+    variant: str = ""      # Variant name if applicable (e.g., "vibe")
     resolution: str = "auto"  # Resolution: "auto", "dynamic", "1.0", etc.
     passes: int = LEIDEN_DEFAULT_PASSES
     
@@ -119,8 +119,7 @@ def get_algorithm_name_with_variant(algo_id: int, variant: str = None) -> str:
     ALWAYS includes variant in name for:
     - RABBITORDER (8): RABBITORDER_csr or RABBITORDER_boost
     - GraphBrewOrder (12): GraphBrewOrder_leiden (default), GraphBrewOrder_gve, etc.
-    - LeidenCSR (17): LeidenCSR_gve, LeidenCSR_fast, etc.
-    - LeidenDendrogram (16): LeidenDendrogram_dfs, LeidenDendrogram_dfshub, etc.
+    - LeidenCSR (16): LeidenCSR_vibe, LeidenCSR_vibe:hrab, etc.
     
     For other algorithms, returns the base name.
     
@@ -139,12 +138,9 @@ def get_algorithm_name_with_variant(algo_id: int, variant: str = None) -> str:
     elif algo_id == 12:  # GraphBrewOrder
         variant = variant or GRAPHBREW_DEFAULT_VARIANT
         return f"GraphBrewOrder_{variant}"
-    elif algo_id == 17:  # LeidenCSR
-        variant = variant or LEIDEN_CSR_VARIANTS[0]  # Default: gve
+    elif algo_id == 16:  # LeidenCSR
+        variant = variant or LEIDEN_CSR_VARIANTS[0]  # Default: vibe
         return f"LeidenCSR_{variant}"
-    elif algo_id == 16:  # LeidenDendrogram
-        variant = variant or LEIDEN_DENDROGRAM_VARIANTS[0]  # Default: dfs
-        return f"LeidenDendrogram_{variant}"
     else:
         return base_name
 
@@ -175,24 +171,22 @@ def expand_algorithms_with_variants(
     leiden_resolution: str = LEIDEN_DEFAULT_RESOLUTION,
     leiden_passes: int = LEIDEN_DEFAULT_PASSES,
     leiden_csr_variants: List[str] = None,
-    leiden_dendrogram_variants: List[str] = None,
     rabbit_variants: List[str] = None,
     graphbrew_variants: List[str] = None
 ) -> List[AlgorithmConfig]:
     """
     Expand algorithm IDs into AlgorithmConfig objects.
     
-    For Leiden algorithms (16, 17), optionally expand into their variants.
+    For Leiden algorithm (16), optionally expand into its variants.
     For RabbitOrder (8), optionally expand into csr/boost variants.
     For GraphBrewOrder (12), optionally expand into leiden/gve/gveopt/rabbit/hubcluster variants.
     
     Args:
         algorithms: List of algorithm IDs
-        expand_leiden_variants: If True, expand LeidenCSR/LeidenDendrogram into variants
+        expand_leiden_variants: If True, expand LeidenCSR into variants
         leiden_resolution: Resolution parameter for Leiden algorithms
         leiden_passes: Number of passes for LeidenCSR
         leiden_csr_variants: Which LeidenCSR variants to include (default: all)
-        leiden_dendrogram_variants: Which LeidenDendrogram variants to include (default: all)
         rabbit_variants: Which RabbitOrder variants to include (default: csr only)
         graphbrew_variants: Which GraphBrewOrder variants to include (default: leiden only)
     
@@ -201,8 +195,6 @@ def expand_algorithms_with_variants(
     """
     if leiden_csr_variants is None:
         leiden_csr_variants = LEIDEN_CSR_VARIANTS
-    if leiden_dendrogram_variants is None:
-        leiden_dendrogram_variants = LEIDEN_DENDROGRAM_VARIANTS
     if rabbit_variants is None:
         # When expanding variants, include both RabbitOrder variants; otherwise just csr
         rabbit_variants = RABBITORDER_VARIANTS if expand_leiden_variants else [RABBITORDER_DEFAULT_VARIANT]
@@ -215,9 +207,9 @@ def expand_algorithms_with_variants(
     for algo_id in algorithms:
         base_name = ALGORITHMS.get(algo_id, f"ALGO_{algo_id}")
         
-        if algo_id == 17 and expand_leiden_variants:
+        if algo_id == 16 and expand_leiden_variants:
             # LeidenCSR: expand into variants
-            # Format: 17:variant:resolution:iterations:passes
+            # Format: 16:variant:resolution:iterations:passes
             for variant in leiden_csr_variants:
                 max_iterations = LEIDEN_MODULARITY_MAX_ITERATIONS
                 option_str = f"{algo_id}:{variant}:{leiden_resolution}:{max_iterations}:{leiden_passes}"
@@ -228,18 +220,6 @@ def expand_algorithms_with_variants(
                     variant=variant,
                     resolution=leiden_resolution,
                     passes=leiden_passes
-                ))
-        elif algo_id == 16 and expand_leiden_variants:
-            # LeidenDendrogram: expand into variants
-            # Format: 16:variant:resolution
-            for variant in leiden_dendrogram_variants:
-                option_str = f"{algo_id}:{variant}:{leiden_resolution}"
-                configs.append(AlgorithmConfig(
-                    algo_id=algo_id,
-                    name=f"LeidenDendrogram_{variant}",
-                    option_string=option_str,
-                    variant=variant,
-                    resolution=leiden_resolution
                 ))
         elif algo_id == 8 and expand_leiden_variants and len(rabbit_variants) > 1:
             # RabbitOrder: expand into variants if multiple specified
@@ -261,7 +241,7 @@ def expand_algorithms_with_variants(
                 option_string=option_str,
                 variant=variant
             ))
-        elif algo_id == 17:
+        elif algo_id == 16:
             # LeidenCSR: use default variant when not expanding - ALWAYS include variant in name
             variant = leiden_csr_variants[0] if leiden_csr_variants else LEIDEN_CSR_VARIANTS[0]
             max_iterations = LEIDEN_MODULARITY_MAX_ITERATIONS
@@ -273,17 +253,6 @@ def expand_algorithms_with_variants(
                 variant=variant,
                 resolution=leiden_resolution,
                 passes=leiden_passes
-            ))
-        elif algo_id == 16:
-            # LeidenDendrogram: use default variant when not expanding - ALWAYS include variant in name
-            variant = leiden_dendrogram_variants[0] if leiden_dendrogram_variants else LEIDEN_DENDROGRAM_VARIANTS[0]
-            option_str = f"{algo_id}:{variant}:{leiden_resolution}"
-            configs.append(AlgorithmConfig(
-                algo_id=algo_id,
-                name=f"LeidenDendrogram_{variant}",  # Always show variant
-                option_string=option_str,
-                variant=variant,
-                resolution=leiden_resolution
             ))
         elif algo_id == 15:
             # LeidenOrder: just resolution
@@ -346,13 +315,13 @@ def parse_reorder_time_from_converter(output: str) -> Optional[float]:
     conversion. For fair comparison, we only measure the actual ordering algorithm.
     
     CONVERSION OVERHEAD TO EXCLUDE:
-    - "DiGraph Build Time:"     - CSR → GVE-Leiden DiGraph (LeidenDendrogram)
+    - "DiGraph Build Time:"     - CSR → GVE-Leiden DiGraph (LeidenOrder)
     - "DiGraph graph:"          - CSR → DiGraph (LeidenOrder - legacy naming)
     - "GOrder graph:"           - CSR → GOrder internal format
     - "Sort Map Time:" + first "Relabel Map Time:" - RabbitOrder preprocessing
     
     ALGORITHM TIME TO INCLUDE:
-    - "Leiden Time:" + "Ordering Time:"           - LeidenDendrogram algorithm
+    - "Leiden Time:" + "Ordering Time:"           - Legacy Leiden algorithm
     - "LeidenOrder Map Time:" + "GenID Time:"     - LeidenOrder algorithm
     - "LeidenCSR Community Detection/Ordering:"   - LeidenCSR (native CSR, fast)
     - "GOrder Map Time:"                          - GOrder actual ordering
@@ -371,13 +340,13 @@ def parse_reorder_time_from_converter(output: str) -> Optional[float]:
         return float(match.group(1)) if match else None
     
     # -------------------------------------------------------------------------
-    # 1. LeidenDendrogram: Leiden Time + Ordering Time (exclude DiGraph Build)
+    # 1. Legacy Leiden: Leiden Time + Ordering Time (exclude DiGraph Build)
     # -------------------------------------------------------------------------
     leiden_time = get_time(r'^Leiden Time:\s*([\d.]+)')
     ordering_time = get_time(r'^Ordering Time:\s*([\d.]+)')
     
     if leiden_time is not None and ordering_time is not None:
-        # LeidenDendrogram detected: sum algorithm parts only
+        # Legacy Leiden detected: sum algorithm parts only
         return leiden_time + ordering_time
     
     # -------------------------------------------------------------------------
@@ -853,7 +822,6 @@ def generate_reorderings_with_variants(
     leiden_resolution: float = LEIDEN_DEFAULT_RESOLUTION,
     leiden_passes: int = LEIDEN_DEFAULT_PASSES,
     leiden_csr_variants: List[str] = None,
-    leiden_dendrogram_variants: List[str] = None,
     rabbit_variants: List[str] = None,
     graphbrew_variants: List[str] = None,
     timeout: int = TIMEOUT_REORDER,
@@ -864,9 +832,8 @@ def generate_reorderings_with_variants(
     Generate reorderings with Leiden variant expansion.
     
     Creates separate mappings for each variant:
-        - LeidenCSR_fast.lo
-        - LeidenCSR_hubsort.lo
-        - LeidenDendrogram_hybrid.lo
+        - LeidenCSR_vibe.lo
+        - LeidenCSR_vibe:hrab.lo
         - GraphBrewOrder_leiden.lo
         - GraphBrewOrder_gve.lo
     
@@ -879,7 +846,6 @@ def generate_reorderings_with_variants(
         leiden_resolution: Resolution parameter
         leiden_passes: Number of passes for LeidenCSR
         leiden_csr_variants: Which LeidenCSR variants
-        leiden_dendrogram_variants: Which LeidenDendrogram variants
         graphbrew_variants: Which GraphBrewOrder variants
         timeout: Timeout for each reordering
         skip_slow: Skip slow algorithms on large graphs
@@ -896,7 +862,6 @@ def generate_reorderings_with_variants(
     if expand_leiden_variants:
         log.info(f"Leiden variant expansion enabled")
         log.info(f"  LeidenCSR variants: {leiden_csr_variants or LEIDEN_CSR_VARIANTS}")
-        log.info(f"  LeidenDendrogram variants: {leiden_dendrogram_variants or LEIDEN_DENDROGRAM_VARIANTS}")
     
     # Handle both algorithm ID lists and pre-expanded AlgorithmConfig lists
     if algorithms and isinstance(algorithms[0], AlgorithmConfig):
@@ -910,7 +875,6 @@ def generate_reorderings_with_variants(
             leiden_resolution=leiden_resolution,
             leiden_passes=leiden_passes,
             leiden_csr_variants=leiden_csr_variants,
-            leiden_dendrogram_variants=leiden_dendrogram_variants,
             rabbit_variants=rabbit_variants,
             graphbrew_variants=graphbrew_variants
         )
