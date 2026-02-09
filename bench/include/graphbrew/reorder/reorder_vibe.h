@@ -95,6 +95,8 @@
  * │ RABBIT          │                    │ (best locality web/geometric)    │
  * │ TILE_QUANTIZED_ │ vibe:tqr           │ Tile-quantized RabbitOrder:       │
  * │ RABBIT          │                    │ cache-line-aligned tile graph     │
+ * │ GRAPHBREW       │ vibe:graphbrew     │ Per-community external algo       │
+ * │                 │                    │ dispatch (0-11, default: Rabbit)  │
  * 
  * =============================================================================
  * COMMAND LINE USAGE
@@ -261,7 +263,8 @@ enum class OrderingStrategy {
     CORDER_GLOBAL,   ///< Corder across all vertices (post-clustering)
     HIERARCHICAL_CACHE_AWARE,  ///< Use Leiden hierarchy as dendrogram for cache-aware ordering
     HYBRID_LEIDEN_RABBIT,      ///< Leiden communities + RabbitOrder super-graph ordering (best locality)
-    TILE_QUANTIZED_RABBIT      ///< Tile-quantized graph + RabbitOrder: cache-line-aligned macro-ordering
+    TILE_QUANTIZED_RABBIT,     ///< Tile-quantized graph + RabbitOrder: cache-line-aligned macro-ordering
+    GRAPHBREW                  ///< GraphBrew mode: apply any algo 0-11 per community (external dispatch)
 };
 
 /** Community detection mode */
@@ -314,6 +317,11 @@ struct VibeConfig {
     int  gorderFallback = 0;           ///< Community size threshold for BFS fallback (0 = auto = N, i.e. no fallback)
     bool useHubSort = false;           ///< Post-process: pack hub vertices contiguously sorted by descending degree (vibe:hsort)
     bool useRCMSuper = false;          ///< Use RCM on super-graph instead of RabbitOrder dendrogram DFS (vibe:rcm)
+    
+    // GraphBrew mode: per-community external algorithm dispatch
+    int  finalAlgoId = -1;             ///< Final reordering algorithm ID (0-11) for GRAPHBREW ordering. -1 = not set (uses VIBE ordering)
+    bool useSmallCommunityMerging = false; ///< Merge small communities and apply heuristic algorithm selection
+    size_t smallCommunityThreshold = 0;    ///< Min community size for individual reordering (0 = dynamic)
     
     // Memory optimizations
     bool useLazyUpdates = false;       ///< Batch community weight updates (reduces atomics in non-REFINE phase)
@@ -6796,7 +6804,8 @@ void generateVibeMapping(
         config.ordering == OrderingStrategy::CORDER_GLOBAL ? "corder-global" :
         config.ordering == OrderingStrategy::HIERARCHICAL_CACHE_AWARE ? "hcache" :
         config.ordering == OrderingStrategy::HYBRID_LEIDEN_RABBIT ? "hybrid-rabbit" :
-        config.ordering == OrderingStrategy::TILE_QUANTIZED_RABBIT ? "tile-quantized-rabbit" : "unknown";
+        config.ordering == OrderingStrategy::TILE_QUANTIZED_RABBIT ? "tile-quantized-rabbit" :
+        config.ordering == OrderingStrategy::GRAPHBREW ? "graphbrew" : "unknown";
     
     printf("VIBE: aggregation=%s, ordering=%s, refinement=%s (depth=%d)%s%s\n",
            config.aggregation == AggregationStrategy::LEIDEN_CSR ? "leiden" :
@@ -6817,6 +6826,9 @@ void generateVibeMapping(
     }
     if (config.useHubSort)     printf("VIBE: hsort=on\n");
     if (config.useRCMSuper)    printf("VIBE: rcm=on\n");
+    if (config.ordering == OrderingStrategy::GRAPHBREW)
+        printf("VIBE: GraphBrew mode, finalAlgo=%d, smallMerge=%s\n",
+               config.finalAlgoId, config.useSmallCommunityMerging ? "on" : "off");
     
     // Run VIBE
     Timer timer;
@@ -6979,6 +6991,14 @@ void generateVibeMapping(
         case OrderingStrategy::TILE_QUANTIZED_RABBIT:
             orderTileQuantizedRabbit<K, NodeID_T, DestID_T>(newIds, result.membership, degrees, g, N, config);
             break;
+        case OrderingStrategy::GRAPHBREW:
+            // GraphBrew mode: per-community external algorithm dispatch
+            // Community detection already done above. Ordering is handled externally
+            // by the caller (builder.h) using ReorderCommunitySubgraphStandalone.
+            // Fall through to connectivity BFS as sensible default if called directly.
+            printf("VIBE: GraphBrew mode - ordering deferred to external dispatch\n");
+            orderConnectivityBFS<K, NodeID_T, DestID_T>(newIds, result.membership, degrees, g, N, config);
+            break;
     }
     
     orderTimer.Stop();
@@ -7107,6 +7127,27 @@ inline VibeConfig parseVibeConfig(const std::vector<std::string>& options) {
             config.ordering = OrderingStrategy::HYBRID_LEIDEN_RABBIT;
         } else if (opt == "tqr" || opt == "tile-quantized" || opt == "tilequantized" || opt == "tilerabbit") {
             config.ordering = OrderingStrategy::TILE_QUANTIZED_RABBIT;
+        }
+        // GraphBrew mode: per-community external algorithm dispatch
+        // "graphbrew" or "gb" activates GRAPHBREW ordering (default final algo = RabbitOrder 8)
+        // "final:N" or "finalN" sets the final algo ID (0-11)
+        else if (opt == "graphbrew" || opt == "gb") {
+            config.ordering = OrderingStrategy::GRAPHBREW;
+            config.useSmallCommunityMerging = true;
+            if (config.finalAlgoId < 0) config.finalAlgoId = 8;  // Default: RabbitOrder
+        }
+        // Final algorithm for GraphBrew: "final:8" or "final8" or just the algo number when in graphbrew mode
+        else if (opt.size() > 5 && opt.substr(0, 5) == "final") {
+            std::string numStr = opt.substr(5);
+            if (!numStr.empty() && numStr[0] == ':') numStr = numStr.substr(1);
+            try {
+                int algoId = std::stoi(numStr);
+                if (algoId >= 0 && algoId <= 11) {
+                    config.finalAlgoId = algoId;
+                    config.ordering = OrderingStrategy::GRAPHBREW;
+                    config.useSmallCommunityMerging = true;
+                }
+            } catch (...) {}
         }
         // Check for aggregation strategy (for Leiden variant)
         else if (opt == "leiden") {

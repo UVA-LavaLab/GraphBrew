@@ -2,22 +2,30 @@
  * @file reorder_graphbrew.h
  * @brief GraphBrew and Adaptive multi-level reordering - API Reference
  *
- * This header provides documentation and utility types for GraphBrew's advanced
- * reordering algorithms. The core implementations remain in builder.h due to
- * tight integration with the Leiden community detection system.
+ * This header provides documentation, configuration types, and legacy standalone
+ * implementations for GraphBrew's advanced reordering algorithms.
+ *
+ * NOTE: As of 2026, GraphBrewOrder (ID 12) is powered by the VIBE pipeline.
+ * The main implementation is in builder.h (GenerateGraphBrewMappingUnified),
+ * which uses VIBE's Leiden community detection and then applies per-community
+ * reordering via ReorderCommunitySubgraphStandalone. The standalone functions
+ * in this file are retained for backward compatibility but are no longer the
+ * primary code path.
  *
  * ============================================================================
  * ALGORITHM OVERVIEW
  * ============================================================================
  *
- * GRAPHBREWORDER (ID 12) - Multi-level community-aware reordering
+ * GRAPHBREWORDER (ID 12) - Multi-level community-aware reordering (VIBE-powered)
  *   Format: -o 12:cluster_variant:final_algo:resolution:levels
  *   Example: ./bench/bin/pr -f graph.el -o 12:gve:8:0.75
  *   
- *   Combines community detection with per-community reordering:
- *   1. Detect communities using specified clustering algorithm
- *   2. Apply final reordering algorithm within each community
- *   3. Arrange communities to maximize locality
+ *   Pipeline (powered by VIBE):
+ *   1. Run VIBE Leiden community detection (configurable aggregation)
+ *   2. Classify communities into small/large (dynamic threshold)
+ *   3. Merge small communities and apply heuristic algorithm selection
+ *   4. Apply final reordering algorithm (0-11) within each large community
+ *   5. Compose final vertex permutation
  *
  * ADAPTIVEORDER (ID 14) - ML-based algorithm selection
  *   Format: -o 14:mode:recursive_depth
@@ -29,30 +37,29 @@
  *   3. Apply selected algorithm
  *
  * ============================================================================
- * GRAPHBREWORDER DETAILS
+ * GRAPHBREWORDER DETAILS (VIBE-POWERED)
  * ============================================================================
  *
- * Cluster Variants:
- * -----------------
- * leiden (default): Standard GVE-Leiden
- *   - High quality community detection
- *   - Uses GVE-Leiden library (external/leiden/)
+ * Cluster Variants (mapped to VIBE configurations):
+ * --------------------------------------------------
+ * leiden (default): VIBE Leiden with GVE-CSR aggregation
+ *   - High quality community detection via VIBE pipeline
+ *   - Uses GVE-CSR aggregation with TOTAL_EDGES M computation
  *   
- * gve: GVE-Leiden (native CSR)
- *   - Fast parallel implementation
+ * gve: VIBE Leiden with GVE-style aggregation
+ *   - GVE-CSR aggregation, TOTAL_EDGES M, refinement depth 0
  *   - Good balance of speed and quality
  *   
- * gveopt: Cache-optimized GVE-Leiden
- *   - Best for large graphs (>10M edges)
- *   - Uses prefetching and cache-aware access
+ * gveopt: VIBE Leiden with quality preset
+ *   - Same as gve (both map to VIBE GVE-CSR quality mode)
  *   
- * rabbit: RabbitOrder's Louvain
- *   - Uses RabbitOrder's internal clustering
- *   - Good for power-law graphs
+ * rabbit: VIBE RabbitOrder single-pass algorithm
+ *   - Uses VIBE's native RabbitOrder pipeline
+ *   - Coarser communities (resolution=0.5), faster reordering
  *   
- * hubcluster: HubCluster partitioning
- *   - Fast hub-based clustering
- *   - Best for graphs with clear hub structure
+ * hubcluster: VIBE Leiden with hub-cluster ordering
+ *   - Delegates to VIBE's native HUB_CLUSTER ordering strategy
+ *   - Hub-first within communities
  *
  * Final Algorithms (per-community):
  * ---------------------------------
@@ -121,24 +128,29 @@
  * IMPLEMENTATION DETAILS
  * ============================================================================
  *
- * Core Functions in builder.h:
- * ----------------------------
- * GenerateGraphBrewMappingUnified() - Main GraphBrew entry point
- * GenerateGraphBrewGVEMapping()     - GVE variant
- * GenerateGraphBrewRabbitMapping()  - Rabbit variant
- * GenerateGraphBrewHubClusterMapping() - HubCluster variant
- * GenerateGraphBrewMapping()        - Generic implementation
+ * Primary Implementation (VIBE-powered, in builder.h):
+ * ----------------------------------------------------
+ * ParseGraphBrewOptionsToVibeConfig() - Parse CLI options to VibeConfig
+ * GenerateGraphBrewMappingUnified()   - Main entry: VIBE detection + per-community dispatch
+ * GenerateGraphBrewMapping()          - Legacy wrapper → delegates to unified
  *
- * GenerateAdaptiveMapping()         - Main Adaptive entry point
- * GenerateAdaptiveMappingFullGraph() - Full-graph mode
- * GenerateAdaptiveMappingRecursive() - Recursive mode
+ * VIBE Pipeline (in reorder_vibe.h):
+ * -----------------------------------
+ * vibe::runVibe()              - Leiden community detection
+ * vibe::generateVibeMapping()  - Full VIBE pipeline (used for hubcluster/rabbit variants)
+ * vibe::parseVibeConfig()      - Parse VIBE-native options (supports "graphbrew" keyword)
  *
- * Helper Functions:
- * -----------------
- * SelectFastestReorderFromWeights() - Perceptron-based selection
- * LoadPerceptronWeights()           - Load weights from JSON
- * ComputeGraphFeatures()            - Extract graph features
- * DetectGraphType()                 - Classify graph type
+ * Per-Community Dispatch (in reorder.h):
+ * --------------------------------------
+ * ReorderCommunitySubgraphStandalone() - Apply any algo to a community subgraph
+ * SelectAlgorithmForSmallGroup()       - Heuristic algo selection for small communities
+ * ComputeMergedCommunityFeatures()     - Feature extraction for heuristic selection
+ *
+ * Legacy Standalone Functions (in this file, deprecated):
+ * -------------------------------------------------------
+ * GenerateGraphBrewGVEMappingStandalone()       - Old GVE variant
+ * GenerateGraphBrewHubClusterMappingStandalone() - Old HubCluster variant
+ * GenerateGraphBrewMappingUnifiedStandalone()    - Old unified dispatcher
  *
  * ============================================================================
  * PERFORMANCE RECOMMENDATIONS

@@ -3277,8 +3277,8 @@ def main():
                         default=None, choices=["csr", "boost"],
                         help="RabbitOrder variants: csr (default, no deps), boost (requires libboost-graph-dev)")
     parser.add_argument("--graphbrew-variants", nargs="+", dest="graphbrew_variants",
-                        default=None, choices=["leiden", "gve", "gveopt", "gvefast", "gveoptfast", "rabbit", "hubcluster"],
-                        help="GraphBrewOrder variants: leiden (default), gve, gveopt, gvefast, gveoptfast, rabbit, hubcluster")
+                        default=None, choices=["leiden", "gve", "gveopt", "rabbit", "hubcluster"],
+                        help="GraphBrewOrder variants (VIBE-powered): leiden (default), gve, gveopt, rabbit, hubcluster")
     parser.add_argument("--resolution", type=str, default="dynamic", dest="leiden_resolution",
                         help="Leiden resolution: dynamic (default, best PR), auto, fixed (1.5), dynamic_2.0")
     parser.add_argument("--passes", type=int, default=3, dest="leiden_passes",

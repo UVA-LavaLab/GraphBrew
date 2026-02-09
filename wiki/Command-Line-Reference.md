@@ -228,17 +228,17 @@ VIBE (Vertex Indexing for Better Efficiency) provides a unified reordering frame
 
 > **Note:** RabbitOrder variants do not support dynamic resolution (falls back to auto).
 
-### GraphBrewOrder Variants (Algorithm 12)
+### GraphBrewOrder Variants (Algorithm 12, VIBE-Powered)
 
-| Variant | Description | Resolution | Final Algo |
-|---------|-------------|------------|------------|
-| `leiden` | GVE-Leiden optimized (default) | auto | RabbitOrder |
-| `gve` | GVE-Leiden non-optimized | auto | RabbitOrder |
-| `gveopt` | GVE-Leiden with cache optimization | auto | RabbitOrder |
-| `gvefast` | GVE-Leiden non-optimized | auto | HubSortDBG |
-| `gveoptfast` | GVE-Leiden optimized | auto | HubSortDBG |
-| `rabbit` | GVE-Leiden with coarse communities | 0.50 | RabbitOrder |
-| `hubcluster` | Hub-degree based clustering | N/A | RabbitOrder |
+| Variant | Description | VIBE Config | Default Final Algo |
+|---------|-------------|-------------|--------------------|
+| `leiden` | GVE-Leiden optimized (default) | GVE-CSR aggregation | RabbitOrder (8) |
+| `gve` | GVE-Leiden non-optimized | GVE-CSR aggregation | RabbitOrder (8) |
+| `gveopt` | GVE-Leiden with cache optimization | GVE-CSR aggregation | RabbitOrder (8) |
+| `rabbit` | Full RabbitOrder via VIBE pipeline | RABBIT_ORDER ordering | N/A (single-pass) |
+| `hubcluster` | Hub-degree based clustering | HUB_CLUSTER ordering | N/A (native) |
+
+Override the final reordering algorithm with `:<algo_id>`, e.g. `-o "12:gve:7"` uses HubClusterDBG.
 
 **Auto-Resolution:** Automatically computed based on graph's coefficient of variation (CV):
 - High-CV graphs (social/web): resolution ≈ 0.50 (coarser communities, better locality)
