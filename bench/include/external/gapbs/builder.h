@@ -3511,6 +3511,18 @@ public:
                 } catch (...) {}
             }
         }
+        // sub-community algorithm (options[5]) — auto or 0-11
+        if (options.size() > 5 && !options[5].empty()) {
+            const std::string& subStr = options[5];
+            if (subStr == "auto" || subStr == "adaptive") {
+                config.subAlgoId = -1;
+            } else {
+                try {
+                    int a = std::stoi(subStr);
+                    if (a >= 0 && a <= 11) config.subAlgoId = a;
+                } catch (...) {}
+            }
+        }
         
         return config;
     }
@@ -3546,9 +3558,10 @@ public:
             (config.finalAlgoId >= 0 && config.finalAlgoId <= 11) 
             ? config.finalAlgoId : 8);
         
-        printf("GraphBrew (VIBE): finalAlgo=%s (%d), resolution=%.4f, maxPasses=%d, depth=%d\n",
+        printf("GraphBrew (VIBE): finalAlgo=%s (%d), resolution=%.4f, maxPasses=%d, depth=%d, subAlgo=%s\n",
                ReorderingAlgoStr(finalAlgo).c_str(), config.finalAlgoId, config.resolution,
-               config.maxPasses, config.recursiveDepth);
+               config.maxPasses, config.recursiveDepth,
+               config.subAlgoId < 0 ? "auto" : ReorderingAlgoStr(static_cast<ReorderingAlgo>(config.subAlgoId)).c_str());
         
         // If hubcluster variant or no external dispatch needed, delegate directly to VIBE
         if (config.ordering != vibe::OrderingStrategy::GRAPHBREW) {
@@ -3691,7 +3704,27 @@ public:
             printf("GraphBrew: recursive depth=%d, sub-dividing %zu large communities\n",
                    config.recursiveDepth, sorted_large_comms.size());
             
-            // Helper: map local sub-community nodes to global IDs and apply finalAlgo
+            // Determine sub-community algorithm mode
+            const bool autoSubAlgo = (config.subAlgoId < 0);
+            const ReorderingAlgo fixedSubAlgo = autoSubAlgo ? finalAlgo :
+                static_cast<ReorderingAlgo>(config.subAlgoId);
+            
+            // Cache size detection for locality analysis
+            const size_t llc_bytes = GetLLCSizeBytes();
+            const size_t l2_bytes = std::max(size_t(256 * 1024),
+                static_cast<size_t>(sysconf(_SC_LEVEL2_CACHE_SIZE)));
+            // Estimate: each node uses ~(avg_degree * 4 + 16) bytes of working set
+            // (CSR offsets + neighbor array + PageRank values)
+            const double avg_deg = static_cast<double>(E) / std::max(int64_t(1), N);
+            const size_t bytes_per_node = static_cast<size_t>(avg_deg * sizeof(NodeID_) + 3 * sizeof(NodeID_));
+            const size_t l2_node_capacity = l2_bytes / std::max(size_t(1), bytes_per_node);
+            const size_t llc_node_capacity = llc_bytes / std::max(size_t(1), bytes_per_node);
+            
+            // Aggregated cache-fit statistics
+            size_t total_sub_comms = 0, fits_l2 = 0, fits_llc = 0;
+            size_t total_cross_edges = 0, total_internal_edges = 0;
+            
+            // Helper: map local sub-community nodes to global IDs and apply algo
             auto reorderSubCommunityGlobal = [&](
                 const std::vector<NodeID_>& local_nodes,
                 const std::vector<NodeID_>& l2g,
@@ -3705,6 +3738,42 @@ public:
                 ::ReorderCommunitySubgraphStandalone<NodeID_, DestID_, WeightT_, invert>(
                     g, global_nodes, global_set, algo, useOutdeg,
                     new_ids, current_id);
+            };
+            
+            // Helper: select algorithm adaptively for a sub-community
+            auto selectSubAlgo = [&](const std::vector<NodeID_>& local_nodes,
+                                     const std::vector<NodeID_>& l2g,
+                                     size_t sc_size) -> ReorderingAlgo {
+                if (!autoSubAlgo) return fixedSubAlgo;
+                if (sc_size < 100) return finalAlgo;  // too small for features
+                
+                // Build global node list and set for feature computation
+                std::vector<NodeID_> global_nodes;
+                global_nodes.reserve(local_nodes.size());
+                for (NodeID_ lv : local_nodes) {
+                    global_nodes.push_back(l2g[lv]);
+                }
+                std::unordered_set<NodeID_> global_set(global_nodes.begin(), global_nodes.end());
+                auto feat = ComputeMergedCommunityFeatures(g, global_nodes, global_set);
+                
+                // Cache-aware insight: if sub-community fits in L2, prefer lightweight
+                // algos that preserve spatial locality; if it spills to LLC, use
+                // algorithms that optimize for temporal reuse patterns
+                if (sc_size <= l2_node_capacity) {
+                    // Fits in L2 — light touch, BFS/sort is enough
+                    if (feat.hub_concentration > 0.4) return HubSort;
+                    return DBG;
+                } else if (sc_size <= llc_node_capacity) {
+                    // Fits in LLC — heavier restructuring worthwhile
+                    if (feat.degree_variance > 1.5 && feat.hub_concentration > 0.5)
+                        return HubClusterDBG;
+                    if (feat.hub_concentration > 0.3) return HubSort;
+                    return RabbitOrder;  // best general-purpose for LLC-sized
+                } else {
+                    // Exceeds LLC — maximize cache-line reuse
+                    if (feat.density > 0.01) return GOrder;
+                    return RabbitOrder;
+                }
             };
             
             for (auto& [size, comm_id] : sorted_large_comms) {
@@ -3741,7 +3810,6 @@ public:
                 }
                 
                 if (local_edges.empty()) {
-                    // No internal edges: apply final algo directly
                     ::ReorderCommunitySubgraphStandalone<NodeID_, DestID_, WeightT_, invert>(
                         g, nodes, node_set, finalAlgo, useOutdeg,
                         new_ids, current_id);
@@ -3752,9 +3820,6 @@ public:
                 CSRGraph<NodeID_, DestID_, invert> sub_g =
                     MakeLocalGraphFromELStandalone<NodeID_, DestID_, invert>(local_edges, false);
                 
-                // CRITICAL: sub_g.num_nodes() may be < nodes.size() if some nodes
-                // have zero internal edges (all neighbors in other communities).
-                // Their local IDs won't appear in edges, so FindMaxNodeID misses them.
                 const size_t sub_N = static_cast<size_t>(sub_g.num_nodes());
                 
                 // Collect isolated nodes (local IDs not covered by sub_g)
@@ -3777,8 +3842,6 @@ public:
                 
                 auto sub_result = vibe::runVibe<K>(sub_g, sub_config);
                 
-                // sub_g CSR memory freed automatically by ~CSRGraph() at scope end
-                
                 // Classify sub-communities (only iterate over valid membership range)
                 std::unordered_map<K, std::vector<NodeID_>> sub_comm_nodes;
                 for (NodeID_ lv = 0; lv < static_cast<NodeID_>(sub_N); ++lv) {
@@ -3799,42 +3862,141 @@ public:
                 size_t sub_threshold = ComputeDynamicMinCommunitySize(
                     nodes.size(), sub_non_empty, sub_avg);
                 
-                // Sort sub-communities by size (descending)
-                std::vector<std::pair<size_t, K>> sorted_sub_comms;
-                sorted_sub_comms.reserve(sub_non_empty);
+                // Separate into large and small sub-communities
+                std::vector<K> large_sc_ids, small_sc_ids;
                 for (auto& [sc_id, sc_nodes] : sub_comm_nodes) {
-                    sorted_sub_comms.push_back({sc_nodes.size(), sc_id});
-                }
-                std::sort(sorted_sub_comms.begin(), sorted_sub_comms.end(), std::greater<>());
-                
-                printf("  Community %u (%zu nodes): %zu sub-communities (threshold=%zu",
-                       comm_id, nodes.size(), sub_non_empty, sub_threshold);
-                if (!isolated_locals.empty()) {
-                    printf(", %zu isolated", isolated_locals.size());
-                }
-                printf(")\n");
-                
-                // Process sub-communities: small ones get merged, large ones get final algo
-                std::vector<NodeID_> sub_small_nodes;
-                for (auto& [sc_size, sc_id] : sorted_sub_comms) {
-                    auto& sc_local_nodes = sub_comm_nodes[sc_id];
-                    
-                    if (sc_size < sub_threshold) {
-                        // Small sub-community: collect for merged handling
-                        for (NodeID_ lv : sc_local_nodes) {
-                            sub_small_nodes.push_back(lv);
-                        }
+                    if (sc_nodes.size() >= sub_threshold) {
+                        large_sc_ids.push_back(sc_id);
                     } else {
-                        // Large sub-community: apply final algo
-                        // (depth > 1 with ≥500 nodes could recurse further, but
-                        //  ReorderCommunitySubgraphStandalone already handles subgraph
-                        //  extraction — additional Leiden on tiny subgraphs has diminishing
-                        //  returns; 1-level sub-division is the practical sweet spot)
-                        reorderSubCommunityGlobal(sc_local_nodes, l2g, finalAlgo);
+                        small_sc_ids.push_back(sc_id);
                     }
                 }
                 
-                // Add isolated nodes to the small-node pool
+                // ===== CACHE-AWARE INTER-SUB-COMMUNITY ORDERING =====
+                // Order large sub-communities by inter-connectivity: place densely
+                // connected sub-communities adjacent in the final permutation so
+                // cross-sub-community edges have short ID distance → better cache reuse.
+                //
+                // Strategy: BFS on the sub-community adjacency graph starting from
+                // the largest sub-community.
+                std::vector<K> ordered_large_sc;
+                if (large_sc_ids.size() > 2) {
+                    // Build adjacency: count inter-sub-community edges
+                    std::unordered_map<K, std::unordered_map<K, size_t>> sc_adj;
+                    for (NodeID_ lv = 0; lv < static_cast<NodeID_>(sub_N); ++lv) {
+                        K my_sc = sub_result.membership[lv];
+                        if (sub_comm_nodes[my_sc].size() < sub_threshold) continue;
+                        NodeID_ gv = l2g[lv];
+                        for (DestID_ neighbor : g.out_neigh(gv)) {
+                            NodeID_ dest = static_cast<NodeID_>(neighbor);
+                            auto it = g2l.find(dest);
+                            if (it != g2l.end() && static_cast<size_t>(it->second) < sub_N) {
+                                K nb_sc = sub_result.membership[it->second];
+                                if (nb_sc != my_sc && sub_comm_nodes[nb_sc].size() >= sub_threshold) {
+                                    sc_adj[my_sc][nb_sc]++;
+                                }
+                            }
+                        }
+                    }
+                    
+                    // BFS from largest sub-community, visiting most-connected neighbor first
+                    K start_sc = large_sc_ids[0];
+                    size_t max_sc_size = 0;
+                    for (K sc_id : large_sc_ids) {
+                        if (sub_comm_nodes[sc_id].size() > max_sc_size) {
+                            max_sc_size = sub_comm_nodes[sc_id].size();
+                            start_sc = sc_id;
+                        }
+                    }
+                    
+                    std::unordered_set<K> visited;
+                    std::queue<K> bfs_q;
+                    bfs_q.push(start_sc);
+                    visited.insert(start_sc);
+                    
+                    while (!bfs_q.empty()) {
+                        K cur = bfs_q.front();
+                        bfs_q.pop();
+                        ordered_large_sc.push_back(cur);
+                        
+                        // Sort neighbors by edge count (descending) for greedy placement
+                        std::vector<std::pair<size_t, K>> neighbors;
+                        if (sc_adj.count(cur)) {
+                            for (auto& [nb, cnt] : sc_adj[cur]) {
+                                if (!visited.count(nb)) neighbors.push_back({cnt, nb});
+                            }
+                        }
+                        std::sort(neighbors.begin(), neighbors.end(), std::greater<>());
+                        for (auto& [cnt, nb] : neighbors) {
+                            if (visited.insert(nb).second) {
+                                bfs_q.push(nb);
+                            }
+                        }
+                    }
+                    // Add any unvisited (disconnected) sub-communities
+                    for (K sc_id : large_sc_ids) {
+                        if (!visited.count(sc_id)) ordered_large_sc.push_back(sc_id);
+                    }
+                    
+                    // Count cross-edges for statistics
+                    for (auto& [sc, neighbors] : sc_adj) {
+                        for (auto& [nb, cnt] : neighbors) {
+                            total_cross_edges += cnt;
+                        }
+                    }
+                } else {
+                    ordered_large_sc = large_sc_ids;
+                }
+                
+                // Cache-fit statistics per sub-community
+                size_t sc_fits_l2 = 0, sc_fits_llc = 0;
+                size_t comm_internal = 0;
+                for (K sc_id : ordered_large_sc) {
+                    size_t sc_sz = sub_comm_nodes[sc_id].size();
+                    total_sub_comms++;
+                    if (sc_sz <= l2_node_capacity) { sc_fits_l2++; fits_l2++; }
+                    else if (sc_sz <= llc_node_capacity) { sc_fits_llc++; fits_llc++; }
+                    // Count internal edges for this sub-community
+                    std::unordered_set<NodeID_> sc_set;
+                    for (NodeID_ lv : sub_comm_nodes[sc_id]) sc_set.insert(lv);
+                    for (NodeID_ lv : sub_comm_nodes[sc_id]) {
+                        if (static_cast<size_t>(lv) >= sub_N) continue;
+                        NodeID_ gv = l2g[lv];
+                        for (DestID_ neighbor : g.out_neigh(gv)) {
+                            auto it = g2l.find(static_cast<NodeID_>(neighbor));
+                            if (it != g2l.end() && sc_set.count(it->second)) {
+                                comm_internal++;
+                            }
+                        }
+                    }
+                }
+                total_internal_edges += comm_internal;
+                
+                printf("  Community %u (%zu nodes): %zu sub-comms (%zu large, %zu small",
+                       comm_id, nodes.size(), sub_non_empty,
+                       ordered_large_sc.size(), small_sc_ids.size());
+                if (!isolated_locals.empty()) {
+                    printf(", %zu isolated", isolated_locals.size());
+                }
+                printf("), cache-fit: %zu/L2 %zu/LLC\n", sc_fits_l2, sc_fits_llc);
+                
+                // ===== Process large sub-communities in cache-aware order =====
+                for (K sc_id : ordered_large_sc) {
+                    auto& sc_local_nodes = sub_comm_nodes[sc_id];
+                    size_t sc_size = sc_local_nodes.size();
+                    
+                    // Select algorithm: adaptive or fixed
+                    ReorderingAlgo sc_algo = selectSubAlgo(sc_local_nodes, l2g, sc_size);
+                    reorderSubCommunityGlobal(sc_local_nodes, l2g, sc_algo);
+                }
+                
+                // Collect small sub-community + isolated nodes
+                std::vector<NodeID_> sub_small_nodes;
+                for (K sc_id : small_sc_ids) {
+                    for (NodeID_ lv : sub_comm_nodes[sc_id]) {
+                        sub_small_nodes.push_back(lv);
+                    }
+                }
                 for (NodeID_ lv : isolated_locals) {
                     sub_small_nodes.push_back(lv);
                 }
@@ -3844,7 +4006,6 @@ public:
                     if (sub_small_nodes.size() >= 100) {
                         reorderSubCommunityGlobal(sub_small_nodes, l2g,
                             [&]() -> ReorderingAlgo {
-                                // Compute features to pick heuristic algo
                                 std::vector<NodeID_> global_small;
                                 global_small.reserve(sub_small_nodes.size());
                                 for (NodeID_ lv : sub_small_nodes) {
@@ -3855,7 +4016,6 @@ public:
                                 return SelectAlgorithmForSmallGroup(feat);
                             }());
                     } else {
-                        // Degree-sorted for tiny groups
                         std::vector<std::pair<int64_t, NodeID_>> deg_nodes;
                         for (NodeID_ lv : sub_small_nodes) {
                             NodeID_ gv = l2g[lv];
@@ -3866,6 +4026,24 @@ public:
                             new_ids[gv] = current_id++;
                         }
                     }
+                }
+            }
+            
+            // ===== Print cache-locality summary =====
+            if (total_sub_comms > 0) {
+                double internal_ratio = (total_internal_edges + total_cross_edges > 0) ?
+                    100.0 * total_internal_edges / (total_internal_edges + total_cross_edges) : 0.0;
+                printf("GraphBrew cache analysis:\n");
+                printf("  L2=%zuKB (%zu nodes), LLC=%zuMB (%zu nodes), ~%zuB/node\n",
+                       l2_bytes / 1024, l2_node_capacity,
+                       llc_bytes / (1024*1024), llc_node_capacity, bytes_per_node);
+                printf("  sub-communities: %zu total, %zu fit L2, %zu fit LLC, %zu exceed LLC\n",
+                       total_sub_comms, fits_l2, fits_llc,
+                       total_sub_comms - fits_l2 - fits_llc);
+                printf("  edge locality: %.1f%% internal, cross-edges=%zu\n",
+                       internal_ratio, total_cross_edges / 2);
+                if (autoSubAlgo) {
+                    printf("  sub-algo: adaptive (per-sub-community feature-based selection)\n");
                 }
             }
         } else {
