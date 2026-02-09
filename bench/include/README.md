@@ -12,7 +12,8 @@ bench/include/
 │   │   ├── reorder_classic.h # GOrder, COrder, RCM
 │   │   ├── reorder_rabbit.h  # RabbitOrder integration
 │   │   ├── reorder_leiden.h  # Leiden-based algorithms
-│   │   └── reorder_graphbrew.h # GraphBrew multi-level
+│   │   ├── reorder_vibe.h    # VIBE unified reordering framework
+│   │   └── reorder_adaptive.h # Adaptive ML-based selection
 │   └── partition/          # Partitioning algorithms
 │       ├── trust.h         # TRUST partitioning
 │       └── cagra/popt.h    # Cagra/GraphIT P-OPT helpers

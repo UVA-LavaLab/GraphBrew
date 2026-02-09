@@ -100,14 +100,13 @@ reorder/
 ├── reorder_hub.h        # HubSort, HubCluster, DBG variants (algo 3-7) (~641 lines)
 ├── reorder_rabbit.h     # RabbitOrder native CSR (algo 8) (~1,161 lines)
 ├── reorder_classic.h    # GOrder, COrder, RCMOrder (algo 9-11) (~517 lines)
-├── reorder_graphbrew.h  # GraphBrew multi-level (algo 12) (~928 lines)
 ├── reorder_adaptive.h   # ML-based selection (algo 14) (~650 lines)
 ├── reorder_leiden.h     # Leiden community detection (algo 15-17) (~7,725 lines)
 ├── reorder_vibe.h       # VIBE unified reordering framework (~7,055 lines)
 └── reorder.h            # Main dispatcher (~493 lines)
 ```
 
-**Total: ~24,108 lines**
+**Total: ~23,180 lines**
 
 | File | Lines | Purpose |
 |------|-------|---------|
@@ -115,7 +114,6 @@ reorder/
 | `reorder_vibe.h` | ~7,055 | VIBE unified reordering framework |
 | `reorder_types.h` | ~4,614 | Common types, perceptron model, `EdgeList`, threshold functions, `GetLLCSizeBytes()`, `getAlgorithmNameMap()` (58 variants) |
 | `reorder_rabbit.h` | ~1,161 | RabbitOrder CSR native implementation |
-| `reorder_graphbrew.h` | ~928 | `GraphBrewConfig`, cluster variants, multi-level reordering |
 | `reorder_adaptive.h` | ~650 | `AdaptiveConfig`, ML-based per-community algorithm selection |
 | `reorder_hub.h` | ~641 | Hub-based algorithms (DBG, HubSort, HubCluster) |
 | `reorder_classic.h` | ~517 | Classic algorithms (GOrder, COrder, RCM dispatch) |
@@ -135,7 +133,7 @@ reorder/
 | Struct | Header | Key Fields |
 |--------|--------|------------|
 | `AdaptiveConfig` | `reorder_adaptive.h` | max_depth, resolution, min_recurse_size, mode (0=per-community, 1=full-graph) |
-| `GraphBrewConfig` | `reorder_graphbrew.h` | variant, frequency, intra_algo, resolution, maxIterations, maxPasses |
+| `VibeConfig` | `reorder_vibe.h` | algorithm, ordering, aggregation, resolution, finalAlgoId, recursiveDepth, subAlgoId |
 | `ReorderConfig` | `reorder_types.h` | Unified config: resolutionMode(AUTO), tolerance(1e-2), maxIterations(10), maxPasses(10), ordering(HIERARCHICAL) |
 
 All configs parse from CLI options via `FromOptions()`. Defaults are centralized constants in `reorder_types.h` (see [[AdaptiveOrder-ML#command-line-format]]).

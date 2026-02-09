@@ -26,7 +26,7 @@
 //   - reorder_gve_leiden.h: GVE-Leiden core algorithm implementation
 //   - reorder_leiden.h    : Leiden-based orderings (LeidenOrder, LeidenCSR, etc.)
 //   - reorder_vibe.h      : VIBE unified reordering framework
-//   - reorder_graphbrew.h : GraphBrew hybrid and Adaptive algorithms
+//   - reorder_adaptive.h  : Adaptive algorithm selection
 //   - reorder.h           : Main dispatcher that includes all headers
 //
 // Author: GraphBrew Team

@@ -15,8 +15,8 @@
 //          ▼              ▼         ▼         ▼              ▼
 // ┌────────────┐  ┌────────────┐  ┌───┐  ┌────────────┐  ┌────────────┐
 // │reorder_    │  │reorder_    │  │...│  │reorder_    │  │reorder_    │
-// │basic.h     │  │hub.h       │  │   │  │leiden.h    │  │graphbrew.h │
-// │(0,1,2)     │  │(3,4,5,6,7) │  │   │  │(15,16,17)  │  │(12,14)     │
+// │basic.h     │  │hub.h       │  │   │  │leiden.h    │  │adaptive.h  │
+// │(0,1,2)     │  │(3,4,5,6,7) │  │   │  │(15,16,17)  │  │(14)        │
 // └────────────┘  └────────────┘  └───┘  └────────────┘  └────────────┘
 //          │              │         │         │              │
 //          └──────────────┴─────────┴─────────┴──────────────┘
@@ -72,14 +72,15 @@
 #include "reorder_classic.h" // GORDER, CORDER, RCM (9-11)
 #include "reorder_leiden.h"  // LEIDENORDER, LEIDENCSR (15-16)
 
-// Note: reorder_graphbrew.h and reorder_adaptive.h are included at the END of this file
+// Note: reorder_adaptive.h is included at the END of this file
 // after all dispatcher functions are defined.
+// GraphBrewOrder (12) implementation is now fully in builder.h via VIBE pipeline.
 
 // ============================================================================
 // ALGORITHM STRING CONVERSION
 // ============================================================================
 // NOTE: ReorderingAlgoStr and getReorderingAlgo are now defined in reorder_types.h
-// to allow use by reorder_graphbrew.h and reorder_adaptive.h before this file.
+// to allow use by reorder_adaptive.h before this file.
 
 // ============================================================================
 // ALGORITHM CATEGORY HELPERS
@@ -481,12 +482,17 @@ void GenerateMappingLocalEdgelistStandalone(
 }
 
 // ============================================================================
-// INCLUDE GRAPHBREW AND ADAPTIVE HEADERS
+// INCLUDE ADAPTIVE HEADER
 // ============================================================================
-// These are included last because they depend on functions defined above
+// Included last because it depends on functions defined above
 // (GenerateMappingLocalEdgelistStandalone, ReorderCommunitySubgraphStandalone)
+//
+// NOTE: reorder_graphbrew.h has been deprecated and removed.
+// GraphBrewOrder (ID 12) is now fully powered by the VIBE pipeline in builder.h
+// via ParseGraphBrewOptionsToVibeConfig() and GenerateGraphBrewMappingUnified().
+// All configuration types (GraphBrewCluster, GraphBrewConfig) have been superseded
+// by vibe::VibeConfig and vibe::parseVibeConfig() in reorder_vibe.h.
 
-#include "reorder_graphbrew.h" // GRAPHBREWORDER (12) with standalone implementations
 #include "reorder_adaptive.h"  // ADAPTIVEORDER (14) config (implementations in builder.h)
 
 #endif  // REORDER_H_

@@ -128,7 +128,7 @@ GraphBrewOrder uses VIBE's modular Leiden community detection, then applies per-
 | Community detection | `reorder_vibe.h` | `vibe::runVibe()` (Leiden pipeline) |
 | Per-community dispatch | `reorder.h` | `ReorderCommunitySubgraphStandalone()` |
 | Small community heuristic | `reorder_types.h` | `SelectAlgorithmForSmallGroup()` |
-| Config types | `reorder_graphbrew.h` | `GraphBrewConfig`, `GraphBrewCluster` enum |
+| Config types | `reorder_vibe.h` | `VibeConfig` (supersedes old `GraphBrewConfig`) |
 
 ### Cluster Variant → VIBE Configuration Mapping
 
