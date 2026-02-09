@@ -3492,7 +3492,13 @@ public:
                 } catch (...) {}
             }
         }
-        // levels parameter (options[3]) - currently unused by VIBE but reserved
+        // levels/maxPasses parameter (options[3])
+        if (options.size() > 3 && !options[3].empty()) {
+            try {
+                int passes = std::stoi(options[3]);
+                if (passes > 0 && passes <= 50) config.maxPasses = passes;
+            } catch (...) {}
+        }
         
         return config;
     }
@@ -3528,8 +3534,9 @@ public:
             (config.finalAlgoId >= 0 && config.finalAlgoId <= 11) 
             ? config.finalAlgoId : 8);
         
-        printf("GraphBrew (VIBE): finalAlgo=%s (%d), resolution=%.4f\n",
-               ReorderingAlgoStr(finalAlgo).c_str(), config.finalAlgoId, config.resolution);
+        printf("GraphBrew (VIBE): finalAlgo=%s (%d), resolution=%.4f, maxPasses=%d\n",
+               ReorderingAlgoStr(finalAlgo).c_str(), config.finalAlgoId, config.resolution,
+               config.maxPasses);
         
         // If hubcluster variant or no external dispatch needed, delegate directly to VIBE
         if (config.ordering != vibe::OrderingStrategy::GRAPHBREW) {
