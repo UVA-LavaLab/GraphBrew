@@ -3367,15 +3367,333 @@ public:
     //==========================================================================
     
     // ========================================================================
-    // GRAPHBREW REORDERING - Delegates to standalone implementations
+    // GRAPHBREW REORDERING - Powered by VIBE pipeline
+    // ========================================================================
+    // 
+    // GraphBrewOrder (ID 12) uses VIBE's modular Leiden community detection
+    // pipeline, then applies any reordering algorithm (0-11) per community.
+    //
+    // Format: -o 12[:cluster_variant][:final_algo][:resolution][:levels]
+    //
+    // Cluster variants map to VIBE configurations:
+    //   leiden (default) → VIBE Leiden-CSR aggregation
+    //   gve              → VIBE GVE-CSR aggregation (totalm)
+    //   gveopt           → VIBE GVE-CSR aggregation (totalm, quality preset)
+    //   rabbit           → VIBE RabbitOrder algorithm (single-pass)
+    //   hubcluster       → VIBE HubCluster ordering with degree-based partitioning
+    //
+    // Final algorithms: 0-11 (any basic reordering, default: 8 = RabbitOrder)
     // ========================================================================
     
     /**
-     * Legacy GraphBrew entry point - delegates to unified implementation.
-     * Previously used external igraph Leiden library, now uses GVE-Leiden.
+     * Parse GraphBrew CLI options and build a VibeConfig.
      * 
-     * Note: numLevels and recursion params preserved for backward compatibility
-     * but are now handled internally by the unified implementation.
+     * Translates the legacy GraphBrew format into VIBE pipeline configuration:
+     *   -o 12:cluster_variant:final_algo:resolution:levels
+     *   -o 12:gve:8:0.75
+     *   -o 12:rabbit:7
+     * 
+     * Also supports VIBE-native options when called via -o 16:graphbrew:...
+     */
+    vibe::VibeConfig ParseGraphBrewOptionsToVibeConfig(
+        const std::vector<std::string>& options,
+        double auto_resolution) {
+        
+        vibe::VibeConfig config;
+        config.ordering = vibe::OrderingStrategy::GRAPHBREW;
+        config.finalAlgoId = 8;  // Default: RabbitOrder
+        config.useSmallCommunityMerging = true;
+        config.resolution = auto_resolution;
+        
+        if (options.empty() || options[0].empty()) {
+            // Default: leiden clustering, RabbitOrder final
+            return config;
+        }
+        
+        const std::string& variant = options[0];
+        
+        // Check if first option is purely numeric (old format: freq_threshold)
+        bool is_numeric = std::all_of(variant.begin(), variant.end(), ::isdigit);
+        
+        if (is_numeric) {
+            // Old format: 12:freq_threshold:final_algo:resolution
+            // Ignore freq_threshold (VIBE handles thresholding dynamically)
+            if (options.size() > 1 && !options[1].empty()) {
+                try { config.finalAlgoId = std::stoi(options[1]); } catch (...) {}
+            }
+            if (options.size() > 2 && !options[2].empty()) {
+                const std::string& res = options[2];
+                if (res != "auto" && res != "0" && res.rfind("dynamic", 0) != 0) {
+                    try {
+                        double r = std::stod(res);
+                        if (r > 0 && r <= 3) config.resolution = r;
+                    } catch (...) {}
+                }
+            }
+            return config;
+        }
+        
+        // New format: 12:cluster_variant:final_algo:resolution:levels
+        // Map cluster variant to VIBE aggregation/algorithm
+        if (variant == "leiden" || variant == "gveopt") {
+            // High-quality Leiden with GVE-CSR aggregation (matches old gveopt behavior)
+            config.aggregation = vibe::AggregationStrategy::GVE_CSR;
+            config.mComputation = vibe::MComputation::TOTAL_EDGES;
+            config.refinementDepth = 0;
+        } else if (variant == "gve") {
+            // GVE-style detection
+            config.aggregation = vibe::AggregationStrategy::GVE_CSR;
+            config.mComputation = vibe::MComputation::TOTAL_EDGES;
+            config.refinementDepth = 0;
+        } else if (variant == "rabbit") {
+            // Use full RabbitOrder algorithm for community detection
+            config.algorithm = vibe::VibeAlgorithm::RABBIT_ORDER;
+            config.resolution = 0.5;  // Coarser communities
+        } else if (variant == "hubcluster") {
+            // Use VIBE Leiden with hub-cluster ordering
+            // (The old hubcluster did degree-based partitioning which maps to
+            //  VIBE's HUB_CLUSTER ordering strategy)
+            config.ordering = vibe::OrderingStrategy::HUB_CLUSTER;
+            config.useSmallCommunityMerging = false;
+            config.finalAlgoId = -1;  // Use VIBE's native ordering
+        } else {
+            // Try to parse as VIBE-native options
+            std::vector<std::string> vibe_opts;
+            // Split variant by ':'
+            std::stringstream ss(variant);
+            std::string part;
+            while (std::getline(ss, part, ':')) {
+                if (!part.empty()) vibe_opts.push_back(part);
+            }
+            for (size_t i = 1; i < options.size(); ++i) {
+                if (!options[i].empty()) vibe_opts.push_back(options[i]);
+            }
+            config = vibe::parseVibeConfig(vibe_opts);
+            config.ordering = vibe::OrderingStrategy::GRAPHBREW;
+            config.useSmallCommunityMerging = true;
+            if (config.finalAlgoId < 0) config.finalAlgoId = 8;
+            return config;
+        }
+        
+        // Parse remaining options: final_algo, resolution, levels
+        if (options.size() > 1 && !options[1].empty()) {
+            try { config.finalAlgoId = std::stoi(options[1]); } catch (...) {}
+        }
+        if (options.size() > 2 && !options[2].empty()) {
+            const std::string& res = options[2];
+            if (res == "auto" || res == "0") {
+                // Keep auto_resolution
+            } else if (res.rfind("dynamic", 0) == 0) {
+                config.useDynamicResolution = true;
+            } else {
+                try {
+                    double r = std::stod(res);
+                    if (r > 0 && r <= 3) config.resolution = r;
+                } catch (...) {}
+            }
+        }
+        // levels parameter (options[3]) - currently unused by VIBE but reserved
+        
+        return config;
+    }
+    
+    /**
+     * Unified GraphBrew entry point - powered by VIBE pipeline.
+     * 
+     * Pipeline:
+     * 1. Parse options → VibeConfig (with GRAPHBREW ordering)
+     * 2. Run VIBE community detection (Leiden or RabbitOrder)
+     * 3. Classify communities into small/large
+     * 4. Merge small communities, apply heuristic algo selection
+     * 5. Apply final reordering algorithm per large community
+     * 6. Compose final vertex permutation
+     */
+    void GenerateGraphBrewMappingUnified(
+        const CSRGraph<NodeID_, DestID_, invert>& g,
+        pvector<NodeID_>& new_ids,
+        bool useOutdeg,
+        std::vector<std::string> reordering_options) {
+        
+        Timer totalTimer;
+        totalTimer.Start();
+        
+        const int64_t N = g.num_nodes();
+        const int64_t E = g.num_edges();
+        
+        // Parse options to VIBE config
+        double auto_resolution = LeidenAutoResolution<NodeID_, DestID_>(g);
+        vibe::VibeConfig config = ParseGraphBrewOptionsToVibeConfig(reordering_options, auto_resolution);
+        
+        ReorderingAlgo finalAlgo = static_cast<ReorderingAlgo>(
+            (config.finalAlgoId >= 0 && config.finalAlgoId <= 11) 
+            ? config.finalAlgoId : 8);
+        
+        printf("GraphBrew (VIBE): finalAlgo=%s (%d), resolution=%.4f\n",
+               ReorderingAlgoStr(finalAlgo).c_str(), config.finalAlgoId, config.resolution);
+        
+        // If hubcluster variant or no external dispatch needed, delegate directly to VIBE
+        if (config.ordering != vibe::OrderingStrategy::GRAPHBREW) {
+            printf("GraphBrew: delegating to VIBE native ordering\n");
+            new_ids.resize(N);
+            vibe::generateVibeMapping<K>(g, new_ids, config);
+            totalTimer.Stop();
+            PrintTime("GraphBrew Total Time", totalTimer.Seconds());
+            return;
+        }
+        
+        // If RabbitOrder algorithm, use VIBE's native RabbitOrder pipeline
+        if (config.algorithm == vibe::VibeAlgorithm::RABBIT_ORDER) {
+            printf("GraphBrew: using VIBE RabbitOrder pipeline\n");
+            new_ids.resize(N);
+            vibe::generateVibeMapping<K>(g, new_ids, config);
+            totalTimer.Stop();
+            PrintTime("GraphBrew Total Time", totalTimer.Seconds());
+            return;
+        }
+        
+        // ===== Phase 1: Community Detection via VIBE =====
+        Timer detectTimer;
+        detectTimer.Start();
+        
+        auto result = vibe::runVibe<K>(g, config);
+        
+        detectTimer.Stop();
+        printf("GraphBrew: VIBE detection: %d passes, %d iters, %zu communities, %.4fs\n",
+               result.totalPasses, result.totalIterations, result.numCommunities,
+               detectTimer.Seconds());
+        
+        // Community merging (optional, matches old GraphBrew behavior)
+        if (config.useCommunityMerging) {
+            Timer mergeTimer;
+            mergeTimer.Start();
+            size_t finalComms = vibe::mergeCommunities<K>(result.membership, g, config.targetCommunities);
+            mergeTimer.Stop();
+            result.numCommunities = finalComms;
+            printf("GraphBrew: community merge: %zu communities, %.4fs\n", finalComms, mergeTimer.Seconds());
+        }
+        
+        // ===== Phase 2: Classify Communities =====
+        const auto& membership = result.membership;
+        
+        // Count community sizes
+        std::unordered_map<K, size_t> comm_sizes;
+        for (int64_t v = 0; v < N; ++v) {
+            comm_sizes[membership[v]]++;
+        }
+        
+        // Compute dynamic threshold (same formula as old GraphBrew)
+        size_t non_empty = comm_sizes.size();
+        size_t avg_comm_size = (non_empty > 0) ? static_cast<size_t>(N) / non_empty : N;
+        
+        size_t min_community_size = config.smallCommunityThreshold;
+        if (min_community_size == 0) {
+            // Dynamic: max(50, min(avg/4, sqrt(N))), capped at 2000
+            min_community_size = ComputeDynamicMinCommunitySize(
+                static_cast<size_t>(N), non_empty, avg_comm_size);
+        }
+        
+        printf("GraphBrew: threshold=%zu (avg_comm=%zu, num_comm=%zu)\n",
+               min_community_size, avg_comm_size, non_empty);
+        
+        // Separate communities into small and large
+        std::unordered_set<K> small_comms, large_comms;
+        for (auto& [comm_id, size] : comm_sizes) {
+            if (size < min_community_size) {
+                small_comms.insert(comm_id);
+            } else {
+                large_comms.insert(comm_id);
+            }
+        }
+        
+        // Collect nodes per community
+        std::unordered_map<K, std::vector<NodeID_>> comm_nodes;
+        for (int64_t v = 0; v < N; ++v) {
+            comm_nodes[membership[v]].push_back(static_cast<NodeID_>(v));
+        }
+        
+        // Sort large communities by size (descending) for deterministic ordering
+        std::vector<std::pair<size_t, K>> sorted_large_comms;
+        for (K c : large_comms) {
+            sorted_large_comms.push_back({comm_sizes[c], c});
+        }
+        std::sort(sorted_large_comms.begin(), sorted_large_comms.end(), std::greater<>());
+        
+        printf("GraphBrew: %zu large, %zu small communities\n",
+               large_comms.size(), small_comms.size());
+        
+        // ===== Phase 3: Assign IDs =====
+        new_ids.resize(N);
+        std::fill(new_ids.begin(), new_ids.end(), static_cast<NodeID_>(-1));
+        NodeID_ current_id = 0;
+        
+        // 3a. Handle small communities (merge and apply heuristic)
+        if (!small_comms.empty()) {
+            std::vector<NodeID_> small_nodes;
+            std::unordered_set<NodeID_> small_node_set;
+            for (K c : small_comms) {
+                for (NodeID_ v : comm_nodes[c]) {
+                    small_nodes.push_back(v);
+                    small_node_set.insert(v);
+                }
+            }
+            
+            if (config.useSmallCommunityMerging && small_nodes.size() >= 100) {
+                // Compute features for merged small communities and select algorithm
+                auto merged_feat = ComputeMergedCommunityFeatures(g, small_nodes, small_node_set);
+                ReorderingAlgo small_algo = SelectAlgorithmForSmallGroup(merged_feat);
+                
+                printf("GraphBrew: %zu small-community nodes -> %s\n",
+                       small_nodes.size(), ReorderingAlgoStr(small_algo).c_str());
+                
+                ::ReorderCommunitySubgraphStandalone<NodeID_, DestID_, WeightT_, invert>(
+                    g, small_nodes, small_node_set, small_algo, useOutdeg,
+                    new_ids, current_id);
+            } else {
+                // Simple degree-sorted assignment for tiny groups
+                std::vector<std::pair<int64_t, NodeID_>> degree_nodes;
+                degree_nodes.reserve(small_nodes.size());
+                for (NodeID_ v : small_nodes) {
+                    int64_t deg = useOutdeg ? g.out_degree(v) : g.in_degree(v);
+                    degree_nodes.push_back({-deg, v});
+                }
+                std::sort(degree_nodes.begin(), degree_nodes.end());
+                for (auto& [neg_deg, v] : degree_nodes) {
+                    new_ids[v] = current_id++;
+                }
+            }
+        }
+        
+        // 3b. Handle large communities (apply final algo per community)
+        Timer perCommTimer;
+        perCommTimer.Start();
+        
+        for (auto& [size, comm_id] : sorted_large_comms) {
+            auto& nodes = comm_nodes[comm_id];
+            if (nodes.empty()) continue;
+            
+            std::unordered_set<NodeID_> node_set(nodes.begin(), nodes.end());
+            
+            ::ReorderCommunitySubgraphStandalone<NodeID_, DestID_, WeightT_, invert>(
+                g, nodes, node_set, finalAlgo, useOutdeg,
+                new_ids, current_id);
+        }
+        
+        perCommTimer.Stop();
+        printf("GraphBrew: per-community reorder: %.4fs\n", perCommTimer.Seconds());
+        
+        // Verify all nodes assigned
+        for (int64_t v = 0; v < N; ++v) {
+            if (new_ids[v] == static_cast<NodeID_>(-1)) {
+                new_ids[v] = current_id++;
+            }
+        }
+        
+        totalTimer.Stop();
+        PrintTime("GraphBrew Total Time", totalTimer.Seconds());
+    }
+    
+    /**
+     * Legacy GraphBrew entry point - delegates to unified VIBE-based implementation.
      */
     void GenerateGraphBrewMapping(
         const CSRGraph<NodeID_, DestID_, invert>& g,
@@ -3384,68 +3702,8 @@ public:
         std::vector<std::string> reordering_options,
         int numLevels = 1,
         bool recursion = false) {
-        // Delegate to unified implementation (GVE-Leiden based)
-        ::GenerateGraphBrewMappingUnifiedStandalone<NodeID_, DestID_, WeightT_, invert>(
-            g, new_ids, useOutdeg, reordering_options);
+        GenerateGraphBrewMappingUnified(g, new_ids, useOutdeg, reordering_options);
     }
-    
-    /**
-     * Unified GraphBrew entry point - delegates to standalone implementation.
-     * See reorder_graphbrew.h for full implementation.
-     */
-    void GenerateGraphBrewMappingUnified(
-        const CSRGraph<NodeID_, DestID_, invert>& g,
-        pvector<NodeID_>& new_ids,
-        bool useOutdeg,
-        std::vector<std::string> reordering_options) {
-        ::GenerateGraphBrewMappingUnifiedStandalone<NodeID_, DestID_, WeightT_, invert>(
-            g, new_ids, useOutdeg, reordering_options);
-    }
-    
-    /**
-     * GraphBrew with GVE-Leiden clustering - delegates to standalone implementation.
-     */
-    void GenerateGraphBrewGVEMapping(
-        const CSRGraph<NodeID_, DestID_, invert>& g,
-        pvector<NodeID_>& new_ids,
-        bool useOutdeg,
-        std::vector<std::string> reordering_options,
-        int numLevels = 2,
-        bool recursion = false,
-        bool use_optimized = false) {
-        ::GenerateGraphBrewGVEMappingStandalone<NodeID_, DestID_, WeightT_, invert>(
-            g, new_ids, useOutdeg, reordering_options, numLevels, recursion, use_optimized);
-    }
-    
-    /**
-     * GraphBrew with RabbitOrder-style clustering - delegates to GVE with tuned params.
-     */
-    void GenerateGraphBrewRabbitMapping(
-        const CSRGraph<NodeID_, DestID_, invert>& g,
-        pvector<NodeID_>& new_ids,
-        bool useOutdeg,
-        std::vector<std::string> reordering_options,
-        int numLevels = 2) {
-        printf("GraphBrewRabbit: Using GVE with RabbitOrder-optimized parameters\n");
-        auto opts = reordering_options;
-        if (opts.size() > 2) opts[2] = "0.5";  // Lower resolution
-        ::GenerateGraphBrewGVEMappingStandalone<NodeID_, DestID_, WeightT_, invert>(
-            g, new_ids, useOutdeg, opts, numLevels, false, true);
-    }
-    
-    /**
-     * GraphBrew with HubCluster-based clustering - delegates to standalone implementation.
-     */
-    void GenerateGraphBrewHubClusterMapping(
-        const CSRGraph<NodeID_, DestID_, invert>& g,
-        pvector<NodeID_>& new_ids,
-        bool useOutdeg,
-        std::vector<std::string> reordering_options,
-        int numLevels = 2) {
-        ::GenerateGraphBrewHubClusterMappingStandalone<NodeID_, DestID_, WeightT_, invert>(
-            g, new_ids, useOutdeg, reordering_options, numLevels);
-    }
-    
 
 };
 

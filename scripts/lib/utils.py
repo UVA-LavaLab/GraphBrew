@@ -103,11 +103,11 @@ RABBITORDER_DEFAULT_VARIANT = "csr"  # Native CSR (faster, no external deps)
 
 # GraphBrewOrder variant definitions (default: leiden for backward compat)
 # Format: -o 12:cluster_variant:final_algo:resolution:levels
+# Now powered by VIBE pipeline. Cluster variants map to VIBE configurations.
 # cluster_variant: leiden (default), gve, gveopt, rabbit, hubcluster
-# "fast" suffix: use HubSortDBG (6) instead of RabbitOrder (8) for final layer
-# Examples: gvefast, gveoptfast, fast (= gvefast)
-GRAPHBREW_VARIANTS = ["leiden", "gve", "gveopt", "gvefast", "gveoptfast", "rabbit", "hubcluster"]
-GRAPHBREW_DEFAULT_VARIANT = "leiden"  # Original Leiden library (backward compatible)
+# Examples: -o 12:gve:8, -o 12:rabbit:7, -o 12:hubcluster
+GRAPHBREW_VARIANTS = ["leiden", "gve", "gveopt", "rabbit", "hubcluster"]
+GRAPHBREW_DEFAULT_VARIANT = "leiden"  # Uses VIBE Leiden-CSR aggregation
 
 # Leiden variant definitions
 # LeidenCSR variants (default: vibe)

@@ -1245,12 +1245,10 @@ inline const std::map<std::string, ReorderingAlgo>& getAlgorithmNameMap() {
         {"RCM", RCMOrder},
         {"GraphBrewOrder", GraphBrewOrder},
         {"GRAPHBREWORDER", GraphBrewOrder},
-        // GraphBrewOrder variants
+        // GraphBrewOrder variants (powered by VIBE pipeline)
         {"GraphBrewOrder_leiden", GraphBrewOrder},
         {"GraphBrewOrder_gve", GraphBrewOrder},
         {"GraphBrewOrder_gveopt", GraphBrewOrder},
-        {"GraphBrewOrder_gvefast", GraphBrewOrder},
-        {"GraphBrewOrder_gveoptfast", GraphBrewOrder},
         {"GraphBrewOrder_rabbit", GraphBrewOrder},
         {"GraphBrewOrder_hubcluster", GraphBrewOrder},
         {"MAP", MAP},

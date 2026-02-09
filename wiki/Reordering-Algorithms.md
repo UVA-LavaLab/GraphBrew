@@ -270,19 +270,16 @@ Larger window = better quality, slower computation
 ./bench/bin/pr -f graph.el -s -o 12:gve:10:8 -n 3          # gve variant, freq=10, intra=RabbitOrder
 ```
 
-- **Description**: Runs community detection, then applies per-community reordering
-- **Variants**:
-  - `leiden`: Original GVE-Leiden library - **default**
-  - `gve`: GVE-Leiden CSR-native implementation
-  - `gveopt`: Cache-optimized GVE with prefetching
-  - `gvefast`: Single-pass GVE (faster, less refinement)
-  - `gveoptfast`: Cache-optimized single-pass GVE
-  - `rabbit`: RabbitOrder-based community detection
-  - `hubcluster`: Hub-clustering based approach
+- **Description**: Runs VIBE community detection, then applies per-community reordering
+- **Variants** (powered by VIBE pipeline):
+  - `leiden`: VIBE Leiden with GVE-CSR aggregation - **default**
+  - `gve`: VIBE Leiden GVE-style detection
+  - `gveopt`: VIBE Leiden quality preset (same as gve)
+  - `rabbit`: VIBE RabbitOrder single-pass pipeline
+  - `hubcluster`: VIBE Leiden + hub-cluster ordering
 - **Parameters**:
-  - `frequency`: Hub frequency threshold (default: 10) - controls how edges are categorized
-  - `intra_algo`: Algorithm ID to use within communities (default: 8 = RabbitOrder)
-  - `resolution`: Leiden resolution parameter (default: dynamic for best PR performance)
+  - `final_algo`: Algorithm ID (0-11) to use within communities (default: 8 = RabbitOrder)
+  - `resolution`: Leiden resolution parameter (default: auto-computed from graph)
   - `maxIterations`: Maximum Leiden iterations (default: 30)
   - `maxPasses`: Maximum Leiden passes (default: 30)
 - **Dynamic thresholds**: Community size thresholds are computed dynamically based on `avg_community_size/4` and `sqrt(N)`
