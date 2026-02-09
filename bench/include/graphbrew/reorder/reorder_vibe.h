@@ -322,6 +322,7 @@ struct VibeConfig {
     int  finalAlgoId = -1;             ///< Final reordering algorithm ID (0-11) for GRAPHBREW ordering. -1 = not set (uses VIBE ordering)
     bool useSmallCommunityMerging = false; ///< Merge small communities and apply heuristic algorithm selection
     size_t smallCommunityThreshold = 0;    ///< Min community size for individual reordering (0 = dynamic)
+    int  recursiveDepth = 0;           ///< Recursive sub-community depth: 0=flat (default), 1+=recurse into large communities
     
     // Memory optimizations
     bool useLazyUpdates = false;       ///< Batch community weight updates (reduces atomics in non-REFINE phase)
@@ -7146,6 +7147,25 @@ inline VibeConfig parseVibeConfig(const std::vector<std::string>& options) {
                     config.finalAlgoId = algoId;
                     config.ordering = OrderingStrategy::GRAPHBREW;
                     config.useSmallCommunityMerging = true;
+                }
+            } catch (...) {}
+        }
+        // Recursive depth for GraphBrew: "depth:2" or "depth2" or "recursive"
+        else if (opt == "recursive" || opt == "recurse") {
+            config.recursiveDepth = std::max(config.recursiveDepth, 1);
+            config.ordering = OrderingStrategy::GRAPHBREW;
+            config.useSmallCommunityMerging = true;
+            if (config.finalAlgoId < 0) config.finalAlgoId = 8;
+        } else if (opt.size() > 5 && opt.substr(0, 5) == "depth") {
+            std::string numStr = opt.substr(5);
+            if (!numStr.empty() && numStr[0] == ':') numStr = numStr.substr(1);
+            try {
+                int d = std::stoi(numStr);
+                if (d >= 0 && d <= 10) {
+                    config.recursiveDepth = d;
+                    config.ordering = OrderingStrategy::GRAPHBREW;
+                    config.useSmallCommunityMerging = true;
+                    if (config.finalAlgoId < 0) config.finalAlgoId = 8;
                 }
             } catch (...) {}
         }
