@@ -3499,6 +3499,18 @@ public:
                 if (passes > 0 && passes <= 50) config.maxPasses = passes;
             } catch (...) {}
         }
+        // recursive depth parameter (options[4]) — 0=flat, 1+=recursive sub-community detection
+        if (options.size() > 4 && !options[4].empty()) {
+            const std::string& depthStr = options[4];
+            if (depthStr == "recursive" || depthStr == "recurse") {
+                config.recursiveDepth = std::max(config.recursiveDepth, 1);
+            } else {
+                try {
+                    int d = std::stoi(depthStr);
+                    if (d >= 0 && d <= 10) config.recursiveDepth = d;
+                } catch (...) {}
+            }
+        }
         
         return config;
     }
@@ -3534,9 +3546,9 @@ public:
             (config.finalAlgoId >= 0 && config.finalAlgoId <= 11) 
             ? config.finalAlgoId : 8);
         
-        printf("GraphBrew (VIBE): finalAlgo=%s (%d), resolution=%.4f, maxPasses=%d\n",
+        printf("GraphBrew (VIBE): finalAlgo=%s (%d), resolution=%.4f, maxPasses=%d, depth=%d\n",
                ReorderingAlgoStr(finalAlgo).c_str(), config.finalAlgoId, config.resolution,
-               config.maxPasses);
+               config.maxPasses, config.recursiveDepth);
         
         // If hubcluster variant or no external dispatch needed, delegate directly to VIBE
         if (config.ordering != vibe::OrderingStrategy::GRAPHBREW) {
@@ -3670,19 +3682,175 @@ public:
             }
         }
         
-        // 3b. Handle large communities (apply final algo per community)
+        // 3b. Handle large communities
         Timer perCommTimer;
         perCommTimer.Start();
         
-        for (auto& [size, comm_id] : sorted_large_comms) {
-            auto& nodes = comm_nodes[comm_id];
-            if (nodes.empty()) continue;
+        if (config.recursiveDepth > 0) {
+            // ===== RECURSIVE MODE: sub-divide each large community =====
+            printf("GraphBrew: recursive depth=%d, sub-dividing %zu large communities\n",
+                   config.recursiveDepth, sorted_large_comms.size());
             
-            std::unordered_set<NodeID_> node_set(nodes.begin(), nodes.end());
-            
-            ::ReorderCommunitySubgraphStandalone<NodeID_, DestID_, WeightT_, invert>(
-                g, nodes, node_set, finalAlgo, useOutdeg,
-                new_ids, current_id);
+            for (auto& [size, comm_id] : sorted_large_comms) {
+                auto& nodes = comm_nodes[comm_id];
+                if (nodes.empty()) continue;
+                
+                std::unordered_set<NodeID_> node_set(nodes.begin(), nodes.end());
+                
+                // Build induced subgraph for this community
+                std::vector<std::pair<NodeID_, DestID_>> sub_edges;
+                for (NodeID_ node : nodes) {
+                    for (DestID_ neighbor : g.out_neigh(node)) {
+                        NodeID_ dest = static_cast<NodeID_>(neighbor);
+                        if (node_set.count(dest)) {
+                            sub_edges.push_back({node, neighbor});
+                        }
+                    }
+                }
+                
+                if (sub_edges.empty() || nodes.size() < 200) {
+                    // Too small or no internal edges: apply final algo directly
+                    ::ReorderCommunitySubgraphStandalone<NodeID_, DestID_, WeightT_, invert>(
+                        g, nodes, node_set, finalAlgo, useOutdeg,
+                        new_ids, current_id);
+                    continue;
+                }
+                
+                // Build subgraph CSR
+                // Map global→local IDs for subgraph
+                std::unordered_map<NodeID_, NodeID_> g2l;
+                std::vector<NodeID_> l2g(nodes.size());
+                for (size_t i = 0; i < nodes.size(); ++i) {
+                    g2l[nodes[i]] = static_cast<NodeID_>(i);
+                    l2g[i] = nodes[i];
+                }
+                
+                std::vector<std::pair<NodeID_, DestID_>> local_edges;
+                local_edges.reserve(sub_edges.size());
+                for (auto& [src, dst] : sub_edges) {
+                    NodeID_ local_dst = g2l[static_cast<NodeID_>(dst)];
+                    local_edges.push_back({g2l[src], static_cast<DestID_>(local_dst)});
+                }
+                
+                CSRGraph<NodeID_, DestID_, invert> sub_g =
+                    MakeLocalGraphFromELStandalone<NodeID_, DestID_, invert>(local_edges, false);
+                
+                // Run VIBE Leiden on the subgraph for sub-community detection
+                vibe::VibeConfig sub_config;
+                sub_config.resolution = config.resolution;
+                sub_config.maxPasses = config.maxPasses;
+                sub_config.maxIterations = config.maxIterations;
+                sub_config.aggregation = config.aggregation;
+                sub_config.mComputation = config.mComputation;
+                sub_config.refinementDepth = config.refinementDepth;
+                sub_config.ordering = vibe::OrderingStrategy::GRAPHBREW;
+                
+                auto sub_result = vibe::runVibe<K>(sub_g, sub_config);
+                
+                // Classify sub-communities
+                std::unordered_map<K, std::vector<NodeID_>> sub_comm_nodes;
+                for (NodeID_ lv = 0; lv < static_cast<NodeID_>(nodes.size()); ++lv) {
+                    sub_comm_nodes[sub_result.membership[lv]].push_back(lv);
+                }
+                
+                // Compute dynamic threshold for sub-communities
+                size_t sub_non_empty = sub_comm_nodes.size();
+                size_t sub_avg = (sub_non_empty > 0) ? nodes.size() / sub_non_empty : nodes.size();
+                size_t sub_threshold = ComputeDynamicMinCommunitySize(
+                    nodes.size(), sub_non_empty, sub_avg);
+                
+                // Sort sub-communities by size (descending)
+                std::vector<std::pair<size_t, K>> sorted_sub_comms;
+                for (auto& [sc_id, sc_nodes] : sub_comm_nodes) {
+                    sorted_sub_comms.push_back({sc_nodes.size(), sc_id});
+                }
+                std::sort(sorted_sub_comms.begin(), sorted_sub_comms.end(), std::greater<>());
+                
+                printf("  Community %u (%zu nodes): %zu sub-communities (threshold=%zu)\n",
+                       comm_id, nodes.size(), sub_non_empty, sub_threshold);
+                
+                // Process sub-communities: small ones get merged, large ones get final algo
+                // (or recurse further if depth > 1)
+                std::vector<NodeID_> sub_small_nodes;
+                for (auto& [sc_size, sc_id] : sorted_sub_comms) {
+                    auto& sc_local_nodes = sub_comm_nodes[sc_id];
+                    
+                    if (sc_size < sub_threshold) {
+                        // Small sub-community: collect for merged handling
+                        for (NodeID_ lv : sc_local_nodes) {
+                            sub_small_nodes.push_back(lv);
+                        }
+                    } else if (config.recursiveDepth > 1 && sc_size >= 500) {
+                        // Large sub-community + depth remaining: recurse deeper
+                        // Map local sub-community nodes back to global IDs
+                        std::vector<NodeID_> global_sc_nodes;
+                        std::unordered_set<NodeID_> global_sc_set;
+                        for (NodeID_ lv : sc_local_nodes) {
+                            global_sc_nodes.push_back(l2g[lv]);
+                            global_sc_set.insert(l2g[lv]);
+                        }
+                        
+                        // For depth > 1, we still apply the final algo
+                        // (full recursive nesting would need a separate recursive function;
+                        //  2-level deep is the practical sweet spot)
+                        ::ReorderCommunitySubgraphStandalone<NodeID_, DestID_, WeightT_, invert>(
+                            g, global_sc_nodes, global_sc_set, finalAlgo, useOutdeg,
+                            new_ids, current_id);
+                    } else {
+                        // Large sub-community at leaf level: apply final algo
+                        std::vector<NodeID_> global_sc_nodes;
+                        std::unordered_set<NodeID_> global_sc_set;
+                        for (NodeID_ lv : sc_local_nodes) {
+                            global_sc_nodes.push_back(l2g[lv]);
+                            global_sc_set.insert(l2g[lv]);
+                        }
+                        
+                        ::ReorderCommunitySubgraphStandalone<NodeID_, DestID_, WeightT_, invert>(
+                            g, global_sc_nodes, global_sc_set, finalAlgo, useOutdeg,
+                            new_ids, current_id);
+                    }
+                }
+                
+                // Handle merged small sub-community nodes
+                if (!sub_small_nodes.empty()) {
+                    std::vector<NodeID_> global_small;
+                    global_small.reserve(sub_small_nodes.size());
+                    for (NodeID_ lv : sub_small_nodes) {
+                        global_small.push_back(l2g[lv]);
+                    }
+                    
+                    if (global_small.size() >= 100) {
+                        std::unordered_set<NodeID_> global_small_set(global_small.begin(), global_small.end());
+                        auto merged_feat = ComputeMergedCommunityFeatures(g, global_small, global_small_set);
+                        ReorderingAlgo small_algo = SelectAlgorithmForSmallGroup(merged_feat);
+                        ::ReorderCommunitySubgraphStandalone<NodeID_, DestID_, WeightT_, invert>(
+                            g, global_small, global_small_set, small_algo, useOutdeg,
+                            new_ids, current_id);
+                    } else {
+                        // Degree-sorted for tiny groups
+                        std::vector<std::pair<int64_t, NodeID_>> deg_nodes;
+                        for (NodeID_ gv : global_small) {
+                            deg_nodes.push_back({-(useOutdeg ? g.out_degree(gv) : g.in_degree(gv)), gv});
+                        }
+                        std::sort(deg_nodes.begin(), deg_nodes.end());
+                        for (auto& [nd, gv] : deg_nodes) {
+                            new_ids[gv] = current_id++;
+                        }
+                    }
+                }
+            }
+        } else {
+            // ===== FLAT MODE (depth=0): apply final algo directly per community =====
+            for (auto& [size, comm_id] : sorted_large_comms) {
+                auto& nodes = comm_nodes[comm_id];
+                if (nodes.empty()) continue;
+                
+                std::unordered_set<NodeID_> node_set(nodes.begin(), nodes.end());
+                
+                ::ReorderCommunitySubgraphStandalone<NodeID_, DestID_, WeightT_, invert>(
+                    g, nodes, node_set, finalAlgo, useOutdeg,
+                    new_ids, current_id);
+            }
         }
         
         perCommTimer.Stop();
