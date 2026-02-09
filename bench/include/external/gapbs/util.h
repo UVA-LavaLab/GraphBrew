@@ -37,10 +37,9 @@ enum ReorderingAlgo
     GraphBrewOrder = 12,    // -o 12:cluster:final:res:levels (leiden=default, gve, gveopt, rabbit, hubcluster)
     MAP = 13,               // Load reordering from file
     AdaptiveOrder = 14,     // ML-based perceptron selector
-    // Leiden algorithms (15-17) - grouped together for easier sweeping
+    // Leiden algorithms (15-16) - grouped together for easier sweeping
     LeidenOrder = 15,       // -o 15:resolution (GVE-Leiden baseline)
-    LeidenDendrogram = 16,  // -o 16:variant:resolution ⚠️ DEPRECATED: use LeidenCSR (17)
-    LeidenCSR = 17,         // -o 17:variant:resolution:iters:passes (gve=default, gveopt, gverabbit, dfs, bfs, hubsort, fast, modularity)
+    LeidenCSR = 16,         // -o 16:variant:resolution:iters:passes (vibe=default)
 };
 
 static const int64_t kRandSeed = 27491095;

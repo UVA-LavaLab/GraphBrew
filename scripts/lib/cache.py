@@ -210,12 +210,10 @@ def run_cache_simulation(
         cmd = f"{binary} -f {graph_path} {sym_flag} -o 13:{label_map_path} -n 1"
     else:
         # Build algorithm option string with variant if specified
-        if variant and algorithm == 17:  # LeidenCSR
+        if variant and algorithm == 16:  # LeidenCSR
             algo_opt = f"{algorithm}:{variant}:{resolution}:20:{passes}"
         elif variant and algorithm == 8:  # RabbitOrder
             algo_opt = f"{algorithm}:{variant}"
-        elif variant and algorithm == 16:  # LeidenDendrogram
-            algo_opt = f"{algorithm}:{variant}:{resolution}"
         else:
             algo_opt = str(algorithm)
         cmd = f"{binary} -f {graph_path} {sym_flag} -o {algo_opt} -n 1"
@@ -287,7 +285,6 @@ def run_cache_simulations(
     label_maps: Dict[str, Dict[str, str]] = None,
     leiden_csr_variants: List[str] = None,
     rabbit_variants: List[str] = None,
-    leiden_dendrogram_variants: List[str] = None,
     resolution: float = 1.0,
     passes: int = 3
 ) -> List[CacheResult]:
@@ -302,9 +299,8 @@ def run_cache_simulations(
         timeout: Timeout per simulation
         skip_heavy: Skip heavy benchmarks on large graphs
         label_maps: Optional pre-generated label maps
-        leiden_csr_variants: List of LeidenCSR variants (e.g., ['gve', 'gveopt', 'gvedendo'])
+        leiden_csr_variants: List of LeidenCSR variants (e.g., ['vibe', 'gve', 'gveopt'])
         rabbit_variants: List of RabbitOrder variants (e.g., ['csr', 'boost'])
-        leiden_dendrogram_variants: List of LeidenDendrogram variants
         resolution: Leiden resolution parameter
         passes: Leiden passes parameter
         
@@ -317,14 +313,11 @@ def run_cache_simulations(
     # Build expanded algorithm list with variants
     expanded_algos = []
     for algo_id in algorithms:
-        if algo_id == 17 and leiden_csr_variants:  # LeidenCSR
+        if algo_id == 16 and leiden_csr_variants:  # LeidenCSR
             for variant in leiden_csr_variants:
                 expanded_algos.append((algo_id, variant))
         elif algo_id == 8 and rabbit_variants:  # RabbitOrder
             for variant in rabbit_variants:
-                expanded_algos.append((algo_id, variant))
-        elif algo_id == 16 and leiden_dendrogram_variants:  # LeidenDendrogram
-            for variant in leiden_dendrogram_variants:
                 expanded_algos.append((algo_id, variant))
         else:
             expanded_algos.append((algo_id, None))
@@ -421,7 +414,7 @@ def run_cache_simulations_with_variants(
     Run cache simulations using variant-expanded label maps.
     
     This function iterates over all algorithm names found in label_maps
-    (including variant names like LeidenCSR_gve, LeidenDendrogram_dfs),
+    (including variant names like LeidenCSR_vibe, LeidenCSR_vibe:hrab),
     rather than iterating over base algorithm IDs.
     
     Args:
@@ -537,7 +530,7 @@ def _get_algo_id_from_name(algo_name: str) -> int:
         if algo_name == name:
             return algo_id
     
-    # Check for variant prefix (e.g., LeidenCSR_gve -> LeidenCSR -> 17)
+    # Check for variant prefix (e.g., LeidenCSR_vibe -> LeidenCSR -> 16)
     for algo_id, name in ALGORITHMS.items():
         if algo_name.startswith(name + "_"):
             return algo_id

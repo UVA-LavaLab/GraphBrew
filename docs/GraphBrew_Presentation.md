@@ -66,7 +66,7 @@
 └────────┬────────┘     └────────┬────────┘     └────────┬────────┘
          │                       │                       │
          ▼                       ▼                       ▼
-    RabbitOrder             HubClusterDBG            LeidenDendrogram
+    RabbitOrder             HubClusterDBG            LeidenCSR
 ```
 
 ---
@@ -123,7 +123,7 @@ final_score = score × benchmark_weights[benchmark]
 
 ## Slide 6: Supported Algorithms
 
-# 18 Reordering Algorithms
+# 17 Reordering Algorithms
 
 | ID | Algorithm | Best For |
 |----|-----------|----------|
@@ -143,8 +143,7 @@ final_score = score × benchmark_weights[benchmark]
 | 13 | MAP | External mapping file |
 | 14 | AdaptiveOrder | ML-powered selection |
 | 15 | LeidenOrder | GVE-Leiden baseline |
-| 16 | LeidenDendrogram | Deprecated (use LeidenCSR) |
-| 17 | LeidenCSR | Fast CSR-native Leiden |
+| 16 | LeidenCSR | Fast CSR-native Leiden |
 
 ---
 
@@ -448,7 +447,7 @@ Input: soc-LiveJournal1 (4.8M nodes, 68M edges)
 │                                                                 │
 │ Community 1 (450K nodes): dense, high clustering                │
 │   → Features: density=0.08, hub_conc=0.38                       │
-│   → Score: RABBITORDER=2.1, LeidenDendrogram=1.9, HubSort=1.5          │
+│   → Score: RABBITORDER=2.1, LeidenCSR=1.9, HubSort=1.5          │
 │   → SELECT: RABBITORDER                                         │
 │                                                                 │
 │ Community 2 (120K nodes): sparse, hub-dominated                 │
@@ -609,7 +608,7 @@ python3 scripts/graphbrew_experiment.py --fill-weights --graphs all
 ✅ **ML-based perceptron with 12 graph features**
 ✅ **Online learning with incremental weight updates**
 ✅ **Type-based weight specialization**
-✅ **18 reordering algorithms supported**
+✅ **17 reordering algorithms supported**
 ✅ **5 graph benchmarks (PR, BFS, CC, SSSP, BC)**
 ✅ **Cache simulation support**
 

@@ -249,8 +249,7 @@ The JSON uses algorithm names, which map to IDs:
 | 13 | MAP | Load reordering from file |
 | 14 | AdaptiveOrder | This perceptron model |
 | 15 | LeidenOrder | Basic Leiden ordering via GVE-Leiden (baseline reference) |
-| 16 | LeidenDendrogram | ⚠️ Deprecated — use LeidenCSR (17) variants |
-| 17 | LeidenCSR | Fast CSR-native Leiden (has variants) |
+| 16 | LeidenCSR | Fast CSR-native Leiden (has variants) |
 
 > **Note:** For current variant lists, see `scripts/lib/utils.py`.
 
@@ -373,7 +372,7 @@ Positive error → increase weights for features that predicted success. Negativ
 
 **Regret-aware grid search** optimizes per-benchmark multipliers (`benchmark_weights`) after base weight training. For each algorithm, it tests 30 random multiplier candidates from a log-spaced grid [0.1, 10.0], keeping combinations that maximize accuracy while minimizing regret (performance loss vs optimal).
 
-**Variant pre-collapse:** Before saving, only the highest-bias variant per base algorithm is kept (e.g., `LeidenCSR_gveopt2` beats `LeidenCSR_gve` → saved as `LeidenCSR`).
+**Variant pre-collapse:** Before saving, only the highest-bias variant per base algorithm is kept (e.g., `LeidenCSR_vibe:hrab` beats `LeidenCSR_vibe` → saved as `LeidenCSR`).
 
 ---
 

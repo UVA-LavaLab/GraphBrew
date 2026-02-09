@@ -84,8 +84,7 @@ ALGORITHMS = {
     13: "MAP",  # Load from file
     14: "AdaptiveOrder",
     15: "LeidenOrder",
-    16: "LeidenDendrogram",
-    17: "LeidenCSR",
+    16: "LeidenCSR",
 }
 
 # Reverse mapping
@@ -94,8 +93,8 @@ ALGORITHM_IDS = {v: k for k, v in ALGORITHMS.items()}
 # Algorithm categories
 QUICK_ALGORITHMS = {0, 1, 2, 3, 4, 5, 6, 7, 8}  # Fast algorithms
 SLOW_ALGORITHMS = {9, 10, 11}  # Gorder, Corder, RCM - can be slow on large graphs
-LEIDEN_ALGORITHMS = {15, 16, 17}
-COMMUNITY_ALGORITHMS = {8, 12, 14, 15, 16, 17}
+LEIDEN_ALGORITHMS = {15, 16}
+COMMUNITY_ALGORITHMS = {8, 12, 14, 15, 16}
 
 # RabbitOrder variant definitions (default: csr)
 # Format: -o 8:variant where variant = csr (default) or boost
@@ -111,26 +110,16 @@ GRAPHBREW_VARIANTS = ["leiden", "gve", "gveopt", "gvefast", "gveoptfast", "rabbi
 GRAPHBREW_DEFAULT_VARIANT = "leiden"  # Original Leiden library (backward compatible)
 
 # Leiden variant definitions
-LEIDEN_DENDROGRAM_VARIANTS = ["dfs", "dfshub", "dfssize", "bfs", "hybrid"]
-# LeidenCSR variants (default: gve for best quality)
-# Format: -o 17:variant:resolution:iterations:passes
+# LeidenCSR variants (default: vibe)
+# Format: -o 16:variant:resolution:iterations:passes
 # Resolution modes:
 #   - Fixed: 1.5 (use specified value)
 #   - Auto: "auto" or "0" (compute from graph density/CV)
-#   - Dynamic: "dynamic" (adjust per-pass, gveadaptive only)
+#   - Dynamic: "dynamic" (adjust per-pass)
 #   - Dynamic+Init: "dynamic_2.0" (start at 2.0, adjust per-pass)
-# New optimized variants:
-#   gveopt2: CSR-based aggregation (fastest reordering, best PR performance)
-#   gveadaptive: Dynamic resolution adjustment (best for unknown graphs)
-#   gveoptsort: Multi-level sort ordering (LeidenOrder-style)
-#   gveturbo: Speed-optimized (optional refinement skip)
-#   gvefast: CSR buffer reuse (leiden.hxx style)
-# Legacy variants: gvedendo/gveoptdendo (incremental dendrogram)
 # VIBE variants: vibe (Leiden-based), vibe:rabbit (RabbitOrder), vibe:streaming (lazy aggregation), vibe:lazyupdate (batched ctot)
 LEIDEN_CSR_VARIANTS = [
-    "gve", "gveopt", "gveopt2", "gveadaptive", "gveoptsort", "gveturbo", "gvefast",
-    "gvedendo", "gveoptdendo", "gverabbit", "dfs", "bfs", "hubsort", "modularity",
-    # VIBE variants (new unified reordering framework)
+    # VIBE variants (unified reordering framework)
     "vibe", "vibe:dfs", "vibe:bfs", "vibe:dbg", "vibe:corder", "vibe:dbg-global", "vibe:corder-global",
     "vibe:streaming", "vibe:streaming:dfs",  # Leiden + lazy aggregation
     "vibe:lazyupdate",  # Batched community weight updates (reduces atomics)
@@ -139,11 +128,11 @@ LEIDEN_CSR_VARIANTS = [
     "vibe:hrab:gordi",  # Hybrid Leiden+RabbitOrder with Gorder intra-community (best locality)
     "vibe:rabbit", "vibe:rabbit:dfs", "vibe:rabbit:bfs", "vibe:rabbit:dbg", "vibe:rabbit:corder"  # RabbitOrder
 ]
-LEIDEN_CSR_DEFAULT_VARIANT = "gveopt2"  # CSR-based aggregation (fastest + best quality)
+LEIDEN_CSR_DEFAULT_VARIANT = "vibe"  # VIBE default (best overall quality)
 
 # Recommended variants for different use cases
-LEIDEN_CSR_FAST_VARIANTS = ["gveopt2", "gveadaptive", "gveturbo", "gvefast", "gverabbit", "vibe:rabbit"]  # Speed priority
-LEIDEN_CSR_QUALITY_VARIANTS = ["gve", "gveopt", "gveopt2", "gveadaptive", "vibe", "vibe:dfs", "vibe:hrab", "vibe:hrab:gordi"]  # Quality priority
+LEIDEN_CSR_FAST_VARIANTS = ["vibe:rabbit", "vibe:streaming", "vibe"]  # Speed priority
+LEIDEN_CSR_QUALITY_VARIANTS = ["vibe", "vibe:dfs", "vibe:hrab", "vibe:hrab:gordi"]  # Quality priority
 
 # VIBE-specific variant groups
 VIBE_LEIDEN_VARIANTS = ["vibe", "vibe:dfs", "vibe:bfs", "vibe:dbg", "vibe:corder", "vibe:dbg-global", "vibe:corder-global", "vibe:streaming", "vibe:lazyupdate", "vibe:conn", "vibe:hrab", "vibe:hrab:gordi"]
@@ -506,8 +495,7 @@ def parse_algorithm_option(option: str) -> Tuple[int, List[str]]:
     
     Examples:
         "0" -> (0, [])
-        "16:hybrid:1.0" -> (16, ["hybrid", "1.0"])
-        "17:gve:1.0:20:10" -> (17, ["gve", "1.0", "20", "10"])
+        "16:vibe:quality" -> (16, ["vibe", "quality"])
     """
     parts = option.split(":")
     algo_id = int(parts[0])
@@ -529,8 +517,7 @@ def get_algorithm_name(option: str) -> str:
     ALWAYS includes variant in name for algorithms that have variants:
     - RABBITORDER (8): RABBITORDER_csr (default) or RABBITORDER_boost
     - GraphBrewOrder (12): GraphBrewOrder_leiden (default), GraphBrewOrder_gve, etc.
-    - LeidenDendrogram (16): LeidenDendrogram_dfs (default), etc.
-    - LeidenCSR (17): LeidenCSR_gve (default), LeidenCSR_gveopt, etc.
+    - LeidenCSR (16): LeidenCSR_vibe (default), LeidenCSR_vibe:hrab, etc.
     
     For other algorithms, returns the base name.
     """
@@ -540,7 +527,7 @@ def get_algorithm_name(option: str) -> str:
     # If params provided, use them to build name
     if params:
         # For variant-based algorithms, extract just the variant (first param)
-        if algo_id in [12, 16, 17]:  # GraphBrewOrder, LeidenDendrogram, LeidenCSR
+        if algo_id in [12, 16]:  # GraphBrewOrder, LeidenCSR
             return f"{base_name}_{params[0]}"
         # For RabbitOrder, include variant
         elif algo_id == 8:
@@ -553,10 +540,8 @@ def get_algorithm_name(option: str) -> str:
         return f"RABBITORDER_{RABBITORDER_DEFAULT_VARIANT}"
     elif algo_id == 12:  # GraphBrewOrder
         return f"{base_name}_{GRAPHBREW_DEFAULT_VARIANT}"
-    elif algo_id == 17:  # LeidenCSR
+    elif algo_id == 16:  # LeidenCSR
         return f"{base_name}_{LEIDEN_CSR_DEFAULT_VARIANT}"
-    elif algo_id == 16:  # LeidenDendrogram
-        return f"{base_name}_{LEIDEN_DENDROGRAM_VARIANTS[0]}"  # Default: dfs
     
     return base_name
 
@@ -569,17 +554,14 @@ def expand_algorithm_variants(algo_id: int) -> List[str]:
     Supported:
     - RabbitOrder (8): 8:csr, 8:boost
     - GraphBrewOrder (12): 12:leiden, 12:gve, 12:gveopt, 12:rabbit, 12:hubcluster
-    - LeidenDendrogram (16): 16:dfs, 16:dfshub, etc.
-    - LeidenCSR (17): 17:gve, 17:gveopt, 17:gvedendo, etc.
+    - LeidenCSR (16): 16:vibe, 16:vibe:hrab, 16:vibe:rabbit, etc.
     """
     if algo_id == 8:  # RABBITORDER
         return [f"8:{v}" for v in RABBITORDER_VARIANTS]
     elif algo_id == 12:  # GraphBrewOrder
         return [f"12:{v}" for v in GRAPHBREW_VARIANTS]
-    elif algo_id == 16:  # LeidenDendrogram
-        return [f"16:{v}:1.0" for v in LEIDEN_DENDROGRAM_VARIANTS]
-    elif algo_id == 17:  # LeidenCSR
-        return [f"17:{v}:1.0:20:10" for v in LEIDEN_CSR_VARIANTS]
+    elif algo_id == 16:  # LeidenCSR
+        return [f"16:{v}:1.0:20:10" for v in LEIDEN_CSR_VARIANTS]
     else:
         return [str(algo_id)]
 
@@ -823,12 +805,9 @@ def main():
             print(f"  {aid:2d}: {name}")
     
     if args.list_leiden_variants:
-        print("LeidenDendrogram (16) variants (format: 16:variant:resolution):")
-        for v in LEIDEN_DENDROGRAM_VARIANTS:
-            print(f"  -o 16:{v}:1.0")
-        print("\nLeidenCSR (17) variants (format: 17:variant:resolution:iterations:passes):")
+        print("LeidenCSR (16) variants (format: 16:variant:resolution:iterations:passes):")
         for v in LEIDEN_CSR_VARIANTS:
-            print(f"  -o 17:{v}:1.0:20:10")
+            print(f"  -o 16:{v}:1.0:20:10")
 
 
 if __name__ == "__main__":

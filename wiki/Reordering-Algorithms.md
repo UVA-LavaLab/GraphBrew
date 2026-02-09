@@ -1,6 +1,6 @@
 # Graph Reordering Algorithms
 
-GraphBrew implements **18 different vertex reordering algorithms** (IDs 0-17), each with unique characteristics suited for different graph topologies. This page explains each algorithm in detail.
+GraphBrew implements **17 different vertex reordering algorithms** (IDs 0-16), each with unique characteristics suited for different graph topologies. This page explains each algorithm in detail.
 
 Note: Algorithm ID 13 (MAP) is reserved for external label mapping files, not a standalone reordering algorithm.
 
@@ -24,7 +24,7 @@ Vertex 2 → 8, 1500, 3        Vertex 2 → 1, 3, 5
 | **DBG-Based** | DBG, HUBSORTDBG, HUBCLUSTERDBG | Cache locality |
 | **Community** | RABBITORDER | Hierarchical communities |
 | **Classic** | GORDER, CORDER, RCM | Bandwidth reduction |
-| **Leiden-Based** | LeidenOrder (15, baseline), ~~LeidenDendrogram (16)~~, LeidenCSR (17) | Strong community structure |
+| **Leiden-Based** | LeidenOrder (15, baseline), LeidenCSR (16) | Strong community structure |
 | **Hybrid** | GraphBrewOrder (12), MAP (13), AdaptiveOrder (14) | External/Adaptive selection |
 
 ---
@@ -201,7 +201,7 @@ These algorithms use different approaches: RabbitOrder detects communities, whil
 
 **Key insight**: Uses a "rabbit" metaphor where vertices "hop" to form communities.
 
-**Comparison with GVE-Leiden (Algorithm 17)**:
+**Comparison with GVE-Leiden (Algorithm 16)**:
 | Metric | RabbitOrder | GVE-Leiden |
 |--------|-------------|------------|
 | Algorithm | Louvain (no refinement) | Leiden (with refinement) |
@@ -333,61 +333,31 @@ GraphBrew consolidates Leiden algorithms into three main IDs with parameter-base
 
 - **Description**: Leiden community detection using the external GVE-Leiden library (requires CSR→DiGraph conversion)
 - **Complexity**: O(n log n) average
-- **Best for**: Baseline comparison — measures how much LeidenCSR (17) improved over the reference implementation
+- **Best for**: Baseline comparison — measures how much LeidenCSR (16) improved over the reference implementation
 - **Default resolution**: Auto-detected via continuous formula (0.5-1.2) with CV guardrail for power-law graphs
-- **Note**: LeidenCSR (17) reimplements this natively on CSR and is **28–95× faster** to reorder with equivalent kernel quality. Use LeidenCSR for production workloads.
+- **Note**: LeidenCSR (16) reimplements this natively on CSR and is **28–95× faster** to reorder with equivalent kernel quality. Use LeidenCSR for production workloads.
 
 **Key features:**
 - Uses GVE-Leiden C++ library by Subhajit Sahu (`external/leiden/`)
 - Requires CSR → DiGraph format conversion (adds overhead)
 - Produces high-quality modularity scores (reference quality)
 
-### 16. LeidenDendrogram ⚠️ (Deprecated)
-**Leiden community detection with dendrogram traversal**
-
-> **⚠️ Deprecated:** LeidenDendrogram is functionally superseded by LeidenCSR (17) variants
-> (`gvedendo`, `dfs`, `bfs`, `hubsort`) which produce equivalent kernel quality but reorder
-> **28–95× faster**. This algorithm is kept only for historical comparison. Use LeidenCSR (17) instead.
-
-```bash
-# Format: -o 16:variant:resolution
-./bench/bin/pr -f graph.el -s -o 16 -n 3                    # Default (auto-resolution, hybrid)
-./bench/bin/pr -f graph.el -s -o 16:dfs:1.0 -n 3            # DFS traversal
-./bench/bin/pr -f graph.el -s -o 16:dfshub:1.0 -n 3         # DFS hub-first
-./bench/bin/pr -f graph.el -s -o 16:dfssize:1.0 -n 3        # DFS size-first
-./bench/bin/pr -f graph.el -s -o 16:bfs:1.0 -n 3            # BFS traversal
-./bench/bin/pr -f graph.el -s -o 16:hybrid:1.0 -n 3         # Hybrid (recommended)
-```
-
-**Variants:**
-| Variant | Description | Best For |
-|---------|-------------|----------|
-| `dfs` | Standard DFS traversal | General hierarchical |
-| `dfshub` | DFS with hub-first ordering | Power-law graphs |
-| `dfssize` | DFS with size-first ordering | Uneven community sizes |
-| `bfs` | BFS level-order traversal | Wide hierarchies |
-| `hybrid` | Sort by (community, degree) | **Default - best overall** |
-
-### 17. LeidenCSR ⭐ (Fastest, Best Quality)
+### 16. LeidenCSR ⭐ (Fastest, Best Quality)
 **GVE-Leiden: Fast CSR-native Leiden with proper refinement**
 
 Implements the full Leiden algorithm from: *"Fast Leiden Algorithm for Community Detection in Shared Memory Setting"* (ACM DOI 10.1145/3673038.3673146)
 
 ```bash
-# Format: -o 17[:variant:resolution:iterations:passes]
-./bench/bin/pr -f graph.el -s -o 17 -n 3                    # Default: gveopt2 (fastest + best quality)
-./bench/bin/pr -f graph.el -s -o 17:gve:1.0:20:5 -n 3       # GVE-Leiden explicit params
-./bench/bin/pr -f graph.el -s -o 17:gveopt:auto -n 3        # Cache-optimized GVE, auto resolution
-./bench/bin/pr -f graph.el -s -o 17:gveopt2:2.0:20:10 -n 3  # CSR-based aggregation (fastest)
-./bench/bin/pr -f graph.el -s -o 17:gveadaptive:dynamic -n 3 # Dynamic resolution adjustment
-./bench/bin/pr -f graph.el -s -o 17:gvedendo:1.0:20:5 -n 3  # GVE with incremental dendrogram
-./bench/bin/pr -f graph.el -s -o 17:gveoptsort:auto -n 3    # Multi-level sort ordering
-./bench/bin/pr -f graph.el -s -o 17:gveturbo:1.0:5:10 -n 3  # Speed-optimized (skip refinement)
-./bench/bin/pr -f graph.el -s -o 17:gverabbit:1.0:5 -n 3    # GVE-Rabbit hybrid (fast)
-./bench/bin/pr -f graph.el -s -o 17:hubsort:1.0:10:3 -n 3   # Hub-sorted variant
-./bench/bin/pr -f graph.el -s -o 17:fast:1.0:10:2 -n 3      # Union-Find + Label Prop
-./bench/bin/pr -f graph.el -s -o 17:dfs:1.0:10:1 -n 3       # DFS ordering
-./bench/bin/pr -f graph.el -s -o 17:bfs:1.0:10:1 -n 3       # BFS ordering
+# Format: -o 16[:variant:resolution:iterations:passes]
+./bench/bin/pr -f graph.el -s -o 16 -n 3                         # Default: vibe (best overall)
+./bench/bin/pr -f graph.el -s -o 16:vibe -n 3                    # VIBE default
+./bench/bin/pr -f graph.el -s -o 16:vibe:quality -n 3            # High-quality community ordering
+./bench/bin/pr -f graph.el -s -o 16:vibe:rabbit -n 3             # VIBE + RabbitOrder within communities
+./bench/bin/pr -f graph.el -s -o 16:vibe:streaming -n 3          # Streaming/incremental (fastest)
+./bench/bin/pr -f graph.el -s -o 16:vibe:hrab -n 3               # Hybrid Leiden+Rabbit BFS ⭐
+./bench/bin/pr -f graph.el -s -o 16:vibe:hrab:gordi -n 3         # Hybrid Leiden+Rabbit Gorder
+./bench/bin/pr -f graph.el -s -o 16:vibe:dfs -n 3                # DFS traversal ordering
+./bench/bin/pr -f graph.el -s -o 16:vibe:bfs -n 3                # BFS traversal ordering
 ```
 
 **Resolution Parameter Modes:**
@@ -396,62 +366,52 @@ Implements the full Leiden algorithm from: *"Fast Leiden Algorithm for Community
 |------|--------|-------------|
 | **Fixed** | `1.5` | Use specified resolution value |
 | **Auto** | `auto` or `0` | Compute from graph density and CV |
-| **Dynamic** | `dynamic` | Auto initial, adjust per-pass (gveadaptive only) |
-| **Dynamic+Initial** | `dynamic_2.0` | Start at 2.0, adjust per-pass |
 
 ```bash
 # Resolution modes examples
-./bench/bin/pr -f graph.el -s -o 17:gveopt2:1.5 -n 3       # Fixed resolution
-./bench/bin/pr -f graph.el -s -o 17:gveopt2:auto -n 3      # Auto-computed resolution
-./bench/bin/pr -f graph.el -s -o 17:gveopt2:0 -n 3         # Same as auto
-./bench/bin/pr -f graph.el -s -o 17:gveadaptive:dynamic -n 3      # Dynamic adjustment
-./bench/bin/pr -f graph.el -s -o 17:gveadaptive:dynamic_2.0 -n 3  # Dynamic, start at 2.0
+./bench/bin/pr -f graph.el -s -o 16:vibe:1.5 -n 3               # Fixed resolution
+./bench/bin/pr -f graph.el -s -o 16:vibe:auto -n 3              # Auto-computed resolution
+./bench/bin/pr -f graph.el -s -o 16:vibe:0 -n 3                 # Same as auto
 ```
 
 **Variants:**
 | Variant | Description | Speed | Quality | Best For |
 |---------|-------------|-------|---------|----------|
-| `gve` | GVE-Leiden with refinement | Fast | **Best** | Modularity quality |
-| `gveopt` | Cache-optimized GVE with prefetching | **Faster** | **Best** | Large graphs |
-| `gveopt2` | **CSR-based aggregation (DEFAULT)** | **Fastest** | **Best** | Best overall ⭐ |
-| `gveadaptive` | **Dynamic resolution adjustment** | Fast | **Best** | Unknown graphs ⭐ |
-| `gveoptsort` | Multi-level sort ordering (LeidenOrder-style) | Fast | **Best** | Hierarchical |
-| `gveturbo` | Speed-optimized (optional refinement skip) | **Fastest** | Good | Speed priority |
-| `gvedendo` | GVE with incremental dendrogram | Fast | **Best** | Dendrogram needs |
-| `gveoptdendo` | GVEopt with incremental dendrogram | **Faster** | **Best** | Dendrogram needs |
-| `gvefast` | CSR buffer reuse (leiden.hxx style) | **Fastest** | **Best** | Large graphs |
-| `gverabbit` | GVE-Rabbit hybrid (limited iterations) | **Fastest** | Good | Very large graphs |
-| `dfs` | Hierarchical DFS | Fast | Good | Tree structures |
-| `bfs` | Level-first BFS | Fast | Good | Wide hierarchies |
-| `hubsort` | Community + degree sort | Fast | Good | Power-law graphs |
-| `fast` | Union-Find + Label Propagation | Very Fast | Moderate | Speed priority |
-| `modularity` | Modularity optimization | Fast | Good | Quality focus |
+| `vibe` | **VIBE unified framework (DEFAULT)** | **Fast** | **Best** | Best overall ⭐ |
+| `vibe:quality` | High-quality community detection + ordering | Fast | **Best** | Quality focus |
+| `vibe:rabbit` | VIBE + RabbitOrder within communities | **Fastest** | Good | Large graphs |
+| `vibe:streaming` | Streaming/incremental ordering | **Fastest** | Good | Speed priority |
+| `vibe:hrab` | **Hybrid Leiden+Rabbit BFS** | Fast | **Best** | Best amortization ⭐ |
+| `vibe:hrab:gordi` | Hybrid Leiden+Rabbit Gorder | Fast | **Best** | Hierarchical |
+| `vibe:dfs` | Hierarchical DFS traversal | Fast | Good | Tree structures |
+| `vibe:bfs` | Level-first BFS traversal | Fast | Good | Wide hierarchies |
+| `vibe:dbg` | Debug/verbose mode | Slow | N/A | Development |
 
 **Key Recommendations:**
-- **Best overall**: `gveopt2` — CSR-based aggregation, fastest + best quality
-- **Unknown graphs**: `gveadaptive:dynamic` — adjusts resolution per-pass
-- **Speed priority**: `gveturbo` — optional refinement skip
+- **Best overall**: `vibe` — unified reordering framework, best quality
+- **Best amortization**: `vibe:hrab` — hybrid Leiden+Rabbit for large graphs
+- **Speed priority**: `vibe:streaming` or `vibe:rabbit` — fastest variants
 - **High resolution** (1.0-2.0) creates more communities that fit better in cache — optimizing for locality, not sociological accuracy
 
-See [[Command-Line-Reference#leidencsr-17]] for resolution mode syntax.
+See [[Command-Line-Reference#leidencsr-16]] for resolution mode syntax.
 
 ### VIBE: Unified Reordering Framework
 
 **VIBE (Vertex Indexing for Better Efficiency)** provides a unified interface for graph reordering with two main algorithms (`vibe` Leiden-based, `vibe:rabbit` RabbitOrder-based) and configurable ordering strategies.
 
 ```bash
-# Format: -o 17:vibe[:algorithm][:ordering][:aggregation][:resolution_mode]
-./bench/bin/pr -f graph.mtx -s -o 17:vibe -n 3         # Leiden-based (default)
-./bench/bin/pr -f graph.mtx -s -o 17:vibe:conn -n 3    # Connectivity BFS ordering (default strategy)
-./bench/bin/pr -f graph.mtx -s -o 17:vibe:hrab -n 3    # Hybrid Leiden+RabbitOrder (best locality)
-./bench/bin/pr -f graph.mtx -s -o 17:vibe:rabbit -n 3  # RabbitOrder-based (single-pass)
-./bench/bin/pr -f graph.mtx -s -o 17:vibe:dynamic -n 3 # Dynamic resolution (adjusted per-pass)
-./bench/bin/pr -f graph.mtx -s -o 17:vibe:0.75 -n 3    # Fixed resolution
+# Format: -o 16:vibe[:algorithm][:ordering][:aggregation][:resolution_mode]
+./bench/bin/pr -f graph.mtx -s -o 16:vibe -n 3         # Leiden-based (default)
+./bench/bin/pr -f graph.mtx -s -o 16:vibe:conn -n 3    # Connectivity BFS ordering (default strategy)
+./bench/bin/pr -f graph.mtx -s -o 16:vibe:hrab -n 3    # Hybrid Leiden+RabbitOrder (best locality)
+./bench/bin/pr -f graph.mtx -s -o 16:vibe:rabbit -n 3  # RabbitOrder-based (single-pass)
+./bench/bin/pr -f graph.mtx -s -o 16:vibe:dynamic -n 3 # Dynamic resolution (adjusted per-pass)
+./bench/bin/pr -f graph.mtx -s -o 16:vibe:0.75 -n 3    # Fixed resolution
 ```
 
 **Key ordering strategies:** `vibe` (hierarchical), `vibe:dfs`/`bfs` (dendrogram traversal), `vibe:dbg`/`corder` (within communities), `vibe:conn` (connectivity BFS, default), `vibe:hrab` (hybrid Leiden+RabbitOrder — best for web/geometric graphs).
 
-See [[Command-Line-Reference#leidencsr-17]] for full option reference and [[Community-Detection]] for algorithm details.
+See [[Command-Line-Reference#leidencsr-16]] for full option reference and [[Community-Detection]] for algorithm details.
 
 ---
 
@@ -461,30 +421,30 @@ See [[Command-Line-Reference#leidencsr-17]] for full option reference and [[Comm
 
 | Graph Type | Recommended | Alternatives |
 |------------|-------------|--------------|
-| Social Networks | LeidenCSR (17:gveopt2) | LeidenCSR (17:gveadaptive) |
-| Web Graphs | VIBE (17:vibe:hrab) | LeidenCSR (17:gveopt2) |
-| Road Networks | ORIGINAL (0), RCM (11) | LeidenCSR (17:gveadaptive) |
-| Citation Networks | LeidenCSR (17:gve) | LeidenOrder (15) |
-| Random Geometric | VIBE (17:vibe:hrab) | LeidenCSR (17:gveopt2) |
-| Unknown | LeidenCSR (17:gveadaptive) | AdaptiveOrder (14) |
+| Social Networks | LeidenCSR (16:vibe) | LeidenCSR (16:vibe:quality) |
+| Web Graphs | LeidenCSR (16:vibe:hrab) | LeidenCSR (16:vibe) |
+| Road Networks | ORIGINAL (0), RCM (11) | LeidenCSR (16:vibe:quality) |
+| Citation Networks | LeidenCSR (16:vibe) | LeidenOrder (15) |
+| Random Geometric | LeidenCSR (16:vibe:hrab) | LeidenCSR (16:vibe) |
+| Unknown | LeidenCSR (16:vibe:quality) | AdaptiveOrder (14) |
 
 ### By Graph Size
 
 | Size | Nodes | Recommended |
 |------|-------|-------------|
 | Small | < 100K | Any (try several) |
-| Medium | 100K - 1M | LeidenCSR (17:gveopt2) |
-| Large | 1M - 100M | LeidenCSR (17:gveopt2), LeidenCSR (17:gveturbo) |
-| Very Large | > 100M | LeidenCSR (17:gveturbo), HUBCLUSTERDBG (7) |
+| Medium | 100K - 1M | LeidenCSR (16:vibe) |
+| Large | 1M - 100M | LeidenCSR (16:vibe), LeidenCSR (16:vibe:streaming) |
+| Very Large | > 100M | LeidenCSR (16:vibe:streaming), HUBCLUSTERDBG (7) |
 
 ### Quick Decision Tree
 
 ```
 Is your graph modular (has communities)?
 ├── Yes → Is it very large (>10M vertices)?
-│         ├── Yes → LeidenCSR (17:fast) for speed
-│         │         LeidenCSR (17:gve) for quality
-│         └── No → LeidenCSR (17) or (17:gve) - best quality
+│         ├── Yes → LeidenCSR (16:vibe:streaming) for speed
+│         │         LeidenCSR (16:vibe:hrab) for quality
+│         └── No → LeidenCSR (16:vibe) - best quality
 └── No/Unknown → Is it a power-law graph?
               ├── Yes → HUBCLUSTERDBG (7)
               └── No → Try AdaptiveOrder (14)
@@ -505,7 +465,7 @@ Running PageRank on a social network (1M vertices, 10M edges):
 | HUBCLUSTERDBG (7) | 0.72s | 1.39x |
 | RabbitOrder (8) | 0.68s | 1.47x |
 | LeidenOrder (15) | 0.65s | 1.54x |
-| LeidenCSR (17:gve) | 0.55s | 1.82x |
+| LeidenCSR (16:vibe) | 0.55s | 1.82x |
 
 ---
 

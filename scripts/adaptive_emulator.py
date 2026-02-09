@@ -146,8 +146,7 @@ except ImportError:
         13: "MAP",
         14: "AdaptiveOrder",
         15: "LeidenOrder",
-        16: "LeidenDendrogram",
-        17: "LeidenCSR",
+        16: "LeidenCSR",
     }
 
 # =============================================================================
@@ -774,7 +773,6 @@ class AdaptiveOrderEmulator:
         # Leiden algorithms typically perform well
         elif cluster > 0.1:
             scores['LeidenCSR'] = 1.0
-            scores['LeidenDendrogram'] = 0.95
             scores['DBG'] = 0.9
             scores['SORT'] = 0.85
             scores['RABBITORDER'] = 0.8
@@ -849,14 +847,14 @@ class AdaptiveOrderEmulator:
             recommendations = {
                 # Dense clustered graphs
                 'dense_clustered_bc': ['RABBITORDER', 'LeidenOrder', 'GORDER'],
-                'dense_clustered_bfs': ['LeidenOrder', 'LeidenDendrogram', 'GORDER'],
+                'dense_clustered_bfs': ['LeidenOrder', 'GORDER', 'RABBITORDER'],
                 'dense_clustered_cc': ['SORT', 'GORDER'],
                 'dense_clustered_pr': ['DBG', 'LeidenCSR', 'GraphBrewOrder'],
                 'dense_clustered_sssp': ['RABBITORDER', 'GORDER', 'LeidenOrder'],
                 # Dense flat graphs
                 'dense_flat_bc': ['RCM', 'LeidenCSR', 'GraphBrewOrder'],
                 'dense_flat_bfs': ['RCM', 'RABBITORDER', 'HUBCLUSTER'],
-                'dense_flat_cc': ['SORT', 'LeidenDendrogram', 'GORDER'],
+                'dense_flat_cc': ['SORT', 'LeidenCSR', 'GORDER'],
                 'dense_flat_pr': ['RANDOM', 'GraphBrewOrder', 'LeidenCSR'],
                 'dense_flat_sssp': ['GORDER', 'RCM', 'LeidenCSR'],
                 # Sparse hub graphs

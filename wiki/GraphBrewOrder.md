@@ -97,7 +97,7 @@ Largest communities:
 
 ## Comparison with Other Algorithms
 
-| Aspect | HUBCLUSTER (4) | LeidenOrder (15) | LeidenCSR (17) | GraphBrewOrder (12) |
+| Aspect | HUBCLUSTER (4) | LeidenOrder (15) | LeidenCSR (16) | GraphBrewOrder (12) |
 |--------|---------------|-----------------|---------------|--------------------|
 | Community locality | ❌ Poor | ✅ Good | ✅ Good | ✅ Excellent |
 | Internal ordering | Hub sort | Original | Configurable | Per-community (RabbitOrder) |

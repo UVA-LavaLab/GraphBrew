@@ -1237,15 +1237,8 @@ public:
             // GVE-Leiden library (baseline reference) - Format: 15:resolution
             GenerateLeidenMapping(g, new_ids, reordering_options);
             break;
-        case LeidenDendrogram:
-            // Leiden Dendrogram - Format: 16:resolution:variant
-            // Variants: dfs, dfshub, dfssize, bfs, hybrid (default: hybrid)
-            // ⚠️ DEPRECATED: Use LeidenCSR (17) variants instead
-            GenerateLeidenDendrogramMappingUnified(g, new_ids, reordering_options);
-            break;
         case LeidenCSR:
-            // Fast Leiden on CSR - Format: 17:variant:resolution:iterations:passes
-            // Variants: gve (default), gveopt, gverabbit, dfs, bfs, hubsort, fast, modularity
+            // Fast Leiden on CSR / VIBE - Format: 16:variant:resolution:iterations:passes
             GenerateLeidenCSRMappingUnified(g, new_ids, reordering_options);
             break;
         case GraphBrewOrder:
@@ -1413,13 +1406,8 @@ public:
             // GVE-Leiden library (baseline reference) - Format: 15:resolution
             GenerateLeidenMapping(g, new_ids, reordering_options);
             break;
-        case LeidenDendrogram:
-            // Leiden Dendrogram - Format: 16:resolution:variant
-            // ⚠️ DEPRECATED: Use LeidenCSR (17) variants instead
-            GenerateLeidenDendrogramMappingUnified(g, new_ids, reordering_options);
-            break;
         case LeidenCSR:
-            // Fast Leiden on CSR - Format: 17:variant:resolution:iterations:passes
+            // Fast Leiden on CSR / VIBE - Format: 16:variant:resolution:iterations:passes
             GenerateLeidenCSRMappingUnified(g, new_ids, reordering_options);
             break;
         case GraphBrewOrder:
@@ -2244,28 +2232,6 @@ public:
             tolerance_drop, max_iterations, max_passes);
     }
     
-    /**
-     * Generate mapping using GVELeidenDendo algorithm
-     * Delegates to ::GenerateGVELeidenDendoMapping in reorder/reorder_leiden.h
-     */
-    void GenerateGVELeidenDendoMapping(
-        const CSRGraph<NodeID_, DestID_, invert>& g,
-        pvector<NodeID_>& new_ids,
-        std::vector<std::string> reordering_options) {
-        ::GenerateGVELeidenDendoMapping<K, NodeID_, DestID_>(g, new_ids, reordering_options);
-    }
-    
-    /**
-     * Generate mapping using GVELeidenOptDendo algorithm
-     * Delegates to ::GenerateGVELeidenOptDendoMapping in reorder/reorder_leiden.h
-     */
-    void GenerateGVELeidenOptDendoMapping(
-        const CSRGraph<NodeID_, DestID_, invert>& g,
-        pvector<NodeID_>& new_ids,
-        std::vector<std::string> reordering_options) {
-        ::GenerateGVELeidenOptDendoMapping<K, NodeID_, DestID_>(g, new_ids, reordering_options);
-    }
-
     //==========================================================================
     // FAST LEIDEN-CSR: Direct CSR Community Detection (No DiGraph Conversion)
     //==========================================================================
@@ -2299,35 +2265,6 @@ public:
         return FastLeidenCSR<K>(g, resolution, max_iterations, max_passes);
     }
     
-    /**
-     * GenerateLeidenCSRMapping - Fast Leiden-style ordering directly on CSR
-     * 
-     * This avoids the expensive DiGraph conversion by using label propagation
-     * directly on the CSR graph structure. Produces similar quality to 
-     * LeidenOrder but much faster (~5-10x speedup on large graphs).
-     * 
-     * Algorithm:
-     * 1. Fast label propagation for multi-level community detection on CSR
-     * 2. Build dendrogram from hierarchical community structure
-     * 3. Apply ordering based on flavor (DFS, BFS, HubSort)
-     * 
-     * Flavors (int):
-     *   0: DFS (standard)
-     *   1: BFS (level-first)
-     *   2: HubSort (community + degree)
-     */
-    /**
-     * GenerateLeidenCSRMapping - Fast Leiden-style ordering directly on CSR
-     * 
-     * Delegates to ::GenerateLeidenCSRMapping in reorder/reorder_leiden.h
-     */
-    void GenerateLeidenCSRMapping(const CSRGraph<NodeID_, DestID_, invert>& g,
-                                   pvector<NodeID_>& new_ids,
-                                   std::vector<std::string> reordering_options,
-                                   int flavor = 2) {
-        ::GenerateLeidenCSRMapping<K, NodeID_, DestID_>(g, new_ids, reordering_options, flavor);
-    }
-
     //==========================================================================
     // LEIDENFAST: Parallel Community-Based Graph Reordering
     //==========================================================================
@@ -2380,22 +2317,6 @@ public:
             g, vertex_strength, community, ordered_vertices);
     }
     
-    /**
-     * GenerateLeidenFastMapping - Main entry point for LeidenFast algorithm
-     * 
-     * Improved version with:
-     * - Parallel Union-Find with atomic CAS
-     * - Best-fit modularity merging (not first-fit)
-     * - Hash-based label propagation (faster than sorted array)
-     * - Proper convergence detection
-     * 
-     * Delegates to ::GenerateLeidenFastMapping in reorder/reorder_leiden.h
-     */
-    void GenerateLeidenFastMapping(const CSRGraph<NodeID_, DestID_, invert>& g,
-                                   pvector<NodeID_>& new_ids,
-                                   std::vector<std::string> reordering_options) {
-        ::GenerateLeidenFastMapping<NodeID_, DestID_>(g, new_ids, reordering_options);
-    }
     
     //==========================================================================
     // LEIDEN (True Implementation): Quality-focused community detection
@@ -2462,15 +2383,6 @@ public:
             g, final_community, resolution, max_passes, max_iterations);
     }
     
-    /**
-     * GenerateLeidenMapping2 - Quality-focused Leiden reordering
-     * Delegates to ::GenerateLeidenMapping2 in reorder/reorder_leiden.h
-     */
-    void GenerateLeidenMapping2(const CSRGraph<NodeID_, DestID_, invert>& g,
-                                pvector<NodeID_>& new_ids,
-                                std::vector<std::string> reordering_options) {
-        ::GenerateLeidenMapping2<NodeID_, DestID_>(g, new_ids, reordering_options);
-    }
     
     void sort_by_vector_element(
         std::vector<std::vector<K>> &communityVectorTuplePerPass,
@@ -2675,134 +2587,10 @@ public:
         PrintTime("Resolution", resolution);
     }
 
-    //==========================================================================
-    // LEIDEN DENDROGRAM-BASED ORDERING (RabbitOrder-style traversal)
-    // NOTE: LeidenDendrogramNode, buildLeidenDendrogram, orderDendrogramDFSParallel
-    // are now in reorder/reorder_types.h
-    //==========================================================================
-
-    /**
-     * DFS ordering of dendrogram (sequential version)
-     * Delegates to ::orderDendrogramDFS in reorder/reorder_types.h
-     */
-    void orderDendrogramDFS(
-        const std::vector<LeidenDendrogramNode>& nodes,
-        const std::vector<int64_t>& roots,
-        pvector<NodeID_>& new_ids,
-        bool hub_first,
-        bool size_first) {
-        ::orderDendrogramDFS<NodeID_>(nodes, roots, new_ids, hub_first, size_first);
-    }
-
-    /**
-     * BFS ordering of dendrogram (by level)
-     * Delegates to ::orderDendrogramBFS in reorder/reorder_types.h
-     */
-    void orderDendrogramBFS(
-        const std::vector<LeidenDendrogramNode>& nodes,
-        const std::vector<int64_t>& roots,
-        pvector<NodeID_>& new_ids) {
-        ::orderDendrogramBFS<NodeID_>(nodes, roots, new_ids);
-    }
-
-    /**
-     * Hybrid ordering: sort by (community, degree descending)
-     * Delegates to ::orderLeidenHybridHubDFS in reorder/reorder_types.h
-     */
-    template<typename K>
-    void orderLeidenHybridHubDFS(
-        const std::vector<std::vector<K>>& communityMappingPerPass,
-        const std::vector<K>& degrees,
-        pvector<NodeID_>& new_ids) {
-        ::orderLeidenHybridHubDFS<K, NodeID_>(communityMappingPerPass, degrees, new_ids);
-    }
-
-    /**
-     * Unified Leiden Dendrogram Mapping - Parses variant from options
-     * Format: 16:resolution:variant
-     * Variants: dfs, dfshub, dfssize, bfs, hybrid (default: hybrid)
-     */
-    void GenerateLeidenDendrogramMappingUnified(
-        CSRGraph<NodeID_, DestID_, invert> &g,
-        pvector<NodeID_> &new_ids,
-        std::vector<std::string> reordering_options) {
-        
-        // Default values - use auto-resolution based on graph density
-        double resolution = LeidenAutoResolution<NodeID_, DestID_>(g);
-        std::string variant = "hybrid";
-        
-        // Parse options: variant, resolution (flexible order)
-        // Format: -o 16:variant:resolution or -o 16:variant or -o 16
-        // Resolution can be: "auto", "0", "dynamic", "dynamic:2.0", or numeric
-        // e.g., -o 16:hybrid:0.7 or -o 16:dfs or -o 16:dfs:dynamic
-        if (!reordering_options.empty() && !reordering_options[0].empty()) {
-            std::string first_opt = reordering_options[0];
-            // Check if first option is a variant name or a number (resolution)
-            if (first_opt == "dfs" || first_opt == "dfshub" || first_opt == "dfssize" || 
-                first_opt == "bfs" || first_opt == "hybrid") {
-                variant = first_opt;
-                // Check for optional resolution
-                if (reordering_options.size() > 1 && !reordering_options[1].empty()) {
-                    const std::string& res_opt = reordering_options[1];
-                    // Handle special keywords
-                    if (res_opt == "auto" || res_opt == "0" || res_opt.rfind("dynamic", 0) == 0) {
-                        // Keep auto-resolution
-                    } else {
-                        try {
-                            double parsed = std::stod(res_opt);
-                            if (parsed > 0 && parsed <= 3) {
-                                resolution = parsed;
-                            }
-                        } catch (...) {
-                            // Parse error, keep auto-resolution
-                        }
-                    }
-                }
-            } else {
-                // Check if first option is a special keyword or numeric resolution
-                if (first_opt == "auto" || first_opt == "0" || first_opt.rfind("dynamic", 0) == 0) {
-                    // Keep auto-resolution
-                } else {
-                    try {
-                        double parsed = std::stod(first_opt);
-                        if (parsed > 0 && parsed <= 3) {
-                            resolution = parsed;
-                        }
-                    } catch (...) {
-                        // Parse error, keep auto-resolution
-                    }
-                }
-                if (reordering_options.size() > 1 && !reordering_options[1].empty()) {
-                    variant = reordering_options[1];
-                }
-            }
-        }
-        
-        // Map variant string to internal flavor
-        // We'll use a simple approach: pass the original enum values internally
-        // but keep the implementation unchanged
-        std::vector<std::string> internal_options;
-        internal_options.push_back(std::to_string(resolution));
-        
-        printf("LeidenDendrogram: resolution=%.2f, variant=%s\n", resolution, variant.c_str());
-        
-        if (variant == "dfs") {
-            GenerateLeidenDendrogramMappingInternal(g, new_ids, internal_options, 0);
-        } else if (variant == "dfshub") {
-            GenerateLeidenDendrogramMappingInternal(g, new_ids, internal_options, 1);
-        } else if (variant == "dfssize") {
-            GenerateLeidenDendrogramMappingInternal(g, new_ids, internal_options, 2);
-        } else if (variant == "bfs") {
-            GenerateLeidenDendrogramMappingInternal(g, new_ids, internal_options, 3);
-        } else { // hybrid (default)
-            GenerateLeidenDendrogramMappingInternal(g, new_ids, internal_options, 4);
-        }
-    }
-    
     /**
      * Unified Leiden CSR Mapping - Parses variant from options
-     * Format: 17:variant:resolution:iterations:passes
-     * Variants: gveopt2 (default), gve, gveopt, gverabbit, dfs, bfs, hubsort, fast, modularity
+     * Format: 16:variant:resolution:iterations:passes
+     * Default variant: vibe (quality | speed | balanced)
      */
     void GenerateLeidenCSRMappingUnified(
         const CSRGraph<NodeID_, DestID_, invert> &g,
@@ -2814,12 +2602,12 @@ public:
         // Unified defaults across all Leiden algorithms for fair comparison
         int max_iterations = LEIDEN_DEFAULT_ITERATIONS;
         int max_passes = LEIDEN_DEFAULT_PASSES;
-        std::string variant = "gveopt2";  // Default to GVE-Leiden Opt2 (fastest + best quality)
+        std::string variant = "vibe";  // Default to VIBE
         std::string resolution_mode = "auto";
         
         // Parse options: variant, resolution, max_iterations, max_passes
-        // CLI format: -o 17:variant:resolution:max_iterations:max_passes
-        // e.g., -o 17:hubsort:1.0:10:5
+        // CLI format: -o 16:variant:resolution:max_iterations:max_passes
+        // e.g., -o 16:vibe:quality
         // Resolution can be: "auto", "0", "dynamic", "dynamic:2.0", or numeric
         if (!reordering_options.empty() && !reordering_options[0].empty()) {
             variant = reordering_options[0];
@@ -2872,76 +2660,8 @@ public:
         printf("LeidenCSR: resolution=%.2f, max_passes=%d, max_iterations=%d, variant=%s\n", 
                resolution, max_passes, max_iterations, variant.c_str());
         
-        // Prepare internal options: resolution (or mode string), max_iterations, max_passes
-        std::vector<std::string> internal_options;
-        // Pass through the original resolution string to let individual functions parse it
-        if (reordering_options.size() > 1 && !reordering_options[1].empty()) {
-            internal_options.push_back(reordering_options[1]);
-        } else {
-            internal_options.push_back(std::to_string(resolution));
-        }
-        internal_options.push_back(std::to_string(max_iterations));
-        internal_options.push_back(std::to_string(max_passes));
-        
-        if (variant == "dfs") {
-            GenerateLeidenCSRMapping(g, new_ids, internal_options, 0);
-        } else if (variant == "bfs") {
-            GenerateLeidenCSRMapping(g, new_ids, internal_options, 1);
-        } else if (variant == "hubsort") {
-            GenerateLeidenCSRMapping(g, new_ids, internal_options, 2);
-        } else if (variant == "fast") {
-            // LeidenFast: Union-Find + Label Propagation
-            GenerateLeidenFastMapping(g, new_ids, internal_options);
-        } else if (variant == "modularity") {
-            // True Leiden with modularity optimization
-            // GenerateLeidenMapping2 expects: [resolution, max_passes, max_iterations]
-            // Override to use 1 pass with 4 iterations for quality-focused detection
-            std::vector<std::string> modularity_options;
-            if (reordering_options.size() > 1 && !reordering_options[1].empty()) {
-                modularity_options.push_back(reordering_options[1]);  // resolution
-            } else {
-                modularity_options.push_back(std::to_string(resolution));
-            }
-            modularity_options.push_back("1");  // max_passes = 1
-            modularity_options.push_back("4");  // max_iterations = 4
-            GenerateLeidenMapping2(g, new_ids, modularity_options);
-        } else if (variant == "gve") {
-            // GVE-Leiden: True Leiden algorithm per ACM paper
-            GenerateGVELeidenCSRMapping(g, new_ids, internal_options);
-        } else if (variant == "gve2") {
-            // GVE-Leiden2: Double-buffered super-graph (leiden.hxx style) - faster
-            GenerateGVELeidenCSR2Mapping(g, new_ids, internal_options);
-        } else if (variant == "gveopt") {
-            // GVE-Leiden Optimized: Cache-optimized Leiden with prefetching
-            GenerateGVELeidenOptMapping(g, new_ids, internal_options);
-        } else if (variant == "gvedendo" || variant == "dendo") {
-            // GVE-Leiden with incremental dendrogram (RabbitOrder-inspired)
-            GenerateGVELeidenDendoMapping(g, new_ids, internal_options);
-        } else if (variant == "gveoptdendo" || variant == "optdendo") {
-            // GVE-Leiden Optimized with incremental dendrogram
-            GenerateGVELeidenOptDendoMapping(g, new_ids, internal_options);
-        } else if (variant == "gveoptsort" || variant == "optsort") {
-            // GVE-Leiden Optimized with LeidenOrder-style multi-level sort (Strategy 1)
-            GenerateGVELeidenOptSortMapping(g, new_ids, internal_options);
-        } else if (variant == "gveopt2" || variant == "opt2") {
-            // GVE-Leiden Opt2: CSR-based aggregation (faster than sort-based)
-            GenerateGVELeidenOpt2Mapping(g, new_ids, internal_options);
-        } else if (variant == "gveadaptive" || variant == "adaptive") {
-            // GVE-Leiden Adaptive: Dynamic resolution adjustment each pass
-            GenerateGVELeidenAdaptiveMapping(g, new_ids, internal_options);
-        } else if (variant == "gvefast" || variant == "fast2") {
-            // GVE-Leiden Fast: CSR buffer reuse (leiden.hxx style aggregation)
-            GenerateGVELeidenFastMapping(g, new_ids, internal_options);
-        } else if (variant == "gveturbo" || variant == "turbo") {
-            // GVE-Leiden Turbo: Maximum speed (no refinement, early termination)
-            GenerateGVELeidenTurboMapping(g, new_ids, internal_options);
-        } else if (variant == "gverabbit" || variant == "rabbit") {
-            // GVE-Rabbit: Hybrid RabbitOrder speed + Leiden quality
-            GenerateGVERabbitMapping(g, new_ids, internal_options);
-        } else if (variant == "faithful") {
-            // Faithful 1:1 Leiden implementation (matches leiden.hxx exactly)
-            GenerateFaithfulMapping(g, new_ids, internal_options);
-        } else if (variant == "vibe" || variant.rfind("vibe:", 0) == 0 || variant.rfind("vibe", 0) == 0) {
+        // Dispatch to VIBE (the only supported variant)
+        if (variant == "vibe" || variant.rfind("vibe:", 0) == 0 || variant.rfind("vibe", 0) == 0) {
             // VIBE: Fully modular implementation
             // Supports combinations like: vibe, vibe:dfs, vibe:rabbit:bfs, etc.
             // Pass ALL reordering_options (except variant) through VIBE config parser
@@ -2969,88 +2689,18 @@ public:
             // Let VIBE parser handle everything
             GenerateVibeMapping(g, new_ids, vibe_options);
         } else {
-            // Default to GVE-Leiden (best quality)
-            GenerateGVELeidenCSRMapping(g, new_ids, internal_options);
+            // Default: redirect to vibe:quality
+            printf("⚠️  WARNING: Unknown variant '%s', using vibe:quality instead.\n", variant.c_str());
+            std::vector<std::string> vibe_options = {"quality"};
+            for (size_t i = 1; i < reordering_options.size(); ++i) {
+                if (!reordering_options[i].empty()) {
+                    vibe_options.push_back(reordering_options[i]);
+                }
+            }
+            GenerateVibeMapping(g, new_ids, vibe_options);
         }
     }
     
-    /**
-     * GenerateGVELeidenCSRMapping - True Leiden ordering using GVE-Leiden algorithm
-     * Delegates to ::GenerateGVELeidenCSRMapping in reorder/reorder_leiden.h
-     */
-    void GenerateGVELeidenCSRMapping(
-        const CSRGraph<NodeID_, DestID_, invert>& g,
-        pvector<NodeID_>& new_ids,
-        std::vector<std::string> reordering_options) {
-        ::GenerateGVELeidenCSRMapping<K, NodeID_, DestID_>(g, new_ids, reordering_options);
-    }
-
-    /**
-     * GenerateGVELeidenOptMapping - Optimized GVE-Leiden ordering
-     * Delegates to ::GenerateGVELeidenOptMapping in reorder/reorder_leiden.h
-     */
-    void GenerateGVELeidenOptMapping(
-        const CSRGraph<NodeID_, DestID_, invert>& g,
-        pvector<NodeID_>& new_ids,
-        std::vector<std::string> reordering_options) {
-        ::GenerateGVELeidenOptMapping<K, NodeID_, DestID_>(g, new_ids, reordering_options);
-    }
-
-    /**
-     * GenerateGVELeidenOpt2Mapping - GVE-Leiden with CSR-based aggregation
-     * Delegates to ::GenerateGVELeidenOpt2Mapping in reorder/reorder_leiden.h
-     */
-    void GenerateGVELeidenOpt2Mapping(
-        const CSRGraph<NodeID_, DestID_, invert>& g,
-        pvector<NodeID_>& new_ids,
-        std::vector<std::string> reordering_options) {
-        ::GenerateGVELeidenOpt2Mapping<K, NodeID_, DestID_>(g, new_ids, reordering_options);
-    }
-
-    /**
-     * GenerateGVELeidenAdaptiveMapping - GVE-Leiden with dynamic resolution
-     * Delegates to ::GenerateGVELeidenAdaptiveMapping in reorder/reorder_leiden.h
-     */
-    void GenerateGVELeidenAdaptiveMapping(
-        const CSRGraph<NodeID_, DestID_, invert>& g,
-        pvector<NodeID_>& new_ids,
-        std::vector<std::string> reordering_options) {
-        ::GenerateGVELeidenAdaptiveMapping<K, NodeID_, DestID_>(g, new_ids, reordering_options);
-    }
-
-    /**
-     * GenerateGVELeidenOptSortMapping - Optimized GVE-Leiden with sort-based ordering
-     * Delegates to ::GenerateGVELeidenOptSortMapping in reorder/reorder_leiden.h
-     */
-    void GenerateGVELeidenOptSortMapping(
-        const CSRGraph<NodeID_, DestID_, invert>& g,
-        pvector<NodeID_>& new_ids,
-        std::vector<std::string> reordering_options) {
-        ::GenerateGVELeidenOptSortMapping<K, NodeID_, DestID_>(g, new_ids, reordering_options);
-    }
-
-    /**
-     * GenerateGVELeidenTurboMapping - Maximum speed GVE-Leiden variant
-     * Delegates to ::GenerateGVELeidenTurboMapping in reorder/reorder_leiden.h
-     */
-    void GenerateGVELeidenTurboMapping(
-        const CSRGraph<NodeID_, DestID_, invert>& g,
-        pvector<NodeID_>& new_ids,
-        std::vector<std::string> reordering_options) {
-        ::GenerateGVELeidenTurboMapping<K, NodeID_, DestID_>(g, new_ids, reordering_options);
-    }
-
-    /**
-     * GenerateGVELeidenFastMapping - CSR buffer reuse variant
-     * Delegates to ::GenerateGVELeidenFastMapping in reorder/reorder_leiden.h
-     */
-    void GenerateGVELeidenFastMapping(
-        const CSRGraph<NodeID_, DestID_, invert>& g,
-        pvector<NodeID_>& new_ids,
-        std::vector<std::string> reordering_options) {
-        ::GenerateGVELeidenFastMapping<K, NodeID_, DestID_>(g, new_ids, reordering_options);
-    }
-
     // ========================================================================
     // GVE-Rabbit Hybrid Algorithm
     // 
@@ -3075,50 +2725,11 @@ public:
     // ========================================================================
 
     /**
-     * GVE-Rabbit Hybrid Result Structure
+     * GVE-Rabbit Result Structure
      * NOTE: GVERabbitResult is in reorder/reorder_types.h
-     * NOTE: GVERabbitCoreResult is in reorder/reorder_leiden.h (used by GVERabbitCore)
      */
     template <typename K = uint32_t>
     using GVERabbitResult = ::GVERabbitResult<K>;
-    
-    template <typename K = uint32_t>
-    using GVERabbitCoreResult = ::GVERabbitCoreResult<K>;
-
-    /**
-     * GVE-Rabbit Core Algorithm
-     * Delegates to ::GVERabbitCore in reorder/reorder_leiden.h
-     */
-    template <typename K = uint32_t>
-    ::GVERabbitCoreResult<K> GVERabbitCore(
-        const CSRGraph<NodeID_, DestID_, invert>& g,
-        double resolution = 1.0,
-        int max_iterations = 5) {
-        return ::GVERabbitCore<K, NodeID_, DestID_>(g, resolution, max_iterations);
-    }
-
-    /**
-     * GenerateGVERabbitMapping - GVE-Rabbit hybrid ordering
-     * Delegates to ::GenerateGVERabbitMapping in reorder/reorder_leiden.h
-     */
-    void GenerateGVERabbitMapping(
-        const CSRGraph<NodeID_, DestID_, invert>& g,
-        pvector<NodeID_>& new_ids,
-        std::vector<std::string> reordering_options) {
-        ::GenerateGVERabbitMapping<K, NodeID_, DestID_>(g, new_ids, reordering_options);
-    }
-
-    /**
-     * GenerateFaithfulMapping - Faithful 1:1 Leiden implementation
-     * Uses the new vibe::leiden() algorithm that exactly matches leiden.hxx
-     * Delegates to ::GenerateFaithfulMapping in reorder/reorder_leiden.h
-     */
-    void GenerateFaithfulMapping(
-        const CSRGraph<NodeID_, DestID_, invert>& g,
-        pvector<NodeID_>& new_ids,
-        std::vector<std::string> reordering_options) {
-        ::GenerateFaithfulMapping<K, NodeID_, DestID_>(g, new_ids, reordering_options);
-    }
 
     /**
      * GenerateVibeMapping - VIBE: Fully modular Leiden implementation
@@ -3154,188 +2765,6 @@ public:
         ::GenerateRabbitOrderCSRMapping<NodeID_, DestID_, WeightT_, invert>(g, new_ids);
     }
 
-
-    /**
-     * GenerateLeidenDendrogramMappingInternal - RabbitOrder-style ordering using Leiden communities
-     * 
-     * Flavor mapping (internal):
-     *   0: Standard DFS traversal
-     *   1: DFS with high-degree nodes first
-     *   2: DFS with largest subtrees first  
-     *   3: BFS by level
-     *   4: Sort by (community, degree descending) - Hybrid
-     */
-    void GenerateLeidenDendrogramMappingInternal(
-        CSRGraph<NodeID_, DestID_, invert> &g,
-        pvector<NodeID_> &new_ids,
-        std::vector<std::string> reordering_options,
-        int flavor) {
-        
-        using K = uint32_t;
-        using V = TYPE;
-        
-        Timer tm;
-        int64_t num_nodes = g.num_nodes();
-        
-        // Default Leiden parameters - use unified constants for fair comparison
-        double resolution = LeidenAutoResolution<NodeID_, DestID_>(g);
-        int maxIterations = LEIDEN_DEFAULT_ITERATIONS;
-        int maxPasses = LEIDEN_DEFAULT_PASSES;
-        
-        // Parse options if provided - handle "auto", "dynamic", or numeric
-        if (!reordering_options.empty() && reordering_options[0].size() > 0) {
-            const std::string& res_opt = reordering_options[0];
-            if (res_opt == "auto" || res_opt == "0" || res_opt.rfind("dynamic", 0) == 0) {
-                // Keep auto-resolution
-            } else {
-                try {
-                    double parsed = std::stod(res_opt);
-                    if (parsed > 0 && parsed <= 3) {
-                        resolution = parsed;
-                    }
-                } catch (...) {
-                    // Parse error, keep auto-resolution
-                }
-            }
-        }
-        if (reordering_options.size() > 1 && reordering_options[1].size() > 0) {
-            try { maxIterations = std::stoi(reordering_options[1]); } catch (...) {}
-        }
-        if (reordering_options.size() > 2 && reordering_options[2].size() > 0) {
-            try { maxPasses = std::stoi(reordering_options[2]); } catch (...) {}
-        }
-        
-        PrintTime("Leiden Resolution", resolution);
-        PrintTime("Leiden MaxIterations", maxIterations);
-        PrintTime("Leiden MaxPasses", maxPasses);
-        
-        // Build Leiden-compatible graph (PARALLEL edge construction)
-        tm.Start();
-        int64_t num_edges = g.num_edges_directed();
-        std::vector<std::tuple<size_t, size_t, double>> edges(num_edges);
-        
-        // Parallel edge list construction using CSR offsets
-        #pragma omp parallel for
-        for (int64_t u = 0; u < num_nodes; ++u) {
-            NodeID_ out_start = g.out_offset(u);
-            NodeID_ j = 0;
-            for (DestID_ neighbor : g.out_neigh(u)) {
-                if (g.is_weighted()) {
-                    NodeID_ dest = static_cast<NodeWeight<NodeID_, WeightT_>>(neighbor).v;
-                    WeightT_ weight = static_cast<NodeWeight<NodeID_, WeightT_>>(neighbor).w;
-                    edges[out_start + j] = std::make_tuple((size_t)u, (size_t)dest, (double)weight);
-                } else {
-                    edges[out_start + j] = std::make_tuple((size_t)u, (size_t)neighbor, 1.0);
-                }
-                ++j;
-            }
-        }
-        
-        bool symmetric = false;
-        bool weighted = g.is_weighted();
-        DiGraph<K, None, V> x;
-        readVecOmpW(x, edges, num_nodes, symmetric, weighted);
-        edges.clear();
-        x = symmetricizeOmp(x);
-        
-        tm.Stop();
-        PrintTime("DiGraph Build Time", tm.Seconds());
-        
-        // Run Leiden algorithm
-        tm.Start();
-        std::random_device dev;
-        std::default_random_engine rnd(dev());
-        int repeat = 1;
-        
-        auto result = leidenStaticOmp<false, false>(
-            rnd, x,
-            {repeat, resolution, 1e-12, 0.8, 1.0, maxIterations, maxPasses});
-        
-        tm.Stop();
-        PrintTime("Leiden Time", tm.Seconds());
-        PrintTime("Leiden Passes", result.passes);
-        PrintTime("Leiden Iterations", result.iterations);
-        
-        // Get community mappings per pass
-        std::vector<std::vector<K>> communityMappingPerPass = x.communityMappingPerPass;
-        PrintTime("Community Passes Stored", communityMappingPerPass.size());
-        
-        // Count unique communities in last pass for consistency with other Leiden variants
-        size_t num_communities = 0;
-        if (!communityMappingPerPass.empty()) {
-            const auto& last_pass = communityMappingPerPass.back();
-            std::set<K> unique_comms(last_pass.begin(), last_pass.end());
-            num_communities = unique_comms.size();
-        }
-        PrintTime("Num Communities", num_communities);
-        
-        // Get degrees
-        std::vector<K> degrees(num_nodes);
-        #pragma omp parallel for
-        for (int64_t i = 0; i < num_nodes; ++i) {
-            degrees[i] = g.out_degree(i);
-        }
-        
-        // Generate ordering based on flavor
-        tm.Start();
-        
-        switch (flavor) {
-            case 0: { // DFS
-                std::cout << "Ordering Flavor: DFS (Parallel DFS)" << std::endl;
-                std::vector<LeidenDendrogramNode> nodes;
-                std::vector<int64_t> roots;
-                buildLeidenDendrogram(nodes, roots, communityMappingPerPass, degrees, num_nodes);
-                PrintTime("Dendrogram Nodes", nodes.size());
-                PrintTime("Dendrogram Roots", roots.size());
-                orderDendrogramDFSParallel(nodes, roots, new_ids, false, false);
-                break;
-            }
-            case 1: { // DFSHub
-                std::cout << "Ordering Flavor: DFSHub (Parallel DFS, hub-first)" << std::endl;
-                std::vector<LeidenDendrogramNode> nodes;
-                std::vector<int64_t> roots;
-                buildLeidenDendrogram(nodes, roots, communityMappingPerPass, degrees, num_nodes);
-                PrintTime("Dendrogram Nodes", nodes.size());
-                PrintTime("Dendrogram Roots", roots.size());
-                orderDendrogramDFSParallel(nodes, roots, new_ids, true, false);
-                break;
-            }
-            case 2: { // DFSSize
-                std::cout << "Ordering Flavor: DFSSize (Parallel DFS, size-first)" << std::endl;
-                std::vector<LeidenDendrogramNode> nodes;
-                std::vector<int64_t> roots;
-                buildLeidenDendrogram(nodes, roots, communityMappingPerPass, degrees, num_nodes);
-                PrintTime("Dendrogram Nodes", nodes.size());
-                PrintTime("Dendrogram Roots", roots.size());
-                orderDendrogramDFSParallel(nodes, roots, new_ids, false, true);
-                break;
-            }
-            case 3: { // BFS
-                std::cout << "Ordering Flavor: BFS (BFS by level)" << std::endl;
-                std::vector<LeidenDendrogramNode> nodes;
-                std::vector<int64_t> roots;
-                buildLeidenDendrogram(nodes, roots, communityMappingPerPass, degrees, num_nodes);
-                PrintTime("Dendrogram Nodes", nodes.size());
-                PrintTime("Dendrogram Roots", roots.size());
-                orderDendrogramBFS(nodes, roots, new_ids);
-                break;
-            }
-            case 4: { // Hybrid (default)
-                std::cout << "Ordering Flavor: Hybrid (community + degree)" << std::endl;
-                orderLeidenHybridHubDFS(communityMappingPerPass, degrees, new_ids);
-                break;
-            }
-            default:
-                std::cerr << "Unknown LeidenDendrogram flavor: " << flavor << ", using DFSHub" << std::endl;
-                std::vector<LeidenDendrogramNode> nodes;
-                std::vector<int64_t> roots;
-                buildLeidenDendrogram(nodes, roots, communityMappingPerPass, degrees, num_nodes);
-                orderDendrogramDFSParallel(nodes, roots, new_ids, true, false);
-        }
-        
-        tm.Stop();
-        PrintTime("Ordering Time", tm.Seconds());
-    }
 
     // CommunityFeatures is now defined in reorder/reorder_types.h
     // Alias for backward compatibility within BuilderBase
@@ -3560,7 +2989,7 @@ public:
      * benefit from different reordering strategies:
      * 
      * - SOCIAL: High modularity, community structure, power-law degrees
-     *           Best: LeidenDendrogram, RabbitOrder
+     *           Best: LeidenCSR (VIBE), RabbitOrder
      * - ROAD: Mesh-like, low modularity, planar structure
      *         Best: RCMOrder (bandwidth reduction)
      * - WEB: High hub concentration, bow-tie structure
@@ -3926,7 +3355,7 @@ public:
     //   rabbit  - RabbitOrder clustering
     //   hubcluster - Simple hub-based clustering
     //
-    // Final algorithm: Any algorithm ID 0-17 (default: 8 = RabbitOrder)
+    // Final algorithm: Any algorithm ID 0-16 (default: 8 = RabbitOrder)
     // Resolution: Leiden resolution parameter (default: auto)
     // Levels: Recursion depth (default: 2)
     //

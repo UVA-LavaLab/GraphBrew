@@ -33,7 +33,6 @@ from .utils import (
     RABBITORDER_VARIANTS, RABBITORDER_DEFAULT_VARIANT,
     GRAPHBREW_VARIANTS, GRAPHBREW_DEFAULT_VARIANT,
     LEIDEN_CSR_VARIANTS, LEIDEN_CSR_DEFAULT_VARIANT,
-    LEIDEN_DENDROGRAM_VARIANTS,
 )
 
 # Initialize logger
@@ -827,7 +826,7 @@ def compute_weights_from_results(
     # Build training examples: (feature_vector, best_algorithm)
     # Map variant names to base algorithms for training (more examples per class)
     _VARIANT_PREFIXES = [
-        'GraphBrewOrder_', 'LeidenCSR_', 'LeidenDendrogram_', 'RABBITORDER_'
+        'GraphBrewOrder_', 'LeidenCSR_', 'RABBITORDER_'
     ]
     
     def _get_base(name):
@@ -1323,7 +1322,7 @@ def compute_weights_from_results(
         
         # Group variants by base algorithm
         _VARIANT_PREFIXES = [
-            'GraphBrewOrder_', 'LeidenCSR_', 'LeidenDendrogram_', 'RABBITORDER_'
+            'GraphBrewOrder_', 'LeidenCSR_', 'RABBITORDER_'
         ]
         
         def get_base(name):
@@ -1642,13 +1641,12 @@ def get_all_algorithm_variant_names() -> List[str]:
     - Base algorithms (ORIGINAL, RANDOM, SORT, HUBSORT, etc.)
     - RabbitOrder variants: RABBITORDER_csr, RABBITORDER_boost
     - GraphBrewOrder variants: GraphBrewOrder_leiden, GraphBrewOrder_gve, etc.
-    - LeidenDendrogram variants: LeidenDendrogram_dfs, LeidenDendrogram_dfshub, etc.
-    - LeidenCSR variants: LeidenCSR_gve, LeidenCSR_gveopt, LeidenCSR_gveopt2, etc.
+    - LeidenCSR variants: LeidenCSR_vibe, LeidenCSR_vibe:hrab, LeidenCSR_vibe:rabbit, etc.
     """
     names = []
     
     # Algorithms that have variants (with their base IDs)
-    VARIANT_ALGO_IDS = {8, 12, 16, 17}  # RabbitOrder, GraphBrewOrder, LeidenDendrogram, LeidenCSR
+    VARIANT_ALGO_IDS = {8, 12, 16}  # RabbitOrder, GraphBrewOrder, LeidenCSR
     
     for algo_id, algo_name in ALGORITHMS.items():
         if algo_name in ['MAP', 'AdaptiveOrder']:
@@ -1660,10 +1658,7 @@ def get_all_algorithm_variant_names() -> List[str]:
         elif algo_id == 12:  # GraphBrewOrder → expand to GraphBrewOrder_leiden, etc.
             for variant in GRAPHBREW_VARIANTS:
                 names.append(f"GraphBrewOrder_{variant}")
-        elif algo_id == 16:  # LeidenDendrogram → expand to LeidenDendrogram_dfs, etc.
-            for variant in LEIDEN_DENDROGRAM_VARIANTS:
-                names.append(f"LeidenDendrogram_{variant}")
-        elif algo_id == 17:  # LeidenCSR → expand to LeidenCSR_gve, etc.
+        elif algo_id == 16:  # LeidenCSR → expand to LeidenCSR_vibe, etc.
             for variant in LEIDEN_CSR_VARIANTS:
                 names.append(f"LeidenCSR_{variant}")
         else:
@@ -1676,8 +1671,8 @@ def initialize_default_weights(weights_dir: str = DEFAULT_WEIGHTS_DIR) -> Dict:
     """Initialize default weights for all algorithms including all variants.
     
     Creates entries for every variant of every algorithm so training can
-    capture performance differences between variants (e.g., LeidenCSR_gve
-    vs LeidenCSR_gveopt2 vs LeidenCSR_gveadaptive).
+    capture performance differences between variants (e.g., LeidenCSR_vibe
+    vs LeidenCSR_vibe:hrab vs LeidenCSR_vibe:rabbit).
     """
     weights = {}
     

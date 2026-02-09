@@ -153,7 +153,7 @@ class ReorderResult:
     
     Attributes:
         graph: Name of the graph that was reordered
-        algorithm_id: Numeric ID of the algorithm (0-17)
+        algorithm_id: Numeric ID of the algorithm (0-16)
         algorithm_name: Human-readable algorithm name
         success: Whether reordering completed successfully
         time_seconds: Time taken to reorder

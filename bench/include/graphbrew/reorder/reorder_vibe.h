@@ -100,26 +100,26 @@
  * COMMAND LINE USAGE
  * =============================================================================
  * 
- * Format: -o 17:[algorithm]:[ordering]:[aggregation]:[resolution]
+ * Format: -o 16:[algorithm]:[ordering]:[aggregation]:[resolution]
  * 
  * Leiden-based VIBE:
- *   ./bench/bin/pr -f graph.mtx -o 17:vibe -n 5           # Default (hierarchical, auto resolution)
- *   ./bench/bin/pr -f graph.mtx -o 17:vibe:dfs -n 5       # DFS ordering
- *   ./bench/bin/pr -f graph.mtx -o 17:vibe:dbg -n 5       # DBG per community
- *   ./bench/bin/pr -f graph.mtx -o 17:vibe:streaming -n 5 # Lazy aggregation
- *   ./bench/bin/pr -f graph.mtx -o 17:vibe:lazyupdate -n 5 # Batched ctot updates (reduces atomics)
- *   ./bench/bin/pr -f graph.mtx -o 17:vibe:conn -n 5       # Connectivity BFS (default ordering)
- *   ./bench/bin/pr -f graph.mtx -o 17:vibe:hrab -n 5       # Hybrid Leiden+RabbitOrder (best locality)
- *   ./bench/bin/pr -f graph.mtx -o 17:vibe:tqr -n 5        # Tile-Quantized RabbitOrder (cache-aligned)
- *   ./bench/bin/pr -f graph.mtx -o 17:vibe:auto -n 5      # Auto-computed resolution (fixed)
- *   ./bench/bin/pr -f graph.mtx -o 17:vibe:dynamic -n 5   # Dynamic resolution (per-pass adjustment)
- *   ./bench/bin/pr -f graph.mtx -o 17:vibe:0.75 -n 5      # Fixed resolution (0.75)
- *   ./bench/bin/pr -f graph.mtx -o 17:vibe:dfs:streaming:0.75 -n 5  # Combined
+ *   ./bench/bin/pr -f graph.mtx -o 16:vibe -n 5           # Default (hierarchical, auto resolution)
+ *   ./bench/bin/pr -f graph.mtx -o 16:vibe:dfs -n 5       # DFS ordering
+ *   ./bench/bin/pr -f graph.mtx -o 16:vibe:dbg -n 5       # DBG per community
+ *   ./bench/bin/pr -f graph.mtx -o 16:vibe:streaming -n 5 # Lazy aggregation
+ *   ./bench/bin/pr -f graph.mtx -o 16:vibe:lazyupdate -n 5 # Batched ctot updates (reduces atomics)
+ *   ./bench/bin/pr -f graph.mtx -o 16:vibe:conn -n 5       # Connectivity BFS (default ordering)
+ *   ./bench/bin/pr -f graph.mtx -o 16:vibe:hrab -n 5       # Hybrid Leiden+RabbitOrder (best locality)
+ *   ./bench/bin/pr -f graph.mtx -o 16:vibe:tqr -n 5        # Tile-Quantized RabbitOrder (cache-aligned)
+ *   ./bench/bin/pr -f graph.mtx -o 16:vibe:auto -n 5      # Auto-computed resolution (fixed)
+ *   ./bench/bin/pr -f graph.mtx -o 16:vibe:dynamic -n 5   # Dynamic resolution (per-pass adjustment)
+ *   ./bench/bin/pr -f graph.mtx -o 16:vibe:0.75 -n 5      # Fixed resolution (0.75)
+ *   ./bench/bin/pr -f graph.mtx -o 16:vibe:dfs:streaming:0.75 -n 5  # Combined
  * 
  * RabbitOrder:
- *   ./bench/bin/pr -f graph.mtx -o 17:vibe:rabbit -n 5    # RabbitOrder algorithm
- *   ./bench/bin/pr -f graph.mtx -o 17:vibe:rabbit:dfs -n 5  # + DFS post-ordering
- *   ./bench/bin/pr -f graph.mtx -o 17:vibe:rabbit:dbg -n 5  # + DBG post-ordering
+ *   ./bench/bin/pr -f graph.mtx -o 16:vibe:rabbit -n 5    # RabbitOrder algorithm
+ *   ./bench/bin/pr -f graph.mtx -o 16:vibe:rabbit:dfs -n 5  # + DFS post-ordering
+ *   ./bench/bin/pr -f graph.mtx -o 16:vibe:rabbit:dbg -n 5  # + DBG post-ordering
  *   # Note: RabbitOrder does not support dynamic resolution (falls back to auto)
  * 
  * =============================================================================
@@ -237,7 +237,14 @@ enum class VibeAlgorithm {
 enum class AggregationStrategy {
     LEIDEN_CSR,      ///< Standard Leiden CSR aggregation (accurate)
     RABBIT_LAZY,     ///< RabbitOrder-style lazy incremental merge (fast)
-    HYBRID           ///< Use lazy for early passes, CSR for final
+    HYBRID,          ///< Use lazy for early passes, CSR for final
+    GVE_CSR          ///< GVE-style aggregation: explicit super-graph adjacency + local-moving merge
+};
+
+/** Edge weight computation for M (total weight) */
+enum class MComputation {
+    HALF_EDGES,      ///< M = num_edges / 2 (standard undirected, leiden.hxx style)
+    TOTAL_EDGES      ///< M = num_edges (GVE style — tighter communities)
 };
 
 /** Ordering strategy for final vertex permutation */
@@ -289,6 +296,8 @@ struct VibeConfig {
     
     // Feature flags
     bool useRefinement = true;         ///< Enable Leiden refinement step
+    int  refinementDepth = -1;         ///< Which passes to refine: -1=all, 0=pass 0 only (GVE style), N=passes 0..N
+    MComputation mComputation = MComputation::HALF_EDGES;  ///< How to compute M (total edge weight)
     bool usePrefetch = true;           ///< Enable cache prefetching
     bool useParallelSort = true;       ///< Use parallel sorting
     bool verifyTopology = false;       ///< Verify topology after reordering
@@ -358,6 +367,8 @@ struct VibeConfig {
                 vc.aggregation = AggregationStrategy::RABBIT_LAZY; break;
             case reorder::AggregationStrategy::HYBRID:
                 vc.aggregation = AggregationStrategy::HYBRID; break;
+            case reorder::AggregationStrategy::GVE_CSR_MERGE:
+                vc.aggregation = AggregationStrategy::GVE_CSR; break;
             default:
                 vc.aggregation = AggregationStrategy::LEIDEN_CSR; break;
         }
@@ -410,6 +421,8 @@ struct VibeConfig {
                 cfg.aggregation = reorder::AggregationStrategy::LAZY_STREAMING; break;
             case AggregationStrategy::HYBRID:
                 cfg.aggregation = reorder::AggregationStrategy::HYBRID; break;
+            case AggregationStrategy::GVE_CSR:
+                cfg.aggregation = reorder::AggregationStrategy::GVE_CSR_MERGE; break;
             default:
                 cfg.aggregation = reorder::AggregationStrategy::CSR_BUFFER; break;
         }
@@ -901,6 +914,7 @@ bool changeCommunity(
     
     if constexpr (REFINE) {
         // In refinement, only move if we're the only member (singleton)
+        // Use 1.001 tolerance for floating-point rounding (from gveopt2)
         W old_ctot;
         #pragma omp atomic capture
         {
@@ -908,7 +922,7 @@ bool changeCommunity(
             ctot[old_comm] -= k_u;
         }
         
-        if (old_ctot > k_u) {
+        if (old_ctot > k_u * W(1.001)) {
             #pragma omp atomic
             ctot[old_comm] += k_u;
             return false;
@@ -1021,8 +1035,10 @@ int localMovingPhase(
                 K d = vcom[u];
                 
                 // REFINE: Skip if community has more than one member
+                // Use 1.001 tolerance factor (from gveopt2) to handle
+                // floating-point accumulation rounding errors
                 if constexpr (REFINE) {
-                    if (ctot[d] > vtot[u]) continue;
+                    if (ctot[d] > vtot[u] * Weight(1.001)) continue;
                 }
                 
                 scanCommunities<REFINE>(scanner, g, static_cast<NodeID_T>(u), 
@@ -1468,6 +1484,240 @@ void aggregateSuperGraphLeiden(
     for (size_t c = 0; c < C; ++c) {
         out.numEdges += out.degrees[c];
     }
+}
+
+//=============================================================================
+// SECTION 13b: GVE-STYLE AGGREGATION WITH SUPER-GRAPH LOCAL-MOVING
+//=============================================================================
+//
+// Ported from GVE's GVELeidenCSR() aggregation strategy.
+// Key difference from standard Leiden CSR: after aggregation, runs an
+// explicit local-moving phase on the super-graph adjacency lists to merge
+// refined sub-communities. This produces tighter communities.
+//=============================================================================
+
+/**
+ * GVE-style aggregation: build explicit adjacency lists + super-graph local-moving
+ * 
+ * Unlike standard aggregation which builds a SuperGraph struct for the next pass,
+ * GVE builds std::vector<std::pair<K,W>> adjacency lists per community and runs
+ * local-moving directly on them. This merges refined sub-communities more
+ * aggressively, producing better kernel performance.
+ * 
+ * @param vcom IN/OUT: community assignment (updated to merged communities)
+ * @param ctot OUT: community total weights (updated)
+ * @param g Original graph
+ * @param vtot Vertex total weights (original graph)
+ * @param C Number of communities (from renumbering)
+ * @param coff Community offset array
+ * @param cvtx Community vertex list
+ * @param M Total edge weight
+ * @param R Resolution parameter
+ * @param config VIBE configuration
+ * @return Number of final communities after merging
+ */
+template <typename K, typename NodeID_T, typename DestID_T>
+size_t aggregateGVEStyle(
+    std::vector<K>& vcom,
+    std::vector<Weight>& ctot,
+    const CSRGraph<NodeID_T, DestID_T, true>& g,
+    const std::vector<Weight>& vtot,
+    size_t C,
+    const std::vector<size_t>& coff,
+    const std::vector<K>& cvtx,
+    Weight M, Weight R,
+    const VibeConfig& config) {
+    
+    const int64_t N = g.num_nodes();
+    
+    // Compute community weights
+    std::vector<Weight> super_weight(C, Weight(0));
+    #pragma omp parallel for
+    for (int64_t v = 0; v < N; ++v) {
+        K c = vcom[v];
+        #pragma omp atomic
+        super_weight[c] += vtot[v];
+    }
+    
+    // Build super-graph adjacency using community-based approach
+    const int num_threads = omp_get_max_threads();
+    std::vector<std::vector<std::pair<K, Weight>>> super_adj(C);
+    
+    // Thread-local flat arrays for edge aggregation
+    std::vector<std::vector<Weight>> thread_edge_weights(num_threads);
+    std::vector<std::vector<K>> thread_touched_comms(num_threads);
+    for (int t = 0; t < num_threads; ++t) {
+        thread_edge_weights[t].resize(C, Weight(0));
+        thread_touched_comms[t].reserve(1000);
+    }
+    
+    // Aggregate edges community by community (parallel)
+    #pragma omp parallel
+    {
+        int tid = omp_get_thread_num();
+        Weight* edge_weights = thread_edge_weights[tid].data();
+        auto& touched = thread_touched_comms[tid];
+        
+        #pragma omp for schedule(dynamic, 256)
+        for (size_t c = 0; c < C; ++c) {
+            touched.clear();
+            
+            // Scan all vertices in this community
+            for (size_t i = coff[c]; i < coff[c + 1]; ++i) {
+                K u = cvtx[i];
+                
+                for (auto neighbor : g.out_neigh(u)) {
+                    NodeID_T v;
+                    Weight w;
+                    if constexpr (std::is_same_v<DestID_T, NodeID_T>) {
+                        v = neighbor;
+                        w = Weight(1);
+                    } else {
+                        v = neighbor.v;
+                        w = static_cast<Weight>(neighbor.w);
+                    }
+                    
+                    K cv = vcom[v];
+                    if (cv != static_cast<K>(c)) {
+                        if (edge_weights[cv] == Weight(0)) {
+                            touched.push_back(cv);
+                        }
+                        edge_weights[cv] += w;
+                    }
+                }
+            }
+            
+            // Build adjacency list for this community
+            super_adj[c].reserve(touched.size());
+            for (K d : touched) {
+                super_adj[c].emplace_back(d, edge_weights[d]);
+                edge_weights[d] = Weight(0);  // Reset for next community
+            }
+        }
+    }
+    
+    // ================================================================
+    // LOCAL-MOVING ON SUPER-GRAPH (from GVE's GVELeidenCSR)
+    // Merge refined communities using parallel local-moving
+    // ================================================================
+    
+    std::vector<K> super_comm(C);
+    std::vector<Weight> super_ctot(C);
+    
+    #pragma omp parallel for
+    for (size_t c = 0; c < C; ++c) {
+        super_comm[c] = static_cast<K>(c);
+        super_ctot[c] = super_weight[c];
+    }
+    
+    // Sequential flat arrays for super-graph local move
+    // (Matches gveopt2: sequential, simplified delta, limited iterations)
+    std::vector<Weight> sg_comm_weights(C, Weight(0));
+    std::vector<K> sg_touched(C);
+    
+    // Limit super-graph iterations (gveopt2 uses min(3, maxIterations))
+    int super_max_iter = std::min(3, config.maxIterations);
+    
+    for (int iter = 0; iter < super_max_iter; ++iter) {
+        int moves = 0;
+        
+        for (size_t c = 0; c < C; ++c) {
+            K d = super_comm[c];
+            Weight kc = super_weight[c];
+            Weight sigma_d = super_ctot[d];
+            
+            // Scan neighbor communities
+            int num_touched = 0;
+            Weight kc_to_d = Weight(0);
+            
+            for (auto& [nc, w] : super_adj[c]) {
+                K snc = super_comm[nc];
+                if (sg_comm_weights[snc] == Weight(0)) {
+                    sg_touched[num_touched++] = snc;
+                }
+                sg_comm_weights[snc] += w;
+                if (snc == d) kc_to_d += w;
+            }
+            
+            // Find best community using gveopt2's simplified delta formula
+            K best_comm = d;
+            Weight best_delta = Weight(0);
+            
+            for (int i = 0; i < num_touched; ++i) {
+                K e = sg_touched[i];
+                Weight kc_to_e = sg_comm_weights[e];
+                Weight sigma_e = super_ctot[e];
+                
+                Weight delta_removal = R * kc * (sigma_d - kc) / M;
+                Weight delta_addition;
+                if (e == d) {
+                    delta_addition = kc_to_d - delta_removal;
+                } else {
+                    delta_addition = kc_to_e - R * kc * sigma_e / M;
+                }
+                
+                Weight delta = delta_addition - delta_removal + kc_to_d;
+                
+                if (delta > best_delta || (delta == best_delta && e < best_comm)) {
+                    best_delta = delta;
+                    best_comm = e;
+                }
+            }
+            
+            // Clear touched communities
+            for (int i = 0; i < num_touched; ++i) {
+                sg_comm_weights[sg_touched[i]] = Weight(0);
+            }
+            
+            // Move if better
+            if (best_comm != d && best_delta > Weight(0)) {
+                super_ctot[d] -= kc;
+                super_ctot[best_comm] += kc;
+                super_comm[c] = best_comm;
+                moves++;
+            }
+        }
+        
+        if (moves == 0) break;
+    }
+    
+    // Map back to original vertices: vcom[v] = super_comm[old_vcom[v]]
+    #pragma omp parallel for
+    for (int64_t v = 0; v < N; ++v) {
+        K rc = vcom[v];
+        vcom[v] = super_comm[rc];
+    }
+    
+    // Renumber final communities contiguously
+    K max_final_comm = 0;
+    for (int64_t v = 0; v < N; ++v) {
+        max_final_comm = std::max(max_final_comm, vcom[v]);
+    }
+    
+    std::vector<K> final_renumber(max_final_comm + 1, K(-1));
+    K next_final_id = 0;
+    for (int64_t v = 0; v < N; ++v) {
+        K c = vcom[v];
+        if (final_renumber[c] == K(-1)) {
+            final_renumber[c] = next_final_id++;
+        }
+    }
+    
+    #pragma omp parallel for
+    for (int64_t v = 0; v < N; ++v) {
+        vcom[v] = final_renumber[vcom[v]];
+    }
+    
+    // Update ctot for the merged communities
+    size_t numFinal = static_cast<size_t>(next_final_id);
+    ctot.assign(ctot.size(), Weight(0));
+    #pragma omp parallel for
+    for (int64_t v = 0; v < N; ++v) {
+        #pragma omp atomic
+        ctot[vcom[v]] += vtot[v];
+    }
+    
+    return numFinal;
 }
 
 //=============================================================================
@@ -2577,14 +2827,17 @@ void orderHierarchicalSort(
     const size_t numPasses = result.membershipPerPass.size();
     
     auto comparator = [&](size_t a, size_t b) {
-        // Compare from coarsest (last) to finest (first)
-        for (size_t p = numPasses; p > 0; --p) {
+        // Compare from coarsest (last) to finest, using top 3 passes max
+        // This matches gveopt2's multi-level sort key structure
+        size_t startPass = (numPasses > 3) ? numPasses - 3 : 0;
+        for (size_t p = numPasses; p > startPass; --p) {
             K ca = result.membershipPerPass[p - 1][a];
             K cb = result.membershipPerPass[p - 1][b];
             if (ca != cb) return ca < cb;
         }
-        // Tie-break by degree (hubs first)
-        return degrees[a] > degrees[b];
+        // Tie-break by degree (hubs first), then vertex ID (determinism)
+        if (degrees[a] != degrees[b]) return degrees[a] > degrees[b];
+        return a < b;
     };
     
     if (config.useParallelSort) {
@@ -6160,7 +6413,9 @@ VibeResult<K> runVibe(
     const VibeConfig& config) {
     
     const int64_t N = g.num_nodes();
-    const Weight M = static_cast<Weight>(g.num_edges()) / 2.0;
+    const Weight M = (config.mComputation == MComputation::TOTAL_EDGES)
+        ? std::max(Weight(1), static_cast<Weight>(g.num_edges()))   // GVE style
+        : static_cast<Weight>(g.num_edges()) / 2.0;                // leiden.hxx style
     
     // Current resolution - may be adjusted if dynamic
     Weight currentResolution = config.resolution;
@@ -6213,8 +6468,14 @@ VibeResult<K> runVibe(
     int pass = 0;
     
     // Main loop
+    // GVE_CSR mode: always operate on original graph (flat loop, like GVE)
+    // Standard mode: switch to super-graph after pass 0
+    const bool gveMode = (config.aggregation == AggregationStrategy::GVE_CSR);
+    
     for (; pass < config.maxPasses && M > 0; ++pass) {
         bool isFirst = (pass == 0);
+        // In GVE mode, always treat as "first pass" (original graph)
+        bool useOriginalGraph = isFirst || gveMode;
         
         VIBE_TRACE("=== PASS %d (res=%.4f) ===", pass, currentResolution);
         
@@ -6224,7 +6485,7 @@ VibeResult<K> runVibe(
         phaseTimer.Start();
         
         int moveIters;
-        if (isFirst) {
+        if (useOriginalGraph) {
             moveIters = localMovingPhase<false, K>(
                 ucom, ctot, vaff, g, vcob, utot, M, currentResolution, passConfig);
         } else {
@@ -6238,10 +6499,13 @@ VibeResult<K> runVibe(
         
         // ================================================================
         // PHASE 2: REFINEMENT (if enabled)
+        // refinementDepth: -1=all passes, 0=pass 0 only (GVE), N=passes 0..N
         // ================================================================
-        if (config.useRefinement) {
+        bool doRefine = config.useRefinement && 
+                        (config.refinementDepth < 0 || pass <= config.refinementDepth);
+        if (doRefine) {
             // Save bounds
-            if (isFirst) {
+            if (useOriginalGraph) {
                 #pragma omp parallel for schedule(static, 4096)
                 for (int64_t u = 0; u < N; ++u) {
                     vcob[u] = ucom[u];
@@ -6256,7 +6520,7 @@ VibeResult<K> runVibe(
             }
             
             // Re-initialize to singletons
-            if (isFirst) {
+            if (useOriginalGraph) {
                 #pragma omp parallel for schedule(static, 4096)
                 for (int64_t u = 0; u < N; ++u) {
                     ucom[u] = static_cast<K>(u);
@@ -6272,7 +6536,7 @@ VibeResult<K> runVibe(
             }
             
             // Mark all affected
-            if (isFirst) {
+            if (useOriginalGraph) {
                 std::fill(vaff.begin(), vaff.end(), 1);
             } else {
                 size_t NS = sgY.numNodes;
@@ -6284,7 +6548,7 @@ VibeResult<K> runVibe(
             phaseTimer.Start();
             
             int refineIters;
-            if (isFirst) {
+            if (useOriginalGraph) {
                 refineIters = localMovingPhase<true, K>(
                     ucom, ctot, vaff, g, vcob, utot, M, currentResolution, passConfig);
             } else {
@@ -6302,19 +6566,26 @@ VibeResult<K> runVibe(
         // ================================================================
         // Check convergence
         // ================================================================
-        size_t NS = isFirst ? N : sgY.numNodes;
+        size_t NS = useOriginalGraph ? static_cast<size_t>(N) : sgY.numNodes;
         cmap.resize(NS);
-        size_t numCommunities = countCommunities(cmap, isFirst ? ucom : vcom, NS);
+        size_t numCommunities = countCommunities(cmap, useOriginalGraph ? ucom : vcom, NS);
         
         VIBE_TRACE("  communities: %zu (from %zu)", numCommunities, prevCommunities);
         
-        if (moveIters <= 1 || pass >= config.maxPasses - 1) {
-            result.membershipPerPass.push_back(ucom);
-            break;
-        }
-        
-        double ratio = static_cast<double>(numCommunities) / NS;
-        if (ratio >= config.aggregationTolerance) {
+        // GVE mode: skip pre-aggregation convergence checks
+        // gveopt2 only checks convergence AFTER aggregation
+        if (!gveMode) {
+            if (moveIters <= 1 || pass >= config.maxPasses - 1) {
+                result.membershipPerPass.push_back(ucom);
+                break;
+            }
+            
+            double ratio = static_cast<double>(numCommunities) / NS;
+            if (ratio >= config.aggregationTolerance) {
+                result.membershipPerPass.push_back(ucom);
+                break;
+            }
+        } else if (pass >= config.maxPasses - 1) {
             result.membershipPerPass.push_back(ucom);
             break;
         }
@@ -6322,12 +6593,51 @@ VibeResult<K> runVibe(
         // ================================================================
         // PHASE 3: AGGREGATION
         // ================================================================
-        size_t C = renumberCommunities(isFirst ? ucom : vcom, cmap, NS);
+        size_t C = renumberCommunities(useOriginalGraph ? ucom : vcom, cmap, NS);
         
         phaseTimer.Start();
         
         // Use configured aggregation strategy
-        if (config.aggregation == AggregationStrategy::LEIDEN_CSR ||
+        if (config.aggregation == AggregationStrategy::GVE_CSR) {
+            // GVE-style: build explicit adjacency lists + super-graph local-moving merge
+            // This produces tighter communities by merging refined sub-communities
+            buildCommunityVertices(coff, cvtx, useOriginalGraph ? ucom : vcom, NS, C);
+            size_t numFinal;
+            // GVE mode always operates on the original graph
+            numFinal = aggregateGVEStyle(ucom, ctot, g, utot, C, coff, cvtx,
+                                         M, currentResolution, config);
+            
+            phaseTimer.Stop();
+            result.aggregationTime += phaseTimer.Seconds();
+            VIBE_TRACE("  gve-aggregation: %zu -> %zu communities, %.4fs", C, numFinal, phaseTimer.Seconds());
+            
+            // Store membership
+            result.membershipPerPass.push_back(ucom);
+            
+            // Check convergence (compare against previous pass, not self)
+            if (numFinal >= prevCommunities || numFinal == 1) break;
+            
+            // Check aggregation tolerance
+            double gveProgress = static_cast<double>(numFinal) / prevCommunities;
+            if (gveProgress >= config.aggregationTolerance) break;
+            
+            // GVE-style loop operates on the original graph each pass
+            prevCommunities = numFinal;
+            
+            // Recompute ctot for next pass
+            ctot.assign(ctot.size(), Weight(0));
+            #pragma omp parallel for
+            for (int64_t v = 0; v < N; ++v) {
+                #pragma omp atomic
+                ctot[ucom[v]] += utot[v];
+            }
+            
+            // Reset affected flags
+            std::fill(vaff.begin(), vaff.end(), 1);
+            
+            passConfig.tolerance /= config.toleranceDrop;
+            continue;  // Skip standard SuperGraph path
+        } else if (config.aggregation == AggregationStrategy::LEIDEN_CSR ||
             (config.aggregation == AggregationStrategy::HYBRID && pass >= 2)) {
             // Leiden CSR: needs community vertex lists
             buildCommunityVertices(coff, cvtx, isFirst ? ucom : vcom, NS, C);
@@ -6488,13 +6798,17 @@ void generateVibeMapping(
         config.ordering == OrderingStrategy::HYBRID_LEIDEN_RABBIT ? "hybrid-rabbit" :
         config.ordering == OrderingStrategy::TILE_QUANTIZED_RABBIT ? "tile-quantized-rabbit" : "unknown";
     
-    printf("VIBE: aggregation=%s, ordering=%s, refinement=%s%s%s\n",
+    printf("VIBE: aggregation=%s, ordering=%s, refinement=%s (depth=%d)%s%s\n",
            config.aggregation == AggregationStrategy::LEIDEN_CSR ? "leiden" :
-           config.aggregation == AggregationStrategy::RABBIT_LAZY ? "streaming" : "hybrid",
+           config.aggregation == AggregationStrategy::RABBIT_LAZY ? "streaming" :
+           config.aggregation == AggregationStrategy::GVE_CSR ? "gve-csr" : "hybrid",
            orderingName,
            config.useRefinement ? "on" : "off",
+           config.refinementDepth,
            config.useCommunityMerging ? ", merge=on" : "",
            config.useHubExtraction ? ", hubx=on" : "");
+    if (config.mComputation == MComputation::TOTAL_EDGES)
+        printf("VIBE: mComputation=total-edges (GVE style)\n");
     if (config.useGorderIntra) {
         if (config.gorderFallback > 0)
             printf("VIBE: gord=on (window=%d, fallback=%d)\n", config.gorderWindow, config.gorderFallback);
@@ -6849,6 +7163,33 @@ inline VibeConfig parseVibeConfig(const std::vector<std::string>& options) {
         // Check for refinement
         else if (opt == "norefine") {
             config.useRefinement = false;
+        }
+        // Refinement depth control: refine0 = pass 0 only (GVE), refine2 = passes 0-2
+        else if (opt.size() > 6 && opt.substr(0, 6) == "refine" && std::isdigit(opt[6])) {
+            try {
+                int depth = std::stoi(opt.substr(6));
+                config.refinementDepth = depth;
+            } catch (...) {}
+        }
+        // M computation mode
+        else if (opt == "totalm" || opt == "gvem") {
+            config.mComputation = MComputation::TOTAL_EDGES;
+        } else if (opt == "halfm") {
+            config.mComputation = MComputation::HALF_EDGES;
+        }
+        // GVE-style aggregation
+        else if (opt == "gvecsr" || opt == "gve-csr") {
+            config.aggregation = AggregationStrategy::GVE_CSR;
+        }
+        // Quality preset: GVE detection quality in VIBE pipeline
+        // Sets: GVE_CSR aggregation, TOTAL_EDGES M, refinement on pass 0 only,
+        //        hierarchical ordering (top-3 pass multi-level sort)
+        // Note: maxIterations left at DEFAULT_MAX_ITERATIONS (10) to match gveopt2
+        else if (opt == "quality" || opt == "gve") {
+            config.aggregation = AggregationStrategy::GVE_CSR;
+            config.mComputation = MComputation::TOTAL_EDGES;
+            config.refinementDepth = 0;
+            config.ordering = OrderingStrategy::HIERARCHICAL;
         }
         // Check for lazy community weight updates
         else if (opt == "lazyupdate" || opt == "lazyupdates") {

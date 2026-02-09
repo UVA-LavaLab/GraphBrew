@@ -102,7 +102,7 @@ Graph: facebook.el
 │ ORIGINAL (0)       │ 18         │ 9.2e-7       │
 │ HUBCLUSTERDBG (7)  │ 16         │ 8.8e-7       │
 │ LeidenOrder (15)   │ 15         │ 9.1e-7       │
-│ LeidenCSR (17)     │ 14         │ 8.5e-7       │
+│ LeidenCSR (16)     │ 14         │ 8.5e-7       │
 └────────────────────┴────────────┴──────────────┘
 ```
 
