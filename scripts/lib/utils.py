@@ -37,7 +37,7 @@ ACTIVE_WEIGHTS_DIR = WEIGHTS_DIR / "active"  # Where C++ reads type_*.json from
 # =============================================================================
 # Unified Reorder Configuration Constants
 # Match C++ reorder::ReorderConfig in reorder_types.h
-# Used by: VIBE, Leiden, GraphBrew, RabbitOrder, Adaptive
+# Used by: GraphBrew, Leiden, GraphBrew, RabbitOrder, Adaptive
 # =============================================================================
 
 # Core defaults (single source of truth)
@@ -103,40 +103,40 @@ RABBITORDER_DEFAULT_VARIANT = "csr"  # Native CSR (faster, no external deps)
 
 # GraphBrewOrder variant definitions (default: leiden for backward compat)
 # Format: -o 12:cluster_variant:final_algo:resolution:levels
-# Now powered by VIBE pipeline. Cluster variants map to VIBE configurations.
+# Now powered by GraphBrew pipeline. Cluster variants map to GraphBrew configurations.
 # cluster_variant: leiden (default), gve, gveopt, rabbit, hubcluster
 # Examples: -o 12:gve:8, -o 12:rabbit:7, -o 12:hubcluster
 GRAPHBREW_VARIANTS = ["leiden", "gve", "gveopt", "rabbit", "hubcluster"]
-GRAPHBREW_DEFAULT_VARIANT = "leiden"  # Uses VIBE Leiden-CSR aggregation
+GRAPHBREW_DEFAULT_VARIANT = "leiden"  # Uses GraphBrew Leiden-CSR aggregation
 
 # Leiden variant definitions
-# LeidenCSR variants (default: vibe)
+# LeidenCSR variants (default: graphbrew)
 # Format: -o 16:variant:resolution:iterations:passes
 # Resolution modes:
 #   - Fixed: 1.5 (use specified value)
 #   - Auto: "auto" or "0" (compute from graph density/CV)
 #   - Dynamic: "dynamic" (adjust per-pass)
 #   - Dynamic+Init: "dynamic_2.0" (start at 2.0, adjust per-pass)
-# VIBE variants: vibe (Leiden-based), vibe:rabbit (RabbitOrder), vibe:streaming (lazy aggregation), vibe:lazyupdate (batched ctot)
+# GraphBrew variants: graphbrew (Leiden-based), graphbrew:rabbit (RabbitOrder), graphbrew:streaming (lazy aggregation), graphbrew:lazyupdate (batched ctot)
 LEIDEN_CSR_VARIANTS = [
-    # VIBE variants (unified reordering framework)
-    "vibe", "vibe:dfs", "vibe:bfs", "vibe:dbg", "vibe:corder", "vibe:dbg-global", "vibe:corder-global",
-    "vibe:streaming", "vibe:streaming:dfs",  # Leiden + lazy aggregation
-    "vibe:lazyupdate",  # Batched community weight updates (reduces atomics)
-    "vibe:conn",  # Connectivity BFS within communities (Boost-style, default ordering)
-    "vibe:hrab",  # Hybrid Leiden+RabbitOrder with BFS intra-community (best SSSP)
-    "vibe:hrab:gordi",  # Hybrid Leiden+RabbitOrder with Gorder intra-community (best locality)
-    "vibe:rabbit", "vibe:rabbit:dfs", "vibe:rabbit:bfs", "vibe:rabbit:dbg", "vibe:rabbit:corder"  # RabbitOrder
+    # GraphBrew variants (unified reordering framework)
+    "graphbrew", "graphbrew:dfs", "graphbrew:bfs", "graphbrew:dbg", "graphbrew:corder", "graphbrew:dbg-global", "graphbrew:corder-global",
+    "graphbrew:streaming", "graphbrew:streaming:dfs",  # Leiden + lazy aggregation
+    "graphbrew:lazyupdate",  # Batched community weight updates (reduces atomics)
+    "graphbrew:conn",  # Connectivity BFS within communities (Boost-style, default ordering)
+    "graphbrew:hrab",  # Hybrid Leiden+RabbitOrder with BFS intra-community (best SSSP)
+    "graphbrew:hrab:gordi",  # Hybrid Leiden+RabbitOrder with Gorder intra-community (best locality)
+    "graphbrew:rabbit", "graphbrew:rabbit:dfs", "graphbrew:rabbit:bfs", "graphbrew:rabbit:dbg", "graphbrew:rabbit:corder"  # RabbitOrder
 ]
-LEIDEN_CSR_DEFAULT_VARIANT = "vibe"  # VIBE default (best overall quality)
+LEIDEN_CSR_DEFAULT_VARIANT = "graphbrew"  # GraphBrew default (best overall quality)
 
 # Recommended variants for different use cases
-LEIDEN_CSR_FAST_VARIANTS = ["vibe:rabbit", "vibe:streaming", "vibe"]  # Speed priority
-LEIDEN_CSR_QUALITY_VARIANTS = ["vibe", "vibe:dfs", "vibe:hrab", "vibe:hrab:gordi"]  # Quality priority
+LEIDEN_CSR_FAST_VARIANTS = ["graphbrew:rabbit", "graphbrew:streaming", "graphbrew"]  # Speed priority
+LEIDEN_CSR_QUALITY_VARIANTS = ["graphbrew", "graphbrew:dfs", "graphbrew:hrab", "graphbrew:hrab:gordi"]  # Quality priority
 
-# VIBE-specific variant groups
-VIBE_LEIDEN_VARIANTS = ["vibe", "vibe:dfs", "vibe:bfs", "vibe:dbg", "vibe:corder", "vibe:dbg-global", "vibe:corder-global", "vibe:streaming", "vibe:lazyupdate", "vibe:conn", "vibe:hrab", "vibe:hrab:gordi"]
-VIBE_RABBIT_VARIANTS = ["vibe:rabbit", "vibe:rabbit:dfs", "vibe:rabbit:bfs", "vibe:rabbit:dbg", "vibe:rabbit:corder"]
+# GraphBrew-specific variant groups
+GRAPHBREW_LEIDEN_VARIANTS = ["graphbrew", "graphbrew:dfs", "graphbrew:bfs", "graphbrew:dbg", "graphbrew:corder", "graphbrew:dbg-global", "graphbrew:corder-global", "graphbrew:streaming", "graphbrew:lazyupdate", "graphbrew:conn", "graphbrew:hrab", "graphbrew:hrab:gordi"]
+GRAPHBREW_RABBIT_VARIANTS = ["graphbrew:rabbit", "graphbrew:rabbit:dfs", "graphbrew:rabbit:bfs", "graphbrew:rabbit:dbg", "graphbrew:rabbit:corder"]
 
 # Resolution modes
 LEIDEN_RESOLUTION_MODES = ["auto", "dynamic", "1.0", "1.5", "2.0"]
@@ -495,7 +495,7 @@ def parse_algorithm_option(option: str) -> Tuple[int, List[str]]:
     
     Examples:
         "0" -> (0, [])
-        "16:vibe:quality" -> (16, ["vibe", "quality"])
+        "16:graphbrew:quality" -> (16, ["graphbrew", "quality"])
     """
     parts = option.split(":")
     algo_id = int(parts[0])
@@ -517,7 +517,7 @@ def get_algorithm_name(option: str) -> str:
     ALWAYS includes variant in name for algorithms that have variants:
     - RABBITORDER (8): RABBITORDER_csr (default) or RABBITORDER_boost
     - GraphBrewOrder (12): GraphBrewOrder_leiden (default), GraphBrewOrder_gve, etc.
-    - LeidenCSR (16): LeidenCSR_vibe (default), LeidenCSR_vibe:hrab, etc.
+    - LeidenCSR (16): LeidenCSR_graphbrew (default), LeidenCSR_graphbrew:hrab, etc.
     
     For other algorithms, returns the base name.
     """
@@ -554,7 +554,7 @@ def expand_algorithm_variants(algo_id: int) -> List[str]:
     Supported:
     - RabbitOrder (8): 8:csr, 8:boost
     - GraphBrewOrder (12): 12:leiden, 12:gve, 12:gveopt, 12:rabbit, 12:hubcluster
-    - LeidenCSR (16): 16:vibe, 16:vibe:hrab, 16:vibe:rabbit, etc.
+    - LeidenCSR (16): 16:graphbrew, 16:graphbrew:hrab, 16:graphbrew:rabbit, etc.
     """
     if algo_id == 8:  # RABBITORDER
         return [f"8:{v}" for v in RABBITORDER_VARIANTS]

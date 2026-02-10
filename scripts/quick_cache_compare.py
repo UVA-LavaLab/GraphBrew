@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """
-Quick Cache Comparison - Compare VIBE Variants vs RabbitOrder
+Quick Cache Comparison - Compare GraphBrew +Variants vs RabbitOrder
 =============================================================
 
 Runs cache simulation benchmarks comparing different community detection
 variants to measure their impact on cache performance:
 
-- VIBE variants (vibe, vibe:quality, vibe:hrab, vibe:rabbit, vibe:streaming, etc.)
+- GraphBrew variants (graphbrew, graphbrew:quality, graphbrew:hrab, graphbrew:rabbit, graphbrew:streaming, etc.)
 - RabbitOrder variants (csr, boost)
 
 Outputs:
@@ -33,16 +33,16 @@ from pathlib import Path
 # Config
 GRAPHS = ["web-Google", "web-BerkStan", "as-Skitter", "wiki-Talk", "roadNet-CA"]  # Variety of graph types
 VARIANTS = [
-    # VIBE variants
-    ("16:vibe", "VIBE"),                         # Default VIBE
-    ("16:vibe:quality", "VIBE-Quality"),          # High-quality community ordering
-    ("16:vibe:rabbit", "VIBE-Rabbit"),            # VIBE + RabbitOrder within communities
-    ("16:vibe:streaming", "VIBE-Streaming"),      # Streaming/incremental (fastest)
-    ("16:vibe:hrab", "VIBE-HRAB"),                # Hybrid Leiden+Rabbit BFS (best)
-    ("16:vibe:hrab:gordi", "VIBE-HRAB-Gordi"),    # Hybrid Leiden+Rabbit Gorder
-    ("16:vibe:dfs", "VIBE-DFS"),                  # DFS traversal ordering
-    ("16:vibe:bfs", "VIBE-BFS"),                  # BFS traversal ordering
-    ("16:vibe:dbg", "VIBE-DBG"),                  # Debug/verbose mode
+    # GraphBrew variants
+    ("16:graphbrew", "GraphBrew"),                         # Default GraphBrew
+    ("16:graphbrew:quality", "GraphBrew-Quality"),          # High-quality community ordering
+    ("16:graphbrew:rabbit", "GraphBrew-Rabbit"),            # GraphBrew ++ RabbitOrder within communities
+    ("16:graphbrew:streaming", "GraphBrew-Streaming"),      # Streaming/incremental (fastest)
+    ("16:graphbrew:hrab", "GraphBrew-HRAB"),                # Hybrid Leiden+Rabbit BFS (best)
+    ("16:graphbrew:hrab:gordi", "GraphBrew-HRAB-Gordi"),    # Hybrid Leiden+Rabbit Gorder
+    ("16:graphbrew:dfs", "GraphBrew-DFS"),                  # DFS traversal ordering
+    ("16:graphbrew:bfs", "GraphBrew-BFS"),                  # BFS traversal ordering
+    ("16:graphbrew:dbg", "GraphBrew-DBG"),                  # Debug/verbose mode
     # RabbitOrder variants
     ("8:csr", "RabbitCSR"),                      # Native CSR (fast, no deps)
     ("8:boost", "RabbitBoost"),                  # Boost-based

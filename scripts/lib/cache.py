@@ -299,7 +299,7 @@ def run_cache_simulations(
         timeout: Timeout per simulation
         skip_heavy: Skip heavy benchmarks on large graphs
         label_maps: Optional pre-generated label maps
-        leiden_csr_variants: List of LeidenCSR variants (e.g., ['vibe', 'gve', 'gveopt'])
+        leiden_csr_variants: List of LeidenCSR variants (e.g., ['graphbrew', 'gve', 'gveopt'])
         rabbit_variants: List of RabbitOrder variants (e.g., ['csr', 'boost'])
         resolution: Leiden resolution parameter
         passes: Leiden passes parameter
@@ -414,7 +414,7 @@ def run_cache_simulations_with_variants(
     Run cache simulations using variant-expanded label maps.
     
     This function iterates over all algorithm names found in label_maps
-    (including variant names like LeidenCSR_vibe, LeidenCSR_vibe:hrab),
+    (including variant names like LeidenCSR_graphbrew, LeidenCSR_graphbrew:hrab),
     rather than iterating over base algorithm IDs.
     
     Args:
@@ -530,7 +530,7 @@ def _get_algo_id_from_name(algo_name: str) -> int:
         if algo_name == name:
             return algo_id
     
-    # Check for variant prefix (e.g., LeidenCSR_vibe -> LeidenCSR -> 16)
+    # Check for variant prefix (e.g., LeidenCSR_graphbrew -> LeidenCSR -> 16)
     for algo_id, name in ALGORITHMS.items():
         if algo_name.startswith(name + "_"):
             return algo_id

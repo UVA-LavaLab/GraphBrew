@@ -5,7 +5,7 @@
 // across all reordering algorithm implementations.
 //
 // UNIFIED CONFIGURATION (reorder::ReorderConfig):
-//   All community-based reordering algorithms (VIBE, Leiden, GraphBrew,
+//   All community-based reordering algorithms (GraphBrew, Leiden,
 //   RabbitOrder, Adaptive) use the unified defaults defined in the
 //   reorder:: namespace. This ensures:
 //   - Consistent behavior across all algorithms
@@ -25,7 +25,7 @@
 //   - reorder_classic.h   : Classic algorithms (GOrder, COrder, RCM)
 //   - reorder_gve_leiden.h: GVE-Leiden core algorithm implementation
 //   - reorder_leiden.h    : Leiden-based orderings (LeidenOrder, LeidenCSR, etc.)
-//   - reorder_vibe.h      : VIBE unified reordering framework
+//   - reorder_graphbrew.h      : GraphBrew unified reordering framework
 //   - reorder_adaptive.h  : Adaptive algorithm selection
 //   - reorder.h           : Main dispatcher that includes all headers
 //
@@ -183,7 +183,7 @@ inline ReorderingAlgo getReorderingAlgo(const char* arg) {
 // ============================================================================
 // UNIFIED REORDER CONFIGURATION
 // ============================================================================
-// All reordering algorithms (VIBE, Leiden, GraphBrew, RabbitOrder, Adaptive)
+// All reordering algorithms (GraphBrew, Leiden, RabbitOrder, Adaptive)
 // should use these unified defaults for consistency and fair comparison.
 //
 // Design rationale:
@@ -196,7 +196,7 @@ inline ReorderingAlgo getReorderingAlgo(const char* arg) {
 /**
  * @brief Unified default constants for all reordering algorithms
  * 
- * These values are used by VIBE, Leiden, GraphBrew, RabbitOrder, and Adaptive.
+ * These values are used by GraphBrew, Leiden, RabbitOrder, and Adaptive.
  * They provide consistency across all community-based reordering algorithms.
  */
 namespace reorder {
@@ -262,7 +262,7 @@ enum class AggregationStrategy {
  *   ReorderConfig cfg;
  *   cfg.resolution = 0.75;
  *   cfg.maxIterations = 20;
- *   // Pass to any algorithm: VIBE, Leiden, GraphBrew, etc.
+ *   // Pass to any algorithm: GraphBrew, Leiden, etc.
  */
 struct ReorderConfig {
     // ========================================================================
@@ -1140,7 +1140,7 @@ struct CommunityFeatures {
 /**
  * @brief Dendrogram node for hierarchical community structure
  * 
- * Used internally by VIBE to build and traverse the community
+ * Used internally by GraphBrew to build and traverse the community
  * hierarchy for ordering vertices.
  */
 struct LeidenDendrogramNode {
@@ -1245,7 +1245,7 @@ inline const std::map<std::string, ReorderingAlgo>& getAlgorithmNameMap() {
         {"RCM", RCMOrder},
         {"GraphBrewOrder", GraphBrewOrder},
         {"GRAPHBREWORDER", GraphBrewOrder},
-        // GraphBrewOrder variants (powered by VIBE pipeline)
+        // GraphBrewOrder variants (powered by GraphBrew pipeline)
         {"GraphBrewOrder_leiden", GraphBrewOrder},
         {"GraphBrewOrder_gve", GraphBrewOrder},
         {"GraphBrewOrder_gveopt", GraphBrewOrder},
@@ -1258,25 +1258,25 @@ inline const std::map<std::string, ReorderingAlgo>& getAlgorithmNameMap() {
         {"LEIDENORDER", LeidenOrder},
         {"LeidenCSR", LeidenCSR},
         {"LEIDENCSR", LeidenCSR},
-        // LeidenCSR VIBE variants (active)
-        {"LeidenCSR_vibe", LeidenCSR},
-        {"LeidenCSR_vibe:dfs", LeidenCSR},
-        {"LeidenCSR_vibe:bfs", LeidenCSR},
-        {"LeidenCSR_vibe:dbg", LeidenCSR},
-        {"LeidenCSR_vibe:corder", LeidenCSR},
-        {"LeidenCSR_vibe:dbg-global", LeidenCSR},
-        {"LeidenCSR_vibe:corder-global", LeidenCSR},
-        {"LeidenCSR_vibe:streaming", LeidenCSR},
-        {"LeidenCSR_vibe:streaming:dfs", LeidenCSR},
-        {"LeidenCSR_vibe:lazyupdate", LeidenCSR},
-        {"LeidenCSR_vibe:conn", LeidenCSR},
-        {"LeidenCSR_vibe:hrab", LeidenCSR},
-        {"LeidenCSR_vibe:hrab:gordi", LeidenCSR},
-        {"LeidenCSR_vibe:rabbit", LeidenCSR},
-        {"LeidenCSR_vibe:rabbit:dfs", LeidenCSR},
-        {"LeidenCSR_vibe:rabbit:bfs", LeidenCSR},
-        {"LeidenCSR_vibe:rabbit:dbg", LeidenCSR},
-        {"LeidenCSR_vibe:rabbit:corder", LeidenCSR},
+        // LeidenCSR GraphBrew variants (active)
+        {"LeidenCSR_graphbrew", LeidenCSR},
+        {"LeidenCSR_graphbrew:dfs", LeidenCSR},
+        {"LeidenCSR_graphbrew:bfs", LeidenCSR},
+        {"LeidenCSR_graphbrew:dbg", LeidenCSR},
+        {"LeidenCSR_graphbrew:corder", LeidenCSR},
+        {"LeidenCSR_graphbrew:dbg-global", LeidenCSR},
+        {"LeidenCSR_graphbrew:corder-global", LeidenCSR},
+        {"LeidenCSR_graphbrew:streaming", LeidenCSR},
+        {"LeidenCSR_graphbrew:streaming:dfs", LeidenCSR},
+        {"LeidenCSR_graphbrew:lazyupdate", LeidenCSR},
+        {"LeidenCSR_graphbrew:conn", LeidenCSR},
+        {"LeidenCSR_graphbrew:hrab", LeidenCSR},
+        {"LeidenCSR_graphbrew:hrab:gordi", LeidenCSR},
+        {"LeidenCSR_graphbrew:rabbit", LeidenCSR},
+        {"LeidenCSR_graphbrew:rabbit:dfs", LeidenCSR},
+        {"LeidenCSR_graphbrew:rabbit:bfs", LeidenCSR},
+        {"LeidenCSR_graphbrew:rabbit:dbg", LeidenCSR},
+        {"LeidenCSR_graphbrew:rabbit:corder", LeidenCSR},
     };
     return name_to_algo;
 }
@@ -2912,7 +2912,7 @@ inline bool ParseWeightsFromJSON(const std::string& json_content,
         }
         
         // When multiple variant names map to the same base algorithm (e.g.,
-        // LeidenCSR_vibe, LeidenCSR_vibe:hrab both map to LeidenCSR), keep the
+        // LeidenCSR_graphbrew, LeidenCSR_graphbrew:hrab both map to LeidenCSR), keep the
         // variant with the highest bias (the one training found most successful).
         // This ensures the perceptron uses the best-performing variant's weights.
         auto it = weights.find(kv.second);
@@ -2939,7 +2939,7 @@ inline bool ParseWeightsFromJSON(const std::string& json_content,
  * - Negative weight = algorithm prefers lower values
  * 
  * Key observations from benchmarks:
- * - LeidenCSR (VIBE): Best overall (avg 2.86x speedup), wins on high-mod graphs
+ * - LeidenCSR (GraphBrew): Best overall (avg 2.86x speedup), wins on high-mod graphs
  * - RabbitOrder: Best on low-modularity synthetic graphs (4.06x)
  * - HubClusterDBG: Good general-purpose (2.38x), fast reordering
  * - RCMOrder: Best for sparse graphs (high w_density penalty on dense)
@@ -3081,7 +3081,7 @@ inline const std::map<ReorderingAlgo, PerceptronWeights>& GetPerceptronWeights()
             .cache_l1_impact = 0.0, .cache_l2_impact = 0.0, .cache_l3_impact = 0.0, .cache_dram_penalty = 0.0,
             .w_reorder_time = -0.5     // highest reorder cost
         }},
-        // LeidenCSR: Fast CSR-native community detection (VIBE)
+        // LeidenCSR: Fast CSR-native community detection (GraphBrew)
         {LeidenCSR, {
             .bias = 0.80,
             .w_modularity = 0.35,

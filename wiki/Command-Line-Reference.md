@@ -167,75 +167,75 @@ Use with `-o <id>`:
 | 13 | MAP | External mapping |
 | 14 | AdaptiveOrder | ML |
 | 15 | LeidenOrder | Leiden (GVE-Leiden baseline) |
-| 16 | LeidenCSR | Leiden (has variants, including VIBE) |
+| 16 | LeidenCSR | Leiden (has variants, including GraphBrew) |
 
 > **Note:** For current variant lists, see `scripts/lib/utils.py` which defines:
 > - `RABBITORDER_VARIANTS`, `GRAPHBREW_VARIANTS`
 > - `LEIDEN_CSR_VARIANTS`
-> - `VIBE_LEIDEN_VARIANTS`, `VIBE_RABBIT_VARIANTS`
+> - `GRAPHBREW_LEIDEN_VARIANTS`, `GRAPHBREW_RABBIT_VARIANTS`
 
 ### LeidenCSR Resolution Modes (Algorithm 16)
 
 | Mode | Syntax | Example | Description |
 |------|--------|---------|-------------|
-| **Fixed** | `<value>` | `-o 16:vibe:1.5` | Use specified resolution |
-| **Auto** | `auto` or `0` | `-o 16:vibe:auto` | Compute from graph density |
-| **Dynamic** | `dynamic` | `-o 16:vibe:dynamic` | Auto initial, adjust per-pass |
-| **Dynamic+Init** | `dynamic_<val>` | `-o 16:vibe:dynamic_2.0` | Start at value, adjust per-pass |
+| **Fixed** | `<value>` | `-o 16:graphbrew:1.5` | Use specified resolution |
+| **Auto** | `auto` or `0` | `-o 16:graphbrew:auto` | Compute from graph density |
+| **Dynamic** | `dynamic` | `-o 16:graphbrew:dynamic` | Auto initial, adjust per-pass |
+| **Dynamic+Init** | `dynamic_<val>` | `-o 16:graphbrew:dynamic_2.0` | Start at value, adjust per-pass |
 
-### VIBE Variants (Algorithm 16)
+### GraphBrew +Variants (Algorithm 16)
 
-VIBE (Vertex Indexing for Better Efficiency) provides a unified reordering framework with two algorithms:
+GraphBrew +(Vertex Indexing for Better Efficiency) provides a unified reordering framework with two algorithms:
 
-**Leiden-based VIBE** (multi-pass community detection):
+**Leiden-based GraphBrew** (multi-pass community detection):
 
 | Variant | Example | Description |
 |---------|---------|-------------|
-| `vibe` | `-o 16:vibe` | Hierarchical ordering (default) |
-| `vibe:dfs` | `-o 16:vibe:dfs` | DFS dendrogram traversal |
-| `vibe:bfs` | `-o 16:vibe:bfs` | BFS dendrogram traversal |
-| `vibe:dbg` | `-o 16:vibe:dbg` | DBG within each community |
-| `vibe:corder` | `-o 16:vibe:corder` | Hot/cold within communities |
-| `vibe:dbg-global` | `-o 16:vibe:dbg-global` | DBG across all vertices |
-| `vibe:corder-global` | `-o 16:vibe:corder-global` | Hot/cold across all vertices |
-| `vibe:streaming` | `-o 16:vibe:streaming` | Leiden + lazy aggregation |
-| `vibe:lazyupdate` | `-o 16:vibe:lazyupdate` | Batched community weight updates (reduces atomics) |
-| `vibe:conn` | `-o 16:vibe:conn` | Connectivity BFS within communities (Boost-style, default ordering) |
-| `vibe:hrab` | `-o 16:vibe:hrab` | Hybrid Leiden+RabbitOrder (best locality on web/geometric graphs) |
-| `vibe:auto` | `-o 16:vibe:auto` | Auto-computed resolution (computed once) |
-| `vibe:dynamic` | `-o 16:vibe:dynamic` | Dynamic resolution (adjusted per-pass) |
+| `graphbrew` | `-o 16:graphbrew` | Hierarchical ordering (default) |
+| `graphbrew:dfs` | `-o 16:graphbrew:dfs` | DFS dendrogram traversal |
+| `graphbrew:bfs` | `-o 16:graphbrew:bfs` | BFS dendrogram traversal |
+| `graphbrew:dbg` | `-o 16:graphbrew:dbg` | DBG within each community |
+| `graphbrew:corder` | `-o 16:graphbrew:corder` | Hot/cold within communities |
+| `graphbrew:dbg-global` | `-o 16:graphbrew:dbg-global` | DBG across all vertices |
+| `graphbrew:corder-global` | `-o 16:graphbrew:corder-global` | Hot/cold across all vertices |
+| `graphbrew:streaming` | `-o 16:graphbrew:streaming` | Leiden + lazy aggregation |
+| `graphbrew:lazyupdate` | `-o 16:graphbrew:lazyupdate` | Batched community weight updates (reduces atomics) |
+| `graphbrew:conn` | `-o 16:graphbrew:conn` | Connectivity BFS within communities (Boost-style, default ordering) |
+| `graphbrew:hrab` | `-o 16:graphbrew:hrab` | Hybrid Leiden+RabbitOrder (best locality on web/geometric graphs) |
+| `graphbrew:auto` | `-o 16:graphbrew:auto` | Auto-computed resolution (computed once) |
+| `graphbrew:dynamic` | `-o 16:graphbrew:dynamic` | Dynamic resolution (adjusted per-pass) |
 
-**VIBE Resolution Modes:**
+**GraphBrew +Resolution Modes:**
 
 | Mode | Syntax | Description |
 |------|--------|-------------|
-| Auto | `-o 16:vibe:auto` or `-o 16:vibe` | Compute resolution from graph density/CV (fixed) |
-| Dynamic | `-o 16:vibe:dynamic` | Auto initial, adjust each pass based on metrics |
-| Fixed | `-o 16:vibe:1.5` | Use specified resolution value |
-| Dynamic+Init | `-o 16:vibe:dynamic_2.0` | Start at 2.0, adjust each pass |
+| Auto | `-o 16:graphbrew:auto` or `-o 16:graphbrew` | Compute resolution from graph density/CV (fixed) |
+| Dynamic | `-o 16:graphbrew:dynamic` | Auto initial, adjust each pass based on metrics |
+| Fixed | `-o 16:graphbrew:1.5` | Use specified resolution value |
+| Dynamic+Init | `-o 16:graphbrew:dynamic_2.0` | Start at 2.0, adjust each pass |
 
 > **Note:** Dynamic resolution adjusts based on community reduction rate, size imbalance, and convergence speed. Use for unknown graphs.
 
-**RabbitOrder-based VIBE** (single-pass parallel aggregation):
+**RabbitOrder-based GraphBrew** (single-pass parallel aggregation):
 
 | Variant | Example | Description |
 |---------|---------|-------------|
-| `vibe:rabbit` | `-o 16:vibe:rabbit` | RabbitOrder algorithm (DFS default) |
-| `vibe:rabbit:dfs` | `-o 16:vibe:rabbit:dfs` | RabbitOrder + DFS post-ordering |
-| `vibe:rabbit:bfs` | `-o 16:vibe:rabbit:bfs` | RabbitOrder + BFS post-ordering |
-| `vibe:rabbit:dbg` | `-o 16:vibe:rabbit:dbg` | RabbitOrder + DBG post-ordering |
-| `vibe:rabbit:corder` | `-o 16:vibe:rabbit:corder` | RabbitOrder + COrder post-ordering |
+| `graphbrew:rabbit` | `-o 16:graphbrew:rabbit` | RabbitOrder algorithm (DFS default) |
+| `graphbrew:rabbit:dfs` | `-o 16:graphbrew:rabbit:dfs` | RabbitOrder + DFS post-ordering |
+| `graphbrew:rabbit:bfs` | `-o 16:graphbrew:rabbit:bfs` | RabbitOrder + BFS post-ordering |
+| `graphbrew:rabbit:dbg` | `-o 16:graphbrew:rabbit:dbg` | RabbitOrder + DBG post-ordering |
+| `graphbrew:rabbit:corder` | `-o 16:graphbrew:rabbit:corder` | RabbitOrder + COrder post-ordering |
 
 > **Note:** RabbitOrder variants do not support dynamic resolution (falls back to auto).
 
-### GraphBrewOrder Variants (Algorithm 12, VIBE-Powered)
+### GraphBrewOrder Variants (Algorithm 12, GraphBrew-Powered)
 
-| Variant | Description | VIBE Config | Default Final Algo |
+| Variant | Description | GraphBrew Config | Default Final Algo |
 |---------|-------------|-------------|--------------------|
 | `leiden` | GVE-Leiden optimized (default) | GVE-CSR aggregation | RabbitOrder (8) |
 | `gve` | GVE-Leiden non-optimized | GVE-CSR aggregation | RabbitOrder (8) |
 | `gveopt` | GVE-Leiden with cache optimization | GVE-CSR aggregation | RabbitOrder (8) |
-| `rabbit` | Full RabbitOrder via VIBE pipeline | RABBIT_ORDER ordering | N/A (single-pass) |
+| `rabbit` | Full RabbitOrder via GraphBrew pipeline | RABBIT_ORDER ordering | N/A (single-pass) |
 | `hubcluster` | Hub-degree based clustering | HUB_CLUSTER ordering | N/A (native) |
 
 Override the final reordering algorithm with `:<algo_id>`, e.g. `-o "12:gve:7"` uses HubClusterDBG.

@@ -226,7 +226,7 @@ All tunable constants are defined in **one location** to ensure consistency betw
 
 ```python
 # Unified Reorder Configuration (match C++ reorder::ReorderConfig in reorder_types.h)
-# Used by: VIBE, Leiden, GraphBrew, RabbitOrder, Adaptive
+# Used by: GraphBrew, Leiden, GraphBrew, RabbitOrder, Adaptive
 REORDER_DEFAULT_RESOLUTION = 1.0          # Modularity resolution (auto-computed from graph)
 REORDER_DEFAULT_TOLERANCE = 1e-2          # Convergence tolerance (0.01)
 REORDER_DEFAULT_AGGREGATION_TOLERANCE = 0.8

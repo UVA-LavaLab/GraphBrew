@@ -2,7 +2,7 @@
  * @file reorder_leiden.h
  * @brief Leiden-based community detection and graph reordering - API Reference
  *
- * This header provides core GVE-Leiden algorithms and the VIBE entry point
+ * This header provides core GVE-Leiden algorithms and the GraphBrew entry point
  * for Leiden-based reordering. Dispatch wrappers live in builder.h due to
  * tight integration with the graph building template system.
  *
@@ -18,14 +18,14 @@
  *   Requires CSR→DiGraph conversion. Kept as baseline to measure LeidenCSR
  *   improvement.
  *
- * LEIDENCSR (ID 16) - Fast GVE-Leiden on native CSR / VIBE
+ * LEIDENCSR (ID 16) - Fast GVE-Leiden on native CSR / GraphBrew
  *   Format: -o 16:variant:resolution:iterations:passes
- *   Recommended variant: vibe (quality | speed | balanced)
- *   Example: ./bench/bin/pr -f graph.el -o 16:vibe:quality
+ *   Recommended variant: graphbrew (quality | speed | balanced)
+ *   Example: ./bench/bin/pr -f graph.el -o 16:graphbrew:quality
  *
  *   Native CSR implementation — no format conversion overhead.
- *   The default (and recommended) variant is "vibe", which uses the modular
- *   VIBE pipeline with configurable quality presets.
+ *   The default (and recommended) variant is "graphbrew", which uses the modular
+ *   GraphBrew pipeline with configurable quality presets.
  *
  * ============================================================================
  * IMPLEMENTATION DETAILS
@@ -35,7 +35,7 @@
  * ---------------------------
  * GVELeidenCSR<K>()       - Standard GVE-Leiden algorithm
  * GVELeidenOptCSR<K>()    - Cache-optimized variant
- * GenerateVibeMapping()   - VIBE entry point (reorder_vibe.h)
+ * GenerateGraphBrewMapping()   - GraphBrew entry point (reorder_graphbrew.h)
  *
  * Wrapper Functions in builder.h:
  * --------------------------------
@@ -74,14 +74,14 @@
  * Basic Leiden (GVE-Leiden baseline):
  *   ./bench/bin/pr -f graph.el -o 15 -n 5
  *
- * VIBE quality preset:
- *   ./bench/bin/pr -f graph.el -o 16:vibe:quality -n 5
+ * GraphBrew quality preset:
+ *   ./bench/bin/pr -f graph.el -o 16:graphbrew:quality -n 5
  *
- * VIBE speed preset:
- *   ./bench/bin/pr -f graph.el -o 16:vibe:speed -n 5
+ * GraphBrew speed preset:
+ *   ./bench/bin/pr -f graph.el -o 16:graphbrew:speed -n 5
  *
- * VIBE balanced preset:
- *   ./bench/bin/pr -f graph.el -o 16:vibe:balanced -n 5
+ * GraphBrew balanced preset:
+ *   ./bench/bin/pr -f graph.el -o 16:graphbrew:balanced -n 5
  */
 
 #ifndef REORDER_LEIDEN_H_
@@ -90,7 +90,7 @@
 #include <string>
 #include <cstdint>
 #include "reorder_types.h"
-#include "reorder_vibe.h"  // VIBE: Modular Leiden implementation
+#include "reorder_graphbrew.h"  // GraphBrew: Modular Leiden implementation
 
 namespace graphbrew {
 namespace leiden {
@@ -114,14 +114,14 @@ enum class LeidenCSRVariant {
     Fast,       ///< Speed-optimized (fewer iterations)
     Modularity, ///< Quality-optimized (more iterations)
     Faithful,   ///< Faithful 1:1 leiden.hxx implementation
-    Vibe,       ///< VIBE: Fully modular implementation (NEW)
-    VibeDFS,    ///< VIBE with DFS dendrogram ordering
-    VibeBFS,    ///< VIBE with BFS dendrogram ordering
-    VibeRabbit  ///< VIBE with RabbitOrder-style lazy aggregation
+    GraphBrew,       ///< GraphBrew: Fully modular implementation (NEW)
+    GraphBrewDFS,    ///< GraphBrew with DFS dendrogram ordering
+    GraphBrewBFS,    ///< GraphBrew with BFS dendrogram ordering
+    GraphBrewRabbit  ///< GraphBrew with RabbitOrder-style lazy aggregation
 };
 
 /**
- * @brief Variant selection for dendrogram traversal (used internally by VIBE)
+ * @brief Variant selection for dendrogram traversal (used internally by GraphBrew)
  */
 enum class DendrogramTraversal {
     DFS,        ///< Depth-first traversal
@@ -147,10 +147,10 @@ inline LeidenCSRVariant ParseLeidenCSRVariant(const std::string& s) {
     if (s == "fast") return LeidenCSRVariant::Fast;
     if (s == "modularity") return LeidenCSRVariant::Modularity;
     if (s == "faithful") return LeidenCSRVariant::Faithful;
-    if (s == "vibe") return LeidenCSRVariant::Vibe;
-    if (s == "vibe:dfs" || s == "vibedfs") return LeidenCSRVariant::VibeDFS;
-    if (s == "vibe:bfs" || s == "vibebfs") return LeidenCSRVariant::VibeBFS;
-    if (s == "vibe:rabbit" || s == "viberabbit") return LeidenCSRVariant::VibeRabbit;
+    if (s == "graphbrew" || s == "vibe") return LeidenCSRVariant::GraphBrew;
+    if (s == "graphbrew:dfs" || s == "vibe:dfs" || s == "vibedfs") return LeidenCSRVariant::GraphBrewDFS;
+    if (s == "graphbrew:bfs" || s == "vibe:bfs" || s == "vibebfs") return LeidenCSRVariant::GraphBrewBFS;
+    if (s == "graphbrew:rabbit" || s == "vibe:rabbit" || s == "viberabbit") return LeidenCSRVariant::GraphBrewRabbit;
     return LeidenCSRVariant::GVEOpt2;  // Unknown variant defaults to gveopt2
 }
 
@@ -176,10 +176,10 @@ inline std::string LeidenCSRVariantToString(LeidenCSRVariant v) {
         case LeidenCSRVariant::Fast: return "fast";
         case LeidenCSRVariant::Modularity: return "modularity";
         case LeidenCSRVariant::Faithful: return "faithful";
-        case LeidenCSRVariant::Vibe: return "vibe";
-        case LeidenCSRVariant::VibeDFS: return "vibe:dfs";
-        case LeidenCSRVariant::VibeBFS: return "vibe:bfs";
-        case LeidenCSRVariant::VibeRabbit: return "vibe:rabbit";
+        case LeidenCSRVariant::GraphBrew: return "graphbrew";
+        case LeidenCSRVariant::GraphBrewDFS: return "graphbrew:dfs";
+        case LeidenCSRVariant::GraphBrewBFS: return "graphbrew:bfs";
+        case LeidenCSRVariant::GraphBrewRabbit: return "graphbrew:rabbit";
         default: return "unknown";
     }
 }
@@ -5551,32 +5551,32 @@ std::vector<std::vector<K>> FastLeidenCSR(
 
 
 /**
- * GenerateVibeMapping - VIBE: Fully modular Leiden implementation
+ * GenerateGraphBrewMapping - GraphBrew: Fully modular Leiden implementation
  * 
  * Configurable ordering and aggregation strategies:
  * - Ordering: hierarchical, dfs, bfs, community, hubcluster
  * - Aggregation: leiden (CSR), rabbit (lazy), hybrid
  * 
- * Usage: -o 16:vibe[:ordering][:aggregation][:resolution]
+ * Usage: -o 16:graphbrew[:ordering][:aggregation][:resolution]
  */
 template <typename K = uint32_t, typename NodeID_T, typename DestID_T>
-void GenerateVibeMapping(
+void GenerateGraphBrewMapping(
     const CSRGraph<NodeID_T, DestID_T, true>& g,
     pvector<NodeID_T>& new_ids,
     const std::vector<std::string>& reordering_options,
-    vibe::OrderingStrategy defaultOrdering = vibe::OrderingStrategy::HIERARCHICAL,
-    vibe::AggregationStrategy defaultAggregation = vibe::AggregationStrategy::LEIDEN_CSR) {
+    graphbrew::OrderingStrategy defaultOrdering = graphbrew::OrderingStrategy::HIERARCHICAL,
+    graphbrew::AggregationStrategy defaultAggregation = graphbrew::AggregationStrategy::LEIDEN_CSR) {
     
     // Parse config from options - this handles resolution, ordering, aggregation
-    vibe::VibeConfig config = vibe::parseVibeConfig(reordering_options);
+    graphbrew::GraphBrewConfig config = graphbrew::parseGraphBrewConfig(reordering_options);
     
     // Apply defaults if not set by parsing
-    if (config.ordering == vibe::OrderingStrategy::HIERARCHICAL && 
-        defaultOrdering != vibe::OrderingStrategy::HIERARCHICAL) {
+    if (config.ordering == graphbrew::OrderingStrategy::HIERARCHICAL && 
+        defaultOrdering != graphbrew::OrderingStrategy::HIERARCHICAL) {
         config.ordering = defaultOrdering;
     }
-    if (config.aggregation == vibe::AggregationStrategy::LEIDEN_CSR &&
-        defaultAggregation != vibe::AggregationStrategy::LEIDEN_CSR) {
+    if (config.aggregation == graphbrew::AggregationStrategy::LEIDEN_CSR &&
+        defaultAggregation != graphbrew::AggregationStrategy::LEIDEN_CSR) {
         config.aggregation = defaultAggregation;
     }
     
@@ -5588,7 +5588,7 @@ void GenerateVibeMapping(
     }
     
     new_ids.resize(g.num_nodes());
-    vibe::generateVibeMapping<K>(g, new_ids, config);
+    graphbrew::generateGraphBrewMapping<K>(g, new_ids, config);
 }
 
 #endif // REORDER_LEIDEN_H_

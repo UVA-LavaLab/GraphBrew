@@ -1,10 +1,10 @@
 #!/bin/bash
 # ===========================================================================
-# Comprehensive GraphBrew Comparison: Old Standalone vs VIBE-Powered
+# Comprehensive GraphBrew Comparison: Old Standalone vs GraphBrew-Powered
 # ===========================================================================
 # Tests all matching GraphBrew variants on every available .sg graph.
-# Old data from results/benchmark_20260208_032723.json (pre-VIBE).
-# New data generated live with current VIBE-powered build.
+# Old data from results/benchmark_20260208_032723.json (pre-GraphBrew).
+# New data generated live with current GraphBrew-powered build.
 #
 # Goal: justify full deprecation of old standalone GraphBrew code.
 # ===========================================================================
@@ -38,10 +38,10 @@ GRAPHS=(
     "results/graphs/rgg_n_2_24_s0/rgg_n_2_24_s0.sg"
 )
 
-# New VIBE-powered GraphBrew variants to test
+# New GraphBrew-powered GraphBrew variants to test
 # Format: "label|cli_option"
 ALGOS=(
-    # GraphBrew (algo 12) variants — VIBE-powered
+    # GraphBrew (algo 12) variants — GraphBrew-powered
     "GB-default|12"
     "GB-leiden:rabbit8|12:leiden"
     "GB-gve:rabbit8|12:gve"
@@ -50,19 +50,19 @@ ALGOS=(
     "GB-gve:hubclusterdbg7|12:gve:7"
     "GB-rabbit|12:rabbit"
     "GB-hubcluster|12:hubcluster"
-    # VIBE standalone (algo 16) — for cross-reference
-    "VIBE-default|16:vibe"
-    "VIBE-quality|16:vibe:quality"
-    "VIBE-rabbit|16:vibe:rabbit"
-    "VIBE-hrab|16:vibe:hrab"
-    "VIBE-conn|16:vibe:conn"
+    # GraphBrew standalone (algo 16) — for cross-reference
+    "GraphBrew-default|16:graphbrew"
+    "GraphBrew-quality|16:graphbrew:quality"
+    "GraphBrew-rabbit|16:graphbrew:rabbit"
+    "GraphBrew-hrab|16:graphbrew:hrab"
+    "GraphBrew-conn|16:graphbrew:conn"
 )
 
 echo "graph,algorithm,label,reorder_time,avg_pr_time,trials,threads,timestamp" > "$OUTFILE"
 
 printf "\n"
 printf "╔══════════════════════════════════════════════════════════════════════════════════╗\n"
-printf "║   Comprehensive GraphBrew Comparison: Old Standalone vs VIBE-Powered           ║\n"
+printf "║   Comprehensive GraphBrew Comparison: Old Standalone vs GraphBrew-Powered           ║\n"
 printf "║   Threads: %-4d  Trials: %-4d  Graphs: %-3d  Algorithms: %-3d                   ║\n" \
        "$THREADS" "$TRIALS" "${#GRAPHS[@]}" "${#ALGOS[@]}"
 printf "╚══════════════════════════════════════════════════════════════════════════════════╝\n"

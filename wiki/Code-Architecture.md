@@ -102,7 +102,7 @@ reorder/
 ├── reorder_classic.h    # GOrder, COrder, RCMOrder (algo 9-11) (~517 lines)
 ├── reorder_adaptive.h   # ML-based selection (algo 14) (~650 lines)
 ├── reorder_leiden.h     # Leiden community detection (algo 15-17) (~7,725 lines)
-├── reorder_vibe.h       # VIBE unified reordering framework (~7,055 lines)
+├── reorder_graphbrew.h       # GraphBrew unified reordering framework (~7,055 lines)
 └── reorder.h            # Main dispatcher (~493 lines)
 ```
 
@@ -111,7 +111,7 @@ reorder/
 | File | Lines | Purpose |
 |------|-------|---------|
 | `reorder_leiden.h` | ~7,725 | GVE-Leiden algorithm, dendrogram traversal variants |
-| `reorder_vibe.h` | ~7,055 | VIBE unified reordering framework |
+| `reorder_graphbrew.h` | ~7,055 | GraphBrew unified reordering framework |
 | `reorder_types.h` | ~4,614 | Common types, perceptron model, `EdgeList`, threshold functions, `GetLLCSizeBytes()`, `getAlgorithmNameMap()` (58 variants) |
 | `reorder_rabbit.h` | ~1,161 | RabbitOrder CSR native implementation |
 | `reorder_adaptive.h` | ~650 | `AdaptiveConfig`, ML-based per-community algorithm selection |
@@ -133,7 +133,7 @@ reorder/
 | Struct | Header | Key Fields |
 |--------|--------|------------|
 | `AdaptiveConfig` | `reorder_adaptive.h` | max_depth, resolution, min_recurse_size, mode (0=per-community, 1=full-graph) |
-| `VibeConfig` | `reorder_vibe.h` | algorithm, ordering, aggregation, resolution, finalAlgoId, recursiveDepth, subAlgoId |
+| `GraphBrewConfig` | `reorder_graphbrew.h` | algorithm, ordering, aggregation, resolution, finalAlgoId, recursiveDepth, subAlgoId |
 | `ReorderConfig` | `reorder_types.h` | Unified config: resolutionMode(AUTO), tolerance(1e-2), maxIterations(10), maxPasses(10), ordering(HIERARCHICAL) |
 
 All configs parse from CLI options via `FromOptions()`. Defaults are centralized constants in `reorder_types.h` (see [[AdaptiveOrder-ML#command-line-format]]).

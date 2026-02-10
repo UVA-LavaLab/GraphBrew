@@ -346,7 +346,7 @@ See [[Command-Line-Reference]] for the complete CLI option reference.
 
 Key flags: `--full` (complete pipeline), `--size small|medium|large`, `--phase reorder|benchmark|cache|weights`, `--train` (6-phase weight training), `--train-iterative` (feedback loop), `--brute-force` (validation), `--auto` (auto-detect RAM/disk limits).
 
-**Variant testing:** `--all-variants`, `--csr-variants`, `--graphbrew-variants`, `--rabbit-variants`, `--dendrogram-variants`, `--vibe-variants`. Variant lists defined in `scripts/lib/utils.py`.
+**Variant testing:** `--all-variants`, `--csr-variants`, `--graphbrew-variants`, `--rabbit-variants`, `--dendrogram-variants`, `--graphbrew-variants`. Variant lists defined in `scripts/lib/utils.py`.
 
 ### Examples
 
@@ -408,9 +408,9 @@ python3 scripts/analyze_metrics.py --results-dir results/
 python3 scripts/analyze_metrics.py --results-dir results/ \
   --benchmarks pr bfs --graphs web-Google soc-Slashdot0902
 
-# Head-to-head: RabbitOrder vs VIBE:hrab
+# Head-to-head: RabbitOrder vs GraphBrew:hrab
 python3 scripts/analyze_metrics.py --results-dir results/ \
-  --compare RABBITORDER_csr LeidenCSR_vibe:hrab
+  --compare RABBITORDER_csr LeidenCSR_graphbrew:hrab
 
 # JSON output for scripting
 python3 scripts/analyze_metrics.py --results-dir results/ --json
