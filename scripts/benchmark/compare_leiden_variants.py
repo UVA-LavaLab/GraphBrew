@@ -203,7 +203,7 @@ def compare_leiden_variants(graph: Path, graph_info: Dict,
     
     # Define variants to test
     # Format for CLI: -o algo:variant:resolution:iterations:passes
-    # LeidenCSR (16): -o 16:graphbrew:quality (GraphBrew is now default)
+    # GraphBrewOrder (12): -o 12:graphbrew:quality (GraphBrew is now default)
     # RabbitOrder (8): -o 8:variant (csr is now default, boost optional)
     # Use empty resolution to let C++ auto-detect based on graph density
     variants_to_test = [

@@ -495,7 +495,7 @@ def parse_algorithm_option(option: str) -> Tuple[int, List[str]]:
     
     Examples:
         "0" -> (0, [])
-        "16:graphbrew:quality" -> (16, ["graphbrew", "quality"])
+        "12:graphbrew:quality" -> (12, ["graphbrew", "quality"])
     """
     parts = option.split(":")
     algo_id = int(parts[0])
@@ -554,7 +554,7 @@ def expand_algorithm_variants(algo_id: int) -> List[str]:
     Supported:
     - RabbitOrder (8): 8:csr, 8:boost
     - GraphBrewOrder (12): 12:leiden, 12:gve, 12:gveopt, 12:rabbit, 12:hubcluster
-    - LeidenCSR (16): 16:graphbrew, 16:graphbrew:hrab, 16:graphbrew:rabbit, etc.
+    - GraphBrewOrder (12): 12:graphbrew, 12:graphbrew:hrab, 12:graphbrew:rabbit, etc.
     """
     if algo_id == 8:  # RABBITORDER
         return [f"8:{v}" for v in RABBITORDER_VARIANTS]

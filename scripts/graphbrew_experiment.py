@@ -301,7 +301,7 @@ class AlgorithmConfig:
     """Configuration for an algorithm, including variant support."""
     algo_id: int           # Base algorithm ID (e.g., 12 for GraphBrewOrder)
     name: str              # Display name (e.g., "GraphBrewOrder_graphbrew")
-    option_string: str     # Full option string for -o flag (e.g., "16:graphbrew:quality")
+    option_string: str     # Full option string for -o flag (e.g., "12:graphbrew:quality")
     variant: str = ""      # Variant name if applicable (e.g., "graphbrew")
     resolution: str = "dynamic"  # Resolution mode: "dynamic", "auto", "1.0", etc.
     passes: int = 10
@@ -2299,7 +2299,7 @@ def run_experiment(args):
         name_to_id.update({
             "RABBIT": 8, "RABBITORDER_BOOST": 8, "RABBITORDER_CSR": 8,
             "LEIDEN": 15, "LEIDENORDER": 15,
-            "LEIDENCSR": 16, "LEIDEN_CSR": 16, "GRAPHBREWORDER_GRAPHBREW": 12, "LEIDENCSR_GRAPHBREW": 12, "GraphBrew": 12,
+            "LEIDENCSR": 16, "LEIDEN_CSR": 16, "GRAPHBREWORDER_GRAPHBREW": 12, "GraphBrew": 12,
         })
         
         filtered_algos = set()

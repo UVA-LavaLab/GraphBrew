@@ -1264,7 +1264,7 @@ inline const std::map<std::string, ReorderingAlgo>& getAlgorithmNameMap() {
         {"LeidenCSR_gveopt2", LeidenCSR},
         {"LeidenCSR_fast", LeidenCSR},
         {"LeidenCSR_modularity", LeidenCSR},
-        // GraphBrew variants — these are GraphBrewOrder (algo 12), not LeidenCSR
+        // GraphBrewOrder variants — algo 12 with per-community reordering
         {"GraphBrewOrder_graphbrew", GraphBrewOrder},
         {"GraphBrewOrder_graphbrew:dfs", GraphBrewOrder},
         {"GraphBrewOrder_graphbrew:bfs", GraphBrewOrder},
@@ -1283,11 +1283,6 @@ inline const std::map<std::string, ReorderingAlgo>& getAlgorithmNameMap() {
         {"GraphBrewOrder_graphbrew:rabbit:bfs", GraphBrewOrder},
         {"GraphBrewOrder_graphbrew:rabbit:dbg", GraphBrewOrder},
         {"GraphBrewOrder_graphbrew:rabbit:corder", GraphBrewOrder},
-        // Legacy backward compat: LeidenCSR_graphbrew → GraphBrewOrder
-        {"LeidenCSR_graphbrew", GraphBrewOrder},
-        {"LeidenCSR_graphbrew:hrab", GraphBrewOrder},
-        {"LeidenCSR_graphbrew:rabbit", GraphBrewOrder},
-        {"LeidenCSR_graphbrew:dfs", GraphBrewOrder},
     };
     return name_to_algo;
 }

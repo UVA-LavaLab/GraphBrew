@@ -90,7 +90,7 @@ class AlgorithmConfig:
     """Configuration for an algorithm, including variant support."""
     algo_id: int           # Base algorithm ID (e.g., 12 for GraphBrewOrder)
     name: str              # Display name (e.g., "GraphBrewOrder_graphbrew")
-    option_string: str     # Full option string for -o flag (e.g., "16:graphbrew:quality")
+    option_string: str     # Full option string for -o flag (e.g., "12:graphbrew:quality")
     variant: str = ""      # Variant name if applicable (e.g., "graphbrew")
     resolution: str = "auto"  # Resolution: "auto", "dynamic", "1.0", etc.
     passes: int = LEIDEN_DEFAULT_PASSES
