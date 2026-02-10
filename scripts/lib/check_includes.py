@@ -10,7 +10,8 @@ Legacy → Preferred:
 - graphbrew/cache/popt.h    → graphbrew/partition/cagra/popt.h
 
 Usage:
-    python3 scripts/check_includes.py [--root DIR]
+    python3 scripts/graphbrew_experiment.py --check-includes
+    python3 -m scripts.lib.check_includes [--root DIR]
 
 Exits non-zero if any legacy include is found.
 """

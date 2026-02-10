@@ -18,10 +18,11 @@ Features:
   - Fast iteration without recompiling C++
 
 Usage:
-  python3 scripts/adaptive_emulator.py --graph results/graphs/email-Enron/email-Enron.mtx
-  python3 scripts/adaptive_emulator.py --all-graphs --disable-weight w_modularity
-  python3 scripts/adaptive_emulator.py --compare-benchmark results/benchmark_*.json
-  python3 scripts/adaptive_emulator.py --mode best-endtoend --compare-benchmark results/benchmark.json
+  python3 scripts/graphbrew_experiment.py --emulator
+  python3 -m scripts.lib.adaptive_emulator --graph results/graphs/email-Enron/email-Enron.mtx
+  python3 -m scripts.lib.adaptive_emulator --all-graphs --disable-weight w_modularity
+  python3 -m scripts.lib.adaptive_emulator --compare-benchmark results/benchmark_*.json
+  python3 -m scripts.lib.adaptive_emulator --mode best-endtoend --compare-benchmark results/benchmark.json
 """
 
 import argparse
@@ -54,9 +55,9 @@ class SelectionMode(Enum):
 # Constants
 # =============================================================================
 
-SCRIPT_DIR = Path(__file__).parent.resolve()
-PROJECT_ROOT = SCRIPT_DIR.parent
-WEIGHTS_DIR = SCRIPT_DIR / "weights" / "active"
+SCRIPT_DIR = Path(__file__).parent.resolve()  # scripts/lib/
+PROJECT_ROOT = SCRIPT_DIR.parent.parent          # project root
+WEIGHTS_DIR = SCRIPT_DIR.parent / "weights" / "active"  # scripts/weights/active
 RESULTS_DIR = PROJECT_ROOT / "results"
 GRAPHS_DIR = RESULTS_DIR / "graphs"
 

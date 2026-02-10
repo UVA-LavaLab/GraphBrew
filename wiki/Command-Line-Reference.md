@@ -534,12 +534,12 @@ python3 scripts/graphbrew_experiment.py --train --size medium --auto --precomput
 python3 scripts/graphbrew_experiment.py --brute-force --validation-benchmark bfs
 ```
 
-### eval_weights.py
+### eval_weights
 
-Trains weights and simulates C++ scoring to report accuracy/regret. See [[Python-Scripts#-eval_weightspy---weight-evaluation--c-scoring-simulation]].
+Trains weights and simulates C++ scoring to report accuracy/regret. See [[Python-Scripts#-weight-evaluation---eval-weights]].
 
 ```bash
-python3 scripts/eval_weights.py  # No arguments needed
+python3 scripts/graphbrew_experiment.py --eval-weights  # No arguments needed
 ```
 
 ---

@@ -7,14 +7,13 @@ and confusion matrix by comparing AdaptiveOrder's choices against the
 whole-graph oracle (best single algorithm per graph×benchmark).
 
 Usage:
-    # Analyze existing benchmark + adaptive data
-    python3 scripts/oracle_analysis.py --results-dir results/
+    # Via entry point
+    python3 scripts/graphbrew_experiment.py --oracle-analysis
 
-    # Run fresh experiment and analyze
-    python3 scripts/oracle_analysis.py --run-experiment --size small
-
-    # Focus on specific benchmarks
-    python3 scripts/oracle_analysis.py --results-dir results/ --benchmarks pr bfs
+    # Or directly via module
+    python3 -m scripts.lib.oracle --results-dir results/
+    python3 -m scripts.lib.oracle --run-experiment --size small
+    python3 -m scripts.lib.oracle --results-dir results/ --benchmarks pr bfs
 """
 
 import argparse

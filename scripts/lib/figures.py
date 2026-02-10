@@ -22,7 +22,7 @@ from pathlib import Path
 import os
 
 # Output directory
-OUT_DIR = Path(__file__).parent.parent / "docs" / "figures"
+OUT_DIR = Path(__file__).parent.parent.parent / "docs" / "figures"
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 
 # Consistent styling

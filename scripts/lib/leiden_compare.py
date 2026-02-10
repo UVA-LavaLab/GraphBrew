@@ -31,11 +31,12 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 from dataclasses import dataclass, asdict
 
-# Add scripts directory to path
-SCRIPT_DIR = Path(__file__).parent.parent
-sys.path.insert(0, str(SCRIPT_DIR))
+# Resolve project paths
+SCRIPT_DIR = Path(__file__).parent          # scripts/lib/
+PROJECT_ROOT = SCRIPT_DIR.parent.parent      # project root
+sys.path.insert(0, str(PROJECT_ROOT))
 
-from lib.reorder import parse_reorder_time_from_converter
+from scripts.lib.reorder import parse_reorder_time_from_converter
 
 @dataclass
 class LeidenResult:
@@ -52,7 +53,7 @@ class LeidenResult:
 
 def get_project_root() -> Path:
     """Get the project root directory"""
-    return SCRIPT_DIR.parent
+    return PROJECT_ROOT
 
 def find_converter() -> Path:
     """Find the converter binary"""
