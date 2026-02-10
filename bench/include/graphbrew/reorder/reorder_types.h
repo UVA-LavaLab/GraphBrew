@@ -1486,6 +1486,96 @@ inline int AdaptiveModeToInt(AdaptiveMode m) {
 }
 
 // ============================================================================
+// ABLATION CONFIGURATION
+// ============================================================================
+
+/**
+ * Runtime ablation toggles for AdaptiveOrder experiments.
+ * 
+ * Controlled via environment variables. Checked once and cached.
+ * 
+ * Environment variables:
+ *   ADAPTIVE_NO_TYPES=1     — Force type_id = "type_0" for all graphs
+ *   ADAPTIVE_NO_OOD=1       — Disable OOD guardrail (always use perceptron)
+ *   ADAPTIVE_NO_MARGIN=1    — Disable margin-based ORIGINAL fallback
+ *   ADAPTIVE_NO_LEIDEN=1    — Skip Leiden, treat whole graph as one community
+ *   ADAPTIVE_FORCE_ALGO=N   — Force algorithm N for all communities (bypass perceptron)
+ *   ADAPTIVE_ZERO_FEATURES=packing,fef,wsr,quadratic  — Zero specific feature groups
+ *
+ * Usage: ADAPTIVE_NO_OOD=1 ADAPTIVE_NO_MARGIN=1 ./bench/bin/pr -f graph.sg -o 14 -n 3
+ */
+struct AblationConfig {
+    bool no_types;           // Force type_id = "type_0"
+    bool no_ood;             // Disable OOD guardrail
+    bool no_margin;          // Disable margin-based ORIGINAL fallback
+    bool no_leiden;          // Skip Leiden partitioning
+    int force_algo;          // Force specific algorithm (-1 = disabled)
+    bool zero_packing;       // Zero packing_factor weight
+    bool zero_fef;           // Zero forward_edge_fraction + fef_convergence
+    bool zero_wsr;           // Zero working_set_ratio weight
+    bool zero_quadratic;     // Zero all quadratic interaction terms
+    
+    static const AblationConfig& Get() {
+        static AblationConfig instance = Init();
+        return instance;
+    }
+    
+    bool any_active() const {
+        return no_types || no_ood || no_margin || no_leiden ||
+               force_algo >= 0 || zero_packing || zero_fef ||
+               zero_wsr || zero_quadratic;
+    }
+    
+    void print() const {
+        if (!any_active()) return;
+        printf("=== Ablation Toggles Active ===\n");
+        if (no_types)       printf("  NO_TYPES: force type_0\n");
+        if (no_ood)         printf("  NO_OOD: disable OOD guardrail\n");
+        if (no_margin)      printf("  NO_MARGIN: disable margin fallback\n");
+        if (no_leiden)      printf("  NO_LEIDEN: skip partitioning\n");
+        if (force_algo >= 0) printf("  FORCE_ALGO: %d\n", force_algo);
+        if (zero_packing)   printf("  ZERO: packing_factor\n");
+        if (zero_fef)       printf("  ZERO: forward_edge_fraction + fef_convergence\n");
+        if (zero_wsr)       printf("  ZERO: working_set_ratio\n");
+        if (zero_quadratic) printf("  ZERO: quadratic interaction terms\n");
+        printf("===============================\n");
+    }
+    
+private:
+    static bool env_bool(const char* name) {
+        const char* val = std::getenv(name);
+        return val && (std::string(val) == "1" || std::string(val) == "true");
+    }
+    
+    static int env_int(const char* name, int default_val) {
+        const char* val = std::getenv(name);
+        if (!val) return default_val;
+        try { return std::stoi(val); } catch (...) { return default_val; }
+    }
+    
+    static bool feature_in_list(const char* feature) {
+        const char* val = std::getenv("ADAPTIVE_ZERO_FEATURES");
+        if (!val) return false;
+        std::string s(val);
+        return s.find(feature) != std::string::npos;
+    }
+    
+    static AblationConfig Init() {
+        AblationConfig cfg;
+        cfg.no_types       = env_bool("ADAPTIVE_NO_TYPES");
+        cfg.no_ood         = env_bool("ADAPTIVE_NO_OOD");
+        cfg.no_margin      = env_bool("ADAPTIVE_NO_MARGIN");
+        cfg.no_leiden      = env_bool("ADAPTIVE_NO_LEIDEN");
+        cfg.force_algo     = env_int("ADAPTIVE_FORCE_ALGO", -1);
+        cfg.zero_packing   = feature_in_list("packing");
+        cfg.zero_fef       = feature_in_list("fef");
+        cfg.zero_wsr       = feature_in_list("wsr");
+        cfg.zero_quadratic = feature_in_list("quadratic");
+        return cfg;
+    }
+};
+
+// ============================================================================
 // PERCEPTRON WEIGHTS FOR ADAPTIVE ORDER
 // ============================================================================
 
@@ -1599,6 +1689,9 @@ struct PerceptronWeights {
         double log_nodes = std::log10(static_cast<double>(feat.num_nodes) + 1.0);
         double log_edges = std::log10(static_cast<double>(feat.num_edges) + 1.0);
         
+        // Ablation config (cached singleton, no per-call overhead)
+        const auto& abl = AblationConfig::Get();
+        
         // Core score
         double s = bias 
              + w_modularity * feat.modularity
@@ -1616,21 +1709,26 @@ struct PerceptronWeights {
         s += w_community_count * std::log10(feat.community_count + 1.0);
         
         // Locality features (IISWC'18 Packing Factor, GoGraph forward edge fraction)
-        s += w_packing_factor * feat.packing_factor;
-        s += w_forward_edge_fraction * feat.forward_edge_fraction;
+        // Ablation: ADAPTIVE_ZERO_FEATURES=packing zeroes packing_factor
+        // Ablation: ADAPTIVE_ZERO_FEATURES=fef zeroes forward_edge_fraction
+        if (!abl.zero_packing)
+            s += w_packing_factor * feat.packing_factor;
+        if (!abl.zero_fef)
+            s += w_forward_edge_fraction * feat.forward_edge_fraction;
         
         // System-cache feature (P-OPT: cache hierarchy geometry)
-        // working_set_ratio > 1 means graph exceeds LLC, log scale to dampen
+        // Ablation: ADAPTIVE_ZERO_FEATURES=wsr zeroes working_set_ratio
         double log_wsr = std::log2(feat.working_set_ratio + 1.0);
-        s += w_working_set_ratio * log_wsr;
+        if (!abl.zero_wsr)
+            s += w_working_set_ratio * log_wsr;
         
         // Quadratic interaction terms (paper-motivated cross-features)
-        // dv×hub: high variance + concentrated hubs → hub-based reordering wins
-        s += w_dv_x_hub * feat.degree_variance * feat.hub_concentration;
-        // mod×logN: community structure matters more at scale
-        s += w_mod_x_logn * feat.modularity * log_nodes;
-        // pf×wsr: packing + cache pressure interaction
-        s += w_pf_x_wsr * feat.packing_factor * log_wsr;
+        // Ablation: ADAPTIVE_ZERO_FEATURES=quadratic zeroes all three
+        if (!abl.zero_quadratic) {
+            s += w_dv_x_hub * feat.degree_variance * feat.hub_concentration;
+            s += w_mod_x_logn * feat.modularity * log_nodes;
+            s += w_pf_x_wsr * feat.packing_factor * log_wsr;
+        }
         
         // Cache impact weights
         s += cache_l1_impact * 0.5;
@@ -1661,7 +1759,8 @@ struct PerceptronWeights {
         
         // Convergence bonus: iterative algorithms benefit from ordering
         // that respects data-flow direction (forward edges → faster convergence)
-        if (bench == BENCH_PR || bench == BENCH_SSSP) {
+        // Ablation: ADAPTIVE_ZERO_FEATURES=fef zeroes this bonus too
+        if ((bench == BENCH_PR || bench == BENCH_SSSP) && !AblationConfig::Get().zero_fef) {
             s += w_fef_convergence * feat.forward_edge_fraction;
         }
         
@@ -3194,6 +3293,12 @@ inline std::string FindBestTypeWithDistance(
     
     out_distance = 999999.0;  // Default: very high distance (unknown)
     
+    // Ablation: ADAPTIVE_NO_TYPES=1 forces type_0 with zero distance
+    if (AblationConfig::Get().no_types) {
+        out_distance = 0.0;
+        return "type_0";
+    }
+    
     // Try to load type registry
     std::string registry_path = std::string(TYPE_WEIGHTS_DIR) + "type_registry.json";
     std::ifstream registry_file(registry_path);
@@ -3603,7 +3708,8 @@ inline ReorderingAlgo SelectReorderingFromWeights(
     // Margin-based ORIGINAL fallback (IISWC'18):
     // If the best algorithm doesn't beat ORIGINAL by a sufficient margin,
     // the reordering overhead likely exceeds the benefit.
-    if (best_algo != ORIGINAL && original_score > -1e30) {
+    // Ablation: ADAPTIVE_NO_MARGIN=1 disables this fallback.
+    if (best_algo != ORIGINAL && original_score > -1e30 && !AblationConfig::Get().no_margin) {
         double margin = best_score - original_score;
         if (margin < ORIGINAL_MARGIN_THRESHOLD) {
             return ORIGINAL;
@@ -3711,8 +3817,9 @@ inline ReorderingAlgo SelectReorderingWithMode(
     // perceptron predictions are unreliable (extrapolating beyond training
     // distribution). Fall back to ORIGINAL for safety.
     // Exception: MODE_FASTEST_REORDER (reorder speed doesn't depend on graph features)
+    // Ablation: ADAPTIVE_NO_OOD=1 disables this guardrail.
     bool ood = IsDistantGraphType(type_distance) || best_type.empty();
-    if (ood && mode != MODE_FASTEST_REORDER) {
+    if (ood && mode != MODE_FASTEST_REORDER && !AblationConfig::Get().no_ood) {
         if (verbose) {
             std::cout << "OOD guardrail: type_distance=" << type_distance
                       << " > threshold=" << UNKNOWN_TYPE_DISTANCE_THRESHOLD
@@ -3923,6 +4030,11 @@ inline ReorderingAlgo SelectBestReorderingForCommunity(
 {
     (void)global_avg_degree;  // Reserved for future use
     (void)graph_type;         // Type is auto-detected from features
+    
+    // Ablation: ADAPTIVE_FORCE_ALGO=N bypasses all perceptron logic
+    if (AblationConfig::Get().force_algo >= 0) {
+        return static_cast<ReorderingAlgo>(AblationConfig::Get().force_algo);
+    }
     
     // Small communities: reordering overhead exceeds benefit
     const size_t MIN_COMMUNITY_SIZE = (dynamic_min_size > 0) ? dynamic_min_size : 
