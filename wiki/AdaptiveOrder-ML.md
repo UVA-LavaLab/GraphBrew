@@ -7,38 +7,40 @@ AdaptiveOrder (algorithm 14) uses a **machine learning perceptron** to automatic
 Instead of using one reordering algorithm for the entire graph, AdaptiveOrder:
 1. **Computes graph features** (modularity, degree variance, hub concentration, etc.)
 2. **Finds best matching type** from auto-clustered type files using Euclidean distance
-3. **Loads specialized weights** for that type (type_0.json, type_1.json, etc.)
-4. **Detects communities** using Leiden
-5. **Computes features** for each community
-6. **Uses a trained perceptron** to predict the best algorithm
-7. **Applies different algorithms** to different communities
+3. **Loads specialized weights** for that type (per-benchmark files like `type_0_pr.json`, or generic `type_0.json`)
+4. **Uses a trained perceptron** to predict the best algorithm
+5. **Applies the selected algorithm** to the graph
+
+By default, AdaptiveOrder operates in **full-graph mode**: it selects a single algorithm for the entire graph based on global features. Per-community and recursive modes are available but not the default.
 
 ## Command-Line Format
 
 ```bash
-# Format: -o 14[:max_depth[:resolution[:min_recurse_size[:mode]]]]
+# Format: -o 14[:mode[:max_depth[:resolution[:min_recurse_size[:selection_mode[:graph_name]]]]]]
 
-# Default: per-community selection, no recursion
+# Default: full-graph selection
 ./bench/bin/pr -f graph.el -s -o 14 -n 3
 
-# Multi-level adaptive: recurse up to depth 2
-./bench/bin/pr -f graph.el -s -o 14:2 -n 3
+# Per-community mode
+./bench/bin/pr -f graph.el -s -o 14:1 -n 3
 
-# With custom resolution (more communities)
-./bench/bin/pr -f graph.el -s -o 14:1:1.0 -n 3
+# Per-community with recursion depth 2
+./bench/bin/pr -f graph.el -s -o 14:2:2 -n 3
 
-# Full-graph mode: pick single best algorithm for entire graph
-./bench/bin/pr -f graph.el -s -o 14:0:0.75:50000:1 -n 3
+# Per-community with custom resolution (more communities)
+./bench/bin/pr -f graph.el -s -o 14:1:1:1.0 -n 3
 ```
 
 ### Parameters
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
+| `mode` | 1 (PerCommunity) | 0 = full-graph, 1 = per-community, 2 = recursive |
 | `max_depth` | 0 | Max recursion depth (0 = no recursion, 1+ = multi-level) |
 | `resolution` | auto | Leiden resolution (auto: continuous formula with CV guardrail) |
 | `min_recurse_size` | 50000 | Minimum community size for recursion |
-| `mode` | 0 | 0 = per-community, 1 = full-graph adaptive |
+| `selection_mode` | 1 (fastest-execution) | 0 = fastest-reorder, 1 = fastest-execution (perceptron), 2 = best-endtoend, 3 = best-amortization |
+| `graph_name` | (empty) | Graph name hint for weight file lookup |
 
 **Auto-Resolution Formula:**
 ```
@@ -49,19 +51,30 @@ If CV(degree) > 2: γ = max(γ, 1.0)  // CV guardrail for power-law graphs
 
 ## Operating Modes
 
-### Mode 0: Per-Community Selection (Default)
-The standard mode runs Leiden to detect communities, then uses the perceptron to select the best algorithm for each community independently.
+### Mode 0: Full-Graph Selection (Default at Runtime)
+The default runtime entry point. Computes global graph features and uses the perceptron to select the single best algorithm for the entire graph.
 
-### Mode 1: Full-Graph Adaptive
-Skips Leiden community detection entirely. Instead:
-1. Computes global graph features
-2. Uses perceptron to select the single best algorithm for the entire graph
-3. Applies that algorithm
+> **Why full-graph?** Per-community reordering was found to degrade performance because:
+> 1. Leiden decomposition disrupts the original memory layout
+> 2. Community-level features differ from training data (whole-graph)
+> 3. Cross-community edge patterns are not captured
+>
+> Full-graph mode achieves 96.3% accuracy on training data.
 
-**Use full-graph mode when:**
-- Graph has weak community structure (low modularity)
-- You want to quickly identify the best single algorithm
-- Comparing against per-community selection
+### Mode 1: Per-Community Selection
+Runs Leiden to detect communities, then uses the perceptron to select the best algorithm for each community independently.
+
+### Mode 2: Recursive
+Recurses into large communities with multi-level partitioning.
+
+### Selection Modes
+
+| Mode | Name | Description |
+|------|------|-------------|
+| 0 | `fastest-reorder` | Minimize reordering time |
+| 1 | `fastest-execution` | Minimize execution time via perceptron (default) |
+| 2 | `best-endtoend` | Minimize total time (reorder + execution) |
+| 3 | `best-amortization` | Minimize iterations to amortize reorder cost |
 
 ### Multi-Level Recursion (max_depth > 0)
 When `max_depth > 0`, AdaptiveOrder can recurse into large communities:
@@ -147,22 +160,24 @@ scripts/weights/
 
 **Weight File Loading Priority:**
 1. Environment variable `PERCEPTRON_WEIGHTS_FILE` (if set)
-2. Best matching type file (e.g., `scripts/weights/active/type_0.json`)
-3. Semantic type fallback (if type files don't exist)
-4. Hardcoded defaults
+2. Per-benchmark weight file (e.g., `scripts/weights/active/type_0_pr.json` for PageRank)
+3. Best matching type file (e.g., `scripts/weights/active/type_0.json`)
+4. Semantic type fallback (if type files don't exist)
+5. Hardcoded defaults
 
 ## Type Matching at Runtime
 
 Each type has a **centroid** — the average feature vector of its training graphs. At runtime, the system computes the new graph's features and selects the type with the smallest Euclidean distance. If all centroids are too far (distance > 1.5), the OOD guardrail falls back to ORIGINAL.
 
-## Why Per-Community Selection?
+## Why Full-Graph Selection?
 
-Different parts of a graph have different structures:
-- **Hub communities**: Dense cores with high-degree vertices → HUBCLUSTERDBG works well
-- **Sparse communities**: Mesh-like structures → RCM or ORIGINAL may be better
-- **Hierarchical communities**: Tree-like → GraphBrewOrder traversal variants (`graphbrew:dfs`, `graphbrew:bfs`) excel
+The default mode selects a single algorithm for the entire graph. This was found to outperform per-community selection because:
+- Training data is whole-graph, so features match better
+- No Leiden partitioning overhead
+- No disruption of the original memory layout
+- Cross-community edge patterns are preserved
 
-AdaptiveOrder selects the best algorithm for each community's characteristics.
+Per-community mode (mode 1) is available when different parts of a graph genuinely need different algorithms.
 
 ## How to Use
 
@@ -243,7 +258,7 @@ dv × hub: 0.95         --*---> w_dv_x_hub: 0.15 -----+      |
 mod × logN: 2.88       --*---> w_mod_x_logn: 0.06 ---+      +---> SCORE
 pf × log₂(wsr+1): 1.27 --*--> w_pf_x_wsr: 0.09 -----+      |
                                                       |      |
---- Convergence Bonus (PR/SSSP only) ---              |      |
+--- Convergence Bonus (PR/PR_SPMV/SSSP only) ---              |      |
 fwd_edge_frac: 0.4     --*---> w_fef_conv: 0.05 -----+------+
 
 
@@ -299,7 +314,7 @@ The C++ code computes these features for each community at runtime:
 |---------|--------------|-------------|
 | forward_edge_fraction | `w_fef_convergence` | Added only for PR/SSSP benchmarks |
 
-> **New Features:** `packing_factor` (IISWC'18), `forward_edge_fraction` (GoGraph), and `working_set_ratio` (P-OPT) capture degree uniformity, ordering quality, and cache pressure respectively. The quadratic cross-terms capture non-linear feature interactions.
+> **Locality Features:** `packing_factor` (IISWC'18), `forward_edge_fraction` (GoGraph), and `working_set_ratio` (P-OPT) capture degree uniformity, ordering quality, and cache pressure respectively. The quadratic cross-terms capture non-linear feature interactions.
 
 > **LLC Detection:** The `working_set_ratio` is computed by dividing the graph's memory footprint (offsets + edges + vertex data) by the system's L3 cache size, detected via `GetLLCSizeBytes()` using `sysconf(_SC_LEVEL3_CACHE_SIZE)` on Linux (30 MB fallback).
 
@@ -317,18 +332,24 @@ AdaptiveOrder's implementation is split across modular header files in `bench/in
 ```cpp
 // bench/include/graphbrew/reorder/reorder_adaptive.h
 struct AdaptiveConfig {
-    int max_depth = 0;           // Recursion depth (0 = per-community only)
-    double resolution = 0.0;     // Leiden resolution (0 = auto)
-    int min_recurse_size = 50000; // Min nodes for recursion
-    int mode = 0;                // 0 = per-community, 1 = full-graph
+    AdaptiveMode mode = AdaptiveMode::PerCommunity;
+    int max_depth = 0;               // Recursion depth (0 = no recursion)
+    double resolution = 0.0;         // Leiden resolution (0 = auto)
+    size_t min_recurse_size = 50000; // Min nodes for recursion
+    SelectionMode selection_mode = MODE_FASTEST_EXECUTION;
+    std::string graph_name = "";     // Graph name hint
+    BenchmarkType benchmark = BENCH_GENERIC;
+    bool verbose = false;
 
-    static AdaptiveConfig FromOptions(const std::string& options);
+    // Parse from options: mode:depth:resolution:min_size:selection_mode:graph_name
+    static AdaptiveConfig FromOptions(const std::vector<std::string>& options);
     void print() const;
 };
 
-// Usage in builder.h:
-AdaptiveConfig config = AdaptiveConfig::FromOptions("2:0.75:50000:0");
-// → max_depth=2, resolution=0.75, min_recurse_size=50000, mode=0
+// Usage:
+// options = {"1", "2", "0.75", "50000", "1"}
+// → mode=PerCommunity, max_depth=2, resolution=0.75, min_recurse_size=50000,
+//   selection_mode=fastest-execution
 ```
 
 **ComputeSampledDegreeFeatures Utility:**
@@ -338,45 +359,47 @@ For fast topology analysis without computing over the entire graph:
 ```cpp
 // bench/include/graphbrew/reorder/reorder_types.h
 struct SampledDegreeFeatures {
-    double degree_variance;
-    double hub_concentration;
-    double avg_degree;
-    double clustering_coeff;
-    double working_set_ratio;  // graph_bytes / LLC_size
+    double degree_variance;        // Normalized degree variance (CV)
+    double hub_concentration;      // Fraction of edges from top 10% degree nodes
+    double avg_degree;             // Sampled average degree
+    double clustering_coeff;       // Estimated clustering coefficient
+    double estimated_modularity;   // Rough modularity estimate
+    double packing_factor;         // Hub neighbor co-location (IISWC'18)
+    double forward_edge_fraction;  // Fraction of edges (u,v) where u < v (GoGraph)
+    double working_set_ratio;      // graph_bytes / LLC_size (P-OPT)
 };
 
 template<typename GraphT>
 SampledDegreeFeatures ComputeSampledDegreeFeatures(
-    const GraphT& g, 
-    size_t sample_size = 1000
+    const GraphT& g,
+    size_t sample_size = 5000,
+    bool compute_clustering = false
 );
 
 // Detects system LLC size via sysconf (Linux) with 30MB fallback
 size_t GetLLCSizeBytes();
 
-// Samples ~1000 vertices to estimate graph topology features
+// Samples ~5000 vertices to estimate graph topology features
 // Also computes working_set_ratio using LLC detection
-// Used by: GenerateAdaptiveMappingFullGraph, GenerateAdaptiveMappingRecursive,
-//          ComputeAndPrintGlobalTopologyFeatures
 ```
 
-**Key Functions in builder.h:**
+**Key Functions in reorder_adaptive.h:**
 
 ```cpp
-// Per-community adaptive selection (mode=0)
-void GenerateAdaptiveMappingRecursive(
+// Main entry point (delegates to FullGraph by default)
+void GenerateAdaptiveMappingStandalone(
     const CSRGraph& g, pvector<NodeID_>& new_ids,
-    const ReorderingOptions& opts, int depth = 0);
+    bool useOutdeg, const std::vector<std::string>& reordering_options);
 
-// Full-graph adaptive selection (mode=1)
-void GenerateAdaptiveMappingFullGraph(
+// Full-graph adaptive selection
+void GenerateAdaptiveMappingFullGraphStandalone(
     const CSRGraph& g, pvector<NodeID_>& new_ids,
-    const ReorderingOptions& opts);
+    bool useOutdeg, const std::vector<std::string>& reordering_options);
 
-// Unified entry point
-void GenerateAdaptiveMappingUnified(
+// Per-community recursive selection
+void GenerateAdaptiveMappingRecursiveStandalone(
     const CSRGraph& g, pvector<NodeID_>& new_ids,
-    const ReorderingOptions& opts);
+    bool useOutdeg, const std::vector<std::string>& reordering_options);
 ```
 
 ### Weight Structure
@@ -385,14 +408,16 @@ Each algorithm has weights for each feature. See [[Perceptron-Weights#file-struc
 
 ### Benchmark-Specific Scoring
 
-The perceptron supports per-benchmark multipliers via `benchmark_weights` in each algorithm's weight entry. The final score is `base_score × benchmark_weights[type]`.
+The perceptron supports per-benchmark multipliers via `getBenchmarkMultiplier()` in each algorithm's weight entry. The final score is `base_score × benchmark_multiplier[type]`. Per-benchmark weight files (`type_0_pr.json`, `type_0_bfs.json`, etc.) are loaded with higher priority than generic `type_0.json` because they are trained specifically for each benchmark.
 
 ```cpp
 // C++ Usage:
-SelectReorderingPerceptron(features);            // BENCH_GENERIC (multiplier = 1.0)
-SelectReorderingPerceptron(features, BENCH_PR);  // PageRank-optimized
-SelectReorderingPerceptron(features, "bfs");     // BFS-optimized
+SelectReorderingPerceptron(features);                     // BENCH_GENERIC (multiplier = 1.0)
+SelectReorderingPerceptron(features, BENCH_PR);           // PageRank-optimized
+SelectReorderingPerceptron(features, BENCH_BFS, graph_type); // BFS-optimized with graph type
 ```
+
+**Supported benchmarks:** PR, BFS, CC, SSSP, BC, TC, PR_SPMV, CC_SV
 
 ### Score Calculation (C++ Runtime)
 
@@ -409,20 +434,24 @@ base_score = bias
            + w_avg_path_length × avg_path_length / 10    (if computed)
            + w_diameter × diameter / 50                  (if computed)
            + w_community_count × log10(count+1)          (if computed)
-           + w_packing_factor × packing_factor            # NEW
-           + w_forward_edge_fraction × fwd_edge_frac      # NEW
-           + w_working_set_ratio × log₂(wsr+1)            # NEW
+           + w_packing_factor × packing_factor
+           + w_forward_edge_fraction × fwd_edge_frac
+           + w_working_set_ratio × log₂(wsr+1)
            + w_dv_x_hub × dv × hub_conc                  # QUADRATIC
            + w_mod_x_logn × mod × logN                   # QUADRATIC
            + w_pf_x_wsr × pf × log₂(wsr+1)               # QUADRATIC
+           + cache_l1_impact × 0.5                        # CACHE IMPACT
+           + cache_l2_impact × 0.3                        # CACHE IMPACT
+           + cache_l3_impact × 0.2                        # CACHE IMPACT
+           + cache_dram_penalty                           # CACHE IMPACT
            + w_reorder_time × reorder_time               (if known)
 
-# Convergence bonus (PR/SSSP only)
-if benchmark ∈ {PR, SSSP}:
+# Convergence bonus (PR/PR_SPMV/SSSP only)
+if benchmark ∈ {PR, PR_SPMV, SSSP}:
     base_score += w_fef_convergence × forward_edge_fraction
 
 # Final score with benchmark adjustment
-final_score = base_score × benchmark_weights[benchmark_type]
+final_score = base_score × benchmark_multiplier[benchmark_type]
 
 # Safety checks (applied after scoring):
 # 1. OOD Guardrail: type_distance > 1.5 → return ORIGINAL
@@ -474,7 +503,7 @@ See [[Perceptron-Weights]] for the full training pipeline details, gradient upda
 |---------|-------------|
 | **OOD Guardrail** | If graph features are > 1.5 Euclidean distance from all type centroids → return ORIGINAL |
 | **ORIGINAL Margin** | If best algorithm's score − ORIGINAL's score < 0.05 → keep ORIGINAL |
-| **Convergence Bonus** | For PR/SSSP: adds `w_fef_convergence × forward_edge_fraction` to reward forward-edge-heavy orderings |
+| **Convergence Bonus** | For PR/PR_SPMV/SSSP: adds `w_fef_convergence × forward_edge_fraction` to reward forward-edge-heavy orderings |
 | **L2 Regularization** | Weight decay `(1 − 1e-4)` after each gradient update prevents explosion |
 | **ORIGINAL Trainable** | ORIGINAL is trained like any algorithm, allowing the model to learn when *not reordering* is optimal |
 
@@ -486,7 +515,7 @@ Leave-One-Graph-Out (LOGO) validation measures generalization: hold out one grap
 
 ```python
 from scripts.lib.weights import cross_validate_logo
-result = cross_validate_logo(benchmark_results, graph_features, type_registry)
+result = cross_validate_logo(benchmark_results, reorder_results=reorder_results, weights_dir=weights_dir)
 print(f"LOGO: {result['accuracy']:.1%}, Overfit: {result['overfitting_score']:.2f}")
 ```
 
@@ -535,15 +564,16 @@ See [[Correlation-Analysis]] for the full 5-step process with examples.
 
 ### Complete Example: Ordering a Social Network
 
-For a graph with 10,000 nodes and 5 communities, AdaptiveOrder:
+For a graph with 10,000 nodes, AdaptiveOrder (default full-graph mode):
 
-1. **Community Detection** — Leiden finds 5 communities of varying size (600–3,500 nodes)
-2. **Feature Extraction** — Computes modularity, hub_concentration, degree_variance, etc. for each community
-3. **Perceptron Scoring** — Evaluates all algorithms per community using the score formula above
-4. **Algorithm Selection** — e.g., GraphBrewOrder for hub-heavy communities, ORIGINAL for tiny ones
-5. **Per-Community Reordering** — Applies each selected algorithm within its community, producing a unified vertex relabeling
+1. **Feature Extraction** — Computes modularity, hub_concentration, degree_variance, packing_factor, forward_edge_fraction, working_set_ratio, etc.
+2. **Type Matching** — Finds closest type centroid in the type registry
+3. **Weight Loading** — Loads per-benchmark weights (e.g., `type_0_pr.json`) or falls back to generic `type_0.json`
+4. **Perceptron Scoring** — Evaluates all algorithms using the score formula
+5. **Algorithm Selection** — Selects the algorithm with the highest score (subject to safety checks)
+6. **Reordering** — Applies the selected algorithm to the entire graph
 
-The result: cache-friendly memory layout where hub vertices are clustered together within each community. A large hub-heavy community (hub_concentration=0.62) benefits from GraphBrewOrder grouping hubs together, while a tiny 600-node community sees negligible improvement — ORIGINAL avoids the overhead.
+In per-community mode (mode 1), Leiden detects communities first, and steps 1–5 are repeated for each community independently.
 
 ---
 
@@ -576,11 +606,11 @@ python3 -c "import json; json.load(open('scripts/weights/active/type_0.json'))"
 
 ### Overhead
 
-- Leiden community detection: ~5-10% of total time
 - Feature computation: ~1-2% of total time
 - Perceptron inference: < 1% of total time
+- Leiden community detection (per-community mode only): ~5-10% of total time
 
-Total overhead is usually recovered through better algorithm selection.
+In full-graph mode, total overhead is minimal. In per-community mode, the overhead is usually recovered through better algorithm selection.
 
 ---
 
