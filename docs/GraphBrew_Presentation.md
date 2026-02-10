@@ -607,7 +607,7 @@ python3 scripts/graphbrew_experiment.py --fill-weights --graphs all
 ✅ **ML-based perceptron with 12 graph features**
 ✅ **Online learning with incremental weight updates**
 ✅ **Type-based weight specialization**
-✅ **17 reordering algorithms supported**
+✅ **16 reordering algorithms supported**
 ✅ **5 graph benchmarks (PR, BFS, CC, SSSP, BC)**
 ✅ **Cache simulation support**
 

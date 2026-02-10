@@ -1,18 +1,13 @@
 #!/usr/bin/env python3
 """
-Compare Algorithm 16 (LeidenCSR) vs Algorithm 12 (GraphBrewOrder) Performance.
+DEPRECATED: Compare Algorithm 16 (LeidenCSR) vs Algorithm 12 (GraphBrewOrder).
 
-Tests whether GraphBrew (algo 12) can replicate and beat LeidenCSR (algo 16),
-potentially making algo 16 redundant.
+LeidenCSR (16) has been deprecated and merged into GraphBrewOrder (12).
+This script is kept for historical reference only.
 
-Comparison matrix:
-  - Algo 16 (LeidenCSR) with default (gveopt2) and variants
-  - Algo 12:community (same ordering as 16: sort by community,degree)
-  - Algo 12 (default LAYER mode - per-community RabbitOrder dispatch)
-  - Algo 12:hrab (Hybrid Leiden+Rabbit)
-  - Algo 0 (ORIGINAL - baseline, no reordering)
-
-Metrics: Reorder time + PageRank execution time = total pipeline time
+Original purpose:
+  Tests whether GraphBrew (algo 12) can replicate and beat LeidenCSR (algo 16),
+  potentially making algo 16 redundant. (Result: yes — algo 16 was removed.)
 """
 
 import subprocess

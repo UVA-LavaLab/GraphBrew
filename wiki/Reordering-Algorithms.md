@@ -368,7 +368,7 @@ GraphBrew provides LeidenOrder as a baseline reference implementation.
 - **Complexity**: O(n log n) average
 - **Best for**: Baseline comparison — measures how much GraphBrewOrder (12) improved over the reference implementation
 - **Default resolution**: Auto-detected via continuous formula (0.5-1.2) with CV guardrail for power-law graphs
-- **Note**: LeidenCSR (16) reimplements this natively on CSR and is **28–95× faster** to reorder with equivalent kernel quality. LeidenCSR functionality has been merged into GraphBrewOrder (12). Use GraphBrewOrder for production workloads.
+- **Note**: LeidenCSR (16) was deprecated — its CSR-native Leiden implementation has been merged into GraphBrewOrder (12). Use GraphBrewOrder for production workloads.
 
 **Key features:**
 - Uses GVE-Leiden C++ library by Subhajit Sahu (`external/leiden/`)

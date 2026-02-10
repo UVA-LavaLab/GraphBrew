@@ -5,7 +5,7 @@
 
 # GraphBrew <img src="./docs/figures/logo_left.png" width="50" align="center">
 
-A graph reordering and benchmarking framework built on the [GAP Benchmark Suite (GAPBS)](https://github.com/sbeamer/gapbs). GraphBrew reorders graph vertices to improve cache locality and speed up graph algorithms — with **17 reordering algorithms**, an **ML-based adaptive selector**, and a **one-click experiment pipeline**.
+A graph reordering and benchmarking framework built on the [GAP Benchmark Suite (GAPBS)](https://github.com/sbeamer/gapbs). GraphBrew reorders graph vertices to improve cache locality and speed up graph algorithms — with **16 reordering algorithms**, an **ML-based adaptive selector**, and a **one-click experiment pipeline**.
 
 > **📖 Full documentation:** [Wiki](https://github.com/UVA-LavaLab/GraphBrew/wiki) · [Quick Start](https://github.com/UVA-LavaLab/GraphBrew/wiki/Quick-Start) · [Command-Line Reference](https://github.com/UVA-LavaLab/GraphBrew/wiki/Command-Line-Reference)
 
@@ -93,7 +93,7 @@ python3 scripts/graphbrew_experiment.py --train --all-variants --size medium --a
 | `--auto` | Auto-detect RAM/disk limits |
 | `--trials N` | Benchmark trials (default: 2) |
 | `--quick` | Test only key algorithms (faster) |
-| `--brute-force` | Compare adaptive selection vs all 17 algorithms |
+| `--brute-force` | Compare adaptive selection vs all 16 algorithms |
 | `--download-only` | Download graphs without running benchmarks |
 
 Results are saved to `./results/`. Trained weights go to `./scripts/weights/active/`.

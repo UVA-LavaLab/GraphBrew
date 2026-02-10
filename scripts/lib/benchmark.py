@@ -640,7 +640,7 @@ def main():
 Examples:
     python -m scripts.lib.benchmark --graph graph.mtx -a 0,1,8
     python -m scripts.lib.benchmark --graph graph.mtx --leiden-variants
-    python -m scripts.lib.benchmark --graph graph.mtx -a 16,17 --expand
+    python -m scripts.lib.benchmark --graph graph.mtx -a 0,8,12 --expand
         """
     )
     

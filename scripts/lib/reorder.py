@@ -795,8 +795,6 @@ def generate_reorderings_with_variants(
     
     Creates separate mappings for each variant:
         - GraphBrewOrder_leiden.lo
-        - GraphBrewOrder_gve.lo
-        - GraphBrewOrder_gveopt.lo
         - GraphBrewOrder_rabbit.lo
         - GraphBrewOrder_hubcluster.lo
     

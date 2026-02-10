@@ -88,7 +88,7 @@ def run_cache_sim(graph, variant_opt, benchmark):
 
 def main():
     print("=" * 80)
-    print("GVE vs RabbitOrder Cache Performance Comparison")
+    print("GraphBrew vs RabbitOrder Cache Performance Comparison")
     print("=" * 80)
     
     results = {}

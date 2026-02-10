@@ -126,7 +126,7 @@ inline bool isLeidenAlgorithm(ReorderingAlgo algo) {
 /**
  * @brief Check if algorithm supports options/variants
  * 
- * Some algorithms accept format strings like "8:csr" or "17:gve:1.0"
+ * Some algorithms accept format strings like "8:csr" or "12:leiden"
  */
 inline bool hasVariants(ReorderingAlgo algo) {
     return algo == RabbitOrder || 
