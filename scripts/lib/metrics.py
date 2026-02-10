@@ -97,7 +97,7 @@ class VariantComparison:
     graph: str
     benchmark: str
     variant_a: str           # e.g. "rabbit:csr"
-    variant_b: str           # e.g. "vibe:hrab"
+    variant_b: str           # e.g. "graphbrew:hrab"
     
     # Kernel comparison
     kernel_a: float = 0.0

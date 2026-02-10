@@ -1,12 +1,12 @@
 #!/bin/bash
 # ===========================================================================
-# GraphBrew Original vs VIBE-Powered Comparison
+# GraphBrew Original vs GraphBrew-Powered Comparison
 # ===========================================================================
-# Compares the new VIBE-powered GraphBrew (algo 12) against the best
-# VIBE LeidenCSR variants (algo 16) to verify performance parity.
+# Compares the new GraphBrew-powered GraphBrew (algo 12) against the best
+# GraphBrew LeidenCSR variants (algo 16) to verify performance parity.
 #
-# We use the VIBE-powered GraphBrew (current code) and compare against
-# VIBE standalone (algo 16) to verify the dispatch doesn't add overhead.
+# We use the GraphBrew-powered GraphBrew (current code) and compare against
+# GraphBrew standalone (algo 16) to verify the dispatch doesn't add overhead.
 #
 # Metrics: reorder time + PageRank execution time (3 trials)
 # ===========================================================================
@@ -36,20 +36,20 @@ ALGOS=(
     "GB-gve:hubclusterdbg7|12:gve:7"
     "GB-rabbit|12:rabbit"
     "GB-hubcluster|12:hubcluster"
-    "VIBE-default|16:vibe"
-    "VIBE-rabbit|16:vibe:rabbit"
-    "VIBE-hrab|16:vibe:hrab"
-    "VIBE-conn|16:vibe:conn"
-    "VIBE-quality|16:vibe:quality"
+    "GraphBrew-default|16:graphbrew"
+    "GraphBrew-rabbit|16:graphbrew:rabbit"
+    "GraphBrew-hrab|16:graphbrew:hrab"
+    "GraphBrew-conn|16:graphbrew:conn"
+    "GraphBrew-quality|16:graphbrew:quality"
 )
 
-OUTFILE="results/comparison_graphbrew_vs_vibe_$(date +%Y%m%d_%H%M%S).csv"
+OUTFILE="results/comparison_graphbrew_vs_leidencsr_$(date +%Y%m%d_%H%M%S).csv"
 
 echo "graph,algorithm,label,reorder_time,avg_pr_time,trials" > "$OUTFILE"
 
 printf "\n"
 printf "╔══════════════════════════════════════════════════════════════════════════╗\n"
-printf "║          GraphBrew (VIBE-Powered) vs VIBE Standalone Comparison        ║\n"
+printf "║          GraphBrew (GraphBrew-Powered) vs GraphBrew +Standalone Comparison        ║\n"
 printf "║          Threads: %-4d  Trials: %-4d                                   ║\n" "$THREADS" "$TRIALS"
 printf "╚══════════════════════════════════════════════════════════════════════════╝\n"
 printf "\n"

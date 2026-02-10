@@ -5,12 +5,12 @@ Compare Leiden Variants - Community Quality and Performance Benchmark
 This script compares all community-based reordering algorithms:
 - RabbitOrder (8): Louvain-based with variants: csr (default), boost
 - LeidenOrder (15): Native optimized Leiden library (reference for quality)
-- LeidenCSR (16): Fast native CSR implementation with VIBE (default) or GVE-Leiden variants
+- LeidenCSR (16): Fast native CSR implementation with GraphBrew (default) or GVE-Leiden variants
 - GraphBrewOrder (12): Leiden + per-community RabbitOrder
 
 Defaults (as of Jan 2026):
 - RabbitOrder: CSR variant (native, faster, no Boost dependency)
-- LeidenCSR: VIBE variant (best modularity quality)
+- LeidenCSR: GraphBrew variant (best modularity quality)
 
 Metrics compared:
 - Number of communities detected
@@ -203,7 +203,7 @@ def compare_leiden_variants(graph: Path, graph_info: Dict,
     
     # Define variants to test
     # Format for CLI: -o algo:variant:resolution:iterations:passes
-    # LeidenCSR (16): -o 16:vibe:quality (VIBE is now default)
+    # LeidenCSR (16): -o 16:graphbrew:quality (GraphBrew is now default)
     # RabbitOrder (8): -o 8:variant (csr is now default, boost optional)
     # Use empty resolution to let C++ auto-detect based on graph density
     variants_to_test = [
@@ -211,7 +211,7 @@ def compare_leiden_variants(graph: Path, graph_info: Dict,
         (8, "", "RabbitOrder (default=CSR)"),      # CSR is now default
         (8, "boost", "RabbitOrder-boost"),          # Original Boost-based
         (15, "", "LeidenOrder (native Leiden)"),
-        (16, "", "LeidenCSR (default=VIBE)"),       # VIBE is now default
+        (16, "", "LeidenCSR (default=GraphBrew)"),       # GraphBrew is now default
         (16, "gve::20:5", "LeidenCSR-gve"),         # GVE-Leiden: 20 iter, 5 passes
         (16, "gveopt::20:5", "LeidenCSR-gveopt"),   # GVE-Leiden Optimized: cache-optimized
         (12, "", "GraphBrewOrder"),
@@ -222,7 +222,7 @@ def compare_leiden_variants(graph: Path, graph_info: Dict,
         variants_to_test = [
             (8, "", "RabbitOrder (CSR)"),           # CSR default
             (15, "", "LeidenOrder"),
-            (16, "", "LeidenCSR (VIBE)"),            # VIBE default
+            (16, "", "LeidenCSR (GraphBrew)"),            # GraphBrew default
             (12, "", "GraphBrewOrder"),
         ]
     
@@ -314,7 +314,7 @@ def main():
     print("Comparing:")
     print("  - RabbitOrder (8): Louvain-based [csr=default, boost=optional]")
     print("  - LeidenOrder (15): Native optimized Leiden library [REFERENCE]")
-    print("  - LeidenCSR (16): VIBE [vibe=default, best quality]")
+    print("  - LeidenCSR (16): GraphBrew +[graphbrew=default, best quality]")
     print("  - GraphBrewOrder (12): Leiden + per-community RabbitOrder")
     print()
     

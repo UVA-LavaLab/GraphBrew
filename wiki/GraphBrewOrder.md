@@ -1,19 +1,19 @@
-# GraphBrewOrder: Per-Community Reordering (VIBE-Powered)
+# GraphBrewOrder: Per-Community Reordering (GraphBrew-Powered)
 
-GraphBrewOrder (algorithm 12) is the core reordering algorithm that applies **different optimizations to different communities**. As of 2026, GraphBrewOrder is powered by the **VIBE pipeline**, using its modular Leiden community detection and then applying per-community reordering.
+GraphBrewOrder (algorithm 12) is the core reordering algorithm that applies **different optimizations to different communities**. As of 2026, GraphBrewOrder is powered by the **GraphBrew pipeline**, using its modular Leiden community detection and then applying per-community reordering.
 
 ## Overview
 
 Unlike traditional reordering that treats the entire graph uniformly, GraphBrewOrder:
 
-1. **Detects communities** using VIBE's Leiden pipeline (configurable aggregation)
+1. **Detects communities** using GraphBrew's Leiden pipeline (configurable aggregation)
 2. **Classifies communities** into small/large using dynamic thresholds
 3. **Merges small communities** and applies heuristic algorithm selection
 4. **Applies configurable reordering** within large communities (default: RabbitOrder)
 5. **Preserves community locality** in the final ordering
 
 ```
-Input Graph → VIBE Leiden → Communities → Classify → Per-Community Reorder → Merge → Output
+Input Graph → GraphBrew Leiden → Communities → Classify → Per-Community Reorder → Merge → Output
 ```
 
 **Why per-community?** Global algorithms (HUBCLUSTER, RCM) break community locality by interleaving vertices from different communities. GraphBrewOrder keeps communities contiguous while optimizing cache locality within each.
@@ -48,7 +48,7 @@ Input Graph → VIBE Leiden → Communities → Classify → Per-Community Reord
 
 # Examples:
 ./bench/bin/pr -f graph.el -s -o 12:gve -n 5              # GVE detection, RabbitOrder final
-./bench/bin/pr -f graph.el -s -o 12:rabbit -n 5           # VIBE RabbitOrder single-pass
+./bench/bin/pr -f graph.el -s -o 12:rabbit -n 5           # GraphBrew RabbitOrder single-pass
 ./bench/bin/pr -f graph.el -s -o 12:gve:6 -n 5            # Use HubSortDBG as final algorithm
 ./bench/bin/pr -f graph.el -s -o 12:gve:8:0.75 -n 5       # Custom resolution 0.75
 ```
@@ -117,28 +117,28 @@ Largest communities:
 
 ## Implementation Details
 
-### Architecture: VIBE-Powered Pipeline
+### Architecture: GraphBrew-Powered Pipeline
 
-GraphBrewOrder uses VIBE's modular Leiden community detection, then applies per-community reordering:
+GraphBrewOrder uses GraphBrew's modular Leiden community detection, then applies per-community reordering:
 
 | Component | File | Purpose |
 |-----------|------|---------|
-| CLI → VibeConfig | `builder.h` | `ParseGraphBrewOptionsToVibeConfig()` |
+| CLI → GraphBrewConfig | `builder.h` | `ParseGraphBrewConfig()` |
 | Main entry point | `builder.h` | `GenerateGraphBrewMappingUnified()` |
-| Community detection | `reorder_vibe.h` | `vibe::runVibe()` (Leiden pipeline) |
+| Community detection | `reorder_graphbrew.h` | `graphbrew::runGraphBrew()` (Leiden pipeline) |
 | Per-community dispatch | `reorder.h` | `ReorderCommunitySubgraphStandalone()` |
 | Small community heuristic | `reorder_types.h` | `SelectAlgorithmForSmallGroup()` |
-| Config types | `reorder_vibe.h` | `VibeConfig` (supersedes old `GraphBrewConfig`) |
+| Config types | `reorder_graphbrew.h` | `GraphBrewConfig` (supersedes old `GraphBrewConfig`) |
 
-### Cluster Variant → VIBE Configuration Mapping
+### Cluster Variant → GraphBrew Configuration Mapping
 
 ```cpp
-// In builder.h: ParseGraphBrewOptionsToVibeConfig()
-"leiden"     → VIBE GVE-CSR aggregation, TOTAL_EDGES M, refinement depth 0
+// In builder.h: ParseGraphBrewConfig()
+"leiden"     → GraphBrew GVE-CSR aggregation, TOTAL_EDGES M, refinement depth 0
 "gve"        → Same as leiden (GVE-CSR, TOTAL_EDGES)
 "gveopt"     → Same as leiden (quality preset)
-"rabbit"     → VIBE RabbitOrder algorithm, resolution=0.5
-"hubcluster" → VIBE Leiden + HUB_CLUSTER ordering (native, no external dispatch)
+"rabbit"     → GraphBrew RabbitOrder algorithm, resolution=0.5
+"hubcluster" → GraphBrew Leiden + HUB_CLUSTER ordering (native, no external dispatch)
 ```
 
 ### Community Ordering Strategy
@@ -204,12 +204,12 @@ new_id = community_start_offset + position_within_community
 
 ## Variants
 
-| Variant | Description | VIBE Configuration |
+| Variant | Description | GraphBrew Configuration |
 |---------|-------------|-------------------|
-| `leiden` | **Default.** VIBE Leiden-CSR with GVE aggregation | GVE-CSR, TOTAL_EDGES, refine depth 0 |
+| `leiden` | **Default.** GraphBrew Leiden-CSR with GVE aggregation | GVE-CSR, TOTAL_EDGES, refine depth 0 |
 | `gve` / `gveopt` | GVE-style detection | GVE-CSR, TOTAL_EDGES, refine depth 0 |
-| `rabbit` | VIBE RabbitOrder single-pass | RABBIT_ORDER algorithm, resolution=0.5 |
-| `hubcluster` | VIBE Leiden + hub-cluster ordering | HUB_CLUSTER ordering (native VIBE) |
+| `rabbit` | GraphBrew RabbitOrder single-pass | RABBIT_ORDER algorithm, resolution=0.5 |
+| `hubcluster` | GraphBrew Leiden + hub-cluster ordering | HUB_CLUSTER ordering (native GraphBrew) |
 
 ```bash
 # Format: -o 12:variant:final_algo:resolution

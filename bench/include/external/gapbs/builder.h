@@ -1238,7 +1238,7 @@ public:
             GenerateLeidenMapping(g, new_ids, reordering_options);
             break;
         case LeidenCSR:
-            // Fast Leiden on CSR / VIBE - Format: 16:variant:resolution:iterations:passes
+            // Fast Leiden on CSR / GraphBrew - Format: 16:variant:resolution:iterations:passes
             GenerateLeidenCSRMappingUnified(g, new_ids, reordering_options);
             break;
         case GraphBrewOrder:
@@ -1407,7 +1407,7 @@ public:
             GenerateLeidenMapping(g, new_ids, reordering_options);
             break;
         case LeidenCSR:
-            // Fast Leiden on CSR / VIBE - Format: 16:variant:resolution:iterations:passes
+            // Fast Leiden on CSR / GraphBrew - Format: 16:variant:resolution:iterations:passes
             GenerateLeidenCSRMappingUnified(g, new_ids, reordering_options);
             break;
         case GraphBrewOrder:
@@ -2590,7 +2590,7 @@ public:
     /**
      * Unified Leiden CSR Mapping - Parses variant from options
      * Format: 16:variant:resolution:iterations:passes
-     * Default variant: vibe (quality | speed | balanced)
+     * Default variant: graphbrew (quality | speed | balanced)
      */
     void GenerateLeidenCSRMappingUnified(
         const CSRGraph<NodeID_, DestID_, invert> &g,
@@ -2602,12 +2602,12 @@ public:
         // Unified defaults across all Leiden algorithms for fair comparison
         int max_iterations = LEIDEN_DEFAULT_ITERATIONS;
         int max_passes = LEIDEN_DEFAULT_PASSES;
-        std::string variant = "vibe";  // Default to VIBE
+        std::string variant = "graphbrew";  // Default to GraphBrew
         std::string resolution_mode = "auto";
         
         // Parse options: variant, resolution, max_iterations, max_passes
         // CLI format: -o 16:variant:resolution:max_iterations:max_passes
-        // e.g., -o 16:vibe:quality
+        // e.g., -o 12:graphbrew:quality (or 16:vibe:quality for backward compat)
         // Resolution can be: "auto", "0", "dynamic", "dynamic:2.0", or numeric
         if (!reordering_options.empty() && !reordering_options[0].empty()) {
             variant = reordering_options[0];
@@ -2643,12 +2643,13 @@ public:
             }
         }
         
-        // For VIBE variants, skip integer parsing - VIBE has its own flexible parser
-        // that handles options like "vibe:rabbit:bfs" where later args aren't integers
-        bool isVibeVariant = (variant == "vibe" || variant.rfind("vibe", 0) == 0);
+        // For GraphBrew variants, skip integer parsing - GraphBrew has its own flexible parser
+        // that handles options like "graphbrew:rabbit:bfs" where later args aren't integers
+        bool isGraphBrewVariant = (variant == "graphbrew" || variant.rfind("graphbrew", 0) == 0
+                                || variant == "vibe" || variant.rfind("vibe", 0) == 0);
         
-        if (!isVibeVariant) {
-            // Only try to parse iterations/passes for non-VIBE variants
+        if (!isGraphBrewVariant) {
+            // Only try to parse iterations/passes for non-GraphBrew variants
             if (reordering_options.size() > 2 && !reordering_options[2].empty()) {
                 try { max_iterations = std::stoi(reordering_options[2]); } catch (...) {}
             }
@@ -2660,21 +2661,27 @@ public:
         printf("LeidenCSR: resolution=%.2f, max_passes=%d, max_iterations=%d, variant=%s\n", 
                resolution, max_passes, max_iterations, variant.c_str());
         
-        // Dispatch to VIBE (the only supported variant)
-        if (variant == "vibe" || variant.rfind("vibe:", 0) == 0 || variant.rfind("vibe", 0) == 0) {
-            // VIBE: Fully modular implementation
-            // Supports combinations like: vibe, vibe:dfs, vibe:rabbit:bfs, etc.
-            // Pass ALL reordering_options (except variant) through VIBE config parser
-            std::vector<std::string> vibe_options;
+        // Dispatch to GraphBrew (canonical name; "vibe" accepted as alias)
+        auto startsWithGraphBrew = [&](const std::string& s) {
+            return s == "graphbrew" || s.rfind("graphbrew:", 0) == 0
+                || s == "vibe" || s.rfind("vibe:", 0) == 0 || s.rfind("vibe", 0) == 0;
+        };
+        if (startsWithGraphBrew(variant)) {
+            // GraphBrew: Fully modular implementation
+            // Supports combinations: graphbrew:dfs, graphbrew:rabbit:bfs, etc.
+            // Legacy alias: vibe, vibe:dfs, vibe:rabbit:bfs, etc.
+            // Pass ALL reordering_options (except variant) through GraphBrew config parser
+            std::vector<std::string> graphbrew_options;
             
-            // If variant has colon-separated parts after "vibe", split them first
-            if (variant.length() > 4) {
-                std::string rest = variant.substr(4); // Skip "vibe"
+            // Strip prefix ("graphbrew" or "vibe") and split remaining colon-separated parts
+            size_t prefixLen = (variant.rfind("graphbrew", 0) == 0) ? 9 : 4;
+            if (variant.length() > prefixLen) {
+                std::string rest = variant.substr(prefixLen);
                 if (!rest.empty() && rest[0] == ':') rest = rest.substr(1);
                 std::stringstream ss(rest);
                 std::string part;
                 while (std::getline(ss, part, ':')) {
-                    if (!part.empty()) vibe_options.push_back(part);
+                    if (!part.empty()) graphbrew_options.push_back(part);
                 }
             }
             
@@ -2682,22 +2689,22 @@ public:
             // This captures things like "rabbit", "bfs", resolution, etc.
             for (size_t i = 1; i < reordering_options.size(); ++i) {
                 if (!reordering_options[i].empty()) {
-                    vibe_options.push_back(reordering_options[i]);
+                    graphbrew_options.push_back(reordering_options[i]);
                 }
             }
             
-            // Let VIBE parser handle everything
-            GenerateVibeMapping(g, new_ids, vibe_options);
+            // Let GraphBrew parser handle everything
+            GenerateGraphBrewMapping(g, new_ids, graphbrew_options);
         } else {
-            // Default: redirect to vibe:quality
-            printf("⚠️  WARNING: Unknown variant '%s', using vibe:quality instead.\n", variant.c_str());
-            std::vector<std::string> vibe_options = {"quality"};
+            // Default: redirect to graphbrew:quality
+            printf("⚠️  WARNING: Unknown variant '%s', using graphbrew:quality instead.\n", variant.c_str());
+            std::vector<std::string> graphbrew_options = {"quality"};
             for (size_t i = 1; i < reordering_options.size(); ++i) {
                 if (!reordering_options[i].empty()) {
-                    vibe_options.push_back(reordering_options[i]);
+                    graphbrew_options.push_back(reordering_options[i]);
                 }
             }
-            GenerateVibeMapping(g, new_ids, vibe_options);
+            GenerateGraphBrewMapping(g, new_ids, graphbrew_options);
         }
     }
     
@@ -2732,17 +2739,17 @@ public:
     using GVERabbitResult = ::GVERabbitResult<K>;
 
     /**
-     * GenerateVibeMapping - VIBE: Fully modular Leiden implementation
+     * GenerateGraphBrewMapping - GraphBrew: Fully modular Leiden implementation
      * Configurable ordering and aggregation strategies
-     * Delegates to ::GenerateVibeMapping in reorder/reorder_leiden.h
+     * Delegates to ::GenerateGraphBrewMapping in reorder/reorder_leiden.h
      */
-    void GenerateVibeMapping(
+    void GenerateGraphBrewMapping(
         const CSRGraph<NodeID_, DestID_, invert>& g,
         pvector<NodeID_>& new_ids,
         std::vector<std::string> reordering_options,
-        vibe::OrderingStrategy ordering = vibe::OrderingStrategy::HIERARCHICAL,
-        vibe::AggregationStrategy aggregation = vibe::AggregationStrategy::LEIDEN_CSR) {
-        ::GenerateVibeMapping<K, NodeID_, DestID_>(g, new_ids, reordering_options, ordering, aggregation);
+        graphbrew::OrderingStrategy ordering = graphbrew::OrderingStrategy::HIERARCHICAL,
+        graphbrew::AggregationStrategy aggregation = graphbrew::AggregationStrategy::LEIDEN_CSR) {
+        ::GenerateGraphBrewMapping<K, NodeID_, DestID_>(g, new_ids, reordering_options, ordering, aggregation);
     }
 
     // ========================================================================
@@ -2989,7 +2996,7 @@ public:
      * benefit from different reordering strategies:
      * 
      * - SOCIAL: High modularity, community structure, power-law degrees
-     *           Best: LeidenCSR (VIBE), RabbitOrder
+     *           Best: GraphBrew, RabbitOrder
      * - ROAD: Mesh-like, low modularity, planar structure
      *         Best: RCMOrder (bandwidth reduction)
      * - WEB: High hub concentration, bow-tie structure
@@ -3367,40 +3374,40 @@ public:
     //==========================================================================
     
     // ========================================================================
-    // GRAPHBREW REORDERING - Powered by VIBE pipeline
+    // GRAPHBREW REORDERING - Powered by GraphBrew pipeline
     // ========================================================================
     // 
-    // GraphBrewOrder (ID 12) uses VIBE's modular Leiden community detection
+    // GraphBrewOrder (ID 12) uses GraphBrew's modular Leiden community detection
     // pipeline, then applies any reordering algorithm (0-11) per community.
     //
     // Format: -o 12[:cluster_variant][:final_algo][:resolution][:levels]
     //
-    // Cluster variants map to VIBE configurations:
-    //   leiden (default) → VIBE Leiden-CSR aggregation
-    //   gve              → VIBE GVE-CSR aggregation (totalm)
-    //   gveopt           → VIBE GVE-CSR aggregation (totalm, quality preset)
-    //   rabbit           → VIBE RabbitOrder algorithm (single-pass)
-    //   hubcluster       → VIBE HubCluster ordering with degree-based partitioning
+    // Cluster variants map to GraphBrew configurations:
+    //   leiden (default) → GraphBrew Leiden-CSR aggregation
+    //   gve              → GraphBrew GVE-CSR aggregation (totalm)
+    //   gveopt           → GraphBrew GVE-CSR aggregation (totalm, quality preset)
+    //   rabbit           → GraphBrew RabbitOrder algorithm (single-pass)
+    //   hubcluster       → GraphBrew HubCluster ordering with degree-based partitioning
     //
     // Final algorithms: 0-11 (any basic reordering, default: 8 = RabbitOrder)
     // ========================================================================
     
     /**
-     * Parse GraphBrew CLI options and build a VibeConfig.
+     * Parse GraphBrew CLI options and build a GraphBrewConfig.
      * 
-     * Translates the legacy GraphBrew format into VIBE pipeline configuration:
+     * Translates the legacy GraphBrew format into GraphBrew pipeline configuration:
      *   -o 12:cluster_variant:final_algo:resolution:levels
      *   -o 12:gve:8:0.75
      *   -o 12:rabbit:7
      * 
-     * Also supports VIBE-native options when called via -o 16:graphbrew:...
+     * Also supports GraphBrew-native options when called via -o 12:graphbrew:...
      */
-    vibe::VibeConfig ParseGraphBrewOptionsToVibeConfig(
+    graphbrew::GraphBrewConfig ParseGraphBrewConfig(
         const std::vector<std::string>& options,
         double auto_resolution) {
         
-        vibe::VibeConfig config;
-        config.ordering = vibe::OrderingStrategy::GRAPHBREW;
+        graphbrew::GraphBrewConfig config;
+        config.ordering = graphbrew::OrderingStrategy::LAYER;
         config.finalAlgoId = 8;  // Default: RabbitOrder
         config.useSmallCommunityMerging = true;
         config.resolution = auto_resolution;
@@ -3417,7 +3424,7 @@ public:
         
         if (is_numeric) {
             // Old format: 12:freq_threshold:final_algo:resolution
-            // Ignore freq_threshold (VIBE handles thresholding dynamically)
+            // Ignore freq_threshold (GraphBrew handles thresholding dynamically)
             if (options.size() > 1 && !options[1].empty()) {
                 try { config.finalAlgoId = std::stoi(options[1]); } catch (...) {}
             }
@@ -3434,42 +3441,42 @@ public:
         }
         
         // New format: 12:cluster_variant:final_algo:resolution:levels
-        // Map cluster variant to VIBE aggregation/algorithm
+        // Map cluster variant to GraphBrew aggregation/algorithm
         if (variant == "leiden" || variant == "gveopt") {
             // High-quality Leiden with GVE-CSR aggregation (matches old gveopt behavior)
-            config.aggregation = vibe::AggregationStrategy::GVE_CSR;
-            config.mComputation = vibe::MComputation::TOTAL_EDGES;
+            config.aggregation = graphbrew::AggregationStrategy::GVE_CSR;
+            config.mComputation = graphbrew::MComputation::TOTAL_EDGES;
             config.refinementDepth = 0;
         } else if (variant == "gve") {
             // GVE-style detection
-            config.aggregation = vibe::AggregationStrategy::GVE_CSR;
-            config.mComputation = vibe::MComputation::TOTAL_EDGES;
+            config.aggregation = graphbrew::AggregationStrategy::GVE_CSR;
+            config.mComputation = graphbrew::MComputation::TOTAL_EDGES;
             config.refinementDepth = 0;
         } else if (variant == "rabbit") {
             // Use full RabbitOrder algorithm for community detection
-            config.algorithm = vibe::VibeAlgorithm::RABBIT_ORDER;
+            config.algorithm = graphbrew::GraphBrewAlgorithm::RABBIT_ORDER;
             config.resolution = 0.5;  // Coarser communities
         } else if (variant == "hubcluster") {
-            // Use VIBE Leiden with hub-cluster ordering
+            // Use GraphBrew Leiden with hub-cluster ordering
             // (The old hubcluster did degree-based partitioning which maps to
-            //  VIBE's HUB_CLUSTER ordering strategy)
-            config.ordering = vibe::OrderingStrategy::HUB_CLUSTER;
+            //  GraphBrew's HUB_CLUSTER ordering strategy)
+            config.ordering = graphbrew::OrderingStrategy::HUB_CLUSTER;
             config.useSmallCommunityMerging = false;
-            config.finalAlgoId = -1;  // Use VIBE's native ordering
+            config.finalAlgoId = -1;  // Use GraphBrew's native ordering
         } else {
-            // Try to parse as VIBE-native options
-            std::vector<std::string> vibe_opts;
+            // Try to parse as GraphBrew-native options
+            std::vector<std::string> graphbrew_opts;
             // Split variant by ':'
             std::stringstream ss(variant);
             std::string part;
             while (std::getline(ss, part, ':')) {
-                if (!part.empty()) vibe_opts.push_back(part);
+                if (!part.empty()) graphbrew_opts.push_back(part);
             }
             for (size_t i = 1; i < options.size(); ++i) {
-                if (!options[i].empty()) vibe_opts.push_back(options[i]);
+                if (!options[i].empty()) graphbrew_opts.push_back(options[i]);
             }
-            config = vibe::parseVibeConfig(vibe_opts);
-            config.ordering = vibe::OrderingStrategy::GRAPHBREW;
+            config = graphbrew::parseGraphBrewConfig(graphbrew_opts);
+            config.ordering = graphbrew::OrderingStrategy::LAYER;
             config.useSmallCommunityMerging = true;
             if (config.finalAlgoId < 0) config.finalAlgoId = 8;
             return config;
@@ -3528,11 +3535,11 @@ public:
     }
     
     /**
-     * Unified GraphBrew entry point - powered by VIBE pipeline.
+     * Unified GraphBrew entry point - powered by GraphBrew pipeline.
      * 
      * Pipeline:
-     * 1. Parse options → VibeConfig (with GRAPHBREW ordering)
-     * 2. Run VIBE community detection (Leiden or RabbitOrder)
+     * 1. Parse options → GraphBrewConfig (with GRAPHBREW ordering)
+     * 2. Run GraphBrew community detection (Leiden or RabbitOrder)
      * 3. Classify communities into small/large
      * 4. Merge small communities, apply heuristic algo selection
      * 5. Apply final reordering algorithm per large community
@@ -3550,47 +3557,47 @@ public:
         const int64_t N = g.num_nodes();
         const int64_t E = g.num_edges();
         
-        // Parse options to VIBE config
+        // Parse options to GraphBrew config
         double auto_resolution = LeidenAutoResolution<NodeID_, DestID_>(g);
-        vibe::VibeConfig config = ParseGraphBrewOptionsToVibeConfig(reordering_options, auto_resolution);
+        graphbrew::GraphBrewConfig config = ParseGraphBrewConfig(reordering_options, auto_resolution);
         
         ReorderingAlgo finalAlgo = static_cast<ReorderingAlgo>(
             (config.finalAlgoId >= 0 && config.finalAlgoId <= 11) 
             ? config.finalAlgoId : 8);
         
-        printf("GraphBrew (VIBE): finalAlgo=%s (%d), resolution=%.4f, maxPasses=%d, depth=%d, subAlgo=%s\n",
+        printf("GraphBrew: finalAlgo=%s (%d), resolution=%.4f, maxPasses=%d, depth=%d, subAlgo=%s\n",
                ReorderingAlgoStr(finalAlgo).c_str(), config.finalAlgoId, config.resolution,
                config.maxPasses, config.recursiveDepth,
                config.subAlgoId < 0 ? "auto" : ReorderingAlgoStr(static_cast<ReorderingAlgo>(config.subAlgoId)).c_str());
         
-        // If hubcluster variant or no external dispatch needed, delegate directly to VIBE
-        if (config.ordering != vibe::OrderingStrategy::GRAPHBREW) {
-            printf("GraphBrew: delegating to VIBE native ordering\n");
+        // If hubcluster variant or no external dispatch needed, delegate directly to GraphBrew
+        if (config.ordering != graphbrew::OrderingStrategy::LAYER) {
+            printf("GraphBrew: delegating to GraphBrew native ordering\n");
             new_ids.resize(N);
-            vibe::generateVibeMapping<K>(g, new_ids, config);
+            graphbrew::generateGraphBrewMapping<K>(g, new_ids, config);
             totalTimer.Stop();
             PrintTime("GraphBrew Total Time", totalTimer.Seconds());
             return;
         }
         
-        // If RabbitOrder algorithm, use VIBE's native RabbitOrder pipeline
-        if (config.algorithm == vibe::VibeAlgorithm::RABBIT_ORDER) {
-            printf("GraphBrew: using VIBE RabbitOrder pipeline\n");
+        // If RabbitOrder algorithm, use GraphBrew's native RabbitOrder pipeline
+        if (config.algorithm == graphbrew::GraphBrewAlgorithm::RABBIT_ORDER) {
+            printf("GraphBrew: using GraphBrew RabbitOrder pipeline\n");
             new_ids.resize(N);
-            vibe::generateVibeMapping<K>(g, new_ids, config);
+            graphbrew::generateGraphBrewMapping<K>(g, new_ids, config);
             totalTimer.Stop();
             PrintTime("GraphBrew Total Time", totalTimer.Seconds());
             return;
         }
         
-        // ===== Phase 1: Community Detection via VIBE =====
+        // ===== Phase 1: Community Detection via GraphBrew =====
         Timer detectTimer;
         detectTimer.Start();
         
-        auto result = vibe::runVibe<K>(g, config);
+        auto result = graphbrew::runGraphBrew<K>(g, config);
         
         detectTimer.Stop();
-        printf("GraphBrew: VIBE detection: %d passes, %d iters, %zu communities, %.4fs\n",
+        printf("GraphBrew detection: %d passes, %d iters, %zu communities, %.4fs\n",
                result.totalPasses, result.totalIterations, result.numCommunities,
                detectTimer.Seconds());
         
@@ -3598,7 +3605,7 @@ public:
         if (config.useCommunityMerging) {
             Timer mergeTimer;
             mergeTimer.Start();
-            size_t finalComms = vibe::mergeCommunities<K>(result.membership, g, config.targetCommunities);
+            size_t finalComms = graphbrew::mergeCommunities<K>(result.membership, g, config.targetCommunities);
             mergeTimer.Stop();
             result.numCommunities = finalComms;
             printf("GraphBrew: community merge: %zu communities, %.4fs\n", finalComms, mergeTimer.Seconds());
@@ -3890,17 +3897,17 @@ public:
                     }
                 }
                 
-                // Run VIBE Leiden on the subgraph for sub-community detection
-                vibe::VibeConfig sub_config;
+                // Run Leiden on the subgraph for sub-community detection
+                graphbrew::GraphBrewConfig sub_config;
                 sub_config.resolution = config.resolution;
                 sub_config.maxPasses = config.maxPasses;
                 sub_config.maxIterations = config.maxIterations;
                 sub_config.aggregation = config.aggregation;
                 sub_config.mComputation = config.mComputation;
                 sub_config.refinementDepth = config.refinementDepth;
-                sub_config.ordering = vibe::OrderingStrategy::GRAPHBREW;
+                sub_config.ordering = graphbrew::OrderingStrategy::LAYER;
                 
-                auto sub_result = vibe::runVibe<K>(sub_g, sub_config);
+                auto sub_result = graphbrew::runGraphBrew<K>(sub_g, sub_config);
                 
                 // Classify sub-communities (only iterate over valid membership range)
                 std::unordered_map<K, std::vector<NodeID_>> sub_comm_nodes;
@@ -3908,7 +3915,7 @@ public:
                     sub_comm_nodes[sub_result.membership[lv]].push_back(lv);
                 }
                 
-                // Short-circuit: if VIBE found ≤1 sub-community, no benefit from splitting
+                // Short-circuit: if GraphBrew found ≤1 sub-community, no benefit from splitting
                 if (sub_comm_nodes.size() <= 1) {
                     ::ReorderCommunitySubgraphStandalone<NodeID_, DestID_, WeightT_, invert>(
                         g, nodes, node_set, finalAlgo, useOutdeg,

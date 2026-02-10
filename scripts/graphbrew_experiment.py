@@ -31,10 +31,10 @@ A comprehensive one-click script that runs the complete GraphBrew experiment wor
     python scripts/graphbrew_experiment.py --train --all-variants --size small
     
     # Test specific variants only
-    python scripts/graphbrew_experiment.py --train --csr-variants vibe vibe:hrab vibe:rabbit --size small
+    python scripts/graphbrew_experiment.py --train --csr-variants graphbrew graphbrew:hrab graphbrew:rabbit --size small
     
     # Test new optimized variants (best performance)
-    python scripts/graphbrew_experiment.py --train --csr-variants vibe vibe:hrab --size medium
+    python scripts/graphbrew_experiment.py --train --csr-variants graphbrew graphbrew:hrab --size medium
     
     # With custom Leiden parameters
     python scripts/graphbrew_experiment.py --train --all-variants \\
@@ -42,14 +42,14 @@ A comprehensive one-click script that runs the complete GraphBrew experiment wor
     
     RabbitOrder (8) variants: csr (default), boost
     LeidenCSR (16) variants:
-      - vibe (default): Unified reordering framework (best overall) ⭐
-      - vibe:quality: High-quality community detection + ordering
-      - vibe:rabbit: VIBE + RabbitOrder within communities
-      - vibe:streaming: Streaming/incremental ordering (fastest)
-      - vibe:hrab: Hybrid Leiden+Rabbit BFS (best amortization) ⭐
-      - vibe:hrab:gordi: Hybrid Leiden+Rabbit Gorder
-      - vibe:dfs, vibe:bfs: Alternative traversal orderings
-      - vibe:dbg: Debug/verbose mode
+      - graphbrew (default): Unified reordering framework (best overall) ⭐
+      - graphbrew:quality: High-quality community detection + ordering
+      - graphbrew:rabbit: GraphBrew ++ RabbitOrder within communities
+      - graphbrew:streaming: Streaming/incremental ordering (fastest)
+      - graphbrew:hrab: Hybrid Leiden+Rabbit BFS (best amortization) ⭐
+      - graphbrew:hrab:gordi: Hybrid Leiden+Rabbit Gorder
+      - graphbrew:dfs, graphbrew:bfs: Alternative traversal orderings
+      - graphbrew:dbg: Debug/verbose mode
     
     Resolution modes (for --resolution):
       - Fixed: 1.5 (use specified value)
@@ -300,9 +300,9 @@ from scripts.lib.utils import (
 class AlgorithmConfig:
     """Configuration for an algorithm, including variant support."""
     algo_id: int           # Base algorithm ID (e.g., 16 for LeidenCSR)
-    name: str              # Display name (e.g., "LeidenCSR_vibe")
-    option_string: str     # Full option string for -o flag (e.g., "16:vibe:quality")
-    variant: str = ""      # Variant name if applicable (e.g., "vibe")
+    name: str              # Display name (e.g., "LeidenCSR_graphbrew")
+    option_string: str     # Full option string for -o flag (e.g., "16:graphbrew:quality")
+    variant: str = ""      # Variant name if applicable (e.g., "graphbrew")
     resolution: str = "dynamic"  # Resolution mode: "dynamic", "auto", "1.0", etc.
     passes: int = 10
     
@@ -450,7 +450,7 @@ def get_best_leiden_variant(
     """
     Get the best variant for a Leiden algorithm based on learned weights.
     
-    For LeidenCSR (16), variants are: vibe (default), vibe:quality, vibe:rabbit, vibe:hrab, vibe:streaming, vibe:dfs, vibe:bfs
+    For LeidenCSR (16), variants are: graphbrew (default), graphbrew:quality, graphbrew:rabbit, graphbrew:hrab, graphbrew:streaming, graphbrew:dfs, graphbrew:bfs
     
     Args:
         type_name: Graph type (e.g., 'type_0')
@@ -1764,7 +1764,7 @@ def run_benchmarks_with_variants(
     Run benchmarks with variant-expanded label maps.
     
     This iterates directly over the algorithm names in label_maps (which include
-    variant suffixes like LeidenCSR_vibe, RABBITORDER_csr) to ensure the results
+    variant suffixes like LeidenCSR_graphbrew, RABBITORDER_csr) to ensure the results
     contain the full variant names.
     
     When using .lo files (MAP mode), loads reorder_time from the corresponding
@@ -2299,7 +2299,7 @@ def run_experiment(args):
         name_to_id.update({
             "RABBIT": 8, "RABBITORDER_BOOST": 8, "RABBITORDER_CSR": 8,
             "LEIDEN": 15, "LEIDENORDER": 15,
-            "LEIDENCSR": 16, "LEIDEN_CSR": 16, "LEIDENCSR_VIBE": 16, "VIBE": 16,
+            "LEIDENCSR": 16, "LEIDEN_CSR": 16, "LEIDENCSR_GRAPHBREW": 16, "GraphBrew": 16,
         })
         
         filtered_algos = set()
@@ -2466,7 +2466,7 @@ def run_experiment(args):
         
         if has_variant_maps and getattr(args, "expand_variants", False):
             # Use variant-aware benchmarking with pre-generated variant mappings
-            _progress.info("Mode: Variant-aware benchmarking (LeidenCSR_vibe, LeidenCSR_vibe:hrab, etc.)")
+            _progress.info("Mode: Variant-aware benchmarking (LeidenCSR_graphbrew, LeidenCSR_graphbrew:hrab, etc.)")
             benchmark_results = run_benchmarks_with_variants(
                 graphs=graphs,
                 label_maps=label_maps,
@@ -2536,7 +2536,7 @@ def run_experiment(args):
         
         if has_variant_maps and getattr(args, "expand_variants", False):
             # Use variant-aware cache simulation
-            _progress.info("Mode: Variant-aware cache simulation (LeidenCSR_vibe, LeidenCSR_vibe:hrab, etc.)")
+            _progress.info("Mode: Variant-aware cache simulation (LeidenCSR_graphbrew, LeidenCSR_graphbrew:hrab, etc.)")
             cache_results = run_cache_simulations_with_variants(
                 graphs=graphs,
                 label_maps=label_maps,
@@ -2554,7 +2554,7 @@ def run_experiment(args):
             rabbit_variants = getattr(args, 'rabbit_variants', None)
             
             if leiden_csr_variants or rabbit_variants:
-                _progress.info(f"  LeidenCSR variants: {leiden_csr_variants or ['vibe (default)']}")
+                _progress.info(f"  LeidenCSR variants: {leiden_csr_variants or ['graphbrew (default)']}")
                 _progress.info(f"  RabbitOrder variants: {rabbit_variants or ['csr (default)']}")
             
             cache_results = run_cache_simulations(
@@ -2803,7 +2803,7 @@ def run_experiment(args):
                 timeout=args.timeout_sim,
                 skip_heavy=getattr(args, 'skip_heavy', True),
                 label_maps={},
-                leiden_csr_variants=leiden_csr_variants if expand_variants else ['vibe'],
+                leiden_csr_variants=leiden_csr_variants if expand_variants else ['graphbrew'],
                 rabbit_variants=rabbit_variants if expand_variants else ['csr']
             )
         
@@ -3211,9 +3211,9 @@ def main():
                         help="Quick mode: test only key algorithms (Original, Random, HubClusterDBG, "
                              "RabbitOrder, Gorder, RCM, Leiden, LeidenCSR)")
     parser.add_argument("--algo", "--algorithm", type=str, default=None, dest="algo_name",
-                        help="Run only a specific algorithm (e.g., RABBITORDER_boost, LeidenCSR_vibe)")
+                        help="Run only a specific algorithm (e.g., RABBITORDER_boost, LeidenCSR_graphbrew)")
     parser.add_argument("--algo-list", nargs="+", type=str, default=None, dest="algo_list",
-                        help="Run specific algorithms (e.g., --algo-list RABBITORDER_boost LeidenCSR_vibe GORDER)")
+                        help="Run specific algorithms (e.g., --algo-list RABBITORDER_boost LeidenCSR_graphbrew GORDER)")
     parser.add_argument("--skip-slow", action="store_true",
                         help="Skip slow algorithms (Gorder, Corder, RCM) on large graphs")
     
@@ -3270,15 +3270,15 @@ def main():
                         help="Test ALL algorithm variants (Leiden, RabbitOrder) instead of just defaults")
     parser.add_argument("--csr-variants", nargs="+", dest="leiden_csr_variants",
                         default=None, choices=LEIDEN_CSR_VARIANTS,
-                        help="LeidenCSR/VIBE variants to test. Key variants: vibe (default), vibe:quality, vibe:hrab (Hybrid), "
-                             "vibe:rabbit (RabbitOrder), vibe:streaming (fastest), "
-                             "vibe:hrab:gordi (Hybrid Leiden+Rabbit Gorder). Use --all-variants for all.")
+                        help="LeidenCSR/GraphBrew variants to test. Key variants: graphbrew (default), graphbrew:quality, graphbrew:hrab (Hybrid), "
+                             "graphbrew:rabbit (RabbitOrder), graphbrew:streaming (fastest), "
+                             "graphbrew:hrab:gordi (Hybrid Leiden+Rabbit Gorder). Use --all-variants for all.")
     parser.add_argument("--rabbit-variants", nargs="+",
                         default=None, choices=["csr", "boost"],
                         help="RabbitOrder variants: csr (default, no deps), boost (requires libboost-graph-dev)")
     parser.add_argument("--graphbrew-variants", nargs="+", dest="graphbrew_variants",
                         default=None, choices=["leiden", "gve", "gveopt", "rabbit", "hubcluster"],
-                        help="GraphBrewOrder variants (VIBE-powered): leiden (default), gve, gveopt, rabbit, hubcluster")
+                        help="GraphBrewOrder variants (GraphBrew-powered): leiden (default), gve, gveopt, rabbit, hubcluster")
     parser.add_argument("--resolution", type=str, default="dynamic", dest="leiden_resolution",
                         help="Leiden resolution: dynamic (default, best PR), auto, fixed (1.5), dynamic_2.0")
     parser.add_argument("--passes", type=int, default=3, dest="leiden_passes",
@@ -3368,8 +3368,8 @@ def main():
     
     # Auto-enable --all-variants when running --full pipeline
     # Training on all variants is critical for the perceptron to learn which
-    # variant works best for each graph structure (e.g., LeidenCSR_vibe vs
-    # LeidenCSR_vibe:hrab, RABBITORDER_csr vs RABBITORDER_boost, etc.)
+    # variant works best for each graph structure (e.g., LeidenCSR_graphbrew vs
+    # LeidenCSR_graphbrew:hrab, RABBITORDER_csr vs RABBITORDER_boost, etc.)
     if getattr(args, 'full', False) and not args.expand_variants:
         args.expand_variants = True
         log("Auto-enabling variant expansion for --full pipeline (train on all variants)", "INFO")

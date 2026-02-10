@@ -203,7 +203,7 @@ Detects communities via Leiden, computes features (15 linear + 3 quadratic), use
 
 ### Is there a single best algorithm?
 
-LeidenCSR was selected for 99.5% of subcommunities in C++ validation. As a single algorithm, it achieves 2.9% median regret. Recommended variant: `vibe`.
+LeidenCSR was selected for 99.5% of subcommunities in C++ validation. As a single algorithm, it achieves 2.9% median regret. Recommended variant: `graphbrew`.
 
 ### What are the quadratic cross-terms?
 
@@ -228,7 +228,7 @@ See [[Python-Scripts#-eval_weightspy---weight-evaluation--c-scoring-simulation]]
 ### What's the difference between LeidenOrder and LeidenCSR?
 
 - **LeidenOrder (15)**: Baseline reference using GVE-Leiden external library (requires CSR→DiGraph conversion)
-- **LeidenCSR (16)**: Production implementation with VIBE variants (recommended: `vibe` or `vibe:hrab`)
+- **LeidenCSR (16)**: Production implementation with GraphBrew variants (recommended: `graphbrew` or `graphbrew:hrab`)
 
 LeidenCSR reimplements Leiden natively on CSR (zero-copy), achieving equivalent kernel quality but **28–95× faster reorder times**. LeidenOrder is kept as a baseline to measure this improvement.
 

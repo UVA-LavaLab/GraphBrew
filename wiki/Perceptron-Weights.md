@@ -372,7 +372,7 @@ Positive error → increase weights for features that predicted success. Negativ
 
 **Regret-aware grid search** optimizes per-benchmark multipliers (`benchmark_weights`) after base weight training. For each algorithm, it tests 30 random multiplier candidates from a log-spaced grid [0.1, 10.0], keeping combinations that maximize accuracy while minimizing regret (performance loss vs optimal).
 
-**Variant pre-collapse:** Before saving, only the highest-bias variant per base algorithm is kept (e.g., `LeidenCSR_vibe:hrab` beats `LeidenCSR_vibe` → saved as `LeidenCSR`).
+**Variant pre-collapse:** Before saving, only the highest-bias variant per base algorithm is kept (e.g., `LeidenCSR_graphbrew:hrab` beats `LeidenCSR_graphbrew` → saved as `LeidenCSR`).
 
 ---
 

@@ -160,7 +160,7 @@ Each type has a **centroid** — the average feature vector of its training grap
 Different parts of a graph have different structures:
 - **Hub communities**: Dense cores with high-degree vertices → HUBCLUSTERDBG works well
 - **Sparse communities**: Mesh-like structures → RCM or ORIGINAL may be better
-- **Hierarchical communities**: Tree-like → LeidenCSR traversal variants (`vibe:dfs`, `vibe:bfs`) excel
+- **Hierarchical communities**: Tree-like → LeidenCSR traversal variants (`graphbrew:dfs`, `graphbrew:bfs`) excel
 
 AdaptiveOrder selects the best algorithm for each community's characteristics.
 
@@ -503,7 +503,7 @@ print(f"LOGO: {result['accuracy']:.1%}, Overfit: {result['overfitting_score']:.2
 The primary training function in `lib/weights.py` implements a 4-stage pipeline:
 
 1. **Multi-Restart Perceptron Training** — 5 independent perceptrons × 800 epochs per benchmark, z-score normalized features, averaged across restarts and benchmarks
-2. **Variant Pre-Collapse** — Only the highest-bias variant per base algorithm is kept (e.g., `LeidenCSR_vibe:hrab` beats `LeidenCSR_vibe`)
+2. **Variant Pre-Collapse** — Only the highest-bias variant per base algorithm is kept (e.g., `LeidenCSR_graphbrew:hrab` beats `LeidenCSR_graphbrew`)
 3. **Regret-Aware Benchmark Multiplier Optimization** — Grid search (30 iterations × 32 log-spaced values) maximizing accuracy while minimizing regret
 4. **Save to `type_0.json`** with `_metadata` training statistics
 

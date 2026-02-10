@@ -45,7 +45,7 @@
 //   13 - MAP:            Load ordering from file
 //   14 - ADAPTIVEORDER:  ML-based algorithm selection
 //   15 - LEIDENORDER:    Leiden community ordering
-//   16 - LEIDENCSR:      GVE-Leiden CSR-native ordering (VIBE)
+//   16 - LEIDENCSR:      GVE-Leiden CSR-native ordering (GraphBrew)
 //
 // Usage:
 //   #include "reorder/reorder.h"
@@ -74,7 +74,7 @@
 
 // Note: reorder_adaptive.h is included at the END of this file
 // after all dispatcher functions are defined.
-// GraphBrewOrder (12) implementation is now fully in builder.h via VIBE pipeline.
+// GraphBrewOrder (12) implementation is now fully in builder.h via GraphBrew pipeline.
 
 // ============================================================================
 // ALGORITHM STRING CONVERSION
@@ -488,10 +488,10 @@ void GenerateMappingLocalEdgelistStandalone(
 // (GenerateMappingLocalEdgelistStandalone, ReorderCommunitySubgraphStandalone)
 //
 // NOTE: reorder_graphbrew.h has been deprecated and removed.
-// GraphBrewOrder (ID 12) is now fully powered by the VIBE pipeline in builder.h
-// via ParseGraphBrewOptionsToVibeConfig() and GenerateGraphBrewMappingUnified().
+// GraphBrewOrder (ID 12) is now fully powered by the GraphBrew pipeline in builder.h
+// via ParseGraphBrewConfig() and GenerateGraphBrewMappingUnified().
 // All configuration types (GraphBrewCluster, GraphBrewConfig) have been superseded
-// by vibe::VibeConfig and vibe::parseVibeConfig() in reorder_vibe.h.
+// by graphbrew::GraphBrewConfig and graphbrew::parseGraphBrewConfig() in reorder_graphbrew.h.
 
 #include "reorder_adaptive.h"  // ADAPTIVEORDER (14) config (implementations in builder.h)
 

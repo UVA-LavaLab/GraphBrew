@@ -1,6 +1,6 @@
 /**
- * @file reorder_vibe.h
- * @brief VIBE: Vertex Indexing for Better Efficiency
+ * @file reorder_graphbrew.h
+ * @brief GraphBrew: Graph Reordering for Better Efficiency
  * 
  * A modular, configurable graph reordering library that combines the best
  * techniques from Leiden, RabbitOrder, and cache optimization research.
@@ -9,7 +9,7 @@
  * UNIFIED CONFIGURATION
  * =============================================================================
  * 
- * VIBE uses the unified reorder::ReorderConfig system from reorder_types.h:
+ * GraphBrew uses the unified reorder::ReorderConfig system from reorder_types.h:
  * 
  * │ Parameter              │ Default │ Description                          │
  * ├────────────────────────┼─────────┼──────────────────────────────────────┤
@@ -22,15 +22,15 @@
  * │ tileSize               │ 4096    │ Cache blocking tile size             │
  * │ prefetchDistance       │ 8       │ Prefetch lookahead                   │
  * 
- * VibeConfig uses reorder::DEFAULT_* constants and provides conversion:
- *   VibeConfig::FromReorderConfig(cfg)  - Convert unified → VIBE
- *   vibeConfig.toReorderConfig()        - Convert VIBE → unified
+ * GraphBrewConfig uses reorder::DEFAULT_* constants and provides conversion:
+ *   GraphBrewConfig::FromReorderConfig(cfg)  - Convert unified → GraphBrew
+ *   graphBrewConfig.toReorderConfig()        - Convert GraphBrew → unified
  * 
  * =============================================================================
  * ALGORITHMS
  * =============================================================================
  * 
- * VIBE supports two main algorithmic approaches:
+ * GraphBrew supports two main algorithmic approaches:
  * 
  * 1. LEIDEN-BASED (default): Multi-pass community detection with configurable
  *    aggregation and ordering strategies.
@@ -50,20 +50,20 @@
  * =============================================================================
  * 
  * ┌─────────────────────────────────────────────────────────────────────────┐
- * │                    VIBE (vibe) - Leiden Pipeline                        │
+ * │                    GraphBrew (graphbrew) - Leiden Pipeline                        │
  * ├─────────────────────────────────────────────────────────────────────────┤
  * │  PASS 1...N (until convergence):                                       │
  * │    ├── leidenLocalMoving()  - Move vertices to best community          │
  * │    ├── leidenRefinement()   - Refine communities (optional)            │
  * │    └── Aggregation:                                                    │
  * │        ├── LEIDEN_CSR:  Build explicit super-graph (default)           │
- * │        ├── RABBIT_LAZY: Union-find streaming (vibe:streaming)          │
+ * │        ├── RABBIT_LAZY: Union-find streaming (graphbrew:streaming)          │
  * │        └── HYBRID:      Lazy early, CSR later                          │
  * │  Then apply ordering strategy to final communities                     │
  * └─────────────────────────────────────────────────────────────────────────┘
  * 
  * ┌─────────────────────────────────────────────────────────────────────────┐
- * │                 RABBIT ORDER (vibe:rabbit) - Single Pass               │
+ * │                 RABBIT ORDER (12:graphbrew:rabbit) - Single Pass               │
  * ├─────────────────────────────────────────────────────────────────────────┤
  * │  1. Sort vertices by degree (ascending)                                │
  * │  2. Initialize edge cache per vertex                                   │
@@ -76,26 +76,26 @@
  * └─────────────────────────────────────────────────────────────────────────┘
  * 
  * =============================================================================
- * ORDERING STRATEGIES (for Leiden-based VIBE)
+ * ORDERING STRATEGIES (for Leiden-based GraphBrew)
  * =============================================================================
  * 
  * After community detection, vertices are ordered using one of:
  * 
  * │ Strategy        │ Option           │ Description                       │
  * ├─────────────────┼──────────────────┼───────────────────────────────────┤
- * │ HIERARCHICAL    │ vibe             │ Sort by community, then degree    │
- * │ DENDROGRAM_DFS  │ vibe:dfs         │ DFS traversal of dendrogram       │
- * │ DENDROGRAM_BFS  │ vibe:bfs         │ BFS traversal of dendrogram       │
- * │ DBG             │ vibe:dbg         │ DBG within each community         │
- * │ CORDER          │ vibe:corder      │ Hot/cold within each community    │
- * │ DBG_GLOBAL      │ vibe:dbg-global  │ DBG across all vertices           │
- * │ CORDER_GLOBAL   │ vibe:corder-global│ Hot/cold across all vertices     │
- * │ CONNECTIVITY_BFS│ vibe:conn          │ BFS within communities (default) │
- * │ HYBRID_LEIDEN_  │ vibe:hrab          │ Leiden + RabbitOrder super-graph  │
+ * │ HIERARCHICAL    │ graphbrew        │ Sort by community, then degree    │
+ * │ DENDROGRAM_DFS  │ graphbrew:dfs         │ DFS traversal of dendrogram       │
+ * │ DENDROGRAM_BFS  │ graphbrew:bfs         │ BFS traversal of dendrogram       │
+ * │ DBG             │ graphbrew:dbg         │ DBG within each community         │
+ * │ CORDER          │ graphbrew:corder      │ Hot/cold within each community    │
+ * │ DBG_GLOBAL      │ graphbrew:dbg-global  │ DBG across all vertices           │
+ * │ CORDER_GLOBAL   │ graphbrew:corder-global│ Hot/cold across all vertices     │
+ * │ CONNECTIVITY_BFS│ graphbrew:conn          │ BFS within communities (default) │
+ * │ HYBRID_LEIDEN_  │ graphbrew:hrab          │ Leiden + RabbitOrder super-graph  │
  * │ RABBIT          │                    │ (best locality web/geometric)    │
- * │ TILE_QUANTIZED_ │ vibe:tqr           │ Tile-quantized RabbitOrder:       │
+ * │ TILE_QUANTIZED_ │ graphbrew:tqr           │ Tile-quantized RabbitOrder:       │
  * │ RABBIT          │                    │ cache-line-aligned tile graph     │
- * │ GRAPHBREW       │ vibe:graphbrew     │ Per-community external algo       │
+ * │ LAYER           │ graphbrew:layer     │ Per-community external algo       │
  * │                 │                    │ dispatch (0-11, default: Rabbit)  │
  * 
  * =============================================================================
@@ -104,31 +104,31 @@
  * 
  * Format: -o 16:[algorithm]:[ordering]:[aggregation]:[resolution]
  * 
- * Leiden-based VIBE:
- *   ./bench/bin/pr -f graph.mtx -o 16:vibe -n 5           # Default (hierarchical, auto resolution)
- *   ./bench/bin/pr -f graph.mtx -o 16:vibe:dfs -n 5       # DFS ordering
- *   ./bench/bin/pr -f graph.mtx -o 16:vibe:dbg -n 5       # DBG per community
- *   ./bench/bin/pr -f graph.mtx -o 16:vibe:streaming -n 5 # Lazy aggregation
- *   ./bench/bin/pr -f graph.mtx -o 16:vibe:lazyupdate -n 5 # Batched ctot updates (reduces atomics)
- *   ./bench/bin/pr -f graph.mtx -o 16:vibe:conn -n 5       # Connectivity BFS (default ordering)
- *   ./bench/bin/pr -f graph.mtx -o 16:vibe:hrab -n 5       # Hybrid Leiden+RabbitOrder (best locality)
- *   ./bench/bin/pr -f graph.mtx -o 16:vibe:tqr -n 5        # Tile-Quantized RabbitOrder (cache-aligned)
- *   ./bench/bin/pr -f graph.mtx -o 16:vibe:auto -n 5      # Auto-computed resolution (fixed)
- *   ./bench/bin/pr -f graph.mtx -o 16:vibe:dynamic -n 5   # Dynamic resolution (per-pass adjustment)
- *   ./bench/bin/pr -f graph.mtx -o 16:vibe:0.75 -n 5      # Fixed resolution (0.75)
- *   ./bench/bin/pr -f graph.mtx -o 16:vibe:dfs:streaming:0.75 -n 5  # Combined
+ * Leiden-based GraphBrew:
+ *   ./bench/bin/pr -f graph.mtx -o 12:graphbrew -n 5           # Default (hierarchical, auto resolution)
+ *   ./bench/bin/pr -f graph.mtx -o 16:graphbrew:dfs -n 5       # DFS ordering
+ *   ./bench/bin/pr -f graph.mtx -o 16:graphbrew:dbg -n 5       # DBG per community
+ *   ./bench/bin/pr -f graph.mtx -o 16:graphbrew:streaming -n 5 # Lazy aggregation
+ *   ./bench/bin/pr -f graph.mtx -o 16:graphbrew:lazyupdate -n 5 # Batched ctot updates (reduces atomics)
+ *   ./bench/bin/pr -f graph.mtx -o 16:graphbrew:conn -n 5       # Connectivity BFS (default ordering)
+ *   ./bench/bin/pr -f graph.mtx -o 16:graphbrew:hrab -n 5       # Hybrid Leiden+RabbitOrder (best locality)
+ *   ./bench/bin/pr -f graph.mtx -o 16:graphbrew:tqr -n 5        # Tile-Quantized RabbitOrder (cache-aligned)
+ *   ./bench/bin/pr -f graph.mtx -o 16:graphbrew:auto -n 5      # Auto-computed resolution (fixed)
+ *   ./bench/bin/pr -f graph.mtx -o 16:graphbrew:dynamic -n 5   # Dynamic resolution (per-pass adjustment)
+ *   ./bench/bin/pr -f graph.mtx -o 12:graphbrew:0.75 -n 5      # Fixed resolution (0.75)
+ *   ./bench/bin/pr -f graph.mtx -o 16:graphbrew:dfs:streaming:0.75 -n 5  # Combined
  * 
  * RabbitOrder:
- *   ./bench/bin/pr -f graph.mtx -o 16:vibe:rabbit -n 5    # RabbitOrder algorithm
- *   ./bench/bin/pr -f graph.mtx -o 16:vibe:rabbit:dfs -n 5  # + DFS post-ordering
- *   ./bench/bin/pr -f graph.mtx -o 16:vibe:rabbit:dbg -n 5  # + DBG post-ordering
+ *   ./bench/bin/pr -f graph.mtx -o 16:graphbrew:rabbit -n 5    # RabbitOrder algorithm
+ *   ./bench/bin/pr -f graph.mtx -o 16:graphbrew:rabbit:dfs -n 5  # + DFS post-ordering
+ *   ./bench/bin/pr -f graph.mtx -o 16:graphbrew:rabbit:dbg -n 5  # + DBG post-ordering
  *   # Note: RabbitOrder does not support dynamic resolution (falls back to auto)
  * 
  * =============================================================================
  * RESOLUTION MODES
  * =============================================================================
  * 
- * VIBE supports three resolution modes for community detection:
+ * GraphBrew supports three resolution modes for community detection:
  * 
  * │ Mode         │ Syntax         │ Description                              │
  * ├──────────────┼────────────────┼──────────────────────────────────────────┤
@@ -144,10 +144,10 @@
  * is not known ahead of time. The algorithm adapts based on runtime metrics.
  * 
  * =============================================================================
- * COMPARISON: VIBE vs RABBIT ORDER
+ * COMPARISON: GraphBrew (Leiden) vs RABBIT ORDER
  * =============================================================================
  * 
- * │ Aspect          │ vibe (Leiden)           │ vibe:rabbit (RabbitOrder)  │
+ * │ Aspect          │ graphbrew (Leiden)           │ graphbrew:rabbit (RabbitOrder)  │
  * ├─────────────────┼─────────────────────────┼────────────────────────────┤
  * │ Passes          │ Multi-pass (2-5)        │ Single-pass                │
  * │ Vertex Order    │ Random/parallel         │ Sorted by degree           │
@@ -162,9 +162,9 @@
  * CONFIGURATION STRUCT
  * =============================================================================
  * 
- * struct VibeConfig {
+ * struct GraphBrewConfig {
  *     // Algorithm Selection
- *     VibeAlgorithm algorithm = LEIDEN;     // LEIDEN or RABBIT_ORDER
+ *     GraphBrewAlgorithm algorithm = LEIDEN;     // LEIDEN or RABBIT_ORDER
  *     
  *     // Community Detection (Leiden)
  *     double resolution = 1.0;              // Modularity resolution
@@ -209,28 +209,28 @@
 #include <pvector.h>
 #include <timer.h>
 
-namespace vibe {
+namespace graphbrew {
 
 //=============================================================================
 // SECTION 1: CONFIGURATION AND ENUMS
 //=============================================================================
 
 /** Enable debug output */
-#ifndef VIBE_DEBUG
-#define VIBE_DEBUG 0
+#ifndef GRAPHBREW_DEBUG
+#define GRAPHBREW_DEBUG 0
 #endif
 
-#if VIBE_DEBUG
-#define VIBE_TRACE(fmt, ...) printf("[VIBE] " fmt "\n", ##__VA_ARGS__)
+#if GRAPHBREW_DEBUG
+#define GRAPHBREW_TRACE(fmt, ...) printf("[GraphBrew] " fmt "\n", ##__VA_ARGS__)
 #else
-#define VIBE_TRACE(fmt, ...) ((void)0)
+#define GRAPHBREW_TRACE(fmt, ...) ((void)0)
 #endif
 
 /** Weight type */
 using Weight = double;
 
 /** Main algorithm selection */
-enum class VibeAlgorithm {
+enum class GraphBrewAlgorithm {
     LEIDEN,          ///< Leiden-based community detection (default)
     RABBIT_ORDER     ///< RabbitOrder incremental aggregation (paper)
 };
@@ -264,7 +264,7 @@ enum class OrderingStrategy {
     HIERARCHICAL_CACHE_AWARE,  ///< Use Leiden hierarchy as dendrogram for cache-aware ordering
     HYBRID_LEIDEN_RABBIT,      ///< Leiden communities + RabbitOrder super-graph ordering (best locality)
     TILE_QUANTIZED_RABBIT,     ///< Tile-quantized graph + RabbitOrder: cache-line-aligned macro-ordering
-    GRAPHBREW                  ///< GraphBrew mode: apply any algo 0-11 per community (external dispatch)
+    LAYER                      ///< GraphBrew mode: apply any algo 0-11 per community (external dispatch)
 };
 
 /** Community detection mode */
@@ -280,7 +280,7 @@ enum class CommunityMode {
  * Uses unified defaults from reorder::ReorderConfig for consistency with
  * Leiden, GraphBrew, and other community-based reordering algorithms.
  */
-struct VibeConfig {
+struct GraphBrewConfig {
     // Resolution and convergence - use unified defaults
     double resolution = reorder::DEFAULT_RESOLUTION;           ///< Modularity resolution [0.1 - 2.0]
     double tolerance = reorder::DEFAULT_TOLERANCE;             ///< Convergence tolerance
@@ -292,7 +292,7 @@ struct VibeConfig {
     int maxPasses = reorder::DEFAULT_MAX_PASSES;               ///< Max aggregation passes
     
     // Algorithm selection
-    VibeAlgorithm algorithm = VibeAlgorithm::LEIDEN; ///< Main algorithm
+    GraphBrewAlgorithm algorithm = GraphBrewAlgorithm::LEIDEN; ///< Main algorithm
     CommunityMode communityMode = CommunityMode::FULL_LEIDEN;
     AggregationStrategy aggregation = AggregationStrategy::LEIDEN_CSR;
     OrderingStrategy ordering = OrderingStrategy::CONNECTIVITY_BFS;  ///< Default: BFS within communities (best cache locality)
@@ -305,21 +305,21 @@ struct VibeConfig {
     bool useParallelSort = true;       ///< Use parallel sorting
     bool verifyTopology = false;       ///< Verify topology after reordering
     bool useDynamicResolution = false; ///< Enable per-pass resolution adjustment
-    bool useDegreeSorting = false;     ///< Process vertices by ascending degree (helps vibe:rabbit, not Leiden)
-    bool useCommunityMerging = false;  ///< Merge small communities for better cache locality (vibe:merge)
+    bool useDegreeSorting = false;     ///< Process vertices by ascending degree (helps graphbrew:rabbit, not Leiden)
+    bool useCommunityMerging = false;  ///< Merge small communities for better cache locality (graphbrew:merge)
     size_t targetCommunities = 0;      ///< Target community count after merging (0 = auto)
-    bool useHubExtraction = false;     ///< Extract high-degree hubs before community ordering (vibe:hubx)
+    bool useHubExtraction = false;     ///< Extract high-degree hubs before community ordering (graphbrew:hubx)
     double hubExtractionPct = 0.001;   ///< Fraction of vertices to extract as hubs (default 0.1%, use hubx0.5 for 0.5%)
     
     // Gorder-inspired improvements (apply to hrab ordering)
-    bool useGorderIntra = false;       ///< Replace BFS with Gorder-greedy within communities (vibe:gord)
+    bool useGorderIntra = false;       ///< Replace BFS with Gorder-greedy within communities (graphbrew:gord)
     int  gorderWindow = 5;             ///< Sliding window size for Gorder-greedy intra-community ordering
     int  gorderFallback = 0;           ///< Community size threshold for BFS fallback (0 = auto = N, i.e. no fallback)
-    bool useHubSort = false;           ///< Post-process: pack hub vertices contiguously sorted by descending degree (vibe:hsort)
-    bool useRCMSuper = false;          ///< Use RCM on super-graph instead of RabbitOrder dendrogram DFS (vibe:rcm)
+    bool useHubSort = false;           ///< Post-process: pack hub vertices contiguously sorted by descending degree (graphbrew:hsort)
+    bool useRCMSuper = false;          ///< Use RCM on super-graph instead of RabbitOrder dendrogram DFS (graphbrew:rcm)
     
     // GraphBrew mode: per-community external algorithm dispatch
-    int  finalAlgoId = -1;             ///< Final reordering algorithm ID (0-11) for GRAPHBREW ordering. -1 = not set (uses VIBE ordering)
+    int  finalAlgoId = -1;             ///< Final reordering algorithm ID (0-11) for LAYER ordering. -1 = not set (uses GraphBrew ordering)
     bool useSmallCommunityMerging = false; ///< Merge small communities and apply heuristic algorithm selection
     size_t smallCommunityThreshold = 0;    ///< Min community size for individual reordering (0 = dynamic)
     int  recursiveDepth = 0;           ///< Recursive sub-community depth: 0=flat (default), 1+=recurse into large communities
@@ -335,11 +335,11 @@ struct VibeConfig {
     size_t prefetchDistance = reorder::DEFAULT_PREFETCH_DISTANCE;  ///< Prefetch lookahead
    
     /**
-     * Create VibeConfig from unified ReorderConfig
+     * Create GraphBrewConfig from unified ReorderConfig
      * Enables seamless interop with unified configuration
      */
-    static VibeConfig FromReorderConfig(const reorder::ReorderConfig& cfg) {
-        VibeConfig vc;
+    static GraphBrewConfig FromReorderConfig(const reorder::ReorderConfig& cfg) {
+        GraphBrewConfig vc;
         vc.resolution = cfg.resolution;
         vc.tolerance = cfg.tolerance;
         vc.aggregationTolerance = cfg.aggregationTolerance;
@@ -456,9 +456,9 @@ struct DendrogramNode {
     int level;                         ///< Level in hierarchy (0 = leaf)
 };
 
-/** Full result from VIBE algorithm */
+/** Full result from GraphBrew algorithm */
 template <typename K>
-struct VibeResult {
+struct GraphBrewResult {
     // Community structure
     std::vector<K> membership;                     ///< Final community per vertex
     std::vector<std::vector<K>> membershipPerPass; ///< Membership at each level
@@ -684,12 +684,12 @@ template <typename NodeID_T, typename DestID_T>
 void computeVertexWeights(
     std::vector<Weight>& vtot,
     const CSRGraph<NodeID_T, DestID_T, true>& g,
-    const VibeConfig& config) {
+    const GraphBrewConfig& config) {
     
     const int64_t N = g.num_nodes();
     vtot.assign(N, Weight(0));
     
-    VIBE_TRACE("computeVertexWeights: N=%ld", N);
+    GRAPHBREW_TRACE("computeVertexWeights: N=%ld", N);
     
     #pragma omp parallel for schedule(dynamic, config.tileSize)
     for (int64_t u = 0; u < N; ++u) {
@@ -713,7 +713,7 @@ template <typename K, typename W>
 void computeVertexWeightsSuperGraph(
     std::vector<W>& vtot,
     const SuperGraph<K, W>& sg,
-    const VibeConfig& config) {
+    const GraphBrewConfig& config) {
     
     const size_t N = sg.numNodes;
     vtot.assign(N, W(0));
@@ -747,7 +747,7 @@ void initializeCommunities(
     vcom.resize(N);
     ctot.resize(N);
     
-    VIBE_TRACE("initializeCommunities: N=%zu", N);
+    GRAPHBREW_TRACE("initializeCommunities: N=%zu", N);
     
     #pragma omp parallel for schedule(static, 4096)
     for (size_t u = 0; u < N; ++u) {
@@ -772,7 +772,7 @@ void scanCommunities(
     NodeID_T u,
     const std::vector<K>& vcom,
     const std::vector<K>& vcob,
-    const VibeConfig& config) {
+    const GraphBrewConfig& config) {
     
     scanner.clear();
     K bound_u = vcob[u];
@@ -826,7 +826,7 @@ void scanCommunitiesSuperGraph(
     K u,
     const std::vector<K>& vcom,
     const std::vector<K>& vcob,
-    const VibeConfig& config) {
+    const GraphBrewConfig& config) {
     
     scanner.clear();
     K bound_u = vcob[u];
@@ -971,7 +971,7 @@ int localMovingPhase(
     const std::vector<K>& vcob,
     const std::vector<Weight>& vtot,
     Weight M, Weight R,
-    const VibeConfig& config) {
+    const GraphBrewConfig& config) {
     
     const int64_t N = g.num_nodes();
     int iterations = 0;
@@ -1008,10 +1008,10 @@ int localMovingPhase(
                     return g.out_degree(a) < g.out_degree(b);
                 });
         }
-        VIBE_TRACE("localMovingPhase: using degree-sorted order");
+        GRAPHBREW_TRACE("localMovingPhase: using degree-sorted order");
     }
     
-    VIBE_TRACE("localMovingPhase<%s>: N=%ld", REFINE ? "REFINE" : "NORMAL", N);
+    GRAPHBREW_TRACE("localMovingPhase<%s>: N=%ld", REFINE ? "REFINE" : "NORMAL", N);
     
     // Set OpenMP schedule based on whether degree sorting is enabled
     // Degree sorting creates uniform work distribution -> static,1 is optimal
@@ -1097,7 +1097,7 @@ int localMovingPhase(
         }
         
         ++iterations;
-        VIBE_TRACE("  iter %d: totalDelta=%.6f%s", iter, totalDelta, useLazy ? " (lazy)" : "");
+        GRAPHBREW_TRACE("  iter %d: totalDelta=%.6f%s", iter, totalDelta, useLazy ? " (lazy)" : "");
         
         if constexpr (REFINE) break;  // Refinement: single pass
         if (totalDelta <= config.tolerance) break;
@@ -1118,7 +1118,7 @@ int localMovingPhaseSuperGraph(
     const std::vector<K>& vcob,
     const std::vector<Weight>& vtot,
     Weight M, Weight R,
-    const VibeConfig& config) {
+    const GraphBrewConfig& config) {
     
     const size_t N = sg.numNodes;
     int iterations = 0;
@@ -1134,7 +1134,7 @@ int localMovingPhaseSuperGraph(
     // Decide whether to use lazy updates this phase
     const bool useLazy = config.useLazyUpdates && !REFINE;
     
-    VIBE_TRACE("localMovingPhaseSuperGraph<%s>: N=%zu%s", REFINE ? "REFINE" : "NORMAL", N, useLazy ? " (lazy)" : "");
+    GRAPHBREW_TRACE("localMovingPhaseSuperGraph<%s>: N=%zu%s", REFINE ? "REFINE" : "NORMAL", N, useLazy ? " (lazy)" : "");
     
     for (int iter = 0; iter < config.maxIterations; ++iter) {
         Weight totalDelta = Weight(0);
@@ -1325,9 +1325,9 @@ void aggregateGraphLeiden(
     const std::vector<size_t>& coff,
     const std::vector<K>& cvtx,
     size_t C,
-    const VibeConfig& config) {
+    const GraphBrewConfig& config) {
     
-    VIBE_TRACE("aggregateGraphLeiden: C=%zu", C);
+    GRAPHBREW_TRACE("aggregateGraphLeiden: C=%zu", C);
     
     // Estimate edges per community
     std::vector<size_t> estDegree(C, 0);
@@ -1429,9 +1429,9 @@ void aggregateSuperGraphLeiden(
     const std::vector<size_t>& coff,
     const std::vector<K>& cvtx,
     size_t C,
-    const VibeConfig& config) {
+    const GraphBrewConfig& config) {
     
-    VIBE_TRACE("aggregateSuperGraphLeiden: C=%zu", C);
+    GRAPHBREW_TRACE("aggregateSuperGraphLeiden: C=%zu", C);
     
     std::vector<size_t> estDegree(C, 0);
     #pragma omp parallel for schedule(dynamic, 256)
@@ -1523,7 +1523,7 @@ void aggregateSuperGraphLeiden(
  * @param cvtx Community vertex list
  * @param M Total edge weight
  * @param R Resolution parameter
- * @param config VIBE configuration
+ * @param config GraphBrew configuration
  * @return Number of final communities after merging
  */
 template <typename K, typename NodeID_T, typename DestID_T>
@@ -1536,7 +1536,7 @@ size_t aggregateGVEStyle(
     const std::vector<size_t>& coff,
     const std::vector<K>& cvtx,
     Weight M, Weight R,
-    const VibeConfig& config) {
+    const GraphBrewConfig& config) {
     
     const int64_t N = g.num_nodes();
     
@@ -1859,14 +1859,14 @@ size_t rabbitCommunityDetection(
     std::vector<K>& toplevel,
     const std::vector<K>& vertexOrder,
     float M,
-    const VibeConfig& config) {
+    const GraphBrewConfig& config) {
     
     using Edge = std::pair<K, float>;
     const size_t N = g.num_nodes();
     constexpr K INVALID = static_cast<K>(-1);
     const int numThreads = omp_get_max_threads();
     
-    VIBE_TRACE("rabbitCommunityDetection: N=%zu, M=%.0f", N, M);
+    GRAPHBREW_TRACE("rabbitCommunityDetection: N=%zu, M=%.0f", N, M);
     
     // Lambda: find destination community with path compression (Algorithm 4, lines 3-5)
     auto findDest = [&](K v) -> K {
@@ -2082,7 +2082,7 @@ size_t rabbitCommunityDetection(
         toplevel.insert(toplevel.end(), topss[t].begin(), topss[t].end());
     }
     
-    VIBE_TRACE("rabbitCommunityDetection: %zu top-level communities", toplevel.size());
+    GRAPHBREW_TRACE("rabbitCommunityDetection: %zu top-level communities", toplevel.size());
     
     return toplevel.size();
 }
@@ -2140,7 +2140,7 @@ void rabbitOrderingGeneration(
     const std::vector<float>& degrees,  // For zero-degree separation
     size_t N) {
     
-    VIBE_TRACE("rabbitOrderingGeneration: %zu top-level, N=%zu", toplevel.size(), N);
+    GRAPHBREW_TRACE("rabbitOrderingGeneration: %zu top-level, N=%zu", toplevel.size(), N);
     
     permutation.resize(N);
     constexpr K INVALID = static_cast<K>(-1);
@@ -2225,7 +2225,7 @@ void rabbitOrderingGeneration(
         permutation[v] += offsets[coms[v]];
     }
     
-    VIBE_TRACE("rabbitOrderingGeneration: %zu active, %zu isolated communities", 
+    GRAPHBREW_TRACE("rabbitOrderingGeneration: %zu active, %zu isolated communities", 
                activeTop.size(), isolatedTop.size());
 }
 
@@ -2240,7 +2240,7 @@ template <typename K, typename NodeID_T, typename DestID_T>
 void runRabbitOrder(
     const CSRGraph<NodeID_T, DestID_T, true>& g,
     pvector<NodeID_T>& mapping,
-    const VibeConfig& config) {
+    const GraphBrewConfig& config) {
     
     const size_t N = g.num_nodes();
     constexpr K INVALID = static_cast<K>(-1);
@@ -2502,9 +2502,9 @@ void aggregateGraphLazy(
     const CSRGraph<NodeID_T, DestID_T, true>& g,
     const std::vector<K>& vcom,
     size_t C,
-    const VibeConfig& config) {
+    const GraphBrewConfig& config) {
     
-    VIBE_TRACE("aggregateGraphLazy: C=%zu", C);
+    GRAPHBREW_TRACE("aggregateGraphLazy: C=%zu", C);
     
     const int64_t N = g.num_nodes();
     const int numThreads = omp_get_max_threads();
@@ -2612,9 +2612,9 @@ void aggregateSuperGraphLazy(
     const SuperGraph<K, Weight>& in,
     const std::vector<K>& vcom,
     size_t C,
-    const VibeConfig& config) {
+    const GraphBrewConfig& config) {
     
-    VIBE_TRACE("aggregateSuperGraphLazy: C=%zu", C);
+    GRAPHBREW_TRACE("aggregateSuperGraphLazy: C=%zu", C);
     
     const size_t N = in.numNodes;
     const int numThreads = omp_get_max_threads();
@@ -2721,7 +2721,7 @@ void buildDendrogram(
     
     if (membershipPerPass.empty()) return;
     
-    VIBE_TRACE("buildDendrogram: N=%zu, passes=%zu", N, membershipPerPass.size());
+    GRAPHBREW_TRACE("buildDendrogram: N=%zu, passes=%zu", N, membershipPerPass.size());
     
     const size_t numPasses = membershipPerPass.size();
     
@@ -2799,7 +2799,7 @@ void buildDendrogram(
         }
     }
     
-    VIBE_TRACE("buildDendrogram: %zu nodes, %zu roots", dendrogram.size(), roots.size());
+    GRAPHBREW_TRACE("buildDendrogram: %zu nodes, %zu roots", dendrogram.size(), roots.size());
 }
 
 //=============================================================================
@@ -2816,12 +2816,12 @@ void buildDendrogram(
 template <typename K, typename NodeID_T>
 void orderHierarchicalSort(
     pvector<NodeID_T>& newIds,
-    const VibeResult<K>& result,
+    const GraphBrewResult<K>& result,
     const std::vector<K>& degrees,
     size_t N,
-    const VibeConfig& config) {
+    const GraphBrewConfig& config) {
     
-    VIBE_TRACE("orderHierarchicalSort: N=%zu, passes=%zu", N, result.membershipPerPass.size());
+    GRAPHBREW_TRACE("orderHierarchicalSort: N=%zu, passes=%zu", N, result.membershipPerPass.size());
     
     // Separate zero-degree (isolated) nodes - they go at the end
     std::vector<size_t> active, isolated;
@@ -2868,7 +2868,7 @@ void orderHierarchicalSort(
         newIds[isolated[i]] = isolatedStart + static_cast<NodeID_T>(i);
     }
     
-    VIBE_TRACE("orderHierarchicalSort: %zu active, %zu isolated", active.size(), isolated.size());
+    GRAPHBREW_TRACE("orderHierarchicalSort: %zu active, %zu isolated", active.size(), isolated.size());
 }
 
 //=============================================================================
@@ -2897,13 +2897,13 @@ void orderHierarchicalSort(
 template <typename K, typename NodeID_T, typename DestID_T>
 void orderHierarchicalCacheAware(
     pvector<NodeID_T>& newIds,
-    const VibeResult<K>& result,
+    const GraphBrewResult<K>& result,
     const std::vector<K>& degrees,
     const CSRGraph<NodeID_T, DestID_T, true>& g,
     size_t N,
-    const VibeConfig& config) {
+    const GraphBrewConfig& config) {
     
-    VIBE_TRACE("orderHierarchicalCacheAware: N=%zu, passes=%zu", N, result.membershipPerPass.size());
+    GRAPHBREW_TRACE("orderHierarchicalCacheAware: N=%zu, passes=%zu", N, result.membershipPerPass.size());
     
     const size_t numPasses = result.membershipPerPass.size();
     if (numPasses == 0) {
@@ -3104,7 +3104,7 @@ void orderHierarchicalCacheAware(
 /**
  * Connectivity-based ordering within communities (Boost-style for Leiden)
  * 
- * This is the KEY FIX for vibe:leiden performance!
+ * This is the KEY FIX for graphbrew:leiden performance!
  * 
  * Problem: Leiden produces great communities, but orderHierarchicalSort 
  * destroys locality by sorting vertices by arbitrary community IDs.
@@ -3126,9 +3126,9 @@ void orderConnectivityBFS(
     const std::vector<K>& degrees,
     const CSRGraph<NodeID_T, DestID_T, true>& g,
     size_t N,
-    const VibeConfig& config) {
+    const GraphBrewConfig& config) {
     
-    VIBE_TRACE("orderConnectivityBFS: N=%zu", N);
+    GRAPHBREW_TRACE("orderConnectivityBFS: N=%zu", N);
     
     // Step 1: Build community vertex lists with isolated separation
     // Count vertices per community and find max community ID
@@ -3266,7 +3266,7 @@ void orderConnectivityBFS(
         newIds[isolated[i]] = static_cast<NodeID_T>(isolatedStart + i);
     }
     
-    VIBE_TRACE("orderConnectivityBFS: %zu communities, %zu isolated", numComm, isolated.size());
+    GRAPHBREW_TRACE("orderConnectivityBFS: %zu communities, %zu isolated", numComm, isolated.size());
 }
 
 //=============================================================================
@@ -3305,9 +3305,9 @@ void orderHybridLeidenRabbit(
     const std::vector<K>& degrees,
     const CSRGraph<NodeID_T, DestID_T, true>& g,
     size_t N,
-    const VibeConfig& config) {
+    const GraphBrewConfig& config) {
     
-    VIBE_TRACE("orderHybridLeidenRabbit: N=%zu", N);
+    GRAPHBREW_TRACE("orderHybridLeidenRabbit: N=%zu", N);
     
     // ================================================================
     // STEP 0 (optional): Hub Extraction
@@ -4432,7 +4432,7 @@ void orderHybridLeidenRabbit(
     printf("  hybrid-rabbit: %zu blocks, %zu active vertices, %zu hubs, %zu isolated\n",
            numBlocks, N - isolated.size() - numHubs, numHubs, isolated.size());
     
-    VIBE_TRACE("orderHybridLeidenRabbit: %zu blocks, %zu isolated", numBlocks, isolated.size());
+    GRAPHBREW_TRACE("orderHybridLeidenRabbit: %zu blocks, %zu isolated", numBlocks, isolated.size());
 }
 
 //=============================================================================
@@ -4440,7 +4440,7 @@ void orderHybridLeidenRabbit(
 //=============================================================================
 
 /**
- * @brief Tile-Quantized RabbitOrder Ordering (vibe:tqr)
+ * @brief Tile-Quantized RabbitOrder Ordering (graphbrew:tqr)
  * 
  * Combines cache-line-aligned tile quantization with RabbitOrder dendrogram 
  * traversal for macro-ordering and Leiden-community-aware BFS for micro-ordering.
@@ -4458,10 +4458,10 @@ void orderHybridLeidenRabbit(
  *    vertices are sub-sorted by Leiden community, then BFS within each 
  *    community for maximum intra-community locality.
  * 
- * Why this can beat vibe:hrab:
- * - vibe:hrab builds a super-graph over Leiden communities (~100K nodes) that
+ * Why this can beat graphbrew:hrab:
+ * - graphbrew:hrab builds a super-graph over Leiden communities (~100K nodes) that
  *   have no relation to cache boundaries
- * - vibe:tqr builds a super-graph over tiles (~131K nodes for 8MB L3) that
+ * - graphbrew:tqr builds a super-graph over tiles (~131K nodes for 8MB L3) that
  *   DIRECTLY correspond to cache line groups
  * - RabbitOrder on tiles optimizes exactly what matters: which cache-line-sized
  *   groups of vertices should be adjacent in memory
@@ -4477,9 +4477,9 @@ void orderTileQuantizedRabbit(
     const std::vector<K>& degrees,
     const CSRGraph<NodeID_T, DestID_T, true>& g,
     size_t N,
-    const VibeConfig& config) {
+    const GraphBrewConfig& config) {
     
-    VIBE_TRACE("orderTileQuantizedRabbit: N=%zu", N);
+    GRAPHBREW_TRACE("orderTileQuantizedRabbit: N=%zu", N);
     Timer phaseTimer;
     
     // ================================================================
@@ -4986,7 +4986,7 @@ void orderTileQuantizedRabbit(
     // MACRO ordering (tiles) is done. Now we need to order communities
     // within each tile-block. Instead of simple BFS (which ignores
     // inter-community relationships), we run a SECOND RabbitOrder on the
-    // community super-graph. This is similar to what vibe:hrab does, but
+    // community super-graph. This is similar to what graphbrew:hrab does, but
     // with an important twist: communities are first GROUPED by their
     // center tile-block, and the community super-graph is ordered so that
     // communities within the same tile-block are placed contiguously.
@@ -5520,7 +5520,7 @@ void orderTileQuantizedRabbit(
            numBlocks, totalActive, isolated.size(),
            0.0);  // total time tracked externally
     
-    VIBE_TRACE("orderTileQuantizedRabbit: %zu blocks, %zu tiles, %zu isolated",
+    GRAPHBREW_TRACE("orderTileQuantizedRabbit: %zu blocks, %zu tiles, %zu isolated",
                numBlocks, numTiles, isolated.size());
 }
 
@@ -5748,12 +5748,12 @@ size_t mergeCommunities(
 template <typename K, typename NodeID_T>
 void orderDendrogramDFS(
     pvector<NodeID_T>& newIds,
-    const VibeResult<K>& result,
+    const GraphBrewResult<K>& result,
     const std::vector<K>& degrees,
     size_t N,
-    const VibeConfig& config) {
+    const GraphBrewConfig& config) {
     
-    VIBE_TRACE("orderDendrogramDFS: N=%zu, roots=%zu", N, result.roots.size());
+    GRAPHBREW_TRACE("orderDendrogramDFS: N=%zu, roots=%zu", N, result.roots.size());
     
     if (result.dendrogram.empty() || result.roots.empty()) {
         // Fallback to hierarchical sort
@@ -5827,12 +5827,12 @@ void orderDendrogramDFS(
 template <typename K, typename NodeID_T>
 void orderDendrogramBFS(
     pvector<NodeID_T>& newIds,
-    const VibeResult<K>& result,
+    const GraphBrewResult<K>& result,
     const std::vector<K>& degrees,
     size_t N,
-    const VibeConfig& config) {
+    const GraphBrewConfig& config) {
     
-    VIBE_TRACE("orderDendrogramBFS: N=%zu", N);
+    GRAPHBREW_TRACE("orderDendrogramBFS: N=%zu", N);
     
     if (result.dendrogram.empty() || result.roots.empty()) {
         orderHierarchicalSort<K, NodeID_T>(newIds, result, degrees, N, config);
@@ -5897,9 +5897,9 @@ void orderCommunitySort(
     const std::vector<K>& membership,
     const std::vector<K>& degrees,
     size_t N,
-    const VibeConfig& config) {
+    const GraphBrewConfig& config) {
     
-    VIBE_TRACE("orderCommunitySort: N=%zu", N);
+    GRAPHBREW_TRACE("orderCommunitySort: N=%zu", N);
     
     // Separate zero-degree (isolated) nodes
     std::vector<size_t> active, isolated;
@@ -5936,7 +5936,7 @@ void orderCommunitySort(
         newIds[isolated[i]] = isolatedStart + static_cast<NodeID_T>(i);
     }
     
-    VIBE_TRACE("orderCommunitySort: %zu active, %zu isolated", active.size(), isolated.size());
+    GRAPHBREW_TRACE("orderCommunitySort: %zu active, %zu isolated", active.size(), isolated.size());
 }
 
 //=============================================================================
@@ -5954,9 +5954,9 @@ void orderHubCluster(
     const std::vector<K>& membership,
     const std::vector<K>& degrees,
     size_t N,
-    const VibeConfig& config) {
+    const GraphBrewConfig& config) {
     
-    VIBE_TRACE("orderHubCluster: N=%zu", N);
+    GRAPHBREW_TRACE("orderHubCluster: N=%zu", N);
     
     // Separate isolated (zero-degree) nodes first
     std::vector<size_t> isolated;
@@ -6018,7 +6018,7 @@ void orderHubCluster(
         newIds[v] = id++;
     }
     
-    VIBE_TRACE("orderHubCluster: %zu hubs, %zu non-hubs, %zu isolated", hubs.size(), nonHubs.size(), isolated.size());
+    GRAPHBREW_TRACE("orderHubCluster: %zu hubs, %zu non-hubs, %zu isolated", hubs.size(), nonHubs.size(), isolated.size());
 }
 
 //=============================================================================
@@ -6035,9 +6035,9 @@ void orderDBG(
     const std::vector<K>& membership,
     const std::vector<K>& degrees,
     size_t N,
-    const VibeConfig& config) {
+    const GraphBrewConfig& config) {
     
-    VIBE_TRACE("orderDBG: N=%zu", N);
+    GRAPHBREW_TRACE("orderDBG: N=%zu", N);
     
     // Find max community
     K maxComm = 0;
@@ -6102,9 +6102,9 @@ void orderDBGGlobal(
     const std::vector<K>& membership,
     const std::vector<K>& degrees,
     size_t N,
-    const VibeConfig& config) {
+    const GraphBrewConfig& config) {
     
-    VIBE_TRACE("orderDBGGlobal: N=%zu", N);
+    GRAPHBREW_TRACE("orderDBGGlobal: N=%zu", N);
     
     // Compute average degree
     K totalDegree = 0;
@@ -6159,9 +6159,9 @@ void orderCorder(
     const std::vector<K>& membership,
     const std::vector<K>& degrees,
     size_t N,
-    const VibeConfig& config) {
+    const GraphBrewConfig& config) {
     
-    VIBE_TRACE("orderCorder: N=%zu", N);
+    GRAPHBREW_TRACE("orderCorder: N=%zu", N);
     
     // Find max community
     K maxComm = 0;
@@ -6219,9 +6219,9 @@ void orderCorderGlobal(
     const std::vector<K>& membership,
     const std::vector<K>& degrees,
     size_t N,
-    const VibeConfig& config) {
+    const GraphBrewConfig& config) {
     
-    VIBE_TRACE("orderCorderGlobal: N=%zu", N);
+    GRAPHBREW_TRACE("orderCorderGlobal: N=%zu", N);
     
     // Compute average degree
     K totalDegree = 0;
@@ -6276,11 +6276,11 @@ void orderCorderGlobal(
 //=============================================================================
 
 /**
- * Runtime metrics collected during each VIBE pass
+ * Runtime metrics collected during each GraphBrew pass
  * Used to inform adaptive resolution adjustments (when useDynamicResolution=true)
  */
 template <typename W>
-struct VibePassMetrics {
+struct GraphBrewPassMetrics {
     size_t num_communities;      ///< Communities after this pass
     size_t prev_communities;     ///< Communities before this pass
     int local_move_iterations;   ///< How many local-move iterations needed
@@ -6308,9 +6308,9 @@ struct VibePassMetrics {
  * @return Adjusted resolution for the next pass
  */
 template <typename W>
-inline double vibeComputeAdaptiveResolution(
+inline double graphBrewComputeAdaptiveResolution(
     double current_resolution,
-    const VibePassMetrics<W>& metrics,
+    const GraphBrewPassMetrics<W>& metrics,
     double original_avg_degree,
     int max_iterations) {
     
@@ -6362,14 +6362,14 @@ inline double vibeComputeAdaptiveResolution(
  * Collect runtime metrics from super-graph state
  */
 template <typename K, typename W>
-inline VibePassMetrics<W> vibeCollectPassMetrics(
+inline GraphBrewPassMetrics<W> graphBrewCollectPassMetrics(
     const SuperGraph<K, W>& sg,
     const std::vector<W>& vtot,
     size_t num_communities,
     size_t prev_communities,
     int local_move_iterations) {
     
-    VibePassMetrics<W> metrics;
+    GraphBrewPassMetrics<W> metrics;
     metrics.num_communities = num_communities;
     metrics.prev_communities = prev_communities;
     metrics.local_move_iterations = local_move_iterations;
@@ -6404,11 +6404,11 @@ inline VibePassMetrics<W> vibeCollectPassMetrics(
 }
 
 //=============================================================================
-// SECTION 22: MAIN VIBE ALGORITHM
+// SECTION 22: MAIN GRAPHBREW ALGORITHM
 //=============================================================================
 
 /**
- * Main VIBE algorithm - Faithful Leiden with modular components
+ * Main GraphBrew algorithm - Faithful Leiden with modular components
  * 
  * Supports dynamic resolution when config.useDynamicResolution=true
  * Resolution is adjusted per-pass based on:
@@ -6418,9 +6418,9 @@ inline VibePassMetrics<W> vibeCollectPassMetrics(
  * - Super-graph density
  */
 template <typename K = uint32_t, typename NodeID_T, typename DestID_T>
-VibeResult<K> runVibe(
+GraphBrewResult<K> runGraphBrew(
     const CSRGraph<NodeID_T, DestID_T, true>& g,
-    const VibeConfig& config) {
+    const GraphBrewConfig& config) {
     
     const int64_t N = g.num_nodes();
     const Weight M = (config.mComputation == MComputation::TOTAL_EDGES)
@@ -6431,10 +6431,10 @@ VibeResult<K> runVibe(
     Weight currentResolution = config.resolution;
     const double originalAvgDegree = static_cast<double>(g.num_edges()) / N;
     
-    VIBE_TRACE("=== VIBE START ===");
-    VIBE_TRACE("N=%ld, M=%.0f, R=%.4f, dynamic=%d", N, M, currentResolution, config.useDynamicResolution);
+    GRAPHBREW_TRACE("=== GRAPHBREW START ===");
+    GRAPHBREW_TRACE("N=%ld, M=%.0f, R=%.4f, dynamic=%d", N, M, currentResolution, config.useDynamicResolution);
     
-    VibeResult<K> result;
+    GraphBrewResult<K> result;
     Timer totalTimer;
     totalTimer.Start();
     
@@ -6456,7 +6456,7 @@ VibeResult<K> runVibe(
         const size_t estEdges = g.num_edges();
         sgY.reserve(estNodes, estEdges);
         sgZ.reserve(estNodes, estEdges);
-        VIBE_TRACE("reuseBuffers: reserved %zu nodes, %zu edges", estNodes, estEdges);
+        GRAPHBREW_TRACE("reuseBuffers: reserved %zu nodes, %zu edges", estNodes, estEdges);
     }
     
     // Step 1: Compute vertex weights
@@ -6473,7 +6473,7 @@ VibeResult<K> runVibe(
     // Track previous community count for dynamic resolution
     size_t prevCommunities = N;
     
-    VibeConfig passConfig = config;
+    GraphBrewConfig passConfig = config;
     int totalIterations = 0;
     int pass = 0;
     
@@ -6487,7 +6487,7 @@ VibeResult<K> runVibe(
         // In GVE mode, always treat as "first pass" (original graph)
         bool useOriginalGraph = isFirst || gveMode;
         
-        VIBE_TRACE("=== PASS %d (res=%.4f) ===", pass, currentResolution);
+        GRAPHBREW_TRACE("=== PASS %d (res=%.4f) ===", pass, currentResolution);
         
         // ================================================================
         // PHASE 1: LOCAL-MOVING
@@ -6505,7 +6505,7 @@ VibeResult<K> runVibe(
         
         phaseTimer.Stop();
         result.localMoveTime += phaseTimer.Seconds();
-        VIBE_TRACE("  local-moving: %d iters, %.4fs", moveIters, phaseTimer.Seconds());
+        GRAPHBREW_TRACE("  local-moving: %d iters, %.4fs", moveIters, phaseTimer.Seconds());
         
         // ================================================================
         // PHASE 2: REFINEMENT (if enabled)
@@ -6568,7 +6568,7 @@ VibeResult<K> runVibe(
             
             phaseTimer.Stop();
             result.refinementTime += phaseTimer.Seconds();
-            VIBE_TRACE("  refinement: %d iters, %.4fs", refineIters, phaseTimer.Seconds());
+            GRAPHBREW_TRACE("  refinement: %d iters, %.4fs", refineIters, phaseTimer.Seconds());
         }
         
         totalIterations += moveIters;
@@ -6580,7 +6580,7 @@ VibeResult<K> runVibe(
         cmap.resize(NS);
         size_t numCommunities = countCommunities(cmap, useOriginalGraph ? ucom : vcom, NS);
         
-        VIBE_TRACE("  communities: %zu (from %zu)", numCommunities, prevCommunities);
+        GRAPHBREW_TRACE("  communities: %zu (from %zu)", numCommunities, prevCommunities);
         
         // GVE mode: skip pre-aggregation convergence checks
         // gveopt2 only checks convergence AFTER aggregation
@@ -6619,7 +6619,7 @@ VibeResult<K> runVibe(
             
             phaseTimer.Stop();
             result.aggregationTime += phaseTimer.Seconds();
-            VIBE_TRACE("  gve-aggregation: %zu -> %zu communities, %.4fs", C, numFinal, phaseTimer.Seconds());
+            GRAPHBREW_TRACE("  gve-aggregation: %zu -> %zu communities, %.4fs", C, numFinal, phaseTimer.Seconds());
             
             // Store membership
             result.membershipPerPass.push_back(ucom);
@@ -6674,18 +6674,18 @@ VibeResult<K> runVibe(
         if (config.reuseBuffers) {
             sgZ.softClear();  // Clear counts but keep allocated memory
         }
-        VIBE_TRACE("  aggregation: C=%zu, %.4fs", C, phaseTimer.Seconds());
+        GRAPHBREW_TRACE("  aggregation: C=%zu, %.4fs", C, phaseTimer.Seconds());
         
         // ================================================================
         // DYNAMIC RESOLUTION ADJUSTMENT (if enabled)
         // ================================================================
         if (config.useDynamicResolution) {
             // Collect metrics from current pass
-            auto metrics = vibeCollectPassMetrics<K, Weight>(
+            auto metrics = graphBrewCollectPassMetrics<K, Weight>(
                 sgY, vtot, numCommunities, prevCommunities, moveIters);
             
             // Compute next resolution
-            double nextResolution = vibeComputeAdaptiveResolution<Weight>(
+            double nextResolution = graphBrewComputeAdaptiveResolution<Weight>(
                 currentResolution, metrics, originalAvgDegree, config.maxIterations);
             
             printf("  Pass %d: res=%.3f, comms=%zu→%zu (%.1f%%), iters=%d, imbalance=%.1f → next_res=%.3f\n",
@@ -6743,8 +6743,8 @@ VibeResult<K> runVibe(
     std::unordered_set<K> uniqueComms(result.membership.begin(), result.membership.end());
     result.numCommunities = uniqueComms.size();
     
-    VIBE_TRACE("=== VIBE END ===");
-    VIBE_TRACE("passes=%d, iters=%d, communities=%zu, time=%.4fs",
+    GRAPHBREW_TRACE("=== GRAPHBREW END ===");
+    GRAPHBREW_TRACE("passes=%d, iters=%d, communities=%zu, time=%.4fs",
                result.totalPasses, result.totalIterations, result.numCommunities, result.totalTime);
     
     return result;
@@ -6762,18 +6762,18 @@ bool verifyReorderingTopology(
     bool verbose);
 
 /**
- * Main entry point: Run VIBE and generate vertex reordering
+ * Main entry point: Run GraphBrew and generate vertex reordering
  */
 template <typename K = uint32_t, typename NodeID_T, typename DestID_T>
-void generateVibeMapping(
+void generateGraphBrewMapping(
     const CSRGraph<NodeID_T, DestID_T, true>& g,
     pvector<NodeID_T>& newIds,
-    const VibeConfig& config) {
+    const GraphBrewConfig& config) {
     
     const int64_t N = g.num_nodes();
     
     // Branch based on main algorithm choice
-    if (config.algorithm == VibeAlgorithm::RABBIT_ORDER) {
+    if (config.algorithm == GraphBrewAlgorithm::RABBIT_ORDER) {
         // Use full Rabbit Order algorithm from the paper
         printf("RabbitOrder: resolution=%.4f\n", config.resolution);
         runRabbitOrder<K>(g, newIds, config);
@@ -6787,8 +6787,8 @@ void generateVibeMapping(
         return;
     }
     
-    // Default: Leiden-based VIBE
-    printf("VIBE: resolution=%.4f (%s), maxIters=%d, maxPasses=%d\n",
+    // Default: Leiden-based GraphBrew
+    printf("GraphBrew: resolution=%.4f (%s), maxIters=%d, maxPasses=%d\n",
            config.resolution, 
            config.useDynamicResolution ? "dynamic" : "fixed",
            config.maxIterations, config.maxPasses);
@@ -6807,9 +6807,9 @@ void generateVibeMapping(
         config.ordering == OrderingStrategy::HIERARCHICAL_CACHE_AWARE ? "hcache" :
         config.ordering == OrderingStrategy::HYBRID_LEIDEN_RABBIT ? "hybrid-rabbit" :
         config.ordering == OrderingStrategy::TILE_QUANTIZED_RABBIT ? "tile-quantized-rabbit" :
-        config.ordering == OrderingStrategy::GRAPHBREW ? "graphbrew" : "unknown";
+        config.ordering == OrderingStrategy::LAYER ? "graphbrew" : "unknown";
     
-    printf("VIBE: aggregation=%s, ordering=%s, refinement=%s (depth=%d)%s%s\n",
+    printf("GraphBrew: aggregation=%s, ordering=%s, refinement=%s (depth=%d)%s%s\n",
            config.aggregation == AggregationStrategy::LEIDEN_CSR ? "leiden" :
            config.aggregation == AggregationStrategy::RABBIT_LAZY ? "streaming" :
            config.aggregation == AggregationStrategy::GVE_CSR ? "gve-csr" : "hybrid",
@@ -6819,27 +6819,27 @@ void generateVibeMapping(
            config.useCommunityMerging ? ", merge=on" : "",
            config.useHubExtraction ? ", hubx=on" : "");
     if (config.mComputation == MComputation::TOTAL_EDGES)
-        printf("VIBE: mComputation=total-edges (GVE style)\n");
+        printf("GraphBrew: mComputation=total-edges (GVE style)\n");
     if (config.useGorderIntra) {
         if (config.gorderFallback > 0)
-            printf("VIBE: gord=on (window=%d, fallback=%d)\n", config.gorderWindow, config.gorderFallback);
+            printf("GraphBrew: gord=on (window=%d, fallback=%d)\n", config.gorderWindow, config.gorderFallback);
         else
-            printf("VIBE: gord=on (window=%d, fallback=N)\n", config.gorderWindow);
+            printf("GraphBrew: gord=on (window=%d, fallback=N)\n", config.gorderWindow);
     }
-    if (config.useHubSort)     printf("VIBE: hsort=on\n");
-    if (config.useRCMSuper)    printf("VIBE: rcm=on\n");
-    if (config.ordering == OrderingStrategy::GRAPHBREW)
-        printf("VIBE: GraphBrew mode, finalAlgo=%d, smallMerge=%s\n",
+    if (config.useHubSort)     printf("GraphBrew: hsort=on\n");
+    if (config.useRCMSuper)    printf("GraphBrew: rcm=on\n");
+    if (config.ordering == OrderingStrategy::LAYER)
+        printf("GraphBrew: GraphBrew mode, finalAlgo=%d, smallMerge=%s\n",
                config.finalAlgoId, config.useSmallCommunityMerging ? "on" : "off");
     
-    // Run VIBE
+    // Run GraphBrew
     Timer timer;
     timer.Start();
     
-    auto result = runVibe<K>(g, config);
+    auto result = runGraphBrew<K>(g, config);
     
     timer.Stop();
-    printf("VIBE: %d passes, %d iters, %zu communities, time=%.4fs\n",
+    printf("GraphBrew: %d passes, %d iters, %zu communities, time=%.4fs\n",
            result.totalPasses, result.totalIterations, result.numCommunities, timer.Seconds());
     printf("  local-move: %.4fs, refine: %.4fs, aggregate: %.4fs\n",
            result.localMoveTime, result.refinementTime, result.aggregationTime);
@@ -6993,19 +6993,19 @@ void generateVibeMapping(
         case OrderingStrategy::TILE_QUANTIZED_RABBIT:
             orderTileQuantizedRabbit<K, NodeID_T, DestID_T>(newIds, result.membership, degrees, g, N, config);
             break;
-        case OrderingStrategy::GRAPHBREW:
+        case OrderingStrategy::LAYER:
             // GraphBrew mode: per-community external algorithm dispatch
             // Community detection already done above. Ordering is handled externally
             // by the caller (builder.h) using ReorderCommunitySubgraphStandalone.
             // Fall through to connectivity BFS as sensible default if called directly.
-            printf("VIBE: GraphBrew mode - ordering deferred to external dispatch\n");
+            printf("GraphBrew: GraphBrew mode - ordering deferred to external dispatch\n");
             orderConnectivityBFS<K, NodeID_T, DestID_T>(newIds, result.membership, degrees, g, N, config);
             break;
     }
     
     orderTimer.Stop();
     result.orderingTime = orderTimer.Seconds();
-    printf("VIBE ordering: %.4fs\n", result.orderingTime);
+    printf("GraphBrew ordering: %.4fs\n", result.orderingTime);
     
     // ===============================================================
     // POST-ORDERING LOCALITY ANALYSIS
@@ -7089,8 +7089,8 @@ void generateVibeMapping(
  *   "corder" - Corder hot/cold within communities
  *   "dbg-global" - DBG across all vertices (post-clustering)
  */
-inline VibeConfig parseVibeConfig(const std::vector<std::string>& options) {
-    VibeConfig config;
+inline GraphBrewConfig parseGraphBrewConfig(const std::vector<std::string>& options) {
+    GraphBrewConfig config;
     
     for (size_t i = 0; i < options.size(); ++i) {
         const std::string& opt = options[i];
@@ -7098,7 +7098,7 @@ inline VibeConfig parseVibeConfig(const std::vector<std::string>& options) {
         
         // Check for main algorithm selection (RabbitOrder from paper)
         if (opt == "rabbit" || opt == "rabbitorder") {
-            config.algorithm = VibeAlgorithm::RABBIT_ORDER;
+            config.algorithm = GraphBrewAlgorithm::RABBIT_ORDER;
             continue;
         }
         
@@ -7131,10 +7131,10 @@ inline VibeConfig parseVibeConfig(const std::vector<std::string>& options) {
             config.ordering = OrderingStrategy::TILE_QUANTIZED_RABBIT;
         }
         // GraphBrew mode: per-community external algorithm dispatch
-        // "graphbrew" or "gb" activates GRAPHBREW ordering (default final algo = RabbitOrder 8)
+        // "graphbrew" or "gb" activates LAYER ordering (default final algo = RabbitOrder 8)
         // "final:N" or "finalN" sets the final algo ID (0-11)
         else if (opt == "graphbrew" || opt == "gb") {
-            config.ordering = OrderingStrategy::GRAPHBREW;
+            config.ordering = OrderingStrategy::LAYER;
             config.useSmallCommunityMerging = true;
             if (config.finalAlgoId < 0) config.finalAlgoId = 8;  // Default: RabbitOrder
         }
@@ -7146,7 +7146,7 @@ inline VibeConfig parseVibeConfig(const std::vector<std::string>& options) {
                 int algoId = std::stoi(numStr);
                 if (algoId >= 0 && algoId <= 11) {
                     config.finalAlgoId = algoId;
-                    config.ordering = OrderingStrategy::GRAPHBREW;
+                    config.ordering = OrderingStrategy::LAYER;
                     config.useSmallCommunityMerging = true;
                 }
             } catch (...) {}
@@ -7154,7 +7154,7 @@ inline VibeConfig parseVibeConfig(const std::vector<std::string>& options) {
         // Recursive depth for GraphBrew: "depth:2" or "depth2" or "recursive"
         else if (opt == "recursive" || opt == "recurse") {
             config.recursiveDepth = std::max(config.recursiveDepth, 1);
-            config.ordering = OrderingStrategy::GRAPHBREW;
+            config.ordering = OrderingStrategy::LAYER;
             config.useSmallCommunityMerging = true;
             if (config.finalAlgoId < 0) config.finalAlgoId = 8;
         } else if (opt.size() > 5 && opt.substr(0, 5) == "depth") {
@@ -7164,7 +7164,7 @@ inline VibeConfig parseVibeConfig(const std::vector<std::string>& options) {
                 int d = std::stoi(numStr);
                 if (d >= 0 && d <= 10) {
                     config.recursiveDepth = d;
-                    config.ordering = OrderingStrategy::GRAPHBREW;
+                    config.ordering = OrderingStrategy::LAYER;
                     config.useSmallCommunityMerging = true;
                     if (config.finalAlgoId < 0) config.finalAlgoId = 8;
                 }
@@ -7258,7 +7258,7 @@ inline VibeConfig parseVibeConfig(const std::vector<std::string>& options) {
         else if (opt == "gvecsr" || opt == "gve-csr") {
             config.aggregation = AggregationStrategy::GVE_CSR;
         }
-        // Quality preset: GVE detection quality in VIBE pipeline
+        // Quality preset: GVE detection quality in GraphBrew pipeline
         // Sets: GVE_CSR aggregation, TOTAL_EDGES M, refinement on pass 0 only,
         //        hierarchical ordering (top-3 pass multi-level sort)
         // Note: maxIterations left at DEFAULT_MAX_ITERATIONS (10) to match gveopt2
@@ -7456,18 +7456,18 @@ bool verifyReorderingTopology(
 }
 
 /**
- * Verify and print summary for VIBE reordering
+ * Verify and print summary for GraphBrew reordering
  */
 template <typename K, typename NodeID_T, typename DestID_T>
-bool verifyVibeResult(
+bool verifyGraphBrewResult(
     const CSRGraph<NodeID_T, DestID_T, true>& g,
     const pvector<NodeID_T>& new_ids,
     const std::string& variant_name) {
     
-    printf("\n--- Verifying VIBE variant: %s ---\n", variant_name.c_str());
+    printf("\n--- Verifying GraphBrew variant: %s ---\n", variant_name.c_str());
     bool ok = verifyReorderingTopology(g, new_ids, true);
     printf("Result: %s\n\n", ok ? "PASS" : "FAIL");
     return ok;
 }
 
-} // namespace vibe
+} // namespace graphbrew

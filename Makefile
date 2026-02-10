@@ -329,7 +329,7 @@ help-%: $(BIN_DIR)/%
 	@echo "  ├─────────────────────────────────────────────────────────────────────────────┤"
 	@echo "  │ LeidenOrder   (15):  Leiden via GVE-Leiden library (baseline reference)     │"
 	@echo "  │ LeidenCSR     (16):  GVE-Leiden CSR-native (format: 16:variant:res:iter:pass)│"
-	@echo "  │                      Variants: vibe (default), gve, gveopt, dfs, bfs, hubsort│"
+	@echo "  │                      Variants: graphbrew (default), gve, gveopt, dfs, bfs, hubsort│"
 	@echo "  └─────────────────────────────────────────────────────────────────────────────┘"
 	@echo ""
 	@echo "Example Usage:"
@@ -338,7 +338,7 @@ help-%: $(BIN_DIR)/%
 	@echo "  ./$< -g 15 -n 1 -o 14           - Execute with AdaptiveOrder (auto-select best)"
 	@echo "  ./$< -g 15 -n 1 -o 14:2         - Execute with multi-level AdaptiveOrder (depth=2)"
 	@echo "  ./$< -g 15 -n 1 -o 14:0:0.75:50000:1 - Full-graph mode (pick single best algo)"
-	@echo "  ./$< -g 15 -n 1 -o 16:vibe:quality    - Execute with LeidenCSR (VIBE default)"
+	@echo "  ./$< -g 15 -n 1 -o 16:graphbrew:quality    - Execute with LeidenCSR (GraphBrew default)"
 	@echo "  ./$< -g 15 -n 1 -o 12:10:16     - Execute GraphBrew with LeidenCSR"
 	@echo "  ./$< -f graph.mtx -o 13:map.lo  - Execute with MAP reordering from file"
 

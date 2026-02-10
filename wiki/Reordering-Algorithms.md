@@ -270,13 +270,13 @@ Larger window = better quality, slower computation
 ./bench/bin/pr -f graph.el -s -o 12:gve:10:8 -n 3          # gve variant, freq=10, intra=RabbitOrder
 ```
 
-- **Description**: Runs VIBE community detection, then applies per-community reordering
-- **Variants** (powered by VIBE pipeline):
-  - `leiden`: VIBE Leiden with GVE-CSR aggregation - **default**
-  - `gve`: VIBE Leiden GVE-style detection
-  - `gveopt`: VIBE Leiden quality preset (same as gve)
-  - `rabbit`: VIBE RabbitOrder single-pass pipeline
-  - `hubcluster`: VIBE Leiden + hub-cluster ordering
+- **Description**: Runs GraphBrew +community detection, then applies per-community reordering
+- **Variants** (powered by GraphBrew pipeline):
+  - `leiden`: GraphBrew Leiden with GVE-CSR aggregation - **default**
+  - `gve`: GraphBrew Leiden GVE-style detection
+  - `gveopt`: GraphBrew Leiden quality preset (same as gve)
+  - `rabbit`: GraphBrew RabbitOrder single-pass pipeline
+  - `hubcluster`: GraphBrew Leiden + hub-cluster ordering
 - **Parameters**:
   - `final_algo`: Algorithm ID (0-11) to use within communities (default: 8 = RabbitOrder)
   - `resolution`: Leiden resolution parameter (default: auto-computed from graph)
@@ -346,15 +346,15 @@ Implements the full Leiden algorithm from: *"Fast Leiden Algorithm for Community
 
 ```bash
 # Format: -o 16[:variant:resolution:iterations:passes]
-./bench/bin/pr -f graph.el -s -o 16 -n 3                         # Default: vibe (best overall)
-./bench/bin/pr -f graph.el -s -o 16:vibe -n 3                    # VIBE default
-./bench/bin/pr -f graph.el -s -o 16:vibe:quality -n 3            # High-quality community ordering
-./bench/bin/pr -f graph.el -s -o 16:vibe:rabbit -n 3             # VIBE + RabbitOrder within communities
-./bench/bin/pr -f graph.el -s -o 16:vibe:streaming -n 3          # Streaming/incremental (fastest)
-./bench/bin/pr -f graph.el -s -o 16:vibe:hrab -n 3               # Hybrid Leiden+Rabbit BFS ⭐
-./bench/bin/pr -f graph.el -s -o 16:vibe:hrab:gordi -n 3         # Hybrid Leiden+Rabbit Gorder
-./bench/bin/pr -f graph.el -s -o 16:vibe:dfs -n 3                # DFS traversal ordering
-./bench/bin/pr -f graph.el -s -o 16:vibe:bfs -n 3                # BFS traversal ordering
+./bench/bin/pr -f graph.el -s -o 16 -n 3                         # Default: graphbrew (best overall)
+./bench/bin/pr -f graph.el -s -o 16:graphbrew -n 3                    # GraphBrew default
+./bench/bin/pr -f graph.el -s -o 16:graphbrew:quality -n 3            # High-quality community ordering
+./bench/bin/pr -f graph.el -s -o 16:graphbrew:rabbit -n 3             # GraphBrew ++ RabbitOrder within communities
+./bench/bin/pr -f graph.el -s -o 16:graphbrew:streaming -n 3          # Streaming/incremental (fastest)
+./bench/bin/pr -f graph.el -s -o 16:graphbrew:hrab -n 3               # Hybrid Leiden+Rabbit BFS ⭐
+./bench/bin/pr -f graph.el -s -o 16:graphbrew:hrab:gordi -n 3         # Hybrid Leiden+Rabbit Gorder
+./bench/bin/pr -f graph.el -s -o 16:graphbrew:dfs -n 3                # DFS traversal ordering
+./bench/bin/pr -f graph.el -s -o 16:graphbrew:bfs -n 3                # BFS traversal ordering
 ```
 
 **Resolution Parameter Modes:**
@@ -366,47 +366,47 @@ Implements the full Leiden algorithm from: *"Fast Leiden Algorithm for Community
 
 ```bash
 # Resolution modes examples
-./bench/bin/pr -f graph.el -s -o 16:vibe:1.5 -n 3               # Fixed resolution
-./bench/bin/pr -f graph.el -s -o 16:vibe:auto -n 3              # Auto-computed resolution
-./bench/bin/pr -f graph.el -s -o 16:vibe:0 -n 3                 # Same as auto
+./bench/bin/pr -f graph.el -s -o 16:graphbrew:1.5 -n 3               # Fixed resolution
+./bench/bin/pr -f graph.el -s -o 16:graphbrew:auto -n 3              # Auto-computed resolution
+./bench/bin/pr -f graph.el -s -o 16:graphbrew:0 -n 3                 # Same as auto
 ```
 
 **Variants:**
 | Variant | Description | Speed | Quality | Best For |
 |---------|-------------|-------|---------|----------|
-| `vibe` | **VIBE unified framework (DEFAULT)** | **Fast** | **Best** | Best overall ⭐ |
-| `vibe:quality` | High-quality community detection + ordering | Fast | **Best** | Quality focus |
-| `vibe:rabbit` | VIBE + RabbitOrder within communities | **Fastest** | Good | Large graphs |
-| `vibe:streaming` | Streaming/incremental ordering | **Fastest** | Good | Speed priority |
-| `vibe:hrab` | **Hybrid Leiden+Rabbit BFS** | Fast | **Best** | Best amortization ⭐ |
-| `vibe:hrab:gordi` | Hybrid Leiden+Rabbit Gorder | Fast | **Best** | Hierarchical |
-| `vibe:dfs` | Hierarchical DFS traversal | Fast | Good | Tree structures |
-| `vibe:bfs` | Level-first BFS traversal | Fast | Good | Wide hierarchies |
-| `vibe:dbg` | Debug/verbose mode | Slow | N/A | Development |
+| `graphbrew` | **GraphBrew unified framework (DEFAULT)** | **Fast** | **Best** | Best overall ⭐ |
+| `graphbrew:quality` | High-quality community detection + ordering | Fast | **Best** | Quality focus |
+| `graphbrew:rabbit` | GraphBrew ++ RabbitOrder within communities | **Fastest** | Good | Large graphs |
+| `graphbrew:streaming` | Streaming/incremental ordering | **Fastest** | Good | Speed priority |
+| `graphbrew:hrab` | **Hybrid Leiden+Rabbit BFS** | Fast | **Best** | Best amortization ⭐ |
+| `graphbrew:hrab:gordi` | Hybrid Leiden+Rabbit Gorder | Fast | **Best** | Hierarchical |
+| `graphbrew:dfs` | Hierarchical DFS traversal | Fast | Good | Tree structures |
+| `graphbrew:bfs` | Level-first BFS traversal | Fast | Good | Wide hierarchies |
+| `graphbrew:dbg` | Debug/verbose mode | Slow | N/A | Development |
 
 **Key Recommendations:**
-- **Best overall**: `vibe` — unified reordering framework, best quality
-- **Best amortization**: `vibe:hrab` — hybrid Leiden+Rabbit for large graphs
-- **Speed priority**: `vibe:streaming` or `vibe:rabbit` — fastest variants
+- **Best overall: `graphbrew` — unified reordering framework, best quality
+- **Best amortization**: `graphbrew:hrab` — hybrid Leiden+Rabbit for large graphs
+- **Speed priority**: `graphbrew:streaming` or `graphbrew:rabbit` — fastest variants
 - **High resolution** (1.0-2.0) creates more communities that fit better in cache — optimizing for locality, not sociological accuracy
 
 See [[Command-Line-Reference#leidencsr-16]] for resolution mode syntax.
 
-### VIBE: Unified Reordering Framework
+### GraphBrew: Unified Reordering Framework
 
-**VIBE (Vertex Indexing for Better Efficiency)** provides a unified interface for graph reordering with two main algorithms (`vibe` Leiden-based, `vibe:rabbit` RabbitOrder-based) and configurable ordering strategies.
+**GraphBrew +(Vertex Indexing for Better Efficiency)** provides a unified interface for graph reordering with two main algorithms (`graphbrew` Leiden-based, `graphbrew:rabbit` RabbitOrder-based) and configurable ordering strategies.
 
 ```bash
-# Format: -o 16:vibe[:algorithm][:ordering][:aggregation][:resolution_mode]
-./bench/bin/pr -f graph.mtx -s -o 16:vibe -n 3         # Leiden-based (default)
-./bench/bin/pr -f graph.mtx -s -o 16:vibe:conn -n 3    # Connectivity BFS ordering (default strategy)
-./bench/bin/pr -f graph.mtx -s -o 16:vibe:hrab -n 3    # Hybrid Leiden+RabbitOrder (best locality)
-./bench/bin/pr -f graph.mtx -s -o 16:vibe:rabbit -n 3  # RabbitOrder-based (single-pass)
-./bench/bin/pr -f graph.mtx -s -o 16:vibe:dynamic -n 3 # Dynamic resolution (adjusted per-pass)
-./bench/bin/pr -f graph.mtx -s -o 16:vibe:0.75 -n 3    # Fixed resolution
+# Format: -o 16:graphbrew[:algorithm][:ordering][:aggregation][:resolution_mode]
+./bench/bin/pr -f graph.mtx -s -o 16:graphbrew -n 3         # Leiden-based (default)
+./bench/bin/pr -f graph.mtx -s -o 16:graphbrew:conn -n 3    # Connectivity BFS ordering (default strategy)
+./bench/bin/pr -f graph.mtx -s -o 16:graphbrew:hrab -n 3    # Hybrid Leiden+RabbitOrder (best locality)
+./bench/bin/pr -f graph.mtx -s -o 16:graphbrew:rabbit -n 3  # RabbitOrder-based (single-pass)
+./bench/bin/pr -f graph.mtx -s -o 16:graphbrew:dynamic -n 3 # Dynamic resolution (adjusted per-pass)
+./bench/bin/pr -f graph.mtx -s -o 16:graphbrew:0.75 -n 3    # Fixed resolution
 ```
 
-**Key ordering strategies:** `vibe` (hierarchical), `vibe:dfs`/`bfs` (dendrogram traversal), `vibe:dbg`/`corder` (within communities), `vibe:conn` (connectivity BFS, default), `vibe:hrab` (hybrid Leiden+RabbitOrder — best for web/geometric graphs).
+**Key ordering strategies:** `graphbrew` (hierarchical), `graphbrew:dfs`/`bfs` (dendrogram traversal), `graphbrew:dbg`/`corder` (within communities), `graphbrew:conn` (connectivity BFS, default), `graphbrew:hrab` (hybrid Leiden+RabbitOrder — best for web/geometric graphs).
 
 See [[Command-Line-Reference#leidencsr-16]] for full option reference and [[Community-Detection]] for algorithm details.
 
@@ -418,30 +418,30 @@ See [[Command-Line-Reference#leidencsr-16]] for full option reference and [[Comm
 
 | Graph Type | Recommended | Alternatives |
 |------------|-------------|--------------|
-| Social Networks | LeidenCSR (16:vibe) | LeidenCSR (16:vibe:quality) |
-| Web Graphs | LeidenCSR (16:vibe:hrab) | LeidenCSR (16:vibe) |
-| Road Networks | ORIGINAL (0), RCM (11) | LeidenCSR (16:vibe:quality) |
-| Citation Networks | LeidenCSR (16:vibe) | LeidenOrder (15) |
-| Random Geometric | LeidenCSR (16:vibe:hrab) | LeidenCSR (16:vibe) |
-| Unknown | LeidenCSR (16:vibe:quality) | AdaptiveOrder (14) |
+| Social Networks | LeidenCSR (16:graphbrew) | LeidenCSR (16:graphbrew:quality) |
+| Web Graphs | LeidenCSR (16:graphbrew:hrab) | LeidenCSR (16:graphbrew) |
+| Road Networks | ORIGINAL (0), RCM (11) | LeidenCSR (16:graphbrew:quality) |
+| Citation Networks | LeidenCSR (16:graphbrew) | LeidenOrder (15) |
+| Random Geometric | LeidenCSR (16:graphbrew:hrab) | LeidenCSR (16:graphbrew) |
+| Unknown | LeidenCSR (16:graphbrew:quality) | AdaptiveOrder (14) |
 
 ### By Graph Size
 
 | Size | Nodes | Recommended |
 |------|-------|-------------|
 | Small | < 100K | Any (try several) |
-| Medium | 100K - 1M | LeidenCSR (16:vibe) |
-| Large | 1M - 100M | LeidenCSR (16:vibe), LeidenCSR (16:vibe:streaming) |
-| Very Large | > 100M | LeidenCSR (16:vibe:streaming), HUBCLUSTERDBG (7) |
+| Medium | 100K - 1M | LeidenCSR (16:graphbrew) |
+| Large | 1M - 100M | LeidenCSR (16:graphbrew), LeidenCSR (16:graphbrew:streaming) |
+| Very Large | > 100M | LeidenCSR (16:graphbrew:streaming), HUBCLUSTERDBG (7) |
 
 ### Quick Decision Tree
 
 ```
 Is your graph modular (has communities)?
 ├── Yes → Is it very large (>10M vertices)?
-│         ├── Yes → LeidenCSR (16:vibe:streaming) for speed
-│         │         LeidenCSR (16:vibe:hrab) for quality
-│         └── No → LeidenCSR (16:vibe) - best quality
+│         ├── Yes → LeidenCSR (16:graphbrew:streaming) for speed
+│         │         LeidenCSR (16:graphbrew:hrab) for quality
+│         └── No → LeidenCSR (16:graphbrew) - best quality
 └── No/Unknown → Is it a power-law graph?
               ├── Yes → HUBCLUSTERDBG (7)
               └── No → Try AdaptiveOrder (14)
@@ -462,7 +462,7 @@ Running PageRank on a social network (1M vertices, 10M edges):
 | HUBCLUSTERDBG (7) | 0.72s | 1.39x |
 | RabbitOrder (8) | 0.68s | 1.47x |
 | LeidenOrder (15) | 0.65s | 1.54x |
-| LeidenCSR (16:vibe) | 0.55s | 1.82x |
+| LeidenCSR (16:graphbrew) | 0.55s | 1.82x |
 
 ---
 

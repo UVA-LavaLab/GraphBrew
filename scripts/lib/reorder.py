@@ -61,9 +61,9 @@ _LEGACY_ALGO_NAMES_REV = {v: k for k, v in _LEGACY_ALGO_NAMES.items()}
 def safe_filename(name: str) -> str:
     """Sanitize algorithm name for use in filenames.
     
-    Colons in filenames (e.g., LeidenCSR_vibe:rabbit.lo) break the C++ CLI
+    Colons in filenames (e.g., LeidenCSR_graphbrew:rabbit.lo) break the C++ CLI
     parser which splits -o arguments on ALL colons. Replace colons with
-    underscores to produce safe filenames (e.g., LeidenCSR_vibe_rabbit.lo).
+    underscores to produce safe filenames (e.g., LeidenCSR_graphbrew_rabbit.lo).
     """
     return name.replace(':', '_')
 # =============================================================================
@@ -89,9 +89,9 @@ class ReorderResult:
 class AlgorithmConfig:
     """Configuration for an algorithm, including variant support."""
     algo_id: int           # Base algorithm ID (e.g., 16 for LeidenCSR)
-    name: str              # Display name (e.g., "LeidenCSR_vibe")
-    option_string: str     # Full option string for -o flag (e.g., "16:vibe:quality")
-    variant: str = ""      # Variant name if applicable (e.g., "vibe")
+    name: str              # Display name (e.g., "LeidenCSR_graphbrew")
+    option_string: str     # Full option string for -o flag (e.g., "16:graphbrew:quality")
+    variant: str = ""      # Variant name if applicable (e.g., "graphbrew")
     resolution: str = "auto"  # Resolution: "auto", "dynamic", "1.0", etc.
     passes: int = LEIDEN_DEFAULT_PASSES
     
@@ -119,7 +119,7 @@ def get_algorithm_name_with_variant(algo_id: int, variant: str = None) -> str:
     ALWAYS includes variant in name for:
     - RABBITORDER (8): RABBITORDER_csr or RABBITORDER_boost
     - GraphBrewOrder (12): GraphBrewOrder_leiden (default), GraphBrewOrder_gve, etc.
-    - LeidenCSR (16): LeidenCSR_vibe, LeidenCSR_vibe:hrab, etc.
+    - LeidenCSR (16): LeidenCSR_graphbrew, LeidenCSR_graphbrew:hrab, etc.
     
     For other algorithms, returns the base name.
     
@@ -139,7 +139,7 @@ def get_algorithm_name_with_variant(algo_id: int, variant: str = None) -> str:
         variant = variant or GRAPHBREW_DEFAULT_VARIANT
         return f"GraphBrewOrder_{variant}"
     elif algo_id == 16:  # LeidenCSR
-        variant = variant or LEIDEN_CSR_VARIANTS[0]  # Default: vibe
+        variant = variant or LEIDEN_CSR_VARIANTS[0]  # Default: graphbrew
         return f"LeidenCSR_{variant}"
     else:
         return base_name
@@ -832,8 +832,8 @@ def generate_reorderings_with_variants(
     Generate reorderings with Leiden variant expansion.
     
     Creates separate mappings for each variant:
-        - LeidenCSR_vibe.lo
-        - LeidenCSR_vibe:hrab.lo
+        - LeidenCSR_graphbrew.lo
+        - LeidenCSR_graphbrew:hrab.lo
         - GraphBrewOrder_leiden.lo
         - GraphBrewOrder_gve.lo
     
