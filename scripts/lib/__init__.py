@@ -73,7 +73,6 @@ from .utils import (
     # Leiden resolution/pass settings
     LEIDEN_DEFAULT_RESOLUTION,
     LEIDEN_DEFAULT_PASSES,
-    LEIDEN_RESOLUTION_MODES,
     # Leiden SSOT constants (match C++ reorder_graphbrew.h)
     LEIDEN_DEFAULT_TOLERANCE,
     LEIDEN_DEFAULT_AGGREGATION_TOLERANCE,

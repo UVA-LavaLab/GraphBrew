@@ -7074,18 +7074,31 @@ void generateGraphBrewMapping(
 //=============================================================================
 
 /**
- * Parse configuration from string options
+ * Parse configuration from string tokens.
  * 
- * Format: [algorithm]:[ordering]:[options]
+ * This is the ONE token parser for all GraphBrew options.
+ * ParseGraphBrewConfig() in builder.h delegates here after expanding presets.
+ * 
+ * Token categories:
+ *   Algorithm:    rabbit/rabbitorder → RABBIT_ORDER (replaces Leiden entirely)
+ *   Ordering:     hrab, dfs, bfs, conn, dbg, corder, hubcluster, etc.
+ *   Aggregation:  gvecsr, leiden, streaming, hybrid
+ *   Features:     merge, hubx, gord, hsort, rcm, norefine, refine0, verify, etc.
+ *   Mode:         graphbrew/gb → LAYER ordering (per-community dispatch)
+ *   Presets:      quality/gve → GVE-CSR + TOTAL_EDGES + refine0 + HIERARCHICAL
+ *   Resolution:   0.75, auto, dynamic
+ *   Numeric:      maxIterations, maxPasses (first int → iters, second → passes)
+ * 
+ * Note on "rabbit": This token selects the RabbitOrder ALGORITHM, which replaces
+ * Leiden community detection entirely. It does NOT mean "use RabbitOrder as the
+ * per-community final algorithm". For that, use the preset syntax:
+ *   -o 12:leiden:8  (8 = RabbitOrder as per-community final algo, the default)
  * 
  * Examples:
  *   "dfs" - Leiden + DFS ordering
  *   "rabbit" - Full RabbitOrder algorithm from the paper
- *   "streaming" - Leiden with streaming aggregation
- *   "dfs:streaming:0.75" - DFS + streaming aggregation + resolution 0.75
- *   "dbg:streaming" - DBG ordering within communities + streaming aggregation
- *   "corder" - Corder hot/cold within communities
- *   "dbg-global" - DBG across all vertices (post-clustering)
+ *   "hrab:gvecsr:0.75" - Hybrid + GVE-CSR aggregation + resolution
+ *   "graphbrew:gvecsr:totalm:refine0" - LAYER mode with GVE-CSR (= leiden preset)
  */
 inline GraphBrewConfig parseGraphBrewConfig(const std::vector<std::string>& options) {
     GraphBrewConfig config;

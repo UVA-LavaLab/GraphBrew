@@ -170,7 +170,7 @@ Use with `-o <id>`:
 <!-- LeidenCSR (16) deprecated — GraphBrew (12) subsumes it -->
 
 > **Note:** For current variant lists, see `scripts/lib/utils.py` which defines:
-> - `RABBITORDER_VARIANTS`, `GRAPHBREW_VARIANTS`, `GRAPHBREW_ORDERING_VARIANTS`
+> - `RABBITORDER_VARIANTS`, `GRAPHBREW_VARIANTS`
 
 ### GraphBrewOrder Ordering Strategies (Algorithm 12)
 

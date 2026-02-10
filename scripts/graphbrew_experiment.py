@@ -276,7 +276,6 @@ GRAPHBREW_DEFAULT_VARIANT = LIB_GRAPHBREW_DEFAULT_VARIANT
 
 # Import recommended variant subsets from lib
 from scripts.lib.utils import (
-    LEIDEN_RESOLUTION_MODES,
     LEIDEN_DEFAULT_RESOLUTION,
     LEIDEN_DEFAULT_PASSES,
 )
