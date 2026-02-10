@@ -3191,7 +3191,21 @@ def main():
     # Auto-setup option
     parser.add_argument("--auto-setup", action="store_true",
                         help="Automatically setup everything: create directories, build if missing, download graphs if needed")
-    
+
+    # ── Standalone sub-workflows (replace shell scripts) ─────────────
+    parser.add_argument("--benchmark-fresh", action="store_true",
+                        help="Run all AdaptiveOrder-eligible algorithms on all .sg graphs (replaces benchmark_fresh.sh)")
+    parser.add_argument("--ab-test", action="store_true",
+                        help="A/B test: AdaptiveOrder vs Original on all .sg graphs (replaces ab_test.sh)")
+    parser.add_argument("--eval-weights", action="store_true",
+                        help="Train perceptron weights and evaluate prediction accuracy (replaces eval_weights.py)")
+    parser.add_argument("--sg-only", action="store_true",
+                        help="[eval-weights] Only use .sg benchmark data for training")
+    parser.add_argument("--benchmark-file", default=None,
+                        help="[eval-weights] Load a specific benchmark JSON file")
+    parser.add_argument("--timeout", type=int, default=300,
+                        help="[benchmark-fresh/ab-test] Timeout per benchmark invocation in seconds (default: 300)")
+
     args = parser.parse_args()
     
     # ==========================================================================
@@ -3440,6 +3454,38 @@ def main():
         
         log("Auto-setup complete - all graphs downloaded and ready\n")
     
+    # ── Standalone sub-workflows (early exit) ────────────────────────
+    if getattr(args, 'benchmark_fresh', False):
+        from scripts.lib.benchmark_runner import run_fresh_benchmarks
+        graph_list = getattr(args, 'graph_list', None) or None
+        run_fresh_benchmarks(
+            graphs_dir=args.graphs_dir,
+            graph_names=graph_list,
+            trials=args.trials,
+            timeout=getattr(args, 'timeout', 300),
+        )
+        return
+
+    if getattr(args, 'ab_test', False):
+        from scripts.lib.ab_test import run_ab_test
+        graph_list = getattr(args, 'graph_list', None) or None
+        run_ab_test(
+            graphs_dir=args.graphs_dir,
+            graph_names=graph_list,
+            trials=args.trials,
+            timeout=getattr(args, 'timeout', 300),
+        )
+        return
+
+    if getattr(args, 'eval_weights', False):
+        from scripts.lib.eval_weights import train_and_evaluate
+        train_and_evaluate(
+            results_dir=args.results_dir,
+            sg_only=getattr(args, 'sg_only', False),
+            benchmark_file=getattr(args, 'benchmark_file', None),
+        )
+        return
+
     try:
         # Handle download-only mode
         if args.download_only:
