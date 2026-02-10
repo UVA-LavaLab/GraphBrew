@@ -733,21 +733,22 @@ def compute_weights_from_results(
                 continue
             total_contexts += 1
             
-            # Find baseline (ORIGINAL or first result)
+            # Find baseline (ORIGINAL or first result) — use total time (exec + reorder)
             baseline_time = None
             for r in results:
                 if 'ORIGINAL' in r.algorithm:
-                    baseline_time = r.time_seconds
+                    baseline_time = r.time_seconds + r.reorder_time
                     break
             if baseline_time is None:
-                baseline_time = results[0].time_seconds
+                baseline_time = results[0].time_seconds + results[0].reorder_time
             
-            # Find best
-            best_result = min(results, key=lambda r: r.time_seconds)
+            # Find best by total time (exec + reorder) — practical end-to-end metric
+            best_result = min(results, key=lambda r: r.time_seconds + r.reorder_time)
             best_algo = best_result.algorithm
             
             if best_algo in weights and baseline_time > 0:
-                speedup = baseline_time / best_result.time_seconds
+                best_total = best_result.time_seconds + best_result.reorder_time
+                speedup = baseline_time / best_total
                 algo_win_count[best_algo] = algo_win_count.get(best_algo, 0) + 1
                 if best_algo not in algo_speedups:
                     algo_speedups[best_algo] = []
@@ -853,7 +854,8 @@ def compute_weights_from_results(
         for bench, results in benchmarks.items():
             if not results:
                 continue
-            best_result = min(results, key=lambda r: r.time_seconds)
+            # Oracle by total time (exec + reorder) — practical end-to-end metric
+            best_result = min(results, key=lambda r: r.time_seconds + r.reorder_time)
             best_algo = _get_base(best_result.algorithm)
             
             # Build feature vector matching C++ scoreBase() scaling
@@ -922,7 +924,8 @@ def compute_weights_from_results(
             for bench, results in benchmarks.items():
                 if not results:
                     continue
-                best_result = min(results, key=lambda r: r.time_seconds)
+                # Oracle by total time (exec + reorder) — practical end-to-end metric
+                best_result = min(results, key=lambda r: r.time_seconds + r.reorder_time)
                 best_algo = _get_base(best_result.algorithm)
                 per_bench_data_raw[bench].append((fv, best_algo))
         
