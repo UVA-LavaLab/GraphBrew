@@ -87,6 +87,7 @@ _ADAPTIVE_ALGO_MAP = {
     'RABBITORDER_csr': 'RABBITORDER_csr', 'RABBITORDER_boost': 'RABBITORDER_csr',
     'RabbitOrder': 'RABBITORDER_csr',
     # GraphBrewOrder variants → GraphBrewOrder_leiden
+    'GraphBrewOrder': 'GraphBrewOrder_leiden',
     'GraphBrewOrder_leiden': 'GraphBrewOrder_leiden',
     'GraphBrewOrder_gve': 'GraphBrewOrder_leiden',
     'GraphBrewOrder_gvefast': 'GraphBrewOrder_leiden',
@@ -238,10 +239,12 @@ def get_base(name):
 
 # Build per-graph-bench results from FILTERED data (only AdaptiveOrder-eligible algos)
 from collections import defaultdict
-graph_bench_results = defaultdict(list)  # (graph, bench) -> [(algo, time)]
+graph_bench_results = defaultdict(list)  # (graph, bench) -> [(algo, total_time)]
 for r in bench_results:
     if r.success and r.time_seconds > 0:
-        graph_bench_results[(r.graph, r.benchmark)].append((r.algorithm, r.time_seconds))
+        # Use total time (exec + reorder) as the practical end-to-end metric
+        total_time = r.time_seconds + r.reorder_time
+        graph_bench_results[(r.graph, r.benchmark)].append((r.algorithm, total_time))
 
 for (graph_name, bench), algo_times in graph_bench_results.items():
     if graph_name not in graph_props:

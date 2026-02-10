@@ -13,9 +13,9 @@ OUTFILE="results/benchmark_fresh.json"
 TRIALS=3
 
 # AdaptiveOrder-eligible algorithms (by -o ID)
-# Skip GOrder (9) — too slow on large graphs
-# Skip GraphBrewOrder (12) and LeidenOrder (15) — they crash on some .sg files
-ALGOS=(0 1 2 3 4 5 6 7 8 10 11)
+# GOrder (9) and GraphBrewOrder (12) are guarded: skip for large graphs (too slow)
+# COrder (10) is guarded: skip for > 2M nodes
+ALGOS=(0 1 2 3 4 5 6 7 8 9 10 11 12 15)
 ALGO_NAMES=(
     "ORIGINAL"          # 0
     "Random"            # 1
@@ -29,6 +29,10 @@ ALGO_NAMES=(
     "GOrder"            # 9
     "COrder"            # 10
     "RCMOrder"          # 11
+    "GraphBrewOrder"    # 12
+    ""                  # 13 (MAP — not used)
+    ""                  # 14 (AdaptiveOrder — skip)
+    "LeidenOrder"       # 15
 )
 
 # All graphs with .sg files — sorted by size for predictable order
@@ -82,13 +86,18 @@ else:
             algo_name="${ALGO_NAMES[$algo_id]}"
             [ -z "$algo_name" ] && continue
             
-            # Skip GOrder for graphs > 500K nodes
+            # Skip GOrder for graphs > 500K nodes (O(n^2) reorder)
             if [ "$algo_id" = "9" ] && [ "$nodes" -gt 500000 ]; then
                 continue
             fi
             
             # Skip COrder for graphs > 2M nodes
             if [ "$algo_id" = "10" ] && [ "$nodes" -gt 2000000 ]; then
+                continue
+            fi
+            
+            # Skip GraphBrewOrder for graphs > 500K nodes (slow community detection)
+            if [ "$algo_id" = "12" ] && [ "$nodes" -gt 500000 ]; then
                 continue
             fi
             
