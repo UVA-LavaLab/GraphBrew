@@ -1514,6 +1514,9 @@ struct AblationConfig {
     bool zero_fef;           // Zero forward_edge_fraction + fef_convergence
     bool zero_wsr;           // Zero working_set_ratio weight
     bool zero_quadratic;     // Zero all quadratic interaction terms
+    // Phase 6 P0 improvements
+    bool cost_model;         // Enable cost-aware dynamic margin threshold (1.1)
+    bool packing_skip;       // Enable packing factor short-circuit (1.2)
     
     static const AblationConfig& Get() {
         static AblationConfig instance = Init();
@@ -1523,7 +1526,7 @@ struct AblationConfig {
     bool any_active() const {
         return no_types || no_ood || no_margin || no_leiden ||
                force_algo >= 0 || zero_packing || zero_fef ||
-               zero_wsr || zero_quadratic;
+               zero_wsr || zero_quadratic || cost_model || packing_skip;
     }
     
     void print() const {
@@ -1538,6 +1541,8 @@ struct AblationConfig {
         if (zero_fef)       printf("  ZERO: forward_edge_fraction + fef_convergence\n");
         if (zero_wsr)       printf("  ZERO: working_set_ratio\n");
         if (zero_quadratic) printf("  ZERO: quadratic interaction terms\n");
+        if (cost_model)     printf("  COST_MODEL: cost-aware dynamic margin (P0 1.1)\n");
+        if (packing_skip)   printf("  PACKING_SKIP: packing factor short-circuit (P0 1.2)\n");
         printf("===============================\n");
     }
     
@@ -1571,6 +1576,8 @@ private:
         cfg.zero_fef       = feature_in_list("fef");
         cfg.zero_wsr       = feature_in_list("wsr");
         cfg.zero_quadratic = feature_in_list("quadratic");
+        cfg.cost_model     = env_bool("ADAPTIVE_COST_MODEL");
+        cfg.packing_skip   = env_bool("ADAPTIVE_PACKING_SKIP");
         return cfg;
     }
 };
@@ -3711,7 +3718,21 @@ inline ReorderingAlgo SelectReorderingFromWeights(
     // Ablation: ADAPTIVE_NO_MARGIN=1 disables this fallback.
     if (best_algo != ORIGINAL && original_score > -1e30 && !AblationConfig::Get().no_margin) {
         double margin = best_score - original_score;
-        if (margin < ORIGINAL_MARGIN_THRESHOLD) {
+        double threshold = ORIGINAL_MARGIN_THRESHOLD;
+        
+        // P0 1.1: Cost-aware dynamic threshold (IISWC'18 cost model).
+        // Higher avg_reorder_time → need proportionally larger margin to justify.
+        // ADAPTIVE_COST_MODEL=1 enables this enhancement.
+        if (AblationConfig::Get().cost_model) {
+            auto it = weights.find(best_algo);
+            if (it != weights.end() && it->second.avg_reorder_time > 0) {
+                constexpr double COST_MODEL_ALPHA = 0.01;  // seconds → score units
+                double cost_threshold = COST_MODEL_ALPHA * it->second.avg_reorder_time;
+                threshold = std::max(threshold, cost_threshold);
+            }
+        }
+        
+        if (margin < threshold) {
             return ORIGINAL;
         }
     }
@@ -4034,6 +4055,19 @@ inline ReorderingAlgo SelectBestReorderingForCommunity(
     // Ablation: ADAPTIVE_FORCE_ALGO=N bypasses all perceptron logic
     if (AblationConfig::Get().force_algo >= 0) {
         return static_cast<ReorderingAlgo>(AblationConfig::Get().force_algo);
+    }
+    
+    // P0 1.2 (IISWC'18): Packing factor short-circuit.
+    // High packing factor = hub neighbours already co-located in memory.
+    // Low working_set_ratio = graph fits well in cache hierarchy.
+    // Together: reordering has diminishing returns → skip it.
+    // ADAPTIVE_PACKING_SKIP=1 enables this short-circuit.
+    constexpr double PACKING_SKIP_THRESHOLD = 0.7;
+    constexpr double WSR_SKIP_THRESHOLD = 2.0;
+    if (AblationConfig::Get().packing_skip &&
+        feat.packing_factor > PACKING_SKIP_THRESHOLD &&
+        feat.working_set_ratio < WSR_SKIP_THRESHOLD) {
+        return ORIGINAL;
     }
     
     // Small communities: reordering overhead exceeds benefit
