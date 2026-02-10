@@ -784,7 +784,6 @@ def generate_reorderings_with_variants(
     expand_leiden_variants: bool = True,
     leiden_resolution: float = LEIDEN_DEFAULT_RESOLUTION,
     leiden_passes: int = LEIDEN_DEFAULT_PASSES,
-    leiden_csr_variants: List[str] = None,
     rabbit_variants: List[str] = None,
     graphbrew_variants: List[str] = None,
     timeout: int = TIMEOUT_REORDER,
@@ -792,23 +791,23 @@ def generate_reorderings_with_variants(
     force_reorder: bool = False
 ) -> Tuple[Dict[str, Dict[str, str]], List[ReorderResult]]:
     """
-    Generate reorderings with Leiden variant expansion.
+    Generate reorderings with variant expansion.
     
     Creates separate mappings for each variant:
-        - GraphBrewOrder_graphbrew.lo
-        - GraphBrewOrder_graphbrew:hrab.lo
         - GraphBrewOrder_leiden.lo
         - GraphBrewOrder_gve.lo
+        - GraphBrewOrder_gveopt.lo
+        - GraphBrewOrder_rabbit.lo
+        - GraphBrewOrder_hubcluster.lo
     
     Args:
         graphs: List of graphs to process
         algorithms: List of algorithm IDs or AlgorithmConfig objects
         bin_dir: Directory containing binaries
         output_dir: Directory for outputs
-        expand_leiden_variants: If True, expand Leiden into variants
+        expand_leiden_variants: If True, expand variant algorithms into all variants
         leiden_resolution: Resolution parameter
-        leiden_passes: Number of passes for LeidenCSR
-        leiden_csr_variants: Which LeidenCSR variants
+        leiden_passes: Number of passes
         graphbrew_variants: Which GraphBrewOrder variants
         timeout: Timeout for each reordering
         skip_slow: Skip slow algorithms on large graphs
@@ -823,8 +822,7 @@ def generate_reorderings_with_variants(
         output_dir = str(RESULTS_DIR)
     
     if expand_leiden_variants:
-        log.info(f"Leiden variant expansion enabled")
-        log.info(f"  LeidenCSR variants: {leiden_csr_variants or LEIDEN_CSR_VARIANTS}")
+        log.info(f"Variant expansion enabled")
     
     # Handle both algorithm ID lists and pre-expanded AlgorithmConfig lists
     if algorithms and isinstance(algorithms[0], AlgorithmConfig):
@@ -837,7 +835,6 @@ def generate_reorderings_with_variants(
             expand_leiden_variants=expand_leiden_variants,
             leiden_resolution=leiden_resolution,
             leiden_passes=leiden_passes,
-            leiden_csr_variants=leiden_csr_variants,
             rabbit_variants=rabbit_variants,
             graphbrew_variants=graphbrew_variants
         )

@@ -257,10 +257,10 @@ from scripts.lib.utils import (
 
 # Algorithms to benchmark (excluding MAP=13)
 # Note: LeidenCSR (16) has been deprecated — GraphBrew (12) subsumes it.
-BENCHMARK_ALGORITHMS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 15, 17]
+BENCHMARK_ALGORITHMS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 15]
 
 # Subset of key algorithms for quick testing
-KEY_ALGORITHMS = [0, 1, 7, 8, 9, 11, 15, 17]
+KEY_ALGORITHMS = [0, 1, 7, 8, 9, 11, 12, 15]
 
 # ============================================================================
 # VARIANT DEFINITIONS - Single Source of Truth in lib/utils.py
