@@ -299,8 +299,8 @@ from scripts.lib.utils import (
 @dataclass
 class AlgorithmConfig:
     """Configuration for an algorithm, including variant support."""
-    algo_id: int           # Base algorithm ID (e.g., 16 for LeidenCSR)
-    name: str              # Display name (e.g., "LeidenCSR_graphbrew")
+    algo_id: int           # Base algorithm ID (e.g., 12 for GraphBrewOrder)
+    name: str              # Display name (e.g., "GraphBrewOrder_graphbrew")
     option_string: str     # Full option string for -o flag (e.g., "16:graphbrew:quality")
     variant: str = ""      # Variant name if applicable (e.g., "graphbrew")
     resolution: str = "dynamic"  # Resolution mode: "dynamic", "auto", "1.0", etc.
@@ -1764,7 +1764,7 @@ def run_benchmarks_with_variants(
     Run benchmarks with variant-expanded label maps.
     
     This iterates directly over the algorithm names in label_maps (which include
-    variant suffixes like LeidenCSR_graphbrew, RABBITORDER_csr) to ensure the results
+    variant suffixes like GraphBrewOrder_graphbrew, RABBITORDER_csr) to ensure the results
     contain the full variant names.
     
     When using .lo files (MAP mode), loads reorder_time from the corresponding
@@ -2299,7 +2299,7 @@ def run_experiment(args):
         name_to_id.update({
             "RABBIT": 8, "RABBITORDER_BOOST": 8, "RABBITORDER_CSR": 8,
             "LEIDEN": 15, "LEIDENORDER": 15,
-            "LEIDENCSR": 16, "LEIDEN_CSR": 16, "LEIDENCSR_GRAPHBREW": 16, "GraphBrew": 16,
+            "LEIDENCSR": 16, "LEIDEN_CSR": 16, "GRAPHBREWORDER_GRAPHBREW": 12, "LEIDENCSR_GRAPHBREW": 12, "GraphBrew": 12,
         })
         
         filtered_algos = set()
@@ -2466,7 +2466,7 @@ def run_experiment(args):
         
         if has_variant_maps and getattr(args, "expand_variants", False):
             # Use variant-aware benchmarking with pre-generated variant mappings
-            _progress.info("Mode: Variant-aware benchmarking (LeidenCSR_graphbrew, LeidenCSR_graphbrew:hrab, etc.)")
+            _progress.info("Mode: Variant-aware benchmarking (GraphBrewOrder_graphbrew, GraphBrewOrder_graphbrew:hrab, etc.)")
             benchmark_results = run_benchmarks_with_variants(
                 graphs=graphs,
                 label_maps=label_maps,
@@ -2536,7 +2536,7 @@ def run_experiment(args):
         
         if has_variant_maps and getattr(args, "expand_variants", False):
             # Use variant-aware cache simulation
-            _progress.info("Mode: Variant-aware cache simulation (LeidenCSR_graphbrew, LeidenCSR_graphbrew:hrab, etc.)")
+            _progress.info("Mode: Variant-aware cache simulation (GraphBrewOrder_graphbrew, GraphBrewOrder_graphbrew:hrab, etc.)")
             cache_results = run_cache_simulations_with_variants(
                 graphs=graphs,
                 label_maps=label_maps,
@@ -3211,9 +3211,9 @@ def main():
                         help="Quick mode: test only key algorithms (Original, Random, HubClusterDBG, "
                              "RabbitOrder, Gorder, RCM, Leiden, LeidenCSR)")
     parser.add_argument("--algo", "--algorithm", type=str, default=None, dest="algo_name",
-                        help="Run only a specific algorithm (e.g., RABBITORDER_boost, LeidenCSR_graphbrew)")
+                        help="Run only a specific algorithm (e.g., RABBITORDER_boost, GraphBrewOrder_graphbrew)")
     parser.add_argument("--algo-list", nargs="+", type=str, default=None, dest="algo_list",
-                        help="Run specific algorithms (e.g., --algo-list RABBITORDER_boost LeidenCSR_graphbrew GORDER)")
+                        help="Run specific algorithms (e.g., --algo-list RABBITORDER_boost GraphBrewOrder_graphbrew GORDER)")
     parser.add_argument("--skip-slow", action="store_true",
                         help="Skip slow algorithms (Gorder, Corder, RCM) on large graphs")
     
@@ -3368,8 +3368,8 @@ def main():
     
     # Auto-enable --all-variants when running --full pipeline
     # Training on all variants is critical for the perceptron to learn which
-    # variant works best for each graph structure (e.g., LeidenCSR_graphbrew vs
-    # LeidenCSR_graphbrew:hrab, RABBITORDER_csr vs RABBITORDER_boost, etc.)
+    # variant works best for each graph structure (e.g., GraphBrewOrder_graphbrew vs
+    # GraphBrewOrder_graphbrew:hrab, RABBITORDER_csr vs RABBITORDER_boost, etc.)
     if getattr(args, 'full', False) and not args.expand_variants:
         args.expand_variants = True
         log("Auto-enabling variant expansion for --full pipeline (train on all variants)", "INFO")

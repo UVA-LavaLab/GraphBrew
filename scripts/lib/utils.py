@@ -517,7 +517,7 @@ def get_algorithm_name(option: str) -> str:
     ALWAYS includes variant in name for algorithms that have variants:
     - RABBITORDER (8): RABBITORDER_csr (default) or RABBITORDER_boost
     - GraphBrewOrder (12): GraphBrewOrder_leiden (default), GraphBrewOrder_gve, etc.
-    - LeidenCSR (16): LeidenCSR_graphbrew (default), LeidenCSR_graphbrew:hrab, etc.
+    - LeidenCSR (16): GraphBrewOrder_graphbrew (default), GraphBrewOrder_graphbrew:hrab, etc.
     
     For other algorithms, returns the base name.
     """

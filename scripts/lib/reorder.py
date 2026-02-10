@@ -61,9 +61,9 @@ _LEGACY_ALGO_NAMES_REV = {v: k for k, v in _LEGACY_ALGO_NAMES.items()}
 def safe_filename(name: str) -> str:
     """Sanitize algorithm name for use in filenames.
     
-    Colons in filenames (e.g., LeidenCSR_graphbrew:rabbit.lo) break the C++ CLI
+    Colons in filenames (e.g., GraphBrewOrder_graphbrew:rabbit.lo) break the C++ CLI
     parser which splits -o arguments on ALL colons. Replace colons with
-    underscores to produce safe filenames (e.g., LeidenCSR_graphbrew_rabbit.lo).
+    underscores to produce safe filenames (e.g., GraphBrewOrder_graphbrew_rabbit.lo).
     """
     return name.replace(':', '_')
 # =============================================================================
@@ -88,8 +88,8 @@ class ReorderResult:
 @dataclass
 class AlgorithmConfig:
     """Configuration for an algorithm, including variant support."""
-    algo_id: int           # Base algorithm ID (e.g., 16 for LeidenCSR)
-    name: str              # Display name (e.g., "LeidenCSR_graphbrew")
+    algo_id: int           # Base algorithm ID (e.g., 12 for GraphBrewOrder)
+    name: str              # Display name (e.g., "GraphBrewOrder_graphbrew")
     option_string: str     # Full option string for -o flag (e.g., "16:graphbrew:quality")
     variant: str = ""      # Variant name if applicable (e.g., "graphbrew")
     resolution: str = "auto"  # Resolution: "auto", "dynamic", "1.0", etc.
@@ -118,8 +118,7 @@ def get_algorithm_name_with_variant(algo_id: int, variant: str = None) -> str:
     
     ALWAYS includes variant in name for:
     - RABBITORDER (8): RABBITORDER_csr or RABBITORDER_boost
-    - GraphBrewOrder (12): GraphBrewOrder_leiden (default), GraphBrewOrder_gve, etc.
-    - LeidenCSR (16): LeidenCSR_graphbrew, LeidenCSR_graphbrew:hrab, etc.
+    - GraphBrewOrder (12): GraphBrewOrder_graphbrew, GraphBrewOrder_graphbrew:hrab, etc.
     
     For other algorithms, returns the base name.
     
@@ -832,8 +831,8 @@ def generate_reorderings_with_variants(
     Generate reorderings with Leiden variant expansion.
     
     Creates separate mappings for each variant:
-        - LeidenCSR_graphbrew.lo
-        - LeidenCSR_graphbrew:hrab.lo
+        - GraphBrewOrder_graphbrew.lo
+        - GraphBrewOrder_graphbrew:hrab.lo
         - GraphBrewOrder_leiden.lo
         - GraphBrewOrder_gve.lo
     

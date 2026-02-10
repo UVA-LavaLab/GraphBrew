@@ -13,7 +13,7 @@ Usage:
 
     # Head-to-head: rabbit vs graphbrew:hrab
     python3 scripts/analyze_metrics.py --results-dir results/ \\
-        --compare RABBITORDER_csr LeidenCSR_graphbrew:hrab
+        --compare RABBITORDER_csr GraphBrewOrder_graphbrew:hrab
 
     # Filter to specific benchmarks/graphs
     python3 scripts/analyze_metrics.py --results-dir results/ \\

@@ -410,7 +410,7 @@ python3 scripts/analyze_metrics.py --results-dir results/ \
 
 # Head-to-head: RabbitOrder vs GraphBrew:hrab
 python3 scripts/analyze_metrics.py --results-dir results/ \
-  --compare RABBITORDER_csr LeidenCSR_graphbrew:hrab
+  --compare RABBITORDER_csr GraphBrewOrder_graphbrew:hrab
 
 # JSON output for scripting
 python3 scripts/analyze_metrics.py --results-dir results/ --json

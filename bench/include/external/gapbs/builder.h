@@ -2588,9 +2588,12 @@ public:
     }
 
     /**
-     * Unified Leiden CSR Mapping - Parses variant from options
+     * Unified Leiden CSR Mapping - Pure Leiden community detection + reordering
      * Format: 16:variant:resolution:iterations:passes
-     * Default variant: graphbrew (quality | speed | balanced)
+     * Default variant: gveopt2 (fastest + best quality)
+     *
+     * NOTE: GraphBrew variants (graphbrew:*, vibe:*) have moved to algorithm 12.
+     *       Using them here will print a deprecation notice and redirect.
      */
     void GenerateLeidenCSRMappingUnified(
         const CSRGraph<NodeID_, DestID_, invert> &g,
@@ -2599,113 +2602,124 @@ public:
         
         // Default values - use auto-resolution based on graph density
         double resolution = LeidenAutoResolution<NodeID_, DestID_>(g);
-        // Unified defaults across all Leiden algorithms for fair comparison
         int max_iterations = LEIDEN_DEFAULT_ITERATIONS;
         int max_passes = LEIDEN_DEFAULT_PASSES;
-        std::string variant = "graphbrew";  // Default to GraphBrew
-        std::string resolution_mode = "auto";
+        std::string variant = "gveopt2";  // Default: fastest + best quality Leiden
         
         // Parse options: variant, resolution, max_iterations, max_passes
         // CLI format: -o 16:variant:resolution:max_iterations:max_passes
-        // e.g., -o 12:graphbrew:quality (or 16:vibe:quality for backward compat)
-        // Resolution can be: "auto", "0", "dynamic", "dynamic:2.0", or numeric
         if (!reordering_options.empty() && !reordering_options[0].empty()) {
             variant = reordering_options[0];
         }
-        if (reordering_options.size() > 1 && !reordering_options[1].empty()) {
-            const std::string& res_opt = reordering_options[1];
-            resolution_mode = res_opt;
-            
-            // Handle special keywords
-            if (res_opt == "auto" || res_opt == "0") {
-                // Keep auto-resolution
-            } else if (res_opt.rfind("dynamic", 0) == 0) {
-                // Dynamic mode - extract initial value if provided (use underscore delimiter)
-                size_t sep_pos = res_opt.find('_');
-                if (sep_pos == std::string::npos) sep_pos = res_opt.find(':');
-                if (sep_pos != std::string::npos && sep_pos + 1 < res_opt.size()) {
-                    resolution = std::stod(res_opt.substr(sep_pos + 1));
-                }
-                // Keep auto-resolution as base, algorithms will handle dynamic
-            } else {
-                // Try numeric parsing
-                try {
-                    double parsed = std::stod(res_opt);
-                    // Only override auto-resolution if value is in valid range (0, 3]
-                    if (parsed > 0 && parsed <= 3) {
-                        resolution = parsed;
-                        resolution_mode = "fixed";
-                    }
-                    // If parsed <= 0 or > 3, keep auto-resolution
-                } catch (...) {
-                    // Parse error, keep auto-resolution
-                }
-            }
-        }
         
-        // For GraphBrew variants, skip integer parsing - GraphBrew has its own flexible parser
-        // that handles options like "graphbrew:rabbit:bfs" where later args aren't integers
+        // Check if user is trying to use GraphBrew/VIBE variants on algo 16
         bool isGraphBrewVariant = (variant == "graphbrew" || variant.rfind("graphbrew", 0) == 0
                                 || variant == "vibe" || variant.rfind("vibe", 0) == 0);
+        if (isGraphBrewVariant) {
+            printf("\n");
+            printf("⚠️  DEPRECATION: GraphBrew variants have moved from algorithm 16 to algorithm 12.\n");
+            printf("    Instead of: -o 16:%s\n", variant.c_str());
+            printf("    Use:        -o 12:%s\n", variant.c_str());
+            printf("    Redirecting to GraphBrewOrder (12)...\n\n");
+            // Redirect to GraphBrewOrder
+            GenerateGraphBrewMappingUnified(g, new_ids, true, reordering_options);
+            return;
+        }
         
-        if (!isGraphBrewVariant) {
-            // Only try to parse iterations/passes for non-GraphBrew variants
-            if (reordering_options.size() > 2 && !reordering_options[2].empty()) {
-                try { max_iterations = std::stoi(reordering_options[2]); } catch (...) {}
-            }
-            if (reordering_options.size() > 3 && !reordering_options[3].empty()) {
-                try { max_passes = std::stoi(reordering_options[3]); } catch (...) {}
+        // Parse resolution
+        if (reordering_options.size() > 1 && !reordering_options[1].empty()) {
+            const std::string& res_opt = reordering_options[1];
+            if (res_opt == "auto" || res_opt == "0") {
+                // Keep auto-resolution
+            } else {
+                try {
+                    double parsed = std::stod(res_opt);
+                    if (parsed > 0 && parsed <= 3) {
+                        resolution = parsed;
+                    }
+                } catch (...) {}
             }
         }
         
-        printf("LeidenCSR: resolution=%.2f, max_passes=%d, max_iterations=%d, variant=%s\n", 
-               resolution, max_passes, max_iterations, variant.c_str());
+        // Parse iterations and passes
+        if (reordering_options.size() > 2 && !reordering_options[2].empty()) {
+            try { max_iterations = std::stoi(reordering_options[2]); } catch (...) {}
+        }
+        if (reordering_options.size() > 3 && !reordering_options[3].empty()) {
+            try { max_passes = std::stoi(reordering_options[3]); } catch (...) {}
+        }
         
-        // Dispatch to GraphBrew (canonical name; "vibe" accepted as alias)
-        auto startsWithGraphBrew = [&](const std::string& s) {
-            return s == "graphbrew" || s.rfind("graphbrew:", 0) == 0
-                || s == "vibe" || s.rfind("vibe:", 0) == 0 || s.rfind("vibe", 0) == 0;
+        // Parse variant enum
+        auto lvar = graphbrew::leiden::ParseLeidenCSRVariant(variant);
+        
+        // Adjust parameters for special variants
+        if (lvar == graphbrew::leiden::LeidenCSRVariant::Fast) {
+            max_iterations = graphbrew::leiden::FAST_MAX_ITERATIONS;
+            max_passes = graphbrew::leiden::FAST_MAX_PASSES;
+        } else if (lvar == graphbrew::leiden::LeidenCSRVariant::Modularity) {
+            max_iterations = graphbrew::leiden::MODULARITY_MAX_ITERATIONS;
+            max_passes = graphbrew::leiden::MODULARITY_MAX_PASSES;
+        }
+        
+        printf("LeidenCSR: variant=%s, resolution=%.2f, max_iterations=%d, max_passes=%d\n",
+               graphbrew::leiden::LeidenCSRVariantToString(lvar).c_str(),
+               resolution, max_iterations, max_passes);
+        
+        // Run GVE-Leiden community detection
+        Timer tm;
+        tm.Start();
+        
+        GVELeidenResult<K> result;
+        switch (lvar) {
+            case graphbrew::leiden::LeidenCSRVariant::GVE:
+                result = GVELeidenCSR<K>(g, resolution, 1e-2, 0.8, 10.0, max_iterations, max_passes);
+                break;
+            default:
+                // GVEOpt, GVEOpt2, DFS, BFS, HubSort, Fast, Modularity, Faithful, GVE2, GVERabbit
+                // All use the optimized implementation with variant-specific parameters
+                result = GVELeidenOpt<K>(g, resolution, 1e-2, 0.8, 10.0, max_iterations, max_passes);
+                break;
+        }
+        
+        tm.Stop();
+        printf("LeidenCSR: %d passes, %d iterations, %.6f modularity, %.4fs\n",
+               result.total_passes, result.total_iterations, result.modularity, tm.Seconds());
+        
+        // ===== Community-based reordering =====
+        // Sort vertices by community, then by degree within community
+        // This achieves basic locality — vertices in the same community are adjacent
+        const int64_t N = g.num_nodes();
+        new_ids.resize(N);
+        
+        struct VertexInfo {
+            NodeID_ id;
+            K community;
+            int64_t degree;
         };
-        if (startsWithGraphBrew(variant)) {
-            // GraphBrew: Fully modular implementation
-            // Supports combinations: graphbrew:dfs, graphbrew:rabbit:bfs, etc.
-            // Legacy alias: vibe, vibe:dfs, vibe:rabbit:bfs, etc.
-            // Pass ALL reordering_options (except variant) through GraphBrew config parser
-            std::vector<std::string> graphbrew_options;
-            
-            // Strip prefix ("graphbrew" or "vibe") and split remaining colon-separated parts
-            size_t prefixLen = (variant.rfind("graphbrew", 0) == 0) ? 9 : 4;
-            if (variant.length() > prefixLen) {
-                std::string rest = variant.substr(prefixLen);
-                if (!rest.empty() && rest[0] == ':') rest = rest.substr(1);
-                std::stringstream ss(rest);
-                std::string part;
-                while (std::getline(ss, part, ':')) {
-                    if (!part.empty()) graphbrew_options.push_back(part);
-                }
-            }
-            
-            // Add all options from reordering_options[1:] (skip the variant itself)
-            // This captures things like "rabbit", "bfs", resolution, etc.
-            for (size_t i = 1; i < reordering_options.size(); ++i) {
-                if (!reordering_options[i].empty()) {
-                    graphbrew_options.push_back(reordering_options[i]);
-                }
-            }
-            
-            // Let GraphBrew parser handle everything
-            GenerateGraphBrewMapping(g, new_ids, graphbrew_options);
-        } else {
-            // Default: redirect to graphbrew:quality
-            printf("⚠️  WARNING: Unknown variant '%s', using graphbrew:quality instead.\n", variant.c_str());
-            std::vector<std::string> graphbrew_options = {"quality"};
-            for (size_t i = 1; i < reordering_options.size(); ++i) {
-                if (!reordering_options[i].empty()) {
-                    graphbrew_options.push_back(reordering_options[i]);
-                }
-            }
-            GenerateGraphBrewMapping(g, new_ids, graphbrew_options);
+        std::vector<VertexInfo> vertices(N);
+        
+        #pragma omp parallel for
+        for (int64_t v = 0; v < N; ++v) {
+            vertices[v] = {static_cast<NodeID_>(v), result.final_community[v], g.out_degree(v)};
         }
+        
+        // Sort by community (ascending), then degree (descending) for hub locality
+        __gnu_parallel::sort(vertices.begin(), vertices.end(),
+            [](const VertexInfo& a, const VertexInfo& b) {
+                if (a.community != b.community) return a.community < b.community;
+                return a.degree > b.degree;  // Hubs first within community
+            });
+        
+        #pragma omp parallel for
+        for (int64_t i = 0; i < N; ++i) {
+            new_ids[vertices[i].id] = static_cast<NodeID_>(i);
+        }
+        
+        // Stats
+        std::set<K> unique_comms(result.final_community.begin(), result.final_community.end());
+        PrintTime("LeidenCSR GenID Time", tm.Seconds());
+        PrintTime("Num Communities", unique_comms.size());
+        PrintTime("Resolution", resolution);
     }
     
     // ========================================================================
@@ -2738,19 +2752,9 @@ public:
     template <typename K = uint32_t>
     using GVERabbitResult = ::GVERabbitResult<K>;
 
-    /**
-     * GenerateGraphBrewMapping - GraphBrew: Fully modular Leiden implementation
-     * Configurable ordering and aggregation strategies
-     * Delegates to ::GenerateGraphBrewMapping in reorder/reorder_leiden.h
-     */
-    void GenerateGraphBrewMapping(
-        const CSRGraph<NodeID_, DestID_, invert>& g,
-        pvector<NodeID_>& new_ids,
-        std::vector<std::string> reordering_options,
-        graphbrew::OrderingStrategy ordering = graphbrew::OrderingStrategy::HIERARCHICAL,
-        graphbrew::AggregationStrategy aggregation = graphbrew::AggregationStrategy::LEIDEN_CSR) {
-        ::GenerateGraphBrewMapping<K, NodeID_, DestID_>(g, new_ids, reordering_options, ordering, aggregation);
-    }
+    // NOTE: GenerateGraphBrewMapping has been removed.
+    // GraphBrew functionality is now in GenerateGraphBrewMappingUnified() (algo 12).
+    // LeidenCSR (algo 16) is pure Leiden community detection only.
 
     // ========================================================================
     // RabbitOrderCSR - Native CSR implementation of Rabbit Order
