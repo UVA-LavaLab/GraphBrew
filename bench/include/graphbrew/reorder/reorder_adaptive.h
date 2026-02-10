@@ -399,6 +399,13 @@ void GenerateAdaptiveMappingRecursiveStandalone(
     const int64_t num_nodes = g.num_nodes();
     const int64_t num_edges = g.num_edges_directed();
     
+    // GUARD: Empty graph - nothing to partition
+    if (num_nodes == 0) {
+        tm.Stop();
+        PrintTime("Adaptive Map Time", tm.Seconds());
+        return;
+    }
+    
     // Parse options
     int MAX_DEPTH = 0;
     size_t MIN_COMMUNITY_FOR_RECURSION = 50000;
@@ -428,6 +435,9 @@ void GenerateAdaptiveMappingRecursiveStandalone(
     }
     
     // Use GraphBrew's Leiden engine for community detection (native CSR)
+    // NOTE: Parallel Leiden (OMP_NUM_THREADS > 1) is non-deterministic due to
+    // concurrent community updates in localMovingPhase. For reproducible results,
+    // set OMP_NUM_THREADS=1 or use precomputed label maps (--precompute).
     graphbrew::GraphBrewConfig gb_config;
     gb_config.resolution = resolution;
     gb_config.maxIterations = max_iterations;

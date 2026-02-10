@@ -311,6 +311,28 @@ void ReorderCommunitySubgraphStandalone(
         }
     }
     
+#ifndef NDEBUG
+    // Debug assertion: verify sub-reordering produced a valid bijection
+    {
+        std::vector<bool> seen(comm_size, false);
+        bool valid = true;
+        for (size_t i = 0; i < comm_size; ++i) {
+            // Check reordered_nodes maps back to a known global node
+            NodeID_ gnode = reordered_nodes[i];
+            bool found = false;
+            for (size_t j = 0; j < comm_size; ++j) {
+                if (local_to_global[j] == gnode) { found = true; break; }
+            }
+            if (!found) { valid = false; break; }
+        }
+        if (!valid) {
+            fprintf(stderr, "WARNING: ReorderCommunitySubgraphStandalone: "
+                    "sub-permutation may not be a valid bijection (algo=%d, size=%zu)\n",
+                    static_cast<int>(algo), comm_size);
+        }
+    }
+#endif
+    
     // Assign global IDs
     for (NodeID_ node : reordered_nodes) {
         new_ids[node] = current_id++;
