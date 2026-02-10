@@ -41,15 +41,14 @@ A comprehensive one-click script that runs the complete GraphBrew experiment wor
         --resolution 1.0 --passes 5 --size medium
     
     RabbitOrder (8) variants: csr (default), boost
-    LeidenCSR (16) variants:
-      - graphbrew (default): Unified reordering framework (best overall) ⭐
-      - graphbrew:quality: High-quality community detection + ordering
-      - graphbrew:rabbit: GraphBrew ++ RabbitOrder within communities
-      - graphbrew:streaming: Streaming/incremental ordering (fastest)
-      - graphbrew:hrab: Hybrid Leiden+Rabbit BFS (best amortization) ⭐
-      - graphbrew:hrab:gordi: Hybrid Leiden+Rabbit Gorder
-      - graphbrew:dfs, graphbrew:bfs: Alternative traversal orderings
-      - graphbrew:dbg: Debug/verbose mode
+    LeidenCSR (16) variants: gveopt2 (default), gve, gveopt, fast, modularity,
+      gverabbit, dfs, bfs, hubsort, faithful
+    GraphBrewOrder (12) ordering strategies:
+      - (default): Leiden + per-community RabbitOrder
+      - hrab: Hybrid Leiden+RabbitOrder (best locality) ⭐
+      - dfs, bfs: Dendrogram traversal orderings
+      - conn: Connectivity BFS within communities
+      - rabbit: RabbitOrder single-pass pipeline
     
     Resolution modes (for --resolution):
       - Fixed: 1.5 (use specified value)
@@ -301,7 +300,7 @@ class AlgorithmConfig:
     """Configuration for an algorithm, including variant support."""
     algo_id: int           # Base algorithm ID (e.g., 12 for GraphBrewOrder)
     name: str              # Display name (e.g., "GraphBrewOrder_graphbrew")
-    option_string: str     # Full option string for -o flag (e.g., "12:graphbrew:quality")
+    option_string: str     # Full option string for -o flag (e.g., "12:hrab")
     variant: str = ""      # Variant name if applicable (e.g., "graphbrew")
     resolution: str = "dynamic"  # Resolution mode: "dynamic", "auto", "1.0", etc.
     passes: int = 10
@@ -450,7 +449,7 @@ def get_best_leiden_variant(
     """
     Get the best variant for a Leiden algorithm based on learned weights.
     
-    For LeidenCSR (16), variants are: graphbrew (default), graphbrew:quality, graphbrew:rabbit, graphbrew:hrab, graphbrew:streaming, graphbrew:dfs, graphbrew:bfs
+    For LeidenCSR (16), variants are: gveopt2 (default), gve, gveopt, fast, modularity, gverabbit, dfs, bfs, hubsort, faithful
     
     Args:
         type_name: Graph type (e.g., 'type_0')
@@ -2554,7 +2553,7 @@ def run_experiment(args):
             rabbit_variants = getattr(args, 'rabbit_variants', None)
             
             if leiden_csr_variants or rabbit_variants:
-                _progress.info(f"  LeidenCSR variants: {leiden_csr_variants or ['graphbrew (default)']}")
+                _progress.info(f"  LeidenCSR variants: {leiden_csr_variants or ['gveopt2 (default)']}")
                 _progress.info(f"  RabbitOrder variants: {rabbit_variants or ['csr (default)']}")
             
             cache_results = run_cache_simulations(
@@ -3270,9 +3269,8 @@ def main():
                         help="Test ALL algorithm variants (Leiden, RabbitOrder) instead of just defaults")
     parser.add_argument("--csr-variants", nargs="+", dest="leiden_csr_variants",
                         default=None, choices=LEIDEN_CSR_VARIANTS,
-                        help="LeidenCSR/GraphBrew variants to test. Key variants: graphbrew (default), graphbrew:quality, graphbrew:hrab (Hybrid), "
-                             "graphbrew:rabbit (RabbitOrder), graphbrew:streaming (fastest), "
-                             "graphbrew:hrab:gordi (Hybrid Leiden+Rabbit Gorder). Use --all-variants for all.")
+                        help="LeidenCSR variants to test. Key variants: gveopt2 (default), gve, fast, modularity. "
+                             "Use --all-variants for all.")
     parser.add_argument("--rabbit-variants", nargs="+",
                         default=None, choices=["csr", "boost"],
                         help="RabbitOrder variants: csr (default, no deps), boost (requires libboost-graph-dev)")

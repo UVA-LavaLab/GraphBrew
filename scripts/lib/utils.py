@@ -110,33 +110,38 @@ GRAPHBREW_VARIANTS = ["leiden", "gve", "gveopt", "rabbit", "hubcluster"]
 GRAPHBREW_DEFAULT_VARIANT = "leiden"  # Uses GraphBrew Leiden-CSR aggregation
 
 # Leiden variant definitions
-# LeidenCSR variants (default: graphbrew)
+# LeidenCSR variants (default: gveopt2)
 # Format: -o 16:variant:resolution:iterations:passes
 # Resolution modes:
 #   - Fixed: 1.5 (use specified value)
 #   - Auto: "auto" or "0" (compute from graph density/CV)
 #   - Dynamic: "dynamic" (adjust per-pass)
 #   - Dynamic+Init: "dynamic_2.0" (start at 2.0, adjust per-pass)
-# GraphBrew variants: graphbrew (Leiden-based), graphbrew:rabbit (RabbitOrder), graphbrew:streaming (lazy aggregation), graphbrew:lazyupdate (batched ctot)
+# LeidenCSR is pure community detection + sort. For per-community reordering, use GraphBrewOrder (12).
 LEIDEN_CSR_VARIANTS = [
-    # GraphBrew variants (unified reordering framework)
-    "graphbrew", "graphbrew:dfs", "graphbrew:bfs", "graphbrew:dbg", "graphbrew:corder", "graphbrew:dbg-global", "graphbrew:corder-global",
-    "graphbrew:streaming", "graphbrew:streaming:dfs",  # Leiden + lazy aggregation
-    "graphbrew:lazyupdate",  # Batched community weight updates (reduces atomics)
-    "graphbrew:conn",  # Connectivity BFS within communities (Boost-style, default ordering)
-    "graphbrew:hrab",  # Hybrid Leiden+RabbitOrder with BFS intra-community (best SSSP)
-    "graphbrew:hrab:gordi",  # Hybrid Leiden+RabbitOrder with Gorder intra-community (best locality)
-    "graphbrew:rabbit", "graphbrew:rabbit:dfs", "graphbrew:rabbit:bfs", "graphbrew:rabbit:dbg", "graphbrew:rabbit:corder"  # RabbitOrder
+    # Core GVE-Leiden variants
+    "gveopt2",       # CSR-based aggregation (default — fastest + best quality)
+    "gve",           # Standard GVE-Leiden
+    "gveopt",        # Cache-optimized GVE-Leiden
+    "gverabbit",     # GVE + RabbitOrder within communities
+    "fast",          # Speed-optimized (fewer iterations)
+    "modularity",    # Quality-optimized (more iterations)
+    "dfs",           # DFS ordering of community tree
+    "bfs",           # BFS ordering of community tree
+    "hubsort",       # Hub-first ordering within communities
+    "faithful",      # Faithful 1:1 leiden.hxx reference implementation
 ]
-LEIDEN_CSR_DEFAULT_VARIANT = "graphbrew"  # GraphBrew default (best overall quality)
+LEIDEN_CSR_DEFAULT_VARIANT = "gveopt2"  # CSR-based aggregation (fastest + best quality)
 
 # Recommended variants for different use cases
-LEIDEN_CSR_FAST_VARIANTS = ["graphbrew:rabbit", "graphbrew:streaming", "graphbrew"]  # Speed priority
-LEIDEN_CSR_QUALITY_VARIANTS = ["graphbrew", "graphbrew:dfs", "graphbrew:hrab", "graphbrew:hrab:gordi"]  # Quality priority
+LEIDEN_CSR_FAST_VARIANTS = ["fast", "gveopt2"]  # Speed priority
+LEIDEN_CSR_QUALITY_VARIANTS = ["modularity", "gveopt2", "gverabbit"]  # Quality priority
 
-# GraphBrew-specific variant groups
-GRAPHBREW_LEIDEN_VARIANTS = ["graphbrew", "graphbrew:dfs", "graphbrew:bfs", "graphbrew:dbg", "graphbrew:corder", "graphbrew:dbg-global", "graphbrew:corder-global", "graphbrew:streaming", "graphbrew:lazyupdate", "graphbrew:conn", "graphbrew:hrab", "graphbrew:hrab:gordi"]
-GRAPHBREW_RABBIT_VARIANTS = ["graphbrew:rabbit", "graphbrew:rabbit:dfs", "graphbrew:rabbit:bfs", "graphbrew:rabbit:dbg", "graphbrew:rabbit:corder"]
+# GraphBrewOrder (12) variant groups — these are the per-community reordering strategies
+# accessed via -o 12:hrab, 12:dfs, 12:conn, etc. (no "graphbrew" prefix needed)
+GRAPHBREW_ORDERING_VARIANTS = ["hrab", "dfs", "bfs", "conn", "dbg", "corder",
+                               "dbg-global", "corder-global", "streaming", "lazyupdate",
+                               "rabbit", "rabbit:dfs", "rabbit:bfs", "rabbit:dbg", "rabbit:corder"]
 
 # Resolution modes
 LEIDEN_RESOLUTION_MODES = ["auto", "dynamic", "1.0", "1.5", "2.0"]
@@ -517,7 +522,7 @@ def get_algorithm_name(option: str) -> str:
     ALWAYS includes variant in name for algorithms that have variants:
     - RABBITORDER (8): RABBITORDER_csr (default) or RABBITORDER_boost
     - GraphBrewOrder (12): GraphBrewOrder_leiden (default), GraphBrewOrder_gve, etc.
-    - LeidenCSR (16): GraphBrewOrder_graphbrew (default), GraphBrewOrder_graphbrew:hrab, etc.
+    - LeidenCSR (16): LeidenCSR_gveopt2 (default), LeidenCSR_gve, etc.
     
     For other algorithms, returns the base name.
     """
@@ -554,7 +559,8 @@ def expand_algorithm_variants(algo_id: int) -> List[str]:
     Supported:
     - RabbitOrder (8): 8:csr, 8:boost
     - GraphBrewOrder (12): 12:leiden, 12:gve, 12:gveopt, 12:rabbit, 12:hubcluster
-    - GraphBrewOrder (12): 12:graphbrew, 12:graphbrew:hrab, 12:graphbrew:rabbit, etc.
+    - GraphBrewOrder (12): 12:hrab, 12:dfs, 12:conn, etc. (ordering strategies)
+    - LeidenCSR (16): 16:gveopt2, 16:gve, 16:fast, 16:modularity, etc.
     """
     if algo_id == 8:  # RABBITORDER
         return [f"8:{v}" for v in RABBITORDER_VARIANTS]

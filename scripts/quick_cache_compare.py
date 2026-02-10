@@ -34,15 +34,15 @@ from pathlib import Path
 GRAPHS = ["web-Google", "web-BerkStan", "as-Skitter", "wiki-Talk", "roadNet-CA"]  # Variety of graph types
 VARIANTS = [
     # GraphBrew variants
-    ("12:graphbrew", "GraphBrew"),                         # Default GraphBrew
-    ("12:graphbrew:quality", "GraphBrew-Quality"),          # High-quality community ordering
-    ("12:graphbrew:rabbit", "GraphBrew-Rabbit"),            # GraphBrew ++ RabbitOrder within communities
-    ("12:graphbrew:streaming", "GraphBrew-Streaming"),      # Streaming/incremental (fastest)
-    ("12:graphbrew:hrab", "GraphBrew-HRAB"),                # Hybrid Leiden+Rabbit BFS (best)
-    ("12:graphbrew:hrab:gordi", "GraphBrew-HRAB-Gordi"),    # Hybrid Leiden+Rabbit Gorder
-    ("12:graphbrew:dfs", "GraphBrew-DFS"),                  # DFS traversal ordering
-    ("12:graphbrew:bfs", "GraphBrew-BFS"),                  # BFS traversal ordering
-    ("12:graphbrew:dbg", "GraphBrew-DBG"),                  # Debug/verbose mode
+    ("12", "GraphBrew"),                                    # Default GraphBrewOrder
+    ("12:hrab", "GraphBrew-HRAB"),                          # Hybrid Leiden+Rabbit BFS (best)
+    ("12:rabbit", "GraphBrew-Rabbit"),                      # RabbitOrder pipeline
+    ("12:conn", "GraphBrew-Conn"),                          # Connectivity BFS within communities
+    ("12:dfs", "GraphBrew-DFS"),                            # DFS traversal ordering
+    ("12:bfs", "GraphBrew-BFS"),                            # BFS traversal ordering
+    ("16", "LeidenCSR"),                                    # Default LeidenCSR (gveopt2)
+    ("16:fast", "LeidenCSR-Fast"),                          # Speed-optimized
+    ("16:modularity", "LeidenCSR-Quality"),                 # Quality-optimized
     # RabbitOrder variants
     ("8:csr", "RabbitCSR"),                      # Native CSR (fast, no deps)
     ("8:boost", "RabbitBoost"),                  # Boost-based

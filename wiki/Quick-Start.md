@@ -184,7 +184,7 @@ Average Time:        0.001xx
 | 14 | AdaptiveOrder | Auto-selection |
 | 16 | LeidenCSR | Large/complex graphs |
 
-Best LeidenCSR variants: `12:graphbrew:quality` (best overall). See [[Reordering-Algorithms]] for all 17 algorithms and variants.
+Best algorithms: GraphBrewOrder (`-o 12`, best quality) or LeidenCSR (`-o 16`, fastest). See [[Reordering-Algorithms]] for all 17 algorithms and variants.
 
 ---
 

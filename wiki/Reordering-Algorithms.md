@@ -299,15 +299,16 @@ Larger window = better quality, slower computation
 - **Dynamic thresholds**: Community size thresholds are computed dynamically based on `avg_community_size/4` and `sqrt(N)`
 - **Best for**: Fine-grained control over per-community ordering
 
-**GraphBrew Unified Framework**: GraphBrewOrder provides a unified interface for graph reordering. It uses Leiden community detection, then applies configurable per-community ordering strategies:
+**GraphBrew Unified Framework**: GraphBrewOrder provides a unified interface for graph reordering. It uses Leiden community detection, then applies configurable per-community ordering strategies. The `graphbrew` prefix is **not required** — pass ordering strategies directly:
 
 ```bash
-# Extended GraphBrew examples
-./bench/bin/pr -f graph.mtx -s -o 12:gve -n 3              # GVE-Leiden + per-community reorder
-./bench/bin/pr -f graph.mtx -s -o 12:rabbit -n 3           # RabbitOrder-based single-pass pipeline
-./bench/bin/pr -f graph.mtx -s -o 12:hubcluster -n 3       # Leiden + hub-cluster within communities
-./bench/bin/pr -f graph.mtx -s -o 12:leiden:10:8 -n 3      # leiden variant, freq=10, intra=RabbitOrder(8)
-./bench/bin/pr -f graph.mtx -s -o 12:gveopt:0:8:0.75 -n 3  # gveopt, auto-freq, intra=Rabbit, res=0.75
+# Ordering strategies (no "graphbrew" prefix needed)
+./bench/bin/pr -f graph.mtx -s -o 12 -n 3                  # Default (leiden + per-community RabbitOrder)
+./bench/bin/pr -f graph.mtx -s -o 12:hrab -n 3             # Hybrid Leiden+RabbitOrder (best locality)
+./bench/bin/pr -f graph.mtx -s -o 12:dfs -n 3              # DFS dendrogram traversal
+./bench/bin/pr -f graph.mtx -s -o 12:conn -n 3             # Connectivity BFS within communities
+./bench/bin/pr -f graph.mtx -s -o 12:rabbit -n 3           # RabbitOrder single-pass pipeline
+./bench/bin/pr -f graph.mtx -s -o 12:0.75 -n 3             # Fixed resolution (0.75)
 ```
 
 **Key recommendations:**

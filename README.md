@@ -58,16 +58,16 @@ GraphBrew provides 17 reordering strategies. Use `-o <id>` to select one (or cha
 | 13 | MAP | Load ordering from file (`-o 13:mapping.lo`) |
 | 14 | **ADAPTIVEORDER** | ML perceptron — automatically picks the best algorithm ⭐ |
 | 15 | LEIDENORDER | Leiden via GVE-Leiden library (`15:resolution`) — baseline reference |
-| 16 | LEIDENCSR | Fast CSR-native Leiden (`16:variant:resolution:passes`) — default: `graphbrew` ⭐ |
+| 16 | LEIDENCSR | Fast CSR-native Leiden (`16:variant:resolution:passes`) — default: `gveopt2` ⭐ |
 
-**LeidenCSR (16) variants:** `graphbrew` (default — best overall), `graphbrew:quality`, `graphbrew:hrab`, `graphbrew:rabbit`, `graphbrew:streaming`, `graphbrew:dfs`, `graphbrew:bfs`, and more. See [Reordering Algorithms Wiki](https://github.com/UVA-LavaLab/GraphBrew/wiki/Reordering-Algorithms) for the full list.
+**LeidenCSR (16) variants:** `gveopt2` (default — fastest + best quality), `gve`, `gveopt`, `fast`, `modularity`, `gverabbit`, `dfs`, `bfs`, `hubsort`, `faithful`. See [Reordering Algorithms Wiki](https://github.com/UVA-LavaLab/GraphBrew/wiki/Reordering-Algorithms) for the full list.
 
 ### Which Algorithm Should I Use?
 
 | Graph Type | Recommended | Why |
 |------------|-------------|-----|
-| Social networks | `12:graphbrew` or `14` | Best community detection + cache locality |
-| Web graphs | `12:graphbrew:hrab` or `12:graphbrew` | Hybrid Leiden+Rabbit for best locality |
+| Social networks | `12` or `14` | Best community detection + cache locality |
+| Web graphs | `12:hrab` or `12` | Hybrid Leiden+Rabbit for best locality |
 | Road networks | `11` or `9` | BFS-based approaches for sparse graphs |
 | Unknown / mixed | `14` | Let the ML perceptron decide |
 
@@ -128,7 +128,7 @@ Built on [GAPBS](https://github.com/sbeamer/gapbs), GraphBrew includes these ben
 make run-bfs
 
 # Run with parameters
-./bench/bin/pr -f graph.mtx -n 16 -o 12:graphbrew
+./bench/bin/pr -f graph.mtx -n 16 -o 12
 
 # Generate a reordered graph
 ./bench/bin/converter -f graph.mtx -p reordered.mtx -o 16

@@ -90,7 +90,7 @@ class AlgorithmConfig:
     """Configuration for an algorithm, including variant support."""
     algo_id: int           # Base algorithm ID (e.g., 12 for GraphBrewOrder)
     name: str              # Display name (e.g., "GraphBrewOrder_graphbrew")
-    option_string: str     # Full option string for -o flag (e.g., "12:graphbrew:quality")
+    option_string: str     # Full option string for -o flag (e.g., "12:hrab")
     variant: str = ""      # Variant name if applicable (e.g., "graphbrew")
     resolution: str = "auto"  # Resolution: "auto", "dynamic", "1.0", etc.
     passes: int = LEIDEN_DEFAULT_PASSES
@@ -118,7 +118,7 @@ def get_algorithm_name_with_variant(algo_id: int, variant: str = None) -> str:
     
     ALWAYS includes variant in name for:
     - RABBITORDER (8): RABBITORDER_csr or RABBITORDER_boost
-    - GraphBrewOrder (12): GraphBrewOrder_graphbrew, GraphBrewOrder_graphbrew:hrab, etc.
+    - GraphBrewOrder (12): GraphBrewOrder_leiden, GraphBrewOrder_hrab, etc.
     
     For other algorithms, returns the base name.
     
@@ -138,7 +138,7 @@ def get_algorithm_name_with_variant(algo_id: int, variant: str = None) -> str:
         variant = variant or GRAPHBREW_DEFAULT_VARIANT
         return f"GraphBrewOrder_{variant}"
     elif algo_id == 16:  # LeidenCSR
-        variant = variant or LEIDEN_CSR_VARIANTS[0]  # Default: graphbrew
+        variant = variant or LEIDEN_CSR_VARIANTS[0]  # Default: gveopt2
         return f"LeidenCSR_{variant}"
     else:
         return base_name

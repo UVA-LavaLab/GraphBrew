@@ -78,8 +78,8 @@ python3 scripts/graphbrew_experiment.py --full --size all --auto
 # Train perceptron weights
 python3 scripts/graphbrew_experiment.py --train --size small
 
-# Manual: run PageRank with best LeidenCSR variant
-./bench/bin/pr -f your_graph.el -s -o 12:graphbrew:quality -n 3
+# Manual: run PageRank with GraphBrewOrder
+./bench/bin/pr -f your_graph.el -s -o 12 -n 3
 
 # Let AdaptiveOrder choose the best algorithm
 ./bench/bin/pr -f your_graph.el -s -o 14 -n 3
