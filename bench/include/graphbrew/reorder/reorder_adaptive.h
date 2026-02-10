@@ -438,6 +438,8 @@ void GenerateAdaptiveMappingRecursiveStandalone(
     // NOTE: Parallel Leiden (OMP_NUM_THREADS > 1) is non-deterministic due to
     // concurrent community updates in localMovingPhase. For reproducible results,
     // set OMP_NUM_THREADS=1 or use precomputed label maps (--precompute).
+    Timer t_leiden;
+    t_leiden.Start();
     graphbrew::GraphBrewConfig gb_config;
     gb_config.resolution = resolution;
     gb_config.maxIterations = max_iterations;
@@ -447,6 +449,7 @@ void GenerateAdaptiveMappingRecursiveStandalone(
     
     std::vector<K> comm_ids_k = gb_result.membership;
     double global_modularity = gb_result.modularity;
+    t_leiden.Stop();
     
     // Convert to size_t
     std::vector<size_t> comm_ids(num_nodes);
@@ -463,10 +466,13 @@ void GenerateAdaptiveMappingRecursiveStandalone(
     }
     
     // Compute global features
+    Timer t_features;
+    t_features.Start();
     auto deg_features = ::ComputeSampledDegreeFeatures(g, 10000, true);
     double global_degree_variance = deg_features.degree_variance;
     double global_hub_concentration = deg_features.hub_concentration;
     double global_avg_degree = (num_nodes > 0) ? static_cast<double>(num_edges) / num_nodes : 0.0;
+    t_features.Stop();
     
     // Detect graph type
     GraphType detected_graph_type = DetectGraphType(
@@ -540,8 +546,16 @@ void GenerateAdaptiveMappingRecursiveStandalone(
     // Process communities and assign new IDs
     NodeID_ current_id = 0;
     
+    // Stage timers for per-community work
+    double t_comm_features_total = 0.0;
+    double t_comm_scoring_total = 0.0;
+    double t_comm_reorder_total = 0.0;
+    
     // First: handle small communities
+    double t_small_total = 0.0;
     if (!small_community_nodes.empty()) {
+        Timer t_small;
+        t_small.Start();
         std::unordered_set<NodeID_> small_node_set(
             small_community_nodes.begin(), small_community_nodes.end());
         
@@ -571,6 +585,8 @@ void GenerateAdaptiveMappingRecursiveStandalone(
             ReorderCommunitySubgraphStandalone<NodeID_, DestID_, WeightT_, invert>(
                 g, small_community_nodes, small_node_set, small_algo, useOutdeg, new_ids, current_id);
         }
+        t_small.Stop();
+        t_small_total = t_small.Seconds();
     }
     
     // Then: process large communities
@@ -587,14 +603,22 @@ void GenerateAdaptiveMappingRecursiveStandalone(
         std::unordered_set<NodeID_> comm_node_set(comm_nodes.begin(), comm_nodes.end());
         
         // Compute features for this community
+        Timer t_cf;
+        t_cf.Start();
         auto feat = ComputeCommunityFeaturesStandalone<NodeID_, DestID_, invert>(
             comm_nodes, g, comm_node_set);
+        t_cf.Stop();
+        t_comm_features_total += t_cf.Seconds();
         
         // Select algorithm for this community
+        Timer t_cs;
+        t_cs.Start();
         ReorderingAlgo selected_algo = SelectBestReorderingForCommunity(
             feat, global_modularity, global_degree_variance, global_hub_concentration,
             global_avg_degree, static_cast<size_t>(num_nodes), num_edges,
             BENCH_GENERIC, detected_graph_type);
+        t_cs.Stop();
+        t_comm_scoring_total += t_cs.Seconds();
         
         if (verbose && comm_nodes.size() >= MIN_FEATURES_SAMPLE) {
             printf("  Community %zu: %zu nodes, %zu edges -> %s\n",
@@ -603,13 +627,34 @@ void GenerateAdaptiveMappingRecursiveStandalone(
         }
         
         // Apply algorithm
+        Timer t_cr;
+        t_cr.Start();
         ReorderCommunitySubgraphStandalone<NodeID_, DestID_, WeightT_, invert>(
             g, comm_nodes, comm_node_set, selected_algo, useOutdeg, new_ids, current_id);
+        t_cr.Stop();
+        t_comm_reorder_total += t_cr.Seconds();
     }
     
     tm.Stop();
     if (!verbose || depth == 0) {
         PrintTime("Adaptive Map Time", tm.Seconds());
+    }
+    
+    // Stage breakdown (always print at depth 0 when verbose)
+    if (depth == 0 && verbose) {
+        printf("\n=== AdaptiveOrder Stage Breakdown ===\n");
+        PrintTime("  Leiden Partitioning", t_leiden.Seconds());
+        PrintTime("  Global Features", t_features.Seconds());
+        PrintTime("  Small Communities", t_small_total);
+        PrintTime("  Comm Features (sum)", t_comm_features_total);
+        PrintTime("  Comm Scoring (sum)", t_comm_scoring_total);
+        PrintTime("  Comm Reorder (sum)", t_comm_reorder_total);
+        double accounted = t_leiden.Seconds() + t_features.Seconds() + t_small_total
+                         + t_comm_features_total + t_comm_scoring_total + t_comm_reorder_total;
+        PrintTime("  Overhead (unaccounted)", tm.Seconds() - accounted);
+        PrintTime("  Total", tm.Seconds());
+        printf("Large communities: %zu, Small-group nodes: %zu\n",
+               top_communities.size(), small_community_nodes.size());
     }
 }
 
