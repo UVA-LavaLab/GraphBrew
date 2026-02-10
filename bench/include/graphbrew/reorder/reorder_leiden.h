@@ -27,7 +27,7 @@
  *             fast, modularity, faithful
  *
  * NOTE: For GraphBrew reordering, use algorithm 12 (GraphBrewOrder):
- *   ./bench/bin/pr -f graph.el -o 12:graphbrew:quality -n 5
+ *   ./bench/bin/pr -f graph.el -o 12:hrab -n 5
  *
  * ============================================================================
  * IMPLEMENTATION DETAILS

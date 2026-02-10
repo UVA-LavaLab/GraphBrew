@@ -63,7 +63,7 @@
  * └─────────────────────────────────────────────────────────────────────────┘
  * 
  * ┌─────────────────────────────────────────────────────────────────────────┐
- * │                 RABBIT ORDER (12:graphbrew:rabbit) - Single Pass               │
+ * │                 RABBIT ORDER (12:rabbit) - Single Pass                  │
  * ├─────────────────────────────────────────────────────────────────────────┤
  * │  1. Sort vertices by degree (ascending)                                │
  * │  2. Initialize edge cache per vertex                                   │
@@ -83,45 +83,43 @@
  * 
  * │ Strategy        │ Option           │ Description                       │
  * ├─────────────────┼──────────────────┼───────────────────────────────────┤
- * │ HIERARCHICAL    │ graphbrew        │ Sort by community, then degree    │
- * │ DENDROGRAM_DFS  │ graphbrew:dfs         │ DFS traversal of dendrogram       │
- * │ DENDROGRAM_BFS  │ graphbrew:bfs         │ BFS traversal of dendrogram       │
- * │ DBG             │ graphbrew:dbg         │ DBG within each community         │
- * │ CORDER          │ graphbrew:corder      │ Hot/cold within each community    │
- * │ DBG_GLOBAL      │ graphbrew:dbg-global  │ DBG across all vertices           │
- * │ CORDER_GLOBAL   │ graphbrew:corder-global│ Hot/cold across all vertices     │
- * │ CONNECTIVITY_BFS│ graphbrew:conn          │ BFS within communities (default) │
- * │ HYBRID_LEIDEN_  │ graphbrew:hrab          │ Leiden + RabbitOrder super-graph  │
- * │ RABBIT          │                    │ (best locality web/geometric)    │
- * │ TILE_QUANTIZED_ │ graphbrew:tqr           │ Tile-quantized RabbitOrder:       │
- * │ RABBIT          │                    │ cache-line-aligned tile graph     │
- * │ LAYER           │ graphbrew:layer     │ Per-community external algo       │
- * │                 │                    │ dispatch (0-11, default: Rabbit)  │
+ * │ HIERARCHICAL    │ (default)        │ Sort by community, then degree    │
+ * │ DENDROGRAM_DFS  │ 12:dfs           │ DFS traversal of dendrogram       │
+ * │ DENDROGRAM_BFS  │ 12:bfs           │ BFS traversal of dendrogram       │
+ * │ DBG             │ 12:dbg           │ DBG within each community         │
+ * │ CORDER          │ 12:corder        │ Hot/cold within each community    │
+ * │ DBG_GLOBAL      │ 12:dbg-global    │ DBG across all vertices           │
+ * │ CORDER_GLOBAL   │ 12:corder-global │ Hot/cold across all vertices      │
+ * │ CONNECTIVITY_BFS│ 12:conn          │ BFS within communities (default)  │
+ * │ HYBRID_LEIDEN_  │ 12:hrab          │ Leiden + RabbitOrder super-graph   │
+ * │ RABBIT          │                  │ (best locality web/geometric)     │
+ * │ TILE_QUANTIZED_ │ 12:tqr           │ Tile-quantized RabbitOrder:       │
+ * │ RABBIT          │                  │ cache-line-aligned tile graph     │
+ * │ LAYER           │ 12:leiden        │ Per-community external algo       │
+ * │                 │                  │ dispatch (0-11, default: Rabbit)  │
  * 
  * =============================================================================
  * COMMAND LINE USAGE
  * =============================================================================
  * 
- * Format: -o 12:[algorithm]:[ordering]:[aggregation]:[resolution]
+ * Format: -o 12:[ordering]:[options...]
  * 
- * Leiden-based GraphBrew:
- *   ./bench/bin/pr -f graph.mtx -o 12:graphbrew -n 5           # Default (hierarchical, auto resolution)
- *   ./bench/bin/pr -f graph.mtx -o 12:graphbrew:dfs -n 5       # DFS ordering
- *   ./bench/bin/pr -f graph.mtx -o 12:graphbrew:dbg -n 5       # DBG per community
- *   ./bench/bin/pr -f graph.mtx -o 12:graphbrew:streaming -n 5 # Lazy aggregation
- *   ./bench/bin/pr -f graph.mtx -o 12:graphbrew:lazyupdate -n 5 # Batched ctot updates (reduces atomics)
- *   ./bench/bin/pr -f graph.mtx -o 12:graphbrew:conn -n 5       # Connectivity BFS (default ordering)
- *   ./bench/bin/pr -f graph.mtx -o 12:graphbrew:hrab -n 5       # Hybrid Leiden+RabbitOrder (best locality)
- *   ./bench/bin/pr -f graph.mtx -o 12:graphbrew:tqr -n 5        # Tile-Quantized RabbitOrder (cache-aligned)
- *   ./bench/bin/pr -f graph.mtx -o 12:graphbrew:auto -n 5      # Auto-computed resolution (fixed)
- *   ./bench/bin/pr -f graph.mtx -o 12:graphbrew:dynamic -n 5   # Dynamic resolution (per-pass adjustment)
- *   ./bench/bin/pr -f graph.mtx -o 12:graphbrew:0.75 -n 5      # Fixed resolution (0.75)
- *   ./bench/bin/pr -f graph.mtx -o 12:graphbrew:dfs:streaming:0.75 -n 5  # Combined
+ * Leiden-based GraphBrew (the "graphbrew" prefix is optional):
+ *   ./bench/bin/pr -f graph.mtx -o 12 -n 5                    # Default (leiden + per-community RabbitOrder)
+ *   ./bench/bin/pr -f graph.mtx -o 12:dfs -n 5                # DFS ordering
+ *   ./bench/bin/pr -f graph.mtx -o 12:dbg -n 5                # DBG per community
+ *   ./bench/bin/pr -f graph.mtx -o 12:streaming -n 5          # Lazy aggregation
+ *   ./bench/bin/pr -f graph.mtx -o 12:lazyupdate -n 5         # Batched ctot updates (reduces atomics)
+ *   ./bench/bin/pr -f graph.mtx -o 12:conn -n 5               # Connectivity BFS (default ordering)
+ *   ./bench/bin/pr -f graph.mtx -o 12:hrab -n 5               # Hybrid Leiden+RabbitOrder (best locality)
+ *   ./bench/bin/pr -f graph.mtx -o 12:tqr -n 5                # Tile-Quantized RabbitOrder (cache-aligned)
+ *   ./bench/bin/pr -f graph.mtx -o 12:0.75 -n 5               # Fixed resolution (0.75)
+ *   ./bench/bin/pr -f graph.mtx -o 12:dfs:streaming:0.75 -n 5 # Combined
  * 
  * RabbitOrder:
- *   ./bench/bin/pr -f graph.mtx -o 12:graphbrew:rabbit -n 5    # RabbitOrder algorithm
- *   ./bench/bin/pr -f graph.mtx -o 12:graphbrew:rabbit:dfs -n 5  # + DFS post-ordering
- *   ./bench/bin/pr -f graph.mtx -o 12:graphbrew:rabbit:dbg -n 5  # + DBG post-ordering
+ *   ./bench/bin/pr -f graph.mtx -o 12:rabbit -n 5             # RabbitOrder algorithm
+ *   ./bench/bin/pr -f graph.mtx -o 12:rabbit:dfs -n 5         # + DFS post-ordering
+ *   ./bench/bin/pr -f graph.mtx -o 12:rabbit:dbg -n 5         # + DBG post-ordering
  *   # Note: RabbitOrder does not support dynamic resolution (falls back to auto)
  * 
  * =============================================================================

@@ -2593,7 +2593,7 @@ public:
      * Default variant: gveopt2 (fastest + best quality)
      *
      * Supported variants: gve, gveopt, gveopt2, dfs, bfs, hubsort, fast, modularity, faithful
-     * For GraphBrew pipeline, use algorithm 12 (-o 12:graphbrew:...)
+     * For GraphBrew pipeline, use algorithm 12 (-o 12:hrab, 12:leiden, etc.)
      */
     void GenerateLeidenCSRMappingUnified(
         const CSRGraph<NodeID_, DestID_, invert> &g,
@@ -3390,7 +3390,7 @@ public:
      *   -o 12:gve:8:0.75
      *   -o 12:rabbit:7
      * 
-     * Also supports GraphBrew-native options when called via -o 12:graphbrew:...
+     * Also supports GraphBrew-native options when called via -o 12:hrab, 12:dfs, etc.
      */
     graphbrew::GraphBrewConfig ParseGraphBrewConfig(
         const std::vector<std::string>& options,
@@ -3454,7 +3454,8 @@ public:
             config.useSmallCommunityMerging = false;
             config.finalAlgoId = -1;  // Use GraphBrew's native ordering
         } else {
-            // Try to parse as GraphBrew-native options
+            // Try to parse as GraphBrew-native options (e.g., 12:hrab, 12:dfs, 12:conn, 12:graphbrew:hrab)
+            // parseGraphBrewConfig handles all tokens: ordering strategies, algorithms, resolution, etc.
             std::vector<std::string> graphbrew_opts;
             // Split variant by ':'
             std::stringstream ss(variant);
@@ -3466,8 +3467,12 @@ public:
                 if (!options[i].empty()) graphbrew_opts.push_back(options[i]);
             }
             config = graphbrew::parseGraphBrewConfig(graphbrew_opts);
-            config.ordering = graphbrew::OrderingStrategy::LAYER;
-            config.useSmallCommunityMerging = true;
+            // Only set LAYER defaults if parseGraphBrewConfig didn't set a specific ordering
+            // (CONNECTIVITY_BFS is the GraphBrewConfig constructor default)
+            if (config.ordering == graphbrew::OrderingStrategy::CONNECTIVITY_BFS) {
+                config.ordering = graphbrew::OrderingStrategy::LAYER;
+                config.useSmallCommunityMerging = true;
+            }
             if (config.finalAlgoId < 0) config.finalAlgoId = 8;
             return config;
         }

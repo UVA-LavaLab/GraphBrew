@@ -167,76 +167,80 @@ Use with `-o <id>`:
 | 13 | MAP | External mapping |
 | 14 | AdaptiveOrder | ML |
 | 15 | LeidenOrder | Leiden (GVE-Leiden baseline) |
-| 16 | LeidenCSR | Leiden (has variants, including GraphBrew) |
+| 16 | LeidenCSR | Pure Leiden community detection (variants: `gveopt2`, `gve`, `fast`, etc.) |
 
 > **Note:** For current variant lists, see `scripts/lib/utils.py` which defines:
-> - `RABBITORDER_VARIANTS`, `GRAPHBREW_VARIANTS`
+> - `RABBITORDER_VARIANTS`, `GRAPHBREW_VARIANTS`, `GRAPHBREW_ORDERING_VARIANTS`
 > - `LEIDEN_CSR_VARIANTS`
-> - `GRAPHBREW_LEIDEN_VARIANTS`, `GRAPHBREW_RABBIT_VARIANTS`
 
-### LeidenCSR Resolution Modes (Algorithm 16)
+### LeidenCSR Variants (Algorithm 16)
 
-| Mode | Syntax | Example | Description |
-|------|--------|---------|-------------|
-| **Fixed** | `<value>` | `-o 12:graphbrew:1.5` | Use specified resolution |
-| **Auto** | `auto` or `0` | `-o 12:graphbrew:auto` | Compute from graph density |
-| **Dynamic** | `dynamic` | `-o 12:graphbrew:dynamic` | Auto initial, adjust per-pass |
-| **Dynamic+Init** | `dynamic_<val>` | `-o 12:graphbrew:dynamic_2.0` | Start at value, adjust per-pass |
-
-### GraphBrew +Variants (Algorithm 16)
-
-GraphBrew +(Vertex Indexing for Better Efficiency) provides a unified reordering framework with two algorithms:
-
-**Leiden-based GraphBrew** (multi-pass community detection):
+Pure community detection + sort by (community, degree). Default variant: `gveopt2`.
 
 | Variant | Example | Description |
 |---------|---------|-------------|
-| `graphbrew` | `-o 12:graphbrew` | Hierarchical ordering (default) |
-| `graphbrew:dfs` | `-o 12:graphbrew:dfs` | DFS dendrogram traversal |
-| `graphbrew:bfs` | `-o 12:graphbrew:bfs` | BFS dendrogram traversal |
-| `graphbrew:dbg` | `-o 12:graphbrew:dbg` | DBG within each community |
-| `graphbrew:corder` | `-o 12:graphbrew:corder` | Hot/cold within communities |
-| `graphbrew:dbg-global` | `-o 12:graphbrew:dbg-global` | DBG across all vertices |
-| `graphbrew:corder-global` | `-o 12:graphbrew:corder-global` | Hot/cold across all vertices |
-| `graphbrew:streaming` | `-o 12:graphbrew:streaming` | Leiden + lazy aggregation |
-| `graphbrew:lazyupdate` | `-o 12:graphbrew:lazyupdate` | Batched community weight updates (reduces atomics) |
-| `graphbrew:conn` | `-o 12:graphbrew:conn` | Connectivity BFS within communities (Boost-style, default ordering) |
-| `graphbrew:hrab` | `-o 12:graphbrew:hrab` | Hybrid Leiden+RabbitOrder (best locality on web/geometric graphs) |
-| `graphbrew:auto` | `-o 12:graphbrew:auto` | Auto-computed resolution (computed once) |
-| `graphbrew:dynamic` | `-o 12:graphbrew:dynamic` | Dynamic resolution (adjusted per-pass) |
+| `gveopt2` | `-o 16` or `-o 16:gveopt2` | CSR-based aggregation **(default, fastest + best quality)** |
+| `gve` | `-o 16:gve` | Standard GVE-Leiden |
+| `gveopt` | `-o 16:gveopt` | Cache-optimized GVE-Leiden |
+| `gverabbit` | `-o 16:gverabbit` | GVE + RabbitOrder within communities |
+| `fast` | `-o 16:fast` | Speed-optimized (fewer iterations) |
+| `modularity` | `-o 16:modularity` | Quality-optimized (more iterations) |
+| `dfs` | `-o 16:dfs` | DFS ordering of community tree |
+| `bfs` | `-o 16:bfs` | BFS ordering of community tree |
+| `hubsort` | `-o 16:hubsort` | Hub-first ordering within communities |
+| `faithful` | `-o 16:faithful` | Faithful 1:1 leiden.hxx reference |
 
-**GraphBrew +Resolution Modes:**
+**Resolution modes** (applies to all variants):
 
 | Mode | Syntax | Description |
 |------|--------|-------------|
-| Auto | `-o 12:graphbrew:auto` or `-o 12:graphbrew` | Compute resolution from graph density/CV (fixed) |
-| Dynamic | `-o 12:graphbrew:dynamic` | Auto initial, adjust each pass based on metrics |
-| Fixed | `-o 12:graphbrew:1.5` | Use specified resolution value |
-| Dynamic+Init | `-o 12:graphbrew:dynamic_2.0` | Start at 2.0, adjust each pass |
+| Auto | `-o 16` or `-o 16:gveopt2:0` | Compute from graph density/CV (default) |
+| Fixed | `-o 16:gveopt2:1.5` | Use specified resolution value |
 
-> **Note:** Dynamic resolution adjusts based on community reduction rate, size imbalance, and convergence speed. Use for unknown graphs.
+Full format: `-o 16:variant:resolution:max_iterations:max_passes`
 
-**RabbitOrder-based GraphBrew** (single-pass parallel aggregation):
+### GraphBrewOrder Ordering Strategies (Algorithm 12)
 
-| Variant | Example | Description |
-|---------|---------|-------------|
-| `graphbrew:rabbit` | `-o 12:graphbrew:rabbit` | RabbitOrder algorithm (DFS default) |
-| `graphbrew:rabbit:dfs` | `-o 12:graphbrew:rabbit:dfs` | RabbitOrder + DFS post-ordering |
-| `graphbrew:rabbit:bfs` | `-o 12:graphbrew:rabbit:bfs` | RabbitOrder + BFS post-ordering |
-| `graphbrew:rabbit:dbg` | `-o 12:graphbrew:rabbit:dbg` | RabbitOrder + DBG post-ordering |
-| `graphbrew:rabbit:corder` | `-o 12:graphbrew:rabbit:corder` | RabbitOrder + COrder post-ordering |
+GraphBrewOrder uses Leiden community detection, then applies per-community reordering.
+Options can be passed directly — the `graphbrew` prefix is **not required**.
 
-> **Note:** RabbitOrder variants do not support dynamic resolution (falls back to auto).
+**Ordering strategies** (passed directly as `-o 12:strategy`):
 
-### GraphBrewOrder Variants (Algorithm 12, GraphBrew-Powered)
+| Strategy | Example | Description |
+|----------|---------|-------------|
+| (default) | `-o 12` | Leiden + per-community RabbitOrder (LAYER mode) |
+| `hrab` | `-o 12:hrab` | Hybrid Leiden+RabbitOrder **(best locality)** |
+| `dfs` | `-o 12:dfs` | DFS dendrogram traversal |
+| `bfs` | `-o 12:bfs` | BFS dendrogram traversal |
+| `conn` | `-o 12:conn` | Connectivity BFS within communities |
+| `dbg` | `-o 12:dbg` | DBG within each community |
+| `corder` | `-o 12:corder` | Hot/cold within communities |
+| `dbg-global` | `-o 12:dbg-global` | DBG across all vertices |
+| `corder-global` | `-o 12:corder-global` | Hot/cold across all vertices |
+| `streaming` | `-o 12:streaming` | Leiden + lazy aggregation |
+| `lazyupdate` | `-o 12:lazyupdate` | Batched community weight updates |
+| `rabbit` | `-o 12:rabbit` | RabbitOrder single-pass pipeline |
+| `rabbit:dfs` | `-o 12:rabbit:dfs` | RabbitOrder + DFS post-ordering |
 
-| Variant | Description | GraphBrew Config | Default Final Algo |
-|---------|-------------|-------------|--------------------|
-| `leiden` | GVE-Leiden optimized (default) | GVE-CSR aggregation | RabbitOrder (8) |
-| `gve` | GVE-Leiden non-optimized | GVE-CSR aggregation | RabbitOrder (8) |
-| `gveopt` | GVE-Leiden with cache optimization | GVE-CSR aggregation | RabbitOrder (8) |
-| `rabbit` | Full RabbitOrder via GraphBrew pipeline | RABBIT_ORDER ordering | N/A (single-pass) |
-| `hubcluster` | Hub-degree based clustering | HUB_CLUSTER ordering | N/A (native) |
+**Resolution modes:**
+
+| Mode | Syntax | Description |
+|------|--------|-------------|
+| Auto | `-o 12` or `-o 12:hrab` | Compute resolution from graph density/CV (default) |
+| Dynamic | `-o 12:dynamic` | Auto initial, adjust each pass |
+| Fixed | `-o 12:0.75` or `-o 12:hrab:0.75` | Use specified resolution value |
+
+> **Note:** The `graphbrew` prefix (e.g., `-o 12:graphbrew:hrab`) is still accepted for backward compatibility but is no longer required.
+
+**Cluster variants** (for per-community dispatch mode):
+
+| Variant | Description | Default Final Algo |
+|---------|-------------|--------------------|
+| `leiden` | GVE-Leiden optimized (default) | RabbitOrder (8) |
+| `gve` | GVE-Leiden non-optimized | RabbitOrder (8) |
+| `gveopt` | GVE-Leiden with cache optimization | RabbitOrder (8) |
+| `rabbit` | Full RabbitOrder via GraphBrew pipeline | N/A (single-pass) |
+| `hubcluster` | Hub-degree based clustering | N/A (native) |
 
 Override the final reordering algorithm with `:<algo_id>`, e.g. `-o "12:gve:7"` uses HubClusterDBG.
 

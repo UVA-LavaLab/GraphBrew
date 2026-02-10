@@ -338,7 +338,7 @@ help-%: $(BIN_DIR)/%
 	@echo "  ./$< -g 15 -n 1 -o 14           - Execute with AdaptiveOrder (auto-select best)"
 	@echo "  ./$< -g 15 -n 1 -o 14:2         - Execute with multi-level AdaptiveOrder (depth=2)"
 	@echo "  ./$< -g 15 -n 1 -o 14:0:0.75:50000:1 - Full-graph mode (pick single best algo)"
-	@echo "  ./$< -g 15 -n 1 -o 12:graphbrew:quality    - Execute with LeidenCSR (GraphBrew default)"
+	@echo "  ./$< -g 15 -n 1 -o 12:hrab              - Execute GraphBrewOrder with hybrid Leiden+Rabbit"
 	@echo "  ./$< -g 15 -n 1 -o 12:10:16     - Execute GraphBrew with LeidenCSR"
 	@echo "  ./$< -f graph.mtx -o 13:map.lo  - Execute with MAP reordering from file"
 

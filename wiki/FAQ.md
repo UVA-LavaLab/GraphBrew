@@ -228,9 +228,11 @@ See [[Python-Scripts#-eval_weightspy---weight-evaluation--c-scoring-simulation]]
 ### What's the difference between LeidenOrder and LeidenCSR?
 
 - **LeidenOrder (15)**: Baseline reference using GVE-Leiden external library (requires CSR→DiGraph conversion)
-- **LeidenCSR (16)**: Production implementation with GraphBrew variants (recommended: `graphbrew` or `graphbrew:hrab`)
+- **LeidenCSR (16)**: Production pure-Leiden implementation, CSR-native (default: `gveopt2`, fastest + best quality)
 
 LeidenCSR reimplements Leiden natively on CSR (zero-copy), achieving equivalent kernel quality but **28–95× faster reorder times**. LeidenOrder is kept as a baseline to measure this improvement.
+
+For per-community reordering (e.g., RabbitOrder within each community), use **GraphBrewOrder (12)**.
 
 ### When should I use DBG vs HUBCLUSTER?
 

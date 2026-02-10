@@ -203,7 +203,7 @@ def compare_leiden_variants(graph: Path, graph_info: Dict,
     
     # Define variants to test
     # Format for CLI: -o algo:variant:resolution:iterations:passes
-    # GraphBrewOrder (12): -o 12:graphbrew:quality (GraphBrew is now default)
+    # GraphBrewOrder (12): -o 12 (default uses leiden variant)
     # RabbitOrder (8): -o 8:variant (csr is now default, boost optional)
     # Use empty resolution to let C++ auto-detect based on graph density
     variants_to_test = [
@@ -211,7 +211,7 @@ def compare_leiden_variants(graph: Path, graph_info: Dict,
         (8, "", "RabbitOrder (default=CSR)"),      # CSR is now default
         (8, "boost", "RabbitOrder-boost"),          # Original Boost-based
         (15, "", "LeidenOrder (native Leiden)"),
-        (16, "", "LeidenCSR (default=GraphBrew)"),       # GraphBrew is now default
+        (16, "", "LeidenCSR (default=gveopt2)"),        # gveopt2 is default
         (16, "gve::20:5", "LeidenCSR-gve"),         # GVE-Leiden: 20 iter, 5 passes
         (16, "gveopt::20:5", "LeidenCSR-gveopt"),   # GVE-Leiden Optimized: cache-optimized
         (12, "", "GraphBrewOrder"),
@@ -222,7 +222,7 @@ def compare_leiden_variants(graph: Path, graph_info: Dict,
         variants_to_test = [
             (8, "", "RabbitOrder (CSR)"),           # CSR default
             (15, "", "LeidenOrder"),
-            (16, "", "LeidenCSR (GraphBrew)"),            # GraphBrew default
+            (16, "", "LeidenCSR (gveopt2)"),            # gveopt2 is default
             (12, "", "GraphBrewOrder"),
         ]
     
@@ -314,7 +314,7 @@ def main():
     print("Comparing:")
     print("  - RabbitOrder (8): Louvain-based [csr=default, boost=optional]")
     print("  - LeidenOrder (15): Native optimized Leiden library [REFERENCE]")
-    print("  - LeidenCSR (16): GraphBrew +[graphbrew=default, best quality]")
+    print("  - LeidenCSR (16): Pure Leiden CSR-native [gveopt2=default, fastest + best quality]")
     print("  - GraphBrewOrder (12): Leiden + per-community RabbitOrder")
     print()
     
