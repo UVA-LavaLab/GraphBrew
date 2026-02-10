@@ -199,7 +199,7 @@ Detects communities via Leiden, computes features (15 linear + 3 quadratic), use
 
 ### What is the training pipeline?
 
-4-stage process: multi-restart perceptrons → variant pre-collapse → regret-aware grid search → save. Validate with `python3 scripts/eval_weights.py`. See [[Perceptron-Weights]].
+4-stage process: multi-restart perceptrons → variant pre-collapse → regret-aware grid search → save. Validate with `python3 scripts/graphbrew_experiment.py --eval-weights`. See [[Perceptron-Weights]].
 
 ### Is there a single best algorithm?
 
@@ -216,7 +216,7 @@ Cache simulation was skipped, features weren't computed, or no benchmark data. F
 ### How do I validate trained weights?
 
 ```bash
-python3 scripts/eval_weights.py  # Simulates C++ scoring, reports accuracy/regret
+python3 scripts/graphbrew_experiment.py --eval-weights  # Simulates C++ scoring, reports accuracy/regret
 ```
 
 See [[Python-Scripts#-eval_weightspy---weight-evaluation--c-scoring-simulation]].

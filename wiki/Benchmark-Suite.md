@@ -62,11 +62,11 @@ Results are JSON arrays. See [[Configuration-Files]] for the complete schema of 
 After benchmarking, derive end-to-end metrics from existing result files:
 
 ```bash
-python3 scripts/analyze_metrics.py --results-dir results/
-python3 scripts/analyze_metrics.py --compare RABBITORDER_csr GraphBrewOrder_graphbrew:hrab
+python3 scripts/graphbrew_experiment.py --phase all  # Amortization computed automatically
+python3 -m scripts.lib.metrics  # Standalone amortization analysis
 ```
 
-See [[Python-Scripts#analyze_metrics.py]] for full details on amortization iterations, E2E speedup, and head-to-head comparisons.
+See [[Python-Scripts#-amortization--end-to-end-evaluation---phase-all]] for full details on amortization iterations, E2E speedup, and head-to-head comparisons.
 
 ---
 

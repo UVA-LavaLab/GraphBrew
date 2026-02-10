@@ -160,11 +160,14 @@ See [[Command-Line-Reference#reordering-algorithm-ids]] for the full algorithm t
 After running benchmarks, analyze whether reordering pays off:
 
 ```bash
-# Amortization report from latest results
-python3 scripts/analyze_metrics.py --results-dir results/
+# Amortization report (runs automatically after benchmark phase)
+python3 scripts/graphbrew_experiment.py --phase all
+
+# Standalone amortization analysis
+python3 -m scripts.lib.metrics --results-dir results/
 
 # Compare two algorithms head-to-head
-python3 scripts/analyze_metrics.py --results-dir results/ \
+python3 -m scripts.lib.metrics --results-dir results/ \
   --compare RABBITORDER_csr GraphBrewOrder_graphbrew:hrab
 ```
 

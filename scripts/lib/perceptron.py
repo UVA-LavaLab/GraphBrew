@@ -12,20 +12,15 @@ the expensive benchmark/reorder/cache phases. Uses existing results to:
 5. Export optimized weights to active directory for C++ to use
 
 Usage:
-    # Show current configuration and accuracy
-    python3 scripts/perceptron_experiment.py --show
-    
-    # Run grid search over parameters
-    python3 scripts/perceptron_experiment.py --grid-search
-    
-    # Train with specific configuration
-    python3 scripts/perceptron_experiment.py --train --clusters 3 --method speedup
-    
-    # Interactive mode - tweak weights manually
-    python3 scripts/perceptron_experiment.py --interactive
-    
-    # Export best config to active weights
-    python3 scripts/perceptron_experiment.py --export --config best_config.json
+    # Via entry point
+    python3 scripts/graphbrew_experiment.py --perceptron
+
+    # Or directly via module
+    python3 -m scripts.lib.perceptron --show
+    python3 -m scripts.lib.perceptron --grid-search
+    python3 -m scripts.lib.perceptron --train --clusters 3 --method speedup
+    python3 -m scripts.lib.perceptron --interactive
+    python3 -m scripts.lib.perceptron --export --config best_config.json
 
 Author: GraphBrew Team
 """
@@ -44,7 +39,7 @@ from collections import defaultdict
 import copy
 
 # Add project root to path
-PROJECT_ROOT = Path(__file__).parent.parent
+PROJECT_ROOT = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from scripts.lib.utils import ALGORITHMS, Logger, PROJECT_ROOT as PR, BENCHMARKS
@@ -1275,16 +1270,16 @@ def main():
         epilog="""
 Examples:
   # Show current accuracy
-  python3 scripts/perceptron_experiment.py --show
+  python3 -m scripts.lib.perceptron --show
   
   # Run grid search to find best configuration
-  python3 scripts/perceptron_experiment.py --grid-search
+  python3 -m scripts.lib.perceptron --grid-search
   
   # Train with specific method and export
-  python3 scripts/perceptron_experiment.py --train --method hybrid --export
+  python3 -m scripts.lib.perceptron --train --method hybrid --export
   
   # Interactive mode
-  python3 scripts/perceptron_experiment.py --interactive
+  python3 -m scripts.lib.perceptron --interactive
         """
     )
     

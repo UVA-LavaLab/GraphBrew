@@ -3206,6 +3206,24 @@ def main():
     parser.add_argument("--timeout", type=int, default=300,
                         help="[benchmark-fresh/ab-test] Timeout per benchmark invocation in seconds (default: 300)")
 
+    # ── Tools (moved from standalone scripts) ────────────────────────
+    parser.add_argument("--emulator", action="store_true",
+                        help="Run AdaptiveOrder emulator for weight analysis (pass extra args after --)")
+    parser.add_argument("--oracle-analysis", action="store_true",
+                        help="Oracle analysis: selection accuracy, regret, confusion matrix")
+    parser.add_argument("--perceptron", action="store_true",
+                        help="Perceptron experimentation: grid search, training, interactive mode")
+    parser.add_argument("--cache-compare", action="store_true",
+                        help="Quick cache simulation comparison across algorithm variants")
+    parser.add_argument("--regen-features", action="store_true",
+                        help="Regenerate features.json for all .sg graphs via C++ binary")
+    parser.add_argument("--check-includes", action="store_true",
+                        help="Scan C++ sources for legacy include paths")
+    parser.add_argument("--generate-figures", action="store_true",
+                        help="Generate reordering visualization SVG figures for docs")
+    parser.add_argument("--compare-leiden", action="store_true",
+                        help="Compare Leiden/RabbitOrder/GraphBrew community detection variants")
+
     args = parser.parse_args()
     
     # ==========================================================================
@@ -3484,6 +3502,52 @@ def main():
             sg_only=getattr(args, 'sg_only', False),
             benchmark_file=getattr(args, 'benchmark_file', None),
         )
+        return
+
+    # ── Dispatchers for moved standalone tools ───────────────────────
+    if getattr(args, 'emulator', False):
+        from scripts.lib.adaptive_emulator import main as emulator_main
+        sys.argv = [sys.argv[0]]  # clear args so emulator's argparse takes over
+        emulator_main()
+        return
+
+    if getattr(args, 'oracle_analysis', False):
+        from scripts.lib.oracle import main as oracle_main
+        sys.argv = [sys.argv[0], "--results-dir", args.results_dir]
+        oracle_main()
+        return
+
+    if getattr(args, 'perceptron', False):
+        from scripts.lib.perceptron import main as perceptron_main
+        sys.argv = [sys.argv[0]]
+        perceptron_main()
+        return
+
+    if getattr(args, 'cache_compare', False):
+        from scripts.lib.cache_compare import main as cache_compare_main
+        cache_compare_main()
+        return
+
+    if getattr(args, 'regen_features', False):
+        from scripts.lib.regen_features import main as regen_main
+        regen_main()
+        return
+
+    if getattr(args, 'check_includes', False):
+        from scripts.lib.check_includes import main as check_main
+        sys.argv = [sys.argv[0]]
+        check_main()
+        return
+
+    if getattr(args, 'generate_figures', False):
+        from scripts.lib.figures import main as figures_main
+        figures_main()
+        return
+
+    if getattr(args, 'compare_leiden', False):
+        from scripts.lib.leiden_compare import main as leiden_main
+        sys.argv = [sys.argv[0]]
+        leiden_main()
         return
 
     try:

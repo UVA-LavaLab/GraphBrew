@@ -509,10 +509,10 @@ The primary training function in `lib/weights.py` implements a 4-stage pipeline:
 
 See [[Perceptron-Weights#multi-restart-training--benchmark-multipliers]] for details on the training internals.
 
-### Validation with eval_weights.py
+### Validation with eval_weights
 
 ```bash
-python3 scripts/eval_weights.py
+python3 scripts/graphbrew_experiment.py --eval-weights
 ```
 
 Reports accuracy, median regret, top-2 accuracy, and unique predictions. Current metrics (47 graphs × 4 benchmarks): **46.8% accuracy**, **2.6% median regret**, **64.9% top-2 accuracy**.

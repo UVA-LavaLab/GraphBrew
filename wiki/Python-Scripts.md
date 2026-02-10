@@ -4,58 +4,63 @@ Documentation for all Python tools in the GraphBrew framework.
 
 ## Overview
 
-The scripts folder contains a modular library (`lib/`) and orchestration tools:
+The scripts folder contains a single entry point and a modular library (`lib/`):
 
 ```
 scripts/
-├── graphbrew_experiment.py      # ⭐ MAIN: Orchestration script (~3500 lines)
-├── perceptron_experiment.py     # 🧪 ML weight experimentation (without re-running phases)
-├── adaptive_emulator.py         # 🔍 C++ AdaptiveOrder logic emulation (Python)
-├── eval_weights.py              # 📊 Weight evaluation: train → simulate C++ scoring → report accuracy
-├── analyze_metrics.py           # 📏 Amortization & end-to-end evaluation from result JSONs
+├── graphbrew_experiment.py      # ⭐ MAIN: Single entry point for all experiments
 ├── requirements.txt             # Python dependencies
 │
-├── lib/                         # 📦 Modular library (~14300 lines total)
+├── lib/                         # 📦 Modular library
 │   ├── __init__.py              # Module exports
-│   ├── graph_types.py                 # Data classes (GraphInfo, BenchmarkResult, etc.)
-│   ├── phases.py                # Phase orchestration (run_reorder_phase, etc.)
-│   ├── utils.py                 # Core utilities (ALGORITHMS, run_command, etc.)
-│   ├── features.py              # Graph feature computation & system utilities
+│   ├── ab_test.py               # A/B test: AdaptiveOrder vs Original
+│   ├── adaptive_emulator.py     # 🔍 C++ AdaptiveOrder logic emulation (Python)
+│   ├── analysis.py              # Adaptive order analysis
+│   ├── benchmark.py             # Performance benchmark execution
+│   ├── benchmark_runner.py      # Fresh benchmarks on .sg graphs
+│   ├── build.py                 # Binary compilation utilities
+│   ├── cache.py                 # Cache simulation analysis
+│   ├── cache_compare.py         # Quick cache comparison across variants
+│   ├── check_includes.py        # CI: scan C++ for legacy includes
 │   ├── dependencies.py          # System dependency detection & installation
 │   ├── download.py              # Graph downloading from SuiteSparse
-│   ├── build.py                 # Binary compilation utilities
-│   ├── reorder.py               # Vertex reordering generation
-│   ├── benchmark.py             # Performance benchmark execution
-│   ├── cache.py                 # Cache simulation analysis
-│   ├── weights.py               # Type-based weight management
-│   ├── weight_merger.py         # Cross-run weight consolidation
-│   ├── training.py              # ML weight training
-│   ├── analysis.py              # Adaptive order analysis
+│   ├── eval_weights.py          # 📊 Weight evaluation & C++ scoring simulation
+│   ├── features.py              # Graph feature computation & system utilities
+│   ├── figures.py               # Generate wiki SVG figures
 │   ├── graph_data.py            # Per-graph data storage & retrieval
+│   ├── graph_types.py           # Data classes (GraphInfo, BenchmarkResult, etc.)
+│   ├── leiden_compare.py        # Compare Leiden/Rabbit/GraphBrew variants
+│   ├── metrics.py               # Amortization & end-to-end metrics
+│   ├── oracle.py                # Oracle analysis: accuracy, regret, confusion
+│   ├── perceptron.py            # 🧪 ML weight experimentation
+│   ├── phases.py                # Phase orchestration
 │   ├── progress.py              # Progress tracking & reporting
-│   └── results.py               # Result file I/O
+│   ├── regen_features.py        # Regenerate features.json via C++ binary
+│   ├── reorder.py               # Vertex reordering generation
+│   ├── results.py               # Result file I/O
+│   ├── training.py              # ML weight training
+│   ├── utils.py                 # Core utilities (ALGORITHMS, run_command, etc.)
+│   ├── weight_merger.py         # Cross-run weight consolidation
+│   └── weights.py               # Type-based weight management
 │
 ├── test/                        # Pytest suite
-│   ├── test_weight_flow.py      # Weight generation/loading tests
-│   ├── test_weight_merger.py    # Merger consolidation tests
-│   ├── test_fill_adaptive.py    # Fill-weights pipeline tests
-│   ├── test_cache_simulation.py # Cache simulation tests
-│   ├── test_graphbrew_experiment.py # Main experiment tests
+│   ├── test_weight_flow.py
+│   ├── test_weight_merger.py
+│   ├── test_fill_adaptive.py
+│   ├── test_cache_simulation.py
+│   ├── test_graphbrew_experiment.py
 │   └── graphs/                  # Test graph fixtures
 │
 ├── weights/                     # Type-based weight files
 │   ├── active/                  # C++ reads from here (working copy)
-│   │   ├── type_registry.json   # Maps graphs → types + centroids
-│   │   ├── type_0.json          # Cluster 0 weights
-│   │   └── type_N.json          # Additional clusters
 │   ├── merged/                  # Accumulated from all runs
 │   └── runs/                    # Historical snapshots
 │
 ├── examples/                    # Example scripts
-│   ├── batch_process.py         # Batch processing example
-│   ├── compare_algorithms.py    # Algorithm comparison example
-│   ├── custom_pipeline.py       # Custom phase-based pipeline example
-│   └── quick_test.py            # Quick testing example
+│   ├── batch_process.py
+│   ├── compare_algorithms.py
+│   ├── custom_pipeline.py
+│   └── quick_test.py
 └── requirements.txt             # Python dependencies (optional)
 ```
 
@@ -91,7 +96,7 @@ python3 scripts/graphbrew_experiment.py --help
 
 ---
 
-## 🧪 perceptron_experiment.py - ML Experimentation
+## 🧪 Perceptron Experimentation (--perceptron)
 
 **Experiment with perceptron configurations WITHOUT re-running expensive phases.**
 
@@ -104,17 +109,14 @@ This script loads existing benchmark results and lets you:
 ### Quick Start
 
 ```bash
-# Show current weights and accuracy
-python3 scripts/perceptron_experiment.py --show
+# Via entry point
+python3 scripts/graphbrew_experiment.py --perceptron
 
-# Run grid search to find best configuration
-python3 scripts/perceptron_experiment.py --grid-search
-
-# Train with specific method and export
-python3 scripts/perceptron_experiment.py --train --method hybrid --export
-
-# Interactive mode for manual tuning
-python3 scripts/perceptron_experiment.py --interactive
+# Or directly via module (supports full argparse)
+python3 -m scripts.lib.perceptron --show
+python3 -m scripts.lib.perceptron --grid-search
+python3 -m scripts.lib.perceptron --train --method hybrid --export
+python3 -m scripts.lib.perceptron --interactive
 ```
 
 ### Training Methods
@@ -148,7 +150,7 @@ python3 scripts/perceptron_experiment.py --interactive
 The `--analyze` command provides insights into which algorithms work best for different graph types and benchmarks:
 
 ```bash
-python3 scripts/perceptron_experiment.py --analyze
+python3 -m scripts.lib.perceptron --analyze
 ```
 
 **Output includes:**
@@ -171,13 +173,13 @@ python3 scripts/perceptron_experiment.py --analyze
 python3 scripts/graphbrew_experiment.py --full --size medium --auto
 
 # 2. Experiment with different perceptron configs (fast, no re-running)
-python3 scripts/perceptron_experiment.py --grid-search
+python3 -m scripts.lib.perceptron --grid-search
 
 # 3. Analyze which algorithms work best per benchmark/graph type
-python3 scripts/perceptron_experiment.py --analyze
+python3 -m scripts.lib.perceptron --analyze
 
 # 4. Train with per-benchmark weights
-python3 scripts/perceptron_experiment.py --train --method per_benchmark --export
+python3 -m scripts.lib.perceptron --train --method per_benchmark --export
 
 # 5. Validate with AdaptiveOrder
 ./bench/bin/pr -f graph.el -s -o 14 -n 3
@@ -185,7 +187,7 @@ python3 scripts/perceptron_experiment.py --train --method per_benchmark --export
 
 ---
 
-## 🔍 adaptive_emulator.py - C++ Logic Emulation
+## 🔍 Adaptive Emulator (--emulator)
 
 **Pure Python emulator that replicates C++ AdaptiveOrder logic without recompiling.**
 
@@ -198,17 +200,14 @@ This is useful for:
 ### Quick Start
 
 ```bash
-# Emulate for a single graph
-python3 scripts/adaptive_emulator.py --graph graphs/email-Enron/email-Enron.mtx
+# Via entry point
+python3 scripts/graphbrew_experiment.py --emulator
 
-# Compare emulation vs actual benchmark results
-python3 scripts/adaptive_emulator.py --compare-benchmark results/benchmark_*.json
-
-# Disable a weight to see its impact
-python3 scripts/adaptive_emulator.py --all-graphs --disable-weight w_modularity
-
-# Different selection modes
-python3 scripts/adaptive_emulator.py --mode best-endtoend --compare-benchmark results/benchmark.json
+# Or directly via module (supports full argparse)
+python3 -m scripts.lib.adaptive_emulator --graph graphs/email-Enron/email-Enron.mtx
+python3 -m scripts.lib.adaptive_emulator --compare-benchmark results/benchmark_*.json
+python3 -m scripts.lib.adaptive_emulator --all-graphs --disable-weight w_modularity
+python3 -m scripts.lib.adaptive_emulator --mode best-endtoend --compare-benchmark results/benchmark.json
 ```
 
 ### Selection Modes
@@ -246,15 +245,15 @@ Layer 2: Algorithm Selection
 
 | Tool | Purpose |
 |------|---------|
-| `adaptive_emulator.py` | Emulate C++ selection logic, analyze weight impact |
-| `perceptron_experiment.py` | Train new weights from benchmark data |
+| `--emulator` / `scripts.lib.adaptive_emulator` | Emulate C++ selection logic, analyze weight impact |
+| `--perceptron` / `scripts.lib.perceptron` | Train new weights from benchmark data |
 
 Use **adaptive_emulator.py** when you want to understand why a specific algorithm was selected.
 Use **perceptron_experiment.py** when you want to train better weights.
 
 ---
 
-## 📊 eval_weights.py - Weight Evaluation & C++ Scoring Simulation
+## 📊 Weight Evaluation (--eval-weights)
 
 **Quick evaluation script that trains weights, simulates C++ `scoreBase() × benchmarkMultiplier()` scoring, and reports accuracy/regret metrics.**
 
@@ -263,7 +262,8 @@ This is the fastest way to validate that your trained weights actually produce g
 ### Quick Start
 
 ```bash
-python3 scripts/eval_weights.py
+python3 scripts/graphbrew_experiment.py --eval-weights
+python3 scripts/graphbrew_experiment.py --eval-weights --sg-only
 ```
 
 ### What It Does

@@ -5,11 +5,12 @@ in analysis mode (-a 0). This ensures features match what C++ computes at
 runtime (from directed .sg graphs) rather than from symmetrized .mtx files.
 
 Usage:
-    python3 scripts/regen_sg_features.py
+    python3 scripts/graphbrew_experiment.py --regen-features
+    python3 -m scripts.lib.regen_features
 """
 import json, os, re, subprocess, sys, glob
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 GRAPHS_DIR = os.path.join(ROOT, "results", "graphs")
 BINARY = os.path.join(ROOT, "bench", "bin", "pr")
 CACHE_PATH = os.path.join(ROOT, "results", "graph_properties_cache.json")
