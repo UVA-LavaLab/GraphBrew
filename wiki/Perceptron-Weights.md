@@ -43,7 +43,7 @@ Each type file maps algorithm names to weights. Example entry:
 
 ```json
 {
-  "LeidenCSR": {
+  "GraphBrewOrder": {
     "bias": 3.5,
     "w_modularity": 0.1, "w_density": 0.05, "w_degree_variance": 0.03,
     "w_hub_concentration": 0.05, "w_log_nodes": 0.02, "w_log_edges": 0.02,
@@ -205,7 +205,7 @@ forward_edge_fraction: 0.45
 working_set_ratio: 3.2 (graph is 3.2× LLC size)
 ```
 
-LeidenCSR score:
+GraphBrewOrder score:
 ```
 = 0.85                          # bias
 + 0.25 × 0.72                   # modularity: +0.18
@@ -249,7 +249,7 @@ The JSON uses algorithm names, which map to IDs:
 | 13 | MAP | Load reordering from file |
 | 14 | AdaptiveOrder | This perceptron model |
 | 15 | LeidenOrder | Basic Leiden ordering via GVE-Leiden (baseline reference) |
-| 16 | LeidenCSR | Fast CSR-native Leiden (has variants) |
+<!-- LeidenCSR (16) deprecated — GraphBrew (12) subsumes it -->
 
 > **Note:** For current variant lists, see `scripts/lib/utils.py`.
 
@@ -259,11 +259,11 @@ The JSON uses algorithm names, which map to IDs:
 
 ### Strategy 1: Favor One Algorithm
 
-Make LeidenCSR almost always win:
+Make GraphBrewOrder almost always win:
 
 ```json
 {
-  "LeidenCSR": {
+  "GraphBrewOrder": {
     "bias": 1.0,
     "w_modularity": 0.0,
     "w_log_nodes": 0.0,
@@ -278,7 +278,7 @@ Make LeidenCSR almost always win:
 
 ### Strategy 2: Size-Based Selection
 
-ORIGINAL with high bias + negative `w_log_nodes`/`w_log_edges` wins for small communities; LeidenCSR with positive log weights wins for large ones.
+ORIGINAL with high bias + negative `w_log_nodes`/`w_log_edges` wins for small communities; GraphBrewOrder with positive log weights wins for large ones.
 
 ### Strategy 3: Structure-Based Selection
 
@@ -324,9 +324,9 @@ Output shows per-community algorithm selection (features + selected algorithm fo
 
 ## Default Weights
 
-If no weights file exists, hardcoded defaults favour ORIGINAL for small communities (high bias, negative log-size weights) and LeidenCSR for large, modular, hub-heavy communities (positive `w_modularity`, `w_hub_concentration`, log-size weights).
+If no weights file exists, hardcoded defaults favour ORIGINAL for small communities (high bias, negative log-size weights) and GraphBrewOrder for large, modular, hub-heavy communities (positive `w_modularity`, `w_hub_concentration`, log-size weights).
 
-The **bias** is the most important weight — computed as `0.5 × avg_speedup_vs_RANDOM`. Typical values: HUBSORT ~26, SORT ~9.5, LeidenCSR ~2.3, ORIGINAL 0.5 (baseline).
+The **bias** is the most important weight — computed as `0.5 × avg_speedup_vs_RANDOM`. Typical values: HUBSORT ~26, SORT ~9.5, GraphBrewOrder ~2.3, ORIGINAL 0.5 (baseline).
 
 ---
 

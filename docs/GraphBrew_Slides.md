@@ -81,8 +81,8 @@ Instead of applying one algorithm globally, GraphBrew **selects the best algorit
 +---+---+ +---+---+ +---+---+
     |         |         |
     v         v         v
- Rabbit    HubClust  LeidenCSR
- Order       DBG
+ Rabbit    HubClust  GraphBrew
+ Order       DBG      Order
     |         |         |
     +----+----+----+----+
          |
@@ -166,7 +166,7 @@ diameter: 16      --*---> w_di: 0.05 ----+
 ALGORITHM SELECTION:
 ====================
 RABBITORDER:    score = 2.31  <-- WINNER
-LeidenCSR:      score = 2.18
+GraphBrewOrder: score = 2.18
 HubClusterDBG:  score = 1.95
 GORDER:         score = 1.82
 ORIGINAL:       score = 0.50
@@ -490,7 +490,7 @@ For each community:
 [Load Type Weights] --> type_3.json (based on global features)
      |
      v
-[Perceptron Scoring] --> RABBITORDER=2.1, LeidenCSR=1.9, ...
+[Perceptron Scoring] --> RABBITORDER=2.1, GraphBrewOrder=1.9, ...
      |
      v
 [Select Best] --> RABBITORDER
@@ -504,7 +504,7 @@ For each community:
 
 ---
 
-# Supported Algorithms (18 Total)
+# Supported Algorithms (17 Total)
 
 | ID | Algorithm | Best For |
 |----|-----------|----------|
@@ -524,7 +524,7 @@ For each community:
 | 13 | MAP | External mapping file |
 | 14 | AdaptiveOrder | ML-powered selection |
 | 15 | LeidenOrder | GVE-Leiden baseline |
-| 16 | LeidenCSR | Fast CSR-native Leiden |
+| ~~16~~ | ~~LeidenCSR~~ | _Deprecated — subsumed by GraphBrewOrder (12)_ |
 
 ---
 

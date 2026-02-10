@@ -51,7 +51,6 @@ Quick overview:
 ### Adding Algorithm Variants
 
 Algorithm variant lists are defined in `scripts/lib/utils.py` as the **single source of truth**:
-- `LEIDEN_CSR_VARIANTS` - LeidenCSR algorithm variants
 - `GRAPHBREW_VARIANTS` - GraphBrewOrder clustering variants  
 - `RABBITORDER_VARIANTS` - RabbitOrder variants (csr, boost)
 

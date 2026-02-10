@@ -32,7 +32,6 @@ from .utils import (
     WEIGHT_AVG_DEGREE_DEFAULT,
     RABBITORDER_VARIANTS, RABBITORDER_DEFAULT_VARIANT,
     GRAPHBREW_VARIANTS, GRAPHBREW_DEFAULT_VARIANT,
-    LEIDEN_CSR_VARIANTS, LEIDEN_CSR_DEFAULT_VARIANT,
 )
 
 # Initialize logger
@@ -826,7 +825,7 @@ def compute_weights_from_results(
     # Build training examples: (feature_vector, best_algorithm)
     # Map variant names to base algorithms for training (more examples per class)
     _VARIANT_PREFIXES = [
-        'GraphBrewOrder_', 'LeidenCSR_', 'RABBITORDER_'
+        'GraphBrewOrder_', 'RABBITORDER_'
     ]
     
     def _get_base(name):
@@ -1322,7 +1321,7 @@ def compute_weights_from_results(
         
         # Group variants by base algorithm
         _VARIANT_PREFIXES = [
-            'GraphBrewOrder_', 'LeidenCSR_', 'RABBITORDER_'
+            'GraphBrewOrder_', 'RABBITORDER_'
         ]
         
         def get_base(name):
@@ -1641,12 +1640,11 @@ def get_all_algorithm_variant_names() -> List[str]:
     - Base algorithms (ORIGINAL, RANDOM, SORT, HUBSORT, etc.)
     - RabbitOrder variants: RABBITORDER_csr, RABBITORDER_boost
     - GraphBrewOrder variants: GraphBrewOrder_leiden, GraphBrewOrder_gve, etc.
-    - LeidenCSR variants: GraphBrewOrder_graphbrew, GraphBrewOrder_graphbrew:hrab, GraphBrewOrder_graphbrew:rabbit, etc.
     """
     names = []
     
     # Algorithms that have variants (with their base IDs)
-    VARIANT_ALGO_IDS = {8, 12, 16}  # RabbitOrder, GraphBrewOrder, LeidenCSR
+    VARIANT_ALGO_IDS = {8, 12}  # RabbitOrder, GraphBrewOrder
     
     for algo_id, algo_name in ALGORITHMS.items():
         if algo_name in ['MAP', 'AdaptiveOrder']:
@@ -1658,9 +1656,6 @@ def get_all_algorithm_variant_names() -> List[str]:
         elif algo_id == 12:  # GraphBrewOrder → expand to GraphBrewOrder_leiden, etc.
             for variant in GRAPHBREW_VARIANTS:
                 names.append(f"GraphBrewOrder_{variant}")
-        elif algo_id == 16:  # LeidenCSR → expand to GraphBrewOrder_graphbrew, etc.
-            for variant in LEIDEN_CSR_VARIANTS:
-                names.append(f"LeidenCSR_{variant}")
         else:
             names.append(algo_name)
     

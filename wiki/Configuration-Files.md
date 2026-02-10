@@ -24,7 +24,7 @@ scripts/
 └── lib/                       # Python library modules
     ├── utils.py               # ⭐ Single source of truth for constants:
     │                          #    ALGORITHMS, BENCHMARKS, SIZE_*, TIMEOUT_*,
-    │                          #    LEIDEN_CSR_VARIANTS, GRAPHBREW_VARIANTS, etc.
+    │                          #    GRAPHBREW_VARIANTS, etc.
     ├── benchmark.py           # Benchmark execution
     ├── cache.py               # Cache simulation
     ├── weights.py             # Weight management
@@ -138,7 +138,7 @@ Per-algorithm weights for each cluster:
       "cc": 1.0
     }
   },
-  "LeidenCSR": {
+  "GraphBrewOrder": {
     "bias": 3.2,
     "w_modularity": 0.20,
     "w_log_nodes": 0.01

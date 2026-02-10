@@ -37,9 +37,9 @@ enum ReorderingAlgo
     GraphBrewOrder = 12,    // -o 12:cluster:final:res:levels (leiden=default, gve, gveopt, rabbit, hubcluster)
     MAP = 13,               // Load reordering from file
     AdaptiveOrder = 14,     // ML-based perceptron selector
-    // Leiden algorithms (15-16) - grouped together for easier sweeping
+    // Leiden algorithms
     LeidenOrder = 15,       // -o 15:resolution (GVE-Leiden baseline)
-    LeidenCSR = 16,         // -o 16:variant:resolution:iters:passes (gveopt2=default)
+    // Note: LeidenCSR (16) has been deprecated — GraphBrew (12) subsumes it.
 };
 
 static const int64_t kRandSeed = 27491095;

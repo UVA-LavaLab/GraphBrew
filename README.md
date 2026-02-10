@@ -22,8 +22,8 @@ make all
 # Run PageRank with AdaptiveOrder (ML-selected best algorithm)
 ./bench/bin/pr -g 20 -o 14
 
-# Run BFS with LeidenCSR reordering on a graph file
-./bench/bin/bfs -f graph.mtx -o 16
+# Run BFS with GraphBrewOrder (community-based reordering)
+./bench/bin/bfs -f graph.mtx -o 12
 ```
 
 ### Build with RabbitOrder (optional)
@@ -38,7 +38,7 @@ make RABBIT_ENABLE=1 all
 
 ## Reordering Algorithms
 
-GraphBrew provides 17 reordering strategies. Use `-o <id>` to select one (or chain multiple with `-o <id1> -o <id2>`):
+GraphBrew provides 16 reordering strategies. Use `-o <id>` to select one (or chain multiple with `-o <id1> -o <id2>`):
 
 | ID | Algorithm | Description |
 |----|-----------|-------------|
@@ -58,9 +58,8 @@ GraphBrew provides 17 reordering strategies. Use `-o <id>` to select one (or cha
 | 13 | MAP | Load ordering from file (`-o 13:mapping.lo`) |
 | 14 | **ADAPTIVEORDER** | ML perceptron — automatically picks the best algorithm ⭐ |
 | 15 | LEIDENORDER | Leiden via GVE-Leiden library (`15:resolution`) — baseline reference |
-| 16 | LEIDENCSR | Fast CSR-native Leiden (`16:variant:resolution:passes`) — default: `gveopt2` ⭐ |
 
-**LeidenCSR (16) variants:** `gveopt2` (default — fastest + best quality), `gve`, `gveopt`, `fast`, `modularity`, `gverabbit`, `dfs`, `bfs`, `hubsort`, `faithful`. See [Reordering Algorithms Wiki](https://github.com/UVA-LavaLab/GraphBrew/wiki/Reordering-Algorithms) for the full list.
+<!-- Note: LeidenCSR (16) has been deprecated — GraphBrew (12) subsumes it. -->
 
 ### Which Algorithm Should I Use?
 
@@ -131,7 +130,7 @@ make run-bfs
 ./bench/bin/pr -f graph.mtx -n 16 -o 12
 
 # Generate a reordered graph
-./bench/bin/converter -f graph.mtx -p reordered.mtx -o 16
+./bench/bin/converter -f graph.mtx -p reordered.mtx -o 12
 ```
 
 > 📖 See [Graph Benchmarks Wiki](https://github.com/UVA-LavaLab/GraphBrew/wiki/Graph-Benchmarks) for details.

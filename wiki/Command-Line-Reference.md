@@ -90,7 +90,7 @@ These options work with all benchmarks:
 | Option | Description | Example |
 |--------|-------------|---------|
 | `-f <file>` | Input graph file (required) | `-f graph.el` |
-| `-o <id>` | Reordering algorithm ID (0-16) | `-o 7` |
+| `-o <id>` | Reordering algorithm ID (0-15) | `-o 7` |
 | `-s` | Make graph undirected (symmetrize) | `-s` |
 | `-j type:n:m` | Partition graph (`type=0` Cagra, `1` TRUST), default `0:1:1` | `-j 0:2:2` |
 | `-n <trials>` | Number of benchmark trials | `-n 5` |
@@ -167,37 +167,10 @@ Use with `-o <id>`:
 | 13 | MAP | External mapping |
 | 14 | AdaptiveOrder | ML |
 | 15 | LeidenOrder | Leiden (GVE-Leiden baseline) |
-| 16 | LeidenCSR | Pure Leiden community detection (variants: `gveopt2`, `gve`, `fast`, etc.) |
+<!-- LeidenCSR (16) deprecated — GraphBrew (12) subsumes it -->
 
 > **Note:** For current variant lists, see `scripts/lib/utils.py` which defines:
 > - `RABBITORDER_VARIANTS`, `GRAPHBREW_VARIANTS`, `GRAPHBREW_ORDERING_VARIANTS`
-> - `LEIDEN_CSR_VARIANTS`
-
-### LeidenCSR Variants (Algorithm 16)
-
-Pure community detection + sort by (community, degree). Default variant: `gveopt2`.
-
-| Variant | Example | Description |
-|---------|---------|-------------|
-| `gveopt2` | `-o 16` or `-o 16:gveopt2` | CSR-based aggregation **(default, fastest + best quality)** |
-| `gve` | `-o 16:gve` | Standard GVE-Leiden |
-| `gveopt` | `-o 16:gveopt` | Cache-optimized GVE-Leiden |
-| `gverabbit` | `-o 16:gverabbit` | GVE + RabbitOrder within communities |
-| `fast` | `-o 16:fast` | Speed-optimized (fewer iterations) |
-| `modularity` | `-o 16:modularity` | Quality-optimized (more iterations) |
-| `dfs` | `-o 16:dfs` | DFS ordering of community tree |
-| `bfs` | `-o 16:bfs` | BFS ordering of community tree |
-| `hubsort` | `-o 16:hubsort` | Hub-first ordering within communities |
-| `faithful` | `-o 16:faithful` | Faithful 1:1 leiden.hxx reference |
-
-**Resolution modes** (applies to all variants):
-
-| Mode | Syntax | Description |
-|------|--------|-------------|
-| Auto | `-o 16` or `-o 16:gveopt2:0` | Compute from graph density/CV (default) |
-| Fixed | `-o 16:gveopt2:1.5` | Use specified resolution value |
-
-Full format: `-o 16:variant:resolution:max_iterations:max_passes`
 
 ### GraphBrewOrder Ordering Strategies (Algorithm 12)
 
@@ -274,7 +247,7 @@ Override the final reordering algorithm with `:<algo_id>`, e.g. `-o "12:gve:7"` 
 ./bench/bin/pr -f graph.el -s -i 100 -t 1e-8 -n 5
 
 # With reordering
-./bench/bin/pr -f graph.el -s -o 16 -n 5
+./bench/bin/pr -f graph.el -s -o 12 -n 5
 ```
 
 ### BFS (bfs)
@@ -479,13 +452,13 @@ Average: 0.0012 seconds, 75.7 MTEPS
 ```
 === Adaptive Reordering Selection ===
 Comm    Nodes   Edges   Density Selected
-131     1662    16151   0.0117  LeidenCSR
+131     1662    16151   0.0117  GraphBrewOrder
 272     103     149     0.0284  Original
 ...
 
 === Algorithm Selection Summary ===
 Original: 846 communities
-LeidenCSR: 3 communities
+GraphBrewOrder: 3 communities
 HUBCLUSTERDBG: 2 communities
 ```
 
@@ -502,7 +475,7 @@ HUBCLUSTERDBG: 2 communities
 ### Compare Algorithms
 
 ```bash
-for algo in 0 7 14 15 16; do
+for algo in 0 7 12 14 15; do
     echo "=== Algorithm $algo ==="
     ./bench/bin/pr -f graph.el -s -o $algo -n 3
 done

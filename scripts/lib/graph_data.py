@@ -145,7 +145,7 @@ def save_run_log(
     Args:
         graph_name: Name of the graph
         operation: Type of operation ('reorder', 'benchmark', 'cache')
-        algorithm: Algorithm name (e.g., 'HUBCLUSTERDBG', 'LeidenCSR')
+        algorithm: Algorithm name (e.g., 'HUBCLUSTERDBG', 'LeidenOrder')
         output: Command stdout/stderr output
         benchmark: Benchmark name for benchmark operations (e.g., 'pr', 'bfs')
         command: The command that was run

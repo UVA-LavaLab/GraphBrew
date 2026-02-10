@@ -128,7 +128,6 @@ from .weights import (
 )
 from .progress import ProgressTracker
 from .utils import (
-    LEIDEN_CSR_VARIANTS,
     RABBITORDER_VARIANTS,
     GRAPHBREW_VARIANTS,
     LEIDEN_DEFAULT_RESOLUTION,
@@ -173,7 +172,6 @@ class PhaseConfig:
         
         leiden_resolution: Resolution: "dynamic" (default, best PR), "auto", "1.0", etc.
         leiden_passes: Number of Leiden optimization passes (default: 10)
-        leiden_csr_variants: LeidenCSR variants to test
         
         target_accuracy: Target accuracy for training (default: 0.95)
         max_iterations: Max training iterations (default: 10)
@@ -237,7 +235,6 @@ class PhaseConfig:
         # ─────────────────────────────────────────────────────────────────────
         leiden_resolution: str = "dynamic",  # "dynamic" (default), "auto", "1.0", etc.
         leiden_passes: int = LEIDEN_DEFAULT_PASSES,
-        leiden_csr_variants: List[str] = None,
         rabbit_variants: List[str] = None,
         graphbrew_variants: List[str] = None,
         
@@ -282,7 +279,6 @@ class PhaseConfig:
         # Leiden settings - use lib/utils.py as single source of truth
         self.leiden_resolution = leiden_resolution
         self.leiden_passes = leiden_passes
-        self.leiden_csr_variants = leiden_csr_variants or LEIDEN_CSR_VARIANTS
         self.rabbit_variants = rabbit_variants or ['csr']  # Default: csr only (not all variants)
         self.graphbrew_variants = graphbrew_variants or ['leiden']  # Default: leiden only (not all variants)
         
@@ -317,7 +313,6 @@ class PhaseConfig:
             update_weights=not getattr(args, 'no_incremental', False),
             leiden_resolution=getattr(args, 'leiden_resolution', 'dynamic'),
             leiden_passes=getattr(args, 'leiden_passes', 10),
-            leiden_csr_variants=getattr(args, 'leiden_csr_variants', None),
             rabbit_variants=getattr(args, 'rabbit_variants', None),
             graphbrew_variants=getattr(args, 'graphbrew_variants', None),
             target_accuracy=getattr(args, 'target_accuracy', 0.95),
@@ -388,7 +383,6 @@ def run_reorder_phase(
         expanded_algorithms = expand_algorithms_with_variants(
             algorithms,
             expand_leiden_variants=True,
-            leiden_csr_variants=config.leiden_csr_variants,
             rabbit_variants=config.rabbit_variants,
             graphbrew_variants=config.graphbrew_variants
         )
@@ -758,7 +752,7 @@ def run_comparison_phase(
     """
     config.progress.phase_start("COMPARISON", "Comparing adaptive vs fixed algorithms")
     
-    fixed_algorithms = fixed_algorithms or [1, 2, 4, 7, 15, 16]
+    fixed_algorithms = fixed_algorithms or [1, 2, 4, 7, 15]
     
     results = compare_adaptive_vs_fixed(
         graphs=graphs,
@@ -1011,7 +1005,7 @@ def quick_benchmark(
     """
     from .utils import get_graph_dimensions
     
-    algorithms = algorithms or [0, 1, 2, 4, 7, 15, 16]
+    algorithms = algorithms or [0, 1, 2, 4, 7, 15]
     benchmarks = benchmarks or ['pr', 'bfs', 'cc']
     
     # Create graph info

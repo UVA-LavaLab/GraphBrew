@@ -97,12 +97,13 @@ Largest communities:
 
 ## Comparison with Other Algorithms
 
-| Aspect | HUBCLUSTER (4) | LeidenOrder (15) | LeidenCSR (16) | GraphBrewOrder (12) |
-|--------|---------------|-----------------|---------------|--------------------|
-| Community locality | ❌ Poor | ✅ Good | ✅ Good | ✅ Excellent |
-| Internal ordering | Hub sort | Original | Configurable | Per-community (RabbitOrder) |
-| Speed | Fast | Moderate | Very fast | Moderate |
-| Best for | Uniform hub graphs | Basic grouping | Large graphs | Modular graphs |
+| Aspect | HUBCLUSTER (4) | LeidenOrder (15) | GraphBrewOrder (12) |
+|--------|---------------|-----------------|--------------------|
+| Community locality | ❌ Poor | ✅ Good | ✅ Excellent |
+| Internal ordering | Hub sort | Original | Per-community (RabbitOrder) |
+| Speed | Fast | Moderate | Moderate |
+| Best for | Uniform hub graphs | Basic grouping | Modular graphs |
+<!-- LeidenCSR (16) deprecated — GraphBrew (12) subsumes it -->
 
 ---
 
@@ -237,13 +238,13 @@ See [[Command-Line-Reference]] for full variant list and [[Python-Scripts]] for 
 ./bench/bin/pr -f graph.el -s -o 12 -n 10  # Single benchmark
 
 # Compare with alternatives
-for algo in 0 4 7 12 15 17; do
+for algo in 0 4 7 12 14 15; do
     echo "Algorithm $algo:"
     ./bench/bin/pr -f graph.el -s -o $algo -n 5 2>&1 | grep "Average"
 done
 ```
 
-Typical social network result: GraphBrewOrder ~1.36x faster than ORIGINAL, LeidenCSR slightly faster still.
+Typical social network result: GraphBrewOrder ~1.36x faster than ORIGINAL.
 
 See [[Troubleshooting]] for common issues (small communities, worse than HUBCLUSTER, memory).
 

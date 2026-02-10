@@ -9,7 +9,7 @@ Common questions and answers about GraphBrew.
 ### What is GraphBrew?
 
 GraphBrew is a graph processing benchmark framework that combines:
-- **17 vertex reordering algorithms** (IDs 0-16) for cache optimization
+- **16 vertex reordering algorithms** (IDs 0-15) for cache optimization
 - **6 benchmarks** (PageRank, BFS, CC, SSSP, BC, TC) — 5 run by default, TC binary available separately
 - **ML-powered algorithm selection** via AdaptiveOrder
 - **Leiden community detection** integration
@@ -23,7 +23,7 @@ GraphBrew is a graph processing benchmark framework that combines:
 
 ### What makes GraphBrew different?
 
-1. **Comprehensive**: 17 reordering algorithms in one framework
+1. **Comprehensive**: 16 reordering algorithms in one framework
 2. **ML-powered**: AdaptiveOrder learns which algorithm works best
 3. **Modern**: Leiden community detection integration
 4. **Practical**: Based on GAP Benchmark Suite standards
@@ -94,7 +94,7 @@ See [[Installation]] for detailed troubleshooting.
 | Don't know | `-o 14` (AdaptiveOrder) |
 | Social network | `-o 15` (LeidenOrder) |
 | General purpose | `-o 7` (HUBCLUSTERDBG) |
-| Large graph | `-o 16` (LeidenCSR) |
+| Large graph | `-o 12` (GraphBrewOrder) |
 | Baseline | `-o 0` (no reordering) |
 
 ### How do I know which algorithm is best for my graph?
@@ -102,7 +102,7 @@ See [[Installation]] for detailed troubleshooting.
 Run multiple algorithms and compare:
 
 ```bash
-for algo in 0 7 14 15 17; do
+for algo in 0 7 12 14 15; do
     echo "=== Algorithm $algo ==="
     ./bench/bin/pr -f graph.el -s -o $algo -n 3
 done
@@ -203,7 +203,7 @@ Detects communities via Leiden, computes features (15 linear + 3 quadratic), use
 
 ### Is there a single best algorithm?
 
-LeidenCSR was selected for 99.5% of subcommunities in C++ validation. As a single algorithm, it achieves 2.9% median regret. Recommended variant: `graphbrew`.
+GraphBrewOrder was selected for 99.5% of subcommunities in C++ validation. As a single algorithm, it achieves 2.9% median regret. Recommended: `-o 12`.
 
 ### What are the quadratic cross-terms?
 
@@ -225,14 +225,14 @@ See [[Python-Scripts#-eval_weightspy---weight-evaluation--c-scoring-simulation]]
 
 `scripts/weights/active/type_N.json` (per-cluster) + `type_registry.json` (graph→type map). Loading priority: env var → best type match → fallback defaults. See [[Perceptron-Weights#weight-file-location]].
 
-### What's the difference between LeidenOrder and LeidenCSR?
+### What's the difference between LeidenOrder and GraphBrewOrder?
 
 - **LeidenOrder (15)**: Baseline reference using GVE-Leiden external library (requires CSR→DiGraph conversion)
-- **LeidenCSR (16)**: Production pure-Leiden implementation, CSR-native (default: `gveopt2`, fastest + best quality)
+- **GraphBrewOrder (12)**: Production Leiden + per-community reordering (e.g., RabbitOrder within each community), CSR-native, best quality
 
-LeidenCSR reimplements Leiden natively on CSR (zero-copy), achieving equivalent kernel quality but **28–95× faster reorder times**. LeidenOrder is kept as a baseline to measure this improvement.
+<!-- LeidenCSR (16) deprecated — GraphBrew (12) subsumes it -->
 
-For per-community reordering (e.g., RabbitOrder within each community), use **GraphBrewOrder (12)**.
+GraphBrewOrder uses Leiden community detection natively on CSR, then applies configurable per-community ordering for the best cache locality.
 
 ### When should I use DBG vs HUBCLUSTER?
 

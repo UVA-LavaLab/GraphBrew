@@ -83,7 +83,7 @@ python3 scripts/graphbrew_experiment.py --help
 | **Auto Build** | Compiles binaries if missing |
 | **Memory Management** | Automatically skips graphs exceeding RAM limits |
 | **Label Maps** | Pre-generates reordering maps for consistency |
-| **Reordering** | Tests all 17 algorithms |
+| **Reordering** | Tests all 16 algorithms |
 | **Benchmarks** | PR, BFS, CC, SSSP, BC, TC |
 | **Cache Simulation** | L1/L2/L3 hit rate analysis |
 | **Perceptron Training** | Generates weights for AdaptiveOrder |
@@ -161,7 +161,7 @@ python3 scripts/perceptron_experiment.py --analyze
 - `basic`: ORIGINAL, RANDOM, SORT
 - `hub`: HUBSORT, HUBCLUSTER, DBG, HUBSORTDBG, HUBCLUSTERDBG
 - `community`: GORDER, RABBITORDER, CORDER, RCM
-- `leiden`: LeidenOrder, LeidenCSR
+- `leiden`: LeidenOrder
 - `composite`: AdaptiveOrder, GraphBrewOrder
 
 ### Example: Reproducible Experimentation
@@ -476,7 +476,7 @@ graphs = [
 ]
 
 # Select algorithms
-algorithms = [0, 7, 15, 16]  # ORIGINAL, HUBCLUSTERDBG, LeidenOrder, LeidenCSR
+algorithms = [0, 7, 12, 15]  # ORIGINAL, HUBCLUSTERDBG, GraphBrewOrder, LeidenOrder
 
 # Create configuration
 config = PhaseConfig(

@@ -50,10 +50,10 @@ Graph: facebook.el (4,039 nodes, 88,234 edges)
 │ ORIGINAL (0)       │ 0.0523       │ 1.00x       │
 │ HUBCLUSTERDBG (7)  │ 0.0412       │ 1.27x       │
 │ LeidenOrder (15)   │ 0.0398       │ 1.31x       │
-│ LeidenCSR (16)     │ 0.0371       │ 1.41x ★     │
+│ GraphBrewOrder (12) │ 0.0371       │ 1.41x ★     │
 │ RCM (11)           │ 0.0489       │ 1.07x       │
 └────────────────────┴──────────────┴─────────────┘
-Best: LeidenCSR
+Best: GraphBrewOrder
 ```
 
 ### Step 2: Feature Extraction
@@ -88,14 +88,14 @@ Combine results across all graphs:
 ┌──────────────────┬────────┬─────────┬─────────┬─────────┬───────────────┐
 │ Graph            │ ModQ   │ HubConc │ DegVar  │ Density │ Best Algo     │
 ├──────────────────┼────────┼─────────┼─────────┼─────────┼───────────────┤
-│ facebook         │ 0.835  │ 0.42    │ 52.4    │ 0.011   │ LeidenCSR  │
-│ twitter          │ 0.721  │ 0.68    │ 891.2   │ 0.002   │ LeidenCSR         │
+│ facebook         │ 0.835  │ 0.42    │ 52.4    │ 0.011   │ GraphBrewOrder │
+│ twitter          │ 0.721  │ 0.68    │ 891.2   │ 0.002   │ GraphBrewOrder    │
 │ roadNet-CA       │ 0.112  │ 0.05    │ 1.2     │ 0.0001  │ RCM           │
 │ web-Google       │ 0.654  │ 0.55    │ 234.5   │ 0.008   │ HUBCLUSTERDBG │
 │ citation         │ 0.443  │ 0.31    │ 45.6    │ 0.003   │ LeidenOrder   │
 │ amazon           │ 0.926  │ 0.18    │ 12.3    │ 0.0004  │ LeidenOrder   │
-│ youtube          │ 0.712  │ 0.52    │ 289.1   │ 0.001   │ LeidenCSR  │
-│ livejournal      │ 0.758  │ 0.61    │ 567.8   │ 0.0003  │ LeidenCSR         │
+│ youtube          │ 0.712  │ 0.52    │ 289.1   │ 0.001   │ GraphBrewOrder │
+│ livejournal      │ 0.758  │ 0.61    │ 567.8   │ 0.0003  │ GraphBrewOrder    │
 └──────────────────┴────────┴─────────┴─────────┴─────────┴───────────────┘
 ```
 
@@ -104,7 +104,7 @@ Combine results across all graphs:
 Calculate Pearson correlation between each feature and "algorithm X being best":
 
 ```
-For LeidenCSR:
+For GraphBrewOrder:
 ┌─────────────────────┬─────────────┬──────────────────────────────────────┐
 │ Feature             │ Pearson r   │ Interpretation                       │
 ├─────────────────────┼─────────────┼──────────────────────────────────────┤
@@ -193,8 +193,8 @@ Loading graphs from: ./graphs
 Found 8 graphs
 
 Running benchmarks...
-  facebook.el: ORIGINAL=0.052s, HUBCLUSTERDBG=0.041s, LeidenCSR=0.037s ★
-  twitter.el: ORIGINAL=12.3s, LeidenCSR=8.1s ★, LeidenCSR=8.4s
+  facebook.el: ORIGINAL=0.052s, HUBCLUSTERDBG=0.041s, GraphBrewOrder=0.037s ★
+  twitter.el: ORIGINAL=12.3s, GraphBrewOrder=8.1s ★, GraphBrewOrder=8.4s
   ...
 
 Extracting features...
@@ -203,22 +203,22 @@ Extracting features...
   ...
 
 Computing correlations...
-  LeidenCSR × modularity: r=0.78 (strong positive)
-  LeidenCSR × hub_concentration: r=0.45 (moderate positive)
+  GraphBrewOrder × modularity: r=0.78 (strong positive)
+  GraphBrewOrder × hub_concentration: r=0.45 (moderate positive)
   ...
 
 ----------------------------------------------------------------------
 Computing Perceptron Weights
 ----------------------------------------------------------------------
 Perceptron weights saved to: scripts/weights/active/type_0.json
-  17 algorithms configured
-  Updated from benchmarks: ORIGINAL, HUBCLUSTERDBG, LeidenCSR, ...
+  16 algorithms configured
+  Updated from benchmarks: ORIGINAL, HUBCLUSTERDBG, GraphBrewOrder, ...
 
 Summary:
   Total graphs analyzed: 8
   Algorithms benchmarked: 11
-  Best overall: LeidenCSR (won 4/8 graphs)
-  Second best: LeidenCSR (won 2/8 graphs)
+  Best overall: GraphBrewOrder (won 4/8 graphs)
+  Second best: GraphBrewOrder (won 2/8 graphs)
 ```
 
 ### Generated Files
@@ -256,9 +256,9 @@ Where:
 ### Example Interpretation
 
 ```
-LeidenCSR:
+GraphBrewOrder:
   r(modularity) = +0.78
-  → LeidenCSR works best on highly modular graphs
+  → GraphBrewOrder works best on highly modular graphs
   → Makes sense: it's designed to exploit community structure
 
 RCM:

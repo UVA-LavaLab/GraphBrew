@@ -325,11 +325,9 @@ help-%: $(BIN_DIR)/%
 	@echo "  │                      depth=0: per-community, 1+: multi-level recursion      │"
 	@echo "  │                      mode=0: per-community, 1: full-graph adaptive          │"
 	@echo "  ├─────────────────────────────────────────────────────────────────────────────┤"
-	@echo "  │ Leiden Algorithms (15-16) - Parameter-based variant selection               │"
+	@echo "  │ Leiden Algorithms                                                           │"
 	@echo "  ├─────────────────────────────────────────────────────────────────────────────┤"
 	@echo "  │ LeidenOrder   (15):  Leiden via GVE-Leiden library (baseline reference)     │"
-	@echo "  │ LeidenCSR     (16):  GVE-Leiden CSR-native (format: 16:variant:res:iter:pass)│"
-	@echo "  │                      Variants: graphbrew (default), gve, gveopt, dfs, bfs, hubsort│"
 	@echo "  └─────────────────────────────────────────────────────────────────────────────┘"
 	@echo ""
 	@echo "Example Usage:"
@@ -339,7 +337,7 @@ help-%: $(BIN_DIR)/%
 	@echo "  ./$< -g 15 -n 1 -o 14:2         - Execute with multi-level AdaptiveOrder (depth=2)"
 	@echo "  ./$< -g 15 -n 1 -o 14:0:0.75:50000:1 - Full-graph mode (pick single best algo)"
 	@echo "  ./$< -g 15 -n 1 -o 12:hrab              - Execute GraphBrewOrder with hybrid Leiden+Rabbit"
-	@echo "  ./$< -g 15 -n 1 -o 12:10:16     - Execute GraphBrew with LeidenCSR"
+	@echo "  ./$< -g 15 -n 1 -o 12:community         - Execute GraphBrew with community sort"
 	@echo "  ./$< -f graph.mtx -o 13:map.lo  - Execute with MAP reordering from file"
 
 help-all: $(addprefix help-, $(KERNELS))

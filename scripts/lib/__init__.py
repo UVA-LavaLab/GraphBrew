@@ -70,15 +70,11 @@ from .utils import (
     # GraphBrewOrder variants (leiden default for backward compat)
     GRAPHBREW_VARIANTS,
     GRAPHBREW_DEFAULT_VARIANT,
-    # Leiden variants (gve default for LeidenCSR)
-    LEIDEN_CSR_VARIANTS,
-    LEIDEN_CSR_DEFAULT_VARIANT,
-    LEIDEN_CSR_FAST_VARIANTS,
-    LEIDEN_CSR_QUALITY_VARIANTS,
+    # Leiden resolution/pass settings
     LEIDEN_DEFAULT_RESOLUTION,
     LEIDEN_DEFAULT_PASSES,
     LEIDEN_RESOLUTION_MODES,
-    # Leiden SSOT constants (match C++ reorder_leiden.h)
+    # Leiden SSOT constants (match C++ reorder_graphbrew.h)
     LEIDEN_DEFAULT_TOLERANCE,
     LEIDEN_DEFAULT_AGGREGATION_TOLERANCE,
     LEIDEN_DEFAULT_QUALITY_FACTOR,

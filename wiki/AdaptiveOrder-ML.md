@@ -112,8 +112,8 @@ Level 2:      [SubA2a]  [SubA2b]
 +---+---+ +---+---+ +---+---+
     |         |         |
     v         v         v
- Rabbit    HubClust  LeidenCSR
- Order       DBG
+ Rabbit    HubClust  GraphBrew
+ Order       DBG       Order
     |         |         |
     +----+----+----+----+
          |
@@ -160,7 +160,7 @@ Each type has a **centroid** — the average feature vector of its training grap
 Different parts of a graph have different structures:
 - **Hub communities**: Dense cores with high-degree vertices → HUBCLUSTERDBG works well
 - **Sparse communities**: Mesh-like structures → RCM or ORIGINAL may be better
-- **Hierarchical communities**: Tree-like → LeidenCSR traversal variants (`graphbrew:dfs`, `graphbrew:bfs`) excel
+- **Hierarchical communities**: Tree-like → GraphBrewOrder traversal variants (`graphbrew:dfs`, `graphbrew:bfs`) excel
 
 AdaptiveOrder selects the best algorithm for each community's characteristics.
 
@@ -178,14 +178,14 @@ AdaptiveOrder selects the best algorithm for each community's characteristics.
 ```
 === Adaptive Reordering Selection (Depth 0, Modularity: 0.0301) ===
 Comm    Nodes   Edges   Density DegVar  HubConc Selected
-131     1662    16151   0.0117  1.9441  0.5686  LeidenCSR
+131     1662    16151   0.0117  1.9441  0.5686  GraphBrewOrder
 272     103     149     0.0284  2.8547  0.4329  Original
 489     178     378     0.0240  1.3353  0.3968  HUBCLUSTERDBG
 ...
 
 === Algorithm Selection Summary ===
 Original: 846 communities
-LeidenCSR: 3 communities
+GraphBrewOrder: 3 communities
 HUBCLUSTERDBG: 2 communities
 ```
 
@@ -250,7 +250,7 @@ fwd_edge_frac: 0.4     --*---> w_fef_conv: 0.05 -----+------+
 ALGORITHM SELECTION:
 ====================
 RABBITORDER:    score = 2.31  <-- WINNER
-LeidenCSR:      score = 2.18
+GraphBrewOrder: score = 2.18
 HubClusterDBG:  score = 1.95
 GORDER:         score = 1.82
 ORIGINAL:       score = 0.50
@@ -517,9 +517,9 @@ python3 scripts/eval_weights.py
 
 Reports accuracy, median regret, top-2 accuracy, and unique predictions. Current metrics (47 graphs × 4 benchmarks): **46.8% accuracy**, **2.6% median regret**, **64.9% top-2 accuracy**.
 
-### Key Finding: LeidenCSR Dominance
+### Key Finding: GraphBrewOrder Dominance
 
-C++ validation on 47 graphs showed that **LeidenCSR** was selected for **99.5% of subcommunities** (8,631 / 8,672). As a single algorithm, it achieves 2.9% median regret — very close to the theoretical best per-community selection. This validates that LeidenCSR is the dominant reordering algorithm for most graph types.
+C++ validation on 47 graphs showed that **GraphBrewOrder** was selected for **99.5% of subcommunities** (8,631 / 8,672). As a single algorithm, it achieves 2.9% median regret — very close to the theoretical best per-community selection. This validates that GraphBrewOrder is the dominant reordering algorithm for most graph types.
 
 ---
 
@@ -540,10 +540,10 @@ For a graph with 10,000 nodes and 5 communities, AdaptiveOrder:
 1. **Community Detection** — Leiden finds 5 communities of varying size (600–3,500 nodes)
 2. **Feature Extraction** — Computes modularity, hub_concentration, degree_variance, etc. for each community
 3. **Perceptron Scoring** — Evaluates all algorithms per community using the score formula above
-4. **Algorithm Selection** — e.g., LeidenCSR for hub-heavy communities, ORIGINAL for tiny ones
+4. **Algorithm Selection** — e.g., GraphBrewOrder for hub-heavy communities, ORIGINAL for tiny ones
 5. **Per-Community Reordering** — Applies each selected algorithm within its community, producing a unified vertex relabeling
 
-The result: cache-friendly memory layout where hub vertices are clustered together within each community. A large hub-heavy community (hub_concentration=0.62) benefits from LeidenCSR grouping hubs together, while a tiny 600-node community sees negligible improvement — ORIGINAL avoids the overhead.
+The result: cache-friendly memory layout where hub vertices are clustered together within each community. A large hub-heavy community (hub_concentration=0.62) benefits from GraphBrewOrder grouping hubs together, while a tiny 600-node community sees negligible improvement — ORIGINAL avoids the overhead.
 
 ---
 

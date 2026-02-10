@@ -80,7 +80,7 @@ See [[Command-Line-Reference]] for `--train` phases, download size options, and 
 | Option | Description | Default |
 |--------|-------------|---------|
 | `-f <file>` | Input graph file | Required |
-| `-o <id>` | Ordering algorithm (0-16) | 0 (none) |
+| `-o <id>` | Ordering algorithm (0-15) | 0 (none) |
 | `-s` | Symmetrize graph (make undirected) | Off |
 | `-g <scale>` | Generate 2^scale kronecker graph | - |
 | `-n <num>` | Number of trials | 16 |
@@ -136,14 +136,14 @@ See [[Command-Line-Reference]] for complete option reference, output format deta
 
 ## Reordering Options
 
-See [[Command-Line-Reference#reordering-algorithm-ids]] for the full algorithm table (IDs 0-16) and variant syntax.
+See [[Command-Line-Reference#reordering-algorithm-ids]] for the full algorithm table (IDs 0-15) and variant syntax.
 
 | Use Case | Algorithm | ID |
 |----------|-----------|-----|
 | General purpose | HUBCLUSTERDBG | 7 |
 | Social networks | LeidenOrder | 15 |
 | Unknown graphs | AdaptiveOrder | 14 |
-| Maximum locality | LeidenCSR | 16 |
+| Maximum locality | GraphBrewOrder | 12 |
 | Road networks | RCM | 11 |
 
 ---
