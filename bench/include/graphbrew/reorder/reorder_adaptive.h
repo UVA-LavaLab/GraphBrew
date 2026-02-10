@@ -432,7 +432,12 @@ void GenerateAdaptiveMappingRecursiveStandalone(
         PrintTime("Max Depth", static_cast<double>(MAX_DEPTH));
         PrintTime("Resolution", resolution);
         PrintTime("Min Recurse Size", static_cast<double>(MIN_COMMUNITY_FOR_RECURSION));
+        // Print active ablation toggles
+        AblationConfig::Get().print();
     }
+    
+    // Ablation: ADAPTIVE_NO_LEIDEN=1 — skip Leiden, treat whole graph as one community.
+    // All nodes go to community 0, bypassing partitioning entirely.
     
     // Use GraphBrew's Leiden engine for community detection (native CSR)
     // NOTE: Parallel Leiden (OMP_NUM_THREADS > 1) is non-deterministic due to
@@ -440,15 +445,26 @@ void GenerateAdaptiveMappingRecursiveStandalone(
     // set OMP_NUM_THREADS=1 or use precomputed label maps (--precompute).
     Timer t_leiden;
     t_leiden.Start();
-    graphbrew::GraphBrewConfig gb_config;
-    gb_config.resolution = resolution;
-    gb_config.maxIterations = max_iterations;
-    gb_config.maxPasses = max_passes;
-    gb_config.ordering = graphbrew::OrderingStrategy::COMMUNITY_SORT;
-    auto gb_result = graphbrew::runGraphBrew<K>(g, gb_config);
     
-    std::vector<K> comm_ids_k = gb_result.membership;
-    double global_modularity = gb_result.modularity;
+    std::vector<K> comm_ids_k;
+    double global_modularity = 0.0;
+    
+    if (AblationConfig::Get().no_leiden) {
+        // Ablation: skip Leiden, treat entire graph as one community
+        comm_ids_k.assign(num_nodes, K(0));
+        global_modularity = 0.0;
+        if (verbose) printf("ABLATION: Leiden skipped, single community\n");
+    } else {
+        graphbrew::GraphBrewConfig gb_config;
+        gb_config.resolution = resolution;
+        gb_config.maxIterations = max_iterations;
+        gb_config.maxPasses = max_passes;
+        gb_config.ordering = graphbrew::OrderingStrategy::COMMUNITY_SORT;
+        auto gb_result = graphbrew::runGraphBrew<K>(g, gb_config);
+        comm_ids_k = gb_result.membership;
+        global_modularity = gb_result.modularity;
+    }
+    
     t_leiden.Stop();
     
     // Convert to size_t
