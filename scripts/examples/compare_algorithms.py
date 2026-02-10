@@ -235,8 +235,8 @@ Algorithm IDs:
     parser.add_argument('--graphs', '-g', nargs='+',
                         help='Specific graph names to test')
     parser.add_argument('--algorithms', '-a', type=int, nargs='+',
-                        default=[0, 1, 8, 15, 17],
-                        help='Algorithm IDs (default: 0,1,8,15,17)')
+                        default=[0, 1, 8, 12, 15],
+                        help='Algorithm IDs (default: 0,1,8,12,15)')
     parser.add_argument('--benchmarks', '-b', nargs='+',
                         default=['pr', 'bfs'],
                         help='Benchmarks (default: pr, bfs)')

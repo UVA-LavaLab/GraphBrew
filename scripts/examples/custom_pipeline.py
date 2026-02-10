@@ -333,7 +333,7 @@ Examples:
         progress.info("Quick mode: Testing ORIGINAL, RANDOM, RABBITORDER, LeidenOrder")
     else:
         # Full mode: comprehensive algorithm set
-        algorithms = [0, 1, 2, 4, 7, 8, 9, 12, 15, 17]
+        algorithms = [0, 1, 2, 4, 7, 8, 9, 12, 15]
         progress.info(f"Testing {len(algorithms)} algorithms")
     
     # ─────────────────────────────────────────────────────────────────────────
