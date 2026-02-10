@@ -404,7 +404,7 @@ Edit `scripts/lib/utils.py`:
 ```python
 ALGORITHMS = {
     # ... existing ...
-    17: "LocalitySensitiveOrder",
+    16: "LocalitySensitiveOrder",
 }
 ```
 
@@ -452,10 +452,10 @@ make clean && make all
 
 ```bash
 # Test on small graph
-./bench/bin/pr -f scripts/test/graphs/tiny/tiny.el -s -o 18 -n 3
+./bench/bin/pr -f scripts/test/graphs/tiny/tiny.el -s -o 16 -n 3
 
 # Verify ordering is valid
-./bench/bin/pr -f scripts/test/graphs/tiny/tiny.el -s -o 18 -n 1 2>&1 | grep -i error
+./bench/bin/pr -f scripts/test/graphs/tiny/tiny.el -s -o 16 -n 1 2>&1 | grep -i error
 ```
 
 ### Performance Test
@@ -463,14 +463,14 @@ make clean && make all
 ```bash
 # Compare with baseline
 ./bench/bin/pr -f large_graph.el -s -o 0 -n 5   # Baseline
-./bench/bin/pr -f large_graph.el -s -o 18 -n 5  # Your algorithm
+./bench/bin/pr -f large_graph.el -s -o 16 -n 5  # Your algorithm
 ```
 
 ### Memory Test
 
 ```bash
 # Check for leaks
-valgrind ./bench/bin/pr -f scripts/test/graphs/tiny/tiny.el -s -o 18 -n 1
+valgrind ./bench/bin/pr -f scripts/test/graphs/tiny/tiny.el -s -o 16 -n 1
 ```
 
 ---

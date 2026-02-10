@@ -363,7 +363,7 @@ python3 graphbrew_experiment.py --fill-weights --graphs all
 ```
 
 For each graph:
-1. Run all 17 algorithms
+1. Run all 16 algorithms
 2. Record speedups vs baseline
 3. Update weights based on which algorithms work best
 
@@ -891,7 +891,7 @@ Optional cache simulation data helps tune weights for specific memory hierarchie
 - ML-based perceptron with 12 graph features
 - Online learning with incremental weight updates
 - Type-based weight specialization
-- 17 reordering algorithms supported
+- 16 reordering algorithms supported
 - 5 graph benchmarks (PR, BFS, CC, SSSP, BC)
 - Cache simulation support
 

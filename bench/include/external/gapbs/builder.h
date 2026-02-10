@@ -25,7 +25,7 @@
  * - Classic (9-11): GOrder, COrder, RCMOrder
  * - GraphBrew (12): Multi-level community-based reordering
  * - Adaptive (14): ML-based per-community algorithm selection
- * - Leiden (15-17): Community detection variants
+ * - Leiden (15): GVE-Leiden baseline (community detection reference)
  * 
  * Author: Scott Beamer (original), GraphBrew Team (extensions)
  */

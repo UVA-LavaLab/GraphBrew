@@ -52,4 +52,4 @@ bench/include/
 - CLI `-j type:n:m`
   - `0` = Cagra/GraphIT (`MakeCagraPartitionedGraph`, honors `-z`) 
   - `1` = TRUST (`TrustPartitioner::MakeTrustPartitionedGraph`)
-- CLI `-o` reordering IDs (0–17) — see `wiki/Command-Line-Reference.md`
+- CLI `-o` reordering IDs (0–15) — see `wiki/Command-Line-Reference.md`

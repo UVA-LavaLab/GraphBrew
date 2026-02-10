@@ -355,7 +355,11 @@ def plot_graphbrew_pipeline(filename='graphbrew_pipeline.svg'):
 
 
 def plot_leidencsr_pipeline(filename='leidencsr_pipeline.svg'):
-    """Create LeidenCSR pipeline diagram."""
+    """DEPRECATED: Create LeidenCSR pipeline diagram.
+    
+    LeidenCSR (16) has been deprecated — its functionality is merged
+    into GraphBrewOrder (12). Kept for historical reference only.
+    """
     fig, ax = plt.subplots(figsize=(12, 3.5))
     ax.set_xlim(0, 12)
     ax.set_ylim(0, 3.5)

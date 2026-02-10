@@ -758,7 +758,7 @@ class AdaptiveOrderEmulator:
             scores['HUBCLUSTERDBG'] = 0.93
             scores['SORT'] = 0.9
             scores['DBG'] = 0.85
-            scores['LeidenCSR'] = 0.8
+            scores['GraphBrewOrder'] = 0.8
         
         # Rule 2: High clustering (>0.5) - strong community structure
         # Community-detection and hub-based algorithms work well
@@ -766,13 +766,13 @@ class AdaptiveOrderEmulator:
             scores['DBG'] = 1.0
             scores['HUBSORT'] = 0.95
             scores['LeidenOrder'] = 0.9
-            scores['LeidenCSR'] = 0.85
+            scores['GraphBrewOrder'] = 0.85
             scores['RABBITORDER'] = 0.8
         
         # Rule 3: Medium clustering (0.1-0.5) - moderate community structure
         # Leiden algorithms typically perform well
         elif cluster > 0.1:
-            scores['LeidenCSR'] = 1.0
+            scores['GraphBrewOrder'] = 1.0
             scores['DBG'] = 0.9
             scores['SORT'] = 0.85
             scores['RABBITORDER'] = 0.8
@@ -849,18 +849,18 @@ class AdaptiveOrderEmulator:
                 'dense_clustered_bc': ['RABBITORDER', 'LeidenOrder', 'GORDER'],
                 'dense_clustered_bfs': ['LeidenOrder', 'GORDER', 'RABBITORDER'],
                 'dense_clustered_cc': ['SORT', 'GORDER'],
-                'dense_clustered_pr': ['DBG', 'LeidenCSR', 'GraphBrewOrder'],
+                'dense_clustered_pr': ['DBG', 'GraphBrewOrder', 'LeidenOrder'],
                 'dense_clustered_sssp': ['RABBITORDER', 'GORDER', 'LeidenOrder'],
                 # Dense flat graphs
-                'dense_flat_bc': ['RCM', 'LeidenCSR', 'GraphBrewOrder'],
+                'dense_flat_bc': ['RCM', 'GraphBrewOrder', 'LeidenOrder'],
                 'dense_flat_bfs': ['RCM', 'RABBITORDER', 'HUBCLUSTER'],
-                'dense_flat_cc': ['SORT', 'LeidenCSR', 'GORDER'],
-                'dense_flat_pr': ['RANDOM', 'GraphBrewOrder', 'LeidenCSR'],
-                'dense_flat_sssp': ['GORDER', 'RCM', 'LeidenCSR'],
+                'dense_flat_cc': ['SORT', 'GraphBrewOrder', 'GORDER'],
+                'dense_flat_pr': ['RANDOM', 'GraphBrewOrder', 'LeidenOrder'],
+                'dense_flat_sssp': ['GORDER', 'RCM', 'GraphBrewOrder'],
                 # Sparse hub graphs
                 'sparse_hub_bc': ['RABBITORDER', 'LeidenOrder', 'CORDER'],
                 'sparse_hub_bfs': ['HUBCLUSTER', 'GraphBrewOrder', 'HUBCLUSTERDBG'],
-                'sparse_hub_cc': ['LeidenCSR', 'HUBCLUSTER', 'GORDER'],
+                'sparse_hub_cc': ['GraphBrewOrder', 'HUBCLUSTER', 'GORDER'],
                 'sparse_hub_pr': ['RANDOM', 'DBG', 'RABBITORDER'],
                 'sparse_hub_sssp': ['RABBITORDER', 'LeidenOrder', 'RCM'],
                 # Sparse uniform graphs (fallback)

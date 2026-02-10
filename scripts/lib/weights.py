@@ -1639,7 +1639,7 @@ def get_all_algorithm_variant_names() -> List[str]:
     Returns names for:
     - Base algorithms (ORIGINAL, RANDOM, SORT, HUBSORT, etc.)
     - RabbitOrder variants: RABBITORDER_csr, RABBITORDER_boost
-    - GraphBrewOrder variants: GraphBrewOrder_leiden, GraphBrewOrder_gve, etc.
+    - GraphBrewOrder variants: GraphBrewOrder_leiden, GraphBrewOrder_rabbit, etc.
     """
     names = []
     

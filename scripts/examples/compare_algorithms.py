@@ -15,7 +15,7 @@ and generates a detailed comparison report.
     python scripts/examples/compare_algorithms.py --graphs email-Enron web-Stanford
     
     # With specific algorithms
-    python scripts/examples/compare_algorithms.py --algorithms 0 1 8 15 17
+    python scripts/examples/compare_algorithms.py --algorithms 0 1 8 12 15
 
 **Output:**
 
@@ -26,24 +26,22 @@ and generates a detailed comparison report.
 
 **Algorithm IDs:**
 
-    0  = original (baseline)
-    1  = random
-    2  = sort
-    3  = sort-degree
-    4  = HubSort
-    5  = HubCluster
-    6  = DBG
-    7  = corder
-    8  = gorder
-    9  = rorder
-    10 = sorder
-    11 = morder
-    12 = bcorder
-    13 = rabbit
-    14 = minla
-    15 = rcm
-    16 = lorder
-    17 = GraphBrewOrder
+    0  = ORIGINAL (baseline)
+    1  = RANDOM
+    2  = SORT
+    3  = HUBSORT
+    4  = HUBCLUSTER
+    5  = DBG
+    6  = HUBSORTDBG
+    7  = HUBCLUSTERDBG
+    8  = RABBITORDER
+    9  = GORDER
+    10 = CORDER
+    11 = RCM
+    12 = GraphBrewOrder
+    13 = MAP
+    14 = AdaptiveOrder
+    15 = LeidenOrder
 """
 
 import argparse
@@ -224,10 +222,10 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Algorithm IDs:
-  0=original  1=random  2=sort  3=sort-degree  4=HubSort
-  5=HubCluster  6=DBG  7=corder  8=gorder  9=rorder
-  10=sorder  11=morder  12=bcorder  13=rabbit  14=minla
-  15=rcm  16=lorder  17=GraphBrewOrder
+  0=ORIGINAL  1=RANDOM  2=SORT  3=HUBSORT  4=HUBCLUSTER
+  5=DBG  6=HUBSORTDBG  7=HUBCLUSTERDBG  8=RABBITORDER  9=GORDER
+  10=CORDER  11=RCM  12=GraphBrewOrder  13=MAP  14=AdaptiveOrder
+  15=LeidenOrder
         """
     )
     parser.add_argument('--graphs-dir', '-d', default='results/graphs',
