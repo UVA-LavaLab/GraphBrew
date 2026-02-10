@@ -484,15 +484,10 @@ void GenerateMappingLocalEdgelistStandalone(
 // ============================================================================
 // INCLUDE ADAPTIVE HEADER
 // ============================================================================
-// Included last because it depends on functions defined above
+// Included last because they depend on functions defined above
 // (GenerateMappingLocalEdgelistStandalone, ReorderCommunitySubgraphStandalone)
-//
-// NOTE: reorder_graphbrew.h has been deprecated and removed.
-// GraphBrewOrder (ID 12) is now fully powered by the GraphBrew pipeline in builder.h
-// via ParseGraphBrewConfig() and GenerateGraphBrewMappingUnified().
-// All configuration types (GraphBrewCluster, GraphBrewConfig) have been superseded
-// by graphbrew::GraphBrewConfig and graphbrew::parseGraphBrewConfig() in reorder_graphbrew.h.
 
+#include "reorder_graphbrew.h" // GRAPHBREWORDER (12) - GraphBrew unified reordering framework
 #include "reorder_adaptive.h"  // ADAPTIVEORDER (14) config (implementations in builder.h)
 
 #endif  // REORDER_H_

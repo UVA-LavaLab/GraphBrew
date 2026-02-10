@@ -63,7 +63,7 @@ After benchmarking, derive end-to-end metrics from existing result files:
 
 ```bash
 python3 scripts/analyze_metrics.py --results-dir results/
-python3 scripts/analyze_metrics.py --compare RABBITORDER_csr LeidenCSR_graphbrew:hrab
+python3 scripts/analyze_metrics.py --compare RABBITORDER_csr GraphBrewOrder_graphbrew:hrab
 ```
 
 See [[Python-Scripts#analyze_metrics.py]] for full details on amortization iterations, E2E speedup, and head-to-head comparisons.

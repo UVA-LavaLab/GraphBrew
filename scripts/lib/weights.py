@@ -1641,7 +1641,7 @@ def get_all_algorithm_variant_names() -> List[str]:
     - Base algorithms (ORIGINAL, RANDOM, SORT, HUBSORT, etc.)
     - RabbitOrder variants: RABBITORDER_csr, RABBITORDER_boost
     - GraphBrewOrder variants: GraphBrewOrder_leiden, GraphBrewOrder_gve, etc.
-    - LeidenCSR variants: LeidenCSR_graphbrew, LeidenCSR_graphbrew:hrab, LeidenCSR_graphbrew:rabbit, etc.
+    - LeidenCSR variants: GraphBrewOrder_graphbrew, GraphBrewOrder_graphbrew:hrab, GraphBrewOrder_graphbrew:rabbit, etc.
     """
     names = []
     
@@ -1658,7 +1658,7 @@ def get_all_algorithm_variant_names() -> List[str]:
         elif algo_id == 12:  # GraphBrewOrder → expand to GraphBrewOrder_leiden, etc.
             for variant in GRAPHBREW_VARIANTS:
                 names.append(f"GraphBrewOrder_{variant}")
-        elif algo_id == 16:  # LeidenCSR → expand to LeidenCSR_graphbrew, etc.
+        elif algo_id == 16:  # LeidenCSR → expand to GraphBrewOrder_graphbrew, etc.
             for variant in LEIDEN_CSR_VARIANTS:
                 names.append(f"LeidenCSR_{variant}")
         else:
@@ -1671,8 +1671,8 @@ def initialize_default_weights(weights_dir: str = DEFAULT_WEIGHTS_DIR) -> Dict:
     """Initialize default weights for all algorithms including all variants.
     
     Creates entries for every variant of every algorithm so training can
-    capture performance differences between variants (e.g., LeidenCSR_graphbrew
-    vs LeidenCSR_graphbrew:hrab vs LeidenCSR_graphbrew:rabbit).
+    capture performance differences between variants (e.g., GraphBrewOrder_graphbrew
+    vs GraphBrewOrder_graphbrew:hrab vs GraphBrewOrder_graphbrew:rabbit).
     """
     weights = {}
     

@@ -39,7 +39,7 @@ enum ReorderingAlgo
     AdaptiveOrder = 14,     // ML-based perceptron selector
     // Leiden algorithms (15-16) - grouped together for easier sweeping
     LeidenOrder = 15,       // -o 15:resolution (GVE-Leiden baseline)
-    LeidenCSR = 16,         // -o 16:variant:resolution:iters:passes (graphbrew=default)
+    LeidenCSR = 16,         // -o 16:variant:resolution:iters:passes (gveopt2=default)
 };
 
 static const int64_t kRandSeed = 27491095;

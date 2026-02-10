@@ -1258,25 +1258,36 @@ inline const std::map<std::string, ReorderingAlgo>& getAlgorithmNameMap() {
         {"LEIDENORDER", LeidenOrder},
         {"LeidenCSR", LeidenCSR},
         {"LEIDENCSR", LeidenCSR},
-        // LeidenCSR GraphBrew variants (active)
-        {"LeidenCSR_graphbrew", LeidenCSR},
-        {"LeidenCSR_graphbrew:dfs", LeidenCSR},
-        {"LeidenCSR_graphbrew:bfs", LeidenCSR},
-        {"LeidenCSR_graphbrew:dbg", LeidenCSR},
-        {"LeidenCSR_graphbrew:corder", LeidenCSR},
-        {"LeidenCSR_graphbrew:dbg-global", LeidenCSR},
-        {"LeidenCSR_graphbrew:corder-global", LeidenCSR},
-        {"LeidenCSR_graphbrew:streaming", LeidenCSR},
-        {"LeidenCSR_graphbrew:streaming:dfs", LeidenCSR},
-        {"LeidenCSR_graphbrew:lazyupdate", LeidenCSR},
-        {"LeidenCSR_graphbrew:conn", LeidenCSR},
-        {"LeidenCSR_graphbrew:hrab", LeidenCSR},
-        {"LeidenCSR_graphbrew:hrab:gordi", LeidenCSR},
-        {"LeidenCSR_graphbrew:rabbit", LeidenCSR},
-        {"LeidenCSR_graphbrew:rabbit:dfs", LeidenCSR},
-        {"LeidenCSR_graphbrew:rabbit:bfs", LeidenCSR},
-        {"LeidenCSR_graphbrew:rabbit:dbg", LeidenCSR},
-        {"LeidenCSR_graphbrew:rabbit:corder", LeidenCSR},
+        // LeidenCSR pure Leiden variants
+        {"LeidenCSR_gve", LeidenCSR},
+        {"LeidenCSR_gveopt", LeidenCSR},
+        {"LeidenCSR_gveopt2", LeidenCSR},
+        {"LeidenCSR_fast", LeidenCSR},
+        {"LeidenCSR_modularity", LeidenCSR},
+        // GraphBrew variants — these are GraphBrewOrder (algo 12), not LeidenCSR
+        {"GraphBrewOrder_graphbrew", GraphBrewOrder},
+        {"GraphBrewOrder_graphbrew:dfs", GraphBrewOrder},
+        {"GraphBrewOrder_graphbrew:bfs", GraphBrewOrder},
+        {"GraphBrewOrder_graphbrew:dbg", GraphBrewOrder},
+        {"GraphBrewOrder_graphbrew:corder", GraphBrewOrder},
+        {"GraphBrewOrder_graphbrew:dbg-global", GraphBrewOrder},
+        {"GraphBrewOrder_graphbrew:corder-global", GraphBrewOrder},
+        {"GraphBrewOrder_graphbrew:streaming", GraphBrewOrder},
+        {"GraphBrewOrder_graphbrew:streaming:dfs", GraphBrewOrder},
+        {"GraphBrewOrder_graphbrew:lazyupdate", GraphBrewOrder},
+        {"GraphBrewOrder_graphbrew:conn", GraphBrewOrder},
+        {"GraphBrewOrder_graphbrew:hrab", GraphBrewOrder},
+        {"GraphBrewOrder_graphbrew:hrab:gordi", GraphBrewOrder},
+        {"GraphBrewOrder_graphbrew:rabbit", GraphBrewOrder},
+        {"GraphBrewOrder_graphbrew:rabbit:dfs", GraphBrewOrder},
+        {"GraphBrewOrder_graphbrew:rabbit:bfs", GraphBrewOrder},
+        {"GraphBrewOrder_graphbrew:rabbit:dbg", GraphBrewOrder},
+        {"GraphBrewOrder_graphbrew:rabbit:corder", GraphBrewOrder},
+        // Legacy backward compat: LeidenCSR_graphbrew → GraphBrewOrder
+        {"LeidenCSR_graphbrew", GraphBrewOrder},
+        {"LeidenCSR_graphbrew:hrab", GraphBrewOrder},
+        {"LeidenCSR_graphbrew:rabbit", GraphBrewOrder},
+        {"LeidenCSR_graphbrew:dfs", GraphBrewOrder},
     };
     return name_to_algo;
 }
@@ -2912,7 +2923,7 @@ inline bool ParseWeightsFromJSON(const std::string& json_content,
         }
         
         // When multiple variant names map to the same base algorithm (e.g.,
-        // LeidenCSR_graphbrew, LeidenCSR_graphbrew:hrab both map to LeidenCSR), keep the
+        // GraphBrewOrder_graphbrew, GraphBrewOrder_graphbrew:hrab both map to GraphBrewOrder), keep the
         // variant with the highest bias (the one training found most successful).
         // This ensures the perceptron uses the best-performing variant's weights.
         auto it = weights.find(kv.second);

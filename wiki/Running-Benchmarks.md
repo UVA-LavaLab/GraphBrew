@@ -165,7 +165,7 @@ python3 scripts/analyze_metrics.py --results-dir results/
 
 # Compare two algorithms head-to-head
 python3 scripts/analyze_metrics.py --results-dir results/ \
-  --compare RABBITORDER_csr LeidenCSR_graphbrew:hrab
+  --compare RABBITORDER_csr GraphBrewOrder_graphbrew:hrab
 ```
 
 The report shows for each (graph, algorithm, benchmark):

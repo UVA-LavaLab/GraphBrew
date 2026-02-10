@@ -2,9 +2,8 @@
  * @file reorder_leiden.h
  * @brief Leiden-based community detection and graph reordering - API Reference
  *
- * This header provides core GVE-Leiden algorithms and the GraphBrew entry point
- * for Leiden-based reordering. Dispatch wrappers live in builder.h due to
- * tight integration with the graph building template system.
+ * This header provides core GVE-Leiden algorithms for LeidenCSR (ID 16).
+ * GraphBrew (ID 12) is separate — see reorder_graphbrew.h.
  *
  * ============================================================================
  * ALGORITHM OVERVIEW
@@ -18,14 +17,17 @@
  *   Requires CSR→DiGraph conversion. Kept as baseline to measure LeidenCSR
  *   improvement.
  *
- * LEIDENCSR (ID 16) - Fast GVE-Leiden on native CSR / GraphBrew
+ * LEIDENCSR (ID 16) - Fast GVE-Leiden on native CSR
  *   Format: -o 16:variant:resolution:iterations:passes
- *   Recommended variant: graphbrew (quality | speed | balanced)
- *   Example: ./bench/bin/pr -f graph.el -o 16:graphbrew:quality
+ *   Default variant: gveopt2 (fastest + best quality)
+ *   Example: ./bench/bin/pr -f graph.el -o 16:gveopt2:1.0:20:10
  *
  *   Native CSR implementation — no format conversion overhead.
- *   The default (and recommended) variant is "graphbrew", which uses the modular
- *   GraphBrew pipeline with configurable quality presets.
+ *   Variants: gve, gveopt, gveopt2 (default), dfs, bfs, hubsort,
+ *             fast, modularity, faithful
+ *
+ * NOTE: For GraphBrew reordering, use algorithm 12 (GraphBrewOrder):
+ *   ./bench/bin/pr -f graph.el -o 12:graphbrew:quality -n 5
  *
  * ============================================================================
  * IMPLEMENTATION DETAILS
@@ -35,22 +37,22 @@
  * ---------------------------
  * GVELeidenCSR<K>()       - Standard GVE-Leiden algorithm
  * GVELeidenOptCSR<K>()    - Cache-optimized variant
- * GenerateGraphBrewMapping()   - GraphBrew entry point (reorder_graphbrew.h)
+ * GVELeidenAdaptiveCSR<K>() - Leiden with dynamic resolution
  *
  * Wrapper Functions in builder.h:
  * --------------------------------
  * GenerateLeidenMapping()            - Entry for LeidenOrder (15)
  * GenerateLeidenCSRMappingUnified()  - Entry for LeidenCSR (16)
  *
- * Result Structures in builder.h:
- * -------------------------------
+ * Result Structures:
+ * ------------------
  * GVELeidenResult<K>       - Community assignments + modularity
  *
  * ============================================================================
  * ALGORITHM PARAMETERS
  * ============================================================================
  *
- * resolution (default: 0.75)
+ * resolution (default: auto, based on graph density)
  *   Controls community granularity. Range: 0.0 - 2.0
  *   Lower = fewer, larger communities
  *   Higher = more, smaller communities
@@ -74,14 +76,14 @@
  * Basic Leiden (GVE-Leiden baseline):
  *   ./bench/bin/pr -f graph.el -o 15 -n 5
  *
- * GraphBrew quality preset:
- *   ./bench/bin/pr -f graph.el -o 16:graphbrew:quality -n 5
+ * LeidenCSR default (gveopt2):
+ *   ./bench/bin/pr -f graph.el -o 16 -n 5
  *
- * GraphBrew speed preset:
- *   ./bench/bin/pr -f graph.el -o 16:graphbrew:speed -n 5
+ * LeidenCSR with fixed resolution:
+ *   ./bench/bin/pr -f graph.el -o 16:gveopt2:1.0:20:10 -n 5
  *
- * GraphBrew balanced preset:
- *   ./bench/bin/pr -f graph.el -o 16:graphbrew:balanced -n 5
+ * LeidenCSR fast variant:
+ *   ./bench/bin/pr -f graph.el -o 16:fast -n 5
  */
 
 #ifndef REORDER_LEIDEN_H_
@@ -90,7 +92,8 @@
 #include <string>
 #include <cstdint>
 #include "reorder_types.h"
-#include "reorder_graphbrew.h"  // GraphBrew: Modular Leiden implementation
+// NOTE: GraphBrew (reorder_graphbrew.h) is included separately by builder.h.
+// LeidenCSR (this file) is independent of GraphBrew.
 
 namespace graphbrew {
 namespace leiden {
@@ -114,14 +117,10 @@ enum class LeidenCSRVariant {
     Fast,       ///< Speed-optimized (fewer iterations)
     Modularity, ///< Quality-optimized (more iterations)
     Faithful,   ///< Faithful 1:1 leiden.hxx implementation
-    GraphBrew,       ///< GraphBrew: Fully modular implementation (NEW)
-    GraphBrewDFS,    ///< GraphBrew with DFS dendrogram ordering
-    GraphBrewBFS,    ///< GraphBrew with BFS dendrogram ordering
-    GraphBrewRabbit  ///< GraphBrew with RabbitOrder-style lazy aggregation
 };
 
 /**
- * @brief Variant selection for dendrogram traversal (used internally by GraphBrew)
+ * @brief Variant selection for dendrogram traversal
  */
 enum class DendrogramTraversal {
     DFS,        ///< Depth-first traversal
@@ -147,10 +146,6 @@ inline LeidenCSRVariant ParseLeidenCSRVariant(const std::string& s) {
     if (s == "fast") return LeidenCSRVariant::Fast;
     if (s == "modularity") return LeidenCSRVariant::Modularity;
     if (s == "faithful") return LeidenCSRVariant::Faithful;
-    if (s == "graphbrew" || s == "vibe") return LeidenCSRVariant::GraphBrew;
-    if (s == "graphbrew:dfs" || s == "vibe:dfs" || s == "vibedfs") return LeidenCSRVariant::GraphBrewDFS;
-    if (s == "graphbrew:bfs" || s == "vibe:bfs" || s == "vibebfs") return LeidenCSRVariant::GraphBrewBFS;
-    if (s == "graphbrew:rabbit" || s == "vibe:rabbit" || s == "viberabbit") return LeidenCSRVariant::GraphBrewRabbit;
     return LeidenCSRVariant::GVEOpt2;  // Unknown variant defaults to gveopt2
 }
 
@@ -176,10 +171,6 @@ inline std::string LeidenCSRVariantToString(LeidenCSRVariant v) {
         case LeidenCSRVariant::Fast: return "fast";
         case LeidenCSRVariant::Modularity: return "modularity";
         case LeidenCSRVariant::Faithful: return "faithful";
-        case LeidenCSRVariant::GraphBrew: return "graphbrew";
-        case LeidenCSRVariant::GraphBrewDFS: return "graphbrew:dfs";
-        case LeidenCSRVariant::GraphBrewBFS: return "graphbrew:bfs";
-        case LeidenCSRVariant::GraphBrewRabbit: return "graphbrew:rabbit";
         default: return "unknown";
     }
 }
@@ -5547,48 +5538,6 @@ std::vector<std::vector<K>> FastLeidenCSR(
     }
     
     return community_per_pass;
-}
-
-
-/**
- * GenerateGraphBrewMapping - GraphBrew: Fully modular Leiden implementation
- * 
- * Configurable ordering and aggregation strategies:
- * - Ordering: hierarchical, dfs, bfs, community, hubcluster
- * - Aggregation: leiden (CSR), rabbit (lazy), hybrid
- * 
- * Usage: -o 16:graphbrew[:ordering][:aggregation][:resolution]
- */
-template <typename K = uint32_t, typename NodeID_T, typename DestID_T>
-void GenerateGraphBrewMapping(
-    const CSRGraph<NodeID_T, DestID_T, true>& g,
-    pvector<NodeID_T>& new_ids,
-    const std::vector<std::string>& reordering_options,
-    graphbrew::OrderingStrategy defaultOrdering = graphbrew::OrderingStrategy::HIERARCHICAL,
-    graphbrew::AggregationStrategy defaultAggregation = graphbrew::AggregationStrategy::LEIDEN_CSR) {
-    
-    // Parse config from options - this handles resolution, ordering, aggregation
-    graphbrew::GraphBrewConfig config = graphbrew::parseGraphBrewConfig(reordering_options);
-    
-    // Apply defaults if not set by parsing
-    if (config.ordering == graphbrew::OrderingStrategy::HIERARCHICAL && 
-        defaultOrdering != graphbrew::OrderingStrategy::HIERARCHICAL) {
-        config.ordering = defaultOrdering;
-    }
-    if (config.aggregation == graphbrew::AggregationStrategy::LEIDEN_CSR &&
-        defaultAggregation != graphbrew::AggregationStrategy::LEIDEN_CSR) {
-        config.aggregation = defaultAggregation;
-    }
-    
-    // Apply auto-resolution for initial value (both auto and dynamic modes start from graph-adaptive)
-    // For dynamic mode: this is the initial value that will be adjusted per-pass
-    // For auto mode: this is the fixed value used throughout
-    if (config.resolution == reorder::DEFAULT_RESOLUTION) {
-        config.resolution = LeidenAutoResolution<NodeID_T, DestID_T>(g);
-    }
-    
-    new_ids.resize(g.num_nodes());
-    graphbrew::generateGraphBrewMapping<K>(g, new_ids, config);
 }
 
 #endif // REORDER_LEIDEN_H_
