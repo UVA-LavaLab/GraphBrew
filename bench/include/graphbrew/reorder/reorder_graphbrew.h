@@ -102,26 +102,26 @@
  * COMMAND LINE USAGE
  * =============================================================================
  * 
- * Format: -o 16:[algorithm]:[ordering]:[aggregation]:[resolution]
+ * Format: -o 12:[algorithm]:[ordering]:[aggregation]:[resolution]
  * 
  * Leiden-based GraphBrew:
  *   ./bench/bin/pr -f graph.mtx -o 12:graphbrew -n 5           # Default (hierarchical, auto resolution)
- *   ./bench/bin/pr -f graph.mtx -o 16:graphbrew:dfs -n 5       # DFS ordering
- *   ./bench/bin/pr -f graph.mtx -o 16:graphbrew:dbg -n 5       # DBG per community
- *   ./bench/bin/pr -f graph.mtx -o 16:graphbrew:streaming -n 5 # Lazy aggregation
- *   ./bench/bin/pr -f graph.mtx -o 16:graphbrew:lazyupdate -n 5 # Batched ctot updates (reduces atomics)
- *   ./bench/bin/pr -f graph.mtx -o 16:graphbrew:conn -n 5       # Connectivity BFS (default ordering)
- *   ./bench/bin/pr -f graph.mtx -o 16:graphbrew:hrab -n 5       # Hybrid Leiden+RabbitOrder (best locality)
- *   ./bench/bin/pr -f graph.mtx -o 16:graphbrew:tqr -n 5        # Tile-Quantized RabbitOrder (cache-aligned)
- *   ./bench/bin/pr -f graph.mtx -o 16:graphbrew:auto -n 5      # Auto-computed resolution (fixed)
- *   ./bench/bin/pr -f graph.mtx -o 16:graphbrew:dynamic -n 5   # Dynamic resolution (per-pass adjustment)
+ *   ./bench/bin/pr -f graph.mtx -o 12:graphbrew:dfs -n 5       # DFS ordering
+ *   ./bench/bin/pr -f graph.mtx -o 12:graphbrew:dbg -n 5       # DBG per community
+ *   ./bench/bin/pr -f graph.mtx -o 12:graphbrew:streaming -n 5 # Lazy aggregation
+ *   ./bench/bin/pr -f graph.mtx -o 12:graphbrew:lazyupdate -n 5 # Batched ctot updates (reduces atomics)
+ *   ./bench/bin/pr -f graph.mtx -o 12:graphbrew:conn -n 5       # Connectivity BFS (default ordering)
+ *   ./bench/bin/pr -f graph.mtx -o 12:graphbrew:hrab -n 5       # Hybrid Leiden+RabbitOrder (best locality)
+ *   ./bench/bin/pr -f graph.mtx -o 12:graphbrew:tqr -n 5        # Tile-Quantized RabbitOrder (cache-aligned)
+ *   ./bench/bin/pr -f graph.mtx -o 12:graphbrew:auto -n 5      # Auto-computed resolution (fixed)
+ *   ./bench/bin/pr -f graph.mtx -o 12:graphbrew:dynamic -n 5   # Dynamic resolution (per-pass adjustment)
  *   ./bench/bin/pr -f graph.mtx -o 12:graphbrew:0.75 -n 5      # Fixed resolution (0.75)
- *   ./bench/bin/pr -f graph.mtx -o 16:graphbrew:dfs:streaming:0.75 -n 5  # Combined
+ *   ./bench/bin/pr -f graph.mtx -o 12:graphbrew:dfs:streaming:0.75 -n 5  # Combined
  * 
  * RabbitOrder:
- *   ./bench/bin/pr -f graph.mtx -o 16:graphbrew:rabbit -n 5    # RabbitOrder algorithm
- *   ./bench/bin/pr -f graph.mtx -o 16:graphbrew:rabbit:dfs -n 5  # + DFS post-ordering
- *   ./bench/bin/pr -f graph.mtx -o 16:graphbrew:rabbit:dbg -n 5  # + DBG post-ordering
+ *   ./bench/bin/pr -f graph.mtx -o 12:graphbrew:rabbit -n 5    # RabbitOrder algorithm
+ *   ./bench/bin/pr -f graph.mtx -o 12:graphbrew:rabbit:dfs -n 5  # + DFS post-ordering
+ *   ./bench/bin/pr -f graph.mtx -o 12:graphbrew:rabbit:dbg -n 5  # + DBG post-ordering
  *   # Note: RabbitOrder does not support dynamic resolution (falls back to auto)
  * 
  * =============================================================================

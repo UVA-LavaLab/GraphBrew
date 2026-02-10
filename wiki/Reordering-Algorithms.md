@@ -347,14 +347,14 @@ Implements the full Leiden algorithm from: *"Fast Leiden Algorithm for Community
 ```bash
 # Format: -o 16[:variant:resolution:iterations:passes]
 ./bench/bin/pr -f graph.el -s -o 16 -n 3                         # Default: graphbrew (best overall)
-./bench/bin/pr -f graph.el -s -o 16:graphbrew -n 3                    # GraphBrew default
-./bench/bin/pr -f graph.el -s -o 16:graphbrew:quality -n 3            # High-quality community ordering
-./bench/bin/pr -f graph.el -s -o 16:graphbrew:rabbit -n 3             # GraphBrew ++ RabbitOrder within communities
-./bench/bin/pr -f graph.el -s -o 16:graphbrew:streaming -n 3          # Streaming/incremental (fastest)
-./bench/bin/pr -f graph.el -s -o 16:graphbrew:hrab -n 3               # Hybrid Leiden+Rabbit BFS ⭐
-./bench/bin/pr -f graph.el -s -o 16:graphbrew:hrab:gordi -n 3         # Hybrid Leiden+Rabbit Gorder
-./bench/bin/pr -f graph.el -s -o 16:graphbrew:dfs -n 3                # DFS traversal ordering
-./bench/bin/pr -f graph.el -s -o 16:graphbrew:bfs -n 3                # BFS traversal ordering
+./bench/bin/pr -f graph.el -s -o 12:graphbrew -n 3                    # GraphBrew default
+./bench/bin/pr -f graph.el -s -o 12:graphbrew:quality -n 3            # High-quality community ordering
+./bench/bin/pr -f graph.el -s -o 12:graphbrew:rabbit -n 3             # GraphBrew ++ RabbitOrder within communities
+./bench/bin/pr -f graph.el -s -o 12:graphbrew:streaming -n 3          # Streaming/incremental (fastest)
+./bench/bin/pr -f graph.el -s -o 12:graphbrew:hrab -n 3               # Hybrid Leiden+Rabbit BFS ⭐
+./bench/bin/pr -f graph.el -s -o 12:graphbrew:hrab:gordi -n 3         # Hybrid Leiden+Rabbit Gorder
+./bench/bin/pr -f graph.el -s -o 12:graphbrew:dfs -n 3                # DFS traversal ordering
+./bench/bin/pr -f graph.el -s -o 12:graphbrew:bfs -n 3                # BFS traversal ordering
 ```
 
 **Resolution Parameter Modes:**
@@ -366,9 +366,9 @@ Implements the full Leiden algorithm from: *"Fast Leiden Algorithm for Community
 
 ```bash
 # Resolution modes examples
-./bench/bin/pr -f graph.el -s -o 16:graphbrew:1.5 -n 3               # Fixed resolution
-./bench/bin/pr -f graph.el -s -o 16:graphbrew:auto -n 3              # Auto-computed resolution
-./bench/bin/pr -f graph.el -s -o 16:graphbrew:0 -n 3                 # Same as auto
+./bench/bin/pr -f graph.el -s -o 12:graphbrew:1.5 -n 3               # Fixed resolution
+./bench/bin/pr -f graph.el -s -o 12:graphbrew:auto -n 3              # Auto-computed resolution
+./bench/bin/pr -f graph.el -s -o 12:graphbrew:0 -n 3                 # Same as auto
 ```
 
 **Variants:**
@@ -397,13 +397,13 @@ See [[Command-Line-Reference#leidencsr-16]] for resolution mode syntax.
 **GraphBrew +(Vertex Indexing for Better Efficiency)** provides a unified interface for graph reordering with two main algorithms (`graphbrew` Leiden-based, `graphbrew:rabbit` RabbitOrder-based) and configurable ordering strategies.
 
 ```bash
-# Format: -o 16:graphbrew[:algorithm][:ordering][:aggregation][:resolution_mode]
-./bench/bin/pr -f graph.mtx -s -o 16:graphbrew -n 3         # Leiden-based (default)
-./bench/bin/pr -f graph.mtx -s -o 16:graphbrew:conn -n 3    # Connectivity BFS ordering (default strategy)
-./bench/bin/pr -f graph.mtx -s -o 16:graphbrew:hrab -n 3    # Hybrid Leiden+RabbitOrder (best locality)
-./bench/bin/pr -f graph.mtx -s -o 16:graphbrew:rabbit -n 3  # RabbitOrder-based (single-pass)
-./bench/bin/pr -f graph.mtx -s -o 16:graphbrew:dynamic -n 3 # Dynamic resolution (adjusted per-pass)
-./bench/bin/pr -f graph.mtx -s -o 16:graphbrew:0.75 -n 3    # Fixed resolution
+# Format: -o 12:graphbrew[:algorithm][:ordering][:aggregation][:resolution_mode]
+./bench/bin/pr -f graph.mtx -s -o 12:graphbrew -n 3         # Leiden-based (default)
+./bench/bin/pr -f graph.mtx -s -o 12:graphbrew:conn -n 3    # Connectivity BFS ordering (default strategy)
+./bench/bin/pr -f graph.mtx -s -o 12:graphbrew:hrab -n 3    # Hybrid Leiden+RabbitOrder (best locality)
+./bench/bin/pr -f graph.mtx -s -o 12:graphbrew:rabbit -n 3  # RabbitOrder-based (single-pass)
+./bench/bin/pr -f graph.mtx -s -o 12:graphbrew:dynamic -n 3 # Dynamic resolution (adjusted per-pass)
+./bench/bin/pr -f graph.mtx -s -o 12:graphbrew:0.75 -n 3    # Fixed resolution
 ```
 
 **Key ordering strategies:** `graphbrew` (hierarchical), `graphbrew:dfs`/`bfs` (dendrogram traversal), `graphbrew:dbg`/`corder` (within communities), `graphbrew:conn` (connectivity BFS, default), `graphbrew:hrab` (hybrid Leiden+RabbitOrder — best for web/geometric graphs).
@@ -418,30 +418,30 @@ See [[Command-Line-Reference#leidencsr-16]] for full option reference and [[Comm
 
 | Graph Type | Recommended | Alternatives |
 |------------|-------------|--------------|
-| Social Networks | LeidenCSR (16:graphbrew) | LeidenCSR (16:graphbrew:quality) |
-| Web Graphs | LeidenCSR (16:graphbrew:hrab) | LeidenCSR (16:graphbrew) |
-| Road Networks | ORIGINAL (0), RCM (11) | LeidenCSR (16:graphbrew:quality) |
-| Citation Networks | LeidenCSR (16:graphbrew) | LeidenOrder (15) |
-| Random Geometric | LeidenCSR (16:graphbrew:hrab) | LeidenCSR (16:graphbrew) |
-| Unknown | LeidenCSR (16:graphbrew:quality) | AdaptiveOrder (14) |
+| Social Networks | GraphBrewOrder (12:graphbrew) | GraphBrewOrder (12:graphbrew:quality) |
+| Web Graphs | GraphBrewOrder (12:graphbrew:hrab) | GraphBrewOrder (12:graphbrew) |
+| Road Networks | ORIGINAL (0), RCM (11) | GraphBrewOrder (12:graphbrew:quality) |
+| Citation Networks | GraphBrewOrder (12:graphbrew) | LeidenOrder (15) |
+| Random Geometric | GraphBrewOrder (12:graphbrew:hrab) | GraphBrewOrder (12:graphbrew) |
+| Unknown | GraphBrewOrder (12:graphbrew:quality) | AdaptiveOrder (14) |
 
 ### By Graph Size
 
 | Size | Nodes | Recommended |
 |------|-------|-------------|
 | Small | < 100K | Any (try several) |
-| Medium | 100K - 1M | LeidenCSR (16:graphbrew) |
-| Large | 1M - 100M | LeidenCSR (16:graphbrew), LeidenCSR (16:graphbrew:streaming) |
-| Very Large | > 100M | LeidenCSR (16:graphbrew:streaming), HUBCLUSTERDBG (7) |
+| Medium | 100K - 1M | GraphBrewOrder (12:graphbrew) |
+| Large | 1M - 100M | GraphBrewOrder (12:graphbrew), GraphBrewOrder (12:graphbrew:streaming) |
+| Very Large | > 100M | GraphBrewOrder (12:graphbrew:streaming), HUBCLUSTERDBG (7) |
 
 ### Quick Decision Tree
 
 ```
 Is your graph modular (has communities)?
 ├── Yes → Is it very large (>10M vertices)?
-│         ├── Yes → LeidenCSR (16:graphbrew:streaming) for speed
-│         │         LeidenCSR (16:graphbrew:hrab) for quality
-│         └── No → LeidenCSR (16:graphbrew) - best quality
+│         ├── Yes → GraphBrewOrder (12:graphbrew:streaming) for speed
+│         │         GraphBrewOrder (12:graphbrew:hrab) for quality
+│         └── No → GraphBrewOrder (12:graphbrew) - best quality
 └── No/Unknown → Is it a power-law graph?
               ├── Yes → HUBCLUSTERDBG (7)
               └── No → Try AdaptiveOrder (14)
@@ -462,7 +462,7 @@ Running PageRank on a social network (1M vertices, 10M edges):
 | HUBCLUSTERDBG (7) | 0.72s | 1.39x |
 | RabbitOrder (8) | 0.68s | 1.47x |
 | LeidenOrder (15) | 0.65s | 1.54x |
-| LeidenCSR (16:graphbrew) | 0.55s | 1.82x |
+| GraphBrewOrder (12:graphbrew) | 0.55s | 1.82x |
 
 ---
 

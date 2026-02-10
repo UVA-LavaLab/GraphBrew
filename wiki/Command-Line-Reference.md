@@ -178,10 +178,10 @@ Use with `-o <id>`:
 
 | Mode | Syntax | Example | Description |
 |------|--------|---------|-------------|
-| **Fixed** | `<value>` | `-o 16:graphbrew:1.5` | Use specified resolution |
-| **Auto** | `auto` or `0` | `-o 16:graphbrew:auto` | Compute from graph density |
-| **Dynamic** | `dynamic` | `-o 16:graphbrew:dynamic` | Auto initial, adjust per-pass |
-| **Dynamic+Init** | `dynamic_<val>` | `-o 16:graphbrew:dynamic_2.0` | Start at value, adjust per-pass |
+| **Fixed** | `<value>` | `-o 12:graphbrew:1.5` | Use specified resolution |
+| **Auto** | `auto` or `0` | `-o 12:graphbrew:auto` | Compute from graph density |
+| **Dynamic** | `dynamic` | `-o 12:graphbrew:dynamic` | Auto initial, adjust per-pass |
+| **Dynamic+Init** | `dynamic_<val>` | `-o 12:graphbrew:dynamic_2.0` | Start at value, adjust per-pass |
 
 ### GraphBrew +Variants (Algorithm 16)
 
@@ -191,28 +191,28 @@ GraphBrew +(Vertex Indexing for Better Efficiency) provides a unified reordering
 
 | Variant | Example | Description |
 |---------|---------|-------------|
-| `graphbrew` | `-o 16:graphbrew` | Hierarchical ordering (default) |
-| `graphbrew:dfs` | `-o 16:graphbrew:dfs` | DFS dendrogram traversal |
-| `graphbrew:bfs` | `-o 16:graphbrew:bfs` | BFS dendrogram traversal |
-| `graphbrew:dbg` | `-o 16:graphbrew:dbg` | DBG within each community |
-| `graphbrew:corder` | `-o 16:graphbrew:corder` | Hot/cold within communities |
-| `graphbrew:dbg-global` | `-o 16:graphbrew:dbg-global` | DBG across all vertices |
-| `graphbrew:corder-global` | `-o 16:graphbrew:corder-global` | Hot/cold across all vertices |
-| `graphbrew:streaming` | `-o 16:graphbrew:streaming` | Leiden + lazy aggregation |
-| `graphbrew:lazyupdate` | `-o 16:graphbrew:lazyupdate` | Batched community weight updates (reduces atomics) |
-| `graphbrew:conn` | `-o 16:graphbrew:conn` | Connectivity BFS within communities (Boost-style, default ordering) |
-| `graphbrew:hrab` | `-o 16:graphbrew:hrab` | Hybrid Leiden+RabbitOrder (best locality on web/geometric graphs) |
-| `graphbrew:auto` | `-o 16:graphbrew:auto` | Auto-computed resolution (computed once) |
-| `graphbrew:dynamic` | `-o 16:graphbrew:dynamic` | Dynamic resolution (adjusted per-pass) |
+| `graphbrew` | `-o 12:graphbrew` | Hierarchical ordering (default) |
+| `graphbrew:dfs` | `-o 12:graphbrew:dfs` | DFS dendrogram traversal |
+| `graphbrew:bfs` | `-o 12:graphbrew:bfs` | BFS dendrogram traversal |
+| `graphbrew:dbg` | `-o 12:graphbrew:dbg` | DBG within each community |
+| `graphbrew:corder` | `-o 12:graphbrew:corder` | Hot/cold within communities |
+| `graphbrew:dbg-global` | `-o 12:graphbrew:dbg-global` | DBG across all vertices |
+| `graphbrew:corder-global` | `-o 12:graphbrew:corder-global` | Hot/cold across all vertices |
+| `graphbrew:streaming` | `-o 12:graphbrew:streaming` | Leiden + lazy aggregation |
+| `graphbrew:lazyupdate` | `-o 12:graphbrew:lazyupdate` | Batched community weight updates (reduces atomics) |
+| `graphbrew:conn` | `-o 12:graphbrew:conn` | Connectivity BFS within communities (Boost-style, default ordering) |
+| `graphbrew:hrab` | `-o 12:graphbrew:hrab` | Hybrid Leiden+RabbitOrder (best locality on web/geometric graphs) |
+| `graphbrew:auto` | `-o 12:graphbrew:auto` | Auto-computed resolution (computed once) |
+| `graphbrew:dynamic` | `-o 12:graphbrew:dynamic` | Dynamic resolution (adjusted per-pass) |
 
 **GraphBrew +Resolution Modes:**
 
 | Mode | Syntax | Description |
 |------|--------|-------------|
-| Auto | `-o 16:graphbrew:auto` or `-o 16:graphbrew` | Compute resolution from graph density/CV (fixed) |
-| Dynamic | `-o 16:graphbrew:dynamic` | Auto initial, adjust each pass based on metrics |
-| Fixed | `-o 16:graphbrew:1.5` | Use specified resolution value |
-| Dynamic+Init | `-o 16:graphbrew:dynamic_2.0` | Start at 2.0, adjust each pass |
+| Auto | `-o 12:graphbrew:auto` or `-o 12:graphbrew` | Compute resolution from graph density/CV (fixed) |
+| Dynamic | `-o 12:graphbrew:dynamic` | Auto initial, adjust each pass based on metrics |
+| Fixed | `-o 12:graphbrew:1.5` | Use specified resolution value |
+| Dynamic+Init | `-o 12:graphbrew:dynamic_2.0` | Start at 2.0, adjust each pass |
 
 > **Note:** Dynamic resolution adjusts based on community reduction rate, size imbalance, and convergence speed. Use for unknown graphs.
 
@@ -220,11 +220,11 @@ GraphBrew +(Vertex Indexing for Better Efficiency) provides a unified reordering
 
 | Variant | Example | Description |
 |---------|---------|-------------|
-| `graphbrew:rabbit` | `-o 16:graphbrew:rabbit` | RabbitOrder algorithm (DFS default) |
-| `graphbrew:rabbit:dfs` | `-o 16:graphbrew:rabbit:dfs` | RabbitOrder + DFS post-ordering |
-| `graphbrew:rabbit:bfs` | `-o 16:graphbrew:rabbit:bfs` | RabbitOrder + BFS post-ordering |
-| `graphbrew:rabbit:dbg` | `-o 16:graphbrew:rabbit:dbg` | RabbitOrder + DBG post-ordering |
-| `graphbrew:rabbit:corder` | `-o 16:graphbrew:rabbit:corder` | RabbitOrder + COrder post-ordering |
+| `graphbrew:rabbit` | `-o 12:graphbrew:rabbit` | RabbitOrder algorithm (DFS default) |
+| `graphbrew:rabbit:dfs` | `-o 12:graphbrew:rabbit:dfs` | RabbitOrder + DFS post-ordering |
+| `graphbrew:rabbit:bfs` | `-o 12:graphbrew:rabbit:bfs` | RabbitOrder + BFS post-ordering |
+| `graphbrew:rabbit:dbg` | `-o 12:graphbrew:rabbit:dbg` | RabbitOrder + DBG post-ordering |
+| `graphbrew:rabbit:corder` | `-o 12:graphbrew:rabbit:corder` | RabbitOrder + COrder post-ordering |
 
 > **Note:** RabbitOrder variants do not support dynamic resolution (falls back to auto).
 

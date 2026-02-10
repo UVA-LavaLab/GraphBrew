@@ -36,11 +36,11 @@ ALGOS=(
     "GB-gve:hubclusterdbg7|12:gve:7"
     "GB-rabbit|12:rabbit"
     "GB-hubcluster|12:hubcluster"
-    "GraphBrew-default|16:graphbrew"
-    "GraphBrew-rabbit|16:graphbrew:rabbit"
-    "GraphBrew-hrab|16:graphbrew:hrab"
-    "GraphBrew-conn|16:graphbrew:conn"
-    "GraphBrew-quality|16:graphbrew:quality"
+    "GraphBrew-default|12:graphbrew"
+    "GraphBrew-rabbit|12:graphbrew:rabbit"
+    "GraphBrew-hrab|12:graphbrew:hrab"
+    "GraphBrew-conn|12:graphbrew:conn"
+    "GraphBrew-quality|12:graphbrew:quality"
 )
 
 OUTFILE="results/comparison_graphbrew_vs_leidencsr_$(date +%Y%m%d_%H%M%S).csv"

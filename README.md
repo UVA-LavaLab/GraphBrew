@@ -66,8 +66,8 @@ GraphBrew provides 17 reordering strategies. Use `-o <id>` to select one (or cha
 
 | Graph Type | Recommended | Why |
 |------------|-------------|-----|
-| Social networks | `16:graphbrew` or `14` | Best community detection + cache locality |
-| Web graphs | `16:graphbrew:hrab` or `16:graphbrew` | Hybrid Leiden+Rabbit for best locality |
+| Social networks | `12:graphbrew` or `14` | Best community detection + cache locality |
+| Web graphs | `12:graphbrew:hrab` or `12:graphbrew` | Hybrid Leiden+Rabbit for best locality |
 | Road networks | `11` or `9` | BFS-based approaches for sparse graphs |
 | Unknown / mixed | `14` | Let the ML perceptron decide |
 
@@ -128,7 +128,7 @@ Built on [GAPBS](https://github.com/sbeamer/gapbs), GraphBrew includes these ben
 make run-bfs
 
 # Run with parameters
-./bench/bin/pr -f graph.mtx -n 16 -o 16:graphbrew
+./bench/bin/pr -f graph.mtx -n 16 -o 12:graphbrew
 
 # Generate a reordered graph
 ./bench/bin/converter -f graph.mtx -p reordered.mtx -o 16

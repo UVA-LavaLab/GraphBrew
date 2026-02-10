@@ -50,12 +50,12 @@ ALGOS=(
     "GB-gve:hubclusterdbg7|12:gve:7"
     "GB-rabbit|12:rabbit"
     "GB-hubcluster|12:hubcluster"
-    # GraphBrew standalone (algo 16) — for cross-reference
-    "GraphBrew-default|16:graphbrew"
-    "GraphBrew-quality|16:graphbrew:quality"
-    "GraphBrew-rabbit|16:graphbrew:rabbit"
-    "GraphBrew-hrab|16:graphbrew:hrab"
-    "GraphBrew-conn|16:graphbrew:conn"
+    # GraphBrew standalone (algo 12) — for cross-reference
+    "GraphBrew-default|12:graphbrew"
+    "GraphBrew-quality|12:graphbrew:quality"
+    "GraphBrew-rabbit|12:graphbrew:rabbit"
+    "GraphBrew-hrab|12:graphbrew:hrab"
+    "GraphBrew-conn|12:graphbrew:conn"
 )
 
 echo "graph,algorithm,label,reorder_time,avg_pr_time,trials,threads,timestamp" > "$OUTFILE"

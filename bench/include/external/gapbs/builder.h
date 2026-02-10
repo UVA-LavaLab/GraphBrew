@@ -2592,8 +2592,8 @@ public:
      * Format: 16:variant:resolution:iterations:passes
      * Default variant: gveopt2 (fastest + best quality)
      *
-     * NOTE: GraphBrew variants (graphbrew:*, vibe:*) have moved to algorithm 12.
-     *       Using them here will print a deprecation notice and redirect.
+     * Supported variants: gve, gveopt, gveopt2, dfs, bfs, hubsort, fast, modularity, faithful
+     * For GraphBrew pipeline, use algorithm 12 (-o 12:graphbrew:...)
      */
     void GenerateLeidenCSRMappingUnified(
         const CSRGraph<NodeID_, DestID_, invert> &g,
@@ -2610,20 +2610,6 @@ public:
         // CLI format: -o 16:variant:resolution:max_iterations:max_passes
         if (!reordering_options.empty() && !reordering_options[0].empty()) {
             variant = reordering_options[0];
-        }
-        
-        // Check if user is trying to use GraphBrew/VIBE variants on algo 16
-        bool isGraphBrewVariant = (variant == "graphbrew" || variant.rfind("graphbrew", 0) == 0
-                                || variant == "vibe" || variant.rfind("vibe", 0) == 0);
-        if (isGraphBrewVariant) {
-            printf("\n");
-            printf("⚠️  DEPRECATION: GraphBrew variants have moved from algorithm 16 to algorithm 12.\n");
-            printf("    Instead of: -o 16:%s\n", variant.c_str());
-            printf("    Use:        -o 12:%s\n", variant.c_str());
-            printf("    Redirecting to GraphBrewOrder (12)...\n\n");
-            // Redirect to GraphBrewOrder
-            GenerateGraphBrewMappingUnified(g, new_ids, true, reordering_options);
-            return;
         }
         
         // Parse resolution

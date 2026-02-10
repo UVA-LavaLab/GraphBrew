@@ -34,15 +34,15 @@ from pathlib import Path
 GRAPHS = ["web-Google", "web-BerkStan", "as-Skitter", "wiki-Talk", "roadNet-CA"]  # Variety of graph types
 VARIANTS = [
     # GraphBrew variants
-    ("16:graphbrew", "GraphBrew"),                         # Default GraphBrew
-    ("16:graphbrew:quality", "GraphBrew-Quality"),          # High-quality community ordering
-    ("16:graphbrew:rabbit", "GraphBrew-Rabbit"),            # GraphBrew ++ RabbitOrder within communities
-    ("16:graphbrew:streaming", "GraphBrew-Streaming"),      # Streaming/incremental (fastest)
-    ("16:graphbrew:hrab", "GraphBrew-HRAB"),                # Hybrid Leiden+Rabbit BFS (best)
-    ("16:graphbrew:hrab:gordi", "GraphBrew-HRAB-Gordi"),    # Hybrid Leiden+Rabbit Gorder
-    ("16:graphbrew:dfs", "GraphBrew-DFS"),                  # DFS traversal ordering
-    ("16:graphbrew:bfs", "GraphBrew-BFS"),                  # BFS traversal ordering
-    ("16:graphbrew:dbg", "GraphBrew-DBG"),                  # Debug/verbose mode
+    ("12:graphbrew", "GraphBrew"),                         # Default GraphBrew
+    ("12:graphbrew:quality", "GraphBrew-Quality"),          # High-quality community ordering
+    ("12:graphbrew:rabbit", "GraphBrew-Rabbit"),            # GraphBrew ++ RabbitOrder within communities
+    ("12:graphbrew:streaming", "GraphBrew-Streaming"),      # Streaming/incremental (fastest)
+    ("12:graphbrew:hrab", "GraphBrew-HRAB"),                # Hybrid Leiden+Rabbit BFS (best)
+    ("12:graphbrew:hrab:gordi", "GraphBrew-HRAB-Gordi"),    # Hybrid Leiden+Rabbit Gorder
+    ("12:graphbrew:dfs", "GraphBrew-DFS"),                  # DFS traversal ordering
+    ("12:graphbrew:bfs", "GraphBrew-BFS"),                  # BFS traversal ordering
+    ("12:graphbrew:dbg", "GraphBrew-DBG"),                  # Debug/verbose mode
     # RabbitOrder variants
     ("8:csr", "RabbitCSR"),                      # Native CSR (fast, no deps)
     ("8:boost", "RabbitBoost"),                  # Boost-based
