@@ -102,24 +102,34 @@ RABBITORDER_VARIANTS = ["csr", "boost"]
 RABBITORDER_DEFAULT_VARIANT = "csr"  # Native CSR (faster, no external deps)
 
 # GraphBrewOrder variant definitions (default: leiden)
-# Format: -o 12:cluster_variant:final_algo:resolution:levels
-# Now powered by GraphBrew pipeline. Cluster variants map to GraphBrew configurations.
-# cluster_variant: leiden (default), rabbit, hubcluster
-# Examples: -o 12:leiden:8, -o 12:rabbit:7, -o 12:hubcluster
+# Presets expand to tokens fed into parseGraphBrewConfig (one parser).
+# Format: -o 12:preset[:final_algo[:resolution[:passes[:depth[:sub]]]]]
+# Or token mode: -o 12:hrab:gvecsr:0.75
 GRAPHBREW_VARIANTS = ["leiden", "rabbit", "hubcluster"]
 GRAPHBREW_DEFAULT_VARIANT = "leiden"  # Uses GraphBrew Leiden-CSR aggregation
 
+# Structured reference for all GraphBrew options (mirrors C++ parseGraphBrewConfig)
+GRAPHBREW_OPTIONS = {
+    "presets": {
+        "leiden":      "GVE-CSR Leiden + per-community RabbitOrder (default)",
+        "rabbit":      "Full RabbitOrder pipeline (single-pass, no Leiden)",
+        "hubcluster":  "Leiden + hub-cluster native ordering",
+    },
+    "ordering_strategies": [
+        "hrab", "dfs", "bfs", "conn", "dbg", "corder",
+        "dbg-global", "corder-global", "community", "hubcluster",
+        "hierarchical", "hcache", "tqr", "streaming",
+    ],
+    "aggregation": ["gvecsr", "leiden", "streaming", "hybrid"],
+    "features": [
+        "merge", "hubx", "gord", "hsort", "rcm", "norefine",
+        "lazyupdate", "verify", "graphbrew",
+    ],
+    "resolution": ["auto", "dynamic", "<float 0.1-3.0>"],
+}
+
 # Note: LeidenCSR (16) has been deprecated — GraphBrew (12) subsumes it.
 # All LeidenCSR variants are now available through GraphBrewOrder (12).
-
-# GraphBrewOrder (12) variant groups — these are the per-community reordering strategies
-# accessed via -o 12:hrab, 12:dfs, 12:conn, etc. (no "graphbrew" prefix needed)
-GRAPHBREW_ORDERING_VARIANTS = ["hrab", "dfs", "bfs", "conn", "dbg", "corder",
-                               "dbg-global", "corder-global", "streaming", "lazyupdate",
-                               "rabbit", "rabbit:dfs", "rabbit:bfs", "rabbit:dbg", "rabbit:corder"]
-
-# Resolution modes
-LEIDEN_RESOLUTION_MODES = ["auto", "dynamic", "1.0", "1.5", "2.0"]
 
 # Leiden default resolution mode for experiments
 # NOTE: LEIDEN_DEFAULT_RESOLUTION constant (= 1.0) defined above is for algorithm defaults

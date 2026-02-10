@@ -2833,21 +2833,20 @@ public:
     // GRAPHBREW UNIFIED ENTRY POINT
     //
     // Extended GraphBrewOrder with configurable clustering and final reordering.
-    // Format: -o 12:cluster_variant:final_algo:resolution:levels
     //
-    // Cluster variants:
-    //   leiden      - Leiden community detection (default)
-    //   rabbit      - RabbitOrder clustering
-    //   hubcluster  - Simple hub-based clustering
+    // Presets (expand to tokens):
+    //   leiden      - GVE-CSR Leiden community detection (default)
+    //   rabbit      - Full RabbitOrder pipeline (single-pass, no Leiden)
+    //   hubcluster  - Leiden + hub-cluster native ordering
     //
-    // Final algorithm: Any algorithm ID 0-15 (default: 8 = RabbitOrder)
-    // Resolution: Leiden resolution parameter (default: auto)
-    // Levels: Recursion depth (default: 2)
+    // Token mode (all args are parseGraphBrewConfig tokens):
+    //   hrab, dfs, bfs, conn, dbg, corder, etc.
     //
     // Examples:
-    //   -o 12                      # Default: leiden, RabbitOrder, 2 levels
-    //   -o 12:leiden:6             # Leiden clustering, HubSortDBG final
-    //   -o 12:leiden:8:1.0:3      # Leiden, RabbitOrder, resolution 1.0, 3 levels
+    //   -o 12                      # Default: leiden preset
+    //   -o 12:leiden:6             # Leiden, HubSortDBG per-community
+    //   -o 12:leiden:8:1.0:3      # Leiden, RabbitOrder, resolution 1.0, 3 passes
+    //   -o 12:hrab:gvecsr:0.75    # Token mode: hybrid + GVE-CSR + resolution
     //==========================================================================
     
     // ========================================================================
@@ -2857,49 +2856,56 @@ public:
     // GraphBrewOrder (ID 12) uses GraphBrew's modular Leiden community detection
     // pipeline, then applies any reordering algorithm (0-11) per community.
     //
-    // Format: -o 12[:cluster_variant][:final_algo][:resolution][:levels]
+    // All parsing routes through graphbrew::parseGraphBrewConfig() (one parser).
+    // Named presets expand to equivalent tokens:
     //
-    // Cluster variants map to GraphBrew configurations:
-    //   leiden (default) → GraphBrew Leiden with GVE-CSR aggregation
-    //   rabbit           → GraphBrew RabbitOrder algorithm (single-pass)
-    //   hubcluster       → GraphBrew HubCluster ordering with degree-based partitioning
+    //   Preset        Token expansion
+    //   ──────        ───────────────
+    //   leiden        gvecsr totalm refine0 graphbrew
+    //   rabbit        rabbitorder 0.5
+    //   hubcluster    hubcluster
     //
-    // Final algorithms: 0-11 (any basic reordering, default: 8 = RabbitOrder)
+    // After a preset, remaining args are positional:
+    //   -o 12:leiden[:final_algo[:resolution[:passes[:depth[:sub]]]]]
+    //
+    // Without a preset, all args are tokens for parseGraphBrewConfig:
+    //   -o 12:hrab:gvecsr:0.75
     // ========================================================================
     
     /**
      * Parse GraphBrew CLI options and build a GraphBrewConfig.
      * 
-     * Translates the legacy GraphBrew format into GraphBrew pipeline configuration:
-     *   -o 12:cluster_variant:final_algo:resolution:levels
-     *   -o 12:leiden:8:0.75
-     *   -o 12:rabbit:7
+     * All parsing is routed through graphbrew::parseGraphBrewConfig() in
+     * reorder_graphbrew.h.  Named presets (leiden, rabbit, hubcluster)
+     * are expanded to equivalent tokens before being fed to that parser,
+     * so there is exactly ONE token parser for the whole system.
      * 
-     * Also supports GraphBrew-native options when called via -o 12:hrab, 12:dfs, etc.
+     * Formats:
+     *   -o 12                                     # Default (leiden preset)
+     *   -o 12:leiden:8:0.75:3                     # Preset + positional overrides
+     *   -o 12:hrab:gvecsr:0.75                    # Direct token mode
+     *   -o 12:10:8:1.0                            # Old numeric format (legacy)
      */
     graphbrew::GraphBrewConfig ParseGraphBrewConfig(
         const std::vector<std::string>& options,
         double auto_resolution) {
         
-        graphbrew::GraphBrewConfig config;
-        config.ordering = graphbrew::OrderingStrategy::LAYER;
-        config.finalAlgoId = 8;  // Default: RabbitOrder
-        config.useSmallCommunityMerging = true;
-        config.resolution = auto_resolution;
-        
+        // ── Default (no options) → leiden preset ────────────────────────
         if (options.empty() || options[0].empty()) {
-            // Default: leiden clustering, RabbitOrder final
+            graphbrew::GraphBrewConfig config = graphbrew::parseGraphBrewConfig(
+                {"gvecsr", "totalm", "refine0", "graphbrew"});
+            config.resolution = auto_resolution;
             return config;
         }
         
-        const std::string& variant = options[0];
+        const std::string& first = options[0];
         
-        // Check if first option is purely numeric (old format: freq_threshold)
-        bool is_numeric = std::all_of(variant.begin(), variant.end(), ::isdigit);
-        
-        if (is_numeric) {
-            // Old format: 12:freq_threshold:final_algo:resolution
-            // Ignore freq_threshold (GraphBrew handles thresholding dynamically)
+        // ── Old numeric format: 12:freq:final_algo:resolution ───────────
+        if (std::all_of(first.begin(), first.end(), ::isdigit)) {
+            graphbrew::GraphBrewConfig config = graphbrew::parseGraphBrewConfig(
+                {"gvecsr", "totalm", "refine0", "graphbrew"});
+            config.resolution = auto_resolution;
+            // Ignore freq_threshold (options[0]); parse final_algo and resolution
             if (options.size() > 1 && !options[1].empty()) {
                 try { config.finalAlgoId = std::stoi(options[1]); } catch (...) {}
             }
@@ -2915,95 +2921,99 @@ public:
             return config;
         }
         
-        // New format: 12:cluster_variant:final_algo:resolution:levels
-        // Map cluster variant to GraphBrew aggregation/algorithm
-        if (variant == "leiden" || variant == "gve" || variant == "gveopt") {
-            // Leiden community detection with GVE-CSR aggregation
-            // ("gve" and "gveopt" are accepted as legacy aliases)
-            config.aggregation = graphbrew::AggregationStrategy::GVE_CSR;
-            config.mComputation = graphbrew::MComputation::TOTAL_EDGES;
-            config.refinementDepth = 0;
-        } else if (variant == "rabbit") {
-            // Use full RabbitOrder algorithm for community detection
-            config.algorithm = graphbrew::GraphBrewAlgorithm::RABBIT_ORDER;
-            config.resolution = 0.5;  // Coarser communities
-        } else if (variant == "hubcluster") {
-            // Use GraphBrew Leiden with hub-cluster ordering
-            // (The old hubcluster did degree-based partitioning which maps to
-            //  GraphBrew's HUB_CLUSTER ordering strategy)
-            config.ordering = graphbrew::OrderingStrategy::HUB_CLUSTER;
-            config.useSmallCommunityMerging = false;
-            config.finalAlgoId = -1;  // Use GraphBrew's native ordering
-        } else {
-            // Try to parse as GraphBrew-native options (e.g., 12:hrab, 12:dfs, 12:conn, 12:graphbrew:hrab)
-            // parseGraphBrewConfig handles all tokens: ordering strategies, algorithms, resolution, etc.
-            std::vector<std::string> graphbrew_opts;
-            // Split variant by ':'
-            std::stringstream ss(variant);
-            std::string part;
-            while (std::getline(ss, part, ':')) {
-                if (!part.empty()) graphbrew_opts.push_back(part);
-            }
-            for (size_t i = 1; i < options.size(); ++i) {
-                if (!options[i].empty()) graphbrew_opts.push_back(options[i]);
-            }
-            config = graphbrew::parseGraphBrewConfig(graphbrew_opts);
-            // Only set LAYER defaults if parseGraphBrewConfig didn't set a specific ordering
-            // (CONNECTIVITY_BFS is the GraphBrewConfig constructor default)
+        // ── Preset expansion table ──────────────────────────────────────
+        // Each preset maps to tokens understood by parseGraphBrewConfig.
+        // "graphbrew" token → LAYER ordering + finalAlgoId=8 + smallCommunityMerging
+        struct PresetDef {
+            std::vector<std::string> tokens;
+        };
+        static const std::map<std::string, PresetDef> PRESETS = {
+            {"leiden",      {{"gvecsr", "totalm", "refine0", "graphbrew"}}},
+            {"gve",         {{"gvecsr", "totalm", "refine0", "graphbrew"}}},  // legacy alias
+            {"gveopt",      {{"gvecsr", "totalm", "refine0", "graphbrew"}}},  // legacy alias
+            {"rabbit",      {{"rabbitorder", "0.5"}}},
+            {"hubcluster",  {{"hubcluster"}}},
+        };
+        
+        auto preset_it = PRESETS.find(first);
+        graphbrew::GraphBrewConfig config;
+        
+        if (preset_it != PRESETS.end()) {
+            // ── Known preset → expand tokens, then parse positional tail ─
+            config = graphbrew::parseGraphBrewConfig(preset_it->second.tokens);
+            
+            // Apply LAYER-mode defaults (only if the preset didn't set another ordering)
             if (config.ordering == graphbrew::OrderingStrategy::CONNECTIVITY_BFS) {
                 config.ordering = graphbrew::OrderingStrategy::LAYER;
+            }
+            if (config.ordering == graphbrew::OrderingStrategy::LAYER) {
                 config.useSmallCommunityMerging = true;
+                if (config.finalAlgoId < 0) config.finalAlgoId = 8;
             }
-            if (config.finalAlgoId < 0) config.finalAlgoId = 8;
-            return config;
-        }
-        
-        // Parse remaining options: final_algo, resolution, levels
-        if (options.size() > 1 && !options[1].empty()) {
-            try { config.finalAlgoId = std::stoi(options[1]); } catch (...) {}
-        }
-        if (options.size() > 2 && !options[2].empty()) {
-            const std::string& res = options[2];
-            if (res == "auto" || res == "0") {
-                // Keep auto_resolution
-            } else if (res.rfind("dynamic", 0) == 0) {
-                config.useDynamicResolution = true;
-            } else {
+            
+            // Apply auto-resolution when the preset/token didn't set an explicit one
+            if (config.resolution == reorder::DEFAULT_RESOLUTION) {
+                config.resolution = auto_resolution;
+            }
+            
+            // Positional overrides: final_algo, resolution, passes, depth, sub
+            if (options.size() > 1 && !options[1].empty()) {
+                try { config.finalAlgoId = std::stoi(options[1]); } catch (...) {}
+            }
+            if (options.size() > 2 && !options[2].empty()) {
+                const std::string& res = options[2];
+                if (res == "auto" || res == "0") {
+                    // keep auto_resolution
+                } else if (res.rfind("dynamic", 0) == 0) {
+                    config.useDynamicResolution = true;
+                } else {
+                    try {
+                        double r = std::stod(res);
+                        if (r > 0 && r <= 3) config.resolution = r;
+                    } catch (...) {}
+                }
+            }
+            if (options.size() > 3 && !options[3].empty()) {
                 try {
-                    double r = std::stod(res);
-                    if (r > 0 && r <= 3) config.resolution = r;
+                    int passes = std::stoi(options[3]);
+                    if (passes > 0 && passes <= 50) config.maxPasses = passes;
                 } catch (...) {}
             }
-        }
-        // levels/maxPasses parameter (options[3])
-        if (options.size() > 3 && !options[3].empty()) {
-            try {
-                int passes = std::stoi(options[3]);
-                if (passes > 0 && passes <= 50) config.maxPasses = passes;
-            } catch (...) {}
-        }
-        // recursive depth parameter (options[4]) — 0=flat, 1+=recursive sub-community detection
-        if (options.size() > 4 && !options[4].empty()) {
-            const std::string& depthStr = options[4];
-            if (depthStr == "recursive" || depthStr == "recurse") {
-                config.recursiveDepth = std::max(config.recursiveDepth, 1);
-            } else {
-                try {
-                    int d = std::stoi(depthStr);
-                    if (d >= 0 && d <= 10) config.recursiveDepth = d;
-                } catch (...) {}
+            if (options.size() > 4 && !options[4].empty()) {
+                const std::string& depthStr = options[4];
+                if (depthStr == "recursive" || depthStr == "recurse") {
+                    config.recursiveDepth = std::max(config.recursiveDepth, 1);
+                } else {
+                    try {
+                        int d = std::stoi(depthStr);
+                        if (d >= 0 && d <= 10) config.recursiveDepth = d;
+                    } catch (...) {}
+                }
             }
-        }
-        // sub-community algorithm (options[5]) — auto or 0-11
-        if (options.size() > 5 && !options[5].empty()) {
-            const std::string& subStr = options[5];
-            if (subStr == "auto" || subStr == "adaptive") {
-                config.subAlgoId = -1;
-            } else {
-                try {
-                    int a = std::stoi(subStr);
-                    if (a >= 0 && a <= 11) config.subAlgoId = a;
-                } catch (...) {}
+            if (options.size() > 5 && !options[5].empty()) {
+                const std::string& subStr = options[5];
+                if (subStr == "auto" || subStr == "adaptive") {
+                    config.subAlgoId = -1;
+                } else {
+                    try {
+                        int a = std::stoi(subStr);
+                        if (a >= 0 && a <= 11) config.subAlgoId = a;
+                    } catch (...) {}
+                }
+            }
+        } else {
+            // ── Direct token mode (hrab, dfs, conn, graphbrew:hrab, etc.) ─
+            config = graphbrew::parseGraphBrewConfig(options);
+            
+            if (config.ordering == graphbrew::OrderingStrategy::CONNECTIVITY_BFS) {
+                config.ordering = graphbrew::OrderingStrategy::LAYER;
+            }
+            if (config.ordering == graphbrew::OrderingStrategy::LAYER) {
+                config.useSmallCommunityMerging = true;
+                if (config.finalAlgoId < 0) config.finalAlgoId = 8;
+            }
+            if (config.resolution == reorder::DEFAULT_RESOLUTION) {
+                config.resolution = auto_resolution;
             }
         }
         
