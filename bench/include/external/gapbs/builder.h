@@ -1239,7 +1239,7 @@ public:
             break;
         case GraphBrewOrder:
             // Extended GraphBrewOrder - Format: 12:cluster_variant:final_algo:resolution:levels
-            // Cluster variants: leiden (default), gve, gveopt, rabbit, hubcluster
+            // Cluster variants: leiden (default), rabbit, hubcluster
             // Also supports old format: 12:freq_threshold:final_algo:resolution
             GenerateGraphBrewMappingUnified(g, new_ids, useOutdeg, reordering_options);
             break;
@@ -2836,11 +2836,9 @@ public:
     // Format: -o 12:cluster_variant:final_algo:resolution:levels
     //
     // Cluster variants:
-    //   leiden  - Original external Leiden library (default, backward compatible)
-    //   gve     - GVE-Leiden CSR (native, fast)
-    //   gveopt  - GVE-Leiden Optimized (native, cache-optimized)
-    //   rabbit  - RabbitOrder clustering
-    //   hubcluster - Simple hub-based clustering
+    //   leiden      - Leiden community detection (default)
+    //   rabbit      - RabbitOrder clustering
+    //   hubcluster  - Simple hub-based clustering
     //
     // Final algorithm: Any algorithm ID 0-15 (default: 8 = RabbitOrder)
     // Resolution: Leiden resolution parameter (default: auto)
@@ -2848,9 +2846,8 @@ public:
     //
     // Examples:
     //   -o 12                      # Default: leiden, RabbitOrder, 2 levels
-    //   -o 12:gve                  # GVE clustering, RabbitOrder final
-    //   -o 12:gve:6                # GVE clustering, HubSortDBG final
-    //   -o 12:gveopt:8:1.0:3       # GVEOpt, RabbitOrder, resolution 1.0, 3 levels
+    //   -o 12:leiden:6             # Leiden clustering, HubSortDBG final
+    //   -o 12:leiden:8:1.0:3      # Leiden, RabbitOrder, resolution 1.0, 3 levels
     //==========================================================================
     
     // ========================================================================
@@ -2863,9 +2860,7 @@ public:
     // Format: -o 12[:cluster_variant][:final_algo][:resolution][:levels]
     //
     // Cluster variants map to GraphBrew configurations:
-    //   leiden (default) → GraphBrew Leiden-CSR aggregation
-    //   gve              → GraphBrew GVE-CSR aggregation (totalm)
-    //   gveopt           → GraphBrew GVE-CSR aggregation (totalm, quality preset)
+    //   leiden (default) → GraphBrew Leiden with GVE-CSR aggregation
     //   rabbit           → GraphBrew RabbitOrder algorithm (single-pass)
     //   hubcluster       → GraphBrew HubCluster ordering with degree-based partitioning
     //
@@ -2877,7 +2872,7 @@ public:
      * 
      * Translates the legacy GraphBrew format into GraphBrew pipeline configuration:
      *   -o 12:cluster_variant:final_algo:resolution:levels
-     *   -o 12:gve:8:0.75
+     *   -o 12:leiden:8:0.75
      *   -o 12:rabbit:7
      * 
      * Also supports GraphBrew-native options when called via -o 12:hrab, 12:dfs, etc.
@@ -2922,13 +2917,9 @@ public:
         
         // New format: 12:cluster_variant:final_algo:resolution:levels
         // Map cluster variant to GraphBrew aggregation/algorithm
-        if (variant == "leiden" || variant == "gveopt") {
-            // High-quality Leiden with GVE-CSR aggregation (matches old gveopt behavior)
-            config.aggregation = graphbrew::AggregationStrategy::GVE_CSR;
-            config.mComputation = graphbrew::MComputation::TOTAL_EDGES;
-            config.refinementDepth = 0;
-        } else if (variant == "gve") {
-            // GVE-style detection
+        if (variant == "leiden" || variant == "gve" || variant == "gveopt") {
+            // Leiden community detection with GVE-CSR aggregation
+            // ("gve" and "gveopt" are accepted as legacy aliases)
             config.aggregation = graphbrew::AggregationStrategy::GVE_CSR;
             config.mComputation = graphbrew::MComputation::TOTAL_EDGES;
             config.refinementDepth = 0;

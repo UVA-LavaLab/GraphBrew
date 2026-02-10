@@ -172,7 +172,7 @@ def expand_algorithms_with_variants(
     Expand algorithm IDs into AlgorithmConfig objects.
     
     For RabbitOrder (8), optionally expand into csr/boost variants.
-    For GraphBrewOrder (12), optionally expand into leiden/gve/gveopt/rabbit/hubcluster variants.
+    For GraphBrewOrder (12), optionally expand into leiden/rabbit/hubcluster variants.
     
     Args:
         algorithms: List of algorithm IDs

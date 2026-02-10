@@ -279,16 +279,13 @@ Larger window = better quality, slower computation
 # Format: -o 12[:variant[:frequency[:intra_algo[:resolution[:maxIterations[:maxPasses]]]]]]
 ./bench/bin/pr -f graph.el -s -o 12 -n 3                   # Use defaults (leiden variant)
 ./bench/bin/pr -f graph.el -s -o 12:leiden -n 3            # Explicit leiden variant
-./bench/bin/pr -f graph.el -s -o 12:gve -n 3               # GVE-Leiden variant (faster)
-./bench/bin/pr -f graph.el -s -o 12:gveopt -n 3            # Cache-optimized GVE
-./bench/bin/pr -f graph.el -s -o 12:gve:10:8 -n 3          # gve variant, freq=10, intra=RabbitOrder
+./bench/bin/pr -f graph.el -s -o 12:rabbit -n 3            # RabbitOrder single-pass
+./bench/bin/pr -f graph.el -s -o 12:hubcluster -n 3        # Hub-based clustering
 ```
 
 - **Description**: Runs GraphBrew +community detection, then applies per-community reordering
 - **Variants** (powered by GraphBrew pipeline):
   - `leiden`: GraphBrew Leiden with GVE-CSR aggregation - **default**
-  - `gve`: GraphBrew Leiden GVE-style detection
-  - `gveopt`: GraphBrew Leiden quality preset (same as gve)
   - `rabbit`: GraphBrew RabbitOrder single-pass pipeline
   - `hubcluster`: GraphBrew Leiden + hub-cluster ordering
 - **Parameters**:
@@ -388,11 +385,11 @@ GraphBrew provides LeidenOrder as a baseline reference implementation.
 
 | Graph Type | Recommended | Alternatives |
 |------------|-------------|--------------|
-| Social Networks | GraphBrewOrder (12) | GraphBrewOrder (12:gveopt) |
-| Web Graphs | GraphBrewOrder (12:gveopt) | HUBCLUSTERDBG (7) |
+| Social Networks | GraphBrewOrder (12) | GraphBrewOrder (12:rabbit) |
+| Web Graphs | GraphBrewOrder (12) | HUBCLUSTERDBG (7) |
 | Road Networks | ORIGINAL (0), RCM (11) | GraphBrewOrder (12) |
 | Citation Networks | GraphBrewOrder (12) | LeidenOrder (15) |
-| Random Geometric | GraphBrewOrder (12:gveopt) | GraphBrewOrder (12) |
+| Random Geometric | GraphBrewOrder (12) | GraphBrewOrder (12:rabbit) |
 | Unknown | GraphBrewOrder (12) | AdaptiveOrder (14) |
 
 ### By Graph Size
@@ -410,7 +407,7 @@ GraphBrew provides LeidenOrder as a baseline reference implementation.
 Is your graph modular (has communities)?
 ├── Yes → Is it very large (>10M vertices)?
 │         ├── Yes → GraphBrewOrder (12:rabbit) for speed
-│         │         GraphBrewOrder (12:gveopt) for quality
+│         │         GraphBrewOrder (12) for quality
 │         └── No → GraphBrewOrder (12) - best quality
 └── No/Unknown → Is it a power-law graph?
               ├── Yes → HUBCLUSTERDBG (7)

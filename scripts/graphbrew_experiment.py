@@ -31,7 +31,7 @@ A comprehensive one-click script that runs the complete GraphBrew experiment wor
     python scripts/graphbrew_experiment.py --train --all-variants --size small
     
     # Test specific variants only
-    python scripts/graphbrew_experiment.py --train --graphbrew-variants leiden gve rabbit --size small
+    python scripts/graphbrew_experiment.py --train --graphbrew-variants leiden rabbit --size small
     
     # With custom Leiden parameters
     python scripts/graphbrew_experiment.py --train --all-variants \\
@@ -313,7 +313,7 @@ def expand_algorithms_with_variants(
     Expand algorithm IDs into AlgorithmConfig objects.
     
     For RabbitOrder (8), optionally expand into csr/boost variants.
-    For GraphBrewOrder (12), optionally expand into leiden/gve/gveopt/rabbit/hubcluster variants.
+    For GraphBrewOrder (12), optionally expand into leiden/rabbit/hubcluster variants.
     
     Args:
         algorithms: List of algorithm IDs
@@ -3126,8 +3126,8 @@ def main():
                         default=None, choices=["csr", "boost"],
                         help="RabbitOrder variants: csr (default, no deps), boost (requires libboost-graph-dev)")
     parser.add_argument("--graphbrew-variants", nargs="+", dest="graphbrew_variants",
-                        default=None, choices=["leiden", "gve", "gveopt", "rabbit", "hubcluster"],
-                        help="GraphBrewOrder variants (GraphBrew-powered): leiden (default), gve, gveopt, rabbit, hubcluster")
+                        default=None, choices=["leiden", "rabbit", "hubcluster"],
+                        help="GraphBrewOrder variants (GraphBrew-powered): leiden (default), rabbit, hubcluster")
     parser.add_argument("--resolution", type=str, default="dynamic", dest="leiden_resolution",
                         help="Leiden resolution: dynamic (default, best PR), auto, fixed (1.5), dynamic_2.0")
     parser.add_argument("--passes", type=int, default=3, dest="leiden_passes",
