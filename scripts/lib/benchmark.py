@@ -12,7 +12,7 @@ Standalone usage:
 Library usage:
     from scripts.lib.benchmark import run_benchmark, run_benchmark_suite
     
-    result = run_benchmark("pr", "graph.mtx", algorithm="16:hybrid:1.0")
+    result = run_benchmark("pr", "graph.mtx", algorithm="12:community")
     results = run_benchmark_suite("graph.mtx", algorithms=["0", "1", "8"])
 """
 
@@ -24,7 +24,6 @@ from typing import Dict, List, Optional, Tuple
 
 from .utils import (
     BIN_DIR, ALGORITHMS, BENCHMARKS,
-    LEIDEN_CSR_VARIANTS,
     BenchmarkResult, log, run_command, check_binary_exists,
     get_results_file, save_json, get_algorithm_name, parse_algorithm_option
 )
@@ -178,7 +177,7 @@ def run_benchmark(
     Args:
         benchmark: Benchmark name (pr, bfs, cc, etc.)
         graph_path: Path to graph file
-        algorithm: Algorithm option string (e.g., "0", "16:hybrid:1.0", "17:gve:1.0:20:10")
+        algorithm: Algorithm option string (e.g., "0", "12:community", "15:1.0")
         trials: Number of trials
         symmetric: Use symmetric graph flag (-s)
         timeout: Timeout in seconds
@@ -540,10 +539,6 @@ def run_leiden_variant_comparison(
     # LeidenOrder (15)
     algorithms.append("15")
     
-    # LeidenCSR variants (16) - format: 16:variant:resolution:iterations:passes
-    for variant in LEIDEN_CSR_VARIANTS:
-        algorithms.append(f"16:{variant}:1.0:20:10")
-    
     return run_benchmark_suite(graph_path, algorithms, benchmarks, trials)
 
 
@@ -657,9 +652,9 @@ Examples:
     parser.add_argument("-n", "--trials", type=int, default=3, help="Trials per config")
     parser.add_argument("--timeout", type=int, default=600, help="Timeout in seconds")
     parser.add_argument("--leiden-variants", action="store_true",
-                       help="Run all Leiden variant comparison")
+                       help="Run Leiden variant comparison (baselines + GraphBrew + LeidenOrder)")
     parser.add_argument("--expand", action="store_true",
-                       help="Expand Leiden algorithms (16,17) to all variants")
+                       help="Expand variant-based algorithms to all variants")
     parser.add_argument("-o", "--output", help="Output JSON file")
     
     args = parser.parse_args()
@@ -680,17 +675,6 @@ Examples:
         )
     else:
         algorithms = args.algorithms.split(",")
-        
-        # Expand Leiden variants if requested
-        if args.expand:
-            expanded = []
-            for algo in algorithms:
-                algo_id, _ = parse_algorithm_option(algo)
-                if algo_id == 16:
-                    expanded.extend([f"16:{v}:1.0:20:10" for v in LEIDEN_CSR_VARIANTS])
-                else:
-                    expanded.append(algo)
-            algorithms = expanded
         
         results = run_benchmark_suite(
             str(graph_path),

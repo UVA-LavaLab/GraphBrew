@@ -24,25 +24,20 @@ A comprehensive one-click script that runs the complete GraphBrew experiment wor
 12. Batched training (--train-batched): Process graphs in batches for large datasets
 
 **Algorithm Variant Testing:**
-    For LeidenCSR (16) and RabbitOrder (8), you can test
+    For GraphBrewOrder (12) and RabbitOrder (8), you can test
     specific variants or all variants.
     
     # Test all algorithm variants
     python scripts/graphbrew_experiment.py --train --all-variants --size small
     
     # Test specific variants only
-    python scripts/graphbrew_experiment.py --train --csr-variants graphbrew graphbrew:hrab graphbrew:rabbit --size small
-    
-    # Test new optimized variants (best performance)
-    python scripts/graphbrew_experiment.py --train --csr-variants graphbrew graphbrew:hrab --size medium
+    python scripts/graphbrew_experiment.py --train --graphbrew-variants leiden gve rabbit --size small
     
     # With custom Leiden parameters
     python scripts/graphbrew_experiment.py --train --all-variants \\
         --resolution 1.0 --passes 5 --size medium
     
     RabbitOrder (8) variants: csr (default), boost
-    LeidenCSR (16) variants: gveopt2 (default), gve, gveopt, fast, modularity,
-      gverabbit, dfs, bfs, hubsort, faithful
     GraphBrewOrder (12) ordering strategies:
       - (default): Leiden + per-community RabbitOrder
       - hrab: Hybrid Leiden+RabbitOrder (best locality) ⭐
@@ -114,9 +109,7 @@ from scripts.lib import (
     # GraphBrewOrder variants (leiden default for backward compat)
     GRAPHBREW_VARIANTS as LIB_GRAPHBREW_VARIANTS,
     GRAPHBREW_DEFAULT_VARIANT as LIB_GRAPHBREW_DEFAULT_VARIANT,
-    # Leiden variants (gve default for LeidenCSR)
-    LEIDEN_CSR_VARIANTS as LIB_LEIDEN_CSR_VARIANTS,
-    LEIDEN_CSR_DEFAULT_VARIANT as LIB_LEIDEN_CSR_DEFAULT_VARIANT,
+    # Leiden resolution/pass settings
     LEIDEN_DEFAULT_RESOLUTION as LIB_LEIDEN_DEFAULT_RESOLUTION,
     LEIDEN_DEFAULT_PASSES as LIB_LEIDEN_DEFAULT_PASSES,
     # Paths
@@ -263,10 +256,11 @@ from scripts.lib.utils import (
 )
 
 # Algorithms to benchmark (excluding MAP=13)
-BENCHMARK_ALGORITHMS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 15, 16, 17]
+# Note: LeidenCSR (16) has been deprecated — GraphBrew (12) subsumes it.
+BENCHMARK_ALGORITHMS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 15, 17]
 
 # Subset of key algorithms for quick testing
-KEY_ALGORITHMS = [0, 1, 7, 8, 9, 11, 15, 16, 17]
+KEY_ALGORITHMS = [0, 1, 7, 8, 9, 11, 15, 17]
 
 # ============================================================================
 # VARIANT DEFINITIONS - Single Source of Truth in lib/utils.py
@@ -279,13 +273,9 @@ RABBITORDER_VARIANTS = LIB_RABBITORDER_VARIANTS
 RABBITORDER_DEFAULT_VARIANT = LIB_RABBITORDER_DEFAULT_VARIANT
 GRAPHBREW_VARIANTS = LIB_GRAPHBREW_VARIANTS
 GRAPHBREW_DEFAULT_VARIANT = LIB_GRAPHBREW_DEFAULT_VARIANT
-LEIDEN_CSR_VARIANTS = LIB_LEIDEN_CSR_VARIANTS
-LEIDEN_CSR_DEFAULT_VARIANT = LIB_LEIDEN_CSR_DEFAULT_VARIANT
 
 # Import recommended variant subsets from lib
 from scripts.lib.utils import (
-    LEIDEN_CSR_FAST_VARIANTS,
-    LEIDEN_CSR_QUALITY_VARIANTS,
     LEIDEN_RESOLUTION_MODES,
     LEIDEN_DEFAULT_RESOLUTION,
     LEIDEN_DEFAULT_PASSES,
@@ -316,15 +306,12 @@ def expand_algorithms_with_variants(
     expand_leiden_variants: bool = False,
     leiden_resolution: str = LEIDEN_DEFAULT_RESOLUTION,
     leiden_passes: int = LEIDEN_DEFAULT_PASSES,
-    leiden_csr_variants: List[str] = None,
-    leiden_csr_variants: List[str] = None,
     rabbit_variants: List[str] = None,
     graphbrew_variants: List[str] = None
 ) -> List[AlgorithmConfig]:
     """
     Expand algorithm IDs into AlgorithmConfig objects.
     
-    For LeidenCSR (16), optionally expand into its variants.
     For RabbitOrder (8), optionally expand into csr/boost variants.
     For GraphBrewOrder (12), optionally expand into leiden/gve/gveopt/rabbit/hubcluster variants.
     
@@ -332,16 +319,13 @@ def expand_algorithms_with_variants(
         algorithms: List of algorithm IDs
         expand_leiden_variants: If True, expand variant algorithms into all their variants
         leiden_resolution: Resolution parameter for Leiden algorithms
-        leiden_passes: Number of passes for LeidenCSR
-        leiden_csr_variants: Which LeidenCSR variants to include (default: all)
+        leiden_passes: Number of passes for Leiden
         rabbit_variants: Which RabbitOrder variants to include (default: csr only)
         graphbrew_variants: Which GraphBrewOrder variants to include (default: leiden only)
     
     Returns:
         List of AlgorithmConfig objects
     """
-    if leiden_csr_variants is None:
-        leiden_csr_variants = LEIDEN_CSR_VARIANTS
     if rabbit_variants is None:
         # When expand_leiden_variants is True (--all-variants), include both RabbitOrder variants
         rabbit_variants = RABBITORDER_VARIANTS if expand_leiden_variants else [RABBITORDER_DEFAULT_VARIANT]
@@ -354,21 +338,7 @@ def expand_algorithms_with_variants(
     for algo_id in algorithms:
         base_name = ALGORITHMS.get(algo_id, f"ALGO_{algo_id}")
         
-        if algo_id == 16 and expand_leiden_variants:
-            # LeidenCSR: expand into variants
-            # Format: 16:variant:resolution (pass resolution to C++)
-            for variant in leiden_csr_variants:
-                # Include resolution in option string for C++ to use
-                option_str = f"{algo_id}:{variant}:{leiden_resolution}"
-                configs.append(AlgorithmConfig(
-                    algo_id=algo_id,
-                    name=f"LeidenCSR_{variant}",
-                    option_string=option_str,
-                    variant=variant,
-                    resolution=leiden_resolution,
-                    passes=leiden_passes
-                ))
-        elif algo_id == 8 and expand_leiden_variants and len(rabbit_variants) > 1:
+        if algo_id == 8 and expand_leiden_variants and len(rabbit_variants) > 1:
             # RabbitOrder: expand into variants if multiple specified
             for variant in rabbit_variants:
                 option_str = f"{algo_id}:{variant}"
@@ -440,116 +410,8 @@ def get_algorithm_config_by_name(name: str, configs: List[AlgorithmConfig]) -> O
     return None
 
 
-def get_best_leiden_variant(
-    type_name: str,
-    base_algo_id: int,
-    benchmark: str = 'pr',
-    weights_dir: str = None
-) -> Optional[str]:
-    """
-    Get the best variant for a Leiden algorithm based on learned weights.
-    
-    For LeidenCSR (16), variants are: gveopt2 (default), gve, gveopt, fast, modularity, gverabbit, dfs, bfs, hubsort, faithful
-    
-    Args:
-        type_name: Graph type (e.g., 'type_0')
-        base_algo_id: Algorithm ID (16)
-        benchmark: Benchmark to optimize for
-        weights_dir: Directory containing type weights
-    
-    Returns:
-        Best variant name or None if no data available
-    """
-    if weights_dir is None:
-        weights_dir = DEFAULT_WEIGHTS_DIR
-    
-    # Get variants for this algorithm
-    if base_algo_id == 16:
-        base_name = "LeidenCSR"
-        variants = LEIDEN_CSR_VARIANTS
-    else:
-        return None  # Not a Leiden algorithm
-    
-    # Load type weights
-    weights = load_type_weights(type_name, weights_dir)
-    if not weights:
-        return variants[0]  # Default to first variant if no weights
-    
-    # Find best variant based on win rate and average speedup
-    best_variant = None
-    best_score = float('-inf')
-    
-    for variant in variants:
-        variant_name = f"{base_name}_{variant}"
-        if variant_name in weights:
-            algo_weights = weights[variant_name]
-            meta = algo_weights.get('_metadata', {})
-            
-            # Score = win_rate * 0.7 + normalized_avg_speedup * 0.3
-            win_rate = meta.get('win_rate', 0.0)
-            avg_speedup = meta.get('avg_speedup', 1.0)
-            
-            # Benchmark-specific bonus
-            bench_weights = algo_weights.get('benchmark_weights', {})
-            bench_bonus = bench_weights.get(benchmark.lower(), 1.0) - 1.0
-            
-            score = win_rate * 0.7 + (avg_speedup - 1.0) * 0.3 + bench_bonus * 0.1
-            
-            if score > best_score:
-                best_score = score
-                best_variant = variant
-    
-    return best_variant if best_variant else variants[0]
-
-
-def get_leiden_variant_rankings(
-    type_name: str,
-    base_algo_id: int,
-    benchmark: str = 'pr',
-    weights_dir: str = None
-) -> List[Tuple[str, float]]:
-    """
-    Get ranked list of Leiden variants with their scores.
-    
-    Args:
-        type_name: Graph type
-        base_algo_id: Algorithm ID (16 or 17)
-        benchmark: Benchmark to optimize for
-        weights_dir: Directory containing type weights
-    
-    Returns:
-        List of (variant_name, score) tuples, sorted by score descending
-    """
-    if weights_dir is None:
-        weights_dir = DEFAULT_WEIGHTS_DIR
-    
-    if base_algo_id == 16:
-        base_name = "LeidenCSR"
-        variants = LEIDEN_CSR_VARIANTS
-    else:
-        return []
-    
-    weights = load_type_weights(type_name, weights_dir)
-    rankings = []
-    
-    for variant in variants:
-        variant_name = f"{base_name}_{variant}"
-        if variant_name in weights:
-            algo_weights = weights[variant_name]
-            meta = algo_weights.get('_metadata', {})
-            
-            win_rate = meta.get('win_rate', 0.0)
-            avg_speedup = meta.get('avg_speedup', 1.0)
-            bench_weights = algo_weights.get('benchmark_weights', {})
-            bench_bonus = bench_weights.get(benchmark.lower(), 1.0) - 1.0
-            
-            score = win_rate * 0.7 + (avg_speedup - 1.0) * 0.3 + bench_bonus * 0.1
-            rankings.append((variant_name, score))
-        else:
-            rankings.append((variant_name, 0.0))  # No data yet
-    
-    rankings.sort(key=lambda x: x[1], reverse=True)
-    return rankings
+# Note: get_best_leiden_variant and get_leiden_variant_rankings removed
+# — LeidenCSR (16) has been deprecated; GraphBrew (12) subsumes it.
 
 
 # Benchmarks to run
@@ -2298,7 +2160,7 @@ def run_experiment(args):
         name_to_id.update({
             "RABBIT": 8, "RABBITORDER_BOOST": 8, "RABBITORDER_CSR": 8,
             "LEIDEN": 15, "LEIDENORDER": 15,
-            "LEIDENCSR": 16, "LEIDEN_CSR": 16, "GRAPHBREWORDER_GRAPHBREW": 12, "GraphBrew": 12,
+            "GRAPHBREWORDER_GRAPHBREW": 12, "GraphBrew": 12,
         })
         
         filtered_algos = set()
@@ -2364,7 +2226,6 @@ def run_experiment(args):
                 expand_leiden_variants=True,
                 leiden_resolution=getattr(args, "leiden_resolution", LEIDEN_DEFAULT_RESOLUTION),
                 leiden_passes=getattr(args, "leiden_passes", LEIDEN_DEFAULT_PASSES),
-                leiden_csr_variants=getattr(args, "leiden_csr_variants", None),
                 timeout=args.timeout_reorder,
                 skip_slow=args.skip_slow,
                 force_reorder=getattr(args, "force_reorder", False)
@@ -2409,7 +2270,6 @@ def run_experiment(args):
                 expand_leiden_variants=True,
                 leiden_resolution=getattr(args, "leiden_resolution", LEIDEN_DEFAULT_RESOLUTION),
                 leiden_passes=getattr(args, "leiden_passes", LEIDEN_DEFAULT_PASSES),
-                leiden_csr_variants=getattr(args, "leiden_csr_variants", None),
                 rabbit_variants=getattr(args, "rabbit_variants", None),
                 graphbrew_variants=getattr(args, "graphbrew_variants", None),
                 timeout=args.timeout_reorder,
@@ -2549,11 +2409,9 @@ def run_experiment(args):
             _progress.info("Mode: Standard cache simulation")
             
             # Pass variant lists if specified
-            leiden_csr_variants = getattr(args, 'leiden_csr_variants', None)
             rabbit_variants = getattr(args, 'rabbit_variants', None)
             
-            if leiden_csr_variants or rabbit_variants:
-                _progress.info(f"  LeidenCSR variants: {leiden_csr_variants or ['gveopt2 (default)']}")
+            if rabbit_variants:
                 _progress.info(f"  RabbitOrder variants: {rabbit_variants or ['csr (default)']}")
             
             cache_results = run_cache_simulations(
@@ -2564,7 +2422,6 @@ def run_experiment(args):
                 timeout=args.timeout_sim,
                 skip_heavy=args.skip_heavy,
                 label_maps=label_maps,
-                leiden_csr_variants=leiden_csr_variants,
                 rabbit_variants=rabbit_variants,
                 resolution=getattr(args, 'leiden_resolution', 1.0),
                 passes=getattr(args, 'leiden_passes', 3)
@@ -2791,7 +2648,6 @@ def run_experiment(args):
         else:
             # Get variant lists for expanded cache simulation
             expand_variants = getattr(args, 'expand_variants', False)
-            leiden_csr_variants = getattr(args, 'leiden_csr_variants', None) or LEIDEN_CSR_VARIANTS
             rabbit_variants = getattr(args, 'rabbit_variants', None) or RABBITORDER_VARIANTS
             
             cache_results = run_cache_simulations(
@@ -2802,7 +2658,6 @@ def run_experiment(args):
                 timeout=args.timeout_sim,
                 skip_heavy=getattr(args, 'skip_heavy', True),
                 label_maps={},
-                leiden_csr_variants=leiden_csr_variants if expand_variants else ['graphbrew'],
                 rabbit_variants=rabbit_variants if expand_variants else ['csr']
             )
         
@@ -3208,7 +3063,7 @@ def main():
     # Algorithm selection
     parser.add_argument("--quick", action="store_true", dest="key_only",
                         help="Quick mode: test only key algorithms (Original, Random, HubClusterDBG, "
-                             "RabbitOrder, Gorder, RCM, Leiden, LeidenCSR)")
+                             "RabbitOrder, Gorder, RCM, Leiden)")
     parser.add_argument("--algo", "--algorithm", type=str, default=None, dest="algo_name",
                         help="Run only a specific algorithm (e.g., RABBITORDER_boost, GraphBrewOrder_graphbrew)")
     parser.add_argument("--algo-list", nargs="+", type=str, default=None, dest="algo_list",
@@ -3267,10 +3122,6 @@ def main():
     # Leiden variant expansion options
     parser.add_argument("--all-variants", action="store_true", dest="expand_variants",
                         help="Test ALL algorithm variants (Leiden, RabbitOrder) instead of just defaults")
-    parser.add_argument("--csr-variants", nargs="+", dest="leiden_csr_variants",
-                        default=None, choices=LEIDEN_CSR_VARIANTS,
-                        help="LeidenCSR variants to test. Key variants: gveopt2 (default), gve, fast, modularity. "
-                             "Use --all-variants for all.")
     parser.add_argument("--rabbit-variants", nargs="+",
                         default=None, choices=["csr", "boost"],
                         help="RabbitOrder variants: csr (default, no deps), boost (requires libboost-graph-dev)")
@@ -3280,7 +3131,7 @@ def main():
     parser.add_argument("--resolution", type=str, default="dynamic", dest="leiden_resolution",
                         help="Leiden resolution: dynamic (default, best PR), auto, fixed (1.5), dynamic_2.0")
     parser.add_argument("--passes", type=int, default=3, dest="leiden_passes",
-                        help="LeidenCSR refinement passes - higher = better quality (default: 3)")
+                        help="Leiden refinement passes - higher = better quality (default: 3)")
     
     # Brute-force validation
     parser.add_argument("--brute-force", action="store_true",
@@ -3359,7 +3210,7 @@ def main():
         args.use_maps = True
     
     # Auto-enable --all-variants when specific variant lists are provided
-    if (args.leiden_csr_variants or args.rabbit_variants):
+    if args.rabbit_variants:
         if not args.expand_variants:
             args.expand_variants = True
             log("Auto-enabling variant expansion (specific variants requested)", "INFO")
@@ -3540,14 +3391,7 @@ def main():
                         log(f"  Features: modularity={rf.get('modularity', 0):.3f}, "
                             f"avg_degree={rf.get('avg_degree', 0):.1f}")
                     
-                    # Show best Leiden variants for each benchmark
-                    log(f"  Leiden variant rankings:")
-                    for bench in ['pr', 'bfs', 'cc']:
-                        # LeidenCSR variants
-                        csr_rankings = get_leiden_variant_rankings(type_name, 16, bench, args.weights_dir)
-                        if csr_rankings and csr_rankings[0][1] > 0:
-                            best_csr = csr_rankings[0]
-                            log(f"    {bench}/LeidenCSR: {best_csr[0].split('_')[-1]} (score: {best_csr[1]:.3f})")
+
         return  # Exit after showing types
     
     # ALWAYS ensure prerequisites at start (unless skip_build is set)

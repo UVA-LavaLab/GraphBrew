@@ -101,7 +101,7 @@ reorder/
 ├── reorder_rabbit.h     # RabbitOrder native CSR (algo 8) (~1,161 lines)
 ├── reorder_classic.h    # GOrder, COrder, RCMOrder (algo 9-11) (~517 lines)
 ├── reorder_adaptive.h   # ML-based selection (algo 14) (~650 lines)
-├── reorder_leiden.h     # Leiden community detection (algo 15-17) (~7,725 lines)
+├── reorder_leiden.h     # Leiden community detection (algo 15) (~7,725 lines)
 ├── reorder_graphbrew.h       # GraphBrew unified reordering framework (~7,055 lines)
 └── reorder.h            # Main dispatcher (~493 lines)
 ```
@@ -110,7 +110,7 @@ reorder/
 
 | File | Lines | Purpose |
 |------|-------|---------|
-| `reorder_leiden.h` | ~7,725 | GVE-Leiden algorithm, dendrogram traversal variants |
+| `reorder_leiden.h` | ~7,725 | GVE-Leiden algorithm, dendrogram traversal variants (algo 15) |
 | `reorder_graphbrew.h` | ~7,055 | GraphBrew unified reordering framework |
 | `reorder_types.h` | ~4,614 | Common types, perceptron model, `EdgeList`, threshold functions, `GetLLCSizeBytes()`, `getAlgorithmNameMap()` (58 variants) |
 | `reorder_rabbit.h` | ~1,161 | RabbitOrder CSR native implementation |
@@ -230,7 +230,7 @@ void Generate{Algorithm}MappingStandalone(const CSRGraph<...>& g,
 #### Leiden-Based (bench/include/graphbrew/reorder/reorder_leiden.h)
 
 ```cpp
-// LeidenCSR - fast CSR-native ordering with GVE-Leiden variants
+// LeidenOrder - Leiden community detection via GVE-Leiden (baseline)
 template<typename NodeID_, typename DestID_, typename WeightT_, bool invert>
 void GenerateLeidenCSRMappingUnified(
     const CSRGraph<NodeID_, DestID_, invert>& g, pvector<NodeID_>& new_ids,

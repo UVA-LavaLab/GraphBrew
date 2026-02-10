@@ -146,7 +146,7 @@ except ImportError:
         13: "MAP",
         14: "AdaptiveOrder",
         15: "LeidenOrder",
-        16: "LeidenCSR",
+        # Note: LeidenCSR (16) has been deprecated — GraphBrew (12) subsumes it.
     }
 
 # =============================================================================

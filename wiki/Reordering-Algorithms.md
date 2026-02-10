@@ -1,6 +1,6 @@
 # Graph Reordering Algorithms
 
-GraphBrew implements **17 different vertex reordering algorithms** (IDs 0-16), each with unique characteristics suited for different graph topologies. This page explains each algorithm in detail.
+GraphBrew implements **16 different vertex reordering algorithms** (IDs 0-15), each with unique characteristics suited for different graph topologies. This page explains each algorithm in detail.
 
 Note: Algorithm ID 13 (MAP) is reserved for external label mapping files, not a standalone reordering algorithm.
 
@@ -30,7 +30,7 @@ The effect is visible when plotting the adjacency matrix — a well-ordered grap
 | **DBG-Based** | DBG, HUBSORTDBG, HUBCLUSTERDBG | Cache locality |
 | **Community** | RABBITORDER | Hierarchical communities |
 | **Classic** | GORDER, CORDER, RCM | Bandwidth reduction |
-| **Leiden-Based** | LeidenOrder (15, baseline), LeidenCSR (16) | Strong community structure |
+| **Leiden-Based** | LeidenOrder (15, baseline) | Strong community structure |
 | **Hybrid** | GraphBrewOrder (12), MAP (13), AdaptiveOrder (14) | External/Adaptive selection |
 
 ---
@@ -213,7 +213,7 @@ These algorithms use different approaches: RabbitOrder detects communities, whil
 
 ![Community Detection Reordering](../docs/figures/reorder_community.png)
 
-**Comparison with GVE-Leiden (Algorithm 16)**:
+**Comparison with GVE-Leiden (Algorithm 15)**:
 | Metric | RabbitOrder | GVE-Leiden |
 |--------|-------------|------------|
 | Algorithm | Louvain (no refinement) | Leiden (with refinement) |
@@ -353,9 +353,9 @@ See [[AdaptiveOrder-ML]] for the full ML model details.
 
 ---
 
-## Leiden Variants (15-17)
+## Leiden Variants (15)
 
-GraphBrew consolidates Leiden algorithms into three main IDs with parameter-based variant selection for cleaner script sweeping.
+GraphBrew provides LeidenOrder as a baseline reference implementation.
 
 ### 15. LeidenOrder (Baseline Reference)
 **Leiden community detection via GVE-Leiden library**
@@ -369,70 +369,16 @@ GraphBrew consolidates Leiden algorithms into three main IDs with parameter-base
 
 - **Description**: Leiden community detection using the external GVE-Leiden library (requires CSR→DiGraph conversion)
 - **Complexity**: O(n log n) average
-- **Best for**: Baseline comparison — measures how much LeidenCSR (16) improved over the reference implementation
+- **Best for**: Baseline comparison — measures how much GraphBrewOrder (12) improved over the reference implementation
 - **Default resolution**: Auto-detected via continuous formula (0.5-1.2) with CV guardrail for power-law graphs
-- **Note**: LeidenCSR (16) reimplements this natively on CSR and is **28–95× faster** to reorder with equivalent kernel quality. Use LeidenCSR for production workloads.
+- **Note**: LeidenCSR (16) reimplements this natively on CSR and is **28–95× faster** to reorder with equivalent kernel quality. LeidenCSR functionality has been merged into GraphBrewOrder (12). Use GraphBrewOrder for production workloads.
 
 **Key features:**
 - Uses GVE-Leiden C++ library by Subhajit Sahu (`external/leiden/`)
 - Requires CSR → DiGraph format conversion (adds overhead)
 - Produces high-quality modularity scores (reference quality)
 
-### 16. LeidenCSR ⭐ (Fastest, Best Quality)
-**GVE-Leiden: Fast CSR-native Leiden with proper refinement**
-
-Implements the full Leiden algorithm from: *"Fast Leiden Algorithm for Community Detection in Shared Memory Setting"* (ACM DOI 10.1145/3673038.3673146)
-
-```bash
-# Format: -o 16[:variant[:resolution[:iterations[:passes]]]]
-./bench/bin/pr -f graph.el -s -o 16 -n 3                    # Default: gveopt2 (best overall)
-./bench/bin/pr -f graph.el -s -o 16:gveopt2 -n 3            # Explicit default - fastest + best quality
-./bench/bin/pr -f graph.el -s -o 16:gve -n 3                # Standard GVE-Leiden
-./bench/bin/pr -f graph.el -s -o 16:gveopt -n 3             # Cache-optimized GVE-Leiden
-./bench/bin/pr -f graph.el -s -o 16:fast -n 3               # Speed-optimized (fewer iterations)
-./bench/bin/pr -f graph.el -s -o 16:modularity -n 3         # Quality-optimized (more iterations)
-./bench/bin/pr -f graph.el -s -o 16:gverabbit -n 3          # GVE + RabbitOrder within communities
-./bench/bin/pr -f graph.el -s -o 16:dfs -n 3                # DFS ordering of community tree
-./bench/bin/pr -f graph.el -s -o 16:bfs -n 3                # BFS ordering of community tree
-./bench/bin/pr -f graph.el -s -o 16:hubsort -n 3            # Hub-first ordering within communities
-./bench/bin/pr -f graph.el -s -o 16:faithful -n 3           # Faithful 1:1 leiden.hxx implementation
-```
-
-**Resolution Parameter:**
-
-```bash
-./bench/bin/pr -f graph.el -s -o 16:gveopt2:1.5 -n 3       # Fixed resolution (1.5)
-./bench/bin/pr -f graph.el -s -o 16:gveopt2:0 -n 3          # Auto-computed resolution (default)
-./bench/bin/pr -f graph.el -s -o 16:fast:0.75:10:5 -n 3     # fast variant, res=0.75, 10 iters, 5 passes
-```
-
-**Variants:**
-
-| Variant | Description | Speed | Quality | Best For |
-|---------|-------------|-------|---------|----------|
-| `gveopt2` | CSR-based aggregation **(DEFAULT)** | **Fastest** | **Best** | Production ⭐ |
-| `gve` | Standard GVE-Leiden | Fast | Good | General purpose |
-| `gveopt` | Cache-optimized GVE-Leiden | Fast | Good | Large graphs |
-| `gverabbit` | GVE + RabbitOrder within communities | Fast | Good | Hierarchical |
-| `fast` | Fewer iterations | **Fastest** | OK | Speed priority |
-| `modularity` | More iterations | Slower | **Best** | Quality focus |
-| `dfs` | DFS ordering of community tree | Fast | Good | Tree structures |
-| `bfs` | BFS ordering of community tree | Fast | Good | Wide hierarchies |
-| `hubsort` | Hub-first within communities | Fast | Good | Power-law |
-| `faithful` | 1:1 leiden.hxx reference | Slow | Good | Validation |
-
-- **Description**: Pure Leiden community detection on CSR graphs — detects communities, sorts vertices by community ID + degree
-- **Default variant**: `gveopt2` — CSR-based aggregation (fastest + best quality)
-- **Default resolution**: Auto-detected via continuous formula (0.5-1.2) with CV guardrail
-- **Complexity**: O(n log n) average
-- **Best for**: Production community-based reordering
-- **28–95× faster** than LeidenOrder (15) with equivalent kernel quality
-
-![LeidenCSR Pipeline](../docs/figures/leidencsr_pipeline.png)
-
-**Difference from GraphBrewOrder (12)**: LeidenCSR sorts vertices by community membership. GraphBrewOrder goes further — it applies a **per-community reordering algorithm** (e.g., RabbitOrder, HubSort) within each detected community for finer-grained cache optimization.
-
-See [[Command-Line-Reference#leidencsr-16]] for resolution mode syntax.
+<!-- LeidenCSR (16) deprecated — GraphBrew (12) subsumes it -->
 
 ---
 
@@ -443,9 +389,9 @@ See [[Command-Line-Reference#leidencsr-16]] for resolution mode syntax.
 | Graph Type | Recommended | Alternatives |
 |------------|-------------|--------------|
 | Social Networks | GraphBrewOrder (12) | GraphBrewOrder (12:gveopt) |
-| Web Graphs | GraphBrewOrder (12:gveopt) | LeidenCSR (16) |
+| Web Graphs | GraphBrewOrder (12:gveopt) | HUBCLUSTERDBG (7) |
 | Road Networks | ORIGINAL (0), RCM (11) | GraphBrewOrder (12) |
-| Citation Networks | GraphBrewOrder (12) | LeidenCSR (16) |
+| Citation Networks | GraphBrewOrder (12) | LeidenOrder (15) |
 | Random Geometric | GraphBrewOrder (12:gveopt) | GraphBrewOrder (12) |
 | Unknown | GraphBrewOrder (12) | AdaptiveOrder (14) |
 
@@ -455,15 +401,15 @@ See [[Command-Line-Reference#leidencsr-16]] for resolution mode syntax.
 |------|-------|-------------|
 | Small | < 100K | Any (try several) |
 | Medium | 100K - 1M | GraphBrewOrder (12) |
-| Large | 1M - 100M | GraphBrewOrder (12), LeidenCSR (16:fast) |
-| Very Large | > 100M | LeidenCSR (16:fast), HUBCLUSTERDBG (7) |
+| Large | 1M - 100M | GraphBrewOrder (12), GraphBrewOrder (12:rabbit) |
+| Very Large | > 100M | GraphBrewOrder (12:rabbit), HUBCLUSTERDBG (7) |
 
 ### Quick Decision Tree
 
 ```
 Is your graph modular (has communities)?
 ├── Yes → Is it very large (>10M vertices)?
-│         ├── Yes → LeidenCSR (16:fast) for speed
+│         ├── Yes → GraphBrewOrder (12:rabbit) for speed
 │         │         GraphBrewOrder (12:gveopt) for quality
 │         └── No → GraphBrewOrder (12) - best quality
 └── No/Unknown → Is it a power-law graph?
@@ -486,7 +432,6 @@ Running PageRank on a social network (1M vertices, 10M edges):
 | HUBCLUSTERDBG (7) | 0.72s | 1.39x |
 | RabbitOrder (8) | 0.68s | 1.47x |
 | LeidenOrder (15) | 0.65s | 1.54x |
-| LeidenCSR (16) | 0.58s | 1.72x |
 | GraphBrewOrder (12) | 0.55s | 1.82x |
 
 ---

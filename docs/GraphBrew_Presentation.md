@@ -66,7 +66,7 @@
 └────────┬────────┘     └────────┬────────┘     └────────┬────────┘
          │                       │                       │
          ▼                       ▼                       ▼
-    RabbitOrder             HubClusterDBG            LeidenCSR
+    RabbitOrder             HubClusterDBG          GraphBrewOrder
 ```
 
 ---
@@ -123,7 +123,7 @@ final_score = score × benchmark_weights[benchmark]
 
 ## Slide 6: Supported Algorithms
 
-# 17 Reordering Algorithms
+# 16 Reordering Algorithms
 
 | ID | Algorithm | Best For |
 |----|-----------|----------|
@@ -143,7 +143,7 @@ final_score = score × benchmark_weights[benchmark]
 | 13 | MAP | External mapping file |
 | 14 | AdaptiveOrder | ML-powered selection |
 | 15 | LeidenOrder | GVE-Leiden baseline |
-| 16 | LeidenCSR | Fast CSR-native Leiden |
+| ~~16~~ | ~~LeidenCSR~~ | _Deprecated — subsumed by GraphBrewOrder (12)_ |
 
 ---
 
@@ -384,7 +384,6 @@ benchmark_weights = {
       "win_rate": 0.68
     }
   },
-  "LeidenCSR": { ... },
   "HubClusterDBG": { ... }
 }
 ```
@@ -447,7 +446,7 @@ Input: soc-LiveJournal1 (4.8M nodes, 68M edges)
 │                                                                 │
 │ Community 1 (450K nodes): dense, high clustering                │
 │   → Features: density=0.08, hub_conc=0.38                       │
-│   → Score: RABBITORDER=2.1, LeidenCSR=1.9, HubSort=1.5          │
+│   → Score: RABBITORDER=2.1, GraphBrewOrder=1.9, HubSort=1.5     │
 │   → SELECT: RABBITORDER                                         │
 │                                                                 │
 │ Community 2 (120K nodes): sparse, hub-dominated                 │

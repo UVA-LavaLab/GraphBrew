@@ -11,7 +11,6 @@ bench/include/
 │   │   ├── reorder_hub.h   # HubSort, HubCluster, DBG variants
 │   │   ├── reorder_classic.h # GOrder, COrder, RCM
 │   │   ├── reorder_rabbit.h  # RabbitOrder integration
-│   │   ├── reorder_leiden.h  # Leiden-based algorithms
 │   │   ├── reorder_graphbrew.h # GraphBrew unified reordering framework
 │   │   └── reorder_adaptive.h # Adaptive ML-based selection
 │   └── partition/          # Partitioning algorithms

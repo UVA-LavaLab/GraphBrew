@@ -77,7 +77,7 @@ ALGORITHM_TAXONOMY = {
     'basic': ['ORIGINAL', 'RANDOM', 'SORT'],
     'hub': ['HUBSORT', 'HUBCLUSTER', 'DBG', 'HUBSORTDBG', 'HUBCLUSTERDBG'],
     'community': ['RABBITORDER', 'RABBITORDER_csr', 'RABBITORDER_boost', 'GORDER', 'CORDER', 'RCM'],
-    'leiden': ['LeidenOrder', 'LeidenCSR',
+    'leiden': ['LeidenOrder',
                'GraphBrewOrder_graphbrew', 'GraphBrewOrder_graphbrew:dfs', 'GraphBrewOrder_graphbrew:hrab',
                'GraphBrewOrder_graphbrew:rabbit'],
     'composite': ['GraphBrewOrder', 'AdaptiveOrder'],
@@ -1175,7 +1175,7 @@ def interactive_mode(perf_matrix: Dict, graphs: List[str], results: Dict):
         print("\nCommands:")
         print("  show            - Show current weights (top 10 by bias)")
         print("  eval [bench]    - Evaluate accuracy (default: pr)")
-        print("  set ALGO BIAS   - Set algorithm bias (e.g., 'set LeidenCSR 5.0')")
+        print("  set ALGO BIAS   - Set algorithm bias (e.g., 'set GraphBrewOrder 5.0')")
         print("  train METHOD    - Retrain (speedup/winrate/rank/hybrid)")
         print("  grid            - Run grid search")
         print("  export          - Export to active directory")

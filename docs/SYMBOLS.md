@@ -13,13 +13,13 @@
 | `GenerateGraphBrewMappingUnified` | `bench/include/external/gapbs/builder.h` | GraphBrew clustering + final reorder (GraphBrew-powered) |
 | `GenerateAdaptiveMapping` | `bench/include/graphbrew/reorder/reorder_adaptive.h` | AdaptiveOrder selector |
 | `GenerateRabbitOrderCSRMapping` | `bench/include/graphbrew/reorder/reorder_rabbit.h` | Native CSR RabbitOrder |
-| `GenerateLeidenCSRMapping` | `bench/include/graphbrew/reorder/reorder_leiden.h` | GVE-Leiden CSR variants |
+| ~~`GenerateLeidenCSRMapping`~~ | ~~`reorder_leiden.h`~~ | _Removed — LeidenCSR deprecated; use GraphBrewOrder (12)_ |
 
 ## Builder Entrypoints
 | Symbol | File | Notes |
 |--------|------|-------|
 | `BuilderBase::MakePartitionedGraph` | `bench/include/external/gapbs/builder.h` | Dispatches `-j` to Cagra or TRUST |
-| `BuilderBase::GenerateMapping` | `bench/include/external/gapbs/builder.h` | Reordering dispatcher (IDs 0–17) |
+| `BuilderBase::GenerateMapping` | `bench/include/external/gapbs/builder.h` | Reordering dispatcher (IDs 0–16; 16 deprecated) |
 
 ## Umbrella
 | Symbol | File | Notes |

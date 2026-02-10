@@ -1237,10 +1237,6 @@ public:
             // GVE-Leiden library (baseline reference) - Format: 15:resolution
             GenerateLeidenMapping(g, new_ids, reordering_options);
             break;
-        case LeidenCSR:
-            // Fast Leiden on CSR / GraphBrew - Format: 16:variant:resolution:iterations:passes
-            GenerateLeidenCSRMappingUnified(g, new_ids, reordering_options);
-            break;
         case GraphBrewOrder:
             // Extended GraphBrewOrder - Format: 12:cluster_variant:final_algo:resolution:levels
             // Cluster variants: leiden (default), gve, gveopt, rabbit, hubcluster
@@ -1405,10 +1401,6 @@ public:
         case LeidenOrder:
             // GVE-Leiden library (baseline reference) - Format: 15:resolution
             GenerateLeidenMapping(g, new_ids, reordering_options);
-            break;
-        case LeidenCSR:
-            // Fast Leiden on CSR / GraphBrew - Format: 16:variant:resolution:iterations:passes
-            GenerateLeidenCSRMappingUnified(g, new_ids, reordering_options);
             break;
         case GraphBrewOrder:
             GenerateGraphBrewMappingUnified(g, new_ids, useOutdeg, reordering_options);
@@ -1967,304 +1959,6 @@ public:
         ::markNeighborsAffected<NodeID_, DestID_>(u, vaff, g, graph_is_symmetric);
     }
     
-    /**
-     * Delta modularity calculation for community move.
-     * Delegates to graphbrew::leiden::gveDeltaModularity in reorder/reorder_leiden.h
-     */
-    template <typename W>
-    inline W gveDeltaModularity(W ki_to_c, W ki_to_d, W ki, W sigma_c, W sigma_d, double M, double R) {
-        return graphbrew::leiden::gveDeltaModularity<W>(
-            ki_to_c, ki_to_d, ki, sigma_c, sigma_d, static_cast<W>(M), static_cast<W>(R));
-    }
-    
-    /**
-     * GVE-Leiden Local-Moving Phase (Algorithm 2)
-     * Delegates to ::gveLeidenLocalMoveCSR in reorder/reorder_leiden.h
-     */
-    template <typename K = uint32_t, typename W = double>
-    int gveLeidenLocalMove(
-        std::vector<K>& vcom,
-        std::vector<W>& ctot,
-        std::vector<char>& vaff,
-        const std::vector<W>& vtot,
-        const int64_t num_nodes,
-        const CSRGraph<NodeID_, DestID_, true>& g,
-        bool graph_is_symmetric,
-        double M, double R, int L, double tolerance) {
-        return ::gveLeidenLocalMoveCSR<K, W, NodeID_, DestID_>(
-            vcom, ctot, vaff, vtot, num_nodes, g, graph_is_symmetric, M, R, L, tolerance);
-    }
-    
-    /**
-     * GVE-Leiden Refinement Phase (Algorithm 3)
-     * Delegates to ::gveLeidenRefineCSR in reorder/reorder_leiden.h
-     */
-    template <typename K = uint32_t, typename W = double>
-    int gveLeidenRefine(
-        std::vector<K>& vcom,
-        std::vector<W>& ctot,
-        std::vector<char>& vaff,
-        const std::vector<K>& vcob,
-        const std::vector<W>& vtot,
-        const int64_t num_nodes,
-        const CSRGraph<NodeID_, DestID_, true>& g,
-        bool graph_is_symmetric,
-        double M, double R) {
-        return ::gveLeidenRefineCSR<K, W, NodeID_, DestID_>(
-            vcom, ctot, vaff, vcob, vtot, num_nodes, g, graph_is_symmetric, M, R);
-    }
-    
-    /**
-     * Compute community-to-community edge weights for virtual aggregation.
-     * Delegates to ::computeCommunityGraphCSR in reorder/reorder_leiden.h
-     */
-    template <typename K, typename W>
-    void computeCommunityGraph(
-        std::unordered_map<K, std::unordered_map<K, W>>& comm_graph,
-        std::unordered_map<K, W>& comm_weight,
-        const std::vector<K>& vcom,
-        const std::vector<W>& vtot,
-        const int64_t num_nodes,
-        const CSRGraph<NodeID_, DestID_, true>& g,
-        bool graph_is_symmetric) {
-        ::computeCommunityGraphCSR<K, W, NodeID_, DestID_>(
-            comm_graph, comm_weight, vcom, vtot, num_nodes, g, graph_is_symmetric);
-    }
-    
-    /**
-     * Local-moving on the community graph (virtual aggregation).
-     * Delegates to ::communityLocalMove in reorder/reorder_leiden.h
-     */
-    template <typename K, typename W>
-    std::unordered_map<K, K> communityLocalMove(
-        const std::unordered_map<K, std::unordered_map<K, W>>& comm_graph,
-        const std::unordered_map<K, W>& comm_weight,
-        double M, double R, int max_iterations, double tolerance) {
-        return ::communityLocalMove<K, W>(comm_graph, comm_weight, M, R, max_iterations, tolerance);
-    }
-    
-    /**
-     * Main GVE-Leiden Algorithm (Algorithm 1) with REFINEMENT and AGGREGATION
-     * 
-     * Following the paper: "Fast Leiden Algorithm for Community Detection in Shared Memory Setting"
-     * ACM DOI: 10.1145/3673038.3673146
-     * 
-     * Key differences from Louvain (used by RabbitOrder):
-     * 1. REFINEMENT phase ensures well-connected communities (only isolated vertices move)
-     * 2. Proper aggregation with community bounds
-     * 
-     * This should produce HIGHER modularity than RabbitOrder/Louvain.
-     * 
-     * Delegates to ::GVELeidenCSR in reorder/reorder_leiden.h
-     */
-    template <typename K = uint32_t>
-    GVELeidenResult<K> GVELeidenCSR(
-        const CSRGraph<NodeID_, DestID_, true>& g,
-        double resolution = 1.0,
-        double tolerance = 1e-2,
-        double aggregation_tolerance = 0.8,
-        double tolerance_drop = 10.0,
-        int max_iterations = 20,
-        int max_passes = 10) {
-        
-        return ::GVELeidenCSR<K, double, NodeID_, DestID_>(
-            g, resolution, tolerance, aggregation_tolerance, 
-            tolerance_drop, max_iterations, max_passes);
-    }
-
-    //==========================================================================
-    // OPTIMIZED GVE-LEIDEN: Cache-Optimized Leiden Algorithm
-    //==========================================================================
-    
-    /**
-     * Optimized local move scan using flat array instead of hash map.
-     * Uses prefetching for better cache performance.
-     * Delegates to external implementation in reorder_leiden.h
-     */
-    template <typename K = uint32_t, typename W = double>
-    inline W gveOptScanVertex(
-        NodeID_ u,
-        const K* __restrict__ vcom,
-        W* __restrict__ comm_weights,
-        K* __restrict__ touched_comms,
-        int& num_touched,
-        K d,
-        const CSRGraph<NodeID_, DestID_, true>& g,
-        bool graph_is_symmetric) {
-        return ::gveOptScanVertex<K, W, NodeID_, DestID_, WeightT_>(
-            u, vcom, comm_weights, touched_comms, num_touched, d, g, graph_is_symmetric);
-    }
-    
-    /**
-     * Optimized GVE-Leiden Local-Moving Phase
-     * Delegates to external implementation in reorder_leiden.h
-     */
-    template <typename K = uint32_t, typename W = double>
-    int gveOptLocalMove(
-        std::vector<K>& vcom,
-        std::vector<W>& ctot,
-        std::vector<char>& vaff,
-        const std::vector<W>& vtot,
-        const int64_t num_nodes,
-        const CSRGraph<NodeID_, DestID_, true>& g,
-        bool graph_is_symmetric,
-        double M, double R, int L, double tolerance) {
-        return ::gveOptLocalMove<K, W, NodeID_, DestID_, WeightT_>(
-            vcom, ctot, vaff, vtot, num_nodes, g, graph_is_symmetric, M, R, L, tolerance);
-    }
-    
-    /**
-     * Optimized GVE-Leiden Refinement Phase
-     * Delegates to external implementation in reorder_leiden.h
-     */
-    template <typename K = uint32_t, typename W = double>
-    int gveOptRefine(
-        std::vector<K>& vcom,
-        std::vector<W>& ctot,
-        std::vector<char>& vaff,
-        const std::vector<K>& vcob,
-        const std::vector<W>& vtot,
-        const int64_t num_nodes,
-        const CSRGraph<NodeID_, DestID_, true>& g,
-        bool graph_is_symmetric,
-        double M, double R) {
-        return ::gveOptRefine<K, W, NodeID_, DestID_, WeightT_>(
-            vcom, ctot, vaff, vcob, vtot, num_nodes, g, graph_is_symmetric, M, R);
-    }
-    
-    /**
-     * GVELeidenOpt - Optimized GVE-Leiden with cache optimizations
-     * 
-     * Key optimizations:
-     * - Flat arrays instead of hash maps for community scanning
-     * - Prefetching for community lookups
-     * - Guided scheduling for better load balancing
-     * - Optimized super-graph construction with sorted edge merging
-     * 
-     * Delegates to ::GVELeidenOptCSR in reorder/reorder_leiden.h
-     */
-    template <typename K = uint32_t>
-    GVELeidenResult<K> GVELeidenOpt(
-        const CSRGraph<NodeID_, DestID_, true>& g,
-        double resolution = 1.0,
-        double tolerance = 1e-2,
-        double aggregation_tolerance = 0.8,
-        double tolerance_drop = 10.0,
-        int max_iterations = 20,
-        int max_passes = 10) {
-        
-        return ::GVELeidenOptCSR<K, double, NodeID_, DestID_>(
-            g, resolution, tolerance, aggregation_tolerance,
-            tolerance_drop, max_iterations, max_passes);
-    }
-
-    //==========================================================================
-    // GVE-LEIDEN WITH INCREMENTAL DENDROGRAM (RabbitOrder-inspired)
-    //
-    // These variants build the dendrogram DURING community detection instead
-    // of as a post-processing step. This is inspired by RabbitOrder's efficient
-    // tree building using child/sibling pointers.
-    //
-    // Key optimization: Instead of storing community_per_pass and rebuilding
-    // the hierarchy, we track parent-child relationships as vertices merge.
-    //==========================================================================
-    
-    /**
-     * Build dendrogram from community assignments AFTER local-moving completes.
-     * Delegates to ::buildDendrogramFromCommunities in reorder/reorder_types.h
-     */
-    template <typename K, typename W>
-    void buildDendrogramFromCommunities(
-        GVEDendroResult<K>& dendro,
-        const std::vector<K>& vcom,
-        const std::vector<W>& vtot,
-        int64_t num_nodes) {
-        ::buildDendrogramFromCommunities<K, W>(dendro, vcom, vtot, num_nodes);
-    }
-    
-    /**
-     * GVELeidenDendo - GVE-Leiden with INCREMENTAL atomic dendrogram building
-     * 
-     * This is a clone of GVELeidenCSR that builds the dendrogram incrementally
-     * using RabbitOrder-style atomic CAS instead of post-processing.
-     * 
-     * Key optimization: Instead of storing community_per_pass and rebuilding
-     * the tree in post-processing, we build parent-child relationships as
-     * vertices merge during detection using lock-free atomic operations.
-     * 
-     * Delegates to ::GVELeidenDendoCSR in reorder/reorder_leiden.h
-     */
-    template <typename K = uint32_t>
-    GVEDendroResult<K> GVELeidenDendo(
-        const CSRGraph<NodeID_, DestID_, true>& g,
-        double resolution = 1.0,
-        double tolerance = 1e-2,
-        double aggregation_tolerance = 0.8,
-        double tolerance_drop = 10.0,
-        int max_iterations = 20,
-        int max_passes = 10) {
-        
-        return ::GVELeidenDendoCSR<K, double, NodeID_, DestID_>(
-            g, resolution, tolerance, aggregation_tolerance,
-            tolerance_drop, max_iterations, max_passes);
-    }
-    
-    /**
-     * GVELeidenOptDendo - Optimized GVE-Leiden with incremental dendrogram
-     * 
-     * Clone of GVELeidenOpt with atomic dendrogram building.
-     * Uses optimized flat-array scanning plus lock-free tree construction.
-     * 
-     * Delegates to ::GVELeidenOptDendoCSR in reorder/reorder_leiden.h
-     */
-    template <typename K = uint32_t>
-    GVEDendroResult<K> GVELeidenOptDendo(
-        const CSRGraph<NodeID_, DestID_, true>& g,
-        double resolution = 1.0,
-        double tolerance = 1e-2,
-        double aggregation_tolerance = 0.8,
-        double tolerance_drop = 10.0,
-        int max_iterations = 20,
-        int max_passes = 10) {
-        
-        return ::GVELeidenOptDendoCSR<K, double, NodeID_, DestID_>(
-            g, resolution, tolerance, aggregation_tolerance,
-            tolerance_drop, max_iterations, max_passes);
-    }
-    
-    //==========================================================================
-    // FAST LEIDEN-CSR: Direct CSR Community Detection (No DiGraph Conversion)
-    //==========================================================================
-    
-    /**
-     * FastLeidenCSR - Union-Find based community detection on CSR graphs
-     * 
-     * Uses modularity-guided community merging with Union-Find for efficiency.
-     * Delegates to ::FastLeidenCSR in reorder/reorder_leiden.h
-     *
-     * Returns: vector of community assignments per pass (finest to coarsest)
-     */
-    template <typename K = uint32_t>
-    std::vector<std::vector<K>> FastLeidenCSR(
-        const CSRGraph<NodeID_, DestID_, true>& g,
-        double resolution = 1.0,
-        int max_iterations = 10,
-        int max_passes = 10)
-    {
-        return ::FastLeidenCSR<K, NodeID_, DestID_>(g, resolution, max_iterations, max_passes);
-    }
-    
-    // Keep old function name for compatibility
-    template <typename K = uint32_t>
-    std::vector<std::vector<K>> FastLabelPropagationCSR(
-        const CSRGraph<NodeID_, DestID_, true>& g,
-        double resolution = 1.0,
-        int max_iterations = 10,
-        int max_passes = 5)
-    {
-        return FastLeidenCSR<K>(g, resolution, max_iterations, max_passes);
-    }
-    
     //==========================================================================
     // LEIDENFAST: Parallel Community-Based Graph Reordering
     //==========================================================================
@@ -2286,101 +1980,19 @@ public:
      * Final: Order by community strength DESC, degree DESC within community
      */
     
-    /**
-     * Fast parallel community detection using Union-Find + Label Propagation
-     * Delegates to ::FastModularityCommunityDetection in reorder/reorder_leiden.h
-     */
-    template<typename NodeID_T, typename DestID_T>
-    void FastModularityCommunityDetection(
-        const CSRGraph<NodeID_T, DestID_T, true>& g,
-        std::vector<double>& vertex_strength,
-        std::vector<int64_t>& final_community,
-        double resolution = 1.0,
-        int max_passes = 3)
-    {
-        ::FastModularityCommunityDetection<NodeID_T, DestID_T>(
-            g, vertex_strength, final_community, resolution, max_passes);
-    }
-    
-    /**
-     * Build final ordering from communities
-     * Delegates to ::BuildCommunityOrdering in reorder/reorder_leiden.h
-     */
-    template<typename NodeID_T, typename DestID_T>
-    void BuildCommunityOrdering(
-        const CSRGraph<NodeID_T, DestID_T, true>& g,
-        const std::vector<double>& vertex_strength,
-        const std::vector<int64_t>& community,
-        std::vector<int64_t>& ordered_vertices)
-    {
-        ::BuildCommunityOrdering<NodeID_T, DestID_T>(
-            g, vertex_strength, community, ordered_vertices);
-    }
-    
-    
     //==========================================================================
-    // LEIDEN (True Implementation): Quality-focused community detection
+    // LEIDEN AUTO-RESOLUTION
     //==========================================================================
-    
-    /**
-     * Leiden Algorithm - Highly optimized parallel local moving
-     * 
-     * Optimizations:
-     * 1. Use flat array counting when labels are dense (first iterations)
-     * 2. Process degree-1 vertices specially (just adopt neighbor's community)
-     * 3. Minimize atomic operations
-     * 4. Auto-tune resolution based on graph density
-     */
     
     /**
      * Compute optimal resolution based on graph properties.
      * 
      * Heuristic for stable partitions for reordering; not a research-derived
      * optimum. Users should sweep γ for best community quality.
-     * 
-     * Logic:
-     * - Continuous mapping: γ = clip(0.5 + 0.25*log10(avg_degree+1), 0.5, 1.2)
-     * - CV guardrail: if degree variance is high (CV > 2), nudge toward 1.0
-     *   because heavy-tailed (hubby) graphs can produce unstable mega-communities
      */
     template<typename NodeID_T, typename DestID_T>
     double LeidenAutoResolution(const CSRGraph<NodeID_T, DestID_T, true>& g) {
         return computeAutoResolution<NodeID_T, DestID_T>(g);
-    }
-    
-    /**
-     * Optimized parallel local moving - two-phase approach
-     * Delegates to ::LeidenLocalMoveParallel in reorder/reorder_leiden.h
-     */
-    template<typename NodeID_T, typename DestID_T>
-    int64_t LeidenLocalMoveParallel(
-        const CSRGraph<NodeID_T, DestID_T, true>& g,
-        std::vector<int64_t>& community,
-        std::vector<double>& comm_weight,
-        const std::vector<double>& vertex_weight,
-        double total_weight,
-        double resolution,
-        int max_iterations)
-    {
-        return ::LeidenLocalMoveParallel<NodeID_T, DestID_T>(
-            g, community, comm_weight, vertex_weight,
-            total_weight, resolution, max_iterations);
-    }
-    
-    /**
-     * Main Leiden algorithm - focus on quality communities
-     * Delegates to ::LeidenCommunityDetection in reorder/reorder_leiden.h
-     */
-    template<typename NodeID_T, typename DestID_T>
-    void LeidenCommunityDetection(
-        const CSRGraph<NodeID_T, DestID_T, true>& g,
-        std::vector<int64_t>& final_community,
-        double resolution = 1.0,
-        int max_passes = 3,
-        int max_iterations = 20)
-    {
-        ::LeidenCommunityDetection<NodeID_T, DestID_T>(
-            g, final_community, resolution, max_passes, max_iterations);
     }
     
     
@@ -2415,7 +2027,7 @@ public:
         if (!reordering_options.empty() && !reordering_options[0].empty())
         {
             const std::string& res_opt = reordering_options[0];
-            // Handle special keywords like LeidenCSR does
+            // Handle special keywords (auto, dynamic, etc.)
             if (res_opt == "auto" || res_opt == "0" || res_opt.rfind("dynamic", 0) == 0) {
                 // Keep auto-resolution
             } else {
@@ -2587,127 +2199,6 @@ public:
         PrintTime("Resolution", resolution);
     }
 
-    /**
-     * Unified Leiden CSR Mapping - Pure Leiden community detection + reordering
-     * Format: 16:variant:resolution:iterations:passes
-     * Default variant: gveopt2 (fastest + best quality)
-     *
-     * Supported variants: gve, gveopt, gveopt2, dfs, bfs, hubsort, fast, modularity, faithful
-     * For GraphBrew pipeline, use algorithm 12 (-o 12:hrab, 12:leiden, etc.)
-     */
-    void GenerateLeidenCSRMappingUnified(
-        const CSRGraph<NodeID_, DestID_, invert> &g,
-        pvector<NodeID_> &new_ids,
-        std::vector<std::string> reordering_options) {
-        
-        // Default values - use auto-resolution based on graph density
-        double resolution = LeidenAutoResolution<NodeID_, DestID_>(g);
-        int max_iterations = LEIDEN_DEFAULT_ITERATIONS;
-        int max_passes = LEIDEN_DEFAULT_PASSES;
-        std::string variant = "gveopt2";  // Default: fastest + best quality Leiden
-        
-        // Parse options: variant, resolution, max_iterations, max_passes
-        // CLI format: -o 16:variant:resolution:max_iterations:max_passes
-        if (!reordering_options.empty() && !reordering_options[0].empty()) {
-            variant = reordering_options[0];
-        }
-        
-        // Parse resolution
-        if (reordering_options.size() > 1 && !reordering_options[1].empty()) {
-            const std::string& res_opt = reordering_options[1];
-            if (res_opt == "auto" || res_opt == "0") {
-                // Keep auto-resolution
-            } else {
-                try {
-                    double parsed = std::stod(res_opt);
-                    if (parsed > 0 && parsed <= 3) {
-                        resolution = parsed;
-                    }
-                } catch (...) {}
-            }
-        }
-        
-        // Parse iterations and passes
-        if (reordering_options.size() > 2 && !reordering_options[2].empty()) {
-            try { max_iterations = std::stoi(reordering_options[2]); } catch (...) {}
-        }
-        if (reordering_options.size() > 3 && !reordering_options[3].empty()) {
-            try { max_passes = std::stoi(reordering_options[3]); } catch (...) {}
-        }
-        
-        // Parse variant enum
-        auto lvar = graphbrew::leiden::ParseLeidenCSRVariant(variant);
-        
-        // Adjust parameters for special variants
-        if (lvar == graphbrew::leiden::LeidenCSRVariant::Fast) {
-            max_iterations = graphbrew::leiden::FAST_MAX_ITERATIONS;
-            max_passes = graphbrew::leiden::FAST_MAX_PASSES;
-        } else if (lvar == graphbrew::leiden::LeidenCSRVariant::Modularity) {
-            max_iterations = graphbrew::leiden::MODULARITY_MAX_ITERATIONS;
-            max_passes = graphbrew::leiden::MODULARITY_MAX_PASSES;
-        }
-        
-        printf("LeidenCSR: variant=%s, resolution=%.2f, max_iterations=%d, max_passes=%d\n",
-               graphbrew::leiden::LeidenCSRVariantToString(lvar).c_str(),
-               resolution, max_iterations, max_passes);
-        
-        // Run GVE-Leiden community detection
-        Timer tm;
-        tm.Start();
-        
-        GVELeidenResult<K> result;
-        switch (lvar) {
-            case graphbrew::leiden::LeidenCSRVariant::GVE:
-                result = GVELeidenCSR<K>(g, resolution, 1e-2, 0.8, 10.0, max_iterations, max_passes);
-                break;
-            default:
-                // GVEOpt, GVEOpt2, DFS, BFS, HubSort, Fast, Modularity, Faithful, GVE2, GVERabbit
-                // All use the optimized implementation with variant-specific parameters
-                result = GVELeidenOpt<K>(g, resolution, 1e-2, 0.8, 10.0, max_iterations, max_passes);
-                break;
-        }
-        
-        tm.Stop();
-        printf("LeidenCSR: %d passes, %d iterations, %.6f modularity, %.4fs\n",
-               result.total_passes, result.total_iterations, result.modularity, tm.Seconds());
-        
-        // ===== Community-based reordering =====
-        // Sort vertices by community, then by degree within community
-        // This achieves basic locality — vertices in the same community are adjacent
-        const int64_t N = g.num_nodes();
-        new_ids.resize(N);
-        
-        struct VertexInfo {
-            NodeID_ id;
-            K community;
-            int64_t degree;
-        };
-        std::vector<VertexInfo> vertices(N);
-        
-        #pragma omp parallel for
-        for (int64_t v = 0; v < N; ++v) {
-            vertices[v] = {static_cast<NodeID_>(v), result.final_community[v], g.out_degree(v)};
-        }
-        
-        // Sort by community (ascending), then degree (descending) for hub locality
-        __gnu_parallel::sort(vertices.begin(), vertices.end(),
-            [](const VertexInfo& a, const VertexInfo& b) {
-                if (a.community != b.community) return a.community < b.community;
-                return a.degree > b.degree;  // Hubs first within community
-            });
-        
-        #pragma omp parallel for
-        for (int64_t i = 0; i < N; ++i) {
-            new_ids[vertices[i].id] = static_cast<NodeID_>(i);
-        }
-        
-        // Stats
-        std::set<K> unique_comms(result.final_community.begin(), result.final_community.end());
-        PrintTime("LeidenCSR GenID Time", tm.Seconds());
-        PrintTime("Num Communities", unique_comms.size());
-        PrintTime("Resolution", resolution);
-    }
-    
     // ========================================================================
     // GVE-Rabbit Hybrid Algorithm
     // 
@@ -2740,7 +2231,6 @@ public:
 
     // NOTE: GenerateGraphBrewMapping has been removed.
     // GraphBrew functionality is now in GenerateGraphBrewMappingUnified() (algo 12).
-    // LeidenCSR (algo 16) is pure Leiden community detection only.
 
     // ========================================================================
     // RabbitOrderCSR - Native CSR implementation of Rabbit Order
@@ -3352,7 +2842,7 @@ public:
     //   rabbit  - RabbitOrder clustering
     //   hubcluster - Simple hub-based clustering
     //
-    // Final algorithm: Any algorithm ID 0-16 (default: 8 = RabbitOrder)
+    // Final algorithm: Any algorithm ID 0-15 (default: 8 = RabbitOrder)
     // Resolution: Leiden resolution parameter (default: auto)
     // Levels: Recursion depth (default: 2)
     //

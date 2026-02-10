@@ -45,7 +45,6 @@
 //   13 - MAP:            Load ordering from file
 //   14 - ADAPTIVEORDER:  ML-based algorithm selection
 //   15 - LEIDENORDER:    Leiden community ordering
-//   16 - LEIDENCSR:      GVE-Leiden CSR-native ordering (GraphBrew)
 //
 // Usage:
 //   #include "reorder/reorder.h"
@@ -70,7 +69,8 @@
 #include "reorder_hub.h"     // HUBSORT, HUBCLUSTER, DBG variants (3-7)
 #include "reorder_rabbit.h"  // RABBITORDER (8)
 #include "reorder_classic.h" // GORDER, CORDER, RCM (9-11)
-#include "reorder_leiden.h"  // LEIDENORDER, LEIDENCSR (15-16)
+// Note: LeidenCSR (16) has been deprecated — GraphBrew (12) subsumes it.
+// LeidenOrder (15) uses external/leiden/leiden.hxx directly.
 
 // Note: reorder_adaptive.h is included at the END of this file
 // after all dispatcher functions are defined.
@@ -113,7 +113,6 @@ inline bool isHubBasedAlgorithm(ReorderingAlgo algo) {
  */
 inline bool isCommunityBasedAlgorithm(ReorderingAlgo algo) {
     return algo == RabbitOrder || algo == LeidenOrder || 
-           algo == LeidenCSR ||
            algo == GraphBrewOrder || algo == AdaptiveOrder;
 }
 
@@ -121,7 +120,7 @@ inline bool isCommunityBasedAlgorithm(ReorderingAlgo algo) {
  * @brief Check if algorithm is a Leiden variant
  */
 inline bool isLeidenAlgorithm(ReorderingAlgo algo) {
-    return algo == LeidenOrder || algo == LeidenCSR;
+    return algo == LeidenOrder;
 }
 
 /**
@@ -131,7 +130,7 @@ inline bool isLeidenAlgorithm(ReorderingAlgo algo) {
  */
 inline bool hasVariants(ReorderingAlgo algo) {
     return algo == RabbitOrder || 
-           algo == LeidenCSR || algo == GraphBrewOrder || 
+           algo == GraphBrewOrder || 
            algo == AdaptiveOrder || algo == MAP;
 }
 

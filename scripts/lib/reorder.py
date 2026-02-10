@@ -29,7 +29,6 @@ from typing import Dict, List, Optional, Tuple, Any
 from .utils import (
     PROJECT_ROOT, BIN_DIR, RESULTS_DIR,
     ALGORITHMS, ALGORITHM_IDS, SLOW_ALGORITHMS, SIZE_MEDIUM,
-    LEIDEN_CSR_VARIANTS,
     LEIDEN_DEFAULT_RESOLUTION, LEIDEN_DEFAULT_PASSES,
     LEIDEN_MODULARITY_MAX_ITERATIONS,
     RABBITORDER_VARIANTS, RABBITORDER_DEFAULT_VARIANT,
@@ -137,9 +136,6 @@ def get_algorithm_name_with_variant(algo_id: int, variant: str = None) -> str:
     elif algo_id == 12:  # GraphBrewOrder
         variant = variant or GRAPHBREW_DEFAULT_VARIANT
         return f"GraphBrewOrder_{variant}"
-    elif algo_id == 16:  # LeidenCSR
-        variant = variant or LEIDEN_CSR_VARIANTS[0]  # Default: gveopt2
-        return f"LeidenCSR_{variant}"
     else:
         return base_name
 
@@ -169,31 +165,26 @@ def expand_algorithms_with_variants(
     expand_leiden_variants: bool = False,
     leiden_resolution: str = LEIDEN_DEFAULT_RESOLUTION,
     leiden_passes: int = LEIDEN_DEFAULT_PASSES,
-    leiden_csr_variants: List[str] = None,
     rabbit_variants: List[str] = None,
     graphbrew_variants: List[str] = None
 ) -> List[AlgorithmConfig]:
     """
     Expand algorithm IDs into AlgorithmConfig objects.
     
-    For Leiden algorithm (16), optionally expand into its variants.
     For RabbitOrder (8), optionally expand into csr/boost variants.
     For GraphBrewOrder (12), optionally expand into leiden/gve/gveopt/rabbit/hubcluster variants.
     
     Args:
         algorithms: List of algorithm IDs
-        expand_leiden_variants: If True, expand LeidenCSR into variants
+        expand_leiden_variants: If True, expand variant-based algorithms into all variants
         leiden_resolution: Resolution parameter for Leiden algorithms
-        leiden_passes: Number of passes for LeidenCSR
-        leiden_csr_variants: Which LeidenCSR variants to include (default: all)
+        leiden_passes: Number of passes for Leiden
         rabbit_variants: Which RabbitOrder variants to include (default: csr only)
         graphbrew_variants: Which GraphBrewOrder variants to include (default: leiden only)
     
     Returns:
         List of AlgorithmConfig objects
     """
-    if leiden_csr_variants is None:
-        leiden_csr_variants = LEIDEN_CSR_VARIANTS
     if rabbit_variants is None:
         # When expanding variants, include both RabbitOrder variants; otherwise just csr
         rabbit_variants = RABBITORDER_VARIANTS if expand_leiden_variants else [RABBITORDER_DEFAULT_VARIANT]
@@ -206,21 +197,7 @@ def expand_algorithms_with_variants(
     for algo_id in algorithms:
         base_name = ALGORITHMS.get(algo_id, f"ALGO_{algo_id}")
         
-        if algo_id == 16 and expand_leiden_variants:
-            # LeidenCSR: expand into variants
-            # Format: 16:variant:resolution:iterations:passes
-            for variant in leiden_csr_variants:
-                max_iterations = LEIDEN_MODULARITY_MAX_ITERATIONS
-                option_str = f"{algo_id}:{variant}:{leiden_resolution}:{max_iterations}:{leiden_passes}"
-                configs.append(AlgorithmConfig(
-                    algo_id=algo_id,
-                    name=f"LeidenCSR_{variant}",
-                    option_string=option_str,
-                    variant=variant,
-                    resolution=leiden_resolution,
-                    passes=leiden_passes
-                ))
-        elif algo_id == 8 and expand_leiden_variants and len(rabbit_variants) > 1:
+        if algo_id == 8 and expand_leiden_variants and len(rabbit_variants) > 1:
             # RabbitOrder: expand into variants if multiple specified
             for variant in rabbit_variants:
                 option_str = f"{algo_id}:{variant}"
@@ -239,19 +216,6 @@ def expand_algorithms_with_variants(
                 name=f"RABBITORDER_{variant}",  # Always show variant
                 option_string=option_str,
                 variant=variant
-            ))
-        elif algo_id == 16:
-            # LeidenCSR: use default variant when not expanding - ALWAYS include variant in name
-            variant = leiden_csr_variants[0] if leiden_csr_variants else LEIDEN_CSR_VARIANTS[0]
-            max_iterations = LEIDEN_MODULARITY_MAX_ITERATIONS
-            option_str = f"{algo_id}:{variant}:{leiden_resolution}:{max_iterations}:{leiden_passes}"
-            configs.append(AlgorithmConfig(
-                algo_id=algo_id,
-                name=f"LeidenCSR_{variant}",  # Always show variant
-                option_string=option_str,
-                variant=variant,
-                resolution=leiden_resolution,
-                passes=leiden_passes
             ))
         elif algo_id == 15:
             # LeidenOrder: just resolution

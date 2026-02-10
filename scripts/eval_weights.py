@@ -118,7 +118,7 @@ correct = 0
 total = 0
 predictions = {}  # (graph, bench) -> (predicted, actual, predicted_time, best_time)
 
-_VARIANT_PREFIXES = ['GraphBrewOrder_', 'LeidenCSR_', 'RABBITORDER_']
+_VARIANT_PREFIXES = ['GraphBrewOrder_', 'RABBITORDER_']
 def get_base(name):
     for prefix in _VARIANT_PREFIXES:
         if name.startswith(prefix):

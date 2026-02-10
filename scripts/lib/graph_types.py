@@ -153,7 +153,7 @@ class ReorderResult:
     
     Attributes:
         graph: Name of the graph that was reordered
-        algorithm_id: Numeric ID of the algorithm (0-16)
+        algorithm_id: Numeric ID of the algorithm (0-15)
         algorithm_name: Human-readable algorithm name
         success: Whether reordering completed successfully
         time_seconds: Time taken to reorder
@@ -209,10 +209,10 @@ class AlgorithmConfig:
         
     Example:
         >>> config = AlgorithmConfig(
-        ...     algorithm_id=16,
-        ...     name="lorder",
-        ...     variant="cpm",
-        ...     resolution=0.01
+        ...     algorithm_id=12,
+        ...     name="GraphBrewOrder",
+        ...     variant="community",
+        ...     resolution=1.0
         ... )
         >>> print(config.full_name)
         lorder_cpm

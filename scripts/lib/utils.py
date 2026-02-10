@@ -84,7 +84,7 @@ ALGORITHMS = {
     13: "MAP",  # Load from file
     14: "AdaptiveOrder",
     15: "LeidenOrder",
-    16: "LeidenCSR",
+    # Note: LeidenCSR (16) has been deprecated — GraphBrew (12) subsumes it.
 }
 
 # Reverse mapping
@@ -93,8 +93,8 @@ ALGORITHM_IDS = {v: k for k, v in ALGORITHMS.items()}
 # Algorithm categories
 QUICK_ALGORITHMS = {0, 1, 2, 3, 4, 5, 6, 7, 8}  # Fast algorithms
 SLOW_ALGORITHMS = {9, 10, 11}  # Gorder, Corder, RCM - can be slow on large graphs
-LEIDEN_ALGORITHMS = {15, 16}
-COMMUNITY_ALGORITHMS = {8, 12, 14, 15, 16}
+LEIDEN_ALGORITHMS = {15}
+COMMUNITY_ALGORITHMS = {8, 12, 14, 15}
 
 # RabbitOrder variant definitions (default: csr)
 # Format: -o 8:variant where variant = csr (default) or boost
@@ -109,33 +109,8 @@ RABBITORDER_DEFAULT_VARIANT = "csr"  # Native CSR (faster, no external deps)
 GRAPHBREW_VARIANTS = ["leiden", "gve", "gveopt", "rabbit", "hubcluster"]
 GRAPHBREW_DEFAULT_VARIANT = "leiden"  # Uses GraphBrew Leiden-CSR aggregation
 
-# Leiden variant definitions
-# LeidenCSR variants (default: gveopt2)
-# Format: -o 16:variant:resolution:iterations:passes
-# Resolution modes:
-#   - Fixed: 1.5 (use specified value)
-#   - Auto: "auto" or "0" (compute from graph density/CV)
-#   - Dynamic: "dynamic" (adjust per-pass)
-#   - Dynamic+Init: "dynamic_2.0" (start at 2.0, adjust per-pass)
-# LeidenCSR is pure community detection + sort. For per-community reordering, use GraphBrewOrder (12).
-LEIDEN_CSR_VARIANTS = [
-    # Core GVE-Leiden variants
-    "gveopt2",       # CSR-based aggregation (default — fastest + best quality)
-    "gve",           # Standard GVE-Leiden
-    "gveopt",        # Cache-optimized GVE-Leiden
-    "gverabbit",     # GVE + RabbitOrder within communities
-    "fast",          # Speed-optimized (fewer iterations)
-    "modularity",    # Quality-optimized (more iterations)
-    "dfs",           # DFS ordering of community tree
-    "bfs",           # BFS ordering of community tree
-    "hubsort",       # Hub-first ordering within communities
-    "faithful",      # Faithful 1:1 leiden.hxx reference implementation
-]
-LEIDEN_CSR_DEFAULT_VARIANT = "gveopt2"  # CSR-based aggregation (fastest + best quality)
-
-# Recommended variants for different use cases
-LEIDEN_CSR_FAST_VARIANTS = ["fast", "gveopt2"]  # Speed priority
-LEIDEN_CSR_QUALITY_VARIANTS = ["modularity", "gveopt2", "gverabbit"]  # Quality priority
+# Note: LeidenCSR (16) has been deprecated — GraphBrew (12) subsumes it.
+# All LeidenCSR variants are now available through GraphBrewOrder (12).
 
 # GraphBrewOrder (12) variant groups — these are the per-community reordering strategies
 # accessed via -o 12:hrab, 12:dfs, 12:conn, etc. (no "graphbrew" prefix needed)
@@ -522,7 +497,6 @@ def get_algorithm_name(option: str) -> str:
     ALWAYS includes variant in name for algorithms that have variants:
     - RABBITORDER (8): RABBITORDER_csr (default) or RABBITORDER_boost
     - GraphBrewOrder (12): GraphBrewOrder_leiden (default), GraphBrewOrder_gve, etc.
-    - LeidenCSR (16): LeidenCSR_gveopt2 (default), LeidenCSR_gve, etc.
     
     For other algorithms, returns the base name.
     """
@@ -532,7 +506,7 @@ def get_algorithm_name(option: str) -> str:
     # If params provided, use them to build name
     if params:
         # For variant-based algorithms, extract just the variant (first param)
-        if algo_id in [12, 16]:  # GraphBrewOrder, LeidenCSR
+        if algo_id == 12:  # GraphBrewOrder
             return f"{base_name}_{params[0]}"
         # For RabbitOrder, include variant
         elif algo_id == 8:
@@ -545,8 +519,6 @@ def get_algorithm_name(option: str) -> str:
         return f"RABBITORDER_{RABBITORDER_DEFAULT_VARIANT}"
     elif algo_id == 12:  # GraphBrewOrder
         return f"{base_name}_{GRAPHBREW_DEFAULT_VARIANT}"
-    elif algo_id == 16:  # LeidenCSR
-        return f"{base_name}_{LEIDEN_CSR_DEFAULT_VARIANT}"
     
     return base_name
 
@@ -560,14 +532,11 @@ def expand_algorithm_variants(algo_id: int) -> List[str]:
     - RabbitOrder (8): 8:csr, 8:boost
     - GraphBrewOrder (12): 12:leiden, 12:gve, 12:gveopt, 12:rabbit, 12:hubcluster
     - GraphBrewOrder (12): 12:hrab, 12:dfs, 12:conn, etc. (ordering strategies)
-    - LeidenCSR (16): 16:gveopt2, 16:gve, 16:fast, 16:modularity, etc.
     """
     if algo_id == 8:  # RABBITORDER
         return [f"8:{v}" for v in RABBITORDER_VARIANTS]
     elif algo_id == 12:  # GraphBrewOrder
         return [f"12:{v}" for v in GRAPHBREW_VARIANTS]
-    elif algo_id == 16:  # LeidenCSR
-        return [f"16:{v}:1.0:20:10" for v in LEIDEN_CSR_VARIANTS]
     else:
         return [str(algo_id)]
 
@@ -784,8 +753,6 @@ def main():
                        help="List all graphs in graphs directory")
     parser.add_argument("--list-algorithms", action="store_true",
                        help="List all algorithms with IDs")
-    parser.add_argument("--list-leiden-variants", action="store_true",
-                       help="List all Leiden variants")
     
     args = parser.parse_args()
     
@@ -809,11 +776,6 @@ def main():
         print("Algorithms (ID: Name):")
         for aid, name in sorted(ALGORITHMS.items()):
             print(f"  {aid:2d}: {name}")
-    
-    if args.list_leiden_variants:
-        print("LeidenCSR (16) variants (format: 16:variant:resolution:iterations:passes):")
-        for v in LEIDEN_CSR_VARIANTS:
-            print(f"  -o 16:{v}:1.0:20:10")
 
 
 if __name__ == "__main__":

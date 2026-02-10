@@ -91,7 +91,6 @@ python scripts/examples/compare_algorithms.py --output comparison.csv
 | 13 | MAP | Load from external file |
 | 14 | AdaptiveOrder | ML-powered algorithm selection |
 | 15 | LeidenOrder | GVE-Leiden baseline reference |
-| 16 | LeidenCSR | Fast CSR-native Leiden (GraphBrew) |
 
 ## Benchmark Reference
 

@@ -5,12 +5,13 @@ Compare Leiden Variants - Community Quality and Performance Benchmark
 This script compares all community-based reordering algorithms:
 - RabbitOrder (8): Louvain-based with variants: csr (default), boost
 - LeidenOrder (15): Native optimized Leiden library (reference for quality)
-- LeidenCSR (16): Fast native CSR implementation with GraphBrew (default) or GVE-Leiden variants
 - GraphBrewOrder (12): Leiden + per-community RabbitOrder
+
+Note: LeidenCSR (16) has been deprecated — GraphBrew (12) subsumes it.
 
 Defaults (as of Jan 2026):
 - RabbitOrder: CSR variant (native, faster, no Boost dependency)
-- LeidenCSR: GraphBrew variant (best modularity quality)
+- GraphBrewOrder: leiden variant (best quality + performance)
 
 Metrics compared:
 - Number of communities detected
@@ -156,7 +157,6 @@ def run_leiden_variant(converter: Path, graph: Path, algo_id: int,
     """Run a single Leiden variant and collect metrics"""
     
     # Build command - format: -o algo_id:options
-    # For LeidenCSR (16): -o 16:variant:resolution:iterations:passes
     cmd = [str(converter), "-f", str(graph), "-b", "/tmp/leiden_test.sg"]
     
     if variant:
@@ -167,7 +167,6 @@ def run_leiden_variant(converter: Path, graph: Path, algo_id: int,
     algo_names = {
         12: "GraphBrewOrder",
         15: "LeidenOrder",
-        16: "LeidenCSR"
     }
     
     try:
@@ -211,10 +210,8 @@ def compare_leiden_variants(graph: Path, graph_info: Dict,
         (8, "", "RabbitOrder (default=CSR)"),      # CSR is now default
         (8, "boost", "RabbitOrder-boost"),          # Original Boost-based
         (15, "", "LeidenOrder (native Leiden)"),
-        (16, "", "LeidenCSR (default=gveopt2)"),        # gveopt2 is default
-        (16, "gve::20:5", "LeidenCSR-gve"),         # GVE-Leiden: 20 iter, 5 passes
-        (16, "gveopt::20:5", "LeidenCSR-gveopt"),   # GVE-Leiden Optimized: cache-optimized
         (12, "", "GraphBrewOrder"),
+        (12, "community", "GraphBrewOrder-community"),  # Pure community sort
     ]
     
     if not include_variants:
@@ -222,7 +219,6 @@ def compare_leiden_variants(graph: Path, graph_info: Dict,
         variants_to_test = [
             (8, "", "RabbitOrder (CSR)"),           # CSR default
             (15, "", "LeidenOrder"),
-            (16, "", "LeidenCSR (gveopt2)"),            # gveopt2 is default
             (12, "", "GraphBrewOrder"),
         ]
     
@@ -314,7 +310,6 @@ def main():
     print("Comparing:")
     print("  - RabbitOrder (8): Louvain-based [csr=default, boost=optional]")
     print("  - LeidenOrder (15): Native optimized Leiden library [REFERENCE]")
-    print("  - LeidenCSR (16): Pure Leiden CSR-native [gveopt2=default, fastest + best quality]")
     print("  - GraphBrewOrder (12): Leiden + per-community RabbitOrder")
     print()
     

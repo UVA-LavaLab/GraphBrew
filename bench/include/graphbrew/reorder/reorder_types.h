@@ -23,8 +23,6 @@
 //   - reorder_hub.h       : Hub-based algorithms (HubSort, HubCluster, DBG)
 //   - reorder_rabbit.h    : RabbitOrder (Louvain-based community detection)
 //   - reorder_classic.h   : Classic algorithms (GOrder, COrder, RCM)
-//   - reorder_gve_leiden.h: GVE-Leiden core algorithm implementation
-//   - reorder_leiden.h    : Leiden-based orderings (LeidenOrder, LeidenCSR, etc.)
 //   - reorder_graphbrew.h      : GraphBrew unified reordering framework
 //   - reorder_adaptive.h  : Adaptive algorithm selection
 //   - reorder.h           : Main dispatcher that includes all headers
@@ -124,7 +122,6 @@ inline const std::string ReorderingAlgoStr(ReorderingAlgo algo) {
         case MAP:             return "MAP";
         case AdaptiveOrder:   return "AdaptiveOrder";
         case LeidenOrder:     return "LeidenOrder";
-        case LeidenCSR:       return "LeidenCSR";
         default:
             std::cerr << "Unknown Reordering Algorithm: " << static_cast<int>(algo) << std::endl;
             std::abort();
@@ -136,7 +133,7 @@ inline const std::string ReorderingAlgoStr(ReorderingAlgo algo) {
  * 
  * Used when parsing command-line arguments.
  * 
- * @param value Integer algorithm ID (0-16)
+ * @param value Integer algorithm ID (0-15)
  * @return Corresponding ReorderingAlgo enum value
  */
 inline ReorderingAlgo getReorderingAlgo(int value) {
@@ -157,7 +154,6 @@ inline ReorderingAlgo getReorderingAlgo(int value) {
         case 13: return MAP;
         case 14: return AdaptiveOrder;
         case 15: return LeidenOrder;
-        case 16: return LeidenCSR;
         default:
             std::cerr << "Unknown algorithm ID: " << value << std::endl;
             std::abort();
@@ -1256,14 +1252,6 @@ inline const std::map<std::string, ReorderingAlgo>& getAlgorithmNameMap() {
         {"ADAPTIVEORDER", AdaptiveOrder},
         {"LeidenOrder", LeidenOrder},
         {"LEIDENORDER", LeidenOrder},
-        {"LeidenCSR", LeidenCSR},
-        {"LEIDENCSR", LeidenCSR},
-        // LeidenCSR pure Leiden variants
-        {"LeidenCSR_gve", LeidenCSR},
-        {"LeidenCSR_gveopt", LeidenCSR},
-        {"LeidenCSR_gveopt2", LeidenCSR},
-        {"LeidenCSR_fast", LeidenCSR},
-        {"LeidenCSR_modularity", LeidenCSR},
         // GraphBrewOrder variants — algo 12 with per-community reordering
         {"GraphBrewOrder_graphbrew", GraphBrewOrder},
         {"GraphBrewOrder_graphbrew:dfs", GraphBrewOrder},
@@ -2945,7 +2933,7 @@ inline bool ParseWeightsFromJSON(const std::string& json_content,
  * - Negative weight = algorithm prefers lower values
  * 
  * Key observations from benchmarks:
- * - LeidenCSR (GraphBrew): Best overall (avg 2.86x speedup), wins on high-mod graphs
+ * - GraphBrewOrder: Best overall with community-sort/12:community (avg 2.86x speedup)
  * - RabbitOrder: Best on low-modularity synthetic graphs (4.06x)
  * - HubClusterDBG: Good general-purpose (2.38x), fast reordering
  * - RCMOrder: Best for sparse graphs (high w_density penalty on dense)
@@ -3086,20 +3074,6 @@ inline const std::map<ReorderingAlgo, PerceptronWeights>& GetPerceptronWeights()
             .w_clustering_coeff = 0.05, .w_avg_path_length = -0.02, .w_diameter = 0.0, .w_community_count = 0.1,
             .cache_l1_impact = 0.0, .cache_l2_impact = 0.0, .cache_l3_impact = 0.0, .cache_dram_penalty = 0.0,
             .w_reorder_time = -0.5     // highest reorder cost
-        }},
-        // LeidenCSR: Fast CSR-native community detection (GraphBrew)
-        {LeidenCSR, {
-            .bias = 0.80,
-            .w_modularity = 0.35,
-            .w_log_nodes = 0.05,
-            .w_log_edges = 0.05,
-            .w_density = -0.30,
-            .w_avg_degree = 0.02,
-            .w_degree_variance = 0.15,
-            .w_hub_concentration = 0.20,
-            .w_clustering_coeff = 0.08, .w_avg_path_length = 0.0, .w_diameter = 0.0, .w_community_count = 0.05,
-            .cache_l1_impact = 0.0, .cache_l2_impact = 0.0, .cache_l3_impact = 0.0, .cache_dram_penalty = 0.0,
-            .w_reorder_time = -0.25
         }},
     };
     return weights;

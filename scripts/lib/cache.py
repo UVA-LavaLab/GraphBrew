@@ -173,7 +173,7 @@ def run_cache_simulation(
         symmetric: Use symmetric graph flag
         timeout: Timeout in seconds
         bin_sim_dir: Directory containing simulation binaries
-        variant: Optional variant name for LeidenCSR/RabbitOrder (e.g., 'gve', 'gveopt', 'boost')
+        variant: Optional variant name for RabbitOrder (e.g., 'boost')
         resolution: Leiden resolution parameter (default: 1.0)
         passes: Leiden passes parameter (default: 3)
         
@@ -210,9 +210,7 @@ def run_cache_simulation(
         cmd = f"{binary} -f {graph_path} {sym_flag} -o 13:{label_map_path} -n 1"
     else:
         # Build algorithm option string with variant if specified
-        if variant and algorithm == 16:  # LeidenCSR
-            algo_opt = f"{algorithm}:{variant}:{resolution}:20:{passes}"
-        elif variant and algorithm == 8:  # RabbitOrder
+        if variant and algorithm == 8:  # RabbitOrder
             algo_opt = f"{algorithm}:{variant}"
         else:
             algo_opt = str(algorithm)
@@ -299,7 +297,7 @@ def run_cache_simulations(
         timeout: Timeout per simulation
         skip_heavy: Skip heavy benchmarks on large graphs
         label_maps: Optional pre-generated label maps
-        leiden_csr_variants: List of LeidenCSR variants (e.g., ['graphbrew', 'gve', 'gveopt'])
+        leiden_csr_variants: Deprecated, ignored (LeidenCSR removed)
         rabbit_variants: List of RabbitOrder variants (e.g., ['csr', 'boost'])
         resolution: Leiden resolution parameter
         passes: Leiden passes parameter
@@ -313,10 +311,7 @@ def run_cache_simulations(
     # Build expanded algorithm list with variants
     expanded_algos = []
     for algo_id in algorithms:
-        if algo_id == 16 and leiden_csr_variants:  # LeidenCSR
-            for variant in leiden_csr_variants:
-                expanded_algos.append((algo_id, variant))
-        elif algo_id == 8 and rabbit_variants:  # RabbitOrder
+        if algo_id == 8 and rabbit_variants:  # RabbitOrder
             for variant in rabbit_variants:
                 expanded_algos.append((algo_id, variant))
         else:

@@ -40,9 +40,6 @@ VARIANTS = [
     ("12:conn", "GraphBrew-Conn"),                          # Connectivity BFS within communities
     ("12:dfs", "GraphBrew-DFS"),                            # DFS traversal ordering
     ("12:bfs", "GraphBrew-BFS"),                            # BFS traversal ordering
-    ("16", "LeidenCSR"),                                    # Default LeidenCSR (gveopt2)
-    ("16:fast", "LeidenCSR-Fast"),                          # Speed-optimized
-    ("16:modularity", "LeidenCSR-Quality"),                 # Quality-optimized
     # RabbitOrder variants
     ("8:csr", "RabbitCSR"),                      # Native CSR (fast, no deps)
     ("8:boost", "RabbitBoost"),                  # Boost-based

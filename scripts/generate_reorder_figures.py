@@ -280,8 +280,8 @@ def plot_algorithm_overview(filename='reorder_overview.svg'):
          'color': COLORS['hybrid'], 'algos': 'GraphBrewOrder\n(Leiden+RabbitOrder)'},
         {'name': 'Adaptive (14)', 'x': 1.5, 'y': 1.5, 'w': 3.0, 'h': 1.2,
          'color': COLORS['adaptive'], 'algos': 'AdaptiveOrder\n(ML perceptron)'},
-        {'name': 'Leiden (15–16)', 'x': 5.5, 'y': 1.5, 'w': 3.0, 'h': 1.2,
-         'color': '#a8dadc', 'algos': 'LeidenOrder (15)\nLeidenCSR (16)'},
+        {'name': 'Leiden (15)', 'x': 5.5, 'y': 1.5, 'w': 3.0, 'h': 1.2,
+         'color': '#a8dadc', 'algos': 'LeidenOrder (15)'},
     ]
 
     for cat in categories:
@@ -434,7 +434,7 @@ def plot_adaptive_pipeline(filename='adaptive_pipeline.svg'):
             bbox=dict(boxstyle='round,pad=0.3', facecolor='#f0f0f0', edgecolor='#ccc'))
 
     # Algorithm candidates
-    candidates = 'Candidates: GraphBrewOrder (12), RabbitOrder (8),\nHubClusterDBG (7), Gorder (9), RCM (11), LeidenCSR (16)'
+    candidates = 'Candidates: GraphBrewOrder (12), RabbitOrder (8),\nHubClusterDBG (7), Gorder (9), RCM (11), LeidenOrder (15)'
     ax.text(8.4 + bw/2, 0.8, candidates, fontsize=8, style='italic', color='#555',
             ha='center', va='center',
             bbox=dict(boxstyle='round,pad=0.3', facecolor='#f0f0f0', edgecolor='#ccc'))
@@ -461,7 +461,6 @@ def main():
 
     # 2. Pipeline diagrams
     plot_graphbrew_pipeline()
-    plot_leidencsr_pipeline()
     plot_adaptive_pipeline()
 
     # 3. Before/After spy plots for each algorithm category

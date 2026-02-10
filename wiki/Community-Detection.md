@@ -107,9 +107,9 @@ Leiden is used internally by Leiden-based algorithms:
 | Algorithm | Uses Leiden | Format |
 |-----------|-------------|--------|
 | LeidenOrder (15) | ✓ | `-o 15:resolution` |
-| LeidenCSR (16) | ✓ | `-o 16:variant:resolution:iterations:passes` |
 | GraphBrewOrder (12) | ✓ | `-o 12:freq:algo:resolution` |
 | AdaptiveOrder (14) | ✓ | `-o 14:resolution:minsize:mode` |
+<!-- LeidenCSR (16) deprecated — GraphBrew (12) subsumes it -->
 
 ### Example Output
 
@@ -168,9 +168,9 @@ Sort key: (pass_N, pass_N-1, ..., pass_0, degree)
 Result: Vertices in same sub-sub-community are adjacent
 ```
 
-### LeidenCSR (16)
+### GraphBrewOrder (12)
 
-Fast CSR-native Leiden (no graph conversion). See [[Reordering-Algorithms#16-leidencsr--fastest-best-quality]] for variant table, resolution modes, and usage examples.
+Fast CSR-native Leiden + per-community reordering. See [[Reordering-Algorithms#12-graphbreworder]] for variant table, resolution modes, and usage examples.
 
 ---
 

@@ -427,14 +427,16 @@ void GenerateAdaptiveMappingRecursiveStandalone(
         PrintTime("Min Recurse Size", static_cast<double>(MIN_COMMUNITY_FOR_RECURSION));
     }
     
-    // Use GVE-Leiden for community detection (native CSR)
-    // Note: W must be double for proper modularity computation (not WeightT_)
-    auto leiden_result = GVELeidenOptCSR<K, double, NodeID_, DestID_>(
-        g, resolution, DEFAULT_TOLERANCE, DEFAULT_AGGREGATION_TOLERANCE,
-        DEFAULT_QUALITY_FACTOR, max_iterations, max_passes);
+    // Use GraphBrew's Leiden engine for community detection (native CSR)
+    graphbrew::GraphBrewConfig gb_config;
+    gb_config.resolution = resolution;
+    gb_config.maxIterations = max_iterations;
+    gb_config.maxPasses = max_passes;
+    gb_config.ordering = graphbrew::OrderingStrategy::COMMUNITY_SORT;
+    auto gb_result = graphbrew::runGraphBrew<K>(g, gb_config);
     
-    std::vector<K> comm_ids_k = leiden_result.final_community;
-    double global_modularity = leiden_result.modularity;
+    std::vector<K> comm_ids_k = gb_result.membership;
+    double global_modularity = gb_result.modularity;
     
     // Convert to size_t
     std::vector<size_t> comm_ids(num_nodes);
