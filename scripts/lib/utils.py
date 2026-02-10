@@ -101,12 +101,12 @@ COMMUNITY_ALGORITHMS = {8, 12, 14, 15}
 RABBITORDER_VARIANTS = ["csr", "boost"]
 RABBITORDER_DEFAULT_VARIANT = "csr"  # Native CSR (faster, no external deps)
 
-# GraphBrewOrder variant definitions (default: leiden for backward compat)
+# GraphBrewOrder variant definitions (default: leiden)
 # Format: -o 12:cluster_variant:final_algo:resolution:levels
 # Now powered by GraphBrew pipeline. Cluster variants map to GraphBrew configurations.
-# cluster_variant: leiden (default), gve, gveopt, rabbit, hubcluster
-# Examples: -o 12:gve:8, -o 12:rabbit:7, -o 12:hubcluster
-GRAPHBREW_VARIANTS = ["leiden", "gve", "gveopt", "rabbit", "hubcluster"]
+# cluster_variant: leiden (default), rabbit, hubcluster
+# Examples: -o 12:leiden:8, -o 12:rabbit:7, -o 12:hubcluster
+GRAPHBREW_VARIANTS = ["leiden", "rabbit", "hubcluster"]
 GRAPHBREW_DEFAULT_VARIANT = "leiden"  # Uses GraphBrew Leiden-CSR aggregation
 
 # Note: LeidenCSR (16) has been deprecated — GraphBrew (12) subsumes it.
@@ -496,7 +496,7 @@ def get_algorithm_name(option: str) -> str:
     
     ALWAYS includes variant in name for algorithms that have variants:
     - RABBITORDER (8): RABBITORDER_csr (default) or RABBITORDER_boost
-    - GraphBrewOrder (12): GraphBrewOrder_leiden (default), GraphBrewOrder_gve, etc.
+    - GraphBrewOrder (12): GraphBrewOrder_leiden (default), GraphBrewOrder_rabbit, etc.
     
     For other algorithms, returns the base name.
     """
@@ -530,7 +530,7 @@ def expand_algorithm_variants(algo_id: int) -> List[str]:
     Returns list of option strings for all variants.
     Supported:
     - RabbitOrder (8): 8:csr, 8:boost
-    - GraphBrewOrder (12): 12:leiden, 12:gve, 12:gveopt, 12:rabbit, 12:hubcluster
+    - GraphBrewOrder (12): 12:leiden, 12:rabbit, 12:hubcluster
     - GraphBrewOrder (12): 12:hrab, 12:dfs, 12:conn, etc. (ordering strategies)
     """
     if algo_id == 8:  # RABBITORDER

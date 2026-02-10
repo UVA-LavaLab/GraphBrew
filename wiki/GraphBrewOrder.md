@@ -42,15 +42,15 @@ Input Graph → GraphBrew Leiden → Communities → Classify → Per-Community 
 
 ```bash
 # Format: -o 12:cluster_variant:final_algo:resolution
-# cluster_variant: leiden (default), gve, gveopt, rabbit, hubcluster
+# cluster_variant: leiden (default), rabbit, hubcluster
 # final_algo: per-community ordering algorithm ID (default: 8 = RabbitOrder)
 # resolution: Leiden resolution parameter (default: auto-computed from graph)
 
 # Examples:
-./bench/bin/pr -f graph.el -s -o 12:gve -n 5              # GVE detection, RabbitOrder final
+./bench/bin/pr -f graph.el -s -o 12:leiden -n 5            # Leiden detection, RabbitOrder final
 ./bench/bin/pr -f graph.el -s -o 12:rabbit -n 5           # GraphBrew RabbitOrder single-pass
-./bench/bin/pr -f graph.el -s -o 12:gve:6 -n 5            # Use HubSortDBG as final algorithm
-./bench/bin/pr -f graph.el -s -o 12:gve:8:0.75 -n 5       # Custom resolution 0.75
+./bench/bin/pr -f graph.el -s -o 12:leiden:6 -n 5          # Use HubSortDBG as final algorithm
+./bench/bin/pr -f graph.el -s -o 12:leiden:8:0.75 -n 5     # Custom resolution 0.75
 ```
 
 ### Old Format (Backward Compatible)
@@ -136,8 +136,6 @@ GraphBrewOrder uses GraphBrew's modular Leiden community detection, then applies
 ```cpp
 // In builder.h: ParseGraphBrewConfig()
 "leiden"     → GraphBrew GVE-CSR aggregation, TOTAL_EDGES M, refinement depth 0
-"gve"        → Same as leiden (GVE-CSR, TOTAL_EDGES)
-"gveopt"     → Same as leiden (quality preset)
 "rabbit"     → GraphBrew RabbitOrder algorithm, resolution=0.5
 "hubcluster" → GraphBrew Leiden + HUB_CLUSTER ordering (native, no external dispatch)
 ```
@@ -208,15 +206,14 @@ new_id = community_start_offset + position_within_community
 | Variant | Description | GraphBrew Configuration |
 |---------|-------------|-------------------|
 | `leiden` | **Default.** GraphBrew Leiden-CSR with GVE aggregation | GVE-CSR, TOTAL_EDGES, refine depth 0 |
-| `gve` / `gveopt` | GVE-style detection | GVE-CSR, TOTAL_EDGES, refine depth 0 |
 | `rabbit` | GraphBrew RabbitOrder single-pass | RABBIT_ORDER algorithm, resolution=0.5 |
 | `hubcluster` | GraphBrew Leiden + hub-cluster ordering | HUB_CLUSTER ordering (native GraphBrew) |
 
 ```bash
 # Format: -o 12:variant:final_algo:resolution
-./bench/bin/pr -f graph.el -s -o 12:gve -n 5              # GVE detection + RabbitOrder
-./bench/bin/pr -f graph.el -s -o 12:gve:6 -n 5            # GVE + HubSortDBG
-./bench/bin/pr -f graph.el -s -o 12:gve:8:0.75 -n 5       # Custom resolution
+./bench/bin/pr -f graph.el -s -o 12:leiden -n 5            # Leiden detection + RabbitOrder
+./bench/bin/pr -f graph.el -s -o 12:leiden:6 -n 5          # Leiden + HubSortDBG
+./bench/bin/pr -f graph.el -s -o 12:leiden:8:0.75 -n 5     # Custom resolution
 ```
 
 See [[Command-Line-Reference]] for full variant list and [[Python-Scripts]] for experiment integration.

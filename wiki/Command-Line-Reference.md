@@ -209,13 +209,11 @@ Options can be passed directly — the `graphbrew` prefix is **not required**.
 
 | Variant | Description | Default Final Algo |
 |---------|-------------|--------------------|
-| `leiden` | GVE-Leiden optimized (default) | RabbitOrder (8) |
-| `gve` | GVE-Leiden non-optimized | RabbitOrder (8) |
-| `gveopt` | GVE-Leiden with cache optimization | RabbitOrder (8) |
+| `leiden` | Leiden community detection (default) | RabbitOrder (8) |
 | `rabbit` | Full RabbitOrder via GraphBrew pipeline | N/A (single-pass) |
 | `hubcluster` | Hub-degree based clustering | N/A (native) |
 
-Override the final reordering algorithm with `:<algo_id>`, e.g. `-o "12:gve:7"` uses HubClusterDBG.
+Override the final reordering algorithm with `:<algo_id>`, e.g. `-o "12:leiden:7"` uses HubClusterDBG.
 
 **Auto-Resolution:** Automatically computed based on graph's coefficient of variation (CV):
 - High-CV graphs (social/web): resolution ≈ 0.50 (coarser communities, better locality)
