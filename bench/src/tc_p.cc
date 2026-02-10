@@ -204,6 +204,7 @@ int main(int argc, char *argv[])
     CLApp cli(argc, argv, "triangle count");
     if (!cli.ParseArgs())
         return -1;
+    SetBenchmarkTypeHint(BENCH_TC);
 
     Builder b(cli);
     Graph g = b.MakeGraph();

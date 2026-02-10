@@ -16,23 +16,132 @@ WEIGHTS_DIR = os.path.join(os.path.dirname(__file__), 'weights', 'active')
 # ---------- Load benchmark results ----------
 bench_files = sorted(f for f in os.listdir(RESULTS_DIR)
                      if f.startswith('benchmark_') and f.endswith('.json'))
-bench_file = os.path.join(RESULTS_DIR, bench_files[-1])
-print(f"Loading: {bench_file}")
 
-with open(bench_file) as f:
-    raw = json.load(f)
-print(f"Loaded {len(raw)} raw entries")
+# Detect which graphs have .sg files (their features are from directed graph)
+import glob as _glob
+GRAPHS_DIR = os.path.join(RESULTS_DIR, 'graphs')
+_sg_graphs = set()
+if os.path.isdir(GRAPHS_DIR):
+    for _sg_path in _glob.glob(os.path.join(GRAPHS_DIR, '*', '*.sg')):
+        _sg_graphs.add(os.path.basename(os.path.dirname(_sg_path)))
+
+# Identify benchmark files with .sg-aligned data (contain "sg" marker entries)
+_sg_bench_files = set()
+_sg_bench_graphs = set()
+for bf in bench_files:
+    path = os.path.join(RESULTS_DIR, bf)
+    try:
+        with open(path) as f:
+            entries = json.load(f)
+        if entries and any(e.get('extra') == 'sg' or e.get('extra') == 'sg_benchmark' for e in entries):
+            _sg_bench_files.add(bf)
+            _sg_bench_graphs.update(e['graph'] for e in entries if e.get('extra') in ('sg', 'sg_benchmark'))
+    except Exception:
+        pass
+if _sg_bench_graphs:
+    print(f"Found .sg benchmark data for {len(_sg_bench_graphs)} graphs: {sorted(_sg_bench_graphs)}")
+
+# Load ALL benchmark files, but skip old .mtx entries for graphs that have .sg benchmarks
+# PRIORITY: .sg benchmark data is more representative of runtime behavior.
+# Graphs run from .sg files have directed (not symmetrized) degree distributions,
+# which can cause different optimal algorithm choices compared to .mtx/symmetric loads.
+SG_ONLY = bool(os.environ.get('SG_ONLY', ''))  # Set SG_ONLY=1 to train only on .sg data
+raw = []
+for bf in bench_files:
+    path = os.path.join(RESULTS_DIR, bf)
+    try:
+        with open(path) as f:
+            entries = json.load(f)
+        if bf in _sg_bench_files:
+            # .sg benchmark file: load all entries
+            raw.extend(entries)
+            print(f"Loaded {len(entries):>6} entries from {bf} [.sg data]")
+        elif SG_ONLY:
+            print(f"  SKIP {bf} (SG_ONLY mode)")
+        else:
+            # Old benchmark file: skip entries for graphs that have .sg benchmarks
+            kept = [e for e in entries if e.get('graph', '') not in _sg_bench_graphs]
+            skipped = len(entries) - len(kept)
+            raw.extend(kept)
+            print(f"Loaded {len(kept):>6} entries from {bf}" +
+                  (f" (skipped {skipped} .sg-graph entries)" if skipped else ""))
+    except (json.JSONDecodeError, IOError) as e:
+        print(f"  SKIP {bf}: {e}")
+print(f"Total: {len(raw)} raw entries from {len(bench_files)} files")
 
 bench_results = []
+# Algorithms selectable by AdaptiveOrder (enum 0-13, 15; NOT 14=AdaptiveOrder itself)
+# Map old/variant names to canonical AdaptiveOrder-selectable names
+_ADAPTIVE_ALGO_MAP = {
+    # Direct matches (uppercase)
+    'ORIGINAL': 'ORIGINAL', 'SORT': 'SORT', 'HUBSORT': 'HUBSORT',
+    'HUBCLUSTER': 'HUBCLUSTER', 'DBG': 'DBG', 'HUBSORTDBG': 'HUBSORTDBG',
+    'HUBCLUSTERDBG': 'HUBCLUSTERDBG', 'GORDER': 'GORDER', 'CORDER': 'CORDER',
+    'RCM': 'RCM', 'RANDOM': 'RANDOM',
+    # Mixed-case variants from benchmark output
+    'Random': 'RANDOM', 'Sort': 'SORT', 'HubSort': 'HUBSORT',
+    'HubCluster': 'HUBCLUSTER', 'HubSortDBG': 'HUBSORTDBG',
+    'HubClusterDBG': 'HUBCLUSTERDBG', 'COrder': 'CORDER', 'RCMOrder': 'RCM',
+    'GOrder': 'GORDER',
+    # RabbitOrder variants → RABBITORDER_csr (our default variant)
+    'RABBITORDER_csr': 'RABBITORDER_csr', 'RABBITORDER_boost': 'RABBITORDER_csr',
+    'RabbitOrder': 'RABBITORDER_csr',
+    # GraphBrewOrder variants → GraphBrewOrder_leiden
+    'GraphBrewOrder_leiden': 'GraphBrewOrder_leiden',
+    'GraphBrewOrder_gve': 'GraphBrewOrder_leiden',
+    'GraphBrewOrder_gvefast': 'GraphBrewOrder_leiden',
+    'GraphBrewOrder_gveopt': 'GraphBrewOrder_leiden',
+    'GraphBrewOrder_gveoptfast': 'GraphBrewOrder_leiden',
+    'GraphBrewOrder_hubcluster': 'GraphBrewOrder_leiden',
+    'GraphBrewOrder_rabbit': 'GraphBrewOrder_leiden',
+    'LeidenOrder': 'GraphBrewOrder_leiden',
+}
+skipped_algos = set()
 for e in raw:
+    algo = e['algorithm']
+    canonical = _ADAPTIVE_ALGO_MAP.get(algo)
+    if canonical is None:
+        skipped_algos.add(algo)
+        continue
     r = BenchmarkResult(
-        graph=e['graph'], algorithm=e['algorithm'],
+        graph=e['graph'], algorithm=canonical,
         algorithm_id=e.get('algorithm_id', 0), benchmark=e['benchmark'],
         time_seconds=e['time_seconds'], reorder_time=e.get('reorder_time', 0.0),
         trials=e.get('trials', 1), success=e.get('success', True),
         error=e.get('error', ''), extra=e.get('extra', {}),
     )
     bench_results.append(r)
+print(f"After filtering: {len(bench_results)} entries ({len(skipped_algos)} non-AdaptiveOrder algos skipped)")
+if skipped_algos:
+    print(f"  Skipped: {sorted(skipped_algos)}")
+
+# ---------- Merge per-graph features into central cache ----------
+# The central graph_properties_cache.json may only have a few graphs.
+# Per-graph results/graphs/<name>/features.json has many more.
+from lib.features import load_graph_properties_cache, update_graph_properties, save_graph_properties_cache
+graph_props = load_graph_properties_cache(RESULTS_DIR)
+graphs_dir = os.path.join(RESULTS_DIR, 'graphs')
+merged_count = 0
+if os.path.isdir(graphs_dir):
+    for gname in os.listdir(graphs_dir):
+        feat_path = os.path.join(graphs_dir, gname, 'features.json')
+        if os.path.isfile(feat_path):
+            try:
+                with open(feat_path) as f:
+                    gfeats = json.load(f)
+                # Smart merge: don't overwrite non-zero with zero
+                existing = graph_props.get(gname, {})
+                for k, v in gfeats.items():
+                    if isinstance(v, (int, float)) and v == 0 and existing.get(k, 0) != 0:
+                        continue
+                    existing[k] = v
+                update_graph_properties(gname, existing, RESULTS_DIR)
+                merged_count += 1
+            except Exception:
+                pass
+    if merged_count:
+        save_graph_properties_cache(RESULTS_DIR)
+        print(f"Merged features from {merged_count} per-graph features.json into central cache ({len(graph_props)} total)")
 
 # ---------- Load reorder results ----------
 reorder_files = sorted(f for f in os.listdir(RESULTS_DIR)
@@ -95,23 +204,25 @@ graph_props = load_graph_properties_cache(RESULTS_DIR)
 def simulate_score(algo_data, feats, bench_type):
     """Mimic C++ scoreBase() * benchmarkMultiplier()"""
     s = algo_data.get('bias', 0.5)
-    s += algo_data.get('w_modularity', 0) * feats.get('modularity', 0.5)
+    s += algo_data.get('w_modularity', 0) * feats.get('modularity', 0.0)
     s += algo_data.get('w_log_nodes', 0) * feats.get('log_nodes', 5.0)
     s += algo_data.get('w_log_edges', 0) * feats.get('log_edges', 6.0)
-    s += algo_data.get('w_density', 0) * feats.get('density', 0.001)
+    s += algo_data.get('w_density', 0) * feats.get('density', 0.0)
     s += algo_data.get('w_avg_degree', 0) * feats.get('avg_degree', 10.0) / 100.0
     s += algo_data.get('w_degree_variance', 0) * feats.get('degree_variance', 1.0)
     s += algo_data.get('w_hub_concentration', 0) * feats.get('hub_concentration', 0.3)
     s += algo_data.get('w_clustering_coeff', 0) * feats.get('clustering_coefficient', 0.0)
-    s += algo_data.get('w_avg_path_length', 0) * feats.get('avg_path_length', 0.0) / 10.0
-    s += algo_data.get('w_diameter', 0) * feats.get('diameter', 0.0) / 50.0
-    cc = feats.get('community_count', 0.0)
-    s += algo_data.get('w_community_count', 0) * (math.log10(cc + 1) if cc > 0 else 0)
-    
-    # Benchmark multiplier
-    bw = algo_data.get('benchmark_weights', {})
-    mult = bw.get(bench_type, 1.0)
-    return s * mult
+    # avg_path_length, diameter, community_count: C++ doesn't compute these at runtime
+    # so they are always 0 — no contribution to score
+    return s
+
+# Load per-benchmark weight files (higher accuracy than type_0.json multiplier model)
+per_bench_weights = {}
+for bn in ['pr', 'bfs', 'cc', 'sssp', 'bc', 'tc', 'pr_spmv', 'cc_sv']:
+    bench_file = os.path.join(WEIGHTS_DIR, f'type_0_{bn}.json')
+    if os.path.isfile(bench_file):
+        with open(bench_file) as f:
+            per_bench_weights[bn] = json.load(f)
 
 # Build ground truth and predictions
 correct = 0
@@ -125,12 +236,12 @@ def get_base(name):
             return prefix.rstrip('_')
     return name
 
-# Build per-graph-bench results from raw data
+# Build per-graph-bench results from FILTERED data (only AdaptiveOrder-eligible algos)
 from collections import defaultdict
 graph_bench_results = defaultdict(list)  # (graph, bench) -> [(algo, time)]
-for e in raw:
-    if e.get('success', False):
-        graph_bench_results[(e['graph'], e['benchmark'])].append((e['algorithm'], e['time_seconds']))
+for r in bench_results:
+    if r.success and r.time_seconds > 0:
+        graph_bench_results[(r.graph, r.benchmark)].append((r.algorithm, r.time_seconds))
 
 for (graph_name, bench), algo_times in graph_bench_results.items():
     if graph_name not in graph_props:
@@ -139,24 +250,28 @@ for (graph_name, bench), algo_times in graph_bench_results.items():
     props = graph_props[graph_name]
     nodes = props.get('nodes', 1000)
     edges = props.get('edges', 5000)
+    cc = props.get('clustering_coefficient', 0.0)
+    avg_degree = props.get('avg_degree', 10.0)
+    
+    # Align features to match C++ runtime (GenerateAdaptiveMappingFullGraphStandalone)
     feats = {
-        'modularity': props.get('modularity', 0.5),
+        'modularity': min(0.9, cc * 1.5),  # C++ estimated_modularity
         'degree_variance': props.get('degree_variance', 1.0),
         'hub_concentration': props.get('hub_concentration', 0.3),
-        'avg_degree': props.get('avg_degree', 10.0),
+        'avg_degree': avg_degree,
         'log_nodes': math.log10(nodes + 1) if nodes > 0 else 0,
         'log_edges': math.log10(edges + 1) if edges > 0 else 0,
-        'density': 2 * edges / (nodes * (nodes - 1)) if nodes > 1 else 0,
-        'clustering_coefficient': props.get('clustering_coefficient', 0.0),
-        'avg_path_length': props.get('avg_path_length', 0.0),
-        'diameter': props.get('diameter', 0.0),
-        'community_count': props.get('community_count', 0.0),
+        'density': avg_degree / (nodes - 1) if nodes > 1 else 0,  # C++ internal_density
+        'clustering_coefficient': cc,
     }
     
-    # C++ picks best among type_0.json entries
+    # C++ picks best among per-benchmark weights (if available) or type_0.json
     best_score = float('-inf')
     predicted_algo = None
-    for algo, data in saved_algos.items():
+    scoring_algos = per_bench_weights.get(bench, saved_algos)
+    for algo, data in scoring_algos.items():
+        if algo.startswith('_'):
+            continue
         score = simulate_score(data, feats, bench)
         if score > best_score:
             best_score = score

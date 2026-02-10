@@ -303,10 +303,22 @@ void ReorderCommunitySubgraphStandalone(
     
     // Map local reordered IDs back to global IDs
     std::vector<NodeID_> reordered_nodes(comm_size);
+    std::vector<bool> position_filled(comm_size, false);
+    bool valid_perm = true;
     for (size_t i = 0; i < comm_size; ++i) {
-        if (sub_new_ids[i] >= 0 && sub_new_ids[i] < static_cast<NodeID_>(comm_size)) {
-            reordered_nodes[sub_new_ids[i]] = local_to_global[i];
+        NodeID_ pos = sub_new_ids[i];
+        if (pos >= 0 && pos < static_cast<NodeID_>(comm_size) && !position_filled[pos]) {
+            reordered_nodes[pos] = local_to_global[i];
+            position_filled[pos] = true;
         } else {
+            valid_perm = false;
+        }
+    }
+    
+    // If permutation is invalid (GOrder/CORDER can fail on small subgraphs),
+    // fall back to identity ordering
+    if (!valid_perm) {
+        for (size_t i = 0; i < comm_size; ++i) {
             reordered_nodes[i] = local_to_global[i];
         }
     }
