@@ -252,6 +252,7 @@ int main(int argc, char* argv[]) {
   CLApp cli(argc, argv, "breadth-first search");
   if (!cli.ParseArgs())
     return -1;
+  SetBenchmarkTypeHint(BENCH_BFS);
   Builder b(cli);
   Graph g = b.MakeGraph();
   // Create SourcePicker with pre-generated consistent sources based on num_trials

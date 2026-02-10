@@ -221,6 +221,7 @@ int main(int argc, char* argv[]) {
   CLApp cli(argc, argv, "connected-components-afforest");
   if (!cli.ParseArgs())
     return -1;
+  SetBenchmarkTypeHint(BENCH_CC);
   Builder b(cli);
   Graph g = b.MakeGraph();
   auto CCBound = [&cli](const Graph& gr){ return Afforest(gr, cli.logging_en()); };

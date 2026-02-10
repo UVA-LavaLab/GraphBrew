@@ -1171,13 +1171,31 @@ struct LeidenDendrogramNode {
  */
 enum BenchmarkType {
     BENCH_GENERIC = 0,  ///< Generic/default - no benchmark-specific adjustment
-    BENCH_PR,           ///< PageRank - iterative, benefits from cache locality
+    BENCH_PR,           ///< PageRank (push-based) - iterative, random scatter
     BENCH_BFS,          ///< Breadth-First Search - traversal-heavy
-    BENCH_CC,           ///< Connected Components - union-find based
+    BENCH_CC,           ///< Connected Components (label propagation) - iterative
     BENCH_SSSP,         ///< Single-Source Shortest Path - priority queue based
     BENCH_BC,           ///< Betweenness Centrality - all-pairs traversal
-    BENCH_TC            ///< Triangle Counting - neighborhood intersection
+    BENCH_TC,           ///< Triangle Counting - neighborhood intersection
+    BENCH_PR_SPMV,      ///< PageRank (SpMV, pull-based) - row-sequential access
+    BENCH_CC_SV         ///< Connected Components (Shiloach-Vishkin) - pointer chasing
 };
+
+/**
+ * @brief Global benchmark type hint for AdaptiveOrder.
+ * 
+ * Each benchmark binary sets this before graph construction so that
+ * AdaptiveOrder can use benchmark-specific multipliers (bench_pr, bench_bfs, etc.)
+ * instead of the generic multiplier (1.0).
+ * 
+ * Usage:  SetBenchmarkTypeHint(BENCH_BFS);  // in main(), before Builder
+ */
+inline BenchmarkType& _BenchmarkTypeHint() {
+    static BenchmarkType hint = BENCH_GENERIC;
+    return hint;
+}
+inline void SetBenchmarkTypeHint(BenchmarkType t) { _BenchmarkTypeHint() = t; }
+inline BenchmarkType GetBenchmarkTypeHint() { return _BenchmarkTypeHint(); }
 
 /**
  * @brief Convert benchmark name string to enum
@@ -1192,6 +1210,8 @@ inline BenchmarkType GetBenchmarkType(const std::string& name) {
     if (name == "sssp" || name == "SSSP") return BENCH_SSSP;
     if (name == "bc" || name == "BC") return BENCH_BC;
     if (name == "tc" || name == "TC") return BENCH_TC;
+    if (name == "pr_spmv" || name == "PR_SPMV") return BENCH_PR_SPMV;
+    if (name == "cc_sv" || name == "CC_SV") return BENCH_CC_SV;
     return BENCH_GENERIC;
 }
 
@@ -1649,6 +1669,8 @@ struct PerceptronWeights {
     double bench_sssp = 1.0;         ///< SSSP weight multiplier
     double bench_bc = 1.0;           ///< BC weight multiplier
     double bench_tc = 1.0;           ///< TC weight multiplier
+    double bench_pr_spmv = 1.0;      ///< PR_SPMV weight multiplier
+    double bench_cc_sv = 1.0;        ///< CC_SV weight multiplier
     
     /**
      * @brief Calculate iterations needed to amortize reorder cost
@@ -1682,6 +1704,8 @@ struct PerceptronWeights {
             case BENCH_SSSP: return bench_sssp;
             case BENCH_BC:   return bench_bc;
             case BENCH_TC:   return bench_tc;
+            case BENCH_PR_SPMV: return bench_pr_spmv;
+            case BENCH_CC_SV: return bench_cc_sv;
             case BENCH_GENERIC:
             default:         return 1.0;
         }
@@ -1767,7 +1791,7 @@ struct PerceptronWeights {
         // Convergence bonus: iterative algorithms benefit from ordering
         // that respects data-flow direction (forward edges → faster convergence)
         // Ablation: ADAPTIVE_ZERO_FEATURES=fef zeroes this bonus too
-        if ((bench == BENCH_PR || bench == BENCH_SSSP) && !AblationConfig::Get().zero_fef) {
+        if ((bench == BENCH_PR || bench == BENCH_PR_SPMV || bench == BENCH_SSSP) && !AblationConfig::Get().zero_fef) {
             s += w_fef_convergence * feat.forward_edge_fraction;
         }
         
@@ -3008,6 +3032,8 @@ inline bool ParseWeightsFromJSON(const std::string& json_content,
                 w.bench_sssp = find_bench_weight(bw_block, "sssp");
                 w.bench_bc   = find_bench_weight(bw_block, "bc");
                 w.bench_tc   = find_bench_weight(bw_block, "tc");
+                w.bench_pr_spmv = find_bench_weight(bw_block, "pr_spmv");
+                w.bench_cc_sv   = find_bench_weight(bw_block, "cc_sv");
             }
         }
         
@@ -3550,7 +3576,7 @@ inline std::map<ReorderingAlgo, PerceptronWeights> LoadPerceptronWeightsForGraph
 inline std::map<ReorderingAlgo, PerceptronWeights> LoadPerceptronWeightsForFeatures(
     double modularity, double degree_variance, double hub_concentration,
     double avg_degree, size_t num_nodes, size_t num_edges, bool verbose = false,
-    double clustering_coeff = 0.0) {
+    double clustering_coeff = 0.0, BenchmarkType bench = BENCH_GENERIC) {
     
     // Start with defaults - this ensures ALL algorithms have weights
     auto weights = GetPerceptronWeights();
@@ -3574,6 +3600,34 @@ inline std::map<ReorderingAlgo, PerceptronWeights> LoadPerceptronWeightsForFeatu
                               << " weights from env override: " << env_path << "\n";
                 }
                 return weights;
+            }
+        }
+    }
+    
+    // Try per-benchmark weight file first (these have much higher accuracy
+    // because they are trained specifically for each benchmark type, avoiding
+    // the accuracy loss of the averaged scoreBase × multiplier model)
+    if (bench != BENCH_GENERIC) {
+        const char* bench_names[] = {"generic", "pr", "bfs", "cc", "sssp", "bc", "tc", "pr_spmv", "cc_sv"};
+        if (static_cast<int>(bench) < 9) {
+            std::string bench_file = std::string(TYPE_WEIGHTS_DIR) + "type_0_" + bench_names[bench] + ".json";
+            std::ifstream file(bench_file);
+            if (file.is_open()) {
+                std::string json_content((std::istreambuf_iterator<char>(file)),
+                                          std::istreambuf_iterator<char>());
+                file.close();
+                
+                std::map<ReorderingAlgo, PerceptronWeights> loaded_weights;
+                if (ParseWeightsFromJSON(json_content, loaded_weights)) {
+                    for (const auto& kv : loaded_weights) {
+                        weights[kv.first] = kv.second;
+                    }
+                    if (verbose) {
+                        std::cout << "Perceptron: Loaded " << loaded_weights.size()
+                                  << " per-benchmark weights from " << bench_file << "\n";
+                    }
+                    return weights;
+                }
             }
         }
     }
@@ -3779,10 +3833,11 @@ inline ReorderingAlgo SelectReorderingPerceptronWithFeatures(
     double global_hub_concentration, size_t num_nodes, size_t num_edges,
     BenchmarkType bench = BENCH_GENERIC) {
     
-    // Load weights based on features (tries type_0.json first, then semantic types)
+    // Load weights based on features (tries per-bench type_0_{bench}.json first,
+    // then type_0.json, then semantic types)
     auto weights = LoadPerceptronWeightsForFeatures(
         global_modularity, global_degree_variance, global_hub_concentration,
-        feat.avg_degree, num_nodes, num_edges, false, feat.clustering_coeff);
+        feat.avg_degree, num_nodes, num_edges, false, feat.clustering_coeff, bench);
     
     return SelectReorderingFromWeights(feat, weights, bench);
 }

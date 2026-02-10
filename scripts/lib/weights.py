@@ -808,18 +808,28 @@ def compute_weights_from_results(
     for graph_name, props in graph_props.items():
         nodes = props.get('nodes', 1000)
         edges = props.get('edges', 5000)
+        cc = props.get('clustering_coefficient', 0.0)
+        avg_degree = props.get('avg_degree', WEIGHT_AVG_DEGREE_DEFAULT)
+        
+        # Align features to match what C++ computes at runtime:
+        # - modularity: C++ uses estimated_modularity = min(0.9, clustering_coeff * 1.5)
+        # - density: C++ uses internal_density = avg_degree / (num_nodes - 1)
+        # - avg_path_length, diameter, community_count: C++ doesn't compute these
+        estimated_modularity = min(0.9, cc * 1.5)
+        internal_density = avg_degree / (nodes - 1) if nodes > 1 else 0
+        
         graph_features[graph_name] = {
-            'modularity': props.get('modularity', 0.5),
+            'modularity': estimated_modularity,
             'degree_variance': props.get('degree_variance', 1.0),
             'hub_concentration': props.get('hub_concentration', 0.3),
-            'avg_degree': props.get('avg_degree', WEIGHT_AVG_DEGREE_DEFAULT),
+            'avg_degree': avg_degree,
             'log_nodes': math.log10(nodes + 1) if nodes > 0 else 0,
             'log_edges': math.log10(edges + 1) if edges > 0 else 0,
-            'density': 2 * edges / (nodes * (nodes - 1)) if nodes > 1 else 0,
-            'clustering_coefficient': props.get('clustering_coefficient', 0.0),
-            'avg_path_length': props.get('avg_path_length', 0.0),
-            'diameter': props.get('diameter', 0.0),
-            'community_count': props.get('community_count', 0.0),
+            'density': internal_density,
+            'clustering_coefficient': cc,
+            'avg_path_length': 0.0,  # C++ doesn't compute at runtime
+            'diameter': 0.0,         # C++ doesn't compute at runtime
+            'community_count': 0.0,  # C++ doesn't compute at runtime
         }
     
     # Build training examples: (feature_vector, best_algorithm)
@@ -1012,6 +1022,36 @@ def compute_weights_from_results(
         # using per-bench models, then find bias + feature_weights + bench_multipliers
         # that best reproduce those scores.
         #
+        # =====================================================================
+        # Save per-benchmark perceptrons as separate weight files (type_0_{bench}.json)
+        # These are loaded by C++ when benchmark type hint is available, giving
+        # much higher accuracy than the averaged scoreBase × multiplier model.
+        # =====================================================================
+        
+        for bn, bn_weights in per_bench_w.items():
+            per_bench_cpp = {}
+            for base in base_algos:
+                if base not in bn_weights:
+                    continue
+                bw_raw = bn_weights[base]
+                # De-normalize for C++ raw features (same transform as averaged weights)
+                bias_adj = sum(bw_raw['w'][i] * feat_means[i] / feat_stds[i] for i in range(n_feat))
+                denorm_bias = bw_raw['bias'] - bias_adj
+                denorm_w = {weight_keys[i]: bw_raw['w'][i] / feat_stds[i] for i in range(n_feat)}
+                
+                entry = {'bias': denorm_bias}
+                entry.update(denorm_w)
+                # No benchmark_weights needed - this IS the benchmark-specific perceptron
+                entry['benchmark_weights'] = {}
+                entry['_metadata'] = {}
+                per_bench_cpp[base] = entry
+            
+            if per_bench_cpp and weights_dir:
+                bench_file = os.path.join(weights_dir, f'type_0_{bn}.json')
+                with open(bench_file, 'w') as f:
+                    json.dump(per_bench_cpp, f, indent=2)
+                log.info(f"  Saved per-benchmark weights: {bench_file} ({len(per_bench_cpp)} algorithms)")
+        
         # =====================================================================
         # ScoreBase from averaged per-bench perceptrons + regret-aware grid search
         # =====================================================================

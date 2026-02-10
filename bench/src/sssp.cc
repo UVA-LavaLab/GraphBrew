@@ -195,6 +195,7 @@ int main(int argc, char *argv[]) {
   CLDelta<WeightT> cli(argc, argv, "single-source shortest-path");
   if (!cli.ParseArgs())
     return -1;
+  SetBenchmarkTypeHint(BENCH_SSSP);
   WeightedBuilder b(cli);
   WGraph g = b.MakeGraph();
   // Create SourcePicker with pre-generated consistent sources based on num_trials

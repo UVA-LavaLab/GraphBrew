@@ -153,6 +153,7 @@ int main(int argc, char* argv[]) {
   CLApp cli(argc, argv, "connected-components");
   if (!cli.ParseArgs())
     return -1;
+  SetBenchmarkTypeHint(BENCH_CC_SV);
   Builder b(cli);
   Graph g = b.MakeGraph();
   BenchmarkKernel(cli, g, ShiloachVishkin, PrintCompStats, CCVerifier);

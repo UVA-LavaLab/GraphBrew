@@ -234,6 +234,7 @@ int main(int argc, char* argv[]) {
   CLIterApp cli(argc, argv, "betweenness-centrality", 1);
   if (!cli.ParseArgs())
     return -1;
+  SetBenchmarkTypeHint(BENCH_BC);
   if (cli.num_iters() > 1 && cli.start_vertex() != -1)
     cout << "Warning: iterating from same source (-r & -i)" << endl;
   Builder b(cli);
