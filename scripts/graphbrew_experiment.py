@@ -3199,6 +3199,8 @@ def main():
                         help="A/B test: AdaptiveOrder vs Original on all .sg graphs (replaces ab_test.sh)")
     parser.add_argument("--eval-weights", action="store_true",
                         help="Train perceptron weights and evaluate prediction accuracy (replaces eval_weights.py)")
+    parser.add_argument("--logo", action="store_true",
+                        help="[eval-weights] Run Leave-One-Graph-Out cross-validation to measure generalization")
     parser.add_argument("--sg-only", action="store_true",
                         help="[eval-weights] Only use .sg benchmark data for training")
     parser.add_argument("--benchmark-file", default=None,
@@ -3501,6 +3503,7 @@ def main():
             results_dir=args.results_dir,
             sg_only=getattr(args, 'sg_only', False),
             benchmark_file=getattr(args, 'benchmark_file', None),
+            logo=getattr(args, 'logo', False),
         )
         return
 
