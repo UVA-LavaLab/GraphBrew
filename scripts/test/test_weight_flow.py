@@ -112,8 +112,9 @@ def weights_env(tmp_path, monkeypatch):
     default_weights = {
         "Algo0": {"bias": 0.5, "w_modularity": 0.1, "w_log_nodes": 0.0}
     }
-    (tmp_active / "type_0.json").write_text(json.dumps(default_weights))
-    (tmp_active / "type_registry.json").write_text(json.dumps({
+    (tmp_active / "type_0").mkdir(parents=True, exist_ok=True)
+    (tmp_active / "type_0" / "weights.json").write_text(json.dumps(default_weights))
+    (tmp_active / "registry.json").write_text(json.dumps({
         "type_0": {"centroid": [0]*7, "graph_count": 1, "algorithms": ["Algo0"]}
     }))
 
@@ -180,17 +181,17 @@ def test_directory_structure(results: ResultsTracker):
         f"scripts/weights/active/ exists"
     )
     
-    # Check for type files in active
-    type_files = list(ACTIVE_WEIGHTS_DIR.glob("type_*.json"))
+    # Check for type directories in active
+    type_dirs = [d for d in ACTIVE_WEIGHTS_DIR.iterdir() if d.is_dir() and d.name.startswith('type_')]
     results.check(
-        len(type_files) > 0,
-        f"Found {len(type_files)} type files in active/"
+        len(type_dirs) > 0,
+        f"Found {len(type_dirs)} type directories in active/"
     )
     
-    registry_file = ACTIVE_WEIGHTS_DIR / "type_registry.json"
+    registry_file = ACTIVE_WEIGHTS_DIR / "registry.json"
     results.check(
         registry_file.exists(),
-        f"type_registry.json exists in active/"
+        f"registry.json exists in active/"
     )
 
 
@@ -213,10 +214,10 @@ def test_weights_write_to_active(results: ResultsTracker):
     save_type_weights(test_type, test_weights)
     
     # Verify it was written to active/
-    expected_path = ACTIVE_WEIGHTS_DIR / f"{test_type}.json"
+    expected_path = ACTIVE_WEIGHTS_DIR / test_type / "weights.json"
     results.check(
         expected_path.exists(),
-        f"save_type_weights wrote to active/{test_type}.json"
+        f"save_type_weights wrote to active/{test_type}/weights.json"
     )
     
     # Load and verify content
@@ -228,8 +229,8 @@ def test_weights_write_to_active(results: ResultsTracker):
     
     # Clean up
     if expected_path.exists():
-        expected_path.unlink()
-        print(f"  [cleanup] Removed {test_type}.json")
+        shutil.rmtree(expected_path.parent)
+        print(f"  [cleanup] Removed {test_type}/")
 
 
 def test_cpp_path_constants(results: ResultsTracker):
@@ -237,20 +238,20 @@ def test_cpp_path_constants(results: ResultsTracker):
     print("\n4. Testing C++ Path Constants")
     print("-" * 40)
     
-    builder_h = PROJECT_ROOT / "bench" / "include" / "graphbrew" / "builder.h"
+    reorder_h = PROJECT_ROOT / "bench" / "include" / "graphbrew" / "reorder" / "reorder_types.h"
     
     results.check(
-        builder_h.exists(),
-        f"builder.h exists"
+        reorder_h.exists(),
+        f"reorder_types.h exists"
     )
     
-    if builder_h.exists():
-        content = builder_h.read_text()
+    if reorder_h.exists():
+        content = reorder_h.read_text()
         
         # Check DEFAULT_WEIGHTS_FILE
         results.check(
-            'DEFAULT_WEIGHTS_FILE = "scripts/weights/active/type_0.json"' in content,
-            f"DEFAULT_WEIGHTS_FILE points to scripts/weights/active/"
+            'DEFAULT_WEIGHTS_FILE = "scripts/weights/active/type_0/weights.json"' in content,
+            f"DEFAULT_WEIGHTS_FILE points to scripts/weights/active/type_0/weights.json"
         )
         
         # Check TYPE_WEIGHTS_DIR
@@ -275,13 +276,14 @@ def test_weight_merger_flow(results: ResultsTracker):
     }
     
     # Save to active/
-    test_path = ACTIVE_WEIGHTS_DIR / f"{test_type}.json"
-    test_path.parent.mkdir(parents=True, exist_ok=True)
+    test_dir = ACTIVE_WEIGHTS_DIR / test_type
+    test_dir.mkdir(parents=True, exist_ok=True)
+    test_path = test_dir / "weights.json"
     with open(test_path, 'w') as f:
         json.dump(test_weights, f)
     
     # Create a minimal registry
-    registry_path = ACTIVE_WEIGHTS_DIR / "type_registry.json"
+    registry_path = ACTIVE_WEIGHTS_DIR / "registry.json"
     original_registry = None
     if registry_path.exists():
         with open(registry_path) as f:
@@ -304,10 +306,10 @@ def test_weight_merger_flow(results: ResultsTracker):
         f"save_current_run created run folder"
     )
     
-    saved_type_file = run_path / f"{test_type}.json"
+    saved_type_file = run_path / test_type / "weights.json"
     results.check(
         saved_type_file.exists(),
-        f"Run folder contains {test_type}.json"
+        f"Run folder contains {test_type}/weights.json"
     )
     
     # List runs should include our test run
@@ -319,9 +321,9 @@ def test_weight_merger_flow(results: ResultsTracker):
     )
     
     # Clean up
-    if test_path.exists():
-        test_path.unlink()
-        print(f"  [cleanup] Removed {test_type}.json from active/")
+    if test_dir.exists():
+        shutil.rmtree(test_dir)
+        print(f"  [cleanup] Removed {test_type}/ from active/")
     
     if run_path.exists():
         shutil.rmtree(run_path)
@@ -339,14 +341,17 @@ def test_existing_weights_valid(results: ResultsTracker):
     print("\n6. Testing Existing Weights Validity")
     print("-" * 40)
     
-    # Check type files
-    type_files = sorted(ACTIVE_WEIGHTS_DIR.glob("type_[0-9]*.json"))
+    # Check type directories
+    type_dirs = sorted(d for d in ACTIVE_WEIGHTS_DIR.iterdir() if d.is_dir() and d.name.startswith('type_'))
     results.check(
-        len(type_files) > 0,
-        f"Found {len(type_files)} type weight files"
+        len(type_dirs) > 0,
+        f"Found {len(type_dirs)} type directories"
     )
     
-    for type_file in type_files:
+    for type_dir in type_dirs:
+        type_file = type_dir / "weights.json"
+        if not type_file.exists():
+            continue
         try:
             with open(type_file) as f:
                 weights = json.load(f)
@@ -363,13 +368,13 @@ def test_existing_weights_valid(results: ResultsTracker):
             
             results.check(
                 valid,
-                f"{type_file.name}: {len(algos)} algorithms, valid structure"
+                f"{type_dir.name}/weights.json: {len(algos)} algorithms, valid structure"
             )
         except Exception as e:
-            results.check(False, f"{type_file.name}: Error - {e}")
+            results.check(False, f"{type_dir.name}/weights.json: Error - {e}")
     
     # Check registry
-    registry_file = ACTIVE_WEIGHTS_DIR / "type_registry.json"
+    registry_file = ACTIVE_WEIGHTS_DIR / "registry.json"
     if registry_file.exists():
         try:
             with open(registry_file) as f:
@@ -379,10 +384,10 @@ def test_existing_weights_valid(results: ResultsTracker):
             type_entries = [k for k in registry if k.startswith('type_')]
             results.check(
                 len(type_entries) > 0,
-                f"type_registry.json: {len(type_entries)} type entries"
+                f"registry.json: {len(type_entries)} type entries"
             )
         except Exception as e:
-            results.check(False, f"type_registry.json: Error - {e}")
+            results.check(False, f"registry.json: Error - {e}")
 
 
 def main():

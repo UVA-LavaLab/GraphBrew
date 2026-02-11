@@ -9,21 +9,20 @@ might correspond to type_1 in run B based on centroid similarity).
 Directory Structure:
     scripts/weights/
     ├── active/                     # C++ reads from here
-    │   ├── type_0.json
-    │   ├── type_1.json
-    │   └── type_registry.json
-    ├── runs/                       # Historical snapshots
-    │   ├── 20260125_123456/
-    │   │   ├── type_0.json
-    │   │   ├── type_1.json
-    │   │   └── type_registry.json
-    │   └── 20260125_134567/
-    │       ├── type_0.json
-    │       └── type_registry.json
-    └── merged/                     # Accumulated from all runs
-        ├── type_0.json
-        ├── type_1.json
-        └── type_registry.json
+    │   ├── registry.json           # Graph-type cluster registry
+    │   ├── type_0/                 # Default graph-type cluster
+    │   │   ├── weights.json        # Generic perceptron weights
+    │   │   ├── pr.json             # Per-benchmark specialised weights
+    │   │   └── bfs.json
+    │   ├── type_1/
+    │   │   └── weights.json
+    │   └── type_2/
+    │       └── weights.json
+    └── runs/                       # Historical snapshots (same layout)
+        └── 20260125_123456/
+            ├── registry.json
+            └── type_0/
+                └── weights.json
 
 Usage:
     # Merge all runs into merged/
@@ -110,7 +109,7 @@ class RunInfo:
     
     def load(self) -> bool:
         """Load run information from disk."""
-        registry_path = self.path / "type_registry.json"
+        registry_path = self.path / "registry.json"
         if not registry_path.exists():
             return False
         
@@ -344,7 +343,7 @@ def list_runs() -> List[RunInfo]:
     
     runs = []
     for entry in sorted(runs_dir.iterdir()):
-        if entry.is_dir() and (entry / "type_registry.json").exists():
+        if entry.is_dir() and (entry / "registry.json").exists():
             run = RunInfo(timestamp=entry.name, path=entry)
             if run.load():
                 runs.append(run)
@@ -372,14 +371,20 @@ def save_current_run(timestamp: Optional[str] = None) -> Path:
     # Create run directory
     run_dir.mkdir(parents=True, exist_ok=True)
     
-    # Copy all type files and registry from active
+    # Copy all type directories and registry from active
     files_copied = 0
     if active_dir.exists():
+        # Copy registry
+        reg = active_dir / "registry.json"
+        if reg.is_file():
+            shutil.copy2(reg, run_dir / "registry.json")
+            files_copied += 1
+        # Copy type_N/ directories
         for item in active_dir.iterdir():
-            if item.is_file() and item.suffix == '.json':
-                if item.name.startswith('type_') or item.name == 'type_registry.json':
-                    shutil.copy2(item, run_dir / item.name)
-                    files_copied += 1
+            if item.is_dir() and item.name.startswith('type_'):
+                dest = run_dir / item.name
+                shutil.copytree(item, dest)
+                files_copied += sum(1 for _ in dest.rglob('*.json'))
     
     print(f"Saved {files_copied} files to run {timestamp}")
     return run_dir
@@ -445,7 +450,7 @@ def merge_runs(
                 )
                 
                 # Load and merge weights
-                src_weights = load_type_weights(run.path / f"{src_type_id}.json")
+                src_weights = load_type_weights(run.path / src_type_id / "weights.json")
                 
                 for algo, algo_weights in src_weights.items():
                     if algo.startswith('_'):
@@ -483,7 +488,7 @@ def merge_runs(
                 )
                 
                 # Load weights
-                src_weights = load_type_weights(run.path / f"{src_type_id}.json")
+                src_weights = load_type_weights(run.path / src_type_id / "weights.json")
                 merged_weights[new_id] = {
                     k: v.copy() for k, v in src_weights.items()
                     if not k.startswith('_')
@@ -494,8 +499,8 @@ def merge_runs(
     
     # Save type weights
     for type_id, weights in merged_weights.items():
-        save_type_weights(weights, output_dir / f"{type_id}.json")
-        print(f"  Saved {type_id}.json ({len(weights)} algorithms)")
+        save_type_weights(weights, output_dir / type_id / "weights.json")
+        print(f"  Saved {type_id}/weights.json ({len(weights)} algorithms)")
     
     # Save registry
     registry = {}
@@ -507,10 +512,10 @@ def merge_runs(
             'graphs': []  # Don't track individual graphs in merged
         }
     
-    registry_path = output_dir / "type_registry.json"
+    registry_path = output_dir / "registry.json"
     with open(registry_path, 'w') as f:
         json.dump(registry, f, indent=2)
-    print(f"  Saved type_registry.json ({len(registry)} types)")
+    print(f"  Saved registry.json ({len(registry)} types)")
     
     # Summary
     summary = {
@@ -644,7 +649,7 @@ def validate_merge() -> bool:
         return False
     
     # Load merged registry
-    merged_reg_path = merged_dir / "type_registry.json"
+    merged_reg_path = merged_dir / "registry.json"
     if not merged_reg_path.exists():
         print("Merged registry not found")
         return False
@@ -677,7 +682,7 @@ def validate_merge() -> bool:
     run_algorithms = set()
     for run in runs:
         for tinfo in run.types.values():
-            type_path = run.path / f"{tinfo.type_id}.json"
+            type_path = run.path / tinfo.type_id / "weights.json"
             if type_path.exists():
                 with open(type_path) as f:
                     weights = json.load(f)
@@ -686,13 +691,15 @@ def validate_merge() -> bool:
                         run_algorithms.add(algo)
     
     merged_algorithms = set()
-    for tfile in merged_dir.iterdir():
-        if tfile.suffix == '.json' and tfile.name.startswith('type_') and 'registry' not in tfile.name:
-            with open(tfile) as f:
-                weights = json.load(f)
-            for algo in weights:
-                if not algo.startswith('_'):
-                    merged_algorithms.add(algo)
+    for tdir in merged_dir.iterdir():
+        if tdir.is_dir() and tdir.name.startswith('type_'):
+            wfile = tdir / "weights.json"
+            if wfile.exists():
+                with open(wfile) as f:
+                    weights = json.load(f)
+                for algo in weights:
+                    if not algo.startswith('_'):
+                        merged_algorithms.add(algo)
     
     missing = run_algorithms - merged_algorithms
     if not missing:

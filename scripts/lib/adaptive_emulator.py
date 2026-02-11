@@ -61,6 +61,9 @@ WEIGHTS_DIR = SCRIPT_DIR.parent / "weights" / "active"  # scripts/weights/active
 RESULTS_DIR = PROJECT_ROOT / "results"
 GRAPHS_DIR = RESULTS_DIR / "graphs"
 
+# Import centralized path helpers
+from .utils import weights_registry_path, weights_type_path
+
 # All weight fields used in perceptron scoring
 WEIGHT_FIELDS = [
     "bias",
@@ -313,7 +316,7 @@ class TypeMatcher:
     """Matches graphs to types using Euclidean distance to centroids."""
     
     def __init__(self, registry_path: Path = None):
-        self.registry_path = registry_path or (WEIGHTS_DIR / "type_registry.json")
+        self.registry_path = registry_path or Path(weights_registry_path(str(WEIGHTS_DIR)))
         self.registry = {}
         self.centroids = {}
         self._load_registry()
@@ -396,7 +399,7 @@ class AlgorithmSelector:
         if type_name in self.weights_cache:
             return self.weights_cache[type_name]
         
-        weights_path = self.weights_dir / f"{type_name}.json"
+        weights_path = Path(weights_type_path(type_name, str(self.weights_dir)))
         if not weights_path.exists():
             print(f"Warning: Weights file not found: {weights_path}")
             return {}

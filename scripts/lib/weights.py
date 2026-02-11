@@ -32,6 +32,7 @@ from .utils import (
     WEIGHT_AVG_DEGREE_DEFAULT,
     RABBITORDER_VARIANTS, RABBITORDER_DEFAULT_VARIANT,
     GRAPHBREW_VARIANTS, GRAPHBREW_DEFAULT_VARIANT,
+    weights_registry_path, weights_type_path, weights_bench_path,
 )
 
 # Initialize logger
@@ -154,7 +155,7 @@ class PerceptronWeight:
 # =============================================================================
 
 _type_registry: Dict[str, Dict] = {}
-_type_registry_file: str = os.path.join(DEFAULT_WEIGHTS_DIR, "type_registry.json")
+_type_registry_file: str = weights_registry_path(DEFAULT_WEIGHTS_DIR)
 
 
 def _get_next_type_name() -> str:
@@ -223,7 +224,7 @@ def _compute_distance(f1: List[float], f2: List[float]) -> float:
 def load_type_registry(weights_dir: str = DEFAULT_WEIGHTS_DIR) -> Dict[str, Dict]:
     """Load type registry from disk."""
     global _type_registry, _type_registry_file
-    _type_registry_file = os.path.join(weights_dir, "type_registry.json")
+    _type_registry_file = weights_registry_path(weights_dir)
     
     if os.path.exists(_type_registry_file):
         try:
@@ -238,14 +239,14 @@ def save_type_registry(weights_dir: str = DEFAULT_WEIGHTS_DIR):
     """Save type registry to disk."""
     global _type_registry
     os.makedirs(weights_dir, exist_ok=True)
-    registry_file = os.path.join(weights_dir, "type_registry.json")
+    registry_file = weights_registry_path(weights_dir)
     with open(registry_file, 'w') as f:
         json.dump(_type_registry, f, indent=2)
 
 
 def get_type_weights_file(type_name: str, weights_dir: str = DEFAULT_WEIGHTS_DIR) -> str:
-    """Get path to weights file for a type."""
-    return os.path.join(weights_dir, f"{type_name}.json")
+    """Get path to weights file for a type (e.g. type_0/weights.json)."""
+    return weights_type_path(type_name, weights_dir)
 
 
 def _normalize_legacy_weight_keys(weights: Dict) -> Dict:
@@ -288,8 +289,8 @@ def load_type_weights(type_name: str, weights_dir: str = DEFAULT_WEIGHTS_DIR) ->
 
 def save_type_weights(type_name: str, weights: Dict, weights_dir: str = DEFAULT_WEIGHTS_DIR):
     """Save weights for a specific type."""
-    os.makedirs(weights_dir, exist_ok=True)
     weights_file = get_type_weights_file(type_name, weights_dir)
+    os.makedirs(os.path.dirname(weights_file), exist_ok=True)
     with open(weights_file, 'w') as f:
         json.dump(weights, f, indent=2)
 
@@ -1050,7 +1051,8 @@ def compute_weights_from_results(
                 per_bench_cpp[base] = entry
             
             if per_bench_cpp and weights_dir:
-                bench_file = os.path.join(weights_dir, f'type_0_{bn}.json')
+                bench_file = weights_bench_path('type_0', bn, weights_dir)
+                os.makedirs(os.path.dirname(bench_file), exist_ok=True)
                 with open(bench_file, 'w') as f:
                     json.dump(per_bench_cpp, f, indent=2)
                 log.info(f"  Saved per-benchmark weights: {bench_file} ({len(per_bench_cpp)} algorithms)")
@@ -1528,7 +1530,7 @@ def cross_validate_logo(
             )
 
             # Load the produced weight files (per-benchmark when available)
-            type0_file = os.path.join(tmpdir, 'type_0.json')
+            type0_file = weights_type_path('type_0', tmpdir)
             if not os.path.isfile(type0_file):
                 continue
             with open(type0_file) as f:
@@ -1537,7 +1539,7 @@ def cross_validate_logo(
 
             per_bench_weights = {}
             for bn in per_bench_names:
-                bfile = os.path.join(tmpdir, f'type_0_{bn}.json')
+                bfile = weights_bench_path('type_0', bn, tmpdir)
                 if os.path.isfile(bfile):
                     with open(bfile) as f:
                         per_bench_weights[bn] = json.load(f)
@@ -1621,7 +1623,7 @@ def cross_validate_logo(
         benchmark_results, reorder_results=reorder_results, weights_dir=weights_dir
     )
     # Reload produced files for scoring
-    type0_file = os.path.join(weights_dir, 'type_0.json')
+    type0_file = weights_type_path('type_0', weights_dir)
     full_algos = {}
     full_per_bench = {}
     if os.path.isfile(type0_file):
@@ -1629,7 +1631,7 @@ def cross_validate_logo(
             full_algos = {k: v for k, v in json.load(f).items()
                           if not k.startswith('_')}
     for bn in per_bench_names:
-        bfile = os.path.join(weights_dir, f'type_0_{bn}.json')
+        bfile = weights_bench_path('type_0', bn, weights_dir)
         if os.path.isfile(bfile):
             with open(bfile) as f:
                 full_per_bench[bn] = json.load(f)
@@ -1682,8 +1684,8 @@ def save_weights_to_active_type(
     Save weights to active type-based weights directory for C++ to use.
     
     This creates/updates:
-    - scripts/weights/active/type_N.json - Algorithm weights
-    - scripts/weights/active/type_registry.json - Type registry
+    - scripts/weights/active/type_N/weights.json - Algorithm weights
+    - scripts/weights/active/registry.json - Type registry
     
     Args:
         weights: Dictionary of algorithm weights
@@ -1702,7 +1704,8 @@ def save_weights_to_active_type(
     os.makedirs(weights_dir, exist_ok=True)
     
     # Save weights to type file
-    type_file = os.path.join(weights_dir, f"{type_name}.json")
+    type_file = weights_type_path(type_name, weights_dir)
+    os.makedirs(os.path.dirname(type_file), exist_ok=True)
     with open(type_file, 'w') as f:
         json.dump(weights, f, indent=2)
     

@@ -3220,11 +3220,12 @@ inline const std::map<ReorderingAlgo, PerceptronWeights>& GetPerceptronWeights()
  * 
  * The weight system uses a hierarchy:
  * 1. Environment variable PERCEPTRON_WEIGHTS_FILE (highest priority)
- * 2. Type-specific files in TYPE_WEIGHTS_DIR (e.g., type_0.json, type_1.json)
- * 3. Semantic type files in WEIGHTS_DIR (e.g., perceptron_weights_social.json)
- * 4. DEFAULT_WEIGHTS_FILE (global fallback)
+ * 2. Per-benchmark files in TYPE_WEIGHTS_DIR (e.g., type_0/pr.json)
+ * 3. Type-cluster files in TYPE_WEIGHTS_DIR (e.g., type_0/weights.json)
+ * 4. Semantic type files in WEIGHTS_DIR (e.g., perceptron_weights_social.json)
+ * 5. DEFAULT_WEIGHTS_FILE (global fallback)
  */
-inline constexpr const char* DEFAULT_WEIGHTS_FILE = "scripts/weights/active/type_0.json";
+inline constexpr const char* DEFAULT_WEIGHTS_FILE = "scripts/weights/active/type_0/weights.json";
 inline constexpr const char* WEIGHTS_DIR = "scripts/";
 inline constexpr const char* TYPE_WEIGHTS_DIR = "scripts/weights/active/";
 
@@ -3333,7 +3334,7 @@ inline std::string FindBestTypeWithDistance(
     }
     
     // Try to load type registry
-    std::string registry_path = std::string(TYPE_WEIGHTS_DIR) + "type_registry.json";
+    std::string registry_path = std::string(TYPE_WEIGHTS_DIR) + "registry.json";
     std::ifstream registry_file(registry_path);
     if (!registry_file.is_open()) {
         if (verbose) {
@@ -3610,7 +3611,7 @@ inline std::map<ReorderingAlgo, PerceptronWeights> LoadPerceptronWeightsForFeatu
     if (bench != BENCH_GENERIC) {
         const char* bench_names[] = {"generic", "pr", "bfs", "cc", "sssp", "bc", "tc", "pr_spmv", "cc_sv"};
         if (static_cast<int>(bench) < 9) {
-            std::string bench_file = std::string(TYPE_WEIGHTS_DIR) + "type_0_" + bench_names[bench] + ".json";
+            std::string bench_file = std::string(TYPE_WEIGHTS_DIR) + "type_0/" + bench_names[bench] + ".json";
             std::ifstream file(bench_file);
             if (file.is_open()) {
                 std::string json_content((std::istreambuf_iterator<char>(file)),
@@ -3641,7 +3642,7 @@ inline std::map<ReorderingAlgo, PerceptronWeights> LoadPerceptronWeightsForFeatu
         avg_degree, num_nodes, num_edges, verbose, clustering_coeff);
     
     if (!best_type.empty()) {
-        std::string type_file = std::string(TYPE_WEIGHTS_DIR) + best_type + ".json";
+        std::string type_file = std::string(TYPE_WEIGHTS_DIR) + best_type + "/weights.json";
         candidate_files.push_back(type_file);
     }
     
