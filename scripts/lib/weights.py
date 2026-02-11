@@ -803,6 +803,14 @@ def compute_weights_from_results(
         'avg_path_length': 'w_avg_path_length',
         'diameter': 'w_diameter',
         'community_count': 'w_community_count',
+        # IISWC'18 / GoGraph / P-OPT locality features
+        'packing_factor': 'w_packing_factor',
+        'forward_edge_fraction': 'w_forward_edge_fraction',
+        'log_working_set_ratio': 'w_working_set_ratio',
+        # Quadratic interaction terms (matches C++ scoreBase cross-features)
+        'dv_x_hub': 'w_dv_x_hub',
+        'mod_x_logn': 'w_mod_x_logn',
+        'pf_x_wsr': 'w_pf_x_wsr',
     }
     
     # Collect features per graph
@@ -832,6 +840,17 @@ def compute_weights_from_results(
             'avg_path_length': 0.0,  # C++ doesn't compute at runtime
             'diameter': 0.0,         # C++ doesn't compute at runtime
             'community_count': 0.0,  # C++ doesn't compute at runtime
+            # Locality features — match C++ transforms:
+            # packing_factor: raw (IISWC'18)
+            # forward_edge_fraction: raw (GoGraph)
+            # working_set_ratio: C++ uses log2(wsr + 1.0)
+            'packing_factor': props.get('packing_factor', 0.0),
+            'forward_edge_fraction': props.get('forward_edge_fraction', 0.5),
+            'log_working_set_ratio': math.log2(props.get('working_set_ratio', 0.0) + 1.0),
+            # Quadratic interaction terms — match C++ scoreBase() cross-features
+            'dv_x_hub': props.get('degree_variance', 1.0) * props.get('hub_concentration', 0.3),
+            'mod_x_logn': estimated_modularity * (math.log10(nodes + 1) if nodes > 0 else 0),
+            'pf_x_wsr': props.get('packing_factor', 0.0) * math.log2(props.get('working_set_ratio', 0.0) + 1.0),
         }
     
     # Build training examples: (feature_vector, best_algorithm)
@@ -872,6 +891,14 @@ def compute_weights_from_results(
                 feats['avg_path_length'] / 10.0,
                 feats['diameter'] / 50.0,
                 math.log10(feats['community_count'] + 1) if feats['community_count'] > 0 else 0,
+                # IISWC'18 / GoGraph / P-OPT locality features
+                feats['packing_factor'],
+                feats['forward_edge_fraction'],
+                feats['log_working_set_ratio'],
+                # Quadratic interaction terms
+                feats['dv_x_hub'],
+                feats['mod_x_logn'],
+                feats['pf_x_wsr'],
             ]
             
             training_data.append((fv, best_algo))
@@ -921,6 +948,14 @@ def compute_weights_from_results(
                 feats['avg_path_length'] / 10.0,
                 feats['diameter'] / 50.0,
                 math.log10(feats['community_count'] + 1) if feats['community_count'] > 0 else 0,
+                # IISWC'18 / GoGraph / P-OPT locality features
+                feats['packing_factor'],
+                feats['forward_edge_fraction'],
+                feats['log_working_set_ratio'],
+                # Quadratic interaction terms
+                feats['dv_x_hub'],
+                feats['mod_x_logn'],
+                feats['pf_x_wsr'],
             ]
             for bench, results in benchmarks.items():
                 if not results:
@@ -1104,6 +1139,14 @@ def compute_weights_from_results(
                 feats['avg_path_length'] / 10.0,
                 feats['diameter'] / 50.0,
                 math.log10(feats['community_count'] + 1) if feats['community_count'] > 0 else 0,
+                # IISWC'18 / GoGraph / P-OPT locality features
+                feats['packing_factor'],
+                feats['forward_edge_fraction'],
+                feats['log_working_set_ratio'],
+                # Quadratic interaction terms
+                feats['dv_x_hub'],
+                feats['mod_x_logn'],
+                feats['pf_x_wsr'],
             ]
         
         # Helper: compute scoreBase for an algo on a graph
@@ -2180,6 +2223,12 @@ def update_zero_weights(
                 'avg_path_length': props.get('avg_path_length', 0.0),
                 'diameter': props.get('diameter', 0.0),
                 'community_count': props.get('community_count', 0.0),
+                # IISWC'18 / GoGraph / P-OPT locality features
+                'packing_factor': props.get('packing_factor', 0.0),
+                'forward_edge_fraction': props.get('forward_edge_fraction', 0.5),
+                # IISWC'18 / GoGraph / P-OPT locality features
+                'packing_factor': props.get('packing_factor', 0.0),
+                'forward_edge_fraction': props.get('forward_edge_fraction', 0.5),
             }
             
             # Compute derived features
@@ -2188,6 +2237,17 @@ def update_zero_weights(
             features['log_nodes'] = math.log10(nodes + 1) if nodes > 0 else 0
             features['log_edges'] = math.log10(edges + 1) if edges > 0 else 0
             features['density'] = 2 * edges / (nodes * (nodes - 1)) if nodes > 1 else 0
+            # C++ uses log2(wsr + 1.0) for working_set_ratio
+            wsr = props.get('working_set_ratio', 0.0)
+            features['log_working_set_ratio'] = math.log2(wsr + 1.0)
+            # Quadratic interaction terms
+            estimated_modularity = min(0.9, features['clustering_coefficient'] * 1.5)
+            features['dv_x_hub'] = features['degree_variance'] * features['hub_concentration']
+            features['mod_x_logn'] = estimated_modularity * features['log_nodes']
+            features['pf_x_wsr'] = features['packing_factor'] * features['log_working_set_ratio']
+            # C++ uses log2(wsr + 1.0) for working_set_ratio
+            wsr = props.get('working_set_ratio', 0.0)
+            features['log_working_set_ratio'] = math.log2(wsr + 1.0)
             
             # Estimate speedup by comparing to baseline
             algo_speedups[algo].append({
@@ -2217,7 +2277,10 @@ def update_zero_weights(
                 'modularity': [], 'degree_variance': [], 'hub_concentration': [],
                 'log_nodes': [], 'log_edges': [], 'density': [], 'avg_degree': [],
                 'clustering_coefficient': [], 'avg_path_length': [], 
-                'diameter': [], 'community_count': []
+                'diameter': [], 'community_count': [],
+                'packing_factor': [], 'forward_edge_fraction': [],
+                'log_working_set_ratio': [],
+                'dv_x_hub': [], 'mod_x_logn': [], 'pf_x_wsr': [],
             }
             
             for r in results:
@@ -2271,6 +2334,14 @@ def update_zero_weights(
                     'avg_path_length': ('w_avg_path_length', 0.2),
                     'diameter': ('w_diameter', 0.2),
                     'community_count': ('w_community_count', 0.2),
+                    # IISWC'18 / GoGraph / P-OPT locality features
+                    'packing_factor': ('w_packing_factor', 0.3),
+                    'forward_edge_fraction': ('w_forward_edge_fraction', 0.3),
+                    'log_working_set_ratio': ('w_working_set_ratio', 0.3),
+                    # Quadratic interaction terms
+                    'dv_x_hub': ('w_dv_x_hub', 0.2),
+                    'mod_x_logn': ('w_mod_x_logn', 0.2),
+                    'pf_x_wsr': ('w_pf_x_wsr', 0.2),
                 }
                 
                 for feat_name, (weight_name, scale) in weight_map.items():
