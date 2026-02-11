@@ -1,95 +1,48 @@
 # AdaptiveOrder: ML-Powered Algorithm Selection
 
-AdaptiveOrder (algorithm 14) uses a **machine learning perceptron** to automatically select the best reordering algorithm for each community in your graph. This page explains how it works and how to train it.
+AdaptiveOrder (algorithm 14) uses a **machine learning perceptron** to automatically select the best reordering algorithm for your graph. This page explains how it works and how to train it.
 
 ## Overview
 
-Instead of using one reordering algorithm for the entire graph, AdaptiveOrder:
-1. **Computes graph features** (modularity, degree variance, hub concentration, etc.)
+Instead of requiring the user to pick a reordering algorithm, AdaptiveOrder:
+1. **Computes graph features** (degree variance, hub concentration, packing factor, etc.)
 2. **Finds best matching type** from auto-clustered type files using Euclidean distance
 3. **Loads specialized weights** for that type (per-benchmark files like `type_0_pr.json`, or generic `type_0.json`)
 4. **Uses a trained perceptron** to predict the best algorithm
-5. **Applies the selected algorithm** to the graph
+5. **Applies the selected algorithm** to the entire graph
 
-By default, AdaptiveOrder operates in **full-graph mode**: it selects a single algorithm for the entire graph based on global features. Per-community and recursive modes are available but not the default.
+AdaptiveOrder operates in **full-graph mode**: it selects a single algorithm for the entire graph based on global features. This was found to outperform per-community selection because training data is whole-graph, so features match better, there is no Leiden partitioning overhead, and cross-community edge patterns are preserved.
 
 ## Command-Line Format
 
 ```bash
-# Format: -o 14[:mode[:max_depth[:resolution[:min_recurse_size[:selection_mode[:graph_name]]]]]]
+# Format: -o 14[:_[:_[:_[:selection_mode[:graph_name]]]]]
+#   Positions 0-2 are reserved (currently unused)
+#   Position 3 = selection_mode (0-3)
+#   Position 4 = graph_name (string)
 
-# Default: full-graph selection
-./bench/bin/pr -f graph.el -s -o 14 -n 3
+# Default: full-graph selection with fastest-execution mode
+./bench/bin/pr -f graph.sg -s -o 14 -n 3
 
-# Per-community mode
-./bench/bin/pr -f graph.el -s -o 14:1 -n 3
-
-# Per-community with recursion depth 2
-./bench/bin/pr -f graph.el -s -o 14:2:2 -n 3
-
-# Per-community with custom resolution (more communities)
-./bench/bin/pr -f graph.el -s -o 14:1:1:1.0 -n 3
+# Specify selection mode (position 3) — use colons to skip reserved positions
+./bench/bin/pr -f graph.sg -s -o 14::::
 ```
 
 ### Parameters
 
-| Parameter | Default | Description |
-|-----------|---------|-------------|
-| `mode` | 1 (PerCommunity) | 0 = full-graph, 1 = per-community, 2 = recursive |
-| `max_depth` | 0 | Max recursion depth (0 = no recursion, 1+ = multi-level) |
-| `resolution` | auto | Leiden resolution (auto: continuous formula with CV guardrail) |
-| `min_recurse_size` | 50000 | Minimum community size for recursion |
-| `selection_mode` | 1 (fastest-execution) | 0 = fastest-reorder, 1 = fastest-execution (perceptron), 2 = best-endtoend, 3 = best-amortization |
-| `graph_name` | (empty) | Graph name hint for weight file lookup |
-
-**Auto-Resolution Formula:**
-```
-γ = clip(0.5 + 0.25 × log₁₀(avg_degree + 1), 0.5, 1.2)
-If CV(degree) > 2: γ = max(γ, 1.0)  // CV guardrail for power-law graphs
-```
-*Heuristic for stable partitions; users should sweep γ for best community quality.*
-
-## Operating Modes
-
-### Mode 0: Full-Graph Selection (Default at Runtime)
-The default runtime entry point. Computes global graph features and uses the perceptron to select the single best algorithm for the entire graph.
-
-> **Why full-graph?** Per-community reordering was found to degrade performance because:
-> 1. Leiden decomposition disrupts the original memory layout
-> 2. Community-level features differ from training data (whole-graph)
-> 3. Cross-community edge patterns are not captured
->
-> Full-graph mode achieves 96.3% accuracy on training data.
-
-### Mode 1: Per-Community Selection
-Runs Leiden to detect communities, then uses the perceptron to select the best algorithm for each community independently.
-
-### Mode 2: Recursive
-Recurses into large communities with multi-level partitioning.
+| Parameter | Position | Default | Description |
+|-----------|----------|---------|-------------|
+| `selection_mode` | 3 | 1 (fastest-execution) | 0 = fastest-reorder, 1 = fastest-execution (perceptron), 2 = best-endtoend, 3 = best-amortization |
+| `graph_name` | 4 | (empty) | Graph name hint for weight file lookup |
 
 ### Selection Modes
 
 | Mode | Name | Description |
 |------|------|-------------|
-| 0 | `fastest-reorder` | Minimize reordering time |
-| 1 | `fastest-execution` | Minimize execution time via perceptron (default) |
-| 2 | `best-endtoend` | Minimize total time (reorder + execution) |
+| 0 | `fastest-reorder` | Select algorithm with lowest reordering time |
+| 1 | `fastest-execution` | Use perceptron to predict best cache performance (default) |
+| 2 | `best-endtoend` | Balance perceptron score with reorder time penalty |
 | 3 | `best-amortization` | Minimize iterations to amortize reorder cost |
-
-### Multi-Level Recursion (max_depth > 0)
-When `max_depth > 0`, AdaptiveOrder can recurse into large communities:
-1. Detect communities at level 0
-2. For communities larger than `min_recurse_size`, run Leiden again
-3. Select algorithms for sub-communities
-4. Repeat until `max_depth` is reached
-
-```
-Level 0:  [   Community A   ]  [Community B]  [C]
-                  |
-Level 1:  [SubA1]  [SubA2]  [SubA3]
-                      |
-Level 2:      [SubA2a]  [SubA2b]
-```
 
 ## Architecture Diagram
 
@@ -100,40 +53,41 @@ Level 2:      [SubA2a]  [SubA2b]
          |
          v
 +------------------+
-| Leiden Community |
-|    Detection     |
+| ComputeSampled   |
+| DegreeFeatures   |
+| (5000 samples)   |
 +--------+---------+
-         |
-    +----+----+----+----+
-    |         |         |
-    v         v         v
-+-------+ +-------+ +-------+
-| Comm1 | | Comm2 | | CommN |
-+---+---+ +---+---+ +---+---+
-    |         |         |
-    v         v         v
-+-------+ +-------+ +-------+
-|Feature| |Feature| |Feature|
-|Extract| |Extract| |Extract|
-+---+---+ +---+---+ +---+---+
-    |         |         |
-    v         v         v
-+-------+ +-------+ +-------+
-|Percep-| |Percep-| |Percep-|
-| tron  | | tron  | | tron  |
-|Select | |Select | |Select |
-+---+---+ +---+---+ +---+---+
-    |         |         |
-    v         v         v
- Rabbit    HubClust  GraphBrew
- Order       DBG       Order
-    |         |         |
-    +----+----+----+----+
          |
          v
 +------------------+
-|  MERGE & OUTPUT  |
-| (size-sorted)    |
+| DetectGraphType  |
+| + Type Matching  |
++--------+---------+
+         |
+         v
++------------------+
+| Load Perceptron  |
+|   Weights        |
+| (per-benchmark)  |
++--------+---------+
+         |
+         v
++------------------+
+| Perceptron Score |
+| All Algorithms   |
++--------+---------+
+         |
+         v
++------------------+
+| Safety Checks    |
+| (OOD, Margin,    |
+|  Complexity)     |
++--------+---------+
+         |
+         v
++------------------+
+| Apply Selected   |
+|   Algorithm      |
 +------------------+
 ```
 
@@ -152,32 +106,27 @@ AdaptiveOrder uses automatic clustering to group similar graphs, rather than pre
 scripts/weights/
 ├── active/               # C++ reads from here
 │   ├── type_registry.json
-│   ├── type_0.json
-│   └── type_N.json
+│   ├── type_0.json       # Generic weights
+│   ├── type_0_pr.json    # PageRank-specific
+│   ├── type_0_bfs.json   # BFS-specific
+│   ├── type_0_cc.json    # CC-specific
+│   ├── type_0_cc_sv.json  # CC_SV-specific
+│   └── type_0_pr_spmv.json # PR_SPMV-specific
 ├── merged/               # Accumulated from all runs
 └── runs/                 # Historical snapshots
 ```
 
 **Weight File Loading Priority:**
 1. Environment variable `PERCEPTRON_WEIGHTS_FILE` (if set)
-2. Per-benchmark weight file (e.g., `scripts/weights/active/type_0_pr.json` for PageRank)
-3. Best matching type file (e.g., `scripts/weights/active/type_0.json`)
-4. Semantic type fallback (if type files don't exist)
-5. Hardcoded defaults
+2. Per-benchmark weight file (e.g., `type_0_pr.json` for PageRank) — highest accuracy
+3. Best matching type file from type registry (e.g., `type_0.json`)
+4. Semantic type fallback (e.g., `perceptron_weights_social.json`)
+5. Default weights file
+6. Hardcoded defaults (`GetPerceptronWeights()`)
 
 ## Type Matching at Runtime
 
 Each type has a **centroid** — the average feature vector of its training graphs. At runtime, the system computes the new graph's features and selects the type with the smallest Euclidean distance. If all centroids are too far (distance > 1.5), the OOD guardrail falls back to ORIGINAL.
-
-## Why Full-Graph Selection?
-
-The default mode selects a single algorithm for the entire graph. This was found to outperform per-community selection because:
-- Training data is whole-graph, so features match better
-- No Leiden partitioning overhead
-- No disruption of the original memory layout
-- Cross-community edge patterns are preserved
-
-Per-community mode (mode 1) is available when different parts of a graph genuinely need different algorithms.
 
 ## How to Use
 
@@ -185,29 +134,25 @@ Per-community mode (mode 1) is available when different parts of a graph genuine
 
 ```bash
 # Let AdaptiveOrder choose automatically
-./bench/bin/pr -f graph.el -s -o 14 -n 3
+./bench/bin/pr -f graph.sg -s -o 14 -n 3
 ```
 
 ### Output Explained
 
 ```
-=== Adaptive Reordering Selection (Depth 0, Modularity: 0.0301) ===
-Comm    Nodes   Edges   Density DegVar  HubConc Selected
-131     1662    16151   0.0117  1.9441  0.5686  GraphBrewOrder
-272     103     149     0.0284  2.8547  0.4329  Original
-489     178     378     0.0240  1.3353  0.3968  HUBCLUSTERDBG
-...
+=== Full-Graph Adaptive Mode (Standalone) ===
+Nodes: 75879, Edges: 508837
+Graph Type: social
+Degree Variance: 1.9441
+Hub Concentration: 0.5686
 
-=== Algorithm Selection Summary ===
-Original: 846 communities
-GraphBrewOrder: 3 communities
-HUBCLUSTERDBG: 2 communities
+=== Selected Algorithm: GraphBrewOrder ===
 ```
 
 This shows:
-- Each community's features
-- Which algorithm was selected for each
-- Summary of selections
+- Graph size and detected graph type
+- Key structural features
+- Which algorithm was selected
 
 ---
 
@@ -241,14 +186,12 @@ For multi-class selection, we use **one perceptron per algorithm**. Each compute
 INPUTS (Features)              WEIGHTS                    OUTPUT
 =================              =======                    ======
 
---- Linear Features ---
+--- Linear Features (active at runtime) ---
 modularity: 0.72       --*---> w_mod: 0.28 ----------+
 density: 0.001         --*---> w_den: -0.15 ---------+
 degree_var: 2.1        --*---> w_dv: 0.18 -----------+
 hub_conc: 0.45         --*---> w_hc: 0.22 -----------+
 cluster_coef: 0.3      --*---> w_cc: 0.12 -----------+
-avg_path: 5.2          --*---> w_ap: 0.08 -----------+
-diameter: 16           --*---> w_di: 0.05 -----------+
 packing_factor: 0.6    --*---> w_pf: 0.10 -----------+----> SUM
 fwd_edge_frac: 0.4     --*---> w_fef: 0.08 ----------+    (+bias)
 working_set_ratio: 3.2 --*---> w_wsr: 0.12 ----------+      |
@@ -258,7 +201,7 @@ dv × hub: 0.95         --*---> w_dv_x_hub: 0.15 -----+      |
 mod × logN: 2.88       --*---> w_mod_x_logn: 0.06 ---+      +---> SCORE
 pf × log₂(wsr+1): 1.27 --*--> w_pf_x_wsr: 0.09 -----+      |
                                                       |      |
---- Convergence Bonus (PR/PR_SPMV/SSSP only) ---              |      |
+--- Convergence Bonus (PR/PR_SPMV/SSSP only) ---      |      |
 fwd_edge_frac: 0.4     --*---> w_fef_conv: 0.05 -----+------+
 
 
@@ -278,27 +221,34 @@ SAFETY CHECKS:
 
 ### Features Used
 
-The C++ code computes these features for each community at runtime:
+The C++ code computes these features at runtime via `ComputeSampledDegreeFeatures` (5000 vertex sample):
 
-#### Linear Features (15)
+#### Active Linear Features (11)
 
 | Feature | Weight Field | Description | Range |
 |---------|--------------|-------------|-------|
-| `modularity` | `w_modularity` | Community cohesion | 0.0 - 1.0 |
+| `modularity` | `w_modularity` | Estimated from degree structure | 0.0 - 1.0 |
 | `log_nodes` | `w_log_nodes` | log10(num_nodes) | 0 - 10 |
 | `log_edges` | `w_log_edges` | log10(num_edges) | 0 - 15 |
 | `density` | `w_density` | edges / max_edges | 0.0 - 1.0 |
 | `avg_degree` | `w_avg_degree` | mean degree / 100 | 0.0 - 1.0 |
-| `degree_variance` | `w_degree_variance` | degree distribution spread | 0.0 - 5.0 |
-| `hub_concentration` | `w_hub_concentration` | fraction of edges to top 10% | 0.0 - 1.0 |
+| `degree_variance` | `w_degree_variance` | degree distribution spread (CV) | 0.0 - 5.0 |
+| `hub_concentration` | `w_hub_concentration` | fraction of edges from top 10% | 0.0 - 1.0 |
 | `clustering_coeff` | `w_clustering_coeff` | local clustering (sampled) | 0.0 - 1.0 |
-| `avg_path_length` | `w_avg_path_length` | estimated avg path / 10 | 0 - 5.0 |
-| `diameter_estimate` | `w_diameter` | estimated diameter / 50 | 0 - 2.0 |
-| `community_count` | `w_community_count` | log10(sub-communities) | 0 - 3.0 |
-| `reorder_time` | `w_reorder_time` | estimated reorder time | 0 - 100s |
-| `packing_factor` | `w_packing_factor` | avg_degree / max_degree (uniformity) | 0.0 - 1.0 |
-| `forward_edge_fraction` | `w_forward_edge_fraction` | edges to higher-ID vertices | 0.0 - 1.0 |
-| `working_set_ratio` | `w_working_set_ratio` | log₂(graph_bytes / LLC_size + 1) | 0 - 10 |
+| `packing_factor` | `w_packing_factor` | hub neighbor co-location (IISWC'18) | 0.0 - 1.0 |
+| `forward_edge_fraction` | `w_forward_edge_fraction` | edges to higher-ID vertices (GoGraph) | 0.0 - 1.0 |
+| `working_set_ratio` | `w_working_set_ratio` | log₂(graph_bytes / LLC_size + 1) (P-OPT) | 0 - 10 |
+
+#### Structural Features (not computed in full-graph mode)
+
+These features exist in `CommunityFeatures` and `PerceptronWeights` but are **not populated** in the full-graph runtime path (always 0.0). They contribute to scoring in training simulations only:
+
+| Feature | Weight Field | Notes |
+|---------|--------------|-------|
+| `avg_path_length` | `w_avg_path_length` | Expensive to compute; always 0 at runtime |
+| `diameter_estimate` | `w_diameter` | Expensive to compute; always 0 at runtime |
+| `community_count` | `w_community_count` | Requires Leiden; always 0 at runtime |
+| `reorder_time` | `w_reorder_time` | Only meaningful in `MODE_FASTEST_REORDER` |
 
 #### Quadratic Cross-Terms (3)
 
@@ -312,7 +262,7 @@ The C++ code computes these features for each community at runtime:
 
 | Feature | Weight Field | Description |
 |---------|--------------|-------------|
-| forward_edge_fraction | `w_fef_convergence` | Added only for PR/SSSP benchmarks |
+| forward_edge_fraction | `w_fef_convergence` | Added only for PR/PR_SPMV/SSSP benchmarks |
 
 > **Locality Features:** `packing_factor` (IISWC'18), `forward_edge_fraction` (GoGraph), and `working_set_ratio` (P-OPT) capture degree uniformity, ordering quality, and cache pressure respectively. The quadratic cross-terms capture non-linear feature interactions.
 
@@ -324,33 +274,8 @@ AdaptiveOrder's implementation is split across modular header files in `bench/in
 
 | File | Purpose |
 |------|---------|
-| `reorder_types.h` | Base types, perceptron model, `ComputeSampledDegreeFeatures` |
-| `reorder_adaptive.h` | `AdaptiveConfig` struct, adaptive selection utilities |
-
-**AdaptiveConfig Struct:**
-
-```cpp
-// bench/include/graphbrew/reorder/reorder_adaptive.h
-struct AdaptiveConfig {
-    AdaptiveMode mode = AdaptiveMode::PerCommunity;
-    int max_depth = 0;               // Recursion depth (0 = no recursion)
-    double resolution = 0.0;         // Leiden resolution (0 = auto)
-    size_t min_recurse_size = 50000; // Min nodes for recursion
-    SelectionMode selection_mode = MODE_FASTEST_EXECUTION;
-    std::string graph_name = "";     // Graph name hint
-    BenchmarkType benchmark = BENCH_GENERIC;
-    bool verbose = false;
-
-    // Parse from options: mode:depth:resolution:min_size:selection_mode:graph_name
-    static AdaptiveConfig FromOptions(const std::vector<std::string>& options);
-    void print() const;
-};
-
-// Usage:
-// options = {"1", "2", "0.75", "50000", "1"}
-// → mode=PerCommunity, max_depth=2, resolution=0.75, min_recurse_size=50000,
-//   selection_mode=fastest-execution
-```
+| `reorder_types.h` | Base types, `PerceptronWeights`, `CommunityFeatures`, `ComputeSampledDegreeFeatures`, scoring, weight loading |
+| `reorder_adaptive.h` | Entry points: `GenerateAdaptiveMappingStandalone`, `FullGraphStandalone`, `RecursiveStandalone` |
 
 **ComputeSampledDegreeFeatures Utility:**
 
@@ -378,29 +303,36 @@ SampledDegreeFeatures ComputeSampledDegreeFeatures(
 
 // Detects system LLC size via sysconf (Linux) with 30MB fallback
 size_t GetLLCSizeBytes();
-
-// Samples ~5000 vertices to estimate graph topology features
-// Also computes working_set_ratio using LLC detection
 ```
 
 **Key Functions in reorder_adaptive.h:**
 
 ```cpp
-// Main entry point (delegates to FullGraph by default)
+// Main entry point — always delegates to FullGraph
 void GenerateAdaptiveMappingStandalone(
     const CSRGraph& g, pvector<NodeID_>& new_ids,
     bool useOutdeg, const std::vector<std::string>& reordering_options);
+    // Reads: options[3] → selection_mode, options[4] → graph_name
+    // Ignores: options[0..2]
 
-// Full-graph adaptive selection
+// Full-graph adaptive selection (the actual implementation)
 void GenerateAdaptiveMappingFullGraphStandalone(
     const CSRGraph& g, pvector<NodeID_>& new_ids,
     bool useOutdeg, const std::vector<std::string>& reordering_options);
 
-// Per-community recursive selection
+// Per-community recursive selection (not called from CLI entry point)
 void GenerateAdaptiveMappingRecursiveStandalone(
     const CSRGraph& g, pvector<NodeID_>& new_ids,
-    bool useOutdeg, const std::vector<std::string>& reordering_options);
+    bool useOutdeg, const std::vector<std::string>& reordering_options,
+    int depth, bool verbose, SelectionMode mode, const std::string& graph_name);
 ```
+
+**Complexity Guards:**
+
+The full-graph path guards against expensive algorithms on large graphs:
+- GOrder: capped at 500,000 nodes (O(n×m×w) complexity)
+- COrder: capped at 2,000,000 nodes (O(n×m) complexity)
+- Falls back to HubClusterDBG, HubSort, or DBG based on graph structure
 
 ### Weight Structure
 
@@ -430,10 +362,7 @@ base_score = bias
            + w_avg_degree × avg_degree / 100
            + w_degree_variance × degree_variance
            + w_hub_concentration × hub_concentration
-           + w_clustering_coeff × clustering_coeff       (if computed)
-           + w_avg_path_length × avg_path_length / 10    (if computed)
-           + w_diameter × diameter / 50                  (if computed)
-           + w_community_count × log10(count+1)          (if computed)
+           + w_clustering_coeff × clustering_coeff
            + w_packing_factor × packing_factor
            + w_forward_edge_fraction × fwd_edge_frac
            + w_working_set_ratio × log₂(wsr+1)
@@ -444,7 +373,9 @@ base_score = bias
            + cache_l2_impact × 0.3                        # CACHE IMPACT
            + cache_l3_impact × 0.2                        # CACHE IMPACT
            + cache_dram_penalty                           # CACHE IMPACT
-           + w_reorder_time × reorder_time               (if known)
+
+# Note: avg_path_length, diameter_estimate, community_count, and
+# reorder_time exist in the formula but are always 0.0 at runtime
 
 # Convergence bonus (PR/PR_SPMV/SSSP only)
 if benchmark ∈ {PR, PR_SPMV, SSSP}:
@@ -533,7 +464,7 @@ The primary training function in `lib/weights.py` implements a 4-stage pipeline:
 
 1. **Multi-Restart Perceptron Training** — 5 independent perceptrons × 800 epochs per benchmark, z-score normalized features, averaged across restarts and benchmarks
 2. **Variant Pre-Collapse** — Only the highest-bias variant per base algorithm is kept (e.g., `GraphBrewOrder_graphbrew:hrab` beats `GraphBrewOrder_graphbrew`)
-3. **Regret-Aware Benchmark Multiplier Optimization** — Grid search (30 iterations × 32 log-spaced values) maximizing accuracy while minimizing regret
+3. **Regret-Aware Benchmark Multiplier Optimization** — Grid search (30 iterations × 32 values) maximizing accuracy while minimizing regret
 4. **Save to `type_0.json`** with `_metadata` training statistics
 
 See [[Perceptron-Weights#multi-restart-training--benchmark-multipliers]] for details on the training internals.
@@ -548,7 +479,7 @@ Reports accuracy, median regret, top-2 accuracy, and unique predictions. Current
 
 ### Key Finding: GraphBrewOrder Dominance
 
-C++ validation on 47 graphs showed that **GraphBrewOrder** was selected for **99.5% of subcommunities** (8,631 / 8,672). As a single algorithm, it achieves 2.9% median regret — very close to the theoretical best per-community selection. This validates that GraphBrewOrder is the dominant reordering algorithm for most graph types.
+Per-community validation on 47 graphs showed that **GraphBrewOrder** was selected for **99.5% of subcommunities** (8,631 / 8,672). As a single algorithm, it achieves 2.9% median regret — very close to the theoretical best per-community selection. This validates that GraphBrewOrder is the dominant reordering algorithm for most graph types, and supports the decision to use full-graph mode as the default.
 
 ---
 
@@ -581,11 +512,17 @@ In per-community mode (mode 1), Leiden detects communities first, and steps 1–
 
 ```bash
 # Verbose output shows type matching and weight loading
-./bench/bin/pr -f graph.el -s -o 14 -n 1 2>&1 | head -50
-# Look for: "Best matching type: type_0 (distance: 0.45)"
+./bench/bin/pr -f graph.sg -s -o 14 -n 1 2>&1 | head -50
+# Look for: "Graph Type: social", "Selected Algorithm: GraphBrewOrder"
 
 # Validate weights JSON
 python3 -c "import json; json.load(open('scripts/weights/active/type_0.json'))"
+
+# Ablation toggles (environment variables):
+# ADAPTIVE_NO_OOD=1      — disable OOD guardrail
+# ADAPTIVE_NO_MARGIN=1   — disable ORIGINAL margin
+# ADAPTIVE_FORCE_ALGO=N  — force specific algorithm ID
+# ADAPTIVE_COST_MODEL=1  — cost-aware dynamic margin
 ```
 
 ---
