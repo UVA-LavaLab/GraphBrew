@@ -25,7 +25,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
-from .utils import BenchmarkResult, RESULTS_DIR, Logger
+from .utils import BenchmarkResult, RESULTS_DIR, Logger, weights_type_path, weights_bench_path
 from .weights import compute_weights_from_results, cross_validate_logo
 from .features import (
     load_graph_properties_cache,
@@ -318,8 +318,8 @@ def evaluate_predictions(
     """
     Simulate C++ scoring on benchmark data and compare to oracle.
 
-    Uses per-benchmark weight files (type_0_{bench}.json) when available,
-    falling back to type_0.json.
+    Uses per-benchmark weight files (type_0/{bench}.json) when available,
+    falling back to type_0/weights.json.
 
     Returns:
         EvalReport with accuracy, regret, and per-prediction details.
@@ -327,10 +327,10 @@ def evaluate_predictions(
     results_dir = str(results_dir or RESULTS_DIR)
     report = EvalReport()
 
-    # Load type_0.json
-    type0_file = os.path.join(weights_dir, "type_0.json")
+    # Load type_0/weights.json
+    type0_file = weights_type_path('type_0', weights_dir)
     if not os.path.isfile(type0_file):
-        log.error(f"type_0.json not found in {weights_dir}")
+        log.error(f"type_0 weights not found in {weights_dir}")
         return report
     with open(type0_file) as f:
         saved = json.load(f)
@@ -339,7 +339,7 @@ def evaluate_predictions(
     # Load per-benchmark weight files
     per_bench_weights: Dict[str, dict] = {}
     for bn in _PER_BENCH_NAMES:
-        bench_file = os.path.join(weights_dir, f"type_0_{bn}.json")
+        bench_file = weights_bench_path('type_0', bn, weights_dir)
         if os.path.isfile(bench_file):
             with open(bench_file) as f:
                 per_bench_weights[bn] = json.load(f)
@@ -455,15 +455,15 @@ def evaluate_predictions(
 
 def print_report(report: EvalReport, weights_dir: str):
     """Print a human-readable evaluation report."""
-    type0_file = os.path.join(weights_dir, "type_0.json")
+    type0_file = weights_type_path('type_0', weights_dir)
     if os.path.isfile(type0_file):
         with open(type0_file) as f:
             saved = json.load(f)
         saved_algos = {k: v for k, v in saved.items() if not k.startswith("_")}
-        print(f"\nAlgorithms in type_0.json: {len(saved_algos)}")
+        print(f"\nAlgorithms in type_0 weights: {len(saved_algos)}")
 
         # Weight summary
-        print(f"\n=== Weight Summary (type_0.json) ===")
+        print(f"\n=== Weight Summary (type_0) ===")
         hdr = (f"{'Algorithm':<35} {'Bias':>7} {'w_mod':>7} {'w_logN':>7} "
                f"{'w_logE':>7} {'w_dens':>7} {'w_dv':>7} {'w_hub':>7} {'w_cc':>7}")
         print(hdr)
@@ -529,7 +529,7 @@ def train_and_evaluate(
 
     Args:
         results_dir: Directory with benchmark_*.json and graphs/
-        weights_dir: Directory for weight files (type_0.json, type_0_{bench}.json)
+        weights_dir: Directory for weight files (type_0/weights.json, type_0/{bench}.json)
         sg_only: Only use .sg benchmark data
         benchmark_file: Load a specific benchmark JSON file instead of auto-discover
         logo: Run Leave-One-Graph-Out cross-validation to measure generalization

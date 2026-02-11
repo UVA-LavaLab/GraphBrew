@@ -32,7 +32,25 @@ BIN_SIM_DIR = BENCH_DIR / "bin_sim"
 RESULTS_DIR = PROJECT_ROOT / "results"
 GRAPHS_DIR = RESULTS_DIR / "graphs"
 WEIGHTS_DIR = SCRIPT_DIR / "weights"
-ACTIVE_WEIGHTS_DIR = WEIGHTS_DIR / "active"  # Where C++ reads type_*.json from
+ACTIVE_WEIGHTS_DIR = WEIGHTS_DIR / "active"  # Where C++ reads from
+
+
+def weights_registry_path(weights_dir: str = "") -> str:
+    """Path to the graph-type cluster registry file."""
+    d = weights_dir or str(ACTIVE_WEIGHTS_DIR)
+    return os.path.join(d, "registry.json")
+
+
+def weights_type_path(type_name: str, weights_dir: str = "") -> str:
+    """Path to generic weights for a graph-type cluster (e.g. type_0/weights.json)."""
+    d = weights_dir or str(ACTIVE_WEIGHTS_DIR)
+    return os.path.join(d, type_name, "weights.json")
+
+
+def weights_bench_path(type_name: str, bench_name: str, weights_dir: str = "") -> str:
+    """Path to per-benchmark specialised weights (e.g. type_0/pr.json)."""
+    d = weights_dir or str(ACTIVE_WEIGHTS_DIR)
+    return os.path.join(d, type_name, f"{bench_name}.json")
 
 # =============================================================================
 # Unified Reorder Configuration Constants

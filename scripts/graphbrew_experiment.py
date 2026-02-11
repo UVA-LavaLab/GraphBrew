@@ -2817,7 +2817,7 @@ def run_experiment(args):
         if known_types:
             log(f"\nTypes created/updated: {len(known_types)}")
             for type_name in known_types:
-                type_file = os.path.join(args.weights_dir, f"{type_name}.json")
+                type_file = get_type_weights_file(type_name, args.weights_dir)
                 if os.path.exists(type_file):
                     with open(type_file) as f:
                         type_data = json.load(f)
@@ -2856,8 +2856,8 @@ def run_experiment(args):
         if args.weights_file and os.path.exists(args.weights_file):
             summary_weights_file = args.weights_file
         else:
-            # Try type_0.json as the main type-based weights file
-            type_0_file = os.path.join(args.weights_dir, "type_0.json")
+            # Try type_0/weights.json as the main type-based weights file
+            type_0_file = get_type_weights_file('type_0', args.weights_dir)
             if os.path.exists(type_0_file):
                 summary_weights_file = type_0_file
         
@@ -3178,9 +3178,9 @@ def main():
     parser.add_argument("--use-merged", action="store_true",
                         help="Use merged weights (default after merge)")
     
-    # Legacy weights file (DEPRECATED - weights now saved to scripts/weights/active/type_0.json)
+    # Legacy weights file (DEPRECATED - weights now saved to scripts/weights/active/type_0/weights.json)
     parser.add_argument("--weights-file", default=None,
-                        help="(DEPRECATED) Legacy flat file. Weights are now saved to scripts/weights/active/type_0.json for C++ to use.")
+                        help="(DEPRECATED) Legacy flat file. Weights are now saved to scripts/weights/active/type_0/weights.json for C++ to use.")
     
     # Clean options
     parser.add_argument("--clean", action="store_true",

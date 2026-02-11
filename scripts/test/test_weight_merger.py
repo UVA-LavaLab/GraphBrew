@@ -235,7 +235,7 @@ def test_full_merge_flow():
                 "algorithms": ["CORDER"]
             }
         }
-        with open(run1_dir / "type_registry.json", "w") as f:
+        with open(run1_dir / "registry.json", "w") as f:
             json.dump(run1_registry, f)
         
         run1_type0 = {
@@ -245,9 +245,11 @@ def test_full_merge_flow():
         run1_type1 = {
             "CORDER": {"bias": 0.4, "w_modularity": 0.1, "w_degree_variance": 0.5}
         }
-        with open(run1_dir / "type_0.json", "w") as f:
+        (run1_dir / "type_0").mkdir()
+        with open(run1_dir / "type_0" / "weights.json", "w") as f:
             json.dump(run1_type0, f)
-        with open(run1_dir / "type_1.json", "w") as f:
+        (run1_dir / "type_1").mkdir()
+        with open(run1_dir / "type_1" / "weights.json", "w") as f:
             json.dump(run1_type1, f)
         
         # Run 2: Same graph types but different numbering!
@@ -268,7 +270,7 @@ def test_full_merge_flow():
                 "algorithms": ["GORDER", "RABBIT", "LEIDEN"]
             }
         }
-        with open(run2_dir / "type_registry.json", "w") as f:
+        with open(run2_dir / "registry.json", "w") as f:
             json.dump(run2_registry, f)
         
         run2_type0 = {
@@ -280,9 +282,11 @@ def test_full_merge_flow():
             "RABBIT": {"bias": 0.6, "w_modularity": 0.4, "w_degree_variance": 0.15},
             "LEIDEN": {"bias": 0.55, "w_modularity": 0.35, "w_degree_variance": 0.1}
         }
-        with open(run2_dir / "type_0.json", "w") as f:
+        (run2_dir / "type_0").mkdir()
+        with open(run2_dir / "type_0" / "weights.json", "w") as f:
             json.dump(run2_type0, f)
-        with open(run2_dir / "type_1.json", "w") as f:
+        (run2_dir / "type_1").mkdir()
+        with open(run2_dir / "type_1" / "weights.json", "w") as f:
             json.dump(run2_type1, f)
         
         # Create merged directory
@@ -328,7 +332,7 @@ def test_full_merge_flow():
         print(f"  Merge summary: {summary['total_types']} types from {summary['runs_merged']} runs")
         
         # Verify merged results
-        with open(merged_dir / "type_registry.json") as f:
+        with open(merged_dir / "registry.json") as f:
             merged_reg = json.load(f)
         
         print(f"  Merged types: {list(merged_reg.keys())}")
@@ -345,8 +349,8 @@ def test_full_merge_flow():
         
         # Check merged weights for GORDER (in social type)
         # Find which type has GORDER
-        for tid, tfile in [("type_0", "type_0.json"), ("type_1", "type_1.json")]:
-            fpath = merged_dir / tfile
+        for tid in ["type_0", "type_1"]:
+            fpath = merged_dir / tid / "weights.json"
             if fpath.exists():
                 with open(fpath) as f:
                     weights = json.load(f)
