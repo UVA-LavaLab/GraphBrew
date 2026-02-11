@@ -13,11 +13,15 @@
  * AdaptiveOrder (ID 14) analyzes graph structure and selects the best algorithm:
  * 
  * 1. FEATURE EXTRACTION
- *    - modularity: Community structure strength (0.0 - 1.0)
- *    - degree_variance: Normalized variance in degree distribution
+ *    Samples ~5000 vertices to compute:
+ *    - degree_variance: Normalized variance in degree distribution (CV)
  *    - hub_concentration: Fraction of edges from top 10% degree nodes
  *    - avg_degree: Average vertex degree
- *    - density: edge_count / (n * (n-1))
+ *    - clustering_coeff: Local clustering coefficient
+ *    - estimated_modularity: Rough modularity from degree structure
+ *    - packing_factor: Hub neighbor co-location (IISWC'18)
+ *    - forward_edge_fraction: Fraction of edges (u,v) where u < v (GoGraph)
+ *    - working_set_ratio: graph_bytes / LLC_size (P-OPT)
  *
  * 2. TYPE MATCHING
  *    - Compare features against trained type centroids (type_0, type_1, etc.)
@@ -33,22 +37,18 @@
  * COMMAND LINE FORMAT
  * ============================================================================
  *
- * -o 14[:mode[:depth[:resolution[:min_size[:selection_mode[:graph_name]]]]]]
+ * -o 14[:_[:_[:_[:selection_mode[:graph_name]]]]]
  *
- * Parameters:
- *   mode: 0=full_graph, 1=per_community (default), 2=recursive
- *   depth: Maximum recursion depth (default: 0)
- *   resolution: Leiden resolution (default: auto)
- *   min_size: Minimum community size for recursion (default: 50000)
- *   selection_mode: 0=fastest-reorder, 1=fastest-execution (default),
- *                   2=best-endtoend, 3=best-amortization
- *   graph_name: Graph name for loading reorder times
+ * Parameters (positions relative to algorithm ID):
+ *   0-2: Reserved (currently unused by standalone entry point)
+ *   3: selection_mode: 0=fastest-reorder, 1=fastest-execution (default),
+ *                      2=best-endtoend, 3=best-amortization
+ *   4: graph_name: Graph name for loading reorder times
  *
  * Examples:
- *   -o 14                           # Default: per-community mode
- *   -o 14:0                         # Full graph mode
- *   -o 14:1:2                       # Per-community with depth=2
- *   -o 14:1:0:1.0:50000:0          # fastest-reorder for unknown graphs
+ *   -o 14                           # Default: full-graph, fastest-execution
+ *   -o 14::::0                      # Full-graph, fastest-reorder mode
+ *   -o 14::::1:web-Google           # fastest-execution with graph name hint
  *
  * ============================================================================
  * SELECTION MODES
@@ -71,26 +71,18 @@
  *   Best for: When you know the iteration count.
  *
  * ============================================================================
- * RECURSIVE MODES
+ * RUNTIME BEHAVIOR
  * ============================================================================
  *
- * Full Graph (mode=0):
- *   Analyze entire graph, select single best algorithm.
- *   Fast but doesn't adapt to local structure.
+ * The standalone entry point (GenerateAdaptiveMappingStandalone) always
+ * delegates to GenerateAdaptiveMappingFullGraphStandalone. Full-graph
+ * mode was found to outperform per-community mode because:
+ *   1. Training data is whole-graph, so features match better
+ *   2. No Leiden partitioning overhead
+ *   3. Cross-community edge patterns are preserved
  *
- * Per Community (mode=1) [default]:
- *   1. Run Leiden community detection
- *   2. Compute features per community
- *   3. Select best algorithm per community
- *   Best balance of quality and overhead.
- *
- * Recursive (mode=2):
- *   1. Run community detection
- *   2. For large communities with good structure:
- *      - Recursively apply AdaptiveOrder
- *   3. For other communities:
- *      - Select algorithm based on features
- *   Best quality but higher overhead.
+ * GenerateAdaptiveMappingRecursiveStandalone exists but is not called
+ * from the CLI entry point.
  *
  * Author: GraphBrew Team
  * License: See LICENSE.txt

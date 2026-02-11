@@ -2793,7 +2793,10 @@ public:
     
     /**
      * Main entry point for Adaptive reordering - delegates to standalone.
-     * Format: -o 14[:max_depth[:resolution[:min_recurse_size[:selection_mode[:graph_name]]]]]
+     * Format: -o 14[:_[:_[:_[:selection_mode[:graph_name]]]]]
+     *   Positions 0-2: reserved (unused)
+     *   Position 3: selection_mode (0-3)
+     *   Position 4: graph_name (string)
      */
     void GenerateAdaptiveMapping(CSRGraph<NodeID_, DestID_, invert> &g,
                                  pvector<NodeID_> &new_ids, bool useOutdeg,
