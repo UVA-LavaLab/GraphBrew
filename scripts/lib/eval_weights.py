@@ -26,7 +26,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 from .utils import BenchmarkResult, RESULTS_DIR, Logger
-from .weights import compute_weights_from_results
+from .weights import compute_weights_from_results, cross_validate_logo
 from .features import (
     load_graph_properties_cache,
     update_graph_properties,
@@ -512,6 +512,7 @@ def train_and_evaluate(
     weights_dir: str = None,
     sg_only: bool = False,
     benchmark_file: str = None,
+    logo: bool = False,
 ) -> EvalReport:
     """
     Complete pipeline: load data → merge features → train weights → evaluate.
@@ -523,6 +524,7 @@ def train_and_evaluate(
         weights_dir: Directory for weight files (type_0.json, type_0_{bench}.json)
         sg_only: Only use .sg benchmark data
         benchmark_file: Load a specific benchmark JSON file instead of auto-discover
+        logo: Run Leave-One-Graph-Out cross-validation to measure generalization
 
     Returns:
         EvalReport with all accuracy/regret metrics.
@@ -554,7 +556,7 @@ def train_and_evaluate(
     algo_weights = {k: v for k, v in weights.items() if not k.startswith("_")}
     print(f"\nAlgorithms in weights: {len(algo_weights)}")
 
-    # 5. Evaluate
+    # 5. Evaluate (in-sample)
     print("\n=== Simulating C++ adaptive selection ===")
     report = evaluate_predictions(bench_results, weights_dir, results_dir)
     report.num_entries = len(bench_results)
@@ -562,6 +564,42 @@ def train_and_evaluate(
 
     # 6. Print report
     print_report(report, weights_dir)
+
+    # 7. LOGO cross-validation (generalization accuracy)
+    if logo:
+        print("\n" + "=" * 60)
+        print("LEAVE-ONE-GRAPH-OUT CROSS-VALIDATION")
+        print("=" * 60)
+        print("Training N separate models (one per graph), each time")
+        print("predicting on the held-out graph it has never seen.\n")
+
+        logo_result = cross_validate_logo(
+            bench_results,
+            reorder_results=reorder_results,
+            weights_dir=weights_dir,
+        )
+
+        print(f"\n=== LOGO Results (Generalization Accuracy) ===")
+        print(f"Graphs:             {logo_result['num_graphs']}")
+        print(f"Predictions:        {logo_result['correct']}/{logo_result['total']}")
+        print(f"LOGO Accuracy:      {logo_result['accuracy']:.1%}  "
+              f"(on UNSEEN graphs)")
+        print(f"In-sample Accuracy: {logo_result['full_training_accuracy']:.1%}  "
+              f"(on training graphs)")
+        gap = logo_result['overfitting_score']
+        print(f"Overfit gap:        {gap:.1%}  "
+              f"({'⚠ possible overfitting' if gap > 0.2 else '✓ OK'})")
+        print(f"Avg regret:         {logo_result['avg_regret']:.1f}%")
+        print(f"Median regret:      {logo_result['median_regret']:.1f}%")
+
+        # Per-graph breakdown
+        if logo_result.get('per_graph'):
+            print(f"\nPer-graph breakdown:")
+            for g in sorted(logo_result['per_graph']):
+                pg = logo_result['per_graph'][g]
+                mark = "✓" if pg['accuracy'] == 1.0 else "✗" if pg['accuracy'] == 0.0 else "~"
+                print(f"  {mark} {g:<30} {pg['correct']}/{pg['total']}  "
+                      f"regret={pg['avg_regret']:.1f}%")
 
     return report
 
@@ -584,6 +622,8 @@ def main():
                         help="Only use .sg benchmark data for training")
     parser.add_argument("--benchmark-file", default=None,
                         help="Load a specific benchmark JSON file")
+    parser.add_argument("--logo", action="store_true",
+                        help="Run Leave-One-Graph-Out cross-validation (generalization accuracy)")
     args = parser.parse_args()
 
     train_and_evaluate(
@@ -591,6 +631,7 @@ def main():
         weights_dir=args.weights_dir,
         sg_only=args.sg_only,
         benchmark_file=args.benchmark_file,
+        logo=args.logo,
     )
 
 

@@ -1420,152 +1420,255 @@ def cross_validate_logo(
 ) -> Dict:
     """
     Leave-One-Graph-Out (LOGO) cross-validation for perceptron weights.
-    
+
     For each graph in the results:
-      1. Train weights on all OTHER graphs
-      2. Use trained weights to predict best algorithm for the held-out graph
-      3. Compare prediction to actual best algorithm
-    
-    Returns a summary dict with accuracy, per-graph results, and overfitting indicators.
-    
+      1. Train weights on all OTHER graphs (full perceptron, per-benchmark)
+      2. Use trained weights + held-out graph features to predict best algorithm
+      3. Compare prediction to actual best algorithm (oracle by total time)
+
+    This measures generalization accuracy: how well the model predicts on
+    graphs it has never seen during training.
+
     Args:
         benchmark_results: List of BenchmarkResult objects
         reorder_results: Optional list of ReorderResult objects
-        weights_dir: Weights directory (used for type registry)
-        
+        weights_dir: Weights directory (used for type registry and graph props)
+
     Returns:
-        Dict with keys: accuracy, per_graph, overfitting_score
+        Dict with keys: accuracy, per_graph, overfitting_score, regret metrics
     """
+    import math, tempfile, json
+    from .features import load_graph_properties_cache
+    from .utils import RESULTS_DIR
+
     reorder_results = reorder_results or []
     if weights_dir is None:
         weights_dir = DEFAULT_WEIGHTS_DIR
-    
-    # Group results by graph
+
+    _VARIANT_PREFIXES = ['GraphBrewOrder_', 'RABBITORDER_']
+
+    def _get_base(name):
+        for prefix in _VARIANT_PREFIXES:
+            if name.startswith(prefix):
+                return prefix.rstrip('_')
+        return name
+
+    def _build_features(props):
+        """Build C++-aligned feature dict from graph properties."""
+        nodes = props.get('nodes', 1000)
+        edges = props.get('edges', 5000)
+        cc = props.get('clustering_coefficient', 0.0)
+        avg_degree = props.get('avg_degree', 10.0)
+        return {
+            'modularity': min(0.9, cc * 1.5),
+            'degree_variance': props.get('degree_variance', 1.0),
+            'hub_concentration': props.get('hub_concentration', 0.3),
+            'avg_degree': avg_degree,
+            'log_nodes': math.log10(nodes + 1) if nodes > 0 else 0,
+            'log_edges': math.log10(edges + 1) if edges > 0 else 0,
+            'density': avg_degree / (nodes - 1) if nodes > 1 else 0,
+            'clustering_coefficient': cc,
+        }
+
+    def _score(algo_data, feats):
+        """Mimic C++ scoreBase() — must match reorder_adaptive.h."""
+        s = algo_data.get('bias', 0.5)
+        s += algo_data.get('w_modularity', 0) * feats.get('modularity', 0.0)
+        s += algo_data.get('w_log_nodes', 0) * feats.get('log_nodes', 5.0)
+        s += algo_data.get('w_log_edges', 0) * feats.get('log_edges', 6.0)
+        s += algo_data.get('w_density', 0) * feats.get('density', 0.0)
+        s += algo_data.get('w_avg_degree', 0) * feats.get('avg_degree', 10.0) / 100.0
+        s += algo_data.get('w_degree_variance', 0) * feats.get('degree_variance', 1.0)
+        s += algo_data.get('w_hub_concentration', 0) * feats.get('hub_concentration', 0.3)
+        s += algo_data.get('w_clustering_coeff', 0) * feats.get('clustering_coefficient', 0.0)
+        return s
+
+    # Load graph properties for feature-based scoring
+    graph_props = load_graph_properties_cache(RESULTS_DIR)
+
+    # Collect graphs and group results
     graphs = set()
     for r in benchmark_results:
         if r.success and r.time_seconds > 0:
             graphs.add(r.graph)
-    
     graphs = sorted(graphs)
+
     if len(graphs) < 3:
         return {'accuracy': 0.0, 'per_graph': {}, 'overfitting_score': 0.0,
                 'error': 'Need at least 3 graphs for LOGO validation'}
-    
+
+    # Build per-(graph, bench) result lists using total time
+    gb_results = {}
+    for r in benchmark_results:
+        if r.success and r.time_seconds > 0:
+            key = (r.graph, r.benchmark)
+            if key not in gb_results:
+                gb_results[key] = []
+            gb_results[key].append((r.algorithm, r.time_seconds + r.reorder_time))
+
     correct = 0
     total = 0
+    regrets = []
     per_graph = {}
-    
+    per_bench_names = ['pr', 'bfs', 'cc', 'sssp', 'bc', 'tc', 'pr_spmv', 'cc_sv']
+
+    log.info(f"LOGO: {len(graphs)} graphs, {len(gb_results)} (graph, bench) tasks")
+
     for held_out in graphs:
         # Train on all graphs except held_out
         train_results = [r for r in benchmark_results if r.graph != held_out]
-        train_reorder = [r for r in reorder_results 
+        train_reorder = [r for r in reorder_results
                          if getattr(r, 'graph', '') != held_out]
-        
-        # Train weights on training set (suppress file output)
-        import tempfile, os
+
         with tempfile.TemporaryDirectory() as tmpdir:
-            trained_weights = compute_weights_from_results(
-                train_results, 
+            compute_weights_from_results(
+                train_results,
                 reorder_results=train_reorder,
-                weights_dir=tmpdir
+                weights_dir=tmpdir,
             )
-        
-        # Get actual best algorithm for held-out graph
-        held_out_results = [r for r in benchmark_results 
-                           if r.graph == held_out and r.success and r.time_seconds > 0]
-        if not held_out_results:
+
+            # Load the produced weight files (per-benchmark when available)
+            type0_file = os.path.join(tmpdir, 'type_0.json')
+            if not os.path.isfile(type0_file):
+                continue
+            with open(type0_file) as f:
+                saved_algos = {k: v for k, v in json.load(f).items()
+                               if not k.startswith('_')}
+
+            per_bench_weights = {}
+            for bn in per_bench_names:
+                bfile = os.path.join(tmpdir, f'type_0_{bn}.json')
+                if os.path.isfile(bfile):
+                    with open(bfile) as f:
+                        per_bench_weights[bn] = json.load(f)
+
+        # Build features for held-out graph
+        if held_out not in graph_props:
             continue
-        
-        # Group by benchmark
-        by_bench = {}
-        for r in held_out_results:
-            if r.benchmark not in by_bench:
-                by_bench[r.benchmark] = []
-            by_bench[r.benchmark].append(r)
-        
+        feats = _build_features(graph_props[held_out])
+
         graph_correct = 0
         graph_total = 0
-        
-        for bench, results in by_bench.items():
-            actual_best = min(results, key=lambda r: r.time_seconds).algorithm
-            
-            # Find baseline for this graph
-            baseline_time = None
-            for r in results:
-                if 'ORIGINAL' in r.algorithm:
-                    baseline_time = r.time_seconds
-                    break
-            if baseline_time is None:
-                baseline_time = results[0].time_seconds
-            
-            # Use trained weights to predict
-            best_predicted = None
-            best_score = -float('inf')
-            for algo_name, algo_weights in trained_weights.items():
-                if algo_name.startswith('_') or not isinstance(algo_weights, dict):
+        graph_regrets = []
+
+        for bench in sorted(set(b for (g, b) in gb_results if g == held_out)):
+            key = (held_out, bench)
+            if key not in gb_results:
+                continue
+            algo_times = gb_results[key]
+
+            # Predict with feature-based scoring (per-bench weights preferred)
+            scoring_algos = per_bench_weights.get(bench, saved_algos)
+            best_score = float('-inf')
+            predicted_algo = None
+            for algo, data in scoring_algos.items():
+                if algo.startswith('_'):
                     continue
-                bias = algo_weights.get('bias', 0.5)
-                if bias > best_score:
-                    best_score = bias
-                    best_predicted = algo_name
-            
-            if best_predicted == actual_best:
+                s = _score(data, feats)
+                if s > best_score:
+                    best_score = s
+                    predicted_algo = algo
+
+            # Ground truth: fastest algorithm by total time
+            sorted_times = sorted(algo_times, key=lambda x: x[1])
+            actual_algo = sorted_times[0][0]
+            best_time = sorted_times[0][1]
+
+            # Compare using base names (variant-aware)
+            pred_base = _get_base(predicted_algo) if predicted_algo else ''
+            actual_base = _get_base(actual_algo)
+            is_correct = pred_base == actual_base
+
+            if is_correct:
                 graph_correct += 1
                 correct += 1
-            graph_total += 1
             total += 1
-        
+            graph_total += 1
+
+            # Regret
+            pred_time = None
+            for a, t in algo_times:
+                if a == predicted_algo:
+                    pred_time = t
+                    break
+            if pred_time is None:
+                for a, t in algo_times:
+                    if _get_base(a) == pred_base:
+                        pred_time = t
+                        break
+            if pred_time is None:
+                pred_time = sorted_times[-1][1]  # worst case
+
+            if best_time > 0:
+                r = (pred_time - best_time) / best_time * 100
+                regrets.append(r)
+                graph_regrets.append(r)
+
         per_graph[held_out] = {
             'correct': graph_correct,
             'total': graph_total,
-            'accuracy': graph_correct / graph_total if graph_total > 0 else 0.0
+            'accuracy': graph_correct / graph_total if graph_total > 0 else 0.0,
+            'avg_regret': sum(graph_regrets) / len(graph_regrets) if graph_regrets else 0.0,
         }
-    
-    accuracy = correct / total if total > 0 else 0.0
-    
-    # Overfitting score: compare LOGO accuracy to full-training accuracy
-    # Train on ALL data and evaluate
+
+    logo_accuracy = correct / total if total > 0 else 0.0
+    avg_regret = sum(regrets) / len(regrets) if regrets else 0.0
+    sorted_regrets = sorted(regrets) if regrets else [0.0]
+    median_regret = sorted_regrets[len(sorted_regrets) // 2]
+
+    # Compare to in-sample accuracy (full training on all graphs)
     full_weights = compute_weights_from_results(
         benchmark_results, reorder_results=reorder_results, weights_dir=weights_dir
     )
+    # Reload produced files for scoring
+    type0_file = os.path.join(weights_dir, 'type_0.json')
+    full_algos = {}
+    full_per_bench = {}
+    if os.path.isfile(type0_file):
+        with open(type0_file) as f:
+            full_algos = {k: v for k, v in json.load(f).items()
+                          if not k.startswith('_')}
+    for bn in per_bench_names:
+        bfile = os.path.join(weights_dir, f'type_0_{bn}.json')
+        if os.path.isfile(bfile):
+            with open(bfile) as f:
+                full_per_bench[bn] = json.load(f)
+
     full_correct = 0
     full_total = 0
-    for graph_name in graphs:
-        held_out_results = [r for r in benchmark_results 
-                           if r.graph == graph_name and r.success and r.time_seconds > 0]
-        by_bench = {}
-        for r in held_out_results:
-            if r.benchmark not in by_bench:
-                by_bench[r.benchmark] = []
-            by_bench[r.benchmark].append(r)
-        
-        for bench, results in by_bench.items():
-            actual_best = min(results, key=lambda r: r.time_seconds).algorithm
-            best_predicted = None
-            best_score = -float('inf')
-            for algo_name, algo_weights in full_weights.items():
-                if algo_name.startswith('_') or not isinstance(algo_weights, dict):
-                    continue
-                bias = algo_weights.get('bias', 0.5)
-                if bias > best_score:
-                    best_score = bias
-                    best_predicted = algo_name
-            if best_predicted == actual_best:
-                full_correct += 1
-            full_total += 1
-    
+    for (graph_name, bench), algo_times in gb_results.items():
+        if graph_name not in graph_props:
+            continue
+        feats = _build_features(graph_props[graph_name])
+        scoring_algos = full_per_bench.get(bench, full_algos)
+        best_score = float('-inf')
+        predicted = None
+        for algo, data in scoring_algos.items():
+            if algo.startswith('_'):
+                continue
+            s = _score(data, feats)
+            if s > best_score:
+                best_score = s
+                predicted = algo
+        actual = sorted(algo_times, key=lambda x: x[1])[0][0]
+        if _get_base(predicted or '') == _get_base(actual):
+            full_correct += 1
+        full_total += 1
+
     full_accuracy = full_correct / full_total if full_total > 0 else 0.0
-    overfitting_score = full_accuracy - accuracy  # > 0.2 suggests overfitting
-    
+    overfitting_score = full_accuracy - logo_accuracy
+
     return {
-        'accuracy': accuracy,
+        'accuracy': logo_accuracy,
         'full_training_accuracy': full_accuracy,
         'overfitting_score': overfitting_score,
+        'avg_regret': avg_regret,
+        'median_regret': median_regret,
         'num_graphs': len(graphs),
         'correct': correct,
         'total': total,
         'per_graph': per_graph,
-        'warning': 'Possible overfitting' if overfitting_score > 0.2 else 'OK'
+        'warning': 'Possible overfitting' if overfitting_score > 0.2 else 'OK',
     }
 
 
