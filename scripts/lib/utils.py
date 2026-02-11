@@ -139,8 +139,8 @@ LEIDEN_DEFAULT_RESOLUTION_MODE = "0.75"  # Per-pass adjustment for experiments
 LEIDEN_DEFAULT_PASSES = 3
 
 # Benchmark definitions
-BENCHMARKS = ["pr", "bfs", "cc", "sssp", "bc", "tc"]
-BENCHMARKS_DEFAULT = ["pr", "bfs", "cc", "sssp", "bc"]  # TC skipped by default (minimal reorder benefit)
+BENCHMARKS = ["pr", "pr_spmv", "bfs", "cc", "cc_sv", "sssp", "bc", "tc"]
+BENCHMARKS_DEFAULT = ["pr", "pr_spmv", "bfs", "cc", "cc_sv", "sssp", "bc"]  # TC skipped by default (minimal reorder benefit)
 
 # =============================================================================
 # Graph Size Thresholds (MB) - Single Source of Truth

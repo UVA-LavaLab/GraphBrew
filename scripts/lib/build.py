@@ -44,7 +44,7 @@ log = Logger()
 # =============================================================================
 
 # Benchmark binary names (match BENCHMARKS from utils)
-BENCHMARK_BINARIES = ["pr", "bfs", "cc", "sssp", "bc", "tc"]
+BENCHMARK_BINARIES = ["pr", "pr_spmv", "bfs", "cc", "cc_sv", "sssp", "bc", "tc"]
 
 # Makefile targets
 MAKE_TARGET_ALL = "all"
