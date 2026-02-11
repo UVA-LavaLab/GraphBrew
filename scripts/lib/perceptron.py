@@ -73,8 +73,8 @@ ALGORITHM_TAXONOMY = {
     'hub': ['HUBSORT', 'HUBCLUSTER', 'DBG', 'HUBSORTDBG', 'HUBCLUSTERDBG'],
     'community': ['RABBITORDER', 'RABBITORDER_csr', 'RABBITORDER_boost', 'GORDER', 'CORDER', 'RCM'],
     'leiden': ['LeidenOrder',
-               'GraphBrewOrder_graphbrew', 'GraphBrewOrder_graphbrew:dfs', 'GraphBrewOrder_graphbrew:hrab',
-               'GraphBrewOrder_graphbrew:rabbit'],
+               'GraphBrewOrder_leiden', 'GraphBrewOrder_rabbit',
+               'GraphBrewOrder_hubcluster'],
     'composite': ['GraphBrewOrder', 'AdaptiveOrder'],
 }
 

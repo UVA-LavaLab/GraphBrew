@@ -409,7 +409,7 @@ def run_cache_simulations_with_variants(
     Run cache simulations using variant-expanded label maps.
     
     This function iterates over all algorithm names found in label_maps
-    (including variant names like GraphBrewOrder_graphbrew, GraphBrewOrder_graphbrew:hrab),
+    (including variant names like GraphBrewOrder_leiden, GraphBrewOrder_rabbit),
     rather than iterating over base algorithm IDs.
     
     Args:
@@ -525,7 +525,7 @@ def _get_algo_id_from_name(algo_name: str) -> int:
         if algo_name == name:
             return algo_id
     
-    # Check for variant prefix (e.g., GraphBrewOrder_graphbrew -> GraphBrewOrder -> 12)
+    # Check for variant prefix (e.g., GraphBrewOrder_leiden -> GraphBrewOrder -> 12)
     for algo_id, name in ALGORITHMS.items():
         if algo_name.startswith(name + "_"):
             return algo_id

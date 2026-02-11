@@ -39,34 +39,33 @@ log = Logger()
 # Constants
 # ============================================================================
 
-# Map old/variant algorithm names to canonical AdaptiveOrder-selectable names
+# Map algorithm names from benchmark output to canonical training names.
+# Variant-prefixed names (e.g., GraphBrewOrder_leiden, RABBITORDER_csr)
+# pass through automatically via _AUTO_PASS_PREFIXES — no need to
+# hardcode every variant here.
 ADAPTIVE_ALGO_MAP: Dict[str, str] = {
-    # Direct matches (uppercase)
+    # Fixed algorithms (no variants) — uppercase canonical
     "ORIGINAL": "ORIGINAL", "SORT": "SORT", "HUBSORT": "HUBSORT",
     "HUBCLUSTER": "HUBCLUSTER", "DBG": "DBG", "HUBSORTDBG": "HUBSORTDBG",
     "HUBCLUSTERDBG": "HUBCLUSTERDBG", "GORDER": "GORDER", "CORDER": "CORDER",
     "RCM": "RCM", "RANDOM": "RANDOM",
-    # Mixed-case variants from benchmark output
+    # Mixed-case C++ display names → uppercase canonical
     "Random": "RANDOM", "Sort": "SORT", "HubSort": "HUBSORT",
     "HubCluster": "HUBCLUSTER", "HubSortDBG": "HUBSORTDBG",
     "HubClusterDBG": "HUBCLUSTERDBG", "COrder": "CORDER", "RCMOrder": "RCM",
     "GOrder": "GORDER",
-    # RabbitOrder variants → RABBITORDER_csr (our default variant)
-    "RABBITORDER_csr": "RABBITORDER_csr", "RABBITORDER_boost": "RABBITORDER_csr",
+    # Bare C++ display names → default variant (backward compat)
     "RabbitOrder": "RABBITORDER_csr",
-    # GraphBrewOrder variants → GraphBrewOrder_leiden
     "GraphBrewOrder": "GraphBrewOrder_leiden",
-    "GraphBrewOrder_leiden": "GraphBrewOrder_leiden",
-    "GraphBrewOrder_gve": "GraphBrewOrder_leiden",
-    "GraphBrewOrder_gvefast": "GraphBrewOrder_leiden",
-    "GraphBrewOrder_gveopt": "GraphBrewOrder_leiden",
-    "GraphBrewOrder_gveoptfast": "GraphBrewOrder_leiden",
-    "GraphBrewOrder_hubcluster": "GraphBrewOrder_leiden",
-    "GraphBrewOrder_rabbit": "GraphBrewOrder_leiden",
-    "LeidenOrder": "GraphBrewOrder_leiden",
+    # LeidenOrder: separate algorithm (C++ enum 15), NOT a GraphBrewOrder variant
+    "LeidenOrder": "LeidenOrder",
 }
 
-# Variant prefixes for base-name grouping
+# Variant-prefixed names auto-pass unchanged (extensible for new presets).
+# E.g., GraphBrewOrder_leiden, GraphBrewOrder_rabbit, RABBITORDER_csr, etc.
+_AUTO_PASS_PREFIXES = ("GraphBrewOrder_", "RABBITORDER_")
+
+# Variant prefixes for base-name grouping (used by _get_base)
 _VARIANT_PREFIXES = ["GraphBrewOrder_", "RABBITORDER_"]
 
 # Per-benchmark weight file names to load
@@ -220,15 +219,24 @@ def load_benchmark_entries(
 
 
 def filter_to_benchmark_results(raw: List[dict]) -> List[BenchmarkResult]:
-    """Filter raw entries to canonical AdaptiveOrder-selectable BenchmarkResults."""
+    """Filter raw entries to canonical AdaptiveOrder-selectable BenchmarkResults.
+
+    Names in ADAPTIVE_ALGO_MAP are normalized explicitly.
+    Names matching _AUTO_PASS_PREFIXES pass through unchanged (extensible
+    for new variants like GraphBrewOrder_newpreset or RABBITORDER_newimpl).
+    """
     results = []
     skipped = set()
     for e in raw:
         algo = e["algorithm"]
         canonical = ADAPTIVE_ALGO_MAP.get(algo)
         if canonical is None:
-            skipped.add(algo)
-            continue
+            # Auto-pass variant-prefixed names
+            if any(algo.startswith(p) for p in _AUTO_PASS_PREFIXES):
+                canonical = algo
+            else:
+                skipped.add(algo)
+                continue
         results.append(BenchmarkResult(
             graph=e["graph"],
             algorithm=canonical,
