@@ -1812,8 +1812,8 @@ def initialize_default_weights(weights_dir: str = DEFAULT_WEIGHTS_DIR) -> Dict:
     """Initialize default weights for all algorithms including all variants.
     
     Creates entries for every variant of every algorithm so training can
-    capture performance differences between variants (e.g., GraphBrewOrder_graphbrew
-    vs GraphBrewOrder_graphbrew:hrab vs GraphBrewOrder_graphbrew:rabbit).
+    capture performance differences between variants (e.g., GraphBrewOrder_leiden
+    vs GraphBrewOrder_rabbit vs GraphBrewOrder_hubcluster).
     """
     weights = {}
     

@@ -29,6 +29,8 @@ from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Set, Tuple
 
+from .utils import GRAPHBREW_VARIANTS, RABBITORDER_VARIANTS
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Data types
@@ -269,18 +271,18 @@ def find_best_matching_algo(
         if algo.upper() == upper:
             return algo, time
     
-    # Try prefix match (e.g., "RABBITORDER" matches "RABBITORDER_boost")
+    # Try prefix match (e.g., "RABBITORDER" matches "RABBITORDER_csr")
     for algo, time in available_algos.items():
         if algo.startswith(adaptive_algo) or adaptive_algo.startswith(algo):
             return algo, time
     
-    # Default variant matches (e.g., adaptive says "RabbitOrder" → "RABBITORDER_csr")
-    DEFAULT_VARIANTS = {
-        "RABBITORDER": ["RABBITORDER_csr", "RABBITORDER_boost"],
-        "GraphBrewOrder": ["GraphBrewOrder_leiden", "GraphBrewOrder_rabbit"],
+    # Default variant matches — auto-generated from utils.py variant lists
+    _DEFAULT_VARIANTS = {
+        "RABBITORDER": [f"RABBITORDER_{v}" for v in RABBITORDER_VARIANTS],
+        "GraphBrewOrder": [f"GraphBrewOrder_{v}" for v in GRAPHBREW_VARIANTS],
     }
-    if adaptive_algo in DEFAULT_VARIANTS:
-        for variant in DEFAULT_VARIANTS[adaptive_algo]:
+    if adaptive_algo in _DEFAULT_VARIANTS:
+        for variant in _DEFAULT_VARIANTS[adaptive_algo]:
             if variant in available_algos:
                 return variant, available_algos[variant]
     

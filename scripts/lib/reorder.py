@@ -60,9 +60,9 @@ _LEGACY_ALGO_NAMES_REV = {v: k for k, v in _LEGACY_ALGO_NAMES.items()}
 def safe_filename(name: str) -> str:
     """Sanitize algorithm name for use in filenames.
     
-    Colons in filenames (e.g., GraphBrewOrder_graphbrew:rabbit.lo) break the C++ CLI
+    Colons in filenames (e.g., GraphBrewOrder_leiden:dfs.lo) break the C++ CLI
     parser which splits -o arguments on ALL colons. Replace colons with
-    underscores to produce safe filenames (e.g., GraphBrewOrder_graphbrew_rabbit.lo).
+    underscores to produce safe filenames (e.g., GraphBrewOrder_leiden_dfs.lo).
     """
     return name.replace(':', '_')
 # =============================================================================
@@ -88,7 +88,7 @@ class ReorderResult:
 class AlgorithmConfig:
     """Configuration for an algorithm, including variant support."""
     algo_id: int           # Base algorithm ID (e.g., 12 for GraphBrewOrder)
-    name: str              # Display name (e.g., "GraphBrewOrder_graphbrew")
+    name: str              # Display name (e.g., "GraphBrewOrder_leiden")
     option_string: str     # Full option string for -o flag (e.g., "12:hrab")
     variant: str = ""      # Variant name if applicable (e.g., "graphbrew")
     resolution: str = "auto"  # Resolution: "auto", "dynamic", "1.0", etc.
