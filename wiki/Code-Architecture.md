@@ -297,9 +297,9 @@ See [[Python-Scripts]] for full documentation of the Python tooling.
 
 Key entry points:
 - `graphbrew_experiment.py` — Main orchestration (~3500 lines)
-- `perceptron_experiment.py` — ML weight experimentation
-- `adaptive_emulator.py` — C++ logic emulation
-- `eval_weights.py` — Weight evaluation & accuracy reporting
+- `lib/perceptron.py` — ML weight experimentation
+- `lib/adaptive_emulator.py` — C++ logic emulation
+- `lib/eval_weights.py` — Weight evaluation & accuracy reporting
 - `lib/` — 17 reusable modules (~14,300 lines total)
 
 ---

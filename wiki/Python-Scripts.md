@@ -241,15 +241,15 @@ Layer 2: Algorithm Selection
   - Select algorithm with highest score
 ```
 
-### vs perceptron_experiment.py
+### Emulator vs Perceptron Training
 
 | Tool | Purpose |
-|------|---------|
+|------|---------|  
 | `--emulator` / `scripts.lib.adaptive_emulator` | Emulate C++ selection logic, analyze weight impact |
 | `--perceptron` / `scripts.lib.perceptron` | Train new weights from benchmark data |
 
-Use **adaptive_emulator.py** when you want to understand why a specific algorithm was selected.
-Use **perceptron_experiment.py** when you want to train better weights.
+Use **adaptive_emulator** when you want to understand why a specific algorithm was selected.
+Use **perceptron** (via `--perceptron`) when you want to train better weights.
 
 ---
 
@@ -334,7 +334,7 @@ def simulate_score(algo_data, feats, bench_type):
 |------|---------|------------------|
 | `eval_weights.py` | Train + evaluate + report accuracy/regret | ✅ Yes |
 | `adaptive_emulator.py` | Emulate C++ selection logic for debugging | ❌ No |
-| `perceptron_experiment.py` | Grid search over training configurations | ✅ Yes |
+| `perceptron.py` | Grid search over training configurations | ✅ Yes |
 
 ---
 
