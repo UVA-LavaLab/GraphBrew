@@ -413,8 +413,8 @@ def get_algorithm_config_by_name(name: str, configs: List[AlgorithmConfig]) -> O
 # — LeidenCSR (16) has been deprecated; GraphBrew (12) subsumes it.
 
 
-# Benchmarks to run
-BENCHMARKS = ["pr", "bfs", "cc", "sssp", "bc"]
+# Benchmarks to run (from lib/utils.py — single source of truth)
+BENCHMARKS = LIB_BENCHMARKS
 
 # Benchmarks that are computationally intensive in simulation
 HEAVY_SIM_BENCHMARKS = {"bc", "sssp"}
@@ -1071,7 +1071,7 @@ def ensure_prerequisites(project_dir: str = ".",
     bin_dir = os.path.join(project_dir, "bench", "bin")
     bin_sim_dir = os.path.join(project_dir, "bench", "bin_sim")
     
-    required_bins = ["bfs", "pr", "cc", "bc", "sssp", "tc"]
+    required_bins = list(BENCHMARKS)
     
     # Check standard binaries
     missing_bins = []
@@ -1157,7 +1157,7 @@ def check_and_build_binaries(project_dir: str = ".") -> bool:
     bin_dir = os.path.join(project_dir, "bench", "bin")
     bin_sim_dir = os.path.join(project_dir, "bench", "bin_sim")
     
-    required_bins = ["bfs", "pr", "cc", "bc", "sssp", "tc"]
+    required_bins = list(BENCHMARKS)
     
     # Check standard binaries
     missing_bins = []
@@ -1833,7 +1833,7 @@ def validate_adaptive_accuracy(
         graphs=graphs,
         bin_dir=bin_dir,
         output_dir=output_dir,
-        benchmarks=benchmarks or ['pr', 'bfs', 'cc'],
+        benchmarks=benchmarks or list(BENCHMARKS),
         timeout=timeout,
         num_trials=num_trials,
         force_reorder=force_reorder
@@ -2613,7 +2613,7 @@ def run_experiment(args):
         
         # Phase 2: Benchmarks (all of them)
         log_section("Phase 2: Execution Benchmarks (All)")
-        all_benchmarks = ["pr", "bfs", "cc", "sssp", "bc"]
+        all_benchmarks = list(BENCHMARKS)
         benchmark_results = run_benchmarks_multi_graph(
             graphs=graphs,
             algorithms=algorithms,

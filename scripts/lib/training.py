@@ -131,7 +131,8 @@ def initialize_enhanced_weights(weights_file: str, algorithms: List[str] = None)
             "w_diameter": 0.0,
             "w_community_count": 0.0,
             "benchmark_weights": {
-                "pr": 1.0, "bfs": 1.0, "cc": 1.0, "sssp": 1.0, "bc": 1.0
+                "pr": 1.0, "pr_spmv": 1.0, "bfs": 1.0, "cc": 1.0,
+                "cc_sv": 1.0, "sssp": 1.0, "bc": 1.0, "tc": 1.0
             }
         }
     

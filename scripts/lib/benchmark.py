@@ -290,7 +290,7 @@ def run_benchmark_suite(
     Args:
         graph_path: Path to graph file
         algorithms: List of algorithm option strings (default: ["0", "1", "8"])
-        benchmarks: List of benchmark names (default: ["pr", "bfs", "cc"])
+        benchmarks: List of benchmark names (default: BENCHMARKS from utils)
         trials: Number of trials per config
         timeout: Timeout in seconds
         
@@ -300,7 +300,7 @@ def run_benchmark_suite(
     if algorithms is None:
         algorithms = ["0", "1", "8"]
     if benchmarks is None:
-        benchmarks = ["pr", "bfs", "cc"]
+        benchmarks = list(BENCHMARKS)
     
     results = []
     graph_name = Path(graph_path).stem
@@ -525,7 +525,7 @@ def run_leiden_variant_comparison(
         List of BenchmarkResult
     """
     if benchmarks is None:
-        benchmarks = ["pr", "bfs", "cc"]
+        benchmarks = list(BENCHMARKS)
     
     # Build algorithm list
     algorithms = []
@@ -647,7 +647,7 @@ Examples:
     parser.add_argument("--graph", "-g", required=True, help="Graph file path")
     parser.add_argument("-a", "--algorithms", default="0,1,8",
                        help="Comma-separated algorithm options")
-    parser.add_argument("-b", "--benchmarks", nargs="+", default=["pr", "bfs", "cc"],
+    parser.add_argument("-b", "--benchmarks", nargs="+", default=list(BENCHMARKS),
                        help="Benchmarks to run")
     parser.add_argument("-n", "--trials", type=int, default=3, help="Trials per config")
     parser.add_argument("--timeout", type=int, default=600, help="Timeout in seconds")
