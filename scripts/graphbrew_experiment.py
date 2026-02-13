@@ -2171,13 +2171,17 @@ def run_experiment(args):
     # Filter by specific algorithm name(s) if provided
     algo_filter_names = args.algo_list if args.algo_list else ([args.algo_name] if args.algo_name else None)
     if algo_filter_names:
-        # Build reverse mapping from name to id
+        # Build reverse mapping from name to id (auto-generated from SSOT)
         name_to_id = {v.upper(): k for k, v in ALGORITHMS.items()}
-        # Also add common variants
+        # Add variant names → base algo IDs (auto-generated from registry)
+        from scripts.lib.utils import _VARIANT_ALGO_REGISTRY
+        for aid, (pfx, variants, _) in _VARIANT_ALGO_REGISTRY.items():
+            for v in variants:
+                name_to_id[f"{pfx}{v}".upper()] = aid
+        # Common shorthand aliases
         name_to_id.update({
-            "RABBIT": 8, "RABBITORDER_BOOST": 8, "RABBITORDER_CSR": 8,
-            "LEIDEN": 15, "LEIDENORDER": 15,
-            "GRAPHBREWORDER_LEIDEN": 12, "GraphBrew": 12,
+            "RABBIT": 8, "LEIDEN": 15, "LEIDENORDER": 15,
+            "GRAPHBREW": 12,
         })
         
         filtered_algos = set()

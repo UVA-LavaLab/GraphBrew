@@ -102,7 +102,6 @@ ALGORITHMS = {
     13: "MAP",  # Load from file
     14: "AdaptiveOrder",
     15: "LeidenOrder",
-    # RCM variants: -o 11 (default=GoGraph), -o 11:bnf (CSR-native BNF)
 }
 
 # Reverse mapping
@@ -114,24 +113,40 @@ SLOW_ALGORITHMS = {9, 10, 11}  # Gorder, Corder, RCM - can be slow on large grap
 LEIDEN_ALGORITHMS = {15}
 COMMUNITY_ALGORITHMS = {8, 12, 14, 15}
 
-# RabbitOrder variant definitions (default: csr)
-# Format: -o 8:variant where variant = csr (default) or boost
-RABBITORDER_VARIANTS = ["csr", "boost"]
-RABBITORDER_DEFAULT_VARIANT = "csr"  # Native CSR (faster, no external deps)
+# =============================================================================
+# VARIANT REGISTRY — Single Source of Truth (SSOT)
+# =============================================================================
+# To add a new trainable variant:
+#   1. Add the suffix here (e.g. "leiden_dfs" in GRAPHBREW_VARIANTS)
+#   2. In C++ reorder.h, add dispatch logic ONLY if new handling is needed
+#   3. Rebuild C++ (make -j$(nproc)), run experiments, train weights
+#
+# The canonical variant name is auto-generated: {PREFIX}{suffix}
+#   e.g. "leiden" → "GraphBrewOrder_leiden"
+#
+# C++ side auto-discovers variant names via prefix matching in
+# ResolveVariantSelection() and ParseWeightsFromJSON() — NO C++ source
+# changes needed for new variants.
+# =============================================================================
 
-# RCM variant definitions (default: GoGraph baseline)
-# Format: -o 11:variant where variant = (default=GoGraph) or bnf
-RCM_VARIANTS = ["default", "bnf"]
-RCM_DEFAULT_VARIANT = "default"  # GoGraph MIND-start baseline
+# Variant prefixes — shared between Python and C++ (matches VARIANT_PREFIXES
+# in reorder_types.h).  Used for auto-discovery and name resolution.
+VARIANT_PREFIXES = ("GraphBrewOrder_", "RABBITORDER_", "RCM_")
 
-# GraphBrewOrder variant definitions (default: leiden)
-# Presets expand to tokens fed into parseGraphBrewConfig (one parser).
-# Format: -o 12:preset[:final_algo[:resolution[:passes[:depth[:sub]]]]]
-# Or token mode: -o 12:hrab:gvecsr:0.75
-GRAPHBREW_VARIANTS = ["leiden", "rabbit", "hubcluster"]
-GRAPHBREW_DEFAULT_VARIANT = "leiden"  # Uses GraphBrew Leiden-CSR aggregation
+# RabbitOrder variants: -o 8:variant
+RABBITORDER_VARIANTS = ("csr", "boost")
+RABBITORDER_DEFAULT_VARIANT = "csr"
 
-# Structured reference for all GraphBrew options (mirrors C++ parseGraphBrewConfig)
+# RCM variants: -o 11:variant
+RCM_VARIANTS = ("default", "bnf")
+RCM_DEFAULT_VARIANT = "default"
+
+# GraphBrewOrder variants: -o 12:variant
+# Compound variants use '_' separator: "leiden_dfs" → options=["leiden","dfs"]
+GRAPHBREW_VARIANTS = ("leiden", "rabbit", "hubcluster")
+GRAPHBREW_DEFAULT_VARIANT = "leiden"
+
+# Structured reference for GraphBrew CLI options (mirrors C++ parseGraphBrewConfig)
 GRAPHBREW_OPTIONS = {
     "presets": {
         "leiden":      "GVE-CSR Leiden + per-community RabbitOrder (default)",
@@ -151,8 +166,79 @@ GRAPHBREW_OPTIONS = {
     "resolution": ["auto", "dynamic", "<float 0.1-3.0>"],
 }
 
-# Note: LeidenCSR (16) has been deprecated — GraphBrew (12) subsumes it.
-# All LeidenCSR variants are now available through GraphBrewOrder (12).
+# ---- Derived helpers (computed from the registry above) ----
+
+# Map: algo_id → (prefix, variants, default)
+_VARIANT_ALGO_REGISTRY = {
+    8:  ("RABBITORDER_",     RABBITORDER_VARIANTS,  RABBITORDER_DEFAULT_VARIANT),
+    11: ("RCM_",             RCM_VARIANTS,          RCM_DEFAULT_VARIANT),
+    12: ("GraphBrewOrder_",  GRAPHBREW_VARIANTS,    GRAPHBREW_DEFAULT_VARIANT),
+}
+
+# Set of algo IDs that expand to variants
+VARIANT_ALGO_IDS = frozenset(_VARIANT_ALGO_REGISTRY.keys())
+
+# C++ display-name → canonical training name (case-insensitive lookup)
+# Variant-prefixed names auto-pass unchanged — only base aliases listed here.
+DISPLAY_TO_CANONICAL: dict[str, str] = {
+    # Base names already canonical
+    "ORIGINAL": "ORIGINAL", "SORT": "SORT", "HUBSORT": "HUBSORT",
+    "HUBCLUSTER": "HUBCLUSTER", "DBG": "DBG", "HUBSORTDBG": "HUBSORTDBG",
+    "HUBCLUSTERDBG": "HUBCLUSTERDBG", "GORDER": "GORDER", "CORDER": "CORDER",
+    "RCM": "RCM", "RANDOM": "RANDOM",
+    # Mixed-case C++ display → uppercase canonical
+    "Random": "RANDOM", "Sort": "SORT", "HubSort": "HUBSORT",
+    "HubCluster": "HUBCLUSTER", "HubSortDBG": "HUBSORTDBG",
+    "HubClusterDBG": "HUBCLUSTERDBG", "COrder": "CORDER", "RCMOrder": "RCM",
+    "GOrder": "GORDER", "Original": "ORIGINAL",
+    # Bare C++ display → default variant (backward compat)
+    "RabbitOrder": "RABBITORDER_csr",
+    "GraphBrewOrder": "GraphBrewOrder_leiden",
+    # LeidenOrder is its own algorithm (C++ enum 15)
+    "LeidenOrder": "LeidenOrder",
+}
+
+
+def get_all_algorithm_variant_names() -> list[str]:
+    """Get all canonical algorithm names including variant-expanded names.
+
+    This is the SSOT list of names that appear in weight files and
+    perceptron scoring.  Derived from ALGORITHMS + the variant registry.
+
+    Returns:
+        Sorted list of canonical names like:
+        ["CORDER", "DBG", ..., "GraphBrewOrder_leiden", "GraphBrewOrder_rabbit",
+         "RABBITORDER_csr", "RABBITORDER_boost", "RCM_default", "RCM_bnf", ...]
+    """
+    names: list[str] = []
+    for algo_id, algo_name in ALGORITHMS.items():
+        if algo_name in ("MAP", "AdaptiveOrder"):
+            continue
+        if algo_id in _VARIANT_ALGO_REGISTRY:
+            prefix, variants, _ = _VARIANT_ALGO_REGISTRY[algo_id]
+            for v in variants:
+                names.append(f"{prefix}{v}")
+        else:
+            names.append(algo_name)
+    return sorted(names)
+
+
+def resolve_canonical_name(display_name: str) -> str:
+    """Resolve a C++ display name to a canonical training name.
+
+    Variant-prefixed names (GraphBrewOrder_*, RABBITORDER_*, RCM_*) pass
+    through unchanged.  Base names are looked up in DISPLAY_TO_CANONICAL.
+    Unknown names pass through unchanged.
+    """
+    for prefix in VARIANT_PREFIXES:
+        if display_name.startswith(prefix):
+            return display_name
+    return DISPLAY_TO_CANONICAL.get(display_name, display_name)
+
+
+def is_variant_prefixed(name: str) -> bool:
+    """Check if a name uses a variant prefix (auto-pass in resolution)."""
+    return any(name.startswith(p) for p in VARIANT_PREFIXES)
 
 # Leiden default resolution mode for experiments
 # NOTE: LEIDEN_DEFAULT_RESOLUTION constant (= 1.0) defined above is for algorithm defaults
@@ -525,53 +611,45 @@ def format_algorithm_option(algo_id: int, params: List[str] = None) -> str:
 
 def get_algorithm_name(option: str) -> str:
     """
-    Get display name for algorithm option string.
+    Get canonical variant name for an algorithm option string.
     
-    ALWAYS includes variant in name for algorithms that have variants:
-    - RABBITORDER (8): RABBITORDER_csr (default) or RABBITORDER_boost
-    - GraphBrewOrder (12): GraphBrewOrder_leiden (default), GraphBrewOrder_rabbit, etc.
+    Uses _VARIANT_ALGO_REGISTRY to build names — no hardcoded algo IDs.
     
-    For other algorithms, returns the base name.
+    Examples:
+        "0"           → "ORIGINAL"
+        "8"           → "RABBITORDER_csr"    (default variant)
+        "8:boost"     → "RABBITORDER_boost"
+        "12:leiden"   → "GraphBrewOrder_leiden"
+        "12"          → "GraphBrewOrder_leiden" (default variant)
     """
     algo_id, params = parse_algorithm_option(option)
     base_name = ALGORITHMS.get(algo_id, f"Unknown({algo_id})")
     
-    # If params provided, use them to build name
+    if algo_id in _VARIANT_ALGO_REGISTRY:
+        prefix, _, default = _VARIANT_ALGO_REGISTRY[algo_id]
+        suffix = params[0] if params else default
+        return f"{prefix}{suffix}"
+    
     if params:
-        # For variant-based algorithms, extract just the variant (first param)
-        if algo_id == 12:  # GraphBrewOrder
-            return f"{base_name}_{params[0]}"
-        # For RabbitOrder, include variant
-        elif algo_id == 8:
-            return f"RABBITORDER_{params[0]}"
-        else:
-            return f"{base_name}_{':'.join(params)}"
-    
-    # No params - use default variant for algorithms that have variants
-    if algo_id == 8:  # RABBITORDER
-        return f"RABBITORDER_{RABBITORDER_DEFAULT_VARIANT}"
-    elif algo_id == 12:  # GraphBrewOrder
-        return f"{base_name}_{GRAPHBREW_DEFAULT_VARIANT}"
-    
+        return f"{base_name}_{':'.join(params)}"
     return base_name
 
 
 def expand_algorithm_variants(algo_id: int) -> List[str]:
     """
-    Expand algorithm ID to all its variants.
+    Expand algorithm ID to all its variant option strings.
     
-    Returns list of option strings for all variants.
-    Supported:
-    - RabbitOrder (8): 8:csr, 8:boost
-    - GraphBrewOrder (12): 12:leiden, 12:rabbit, 12:hubcluster
-    - GraphBrewOrder (12): 12:hrab, 12:dfs, 12:conn, etc. (ordering strategies)
+    Uses _VARIANT_ALGO_REGISTRY — no hardcoded algo IDs.
+    
+    Returns list of CLI option strings:
+        8  → ["8:csr", "8:boost"]
+        12 → ["12:leiden", "12:rabbit", "12:hubcluster"]
+        5  → ["5"]
     """
-    if algo_id == 8:  # RABBITORDER
-        return [f"8:{v}" for v in RABBITORDER_VARIANTS]
-    elif algo_id == 12:  # GraphBrewOrder
-        return [f"12:{v}" for v in GRAPHBREW_VARIANTS]
-    else:
-        return [str(algo_id)]
+    if algo_id in _VARIANT_ALGO_REGISTRY:
+        _, variants, _ = _VARIANT_ALGO_REGISTRY[algo_id]
+        return [f"{algo_id}:{v}" for v in variants]
+    return [str(algo_id)]
 
 
 # Backward compatibility alias

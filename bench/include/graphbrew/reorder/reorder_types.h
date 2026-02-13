@@ -1216,86 +1216,79 @@ inline BenchmarkType GetBenchmarkType(const std::string& name) {
 }
 
 // ============================================================================
-// ALGORITHM NAME MAPPING
+// ALGORITHM NAME MAPPING (SSOT)
 // ============================================================================
+// Variant names (e.g. GraphBrewOrder_leiden, RABBITORDER_csr, RCM_bnf) are
+// resolved dynamically by ResolveVariantSelection() via prefix matching.
+// To add a new variant, update ONLY the Python SSOT in scripts/lib/utils.py;
+// C++ recognizes any variant-prefixed name automatically.
+//
+// Variant prefixes used for dynamic dispatch and weight-file discovery:
+constexpr const char* VARIANT_PREFIXES[] = {
+    "GraphBrewOrder_",
+    "RABBITORDER_",
+    "RCM_",
+};
+constexpr size_t VARIANT_PREFIX_COUNT = sizeof(VARIANT_PREFIXES) / sizeof(VARIANT_PREFIXES[0]);
 
 /**
- * @brief Map algorithm name strings to enum values
- * 
- * Used when loading perceptron weights from JSON files.
- * Supports both camelCase and UPPERCASE naming conventions.
- * 
- * @return Const reference to static map of string -> ReorderingAlgo
+ * @brief Case-insensitive uppercase helper
+ */
+inline std::string toUpper(const std::string& s) {
+    std::string u = s;
+    std::transform(u.begin(), u.end(), u.begin(), ::toupper);
+    return u;
+}
+
+/**
+ * @brief Base algorithm name map (case-insensitive, UPPERCASE keys only)
+ *
+ * Maps UPPERCASE base algorithm names to enum values.  Variant-prefixed
+ * names like "GraphBrewOrder_leiden" are NOT listed here — they are
+ * handled by ResolveVariantSelection() via prefix matching.
+ *
+ * @return Const reference to static map of UPPERCASE string -> ReorderingAlgo
  */
 inline const std::map<std::string, ReorderingAlgo>& getAlgorithmNameMap() {
     static const std::map<std::string, ReorderingAlgo> name_to_algo = {
-        // Standard names
-        {"ORIGINAL", ORIGINAL},
-        {"Original", ORIGINAL},
-        {"RANDOM", Random},
-        {"Random", Random},
-        {"SORT", Sort},
-        {"Sort", Sort},
-        {"HubSort", HubSort},
-        {"HUBSORT", HubSort},
-        {"HubCluster", HubCluster},
-        {"HUBCLUSTER", HubCluster},
-        {"DBG", DBG},
-        {"HubSortDBG", HubSortDBG},
-        {"HUBSORTDBG", HubSortDBG},
-        {"HubClusterDBG", HubClusterDBG},
-        {"HUBCLUSTERDBG", HubClusterDBG},
+        {"ORIGINAL",        ORIGINAL},
+        {"RANDOM",          Random},
+        {"SORT",            Sort},
+        {"HUBSORT",         HubSort},
+        {"HUBCLUSTER",      HubCluster},
+        {"DBG",             DBG},
+        {"HUBSORTDBG",      HubSortDBG},
+        {"HUBCLUSTERDBG",   HubClusterDBG},
 #ifdef RABBIT_ENABLE
-        {"RabbitOrder", RabbitOrder},
-        {"RABBITORDER", RabbitOrder},
-        // RabbitOrder variants
-        {"RABBITORDER_csr", RabbitOrder},
-        {"RABBITORDER_boost", RabbitOrder},
+        {"RABBITORDER",     RabbitOrder},
 #endif
-        {"GOrder", GOrder},
-        {"GORDER", GOrder},
-        {"COrder", COrder},
-        {"CORDER", COrder},
-        {"RCMOrder", RCMOrder},
-        {"RCMORDER", RCMOrder},
-        {"RCM", RCMOrder},
-        // RCM variants
-        {"RCM_default", RCMOrder},
-        {"RCM_bnf", RCMOrder},
-        {"GraphBrewOrder", GraphBrewOrder},
-        {"GRAPHBREWORDER", GraphBrewOrder},
-        // GraphBrewOrder variants (powered by GraphBrew pipeline)
-        {"GraphBrewOrder_leiden", GraphBrewOrder},
-        {"GraphBrewOrder_gve", GraphBrewOrder},
-        {"GraphBrewOrder_gveopt", GraphBrewOrder},
-        {"GraphBrewOrder_rabbit", GraphBrewOrder},
-        {"GraphBrewOrder_hubcluster", GraphBrewOrder},
-        {"MAP", MAP},
-        {"AdaptiveOrder", AdaptiveOrder},
-        {"ADAPTIVEORDER", AdaptiveOrder},
-        {"LeidenOrder", LeidenOrder},
-        {"LEIDENORDER", LeidenOrder},
-        // GraphBrewOrder variants — algo 12 with per-community reordering
-        {"GraphBrewOrder_graphbrew", GraphBrewOrder},
-        {"GraphBrewOrder_graphbrew:dfs", GraphBrewOrder},
-        {"GraphBrewOrder_graphbrew:bfs", GraphBrewOrder},
-        {"GraphBrewOrder_graphbrew:dbg", GraphBrewOrder},
-        {"GraphBrewOrder_graphbrew:corder", GraphBrewOrder},
-        {"GraphBrewOrder_graphbrew:dbg-global", GraphBrewOrder},
-        {"GraphBrewOrder_graphbrew:corder-global", GraphBrewOrder},
-        {"GraphBrewOrder_graphbrew:streaming", GraphBrewOrder},
-        {"GraphBrewOrder_graphbrew:streaming:dfs", GraphBrewOrder},
-        {"GraphBrewOrder_graphbrew:lazyupdate", GraphBrewOrder},
-        {"GraphBrewOrder_graphbrew:conn", GraphBrewOrder},
-        {"GraphBrewOrder_graphbrew:hrab", GraphBrewOrder},
-        {"GraphBrewOrder_graphbrew:hrab:gordi", GraphBrewOrder},
-        {"GraphBrewOrder_graphbrew:rabbit", GraphBrewOrder},
-        {"GraphBrewOrder_graphbrew:rabbit:dfs", GraphBrewOrder},
-        {"GraphBrewOrder_graphbrew:rabbit:bfs", GraphBrewOrder},
-        {"GraphBrewOrder_graphbrew:rabbit:dbg", GraphBrewOrder},
-        {"GraphBrewOrder_graphbrew:rabbit:corder", GraphBrewOrder},
+        {"GORDER",          GOrder},
+        {"CORDER",          COrder},
+        {"RCM",             RCMOrder},
+        {"RCMORDER",        RCMOrder},
+        {"GRAPHBREWORDER",  GraphBrewOrder},
+        {"MAP",             MAP},
+        {"ADAPTIVEORDER",   AdaptiveOrder},
+        {"LEIDENORDER",     LeidenOrder},
     };
     return name_to_algo;
+}
+
+/**
+ * @brief Case-insensitive algorithm lookup
+ *
+ * Uppercases the input and looks it up in the base name map.
+ * Does NOT handle variant-prefixed names — use ResolveVariantSelection()
+ * for those.
+ *
+ * @param name Algorithm name (any case)
+ * @return Pair of (found, ReorderingAlgo)
+ */
+inline std::pair<bool, ReorderingAlgo> lookupAlgorithm(const std::string& name) {
+    const auto& map = getAlgorithmNameMap();
+    auto it = map.find(toUpper(name));
+    if (it != map.end()) return {true, it->second};
+    return {false, ORIGINAL};
 }
 
 // ============================================================================
@@ -1320,13 +1313,33 @@ struct PerceptronSelection {
 };
 
 /**
+ * @brief Split a string on a delimiter into a vector of tokens.
+ */
+inline std::vector<std::string> splitString(
+    const std::string& s, char delim) {
+    std::vector<std::string> tokens;
+    size_t start = 0;
+    while (start < s.size()) {
+        size_t end = s.find(delim, start);
+        if (end == std::string::npos) end = s.size();
+        if (end > start) tokens.push_back(s.substr(start, end - start));
+        start = end + 1;
+    }
+    return tokens;
+}
+
+/**
  * @brief Resolve a canonical variant name to dispatch information.
  *
  * Maps perceptron string keys like "GraphBrewOrder_leiden" to:
  *   - base enum (GraphBrewOrder)
  *   - dispatch options ({"leiden"})
  *
- * Algorithms without variants map to themselves with empty options.
+ * Compound variants are split on '_' after the prefix:
+ *   "GraphBrewOrder_leiden_dfs"  → options = {"leiden", "dfs"}
+ *   "GraphBrewOrder_rabbit_dbg" → options = {"rabbit", "dbg"}
+ *
+ * Non-variant algorithms use case-insensitive lookup in the base map.
  *
  * @param variant_name Canonical name from weight file
  * @param score The perceptron score
@@ -1338,12 +1351,12 @@ inline PerceptronSelection ResolveVariantSelection(
     PerceptronSelection sel;
     sel.score = score;
     
-    // GraphBrewOrder variants: GraphBrewOrder_{leiden,rabbit,hubcluster}
+    // GraphBrewOrder variants: GraphBrewOrder_{leiden[_dfs][_dbg]...}
     if (variant_name.rfind("GraphBrewOrder_", 0) == 0) {
         sel.algo = GraphBrewOrder;
         sel.variant_name = variant_name;
-        std::string variant = variant_name.substr(15);  // after "GraphBrewOrder_"
-        sel.options = {variant};
+        std::string suffix = variant_name.substr(15);  // after "GraphBrewOrder_"
+        sel.options = splitString(suffix, '_');
         return sel;
     }
     
@@ -1351,8 +1364,8 @@ inline PerceptronSelection ResolveVariantSelection(
     if (variant_name.rfind("RABBITORDER_", 0) == 0) {
         sel.algo = RabbitOrder;
         sel.variant_name = variant_name;
-        std::string variant = variant_name.substr(12);  // after "RABBITORDER_"
-        sel.options = {variant};
+        std::string suffix = variant_name.substr(12);  // after "RABBITORDER_"
+        sel.options = splitString(suffix, '_');
         return sel;
     }
     
@@ -1360,17 +1373,16 @@ inline PerceptronSelection ResolveVariantSelection(
     if (variant_name.rfind("RCM_", 0) == 0) {
         sel.algo = RCMOrder;
         sel.variant_name = variant_name;
-        std::string variant = variant_name.substr(4);  // after "RCM_"
-        if (variant == "default") variant = "";  // default RCM needs no option
-        if (!variant.empty()) sel.options = {variant};
+        std::string suffix = variant_name.substr(4);  // after "RCM_"
+        if (suffix == "default") suffix = "";  // default RCM needs no option
+        if (!suffix.empty()) sel.options = splitString(suffix, '_');
         return sel;
     }
     
-    // Non-variant algorithms: look up in name map
-    const auto& name_map = getAlgorithmNameMap();
-    auto it = name_map.find(variant_name);
-    if (it != name_map.end()) {
-        sel.algo = it->second;
+    // Non-variant algorithms: case-insensitive lookup in base map
+    auto [found, algo] = lookupAlgorithm(variant_name);
+    if (found) {
+        sel.algo = algo;
         sel.variant_name = variant_name;
         return sel;
     }
@@ -2983,14 +2995,22 @@ void orderLeidenHybridHubDFS(
 // ============================================================================
 
 /**
- * @brief Simple JSON parser for perceptron weights file
+ * @brief Data-driven JSON parser for perceptron weights file
  * 
- * Parses a JSON file with format:
+ * Parses any JSON file with format:
  * {
  *   "ORIGINAL": {"bias": 1.0, "w_modularity": 0.3, ...},
- *   "LeidenHybrid": {"bias": 0.95, ...},
+ *   "GraphBrewOrder_leiden": {"bias": 0.95, ...},
  *   ...
  * }
+ * 
+ * Discovery strategy (no hardcoded variant list needed):
+ *   1. All base algorithm names from getAlgorithmNameMap() 
+ *   2. Any variant-prefixed keys (GraphBrewOrder_*, RABBITORDER_*, RCM_*)
+ *      auto-discovered directly from the JSON content
+ *
+ * This means adding a new variant in Python training automatically makes
+ * its weights loadable in C++ — zero C++ source changes required.
  * 
  * @param json_content String containing JSON content
  * @param weights Output map to populate with parsed weights (string-keyed)
@@ -2998,7 +3018,7 @@ void orderLeidenHybridHubDFS(
  */
 inline bool ParseWeightsFromJSON(const std::string& json_content, 
                                   std::map<std::string, PerceptronWeights>& weights) {
-    // Simple JSON parser - looks for algorithm names and their weights
+    // Simple JSON field parser
     auto find_double = [](const std::string& s, const std::string& key) -> double {
         size_t pos = s.find("\"" + key + "\"");
         if (pos == std::string::npos) return 0.0;
@@ -3028,11 +3048,31 @@ inline bool ParseWeightsFromJSON(const std::string& json_content,
         return std::string::npos;
     };
     
-    // Use the shared algorithm name map
-    const auto& name_to_algo = getAlgorithmNameMap();
+    // ---- Step 1: Collect candidate algorithm keys ----
+    // (a) Base names from the algorithm map
+    std::set<std::string> candidate_keys;
+    for (const auto& kv : getAlgorithmNameMap()) {
+        candidate_keys.insert(kv.first);
+    }
     
-    for (const auto& kv : name_to_algo) {
-        size_t pos = json_content.find("\"" + kv.first + "\"");
+    // (b) Auto-discover variant-prefixed keys from the JSON content
+    //     This makes new Python-trained variants loadable with zero C++ changes.
+    for (size_t pi = 0; pi < VARIANT_PREFIX_COUNT; ++pi) {
+        std::string prefix = VARIANT_PREFIXES[pi];
+        std::string needle = "\"" + prefix;
+        size_t pos = 0;
+        while ((pos = json_content.find(needle, pos)) != std::string::npos) {
+            size_t key_start = pos + 1;  // skip opening quote
+            size_t key_end = json_content.find('"', key_start);
+            if (key_end == std::string::npos) break;
+            candidate_keys.insert(json_content.substr(key_start, key_end - key_start));
+            pos = key_end + 1;
+        }
+    }
+    
+    // ---- Step 2: Parse weights for each discovered key ----
+    for (const auto& key : candidate_keys) {
+        size_t pos = json_content.find("\"" + key + "\"");
         if (pos == std::string::npos) continue;
         
         // Find the block for this algorithm (with proper brace matching
@@ -3106,11 +3146,9 @@ inline bool ParseWeightsFromJSON(const std::string& json_content,
             size_t bw_end = block.find('}', bw_start);
             if (bw_start != std::string::npos && bw_end != std::string::npos) {
                 std::string bw_block = block.substr(bw_start, bw_end - bw_start + 1);
-                // Use a lambda to check if key exists in block before parsing
-                // This avoids conflating explicitly-set 0.0 with absent fields
-                auto find_bench_weight = [&](const std::string& blk, const std::string& key) -> double {
-                    if (blk.find("\"" + key + "\"") == std::string::npos) return 1.0;  // absent → default 1.0
-                    return find_double(blk, key);  // present → use actual value (even if 0.0)
+                auto find_bench_weight = [&](const std::string& blk, const std::string& bkey) -> double {
+                    if (blk.find("\"" + bkey + "\"") == std::string::npos) return 1.0;
+                    return find_double(blk, bkey);
                 };
                 w.bench_pr   = find_bench_weight(bw_block, "pr");
                 w.bench_bfs  = find_bench_weight(bw_block, "bfs");
@@ -3126,7 +3164,7 @@ inline bool ParseWeightsFromJSON(const std::string& json_content,
         // Store with the exact string key from the JSON — each variant
         // (e.g. GraphBrewOrder_leiden vs GraphBrewOrder_rabbit) gets its own
         // entry so the perceptron can select at variant granularity.
-        weights[kv.first] = w;
+        weights[key] = w;
     }
     
     return !weights.empty();

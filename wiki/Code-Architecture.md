@@ -113,7 +113,7 @@ reorder/
 |------|-------|---------|
 | `reorder_leiden.h` | ~7,725 | GVE-Leiden algorithm, dendrogram traversal variants (algo 15) |
 | `reorder_graphbrew.h` | ~7,055 | GraphBrew unified reordering framework |
-| `reorder_types.h` | ~4,614 | Common types, perceptron model, `EdgeList`, threshold functions, `GetLLCSizeBytes()`, `getAlgorithmNameMap()` (58 variants) |
+| `reorder_types.h` | ~5,027 | Common types, perceptron model, `EdgeList`, threshold functions, `GetLLCSizeBytes()`, `getAlgorithmNameMap()` (~16 base names), `lookupAlgorithm()`, `ResolveVariantSelection()` |
 | `reorder_rabbit.h` | ~1,161 | RabbitOrder CSR native implementation |
 | `reorder_adaptive.h` | ~650 | `AdaptiveConfig`, ML-based per-community algorithm selection |
 | `reorder_hub.h` | ~641 | Hub-based algorithms (DBG, HubSort, HubCluster) |
@@ -128,7 +128,7 @@ reorder/
 - `SampledDegreeFeatures` — 5-feature topology vector: degree_variance, hub_concentration, avg_degree, clustering_coeff, working_set_ratio
 - `ComputeSampledDegreeFeatures()` — Samples ~1000 nodes for fast feature extraction
 - `GetLLCSizeBytes()` — LLC detection (sysconf on Linux, 30MB fallback) for working_set_ratio
-- `getAlgorithmNameMap()` — 58-entry variant→enum mapping (see [[Command-Line-Reference]])
+- `getAlgorithmNameMap()` — ~16-entry UPPERCASE base-name→enum mapping; variant names resolved dynamically by `ResolveVariantSelection()` via prefix matching (see [[Command-Line-Reference]])
 
 **Key Configs:**
 

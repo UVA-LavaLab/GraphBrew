@@ -29,7 +29,7 @@ from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Set, Tuple
 
-from .utils import GRAPHBREW_VARIANTS, RABBITORDER_VARIANTS
+from .utils import _VARIANT_ALGO_REGISTRY, ALGORITHMS
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -276,10 +276,10 @@ def find_best_matching_algo(
         if algo.startswith(adaptive_algo) or adaptive_algo.startswith(algo):
             return algo, time
     
-    # Default variant matches — auto-generated from utils.py variant lists
+    # Default variant matches — auto-generated from SSOT variant registry
     _DEFAULT_VARIANTS = {
-        "RABBITORDER": [f"RABBITORDER_{v}" for v in RABBITORDER_VARIANTS],
-        "GraphBrewOrder": [f"GraphBrewOrder_{v}" for v in GRAPHBREW_VARIANTS],
+        ALGORITHMS[aid]: [f"{pfx}{v}" for v in variants]
+        for aid, (pfx, variants, _) in _VARIANT_ALGO_REGISTRY.items()
     }
     if adaptive_algo in _DEFAULT_VARIANTS:
         for variant in _DEFAULT_VARIANTS[adaptive_algo]:

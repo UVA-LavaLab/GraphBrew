@@ -25,7 +25,12 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
-from .utils import BenchmarkResult, RESULTS_DIR, Logger, weights_type_path, weights_bench_path
+from .utils import (
+    BenchmarkResult, RESULTS_DIR, Logger,
+    weights_type_path, weights_bench_path,
+    VARIANT_PREFIXES, DISPLAY_TO_CANONICAL,
+    resolve_canonical_name, is_variant_prefixed,
+)
 from .weights import compute_weights_from_results, cross_validate_logo
 from .features import (
     load_graph_properties_cache,
@@ -39,34 +44,13 @@ log = Logger()
 # Constants
 # ============================================================================
 
-# Map algorithm names from benchmark output to canonical training names.
-# Variant-prefixed names (e.g., GraphBrewOrder_leiden, RABBITORDER_csr)
-# pass through automatically via _AUTO_PASS_PREFIXES — no need to
-# hardcode every variant here.
-ADAPTIVE_ALGO_MAP: Dict[str, str] = {
-    # Fixed algorithms (no variants) — uppercase canonical
-    "ORIGINAL": "ORIGINAL", "SORT": "SORT", "HUBSORT": "HUBSORT",
-    "HUBCLUSTER": "HUBCLUSTER", "DBG": "DBG", "HUBSORTDBG": "HUBSORTDBG",
-    "HUBCLUSTERDBG": "HUBCLUSTERDBG", "GORDER": "GORDER", "CORDER": "CORDER",
-    "RCM": "RCM", "RANDOM": "RANDOM",
-    # Mixed-case C++ display names → uppercase canonical
-    "Random": "RANDOM", "Sort": "SORT", "HubSort": "HUBSORT",
-    "HubCluster": "HUBCLUSTER", "HubSortDBG": "HUBSORTDBG",
-    "HubClusterDBG": "HUBCLUSTERDBG", "COrder": "CORDER", "RCMOrder": "RCM",
-    "GOrder": "GORDER",
-    # Bare C++ display names → default variant (backward compat)
-    "RabbitOrder": "RABBITORDER_csr",
-    "GraphBrewOrder": "GraphBrewOrder_leiden",
-    # LeidenOrder: separate algorithm (C++ enum 15), NOT a GraphBrewOrder variant
-    "LeidenOrder": "LeidenOrder",
-}
+# Algorithm name resolution now uses DISPLAY_TO_CANONICAL and
+# resolve_canonical_name() from utils.py (SSOT).  The old
+# ADAPTIVE_ALGO_MAP is kept as a backward-compat alias.
+ADAPTIVE_ALGO_MAP = DISPLAY_TO_CANONICAL
 
-# Variant-prefixed names auto-pass unchanged (extensible for new presets).
-# E.g., GraphBrewOrder_leiden, RABBITORDER_csr, RCM_bnf, etc.
-_AUTO_PASS_PREFIXES = ("GraphBrewOrder_", "RABBITORDER_", "RCM_")
-
-# Variant prefixes (kept for reference, no longer used for collapsing)
-_VARIANT_PREFIXES = ["GraphBrewOrder_", "RABBITORDER_", "RCM_"]
+# Variant-prefixed names auto-pass unchanged — imported from SSOT.
+_AUTO_PASS_PREFIXES = VARIANT_PREFIXES
 
 # Per-benchmark weight file names to load
 _PER_BENCH_NAMES = ["pr", "bfs", "cc", "sssp", "bc", "tc", "pr_spmv", "cc_sv"]

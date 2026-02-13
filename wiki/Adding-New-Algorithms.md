@@ -191,20 +191,26 @@ const std::string ReorderingAlgoStr(ReorderingAlgo type)
 
 ### For Perceptron Weights (in reorder_types.h)
 
-In `reorder_types.h`, find the `getAlgorithmNameMap()` function and add your algorithm. This map currently contains **58 entries** mapping variant names to base `ReorderingAlgo` enums:
+In `reorder_types.h`, find the `getAlgorithmNameMap()` function and add your algorithm's UPPERCASE base name. This map contains **~16 UPPERCASE base-name entries** with case-insensitive lookup via `lookupAlgorithm()`.
+
+> **Note:** Variant names (e.g., `MyNewOrder_v1`) do NOT go in this map.
+> They are auto-discovered by `ParseWeightsFromJSON()` via `VARIANT_PREFIXES`
+> prefix scanning, and resolved by `ResolveVariantSelection()` at runtime.
 
 ```cpp
-static const std::map<std::string, ReorderingAlgo> getAlgorithmNameMap() {
-    return {
+inline const std::map<std::string, ReorderingAlgo>& getAlgorithmNameMap() {
+    static const std::map<std::string, ReorderingAlgo> name_to_algo = {
         {"ORIGINAL", ORIGINAL}, {"RANDOM", Random}, {"SORT", Sort},
         {"HUBSORT", HubSort}, {"HUBCLUSTER", HubCluster},
-        // ... 58 total entries including variant names ...
-        {"MyNewOrder", MyNewOrder},  // ADD YOUR ALGORITHM HERE
+        // ... ~16 UPPERCASE base-name entries ...
+        {"MYNEWORDER", MyNewOrder},  // ADD YOUR ALGORITHM HERE (UPPERCASE)
     };
+    return name_to_algo;
 }
 ```
 
-When `ParseWeightsFromJSON()` in `builder.h` loads `type_0.json`, if multiple variants (e.g., `MyNewOrder_v1`, `MyNewOrder_v2`) map to the same base enum, it keeps only the **highest-bias** entry.
+If your algorithm has variants, add the prefix to the `VARIANT_PREFIXES` array
+and add parsing logic in `ResolveVariantSelection()`.
 
 ### For Python Scripts
 
@@ -219,7 +225,10 @@ ALGORITHMS = {
 }
 ```
 
-If your algorithm has variants, also add them to `get_all_algorithm_variant_names()` in `scripts/lib/weights.py`.
+If your algorithm has variants, add them to the appropriate `*_VARIANTS` tuple
+in the **VARIANT REGISTRY** section of `utils.py`. The `get_all_algorithm_variant_names()`
+function auto-derives the full canonical name list from the registry — no manual
+editing needed.
 
 ---
 
