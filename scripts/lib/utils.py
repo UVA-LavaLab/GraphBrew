@@ -156,7 +156,7 @@ GRAPHBREW_OPTIONS = {
     "ordering_strategies": [
         "hrab", "dfs", "bfs", "conn", "dbg", "corder",
         "dbg-global", "corder-global", "community", "hubcluster",
-        "hierarchical", "hcache", "tqr", "streaming",
+        "hierarchical", "hcache", "tqr",
     ],
     "aggregation": ["gvecsr", "leiden", "streaming", "hybrid"],
     "features": [

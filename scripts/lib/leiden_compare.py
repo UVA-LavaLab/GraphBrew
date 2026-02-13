@@ -37,6 +37,7 @@ PROJECT_ROOT = SCRIPT_DIR.parent.parent      # project root
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from scripts.lib.reorder import parse_reorder_time_from_converter
+from scripts.lib.utils import _VARIANT_ALGO_REGISTRY, ALGORITHMS
 
 @dataclass
 class LeidenResult:
@@ -201,19 +202,24 @@ def compare_leiden_variants(graph: Path, graph_info: Dict,
     converter = find_converter()
     results = []
     
-    # Define variants to test
+    # Build variants from SSOT registry
     # Format for CLI: -o algo:variant:resolution:iterations:passes
-    # GraphBrewOrder (12): -o 12 (default uses leiden variant)
-    # RabbitOrder (8): -o 8:variant (csr is now default, boost optional)
-    # Use empty resolution to let C++ auto-detect based on graph density
-    variants_to_test = [
-        # (algo_id, variant_options, description)
-        (8, "", "RabbitOrder (default=CSR)"),      # CSR is now default
-        (8, "boost", "RabbitOrder-boost"),          # Original Boost-based
-        (15, "", "LeidenOrder (native Leiden)"),
-        (12, "", "GraphBrewOrder"),
-        (12, "community", "GraphBrewOrder-community"),  # Pure community sort
-    ]
+    # Each entry: (algo_id, variant_options, description)
+    variants_to_test = []
+    # RabbitOrder variants
+    if 8 in _VARIANT_ALGO_REGISTRY:
+        prefix, variants, default = _VARIANT_ALGO_REGISTRY[8]
+        for v in variants:
+            label = "(default=CSR)" if v == default else f"-{v}"
+            variants_to_test.append((8, v if v != default else "", f"RabbitOrder {label}"))
+    # LeidenOrder baseline
+    variants_to_test.append((15, "", "LeidenOrder (native Leiden)"))
+    # GraphBrewOrder variants
+    if 12 in _VARIANT_ALGO_REGISTRY:
+        prefix, variants, default = _VARIANT_ALGO_REGISTRY[12]
+        for v in variants:
+            variants_to_test.append((12, v if v != default else "", f"GraphBrewOrder-{v}"))
+        variants_to_test.append((12, "community", "GraphBrewOrder-community"))
     
     if not include_variants:
         # Just test default variants - all use auto-resolution
