@@ -1298,6 +1298,89 @@ inline const std::map<std::string, ReorderingAlgo>& getAlgorithmNameMap() {
     return name_to_algo;
 }
 
+// ============================================================================
+// PERCEPTRON SELECTION RESULT
+// ============================================================================
+
+/**
+ * @brief Result of perceptron-based algorithm selection.
+ *
+ * Carries both the base enum (for dispatch) and the variant name
+ * (so the perceptron can distinguish between e.g. GraphBrewOrder_leiden
+ * vs GraphBrewOrder_rabbit at scoring time).
+ */
+struct PerceptronSelection {
+    ReorderingAlgo algo;                  ///< Base enum for dispatch
+    std::string variant_name;             ///< Canonical name (e.g. "GraphBrewOrder_leiden")
+    std::vector<std::string> options;     ///< Variant options for dispatch (e.g. {"leiden"})
+    double score = 0.0;                   ///< Winning score
+
+    /// True if the selection is ORIGINAL (no reordering)
+    bool isOriginal() const { return algo == ORIGINAL; }
+};
+
+/**
+ * @brief Resolve a canonical variant name to dispatch information.
+ *
+ * Maps perceptron string keys like "GraphBrewOrder_leiden" to:
+ *   - base enum (GraphBrewOrder)
+ *   - dispatch options ({"leiden"})
+ *
+ * Algorithms without variants map to themselves with empty options.
+ *
+ * @param variant_name Canonical name from weight file
+ * @param score The perceptron score
+ * @return PerceptronSelection with dispatch info
+ */
+inline PerceptronSelection ResolveVariantSelection(
+    const std::string& variant_name, double score = 0.0) {
+    
+    PerceptronSelection sel;
+    sel.score = score;
+    
+    // GraphBrewOrder variants: GraphBrewOrder_{leiden,rabbit,hubcluster}
+    if (variant_name.rfind("GraphBrewOrder_", 0) == 0) {
+        sel.algo = GraphBrewOrder;
+        sel.variant_name = variant_name;
+        std::string variant = variant_name.substr(15);  // after "GraphBrewOrder_"
+        sel.options = {variant};
+        return sel;
+    }
+    
+    // RabbitOrder variants: RABBITORDER_{csr,boost}
+    if (variant_name.rfind("RABBITORDER_", 0) == 0) {
+        sel.algo = RabbitOrder;
+        sel.variant_name = variant_name;
+        std::string variant = variant_name.substr(12);  // after "RABBITORDER_"
+        sel.options = {variant};
+        return sel;
+    }
+    
+    // RCM variants: RCM_{default,bnf}
+    if (variant_name.rfind("RCM_", 0) == 0) {
+        sel.algo = RCMOrder;
+        sel.variant_name = variant_name;
+        std::string variant = variant_name.substr(4);  // after "RCM_"
+        if (variant == "default") variant = "";  // default RCM needs no option
+        if (!variant.empty()) sel.options = {variant};
+        return sel;
+    }
+    
+    // Non-variant algorithms: look up in name map
+    const auto& name_map = getAlgorithmNameMap();
+    auto it = name_map.find(variant_name);
+    if (it != name_map.end()) {
+        sel.algo = it->second;
+        sel.variant_name = variant_name;
+        return sel;
+    }
+    
+    // Unknown name — fallback to ORIGINAL
+    sel.algo = ORIGINAL;
+    sel.variant_name = "ORIGINAL";
+    return sel;
+}
+
 // Note: ParseWeightsFromJSON is defined later in this file after PerceptronWeights
 
 // ============================================================================
@@ -2910,11 +2993,11 @@ void orderLeidenHybridHubDFS(
  * }
  * 
  * @param json_content String containing JSON content
- * @param weights Output map to populate with parsed weights
+ * @param weights Output map to populate with parsed weights (string-keyed)
  * @return true if at least one algorithm was successfully parsed
  */
 inline bool ParseWeightsFromJSON(const std::string& json_content, 
-                                  std::map<ReorderingAlgo, PerceptronWeights>& weights) {
+                                  std::map<std::string, PerceptronWeights>& weights) {
     // Simple JSON parser - looks for algorithm names and their weights
     auto find_double = [](const std::string& s, const std::string& key) -> double {
         size_t pos = s.find("\"" + key + "\"");
@@ -3040,14 +3123,10 @@ inline bool ParseWeightsFromJSON(const std::string& json_content,
             }
         }
         
-        // When multiple variant names map to the same base algorithm (e.g.,
-        // GraphBrewOrder_graphbrew, GraphBrewOrder_graphbrew:hrab both map to GraphBrewOrder), keep the
-        // variant with the highest bias (the one training found most successful).
-        // This ensures the perceptron uses the best-performing variant's weights.
-        auto it = weights.find(kv.second);
-        if (it == weights.end() || w.bias > it->second.bias) {
-            weights[kv.second] = w;
-        }
+        // Store with the exact string key from the JSON — each variant
+        // (e.g. GraphBrewOrder_leiden vs GraphBrewOrder_rabbit) gets its own
+        // entry so the perceptron can select at variant granularity.
+        weights[kv.first] = w;
     }
     
     return !weights.empty();
@@ -3077,10 +3156,10 @@ inline bool ParseWeightsFromJSON(const std::string& json_content,
  * 
  * @return Map of algorithm enum to default PerceptronWeights
  */
-inline const std::map<ReorderingAlgo, PerceptronWeights>& GetPerceptronWeights() {
-    static const std::map<ReorderingAlgo, PerceptronWeights> weights = {
+inline const std::map<std::string, PerceptronWeights>& GetPerceptronWeights() {
+    static const std::map<std::string, PerceptronWeights> weights = {
         // ORIGINAL: baseline, no reordering overhead
-        {ORIGINAL, {
+        {"ORIGINAL", {
             .bias = 1.0,
             .w_modularity = 0.3,      // good on high-mod (no overhead)
             .w_log_nodes = -0.05,     // worse as graph grows
@@ -3094,7 +3173,7 @@ inline const std::map<ReorderingAlgo, PerceptronWeights>& GetPerceptronWeights()
             .w_reorder_time = 0.0
         }},
         // HubSort: light reordering, puts hubs first
-        {HubSort, {
+        {"HUBSORT", {
             .bias = 0.85,
             .w_modularity = 0.0,
             .w_log_nodes = 0.02,
@@ -3108,7 +3187,7 @@ inline const std::map<ReorderingAlgo, PerceptronWeights>& GetPerceptronWeights()
             .w_reorder_time = -0.1     // fast reordering
         }},
         // HubCluster: groups hubs together
-        {HubCluster, {
+        {"HUBCLUSTER", {
             .bias = 0.82,
             .w_modularity = 0.05,
             .w_log_nodes = 0.03,
@@ -3122,7 +3201,7 @@ inline const std::map<ReorderingAlgo, PerceptronWeights>& GetPerceptronWeights()
             .w_reorder_time = -0.1
         }},
         // DBG: degree-based grouping
-        {DBG, {
+        {"DBG", {
             .bias = 0.8,
             .w_modularity = -0.1,     // better on low-mod
             .w_log_nodes = 0.02,
@@ -3137,7 +3216,7 @@ inline const std::map<ReorderingAlgo, PerceptronWeights>& GetPerceptronWeights()
         }},
         // HubClusterDBG: combination approach
         // Benchmark: avg_speedup=2.38x, good but outperformed by Leiden variants
-        {HubClusterDBG, {
+        {"HUBCLUSTERDBG", {
             .bias = 0.62,             // lowered - Leiden variants are better
             .w_modularity = 0.10,     // better on higher mod
             .w_log_nodes = 0.04,
@@ -3153,7 +3232,7 @@ inline const std::map<ReorderingAlgo, PerceptronWeights>& GetPerceptronWeights()
 #ifdef RABBIT_ENABLE
         // RabbitOrder: recursive bisection
         // Benchmark: avg_speedup=4.06x, good on social networks
-        {RabbitOrder, {
+        {"RABBITORDER_csr", {
             .bias = 0.70,
             .w_modularity = -0.30,    // better on LOW modularity (synth graphs)
             .w_log_nodes = 0.05,      // scales well
@@ -3167,8 +3246,8 @@ inline const std::map<ReorderingAlgo, PerceptronWeights>& GetPerceptronWeights()
             .w_reorder_time = -0.3     // higher reorder cost
         }},
 #endif
-        // RCMOrder: reverse Cuthill-McKee
-        {RCMOrder, {
+        // RCM_default: reverse Cuthill-McKee (GoGraph baseline)
+        {"RCM_default", {
             .bias = 0.7,
             .w_modularity = 0.0,
             .w_log_nodes = 0.03,
@@ -3183,7 +3262,7 @@ inline const std::map<ReorderingAlgo, PerceptronWeights>& GetPerceptronWeights()
         }},
         // LeidenOrder: community-based
         // Benchmark: avg_speedup=4.40x (highest trial speedup but high reorder cost)
-        {LeidenOrder, {
+        {"LeidenOrder", {
             .bias = 0.76,             // win_trial=2, high trial speedup
             .w_modularity = 0.40,     // best on high modularity
             .w_log_nodes = 0.05,
@@ -3196,8 +3275,8 @@ inline const std::map<ReorderingAlgo, PerceptronWeights>& GetPerceptronWeights()
             .cache_l1_impact = 0.0, .cache_l2_impact = 0.0, .cache_l3_impact = 0.0, .cache_dram_penalty = 0.0,
             .w_reorder_time = -0.4     // high reorder cost
         }},
-        // GraphBrewOrder: Leiden + per-community RabbitOrder
-        {GraphBrewOrder, {
+        // GraphBrewOrder_leiden: Leiden + per-community RabbitOrder (default variant)
+        {"GraphBrewOrder_leiden", {
             .bias = 0.6,
             .w_modularity = -0.25,    // better on low-mod (community reorder helps)
             .w_log_nodes = 0.1,       // scales well
@@ -3209,6 +3288,132 @@ inline const std::map<ReorderingAlgo, PerceptronWeights>& GetPerceptronWeights()
             .w_clustering_coeff = 0.05, .w_avg_path_length = -0.02, .w_diameter = 0.0, .w_community_count = 0.1,
             .cache_l1_impact = 0.0, .cache_l2_impact = 0.0, .cache_l3_impact = 0.0, .cache_dram_penalty = 0.0,
             .w_reorder_time = -0.5     // highest reorder cost
+        }},
+        // GraphBrewOrder_rabbit: GraphBrew with RabbitOrder clustering
+        {"GraphBrewOrder_rabbit", {
+            .bias = 0.6,
+            .w_modularity = -0.25,
+            .w_log_nodes = 0.1,
+            .w_log_edges = 0.08,
+            .w_density = -0.3,
+            .w_avg_degree = 0.0,
+            .w_degree_variance = 0.2,
+            .w_hub_concentration = 0.1,
+            .w_clustering_coeff = 0.05, .w_avg_path_length = -0.02, .w_diameter = 0.0, .w_community_count = 0.1,
+            .cache_l1_impact = 0.0, .cache_l2_impact = 0.0, .cache_l3_impact = 0.0, .cache_dram_penalty = 0.0,
+            .w_reorder_time = -0.5
+        }},
+        // GraphBrewOrder_hubcluster: GraphBrew with HubCluster clustering
+        {"GraphBrewOrder_hubcluster", {
+            .bias = 0.6,
+            .w_modularity = -0.25,
+            .w_log_nodes = 0.1,
+            .w_log_edges = 0.08,
+            .w_density = -0.3,
+            .w_avg_degree = 0.0,
+            .w_degree_variance = 0.2,
+            .w_hub_concentration = 0.1,
+            .w_clustering_coeff = 0.05, .w_avg_path_length = -0.02, .w_diameter = 0.0, .w_community_count = 0.1,
+            .cache_l1_impact = 0.0, .cache_l2_impact = 0.0, .cache_l3_impact = 0.0, .cache_dram_penalty = 0.0,
+            .w_reorder_time = -0.5
+        }},
+        // RABBITORDER_boost: Boost-based RabbitOrder
+        {"RABBITORDER_boost", {
+            .bias = 0.70,
+            .w_modularity = -0.30,
+            .w_log_nodes = 0.05,
+            .w_log_edges = 0.05,
+            .w_density = -0.30,
+            .w_avg_degree = 0.0,
+            .w_degree_variance = 0.20,
+            .w_hub_concentration = 0.15,
+            .w_clustering_coeff = 0.05, .w_avg_path_length = -0.02, .w_diameter = 0.0, .w_community_count = 0.0,
+            .cache_l1_impact = 0.0, .cache_l2_impact = 0.0, .cache_l3_impact = 0.0, .cache_dram_penalty = 0.0,
+            .w_reorder_time = -0.3
+        }},
+        // RCM_bnf: CSR-native BNF variant
+        {"RCM_bnf", {
+            .bias = 0.7,
+            .w_modularity = 0.0,
+            .w_log_nodes = 0.03,
+            .w_log_edges = 0.02,
+            .w_density = -0.8,
+            .w_avg_degree = -0.03,
+            .w_degree_variance = 0.05,
+            .w_hub_concentration = 0.0,
+            .w_clustering_coeff = 0.0, .w_avg_path_length = 0.1, .w_diameter = 0.05, .w_community_count = 0.0,
+            .cache_l1_impact = 0.0, .cache_l2_impact = 0.0, .cache_l3_impact = 0.0, .cache_dram_penalty = 0.0,
+            .w_reorder_time = -0.2
+        }},
+        // HUBSORTDBG
+        {"HUBSORTDBG", {
+            .bias = 0.8,
+            .w_modularity = 0.0,
+            .w_log_nodes = 0.03,
+            .w_log_edges = 0.03,
+            .w_density = -0.4,
+            .w_avg_degree = 0.02,
+            .w_degree_variance = 0.2,
+            .w_hub_concentration = 0.2,
+            .w_clustering_coeff = 0.0, .w_avg_path_length = 0.0, .w_diameter = 0.0, .w_community_count = 0.0,
+            .cache_l1_impact = 0.0, .cache_l2_impact = 0.0, .cache_l3_impact = 0.0, .cache_dram_penalty = 0.0,
+            .w_reorder_time = -0.1
+        }},
+        // SORT
+        {"SORT", {
+            .bias = 0.5,
+            .w_modularity = 0.0,
+            .w_log_nodes = 0.0,
+            .w_log_edges = 0.0,
+            .w_density = 0.0,
+            .w_avg_degree = 0.0,
+            .w_degree_variance = 0.05,
+            .w_hub_concentration = 0.05,
+            .w_clustering_coeff = 0.0, .w_avg_path_length = 0.0, .w_diameter = 0.0, .w_community_count = 0.0,
+            .cache_l1_impact = 0.0, .cache_l2_impact = 0.0, .cache_l3_impact = 0.0, .cache_dram_penalty = 0.0,
+            .w_reorder_time = -0.05
+        }},
+        // RANDOM
+        {"RANDOM", {
+            .bias = 0.3,
+            .w_modularity = 0.0,
+            .w_log_nodes = 0.0,
+            .w_log_edges = 0.0,
+            .w_density = 0.0,
+            .w_avg_degree = 0.0,
+            .w_degree_variance = 0.0,
+            .w_hub_concentration = 0.0,
+            .w_clustering_coeff = 0.0, .w_avg_path_length = 0.0, .w_diameter = 0.0, .w_community_count = 0.0,
+            .cache_l1_impact = 0.0, .cache_l2_impact = 0.0, .cache_l3_impact = 0.0, .cache_dram_penalty = 0.0,
+            .w_reorder_time = -0.02
+        }},
+        // GORDER
+        {"GORDER", {
+            .bias = 0.65,
+            .w_modularity = 0.1,
+            .w_log_nodes = -0.05,     // slow on large graphs
+            .w_log_edges = -0.03,
+            .w_density = -0.3,
+            .w_avg_degree = 0.0,
+            .w_degree_variance = 0.15,
+            .w_hub_concentration = 0.1,
+            .w_clustering_coeff = 0.0, .w_avg_path_length = 0.0, .w_diameter = 0.0, .w_community_count = 0.0,
+            .cache_l1_impact = 0.0, .cache_l2_impact = 0.0, .cache_l3_impact = 0.0, .cache_dram_penalty = 0.0,
+            .w_reorder_time = -0.8     // very slow reordering
+        }},
+        // CORDER
+        {"CORDER", {
+            .bias = 0.6,
+            .w_modularity = 0.05,
+            .w_log_nodes = -0.03,
+            .w_log_edges = -0.02,
+            .w_density = -0.2,
+            .w_avg_degree = 0.0,
+            .w_degree_variance = 0.1,
+            .w_hub_concentration = 0.1,
+            .w_clustering_coeff = 0.0, .w_avg_path_length = 0.0, .w_diameter = 0.0, .w_community_count = 0.0,
+            .cache_l1_impact = 0.0, .cache_l2_impact = 0.0, .cache_l3_impact = 0.0, .cache_dram_penalty = 0.0,
+            .w_reorder_time = -0.6
         }},
     };
     return weights;
@@ -3225,11 +3430,8 @@ inline const std::map<ReorderingAlgo, PerceptronWeights>& GetPerceptronWeights()
  * 1. Environment variable PERCEPTRON_WEIGHTS_FILE (highest priority)
  * 2. Per-benchmark files in TYPE_WEIGHTS_DIR (e.g., type_0/pr.json)
  * 3. Type-cluster files in TYPE_WEIGHTS_DIR (e.g., type_0/weights.json)
- * 4. Semantic type files in WEIGHTS_DIR (e.g., perceptron_weights_social.json)
- * 5. DEFAULT_WEIGHTS_FILE (global fallback)
+ * 4. Hardcoded defaults in GetPerceptronWeights()
  */
-inline constexpr const char* DEFAULT_WEIGHTS_FILE = "scripts/weights/active/type_0/weights.json";
-inline constexpr const char* WEIGHTS_DIR = "scripts/";
 inline constexpr const char* TYPE_WEIGHTS_DIR = "scripts/weights/active/";
 
 /**
@@ -3270,35 +3472,35 @@ inline bool IsDistantGraphType(double type_distance) {
  * @param verbose Print selection details
  * @return Algorithm with highest w_reorder_time (fastest reorder)
  */
-inline ReorderingAlgo SelectFastestReorderFromWeights(
-    const std::map<ReorderingAlgo, PerceptronWeights>& weights, bool verbose = false) {
+inline PerceptronSelection SelectFastestReorderFromWeights(
+    const std::map<std::string, PerceptronWeights>& weights, bool verbose = false) {
     
     if (weights.empty()) {
         if (verbose) {
             std::cout << "No weights available, defaulting to Random\n";
         }
-        return Random;
+        return ResolveVariantSelection("RANDOM", 0.0);
     }
     
     // Find algorithm with highest w_reorder_time (least negative = fastest)
-    ReorderingAlgo best_algo = Random;
+    std::string best_name = "RANDOM";
     double best_reorder_weight = -std::numeric_limits<double>::infinity();
     
-    for (const auto& [algo, w] : weights) {
-        if (algo == ORIGINAL) continue;  // Skip ORIGINAL (no reordering)
+    for (const auto& [name, w] : weights) {
+        if (name == "ORIGINAL") continue;  // Skip ORIGINAL (no reordering)
         
         if (w.w_reorder_time > best_reorder_weight) {
             best_reorder_weight = w.w_reorder_time;
-            best_algo = algo;
+            best_name = name;
         }
     }
     
     if (verbose) {
-        std::cout << "Selected fastest-reorder: algo=" << static_cast<int>(best_algo) 
+        std::cout << "Selected fastest-reorder: " << best_name
                   << " (w_reorder_time: " << best_reorder_weight << ")\n";
     }
     
-    return best_algo;
+    return ResolveVariantSelection(best_name, best_reorder_weight);
 }
 
 // ============================================================================
@@ -3478,7 +3680,7 @@ inline std::string FindBestTypeFromFeatures(
  * @param verbose Print which file was loaded
  * @return Map of algorithm -> perceptron weights
  */
-inline std::map<ReorderingAlgo, PerceptronWeights> LoadPerceptronWeightsForGraphType(
+inline std::map<std::string, PerceptronWeights> LoadPerceptronWeightsForGraphType(
     GraphType graph_type, bool verbose = false) {
     
     // Start with defaults
@@ -3493,7 +3695,7 @@ inline std::map<ReorderingAlgo, PerceptronWeights> LoadPerceptronWeightsForGraph
                                       std::istreambuf_iterator<char>());
             file.close();
             
-            std::map<ReorderingAlgo, PerceptronWeights> loaded_weights;
+            std::map<std::string, PerceptronWeights> loaded_weights;
             if (ParseWeightsFromJSON(json_content, loaded_weights)) {
                 for (const auto& kv : loaded_weights) {
                     weights[kv.first] = kv.second;
@@ -3507,40 +3709,22 @@ inline std::map<ReorderingAlgo, PerceptronWeights> LoadPerceptronWeightsForGraph
         }
     }
     
-    // Build list of candidate files to try (in order of preference)
-    std::vector<std::string> candidate_files;
-    
-    // 1. Graph-type-specific file (semantic types: social, road, web, etc.)
-    if (graph_type != GRAPH_GENERIC) {
-        std::string type_file = std::string(WEIGHTS_DIR) + "perceptron_weights_" 
-                                + GraphTypeToString(graph_type) + ".json";
-        candidate_files.push_back(type_file);
-    }
-    
-    // 2. Default file
-    candidate_files.push_back(DEFAULT_WEIGHTS_FILE);
-    
-    // Try each candidate file
-    for (const auto& weights_file : candidate_files) {
-        std::ifstream file(weights_file);
-        if (!file.is_open()) continue;
-        
+    // Try type_0/weights.json as default
+    std::string default_file = std::string(TYPE_WEIGHTS_DIR) + "type_0/weights.json";
+    std::ifstream file(default_file);
+    if (file.is_open()) {
         std::string json_content((std::istreambuf_iterator<char>(file)),
                                   std::istreambuf_iterator<char>());
         file.close();
         
-        std::map<ReorderingAlgo, PerceptronWeights> loaded_weights;
+        std::map<std::string, PerceptronWeights> loaded_weights;
         if (ParseWeightsFromJSON(json_content, loaded_weights)) {
             for (const auto& kv : loaded_weights) {
                 weights[kv.first] = kv.second;
             }
             if (verbose) {
                 std::cout << "Perceptron: Loaded " << loaded_weights.size() 
-                          << " weights from " << weights_file;
-                if (graph_type != GRAPH_GENERIC) {
-                    std::cout << " (graph type: " << GraphTypeToString(graph_type) << ")";
-                }
-                std::cout << "\n";
+                          << " weights from " << default_file << "\n";
             }
             return weights;
         }
@@ -3578,7 +3762,7 @@ inline std::map<ReorderingAlgo, PerceptronWeights> LoadPerceptronWeightsForGraph
  * @param verbose Print which file was loaded
  * @return Map of algorithm -> perceptron weights
  */
-inline std::map<ReorderingAlgo, PerceptronWeights> LoadPerceptronWeightsForFeatures(
+inline std::map<std::string, PerceptronWeights> LoadPerceptronWeightsForFeatures(
     double modularity, double degree_variance, double hub_concentration,
     double avg_degree, size_t num_nodes, size_t num_edges, bool verbose = false,
     double clustering_coeff = 0.0, BenchmarkType bench = BENCH_GENERIC) {
@@ -3595,7 +3779,7 @@ inline std::map<ReorderingAlgo, PerceptronWeights> LoadPerceptronWeightsForFeatu
                                       std::istreambuf_iterator<char>());
             file.close();
             
-            std::map<ReorderingAlgo, PerceptronWeights> loaded_weights;
+            std::map<std::string, PerceptronWeights> loaded_weights;
             if (ParseWeightsFromJSON(json_content, loaded_weights)) {
                 for (const auto& kv : loaded_weights) {
                     weights[kv.first] = kv.second;
@@ -3609,6 +3793,12 @@ inline std::map<ReorderingAlgo, PerceptronWeights> LoadPerceptronWeightsForFeatu
         }
     }
     
+    // Find matching type from registry (type_0, type_1, etc.)
+    std::string best_type = FindBestTypeFromFeatures(
+        modularity, degree_variance, hub_concentration,
+        avg_degree, num_nodes, num_edges, verbose, clustering_coeff);
+    if (best_type.empty()) best_type = "type_0";
+    
     // Try per-benchmark weight file first (these have much higher accuracy
     // because they are trained specifically for each benchmark type, avoiding
     // the accuracy loss of the averaged scoreBase × multiplier model).
@@ -3619,14 +3809,9 @@ inline std::map<ReorderingAlgo, PerceptronWeights> LoadPerceptronWeightsForFeatu
     if (bench != BENCH_GENERIC) {
         const char* bench_names[] = {"generic", "pr", "bfs", "cc", "sssp", "bc", "tc", "pr_spmv", "cc_sv"};
         if (static_cast<int>(bench) < 9) {
-            // Find matching type from registry first
-            std::string best_type = FindBestTypeFromFeatures(
-                modularity, degree_variance, hub_concentration,
-                avg_degree, num_nodes, num_edges, false, clustering_coeff);
-            
             // Build candidate per-bench files: matched type first, then type_0 fallback
             std::vector<std::string> bench_candidates;
-            if (!best_type.empty() && best_type != "type_0") {
+            if (best_type != "type_0") {
                 bench_candidates.push_back(
                     std::string(TYPE_WEIGHTS_DIR) + best_type + "/" + bench_names[bench] + ".json");
             }
@@ -3641,7 +3826,7 @@ inline std::map<ReorderingAlgo, PerceptronWeights> LoadPerceptronWeightsForFeatu
                                           std::istreambuf_iterator<char>());
                 file.close();
                 
-                std::map<ReorderingAlgo, PerceptronWeights> loaded_weights;
+                std::map<std::string, PerceptronWeights> loaded_weights;
                 if (ParseWeightsFromJSON(json_content, loaded_weights)) {
                     for (const auto& kv : loaded_weights) {
                         weights[kv.first] = kv.second;
@@ -3656,33 +3841,15 @@ inline std::map<ReorderingAlgo, PerceptronWeights> LoadPerceptronWeightsForFeatu
         }
     }
     
-    // Build list of candidate files to try (in order of preference)
+    // Fall back to averaged weights.json for matched type, then type_0
     std::vector<std::string> candidate_files;
-    
-    // 1. Try to find matching type from type registry (type_0, type_1, etc.)
-    std::string best_type = FindBestTypeFromFeatures(
-        modularity, degree_variance, hub_concentration,
-        avg_degree, num_nodes, num_edges, verbose, clustering_coeff);
-    
-    if (!best_type.empty()) {
-        std::string type_file = std::string(TYPE_WEIGHTS_DIR) + best_type + "/weights.json";
-        candidate_files.push_back(type_file);
+    if (best_type != "type_0") {
+        candidate_files.push_back(
+            std::string(TYPE_WEIGHTS_DIR) + best_type + "/weights.json");
     }
+    candidate_files.push_back(
+        std::string(TYPE_WEIGHTS_DIR) + "type_0/weights.json");
     
-    // 2. Detect semantic graph type and try type-specific file
-    GraphType detected_type = DetectGraphType(modularity, degree_variance, 
-                                               hub_concentration, avg_degree, num_nodes);
-    if (detected_type != GRAPH_GENERIC) {
-        std::string type_file = std::string(WEIGHTS_DIR) + "perceptron_weights_" 
-                                + GraphTypeToString(detected_type) + ".json";
-        candidate_files.push_back(type_file);
-    }
-    
-    // 3. Default file (global fallback with all algorithms)
-    candidate_files.push_back(DEFAULT_WEIGHTS_FILE);
-    
-    // Try each candidate file - overlay loaded weights on defaults
-    // This ensures algorithms missing from type files use global defaults
     for (const auto& weights_file : candidate_files) {
         std::ifstream file(weights_file);
         if (!file.is_open()) continue;
@@ -3691,7 +3858,7 @@ inline std::map<ReorderingAlgo, PerceptronWeights> LoadPerceptronWeightsForFeatu
                                   std::istreambuf_iterator<char>());
         file.close();
         
-        std::map<ReorderingAlgo, PerceptronWeights> loaded_weights;
+        std::map<std::string, PerceptronWeights> loaded_weights;
         if (ParseWeightsFromJSON(json_content, loaded_weights)) {
             for (const auto& kv : loaded_weights) {
                 weights[kv.first] = kv.second;
@@ -3723,10 +3890,10 @@ inline std::map<ReorderingAlgo, PerceptronWeights> LoadPerceptronWeightsForFeatu
  * @param verbose_first_load Print debug info on first load
  * @return Reference to cached weights map
  */
-inline const std::map<ReorderingAlgo, PerceptronWeights>& GetCachedWeights(
+inline const std::map<std::string, PerceptronWeights>& GetCachedWeights(
     GraphType graph_type, bool verbose_first_load = false) {
     // Cache weights per graph type (static map persists across calls)
-    static std::map<GraphType, std::map<ReorderingAlgo, PerceptronWeights>> weight_cache;
+    static std::map<GraphType, std::map<std::string, PerceptronWeights>> weight_cache;
     static std::mutex cache_mutex;
     
     std::lock_guard<std::mutex> lock(cache_mutex);
@@ -3770,23 +3937,23 @@ constexpr double ORIGINAL_MARGIN_THRESHOLD = 0.05;
  * @param bench Benchmark type (default: BENCH_GENERIC for balanced performance)
  * @return Best algorithm based on perceptron scoring
  */
-inline ReorderingAlgo SelectReorderingFromWeights(
+inline PerceptronSelection SelectReorderingFromWeights(
     const CommunityFeatures& feat,
-    const std::map<ReorderingAlgo, PerceptronWeights>& weights,
+    const std::map<std::string, PerceptronWeights>& weights,
     BenchmarkType bench = BENCH_GENERIC) {
     
-    ReorderingAlgo best_algo = ORIGINAL;
+    std::string best_name = "ORIGINAL";
     double best_score = -std::numeric_limits<double>::infinity();
     double original_score = -std::numeric_limits<double>::infinity();
     
     for (const auto& kv : weights) {
         double score = kv.second.score(feat, bench);
-        if (kv.first == ORIGINAL) {
+        if (kv.first == "ORIGINAL") {
             original_score = score;
         }
         if (score > best_score) {
             best_score = score;
-            best_algo = kv.first;
+            best_name = kv.first;
         }
     }
     
@@ -3794,7 +3961,7 @@ inline ReorderingAlgo SelectReorderingFromWeights(
     // If the best algorithm doesn't beat ORIGINAL by a sufficient margin,
     // the reordering overhead likely exceeds the benefit.
     // Ablation: ADAPTIVE_NO_MARGIN=1 disables this fallback.
-    if (best_algo != ORIGINAL && original_score > -1e30 && !AblationConfig::Get().no_margin) {
+    if (best_name != "ORIGINAL" && original_score > -1e30 && !AblationConfig::Get().no_margin) {
         double margin = best_score - original_score;
         double threshold = ORIGINAL_MARGIN_THRESHOLD;
         
@@ -3802,7 +3969,7 @@ inline ReorderingAlgo SelectReorderingFromWeights(
         // Higher avg_reorder_time → need proportionally larger margin to justify.
         // ADAPTIVE_COST_MODEL=1 enables this enhancement.
         if (AblationConfig::Get().cost_model) {
-            auto it = weights.find(best_algo);
+            auto it = weights.find(best_name);
             if (it != weights.end() && it->second.avg_reorder_time > 0) {
                 constexpr double COST_MODEL_ALPHA = 0.01;  // seconds → score units
                 double cost_threshold = COST_MODEL_ALPHA * it->second.avg_reorder_time;
@@ -3811,11 +3978,11 @@ inline ReorderingAlgo SelectReorderingFromWeights(
         }
         
         if (margin < threshold) {
-            return ORIGINAL;
+            return ResolveVariantSelection("ORIGINAL", original_score);
         }
     }
     
-    return best_algo;
+    return ResolveVariantSelection(best_name, best_score);
 }
 
 /**
@@ -3828,7 +3995,7 @@ inline ReorderingAlgo SelectReorderingFromWeights(
  * @param graph_type The detected graph type for loading appropriate weights
  * @return Best algorithm based on perceptron scoring
  */
-inline ReorderingAlgo SelectReorderingPerceptron(
+inline PerceptronSelection SelectReorderingPerceptron(
     const CommunityFeatures& feat, 
     BenchmarkType bench = BENCH_GENERIC,
     GraphType graph_type = GRAPH_GENERIC) {
@@ -3851,7 +4018,7 @@ inline ReorderingAlgo SelectReorderingPerceptron(
  * @param bench Benchmark type
  * @return Best algorithm based on perceptron scoring with feature-matched weights
  */
-inline ReorderingAlgo SelectReorderingPerceptronWithFeatures(
+inline PerceptronSelection SelectReorderingPerceptronWithFeatures(
     const CommunityFeatures& feat,
     double global_modularity, double global_degree_variance,
     double global_hub_concentration, size_t num_nodes, size_t num_edges,
@@ -3889,7 +4056,7 @@ inline ReorderingAlgo SelectReorderingPerceptronWithFeatures(
  * @param verbose Print selection details
  * @return Best algorithm based on the specified mode
  */
-inline ReorderingAlgo SelectReorderingWithMode(
+inline PerceptronSelection SelectReorderingWithMode(
     const CommunityFeatures& feat,
     double global_modularity, double global_degree_variance,
     double global_hub_concentration, size_t num_nodes, size_t num_edges,
@@ -3925,7 +4092,7 @@ inline ReorderingAlgo SelectReorderingWithMode(
                       << " > threshold=" << UNKNOWN_TYPE_DISTANCE_THRESHOLD
                       << ", falling back to ORIGINAL\n";
         }
-        return ORIGINAL;
+        return ResolveVariantSelection("ORIGINAL", 0.0);
     }
     
     // Handle each mode
@@ -3937,20 +4104,20 @@ inline ReorderingAlgo SelectReorderingWithMode(
                 feat.avg_degree, num_nodes, num_edges, false, feat.clustering_coeff, bench);
             
             // Select algorithm with highest w_reorder_time (fastest reorder)
-            ReorderingAlgo fastest = SelectFastestReorderFromWeights(weights, verbose);
+            PerceptronSelection fastest = SelectFastestReorderFromWeights(weights, verbose);
             if (verbose) {
-                std::cout << "Mode: fastest-reorder → algo=" << static_cast<int>(fastest) << "\n";
+                std::cout << "Mode: fastest-reorder → " << fastest.variant_name << "\n";
             }
             return fastest;
         }
         
         case MODE_FASTEST_EXECUTION: {
             // Use perceptron to select best cache performance
-            ReorderingAlgo best = SelectReorderingPerceptronWithFeatures(
+            PerceptronSelection best = SelectReorderingPerceptronWithFeatures(
                 feat, global_modularity, global_degree_variance,
                 global_hub_concentration, num_nodes, num_edges, bench);
             if (verbose) {
-                std::cout << "Mode: fastest-execution → algo=" << static_cast<int>(best) << "\n";
+                std::cout << "Mode: fastest-execution → " << best.variant_name << "\n";
             }
             return best;
         }
@@ -3962,27 +4129,27 @@ inline ReorderingAlgo SelectReorderingWithMode(
                 global_modularity, global_degree_variance, global_hub_concentration,
                 feat.avg_degree, num_nodes, num_edges, false, feat.clustering_coeff, bench);
             
-            ReorderingAlgo best_algo = ORIGINAL;
+            std::string best_name = "ORIGINAL";
             double best_score = -std::numeric_limits<double>::infinity();
             
             // Extra weight multiplier for reorder time in end-to-end mode
             const double REORDER_WEIGHT_BOOST = 2.0;
             
-            for (const auto& [algo, w] : weights) {
+            for (const auto& [name, w] : weights) {
                 double exec_score = w.score(feat, bench);
                 double reorder_bonus = w.w_reorder_time * REORDER_WEIGHT_BOOST;
                 double total_score = exec_score + reorder_bonus;
                 
                 if (total_score > best_score) {
                     best_score = total_score;
-                    best_algo = algo;
+                    best_name = name;
                 }
             }
             
             if (verbose) {
-                std::cout << "Mode: best-endtoend → algo=" << static_cast<int>(best_algo) << "\n";
+                std::cout << "Mode: best-endtoend → " << best_name << "\n";
             }
-            return best_algo;
+            return ResolveVariantSelection(best_name, best_score);
         }
         
         case MODE_BEST_AMORTIZATION: {
@@ -3991,16 +4158,16 @@ inline ReorderingAlgo SelectReorderingWithMode(
                 global_modularity, global_degree_variance, global_hub_concentration,
                 feat.avg_degree, num_nodes, num_edges, false, feat.clustering_coeff, bench);
             
-            ReorderingAlgo best_algo = ORIGINAL;
+            std::string best_name = "ORIGINAL";
             double best_iters = std::numeric_limits<double>::infinity();
             
-            for (const auto& [algo, w] : weights) {
-                if (algo == ORIGINAL) continue;  // ORIGINAL has no reorder cost
+            for (const auto& [name, w] : weights) {
+                if (name == "ORIGINAL") continue;  // ORIGINAL has no reorder cost
                 
                 double iters = w.iterationsToAmortize();
                 
                 if (verbose) {
-                    std::cout << "  " << static_cast<int>(algo) 
+                    std::cout << "  " << name 
                               << ": speedup=" << w.avg_speedup
                               << ", reorder=" << w.avg_reorder_time << "s"
                               << ", iters_to_amortize=" << iters << "\n";
@@ -4008,15 +4175,15 @@ inline ReorderingAlgo SelectReorderingWithMode(
                 
                 if (iters < best_iters) {
                     best_iters = iters;
-                    best_algo = algo;
+                    best_name = name;
                 }
             }
             
             if (verbose) {
-                std::cout << "Mode: best-amortization → algo=" << static_cast<int>(best_algo) 
+                std::cout << "Mode: best-amortization → " << best_name
                           << " (amortizes in " << best_iters << " iterations)\n";
             }
-            return best_algo;
+            return ResolveVariantSelection(best_name, 0.0);
         }
         
         default:
@@ -4115,7 +4282,7 @@ inline size_t ComputeDynamicLocalReorderThreshold(size_t num_nodes,
  * @param dynamic_min_size Minimum size threshold (0 = auto-compute)
  * @return Best algorithm for this community
  */
-inline ReorderingAlgo SelectBestReorderingForCommunity(
+inline PerceptronSelection SelectBestReorderingForCommunity(
     CommunityFeatures feat, 
     double global_modularity,
     double global_degree_variance,
@@ -4133,7 +4300,8 @@ inline ReorderingAlgo SelectBestReorderingForCommunity(
     
     // Ablation: ADAPTIVE_FORCE_ALGO=N bypasses all perceptron logic
     if (AblationConfig::Get().force_algo >= 0) {
-        return static_cast<ReorderingAlgo>(AblationConfig::Get().force_algo);
+        ReorderingAlgo forced = static_cast<ReorderingAlgo>(AblationConfig::Get().force_algo);
+        return PerceptronSelection{forced, ReorderingAlgoStr(forced), {}, 0.0};
     }
     
     // P0 1.2 (IISWC'18): Packing factor short-circuit.
@@ -4146,7 +4314,7 @@ inline ReorderingAlgo SelectBestReorderingForCommunity(
     if (AblationConfig::Get().packing_skip &&
         feat.packing_factor > PACKING_SKIP_THRESHOLD &&
         feat.working_set_ratio < WSR_SKIP_THRESHOLD) {
-        return ORIGINAL;
+        return ResolveVariantSelection("ORIGINAL", 0.0);
     }
     
     // Small communities: reordering overhead exceeds benefit
@@ -4154,27 +4322,27 @@ inline ReorderingAlgo SelectBestReorderingForCommunity(
         ComputeDynamicMinCommunitySize(num_nodes, 1, feat.num_nodes);
     
     if (feat.num_nodes < MIN_COMMUNITY_SIZE) {
-        return ORIGINAL;
+        return ResolveVariantSelection("ORIGINAL", 0.0);
     }
     
     // Set the modularity in features for perceptron scoring
     feat.modularity = global_modularity;
     
     // Use MODE-AWARE selection (handles unknown graph fallback automatically)
-    ReorderingAlgo selected = SelectReorderingWithMode(
+    PerceptronSelection selected = SelectReorderingWithMode(
         feat, global_modularity, global_degree_variance, global_hub_concentration,
         num_nodes, num_edges, mode, graph_name, bench, false);
     
     // Safety check: if perceptron selects an unavailable algorithm, fallback
 #ifndef RABBIT_ENABLE
-    if (selected == RabbitOrder) {
+    if (selected.algo == RabbitOrder) {
         // Recompute without RabbitOrder by using heuristic fallback
         if (feat.degree_variance > 0.8) {
-            selected = HubClusterDBG;
+            selected = ResolveVariantSelection("HUBCLUSTERDBG", selected.score);
         } else if (feat.hub_concentration > 0.3) {
-            selected = HubSort;
+            selected = ResolveVariantSelection("HUBSORT", selected.score);
         } else {
-            selected = DBG;
+            selected = ResolveVariantSelection("DBG", selected.score);
         }
     }
 #endif

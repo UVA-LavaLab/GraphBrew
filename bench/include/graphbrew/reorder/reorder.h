@@ -149,7 +149,7 @@ inline bool hasVariants(ReorderingAlgo algo) {
  * 
  * @return Map of algorithm enum to default PerceptronWeights
  */
-inline const std::map<ReorderingAlgo, PerceptronWeights>& getDefaultPerceptronWeights() {
+inline const std::map<std::string, PerceptronWeights>& getDefaultPerceptronWeights() {
     return GetPerceptronWeights();
 }
 
@@ -184,7 +184,8 @@ inline void ApplyBasicReorderingStandalone(
     pvector<NodeID_>& new_ids,
     ReorderingAlgo algo,
     bool useOutdeg,
-    const std::string& filename = "") {
+    const std::string& filename = "",
+    const std::vector<std::string>& options = {}) {
     
     switch (algo) {
         case HubSort:
@@ -215,13 +216,92 @@ inline void ApplyBasicReorderingStandalone(
             ::GenerateCOrderMapping<NodeID_, DestID_, invert>(g, new_ids);
             break;
         case RCMOrder:
-            ::GenerateRCMOrderMapping<NodeID_, DestID_, WeightT_, invert>(g, new_ids, filename);
+        {
+            std::string variant = "";
+            if (!options.empty() && !options[0].empty()) variant = options[0];
+            if (variant == "bnf") {
+                ::GenerateRCMBNFOrderMapping<NodeID_, DestID_, WeightT_, invert>(g, new_ids, filename);
+            } else {
+                ::GenerateRCMOrderMapping<NodeID_, DestID_, WeightT_, invert>(g, new_ids, filename);
+            }
             break;
+        }
+        case RabbitOrder:
+        {
+            std::string variant = "csr";
+            if (!options.empty() && !options[0].empty()) variant = options[0];
+            
+            pvector<NodeID_> new_ids_local(g.num_nodes(), -1);
+            pvector<NodeID_> new_ids_local_2(g.num_nodes(), -1);
+            ::GenerateSortMappingRabbit<NodeID_, DestID_, invert>(g, new_ids_local, true, true);
+            auto g_trans = RelabelByMappingStandalone<NodeID_, DestID_, invert>(g, new_ids_local);
+            
+            if (variant == "boost") {
+                ::GenerateRabbitOrderMapping<NodeID_, DestID_, WeightT_, invert>(g_trans, new_ids_local_2);
+            } else {
+                ::GenerateRabbitOrderCSRMapping<NodeID_, DestID_, WeightT_, invert>(g_trans, new_ids_local_2);
+            }
+            
+            #pragma omp parallel for
+            for (NodeID_ n = 0; n < g.num_nodes(); n++) {
+                new_ids[n] = new_ids_local_2[new_ids_local[n]];
+            }
+            break;
+        }
+        case GraphBrewOrder:
+        {
+            // GraphBrewOrder dispatched through generateGraphBrewMapping (defined later).
+            // This case is handled by the PerceptronSelection overload which 
+            // calls GenerateMappingLocalEdgelistStandalone. For the basic dispatch,
+            // fall back to the inner algorithm matching the variant.
+            std::string variant = "";
+            if (!options.empty() && !options[0].empty()) variant = options[0];
+            if (variant == "rabbit") {
+                // RabbitOrder CSR
+                pvector<NodeID_> ids1(g.num_nodes(), -1), ids2(g.num_nodes(), -1);
+                ::GenerateSortMappingRabbit<NodeID_, DestID_, invert>(g, ids1, true, true);
+                auto gt = RelabelByMappingStandalone<NodeID_, DestID_, invert>(g, ids1);
+                ::GenerateRabbitOrderCSRMapping<NodeID_, DestID_, WeightT_, invert>(gt, ids2);
+                #pragma omp parallel for
+                for (NodeID_ n = 0; n < g.num_nodes(); n++) new_ids[n] = ids2[ids1[n]];
+            } else if (variant == "hubcluster") {
+                ::GenerateHubClusterMapping<NodeID_, DestID_, invert>(g, new_ids, useOutdeg);
+            } else {
+                // "leiden" variant: use DBG as standalone proxy (Leiden pipeline 
+                // requires reorder_graphbrew.h which is included after this file)
+                ::GenerateDBGMapping<NodeID_, DestID_, invert>(g, new_ids, useOutdeg);
+            }
+            break;
+        }
+        case LeidenOrder:
+        {
+            // LeidenOrder standalone: DBG is a reasonable proxy when the full
+            // Leiden pipeline isn't available in this compilation unit.
+            ::GenerateDBGMapping<NodeID_, DestID_, invert>(g, new_ids, useOutdeg);
+            break;
+        }
         case ORIGINAL:
         default:
             ::GenerateOriginalMapping<NodeID_, DestID_, invert>(g, new_ids);
             break;
     }
+}
+
+/**
+ * @brief Variant-aware dispatch using PerceptronSelection
+ * 
+ * Extracts the base algorithm and variant options from a PerceptronSelection
+ * and delegates to the full dispatch above.
+ */
+template <typename NodeID_, typename DestID_, typename WeightT_, bool invert>
+inline void ApplyBasicReorderingStandalone(
+    const CSRGraph<NodeID_, DestID_, invert>& g,
+    pvector<NodeID_>& new_ids,
+    const PerceptronSelection& sel,
+    bool useOutdeg,
+    const std::string& filename = "") {
+    ApplyBasicReorderingStandalone<NodeID_, DestID_, WeightT_, invert>(
+        g, new_ids, sel.algo, useOutdeg, filename, sel.options);
 }
 
 // ============================================================================
@@ -349,6 +429,23 @@ void ReorderCommunitySubgraphStandalone(
     for (NodeID_ node : reordered_nodes) {
         new_ids[node] = current_id++;
     }
+}
+
+/**
+ * @brief Variant-aware community subgraph reordering using PerceptronSelection
+ */
+template <typename NodeID_, typename DestID_, typename WeightT_, bool invert>
+void ReorderCommunitySubgraphStandalone(
+    const CSRGraph<NodeID_, DestID_, invert>& g,
+    const std::vector<NodeID_>& nodes,
+    const std::unordered_set<NodeID_>& node_set,
+    const PerceptronSelection& sel,
+    bool useOutdeg,
+    pvector<NodeID_>& new_ids,
+    NodeID_& current_id)
+{
+    ReorderCommunitySubgraphStandalone<NodeID_, DestID_, WeightT_, invert>(
+        g, nodes, node_set, sel.algo, useOutdeg, new_ids, current_id);
 }
 
 // ============================================================================

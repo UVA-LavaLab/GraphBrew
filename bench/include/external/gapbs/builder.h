@@ -2492,14 +2492,11 @@ public:
      * At runtime, the system:
      * 1. Computes graph features (modularity, density, etc.)
      * 2. Uses FindBestTypeFromFeatures() to find the best matching cluster
-     * 3. Loads weights from the corresponding type_N.json file
+     * 3. Loads weights from the corresponding type_N/weights.json file
      * 4. Falls back to hardcoded defaults if no type file exists
      */
     
     // Weight path constants - now defined in reorder/reorder_types.h
-    // Aliased here for backward compatibility
-    static constexpr const char* DEFAULT_WEIGHTS_FILE = ::DEFAULT_WEIGHTS_FILE;
-    static constexpr const char* WEIGHTS_DIR = ::WEIGHTS_DIR;
     static constexpr const char* TYPE_WEIGHTS_DIR = ::TYPE_WEIGHTS_DIR;
     
     /**
@@ -2600,7 +2597,7 @@ public:
      * Delegates to the global ::GetPerceptronWeights() function in reorder_types.h.
      * This ensures a single source of truth for default weights across the codebase.
      */
-    static const std::map<ReorderingAlgo, PerceptronWeights>& GetPerceptronWeights() {
+    static const std::map<std::string, PerceptronWeights>& GetPerceptronWeights() {
         return ::GetPerceptronWeights();
     }
 
@@ -2617,8 +2614,7 @@ public:
      * Delegates to the global ::ParseWeightsFromJSON in reorder_types.h.
      */
     static bool ParseWeightsFromJSON(const std::string& json_content, 
-                                      std::map<ReorderingAlgo, PerceptronWeights>& weights) {
-        return ::ParseWeightsFromJSON(json_content, weights);
+                                  std::map<std::string, PerceptronWeights>& weights) {
     }
 
     /**
@@ -2629,7 +2625,7 @@ public:
      * 2. scripts/weights/active/type_N.json files (via LoadPerceptronWeightsForGraphType)
      * 3. If neither exists, returns hardcoded defaults from GetPerceptronWeights()
      */
-    static std::map<ReorderingAlgo, PerceptronWeights> LoadPerceptronWeights(bool verbose = false) {
+    static std::map<std::string, PerceptronWeights> LoadPerceptronWeights(bool verbose = false) {
         return LoadPerceptronWeightsForGraphType(GRAPH_GENERIC, verbose);
     }
     
@@ -2641,8 +2637,8 @@ public:
      * - Higher (less negative) = faster reordering
      * - Lower (more negative) = slower reordering
      */
-    static ReorderingAlgo SelectFastestReorderFromWeights(
-        const std::map<ReorderingAlgo, PerceptronWeights>& weights, bool verbose = false) {
+static PerceptronSelection SelectFastestReorderFromWeights(
+    const std::map<std::string, PerceptronWeights>& weights, bool verbose = false) {
         return ::SelectFastestReorderFromWeights(weights, verbose);
     }
     
@@ -2691,7 +2687,7 @@ public:
      * Load perceptron weights for a specific graph type.
      * Delegates to the global ::LoadPerceptronWeightsForGraphType in reorder_types.h.
      */
-    static std::map<ReorderingAlgo, PerceptronWeights> LoadPerceptronWeightsForGraphType(
+static std::map<std::string, PerceptronWeights> LoadPerceptronWeightsForGraphType(
         GraphType graph_type, bool verbose = false) {
         return ::LoadPerceptronWeightsForGraphType(graph_type, verbose);
     }
@@ -2700,7 +2696,7 @@ public:
      * Load perceptron weights using graph features to find the best type match.
      * Delegates to the global ::LoadPerceptronWeightsForFeatures in reorder_types.h.
      */
-    static std::map<ReorderingAlgo, PerceptronWeights> LoadPerceptronWeightsForFeatures(
+static std::map<std::string, PerceptronWeights> LoadPerceptronWeightsForFeatures(
         double modularity, double degree_variance, double hub_concentration,
         double avg_degree, size_t num_nodes, size_t num_edges, bool verbose = false,
         double clustering_coeff = 0.0) {
@@ -2713,7 +2709,7 @@ public:
      * Get cached weights for a specific graph type.
      * Delegates to the global ::GetCachedWeights in reorder_types.h.
      */
-    static const std::map<ReorderingAlgo, PerceptronWeights>& GetCachedWeights(
+static const std::map<std::string, PerceptronWeights>& GetCachedWeights(
         GraphType graph_type, bool verbose_first_load = false) {
         return ::GetCachedWeights(graph_type, verbose_first_load);
     }
@@ -2722,7 +2718,7 @@ public:
      * Select best reordering algorithm using perceptron scores.
      * Delegates to the global ::SelectReorderingPerceptron in reorder_types.h.
      */
-    ReorderingAlgo SelectReorderingPerceptron(const CommunityFeatures& feat, 
+    PerceptronSelection SelectReorderingPerceptron(const CommunityFeatures& feat, 
                                                BenchmarkType bench = BENCH_GENERIC,
                                                GraphType graph_type = GRAPH_GENERIC) {
         return ::SelectReorderingPerceptron(feat, bench, graph_type);
@@ -2731,7 +2727,7 @@ public:
     /**
      * Overload that accepts benchmark name as string
      */
-    ReorderingAlgo SelectReorderingPerceptron(const CommunityFeatures& feat,
+    PerceptronSelection SelectReorderingPerceptron(const CommunityFeatures& feat,
                                                const std::string& benchmark_name,
                                                GraphType graph_type = GRAPH_GENERIC) {
         return SelectReorderingPerceptron(feat, GetBenchmarkType(benchmark_name), graph_type);
@@ -2741,7 +2737,7 @@ public:
      * Select best reordering algorithm using feature-based type matching.
      * Delegates to the global ::SelectReorderingPerceptronWithFeatures in reorder_types.h.
      */
-    ReorderingAlgo SelectReorderingPerceptronWithFeatures(
+    PerceptronSelection SelectReorderingPerceptronWithFeatures(
         const CommunityFeatures& feat,
         double global_modularity, double global_degree_variance,
         double global_hub_concentration, size_t num_nodes, size_t num_edges,
@@ -2754,7 +2750,7 @@ public:
      * Select best reordering algorithm with MODE-AWARE selection.
      * Delegates to the global ::SelectReorderingWithMode in reorder_types.h.
      */
-    ReorderingAlgo SelectReorderingWithMode(
+    PerceptronSelection SelectReorderingWithMode(
         const CommunityFeatures& feat,
         double global_modularity, double global_degree_variance,
         double global_hub_concentration, size_t num_nodes, size_t num_edges,
@@ -2801,7 +2797,7 @@ public:
      * Select best reordering algorithm based on community features.
      * Delegates to the global ::SelectBestReorderingForCommunity in reorder_types.h.
      */
-    ReorderingAlgo SelectBestReorderingForCommunity(CommunityFeatures feat, 
+    PerceptronSelection SelectBestReorderingForCommunity(CommunityFeatures feat, 
                                                      double global_modularity,
                                                      double global_degree_variance,
                                                      double global_hub_concentration,
