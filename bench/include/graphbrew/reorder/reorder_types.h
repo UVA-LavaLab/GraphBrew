@@ -3432,7 +3432,7 @@ inline const std::map<std::string, PerceptronWeights>& GetPerceptronWeights() {
  * 3. Type-cluster files in TYPE_WEIGHTS_DIR (e.g., type_0/weights.json)
  * 4. Hardcoded defaults in GetPerceptronWeights()
  */
-inline constexpr const char* TYPE_WEIGHTS_DIR = "scripts/weights/active/";
+inline constexpr const char* TYPE_WEIGHTS_DIR = "results/weights/";
 
 /**
  * Threshold for determining "unknown" graph types
@@ -3510,7 +3510,7 @@ inline PerceptronSelection SelectFastestReorderFromWeights(
 /**
  * Find the best matching type from the type registry AND return the distance.
  * 
- * The type registry (scripts/weights/active/type_registry.json) contains centroids
+ * The type registry (results/weights/type_registry.json) contains centroids
  * for each auto-generated type. This function finds the closest matching type
  * based on the graph features using Euclidean distance.
  * 

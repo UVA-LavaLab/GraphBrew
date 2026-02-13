@@ -103,17 +103,19 @@ AdaptiveOrder uses automatic clustering to group similar graphs, rather than pre
 
 **Type Files:**
 ```
-scripts/weights/
-├── active/               # C++ reads from here
-│   ├── type_registry.json
-│   ├── type_0.json       # Generic weights
-│   ├── type_0_pr.json    # PageRank-specific
-│   ├── type_0_bfs.json   # BFS-specific
-│   ├── type_0_cc.json    # CC-specific
-│   ├── type_0_cc_sv.json  # CC_SV-specific
-│   └── type_0_pr_spmv.json # PR_SPMV-specific
-├── merged/               # Accumulated from all runs
-└── runs/                 # Historical snapshots
+results/weights/
+├── registry.json           # Graph→type mapping + centroids
+├── graph_properties_cache.json
+├── type_0/               # Generic weights
+│   ├── weights.json      # Base weights
+│   ├── pr.json           # PageRank-specific
+│   ├── bfs.json          # BFS-specific
+│   ├── cc.json           # CC-specific
+│   ├── cc_sv.json        # CC_SV-specific
+│   └── pr_spmv.json      # PR_SPMV-specific
+├── type_1/               # Cluster 1 weights
+│   └── ...
+└── type_N/               # Additional clusters
 ```
 
 **Weight File Loading Priority:**
@@ -516,7 +518,7 @@ In per-community mode (mode 1), Leiden detects communities first, and steps 1–
 # Look for: "Graph Type: social", "Selected Algorithm: GraphBrewOrder"
 
 # Validate weights JSON
-python3 -c "import json; json.load(open('scripts/weights/active/type_0.json'))"
+python3 -c "import json; json.load(open('results/weights/type_0/weights.json'))"
 
 # Ablation toggles (environment variables):
 # ADAPTIVE_NO_OOD=1      — disable OOD guardrail

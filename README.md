@@ -96,7 +96,7 @@ python3 scripts/graphbrew_experiment.py --train --all-variants --size medium --a
 | `--brute-force` | Compare adaptive selection vs all 16 algorithms |
 | `--download-only` | Download graphs without running benchmarks |
 
-Results are saved to `./results/`. Trained weights go to `./scripts/weights/active/`.
+Results are saved to `./results/`. Trained weights go to `./results/weights/`.
 
 ```bash
 # See all options

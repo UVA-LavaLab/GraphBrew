@@ -528,7 +528,7 @@ class PipelineConfig:
     bin_sim_dir: str = "bench/bin_sim"
     graphs_dir: str = "results/graphs"
     results_dir: str = "results"
-    weights_dir: str = "scripts/weights/active"
+    weights_dir: str = "results/weights"
     
     # Timeouts
     timeout_reorder: int = 300

@@ -31,8 +31,8 @@ BIN_DIR = BENCH_DIR / "bin"
 BIN_SIM_DIR = BENCH_DIR / "bin_sim"
 RESULTS_DIR = PROJECT_ROOT / "results"
 GRAPHS_DIR = RESULTS_DIR / "graphs"
-WEIGHTS_DIR = SCRIPT_DIR / "weights"
-ACTIVE_WEIGHTS_DIR = WEIGHTS_DIR / "active"  # Where C++ reads from
+WEIGHTS_DIR = RESULTS_DIR / "weights"
+ACTIVE_WEIGHTS_DIR = WEIGHTS_DIR  # Where C++ reads from
 
 
 def weights_registry_path(weights_dir: str = "") -> str:

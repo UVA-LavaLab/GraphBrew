@@ -114,9 +114,9 @@ reorder_adaptive.h::GenerateAdaptiveMappingStandalone()
 
 | Path | Purpose |
 |------|---------|
-| `scripts/weights/active/type_registry.json` | 11 type centroids (7D normalized features each) — k-means auto-generated |
-| `scripts/weights/active/type_0.json` – `type_10.json` | Per-type perceptron weights: `{algo_id: {bias, w_modularity, w_log_nodes, ...}}` |
-| `scripts/weights/active/graph_properties_cache.json` | Cached per-graph features (avoid recomputation) |
+| `results/weights/registry.json` | 11 type centroids (7D normalized features each) — k-means auto-generated |
+| `results/weights/type_0/weights.json` – `type_10/weights.json` | Per-type perceptron weights: `{algo_id: {bias, w_modularity, w_log_nodes, ...}}` |
+| `results/weights/graph_properties_cache.json` | Cached per-graph features (avoid recomputation) |
 
 ---
 

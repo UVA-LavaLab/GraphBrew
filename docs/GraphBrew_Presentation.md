@@ -587,7 +587,7 @@ python3 scripts/graphbrew_experiment.py --fill-weights --graphs all
 │                                                                     │
 │  ┌──────────────────────────────────────────────────────────────┐   │
 │  │              Weight Files                                     │   │
-│  │  (scripts/weights/)                                           │   │
+│  │  (results/weights/)                                           │   │
 │  │                                                               │   │
 │  │  • type_registry.json  (graph → type mapping)                 │   │
 │  │  • type_0.json ... type_N.json (per-type weights)             │   │

@@ -2484,10 +2484,10 @@ public:
      * 
      * AUTO-CLUSTERING TYPE SYSTEM:
      * The system uses auto-generated type files for specialized tuning:
-     * - scripts/weights/active/type_0.json    (Cluster 0 weights)
-     * - scripts/weights/active/type_1.json    (Cluster 1 weights)
-     * - scripts/weights/active/type_N.json    (Additional clusters as needed)
-     * - scripts/weights/active/type_registry.json (maps graph names → type + centroids)
+     * - results/weights/type_0/weights.json  (Cluster 0 weights)
+     * - results/weights/type_1/weights.json  (Cluster 1 weights)
+     * - results/weights/type_N/weights.json  (Additional clusters as needed)
+     * - results/weights/registry.json         (maps graph names → type + centroids)
      * 
      * At runtime, the system:
      * 1. Computes graph features (modularity, density, etc.)
@@ -2622,7 +2622,7 @@ public:
      * 
      * Checks for weights file in this order:
      * 1. Path from PERCEPTRON_WEIGHTS_FILE environment variable
-     * 2. scripts/weights/active/type_N.json files (via LoadPerceptronWeightsForGraphType)
+     * 2. results/weights/type_N/weights.json files (via LoadPerceptronWeightsForGraphType)
      * 3. If neither exists, returns hardcoded defaults from GetPerceptronWeights()
      */
     static std::map<std::string, PerceptronWeights> LoadPerceptronWeights(bool verbose = false) {

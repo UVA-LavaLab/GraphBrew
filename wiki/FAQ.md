@@ -223,7 +223,7 @@ See [[Python-Scripts#-eval_weightspy---weight-evaluation--c-scoring-simulation]]
 
 ### Where are the trained weights saved?
 
-`scripts/weights/active/type_N.json` (per-cluster) + `type_registry.json` (graph→type map). Loading priority: env var → best type match → fallback defaults. See [[Perceptron-Weights#weight-file-location]].
+`results/weights/type_N/weights.json` (per-cluster) + `registry.json` (graph→type map). Loading priority: env var → best type match → fallback defaults. See [[Perceptron-Weights#weight-file-location]].
 
 ### What's the difference between LeidenOrder and GraphBrewOrder?
 

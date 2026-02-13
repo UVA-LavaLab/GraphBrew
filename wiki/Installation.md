@@ -241,7 +241,7 @@ See [[Code-Architecture]] for full directory layout. Key paths:
 - `bench/bin/` — Compiled binaries (pr, bfs, cc, etc.)
 - `bench/bin_sim/` — Cache simulation binaries
 - `scripts/lib/` — Core Python modules
-- `scripts/weights/active/` — Perceptron weight files
+- `results/weights/` — Perceptron weight files
 - `results/` — Experiment outputs
 
 ## Troubleshooting Build Issues

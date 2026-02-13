@@ -14,8 +14,7 @@ __pycache__/
 graphs/
 *.log
 cache_results
-scripts/weights/backup_before_reset/
-scripts/weights/
+results/weights/
 test/
 agent
 # Graph data files (edge lists, weighted edge lists, serialized graphs)

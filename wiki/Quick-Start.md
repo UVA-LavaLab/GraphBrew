@@ -277,7 +277,7 @@ python3 scripts/graphbrew_experiment.py --train --size small --max-graphs 3 --tr
 python3 scripts/graphbrew_experiment.py --train --all-variants --size medium --auto --trials 5
 
 # Check results
-ls -la scripts/weights/active/
+ls -la results/weights/
 ```
 
 **Interpreting output:** RANDOM is baseline (1.00x). Higher bias = better. Bias < 0.5 = slower than random. See [[Perceptron-Weights]] for details.
