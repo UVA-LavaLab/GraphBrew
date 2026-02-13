@@ -81,6 +81,10 @@ from .utils import (
     get_all_algorithm_variant_names,
     resolve_canonical_name,
     is_variant_prefixed,
+    enumerate_graphbrew_multilayer,
+    # Multi-layer config
+    GRAPHBREW_LAYERS,
+    GRAPHBREW_OPTIONS,
     # Leiden resolution/pass settings
     LEIDEN_DEFAULT_RESOLUTION,
     LEIDEN_DEFAULT_PASSES,

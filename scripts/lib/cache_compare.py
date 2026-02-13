@@ -31,22 +31,23 @@ import os
 from pathlib import Path
 
 try:
-    from scripts.lib.utils import _VARIANT_ALGO_REGISTRY, ALGORITHMS, GRAPHBREW_OPTIONS
+    from scripts.lib.utils import _VARIANT_ALGO_REGISTRY, ALGORITHMS, GRAPHBREW_LAYERS
 except ImportError:
     _VARIANT_ALGO_REGISTRY = None
+    GRAPHBREW_LAYERS = None
 
 # Config
 GRAPHS = ["web-Google", "web-BerkStan", "as-Skitter", "wiki-Talk", "roadNet-CA"]  # Variety of graph types
 
 
 def _build_cache_compare_variants():
-    """Build VARIANTS list from SSOT registry + GRAPHBREW_OPTIONS.
+    """Build VARIANTS list from SSOT registry + GRAPHBREW_LAYERS.
 
     Returns list of (cli_option, display_name) tuples.
     """
     variants = []
     # GraphBrew presets + a few key compound strategies
-    presets = list(GRAPHBREW_OPTIONS["presets"].keys()) if _VARIANT_ALGO_REGISTRY else ["leiden", "rabbit", "hubcluster"]
+    presets = list(GRAPHBREW_LAYERS["preset"].keys()) if GRAPHBREW_LAYERS else ["leiden", "rabbit", "hubcluster"]
     key_strategies = ["hrab", "dfs", "bfs", "conn"]  # Most interesting for cache comparison
     # Base presets
     for preset in presets:
