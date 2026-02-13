@@ -321,7 +321,7 @@ struct GraphBrewConfig {
     bool useSmallCommunityMerging = false; ///< Merge small communities and apply heuristic algorithm selection
     size_t smallCommunityThreshold = 0;    ///< Min community size for individual reordering (0 = dynamic)
     int  recursiveDepth = -1;          ///< Recursive sub-community depth: -1=auto (default), 0=flat, 1+=recurse into large communities
-    int  subAlgoId = -1;               ///< Algo for sub-communities: -1=auto (per-sub-community adaptive), 0-11=fixed algo ID
+    int  subAlgoId = 8;                ///< Algo for sub-communities: -1=adaptive, 0-11=fixed algo ID (default=8 RabbitOrder)
     
     // Memory optimizations
     bool useLazyUpdates = false;       ///< Batch community weight updates (reduces atomics in non-REFINE phase)
@@ -922,7 +922,7 @@ bool changeCommunity(
     
     if constexpr (REFINE) {
         // In refinement, only move if we're the only member (singleton)
-        // Use 1.001 tolerance for floating-point rounding (from gveopt2)
+        // Use 1.001 tolerance for floating-point rounding
         W old_ctot;
         #pragma omp atomic capture
         {
@@ -1043,7 +1043,7 @@ int localMovingPhase(
                 K d = vcom[u];
                 
                 // REFINE: Skip if community has more than one member
-                // Use 1.001 tolerance factor (from gveopt2) to handle
+                // Use 1.001 tolerance factor to handle
                 // floating-point accumulation rounding errors
                 if constexpr (REFINE) {
                     if (ctot[d] > vtot[u] * Weight(1.001)) continue;
@@ -1619,11 +1619,11 @@ size_t aggregateGVEStyle(
     }
     
     // Sequential flat arrays for super-graph local move
-    // (Matches gveopt2: sequential, simplified delta, limited iterations)
+    // Sequential super-graph local move with simplified delta, limited iterations
     std::vector<Weight> sg_comm_weights(C, Weight(0));
     std::vector<K> sg_touched(C);
     
-    // Limit super-graph iterations (gveopt2 uses min(3, maxIterations))
+    // Limit super-graph iterations: min(3, maxIterations)
     int super_max_iter = std::min(3, config.maxIterations);
     
     for (int iter = 0; iter < super_max_iter; ++iter) {
@@ -1647,7 +1647,7 @@ size_t aggregateGVEStyle(
                 if (snc == d) kc_to_d += w;
             }
             
-            // Find best community using gveopt2's simplified delta formula
+            // Find best community using simplified delta formula
             K best_comm = d;
             Weight best_delta = Weight(0);
             
@@ -2836,7 +2836,7 @@ void orderHierarchicalSort(
     
     auto comparator = [&](size_t a, size_t b) {
         // Compare from coarsest (last) to finest, using top 3 passes max
-        // This matches gveopt2's multi-level sort key structure
+        // Multi-level sort key: coarsest-to-finest pass ordering
         size_t startPass = (numPasses > 3) ? numPasses - 3 : 0;
         for (size_t p = numPasses; p > startPass; --p) {
             K ca = result.membershipPerPass[p - 1][a];
@@ -6581,7 +6581,7 @@ GraphBrewResult<K> runGraphBrew(
         GRAPHBREW_TRACE("  communities: %zu (from %zu)", numCommunities, prevCommunities);
         
         // GVE mode: skip pre-aggregation convergence checks
-        // gveopt2 only checks convergence AFTER aggregation
+        // Only check convergence AFTER aggregation in GVE mode
         if (!gveMode) {
             if (moveIters <= 1 || pass >= config.maxPasses - 1) {
                 result.membershipPerPass.push_back(ucom);
@@ -7278,8 +7278,8 @@ inline GraphBrewConfig parseGraphBrewConfig(const std::vector<std::string>& opti
         // Quality preset: GVE detection quality in GraphBrew pipeline
         // Sets: GVE_CSR aggregation, TOTAL_EDGES M, refinement on pass 0 only,
         //        hierarchical ordering (top-3 pass multi-level sort)
-        // Note: maxIterations left at DEFAULT_MAX_ITERATIONS (10) to match gveopt2
-        else if (opt == "quality" || opt == "gve") {
+        // Note: maxIterations left at DEFAULT_MAX_ITERATIONS (10)
+        else if (opt == "quality") {
             config.aggregation = AggregationStrategy::GVE_CSR;
             config.mComputation = MComputation::TOTAL_EDGES;
             config.refinementDepth = 0;
