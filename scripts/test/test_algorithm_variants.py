@@ -322,12 +322,6 @@ def test_tier8_leiden_resolution(option, name):
 # ═══════════════════════════════════════════════════════════════════════════
 
 TIER9_EDGE = [
-    # Legacy gve/gveopt aliases (should still work)
-    ("12:gve",                    "legacy_gve"),
-    ("12:gveopt",                 "legacy_gveopt"),
-    # Old numeric format: 12:freq:algo:resolution
-    ("12:10:8",                   "old_format_freq_algo"),
-    ("12:10:8:1.0",               "old_format_freq_algo_res"),
     # Token parser quality preset
     ("12:quality",                "token_quality_preset"),
     # graphbrew prefix (backward compat)

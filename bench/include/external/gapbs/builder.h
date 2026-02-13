@@ -2932,27 +2932,6 @@ static const std::map<std::string, PerceptronWeights>& GetCachedWeights(
         
         const std::string& first = options[0];
         
-        // ── Old numeric format: 12:freq:final_algo:resolution ───────────
-        if (std::all_of(first.begin(), first.end(), ::isdigit)) {
-            graphbrew::GraphBrewConfig config = graphbrew::parseGraphBrewConfig(
-                {"gvecsr", "totalm", "refine0", "graphbrew"});
-            config.resolution = auto_resolution;
-            // Ignore freq_threshold (options[0]); parse final_algo and resolution
-            if (options.size() > 1 && !options[1].empty()) {
-                try { config.finalAlgoId = std::stoi(options[1]); } catch (...) {}
-            }
-            if (options.size() > 2 && !options[2].empty()) {
-                const std::string& res = options[2];
-                if (res != "auto" && res != "0" && res.rfind("dynamic", 0) != 0) {
-                    try {
-                        double r = std::stod(res);
-                        if (r > 0 && r <= 3) config.resolution = r;
-                    } catch (...) {}
-                }
-            }
-            return config;
-        }
-        
         // ── Preset expansion table ──────────────────────────────────────
         // Each preset maps to tokens understood by parseGraphBrewConfig.
         // "graphbrew" token → LAYER ordering + finalAlgoId=8 + smallCommunityMerging
@@ -2961,8 +2940,6 @@ static const std::map<std::string, PerceptronWeights>& GetCachedWeights(
         };
         static const std::map<std::string, PresetDef> PRESETS = {
             {"leiden",      {{"gvecsr", "totalm", "refine0", "graphbrew"}}},
-            {"gve",         {{"gvecsr", "totalm", "refine0", "graphbrew"}}},  // legacy alias
-            {"gveopt",      {{"gvecsr", "totalm", "refine0", "graphbrew"}}},  // legacy alias
             {"rabbit",      {{"rabbitorder", "0.5"}}},
             {"hubcluster",  {{"hubcluster"}}},
         };
