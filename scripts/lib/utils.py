@@ -183,6 +183,7 @@ GRAPHBREW_DEFAULT_VARIANT = "leiden"
 #  ────────────────────────────────────
 #  Per-community external algorithm dispatch: "graphbrew" or "gb" token.
 #  Enables finalAlgoId (0-11), recursiveDepth, subAlgoId.
+#  Default depth=-1 (auto): recurses when max community > LLC capacity.
 #
 #  Layer 5  RESOLUTION / NUMERIC
 #  ────────────────────────────────────
@@ -236,11 +237,13 @@ GRAPHBREW_LAYERS = {
         "lazyupdate",    # Batch community weight updates
         "verify",        # Verify topology after reordering
         "graphbrew",     # Activate LAYER ordering (per-community dispatch)
+        "recursive",     # Force recursive sub-community dispatch (depth>=1)
+        "flat",          # Force flat dispatch (depth=0, no recursion)
     ),
     # Layer 4: GraphBrew recursive dispatch (when "graphbrew" feature active)
     "graphbrew_dispatch": {
         "final_algo":   "0-11 (algorithm ID for per-community reordering, default=8/RabbitOrder)",
-        "depth":        "0-10 (recursive sub-community depth, default=0/flat)",
+        "depth":        "-1=auto (default: recurse when max community > LLC), 0=flat, 1-10=force recursive",
         "sub_algo":     "-1 or 0-11 (-1=adaptive per-sub-community, else fixed)",
     },
     # Layer 5: Numeric parameters

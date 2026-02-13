@@ -509,8 +509,8 @@ class TestVariantRegistrySSOT:
         assert info["layers"]["presets"] == 3
         assert info["layers"]["orderings"] == 13
         assert info["layers"]["aggregations"] == 4
-        assert info["layers"]["features"] == 9
-        assert info["layers"]["feature_combos"] == 512  # 2^9
+        assert info["layers"]["features"] == 11
+        assert info["layers"]["feature_combos"] == 2048  # 2^11
         # 3 base presets + 3×13 compounds = 42
         assert len(info["compound_variants"]) == 3 + 3 * 13
         # Active trained ⊆ compound_variants

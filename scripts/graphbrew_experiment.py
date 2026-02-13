@@ -367,10 +367,11 @@ def expand_algorithms_with_variants(
                 ))
         elif algo_id == 12 and expand_leiden_variants:
             # GraphBrewOrder: expand into clustering variants
-            # Format: 12:cluster_variant:final_algo:resolution:levels
+            # Format: 12:cluster_variant[:named_token...]
+            # Compound variants use '_' as separator in the name but ':'
+            # on the CLI, e.g. "leiden_recursive" → "12:leiden:recursive"
             for variant in graphbrew_variants:
-                # Default: final_algo=8 (RabbitOrder), resolution=1.0, levels=2
-                option_str = f"{algo_id}:{variant}"
+                option_str = f"{algo_id}:{variant.replace('_', ':')}"
                 configs.append(AlgorithmConfig(
                     algo_id=algo_id,
                     name=f"GraphBrewOrder_{variant}",
@@ -381,7 +382,7 @@ def expand_algorithms_with_variants(
         elif algo_id == 12:
             # GraphBrewOrder: use specified variant (default: leiden)
             variant = graphbrew_variants[0] if graphbrew_variants else GRAPHBREW_DEFAULT_VARIANT
-            option_str = f"{algo_id}:{variant}"
+            option_str = f"{algo_id}:{variant.replace('_', ':')}"
             configs.append(AlgorithmConfig(
                 algo_id=algo_id,
                 name=f"GraphBrewOrder_{variant}",
