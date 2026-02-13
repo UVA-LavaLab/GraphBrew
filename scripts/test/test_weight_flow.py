@@ -3,11 +3,11 @@
 Test Weight Flow - Verify weights are generated and read from correct locations.
 
 This test verifies:
-1. Python writes weights to scripts/weights/active/
-2. C++ reads from scripts/weights/active/
-3. Weight merger saves runs to scripts/weights/runs/
-4. Weight merger merges to scripts/weights/merged/
-5. Use-run and use-merged copy to active/
+1. Python writes weights to results/weights/
+2. C++ reads from results/weights/
+3. Weight merger saves runs to results/weights/runs/
+4. Weight merger merges to results/weights/merged/
+5. Use-run and use-merged copy to weights/
 
 Usage:
     pytest scripts/test/test_weight_flow.py -v
@@ -126,16 +126,16 @@ def test_path_constants(results: ResultsTracker):
     print("\n1. Testing Path Constants")
     print("-" * 40)
     
-    # WEIGHTS_DIR should be scripts/weights
+    # WEIGHTS_DIR should be results/weights
     results.check(
-        WEIGHTS_DIR.name == "weights" and WEIGHTS_DIR.parent.name == "scripts",
-        f"WEIGHTS_DIR points to scripts/weights: {WEIGHTS_DIR}"
+        WEIGHTS_DIR.name == "weights" and WEIGHTS_DIR.parent.name == "results",
+        f"WEIGHTS_DIR points to results/weights: {WEIGHTS_DIR}"
     )
     
-    # ACTIVE_WEIGHTS_DIR should be scripts/weights/active
+    # ACTIVE_WEIGHTS_DIR should equal WEIGHTS_DIR (no more /active/ sublevel)
     results.check(
-        ACTIVE_WEIGHTS_DIR.name == "active" and ACTIVE_WEIGHTS_DIR.parent == WEIGHTS_DIR,
-        f"ACTIVE_WEIGHTS_DIR points to scripts/weights/active: {ACTIVE_WEIGHTS_DIR}"
+        ACTIVE_WEIGHTS_DIR == WEIGHTS_DIR,
+        f"ACTIVE_WEIGHTS_DIR equals WEIGHTS_DIR: {ACTIVE_WEIGHTS_DIR}"
     )
     
     # DEFAULT_WEIGHTS_DIR should equal ACTIVE_WEIGHTS_DIR
@@ -157,12 +157,12 @@ def test_path_constants(results: ResultsTracker):
     
     results.check(
         get_runs_dir() == WEIGHTS_DIR / "runs",
-        f"get_runs_dir() returns scripts/weights/runs"
+        f"get_runs_dir() returns results/weights/runs"
     )
     
     results.check(
         get_merged_dir() == WEIGHTS_DIR / "merged",
-        f"get_merged_dir() returns scripts/weights/merged"
+        f"get_merged_dir() returns results/weights/merged"
     )
 
 
@@ -173,12 +173,12 @@ def test_directory_structure(results: ResultsTracker):
     
     results.check(
         WEIGHTS_DIR.exists(),
-        f"scripts/weights/ exists"
+        f"results/weights/ exists"
     )
     
     results.check(
         ACTIVE_WEIGHTS_DIR.exists(),
-        f"scripts/weights/active/ exists"
+        f"results/weights/ (active) exists"
     )
     
     # Check for type directories in active
@@ -248,16 +248,10 @@ def test_cpp_path_constants(results: ResultsTracker):
     if reorder_h.exists():
         content = reorder_h.read_text()
         
-        # Check DEFAULT_WEIGHTS_FILE
-        results.check(
-            'DEFAULT_WEIGHTS_FILE = "scripts/weights/active/type_0/weights.json"' in content,
-            f"DEFAULT_WEIGHTS_FILE points to scripts/weights/active/type_0/weights.json"
-        )
-        
         # Check TYPE_WEIGHTS_DIR
         results.check(
-            'TYPE_WEIGHTS_DIR = "scripts/weights/active/"' in content,
-            f"TYPE_WEIGHTS_DIR points to scripts/weights/active/"
+            'TYPE_WEIGHTS_DIR = "results/weights/"' in content,
+            f"TYPE_WEIGHTS_DIR points to results/weights/"
         )
 
 
