@@ -171,6 +171,7 @@ def test_tier2b_rcm_variants(option, name):
 TIER2C_GORDER = [
     ("9",     "GORDER_default"),
     ("9:csr", "GORDER_csr"),
+    ("9:fast", "GORDER_fast"),
 ]
 
 

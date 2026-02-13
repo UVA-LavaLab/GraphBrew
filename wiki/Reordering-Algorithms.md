@@ -238,6 +238,7 @@ These algorithms use different approaches: RabbitOrder detects communities, whil
 - **Variants**:
   - `default`: GoGraph baseline — converts to GoGraph adjacency format, runs original C++ GOrder
   - `csr`: **CSR-native variant** — operates directly on CSRGraph iterators via lightweight BFS-RCM pre-ordering and `RelabelByMappingStandalone`. **7-25% faster reordering**, equivalent PR performance, deterministic with single thread.
+  - `fast`: **Parallel batch variant** — scalable across threads via batch extraction with atomic score updates. Uses fan-out cap (64), stricter hub threshold (n^⅓), and active frontier for efficient extraction. Auto-tunes batch/window to thread count. **2-3× greedy speedup on power-law graphs at 8T**, quality preserved.
 
 **How it works:**
 1. Pre-order vertices with BFS-RCM for initial locality
@@ -246,6 +247,14 @@ These algorithms use different approaches: RabbitOrder detects communities, whil
    - Push v: increment scores of v's 2-hop neighbors (out→in paths)
    - Pop oldest: decrement scores of oldest's 2-hop neighbors
 4. Hub vertices (degree > √n) are skipped in 2-hop expansion
+
+**Fast variant details:**
+- Replaces UnitHeap with score array + atomic delta for thread safety
+- Batch extraction: top-B vertices placed per round (B=max(64, 4×threads))
+- Window auto-scaled: W=max(7, 2×batch) — still within L1 cache
+- Fan-out cap: 2-hop expansion limited to first 64 out-neighbors per in-neighbor
+- Per-thread dedup arrays eliminate redundant atomic exchanges in merge phase
+- Usage: `-o 9:fast` (recommended for graphs with high degree variance)
 
 **CSR variant benchmarks** (single-threaded, vs GoGraph baseline):
 
@@ -256,6 +265,14 @@ These algorithms use different approaches: RabbitOrder detects communities, whil
 | as-Skitter | 1.7M | 8.44s | 7.43s | 1.14x |
 | cit-Patents | 3.77M | 8.41s | 7.85s | 1.07x |
 | soc-LiveJournal1 | 4.85M | 45.1s | 39.4s | 1.14x |
+
+**Fast variant benchmarks** (greedy phase only, vs CSR 1T):
+
+| Graph | CSR 1T | Fast 1T | Fast 8T | 1T speedup | 8T speedup |
+|-------|--------|---------|---------|-----------|------------|
+| as-Skitter | 6.13s | 2.96s | 1.89s | 2.1× | 3.2× |
+| cit-Patents | 5.92s | 6.32s | 3.76s | — | 1.6× |
+| roadNet-CA | 0.51s | 0.60s | 0.44s | — | 1.2× |
 
 ### 10. CORDER
 **Cache-aware Ordering**
