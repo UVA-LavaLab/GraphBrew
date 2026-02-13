@@ -222,21 +222,40 @@ These algorithms use different approaches: RabbitOrder detects communities, whil
 | Over-merging | Can occur | Prevented by refinement |
 
 ### 9. GORDER
-**Graph Ordering (dynamic programming + BFS)**
+**Graph Ordering (sliding window cache optimization)**
 
 ```bash
+# Default (GoGraph baseline)
 ./bench/bin/pr -f graph.el -s -o 9 -n 3
+
+# CSR-native variant — faster reordering, no GoGraph conversion
+./bench/bin/pr -f graph.el -s -o 9:csr -n 3
 ```
 
-- **Description**: Uses dynamic programming with sliding window optimization
-- **Complexity**: O(n × w) where w = window size
+- **Description**: Greedy sliding-window algorithm that places vertices to maximize the number of 2-hop neighbors already in a cache-sized window. Pre-orders with BFS-RCM, then greedily picks the highest-scoring candidate at each step.
+- **Complexity**: O(n × m × w) where w = window size (default 7)
 - **Best for**: Graphs where local structure matters
+- **Variants**:
+  - `default`: GoGraph baseline — converts to GoGraph adjacency format, runs original C++ GOrder
+  - `csr`: **CSR-native variant** — operates directly on CSRGraph iterators via lightweight BFS-RCM pre-ordering and `RelabelByMappingStandalone`. **7-25% faster reordering**, equivalent PR performance, deterministic with single thread.
 
-**Window optimization:**
-```
-Window size determines how far ahead to look when placing vertices
-Larger window = better quality, slower computation
-```
+**How it works:**
+1. Pre-order vertices with BFS-RCM for initial locality
+2. Initialize priority heap with in-degree as key
+3. Greedy loop: extract max-priority vertex v, place it, update sliding window W:
+   - Push v: increment scores of v's 2-hop neighbors (out→in paths)
+   - Pop oldest: decrement scores of oldest's 2-hop neighbors
+4. Hub vertices (degree > √n) are skipped in 2-hop expansion
+
+**CSR variant benchmarks** (single-threaded, vs GoGraph baseline):
+
+| Graph | Nodes | Baseline Reorder | CSR Reorder | Speedup |
+|-------|-------|-----------------|-------------|--------:|
+| web-Google | 916K | 1.17s | 1.09s | 1.08x |
+| roadNet-CA | 1.97M | 1.11s | 0.89s | 1.25x |
+| as-Skitter | 1.7M | 8.44s | 7.43s | 1.14x |
+| cit-Patents | 3.77M | 8.41s | 7.85s | 1.07x |
+| soc-LiveJournal1 | 4.85M | 45.1s | 39.4s | 1.14x |
 
 ### 10. CORDER
 **Cache-aware Ordering**

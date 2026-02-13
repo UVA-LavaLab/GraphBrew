@@ -223,7 +223,7 @@ def main():
         epilog="""
 Algorithm IDs:
   0=ORIGINAL  1=RANDOM  2=SORT  3=HUBSORT  4=HUBCLUSTER
-  5=DBG  6=HUBSORTDBG  7=HUBCLUSTERDBG  8=RABBITORDER  9=GORDER
+  5=DBG  6=HUBSORTDBG  7=HUBCLUSTERDBG  8=RABBITORDER  9=GORDER (9:csr)
   10=CORDER  11=RCM  12=GraphBrewOrder  13=MAP  14=AdaptiveOrder
   15=LeidenOrder
         """

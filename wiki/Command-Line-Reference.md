@@ -160,7 +160,7 @@ Use with `-o <id>`:
 | 6 | HubSortDBG | DBG-based |
 | 7 | HubClusterDBG | DBG-based |
 | 8 | RabbitOrder | Community (has variants, see below) |
-| 9 | GOrder | Community |
+| 9 | GOrder | Community (has variants, see below) |
 | 10 | COrder | Community |
 | 11 | RCMOrder | Classic (has variants, see below) |
 | 12 | GraphBrewOrder | Community (has variants, see below) |
@@ -170,7 +170,18 @@ Use with `-o <id>`:
 <!-- LeidenCSR (16) deprecated — GraphBrew (12) subsumes it -->
 
 > **Note:** For current variant lists, see `scripts/lib/utils.py` which defines:
-> - `RABBITORDER_VARIANTS`, `GRAPHBREW_VARIANTS`, `RCM_VARIANTS`
+> - `RABBITORDER_VARIANTS`, `GORDER_VARIANTS`, `RCM_VARIANTS`, `GRAPHBREW_VARIANTS`
+
+### GOrder Variants (Algorithm 9)
+
+GOrder supports two variants:
+
+| Variant | Example | Description |
+|---------|---------|-------------|
+| (default) | `-o 9` | GoGraph baseline — converts to GoGraph adjacency format |
+| `csr` | `-o 9:csr` | CSR-native — direct CSRGraph iterator access, lightweight BFS-RCM, 7-25% faster reorder |
+
+The CSR variant uses a lightweight GoGraph-matching BFS-CM pre-ordering and `RelabelByMappingStandalone` to rebuild the CSR in RCM order, then runs the GOrder greedy directly on sorted CSRGraph neighbor iterators. Deterministic with single thread.
 
 ### RCMOrder Variants (Algorithm 11)
 
