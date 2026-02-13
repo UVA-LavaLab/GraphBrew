@@ -11,25 +11,32 @@
 // neighbors (via 2-hop out→in paths) are already in a sliding window
 // of the last W placed vertices.
 //
-// Architecture — reuses existing infrastructure:
-//   1. RCM BNF pre-ordering    (reorder_rcm.h — deterministic parallel)
-//   2. RelabelByMappingStandalone  (reorder_types.h — parallel CSR rebuild)
-//   3. Greedy GOrder on CSRGraph  (this file — direct iterator access)
+// Architecture:
+//   1. Lightweight RCM pre-ordering  (this file — matches GoGraph's BFS-CM)
+//   2. RelabelByMappingStandalone    (reorder_types.h — parallel CSR rebuild)
+//   3. Greedy GOrder on CSRGraph     (this file — direct iterator access)
 //
 // Key improvements over the baseline GoGraph GOrder (Algorithm 9):
 //
 //   1. CSR-native — zero GoGraph conversion overhead (speed ↑, memory ↓)
-//   2. Deterministic RCM BNF — parallel BFS with atomic_min tie-breaking
-//   3. Direct CSRGraph iterator access — no flat-array copies
-//   4. Sorted neighbor lists (from RelabelByMapping) for binary_search
+//   2. Direct CSRGraph iterator access — no flat-array copies
+//   3. Sorted neighbor lists (from RelabelByMapping) for binary_search
+//
+// RCM pre-ordering:
+//   Uses GoGraph's lightweight BFS-CM approach: sort vertices by total
+//   degree, BFS from each unvisited vertex expanding out-edges sorted
+//   by degree, then reverse for RCM.  This is much faster than the full
+//   RCM BNF (no pseudo-peripheral search, no component detection).
+//   GOrder only uses RCM as a warm start; the greedy loop does the real
+//   optimization, so the simpler RCM is sufficient.
 //
 // Note on parallelism:
 //   The UnitHeap priority queue is inherently sequential — IncrementKey
 //   and DecreaseTop manipulate a shared doubly-linked list that cannot
 //   be parallelized without fundamentally changing the data structure.
-//   Parallelism is applied to the setup phases (RCM BNF and CSR relabel)
-//   while the greedy loop remains faithful to the original serial
-//   algorithm.
+//   Parallelism is applied to the initial degree sort (__gnu_parallel)
+//   and CSR relabeling while the greedy loop remains faithful to the
+//   original serial algorithm.
 //
 // References:
 //   - Wei, H., Yu, J.X., Lu, C., Lin, X. (2016): "Speedup Graph
@@ -49,6 +56,7 @@
 #include <numeric>
 #include <vector>
 #include <queue>
+#include <parallel/algorithm>
 #include <omp.h>
 
 // ============================================================================
@@ -265,6 +273,82 @@ public:
 };
 
 // --------------------------------------------------------------------------
+// Lightweight RCM pre-ordering (matches GoGraph's RCMOrder)
+// --------------------------------------------------------------------------
+// Simple BFS-CM on out-edges: sort all vertices by total degree, BFS from
+// each unvisited vertex expanding only out-edges sorted by degree, reverse
+// for RCM.  Matches GoGraph's behavior exactly.  Much faster than RCM BNF
+// since GOrder only needs a rough locality pre-ordering.
+//
+// Returns perm[old] = new_id (RCM order).
+// --------------------------------------------------------------------------
+template <typename NodeID_, typename DestID_, bool invert>
+void rcm_gorder(const CSRGraph<NodeID_, DestID_, invert>& g,
+                int n,
+                pvector<NodeID_>& perm) {
+
+    // Total degree: out + in (same as GoGraph's outdegree + indegree)
+    auto total_degree = [&](int v) -> int {
+        int d = static_cast<int>(g.out_degree(v));
+        if constexpr (invert) d += static_cast<int>(g.in_degree(v));
+        return d;
+    };
+
+    // Sort all vertices by total degree ascending (deterministic seed order)
+    // Uses __gnu_parallel::stable_sort matching GoGraph
+    std::vector<int> deg_sorted(n);
+    std::iota(deg_sorted.begin(), deg_sorted.end(), 0);
+    __gnu_parallel::stable_sort(deg_sorted.begin(), deg_sorted.end(),
+        [&](int a, int b) { return total_degree(a) < total_degree(b); });
+
+    // BFS-CM from each unvisited vertex, expanding out-edges sorted by degree
+    std::vector<bool> visited(n, false);
+    std::vector<int> order;
+    order.reserve(n);
+    std::queue<int> que;
+    std::vector<std::pair<int, int>> nbrs;  // (degree, vertex) for sorting
+
+    for (int k = 0; k < n; ++k) {
+        int start = deg_sorted[k];
+        if (visited[start]) continue;
+
+        que.push(start);
+        visited[start] = true;
+        order.push_back(start);
+
+        while (!que.empty()) {
+            int now = que.front();
+            que.pop();
+
+            // Collect out-neighbors (matching GoGraph: out-edges only)
+            nbrs.clear();
+            for (DestID_ dest : g.out_neigh(now))
+                nbrs.push_back({total_degree(static_cast<int>(
+                    nbr_id<NodeID_>(dest))),
+                    static_cast<int>(nbr_id<NodeID_>(dest))});
+
+            // Sort by total degree ascending (CM ordering)
+            // stable_sort for deterministic tie-breaking (same as GoGraph)
+            std::stable_sort(nbrs.begin(), nbrs.end());
+
+            for (auto& [d, v] : nbrs) {
+                if (!visited[v]) {
+                    visited[v] = true;
+                    que.push(v);
+                    order.push_back(v);
+                }
+            }
+        }
+    }
+
+    // Reverse for RCM: perm[old_id] = new_id
+    perm.resize(n);
+    for (int i = 0; i < n; ++i) {
+        perm[order[i]] = static_cast<NodeID_>(n - 1 - i);
+    }
+}
+
+// --------------------------------------------------------------------------
 // GOrder Greedy -- Core algorithm (operates directly on CSRGraph)
 // --------------------------------------------------------------------------
 // Works on a pre-reordered CSRGraph (RCM order) using the graph's native
@@ -451,8 +535,8 @@ void gorder_greedy_csr(const CSRGraph<NodeID_, DestID_, invert>& g,
 // ============================================================================
 // Public API -- GenerateGOrderCSRMapping
 // ============================================================================
-// GOrder CSR variant using existing infrastructure:
-//   Step 1: RCM BNF pre-ordering (reorder_rcm.h)
+// GOrder CSR variant:
+//   Step 1: Lightweight RCM pre-ordering (GoGraph-style BFS-CM)
 //   Step 2: RelabelByMappingStandalone to rebuild CSR in RCM order
 //   Step 3: Greedy GOrder on reordered CSRGraph (direct iterator access)
 //   Step 4: Compose permutations
@@ -472,12 +556,12 @@ void GenerateGOrderCSRMapping(const CSRGraph<NodeID_, DestID_, invert>& g,
     if (static_cast<int64_t>(new_ids.size()) < n)
         new_ids.resize(n);
 
-    // --- Step 1: RCM BNF pre-ordering (existing optimized implementation) ---
+    // --- Step 1: Lightweight RCM pre-ordering (matches GoGraph) ---
     tm.Start();
     pvector<NodeID_> rcm_ids(n);
-    GenerateRCMBNFOrderMapping<NodeID_, DestID_, WeightT_, invert>(g, rcm_ids, "");
+    gorder_csr_detail::rcm_gorder(g, n, rcm_ids);
     tm.Stop();
-    PrintTime("GOrder_CSR RCM pre-order", tm.Seconds());
+    PrintTime("GOrder_CSR RCM", tm.Seconds());
 
     // --- Step 2: Rebuild CSR in RCM order (existing builder infrastructure) ---
     tm.Start();
