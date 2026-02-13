@@ -6,7 +6,7 @@ Quick Cache Comparison - Compare GraphBrew +Variants vs RabbitOrder
 Runs cache simulation benchmarks comparing different community detection
 variants to measure their impact on cache performance:
 
-- GraphBrew variants (graphbrew, graphbrew:quality, graphbrew:hrab, graphbrew:rabbit, graphbrew:streaming, etc.)
+- GraphBrew variants (leiden, rabbit, hubcluster + ordering strategies)
 - RabbitOrder variants (csr, boost)
 
 Outputs:
@@ -30,22 +30,39 @@ import sys
 import os
 from pathlib import Path
 
+try:
+    from scripts.lib.utils import _VARIANT_ALGO_REGISTRY, ALGORITHMS, GRAPHBREW_OPTIONS
+except ImportError:
+    _VARIANT_ALGO_REGISTRY = None
+
 # Config
 GRAPHS = ["web-Google", "web-BerkStan", "as-Skitter", "wiki-Talk", "roadNet-CA"]  # Variety of graph types
-VARIANTS = [
-    # GraphBrew variants
-    ("12", "GraphBrew"),                                    # Default GraphBrewOrder
-    ("12:hrab", "GraphBrew-HRAB"),                          # Hybrid Leiden+Rabbit BFS (best)
-    ("12:rabbit", "GraphBrew-Rabbit"),                      # RabbitOrder pipeline
-    ("12:conn", "GraphBrew-Conn"),                          # Connectivity BFS within communities
-    ("12:dfs", "GraphBrew-DFS"),                            # DFS traversal ordering
-    ("12:bfs", "GraphBrew-BFS"),                            # BFS traversal ordering
+
+
+def _build_cache_compare_variants():
+    """Build VARIANTS list from SSOT registry + GRAPHBREW_OPTIONS.
+
+    Returns list of (cli_option, display_name) tuples.
+    """
+    variants = []
+    # GraphBrew presets + a few key compound strategies
+    presets = list(GRAPHBREW_OPTIONS["presets"].keys()) if _VARIANT_ALGO_REGISTRY else ["leiden", "rabbit", "hubcluster"]
+    key_strategies = ["hrab", "dfs", "bfs", "conn"]  # Most interesting for cache comparison
+    # Base presets
+    for preset in presets:
+        variants.append((f"12:{preset}", f"GraphBrew-{preset.title()}"))
+    # Compound: leiden × key strategies
+    for strat in key_strategies:
+        variants.append((f"12:leiden:{strat}", f"GraphBrew-Leiden-{strat.upper()}"))
     # RabbitOrder variants
-    ("8:csr", "RabbitCSR"),                      # Native CSR (fast, no deps)
-    ("8:boost", "RabbitBoost"),                  # Boost-based
+    variants.append(("8:csr", "RabbitCSR"))
+    variants.append(("8:boost", "RabbitBoost"))
     # LeidenOrder baseline
-    ("15", "LeidenOrder"),                       # GVE-Leiden baseline
-]
+    variants.append(("15", "LeidenOrder"))
+    return variants
+
+
+VARIANTS = _build_cache_compare_variants()
 BENCHMARKS = ["pr"]  # Just PR for now
 BIN_SIM = "bench/bin_sim"
 GRAPHS_DIR = "results/graphs"

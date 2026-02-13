@@ -96,8 +96,8 @@ class VariantComparison:
     """Head-to-head comparison of two variants on a (graph, benchmark)."""
     graph: str
     benchmark: str
-    variant_a: str           # e.g. "rabbit:csr"
-    variant_b: str           # e.g. "graphbrew:hrab"
+    variant_a: str           # e.g. "RABBITORDER_csr"
+    variant_b: str           # e.g. "GraphBrewOrder_leiden_hrab"
     
     # Kernel comparison
     kernel_a: float = 0.0
