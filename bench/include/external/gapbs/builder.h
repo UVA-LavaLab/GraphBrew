@@ -1225,8 +1225,20 @@ public:
         }
         break;
         case GOrder:
-            GenerateGOrderMapping(g, new_ids);
-            break;
+        {
+            // GOrder with variants: default (GoGraph baseline), csr (CSR-native parallel)
+            // Format: -o 9:variant (e.g., -o 9:csr)
+            std::string gorder_variant = "";  // Default: GoGraph baseline
+            if (!reordering_options.empty() && !reordering_options[0].empty()) {
+                gorder_variant = reordering_options[0];
+            }
+            if (gorder_variant == "csr") {
+                GenerateGOrderCSRMapping(g, new_ids);
+            } else {
+                GenerateGOrderMapping(g, new_ids);
+            }
+        }
+        break;
         case COrder:
             GenerateCOrderMapping(g, new_ids);
             break;
@@ -1402,8 +1414,19 @@ public:
         }
         break;
         case GOrder:
-            GenerateGOrderMapping(g, new_ids);
-            break;
+        {
+            // GOrder with variants: default (GoGraph baseline), csr (CSR-native parallel)
+            std::string gorder_variant = "";
+            if (!reordering_options.empty() && !reordering_options[0].empty()) {
+                gorder_variant = reordering_options[0];
+            }
+            if (gorder_variant == "csr") {
+                GenerateGOrderCSRMapping(g, new_ids);
+            } else {
+                GenerateGOrderMapping(g, new_ids);
+            }
+        }
+        break;
         case COrder:
             GenerateCOrderMapping(g, new_ids);
             break;
@@ -1778,6 +1801,16 @@ public:
     void GenerateGOrderMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
                                pvector<NodeID_> &new_ids) {
         ::GenerateGOrderMapping<NodeID_, DestID_, WeightT_, invert>(g, new_ids, cli_.filename());
+    }
+
+    /**
+     * @brief GOrder CSR variant — CSR-native GOrder with parallel score updates
+     * Delegates to ::GenerateGOrderCSRMapping in reorder/reorder_gorder.h
+     * Accessed via: -o 9:csr
+     */
+    void GenerateGOrderCSRMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
+                                  pvector<NodeID_> &new_ids) {
+        ::GenerateGOrderCSRMapping<NodeID_, DestID_, WeightT_, invert>(g, new_ids, cli_.filename());
     }
 
     /**

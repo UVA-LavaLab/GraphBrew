@@ -165,6 +165,25 @@ def test_tier2b_rcm_variants(option, name):
 
 
 # ═══════════════════════════════════════════════════════════════════════════
+# TIER 2c: GOrder (9) variants
+# ═══════════════════════════════════════════════════════════════════════════
+
+TIER2C_GORDER = [
+    ("9",     "GORDER_default"),
+    ("9:csr", "GORDER_csr"),
+]
+
+
+@pytest.mark.parametrize("option,name", TIER2C_GORDER, ids=[t[1] for t in TIER2C_GORDER])
+def test_tier2c_gorder_variants(option, name):
+    """Tier 2c: GOrder default/csr variants."""
+    result = run_pr(option)
+    assert result.returncode == 0, (
+        f"GOrder variant {name} (-o {option}) failed.\nstderr: {result.stderr[-500:]}"
+    )
+
+
+# ═══════════════════════════════════════════════════════════════════════════
 # TIER 3: GraphBrewOrder (12) presets
 # ═══════════════════════════════════════════════════════════════════════════
 

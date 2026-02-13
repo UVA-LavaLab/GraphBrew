@@ -235,6 +235,11 @@ void GenerateRCMOrderMapping(const CSRGraph<NodeID_, DestID_, invert>& g,
 #include "reorder_rcm.h"
 
 // ============================================================================
+// Improved GOrder variant operating directly on the CSR graph with parallel
+// score updates.  Accessed via: -o 9:csr  (default -o 9 uses GoGraph above)
+#include "reorder_gorder.h"
+
+// ============================================================================
 // CORDER (Algorithm 10)
 // ============================================================================
 
