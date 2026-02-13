@@ -174,14 +174,17 @@ Use with `-o <id>`:
 
 ### GOrder Variants (Algorithm 9)
 
-GOrder supports two variants:
+GOrder supports three variants:
 
 | Variant | Example | Description |
 |---------|---------|-------------|
 | (default) | `-o 9` | GoGraph baseline — converts to GoGraph adjacency format |
 | `csr` | `-o 9:csr` | CSR-native — direct CSRGraph iterator access, lightweight BFS-RCM, 7-25% faster reorder |
+| `fast` | `-o 9:fast` | Parallel batch — atomic score updates, fan-out cap, scales across threads (2-3× at 8T on power-law graphs) |
 
 The CSR variant uses a lightweight GoGraph-matching BFS-CM pre-ordering and `RelabelByMappingStandalone` to rebuild the CSR in RCM order, then runs the GOrder greedy directly on sorted CSRGraph neighbor iterators. Deterministic with single thread.
+
+The fast variant replaces the serial UnitHeap with a score array + active frontier for thread safety. It auto-tunes batch size and window to the available thread count. Recommended for graphs with high degree variance (power-law, social networks).
 
 ### RCMOrder Variants (Algorithm 11)
 

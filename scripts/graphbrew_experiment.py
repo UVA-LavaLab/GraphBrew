@@ -1448,7 +1448,7 @@ def parse_benchmark_output(output: str) -> Dict[str, Any]:
     # Reorder/Ordering time patterns - from various algorithms
     # Patterns like: "RabbitOrder Map Time: 0.123", "Ordering Time: 0.456", etc.
     reorder_patterns = [
-        r'(?:RabbitOrder|GOrder|GOrder_CSR|LeidenOrder|COrder|RCMOrder|HubSort|DBG|Relabel|Sub-RabbitOrder)\s*(?:Map Time|RCM|greedy|compose)[:\s]+([\d.]+)',
+        r'(?:RabbitOrder|GOrder|GOrder_CSR|GOrder_fast|LeidenOrder|COrder|RCMOrder|HubSort|DBG|Relabel|Sub-RabbitOrder)\s*(?:Map Time|RCM|greedy|compose|config)[:\s]+([\d.]+)',
         r'Ordering Time[:\s]+([\d.]+)',
         r'RandOrder Time[:\s]+([\d.]+)',
         r'Reorder Time[:\s]+([\d.]+)',
