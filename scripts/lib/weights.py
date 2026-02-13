@@ -32,6 +32,7 @@ from .utils import (
     WEIGHT_AVG_DEGREE_DEFAULT,
     RABBITORDER_VARIANTS, RABBITORDER_DEFAULT_VARIANT,
     GRAPHBREW_VARIANTS, GRAPHBREW_DEFAULT_VARIANT,
+    RCM_VARIANTS,
     weights_registry_path, weights_type_path, weights_bench_path,
 )
 
@@ -865,6 +866,17 @@ def compute_weights_from_results(
                 return prefix.rstrip('_')
         return name
     
+    # Reverse mapping: base name → canonical variant names
+    _BASE_TO_VARIANTS = {
+        'GraphBrewOrder': [f'GraphBrewOrder_{v}' for v in GRAPHBREW_VARIANTS],
+        'RABBITORDER': [f'RABBITORDER_{v}' for v in RABBITORDER_VARIANTS],
+        'RCM': [f'RCM_{v}' for v in RCM_VARIANTS],
+    }
+    
+    def _expand_base_to_variants(base):
+        """Return canonical variant names for a base algo, or [base] if no variants."""
+        return _BASE_TO_VARIANTS.get(base, [base])
+    
     training_data = []
     for graph_name, benchmarks in results_by_graph.items():
         if graph_name not in graph_features:
@@ -1062,11 +1074,17 @@ def compute_weights_from_results(
         # that best reproduce those scores.
         #
         # =====================================================================
-        # Save per-benchmark perceptrons as separate weight files (type_0_{bench}.json)
+        # Save per-benchmark perceptrons as separate weight files ({type}/{bench}.json)
         # These are loaded by C++ when benchmark type hint is available, giving
         # much higher accuracy than the averaged scoreBase × multiplier model.
+        #
+        # Per-bench files are propagated to ALL types in the registry so that
+        # C++ LoadPerceptronWeightsForFeatures can find them regardless of which
+        # type the graph is matched to.
         # =====================================================================
         
+        # Build per-bench weight dicts (one per benchmark)
+        per_bench_dicts = {}  # bn -> {algo: weights}
         for bn, bn_weights in per_bench_w.items():
             per_bench_cpp = {}
             for base in base_algos:
@@ -1092,14 +1110,28 @@ def compute_weights_from_results(
                 # No benchmark_weights needed - this IS the benchmark-specific perceptron
                 entry['benchmark_weights'] = {}
                 entry['_metadata'] = {}
-                per_bench_cpp[base] = entry
-            
-            if per_bench_cpp and weights_dir:
-                bench_file = weights_bench_path('type_0', bn, weights_dir)
-                os.makedirs(os.path.dirname(bench_file), exist_ok=True)
-                with open(bench_file, 'w') as f:
-                    json.dump(per_bench_cpp, f, indent=2)
-                log.info(f"  Saved per-benchmark weights: {bench_file} ({len(per_bench_cpp)} algorithms)")
+                # Expand base→variants so per-bench files use the same canonical
+                # variant names as weights.json and registry.json
+                for variant_name in _expand_base_to_variants(base):
+                    per_bench_cpp[variant_name] = entry
+            per_bench_dicts[bn] = per_bench_cpp
+        
+        # Save per-bench files to ALL types in the registry
+        if weights_dir and per_bench_dicts:
+            load_type_registry(weights_dir)
+            all_types = list(_type_registry.keys()) if _type_registry else ['type_0']
+            if 'type_0' not in all_types:
+                all_types.insert(0, 'type_0')
+            for type_name in all_types:
+                for bn, per_bench_cpp in per_bench_dicts.items():
+                    if not per_bench_cpp:
+                        continue
+                    bench_file = weights_bench_path(type_name, bn, weights_dir)
+                    os.makedirs(os.path.dirname(bench_file), exist_ok=True)
+                    with open(bench_file, 'w') as f:
+                        json.dump(per_bench_cpp, f, indent=2)
+                log.info(f"  Saved per-benchmark weights: {type_name}/ ({len(per_bench_dicts)} benchmarks, "
+                         f"{len(next(iter(per_bench_dicts.values())))} algorithms)")
         
         # =====================================================================
         # ScoreBase from averaged per-bench perceptrons + regret-aware grid search
@@ -1820,8 +1852,10 @@ def save_weights_to_active_type(
     if not _type_registry:
         load_type_registry(weights_dir)
     
-    # Get list of algorithms from weights
-    algo_list = [k for k in weights.keys() if not k.startswith('_')]
+    # Registry algorithms list: always include ALL known canonical variants
+    # (not just those from the current training run).
+    # This ensures C++ type matching sees a consistent algorithm universe.
+    canonical_algos = sorted(get_all_algorithm_variant_names())
     
     # Create or update registry entry
     if type_name not in _type_registry:
@@ -1829,13 +1863,13 @@ def save_weights_to_active_type(
             'centroid': [0.5] * 7,  # Default centroid
             'sample_count': 1,
             'graph_count': len(graphs) if graphs else 1,
-            'algorithms': algo_list,
+            'algorithms': canonical_algos,
             'graphs': graphs or [],
             'created': datetime.now().isoformat(),
             'last_updated': datetime.now().isoformat(),
         }
     else:
-        _type_registry[type_name]['algorithms'] = algo_list
+        _type_registry[type_name]['algorithms'] = canonical_algos
         _type_registry[type_name]['last_updated'] = datetime.now().isoformat()
         if graphs:
             existing_graphs = _type_registry[type_name].get('graphs', [])
@@ -1846,7 +1880,7 @@ def save_weights_to_active_type(
             _type_registry[type_name]['graph_count'] = len(existing_graphs)
     
     save_type_registry(weights_dir)
-    log.info(f"Saved weights to {type_file} ({len(algo_list)} algorithms)")
+    log.info(f"Saved weights to {type_file} ({len(canonical_algos)} algorithms)")
     
     return type_file
 
@@ -1900,7 +1934,7 @@ def get_all_algorithm_variant_names() -> List[str]:
     names = []
     
     # Algorithms that have variants (with their base IDs)
-    VARIANT_ALGO_IDS = {8, 12}  # RabbitOrder, GraphBrewOrder
+    VARIANT_ALGO_IDS = {8, 11, 12}  # RabbitOrder, RCM, GraphBrewOrder
     
     for algo_id, algo_name in ALGORITHMS.items():
         if algo_name in ['MAP', 'AdaptiveOrder']:
@@ -1909,6 +1943,9 @@ def get_all_algorithm_variant_names() -> List[str]:
         if algo_id == 8:  # RabbitOrder → expand to RABBITORDER_csr, RABBITORDER_boost
             for variant in RABBITORDER_VARIANTS:
                 names.append(f"RABBITORDER_{variant}")
+        elif algo_id == 11:  # RCM → expand to RCM_default, RCM_bnf
+            for variant in RCM_VARIANTS:
+                names.append(f"RCM_{variant}")
         elif algo_id == 12:  # GraphBrewOrder → expand to GraphBrewOrder_leiden, etc.
             for variant in GRAPHBREW_VARIANTS:
                 names.append(f"GraphBrewOrder_{variant}")

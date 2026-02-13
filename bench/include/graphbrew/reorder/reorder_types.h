@@ -1259,6 +1259,9 @@ inline const std::map<std::string, ReorderingAlgo>& getAlgorithmNameMap() {
         {"RCMOrder", RCMOrder},
         {"RCMORDER", RCMOrder},
         {"RCM", RCMOrder},
+        // RCM variants
+        {"RCM_default", RCMOrder},
+        {"RCM_bnf", RCMOrder},
         {"GraphBrewOrder", GraphBrewOrder},
         {"GRAPHBREWORDER", GraphBrewOrder},
         // GraphBrewOrder variants (powered by GraphBrew pipeline)
