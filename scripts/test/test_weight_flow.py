@@ -476,6 +476,56 @@ class TestVariantRegistrySSOT:
             assert name in DISPLAY_TO_CANONICAL or name.upper() in DISPLAY_TO_CANONICAL, \
                 f"Missing DISPLAY_TO_CANONICAL entry for {name}"
 
+    # ---- Multi-layer tests ----
+
+    def test_graphbrew_layers_structure(self):
+        """GRAPHBREW_LAYERS should have all 6 layers."""
+        from scripts.lib.utils import GRAPHBREW_LAYERS
+        assert "preset" in GRAPHBREW_LAYERS
+        assert "ordering" in GRAPHBREW_LAYERS
+        assert "aggregation" in GRAPHBREW_LAYERS
+        assert "features" in GRAPHBREW_LAYERS
+        assert "graphbrew_dispatch" in GRAPHBREW_LAYERS
+        assert "numeric" in GRAPHBREW_LAYERS
+
+    def test_ordering_excludes_streaming(self):
+        """'streaming' is an aggregation strategy, NOT an ordering strategy."""
+        from scripts.lib.utils import GRAPHBREW_LAYERS
+        assert "streaming" not in GRAPHBREW_LAYERS["ordering"]
+        assert "streaming" in GRAPHBREW_LAYERS["aggregation"]
+
+    def test_graphbrew_options_backward_compat(self):
+        """GRAPHBREW_OPTIONS backward-compat alias matches GRAPHBREW_LAYERS."""
+        from scripts.lib.utils import GRAPHBREW_OPTIONS, GRAPHBREW_LAYERS
+        assert set(GRAPHBREW_OPTIONS["presets"].keys()) == set(GRAPHBREW_LAYERS["preset"].keys())
+        assert GRAPHBREW_OPTIONS["ordering_strategies"] == list(GRAPHBREW_LAYERS["ordering"])
+        assert GRAPHBREW_OPTIONS["aggregation"] == list(GRAPHBREW_LAYERS["aggregation"])
+        assert GRAPHBREW_OPTIONS["features"] == list(GRAPHBREW_LAYERS["features"])
+
+    def test_enumerate_multilayer_counts(self):
+        """enumerate_graphbrew_multilayer() returns correct counts."""
+        from scripts.lib.utils import enumerate_graphbrew_multilayer
+        info = enumerate_graphbrew_multilayer()
+        assert info["layers"]["presets"] == 3
+        assert info["layers"]["orderings"] == 13
+        assert info["layers"]["aggregations"] == 4
+        assert info["layers"]["features"] == 9
+        assert info["layers"]["feature_combos"] == 512  # 2^9
+        # 3 base presets + 3×13 compounds = 42
+        assert len(info["compound_variants"]) == 3 + 3 * 13
+        # Active trained ⊆ compound_variants
+        for a in info["active_trained"]:
+            assert a in info["compound_variants"]
+
+    def test_enumerate_multilayer_no_overlap(self):
+        """Active and untrained should be disjoint and cover all compounds."""
+        from scripts.lib.utils import enumerate_graphbrew_multilayer
+        info = enumerate_graphbrew_multilayer()
+        active_set = set(info["active_trained"])
+        untrained_set = set(info["untrained"])
+        assert active_set & untrained_set == set(), "Overlap between active and untrained"
+        assert active_set | untrained_set == set(info["compound_variants"])
+
 
 def main():
     """Run all tests."""

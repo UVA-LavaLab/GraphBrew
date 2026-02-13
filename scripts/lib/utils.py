@@ -146,24 +146,118 @@ RCM_DEFAULT_VARIANT = "default"
 GRAPHBREW_VARIANTS = ("leiden", "rabbit", "hubcluster")
 GRAPHBREW_DEFAULT_VARIANT = "leiden"
 
-# Structured reference for GraphBrew CLI options (mirrors C++ parseGraphBrewConfig)
-GRAPHBREW_OPTIONS = {
-    "presets": {
+# =============================================================================
+# GraphBrew Multi-Layer Configuration (mirrors C++ parseGraphBrewConfig)
+# =============================================================================
+# GraphBrewOrder (algo 12) is a multi-layer pipeline.  Each "layer" is an
+# independent dimension that can be combined freely via the CLI:
+#
+#   -o 12:preset:ordering:aggregation:features...
+#
+# Example:  -o 12:leiden:hrab:gvecsr:merge:hubx:0.75
+#           preset=leiden, ordering=hrab, aggregation=gvecsr,
+#           features=[merge,hubx], resolution=0.75
+#
+# The layers are:
+#
+#  Layer 0  PRESET (algorithm skeleton)
+#  ────────────────────────────────────
+#  Selects the top-level algorithm and its default config.
+#  Only ONE preset is active.
+#
+#  Layer 1  ORDERING STRATEGY
+#  ────────────────────────────────────
+#  How vertices are permuted within/across communities after detection.
+#  Only ONE ordering is active at a time.
+#
+#  Layer 2  AGGREGATION STRATEGY
+#  ────────────────────────────────────
+#  How the community super-graph is built between Leiden passes.
+#  Only ONE aggregation is active.
+#
+#  Layer 3  FEATURE FLAGS (additive)
+#  ────────────────────────────────────
+#  Post-processing / optimization toggles.  Multiple can be combined.
+#
+#  Layer 4  GRAPHBREW MODE (recursive dispatch)
+#  ────────────────────────────────────
+#  Per-community external algorithm dispatch: "graphbrew" or "gb" token.
+#  Enables finalAlgoId (0-11), recursiveDepth, subAlgoId.
+#
+#  Layer 5  RESOLUTION / NUMERIC
+#  ────────────────────────────────────
+#  Resolution (float 0.1-3.0), max iterations, max passes.
+#
+# Combinatorial space per config:
+#   3 presets × 13 orderings × 4 aggregations × 2^9 feature combos
+#     × 12 finalAlgos × 11 depths × 12 subAlgos × continuous resolution
+#   = effectively infinite; but the *trainable* space is the set of
+#     compound variant names registered in GRAPHBREW_VARIANTS above.
+# =============================================================================
+
+GRAPHBREW_LAYERS = {
+    # Layer 0: Preset (one-of) — sets algorithm skeleton + defaults
+    "preset": {
         "leiden":      "GVE-CSR Leiden + per-community RabbitOrder (default)",
         "rabbit":      "Full RabbitOrder pipeline (single-pass, no Leiden)",
         "hubcluster":  "Leiden + hub-cluster native ordering",
     },
-    "ordering_strategies": [
-        "hrab", "dfs", "bfs", "conn", "dbg", "corder",
-        "dbg-global", "corder-global", "community", "hubcluster",
-        "hierarchical", "hcache", "tqr",
-    ],
-    "aggregation": ["gvecsr", "leiden", "streaming", "hybrid"],
-    "features": [
-        "merge", "hubx", "gord", "hsort", "rcm", "norefine",
-        "lazyupdate", "verify", "graphbrew",
-    ],
-    "resolution": ["auto", "dynamic", "<float 0.1-3.0>"],
+    # Layer 1: Ordering strategy (one-of) — vertex permutation method
+    "ordering": (
+        "hrab",          # Hybrid Leiden+Rabbit BFS (best general locality)
+        "dfs",           # DFS traversal of community dendrogram
+        "bfs",           # BFS traversal of community dendrogram
+        "conn",          # Connectivity BFS within communities (Boost-style)
+        "dbg",           # Degree-Based Grouping within communities
+        "corder",        # Hot/cold partitioning within communities
+        "dbg-global",    # DBG across all vertices (post-clustering)
+        "corder-global", # Corder across all vertices (post-clustering)
+        "community",     # Simple sort by final community + degree
+        "hubcluster",    # Hub-first within communities
+        "hierarchical",  # Multi-level sort by all passes (leiden.hxx style)
+        "hcache",        # Cache-aware hierarchical ordering
+        "tqr",           # Tile-quantized graph + RabbitOrder
+    ),
+    # Layer 2: Aggregation strategy (one-of) — super-graph construction
+    "aggregation": (
+        "gvecsr",        # GVE-style explicit super-graph (best quality)
+        "leiden",        # Standard Leiden CSR aggregation
+        "streaming",     # RabbitOrder-style lazy incremental merge (fast)
+        "hybrid",        # Lazy for early passes, CSR for final
+    ),
+    # Layer 3: Feature flags (additive, any combination)
+    "features": (
+        "merge",         # Merge small communities for cache locality
+        "hubx",          # Extract high-degree hubs before ordering
+        "gord",          # Gorder-inspired intra-community optimization
+        "hsort",         # Post-process: pack hubs by descending degree
+        "rcm",           # RCM on super-graph instead of dendrogram DFS
+        "norefine",      # Disable Leiden refinement step
+        "lazyupdate",    # Batch community weight updates
+        "verify",        # Verify topology after reordering
+        "graphbrew",     # Activate LAYER ordering (per-community dispatch)
+    ),
+    # Layer 4: GraphBrew recursive dispatch (when "graphbrew" feature active)
+    "graphbrew_dispatch": {
+        "final_algo":   "0-11 (algorithm ID for per-community reordering, default=8/RabbitOrder)",
+        "depth":        "0-10 (recursive sub-community depth, default=0/flat)",
+        "sub_algo":     "-1 or 0-11 (-1=adaptive per-sub-community, else fixed)",
+    },
+    # Layer 5: Numeric parameters
+    "numeric": {
+        "resolution": "auto | dynamic | <float 0.1-3.0>",
+        "max_iterations": "<int 1-100>",
+        "max_passes": "<int 1-50>",
+    },
+}
+
+# Backward-compatible alias
+GRAPHBREW_OPTIONS = {
+    "presets":              GRAPHBREW_LAYERS["preset"],
+    "ordering_strategies":  list(GRAPHBREW_LAYERS["ordering"]),
+    "aggregation":          list(GRAPHBREW_LAYERS["aggregation"]),
+    "features":             list(GRAPHBREW_LAYERS["features"]),
+    "resolution":           ["auto", "dynamic", "<float 0.1-3.0>"],
 }
 
 # ---- Derived helpers (computed from the registry above) ----
@@ -239,6 +333,62 @@ def resolve_canonical_name(display_name: str) -> str:
 def is_variant_prefixed(name: str) -> bool:
     """Check if a name uses a variant prefix (auto-pass in resolution)."""
     return any(name.startswith(p) for p in VARIANT_PREFIXES)
+
+
+def enumerate_graphbrew_multilayer() -> dict[str, Any]:
+    """Enumerate the full multi-layer configuration space for GraphBrewOrder.
+
+    Returns a dict with:
+        layers:         per-layer option counts
+        compound_variants: all preset × ordering compound names
+        feature_combos: number of additive feature flag combinations
+        total_configs:  approximate total unique configurations
+        active_trained: currently trained variant names (from SSOT)
+        untrained:      compound names not yet in training
+    """
+    presets = tuple(GRAPHBREW_LAYERS["preset"].keys())
+    orderings = GRAPHBREW_LAYERS["ordering"]
+    aggregations = GRAPHBREW_LAYERS["aggregation"]
+    features = GRAPHBREW_LAYERS["features"]
+
+    # All preset × ordering compound names
+    compounds: list[str] = []
+    for preset in presets:
+        compounds.append(f"GraphBrewOrder_{preset}")  # base preset
+        for ordering in orderings:
+            compounds.append(f"GraphBrewOrder_{preset}_{ordering}")
+
+    active = set(get_all_algorithm_variant_names())
+    active_gb = sorted(c for c in compounds if c in active)
+    untrained = sorted(c for c in compounds if c not in active)
+
+    feature_combos = 2 ** len(features)  # each feature on/off
+    # GraphBrew dispatch: 12 finalAlgos × 11 depths × 13 subAlgos
+    dispatch_combos = 12 * 11 * 13
+
+    total_configs = (
+        len(presets)
+        * len(orderings)
+        * len(aggregations)
+        * feature_combos
+        * dispatch_combos
+        # × continuous resolution (uncountable)
+    )
+
+    return {
+        "layers": {
+            "presets": len(presets),
+            "orderings": len(orderings),
+            "aggregations": len(aggregations),
+            "features": len(features),
+            "feature_combos": feature_combos,
+            "dispatch_combos": dispatch_combos,
+        },
+        "compound_variants": compounds,
+        "active_trained": active_gb,
+        "untrained": untrained,
+        "total_discrete_configs": total_configs,
+    }
 
 # Leiden default resolution mode for experiments
 # NOTE: LEIDEN_DEFAULT_RESOLUTION constant (= 1.0) defined above is for algorithm defaults
