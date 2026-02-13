@@ -36,7 +36,7 @@ python3 scripts/graphbrew_experiment.py --brute-force               # Validation
 
 Sizes: `small` (16 graphs, 62MB) · `medium` (28, 1.1GB) · `large` (37, 25GB) · `xlarge` (6, 63GB) · `all` (87, 89GB). Categories include mesh, web, social, road, citation, P2P, and synthetic graphs.
 
-Results saved to `./results/` (`reorder_*.json`, `benchmark_*.json`, `cache_*.json`) and weights to `./scripts/weights/active/` (`type_registry.json`, `type_N.json`).
+Results saved to `./results/` (`reorder_*.json`, `benchmark_*.json`, `cache_*.json`) and weights to `./results/weights/` (`registry.json`, `type_N/weights.json`).
 
 ---
 

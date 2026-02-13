@@ -11,7 +11,7 @@ A comprehensive one-click script that runs the complete GraphBrew experiment wor
 3. Phase 1: Generate reorderings with label-mapping for consistency
 4. Phase 2: Run execution benchmarks on all graphs
 5. Phase 3: Run cache simulations (optional, skip with --skip-cache)
-6. Phase 4: Generate type-based perceptron weights (scripts/weights/active/type_*.json)
+6. Phase 4: Generate type-based perceptron weights (results/weights/type_*/weights.json)
 
 **Validation & Analysis:**
 7. Phase 6: Adaptive order analysis (--adaptive-analysis)
@@ -51,7 +51,7 @@ A comprehensive one-click script that runs the complete GraphBrew experiment wor
       - Dynamic: dynamic (adjust per-pass)
 
 All outputs are saved to the results/ directory for clean organization.
-Type-based weights are saved to scripts/weights/active/type_*.json.
+Type-based weights are saved to results/weights/type_*/weights.json.
 
 Usage:
     python scripts/graphbrew_experiment.py --help
@@ -442,7 +442,7 @@ DEFAULT_RESULTS_DIR = "./results"
 DEFAULT_GRAPHS_DIR = "./results/graphs"
 DEFAULT_BIN_DIR = "./bench/bin"
 DEFAULT_BIN_SIM_DIR = "./bench/bin_sim"
-DEFAULT_WEIGHTS_DIR = "./scripts/weights/active"  # Active weights (C++ reads from here)
+DEFAULT_WEIGHTS_DIR = "./results/weights"  # Active weights (C++ reads from here)
 DEFAULT_MAPPINGS_DIR = "./results/mappings"
 
 # Auto-clustering configuration
@@ -584,7 +584,7 @@ def log_section(title: str):
     """Print a section header."""
     _progress.phase_start(title)
 
-# NOTE: Legacy backup_and_sync_weights removed - now using type-based weights in scripts/weights/
+# NOTE: Legacy backup_and_sync_weights removed - now using type-based weights in results/weights/
 
 def get_graph_path(graphs_dir: str, graph_name: str) -> Optional[str]:
     """Get the path to a graph file."""
@@ -2909,7 +2909,7 @@ def run_experiment(args):
                 merge_summary = auto_merge_after_run()
                 if "error" not in merge_summary:
                     log(f"  Merged {merge_summary.get('runs_merged', 0)} runs -> {merge_summary.get('total_types', 0)} types")
-                    log(f"  Merged weights saved to: {merge_summary.get('output_dir', 'scripts/weights/merged/')}")
+                    log(f"  Merged weights saved to: {merge_summary.get('output_dir', 'results/weights/merged/')}")
             except ImportError:
                 pass  # weight_merger not available
             except Exception as e:
@@ -3196,9 +3196,9 @@ def main():
     parser.add_argument("--use-merged", action="store_true",
                         help="Use merged weights (default after merge)")
     
-    # Legacy weights file (DEPRECATED - weights now saved to scripts/weights/active/type_0/weights.json)
+    # Legacy weights file (DEPRECATED - weights now saved to results/weights/type_0/weights.json)
     parser.add_argument("--weights-file", default=None,
-                        help="(DEPRECATED) Legacy flat file. Weights are now saved to scripts/weights/active/type_0/weights.json for C++ to use.")
+                        help="(DEPRECATED) Legacy flat file. Weights are now saved to results/weights/type_0/weights.json for C++ to use.")
     
     # Clean options
     parser.add_argument("--clean", action="store_true",

@@ -380,13 +380,13 @@ make all
 
 ```bash
 # Validate JSON
-python3 -c "import json; json.load(open('scripts/weights/active/type_0.json'))"
+python3 -c "import json; json.load(open('results/weights/type_0/weights.json'))"
 
 # Pretty-print to find error
-python3 -m json.tool scripts/weights/active/type_0.json
+python3 -m json.tool results/weights/type_0/weights.json
 
 # Check all type weight files
-for f in scripts/weights/active/type_*.json; do
+for f in results/weights/type_*/weights.json; do
     echo "Checking $f..."
     python3 -c "import json; json.load(open('$f'))" && echo "OK" || echo "FAILED"
 done
@@ -401,7 +401,7 @@ Graph type is selected via Euclidean distance to cluster centroids. If selection
 cat results/graph_properties_cache.json | python3 -m json.tool | grep -A 10 "your_graph_name"
 
 # Check type registry centroids
-cat scripts/weights/active/type_registry.json | python3 -m json.tool
+cat results/weights/registry.json | python3 -m json.tool
 
 # Re-run Phase 0 to recompute properties
 python3 scripts/graphbrew_experiment.py --train --size small

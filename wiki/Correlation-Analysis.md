@@ -210,7 +210,7 @@ Computing correlations...
 ----------------------------------------------------------------------
 Computing Perceptron Weights
 ----------------------------------------------------------------------
-Perceptron weights saved to: scripts/weights/active/type_0.json
+Perceptron weights saved to: results/weights/type_0/weights.json
   16 algorithms configured
   Updated from benchmarks: ORIGINAL, HUBCLUSTERDBG, GraphBrewOrder, ...
 
@@ -223,8 +223,8 @@ Summary:
 
 ### Generated Files
 
-1. **scripts/weights/active/type_N.json** - Weights for C++ runtime (per cluster)
-2. **scripts/weights/active/type_registry.json** - Graph → type mappings + centroids
+1. **results/weights/type_N/weights.json** - Weights for C++ runtime (per cluster)
+2. **results/weights/registry.json** - Graph → type mappings + centroids
 3. **correlation_matrix.csv** - Raw correlation data
 4. **benchmark_results.json** - Full benchmark results
 
@@ -308,7 +308,7 @@ After running the full pipeline, results are in JSON format:
 cat results/benchmark_*.json | python3 -m json.tool
 
 # View generated weights
-cat scripts/weights/active/type_0.json | python3 -m json.tool
+cat results/weights/type_0/weights.json | python3 -m json.tool
 ```
 
 ### Correlation Matrix
@@ -334,9 +334,9 @@ Re-run analysis when: adding new graphs, adding algorithms, changing target benc
 python3 scripts/graphbrew_experiment.py --train --size medium --auto
 ```
 
-After training, the system automatically clusters graphs and generates per-cluster weights in `scripts/weights/active/`. See [[Perceptron-Weights]] for weight file format and [[Python-Scripts]] for weight management.
+After training, the system automatically clusters graphs and generates per-cluster weights in `results/weights/`. See [[Perceptron-Weights]] for weight file format and [[Python-Scripts]] for weight management.
 
-To reset: `rm -rf scripts/weights/active/type_*.json scripts/weights/active/type_registry.json`
+To reset: `rm -rf results/weights/type_*/weights.json results/weights/registry.json`
 
 ---
 

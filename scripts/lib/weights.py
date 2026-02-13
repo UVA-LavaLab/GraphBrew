@@ -1689,12 +1689,12 @@ def save_weights_to_active_type(
     Save weights to active type-based weights directory for C++ to use.
     
     This creates/updates:
-    - scripts/weights/active/type_N/weights.json - Algorithm weights
-    - scripts/weights/active/registry.json - Type registry
+    - results/weights/type_N/weights.json - Algorithm weights
+    - results/weights/registry.json - Type registry
     
     Args:
         weights: Dictionary of algorithm weights
-        weights_dir: Directory to save (default: scripts/weights/active/)
+        weights_dir: Directory to save (default: results/weights/)
         type_name: Type name (default: type_0)
         graphs: Optional list of graph names that contributed to these weights
         

@@ -26,8 +26,8 @@
 | `new_ids` | Caller (builder.h) | `pvector<NodeID_>` sized `num_nodes`, output buffer |
 | `useOutdeg` | CLI flag | Whether to use out-degree or in-degree for ordering |
 | `reordering_options` | CLI `-o 14:tok0:tok1:tok2:tok3:tok4` | Up to 5 tokens: `[max_depth, resolution, min_recurse_size, selection_mode, graph_name]` |
-| Weight files | `scripts/weights/active/type_X.json` | Pre-trained perceptron weights per graph type |
-| Type registry | `scripts/weights/active/type_registry.json` | 11 type centroids for graph matching |
+| Weight files | `results/weights/type_X/weights.json` | Pre-trained perceptron weights per graph type |
+| Type registry | `results/weights/registry.json` | 11 type centroids for graph matching |
 
 ### Outputs
 
@@ -223,9 +223,9 @@ struct SampledDegreeFeatures {
 
 | What | Where | Format | When written | When read |
 |------|-------|--------|-------------|-----------|
-| Type centroids | `scripts/weights/active/type_registry.json` | JSON: `{type_0: {centroid: [7 floats], graphs: [...]}, ...}` | Training via `graphbrew_experiment.py --train` | C++ at runtime (`FindBestTypeWithDistance`) |
-| Per-type weights | `scripts/weights/active/type_X.json` | JSON: `{algo_id: {bias, w_modularity, ...}, ...}` | Training | C++ at runtime (`LoadPerceptronWeightsForFeatures`) |
-| Graph features cache | `scripts/weights/active/graph_properties_cache.json` | JSON: per-graph cached features | Feature computation | Python training code |
+| Type centroids | `results/weights/registry.json` | JSON: `{type_0: {centroid: [7 floats], graphs: [...]}, ...}` | Training via `graphbrew_experiment.py --train` | C++ at runtime (`FindBestTypeWithDistance`) |
+| Per-type weights | `results/weights/type_X/weights.json` | JSON: `{algo_id: {bias, w_modularity, ...}, ...}` | Training | C++ at runtime (`LoadPerceptronWeightsForFeatures`) |
+| Graph features cache | `results/weights/graph_properties_cache.json` | JSON: per-graph cached features | Feature computation | Python training code |
 | Label maps | `results/mappings/{graph}/AdaptiveOrder.lo` | Binary permutation file | Reorder phase | Benchmark phase (via `-o 13:path.lo`) |
 | Reorder timing | `results/mappings/{graph}/AdaptiveOrder.time` | Text: seconds | Reorder phase | Analysis scripts |
 

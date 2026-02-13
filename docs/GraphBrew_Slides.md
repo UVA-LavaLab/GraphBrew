@@ -469,7 +469,7 @@ Graph Dataset
 [Weight Update] --> Update type_3.json weights
      |
      v
-[Save Weights] --> scripts/weights/active/type_3.json
+[Save Weights] --> results/weights/type_3/weights.json
 
 
 INFERENCE PHASE (C++ - builder.h AdaptiveOrder)
@@ -641,10 +641,10 @@ w_cache_dram_penalty += lr * error * dram_penalty
 
 The system uses auto-generated type files for specialized tuning:
 
-- `scripts/weights/active/type_0.json` (Cluster 0 weights)
-- `scripts/weights/active/type_1.json` (Cluster 1 weights)
-- `scripts/weights/active/type_N.json` (Additional clusters)
-- `scripts/weights/active/type_registry.json` (maps graph names → type + centroids)
+- `results/weights/type_0/weights.json` (Cluster 0 weights)
+- `results/weights/type_1/weights.json` (Cluster 1 weights)
+- `results/weights/type_N/weights.json` (Additional clusters)
+- `results/weights/registry.json` (maps graph names → type + centroids)
 
 ## Runtime Type Selection
 

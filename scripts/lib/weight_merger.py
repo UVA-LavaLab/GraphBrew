@@ -7,12 +7,11 @@ accounting for the fact that type IDs may differ between runs (type_0 in run A
 might correspond to type_1 in run B based on centroid similarity).
 
 Directory Structure:
-    scripts/weights/
-    ├── active/                     # C++ reads from here
-    │   ├── registry.json           # Graph-type cluster registry
-    │   ├── type_0/                 # Default graph-type cluster
-    │   │   ├── weights.json        # Generic perceptron weights
-    │   │   ├── pr.json             # Per-benchmark specialised weights
+    results/weights/
+    ├── registry.json               # Graph-type cluster registry
+    ├── type_0/                     # Default graph-type cluster
+    │   ├── weights.json            # Generic perceptron weights
+    │   ├── pr.json                 # Per-benchmark specialised weights
     │   │   └── bfs.json
     │   ├── type_1/
     │   │   └── weights.json
@@ -315,14 +314,14 @@ def save_type_weights(weights: Dict[str, Dict], type_path: Path):
 
 def get_weights_dir() -> Path:
     """Get the base weights directory path."""
-    # Try to find the scripts/weights directory
+    # Weights now live in results/weights/
     script_dir = Path(__file__).parent.parent
-    return script_dir / "weights"
+    return script_dir.parent / "results" / "weights"
 
 
 def get_active_dir() -> Path:
     """Get the active weights directory path (C++ reads from here)."""
-    return get_weights_dir() / "active"
+    return get_weights_dir()
 
 
 def get_runs_dir() -> Path:

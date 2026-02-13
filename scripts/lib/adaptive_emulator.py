@@ -57,7 +57,7 @@ class SelectionMode(Enum):
 
 SCRIPT_DIR = Path(__file__).parent.resolve()  # scripts/lib/
 PROJECT_ROOT = SCRIPT_DIR.parent.parent          # project root
-WEIGHTS_DIR = SCRIPT_DIR.parent / "weights" / "active"  # scripts/weights/active
+WEIGHTS_DIR = PROJECT_ROOT / "results" / "weights"  # results/weights
 RESULTS_DIR = PROJECT_ROOT / "results"
 GRAPHS_DIR = RESULTS_DIR / "graphs"
 

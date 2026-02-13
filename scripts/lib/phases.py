@@ -154,7 +154,7 @@ class PhaseConfig:
         bin_sim_dir: Path to cache simulation binaries (default: "bench/bin_sim")
         graphs_dir: Path to graph files (default: "results/graphs")
         results_dir: Where to save results (default: "results")
-        weights_dir: Where perceptron weights are stored (default: "scripts/weights/active")
+        weights_dir: Where perceptron weights are stored (default: "results/weights")
         
         timeout_reorder: Max seconds for reordering (default: 300)
         timeout_benchmark: Max seconds per benchmark (default: 120)
@@ -205,7 +205,7 @@ class PhaseConfig:
         bin_sim_dir: str = "bench/bin_sim",
         graphs_dir: str = "results/graphs",
         results_dir: str = "results",
-        weights_dir: str = "scripts/weights/active",
+        weights_dir: str = "results/weights",
         
         # ─────────────────────────────────────────────────────────────────────
         # Timeout settings (seconds)
@@ -299,7 +299,7 @@ class PhaseConfig:
             bin_sim_dir=getattr(args, 'bin_sim_dir', 'bench/bin_sim'),
             graphs_dir=getattr(args, 'graphs_dir', 'results/graphs'),
             results_dir=getattr(args, 'results_dir', 'results'),
-            weights_dir=getattr(args, 'weights_dir', 'scripts/weights/active'),
+            weights_dir=getattr(args, 'weights_dir', 'results/weights'),
             timeout_reorder=getattr(args, 'timeout_reorder', 300),
             timeout_benchmark=getattr(args, 'timeout_benchmark', 120),
             timeout_sim=getattr(args, 'timeout_sim', 600),

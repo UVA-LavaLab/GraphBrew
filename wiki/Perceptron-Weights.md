@@ -5,13 +5,14 @@ The perceptron weights control how AdaptiveOrder selects algorithms for each com
 ## Overview
 
 ```
-scripts/weights/
-├── active/               # C++ reads from here (working copy)
-│   ├── type_registry.json
-│   ├── type_0.json
-│   └── type_N.json
-├── merged/               # Accumulated from all runs
-└── runs/                 # Historical snapshots
+results/weights/
+├── registry.json           # Graph→type mapping + centroids
+├── graph_properties_cache.json
+├── type_0/
+│   └── weights.json
+├── type_N/
+│   └── weights.json
+└── ...
 ```
 
 Each JSON file contains weights for each algorithm. When AdaptiveOrder processes a community, it computes a score for each algorithm using these weights and selects the highest-scoring one.
@@ -26,7 +27,7 @@ See [[AdaptiveOrder-ML#perceptron-scoring-diagram]] for the full scoring diagram
 
 ## Weight File Location
 
-Weights live in `scripts/weights/active/` (see directory tree above). The auto-clustering type system groups graphs by 7 features (modularity, log_nodes, log_edges, avg_degree, degree_variance, hub_concentration, clustering_coefficient) and trains per-cluster weights.
+Weights live in `results/weights/` (see directory tree above). The auto-clustering type system groups graphs by 7 features (modularity, log_nodes, log_edges, avg_degree, degree_variance, hub_concentration, clustering_coefficient) and trains per-cluster weights.
 
 **Loading priority:** `PERCEPTRON_WEIGHTS_FILE` env var → best matching `type_N.json` → semantic fallback → hardcoded defaults.
 
@@ -300,8 +301,8 @@ python3 scripts/graphbrew_experiment.py --full --size small
 python3 scripts/graphbrew_experiment.py --phase weights
 
 # Manual edit + validate
-nano scripts/weights/active/type_0.json
-python3 -c "import json; json.load(open('scripts/weights/active/type_0.json'))"
+nano results/weights/type_0/weights.json
+python3 -c "import json; json.load(open('results/weights/type_0/weights.json'))"
 ```
 
 ---
@@ -398,11 +399,11 @@ print(f"LOGO: {result['accuracy']:.1%}, Overfit: {result['overfitting_score']:.2
 
 | Problem | Fix |
 |---------|-----|
-| Algorithm X never selected | Check bias: `grep -A1 '"AlgoX"' scripts/weights/active/type_0.json` — increase bias or feature weights |
+| Algorithm X never selected | Check bias: `grep -A1 '"AlgoX"' results/weights/type_0/weights.json` — increase bias or feature weights |
 | Wrong algorithm selected | Run with `-v` to see scores, manually verify feature × weight products |
-| Weights not loading | Check `ls scripts/weights/active/type_*.json` and `echo $PERCEPTRON_WEIGHTS_FILE` |
+| Weights not loading | Check `ls results/weights/type_*/weights.json` and `echo $PERCEPTRON_WEIGHTS_FILE` |
 
-**Best practices:** Start with moderate biases (0.5–0.7), validate empirically after tuning, keep backups (`cp -r scripts/weights/ scripts/weights.backup/`).
+**Best practices:** Start with moderate biases (0.5–0.7), validate empirically after tuning, keep backups (`cp -r results/weights/ results/weights.backup/`).
 
 ---
 
