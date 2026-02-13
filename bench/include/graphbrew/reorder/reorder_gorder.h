@@ -2,21 +2,25 @@
 // GraphBrew — GOrder CSR-Native: Cache-Optimized Graph Ordering
 // ============================================================================
 //
-// CSR-native variant for GOrder (-o 9:csr).  Faithful reimplementation of
-// the GOrder greedy algorithm that operates directly on the CSR graph
-// without intermediate adjacency format conversion.
+// CSR-native variant for GOrder (-o 9:csr / -o 9:sym).  Faithful
+// reimplementation of the GOrder greedy algorithm that operates directly
+// on the CSR graph without intermediate adjacency format conversion.
 //
 // The original GOrder (Wei et al., SIGMOD 2016) maximizes a locality
 // score S(v) for each candidate vertex v, measuring how many of v's
 // neighbors (via 2-hop out→in paths) are already in a sliding window
 // of the last W placed vertices.
 //
+// Two modes:
+//   -o 9:csr  (default) — directed CSR, no symmetrization overhead
+//   -o 9:sym            — symmetric CSR, matches GoGraph behavior
+//
 // Key improvements over the baseline GoGraph GOrder (Algorithm 9):
 //
 //   1. CSR-native — zero conversion overhead (speed ↑, memory ↓)
-//   2. Parallel BFS-RCM pre-ordering (speed ↑)
+//   2. BFS-RCM pre-ordering directly on CSR graph
 //   3. Parallel CSR construction for reordered graph (speed ↑)
-//   4. Direct CSR adjacency access — better cache behavior for lookups
+//   4. Directed CSR uses native out/in edges (no symmetrization)
 //   5. Sorted adjacency arrays enabling binary_search for popvexist
 //
 // Algorithm outline (same mathematical formulation as original):
@@ -271,20 +275,31 @@ public:
 };
 
 // --------------------------------------------------------------------------
-// Parallel BFS-RCM pre-ordering on symmetric adjacency
+// BFS-RCM pre-ordering directly on CSR graph
 // --------------------------------------------------------------------------
-// Operates on the pre-built symmetric adjacency list (vector<vector<int>>).
+// Operates directly on the CSR graph using both out and in neighbors
+// (when available) for undirected BFS traversal.
 // Returns perm[old] = new, inv_perm[new] = old.
 // --------------------------------------------------------------------------
-inline void bfs_rcm_symmetric(int n,
-                              const std::vector<std::vector<int>>& adj,
-                              std::vector<int>& perm,
-                              std::vector<int>& inv_perm) {
-    // Sort vertices by symmetric degree ascending (seed order)
+template <typename NodeID_, typename DestID_, bool invert>
+void bfs_rcm_csr(const CSRGraph<NodeID_, DestID_, invert>& g,
+                 int n,
+                 std::vector<int>& perm,
+                 std::vector<int>& inv_perm) {
+    // Total degree: out + in when inverted edges available
+    auto total_degree = [&](int v) -> int64_t {
+        int64_t d = g.out_degree(v);
+        if constexpr (invert) d += g.in_degree(v);
+        return d;
+    };
+
+    // Sort vertices by total degree ascending (seed order)
     std::vector<int> deg_sorted(n);
     std::iota(deg_sorted.begin(), deg_sorted.end(), 0);
     std::sort(deg_sorted.begin(), deg_sorted.end(), [&](int a, int b) {
-        return adj[a].size() < adj[b].size();
+        int64_t da = total_degree(a), db = total_degree(b);
+        if (da != db) return da < db;
+        return a < b;  // deterministic tie-breaking
     });
 
     // BFS from each unvisited vertex (in degree order)
@@ -292,6 +307,7 @@ inline void bfs_rcm_symmetric(int n,
     std::vector<int> order;
     order.reserve(n);
     std::queue<int> que;
+    std::vector<int> nbrs;
 
     for (int k = 0; k < n; ++k) {
         int start = deg_sorted[k];
@@ -305,11 +321,23 @@ inline void bfs_rcm_symmetric(int n,
             int now = que.front();
             que.pop();
 
-            // Sort neighbors by degree ascending (CM ordering)
-            // Use a local copy to avoid modifying adj
-            std::vector<int> nbrs(adj[now].begin(), adj[now].end());
+            // Collect neighbors (both directions for undirected BFS)
+            nbrs.clear();
+            for (DestID_ dest : g.out_neigh(now))
+                nbrs.push_back(static_cast<int>(nbr_id<NodeID_>(dest)));
+            if constexpr (invert) {
+                for (DestID_ dest : g.in_neigh(now))
+                    nbrs.push_back(static_cast<int>(nbr_id<NodeID_>(dest)));
+                // Deduplicate (out and in may overlap)
+                std::sort(nbrs.begin(), nbrs.end());
+                nbrs.erase(std::unique(nbrs.begin(), nbrs.end()), nbrs.end());
+            }
+
+            // Sort by degree ascending (CM ordering), deterministic tie-break
             std::sort(nbrs.begin(), nbrs.end(), [&](int a, int b) {
-                return adj[a].size() < adj[b].size();
+                int64_t da = total_degree(a), db = total_degree(b);
+                if (da != db) return da < db;
+                return a < b;
             });
 
             for (int v : nbrs) {
@@ -333,172 +361,223 @@ inline void bfs_rcm_symmetric(int n,
 }
 
 // --------------------------------------------------------------------------
-// Build symmetric adjacency list from directed CSR graph
+// Build directed CSR in reordered space (default, -o 9:csr)
 // --------------------------------------------------------------------------
-// For each directed edge u→v, adds both (u,v) and (v,u).
-// Returns sorted, deduplicated adjacency per vertex.
+// Builds separate out-edge and in-edge flat CSR arrays using the
+// permutation from BFS-RCM.  Uses native directed edges -- no
+// symmetrization overhead.
 // --------------------------------------------------------------------------
 template <typename NodeID_, typename DestID_, bool invert>
-void build_symmetric_adj(const CSRGraph<NodeID_, DestID_, invert>& g,
-                         int n,
-                         std::vector<std::vector<int>>& adj) {
-    adj.resize(n);
+void build_directed_csr(const CSRGraph<NodeID_, DestID_, invert>& g,
+                        int n,
+                        const std::vector<int>& perm,
+                        std::vector<int>& out_offset,
+                        std::vector<int>& out_edges,
+                        std::vector<int>& in_offset,
+                        std::vector<int>& in_edges) {
+    // --- Out-edges ---
+    out_offset.assign(n + 1, 0);
+    for (int u = 0; u < n; ++u)
+        out_offset[perm[u] + 1] = static_cast<int>(g.out_degree(u));
+    for (int i = 0; i < n; ++i)
+        out_offset[i + 1] += out_offset[i];
 
-    // Collect edges from CSR
+    out_edges.resize(out_offset[n]);
+
+    #pragma omp parallel for schedule(dynamic, 64)
     for (int u = 0; u < n; ++u) {
+        int u_new = perm[u];
+        int pos = out_offset[u_new];
+        for (DestID_ dest : g.out_neigh(u))
+            out_edges[pos++] = perm[static_cast<int>(nbr_id<NodeID_>(dest))];
+        std::sort(out_edges.data() + out_offset[u_new],
+                  out_edges.data() + out_offset[u_new + 1]);
+    }
+
+    // --- In-edges ---
+    if constexpr (invert) {
+        // Graph has inverse edges -- fill directly (parallel)
+        in_offset.assign(n + 1, 0);
+        for (int v = 0; v < n; ++v)
+            in_offset[perm[v] + 1] = static_cast<int>(g.in_degree(v));
+        for (int i = 0; i < n; ++i)
+            in_offset[i + 1] += in_offset[i];
+
+        in_edges.resize(in_offset[n]);
+
+        #pragma omp parallel for schedule(dynamic, 64)
+        for (int v = 0; v < n; ++v) {
+            int v_new = perm[v];
+            int pos = in_offset[v_new];
+            for (DestID_ dest : g.in_neigh(v))
+                in_edges[pos++] = perm[static_cast<int>(nbr_id<NodeID_>(dest))];
+            std::sort(in_edges.data() + in_offset[v_new],
+                      in_edges.data() + in_offset[v_new + 1]);
+        }
+    } else {
+        // No inverse edges -- derive in-edges from out-edges
+        in_offset.assign(n + 1, 0);
+        for (int u = 0; u < n; ++u)
+            for (DestID_ dest : g.out_neigh(u))
+                in_offset[perm[static_cast<int>(nbr_id<NodeID_>(dest))] + 1]++;
+        for (int i = 0; i < n; ++i)
+            in_offset[i + 1] += in_offset[i];
+
+        in_edges.resize(in_offset[n]);
+        std::vector<int> in_pos(n);
+        for (int i = 0; i < n; ++i) in_pos[i] = in_offset[i];
+
+        for (int u = 0; u < n; ++u) {
+            int u_new = perm[u];
+            for (DestID_ dest : g.out_neigh(u)) {
+                int v_new = perm[static_cast<int>(nbr_id<NodeID_>(dest))];
+                in_edges[in_pos[v_new]++] = u_new;
+            }
+        }
+
+        #pragma omp parallel for schedule(dynamic, 64)
+        for (int v = 0; v < n; ++v)
+            std::sort(in_edges.data() + in_offset[v],
+                      in_edges.data() + in_offset[v + 1]);
+    }
+}
+
+// --------------------------------------------------------------------------
+// Build symmetric CSR in reordered space (for -o 9:sym)
+// --------------------------------------------------------------------------
+// For each directed edge u->v, adds both (u_new,v_new) and (v_new,u_new).
+// Result is sorted and deduplicated per vertex.
+// --------------------------------------------------------------------------
+template <typename NodeID_, typename DestID_, bool invert>
+void build_symmetric_csr(const CSRGraph<NodeID_, DestID_, invert>& g,
+                         int n,
+                         const std::vector<int>& perm,
+                         std::vector<int>& sym_offset,
+                         std::vector<int>& sym_edges) {
+    // Build adjacency lists in reordered space
+    std::vector<std::vector<int>> adj(n);
+    for (int u = 0; u < n; ++u) {
+        int u_new = perm[u];
         for (DestID_ dest : g.out_neigh(u)) {
             int v = static_cast<int>(nbr_id<NodeID_>(dest));
-            if (u != v) {  // skip self-loops
-                adj[u].push_back(v);
-                adj[v].push_back(u);
+            if (u != v) {
+                int v_new = perm[v];
+                adj[u_new].push_back(v_new);
+                adj[v_new].push_back(u_new);
             }
         }
     }
 
-    // Sort and deduplicate each list (parallel)
+    // Sort and deduplicate (parallel)
     #pragma omp parallel for schedule(dynamic, 64)
     for (int v = 0; v < n; ++v) {
         std::sort(adj[v].begin(), adj[v].end());
         adj[v].erase(std::unique(adj[v].begin(), adj[v].end()), adj[v].end());
     }
-}
 
-// --------------------------------------------------------------------------
-// Flatten symmetric adjacency to CSR in reordered space
-// --------------------------------------------------------------------------
-// Takes the symmetric adjacency list and a permutation, and produces
-// a flat CSR (offset + edges) where vertex IDs are in the new order.
-// --------------------------------------------------------------------------
-inline void flatten_symmetric_to_csr(
-        int n,
-        const std::vector<std::vector<int>>& adj,
-        const std::vector<int>& perm,   // perm[old] = new
-        std::vector<int>& sym_offset,
-        std::vector<int>& sym_edges) {
-    // Count degrees in new order
+    // Flatten to CSR
     sym_offset.resize(n + 1, 0);
-    for (int u = 0; u < n; ++u) {
-        sym_offset[perm[u] + 1] = static_cast<int>(adj[u].size());
-    }
+    for (int v = 0; v < n; ++v)
+        sym_offset[v + 1] = sym_offset[v] + static_cast<int>(adj[v].size());
 
-    // Prefix sum
-    for (int i = 0; i < n; ++i) {
-        sym_offset[i + 1] += sym_offset[i];
-    }
+    sym_edges.resize(sym_offset[n]);
 
-    int total = sym_offset[n];
-    sym_edges.resize(total);
-
-    // Fill edges in new order (parallel)
     #pragma omp parallel for schedule(dynamic, 64)
-    for (int u = 0; u < n; ++u) {
-        int u_new = perm[u];
-        int pos = sym_offset[u_new];
-        for (int v : adj[u]) {
-            sym_edges[pos++] = perm[v];
-        }
-        // Sort for binary_search in greedy
-        std::sort(sym_edges.data() + sym_offset[u_new],
-                  sym_edges.data() + sym_offset[u_new + 1]);
-    }
+    for (int v = 0; v < n; ++v)
+        std::copy(adj[v].begin(), adj[v].end(),
+                  sym_edges.data() + sym_offset[v]);
 }
 
 // --------------------------------------------------------------------------
-// GOrder Greedy — Core algorithm (operates on symmetric CSR)
+// GOrder Greedy -- Core algorithm (operates on directed or symmetric CSR)
 // --------------------------------------------------------------------------
-// Greedy placement using a single symmetric adjacency (matching the
-// original GOrder which operates on undirected graphs).
+// Takes separate out-edge and in-edge CSR arrays.  For symmetric mode,
+// both out and in parameters reference the same arrays.
 //
 // For each placed vertex v, score updates go to:
-//   1-hop: each neighbor w of v
-//   2-hop: for each neighbor u of v, each neighbor w of u
+//   Out-neighbors of v: 1-hop direct contribution
+//   In-neighbors of v: each in-neighbor u gets +1, then each
+//     out-neighbor w of u gets +1 (2-hop path: v <- u -> w)
 //
-// Parameters:
-//   n: number of vertices
-//   window: sliding window size (default 5)
-//   adj_offset, adj_edges: symmetric CSR adjacency (sorted, deduped)
-//   result_order: output — result_order[reordered_id] = final_position
+// Hub vertices (outdeg > sqrt(n)) are skipped in 2-hop expansion.
 // --------------------------------------------------------------------------
 inline void gorder_greedy(
         int n,
         int window,
-        const std::vector<int>& adj_offset,
-        const std::vector<int>& adj_edges,
+        const std::vector<int>& out_offset,
+        const std::vector<int>& out_edges,
+        const std::vector<int>& in_offset,
+        const std::vector<int>& in_edges,
         std::vector<int>& result_order) {
 
     const int hugevertex = static_cast<int>(std::sqrt(static_cast<double>(n)));
 
-    // Degree helper
-    auto deg = [&](int v) -> int {
-        return adj_offset[v + 1] - adj_offset[v];
-    };
+    auto outdeg = [&](int v) -> int { return out_offset[v+1] - out_offset[v]; };
+    auto indeg  = [&](int v) -> int { return in_offset[v+1] - in_offset[v]; };
 
-    // Initialize UnitHeap with degree as initial key
+    // Initialize UnitHeap with indegree as initial key
     UnitHeap heap(n);
     for (int i = 0; i < n; ++i) {
-        int d = deg(i);
-        heap.list[i].key = d;
-        heap.update[i] = -d;
+        int id = indeg(i);
+        heap.list[i].key = id;
+        heap.update[i] = -id;
     }
     heap.ReConstruct();
 
-    // Collect zero-degree (isolated) vertices and find max-degree vertex
+    // Collect zero-degree vertices and find max-indegree vertex
     std::vector<int> zero;
     zero.reserve(std::min(n, 10000));
 
-    int max_deg_vertex = 0;
-    int max_deg = -1;
+    int max_indeg_vertex = 0;
+    int max_id = -1;
     for (int i = 0; i < n; ++i) {
-        int d = deg(i);
-        if (d > max_deg) {
-            max_deg = d;
-            max_deg_vertex = i;
-        } else if (d == 0) {
+        int id = indeg(i);
+        int od = outdeg(i);
+        if (id > max_id) {
+            max_id = id;
+            max_indeg_vertex = i;
+        } else if (id + od == 0) {
             heap.update[i] = INT_MAX / 2;
             zero.push_back(i);
             heap.DeleteElement(i);
         }
     }
 
-    // Helper: increment score for vertex w
     auto score_inc = [&](int w) {
         if (heap.update[w] == 0) heap.IncrementKey(w);
         else                     heap.update[w]++;
     };
-
-    // Helper: decrement score for vertex w
     auto score_dec = [&](int w) {
         heap.update[w]--;
     };
 
-    // Start with the highest-degree vertex
+    // Start with max-indegree vertex
     std::vector<int> order;
     order.reserve(n);
-    order.push_back(max_deg_vertex);
-    heap.update[max_deg_vertex] = INT_MAX / 2;
-    heap.DeleteElement(max_deg_vertex);
+    order.push_back(max_indeg_vertex);
+    heap.update[max_indeg_vertex] = INT_MAX / 2;
+    heap.DeleteElement(max_indeg_vertex);
 
-    // --- Initial push: score update for the first placed vertex ---
+    // --- Initial push: score update for first placed vertex ---
     {
-        int v0 = max_deg_vertex;
+        int v0 = max_indeg_vertex;
 
-        // Neighbors of v0 (1-hop contribution via "in-edge" path)
-        for (int i = adj_offset[v0]; i < adj_offset[v0 + 1]; ++i) {
-            int u = adj_edges[i];
-            if (deg(u) <= hugevertex) {
+        // In-neighbors of v0 (u -> v0)
+        for (int i = in_offset[v0]; i < in_offset[v0 + 1]; ++i) {
+            int u = in_edges[i];
+            if (outdeg(u) <= hugevertex) {
                 score_inc(u);
-                // 2-hop: for each neighbor w of u
-                if (deg(u) > 1) {
-                    for (int j = adj_offset[u]; j < adj_offset[u + 1]; ++j)
-                        score_inc(adj_edges[j]);
+                if (outdeg(u) > 1) {
+                    for (int j = out_offset[u]; j < out_offset[u + 1]; ++j)
+                        score_inc(out_edges[j]);
                 }
             }
         }
 
-        // Out-neighbors of v0 (1-hop direct contribution)
-        if (deg(v0) <= hugevertex) {
-            for (int i = adj_offset[v0]; i < adj_offset[v0 + 1]; ++i)
-                score_inc(adj_edges[i]);
+        // Out-neighbors of v0 (v0 -> w)
+        if (outdeg(v0) <= hugevertex) {
+            for (int i = out_offset[v0]; i < out_offset[v0 + 1]; ++i)
+                score_inc(out_edges[i]);
         }
     }
 
@@ -516,25 +595,24 @@ inline void gorder_greedy(
         int popv = (count - window >= 0) ? order[count - window] : -1;
 
         if (popv >= 0) {
-            // Decrement scores for popv's neighbors (1-hop out-contribution)
-            if (deg(popv) <= hugevertex) {
-                for (int i = adj_offset[popv]; i < adj_offset[popv + 1]; ++i)
-                    score_dec(adj_edges[i]);
+            // Decrement for out-neighbors of popv (1-hop)
+            if (outdeg(popv) <= hugevertex) {
+                for (int i = out_offset[popv]; i < out_offset[popv + 1]; ++i)
+                    score_dec(out_edges[i]);
             }
 
-            // Decrement scores for popv's neighbors and their 2-hop targets
-            for (int i = adj_offset[popv]; i < adj_offset[popv + 1]; ++i) {
-                int u = adj_edges[i];
-                if (deg(u) <= hugevertex) {
+            // In-neighbors of popv: decrement + 2-hop via out-edges
+            for (int i = in_offset[popv]; i < in_offset[popv + 1]; ++i) {
+                int u = in_edges[i];
+                if (outdeg(u) <= hugevertex) {
                     score_dec(u);
-                    if (deg(u) > 1) {
-                        // If u also has v as neighbor, pop & push cancel
+                    if (outdeg(u) > 1) {
                         bool found = std::binary_search(
-                            adj_edges.data() + adj_offset[u],
-                            adj_edges.data() + adj_offset[u + 1], v);
+                            out_edges.data() + out_offset[u],
+                            out_edges.data() + out_offset[u + 1], v);
                         if (!found) {
-                            for (int j = adj_offset[u]; j < adj_offset[u + 1]; ++j)
-                                score_dec(adj_edges[j]);
+                            for (int j = out_offset[u]; j < out_offset[u + 1]; ++j)
+                                score_dec(out_edges[j]);
                         } else {
                             popvexist[u] = true;
                         }
@@ -544,21 +622,21 @@ inline void gorder_greedy(
         }
 
         // --- Push phase: add current vertex v to window ---
-        // 1-hop: direct neighbors of v
-        if (deg(v) <= hugevertex) {
-            for (int i = adj_offset[v]; i < adj_offset[v + 1]; ++i)
-                score_inc(adj_edges[i]);
+        // Out-neighbors of v (1-hop)
+        if (outdeg(v) <= hugevertex) {
+            for (int i = out_offset[v]; i < out_offset[v + 1]; ++i)
+                score_inc(out_edges[i]);
         }
 
-        // 2-hop: for each neighbor u of v, all neighbors of u
-        for (int i = adj_offset[v]; i < adj_offset[v + 1]; ++i) {
-            int u = adj_edges[i];
-            if (deg(u) <= hugevertex) {
+        // In-neighbors of v: 2-hop via out-edges
+        for (int i = in_offset[v]; i < in_offset[v + 1]; ++i) {
+            int u = in_edges[i];
+            if (outdeg(u) <= hugevertex) {
                 score_inc(u);
                 if (!popvexist[u]) {
-                    if (deg(u) > 1) {
-                        for (int j = adj_offset[u]; j < adj_offset[u + 1]; ++j)
-                            score_inc(adj_edges[j]);
+                    if (outdeg(u) > 1) {
+                        for (int j = out_offset[u]; j < out_offset[u + 1]; ++j)
+                            score_inc(out_edges[j]);
                     }
                 } else {
                     popvexist[u] = false;
@@ -572,7 +650,6 @@ inline void gorder_greedy(
         order.insert(order.end() - 1, zero.begin(), zero.end());
     }
 
-    // Build result: result_order[reordered_id] = final_position
     result_order.resize(n);
     for (int i = 0; i < n; ++i) {
         result_order[order[i]] = i;
@@ -582,29 +659,18 @@ inline void gorder_greedy(
 } // namespace gorder_csr_detail
 
 // ============================================================================
-// Public API — GenerateGOrderCSRMapping (GOrder CSR variant, -o 9:csr)
+// Public API -- GenerateGOrderCSRMapping
+// ============================================================================
+// GOrder CSR variant with two modes:
+//   -o 9:csr  (default) -- directed CSR, no symmetrization overhead
+//   -o 9:sym            -- symmetric CSR, matches GoGraph behavior
 // ============================================================================
 
-/**
- * @brief CSR-native GOrder with parallel score updates.
- *
- * Improved GOrder variant (-o 9:csr) that operates directly on the CSR
- * graph without intermediate adjacency conversion. Uses OpenMP-parallel
- * score updates for the expensive 2-hop neighbor scoring.
- *
- * @tparam NodeID_ Node ID type
- * @tparam DestID_ Destination ID type
- * @tparam WeightT_ Edge weight type (unused, kept for API compatibility)
- * @tparam invert  Whether graph has inverse edges
- * @param g        Input graph (CSR format)
- * @param new_ids  Output permutation: new_ids[old_id] = new_id
- * @param filename Graph filename (unused, kept for API compatibility)
- * @param window   Sliding window size (default 7, matching GoGraph)
- */
 template <typename NodeID_, typename DestID_, typename WeightT_, bool invert>
 void GenerateGOrderCSRMapping(const CSRGraph<NodeID_, DestID_, invert>& g,
                               pvector<NodeID_>& new_ids,
                               const std::string& /*filename*/,
+                              bool symmetric = false,
                               int window = 7) {
     Timer tm;
     const int n = static_cast<int>(g.num_nodes());
@@ -614,40 +680,48 @@ void GenerateGOrderCSRMapping(const CSRGraph<NodeID_, DestID_, invert>& g,
     if (static_cast<int64_t>(new_ids.size()) < n)
         new_ids.resize(n);
 
-    // --- Step 1: Build symmetric adjacency list ---
-    tm.Start();
-    std::vector<std::vector<int>> adj;
-    gorder_csr_detail::build_symmetric_adj(g, n, adj);
-    tm.Stop();
-    PrintTime("GOrder_CSR symmetrize", tm.Seconds());
-
-    // --- Step 2: BFS-RCM pre-ordering on symmetric graph ---
+    // --- Step 1: BFS-RCM pre-ordering directly on CSR graph ---
     tm.Start();
     std::vector<int> perm(n), inv_perm(n);
-    gorder_csr_detail::bfs_rcm_symmetric(n, adj, perm, inv_perm);
+    gorder_csr_detail::bfs_rcm_csr(g, n, perm, inv_perm);
     tm.Stop();
     PrintTime("GOrder_CSR RCM pre-order", tm.Seconds());
 
-    // --- Step 3: Flatten symmetric adjacency to CSR in RCM order ---
-    tm.Start();
-    std::vector<int> sym_offset, sym_edges;
-    gorder_csr_detail::flatten_symmetric_to_csr(n, adj, perm, sym_offset, sym_edges);
-    // Release adj memory
-    { std::vector<std::vector<int>>().swap(adj); }
-    tm.Stop();
-    PrintTime("GOrder_CSR build CSR", tm.Seconds());
-
-    // --- Step 4: Run greedy GOrder ---
-    tm.Start();
+    // --- Step 2 & 3: Build reordered CSR and run greedy ---
     std::vector<int> greedy_order;
-    gorder_csr_detail::gorder_greedy(
-        n, window, sym_offset, sym_edges, greedy_order);
-    tm.Stop();
-    PrintTime("GOrder_CSR greedy", tm.Seconds());
 
-    // --- Step 5: Compose permutations ---
-    // greedy_order maps reordered IDs → final positions
-    // perm maps original IDs → reordered IDs
+    if (symmetric) {
+        // Symmetric mode: union of out+in edges (matches GoGraph)
+        std::vector<int> sym_offset, sym_edges;
+        tm.Start();
+        gorder_csr_detail::build_symmetric_csr(g, n, perm, sym_offset, sym_edges);
+        tm.Stop();
+        PrintTime("GOrder_CSR build symmetric CSR", tm.Seconds());
+
+        tm.Start();
+        gorder_csr_detail::gorder_greedy(
+            n, window, sym_offset, sym_edges, sym_offset, sym_edges, greedy_order);
+        tm.Stop();
+        PrintTime("GOrder_CSR greedy (sym)", tm.Seconds());
+    } else {
+        // Directed mode (default): separate out/in edges, no symmetrization
+        std::vector<int> out_offset, out_edges, in_offset, in_edges;
+        tm.Start();
+        gorder_csr_detail::build_directed_csr(
+            g, n, perm, out_offset, out_edges, in_offset, in_edges);
+        tm.Stop();
+        PrintTime("GOrder_CSR build directed CSR", tm.Seconds());
+
+        tm.Start();
+        gorder_csr_detail::gorder_greedy(
+            n, window, out_offset, out_edges, in_offset, in_edges, greedy_order);
+        tm.Stop();
+        PrintTime("GOrder_CSR greedy", tm.Seconds());
+    }
+
+    // --- Step 4: Compose permutations ---
+    // greedy_order maps reordered IDs -> final positions
+    // perm maps original IDs -> reordered IDs
     // So: new_ids[orig] = greedy_order[perm[orig]]
     tm.Start();
     #pragma omp parallel for schedule(static)
