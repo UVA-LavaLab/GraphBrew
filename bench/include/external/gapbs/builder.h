@@ -1227,13 +1227,15 @@ public:
         case GOrder:
         {
             // GOrder with variants: default (GoGraph baseline), csr (CSR-native)
-            // Format: -o 9:variant (e.g., -o 9:csr)
+            // Format: -o 9:variant (e.g., -o 9:csr, -o 9:fast)
             std::string gorder_variant = "";  // Default: GoGraph baseline
             if (!reordering_options.empty() && !reordering_options[0].empty()) {
                 gorder_variant = reordering_options[0];
             }
             if (gorder_variant == "csr" || gorder_variant == "sym") {
                 GenerateGOrderCSRMapping(g, new_ids);
+            } else if (gorder_variant == "fast") {
+                GenerateGOrderFastMapping(g, new_ids);
             } else {
                 GenerateGOrderMapping(g, new_ids);
             }
@@ -1416,13 +1418,15 @@ public:
         case GOrder:
         {
             // GOrder with variants: default (GoGraph baseline), csr (CSR-native)
-            // Format: -o 9:csr
+            // Format: -o 9:csr or -o 9:fast
             std::string gorder_variant = "";
             if (!reordering_options.empty() && !reordering_options[0].empty()) {
                 gorder_variant = reordering_options[0];
             }
             if (gorder_variant == "csr" || gorder_variant == "sym") {
                 GenerateGOrderCSRMapping(g, new_ids);
+            } else if (gorder_variant == "fast") {
+                GenerateGOrderFastMapping(g, new_ids);
             } else {
                 GenerateGOrderMapping(g, new_ids);
             }
@@ -1812,6 +1816,16 @@ public:
     void GenerateGOrderCSRMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
                                   pvector<NodeID_> &new_ids) {
         ::GenerateGOrderCSRMapping<NodeID_, DestID_, WeightT_, invert>(g, new_ids, cli_.filename());
+    }
+
+    /**
+     * @brief GOrder fast variant — parallel batch GOrder
+     * Delegates to ::GenerateGOrderFastMapping in reorder/reorder_gorder.h
+     * Accessed via: -o 9:fast
+     */
+    void GenerateGOrderFastMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
+                                   pvector<NodeID_> &new_ids) {
+        ::GenerateGOrderFastMapping<NodeID_, DestID_, WeightT_, invert>(g, new_ids, cli_.filename());
     }
 
     /**

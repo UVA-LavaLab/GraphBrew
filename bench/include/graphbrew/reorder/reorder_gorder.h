@@ -56,6 +56,7 @@
 #include <numeric>
 #include <vector>
 #include <queue>
+#include <atomic>
 #include <parallel/algorithm>
 #include <omp.h>
 
@@ -530,6 +531,257 @@ void gorder_greedy_csr(const CSRGraph<NodeID_, DestID_, invert>& g,
     }
 }
 
+// --------------------------------------------------------------------------
+// Parallel GOrder Greedy — Batch extraction with atomic score updates
+// --------------------------------------------------------------------------
+// Scalable parallel variant using batch vertex extraction and concurrent
+// score updates via atomic fetch_add.  An active frontier (candidates with
+// score > 0) provides efficient extraction without scanning all N vertices.
+//
+// Relaxations vs exact serial GOrder:
+//   1. Batch extraction — top-B vertices placed per round (stale scores)
+//   2. Fan-out cap — 2-hop expansion capped at 64 out-edges per in-neighbor
+//   3. Hub threshold — uses n^(1/3) instead of n^(1/2)
+//   4. No popvexist optimization (requires serial ordering within batch)
+//
+// Parallelism via:
+//   - omp parallel for schedule(dynamic) over B push/pop updates per round
+//   - Atomic fetch_add on a shared delta array for concurrent accumulation
+//   - Active frontier for O(frontier_size) extraction vs O(n)
+//
+// Parameters:
+//   window     — sliding window size (auto-scaled to max(7, 2*batch))
+//   batch_size — vertices placed per round (auto-scaled to 2*threads)
+// --------------------------------------------------------------------------
+template <typename NodeID_, typename DestID_, bool invert>
+void gorder_greedy_parallel(const CSRGraph<NodeID_, DestID_, invert>& g,
+                            int n,
+                            int window,
+                            int batch_size,
+                            std::vector<int>& result_order) {
+    // --- Tuning knobs ---
+    const int hugevertex = static_cast<int>(std::cbrt(static_cast<double>(n)));
+    static constexpr int FANOUT_CAP = 64;
+
+    auto outdeg = [&](int v) -> int { return static_cast<int>(g.out_degree(v)); };
+    auto indeg  = [&](int v) -> int {
+        if constexpr (invert) return static_cast<int>(g.in_degree(v));
+        else return outdeg(v);
+    };
+
+    // --- Score tracking ---
+    std::vector<int> score(n, 0);
+    std::vector<char> placed(n, 0);
+    std::vector<std::atomic<int>> delta(n);
+    for (int i = 0; i < n; i++)
+        delta[i].store(0, std::memory_order_relaxed);
+
+    // --- Active frontier (vertices with score > 0 and not placed) ---
+    std::vector<int> frontier;
+    frontier.reserve(std::min(n, 100000));
+    std::vector<char> in_frontier(n, 0);
+
+    // --- Initialization ---
+    int start_v = 0, max_id = -1;
+    std::vector<int> zero;
+    for (int i = 0; i < n; i++) {
+        int id = indeg(i);
+        if (id > max_id) { max_id = id; start_v = i; }
+        if (id + outdeg(i) == 0) {
+            zero.push_back(i);
+            placed[i] = 1;
+        }
+    }
+
+    // Cold-vertex fill order: indeg descending for priority when frontier empty
+    std::vector<int> fill_order(n);
+    std::iota(fill_order.begin(), fill_order.end(), 0);
+    __gnu_parallel::stable_sort(fill_order.begin(), fill_order.end(),
+        [&](int a, int b) { return indeg(a) > indeg(b); });
+    int fill_cursor = 0;
+
+    // --- Neighbor update helper (thread-safe via atomic delta) ---
+    // sign = +1 for push (vertex enters window)
+    // sign = -1 for pop  (vertex exits window)
+    // 'seen' is a per-thread dedup array: touched records only unique vertices.
+    auto update_neighbors = [&](int v, int sign,
+                                std::vector<int>& touched,
+                                std::vector<char>& seen) {
+        auto touch = [&](int w) {
+            if (placed[w]) return;
+            delta[w].fetch_add(sign, std::memory_order_relaxed);
+            if (!seen[w]) { seen[w] = 1; touched.push_back(w); }
+        };
+        // 1-hop: out-neighbors of v
+        if (outdeg(v) <= hugevertex) {
+            for (DestID_ d : g.out_neigh(v))
+                touch(static_cast<int>(nbr_id<NodeID_>(d)));
+        }
+        // 2-hop: in-neighbors of v, then capped out-fan of each
+        auto do_2hop = [&](auto in_range) {
+            for (DestID_ d : in_range) {
+                int u = static_cast<int>(nbr_id<NodeID_>(d));
+                if (outdeg(u) > hugevertex) continue;
+                touch(u);
+                if (outdeg(u) > 1) {
+                    int cnt = 0;
+                    for (DestID_ e : g.out_neigh(u)) {
+                        if (++cnt > FANOUT_CAP) break;
+                        touch(static_cast<int>(nbr_id<NodeID_>(e)));
+                    }
+                }
+            }
+        };
+        if constexpr (invert) do_2hop(g.in_neigh(v));
+        else                  do_2hop(g.out_neigh(v));
+    };
+
+    // --- Place starting vertex ---
+    std::vector<int> order;
+    order.reserve(n);
+    order.push_back(start_v);
+    placed[start_v] = 1;
+    {   // Initial push (serial for the single start vertex)
+        std::vector<int> touched;
+        std::vector<char> seen(n, 0);
+        update_neighbors(start_v, +1, touched, seen);
+        for (int w : touched) {
+            seen[w] = 0;
+            int d = delta[w].exchange(0, std::memory_order_relaxed);
+            if (d != 0) score[w] += d;
+            if (score[w] > 0 && !in_frontier[w] && !placed[w]) {
+                frontier.push_back(w);
+                in_frontier[w] = 1;
+            }
+        }
+    }
+
+    // total_to_place includes start vertex; pos=1 means 1 already placed
+    const int total_to_place = n - static_cast<int>(zero.size());
+    int pos = 1; // vertices placed so far (including start)
+
+    // Thread-local touched lists and dedup arrays
+    const int nthreads = omp_get_max_threads();
+    std::vector<std::vector<int>> t_touched(nthreads);
+    std::vector<std::vector<char>> t_seen(nthreads, std::vector<char>(n, 0));
+    for (auto& tt : t_touched) tt.reserve(batch_size * FANOUT_CAP);
+
+    while (pos < total_to_place) {
+        int B = std::min(batch_size, total_to_place - pos);
+
+        // === Phase 1: Extract top-B from frontier (serial) ===
+        // Prune dead entries (placed or score <= 0)
+        {
+            int wp = 0;
+            for (int i = 0; i < static_cast<int>(frontier.size()); i++) {
+                int v = frontier[i];
+                if (!placed[v] && score[v] > 0)
+                    frontier[wp++] = v;
+                else
+                    in_frontier[v] = 0;
+            }
+            frontier.resize(wp);
+        }
+
+        // Select top-B by score (tie-break: indeg descending)
+        int B_front = std::min(B, static_cast<int>(frontier.size()));
+        if (B_front > 0) {
+            auto cmp = [&](int a, int b) {
+                if (score[a] != score[b]) return score[a] > score[b];
+                return indeg(a) > indeg(b);
+            };
+            if (static_cast<int>(frontier.size()) > B_front)
+                std::partial_sort(frontier.begin(), frontier.begin() + B_front,
+                                  frontier.end(), cmp);
+            else
+                std::sort(frontier.begin(), frontier.end(), cmp);
+        }
+
+        // Build batch from frontier top
+        std::vector<int> batch;
+        batch.reserve(B);
+        for (int i = 0; i < B_front; i++) {
+            int v = frontier[i];
+            batch.push_back(v);
+            placed[v] = 1;
+            in_frontier[v] = 0;
+        }
+        if (B_front > 0)
+            frontier.erase(frontier.begin(), frontier.begin() + B_front);
+
+        // Fill remaining batch slots from cold vertices (highest indeg first)
+        while (static_cast<int>(batch.size()) < B && fill_cursor < n) {
+            int v = fill_order[fill_cursor++];
+            if (!placed[v]) {
+                batch.push_back(v);
+                placed[v] = 1;
+            }
+        }
+        // Safety sweep if fill_cursor exhausted (handles pruned-then-lost vertices)
+        if (static_cast<int>(batch.size()) < B) {
+            for (int v = 0; v < n && static_cast<int>(batch.size()) < B; v++) {
+                if (!placed[v]) {
+                    batch.push_back(v);
+                    placed[v] = 1;
+                }
+            }
+        }
+
+        for (int v : batch) order.push_back(v);
+        int actual_B = static_cast<int>(batch.size());
+        if (actual_B == 0) break;
+
+        // === Phase 2: Parallel push/pop score updates ===
+        #pragma omp parallel
+        {
+            int tid = omp_get_thread_num();
+            t_touched[tid].clear();
+
+            #pragma omp for schedule(dynamic)
+            for (int i = 0; i < actual_B; i++) {
+                // Push: batch[i] enters window
+                update_neighbors(batch[i], +1, t_touched[tid], t_seen[tid]);
+                // Pop: window-exit vertex
+                int exit_pos = pos + i - window;
+                if (exit_pos >= 0)
+                    update_neighbors(order[exit_pos], -1, t_touched[tid], t_seen[tid]);
+            }
+        }
+
+        // === Phase 3: Merge deltas and update frontier (serial) ===
+        // Per-thread dedup ensures each vertex appears at most once per thread.
+        // Cross-thread duplicates are handled by delta[w].exchange(0):
+        // first exchange gets the accumulated value, subsequent return 0.
+        for (int tid = 0; tid < nthreads; tid++) {
+            for (int w : t_touched[tid]) {
+                t_seen[tid][w] = 0;  // clear dedup flag
+                if (placed[w]) continue;
+                int d = delta[w].exchange(0, std::memory_order_relaxed);
+                if (d != 0) score[w] += d;
+                if (score[w] > 0 && !in_frontier[w]) {
+                    frontier.push_back(w);
+                    in_frontier[w] = 1;
+                }
+            }
+            t_touched[tid].clear();
+        }
+
+        pos += actual_B;
+    }
+
+    // Append zero-degree vertices before last
+    if (!zero.empty()) {
+        if (order.size() > 1)
+            order.insert(order.end() - 1, zero.begin(), zero.end());
+        else
+            order.insert(order.end(), zero.begin(), zero.end());
+    }
+
+    result_order.resize(n);
+    for (int i = 0; i < n; i++)
+        result_order[order[i]] = i;
+}
+
 } // namespace gorder_csr_detail
 
 // ============================================================================
@@ -587,6 +839,68 @@ void GenerateGOrderCSRMapping(const CSRGraph<NodeID_, DestID_, invert>& g,
     }
     tm.Stop();
     PrintTime("GOrder_CSR compose", tm.Seconds());
+}
+
+// ============================================================================
+// Public API -- GenerateGOrderFastMapping (parallel batch variant)
+// ============================================================================
+// Parallel GOrder (-o 9:fast):
+//   Step 1: Lightweight RCM pre-ordering (same as csr variant)
+//   Step 2: RelabelByMappingStandalone (parallel CSR rebuild)
+//   Step 3: Parallel batch greedy with atomic score updates
+//   Step 4: Compose permutations (parallel)
+//
+// Auto-tuning: batch = max(8, 2*threads), window = max(7, 2*batch)
+// ============================================================================
+
+template <typename NodeID_, typename DestID_, typename WeightT_, bool invert>
+void GenerateGOrderFastMapping(const CSRGraph<NodeID_, DestID_, invert>& g,
+                               pvector<NodeID_>& new_ids,
+                               const std::string& /*filename*/) {
+    Timer tm;
+    const int n = static_cast<int>(g.num_nodes());
+
+    if (n == 0) return;
+
+    if (static_cast<int64_t>(new_ids.size()) < n)
+        new_ids.resize(n);
+
+    const int nthreads = omp_get_max_threads();
+    const int batch  = std::max(64, nthreads * 4);
+    const int window = std::max(7, batch * 2);
+
+    std::cout << "GOrder_fast config: batch=" << batch
+              << " window=" << window
+              << " threads=" << nthreads << std::endl;
+
+    // --- Step 1: Lightweight RCM pre-ordering ---
+    tm.Start();
+    pvector<NodeID_> rcm_ids(n);
+    gorder_csr_detail::rcm_gorder(g, n, rcm_ids);
+    tm.Stop();
+    PrintTime("GOrder_fast RCM", tm.Seconds());
+
+    // --- Step 2: Rebuild CSR in RCM order ---
+    tm.Start();
+    auto g2 = RelabelByMappingStandalone<NodeID_, DestID_, invert>(g, rcm_ids);
+    tm.Stop();
+    // (RelabelByMappingStandalone already prints "Relabel Map Time")
+
+    // --- Step 3: Parallel batch greedy ---
+    tm.Start();
+    std::vector<int> greedy_order;
+    gorder_csr_detail::gorder_greedy_parallel(g2, n, window, batch, greedy_order);
+    tm.Stop();
+    PrintTime("GOrder_fast greedy", tm.Seconds());
+
+    // --- Step 4: Compose permutations ---
+    tm.Start();
+    #pragma omp parallel for schedule(static)
+    for (int i = 0; i < n; ++i) {
+        new_ids[i] = static_cast<NodeID_>(greedy_order[rcm_ids[i]]);
+    }
+    tm.Stop();
+    PrintTime("GOrder_fast compose", tm.Seconds());
 }
 
 #endif  // REORDER_GORDER_CSR_H_
