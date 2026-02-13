@@ -320,7 +320,7 @@ struct GraphBrewConfig {
     int  finalAlgoId = -1;             ///< Final reordering algorithm ID (0-11) for LAYER ordering. -1 = not set (uses GraphBrew ordering)
     bool useSmallCommunityMerging = false; ///< Merge small communities and apply heuristic algorithm selection
     size_t smallCommunityThreshold = 0;    ///< Min community size for individual reordering (0 = dynamic)
-    int  recursiveDepth = 0;           ///< Recursive sub-community depth: 0=flat (default), 1+=recurse into large communities
+    int  recursiveDepth = -1;          ///< Recursive sub-community depth: -1=auto (default), 0=flat, 1+=recurse into large communities
     int  subAlgoId = -1;               ///< Algo for sub-communities: -1=auto (per-sub-community adaptive), 0-11=fixed algo ID
     
     // Memory optimizations
@@ -7162,7 +7162,13 @@ inline GraphBrewConfig parseGraphBrewConfig(const std::vector<std::string>& opti
                 }
             } catch (...) {}
         }
-        // Recursive depth for GraphBrew: "depth:2" or "depth2" or "recursive"
+        // Recursive depth for GraphBrew: "depth:2" or "depth2" or "recursive" or "flat"
+        else if (opt == "flat" || opt == "norecurse") {
+            config.recursiveDepth = 0;  // force flat (no recursive sub-division)
+            config.ordering = OrderingStrategy::LAYER;
+            config.useSmallCommunityMerging = true;
+            if (config.finalAlgoId < 0) config.finalAlgoId = 8;
+        }
         else if (opt == "recursive" || opt == "recurse") {
             config.recursiveDepth = std::max(config.recursiveDepth, 1);
             config.ordering = OrderingStrategy::LAYER;
