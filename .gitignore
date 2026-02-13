@@ -15,7 +15,7 @@ graphs/
 *.log
 cache_results
 results/weights/
-test/
+/test/
 agent
 # Graph data files (edge lists, weighted edge lists, serialized graphs)
 *.el
