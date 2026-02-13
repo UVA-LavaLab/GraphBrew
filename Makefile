@@ -70,7 +70,7 @@ NC      =\033[0m
 # =========================================================
 # Compiler Flags
 # =========================================================
-CXXFLAGS_GAP    = -std=c++17 -O3 -Wall -fopenmp -g
+CXXFLAGS_GAP    = -std=c++17 -O3 -Wall -fopenmp -g -DNDEBUG
 CXXFLAGS_RABBIT = -mcx16 -Wno-deprecated-declarations -Wno-parentheses -Wno-unused-local-typedefs
 CXXFLAGS_GORDER = -m64 -march=native 
 CXXFLAGS_GORDER += -DRelease -DGCC
