@@ -7085,7 +7085,7 @@ void generateGraphBrewMapping(
  *   Aggregation:  gvecsr, leiden, streaming, hybrid
  *   Features:     merge, hubx, gord, hsort, rcm, norefine, refine0, verify, etc.
  *   Mode:         graphbrew/gb → LAYER ordering (per-community dispatch)
- *   Presets:      quality/gve → GVE-CSR + TOTAL_EDGES + refine0 + HIERARCHICAL
+ *   Presets:      quality → GVE-CSR + TOTAL_EDGES + refine0 + HIERARCHICAL
  *   Resolution:   0.75, auto, dynamic
  *   Numeric:      maxIterations, maxPasses (first int → iters, second → passes)
  * 
