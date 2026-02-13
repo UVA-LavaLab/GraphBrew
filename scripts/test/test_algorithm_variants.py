@@ -144,6 +144,26 @@ def test_tier2_rabbitorder_variants(option, name):
     )
 
 
+
+# ═══════════════════════════════════════════════════════════════════════════
+# TIER 2b: RCM (11) variants
+# ═══════════════════════════════════════════════════════════════════════════
+
+TIER2B_RCM = [
+    ("11",     "RCM_default"),
+    ("11:bnf", "RCM_bnf"),
+]
+
+
+@pytest.mark.parametrize("option,name", TIER2B_RCM, ids=[t[1] for t in TIER2B_RCM])
+def test_tier2b_rcm_variants(option, name):
+    """Tier 2b: RCM default/bnf variants."""
+    result = run_pr(option)
+    assert result.returncode == 0, (
+        f"RCM variant {name} (-o {option}) failed.\nstderr: {result.stderr[-500:]}"
+    )
+
+
 # ═══════════════════════════════════════════════════════════════════════════
 # TIER 3: GraphBrewOrder (12) presets
 # ═══════════════════════════════════════════════════════════════════════════

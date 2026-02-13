@@ -3559,8 +3559,9 @@ inline std::map<ReorderingAlgo, PerceptronWeights> LoadPerceptronWeightsForGraph
  * 
  * FALLBACK MECHANISM:
  * 1. Starts with GetPerceptronWeights() which provides defaults for ALL algorithms
- * 2. Loads type-specific weights and OVERLAYS them on defaults
- * 3. Any algorithm missing from the type file uses the default weights
+ * 2. Per-benchmark files: tries {matched_type}/{bench}.json, then type_0/{bench}.json
+ * 3. Falls back to type-generic weights.json from matched type or DEFAULT_WEIGHTS_FILE
+ * 4. Any algorithm missing from loaded files uses the default weights
  * 
  * This ensures we ALWAYS have weights for every algorithm, even if the type file
  * was trained with only a subset of algorithms.
@@ -3607,13 +3608,32 @@ inline std::map<ReorderingAlgo, PerceptronWeights> LoadPerceptronWeightsForFeatu
     
     // Try per-benchmark weight file first (these have much higher accuracy
     // because they are trained specifically for each benchmark type, avoiding
-    // the accuracy loss of the averaged scoreBase × multiplier model)
+    // the accuracy loss of the averaged scoreBase × multiplier model).
+    //
+    // Loading priority for per-bench files:
+    //   1. {best_type}/{bench}.json  (type matched by features)
+    //   2. type_0/{bench}.json       (default/fallback type)
     if (bench != BENCH_GENERIC) {
         const char* bench_names[] = {"generic", "pr", "bfs", "cc", "sssp", "bc", "tc", "pr_spmv", "cc_sv"};
         if (static_cast<int>(bench) < 9) {
-            std::string bench_file = std::string(TYPE_WEIGHTS_DIR) + "type_0/" + bench_names[bench] + ".json";
-            std::ifstream file(bench_file);
-            if (file.is_open()) {
+            // Find matching type from registry first
+            std::string best_type = FindBestTypeFromFeatures(
+                modularity, degree_variance, hub_concentration,
+                avg_degree, num_nodes, num_edges, false, clustering_coeff);
+            
+            // Build candidate per-bench files: matched type first, then type_0 fallback
+            std::vector<std::string> bench_candidates;
+            if (!best_type.empty() && best_type != "type_0") {
+                bench_candidates.push_back(
+                    std::string(TYPE_WEIGHTS_DIR) + best_type + "/" + bench_names[bench] + ".json");
+            }
+            bench_candidates.push_back(
+                std::string(TYPE_WEIGHTS_DIR) + "type_0/" + bench_names[bench] + ".json");
+            
+            for (const auto& bench_file : bench_candidates) {
+                std::ifstream file(bench_file);
+                if (!file.is_open()) continue;
+                
                 std::string json_content((std::istreambuf_iterator<char>(file)),
                                           std::istreambuf_iterator<char>());
                 file.close();
@@ -3834,8 +3854,8 @@ inline ReorderingAlgo SelectReorderingPerceptronWithFeatures(
     double global_hub_concentration, size_t num_nodes, size_t num_edges,
     BenchmarkType bench = BENCH_GENERIC) {
     
-    // Load weights based on features (tries per-bench type_0_{bench}.json first,
-    // then type_0.json, then semantic types)
+    // Load weights based on features (tries {matched_type}/{bench}.json first,
+    // then type_0/{bench}.json, then {matched_type}/weights.json, then defaults)
     auto weights = LoadPerceptronWeightsForFeatures(
         global_modularity, global_degree_variance, global_hub_concentration,
         feat.avg_degree, num_nodes, num_edges, false, feat.clustering_coeff, bench);
@@ -3908,10 +3928,10 @@ inline ReorderingAlgo SelectReorderingWithMode(
     // Handle each mode
     switch (mode) {
         case MODE_FASTEST_REORDER: {
-            // Load weights for the matched type
+            // Load weights for the matched type (pass bench for per-bench models)
             auto weights = LoadPerceptronWeightsForFeatures(
                 global_modularity, global_degree_variance, global_hub_concentration,
-                feat.avg_degree, num_nodes, num_edges, false, feat.clustering_coeff);
+                feat.avg_degree, num_nodes, num_edges, false, feat.clustering_coeff, bench);
             
             // Select algorithm with highest w_reorder_time (fastest reorder)
             ReorderingAlgo fastest = SelectFastestReorderFromWeights(weights, verbose);
@@ -3937,7 +3957,7 @@ inline ReorderingAlgo SelectReorderingWithMode(
             // We add an extra multiplier here for end-to-end optimization.
             auto weights = LoadPerceptronWeightsForFeatures(
                 global_modularity, global_degree_variance, global_hub_concentration,
-                feat.avg_degree, num_nodes, num_edges, false, feat.clustering_coeff);
+                feat.avg_degree, num_nodes, num_edges, false, feat.clustering_coeff, bench);
             
             ReorderingAlgo best_algo = ORIGINAL;
             double best_score = -std::numeric_limits<double>::infinity();
@@ -3966,7 +3986,7 @@ inline ReorderingAlgo SelectReorderingWithMode(
             // Select algorithm that amortizes reorder cost fastest
             auto weights = LoadPerceptronWeightsForFeatures(
                 global_modularity, global_degree_variance, global_hub_concentration,
-                feat.avg_degree, num_nodes, num_edges, false, feat.clustering_coeff);
+                feat.avg_degree, num_nodes, num_edges, false, feat.clustering_coeff, bench);
             
             ReorderingAlgo best_algo = ORIGINAL;
             double best_iters = std::numeric_limits<double>::infinity();

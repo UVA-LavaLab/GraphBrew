@@ -99,7 +99,8 @@ reorder/
 ├── reorder_basic.h      # Original, Random, Sort (algo 0-2) (~324 lines)
 ├── reorder_hub.h        # HubSort, HubCluster, DBG variants (algo 3-7) (~641 lines)
 ├── reorder_rabbit.h     # RabbitOrder native CSR (algo 8) (~1,161 lines)
-├── reorder_classic.h    # GOrder, COrder, RCMOrder (algo 9-11) (~517 lines)
+├── reorder_classic.h    # GOrder, COrder, RCMOrder dispatch (algo 9-11) (~517 lines)
+├── reorder_rcm.h        # RCM BNF variant (-o 11:bnf) (~645 lines)
 ├── reorder_adaptive.h   # ML-based selection (algo 14) (~650 lines)
 ├── reorder_leiden.h     # Leiden community detection (algo 15) (~7,725 lines)
 ├── reorder_graphbrew.h       # GraphBrew unified reordering framework (~7,055 lines)
@@ -117,6 +118,7 @@ reorder/
 | `reorder_adaptive.h` | ~650 | `AdaptiveConfig`, ML-based per-community algorithm selection |
 | `reorder_hub.h` | ~641 | Hub-based algorithms (DBG, HubSort, HubCluster) |
 | `reorder_classic.h` | ~517 | Classic algorithms (GOrder, COrder, RCM dispatch) |
+| `reorder_rcm.h` | ~645 | RCM BNF variant: CSR-native BNF start + deterministic parallel CM BFS |
 | `reorder.h` | ~493 | Main dispatcher, `ApplyBasicReorderingStandalone` |
 | `reorder_basic.h` | ~324 | Basic algorithms (Original, Random, Sort) |
 
@@ -225,7 +227,7 @@ void Generate{Algorithm}MappingStandalone(const CSRGraph<...>& g,
 | RabbitOrder | `graphbrew/reorder/reorder_rabbit.h` | Native CSR community detection + recursion |
 | Gorder | `external/gorder/GoGraph.h` | Window optimization |
 | Corder | `external/corder/global.h` | Cache-aware ordering |
-| RCM | `graphbrew/reorder/reorder_classic.h` | Cuthill-McKee dispatch |
+| RCM | `graphbrew/reorder/reorder_classic.h` | Cuthill-McKee dispatch (default: GoGraph; BNF: `reorder_rcm.h`) |
 
 #### Leiden-Based (bench/include/graphbrew/reorder/reorder_leiden.h)
 

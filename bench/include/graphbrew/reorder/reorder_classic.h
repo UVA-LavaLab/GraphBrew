@@ -143,25 +143,15 @@ void GenerateGOrderMapping(const CSRGraph<NodeID_, DestID_, invert>& g,
 }
 
 // ============================================================================
-// RCMORDER (Algorithm 11)
+// RCMORDER (Algorithm 11) — Original GoGraph-based MIND-start RCM
 // ============================================================================
 
 /**
- * @brief Reverse Cuthill-McKee ordering for bandwidth reduction
+ * @brief Reverse Cuthill-McKee ordering for bandwidth reduction (baseline)
  * 
- * RCM is a classic algorithm for reducing the bandwidth of sparse matrices.
- * It works by:
- *   1. Finding a peripheral vertex (far from center)
- *   2. BFS traversal, ordering neighbors by increasing degree
- *   3. Reversing the final ordering
- * 
- * Best for: Sparse matrices, scientific computing, road networks
- * 
- * Complexity: O(n + m) - linear in graph size
- * 
- * Reference:
- *   Cuthill, E., McKee, J. (1969). Reducing the bandwidth of sparse
- *   symmetric matrices. ACM National Conference.
+ * Original RCM implementation using GoGraph. Uses MIND starting-node
+ * strategy (global min-degree). Default variant for -o 11.
+ * BNF variant (-o 11:bnf) is in reorder_rcm.h.
  * 
  * @tparam NodeID_ Node ID type
  * @tparam DestID_ Destination ID type
@@ -234,6 +224,15 @@ void GenerateRCMOrderMapping(const CSRGraph<NodeID_, DestID_, invert>& g,
         new_ids[i] = static_cast<NodeID_>(u);
     }
 }
+
+// ============================================================================
+// RCM BNF variant (-o 11:bnf) — Modern CSR-native BNF-start RCM
+// ============================================================================
+// Improved RCM variant using George-Liu + BNF starting node selection and
+// level-parallel BFS, operating directly on the CSR graph.
+// Accessed via: -o 11:bnf  (default -o 11 uses GoGraph above)
+// See agent/optimizing-rcm/ for design rationale and literature.
+#include "reorder_rcm.h"
 
 // ============================================================================
 // CORDER (Algorithm 10)

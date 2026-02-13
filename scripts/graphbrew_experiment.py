@@ -106,6 +106,9 @@ from scripts.lib import (
     # RabbitOrder variants (csr default)
     RABBITORDER_VARIANTS as LIB_RABBITORDER_VARIANTS,
     RABBITORDER_DEFAULT_VARIANT as LIB_RABBITORDER_DEFAULT_VARIANT,
+    # RCM variants (default=GoGraph, bnf=CSR-native BNF)
+    RCM_VARIANTS as LIB_RCM_VARIANTS,
+    RCM_DEFAULT_VARIANT as LIB_RCM_DEFAULT_VARIANT,
     # GraphBrewOrder variants (leiden default for backward compat)
     GRAPHBREW_VARIANTS as LIB_GRAPHBREW_VARIANTS,
     GRAPHBREW_DEFAULT_VARIANT as LIB_GRAPHBREW_DEFAULT_VARIANT,
@@ -256,7 +259,6 @@ from scripts.lib.utils import (
 )
 
 # Algorithms to benchmark (excluding MAP=13)
-# Note: LeidenCSR (16) has been deprecated — GraphBrew (12) subsumes it.
 BENCHMARK_ALGORITHMS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 15]
 
 # Subset of key algorithms for quick testing
@@ -271,6 +273,8 @@ KEY_ALGORITHMS = [0, 1, 7, 8, 9, 11, 12, 15]
 # Re-export from lib for backward compatibility with code that imports from here:
 RABBITORDER_VARIANTS = LIB_RABBITORDER_VARIANTS
 RABBITORDER_DEFAULT_VARIANT = LIB_RABBITORDER_DEFAULT_VARIANT
+RCM_VARIANTS = LIB_RCM_VARIANTS
+RCM_DEFAULT_VARIANT = LIB_RCM_DEFAULT_VARIANT
 GRAPHBREW_VARIANTS = LIB_GRAPHBREW_VARIANTS
 GRAPHBREW_DEFAULT_VARIANT = LIB_GRAPHBREW_DEFAULT_VARIANT
 
@@ -312,6 +316,7 @@ def expand_algorithms_with_variants(
     Expand algorithm IDs into AlgorithmConfig objects.
     
     For RabbitOrder (8), optionally expand into csr/boost variants.
+    For RCM (11), optionally expand into default/bnf variants.
     For GraphBrewOrder (12), optionally expand into leiden/rabbit/hubcluster variants.
     
     Args:
@@ -332,6 +337,9 @@ def expand_algorithms_with_variants(
         # When expand_leiden_variants is True (--all-variants), include all GraphBrewOrder variants
         graphbrew_variants = GRAPHBREW_VARIANTS if expand_leiden_variants else [GRAPHBREW_DEFAULT_VARIANT]
     
+    # RCM variants: default (GoGraph) and bnf (CSR-native BNF)
+    rcm_variants = RCM_VARIANTS if expand_leiden_variants else [RCM_DEFAULT_VARIANT]
+    
     configs = []
     
     for algo_id in algorithms:
@@ -344,6 +352,16 @@ def expand_algorithms_with_variants(
                 configs.append(AlgorithmConfig(
                     algo_id=algo_id,
                     name=f"RABBITORDER_{variant}",
+                    option_string=option_str,
+                    variant=variant
+                ))
+        elif algo_id == 11 and expand_leiden_variants and len(rcm_variants) > 1:
+            # RCM: expand into variants
+            for variant in rcm_variants:
+                option_str = f"{algo_id}:{variant}" if variant != "default" else str(algo_id)
+                configs.append(AlgorithmConfig(
+                    algo_id=algo_id,
+                    name=f"RCM_{variant}",
                     option_string=option_str,
                     variant=variant
                 ))

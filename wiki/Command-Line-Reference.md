@@ -162,7 +162,7 @@ Use with `-o <id>`:
 | 8 | RabbitOrder | Community (has variants, see below) |
 | 9 | GOrder | Community |
 | 10 | COrder | Community |
-| 11 | RCMOrder | Community |
+| 11 | RCMOrder | Classic (has variants, see below) |
 | 12 | GraphBrewOrder | Community (has variants, see below) |
 | 13 | MAP | External mapping |
 | 14 | AdaptiveOrder | ML |
@@ -170,7 +170,18 @@ Use with `-o <id>`:
 <!-- LeidenCSR (16) deprecated — GraphBrew (12) subsumes it -->
 
 > **Note:** For current variant lists, see `scripts/lib/utils.py` which defines:
-> - `RABBITORDER_VARIANTS`, `GRAPHBREW_VARIANTS`
+> - `RABBITORDER_VARIANTS`, `GRAPHBREW_VARIANTS`, `RCM_VARIANTS`
+
+### RCMOrder Variants (Algorithm 11)
+
+RCM supports two variants:
+
+| Variant | Example | Description |
+|---------|---------|-------------|
+| (default) | `-o 11` | GoGraph double-RCM (two-pass, high quality) |
+| `bnf` | `-o 11:bnf` | CSR-native BNF start node + deterministic parallel CM BFS (2-19x faster reorder) |
+
+The BNF variant uses George-Liu pseudo-peripheral node finder with RCM++ width-minimizing criterion and a speculative parallel Cuthill-McKee BFS that produces the same ordering as serial.
 
 ### GraphBrewOrder Ordering Strategies (Algorithm 12)
 

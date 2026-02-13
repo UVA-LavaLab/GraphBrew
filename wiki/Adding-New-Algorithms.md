@@ -45,6 +45,7 @@ enum ReorderingAlgo {
 };
 
 // Note: Variant lists are defined in scripts/lib/utils.py for Python integration
+// (RABBITORDER_VARIANTS, GRAPHBREW_VARIANTS, RCM_VARIANTS)
 ```
 
 ### Naming Convention

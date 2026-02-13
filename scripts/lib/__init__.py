@@ -67,6 +67,9 @@ from .utils import (
     # RabbitOrder variants (csr default, boost optional)
     RABBITORDER_VARIANTS,
     RABBITORDER_DEFAULT_VARIANT,
+    # RCM variants (default=GoGraph, bnf=CSR-native BNF)
+    RCM_VARIANTS,
+    RCM_DEFAULT_VARIANT,
     # GraphBrewOrder variants (leiden default for backward compat)
     GRAPHBREW_VARIANTS,
     GRAPHBREW_DEFAULT_VARIANT,
