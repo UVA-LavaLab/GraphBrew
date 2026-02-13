@@ -40,6 +40,7 @@ enum ReorderingAlgo
     // Leiden algorithms
     LeidenOrder = 15,       // -o 15:resolution (GVE-Leiden baseline)
     // Note: LeidenCSR (16) has been deprecated — GraphBrew (12) subsumes it.
+    // RCM variants: -o 11 (GoGraph baseline), -o 11:bnf (CSR-native BNF)
 };
 
 static const int64_t kRandSeed = 27491095;

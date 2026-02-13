@@ -88,7 +88,7 @@ python3 scripts/graphbrew_experiment.py --help
 | **Auto Build** | Compiles binaries if missing |
 | **Memory Management** | Automatically skips graphs exceeding RAM limits |
 | **Label Maps** | Pre-generates reordering maps for consistency |
-| **Reordering** | Tests all 16 algorithms |
+| **Reordering** | Tests all 15 algorithm IDs (0-15), with variants (RCM:bnf, RabbitOrder:csr/boost, etc.) |
 | **Benchmarks** | PR, BFS, CC, SSSP, BC, TC |
 | **Cache Simulation** | L1/L2/L3 hit rate analysis |
 | **Perceptron Training** | Generates weights for AdaptiveOrder |
@@ -389,7 +389,7 @@ The primary training function: multi-restart perceptrons (5×800 epochs, z-score
 
 ---
 
-## 📏 analyze_metrics.py - Amortization & End-to-End Evaluation
+## 📏 lib/metrics.py - Amortization & End-to-End Evaluation
 
 **Post-hoc analysis of existing benchmark results — no new benchmarks needed.**
 
@@ -402,18 +402,18 @@ Computes derived metrics from `benchmark_*.json` and `reorder_*.json`:
 
 ```bash
 # Full amortization report from latest results
-python3 scripts/analyze_metrics.py --results-dir results/
+python3 -m scripts.lib.metrics --results-dir results/
 
 # Filter to specific benchmarks/graphs
-python3 scripts/analyze_metrics.py --results-dir results/ \
+python3 -m scripts.lib.metrics --results-dir results/ \
   --benchmarks pr bfs --graphs web-Google soc-Slashdot0902
 
 # Head-to-head: RabbitOrder vs GraphBrew:hrab
-python3 scripts/analyze_metrics.py --results-dir results/ \
+python3 -m scripts.lib.metrics --results-dir results/ \
   --compare RABBITORDER_csr GraphBrewOrder_graphbrew:hrab
 
 # JSON output for scripting
-python3 scripts/analyze_metrics.py --results-dir results/ --json
+python3 -m scripts.lib.metrics --results-dir results/ --json
 ```
 
 ### Key Formula

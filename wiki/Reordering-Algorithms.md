@@ -1,6 +1,6 @@
 # Graph Reordering Algorithms
 
-GraphBrew implements **16 different vertex reordering algorithms** (IDs 0-15), each with unique characteristics suited for different graph topologies. This page explains each algorithm in detail.
+GraphBrew implements **15 reordering algorithm IDs** (0-15), some with multiple variants, each with unique characteristics suited for different graph topologies. This page explains each algorithm in detail.
 
 Note: Algorithm ID 13 (MAP) is reserved for external label mapping files, not a standalone reordering algorithm.
 
@@ -253,18 +253,31 @@ Larger window = better quality, slower computation
 **Reverse Cuthill-McKee**
 
 ```bash
+# Default (GoGraph double-RCM)
 ./bench/bin/pr -f graph.el -s -o 11 -n 3
+
+# BNF variant — faster reordering with George-Liu + BNF starting node
+./bench/bin/pr -f graph.el -s -o 11:bnf -n 3
 ```
 
 - **Description**: Classic bandwidth-reduction algorithm (BFS-based)
 - **Complexity**: O(n + m)
-- **Best for**: Sparse matrices, scientific computing graphs
+- **Best for**: Sparse matrices, scientific computing graphs, road networks
 - **Note**: Originally designed for sparse matrix solvers
+- **Variants**:
+  - `default`: GoGraph double-RCM — runs two full RCM passes (Transform + explicit), high-quality ordering
+  - `bnf`: **CSR-native BNF variant** — George-Liu pseudo-peripheral node finder with BNF width-minimizing criterion from RCM++ (Hou et al. 2024), deterministic parallel CM BFS via speculative atomic_min resolution (inspired by Mlakar et al. 2021). **2-19x faster reordering**, comparable algorithm performance
 
 **How it works:**
 1. Start from a peripheral vertex (far from center)
 2. BFS traversal, ordering by increasing degree
 3. Reverse the final ordering
+
+**BNF variant improvements:**
+- George-Liu iteration finds a pseudo-peripheral starting node (higher eccentricity → better bandwidth)
+- BNF criterion (RCM++ paper) selects the candidate with minimum BFS level-set width
+- Deterministic parallel BFS: two-phase speculative discovery where the lowest-index frontier parent always wins shared neighbors (matching serial CM behavior)
+- CSR-native — no intermediate adjacency-list conversion
 
 ![RCM Adjacency Matrix](../docs/figures/reorder_rcm.png)
 

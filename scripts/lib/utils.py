@@ -102,7 +102,7 @@ ALGORITHMS = {
     13: "MAP",  # Load from file
     14: "AdaptiveOrder",
     15: "LeidenOrder",
-    # Note: LeidenCSR (16) has been deprecated — GraphBrew (12) subsumes it.
+    # RCM variants: -o 11 (default=GoGraph), -o 11:bnf (CSR-native BNF)
 }
 
 # Reverse mapping
@@ -118,6 +118,11 @@ COMMUNITY_ALGORITHMS = {8, 12, 14, 15}
 # Format: -o 8:variant where variant = csr (default) or boost
 RABBITORDER_VARIANTS = ["csr", "boost"]
 RABBITORDER_DEFAULT_VARIANT = "csr"  # Native CSR (faster, no external deps)
+
+# RCM variant definitions (default: GoGraph baseline)
+# Format: -o 11:variant where variant = (default=GoGraph) or bnf
+RCM_VARIANTS = ["default", "bnf"]
+RCM_DEFAULT_VARIANT = "default"  # GoGraph MIND-start baseline
 
 # GraphBrewOrder variant definitions (default: leiden)
 # Presets expand to tokens fed into parseGraphBrewConfig (one parser).

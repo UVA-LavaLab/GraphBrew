@@ -856,7 +856,7 @@ def compute_weights_from_results(
     # Build training examples: (feature_vector, best_algorithm)
     # Map variant names to base algorithms for training (more examples per class)
     _VARIANT_PREFIXES = [
-        'GraphBrewOrder_', 'RABBITORDER_'
+        'GraphBrewOrder_', 'RABBITORDER_', 'RCM_'
     ]
     
     def _get_base(name):
@@ -1078,6 +1078,15 @@ def compute_weights_from_results(
                 denorm_bias = bw_raw['bias'] - bias_adj
                 denorm_w = {weight_keys[i]: bw_raw['w'][i] / feat_stds[i] for i in range(n_feat)}
                 
+                # Zero out dead features — these are ALWAYS 0 in training data
+                # (C++ doesn't compute them at runtime), but z-score
+                # denormalization creates millions-scale weights from noise.
+                _DEAD_WEIGHT_KEYS = {
+                    'w_avg_path_length', 'w_diameter', 'w_community_count',
+                }
+                for dk in _DEAD_WEIGHT_KEYS:
+                    denorm_w[dk] = 0.0
+                
                 entry = {'bias': denorm_bias}
                 entry.update(denorm_w)
                 # No benchmark_weights needed - this IS the benchmark-specific perceptron
@@ -1120,6 +1129,13 @@ def compute_weights_from_results(
             bias_adj = sum(avg_w[i] * feat_means[i] / feat_stds[i] for i in range(n_feat))
             denorm_bias = avg_bias - bias_adj
             denorm_w = {weight_keys[i]: avg_w[i] / feat_stds[i] for i in range(n_feat)}
+            
+            # Zero out dead features (same as per-bench models)
+            _DEAD_WEIGHT_KEYS = {
+                'w_avg_path_length', 'w_diameter', 'w_community_count',
+            }
+            for dk in _DEAD_WEIGHT_KEYS:
+                denorm_w[dk] = 0.0
             
             base_weights[base] = {'bias': denorm_bias}
             base_weights[base].update(denorm_w)
@@ -1395,21 +1411,42 @@ def compute_weights_from_results(
             vals = [gf[fk] for gf in graph_features.values() if fk in gf]
             mean_features[fk] = sum(vals) / len(vals) if vals else 0.0
         
-        # Score each variant on mean features
+        # Score each variant on mean features (matches C++ scoreBase() feature set)
         def score_on_mean(data):
             s = data.get('bias', 0.3)
+            # Core features
             s += data.get('w_modularity', 0) * mean_features.get('modularity', 0.5)
-            s += data.get('w_log_nodes', 0) * mean_features.get('log_nodes', 5.0)
-            s += data.get('w_log_edges', 0) * mean_features.get('log_edges', 6.0)
+            log_n = mean_features.get('log_nodes', 5.0)
+            log_e = mean_features.get('log_edges', 6.0)
+            s += data.get('w_log_nodes', 0) * log_n
+            s += data.get('w_log_edges', 0) * log_e
             s += data.get('w_density', 0) * mean_features.get('density', 0.001)
-            s += data.get('w_degree_variance', 0) * mean_features.get('degree_variance', 1.0)
-            s += data.get('w_hub_concentration', 0) * mean_features.get('hub_concentration', 0.3)
+            dv = mean_features.get('degree_variance', 1.0)
+            hc = mean_features.get('hub_concentration', 0.3)
+            s += data.get('w_degree_variance', 0) * dv
+            s += data.get('w_hub_concentration', 0) * hc
             s += data.get('w_avg_degree', 0) * mean_features.get('avg_degree', 10.0) / 100.0
+            # Extended features
+            s += data.get('w_clustering_coeff', 0) * mean_features.get('clustering_coefficient', 0.0)
+            # avg_path_length, diameter, community_count → dead (always 0)
+            # Locality features
+            pf = mean_features.get('packing_factor', 0.0)
+            fef = mean_features.get('forward_edge_fraction', 0.5)
+            wsr = mean_features.get('working_set_ratio', 0.0)
+            s += data.get('w_packing_factor', 0) * pf
+            s += data.get('w_forward_edge_fraction', 0) * fef
+            import math as _m
+            log_wsr = _m.log2(wsr + 1.0)
+            s += data.get('w_working_set_ratio', 0) * log_wsr
+            # Quadratic interaction terms
+            s += data.get('w_dv_x_hub', 0) * dv * hc
+            s += data.get('w_mod_x_logn', 0) * mean_features.get('modularity', 0.5) * log_n
+            s += data.get('w_pf_x_wsr', 0) * pf * log_wsr
             return s
         
         # Group variants by base algorithm
         _VARIANT_PREFIXES = [
-            'GraphBrewOrder_', 'RABBITORDER_'
+            'GraphBrewOrder_', 'RABBITORDER_', 'RCM_'
         ]
         
         def get_base(name):
@@ -1490,7 +1527,7 @@ def cross_validate_logo(
     if weights_dir is None:
         weights_dir = DEFAULT_WEIGHTS_DIR
 
-    _VARIANT_PREFIXES = ['GraphBrewOrder_', 'RABBITORDER_']
+    _VARIANT_PREFIXES = ['GraphBrewOrder_', 'RABBITORDER_', 'RCM_']
 
     def _get_base(name):
         for prefix in _VARIANT_PREFIXES:
@@ -1513,19 +1550,46 @@ def cross_validate_logo(
             'log_edges': math.log10(edges + 1) if edges > 0 else 0,
             'density': avg_degree / (nodes - 1) if nodes > 1 else 0,
             'clustering_coefficient': cc,
+            # Extended — C++ doesn't compute these at runtime, always 0
+            'avg_path_length': 0.0,
+            'diameter': 0.0,
+            'community_count': 0.0,
+            # Locality features from graph_properties_cache
+            'packing_factor': props.get('packing_factor', 0.0),
+            'forward_edge_fraction': props.get('forward_edge_fraction', 0.5),
+            'working_set_ratio': props.get('working_set_ratio', 0.0),
         }
 
     def _score(algo_data, feats):
-        """Mimic C++ scoreBase() — must match reorder_adaptive.h."""
+        """Mimic C++ scoreBase() — must match reorder_types.h exactly."""
         s = algo_data.get('bias', 0.5)
+        # Core features
         s += algo_data.get('w_modularity', 0) * feats.get('modularity', 0.0)
-        s += algo_data.get('w_log_nodes', 0) * feats.get('log_nodes', 5.0)
-        s += algo_data.get('w_log_edges', 0) * feats.get('log_edges', 6.0)
+        log_nodes = feats.get('log_nodes', 5.0)
+        log_edges = feats.get('log_edges', 6.0)
+        s += algo_data.get('w_log_nodes', 0) * log_nodes
+        s += algo_data.get('w_log_edges', 0) * log_edges
         s += algo_data.get('w_density', 0) * feats.get('density', 0.0)
         s += algo_data.get('w_avg_degree', 0) * feats.get('avg_degree', 10.0) / 100.0
-        s += algo_data.get('w_degree_variance', 0) * feats.get('degree_variance', 1.0)
-        s += algo_data.get('w_hub_concentration', 0) * feats.get('hub_concentration', 0.3)
+        dv = feats.get('degree_variance', 1.0)
+        hc = feats.get('hub_concentration', 0.3)
+        s += algo_data.get('w_degree_variance', 0) * dv
+        s += algo_data.get('w_hub_concentration', 0) * hc
+        # Extended features
         s += algo_data.get('w_clustering_coeff', 0) * feats.get('clustering_coefficient', 0.0)
+        # avg_path_length, diameter, community_count → dead (always 0), omitted
+        # Locality features
+        pf = feats.get('packing_factor', 0.0)
+        s += algo_data.get('w_packing_factor', 0) * pf
+        s += algo_data.get('w_forward_edge_fraction', 0) * feats.get('forward_edge_fraction', 0.5)
+        wsr = feats.get('working_set_ratio', 0.0)
+        log_wsr = math.log2(wsr + 1.0)
+        s += algo_data.get('w_working_set_ratio', 0) * log_wsr
+        # Quadratic interaction terms
+        modularity = feats.get('modularity', 0.0)
+        s += algo_data.get('w_dv_x_hub', 0) * dv * hc
+        s += algo_data.get('w_mod_x_logn', 0) * modularity * log_nodes
+        s += algo_data.get('w_pf_x_wsr', 0) * pf * log_wsr
         return s
 
     # Load graph properties for feature-based scoring

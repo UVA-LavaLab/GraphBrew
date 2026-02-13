@@ -1231,8 +1231,20 @@ public:
             GenerateCOrderMapping(g, new_ids);
             break;
         case RCMOrder:
-            GenerateRCMOrderMapping(g, new_ids);
-            break;
+        {
+            // RCM with variants: default (GoGraph baseline), bnf (CSR-native BNF)
+            // Format: -o 11:variant (e.g., -o 11:bnf)
+            std::string rcm_variant = "";  // Default: GoGraph baseline
+            if (!reordering_options.empty() && !reordering_options[0].empty()) {
+                rcm_variant = reordering_options[0];
+            }
+            if (rcm_variant == "bnf") {
+                GenerateRCMBNFOrderMapping(g, new_ids);
+            } else {
+                GenerateRCMOrderMapping(g, new_ids);
+            }
+        }
+        break;
         case LeidenOrder:
             // GVE-Leiden library (baseline reference) - Format: 15:resolution
             GenerateLeidenMapping(g, new_ids, reordering_options);
@@ -1396,8 +1408,19 @@ public:
             GenerateCOrderMapping(g, new_ids);
             break;
         case RCMOrder:
-            GenerateRCMOrderMapping(g, new_ids);
-            break;
+        {
+            // RCM with variants: default (GoGraph baseline), bnf (CSR-native BNF)
+            std::string rcm_variant = "";
+            if (!reordering_options.empty() && !reordering_options[0].empty()) {
+                rcm_variant = reordering_options[0];
+            }
+            if (rcm_variant == "bnf") {
+                GenerateRCMBNFOrderMapping(g, new_ids);
+            } else {
+                GenerateRCMOrderMapping(g, new_ids);
+            }
+        }
+        break;
         case LeidenOrder:
             // GVE-Leiden library (baseline reference) - Format: 15:resolution
             GenerateLeidenMapping(g, new_ids, reordering_options);
@@ -1758,12 +1781,22 @@ public:
     }
 
     /**
-     * @brief Reverse Cuthill-McKee ordering for bandwidth reduction
+     * @brief Reverse Cuthill-McKee ordering for bandwidth reduction (baseline)
      * Delegates to ::GenerateRCMOrderMapping in reorder/reorder_classic.h
      */
     void GenerateRCMOrderMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
                                  pvector<NodeID_> &new_ids) {
         ::GenerateRCMOrderMapping<NodeID_, DestID_, WeightT_, invert>(g, new_ids, cli_.filename());
+    }
+
+    /**
+     * @brief RCM BNF variant — CSR-native RCM with BNF start + level-parallel BFS
+     * Delegates to ::GenerateRCMBNFOrderMapping in reorder/reorder_rcm.h
+     * Accessed via: -o 11:bnf
+     */
+    void GenerateRCMBNFOrderMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
+                                    pvector<NodeID_> &new_ids) {
+        ::GenerateRCMBNFOrderMapping<NodeID_, DestID_, WeightT_, invert>(g, new_ids, cli_.filename());
     }
 
     // HELPERS

@@ -150,7 +150,7 @@ except ImportError:
         13: "MAP",
         14: "AdaptiveOrder",
         15: "LeidenOrder",
-        # Note: LeidenCSR (16) has been deprecated — GraphBrew (12) subsumes it.
+        # RCM variants: 11 (default=GoGraph), 11:bnf (CSR-native BNF)
     }
 
 # =============================================================================

@@ -176,7 +176,7 @@ The report shows for each (graph, algorithm, benchmark):
 - **E2E speedup** — speedup including reorder cost at 1, 10, 100 iterations
 - **Verdict** — INSTANT (<1), FAST (1–10), OK (10–100), SLOW (>100), NEVER
 
-See [[Python-Scripts#analyze_metrics.py]] for full documentation.
+See [[Python-Scripts#lib-metrics-py]] for full documentation.
 
 ---
 
