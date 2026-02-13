@@ -214,7 +214,9 @@ inline void ApplyBasicReorderingStandalone(
             std::string variant = "";
             if (!options.empty() && !options[0].empty()) variant = options[0];
             if (variant == "csr") {
-                ::GenerateGOrderCSRMapping<NodeID_, DestID_, WeightT_, invert>(g, new_ids, filename);
+                ::GenerateGOrderCSRMapping<NodeID_, DestID_, WeightT_, invert>(g, new_ids, filename, false);
+            } else if (variant == "sym") {
+                ::GenerateGOrderCSRMapping<NodeID_, DestID_, WeightT_, invert>(g, new_ids, filename, true);
             } else {
                 ::GenerateGOrderMapping<NodeID_, DestID_, WeightT_, invert>(g, new_ids, filename);
             }
@@ -597,7 +599,9 @@ void GenerateMappingLocalEdgelistStandalone(
             std::string variant = "";
             if (!reordering_options.empty() && !reordering_options[0].empty()) variant = reordering_options[0];
             if (variant == "csr") {
-                ::GenerateGOrderCSRMapping<NodeID_, DestID_, WeightT_, invert>(g, new_ids, "");
+                ::GenerateGOrderCSRMapping<NodeID_, DestID_, WeightT_, invert>(g, new_ids, "", false);
+            } else if (variant == "sym") {
+                ::GenerateGOrderCSRMapping<NodeID_, DestID_, WeightT_, invert>(g, new_ids, "", true);
             } else {
                 ::GenerateGOrderMapping<NodeID_, DestID_, WeightT_, invert>(g, new_ids, "");
             }
