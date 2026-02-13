@@ -404,18 +404,12 @@ void ReorderCommunitySubgraphStandalone(
     }
     
 #ifndef NDEBUG
-    // Debug assertion: verify sub-reordering produced a valid bijection
+    // Debug assertion: verify sub-reordering produced a valid bijection (O(n))
     {
-        std::vector<bool> seen(comm_size, false);
+        std::unordered_set<NodeID_> global_set(local_to_global.begin(), local_to_global.end());
         bool valid = true;
         for (size_t i = 0; i < comm_size; ++i) {
-            // Check reordered_nodes maps back to a known global node
-            NodeID_ gnode = reordered_nodes[i];
-            bool found = false;
-            for (size_t j = 0; j < comm_size; ++j) {
-                if (local_to_global[j] == gnode) { found = true; break; }
-            }
-            if (!found) { valid = false; break; }
+            if (!global_set.count(reordered_nodes[i])) { valid = false; break; }
         }
         if (!valid) {
             fprintf(stderr, "WARNING: ReorderCommunitySubgraphStandalone: "
