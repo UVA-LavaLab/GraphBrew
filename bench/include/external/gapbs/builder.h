@@ -1250,9 +1250,9 @@ public:
             GenerateLeidenMapping(g, new_ids, reordering_options);
             break;
         case GraphBrewOrder:
-            // Extended GraphBrewOrder - Format: 12:cluster_variant:final_algo:resolution:levels
-            // Cluster variants: leiden (default), rabbit, hubcluster
-            // Also supports old format: 12:freq_threshold:final_algo:resolution
+            // GraphBrew pipeline: Leiden + per-community reordering
+            // Format: 12[:preset[:final_algo[:resolution[:passes[:depth[:sub]]]]]]
+            // Or token mode: 12:hrab:gvecsr:0.75
             GenerateGraphBrewMappingUnified(g, new_ids, useOutdeg, reordering_options);
             break;
         case AdaptiveOrder:
@@ -2884,9 +2884,11 @@ static const std::map<std::string, PerceptronWeights>& GetCachedWeights(
     // ========================================================================
     // GRAPHBREW REORDERING - Powered by GraphBrew pipeline
     // ========================================================================
-    // 
-    // GraphBrewOrder (ID 12) uses GraphBrew's modular Leiden community detection
-    // pipeline, then applies any reordering algorithm (0-11) per community.
+    //
+    // GraphBrewOrder (ID 12) uses GraphBrew's Leiden community detection with
+    // GVE-CSR aggregation, then applies any reordering algorithm (0-11) per
+    // community. Supports recursive depth (auto or explicit), adaptive
+    // sub-algorithm selection, hub extraction, and small-community merging.
     //
     // All parsing routes through graphbrew::parseGraphBrewConfig() (one parser).
     // Named presets expand to equivalent tokens:
@@ -2916,7 +2918,6 @@ static const std::map<std::string, PerceptronWeights>& GetCachedWeights(
      *   -o 12                                     # Default (leiden preset)
      *   -o 12:leiden:8:0.75:3                     # Preset + positional overrides
      *   -o 12:hrab:gvecsr:0.75                    # Direct token mode
-     *   -o 12:10:8:1.0                            # Old numeric format (legacy)
      */
     graphbrew::GraphBrewConfig ParseGraphBrewConfig(
         const std::vector<std::string>& options,
