@@ -30,9 +30,11 @@ from .utils import (
     Logger, get_timestamp,
     WEIGHT_PATH_LENGTH_NORMALIZATION, WEIGHT_REORDER_TIME_NORMALIZATION,
     WEIGHT_AVG_DEGREE_DEFAULT,
+    VARIANT_PREFIXES, VARIANT_ALGO_IDS,
     RABBITORDER_VARIANTS, RABBITORDER_DEFAULT_VARIANT,
     GRAPHBREW_VARIANTS, GRAPHBREW_DEFAULT_VARIANT,
     RCM_VARIANTS,
+    get_all_algorithm_variant_names, is_variant_prefixed,
     weights_registry_path, weights_type_path, weights_bench_path,
 )
 
@@ -1434,7 +1436,7 @@ def cross_validate_logo(
     if weights_dir is None:
         weights_dir = DEFAULT_WEIGHTS_DIR
 
-    _VARIANT_PREFIXES = ['GraphBrewOrder_', 'RABBITORDER_', 'RCM_']
+    # VARIANT_PREFIXES imported from utils.py (SSOT)
 
     # No longer collapsing variants — prediction and evaluation
     # happen at the canonical variant level.
@@ -1789,36 +1791,8 @@ def _create_default_weight_entry() -> Dict:
     }
 
 
-def get_all_algorithm_variant_names() -> List[str]:
-    """Get all algorithm names including variant-expanded names.
-    
-    Returns names for:
-    - Base algorithms (ORIGINAL, RANDOM, SORT, HUBSORT, etc.)
-    - RabbitOrder variants: RABBITORDER_csr, RABBITORDER_boost
-    - GraphBrewOrder variants: GraphBrewOrder_leiden, GraphBrewOrder_rabbit, etc.
-    """
-    names = []
-    
-    # Algorithms that have variants (with their base IDs)
-    VARIANT_ALGO_IDS = {8, 11, 12}  # RabbitOrder, RCM, GraphBrewOrder
-    
-    for algo_id, algo_name in ALGORITHMS.items():
-        if algo_name in ['MAP', 'AdaptiveOrder']:
-            continue
-        
-        if algo_id == 8:  # RabbitOrder → expand to RABBITORDER_csr, RABBITORDER_boost
-            for variant in RABBITORDER_VARIANTS:
-                names.append(f"RABBITORDER_{variant}")
-        elif algo_id == 11:  # RCM → expand to RCM_default, RCM_bnf
-            for variant in RCM_VARIANTS:
-                names.append(f"RCM_{variant}")
-        elif algo_id == 12:  # GraphBrewOrder → expand to GraphBrewOrder_leiden, etc.
-            for variant in GRAPHBREW_VARIANTS:
-                names.append(f"GraphBrewOrder_{variant}")
-        else:
-            names.append(algo_name)
-    
-    return names
+# get_all_algorithm_variant_names() has moved to utils.py (SSOT).
+# Re-exported via the import at top-of-file for backward compatibility.
 
 
 def initialize_default_weights(weights_dir: str = DEFAULT_WEIGHTS_DIR) -> Dict:

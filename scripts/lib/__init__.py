@@ -64,6 +64,10 @@ from .utils import (
     ALGORITHMS,
     ALGORITHM_IDS,
     BENCHMARKS,
+    # Variant SSOT
+    VARIANT_PREFIXES,
+    VARIANT_ALGO_IDS,
+    DISPLAY_TO_CANONICAL,
     # RabbitOrder variants (csr default, boost optional)
     RABBITORDER_VARIANTS,
     RABBITORDER_DEFAULT_VARIANT,
@@ -73,6 +77,10 @@ from .utils import (
     # GraphBrewOrder variants (leiden default for backward compat)
     GRAPHBREW_VARIANTS,
     GRAPHBREW_DEFAULT_VARIANT,
+    # Variant helpers
+    get_all_algorithm_variant_names,
+    resolve_canonical_name,
+    is_variant_prefixed,
     # Leiden resolution/pass settings
     LEIDEN_DEFAULT_RESOLUTION,
     LEIDEN_DEFAULT_PASSES,
@@ -250,7 +258,6 @@ from .weights import (
     list_known_types,
     get_type_summary,
     initialize_default_weights,
-    get_all_algorithm_variant_names,
     update_zero_weights,
     store_per_graph_results,
     CLUSTER_DISTANCE_THRESHOLD,

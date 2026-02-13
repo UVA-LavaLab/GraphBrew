@@ -27,7 +27,12 @@ from typing import Dict, Any
 PROJECT_ROOT = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from scripts.lib.utils import WEIGHTS_DIR, ACTIVE_WEIGHTS_DIR
+from scripts.lib.utils import (
+    WEIGHTS_DIR, ACTIVE_WEIGHTS_DIR,
+    VARIANT_PREFIXES, VARIANT_ALGO_IDS, DISPLAY_TO_CANONICAL,
+    ALGORITHMS, RABBITORDER_VARIANTS, RCM_VARIANTS, GRAPHBREW_VARIANTS,
+    get_all_algorithm_variant_names, resolve_canonical_name, is_variant_prefixed,
+)
 from scripts.lib.weights import (
     DEFAULT_WEIGHTS_DIR,
     save_type_weights,
@@ -382,6 +387,94 @@ def test_existing_weights_valid(results: ResultsTracker):
             )
         except Exception as e:
             results.check(False, f"registry.json: Error - {e}")
+
+
+# =========================================================================
+# SSOT Variant Registry Tests
+# =========================================================================
+
+class TestVariantRegistrySSOT:
+    """Verify the SSOT variant registry is consistent across all layers."""
+
+    def test_variant_prefixes_are_tuples(self):
+        """Variant lists should be tuples (immutable SSOT)."""
+        assert isinstance(VARIANT_PREFIXES, tuple)
+        assert isinstance(RABBITORDER_VARIANTS, tuple)
+        assert isinstance(RCM_VARIANTS, tuple)
+        assert isinstance(GRAPHBREW_VARIANTS, tuple)
+
+    def test_variant_prefixes_match_registry(self):
+        """VARIANT_PREFIXES should match _VARIANT_ALGO_REGISTRY prefixes."""
+        from scripts.lib.utils import _VARIANT_ALGO_REGISTRY
+        registry_prefixes = {pfx for pfx, _, _ in _VARIANT_ALGO_REGISTRY.values()}
+        assert set(VARIANT_PREFIXES) == registry_prefixes
+
+    def test_variant_algo_ids_complete(self):
+        """Every algo with variants should be in VARIANT_ALGO_IDS."""
+        assert 8 in VARIANT_ALGO_IDS   # RabbitOrder
+        assert 11 in VARIANT_ALGO_IDS  # RCM
+        assert 12 in VARIANT_ALGO_IDS  # GraphBrewOrder
+
+    def test_get_all_variant_names_no_duplicates(self):
+        """get_all_algorithm_variant_names() should return unique names."""
+        names = get_all_algorithm_variant_names()
+        assert len(names) == len(set(names)), f"Duplicates: {[n for n in names if names.count(n) > 1]}"
+
+    def test_get_all_variant_names_includes_expected(self):
+        """All canonical variant names should appear."""
+        names = set(get_all_algorithm_variant_names())
+        assert "ORIGINAL" in names
+        assert "RABBITORDER_csr" in names
+        assert "RABBITORDER_boost" in names
+        assert "RCM_default" in names
+        assert "RCM_bnf" in names
+        assert "GraphBrewOrder_leiden" in names
+        assert "GraphBrewOrder_rabbit" in names
+        assert "GraphBrewOrder_hubcluster" in names
+        assert "LeidenOrder" in names
+
+    def test_get_all_variant_names_excludes_meta(self):
+        """MAP and AdaptiveOrder should not be in trainable variant names."""
+        names = set(get_all_algorithm_variant_names())
+        assert "MAP" not in names
+        assert "AdaptiveOrder" not in names
+
+    def test_resolve_canonical_base_names(self):
+        """Base algorithm names resolve correctly."""
+        assert resolve_canonical_name("ORIGINAL") == "ORIGINAL"
+        assert resolve_canonical_name("Random") == "RANDOM"
+        assert resolve_canonical_name("HubSort") == "HUBSORT"
+
+    def test_resolve_canonical_variant_passthrough(self):
+        """Variant-prefixed names pass through unchanged."""
+        assert resolve_canonical_name("GraphBrewOrder_leiden") == "GraphBrewOrder_leiden"
+        assert resolve_canonical_name("RABBITORDER_csr") == "RABBITORDER_csr"
+        assert resolve_canonical_name("RCM_bnf") == "RCM_bnf"
+        # New compound variants also pass through
+        assert resolve_canonical_name("GraphBrewOrder_leiden_dfs") == "GraphBrewOrder_leiden_dfs"
+
+    def test_resolve_canonical_default_variants(self):
+        """Bare base names resolve to default variant."""
+        assert resolve_canonical_name("RabbitOrder") == "RABBITORDER_csr"
+        assert resolve_canonical_name("GraphBrewOrder") == "GraphBrewOrder_leiden"
+
+    def test_is_variant_prefixed(self):
+        """is_variant_prefixed correctly identifies variant names."""
+        assert is_variant_prefixed("GraphBrewOrder_leiden")
+        assert is_variant_prefixed("RABBITORDER_csr")
+        assert is_variant_prefixed("RCM_bnf")
+        assert not is_variant_prefixed("ORIGINAL")
+        assert not is_variant_prefixed("DBG")
+        assert not is_variant_prefixed("LeidenOrder")
+
+    def test_display_to_canonical_complete(self):
+        """DISPLAY_TO_CANONICAL should cover all C++ display names."""
+        # Every non-variant algorithm should have an entry
+        for algo_id, name in ALGORITHMS.items():
+            if algo_id in VARIANT_ALGO_IDS or name in ("MAP", "AdaptiveOrder"):
+                continue
+            assert name in DISPLAY_TO_CANONICAL or name.upper() in DISPLAY_TO_CANONICAL, \
+                f"Missing DISPLAY_TO_CANONICAL entry for {name}"
 
 
 def main():
