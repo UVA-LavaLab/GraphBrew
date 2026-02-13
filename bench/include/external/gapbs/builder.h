@@ -1226,16 +1226,14 @@ public:
         break;
         case GOrder:
         {
-            // GOrder with variants: default (GoGraph baseline), csr (CSR directed), sym (CSR symmetric)
-            // Format: -o 9:variant (e.g., -o 9:csr, -o 9:sym)
+            // GOrder with variants: default (GoGraph baseline), csr (CSR-native)
+            // Format: -o 9:variant (e.g., -o 9:csr)
             std::string gorder_variant = "";  // Default: GoGraph baseline
             if (!reordering_options.empty() && !reordering_options[0].empty()) {
                 gorder_variant = reordering_options[0];
             }
-            if (gorder_variant == "csr") {
-                GenerateGOrderCSRMapping(g, new_ids, false);
-            } else if (gorder_variant == "sym") {
-                GenerateGOrderCSRMapping(g, new_ids, true);
+            if (gorder_variant == "csr" || gorder_variant == "sym") {
+                GenerateGOrderCSRMapping(g, new_ids);
             } else {
                 GenerateGOrderMapping(g, new_ids);
             }
@@ -1417,15 +1415,14 @@ public:
         break;
         case GOrder:
         {
-            // GOrder with variants: default (GoGraph baseline), csr (CSR directed), sym (CSR symmetric)
+            // GOrder with variants: default (GoGraph baseline), csr (CSR-native)
+            // Format: -o 9:csr
             std::string gorder_variant = "";
             if (!reordering_options.empty() && !reordering_options[0].empty()) {
                 gorder_variant = reordering_options[0];
             }
-            if (gorder_variant == "csr") {
-                GenerateGOrderCSRMapping(g, new_ids, false);
-            } else if (gorder_variant == "sym") {
-                GenerateGOrderCSRMapping(g, new_ids, true);
+            if (gorder_variant == "csr" || gorder_variant == "sym") {
+                GenerateGOrderCSRMapping(g, new_ids);
             } else {
                 GenerateGOrderMapping(g, new_ids);
             }
@@ -1810,12 +1807,11 @@ public:
     /**
      * @brief GOrder CSR variant — CSR-native GOrder
      * Delegates to ::GenerateGOrderCSRMapping in reorder/reorder_gorder.h
-     * Accessed via: -o 9:csr (directed, default) or -o 9:sym (symmetric)
+     * Accessed via: -o 9:csr (sym is an alias for csr)
      */
     void GenerateGOrderCSRMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
-                                  pvector<NodeID_> &new_ids,
-                                  bool symmetric = false) {
-        ::GenerateGOrderCSRMapping<NodeID_, DestID_, WeightT_, invert>(g, new_ids, cli_.filename(), symmetric);
+                                  pvector<NodeID_> &new_ids) {
+        ::GenerateGOrderCSRMapping<NodeID_, DestID_, WeightT_, invert>(g, new_ids, cli_.filename());
     }
 
     /**

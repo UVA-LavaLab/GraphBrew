@@ -137,6 +137,10 @@ VARIANT_PREFIXES = ("GraphBrewOrder_", "RABBITORDER_", "RCM_")
 RABBITORDER_VARIANTS = ("csr", "boost")
 RABBITORDER_DEFAULT_VARIANT = "csr"
 
+# GOrder variants: -o 9:variant
+GORDER_VARIANTS = ("default", "csr")
+GORDER_DEFAULT_VARIANT = "default"
+
 # RCM variants: -o 11:variant
 RCM_VARIANTS = ("default", "bnf")
 RCM_DEFAULT_VARIANT = "default"

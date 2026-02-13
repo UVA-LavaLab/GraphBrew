@@ -1448,7 +1448,7 @@ def parse_benchmark_output(output: str) -> Dict[str, Any]:
     # Reorder/Ordering time patterns - from various algorithms
     # Patterns like: "RabbitOrder Map Time: 0.123", "Ordering Time: 0.456", etc.
     reorder_patterns = [
-        r'(?:RabbitOrder|GOrder|LeidenOrder|COrder|RCMOrder|HubSort|DBG|Relabel|Sub-RabbitOrder)\s*Map Time[:\s]+([\d.]+)',
+        r'(?:RabbitOrder|GOrder|GOrder_CSR|LeidenOrder|COrder|RCMOrder|HubSort|DBG|Relabel|Sub-RabbitOrder)\s*(?:Map Time|RCM|greedy|compose)[:\s]+([\d.]+)',
         r'Ordering Time[:\s]+([\d.]+)',
         r'RandOrder Time[:\s]+([\d.]+)',
         r'Reorder Time[:\s]+([\d.]+)',
@@ -3089,7 +3089,7 @@ def main():
     parser.add_argument("--algo", "--algorithm", type=str, default=None, dest="algo_name",
                         help="Run only a specific algorithm (e.g., RABBITORDER_boost, GraphBrewOrder_leiden)")
     parser.add_argument("--algo-list", nargs="+", type=str, default=None, dest="algo_list",
-                        help="Run specific algorithms (e.g., --algo-list RABBITORDER_csr GraphBrewOrder_leiden GORDER)")
+                        help="Run specific algorithms (e.g., --algo-list RABBITORDER_csr GraphBrewOrder_leiden GORDER GORDER_csr)")
     parser.add_argument("--skip-slow", action="store_true",
                         help="Skip slow algorithms (Gorder, Corder, RCM) on large graphs")
     

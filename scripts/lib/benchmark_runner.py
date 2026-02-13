@@ -60,7 +60,7 @@ ALGO_NAMES: Dict[int, str] = {
 
 # Complexity guards: skip algorithms that are too slow on large graphs
 ALGO_NODE_LIMITS: Dict[int, int] = {
-    9: 500_000,    # GOrder: O(n^2) reorder
+    9: 500_000,    # GOrder: O(n*m*w) reorder (use -o 9:csr for faster CSR variant)
     12: 500_000,   # GraphBrewOrder: slow community detection
     10: 2_000_000, # COrder: slow on very large graphs
 }

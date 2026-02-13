@@ -84,7 +84,7 @@ python scripts/examples/compare_algorithms.py --output comparison.csv
 | 6 | HUBSORTDBG | HubSort + DBG hybrid |
 | 7 | HUBCLUSTERDBG | HubCluster + DBG (general-purpose) |
 | 8 | RABBITORDER | Rabbit ordering (community-aware) |
-| 9 | GORDER | Graph reordering |
+| 9 | GORDER | Graph reordering (variants: default, csr) |
 | 10 | CORDER | Cache-optimized ordering |
 | 11 | RCM | Reverse Cuthill-McKee |
 | 12 | GraphBrewOrder | Per-community reordering |
