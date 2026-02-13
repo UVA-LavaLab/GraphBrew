@@ -215,6 +215,8 @@ inline void ApplyBasicReorderingStandalone(
             if (!options.empty() && !options[0].empty()) variant = options[0];
             if (variant == "csr" || variant == "sym") {
                 ::GenerateGOrderCSRMapping<NodeID_, DestID_, WeightT_, invert>(g, new_ids, filename);
+            } else if (variant == "fast") {
+                ::GenerateGOrderFastMapping<NodeID_, DestID_, WeightT_, invert>(g, new_ids, filename);
             } else {
                 ::GenerateGOrderMapping<NodeID_, DestID_, WeightT_, invert>(g, new_ids, filename);
             }
@@ -598,6 +600,8 @@ void GenerateMappingLocalEdgelistStandalone(
             if (!reordering_options.empty() && !reordering_options[0].empty()) variant = reordering_options[0];
             if (variant == "csr" || variant == "sym") {
                 ::GenerateGOrderCSRMapping<NodeID_, DestID_, WeightT_, invert>(g, new_ids, "");
+            } else if (variant == "fast") {
+                ::GenerateGOrderFastMapping<NodeID_, DestID_, WeightT_, invert>(g, new_ids, "");
             } else {
                 ::GenerateGOrderMapping<NodeID_, DestID_, WeightT_, invert>(g, new_ids, "");
             }
