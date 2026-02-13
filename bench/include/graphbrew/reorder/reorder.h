@@ -210,8 +210,16 @@ inline void ApplyBasicReorderingStandalone(
             ::GenerateRandomMapping<NodeID_, DestID_, invert>(g, new_ids);
             break;
         case GOrder:
-            ::GenerateGOrderMapping<NodeID_, DestID_, WeightT_, invert>(g, new_ids, filename);
+        {
+            std::string variant = "";
+            if (!options.empty() && !options[0].empty()) variant = options[0];
+            if (variant == "csr") {
+                ::GenerateGOrderCSRMapping<NodeID_, DestID_, WeightT_, invert>(g, new_ids, filename);
+            } else {
+                ::GenerateGOrderMapping<NodeID_, DestID_, WeightT_, invert>(g, new_ids, filename);
+            }
             break;
+        }
         case COrder:
             ::GenerateCOrderMapping<NodeID_, DestID_, invert>(g, new_ids);
             break;
@@ -585,14 +593,30 @@ void GenerateMappingLocalEdgelistStandalone(
         }
         break;
         case GOrder:
-            ::GenerateGOrderMapping<NodeID_, DestID_, WeightT_, invert>(g, new_ids, "");
+        {
+            std::string variant = "";
+            if (!reordering_options.empty() && !reordering_options[0].empty()) variant = reordering_options[0];
+            if (variant == "csr") {
+                ::GenerateGOrderCSRMapping<NodeID_, DestID_, WeightT_, invert>(g, new_ids, "");
+            } else {
+                ::GenerateGOrderMapping<NodeID_, DestID_, WeightT_, invert>(g, new_ids, "");
+            }
             break;
+        }
         case COrder:
             ::GenerateCOrderMapping<NodeID_, DestID_, invert>(g, new_ids);
             break;
         case RCMOrder:
-            ::GenerateRCMOrderMapping<NodeID_, DestID_, WeightT_, invert>(g, new_ids, "");
+        {
+            std::string variant = "";
+            if (!reordering_options.empty() && !reordering_options[0].empty()) variant = reordering_options[0];
+            if (variant == "bnf") {
+                ::GenerateRCMBNFOrderMapping<NodeID_, DestID_, WeightT_, invert>(g, new_ids, "");
+            } else {
+                ::GenerateRCMOrderMapping<NodeID_, DestID_, WeightT_, invert>(g, new_ids, "");
+            }
             break;
+        }
         case ORIGINAL:
         default:
             ::GenerateOriginalMapping<NodeID_, DestID_, invert>(g, new_ids);
