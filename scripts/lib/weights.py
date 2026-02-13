@@ -855,27 +855,8 @@ def compute_weights_from_results(
         }
     
     # Build training examples: (feature_vector, best_algorithm)
-    # Map variant names to base algorithms for training (more examples per class)
-    _VARIANT_PREFIXES = [
-        'GraphBrewOrder_', 'RABBITORDER_', 'RCM_'
-    ]
-    
-    def _get_base(name):
-        for prefix in _VARIANT_PREFIXES:
-            if name.startswith(prefix):
-                return prefix.rstrip('_')
-        return name
-    
-    # Reverse mapping: base name → canonical variant names
-    _BASE_TO_VARIANTS = {
-        'GraphBrewOrder': [f'GraphBrewOrder_{v}' for v in GRAPHBREW_VARIANTS],
-        'RABBITORDER': [f'RABBITORDER_{v}' for v in RABBITORDER_VARIANTS],
-        'RCM': [f'RCM_{v}' for v in RCM_VARIANTS],
-    }
-    
-    def _expand_base_to_variants(base):
-        """Return canonical variant names for a base algo, or [base] if no variants."""
-        return _BASE_TO_VARIANTS.get(base, [base])
+    # Each canonical variant name (e.g., GraphBrewOrder_leiden, RCM_bnf)
+    # is a separate perceptron class for variant-level prediction.
     
     training_data = []
     for graph_name, benchmarks in results_by_graph.items():
@@ -888,7 +869,7 @@ def compute_weights_from_results(
                 continue
             # Oracle by total time (exec + reorder) — practical end-to-end metric
             best_result = min(results, key=lambda r: r.time_seconds + r.reorder_time)
-            best_algo = _get_base(best_result.algorithm)
+            best_algo = best_result.algorithm
             
             # Build feature vector matching C++ scoreBase() scaling
             fv = [
@@ -916,8 +897,8 @@ def compute_weights_from_results(
             training_data.append((fv, best_algo))
     
     if training_data and graph_features:
-        # Get base algorithm names for training
-        base_algos = sorted(set(_get_base(a) for a in weights if not a.startswith('_')))
+        # Get algorithm names for training (canonical variant names)
+        base_algos = sorted(set(a for a in weights if not a.startswith('_')))
         
         # =====================================================================
         # Per-benchmark perceptron training → C++ compatible output
@@ -974,7 +955,7 @@ def compute_weights_from_results(
                     continue
                 # Oracle by total time (exec + reorder) — practical end-to-end metric
                 best_result = min(results, key=lambda r: r.time_seconds + r.reorder_time)
-                best_algo = _get_base(best_result.algorithm)
+                best_algo = best_result.algorithm
                 per_bench_data_raw[bench].append((fv, best_algo))
         
         # Feature normalization stats
@@ -1110,10 +1091,8 @@ def compute_weights_from_results(
                 # No benchmark_weights needed - this IS the benchmark-specific perceptron
                 entry['benchmark_weights'] = {}
                 entry['_metadata'] = {}
-                # Expand base→variants so per-bench files use the same canonical
-                # variant names as weights.json and registry.json
-                for variant_name in _expand_base_to_variants(base):
-                    per_bench_cpp[variant_name] = entry
+                # Per-bench files use the canonical variant name directly
+                per_bench_cpp[base] = entry
             per_bench_dicts[bn] = per_bench_cpp
         
         # Save per-bench files to ALL types in the registry
@@ -1222,15 +1201,15 @@ def compute_weights_from_results(
                     bench_times_all[bn] = {}
                     bench_best_time_all[bn] = {}
                 
-                bench_truth_all[bn][gn] = _get_base(best.algorithm)
+                bench_truth_all[bn][gn] = best.algorithm
                 bench_best_time_all[bn][gn] = best.time_seconds
                 
-                base_t = {}
+                algo_t = {}
                 for r in results:
-                    b = _get_base(r.algorithm)
-                    if b not in base_t or r.time_seconds < base_t[b]:
-                        base_t[b] = r.time_seconds
-                bench_times_all[bn][gn] = base_t
+                    a = r.algorithm
+                    if a not in algo_t or r.time_seconds < algo_t[a]:
+                        algo_t[a] = r.time_seconds
+                bench_times_all[bn][gn] = algo_t
         
         graph_names_list = sorted(graph_fvs.keys())
         
@@ -1312,83 +1291,23 @@ def compute_weights_from_results(
         log.info(f"Per-benchmark perceptron → C++ weights: "
                  f"{len(bench_names)} benchmarks × {len(base_algos)} algorithms")
         
-        # Map trained base weights to the best variant per base
-        # For each base, pick the variant with the LOWEST median slowdown
-        # relative to the best variant for each graph. This avoids picking
-        # a variant that wins often but loses catastrophically sometimes.
-        
-        # Build variant performance data: for each variant on each graph,
-        # compute ratio vs best variant of same base
-        variant_ratios = {}  # variant -> [ratio1, ratio2, ...]
-        variant_wins = {}  # variant -> win count
-        for _, benchmarks_data in results_by_graph.items():
-            for _, results in benchmarks_data.items():
-                if not results:
-                    continue
-                best = min(results, key=lambda r: r.time_seconds)
-                variant_wins[best.algorithm] = variant_wins.get(best.algorithm, 0) + 1
-                
-                # Group by base, find best per base
-                base_best = {}  # base -> best_time
-                base_variants = {}  # base -> [(variant, time)]
-                for r in results:
-                    b = _get_base(r.algorithm)
-                    if b not in base_variants:
-                        base_variants[b] = []
-                    base_variants[b].append((r.algorithm, r.time_seconds))
-                    if b not in base_best or r.time_seconds < base_best[b]:
-                        base_best[b] = r.time_seconds
-                
-                for b, variants in base_variants.items():
-                    bt = base_best[b]
-                    if bt <= 0:
-                        continue
-                    for var, t in variants:
-                        if var not in variant_ratios:
-                            variant_ratios[var] = []
-                        variant_ratios[var].append(t / bt)
-        
-        # For each base, pick variant with lowest median ratio
-        base_best_variant = {}  # base -> best variant name
+        # Apply trained weights directly to each algorithm (variant-level training)
+        # Each canonical variant name has its own perceptron weight vector
         for algo in weights:
             if algo.startswith('_'):
                 continue
-            base = _get_base(algo)
-            ratios = variant_ratios.get(algo, [])
-            median_ratio = sorted(ratios)[len(ratios)//2] if ratios else float('inf')
-            
-            if base not in base_best_variant:
-                base_best_variant[base] = (algo, median_ratio)
-            else:
-                _, best_ratio = base_best_variant[base]
-                if median_ratio < best_ratio:
-                    base_best_variant[base] = (algo, median_ratio)
-        
-        base_best_variant = {b: v[0] for b, v in base_best_variant.items()}
-        
-        # Apply trained base weights to all variants
-        # Map per-benchmark multipliers to C++ benchmark_weights format
-        for algo in weights:
-            if algo.startswith('_'):
-                continue
-            base = _get_base(algo)
-            if base in base_weights:
-                bw = base_weights[base]
+            if algo in base_weights:
+                bw = base_weights[algo]
                 weights[algo]['bias'] = bw['bias']
                 for wk in feat_to_weight.values():
                     weights[algo][wk] = bw.get(wk, 0)
                 
                 # Set benchmark_weights from per-benchmark perceptron ratios
-                bm = bench_multipliers.get(base, {})
+                bm = bench_multipliers.get(algo, {})
                 bw_dict = weights[algo].get('benchmark_weights', {})
                 for bn in bench_names:
                     bw_dict[bn] = bm.get(bn, 1.0)
                 weights[algo]['benchmark_weights'] = bw_dict
-                
-                # Give the best variant per base a small bias boost
-                # so C++ variant collapsing picks it
-                if algo == base_best_variant.get(base):
-                    weights[algo]['bias'] += 0.01
         
         # Restore metadata
         for algo in [a for a in weights if not a.startswith('_')]:
@@ -1476,52 +1395,8 @@ def compute_weights_from_results(
             s += data.get('w_pf_x_wsr', 0) * pf * log_wsr
             return s
         
-        # Group variants by base algorithm
-        _VARIANT_PREFIXES = [
-            'GraphBrewOrder_', 'RABBITORDER_', 'RCM_'
-        ]
-        
-        def get_base(name):
-            for prefix in _VARIANT_PREFIXES:
-                if name.startswith(prefix):
-                    return prefix.rstrip('_')
-            return name
-        
-        base_groups = {}  # base -> [(variant_name, data, wins)]
-        for algo, data in weights.items():
-            if algo.startswith('_'):
-                continue
-            base = get_base(algo)
-            wins = variant_wins.get(algo, 0)
-            if base not in base_groups:
-                base_groups[base] = []
-            base_groups[base].append((algo, data, wins))
-        
-        # For each base with multiple variants, keep only the one with most wins
-        collapsed_weights = {}
-        for base, variants in base_groups.items():
-            if len(variants) == 1:
-                algo, data, _ = variants[0]
-                collapsed_weights[algo] = data
-            else:
-                # Sort by win count descending
-                variants.sort(key=lambda x: -x[2])
-                best_algo, best_data, best_wins = variants[0]
-                
-                # Only emit the best variant (others are redundant for C++)
-                collapsed_weights[best_algo] = best_data
-        
-        # Preserve metadata keys
-        for k, v in weights.items():
-            if k.startswith('_'):
-                collapsed_weights[k] = v
-        
-        log.info(f"Pre-collapsed {len(weights) - len(collapsed_weights)} redundant variants "
-                     f"({len(weights)} → {len(collapsed_weights)} entries)")
-        
-        save_weights_to_active_type(collapsed_weights, weights_dir, type_name="type_0")
-    else:
-        # No graph features available, save all variants
+        # With string-keyed weights in C++, each variant has its own entry.
+        # No collapsing needed — save all variants directly.
         save_weights_to_active_type(weights, weights_dir, type_name="type_0")
     
     return weights
@@ -1561,11 +1436,8 @@ def cross_validate_logo(
 
     _VARIANT_PREFIXES = ['GraphBrewOrder_', 'RABBITORDER_', 'RCM_']
 
-    def _get_base(name):
-        for prefix in _VARIANT_PREFIXES:
-            if name.startswith(prefix):
-                return prefix.rstrip('_')
-        return name
+    # No longer collapsing variants — prediction and evaluation
+    # happen at the canonical variant level.
 
     def _build_features(props):
         """Build C++-aligned feature dict from graph properties."""
@@ -1715,10 +1587,8 @@ def cross_validate_logo(
             actual_algo = sorted_times[0][0]
             best_time = sorted_times[0][1]
 
-            # Compare using base names (variant-aware)
-            pred_base = _get_base(predicted_algo) if predicted_algo else ''
-            actual_base = _get_base(actual_algo)
-            is_correct = pred_base == actual_base
+            # Compare at variant level (canonical names)
+            is_correct = (predicted_algo or '') == actual_algo
 
             if is_correct:
                 graph_correct += 1
@@ -1733,11 +1603,7 @@ def cross_validate_logo(
                     pred_time = t
                     break
             if pred_time is None:
-                for a, t in algo_times:
-                    if _get_base(a) == pred_base:
-                        pred_time = t
-                        break
-            if pred_time is None:
+                # Exact match not found — try any result
                 pred_time = sorted_times[-1][1]  # worst case
 
             if best_time > 0:
@@ -1792,7 +1658,7 @@ def cross_validate_logo(
                 best_score = s
                 predicted = algo
         actual = sorted(algo_times, key=lambda x: x[1])[0][0]
-        if _get_base(predicted or '') == _get_base(actual):
+        if (predicted or '') == actual:
             full_correct += 1
         full_total += 1
 

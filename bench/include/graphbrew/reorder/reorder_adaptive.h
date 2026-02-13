@@ -354,7 +354,7 @@ void GenerateAdaptiveMappingFullGraphStandalone(
     global_feat.working_set_ratio = features.working_set_ratio;
     
     // Select best algorithm
-    ReorderingAlgo best_algo = SelectBestReorderingForCommunity(
+    PerceptronSelection best = SelectBestReorderingForCommunity(
         global_feat, global_modularity, global_degree_variance, global_hub_concentration,
         global_avg_degree, static_cast<size_t>(num_nodes), num_edges,
         GetBenchmarkTypeHint(), detected_graph_type);
@@ -364,24 +364,24 @@ void GenerateAdaptiveMappingFullGraphStandalone(
     // remains fast on graphs up to ~1M nodes.
     constexpr int64_t GORDER_MAX_NODES = 500000;
     constexpr int64_t CORDER_MAX_NODES = 2000000;
-    if ((best_algo == GOrder && num_nodes > GORDER_MAX_NODES) ||
-        (best_algo == COrder && num_nodes > CORDER_MAX_NODES)) {
+    if ((best.algo == GOrder && num_nodes > GORDER_MAX_NODES) ||
+        (best.algo == COrder && num_nodes > CORDER_MAX_NODES)) {
         if (global_hub_concentration > 0.5 && global_degree_variance > 1.5) {
-            best_algo = HubClusterDBG;
+            best = ResolveVariantSelection("HUBCLUSTERDBG", best.score);
         } else if (global_hub_concentration > 0.3) {
-            best_algo = HubSort;
+            best = ResolveVariantSelection("HUBSORT", best.score);
         } else {
-            best_algo = DBG;
+            best = ResolveVariantSelection("DBG", best.score);
         }
         std::cout << "Complexity guard: " << num_nodes << " nodes, using " 
-                  << ReorderingAlgoStr(best_algo) << " instead\n";
+                  << best.variant_name << " instead\n";
     }
     
-    std::cout << "\n=== Selected Algorithm: " << ReorderingAlgoStr(best_algo) << " ===\n";
+    std::cout << "\n=== Selected Algorithm: " << best.variant_name << " ===\n";
     
     // Use standalone dispatcher
     ApplyBasicReorderingStandalone<NodeID_, DestID_, WeightT_, invert>(
-        g, new_ids, best_algo, useOutdeg, "");
+        g, new_ids, best, useOutdeg, "");
     
     tm.Stop();
     PrintTime("Full-Graph Adaptive Time", tm.Seconds());
@@ -609,7 +609,7 @@ void GenerateAdaptiveMappingRecursiveStandalone(
             printf("AdaptiveOrder: Benchmark hint = %s (%d)\n", 
                    bench_hint < 7 ? bnames[bench_hint] : "?", bench_hint);
         }
-        ReorderingAlgo small_algo = SelectBestReorderingForCommunity(
+        PerceptronSelection small_sel = SelectBestReorderingForCommunity(
             comm_feat, global_modularity, global_degree_variance, global_hub_concentration,
             global_avg_degree, static_cast<size_t>(num_nodes), num_edges,
             bench_hint, detected_graph_type, selection_mode, graph_name);
@@ -619,20 +619,20 @@ void GenerateAdaptiveMappingRecursiveStandalone(
         // the merged group exceeds a node threshold.
         constexpr size_t EXPENSIVE_ALGO_MAX_NODES = 20000;
         if (small_community_nodes.size() > EXPENSIVE_ALGO_MAX_NODES) {
-            if (small_algo == GOrder || small_algo == COrder) {
+            if (small_sel.algo == GOrder || small_sel.algo == COrder) {
                 // Re-select excluding expensive algorithms: use HubSort family or DBG
                 // which are O(n log n) and produce reasonable locality
                 if (deg_features.hub_concentration > 0.5 && deg_features.degree_variance > 1.5) {
-                    small_algo = HubClusterDBG;
+                    small_sel = ResolveVariantSelection("HUBCLUSTERDBG", small_sel.score);
                 } else if (deg_features.hub_concentration > 0.3) {
-                    small_algo = HubSort;
+                    small_sel = ResolveVariantSelection("HUBSORT", small_sel.score);
                 } else {
-                    small_algo = DBG;
+                    small_sel = ResolveVariantSelection("DBG", small_sel.score);
                 }
                 if (verbose) {
                     printf("  -> Complexity guard: large group (%zu > %zu nodes), using %s instead\n",
                            small_community_nodes.size(), EXPENSIVE_ALGO_MAX_NODES,
-                           ReorderingAlgoStr(small_algo).c_str());
+                           small_sel.variant_name.c_str());
                 }
             }
         }
@@ -641,10 +641,10 @@ void GenerateAdaptiveMappingRecursiveStandalone(
             printf("AdaptiveOrder: Grouped %zu small communities (%zu nodes, %zu edges) -> %s\n",
                    non_empty_communities - top_communities.size(),
                    small_community_nodes.size(), merged_feat.num_edges,
-                   ReorderingAlgoStr(small_algo).c_str());
+                   small_sel.variant_name.c_str());
         }
         
-        if (small_algo == ORIGINAL || small_community_nodes.size() < 100) {
+        if (small_sel.algo == ORIGINAL || small_community_nodes.size() < 100) {
             // Simple degree sort
             std::vector<std::pair<int64_t, NodeID_>> degree_node_pairs;
             degree_node_pairs.reserve(small_community_nodes.size());
@@ -658,7 +658,7 @@ void GenerateAdaptiveMappingRecursiveStandalone(
             }
         } else {
             ReorderCommunitySubgraphStandalone<NodeID_, DestID_, WeightT_, invert>(
-                g, small_community_nodes, small_node_set, small_algo, useOutdeg, new_ids, current_id);
+                g, small_community_nodes, small_node_set, small_sel, useOutdeg, new_ids, current_id);
         }
         t_small.Stop();
         t_small_total = t_small.Seconds();
@@ -688,7 +688,7 @@ void GenerateAdaptiveMappingRecursiveStandalone(
         // Select algorithm for this community
         Timer t_cs;
         t_cs.Start();
-        ReorderingAlgo selected_algo = SelectBestReorderingForCommunity(
+        PerceptronSelection selected = SelectBestReorderingForCommunity(
             feat, global_modularity, global_degree_variance, global_hub_concentration,
             global_avg_degree, static_cast<size_t>(num_nodes), num_edges,
             GetBenchmarkTypeHint(), detected_graph_type, selection_mode, graph_name);
@@ -698,27 +698,27 @@ void GenerateAdaptiveMappingRecursiveStandalone(
         // Per-community complexity guard: GOrder O(n*m*w) is expensive even for
         // mid-size communities when there are hundreds of them. Also, GOrder can
         // produce invalid permutations on some subgraph topologies.
-        if (selected_algo == GOrder || selected_algo == COrder) {
+        if (selected.algo == GOrder || selected.algo == COrder) {
             if (feat.hub_concentration > 0.5 && feat.degree_variance > 1.5) {
-                selected_algo = HubClusterDBG;
+                selected = ResolveVariantSelection("HUBCLUSTERDBG", selected.score);
             } else if (feat.hub_concentration > 0.3) {
-                selected_algo = HubSort;
+                selected = ResolveVariantSelection("HUBSORT", selected.score);
             } else {
-                selected_algo = DBG;
+                selected = ResolveVariantSelection("DBG", selected.score);
             }
         }
         
         if (verbose && comm_nodes.size() >= MIN_FEATURES_SAMPLE) {
             printf("  Community %zu: %zu nodes, %zu edges -> %s\n",
                    comm_id, comm_nodes.size(), feat.num_edges, 
-                   ReorderingAlgoStr(selected_algo).c_str());
+                   selected.variant_name.c_str());
         }
         
         // Apply algorithm
         Timer t_cr;
         t_cr.Start();
         ReorderCommunitySubgraphStandalone<NodeID_, DestID_, WeightT_, invert>(
-            g, comm_nodes, comm_node_set, selected_algo, useOutdeg, new_ids, current_id);
+            g, comm_nodes, comm_node_set, selected, useOutdeg, new_ids, current_id);
         t_cr.Stop();
         t_comm_reorder_total += t_cr.Seconds();
     }

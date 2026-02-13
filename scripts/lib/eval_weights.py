@@ -65,7 +65,7 @@ ADAPTIVE_ALGO_MAP: Dict[str, str] = {
 # E.g., GraphBrewOrder_leiden, RABBITORDER_csr, RCM_bnf, etc.
 _AUTO_PASS_PREFIXES = ("GraphBrewOrder_", "RABBITORDER_", "RCM_")
 
-# Variant prefixes for base-name grouping (used by _get_base)
+# Variant prefixes (kept for reference, no longer used for collapsing)
 _VARIANT_PREFIXES = ["GraphBrewOrder_", "RABBITORDER_", "RCM_"]
 
 # Per-benchmark weight file names to load
@@ -76,12 +76,7 @@ _PER_BENCH_NAMES = ["pr", "bfs", "cc", "sssp", "bc", "tc", "pr_spmv", "cc_sv"]
 # Helpers
 # ============================================================================
 
-def _get_base(name: str) -> str:
-    """Get base algorithm name (strips variant suffix)."""
-    for prefix in _VARIANT_PREFIXES:
-        if name.startswith(prefix):
-            return prefix.rstrip("_")
-    return name
+# No longer collapsing variants — comparison at canonical variant level.
 
 
 def _simulate_score(algo_data: dict, feats: dict) -> float:
@@ -447,21 +442,14 @@ def evaluate_predictions(
 
         # Find predicted algo's actual time
         pred_time = None
-        pred_base = _get_base(predicted_algo)
         for a, t in algo_times:
             if a == predicted_algo:
                 pred_time = t
                 break
         if pred_time is None:
-            for a, t in algo_times:
-                if _get_base(a) == pred_base:
-                    pred_time = t
-                    break
-        if pred_time is None:
             pred_time = algo_times[-1][1]
 
-        actual_base = _get_base(actual_algo)
-        is_correct = pred_base == actual_base
+        is_correct = predicted_algo == actual_algo
         if is_correct:
             correct += 1
         total += 1
@@ -508,8 +496,8 @@ def evaluate_predictions(
         else:
             at = gb_results.get((g, b), [])
             at.sort(key=lambda x: x[1])
-            top2_bases = [_get_base(a) for a, _ in at[:2]]
-            if _get_base(p["predicted"]) in top2_bases:
+            top2_names = [a for a, _ in at[:2]]
+            if p["predicted"] in top2_names:
                 top2 += 1
     report.top2_accuracy = top2 / total if total else 0
 
