@@ -17,6 +17,7 @@ cache_results
 results/weights/
 /test/
 agent
+docs/agent_*
 # Graph data files (edge lists, weighted edge lists, serialized graphs)
 *.el
 *.wel
