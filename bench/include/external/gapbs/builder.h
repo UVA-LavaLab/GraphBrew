@@ -1189,10 +1189,7 @@ public:
         {
             // RabbitOrder with variants: csr (default), boost
             // Format: -o 8:variant (e.g., -o 8:boost for original Boost-based)
-            std::string variant = "csr";  // Default to CSR (faster, no external deps)
-            if (!reordering_options.empty() && !reordering_options[0].empty()) {
-                variant = reordering_options[0];
-            }
+            std::string variant = resolveVariant(reordering_options, "csr");
             
             if (variant == "boost") {
                 // Original Boost-based RabbitOrder needs preprocessing
@@ -1215,6 +1212,7 @@ public:
                 GenerateSortMappingRabbit(g, new_ids_local, true, true);
                 CSRGraph<NodeID_, DestID_, invert> g_trans = RelabelByMapping(g, new_ids_local);
                 GenerateRabbitOrderCSRMapping(g_trans, new_ids_local_2);
+                warnUnknownVariant(variant, "RabbitOrder", {"csr", "boost"});
                 
                 #pragma omp parallel for
                 for (NodeID_ n = 0; n < g.num_nodes(); n++)
@@ -1228,15 +1226,13 @@ public:
         {
             // GOrder with variants: default (GoGraph), csr (CSR serial), fast (parallel batch)
             // Format: -o 9:variant (e.g., -o 9:csr, -o 9:fast)
-            std::string gorder_variant = "";  // Default: GoGraph baseline
-            if (!reordering_options.empty() && !reordering_options[0].empty()) {
-                gorder_variant = reordering_options[0];
-            }
+            std::string gorder_variant = resolveVariant(reordering_options);
             if (gorder_variant == "csr" || gorder_variant == "sym") {
                 GenerateGOrderCSRMapping(g, new_ids);
             } else if (gorder_variant == "fast") {
                 GenerateGOrderFastMapping(g, new_ids);
             } else {
+                warnUnknownVariant(gorder_variant, "GOrder", {"csr", "sym", "fast"});
                 GenerateGOrderMapping(g, new_ids);
             }
         }
@@ -1248,13 +1244,11 @@ public:
         {
             // RCM with variants: default (GoGraph baseline), bnf (CSR-native BNF)
             // Format: -o 11:variant (e.g., -o 11:bnf)
-            std::string rcm_variant = "";  // Default: GoGraph baseline
-            if (!reordering_options.empty() && !reordering_options[0].empty()) {
-                rcm_variant = reordering_options[0];
-            }
+            std::string rcm_variant = resolveVariant(reordering_options);
             if (rcm_variant == "bnf") {
                 GenerateRCMBNFOrderMapping(g, new_ids);
             } else {
+                warnUnknownVariant(rcm_variant, "RCMOrder", {"bnf"});
                 GenerateRCMOrderMapping(g, new_ids);
             }
         }
@@ -1359,10 +1353,7 @@ public:
         case RabbitOrder:
         {
             // RabbitOrder with variants: csr (default), boost
-            std::string variant = "csr";  // Default to CSR
-            if (!reordering_options.empty() && !reordering_options[0].empty()) {
-                variant = reordering_options[0];
-            }
+            std::string variant = resolveVariant(reordering_options, "csr");
             
             if (variant == "boost") {
                 // Original Boost-based RabbitOrder needs preprocessing
@@ -1398,6 +1389,7 @@ public:
                 GenerateSortMappingRabbit(g, new_ids_local, true, true);
                 CSRGraph<NodeID_, DestID_, invert> g_trans = RelabelByMapping(g, new_ids_local);
                 GenerateRabbitOrderCSRMapping(g_trans, new_ids_local_2);
+                warnUnknownVariant(variant, "RabbitOrder", {"csr", "boost"});
                 
                 // Combine mappings - handle subgraph case
                 if (is_small_subgraph) {
@@ -1419,15 +1411,13 @@ public:
         {
             // GOrder with variants: default (GoGraph), csr (CSR serial), fast (parallel batch)
             // Format: -o 9:csr or -o 9:fast
-            std::string gorder_variant = "";
-            if (!reordering_options.empty() && !reordering_options[0].empty()) {
-                gorder_variant = reordering_options[0];
-            }
+            std::string gorder_variant = resolveVariant(reordering_options);
             if (gorder_variant == "csr" || gorder_variant == "sym") {
                 GenerateGOrderCSRMapping(g, new_ids);
             } else if (gorder_variant == "fast") {
                 GenerateGOrderFastMapping(g, new_ids);
             } else {
+                warnUnknownVariant(gorder_variant, "GOrder", {"csr", "sym", "fast"});
                 GenerateGOrderMapping(g, new_ids);
             }
         }
@@ -1438,13 +1428,11 @@ public:
         case RCMOrder:
         {
             // RCM with variants: default (GoGraph baseline), bnf (CSR-native BNF)
-            std::string rcm_variant = "";
-            if (!reordering_options.empty() && !reordering_options[0].empty()) {
-                rcm_variant = reordering_options[0];
-            }
+            std::string rcm_variant = resolveVariant(reordering_options);
             if (rcm_variant == "bnf") {
                 GenerateRCMBNFOrderMapping(g, new_ids);
             } else {
+                warnUnknownVariant(rcm_variant, "RCMOrder", {"bnf"});
                 GenerateRCMOrderMapping(g, new_ids);
             }
         }

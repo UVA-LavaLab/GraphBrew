@@ -129,9 +129,44 @@ inline bool isLeidenAlgorithm(ReorderingAlgo algo) {
  * Some algorithms accept format strings like "8:csr" or "12:leiden"
  */
 inline bool hasVariants(ReorderingAlgo algo) {
-    return algo == RabbitOrder || 
-           algo == GraphBrewOrder || 
+    return algo == RabbitOrder || algo == GOrder || algo == RCMOrder ||
+           algo == GraphBrewOrder || algo == LeidenOrder ||
            algo == AdaptiveOrder || algo == MAP;
+}
+
+/**
+ * @brief Extract variant string from algorithm options
+ * 
+ * Common pattern: first element of options vector is the variant name.
+ * Returns default_val if options is empty or first element is empty.
+ */
+inline std::string resolveVariant(const std::vector<std::string>& options,
+                                   const std::string& default_val = "") {
+    return (!options.empty() && !options[0].empty()) ? options[0] : default_val;
+}
+
+/**
+ * @brief Warn about unrecognized variant and list valid ones
+ * 
+ * Prints a warning to stderr when an unknown variant is specified,
+ * listing the valid options. Does nothing if variant is empty (default).
+ */
+inline void warnUnknownVariant(const std::string& variant,
+                                const char* algo_name,
+                                std::initializer_list<const char*> valid) {
+    if (variant.empty()) return;  // Empty = default, not a typo
+    for (const char* v : valid) {
+        if (variant == v) return;
+    }
+    std::cerr << "Warning: unknown " << algo_name << " variant '" << variant
+              << "', using default. Valid: ";
+    bool first = true;
+    for (const char* v : valid) {
+        if (!first) std::cerr << ", ";
+        std::cerr << v;
+        first = false;
+    }
+    std::cerr << std::endl;
 }
 
 // ============================================================================
@@ -211,13 +246,13 @@ inline void ApplyBasicReorderingStandalone(
             break;
         case GOrder:
         {
-            std::string variant = "";
-            if (!options.empty() && !options[0].empty()) variant = options[0];
+            std::string variant = resolveVariant(options);
             if (variant == "csr" || variant == "sym") {
                 ::GenerateGOrderCSRMapping<NodeID_, DestID_, WeightT_, invert>(g, new_ids, filename);
             } else if (variant == "fast") {
                 ::GenerateGOrderFastMapping<NodeID_, DestID_, WeightT_, invert>(g, new_ids, filename);
             } else {
+                warnUnknownVariant(variant, "GOrder", {"csr", "sym", "fast"});
                 ::GenerateGOrderMapping<NodeID_, DestID_, WeightT_, invert>(g, new_ids, filename);
             }
             break;
@@ -227,19 +262,18 @@ inline void ApplyBasicReorderingStandalone(
             break;
         case RCMOrder:
         {
-            std::string variant = "";
-            if (!options.empty() && !options[0].empty()) variant = options[0];
+            std::string variant = resolveVariant(options);
             if (variant == "bnf") {
                 ::GenerateRCMBNFOrderMapping<NodeID_, DestID_, WeightT_, invert>(g, new_ids, filename);
             } else {
+                warnUnknownVariant(variant, "RCMOrder", {"bnf"});
                 ::GenerateRCMOrderMapping<NodeID_, DestID_, WeightT_, invert>(g, new_ids, filename);
             }
             break;
         }
         case RabbitOrder:
         {
-            std::string variant = "csr";
-            if (!options.empty() && !options[0].empty()) variant = options[0];
+            std::string variant = resolveVariant(options, "csr");
             
             pvector<NodeID_> new_ids_local(g.num_nodes(), -1);
             pvector<NodeID_> new_ids_local_2(g.num_nodes(), -1);
@@ -249,6 +283,7 @@ inline void ApplyBasicReorderingStandalone(
             if (variant == "boost") {
                 ::GenerateRabbitOrderMapping<NodeID_, DestID_, WeightT_, invert>(g_trans, new_ids_local_2);
             } else {
+                warnUnknownVariant(variant, "RabbitOrder", {"csr", "boost"});
                 ::GenerateRabbitOrderCSRMapping<NodeID_, DestID_, WeightT_, invert>(g_trans, new_ids_local_2);
             }
             
@@ -460,11 +495,8 @@ void ReorderCommunitySubgraphStandalone(
  * @brief Apply reordering algorithm to an edge list (standalone version)
  * 
  * This dispatcher creates a local graph from the edge list and applies
- * the specified reordering algorithm. Used by GraphBrew and Adaptive
- * for per-community reordering.
- * 
- * Handles both basic algorithms (0-11) and RabbitOrder (8) specially.
- * For RabbitOrder, supports "csr" (default) and "boost" variants.
+ * the specified reordering algorithm via ApplyBasicReorderingStandalone.
+ * Used by GraphBrew and Adaptive for per-community reordering.
  * 
  * CRITICAL: For small subgraphs (<100K edges), disables nested parallelism
  * to avoid thread explosion overhead.
@@ -516,116 +548,9 @@ void GenerateMappingLocalEdgelistStandalone(
     CSRGraph<NodeID_, DestID_, invert> g = 
         MakeLocalGraphFromELStandalone<NodeID_, DestID_, invert>(edges_vec);
     
-    // Dispatch to appropriate algorithm
-    switch (algo) {
-        case HubSort:
-            ::GenerateHubSortMapping<NodeID_, DestID_, invert>(g, new_ids, useOutdeg);
-            break;
-        case HubCluster:
-            ::GenerateHubClusterMapping<NodeID_, DestID_, invert>(g, new_ids, useOutdeg);
-            break;
-        case DBG:
-            ::GenerateDBGMapping<NodeID_, DestID_, invert>(g, new_ids, useOutdeg);
-            break;
-        case HubSortDBG:
-            ::GenerateHubSortDBGMapping<NodeID_, DestID_, invert>(g, new_ids, useOutdeg);
-            break;
-        case HubClusterDBG:
-            ::GenerateHubClusterDBGMapping<NodeID_, DestID_, invert>(g, new_ids, useOutdeg);
-            break;
-        case Sort:
-            ::GenerateSortMapping<NodeID_, DestID_, invert>(g, new_ids, useOutdeg, false);
-            break;
-        case Random:
-            ::GenerateRandomMapping<NodeID_, DestID_, invert>(g, new_ids);
-            break;
-        case RabbitOrder:
-        {
-            // RabbitOrder with variants: csr (default), boost
-            std::string variant = "csr";
-            if (!reordering_options.empty() && !reordering_options[0].empty()) {
-                variant = reordering_options[0];
-            }
-            
-            if (variant == "boost") {
-                // Boost-based RabbitOrder needs preprocessing
-                pvector<NodeID_> new_ids_local(g.num_nodes(), -1);
-                pvector<NodeID_> new_ids_local_2(g.num_nodes(), -1);
-                ::GenerateSortMappingRabbit<NodeID_, DestID_, invert>(g, new_ids_local, true, true);
-                auto g_trans = RelabelByMappingStandalone<NodeID_, DestID_, invert>(g, new_ids_local);
-                ::GenerateRabbitOrderMapping<NodeID_, DestID_, WeightT_, invert>(g_trans, new_ids_local_2);
-                
-                // Combine mappings
-                if (is_small_subgraph) {
-                    for (NodeID_ n = 0; n < g.num_nodes(); n++) {
-                        if (new_ids_local[n] != static_cast<NodeID_>(-1) && 
-                            new_ids_local[n] < g.num_nodes()) {
-                            new_ids[n] = new_ids_local_2[new_ids_local[n]];
-                        }
-                    }
-                } else {
-                    #pragma omp parallel for
-                    for (NodeID_ n = 0; n < g.num_nodes(); n++) {
-                        if (new_ids_local[n] != static_cast<NodeID_>(-1) && 
-                            new_ids_local[n] < g.num_nodes()) {
-                            new_ids[n] = new_ids_local_2[new_ids_local[n]];
-                        }
-                    }
-                }
-            } else {
-                // Native CSR implementation with degree preprocessing
-                pvector<NodeID_> new_ids_local(g.num_nodes(), -1);
-                pvector<NodeID_> new_ids_local_2(g.num_nodes(), -1);
-                ::GenerateSortMappingRabbit<NodeID_, DestID_, invert>(g, new_ids_local, true, true);
-                auto g_trans = RelabelByMappingStandalone<NodeID_, DestID_, invert>(g, new_ids_local);
-                ::GenerateRabbitOrderCSRMapping<NodeID_, DestID_, WeightT_, invert>(g_trans, new_ids_local_2);
-                
-                // Combine mappings
-                if (is_small_subgraph) {
-                    for (NodeID_ n = 0; n < g.num_nodes(); n++) {
-                        new_ids[n] = new_ids_local_2[new_ids_local[n]];
-                    }
-                } else {
-                    #pragma omp parallel for
-                    for (NodeID_ n = 0; n < g.num_nodes(); n++) {
-                        new_ids[n] = new_ids_local_2[new_ids_local[n]];
-                    }
-                }
-            }
-        }
-        break;
-        case GOrder:
-        {
-            std::string variant = "";
-            if (!reordering_options.empty() && !reordering_options[0].empty()) variant = reordering_options[0];
-            if (variant == "csr" || variant == "sym") {
-                ::GenerateGOrderCSRMapping<NodeID_, DestID_, WeightT_, invert>(g, new_ids, "");
-            } else if (variant == "fast") {
-                ::GenerateGOrderFastMapping<NodeID_, DestID_, WeightT_, invert>(g, new_ids, "");
-            } else {
-                ::GenerateGOrderMapping<NodeID_, DestID_, WeightT_, invert>(g, new_ids, "");
-            }
-            break;
-        }
-        case COrder:
-            ::GenerateCOrderMapping<NodeID_, DestID_, invert>(g, new_ids);
-            break;
-        case RCMOrder:
-        {
-            std::string variant = "";
-            if (!reordering_options.empty() && !reordering_options[0].empty()) variant = reordering_options[0];
-            if (variant == "bnf") {
-                ::GenerateRCMBNFOrderMapping<NodeID_, DestID_, WeightT_, invert>(g, new_ids, "");
-            } else {
-                ::GenerateRCMOrderMapping<NodeID_, DestID_, WeightT_, invert>(g, new_ids, "");
-            }
-            break;
-        }
-        case ORIGINAL:
-        default:
-            ::GenerateOriginalMapping<NodeID_, DestID_, invert>(g, new_ids);
-            break;
-    }
+    // Delegate to centralized dispatch (avoids duplicating the switch/case)
+    ApplyBasicReorderingStandalone<NodeID_, DestID_, WeightT_, invert>(
+        g, new_ids, algo, useOutdeg, "", reordering_options);
     
     // Restore OpenMP settings
     omp_set_nested(prev_nested);

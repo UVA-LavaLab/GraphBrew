@@ -115,10 +115,9 @@ def get_algorithm_name_with_variant(algo_id: int, variant: str = None) -> str:
     """
     Get algorithm name with variant suffix for algorithms that have variants.
     
-    ALWAYS includes variant in name for:
-    - RABBITORDER (8): RABBITORDER_csr or RABBITORDER_boost
-    - GraphBrewOrder (12): GraphBrewOrder_leiden, GraphBrewOrder_hrab, etc.
-    
+    Uses _VARIANT_ALGO_REGISTRY from utils.py as the single source of truth.
+    For registered variant algorithms (8=RabbitOrder, 11=RCM, 12=GraphBrewOrder),
+    ALWAYS includes variant suffix in the name (e.g. "RABBITORDER_csr").
     For other algorithms, returns the base name.
     
     Args:
@@ -128,16 +127,14 @@ def get_algorithm_name_with_variant(algo_id: int, variant: str = None) -> str:
     Returns:
         Algorithm name with variant suffix where applicable
     """
-    base_name = ALGORITHMS.get(algo_id, f"ALGO_{algo_id}")
+    from scripts.lib.utils import _VARIANT_ALGO_REGISTRY
     
-    if algo_id == 8:  # RABBITORDER
-        variant = variant or RABBITORDER_DEFAULT_VARIANT
-        return f"RABBITORDER_{variant}"
-    elif algo_id == 12:  # GraphBrewOrder
-        variant = variant or GRAPHBREW_DEFAULT_VARIANT
-        return f"GraphBrewOrder_{variant}"
-    else:
-        return base_name
+    if algo_id in _VARIANT_ALGO_REGISTRY:
+        prefix, _, default_variant = _VARIANT_ALGO_REGISTRY[algo_id]
+        variant = variant or default_variant
+        return f"{prefix}{variant}"
+    
+    return ALGORITHMS.get(algo_id, f"ALGO_{algo_id}")
 
 
 def _find_legacy_map_file(graph_mappings_dir: str, algo_name: str) -> Optional[str]:

@@ -270,6 +270,11 @@ GRAPHBREW_OPTIONS = {
 # ---- Derived helpers (computed from the registry above) ----
 
 # Map: algo_id → (prefix, variants, default)
+# NOTE: Only algorithms whose variants produce *different reorderings* (and thus
+# need separate perceptron weights) belong here.  GOrder variants (default/csr/
+# fast) differ only in implementation speed — they produce equivalent orderings
+# so they share the single "GORDER" weight entry.  LeidenOrder resolution is a
+# continuous parameter, not a discrete variant for training.
 _VARIANT_ALGO_REGISTRY = {
     8:  ("RABBITORDER_",     RABBITORDER_VARIANTS,  RABBITORDER_DEFAULT_VARIANT),
     11: ("RCM_",             RCM_VARIANTS,          RCM_DEFAULT_VARIANT),
