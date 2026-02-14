@@ -1,42 +1,50 @@
 // ============================================================================
-// GraphBrew — GOrder CSR-Native: Cache-Optimized Graph Ordering
+// GraphBrew — GOrder CSR Variants: Cache-Optimized Graph Ordering
 // ============================================================================
 //
-// CSR-native variant for GOrder (-o 9:csr).  Faithful reimplementation
-// of the GOrder greedy algorithm that operates directly on CSRGraph
-// using existing builder infrastructure for RCM and relabeling.
+// CSR-native variants for GOrder (Algorithm 9).  This file provides two
+// variants that operate directly on CSRGraph using existing builder
+// infrastructure for RCM and relabeling:
+//
+//   -o 9:csr   Serial CSR-native GOrder (faithful to original algorithm)
+//   -o 9:fast   Parallel batch GOrder (scalable across threads)
 //
 // The original GOrder (Wei et al., SIGMOD 2016) maximizes a locality
 // score S(v) for each candidate vertex v, measuring how many of v's
 // neighbors (via 2-hop out→in paths) are already in a sliding window
 // of the last W placed vertices.
 //
-// Architecture:
+// Shared architecture (both variants):
 //   1. Lightweight RCM pre-ordering  (this file — matches GoGraph's BFS-CM)
 //   2. RelabelByMappingStandalone    (reorder_types.h — parallel CSR rebuild)
 //   3. Greedy GOrder on CSRGraph     (this file — direct iterator access)
+//   4. Compose permutations          (parallel)
 //
-// Key improvements over the baseline GoGraph GOrder (Algorithm 9):
-//
+// Key improvements over the baseline GoGraph GOrder (-o 9):
 //   1. CSR-native — zero GoGraph conversion overhead (speed ↑, memory ↓)
 //   2. Direct CSRGraph iterator access — no flat-array copies
 //   3. Sorted neighbor lists (from RelabelByMapping) for binary_search
 //
+// CSR variant (-o 9:csr):
+//   Uses the original UnitHeap priority queue for exact serial greedy.
+//   7-25% faster reordering than GoGraph baseline, equivalent quality.
+//
+// Fast variant (-o 9:fast):
+//   Replaces UnitHeap with a score array + atomic deltas for thread
+//   safety.  Batch extracts top-B vertices per round, parallelizes
+//   push/pop score updates via omp parallel for.  Relaxations:
+//     - Batch extraction: stale scores within each batch
+//     - Fan-out cap (64): bounds 2-hop inner loop work
+//     - Hub threshold n^(1/3) instead of n^(1/2)
+//   Auto-tunes: batch=max(64, 4×threads), window=max(7, 2×batch).
+//   2-3× greedy speedup on power-law graphs at 8 threads.
+//
 // RCM pre-ordering:
 //   Uses GoGraph's lightweight BFS-CM approach: sort vertices by total
 //   degree, BFS from each unvisited vertex expanding out-edges sorted
-//   by degree, then reverse for RCM.  This is much faster than the full
-//   RCM BNF (no pseudo-peripheral search, no component detection).
+//   by degree, then reverse for RCM.  Much faster than the full RCM BNF.
 //   GOrder only uses RCM as a warm start; the greedy loop does the real
 //   optimization, so the simpler RCM is sufficient.
-//
-// Note on parallelism:
-//   The UnitHeap priority queue is inherently sequential — IncrementKey
-//   and DecreaseTop manipulate a shared doubly-linked list that cannot
-//   be parallelized without fundamentally changing the data structure.
-//   Parallelism is applied to the initial degree sort (__gnu_parallel)
-//   and CSR relabeling while the greedy loop remains faithful to the
-//   original serial algorithm.
 //
 // References:
 //   - Wei, H., Yu, J.X., Lu, C., Lin, X. (2016): "Speedup Graph
