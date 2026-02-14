@@ -38,7 +38,7 @@
 //   6  - HUBSORTDBG:     HubSort within DBG
 //   7  - HUBCLUSTERDBG:  HubCluster within DBG (recommended for power-law)
 //   8  - RABBITORDER:    Community detection + aggregation
-//   9  - GORDER:         Dynamic programming ordering
+//   9  - GORDER:         Graph ordering (variants: default, csr, fast)
 //   10 - CORDER:         Cache-aware ordering
 //   11 - RCMORDER:       Reverse Cuthill-McKee
 //   12 - GRAPHBREWORDER: Leiden + per-community reordering

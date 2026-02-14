@@ -136,7 +136,7 @@ final_score = score × benchmark_weights[benchmark]
 | 6 | HUBSORTDBG | HubSort + DBG hybrid |
 | 7 | HUBCLUSTERDBG | HubCluster + DBG |
 | 8 | RABBITORDER | Community-aware (csr/boost variants) |
-| 9 | GORDER | Graph reordering |
+| 9 | GORDER | Graph reordering (default/csr/fast) |
 | 10 | CORDER | Cache-optimized |
 | 11 | RCM | Reverse Cuthill-McKee (road) |
 | 12 | GraphBrewOrder | Per-community reordering |

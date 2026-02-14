@@ -1226,7 +1226,7 @@ public:
         break;
         case GOrder:
         {
-            // GOrder with variants: default (GoGraph baseline), csr (CSR-native)
+            // GOrder with variants: default (GoGraph), csr (CSR serial), fast (parallel batch)
             // Format: -o 9:variant (e.g., -o 9:csr, -o 9:fast)
             std::string gorder_variant = "";  // Default: GoGraph baseline
             if (!reordering_options.empty() && !reordering_options[0].empty()) {
@@ -1417,7 +1417,7 @@ public:
         break;
         case GOrder:
         {
-            // GOrder with variants: default (GoGraph baseline), csr (CSR-native)
+            // GOrder with variants: default (GoGraph), csr (CSR serial), fast (parallel batch)
             // Format: -o 9:csr or -o 9:fast
             std::string gorder_variant = "";
             if (!reordering_options.empty() && !reordering_options[0].empty()) {

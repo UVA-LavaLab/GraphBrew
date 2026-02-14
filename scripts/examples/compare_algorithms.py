@@ -107,7 +107,7 @@ def compute_speedups(results: list, baseline_algo: int = 0) -> dict:
     
     Example:
         >>> speedups = compute_speedups(results)
-        >>> print(speedups[('email-Enron', 'pr', 8)])  # gorder speedup on PR
+        >>> print(speedups[('email-Enron', 'pr', 8)])  # rabbitorder speedup on PR
         1.45
     """
     # Group by (graph, benchmark)
@@ -223,7 +223,7 @@ def main():
         epilog="""
 Algorithm IDs:
   0=ORIGINAL  1=RANDOM  2=SORT  3=HUBSORT  4=HUBCLUSTER
-  5=DBG  6=HUBSORTDBG  7=HUBCLUSTERDBG  8=RABBITORDER  9=GORDER (9:csr)
+  5=DBG  6=HUBSORTDBG  7=HUBCLUSTERDBG  8=RABBITORDER  9=GORDER (9:csr, 9:fast)
   10=CORDER  11=RCM  12=GraphBrewOrder  13=MAP  14=AdaptiveOrder
   15=LeidenOrder
         """
