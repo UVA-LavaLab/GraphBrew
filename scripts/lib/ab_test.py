@@ -17,10 +17,9 @@ Usage (library):
 import os
 import re
 import subprocess
-import sys
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import List, Optional, Tuple
 
 from .utils import BIN_DIR, GRAPHS_DIR, Logger
 

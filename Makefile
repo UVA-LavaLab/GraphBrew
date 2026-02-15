@@ -12,7 +12,7 @@ PIP=@pip
 # =========================================================
 SCRIPT_DIR  = scripts
 # Lint
-LINT_INCLUDES = $(PYTHON) $(SCRIPT_DIR)/check_includes.py
+LINT_INCLUDES = $(PYTHON) $(SCRIPT_DIR)/lib/check_includes.py
 BENCH_DIR   = bench
 CONFIG_DIR  = $(SCRIPT_DIR)/config
 # =========================================================

@@ -19,9 +19,7 @@ import os
 import sys
 import json
 import shutil
-import tempfile
 from pathlib import Path
-from typing import Dict, Any
 
 # Add project root to path
 PROJECT_ROOT = Path(__file__).parent.parent.parent

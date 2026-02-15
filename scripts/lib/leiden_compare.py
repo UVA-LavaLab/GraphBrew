@@ -28,7 +28,7 @@ import re
 import argparse
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
 from dataclasses import dataclass, asdict
 
 # Resolve project paths
@@ -37,7 +37,7 @@ PROJECT_ROOT = SCRIPT_DIR.parent.parent      # project root
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from scripts.lib.reorder import parse_reorder_time_from_converter
-from scripts.lib.utils import _VARIANT_ALGO_REGISTRY, ALGORITHMS
+from scripts.lib.utils import _VARIANT_ALGO_REGISTRY
 
 @dataclass
 class LeidenResult:

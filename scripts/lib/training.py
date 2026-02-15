@@ -32,7 +32,7 @@ from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from typing import Dict, List, Optional, Set
 
-from .utils import ALGORITHMS, Logger, WEIGHTS_DIR
+from .utils import Logger, WEIGHTS_DIR
 from .analysis import (
     run_subcommunity_brute_force,
     GraphBruteForceAnalysis,

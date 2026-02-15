@@ -26,18 +26,15 @@ GraphBrew/
 │   └── backups/              # Backup files
 │
 ├── scripts/                  # Python tools (~23,400 lines)
-│   └── See [[Python-Scripts]] for full structure
-│
-│   │
-│   ├── analysis/                # Analysis utilities
-│   ├── benchmark/               # Specialized scripts
-│   ├── download/                # Standalone downloader
-│   └── utils/                   # Additional utilities
-│
+│   ├── graphbrew_experiment.py  # Main orchestration
+│   ├── lib/                     # Shared modules
+│   ├── benchmark/               # Benchmark shell scripts
+│   ├── examples/                # Usage examples
+│   └── weights/                 # Perceptron weight files
 │
 ├── scripts/test/             # Pytest suite
 │   ├── graphs/               # Sample graphs
-│   └── reference/            # Reference outputs
+│   └── data/                 # Test data
 │
 ├── docs/                     # Documentation
 │   └── figures/              # Images
