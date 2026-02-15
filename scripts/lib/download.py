@@ -789,7 +789,7 @@ def extract_tarball(tar_path: Path, dest_dir: Path) -> bool:
     """Extract tarball to destination directory."""
     try:
         with tarfile.open(tar_path, "r:gz") as tar:
-            tar.extractall(dest_dir)
+            tar.extractall(dest_dir, filter='data')
         return True
     except Exception as e:
         log.error(f"Failed to extract {tar_path}: {e}")

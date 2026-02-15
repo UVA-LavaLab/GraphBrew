@@ -98,7 +98,6 @@ See Also:
 import os
 import json
 import glob
-from datetime import datetime
 from dataclasses import asdict
 from typing import List, Dict, Optional, Any, Tuple
 
@@ -132,6 +131,7 @@ from .utils import (
     GRAPHBREW_VARIANTS,
     LEIDEN_DEFAULT_RESOLUTION,
     LEIDEN_DEFAULT_PASSES,
+    get_timestamp,
 )
 
 
@@ -326,11 +326,6 @@ class PhaseConfig:
 # Utility Functions
 # =============================================================================
 
-def _get_timestamp() -> str:
-    """Get current timestamp for file naming."""
-    return datetime.now().strftime("%Y%m%d_%H%M%S")
-
-
 def _save_results(results: List, filename: str, results_dir: str) -> str:
     """Save results to JSON file."""
     os.makedirs(results_dir, exist_ok=True)
@@ -375,7 +370,7 @@ def run_reorder_phase(
     """
     config.progress.phase_start("REORDERING", "Generating vertex reorderings")
     
-    timestamp = _get_timestamp()
+    timestamp = get_timestamp()
     label_maps = label_maps or {}
     
     if config.expand_variants:
@@ -455,7 +450,7 @@ def run_benchmark_phase(
     """
     config.progress.phase_start("BENCHMARKING", "Running performance benchmarks")
     
-    timestamp = _get_timestamp()
+    timestamp = get_timestamp()
     
     # Check if we have variant-expanded label maps
     has_variant_maps = (label_maps and 
@@ -538,7 +533,7 @@ def run_cache_phase(
     
     config.progress.phase_start("CACHE SIMULATION", "Running cache miss simulations")
     
-    timestamp = _get_timestamp()
+    timestamp = get_timestamp()
     
     # Check if we have variant-expanded label maps
     has_variant_maps = (label_maps and 

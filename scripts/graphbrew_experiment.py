@@ -747,7 +747,7 @@ def extract_archive(archive_path: str, extract_to: str) -> bool:
         
         if archive_path.endswith('.tar.gz') or archive_path.endswith('.tgz'):
             with tarfile.open(archive_path, 'r:gz') as tar:
-                tar.extractall(path=extract_to)
+                tar.extractall(path=extract_to, filter='data')
         elif archive_path.endswith('.gz'):
             # Single gzip file
             out_path = archive_path[:-3]  # Remove .gz

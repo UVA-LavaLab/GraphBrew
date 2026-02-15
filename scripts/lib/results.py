@@ -32,6 +32,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple, Union
 
+from .utils import get_timestamp
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # File I/O Utilities
@@ -168,7 +170,7 @@ def append_csv(filepath: Union[str, Path], row: Dict[str, Any]) -> bool:
 
 def generate_timestamp() -> str:
     """Generate timestamp string for filenames."""
-    return datetime.now().strftime("%Y%m%d_%H%M%S")
+    return get_timestamp()
 
 
 def generate_result_filename(prefix: str, extension: str = "json",

@@ -28,6 +28,7 @@ Usage:
 import argparse
 import json
 import math
+import re
 import subprocess
 from dataclasses import dataclass, field
 from enum import Enum
@@ -576,8 +577,6 @@ def extract_features_from_graph(graph_path: str, bin_dir: Path = None) -> Option
         name=Path(graph_path).stem,
         path=graph_path
     )
-    
-    import re
     
     # Parse graph size
     match = re.search(r"Graph has (\d+) nodes and (\d+) edges", output)
