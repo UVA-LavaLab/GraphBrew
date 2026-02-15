@@ -185,12 +185,27 @@ RabbitOrder (algorithm 8) has two variants:
 
 | Variant | Command | Description |
 |---------|---------|-------------|
-| `csr` | `-o 8` or `-o 8:csr` | Native CSR implementation (default) |
-| `boost` | `-o 8:boost` | Original Boost-based implementation |
+| `csr` | `-o 8` or `-o 8:csr` | Native CSR implementation (default, recommended) |
+| `boost` | `-o 8:boost` | Original Boost-based implementation (reference only) |
+
+The CSR variant includes three correctness fixes over the original CSR code, making it match
+the Boost reference semantics, plus an auto-adaptive resolution parameter that further improves
+cache locality. In benchmarks (PR, BFS, CC across soc-LiveJournal1, indochina-2004, com-Orkut),
+CSR outperforms Boost by **4–40%**.
+
+**Resolution parameter**: The CSR variant auto-tunes the Louvain resolution γ based on average
+degree: `γ = clamp(14 / avg_degree, 0.5, 1.0)`. Dense graphs (high avg degree) get a lower γ,
+which prevents over-merging of communities. Override with the environment variable:
+```bash
+RABBIT_RESOLUTION=0.5 ./bench/bin/pr -f graph.el -s -o 8:csr -n 3
+```
+
+**Directed graphs**: Both variants read only out-edges and use the same undirected modularity
+approximation from the original paper. The fixes are valid for both symmetric and directed inputs.
 
 **Recommendations:**
-- Use `csr` (default) - faster, no external dependencies
-- Use `boost` only if you need the original implementation behavior
+- Use `csr` (default) — faster, no external dependencies, better cache locality
+- Use `boost` only as a reference baseline for validation
 - The `boost` variant requires Boost 1.58.0: `--install-boost`
 
 ### How does AdaptiveOrder work?

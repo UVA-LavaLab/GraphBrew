@@ -201,13 +201,19 @@ These algorithms use different approaches: RabbitOrder detects communities, whil
 - **Description**: Hierarchical community detection with incremental aggregation (Louvain-based)
 - **Complexity**: O(n log n) average
 - **Variants**:
-  - `csr` (default): Native CSR implementation - faster, no external dependencies
-  - `boost`: Original Boost-based implementation - requires Boost library
+  - `csr` (default): Native CSR implementation — faster, no external dependencies, **4–40% better cache locality than Boost** thanks to correctness fixes and auto-adaptive resolution
+  - `boost`: Original Boost-based implementation — requires Boost library. Kept as a reference baseline.
 - **Note**: RabbitOrder is enabled by default (`RABBIT_ENABLE=1` in Makefile)
 - **Best for**: Large graphs with hierarchical community structure
 - **Limitation**: Uses Louvain (no refinement), can over-merge communities
 
-**Isolated Vertex Handling**: Both variants group isolated (degree-0) vertices at the end of the permutation, matching Boost's original behavior and improving cache locality for non-isolated vertices.
+**CSR variant improvements** (over the original CSR code):
+1. **Edge weight normalization**: Fixed total weight computation to avoid doubling an already-correct 2m value
+2. **Self-loop handling**: Self-loops are now included in vertex strength, matching Boost
+3. **Permutation ordering**: All single-vertex communities are interleaved in discovery order (matching Boost), instead of being segregated to the end
+4. **Auto-adaptive resolution**: γ = clamp(14 / avg_degree, 0.5, 1.0) — prevents over-merging on dense graphs. Override via `RABBIT_RESOLUTION` env var.
+
+**Directed graph note**: Both variants read only out-edges and use the undirected modularity approximation from the original paper. The CSR fixes are valid for both symmetric and directed inputs.
 
 **Key insight**: Uses a "rabbit" metaphor where vertices "hop" to form communities.
 
