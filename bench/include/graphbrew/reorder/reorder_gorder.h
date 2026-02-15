@@ -244,9 +244,7 @@ public:
         std::iota(tmp.begin(), tmp.end(), 0);
 
         std::sort(tmp.begin(), tmp.end(), [&](int a, int b) {
-            if (list[a].key > list[b].key) return true;
-            if (list[a].key < list[b].key) return false;
-            return a < b;  // deterministic tie-breaking
+            return list[a].key > list[b].key;
         });
 
         int key = list[tmp[0]].key;
@@ -315,7 +313,7 @@ void rcm_gorder(const CSRGraph<NodeID_, DestID_, invert>& g,
     std::vector<int> order;
     order.reserve(n);
     std::queue<int> que;
-    std::vector<std::pair<int, int>> nbrs;  // (degree, vertex) for sorting
+    std::vector<int> nbrs;  // vertex IDs for degree-sorted BFS
 
     for (int k = 0; k < n; ++k) {
         int start = deg_sorted[k];
@@ -332,15 +330,14 @@ void rcm_gorder(const CSRGraph<NodeID_, DestID_, invert>& g,
             // Collect out-neighbors (matching GoGraph: out-edges only)
             nbrs.clear();
             for (DestID_ dest : g.out_neigh(now))
-                nbrs.push_back({total_degree(static_cast<int>(
-                    nbr_id<NodeID_>(dest))),
-                    static_cast<int>(nbr_id<NodeID_>(dest))});
+                nbrs.push_back(static_cast<int>(nbr_id<NodeID_>(dest)));
 
             // Sort by total degree ascending (CM ordering)
-            // stable_sort for deterministic tie-breaking (same as GoGraph)
-            std::stable_sort(nbrs.begin(), nbrs.end());
+            // stable_sort by degree only -- matches GoGraph (no vertex-ID tie-break)
+            std::stable_sort(nbrs.begin(), nbrs.end(),
+                [&](int a, int b) { return total_degree(a) < total_degree(b); });
 
-            for (auto& [d, v] : nbrs) {
+            for (int v : nbrs) {
                 if (!visited[v]) {
                     visited[v] = true;
                     que.push(v);
@@ -807,11 +804,32 @@ void GenerateGOrderCSRMapping(const CSRGraph<NodeID_, DestID_, invert>& g,
                               pvector<NodeID_>& new_ids,
                               const std::string& /*filename*/,
                               bool /*symmetric*/ = false,
-                              int window = 7) {
+                              int window = -1) {
+    // Auto-adaptive window: scale inversely with average degree
+    // Dense graphs need smaller windows (each step covers more neighbors);
+    // sparse graphs need larger windows to accumulate enough scoring signal.
     Timer tm;
     const int n = static_cast<int>(g.num_nodes());
-
     if (n == 0) return;
+
+    if (window <= 0) {
+        int64_t total_edges = g.num_edges_directed();
+        double avg_deg = (n > 0) ? static_cast<double>(total_edges) / n : 0.0;
+        // Conservative auto-tuning: only shrink window for very dense graphs.
+        // Dense graphs (avg_deg >= 50) benefit from W=3 (each vertex covers 
+        // many neighbors per step). Sparse/moderate graphs keep W=7 (GoGraph default).
+        // Intermediate: W ∝ 30/sqrt(avg_degree), clamped to [3, 7].
+        // Examples: avg_deg ~76 → W=3, ~25 → W=6, ~14 → W=7, ~5 → W=7
+        window = std::clamp(static_cast<int>(std::round(30.0 / std::sqrt(std::max(avg_deg, 1.0)))), 3, 7);
+    }
+
+    // Allow runtime window override via GORDER_WINDOW env var
+    if (const char* env_w = std::getenv("GORDER_WINDOW")) {
+        int w = std::atoi(env_w);
+        if (w >= 2 && w <= 100) window = w;
+    }
+
+    std::cout << "GOrder_CSR window=" << window << std::endl;
 
     if (static_cast<int64_t>(new_ids.size()) < n)
         new_ids.resize(n);
