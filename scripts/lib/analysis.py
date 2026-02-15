@@ -34,6 +34,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from .utils import ALGORITHMS, run_command, Logger
 from .features import update_graph_properties, save_graph_properties_cache
+from .cache import parse_cache_output
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -368,31 +369,9 @@ def parse_benchmark_output(output: str) -> Dict[str, Any]:
     return parsed
 
 
-def parse_cache_output(output: str) -> Dict[str, float]:
-    """
-    Parse cache simulation output.
-    
-    Args:
-        output: Cache simulation output text
-        
-    Returns:
-        Dict with l1/l2/l3 hit rates
-    """
-    parsed = {}
-    
-    l1_match = re.search(r'L1[_ ]?Hit[_ ]?Rate[:\s]*([\d.]+)', output, re.IGNORECASE)
-    if l1_match:
-        parsed['l1_hit_rate'] = float(l1_match.group(1))
-    
-    l2_match = re.search(r'L2[_ ]?Hit[_ ]?Rate[:\s]*([\d.]+)', output, re.IGNORECASE)
-    if l2_match:
-        parsed['l2_hit_rate'] = float(l2_match.group(1))
-    
-    l3_match = re.search(r'L3[_ ]?Hit[_ ]?Rate[:\s]*([\d.]+)', output, re.IGNORECASE)
-    if l3_match:
-        parsed['l3_hit_rate'] = float(l3_match.group(1))
-    
-    return parsed
+
+
+# parse_cache_output imported from .cache (single source of truth)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -581,8 +560,8 @@ def compare_adaptive_vs_fixed(
             
             sym_flag = "-s" if graph.is_symmetric else ""
             
-            # Run AdaptiveOrder (algorithm 15)
-            cmd_adaptive = f"{binary} -f {graph.path} {sym_flag} -o 15 -n {num_trials}"
+            # Run AdaptiveOrder (algorithm 14)
+            cmd_adaptive = f"{binary} -f {graph.path} {sym_flag} -o 14 -n {num_trials}"
             success, stdout, stderr = run_command(cmd_adaptive, timeout)
             
             adaptive_time = 0.0
@@ -798,7 +777,7 @@ def run_subcommunity_brute_force(
             continue
         
         sym_flag = "-s" if graph.is_symmetric else ""
-        cmd = f"{binary} -f {graph.path} {sym_flag} -o 15 -n 1"
+        cmd = f"{binary} -f {graph.path} {sym_flag} -o 14 -n 1"
         
         success, stdout, stderr = run_command(cmd, timeout)
         if not success:

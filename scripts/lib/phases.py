@@ -110,7 +110,7 @@ from .reorder import (
     generate_reorderings, generate_reorderings_with_variants,
     load_label_maps_index, expand_algorithms_with_variants
 )
-from .benchmark import run_benchmark_suite
+from .benchmark import run_benchmarks_multi_graph
 from .cache import run_cache_simulations, get_cache_stats_summary
 from .analysis import (
     analyze_adaptive_order, compare_adaptive_vs_fixed,
@@ -409,7 +409,6 @@ def run_reorder_phase(
             skip_slow=config.skip_slow,
             generate_maps=True,
             force_reorder=config.force_reorder,
-            progress=config.progress
         )
         # Update label maps from results (non-variant mode)
         for r in results:
@@ -473,7 +472,7 @@ def run_benchmark_phase(
         )
     else:
         config.progress.info("Mode: Standard benchmarking")
-        results = run_benchmark_suite(
+        results = run_benchmarks_multi_graph(
             graphs=graphs,
             algorithms=algorithms,
             benchmarks=config.benchmarks,
@@ -484,7 +483,7 @@ def run_benchmark_phase(
             label_maps=label_maps,
             weights_dir=config.weights_dir,
             update_weights=config.update_weights,
-            progress=config.progress
+            progress=config.progress,
         )
     
     # Save results
@@ -827,18 +826,20 @@ def run_training_phase(
     result = train_adaptive_weights_iterative(
         graphs=graphs,
         bin_dir=config.bin_dir,
+        bin_sim_dir=config.bin_sim_dir,
+        output_dir=config.results_dir,
         weights_file=weights_file,
-        benchmarks=config.benchmarks,
+        benchmark=config.benchmarks[0] if config.benchmarks else "pr",
         target_accuracy=config.target_accuracy,
         max_iterations=config.max_iterations,
         learning_rate=config.learning_rate,
-        output_dir=config.results_dir,
         timeout=config.timeout_benchmark,
         num_trials=config.trials,
-        progress=config.progress
+        weights_dir=config.weights_dir,
+        logger=config.progress,
     )
     
-    config.progress.phase_end(f"Training complete: {result.final_accuracy:.2%} accuracy")
+    config.progress.phase_end(f"Training complete: {result.final_accuracy_time_pct:.2%} accuracy")
     return result
 
 
@@ -869,15 +870,18 @@ def run_large_scale_training_phase(
     result = train_adaptive_weights_large_scale(
         graphs=graphs,
         bin_dir=config.bin_dir,
+        bin_sim_dir=config.bin_sim_dir,
+        output_dir=config.results_dir,
         weights_file=weights_file,
         benchmarks=config.benchmarks,
         target_accuracy=config.target_accuracy,
         max_iterations=config.max_iterations,
         learning_rate=config.learning_rate,
         batch_size=config.batch_size,
-        output_dir=config.results_dir,
         timeout=config.timeout_benchmark,
-        progress=config.progress
+        num_trials=config.trials,
+        weights_dir=config.weights_dir,
+        logger=config.progress,
     )
     
     config.progress.phase_end(f"Large-scale training complete")

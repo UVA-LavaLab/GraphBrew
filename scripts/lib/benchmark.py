@@ -705,7 +705,7 @@ def run_benchmarks_with_variants(
 
         for bench in benchmarks:
             if not check_binary_exists(bench, bin_dir):
-                log.warn(f"Skipping {bench}: binary not found")
+                log.warning(f"Skipping {bench}: binary not found")
                 continue
 
             if progress:
