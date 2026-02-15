@@ -80,10 +80,10 @@ import glob
 import shutil
 import tarfile
 import gzip
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass, asdict
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Any, Set
+from typing import Dict, List, Optional, Tuple, Any
 import traceback
 import urllib.request
 import urllib.error
@@ -343,7 +343,7 @@ def expand_algorithms_with_variants(
                 name=f"GraphBrewOrder_{variant}",
                 option_string=option_str,
                 variant=variant,
-                resolution=-1.0  # -1 indicates auto-resolution
+                resolution="auto"  # auto indicates auto-resolution
             ))
         elif algo_id == 8:
             # RabbitOrder: use specified variant (default: csr)
@@ -362,7 +362,7 @@ def expand_algorithms_with_variants(
                 algo_id=algo_id,
                 name=base_name,
                 option_string=option_str,
-                resolution=-1.0  # -1 indicates auto-resolution
+                resolution="auto"  # auto indicates auto-resolution
             ))
         else:
             # Non-Leiden algorithms: just use ID

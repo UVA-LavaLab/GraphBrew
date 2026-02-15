@@ -24,9 +24,9 @@ import re
 import subprocess
 import sys
 from collections import Counter, defaultdict
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Dict, List, Optional, Tuple
 
 from .utils import _VARIANT_ALGO_REGISTRY, ALGORITHMS
 
