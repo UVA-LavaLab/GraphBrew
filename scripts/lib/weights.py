@@ -23,7 +23,7 @@ import math
 from pathlib import Path
 from dataclasses import dataclass, field, asdict
 from datetime import datetime
-from typing import Dict, List, Optional, Tuple, Any
+from typing import Dict, List, Optional, Tuple
 
 from .utils import (
     PROJECT_ROOT, WEIGHTS_DIR, ACTIVE_WEIGHTS_DIR, ALGORITHMS,

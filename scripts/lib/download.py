@@ -18,22 +18,19 @@ Library usage:
     download_graphs(graphs=["email-Enron", "web-Google"])
 """
 
-import os
 import sys
 import tarfile
-import gzip
 import shutil
 import urllib.request
-import urllib.error
 import threading
 import time
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Callable
-from dataclasses import dataclass, field
+from typing import Dict, List, Optional, Tuple
+from dataclasses import dataclass
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from enum import Enum
 
-from .utils import GRAPHS_DIR, RESULTS_DIR, log, ensure_directories
+from .utils import GRAPHS_DIR, log, ensure_directories
 
 
 # =============================================================================

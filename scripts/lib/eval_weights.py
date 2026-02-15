@@ -23,7 +23,7 @@ import os
 from collections import defaultdict
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Tuple
 
 from .utils import (
     BenchmarkResult, RESULTS_DIR, Logger,

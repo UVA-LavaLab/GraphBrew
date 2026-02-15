@@ -21,8 +21,7 @@ Library usage:
 import os
 import subprocess
 import sys
-from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import List, Tuple
 
 from .utils import (
     PROJECT_ROOT, BENCH_DIR, BIN_DIR, BIN_SIM_DIR,
@@ -31,7 +30,7 @@ from .utils import (
 
 # Import dependency checker (optional - graceful fallback if not available)
 try:
-    from .dependencies import check_dependencies, install_dependencies, print_install_instructions
+    from .dependencies import check_dependencies, install_dependencies
     HAS_DEPENDENCY_CHECKER = True
 except ImportError:
     HAS_DEPENDENCY_CHECKER = False

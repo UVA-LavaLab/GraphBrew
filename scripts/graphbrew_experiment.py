@@ -80,10 +80,10 @@ import glob
 import shutil
 import tarfile
 import gzip
-from dataclasses import dataclass, asdict
+from dataclasses import asdict
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional
 import traceback
 import urllib.request
 import urllib.error
@@ -98,7 +98,6 @@ if str(_PROJECT_ROOT) not in sys.path:
 # The lib/ module is part of this project and must be available
 from scripts.lib import (
     # Core constants
-    ALGORITHMS as LIB_ALGORITHMS,
     BENCHMARKS as LIB_BENCHMARKS,
     # Variant definitions (re-exported below for backward compat)
     RABBITORDER_VARIANTS as LIB_RABBITORDER_VARIANTS,
@@ -108,12 +107,7 @@ from scripts.lib import (
     GRAPHBREW_VARIANTS as LIB_GRAPHBREW_VARIANTS,
     GRAPHBREW_DEFAULT_VARIANT as LIB_GRAPHBREW_DEFAULT_VARIANT,
     # Utils
-    get_timestamp,
     # Features (imported directly - removes need for local duplicates)
-    GRAPH_TYPE_GENERIC,
-    GRAPH_TYPE_SOCIAL,
-    GRAPH_TYPE_ROAD,
-    GRAPH_TYPE_WEB,
     ALL_GRAPH_TYPES,
     BYTES_PER_EDGE,
     BYTES_PER_NODE,
@@ -154,41 +148,26 @@ from scripts.lib import (
     # Weights (imported directly - removes need for local duplicates)
     PerceptronWeight,
     load_type_registry,
-    save_type_registry,
     assign_graph_type,
     update_type_weights_incremental,
-    get_best_algorithm_for_type,
     list_known_types,
     get_type_weights_file,
-    load_type_weights,
-    save_type_weights,
     get_type_summary,
     CLUSTER_DISTANCE_THRESHOLD,
     # Progress
     ProgressTracker,
     # Results
-    ResultsManager,
-    # Analysis
-    SubcommunityInfo,
-    AdaptiveOrderResult,
-    AdaptiveComparisonResult,
-    GraphBruteForceAnalysis,
-    # Training
-    TrainingResult,
-    TrainingIterationResult,
-    # Phase orchestration
-    PhaseConfig,
-    run_reorder_phase,
-    run_benchmark_phase,
-    run_cache_phase,
-    run_weights_phase,
-    run_fill_weights_phase,
-    run_adaptive_analysis_phase,
-    run_comparison_phase,
-    run_brute_force_phase,
-    run_training_phase,
-    run_large_scale_training_phase,
-    run_full_pipeline,
+    # Results I/O (ResultsManager available in lib/results.py)
+    # Analysis types available in lib/analysis.py:
+    # SubcommunityInfo, AdaptiveOrderResult, AdaptiveComparisonResult,
+    # GraphBruteForceAnalysis
+    # Training types available in lib/training.py:
+    # TrainingResult, TrainingIterationResult
+    # Phase orchestration available in lib/phases.py:
+    # PhaseConfig, run_reorder_phase, run_benchmark_phase, run_cache_phase,
+    # run_weights_phase, run_fill_weights_phase, run_adaptive_analysis_phase,
+    # run_comparison_phase, run_brute_force_phase, run_training_phase,
+    # run_large_scale_training_phase, run_full_pipeline
 )
 
 # Try to import dependency manager
@@ -242,137 +221,7 @@ from scripts.lib.utils import (
 # ============================================================================
 # Algorithm Configuration with Variant Support
 # ============================================================================
-
-@dataclass
-class AlgorithmConfig:
-    """Configuration for an algorithm, including variant support."""
-    algo_id: int           # Base algorithm ID (e.g., 12 for GraphBrewOrder)
-    name: str              # Display name (e.g., "GraphBrewOrder_leiden")
-    option_string: str     # Full option string for -o flag (e.g., "12:hrab")
-    variant: str = ""      # Variant name if applicable (e.g., "graphbrew")
-    resolution: str = "dynamic"  # Resolution mode: "dynamic", "auto", "1.0", etc.
-    passes: int = 10
-    
-    @property
-    def base_name(self) -> str:
-        """Get base algorithm name without variant suffix."""
-        return ALGORITHMS.get(self.algo_id, f"ALGO_{self.algo_id}")
-
-
-def expand_algorithms_with_variants(
-    algorithms: List[int],
-    expand_leiden_variants: bool = False,
-    leiden_resolution: str = LEIDEN_DEFAULT_RESOLUTION,
-    leiden_passes: int = LEIDEN_DEFAULT_PASSES,
-    rabbit_variants: List[str] = None,
-    graphbrew_variants: List[str] = None
-) -> List[AlgorithmConfig]:
-    """
-    Expand algorithm IDs into AlgorithmConfig objects.
-    
-    For RabbitOrder (8), optionally expand into csr/boost variants.
-    For RCM (11), optionally expand into default/bnf variants.
-    For GraphBrewOrder (12), optionally expand into leiden/rabbit/hubcluster variants.
-    
-    Args:
-        algorithms: List of algorithm IDs
-        expand_leiden_variants: If True, expand variant algorithms into all their variants
-        leiden_resolution: Resolution parameter for Leiden algorithms
-        leiden_passes: Number of passes for Leiden
-        rabbit_variants: Which RabbitOrder variants to include (default: csr only)
-        graphbrew_variants: Which GraphBrewOrder variants to include (default: leiden only)
-    
-    Returns:
-        List of AlgorithmConfig objects
-    """
-    if rabbit_variants is None:
-        # When expand_leiden_variants is True (--all-variants), include both RabbitOrder variants
-        rabbit_variants = RABBITORDER_VARIANTS if expand_leiden_variants else [RABBITORDER_DEFAULT_VARIANT]
-    if graphbrew_variants is None:
-        # When expand_leiden_variants is True (--all-variants), include all GraphBrewOrder variants
-        graphbrew_variants = GRAPHBREW_VARIANTS if expand_leiden_variants else [GRAPHBREW_DEFAULT_VARIANT]
-    
-    # RCM variants: default (GoGraph) and bnf (CSR-native BNF)
-    rcm_variants = RCM_VARIANTS if expand_leiden_variants else [RCM_DEFAULT_VARIANT]
-    
-    configs = []
-    
-    for algo_id in algorithms:
-        base_name = ALGORITHMS.get(algo_id, f"ALGO_{algo_id}")
-        
-        if algo_id == 8 and expand_leiden_variants and len(rabbit_variants) > 1:
-            # RabbitOrder: expand into variants if multiple specified
-            for variant in rabbit_variants:
-                option_str = f"{algo_id}:{variant}"
-                configs.append(AlgorithmConfig(
-                    algo_id=algo_id,
-                    name=f"RABBITORDER_{variant}",
-                    option_string=option_str,
-                    variant=variant
-                ))
-        elif algo_id == 11 and expand_leiden_variants and len(rcm_variants) > 1:
-            # RCM: expand into variants
-            for variant in rcm_variants:
-                option_str = f"{algo_id}:{variant}" if variant != "default" else str(algo_id)
-                configs.append(AlgorithmConfig(
-                    algo_id=algo_id,
-                    name=f"RCM_{variant}",
-                    option_string=option_str,
-                    variant=variant
-                ))
-        elif algo_id == 12 and expand_leiden_variants:
-            # GraphBrewOrder: expand into clustering variants
-            # Format: 12:cluster_variant[:named_token...]
-            # Compound variants use '_' as separator in the name but ':'
-            # on the CLI, e.g. "leiden_recursive" → "12:leiden:recursive"
-            for variant in graphbrew_variants:
-                option_str = f"{algo_id}:{variant.replace('_', ':')}"
-                configs.append(AlgorithmConfig(
-                    algo_id=algo_id,
-                    name=f"GraphBrewOrder_{variant}",
-                    option_string=option_str,
-                    variant=variant,
-                    resolution=leiden_resolution
-                ))
-        elif algo_id == 12:
-            # GraphBrewOrder: use specified variant (default: leiden)
-            variant = graphbrew_variants[0] if graphbrew_variants else GRAPHBREW_DEFAULT_VARIANT
-            option_str = f"{algo_id}:{variant.replace('_', ':')}"
-            configs.append(AlgorithmConfig(
-                algo_id=algo_id,
-                name=f"GraphBrewOrder_{variant}",
-                option_string=option_str,
-                variant=variant,
-                resolution="auto"  # auto indicates auto-resolution
-            ))
-        elif algo_id == 8:
-            # RabbitOrder: use specified variant (default: csr)
-            variant = rabbit_variants[0] if rabbit_variants else RABBITORDER_DEFAULT_VARIANT
-            option_str = f"{algo_id}:{variant}"
-            configs.append(AlgorithmConfig(
-                algo_id=algo_id,
-                name=base_name,
-                option_string=option_str,
-                variant=variant
-            ))
-        elif algo_id == 15:
-            # LeidenOrder: no parameters (use auto-resolution)
-            option_str = f"{algo_id}"
-            configs.append(AlgorithmConfig(
-                algo_id=algo_id,
-                name=base_name,
-                option_string=option_str,
-                resolution="auto"  # auto indicates auto-resolution
-            ))
-        else:
-            # Non-Leiden algorithms: just use ID
-            configs.append(AlgorithmConfig(
-                algo_id=algo_id,
-                name=base_name,
-                option_string=str(algo_id)
-            ))
-    
-    return configs
+# AlgorithmConfig and expand_algorithms_with_variants() are in lib/reorder.py
 
 
 # Note: get_best_leiden_variant and get_leiden_variant_rankings removed
@@ -1238,142 +1087,8 @@ def clean_reorder_cache(graphs_dir: str = None):
 
 
 # get_num_threads() is imported from lib/features.py
-
-def parse_benchmark_output(output: str) -> Dict[str, Any]:
-    """Parse benchmark output for timing and stats."""
-    result = {}
-    
-    # Graph stats
-    match = re.search(r'Graph has (\d+) nodes and (\d+)', output)
-    if match:
-        result['nodes'] = int(match.group(1))
-        result['edges'] = int(match.group(2))
-    
-    # Timing patterns - base execution times
-    patterns = {
-        'trial_time': r'Trial Time:\s+([\d.]+)',
-        'average_time': r'Average Time:\s+([\d.]+)',
-        'total_time': r'Total Time:\s+([\d.]+)',
-    }
-    
-    for key, pattern in patterns.items():
-        match = re.search(pattern, output)
-        if match:
-            result[key] = float(match.group(1))
-    
-    # Reorder/Ordering time patterns - from various algorithms
-    # Patterns like: "RabbitOrder Map Time: 0.123", "Ordering Time: 0.456", etc.
-    reorder_patterns = [
-        r'(?:RabbitOrder|GOrder|GOrder_CSR|GOrder_fast|LeidenOrder|COrder|RCMOrder|HubSort|DBG|Relabel|Sub-RabbitOrder)\s*(?:Map Time|RCM|greedy|compose|config)[:\s]+([\d.]+)',
-        r'Ordering Time[:\s]+([\d.]+)',
-        r'RandOrder Time[:\s]+([\d.]+)',
-        r'Reorder Time[:\s]+([\d.]+)',
-        r'Total Reordering Time[:\s]+([\d.]+)',
-    ]
-    
-    # Collect all reorder times and use the largest (the actual reorder, not intermediate steps)
-    reorder_times = []
-    for pattern in reorder_patterns:
-        for match in re.finditer(pattern, output, re.IGNORECASE):
-            try:
-                reorder_times.append(float(match.group(1)))
-            except (ValueError, IndexError):
-                pass
-    
-    if reorder_times:
-        # Use the maximum (primary algorithm time, not sub-steps)
-        result['reorder_time'] = max(reorder_times)
-    
-    # Modularity
-    match = re.search(r'[Mm]odularity[:\s]+([\d.]+)', output)
-    if match:
-        result['modularity'] = float(match.group(1))
-    
-    # Global graph features (from AdaptiveOrder output)
-    # Degree Variance: 0.1234
-    match = re.search(r'Degree Variance[:\s]+([\d.]+)', output)
-    if match:
-        result['degree_variance'] = float(match.group(1))
-    
-    # Hub Concentration: 0.1234
-    match = re.search(r'Hub Concentration[:\s]+([\d.]+)', output)
-    if match:
-        result['hub_concentration'] = float(match.group(1))
-    
-    # Clustering Coefficient: 0.1234
-    match = re.search(r'Clustering Coefficient[:\s]+([\d.]+)', output)
-    if match:
-        result['clustering_coefficient'] = float(match.group(1))
-    
-    # Community Count: 123 or Number of Communities: 123 or Community Count Estimate: 123
-    match = re.search(r'(?:Community Count(?: Estimate)?|Number of Communities|communities)[:\s]+([\d.]+)', output, re.IGNORECASE)
-    if match:
-        result['community_count'] = int(float(match.group(1)))
-    
-    # Avg Path Length: 5.6789
-    match = re.search(r'Avg Path Length[:\s]+([\d.]+)', output)
-    if match:
-        result['avg_path_length'] = float(match.group(1))
-    
-    # Diameter Estimate: 12
-    match = re.search(r'Diameter Estimate[:\s]+([\d.]+)', output)
-    if match:
-        result['diameter'] = float(match.group(1))
-    
-    # Avg Degree: 10.5 (from topology features)
-    match = re.search(r'Avg Degree[:\s]+([\d.]+)', output)
-    if match:
-        result['avg_degree'] = float(match.group(1))
-    
-    # Graph Type: social
-    match = re.search(r'Graph Type[:\s]+(\w+)', output)
-    if match:
-        result['graph_type'] = match.group(1).lower()
-    
-    return result
-
-
-def parse_cache_output(output: str) -> Dict[str, float]:
-    """Parse cache simulation output."""
-    result = {}
-    
-    # The output format is structured in blocks like:
-    # ║ L1 Cache (32KB, 8-way, LRU)
-    # ║   Hit Rate:                 55.6082%
-    # We need to extract the hit rate from each cache block
-    
-    # Split by cache sections
-    l1_match = re.search(r'L1 Cache.*?Hit Rate:\s*([\d.]+)%', output, re.DOTALL)
-    l2_match = re.search(r'L2 Cache.*?Hit Rate:\s*([\d.]+)%', output, re.DOTALL)
-    l3_match = re.search(r'L3 Cache.*?Hit Rate:\s*([\d.]+)%', output, re.DOTALL)
-    
-    if l1_match:
-        result['l1_hit_rate'] = float(l1_match.group(1))
-    if l2_match:
-        result['l2_hit_rate'] = float(l2_match.group(1))
-    if l3_match:
-        result['l3_hit_rate'] = float(l3_match.group(1))
-    
-    # Fallback patterns for different formats
-    if 'l1_hit_rate' not in result:
-        patterns = {
-            'l1_hit_rate': r'L1 Hit Rate:\s*([\d.]+)%?',
-            'l2_hit_rate': r'L2 Hit Rate:\s*([\d.]+)%?',
-            'l3_hit_rate': r'L3 Hit Rate:\s*([\d.]+)%?',
-        }
-        for key, pattern in patterns.items():
-            match = re.search(pattern, output)
-            if match:
-                result[key] = float(match.group(1))
-    
-    # Also check for compact summary format: L1:XX.X% L2:XX.X% L3:XX.X%
-    summary = re.search(r'L1:([\d.]+)%\s*L2:([\d.]+)%\s*L3:([\d.]+)%', output)
-    if summary:
-        result['l1_hit_rate'] = float(summary.group(1))
-        result['l2_hit_rate'] = float(summary.group(2))
-        result['l3_hit_rate'] = float(summary.group(3))
-    
-    return result
+# parse_benchmark_output() is in lib/benchmark.py
+# parse_cache_output() is in lib/cache.py
 
 
 # ============================================================================
@@ -1396,7 +1111,7 @@ def parse_cache_output(output: str) -> Dict[str, float]:
 #   - run_cache_simulations() - Phase 3: Run cache simulations
 #
 # From lib/weights.py:
-#   - generate_perceptron_weights_from_results() - Phase 4: Generate weights
+#   - compute_weights_from_results() - Phase 4: Generate weights
 #   - update_zero_weights() - Phase 5: Update zero weights
 #
 # From lib/analysis.py:
@@ -1414,7 +1129,7 @@ def parse_cache_output(output: str) -> Dict[str, float]:
 #   - PhaseConfig - Configuration for phase execution
 #
 # Legacy local implementations have been removed to avoid duplication.
-# Use the run_phases() function or import directly from lib/.
+# Use run_full_pipeline() or import directly from lib/.
 #
 # ============================================================================
 
@@ -1504,192 +1219,7 @@ def validate_adaptive_accuracy(
 # ============================================================================
 # Simplified Phase-Based Orchestration (using lib/phases.py)
 # ============================================================================
-
-def run_phases(args, graphs: List[GraphInfo], algorithms: List[int]) -> Dict[str, Any]:
-    """
-    Run experiment phases using the lib/phases.py orchestration module.
-    
-    This is a simplified version of run_experiment that delegates to lib modules.
-    
-    Args:
-        args: Command line arguments
-        graphs: List of GraphInfo objects
-        algorithms: List of algorithm IDs to benchmark
-    
-    Returns:
-        Dictionary with results from each phase
-    """
-    # Create phase configuration from args
-    config = PhaseConfig.from_args(args)
-    
-    # Initialize results storage
-    results = {
-        'reorder': [],
-        'benchmark': [],
-        'cache': [],
-        'label_maps': {},
-    }
-    
-    # ==========================================================================
-    # Load previous results when running individual phases
-    # This allows running phases separately: --phase reorder, then --phase benchmark, etc.
-    # ==========================================================================
-    def load_previous_results():
-        """Load results from previous phase runs."""
-        loaded_any = False
-        
-        # Load label maps (needed for benchmark and cache phases)
-        if args.phase in ["benchmark", "cache"] or getattr(args, "use_maps", False):
-            from scripts.lib.reorder import load_label_maps_index
-            results['label_maps'] = load_label_maps_index(args.results_dir)
-            if results['label_maps']:
-                config.progress.info(f"Loaded label maps for {len(results['label_maps'])} graphs")
-                loaded_any = True
-        
-        # Load reorder results (needed for weights phase)
-        if args.phase in ["weights"]:
-            latest_reorder = max(glob.glob(os.path.join(args.results_dir, "reorder_*.json")), default=None, key=os.path.getmtime)
-            if latest_reorder:
-                try:
-                    with open(latest_reorder) as f:
-                        results['reorder'] = [ReorderResult(**r) for r in json.load(f)]
-                    config.progress.info(f"Loaded {len(results['reorder'])} reorder results from {os.path.basename(latest_reorder)}")
-                    loaded_any = True
-                except Exception as e:
-                    config.progress.warning(f"Failed to load reorder results: {e}")
-        
-        # Load benchmark results (needed for weights phase)
-        if args.phase in ["weights"]:
-            latest_bench = max(glob.glob(os.path.join(args.results_dir, "benchmark_*.json")), default=None, key=os.path.getmtime)
-            if latest_bench:
-                try:
-                    with open(latest_bench) as f:
-                        results['benchmark'] = [BenchmarkResult(**r) for r in json.load(f)]
-                    config.progress.info(f"Loaded {len(results['benchmark'])} benchmark results from {os.path.basename(latest_bench)}")
-                    loaded_any = True
-                except Exception as e:
-                    config.progress.warning(f"Failed to load benchmark results: {e}")
-        
-        # Load cache results (needed for weights phase)
-        if args.phase in ["weights"] and not args.skip_cache:
-            latest_cache = max(glob.glob(os.path.join(args.results_dir, "cache_*.json")), default=None, key=os.path.getmtime)
-            if latest_cache:
-                try:
-                    with open(latest_cache) as f:
-                        results['cache'] = [CacheResult(**r) for r in json.load(f)]
-                    config.progress.info(f"Loaded {len(results['cache'])} cache results from {os.path.basename(latest_cache)}")
-                    loaded_any = True
-                except Exception as e:
-                    config.progress.warning(f"Failed to load cache results: {e}")
-        
-        return loaded_any
-    
-    # Load previous results if running a phase that needs them
-    if args.phase != "all":
-        config.progress.phase_start("LOADING PREVIOUS RESULTS", f"Preparing for --phase {args.phase}")
-        if load_previous_results():
-            config.progress.success("Previous results loaded")
-        else:
-            config.progress.info("No previous results found (this may be the first run)")
-        config.progress.phase_end()
-    
-    # Load existing label maps if explicitly requested
-    if getattr(args, "use_maps", False) and not results['label_maps']:
-        config.progress.phase_start("LOADING MAPS", "Loading pre-generated label mappings")
-        from scripts.lib.reorder import load_label_maps_index
-        results['label_maps'] = load_label_maps_index(args.results_dir)
-        if results['label_maps']:
-            config.progress.success(f"Loaded maps for {len(results['label_maps'])} graphs")
-        config.progress.phase_end()
-    
-    # Phase 1: Reordering
-    if args.phase in ["all", "reorder"]:
-        reorder_results, label_maps = run_reorder_phase(
-            graphs=graphs,
-            algorithms=algorithms,
-            config=config,
-            label_maps=results['label_maps']
-        )
-        results['reorder'] = reorder_results
-        results['label_maps'] = label_maps
-    
-    # Phase 2: Benchmarking
-    if args.phase in ["all", "benchmark"]:
-        benchmark_results = run_benchmark_phase(
-            graphs=graphs,
-            algorithms=algorithms,
-            label_maps=results['label_maps'],
-            config=config
-        )
-        results['benchmark'] = benchmark_results
-    
-    # Phase 3: Cache Simulation
-    if args.phase in ["all", "cache"] and not args.skip_cache:
-        cache_results = run_cache_phase(
-            graphs=graphs,
-            algorithms=algorithms,
-            label_maps=results['label_maps'],
-            config=config
-        )
-        results['cache'] = cache_results
-    
-    # Phase 4: Weights
-    if args.phase in ["all", "weights"]:
-        weights = run_weights_phase(
-            benchmark_results=results['benchmark'],
-            cache_results=results['cache'],
-            reorder_results=results['reorder'],
-            config=config
-        )
-        results['weights'] = weights
-    
-    # Phase 5: Fill Weights
-    if getattr(args, "fill_weights", False):
-        run_fill_weights_phase(
-            benchmark_results=results['benchmark'],
-            cache_results=results['cache'],
-            reorder_results=results['reorder'],
-            config=config
-        )
-    
-    # Phase 6: Adaptive Analysis
-    if args.phase in ["all", "adaptive"] or getattr(args, "adaptive_analysis", False):
-        adaptive_results = run_adaptive_analysis_phase(graphs=graphs, config=config)
-        results['adaptive'] = adaptive_results
-    
-    # Phase 7: Comparison
-    if getattr(args, "adaptive_comparison", False):
-        comparison_results = run_comparison_phase(graphs=graphs, config=config)
-        results['comparison'] = comparison_results
-    
-    # Phase 8: Brute Force
-    if getattr(args, "brute_force", False):
-        bf_results = run_brute_force_phase(
-            graphs=graphs,
-            config=config,
-            benchmark=getattr(args, "bf_benchmark", "pr")
-        )
-        results['brute_force'] = bf_results
-    
-    # Phase 9: Training
-    if getattr(args, "train_adaptive", False):
-        training_result = run_training_phase(
-            graphs=graphs,
-            config=config,
-            weights_file=getattr(args, 'weights_file', None)
-        )
-        results['training'] = training_result
-    
-    # Phase 10: Large-Scale Training
-    if getattr(args, "train_large", False):
-        large_training_result = run_large_scale_training_phase(
-            graphs=graphs,
-            config=config,
-            weights_file=getattr(args, 'weights_file', None)
-        )
-        results['large_training'] = large_training_result
-    
-    return results
+# run_phases() removed — use run_full_pipeline() from lib/phases.py directly.
 
 
 # ============================================================================

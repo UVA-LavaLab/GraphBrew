@@ -37,13 +37,12 @@ Usage:
     python -m scripts.lib.weight_merger --list-runs
 """
 
-import os
 import json
 import shutil
 import numpy as np
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Any
+from typing import Dict, List, Optional, Any
 from dataclasses import dataclass, field
 
 

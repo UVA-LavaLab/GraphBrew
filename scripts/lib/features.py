@@ -16,12 +16,10 @@ Standalone usage:
 """
 
 import json
-import math
 import os
 import random
 from collections import deque
-from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Any
+from typing import Dict, List, Optional, Tuple
 
 # =============================================================================
 # Graph Type Constants (must match C++ GraphType enum in builder.h)

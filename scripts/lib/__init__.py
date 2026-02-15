@@ -52,8 +52,8 @@ This library provides functions for:
 __version__ = "1.2.0"
 __all__ = [
     "utils", "download", "build", "reorder", "benchmark", "cache", "weights",
-    "progress", "results", "analysis", "training", "features", "phases", "types",
-    "dependencies", "graph_data"
+    "progress", "results", "analysis", "training", "features", "phases",
+    "dependencies", "graph_data", "graph_types"
 ]
 
 # =============================================================================
