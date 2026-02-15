@@ -83,7 +83,7 @@ import gzip
 from dataclasses import dataclass, asdict
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Any
+from typing import Dict, List, Optional, Any
 import traceback
 import urllib.request
 import urllib.error
@@ -401,7 +401,8 @@ MIN_EDGES_FOR_TRAINING = 100000  # 100K edges - graphs below this are too noisy 
 
 # Timeout constants imported from lib/utils.py (Single Source of Truth)
 from scripts.lib.utils import (
-    TIMEOUT_REORDER, TIMEOUT_BENCHMARK, TIMEOUT_SIM, TIMEOUT_SIM_HEAVY
+    TIMEOUT_REORDER, TIMEOUT_BENCHMARK, TIMEOUT_SIM, TIMEOUT_SIM_HEAVY,
+    run_command,
 )
 
 # ============================================================================

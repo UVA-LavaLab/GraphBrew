@@ -52,6 +52,10 @@ DEFAULT_WEIGHTS_DIR = str(ACTIVE_WEIGHTS_DIR)
 CLUSTER_DISTANCE_THRESHOLD = 0.15  # Max normalized distance to join existing cluster
 MIN_SAMPLES_FOR_CLUSTER = 2  # Minimum graphs to form a stable cluster
 
+# Dead feature keys — these are ALWAYS 0 in training data (C++ doesn't compute
+# them at runtime), but z-score denormalization creates large noise weights.
+_DEAD_WEIGHT_KEYS = {'w_avg_path_length', 'w_diameter', 'w_community_count'}
+
 
 # =============================================================================
 # Data Classes
@@ -787,7 +791,6 @@ def compute_weights_from_results(
     #       w[predicted] -= learning_rate * features
     # This directly optimizes for correct algorithm selection.
     
-    import math
     from .features import load_graph_properties_cache
     from .utils import RESULTS_DIR
     
@@ -1082,9 +1085,6 @@ def compute_weights_from_results(
                 # Zero out dead features — these are ALWAYS 0 in training data
                 # (C++ doesn't compute them at runtime), but z-score
                 # denormalization creates millions-scale weights from noise.
-                _DEAD_WEIGHT_KEYS = {
-                    'w_avg_path_length', 'w_diameter', 'w_community_count',
-                }
                 for dk in _DEAD_WEIGHT_KEYS:
                     denorm_w[dk] = 0.0
                 
@@ -1144,9 +1144,6 @@ def compute_weights_from_results(
             denorm_w = {weight_keys[i]: avg_w[i] / feat_stds[i] for i in range(n_feat)}
             
             # Zero out dead features (same as per-bench models)
-            _DEAD_WEIGHT_KEYS = {
-                'w_avg_path_length', 'w_diameter', 'w_community_count',
-            }
             for dk in _DEAD_WEIGHT_KEYS:
                 denorm_w[dk] = 0.0
             
@@ -1388,8 +1385,7 @@ def compute_weights_from_results(
             wsr = mean_features.get('working_set_ratio', 0.0)
             s += data.get('w_packing_factor', 0) * pf
             s += data.get('w_forward_edge_fraction', 0) * fef
-            import math as _m
-            log_wsr = _m.log2(wsr + 1.0)
+            log_wsr = math.log2(wsr + 1.0)
             s += data.get('w_working_set_ratio', 0) * log_wsr
             # Quadratic interaction terms
             s += data.get('w_dv_x_hub', 0) * dv * hc
@@ -1428,7 +1424,7 @@ def cross_validate_logo(
     Returns:
         Dict with keys: accuracy, per_graph, overfitting_score, regret metrics
     """
-    import math, tempfile, json
+    import tempfile
     from .features import load_graph_properties_cache
     from .utils import RESULTS_DIR
 
@@ -2136,8 +2132,6 @@ def update_zero_weights(
     # Update feature weights from benchmark results
     # Group results by graph and benchmark to compute correlations
     if benchmark_results:
-        import math
-        
         # Collect speedups and features per algorithm
         algo_speedups = {}  # algo -> [(speedup, features), ...]
         
