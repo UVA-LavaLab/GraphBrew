@@ -778,7 +778,9 @@ def download_file(url: str, dest_path: Path, timeout: int = 300) -> bool:
     """Download a file from URL to destination."""
     try:
         log.debug(f"Downloading {url}")
-        urllib.request.urlretrieve(url, dest_path)
+        with urllib.request.urlopen(url, timeout=timeout) as response:
+            with open(dest_path, 'wb') as out_file:
+                out_file.write(response.read())
         return True
     except Exception as e:
         log.error(f"Failed to download {url}: {e}")

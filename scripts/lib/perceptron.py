@@ -25,7 +25,6 @@ Usage:
 Author: GraphBrew Team
 """
 
-import os
 import sys
 import json
 import math
@@ -34,7 +33,7 @@ import random
 from pathlib import Path
 from datetime import datetime
 from typing import Dict, List, Tuple, Optional, Any
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass, field
 from collections import defaultdict
 
 # Add project root to path

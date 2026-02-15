@@ -70,14 +70,12 @@ Author: GraphBrew Team
 """
 
 import argparse
-import copy
 import json
 import os
 import re
 import subprocess
 import sys
 import time
-import math
 import glob
 import shutil
 import tarfile
@@ -86,7 +84,6 @@ from dataclasses import dataclass, field, asdict
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Any, Set
-from concurrent.futures import ThreadPoolExecutor, as_completed
 import traceback
 import urllib.request
 import urllib.error
@@ -111,15 +108,12 @@ from scripts.lib import (
     GRAPHBREW_VARIANTS as LIB_GRAPHBREW_VARIANTS,
     GRAPHBREW_DEFAULT_VARIANT as LIB_GRAPHBREW_DEFAULT_VARIANT,
     # Utils
-    Logger,
     get_timestamp,
     # Features (imported directly - removes need for local duplicates)
     GRAPH_TYPE_GENERIC,
     GRAPH_TYPE_SOCIAL,
     GRAPH_TYPE_ROAD,
     GRAPH_TYPE_WEB,
-    GRAPH_TYPE_POWERLAW,
-    GRAPH_TYPE_UNIFORM,
     ALL_GRAPH_TYPES,
     BYTES_PER_EDGE,
     BYTES_PER_NODE,

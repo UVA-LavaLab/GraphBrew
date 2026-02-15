@@ -30,6 +30,7 @@ from .utils import (
     TIMEOUT_SIM, TIMEOUT_SIM_HEAVY,
     ALGORITHMS, Logger, run_command, get_algorithm_name,
 )
+from .graph_types import GraphInfo
 from .reorder import get_label_map_path, get_algorithm_name_with_variant
 
 # Initialize logger
@@ -68,15 +69,6 @@ class CacheResult:
     
     def to_dict(self) -> Dict:
         return asdict(self)
-
-
-@dataclass
-class GraphInfo:
-    """Basic information about a graph for simulations."""
-    name: str
-    path: str
-    size_mb: float = 0.0
-    is_symmetric: bool = True
 
 
 # =============================================================================

@@ -33,7 +33,7 @@ import subprocess
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Any
+from typing import Dict, List, Optional, Tuple
 from collections import defaultdict
 
 
@@ -132,26 +132,13 @@ SCORING_FEATURES = [
 try:
     from scripts.lib.utils import ALGORITHMS
 except ImportError:
-    # Fallback for standalone usage
-    ALGORITHMS = {
-        0: "ORIGINAL",
-        1: "RANDOM",
-        2: "SORT",
-        3: "HUBSORT",
-        4: "HUBCLUSTER",
-        5: "DBG",
-        6: "HUBSORTDBG",
-        7: "HUBCLUSTERDBG",
-        8: "RABBITORDER",
-        9: "GORDER",
-        10: "CORDER",
-        11: "RCM",
-        12: "GraphBrewOrder",
-        13: "MAP",
-        14: "AdaptiveOrder",
-        15: "LeidenOrder",
-        # RCM variants: 11 (default=GoGraph), 11:bnf (CSR-native BNF)
-    }
+    try:
+        from .utils import ALGORITHMS
+    except ImportError:
+        raise ImportError(
+            "Cannot import ALGORITHMS from utils.py. "
+            "Run from the project root: python3 -m scripts.lib.adaptive_emulator"
+        )
 
 # =============================================================================
 # Data Classes
@@ -1086,7 +1073,6 @@ class AdaptiveOrderEmulator:
         weight_caps: List[float],
     ) -> List[Dict]:
         """Grid search to find optimal cap values."""
-        from collections import defaultdict
         
         # Load benchmark data
         with open(benchmark_path) as f:
