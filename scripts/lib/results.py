@@ -709,9 +709,9 @@ class ResultSchema:
 
 # Common schemas for GraphBrew results
 BENCHMARK_RESULT_SCHEMA = ResultSchema(
-    required_fields=['graph', 'algorithm', 'benchmark', 'time'],
-    optional_fields=['speedup', 'iterations', 'trial', 'timestamp'],
-    field_types={'time': (int, float), 'speedup': (int, float, type(None))}
+    required_fields=['graph', 'algorithm', 'benchmark', 'time_seconds'],
+    optional_fields=['speedup', 'reorder_time', 'trials', 'timestamp'],
+    field_types={'time_seconds': (int, float), 'speedup': (int, float, type(None))}
 )
 
 REORDER_RESULT_SCHEMA = ResultSchema(

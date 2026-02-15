@@ -78,7 +78,7 @@ pipelines simple and maintainable.
     - reorder  -> (List[ReorderResult], Dict[str, Dict[str, str]])
     - benchmark -> List[BenchmarkResult]
     - cache    -> List[CacheResult]
-    - adaptive -> List[AdaptiveAnalysisResult]
+    - adaptive -> List[AdaptiveOrderResult]
     - training -> TrainingResult
 
 **Error Handling:**
@@ -102,21 +102,22 @@ from dataclasses import asdict
 from typing import List, Dict, Optional, Any, Tuple
 
 # Import from lib modules
-from .graph_types import (
-    GraphInfo, ReorderResult, BenchmarkResult, CacheResult,
-    AdaptiveAnalysisResult, TrainingResult
-)
+from .graph_types import GraphInfo
 from .reorder import (
+    ReorderResult,
     generate_reorderings, generate_reorderings_with_variants,
     load_label_maps_index, expand_algorithms_with_variants
 )
+from .utils import BenchmarkResult
 from .benchmark import run_benchmarks_multi_graph
-from .cache import run_cache_simulations, get_cache_stats_summary
+from .cache import CacheResult, run_cache_simulations, get_cache_stats_summary
 from .analysis import (
+    AdaptiveOrderResult,
     analyze_adaptive_order, compare_adaptive_vs_fixed,
     run_subcommunity_brute_force
 )
 from .training import (
+    TrainingResult,
     train_adaptive_weights_iterative, train_adaptive_weights_large_scale,
     initialize_enhanced_weights
 )
@@ -685,7 +686,7 @@ def run_fill_weights_phase(
 def run_adaptive_analysis_phase(
     graphs: List[GraphInfo],
     config: PhaseConfig,
-) -> List[AdaptiveAnalysisResult]:
+) -> List[AdaptiveOrderResult]:
     """
     Run adaptive order analysis.
     

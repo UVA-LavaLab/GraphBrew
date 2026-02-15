@@ -40,7 +40,7 @@ This library provides functions for:
     from scripts.lib.download import download_graphs, DOWNLOAD_GRAPHS_SMALL
     from scripts.lib.build import build_binaries, check_binaries
     from scripts.lib.reorder import generate_reorderings, generate_label_maps
-    from scripts.lib.benchmark import run_benchmark, run_benchmark_suite
+    from scripts.lib.benchmark import run_benchmark, run_benchmarks_multi_graph
     from scripts.lib.cache import run_cache_simulations, run_cache_simulations_with_variants
     from scripts.lib.weights import assign_graph_type, update_type_weights_incremental
     from scripts.lib.progress import ProgressTracker, create_progress
@@ -348,15 +348,10 @@ from .phases import (
 )
 
 # =============================================================================
-# Type definitions
+# Type definitions (GraphInfo lives in graph_types to avoid circular imports)
 # =============================================================================
-from .graph_types import (
-    GraphInfo,
-    ReorderResult,
-    BenchmarkResult,
-    CacheResult,
-    AdaptiveAnalysisResult,
-)
+from .graph_types import GraphInfo
+from .utils import BenchmarkResult
 
 # =============================================================================
 # Per-graph data storage and run logging
