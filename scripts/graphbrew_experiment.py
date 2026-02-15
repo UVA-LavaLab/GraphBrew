@@ -375,23 +375,12 @@ def expand_algorithms_with_variants(
     return configs
 
 
-def get_algorithm_config_by_name(name: str, configs: List[AlgorithmConfig]) -> Optional[AlgorithmConfig]:
-    """Find an AlgorithmConfig by name."""
-    for cfg in configs:
-        if cfg.name == name:
-            return cfg
-    return None
-
-
 # Note: get_best_leiden_variant and get_leiden_variant_rankings removed
 # — LeidenCSR (16) has been deprecated; GraphBrew (12) subsumes it.
 
 
 # Benchmarks to run (from lib/utils.py — single source of truth)
 BENCHMARKS = LIB_BENCHMARKS
-
-# Benchmarks that are computationally intensive in simulation
-HEAVY_SIM_BENCHMARKS = {"bc", "sssp"}
 
 # Default paths - ALL outputs go to results/
 DEFAULT_RESULTS_DIR = "./results"
@@ -419,15 +408,8 @@ from scripts.lib.utils import (
 # Data Classes
 # ============================================================================
 
-@dataclass
-class GraphInfo:
-    """Information about a graph dataset."""
-    name: str
-    path: str
-    size_mb: float
-    is_symmetric: bool = True
-    nodes: int = 0
-    edges: int = 0
+# Use the canonical GraphInfo from lib/graph_types.py (includes extended properties)
+from scripts.lib.graph_types import GraphInfo
 
 # ============================================================================
 # Graph Feature Functions (from lib/features.py)
@@ -448,31 +430,6 @@ class GraphInfo:
 # Data Classes (from lib/)
 # =============================================================================
 # Core data classes are imported from lib/. BenchmarkResult comes from utils.py
-
-
-class PerceptronWeightExtended(PerceptronWeight):
-    """Extended PerceptronWeight with benchmark_weights multiplier.
-    
-    Delegates scoring to the parent PerceptronWeight.compute_score() to
-    stay in sync with the canonical implementation in lib/weights.py.
-    """
-    
-    def __init__(self, *args, benchmark_weights: Dict[str, float] = None, 
-                 _metadata: Dict = None, **kwargs):
-        super().__init__(*args, **kwargs)
-        if benchmark_weights is None:
-            # Use parent's benchmark_weights if available, else default
-            benchmark_weights = getattr(self, 'benchmark_weights', None) or {
-                'pr': 1.0, 'bfs': 1.0, 'cc': 1.0, 'sssp': 1.0, 'bc': 1.0, 'tc': 1.0
-            }
-        self.benchmark_weights = benchmark_weights
-        self._metadata = _metadata or {}
-    
-    def compute_score(self, features: Dict, benchmark: str = 'pr') -> float:
-        """Compute perceptron score, delegating to parent then applying benchmark multiplier."""
-        # Delegate to canonical compute_score in PerceptronWeight (lib/weights.py)
-        score = super().compute_score(features, benchmark)
-        return score
 
 
 # Global progress tracker instance
@@ -556,30 +513,8 @@ def get_graph_size_mb(path: str) -> float:
     return 0.0
 
 
-def get_graph_dimensions(path: str) -> Tuple[int, int]:
-    """Read nodes and edges count from an MTX file header.
-    
-    Returns:
-        (nodes, edges) tuple, or (0, 0) if unable to read
-    """
-    try:
-        with open(path, 'r') as f:
-            for line in f:
-                if line.startswith('%'):
-                    continue
-                # First non-comment line has dimensions: rows cols nnz
-                parts = line.strip().split()
-                if len(parts) >= 3:
-                    nodes = int(parts[0])
-                    edges = int(parts[2])
-                    return nodes, edges
-                elif len(parts) >= 2:
-                    nodes = int(parts[0])
-                    return nodes, 0
-                break
-    except Exception:
-        pass
-    return 0, 0
+# get_graph_dimensions is now in lib/utils.py (single source of truth)
+from scripts.lib.utils import get_graph_dimensions
 
 
 def discover_graphs(graphs_dir: str, min_size: float = 0, max_size: float = float('inf'), 
@@ -1303,35 +1238,6 @@ def clean_reorder_cache(graphs_dir: str = None):
 
 # get_num_threads() is imported from lib/features.py
 
-def run_command(cmd: str, timeout: int = 300, use_all_threads: bool = True) -> Tuple[bool, str, str]:
-    """Run a shell command with timeout.
-    
-    Args:
-        cmd: Command to run
-        timeout: Timeout in seconds
-        use_all_threads: If True, set OMP_NUM_THREADS to use all available cores
-    """
-    try:
-        # Set up environment with OpenMP thread count
-        env = os.environ.copy()
-        if use_all_threads:
-            num_threads = get_num_threads()
-            env['OMP_NUM_THREADS'] = str(num_threads)
-        
-        result = subprocess.run(
-            cmd,
-            shell=True,
-            capture_output=True,
-            text=True,
-            timeout=timeout,
-            env=env
-        )
-        return result.returncode == 0, result.stdout, result.stderr
-    except subprocess.TimeoutExpired:
-        return False, "", "TIMEOUT"
-    except Exception as e:
-        return False, "", str(e)
-
 def parse_benchmark_output(output: str) -> Dict[str, Any]:
     """Parse benchmark output for timing and stats."""
     result = {}
@@ -1519,8 +1425,8 @@ from scripts.lib.reorder import (
     load_label_maps_index,
     get_label_map_path,
 )
-from scripts.lib.benchmark import run_benchmark_suite, run_benchmarks_multi_graph
-from scripts.lib.cache import run_cache_simulations, run_cache_simulations_with_variants
+from scripts.lib.benchmark import run_benchmark_suite, run_benchmarks_multi_graph, run_benchmarks_with_variants
+from scripts.lib.cache import run_cache_simulations_with_variants
 from scripts.lib.analysis import (
     analyze_adaptive_order,
     compare_adaptive_vs_fixed,
@@ -1536,181 +1442,6 @@ from scripts.lib.training import (
 # ============================================================================
 # Local helper functions that wrap lib/ calls
 # ============================================================================
-
-def run_benchmarks_with_variants(
-    graphs: List[GraphInfo],
-    label_maps: Dict[str, Dict[str, str]],
-    benchmarks: List[str],
-    bin_dir: str,
-    num_trials: int = 3,
-    timeout: int = TIMEOUT_BENCHMARK,
-    weights_dir: str = DEFAULT_WEIGHTS_DIR,
-    update_weights: bool = True,
-    progress: 'ProgressTracker' = None
-) -> List[BenchmarkResult]:
-    """
-    Run benchmarks with variant-expanded label maps.
-    
-    This iterates directly over the algorithm names in label_maps (which include
-    variant suffixes like GraphBrewOrder_leiden, RABBITORDER_csr) to ensure the results
-    contain the full variant names.
-    
-    When using .lo files (MAP mode), loads reorder_time from the corresponding
-    .time file instead of parsing from benchmark output.
-    """
-    from scripts.lib.benchmark import run_benchmark, check_binary_exists
-    from pathlib import Path
-    
-    def load_reorder_time(label_map_path: str) -> float:
-        """Load reorder time from .time file corresponding to .lo file."""
-        if not label_map_path:
-            return 0.0
-        time_file = Path(label_map_path).with_suffix('.time')
-        if time_file.exists():
-            try:
-                return float(time_file.read_text().strip())
-            except (ValueError, IOError):
-                return 0.0
-        return 0.0
-    
-    results = []
-    
-    # Collect all unique algorithm names from label_maps
-    all_algo_names = set()
-    for graph_maps in label_maps.values():
-        all_algo_names.update(graph_maps.keys())
-    
-    # Always include ORIGINAL (algo_id=0) - it doesn't need a label map
-    all_algo_names.add("ORIGINAL")
-    
-    # Sort for consistent ordering (ORIGINAL first, then alphabetically)
-    algo_names_sorted = ["ORIGINAL"] + sorted([n for n in all_algo_names if n != "ORIGINAL"])
-    
-    total_configs = len(graphs) * len(algo_names_sorted) * len(benchmarks)
-    completed = 0
-    
-    # Import adaptive timeout from benchmark lib
-    from scripts.lib.benchmark import compute_adaptive_timeout
-
-    # Track (graph, benchmark) combos that timed out / crashed —
-    # skip remaining algorithms to avoid burning timeout budget
-    timed_out_combos: set = set()
-
-    for graph in graphs:
-        graph_name = graph.name
-        graph_path = graph.path
-        graph_label_maps = label_maps.get(graph_name, {})
-        
-        # Adaptive timeout based on graph size
-        graph_timeout = compute_adaptive_timeout(graph.edges, timeout)
-
-        if progress:
-            timeout_note = f", timeout={graph_timeout}s" if graph_timeout != timeout else ""
-            progress.info(f"Benchmarking: {graph_name} ({graph.size_mb:.1f}MB, {graph.edges:,} edges{timeout_note})")
-        
-        for bench in benchmarks:
-            if not check_binary_exists(bench, bin_dir):
-                log(f"Skipping {bench}: binary not found", "WARN")
-                continue
-            
-            if progress:
-                progress.info(f"  {bench.upper()}:")
-            
-            for algo_name in algo_names_sorted:
-                # Early-exit: skip remaining algorithms if this graph×benchmark
-                # already proved intractable (timeout or crash on a prior algorithm)
-                combo_key = (graph_name, bench)
-                if combo_key in timed_out_combos:
-                    # Determine algorithm ID
-                    algo_id = 0
-                    for aid, aname in ALGORITHMS.items():
-                        if algo_name == aname or algo_name.startswith(aname + "_"):
-                            algo_id = aid
-                            break
-                    # Use utils.BenchmarkResult (same as run_benchmark returns)
-                    from scripts.lib.utils import BenchmarkResult as UtilsBR
-                    result = UtilsBR(
-                        graph=graph_name,
-                        algorithm=algo_name,
-                        algorithm_id=algo_id,
-                        benchmark=bench,
-                        time_seconds=0.0,
-                        success=False,
-                        error="SKIPPED: prior algorithm timed out on this graph+benchmark"
-                    )
-                    result.nodes = graph.nodes
-                    result.edges = graph.edges
-                    results.append(result)
-                    completed += 1
-                    if progress:
-                        progress.info(f"    [{completed}/{total_configs}] {algo_name}: SKIPPED (timeout)")
-                    continue
-
-                # Determine algorithm ID from name
-                algo_id = 0
-                for aid, aname in ALGORITHMS.items():
-                    if algo_name == aname or algo_name.startswith(aname + "_"):
-                        algo_id = aid
-                        break
-                
-                # Get label map path for this algorithm (if not ORIGINAL)
-                label_map_path = ""
-                if algo_name == "ORIGINAL":
-                    # ORIGINAL uses algo_id=0, no label map needed
-                    algo_opt = "0"
-                else:
-                    label_map_path = graph_label_maps.get(algo_name, "")
-                    if not label_map_path:
-                        # Skip if no label map for this graph/algorithm combo
-                        continue
-                    # Use MAP mode with label file
-                    algo_opt = f"13:{label_map_path}"
-                
-                result = run_benchmark(
-                    benchmark=bench,
-                    graph_path=graph_path,
-                    algorithm=algo_opt,
-                    trials=num_trials,
-                    timeout=graph_timeout,
-                    bin_dir=bin_dir
-                )
-                
-                # Detect timeout or crash — mark this graph×benchmark as intractable
-                if not result.success:
-                    err_lower = (result.error or "").lower()
-                    is_timeout = "timed out" in err_lower or "timeout" in err_lower
-                    is_crash = "exit code -" in err_lower or "signal" in err_lower
-                    if is_timeout or is_crash:
-                        timed_out_combos.add(combo_key)
-                        reason = "TIMEOUT" if is_timeout else f"CRASH ({result.error[:60]})"
-                        if progress:
-                            progress.info(
-                                f"  ⚠ {reason}: {algo_name} on {bench}/{graph_name} — "
-                                f"skipping remaining algorithms for this combo"
-                            )
-
-                # Set the algorithm name to include variant suffix
-                result.algorithm = algo_name
-                result.algorithm_id = algo_id
-                result.graph = graph_name
-                result.nodes = graph.nodes
-                result.edges = graph.edges
-                
-                # Load reorder_time from .time file when using .lo files (MAP mode)
-                if label_map_path:
-                    result.reorder_time = load_reorder_time(label_map_path)
-                
-                results.append(result)
-                completed += 1
-                
-                # Log progress
-                status = "✓" if result.success else "✗"
-                time_str = f"{result.time_seconds:.4f}s" if result.success else result.error[:30]
-                if progress:
-                    progress.info(f"    [{completed}/{total_configs}] {algo_name}: {time_str}")
-    
-    return results
-
 
 def generate_perceptron_weights(
     benchmark_results: List[BenchmarkResult],

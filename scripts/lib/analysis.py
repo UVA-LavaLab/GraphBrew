@@ -666,6 +666,53 @@ def compare_adaptive_vs_fixed(
     return results
 
 
+def validate_adaptive_accuracy(
+    graphs: list,
+    bin_dir: str,
+    output_dir: str,
+    benchmarks: List[str] = None,
+    timeout: int = 300,
+    num_trials: int = 3,
+    force_reorder: bool = False,
+) -> List[Dict]:
+    """
+    Validate adaptive ordering accuracy by comparing against fixed algorithms.
+
+    This is a convenience wrapper around compare_adaptive_vs_fixed that uses a
+    standard set of common algorithms for comparison and returns plain dicts
+    (suitable for JSON serialization).
+
+    Args:
+        graphs: List of GraphInfo objects
+        bin_dir: Path to benchmark binaries
+        output_dir: Directory for result files
+        benchmarks: List of benchmarks to test (default: pr, bfs, cc)
+        timeout: Timeout in seconds per benchmark run
+        num_trials: Number of trials per benchmark
+        force_reorder: Unused (kept for API compatibility)
+
+    Returns:
+        List of dicts with comparison results per graph/benchmark
+    """
+    benchmarks = benchmarks or ["pr", "bfs", "cc"]
+
+    # Standard set of fixed algorithms to compare against
+    # 0=Original, 1=Random, 2=Sort, 4=HubSort, 7=DBG, 8=RabbitOrder, 11=RCM, 12=GraphBrew
+    fixed_algorithms = [0, 1, 2, 4, 7, 8, 11, 12]
+
+    comparison_results = compare_adaptive_vs_fixed(
+        graphs=graphs,
+        bin_dir=bin_dir,
+        benchmarks=benchmarks,
+        fixed_algorithms=fixed_algorithms,
+        output_dir=output_dir,
+        num_trials=num_trials,
+        timeout=timeout,
+    )
+
+    return [asdict(r) for r in comparison_results]
+
+
 def run_subcommunity_brute_force(
     graphs: List,  # GraphInfo objects
     bin_dir: str,
@@ -990,5 +1037,6 @@ __all__ = [
     # Analysis functions
     'analyze_adaptive_order',
     'compare_adaptive_vs_fixed',
+    'validate_adaptive_accuracy',
     'run_subcommunity_brute_force',
 ]

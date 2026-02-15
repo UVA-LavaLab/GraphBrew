@@ -168,9 +168,8 @@ def append_csv(filepath: Union[str, Path], row: Dict[str, Any]) -> bool:
 # Result File Naming
 # ─────────────────────────────────────────────────────────────────────────────
 
-def generate_timestamp() -> str:
-    """Generate timestamp string for filenames."""
-    return get_timestamp()
+# Backward-compatible alias (use get_timestamp from utils instead)
+generate_timestamp = get_timestamp
 
 
 def generate_result_filename(prefix: str, extension: str = "json",
@@ -187,7 +186,7 @@ def generate_result_filename(prefix: str, extension: str = "json",
         Generated filename
     """
     if timestamp:
-        ts = generate_timestamp()
+        ts = get_timestamp()
         return f"{prefix}_{ts}.{extension}"
     return f"{prefix}.{extension}"
 
@@ -257,7 +256,7 @@ class ResultsManager:
         
         self.experiment_name = experiment_name or "experiment"
         self.use_timestamps = use_timestamps
-        self.session_id = generate_timestamp() if use_timestamps else None
+        self.session_id = get_timestamp() if use_timestamps else None
         
         # Track files written this session
         self.session_files: Dict[str, Path] = {}

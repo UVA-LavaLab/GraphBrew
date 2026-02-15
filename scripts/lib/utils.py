@@ -431,6 +431,36 @@ TIMEOUT_SIM = 1200            # 20 min for cache simulations
 TIMEOUT_SIM_HEAVY = 3600      # 1 hour for heavy simulations (bc, sssp)
 
 # =============================================================================
+# Graph Dimension Parsing
+# =============================================================================
+
+def get_graph_dimensions(path: str) -> Tuple[int, int]:
+    """Read nodes and edges count from an MTX file header.
+
+    Returns:
+        (nodes, edges) tuple, or (0, 0) if unable to read
+    """
+    try:
+        with open(path, 'r') as f:
+            for line in f:
+                if line.startswith('%'):
+                    continue
+                # First non-comment line has dimensions: rows cols nnz
+                parts = line.strip().split()
+                if len(parts) >= 3:
+                    nodes = int(parts[0])
+                    edges = int(parts[2])
+                    return nodes, edges
+                elif len(parts) >= 2:
+                    nodes = int(parts[0])
+                    return nodes, 0
+                break
+    except Exception:
+        pass
+    return 0, 0
+
+
+# =============================================================================
 # Data Classes
 # =============================================================================
 

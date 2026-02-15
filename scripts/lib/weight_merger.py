@@ -44,7 +44,7 @@ import numpy as np
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Any
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass, field
 
 
 # Centroid feature names (must match type_registry.json structure)
