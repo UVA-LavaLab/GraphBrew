@@ -574,6 +574,7 @@ struct RabbitCSRGraph {
     RabbitCSRVertex* vs;              // Vertex attributes
     std::vector<std::vector<std::pair<uint32_t, float>>> es;  // Adjacency list (neighbor, weight)
     double tot_wgt;                   // Total edge weight
+    double resolution;                 // Resolution parameter for modularity (default 1.0)
     std::vector<uint32_t> tops;       // Top-level vertices (roots)
     uint32_t num_vertices;
     
@@ -583,7 +584,7 @@ struct RabbitCSRGraph {
     std::atomic<size_t> n_fail_cas{0};
     std::atomic<size_t> tot_nbrs{0};
     
-    RabbitCSRGraph() : coms(nullptr), vs(nullptr), tot_wgt(0.0), num_vertices(0) {}
+    RabbitCSRGraph() : coms(nullptr), vs(nullptr), tot_wgt(0.0), resolution(1.0), num_vertices(0) {}
     
     ~RabbitCSRGraph() {
         if (coms) delete[] coms;
@@ -727,7 +728,7 @@ inline uint32_t rabbitCSRFindBest(const RabbitCSRGraph& g, uint32_t u, float u_s
     for (const auto& e : g.es[u]) {
         RabbitCSRAtomPacked v_atom = g.vs[e.first].load_atom();
         double delta_q = static_cast<double>(e.second) - 
-                         static_cast<double>(u_strength) * static_cast<double>(v_atom.str) / g.tot_wgt;
+                         g.resolution * static_cast<double>(u_strength) * static_cast<double>(v_atom.str) / g.tot_wgt;
         
         if (delta_q > dmax) {
             dmax = delta_q;
@@ -897,82 +898,52 @@ void rabbitCSRComputePerm(const RabbitCSRGraph& g, pvector<NodeID_>& perm) {
     const uint32_t n = g.n();
     const uint32_t ncom = static_cast<uint32_t>(g.tops.size());
     
-    std::vector<uint32_t> multi_vertex_tops;
-    std::vector<uint32_t> isolated_vertices;
-    
-    for (uint32_t i = 0; i < ncom; ++i) {
-        uint32_t top = g.tops[i];
-        RabbitCSRAtomPacked atom = g.vs[top].load_atom();
-        if (atom.child == UINT32_MAX) {
-            isolated_vertices.push_back(top);
-        } else {
-            multi_vertex_tops.push_back(top);
-        }
-    }
-    
-    std::vector<bool> is_isolated(n, false);
-    for (uint32_t v : isolated_vertices) {
-        is_isolated[v] = true;
-    }
-    
-    std::vector<uint32_t> coms(n, UINT32_MAX);
-    std::vector<uint32_t> local_ids(n, UINT32_MAX);
+    // Match Boost: treat all tops uniformly (no isolated vertex segregation)
+    auto coms = std::make_unique<uint32_t[]>(n);
+    std::vector<uint32_t> offsets(ncom + 1, 0);
     
     const int np = omp_get_max_threads();
-    const uint32_t n_multi = static_cast<uint32_t>(multi_vertex_tops.size());
-    std::vector<uint32_t> multi_offsets(n_multi + 1, 0);
+    const uint32_t ntask = std::min<uint32_t>(ncom, 128 * np);
     
-    if (n_multi > 0) {
-        const uint32_t ntask = std::min<uint32_t>(n_multi, 128 * np);
+    #pragma omp parallel
+    {
+        std::vector<uint32_t> stack;
         
-        #pragma omp parallel
-        {
-            std::vector<uint32_t> stack;
-            
-            #pragma omp for schedule(dynamic, 1)
-            for (uint32_t i = 0; i < ntask; ++i) {
-                for (uint32_t idx = i; idx < n_multi; idx += ntask) {
-                    uint32_t newid = 0;
-                    stack.clear();
+        #pragma omp for schedule(dynamic, 1)
+        for (uint32_t i = 0; i < ntask; ++i) {
+            for (uint32_t comid = i; comid < ncom; comid += ntask) {
+                uint32_t newid = 0;
+                stack.clear();
+                
+                rabbitCSRDescendants(g, g.tops[comid], stack);
+                
+                while (!stack.empty()) {
+                    uint32_t v = stack.back();
+                    stack.pop_back();
                     
-                    rabbitCSRDescendants(g, multi_vertex_tops[idx], stack);
+                    coms[v] = comid;
+                    perm[v] = newid++;
                     
-                    while (!stack.empty()) {
-                        uint32_t v = stack.back();
-                        stack.pop_back();
-                        
-                        coms[v] = idx;
-                        local_ids[v] = newid++;
-                        
-                        uint32_t sib = g.vs[v].sibling.load(std::memory_order_acquire);
-                        if (sib != UINT32_MAX) {
-                            rabbitCSRDescendants(g, sib, stack);
-                        }
+                    uint32_t sib = g.vs[v].sibling.load(std::memory_order_acquire);
+                    if (sib != UINT32_MAX) {
+                        rabbitCSRDescendants(g, sib, stack);
                     }
-                    
-                    multi_offsets[idx + 1] = newid;
                 }
+                
+                offsets[comid + 1] = newid;
             }
         }
-        
-        for (uint32_t i = 1; i <= n_multi; ++i) {
-            multi_offsets[i] += multi_offsets[i - 1];
-        }
     }
     
-    uint32_t global_offset = (n_multi > 0) ? multi_offsets[n_multi] : 0;
+    // Prefix sum to compute global offsets
+    for (uint32_t i = 1; i <= ncom; ++i) {
+        offsets[i] += offsets[i - 1];
+    }
     
+    // Add community offset to get final permutation
     #pragma omp parallel for schedule(static)
     for (uint32_t v = 0; v < n; ++v) {
-        if (!is_isolated[v] && coms[v] != UINT32_MAX) {
-            perm[v] = multi_offsets[coms[v]] + local_ids[v];
-        }
-    }
-    
-    #pragma omp parallel for schedule(static)
-    for (size_t i = 0; i < isolated_vertices.size(); ++i) {
-        uint32_t v = isolated_vertices[i];
-        perm[v] = global_offset + static_cast<uint32_t>(i);
+        perm[v] += offsets[coms[v]];
     }
 }
 
@@ -1073,6 +1044,22 @@ void GenerateRabbitOrderCSRMapping(const CSRGraph<NodeID_, DestID_, invert>& g,
     rg.allocate(static_cast<uint32_t>(num_nodes));
     rg.tot_wgt = 0.0;
     
+    // Resolution parameter: γ in ΔQ = w_uv - γ * str(u)*str(v)/tot_wgt
+    // γ < 1 → more merging (larger communities), γ > 1 → less merging (finer)
+    // Auto-adaptive: γ = clamp(14 / avg_deg, 0.5, 1.0)
+    // Dense graphs (high avg_deg) → low γ → more merging → better cache locality
+    // Sparse graphs → γ ≈ 1.0 → same as original RabbitOrder
+    {
+        double avg_deg = (num_nodes > 0) ? static_cast<double>(num_edges) / num_nodes : 1.0;
+        rg.resolution = std::max(0.5, std::min(1.0, 14.0 / avg_deg));
+        const char* res_env = std::getenv("RABBIT_RESOLUTION");
+        if (res_env) {
+            rg.resolution = std::atof(res_env);
+        }
+        std::cout << "Resolution: " << rg.resolution 
+                  << " (avg_deg=" << std::fixed << std::setprecision(1) << avg_deg << ")\n";
+    }
+    
     // Initialize vertices and edges, aggregating multi-edges
     #pragma omp parallel
     {
@@ -1093,9 +1080,6 @@ void GenerateRabbitOrderCSRMapping(const CSRGraph<NodeID_, DestID_, invert>& g,
                 } else {
                     dest = static_cast<NodeID_>(neighbor);
                 }
-                
-                // Skip self-loops
-                if (dest == static_cast<NodeID_>(v)) continue;
                 
                 temp_edges.push_back({static_cast<uint32_t>(dest), weight});
             }
@@ -1123,10 +1107,6 @@ void GenerateRabbitOrderCSRMapping(const CSRGraph<NodeID_, DestID_, invert>& g,
         #pragma omp atomic
         rg.tot_wgt += local_wgt;
     }
-    
-    // Match Boost behavior: Boost symmetrizes the edge list, effectively doubling
-    // the total weight. For symmetric graphs, we need to do the same.
-    rg.tot_wgt *= 2.0;
     
     double build_time = tm.Seconds();
     tm.Start();
