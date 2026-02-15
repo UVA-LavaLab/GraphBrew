@@ -567,7 +567,7 @@ class GraphFeaturesStore:
                 data = json.load(f)
             return GraphFeatures.from_dict(data)
         except Exception as e:
-            log.warn(f"Failed to load features for {self.graph_name}: {e}")
+            log.warning(f"Failed to load features for {self.graph_name}: {e}")
             return None
 
 
@@ -638,7 +638,7 @@ class GraphRunStore:
                 data = json.load(f)
             return AlgorithmBenchmarkData.from_dict(data)
         except Exception as e:
-            log.warn(f"Failed to load benchmark {benchmark}/{algorithm_name}: {e}")
+            log.warning(f"Failed to load benchmark {benchmark}/{algorithm_name}: {e}")
             return None
     
     def load_all_benchmarks(self) -> List[AlgorithmBenchmarkData]:
@@ -682,7 +682,7 @@ class GraphRunStore:
                 data = json.load(f)
             return AlgorithmReorderData.from_dict(data)
         except Exception as e:
-            log.warn(f"Failed to load reorder {algorithm_name}: {e}")
+            log.warning(f"Failed to load reorder {algorithm_name}: {e}")
             return None
     
     def load_all_reorders(self) -> List[AlgorithmReorderData]:
@@ -724,7 +724,7 @@ class GraphRunStore:
                 data = json.load(f)
             return GraphPerceptronWeights.from_dict(data)
         except Exception as e:
-            log.warn(f"Failed to load weights: {e}")
+            log.warning(f"Failed to load weights: {e}")
             return None
     
     # -------------------------------------------------------------------------
