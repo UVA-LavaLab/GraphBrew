@@ -845,12 +845,6 @@ def expand_algorithm_variants(algo_id: int) -> List[str]:
     return [str(algo_id)]
 
 
-# Backward compatibility alias
-def expand_leiden_variants(algo_id: int) -> List[str]:
-    """Deprecated: Use expand_algorithm_variants instead."""
-    return expand_algorithm_variants(algo_id)
-
-
 # =============================================================================
 # JSON Utilities
 # =============================================================================

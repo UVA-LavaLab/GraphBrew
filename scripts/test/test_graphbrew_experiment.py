@@ -16,7 +16,6 @@ Usage:
     pytest scripts/test/test_graphbrew_experiment.py::test_reorder_tiny -v
 """
 
-import os
 import sys
 import subprocess
 from pathlib import Path

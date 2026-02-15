@@ -17,7 +17,6 @@ import matplotlib
 matplotlib.use('Agg')  # Non-interactive backend
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
-from matplotlib.colors import LinearSegmentedColormap
 from pathlib import Path
 
 # Output directory
@@ -345,50 +344,6 @@ def plot_graphbrew_pipeline(filename='graphbrew_pipeline.svg'):
                     arrowprops=dict(arrowstyle='->', lw=2, color=COLORS['edge']))
 
     fig.suptitle('GraphBrewOrder (Algorithm 12) Pipeline',
-                 fontsize=14, fontweight='bold', y=0.98)
-    filepath = OUT_DIR / filename
-    plt.savefig(filepath, format='svg', bbox_inches='tight')
-    plt.savefig(filepath.with_suffix('.png'), format='png', bbox_inches='tight')
-    plt.close()
-    print(f"  ✓ {filepath.name}")
-
-
-def plot_leidencsr_pipeline(filename='leidencsr_pipeline.svg'):
-    """DEPRECATED: Create LeidenCSR pipeline diagram.
-    
-    LeidenCSR (16) has been deprecated — its functionality is merged
-    into GraphBrewOrder (12). Kept for historical reference only.
-    """
-    fig, ax = plt.subplots(figsize=(12, 3.5))
-    ax.set_xlim(0, 12)
-    ax.set_ylim(0, 3.5)
-    ax.axis('off')
-
-    steps = [
-        {'name': '1. Input\nGraph', 'x': 0.3, 'color': '#adb5bd'},
-        {'name': '2. GVE-Leiden\nCommunity\nDetection', 'x': 2.7, 'color': COLORS['community']},
-        {'name': '3. Sort by\nCommunity\n+ Degree', 'x': 5.3, 'color': COLORS['locality']},
-        {'name': '4. Final\nPermutation', 'x': 8.0, 'color': '#a8dadc'},
-    ]
-
-    bw = 2.0
-    bh = 2.2
-    for step in steps:
-        rect = mpatches.FancyBboxPatch(
-            (step['x'], 0.6), bw, bh,
-            boxstyle='round,pad=0.12', facecolor=step['color'],
-            edgecolor=COLORS['edge'], linewidth=1.5, alpha=0.9)
-        ax.add_patch(rect)
-        ax.text(step['x'] + bw/2, 0.6 + bh/2, step['name'],
-                ha='center', va='center', fontsize=10, fontweight='bold',
-                color='white', linespacing=1.3)
-
-    for i in range(len(steps) - 1):
-        ax.annotate('', xy=(steps[i+1]['x'] - 0.05, 1.7),
-                    xytext=(steps[i]['x'] + bw + 0.05, 1.7),
-                    arrowprops=dict(arrowstyle='->', lw=2, color=COLORS['edge']))
-
-    fig.suptitle('LeidenCSR (Algorithm 16) Pipeline — Pure Leiden',
                  fontsize=14, fontweight='bold', y=0.98)
     filepath = OUT_DIR / filename
     plt.savefig(filepath, format='svg', bbox_inches='tight')

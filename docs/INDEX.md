@@ -47,15 +47,15 @@ bench/include/
 
 ## Python Tooling
 - `scripts/graphbrew_experiment.py` — Main orchestration pipeline (reorder, benchmark, cache, weights)
-- `scripts/adaptive_emulator.py` — AdaptiveOrder emulator and evaluation
-- `scripts/perceptron_experiment.py` — Perceptron training experiments
-- `scripts/quick_cache_compare.py` — Quick cache miss comparison
+- `scripts/lib/adaptive_emulator.py` — AdaptiveOrder emulator and evaluation
+- `scripts/lib/perceptron.py` — Perceptron training experiments
+- `scripts/lib/cache_compare.py` — Quick cache miss comparison
 - `scripts/lib/` — Shared modules (utils, reorder, features, weights, training, analysis, etc.)
 - `scripts/test/` — Pytest suite (algorithm variants, cache sim, weights, GraphBrew experiment)
 
 ## Tooling
 - `make lint-includes` — check for legacy includes
-- `python3 scripts/check_includes.py` — same as above
+- `python3 scripts/lib/check_includes.py` — same as above
 
 ## Conventions
 - CLI `-j type:n:m`
