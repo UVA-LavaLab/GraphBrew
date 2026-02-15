@@ -626,6 +626,195 @@ def format_results_table(
 
 
 # =============================================================================
+# Variant-Aware Benchmarking
+# =============================================================================
+
+def run_benchmarks_with_variants(
+    graphs: list,
+    label_maps: Dict[str, Dict[str, str]],
+    benchmarks: List[str],
+    bin_dir: str,
+    num_trials: int = 3,
+    timeout: int = 600,
+    weights_dir: str = "",
+    update_weights: bool = True,
+    progress=None
+) -> List[BenchmarkResult]:
+    """
+    Run benchmarks with variant-expanded label maps.
+
+    This iterates directly over the algorithm names in label_maps (which include
+    variant suffixes like GraphBrewOrder_leiden, RABBITORDER_csr) to ensure the results
+    contain the full variant names.
+
+    When using .lo files (MAP mode), loads reorder_time from the corresponding
+    .time file instead of parsing from benchmark output.
+    """
+    from pathlib import Path as _Path
+
+    def load_reorder_time(label_map_path: str) -> float:
+        """Load reorder time from .time file corresponding to .lo file."""
+        if not label_map_path:
+            return 0.0
+        time_file = _Path(label_map_path).with_suffix('.time')
+        if time_file.exists():
+            try:
+                return float(time_file.read_text().strip())
+            except (ValueError, IOError):
+                return 0.0
+        return 0.0
+
+    results = []
+
+    # Collect all unique algorithm names from label_maps
+    all_algo_names: set = set()
+    for graph_maps in label_maps.values():
+        all_algo_names.update(graph_maps.keys())
+
+    # Always include ORIGINAL (algo_id=0) - it doesn't need a label map
+    all_algo_names.add("ORIGINAL")
+
+    # Sort for consistent ordering (ORIGINAL first, then alphabetically)
+    algo_names_sorted = ["ORIGINAL"] + sorted(
+        [n for n in all_algo_names if n != "ORIGINAL"]
+    )
+
+    total_configs = len(graphs) * len(algo_names_sorted) * len(benchmarks)
+    completed = 0
+
+    # Track (graph, benchmark) combos that timed out / crashed —
+    # skip remaining algorithms to avoid burning timeout budget
+    timed_out_combos: set = set()
+
+    for graph in graphs:
+        graph_name = graph.name
+        graph_path = graph.path
+        graph_label_maps = label_maps.get(graph_name, {})
+
+        # Adaptive timeout based on graph size
+        graph_timeout = compute_adaptive_timeout(graph.edges, timeout)
+
+        if progress:
+            timeout_note = (
+                f", timeout={graph_timeout}s" if graph_timeout != timeout else ""
+            )
+            progress.info(
+                f"Benchmarking: {graph_name} ({graph.size_mb:.1f}MB, "
+                f"{graph.edges:,} edges{timeout_note})"
+            )
+
+        for bench in benchmarks:
+            if not check_binary_exists(bench, bin_dir):
+                log.warn(f"Skipping {bench}: binary not found")
+                continue
+
+            if progress:
+                progress.info(f"  {bench.upper()}:")
+
+            for algo_name in algo_names_sorted:
+                combo_key = (graph_name, bench)
+
+                # Early-exit: skip if this graph×benchmark already timed out
+                if combo_key in timed_out_combos:
+                    algo_id = 0
+                    for aid, aname in ALGORITHMS.items():
+                        if algo_name == aname or algo_name.startswith(aname + "_"):
+                            algo_id = aid
+                            break
+                    result = BenchmarkResult(
+                        graph=graph_name,
+                        algorithm=algo_name,
+                        algorithm_id=algo_id,
+                        benchmark=bench,
+                        time_seconds=0.0,
+                        success=False,
+                        error="SKIPPED: prior algorithm timed out on this graph+benchmark",
+                    )
+                    result.nodes = graph.nodes
+                    result.edges = graph.edges
+                    results.append(result)
+                    completed += 1
+                    if progress:
+                        progress.info(
+                            f"    [{completed}/{total_configs}] {algo_name}: SKIPPED (timeout)"
+                        )
+                    continue
+
+                # Determine algorithm ID from name
+                algo_id = 0
+                for aid, aname in ALGORITHMS.items():
+                    if algo_name == aname or algo_name.startswith(aname + "_"):
+                        algo_id = aid
+                        break
+
+                # Get label map path for this algorithm (if not ORIGINAL)
+                label_map_path = ""
+                if algo_name == "ORIGINAL":
+                    algo_opt = "0"
+                else:
+                    label_map_path = graph_label_maps.get(algo_name, "")
+                    if not label_map_path:
+                        continue
+                    algo_opt = f"13:{label_map_path}"
+
+                result = run_benchmark(
+                    benchmark=bench,
+                    graph_path=graph_path,
+                    algorithm=algo_opt,
+                    trials=num_trials,
+                    timeout=graph_timeout,
+                    bin_dir=bin_dir,
+                )
+
+                # Detect timeout or crash
+                if not result.success:
+                    err_lower = (result.error or "").lower()
+                    is_timeout = "timed out" in err_lower or "timeout" in err_lower
+                    is_crash = (
+                        "exit code -" in err_lower or "signal" in err_lower
+                    )
+                    if is_timeout or is_crash:
+                        timed_out_combos.add(combo_key)
+                        reason = (
+                            "TIMEOUT"
+                            if is_timeout
+                            else f"CRASH ({result.error[:60]})"
+                        )
+                        if progress:
+                            progress.info(
+                                f"  ⚠ {reason}: {algo_name} on {bench}/{graph_name} — "
+                                f"skipping remaining algorithms for this combo"
+                            )
+
+                # Set the algorithm name to include variant suffix
+                result.algorithm = algo_name
+                result.algorithm_id = algo_id
+                result.graph = graph_name
+                result.nodes = graph.nodes
+                result.edges = graph.edges
+
+                # Load reorder_time from .time file when using .lo files
+                if label_map_path:
+                    result.reorder_time = load_reorder_time(label_map_path)
+
+                results.append(result)
+                completed += 1
+
+                # Log progress
+                time_str = (
+                    f"{result.time_seconds:.4f}s"
+                    if result.success
+                    else result.error[:30]
+                )
+                if progress:
+                    progress.info(
+                        f"    [{completed}/{total_configs}] {algo_name}: {time_str}"
+                    )
+
+    return results
+
+
+# =============================================================================
 # Standalone CLI
 # =============================================================================
 
