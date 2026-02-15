@@ -16,7 +16,6 @@ Usage:
 Exits non-zero if any legacy include is found.
 """
 import argparse
-import os
 import re
 from pathlib import Path
 

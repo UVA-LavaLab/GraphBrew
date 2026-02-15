@@ -2167,9 +2167,6 @@ def update_zero_weights(
                 # IISWC'18 / GoGraph / P-OPT locality features
                 'packing_factor': props.get('packing_factor', 0.0),
                 'forward_edge_fraction': props.get('forward_edge_fraction', 0.5),
-                # IISWC'18 / GoGraph / P-OPT locality features
-                'packing_factor': props.get('packing_factor', 0.0),
-                'forward_edge_fraction': props.get('forward_edge_fraction', 0.5),
             }
             
             # Compute derived features
@@ -2186,9 +2183,6 @@ def update_zero_weights(
             features['dv_x_hub'] = features['degree_variance'] * features['hub_concentration']
             features['mod_x_logn'] = estimated_modularity * features['log_nodes']
             features['pf_x_wsr'] = features['packing_factor'] * features['log_working_set_ratio']
-            # C++ uses log2(wsr + 1.0) for working_set_ratio
-            wsr = props.get('working_set_ratio', 0.0)
-            features['log_working_set_ratio'] = math.log2(wsr + 1.0)
             
             # Estimate speedup by comparing to baseline
             algo_speedups[algo].append({

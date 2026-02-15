@@ -26,12 +26,10 @@ Author: GraphBrew Team
 """
 import subprocess
 import re
-from pathlib import Path
 
 try:
-    from scripts.lib.utils import _VARIANT_ALGO_REGISTRY, ALGORITHMS, GRAPHBREW_LAYERS
+    from scripts.lib.utils import GRAPHBREW_LAYERS
 except ImportError:
-    _VARIANT_ALGO_REGISTRY = None
     GRAPHBREW_LAYERS = None
 
 # Config
@@ -127,7 +125,11 @@ def main():
                     continue
                     
                 results[graph][variant_name] = r
-                print(f"L1={r['l1_hit']:.1f}% L2={r['l2_hit']:.1f}% Mem={r['mem_access']:,} Time={r['reorder_time']:.2f}s")
+                l1 = r.get('l1_hit')
+                l2 = r.get('l2_hit')
+                mem = r.get('mem_access')
+                rt = r.get('reorder_time')
+                print(f"L1={l1:.1f}% L2={l2:.1f}% Mem={mem:,} Time={rt:.2f}s" if all(v is not None for v in (l1, l2, mem, rt)) else "Parse error (partial output)")
     
     # Summary table
     print("\n" + "=" * 100)
@@ -140,8 +142,8 @@ def main():
         for variant_opt, variant_name in VARIANTS:
             if variant_name in results.get(graph, {}):
                 r = results[graph][variant_name]
-                if 'error' not in r:
-                    print(f"{graph:<15} {variant_name:<12} {r['l1_hit']:>10.2f} {r['l2_hit']:>10.2f} {r['mem_access']:>15,} {r['reorder_time']:>12.2f} {r['modularity'] or 0:>10.4f}")
+                if 'error' not in r and r.get('l1_hit') is not None:
+                    print(f"{graph:<15} {variant_name:<12} {r['l1_hit']:>10.2f} {r['l2_hit'] or 0:>10.2f} {r['mem_access'] or 0:>15,} {r['reorder_time'] or 0:>12.2f} {r['modularity'] or 0:>10.4f}")
         print()
 
 if __name__ == "__main__":

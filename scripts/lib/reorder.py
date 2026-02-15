@@ -36,6 +36,7 @@ from .utils import (
     TIMEOUT_REORDER,
     Logger, run_command, get_timestamp,
 )
+from .graph_types import GraphInfo
 
 # Initialize logger
 log = Logger()
@@ -98,17 +99,6 @@ class AlgorithmConfig:
     def base_name(self) -> str:
         """Get base algorithm name without variant suffix."""
         return ALGORITHMS.get(self.algo_id, f"ALGO_{self.algo_id}")
-
-
-@dataclass
-class GraphInfo:
-    """Basic information about a graph for reordering."""
-    name: str
-    path: str
-    size_mb: float = 0.0
-    is_symmetric: bool = True
-    nodes: int = 0
-    edges: int = 0
 
 
 def get_algorithm_name_with_variant(algo_id: int, variant: str = None) -> str:

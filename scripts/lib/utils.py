@@ -444,6 +444,8 @@ class BenchmarkResult:
     time_seconds: float
     reorder_time: float = 0.0
     trials: int = 1
+    nodes: int = 0
+    edges: int = 0
     success: bool = True
     error: str = ""
     extra: Dict = None

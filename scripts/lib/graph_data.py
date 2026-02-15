@@ -1295,7 +1295,7 @@ def main():
     
     elif args.show_log:
         graph, filename = args.show_log
-        content = read_log(graph, filename, args.logs_dir)
+        content = read_log_by_name(graph, filename, args.logs_dir)
         if content:
             print(content)
         else:

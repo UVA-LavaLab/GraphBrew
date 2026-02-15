@@ -25,7 +25,6 @@ Example usage:
 """
 
 import json
-import math
 import os
 import re
 import time
