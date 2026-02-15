@@ -151,7 +151,7 @@ def run_cache_simulation(
     timeout: int = TIMEOUT_SIM,
     bin_sim_dir: str = None,
     variant: str = None,
-    resolution: float = 1.0,
+    resolution: str = "1.0",
     passes: int = 3
 ) -> CacheResult:
     """
@@ -275,7 +275,7 @@ def run_cache_simulations(
     label_maps: Dict[str, Dict[str, str]] = None,
     leiden_csr_variants: List[str] = None,
     rabbit_variants: List[str] = None,
-    resolution: float = 1.0,
+    resolution: str = "1.0",
     passes: int = 3
 ) -> List[CacheResult]:
     """

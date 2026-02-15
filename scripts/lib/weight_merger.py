@@ -562,6 +562,12 @@ def use_run(timestamp: str) -> bool:
         if item.is_file() and item.suffix == '.json':
             shutil.copy2(item, active_dir / item.name)
             files_copied += 1
+        elif item.is_dir() and item.name.startswith('type_'):
+            dest = active_dir / item.name
+            if dest.exists():
+                shutil.rmtree(dest)
+            shutil.copytree(item, dest)
+            files_copied += sum(1 for _ in dest.rglob('*.json'))
     
     print(f"Applied {files_copied} files from run {timestamp}")
     return True
@@ -590,6 +596,12 @@ def use_merged() -> bool:
         if item.is_file() and item.suffix == '.json':
             shutil.copy2(item, active_dir / item.name)
             files_copied += 1
+        elif item.is_dir() and item.name.startswith('type_'):
+            dest = active_dir / item.name
+            if dest.exists():
+                shutil.rmtree(dest)
+            shutil.copytree(item, dest)
+            files_copied += sum(1 for _ in dest.rglob('*.json'))
     
     print(f"Applied {files_copied} files from merged weights")
     return True
