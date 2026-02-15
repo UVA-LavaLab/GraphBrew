@@ -19,7 +19,6 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 from matplotlib.colors import LinearSegmentedColormap
 from pathlib import Path
-import os
 
 # Output directory
 OUT_DIR = Path(__file__).parent.parent.parent / "docs" / "figures"

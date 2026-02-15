@@ -29,7 +29,6 @@ import argparse
 import json
 import math
 import subprocess
-import sys
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path

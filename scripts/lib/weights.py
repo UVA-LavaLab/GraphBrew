@@ -2051,7 +2051,7 @@ def update_zero_weights(
         try:
             with open(weights_file) as f:
                 weights = json.load(f)
-        except:
+        except (OSError, json.JSONDecodeError):
             pass
     
     if not weights:

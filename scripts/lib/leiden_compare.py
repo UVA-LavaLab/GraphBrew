@@ -98,7 +98,7 @@ def find_graphs(min_edges: int = 10000, max_edges: int = 10000000) -> List[Path]
                     edge_count = sum(1 for _ in f)
                 if min_edges <= edge_count <= max_edges:
                     graphs.append((el_file, {"name": el_file.stem, "edges": edge_count}))
-            except:
+            except (OSError, ValueError):
                 pass
     
     return graphs

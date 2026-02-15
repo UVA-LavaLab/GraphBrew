@@ -622,13 +622,13 @@ def get_available_memory_gb() -> float:
                 if line.startswith('MemAvailable:'):
                     # Value is in kB
                     return int(line.split()[1]) / (1024 * 1024)
-    except:
+    except (OSError, ValueError):
         pass
     # Fallback: try psutil if available
     try:
         import psutil
         return psutil.virtual_memory().available / (1024 ** 3)
-    except:
+    except Exception:
         pass
     # Default to 8GB if we can't detect
     return 8.0
@@ -641,12 +641,12 @@ def get_total_memory_gb() -> float:
             for line in f:
                 if line.startswith('MemTotal:'):
                     return int(line.split()[1]) / (1024 * 1024)
-    except:
+    except (OSError, ValueError):
         pass
     try:
         import psutil
         return psutil.virtual_memory().total / (1024 ** 3)
-    except:
+    except Exception:
         pass
     return 16.0
 
@@ -667,13 +667,13 @@ def get_available_disk_gb(path: str = ".") -> float:
         import shutil
         usage = shutil.disk_usage(path)
         return usage.free / (1024 ** 3)
-    except:
+    except (OSError, TypeError):
         pass
     try:
         # Fallback using statvfs
         stat = os.statvfs(path)
         return (stat.f_bavail * stat.f_frsize) / (1024 ** 3)
-    except:
+    except OSError:
         pass
     # Default to 100GB if we can't detect
     return 100.0
@@ -685,12 +685,12 @@ def get_total_disk_gb(path: str = ".") -> float:
         import shutil
         usage = shutil.disk_usage(path)
         return usage.total / (1024 ** 3)
-    except:
+    except (OSError, TypeError):
         pass
     try:
         stat = os.statvfs(path)
         return (stat.f_blocks * stat.f_frsize) / (1024 ** 3)
-    except:
+    except OSError:
         pass
     return 500.0
 
@@ -699,7 +699,7 @@ def get_num_threads() -> int:
     """Get the number of available CPU threads."""
     try:
         return os.cpu_count() or 1
-    except:
+    except Exception:
         return 1
 
 

@@ -494,7 +494,7 @@ class ParallelDownloadManager:
         # Clean up tarball
         try:
             tar_path.unlink()
-        except:
+        except OSError:
             pass
         
         # Find extracted .mtx file
@@ -883,7 +883,7 @@ def download_graph(
     # Clean up tarball
     try:
         tar_path.unlink()
-    except:
+    except OSError:
         pass
     
     # Find extracted .mtx file

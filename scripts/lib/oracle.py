@@ -19,7 +19,6 @@ Usage:
 import argparse
 import glob
 import json
-import math
 import os
 import re
 import subprocess
