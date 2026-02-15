@@ -36,7 +36,6 @@ from datetime import datetime
 from typing import Dict, List, Tuple, Optional, Any
 from dataclasses import dataclass, field, asdict
 from collections import defaultdict
-import copy
 
 # Add project root to path
 PROJECT_ROOT = Path(__file__).parent.parent.parent
@@ -1162,7 +1161,7 @@ def interactive_mode(perf_matrix: Dict, graphs: List[str], results: Dict):
     try:
         weights = load_type_weights('type_0', str(ACTIVE_DIR))
         print(f"Loaded current weights from {ACTIVE_DIR}/type_0/weights.json")
-    except:
+    except Exception:
         weights = train_weights_hybrid(perf_matrix, graphs, PerceptronConfig())
         print("Started with hybrid-trained weights")
     
@@ -1247,7 +1246,7 @@ def interactive_mode(perf_matrix: Dict, graphs: List[str], results: Dict):
                 if choice == 'y':
                     weights = search_results[0]['weights']
                     print("Applied best configuration")
-            except:
+            except (EOFError, KeyboardInterrupt):
                 pass
         
         elif cmd[0] == 'export':

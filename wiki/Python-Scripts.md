@@ -88,7 +88,7 @@ python3 scripts/graphbrew_experiment.py --help
 | **Auto Build** | Compiles binaries if missing |
 | **Memory Management** | Automatically skips graphs exceeding RAM limits |
 | **Label Maps** | Pre-generates reordering maps for consistency |
-| **Reordering** | Tests all 15 algorithm IDs (0-15), with variants (RCM:bnf, RabbitOrder:csr/boost, etc.) |
+| **Reordering** | Tests all 16 algorithm IDs (0-15), with variants (RCM:bnf, RabbitOrder:csr/boost, GOrder:csr/fast, etc.) |
 | **Benchmarks** | PR, BFS, CC, SSSP, BC, TC |
 | **Cache Simulation** | L1/L2/L3 hit rate analysis |
 | **Perceptron Training** | Generates weights for AdaptiveOrder |

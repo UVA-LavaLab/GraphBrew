@@ -60,7 +60,7 @@ def get_cpu_count() -> int:
     """Get number of CPUs for parallel builds."""
     try:
         return os.cpu_count() or 4
-    except:
+    except Exception:
         return 4
 
 
@@ -127,7 +127,7 @@ def check_build_requirements() -> Tuple[bool, List[str]]:
         result = subprocess.run(["make", "--version"], capture_output=True, timeout=5)
         if result.returncode != 0:
             missing.append("make")
-    except:
+    except (OSError, subprocess.SubprocessError):
         missing.append("make")
     
     # Check for C++ compiler
@@ -136,7 +136,7 @@ def check_build_requirements() -> Tuple[bool, List[str]]:
             result = subprocess.run([compiler, "--version"], capture_output=True, timeout=5)
             if result.returncode == 0:
                 break
-        except:
+        except (OSError, subprocess.SubprocessError):
             pass
     else:
         missing.append("g++ or clang++")

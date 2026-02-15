@@ -103,28 +103,15 @@ from scripts.lib import (
     # Core constants
     ALGORITHMS as LIB_ALGORITHMS,
     BENCHMARKS as LIB_BENCHMARKS,
-    # RabbitOrder variants (csr default)
+    # Variant definitions (re-exported below for backward compat)
     RABBITORDER_VARIANTS as LIB_RABBITORDER_VARIANTS,
     RABBITORDER_DEFAULT_VARIANT as LIB_RABBITORDER_DEFAULT_VARIANT,
-    # RCM variants (default=GoGraph, bnf=CSR-native BNF)
     RCM_VARIANTS as LIB_RCM_VARIANTS,
     RCM_DEFAULT_VARIANT as LIB_RCM_DEFAULT_VARIANT,
-    # GraphBrewOrder variants (leiden default for backward compat)
     GRAPHBREW_VARIANTS as LIB_GRAPHBREW_VARIANTS,
     GRAPHBREW_DEFAULT_VARIANT as LIB_GRAPHBREW_DEFAULT_VARIANT,
-    # Leiden resolution/pass settings
-    LEIDEN_DEFAULT_RESOLUTION as LIB_LEIDEN_DEFAULT_RESOLUTION,
-    LEIDEN_DEFAULT_PASSES as LIB_LEIDEN_DEFAULT_PASSES,
-    # Paths
-    PROJECT_ROOT as LIB_PROJECT_ROOT,
-    BIN_DIR as LIB_BIN_DIR,
-    BIN_SIM_DIR as LIB_BIN_SIM_DIR,
-    GRAPHS_DIR as LIB_GRAPHS_DIR,
-    RESULTS_DIR as LIB_RESULTS_DIR,
-    WEIGHTS_DIR as LIB_WEIGHTS_DIR,
     # Utils
     Logger,
-    run_command as lib_run_command,
     get_timestamp,
     # Features (imported directly - removes need for local duplicates)
     GRAPH_TYPE_GENERIC,
@@ -161,29 +148,15 @@ from scripts.lib import (
     DOWNLOAD_GRAPHS_LARGE,
     DOWNLOAD_GRAPHS_XLARGE,
     DownloadableGraph,
-    download_graph as lib_download_graph,
-    download_graphs as lib_download_graphs,
     download_graphs_parallel as lib_download_graphs_parallel,
-    get_graph_info as lib_get_graph_info,
-    get_graphs_by_size as lib_get_graphs_by_size,
-    # Build
-    build_binaries as lib_build_binaries,
-    check_binaries as lib_check_binaries,
-    ensure_binaries as lib_ensure_binaries,
+    # Build (used via lib_ prefix)
     # Reorder
     ReorderResult,
-    generate_reorderings as lib_generate_reorderings,
-    generate_label_maps as lib_generate_label_maps,
-    generate_reorderings_with_variants as lib_generate_reorderings_with_variants,
     # Benchmark
     BenchmarkResult,
-    run_benchmark as lib_run_benchmark,
-    parse_benchmark_output as lib_parse_benchmark_output,
     # Cache
     CacheResult,
-    run_cache_simulation as lib_run_cache_simulation,
-    run_cache_simulations as lib_run_cache_simulations,
-    parse_cache_output as lib_parse_cache_output,
+    run_cache_simulations,
     # Weights (imported directly - removes need for local duplicates)
     PerceptronWeight,
     load_type_registry,
@@ -199,28 +172,16 @@ from scripts.lib import (
     CLUSTER_DISTANCE_THRESHOLD,
     # Progress
     ProgressTracker,
-    create_progress as lib_create_progress,
-    format_duration as lib_format_duration,
     # Results
     ResultsManager,
-    read_json as lib_read_json,
-    write_json as lib_write_json,
-    filter_results as lib_filter_results,
     # Analysis
     SubcommunityInfo,
     AdaptiveOrderResult,
     AdaptiveComparisonResult,
     GraphBruteForceAnalysis,
-    parse_adaptive_output as lib_parse_adaptive_output,
-    analyze_adaptive_order as lib_analyze_adaptive_order,
-    compare_adaptive_vs_fixed as lib_compare_adaptive_vs_fixed,
-    run_subcommunity_brute_force as lib_run_subcommunity_brute_force,
     # Training
     TrainingResult,
     TrainingIterationResult,
-    initialize_enhanced_weights as lib_initialize_enhanced_weights,
-    train_adaptive_weights_iterative as lib_train_adaptive_weights_iterative,
-    train_adaptive_weights_large_scale as lib_train_adaptive_weights_large_scale,
     # Phase orchestration
     PhaseConfig,
     run_reorder_phase,
@@ -446,20 +407,14 @@ DEFAULT_BIN_SIM_DIR = "./bench/bin_sim"
 DEFAULT_WEIGHTS_DIR = "./results/weights"  # Active weights (C++ reads from here)
 DEFAULT_MAPPINGS_DIR = "./results/mappings"
 
-# Auto-clustering configuration
-CLUSTER_DISTANCE_THRESHOLD = 0.15  # Max normalized distance to join existing cluster (lower = more clusters)
-MIN_SAMPLES_FOR_CLUSTER = 2  # Minimum graphs to form a stable cluster
+# Auto-clustering configuration — CLUSTER_DISTANCE_THRESHOLD imported from lib/weights.py
 
 # Graph size thresholds imported from lib/utils.py (SIZE_SMALL, SIZE_MEDIUM, SIZE_LARGE, SIZE_XLARGE)
 
 # Minimum edges for training (skip small graphs that introduce noise/skew)
 MIN_EDGES_FOR_TRAINING = 100000  # 100K edges - graphs below this are too noisy for perceptron training
 
-# Memory estimation constants (bytes per edge/node for graph algorithms)
-# Based on CSR format: ~24 bytes/edge + 8 bytes/node for working memory
-BYTES_PER_EDGE = 24
-BYTES_PER_NODE = 8
-MEMORY_SAFETY_FACTOR = 1.5  # Add 50% buffer for algorithm overhead
+# Memory estimation constants — imported from lib/features.py (BYTES_PER_EDGE, BYTES_PER_NODE, MEMORY_SAFETY_FACTOR)
 
 # Timeout constants imported from lib/utils.py (Single Source of Truth)
 from scripts.lib.utils import (
@@ -525,40 +480,6 @@ class PerceptronWeightExtended(PerceptronWeight):
         score = super().compute_score(features, benchmark)
         return score
 
-
-# Note: These are imported from lib/ directly:
-# - ReorderResult, CacheResult, SubcommunityInfo
-# - AdaptiveOrderResult, AdaptiveComparisonResult
-# - PerceptronWeight, ProgressTracker, ResultsManager
-# - TrainingResult, TrainingIterationResult, GraphBruteForceAnalysis
-# - DownloadableGraph, DOWNLOAD_GRAPHS_*
-
-# ============================================================================
-# System Utilities (from lib/features.py)
-# ============================================================================
-# These functions are now imported from lib/features.py:
-# - get_available_memory_gb, get_total_memory_gb, estimate_graph_memory_gb
-# - get_available_disk_gb, get_total_disk_gb, get_num_threads
-# - BYTES_PER_EDGE, BYTES_PER_NODE, MEMORY_SAFETY_FACTOR
-
-# ============================================================================
-# Type System (using lib/weights.py)
-# ============================================================================
-# All type system functions are now imported from lib/weights.py:
-# - load_type_registry, save_type_registry
-# - assign_graph_type, update_type_weights_incremental
-# - get_best_algorithm_for_type, list_known_types
-# - load_type_weights, save_type_weights, get_type_weights_file
-# - get_type_summary, CLUSTER_DISTANCE_THRESHOLD
-
-
-# ============================================================================
-# Graph Catalog and Progress Tracking (from lib/)
-# ============================================================================
-# These are imported directly from lib/download.py and lib/progress.py:
-# - DOWNLOAD_GRAPHS_SMALL, DOWNLOAD_GRAPHS_MEDIUM, DOWNLOAD_GRAPHS_LARGE, DOWNLOAD_GRAPHS_XLARGE
-# - DownloadableGraph
-# - ProgressTracker
 
 # Global progress tracker instance
 _progress = ProgressTracker()
@@ -662,7 +583,7 @@ def get_graph_dimensions(path: str) -> Tuple[int, int]:
                     nodes = int(parts[0])
                     return nodes, 0
                 break
-    except:
+    except Exception:
         pass
     return 0, 0
 
@@ -706,7 +627,7 @@ def discover_graphs(graphs_dir: str, min_size: float = 0, max_size: float = floa
             try:
                 with open(metadata_file) as f:
                     metadata = json.load(f)
-            except:
+            except (OSError, json.JSONDecodeError):
                 pass
         
         # Scan directory
@@ -779,9 +700,6 @@ def discover_graphs(graphs_dir: str, min_size: float = 0, max_size: float = floa
 def download_file(url: str, dest_path: str, show_progress: bool = True) -> bool:
     """Download a file from URL with optional progress indicator."""
     try:
-        import urllib.request
-        import urllib.error
-        
         # Create parent directory if needed
         os.makedirs(os.path.dirname(dest_path), exist_ok=True)
         
@@ -825,9 +743,6 @@ def download_file(url: str, dest_path: str, show_progress: bool = True) -> bool:
 def extract_archive(archive_path: str, extract_to: str) -> bool:
     """Extract a tar.gz archive."""
     try:
-        import tarfile
-        import gzip
-        
         print(f"  Extracting {os.path.basename(archive_path)}")
         
         if archive_path.endswith('.tar.gz') or archive_path.endswith('.tgz'):
@@ -909,13 +824,13 @@ def download_graph(graph: DownloadableGraph, graphs_dir: str, force: bool = Fals
         # Remove empty extracted directory
         try:
             os.rmdir(extracted_dir)
-        except:
+        except OSError:
             pass
     
     # Clean up archive
     try:
         os.remove(archive_path)
-    except:
+    except OSError:
         pass
     
     # Validate
@@ -1344,7 +1259,7 @@ def clean_all(project_dir: str = ".", confirm: bool = False) -> None:
             for map_file in map_files:
                 try:
                     os.remove(map_file)
-                except:
+                except OSError:
                     pass
             print("  Done")
     
@@ -1701,7 +1616,7 @@ def run_benchmarks_with_variants(
         
         for bench in benchmarks:
             if not check_binary_exists(bench, bin_dir):
-                log.warning(f"Skipping {bench}: binary not found")
+                log(f"Skipping {bench}: binary not found", "WARN")
                 continue
             
             if progress:
@@ -2398,9 +2313,8 @@ def run_experiment(args):
         if benchmark_results and all_reorder_results:
             try:
                 from scripts.lib.metrics import compute_amortization, format_amortization_table
-                from dataclasses import asdict as _asdict
-                _bench_dicts = [_asdict(r) for r in benchmark_results]
-                _reorder_dicts = [_asdict(r) for r in all_reorder_results]
+                _bench_dicts = [asdict(r) for r in benchmark_results]
+                _reorder_dicts = [asdict(r) for r in all_reorder_results]
                 _amort_report = compute_amortization(_bench_dicts, _reorder_dicts)
                 if _amort_report.entries:
                     log("\n" + format_amortization_table(_amort_report, max_rows=25))
@@ -2721,7 +2635,6 @@ def run_experiment(args):
             binary = os.path.join(args.bin_dir, "pr")
             cmd = f"{binary} -f {graph_path} -a 0 -n 1"
             try:
-                import subprocess
                 result = subprocess.run(cmd.split(), capture_output=True, text=True, timeout=60)
                 output = result.stdout + result.stderr
                 

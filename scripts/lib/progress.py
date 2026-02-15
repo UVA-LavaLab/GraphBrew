@@ -33,6 +33,8 @@ import time
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
 
+from .utils import format_duration
+
 
 class ConsoleColors:
     """ANSI color codes for terminal output."""
@@ -94,24 +96,6 @@ class Timer:
         """Reset the timer."""
         self.start_time = time.time()
         self.checkpoints.clear()
-
-
-def format_duration(seconds: float) -> str:
-    """Format duration in seconds to human-readable string."""
-    if seconds < 0:
-        return "0s"
-    
-    mins, secs = divmod(int(seconds), 60)
-    hours, mins = divmod(mins, 60)
-    days, hours = divmod(hours, 24)
-    
-    if days > 0:
-        return f"{days}d {hours}h {mins}m"
-    elif hours > 0:
-        return f"{hours}h {mins}m {secs}s"
-    elif mins > 0:
-        return f"{mins}m {secs}s"
-    return f"{secs}s"
 
 
 class ProgressTracker:

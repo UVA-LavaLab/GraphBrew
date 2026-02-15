@@ -46,7 +46,6 @@ Library usage:
 
 import os
 import json
-import glob
 import shutil
 from pathlib import Path
 from dataclasses import dataclass, field, asdict

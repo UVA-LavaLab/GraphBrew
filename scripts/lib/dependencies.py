@@ -273,7 +273,7 @@ def get_boost_version() -> Optional[str]:
                         if 'BOOST_LIB_VERSION' in line and '"' in line:
                             version = line.split('"')[1].replace('_', '.')
                             return version
-            except:
+            except (OSError, IndexError):
                 pass
     return None
 
@@ -298,7 +298,7 @@ def check_library_exists(lib_name: str) -> bool:
         )
         if lib_name in result.stdout:
             return True
-    except:
+    except (OSError, subprocess.SubprocessError):
         pass
     
     # Check common library paths
@@ -622,7 +622,7 @@ def install_boost_158(
     # Get CPU cores for parallel compilation
     try:
         cpu_cores = os.cpu_count() or 4
-    except:
+    except Exception:
         cpu_cores = 4
     
     if dry_run:
