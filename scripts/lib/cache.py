@@ -20,7 +20,7 @@ import re
 import time
 from pathlib import Path
 from dataclasses import dataclass, asdict
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
 
 # Enable ULTRAFAST cache simulation mode by default (packed structures, ~1.5x faster)
 os.environ.setdefault('CACHE_ULTRAFAST', '1')

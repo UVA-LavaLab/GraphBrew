@@ -99,7 +99,7 @@ import os
 import json
 import glob
 from dataclasses import asdict
-from typing import List, Dict, Optional, Any, Tuple
+from typing import List, Dict, Any, Tuple
 
 # Import from lib modules
 from .graph_types import GraphInfo

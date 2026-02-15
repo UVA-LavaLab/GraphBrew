@@ -1,6 +1,6 @@
 # Graph Reordering Algorithms
 
-GraphBrew implements **15 reordering algorithm IDs** (0-15), some with multiple variants, each with unique characteristics suited for different graph topologies. This page explains each algorithm in detail.
+GraphBrew implements **16 reordering algorithm IDs** (0-15), some with multiple variants, each with unique characteristics suited for different graph topologies. This page explains each algorithm in detail.
 
 Note: Algorithm ID 13 (MAP) is reserved for external label mapping files, not a standalone reordering algorithm.
 

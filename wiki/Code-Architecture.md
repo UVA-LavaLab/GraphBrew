@@ -298,7 +298,7 @@ int main(int argc, char* argv[]) {
 See [[Python-Scripts]] for full documentation of the Python tooling.
 
 Key entry points:
-- `graphbrew_experiment.py` — Main orchestration (~3,560 lines)
+- `graphbrew_experiment.py` — Main orchestration (~2,810 lines)
 - `lib/perceptron.py` — ML weight experimentation
 - `lib/adaptive_emulator.py` — C++ logic emulation
 - `lib/eval_weights.py` — Weight evaluation & accuracy reporting

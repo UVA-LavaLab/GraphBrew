@@ -32,7 +32,7 @@ import argparse
 import random
 from pathlib import Path
 from datetime import datetime
-from typing import Dict, List, Tuple, Optional, Any
+from typing import Dict, List, Tuple, Any
 from dataclasses import dataclass, field
 from collections import defaultdict
 

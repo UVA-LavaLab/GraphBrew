@@ -26,11 +26,10 @@ Example usage:
 
 import csv
 import json
-import os
 import re
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 from .utils import get_timestamp
 
