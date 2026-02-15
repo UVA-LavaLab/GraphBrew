@@ -11,7 +11,7 @@ All graph reordering implementations and dispatch infrastructure.
 | `reorder_basic.h` | 0, 1, 7 | ORIGINAL, Sort, Random |
 | `reorder_hub.h` | 2–6 | HubSort, HubCluster, DBG, HubSortDBG, HubClusterDBG |
 | `reorder_classic.h` | 10 | COrder |
-| `reorder_rabbit.h` | 8 | RabbitOrder CSR (`8:csr`) + Boost (`8:boost`) |
+| `reorder_rabbit.h` | 8 | RabbitOrder CSR (`8:csr`, auto-adaptive resolution) + Boost (`8:boost`, reference) |
 | `reorder_gorder.h` | 9 | GOrder CSR (`9:csr`) + parallel batch (`9:fast`) |
 | `reorder_rcm.h` | 11 | RCM default + BNF variant (`11:bnf`) |
 | `reorder_graphbrew.h` | 12 | GraphBrewOrder — Leiden + per-community reordering pipeline |
