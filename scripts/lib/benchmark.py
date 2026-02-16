@@ -783,7 +783,7 @@ def run_benchmarks_with_variants(
                         if progress:
                             progress.info(
                                 f"  ⚠ {reason}: {algo_name} on {bench}/{graph_name} — "
-                                f"skipping remaining algorithms for this combo"
+                                "skipping remaining algorithms for this combo"
                             )
 
                 # Set the algorithm name to include variant suffix

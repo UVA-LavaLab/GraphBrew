@@ -169,7 +169,7 @@ def save_run_log(
     
     # Build log content with metadata header
     header_lines = [
-        f"# GraphBrew Run Log",
+        "# GraphBrew Run Log",
         f"# Graph: {graph_name}",
         f"# Operation: {operation}",
         f"# Algorithm: {algorithm}",

@@ -57,12 +57,6 @@ WEIGHTS_DIR = PR / "scripts" / "weights"
 ACTIVE_DIR = WEIGHTS_DIR / "active"
 EXPERIMENTS_DIR = WEIGHTS_DIR / "experiments"
 
-# Features used for clustering
-CLUSTER_FEATURES = [
-    'modularity', 'log_nodes', 'log_edges', 'density', 
-    'avg_degree', 'degree_variance', 'hub_concentration'
-]
-
 # BENCHMARKS imported from lib/utils.py (Single Source of Truth)
 
 # Algorithm taxonomy - group by type for analysis
@@ -1505,7 +1499,7 @@ Examples:
         # Evaluate
         result = evaluate_all_benchmarks(weights, perf_matrix, graphs, all_results)
         
-        print(f"\nTraining Results:")
+        print("\nTraining Results:")
         print(f"  Method: {args.method}")
         print(f"  Scale: {args.scale}")
         print(f"  Graphs: {len(graphs)}")

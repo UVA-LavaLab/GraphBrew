@@ -240,7 +240,7 @@ def run_ab_test(
                 )
 
     # Summary
-    print(f"\n=== Summary ===")
+    print("\n=== Summary ===")
     print(
         f"Total Original: {summary.total_original:.4f}s  "
         f"Total Adaptive: {summary.total_adaptive:.4f}s"

@@ -205,7 +205,6 @@ DEFAULT_GRAPHS_DIR = "./results/graphs"
 DEFAULT_BIN_DIR = "./bench/bin"
 DEFAULT_BIN_SIM_DIR = "./bench/bin_sim"
 DEFAULT_WEIGHTS_DIR = "./results/weights"  # Active weights (C++ reads from here)
-DEFAULT_MAPPINGS_DIR = "./results/mappings"
 
 # Auto-clustering configuration — CLUSTER_DISTANCE_THRESHOLD imported from lib/weights.py
 
@@ -2006,7 +2005,7 @@ def run_experiment(args):
         args.skip_cache = skip_cache_original
         
         log_section("Fill Weights Complete")
-        log(f"All weight fields have been populated")
+        log("All weight fields have been populated")
         log(f"Weights directory: {args.weights_dir}")
         
         # Show summary from type-based weights

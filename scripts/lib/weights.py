@@ -47,7 +47,6 @@ DEFAULT_WEIGHTS_DIR = str(ACTIVE_WEIGHTS_DIR)
 
 # Auto-clustering configuration
 CLUSTER_DISTANCE_THRESHOLD = 0.15  # Max normalized distance to join existing cluster
-MIN_SAMPLES_FOR_CLUSTER = 2  # Minimum graphs to form a stable cluster
 
 # Dead feature keys — these are ALWAYS 0 in training data (C++ doesn't compute
 # them at runtime), but z-score denormalization creates large noise weights.
@@ -732,8 +731,8 @@ def compute_weights_from_results(
     algo_speedups = {}    # algo -> list of speedups when winning
     total_contexts = 0
     
-    for graph_name, benchmarks in results_by_graph.items():
-        for bench, results in benchmarks.items():
+    for _graph_name, benchmarks in results_by_graph.items():
+        for _bench, results in benchmarks.items():
             if not results:
                 continue
             total_contexts += 1
@@ -866,7 +865,7 @@ def compute_weights_from_results(
             continue
         feats = graph_features[graph_name]
         
-        for bench, results in benchmarks.items():
+        for _bench, results in benchmarks.items():
             if not results:
                 continue
             # Oracle by total time (exec + reorder) — practical end-to-end metric
@@ -1007,7 +1006,7 @@ def compute_weights_from_results(
                 best_acc = 0
                 best_snap = None
                 
-                for epoch in range(N_EPOCHS):
+                for _epoch in range(N_EPOCHS):
                     random.shuffle(data)
                     correct = 0
                     for fv_n, true_base in data:
@@ -1247,7 +1246,7 @@ def compute_weights_from_results(
                 n = max(len(bench_truth_all[bn]), 1)
                 return (correct, -total_regret / n)
             
-            for iteration in range(30):
+            for _iteration in range(30):
                 improved = False
                 for opt_base in base_algos:
                     best_mult = current_mults[opt_base]
@@ -1284,7 +1283,7 @@ def compute_weights_from_results(
             log.info(f"  {bn}: mult-opt accuracy = {correct}/{total_bn} "
                      f"= {correct/total_bn:.1%}")
         
-        log.info(f"Per-benchmark perceptron → C++ weights: "
+        log.info("Per-benchmark perceptron → C++ weights: "
                  f"{len(bench_names)} benchmarks × {len(base_algos)} algorithms")
         
         # Apply trained weights directly to each algorithm (variant-level training)

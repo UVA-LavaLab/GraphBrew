@@ -48,7 +48,6 @@ BENCHMARK_BINARIES = ["pr", "pr_spmv", "bfs", "cc", "cc_sv", "sssp", "bc", "tc"]
 # Makefile targets
 MAKE_TARGET_ALL = "all"
 MAKE_TARGET_SIM = "sim"
-MAKE_TARGET_CLEAN = "clean"
 
 
 # =============================================================================

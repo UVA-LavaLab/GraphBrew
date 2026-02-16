@@ -422,7 +422,7 @@ def run_cache_simulations_with_variants(
     # Extract unique algorithm names from label_maps, preserving order
     all_algo_names = []
     seen = set()
-    for graph_name, algo_maps in label_maps.items():
+    for _graph_name, algo_maps in label_maps.items():
         for algo_name in algo_maps.keys():
             if algo_name not in seen:
                 all_algo_names.append(algo_name)
@@ -633,7 +633,7 @@ Examples:
     
     # Print summary
     summary = get_cache_stats_summary(results)
-    print(f"\nCache Simulation Summary:")
+    print("\nCache Simulation Summary:")
     print(f"  Total: {summary['total']}, Successful: {summary['successful']}, Failed: {summary.get('failed', 0)}")
     
     if 'by_algorithm' in summary:

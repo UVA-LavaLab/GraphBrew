@@ -7,8 +7,6 @@ This script compares all community-based reordering algorithms:
 - LeidenOrder (15): Native optimized Leiden library (reference for quality)
 - GraphBrewOrder (12): Leiden + per-community RabbitOrder
 
-Note: LeidenCSR (16) has been deprecated — GraphBrew (12) subsumes it.
-
 Defaults (as of Jan 2026):
 - RabbitOrder: CSR variant (native, faster, no Boost dependency)
 - GraphBrewOrder: leiden variant (best quality + performance)
@@ -117,14 +115,12 @@ def parse_leiden_output(output: str, algo_id: int) -> Dict:
         "num_communities": [
             r"Num Communities:\s*([\d.]+)",
             r"Num Comm:\s*([\d.]+)",  # GraphBrewOrder uses this
-            r"LeidenCSR Communities:\s*([\d.]+)",
             r"GVELeiden Communities:\s*([\d.]+)",
             r"Dendrogram Roots:\s*([\d.]+)",
             r"communities:\s*(\d+)",
         ],
         "num_passes": [
             r"Num Passes:\s*([\d.]+)",
-            r"LeidenCSR Passes:\s*([\d.]+)",
             r"Leiden Passes:\s*([\d.]+)",
             r"Community Passes Stored:\s*([\d.]+)",
             r"GVELeiden.*?(\d+) passes",

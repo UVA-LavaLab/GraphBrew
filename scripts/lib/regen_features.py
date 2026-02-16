@@ -75,7 +75,7 @@ def main():
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
             output = result.stdout + result.stderr
         except subprocess.TimeoutExpired:
-            print(f"  TIMEOUT — skipping")
+            print("  TIMEOUT — skipping")
             continue
         except Exception as e:
             print(f"  ERROR: {e}")
@@ -83,7 +83,7 @@ def main():
 
         features = parse_features(output)
         if not features:
-            print(f"  No features parsed from output!")
+            print("  No features parsed from output!")
             print(f"  stdout: {result.stdout[:200]}")
             continue
 

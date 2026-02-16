@@ -92,17 +92,6 @@ MIN_VERSIONS = {
     "python": "3.8.0",
 }
 
-# Commands to check if a tool/library is available
-CHECK_COMMANDS = {
-    "make": ["make", "--version"],
-    "g++": ["g++", "--version"],
-    "clang++": ["clang++", "--version"],
-    "boost": None,  # Special check via header file
-    "numa": None,   # Special check via header file
-    "tcmalloc": None,  # Special check via library
-}
-
-
 # =============================================================================
 # Platform Detection
 # =============================================================================
@@ -691,7 +680,7 @@ def install_boost_158(
             return False, f"bootstrap.sh failed: {error_msg}"
         
         # Compile and install with b2
-        log.info(f"Step 4/4: Compiling and installing (this takes a while)...")
+        log.info("Step 4/4: Compiling and installing (this takes a while)...")
         log.info(f"Running: sudo ./b2 --with=all -j {cpu_cores} install")
         result = subprocess.run(
             ["sudo", "./b2", "--with=all", "-j", str(cpu_cores), "install"],

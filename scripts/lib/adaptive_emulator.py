@@ -92,19 +92,6 @@ WEIGHT_FIELDS = [
     "cache_dram_penalty",
 ]
 
-# Features used for type matching (Layer 1)
-TYPE_MATCHING_FEATURES = [
-    "modularity",
-    "log_nodes",
-    "log_edges",
-    "density",
-    "avg_degree",
-    "degree_variance",
-    "hub_concentration",
-    "clustering_coeff",
-    "community_count",
-]
-
 # Features used for algorithm scoring (Layer 2)
 SCORING_FEATURES = [
     ("modularity", "w_modularity"),
@@ -1145,7 +1132,7 @@ def print_emulation_result(result: EmulationResult, verbose: bool = False):
     print(f"  Selected Algorithm: {result.selected_algorithm}")
     
     if verbose and result.algorithm_scores:
-        print(f"\n  Algorithm Scores (sorted):")
+        print("\n  Algorithm Scores (sorted):")
         sorted_scores = sorted(result.algorithm_scores.items(), key=lambda x: -x[1])
         for algo, score in sorted_scores[:10]:
             marker = " ← SELECTED" if algo == result.selected_algorithm else ""
