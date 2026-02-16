@@ -448,7 +448,7 @@ def analyze_adaptive_order(
             if features.get('hub_concentration'):
                 log(f"  Hub Concentration: {features.get('hub_concentration', 0):.4f}")
             log(f"  Subcommunities analyzed: {len(subcommunities)}")
-            log(f"  Algorithm distribution:")
+            log("  Algorithm distribution:")
             for algo, count in sorted(algo_distribution.items(), key=lambda x: -x[1])[:5]:
                 log(f"    {algo}: {count}")
             
@@ -781,7 +781,7 @@ def run_subcommunity_brute_force(
         
         success, stdout, stderr = run_command(cmd, timeout)
         if not success:
-            log_error(f"  AdaptiveOrder failed")
+            log_error("  AdaptiveOrder failed")
             analysis.success = False
             analysis.error = "AdaptiveOrder failed"
             results.append(analysis)
@@ -798,7 +798,7 @@ def run_subcommunity_brute_force(
         log(f"  Subcommunities with features: {len(subcommunities)}")
         
         if not subcommunities:
-            log(f"  No subcommunities to analyze")
+            log("  No subcommunities to analyze")
             results.append(analysis)
             continue
         
@@ -810,7 +810,7 @@ def run_subcommunity_brute_force(
         
         subcommunity_results = []
         
-        for idx, subcomm in enumerate(subcommunities_to_test):
+        for _idx, subcomm in enumerate(subcommunities_to_test):
             adaptive_algo_raw = subcomm.selected_algorithm
             adaptive_algo = adaptive_to_algo_name.get(adaptive_algo_raw, adaptive_algo_raw)
             
@@ -948,7 +948,7 @@ def run_subcommunity_brute_force(
         
         results.append(analysis)
         
-        log(f"\n  Summary:")
+        log("\n  Summary:")
         log(f"    Adaptive chose best for time: {analysis.adaptive_correct_time_pct:.1f}%")
         log(f"    Adaptive chose best for cache: {analysis.adaptive_correct_cache_pct:.1f}%")
         log(f"    Adaptive in top 3 for time: {analysis.adaptive_top3_time_pct:.1f}%")
@@ -993,7 +993,7 @@ def run_subcommunity_brute_force(
         avg_correct_cache = sum(r.adaptive_correct_cache_pct for r in successful) / len(successful)
         avg_top3_time = sum(r.adaptive_top3_time_pct for r in successful) / len(successful)
         
-        log(f"\nOVERALL SUMMARY")
+        log("\nOVERALL SUMMARY")
         log(f"Graphs analyzed: {len(successful)}")
         log(f"Avg % adaptive chose best for time: {avg_correct_time:.1f}%")
         log(f"Avg % adaptive chose best for cache: {avg_correct_cache:.1f}%")

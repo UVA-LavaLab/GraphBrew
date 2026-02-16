@@ -271,7 +271,6 @@ def parse_reorder_time_from_converter(output: str) -> Optional[float]:
     ALGORITHM TIME TO INCLUDE:
     - "Leiden Time:" + "Ordering Time:"           - Legacy Leiden algorithm
     - "LeidenOrder Map Time:" + "GenID Time:"     - LeidenOrder algorithm
-    - "LeidenCSR Community Detection/Ordering:"   - LeidenCSR (native CSR, fast)
     - "GOrder Map Time:"                          - GOrder actual ordering
     - "RabbitOrder Map Time:"                     - RabbitOrder actual ordering
     - "*Map Time:" for native CSR algorithms      - HubSort, DBG, Sort, Random, etc.
@@ -308,23 +307,14 @@ def parse_reorder_time_from_converter(output: str) -> Optional[float]:
         return leiden_order_time + genid_time
     
     # -------------------------------------------------------------------------
-    # 3. LeidenCSR: Community Detection + Ordering (native CSR, all included)
-    # -------------------------------------------------------------------------
-    leiden_csr_community = get_time(r'^LeidenCSR Community Detection:\s*([\d.]+)')
-    leiden_csr_ordering = get_time(r'^LeidenCSR Ordering:\s*([\d.]+)')
-    
-    if leiden_csr_community is not None and leiden_csr_ordering is not None:
-        return leiden_csr_community + leiden_csr_ordering
-    
-    # -------------------------------------------------------------------------
-    # 4. GOrder: Only GOrder Map Time (exclude "GOrder graph:" build time)
+    # 3. GOrder: Only GOrder Map Time (exclude "GOrder graph:" build time)
     # -------------------------------------------------------------------------
     gorder_map_time = get_time(r'^GOrder Map Time:\s*([\d.]+)')
     if gorder_map_time is not None:
         return gorder_map_time
     
     # -------------------------------------------------------------------------
-    # 5. RabbitOrder: Only RabbitOrder Map Time (exclude Sort + Relabel prep)
+    # 4. RabbitOrder: Only RabbitOrder Map Time (exclude Sort + Relabel prep)
     # -------------------------------------------------------------------------
     rabbit_map_time = get_time(r'^RabbitOrder Map Time:\s*([\d.]+)')
     if rabbit_map_time is not None:
@@ -805,7 +795,7 @@ def generate_reorderings_with_variants(
         output_dir = str(RESULTS_DIR)
     
     if expand_leiden_variants:
-        log.info(f"Variant expansion enabled")
+        log.info("Variant expansion enabled")
     
     # Handle both algorithm ID lists and pre-expanded AlgorithmConfig lists
     if algorithms and isinstance(algorithms[0], AlgorithmConfig):

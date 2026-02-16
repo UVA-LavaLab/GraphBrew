@@ -32,7 +32,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from scripts.lib.utils import (
-    GRAPHBREW_LAYERS, enumerate_graphbrew_multilayer, BIN_DIR, GRAPHS_DIR,
+    enumerate_graphbrew_multilayer, BIN_DIR, GRAPHS_DIR,
 )
 
 # --- Configuration ---
@@ -249,7 +249,7 @@ def main():
                       f"~{result['bytes_per_node']}B/node")
 
         # --- Phase 2: Performance comparison (flat vs recursive) ---
-        print(f"\n--- Phase 2: PR Benchmark (flat vs recursive) ---")
+        print("\n--- Phase 2: PR Benchmark (flat vs recursive) ---")
         key_configs = [
             ("flat_leiden", "12:leiden"),
             ("recursive_d1", "12:leiden:8:auto:3:1"),
@@ -328,7 +328,7 @@ def main():
             if recur.get("edge_locality_pct"):
                 print(f"    Internal edges: {recur['edge_locality_pct']:.1f}%")
 
-    print(f"\nDone. All configs tested.")
+    print("\nDone. All configs tested.")
     return 0
 
 

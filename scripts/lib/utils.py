@@ -107,10 +107,7 @@ ALGORITHMS = {
 ALGORITHM_IDS = {v: k for k, v in ALGORITHMS.items()}
 
 # Algorithm categories
-QUICK_ALGORITHMS = {0, 1, 2, 3, 4, 5, 6, 7, 8}  # Fast algorithms
 SLOW_ALGORITHMS = {9, 10, 11}  # Gorder, Corder, RCM - can be slow on large graphs
-LEIDEN_ALGORITHMS = {15}
-COMMUNITY_ALGORITHMS = {8, 12, 14, 15}
 
 # =============================================================================
 # VARIANT REGISTRY — Single Source of Truth (SSOT)
@@ -135,10 +132,6 @@ VARIANT_PREFIXES = ("GraphBrewOrder_", "RABBITORDER_", "RCM_")
 # RabbitOrder variants: -o 8:variant
 RABBITORDER_VARIANTS = ("csr", "boost")
 RABBITORDER_DEFAULT_VARIANT = "csr"
-
-# GOrder variants: -o 9:variant
-GORDER_VARIANTS = ("default", "csr", "fast")
-GORDER_DEFAULT_VARIANT = "default"
 
 # RCM variants: -o 11:variant
 RCM_VARIANTS = ("default", "bnf")
@@ -405,12 +398,10 @@ def enumerate_graphbrew_multilayer() -> dict[str, Any]:
 # NOTE: LEIDEN_DEFAULT_RESOLUTION constant (= 1.0) defined above is for algorithm defaults
 # "dynamic" gives best PR performance on web graphs (adjusts per-pass)
 # "auto" computes once from graph properties (density, degree CV)
-LEIDEN_DEFAULT_RESOLUTION_MODE = "0.75"  # Per-pass adjustment for experiments
 LEIDEN_DEFAULT_PASSES = 3
 
 # Benchmark definitions
 BENCHMARKS = ["pr", "pr_spmv", "bfs", "cc", "cc_sv", "sssp", "bc", "tc"]
-BENCHMARKS_DEFAULT = ["pr", "pr_spmv", "bfs", "cc", "cc_sv", "sssp", "bc"]  # TC skipped by default (minimal reorder benefit)
 
 # =============================================================================
 # Graph Size Thresholds (MB) - Single Source of Truth
@@ -419,7 +410,6 @@ BENCHMARKS_DEFAULT = ["pr", "pr_spmv", "bfs", "cc", "cc_sv", "sssp", "bc"]  # TC
 SIZE_SMALL = 50       # < 50 MB: quick experiments
 SIZE_MEDIUM = 500     # < 500 MB: moderate size, may skip slow algorithms
 SIZE_LARGE = 2000     # < 2 GB: large graphs, skip heavy operations
-SIZE_XLARGE = 10000   # >= 2 GB: very large graphs
 
 # =============================================================================
 # Timeout Constants (seconds) - Single Source of Truth

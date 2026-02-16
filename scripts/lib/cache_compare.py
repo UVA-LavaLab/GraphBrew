@@ -139,7 +139,7 @@ def main():
     print("-" * 100)
     
     for graph in GRAPHS:
-        for variant_opt, variant_name in VARIANTS:
+        for _variant_opt, variant_name in VARIANTS:
             if variant_name in results.get(graph, {}):
                 r = results[graph][variant_name]
                 if 'error' not in r and r.get('l1_hit') is not None:

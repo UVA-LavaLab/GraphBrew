@@ -484,7 +484,7 @@ def main():
     plt.savefig(filepath, format='svg', bbox_inches='tight', pad_inches=0.15)
     plt.savefig(filepath.with_suffix('.png'), format='png', bbox_inches='tight', pad_inches=0.15)
     plt.close()
-    print(f"  ✓ reorder_comparison.svg")
+    print("  ✓ reorder_comparison.svg")
 
     print(f"\nDone! Generated figures in {OUT_DIR}/")
 

@@ -34,8 +34,6 @@ from scripts.lib.weights import (
     DEFAULT_WEIGHTS_DIR,
     save_type_weights,
     load_type_weights,
-    save_type_registry,
-    load_type_registry,
 )
 from scripts.lib.weight_merger import (
     get_weights_dir,
@@ -43,8 +41,6 @@ from scripts.lib.weight_merger import (
     get_runs_dir,
     get_merged_dir,
     save_current_run,
-    use_run,
-    use_merged,
     list_runs,
 )
 
@@ -143,28 +139,28 @@ def test_path_constants(results: ResultsTracker):
     # DEFAULT_WEIGHTS_DIR should equal ACTIVE_WEIGHTS_DIR
     results.check(
         Path(DEFAULT_WEIGHTS_DIR) == ACTIVE_WEIGHTS_DIR,
-        f"DEFAULT_WEIGHTS_DIR equals ACTIVE_WEIGHTS_DIR"
+        "DEFAULT_WEIGHTS_DIR equals ACTIVE_WEIGHTS_DIR"
     )
     
     # weight_merger functions should return correct paths
     results.check(
         get_weights_dir() == WEIGHTS_DIR,
-        f"get_weights_dir() returns WEIGHTS_DIR"
+        "get_weights_dir() returns WEIGHTS_DIR"
     )
     
     results.check(
         get_active_dir() == ACTIVE_WEIGHTS_DIR,
-        f"get_active_dir() returns ACTIVE_WEIGHTS_DIR"
+        "get_active_dir() returns ACTIVE_WEIGHTS_DIR"
     )
     
     results.check(
         get_runs_dir() == WEIGHTS_DIR / "runs",
-        f"get_runs_dir() returns results/weights/runs"
+        "get_runs_dir() returns results/weights/runs"
     )
     
     results.check(
         get_merged_dir() == WEIGHTS_DIR / "merged",
-        f"get_merged_dir() returns results/weights/merged"
+        "get_merged_dir() returns results/weights/merged"
     )
 
 
@@ -175,12 +171,12 @@ def test_directory_structure(results: ResultsTracker):
     
     results.check(
         WEIGHTS_DIR.exists(),
-        f"results/weights/ exists"
+        "results/weights/ exists"
     )
     
     results.check(
         ACTIVE_WEIGHTS_DIR.exists(),
-        f"results/weights/ (active) exists"
+        "results/weights/ (active) exists"
     )
     
     # Check for type directories in active
@@ -193,7 +189,7 @@ def test_directory_structure(results: ResultsTracker):
     registry_file = ACTIVE_WEIGHTS_DIR / "registry.json"
     results.check(
         registry_file.exists(),
-        f"registry.json exists in active/"
+        "registry.json exists in active/"
     )
 
 
@@ -226,7 +222,7 @@ def test_weights_write_to_active(results: ResultsTracker):
     loaded = load_type_weights(test_type)
     results.check(
         loaded.get("TestAlgo", {}).get("bias") == 1.5,
-        f"load_type_weights reads from active/"
+        "load_type_weights reads from active/"
     )
     
     # Clean up
@@ -244,7 +240,7 @@ def test_cpp_path_constants(results: ResultsTracker):
     
     results.check(
         reorder_h.exists(),
-        f"reorder_types.h exists"
+        "reorder_types.h exists"
     )
     
     if reorder_h.exists():
@@ -253,7 +249,7 @@ def test_cpp_path_constants(results: ResultsTracker):
         # Check TYPE_WEIGHTS_DIR
         results.check(
             'TYPE_WEIGHTS_DIR = "results/weights/"' in content,
-            f"TYPE_WEIGHTS_DIR points to results/weights/"
+            "TYPE_WEIGHTS_DIR points to results/weights/"
         )
 
 
@@ -299,7 +295,7 @@ def test_weight_merger_flow(results: ResultsTracker):
     run_path = save_current_run("test_flow_run")
     results.check(
         run_path.exists(),
-        f"save_current_run created run folder"
+        "save_current_run created run folder"
     )
     
     saved_type_file = run_path / test_type / "weights.json"
@@ -313,7 +309,7 @@ def test_weight_merger_flow(results: ResultsTracker):
     test_run = next((r for r in runs if r.timestamp == "test_flow_run"), None)
     results.check(
         test_run is not None,
-        f"list_runs() includes test_flow_run"
+        "list_runs() includes test_flow_run"
     )
     
     # Clean up
@@ -323,13 +319,13 @@ def test_weight_merger_flow(results: ResultsTracker):
     
     if run_path.exists():
         shutil.rmtree(run_path)
-        print(f"  [cleanup] Removed test_flow_run from runs/")
+        print("  [cleanup] Removed test_flow_run from runs/")
     
     # Restore original registry
     if original_registry:
         with open(registry_path, 'w') as f:
             json.dump(original_registry, f, indent=2)
-        print(f"  [cleanup] Restored original registry")
+        print("  [cleanup] Restored original registry")
 
 
 def test_existing_weights_valid(results: ResultsTracker):

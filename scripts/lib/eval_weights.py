@@ -498,7 +498,7 @@ def print_report(report: EvalReport, weights_dir: str):
         print(f"\nAlgorithms in type_0 weights: {len(saved_algos)}")
 
         # Weight summary
-        print(f"\n=== Weight Summary (type_0) ===")
+        print("\n=== Weight Summary (type_0) ===")
         hdr = (f"{'Algorithm':<35} {'Bias':>7} {'w_mod':>7} {'w_logN':>7} "
                f"{'w_logE':>7} {'w_dens':>7} {'w_dv':>7} {'w_hub':>7} {'w_cc':>7}")
         print(hdr)
@@ -516,13 +516,13 @@ def print_report(report: EvalReport, weights_dir: str):
             )
 
     # Accuracy
-    print(f"\n=== Evaluation ===")
+    print("\n=== Evaluation ===")
     print(f"Overall accuracy: {report.correct}/{report.total} = {report.accuracy:.1%}")
     print(f"Unique predicted algorithms: {len(report.unique_predicted)}: "
           f"{report.unique_predicted}")
 
     # Per-benchmark
-    print(f"\nPer-benchmark accuracy:")
+    print("\nPer-benchmark accuracy:")
     for b in sorted(report.per_bench_accuracy):
         c, t = report.per_bench_accuracy[b]
         print(f"  {b}: {c}/{t} = {c/t:.1%}" if t else f"  {b}: 0/0")
@@ -540,7 +540,7 @@ def print_report(report: EvalReport, weights_dir: str):
         reverse=True,
     )[:10]
     if worst:
-        print(f"\nWorst predictions (highest regret):")
+        print("\nWorst predictions (highest regret):")
         for (g, b), p in worst:
             regret = (
                 (p["pred_time"] - p["best_time"]) / p["best_time"] * 100
@@ -622,13 +622,13 @@ def train_and_evaluate(
             weights_dir=weights_dir,
         )
 
-        print(f"\n=== LOGO Results (Generalization Accuracy) ===")
+        print("\n=== LOGO Results (Generalization Accuracy) ===")
         print(f"Graphs:             {logo_result['num_graphs']}")
         print(f"Predictions:        {logo_result['correct']}/{logo_result['total']}")
         print(f"LOGO Accuracy:      {logo_result['accuracy']:.1%}  "
-              f"(on UNSEEN graphs)")
+              "(on UNSEEN graphs)")
         print(f"In-sample Accuracy: {logo_result['full_training_accuracy']:.1%}  "
-              f"(on training graphs)")
+              "(on training graphs)")
         gap = logo_result['overfitting_score']
         print(f"Overfit gap:        {gap:.1%}  "
               f"({'⚠ possible overfitting' if gap > 0.2 else '✓ OK'})")
@@ -637,7 +637,7 @@ def train_and_evaluate(
 
         # Per-graph breakdown
         if logo_result.get('per_graph'):
-            print(f"\nPer-graph breakdown:")
+            print("\nPer-graph breakdown:")
             for g in sorted(logo_result['per_graph']):
                 pg = logo_result['per_graph'][g]
                 mark = "✓" if pg['accuracy'] == 1.0 else "✗" if pg['accuracy'] == 0.0 else "~"

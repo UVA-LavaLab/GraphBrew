@@ -269,7 +269,7 @@ def train_adaptive_weights_iterative(
         log(f"{'='*60}")
         
         # Step 1: Run brute-force analysis
-        log(f"\n--- Step 1: Measure Current Accuracy ---")
+        log("\n--- Step 1: Measure Current Accuracy ---")
         bf_results = run_subcommunity_brute_force(
             graphs=graphs,
             bin_dir=bin_dir,
@@ -338,7 +338,7 @@ def train_adaptive_weights_iterative(
             break
         
         # Step 2: Analyze errors and adjust weights
-        log(f"\n--- Step 2: Analyze Errors and Adjust Weights ---")
+        log("\n--- Step 2: Analyze Errors and Adjust Weights ---")
         
         with open(weights_file) as f:
             weights = json.load(f)

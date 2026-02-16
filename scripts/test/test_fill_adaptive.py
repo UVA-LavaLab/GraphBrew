@@ -30,12 +30,10 @@ REPO_ROOT = SCRIPT_DIR.parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from scripts.lib import (
-    ALGORITHMS, BENCHMARKS, Logger, Colors,
-    format_size, format_duration,
+    ALGORITHMS, Logger,
 )
 from scripts.lib.weights import (
-    load_type_weights, list_known_types, get_best_algorithm_for_type,
-    load_type_registry
+    list_known_types, get_best_algorithm_for_type,
 )
 from scripts.lib.progress import ProgressTracker
 

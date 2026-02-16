@@ -508,7 +508,7 @@ def print_report(report: OracleReport) -> None:
     # Worst cases (highest regret)
     worst = sorted(report.entries, key=lambda e: -e.regret)[:10]
     if worst and worst[0].regret > 0:
-        print(f"\nTop-10 Highest Regret Cases:")
+        print("\nTop-10 Highest Regret Cases:")
         print(f"{'Graph':<25} {'Bench':<6} {'Oracle':<20} {'Adaptive':<20} {'Regret':>8}")
         print("-" * 85)
         for e in worst:

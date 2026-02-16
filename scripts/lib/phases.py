@@ -879,7 +879,7 @@ def run_large_scale_training_phase(
         logger=config.progress,
     )
     
-    config.progress.phase_end(f"Large-scale training complete")
+    config.progress.phase_end("Large-scale training complete")
     return result
 
 
@@ -1069,7 +1069,7 @@ def main():
     args = parser.parse_args()
     
     print("Phase orchestration module loaded successfully")
-    print(f"Available phases: reorder, benchmark, cache, weights, adaptive, comparison, brute_force, training")
+    print("Available phases: reorder, benchmark, cache, weights, adaptive, comparison, brute_force, training")
 
 
 if __name__ == "__main__":

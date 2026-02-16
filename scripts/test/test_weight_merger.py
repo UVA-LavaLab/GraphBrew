@@ -24,10 +24,10 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from scripts.lib.weight_merger import (
-    TypeInfo, RunInfo, CENTROID_FEATURES,
+    TypeInfo, RunInfo,
     centroid_distance, find_matching_type,
     merge_centroids, merge_weights,
-    merge_runs, save_current_run, use_run, use_merged,
+    merge_runs,
     get_weights_dir, get_runs_dir, get_merged_dir,
 )
 
@@ -197,9 +197,9 @@ def test_merge_weights():
     assert "benchmark_weights" in merged
     bw = merged["benchmark_weights"]
     # pr: (1.0*4 + 0.6*2) / 6 = 5.2/6 = 0.8667
-    assert abs(bw["pr"] - 0.8667) < 0.001, f"benchmark_weights.pr wrong"
+    assert abs(bw["pr"] - 0.8667) < 0.001, "benchmark_weights.pr wrong"
     # cc: only in w2, so (0*4 + 0.5*2) / 6 = 1/6 = 0.1667
-    assert abs(bw["cc"] - 0.1667) < 0.001, f"benchmark_weights.cc wrong"
+    assert abs(bw["cc"] - 0.1667) < 0.001, "benchmark_weights.cc wrong"
     print(f"  benchmark_weights merged correctly: pr={bw['pr']:.4f}, cc={bw['cc']:.4f}")
     
     # Metadata should prefer newer
