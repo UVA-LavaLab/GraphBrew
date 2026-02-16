@@ -119,18 +119,12 @@ from .analysis import (
 from .training import (
     TrainingResult,
     train_adaptive_weights_iterative, train_adaptive_weights_large_scale,
-    initialize_enhanced_weights
 )
 from .weights import (
-    load_type_registry, save_type_registry,
-    update_type_weights_incremental, get_best_algorithm_for_type,
     initialize_default_weights
 )
 from .progress import ProgressTracker
 from .utils import (
-    RABBITORDER_VARIANTS,
-    GRAPHBREW_VARIANTS,
-    LEIDEN_DEFAULT_RESOLUTION,
     LEIDEN_DEFAULT_PASSES,
     get_timestamp,
 )

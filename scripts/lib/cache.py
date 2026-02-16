@@ -26,9 +26,9 @@ from typing import Dict, List, Optional
 os.environ.setdefault('CACHE_ULTRAFAST', '1')
 
 from .utils import (
-    PROJECT_ROOT, BIN_SIM_DIR, RESULTS_DIR, SIZE_MEDIUM,
+    BIN_SIM_DIR, SIZE_MEDIUM,
     TIMEOUT_SIM, TIMEOUT_SIM_HEAVY,
-    ALGORITHMS, Logger, run_command, get_algorithm_name,
+    ALGORITHMS, Logger, run_command,
 )
 from .graph_types import GraphInfo
 from .reorder import get_label_map_path, get_algorithm_name_with_variant

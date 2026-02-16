@@ -581,12 +581,6 @@ class Logger:
         self.use_colors = use_colors and sys.stdout.isatty()
         self.compact = compact
         
-    def _colorize(self, text: str, color: str) -> str:
-        """Apply color if colors are enabled."""
-        if self.use_colors:
-            return f"{color}{text}{Colors.RESET}"
-        return text
-        
     def _log(self, level: str, message: str, color: str = "", 
              symbol: str = "", prefix: str = "") -> None:
         """Internal log method."""

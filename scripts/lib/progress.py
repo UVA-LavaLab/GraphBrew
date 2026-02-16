@@ -86,12 +86,6 @@ class Timer:
         """Record a checkpoint."""
         self.checkpoints[name] = time.time()
     
-    def since_checkpoint(self, name: str) -> float:
-        """Get time since a checkpoint."""
-        if name in self.checkpoints:
-            return time.time() - self.checkpoints[name]
-        return 0.0
-    
     def reset(self):
         """Reset the timer."""
         self.start_time = time.time()
@@ -161,10 +155,6 @@ class ProgressTracker:
     def _color(self, text: str, color: str) -> str:
         """Apply color to text if colors enabled."""
         return ConsoleColors.colorize(text, color, self.use_colors)
-    
-    def _elapsed(self) -> str:
-        """Get elapsed time since start."""
-        return self.timer.elapsed_formatted()
     
     def _phase_elapsed(self) -> str:
         """Get elapsed time since phase start."""
@@ -265,16 +255,6 @@ class ProgressTracker:
         self.current_phase = None
         self.phase_start_time = None
     
-    def phase_skip(self, reason: str = None):
-        """Skip current phase with optional reason."""
-        self._output("")
-        status = f"⊘ Phase '{self.current_phase}' skipped"
-        if reason:
-            status += f": {reason}"
-        self._output(self._color(status, 'YELLOW'))
-        self.current_phase = None
-        self.phase_start_time = None
-    
     # ─────────────────────────────────────────────────────────────────────────
     # Progress Steps
     # ─────────────────────────────────────────────────────────────────────────
@@ -363,51 +343,6 @@ class ProgressTracker:
         self._output(self._color(f"  [DEBUG] {message}", 'DIM'))
     
     # ─────────────────────────────────────────────────────────────────────────
-    # Tables
-    # ─────────────────────────────────────────────────────────────────────────
-    
-    def table_header(self, columns: List[Tuple[str, int]]):
-        """
-        Print a table header with column widths.
-        
-        Args:
-            columns: List of (column_name, width) tuples
-        """
-        header = "  │ "
-        sep = "  ├─"
-        for name, width in columns:
-            header += name.center(width) + " │ "
-            sep += "─" * (width + 2) + "┼─"
-        sep = sep[:-2] + "┤"
-        self._output(sep)
-        self._output(header)
-        self._output(sep)
-    
-    def table_row(self, values: List[Tuple[str, int]], highlight: bool = False):
-        """
-        Print a table row.
-        
-        Args:
-            values: List of (value, width) tuples
-            highlight: Whether to highlight the row
-        """
-        row = "  │ "
-        for val, width in values:
-            cell = str(val).center(width)
-            if highlight:
-                cell = self._color(cell, 'GREEN')
-            row += cell + " │ "
-        self._output(row)
-    
-    def table_footer(self, columns: List[Tuple[str, int]]):
-        """Print table footer line."""
-        footer = "  └─"
-        for _, width in columns:
-            footer += "─" * (width + 2) + "┴─"
-        footer = footer[:-2] + "┘"
-        self._output(footer)
-    
-    # ─────────────────────────────────────────────────────────────────────────
     # Statistics
     # ─────────────────────────────────────────────────────────────────────────
     
@@ -450,39 +385,6 @@ class ProgressTracker:
         self._output(self._color(f"  {title}:", 'BOLD'))
         for key, value in stats.items():
             self._output(f"    • {key}: {value}")
-    
-    def record_stat(self, key: str, value: Any):
-        """Record a custom statistic."""
-        self.stats[key] = value
-    
-    def increment_stat(self, key: str, amount: int = 1):
-        """Increment a counter statistic."""
-        if key not in self.stats:
-            self.stats[key] = 0
-        self.stats[key] += amount
-    
-    def record_result(self, category: str, key: str, value: Any, 
-                      compare: str = 'max'):
-        """
-        Record a result, keeping best value.
-        
-        Args:
-            category: Result category
-            key: Result key
-            value: Result value
-            compare: Comparison mode ('max' or 'min')
-        """
-        if 'best_results' not in self.stats:
-            self.stats['best_results'] = {}
-        
-        cat = self.stats['best_results'].setdefault(category, {})
-        if key not in cat:
-            cat[key] = value
-        else:
-            if compare == 'max' and value > cat[key]:
-                cat[key] = value
-            elif compare == 'min' and value < cat[key]:
-                cat[key] = value
     
     # ─────────────────────────────────────────────────────────────────────────
     # Final Summary
@@ -540,14 +442,6 @@ class ProgressTracker:
                 self._output(f"  - {err}")
             if count > 5:
                 self._output(f"  ... and {count - 5} more")
-    
-    def get_stats(self) -> Dict[str, Any]:
-        """Get all collected statistics."""
-        return {
-            **self.stats,
-            'total_time': self.timer.elapsed(),
-            'phases': self.phase_history.copy(),
-        }
 
 
 # ─────────────────────────────────────────────────────────────────────────────

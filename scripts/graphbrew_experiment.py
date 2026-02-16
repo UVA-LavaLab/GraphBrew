@@ -98,15 +98,14 @@ if str(_PROJECT_ROOT) not in sys.path:
 # The lib/ module is part of this project and must be available
 from scripts.lib import (
     # Core constants
-    BENCHMARKS as LIB_BENCHMARKS,
-    # Variant definitions (re-exported below for backward compat)
-    RABBITORDER_VARIANTS as LIB_RABBITORDER_VARIANTS,
-    RABBITORDER_DEFAULT_VARIANT as LIB_RABBITORDER_DEFAULT_VARIANT,
-    RCM_VARIANTS as LIB_RCM_VARIANTS,
-    RCM_DEFAULT_VARIANT as LIB_RCM_DEFAULT_VARIANT,
-    GRAPHBREW_VARIANTS as LIB_GRAPHBREW_VARIANTS,
-    GRAPHBREW_DEFAULT_VARIANT as LIB_GRAPHBREW_DEFAULT_VARIANT,
-    # Utils
+    BENCHMARKS,
+    # Variant definitions
+    RABBITORDER_VARIANTS,
+    RABBITORDER_DEFAULT_VARIANT,
+    RCM_VARIANTS,
+    RCM_DEFAULT_VARIANT,
+    GRAPHBREW_VARIANTS,
+    GRAPHBREW_DEFAULT_VARIANT,
     # Features (imported directly - removes need for local duplicates)
     ALL_GRAPH_TYPES,
     BYTES_PER_EDGE,
@@ -135,8 +134,7 @@ from scripts.lib import (
     DOWNLOAD_GRAPHS_LARGE,
     DOWNLOAD_GRAPHS_XLARGE,
     DownloadableGraph,
-    download_graphs_parallel as lib_download_graphs_parallel,
-    # Build (used via lib_ prefix)
+    download_graphs_parallel,
     # Reorder
     ReorderResult,
     # Benchmark
@@ -172,8 +170,8 @@ from scripts.lib import (
 # Try to import dependency manager
 try:
     from scripts.lib.dependencies import (
-        check_dependencies as lib_check_dependencies,
-        install_dependencies as lib_install_dependencies,
+        check_dependencies,
+        install_dependencies,
     )
     HAS_DEPENDENCY_MANAGER = True
 except ImportError:
@@ -186,7 +184,7 @@ except ImportError:
 # Import algorithm definitions from utils.py (Single Source of Truth)
 from scripts.lib.utils import (
     ALGORITHMS,
-    SIZE_SMALL, SIZE_MEDIUM, SIZE_LARGE, SIZE_XLARGE,
+    SIZE_SMALL, SIZE_MEDIUM, SIZE_LARGE,
 )
 
 # Algorithms to benchmark (excluding MAP=13)
@@ -194,20 +192,6 @@ BENCHMARK_ALGORITHMS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 15]
 
 # Subset of key algorithms for quick testing
 KEY_ALGORITHMS = [0, 1, 7, 8, 9, 11, 12, 15]
-
-# ============================================================================
-# VARIANT DEFINITIONS - Single Source of Truth in lib/utils.py
-# ============================================================================
-# All variant lists are imported from lib/utils.py to ensure consistency.
-# To add new variants, edit scripts/lib/utils.py - changes will propagate here.
-#
-# Re-export from lib for backward compatibility with code that imports from here:
-RABBITORDER_VARIANTS = LIB_RABBITORDER_VARIANTS
-RABBITORDER_DEFAULT_VARIANT = LIB_RABBITORDER_DEFAULT_VARIANT
-RCM_VARIANTS = LIB_RCM_VARIANTS
-RCM_DEFAULT_VARIANT = LIB_RCM_DEFAULT_VARIANT
-GRAPHBREW_VARIANTS = LIB_GRAPHBREW_VARIANTS
-GRAPHBREW_DEFAULT_VARIANT = LIB_GRAPHBREW_DEFAULT_VARIANT
 
 # Import recommended variant subsets from lib
 from scripts.lib.utils import (
@@ -225,9 +209,6 @@ from scripts.lib.utils import (
 # — LeidenCSR (16) has been deprecated; GraphBrew (12) subsumes it.
 
 
-# Benchmarks to run (from lib/utils.py — single source of truth)
-BENCHMARKS = LIB_BENCHMARKS
-
 # Default paths - ALL outputs go to results/
 DEFAULT_RESULTS_DIR = "./results"
 DEFAULT_GRAPHS_DIR = "./results/graphs"
@@ -238,7 +219,7 @@ DEFAULT_MAPPINGS_DIR = "./results/mappings"
 
 # Auto-clustering configuration — CLUSTER_DISTANCE_THRESHOLD imported from lib/weights.py
 
-# Graph size thresholds imported from lib/utils.py (SIZE_SMALL, SIZE_MEDIUM, SIZE_LARGE, SIZE_XLARGE)
+# Graph size thresholds imported from lib/utils.py (SIZE_SMALL, SIZE_MEDIUM, SIZE_LARGE)
 
 # Minimum edges for training (skip small graphs that introduce noise/skew)
 MIN_EDGES_FOR_TRAINING = 100000  # 100K edges - graphs below this are too noisy for perceptron training
@@ -708,7 +689,7 @@ def download_graphs(
     
     # Use parallel download (blocks until all complete)
     if parallel:
-        successful_paths, failed_names = lib_download_graphs_parallel(
+        successful_paths, failed_names = download_graphs_parallel(
             graphs=[g.name for g in graphs_to_download],
             dest_dir=Path(graphs_dir),
             max_workers=max_workers,
@@ -1098,7 +1079,6 @@ def clean_reorder_cache(graphs_dir: str = None):
 #   - generate_reorderings_with_variants() - Phase 1 with Leiden variants
 #   - generate_label_maps() - Generate .lo mapping files
 #   - load_label_maps_index() - Load existing label maps
-#   - get_label_map_path() - Get path to a label map file
 #
 # From lib/benchmark.py:
 #   - run_benchmarks_multi_graph() - Phase 2: Run performance benchmarks
@@ -1136,7 +1116,6 @@ from scripts.lib.reorder import (
     generate_reorderings_with_variants,
     generate_label_maps,
     load_label_maps_index,
-    get_label_map_path,
 )
 from scripts.lib.benchmark import run_benchmarks_multi_graph, run_benchmarks_with_variants
 from scripts.lib.cache import run_cache_simulations_with_variants
@@ -1180,8 +1159,8 @@ def update_zero_weights(
     graphs_dir: str
 ) -> None:
     """Update zero weights with comprehensive analysis. Delegates to lib/weights."""
-    from scripts.lib.weights import update_zero_weights as lib_update_zero_weights
-    lib_update_zero_weights(
+    from scripts.lib.weights import update_zero_weights
+    update_zero_weights(
         weights_file=weights_file,
         benchmark_results=benchmark_results,
         cache_results=cache_results,
@@ -1200,8 +1179,8 @@ def validate_adaptive_accuracy(
     force_reorder: bool = False
 ) -> List[Dict]:
     """Validate adaptive accuracy. Delegates to lib/analysis."""
-    from scripts.lib.analysis import validate_adaptive_accuracy as lib_validate
-    return lib_validate(
+    from scripts.lib.analysis import validate_adaptive_accuracy
+    return validate_adaptive_accuracy(
         graphs=graphs,
         bin_dir=bin_dir,
         output_dir=output_dir,
@@ -2480,7 +2459,7 @@ def main():
             sys.exit(0 if success else 1)
         
         if args.check_deps:
-            all_ok, status = lib_check_dependencies(verbose=True)
+            all_ok, status = check_dependencies(verbose=True)
             if not all_ok:
                 print("\nTo install missing dependencies:")
                 print("  python scripts/graphbrew_experiment.py --install-deps")
@@ -2491,11 +2470,11 @@ def main():
         if args.install_deps:
             print("Installing missing system dependencies...")
             print("(This may require sudo password)")
-            success, msg = lib_install_dependencies(verbose=True)
+            success, msg = install_dependencies(verbose=True)
             print(msg)
             if success:
                 print("\nVerifying installation...")
-                lib_check_dependencies(verbose=True)
+                check_dependencies(verbose=True)
             sys.exit(0 if success else 1)
     
     # Determine memory limit

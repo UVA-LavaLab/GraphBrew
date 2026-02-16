@@ -24,8 +24,8 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 from .utils import (
-    ALGORITHMS, BIN_DIR, RESULTS_DIR, GRAPHS_DIR,
-    BenchmarkResult, Logger,
+    BIN_DIR, RESULTS_DIR, GRAPHS_DIR,
+    Logger,
 )
 
 log = Logger()

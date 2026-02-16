@@ -35,8 +35,6 @@ from typing import Dict, List, Optional, Set
 from .utils import Logger, WEIGHTS_DIR
 from .analysis import (
     run_subcommunity_brute_force,
-    GraphBruteForceAnalysis,
-    SubcommunityBruteForceResult,
 )
 from .weights import (
     assign_graph_type,
