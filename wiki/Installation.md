@@ -196,18 +196,15 @@ python3 scripts/graphbrew_experiment.py --check-deps
 #### Building with Rabbit Order
 
 ```bash
-# Build with RabbitOrder CSR variant (default, no Boost required)
+# Default build (RabbitOrder enabled, requires Boost 1.58 + libnuma + tcmalloc)
 make all
 
-# Build with Boost support for RabbitOrder boost variant (requires Boost 1.58)
-RABBIT_ENABLE=1 make all  # Boost at /opt/boost_1_58_0
-
-# Or disable Rabbit Order boost support entirely
+# Build WITHOUT RabbitOrder (no Boost/libnuma/tcmalloc needed)
 RABBIT_ENABLE=0 make all
 ```
 
-**Note:** The `csr` variant works without Boost. `RABBIT_ENABLE` controls whether
-the Boost-based `boost` variant is compiled.
+**Note:** `RABBIT_ENABLE=1` is the Makefile default. Building with RabbitOrder
+requires Boost headers (1.58+), libnuma, and google-perftools (tcmalloc).
 
 ### Verify Installation
 

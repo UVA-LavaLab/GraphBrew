@@ -26,12 +26,17 @@ make all
 ./bench/bin/bfs -f graph.mtx -o 12
 ```
 
-### Build with RabbitOrder (optional)
+### Build
 
-Requires Boost, libnuma, and google-perftools. See [Installation Wiki](https://github.com/UVA-LavaLab/GraphBrew/wiki/Installation) for details.
+RabbitOrder is enabled by default and requires Boost, libnuma, and google-perftools.
+See [Installation Wiki](https://github.com/UVA-LavaLab/GraphBrew/wiki/Installation) for details.
 
 ```bash
-make RABBIT_ENABLE=1 all
+# Default build (RabbitOrder enabled)
+make all
+
+# Build without RabbitOrder (no Boost/libnuma/tcmalloc needed)
+RABBIT_ENABLE=0 make all
 ```
 
 ---
@@ -160,12 +165,13 @@ Graphs can also be generated synthetically:
 
 ## Prerequisites
 
-- **OS:** Ubuntu 22.04+ (or any Linux with GCC ≥ 9)
-- **Compiler:** `g++` with C++17 and OpenMP support
+- **OS:** Ubuntu 22.04+ (or any Linux with GCC 7+)
+- **Compiler:** `g++` with C++17 and OpenMP support (GCC 9+ preferred)
 - **Build:** `make`
 - **Python:** 3.8+ (for experiment scripts)
 
-Optional (for RabbitOrder): Boost 1.58+, libnuma, google-perftools.
+RabbitOrder (enabled by default): Boost 1.58+, libnuma, google-perftools.
+Use `RABBIT_ENABLE=0 make all` to build without these dependencies.
 
 > 📖 See [Installation Wiki](https://github.com/UVA-LavaLab/GraphBrew/wiki/Installation) for full setup instructions including Boost.
 
@@ -186,7 +192,8 @@ bench/
 scripts/
 ├── graphbrew_experiment.py   # Main experiment orchestration
 ├── lib/                      # Core Python modules
-├── weights/                  # Trained ML weights
+├── benchmark/                # Shell benchmark scripts
+├── examples/                 # Example scripts
 └── test/                     # Test suite
 
 results/                      # Benchmark outputs, graph features, mappings

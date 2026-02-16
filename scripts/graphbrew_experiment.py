@@ -75,7 +75,6 @@ import os
 import re
 import subprocess
 import sys
-import time
 import glob
 import shutil
 import tarfile
@@ -101,11 +100,6 @@ from scripts.lib import (
     BENCHMARKS,
     # Variant definitions
     RABBITORDER_VARIANTS,
-    RABBITORDER_DEFAULT_VARIANT,
-    RCM_VARIANTS,
-    RCM_DEFAULT_VARIANT,
-    GRAPHBREW_VARIANTS,
-    GRAPHBREW_DEFAULT_VARIANT,
     # Features (imported directly - removes need for local duplicates)
     ALL_GRAPH_TYPES,
     BYTES_PER_EDGE,
@@ -203,10 +197,6 @@ from scripts.lib.utils import (
 # Algorithm Configuration with Variant Support
 # ============================================================================
 # AlgorithmConfig and expand_algorithms_with_variants() are in lib/reorder.py
-
-
-# Note: get_best_leiden_variant and get_leiden_variant_rankings removed
-# — LeidenCSR (16) has been deprecated; GraphBrew (12) subsumes it.
 
 
 # Default paths - ALL outputs go to results/

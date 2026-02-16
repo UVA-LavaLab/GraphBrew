@@ -31,7 +31,7 @@ Example usage:
 import sys
 import time
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 from .utils import format_duration
 
@@ -77,10 +77,6 @@ class Timer:
     def elapsed(self) -> float:
         """Get elapsed time in seconds."""
         return time.time() - self.start_time
-    
-    def elapsed_formatted(self) -> str:
-        """Get elapsed time as formatted string."""
-        return format_duration(self.elapsed())
     
     def checkpoint(self, name: str):
         """Record a checkpoint."""

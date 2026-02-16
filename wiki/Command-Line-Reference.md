@@ -67,13 +67,15 @@ python3 scripts/graphbrew_experiment.py --phase weights
 
 ## Benchmark Binaries
 
-All binaries are located in `bench/bin/`. The automated pipeline uses **six** benchmarks:
+All binaries are located in `bench/bin/`. The automated pipeline uses **eight** benchmarks:
 
 | Binary | Algorithm | Description |
 |--------|-----------|-------------|
-| `pr` | PageRank | Page importance ranking |
+| `pr` | PageRank (pull) | Page importance ranking |
+| `pr_spmv` | PageRank (SpMV) | Sparse matrix-vector PageRank |
 | `bfs` | BFS | Breadth-first search |
-| `cc` | Connected Components | Find connected subgraphs |
+| `cc` | Connected Components (Afforest) | Find connected subgraphs |
+| `cc_sv` | Connected Components (SV) | Shiloach-Vishkin CC |
 | `sssp` | Shortest Paths | Single-source shortest paths |
 | `bc` | Betweenness Centrality | Centrality measure |
 | `tc` | Triangle Counting | Count triangles |
@@ -160,8 +162,8 @@ Use with `-o <id>`:
 | 6 | HubSortDBG | DBG-based |
 | 7 | HubClusterDBG | DBG-based |
 | 8 | RabbitOrder | Community (has variants, see below) |
-| 9 | GOrder | Community (has variants, see below) |
-| 10 | COrder | Community |
+| 9 | GOrder | Cache-based (has variants, see below) |
+| 10 | COrder | Cache-based |
 | 11 | RCMOrder | Classic (has variants, see below) |
 | 12 | GraphBrewOrder | Community (has variants, see below) |
 | 13 | MAP | External mapping |
@@ -546,7 +548,7 @@ See [[Python-Scripts]] for complete script documentation and module reference.
 | Pipeline | `--full`, `--train`, `--train-iterative`, `--train-batched`, `--phase PHASE` |
 | Size/Resources | `--size small\|medium\|large`, `--auto`, `--max-memory GB` |
 | Speed | `--quick`, `--skip-cache`, `--skip-expensive`, `--skip-slow` |
-| Variants | `--all-variants`, `--csr-variants LIST`, `--resolution VALUE` |
+| Variants | `--all-variants`, `--rabbit-variants LIST`, `--graphbrew-variants LIST`, `--resolution VALUE` |
 | Weights | `--isolate-run`, `--merge-runs`, `--use-run TIMESTAMP` |
 | Labels | `--precompute`, `--generate-maps`, `--use-maps` |
 | Validation | `--brute-force`, `--validation-benchmark NAME` |
