@@ -9,8 +9,10 @@ bench/include/
 │   │   ├── reorder_types.h # Type definitions
 │   │   ├── reorder_basic.h # Original, Random, Sort
 │   │   ├── reorder_hub.h   # HubSort, HubCluster, DBG variants
-│   │   ├── reorder_classic.h # GOrder, COrder, RCM
-│   │   ├── reorder_rabbit.h  # RabbitOrder integration
+│   │   ├── reorder_classic.h # COrder (10)
+│   │   ├── reorder_rabbit.h  # RabbitOrder variants (8:csr, 8:boost)
+│   │   ├── reorder_gorder.h  # GOrder variants (9:default, 9:csr, 9:fast)
+│   │   ├── reorder_rcm.h     # RCM variants (11:default, 11:bnf)
 │   │   ├── reorder_graphbrew.h # GraphBrew unified reordering framework
 │   │   └── reorder_adaptive.h # Adaptive ML-based selection
 │   └── partition/          # Partitioning algorithms

@@ -44,7 +44,7 @@ This repo follows the [Google C++ Style Guide](https://google.github.io/stylegui
 See the [Wiki: Adding New Algorithms](https://github.com/UVA-LavaLab/GraphBrew/wiki/Adding-New-Algorithms) for detailed instructions.
 
 Quick overview:
-1. Add your algorithm to `bench/include/gapbs/benchmark.h`
+1. Add your algorithm to `bench/include/graphbrew/reorder/reorder_types.h`
 2. Register it in the `ReorderingAlgo` enum
 3. Add training support in `scripts/lib/utils.py` (ALGORITHMS dict)
 
@@ -53,6 +53,8 @@ Quick overview:
 Algorithm variant lists are defined in `scripts/lib/utils.py` as the **single source of truth**:
 - `GRAPHBREW_VARIANTS` - GraphBrewOrder clustering variants  
 - `RABBITORDER_VARIANTS` - RabbitOrder variants (csr, boost)
+- `GORDER_VARIANTS` - GOrder implementation variants (default, csr, fast)
+- `RCM_VARIANTS` - RCM variants (default, bnf)
 
 Other constants also centralized in `utils.py`:
 - `ALGORITHMS` / `SLOW_ALGORITHMS` - Algorithm definitions

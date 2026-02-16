@@ -73,7 +73,6 @@ import argparse
 import json
 import os
 import re
-import subprocess
 import sys
 import glob
 import shutil
@@ -100,28 +99,13 @@ from scripts.lib import (
     BENCHMARKS,
     # Variant definitions
     RABBITORDER_VARIANTS,
-    # Features (imported directly - removes need for local duplicates)
-    ALL_GRAPH_TYPES,
-    BYTES_PER_EDGE,
-    BYTES_PER_NODE,
-    MEMORY_SAFETY_FACTOR,
+    # Graph property helpers
     load_graph_properties_cache,
     save_graph_properties_cache,
     update_graph_properties,
-    get_graph_properties,
-    detect_graph_type,
-    get_graph_type_from_name,
-    get_graph_type_from_properties,
-    compute_clustering_coefficient_sample,
-    estimate_diameter_bfs,
-    count_subcommunities_quick,
-    compute_extended_features,
-    get_available_memory_gb,
     get_total_memory_gb,
     estimate_graph_memory_gb,
     get_available_disk_gb,
-    get_total_disk_gb,
-    get_num_threads,
     # Download
     DOWNLOAD_GRAPHS_SMALL,
     DOWNLOAD_GRAPHS_MEDIUM,
@@ -137,21 +121,8 @@ from scripts.lib import (
     list_known_types,
     get_type_weights_file,
     get_type_summary,
-    CLUSTER_DISTANCE_THRESHOLD,
     # Progress
     ProgressTracker,
-    # Results
-    # Results I/O (ResultsManager available in lib/results.py)
-    # Analysis types available in lib/analysis.py:
-    # SubcommunityInfo, AdaptiveOrderResult, AdaptiveComparisonResult,
-    # GraphBruteForceAnalysis
-    # Training types available in lib/training.py:
-    # TrainingResult, TrainingIterationResult
-    # Phase orchestration available in lib/phases.py:
-    # PhaseConfig, run_reorder_phase, run_benchmark_phase, run_cache_phase,
-    # run_weights_phase, run_fill_weights_phase, run_adaptive_analysis_phase,
-    # run_comparison_phase, run_brute_force_phase, run_training_phase,
-    # run_large_scale_training_phase, run_full_pipeline
 )
 
 # Try to import dependency manager
@@ -199,16 +170,9 @@ DEFAULT_BIN_DIR = "./bench/bin"
 DEFAULT_BIN_SIM_DIR = "./bench/bin_sim"
 DEFAULT_WEIGHTS_DIR = "./results/weights"  # Active weights (C++ reads from here)
 
-# Auto-clustering configuration — CLUSTER_DISTANCE_THRESHOLD imported from lib/weights.py
-
-# Graph size thresholds imported from lib/utils.py (SIZE_SMALL, SIZE_MEDIUM, SIZE_LARGE)
-
 # Minimum edges for training (skip small graphs that introduce noise/skew)
-MIN_EDGES_FOR_TRAINING = 100000  # 100K edges - graphs below this are too noisy for perceptron training
+MIN_EDGES_FOR_TRAINING = 100000  # 100K edges
 
-# Memory estimation constants — imported from lib/features.py (BYTES_PER_EDGE, BYTES_PER_NODE, MEMORY_SAFETY_FACTOR)
-
-# Timeout constants imported from lib/utils.py (Single Source of Truth)
 from scripts.lib.utils import (
     TIMEOUT_REORDER, TIMEOUT_BENCHMARK, TIMEOUT_SIM,
     run_command,
@@ -1713,8 +1677,8 @@ def run_experiment(args):
             binary = os.path.join(args.bin_dir, "pr")
             cmd = f"{binary} -f {graph_path} -a 0 -n 1"
             try:
-                result = subprocess.run(cmd.split(), capture_output=True, text=True, timeout=60)
-                output = result.stdout + result.stderr
+                success, stdout, stderr = run_command(cmd, timeout=60)
+                output = stdout + stderr
                 
                 # Parse all topology features from C++ output
                 dv_match = re.search(r'Degree Variance:\s*([\d.]+)', output)

@@ -54,7 +54,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from lib.phases import PhaseConfig, run_benchmark_phase
 from lib.progress import ProgressTracker
-from lib import ALGORITHMS, BENCHMARKS
+from lib import ALGORITHMS
 
 
 def find_graphs(graphs_dir: str, graph_names: list = None) -> list:
@@ -113,8 +113,8 @@ def compute_speedups(results: list, baseline_algo: int = 0) -> dict:
     # Group by (graph, benchmark)
     groups = defaultdict(dict)
     for r in results:
-        key = (r.graph_name, r.benchmark)
-        groups[key][r.algorithm_id] = r.avg_time
+        key = (r.graph, r.benchmark)
+        groups[key][r.algorithm_id] = r.time_seconds
     
     # Compute speedups
     speedups = {}

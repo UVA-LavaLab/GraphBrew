@@ -30,7 +30,6 @@ from .utils import (
     Logger, get_timestamp,
     WEIGHT_PATH_LENGTH_NORMALIZATION, WEIGHT_REORDER_TIME_NORMALIZATION,
     WEIGHT_AVG_DEGREE_DEFAULT,
-    VARIANT_PREFIXES,
     get_all_algorithm_variant_names,
     weights_registry_path, weights_type_path, weights_bench_path,
 )
@@ -1434,11 +1433,6 @@ def cross_validate_logo(
     reorder_results = reorder_results or []
     if weights_dir is None:
         weights_dir = DEFAULT_WEIGHTS_DIR
-
-    # VARIANT_PREFIXES imported from utils.py (SSOT)
-
-    # No longer collapsing variants — prediction and evaluation
-    # happen at the canonical variant level.
 
     def _build_features(props):
         """Build C++-aligned feature dict from graph properties."""

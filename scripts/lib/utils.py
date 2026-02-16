@@ -425,6 +425,9 @@ TIMEOUT_BENCHMARK = 600       # 10 min for benchmarks
 TIMEOUT_SIM = 1200            # 20 min for cache simulations
 TIMEOUT_SIM_HEAVY = 3600      # 1 hour for heavy simulations (bc, sssp)
 
+# Enable per-graph run logging (saves command outputs for debugging)
+ENABLE_RUN_LOGGING = True
+
 # =============================================================================
 # Graph Dimension Parsing
 # =============================================================================

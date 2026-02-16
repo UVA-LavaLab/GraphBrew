@@ -40,7 +40,7 @@ from collections import defaultdict
 PROJECT_ROOT = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from scripts.lib.utils import ALGORITHMS, Logger, PROJECT_ROOT as PR, BENCHMARKS
+from scripts.lib.utils import Logger, PROJECT_ROOT as PR, BENCHMARKS
 from scripts.lib.weights import (
     save_weights_to_active_type, load_type_weights,
     PerceptronWeight, _create_default_weight_entry

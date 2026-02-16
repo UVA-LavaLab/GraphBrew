@@ -548,7 +548,7 @@ See [[Python-Scripts]] for complete script documentation and module reference.
 | Pipeline | `--full`, `--train`, `--train-iterative`, `--train-batched`, `--phase PHASE` |
 | Size/Resources | `--size small\|medium\|large`, `--auto`, `--max-memory GB` |
 | Speed | `--quick`, `--skip-cache`, `--skip-expensive`, `--skip-slow` |
-| Variants | `--all-variants`, `--rabbit-variants LIST`, `--graphbrew-variants LIST`, `--resolution VALUE` |
+| Variants | `--all-variants`, `--rabbit-variants LIST`, `--gorder-variants LIST`, `--graphbrew-variants LIST`, `--resolution VALUE` |
 | Weights | `--isolate-run`, `--merge-runs`, `--use-run TIMESTAMP` |
 | Labels | `--precompute`, `--generate-maps`, `--use-maps` |
 | Validation | `--brute-force`, `--validation-benchmark NAME` |

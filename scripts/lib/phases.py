@@ -487,12 +487,12 @@ def run_benchmark_phase(
     
     # Show summary
     if results:
-        successful = [r for r in results if r.avg_time > 0]
+        successful = [r for r in results if r.time_seconds > 0]
         config.progress.stats_summary("Benchmark Statistics", {
             "Total runs": len(results),
             "Successful": len(successful),
             "Failed/Timeout": len(results) - len(successful),
-            "Avg time": f"{sum(r.avg_time for r in successful) / len(successful):.4f}s" if successful else "N/A"
+            "Avg time": f"{sum(r.time_seconds for r in successful) / len(successful):.4f}s" if successful else "N/A"
         })
     
     config.progress.phase_end(f"Completed {len(results)} benchmark runs")
@@ -1049,7 +1049,7 @@ def compare_algorithms(
             comparison[r.graph] = {}
         if r.benchmark not in comparison[r.graph]:
             comparison[r.graph][r.benchmark] = {}
-        comparison[r.graph][r.benchmark][r.algorithm_name] = r.avg_time
+        comparison[r.graph][r.benchmark][r.algorithm] = r.time_seconds
     
     return comparison
 

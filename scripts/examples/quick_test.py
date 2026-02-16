@@ -95,8 +95,8 @@ def main():
     
     # Group by benchmark
     for bench in args.benchmarks:
-        bench_results = [(r.algorithm_name, r.avg_time) 
-                        for r in results if r.benchmark == bench and r.avg_time > 0]
+        bench_results = [(r.algorithm, r.time_seconds) 
+                        for r in results if r.benchmark == bench and r.time_seconds > 0]
         if bench_results:
             print(f"\n  {bench.upper()}:")
             

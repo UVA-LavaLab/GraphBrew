@@ -29,7 +29,6 @@ from .utils import (
     BenchmarkResult, RESULTS_DIR, Logger,
     weights_type_path, weights_bench_path,
     VARIANT_PREFIXES, DISPLAY_TO_CANONICAL,
-    resolve_canonical_name,
 )
 from .weights import compute_weights_from_results, cross_validate_logo
 from .features import (
@@ -44,9 +43,8 @@ log = Logger()
 # Constants
 # ============================================================================
 
-# Algorithm name resolution now uses DISPLAY_TO_CANONICAL and
-# resolve_canonical_name() from utils.py (SSOT).  The old
-# ADAPTIVE_ALGO_MAP is kept as a backward-compat alias.
+# Algorithm name resolution uses DISPLAY_TO_CANONICAL from utils.py (SSOT).
+# The old ADAPTIVE_ALGO_MAP is kept as a backward-compat alias.
 ADAPTIVE_ALGO_MAP = DISPLAY_TO_CANONICAL
 
 # Variant-prefixed names auto-pass unchanged — imported from SSOT.
