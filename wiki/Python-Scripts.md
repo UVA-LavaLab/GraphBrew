@@ -400,20 +400,15 @@ Computes derived metrics from `benchmark_*.json` and `reorder_*.json`:
 
 ### Quick Start
 
-```bash
-# Full amortization report from latest results
-python3 -m scripts.lib.metrics --results-dir results/
+```python
+from scripts.lib.metrics import compute_amortization_report, format_amortization_table
+from scripts.lib.results import read_json
 
-# Filter to specific benchmarks/graphs
-python3 -m scripts.lib.metrics --results-dir results/ \
-  --benchmarks pr bfs --graphs web-Google soc-Slashdot0902
+benchmark_results = read_json("results/benchmark_latest.json")
+reorder_results = read_json("results/reorder_latest.json")
 
-# Head-to-head: RabbitOrder vs GraphBrew:hrab
-python3 -m scripts.lib.metrics --results-dir results/ \
-  --compare RABBITORDER_csr GraphBrewOrder_graphbrew:hrab
-
-# JSON output for scripting
-python3 -m scripts.lib.metrics --results-dir results/ --json
+report = compute_amortization_report(benchmark_results, reorder_results)
+print(format_amortization_table(report))
 ```
 
 ### Key Formula

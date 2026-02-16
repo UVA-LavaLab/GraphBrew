@@ -326,11 +326,6 @@ def get_graphs_by_size(size: str) -> List[DownloadableGraph]:
     return list(GRAPH_CATALOG.get(size, {}).values())
 
 
-def get_graphs_by_category(category: str) -> List[DownloadableGraph]:
-    """Get all graphs of a specific category (social, web, road, etc.)."""
-    return [g for g in ALL_GRAPHS if g.category == category]
-
-
 def get_catalog_stats() -> Dict:
     """Get statistics about the graph catalog."""
     return {
