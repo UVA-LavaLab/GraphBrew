@@ -1337,7 +1337,7 @@ def compute_weights_from_results(
             meta['avg_reorder_time'] = avg_time
             weights[algo]['_metadata'] = meta
     
-    # Save if output file specified (DEPRECATED - kept for backward compatibility)
+    # Save to flat file if output path specified
     if output_file:
         os.makedirs(os.path.dirname(output_file), exist_ok=True)
         with open(output_file, 'w') as f:
@@ -2280,7 +2280,7 @@ def update_zero_weights(
                         corr = correlation(feat_vals, speedups)
                         weights[algo][weight_name] = corr * scale
     
-    # Save updated weights (DEPRECATED flat file - kept for backward compatibility)
+    # Save updated weights to flat file if path specified
     if weights_file:
         os.makedirs(os.path.dirname(weights_file), exist_ok=True)
         with open(weights_file, 'w') as f:

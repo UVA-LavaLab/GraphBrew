@@ -29,7 +29,6 @@ Requires:
     - A test graph (uses bundled tiny.el, or soc-Epinions1.sg if available)
 """
 
-import os
 import subprocess
 from pathlib import Path
 

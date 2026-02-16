@@ -20,7 +20,6 @@ Metrics compared:
 - Modularity (if available)
 """
 
-import os
 import sys
 import json
 import subprocess

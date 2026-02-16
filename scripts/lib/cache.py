@@ -273,7 +273,6 @@ def run_cache_simulations(
     timeout: int = TIMEOUT_SIM,
     skip_heavy: bool = False,
     label_maps: Dict[str, Dict[str, str]] = None,
-    leiden_csr_variants: List[str] = None,
     rabbit_variants: List[str] = None,
     resolution: str = "1.0",
     passes: int = 3
@@ -289,7 +288,6 @@ def run_cache_simulations(
         timeout: Timeout per simulation
         skip_heavy: Skip heavy benchmarks on large graphs
         label_maps: Optional pre-generated label maps
-        leiden_csr_variants: Deprecated, ignored (LeidenCSR removed)
         rabbit_variants: List of RabbitOrder variants (e.g., ['csr', 'boost'])
         resolution: Leiden resolution parameter
         passes: Leiden passes parameter

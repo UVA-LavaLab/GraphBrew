@@ -924,13 +924,12 @@ def check_and_build_binaries(project_dir: str = ".") -> bool:
     print("Build complete")
     return True
 
-def clean_results(results_dir: str = DEFAULT_RESULTS_DIR, keep_graphs: bool = True, keep_weights: bool = True) -> None:
+def clean_results(results_dir: str = DEFAULT_RESULTS_DIR, keep_graphs: bool = True) -> None:
     """Clean the results directory, optionally keeping graphs.
     
     Args:
         results_dir: Directory to clean
         keep_graphs: If True, don't delete downloaded graphs
-        keep_weights: (Deprecated) Kept for backward compatibility, no longer used
     """
     print("\n" + "="*60)
     print("CLEANING RESULTS DIRECTORY")
@@ -2200,10 +2199,6 @@ def main():
                         help="Graph size category - controls both download and filtering. "
                              "small=<50MB, medium=50-500MB, large=500MB-2GB, xlarge=>2GB, all=everything")
     
-    # Legacy parameter (kept for backwards compatibility)
-    parser.add_argument("--download-size", choices=["SMALL", "MEDIUM", "LARGE", "XLARGE", "ALL"],
-                        default=None, help="[DEPRECATED: use --size instead] Size category of graphs to download")
-    
     parser.add_argument("--force-download", action="store_true",
                         help="Re-download graphs even if they exist")
     parser.add_argument("--skip-build", action="store_true",
@@ -2235,9 +2230,7 @@ def main():
     parser.add_argument("--phase", choices=["all", "reorder", "benchmark", "cache", "weights", "adaptive"],
                         default="all", help="Which phase(s) to run")
     
-    # Graph selection (kept for backwards compatibility, use --size instead)
-    parser.add_argument("--graphs", choices=["all", "small", "medium", "large", "custom"],
-                        default=None, help="[DEPRECATED: use --size instead] Graph size category filter")
+    # Graph selection
     parser.add_argument("--graphs-dir", default=DEFAULT_GRAPHS_DIR,
                         help="Directory containing graph datasets")
     parser.add_argument("--graph", "--graph-name", type=str, default=None, dest="graph_name",
@@ -2370,9 +2363,8 @@ def main():
     parser.add_argument("--use-merged", action="store_true",
                         help="Use merged weights (default after merge)")
     
-    # Legacy weights file (DEPRECATED - weights now saved to results/weights/type_0/weights.json)
     parser.add_argument("--weights-file", default=None,
-                        help="(DEPRECATED) Legacy flat file. Weights are now saved to results/weights/type_0/weights.json for C++ to use.")
+                        help="Path to flat weights file (also saved to results/weights/type_0/weights.json for C++)")
     
     # Clean options
     parser.add_argument("--clean", action="store_true",
@@ -2449,21 +2441,11 @@ def main():
         log("Auto-enabling variant expansion for --full pipeline (train on all variants)", "INFO")
     
     # Resolve unified --size parameter
-    # Priority: --size > --graphs > --download-size > default (all)
     if args.size is not None:
-        # New unified --size parameter takes precedence
         size_lower = args.size.lower()
         args.graphs = size_lower if size_lower != "xlarge" else "all"
         args.download_size = args.size.upper()
         log(f"Using --size {args.size}: graphs={args.graphs}, download={args.download_size}", "INFO")
-    elif args.graphs is not None:
-        # Legacy --graphs parameter
-        args.download_size = args.graphs.upper() if args.download_size is None else args.download_size
-        log(f"Using --graphs {args.graphs} (deprecated, use --size instead)", "INFO")
-    elif args.download_size is not None:
-        # Legacy --download-size parameter
-        args.graphs = args.download_size.lower() if args.download_size != "XLARGE" else "all"
-        log(f"Using --download-size {args.download_size} (deprecated, use --size instead)", "INFO")
     else:
         # Default: all graphs
         args.graphs = "all"
@@ -2546,7 +2528,7 @@ def main():
         if not (args.full or args.download_only):
             return  # Just clean, don't run experiments
     elif args.clean:
-        clean_results(args.results_dir, keep_graphs=True, keep_weights=True)
+        clean_results(args.results_dir, keep_graphs=True)
         if not (args.full or args.download_only or args.phase != "all"):
             return  # Just clean, don't run experiments
     
@@ -2793,8 +2775,6 @@ def main():
             
             # Step 4: Run experiment
             log("\nStarting experiments...", "INFO")
-            # Note: args.graphs and args.download_size are already synchronized
-            # by the parameter resolution at the top of main()
         
         run_experiment(args)
         
