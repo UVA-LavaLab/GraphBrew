@@ -44,24 +44,25 @@ scripts/
 │   └── weights.py               # Type-based weight management
 │
 ├── test/                        # Pytest suite
+│   ├── __init__.py
+│   ├── test_algorithm_variants.py
+│   ├── test_cache_simulation.py
+│   ├── test_fill_adaptive.py
+│   ├── test_graphbrew_experiment.py
+│   ├── test_multilayer_validity.py
 │   ├── test_weight_flow.py
 │   ├── test_weight_merger.py
-│   ├── test_fill_adaptive.py
-│   ├── test_cache_simulation.py
-│   ├── test_graphbrew_experiment.py
+│   ├── data/                    # Test data fixtures
 │   └── graphs/                  # Test graph fixtures
 │
-├── weights/                     # Type-based weight files
-│   ├── active/                  # C++ reads from here (working copy)
-│   ├── merged/                  # Accumulated from all runs
-│   └── runs/                    # Historical snapshots
+├── benchmark/                   # Shell benchmark scripts
 │
 ├── examples/                    # Example scripts
 │   ├── batch_process.py
 │   ├── compare_algorithms.py
 │   ├── custom_pipeline.py
 │   └── quick_test.py
-└── requirements.txt             # Python dependencies (optional)
+└── README.md
 ```
 
 ---

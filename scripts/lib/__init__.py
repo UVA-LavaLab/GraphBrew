@@ -367,9 +367,7 @@ from .graph_data import (
     GraphPerceptronWeights,
     # Convenience functions
     save_graph_features,
-    list_graphs as list_graph_data,
     load_all_graph_data,
-    export_to_csv as export_graph_data_csv,
     # Run management
     list_runs,
     get_latest_run,

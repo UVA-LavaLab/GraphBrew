@@ -102,7 +102,6 @@ def normalize_algo_name(name: str) -> str:
         "GraphBrewOrder": "GraphBrewOrder",
         "LeidenOrder": "LeidenOrder",
         "AdaptiveOrder": "AdaptiveOrder",
-        "LeidenCSR": "LeidenCSR",
     }
     return NORMALIZE_MAP.get(name, name)
 

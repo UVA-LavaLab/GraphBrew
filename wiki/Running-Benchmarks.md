@@ -4,18 +4,20 @@ Complete guide to running GraphBrew benchmarks with all options explained.
 
 ## Overview
 
-The automated pipeline runs **five** benchmarks by default (TC is skipped as it benefits minimally from reordering):
+The automated pipeline runs **eight** benchmarks by default:
 
-| Benchmark | Binary | Description | Automated |
-|-----------|--------|-------------|-----------|
-| PageRank | `pr` | Page importance ranking | ✅ |
-| BFS | `bfs` | Breadth-First Search traversal | ✅ |
-| Connected Components | `cc` | Find graph connectivity | ✅ |
-| SSSP | `sssp` | Single-Source Shortest Paths | ✅ |
-| Betweenness Centrality | `bc` | Node importance by path flow | ✅ |
-| Triangle Counting | `tc` | Count triangles in graph | ❌* |
+| Benchmark | Binary | Description |
+|-----------|--------|-------------|
+| PageRank (pull) | `pr` | Page importance ranking |
+| PageRank (SpMV) | `pr_spmv` | Sparse matrix-vector PageRank |
+| BFS | `bfs` | Breadth-First Search traversal |
+| Connected Components (Afforest) | `cc` | Find graph connectivity |
+| Connected Components (SV) | `cc_sv` | Shiloach-Vishkin CC |
+| SSSP | `sssp` | Single-Source Shortest Paths |
+| Betweenness Centrality | `bc` | Node importance by path flow |
+| Triangle Counting | `tc` | Count triangles in graph |
 
-> **Note:** *Triangle Counting is skipped by default because reordering provides minimal benefit for this workload. To include it, use `--benchmarks pr bfs cc sssp bc tc`.
+> **Note:** To run a subset, use `--benchmarks pr bfs cc sssp` to specify which benchmarks to include.
 
 ---
 
@@ -126,7 +128,7 @@ Format is automatically detected from file extension:
 # Betweenness Centrality
 ./bench/bin/bc -f graph.el -s -r 0 -n 5
 
-# Triangle Counting (benefits most from reordering)
+# Triangle Counting
 ./bench/bin/tc -f graph.el -s -o 7 -n 5
 ```
 

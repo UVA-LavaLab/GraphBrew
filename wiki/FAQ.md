@@ -92,7 +92,7 @@ See [[Installation]] for detailed troubleshooting.
 | Situation | Recommendation |
 |-----------|----------------|
 | Don't know | `-o 14` (AdaptiveOrder) |
-| Social network | `-o 15` (LeidenOrder) |
+| Social network | `-o 12` (GraphBrewOrder) |
 | General purpose | `-o 7` (HUBCLUSTERDBG) |
 | Large graph | `-o 12` (GraphBrewOrder) |
 | Baseline | `-o 0` (no reordering) |
