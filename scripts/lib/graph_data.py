@@ -54,7 +54,7 @@ from typing import Dict, List, Optional
 import csv
 
 from .utils import (
-    PROJECT_ROOT, RESULTS_DIR, Logger, get_timestamp,
+    RESULTS_DIR, Logger, get_timestamp,
 )
 
 # Initialize logger

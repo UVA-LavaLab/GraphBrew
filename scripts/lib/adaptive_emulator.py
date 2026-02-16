@@ -267,10 +267,6 @@ class WeightConfig:
         """Enable a specific weight."""
         self.enabled_weights[weight_name] = True
     
-    def set_multiplier(self, weight_name: str, multiplier: float):
-        """Set a multiplier for a specific weight."""
-        self.weight_multipliers[weight_name] = multiplier
-    
     def is_enabled(self, weight_name: str) -> bool:
         return self.enabled_weights.get(weight_name, True)
     
@@ -357,17 +353,6 @@ class TypeMatcher:
                     best_type = type_name
         
         return best_type or "type_0", best_distance
-    
-    def get_all_distances(self, features: GraphFeatures) -> Dict[str, float]:
-        """Get distances to all type centroids."""
-        feature_vector = features.to_type_vector()
-        distances = {}
-        
-        for type_name, centroid in self.centroids.items():
-            if isinstance(centroid, list):
-                distances[type_name] = self.euclidean_distance(feature_vector, centroid)
-        
-        return distances
 
 
 # =============================================================================
@@ -632,11 +617,6 @@ def load_cached_features(cache_path: Path = None) -> Dict[str, GraphFeatures]:
 # Emulator
 # =============================================================================
 
-# Threshold for flagging a graph as "far" from known types (for informational purposes)
-# This is calibrated based on typical type distances (range: 7-50+)
-# Note: This does NOT trigger a fallback - perceptron still uses closest type's weights
-UNKNOWN_TYPE_DISTANCE_THRESHOLD = 50.0
-
 
 class AdaptiveOrderEmulator:
     """Main emulator class combining type matching and algorithm selection."""
@@ -660,11 +640,7 @@ class AdaptiveOrderEmulator:
             if isinstance(w, dict):
                 reorder_weights[algo] = w.get("w_reorder_time", 0.0)
         return reorder_weights
-    
-    def is_distant_graph_type(self, type_distance: float) -> bool:
-        """Check if a graph is far from known types (for informational purposes only)."""
-        return type_distance > UNKNOWN_TYPE_DISTANCE_THRESHOLD
-    
+
     def emulate(
         self,
         features: GraphFeatures,

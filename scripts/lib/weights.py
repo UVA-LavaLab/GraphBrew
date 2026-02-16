@@ -26,15 +26,12 @@ from datetime import datetime
 from typing import Dict, List, Optional, Tuple
 
 from .utils import (
-    PROJECT_ROOT, WEIGHTS_DIR, ACTIVE_WEIGHTS_DIR, ALGORITHMS,
+    ACTIVE_WEIGHTS_DIR,
     Logger, get_timestamp,
     WEIGHT_PATH_LENGTH_NORMALIZATION, WEIGHT_REORDER_TIME_NORMALIZATION,
     WEIGHT_AVG_DEGREE_DEFAULT,
-    VARIANT_PREFIXES, VARIANT_ALGO_IDS,
-    RABBITORDER_VARIANTS, RABBITORDER_DEFAULT_VARIANT,
-    GRAPHBREW_VARIANTS, GRAPHBREW_DEFAULT_VARIANT,
-    RCM_VARIANTS,
-    get_all_algorithm_variant_names, is_variant_prefixed,
+    VARIANT_PREFIXES,
+    get_all_algorithm_variant_names,
     weights_registry_path, weights_type_path, weights_bench_path,
 )
 
@@ -1360,38 +1357,6 @@ def compute_weights_from_results(
         for fk in feat_keys:
             vals = [gf[fk] for gf in graph_features.values() if fk in gf]
             mean_features[fk] = sum(vals) / len(vals) if vals else 0.0
-        
-        # Score each variant on mean features (matches C++ scoreBase() feature set)
-        def score_on_mean(data):
-            s = data.get('bias', 0.3)
-            # Core features
-            s += data.get('w_modularity', 0) * mean_features.get('modularity', 0.5)
-            log_n = mean_features.get('log_nodes', 5.0)
-            log_e = mean_features.get('log_edges', 6.0)
-            s += data.get('w_log_nodes', 0) * log_n
-            s += data.get('w_log_edges', 0) * log_e
-            s += data.get('w_density', 0) * mean_features.get('density', 0.001)
-            dv = mean_features.get('degree_variance', 1.0)
-            hc = mean_features.get('hub_concentration', 0.3)
-            s += data.get('w_degree_variance', 0) * dv
-            s += data.get('w_hub_concentration', 0) * hc
-            s += data.get('w_avg_degree', 0) * mean_features.get('avg_degree', 10.0) / 100.0
-            # Extended features
-            s += data.get('w_clustering_coeff', 0) * mean_features.get('clustering_coefficient', 0.0)
-            # avg_path_length, diameter, community_count → dead (always 0)
-            # Locality features
-            pf = mean_features.get('packing_factor', 0.0)
-            fef = mean_features.get('forward_edge_fraction', 0.5)
-            wsr = mean_features.get('working_set_ratio', 0.0)
-            s += data.get('w_packing_factor', 0) * pf
-            s += data.get('w_forward_edge_fraction', 0) * fef
-            log_wsr = math.log2(wsr + 1.0)
-            s += data.get('w_working_set_ratio', 0) * log_wsr
-            # Quadratic interaction terms
-            s += data.get('w_dv_x_hub', 0) * dv * hc
-            s += data.get('w_mod_x_logn', 0) * mean_features.get('modularity', 0.5) * log_n
-            s += data.get('w_pf_x_wsr', 0) * pf * log_wsr
-            return s
         
         # With string-keyed weights in C++, each variant has its own entry.
         # No collapsing needed — save all variants directly.

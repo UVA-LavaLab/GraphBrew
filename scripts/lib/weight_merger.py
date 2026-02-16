@@ -75,16 +75,6 @@ class TypeInfo:
         else:
             return np.zeros(len(CENTROID_FEATURES))
     
-    def centroid_dict(self) -> Dict[str, float]:
-        """Convert centroid to dict format."""
-        if isinstance(self.centroid, dict):
-            return self.centroid
-        elif isinstance(self.centroid, list):
-            return {f: self.centroid[i] if i < len(self.centroid) else 0.0 
-                    for i, f in enumerate(CENTROID_FEATURES)}
-        else:
-            return {f: 0.0 for f in CENTROID_FEATURES}
-    
     @staticmethod
     def from_registry_entry(type_id: str, entry: Dict) -> 'TypeInfo':
         """Create TypeInfo from registry entry."""

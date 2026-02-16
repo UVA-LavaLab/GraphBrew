@@ -29,7 +29,7 @@ from .utils import (
     BenchmarkResult, RESULTS_DIR, Logger,
     weights_type_path, weights_bench_path,
     VARIANT_PREFIXES, DISPLAY_TO_CANONICAL,
-    resolve_canonical_name, is_variant_prefixed,
+    resolve_canonical_name,
 )
 from .weights import compute_weights_from_results, cross_validate_logo
 from .features import (
