@@ -54,9 +54,6 @@ SUCCESS_MSG   = echo  "$(SUCCESS) $(COMPILED_FILE)"
 FAIL_MSG      = echo  "$(FAIL) $(COMPILED_FILE)"
 EXIT_STATUS   = &&  $(SUCCESS_MSG) || ( $(FAIL_MSG) ; exit 1; )
 CREATE_STATUS  = &&  $(CREATE_MSG) || ( $(FAIL_MSG) ; exit 1; )
-# TEST PASS OR FAIL
-PASS = \033[92mPASS\033[0m
-FAIL = \033[91mFAIL\033[0m
 # =========================================================
 # Color coded messages                      
 # =========================================================
@@ -140,10 +137,10 @@ run-all: $(addprefix run-, $(KERNELS))
 run-%-sweep: $(BIN_DIR)/%
 	@for o in 0 1 2 3 4 5 6 7 8 9 10 11 12 13; do \
 		echo "========================================================="; \
-		if [ "$(FLUSH_CACHE)" = "1" ]; then
-		    echo "Attempting to mitigate cache effects by busy-looping..."
-		    dd if=/dev/zero of=/dev/null bs=1M count=1024
-		fi;
+		if [ "$(FLUSH_CACHE)" = "1" ]; then \
+		    echo "Attempting to mitigate cache effects by busy-looping..."; \
+		    dd if=/dev/zero of=/dev/null bs=1M count=1024; \
+		fi; \
 		OMP_NUM_THREADS=$(PARALLEL) ./$(BIN_DIR)/$* $(GRAPH_BENCH) -s -n 1 -o $$o; \
 	done
 	
@@ -212,7 +209,6 @@ clean-results:
 # =========================================================
 SRC_SIM_DIR = $(BENCH_DIR)/src_sim
 BIN_SIM_DIR = $(BENCH_DIR)/bin_sim
-INCLUDE_CACHE = $(INC_DIR)/cache_sim
 DEP_CACHE = $(wildcard $(INCLUDE_CACHE)/*.h)
 
 # Simulation kernels (algorithms with cache instrumentation)

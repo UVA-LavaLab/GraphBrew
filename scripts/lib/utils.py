@@ -477,24 +477,6 @@ class BenchmarkResult:
         return asdict(self)
 
 
-@dataclass  
-class GraphProperties:
-    """Properties extracted from graph analysis."""
-    name: str
-    num_vertices: int = 0
-    num_edges: int = 0
-    avg_degree: float = 0.0
-    max_degree: int = 0
-    degree_variance: float = 0.0
-    hub_concentration: float = 0.0
-    density: float = 0.0
-    clustering_coefficient: float = 0.0
-    modularity: float = 0.5
-    
-    def to_dict(self) -> Dict:
-        return asdict(self)
-
-
 # =============================================================================
 # Directory Management
 # =============================================================================

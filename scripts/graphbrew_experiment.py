@@ -82,7 +82,7 @@ import gzip
 from dataclasses import asdict
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import List, Optional
 import traceback
 import urllib.request
 import urllib.error
@@ -129,15 +129,8 @@ from scripts.lib import (
     DOWNLOAD_GRAPHS_XLARGE,
     DownloadableGraph,
     download_graphs_parallel,
-    # Reorder
-    ReorderResult,
-    # Benchmark
-    BenchmarkResult,
     # Cache
-    CacheResult,
     run_cache_simulations,
-    # Weights (imported directly - removes need for local duplicates)
-    PerceptronWeight,
     load_type_registry,
     assign_graph_type,
     update_type_weights_incremental,
@@ -228,26 +221,6 @@ from scripts.lib.utils import (
 # Use the canonical GraphInfo from lib/graph_types.py (includes extended properties)
 from scripts.lib.graph_types import GraphInfo
 
-# ============================================================================
-# Graph Feature Functions (from lib/features.py)
-# ============================================================================
-# All graph feature computation functions are now imported from lib/features.py:
-# - Graph type constants: GRAPH_TYPE_*, ALL_GRAPH_TYPES
-# - Memory constants: BYTES_PER_EDGE, BYTES_PER_NODE, MEMORY_SAFETY_FACTOR
-# - Graph properties cache: load_graph_properties_cache, save_graph_properties_cache,
-#   update_graph_properties, get_graph_properties
-# - Graph type detection: detect_graph_type, get_graph_type_from_name, get_graph_type_from_properties
-# - Topological features: compute_clustering_coefficient_sample, estimate_diameter_bfs,
-#   count_subcommunities_quick, compute_extended_features
-# - System utilities: get_available_memory_gb, get_total_memory_gb, estimate_graph_memory_gb,
-#   get_available_disk_gb, get_total_disk_gb, get_num_threads
-
-
-# =============================================================================
-# Data Classes (from lib/)
-# =============================================================================
-# Core data classes are imported from lib/. BenchmarkResult comes from utils.py
-
 
 # Global progress tracker instance
 _progress = ProgressTracker()
@@ -273,8 +246,6 @@ def log(msg: str, level: str = "INFO"):
 def log_section(title: str):
     """Print a section header."""
     _progress.phase_start(title)
-
-# NOTE: Legacy backup_and_sync_weights removed - now using type-based weights in results/weights/
 
 def get_graph_path(graphs_dir: str, graph_name: str) -> Optional[str]:
     """Get the path to a graph file."""
@@ -329,8 +300,6 @@ def get_graph_size_mb(path: str) -> float:
         return os.path.getsize(path) / (1024 * 1024)
     return 0.0
 
-
-# get_graph_dimensions is now in lib/utils.py (single source of truth)
 from scripts.lib.utils import get_graph_dimensions
 
 
@@ -776,7 +745,7 @@ def ensure_prerequisites(project_dir: str = ".",
         
         if missing_bins or rebuild:
             log(f"  Building standard binaries: {', '.join(missing_bins) if missing_bins else 'all (rebuild requested)'}...")
-            cmd = f"cd {project_dir} && make clean-bin && make -j$(nproc)" if rebuild else f"cd {project_dir} && make -j$(nproc)"
+            cmd = f"cd {project_dir} && make clean && make -j$(nproc)" if rebuild else f"cd {project_dir} && make -j$(nproc)"
             success_build, stdout, stderr = run_command(cmd, timeout=600)
             if not success_build:
                 log(f"  Build failed: {stderr[:200]}", "ERROR")
@@ -1051,48 +1020,6 @@ def clean_reorder_cache(graphs_dir: str = None):
     log(f"Removed {removed}/{total} cached files")
     log("Fresh reordering will be performed on next run.")
 
-
-# ============================================================================
-# Phase Functions (Delegated to lib/ modules)
-# ============================================================================
-#
-# The following phase functions are now imported from lib/ modules:
-#
-# From lib/reorder.py:
-#   - generate_reorderings() - Phase 1: Generate vertex reorderings
-#   - generate_reorderings_with_variants() - Phase 1 with Leiden variants
-#   - generate_label_maps() - Generate .lo mapping files
-#   - load_label_maps_index() - Load existing label maps
-#
-# From lib/benchmark.py:
-#   - run_benchmarks_multi_graph() - Phase 2: Run performance benchmarks
-#   - run_benchmarks_with_variants() - Phase 2 with variant expansion
-#
-# From lib/cache.py:
-#   - run_cache_simulations() - Phase 3: Run cache simulations
-#
-# From lib/weights.py:
-#   - compute_weights_from_results() - Phase 4: Generate weights
-#   - update_zero_weights() - Phase 5: Update zero weights
-#
-# From lib/analysis.py:
-#   - analyze_adaptive_order() - Phase 6: Adaptive analysis
-#   - compare_adaptive_vs_fixed() - Phase 7: Comparison
-#   - run_subcommunity_brute_force() - Phase 8: Brute force validation
-#
-# From lib/training.py:
-#   - train_adaptive_weights_iterative() - Phase 9: Iterative training
-#   - train_adaptive_weights_large_scale() - Phase 10: Large-scale training
-#
-# From lib/phases.py:
-#   - run_reorder_phase(), run_benchmark_phase(), run_cache_phase(), etc.
-#   - run_full_pipeline() - Run all phases
-#   - PhaseConfig - Configuration for phase execution
-#
-# Legacy local implementations have been removed to avoid duplication.
-# Use run_full_pipeline() or import directly from lib/.
-#
-# ============================================================================
 
 # Direct imports from lib/ modules
 from scripts.lib.reorder import (
