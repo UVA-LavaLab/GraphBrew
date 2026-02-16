@@ -30,7 +30,7 @@ import re
 import time
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Tuple
 
 from .utils import ALGORITHMS, run_command, Logger
 from .features import update_graph_properties, save_graph_properties_cache

@@ -20,7 +20,7 @@ import os
 import re
 import time
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Tuple
 
 from .utils import (
     BIN_DIR, ALGORITHMS, BENCHMARKS,
@@ -29,9 +29,7 @@ from .utils import (
 )
 from .reorder import get_algorithm_name_with_variant
 from .features import update_graph_properties, save_graph_properties_cache
-
-# Enable run logging (saves command outputs per graph)
-ENABLE_RUN_LOGGING = True
+from .utils import ENABLE_RUN_LOGGING
 
 
 # =============================================================================

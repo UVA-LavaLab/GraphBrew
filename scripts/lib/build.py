@@ -25,7 +25,7 @@ from typing import List, Tuple
 
 from .utils import (
     BENCH_DIR, BIN_DIR, BIN_SIM_DIR,
-    BENCHMARKS, Logger,
+    Logger,
 )
 
 # Import dependency checker (optional - graceful fallback if not available)
@@ -42,7 +42,7 @@ log = Logger()
 # Constants
 # =============================================================================
 
-# Benchmark binary names (match BENCHMARKS from utils)
+# Benchmark binary names
 BENCHMARK_BINARIES = ["pr", "pr_spmv", "bfs", "cc", "cc_sv", "sssp", "bc", "tc"]
 
 # Makefile targets

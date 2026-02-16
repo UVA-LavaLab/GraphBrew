@@ -47,7 +47,6 @@ Library usage:
 import os
 import json
 import shutil
-from pathlib import Path
 from dataclasses import dataclass, field, asdict
 from datetime import datetime
 from typing import Dict, List, Optional

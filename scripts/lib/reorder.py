@@ -43,8 +43,7 @@ log = Logger()
 # Constants
 # =============================================================================
 
-# Enable run logging (saves command outputs per graph)
-ENABLE_RUN_LOGGING = True
+from .utils import ENABLE_RUN_LOGGING
 
 # Backward-compat: old bare algorithm names → new variant-suffixed names.
 # Before the variant-everywhere change, GraphBrewOrder was stored without a

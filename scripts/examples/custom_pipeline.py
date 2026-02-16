@@ -170,7 +170,7 @@ def display_benchmark_results(benchmark_results: list, benchmarks: list):
     # Group results by graph
     by_graph = defaultdict(list)
     for r in benchmark_results:
-        if r.avg_time > 0:  # Only successful runs
+        if r.time_seconds > 0:  # Only successful runs
             by_graph[r.graph].append(r)
     
     if not by_graph:
@@ -186,7 +186,7 @@ def display_benchmark_results(benchmark_results: list, benchmarks: list):
         
         # Find best algorithm for each benchmark
         for bench in benchmarks:
-            bench_results = [(r.algorithm_name, r.avg_time) 
+            bench_results = [(r.algorithm, r.time_seconds) 
                            for r in results if r.benchmark == bench]
             if bench_results:
                 best_algo, best_time = min(bench_results, key=lambda x: x[1])

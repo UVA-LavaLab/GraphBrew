@@ -347,7 +347,7 @@ See [[Command-Line-Reference]] for the complete CLI option reference.
 
 Key flags: `--full` (complete pipeline), `--size small|medium|large`, `--phase reorder|benchmark|cache|weights`, `--train` (6-phase weight training), `--train-iterative` (feedback loop), `--brute-force` (validation), `--auto` (auto-detect RAM/disk limits).
 
-**Variant testing:** `--all-variants`, `--graphbrew-variants`, `--rabbit-variants`. Variant lists defined in `scripts/lib/utils.py`.
+**Variant testing:** `--all-variants`, `--graphbrew-variants`, `--rabbit-variants`, `--gorder-variants`. Variant lists defined in `scripts/lib/utils.py`.
 
 ### Examples
 
@@ -366,15 +366,15 @@ The `lib/` folder (~22,400 lines) contains modular, reusable components:
 
 | Module | Purpose | Key Exports |
 |--------|---------|-------------|
-| `graph_types.py` | Data classes | `GraphInfo`, `BenchmarkResult`, `CacheResult`, `ReorderResult` |
+| `graph_types.py` | Core type | `GraphInfo` (graph metadata) |
 | `phases.py` | Phase orchestration | `PhaseConfig`, `run_reorder_phase`, `run_benchmark_phase`, `run_full_pipeline` |
-| `utils.py` | Constants & utilities | `ALGORITHMS`, `BENCHMARKS`, variant lists, `run_command` |
+| `utils.py` | Constants & utilities | `ALGORITHMS`, `BENCHMARKS`, `BenchmarkResult`, variant lists, `run_command` |
 | `features.py` | Graph features | `compute_extended_features`, `detect_graph_type`, `get_available_memory_gb` |
 | `dependencies.py` | System deps | `check_dependencies`, `install_dependencies`, `install_boost_158` |
 | `download.py` | Graph download | `download_graphs`, `DOWNLOAD_GRAPHS_SMALL/MEDIUM` |
-| `reorder.py` | Vertex reordering | `generate_reorderings`, `load_label_maps_index` |
+| `reorder.py` | Vertex reordering | `generate_reorderings`, `ReorderResult`, `AlgorithmConfig`, `load_label_maps_index` |
 | `benchmark.py` | Benchmarking | `run_benchmark`, `run_benchmarks_multi_graph`, `run_benchmarks_with_variants` |
-| `cache.py` | Cache simulation | `run_cache_simulations`, `get_cache_stats_summary` |
+| `cache.py` | Cache simulation | `run_cache_simulations`, `CacheResult`, `get_cache_stats_summary` |
 | `weights.py` | Weight management | `compute_weights_from_results`, `cross_validate_logo`, `assign_graph_type` |
 | `weight_merger.py` | Cross-run merge | Weight consolidation across training runs |
 | `training.py` | ML training | `train_adaptive_weights_iterative`, `train_adaptive_weights_large_scale` |

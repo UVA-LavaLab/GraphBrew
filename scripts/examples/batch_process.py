@@ -209,11 +209,10 @@ def main():
                 # Collect results
                 for r in results:
                     all_results.append({
-                        'graph': graph_name,
-                        'algorithm': r.algorithm_name,
+                        'graph': r.graph,
+                        'algorithm': r.algorithm,
                         'benchmark': r.benchmark,
-                        'avg_time': r.avg_time,
-                        'stddev': r.stddev
+                        'time_seconds': r.time_seconds,
                     })
             
             # Mark as completed

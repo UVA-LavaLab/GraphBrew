@@ -56,7 +56,7 @@ GraphBrew provides 16 reordering strategies. Use `-o <id>` to select one (or cha
 | 6 | HUBSORTDBG | HubSort + DBG |
 | 7 | HUBCLUSTERDBG | HubCluster + DBG |
 | 8 | RABBITORDER | Community clustering (variants: `csr` / `boost`) |
-| 9 | GORDER | Window-based BFS ordering |
+| 9 | GORDER | Window-based cache optimization (variants: `default` / `csr` / `fast`) |
 | 10 | CORDER | Workload-balanced reordering |
 | 11 | RCM | Reverse Cuthill-McKee |
 | 12 | GRAPHBREWORDER | Leiden clustering + configurable per-community order |

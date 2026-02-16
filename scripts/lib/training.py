@@ -27,10 +27,9 @@ import json
 import math
 import os
 import random
-import time
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
-from typing import Dict, List, Optional, Set
+from typing import Dict, List, Set
 
 from .utils import Logger, WEIGHTS_DIR
 from .analysis import (
@@ -93,10 +92,12 @@ def initialize_enhanced_weights(weights_file: str, algorithms: List[str] = None)
         Initialized weights dictionary
     """
     default_algorithms = [
-        "Original", "RCMOrder", "DegSort", "HubSort", "HubClusterDBG",
-        "HubClusterDeg", "Sort", "Gorder", "RabbitOrder", "MineOrder",
-        "LDGOrder", "Corder", "SlashBurn", "LeidenDFS", "LeidenBFS",
-        "Adaptive", "LeidenDFSHub", "LeidenBFSHub", "MAP"
+        "ORIGINAL", "RANDOM", "SORT", "HUBSORT", "HUBCLUSTER",
+        "DBG", "HUBSORTDBG", "HUBCLUSTERDBG",
+        "RABBITORDER_csr", "RABBITORDER_boost",
+        "GORDER", "CORDER", "RCM_default", "RCM_bnf",
+        "GraphBrewOrder_leiden", "GraphBrewOrder_rabbit", "GraphBrewOrder_hubcluster",
+        "AdaptiveOrder", "LeidenOrder",
     ]
     
     if algorithms is None:
@@ -105,9 +106,9 @@ def initialize_enhanced_weights(weights_file: str, algorithms: List[str] = None)
     def make_default_weights(algo_name: str) -> Dict:
         """Create default weights for an algorithm."""
         biases = {
-            "LeidenDFS": 0.6, "LeidenBFS": 0.55, "LeidenDFSHub": 0.58,
-            "Gorder": 0.52, "RabbitOrder": 0.5, "Corder": 0.48,
-            "HubClusterDBG": 0.45, "HubSort": 0.42, "RCMOrder": 0.4,
+            "GraphBrewOrder_leiden": 0.6, "LeidenOrder": 0.55,
+            "GORDER": 0.52, "RABBITORDER_csr": 0.5, "CORDER": 0.48,
+            "HUBCLUSTERDBG": 0.45, "HUBSORT": 0.42, "RCM_default": 0.4,
         }
         
         return {
