@@ -130,7 +130,6 @@ from scripts.lib import (
     get_total_disk_gb,
     get_num_threads,
     # Download
-    GRAPH_CATALOG,
     DOWNLOAD_GRAPHS_SMALL,
     DOWNLOAD_GRAPHS_MEDIUM,
     DOWNLOAD_GRAPHS_LARGE,
@@ -175,7 +174,6 @@ try:
     from scripts.lib.dependencies import (
         check_dependencies as lib_check_dependencies,
         install_dependencies as lib_install_dependencies,
-        print_install_instructions as lib_print_install_instructions,
     )
     HAS_DEPENDENCY_MANAGER = True
 except ImportError:
@@ -187,8 +185,7 @@ except ImportError:
 
 # Import algorithm definitions from utils.py (Single Source of Truth)
 from scripts.lib.utils import (
-    ALGORITHMS, SLOW_ALGORITHMS, ALGORITHM_IDS,
-    QUICK_ALGORITHMS, LEIDEN_ALGORITHMS, COMMUNITY_ALGORITHMS,
+    ALGORITHMS,
     SIZE_SMALL, SIZE_MEDIUM, SIZE_LARGE, SIZE_XLARGE,
 )
 
@@ -250,7 +247,7 @@ MIN_EDGES_FOR_TRAINING = 100000  # 100K edges - graphs below this are too noisy 
 
 # Timeout constants imported from lib/utils.py (Single Source of Truth)
 from scripts.lib.utils import (
-    TIMEOUT_REORDER, TIMEOUT_BENCHMARK, TIMEOUT_SIM, TIMEOUT_SIM_HEAVY,
+    TIMEOUT_REORDER, TIMEOUT_BENCHMARK, TIMEOUT_SIM,
     run_command,
 )
 
@@ -1104,7 +1101,8 @@ def clean_reorder_cache(graphs_dir: str = None):
 #   - get_label_map_path() - Get path to a label map file
 #
 # From lib/benchmark.py:
-#   - run_benchmark_suite() - Phase 2: Run performance benchmarks
+#   - run_benchmarks_multi_graph() - Phase 2: Run performance benchmarks
+#   - run_benchmarks_with_variants() - Phase 2 with variant expansion
 #
 # From lib/cache.py:
 #   - run_cache_simulations() - Phase 3: Run cache simulations
@@ -1140,7 +1138,7 @@ from scripts.lib.reorder import (
     load_label_maps_index,
     get_label_map_path,
 )
-from scripts.lib.benchmark import run_benchmark_suite, run_benchmarks_multi_graph, run_benchmarks_with_variants
+from scripts.lib.benchmark import run_benchmarks_multi_graph, run_benchmarks_with_variants
 from scripts.lib.cache import run_cache_simulations_with_variants
 from scripts.lib.analysis import (
     analyze_adaptive_order,
@@ -1672,7 +1670,7 @@ def run_experiment(args):
         # Compare against top fixed algorithms
         fixed_algos = [1, 2, 4, 7, 15]  # RANDOM, SORT, HUBCLUSTER, HUBCLUSTERDBG, LeidenOrder
         
-        comparison_results = compare_adaptive_vs_fixed(
+        _comparison_results = compare_adaptive_vs_fixed(
             graphs=graphs,
             bin_dir=args.bin_dir,
             benchmarks=args.benchmarks,
@@ -1685,7 +1683,7 @@ def run_experiment(args):
     # Phase 8: Brute-Force Validation (All 20 algos vs Adaptive)
     if getattr(args, "brute_force", False):
         bf_benchmark = getattr(args, "bf_benchmark", "pr")
-        brute_force_results = run_subcommunity_brute_force(
+        _brute_force_results = run_subcommunity_brute_force(
             graphs=graphs,
             bin_dir=args.bin_dir,
             bin_sim_dir=args.bin_sim_dir,
@@ -1698,7 +1696,7 @@ def run_experiment(args):
     
     # Phase 8b: Validate Adaptive Accuracy (faster than brute-force)
     if getattr(args, "validate_adaptive", False):
-        validation_results = validate_adaptive_accuracy(
+        _validation_results = validate_adaptive_accuracy(
             graphs=graphs,
             bin_dir=args.bin_dir,
             output_dir=args.results_dir,
@@ -1710,7 +1708,7 @@ def run_experiment(args):
     
     # Phase 9: Iterative Training (feedback loop to optimize adaptive weights)
     if getattr(args, "train_adaptive", False):
-        training_result = train_adaptive_weights_iterative(
+        _training_result = train_adaptive_weights_iterative(
             graphs=graphs,
             bin_dir=args.bin_dir,
             bin_sim_dir=args.bin_sim_dir,
@@ -1729,7 +1727,7 @@ def run_experiment(args):
     
     # Phase 10: Large-Scale Training (batched multi-benchmark training)
     if getattr(args, "train_large", False):
-        large_training_result = train_adaptive_weights_large_scale(
+        _large_training_result = train_adaptive_weights_large_scale(
             graphs=graphs,
             bin_dir=args.bin_dir,
             bin_sim_dir=args.bin_sim_dir,

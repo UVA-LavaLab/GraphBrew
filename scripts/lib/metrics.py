@@ -92,36 +92,9 @@ class AmortizationMetrics:
 
 
 @dataclass
-class VariantComparison:
-    """Head-to-head comparison of two variants on a (graph, benchmark)."""
-    graph: str
-    benchmark: str
-    variant_a: str           # e.g. "RABBITORDER_csr"
-    variant_b: str           # e.g. "GraphBrewOrder_leiden_hrab"
-    
-    # Kernel comparison
-    kernel_a: float = 0.0
-    kernel_b: float = 0.0
-    kernel_winner: str = ""
-    kernel_speedup: float = 0.0  # b_time / a_time (>1 = a is faster)
-    
-    # Reorder cost comparison
-    reorder_a: float = 0.0
-    reorder_b: float = 0.0
-    reorder_ratio: float = 0.0  # b_reorder / a_reorder
-    
-    # End-to-end at various iteration counts
-    e2e_winner_at_1: str = ""
-    e2e_winner_at_10: str = ""
-    e2e_winner_at_100: str = ""
-    crossover_iters: float = float('inf')  # Iterations where slower-to-reorder variant wins
-
-
-@dataclass
 class AmortizationReport:
     """Full amortization report across all graphs/benchmarks."""
     entries: List[AmortizationMetrics] = field(default_factory=list)
-    comparisons: List[VariantComparison] = field(default_factory=list)
     
     def profitable_count(self) -> int:
         return sum(1 for e in self.entries if e.is_profitable())
@@ -230,91 +203,6 @@ def compute_amortization(
     return report
 
 
-def compute_variant_comparison(
-    benchmark_results: list,
-    reorder_results: list,
-    variant_a: str,
-    variant_b: str,
-) -> List[VariantComparison]:
-    """
-    Head-to-head comparison of two variants across all graphs/benchmarks.
-    
-    Args:
-        variant_a, variant_b: Algorithm names to compare
-    
-    Returns:
-        List of VariantComparison, one per (graph, benchmark)
-    """
-    def to_dict(x):
-        if hasattr(x, '__dict__'):
-            return vars(x)
-        return x
-    
-    bench_dicts = [to_dict(r) for r in benchmark_results]
-    reorder_dicts = [to_dict(r) for r in reorder_results]
-    
-    # Build lookups
-    kernel: Dict[Tuple[str, str, str], float] = {}
-    for r in bench_dicts:
-        if r.get('time_seconds', 0) > 0:
-            kernel[(r['graph'], r['benchmark'], r['algorithm'])] = r['time_seconds']
-    
-    reorder: Dict[Tuple[str, str], float] = {}
-    for r in reorder_dicts:
-        reorder[(r.get('graph', ''), r.get('algorithm_name', ''))] = r.get('reorder_time', 0.0)
-    for r in bench_dicts:
-        k = (r['graph'], r['algorithm'])
-        if k not in reorder and r.get('reorder_time', 0) > 0:
-            reorder[k] = r['reorder_time']
-    
-    comparisons = []
-    seen = set()
-    
-    for (graph, bench, algo) in kernel:
-        if algo != variant_a:
-            continue
-        if (graph, bench) in seen:
-            continue
-        
-        ka = kernel.get((graph, bench, variant_a), 0)
-        kb = kernel.get((graph, bench, variant_b), 0)
-        if ka <= 0 or kb <= 0:
-            continue
-        
-        seen.add((graph, bench))
-        ra = reorder.get((graph, variant_a), 0)
-        rb = reorder.get((graph, variant_b), 0)
-        
-        comp = VariantComparison(
-            graph=graph, benchmark=bench,
-            variant_a=variant_a, variant_b=variant_b,
-            kernel_a=ka, kernel_b=kb,
-            kernel_winner=variant_a if ka < kb else variant_b,
-            kernel_speedup=kb / ka if ka > 0 else 0,
-            reorder_a=ra, reorder_b=rb,
-            reorder_ratio=rb / ra if ra > 0 else float('inf'),
-        )
-        
-        # End-to-end winners at various iteration counts
-        for n in [1, 10, 100]:
-            e2e_a = ra + n * ka
-            e2e_b = rb + n * kb
-            winner = variant_a if e2e_a < e2e_b else variant_b
-            if n == 1: comp.e2e_winner_at_1 = winner
-            elif n == 10: comp.e2e_winner_at_10 = winner
-            elif n == 100: comp.e2e_winner_at_100 = winner
-        
-        # Crossover: when does the slower-to-reorder variant win?
-        # Solve: ra + n*ka = rb + n*kb  →  n = (rb - ra) / (ka - kb)
-        if ka != kb:
-            n_cross = (rb - ra) / (ka - kb)
-            comp.crossover_iters = n_cross if n_cross > 0 else float('inf')
-        
-        comparisons.append(comp)
-    
-    return comparisons
-
-
 # =============================================================================
 # Reporting
 # =============================================================================
@@ -354,56 +242,3 @@ def format_amortization_table(report: AmortizationReport, max_rows: int = 50) ->
     lines.append(f"Geo-mean E2E@100: {report.geo_mean_e2e_speedup(100):.3f}x")
     
     return "\n".join(lines)
-
-
-def format_comparison_table(comparisons: List[VariantComparison]) -> str:
-    """Format head-to-head comparison as a table."""
-    if not comparisons:
-        return "No comparisons to display."
-    
-    va = comparisons[0].variant_a
-    vb = comparisons[0].variant_b
-    
-    lines = []
-    lines.append(f"Head-to-head: {va} vs {vb}")
-    lines.append("=" * 100)
-    lines.append(f"{'Graph':<20} {'Bench':<6} {'KernelA':>8} {'KernelB':>8} "
-                 f"{'Winner':>12} {'E2E@1':>8} {'E2E@10':>8} {'E2E@100':>8} {'Crossover':>10}")
-    lines.append("-" * 100)
-    
-    a_wins = {1: 0, 10: 0, 100: 0}
-    b_wins = {1: 0, 10: 0, 100: 0}
-    
-    for c in sorted(comparisons, key=lambda x: (x.benchmark, x.graph)):
-        cross_str = (f"{c.crossover_iters:.1f}" 
-                    if c.crossover_iters < float('inf') else "NEVER")
-        lines.append(
-            f"{c.graph:<20} {c.benchmark:<6} "
-            f"{c.kernel_a:>7.5f}s {c.kernel_b:>7.5f}s "
-            f"{c.kernel_winner:>12} "
-            f"{c.e2e_winner_at_1:>8} "
-            f"{c.e2e_winner_at_10:>8} "
-            f"{c.e2e_winner_at_100:>8} "
-            f"{cross_str:>10}"
-        )
-        for n, winner_attr in [(1, 'e2e_winner_at_1'), (10, 'e2e_winner_at_10'), (100, 'e2e_winner_at_100')]:
-            w = getattr(c, winner_attr)
-            if w == va: a_wins[n] += 1
-            else: b_wins[n] += 1
-    
-    lines.append("=" * 100)
-    total = len(comparisons)
-    for n in [1, 10, 100]:
-        lines.append(f"  E2E@{n:>3}: {va} wins {a_wins[n]}/{total}, {vb} wins {b_wins[n]}/{total}")
-    
-    return "\n".join(lines)
-
-
-def print_amortization_report(report: AmortizationReport) -> None:
-    """Print full amortization report to stdout."""
-    print(format_amortization_table(report))
-
-
-def print_comparison_report(comparisons: List[VariantComparison]) -> None:
-    """Print head-to-head comparison to stdout."""
-    print(format_comparison_table(comparisons))

@@ -274,7 +274,6 @@ from .progress import (
     ProgressTracker,
     ConsoleColors,
     Timer,
-    format_duration,
     create_progress,
     get_progress,
     reset_progress,

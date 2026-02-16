@@ -795,13 +795,6 @@ def parse_algorithm_option(option: str) -> Tuple[int, List[str]]:
     return algo_id, params
 
 
-def format_algorithm_option(algo_id: int, params: List[str] = None) -> str:
-    """Format algorithm ID and parameters into option string."""
-    if params:
-        return f"{algo_id}:{':'.join(params)}"
-    return str(algo_id)
-
-
 def get_algorithm_name(option: str) -> str:
     """
     Get canonical variant name for an algorithm option string.
@@ -828,39 +821,9 @@ def get_algorithm_name(option: str) -> str:
     return base_name
 
 
-def expand_algorithm_variants(algo_id: int) -> List[str]:
-    """
-    Expand algorithm ID to all its variant option strings.
-    
-    Uses _VARIANT_ALGO_REGISTRY — no hardcoded algo IDs.
-    
-    Returns list of CLI option strings:
-        8  → ["8:csr", "8:boost"]
-        12 → ["12:leiden", "12:rabbit", "12:hubcluster"]
-        5  → ["5"]
-    """
-    if algo_id in _VARIANT_ALGO_REGISTRY:
-        _, variants, _ = _VARIANT_ALGO_REGISTRY[algo_id]
-        return [f"{algo_id}:{v}" for v in variants]
-    return [str(algo_id)]
-
-
 # =============================================================================
 # JSON Utilities
 # =============================================================================
-
-def load_json(path: Path) -> Dict:
-    """Load JSON file with error handling."""
-    try:
-        with open(path, "r") as f:
-            return json.load(f)
-    except FileNotFoundError:
-        log.warning(f"JSON file not found: {path}")
-        return {}
-    except json.JSONDecodeError as e:
-        log.error(f"Invalid JSON in {path}: {e}")
-        return {}
-
 
 def save_json(data: Any, path: Path, indent: int = 2) -> None:
     """Save data to JSON file."""
@@ -895,11 +858,6 @@ def find_graphs(graph_dir: Path = None, extensions: List[str] = None) -> List[Pa
         graphs.extend(graph_dir.rglob(f"*{ext}"))
     
     return sorted(graphs)
-
-
-def get_graph_name(graph_path: Path) -> str:
-    """Extract clean graph name from path."""
-    return graph_path.stem
 
 
 # =============================================================================
