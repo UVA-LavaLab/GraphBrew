@@ -220,6 +220,45 @@ def _compute_distance(f1: List[float], f2: List[float]) -> float:
     return math.sqrt(sum((a - b) ** 2 for a, b in zip(f1, f2)))
 
 
+def _pearson_correlation(x: List[float], y: List[float]) -> float:
+    """Compute Pearson correlation coefficient between two sequences."""
+    if len(x) < 2:
+        return 0.0
+    n = len(x)
+    mean_x = sum(x) / n
+    mean_y = sum(y) / n
+    num = sum((xi - mean_x) * (yi - mean_y) for xi, yi in zip(x, y))
+    den_x = math.sqrt(sum((xi - mean_x) ** 2 for xi in x))
+    den_y = math.sqrt(sum((yi - mean_y) ** 2 for yi in y))
+    if den_x * den_y > 0:
+        return num / (den_x * den_y)
+    return 0.0
+
+
+# Feature-to-weight mapping for correlation-based weight updates
+_FEATURE_WEIGHT_MAP = {
+    'modularity': ('w_modularity', 0.5),
+    'degree_variance': ('w_degree_variance', 0.3),
+    'hub_concentration': ('w_hub_concentration', 0.3),
+    'log_nodes': ('w_log_nodes', 0.2),
+    'log_edges': ('w_log_edges', 0.2),
+    'density': ('w_density', 0.3),
+    'avg_degree': ('w_avg_degree', 0.2),
+    'clustering_coefficient': ('w_clustering_coeff', 0.3),
+    'avg_path_length': ('w_avg_path_length', 0.2),
+    'diameter': ('w_diameter', 0.2),
+    'community_count': ('w_community_count', 0.2),
+    # IISWC'18 / GoGraph / P-OPT locality features
+    'packing_factor': ('w_packing_factor', 0.3),
+    'forward_edge_fraction': ('w_forward_edge_fraction', 0.3),
+    'log_working_set_ratio': ('w_working_set_ratio', 0.3),
+    # Quadratic interaction terms
+    'dv_x_hub': ('w_dv_x_hub', 0.2),
+    'mod_x_logn': ('w_mod_x_logn', 0.2),
+    'pf_x_wsr': ('w_pf_x_wsr', 0.2),
+}
+
+
 # =============================================================================
 # Type Registry Functions
 # =============================================================================
@@ -1586,7 +1625,7 @@ def cross_validate_logo(
     median_regret = sorted_regrets[len(sorted_regrets) // 2]
 
     # Compare to in-sample accuracy (full training on all graphs)
-    full_weights = compute_weights_from_results(
+    compute_weights_from_results(
         benchmark_results, reorder_results=reorder_results, weights_dir=weights_dir
     )
     # Reload produced files for scoring
@@ -2200,48 +2239,11 @@ def update_zero_weights(
                 weights[algo]['_metadata'] = meta
                 
                 # Update feature weights based on correlation direction
-                # (positive correlation = feature helps this algo, negative = hurts)
-                def correlation(x, y):
-                    if len(x) < 2:
-                        return 0.0
-                    n = len(x)
-                    mean_x = sum(x) / n
-                    mean_y = sum(y) / n
-                    num = sum((xi - mean_x) * (yi - mean_y) for xi, yi in zip(x, y))
-                    den_x = math.sqrt(sum((xi - mean_x) ** 2 for xi in x))
-                    den_y = math.sqrt(sum((yi - mean_y) ** 2 for yi in y))
-                    if den_x * den_y > 0:
-                        return num / (den_x * den_y)
-                    return 0.0
-                
-                # Compute correlations and update all feature weights
-                weight_map = {
-                    'modularity': ('w_modularity', 0.5),
-                    'degree_variance': ('w_degree_variance', 0.3),
-                    'hub_concentration': ('w_hub_concentration', 0.3),
-                    'log_nodes': ('w_log_nodes', 0.2),
-                    'log_edges': ('w_log_edges', 0.2),
-                    'density': ('w_density', 0.3),
-                    'avg_degree': ('w_avg_degree', 0.2),
-                    'clustering_coefficient': ('w_clustering_coeff', 0.3),
-                    'avg_path_length': ('w_avg_path_length', 0.2),
-                    'diameter': ('w_diameter', 0.2),
-                    'community_count': ('w_community_count', 0.2),
-                    # IISWC'18 / GoGraph / P-OPT locality features
-                    'packing_factor': ('w_packing_factor', 0.3),
-                    'forward_edge_fraction': ('w_forward_edge_fraction', 0.3),
-                    'log_working_set_ratio': ('w_working_set_ratio', 0.3),
-                    # Quadratic interaction terms
-                    'dv_x_hub': ('w_dv_x_hub', 0.2),
-                    'mod_x_logn': ('w_mod_x_logn', 0.2),
-                    'pf_x_wsr': ('w_pf_x_wsr', 0.2),
-                }
-                
-                for feat_name, (weight_name, scale) in weight_map.items():
+                for feat_name, (weight_name, scale) in _FEATURE_WEIGHT_MAP.items():
                     feat_vals = feature_arrays[feat_name]
                     # Only compute if we have variance in the feature
                     if len(set(feat_vals)) > 1:
-                        corr = correlation(feat_vals, speedups)
+                        corr = _pearson_correlation(feat_vals, speedups)
                         weights[algo][weight_name] = corr * scale
     
     # Save updated weights to flat file if path specified
@@ -2255,9 +2257,6 @@ def update_zero_weights(
     graph_names = list(set(r.graph for r in benchmark_results if hasattr(r, 'graph')))
     save_weights_to_active_type(weights, DEFAULT_WEIGHTS_DIR, type_name="type_0", graphs=graph_names)
 
-
-# Alias for backward compatibility and phases.py import
-generate_perceptron_weights_from_results = compute_weights_from_results
 
 
 # =============================================================================

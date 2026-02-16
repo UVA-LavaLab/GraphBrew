@@ -25,12 +25,11 @@ GraphBrew/
 │   ├── src_sim/              # Cache simulation sources
 │   └── backups/              # Backup files
 │
-├── scripts/                  # Python tools (~23,400 lines)
+├── scripts/                  # Python tools (~28,600 lines)
 │   ├── graphbrew_experiment.py  # Main orchestration
 │   ├── lib/                     # Shared modules
 │   ├── benchmark/               # Benchmark shell scripts
-│   ├── examples/                # Usage examples
-│   └── weights/                 # Perceptron weight files
+│   └── examples/                # Usage examples
 │
 ├── scripts/test/             # Pytest suite
 │   ├── graphs/               # Sample graphs
@@ -295,11 +294,11 @@ int main(int argc, char* argv[]) {
 See [[Python-Scripts]] for full documentation of the Python tooling.
 
 Key entry points:
-- `graphbrew_experiment.py` — Main orchestration (~2,810 lines)
+- `graphbrew_experiment.py` — Main orchestration (~2,680 lines)
 - `lib/perceptron.py` — ML weight experimentation
 - `lib/adaptive_emulator.py` — C++ logic emulation
 - `lib/eval_weights.py` — Weight evaluation & accuracy reporting
-- `lib/` — 30 reusable modules (~23,400 lines total)
+- `lib/` — 30 reusable modules (~22,400 lines total)
 
 ---
 

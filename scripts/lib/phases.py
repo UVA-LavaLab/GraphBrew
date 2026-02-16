@@ -612,9 +612,9 @@ def run_weights_phase(
         return {}
     
     # Import weight generation function
-    from .weights import generate_perceptron_weights_from_results
+    from .weights import compute_weights_from_results
     
-    weights = generate_perceptron_weights_from_results(
+    weights = compute_weights_from_results(
         benchmark_results=benchmark_results,
         cache_results=cache_results or [],
         reorder_results=reorder_results or [],

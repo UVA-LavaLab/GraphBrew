@@ -172,7 +172,7 @@ Use with `-o <id>`:
 <!-- LeidenCSR (16) deprecated — GraphBrew (12) subsumes it -->
 
 > **Note:** For current variant lists, see `scripts/lib/utils.py` which defines:
-> - `RABBITORDER_VARIANTS`, `GORDER_VARIANTS`, `RCM_VARIANTS`, `GRAPHBREW_VARIANTS`
+> - `RABBITORDER_VARIANTS`, `RCM_VARIANTS`, `GRAPHBREW_VARIANTS`
 
 ### GOrder Variants (Algorithm 9)
 

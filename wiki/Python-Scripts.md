@@ -362,7 +362,7 @@ python3 scripts/graphbrew_experiment.py --generate-maps --size small
 
 ## 📦 lib/ Module Reference
 
-The `lib/` folder (~14,300 lines) contains modular, reusable components:
+The `lib/` folder (~22,400 lines) contains modular, reusable components:
 
 | Module | Purpose | Key Exports |
 |--------|---------|-------------|
