@@ -1168,10 +1168,13 @@ def run_experiment(args):
         # Build reverse mapping from name to id (auto-generated from SSOT)
         name_to_id = {v.upper(): k for k, v in ALGORITHMS.items()}
         # Add variant names → base algo IDs (auto-generated from registry)
-        from scripts.lib.utils import _VARIANT_ALGO_REGISTRY
+        from scripts.lib.utils import _VARIANT_ALGO_REGISTRY, GORDER_VARIANTS
         for aid, (pfx, variants, _) in _VARIANT_ALGO_REGISTRY.items():
             for v in variants:
                 name_to_id[f"{pfx}{v}".upper()] = aid
+        # Add GOrder implementation variant names (not in registry, share weight)
+        for v in GORDER_VARIANTS:
+            name_to_id[f"GORDER_{v}".upper()] = 9
         # Common shorthand aliases
         name_to_id.update({
             "RABBIT": 8, "LEIDEN": 15, "LEIDENORDER": 15,
@@ -1241,6 +1244,7 @@ def run_experiment(args):
                 expand_leiden_variants=True,
                 leiden_resolution=getattr(args, "leiden_resolution", LEIDEN_DEFAULT_RESOLUTION),
                 leiden_passes=getattr(args, "leiden_passes", LEIDEN_DEFAULT_PASSES),
+                gorder_variants=getattr(args, "gorder_variants", None),
                 timeout=args.timeout_reorder,
                 skip_slow=args.skip_slow,
                 force_reorder=getattr(args, "force_reorder", False)
@@ -1287,6 +1291,7 @@ def run_experiment(args):
                 leiden_passes=getattr(args, "leiden_passes", LEIDEN_DEFAULT_PASSES),
                 rabbit_variants=getattr(args, "rabbit_variants", None),
                 graphbrew_variants=getattr(args, "graphbrew_variants", None),
+                gorder_variants=getattr(args, "gorder_variants", None),
                 timeout=args.timeout_reorder,
                 skip_slow=args.skip_slow,
                 force_reorder=getattr(args, "force_reorder", False)
@@ -2127,6 +2132,9 @@ def main():
     parser.add_argument("--rabbit-variants", nargs="+",
                         default=None, choices=["csr", "boost"],
                         help="RabbitOrder variants: csr (default, no deps), boost (requires libboost-graph-dev)")
+    parser.add_argument("--gorder-variants", nargs="+",
+                        default=None, choices=["default", "csr", "fast"],
+                        help="GOrder implementation variants: default, csr, fast (differ in speed, same ordering)")
     parser.add_argument("--graphbrew-variants", nargs="+", dest="graphbrew_variants",
                         default=None, choices=["leiden", "rabbit", "hubcluster"],
                         help="GraphBrewOrder variants (GraphBrew-powered): leiden (default), rabbit, hubcluster")

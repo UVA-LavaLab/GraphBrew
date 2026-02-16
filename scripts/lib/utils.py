@@ -133,6 +133,12 @@ VARIANT_PREFIXES = ("GraphBrewOrder_", "RABBITORDER_", "RCM_")
 RABBITORDER_VARIANTS = ("csr", "boost")
 RABBITORDER_DEFAULT_VARIANT = "csr"
 
+# GOrder implementation variants: -o 9:variant
+# These differ only in implementation speed — they produce equivalent orderings.
+# NOT in _VARIANT_ALGO_REGISTRY because they share a single perceptron weight.
+GORDER_VARIANTS = ("default", "csr", "fast")
+GORDER_DEFAULT_VARIANT = "default"
+
 # RCM variants: -o 11:variant
 RCM_VARIANTS = ("default", "bnf")
 RCM_DEFAULT_VARIANT = "default"
