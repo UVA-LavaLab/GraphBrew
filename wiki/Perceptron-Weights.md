@@ -389,7 +389,7 @@ Leave-One-Graph-Out CV trains on all-but-one graph, predicts the held-out graph,
 
 ```python
 from scripts.lib.weights import cross_validate_logo
-result = cross_validate_logo(benchmark_results, graph_features, type_registry)
+result = cross_validate_logo(benchmark_results, reorder_results=reorder_results, weights_dir=weights_dir)
 print(f"LOGO: {result['accuracy']:.1%}, Overfit: {result['overfitting_score']:.2f}")
 ```
 

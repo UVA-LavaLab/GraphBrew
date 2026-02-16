@@ -166,10 +166,6 @@ def append_csv(filepath: Union[str, Path], row: Dict[str, Any]) -> bool:
 # Result File Naming
 # ─────────────────────────────────────────────────────────────────────────────
 
-# Backward-compatible alias (use get_timestamp from utils instead)
-generate_timestamp = get_timestamp
-
-
 def generate_result_filename(prefix: str, extension: str = "json",
                             timestamp: bool = True) -> str:
     """
@@ -546,7 +542,6 @@ __all__ = [
     'read_csv',
     'write_csv',
     'append_csv',
-    'generate_timestamp',
     'generate_result_filename',
     'parse_result_filename',
     'ResultsManager',

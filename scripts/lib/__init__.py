@@ -289,7 +289,6 @@ from .results import (
     read_csv,
     write_csv,
     append_csv,
-    generate_timestamp,
     generate_result_filename,
     flatten_dict,
     filter_results,

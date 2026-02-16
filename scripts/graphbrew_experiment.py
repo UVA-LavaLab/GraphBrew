@@ -1052,11 +1052,6 @@ def clean_reorder_cache(graphs_dir: str = None):
     log("Fresh reordering will be performed on next run.")
 
 
-# get_num_threads() is imported from lib/features.py
-# parse_benchmark_output() is in lib/benchmark.py
-# parse_cache_output() is in lib/cache.py
-
-
 # ============================================================================
 # Phase Functions (Delegated to lib/ modules)
 # ============================================================================
@@ -1099,7 +1094,7 @@ def clean_reorder_cache(graphs_dir: str = None):
 #
 # ============================================================================
 
-# Alias imports for backward compatibility with existing code
+# Direct imports from lib/ modules
 from scripts.lib.reorder import (
     generate_reorderings,
     generate_reorderings_with_variants,
@@ -1112,79 +1107,14 @@ from scripts.lib.analysis import (
     analyze_adaptive_order,
     compare_adaptive_vs_fixed,
     run_subcommunity_brute_force,
+    validate_adaptive_accuracy,
 )
 from scripts.lib.training import (
     train_adaptive_weights_iterative,
     train_adaptive_weights_large_scale,
     initialize_enhanced_weights,
 )
-
-
-# ============================================================================
-# Local helper functions that wrap lib/ calls
-# ============================================================================
-
-def generate_perceptron_weights(
-    benchmark_results: List[BenchmarkResult],
-    cache_results: List[CacheResult],
-    reorder_results: List[ReorderResult],
-    output_file: str
-) -> Dict[str, PerceptronWeight]:
-    """Generate perceptron weights. Delegates to lib/weights."""
-    from scripts.lib.weights import compute_weights_from_results
-    return compute_weights_from_results(
-        benchmark_results=benchmark_results,
-        cache_results=cache_results,
-        reorder_results=reorder_results,
-        output_file=output_file
-    )
-
-
-def update_zero_weights(
-    weights_file: str,
-    benchmark_results: List[BenchmarkResult],
-    cache_results: List[CacheResult],
-    reorder_results: List[ReorderResult],
-    graphs_dir: str
-) -> None:
-    """Update zero weights with comprehensive analysis. Delegates to lib/weights."""
-    from scripts.lib.weights import update_zero_weights
-    update_zero_weights(
-        weights_file=weights_file,
-        benchmark_results=benchmark_results,
-        cache_results=cache_results,
-        reorder_results=reorder_results,
-        graphs_dir=graphs_dir
-    )
-
-
-def validate_adaptive_accuracy(
-    graphs: List[GraphInfo],
-    bin_dir: str,
-    output_dir: str,
-    benchmarks: List[str] = None,
-    timeout: int = TIMEOUT_BENCHMARK,
-    num_trials: int = 3,
-    force_reorder: bool = False
-) -> List[Dict]:
-    """Validate adaptive accuracy. Delegates to lib/analysis."""
-    from scripts.lib.analysis import validate_adaptive_accuracy
-    return validate_adaptive_accuracy(
-        graphs=graphs,
-        bin_dir=bin_dir,
-        output_dir=output_dir,
-        benchmarks=benchmarks or list(BENCHMARKS),
-        timeout=timeout,
-        num_trials=num_trials,
-        force_reorder=force_reorder
-    )
-
-
-
-# ============================================================================
-# Simplified Phase-Based Orchestration (using lib/phases.py)
-# ============================================================================
-# run_phases() removed — use run_full_pipeline() from lib/phases.py directly.
+from scripts.lib.weights import compute_weights_from_results, update_zero_weights
 
 
 # ============================================================================
@@ -1591,11 +1521,6 @@ def run_experiment(args):
             json.dump([asdict(r) for r in cache_results], f, indent=2)
         log(f"Cache results saved to: {cache_file}")
     
-    # NOTE: Phase 4 (Weights) is handled above by run_weights_phase() from phases.py
-    # which calls compute_weights_from_results() with proper bias capping (≤1.5).
-    # The old inline Phase 4 that also called update_zero_weights() was removed
-    # because it overwrote type_0.json with uncapped biases and zero metadata.
-    
     # Phase 5: Fill Weights (only when --train is specified)
     if getattr(args, "fill_weights", False) and all_benchmark_results:
         _progress.phase_start("FILL WEIGHTS", "Updating weights with correlation analysis")
@@ -1820,7 +1745,7 @@ def run_experiment(args):
         
         # Phase 4: Generate Base Weights
         log_section("Phase 4: Generate Perceptron Weights")
-        weights = generate_perceptron_weights(
+        weights = compute_weights_from_results(
             benchmark_results=benchmark_results,
             cache_results=cache_results,
             reorder_results=reorder_results,
