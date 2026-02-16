@@ -151,11 +151,13 @@ def expand_algorithms_with_variants(
     leiden_resolution: str = LEIDEN_DEFAULT_RESOLUTION,
     leiden_passes: int = LEIDEN_DEFAULT_PASSES,
     rabbit_variants: List[str] = None,
-    graphbrew_variants: List[str] = None
+    graphbrew_variants: List[str] = None,
+    gorder_variants: List[str] = None
 ) -> List[AlgorithmConfig]:
     """
     Expand algorithm IDs into AlgorithmConfig objects.
     
+    For GOrder (9), optionally expand into default/csr/fast implementation variants.
     For RabbitOrder (8), optionally expand into csr/boost variants.
     For GraphBrewOrder (12), optionally expand into leiden/rabbit/hubcluster variants.
     
@@ -166,10 +168,13 @@ def expand_algorithms_with_variants(
         leiden_passes: Number of passes for Leiden
         rabbit_variants: Which RabbitOrder variants to include (default: csr only)
         graphbrew_variants: Which GraphBrewOrder variants to include (default: leiden only)
+        gorder_variants: Which GOrder implementation variants to include (default: None = plain GOrder)
     
     Returns:
         List of AlgorithmConfig objects
     """
+    from scripts.lib.utils import GORDER_VARIANTS, GORDER_DEFAULT_VARIANT
+    
     if rabbit_variants is None:
         # When expanding variants, include both RabbitOrder variants; otherwise just csr
         rabbit_variants = RABBITORDER_VARIANTS if expand_leiden_variants else [RABBITORDER_DEFAULT_VARIANT]
@@ -182,7 +187,33 @@ def expand_algorithms_with_variants(
     for algo_id in algorithms:
         base_name = ALGORITHMS.get(algo_id, f"ALGO_{algo_id}")
         
-        if algo_id == 8 and expand_leiden_variants and len(rabbit_variants) > 1:
+        if algo_id == 9 and gorder_variants and len(gorder_variants) > 1:
+            # GOrder: expand into implementation variants (differ in speed, same ordering)
+            for variant in gorder_variants:
+                if variant == "default":
+                    option_str = str(algo_id)
+                else:
+                    option_str = f"{algo_id}:{variant}"
+                configs.append(AlgorithmConfig(
+                    algo_id=algo_id,
+                    name=f"GORDER_{variant}",
+                    option_string=option_str,
+                    variant=variant
+                ))
+        elif algo_id == 9 and gorder_variants:
+            # GOrder: single specific variant
+            variant = gorder_variants[0]
+            if variant == "default":
+                option_str = str(algo_id)
+            else:
+                option_str = f"{algo_id}:{variant}"
+            configs.append(AlgorithmConfig(
+                algo_id=algo_id,
+                name=f"GORDER_{variant}",
+                option_string=option_str,
+                variant=variant
+            ))
+        elif algo_id == 8 and expand_leiden_variants and len(rabbit_variants) > 1:
             # RabbitOrder: expand into variants if multiple specified
             for variant in rabbit_variants:
                 option_str = f"{algo_id}:{variant}"
@@ -761,6 +792,7 @@ def generate_reorderings_with_variants(
     leiden_passes: int = LEIDEN_DEFAULT_PASSES,
     rabbit_variants: List[str] = None,
     graphbrew_variants: List[str] = None,
+    gorder_variants: List[str] = None,
     timeout: int = TIMEOUT_REORDER,
     skip_slow: bool = False,
     force_reorder: bool = False
@@ -771,7 +803,7 @@ def generate_reorderings_with_variants(
     Creates separate mappings for each variant:
         - GraphBrewOrder_leiden.lo
         - GraphBrewOrder_rabbit.lo
-        - GraphBrewOrder_hubcluster.lo
+        - GORDER_csr.lo
     
     Args:
         graphs: List of graphs to process
@@ -782,6 +814,7 @@ def generate_reorderings_with_variants(
         leiden_resolution: Resolution parameter
         leiden_passes: Number of passes
         graphbrew_variants: Which GraphBrewOrder variants
+        gorder_variants: Which GOrder implementation variants (default/csr/fast)
         timeout: Timeout for each reordering
         skip_slow: Skip slow algorithms on large graphs
         force_reorder: Regenerate even if files exist
@@ -809,7 +842,8 @@ def generate_reorderings_with_variants(
             leiden_resolution=leiden_resolution,
             leiden_passes=leiden_passes,
             rabbit_variants=rabbit_variants,
-            graphbrew_variants=graphbrew_variants
+            graphbrew_variants=graphbrew_variants,
+            gorder_variants=gorder_variants
         )
     
     results = []
