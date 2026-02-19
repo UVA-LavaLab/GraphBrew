@@ -96,7 +96,7 @@ GraphBrew typically achieves:
 
 The best algorithm depends on your graph's topology!
 
-## � Page Index
+## 📋 Page Index
 
 | Page | Description |
 |------|-------------|
@@ -105,7 +105,7 @@ The best algorithm depends on your graph's topology!
 | [[Quick-Start]] | 5-minute getting started guide |
 | [[Supported-Graph-Formats]] | EL, MTX, GRAPH format specs |
 | [[Reordering-Algorithms]] | All 16 algorithms explained |
-| [[Graph-Benchmarks]] | PR, BFS, CC, SSSP, BC, TC |
+| [[Graph-Benchmarks]] | PR, PR_SPMV, BFS, CC, CC_SV, SSSP, BC, TC |
 | [[Community-Detection]] | Leiden algorithm details |
 | [[Running-Benchmarks]] | Manual benchmark execution |
 | [[Benchmark-Suite]] | Automated experiment runner |

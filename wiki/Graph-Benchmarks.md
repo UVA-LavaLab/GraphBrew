@@ -4,17 +4,18 @@ GraphBrew includes implementations of classic graph algorithms used to measure t
 
 ## Overview of Benchmarks
 
-The automated pipeline runs **five** benchmarks by default (TC is available but skipped):
+The automated pipeline runs **eight** benchmarks:
 
 | Benchmark | Binary | Description | Complexity |
 |-----------|--------|-------------|------------|
 | PageRank | `pr` | Importance ranking | O(n + m) per iteration |
+| PageRank (SpMV) | `pr_spmv` | Sparse matrix-vector PageRank | O(n + m) per iteration |
 | BFS | `bfs` | Shortest paths (unweighted) | O(n + m) |
 | Connected Components | `cc` | Find connected subgraphs | O(n + m) |
+| Connected Components (SV) | `cc_sv` | Shiloach-Vishkin CC | O(n + m) |
 | SSSP | `sssp` | Shortest paths (weighted) | O((n + m) log n) |
 | Betweenness Centrality | `bc` | Node importance | O(n × (n + m)) |
-
-Triangle Counting (`tc`) is available but skipped by default (minimal reorder benefit). Use `--benchmarks pr bfs cc sssp bc tc` to include it.
+| Triangle Counting | `tc` | Count triangles | O(m^{3/2}) |
 
 ---
 
@@ -228,8 +229,10 @@ See [[Benchmark-Suite]] for automated experiments and [[Running-Benchmarks]] for
 | Benchmark | Typical Speedup Range |
 |-----------|----------------------|
 | PageRank | 1.2x - 2.5x |
+| PageRank (SpMV) | 1.2x - 2.5x |
 | BFS | 1.1x - 2.0x |
 | CC | 1.1x - 1.5x |
+| CC (SV) | 1.1x - 1.5x |
 | SSSP | 1.2x - 2.0x |
 | BC | 1.3x - 3.0x |
 | TC | 1.1x - 1.8x |

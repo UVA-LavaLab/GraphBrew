@@ -272,7 +272,7 @@ Cache characteristics help predict optimal algorithms:
 
 ## Instrumented Algorithms
 
-All six benchmarks (`pr`, `bfs`, `bc`, `cc`, `sssp`, `tc`) have instrumented versions in `bench/src_sim/`. Key insights:
+All eight benchmarks (`pr`, `pr_spmv`, `bfs`, `cc`, `cc_sv`, `sssp`, `bc`, `tc`) have instrumented versions in `bench/src_sim/` (the two SpMV/SV variants share the base simulation logic). Key insights:
 - **PR**: Pull-based has predictable outgoing edge access
 - **BFS**: Direction-optimizing switch point affects cache behavior
 - **BC**: Forward/backward passes have different access patterns

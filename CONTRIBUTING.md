@@ -76,7 +76,7 @@ See the [Wiki: Adding New Benchmarks](https://github.com/UVA-LavaLab/GraphBrew/w
 4. Push to your fork: `git push origin feature/my-feature`
 5. Open a Pull Request against `main`
 
-Our CI service (Travis) will automatically run sanity checks on your PR.
+CI will automatically run sanity checks on your PR.
 
 ### Commit Messages
 

@@ -24,6 +24,7 @@ import sys
 from typing import List, Tuple
 
 from .utils import (
+    BENCHMARKS,
     BENCH_DIR, BIN_DIR, BIN_SIM_DIR,
     Logger,
 )
@@ -42,8 +43,8 @@ log = Logger()
 # Constants
 # =============================================================================
 
-# Benchmark binary names
-BENCHMARK_BINARIES = ["pr", "pr_spmv", "bfs", "cc", "cc_sv", "sssp", "bc", "tc"]
+# Benchmark binary names (from SSOT)
+BENCHMARK_BINARIES = list(BENCHMARKS)
 
 # Makefile targets
 MAKE_TARGET_ALL = "all"

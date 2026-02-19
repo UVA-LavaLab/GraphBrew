@@ -16,7 +16,7 @@ Adding a new algorithm involves:
 
 ### Location
 
-[bench/include/graphbrew/reorder/reorder_types.h](https://github.com/UVA-LavaLab/GraphBrew/blob/main/bench/include/graphbrew/reorder/reorder_types.h)
+[bench/include/external/gapbs/util.h](https://github.com/UVA-LavaLab/GraphBrew/blob/main/bench/include/external/gapbs/util.h)
 
 ### Find the Enum
 
@@ -309,7 +309,7 @@ This will:
 
 ## Complete Example: Locality-Sensitive Ordering
 
-### 1. Add Enum (in reorder_types.h)
+### 1. Add Enum (in util.h)
 
 ```cpp
 enum ReorderingAlgo {

@@ -40,8 +40,8 @@ from collections import defaultdict
 PROJECT_ROOT = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from scripts.lib.utils import Logger, PROJECT_ROOT as PR, BENCHMARKS
-from scripts.lib.weights import (
+from .utils import Logger, PROJECT_ROOT as PR, BENCHMARKS, RESULTS_DIR, WEIGHTS_DIR
+from .weights import (
     save_weights_to_active_type, load_type_weights,
     PerceptronWeight, _create_default_weight_entry
 )
@@ -52,9 +52,8 @@ log = Logger()
 # Constants
 # =============================================================================
 
-RESULTS_DIR = PR / "results"
-WEIGHTS_DIR = PR / "scripts" / "weights"
-ACTIVE_DIR = WEIGHTS_DIR / "active"
+# Path constants from SSOT (lib/utils.py)
+ACTIVE_DIR = WEIGHTS_DIR
 EXPERIMENTS_DIR = WEIGHTS_DIR / "experiments"
 
 # BENCHMARKS imported from lib/utils.py (Single Source of Truth)
@@ -63,11 +62,10 @@ EXPERIMENTS_DIR = WEIGHTS_DIR / "experiments"
 ALGORITHM_TAXONOMY = {
     'basic': ['ORIGINAL', 'RANDOM', 'SORT'],
     'hub': ['HUBSORT', 'HUBCLUSTER', 'DBG', 'HUBSORTDBG', 'HUBCLUSTERDBG'],
-    'community': ['RABBITORDER', 'RABBITORDER_csr', 'RABBITORDER_boost', 'GORDER', 'CORDER', 'RCM'],
+    'community': ['RABBITORDER_csr', 'RABBITORDER_boost', 'GORDER', 'CORDER', 'RCM_default', 'RCM_bnf'],
     'leiden': ['LeidenOrder',
                'GraphBrewOrder_leiden', 'GraphBrewOrder_rabbit',
                'GraphBrewOrder_hubcluster'],
-    'composite': ['GraphBrewOrder', 'AdaptiveOrder'],
 }
 
 # Reverse mapping: algorithm -> category

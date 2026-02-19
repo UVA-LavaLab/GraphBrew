@@ -605,9 +605,9 @@ void GenerateAdaptiveMappingRecursiveStandalone(
         comm_feat.working_set_ratio = deg_features.working_set_ratio;
         const BenchmarkType bench_hint = GetBenchmarkTypeHint();
         if (verbose) {
-            const char* bnames[] = {"GENERIC","PR","BFS","CC","SSSP","BC","TC"};
+            const char* bnames[] = {"GENERIC","PR","BFS","CC","SSSP","BC","TC","PR_SPMV","CC_SV"};
             printf("AdaptiveOrder: Benchmark hint = %s (%d)\n", 
-                   bench_hint < 7 ? bnames[bench_hint] : "?", bench_hint);
+                   bench_hint < 9 ? bnames[bench_hint] : "?", bench_hint);
         }
         PerceptronSelection small_sel = SelectBestReorderingForCommunity(
             comm_feat, global_modularity, global_degree_variance, global_hub_concentration,

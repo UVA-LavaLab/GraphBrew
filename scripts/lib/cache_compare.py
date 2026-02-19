@@ -27,10 +27,7 @@ Author: GraphBrew Team
 import subprocess
 import re
 
-try:
-    from scripts.lib.utils import GRAPHBREW_LAYERS
-except ImportError:
-    GRAPHBREW_LAYERS = None
+from .utils import BIN_SIM_DIR, GRAPHS_DIR, GRAPHBREW_LAYERS
 
 # Config
 GRAPHS = ["web-Google", "web-BerkStan", "as-Skitter", "wiki-Talk", "roadNet-CA"]  # Variety of graph types
@@ -60,14 +57,14 @@ def _build_cache_compare_variants():
 
 
 VARIANTS = _build_cache_compare_variants()
-BENCHMARKS = ["pr"]  # Just PR for now
-BIN_SIM = "bench/bin_sim"
-GRAPHS_DIR = "results/graphs"
+_COMPARE_BENCHMARKS = ["pr"]  # Just PR for now (cache sim subset)
+BIN_SIM = str(BIN_SIM_DIR)
+_GRAPHS_DIR = str(GRAPHS_DIR)
 TIMEOUT = 300  # 5 min timeout per run
 
 def run_cache_sim(graph, variant_opt, benchmark):
     """Run cache simulation and extract results."""
-    graph_path = f"{GRAPHS_DIR}/{graph}/{graph}.mtx"
+    graph_path = f"{_GRAPHS_DIR}/{graph}/{graph}.mtx"
     cmd = [
         f"{BIN_SIM}/{benchmark}",
         "-f", graph_path,
@@ -117,7 +114,7 @@ def main():
         for variant_opt, variant_name in VARIANTS:
             print(f"  Running {variant_name}...", end=" ", flush=True)
             
-            for bench in BENCHMARKS:
+            for bench in _COMPARE_BENCHMARKS:
                 r = run_cache_sim(graph, variant_opt, bench)
                 
                 if 'error' in r:

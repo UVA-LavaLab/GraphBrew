@@ -805,22 +805,16 @@ void GenerateGOrderCSRMapping(const CSRGraph<NodeID_, DestID_, invert>& g,
                               const std::string& /*filename*/,
                               bool /*symmetric*/ = false,
                               int window = -1) {
-    // Auto-adaptive window: scale inversely with average degree
-    // Dense graphs need smaller windows (each step covers more neighbors);
-    // sparse graphs need larger windows to accumulate enough scoring signal.
+    // Window size: default W=7 matches GoGraph baseline exactly.
+    // Auto-tuning (W<7 for dense graphs) was found to degrade BFS/CC/SSSP
+    // quality while only preserving PR quality — the reduced window captures
+    // less sequential neighborhood context, hurting traversal algorithms.
     Timer tm;
     const int n = static_cast<int>(g.num_nodes());
     if (n == 0) return;
 
     if (window <= 0) {
-        int64_t total_edges = g.num_edges_directed();
-        double avg_deg = (n > 0) ? static_cast<double>(total_edges) / n : 0.0;
-        // Conservative auto-tuning: only shrink window for very dense graphs.
-        // Dense graphs (avg_deg >= 50) benefit from W=3 (each vertex covers 
-        // many neighbors per step). Sparse/moderate graphs keep W=7 (GoGraph default).
-        // Intermediate: W ∝ 30/sqrt(avg_degree), clamped to [3, 7].
-        // Examples: avg_deg ~76 → W=3, ~25 → W=6, ~14 → W=7, ~5 → W=7
-        window = std::clamp(static_cast<int>(std::round(30.0 / std::sqrt(std::max(avg_deg, 1.0)))), 3, 7);
+        window = 7;  // Match GoGraph default exactly
     }
 
     // Allow runtime window override via GORDER_WINDOW env var

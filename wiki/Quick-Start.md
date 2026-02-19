@@ -73,7 +73,7 @@ python3 scripts/graphbrew_experiment.py --full --size medium --auto
 python3 scripts/graphbrew_experiment.py --download-only --size medium
 
 # Use pre-generated label maps for faster, consistent reordering
-python3 scripts/graphbrew_experiment.py --generate-maps --use-maps --phase benchmark
+python3 scripts/graphbrew_experiment.py --precompute --phase benchmark
 
 # Skip download phase (use existing graphs)
 python3 scripts/graphbrew_experiment.py --full --size large --skip-download
@@ -182,8 +182,6 @@ Average Time:        0.001xx
 | 7 | HUBCLUSTERDBG | General purpose |
 | 12 | GraphBrewOrder | Modular graphs |
 | 14 | AdaptiveOrder | Auto-selection |
-<!-- LeidenCSR (16) deprecated — GraphBrew (12) subsumes it -->
-
 Best algorithm: GraphBrewOrder (`-o 12`, best quality). See [[Reordering-Algorithms]] for all 16 algorithms and variants.
 
 ---
@@ -192,7 +190,7 @@ Best algorithm: GraphBrewOrder (`-o 12`, best quality). See [[Reordering-Algorit
 
 ```bash
 # Create a simple test script
-for bench in pr bfs cc sssp bc tc; do
+for bench in pr pr_spmv bfs cc cc_sv sssp bc tc; do
     echo "=== $bench ==="
     ./bench/bin/$bench -f scripts/test/graphs/tiny/tiny.el -s -o 7 -n 1
 done

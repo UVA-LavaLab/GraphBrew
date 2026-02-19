@@ -21,7 +21,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List, Optional, Tuple
 
-from .utils import BIN_DIR, GRAPHS_DIR, Logger
+from .utils import BENCHMARKS, BIN_DIR, GRAPHS_DIR, Logger
 
 log = Logger()
 
@@ -113,7 +113,7 @@ DEFAULT_GRAPHS = [
     "wiki-topcats", "cit-Patents", "soc-LiveJournal1",
 ]
 
-DEFAULT_BENCHMARKS = ["bfs", "pr", "pr_spmv", "cc", "cc_sv"]
+DEFAULT_BENCHMARKS = list(BENCHMARKS)
 
 
 def discover_ab_graphs(

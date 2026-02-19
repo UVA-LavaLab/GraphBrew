@@ -31,10 +31,9 @@ from dataclasses import dataclass, asdict
 # Resolve project paths
 SCRIPT_DIR = Path(__file__).parent          # scripts/lib/
 PROJECT_ROOT = SCRIPT_DIR.parent.parent      # project root
-sys.path.insert(0, str(PROJECT_ROOT))
 
-from scripts.lib.reorder import parse_reorder_time_from_converter
-from scripts.lib.utils import _VARIANT_ALGO_REGISTRY
+from .reorder import parse_reorder_time_from_converter
+from .utils import _VARIANT_ALGO_REGISTRY
 
 @dataclass
 class LeidenResult:
@@ -64,7 +63,7 @@ def find_converter() -> Path:
 def find_graphs(min_edges: int = 10000, max_edges: int = 10000000) -> List[Path]:
     """Find available graphs within edge count range"""
     root = get_project_root()
-    graphs_json = root / "graphs" / "graphs.json"
+    graphs_json = root / "results" / "graphs" / "graphs.json"
     
     graphs = []
     
@@ -77,7 +76,7 @@ def find_graphs(min_edges: int = 10000, max_edges: int = 10000000) -> List[Path]
             edges = info.get("edges", 0)
             if min_edges <= edges <= max_edges:
                 # Find the graph file
-                graph_dir = root / "graphs" / name
+                graph_dir = root / "results" / "graphs" / name
                 if graph_dir.exists():
                     for ext in [".el", ".wel", ".sg", ".wsg"]:
                         graph_file = graph_dir / f"{name}{ext}"

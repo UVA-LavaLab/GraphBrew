@@ -31,7 +31,7 @@ from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from typing import Dict, List, Set
 
-from .utils import Logger, WEIGHTS_DIR
+from .utils import Logger, WEIGHTS_DIR, TIMEOUT_SIM
 from .analysis import (
     run_subcommunity_brute_force,
 )
@@ -97,7 +97,7 @@ def initialize_enhanced_weights(weights_file: str, algorithms: List[str] = None)
         "RABBITORDER_csr", "RABBITORDER_boost",
         "GORDER", "CORDER", "RCM_default", "RCM_bnf",
         "GraphBrewOrder_leiden", "GraphBrewOrder_rabbit", "GraphBrewOrder_hubcluster",
-        "AdaptiveOrder", "LeidenOrder",
+        "LeidenOrder",
     ]
     
     if algorithms is None:
@@ -186,7 +186,7 @@ def train_adaptive_weights_iterative(
     target_accuracy: float = 80.0,
     max_iterations: int = 10,
     timeout: int = 300,
-    timeout_sim: int = 600,
+    timeout_sim: int = TIMEOUT_SIM,
     num_trials: int = 3,
     learning_rate: float = 0.1,
     algorithms: List[int] = None,
@@ -231,7 +231,7 @@ def train_adaptive_weights_iterative(
     log(f"Iterative Weight Training (Target: {target_accuracy}%)")
     
     if algorithms is None:
-        algorithms = [1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 13]
+        algorithms = [1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 12, 15]
     
     # Ensure directories exist
     training_dir = os.path.join(output_dir, f"training_{datetime.now().strftime('%Y%m%d_%H%M%S')}")
@@ -496,7 +496,7 @@ def train_adaptive_weights_large_scale(
     max_iterations: int = 10,
     batch_size: int = 8,
     timeout: int = 300,
-    timeout_sim: int = 600,
+    timeout_sim: int = TIMEOUT_SIM,
     num_trials: int = 2,
     learning_rate: float = 0.15,
     algorithms: List[int] = None,
@@ -544,10 +544,11 @@ def train_adaptive_weights_large_scale(
     log("Note: All algorithms run sequentially for accurate measurement")
     
     if benchmarks is None:
+        # Fast-training subset (full SSOT: BENCHMARKS in utils.py has 8)
         benchmarks = ['pr', 'bfs', 'cc']
     
     if algorithms is None:
-        algorithms = [1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 13]
+        algorithms = [1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 12, 15]
     
     # Setup
     training_dir = os.path.join(output_dir, f"large_training_{datetime.now().strftime('%Y%m%d_%H%M%S')}")

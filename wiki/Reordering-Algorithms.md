@@ -62,16 +62,16 @@ The effect is visible when plotting the adjacency matrix — a well-ordered grap
 - **When to use**: Debugging, establishing worst-case baseline
 
 ### 2. SORT
-**Sort vertices by ID**
+**Sort vertices by degree**
 
 ```bash
 ./bench/bin/pr -f graph.el -s -o 2 -n 3
 ```
 
-- **Description**: Sorts vertices in ascending order by original ID
+- **Description**: Sorts vertices by degree (descending by default, high-degree first)
 - **Complexity**: O(n log n)
-- **Best for**: Graphs where IDs have locality meaning
-- **When to use**: When input has meaningful vertex numbering
+- **Best for**: Grouping high-degree vertices together for cache locality
+- **When to use**: Simple degree-based baseline, quick improvement over original ordering
 
 ---
 
@@ -346,8 +346,8 @@ These algorithms use different approaches: RabbitOrder detects communities, whil
 - **Parameters**:
   - `final_algo`: Algorithm ID (0-11) to use within communities (default: 8 = RabbitOrder)
   - `resolution`: Leiden resolution parameter (default: auto-computed from graph)
-  - `maxIterations`: Maximum Leiden iterations (default: 30)
-  - `maxPasses`: Maximum Leiden passes (default: 30)
+  - `maxIterations`: Maximum Leiden iterations (default: 10)
+  - `maxPasses`: Maximum Leiden passes (default: 10)
 - **Dynamic thresholds**: Community size thresholds are computed dynamically based on `avg_community_size/4` and `sqrt(N)`
 - **Best for**: Fine-grained control over per-community ordering
 
@@ -429,8 +429,6 @@ GraphBrew provides LeidenOrder as a baseline reference implementation.
 - Uses GVE-Leiden C++ library by Subhajit Sahu (`external/leiden/`)
 - Requires CSR → DiGraph format conversion (adds overhead)
 - Produces high-quality modularity scores (reference quality)
-
-<!-- LeidenCSR (16) deprecated — GraphBrew (12) subsumes it -->
 
 ---
 

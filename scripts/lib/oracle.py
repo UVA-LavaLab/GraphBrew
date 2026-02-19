@@ -84,7 +84,7 @@ def normalize_algo_name(name: str) -> str:
     Maps adaptive output names (e.g., 'GOrder', 'HubClusterDBG') to
     benchmark result names (e.g., 'GORDER', 'HUBCLUSTERDBG').
     """
-    # Map from adaptive verbose output to benchmark JSON names
+    # Map from adaptive verbose output to canonical benchmark names
     NORMALIZE_MAP = {
         "Original": "ORIGINAL",
         "Random": "RANDOM",
@@ -94,14 +94,13 @@ def normalize_algo_name(name: str) -> str:
         "DBG": "DBG",
         "HubSortDBG": "HUBSORTDBG",
         "HubClusterDBG": "HUBCLUSTERDBG",
-        "RabbitOrder": "RABBITORDER",
+        "RabbitOrder": "RABBITORDER_csr",
         "GOrder": "GORDER",
         "Corder": "CORDER",
         "COrder": "CORDER",
-        "RCM": "RCM",
-        "GraphBrewOrder": "GraphBrewOrder",
+        "RCM": "RCM_default",
+        "GraphBrewOrder": "GraphBrewOrder_leiden",
         "LeidenOrder": "LeidenOrder",
-        "AdaptiveOrder": "AdaptiveOrder",
     }
     return NORMALIZE_MAP.get(name, name)
 
@@ -109,9 +108,9 @@ def normalize_algo_name(name: str) -> str:
 # Candidate algorithms: the ones AdaptiveOrder can select from.
 # These must be present in benchmark results for oracle to work.
 CANDIDATE_ALGOS = {
-    "ORIGINAL", "SORT", "HUBSORT", "HUBCLUSTER",
+    "ORIGINAL", "RANDOM", "SORT", "HUBSORT", "HUBCLUSTER",
     "DBG", "HUBSORTDBG", "HUBCLUSTERDBG",
-    "GORDER", "CORDER", "RCM",
+    "GORDER", "CORDER", "RCM_default",
 }
 
 # Also include RabbitOrder variants and GraphBrew variants

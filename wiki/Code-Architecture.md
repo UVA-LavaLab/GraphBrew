@@ -121,8 +121,8 @@ reorder/
 **Key Utilities in reorder_types.h:**
 
 - `PerceptronWeights` / `TypeRegistry` — ML scoring & graph clustering (see [[AdaptiveOrder-ML]])
-- `SampledDegreeFeatures` — 5-feature topology vector: degree_variance, hub_concentration, avg_degree, clustering_coeff, working_set_ratio
-- `ComputeSampledDegreeFeatures()` — Samples ~1000 nodes for fast feature extraction
+- `SampledDegreeFeatures` — 8-feature topology vector: degree_variance, hub_concentration, avg_degree, clustering_coeff, estimated_modularity, packing_factor, forward_edge_fraction, working_set_ratio
+- `ComputeSampledDegreeFeatures()` — Samples ~5000 nodes for fast feature extraction
 - `GetLLCSizeBytes()` — LLC detection (sysconf on Linux, 30MB fallback) for working_set_ratio
 - `getAlgorithmNameMap()` — ~16-entry UPPERCASE base-name→enum mapping; variant names resolved dynamically by `ResolveVariantSelection()` via prefix matching (see [[Command-Line-Reference]])
 
@@ -281,8 +281,10 @@ int main(int argc, char* argv[]) {
 | File | Algorithm | Key Function |
 |------|-----------|--------------|
 | `pr.cc` | PageRank | `PageRankPullGS()` |
+| `pr_spmv.cc` | PageRank (SpMV) | `PageRankPull()` |
 | `bfs.cc` | BFS | `DOBFS()` |
 | `cc.cc` | Connected Components | `Afforest()` |
+| `cc_sv.cc` | Connected Components (SV) | `ShiloachVishkin()` |
 | `sssp.cc` | Shortest Paths | `DeltaStep()` |
 | `bc.cc` | Betweenness | `Brandes()` |
 | `tc.cc` | Triangles | `OrderedCount()` |

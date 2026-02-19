@@ -41,7 +41,7 @@ log = Logger()
 # Constants
 # =============================================================================
 
-# Default weights directory (active/ subfolder where C++ reads from)
+# Default weights directory (where C++ reads from)
 DEFAULT_WEIGHTS_DIR = str(ACTIVE_WEIGHTS_DIR)
 
 # Auto-clustering configuration

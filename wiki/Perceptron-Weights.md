@@ -55,7 +55,7 @@ Each type file maps algorithm names to weights. Example entry:
     "w_fef_convergence": 0.04, "w_reorder_time": -0.0087,
     "cache_l1_impact": 0.00021, "cache_l2_impact": 0.00019,
     "cache_l3_impact": 0.00021, "cache_dram_penalty": -7.9e-05,
-    "benchmark_weights": { "pr": 1.0, "bfs": 1.0, "cc": 1.0, "sssp": 1.0, "bc": 1.0, "tc": 1.0 },
+    "benchmark_weights": { "pr": 1.0, "bfs": 1.0, "cc": 1.0, "sssp": 1.0, "bc": 1.0, "tc": 1.0, "pr_spmv": 1.0, "cc_sv": 1.0 },
     "_metadata": { "win_rate": 0.8, "avg_speedup": 1.45, "sample_count": 20 }
   },
   "_metadata": { "enhanced_features": true, "last_updated": "2026-02-02T12:00:00" }
@@ -116,9 +116,9 @@ These cross-terms capture non-linear feature interactions that improve predictio
 
 | Weight | Feature | Description |
 |--------|---------|-------------|
-| `w_fef_convergence` | forward_edge_fraction | Bonus applied **only for PR and SSSP** benchmarks; captures how edge direction affects iterative convergence |
+| `w_fef_convergence` | forward_edge_fraction | Bonus applied **only for PR, PR_SPMV, and SSSP** benchmarks; captures how edge direction affects iterative convergence |
 
-> **Note:** The convergence bonus is added in `score()` (not `scoreBase()`) and only activates when the benchmark type is `BENCH_PR` or `BENCH_SSSP`.
+> **Note:** The convergence bonus is added in `score()` (not `scoreBase()`) and only activates when the benchmark type is `BENCH_PR`, `BENCH_PR_SPMV`, or `BENCH_SSSP`.
 
 ### Per-Benchmark Weights
 
@@ -130,6 +130,8 @@ These cross-terms capture non-linear feature interactions that improve predictio
 | `benchmark_weights.sssp` | Multiplier for SSSP benchmark |
 | `benchmark_weights.bc` | Multiplier for Betweenness Centrality benchmark |
 | `benchmark_weights.tc` | Multiplier for Triangle Counting benchmark |
+| `benchmark_weights.pr_spmv` | Multiplier for PageRank SpMV benchmark |
+| `benchmark_weights.cc_sv` | Multiplier for CC Shiloach-Vishkin benchmark |
 
 **Usage:**
 - When `BENCH_GENERIC` (default), multiplier = 1.0 (no adjustment)
@@ -250,7 +252,6 @@ The JSON uses algorithm names, which map to IDs:
 | 13 | MAP | Load reordering from file |
 | 14 | AdaptiveOrder | This perceptron model |
 | 15 | LeidenOrder | Basic Leiden ordering via GVE-Leiden (baseline reference) |
-<!-- LeidenCSR (16) deprecated — GraphBrew (12) subsumes it -->
 
 > **Note:** For current variant lists, see `scripts/lib/utils.py`.
 
