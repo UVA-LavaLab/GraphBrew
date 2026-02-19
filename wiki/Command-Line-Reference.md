@@ -169,7 +169,6 @@ Use with `-o <id>`:
 | 13 | MAP | External mapping |
 | 14 | AdaptiveOrder | ML |
 | 15 | LeidenOrder | Leiden (GVE-Leiden baseline) |
-<!-- LeidenCSR (16) deprecated — GraphBrew (12) subsumes it -->
 
 > **Note:** For current variant lists, see `scripts/lib/utils.py` which defines:
 > - `RABBITORDER_VARIANTS`, `RCM_VARIANTS`, `GRAPHBREW_VARIANTS`
@@ -509,7 +508,7 @@ done
 ### Run All Benchmarks
 
 ```bash
-for bench in pr bfs cc sssp bc tc; do
+for bench in pr pr_spmv bfs cc cc_sv sssp bc tc; do
     echo "=== $bench ==="
     ./bench/bin/$bench -f graph.el -s -o 7 -n 3
 done

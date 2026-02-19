@@ -10,7 +10,7 @@ Common questions and answers about GraphBrew.
 
 GraphBrew is a graph processing benchmark framework that combines:
 - **16 vertex reordering algorithms** (IDs 0-15) for cache optimization
-- **6 benchmarks** (PageRank, BFS, CC, SSSP, BC, TC) — 5 run by default, TC binary available separately
+- **8 benchmarks** (PageRank, PageRank SpMV, BFS, CC, CC_SV, SSSP, BC, TC)
 - **ML-powered algorithm selection** via AdaptiveOrder
 - **Leiden community detection** integration
 
@@ -244,8 +244,6 @@ See [[Python-Scripts#-eval_weightspy---weight-evaluation--c-scoring-simulation]]
 
 - **LeidenOrder (15)**: Baseline reference using GVE-Leiden external library (requires CSR→DiGraph conversion)
 - **GraphBrewOrder (12)**: Production Leiden + per-community reordering (e.g., RabbitOrder within each community), CSR-native, best quality
-
-<!-- LeidenCSR (16) deprecated — GraphBrew (12) subsumes it -->
 
 GraphBrewOrder uses Leiden community detection natively on CSR, then applies configurable per-community ordering for the best cache locality.
 

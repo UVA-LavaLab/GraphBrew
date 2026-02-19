@@ -57,12 +57,12 @@ class SelectionMode(Enum):
 
 SCRIPT_DIR = Path(__file__).parent.resolve()  # scripts/lib/
 PROJECT_ROOT = SCRIPT_DIR.parent.parent          # project root
-WEIGHTS_DIR = PROJECT_ROOT / "results" / "weights"  # results/weights
-RESULTS_DIR = PROJECT_ROOT / "results"
-GRAPHS_DIR = RESULTS_DIR / "graphs"
 
-# Import centralized path helpers
-from .utils import weights_registry_path, weights_type_path
+# Path constants from SSOT (lib/utils.py)
+from .utils import (
+    WEIGHTS_DIR, RESULTS_DIR, GRAPHS_DIR,
+    weights_registry_path, weights_type_path,
+)
 
 # All weight fields used in perceptron scoring
 WEIGHT_FIELDS = [
@@ -116,16 +116,7 @@ SCORING_FEATURES = [
 ]
 
 # Import ALGORITHMS from lib/utils.py (Single Source of Truth)
-try:
-    from scripts.lib.utils import ALGORITHMS
-except ImportError:
-    try:
-        from .utils import ALGORITHMS
-    except ImportError:
-        raise ImportError(
-            "Cannot import ALGORITHMS from utils.py. "
-            "Run from the project root: python3 -m scripts.lib.adaptive_emulator"
-        )
+from .utils import ALGORITHMS
 
 # =============================================================================
 # Data Classes

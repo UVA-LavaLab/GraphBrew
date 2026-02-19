@@ -90,7 +90,7 @@ python3 scripts/graphbrew_experiment.py --help
 | **Memory Management** | Automatically skips graphs exceeding RAM limits |
 | **Label Maps** | Pre-generates reordering maps for consistency |
 | **Reordering** | Tests all 16 algorithm IDs (0-15), with variants (RCM:bnf, RabbitOrder:csr/boost, GOrder:csr/fast, etc.) |
-| **Benchmarks** | PR, BFS, CC, SSSP, BC, TC |
+| **Benchmarks** | PR, PR_SPMV, BFS, CC, CC_SV, SSSP, BC, TC |
 | **Cache Simulation** | L1/L2/L3 hit rate analysis |
 | **Perceptron Training** | Generates weights for AdaptiveOrder |
 | **Brute-Force Validation** | Compares adaptive vs all algorithms |
@@ -285,7 +285,7 @@ python3 scripts/graphbrew_experiment.py --eval-weights --sg-only
 | **Avg regret** | Average (predicted_time − best_time) / best_time across all predictions |
 | **Median regret** | Median of the above (more robust to outliers) |
 | **Base-aware regret** | Same as regret, but variant mismatches within the same base = 0% |
-| **Per-benchmark accuracy** | Breakdown by pr, bfs, cc, sssp |
+| **Per-benchmark accuracy** | Breakdown by pr, pr_spmv, bfs, cc, cc_sv, sssp, bc, tc |
 
 ### Example Output
 
@@ -296,10 +296,14 @@ Overall accuracy: 88/188 = 46.8%
 Unique predicted algorithms: 13: ['DBG', 'GORDER', 'HUBCLUSTER', ...]
 
 Per-benchmark accuracy:
-  bfs: 25/47 = 53.2%
-  cc:  20/47 = 42.6%
-  pr:  22/47 = 46.8%
-  sssp: 21/47 = 44.7%
+  bfs:      25/47 = 53.2%
+  cc:       20/47 = 42.6%
+  cc_sv:    19/47 = 40.4%
+  pr:       22/47 = 46.8%
+  pr_spmv:  22/47 = 46.8%
+  sssp:     21/47 = 44.7%
+  bc:       18/47 = 38.3%
+  tc:       17/47 = 36.2%
 
 Average regret: 10.1% (lower is better)
 Top-2 accuracy: 122/188 = 64.9%

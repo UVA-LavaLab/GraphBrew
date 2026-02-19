@@ -54,7 +54,7 @@ def weights_bench_path(type_name: str, bench_name: str, weights_dir: str = "") -
 # =============================================================================
 # Unified Reorder Configuration Constants
 # Match C++ reorder::ReorderConfig in reorder_types.h
-# Used by: GraphBrew, Leiden, GraphBrew, RabbitOrder, Adaptive
+# Used by: GraphBrew, Leiden, RabbitOrder, Adaptive
 # =============================================================================
 
 # Core defaults (single source of truth)
@@ -105,6 +105,9 @@ ALGORITHMS = {
 
 # Reverse mapping
 ALGORITHM_IDS = {v: k for k, v in ALGORITHMS.items()}
+
+# Benchmark-eligible algorithms (excludes MAP=13 and AdaptiveOrder=14)
+ELIGIBLE_ALGORITHMS = [k for k in sorted(ALGORITHMS) if k not in (13, 14)]
 
 # Algorithm categories
 SLOW_ALGORITHMS = {9, 10, 11}  # Gorder, Corder, RCM - can be slow on large graphs

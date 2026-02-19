@@ -3144,10 +3144,28 @@ static const std::map<std::string, PerceptronWeights>& GetCachedWeights(
         }
         
         // If RabbitOrder algorithm, use GraphBrew's native RabbitOrder pipeline
+        // with degree-sort preprocessing to match standalone RABBITORDER_csr quality.
+        // Without physical CSR relabeling, community detection accesses scattered
+        // memory locations which degrades BFS ordering quality by 5-30x.
         if (config.algorithm == graphbrew::GraphBrewAlgorithm::RABBIT_ORDER) {
-            printf("GraphBrew: using GraphBrew RabbitOrder pipeline\n");
+            printf("GraphBrew: using GraphBrew RabbitOrder pipeline (with degree-sort preprocessing)\n");
+            
+            // Step 1: Degree-sort preprocessing (same as RABBITORDER_csr)
+            pvector<NodeID_> sort_ids(N, -1);
+            GenerateSortMappingRabbit(g, sort_ids, true, true);
+            CSRGraph<NodeID_, DestID_, invert> g_sorted = RelabelByMapping(g, sort_ids);
+            
+            // Step 2: Run GraphBrew RabbitOrder on degree-sorted graph
+            pvector<NodeID_> rabbit_ids(N);
+            graphbrew::generateGraphBrewMapping<K>(g_sorted, rabbit_ids, config);
+            
+            // Step 3: Compose permutations: new_ids[orig] = rabbit_ids[sort_ids[orig]]
             new_ids.resize(N);
-            graphbrew::generateGraphBrewMapping<K>(g, new_ids, config);
+            #pragma omp parallel for
+            for (int64_t n = 0; n < N; n++) {
+                new_ids[n] = rabbit_ids[sort_ids[n]];
+            }
+            
             totalTimer.Stop();
             PrintTime("GraphBrew Total Time", totalTimer.Seconds());
             return;

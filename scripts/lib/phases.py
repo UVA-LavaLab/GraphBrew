@@ -126,6 +126,8 @@ from .weights import (
 from .progress import ProgressTracker
 from .utils import (
     LEIDEN_DEFAULT_PASSES,
+    BIN_DIR, BIN_SIM_DIR, GRAPHS_DIR, RESULTS_DIR, WEIGHTS_DIR,
+    TIMEOUT_REORDER, TIMEOUT_BENCHMARK, TIMEOUT_SIM,
     get_timestamp,
 )
 
@@ -194,20 +196,20 @@ class PhaseConfig:
     def __init__(
         self,
         # ─────────────────────────────────────────────────────────────────────
-        # Directory paths
+        # Directory paths (from SSOT — lib/utils.py)
         # ─────────────────────────────────────────────────────────────────────
-        bin_dir: str = "bench/bin",
-        bin_sim_dir: str = "bench/bin_sim",
-        graphs_dir: str = "results/graphs",
-        results_dir: str = "results",
-        weights_dir: str = "results/weights",
+        bin_dir: str = str(BIN_DIR),
+        bin_sim_dir: str = str(BIN_SIM_DIR),
+        graphs_dir: str = str(GRAPHS_DIR),
+        results_dir: str = str(RESULTS_DIR),
+        weights_dir: str = str(WEIGHTS_DIR),
         
         # ─────────────────────────────────────────────────────────────────────
-        # Timeout settings (seconds)
+        # Timeout settings (from SSOT — lib/utils.py)
         # ─────────────────────────────────────────────────────────────────────
-        timeout_reorder: int = 300,
-        timeout_benchmark: int = 120,
-        timeout_sim: int = 600,
+        timeout_reorder: int = TIMEOUT_REORDER,
+        timeout_benchmark: int = TIMEOUT_BENCHMARK,
+        timeout_sim: int = TIMEOUT_SIM,
         
         # ─────────────────────────────────────────────────────────────────────
         # Benchmark settings

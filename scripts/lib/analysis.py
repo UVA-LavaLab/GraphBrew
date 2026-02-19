@@ -32,7 +32,7 @@ from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from typing import Any, Dict, List, Tuple
 
-from .utils import ALGORITHMS, run_command, Logger
+from .utils import ALGORITHMS, ELIGIBLE_ALGORITHMS, run_command, Logger
 from .features import update_graph_properties, save_graph_properties_cache
 from .cache import parse_cache_output
 
@@ -673,6 +673,7 @@ def validate_adaptive_accuracy(
     Returns:
         List of dicts with comparison results per graph/benchmark
     """
+    # Fast-analysis subset (full SSOT: BENCHMARKS in utils.py has 8)
     benchmarks = benchmarks or ["pr", "bfs", "cc"]
 
     # Standard set of fixed algorithms to compare against
@@ -739,19 +740,17 @@ def run_subcommunity_brute_force(
     
     results = []
     
-    # Algorithms to test (0-20, excluding some)
-    test_algorithms = [i for i in range(21) if i not in [14, 15]]
+    # Algorithms to test — from SSOT (excludes MAP=13 and AdaptiveOrder=14)
+    test_algorithms = list(ELIGIBLE_ALGORITHMS)
     
-    # Mapping from adaptive output names to algorithm names
+    # Mapping from adaptive output names to canonical algorithm names
     adaptive_to_algo_name = {
         "Original": "ORIGINAL", "Random": "RANDOM", "Sort": "SORT",
         "HubSort": "HUBSORT", "HubCluster": "HUBCLUSTER", "DBG": "DBG",
         "HubSortDBG": "HUBSORTDBG", "HubClusterDBG": "HUBCLUSTERDBG",
-        "RabbitOrder": "RABBITORDER", "GOrder": "GORDER", "Corder": "CORDER",
-        "RCM": "RCM", "LeidenOrder": "LeidenOrder", "GraphBrewOrder": "GraphBrewOrder",
-        "LeidenDFS": "LeidenDFS", "LeidenDFSHub": "LeidenDFSHub",
-        "LeidenDFSSize": "LeidenDFSSize", "LeidenBFS": "LeidenBFS",
-        "LeidenHybrid": "LeidenHybrid",
+        "RabbitOrder": "RABBITORDER_csr", "GOrder": "GORDER", "Corder": "CORDER",
+        "RCM": "RCM_default", "LeidenOrder": "LeidenOrder",
+        "GraphBrewOrder": "GraphBrewOrder_leiden",
     }
     
     for graph in graphs:

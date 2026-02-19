@@ -64,8 +64,6 @@ GraphBrew provides 16 reordering strategies. Use `-o <id>` to select one (or cha
 | 14 | **ADAPTIVEORDER** | ML perceptron — automatically picks the best algorithm ⭐ |
 | 15 | LEIDENORDER | Leiden via GVE-Leiden library (`15:resolution`) — baseline reference |
 
-<!-- Note: LeidenCSR (16) has been deprecated — GraphBrew (12) subsumes it. -->
-
 ### Which Algorithm Should I Use?
 
 | Graph Type | Recommended | Why |

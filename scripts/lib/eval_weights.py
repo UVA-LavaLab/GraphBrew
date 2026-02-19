@@ -26,7 +26,7 @@ from pathlib import Path
 from typing import Dict, List, Tuple
 
 from .utils import (
-    BenchmarkResult, RESULTS_DIR, Logger,
+    BENCHMARKS, BenchmarkResult, RESULTS_DIR, WEIGHTS_DIR, Logger,
     weights_type_path, weights_bench_path,
     VARIANT_PREFIXES, DISPLAY_TO_CANONICAL,
 )
@@ -50,8 +50,8 @@ ADAPTIVE_ALGO_MAP = DISPLAY_TO_CANONICAL
 # Variant-prefixed names auto-pass unchanged — imported from SSOT.
 _AUTO_PASS_PREFIXES = VARIANT_PREFIXES
 
-# Per-benchmark weight file names to load
-_PER_BENCH_NAMES = ["pr", "bfs", "cc", "sssp", "bc", "tc", "pr_spmv", "cc_sv"]
+# Per-benchmark weight file names to load (from SSOT)
+_PER_BENCH_NAMES = list(BENCHMARKS)
 
 
 # ============================================================================
@@ -572,9 +572,7 @@ def train_and_evaluate(
     """
     results_dir = str(results_dir or RESULTS_DIR)
     if weights_dir is None:
-        weights_dir = str(
-            Path(__file__).resolve().parent.parent / "weights" / "active"
-        )
+        weights_dir = str(WEIGHTS_DIR)
 
     # 1. Load benchmark entries
     raw = load_benchmark_entries(results_dir, sg_only=sg_only,

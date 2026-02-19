@@ -20,18 +20,23 @@ scripts/
 │   ├── ...                   ← (see lib/ for full listing)
 │   └── __init__.py
 ├── test/                     ← pytest tests  (run: pytest scripts/test/)
-├── examples/                 ← standalone example scripts
-└── weights/                  ← runtime weight data (gitignored)
-    └── active/               ← weight files consumed by C++
-        ├── registry.json
-        ├── type_0/
-        │   ├── weights.json
-        │   ├── pr.json
-        │   └── ...
-        ├── type_1/
-        │   └── weights.json
-        └── type_2/
-            └── weights.json
+└── examples/                 ← standalone example scripts
+```
+
+Weight files live under `results/weights/` (not `scripts/`), managed by
+`lib/utils.py` constants (`WEIGHTS_DIR`, `ACTIVE_WEIGHTS_DIR`):
+
+```
+results/weights/              ← runtime weight data (gitignored)
+├── registry.json
+├── type_0/
+│   ├── weights.json
+│   ├── pr.json
+│   └── ...
+├── type_1/
+│   └── weights.json
+└── type_2/
+    └── weights.json
 ```
 
 ## Rules for AI agents

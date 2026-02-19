@@ -63,7 +63,7 @@ def scan_file(path: Path):
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--root", type=str, default=str(Path(__file__).resolve().parents[1]),
+    parser.add_argument("--root", type=str, default=str(Path(__file__).resolve().parents[2]),
                         help="Repository root (default: repo root)")
     args = parser.parse_args()
 

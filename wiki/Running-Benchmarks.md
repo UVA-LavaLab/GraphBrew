@@ -143,7 +143,7 @@ See [[Command-Line-Reference#reordering-algorithm-ids]] for the full algorithm t
 | Use Case | Algorithm | ID |
 |----------|-----------|-----|
 | General purpose | HUBCLUSTERDBG | 7 |
-| Social networks | LeidenOrder | 15 |
+| Social networks | GraphBrewOrder | 12 |
 | Unknown graphs | AdaptiveOrder | 14 |
 | Maximum locality | GraphBrewOrder | 12 |
 | Road networks | RCM | 11 |

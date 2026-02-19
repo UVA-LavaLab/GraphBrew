@@ -63,6 +63,7 @@ from .utils import (
     # Constants
     ALGORITHMS,
     ALGORITHM_IDS,
+    ELIGIBLE_ALGORITHMS,
     BENCHMARKS,
     # Variant SSOT
     VARIANT_PREFIXES,

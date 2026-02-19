@@ -107,9 +107,8 @@ Leiden is used internally by Leiden-based algorithms:
 | Algorithm | Uses Leiden | Format |
 |-----------|-------------|--------|
 | LeidenOrder (15) | ✓ | `-o 15:resolution` |
-| GraphBrewOrder (12) | ✓ | `-o 12:freq:algo:resolution` |
+| GraphBrewOrder (12) | ✓ | `-o 12:variant:final_algo:resolution` |
 | AdaptiveOrder (14) | ✓ | `-o 14:resolution:minsize:mode` |
-<!-- LeidenCSR (16) deprecated — GraphBrew (12) subsumes it -->
 
 ### Example Output
 

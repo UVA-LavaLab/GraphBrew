@@ -24,7 +24,9 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 from .utils import (
+    ALGORITHMS, ELIGIBLE_ALGORITHMS, BENCHMARKS,
     BIN_DIR, RESULTS_DIR, GRAPHS_DIR,
+    TIMEOUT_BENCHMARK,
     Logger,
 )
 
@@ -34,27 +36,11 @@ log = Logger()
 # Constants
 # ============================================================================
 
-# AdaptiveOrder-eligible algorithms (by -o ID)
-# Excludes MAP (13) and AdaptiveOrder itself (14)
-ADAPTIVE_ELIGIBLE_ALGOS: List[int] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 15]
+# AdaptiveOrder-eligible algorithms (by -o ID) — from SSOT
+ADAPTIVE_ELIGIBLE_ALGOS: List[int] = ELIGIBLE_ALGORITHMS
 
-# Human-readable names matching C++ output
-ALGO_NAMES: Dict[int, str] = {
-    0: "ORIGINAL",
-    1: "Random",
-    2: "Sort",
-    3: "HubSort",
-    4: "HubCluster",
-    5: "DBG",
-    6: "HubSortDBG",
-    7: "HubClusterDBG",
-    8: "RabbitOrder",
-    9: "GOrder",
-    10: "COrder",
-    11: "RCMOrder",
-    12: "GraphBrewOrder",
-    15: "LeidenOrder",
-}
+# Human-readable names from SSOT (utils.py)
+ALGO_NAMES: Dict[int, str] = ALGORITHMS
 
 # Complexity guards: skip algorithms that are too slow on large graphs
 ALGO_NODE_LIMITS: Dict[int, int] = {
@@ -63,11 +49,11 @@ ALGO_NODE_LIMITS: Dict[int, int] = {
     10: 2_000_000, # COrder: slow on very large graphs
 }
 
-# Default benchmarks (all 5 types)
-DEFAULT_BENCHMARKS: List[str] = ["bfs", "pr", "pr_spmv", "cc", "cc_sv"]
+# Default benchmarks (from SSOT — all 8 types)
+DEFAULT_BENCHMARKS: List[str] = list(BENCHMARKS)
 
-# Default timeout per benchmark invocation (seconds)
-DEFAULT_TIMEOUT: int = 120
+# Default timeout per benchmark invocation (from SSOT)
+DEFAULT_TIMEOUT: int = TIMEOUT_BENCHMARK
 
 
 # ============================================================================

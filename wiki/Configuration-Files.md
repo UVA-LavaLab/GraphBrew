@@ -13,14 +13,6 @@ scripts/
 ├── graphbrew_experiment.py    # Main script (uses CLI args)
 ├── requirements.txt           # Python dependencies
 │
-├── weights/                   # Perceptron weight files
-│   ├── active/                # C++ runtime reads from here
-│   │   ├── type_registry.json # Graph clusters + centroids
-│   │   ├── type_0.json        # Cluster 0 algorithm weights
-│   │   └── type_N.json        # Additional cluster weights
-│   ├── merged/                # Accumulated weights from runs
-│   └── runs/                  # Historical run snapshots
-│
 └── lib/                       # Python library modules
     ├── utils.py               # ⭐ Single source of truth for constants:
     │                          #    ALGORITHMS, BENCHMARKS, SIZE_*, TIMEOUT_*,
@@ -78,7 +70,7 @@ python3 scripts/graphbrew_experiment.py \
 | `--full` | Run complete pipeline | - |
 | `--size` | small, medium, large, xlarge, all | all |
 | `--phase` | all, reorder, benchmark, cache, weights, adaptive | all |
-| `--benchmarks` | pr, bfs, cc, sssp, bc, tc | all 6 |
+| `--benchmarks` | pr, pr_spmv, bfs, cc, cc_sv, sssp, bc, tc | all 8 |
 | `--trials` | Number of benchmark trials | 2 |
 | `--quick` | Only test key algorithms | false |
 | `--skip-cache` | Skip cache simulation | false |
@@ -275,7 +267,7 @@ struct ReorderConfig {
 }
 ```
 
-> ⚠️ **Important**: When changing defaults, update `reorder_types.h` (single source of truth). `reorder_leiden.h` and other headers reference these unified constants.
+> ⚠️ **Important**: When changing defaults, update `reorder_types.h` (single source of truth). `reorder_graphbrew.h` and other headers reference these unified constants.
 
 ---
 

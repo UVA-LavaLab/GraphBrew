@@ -14,9 +14,9 @@ A comprehensive one-click script that runs the complete GraphBrew experiment wor
 6. Phase 4: Generate type-based perceptron weights (results/weights/type_*/weights.json)
 
 **Validation & Analysis:**
-7. Phase 6: Adaptive order analysis (--adaptive-analysis)
-8. Phase 7: Adaptive vs fixed comparison (--adaptive-comparison)
-9. Phase 8: Brute-force validation (--brute-force)
+7. Phase 5: Adaptive order analysis (--adaptive-analysis)
+8. Phase 6: Adaptive vs fixed comparison (--adaptive-comparison)
+9. Phase 7: Brute-force validation (--brute-force)
 
 **Training Modes:**
 10. Standard training (--train): One-pass pipeline that runs all phases
@@ -76,15 +76,11 @@ import re
 import sys
 import glob
 import shutil
-import tarfile
-import gzip
 from dataclasses import asdict
 from datetime import datetime
 from pathlib import Path
 from typing import List, Optional
 import traceback
-import urllib.request
-import urllib.error
 
 # Ensure project root is in path for lib imports
 _SCRIPT_DIR = Path(__file__).resolve().parent
@@ -111,8 +107,8 @@ from scripts.lib import (
     DOWNLOAD_GRAPHS_MEDIUM,
     DOWNLOAD_GRAPHS_LARGE,
     DOWNLOAD_GRAPHS_XLARGE,
-    DownloadableGraph,
     download_graphs_parallel,
+    download_graph as lib_download_graph,
     # Cache
     run_cache_simulations,
     load_type_registry,
@@ -139,44 +135,41 @@ except ImportError:
 # Configuration - Import from Single Source of Truth (lib/utils.py)
 # ============================================================================
 
-# Import algorithm definitions from utils.py (Single Source of Truth)
+# Import algorithm definitions and constants from utils.py (Single Source of Truth)
 from scripts.lib.utils import (
-    ALGORITHMS,
+    ALGORITHMS, ELIGIBLE_ALGORITHMS,
+    RESULTS_DIR, GRAPHS_DIR, BIN_DIR, BIN_SIM_DIR, WEIGHTS_DIR,
     SIZE_SMALL, SIZE_MEDIUM, SIZE_LARGE,
+    LEIDEN_DEFAULT_RESOLUTION,
+    LEIDEN_DEFAULT_PASSES,
+    TIMEOUT_REORDER, TIMEOUT_BENCHMARK, TIMEOUT_SIM,
+    run_command,
+    get_graph_dimensions,
 )
 
-# Algorithms to benchmark (excluding MAP=13)
-BENCHMARK_ALGORITHMS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 15]
+# Algorithms to benchmark — from SSOT (excludes MAP=13, AdaptiveOrder=14)
+BENCHMARK_ALGORITHMS = ELIGIBLE_ALGORITHMS
 
 # Subset of key algorithms for quick testing
 KEY_ALGORITHMS = [0, 1, 7, 8, 9, 11, 12, 15]
-
-# Import recommended variant subsets from lib
-from scripts.lib.utils import (
-    LEIDEN_DEFAULT_RESOLUTION,
-    LEIDEN_DEFAULT_PASSES,
-)
+assert all(a in ALGORITHMS for a in KEY_ALGORITHMS), "KEY_ALGORITHMS contains unknown IDs"
 
 # ============================================================================
 # Algorithm Configuration with Variant Support
 # ============================================================================
-# AlgorithmConfig and expand_algorithms_with_variants() are in lib/reorder.py
 
+# Default paths — derived from SSOT (lib/utils.py), converted to strings for argparse
+DEFAULT_RESULTS_DIR = str(RESULTS_DIR)
+DEFAULT_GRAPHS_DIR = str(GRAPHS_DIR)
+DEFAULT_BIN_DIR = str(BIN_DIR)
+DEFAULT_BIN_SIM_DIR = str(BIN_SIM_DIR)
+DEFAULT_WEIGHTS_DIR = str(WEIGHTS_DIR)
 
-# Default paths - ALL outputs go to results/
-DEFAULT_RESULTS_DIR = "./results"
-DEFAULT_GRAPHS_DIR = "./results/graphs"
-DEFAULT_BIN_DIR = "./bench/bin"
-DEFAULT_BIN_SIM_DIR = "./bench/bin_sim"
-DEFAULT_WEIGHTS_DIR = "./results/weights"  # Active weights (C++ reads from here)
+# Training defaults
+DEFAULT_TRAIN_BENCHMARKS = ['pr', 'bfs', 'cc']  # Fast subset (full SSOT: 8 in BENCHMARKS)
 
 # Minimum edges for training (skip small graphs that introduce noise/skew)
 MIN_EDGES_FOR_TRAINING = 100000  # 100K edges
-
-from scripts.lib.utils import (
-    TIMEOUT_REORDER, TIMEOUT_BENCHMARK, TIMEOUT_SIM,
-    run_command,
-)
 
 # ============================================================================
 # Data Classes
@@ -184,6 +177,28 @@ from scripts.lib.utils import (
 
 # Use the canonical GraphInfo from lib/graph_types.py (includes extended properties)
 from scripts.lib.graph_types import GraphInfo
+
+# Pipeline stage imports from lib/ modules
+from scripts.lib.reorder import (
+    generate_reorderings,
+    generate_reorderings_with_variants,
+    generate_label_maps,
+    load_label_maps_index,
+)
+from scripts.lib.benchmark import run_benchmarks_multi_graph, run_benchmarks_with_variants
+from scripts.lib.cache import run_cache_simulations_with_variants
+from scripts.lib.analysis import (
+    analyze_adaptive_order,
+    compare_adaptive_vs_fixed,
+    run_subcommunity_brute_force,
+    validate_adaptive_accuracy,
+)
+from scripts.lib.training import (
+    train_adaptive_weights_iterative,
+    train_adaptive_weights_large_scale,
+    initialize_enhanced_weights,
+)
+from scripts.lib.weights import compute_weights_from_results, update_zero_weights
 
 
 # Global progress tracker instance
@@ -264,8 +279,6 @@ def get_graph_size_mb(path: str) -> float:
         return os.path.getsize(path) / (1024 * 1024)
     return 0.0
 
-from scripts.lib.utils import get_graph_dimensions
-
 
 def discover_graphs(graphs_dir: str, min_size: float = 0, max_size: float = float('inf'), 
                     additional_dirs: List[str] = None, max_memory_gb: float = None,
@@ -290,8 +303,8 @@ def discover_graphs(graphs_dir: str, min_size: float = 0, max_size: float = floa
     if additional_dirs:
         dirs_to_scan.extend(additional_dirs)
     
-    # Also check ./graphs if it exists and isn't already in the list
-    legacy_graphs_dir = "./results/graphs"
+    # Also check SSOT graphs dir if it exists and isn't already in the list
+    legacy_graphs_dir = str(GRAPHS_DIR)
     if os.path.exists(legacy_graphs_dir) and legacy_graphs_dir not in dirs_to_scan:
         dirs_to_scan.append(legacy_graphs_dir)
     
@@ -375,154 +388,6 @@ def discover_graphs(graphs_dir: str, min_size: float = 0, max_size: float = floa
 # ============================================================================
 # Graph Download Functions
 # ============================================================================
-
-def download_file(url: str, dest_path: str, show_progress: bool = True) -> bool:
-    """Download a file from URL with optional progress indicator."""
-    try:
-        # Create parent directory if needed
-        os.makedirs(os.path.dirname(dest_path), exist_ok=True)
-        
-        if show_progress:
-            print(f"  Downloading from {url}")
-        
-        # Get file size
-        try:
-            with urllib.request.urlopen(url) as response:
-                total_size = int(response.headers.get('content-length', 0))
-                
-                # Download with progress
-                downloaded = 0
-                chunk_size = 8192
-                
-                with open(dest_path, 'wb') as f:
-                    while True:
-                        chunk = response.read(chunk_size)
-                        if not chunk:
-                            break
-                        f.write(chunk)
-                        downloaded += len(chunk)
-                        
-                        if show_progress and total_size > 0:
-                            percent = downloaded * 100 // total_size
-                            print(f"\r  Progress: {percent}% ({downloaded // 1024 // 1024}MB / {total_size // 1024 // 1024}MB)", end="")
-                
-                if show_progress:
-                    print()  # New line after progress
-                    
-        except urllib.error.URLError as e:
-            print(f"  Error downloading: {e}")
-            return False
-            
-        return True
-        
-    except Exception as e:
-        print(f"  Error: {e}")
-        return False
-
-def extract_archive(archive_path: str, extract_to: str) -> bool:
-    """Extract a tar.gz archive."""
-    try:
-        print(f"  Extracting {os.path.basename(archive_path)}")
-        
-        if archive_path.endswith('.tar.gz') or archive_path.endswith('.tgz'):
-            with tarfile.open(archive_path, 'r:gz') as tar:
-                tar.extractall(path=extract_to, filter='data')
-        elif archive_path.endswith('.gz'):
-            # Single gzip file
-            out_path = archive_path[:-3]  # Remove .gz
-            with gzip.open(archive_path, 'rb') as f_in:
-                with open(out_path, 'wb') as f_out:
-                    f_out.write(f_in.read())
-        else:
-            print(f"  Unknown archive format: {archive_path}")
-            return False
-            
-        return True
-        
-    except Exception as e:
-        print(f"  Error extracting: {e}")
-        return False
-
-def validate_mtx_file(mtx_path: str) -> bool:
-    """Validate that a .mtx file is readable and has the expected format."""
-    try:
-        with open(mtx_path, 'r') as f:
-            # Check header
-            for line in f:
-                if line.startswith('%'):
-                    continue
-                # First non-comment line should have dimensions
-                parts = line.strip().split()
-                if len(parts) >= 2:
-                    rows = int(parts[0])
-                    cols = int(parts[1])
-                    if rows > 0 and cols > 0:
-                        return True
-                break
-        return False
-    except Exception as e:
-        print(f"  Validation error: {e}")
-        return False
-
-def download_graph(graph: DownloadableGraph, graphs_dir: str, force: bool = False) -> bool:
-    """Download a single graph from SuiteSparse collection."""
-    
-    graph_dir = os.path.join(graphs_dir, graph.name)
-    mtx_file = os.path.join(graph_dir, f"{graph.name}.mtx")
-    
-    # Check if already exists
-    if os.path.exists(mtx_file) and not force:
-        print(f"  {graph.name}: Already exists (skip)")
-        return True
-    
-    print(f"\n  Downloading {graph.name} ({graph.size_mb:.1f} MB)")
-    
-    # Create directory
-    os.makedirs(graph_dir, exist_ok=True)
-    
-    # Use the pre-defined URL from the graph catalog
-    url = graph.url
-    
-    # Download archive
-    archive_path = os.path.join(graph_dir, f"{graph.name}.tar.gz")
-    if not download_file(url, archive_path):
-        return False
-    
-    # Extract archive
-    if not extract_archive(archive_path, graph_dir):
-        return False
-    
-    # The archive extracts to a subdirectory, move files up if needed
-    extracted_dir = os.path.join(graph_dir, graph.name)
-    if os.path.isdir(extracted_dir):
-        for item in os.listdir(extracted_dir):
-            src = os.path.join(extracted_dir, item)
-            dst = os.path.join(graph_dir, item)
-            if not os.path.exists(dst):
-                shutil.move(src, dst)
-        # Remove empty extracted directory
-        try:
-            os.rmdir(extracted_dir)
-        except OSError:
-            pass
-    
-    # Clean up archive
-    try:
-        os.remove(archive_path)
-    except OSError:
-        pass
-    
-    # Validate
-    if not os.path.exists(mtx_file):
-        print(f"  Error: {graph.name}.mtx not found after extraction")
-        return False
-    
-    if not validate_mtx_file(mtx_file):
-        print(f"  Error: {graph.name}.mtx is invalid")
-        return False
-    
-    print(f"  {graph.name}: Downloaded and validated successfully")
-    return True
 
 def download_graphs(
     size_category: str = "SMALL",
@@ -619,6 +484,8 @@ def download_graphs(
             show_progress=True,
             wait_for_all=True,  # Always wait for all downloads
         )
+        if failed_names:
+            print(f"  ⚠ Failed to download {len(failed_names)} graphs: {', '.join(failed_names)}")
         successful = [p.parent.name for p in successful_paths]
     else:
         # Sequential fallback
@@ -629,7 +496,8 @@ def download_graphs(
         successful = []
         for i, graph in enumerate(graphs_to_download, 1):
             print(f"\n[{i}/{len(graphs_to_download)}] {graph.name}")
-            if download_graph(graph, graphs_dir, force):
+            result = lib_download_graph(graph, dest_dir=Path(graphs_dir), force=force)
+            if result is not None:
                 successful.append(graph.name)
         
         print("\n" + "-"*40)
@@ -839,15 +707,6 @@ def clean_results(results_dir: str = DEFAULT_RESULTS_DIR, keep_graphs: bool = Tr
         print(f"Results directory does not exist: {results_dir}")
         return
     
-    # Patterns to clean (relative to results_dir)
-    patterns_to_clean = [
-        "*.json",
-        "*.log", 
-        "*.csv",
-        "mappings/",
-        "logs/",
-    ]
-    
     # Items to keep
     keep_items = set()
     if keep_graphs:
@@ -983,29 +842,6 @@ def clean_reorder_cache(graphs_dir: str = None):
     
     log(f"Removed {removed}/{total} cached files")
     log("Fresh reordering will be performed on next run.")
-
-
-# Direct imports from lib/ modules
-from scripts.lib.reorder import (
-    generate_reorderings,
-    generate_reorderings_with_variants,
-    generate_label_maps,
-    load_label_maps_index,
-)
-from scripts.lib.benchmark import run_benchmarks_multi_graph, run_benchmarks_with_variants
-from scripts.lib.cache import run_cache_simulations_with_variants
-from scripts.lib.analysis import (
-    analyze_adaptive_order,
-    compare_adaptive_vs_fixed,
-    run_subcommunity_brute_force,
-    validate_adaptive_accuracy,
-)
-from scripts.lib.training import (
-    train_adaptive_weights_iterative,
-    train_adaptive_weights_large_scale,
-    initialize_enhanced_weights,
-)
-from scripts.lib.weights import compute_weights_from_results, update_zero_weights
 
 
 # ============================================================================
@@ -1406,8 +1242,8 @@ def run_experiment(args):
                 skip_heavy=args.skip_heavy,
                 label_maps=label_maps,
                 rabbit_variants=rabbit_variants,
-                resolution=getattr(args, 'leiden_resolution', 1.0),
-                passes=getattr(args, 'leiden_passes', 3)
+                resolution=getattr(args, 'leiden_resolution', LEIDEN_DEFAULT_RESOLUTION),
+                passes=getattr(args, 'leiden_passes', LEIDEN_DEFAULT_PASSES)
             )
         all_cache_results.extend(cache_results)
         
@@ -1459,7 +1295,7 @@ def run_experiment(args):
         # Compare against top fixed algorithms
         fixed_algos = [1, 2, 4, 7, 15]  # RANDOM, SORT, HUBCLUSTER, HUBCLUSTERDBG, LeidenOrder
         
-        _comparison_results = compare_adaptive_vs_fixed(
+        compare_adaptive_vs_fixed(
             graphs=graphs,
             bin_dir=args.bin_dir,
             benchmarks=args.benchmarks,
@@ -1472,7 +1308,7 @@ def run_experiment(args):
     # Phase 8: Brute-Force Validation (All 20 algos vs Adaptive)
     if getattr(args, "brute_force", False):
         bf_benchmark = getattr(args, "bf_benchmark", "pr")
-        _brute_force_results = run_subcommunity_brute_force(
+        run_subcommunity_brute_force(
             graphs=graphs,
             bin_dir=args.bin_dir,
             bin_sim_dir=args.bin_sim_dir,
@@ -1485,11 +1321,11 @@ def run_experiment(args):
     
     # Phase 8b: Validate Adaptive Accuracy (faster than brute-force)
     if getattr(args, "validate_adaptive", False):
-        _validation_results = validate_adaptive_accuracy(
+        validate_adaptive_accuracy(
             graphs=graphs,
             bin_dir=args.bin_dir,
             output_dir=args.results_dir,
-            benchmarks=getattr(args, "benchmarks", ['pr', 'bfs', 'cc']),
+            benchmarks=getattr(args, "benchmarks", DEFAULT_TRAIN_BENCHMARKS),
             timeout=args.timeout_benchmark,
             num_trials=args.trials,
             force_reorder=getattr(args, "force_reorder", False)
@@ -1497,7 +1333,7 @@ def run_experiment(args):
     
     # Phase 9: Iterative Training (feedback loop to optimize adaptive weights)
     if getattr(args, "train_adaptive", False):
-        _training_result = train_adaptive_weights_iterative(
+        train_adaptive_weights_iterative(
             graphs=graphs,
             bin_dir=args.bin_dir,
             bin_sim_dir=args.bin_sim_dir,
@@ -1516,13 +1352,13 @@ def run_experiment(args):
     
     # Phase 10: Large-Scale Training (batched multi-benchmark training)
     if getattr(args, "train_large", False):
-        _large_training_result = train_adaptive_weights_large_scale(
+        train_adaptive_weights_large_scale(
             graphs=graphs,
             bin_dir=args.bin_dir,
             bin_sim_dir=args.bin_sim_dir,
             output_dir=args.results_dir,
             weights_file=args.weights_file,
-            benchmarks=getattr(args, "train_benchmarks", ['pr', 'bfs', 'cc']),
+            benchmarks=getattr(args, "train_benchmarks", DEFAULT_TRAIN_BENCHMARKS),
             target_accuracy=getattr(args, "target_accuracy", 80.0),
             max_iterations=getattr(args, "max_iterations", 10),
             batch_size=getattr(args, "batch_size", 8),
@@ -1727,22 +1563,7 @@ def run_experiment(args):
                 }
                 
                 # Save all features to graph properties cache
-                update_graph_properties(graph_name, {
-                    'modularity': modularity,
-                    'degree_variance': degree_variance,
-                    'hub_concentration': hub_concentration,
-                    'avg_degree': avg_degree,
-                    'clustering_coefficient': clustering_coeff,
-                    'avg_path_length': avg_path_length,
-                    'diameter': diameter,
-                    'community_count': community_count,
-                    'density': graph_density,
-                    'packing_factor': packing_factor,
-                    'forward_edge_fraction': forward_edge_fraction,
-                    'working_set_ratio': working_set_ratio,
-                    'nodes': graph_nodes,
-                    'edges': graph_edges,
-                })
+                update_graph_properties(graph_name, features)
                 
                 type_name = assign_graph_type(features, args.weights_dir, create_if_outlier=True)
                 log(f"  {graph_name} → {type_name} (mod={modularity:.3f}, dv={degree_variance:.3f}, hc={hub_concentration:.3f})")
@@ -2104,8 +1925,8 @@ def main():
                         help="GraphBrewOrder variants (GraphBrew-powered): leiden (default), rabbit, hubcluster")
     parser.add_argument("--resolution", type=str, default="dynamic", dest="leiden_resolution",
                         help="Leiden resolution: dynamic (default, best PR), auto, fixed (1.5), dynamic_2.0")
-    parser.add_argument("--passes", type=int, default=3, dest="leiden_passes",
-                        help="Leiden refinement passes - higher = better quality (default: 3)")
+    parser.add_argument("--passes", type=int, default=LEIDEN_DEFAULT_PASSES, dest="leiden_passes",
+                        help=f"Leiden refinement passes - higher = better quality (default: {LEIDEN_DEFAULT_PASSES})")
     
     # Brute-force validation
     parser.add_argument("--brute-force", action="store_true",
@@ -2130,7 +1951,7 @@ def main():
                         help="Learning rate for weight adjustments (default: 0.1)")
     parser.add_argument("--batch-size", type=int, default=8,
                         help="Batch size for batched training (default: 8)")
-    parser.add_argument("--train-benchmarks", nargs="+", default=['pr', 'bfs', 'cc'],
+    parser.add_argument("--train-benchmarks", nargs="+", default=DEFAULT_TRAIN_BENCHMARKS,
                         help="Benchmarks to use for multi-benchmark training (default: pr bfs cc)")
     parser.add_argument("--init-weights", action="store_true",
                         help="Initialize empty weights file (run once before first training)")

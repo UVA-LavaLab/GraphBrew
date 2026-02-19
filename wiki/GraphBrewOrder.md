@@ -103,7 +103,6 @@ Largest communities:
 | Internal ordering | Hub sort | Original | Per-community (RabbitOrder) |
 | Speed | Fast | Moderate | Moderate |
 | Best for | Uniform hub graphs | Basic grouping | Modular graphs |
-<!-- LeidenCSR (16) deprecated — GraphBrew (12) subsumes it -->
 
 ---
 

@@ -17,11 +17,9 @@ scripts/
 │   ├── training.py             # ML training
 │   ├── features.py             # Graph feature extraction
 │   └── ...                     # Other modules
-└── weights/                    # Auto-clustered type weights
-    ├── active/                 # C++ reads from here
-    ├── merged/                 # Accumulated weights
-    └── runs/                   # Historical snapshots
 ```
+
+Weight files are stored under `results/weights/` (not `scripts/`).
 
 ---
 
@@ -102,7 +100,6 @@ Graph: facebook.el
 │ ORIGINAL (0)       │ 18         │ 9.2e-7       │
 │ HUBCLUSTERDBG (7)  │ 16         │ 8.8e-7       │
 │ LeidenOrder (15)   │ 15         │ 9.1e-7       │
-<!-- LeidenCSR (16) deprecated — GraphBrew (12) subsumes it -->
 └────────────────────┴────────────┴──────────────┘
 ```
 

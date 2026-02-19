@@ -481,7 +481,7 @@ Edit `scripts/lib/utils.py` to add the benchmark to the BENCHMARKS list:
 
 ```python
 # Current BENCHMARKS list:
-BENCHMARKS = ["pr", "bfs", "cc", "sssp", "bc", "tc", "my_algorithm"]
+BENCHMARKS = ["pr", "pr_spmv", "bfs", "cc", "cc_sv", "sssp", "bc", "tc", "my_algorithm"]
 ```
 
 ### Use in Experiments
