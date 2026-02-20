@@ -28,12 +28,8 @@ from pathlib import Path
 from typing import Dict, List, Optional
 from dataclasses import dataclass, asdict
 
-# Resolve project paths
-SCRIPT_DIR = Path(__file__).parent          # scripts/lib/
-PROJECT_ROOT = SCRIPT_DIR.parent.parent      # project root
-
 from .reorder import parse_reorder_time_from_converter
-from .utils import _VARIANT_ALGO_REGISTRY, ALGORITHMS, TIMEOUT_BENCHMARK
+from .utils import _VARIANT_ALGO_REGISTRY, ALGORITHMS, TIMEOUT_BENCHMARK, PROJECT_ROOT
 
 @dataclass
 class LeidenResult:

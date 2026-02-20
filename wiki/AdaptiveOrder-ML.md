@@ -7,7 +7,7 @@ AdaptiveOrder (algorithm 14) uses a **machine learning perceptron** to automatic
 Instead of requiring the user to pick a reordering algorithm, AdaptiveOrder:
 1. **Computes graph features** (degree variance, hub concentration, packing factor, etc.)
 2. **Finds best matching type** from auto-clustered type files using Euclidean distance
-3. **Loads specialized weights** for that type (per-benchmark files like `type_0_pr.json`, or generic `type_0.json`)
+3. **Loads specialized weights** for that type (per-benchmark files like `type_0/pr.json`, or generic `type_0/weights.json`)
 4. **Uses a trained perceptron** to predict the best algorithm
 5. **Applies the selected algorithm** to the entire graph
 
@@ -120,11 +120,10 @@ results/weights/
 
 **Weight File Loading Priority:**
 1. Environment variable `PERCEPTRON_WEIGHTS_FILE` (if set)
-2. Per-benchmark weight file (e.g., `type_0_pr.json` for PageRank) — highest accuracy
-3. Best matching type file from type registry (e.g., `type_0.json`)
-4. Semantic type fallback (e.g., `perceptron_weights_social.json`)
-5. Default weights file
-6. Hardcoded defaults (`GetPerceptronWeights()`)
+2. Per-benchmark weight file (e.g., `type_0/pr.json` for PageRank) — highest accuracy
+3. Best matching type file from type registry (e.g., `type_0/weights.json`)
+4. Default weights file (`type_0/weights.json`)
+5. Hardcoded defaults (`GetPerceptronWeights()`)
 
 ## Type Matching at Runtime
 
@@ -342,7 +341,7 @@ Each algorithm has weights for each feature. See [[Perceptron-Weights#file-struc
 
 ### Benchmark-Specific Scoring
 
-The perceptron supports per-benchmark multipliers via `getBenchmarkMultiplier()` in each algorithm's weight entry. The final score is `base_score × benchmark_multiplier[type]`. Per-benchmark weight files (`type_0_pr.json`, `type_0_bfs.json`, etc.) are loaded with higher priority than generic `type_0.json` because they are trained specifically for each benchmark.
+The perceptron supports per-benchmark multipliers via `getBenchmarkMultiplier()` in each algorithm's weight entry. The final score is `base_score × benchmark_multiplier[type]`. Per-benchmark weight files (`type_0/pr.json`, `type_0/bfs.json`, etc.) are loaded with higher priority than generic `type_0/weights.json` because they are trained specifically for each benchmark.
 
 ```cpp
 // C++ Usage:
@@ -501,7 +500,7 @@ For a graph with 10,000 nodes, AdaptiveOrder (default full-graph mode):
 
 1. **Feature Extraction** — Computes modularity, hub_concentration, degree_variance, packing_factor, forward_edge_fraction, working_set_ratio, etc.
 2. **Type Matching** — Finds closest type centroid in the type registry
-3. **Weight Loading** — Loads per-benchmark weights (e.g., `type_0_pr.json`) or falls back to generic `type_0.json`
+3. **Weight Loading** — Loads per-benchmark weights (e.g., `type_0/pr.json`) or falls back to generic `type_0/weights.json`
 4. **Perceptron Scoring** — Evaluates all algorithms using the score formula
 5. **Algorithm Selection** — Selects the algorithm with the highest score (subject to safety checks)
 6. **Reordering** — Applies the selected algorithm to the entire graph

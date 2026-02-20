@@ -29,7 +29,7 @@ See [[AdaptiveOrder-ML#perceptron-scoring-diagram]] for the full scoring diagram
 
 Weights live in `results/weights/` (see directory tree above). The auto-clustering type system groups graphs by 7 features (modularity, log_nodes, log_edges, avg_degree, degree_variance, hub_concentration, clustering_coefficient) and trains per-cluster weights.
 
-**Loading priority:** `PERCEPTRON_WEIGHTS_FILE` env var → best matching `type_N.json` → semantic fallback → hardcoded defaults.
+**Loading priority:** `PERCEPTRON_WEIGHTS_FILE` env var → per-benchmark `type_N/{bench}.json` → best matching `type_N/weights.json` → `type_0/weights.json` → hardcoded defaults.
 
 ```bash
 # Override with custom weights

@@ -55,12 +55,9 @@ class SelectionMode(Enum):
 # Constants
 # =============================================================================
 
-SCRIPT_DIR = Path(__file__).parent.resolve()  # scripts/lib/
-PROJECT_ROOT = SCRIPT_DIR.parent.parent          # project root
-
 # Path constants from SSOT (lib/utils.py)
 from .utils import (
-    WEIGHTS_DIR, RESULTS_DIR, GRAPHS_DIR,
+    WEIGHTS_DIR, RESULTS_DIR, GRAPHS_DIR, PROJECT_ROOT,
     weights_registry_path, weights_type_path,
 )
 

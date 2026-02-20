@@ -3710,9 +3710,10 @@ inline std::string FindBestTypeFromFeatures(
  * 
  * Checks for weights file in this order:
  * 1. Path from PERCEPTRON_WEIGHTS_FILE environment variable (overrides all)
- * 2. Semantic type file: scripts/perceptron_weights_<type>.json
- * 3. DEFAULT_WEIGHTS_FILE as final fallback
- * 4. If no files exist, returns hardcoded defaults from GetPerceptronWeights()
+ * 2. Per-benchmark file: results/weights/type_N/{bench}.json
+ * 3. Type weights file: results/weights/type_N/weights.json
+ * 4. Fallback: results/weights/type_0/weights.json
+ * 5. If no files exist, returns hardcoded defaults from GetPerceptronWeights()
  * 
  * @param graph_type The detected or specified semantic graph type
  * @param verbose Print which file was loaded

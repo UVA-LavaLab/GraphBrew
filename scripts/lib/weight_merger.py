@@ -45,6 +45,10 @@ from pathlib import Path
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass, field
 
+from .utils import Logger
+
+log = Logger()
+
 
 # Centroid feature names (must match type_registry.json structure)
 CENTROID_FEATURES = [
@@ -110,7 +114,7 @@ class RunInfo:
                     self.types[type_id] = TypeInfo.from_registry_entry(type_id, entry)
             return True
         except Exception as e:
-            print(f"Error loading run {self.timestamp}: {e}")
+            log(f"Error loading run {self.timestamp}: {e}", "WARN")
             return False
 
 
@@ -290,7 +294,7 @@ def load_type_weights(type_path: Path) -> Dict[str, Dict]:
         with open(type_path) as f:
             return json.load(f)
     except Exception as e:
-        print(f"Error loading {type_path}: {e}")
+        log(f"Error loading {type_path}: {e}", "WARN")
         return {}
 
 
