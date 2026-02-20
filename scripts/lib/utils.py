@@ -161,10 +161,10 @@ _CHAINED_ORDERING_OPTS: list[str] = [
     "-o 2 -o 8:boost",
     # HUBCLUSTERDBG then RabbitOrder (hub-cluster + cache BFS)
     "-o 7 -o 8:csr",
-    # SORT then GraphBrewOrder (degree sort + community-aware)
-    "-o 2 -o 12:leiden",
-    # DBG then GraphBrewOrder (degree-based grouping + community)
-    "-o 5 -o 12:leiden",
+    # SORT then GraphBrewOrder (degree sort + community-aware, flat/single-layer)
+    "-o 2 -o 12:leiden:flat",
+    # DBG then GraphBrewOrder (degree-based grouping + community, flat/single-layer)
+    "-o 5 -o 12:leiden:flat",
 ]
 
 # Populated at module load by _build_chained_orderings() below all function defs.
@@ -959,18 +959,33 @@ def algo_converter_opt(algo_id: int, variant: str | None = None) -> str:
     Paired with ``canonical_algo_key`` — together they provide a
     consistent (key, converter-arg) pair for every algorithm.
 
+    The ``leiden`` GraphBrewOrder variant always includes ``:flat``
+    (single-layer, no recursive sub-community splitting) so its
+    runtime is comparable to plain LeidenOrder.
+
     Examples::
 
         algo_converter_opt(0)             → "0"
         algo_converter_opt(8, "boost")    → "8:boost"
-        algo_converter_opt(12, "leiden")  → "12:leiden"
+        algo_converter_opt(12, "leiden")  → "12:leiden:flat"
         algo_converter_opt(5)             → "5"
     """
     if variant:
-        return f"{algo_id}:{variant}"
+        opt = f"{algo_id}:{variant}"
+        # GraphBrewOrder leiden: force flat (single-layer) to avoid
+        # expensive recursive sub-community splitting.  The .sg is
+        # already community-detected once; recursion adds 10-50×
+        # overhead without proportional locality gains on most graphs.
+        if algo_id == 12 and variant == "leiden":
+            opt += ":flat"
+        return opt
     if algo_id in _VARIANT_ALGO_REGISTRY:
         _, _, default = _VARIANT_ALGO_REGISTRY[algo_id]
-        return f"{algo_id}:{default}"
+        opt = f"{algo_id}:{default}"
+        # Same flat default for leiden when falling through to default variant
+        if algo_id == 12 and default == "leiden":
+            opt += ":flat"
+        return opt
     return str(algo_id)
 
 
@@ -981,16 +996,24 @@ def canonical_name_from_converter_opt(opt: str) -> str:
     colon-separated option string and delegates to ``canonical_algo_key``
     so the result is always filesystem/JSON-key safe.
 
+    Runtime-only tokens (``flat``, ``norecurse``, ``recursive``, ``recurse``)
+    are stripped before building the canonical name — they control C++
+    execution behaviour but do not change the algorithm identity.
+
     Examples::
 
         canonical_name_from_converter_opt("0")           → "ORIGINAL"
         canonical_name_from_converter_opt("8:boost")     → "RABBITORDER_boost"
         canonical_name_from_converter_opt("12:leiden")   → "GraphBrewOrder_leiden"
+        canonical_name_from_converter_opt("12:leiden:flat") → "GraphBrewOrder_leiden"
         canonical_name_from_converter_opt("12:leiden:hrab:gvecsr:merge")
             → "GraphBrewOrder_leiden_hrab_gvecsr_merge"
         canonical_name_from_converter_opt("9")           → "GORDER"
     """
     algo_id, params = parse_algorithm_option(opt)
+    # Strip runtime-only depth-control tokens that don't change identity
+    _RUNTIME_ONLY_TOKENS = {"flat", "norecurse", "recursive", "recurse"}
+    params = [p for p in params if p not in _RUNTIME_ONLY_TOKENS]
     variant = ":".join(params) if params else None
     return canonical_algo_key(algo_id, variant)
 
