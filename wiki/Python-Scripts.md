@@ -522,15 +522,16 @@ pip install -r requirements.txt
 ### requirements.txt
 
 ```
-# Core dependencies - NONE REQUIRED
-# All benchmark scripts use only Python 3.8+ standard library
+# Core dependencies - standard library only for basic benchmarking
+# These are REQUIRED for training, evaluation, and analysis scripts:
+pytest>=7.0
+networkx>=2.6
+numpy>=1.20.0
 
 # Optional: For extended analysis and visualization (uncomment if needed)
-# numpy>=1.20.0        # For statistical analysis
 # pandas>=1.3.0        # For data manipulation  
 # matplotlib>=3.4.0    # For plotting results
 # scipy>=1.7.0         # For correlation analysis
-# networkx>=2.6        # For graph analysis
 ```
 
 ---

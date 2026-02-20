@@ -423,6 +423,7 @@ SIZE_LARGE = 2000     # < 2 GB: large graphs, skip heavy operations
 # =============================================================================
 # Timeout Constants (seconds) - Single Source of Truth
 # =============================================================================
+TIMEOUT_BUILD = 600           # 10 min for make builds
 TIMEOUT_REORDER = 43200       # 12 hours for reordering (GORDER can be slow)
 TIMEOUT_BENCHMARK = 600       # 10 min for benchmarks
 TIMEOUT_SIM = 1200            # 20 min for cache simulations

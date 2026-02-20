@@ -211,7 +211,7 @@ Computing correlations...
 Computing Perceptron Weights
 ----------------------------------------------------------------------
 Perceptron weights saved to: results/weights/type_0/weights.json
-  16 algorithms configured
+  16 algorithms configured (IDs 0-15; 14 are benchmark-eligible)
   Updated from benchmarks: ORIGINAL, HUBCLUSTERDBG, GraphBrewOrder, ...
 
 Summary:
