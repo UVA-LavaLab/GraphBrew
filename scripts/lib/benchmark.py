@@ -437,9 +437,10 @@ def run_benchmarks_multi_graph(
                 # When pregenerated files exist (e.g. email-Enron_SORT.sg,
                 # email-Enron_RABBITORDER_boost.sg, etc.) use them directly
                 # with -o 0 (ORIGINAL) to skip runtime reorder overhead.
+                # Prefer .sg over .lo MAP mode even when label maps exist,
+                # since pre-generated .sg avoids both reorder AND relabel cost.
                 if (use_pregenerated
-                        and algo_id not in (0, 1)
-                        and not label_map_path):
+                        and algo_id not in (0, 1)):
                     # algo_name already includes the variant suffix for
                     # variant algorithms (e.g. "RABBITORDER_csr") thanks
                     # to get_algorithm_name_with_variant().
@@ -827,6 +828,43 @@ def run_benchmarks_with_variants(
                 if algo_name == "ORIGINAL":
                     algo_opt = "0"
                 else:
+                    # ── Pre-generated reordered .sg shortcut ─────────────
+                    # When a pre-generated .sg file exists (e.g.
+                    # ca-GrQc_GORDER.sg), use it directly with -o 0
+                    # (ORIGINAL) to skip runtime reorder overhead and avoid
+                    # the MAP (.lo) code path entirely.
+                    pregen_path = os.path.join(
+                        os.path.dirname(graph_path),
+                        f"{graph_name}_{algo_name}.sg",
+                    )
+                    if os.path.isfile(pregen_path):
+                        result = run_benchmark(
+                            benchmark=bench,
+                            graph_path=pregen_path,
+                            algorithm="0",  # ORIGINAL — already reordered
+                            trials=num_trials,
+                            timeout=graph_timeout,
+                            bin_dir=bin_dir,
+                        )
+                        # Preserve original algo identity for analysis
+                        result.algorithm = algo_name
+                        result.algorithm_id = algo_id
+                        result.graph = graph_name
+                        result.nodes = graph.nodes
+                        result.edges = graph.edges
+                        results.append(result)
+                        completed += 1
+                        if progress:
+                            time_str = (
+                                f"{result.time_seconds:.4f}s"
+                                if result.success
+                                else result.error[:30]
+                            )
+                            progress.info(
+                                f"    [{completed}/{total_configs}] {algo_name}: {time_str} [.sg]"
+                            )
+                        continue
+
                     label_map_path = graph_label_maps.get(algo_name, "")
                     if not label_map_path:
                         continue
