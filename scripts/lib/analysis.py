@@ -366,6 +366,18 @@ def parse_benchmark_output(output: str) -> Dict[str, Any]:
     if type_match:
         parsed['graph_type'] = type_match.group(1)
     
+    # Parse node/edge counts (from AdaptiveOrder or full-graph mode output)
+    # Matches: "Nodes: 5242, Edges: 28968"
+    ne_match = re.search(r'Nodes:\s*(\d+),\s*Edges:\s*(\d+)', output)
+    if ne_match:
+        parsed['nodes'] = int(ne_match.group(1))
+        parsed['edges'] = int(ne_match.group(2))
+    
+    # Parse modularity (from PrintTime output or GVE-Leiden)
+    mod_match = re.search(r'Modularity:\s*([\d.]+)', output)
+    if mod_match:
+        parsed['modularity'] = float(mod_match.group(1))
+    
     return parsed
 
 
@@ -436,9 +448,18 @@ def analyze_adaptive_order(
             
             # Parse and cache topology features for weight computation
             features = parse_benchmark_output(output)
+            # Use modularity from parse_adaptive_output (which checks both
+            # PrintTime and GVE formats) as authoritative, but also take the
+            # value from parse_benchmark_output if parse_adaptive_output missed it.
+            if modularity == 0.0 and features.get('modularity', 0.0) > 0:
+                modularity = features['modularity']
             features['modularity'] = modularity
-            features['nodes'] = getattr(graph, 'nodes', 0)
-            features['edges'] = getattr(graph, 'edges', 0)
+            # Prefer C++ output for nodes/edges (accurate for .sg files where
+            # get_graph_dimensions used to fail); fall back to graph metadata.
+            if not features.get('nodes'):
+                features['nodes'] = getattr(graph, 'nodes', 0)
+            if not features.get('edges'):
+                features['edges'] = getattr(graph, 'edges', 0)
             update_graph_properties(graph.name, features, output_dir)
             
             log(f"  Modularity: {modularity:.4f}")
