@@ -114,7 +114,7 @@ class RunInfo:
                     self.types[type_id] = TypeInfo.from_registry_entry(type_id, entry)
             return True
         except Exception as e:
-            log(f"Error loading run {self.timestamp}: {e}", "WARN")
+            log.warning(f"Error loading run {self.timestamp}: {e}")
             return False
 
 
@@ -294,7 +294,7 @@ def load_type_weights(type_path: Path) -> Dict[str, Dict]:
         with open(type_path) as f:
             return json.load(f)
     except Exception as e:
-        log(f"Error loading {type_path}: {e}", "WARN")
+        log.warning(f"Error loading {type_path}: {e}")
         return {}
 
 
