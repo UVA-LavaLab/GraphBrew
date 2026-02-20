@@ -345,6 +345,69 @@ inline void ApplyBasicReorderingStandalone(
     const PerceptronSelection& sel,
     bool useOutdeg,
     const std::string& filename = "") {
+    
+    if (sel.isChained()) {
+        // Chained ordering: apply each step sequentially with relabeling between.
+        // Mimics MakeGraph()'s loop: for each step, compute mapping, relabel graph,
+        // then compose the final permutation.
+        const auto& steps = sel.chain;
+        
+        pvector<NodeID_> composed(g.num_nodes());
+        
+        // Initialize composed to identity
+        #pragma omp parallel for
+        for (NodeID_ n = 0; n < g.num_nodes(); n++) {
+            composed[n] = n;
+        }
+        
+        // Step 0: apply first reordering directly on the input graph (no copy)
+        {
+            pvector<NodeID_> step_ids(g.num_nodes(), -1);
+            std::cout << "  Chain step 1/" << steps.size()
+                      << ": " << steps[0].variant_name << "\n";
+            ApplyBasicReorderingStandalone<NodeID_, DestID_, WeightT_, invert>(
+                g, step_ids, steps[0].algo, useOutdeg, filename, steps[0].options);
+            
+            #pragma omp parallel for
+            for (NodeID_ n = 0; n < g.num_nodes(); n++) {
+                composed[n] = step_ids[composed[n]];
+            }
+            
+            if (steps.size() > 1) {
+                // Relabel and apply remaining steps
+                auto g_relabeled = RelabelByMappingStandalone<NodeID_, DestID_, invert>(
+                    g, step_ids);
+                
+                for (size_t i = 1; i < steps.size(); i++) {
+                    pvector<NodeID_> ids(g_relabeled.num_nodes(), -1);
+                    std::cout << "  Chain step " << (i + 1) << "/" << steps.size()
+                              << ": " << steps[i].variant_name << "\n";
+                    ApplyBasicReorderingStandalone<NodeID_, DestID_, WeightT_, invert>(
+                        g_relabeled, ids, steps[i].algo, useOutdeg, filename, steps[i].options);
+                    
+                    #pragma omp parallel for
+                    for (NodeID_ n = 0; n < g.num_nodes(); n++) {
+                        composed[n] = ids[composed[n]];
+                    }
+                    
+                    // Relabel for next step (skip for last step)
+                    if (i + 1 < steps.size()) {
+                        g_relabeled = RelabelByMappingStandalone<NodeID_, DestID_, invert>(
+                            g_relabeled, ids);
+                    }
+                }
+            }
+        }
+        
+        // Copy composed permutation to output
+        #pragma omp parallel for
+        for (NodeID_ n = 0; n < g.num_nodes(); n++) {
+            new_ids[n] = composed[n];
+        }
+        return;
+    }
+    
+    // Single algorithm dispatch
     ApplyBasicReorderingStandalone<NodeID_, DestID_, WeightT_, invert>(
         g, new_ids, sel.algo, useOutdeg, filename, sel.options);
 }

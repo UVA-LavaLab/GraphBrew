@@ -68,6 +68,32 @@ def compute_adaptive_timeout(edges: int, base_timeout: int = 600) -> int:
 
 
 # =============================================================================
+# Reorder Time Utilities
+# =============================================================================
+
+# Default directory for mappings (relative to results dir)
+_DEFAULT_MAPPINGS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
+    os.path.abspath(__file__)))), "results", "mappings")
+
+
+def load_reorder_time_for_algo(graph_name: str, algo_name: str,
+                               mappings_dir: str = None) -> float:
+    """Load reorder time from a .time file for a given graph and algorithm.
+
+    Checks ``{mappings_dir}/{graph_name}/{algo_name}.time``.  Returns 0.0
+    if the file does not exist.
+    """
+    mappings_dir = mappings_dir or _DEFAULT_MAPPINGS_DIR
+    time_file = os.path.join(mappings_dir, graph_name, f"{algo_name}.time")
+    if os.path.isfile(time_file):
+        try:
+            return float(Path(time_file).read_text().strip())
+        except (ValueError, IOError):
+            return 0.0
+    return 0.0
+
+
+# =============================================================================
 # Output Parsing
 # =============================================================================
 
@@ -476,6 +502,9 @@ def run_benchmarks_multi_graph(
                         result.graph = graph_name
                         result.nodes = graph.nodes
                         result.edges = graph.edges
+                        # Load reorder_time from .time file (written during pregeneration)
+                        if result.reorder_time <= 0:
+                            result.reorder_time = load_reorder_time_for_algo(graph_name, algo_name)
                         results.append(result)
                         completed += 1
                         if progress and completed % 10 == 0:
@@ -582,6 +611,9 @@ def run_benchmarks_multi_graph(
                     result.graph = graph_name
                     result.nodes = graph.nodes
                     result.edges = graph.edges
+                    # Load reorder_time from .time file (written during pregeneration)
+                    if result.reorder_time <= 0:
+                        result.reorder_time = load_reorder_time_for_algo(graph_name, canonical)
                     results.append(result)
     
     # Save the graph properties cache after all benchmarks
@@ -870,6 +902,9 @@ def run_benchmarks_with_variants(
                         result.graph = graph_name
                         result.nodes = graph.nodes
                         result.edges = graph.edges
+                        # Load reorder_time from .time file (written during pregeneration)
+                        if result.reorder_time <= 0:
+                            result.reorder_time = load_reorder_time_for_algo(graph_name, algo_name)
                         results.append(result)
                         completed += 1
                         if progress:
