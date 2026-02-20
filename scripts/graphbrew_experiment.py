@@ -721,11 +721,16 @@ def convert_graphs_to_sg(
         # Determine output .sg path
         sg_path = os.path.join(entry_path, f"{entry}.sg")
 
-        # Determine mappings directory and baseline .lo/.time paths
+        # Determine mappings directory and baseline .time path
+        # Note: we do NOT generate a .lo for the baseline ordering (ORIGINAL
+        # or RANDOM) because the .sg file already embodies that ordering.
+        # Using -o 0 (ORIGINAL) on the .sg gives the baseline directly.
+        # A RANDOM.lo would be the permutation applied during conversion,
+        # but loading it with -o 13:RANDOM.lo on the already-random .sg
+        # would double-apply the permutation — not what we want.
         mappings_dir = os.path.join(
             os.path.dirname(graphs_dir.rstrip('/')),
             'mappings', entry)
-        lo_path = os.path.join(mappings_dir, f"{algo_label}.lo")
         time_path = os.path.join(mappings_dir, f"{algo_label}.time")
 
         # Skip if .sg already exists and force is not set
@@ -754,7 +759,7 @@ def convert_graphs_to_sg(
         log(f"  Converting {entry} ({algo_label}) ...")
         ok, stdout = convert_graph_to_sg(
             mtx_path, sg_path, order=order, bin_dir=bin_dir,
-            timeout=timeout, lo_path=lo_path)
+            timeout=timeout)
         if ok:
             converted += 1
             sg_size_mb = os.path.getsize(sg_path) / (1024 * 1024)
