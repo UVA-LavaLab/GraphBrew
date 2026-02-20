@@ -124,7 +124,7 @@ def initialize_enhanced_weights(weights_file: str, algorithms: List[str] = None)
             "w_community_count": 0.0,
             "benchmark_weights": {
                 "pr": 1.0, "pr_spmv": 1.0, "bfs": 1.0, "cc": 1.0,
-                "cc_sv": 1.0, "sssp": 1.0, "bc": 1.0, "tc": 1.0
+                "cc_sv": 1.0, "sssp": 1.0, "bc": 1.0,
             }
         }
     
@@ -674,7 +674,10 @@ def _update_legacy_weights(weights: Dict, correct_algo: str, wrong_algo: str,
         # Per-benchmark weight
         benchmark_key = benchmark.lower()
         if 'benchmark_weights' not in algo_weights:
-            algo_weights['benchmark_weights'] = {'pr': 1.0, 'bfs': 1.0, 'cc': 1.0, 'sssp': 1.0, 'bc': 1.0}
+            algo_weights['benchmark_weights'] = {
+                'pr': 1.0, 'pr_spmv': 1.0, 'bfs': 1.0, 'cc': 1.0,
+                'cc_sv': 1.0, 'sssp': 1.0, 'bc': 1.0,
+            }
         
         if benchmark_key in algo_weights['benchmark_weights']:
             current_bw = algo_weights['benchmark_weights'][benchmark_key]

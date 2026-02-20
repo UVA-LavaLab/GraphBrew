@@ -291,7 +291,8 @@ class PerceptronConfig:
     bias_scale: float = 1.0
     normalize_features: bool = True
     benchmark_weights: Dict[str, float] = field(default_factory=lambda: {
-        'pr': 1.0, 'bfs': 1.0, 'cc': 1.0, 'sssp': 0.8, 'bc': 0.5, 'tc': 1.0
+        'pr': 1.0, 'pr_spmv': 1.0, 'bfs': 1.0, 'cc': 1.0,
+        'cc_sv': 1.0, 'sssp': 0.8, 'bc': 0.5,
     })
 
 

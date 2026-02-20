@@ -613,13 +613,27 @@ def _find_mtx_for_graph(graph_dir: str, graph_name: str) -> Optional[str]:
     return None
 
 
+def _save_reorder_time(stdout: str, time_path: str, mappings_dir: str) -> None:
+    """Extract ``Reorder Time:`` values from converter stdout and save to *time_path*.
+
+    Sums all occurrences (for chained orderings with multiple steps).
+    """
+    reorder_times = re.findall(r'Reorder Time:\s*([\d.]+)', stdout)
+    if reorder_times:
+        total = sum(float(t) for t in reorder_times)
+        os.makedirs(mappings_dir, exist_ok=True)
+        with open(time_path, 'w') as tf:
+            tf.write(str(total))
+
+
 def convert_graph_to_sg(
     mtx_path: str,
     sg_path: str,
     order: int = 1,
     bin_dir: str = None,
     timeout: int = 600,
-) -> bool:
+    lo_path: str = None,
+) -> Tuple[bool, str]:
     """Convert a single graph from .mtx to .sg with the given reordering.
 
     Args:
@@ -629,32 +643,35 @@ def convert_graph_to_sg(
                   (default 1 = RANDOM).
         bin_dir:  Directory containing the converter binary.
         timeout:  Timeout in seconds.
+        lo_path:  Optional path for label-order (.lo) output.
 
     Returns:
-        True if conversion succeeded, False otherwise.
+        ``(success, stdout)`` — *success* is True if conversion succeeded.
     """
     bin_dir = bin_dir or str(BIN_DIR)
     converter = os.path.join(bin_dir, "converter")
     if not os.path.isfile(converter):
         log(f"Converter binary not found: {converter}", "ERROR")
-        return False
+        return False, ""
 
     cmd = f"{converter} -f {mtx_path} -s -o {order} -b {sg_path}"
+    if lo_path:
+        cmd += f" -q {lo_path}"
     success, stdout, stderr = run_command(cmd, timeout=timeout)
     if not success:
         log(f"Conversion failed for {mtx_path}: {stderr[:200]}", "ERROR")
         # Remove partial output
         if os.path.isfile(sg_path):
             os.remove(sg_path)
-        return False
+        return False, stdout or ""
 
     if not os.path.isfile(sg_path) or os.path.getsize(sg_path) == 0:
         log(f"Converter produced empty .sg for {mtx_path}", "ERROR")
         if os.path.isfile(sg_path):
             os.remove(sg_path)
-        return False
+        return False, stdout or ""
 
-    return True
+    return True, stdout or ""
 
 
 def convert_graphs_to_sg(
@@ -704,9 +721,28 @@ def convert_graphs_to_sg(
         # Determine output .sg path
         sg_path = os.path.join(entry_path, f"{entry}.sg")
 
+        # Determine mappings directory and baseline .lo/.time paths
+        mappings_dir = os.path.join(
+            os.path.dirname(graphs_dir.rstrip('/')),
+            'mappings', entry)
+        lo_path = os.path.join(mappings_dir, f"{algo_label}.lo")
+        time_path = os.path.join(mappings_dir, f"{algo_label}.time")
+
         # Skip if .sg already exists and force is not set
         if os.path.isfile(sg_path) and os.path.getsize(sg_path) > 0 and not force:
             skipped += 1
+            # Back-fill .time if missing (approximate — re-runs the ordering).
+            # .lo cannot be back-filled because the random permutation is lost.
+            if not os.path.isfile(time_path):
+                converter = os.path.join(bin_dir, "converter")
+                import tempfile
+                with tempfile.NamedTemporaryFile(suffix='.sg', delete=True) as tmp:
+                    backfill_cmd = (
+                        f"{converter} -f {sg_path} -s -o {order} -b {tmp.name}"
+                    )
+                    _bf_ok, bf_stdout, _ = run_command(backfill_cmd, timeout=timeout)
+                    if bf_stdout:
+                        _save_reorder_time(bf_stdout, time_path, mappings_dir)
             continue
 
         # Locate the .mtx source
@@ -714,11 +750,16 @@ def convert_graphs_to_sg(
         if not mtx_path:
             continue  # no .mtx — nothing to convert
 
+        os.makedirs(mappings_dir, exist_ok=True)
         log(f"  Converting {entry} ({algo_label}) ...")
-        if convert_graph_to_sg(mtx_path, sg_path, order=order, bin_dir=bin_dir, timeout=timeout):
+        ok, stdout = convert_graph_to_sg(
+            mtx_path, sg_path, order=order, bin_dir=bin_dir,
+            timeout=timeout, lo_path=lo_path)
+        if ok:
             converted += 1
             sg_size_mb = os.path.getsize(sg_path) / (1024 * 1024)
             log(f"    -> {sg_path} ({sg_size_mb:.1f} MB)")
+            _save_reorder_time(stdout, time_path, mappings_dir)
         else:
             failed += 1
 
@@ -776,69 +817,21 @@ def _iter_algo_variants(
     return result
 
 
-def get_pregenerated_sg_path(graph_dir: str, graph_name: str, algo_id: int,
+def get_pregenerated_lo_path(mappings_dir: str, graph_name: str, algo_id: int,
                              variant: str = None) -> str:
-    """Return the expected path for a pre-generated reordered .sg file.
+    """Return the expected path for a pre-generated reorder mapping (.lo) file.
 
-    Naming convention: ``{graph_name}_{CANONICAL_NAME}.sg``
+    Naming convention: ``results/mappings/{graph_name}/{CANONICAL_NAME}.lo``
 
     For variant algorithms the *variant* suffix is appended automatically::
 
-        algo_id=2             → email-Enron_SORT.sg
-        algo_id=7             → email-Enron_HUBCLUSTERDBG.sg
-        algo_id=8, variant='' → email-Enron_RABBITORDER_csr.sg   (default)
-        algo_id=8, variant='boost' → email-Enron_RABBITORDER_boost.sg
-        algo_id=12, variant='leiden' → email-Enron_GraphBrewOrder_leiden.sg
+        algo_id=2             → mappings/email-Enron/SORT.lo
+        algo_id=7             → mappings/email-Enron/HUBCLUSTERDBG.lo
+        algo_id=8, variant='' → mappings/email-Enron/RABBITORDER_csr.lo  (default)
+        algo_id=12, variant='leiden' → mappings/email-Enron/GraphBrewOrder_leiden.lo
     """
     canonical = canonical_algo_key(algo_id, variant)
-    return os.path.join(graph_dir, f"{graph_name}_{canonical}.sg")
-
-
-def estimate_pregeneration_size(
-    graphs_dir: str,
-    algorithms: List[int] = None,
-    graph_names: List[str] = None,
-) -> Tuple[int, int, bool]:
-    """Estimate disk space needed to pre-generate reordered .sg files.
-
-    Each reordered .sg is approximately the same size as the baseline .sg
-    (vertex/edge counts are preserved; only vertex ordering changes).
-
-    Args:
-        graphs_dir:   Root directory containing graph sub-directories.
-        algorithms:   Reorder algorithm IDs (default: REORDER_ALGORITHMS).
-        graph_names:  Optional list limiting estimation to these graphs.
-
-    Returns:
-        ``(estimated_bytes, available_bytes, fits)`` — *fits* is True when
-        the estimated space does not exceed the free disk space.
-    """
-    algorithms = algorithms or REORDER_ALGORITHMS
-    algo_variants = _iter_algo_variants(algorithms)
-    estimated = 0
-    entries = sorted(os.listdir(graphs_dir)) if os.path.isdir(graphs_dir) else []
-
-    for entry in entries:
-        entry_path = os.path.join(graphs_dir, entry)
-        if not os.path.isdir(entry_path):
-            continue
-        if graph_names and entry not in graph_names:
-            continue
-
-        # Find baseline .sg
-        sg_path = os.path.join(entry_path, f"{entry}.sg")
-        if not os.path.isfile(sg_path):
-            continue
-
-        baseline_size = os.path.getsize(sg_path)
-        # Only count files that don't already exist
-        for _aid, canonical, _opt in algo_variants:
-            pregen = os.path.join(entry_path, f"{entry}_{canonical}.sg")
-            if not os.path.isfile(pregen):
-                estimated += baseline_size
-
-    available = shutil.disk_usage(graphs_dir).free
-    return estimated, available, estimated <= available
+    return os.path.join(mappings_dir, graph_name, f"{canonical}.lo")
 
 
 def pregenerate_reordered_sgs(
@@ -849,28 +842,30 @@ def pregenerate_reordered_sgs(
     graph_names: List[str] = None,
     timeout: int = 600,
 ) -> Tuple[int, int]:
-    """Pre-generate reordered .sg files so benchmarks skip runtime reordering.
+    """Pre-generate reorder mapping (.lo) files for all algorithms.
 
     For every graph that already has a baseline ``.sg`` (typically RANDOM-ordered),
-    this creates ``{graph_name}_{ALGORITHM_NAME}.sg`` for each algorithm in
-    *algorithms*.  At benchmark time the pre-generated file is loaded with
-    ``-o 0`` (ORIGINAL) so no runtime reorder overhead is incurred.
+    this creates ``results/mappings/{graph}/{ALGORITHM}.lo`` for each algorithm in
+    *algorithms*.  At benchmark time the mapping file is loaded with
+    ``-o 13:{mapping.lo}`` (MAP mode) so no runtime reorder overhead is incurred
+    while avoiding the disk cost of full ``.sg`` files.
 
-    Before generating, the function checks whether the estimated storage fits
-    on disk.  If not, it logs a warning and returns ``(0, 0)`` so the caller
-    can fall back to real-time reordering.
+    A ``.time`` file is also written alongside each ``.lo`` to record the wall-
+    clock reorder duration reported by the converter.
 
     Args:
         graphs_dir:   Root directory containing graph sub-directories.
         algorithms:   Reorder algorithm IDs (default: REORDER_ALGORITHMS).
         bin_dir:      Directory containing the ``converter`` binary.
-        force:        If True, regenerate even when the file already exists.
+        force:        If True, regenerate even when the .lo file already exists.
         graph_names:  Optional list limiting generation to these graphs.
         timeout:      Per-conversion timeout in seconds.
 
     Returns:
         ``(generated, skipped)`` counts.
     """
+    import tempfile
+
     algorithms = algorithms or REORDER_ALGORITHMS
     bin_dir = bin_dir or str(BIN_DIR)
     converter = os.path.join(bin_dir, "converter")
@@ -881,25 +876,8 @@ def pregenerate_reordered_sgs(
 
     algo_variants = _iter_algo_variants(algorithms)
     canonical_names = [name for _, name, _ in algo_variants]
-    log_section(f"PRE-GENERATING REORDERED .sg FILES ({len(algo_variants)} targets)")
+    log_section(f"PRE-GENERATING REORDER MAPPINGS (.lo) ({len(algo_variants)} targets)")
     log(f"  Targets: {', '.join(canonical_names)}")
-
-    # ── Disk-space safety check ──────────────────────────────────────
-    est_bytes, avail_bytes, fits = estimate_pregeneration_size(
-        graphs_dir, algorithms, graph_names
-    )
-    est_mb = est_bytes / (1024 * 1024)
-    avail_mb = avail_bytes / (1024 * 1024)
-    log(f"  Estimated additional disk: {est_mb:.1f} MB")
-    log(f"  Available disk space:      {avail_mb:.1f} MB")
-
-    if not fits:
-        log(
-            f"Insufficient disk space ({est_mb:.1f} MB needed, "
-            f"{avail_mb:.1f} MB free). Falling back to real-time reordering.",
-            "WARN",
-        )
-        return 0, 0
 
     # ── Generate ─────────────────────────────────────────────────────
     generated = 0
@@ -919,12 +897,11 @@ def pregenerate_reordered_sgs(
             continue
 
         for _algo_id, canonical, converter_opt in algo_variants:
-            out_path = os.path.join(entry_path, f"{entry}_{canonical}.sg")
-
-            # Determine the .time file path for this ordering.
+            # .lo and .time live in the mappings directory
             mappings_dir = os.path.join(
                 os.path.dirname(graphs_dir.rstrip('/')),
                 'mappings', entry)
+            lo_path = os.path.join(mappings_dir, f"{canonical}.lo")
             time_file = os.path.join(mappings_dir, f"{canonical}.time")
 
             # Build converter flags (chained orderings already have `-o` prefixes).
@@ -933,54 +910,47 @@ def pregenerate_reordered_sgs(
             else:
                 o_flags = f"-o {converter_opt}"
 
-            sg_exists = os.path.isfile(out_path) and os.path.getsize(out_path) > 0
+            lo_exists = os.path.isfile(lo_path) and os.path.getsize(lo_path) > 0
 
-            if sg_exists and not force:
+            if lo_exists and not force:
                 skipped += 1
-                # If .time file is missing, re-run converter to /dev/null to capture timing.
+                # Back-fill .time if missing.
                 if not os.path.isfile(time_file):
-                    timing_cmd = f"{converter} -f {baseline_sg} -s {o_flags} -b /dev/null"
-                    _t_ok, t_stdout, _ = run_command(timing_cmd, timeout=timeout)
-                    if t_stdout:
-                        reorder_times = re.findall(r'Reorder Time:\s*([\d.]+)', t_stdout)
-                        if reorder_times:
-                            total_rt = sum(float(t) for t in reorder_times)
-                            os.makedirs(mappings_dir, exist_ok=True)
-                            with open(time_file, 'w') as tf:
-                                tf.write(str(total_rt))
+                    with tempfile.NamedTemporaryFile(suffix='.sg', delete=True) as tmp:
+                        timing_cmd = f"{converter} -f {baseline_sg} -s {o_flags} -b {tmp.name}"
+                        _t_ok, t_stdout, _ = run_command(timing_cmd, timeout=timeout)
+                        _save_reorder_time(t_stdout or '', time_file, mappings_dir)
                 continue
 
+            os.makedirs(mappings_dir, exist_ok=True)
             log(f"  {entry} → {canonical} ...")
-            cmd = f"{converter} -f {baseline_sg} -s {o_flags} -b {out_path}"
-            success, stdout, stderr = run_command(cmd, timeout=timeout)
+
+            # Converter requires a valid -b output to run; use a tempfile
+            # and discard it — we only need the -q .lo mapping.
+            with tempfile.NamedTemporaryFile(suffix='.sg', delete=True) as tmp:
+                cmd = f"{converter} -f {baseline_sg} -s {o_flags} -b {tmp.name} -q {lo_path}"
+                success, stdout, stderr = run_command(cmd, timeout=timeout)
 
             if not success:
                 log(f"    FAILED: {stderr[:200]}", "ERROR")
-                if os.path.isfile(out_path):
-                    os.remove(out_path)
+                if os.path.isfile(lo_path):
+                    os.remove(lo_path)
                 failed += 1
                 continue
 
-            if not os.path.isfile(out_path) or os.path.getsize(out_path) == 0:
-                log(f"    Converter produced empty output for {entry}/{canonical}", "ERROR")
-                if os.path.isfile(out_path):
-                    os.remove(out_path)
+            if not os.path.isfile(lo_path) or os.path.getsize(lo_path) == 0:
+                log(f"    Converter produced empty .lo for {entry}/{canonical}", "ERROR")
+                if os.path.isfile(lo_path):
+                    os.remove(lo_path)
                 failed += 1
                 continue
 
-            size_mb = os.path.getsize(out_path) / (1024 * 1024)
-            log(f"    -> {out_path} ({size_mb:.1f} MB)")
+            lo_lines = sum(1 for _ in open(lo_path))
+            log(f"    -> {lo_path} ({lo_lines} vertices)")
             generated += 1
 
-            # Extract total reorder time from converter output and save .time file.
-            # This provides w_reorder_time for weight training (especially for chains).
-            # Pattern: "Reorder Time:  0.01234" — sum all occurrences for chained orderings.
-            reorder_times = re.findall(r'Reorder Time:\s*([\d.]+)', stdout or '')
-            if reorder_times:
-                total_reorder_time = sum(float(t) for t in reorder_times)
-                os.makedirs(mappings_dir, exist_ok=True)
-                with open(time_file, 'w') as tf:
-                    tf.write(str(total_reorder_time))
+            # Save reorder time from converter output.
+            _save_reorder_time(stdout or '', time_file, mappings_dir)
 
     log(
         f"Pre-generation complete: {generated} generated, "
@@ -1290,7 +1260,7 @@ def run_experiment(args):
     if args.random_baseline:
         _progress.info("Random baseline: ENABLED (graphs converted to .sg with RANDOM ordering)")
     if args.pregenerate_sg:
-        _progress.info("Pre-generated .sg: ENABLED (reordered graphs cached on disk)")
+        _progress.info("Pre-generated .lo mappings: ENABLED (reorder mappings cached on disk)")
     _progress.phase_end()
     
     # Discover graphs
@@ -1327,8 +1297,8 @@ def run_experiment(args):
             graph_names=graph_name_filter,
         )
     
-    # Pre-generate reordered .sg files: create {graph}_{ALGO}.sg from the
-    # RANDOM baseline so benchmarks can load the pre-ordered graph with -o 0
+    # Pre-generate reorder mapping (.lo) files: create {ALGO}.lo from the
+    # RANDOM baseline so benchmarks can use MAP mode (-o 13:mapping.lo)
     # and skip runtime reorder overhead entirely.
     pregenerated_available = False
     if getattr(args, 'pregenerate_sg', True):
@@ -1342,11 +1312,11 @@ def run_experiment(args):
         pregenerated_available = (gen_count + skip_count) > 0
         if pregenerated_available:
             _progress.info(
-                f"Pre-generated .sg files ready ({gen_count} new, "
-                f"{skip_count} cached) — benchmarks will skip runtime reordering"
+                f"Pre-generated .lo mappings ready ({gen_count} new, "
+                f"{skip_count} cached) — benchmarks will use MAP mode"
             )
         else:
-            _progress.info("Pre-generated .sg files: unavailable — using real-time reordering")
+            _progress.info("Pre-generated .lo mappings: unavailable — using real-time reordering")
     
     graphs = discover_graphs(args.graphs_dir, min_size, max_size, max_memory_gb=args.max_memory,
                              min_edges=args.min_edges)
@@ -2238,11 +2208,10 @@ def main():
     
     # Pre-generated reordered .sg files
     parser.add_argument("--pregenerate-sg", action="store_true", default=True,
-                        help="Pre-generate reordered .sg files for each algorithm so "
-                             "benchmarks skip runtime reordering (default: enabled). "
-                             "Falls back to real-time reordering if disk space is insufficient.")
+                        help="Pre-generate reorder mapping (.lo) files for each algorithm so "
+                             "benchmarks use MAP mode instead of runtime reordering (default: enabled).")
     parser.add_argument("--no-pregenerate-sg", action="store_false", dest="pregenerate_sg",
-                        help="Disable pre-generation of reordered .sg files "
+                        help="Disable pre-generation of .lo mapping files "
                              "(use real-time reordering during benchmarks)")
     
     # Resource limits
