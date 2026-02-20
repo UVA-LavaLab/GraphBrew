@@ -187,6 +187,14 @@ CACHE_KEY_BENCHMARKS = ["pr", "bfs"]
 # Feature extraction timeout (quick PR run, not a full benchmark)
 TIMEOUT_FEATURE_EXTRACTION = 60
 
+# Size category → (min_mb, max_mb) mapping for graph discovery
+_SIZE_RANGES = {
+    "all":    (0, float('inf')),
+    "small":  (0, SIZE_SMALL),
+    "medium": (SIZE_SMALL, SIZE_MEDIUM),
+    "large":  (SIZE_MEDIUM, SIZE_LARGE),
+}
+
 # Feature patterns parsed from C++ topology output (hoisted to module level)
 _FEATURE_PATTERNS = [
     # (regex_label, feature_key, default_value)
@@ -855,12 +863,6 @@ def run_experiment(args):
     _progress.phase_start("GRAPH DISCOVERY", "Finding available graph datasets")
     
     # Determine size range
-    _SIZE_RANGES = {
-        "all":    (0, float('inf')),
-        "small":  (0, SIZE_SMALL),
-        "medium": (SIZE_SMALL, SIZE_MEDIUM),
-        "large":  (SIZE_MEDIUM, SIZE_LARGE),
-    }
     if args.min_size > 0 or args.max_size < float('inf'):
         min_size, max_size = args.min_size, args.max_size
     else:
@@ -1348,8 +1350,8 @@ def run_experiment(args):
         props_cache = load_graph_properties_cache(cache_dir)
         log(f"Loaded graph properties cache: {len(props_cache)} graphs")
         
-        # Respect --skip-cache flag (previously forced to False)
-        skip_cache_original = getattr(args, 'skip_cache', False)
+        # Respect --skip-cache flag
+        skip_cache_original = args.skip_cache
         
         # Phase 0: Graph Analysis - Run AdaptiveOrder to detect graph types
         log_section("Phase 0: Graph Property Analysis")
@@ -1413,7 +1415,7 @@ def run_experiment(args):
                 benchmarks=CACHE_KEY_BENCHMARKS,
                 bin_sim_dir=args.bin_sim_dir,
                 timeout=args.timeout_sim,
-                skip_heavy=getattr(args, 'skip_heavy', True),
+                skip_heavy=args.skip_heavy,
                 label_maps={},
                 rabbit_variants=rabbit_variants if expand_variants else ['csr']
             )
@@ -1457,6 +1459,8 @@ def run_experiment(args):
             cmd = f"{binary} -f {graph_path} -a 0 -n 1"
             try:
                 success, stdout, stderr = run_command(cmd, timeout=TIMEOUT_FEATURE_EXTRACTION)
+                if not success:
+                    log(f"  {graph_name}: feature extraction command failed", "WARN")
                 output = stdout + stderr
                 
                 # Parse all topology features from C++ output
@@ -1465,8 +1469,8 @@ def run_experiment(args):
                     m = re.search(pattern, output)
                     parsed[key] = float(m.group(1)) if m else default
                 
-                graph_nodes = getattr(graph_info, 'nodes', 0)
-                graph_edges = getattr(graph_info, 'edges', 0)
+                graph_nodes = graph_info.nodes
+                graph_edges = graph_info.edges
                 
                 # Assign to type
                 features = {
@@ -1556,9 +1560,6 @@ def run_experiment(args):
                 cache_results=cache_results,
                 reorder_results=reorder_results
             )
-        
-        # Restore original skip_cache setting
-        args.skip_cache = skip_cache_original
         
         log_section("Fill Weights Complete")
         log("All weight fields have been populated")
@@ -1885,8 +1886,8 @@ def main():
     parser.add_argument("--use-merged", action="store_true",
                         help="Use merged weights (default after merge)")
     
-    parser.add_argument("--weights-file", default=os.path.join(DEFAULT_WEIGHTS_DIR, "perceptron_weights.json"),
-                        help="Path to flat weights file (default: results/weights/perceptron_weights.json)")
+    parser.add_argument("--weights-file", default=os.path.join(DEFAULT_WEIGHTS_DIR, "weights.json"),
+                        help="Path to weights file (default: results/weights/weights.json)")
     
     # Clean options
     parser.add_argument("--clean", action="store_true",
@@ -1911,8 +1912,8 @@ def main():
                         help="[eval-weights] Only use .sg benchmark data for training")
     parser.add_argument("--benchmark-file", default=None,
                         help="[eval-weights] Load a specific benchmark JSON file")
-    parser.add_argument("--timeout", type=int, default=300,
-                        help="[benchmark-fresh/ab-test] Timeout per benchmark invocation in seconds (default: 300)")
+    parser.add_argument("--timeout", type=int, default=TIMEOUT_BENCHMARK,
+                        help=f"[benchmark-fresh/ab-test] Timeout per benchmark invocation in seconds (default: {TIMEOUT_BENCHMARK})")
 
     # ── Tools (moved from standalone scripts) ────────────────────────
     parser.add_argument("--emulator", action="store_true",
@@ -2143,7 +2144,7 @@ def main():
         # 3. Download ALL requested graphs FIRST (before any experiments)
         # This ensures all graphs are ready before we start reordering/benchmarks
         log("Downloading graphs (ensuring all are ready before experiments)...")
-        downloaded = download_graphs(
+        download_graphs(
             size_category=args.download_size,
             graphs_dir=args.graphs_dir,
             force=False,  # Don't re-download existing
@@ -2178,7 +2179,7 @@ def main():
             graphs_dir=args.graphs_dir,
             graph_names=graph_list,
             trials=args.trials,
-            timeout=getattr(args, 'timeout', 300),
+            timeout=args.timeout,
         )
         return
 
@@ -2189,7 +2190,7 @@ def main():
             graphs_dir=args.graphs_dir,
             graph_names=graph_list,
             trials=args.trials,
-            timeout=getattr(args, 'timeout', 300),
+            timeout=args.timeout,
         )
         return
 

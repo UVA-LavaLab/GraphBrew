@@ -9,11 +9,15 @@ Usage:
     python3 -m scripts.lib.regen_features
 """
 import json, os, re, subprocess, sys, glob
+from datetime import datetime
 
-ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-GRAPHS_DIR = os.path.join(ROOT, "results", "graphs")
-BINARY = os.path.join(ROOT, "bench", "bin", "pr")
-CACHE_PATH = os.path.join(ROOT, "results", "graph_properties_cache.json")
+from .utils import GRAPHS_DIR as _GRAPHS_DIR, BIN_DIR, RESULTS_DIR, Logger
+
+GRAPHS_DIR = str(_GRAPHS_DIR)
+BINARY = str(BIN_DIR / "pr")
+CACHE_PATH = str(RESULTS_DIR / "graph_properties_cache.json")
+
+log = Logger()
 
 # Regex patterns matching C++ PrintTime output
 PATTERNS = {
@@ -49,7 +53,7 @@ def parse_features(output: str) -> dict:
 
 def main():
     if not os.path.isfile(BINARY):
-        print(f"Binary not found: {BINARY}"); sys.exit(1)
+        log(f"Binary not found: {BINARY}", "ERROR"); sys.exit(1)
 
     # Load cache
     cache = {}
@@ -58,16 +62,16 @@ def main():
             cache = json.load(f)
 
     sg_files = sorted(glob.glob(os.path.join(GRAPHS_DIR, "*", "*.sg")))
-    print(f"Found {len(sg_files)} .sg files")
+    log(f"Found {len(sg_files)} .sg files")
 
     updated = 0
     for sg_path in sg_files:
         graph_dir = os.path.dirname(sg_path)
         graph_name = os.path.basename(graph_dir)
         
-        print(f"\n{'='*60}")
-        print(f"Processing: {graph_name}")
-        print(f"  .sg file: {sg_path}")
+        log(f"\n{'='*60}")
+        log(f"Processing: {graph_name}")
+        log(f"  .sg file: {sg_path}")
         
         # Run C++ binary in analysis mode
         cmd = [BINARY, "-f", sg_path, "-a", "0", "-n", "1"]
@@ -75,16 +79,16 @@ def main():
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
             output = result.stdout + result.stderr
         except subprocess.TimeoutExpired:
-            print("  TIMEOUT — skipping")
+            log("  TIMEOUT — skipping", "WARN")
             continue
         except Exception as e:
-            print(f"  ERROR: {e}")
+            log(f"  ERROR: {e}", "ERROR")
             continue
 
         features = parse_features(output)
         if not features:
-            print("  No features parsed from output!")
-            print(f"  stdout: {result.stdout[:200]}")
+            log("  No features parsed from output!", "WARN")
+            log(f"  stdout: {result.stdout[:200]}")
             continue
 
         # Load existing features.json
@@ -101,10 +105,9 @@ def main():
             changed = ""
             if isinstance(old_val, (int, float)) and isinstance(new_val, (int, float)) and abs(old_val - new_val) > 0.001:
                 changed = " ← CHANGED"
-            print(f"  {key:30s} old={old_val!s:>12s}  new={new_val!s:>12s}{changed}")
+            log(f"  {key:30s} old={old_val!s:>12s}  new={new_val!s:>12s}{changed}")
 
         # Merge new features into old (update all float fields)
-        from datetime import datetime
         merged = dict(old_features)
         merged.update(features)
         merged["graph_name"] = graph_name
@@ -126,9 +129,9 @@ def main():
     with open(CACHE_PATH, "w") as f:
         json.dump(cache, f, indent=2)
 
-    print(f"\n{'='*60}")
-    print(f"Updated {updated}/{len(sg_files)} graphs")
-    print(f"Cache saved with {len(cache)} entries")
+    log(f"\n{'='*60}")
+    log(f"Updated {updated}/{len(sg_files)} graphs")
+    log(f"Cache saved with {len(cache)} entries")
 
 if __name__ == "__main__":
     main()

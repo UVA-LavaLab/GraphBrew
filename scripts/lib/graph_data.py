@@ -53,7 +53,7 @@ from typing import Dict, List, Optional
 import csv
 
 from .utils import (
-    RESULTS_DIR, Logger, get_timestamp,
+    RESULTS_DIR, GRAPHS_DIR as _GRAPHS_DIR, Logger, get_timestamp,
 )
 
 # Initialize logger
@@ -63,8 +63,8 @@ log = Logger()
 # Constants
 # =============================================================================
 
-# Static graph features go here (topology data)
-GRAPH_DATA_DIR = os.path.join(RESULTS_DIR, "graphs")
+# Static graph features go here (topology data) — derived from SSOT
+GRAPH_DATA_DIR = str(_GRAPHS_DIR)
 
 # Run-specific data and logs go here
 LOGS_DIR = os.path.join(RESULTS_DIR, "logs")

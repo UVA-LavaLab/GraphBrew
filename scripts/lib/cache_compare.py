@@ -16,7 +16,8 @@ Outputs:
 - Modularity (if available)
 
 Usage:
-    python scripts/quick_cache_compare.py
+    python -m scripts.lib.cache_compare
+    python scripts/graphbrew_experiment.py --cache-compare
 
 Prerequisites:
     - Cache simulation binaries built: make sim

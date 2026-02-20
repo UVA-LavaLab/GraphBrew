@@ -15,6 +15,6 @@ numpy>=1.20.0
 
 # Optional: For extended analysis and visualization (uncomment if needed)
 # pandas>=1.3.0        # For data manipulation  
-# matplotlib>=3.4.0    # For plotting results
+matplotlib>=3.4.0      # Required by scripts/lib/figures.py
 # scipy>=1.7.0         # For correlation analysis
 # seaborn>=0.11.0

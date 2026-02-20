@@ -8,7 +8,7 @@
 set -o pipefail
 
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"
-TIMEOUT="${1:-300}"  # Default 5min timeout per run
+TIMEOUT="${1:-600}"  # Default 10min timeout per run (matches TIMEOUT_BENCHMARK)
 TRIALS=3
 TIMESTAMP="$(date +%Y%m%d_%H%M%S)"
 OUTFILE="${REPO}/results/gorder_benchmark_${TIMESTAMP}.csv"

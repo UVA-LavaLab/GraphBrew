@@ -254,7 +254,7 @@ def build_binaries(
             return False, f"Build failed: {error_msg}"
         
         if verbose and result.stdout:
-            print(result.stdout[-2000:])
+            log(result.stdout[-2000:])
         
         # Verify binaries were created
         all_exist, found, missing = check_binaries(sim=sim)

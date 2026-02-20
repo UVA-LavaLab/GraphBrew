@@ -816,7 +816,7 @@ def run_training_phase(
     """
     config.progress.phase_start("TRAINING", "Training adaptive weights")
     
-    weights_file = weights_file or os.path.join(config.weights_dir, "perceptron_weights.json")
+    weights_file = weights_file or os.path.join(config.weights_dir, "weights.json")
     
     result = train_adaptive_weights_iterative(
         graphs=graphs,
@@ -860,7 +860,7 @@ def run_large_scale_training_phase(
     """
     config.progress.phase_start("LARGE-SCALE TRAINING", "Batched training on large graphs")
     
-    weights_file = weights_file or os.path.join(config.weights_dir, "perceptron_weights.json")
+    weights_file = weights_file or os.path.join(config.weights_dir, "weights.json")
     
     result = train_adaptive_weights_large_scale(
         graphs=graphs,
@@ -1068,8 +1068,9 @@ def main():
                         default='all', help='Phase to run')
     args = parser.parse_args()
     
-    print("Phase orchestration module loaded successfully")
-    print("Available phases: reorder, benchmark, cache, weights, adaptive, comparison, brute_force, training")
+    log = Logger()
+    log("Phase orchestration module loaded successfully")
+    log("Available phases: reorder, benchmark, cache, weights, adaptive, comparison, brute_force, training")
 
 
 if __name__ == "__main__":
