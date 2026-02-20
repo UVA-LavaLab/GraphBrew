@@ -540,7 +540,7 @@ class TestVariantRegistrySSOT:
 
 
 class TestChainedOrderingExclusion:
-    """Chained orderings are analysis-only and must not enter weight training."""
+    """Chained orderings are included in weight training alongside single orderings."""
 
     def test_chain_separator_constant(self):
         """CHAIN_SEPARATOR should be '+'."""
@@ -559,22 +559,14 @@ class TestChainedOrderingExclusion:
         for canonical, _opts in CHAINED_ORDERINGS:
             assert CHAIN_SEPARATOR in canonical, f"{canonical} missing separator"
 
-    def test_variant_names_exclude_chains(self):
-        """get_all_algorithm_variant_names() must NOT include chained names."""
+    def test_variant_names_include_chains(self):
+        """get_all_algorithm_variant_names() must include chained names."""
         names = get_all_algorithm_variant_names()
-        for name in names:
-            assert not is_chained_ordering_name(name), (
-                f"Chained name '{name}' leaked into variant enumeration"
-            )
-
-    def test_default_weights_exclude_chains(self):
-        """initialize_default_weights() must NOT contain chained keys."""
-        from scripts.lib.weights import initialize_default_weights
-        weights = initialize_default_weights()
-        for key in weights:
-            assert not is_chained_ordering_name(key), (
-                f"Chained name '{key}' in default weights"
-            )
+        chained_names = [n for n in names if is_chained_ordering_name(n)]
+        assert len(chained_names) == len(CHAINED_ORDERINGS), (
+            f"Expected {len(CHAINED_ORDERINGS)} chained names in variant list, "
+            f"got {len(chained_names)}: {chained_names}"
+        )
 
     def test_chain_names_auto_generated(self):
         """CHAINED_ORDERINGS names must be auto-derived from _CHAINED_ORDERING_OPTS."""

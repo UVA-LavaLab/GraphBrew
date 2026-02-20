@@ -142,11 +142,13 @@ SLOW_ALGORITHMS = {9, 10, 11}  # Gorder, Corder, RCM - can be slow on large grap
 #   2. Rebuild nothing — Python auto-discovers it as a pregeneration target.
 # =============================================================================
 #
-# **Architectural note**: Chained orderings are a *pregeneration-only* concept.
-# The C++ AdaptiveOrder perceptron selects ONE algorithm ID (0-15) at runtime
-# — it cannot select "apply SORT then RABBITORDER".  Therefore chained
-# orderings are excluded from perceptron training and weight files.  They
-# exist purely for offline benchmark comparison / analysis.
+# **Architectural note**: Chained orderings are supported both as
+# *pregeneration* targets (converter builds chained .sg files offline) and
+# as *runtime* selections by C++ AdaptiveOrder.  When the perceptron picks
+# a chained ordering (e.g. "SORT+RABBITORDER_csr"), the C++ dispatcher
+# applies each step sequentially with relabeling between steps, mimicking
+# the converter's MakeGraph() loop.  Chained orderings are included in
+# perceptron training and weight files alongside single orderings.
 # =============================================================================
 CHAIN_SEPARATOR = "+"
 """Separator used in chained ordering canonical names (e.g. ``SORT+RABBITORDER_csr``)."""
@@ -389,12 +391,14 @@ def get_all_algorithm_variant_names() -> list[str]:
     """Get all canonical algorithm names including variant-expanded names.
 
     This is the SSOT list of names that appear in weight files and
-    perceptron scoring.  Derived from ALGORITHMS + the variant registry.
+    perceptron scoring.  Derived from ALGORITHMS + the variant registry
+    + chained orderings.
 
     Returns:
         Sorted list of canonical names like:
         ["CORDER", "DBG", ..., "GraphBrewOrder_leiden", "GraphBrewOrder_rabbit",
-         "RABBITORDER_csr", "RABBITORDER_boost", "RCM_default", "RCM_bnf", ...]
+         "RABBITORDER_csr", "RABBITORDER_boost", "RCM_default", "RCM_bnf",
+         "SORT+RABBITORDER_csr", ...]
     """
     names: list[str] = []
     for algo_id, algo_name in ALGORITHMS.items():
@@ -406,6 +410,9 @@ def get_all_algorithm_variant_names() -> list[str]:
                 names.append(f"{prefix}{v}")
         else:
             names.append(algo_name)
+    # Include chained orderings (populated at module load)
+    for canonical, _opts in CHAINED_ORDERINGS:
+        names.append(canonical)
     return sorted(names)
 
 

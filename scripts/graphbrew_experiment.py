@@ -921,17 +921,36 @@ def pregenerate_reordered_sgs(
         for _algo_id, canonical, converter_opt in algo_variants:
             out_path = os.path.join(entry_path, f"{entry}_{canonical}.sg")
 
-            if os.path.isfile(out_path) and os.path.getsize(out_path) > 0 and not force:
-                skipped += 1
-                continue
+            # Determine the .time file path for this ordering.
+            mappings_dir = os.path.join(
+                os.path.dirname(graphs_dir.rstrip('/')),
+                'mappings', entry)
+            time_file = os.path.join(mappings_dir, f"{canonical}.time")
 
-            log(f"  {entry} → {canonical} ...")
-            # Chained orderings already contain `-o` prefixes (e.g. "-o 2 -o 8:csr").
-            # Single orderings are bare (e.g. "8:csr") and need a `-o` prefix.
+            # Build converter flags (chained orderings already have `-o` prefixes).
             if converter_opt.startswith("-o"):
                 o_flags = converter_opt
             else:
                 o_flags = f"-o {converter_opt}"
+
+            sg_exists = os.path.isfile(out_path) and os.path.getsize(out_path) > 0
+
+            if sg_exists and not force:
+                skipped += 1
+                # If .time file is missing, re-run converter to /dev/null to capture timing.
+                if not os.path.isfile(time_file):
+                    timing_cmd = f"{converter} -f {baseline_sg} -s {o_flags} -b /dev/null"
+                    _t_ok, t_stdout, _ = run_command(timing_cmd, timeout=timeout)
+                    if t_stdout:
+                        reorder_times = re.findall(r'Reorder Time:\s*([\d.]+)', t_stdout)
+                        if reorder_times:
+                            total_rt = sum(float(t) for t in reorder_times)
+                            os.makedirs(mappings_dir, exist_ok=True)
+                            with open(time_file, 'w') as tf:
+                                tf.write(str(total_rt))
+                continue
+
+            log(f"  {entry} → {canonical} ...")
             cmd = f"{converter} -f {baseline_sg} -s {o_flags} -b {out_path}"
             success, stdout, stderr = run_command(cmd, timeout=timeout)
 
@@ -952,6 +971,16 @@ def pregenerate_reordered_sgs(
             size_mb = os.path.getsize(out_path) / (1024 * 1024)
             log(f"    -> {out_path} ({size_mb:.1f} MB)")
             generated += 1
+
+            # Extract total reorder time from converter output and save .time file.
+            # This provides w_reorder_time for weight training (especially for chains).
+            # Pattern: "Reorder Time:  0.01234" — sum all occurrences for chained orderings.
+            reorder_times = re.findall(r'Reorder Time:\s*([\d.]+)', stdout or '')
+            if reorder_times:
+                total_reorder_time = sum(float(t) for t in reorder_times)
+                os.makedirs(mappings_dir, exist_ok=True)
+                with open(time_file, 'w') as tf:
+                    tf.write(str(total_reorder_time))
 
     log(
         f"Pre-generation complete: {generated} generated, "

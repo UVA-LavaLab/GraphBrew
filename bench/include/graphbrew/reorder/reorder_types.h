@@ -1308,8 +1308,15 @@ struct PerceptronSelection {
     std::vector<std::string> options;     ///< Variant options for dispatch (e.g. {"leiden"})
     double score = 0.0;                   ///< Winning score
 
+    /// Chained ordering steps (e.g. SORT+RABBITORDER_csr → 2 steps).
+    /// Empty for single-algorithm selections.
+    std::vector<PerceptronSelection> chain;
+
     /// True if the selection is ORIGINAL (no reordering)
-    bool isOriginal() const { return algo == ORIGINAL; }
+    bool isOriginal() const { return algo == ORIGINAL && chain.empty(); }
+
+    /// True if this is a chained (multi-step) ordering
+    bool isChained() const { return !chain.empty(); }
 };
 
 /**
@@ -1339,6 +1346,10 @@ inline std::vector<std::string> splitString(
  *   "GraphBrewOrder_leiden_dfs"  → options = {"leiden", "dfs"}
  *   "GraphBrewOrder_rabbit_dbg" → options = {"rabbit", "dbg"}
  *
+ * Chained orderings (containing '+') are split into sequential steps:
+ *   "SORT+RABBITORDER_csr" → chain = [ResolveVariantSelection("SORT"),
+ *                                      ResolveVariantSelection("RABBITORDER_csr")]
+ *
  * Non-variant algorithms use case-insensitive lookup in the base map.
  *
  * @param variant_name Canonical name from weight file
@@ -1350,6 +1361,22 @@ inline PerceptronSelection ResolveVariantSelection(
     
     PerceptronSelection sel;
     sel.score = score;
+    
+    // Chained orderings: "SORT+RABBITORDER_csr" → split on '+' and resolve each step
+    if (variant_name.find('+') != std::string::npos) {
+        auto steps = splitString(variant_name, '+');
+        if (steps.size() >= 2) {
+            sel.variant_name = variant_name;
+            // Use first step's algo as the base (for legacy callers)
+            auto first = ResolveVariantSelection(steps[0], score);
+            sel.algo = first.algo;
+            sel.options = first.options;
+            for (const auto& step : steps) {
+                sel.chain.push_back(ResolveVariantSelection(step, score));
+            }
+            return sel;
+        }
+    }
     
     // GraphBrewOrder variants: GraphBrewOrder_{leiden[_dfs][_dbg]...}
     if (variant_name.rfind("GraphBrewOrder_", 0) == 0) {
