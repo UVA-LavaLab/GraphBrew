@@ -137,12 +137,15 @@ except ImportError:
 
 # Import algorithm definitions and constants from utils.py (Single Source of Truth)
 from scripts.lib.utils import (
-    ALGORITHMS, ELIGIBLE_ALGORITHMS,
+    ALGORITHMS, ALGORITHM_IDS, ELIGIBLE_ALGORITHMS,
     RESULTS_DIR, GRAPHS_DIR, BIN_DIR, BIN_SIM_DIR, WEIGHTS_DIR,
     SIZE_SMALL, SIZE_MEDIUM, SIZE_LARGE,
     LEIDEN_DEFAULT_RESOLUTION,
     LEIDEN_DEFAULT_PASSES,
-    TIMEOUT_REORDER, TIMEOUT_BENCHMARK, TIMEOUT_SIM,
+    TIMEOUT_BUILD, TIMEOUT_REORDER, TIMEOUT_BENCHMARK, TIMEOUT_SIM,
+    DISPLAY_TO_CANONICAL,
+    _VARIANT_ALGO_REGISTRY, GORDER_VARIANTS,
+    is_variant_prefixed,
     run_command,
     get_graph_dimensions,
 )
@@ -151,7 +154,12 @@ from scripts.lib.utils import (
 BENCHMARK_ALGORITHMS = ELIGIBLE_ALGORITHMS
 
 # Subset of key algorithms for quick testing
-KEY_ALGORITHMS = [0, 1, 7, 8, 9, 11, 12, 15]
+KEY_ALGORITHMS = [
+    ALGORITHM_IDS["ORIGINAL"], ALGORITHM_IDS["RANDOM"],
+    ALGORITHM_IDS["HUBCLUSTERDBG"], ALGORITHM_IDS["RABBITORDER"],
+    ALGORITHM_IDS["GORDER"], ALGORITHM_IDS["RCM"],
+    ALGORITHM_IDS["GraphBrewOrder"], ALGORITHM_IDS["LeidenOrder"],
+]
 assert all(a in ALGORITHMS for a in KEY_ALGORITHMS), "KEY_ALGORITHMS contains unknown IDs"
 
 # ============================================================================
@@ -199,6 +207,9 @@ from scripts.lib.training import (
     initialize_enhanced_weights,
 )
 from scripts.lib.weights import compute_weights_from_results, update_zero_weights
+from scripts.lib.metrics import compute_amortization, format_amortization_table
+from scripts.lib.graph_data import set_session_id
+from scripts.lib.weight_merger import auto_merge_after_run
 
 
 # Global progress tracker instance
@@ -225,6 +236,19 @@ def log(msg: str, level: str = "INFO"):
 def log_section(title: str):
     """Print a section header."""
     _progress.phase_start(title)
+
+def _print_amortization_report(benchmark_results, reorder_results, max_rows: int = 25):
+    """Print amortization report if data is available."""
+    if not benchmark_results or not reorder_results:
+        return
+    try:
+        bench_dicts = [asdict(r) for r in benchmark_results]
+        reorder_dicts = [asdict(r) for r in reorder_results]
+        report = compute_amortization(bench_dicts, reorder_dicts)
+        if report.entries:
+            log("\n" + format_amortization_table(report, max_rows=max_rows))
+    except Exception as e:
+        log(f"  Note: Amortization report skipped: {e}")
 
 def get_graph_path(graphs_dir: str, graph_name: str) -> Optional[str]:
     """Get the path to a graph file."""
@@ -552,7 +576,7 @@ def ensure_prerequisites(project_dir: str = ".",
     bin_dir = os.path.join(project_dir, "bench", "bin")
     bin_sim_dir = os.path.join(project_dir, "bench", "bin_sim")
     
-    required_bins = list(BENCHMARKS)
+    required_bins = BENCHMARKS
     
     # Check standard binaries
     missing_bins = []
@@ -578,7 +602,7 @@ def ensure_prerequisites(project_dir: str = ".",
         if missing_bins or rebuild:
             log(f"  Building standard binaries: {', '.join(missing_bins) if missing_bins else 'all (rebuild requested)'}...")
             cmd = f"cd {project_dir} && make clean && make -j$(nproc)" if rebuild else f"cd {project_dir} && make -j$(nproc)"
-            success_build, stdout, stderr = run_command(cmd, timeout=600)
+            success_build, stdout, stderr = run_command(cmd, timeout=TIMEOUT_BUILD)
             if not success_build:
                 log(f"  Build failed: {stderr[:200]}", "ERROR")
                 success = False
@@ -588,7 +612,7 @@ def ensure_prerequisites(project_dir: str = ".",
         if missing_sim or rebuild:
             log(f"  Building simulation binaries: {', '.join(missing_sim) if missing_sim else 'all (rebuild requested)'}...")
             cmd = f"cd {project_dir} && make clean-sim && make all-sim -j$(nproc)" if rebuild else f"cd {project_dir} && make all-sim -j$(nproc)"
-            success_build, stdout, stderr = run_command(cmd, timeout=600)
+            success_build, stdout, stderr = run_command(cmd, timeout=TIMEOUT_BUILD)
             if not success_build:
                 log(f"  Simulation build failed: {stderr[:200]}", "ERROR")
                 success = False
@@ -624,73 +648,8 @@ def ensure_prerequisites(project_dir: str = ".",
     return success
 
 
-def check_and_build_binaries(project_dir: str = ".") -> bool:
-    """Check if binaries exist, build if necessary.
-    
-    Returns:
-        True if binaries are ready, False otherwise
-    """
-    print("\n" + "="*60)
-    print("BUILD CHECK")
-    print("="*60)
-    
-    # Check for required binaries
-    bin_dir = os.path.join(project_dir, "bench", "bin")
-    bin_sim_dir = os.path.join(project_dir, "bench", "bin_sim")
-    
-    required_bins = list(BENCHMARKS)
-    
-    # Check standard binaries
-    missing_bins = []
-    for binary in required_bins:
-        bin_path = os.path.join(bin_dir, binary)
-        if not os.path.exists(bin_path):
-            missing_bins.append(binary)
-    
-    # Check simulation binaries
-    missing_sim = []
-    for binary in required_bins:
-        sim_path = os.path.join(bin_sim_dir, binary)
-        if not os.path.exists(sim_path):
-            missing_sim.append(binary)
-    
-    if not missing_bins and not missing_sim:
-        print("All binaries present - build OK")
-        return True
-    
-    if missing_bins:
-        print(f"Missing standard binaries: {', '.join(missing_bins)}")
-    if missing_sim:
-        print(f"Missing simulation binaries: {', '.join(missing_sim)}")
-    
-    # Try to build
-    makefile = os.path.join(project_dir, "Makefile")
-    if not os.path.exists(makefile):
-        print("Error: Makefile not found - cannot build")
-        return False
-    
-    print("\nBuilding binaries...")
-    
-    # Build standard binaries
-    if missing_bins:
-        print("  Building standard binaries...")
-        success, stdout, stderr = run_command(f"cd {project_dir} && make -j$(nproc)", timeout=600)
-        if not success:
-            print(f"  Build failed: {stderr}")
-            return False
-        print("  Standard binaries built successfully")
-    
-    # Build simulation binaries
-    if missing_sim:
-        print("  Building simulation binaries...")
-        success, stdout, stderr = run_command(f"cd {project_dir} && make all-sim -j$(nproc)", timeout=600)
-        if not success:
-            print(f"  Simulation build failed: {stderr}")
-            return False
-        print("  Simulation binaries built successfully")
-    
-    print("Build complete")
-    return True
+# check_and_build_binaries was removed — use ensure_prerequisites() instead.
+# It was a strict subset of ensure_prerequisites() doing the same binary checks.
 
 def clean_results(results_dir: str = DEFAULT_RESULTS_DIR, keep_graphs: bool = True) -> None:
     """Clean the results directory, optionally keeping graphs.
@@ -857,7 +816,6 @@ def run_experiment(args):
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     
     # Initialize session for log grouping
-    from scripts.lib.graph_data import set_session_id
     session_id = set_session_id(timestamp)
     
     # Show experiment banner
@@ -898,7 +856,7 @@ def run_experiment(args):
     
     _progress.info(f"Size filter: {min_size:.1f}MB - {max_size:.1f}MB")
     
-    # Auto-download: ensure all graphs for the size category are downloaded first
+    # Auto-download: ensure graphs are available (skips already-downloaded, safe to call multiple times)
     if args.auto and not getattr(args, 'skip_download', False):
         _progress.info(f"Auto-download: ensuring all {args.download_size} graphs are available...")
         download_graphs(
@@ -967,18 +925,19 @@ def run_experiment(args):
     if algo_filter_names:
         # Build reverse mapping from name to id (auto-generated from SSOT)
         name_to_id = {v.upper(): k for k, v in ALGORITHMS.items()}
-        # Add variant names → base algo IDs (auto-generated from registry)
-        from scripts.lib.utils import _VARIANT_ALGO_REGISTRY, GORDER_VARIANTS
+        # Add variant names → base algo IDs (from SSOT registry)
         for aid, (pfx, variants, _) in _VARIANT_ALGO_REGISTRY.items():
             for v in variants:
                 name_to_id[f"{pfx}{v}".upper()] = aid
         # Add GOrder implementation variant names (not in registry, share weight)
         for v in GORDER_VARIANTS:
             name_to_id[f"GORDER_{v}".upper()] = 9
-        # Common shorthand aliases
+        # Common shorthand aliases (use ALGORITHM_IDS from SSOT)
         name_to_id.update({
-            "RABBIT": 8, "LEIDEN": 15, "LEIDENORDER": 15,
-            "GRAPHBREW": 12,
+            "RABBIT": ALGORITHM_IDS["RABBITORDER"],
+            "LEIDEN": ALGORITHM_IDS["LeidenOrder"],
+            "LEIDENORDER": ALGORITHM_IDS["LeidenOrder"],
+            "GRAPHBREW": ALGORITHM_IDS["GraphBrewOrder"],
         })
         
         filtered_algos = set()
@@ -1135,13 +1094,14 @@ def run_experiment(args):
         
         _progress.phase_end(f"Generated {len(reorder_results)} reorderings")
     
+    # Pre-compute variant map detection once (used by Phase 2 & 3)
+    has_variant_maps = (label_maps and
+                       any(is_variant_prefixed(algo_name)
+                           for g in label_maps.values() for algo_name in g.keys()))
+    
     # Phase 2: Benchmarks
     if args.phase in ["all", "benchmark"]:
         _progress.phase_start("BENCHMARKING", "Running performance benchmarks")
-        
-        # Check if we have variant-expanded label maps
-        has_variant_maps = (label_maps and 
-                           any('_' in algo_name for g in label_maps.values() for algo_name in g.keys()))
         
         if has_variant_maps and getattr(args, "expand_variants", False):
             # Use variant-aware benchmarking with pre-generated variant mappings
@@ -1193,24 +1153,11 @@ def run_experiment(args):
         _progress.phase_end(f"Completed {len(benchmark_results)} benchmark runs")
         
         # Amortization report (auto-generated after benchmarking)
-        if benchmark_results and all_reorder_results:
-            try:
-                from scripts.lib.metrics import compute_amortization, format_amortization_table
-                _bench_dicts = [asdict(r) for r in benchmark_results]
-                _reorder_dicts = [asdict(r) for r in all_reorder_results]
-                _amort_report = compute_amortization(_bench_dicts, _reorder_dicts)
-                if _amort_report.entries:
-                    log("\n" + format_amortization_table(_amort_report, max_rows=25))
-            except Exception as e:
-                log(f"  Note: Amortization report skipped: {e}")
+        _print_amortization_report(benchmark_results, all_reorder_results)
     
     # Phase 3: Cache Simulations
     if args.phase in ["all", "cache"] and not args.skip_cache:
         _progress.phase_start("CACHE SIMULATION", "Running cache miss simulations")
-        
-        # Check if we have variant-expanded label maps
-        has_variant_maps = (label_maps and 
-                           any('_' in algo_name for g in label_maps.values() for algo_name in g.keys()))
         
         if has_variant_maps and getattr(args, "expand_variants", False):
             # Use variant-aware cache simulation
@@ -1253,18 +1200,6 @@ def run_experiment(args):
             json.dump([asdict(r) for r in cache_results], f, indent=2)
         log(f"Cache results saved to: {cache_file}")
     
-    # Phase 5: Fill Weights (only when --train is specified)
-    if getattr(args, "fill_weights", False) and all_benchmark_results:
-        _progress.phase_start("FILL WEIGHTS", "Updating weights with correlation analysis")
-        update_zero_weights(
-            weights_file=args.weights_file,
-            benchmark_results=all_benchmark_results,
-            cache_results=all_cache_results,
-            reorder_results=all_reorder_results,
-            graphs_dir=args.graphs_dir
-        )
-        _progress.phase_end("Weights updated with correlation analysis")
-    
     # Phase 6: Adaptive Order Analysis
     if args.phase in ["all", "adaptive"] or getattr(args, "adaptive_analysis", False):
         log_section("Running Adaptive Order Analysis")
@@ -1293,7 +1228,11 @@ def run_experiment(args):
     # Phase 7: Adaptive vs Fixed Comparison
     if getattr(args, "adaptive_comparison", False):
         # Compare against top fixed algorithms
-        fixed_algos = [1, 2, 4, 7, 15]  # RANDOM, SORT, HUBCLUSTER, HUBCLUSTERDBG, LeidenOrder
+        fixed_algos = [
+            ALGORITHM_IDS["RANDOM"], ALGORITHM_IDS["SORT"],
+            ALGORITHM_IDS["HUBCLUSTER"], ALGORITHM_IDS["HUBCLUSTERDBG"],
+            ALGORITHM_IDS["LeidenOrder"],
+        ]
         
         compare_adaptive_vs_fixed(
             graphs=graphs,
@@ -1428,7 +1367,7 @@ def run_experiment(args):
         
         # Phase 2: Benchmarks (all of them)
         log_section("Phase 2: Execution Benchmarks (All)")
-        all_benchmarks = list(BENCHMARKS)
+        all_benchmarks = BENCHMARKS
         benchmark_results = run_benchmarks_multi_graph(
             graphs=graphs,
             algorithms=algorithms,
@@ -1443,16 +1382,7 @@ def run_experiment(args):
         )
         
         # Amortization report after fill-weights benchmarks
-        if benchmark_results and reorder_results:
-            try:
-                from scripts.lib.metrics import compute_amortization, format_amortization_table
-                _bench_dicts = [asdict(r) for r in benchmark_results]
-                _reorder_dicts = [asdict(r) for r in reorder_results]
-                _amort_report = compute_amortization(_bench_dicts, _reorder_dicts)
-                if _amort_report.entries:
-                    log("\n" + format_amortization_table(_amort_report, max_rows=25))
-            except Exception as e:
-                log(f"  Note: Amortization report skipped: {e}")
+        _print_amortization_report(benchmark_results, reorder_results)
         
         # Phase 3: Cache Simulation
         log_section("Phase 3: Cache Simulation")
@@ -1517,29 +1447,24 @@ def run_experiment(args):
                 output = stdout + stderr
                 
                 # Parse all topology features from C++ output
-                dv_match = re.search(r'Degree Variance:\s*([\d.]+)', output)
-                hc_match = re.search(r'Hub Concentration:\s*([\d.]+)', output)
-                ad_match = re.search(r'Avg Degree:\s*([\d.]+)', output)
-                cc_match = re.search(r'Clustering Coefficient:\s*([\d.]+)', output)
-                apl_match = re.search(r'Avg Path Length:\s*([\d.]+)', output)
-                diam_match = re.search(r'Diameter Estimate:\s*([\d.]+)', output)
-                comm_match = re.search(r'Community Count Estimate:\s*([\d.]+)', output)
-                pf_match = re.search(r'Packing Factor:\s*([\d.]+)', output)
-                fef_match = re.search(r'Forward Edge Fraction:\s*([\d.]+)', output)
-                wsr_match = re.search(r'Working Set Ratio:\s*([\d.]+)', output)
-                density_match = re.search(r'Graph Density:\s*([\d.eE+-]+)', output)
-                
-                degree_variance = float(dv_match.group(1)) if dv_match else 1.0
-                hub_concentration = float(hc_match.group(1)) if hc_match else 0.3
-                avg_degree = float(ad_match.group(1)) if ad_match else 10.0
-                clustering_coeff = float(cc_match.group(1)) if cc_match else 0.0
-                avg_path_length = float(apl_match.group(1)) if apl_match else 0.0
-                diameter = float(diam_match.group(1)) if diam_match else 0.0
-                community_count = float(comm_match.group(1)) if comm_match else 0.0
-                packing_factor = float(pf_match.group(1)) if pf_match else 0.0
-                forward_edge_fraction = float(fef_match.group(1)) if fef_match else 0.5
-                working_set_ratio = float(wsr_match.group(1)) if wsr_match else 0.0
-                graph_density = float(density_match.group(1)) if density_match else 0.0
+                _FEATURE_PATTERNS = [
+                    # (regex_label, feature_key, default_value)
+                    (r'Degree Variance:\s*([\d.]+)', 'degree_variance', 1.0),
+                    (r'Hub Concentration:\s*([\d.]+)', 'hub_concentration', 0.3),
+                    (r'Avg Degree:\s*([\d.]+)', 'avg_degree', 10.0),
+                    (r'Clustering Coefficient:\s*([\d.]+)', 'clustering_coefficient', 0.0),
+                    (r'Avg Path Length:\s*([\d.]+)', 'avg_path_length', 0.0),
+                    (r'Diameter Estimate:\s*([\d.]+)', 'diameter', 0.0),
+                    (r'Community Count Estimate:\s*([\d.]+)', 'community_count', 0.0),
+                    (r'Packing Factor:\s*([\d.]+)', 'packing_factor', 0.0),
+                    (r'Forward Edge Fraction:\s*([\d.]+)', 'forward_edge_fraction', 0.5),
+                    (r'Working Set Ratio:\s*([\d.]+)', 'working_set_ratio', 0.0),
+                    (r'Graph Density:\s*([\d.eE+-]+)', 'density', 0.0),
+                ]
+                parsed = {}
+                for pattern, key, default in _FEATURE_PATTERNS:
+                    m = re.search(pattern, output)
+                    parsed[key] = float(m.group(1)) if m else default
                 
                 graph_nodes = getattr(graph_info, 'nodes', 0)
                 graph_edges = getattr(graph_info, 'edges', 0)
@@ -1547,17 +1472,7 @@ def run_experiment(args):
                 # Assign to type
                 features = {
                     'modularity': modularity,
-                    'degree_variance': degree_variance,
-                    'hub_concentration': hub_concentration,
-                    'avg_degree': avg_degree,
-                    'clustering_coefficient': clustering_coeff,
-                    'avg_path_length': avg_path_length,
-                    'diameter': diameter,
-                    'community_count': community_count,
-                    'density': graph_density,
-                    'packing_factor': packing_factor,
-                    'forward_edge_fraction': forward_edge_fraction,
-                    'working_set_ratio': working_set_ratio,
+                    **parsed,
                     'nodes': graph_nodes,
                     'edges': graph_edges,
                 }
@@ -1566,7 +1481,7 @@ def run_experiment(args):
                 update_graph_properties(graph_name, features)
                 
                 type_name = assign_graph_type(features, args.weights_dir, create_if_outlier=True)
-                log(f"  {graph_name} → {type_name} (mod={modularity:.3f}, dv={degree_variance:.3f}, hc={hub_concentration:.3f})")
+                log(f"  {graph_name} → {type_name} (mod={modularity:.3f}, dv={parsed['degree_variance']:.3f}, hc={parsed['hub_concentration']:.3f})")
                 
                 # Update type weights with benchmark results for this graph
                 graph_benchmark_results = [r for r in benchmark_results if r.graph == graph_name]
@@ -1579,7 +1494,7 @@ def run_experiment(args):
                         continue
                     
                     # Find baseline and best
-                    baseline = next((r for r in bench_results if 'ORIGINAL' in r.algorithm), bench_results[0])
+                    baseline = next((r for r in bench_results if r.algorithm == ALGORITHMS[0]), bench_results[0])
                     best = min(bench_results, key=lambda r: r.time_seconds)
                     
                     if baseline.time_seconds > 0:
@@ -1685,7 +1600,6 @@ def run_experiment(args):
         # Auto-merge weights from this run with previous runs
         if not getattr(args, 'no_merge', False):
             try:
-                from scripts.lib.weight_merger import auto_merge_after_run
                 log("\nMerging weights with previous runs...")
                 merge_summary = auto_merge_after_run()
                 if "error" not in merge_summary:
@@ -1974,8 +1888,8 @@ def main():
     parser.add_argument("--use-merged", action="store_true",
                         help="Use merged weights (default after merge)")
     
-    parser.add_argument("--weights-file", default=None,
-                        help="Path to flat weights file (also saved to results/weights/type_0/weights.json for C++)")
+    parser.add_argument("--weights-file", default=os.path.join(DEFAULT_WEIGHTS_DIR, "perceptron_weights.json"),
+                        help="Path to flat weights file (default: results/weights/perceptron_weights.json)")
     
     # Clean options
     parser.add_argument("--clean", action="store_true",
@@ -2358,33 +2272,13 @@ def main():
             log("="*60, "INFO")
             log(f"Configuration: size={args.download_size}, graphs={args.graphs}", "INFO")
             
-            # Step 1: Download graphs (unless --skip-download is set)
-            if not args.skip_download:
-                downloaded = download_graphs(
-                    size_category=args.download_size,
-                    graphs_dir=args.graphs_dir,
-                    force=args.force_download,
-                    max_memory_gb=args.max_memory,
-                    max_disk_gb=args.max_disk
-                )
-                
-                if not downloaded:
-                    log("No graphs downloaded - aborting", "ERROR")
-                    sys.exit(1)
-            else:
-                log("Skipping download (--skip-download), using existing graphs", "INFO")
+            # Downloads already handled by auto-setup block above
             
-            # Step 2: Build binaries
-            if not args.skip_build:
-                if not check_and_build_binaries("."):
-                    log("Build failed - aborting", "ERROR")
-                    sys.exit(1)
-            
-            # Step 3: Enable label map generation for consistent reordering
+            # Enable label map generation for consistent reordering
             args.generate_maps = True
             args.use_maps = True
             
-            # Step 4: Run experiment
+            # Run experiment
             log("\nStarting experiments...", "INFO")
         
         run_experiment(args)

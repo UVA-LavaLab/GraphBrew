@@ -33,7 +33,7 @@ SCRIPT_DIR = Path(__file__).parent          # scripts/lib/
 PROJECT_ROOT = SCRIPT_DIR.parent.parent      # project root
 
 from .reorder import parse_reorder_time_from_converter
-from .utils import _VARIANT_ALGO_REGISTRY
+from .utils import _VARIANT_ALGO_REGISTRY, ALGORITHMS
 
 @dataclass
 class LeidenResult:
@@ -160,10 +160,7 @@ def run_leiden_variant(converter: Path, graph: Path, algo_id: int,
     else:
         cmd.extend(["-o", str(algo_id)])
     
-    algo_names = {
-        12: "GraphBrewOrder",
-        15: "LeidenOrder",
-    }
+    algo_names = {12: ALGORITHMS[12], 15: ALGORITHMS[15]}
     
     try:
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)

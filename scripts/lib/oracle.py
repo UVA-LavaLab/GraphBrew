@@ -28,7 +28,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Dict, List, Optional, Tuple
 
-from .utils import _VARIANT_ALGO_REGISTRY, ALGORITHMS
+from .utils import _VARIANT_ALGO_REGISTRY, ALGORITHMS, DISPLAY_TO_CANONICAL
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -83,26 +83,9 @@ def normalize_algo_name(name: str) -> str:
     
     Maps adaptive output names (e.g., 'GOrder', 'HubClusterDBG') to
     benchmark result names (e.g., 'GORDER', 'HUBCLUSTERDBG').
+    Uses DISPLAY_TO_CANONICAL from SSOT (utils.py).
     """
-    # Map from adaptive verbose output to canonical benchmark names
-    NORMALIZE_MAP = {
-        "Original": "ORIGINAL",
-        "Random": "RANDOM",
-        "Sort": "SORT",
-        "HubSort": "HUBSORT",
-        "HubCluster": "HUBCLUSTER",
-        "DBG": "DBG",
-        "HubSortDBG": "HUBSORTDBG",
-        "HubClusterDBG": "HUBCLUSTERDBG",
-        "RabbitOrder": "RABBITORDER_csr",
-        "GOrder": "GORDER",
-        "Corder": "CORDER",
-        "COrder": "CORDER",
-        "RCM": "RCM_default",
-        "GraphBrewOrder": "GraphBrewOrder_leiden",
-        "LeidenOrder": "LeidenOrder",
-    }
-    return NORMALIZE_MAP.get(name, name)
+    return DISPLAY_TO_CANONICAL.get(name, name)
 
 
 # Candidate algorithms: the ones AdaptiveOrder can select from.

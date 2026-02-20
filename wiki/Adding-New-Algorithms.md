@@ -40,7 +40,7 @@ enum ReorderingAlgo {
     // Leiden algorithms (15) - grouped together for easier sweeping
     LeidenOrder = 15,       // Format: 15:resolution (GVE-Leiden baseline)
     // LeidenCSR (16) deprecated — GraphBrew (12) subsumes it
-    // ADD YOUR ALGORITHM HERE
+    // ADD YOUR ALGORITHM HERE (next available ID = 16)
     MyNewOrder = 16,
 };
 

@@ -9,7 +9,7 @@ Common questions and answers about GraphBrew.
 ### What is GraphBrew?
 
 GraphBrew is a graph processing benchmark framework that combines:
-- **16 vertex reordering algorithms** (IDs 0-15) for cache optimization
+- **16 algorithm IDs** (0-15): 14 reordering strategies + MAP (file loader) + AdaptiveOrder (ML selector)
 - **8 benchmarks** (PageRank, PageRank SpMV, BFS, CC, CC_SV, SSSP, BC, TC)
 - **ML-powered algorithm selection** via AdaptiveOrder
 - **Leiden community detection** integration

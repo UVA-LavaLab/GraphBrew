@@ -153,9 +153,9 @@ class PhaseConfig:
         results_dir: Where to save results (default: "results")
         weights_dir: Where perceptron weights are stored (default: "results/weights")
         
-        timeout_reorder: Max seconds for reordering (default: 300)
-        timeout_benchmark: Max seconds per benchmark (default: 120)
-        timeout_sim: Max seconds for cache simulation (default: 600)
+        timeout_reorder: Max seconds for reordering (default: TIMEOUT_REORDER from SSOT)
+        timeout_benchmark: Max seconds per benchmark (default: TIMEOUT_BENCHMARK from SSOT)
+        timeout_sim: Max seconds for cache simulation (default: TIMEOUT_SIM from SSOT)
         
         benchmarks: List of benchmarks to run (default: ['pr', 'bfs', 'cc'])
         trials: Number of trials per configuration (default: 3)
@@ -297,9 +297,9 @@ class PhaseConfig:
             graphs_dir=getattr(args, 'graphs_dir', 'results/graphs'),
             results_dir=getattr(args, 'results_dir', 'results'),
             weights_dir=getattr(args, 'weights_dir', 'results/weights'),
-            timeout_reorder=getattr(args, 'timeout_reorder', 300),
-            timeout_benchmark=getattr(args, 'timeout_benchmark', 120),
-            timeout_sim=getattr(args, 'timeout_sim', 600),
+            timeout_reorder=getattr(args, 'timeout_reorder', TIMEOUT_REORDER),
+            timeout_benchmark=getattr(args, 'timeout_benchmark', TIMEOUT_BENCHMARK),
+            timeout_sim=getattr(args, 'timeout_sim', TIMEOUT_SIM),
             benchmarks=getattr(args, 'benchmarks', ['pr', 'bfs', 'cc']),
             trials=getattr(args, 'trials', 3),
             skip_slow=getattr(args, 'skip_slow', False),

@@ -147,7 +147,7 @@ These cache features can help the perceptron predict which reordering algorithm 
 ```
 bench/
 ├── include/
-│   └── cache/
+│   └── cache_sim/
 │       ├── cache_sim.h     # Cache simulator implementation
 │       └── graph_sim.h     # Graph wrappers for cache tracking
 ├── src_sim/
@@ -166,8 +166,8 @@ To add cache simulation to a new algorithm:
 
 1. Include the cache headers:
    ```cpp
-   #include "cache/cache_sim.h"
-   #include "cache/graph_sim.h"
+   #include "cache_sim/cache_sim.h"
+   #include "cache_sim/graph_sim.h"
    ```
 
 2. Wrap graph reads/writes with cache tracking:
