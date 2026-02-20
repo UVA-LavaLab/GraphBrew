@@ -610,6 +610,13 @@ class TestCanonicalNameFromOpt:
             "GraphBrewOrder_leiden_hrab_gvecsr_merge_hubx"
         )
 
+    def test_flat_token_stripped_from_canonical_name(self):
+        """Runtime-only tokens (flat, norecurse, recursive) are stripped."""
+        assert canonical_name_from_converter_opt("12:leiden:flat") == "GraphBrewOrder_leiden"
+        assert canonical_name_from_converter_opt("12:leiden:hrab:flat") == "GraphBrewOrder_leiden_hrab"
+        assert canonical_name_from_converter_opt("12:leiden:norecurse") == "GraphBrewOrder_leiden"
+        assert canonical_name_from_converter_opt("12:leiden:recursive") == "GraphBrewOrder_leiden"
+
     def test_agrees_with_canonical_algo_key(self):
         """canonical_name_from_converter_opt() must agree with canonical_algo_key()."""
         for algo_id in ALGORITHMS:
@@ -734,11 +741,12 @@ class TestCanonicalAlgoKey:
         """Variant algorithms include default variant in converter opt."""
         assert algo_converter_opt(8) == "8:csr"
         assert algo_converter_opt(11) == "11:default"
-        assert algo_converter_opt(12) == "12:leiden"
+        assert algo_converter_opt(12) == "12:leiden:flat"
 
     def test_algo_converter_opt_explicit(self):
         """Explicit variant is used in converter opt."""
         assert algo_converter_opt(8, "boost") == "8:boost"
+        assert algo_converter_opt(12, "leiden") == "12:leiden:flat"
         assert algo_converter_opt(12, "rabbit") == "12:rabbit"
 
     def test_key_and_opt_are_paired(self):
