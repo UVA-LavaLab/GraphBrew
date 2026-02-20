@@ -28,7 +28,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Dict, List, Optional, Tuple
 
-from .utils import _VARIANT_ALGO_REGISTRY, ALGORITHMS, DISPLAY_TO_CANONICAL
+from .utils import _VARIANT_ALGO_REGISTRY, ALGORITHMS, DISPLAY_TO_CANONICAL, TIMEOUT_BENCHMARK
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -554,7 +554,7 @@ def run_oracle_experiment(
     graph_paths: List[str],
     benchmarks: List[str],
     num_trials: int = 3,
-    timeout: int = 300,
+    timeout: int = TIMEOUT_BENCHMARK,
 ) -> Tuple[List[dict], List[dict]]:
     """
     Run AdaptiveOrder + all candidates on given graphs for oracle comparison.

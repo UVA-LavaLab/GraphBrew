@@ -32,7 +32,7 @@ from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from typing import Any, Dict, List, Tuple
 
-from .utils import ALGORITHMS, ELIGIBLE_ALGORITHMS, DISPLAY_TO_CANONICAL, run_command, Logger
+from .utils import ALGORITHMS, ELIGIBLE_ALGORITHMS, DISPLAY_TO_CANONICAL, TIMEOUT_BENCHMARK, TIMEOUT_SIM, run_command, Logger
 from .features import update_graph_properties, save_graph_properties_cache
 from .cache import parse_cache_output
 
@@ -382,7 +382,7 @@ def analyze_adaptive_order(
     graphs: List,  # GraphInfo objects
     bin_dir: str,
     output_dir: str,
-    timeout: int = 300,
+    timeout: int = TIMEOUT_BENCHMARK,
     logger: Logger = None
 ) -> List[AdaptiveOrderResult]:
     """
@@ -520,7 +520,7 @@ def compare_adaptive_vs_fixed(
     fixed_algorithms: List[int],
     output_dir: str,
     num_trials: int = 3,
-    timeout: int = 300,
+    timeout: int = TIMEOUT_BENCHMARK,
     logger: Logger = None
 ) -> List[AdaptiveComparisonResult]:
     """
@@ -650,7 +650,7 @@ def validate_adaptive_accuracy(
     bin_dir: str,
     output_dir: str,
     benchmarks: List[str] = None,
-    timeout: int = 300,
+    timeout: int = TIMEOUT_BENCHMARK,
     num_trials: int = 3,
     force_reorder: bool = False,
 ) -> List[Dict]:
@@ -699,8 +699,8 @@ def run_subcommunity_brute_force(
     bin_sim_dir: str,
     output_dir: str,
     benchmark: str = "pr",
-    timeout: int = 300,
-    timeout_sim: int = 600,
+    timeout: int = TIMEOUT_BENCHMARK,
+    timeout_sim: int = TIMEOUT_SIM,
     max_subcommunities: int = 20,
     num_trials: int = 2,
     logger: Logger = None
@@ -742,9 +742,6 @@ def run_subcommunity_brute_force(
     
     # Algorithms to test — from SSOT (excludes MAP=13 and AdaptiveOrder=14)
     test_algorithms = list(ELIGIBLE_ALGORITHMS)
-    
-    # Mapping from adaptive output names to canonical — from SSOT
-    adaptive_to_algo_name = DISPLAY_TO_CANONICAL
     
     for graph in graphs:
         log(f"\n{'='*60}")
@@ -804,7 +801,7 @@ def run_subcommunity_brute_force(
         
         for _idx, subcomm in enumerate(subcommunities_to_test):
             adaptive_algo_raw = subcomm.selected_algorithm
-            adaptive_algo = adaptive_to_algo_name.get(adaptive_algo_raw, adaptive_algo_raw)
+            adaptive_algo = DISPLAY_TO_CANONICAL.get(adaptive_algo_raw, adaptive_algo_raw)
             
             sc_result = SubcommunityBruteForceResult(
                 community_id=subcomm.community_id,

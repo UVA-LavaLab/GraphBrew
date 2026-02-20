@@ -21,7 +21,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List, Optional, Tuple
 
-from .utils import BENCHMARKS, BIN_DIR, GRAPHS_DIR, Logger
+from .utils import BENCHMARKS, BIN_DIR, GRAPHS_DIR, TIMEOUT_BENCHMARK, Logger
 
 log = Logger()
 
@@ -175,7 +175,7 @@ def run_ab_test(
     graph_names: List[str] = None,
     benchmarks: List[str] = None,
     trials: int = 3,
-    timeout: int = 300,
+    timeout: int = TIMEOUT_BENCHMARK,
     bin_dir: str = None,
 ) -> ABSummary:
     """
@@ -269,8 +269,8 @@ def main():
                         help=f"Benchmark types (default: {DEFAULT_BENCHMARKS})")
     parser.add_argument("--trials", type=int, default=3,
                         help="Trials per benchmark (default: 3)")
-    parser.add_argument("--timeout", type=int, default=300,
-                        help="Timeout per run in seconds (default: 300)")
+    parser.add_argument("--timeout", type=int, default=TIMEOUT_BENCHMARK,
+                        help=f"Timeout per run in seconds (default: {TIMEOUT_BENCHMARK})")
     parser.add_argument("--bin-dir", default=None,
                         help="Directory containing benchmark binaries")
     args = parser.parse_args()

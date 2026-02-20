@@ -391,8 +391,6 @@ def run_cache_simulations_with_variants(
     bin_sim_dir: str = None,
     timeout: int = TIMEOUT_SIM,
     skip_heavy: bool = False,
-    weights_dir: str = None,
-    update_weights: bool = True,
     progress = None
 ) -> List[CacheResult]:
     """
@@ -409,8 +407,6 @@ def run_cache_simulations_with_variants(
         bin_sim_dir: Directory containing simulation binaries
         timeout: Timeout per simulation
         skip_heavy: Skip heavy benchmarks on large graphs
-        weights_dir: Directory for weight updates
-        update_weights: Whether to update weights
         progress: Optional progress tracker
         
     Returns:

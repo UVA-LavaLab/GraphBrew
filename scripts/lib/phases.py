@@ -546,8 +546,6 @@ def run_cache_phase(
             bin_sim_dir=config.bin_sim_dir,
             timeout=config.timeout_sim,
             skip_heavy=config.skip_heavy,
-            weights_dir=config.weights_dir,
-            update_weights=config.update_weights
         )
     else:
         config.progress.info("Mode: Standard cache simulation")

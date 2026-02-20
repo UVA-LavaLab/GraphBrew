@@ -27,7 +27,7 @@ Author: GraphBrew Team
 import subprocess
 import re
 
-from .utils import BIN_SIM_DIR, GRAPHS_DIR, GRAPHBREW_LAYERS
+from .utils import BIN_SIM_DIR, GRAPHS_DIR, GRAPHBREW_LAYERS, TIMEOUT_BENCHMARK
 
 # Config
 GRAPHS = ["web-Google", "web-BerkStan", "as-Skitter", "wiki-Talk", "roadNet-CA"]  # Variety of graph types
@@ -60,7 +60,7 @@ VARIANTS = _build_cache_compare_variants()
 _COMPARE_BENCHMARKS = ["pr"]  # Just PR for now (cache sim subset)
 BIN_SIM = str(BIN_SIM_DIR)
 _GRAPHS_DIR = str(GRAPHS_DIR)
-TIMEOUT = 300  # 5 min timeout per run
+TIMEOUT = TIMEOUT_BENCHMARK
 
 def run_cache_sim(graph, variant_opt, benchmark):
     """Run cache simulation and extract results."""
