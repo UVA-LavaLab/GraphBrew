@@ -28,6 +28,7 @@ from .utils import (
     BIN_DIR, RESULTS_DIR, GRAPHS_DIR,
     TIMEOUT_BENCHMARK,
     Logger,
+    canonical_algo_key, algo_converter_opt,
 )
 
 log = Logger()
@@ -38,9 +39,6 @@ log = Logger()
 
 # AdaptiveOrder-eligible algorithms (by -o ID) — from SSOT
 ADAPTIVE_ELIGIBLE_ALGOS: List[int] = ELIGIBLE_ALGORITHMS
-
-# Human-readable names from SSOT (utils.py)
-ALGO_NAMES: Dict[int, str] = ALGORITHMS
 
 # Complexity guards: skip algorithms that are too slow on large graphs
 ALGO_NODE_LIMITS: Dict[int, int] = {
@@ -104,6 +102,7 @@ def _run_single(
     algo_id: int,
     trials: int,
     timeout: int,
+    variant: str = None,
 ) -> Optional[Tuple[float, float]]:
     """
     Run a single benchmark invocation.
@@ -111,7 +110,8 @@ def _run_single(
     Returns:
         (avg_time, reorder_time) or None on failure.
     """
-    cmd = [binary, "-f", sg_path, "-o", str(algo_id), "-n", str(trials)]
+    opt = algo_converter_opt(algo_id, variant)
+    cmd = [binary, "-f", sg_path, "-o", opt, "-n", str(trials)]
     try:
         result = subprocess.run(
             cmd, capture_output=True, text=True, timeout=timeout
@@ -184,7 +184,7 @@ def run_fresh_benchmarks(
         return []
 
     log.info(f"Found {len(graphs)} graphs with .sg files")
-    log.info(f"Algorithms: {[ALGO_NAMES.get(a, str(a)) for a in algos]}")
+    log.info(f"Algorithms: {[canonical_algo_key(a) for a in algos]}")
     log.info(f"Benchmarks: {benchmarks}")
 
     entries: List[dict] = []
@@ -203,9 +203,7 @@ def run_fresh_benchmarks(
                 continue
 
             for algo_id in algos:
-                algo_name = ALGO_NAMES.get(algo_id)
-                if not algo_name:
-                    continue
+                algo_name = canonical_algo_key(algo_id)
 
                 # Apply complexity guards
                 node_limit = ALGO_NODE_LIMITS.get(algo_id)

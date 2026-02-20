@@ -75,6 +75,11 @@ LEIDEN_DEFAULT_MAX_PASSES = REORDER_DEFAULT_MAX_PASSES
 LEIDEN_MODULARITY_MAX_ITERATIONS = 20    # For quality-focused runs
 LEIDEN_MODULARITY_MAX_PASSES = 20
 
+# Experiment defaults for Leiden-based algorithms
+# "dynamic": adjusts resolution per-pass (best PR perf on web graphs)
+# "auto": computes once from graph properties (density, degree CV)
+LEIDEN_DEFAULT_PASSES = 3
+
 # Normalization factors for weight computation
 WEIGHT_PATH_LENGTH_NORMALIZATION = 10.0
 WEIGHT_REORDER_TIME_NORMALIZATION = 10.0
@@ -109,8 +114,65 @@ ALGORITHM_IDS = {v: k for k, v in ALGORITHMS.items()}
 # Benchmark-eligible algorithms (excludes MAP=13 and AdaptiveOrder=14)
 ELIGIBLE_ALGORITHMS = [k for k in sorted(ALGORITHMS) if k not in (13, 14)]
 
+# Reorder-eligible algorithms (excludes baselines ORIGINAL=0 and RANDOM=1)
+# ORIGINAL and RANDOM are graph states (baselines), not reordering techniques.
+# They have zero reorder overhead and are used to measure the speedup of actual
+# reorderings. They MUST still be included in benchmarking to establish baselines.
+REORDER_ALGORITHMS = [k for k in ELIGIBLE_ALGORITHMS if k not in (0, 1)]
+
 # Algorithm categories
 SLOW_ALGORITHMS = {9, 10, 11}  # Gorder, Corder, RCM - can be slow on large graphs
+
+# =============================================================================
+# Chained (multi-pass) orderings
+# =============================================================================
+# The C++ binaries support multiple ``-o`` flags applied sequentially:
+#   ``converter -f g.sg -s -o 2 -o 8:boost -b g_out.sg``
+# Each step reorders the result of the previous one.
+#
+# Only *known-useful* chains belong here — the full combinatorial space
+# (16² single-variant chains alone) is too large us to pre-gen exhaustively.
+#
+# Format: list of (canonical_name, converter_opts) tuples.
+#   canonical_name:  Used in the ``.sg`` filename: ``{graph}_{name}.sg``
+#   converter_opts:  Space-separated ``-o`` fragments passed to the converter.
+#
+# To add a new chain:
+#   1. Append a tuple here.
+#   2. Rebuild nothing — Python auto-discovers it as a pregeneration target.
+# =============================================================================
+#
+# **Architectural note**: Chained orderings are a *pregeneration-only* concept.
+# The C++ AdaptiveOrder perceptron selects ONE algorithm ID (0-15) at runtime
+# — it cannot select "apply SORT then RABBITORDER".  Therefore chained
+# orderings are excluded from perceptron training and weight files.  They
+# exist purely for offline benchmark comparison / analysis.
+# =============================================================================
+CHAIN_SEPARATOR = "+"
+"""Separator used in chained ordering canonical names (e.g. ``SORT+RABBITORDER_csr``)."""
+
+# Only declare the converter opts — canonical names are auto-derived
+# at the bottom of this module by ``_build_chained_orderings()``.
+_CHAINED_ORDERING_OPTS: list[str] = [
+    # SORT then RABBITORDER (degree sort + cache-aware BFS)
+    "-o 2 -o 8:csr",
+    "-o 2 -o 8:boost",
+    # HUBCLUSTERDBG then RabbitOrder (hub-cluster + cache BFS)
+    "-o 7 -o 8:csr",
+    # SORT then GraphBrewOrder (degree sort + community-aware)
+    "-o 2 -o 12:leiden",
+    # DBG then GraphBrewOrder (degree-based grouping + community)
+    "-o 5 -o 12:leiden",
+]
+
+# Populated at module load by _build_chained_orderings() below all function defs.
+CHAINED_ORDERINGS: list[tuple[str, str]] = []
+
+
+def is_chained_ordering_name(name: str) -> bool:
+    """Return True if *name* is a chained ordering (contains ``CHAIN_SEPARATOR``)."""
+    return CHAIN_SEPARATOR in name
+
 
 # =============================================================================
 # VARIANT REGISTRY — Single Source of Truth (SSOT)
@@ -285,6 +347,23 @@ _VARIANT_ALGO_REGISTRY = {
 # Set of algo IDs that expand to variants
 VARIANT_ALGO_IDS = frozenset(_VARIANT_ALGO_REGISTRY.keys())
 
+
+def get_algo_variants(algo_id: int) -> tuple[str, ...] | None:
+    """Return the variant tuple for an algorithm, or ``None`` if not a variant algo.
+
+    This is the public accessor for the variant list stored in
+    ``_VARIANT_ALGO_REGISTRY``.  Callers should use this instead of
+    destructuring the private registry directly.
+
+    Examples::
+
+        get_algo_variants(8)   → ("csr", "boost")
+        get_algo_variants(12)  → ("leiden", "rabbit", "hubcluster")
+        get_algo_variants(2)   → None
+    """
+    entry = _VARIANT_ALGO_REGISTRY.get(algo_id)
+    return entry[1] if entry else None
+
 # C++ display-name → canonical training name (case-insensitive lookup)
 # Variant-prefixed names auto-pass unchanged — only base aliases listed here.
 DISPLAY_TO_CANONICAL: dict[str, str] = {
@@ -403,14 +482,12 @@ def enumerate_graphbrew_multilayer() -> dict[str, Any]:
         "total_discrete_configs": total_configs,
     }
 
-# Leiden default resolution mode for experiments
-# NOTE: LEIDEN_DEFAULT_RESOLUTION constant (= 1.0) defined above is for algorithm defaults
-# "dynamic" gives best PR performance on web graphs (adjusts per-pass)
-# "auto" computes once from graph properties (density, degree CV)
-LEIDEN_DEFAULT_PASSES = 3
-
-# Benchmark definitions
+# Benchmark definitions (full list of all available benchmarks)
 BENCHMARKS = ["pr", "pr_spmv", "bfs", "cc", "cc_sv", "sssp", "bc", "tc"]
+
+# Experiment benchmarks (excludes TC — triangle counting is combinatorial, not
+# a traversal-style kernel that benefits from vertex reordering)
+EXPERIMENT_BENCHMARKS = [b for b in BENCHMARKS if b != "tc"]
 
 # =============================================================================
 # Graph Size Thresholds (MB) - Single Source of Truth
@@ -777,8 +854,10 @@ def parse_algorithm_option(option: str) -> Tuple[int, List[str]]:
 def get_algorithm_name(option: str) -> str:
     """
     Get canonical variant name for an algorithm option string.
-    
-    Uses _VARIANT_ALGO_REGISTRY to build names — no hardcoded algo IDs.
+
+    Thin SSOT alias for ``canonical_name_from_converter_opt()``.
+    Kept for backward compatibility with callers that pass a string
+    option (e.g. ``"8:boost"``).
     
     Examples:
         "0"           → "ORIGINAL"
@@ -788,16 +867,149 @@ def get_algorithm_name(option: str) -> str:
         "12"          → "GraphBrewOrder_leiden" (default variant)
     """
     algo_id, params = parse_algorithm_option(option)
-    base_name = ALGORITHMS.get(algo_id, f"Unknown({algo_id})")
-    
+    # Delegate to canonical_name_from_converter_opt for consistency.
+    # This ensures multi-layer configs (e.g. "12:leiden:hrab:gvecsr")
+    # produce the same canonical name everywhere.
+    return canonical_name_from_converter_opt(option)
+
+
+# =============================================================================
+# Unified Canonical Key API
+# =============================================================================
+# Every subsystem that needs an algorithm name as a dict key, filename
+# component, or JSON field MUST go through one of these two entry-points.
+# This guarantees a single naming convention everywhere.
+# =============================================================================
+
+def canonical_algo_key(algo_id: int, variant: str | None = None) -> str:
+    """Return the canonical key for an algorithm ID + optional variant.
+
+    This is the **single entry-point** for converting a numeric algorithm ID
+    (with optional variant) into the string key used in:
+      - weight files (JSON key)
+      - benchmark / reorder result objects (``.algorithm``)
+      - ``.sg`` filenames (``{graph}_{key}.sg``)
+      - ``.lo`` mapping filenames
+      - per-graph data files
+
+    For algorithms in ``_VARIANT_ALGO_REGISTRY`` (RabbitOrder, RCM,
+    GraphBrewOrder), the variant suffix is ALWAYS included.  Omitting
+    *variant* uses the registered default.
+
+    Multi-layer GraphBrewOrder configs are supported — colons in the
+    variant string are normalised to underscores so the result is
+    filesystem- and JSON-key safe::
+
+        canonical_algo_key(12, "leiden:hrab:gvecsr:merge")
+            → "GraphBrewOrder_leiden_hrab_gvecsr_merge"
+
+    Examples::
+
+        canonical_algo_key(0)             → "ORIGINAL"
+        canonical_algo_key(8)             → "RABBITORDER_csr"
+        canonical_algo_key(8, "boost")    → "RABBITORDER_boost"
+        canonical_algo_key(12, "leiden")  → "GraphBrewOrder_leiden"
+        canonical_algo_key(11)            → "RCM_default"
+
+    See Also:
+        ``algo_converter_opt`` — the paired function that builds the
+        ``-o`` flag for the C++ converter/benchmark binaries.
+    """
     if algo_id in _VARIANT_ALGO_REGISTRY:
         prefix, _, default = _VARIANT_ALGO_REGISTRY[algo_id]
-        suffix = params[0] if params else default
-        return f"{prefix}{suffix}"
-    
-    if params:
-        return f"{base_name}_{':'.join(params)}"
-    return base_name
+        v = variant or default
+        # Normalise CLI colons → underscores for keys / filenames
+        return f"{prefix}{v.replace(':', '_')}"
+    return ALGORITHMS.get(algo_id, f"ALG_{algo_id}")
+
+
+def algo_converter_opt(algo_id: int, variant: str | None = None) -> str:
+    """Return the ``-o`` argument for the C++ converter/benchmark binaries.
+
+    Paired with ``canonical_algo_key`` — together they provide a
+    consistent (key, converter-arg) pair for every algorithm.
+
+    Examples::
+
+        algo_converter_opt(0)             → "0"
+        algo_converter_opt(8, "boost")    → "8:boost"
+        algo_converter_opt(12, "leiden")  → "12:leiden"
+        algo_converter_opt(5)             → "5"
+    """
+    if variant:
+        return f"{algo_id}:{variant}"
+    if algo_id in _VARIANT_ALGO_REGISTRY:
+        _, _, default = _VARIANT_ALGO_REGISTRY[algo_id]
+        return f"{algo_id}:{default}"
+    return str(algo_id)
+
+
+def canonical_name_from_converter_opt(opt: str) -> str:
+    """Derive the canonical algorithm name from a single ``-o`` argument.
+
+    This is the universal ``opt → name`` converter.  It parses the
+    colon-separated option string and delegates to ``canonical_algo_key``
+    so the result is always filesystem/JSON-key safe.
+
+    Examples::
+
+        canonical_name_from_converter_opt("0")           → "ORIGINAL"
+        canonical_name_from_converter_opt("8:boost")     → "RABBITORDER_boost"
+        canonical_name_from_converter_opt("12:leiden")   → "GraphBrewOrder_leiden"
+        canonical_name_from_converter_opt("12:leiden:hrab:gvecsr:merge")
+            → "GraphBrewOrder_leiden_hrab_gvecsr_merge"
+        canonical_name_from_converter_opt("9")           → "GORDER"
+    """
+    algo_id, params = parse_algorithm_option(opt)
+    variant = ":".join(params) if params else None
+    return canonical_algo_key(algo_id, variant)
+
+
+def chain_canonical_name(converter_opts: str) -> str:
+    """Derive a canonical chained-ordering name from converter opts.
+
+    Parses every ``-o <arg>`` token, maps each to its canonical name
+    via ``canonical_name_from_converter_opt``, and joins them with
+    ``CHAIN_SEPARATOR``.
+
+    Examples::
+
+        chain_canonical_name("-o 2 -o 8:csr")
+            → "SORT+RABBITORDER_csr"
+        chain_canonical_name("-o 7 -o 8:csr")
+            → "HUBCLUSTERDBG+RABBITORDER_csr"
+        chain_canonical_name("-o 2 -o 12:leiden:hrab")
+            → "SORT+GraphBrewOrder_leiden_hrab"
+    """
+    import re
+    opts = re.findall(r'-o\s+(\S+)', converter_opts)
+    if not opts:
+        raise ValueError(f"No -o arguments found in: {converter_opts!r}")
+    names = [canonical_name_from_converter_opt(o) for o in opts]
+    return CHAIN_SEPARATOR.join(names)
+
+
+def _build_chained_orderings() -> None:
+    """Populate ``CHAINED_ORDERINGS`` from ``_CHAINED_ORDERING_OPTS``.
+
+    Called once at module load, after all functions are defined, so that
+    ``chain_canonical_name()`` is available.
+    """
+    global CHAINED_ORDERINGS  # noqa: PLW0603
+    CHAINED_ORDERINGS.clear()
+    CHAINED_ORDERINGS.extend(
+        (chain_canonical_name(opts), opts) for opts in _CHAINED_ORDERING_OPTS
+    )
+
+
+# Legacy name migration — bare algorithm names from pre-variant era.
+# Centralized here so there's only ONE copy across the entire codebase.
+LEGACY_ALGO_NAME_MAP: dict[str, str] = {
+    "GraphBrewOrder": "GraphBrewOrder_leiden",
+}
+LEGACY_ALGO_NAME_MAP_REV: dict[str, str] = {
+    v: k for k, v in LEGACY_ALGO_NAME_MAP.items()
+}
 
 
 # =============================================================================
@@ -1011,6 +1223,10 @@ def main():
         print("Algorithms (ID: Name):")
         for aid, name in sorted(ALGORITHMS.items()):
             print(f"  {aid:2d}: {name}")
+
+
+# ── Module-level init (must come after all function defs) ────────────
+_build_chained_orderings()
 
 
 if __name__ == "__main__":

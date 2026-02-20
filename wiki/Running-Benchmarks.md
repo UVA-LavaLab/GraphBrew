@@ -4,7 +4,7 @@ Complete guide to running GraphBrew benchmarks with all options explained.
 
 ## Overview
 
-The automated pipeline runs **eight** benchmarks by default:
+The automated pipeline runs **seven** benchmarks by default (`EXPERIMENT_BENCHMARKS`). Triangle Counting (TC) is excluded because it is a combinatorial counting kernel that does not benefit from vertex reordering the way traversal-style algorithms do. Use `--benchmarks pr bfs tc` to opt-in to TC or any specific subset.
 
 | Benchmark | Binary | Description |
 |-----------|--------|-------------|
@@ -15,9 +15,12 @@ The automated pipeline runs **eight** benchmarks by default:
 | Connected Components (SV) | `cc_sv` | Shiloach-Vishkin CC |
 | SSSP | `sssp` | Single-Source Shortest Paths |
 | Betweenness Centrality | `bc` | Node importance by path flow |
-| Triangle Counting | `tc` | Count triangles in graph |
 
-> **Note:** To run a subset, use `--benchmarks pr bfs cc sssp` to specify which benchmarks to include.
+> **Available but excluded by default:** Triangle Counting (`tc`) — add via `--benchmarks pr bfs cc sssp tc`.
+
+> **Random Baseline:** By default, `.mtx` graphs are converted to `.sg` with RANDOM vertex ordering so all benchmark times reflect a worst-case baseline. Disable with `--no-random-baseline`.
+
+> **Pre-generated Reordered .sg:** After RANDOM baseline conversion, each algorithm's reordered graph is pre-generated as `{graph}_{ALGO}.sg` (e.g., `email-Enron_SORT.sg`, `email-Enron_HUBCLUSTERDBG.sg`). At benchmark time, the pre-generated `.sg` is loaded with `-o 0` (ORIGINAL), eliminating runtime reorder overhead. Disk space is estimated first; if insufficient, the pipeline falls back to real-time reordering. Control with `--pregenerate-sg` (default ON) / `--no-pregenerate-sg`.
 
 ---
 
@@ -86,6 +89,8 @@ See [[Command-Line-Reference]] for `--train` phases, download size options, and 
 | `-s` | Symmetrize graph (make undirected) | Off |
 | `-g <scale>` | Generate 2^scale kronecker graph | - |
 | `-n <num>` | Number of trials | 16 |
+| `--pregenerate-sg` | Pre-generate reordered `.sg` per algorithm (eliminates runtime reorder overhead) | ON |
+| `--no-pregenerate-sg` | Disable pre-generation; reorder at benchmark time instead | - |
 
 ### Graph Format Detection
 
@@ -196,6 +201,10 @@ See [[Python-Scripts#lib-metrics-py]] for full documentation.
 1. **Sufficient RAM**: Graph + reordering overhead
 2. **Parallel loading**: Already enabled
 3. **Try serialized format**: Faster loading for repeated runs
+
+### Pre-generated .sg: Disk Space vs Speed
+
+Pre-generating reordered `.sg` files trades disk space for benchmark speed. Each `.sg` is roughly the same size as the RANDOM baseline, so 12 algorithms × N graphs can require significant storage. The pipeline estimates required disk space before pre-generating (`estimate_pregeneration_size()`) and falls back to real-time reordering if space is insufficient. Use `--no-pregenerate-sg` to skip pre-generation on disk-constrained systems.
 
 ### For Fair Comparisons
 

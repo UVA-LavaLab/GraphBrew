@@ -86,7 +86,7 @@ def test_reorder_preserves_topology(tmp_path):
     out_dir.mkdir()
 
     results = lib_reorder.generate_reorderings(
-        graphs=[ginfo], algorithms=[1], output_dir=str(out_dir), generate_maps=True, force_reorder=True
+        graphs=[ginfo], algorithms=[2], output_dir=str(out_dir), generate_maps=True, force_reorder=True
     )
     assert results and results[0].success
     map_file = Path(results[0].mapping_file)

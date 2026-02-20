@@ -62,7 +62,7 @@ Each type file maps algorithm names to weights. Example entry:
 }
 ```
 
-Algorithm names match `scripts/lib/utils.py` ALGORITHMS dict.
+Algorithm names are produced by `canonical_algo_key(algo_id, variant)` from `scripts/lib/utils.py`. This is the SSOT for weight file keys, `.sg` filenames, and result JSON. See [[Code-Architecture#unified-naming-convention-ssot]].
 
 ---
 
@@ -86,9 +86,11 @@ Algorithm names match `scripts/lib/utils.py` ALGORITHMS dict.
 | Weight | Feature | Description |
 |--------|---------|-------------|
 | `w_clustering_coeff` | clustering_coefficient | Local clustering coefficient (0-1) |
-| `w_avg_path_length` | avg_path_length | Average shortest path length (BFS estimate) |
-| `w_diameter` | diameter_estimate | Graph diameter (BFS estimate) |
-| `w_community_count` | community_count | Number of sub-communities |
+| `w_avg_path_length` | avg_path_length | Average BFS distance from sampled sources |
+| `w_diameter` | diameter_estimate | Max BFS depth (diameter lower bound) |
+| `w_community_count` | community_count | Connected component count |
+
+> **Note:** These features were previously always 0 at runtime. They are now computed via `ComputeExtendedFeatures()` using multi-source BFS (~50-500ms overhead).
 
 ### New Graph-Aware Features
 
@@ -253,7 +255,7 @@ The JSON uses algorithm names, which map to IDs:
 | 14 | AdaptiveOrder | This perceptron model |
 | 15 | LeidenOrder | Basic Leiden ordering via GVE-Leiden (baseline reference) |
 
-> **Note:** For current variant lists, see `scripts/lib/utils.py`.
+> **Note:** For current variant lists, see `scripts/lib/utils.py`: `RABBITORDER_VARIANTS`, `GORDER_VARIANTS`, `RCM_VARIANTS`, `GRAPHBREW_VARIANTS`. Use `get_algo_variants(algo_id)` to query programmatically.
 
 ---
 

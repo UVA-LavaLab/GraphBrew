@@ -47,6 +47,7 @@ class AmortizationMetrics:
     e2e_speedup_at_10: float = 0.0        # End-to-end speedup at 10 iterations
     e2e_speedup_at_100: float = 0.0       # End-to-end speedup at 100 iterations
     roi_per_iter: float = 0.0             # Return on investment per iteration after break-even
+    min_efficient_n: int = 0              # Smallest N where overhead < 5% of total cost
     
     def __post_init__(self):
         if self.original_kernel_time > 0 and self.reordered_kernel_time > 0:
@@ -67,12 +68,59 @@ class AmortizationMetrics:
                 if n == 1: self.e2e_speedup_at_1 = speedup
                 elif n == 10: self.e2e_speedup_at_10 = speedup
                 elif n == 100: self.e2e_speedup_at_100 = speedup
+            
+            # Minimum efficient N: smallest N where reorder overhead is < 5% of total
+            # Total cost = reorder_time + N * reordered_kernel_time
+            # Overhead fraction = reorder_time / total_cost < 0.05
+            # => reorder_time < 0.05 * (reorder_time + N * reordered_kernel_time)
+            # => 0.95 * reorder_time < 0.05 * N * reordered_kernel_time
+            # => N > 19 * reorder_time / reordered_kernel_time
+            if self.reordered_kernel_time > 0 and self.reorder_time > 0:
+                self.min_efficient_n = math.ceil(19.0 * self.reorder_time / self.reordered_kernel_time)
+            else:
+                self.min_efficient_n = 0
 
     def e2e_speedup_at(self, n: int) -> float:
-        """End-to-end speedup at N iterations."""
+        """End-to-end speedup at N iterations (amortized: includes reorder cost)."""
         e2e_orig = n * self.original_kernel_time
         e2e_reord = self.reorder_time + n * self.reordered_kernel_time
         return e2e_orig / e2e_reord if e2e_reord > 0 else 0.0
+    
+    def amortized_cost_per_iter(self, n: int) -> float:
+        """Per-iteration cost including amortized reorder overhead.
+        
+        Directly comparable to original_kernel_time.
+        amortized = (reorder_time + N * reordered_kernel_time) / N
+                   = reordered_kernel_time + reorder_time / N
+        """
+        if n <= 0:
+            return float('inf')
+        return self.reordered_kernel_time + self.reorder_time / n
+    
+    def net_time_saved(self, n: int) -> float:
+        """Net time saved after N iterations (negative = net loss).
+        
+        net = N * original_time - (reorder_time + N * reordered_time)
+            = N * time_saved_per_iter - reorder_time
+        """
+        return n * self.time_saved_per_iter - self.reorder_time
+    
+    def time_to_recoup_human(self) -> str:
+        """Human-readable time to recoup reorder overhead.
+        
+        Assumes 1 iteration/second (use actual workload rate for real estimates).
+        Shows the wall-clock time of the reorder overhead itself.
+        """
+        if self.reorder_time <= 0:
+            return "0s"
+        t = self.reorder_time
+        if t < 1:
+            return f"{t*1000:.0f}ms"
+        if t < 60:
+            return f"{t:.1f}s"
+        if t < 3600:
+            return f"{t/60:.1f}min"
+        return f"{t/3600:.1f}h"
     
     def is_profitable(self) -> bool:
         """True if reordering ever pays off (kernel speedup > 1)."""
@@ -208,12 +256,28 @@ def compute_amortization(
 # =============================================================================
 
 def format_amortization_table(report: AmortizationReport, max_rows: int = 50) -> str:
-    """Format amortization report as a readable table."""
+    """Format amortization report as a readable table.
+    
+    Columns:
+        Graph/Algorithm/Bench: identification
+        Kernel: kernel-only speedup (no overhead)
+        Reorder: reorder overhead (wall-clock)
+        Break-even: iterations to amortize overhead (N* = overhead / time_saved_per_iter)
+        E2E@10/100: end-to-end speedup INCLUDING reorder overhead, amortized over N iters
+        MinN@95%: minimum N where reorder overhead < 5% of total cost
+        Verdict: qualitative assessment
+    """
     lines = []
-    lines.append("=" * 110)
-    lines.append(f"{'Graph':<20} {'Algorithm':<25} {'Bench':<6} {'Kernel':>8} "
-                 f"{'Reorder':>8} {'Amort':>8} {'E2E@1':>7} {'E2E@10':>7} {'E2E@100':>7} {'Verdict'}")
-    lines.append("-" * 110)
+    w = 125
+    lines.append("=" * w)
+    lines.append("AMORTIZATION ANALYSIS")
+    lines.append(f"  E2E speedup = N × baseline_time / (reorder_overhead + N × reordered_time)")
+    lines.append(f"  Break-even N* = reorder_overhead / time_saved_per_iteration")
+    lines.append("-" * w)
+    lines.append(f"{'Graph':<20} {'Algorithm':<22} {'Bench':<7} {'Kernel':>7} "
+                 f"{'Reorder':>9} {'N*':>8} {'E2E@10':>7} {'E2E@100':>8} "
+                 f"{'MinN@95%':>9} {'Verdict'}")
+    lines.append("-" * w)
     
     # Sort by amortization iterations (best first)
     sorted_entries = sorted(report.entries, 
@@ -222,21 +286,23 @@ def format_amortization_table(report: AmortizationReport, max_rows: int = 50) ->
     for entry in sorted_entries[:max_rows]:
         amort_str = (f"{entry.amortization_iters:>7.1f}" 
                     if entry.amortization_iters < float('inf') else "   NEVER")
+        min_n_str = (f"{entry.min_efficient_n:>8d}" 
+                    if entry.min_efficient_n > 0 else "       0")
         lines.append(
-            f"{entry.graph:<20} {entry.algorithm:<25} {entry.benchmark:<6} "
-            f"{entry.kernel_speedup:>7.2f}x "
-            f"{entry.reorder_time:>7.4f}s "
+            f"{entry.graph:<20} {entry.algorithm:<22} {entry.benchmark:<7} "
+            f"{entry.kernel_speedup:>6.2f}x "
+            f"{entry.time_to_recoup_human():>9s} "
             f"{amort_str} "
-            f"{entry.e2e_speedup_at_1:>6.2f}x "
             f"{entry.e2e_speedup_at_10:>6.2f}x "
-            f"{entry.e2e_speedup_at_100:>6.2f}x "
+            f"{entry.e2e_speedup_at_100:>7.2f}x "
+            f"{min_n_str} "
             f"{entry.break_even_summary()}"
         )
     
-    lines.append("=" * 110)
+    lines.append("=" * w)
     lines.append(f"Total entries: {len(report.entries)}")
     lines.append(f"Profitable: {report.profitable_count()} / {len(report.entries)}")
-    lines.append(f"Median amortization: {report.median_amortization():.1f} iterations")
+    lines.append(f"Median break-even: {report.median_amortization():.1f} iterations")
     lines.append(f"Geo-mean kernel speedup: {report.geo_mean_kernel_speedup():.3f}x")
     lines.append(f"Geo-mean E2E@10: {report.geo_mean_e2e_speedup(10):.3f}x")
     lines.append(f"Geo-mean E2E@100: {report.geo_mean_e2e_speedup(100):.3f}x")

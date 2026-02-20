@@ -31,7 +31,7 @@ from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from typing import Dict, List, Set
 
-from .utils import Logger, WEIGHTS_DIR, TIMEOUT_SIM, TIMEOUT_BENCHMARK
+from .utils import Logger, WEIGHTS_DIR, TIMEOUT_SIM, TIMEOUT_BENCHMARK, get_all_algorithm_variant_names
 from .analysis import (
     run_subcommunity_brute_force,
 )
@@ -91,14 +91,7 @@ def initialize_enhanced_weights(weights_file: str, algorithms: List[str] = None)
     Returns:
         Initialized weights dictionary
     """
-    default_algorithms = [
-        "ORIGINAL", "RANDOM", "SORT", "HUBSORT", "HUBCLUSTER",
-        "DBG", "HUBSORTDBG", "HUBCLUSTERDBG",
-        "RABBITORDER_csr", "RABBITORDER_boost",
-        "GORDER", "CORDER", "RCM_default", "RCM_bnf",
-        "GraphBrewOrder_leiden", "GraphBrewOrder_rabbit", "GraphBrewOrder_hubcluster",
-        "LeidenOrder",
-    ]
+    default_algorithms = get_all_algorithm_variant_names()
     
     if algorithms is None:
         algorithms = default_algorithms

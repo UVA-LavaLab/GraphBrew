@@ -57,14 +57,20 @@ Results are JSON arrays. See [[Configuration-Files]] for the complete schema of 
 
 ### Amortization Analysis
 
-After benchmarking, derive end-to-end metrics from existing result files:
+After benchmarking, the pipeline automatically computes amortization metrics:
+
+- **Break-even N\*** = `reorder_overhead / time_saved_per_iteration` — iterations before reordering pays off
+- **E2E Speedup@N** = `N × baseline_time / (reorder_overhead + N × reordered_time)` — end-to-end speedup
+- **MinN@95%** — smallest N where reorder overhead < 5% of total cost
 
 ```bash
 python3 scripts/graphbrew_experiment.py --phase all  # Amortization computed automatically
 python3 -m scripts.lib.metrics  # Standalone amortization analysis
 ```
 
-See [[Python-Scripts#-amortization--end-to-end-evaluation---phase-all]] for full details on amortization iterations, E2E speedup, and head-to-head comparisons.
+> **Note:** Experiments default to 7 benchmarks (`EXPERIMENT_BENCHMARKS` — TC excluded). After RANDOM baseline `.sg` conversion, the pipeline pre-generates reordered `.sg` for each of the 12 reorder algorithms (`--pregenerate-sg`, default ON). At benchmark time, pre-generated `.sg` files are loaded with `-o 0` — no runtime reorder overhead. The reorder phase runs 12 algorithms (baselines ORIGINAL/RANDOM skipped). Benchmarking runs all 14 eligible algorithms.
+
+See [[Python-Scripts#-amortization--end-to-end-evaluation---phase-all]] for full details.
 
 ---
 

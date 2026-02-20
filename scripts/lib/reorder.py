@@ -33,6 +33,8 @@ from .utils import (
     GRAPHBREW_VARIANTS, GRAPHBREW_DEFAULT_VARIANT,
     TIMEOUT_REORDER,
     Logger, run_command, get_timestamp,
+    canonical_algo_key, algo_converter_opt,
+    LEGACY_ALGO_NAME_MAP, LEGACY_ALGO_NAME_MAP_REV,
 )
 from .graph_types import GraphInfo
 
@@ -45,14 +47,10 @@ log = Logger()
 
 from .utils import ENABLE_RUN_LOGGING
 
-# Backward-compat: old bare algorithm names → new variant-suffixed names.
-# Before the variant-everywhere change, GraphBrewOrder was stored without a
-# variant suffix.  Old label-map indices and .lo files still use the bare
-# name so we need fallback lookups.
-_LEGACY_ALGO_NAMES = {
-    'GraphBrewOrder': 'GraphBrewOrder_leiden',
-}
-_LEGACY_ALGO_NAMES_REV = {v: k for k, v in _LEGACY_ALGO_NAMES.items()}
+# Backward-compat aliases — use the centralized SSOT map from utils.py
+# DEPRECATED: new code should use LEGACY_ALGO_NAME_MAP directly.
+_LEGACY_ALGO_NAMES = LEGACY_ALGO_NAME_MAP
+_LEGACY_ALGO_NAMES_REV = LEGACY_ALGO_NAME_MAP_REV
 
 
 def safe_filename(name: str) -> str:
@@ -99,29 +97,13 @@ class AlgorithmConfig:
 
 
 def get_algorithm_name_with_variant(algo_id: int, variant: str = None) -> str:
+    """Get algorithm name with variant suffix for algorithms that have variants.
+    
+    .. deprecated:: Use ``canonical_algo_key()`` from utils.py directly.
+       This wrapper is retained only for backward compatibility with existing
+       imports; new code should call ``canonical_algo_key(algo_id, variant)``.
     """
-    Get algorithm name with variant suffix for algorithms that have variants.
-    
-    Uses _VARIANT_ALGO_REGISTRY from utils.py as the single source of truth.
-    For registered variant algorithms (8=RabbitOrder, 11=RCM, 12=GraphBrewOrder),
-    ALWAYS includes variant suffix in the name (e.g. "RABBITORDER_csr").
-    For other algorithms, returns the base name.
-    
-    Args:
-        algo_id: Algorithm ID
-        variant: Variant name (optional, uses default if not provided)
-        
-    Returns:
-        Algorithm name with variant suffix where applicable
-    """
-    from .utils import _VARIANT_ALGO_REGISTRY
-    
-    if algo_id in _VARIANT_ALGO_REGISTRY:
-        prefix, _, default_variant = _VARIANT_ALGO_REGISTRY[algo_id]
-        variant = variant or default_variant
-        return f"{prefix}{variant}"
-    
-    return ALGORITHMS.get(algo_id, f"ALGO_{algo_id}")
+    return canonical_algo_key(algo_id, variant)
 
 
 def _find_legacy_map_file(graph_mappings_dir: str, algo_name: str) -> Optional[str]:
@@ -147,7 +129,7 @@ def _find_legacy_map_file(graph_mappings_dir: str, algo_name: str) -> Optional[s
 def expand_algorithms_with_variants(
     algorithms: List[int],
     expand_leiden_variants: bool = False,
-    leiden_resolution: str = LEIDEN_DEFAULT_RESOLUTION,
+    leiden_resolution: float = LEIDEN_DEFAULT_RESOLUTION,
     leiden_passes: int = LEIDEN_DEFAULT_PASSES,
     rabbit_variants: List[str] = None,
     graphbrew_variants: List[str] = None,
@@ -188,6 +170,9 @@ def expand_algorithms_with_variants(
         
         if algo_id == 9 and gorder_variants and len(gorder_variants) > 1:
             # GOrder: expand into implementation variants (differ in speed, same ordering)
+            # NOTE: GOrder is intentionally NOT in _VARIANT_ALGO_REGISTRY— its variants
+            # produce equivalent orderings and share one perceptron weight.
+            # We use f"GORDER_{variant}" for filename differentiation only.
             for variant in gorder_variants:
                 if variant == "default":
                     option_str = str(algo_id)
@@ -215,21 +200,19 @@ def expand_algorithms_with_variants(
         elif algo_id == 8 and expand_leiden_variants and len(rabbit_variants) > 1:
             # RabbitOrder: expand into variants if multiple specified
             for variant in rabbit_variants:
-                option_str = f"{algo_id}:{variant}"
                 configs.append(AlgorithmConfig(
                     algo_id=algo_id,
-                    name=f"RABBITORDER_{variant}",
-                    option_string=option_str,
+                    name=canonical_algo_key(algo_id, variant),
+                    option_string=algo_converter_opt(algo_id, variant),
                     variant=variant
                 ))
         elif algo_id == 8:
             # RabbitOrder: use specified variant (default: csr) - ALWAYS include variant in name
             variant = rabbit_variants[0] if rabbit_variants else RABBITORDER_DEFAULT_VARIANT
-            option_str = f"{algo_id}:{variant}"
             configs.append(AlgorithmConfig(
                 algo_id=algo_id,
-                name=f"RABBITORDER_{variant}",  # Always show variant
-                option_string=option_str,
+                name=canonical_algo_key(algo_id, variant),
+                option_string=algo_converter_opt(algo_id, variant),
                 variant=variant
             ))
         elif algo_id == 15:
@@ -243,33 +226,32 @@ def expand_algorithms_with_variants(
             ))
         elif algo_id == 12 and expand_leiden_variants:
             # GraphBrewOrder: expand into clustering variants
-            # Format: 12:variant
             for variant in graphbrew_variants:
-                option_str = f"{algo_id}:{variant}"
                 configs.append(AlgorithmConfig(
                     algo_id=algo_id,
-                    name=f"GraphBrewOrder_{variant}",
-                    option_string=option_str,
+                    name=canonical_algo_key(algo_id, variant),
+                    option_string=algo_converter_opt(algo_id, variant),
                     variant=variant,
                     resolution=leiden_resolution
                 ))
         elif algo_id == 12:
             # GraphBrewOrder: use default variant (leiden) - ALWAYS include variant in name
             variant = graphbrew_variants[0] if graphbrew_variants else GRAPHBREW_DEFAULT_VARIANT
-            option_str = f"{algo_id}:{variant}"
             configs.append(AlgorithmConfig(
                 algo_id=algo_id,
-                name=f"GraphBrewOrder_{variant}",  # Always show variant
-                option_string=option_str,
+                name=canonical_algo_key(algo_id, variant),
+                option_string=algo_converter_opt(algo_id, variant),
                 variant=variant,
                 resolution=leiden_resolution
             ))
         else:
-            # Non-Leiden algorithms: just use ID
+            # Non-variant algorithms: use canonical key (which includes
+            # variant suffix for any algorithms in _VARIANT_ALGO_REGISTRY
+            # like RCM_default that don't have explicit handlers above)
             configs.append(AlgorithmConfig(
                 algo_id=algo_id,
-                name=base_name,
-                option_string=str(algo_id)
+                name=canonical_algo_key(algo_id),
+                option_string=algo_converter_opt(algo_id)
             ))
     
     return configs
@@ -455,9 +437,10 @@ def generate_reorderings(
                 ))
                 continue
             
-            # ORIGINAL doesn't need reordering
-            if algo_id == 0:
-                log.info(f"  [{current}/{total}] {algo_name}: 0.0000s (no reorder)")
+            # ORIGINAL and RANDOM are baselines — no reorder mapping to generate
+            if algo_id in (0, 1):
+                baseline_label = "ORIGINAL" if algo_id == 0 else "RANDOM"
+                log.info(f"  [{current}/{total}] {algo_name}: 0.0000s ({baseline_label} baseline, no reorder)")
                 results.append(ReorderResult(
                     graph=graph.name,
                     algorithm_id=algo_id,
@@ -648,9 +631,10 @@ def generate_label_maps(
             # Always include variant in name for algorithms that have variants
             algo_name = get_algorithm_name_with_variant(algo_id)
             
-            # Skip ORIGINAL (no mapping needed)
-            if algo_id == 0:
-                log.info(f"  [{current}/{total}] {algo_name}: no map needed (0.0000s)")
+            # Skip baselines ORIGINAL and RANDOM (no mapping needed)
+            if algo_id in (0, 1):
+                baseline_label = "ORIGINAL" if algo_id == 0 else "RANDOM"
+                log.info(f"  [{current}/{total}] {algo_name}: no map needed ({baseline_label} baseline)")
                 reorder_results.append(ReorderResult(
                     graph=graph.name,
                     algorithm_id=algo_id,
@@ -877,9 +861,10 @@ def generate_reorderings_with_variants(
                 ))
                 continue
             
-            # ORIGINAL doesn't need reordering
-            if cfg.algo_id == 0:
-                log.info(f"  [{current}/{total}] {cfg.name}: 0.0000s (no reorder)")
+            # ORIGINAL and RANDOM are baselines — no reorder mapping to generate
+            if cfg.algo_id in (0, 1):
+                baseline_label = "ORIGINAL" if cfg.algo_id == 0 else "RANDOM"
+                log.info(f"  [{current}/{total}] {cfg.name}: 0.0000s ({baseline_label} baseline, no reorder)")
                 results.append(ReorderResult(
                     graph=graph.name,
                     algorithm_id=cfg.algo_id,

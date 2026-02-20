@@ -31,6 +31,8 @@ from .utils import (
     WEIGHT_PATH_LENGTH_NORMALIZATION, WEIGHT_REORDER_TIME_NORMALIZATION,
     WEIGHT_AVG_DEGREE_DEFAULT,
     get_all_algorithm_variant_names,
+    is_chained_ordering_name,
+    LEGACY_ALGO_NAME_MAP,
     weights_registry_path, weights_type_path, weights_bench_path,
 )
 
@@ -295,11 +297,11 @@ def _normalize_legacy_weight_keys(weights: Dict) -> Dict:
     
     Maps old keys like 'GraphBrewOrder' → 'GraphBrewOrder_leiden' so that
     weight lookups work consistently after the variant-everywhere change.
+    Uses centralized LEGACY_ALGO_NAME_MAP from utils.py (SSOT).
     """
-    _LEGACY = {'GraphBrewOrder': 'GraphBrewOrder_leiden'}
     normalized = {}
     for key, value in weights.items():
-        new_key = _LEGACY.get(key, key)
+        new_key = LEGACY_ALGO_NAME_MAP.get(key, key)
         # If the new key already exists, merge by keeping the one with higher bias
         if new_key in normalized:
             existing_bias = normalized[new_key].get('bias', 0)
@@ -461,6 +463,10 @@ def update_type_weights_incremental(
     weights = load_type_weights(type_name, weights_dir)
     if not weights:
         weights = {}
+    
+    # Skip chained orderings — analysis-only, not trainable by C++ perceptron
+    if is_chained_ordering_name(algorithm):
+        return
     
     # Track algorithm in type registry
     global _type_registry
@@ -719,19 +725,17 @@ def compute_weights_from_results(
     weights = initialize_default_weights()
     
     # Normalize legacy bare algo names → variant-suffixed names in results
-    # so old results keyed as "GraphBrewOrder" map to "GraphBrewOrder_leiden"
-    _LEGACY_NAME_MAP = {'GraphBrewOrder': 'GraphBrewOrder_leiden'}
-    
+    # Uses centralized LEGACY_ALGO_NAME_MAP from utils.py (SSOT)
     for r in benchmark_results:
-        if r.algorithm in _LEGACY_NAME_MAP:
-            r.algorithm = _LEGACY_NAME_MAP[r.algorithm]
+        if r.algorithm in LEGACY_ALGO_NAME_MAP:
+            r.algorithm = LEGACY_ALGO_NAME_MAP[r.algorithm]
     for r in reorder_results:
         algo_name = getattr(r, 'algorithm_name', None) or getattr(r, 'algorithm', '')
-        if algo_name in _LEGACY_NAME_MAP:
+        if algo_name in LEGACY_ALGO_NAME_MAP:
             if hasattr(r, 'algorithm_name'):
-                r.algorithm_name = _LEGACY_NAME_MAP[algo_name]
+                r.algorithm_name = LEGACY_ALGO_NAME_MAP[algo_name]
             elif hasattr(r, 'algorithm'):
-                r.algorithm = _LEGACY_NAME_MAP[algo_name]
+                r.algorithm = LEGACY_ALGO_NAME_MAP[algo_name]
     
     # Collect all unique algorithm names from results (includes variants)
     all_algo_names = set()
@@ -742,6 +746,17 @@ def compute_weights_from_results(
         algo_name = getattr(r, 'algorithm_name', None) or getattr(r, 'algorithm', '')
         if algo_name:
             all_algo_names.add(algo_name)
+    
+    # Filter out chained orderings — they are pregeneration-only / analysis-only
+    # and the C++ perceptron cannot select them at runtime (it selects ONE
+    # algorithm ID).  Including them in training would train the perceptron
+    # toward algorithms it can't execute.
+    all_algo_names = {n for n in all_algo_names if not is_chained_ordering_name(n)}
+    benchmark_results = [r for r in benchmark_results
+                         if not is_chained_ordering_name(r.algorithm or '')]
+    reorder_results = [r for r in reorder_results
+                       if not is_chained_ordering_name(
+                           getattr(r, 'algorithm_name', None) or getattr(r, 'algorithm', ''))]
     
     # Add variant algorithms that aren't in default weights
     for algo_name in all_algo_names:
@@ -2060,6 +2075,9 @@ def update_zero_weights(
         algo = getattr(r, 'algorithm_name', None) or getattr(r, 'algorithm', '')
         if algo:
             all_algo_names.add(algo)
+    
+    # Filter out chained orderings — analysis-only, not trainable (see SSOT)
+    all_algo_names = {n for n in all_algo_names if not is_chained_ordering_name(n)}
     
     # Add variant algorithms that aren't in weights yet
     for algo_name in all_algo_names:

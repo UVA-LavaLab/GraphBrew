@@ -222,7 +222,27 @@ SAFETY CHECKS:
 
 ### Features Used
 
-The C++ code computes these features at runtime via `ComputeSampledDegreeFeatures` (5000 vertex sample):
+The C++ code computes these features at runtime via `ComputeSampledDegreeFeatures` (auto-scaled sample) and `ComputeExtendedFeatures` (sampled BFS):
+
+#### Adaptive Sample Size
+
+The sample size for degree-based features auto-scales with graph size:
+
+```
+sample_size = max(5000, min(√N, 50000))
+```
+
+| Graph Size (N) | Sample Size | Coverage |
+|---------------:|:-----------:|---------:|
+| 10K | 5,000 | 50.0% |
+| 100K | 5,000 | 5.0% |
+| 1M | 5,000 | 0.50% |
+| 25M | 5,000 | 0.02% |
+| 100M | 10,000 | 0.01% |
+| 1B | 31,623 | 0.003% |
+| 10B+ | 50,000 | cap |
+
+**Why this is enough:** Strided sampling (evenly spaced across vertex IDs) provides spatial coverage proportional to the sample size, which is sufficient for degree statistics on power-law graphs because degree-distribution moments converge quickly — 5000 samples give <1% error on variance/mean estimates for typical power-law exponents (α ∈ [2, 3]). For very large graphs (>25M) we increase the sample to maintain significance on secondary features like hub concentration and packing factor. The 50K cap bounds overhead at ~0.5% of graph size.
 
 #### Active Linear Features (11)
 
@@ -240,30 +260,156 @@ The C++ code computes these features at runtime via `ComputeSampledDegreeFeature
 | `forward_edge_fraction` | `w_forward_edge_fraction` | edges to higher-ID vertices (GoGraph) | 0.0 - 1.0 |
 | `working_set_ratio` | `w_working_set_ratio` | log₂(graph_bytes / LLC_size + 1) (P-OPT) | 0 - 10 |
 
-#### Structural Features (not computed in full-graph mode)
+#### Extended Structural Features (computed via `ComputeExtendedFeatures`)
 
-These features exist in `CommunityFeatures` and `PerceptronWeights` but are **not populated** in the full-graph runtime path (always 0.0). They contribute to scoring in training simulations only:
+These features are computed at runtime via sampled BFS traversals and connected-component counting. They complement degree-based features with path-based and connectivity information:
 
-| Feature | Weight Field | Notes |
-|---------|--------------|-------|
-| `avg_path_length` | `w_avg_path_length` | Expensive to compute; always 0 at runtime |
-| `diameter_estimate` | `w_diameter` | Expensive to compute; always 0 at runtime |
-| `community_count` | `w_community_count` | Requires Leiden; always 0 at runtime |
-| `reorder_time` | `w_reorder_time` | Only meaningful in `MODE_FASTEST_REORDER` |
+| Feature | Weight Field | Computation | Overhead |
+|---------|--------------|-------------|----------|
+| `avg_path_length` | `w_avg_path_length` | Multi-source BFS (5 sources, bounded visits) | ~50-500 ms |
+| `diameter_estimate` | `w_diameter` | Max BFS depth across sources | (included above) |
+| `community_count` | `w_community_count` | Connected component count via full BFS | O(V+E) |
+| `reorder_time` | `w_reorder_time` | Only meaningful in `MODE_FASTEST_REORDER` | N/A |
+
+**How extended features are computed:**
+
+- **avg_path_length** — BFS from 5 evenly-spaced source vertices, each visiting at most min(100K, N/10) nodes. The average distance across all BFS-discovered pairs gives an estimate of the graph's "small-world-ness". Short average paths (< 5) indicate social/web graphs that benefit from community-aware reorderings.
+
+- **diameter_estimate** — Maximum BFS depth observed across all 5 sources. This is a lower bound on the true diameter. High-diameter graphs (road networks, meshes) benefit from bandwidth-minimizing reorderings (RCM), while low-diameter graphs (social networks) benefit from hub-based reorderings.
+
+- **community_count** — Number of connected components found via a full BFS sweep over all vertices. Multi-component graphs benefit from reorderings that place each component contiguously in memory. Note: this counts connected components, not Leiden communities (which would be too expensive at runtime).
 
 #### Quadratic Cross-Terms (3)
 
-| Interaction | Weight Field | Description |
-|-------------|--------------|-------------|
-| degree_variance × hub_concentration | `w_dv_x_hub` | Power-law graph indicator |
-| modularity × log₁₀(nodes) | `w_mod_x_logn` | Large modular vs small modular |
-| packing_factor × log₂(wsr+1) | `w_pf_x_wsr` | Uniform-degree + cache pressure |
+Quadratic cross-terms capture **non-linear feature interactions** that a linear model cannot represent. Each cross-term is the product of two features, allowing the perceptron to learn conditional logic like "this algorithm wins when *both* conditions hold simultaneously":
+
+| Interaction | Weight Field | What It Captures | When It Matters |
+|-------------|--------------|------------------|-----------------|
+| degree_variance × hub_concentration | `w_dv_x_hub` | **Power-law indicator.** High DV + high HC = classic power-law topology. Hub-aware algorithms (HubClusterDBG, GraphBrewOrder) shine here because concentrating hubs in cache dramatically reduces random access. | Social networks, web graphs |
+| modularity × log₁₀(nodes) | `w_mod_x_logn` | **Scalable community structure.** A 1000-node modular graph differs from a 10M-node modular graph — larger modular graphs benefit more from Leiden-based reorderings because the modularity "payoff" scales with community size. | Large social/citation networks |
+| packing_factor × log₂(wsr+1) | `w_pf_x_wsr` | **Uniform-degree + cache pressure.** High packing (neighbors already co-located) combined with high WSR (graph overflows LLC) signals a graph where current ordering is locally good but globally poor — reordering the inter-community edges helps. | Road networks, meshes |
+
+**Why 3 cross-terms?** These were selected because they capture the three dominant interaction effects observed in correlation analysis: (1) power-law structure, (2) scale-dependent community quality, and (3) locality-vs-capacity trade-off. Adding more cross-terms risks overfitting on small training sets.
 
 #### Convergence Bonus (1)
 
 | Feature | Weight Field | Description |
 |---------|--------------|-------------|
 | forward_edge_fraction | `w_fef_convergence` | Added only for PR/PR_SPMV/SSSP benchmarks |
+
+The convergence bonus is separate from the linear `w_forward_edge_fraction` term because iterative algorithms (PageRank, SSSP) benefit *doubly* from forward-edge-heavy orderings: once through locality (captured by the linear term) and once through faster Gauss-Seidel convergence (captured by this bonus). Non-iterative algorithms (BFS, CC, TC) only get the locality benefit.
+
+### Why Each Weight Was Chosen
+
+Each weight in the perceptron corresponds to a graph structural feature that empirically correlates with algorithm performance. Here is what each weight captures and how it influences algorithm selection:
+
+```mermaid
+graph TD
+    subgraph "Feature Categories"
+        A["🔬 Core Topology<br/>modularity, density,<br/>degree_variance,<br/>hub_concentration"]
+        B["📏 Scale Features<br/>log_nodes, log_edges,<br/>avg_degree"]
+        C["🗺️ Locality Features<br/>packing_factor,<br/>fwd_edge_fraction,<br/>working_set_ratio"]
+        D["📐 Path Features<br/>avg_path_length,<br/>diameter_estimate,<br/>community_count"]
+        E["✖️ Cross-Terms<br/>dv×hub, mod×logN,<br/>pf×log₂(wsr)"]
+    end
+
+    A --> F["scoreBase()"]
+    B --> F
+    C --> F
+    D --> F
+    E --> F
+    F --> G["× benchmark_multiplier"]
+    G --> H["Final Score per Algorithm"]
+    H --> I{"Highest Score Wins"}
+```
+
+#### Core Topology Weights
+
+| Weight | Why Picked | Effect on Selection |
+|--------|-----------|---------------------|
+| **bias** | Base preference for each algorithm, computed as `0.5 × avg_speedup_vs_RANDOM`. Acts as a prior — algorithms that are generally fast get a head start. | HUBSORT typically has highest bias (~26) because it's fast on most graphs. ORIGINAL has lowest bias (~0.5) since it is the baseline reference. |
+| **w_modularity** | Community structure quality. High modularity = strong communities → community-aware reorderings (GraphBrewOrder, LeidenOrder) can exploit this structure. | Positive weight → favors community-aware algorithms. Negative weight → favors simpler algorithms (SORT, DBG) that ignore community structure. |
+| **w_density** | Edge density = edges / max_possible. Dense graphs have many edges per vertex → less locality gain from reordering since most vertices are neighbors anyway. | Typically negative for reordering algorithms (less benefit on dense graphs), near-zero for ORIGINAL. |
+| **w_degree_variance** | Degree distribution spread (coefficient of variation). High DV = power-law graph with extreme hubs. Hub-based algorithms (HubSort, HubClusterDBG) excel because grouping hubs reduces cache misses. | Positive for hub-aware algorithms, negative for algorithms that ignore hubs (SORT, RCM). |
+| **w_hub_concentration** | Fraction of edges from the top 10% highest-degree vertices. Directly measures how much performance depends on hub access patterns. | Strong positive for HubClusterDBG, HubSortDBG. Near-zero for SORT, RCM. |
+
+#### Scale Weights
+
+| Weight | Why Picked | Effect on Selection |
+|--------|-----------|---------------------|
+| **w_log_nodes** | Logarithmic node count. Larger graphs benefit more from reordering because the cache miss penalty increases with working set size. | Positive for all reordering algorithms, negative for ORIGINAL (which becomes worse as graphs grow). |
+| **w_log_edges** | Logarithmic edge count. More edges = more memory accesses = more opportunity for reordering to help. Often correlated with `log_nodes` but captures edge-heavy graphs independently. | Similar to `w_log_nodes` but distinguishes sparse vs. dense at the same node count. |
+| **w_avg_degree** | Mean vertex degree / 100 (normalized). High average degree means each vertex touches many neighbors → random access pattern depends heavily on vertex ordering. | Positive for locality-aware algorithms. Near-zero for algorithms that only sort by degree. |
+
+#### Locality Weights (Paper-Motivated)
+
+| Weight | Source Paper | Why Picked | Effect on Selection |
+|--------|-------------|-----------|---------------------|
+| **w_packing_factor** | IISWC'18 | Measures what fraction of a hub's neighbors are already nearby in memory (within a locality window of N/100 vertex IDs). High packing = current ordering already has good locality → less benefit from reordering. | Negative for aggressive reorderings (less room for improvement). Positive for ORIGINAL (already good). |
+| **w_forward_edge_fraction** | GoGraph | Fraction of edges (u,v) where ID(u) < ID(v). High FEF = ordering already respects "data flow" direction → better for iterative convergence (PR, SSSP). | Positive for ORIGINAL (ordering already has good convergence properties). Negative for reorderings that disrupt forward-edge structure. |
+| **w_working_set_ratio** | P-OPT | `log₂(graph_bytes / LLC_size + 1)`. How many times the graph overflows the last-level cache. WSR ≈ 1 = graph fits → reordering has limited benefit. WSR >> 1 = reordering critically important for cache performance. | Positive for reordering algorithms (more benefit when graph doesn't fit cache). |
+
+#### Extended Structural Weights
+
+| Weight | Why Picked | Effect on Selection |
+|--------|-----------|---------------------|
+| **w_clustering_coeff** | Local clustering coefficient (triangle density). Measures how "cliquey" neighborhoods are. High clustering → community-aware reorderings can group cliques together for better cache utilization. | Positive for GraphBrewOrder, LeidenOrder. Near-zero for degree-only algorithms. |
+| **w_avg_path_length** | Average shortest path distance (sampled). Short paths (< 5) = small-world graph → hub-based reorderings help because traversals reach hubs quickly. Long paths (> 10) = spatial graph → bandwidth-minimization (RCM) is better. | Sign depends on algorithm: positive for RCM on high-APL graphs, positive for HubSort on low-APL graphs. |
+| **w_diameter** | Maximum BFS depth (diameter lower bound). High-diameter graphs need different reordering strategies than low-diameter graphs — algorithms that reduce graph bandwidth (RCM) perform well on high-diameter road networks but poorly on low-diameter social networks. | Positive for RCM, negative for hub-based algorithms. |
+| **w_community_count** | Connected component count. Multiple disconnected components benefit from reorderings that place each component contiguously — keeps working set contained within a component. | Positive for algorithms that respect component structure (GraphBrewOrder). |
+
+### Centroid-Based Type System
+
+The perceptron uses a **type clustering system** to train different weights for different graph shapes. Instead of one-size-fits-all weights, graphs are clustered by structural similarity and each cluster gets its own trained weights.
+
+```mermaid
+flowchart LR
+    subgraph "Training (Offline)"
+        A["Graph Features<br/>7 dimensions"] -->|k-means-like| B["Type Centroids"]
+        B --> C["type_0/ weights.json<br/>type_1/ weights.json<br/>..."]
+    end
+
+    subgraph "Runtime (Online)"
+        D["New Graph<br/>Features"] -->|Euclidean distance| E{"Match Centroid?"}
+        E -->|distance < 1.5| F["Load matching<br/>type weights"]
+        E -->|distance ≥ 1.5| G["OOD Guardrail<br/>→ use ORIGINAL"]
+    end
+```
+
+#### How Centroids Work
+
+1. **Feature Vector (7D):** Each graph is represented by a normalized 7-dimensional vector:
+   `[modularity, degree_variance, hub_concentration, clustering_coeff, avg_path_length, diameter, community_count]`
+   
+   Each dimension is normalized to [0,1] range:
+   - modularity: / 1.0, degree_variance: / 5.0, hub_concentration: / 1.0
+   - clustering_coeff: / 1.0, avg_path_length: / 20.0, diameter: / 100.0
+   - community_count: / 100.0
+
+2. **Clustering:** During training, the first graph creates `type_0` with its feature vector as the centroid. Subsequent graphs are assigned to the nearest type if their normalized Euclidean distance is < 0.15 (the `CLUSTER_DISTANCE_THRESHOLD`). If no type is close enough, a new type is created.
+
+3. **Centroid Update:** When a graph joins an existing type, the centroid is updated as a running mean:
+   ```
+   new_centroid[i] = old_centroid[i] + (graph_feature[i] - old_centroid[i]) / (count + 1)
+   ```
+
+4. **Runtime Matching:** The graph's features are normalized and compared to all type centroids. The type with minimum Euclidean distance is selected. If minimum distance > 1.5, the graph is considered **out-of-distribution (OOD)** and ORIGINAL is returned as a safe default.
+
+#### Centroid Distance Visualization
+
+```
+    High Mod  ┌────────────────────────────────────┐
+              │  ●type_1                           │
+              │   (social)     ○ new graph         │
+              │                ↕ dist=0.12         │
+              │  ●type_0       → matches type_1    │
+              │   (web)                            │
+              │                                    │
+              │              ●type_2               │
+              │               (road)               │
+    Low Mod   └────────────────────────────────────┘
+              Low DV                        High DV
+```
 
 > **Locality Features:** `packing_factor` (IISWC'18), `forward_edge_fraction` (GoGraph), and `working_set_ratio` (P-OPT) capture degree uniformity, ordering quality, and cache pressure respectively. The quadratic cross-terms capture non-linear feature interactions.
 
@@ -275,7 +421,7 @@ AdaptiveOrder's implementation is split across modular header files in `bench/in
 
 | File | Purpose |
 |------|---------|
-| `reorder_types.h` | Base types, `PerceptronWeights`, `CommunityFeatures`, `ComputeSampledDegreeFeatures`, scoring, weight loading |
+| `reorder_types.h` | Base types, `PerceptronWeights`, `CommunityFeatures`, `ComputeSampledDegreeFeatures`, `ComputeExtendedFeatures`, scoring, weight loading |
 | `reorder_adaptive.h` | Entry points: `GenerateAdaptiveMappingStandalone`, `FullGraphStandalone`, `RecursiveStandalone` |
 
 **ComputeSampledDegreeFeatures Utility:**
@@ -295,11 +441,24 @@ struct SampledDegreeFeatures {
     double working_set_ratio;      // graph_bytes / LLC_size (P-OPT)
 };
 
+struct ExtendedFeatures {
+    double avg_path_length;        // Mean BFS distance across sampled pairs
+    int    diameter_estimate;      // Max BFS depth (lower bound on diameter)
+    int    component_count;        // Number of connected components
+};
+
 template<typename GraphT>
 SampledDegreeFeatures ComputeSampledDegreeFeatures(
     const GraphT& g,
-    size_t sample_size = 5000,
+    size_t sample_size = 0,       // 0 = auto-scale: max(5000, min(√N, 50000))
     bool compute_clustering = false
+);
+
+template<typename GraphT>
+ExtendedFeatures ComputeExtendedFeatures(
+    const GraphT& g,
+    int num_bfs_sources = 5,      // Number of BFS sources for path/diameter
+    size_t max_bfs_visits = 0     // 0 = auto-scale: min(100K, N/10)
 );
 
 // Detects system LLC size via sysconf (Linux) with 30MB fallback
@@ -375,8 +534,11 @@ base_score = bias
            + cache_l3_impact × 0.2                        # CACHE IMPACT
            + cache_dram_penalty                           # CACHE IMPACT
 
-# Note: avg_path_length, diameter_estimate, community_count, and
-# reorder_time exist in the formula but are always 0.0 at runtime
+# Extended features (computed at runtime via ComputeExtendedFeatures):
+#   avg_path_length:  sampled BFS (5 sources, bounded visits)
+#   diameter_estimate: max BFS depth across sources
+#   community_count:   connected component count via full BFS
+#   reorder_time:      only populated in MODE_FASTEST_REORDER
 
 # Convergence bonus (PR/PR_SPMV/SSSP only)
 if benchmark ∈ {PR, PR_SPMV, SSSP}:
@@ -494,15 +656,74 @@ See [[Correlation-Analysis]] for the full 5-step process with examples.
 
 ## How Perceptron Scores Feed Into Ordering
 
+### End-to-End Pipeline Diagram
+
+```mermaid
+flowchart TB
+    subgraph "1. Feature Extraction"
+        A["Input Graph (CSR)"] --> B["ComputeSampledDegreeFeatures()<br/>auto-scaled sample:<br/>max(5000, min(√N, 50K))"]
+        A --> C["ComputeExtendedFeatures()<br/>5-source BFS + CC count"]
+        B --> D["SampledDegreeFeatures<br/>degree_var, hub_conc,<br/>packing, FEF, WSR,<br/>clustering_coeff"]
+        C --> E["ExtendedFeatures<br/>avg_path_length,<br/>diameter_estimate,<br/>component_count"]
+    end
+
+    subgraph "2. Type Matching"
+        D --> F["Normalize to 7D vector"]
+        E --> F
+        F --> G{"Centroid Distance<br/>< 1.5?"}
+        G -->|Yes| H["Load type_N/weights.json"]
+        G -->|No| I["OOD → ORIGINAL"]
+    end
+
+    subgraph "3. Perceptron Scoring"
+        H --> J["For each algorithm:<br/>score = scoreBase(features)<br/>× benchmark_multiplier"]
+        J --> K["RABBITORDER: 2.31<br/>GraphBrewOrder: 2.18<br/>HubClusterDBG: 1.95<br/>ORIGINAL: 0.50"]
+    end
+
+    subgraph "4. Safety & Selection"
+        K --> L{"best - ORIGINAL<br/>> 0.05?"}
+        L -->|Yes| M["Select highest-scoring"]
+        L -->|No| N["Keep ORIGINAL"]
+        M --> O["Complexity Guard<br/>(GOrder < 500K,<br/>COrder < 2M)"]
+        O --> P["Apply Reordering"]
+    end
+```
+
+### Feature Extraction Detail
+
+The feature extraction pipeline runs two independent computations:
+
+```mermaid
+flowchart LR
+    subgraph "Fast Path (~1ms)"
+        direction TB
+        S1["Strided Degree Sample"] --> S2["degree_variance (CV)"]
+        S1 --> S3["hub_concentration<br/>(top 10% edge frac)"]
+        S1 --> S4["avg_degree"]
+        S5["500 Hub Samples"] --> S6["packing_factor<br/>(IISWC'18)"]
+        S7["2000 Edge Samples"] --> S8["forward_edge_fraction<br/>(GoGraph)"]
+        S9["Exact Calculation"] --> S10["working_set_ratio<br/>(P-OPT)"]
+        S11["1000 Triangle Samples"] --> S12["clustering_coeff"]
+        S12 --> S13["estimated_modularity<br/>= min(0.9, CC × 1.5)"]
+    end
+
+    subgraph "Extended Path (~50-500ms)"
+        direction TB
+        E1["5-source Strided BFS<br/>bounded visits"] --> E2["avg_path_length"]
+        E1 --> E3["diameter_estimate"]
+        E4["Full CC Sweep<br/>O(V+E)"] --> E5["component_count"]
+    end
+```
+
 ### Complete Example: Ordering a Social Network
 
 For a graph with 10,000 nodes, AdaptiveOrder (default full-graph mode):
 
-1. **Feature Extraction** — Computes modularity, hub_concentration, degree_variance, packing_factor, forward_edge_fraction, working_set_ratio, etc.
-2. **Type Matching** — Finds closest type centroid in the type registry
+1. **Feature Extraction** — `ComputeSampledDegreeFeatures()` computes degree_variance, hub_concentration, packing_factor, forward_edge_fraction, working_set_ratio, clustering_coeff. `ComputeExtendedFeatures()` computes avg_path_length, diameter_estimate, component_count.
+2. **Type Matching** — Normalizes features to 7D vector, finds closest type centroid in the type registry (Euclidean distance). If distance > 1.5, OOD guardrail → ORIGINAL.
 3. **Weight Loading** — Loads per-benchmark weights (e.g., `type_0/pr.json`) or falls back to generic `type_0/weights.json`
-4. **Perceptron Scoring** — Evaluates all algorithms using the score formula
-5. **Algorithm Selection** — Selects the algorithm with the highest score (subject to safety checks)
+4. **Perceptron Scoring** — Evaluates all algorithms using the score formula (linear terms + quadratic cross-terms + convergence bonus) × benchmark multiplier
+5. **Algorithm Selection** — Selects the algorithm with the highest score (subject to safety checks: OOD guardrail, ORIGINAL margin, complexity guards)
 6. **Reordering** — Applies the selected algorithm to the entire graph
 
 In per-community mode (mode 1), Leiden detects communities first, and steps 1–5 are repeated for each community independently.

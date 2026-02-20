@@ -29,9 +29,10 @@ from .utils import (
     BIN_SIM_DIR, SIZE_MEDIUM,
     TIMEOUT_SIM, TIMEOUT_SIM_HEAVY,
     ALGORITHMS, Logger, run_command,
+    canonical_algo_key, algo_converter_opt,
 )
 from .graph_types import GraphInfo
-from .reorder import get_label_map_path, get_algorithm_name_with_variant
+from .reorder import get_label_map_path
 
 # Initialize logger
 log = Logger()
@@ -178,11 +179,8 @@ def run_cache_simulation(
     graph_path = Path(graph_path)
     graph_name = graph_path.stem
     
-    # Build algorithm name with variant
-    if variant:
-        algo_name = f"{ALGORITHMS.get(algorithm, f'ALG{algorithm}')}_{variant}"
-    else:
-        algo_name = get_algorithm_name_with_variant(algorithm)
+    # Build canonical algorithm name and converter option via SSOT
+    algo_name = canonical_algo_key(algorithm, variant)
     
     binary = Path(bin_sim_dir) / benchmark
     if not binary.exists():
@@ -201,11 +199,7 @@ def run_cache_simulation(
         # Use pre-generated mapping via MAP (algo 13)
         cmd = f"{binary} -f {graph_path} {sym_flag} -o 13:{label_map_path} -n 1"
     else:
-        # Build algorithm option string with variant if specified
-        if variant and algorithm == 8:  # RabbitOrder
-            algo_opt = f"{algorithm}:{variant}"
-        else:
-            algo_opt = str(algorithm)
+        algo_opt = algo_converter_opt(algorithm, variant)
         cmd = f"{binary} -f {graph_path} {sym_flag} -o {algo_opt} -n 1"
     
     # Run simulation
@@ -331,7 +325,7 @@ def run_cache_simulations(
                 log.info(f"  {bench.upper()}: SKIPPED (heavy on large graph)")
                 for algo_id, variant in expanded_algos:
                     current += 1
-                    algo_name = f"{ALGORITHMS.get(algo_id, f'ALG{algo_id}')}_{variant}" if variant else get_algorithm_name_with_variant(algo_id)
+                    algo_name = canonical_algo_key(algo_id, variant)
                     results.append(CacheResult(
                         graph=graph.name,
                         algorithm_id=algo_id,
@@ -346,11 +340,7 @@ def run_cache_simulations(
             
             for algo_id, variant in expanded_algos:
                 current += 1
-                # Build algorithm name with variant
-                if variant:
-                    algo_name = f"{ALGORITHMS.get(algo_id, f'ALG{algo_id}')}_{variant}"
-                else:
-                    algo_name = get_algorithm_name_with_variant(algo_id)
+                algo_name = canonical_algo_key(algo_id, variant)
                 
                 # Check for pre-generated label map
                 label_map_path = None

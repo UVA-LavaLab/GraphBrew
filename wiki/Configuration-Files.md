@@ -16,7 +16,7 @@ scripts/
 └── lib/                       # Python library modules
     ├── utils.py               # ⭐ Single source of truth for constants:
     │                          #    ALGORITHMS, BENCHMARKS, SIZE_*, TIMEOUT_*,
-    │                          #    GRAPHBREW_VARIANTS, etc.
+    │                          #    GRAPHBREW_VARIANTS, canonical_algo_key(), etc.
     ├── benchmark.py           # Benchmark execution
     ├── cache.py               # Cache simulation
     ├── weights.py             # Weight management
@@ -74,6 +74,8 @@ python3 scripts/graphbrew_experiment.py \
 | `--trials` | Number of benchmark trials | 2 |
 | `--quick` | Only test key algorithms | false |
 | `--skip-cache` | Skip cache simulation | false |
+| `--pregenerate-sg` | Pre-generate reordered `.sg` per algorithm (eliminates runtime reorder overhead) | true |
+| `--no-pregenerate-sg` | Disable `.sg` pre-generation; reorder at runtime | false |
 | `--train` | Complete training pipeline | false |
 
 ### Memory and Disk Limits
@@ -213,6 +215,45 @@ See [[Command-Line-Reference]] for all options.
 ## Single Source of Truth (SSOT) Constants
 
 All tunable constants are defined in **one location** to ensure consistency between C++ and Python.
+
+### Unified Algorithm Naming (scripts/lib/utils.py)
+
+Every subsystem that needs an algorithm name — weight files, `.sg` filenames, result JSON,
+benchmark display — **MUST** use the canonical naming API:
+
+```python
+from scripts.lib.utils import canonical_algo_key, algo_converter_opt
+
+# canonical_algo_key(algo_id, variant=None) → string key
+canonical_algo_key(0)             # → "ORIGINAL"
+canonical_algo_key(8)             # → "RABBITORDER_csr"      (default variant)
+canonical_algo_key(8, "boost")    # → "RABBITORDER_boost"
+canonical_algo_key(12, "leiden")  # → "GraphBrewOrder_leiden"
+canonical_algo_key(11)            # → "RCM_default"
+
+# algo_converter_opt(algo_id, variant=None) → "-o" argument for C++ binaries
+algo_converter_opt(0)             # → "0"
+algo_converter_opt(8, "boost")    # → "8:boost"
+algo_converter_opt(12, "leiden")  # → "12:leiden"
+```
+
+These two functions are always used as a **pair**: `canonical_algo_key()` for the
+human-readable key and `algo_converter_opt()` for the C++ command-line argument.
+For variant algorithms (RabbitOrder, RCM, GOrder, GraphBrewOrder), the variant
+suffix is **always** included — omitting the variant uses the registered default.
+
+**Where the canonical key appears:**
+
+| Context | Example |
+|---------|-----------|
+| Weight JSON key | `"RABBITORDER_csr": { "bias": 2.5, ... }` |
+| `.sg` filename | `email-Enron_RABBITORDER_csr.sg` |
+| `.lo` mapping file | `email-Enron_RABBITORDER_csr.lo` |
+| Benchmark result field | `{ "algorithm": "RABBITORDER_csr", ... }` |
+| Per-graph data dirs | `results/graphs/email-Enron/RABBITORDER_csr/` |
+
+**Legacy migration:** The `LEGACY_ALGO_NAME_MAP` dict in `utils.py` handles
+bare pre-variant names (e.g., `"GraphBrewOrder"` → `"GraphBrewOrder_leiden"`).
 
 ### Python Constants (scripts/lib/utils.py)
 

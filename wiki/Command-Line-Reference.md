@@ -33,6 +33,8 @@ Complete reference for all GraphBrew command-line options.
 | `--all-variants` | Test all algorithm variants |
 | `--auto` | Auto-detect memory/disk limits |
 | `--precompute` | Use pre-generated label maps |
+| `--pregenerate-sg` | Pre-generate reordered `.sg` per algorithm (default ON) |
+| `--no-pregenerate-sg` | Disable `.sg` pre-generation; reorder at runtime instead |
 
 ### Run Phases Separately
 
@@ -40,6 +42,7 @@ You can run each phase independently. Later phases automatically load results fr
 
 | Phase | Command | Description |
 |-------|---------|-------------|
+| **Phase 0** | (automatic) | Convert `.mtx` → `.sg` with RANDOM baseline + pre-generate reordered `.sg` per algorithm |
 | **Phase 1** | `--phase reorder` | Generate reordered graphs (.lo label maps) |
 | **Phase 2** | `--phase benchmark` | Run graph algorithm benchmarks (BFS, PR, etc.) |
 | **Phase 3** | `--phase cache` | Run cache simulation |
@@ -67,7 +70,7 @@ python3 scripts/graphbrew_experiment.py --phase weights
 
 ## Benchmark Binaries
 
-All binaries are located in `bench/bin/`. The automated pipeline uses **eight** benchmarks:
+All binaries are located in `bench/bin/`. The automated pipeline uses **seven** benchmarks by default (TC excluded from experiments):
 
 | Binary | Algorithm | Description |
 |--------|-----------|-------------|
@@ -171,7 +174,8 @@ Use with `-o <id>`:
 | 15 | LeidenOrder | Leiden (GVE-Leiden baseline) |
 
 > **Note:** For current variant lists, see `scripts/lib/utils.py` which defines:
-> - `RABBITORDER_VARIANTS`, `RCM_VARIANTS`, `GRAPHBREW_VARIANTS`
+> - `RABBITORDER_VARIANTS`, `GORDER_VARIANTS`, `RCM_VARIANTS`, `GRAPHBREW_VARIANTS`
+> - Use `get_algo_variants(algo_id)` to query programmatically
 
 ### GOrder Variants (Algorithm 9)
 
@@ -240,6 +244,24 @@ Options can be passed directly — the `graphbrew` prefix is **not required**.
 | `hubcluster` | Hub-degree based clustering | N/A (native) |
 
 Override the final reordering algorithm with `:<algo_id>`, e.g. `-o "12:leiden:7"` uses HubClusterDBG.
+
+**Multi-Layer Configuration:** GraphBrewOrder's CLI string is parsed as a multi-layer pipeline:
+- **Layer 0** (Preset): `leiden` | `rabbit` | `hubcluster`
+- **Layer 1** (Ordering): `hrab` | `dfs` | `bfs` | `conn` | `dbg` | `corder` | `dbg-global` | `corder-global` | `streaming` | `lazyupdate` | ...
+- **Layer 2** (Aggregation): `gvecsr` | `leiden` | `streaming` | `hybrid`
+- **Layer 3** (Features): `merge` | `hubx` | `gord` | `hsort` | `rcm` | `norefine` | `verify` | `graphbrew` | `recursive` | `flat` (additive — combine any)
+- **Layer 4** (Dispatch): `finalAlgoId` (0-11), `depth` (-1=auto), `subAlgoId`
+- **Layer 5** (Numeric): resolution (float), max_iterations, max_passes
+
+Example: `-o 12:leiden:hrab:gvecsr:merge:hubx:0.75` sets preset=leiden, ordering=hrab, aggregation=gvecsr, features=[merge,hubx], resolution=0.75.
+
+See `GRAPHBREW_LAYERS` in `scripts/lib/utils.py` for the full definition.
+
+**Chained reorderings:** Pass multiple `-o` flags to apply orderings sequentially:
+```bash
+./bench/bin/converter -f graph.el -s -o 2 -o 8:csr -b graph.sg  # SORT then RABBITORDER
+```
+See [[Reordering-Algorithms#chained-orderings-multi-pass]] for all defined chains.
 
 **Auto-Resolution:** Automatically computed based on graph's coefficient of variation (CV):
 - High-CV graphs (social/web): resolution ≈ 0.50 (coarser communities, better locality)

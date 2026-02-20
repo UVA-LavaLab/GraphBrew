@@ -31,6 +31,7 @@ This will automatically:
 - ✅ Auto-detect disk space and limit downloads accordingly
 - ✅ Skip small graphs (<100k edges) that introduce training noise
 - ✅ Build all binaries (standard + cache simulation)
+- ✅ Pre-generate reordered `.sg` per algorithm (12 algorithms; loaded at benchmark time — no runtime reorder overhead)
 - ✅ Expand Leiden algorithms into all variants (dfs, bfs, hubsort, etc.)
 - ✅ Run 5 trials per benchmark for statistical reliability
 - ✅ Train per-graph-type perceptron weights for AdaptiveOrder
@@ -182,18 +183,21 @@ Average Time:        0.001xx
 | 7 | HUBCLUSTERDBG | General purpose |
 | 12 | GraphBrewOrder | Modular graphs |
 | 14 | AdaptiveOrder | Auto-selection |
-Best algorithm: GraphBrewOrder (`-o 12`, best quality). See [[Reordering-Algorithms]] for all 16 algorithms and variants.
+Best algorithm: GraphBrewOrder (`-o 12`, best quality). See [[Reordering-Algorithms]] for all 16 algorithm IDs (12 reorderers + 2 baselines + 2 meta) and variants.
 
 ---
 
 ## 5. Run All Benchmarks (30 seconds)
 
 ```bash
-# Create a simple test script
-for bench in pr pr_spmv bfs cc cc_sv sssp bc tc; do
+# Run the 7 experiment benchmarks (TC excluded by default in the pipeline)
+for bench in pr pr_spmv bfs cc cc_sv sssp bc; do
     echo "=== $bench ==="
     ./bench/bin/$bench -f scripts/test/graphs/tiny/tiny.el -s -o 7 -n 1
 done
+
+# Or include TC explicitly:
+# ./bench/bin/tc -f scripts/test/graphs/tiny/tiny.el -s -n 1
 ```
 
 ---

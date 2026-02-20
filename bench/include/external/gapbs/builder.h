@@ -2366,7 +2366,7 @@ public:
         // ============================================================
         // 1. DEGREE STATISTICS (use shared utility function)
         // ============================================================
-        auto deg_features = ::ComputeSampledDegreeFeatures(g, 5000, true);
+        auto deg_features = ::ComputeSampledDegreeFeatures(g, 0, true);
         double avg_degree = deg_features.avg_degree;
         double degree_variance = deg_features.degree_variance;
         double hub_concentration = deg_features.hub_concentration;
