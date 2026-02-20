@@ -70,21 +70,20 @@ Author: GraphBrew Team
 """
 
 import argparse
+import glob
 import json
 import os
 import re
-import sys
-import glob
 import shutil
+import sys
+import traceback
 from dataclasses import asdict
 from datetime import datetime
 from pathlib import Path
 from typing import List, Optional
-import traceback
 
 # Ensure project root is in path for lib imports
-_SCRIPT_DIR = Path(__file__).resolve().parent
-_PROJECT_ROOT = _SCRIPT_DIR.parent
+_PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
@@ -180,6 +179,10 @@ MIN_EDGES_FOR_TRAINING = 100000  # 100K edges
 
 # Default modularity for graphs without adaptive analysis results
 DEFAULT_MODULARITY = 0.5
+
+# Auto-resource safety margins
+AUTO_MEMORY_FRACTION = 0.6   # Use 60% of total RAM
+AUTO_DISK_FRACTION = 0.8     # Use 80% of free disk
 
 # Cache simulation benchmarks (subset of BENCHMARKS for speed)
 CACHE_KEY_BENCHMARKS = ["pr", "bfs"]
@@ -855,7 +858,7 @@ def run_experiment(args):
     _progress.info(f"Phase to run: {args.phase}")
     _progress.info(f"Benchmarks: {', '.join(args.benchmarks)}")
     _progress.info(f"Trials per benchmark: {args.trials}")
-    if getattr(args, 'expand_variants', False):
+    if args.expand_variants:
         _progress.info("Leiden variant expansion: ENABLED")
     _progress.phase_end()
     
@@ -871,7 +874,7 @@ def run_experiment(args):
     _progress.info(f"Size filter: {min_size:.1f}MB - {max_size:.1f}MB")
     
     # Auto-download: ensure graphs are available (skips already-downloaded, safe to call multiple times)
-    if args.auto and not getattr(args, 'skip_download', False):
+    if args.auto and not args.skip_download:
         _progress.info(f"Auto-download: ensuring all {args.download_size} graphs are available...")
         download_graphs(
             size_category=args.download_size,
@@ -882,7 +885,7 @@ def run_experiment(args):
         )
     
     graphs = discover_graphs(args.graphs_dir, min_size, max_size, max_memory_gb=args.max_memory,
-                             min_edges=getattr(args, 'min_edges', 0))
+                             min_edges=args.min_edges)
     
     # Filter by specific graph name(s) if provided
     if args.graph_list:
@@ -945,7 +948,7 @@ def run_experiment(args):
                 name_to_id[f"{pfx}{v}".upper()] = aid
         # Add GOrder implementation variant names (not in registry, share weight)
         for v in GORDER_VARIANTS:
-            name_to_id[f"GORDER_{v}".upper()] = 9
+            name_to_id[f"GORDER_{v}".upper()] = ALGORITHM_IDS["GORDER"]
         # Common shorthand aliases (use ALGORITHM_IDS from SSOT)
         name_to_id.update({
             "RABBIT": ALGORITHM_IDS["RABBITORDER"],
@@ -999,14 +1002,14 @@ def run_experiment(args):
     label_maps = {}
     
     # Pre-generate label maps if requested (also records reorder times)
-    if getattr(args, "generate_maps", False):
+    if args.generate_maps:
         _progress.phase_start("LABEL MAP GENERATION", "Pre-generating reordering mappings (.lo files)")
         
         # Check if variant expansion is requested
-        if getattr(args, "expand_variants", False):
+        if args.expand_variants:
             _progress.info("Leiden variant expansion: ENABLED")
-            _progress.info(f"  Resolution: {getattr(args, 'leiden_resolution', LEIDEN_DEFAULT_RESOLUTION)}")
-            _progress.info(f"  Passes: {getattr(args, 'leiden_passes', LEIDEN_DEFAULT_PASSES)}")
+            _progress.info(f"  Resolution: {args.leiden_resolution}")
+            _progress.info(f"  Passes: {args.leiden_passes}")
             
             # Use variant-aware mapping generation
             label_maps, reorder_timing_results = generate_reorderings_with_variants(
@@ -1015,12 +1018,12 @@ def run_experiment(args):
                 bin_dir=args.bin_dir,
                 output_dir=args.results_dir,
                 expand_leiden_variants=True,
-                leiden_resolution=getattr(args, "leiden_resolution", LEIDEN_DEFAULT_RESOLUTION),
-                leiden_passes=getattr(args, "leiden_passes", LEIDEN_DEFAULT_PASSES),
-                gorder_variants=getattr(args, "gorder_variants", None),
+                leiden_resolution=args.leiden_resolution,
+                leiden_passes=args.leiden_passes,
+                gorder_variants=args.gorder_variants,
                 timeout=args.timeout_reorder,
                 skip_slow=args.skip_slow,
-                force_reorder=getattr(args, "force_reorder", False)
+                force_reorder=args.force_reorder
             )
         else:
             # Use standard mapping generation (no variant expansion)
@@ -1036,7 +1039,7 @@ def run_experiment(args):
         _progress.phase_end(f"Generated {len(label_maps)} graph mappings")
     
     # Load existing label maps if requested
-    if getattr(args, "use_maps", False):
+    if args.use_maps:
         _progress.phase_start("LOADING EXISTING MAPS", "Loading pre-generated label mappings")
         label_maps = load_label_maps_index(args.results_dir)
         if label_maps:
@@ -1050,7 +1053,7 @@ def run_experiment(args):
         _progress.phase_start("REORDERING", "Generating vertex reorderings for all graphs")
         
         # Check if variant expansion is requested
-        if getattr(args, "expand_variants", False):
+        if args.expand_variants:
             _progress.info("Leiden/RabbitOrder variant expansion: ENABLED")
             
             # Use variant-aware reordering
@@ -1060,14 +1063,14 @@ def run_experiment(args):
                 bin_dir=args.bin_dir,
                 output_dir=args.results_dir,
                 expand_leiden_variants=True,
-                leiden_resolution=getattr(args, "leiden_resolution", LEIDEN_DEFAULT_RESOLUTION),
-                leiden_passes=getattr(args, "leiden_passes", LEIDEN_DEFAULT_PASSES),
-                rabbit_variants=getattr(args, "rabbit_variants", None),
-                graphbrew_variants=getattr(args, "graphbrew_variants", None),
-                gorder_variants=getattr(args, "gorder_variants", None),
+                leiden_resolution=args.leiden_resolution,
+                leiden_passes=args.leiden_passes,
+                rabbit_variants=args.rabbit_variants,
+                graphbrew_variants=args.graphbrew_variants,
+                gorder_variants=args.gorder_variants,
                 timeout=args.timeout_reorder,
                 skip_slow=args.skip_slow,
-                force_reorder=getattr(args, "force_reorder", False)
+                force_reorder=args.force_reorder
             )
             
             # Merge variant label maps into main label_maps
@@ -1085,7 +1088,7 @@ def run_experiment(args):
                 timeout=args.timeout_reorder,
                 skip_slow=args.skip_slow,
                 generate_maps=True,  # Always generate .lo mapping files
-                force_reorder=getattr(args, "force_reorder", False)
+                force_reorder=args.force_reorder
             )
             
             # Build label_maps from successful reorder results if not already populated
@@ -1117,7 +1120,7 @@ def run_experiment(args):
     if args.phase in ["all", "benchmark"]:
         _progress.phase_start("BENCHMARKING", "Running performance benchmarks")
         
-        if has_variant_maps and getattr(args, "expand_variants", False):
+        if has_variant_maps and args.expand_variants:
             # Use variant-aware benchmarking with pre-generated variant mappings
             _progress.info("Mode: Variant-aware benchmarking (GraphBrewOrder_leiden, GraphBrewOrder_rabbit, etc.)")
             benchmark_results = run_benchmarks_with_variants(
@@ -1128,7 +1131,7 @@ def run_experiment(args):
                 num_trials=args.trials,
                 timeout=args.timeout_benchmark,
                 weights_dir=args.weights_dir,
-                update_weights=not getattr(args, 'no_incremental', False),
+                update_weights=not args.no_incremental,
                 progress=_progress
             )
         else:
@@ -1144,7 +1147,7 @@ def run_experiment(args):
                 skip_slow=args.skip_slow,
                 label_maps=label_maps,
                 weights_dir=args.weights_dir,
-                update_weights=not getattr(args, 'no_incremental', False)
+                update_weights=not args.no_incremental
             )
         all_benchmark_results.extend(benchmark_results)
         
@@ -1173,7 +1176,7 @@ def run_experiment(args):
     if args.phase in ["all", "cache"] and not args.skip_cache:
         _progress.phase_start("CACHE SIMULATION", "Running cache miss simulations")
         
-        if has_variant_maps and getattr(args, "expand_variants", False):
+        if has_variant_maps and args.expand_variants:
             # Use variant-aware cache simulation
             _progress.info("Mode: Variant-aware cache simulation (GraphBrewOrder_leiden, GraphBrewOrder_rabbit, etc.)")
             cache_results = run_cache_simulations_with_variants(
@@ -1189,7 +1192,7 @@ def run_experiment(args):
             _progress.info("Mode: Standard cache simulation")
             
             # Pass variant lists if specified
-            rabbit_variants = getattr(args, 'rabbit_variants', None)
+            rabbit_variants = args.rabbit_variants
             
             if rabbit_variants:
                 _progress.info(f"  RabbitOrder variants: {rabbit_variants or ['csr (default)']}")
@@ -1203,8 +1206,8 @@ def run_experiment(args):
                 skip_heavy=args.skip_heavy,
                 label_maps=label_maps,
                 rabbit_variants=rabbit_variants,
-                resolution=getattr(args, 'leiden_resolution', LEIDEN_DEFAULT_RESOLUTION),
-                passes=getattr(args, 'leiden_passes', LEIDEN_DEFAULT_PASSES)
+                resolution=args.leiden_resolution,
+                passes=args.leiden_passes
             )
         all_cache_results.extend(cache_results)
         
@@ -1216,7 +1219,7 @@ def run_experiment(args):
         _progress.phase_end(f"Completed {len(cache_results)} cache simulations")
     
     # Phase 6: Adaptive Order Analysis
-    if args.phase in ["all", "adaptive"] or getattr(args, "adaptive_analysis", False):
+    if args.phase in ["all", "adaptive"] or args.adaptive_analysis:
         log_section("Running Adaptive Order Analysis")
         adaptive_results = analyze_adaptive_order(
             graphs=graphs,
@@ -1241,7 +1244,7 @@ def run_experiment(args):
                 log(f"  {algo}: {count}")
     
     # Phase 7: Adaptive vs Fixed Comparison
-    if getattr(args, "adaptive_comparison", False):
+    if args.adaptive_comparison:
         # Compare against top fixed algorithms
         fixed_algos = [
             ALGORITHM_IDS["RANDOM"], ALGORITHM_IDS["SORT"],
@@ -1260,8 +1263,8 @@ def run_experiment(args):
         )
     
     # Phase 8: Brute-Force Validation (All 20 algos vs Adaptive)
-    if getattr(args, "brute_force", False):
-        bf_benchmark = getattr(args, "bf_benchmark", "pr")
+    if args.brute_force:
+        bf_benchmark = args.bf_benchmark
         run_subcommunity_brute_force(
             graphs=graphs,
             bin_dir=args.bin_dir,
@@ -1274,64 +1277,64 @@ def run_experiment(args):
         )
     
     # Phase 8b: Validate Adaptive Accuracy (faster than brute-force)
-    if getattr(args, "validate_adaptive", False):
+    if args.validate_adaptive:
         validate_adaptive_accuracy(
             graphs=graphs,
             bin_dir=args.bin_dir,
             output_dir=args.results_dir,
-            benchmarks=getattr(args, "benchmarks", DEFAULT_TRAIN_BENCHMARKS),
+            benchmarks=args.benchmarks,
             timeout=args.timeout_benchmark,
             num_trials=args.trials,
-            force_reorder=getattr(args, "force_reorder", False)
+            force_reorder=args.force_reorder
         )
     
     # Phase 9: Iterative Training (feedback loop to optimize adaptive weights)
-    if getattr(args, "train_adaptive", False):
+    if args.train_adaptive:
         train_adaptive_weights_iterative(
             graphs=graphs,
             bin_dir=args.bin_dir,
             bin_sim_dir=args.bin_sim_dir,
             output_dir=args.results_dir,
             weights_file=args.weights_file,
-            benchmark=getattr(args, "bf_benchmark", "pr"),
-            target_accuracy=getattr(args, "target_accuracy", 80.0),
-            max_iterations=getattr(args, "max_iterations", 10),
+            benchmark=args.bf_benchmark,
+            target_accuracy=args.target_accuracy,
+            max_iterations=args.max_iterations,
             timeout=args.timeout_benchmark,
             timeout_sim=args.timeout_sim,
             num_trials=args.trials,
-            learning_rate=getattr(args, "learning_rate", 0.1),
+            learning_rate=args.learning_rate,
             algorithms=algorithms,
             weights_dir=args.weights_dir  # Type-based weights directory
         )
     
     # Phase 10: Large-Scale Training (batched multi-benchmark training)
-    if getattr(args, "train_large", False):
+    if args.train_large:
         train_adaptive_weights_large_scale(
             graphs=graphs,
             bin_dir=args.bin_dir,
             bin_sim_dir=args.bin_sim_dir,
             output_dir=args.results_dir,
             weights_file=args.weights_file,
-            benchmarks=getattr(args, "train_benchmarks", DEFAULT_TRAIN_BENCHMARKS),
-            target_accuracy=getattr(args, "target_accuracy", 80.0),
-            max_iterations=getattr(args, "max_iterations", 10),
-            batch_size=getattr(args, "batch_size", 8),
+            benchmarks=args.train_benchmarks,
+            target_accuracy=args.target_accuracy,
+            max_iterations=args.max_iterations,
+            batch_size=args.batch_size,
             timeout=args.timeout_benchmark,
             timeout_sim=args.timeout_sim,
             num_trials=args.trials,
-            learning_rate=getattr(args, "learning_rate", 0.15),
+            learning_rate=args.learning_rate,
             algorithms=algorithms
         )
     
     # Initialize/upgrade weights file with enhanced features
-    if getattr(args, "init_weights", False):
+    if args.init_weights:
         log_section("Initialize Enhanced Weights")
         weights = initialize_enhanced_weights(args.weights_file)
         log(f"Weights initialized/upgraded with {len(weights) - 1} algorithms")
         log(f"Saved to: {args.weights_file}")
     
     # Fill ALL weights mode: comprehensive training to populate all weight fields
-    if getattr(args, "fill_weights", False):
+    if args.fill_weights:
         log_section("Fill All Weights - Comprehensive Training")
         log("This mode runs all phases to populate every weight field:")
         log("  - Phase 0: Graph Analysis (detects graph types from properties)")
@@ -1345,7 +1348,7 @@ def run_experiment(args):
         log("")
         
         # Load existing graph properties cache if available
-        weights_file = getattr(args, 'weights_file', None) or os.path.join(args.weights_dir, 'weights.json')
+        weights_file = args.weights_file or os.path.join(args.weights_dir, 'weights.json')
         cache_dir = os.path.dirname(weights_file) or args.weights_dir
         props_cache = load_graph_properties_cache(cache_dir)
         log(f"Loaded graph properties cache: {len(props_cache)} graphs")
@@ -1375,9 +1378,9 @@ def run_experiment(args):
             bin_dir=args.bin_dir,
             output_dir=args.results_dir,
             timeout=args.timeout_reorder,
-            skip_slow=getattr(args, 'skip_slow', False),
+            skip_slow=args.skip_slow,
             generate_maps=True,  # Always generate .lo mapping files
-            force_reorder=getattr(args, "force_reorder", False)
+            force_reorder=args.force_reorder
         )
         
         # Phase 2: Benchmarks (all of them)
@@ -1390,7 +1393,7 @@ def run_experiment(args):
             bin_dir=args.bin_dir,
             num_trials=args.trials,
             timeout=args.timeout_benchmark,
-            skip_slow=getattr(args, 'skip_slow', False),
+            skip_slow=args.skip_slow,
             label_maps={},
             weights_dir=args.weights_dir,
             update_weights=True  # Always update incrementally in fill-weights
@@ -1406,8 +1409,8 @@ def run_experiment(args):
             cache_results = []
         else:
             # Get variant lists for expanded cache simulation
-            expand_variants = getattr(args, 'expand_variants', False)
-            rabbit_variants = getattr(args, 'rabbit_variants', None) or RABBITORDER_VARIANTS
+            expand_variants = args.expand_variants
+            rabbit_variants = args.rabbit_variants or RABBITORDER_VARIANTS
             
             cache_results = run_cache_simulations(
                 graphs=graphs,
@@ -1598,7 +1601,7 @@ def run_experiment(args):
                     log(f"  benchmark_weights: {'○ defaults' if all_same else '✓ tuned'}")
         
         # Auto-merge weights from this run with previous runs
-        if not getattr(args, 'no_merge', False):
+        if not args.no_merge:
             try:
                 log("\nMerging weights with previous runs...")
                 merge_summary = auto_merge_after_run()
@@ -1609,7 +1612,6 @@ def run_experiment(args):
                 log(f"  Warning: Weight merge failed: {e}")
     
     # Show final summary with statistics
-    _progress.phase_end()
     _progress.final_summary()
     
     log(f"Results directory: {args.results_dir}")
@@ -1959,7 +1961,7 @@ def main():
     # Training on all variants is critical for the perceptron to learn which
     # variant works best for each graph structure (e.g., GraphBrewOrder_leiden vs
     # GraphBrewOrder_rabbit, RABBITORDER_csr vs RABBITORDER_boost, etc.)
-    if getattr(args, 'full', False) and not args.expand_variants:
+    if args.full and not args.expand_variants:
         args.expand_variants = True
         log("Auto-enabling variant expansion for --full pipeline (train on all variants)", "INFO")
     
@@ -2027,8 +2029,8 @@ def main():
     if args.auto_memory and args.max_memory is None:
         # Auto-detect available memory, use 60% of total as safe limit
         total_mem = get_total_memory_gb()
-        args.max_memory = total_mem * 0.6
-        log(f"Auto-detected memory limit: {args.max_memory:.1f} GB (60% of {total_mem:.1f} GB total)", "INFO")
+        args.max_memory = total_mem * AUTO_MEMORY_FRACTION
+        log(f"Auto-detected memory limit: {args.max_memory:.1f} GB ({int(AUTO_MEMORY_FRACTION*100)}% of {total_mem:.1f} GB total)", "INFO")
     elif args.max_memory is not None:
         log(f"Using specified memory limit: {args.max_memory:.1f} GB", "INFO")
     
@@ -2036,13 +2038,13 @@ def main():
     if args.auto_disk and args.max_disk is None:
         # Auto-detect available disk space, use 80% of free space
         free_disk = get_available_disk_gb(args.graphs_dir if os.path.exists(args.graphs_dir) else ".")
-        args.max_disk = free_disk * 0.8
-        log(f"Auto-detected disk limit: {args.max_disk:.1f} GB (80% of {free_disk:.1f} GB free)", "INFO")
+        args.max_disk = free_disk * AUTO_DISK_FRACTION
+        log(f"Auto-detected disk limit: {args.max_disk:.1f} GB ({int(AUTO_DISK_FRACTION*100)}% of {free_disk:.1f} GB free)", "INFO")
     elif args.max_disk is not None:
         log(f"Using specified disk limit: {args.max_disk:.1f} GB", "INFO")
     
     # Log min_edges filter if specified (works with any download_size)
-    if getattr(args, 'min_edges', 0) > 0:
+    if args.min_edges > 0:
         log(f"Min edges filter: {args.min_edges:,} (graphs with fewer edges will be skipped for training)", "INFO")
     
     # Handle clean operations first
@@ -2056,14 +2058,14 @@ def main():
             return  # Just clean, don't run experiments
     
     # Handle --clean-reorder-cache early
-    if getattr(args, 'clean_reorder_cache', False):
+    if args.clean_reorder_cache:
         clean_reorder_cache(args.graphs_dir)
         if not (args.full or args.download_only or args.phase != "all" or 
-                getattr(args, 'validate_adaptive', False) or getattr(args, 'brute_force', False)):
+                args.validate_adaptive or args.brute_force):
             return  # Just clean cache, don't run experiments
     
     # Handle weight management commands early
-    if getattr(args, 'list_runs', False):
+    if args.list_runs:
         from scripts.lib.weight_merger import list_runs
         runs = list_runs()
         if not runs:
@@ -2077,7 +2079,7 @@ def main():
                     log(f"      {tid}: {tinfo.graph_count} graphs, {len(tinfo.algorithms)} algos")
         return
     
-    if getattr(args, 'merge_runs', None) is not None:
+    if args.merge_runs is not None:
         from scripts.lib.weight_merger import merge_runs, use_merged
         run_timestamps = args.merge_runs if args.merge_runs else None
         summary = merge_runs(run_timestamps=run_timestamps)
@@ -2086,20 +2088,20 @@ def main():
             log(f"Merged {summary.get('runs_merged', 0)} runs -> {summary.get('total_types', 0)} types")
         return
     
-    if getattr(args, 'use_run', None):
+    if args.use_run:
         from scripts.lib.weight_merger import use_run
         if use_run(args.use_run):
             log(f"Now using weights from run: {args.use_run}")
         return
     
-    if getattr(args, 'use_merged', False):
+    if args.use_merged:
         from scripts.lib.weight_merger import use_merged
         if use_merged():
             log("Now using merged weights")
         return
     
     # Handle --show-types early (informational command)
-    if getattr(args, 'show_types', False):
+    if args.show_types:
         log_section("Known Graph Types")
         load_type_registry(args.weights_dir)
         known_types = list_known_types(args.weights_dir)
@@ -2125,7 +2127,7 @@ def main():
         return  # Exit after showing types
     
     # ALWAYS ensure prerequisites at start (unless skip_build is set)
-    if not getattr(args, 'skip_build', False):
+    if not args.skip_build:
         ensure_prerequisites(
             project_dir=".",
             graphs_dir=args.graphs_dir,
@@ -2154,7 +2156,7 @@ def main():
         
         # Now discover all available graphs
         graphs = discover_graphs(args.graphs_dir, max_memory_gb=args.max_memory,
-                                 min_edges=getattr(args, 'min_edges', 0))
+                                 min_edges=args.min_edges)
         if not graphs:
             log("No graphs found after download - aborting", "ERROR")
             sys.exit(1)
@@ -2172,9 +2174,9 @@ def main():
         log("Auto-setup complete - all graphs downloaded and ready\n")
     
     # ── Standalone sub-workflows (early exit) ────────────────────────
-    if getattr(args, 'benchmark_fresh', False):
+    if args.benchmark_fresh:
         from scripts.lib.benchmark_runner import run_fresh_benchmarks
-        graph_list = getattr(args, 'graph_list', None) or None
+        graph_list = args.graph_list or None
         run_fresh_benchmarks(
             graphs_dir=args.graphs_dir,
             graph_names=graph_list,
@@ -2183,9 +2185,9 @@ def main():
         )
         return
 
-    if getattr(args, 'ab_test', False):
+    if args.ab_test:
         from scripts.lib.ab_test import run_ab_test
-        graph_list = getattr(args, 'graph_list', None) or None
+        graph_list = args.graph_list or None
         run_ab_test(
             graphs_dir=args.graphs_dir,
             graph_names=graph_list,
@@ -2194,57 +2196,57 @@ def main():
         )
         return
 
-    if getattr(args, 'eval_weights', False):
+    if args.eval_weights:
         from scripts.lib.eval_weights import train_and_evaluate
         train_and_evaluate(
             results_dir=args.results_dir,
-            sg_only=getattr(args, 'sg_only', False),
-            benchmark_file=getattr(args, 'benchmark_file', None),
-            logo=getattr(args, 'logo', False),
+            sg_only=args.sg_only,
+            benchmark_file=args.benchmark_file,
+            logo=args.logo,
         )
         return
 
     # ── Dispatchers for moved standalone tools ───────────────────────
-    if getattr(args, 'emulator', False):
+    if args.emulator:
         from scripts.lib.adaptive_emulator import main as emulator_main
         sys.argv = [sys.argv[0]]  # clear args so emulator's argparse takes over
         emulator_main()
         return
 
-    if getattr(args, 'oracle_analysis', False):
+    if args.oracle_analysis:
         from scripts.lib.oracle import main as oracle_main
         sys.argv = [sys.argv[0], "--results-dir", args.results_dir]
         oracle_main()
         return
 
-    if getattr(args, 'perceptron', False):
+    if args.perceptron:
         from scripts.lib.perceptron import main as perceptron_main
         sys.argv = [sys.argv[0]]
         perceptron_main()
         return
 
-    if getattr(args, 'cache_compare', False):
+    if args.cache_compare:
         from scripts.lib.cache_compare import main as cache_compare_main
         cache_compare_main()
         return
 
-    if getattr(args, 'regen_features', False):
+    if args.regen_features:
         from scripts.lib.regen_features import main as regen_main
         regen_main()
         return
 
-    if getattr(args, 'check_includes', False):
+    if args.check_includes:
         from scripts.lib.check_includes import main as check_main
         sys.argv = [sys.argv[0]]
         check_main()
         return
 
-    if getattr(args, 'generate_figures', False):
+    if args.generate_figures:
         from scripts.lib.figures import main as figures_main
         figures_main()
         return
 
-    if getattr(args, 'compare_leiden', False):
+    if args.compare_leiden:
         from scripts.lib.leiden_compare import main as leiden_main
         sys.argv = [sys.argv[0]]
         leiden_main()

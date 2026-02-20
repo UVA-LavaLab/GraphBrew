@@ -522,7 +522,7 @@ def get_llc_size_bytes() -> int:
     Reads from /sys/devices/system/cpu/ on Linux.
     
     Returns:
-        LLC size in bytes, or default 8MB if detection fails
+        LLC size in bytes, or default 30MB if detection fails
     """
     # Try Linux sysfs
     try:
@@ -550,8 +550,8 @@ def get_llc_size_bytes() -> int:
     except ImportError:
         pass
     
-    # Default: 8MB (same as C++ GetLLCSizeBytes fallback)
-    return 8 * 1024 * 1024
+    # Default: 30MB (same as C++ GetLLCSizeBytes fallback)
+    return 30 * 1024 * 1024
 
 
 def compute_extended_features(nodes: int, edges: int, density: float, 

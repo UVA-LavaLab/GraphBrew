@@ -1069,8 +1069,8 @@ def main():
     args = parser.parse_args()
     
     log = Logger()
-    log("Phase orchestration module loaded successfully")
-    log("Available phases: reorder, benchmark, cache, weights, adaptive, comparison, brute_force, training")
+    log.info("Phase orchestration module loaded successfully")
+    log.info("Available phases: reorder, benchmark, cache, weights, adaptive, comparison, brute_force, training")
 
 
 if __name__ == "__main__":
