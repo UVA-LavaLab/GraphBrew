@@ -4,14 +4,17 @@ Welcome to the **GraphBrew** wiki! This comprehensive guide will help you unders
 
 ## 🍺 What is GraphBrew?
 
-GraphBrew is a high-performance graph reordering framework that combines **community detection** with **cache-aware vertex reordering** to dramatically improve graph algorithm performance. It implements **16 reordering algorithms** (IDs 0-15) and provides tools to automatically select the best one for your specific graph.
+GraphBrew is a high-performance graph reordering framework that combines **community detection** with **cache-aware vertex reordering** to dramatically improve graph algorithm performance. It implements **16 algorithm IDs** (0-15): 2 baselines (ORIGINAL, RANDOM), 12 reordering algorithms, and 2 reserved meta-algorithms (MAP, AdaptiveOrder).
 
 ### Key Features
 
-- **16 Reordering Algorithms**: From simple sorting to advanced ML-based selection (IDs 0-15)
+- **16 Algorithm IDs**: From simple sorting to advanced ML-based selection (IDs 0-15; 14 benchmark-eligible, 12 produce reorderings)
 - **Leiden Community Detection**: State-of-the-art community detection for graph partitioning
 - **AdaptiveOrder**: ML-powered perceptron with 15 linear features, 3 quadratic cross-terms, convergence-aware scoring, OOD guardrail, and LOGO cross-validation
-- **Comprehensive Benchmarks**: 8 benchmarks (PR, PR_SPMV, BFS, CC, CC_SV, SSSP, BC, TC) — all automated by default
+- **Comprehensive Benchmarks**: 8 available (PR, PR_SPMV, BFS, CC, CC_SV, SSSP, BC, TC); experiments default to 7 (TC excluded — combinatorial counting, not cache-sensitive traversal)
+- **Random Baseline**: Graphs auto-converted to `.sg` with RANDOM ordering so all measurements are relative to a worst-case baseline
+- **Pre-generated Reordered .sg**: Each algorithm's reordered graph is pre-generated as `{graph}_{ALGO}.sg` and loaded at benchmark time with `-o 0`, eliminating runtime reorder overhead
+- **Amortization Analysis**: Break-even iterations (N*), end-to-end speedup at N, and minimum efficient workload (MinN@95%)
 - **Python Analysis Tools**: Correlation analysis, benchmark automation, and weight training with multi-restart perceptrons, regret-aware optimization, and weight evaluation
 - **Iterative Training**: Feedback loop to optimize adaptive algorithm selection
 
@@ -64,10 +67,11 @@ python3 scripts/graphbrew_experiment.py --full --size small
 This single command will:
 1. Download benchmark graphs from SuiteSparse (87 graphs available)
 2. Build binaries automatically
-3. Pre-generate label mappings for consistent reordering
-4. Run all benchmarks with all 16 algorithms
-5. Execute cache simulations (L1/L2/L3 hit rates)
-6. Generate perceptron weights for AdaptiveOrder (includes cache + reorder time features)
+3. Convert `.mtx` → `.sg` with RANDOM baseline ordering
+4. Pre-generate reordered `.sg` per algorithm (12 algorithms, loaded at benchmark time with no runtime reorder overhead)
+5. Run all benchmarks with all 14 eligible algorithms
+6. Execute cache simulations (L1/L2/L3 hit rates)
+7. Generate perceptron weights for AdaptiveOrder (includes cache + reorder time features)
 
 ### Options
 

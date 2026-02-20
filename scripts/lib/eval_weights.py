@@ -74,9 +74,9 @@ def _simulate_score(algo_data: dict, feats: dict) -> float:
       7. w_degree_variance * degree_variance
       8. w_hub_concentration * hub_concentration
       9. w_clustering_coeff * clustering_coefficient
-     10. w_avg_path_length * avg_path_length/10   (always 0 at runtime)
-     11. w_diameter * diameter/50                  (always 0 at runtime)
-     12. w_community_count * log10(community_count+1)  (always 0 at runtime)
+     10. w_avg_path_length * avg_path_length/10   (computed via sampled BFS)
+     11. w_diameter * diameter/50                  (computed via sampled BFS)
+     12. w_community_count * log10(community_count+1)  (connected components)
      13. w_packing_factor * packing_factor
      14. w_forward_edge_fraction * forward_edge_fraction
      15. w_working_set_ratio * log2(working_set_ratio+1)
@@ -129,7 +129,8 @@ def _build_features(props: dict) -> dict:
 
     Includes all features used by C++ scoreBase():
     - Core: modularity, degree_variance, hub_concentration, avg_degree, log_nodes, log_edges, density
-    - Extended: clustering_coefficient, avg_path_length, diameter, community_count (always 0 at runtime)
+    - Extended: clustering_coefficient, avg_path_length, diameter, community_count
+      (now computed at runtime via ComputeExtendedFeatures; falls back to 0 if absent)
     - Locality: packing_factor, forward_edge_fraction, working_set_ratio
     """
     nodes = props.get("nodes", 1000)
@@ -145,10 +146,10 @@ def _build_features(props: dict) -> dict:
         "log_edges": math.log10(edges + 1) if edges > 0 else 0,
         "density": avg_degree / (nodes - 1) if nodes > 1 else 0,
         "clustering_coefficient": cc,
-        # Extended — C++ doesn't compute these at runtime, always 0
-        "avg_path_length": 0.0,
-        "diameter": 0.0,
-        "community_count": 0.0,
+        # Extended — now computed at C++ runtime via ComputeExtendedFeatures()
+        "avg_path_length": props.get("avg_path_length", 0.0),
+        "diameter": props.get("diameter_estimate", props.get("diameter", 0.0)),
+        "community_count": props.get("community_count", 0.0),
         # Locality features from graph_properties_cache
         "packing_factor": props.get("packing_factor", 0.0),
         "forward_edge_fraction": props.get("forward_edge_fraction", 0.5),

@@ -23,13 +23,13 @@ from pathlib import Path
 from typing import Dict, List, Tuple
 
 from .utils import (
-    BIN_DIR, ALGORITHMS, BENCHMARKS,
+    BIN_DIR, ALGORITHMS, ALGORITHM_IDS, BENCHMARKS,
     BenchmarkResult, log, run_command, check_binary_exists,
-    get_results_file, save_json, get_algorithm_name, parse_algorithm_option
+    get_results_file, save_json, get_algorithm_name, parse_algorithm_option,
+    ENABLE_RUN_LOGGING, canonical_algo_key,
 )
-from .reorder import get_algorithm_name_with_variant
+from .reorder import get_algorithm_name_with_variant  # deprecated; kept for compat
 from .features import update_graph_properties, save_graph_properties_cache
-from .utils import ENABLE_RUN_LOGGING
 
 
 # =============================================================================
@@ -287,7 +287,7 @@ def run_benchmark_suite(
     
     Args:
         graph_path: Path to graph file
-        algorithms: List of algorithm option strings (default: ["0", "1", "8"])
+        algorithms: List of algorithm option strings (default: ORIGINAL, RANDOM, RABBITORDER)
         benchmarks: List of benchmark names (default: BENCHMARKS from utils)
         trials: Number of trials per config
         timeout: Timeout in seconds
@@ -296,7 +296,9 @@ def run_benchmark_suite(
         List of BenchmarkResult
     """
     if algorithms is None:
-        algorithms = ["0", "1", "8"]
+        algorithms = [str(ALGORITHM_IDS["ORIGINAL"]),
+                      str(ALGORITHM_IDS["RANDOM"]),
+                      str(ALGORITHM_IDS["RABBITORDER"])]
     if benchmarks is None:
         benchmarks = list(BENCHMARKS)
     
@@ -342,7 +344,8 @@ def run_benchmarks_multi_graph(
     weights_dir: str = None,
     update_weights: bool = True,
     skip_slow: bool = False,
-    progress = None  # Optional ProgressTracker
+    progress = None,  # Optional ProgressTracker
+    use_pregenerated: bool = False,
 ) -> List[BenchmarkResult]:
     """
     Run benchmarks across multiple graphs.
@@ -361,6 +364,8 @@ def run_benchmarks_multi_graph(
         update_weights: Whether to update weights incrementally
         skip_slow: Skip slow algorithms (GORDER, CORDER, RCM)
         progress: Optional progress tracker
+        use_pregenerated: If True, use pre-generated ``{graph}_{ALGO}.sg``
+            files (loaded with ``-o 0``) to skip runtime reorder overhead
         
     Returns:
         List of BenchmarkResult objects
@@ -428,6 +433,41 @@ def run_benchmarks_multi_graph(
                 # Check if we have a label map
                 label_map_path = graph_label_maps.get(algo_name, "")
                 
+                # ── Pre-generated reordered .sg shortcut ─────────────
+                # When pregenerated files exist (e.g. email-Enron_SORT.sg,
+                # email-Enron_RABBITORDER_boost.sg, etc.) use them directly
+                # with -o 0 (ORIGINAL) to skip runtime reorder overhead.
+                if (use_pregenerated
+                        and algo_id not in (0, 1)
+                        and not label_map_path):
+                    # algo_name already includes the variant suffix for
+                    # variant algorithms (e.g. "RABBITORDER_csr") thanks
+                    # to get_algorithm_name_with_variant().
+                    pregen_path = os.path.join(
+                        os.path.dirname(graph_path),
+                        f"{graph_name}_{algo_name}.sg",
+                    )
+                    if os.path.isfile(pregen_path):
+                        result = run_benchmark(
+                            benchmark=bench,
+                            graph_path=pregen_path,
+                            algorithm="0",  # ORIGINAL — already reordered
+                            trials=num_trials,
+                            timeout=graph_timeout,
+                            bin_dir=bin_dir,
+                        )
+                        # Preserve original algo identity for analysis
+                        result.algorithm = algo_name
+                        result.algorithm_id = algo_id
+                        result.graph = graph_name
+                        result.nodes = graph.nodes
+                        result.edges = graph.edges
+                        results.append(result)
+                        completed += 1
+                        if progress and completed % 10 == 0:
+                            progress.info(f"  Progress: {completed}/{total_configs}")
+                        continue
+
                 # Build algorithm option string
                 # Use MAP (algo 13) with label map when available, except for ORIGINAL (algo 0)
                 if label_map_path and os.path.exists(label_map_path) and algo_id != 0:
@@ -492,6 +532,41 @@ def run_benchmarks_multi_graph(
     if skipped > 0:
         log.info(f"Benchmark early-exit: skipped {skipped}/{total_configs} runs due to timeout/crash")
     
+    # ── Benchmark chained (multi-pass) pre-generated .sg files ───────
+    # Chained orderings like SORT+RABBITORDER_csr have no single algo_id;
+    # they exist only as pre-generated .sg files.  We scan for them and
+    # run with -o 0 (ORIGINAL).
+    if use_pregenerated:
+        from .utils import CHAINED_ORDERINGS
+        for graph in graphs:
+            graph_dir = os.path.dirname(graph.path)
+            graph_name = graph.name
+            graph_timeout = compute_adaptive_timeout(graph.edges, timeout)
+            for canonical, _converter_opts in CHAINED_ORDERINGS:
+                pregen_path = os.path.join(graph_dir, f"{graph_name}_{canonical}.sg")
+                if not os.path.isfile(pregen_path):
+                    continue
+                for bench in benchmarks:
+                    if not check_binary_exists(bench, bin_dir):
+                        continue
+                    combo_key = (graph_name, bench)
+                    if combo_key in timed_out_combos:
+                        continue
+                    result = run_benchmark(
+                        benchmark=bench,
+                        graph_path=pregen_path,
+                        algorithm="0",
+                        trials=num_trials,
+                        timeout=graph_timeout,
+                        bin_dir=bin_dir,
+                    )
+                    result.algorithm = canonical
+                    result.algorithm_id = -1
+                    result.graph = graph_name
+                    result.nodes = graph.nodes
+                    result.edges = graph.edges
+                    results.append(result)
+    
     # Save the graph properties cache after all benchmarks
     try:
         save_graph_properties_cache("results")
@@ -529,13 +604,15 @@ def run_leiden_variant_comparison(
     algorithms = []
     
     if include_baselines:
-        algorithms.extend(["0", "1", "8"])  # ORIGINAL, RANDOM, RABBITORDER
+        algorithms.extend([str(ALGORITHM_IDS["ORIGINAL"]),
+                           str(ALGORITHM_IDS["RANDOM"]),
+                           str(ALGORITHM_IDS["RABBITORDER"])])
     
-    # GraphBrewOrder (12)
-    algorithms.append("12")
+    # GraphBrewOrder
+    algorithms.append(str(ALGORITHM_IDS["GraphBrewOrder"]))
     
-    # LeidenOrder (15)
-    algorithms.append("15")
+    # LeidenOrder
+    algorithms.append(str(ALGORITHM_IDS["LeidenOrder"]))
     
     return run_benchmark_suite(graph_path, algorithms, benchmarks, trials)
 

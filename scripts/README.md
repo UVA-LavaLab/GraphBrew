@@ -53,3 +53,10 @@ results/weights/              ← runtime weight data (gitignored)
    Never hard-code paths like `type_0.json` or `type_registry.json`.
 
 4. **Tests** go in `test/`.  Run with `pytest scripts/test/ -x -q`.
+
+5. **Algorithm naming** uses SSOT functions in `lib/utils.py`:
+   `canonical_algo_key()`, `algo_converter_opt()`,
+   `canonical_name_from_converter_opt()`, `chain_canonical_name()`,
+   `get_algo_variants()`.
+   Never hard-code algorithm names — always derive them from these functions.
+   `CHAINED_ORDERINGS` is auto-populated at import time.

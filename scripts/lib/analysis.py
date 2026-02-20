@@ -32,7 +32,7 @@ from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from typing import Any, Dict, List, Tuple
 
-from .utils import ALGORITHMS, ELIGIBLE_ALGORITHMS, DISPLAY_TO_CANONICAL, TIMEOUT_BENCHMARK, TIMEOUT_SIM, run_command, Logger
+from .utils import ALGORITHMS, ELIGIBLE_ALGORITHMS, TIMEOUT_BENCHMARK, TIMEOUT_SIM, run_command, Logger, canonical_algo_key, algo_converter_opt, resolve_canonical_name
 from .features import update_graph_properties, save_graph_properties_cache
 from .cache import parse_cache_output
 
@@ -585,8 +585,9 @@ def compare_adaptive_vs_fixed(
             # Run fixed algorithms
             fixed_results = {}
             for algo_id in fixed_algorithms:
-                algo_name = ALGORITHMS.get(algo_id, f"ALGO_{algo_id}")
-                cmd_fixed = f"{binary} -f {graph.path} {sym_flag} -o {algo_id} -n {num_trials}"
+                algo_name = canonical_algo_key(algo_id)
+                opt = algo_converter_opt(algo_id)
+                cmd_fixed = f"{binary} -f {graph.path} {sym_flag} -o {opt} -n {num_trials}"
                 success_fixed, stdout_fixed, stderr_fixed = run_command(cmd_fixed, timeout)
                 
                 if success_fixed:
@@ -801,7 +802,7 @@ def run_subcommunity_brute_force(
         
         for _idx, subcomm in enumerate(subcommunities_to_test):
             adaptive_algo_raw = subcomm.selected_algorithm
-            adaptive_algo = DISPLAY_TO_CANONICAL.get(adaptive_algo_raw, adaptive_algo_raw)
+            adaptive_algo = resolve_canonical_name(adaptive_algo_raw)
             
             sc_result = SubcommunityBruteForceResult(
                 community_id=subcomm.community_id,
@@ -818,10 +819,11 @@ def run_subcommunity_brute_force(
             algo_cache = {}
             
             for algo_id in test_algorithms:
-                algo_name = ALGORITHMS.get(algo_id, f"ALGO_{algo_id}")
+                algo_name = canonical_algo_key(algo_id)
                 
                 # Run benchmark for time
-                cmd_bench = f"{binary} -f {graph.path} {sym_flag} -o {algo_id} -n {num_trials}"
+                opt = algo_converter_opt(algo_id)
+                cmd_bench = f"{binary} -f {graph.path} {sym_flag} -o {opt} -n {num_trials}"
                 success_bench, stdout_bench, stderr_bench = run_command(cmd_bench, timeout)
                 
                 if success_bench:
@@ -833,7 +835,7 @@ def run_subcommunity_brute_force(
                 # Run cache simulation
                 sim_binary = os.path.join(bin_sim_dir, benchmark)
                 if os.path.exists(sim_binary):
-                    cmd_sim = f"{sim_binary} -f {graph.path} {sym_flag} -o {algo_id} -n 1"
+                    cmd_sim = f"{sim_binary} -f {graph.path} {sym_flag} -o {opt} -n 1"
                     success_sim, stdout_sim, stderr_sim = run_command(cmd_sim, timeout_sim)
                     
                     if success_sim:

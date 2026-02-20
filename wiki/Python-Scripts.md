@@ -372,7 +372,7 @@ The `lib/` folder (~22,400 lines) contains modular, reusable components:
 |--------|---------|-------------|
 | `graph_types.py` | Core type | `GraphInfo` (graph metadata) |
 | `phases.py` | Phase orchestration | `PhaseConfig`, `run_reorder_phase`, `run_benchmark_phase`, `run_full_pipeline` |
-| `utils.py` | Constants & utilities | `ALGORITHMS`, `BENCHMARKS`, `BenchmarkResult`, variant lists, `run_command` |
+| `utils.py` | Constants & utilities | `ALGORITHMS`, `BENCHMARKS`, `BenchmarkResult`, variant lists, `canonical_algo_key()`, `algo_converter_opt()`, `run_command` |
 | `features.py` | Graph features | `compute_extended_features`, `detect_graph_type`, `get_available_memory_gb` |
 | `dependencies.py` | System deps | `check_dependencies`, `install_dependencies`, `install_boost_158` |
 | `download.py` | Graph download | `download_graphs`, `DOWNLOAD_GRAPHS_SMALL/MEDIUM` |

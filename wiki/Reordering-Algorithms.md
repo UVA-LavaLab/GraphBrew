@@ -1,6 +1,10 @@
 # Graph Reordering Algorithms
 
-GraphBrew implements **16 reordering algorithm IDs** (0-15), some with multiple variants, each with unique characteristics suited for different graph topologies. This page explains each algorithm in detail.
+GraphBrew implements **16 algorithm IDs** (0-15):
+
+- **2 Baselines** (IDs 0-1): ORIGINAL and RANDOM — graph states, not reordering techniques. Used to establish reference benchmark times.
+- **12 Reordering Algorithms** (IDs 2-12, 15): Produce vertex reorderings. Benchmarked to measure speedup vs baselines.
+- **2 Reserved Meta-Algorithms** (IDs 13-14): MAP (external label map) and AdaptiveOrder (ML selector). Not included in standard benchmarks.
 
 Note: Algorithm ID 13 (MAP) is reserved for external label mapping files, not a standalone reordering algorithm.
 
@@ -423,12 +427,44 @@ GraphBrew provides LeidenOrder as a baseline reference implementation.
 - **Complexity**: O(n log n) average
 - **Best for**: Baseline comparison — measures how much GraphBrewOrder (12) improved over the reference implementation
 - **Default resolution**: Auto-detected via continuous formula (0.5-1.2) with CV guardrail for power-law graphs
-- **Note**: LeidenCSR (16) was deprecated — its CSR-native Leiden implementation has been merged into GraphBrewOrder (12). Use GraphBrewOrder for production workloads.
+- **Note**: LeidenCSR (ID 16) was removed — its CSR-native Leiden implementation was merged into GraphBrewOrder (12). The SSOT defines IDs 0-15 only. Use GraphBrewOrder for production workloads.
 
 **Key features:**
 - Uses GVE-Leiden C++ library by Subhajit Sahu (`external/leiden/`)
 - Requires CSR → DiGraph format conversion (adds overhead)
 - Produces high-quality modularity scores (reference quality)
+
+---
+
+## Chained Orderings (Multi-Pass)
+
+GraphBrew supports **chained orderings** — applying two reordering algorithms sequentially. The first pass reorders the graph, then the second pass reorders the already-reordered graph. This is a **pregeneration-only** concept (the C++ AdaptiveOrder perceptron selects a single algorithm ID).
+
+```bash
+# SORT then RABBITORDER: degree-sort first, then cache-aware BFS
+./bench/bin/converter -f graph.el -s -o 2 -o 8:csr -b graph_sorted_rabbit.sg
+
+# HUBCLUSTERDBG then RABBITORDER
+./bench/bin/converter -f graph.el -s -o 7 -o 8:csr -b graph_hcdbg_rabbit.sg
+```
+
+Canonical names use `+` as separator: `SORT+RABBITORDER_csr`, `HUBCLUSTERDBG+RABBITORDER_csr`.
+
+Current chains defined in `scripts/lib/utils.py` → `_CHAINED_ORDERING_OPTS`:
+
+| Chain | Canonical Name | Rationale |
+|-------|---------------|-----------|
+| `-o 2 -o 8:csr` | `SORT+RABBITORDER_csr` | Degree sort + cache-aware BFS |
+| `-o 2 -o 8:boost` | `SORT+RABBITORDER_boost` | Degree sort + Boost-based BFS |
+| `-o 7 -o 8:csr` | `HUBCLUSTERDBG+RABBITORDER_csr` | Hub-cluster + cache BFS |
+| `-o 2 -o 12:leiden` | `SORT+GraphBrewOrder_leiden` | Degree sort + community-aware |
+| `-o 5 -o 12:leiden` | `DBG+GraphBrewOrder_leiden` | DBG + community-aware |
+
+See `chain_canonical_name()` and `CHAINED_ORDERINGS` in `scripts/lib/utils.py`.
+
+> **Note:** For current variant lists, see `scripts/lib/utils.py` which defines:
+> - `RABBITORDER_VARIANTS`, `GORDER_VARIANTS`, `RCM_VARIANTS`, `GRAPHBREW_VARIANTS`
+> - Use `get_algo_variants(algo_id)` to query programmatically
 
 ---
 

@@ -5,7 +5,7 @@
 
 # GraphBrew <img src="./docs/figures/logo_left.png" width="50" align="center">
 
-A graph reordering and benchmarking framework built on the [GAP Benchmark Suite (GAPBS)](https://github.com/sbeamer/gapbs). GraphBrew reorders graph vertices to improve cache locality and speed up graph algorithms — with **16 reordering algorithms**, an **ML-based adaptive selector**, and a **one-click experiment pipeline**.
+A graph reordering and benchmarking framework built on the [GAP Benchmark Suite (GAPBS)](https://github.com/sbeamer/gapbs). GraphBrew reorders graph vertices to improve cache locality and speed up graph algorithms — with **16 algorithm IDs** (12 reorderers + 2 baselines + 2 meta), an **ML-based adaptive selector**, and a **one-click experiment pipeline**.
 
 > **📖 Full documentation:** [Wiki](https://github.com/UVA-LavaLab/GraphBrew/wiki) · [Quick Start](https://github.com/UVA-LavaLab/GraphBrew/wiki/Quick-Start) · [Command-Line Reference](https://github.com/UVA-LavaLab/GraphBrew/wiki/Command-Line-Reference)
 
@@ -43,12 +43,12 @@ RABBIT_ENABLE=0 make all
 
 ## Reordering Algorithms
 
-GraphBrew provides 16 reordering strategies. Use `-o <id>` to select one (or chain multiple with `-o <id1> -o <id2>`):
+GraphBrew provides 16 algorithm IDs. IDs 0-1 are baselines (graph states), IDs 2-12 and 15 produce reorderings, and IDs 13-14 are meta-algorithms. Use `-o <id>` to select one:
 
 | ID | Algorithm | Description |
 |----|-----------|-------------|
-| 0 | ORIGINAL | No reordering |
-| 1 | RANDOM | Random permutation |
+| 0 | ORIGINAL | No reordering (baseline) |
+| 1 | RANDOM | Random permutation (baseline) |
 | 2 | SORT | Sort by degree |
 | 3 | HUBSORT | Hub-based sorting |
 | 4 | HUBCLUSTER | Hub-score clustering |
@@ -96,7 +96,7 @@ python3 scripts/graphbrew_experiment.py --train --all-variants --size medium --a
 | `--auto` | Auto-detect RAM/disk limits |
 | `--trials N` | Benchmark trials (default: 2) |
 | `--quick` | Test only key algorithms (faster) |
-| `--brute-force` | Compare adaptive selection vs all 16 algorithms |
+| `--brute-force` | Compare adaptive selection vs all eligible algorithms |
 | `--download-only` | Download graphs without running benchmarks |
 
 Results are saved to `./results/`. Trained weights go to `./results/weights/`.
@@ -112,18 +112,20 @@ python3 scripts/graphbrew_experiment.py --help
 
 ## Graph Benchmarks
 
-Built on [GAPBS](https://github.com/sbeamer/gapbs), GraphBrew includes these benchmarks:
+Built on [GAPBS](https://github.com/sbeamer/gapbs), GraphBrew includes 8 benchmarks. The experiment pipeline defaults to 7 (`EXPERIMENT_BENCHMARKS`) — TC is excluded because triangle counting is a combinatorial kernel that doesn't benefit from vertex reordering.
 
-| Benchmark | Algorithm |
-|-----------|-----------|
-| `pr` | PageRank |
-| `bfs` | Breadth-First Search (direction optimized) |
-| `cc` | Connected Components (Afforest) |
-| `cc_sv` | Connected Components (Shiloach-Vishkin) |
-| `sssp` | Single-Source Shortest Paths |
-| `bc` | Betweenness Centrality |
-| `tc` | Triangle Counting |
-| `pr_spmv` | PageRank (SpMV variant) |
+| Benchmark | Algorithm | In Experiments |
+|-----------|-----------|:-:|
+| `pr` | PageRank | ✓ |
+| `pr_spmv` | PageRank (SpMV variant) | ✓ |
+| `bfs` | Breadth-First Search (direction optimized) | ✓ |
+| `cc` | Connected Components (Afforest) | ✓ |
+| `cc_sv` | Connected Components (Shiloach-Vishkin) | ✓ |
+| `sssp` | Single-Source Shortest Paths | ✓ |
+| `bc` | Betweenness Centrality | ✓ |
+| `tc` | Triangle Counting | — |
+
+> **Random Baseline:** By default, graphs are converted to `.sg` with RANDOM vertex ordering so all benchmark measurements reflect improvement over a worst-case baseline. Use `--no-random-baseline` to disable.
 
 ```bash
 # Run a single benchmark

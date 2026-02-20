@@ -219,6 +219,80 @@ See [[Command-Line-Reference]] for full variant list and [[Python-Scripts]] for 
 
 ---
 
+## Multi-Layer Configuration
+
+GraphBrewOrder's `-o 12:...` string is parsed as a multi-layer pipeline. Each layer is an independent dimension that can be combined freely.
+
+### Layer 0: Preset (one-of)
+Selects the algorithm skeleton and defaults.
+
+| Preset | Description |
+|--------|-------------|
+| `leiden` | GVE-CSR Leiden + per-community RabbitOrder **(default)** |
+| `rabbit` | Full RabbitOrder pipeline (single-pass, no Leiden) |
+| `hubcluster` | Leiden + hub-cluster native ordering |
+
+### Layer 1: Ordering Strategy (one-of)
+How vertices are permuted within/across communities.
+
+| Strategy | Description |
+|----------|-------------|
+| `hrab` | Hybrid Leiden+Rabbit BFS **(best general locality)** |
+| `dfs` | DFS traversal of community dendrogram |
+| `bfs` | BFS traversal of community dendrogram |
+| `conn` | Connectivity BFS within communities |
+| `dbg` | Degree-Based Grouping within communities |
+| `corder` | Hot/cold partitioning within communities |
+| `dbg-global` | DBG across all vertices (post-clustering) |
+| `corder-global` | Corder across all vertices |
+| `hierarchical` | Multi-level sort by all Leiden passes |
+| `hcache` | Cache-aware hierarchical ordering |
+| `tqr` | Tile-quantized graph + RabbitOrder |
+
+See `GRAPHBREW_LAYERS["ordering"]` in `scripts/lib/utils.py` for the complete list.
+
+### Layer 2: Aggregation Strategy (one-of)
+How the community super-graph is built.
+
+| Strategy | Description |
+|----------|-------------|
+| `gvecsr` | GVE-style explicit super-graph **(best quality)** |
+| `leiden` | Standard Leiden CSR aggregation |
+| `streaming` | RabbitOrder-style lazy incremental merge (fast) |
+| `hybrid` | Lazy for early passes, CSR for final |
+
+### Layer 3: Feature Flags (additive)
+Multiple can be combined in a single `-o` string.
+
+| Flag | Description |
+|------|-------------|
+| `merge` | Merge small communities for cache locality |
+| `hubx` | Extract high-degree hubs before ordering |
+| `gord` | Gorder-inspired intra-community optimization |
+| `hsort` | Post-process: pack hubs by descending degree |
+| `rcm` | RCM on super-graph instead of dendrogram DFS |
+| `norefine` | Disable Leiden refinement step |
+| `graphbrew` | Activate LAYER ordering (per-community dispatch) |
+| `recursive` | Force recursive sub-community dispatch |
+| `flat` | Force flat dispatch (no recursion) |
+
+### Layer 4: GraphBrew Dispatch
+When `graphbrew` feature is active: `finalAlgoId` (0-11), `depth` (-1=auto), `subAlgoId`.
+
+### Layer 5: Numeric Parameters
+Resolution (float 0.1-3.0), max_iterations, max_passes.
+
+### Example
+```bash
+-o 12:leiden:hrab:gvecsr:merge:hubx:0.75
+# preset=leiden, ordering=hrab, aggregation=gvecsr,
+# features=[merge,hubx], resolution=0.75
+```
+
+See `GRAPHBREW_LAYERS` in `scripts/lib/utils.py` for the authoritative definition.
+
+---
+
 ## Configuration
 
 - **Dynamic thresholds**: `min_size = max(50, min(avg_comm_size/4, √N))`, capped at 2000

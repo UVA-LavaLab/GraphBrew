@@ -122,7 +122,7 @@ reorder/
 
 - `PerceptronWeights` / `TypeRegistry` — ML scoring & graph clustering (see [[AdaptiveOrder-ML]])
 - `SampledDegreeFeatures` — 8-feature topology vector: degree_variance, hub_concentration, avg_degree, clustering_coeff, estimated_modularity, packing_factor, forward_edge_fraction, working_set_ratio
-- `ComputeSampledDegreeFeatures()` — Samples ~5000 nodes for fast feature extraction
+- `ComputeSampledDegreeFeatures()` — Auto-scaled sampling (max(5000, min(√N, 50000))) for fast feature extraction
 - `GetLLCSizeBytes()` — LLC detection (sysconf on Linux, 30MB fallback) for working_set_ratio
 - `getAlgorithmNameMap()` — ~16-entry UPPERCASE base-name→enum mapping; variant names resolved dynamically by `ResolveVariantSelection()` via prefix matching (see [[Command-Line-Reference]])
 
@@ -301,6 +301,22 @@ Key entry points:
 - `lib/adaptive_emulator.py` — C++ logic emulation
 - `lib/eval_weights.py` — Weight evaluation & accuracy reporting
 - `lib/` — 30 reusable modules (~22,400 lines total)
+
+**Unified Naming Convention (SSOT):** All Python modules use five SSOT functions from `lib/utils.py`:
+
+| Function | Purpose | Example |
+|----------|---------|---------|
+| `canonical_algo_key(algo_id, variant)` | Canonical name for weights/filenames/JSON | `canonical_algo_key(12, "leiden")` → `"GraphBrewOrder_leiden"` |
+| `algo_converter_opt(algo_id, variant)` | C++ `-o` argument | `algo_converter_opt(8, "boost")` → `"8:boost"` |
+| `canonical_name_from_converter_opt(opt)` | Reverse: `-o` string → canonical name | `canonical_name_from_converter_opt("12:leiden")` → `"GraphBrewOrder_leiden"` |
+| `chain_canonical_name(converter_opts)` | Multi-step chain name | `chain_canonical_name("-o 2 -o 8:csr")` → `"SORT+RABBITORDER_csr"` |
+| `get_algo_variants(algo_id)` | Variant tuple (or `None`) | `get_algo_variants(12)` → `("leiden", "rabbit", "hubcluster")` |
+
+**Chained Orderings:** `CHAINED_ORDERINGS` is auto-populated at module load from `_CHAINED_ORDERING_OPTS` via `chain_canonical_name()`. These are pregeneration-only (not used in perceptron training). Each entry is a `(canonical_name, converter_opts)` tuple. Current chains: `SORT+RABBITORDER_csr`, `SORT+RABBITORDER_boost`, `HUBCLUSTERDBG+RABBITORDER_csr`, `SORT+GraphBrewOrder_leiden`, `DBG+GraphBrewOrder_leiden`.
+
+**Variant Registry:** `_VARIANT_ALGO_REGISTRY` maps algo IDs 8, 11, 12 to `(prefix, variants, default)` tuples. GOrder variants (9: default/csr/fast) are tracked separately in `GORDER_VARIANTS` but share a single perceptron weight (they produce equivalent orderings).
+
+See [[Configuration-Files#unified-algorithm-naming-scriptslibutilspy]].
 
 ---
 

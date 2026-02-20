@@ -28,7 +28,11 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Dict, List, Optional, Tuple
 
-from .utils import _VARIANT_ALGO_REGISTRY, ALGORITHMS, DISPLAY_TO_CANONICAL, TIMEOUT_BENCHMARK
+from .utils import (
+    _VARIANT_ALGO_REGISTRY, ALGORITHMS, DISPLAY_TO_CANONICAL,
+    TIMEOUT_BENCHMARK, VARIANT_PREFIXES,
+    get_all_algorithm_variant_names,
+)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -88,22 +92,21 @@ def normalize_algo_name(name: str) -> str:
     return DISPLAY_TO_CANONICAL.get(name, name)
 
 
-# Candidate algorithms: the ones AdaptiveOrder can select from.
-# These must be present in benchmark results for oracle to work.
-CANDIDATE_ALGOS = {
-    "ORIGINAL", "RANDOM", "SORT", "HUBSORT", "HUBCLUSTER",
-    "DBG", "HUBSORTDBG", "HUBCLUSTERDBG",
-    "GORDER", "CORDER", "RCM_default",
-}
+# Candidate algorithms: all canonical variant names from SSOT.
+# This replaces the previous hardcoded set + prefix check.
+CANDIDATE_ALGOS: set[str] = set(get_all_algorithm_variant_names())
 
-# Also include RabbitOrder variants and GraphBrew variants
-CANDIDATE_PREFIXES = {"RABBITORDER", "GraphBrewOrder", "LeidenOrder"}
+# Variant prefixes for prefix-based matching (covers future additions too)
+CANDIDATE_PREFIXES: set[str] = set(VARIANT_PREFIXES)
 
 
 def is_candidate(algo_name: str) -> bool:
     """Check if an algorithm is a candidate that AdaptiveOrder could select."""
     if algo_name in CANDIDATE_ALGOS:
         return True
+    # Fallback: prefix-match for any variant-prefixed name that might not
+    # be in the SSOT list (e.g., compound GraphBrewOrder_leiden_dfs variants
+    # that are enumerated but not yet "active_trained")
     for prefix in CANDIDATE_PREFIXES:
         if algo_name.startswith(prefix):
             return True

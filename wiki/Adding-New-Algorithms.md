@@ -230,6 +230,13 @@ in the **VARIANT REGISTRY** section of `utils.py`. The `get_all_algorithm_varian
 function auto-derives the full canonical name list from the registry — no manual
 editing needed.
 
+> **Naming rule:** All code that needs an algorithm name as a dict key, filename
+> component, or JSON field must call `canonical_algo_key(algo_id, variant)` from
+> `utils.py`. This guarantees variant-aware naming everywhere (e.g.,
+> `"RABBITORDER_csr"` instead of bare `"RABBITORDER"`). Use the paired
+> `algo_converter_opt(algo_id, variant)` when building C++ `-o` arguments.
+> See [[Configuration-Files#unified-algorithm-naming-scriptslibutilspy]].
+
 ---
 
 ## Step 5: Add Perceptron Weights (Optional)

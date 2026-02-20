@@ -6,22 +6,25 @@ GraphBrew Unified Experiment Pipeline
 A comprehensive one-click script that runs the complete GraphBrew experiment workflow:
 
 **Core Pipeline (--phase all):**
-1. Download graphs (if not present) - via --download-only or --full
-2. Build binaries (if not present) - via --build or --full
-3. Phase 1: Generate reorderings with label-mapping for consistency
-4. Phase 2: Run execution benchmarks on all graphs
-5. Phase 3: Run cache simulations (optional, skip with --skip-cache)
-6. Phase 4: Generate type-based perceptron weights (results/weights/type_*/weights.json)
+ 1. Download graphs (if not present) — via --download-only or --full
+ 2. Build binaries (if not present) — via --build or --full
+ 3. Convert .mtx → .sg with RANDOM baseline (--random-baseline, default ON)
+ 4. Pre-generate reordered .sg per algorithm (--pregenerate-sg, default ON)
+    Falls back to real-time reordering if disk space is insufficient.
+ 5. Phase 1: Generate reorderings (12 algorithms; baselines ORIGINAL/RANDOM are skipped)
+ 6. Phase 2: Run benchmarks (14 algorithms × 7 benchmarks; TC excluded by default)
+ 7. Phase 3: Run cache simulations (optional, skip with --skip-cache)
+ 8. Phase 4: Generate type-based perceptron weights (results/weights/type_*/weights.json)
 
 **Validation & Analysis:**
-7. Phase 5: Adaptive order analysis (--adaptive-analysis)
-8. Phase 6: Adaptive vs fixed comparison (--adaptive-comparison)
-9. Phase 7: Brute-force validation (--brute-force)
+ 9. Phase 5: Adaptive order analysis (--adaptive-analysis)
+10. Phase 6: Adaptive vs fixed comparison (--adaptive-comparison)
+11. Phase 7: Brute-force validation (--brute-force)
 
 **Training Modes:**
-10. Standard training (--train): One-pass pipeline that runs all phases
-11. Iterative training (--train-iterative): Repeatedly adjusts weights until target accuracy
-12. Batched training (--train-batched): Process graphs in batches for large datasets
+12. Standard training (--train): One-pass pipeline that runs all phases
+13. Iterative training (--train-iterative): Repeatedly adjusts weights until target accuracy
+14. Batched training (--train-batched): Process graphs in batches for large datasets
 
 **Algorithm Variant Testing:**
     For GraphBrewOrder (12) and RabbitOrder (8), you can test
@@ -80,7 +83,7 @@ import traceback
 from dataclasses import asdict
 from datetime import datetime
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 # Ensure project root is in path for lib imports
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -136,19 +139,26 @@ except ImportError:
 
 # Import algorithm definitions and constants from utils.py (Single Source of Truth)
 from scripts.lib.utils import (
-    ALGORITHMS, ALGORITHM_IDS, ELIGIBLE_ALGORITHMS,
+    ALGORITHMS, ALGORITHM_IDS, ELIGIBLE_ALGORITHMS, REORDER_ALGORITHMS,
     RESULTS_DIR, GRAPHS_DIR, BIN_DIR, BIN_SIM_DIR, WEIGHTS_DIR,
     SIZE_SMALL, SIZE_MEDIUM, SIZE_LARGE,
-    LEIDEN_DEFAULT_RESOLUTION,
     LEIDEN_DEFAULT_PASSES,
     TIMEOUT_BUILD, TIMEOUT_REORDER, TIMEOUT_BENCHMARK, TIMEOUT_SIM,
     _VARIANT_ALGO_REGISTRY, GORDER_VARIANTS,
+    CHAINED_ORDERINGS,
     is_variant_prefixed,
+    canonical_algo_key, algo_converter_opt, get_algo_variants,
     run_command,
     get_graph_dimensions,
+    EXPERIMENT_BENCHMARKS,
 )
 
-# Algorithms to benchmark — from SSOT (excludes MAP=13, AdaptiveOrder=14)
+# Named baseline IDs — prefer these over magic numbers 0, 1
+_ORIGINAL_ID = ALGORITHM_IDS["ORIGINAL"]   # 0
+_RANDOM_ID   = ALGORITHM_IDS["RANDOM"]     # 1
+
+# Algorithms to benchmark — SSOT alias (excludes MAP=13, AdaptiveOrder=14)
+# Includes baselines ORIGINAL (0) and RANDOM (1) which establish reference times.
 BENCHMARK_ALGORITHMS = ELIGIBLE_ALGORITHMS
 
 # Subset of key algorithms for quick testing
@@ -172,12 +182,14 @@ DEFAULT_BIN_SIM_DIR = str(BIN_SIM_DIR)
 DEFAULT_WEIGHTS_DIR = str(WEIGHTS_DIR)
 
 # Training defaults
-DEFAULT_TRAIN_BENCHMARKS = ['pr', 'bfs', 'cc']  # Fast subset (full SSOT: 8 in BENCHMARKS)
+DEFAULT_TRAIN_BENCHMARKS = ['pr', 'bfs', 'cc']  # Fast subset of EXPERIMENT_BENCHMARKS
+assert all(b in BENCHMARKS for b in DEFAULT_TRAIN_BENCHMARKS), "DEFAULT_TRAIN_BENCHMARKS has unknown entries"
 
 # Minimum edges for training (skip small graphs that introduce noise/skew)
 MIN_EDGES_FOR_TRAINING = 100000  # 100K edges
 
-# Default modularity for graphs without adaptive analysis results
+# Default modularity for graphs without adaptive analysis results.
+# 0.5 is a neutral mid-range value (range 0-1); real graphs typically 0.3-0.8.
 DEFAULT_MODULARITY = 0.5
 
 # Auto-resource safety margins
@@ -186,9 +198,14 @@ AUTO_DISK_FRACTION = 0.8     # Use 80% of free disk
 
 # Cache simulation benchmarks (subset of BENCHMARKS for speed)
 CACHE_KEY_BENCHMARKS = ["pr", "bfs"]
+assert all(b in BENCHMARKS for b in CACHE_KEY_BENCHMARKS), "CACHE_KEY_BENCHMARKS has unknown entries"
 
 # Feature extraction timeout (quick PR run, not a full benchmark)
 TIMEOUT_FEATURE_EXTRACTION = 60
+
+# Graph file search: preferred extension order and MTX auxiliary file suffixes to skip
+_GRAPH_EXTENSIONS = [".sg", ".mtx", ".el"]
+_MTX_AUX_SUFFIXES = ['_coord', '_nodename', '_Categories', '_b.mtx']
 
 # Size category → (min_mb, max_mb) mapping for graph discovery
 _SIZE_RANGES = {
@@ -196,6 +213,7 @@ _SIZE_RANGES = {
     "small":  (0, SIZE_SMALL),
     "medium": (SIZE_SMALL, SIZE_MEDIUM),
     "large":  (SIZE_MEDIUM, SIZE_LARGE),
+    "xlarge": (SIZE_LARGE, float('inf')),
 }
 
 # Feature patterns parsed from C++ topology output (hoisted to module level)
@@ -286,50 +304,54 @@ def _print_amortization_report(benchmark_results, reorder_results, max_rows: int
         log(f"  Note: Amortization report skipped: {e}")
 
 def get_graph_path(graphs_dir: str, graph_name: str) -> Optional[str]:
-    """Get the path to a graph file."""
+    """Get the path to a graph file.
+
+    Preferred order: .sg > .mtx > .el.  When a randomly-reordered .sg
+    baseline exists it is returned instead of the raw .mtx so that all
+    benchmark measurements are relative to a random-baseline ordering.
+    """
     graph_folder = os.path.join(graphs_dir, graph_name)
-    
+
     # Try variations of the graph name (hyphen vs underscore)
     name_variants = [graph_name, graph_name.replace('-', '_'), graph_name.replace('_', '-')]
-    
+
     # Check for graph files with the graph name (downloaded format)
     for name in name_variants:
-        for ext in [".mtx", ".el", ".sg"]:
+        for ext in _GRAPH_EXTENSIONS:
             path = os.path.join(graph_folder, f"{name}{ext}")
             if os.path.exists(path):
                 return path
-    
+
     # Check for generic "graph" name (legacy format)
-    for ext in [".mtx", ".el", ".sg"]:
+    for ext in _GRAPH_EXTENSIONS:
         path = os.path.join(graph_folder, f"graph{ext}")
         if os.path.exists(path):
             return path
-    
+
     # Try direct path (file directly in graphs_dir)
     direct = os.path.join(graphs_dir, graph_name)
     if os.path.isfile(direct):
         return direct
-    
+
     # Look in subdirectories (e.g., germany-osm/germany_osm/germany_osm.mtx)
     if os.path.isdir(graph_folder):
         for subdir in os.listdir(graph_folder):
             subdir_path = os.path.join(graph_folder, subdir)
             if os.path.isdir(subdir_path):
                 for name in name_variants + [subdir]:
-                    for ext in [".mtx", ".el", ".sg"]:
+                    for ext in _GRAPH_EXTENSIONS:
                         path = os.path.join(subdir_path, f"{name}{ext}")
                         if os.path.exists(path):
                             return path
-    
+
     # Last resort: look for any .mtx file in the folder (excluding auxiliary files)
     if os.path.isdir(graph_folder):
         for f in sorted(os.listdir(graph_folder)):
-            # Skip auxiliary files (coords, nodenames, categories, etc.)
-            if f.endswith('.mtx') and not any(skip in f for skip in ['_coord', '_nodename', '_Categories', '_b.mtx']):
+            if f.endswith('.mtx') and not any(skip in f for skip in _MTX_AUX_SUFFIXES):
                 full_path = os.path.join(graph_folder, f)
                 if os.path.isfile(full_path):
                     return full_path
-    
+
     return None
 
 def get_graph_size_mb(path: str) -> float:
@@ -363,9 +385,9 @@ def discover_graphs(graphs_dir: str, min_size: float = 0, max_size: float = floa
         dirs_to_scan.extend(additional_dirs)
     
     # Also check SSOT graphs dir if it exists and isn't already in the list
-    legacy_graphs_dir = str(GRAPHS_DIR)
-    if os.path.exists(legacy_graphs_dir) and legacy_graphs_dir not in dirs_to_scan:
-        dirs_to_scan.append(legacy_graphs_dir)
+    ssot_graphs_dir = str(GRAPHS_DIR)
+    if os.path.exists(ssot_graphs_dir) and ssot_graphs_dir not in dirs_to_scan:
+        dirs_to_scan.append(ssot_graphs_dir)
     
     for scan_dir in dirs_to_scan:
         if not os.path.exists(scan_dir):
@@ -560,6 +582,382 @@ def download_graphs(
         log(f"Download complete: {len(successful)}/{len(graphs_to_download)} successful")
     
     return successful
+
+
+# ============================================================================
+# Random-Baseline .sg Conversion
+# ============================================================================
+
+def _find_mtx_for_graph(graph_dir: str, graph_name: str) -> Optional[str]:
+    """Locate the .mtx file for a graph, searching name variants and subdirs."""
+    name_variants = [graph_name, graph_name.replace('-', '_'), graph_name.replace('_', '-')]
+    for name in name_variants:
+        p = os.path.join(graph_dir, f"{name}.mtx")
+        if os.path.isfile(p):
+            return p
+    # Check subdirectories (SuiteSparse layout)
+    for subdir in os.listdir(graph_dir) if os.path.isdir(graph_dir) else []:
+        sp = os.path.join(graph_dir, subdir)
+        if os.path.isdir(sp):
+            for name in name_variants + [subdir]:
+                p = os.path.join(sp, f"{name}.mtx")
+                if os.path.isfile(p):
+                    return p
+    # Last resort: any .mtx excluding auxiliary files
+    if os.path.isdir(graph_dir):
+        for f in sorted(os.listdir(graph_dir)):
+            if f.endswith('.mtx') and not any(x in f for x in _MTX_AUX_SUFFIXES):
+                fp = os.path.join(graph_dir, f)
+                if os.path.isfile(fp):
+                    return fp
+    return None
+
+
+def convert_graph_to_sg(
+    mtx_path: str,
+    sg_path: str,
+    order: int = 1,
+    bin_dir: str = None,
+    timeout: int = 600,
+) -> bool:
+    """Convert a single graph from .mtx to .sg with the given reordering.
+
+    Args:
+        mtx_path: Path to input .mtx file.
+        sg_path:  Path for the output .sg file.
+        order:    Reorder algorithm ID applied during conversion
+                  (default 1 = RANDOM).
+        bin_dir:  Directory containing the converter binary.
+        timeout:  Timeout in seconds.
+
+    Returns:
+        True if conversion succeeded, False otherwise.
+    """
+    bin_dir = bin_dir or str(BIN_DIR)
+    converter = os.path.join(bin_dir, "converter")
+    if not os.path.isfile(converter):
+        log(f"Converter binary not found: {converter}", "ERROR")
+        return False
+
+    cmd = f"{converter} -f {mtx_path} -s -o {order} -b {sg_path}"
+    success, stdout, stderr = run_command(cmd, timeout=timeout)
+    if not success:
+        log(f"Conversion failed for {mtx_path}: {stderr[:200]}", "ERROR")
+        # Remove partial output
+        if os.path.isfile(sg_path):
+            os.remove(sg_path)
+        return False
+
+    if not os.path.isfile(sg_path) or os.path.getsize(sg_path) == 0:
+        log(f"Converter produced empty .sg for {mtx_path}", "ERROR")
+        if os.path.isfile(sg_path):
+            os.remove(sg_path)
+        return False
+
+    return True
+
+
+def convert_graphs_to_sg(
+    graphs_dir: str = DEFAULT_GRAPHS_DIR,
+    order: int = 1,
+    bin_dir: str = None,
+    force: bool = False,
+    graph_names: List[str] = None,
+    timeout: int = 600,
+) -> int:
+    """Convert all discovered .mtx graphs to .sg with the specified ordering.
+
+    When *order=1* (RANDOM, the default) this creates a random-baseline
+    .sg so that subsequent benchmark runs with ``-o 0`` (ORIGINAL) measure
+    performance on a randomly-ordered graph, and every reordering algorithm
+    shows its *improvement* over that worst-case baseline.
+
+    Args:
+        graphs_dir:   Root directory containing graph sub-directories.
+        order:        Reorder algorithm ID applied during conversion
+                      (default 1 = RANDOM).
+        bin_dir:      Directory containing the converter binary.
+        force:        If True, overwrite existing .sg files.
+        graph_names:  Optional list limiting conversion to these graph names.
+        timeout:      Per-graph conversion timeout in seconds.
+
+    Returns:
+        Number of graphs successfully converted.
+    """
+    bin_dir = bin_dir or str(BIN_DIR)
+    algo_label = canonical_algo_key(order)
+
+    log_section(f"CONVERTING GRAPHS TO .sg (baseline={algo_label})")
+
+    converted = 0
+    skipped = 0
+    failed = 0
+    entries = sorted(os.listdir(graphs_dir)) if os.path.isdir(graphs_dir) else []
+
+    for entry in entries:
+        entry_path = os.path.join(graphs_dir, entry)
+        if not os.path.isdir(entry_path):
+            continue
+        if graph_names and entry not in graph_names:
+            continue
+
+        # Determine output .sg path
+        sg_path = os.path.join(entry_path, f"{entry}.sg")
+
+        # Skip if .sg already exists and force is not set
+        if os.path.isfile(sg_path) and os.path.getsize(sg_path) > 0 and not force:
+            skipped += 1
+            continue
+
+        # Locate the .mtx source
+        mtx_path = _find_mtx_for_graph(entry_path, entry)
+        if not mtx_path:
+            continue  # no .mtx — nothing to convert
+
+        log(f"  Converting {entry} ({algo_label}) ...")
+        if convert_graph_to_sg(mtx_path, sg_path, order=order, bin_dir=bin_dir, timeout=timeout):
+            converted += 1
+            sg_size_mb = os.path.getsize(sg_path) / (1024 * 1024)
+            log(f"    -> {sg_path} ({sg_size_mb:.1f} MB)")
+        else:
+            failed += 1
+
+    log(f"Conversion complete: {converted} converted, {skipped} skipped (exist), {failed} failed")
+    return converted
+
+
+# ============================================================================
+# Pre-generated Reordered .sg Files
+# ============================================================================
+
+def _iter_algo_variants(
+    algorithms: List[int],
+    include_chains: bool = True,
+) -> List[Tuple[int, str, str]]:
+    """Expand algorithm IDs into ``(algo_id, canonical_name, converter_opt)`` triples.
+
+    For variant algorithms (RABBITORDER, GraphBrewOrder, RCM) each variant is
+    emitted separately — they produce *different* reorderings and therefore
+    need their own ``.sg`` file::
+
+        8 → [(8, 'RABBITORDER_csr',      '8:csr'),
+             (8, 'RABBITORDER_boost',     '8:boost')]
+       12 → [(12, 'GraphBrewOrder_leiden',  '12:leiden'),
+             (12, 'GraphBrewOrder_rabbit',  '12:rabbit'),
+             (12, 'GraphBrewOrder_hubcluster', '12:hubcluster')]
+        2 → [(2, 'SORT', '2')]
+
+    When *include_chains* is ``True`` (default), ``CHAINED_ORDERINGS`` from the
+    SSOT are appended.  Chained orderings apply multiple ``-o`` flags
+    sequentially and produce a compound reordered ``.sg``::
+
+        ('SORT+RABBITORDER_csr', '-o 2 -o 8:csr')  →  email-Enron_SORT+RABBITORDER_csr.sg
+
+    The *algo_id* for chained orderings is ``-1`` (no single ID).
+    """
+    result: List[Tuple[int, str, str]] = []
+    for algo_id in algorithms:
+        variants = get_algo_variants(algo_id)
+        if variants:
+            for v in variants:
+                result.append((
+                    algo_id,
+                    canonical_algo_key(algo_id, v),
+                    algo_converter_opt(algo_id, v),
+                ))
+        else:
+            result.append((algo_id, canonical_algo_key(algo_id), algo_converter_opt(algo_id)))
+
+    # Append chained (multi-pass) orderings from SSOT
+    if include_chains:
+        for canonical, converter_opts in CHAINED_ORDERINGS:
+            result.append((-1, canonical, converter_opts))
+
+    return result
+
+
+def get_pregenerated_sg_path(graph_dir: str, graph_name: str, algo_id: int,
+                             variant: str = None) -> str:
+    """Return the expected path for a pre-generated reordered .sg file.
+
+    Naming convention: ``{graph_name}_{CANONICAL_NAME}.sg``
+
+    For variant algorithms the *variant* suffix is appended automatically::
+
+        algo_id=2             → email-Enron_SORT.sg
+        algo_id=7             → email-Enron_HUBCLUSTERDBG.sg
+        algo_id=8, variant='' → email-Enron_RABBITORDER_csr.sg   (default)
+        algo_id=8, variant='boost' → email-Enron_RABBITORDER_boost.sg
+        algo_id=12, variant='leiden' → email-Enron_GraphBrewOrder_leiden.sg
+    """
+    canonical = canonical_algo_key(algo_id, variant)
+    return os.path.join(graph_dir, f"{graph_name}_{canonical}.sg")
+
+
+def estimate_pregeneration_size(
+    graphs_dir: str,
+    algorithms: List[int] = None,
+    graph_names: List[str] = None,
+) -> Tuple[int, int, bool]:
+    """Estimate disk space needed to pre-generate reordered .sg files.
+
+    Each reordered .sg is approximately the same size as the baseline .sg
+    (vertex/edge counts are preserved; only vertex ordering changes).
+
+    Args:
+        graphs_dir:   Root directory containing graph sub-directories.
+        algorithms:   Reorder algorithm IDs (default: REORDER_ALGORITHMS).
+        graph_names:  Optional list limiting estimation to these graphs.
+
+    Returns:
+        ``(estimated_bytes, available_bytes, fits)`` — *fits* is True when
+        the estimated space does not exceed the free disk space.
+    """
+    algorithms = algorithms or REORDER_ALGORITHMS
+    algo_variants = _iter_algo_variants(algorithms)
+    estimated = 0
+    entries = sorted(os.listdir(graphs_dir)) if os.path.isdir(graphs_dir) else []
+
+    for entry in entries:
+        entry_path = os.path.join(graphs_dir, entry)
+        if not os.path.isdir(entry_path):
+            continue
+        if graph_names and entry not in graph_names:
+            continue
+
+        # Find baseline .sg
+        sg_path = os.path.join(entry_path, f"{entry}.sg")
+        if not os.path.isfile(sg_path):
+            continue
+
+        baseline_size = os.path.getsize(sg_path)
+        # Only count files that don't already exist
+        for _aid, canonical, _opt in algo_variants:
+            pregen = os.path.join(entry_path, f"{entry}_{canonical}.sg")
+            if not os.path.isfile(pregen):
+                estimated += baseline_size
+
+    available = shutil.disk_usage(graphs_dir).free
+    return estimated, available, estimated <= available
+
+
+def pregenerate_reordered_sgs(
+    graphs_dir: str = DEFAULT_GRAPHS_DIR,
+    algorithms: List[int] = None,
+    bin_dir: str = None,
+    force: bool = False,
+    graph_names: List[str] = None,
+    timeout: int = 600,
+) -> Tuple[int, int]:
+    """Pre-generate reordered .sg files so benchmarks skip runtime reordering.
+
+    For every graph that already has a baseline ``.sg`` (typically RANDOM-ordered),
+    this creates ``{graph_name}_{ALGORITHM_NAME}.sg`` for each algorithm in
+    *algorithms*.  At benchmark time the pre-generated file is loaded with
+    ``-o 0`` (ORIGINAL) so no runtime reorder overhead is incurred.
+
+    Before generating, the function checks whether the estimated storage fits
+    on disk.  If not, it logs a warning and returns ``(0, 0)`` so the caller
+    can fall back to real-time reordering.
+
+    Args:
+        graphs_dir:   Root directory containing graph sub-directories.
+        algorithms:   Reorder algorithm IDs (default: REORDER_ALGORITHMS).
+        bin_dir:      Directory containing the ``converter`` binary.
+        force:        If True, regenerate even when the file already exists.
+        graph_names:  Optional list limiting generation to these graphs.
+        timeout:      Per-conversion timeout in seconds.
+
+    Returns:
+        ``(generated, skipped)`` counts.
+    """
+    algorithms = algorithms or REORDER_ALGORITHMS
+    bin_dir = bin_dir or str(BIN_DIR)
+    converter = os.path.join(bin_dir, "converter")
+
+    if not os.path.isfile(converter):
+        log(f"Converter binary not found: {converter}", "ERROR")
+        return 0, 0
+
+    algo_variants = _iter_algo_variants(algorithms)
+    canonical_names = [name for _, name, _ in algo_variants]
+    log_section(f"PRE-GENERATING REORDERED .sg FILES ({len(algo_variants)} targets)")
+    log(f"  Targets: {', '.join(canonical_names)}")
+
+    # ── Disk-space safety check ──────────────────────────────────────
+    est_bytes, avail_bytes, fits = estimate_pregeneration_size(
+        graphs_dir, algorithms, graph_names
+    )
+    est_mb = est_bytes / (1024 * 1024)
+    avail_mb = avail_bytes / (1024 * 1024)
+    log(f"  Estimated additional disk: {est_mb:.1f} MB")
+    log(f"  Available disk space:      {avail_mb:.1f} MB")
+
+    if not fits:
+        log(
+            f"Insufficient disk space ({est_mb:.1f} MB needed, "
+            f"{avail_mb:.1f} MB free). Falling back to real-time reordering.",
+            "WARN",
+        )
+        return 0, 0
+
+    # ── Generate ─────────────────────────────────────────────────────
+    generated = 0
+    skipped = 0
+    failed = 0
+    entries = sorted(os.listdir(graphs_dir)) if os.path.isdir(graphs_dir) else []
+
+    for entry in entries:
+        entry_path = os.path.join(graphs_dir, entry)
+        if not os.path.isdir(entry_path):
+            continue
+        if graph_names and entry not in graph_names:
+            continue
+
+        baseline_sg = os.path.join(entry_path, f"{entry}.sg")
+        if not os.path.isfile(baseline_sg):
+            continue
+
+        for _algo_id, canonical, converter_opt in algo_variants:
+            out_path = os.path.join(entry_path, f"{entry}_{canonical}.sg")
+
+            if os.path.isfile(out_path) and os.path.getsize(out_path) > 0 and not force:
+                skipped += 1
+                continue
+
+            log(f"  {entry} → {canonical} ...")
+            # Chained orderings already contain `-o` prefixes (e.g. "-o 2 -o 8:csr").
+            # Single orderings are bare (e.g. "8:csr") and need a `-o` prefix.
+            if converter_opt.startswith("-o"):
+                o_flags = converter_opt
+            else:
+                o_flags = f"-o {converter_opt}"
+            cmd = f"{converter} -f {baseline_sg} -s {o_flags} -b {out_path}"
+            success, stdout, stderr = run_command(cmd, timeout=timeout)
+
+            if not success:
+                log(f"    FAILED: {stderr[:200]}", "ERROR")
+                if os.path.isfile(out_path):
+                    os.remove(out_path)
+                failed += 1
+                continue
+
+            if not os.path.isfile(out_path) or os.path.getsize(out_path) == 0:
+                log(f"    Converter produced empty output for {entry}/{canonical}", "ERROR")
+                if os.path.isfile(out_path):
+                    os.remove(out_path)
+                failed += 1
+                continue
+
+            size_mb = os.path.getsize(out_path) / (1024 * 1024)
+            log(f"    -> {out_path} ({size_mb:.1f} MB)")
+            generated += 1
+
+    log(
+        f"Pre-generation complete: {generated} generated, "
+        f"{skipped} existing, {failed} failed"
+    )
+    return generated, skipped
 
 
 def ensure_prerequisites(project_dir: str = ".", 
@@ -860,6 +1258,10 @@ def run_experiment(args):
     _progress.info(f"Trials per benchmark: {args.trials}")
     if args.expand_variants:
         _progress.info("Leiden variant expansion: ENABLED")
+    if args.random_baseline:
+        _progress.info("Random baseline: ENABLED (graphs converted to .sg with RANDOM ordering)")
+    if args.pregenerate_sg:
+        _progress.info("Pre-generated .sg: ENABLED (reordered graphs cached on disk)")
     _progress.phase_end()
     
     # Discover graphs
@@ -883,6 +1285,39 @@ def run_experiment(args):
             max_memory_gb=args.max_memory,
             max_disk_gb=args.max_disk
         )
+    
+    # Random-baseline .sg conversion: convert .mtx → .sg with RANDOM ordering
+    # so all benchmarks measure improvement over a worst-case random baseline.
+    if args.random_baseline:
+        graph_name_filter = args.graph_list if args.graph_list else None
+        convert_graphs_to_sg(
+            graphs_dir=args.graphs_dir,
+            order=1,  # RANDOM
+            bin_dir=args.bin_dir,
+            force=args.force_convert,
+            graph_names=graph_name_filter,
+        )
+    
+    # Pre-generate reordered .sg files: create {graph}_{ALGO}.sg from the
+    # RANDOM baseline so benchmarks can load the pre-ordered graph with -o 0
+    # and skip runtime reorder overhead entirely.
+    pregenerated_available = False
+    if getattr(args, 'pregenerate_sg', True):
+        graph_name_filter = args.graph_list if args.graph_list else None
+        gen_count, skip_count = pregenerate_reordered_sgs(
+            graphs_dir=args.graphs_dir,
+            bin_dir=args.bin_dir,
+            force=args.force_convert,
+            graph_names=graph_name_filter,
+        )
+        pregenerated_available = (gen_count + skip_count) > 0
+        if pregenerated_available:
+            _progress.info(
+                f"Pre-generated .sg files ready ({gen_count} new, "
+                f"{skip_count} cached) — benchmarks will skip runtime reordering"
+            )
+        else:
+            _progress.info("Pre-generated .sg files: unavailable — using real-time reordering")
     
     graphs = discover_graphs(args.graphs_dir, min_size, max_size, max_memory_gb=args.max_memory,
                              min_edges=args.min_edges)
@@ -931,21 +1366,32 @@ def run_experiment(args):
     
     _progress.phase_end(f"Found {len(graphs)} graphs totaling {total_size:.1f} MB")
     
-    # Select algorithms
+    # Select algorithms for benchmarking (includes baselines ORIGINAL/RANDOM)
     if args.key_only:
         algorithms = KEY_ALGORITHMS
     else:
         algorithms = BENCHMARK_ALGORITHMS
+    
+    # Reorder-only algorithms: exclude baselines.
+    # Baselines are graph states, not reordering techniques — no mapping to generate.
+    reorder_algorithms = [a for a in algorithms if a not in (_ORIGINAL_ID, _RANDOM_ID)]
     
     # Filter by specific algorithm name(s) if provided
     algo_filter_names = args.algo_list if args.algo_list else ([args.algo_name] if args.algo_name else None)
     if algo_filter_names:
         # Build reverse mapping from name to id (auto-generated from SSOT)
         name_to_id = {v.upper(): k for k, v in ALGORITHMS.items()}
-        # Add variant names → base algo IDs (from SSOT registry)
-        for aid, (pfx, variants, _) in _VARIANT_ALGO_REGISTRY.items():
-            for v in variants:
-                name_to_id[f"{pfx}{v}".upper()] = aid
+        # Add variant names → base algo IDs (from SSOT API)
+        from scripts.lib.utils import get_all_algorithm_variant_names
+        for name in get_all_algorithm_variant_names():
+            algo_id_for_name = next(
+                (aid for aid in ALGORITHMS
+                 if aid in _VARIANT_ALGO_REGISTRY
+                 and name.startswith(_VARIANT_ALGO_REGISTRY[aid][0])),
+                None,
+            )
+            if algo_id_for_name is not None:
+                name_to_id[name.upper()] = algo_id_for_name
         # Add GOrder implementation variant names (not in registry, share weight)
         for v in GORDER_VARIANTS:
             name_to_id[f"GORDER_{v}".upper()] = ALGORITHM_IDS["GORDER"]
@@ -969,14 +1415,16 @@ def run_experiment(args):
                 for algo_name, algo_id in name_to_id.items():
                     if name_upper in algo_name or algo_name in name_upper:
                         filtered_algos.add(algo_id)
-                        filtered_names.append(ALGORITHMS.get(algo_id, name))
+                        filtered_names.append(canonical_algo_key(algo_id))
                         break
         
         if filtered_algos:
             algorithms = [a for a in algorithms if a in filtered_algos]
+            reorder_algorithms = [a for a in reorder_algorithms if a in filtered_algos]
             if not algorithms:
                 # If no overlap with current set, use filtered set directly
                 algorithms = sorted(list(filtered_algos))
+                reorder_algorithms = [a for a in algorithms if a not in (_ORIGINAL_ID, _RANDOM_ID)]
             _progress.info(f"Filtered to {len(algorithms)} algorithms: {', '.join(filtered_names)}")
         else:
             _progress.error(f"No matching algorithms found for: {algo_filter_names}")
@@ -985,8 +1433,9 @@ def run_experiment(args):
 
     _progress.phase_start("ALGORITHM SELECTION", "Determining which algorithms to test")
     _progress.info(f"Algorithm set: {'KEY (fast subset)' if args.key_only else 'FULL benchmark set'}")
-    _progress.info(f"Total algorithms: {len(algorithms)}")
-    algo_names = [ALGORITHMS.get(a, f"ALG_{a}") for a in algorithms[:10]]
+    _progress.info(f"Benchmark algorithms: {len(algorithms)} (includes baselines ORIGINAL, RANDOM)")
+    _progress.info(f"Reorder algorithms: {len(reorder_algorithms)} (excludes baselines)")
+    algo_names = [canonical_algo_key(a) for a in algorithms[:10]]
     _progress.info(f"Algorithms: {', '.join(algo_names)}{'...' if len(algorithms) > 10 else ''}")
     _progress.info(f"Benchmarks: {', '.join(args.benchmarks)}")
     
@@ -1014,7 +1463,7 @@ def run_experiment(args):
             # Use variant-aware mapping generation
             label_maps, reorder_timing_results = generate_reorderings_with_variants(
                 graphs=graphs,
-                algorithms=algorithms,
+                algorithms=reorder_algorithms,
                 bin_dir=args.bin_dir,
                 output_dir=args.results_dir,
                 expand_leiden_variants=True,
@@ -1029,7 +1478,7 @@ def run_experiment(args):
             # Use standard mapping generation (no variant expansion)
             label_maps, reorder_timing_results = generate_label_maps(
                 graphs=graphs,
-                algorithms=algorithms,
+                algorithms=reorder_algorithms,
                 bin_dir=args.bin_dir,
                 output_dir=args.results_dir,
                 timeout=args.timeout_reorder,
@@ -1059,7 +1508,7 @@ def run_experiment(args):
             # Use variant-aware reordering
             variant_label_maps, reorder_results = generate_reorderings_with_variants(
                 graphs=graphs,
-                algorithms=algorithms,
+                algorithms=reorder_algorithms,
                 bin_dir=args.bin_dir,
                 output_dir=args.results_dir,
                 expand_leiden_variants=True,
@@ -1082,7 +1531,7 @@ def run_experiment(args):
             # Standard reordering (no variant expansion)
             reorder_results = generate_reorderings(
                 graphs=graphs,
-                algorithms=algorithms,
+                algorithms=reorder_algorithms,
                 bin_dir=args.bin_dir,
                 output_dir=args.results_dir,
                 timeout=args.timeout_reorder,
@@ -1137,6 +1586,8 @@ def run_experiment(args):
         else:
             # Standard benchmarking
             _progress.info("Mode: Standard benchmarking")
+            if pregenerated_available:
+                _progress.info("  Using pre-generated .sg files (no runtime reorder overhead)")
             benchmark_results = run_benchmarks_multi_graph(
                 graphs=graphs,
                 algorithms=algorithms,
@@ -1147,7 +1598,8 @@ def run_experiment(args):
                 skip_slow=args.skip_slow,
                 label_maps=label_maps,
                 weights_dir=args.weights_dir,
-                update_weights=not args.no_incremental
+                update_weights=not args.no_incremental,
+                use_pregenerated=pregenerated_available,
             )
         all_benchmark_results.extend(benchmark_results)
         
@@ -1262,7 +1714,7 @@ def run_experiment(args):
             timeout=args.timeout_benchmark
         )
     
-    # Phase 8: Brute-Force Validation (All 20 algos vs Adaptive)
+    # Phase 8: Brute-Force Validation (all eligible algos vs Adaptive)
     if args.brute_force:
         bf_benchmark = args.bf_benchmark
         run_subcommunity_brute_force(
@@ -1500,7 +1952,7 @@ def run_experiment(args):
                         continue
                     
                     # Find baseline and best
-                    baseline = next((r for r in bench_results if r.algorithm == ALGORITHMS[0]), bench_results[0])
+                    baseline = next((r for r in bench_results if r.algorithm == ALGORITHMS[_ORIGINAL_ID]), bench_results[0])
                     best = min(bench_results, key=lambda r: r.time_seconds)
                     
                     if baseline.time_seconds > 0:
@@ -1728,6 +2180,24 @@ def main():
     parser.add_argument("--skip-download", action="store_true",
                         help="Skip graph download phase (use existing graphs only)")
     
+    # Random-baseline .sg conversion
+    parser.add_argument("--random-baseline", action="store_true", default=True,
+                        help="Convert graphs to .sg with RANDOM ordering (default: enabled). "
+                             "This ensures benchmarks measure improvement over a random baseline.")
+    parser.add_argument("--no-random-baseline", action="store_false", dest="random_baseline",
+                        help="Disable random-baseline conversion (use original .mtx files directly)")
+    parser.add_argument("--force-convert", action="store_true",
+                        help="Force re-conversion of .sg files even if they already exist")
+    
+    # Pre-generated reordered .sg files
+    parser.add_argument("--pregenerate-sg", action="store_true", default=True,
+                        help="Pre-generate reordered .sg files for each algorithm so "
+                             "benchmarks skip runtime reordering (default: enabled). "
+                             "Falls back to real-time reordering if disk space is insufficient.")
+    parser.add_argument("--no-pregenerate-sg", action="store_false", dest="pregenerate_sg",
+                        help="Disable pre-generation of reordered .sg files "
+                             "(use real-time reordering during benchmarks)")
+    
     # Resource limits
     parser.add_argument("--max-memory", type=float, default=None,
                         help="Maximum RAM (GB) for graph processing. Auto-detects available memory if not set. "
@@ -1778,8 +2248,8 @@ def main():
                         help="Skip slow algorithms (Gorder, Corder, RCM) on large graphs")
     
     # Benchmark selection
-    parser.add_argument("--benchmarks", nargs="+", default=BENCHMARKS,
-                        help="Benchmarks to run")
+    parser.add_argument("--benchmarks", nargs="+", default=EXPERIMENT_BENCHMARKS,
+                        help="Benchmarks to run (default: excludes TC)")
     parser.add_argument("--trials", type=int, default=2,
                         help="Number of trials per benchmark")
     
@@ -2154,6 +2624,15 @@ def main():
             max_disk_gb=args.max_disk
         )
         
+        # Convert to random-baseline .sg if enabled
+        if args.random_baseline:
+            convert_graphs_to_sg(
+                graphs_dir=args.graphs_dir,
+                order=1,  # RANDOM
+                bin_dir=args.bin_dir,
+                force=args.force_convert,
+            )
+        
         # Now discover all available graphs
         graphs = discover_graphs(args.graphs_dir, max_memory_gb=args.max_memory,
                                  min_edges=args.min_edges)
@@ -2262,6 +2741,14 @@ def main():
                 max_memory_gb=args.max_memory,
                 max_disk_gb=args.max_disk
             )
+            # Convert to random-baseline .sg if enabled
+            if args.random_baseline:
+                convert_graphs_to_sg(
+                    graphs_dir=args.graphs_dir,
+                    order=1,  # RANDOM
+                    bin_dir=args.bin_dir,
+                    force=args.force_convert,
+                )
             log("Download complete. Run without --download-only to start experiments.", "INFO")
             return
         

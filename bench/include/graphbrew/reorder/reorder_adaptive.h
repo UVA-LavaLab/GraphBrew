@@ -322,8 +322,11 @@ void GenerateAdaptiveMappingFullGraphStandalone(
         return;
     }
     
-    // Compute global features
-    auto features = ::ComputeSampledDegreeFeatures(g, 5000, true);
+    // Compute global features (auto-scaled sample size)
+    auto features = ::ComputeSampledDegreeFeatures(g, 0, true);
+    
+    // Compute extended features (avg_path_length, diameter, component_count)
+    auto ext_features = ::ComputeExtendedFeatures(g);
     
     double global_modularity = features.estimated_modularity;
     double global_degree_variance = features.degree_variance;
@@ -352,6 +355,15 @@ void GenerateAdaptiveMappingFullGraphStandalone(
     global_feat.packing_factor = features.packing_factor;
     global_feat.forward_edge_fraction = features.forward_edge_fraction;
     global_feat.working_set_ratio = features.working_set_ratio;
+    
+    // Populate extended features (previously always 0 at runtime)
+    global_feat.avg_path_length = ext_features.avg_path_length;
+    global_feat.diameter_estimate = static_cast<double>(ext_features.diameter_estimate);
+    global_feat.community_count = static_cast<double>(ext_features.component_count);
+    
+    std::cout << "Avg Path Length: " << ext_features.avg_path_length << "\n";
+    std::cout << "Diameter Estimate: " << ext_features.diameter_estimate << "\n";
+    std::cout << "Component Count: " << ext_features.component_count << "\n";
     
     // Select best algorithm
     PerceptronSelection best = SelectBestReorderingForCommunity(
@@ -495,7 +507,7 @@ void GenerateAdaptiveMappingRecursiveStandalone(
     // Compute global features
     Timer t_features;
     t_features.Start();
-    auto deg_features = ::ComputeSampledDegreeFeatures(g, 5000, true);
+    auto deg_features = ::ComputeSampledDegreeFeatures(g, 0, true);
     double global_degree_variance = deg_features.degree_variance;
     double global_hub_concentration = deg_features.hub_concentration;
     double global_avg_degree = (num_nodes > 0) ? static_cast<double>(num_edges) / num_nodes : 0.0;

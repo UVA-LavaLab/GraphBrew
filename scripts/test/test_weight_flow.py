@@ -28,7 +28,13 @@ from scripts.lib.utils import (
     WEIGHTS_DIR, ACTIVE_WEIGHTS_DIR,
     VARIANT_PREFIXES, VARIANT_ALGO_IDS, DISPLAY_TO_CANONICAL,
     ALGORITHMS, RABBITORDER_VARIANTS, RCM_VARIANTS, GRAPHBREW_VARIANTS,
+    CHAIN_SEPARATOR, CHAINED_ORDERINGS, _CHAINED_ORDERING_OPTS,
+    is_chained_ordering_name,
     get_all_algorithm_variant_names, resolve_canonical_name, is_variant_prefixed,
+    canonical_algo_key, algo_converter_opt, get_algo_variants,
+    canonical_name_from_converter_opt, chain_canonical_name,
+    get_algorithm_name,
+    LEGACY_ALGO_NAME_MAP,
 )
 from scripts.lib.weights import (
     DEFAULT_WEIGHTS_DIR,
@@ -518,6 +524,245 @@ class TestVariantRegistrySSOT:
         untrained_set = set(info["untrained"])
         assert active_set & untrained_set == set(), "Overlap between active and untrained"
         assert active_set | untrained_set == set(info["compound_variants"])
+
+    def test_get_algo_variants_variant_algos(self):
+        """get_algo_variants() returns variant tuples for registered algorithms."""
+        assert get_algo_variants(8) == RABBITORDER_VARIANTS
+        assert get_algo_variants(11) == RCM_VARIANTS
+        assert get_algo_variants(12) == GRAPHBREW_VARIANTS
+
+    def test_get_algo_variants_non_variant(self):
+        """get_algo_variants() returns None for non-variant algorithms."""
+        assert get_algo_variants(0) is None
+        assert get_algo_variants(2) is None
+        assert get_algo_variants(9) is None   # GOrder: intentionally not in registry
+        assert get_algo_variants(15) is None  # LeidenOrder
+
+
+class TestChainedOrderingExclusion:
+    """Chained orderings are analysis-only and must not enter weight training."""
+
+    def test_chain_separator_constant(self):
+        """CHAIN_SEPARATOR should be '+'."""
+        assert CHAIN_SEPARATOR == "+"
+
+    def test_is_chained_ordering_name(self):
+        """is_chained_ordering_name() should detect '+' in names."""
+        assert is_chained_ordering_name("SORT+RABBITORDER_csr")
+        assert is_chained_ordering_name("DBG+GraphBrewOrder_leiden")
+        assert not is_chained_ordering_name("RABBITORDER_csr")
+        assert not is_chained_ordering_name("ORIGINAL")
+        assert not is_chained_ordering_name("GraphBrewOrder_leiden")
+
+    def test_chained_orderings_all_have_separator(self):
+        """Every CHAINED_ORDERINGS entry must contain CHAIN_SEPARATOR."""
+        for canonical, _opts in CHAINED_ORDERINGS:
+            assert CHAIN_SEPARATOR in canonical, f"{canonical} missing separator"
+
+    def test_variant_names_exclude_chains(self):
+        """get_all_algorithm_variant_names() must NOT include chained names."""
+        names = get_all_algorithm_variant_names()
+        for name in names:
+            assert not is_chained_ordering_name(name), (
+                f"Chained name '{name}' leaked into variant enumeration"
+            )
+
+    def test_default_weights_exclude_chains(self):
+        """initialize_default_weights() must NOT contain chained keys."""
+        from scripts.lib.weights import initialize_default_weights
+        weights = initialize_default_weights()
+        for key in weights:
+            assert not is_chained_ordering_name(key), (
+                f"Chained name '{key}' in default weights"
+            )
+
+    def test_chain_names_auto_generated(self):
+        """CHAINED_ORDERINGS names must be auto-derived from _CHAINED_ORDERING_OPTS."""
+        assert len(CHAINED_ORDERINGS) == len(_CHAINED_ORDERING_OPTS)
+        for (canonical, opts), raw_opts in zip(CHAINED_ORDERINGS, _CHAINED_ORDERING_OPTS):
+            assert opts == raw_opts, f"opts mismatch: {opts!r} != {raw_opts!r}"
+            expected_name = chain_canonical_name(raw_opts)
+            assert canonical == expected_name, (
+                f"Auto name mismatch: {canonical!r} != {expected_name!r}"
+            )
+
+
+class TestCanonicalNameFromOpt:
+    """canonical_name_from_converter_opt() derives names from -o arguments."""
+
+    def test_simple_algorithms(self):
+        """Non-variant algorithms return base name."""
+        assert canonical_name_from_converter_opt("0") == "ORIGINAL"
+        assert canonical_name_from_converter_opt("2") == "SORT"
+        assert canonical_name_from_converter_opt("5") == "DBG"
+        assert canonical_name_from_converter_opt("9") == "GORDER"
+
+    def test_variant_default(self):
+        """Variant algorithms without explicit variant use default."""
+        assert canonical_name_from_converter_opt("8") == "RABBITORDER_csr"
+        assert canonical_name_from_converter_opt("11") == "RCM_default"
+        assert canonical_name_from_converter_opt("12") == "GraphBrewOrder_leiden"
+
+    def test_variant_explicit(self):
+        """Explicit variant in option string."""
+        assert canonical_name_from_converter_opt("8:boost") == "RABBITORDER_boost"
+        assert canonical_name_from_converter_opt("11:bnf") == "RCM_bnf"
+        assert canonical_name_from_converter_opt("12:rabbit") == "GraphBrewOrder_rabbit"
+
+    def test_multilayer_graphbrew(self):
+        """Multi-layer GraphBrewOrder configs normalize colons to underscores."""
+        assert canonical_name_from_converter_opt("12:leiden:hrab") == "GraphBrewOrder_leiden_hrab"
+        assert canonical_name_from_converter_opt("12:leiden:hrab:gvecsr") == "GraphBrewOrder_leiden_hrab_gvecsr"
+        assert canonical_name_from_converter_opt("12:leiden:hrab:gvecsr:merge:hubx") == (
+            "GraphBrewOrder_leiden_hrab_gvecsr_merge_hubx"
+        )
+
+    def test_agrees_with_canonical_algo_key(self):
+        """canonical_name_from_converter_opt() must agree with canonical_algo_key()."""
+        for algo_id in ALGORITHMS:
+            name_from_opt = canonical_name_from_converter_opt(str(algo_id))
+            name_from_key = canonical_algo_key(algo_id)
+            assert name_from_opt == name_from_key, (
+                f"Disagreement for algo {algo_id}: opt={name_from_opt!r} key={name_from_key!r}"
+            )
+
+    def test_agrees_with_get_algorithm_name(self):
+        """canonical_name_from_converter_opt and get_algorithm_name must agree."""
+        test_opts = ["0", "2", "8", "8:boost", "12", "12:leiden", "12:rabbit", "11:bnf"]
+        for opt in test_opts:
+            from_opt = canonical_name_from_converter_opt(opt)
+            from_name = get_algorithm_name(opt)
+            assert from_opt == from_name, (
+                f"Disagreement for {opt!r}: from_opt={from_opt!r} from_name={from_name!r}"
+            )
+
+
+class TestChainCanonicalName:
+    """chain_canonical_name() auto-derives chain names from converter opts."""
+
+    def test_basic_chains(self):
+        assert chain_canonical_name("-o 2 -o 8:csr") == "SORT+RABBITORDER_csr"
+        assert chain_canonical_name("-o 2 -o 8:boost") == "SORT+RABBITORDER_boost"
+        assert chain_canonical_name("-o 7 -o 8:csr") == "HUBCLUSTERDBG+RABBITORDER_csr"
+        assert chain_canonical_name("-o 2 -o 12:leiden") == "SORT+GraphBrewOrder_leiden"
+        assert chain_canonical_name("-o 5 -o 12:leiden") == "DBG+GraphBrewOrder_leiden"
+
+    def test_multilayer_in_chain(self):
+        """Chains with multi-layer GraphBrewOrder configs."""
+        assert chain_canonical_name("-o 2 -o 12:leiden:hrab") == "SORT+GraphBrewOrder_leiden_hrab"
+        assert chain_canonical_name("-o 2 -o 12:leiden:hrab:gvecsr:merge") == (
+            "SORT+GraphBrewOrder_leiden_hrab_gvecsr_merge"
+        )
+
+    def test_invalid_opts_raises(self):
+        """Empty converter opts should raise ValueError."""
+        import pytest
+        with pytest.raises(ValueError):
+            chain_canonical_name("no dash o here")
+
+
+class TestMultiLayerVariantPropagation:
+    """Multi-layer variant names propagate correctly through all APIs."""
+
+    def test_canonical_algo_key_multilayer(self):
+        """canonical_algo_key with colon-separated multi-layer variant."""
+        assert canonical_algo_key(12, "leiden:hrab") == "GraphBrewOrder_leiden_hrab"
+        assert canonical_algo_key(12, "leiden:hrab:gvecsr") == "GraphBrewOrder_leiden_hrab_gvecsr"
+        assert canonical_algo_key(12, "leiden:hrab:gvecsr:merge:hubx") == (
+            "GraphBrewOrder_leiden_hrab_gvecsr_merge_hubx"
+        )
+
+    def test_algo_converter_opt_multilayer(self):
+        """algo_converter_opt preserves colons for CLI."""
+        assert algo_converter_opt(12, "leiden:hrab") == "12:leiden:hrab"
+        assert algo_converter_opt(12, "leiden:hrab:gvecsr:merge") == "12:leiden:hrab:gvecsr:merge"
+
+    def test_roundtrip_key_to_opt(self):
+        """canonical_algo_key and canonical_name_from_converter_opt roundtrip."""
+        variants = ["leiden", "leiden:hrab", "leiden:hrab:gvecsr:merge:hubx"]
+        for v in variants:
+            key = canonical_algo_key(12, v)
+            opt = algo_converter_opt(12, v)
+            roundtrip_key = canonical_name_from_converter_opt(opt)
+            assert roundtrip_key == key, (
+                f"Roundtrip mismatch for variant {v!r}: key={key!r} roundtrip={roundtrip_key!r}"
+            )
+
+
+class TestCanonicalAlgoKey:
+    """canonical_algo_key() is the single entry-point for algorithm naming."""
+
+    def test_non_variant_algorithms(self):
+        """Non-variant algorithms return the bare SSOT name."""
+        assert canonical_algo_key(0) == "ORIGINAL"
+        assert canonical_algo_key(1) == "RANDOM"
+        assert canonical_algo_key(2) == "SORT"
+        assert canonical_algo_key(5) == "DBG"
+        assert canonical_algo_key(9) == "GORDER"
+        assert canonical_algo_key(10) == "CORDER"
+        assert canonical_algo_key(15) == "LeidenOrder"
+
+    def test_variant_algorithms_default(self):
+        """Variant algorithms always include default variant suffix."""
+        assert canonical_algo_key(8) == "RABBITORDER_csr"
+        assert canonical_algo_key(11) == "RCM_default"
+        assert canonical_algo_key(12) == "GraphBrewOrder_leiden"
+
+    def test_variant_algorithms_explicit(self):
+        """Explicit variant is used when provided."""
+        assert canonical_algo_key(8, "boost") == "RABBITORDER_boost"
+        assert canonical_algo_key(11, "bnf") == "RCM_bnf"
+        assert canonical_algo_key(12, "rabbit") == "GraphBrewOrder_rabbit"
+        assert canonical_algo_key(12, "hubcluster") == "GraphBrewOrder_hubcluster"
+
+    def test_matches_get_all_variant_names(self):
+        """Every name from get_all_algorithm_variant_names() should be
+        producible by canonical_algo_key()."""
+        all_names = set(get_all_algorithm_variant_names())
+        for algo_id, algo_name in ALGORITHMS.items():
+            if algo_name in ("MAP", "AdaptiveOrder"):
+                continue
+            key = canonical_algo_key(algo_id)
+            assert key in all_names, f"canonical_algo_key({algo_id}) = {key!r} not in SSOT list"
+
+    def test_matches_get_algorithm_name_with_variant(self):
+        """canonical_algo_key() and get_algorithm_name_with_variant() must agree."""
+        from scripts.lib.reorder import get_algorithm_name_with_variant
+        for algo_id in ALGORITHMS:
+            assert canonical_algo_key(algo_id) == get_algorithm_name_with_variant(algo_id)
+
+    def test_algo_converter_opt_non_variant(self):
+        """Non-variant algorithms produce bare ID strings."""
+        assert algo_converter_opt(0) == "0"
+        assert algo_converter_opt(2) == "2"
+        assert algo_converter_opt(5) == "5"
+
+    def test_algo_converter_opt_variant_default(self):
+        """Variant algorithms include default variant in converter opt."""
+        assert algo_converter_opt(8) == "8:csr"
+        assert algo_converter_opt(11) == "11:default"
+        assert algo_converter_opt(12) == "12:leiden"
+
+    def test_algo_converter_opt_explicit(self):
+        """Explicit variant is used in converter opt."""
+        assert algo_converter_opt(8, "boost") == "8:boost"
+        assert algo_converter_opt(12, "rabbit") == "12:rabbit"
+
+    def test_key_and_opt_are_paired(self):
+        """canonical_algo_key() and algo_converter_opt() should cover the
+        same algorithm IDs consistently."""
+        for algo_id in ALGORITHMS:
+            key = canonical_algo_key(algo_id)
+            opt = algo_converter_opt(algo_id)
+            # The opt should start with the algo_id
+            assert opt.startswith(str(algo_id)), f"opt={opt!r} doesn't start with {algo_id}"
+            # The key should not be empty
+            assert key, f"Empty key for algo_id={algo_id}"
+
+    def test_legacy_map_is_centralized(self):
+        """LEGACY_ALGO_NAME_MAP should contain 'GraphBrewOrder' mapping."""
+        assert "GraphBrewOrder" in LEGACY_ALGO_NAME_MAP
+        assert LEGACY_ALGO_NAME_MAP["GraphBrewOrder"] == "GraphBrewOrder_leiden"
 
 
 def main():
