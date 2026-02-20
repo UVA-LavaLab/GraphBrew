@@ -9,14 +9,14 @@ This module provides:
 - Weight initialization and update utilities
 
 Example usage:
-    from lib.training import train_adaptive_weights_iterative
+    from scripts.lib.training import train_adaptive_weights_iterative
     
     result = train_adaptive_weights_iterative(
         graphs=graphs,
         bin_dir="bench/bin",
         bin_sim_dir="bench/bin_sim",
         output_dir="results",
-        weights_file="scripts/perceptron_weights.json",
+        weights_file="results/weights/type_0/weights.json",
         target_accuracy=80.0
     )
     
@@ -31,7 +31,7 @@ from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from typing import Dict, List, Set
 
-from .utils import Logger, WEIGHTS_DIR, TIMEOUT_SIM
+from .utils import Logger, WEIGHTS_DIR, TIMEOUT_SIM, TIMEOUT_BENCHMARK
 from .analysis import (
     run_subcommunity_brute_force,
 )
@@ -185,7 +185,7 @@ def train_adaptive_weights_iterative(
     benchmark: str = "pr",
     target_accuracy: float = 80.0,
     max_iterations: int = 10,
-    timeout: int = 300,
+    timeout: int = TIMEOUT_BENCHMARK,
     timeout_sim: int = TIMEOUT_SIM,
     num_trials: int = 3,
     learning_rate: float = 0.1,
@@ -495,7 +495,7 @@ def train_adaptive_weights_large_scale(
     target_accuracy: float = 80.0,
     max_iterations: int = 10,
     batch_size: int = 8,
-    timeout: int = 300,
+    timeout: int = TIMEOUT_BENCHMARK,
     timeout_sim: int = TIMEOUT_SIM,
     num_trials: int = 2,
     learning_rate: float = 0.15,

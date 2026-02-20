@@ -114,7 +114,7 @@ def get_algorithm_name_with_variant(algo_id: int, variant: str = None) -> str:
     Returns:
         Algorithm name with variant suffix where applicable
     """
-    from scripts.lib.utils import _VARIANT_ALGO_REGISTRY
+    from .utils import _VARIANT_ALGO_REGISTRY
     
     if algo_id in _VARIANT_ALGO_REGISTRY:
         prefix, _, default_variant = _VARIANT_ALGO_REGISTRY[algo_id]
@@ -172,7 +172,7 @@ def expand_algorithms_with_variants(
     Returns:
         List of AlgorithmConfig objects
     """
-    from scripts.lib.utils import GORDER_VARIANTS, GORDER_DEFAULT_VARIANT
+    from .utils import GORDER_VARIANTS, GORDER_DEFAULT_VARIANT
     
     if rabbit_variants is None:
         # When expanding variants, include both RabbitOrder variants; otherwise just csr

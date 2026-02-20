@@ -143,7 +143,6 @@ from scripts.lib.utils import (
     LEIDEN_DEFAULT_RESOLUTION,
     LEIDEN_DEFAULT_PASSES,
     TIMEOUT_BUILD, TIMEOUT_REORDER, TIMEOUT_BENCHMARK, TIMEOUT_SIM,
-    DISPLAY_TO_CANONICAL,
     _VARIANT_ALGO_REGISTRY, GORDER_VARIANTS,
     is_variant_prefixed,
     run_command,
@@ -178,6 +177,31 @@ DEFAULT_TRAIN_BENCHMARKS = ['pr', 'bfs', 'cc']  # Fast subset (full SSOT: 8 in B
 
 # Minimum edges for training (skip small graphs that introduce noise/skew)
 MIN_EDGES_FOR_TRAINING = 100000  # 100K edges
+
+# Default modularity for graphs without adaptive analysis results
+DEFAULT_MODULARITY = 0.5
+
+# Cache simulation benchmarks (subset of BENCHMARKS for speed)
+CACHE_KEY_BENCHMARKS = ["pr", "bfs"]
+
+# Feature extraction timeout (quick PR run, not a full benchmark)
+TIMEOUT_FEATURE_EXTRACTION = 60
+
+# Feature patterns parsed from C++ topology output (hoisted to module level)
+_FEATURE_PATTERNS = [
+    # (regex_label, feature_key, default_value)
+    (r'Degree Variance:\s*([\d.]+)', 'degree_variance', 1.0),
+    (r'Hub Concentration:\s*([\d.]+)', 'hub_concentration', 0.3),
+    (r'Avg Degree:\s*([\d.]+)', 'avg_degree', 10.0),
+    (r'Clustering Coefficient:\s*([\d.]+)', 'clustering_coefficient', 0.0),
+    (r'Avg Path Length:\s*([\d.]+)', 'avg_path_length', 0.0),
+    (r'Diameter Estimate:\s*([\d.]+)', 'diameter', 0.0),
+    (r'Community Count Estimate:\s*([\d.]+)', 'community_count', 0.0),
+    (r'Packing Factor:\s*([\d.]+)', 'packing_factor', 0.0),
+    (r'Forward Edge Fraction:\s*([\d.]+)', 'forward_edge_fraction', 0.5),
+    (r'Working Set Ratio:\s*([\d.]+)', 'working_set_ratio', 0.0),
+    (r'Graph Density:\s*([\d.eE+-]+)', 'density', 0.0),
+]
 
 # ============================================================================
 # Data Classes
@@ -453,8 +477,8 @@ def download_graphs(
         graphs_to_download.extend(DOWNLOAD_GRAPHS_XLARGE)
     
     if not graphs_to_download:
-        print(f"Unknown size category: {size_category}")
-        print("Valid options: SMALL, MEDIUM, LARGE, XLARGE, ALL")
+        log(f"Unknown size category: {size_category}", "WARN")
+        log("Valid options: SMALL, MEDIUM, LARGE, XLARGE, ALL")
         return []
     
     # Apply memory filtering if specified
@@ -486,14 +510,14 @@ def download_graphs(
         graphs_to_download = filtered
     
     if not graphs_to_download:
-        print("No graphs to download after filtering")
+        log("No graphs to download after filtering", "WARN")
         return []
     
-    # Print filtering summary if any graphs were skipped
+    # Log filtering summary if any graphs were skipped
     if skipped_memory:
-        print(f"\n  ⚠ Skipped {len(skipped_memory)} graphs exceeding memory limit ({max_memory_gb:.1f} GB)")
+        log(f"Skipped {len(skipped_memory)} graphs exceeding memory limit ({max_memory_gb:.1f} GB)", "WARN")
     if skipped_disk:
-        print(f"\n  ⚠ Skipped {len(skipped_disk)} graphs exceeding disk limit ({max_disk_gb:.1f} GB)")
+        log(f"Skipped {len(skipped_disk)} graphs exceeding disk limit ({max_disk_gb:.1f} GB)", "WARN")
     
     # Create graphs directory
     os.makedirs(graphs_dir, exist_ok=True)
@@ -509,23 +533,20 @@ def download_graphs(
             wait_for_all=True,  # Always wait for all downloads
         )
         if failed_names:
-            print(f"  ⚠ Failed to download {len(failed_names)} graphs: {', '.join(failed_names)}")
+            log(f"Failed to download {len(failed_names)} graphs: {', '.join(failed_names)}", "WARN")
         successful = [p.parent.name for p in successful_paths]
     else:
         # Sequential fallback
-        print("\n" + "="*60)
-        print("  GRAPH DOWNLOAD (Sequential)")
-        print("="*60)
+        log_section("GRAPH DOWNLOAD (Sequential)")
         
         successful = []
         for i, graph in enumerate(graphs_to_download, 1):
-            print(f"\n[{i}/{len(graphs_to_download)}] {graph.name}")
+            log(f"[{i}/{len(graphs_to_download)}] {graph.name}")
             result = lib_download_graph(graph, dest_dir=Path(graphs_dir), force=force)
             if result is not None:
                 successful.append(graph.name)
         
-        print("\n" + "-"*40)
-        print(f"Download complete: {len(successful)}/{len(graphs_to_download)} successful")
+        log(f"Download complete: {len(successful)}/{len(graphs_to_download)} successful")
     
     return successful
 
@@ -648,9 +669,6 @@ def ensure_prerequisites(project_dir: str = ".",
     return success
 
 
-# check_and_build_binaries was removed — use ensure_prerequisites() instead.
-# It was a strict subset of ensure_prerequisites() doing the same binary checks.
-
 def clean_results(results_dir: str = DEFAULT_RESULTS_DIR, keep_graphs: bool = True) -> None:
     """Clean the results directory, optionally keeping graphs.
     
@@ -658,12 +676,10 @@ def clean_results(results_dir: str = DEFAULT_RESULTS_DIR, keep_graphs: bool = Tr
         results_dir: Directory to clean
         keep_graphs: If True, don't delete downloaded graphs
     """
-    print("\n" + "="*60)
-    print("CLEANING RESULTS DIRECTORY")
-    print("="*60)
+    log_section("CLEANING RESULTS DIRECTORY")
     
     if not os.path.exists(results_dir):
-        print(f"Results directory does not exist: {results_dir}")
+        log(f"Results directory does not exist: {results_dir}")
         return
     
     # Items to keep
@@ -680,7 +696,7 @@ def clean_results(results_dir: str = DEFAULT_RESULTS_DIR, keep_graphs: bool = Tr
         # Check if should keep
         if entry in keep_items:
             kept_count += 1
-            print(f"  Keeping: {entry}")
+            log(f"  Keeping: {entry}")
             continue
         
         # Clean based on pattern
@@ -688,18 +704,18 @@ def clean_results(results_dir: str = DEFAULT_RESULTS_DIR, keep_graphs: bool = Tr
             try:
                 os.remove(entry_path)
                 deleted_count += 1
-                print(f"  Deleted: {entry}")
+                log(f"  Deleted: {entry}")
             except Exception as e:
-                print(f"  Error deleting {entry}: {e}")
+                log(f"  Error deleting {entry}: {e}", "WARN")
         elif os.path.isdir(entry_path) and entry in ["mappings", "logs"]:
             try:
                 shutil.rmtree(entry_path)
                 deleted_count += 1
-                print(f"  Deleted: {entry}/")
+                log(f"  Deleted: {entry}/")
             except Exception as e:
-                print(f"  Error deleting {entry}/: {e}")
+                log(f"  Error deleting {entry}/: {e}", "WARN")
     
-    print(f"\nCleaned {deleted_count} items, kept {kept_count} items")
+    log(f"Cleaned {deleted_count} items, kept {kept_count} items")
 
 def clean_all(project_dir: str = ".", confirm: bool = False) -> None:
     """Clean all generated data for a fresh start.
@@ -717,20 +733,18 @@ def clean_all(project_dir: str = ".", confirm: bool = False) -> None:
     if not confirm:
         response = input("This will delete ALL generated data including downloaded graphs and binaries. Continue? [y/N] ")
         if response.lower() != 'y':
-            print("Cancelled")
+            log("Cancelled")
             return
     
-    print("\n" + "="*60)
-    print("FULL CLEAN - REMOVING ALL GENERATED DATA")
-    print("="*60)
+    log_section("FULL CLEAN - REMOVING ALL GENERATED DATA")
     
     # Clean results directory completely
     results_dir = os.path.join(project_dir, "results")
     if os.path.exists(results_dir):
-        print(f"Removing {results_dir}/")
+        log(f"Removing {results_dir}/")
         shutil.rmtree(results_dir)
         os.makedirs(results_dir)  # Recreate empty
-        print("  Done")
+        log("  Done")
     
     # Clean compiled binaries
     bin_dirs = [
@@ -744,29 +758,29 @@ def clean_all(project_dir: str = ".", confirm: bool = False) -> None:
                 fpath = os.path.join(bin_dir, f)
                 if os.path.isfile(fpath):
                     os.remove(fpath)
-            print(f"Cleaned binaries in {bin_dir}/")
+            log(f"Cleaned binaries in {bin_dir}/")
     
     # Clean label.map files in graphs directory
     graphs_dir = os.path.join(project_dir, "results", "graphs")
     if os.path.exists(graphs_dir):
         map_files = glob.glob(os.path.join(graphs_dir, "**/label.map"), recursive=True)
         if map_files:
-            print(f"Removing {len(map_files)} label.map files from graphs/")
+            log(f"Removing {len(map_files)} label.map files from graphs/")
             for map_file in map_files:
                 try:
                     os.remove(map_file)
                 except OSError:
                     pass
-            print("  Done")
+            log("  Done")
     
     # Clean bench/results if exists
     bench_results = os.path.join(project_dir, "bench", "results")
     if os.path.exists(bench_results):
-        print(f"Removing {bench_results}/")
+        log(f"Removing {bench_results}/")
         shutil.rmtree(bench_results)
-        print("  Done")
+        log("  Done")
     
-    print("\nClean complete - ready for fresh start")
+    log("Clean complete - ready for fresh start")
 
 
 def clean_reorder_cache(graphs_dir: str = None):
@@ -841,18 +855,16 @@ def run_experiment(args):
     _progress.phase_start("GRAPH DISCOVERY", "Finding available graph datasets")
     
     # Determine size range
+    _SIZE_RANGES = {
+        "all":    (0, float('inf')),
+        "small":  (0, SIZE_SMALL),
+        "medium": (SIZE_SMALL, SIZE_MEDIUM),
+        "large":  (SIZE_MEDIUM, SIZE_LARGE),
+    }
     if args.min_size > 0 or args.max_size < float('inf'):
         min_size, max_size = args.min_size, args.max_size
-    elif args.graphs == "all":
-        min_size, max_size = 0, float('inf')
-    elif args.graphs == "small":
-        min_size, max_size = 0, SIZE_SMALL
-    elif args.graphs == "medium":
-        min_size, max_size = SIZE_SMALL, SIZE_MEDIUM
-    elif args.graphs == "large":
-        min_size, max_size = SIZE_MEDIUM, SIZE_LARGE
     else:
-        min_size, max_size = args.min_size, args.max_size
+        min_size, max_size = _SIZE_RANGES.get(args.graphs, (args.min_size, args.max_size))
     
     _progress.info(f"Size filter: {min_size:.1f}MB - {max_size:.1f}MB")
     
@@ -1198,7 +1210,8 @@ def run_experiment(args):
         cache_file = os.path.join(args.results_dir, f"cache_{timestamp}.json")
         with open(cache_file, 'w') as f:
             json.dump([asdict(r) for r in cache_results], f, indent=2)
-        log(f"Cache results saved to: {cache_file}")
+        _progress.success(f"Cache results saved to: {cache_file}")
+        _progress.phase_end(f"Completed {len(cache_results)} cache simulations")
     
     # Phase 6: Adaptive Order Analysis
     if args.phase in ["all", "adaptive"] or getattr(args, "adaptive_analysis", False):
@@ -1397,7 +1410,7 @@ def run_experiment(args):
             cache_results = run_cache_simulations(
                 graphs=graphs,
                 algorithms=algorithms,
-                benchmarks=["pr", "bfs"],  # Key benchmarks for cache
+                benchmarks=CACHE_KEY_BENCHMARKS,
                 bin_sim_dir=args.bin_sim_dir,
                 timeout=args.timeout_sim,
                 skip_heavy=getattr(args, 'skip_heavy', True),
@@ -1430,10 +1443,10 @@ def run_experiment(args):
         # Extract features for each graph and assign to types
         for graph_info in graphs:
             graph_name = graph_info.name
-            graph_path = getattr(graph_info, 'mtx_path', None) or graph_info.path
+            graph_path = graph_info.path
             
             # Get modularity from adaptive results
-            modularity = 0.5
+            modularity = DEFAULT_MODULARITY
             for ar in adaptive_results:
                 if ar.graph == graph_name:
                     modularity = ar.modularity
@@ -1443,24 +1456,10 @@ def run_experiment(args):
             binary = os.path.join(args.bin_dir, "pr")
             cmd = f"{binary} -f {graph_path} -a 0 -n 1"
             try:
-                success, stdout, stderr = run_command(cmd, timeout=60)
+                success, stdout, stderr = run_command(cmd, timeout=TIMEOUT_FEATURE_EXTRACTION)
                 output = stdout + stderr
                 
                 # Parse all topology features from C++ output
-                _FEATURE_PATTERNS = [
-                    # (regex_label, feature_key, default_value)
-                    (r'Degree Variance:\s*([\d.]+)', 'degree_variance', 1.0),
-                    (r'Hub Concentration:\s*([\d.]+)', 'hub_concentration', 0.3),
-                    (r'Avg Degree:\s*([\d.]+)', 'avg_degree', 10.0),
-                    (r'Clustering Coefficient:\s*([\d.]+)', 'clustering_coefficient', 0.0),
-                    (r'Avg Path Length:\s*([\d.]+)', 'avg_path_length', 0.0),
-                    (r'Diameter Estimate:\s*([\d.]+)', 'diameter', 0.0),
-                    (r'Community Count Estimate:\s*([\d.]+)', 'community_count', 0.0),
-                    (r'Packing Factor:\s*([\d.]+)', 'packing_factor', 0.0),
-                    (r'Forward Edge Fraction:\s*([\d.]+)', 'forward_edge_fraction', 0.5),
-                    (r'Working Set Ratio:\s*([\d.]+)', 'working_set_ratio', 0.0),
-                    (r'Graph Density:\s*([\d.eE+-]+)', 'density', 0.0),
-                ]
                 parsed = {}
                 for pattern, key, default in _FEATURE_PATTERNS:
                     m = re.search(pattern, output)
@@ -1605,8 +1604,6 @@ def run_experiment(args):
                 if "error" not in merge_summary:
                     log(f"  Merged {merge_summary.get('runs_merged', 0)} runs -> {merge_summary.get('total_types', 0)} types")
                     log(f"  Merged weights saved to: {merge_summary.get('output_dir', 'results/weights/merged/')}")
-            except ImportError:
-                pass  # weight_merger not available
             except Exception as e:
                 log(f"  Warning: Weight merge failed: {e}")
     

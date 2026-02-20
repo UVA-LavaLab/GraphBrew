@@ -36,11 +36,7 @@ from typing import Dict, List, Tuple, Any
 from dataclasses import dataclass, field
 from collections import defaultdict
 
-# Add project root to path
-PROJECT_ROOT = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(PROJECT_ROOT))
-
-from .utils import Logger, PROJECT_ROOT as PR, BENCHMARKS, RESULTS_DIR, WEIGHTS_DIR
+from .utils import Logger, BENCHMARKS, RESULTS_DIR, WEIGHTS_DIR
 from .weights import (
     save_weights_to_active_type, load_type_weights,
     PerceptronWeight, _create_default_weight_entry
