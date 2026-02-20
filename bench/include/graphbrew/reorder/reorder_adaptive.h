@@ -342,6 +342,7 @@ void GenerateAdaptiveMappingFullGraphStandalone(
     std::cout << "Graph Type: " << GraphTypeToString(detected_graph_type) << "\n";
     PrintTime("Degree Variance", global_degree_variance);
     PrintTime("Hub Concentration", global_hub_concentration);
+    PrintTime("Modularity", global_modularity);
     
     // Create community features for the whole graph
     CommunityFeatures global_feat;

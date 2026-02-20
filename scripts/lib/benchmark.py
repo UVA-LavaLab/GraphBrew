@@ -167,7 +167,9 @@ def run_benchmark(
     symmetric: bool = True,
     timeout: int = 600,
     extra_args: List[str] = None,
-    bin_dir: str = None
+    bin_dir: str = None,
+    log_algorithm: str = None,
+    log_graph_name: str = None,
 ) -> BenchmarkResult:
     """
     Run a single benchmark with specified algorithm.
@@ -181,6 +183,15 @@ def run_benchmark(
         timeout: Timeout in seconds
         extra_args: Additional command line arguments
         bin_dir: Directory containing benchmark binaries
+        log_algorithm: Override algorithm name for log filenames.  When using
+            pre-generated .sg files (algorithm="0") or MAP mode
+            (algorithm="13:..."), pass the real algorithm name here so
+            logs are named correctly (e.g. "GORDER" instead of "ORIGINAL"
+            or "MAP").
+        log_graph_name: Override graph name for log directory.  When
+            benchmarking a pre-generated .sg file (e.g. ca-GrQc_GORDER.sg),
+            pass the base graph name ("ca-GrQc") so logs are grouped
+            correctly.
         
     Returns:
         BenchmarkResult with timing information
@@ -224,9 +235,9 @@ def run_benchmark(
             try:
                 from .graph_data import save_run_log
                 save_run_log(
-                    graph_name=graph_name,
+                    graph_name=log_graph_name or graph_name,
                     operation='benchmark',
-                    algorithm=algo_name,
+                    algorithm=log_algorithm or algo_name,
                     benchmark=benchmark,
                     output=result.stdout + "\n--- STDERR ---\n" + result.stderr if result.stderr else result.stdout,
                     command=' '.join(str(c) for c in cmd),
@@ -456,6 +467,8 @@ def run_benchmarks_multi_graph(
                             trials=num_trials,
                             timeout=graph_timeout,
                             bin_dir=bin_dir,
+                            log_algorithm=algo_name,
+                            log_graph_name=graph_name,
                         )
                         # Preserve original algo identity for analysis
                         result.algorithm = algo_name
@@ -484,7 +497,8 @@ def run_benchmarks_multi_graph(
                     algorithm=algo_opt,
                     trials=num_trials,
                     timeout=graph_timeout,
-                    bin_dir=bin_dir
+                    bin_dir=bin_dir,
+                    log_algorithm=algo_name,
                 )
                 
                 # Detect timeout or crash — mark this graph×benchmark as intractable
@@ -560,6 +574,8 @@ def run_benchmarks_multi_graph(
                         trials=num_trials,
                         timeout=graph_timeout,
                         bin_dir=bin_dir,
+                        log_algorithm=canonical,
+                        log_graph_name=graph_name,
                     )
                     result.algorithm = canonical
                     result.algorithm_id = -1
@@ -845,6 +861,8 @@ def run_benchmarks_with_variants(
                             trials=num_trials,
                             timeout=graph_timeout,
                             bin_dir=bin_dir,
+                            log_algorithm=algo_name,
+                            log_graph_name=graph_name,
                         )
                         # Preserve original algo identity for analysis
                         result.algorithm = algo_name
@@ -877,6 +895,7 @@ def run_benchmarks_with_variants(
                     trials=num_trials,
                     timeout=graph_timeout,
                     bin_dir=bin_dir,
+                    log_algorithm=algo_name,
                 )
 
                 # Detect timeout or crash

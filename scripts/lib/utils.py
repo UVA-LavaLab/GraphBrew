@@ -514,11 +514,34 @@ ENABLE_RUN_LOGGING = True
 # =============================================================================
 
 def get_graph_dimensions(path: str) -> Tuple[int, int]:
-    """Read nodes and edges count from an MTX file header.
+    """Read nodes and edges count from an MTX or .sg file.
+
+    Supports:
+      - MTX (Matrix Market): reads the text header ``rows cols nnz``
+      - SG (serialized graph): reads the 17-byte binary header
+        ``[bool directed][int64 num_edges][int64 num_nodes]``
 
     Returns:
         (nodes, edges) tuple, or (0, 0) if unable to read
     """
+    import struct
+
+    # ── .sg binary format ─────────────────────────────────────────────
+    if path.endswith('.sg'):
+        try:
+            with open(path, 'rb') as f:
+                header = f.read(17)
+                if len(header) == 17:
+                    _directed = struct.unpack_from('?', header, 0)[0]
+                    num_edges = struct.unpack_from('<q', header, 1)[0]
+                    num_nodes = struct.unpack_from('<q', header, 9)[0]
+                    if num_nodes > 0 and num_edges >= 0:
+                        return int(num_nodes), int(num_edges)
+        except Exception:
+            pass
+        return 0, 0
+
+    # ── MTX text format ───────────────────────────────────────────────
     try:
         with open(path, 'r') as f:
             for line in f:
