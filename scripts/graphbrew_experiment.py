@@ -1498,7 +1498,8 @@ def run_experiment(args):
         _progress.phase_end()
     
     # Phase 1: Reordering
-    if args.phase in ["all", "reorder"]:
+    # (skip if fill_weights is active — it has its own reorder phase)
+    if args.phase in ["all", "reorder"] and not args.fill_weights:
         _progress.phase_start("REORDERING", "Generating vertex reorderings for all graphs")
         
         # Check if variant expansion is requested
@@ -1566,7 +1567,8 @@ def run_experiment(args):
                            for g in label_maps.values() for algo_name in g.keys()))
     
     # Phase 2: Benchmarks
-    if args.phase in ["all", "benchmark"]:
+    # (skip if fill_weights is active — it has its own benchmark phase)
+    if args.phase in ["all", "benchmark"] and not args.fill_weights:
         _progress.phase_start("BENCHMARKING", "Running performance benchmarks")
         
         if has_variant_maps and args.expand_variants:
@@ -1625,7 +1627,8 @@ def run_experiment(args):
         _print_amortization_report(benchmark_results, all_reorder_results)
     
     # Phase 3: Cache Simulations
-    if args.phase in ["all", "cache"] and not args.skip_cache:
+    # (skip if fill_weights is active — it has its own cache phase)
+    if args.phase in ["all", "cache"] and not args.skip_cache and not args.fill_weights:
         _progress.phase_start("CACHE SIMULATION", "Running cache miss simulations")
         
         if has_variant_maps and args.expand_variants:
@@ -1786,7 +1789,8 @@ def run_experiment(args):
         log(f"Saved to: {args.weights_file}")
     
     # Fill ALL weights mode: comprehensive training to populate all weight fields
-    if args.fill_weights:
+    # Triggered by --train, --full, or --phase weights
+    if args.fill_weights or args.phase == "weights":
         log_section("Fill All Weights - Comprehensive Training")
         log("This mode runs all phases to populate every weight field:")
         log("  - Phase 0: Graph Analysis (detects graph types from properties)")
@@ -1838,18 +1842,32 @@ def run_experiment(args):
         # Phase 2: Benchmarks (all of them)
         log_section("Phase 2: Execution Benchmarks (All)")
         all_benchmarks = BENCHMARKS
-        benchmark_results = run_benchmarks_multi_graph(
-            graphs=graphs,
-            algorithms=algorithms,
-            benchmarks=all_benchmarks,
-            bin_dir=args.bin_dir,
-            num_trials=args.trials,
-            timeout=args.timeout_benchmark,
-            skip_slow=args.skip_slow,
-            label_maps={},
-            weights_dir=args.weights_dir,
-            update_weights=True  # Always update incrementally in fill-weights
-        )
+        if has_variant_maps and args.expand_variants:
+            # Variant-aware benchmarking (uses pre-generated .sg files or label maps)
+            log("  Mode: Variant-aware benchmarking")
+            benchmark_results = run_benchmarks_with_variants(
+                graphs=graphs,
+                label_maps=label_maps,
+                benchmarks=all_benchmarks,
+                bin_dir=args.bin_dir,
+                num_trials=args.trials,
+                timeout=args.timeout_benchmark,
+                weights_dir=args.weights_dir,
+                update_weights=True,
+            )
+        else:
+            benchmark_results = run_benchmarks_multi_graph(
+                graphs=graphs,
+                algorithms=algorithms,
+                benchmarks=all_benchmarks,
+                bin_dir=args.bin_dir,
+                num_trials=args.trials,
+                timeout=args.timeout_benchmark,
+                skip_slow=args.skip_slow,
+                label_maps=label_maps,
+                weights_dir=args.weights_dir,
+                update_weights=True  # Always update incrementally in fill-weights
+            )
         
         # Amortization report after fill-weights benchmarks
         _print_amortization_report(benchmark_results, reorder_results)
@@ -2764,6 +2782,10 @@ def main():
             # Enable label map generation for consistent reordering
             args.generate_maps = True
             args.use_maps = True
+            
+            # --full includes weight training (fill_weights handles its own
+            # reorder/benchmark/cache phases internally)
+            args.fill_weights = True
             
             # Run experiment
             log("\nStarting experiments...", "INFO")
