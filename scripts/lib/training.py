@@ -35,6 +35,7 @@ from .utils import Logger, WEIGHTS_DIR, TIMEOUT_SIM, TIMEOUT_BENCHMARK, get_all_
 from .analysis import (
     run_subcommunity_brute_force,
 )
+from .benchmark import load_reorder_time_for_algo
 from .weights import (
     assign_graph_type,
     update_type_weights_incremental,
@@ -372,6 +373,16 @@ def train_adaptive_weights_iterative(
                 if not correct_algo or correct_algo == adaptive_algo:
                     continue
                 
+                # Load reorder times from .time files (written during
+                # pregeneration).  This lets w_reorder_time learn that
+                # fast-to-reorder algorithms are preferable when they
+                # give comparable benchmark performance.
+                graph_name = bf_result.graph
+                correct_reorder_time = load_reorder_time_for_algo(
+                    graph_name, correct_algo)
+                adaptive_reorder_time = load_reorder_time_for_algo(
+                    graph_name, adaptive_algo)
+                
                 # Update type-based weights
                 correct_speedup = 1.2  # Positive reinforcement
                 wrong_speedup = 0.8   # Negative reinforcement
@@ -383,7 +394,7 @@ def train_adaptive_weights_iterative(
                     speedup=correct_speedup,
                     features=features,
                     cache_stats=None,
-                    reorder_time=0.0,
+                    reorder_time=correct_reorder_time,
                     weights_dir=weights_dir,
                     learning_rate=learning_rate
                 )
@@ -397,7 +408,7 @@ def train_adaptive_weights_iterative(
                     speedup=wrong_speedup,
                     features=features,
                     cache_stats=None,
-                    reorder_time=0.0,
+                    reorder_time=adaptive_reorder_time,
                     weights_dir=weights_dir,
                     learning_rate=learning_rate
                 )
