@@ -470,26 +470,26 @@ def run_benchmarks_multi_graph(
                 # Check if we have a label map
                 label_map_path = graph_label_maps.get(algo_name, "")
                 
-                # ── Pre-generated reordered .sg shortcut ─────────────
-                # When pregenerated files exist (e.g. email-Enron_SORT.sg,
-                # email-Enron_RABBITORDER_boost.sg, etc.) use them directly
-                # with -o 0 (ORIGINAL) to skip runtime reorder overhead.
-                # Prefer .sg over .lo MAP mode even when label maps exist,
-                # since pre-generated .sg avoids both reorder AND relabel cost.
+                # ── Pre-generated .lo mapping shortcut ───────────────
+                # When a pre-generated .lo mapping file exists in the
+                # mappings directory, use it via MAP mode (-o 13:path.lo)
+                # to skip runtime reorder overhead.  This is much more
+                # disk-efficient than storing full .sg files per ordering.
                 if (use_pregenerated
                         and algo_id not in (0, 1)):
                     # algo_name already includes the variant suffix for
                     # variant algorithms (e.g. "RABBITORDER_csr") thanks
                     # to get_algorithm_name_with_variant().
-                    pregen_path = os.path.join(
-                        os.path.dirname(graph_path),
-                        f"{graph_name}_{algo_name}.sg",
+                    mappings_dir = os.path.join(
+                        os.path.dirname(os.path.dirname(os.path.dirname(graph_path))),
+                        'mappings', graph_name,
                     )
-                    if os.path.isfile(pregen_path):
+                    pregen_lo = os.path.join(mappings_dir, f"{algo_name}.lo")
+                    if os.path.isfile(pregen_lo):
                         result = run_benchmark(
                             benchmark=bench,
-                            graph_path=pregen_path,
-                            algorithm="0",  # ORIGINAL — already reordered
+                            graph_path=graph_path,
+                            algorithm=f"13:{pregen_lo}",  # MAP mode with .lo
                             trials=num_trials,
                             timeout=graph_timeout,
                             bin_dir=bin_dir,
@@ -576,19 +576,22 @@ def run_benchmarks_multi_graph(
     if skipped > 0:
         log.info(f"Benchmark early-exit: skipped {skipped}/{total_configs} runs due to timeout/crash")
     
-    # ── Benchmark chained (multi-pass) pre-generated .sg files ───────
+    # ── Benchmark chained (multi-pass) pre-generated .lo mappings ──
     # Chained orderings like SORT+RABBITORDER_csr have no single algo_id;
-    # they exist only as pre-generated .sg files.  We scan for them and
-    # run with -o 0 (ORIGINAL).
+    # they exist only as pre-generated .lo mapping files.  We scan for
+    # them and run with MAP mode (-o 13:path.lo).
     if use_pregenerated:
         from .utils import CHAINED_ORDERINGS
         for graph in graphs:
-            graph_dir = os.path.dirname(graph.path)
             graph_name = graph.name
             graph_timeout = compute_adaptive_timeout(graph.edges, timeout)
+            mappings_dir = os.path.join(
+                os.path.dirname(os.path.dirname(os.path.dirname(graph.path))),
+                'mappings', graph_name,
+            )
             for canonical, _converter_opts in CHAINED_ORDERINGS:
-                pregen_path = os.path.join(graph_dir, f"{graph_name}_{canonical}.sg")
-                if not os.path.isfile(pregen_path):
+                pregen_lo = os.path.join(mappings_dir, f"{canonical}.lo")
+                if not os.path.isfile(pregen_lo):
                     continue
                 for bench in benchmarks:
                     if not check_binary_exists(bench, bin_dir):
@@ -598,8 +601,8 @@ def run_benchmarks_multi_graph(
                         continue
                     result = run_benchmark(
                         benchmark=bench,
-                        graph_path=pregen_path,
-                        algorithm="0",
+                        graph_path=graph.path,
+                        algorithm=f"13:{pregen_lo}",  # MAP mode with .lo
                         trials=num_trials,
                         timeout=graph_timeout,
                         bin_dir=bin_dir,
@@ -876,20 +879,20 @@ def run_benchmarks_with_variants(
                 if algo_name == "ORIGINAL":
                     algo_opt = "0"
                 else:
-                    # ── Pre-generated reordered .sg shortcut ─────────────
-                    # When a pre-generated .sg file exists (e.g.
-                    # ca-GrQc_GORDER.sg), use it directly with -o 0
-                    # (ORIGINAL) to skip runtime reorder overhead and avoid
-                    # the MAP (.lo) code path entirely.
-                    pregen_path = os.path.join(
-                        os.path.dirname(graph_path),
-                        f"{graph_name}_{algo_name}.sg",
+                    # ── Pre-generated .lo mapping shortcut ───────────────
+                    # When a pre-generated .lo mapping exists in the
+                    # mappings directory, use MAP mode (-o 13:path.lo) to
+                    # skip runtime reorder overhead.
+                    mappings_dir = os.path.join(
+                        os.path.dirname(os.path.dirname(os.path.dirname(graph_path))),
+                        'mappings', graph_name,
                     )
-                    if os.path.isfile(pregen_path):
+                    pregen_lo = os.path.join(mappings_dir, f"{algo_name}.lo")
+                    if os.path.isfile(pregen_lo):
                         result = run_benchmark(
                             benchmark=bench,
-                            graph_path=pregen_path,
-                            algorithm="0",  # ORIGINAL — already reordered
+                            graph_path=graph_path,
+                            algorithm=f"13:{pregen_lo}",  # MAP mode with .lo
                             trials=num_trials,
                             timeout=graph_timeout,
                             bin_dir=bin_dir,
@@ -914,7 +917,7 @@ def run_benchmarks_with_variants(
                                 else result.error[:30]
                             )
                             progress.info(
-                                f"    [{completed}/{total_configs}] {algo_name}: {time_str} [.sg]"
+                                f"    [{completed}/{total_configs}] {algo_name}: {time_str} [.lo]"
                             )
                         continue
 

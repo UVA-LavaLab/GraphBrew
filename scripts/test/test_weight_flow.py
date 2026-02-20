@@ -422,7 +422,6 @@ class TestVariantRegistrySSOT:
     def test_get_all_variant_names_includes_expected(self):
         """All canonical variant names should appear."""
         names = set(get_all_algorithm_variant_names())
-        assert "ORIGINAL" in names
         assert "RABBITORDER_csr" in names
         assert "RABBITORDER_boost" in names
         assert "RCM_default" in names
@@ -433,10 +432,12 @@ class TestVariantRegistrySSOT:
         assert "LeidenOrder" in names
 
     def test_get_all_variant_names_excludes_meta(self):
-        """MAP and AdaptiveOrder should not be in trainable variant names."""
+        """MAP, AdaptiveOrder, ORIGINAL, RANDOM should not be in trainable variant names."""
         names = set(get_all_algorithm_variant_names())
         assert "MAP" not in names
         assert "AdaptiveOrder" not in names
+        assert "ORIGINAL" not in names
+        assert "RANDOM" not in names
 
     def test_resolve_canonical_base_names(self):
         """Base algorithm names resolve correctly."""
@@ -712,7 +713,7 @@ class TestCanonicalAlgoKey:
         producible by canonical_algo_key()."""
         all_names = set(get_all_algorithm_variant_names())
         for algo_id, algo_name in ALGORITHMS.items():
-            if algo_name in ("MAP", "AdaptiveOrder"):
+            if algo_name in ("ORIGINAL", "RANDOM", "MAP", "AdaptiveOrder"):
                 continue
             key = canonical_algo_key(algo_id)
             assert key in all_names, f"canonical_algo_key({algo_id}) = {key!r} not in SSOT list"

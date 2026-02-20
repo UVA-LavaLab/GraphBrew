@@ -27,6 +27,7 @@ from typing import Dict, List, Optional, Tuple
 
 from .utils import (
     ACTIVE_WEIGHTS_DIR,
+    EXPERIMENT_BENCHMARKS,
     Logger, get_timestamp,
     WEIGHT_PATH_LENGTH_NORMALIZATION, WEIGHT_REORDER_TIME_NORMALIZATION,
     WEIGHT_AVG_DEGREE_DEFAULT,
@@ -49,9 +50,10 @@ DEFAULT_WEIGHTS_DIR = str(ACTIVE_WEIGHTS_DIR)
 # Auto-clustering configuration
 CLUSTER_DISTANCE_THRESHOLD = 0.15  # Max normalized distance to join existing cluster
 
-# Dead feature keys — these are ALWAYS 0 in training data (C++ doesn't compute
-# them at runtime), but z-score denormalization creates large noise weights.
-_DEAD_WEIGHT_KEYS = {'w_avg_path_length', 'w_diameter', 'w_community_count'}
+# Dead feature keys — features that are ALWAYS 0 in training data.
+# C++ now computes avg_path_length, diameter, community_count at runtime
+# via ComputeExtendedFeatures(), so they are no longer dead.
+_DEAD_WEIGHT_KEYS: set = set()
 
 
 # =============================================================================
@@ -86,7 +88,7 @@ class PerceptronWeight:
     w_pf_x_wsr: float = 0.0
     w_fef_convergence: float = 0.0
     benchmark_weights: Dict[str, float] = field(default_factory=lambda: {
-        'pr': 1.0, 'bfs': 1.0, 'cc': 1.0, 'sssp': 1.0, 'bc': 1.0, 'tc': 1.0
+        b: 1.0 for b in EXPERIMENT_BENCHMARKS
     })
     _metadata: Dict = field(default_factory=dict)
     
@@ -468,6 +470,10 @@ def update_type_weights_incremental(
     if is_chained_ordering_name(algorithm):
         return
     
+    # Skip baselines — ORIGINAL and RANDOM are states, not reorderings
+    if algorithm in ('ORIGINAL', 'RANDOM'):
+        return
+    
     # Track algorithm in type registry
     global _type_registry
     if not _type_registry:
@@ -751,7 +757,12 @@ def compute_weights_from_results(
     # and the C++ perceptron cannot select them at runtime (it selects ONE
     # algorithm ID).  Including them in training would train the perceptron
     # toward algorithms it can't execute.
-    all_algo_names = {n for n in all_algo_names if not is_chained_ordering_name(n)}
+    # Also filter ORIGINAL/RANDOM — they are baseline states, not reordering
+    # techniques.  ORIGINAL results are used as the baseline for speedup
+    # calculation but should not get weight entries.
+    _non_trainable = {'ORIGINAL', 'RANDOM'}
+    all_algo_names = {n for n in all_algo_names
+                      if not is_chained_ordering_name(n) and n not in _non_trainable}
     benchmark_results = [r for r in benchmark_results
                          if not is_chained_ordering_name(r.algorithm or '')]
     reorder_results = [r for r in reorder_results
@@ -879,7 +890,6 @@ def compute_weights_from_results(
         # Align features to match what C++ computes at runtime:
         # - modularity: C++ uses estimated_modularity = min(0.9, clustering_coeff * 1.5)
         # - density: C++ uses internal_density = avg_degree / (num_nodes - 1)
-        # - avg_path_length, diameter, community_count: C++ doesn't compute these
         estimated_modularity = min(0.9, cc * 1.5)
         internal_density = avg_degree / (nodes - 1) if nodes > 1 else 0
         
@@ -892,9 +902,9 @@ def compute_weights_from_results(
             'log_edges': math.log10(edges + 1) if edges > 0 else 0,
             'density': internal_density,
             'clustering_coefficient': cc,
-            'avg_path_length': 0.0,  # C++ doesn't compute at runtime
-            'diameter': 0.0,         # C++ doesn't compute at runtime
-            'community_count': 0.0,  # C++ doesn't compute at runtime
+            'avg_path_length': props.get('avg_path_length', 0.0),
+            'diameter': props.get('diameter_estimate', 0.0),
+            'community_count': props.get('community_count', 1.0),
             # Locality features — match C++ transforms:
             # packing_factor: raw (IISWC'18)
             # forward_edge_fraction: raw (GoGraph)
@@ -1533,7 +1543,7 @@ def cross_validate_logo(
     total = 0
     regrets = []
     per_graph = {}
-    per_bench_names = ['pr', 'bfs', 'cc', 'sssp', 'bc', 'tc', 'pr_spmv', 'cc_sv']
+    per_bench_names = list(EXPERIMENT_BENCHMARKS)
 
     log.info(f"LOGO: {len(graphs)} graphs, {len(gb_results)} (graph, bench) tasks")
 
@@ -1788,7 +1798,7 @@ def _create_default_weight_entry() -> Dict:
         'w_mod_x_logn': 0.0,
         'w_pf_x_wsr': 0.0,
         'w_fef_convergence': 0.0,
-        'benchmark_weights': {'pr': 1.0, 'bfs': 1.0, 'cc': 1.0, 'sssp': 1.0, 'bc': 1.0, 'tc': 1.0},
+        'benchmark_weights': {b: 1.0 for b in EXPERIMENT_BENCHMARKS},
         '_metadata': {
             'sample_count': 0,
             'avg_speedup': 1.0,

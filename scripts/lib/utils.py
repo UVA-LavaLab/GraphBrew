@@ -402,7 +402,7 @@ def get_all_algorithm_variant_names() -> list[str]:
     """
     names: list[str] = []
     for algo_id, algo_name in ALGORITHMS.items():
-        if algo_name in ("MAP", "AdaptiveOrder"):
+        if algo_name in ("ORIGINAL", "RANDOM", "MAP", "AdaptiveOrder"):
             continue
         if algo_id in _VARIANT_ALGO_REGISTRY:
             prefix, variants, _ = _VARIANT_ALGO_REGISTRY[algo_id]
