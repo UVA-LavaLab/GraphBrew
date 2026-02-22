@@ -1583,6 +1583,32 @@ public:
             std::cerr << "Unsupported file format: " << file_suffix << std::endl;
             throw std::invalid_argument("Unsupported format.");
         }
+        // The .lo/.so file stores the INVERSE mapping written by
+        // WriteListLabels from org_ids_:
+        //     file[new_id] = original_id
+        // where original_id traces all the way back to the source graph
+        // (i.e. the MTX / edge-list vertex numbering), NOT necessarily
+        // the internal vertex IDs of the .sg file we just loaded.
+        //
+        // RelabelByMapping() expects the FORWARD mapping indexed by the
+        // loaded graph's internal IDs:
+        //     new_ids[sg_id] = new_id
+        //
+        // If the .sg was previously reordered (sg has non-identity org_ids),
+        // there are two coordinate spaces:
+        //   sg_id  — internal vertex index in the loaded .sg graph
+        //   org_id — original vertex ID (from the source MTX/el)
+        //
+        // The graph stores: g.org_ids[sg_id] = org_id
+        //
+        // Steps:
+        //   1. Read file → inverse_ids[new_id] = org_id
+        //   2. Invert   → org_to_new[org_id]  = new_id
+        //   3. Compose with graph's org_ids:
+        //        new_ids[sg_id] = org_to_new[ g.org_ids[sg_id] ]
+        //      This converts from org_id-space into sg_id-space.
+        //      When org_ids is identity (no prior reorder), step 3 is a no-op.
+        pvector<NodeID_> inverse_ids(num_nodes);
         NodeID_ *label_ids = new NodeID_[num_nodes];
         if (file_suffix == ".so")
         {
@@ -1591,18 +1617,34 @@ public:
             #pragma omp parallel for
             for (int64_t i = 0; i < num_nodes; i++)
             {
-                new_ids[i] = label_ids[i];
+                inverse_ids[i] = label_ids[i];
             }
         }
         else
         {
             for (int64_t i = 0; i < num_nodes; i++)
             {
-                ifs >> new_ids[i];
+                ifs >> inverse_ids[i];
             }
         }
         delete[] label_ids;
         ifs.close();
+
+        // Step 2: Invert  inverse_ids[new_id] = org_id  →  org_to_new[org_id] = new_id
+        pvector<NodeID_> org_to_new(num_nodes);
+        #pragma omp parallel for
+        for (int64_t i = 0; i < num_nodes; i++)
+        {
+            org_to_new[inverse_ids[i]] = i;
+        }
+
+        // Step 3: Compose with graph's org_ids to map sg_id → new_id
+        NodeID_ *org_ids = g.get_org_ids();
+        #pragma omp parallel for
+        for (int64_t i = 0; i < num_nodes; i++)
+        {
+            new_ids[i] = org_to_new[org_ids[i]];
+        }
         t.Stop();
 
         printReorderingMethods(map_file, t);
