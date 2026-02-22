@@ -1290,10 +1290,20 @@ def run_experiment(args):
             max_disk_gb=args.max_disk
         )
     
+    # Pre-discover graphs matching size filter so that conversion and
+    # pre-generation only process the relevant subset (avoids spending hours
+    # generating .lo mappings for xlarge graphs when --size small is used).
+    if args.graph_list:
+        graph_name_filter = list(args.graph_list)
+    else:
+        pre_graphs = discover_graphs(args.graphs_dir, min_size, max_size,
+                                     max_memory_gb=args.max_memory,
+                                     min_edges=args.min_edges)
+        graph_name_filter = [g.name for g in pre_graphs] if pre_graphs else None
+    
     # Random-baseline .sg conversion: convert .mtx → .sg with RANDOM ordering
     # so all benchmarks measure improvement over a worst-case random baseline.
     if args.random_baseline:
-        graph_name_filter = args.graph_list if args.graph_list else None
         convert_graphs_to_sg(
             graphs_dir=args.graphs_dir,
             order=1,  # RANDOM
@@ -1307,7 +1317,6 @@ def run_experiment(args):
     # and skip runtime reorder overhead entirely.
     pregenerated_available = False
     if getattr(args, 'pregenerate_sg', True):
-        graph_name_filter = args.graph_list if args.graph_list else None
         gen_count, skip_count = pregenerate_reordered_sgs(
             graphs_dir=args.graphs_dir,
             bin_dir=args.bin_dir,
@@ -2645,6 +2654,16 @@ def main():
             max_disk_gb=args.max_disk
         )
         
+        # Determine size range for filtering conversion/pre-generation
+        _setup_min, _setup_max = _SIZE_RANGES.get(
+            args.graphs if hasattr(args, 'graphs') else "all",
+            (0, float('inf'))
+        )
+        _setup_pre = discover_graphs(args.graphs_dir, _setup_min, _setup_max,
+                                     max_memory_gb=args.max_memory,
+                                     min_edges=args.min_edges)
+        _setup_names = [g.name for g in _setup_pre] if _setup_pre else None
+        
         # Convert to random-baseline .sg if enabled
         if args.random_baseline:
             convert_graphs_to_sg(
@@ -2652,10 +2671,12 @@ def main():
                 order=1,  # RANDOM
                 bin_dir=args.bin_dir,
                 force=args.force_convert,
+                graph_names=_setup_names,
             )
         
-        # Now discover all available graphs
-        graphs = discover_graphs(args.graphs_dir, max_memory_gb=args.max_memory,
+        # Now discover all available graphs (within size range)
+        graphs = discover_graphs(args.graphs_dir, _setup_min, _setup_max,
+                                 max_memory_gb=args.max_memory,
                                  min_edges=args.min_edges)
         if not graphs:
             log("No graphs found after download - aborting", "ERROR")
