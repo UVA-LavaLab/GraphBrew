@@ -105,7 +105,6 @@ AdaptiveOrder uses automatic clustering to group similar graphs, rather than pre
 ```
 results/weights/
 ├── registry.json           # Graph→type mapping + centroids
-├── graph_properties_cache.json
 ├── type_0/               # Generic weights
 │   ├── weights.json      # Base weights
 │   ├── pr.json           # PageRank-specific
@@ -188,22 +187,29 @@ INPUTS (Features)              WEIGHTS                    OUTPUT
 =================              =======                    ======
 
 --- Linear Features (active at runtime) ---
-modularity: 0.72       --*---> w_mod: 0.28 ----------+
-density: 0.001         --*---> w_den: -0.15 ---------+
-degree_var: 2.1        --*---> w_dv: 0.18 -----------+
-hub_conc: 0.45         --*---> w_hc: 0.22 -----------+
-cluster_coef: 0.3      --*---> w_cc: 0.12 -----------+
-packing_factor: 0.6    --*---> w_pf: 0.10 -----------+----> SUM
-fwd_edge_frac: 0.4     --*---> w_fef: 0.08 ----------+    (+bias)
-working_set_ratio: 3.2 --*---> w_wsr: 0.12 ----------+      |
+modularity             --*---> w_mod ----------------+
+log_nodes              --*---> w_log_nodes ----------+
+log_edges              --*---> w_log_edges ----------+
+density                --*---> w_den ----------------+
+avg_degree             --*---> w_avg_deg ------------+
+degree_var             --*---> w_dv -----------------+
+hub_conc               --*---> w_hc -----------------+
+cluster_coef           --*---> w_cc -----------------+
+avg_path_length        --*---> w_apl ----------------+
+diameter               --*---> w_diam ---------------+
+community_count        --*---> w_comcount -----------+
+packing_factor         --*---> w_pf -----------------+----> SUM
+fwd_edge_frac          --*---> w_fef ----------------+    (+bias)
+working_set_ratio      --*---> w_wsr ----------------+      |
+reorder_time           --*---> w_reorder_time -------+      |
                                                       |      |
 --- Quadratic Cross-Terms ---                         |      |
-dv × hub: 0.95         --*---> w_dv_x_hub: 0.15 -----+      |
-mod × logN: 2.88       --*---> w_mod_x_logn: 0.06 ---+      +---> SCORE
-pf × log₂(wsr+1): 1.27 --*--> w_pf_x_wsr: 0.09 -----+      |
+dv × hub               --*---> w_dv_x_hub -----------+      |
+mod × logN             --*---> w_mod_x_logn ---------+      +---> SCORE
+pf × log₂(wsr+1)      --*---> w_pf_x_wsr -----------+      |
                                                       |      |
 --- Convergence Bonus (PR/PR_SPMV/SSSP only) ---      |      |
-fwd_edge_frac: 0.4     --*---> w_fef_conv: 0.05 -----+------+
+fwd_edge_frac          --*---> w_fef_conv -----------+------+
 
 
 ALGORITHM SELECTION:
@@ -327,7 +333,7 @@ graph TD
 
 | Weight | Why Picked | Effect on Selection |
 |--------|-----------|---------------------|
-| **bias** | Base preference for each algorithm, computed as `0.5 × avg_speedup_vs_RANDOM`. Acts as a prior — algorithms that are generally fast get a head start. | HUBSORT typically has highest bias (~26) because it's fast on most graphs. ORIGINAL has lowest bias (~0.5) since it is the baseline reference. |
+| **bias** | Base preference for each algorithm, computed as `0.5 × avg_speedup_vs_RANDOM`. Acts as a prior — algorithms that are generally fast get a head start. | Algorithms that are generally fast across graphs get higher bias values. ORIGINAL has the lowest bias since it is the baseline reference. |
 | **w_modularity** | Community structure quality. High modularity = strong communities → community-aware reorderings (GraphBrewOrder, LeidenOrder) can exploit this structure. | Positive weight → favors community-aware algorithms. Negative weight → favors simpler algorithms (SORT, DBG) that ignore community structure. |
 | **w_density** | Edge density = edges / max_possible. Dense graphs have many edges per vertex → less locality gain from reordering since most vertices are neighbors anyway. | Typically negative for reordering algorithms (less benefit on dense graphs), near-zero for ORIGINAL. |
 | **w_degree_variance** | Degree distribution spread (coefficient of variation). High DV = power-law graph with extreme hubs. Hub-based algorithms (HubSort, HubClusterDBG) excel because grouping hubs reduces cache misses. | Positive for hub-aware algorithms, negative for algorithms that ignore hubs (SORT, RCM). |
@@ -379,12 +385,12 @@ flowchart LR
 #### How Centroids Work
 
 1. **Feature Vector (7D):** Each graph is represented by a normalized 7-dimensional vector:
-   `[modularity, degree_variance, hub_concentration, clustering_coeff, avg_path_length, diameter, community_count]`
+   `[modularity, degree_variance, hub_concentration, avg_degree, clustering_coeff, log_nodes, log_edges]`
    
    Each dimension is normalized to [0,1] range:
    - modularity: / 1.0, degree_variance: / 5.0, hub_concentration: / 1.0
-   - clustering_coeff: / 1.0, avg_path_length: / 20.0, diameter: / 100.0
-   - community_count: / 100.0
+   - avg_degree: / 100.0, clustering_coeff: / 1.0
+   - log_nodes: (log₁₀(N+1) - 3) / 7 (range [3,10]), log_edges: (log₁₀(E+1) - 3) / 9 (range [3,12])
 
 2. **Clustering:** During training, the first graph creates `type_0` with its feature vector as the centroid. Subsequent graphs are assigned to the nearest type if their normalized Euclidean distance is < 0.15 (the `CLUSTER_DISTANCE_THRESHOLD`). If no type is close enough, a new type is created.
 
@@ -523,9 +529,13 @@ base_score = bias
            + w_degree_variance × degree_variance
            + w_hub_concentration × hub_concentration
            + w_clustering_coeff × clustering_coeff
+           + w_avg_path_length × avg_path_length / 10
+           + w_diameter × diameter_estimate / 50
+           + w_community_count × log10(community_count + 1)
            + w_packing_factor × packing_factor
            + w_forward_edge_fraction × fwd_edge_frac
            + w_working_set_ratio × log₂(wsr+1)
+           + w_reorder_time × reorder_time
            + w_dv_x_hub × dv × hub_conc                  # QUADRATIC
            + w_mod_x_logn × mod × logN                   # QUADRATIC
            + w_pf_x_wsr × pf × log₂(wsr+1)               # QUADRATIC
@@ -533,12 +543,6 @@ base_score = bias
            + cache_l2_impact × 0.3                        # CACHE IMPACT
            + cache_l3_impact × 0.2                        # CACHE IMPACT
            + cache_dram_penalty                           # CACHE IMPACT
-
-# Extended features (computed at runtime via ComputeExtendedFeatures):
-#   avg_path_length:  sampled BFS (5 sources, bounded visits)
-#   diameter_estimate: max BFS depth across sources
-#   community_count:   connected component count via full BFS
-#   reorder_time:      only populated in MODE_FASTEST_REORDER
 
 # Convergence bonus (PR/PR_SPMV/SSSP only)
 if benchmark ∈ {PR, PR_SPMV, SSSP}:
@@ -613,11 +617,11 @@ result = cross_validate_logo(benchmark_results, reorder_results=reorder_results,
 print(f"LOGO: {result['accuracy']:.1%}, Overfit: {result['overfitting_score']:.2f}")
 ```
 
-| Metric | Good | Concerning |
-|--------|------|------------|
-| LOGO Accuracy | > 60% | < 40% |
-| Overfitting Score | < 0.2 | > 0.3 |
-| Full-Train Accuracy | 70-85% | > 95% (likely overfit) |
+| Metric | Description |
+|--------|-------------|
+| LOGO Accuracy | Higher is better — measures generalization to unseen graphs |
+| Overfitting Score | Lower is better — large gap between full-train and LOGO suggests overfitting |
+| Full-Train Accuracy | Training set accuracy — very high values (>95%) may indicate overfitting |
 
 ---
 
@@ -638,11 +642,7 @@ See [[Perceptron-Weights#multi-restart-training--benchmark-multipliers]] for det
 python3 scripts/graphbrew_experiment.py --eval-weights
 ```
 
-Reports accuracy, median regret, top-2 accuracy, and unique predictions. Current metrics (47 graphs × 4 benchmarks): **46.8% accuracy**, **2.6% median regret**, **64.9% top-2 accuracy**.
-
-### Key Finding: GraphBrewOrder Dominance
-
-Per-community validation on 47 graphs showed that **GraphBrewOrder** was selected for **99.5% of subcommunities** (8,631 / 8,672). As a single algorithm, it achieves 2.9% median regret — very close to the theoretical best per-community selection. This validates that GraphBrewOrder is the dominant reordering algorithm for most graph types, and supports the decision to use full-graph mode as the default.
+Reports accuracy, median regret, top-2 accuracy, and unique predictions. Run `--eval-weights` on your own data to see current metrics.
 
 ---
 
@@ -765,11 +765,7 @@ python3 -c "import json; json.load(open('results/weights/type_0/weights.json'))"
 
 ### Overhead
 
-- Feature computation: ~1-2% of total time
-- Perceptron inference: < 1% of total time
-- Leiden community detection (per-community mode only): ~5-10% of total time
-
-In full-graph mode, total overhead is minimal. In per-community mode, the overhead is usually recovered through better algorithm selection.
+Feature computation and perceptron inference add minimal overhead. Leiden community detection (per-community mode only) adds additional time. Run the pipeline on your target graphs to measure actual overhead.
 
 ---
 

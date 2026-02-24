@@ -43,17 +43,17 @@ python3 scripts/graphbrew_experiment.py --phase weights --size small
 For each graph, run all candidate algorithms and record execution times:
 
 ```
-Graph: facebook.el (4,039 nodes, 88,234 edges)
+Graph: example.el (N nodes, M edges)
 ┌────────────────────┬──────────────┬─────────────┐
 │ Algorithm          │ Time (sec)   │ Speedup     │
 ├────────────────────┼──────────────┼─────────────┤
-│ ORIGINAL (0)       │ 0.0523       │ 1.00x       │
-│ HUBCLUSTERDBG (7)  │ 0.0412       │ 1.27x       │
-│ LeidenOrder (15)   │ 0.0398       │ 1.31x       │
-│ GraphBrewOrder (12) │ 0.0371       │ 1.41x ★     │
-│ RCM (11)           │ 0.0489       │ 1.07x       │
+│ ORIGINAL (0)       │ X.XXXXs      │ 1.00x       │
+│ HUBCLUSTERDBG (7)  │ X.XXXXs      │ X.XXx       │
+│ LeidenOrder (15)   │ X.XXXXs      │ X.XXx       │
+│ GraphBrewOrder (12) │ X.XXXXs      │ X.XXx ★     │
+│ RCM (11)           │ X.XXXXs      │ X.XXx       │
 └────────────────────┴──────────────┴─────────────┘
-Best: GraphBrewOrder
+Best: (depends on graph topology)
 ```
 
 ### Step 2: Feature Extraction
@@ -63,39 +63,36 @@ Compute structural features for each graph:
 ```python
 features = {
     # Size features
-    "num_nodes": 4039,
-    "num_edges": 88234,
-    "log_nodes": 3.606,  # log10(4039)
-    "log_edges": 4.946,  # log10(88234)
+    "num_nodes": ...,   # from graph
+    "num_edges": ...,   # from graph
+    "log_nodes": ...,   # log10(num_nodes)
+    "log_edges": ...,   # log10(num_edges)
     
     # Density features
-    "density": 0.0108,   # edges / max_possible_edges
-    "avg_degree": 43.7,  # 2 * edges / nodes
+    "density": ...,     # edges / max_possible_edges
+    "avg_degree": ...,  # 2 * edges / nodes
     
     # Structure features
-    "modularity": 0.835,        # Leiden modularity score
-    "degree_variance": 52.4,    # Variance in degree distribution
-    "hub_concentration": 0.42,  # Edge fraction to top 10% nodes
-    "clustering_coeff": 0.606,  # Average clustering coefficient
+    "modularity": ...,         # Leiden modularity score
+    "degree_variance": ...,    # Variance in degree distribution
+    "hub_concentration": ...,  # Edge fraction to top 10% nodes
+    "clustering_coeff": ...,   # Average clustering coefficient
 }
 ```
 
+These features are computed automatically by the pipeline. Run `--phase benchmark` on your graphs to populate them.
+
 ### Step 3: Build Feature-Performance Matrix
 
-Combine results across all graphs:
+Combine results across all graphs into a matrix mapping graph features to the best-performing algorithm:
 
 ```
 ┌──────────────────┬────────┬─────────┬─────────┬─────────┬───────────────┐
 │ Graph            │ ModQ   │ HubConc │ DegVar  │ Density │ Best Algo     │
 ├──────────────────┼────────┼─────────┼─────────┼─────────┼───────────────┤
-│ facebook         │ 0.835  │ 0.42    │ 52.4    │ 0.011   │ GraphBrewOrder │
-│ twitter          │ 0.721  │ 0.68    │ 891.2   │ 0.002   │ GraphBrewOrder    │
-│ roadNet-CA       │ 0.112  │ 0.05    │ 1.2     │ 0.0001  │ RCM           │
-│ web-Google       │ 0.654  │ 0.55    │ 234.5   │ 0.008   │ HUBCLUSTERDBG │
-│ citation         │ 0.443  │ 0.31    │ 45.6    │ 0.003   │ LeidenOrder   │
-│ amazon           │ 0.926  │ 0.18    │ 12.3    │ 0.0004  │ LeidenOrder   │
-│ youtube          │ 0.712  │ 0.52    │ 289.1   │ 0.001   │ GraphBrewOrder │
-│ livejournal      │ 0.758  │ 0.61    │ 567.8   │ 0.0003  │ GraphBrewOrder    │
+│ graph_1          │ ...    │ ...     │ ...     │ ...     │ ...           │
+│ graph_2          │ ...    │ ...     │ ...     │ ...     │ ...           │
+│ ...              │ ...    │ ...     │ ...     │ ...     │ ...           │
 └──────────────────┴────────┴─────────┴─────────┴─────────┴───────────────┘
 ```
 
@@ -104,26 +101,15 @@ Combine results across all graphs:
 Calculate Pearson correlation between each feature and "algorithm X being best":
 
 ```
-For GraphBrewOrder:
+For each algorithm:
 ┌─────────────────────┬─────────────┬──────────────────────────────────────┐
 │ Feature             │ Pearson r   │ Interpretation                       │
 ├─────────────────────┼─────────────┼──────────────────────────────────────┤
-│ modularity          │ +0.78       │ Strong: prefers modular graphs       │
-│ hub_concentration   │ +0.45       │ Moderate: handles hubs well          │
-│ degree_variance     │ +0.52       │ Moderate: handles degree skew        │
-│ log_edges           │ +0.38       │ Weak: slightly better on larger      │
-│ density             │ -0.23       │ Weak negative: prefers sparse        │
-└─────────────────────┴─────────────┴──────────────────────────────────────┘
-
-For RCM:
-┌─────────────────────┬─────────────┬──────────────────────────────────────┐
-│ Feature             │ Pearson r   │ Interpretation                       │
-├─────────────────────┼─────────────┼──────────────────────────────────────┤
-│ modularity          │ -0.65       │ Strong neg: bad on modular graphs    │
-│ hub_concentration   │ -0.72       │ Strong neg: doesn't handle hubs      │
-│ degree_variance     │ -0.58       │ Moderate neg: uniform degree best    │
-│ log_edges           │ -0.15       │ Weak: size doesn't matter much       │
-│ density             │ +0.41       │ Moderate: prefers denser graphs      │
+│ modularity          │ +/- X.XX    │ Community structure affinity          │
+│ hub_concentration   │ +/- X.XX    │ Hub handling ability                  │
+│ degree_variance     │ +/- X.XX    │ Degree skew sensitivity              │
+│ log_edges           │ +/- X.XX    │ Scale dependency                     │
+│ density             │ +/- X.XX    │ Sparsity preference                  │
 └─────────────────────┴─────────────┴──────────────────────────────────────┘
 ```
 
@@ -190,21 +176,18 @@ GraphBrew Correlation Analysis
 ======================================================================
 
 Loading graphs from: ./graphs
-Found 8 graphs
+Found N graphs
 
 Running benchmarks...
-  facebook.el: ORIGINAL=0.052s, HUBCLUSTERDBG=0.041s, GraphBrewOrder=0.037s ★
-  twitter.el: ORIGINAL=12.3s, GraphBrewOrder=8.1s ★, GraphBrewOrder=8.4s
+  graph1: ORIGINAL=X.XXXs, HUBCLUSTERDBG=X.XXXs, GraphBrewOrder=X.XXXs ★
+  graph2: ORIGINAL=X.XXXs, GraphBrewOrder=X.XXXs ★, ...
   ...
 
 Extracting features...
-  facebook.el: mod=0.835, hc=0.42, dv=52.4
-  twitter.el: mod=0.721, hc=0.68, dv=891.2
+  graph1: mod=X.XX, hc=X.XX, dv=X.X
   ...
 
 Computing correlations...
-  GraphBrewOrder × modularity: r=0.78 (strong positive)
-  GraphBrewOrder × hub_concentration: r=0.45 (moderate positive)
   ...
 
 ----------------------------------------------------------------------
@@ -212,21 +195,18 @@ Computing Perceptron Weights
 ----------------------------------------------------------------------
 Perceptron weights saved to: results/weights/type_0/weights.json
   16 algorithms configured (IDs 0-15; 14 are benchmark-eligible)
-  Updated from benchmarks: ORIGINAL, HUBCLUSTERDBG, GraphBrewOrder, ...
 
 Summary:
-  Total graphs analyzed: 8
-  Algorithms benchmarked: 11
-  Best overall: GraphBrewOrder (won 4/8 graphs)
-  Second best: GraphBrewOrder (won 2/8 graphs)
+  Total graphs analyzed: N
+  Algorithms benchmarked: M
+  Best overall: (depends on your graph set)
 ```
 
 ### Generated Files
 
 1. **results/weights/type_N/weights.json** - Weights for C++ runtime (per cluster)
 2. **results/weights/registry.json** - Graph → type mappings + centroids
-3. **correlation_matrix.csv** - Raw correlation data
-4. **benchmark_results.json** - Full benchmark results
+3. **results/benchmark_*.json** - Full benchmark results
 
 ---
 
@@ -255,17 +235,11 @@ Where:
 
 ### Example Interpretation
 
-```
-GraphBrewOrder:
-  r(modularity) = +0.78
-  → GraphBrewOrder works best on highly modular graphs
-  → Makes sense: it's designed to exploit community structure
+Positive correlation between a feature and an algorithm means the algorithm performs well when that feature is high. For example:
+- Community-aware algorithms tend to correlate positively with modularity
+- RCM tends to correlate negatively with hub concentration (it optimizes bandwidth, not hub locality)
 
-RCM:
-  r(hub_concentration) = -0.72
-  → RCM performs poorly on hub-dominated graphs
-  → Makes sense: RCM optimizes bandwidth, not hub locality
-```
+Run the training pipeline on your data to see the actual correlations.
 
 ---
 
@@ -313,16 +287,7 @@ cat results/weights/type_0/weights.json | python3 -m json.tool
 
 ### Correlation Matrix
 
-The weights reflect feature correlations:
-
-```
-                  ORIG  HUBCDB  RCM   LeiOrd  LeiHyb
-modularity        -0.12  0.34   -0.65  0.56    0.78
-hub_concentration -0.08  0.67   -0.72  0.41    0.45
-degree_variance    0.02  0.45   -0.58  0.38    0.52
-density            0.15 -0.23    0.41 -0.18   -0.23
-log_edges         -0.31  0.21   -0.15  0.28    0.38
-```
+The weights reflect feature-algorithm correlations. Run `--eval-weights` to see the actual correlation values for your training data.
 
 ---
 

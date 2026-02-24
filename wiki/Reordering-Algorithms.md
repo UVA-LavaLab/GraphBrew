@@ -205,7 +205,7 @@ These algorithms use different approaches: RabbitOrder detects communities, whil
 - **Description**: Hierarchical community detection with incremental aggregation (Louvain-based)
 - **Complexity**: O(n log n) average
 - **Variants**:
-  - `csr` (default): Native CSR implementation — faster, no external dependencies, **4–40% better cache locality than Boost** thanks to correctness fixes and auto-adaptive resolution
+  - `csr` (default): Native CSR implementation — faster, no external dependencies, improved cache locality thanks to correctness fixes and auto-adaptive resolution
   - `boost`: Original Boost-based implementation — requires Boost library. Kept as a reference baseline.
 - **Note**: RabbitOrder is enabled by default (`RABBIT_ENABLE=1` in Makefile)
 - **Best for**: Large graphs with hierarchical community structure
@@ -247,8 +247,8 @@ These algorithms use different approaches: RabbitOrder detects communities, whil
 - **Best for**: Graphs where local structure matters
 - **Variants**:
   - `default`: GoGraph baseline — converts to GoGraph adjacency format, runs original C++ GOrder
-  - `csr`: **CSR-native variant** — operates directly on CSRGraph iterators via lightweight BFS-RCM pre-ordering and `RelabelByMappingStandalone`. **7-25% faster reordering**, equivalent PR performance, deterministic with single thread.
-  - `fast`: **Parallel batch variant** — scalable across threads via batch extraction with atomic score updates. Uses fan-out cap (64), stricter hub threshold (n^⅓), and active frontier for efficient extraction. Auto-tunes batch/window to thread count. **2-3× greedy speedup on power-law graphs at 8T**, quality preserved.
+  - `csr`: **CSR-native variant** — operates directly on CSRGraph iterators via lightweight BFS-RCM pre-ordering and `RelabelByMappingStandalone`. Faster reordering than the GoGraph baseline, equivalent PR performance, deterministic with single thread.
+  - `fast`: **Parallel batch variant** — scalable across threads via batch extraction with atomic score updates. Uses fan-out cap (64), stricter hub threshold (n^⅓), and active frontier for efficient extraction. Auto-tunes batch/window to thread count.
 
 **How it works:**
 1. Pre-order vertices with BFS-RCM for initial locality
@@ -266,23 +266,7 @@ These algorithms use different approaches: RabbitOrder detects communities, whil
 - Per-thread dedup arrays eliminate redundant atomic exchanges in merge phase
 - Usage: `-o 9:fast` (recommended for graphs with high degree variance)
 
-**CSR variant benchmarks** (single-threaded, vs GoGraph baseline):
 
-| Graph | Nodes | Baseline Reorder | CSR Reorder | Speedup |
-|-------|-------|-----------------|-------------|--------:|
-| web-Google | 916K | 1.17s | 1.09s | 1.08x |
-| roadNet-CA | 1.97M | 1.11s | 0.89s | 1.25x |
-| as-Skitter | 1.7M | 8.44s | 7.43s | 1.14x |
-| cit-Patents | 3.77M | 8.41s | 7.85s | 1.07x |
-| soc-LiveJournal1 | 4.85M | 45.1s | 39.4s | 1.14x |
-
-**Fast variant benchmarks** (greedy phase only, vs CSR 1T):
-
-| Graph | CSR 1T | Fast 1T | Fast 8T | 1T speedup | 8T speedup |
-|-------|--------|---------|---------|-----------|------------|
-| as-Skitter | 6.13s | 2.96s | 1.89s | 2.1× | 3.2× |
-| cit-Patents | 5.92s | 6.32s | 3.76s | — | 1.6× |
-| roadNet-CA | 0.51s | 0.60s | 0.44s | — | 1.2× |
 
 ### 10. CORDER
 **Cache-aware Ordering**
@@ -312,7 +296,7 @@ These algorithms use different approaches: RabbitOrder detects communities, whil
 - **Note**: Originally designed for sparse matrix solvers
 - **Variants**:
   - `default`: GoGraph double-RCM — runs two full RCM passes (Transform + explicit), high-quality ordering
-  - `bnf`: **CSR-native BNF variant** — George-Liu pseudo-peripheral node finder with BNF width-minimizing criterion from RCM++ (Hou et al. 2024), deterministic parallel CM BFS via speculative atomic_min resolution (inspired by Mlakar et al. 2021). **2-19x faster reordering**, comparable algorithm performance
+  - `bnf`: **CSR-native BNF variant** — George-Liu pseudo-peripheral node finder with BNF width-minimizing criterion from RCM++ (Hou et al. 2024), deterministic parallel CM BFS via speculative atomic_min resolution (inspired by Mlakar et al. 2021). Faster reordering than the GoGraph baseline, comparable algorithm performance
 
 **How it works:**
 1. Start from a peripheral vertex (far from center)
@@ -393,15 +377,16 @@ See [[Command-Line-Reference#graphbreworder-12]] for the full option reference a
 **Perceptron-based algorithm selection**
 
 ```bash
-./bench/bin/pr -f graph.el -s -o 14 -n 3           # Default: per-community
-./bench/bin/pr -f graph.el -s -o 14:2 -n 3          # Multi-level (depth=2)
-./bench/bin/pr -f graph.el -s -o 14:0:0.75:50000:1 -n 3  # Full-graph mode
+./bench/bin/pr -f graph.el -s -o 14 -n 3              # Default: full-graph, fastest-execution
+./bench/bin/pr -f graph.el -s -o 14::::0 -n 3          # Full-graph, fastest-reorder
+./bench/bin/pr -f graph.el -s -o 14::::1:web-Google -n 3  # With graph name hint
 ```
 
-- **Description**: Uses ML to select the best algorithm for each community
+- **Description**: Uses ML to select the best algorithm for the graph
 - **Features**: 15 linear + 3 quadratic cross-terms + convergence bonus
 - **Safety**: OOD guardrail, ORIGINAL margin fallback
-- **Parameters**: `max_depth` (0), `resolution` (auto), `min_recurse_size` (50000), `mode` (0=per-community, 1=full-graph)
+- **CLI format**: `-o 14[:_[:_[:_[:selection_mode[:graph_name]]]]]` (positions 0-2 reserved)
+- **Selection modes**: 0=fastest-reorder, 1=fastest-execution (default), 2=best-endtoend, 3=best-amortization
 
 ![AdaptiveOrder Pipeline](../docs/figures/adaptive_pipeline.png)
 
@@ -457,8 +442,8 @@ Current chains defined in `scripts/lib/utils.py` → `_CHAINED_ORDERING_OPTS`:
 | `-o 2 -o 8:csr` | `SORT+RABBITORDER_csr` | Degree sort + cache-aware BFS |
 | `-o 2 -o 8:boost` | `SORT+RABBITORDER_boost` | Degree sort + Boost-based BFS |
 | `-o 7 -o 8:csr` | `HUBCLUSTERDBG+RABBITORDER_csr` | Hub-cluster + cache BFS |
-| `-o 2 -o 12:leiden` | `SORT+GraphBrewOrder_leiden` | Degree sort + community-aware |
-| `-o 5 -o 12:leiden` | `DBG+GraphBrewOrder_leiden` | DBG + community-aware |
+| `-o 2 -o 12:leiden:flat` | `SORT+GraphBrewOrder_leiden` | Degree sort + community-aware |
+| `-o 5 -o 12:leiden:flat` | `DBG+GraphBrewOrder_leiden` | DBG + community-aware |
 
 See `chain_canonical_name()` and `CHAINED_ORDERINGS` in `scripts/lib/utils.py`.
 
@@ -502,23 +487,6 @@ Is your graph modular (has communities)?
               ├── Yes → HUBCLUSTERDBG (7)
               └── No → Try AdaptiveOrder (14)
 ```
-
----
-
-## Performance Comparison Example
-
-Running PageRank on a social network (1M vertices, 10M edges):
-
-| Algorithm | Time | Speedup |
-|-----------|------|---------|
-| ORIGINAL (0) | 1.00s | 1.00x |
-| RANDOM (1) | 1.45s | 0.69x |
-| HUBSORT (3) | 0.85s | 1.18x |
-| DBG (5) | 0.80s | 1.25x |
-| HUBCLUSTERDBG (7) | 0.72s | 1.39x |
-| RabbitOrder (8) | 0.68s | 1.47x |
-| LeidenOrder (15) | 0.65s | 1.54x |
-| GraphBrewOrder (12) | 0.55s | 1.82x |
 
 ---
 

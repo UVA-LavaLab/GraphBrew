@@ -75,23 +75,7 @@ Input Graph → GraphBrew Leiden → Communities → Classify → Per-Community 
 ./bench/bin/pr -f graph.el -s -o 12 -n 1 2>&1 | head -30
 ```
 
-Output:
-```
-=== GraphBrew Per-Community Reordering ===
-Communities detected: 847
-Total reorder time: 0.234 seconds
-
-Community Size Distribution:
-  < 100 nodes:   812 communities
-  100-1000:      28 communities  
-  1000-10000:    6 communities
-  > 10000:       1 community
-
-Largest communities:
-  Comm 0: 15,234 nodes, 189,456 edges (hub_conc: 0.58)
-  Comm 1: 8,912 nodes, 98,234 edges (hub_conc: 0.42)
-  ...
-```
+The output shows detected communities, reorder time, community size distribution, and per-community hub concentration. Run on your graph to see actual values.
 
 ---
 
@@ -111,7 +95,7 @@ Largest communities:
 ✅ **Modular graphs**: social networks, web graphs, citation networks (modularity > 0.3)
 ❌ **Not ideal for**: road networks (low modularity), random graphs, very small graphs (< 10K vertices)
 
-**Overhead**: Leiden ~10-15% + hub sorting ~2-5% of total time, O(n) memory. Usually recovered through better cache performance on graphs > 10K vertices.
+**Overhead**: Leiden community detection + hub sorting add some overhead (O(n) memory). Run the pipeline on your target graphs to measure actual overhead and cache performance trade-offs.
 
 ---
 
@@ -314,7 +298,7 @@ for algo in 0 4 7 12 14 15; do
 done
 ```
 
-Typical social network result: GraphBrewOrder ~1.36x faster than ORIGINAL.
+Run the full pipeline on your graphs to measure actual speedups.
 
 See [[Troubleshooting]] for common issues (small communities, worse than HUBCLUSTER, memory).
 

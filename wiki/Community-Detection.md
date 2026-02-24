@@ -108,22 +108,21 @@ Leiden is used internally by Leiden-based algorithms:
 |-----------|-------------|--------|
 | LeidenOrder (15) | ✓ | `-o 15:resolution` |
 | GraphBrewOrder (12) | ✓ | `-o 12:variant:final_algo:resolution` |
-| AdaptiveOrder (14) | ✓ | `-o 14:resolution:minsize:mode` |
+| AdaptiveOrder (14) | ✓ | `-o 14[:_[:_[:_[:selection_mode[:graph_name]]]]]` |
 
 ### Example Output
 
 ```
 === Leiden Community Detection ===
-Graph: 4039 nodes, 88234 edges
+Graph: N nodes, M edges
 Resolution: 1.0
-Iterations: 3
-Communities found: 17
-Modularity: 0.8347
+Iterations: ...
+Communities found: ...
+Modularity: ...
 
 Community sizes:
-  Community 0: 547 nodes
-  Community 1: 423 nodes
-  Community 2: 398 nodes
+  Community 0: ... nodes
+  Community 1: ... nodes
   ...
 ```
 
@@ -175,22 +174,7 @@ Fast CSR-native Leiden + per-community reordering. See [[Reordering-Algorithms#1
 
 ## When Leiden Helps Most
 
-### Good Candidates
-
-| Graph Type | Modularity | Speedup |
-|------------|------------|---------|
-| Social networks | 0.3 - 0.8 | 1.5 - 3x |
-| Citation networks | 0.4 - 0.7 | 1.3 - 2x |
-| Collaboration | 0.5 - 0.9 | 1.5 - 2.5x |
-| Biological | 0.2 - 0.6 | 1.2 - 1.8x |
-
-### Poor Candidates
-
-| Graph Type | Modularity | Speedup |
-|------------|------------|---------|
-| Road networks | < 0.1 | 1.0 - 1.1x |
-| Grids | 0 | 1.0x |
-| Random graphs | < 0.05 | 1.0x |
+Leiden-based reordering benefits graphs with clear community structure (higher modularity). Graphs with weak or no community structure (road networks, grids, random graphs) see little benefit. Run the pipeline on your target graphs to measure actual improvements.
 
 ---
 
@@ -201,7 +185,7 @@ Fast CSR-native Leiden + per-community reordering. See [[Reordering-Algorithms#1
 ```
 ./bench/bin/pr -f graph.el -s -o 14 -n 1
 
-Leiden: 17 communities, modularity 0.8347
+Leiden: N communities, modularity X.XXXX
 ```
 
 ### Interpreting Modularity
@@ -231,7 +215,7 @@ For each community, GraphBrew computes structural features (num_nodes, num_edges
 | Infomap | ★★★★★ | ★★★ | No |
 | Label Prop | ★★★ | ★★★★★ | No |
 
-**Why Leiden over Louvain?** Leiden's refinement phase prevents bad merges, producing higher modularity with connected communities. Benchmarks show +0.4% to +21% modularity improvement over RabbitOrder's Louvain (e.g., com-Youtube: Q=0.788 vs Q=0.650).
+**Why Leiden over Louvain?** Leiden's refinement phase prevents bad merges, producing higher modularity with connected communities.
 
 Ref: Traag et al. (2019). *From Louvain to Leiden.* Scientific Reports 9, 5233.
 

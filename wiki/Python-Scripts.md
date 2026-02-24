@@ -55,13 +55,6 @@ scripts/
 │   ├── data/                    # Test data fixtures
 │   └── graphs/                  # Test graph fixtures
 │
-├── benchmark/                   # Shell benchmark scripts
-│
-├── examples/                    # Example scripts
-│   ├── batch_process.py
-│   ├── compare_algorithms.py
-│   ├── custom_pipeline.py
-│   └── quick_test.py
 └── README.md
 ```
 
@@ -129,6 +122,7 @@ python3 -m scripts.lib.perceptron --interactive
 | `rank` | Bias = inverse average rank across benchmarks |
 | `hybrid` | Weighted combination: 0.4×speedup + 0.4×winrate + 0.2×rank |
 | `per_benchmark` | Benchmark-specific multipliers (generates `benchmark_weights` per algorithm) |
+| `perceptron` | Online SGD with feature weight training (multi-restart, z-normalized); the only method that produces non-zero feature weights |
 
 ### Command-Line Options
 
@@ -138,7 +132,7 @@ python3 -m scripts.lib.perceptron --interactive
 | `--analyze` | Taxonomy analysis: best algorithms per category per benchmark |
 | `--grid-search` | Run grid search over 32 configurations |
 | `--train` | Train new weights with specified method |
-| `--method METHOD` | Training method: speedup, winrate, rank, hybrid, per_benchmark |
+| `--method METHOD` | Training method: speedup, winrate, rank, hybrid, per_benchmark, perceptron |
 | `--scale SCALE` | Bias scale factor (default: 1.0) |
 | `--clusters N` | Number of graph clusters for type-based weights (default: 1) |
 | `--benchmark BENCH` | Benchmark to evaluate (default: pr) |
@@ -292,24 +286,22 @@ python3 scripts/graphbrew_experiment.py --eval-weights --sg-only
 ```
 === Simulating C++ adaptive selection ===
 
-Overall accuracy: 88/188 = 46.8%
-Unique predicted algorithms: 13: ['DBG', 'GORDER', 'HUBCLUSTER', ...]
+Overall accuracy: XX/YY = ZZ.Z%
+Unique predicted algorithms: N: [...]
 
 Per-benchmark accuracy:
-  bfs:      25/47 = 53.2%
-  cc:       20/47 = 42.6%
-  cc_sv:    19/47 = 40.4%
-  pr:       22/47 = 46.8%
-  pr_spmv:  22/47 = 46.8%
-  sssp:     21/47 = 44.7%
-  bc:       18/47 = 38.3%
-  tc:       17/47 = 36.2%
+  bfs:      .../... = ...%
+  cc:       .../... = ...%
+  pr:       .../... = ...%
+  sssp:     .../... = ...%
+  bc:       .../... = ...%
+  tc:       .../... = ...%
 
-Average regret: 10.1% (lower is better)
-Top-2 accuracy: 122/188 = 64.9%
-Median regret: 5.6%
-Base-aware avg regret: 6.2% (variant mismatches = 0%)
-Base-aware median regret: 2.6%
+Average regret: X.X% (lower is better)
+Top-2 accuracy: .../... = ...%
+Median regret: X.X%
+Base-aware avg regret: X.X% (variant mismatches = 0%)
+Base-aware median regret: X.X%
 ```
 
 ### How C++ Scoring Is Simulated
@@ -349,7 +341,7 @@ def simulate_score(algo_data, feats, bench_type):
 
 See [[Command-Line-Reference]] for the complete CLI option reference.
 
-Key flags: `--full` (complete pipeline), `--size small|medium|large`, `--phase reorder|benchmark|cache|weights`, `--train` (6-phase weight training), `--train-iterative` (feedback loop), `--brute-force` (validation), `--auto` (auto-detect RAM/disk limits).
+Key flags: `--full` (complete pipeline), `--size small|medium|large`, `--phase reorder|benchmark|cache|weights|adaptive`, `--train` (8-phase weight training), `--train-benchmarks` (default: pr bfs cc), `--train-iterative` (feedback loop), `--brute-force` (validation), `--auto` (auto-detect RAM/disk limits).
 
 **Variant testing:** `--all-variants`, `--graphbrew-variants`, `--rabbit-variants`, `--gorder-variants`. Variant lists defined in `scripts/lib/utils.py`.
 
@@ -495,7 +487,7 @@ for r in benchmark_results:
         print(f"{r.graph} / {r.algorithm_name} / {r.benchmark}: {r.avg_time:.4f}s")
 ```
 
-See `scripts/examples/custom_pipeline.py` for a complete example.
+See the `lib/phases.py` module for phase orchestration details.
 
 ---
 

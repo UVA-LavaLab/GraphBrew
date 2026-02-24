@@ -1,13 +1,12 @@
 # Perceptron Weights
 
-The perceptron weights control how AdaptiveOrder selects algorithms for each community. This page explains the weight structure, tuning strategies, and how to customize the model.
+The perceptron weights control how AdaptiveOrder selects algorithms. This page explains the weight structure, tuning strategies, and how to customize the model.
 
 ## Overview
 
 ```
 results/weights/
 ├── registry.json           # Graph→type mapping + centroids
-├── graph_properties_cache.json
 ├── type_0/
 │   └── weights.json
 ├── type_N/
@@ -15,7 +14,7 @@ results/weights/
 └── ...
 ```
 
-Each JSON file contains weights for each algorithm. When AdaptiveOrder processes a community, it computes a score for each algorithm using these weights and selects the highest-scoring one.
+Each JSON file contains weights for each algorithm. When AdaptiveOrder processes a graph, it computes a score for each algorithm using these weights and selects the highest-scoring one.
 
 ## How Perceptron Scoring Works
 
@@ -44,23 +43,25 @@ Each type file maps algorithm names to weights. Example entry:
 
 ```json
 {
-  "GraphBrewOrder": {
-    "bias": 3.5,
-    "w_modularity": 0.1, "w_density": 0.05, "w_degree_variance": 0.03,
-    "w_hub_concentration": 0.05, "w_log_nodes": 0.02, "w_log_edges": 0.02,
-    "w_clustering_coeff": 0.04, "w_avg_path_length": 0.02, "w_diameter": 0.01,
-    "w_community_count": 0.03, "w_packing_factor": 0.08,
-    "w_forward_edge_fraction": 0.05, "w_working_set_ratio": 0.12,
-    "w_dv_x_hub": 0.15, "w_mod_x_logn": 0.06, "w_pf_x_wsr": 0.09,
-    "w_fef_convergence": 0.04, "w_reorder_time": -0.0087,
-    "cache_l1_impact": 0.00021, "cache_l2_impact": 0.00019,
-    "cache_l3_impact": 0.00021, "cache_dram_penalty": -7.9e-05,
+  "ALGORITHM_NAME": {
+    "bias": ...,
+    "w_modularity": ..., "w_density": ..., "w_degree_variance": ...,
+    "w_hub_concentration": ..., "w_log_nodes": ..., "w_log_edges": ...,
+    "w_clustering_coeff": ..., "w_avg_path_length": ..., "w_diameter": ...,
+    "w_community_count": ..., "w_packing_factor": ...,
+    "w_forward_edge_fraction": ..., "w_working_set_ratio": ...,
+    "w_dv_x_hub": ..., "w_mod_x_logn": ..., "w_pf_x_wsr": ...,
+    "w_fef_convergence": ..., "w_reorder_time": ...,
+    "cache_l1_impact": ..., "cache_l2_impact": ...,
+    "cache_l3_impact": ..., "cache_dram_penalty": ...,
     "benchmark_weights": { "pr": 1.0, "bfs": 1.0, "cc": 1.0, "sssp": 1.0, "bc": 1.0, "tc": 1.0, "pr_spmv": 1.0, "cc_sv": 1.0 },
-    "_metadata": { "win_rate": 0.8, "avg_speedup": 1.45, "sample_count": 20 }
+    "_metadata": { "win_rate": ..., "avg_speedup": ..., "sample_count": ... }
   },
-  "_metadata": { "enhanced_features": true, "last_updated": "2026-02-02T12:00:00" }
+  "_metadata": { "enhanced_features": true, "last_updated": "..." }
 }
 ```
+
+Run `--train` to generate actual weight values. See `results/weights/type_0/weights.json` for real data.
 
 Algorithm names are produced by `canonical_algo_key(algo_id, variant)` from `scripts/lib/utils.py`. This is the SSOT for weight file keys, `.sg` filenames, and result JSON. See [[Code-Architecture#unified-naming-convention-ssot]].
 
@@ -74,11 +75,11 @@ Algorithm names are produced by `canonical_algo_key(algo_id, variant)` from `scr
 |--------|---------|-------------|
 | `bias` | - | Base preference for algorithm (higher = more likely selected) |
 | `w_modularity` | modularity | Leiden community quality score (0-1) |
-| `w_log_nodes` | log₁₀(nodes) | Community size (vertices) |
-| `w_log_edges` | log₁₀(edges) | Community size (edges) |
+| `w_log_nodes` | log₁₀(nodes) | Graph size (vertices) |
+| `w_log_edges` | log₁₀(edges) | Graph size (edges) |
 | `w_density` | edge density | Edges / max possible edges |
 | `w_avg_degree` | avg_degree/100 | Mean vertex degree (normalized) |
-| `w_degree_variance` | degree_var/100 | Degree distribution spread |
+| `w_degree_variance` | degree_variance | Degree distribution spread (not normalized) |
 | `w_hub_concentration` | hub_conc | Edge fraction to top 10% vertices |
 
 ### Extended Graph Structure Weights
@@ -98,7 +99,7 @@ These features capture additional graph structure beyond basic topology:
 
 | Weight | Feature | Description | Source |
 |--------|---------|-------------|--------|
-| `w_packing_factor` | packing_factor | Ratio of avg degree to max degree; measures degree uniformity (0-1) | IISWC'18 |
+| `w_packing_factor` | packing_factor | Fraction of hub neighbors already co-located (nearby vertex IDs); measures locality (0-1) | IISWC'18 |
 | `w_forward_edge_fraction` | forward_edge_fraction | Fraction of edges going to higher-numbered vertices; measures ordering quality | GoGraph |
 | `w_working_set_ratio` | log₂(working_set_ratio+1) | `graph_bytes / LLC_size`; how many times the graph overflows last-level cache | P-OPT |
 
@@ -196,39 +197,34 @@ See [[AdaptiveOrder-ML#score-calculation-c-runtime]] for the full expanded formu
 
 ### Example Calculation
 
-Community features:
+The score for each algorithm is computed as:
+
 ```
-modularity: 0.72
-log_nodes: 3.5 (1000 nodes)
-log_edges: 4.0 (10000 edges)
-density: 0.02
-avg_degree: 20 → normalized: 0.2
-degree_variance: 45 → normalized: 0.45
-hub_concentration: 0.55
-packing_factor: 0.6
-forward_edge_fraction: 0.45
-working_set_ratio: 3.2 (graph is 3.2× LLC size)
+score = bias
+      + w_modularity × modularity
+      + w_log_nodes × log₁₀(nodes+1)
+      + w_log_edges × log₁₀(edges+1)
+      + w_density × density
+      + w_avg_degree × avg_degree / 100
+      + w_degree_variance × degree_variance
+      + w_hub_concentration × hub_concentration
+      + w_clustering_coeff × clustering_coeff
+      + w_avg_path_length × avg_path_length / 10
+      + w_diameter × diameter_estimate / 50
+      + w_community_count × log₁₀(community_count + 1)
+      + w_packing_factor × packing_factor
+      + w_forward_edge_fraction × forward_edge_fraction
+      + w_working_set_ratio × log₂(working_set_ratio + 1)
+      + w_reorder_time × reorder_time
+      + w_dv_x_hub × (degree_variance × hub_concentration)   # quadratic
+      + w_mod_x_logn × (modularity × log_nodes)              # quadratic
+      + w_pf_x_wsr × (packing_factor × log₂(wsr + 1))       # quadratic
+      + cache_l1_impact × 0.5 + cache_l2_impact × 0.3        # cache
+      + cache_l3_impact × 0.2 + cache_dram_penalty           # cache
+      + (w_fef_convergence × fef if PR/SSSP)                  # convergence
 ```
 
-GraphBrewOrder score:
-```
-= 0.85                          # bias
-+ 0.25 × 0.72                   # modularity: +0.18
-+ 0.10 × 3.5                    # log_nodes: +0.35
-+ 0.10 × 4.0                    # log_edges: +0.40
-+ (-0.05) × 0.02                # density: -0.001
-+ 0.15 × 0.2                    # avg_degree: +0.03
-+ 0.15 × 0.45                   # degree_variance: +0.0675
-+ 0.25 × 0.55                   # hub_concentration: +0.1375
-+ 0.10 × 0.6                    # packing_factor: +0.06
-+ 0.08 × 0.45                   # forward_edge_fraction: +0.036
-+ 0.12 × log₂(3.2+1)            # working_set_ratio: +0.12 × 2.07 = +0.248
-+ 0.15 × (0.45 × 0.55)          # dv×hub quadratic: +0.037
-+ 0.06 × (0.72 × 3.5)           # mod×logN quadratic: +0.151
-+ 0.09 × (0.6 × log₂(4.2))      # pf×wsr quadratic: +0.09 × 1.24 = +0.112
-
-≈ 2.66
-```
+The algorithm with the highest score is selected. Actual weight values are stored in `results/weights/type_N/weights.json` — run `--train` to generate them from your benchmark data.
 
 ---
 
@@ -317,7 +313,7 @@ python3 -c "import json; json.load(open('results/weights/type_0/weights.json'))"
 ./bench/bin/pr -f graph.el -s -o 14 -n 1 2>&1 | grep -A 20 "Adaptive Reordering"
 ```
 
-Output shows per-community algorithm selection (features + selected algorithm for each).
+Output shows algorithm selection details (features + selected algorithm).
 
 ```bash
 # Verbose score details
@@ -330,7 +326,7 @@ Output shows per-community algorithm selection (features + selected algorithm fo
 
 If no weights file exists, hardcoded defaults favour ORIGINAL for small communities (high bias, negative log-size weights) and GraphBrewOrder for large, modular, hub-heavy communities (positive `w_modularity`, `w_hub_concentration`, log-size weights).
 
-The **bias** is the most important weight — computed as `0.5 × avg_speedup_vs_RANDOM`. Typical values: HUBSORT ~26, SORT ~9.5, GraphBrewOrder ~2.3, ORIGINAL 0.5 (baseline).
+The **bias** is the most important weight — computed as `0.5 × avg_speedup_vs_RANDOM`. Higher bias means the algorithm is generally faster.
 
 ---
 
@@ -348,7 +344,7 @@ python3 scripts/graphbrew_experiment.py --phase benchmark --use-maps
 python3 scripts/graphbrew_experiment.py --phase weights
 ```
 
-The 6-phase `--train` mode fills: (1) reorder_time, (2) bias/scale, (3) cache impacts, (4) structure weights, (5) topology weights, (6) benchmark multipliers.
+The 8-phase `--train` mode fills: (0) graph analysis, (1) reorder_time, (2) bias/scale, (3) cache impacts, (4) base weights, (5) topology weights, (6) benchmark multipliers, (7) per-graph-type files.
 
 See [[AdaptiveOrder-ML#training-the-perceptron]] for iterative training and progression recommendations.
 
@@ -359,7 +355,7 @@ See [[AdaptiveOrder-ML#training-the-perceptron]] for iterative training and prog
 Online SGD with error signal `error = (speedup - 1.0) - current_score`:
 
 ```python
-lr = 0.01
+lr = 0.1   # default learning rate
 for feature in all_features:  # linear + quadratic + convergence
     weights[feature] += lr * error * feature_value
 for key in w_and_cache_keys:
@@ -382,7 +378,7 @@ Positive error → increase weights for features that predicted success. Negativ
 
 ## Validation
 
-Current metrics (47 graphs × 4 benchmarks = 188 predictions): **46.8% accuracy**, **2.6% median regret**, **64.9% top-2 accuracy**, **13 unique predictions**.
+Run `--eval-weights` to measure current accuracy, median regret, top-2 accuracy, and unique predictions on your data.
 
 See [[Python-Scripts#-eval_weightspy---weight-evaluation--c-scoring-simulation]] for the `eval_weights.py` tool.
 

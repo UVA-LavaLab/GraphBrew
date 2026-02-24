@@ -47,6 +47,7 @@ You can run each phase independently. Later phases automatically load results fr
 | **Phase 2** | `--phase benchmark` | Run graph algorithm benchmarks (BFS, PR, etc.) |
 | **Phase 3** | `--phase cache` | Run cache simulation |
 | **Phase 4** | `--phase weights` | Generate perceptron weights from results |
+| **Phase 5** | `--phase adaptive` | Adaptive order analysis (evaluate AdaptiveOrder accuracy) |
 
 ```bash
 # Run each phase separately
@@ -129,12 +130,16 @@ GraphBrew automatically detects the file format from the file extension:
 | `-g <scale>` | Generate 2^scale Kronecker graph |
 | `-u <scale>` | Generate 2^scale uniform-random graph |
 | `-k <degree>` | Average degree for synthetic graph (default: 16) |
+| `-m` | Reduce memory usage during graph building |
+| `-l` | Log performance within each trial |
+| `-a` | Output analysis of last run |
+| `-S` | Keep self-loops (default: removed) |
 
 ### Partitioning / Segmentation
 
 | Type | Partitioning | Implementation | Notes |
 |------|--------------|----------------|-------|
-| `0` | **Cagra/GraphIT** CSR slicing | `cache/popt.h` → `MakeCagraPartitionedGraph` | Uses `graphSlicer`, honors `-z` (use out-degree) |
+| `0` | **Cagra/GraphIT** CSR slicing | `cache/popt.h` → `MakeCagraPartitionedGraph` | Uses `graphSlicer`, honors `-z` (use indegree) |
 | `1` | **TRUST** (triangle counting) | `partition/trust.h` → `TrustPartitioner::MakeTrustPartitionedGraph` | Orients edges, partitions p_n × p_m |
 
 > **Tip:** Cache **simulation** headers live in `bench/include/cache_sim/` (`cache_sim.h`, `graph_sim.h`). Cagra partition helpers live in `bench/include/graphbrew/partition/cagra/` (`popt.h`). See `docs/INDEX.md` for a quick map.
@@ -184,8 +189,8 @@ GOrder supports three variants:
 | Variant | Example | Description |
 |---------|---------|-------------|
 | (default) | `-o 9` | GoGraph baseline — converts to GoGraph adjacency format |
-| `csr` | `-o 9:csr` | CSR-native — direct CSRGraph iterator access, lightweight BFS-RCM, 7-25% faster reorder |
-| `fast` | `-o 9:fast` | Parallel batch — atomic score updates, fan-out cap, scales across threads (2-3× at 8T on power-law graphs) |
+| `csr` | `-o 9:csr` | CSR-native — direct CSRGraph iterator access, lightweight BFS-RCM, faster reorder |
+| `fast` | `-o 9:fast` | Parallel batch — atomic score updates, fan-out cap, scales across threads |
 
 The CSR variant uses a lightweight GoGraph-matching BFS-CM pre-ordering and `RelabelByMappingStandalone` to rebuild the CSR in RCM order, then runs the GOrder greedy directly on sorted CSRGraph neighbor iterators. Deterministic with single thread.
 
@@ -198,7 +203,7 @@ RCM supports two variants:
 | Variant | Example | Description |
 |---------|---------|-------------|
 | (default) | `-o 11` | GoGraph double-RCM (two-pass, high quality) |
-| `bnf` | `-o 11:bnf` | CSR-native BNF start node + deterministic parallel CM BFS (2-19x faster reorder) |
+| `bnf` | `-o 11:bnf` | CSR-native BNF start node + deterministic parallel CM BFS, faster reorder |
 
 The BNF variant uses George-Liu pseudo-peripheral node finder with RCM++ width-minimizing criterion and a speculative parallel Cuthill-McKee BFS that produces the same ordering as serial.
 
@@ -344,7 +349,7 @@ No additional options.
 | Option | Description | Default |
 |--------|-------------|---------|
 | `-r <root>` | Source vertex | 0 |
-| `-d <delta>` | Delta for delta-stepping | Auto |
+| `-d <delta>` | Delta for delta-stepping | 1 |
 
 **Examples:**
 ```bash
@@ -412,6 +417,7 @@ No additional options.
 | `-w` | Make output weighted (.wel/.wsg) |
 | `-x <file>` | Output reordered labels as text (.so) |
 | `-q <file>` | Output reordered labels as binary (.lo) |
+| `-V <file>` | Output separate CSR array files (.out_degree/.out_neigh/.offset) |
 
 **Examples:**
 ```bash
@@ -459,18 +465,18 @@ numactl --cpunodebind=0 --membind=0 ./bench/bin/pr -f graph.el -s -n 5
 
 ```
 Loading graph from graph.el...
-Graph has 4039 nodes and 88234 edges
+Graph has N nodes and M edges
 Reordering with HUBCLUSTERDBG...
 
 Trial   Time(s)
-1       0.0234
-2       0.0231
-3       0.0229
-4       0.0232
-5       0.0230
+1       X.XXXX
+2       X.XXXX
+3       X.XXXX
+4       X.XXXX
+5       X.XXXX
 
-Average: 0.0231 seconds
-Std Dev: 0.0002 seconds
+Average: X.XXXX seconds
+Std Dev: X.XXXX seconds
 ```
 
 ### With Verification
@@ -486,11 +492,11 @@ Verification: PASSED
 ```
 Source: 0
 Trial   Time(s)   Edges Visited   MTEPS
-1       0.0012    88234           73.5
-2       0.0011    88234           80.2
-3       0.0012    88234           73.5
+1       X.XXXX    ...             ...
+2       X.XXXX    ...             ...
+3       X.XXXX    ...             ...
 
-Average: 0.0012 seconds, 75.7 MTEPS
+Average: X.XXXX seconds, XX.X MTEPS
 ```
 
 ### AdaptiveOrder Output
@@ -498,14 +504,10 @@ Average: 0.0012 seconds, 75.7 MTEPS
 ```
 === Adaptive Reordering Selection ===
 Comm    Nodes   Edges   Density Selected
-131     1662    16151   0.0117  GraphBrewOrder
-272     103     149     0.0284  Original
-...
+...     ...     ...     ...     ...
 
 === Algorithm Selection Summary ===
-Original: 846 communities
-GraphBrewOrder: 3 communities
-HUBCLUSTERDBG: 2 communities
+(shows how many communities selected each algorithm)
 ```
 
 ---
