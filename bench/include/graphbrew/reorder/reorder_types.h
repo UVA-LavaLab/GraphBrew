@@ -1549,12 +1549,18 @@ inline GraphType DetectGraphType(double modularity, double degree_variance,
  * BEST_AMORTIZATION (3): Minimize iterations to amortize reorder cost
  *   - For scenarios where you need minimum runs to break even
  *   - Considers: reorder_time / (predicted_speedup - 1.0)
+ *
+ * DECISION_TREE (4): Use trained Decision Tree classifier
+ *   - Per-benchmark trees select algorithm family based on graph features
+ *   - Lower regret than perceptron (~5-8% vs 45-1355%)
+ *   - Auto-generated from scripts/lib/decision_tree.py --fine-tune
  */
 enum SelectionMode {
     MODE_FASTEST_REORDER = 0,      ///< Minimize reordering time
     MODE_FASTEST_EXECUTION = 1,    ///< Minimize execution time (perceptron)
     MODE_BEST_ENDTOEND = 2,        ///< Minimize total time
-    MODE_BEST_AMORTIZATION = 3     ///< Minimize iterations to amortize
+    MODE_BEST_AMORTIZATION = 3,    ///< Minimize iterations to amortize
+    MODE_DECISION_TREE = 4         ///< Decision Tree classifier (per-benchmark)
 };
 
 /**
@@ -1566,6 +1572,7 @@ inline std::string SelectionModeToString(SelectionMode mode) {
         case MODE_FASTEST_EXECUTION:  return "fastest-execution";
         case MODE_BEST_ENDTOEND:      return "best-endtoend";
         case MODE_BEST_AMORTIZATION:  return "best-amortization";
+        case MODE_DECISION_TREE:      return "decision-tree";
         default:                      return "unknown";
     }
 }
@@ -1578,6 +1585,7 @@ inline SelectionMode GetSelectionMode(const std::string& name) {
     if (name == "1" || name == "fastest-execution" || name == "execution" || name == "cache") return MODE_FASTEST_EXECUTION;
     if (name == "2" || name == "best-endtoend" || name == "endtoend" || name == "e2e") return MODE_BEST_ENDTOEND;
     if (name == "3" || name == "best-amortization" || name == "amortization" || name == "amortize") return MODE_BEST_AMORTIZATION;
+    if (name == "4" || name == "decision-tree" || name == "dt" || name == "tree") return MODE_DECISION_TREE;
     return MODE_FASTEST_EXECUTION;  // Default
 }
 
@@ -1662,6 +1670,8 @@ struct AblationConfig {
     // Phase 6 P0 improvements
     bool cost_model;         // Enable cost-aware dynamic margin threshold (1.1)
     bool packing_skip;       // Enable packing factor short-circuit (1.2)
+    // Mode 3: Top-K pilot selection
+    int top_k;               // Number of candidate orderings to try (default 1)
     
     static const AblationConfig& Get() {
         static AblationConfig instance = Init();
@@ -1671,7 +1681,8 @@ struct AblationConfig {
     bool any_active() const {
         return no_types || no_ood || no_margin || no_leiden ||
                force_algo >= 0 || zero_packing || zero_fef ||
-               zero_wsr || zero_quadratic || cost_model || packing_skip;
+               zero_wsr || zero_quadratic || cost_model || packing_skip ||
+               top_k > 1;
     }
     
     void print() const {
@@ -1688,6 +1699,7 @@ struct AblationConfig {
         if (zero_quadratic) printf("  ZERO: quadratic interaction terms\n");
         if (cost_model)     printf("  COST_MODEL: cost-aware dynamic margin (P0 1.1)\n");
         if (packing_skip)   printf("  PACKING_SKIP: packing factor short-circuit (P0 1.2)\n");
+        if (top_k > 1)      printf("  TOP_K: try %d candidate orderings\n", top_k);
         printf("===============================\n");
     }
     
@@ -1723,6 +1735,8 @@ private:
         cfg.zero_quadratic = feature_in_list("quadratic");
         cfg.cost_model     = env_bool("ADAPTIVE_COST_MODEL");
         cfg.packing_skip   = env_bool("ADAPTIVE_PACKING_SKIP");
+        cfg.top_k          = env_int("ADAPTIVE_TOP_K", 1);
+        if (cfg.top_k < 1) cfg.top_k = 1;
         return cfg;
     }
 };
@@ -1787,6 +1801,15 @@ struct PerceptronWeights {
     double avg_speedup = 1.0;        ///< Average speedup observed during training
     double avg_reorder_time = 0.0;   ///< Average reorder time in seconds
     
+    // ---------- Z-score Normalization (Mode 5) ----------
+    // When use_normalization is true, weights are in z-score space and
+    // scoreBase() normalizes features before computing the dot product.
+    // This eliminates de-normalization weight explosion from Python training.
+    static constexpr int N_FEATURES = 17;
+    bool use_normalization = false;      ///< True when _normalization block present in JSON
+    double norm_mean[N_FEATURES] = {};   ///< Per-feature means for z-score normalization
+    double norm_std[N_FEATURES] = {};    ///< Per-feature stds for z-score normalization
+    
     // ---------- Per-Benchmark Multipliers ----------
     double bench_pr = 1.0;           ///< PageRank weight multiplier
     double bench_bfs = 1.0;          ///< BFS weight multiplier
@@ -1842,6 +1865,11 @@ struct PerceptronWeights {
      * @return Base score for this algorithm
      */
     double scoreBase(const CommunityFeatures& feat) const {
+        // Mode 5: if normalization stats are available, z-normalize features
+        // before scoring — weights are in z-score space (small, ≤ W_MAX).
+        if (use_normalization) {
+            return scoreBaseNormalized(feat);
+        }
         double log_nodes = std::log10(static_cast<double>(feat.num_nodes) + 1.0);
         double log_edges = std::log10(static_cast<double>(feat.num_edges) + 1.0);
         
@@ -1893,6 +1921,77 @@ struct PerceptronWeights {
         s += cache_dram_penalty;
         
         // Reorder time penalty
+        s += w_reorder_time * feat.reorder_time;
+        
+        return s;
+    }
+    
+    /**
+     * @brief Compute base score using z-score normalized features (Mode 5)
+     *
+     * Weights are in z-score space (learned via perceptron on z-normalized
+     * features, all within [-W_MAX, W_MAX]).  This eliminates de-normalization
+     * weight explosion that occurred when dividing by feature stds (e.g.
+     * density std=1e-5 → 1/std=10k → millions-scale weights).
+     *
+     * Feature order matches Python training:
+     *   0=modularity, 1=dv, 2=hc, 3=log_n, 4=log_e, 5=density, 6=ad/100,
+     *   7=cc, 8=apl/10, 9=dia/50, 10=log_comm, 11=pf, 12=fef, 13=log_wsr,
+     *   14=dv×hc, 15=mod×logn, 16=pf×logwsr
+     */
+    double scoreBaseNormalized(const CommunityFeatures& feat) const {
+        double log_nodes = std::log10(static_cast<double>(feat.num_nodes) + 1.0);
+        double log_edges = std::log10(static_cast<double>(feat.num_edges) + 1.0);
+        double log_wsr = std::log2(feat.working_set_ratio + 1.0);
+        
+        // Compute 17 transformed features matching Python training order
+        const double raw[N_FEATURES] = {
+            feat.modularity,                                    // 0
+            feat.degree_variance,                               // 1
+            feat.hub_concentration,                             // 2
+            log_nodes,                                          // 3
+            log_edges,                                          // 4
+            feat.internal_density,                              // 5
+            feat.avg_degree / 100.0,                            // 6
+            feat.clustering_coeff,                              // 7
+            feat.avg_path_length / 10.0,                        // 8
+            feat.diameter_estimate / 50.0,                      // 9
+            std::log10(feat.community_count + 1.0),             // 10
+            feat.packing_factor,                                // 11
+            feat.forward_edge_fraction,                         // 12
+            log_wsr,                                            // 13
+            feat.degree_variance * feat.hub_concentration,      // 14
+            feat.modularity * log_nodes,                        // 15
+            feat.packing_factor * log_wsr,                      // 16
+        };
+        
+        // Corresponding z-score weights in the same order
+        const double w[N_FEATURES] = {
+            w_modularity, w_degree_variance, w_hub_concentration,
+            w_log_nodes, w_log_edges, w_density, w_avg_degree,
+            w_clustering_coeff, w_avg_path_length, w_diameter,
+            w_community_count, w_packing_factor, w_forward_edge_fraction,
+            w_working_set_ratio, w_dv_x_hub, w_mod_x_logn, w_pf_x_wsr,
+        };
+        
+        const auto& abl = AblationConfig::Get();
+        
+        // Z-normalize each feature and accumulate weighted sum
+        double s = bias;
+        for (int i = 0; i < N_FEATURES; i++) {
+            if (norm_std[i] < 1e-12) continue;  // skip zero-variance features
+            // Ablation zeroing: packing=11, fef=12, wsr=13, quadratic=14-16
+            if (i == 11 && abl.zero_packing) continue;
+            if (i == 12 && abl.zero_fef) continue;
+            if (i == 13 && abl.zero_wsr) continue;
+            if (i >= 14 && abl.zero_quadratic) continue;
+            double z = (raw[i] - norm_mean[i]) / norm_std[i];
+            s += w[i] * z;
+        }
+        
+        // Extra terms not part of the 17-feature perceptron
+        s += cache_l1_impact * 0.5 + cache_l2_impact * 0.3
+           + cache_l3_impact * 0.2 + cache_dram_penalty;
         s += w_reorder_time * feat.reorder_time;
         
         return s;
@@ -2202,6 +2301,283 @@ inline void install_sigsegv_handler() {
     sa.sa_flags = 0;
     sigaction(SIGSEGV, &sa, nullptr);
 #endif
+}
+
+// ============================================================================
+// FAST MODULARITY (lightweight Louvain — no runGraphBrew overhead)
+// ============================================================================
+
+/**
+ * @brief Hub-capped fast modularity via degree-bounded Louvain.
+ *
+ * Inspired by Afforest CC (Sutton et al., IPDPS 2018): instead of scanning
+ * all O(m) edges, cap the per-vertex neighbor scan at HUB_CAP.
+ *
+ * Key insight: in power-law graphs, a few hub vertices own most edges.
+ * Capping their scan to HUB_CAP (e.g. 64) strided neighbors dramatically
+ * reduces total work while losing little quality — hubs' community
+ * assignments can be well-estimated from a uniform sample of their neighbors.
+ *
+ * Algorithm:
+ *  1. vtot — O(N) via out_degree (no edge scan for unweighted graphs).
+ *  2. Local-moving — ROUNDS iterations, each vertex scans min(deg, HUB_CAP)
+ *     neighbors (strided for hubs, full for low-degree vertices), finds
+ *     best community via ΔQ with weight correction, moves if positive.
+ *  3. Q estimation — same hub-capped scan to estimate cin, exact ctot.
+ *
+ * Complexity: O(ROUNDS × N × HUB_CAP + N) — sublinear in m for graphs
+ * where hubs dominate the edge count.
+ *
+ * @tparam K   Community ID type (uint32_t)
+ * @tparam NodeID_T  Node ID type
+ * @tparam DestID_T  Destination ID type
+ * @param g          CSR graph (symmetric)
+ * @param resolution Resolution parameter (default 1.0)
+ * @param neighborRounds Number of local-moving rounds (default 3)
+ * @return Modularity value in [-0.5, 1.0]
+ */
+template <typename K, typename NodeID_T, typename DestID_T>
+double computeFastModularity(
+    const CSRGraph<NodeID_T, DestID_T, true>& g,
+    double resolution = 1.0,
+    int neighborRounds = 3) {
+
+    const int64_t N = g.num_nodes();
+    const double M = static_cast<double>(g.num_edges());  // total directed edges
+    if (M == 0 || N == 0) return 0.0;
+
+    // Maximum neighbors scanned per vertex per round.
+    // Low-degree vertices get full scans; hubs are strided.
+    static constexpr int64_t HUB_CAP = 64;
+
+    // ── vertex total weight: O(N) for unweighted, O(m) for weighted ──
+    std::vector<double> vtot(N);
+    #pragma omp parallel for schedule(static, 4096)
+    for (int64_t u = 0; u < N; ++u) {
+        if constexpr (std::is_same_v<DestID_T, NodeID_T>) {
+            vtot[u] = static_cast<double>(g.out_degree(u));
+        } else {
+            double s = 0.0;
+            for (auto v : g.out_neigh(u)) s += static_cast<double>(v.w);
+            vtot[u] = s;
+        }
+    }
+
+    // ── singleton community init ──
+    std::vector<K>      vcom(N);
+    std::vector<double> ctot(N);
+    #pragma omp parallel for schedule(static, 4096)
+    for (int64_t u = 0; u < N; ++u) {
+        vcom[u] = static_cast<K>(u);
+        ctot[u] = vtot[u];
+    }
+
+    // ── per-thread hash table for community aggregation ──
+    struct HashScan {
+        std::vector<K>      keys;
+        std::vector<double> vals;
+        std::vector<char>   used;
+        std::vector<size_t> occ;
+        size_t cap  = 0;
+        size_t mask = 0;
+
+        void resize(size_t need) {
+            size_t c = 64;
+            while (c < need * 2) c <<= 1;
+            if (c <= cap) return;
+            cap  = c;
+            mask = c - 1;
+            keys.resize(c);
+            vals.resize(c, 0.0);
+            used.assign(c, 0);
+            occ.reserve(c);
+        }
+        void clear() {
+            for (size_t s : occ) { used[s] = 0; vals[s] = 0.0; }
+            occ.clear();
+        }
+        void add(K community, double weight) {
+            size_t h = std::hash<K>{}(community) & mask;
+            while (true) {
+                if (!used[h]) {
+                    used[h] = 1; keys[h] = community; vals[h] = weight;
+                    occ.push_back(h); return;
+                }
+                if (keys[h] == community) { vals[h] += weight; return; }
+                h = (h + 1) & mask;
+            }
+        }
+        double get(K community) const {
+            size_t h = std::hash<K>{}(community) & mask;
+            while (true) {
+                if (!used[h]) return 0.0;
+                if (keys[h] == community) return vals[h];
+                h = (h + 1) & mask;
+            }
+        }
+    };
+
+    const int T = omp_get_max_threads();
+    std::vector<HashScan> scans(T);
+
+    // =================================================================
+    // LOCAL-MOVING: hub-capped Louvain iterations
+    // =================================================================
+    const int ROUNDS = neighborRounds;
+
+    for (int round = 0; round < ROUNDS; ++round) {
+        int64_t moves = 0;
+
+        #pragma omp parallel reduction(+:moves)
+        {
+            int tid = omp_get_thread_num();
+            auto& hs = scans[tid];
+
+            #pragma omp for schedule(dynamic, 2048)
+            for (int64_t u = 0; u < N; ++u) {
+                const int64_t deg = g.out_degree(u);
+                if (deg == 0) continue;
+
+                const K    cu = vcom[u];
+                const double wu = vtot[u];
+                const int64_t nscan = std::min(deg, HUB_CAP);
+
+                hs.resize(static_cast<size_t>(nscan) + 1);
+
+                // Weight correction: for hubs, scale sampled counts
+                // to estimated full-neighbor counts.
+                double scaleW = 1.0;
+
+                if (deg <= HUB_CAP) {
+                    // Full neighbor scan
+                    for (auto nb : g.out_neigh(u)) {
+                        NodeID_T v;
+                        double   w;
+                        if constexpr (std::is_same_v<DestID_T, NodeID_T>) {
+                            v = nb; w = 1.0;
+                        } else {
+                            v = nb.v; w = static_cast<double>(nb.w);
+                        }
+                        if (v == static_cast<NodeID_T>(u)) continue;
+                        hs.add(vcom[v], w);
+                    }
+                } else {
+                    // Strided scan for hubs: uniformly sample HUB_CAP neighbors
+                    const int64_t stride = std::max((int64_t)1, deg / HUB_CAP);
+                    scaleW = static_cast<double>(deg) / static_cast<double>(nscan);
+                    int64_t count = 0;
+                    for (int64_t r = 0; r < deg && count < HUB_CAP; r += stride) {
+                        NodeID_T v;
+                        double   w;
+                        if constexpr (std::is_same_v<DestID_T, NodeID_T>) {
+                            v = *(g.out_neigh(u, r).begin());
+                            w = 1.0;
+                        } else {
+                            auto nb = *(g.out_neigh(u, r).begin());
+                            v = nb.v; w = static_cast<double>(nb.w);
+                        }
+                        if (v != static_cast<NodeID_T>(u)) {
+                            hs.add(vcom[v], w);
+                        }
+                        count++;
+                    }
+                }
+
+                // Find best community to move to
+                double kout_own = hs.get(cu) * scaleW;
+                K      bestC  = cu;
+                double bestDQ = 0.0;
+
+                for (size_t idx = 0; idx < hs.occ.size(); ++idx) {
+                    size_t s = hs.occ[idx];
+                    K      c     = hs.keys[s];
+                    double vcout = hs.vals[s] * scaleW;
+                    if (c == cu) continue;
+                    double dQ = (vcout - kout_own) / M
+                        - resolution * wu * (ctot[c] - ctot[cu] + wu) / (2.0 * M * M);
+                    if (dQ > bestDQ) {
+                        bestDQ = dQ;
+                        bestC  = c;
+                    }
+                }
+
+                if (bestC != cu) {
+                    vcom[u] = bestC;
+                    moves++;
+                }
+                hs.clear();
+            }
+        }
+
+        // Recompute ctot after each round
+        #pragma omp parallel for schedule(static, 4096)
+        for (int64_t c = 0; c < N; ++c) ctot[c] = 0.0;
+        #pragma omp parallel for schedule(static, 4096)
+        for (int64_t u = 0; u < N; ++u) {
+            #pragma omp atomic
+            ctot[vcom[u]] += vtot[u];
+        }
+
+        if (moves == 0) break;
+    }
+
+    // =================================================================
+    // Q ESTIMATION: hub-capped cin sampling + exact ctot
+    // =================================================================
+    // For each vertex, scan min(deg, HUB_CAP) strided neighbors to count
+    // same-community edges. Scale up for hubs. This avoids a full O(m) scan.
+    double cin_total = 0.0;
+    #pragma omp parallel for schedule(dynamic, 2048) reduction(+:cin_total)
+    for (int64_t u = 0; u < N; ++u) {
+        const int64_t deg = g.out_degree(u);
+        if (deg == 0) continue;
+        const K cu = vcom[u];
+
+        if (deg <= HUB_CAP) {
+            // Full scan — exact cin contribution
+            for (auto nb : g.out_neigh(u)) {
+                NodeID_T v;
+                double   w;
+                if constexpr (std::is_same_v<DestID_T, NodeID_T>) {
+                    v = nb; w = 1.0;
+                } else {
+                    v = nb.v; w = static_cast<double>(nb.w);
+                }
+                if (vcom[v] == cu) cin_total += w;
+            }
+        } else {
+            // Strided sample — estimate cin contribution
+            const int64_t stride = std::max((int64_t)1, deg / HUB_CAP);
+            double same_w = 0.0;
+            int64_t count = 0;
+            for (int64_t r = 0; r < deg && count < HUB_CAP; r += stride) {
+                NodeID_T v;
+                double   w;
+                if constexpr (std::is_same_v<DestID_T, NodeID_T>) {
+                    v = *(g.out_neigh(u, r).begin());
+                    w = 1.0;
+                } else {
+                    auto nb = *(g.out_neigh(u, r).begin());
+                    v = nb.v; w = static_cast<double>(nb.w);
+                }
+                if (vcom[v] == cu) same_w += w;
+                count++;
+            }
+            // Scale sampled cin to estimated full cin
+            cin_total += same_w * static_cast<double>(deg)
+                / static_cast<double>(std::max((int64_t)1, count));
+        }
+    }
+
+    // Sum of squared community weights — O(N)
+    double ctot_sq = 0.0;
+    #pragma omp parallel for schedule(static, 4096) reduction(+:ctot_sq)
+    for (int64_t c = 0; c < N; ++c) {
+        ctot_sq += ctot[c] * ctot[c];
+    }
+
+    double Q = cin_total / (2.0 * M) - resolution * ctot_sq / (4.0 * M * M);
+    return Q;
 }
 
 // ============================================================================
@@ -3194,6 +3570,67 @@ inline bool ParseWeightsFromJSON(const std::string& json_content,
         weights[key] = w;
     }
     
+    // ---- Step 3: Parse _normalization block (Mode 5) ----
+    // If present, weights are in z-score space and features must be
+    // z-normalized before scoring.  Parse feat_means and feat_stds arrays.
+    {
+        size_t norm_pos = json_content.find("\"_normalization\"");
+        if (norm_pos != std::string::npos) {
+            size_t norm_start = json_content.find('{', norm_pos);
+            size_t norm_end = find_matching_brace(json_content, norm_start);
+            if (norm_start != std::string::npos && norm_end != std::string::npos) {
+                std::string norm_block = json_content.substr(norm_start, norm_end - norm_start + 1);
+                
+                // Parse JSON double arrays: "key": [v0, v1, ..., v16]
+                auto find_double_array = [](const std::string& s, const std::string& key,
+                                            double* out, int max_n) -> int {
+                    size_t pos = s.find("\"" + key + "\"");
+                    if (pos == std::string::npos) return 0;
+                    pos = s.find('[', pos);
+                    if (pos == std::string::npos) return 0;
+                    pos++; // skip '['
+                    int count = 0;
+                    while (pos < s.size() && count < max_n) {
+                        while (pos < s.size() && (s[pos] == ' ' || s[pos] == '\t' ||
+                               s[pos] == '\n' || s[pos] == '\r' || s[pos] == ','))
+                            pos++;
+                        if (pos >= s.size() || s[pos] == ']') break;
+                        size_t end = pos;
+                        while (end < s.size() && (isdigit(s[end]) || s[end] == '.' ||
+                               s[end] == '-' || s[end] == 'e' || s[end] == 'E' || s[end] == '+'))
+                            end++;
+                        try {
+                            out[count++] = std::stod(s.substr(pos, end - pos));
+                        } catch (...) {
+                            break;
+                        }
+                        pos = end;
+                    }
+                    return count;
+                };
+                
+                double means[PerceptronWeights::N_FEATURES] = {};
+                double stds[PerceptronWeights::N_FEATURES] = {};
+                int n_means = find_double_array(norm_block, "feat_means", means,
+                                                 PerceptronWeights::N_FEATURES);
+                int n_stds = find_double_array(norm_block, "feat_stds", stds,
+                                                PerceptronWeights::N_FEATURES);
+                
+                if (n_means == PerceptronWeights::N_FEATURES &&
+                    n_stds == PerceptronWeights::N_FEATURES) {
+                    // Apply normalization stats to all parsed algorithm weights
+                    for (auto& kv : weights) {
+                        kv.second.use_normalization = true;
+                        std::copy(means, means + PerceptronWeights::N_FEATURES,
+                                  kv.second.norm_mean);
+                        std::copy(stds, stds + PerceptronWeights::N_FEATURES,
+                                  kv.second.norm_std);
+                    }
+                }
+            }
+        }
+    }
+    
     return !weights.empty();
 }
 
@@ -4052,6 +4489,49 @@ inline PerceptronSelection SelectReorderingFromWeights(
 }
 
 /**
+ * @brief Select top-K reordering algorithms ranked by perceptron score (Mode 3)
+ *
+ * Returns up to K candidate algorithms sorted by descending perceptron score.
+ * Excludes ORIGINAL and RANDOM from candidates.  Used for Top-K pilot-based
+ * selection: try K orderings and pick the fastest.
+ *
+ * @param feat Community features for scoring
+ * @param weights Pre-loaded perceptron weights
+ * @param bench Benchmark type
+ * @param k Number of top candidates to return
+ * @return Vector of PerceptronSelection sorted by descending score (up to k)
+ */
+inline std::vector<PerceptronSelection> SelectTopKFromWeights(
+    const CommunityFeatures& feat,
+    const std::map<std::string, PerceptronWeights>& weights,
+    BenchmarkType bench = BENCH_GENERIC,
+    int k = 3) {
+    
+    // Score all algorithms
+    std::vector<std::pair<double, std::string>> scored;
+    scored.reserve(weights.size());
+    for (const auto& kv : weights) {
+        // Skip baselines — they add no value to Top-K reordering
+        if (kv.first == "ORIGINAL" || kv.first == "RANDOM") continue;
+        double s = kv.second.score(feat, bench);
+        scored.push_back({s, kv.first});
+    }
+    
+    // Sort descending by score
+    std::sort(scored.begin(), scored.end(),
+              [](const auto& a, const auto& b) { return a.first > b.first; });
+    
+    // Return top-k
+    std::vector<PerceptronSelection> result;
+    int n = std::min(k, static_cast<int>(scored.size()));
+    result.reserve(n);
+    for (int i = 0; i < n; i++) {
+        result.push_back(ResolveVariantSelection(scored[i].second, scored[i].first));
+    }
+    return result;
+}
+
+/**
  * Select best reordering algorithm using perceptron scores and cached weights.
  * 
  * This is a convenience function that loads/caches weights for the given graph type.
@@ -4067,6 +4547,259 @@ inline PerceptronSelection SelectReorderingPerceptron(
     GraphType graph_type = GRAPH_GENERIC) {
     const auto& weights = GetCachedWeights(graph_type);
     return SelectReorderingFromWeights(feat, weights, bench);
+}
+
+// ============================================================================
+// DECISION TREE ALGORITHM SELECTOR
+// ============================================================================
+//
+// Auto-generated by scripts/lib/decision_tree.py --auto-depth.
+// Each per-benchmark tree returns a family name string (GORDER, LEIDEN, etc.)
+// which is then resolved to a concrete variant via ResolveVariantSelection().
+//
+// Trained on 44 graphs with 7 algorithm families:
+//   ORIGINAL, SORT, RCM, HUBSORT, GORDER, RABBIT, LEIDEN
+//
+// Auto-optimized depth per benchmark (LOO regret minimization):
+//   PR:   depth=4  LOO@5%=48%  regret=23.0%
+//   BFS:  depth=4  LOO@5%=41%  regret=30.4%
+//   CC:   depth=3  LOO@5%=48%  regret=18.2%
+//   SSSP: depth=9  LOO@5%=52%  regret=8.9%
+//   BC:   depth=6  LOO@5%=55%  regret=14.7%
+//
+// Features (12): modularity, hub_concentration, log_nodes, log_edges,
+//   density, avg_degree/100, clustering_coeff, packing_factor,
+//   forward_edge_fraction, log2(wsr+1), log10(community_count+1), diameter/50
+// ============================================================================
+
+/**
+ * @brief Decision Tree selector for PageRank benchmark.
+ * depth=4, leaves=10, LOO regret=23.0%
+ */
+inline std::string SelectAlgorithmDecisionTree_pr(const CommunityFeatures& feat) {
+    if (feat.modularity <= 0.617835) {
+        if (feat.clustering_coeff <= 0.002025) {
+            return "HUBSORT";
+        } else {
+            if (feat.clustering_coeff <= 0.006265) {
+                if (feat.internal_density <= 0.000200) {
+                    return "ORIGINAL";
+                } else {
+                    return "RCM";
+                }
+            } else {
+                if (feat.packing_factor <= 0.019490) {
+                    return "SORT";
+                } else {
+                    return "ORIGINAL";
+                }
+            }
+        }
+    } else {
+        if (feat.internal_density <= 0.000575) {
+            if (std::log10(static_cast<double>(feat.num_edges) + 1.0) <= 6.489843) {
+                if (feat.packing_factor <= 0.014500) {
+                    return "RABBIT";
+                } else {
+                    return "LEIDEN";
+                }
+            } else {
+                if (std::log10(static_cast<double>(feat.num_nodes) + 1.0) <= 5.666303) {
+                    return "RCM";
+                } else {
+                    return "LEIDEN";
+                }
+            }
+        } else {
+            return "HUBSORT";
+        }
+    }
+}
+
+/**
+ * @brief Decision Tree selector for BFS benchmark.
+ * depth=4, leaves=7, LOO regret=30.4%
+ */
+inline std::string SelectAlgorithmDecisionTree_bfs(const CommunityFeatures& feat) {
+    if (feat.avg_degree / 100.0 <= 0.201555) {
+        if (feat.forward_edge_fraction <= 0.495145) {
+            return "HUBSORT";
+        } else {
+            if (feat.clustering_coeff <= 0.039210) {
+                if (feat.packing_factor <= 0.012195) {
+                    return "RCM";
+                } else {
+                    return "RCM";
+                }
+            } else {
+                if (feat.modularity <= 0.709265) {
+                    return "RABBIT";
+                } else {
+                    return "GORDER";
+                }
+            }
+        }
+    } else {
+        return "SORT";
+    }
+}
+
+/**
+ * @brief Decision Tree selector for CC benchmark.
+ * depth=3, leaves=7, LOO regret=18.2%
+ */
+inline std::string SelectAlgorithmDecisionTree_cc(const CommunityFeatures& feat) {
+    if (feat.internal_density <= 0.000135) {
+        if (feat.clustering_coeff <= 0.023985) {
+            if (feat.avg_degree / 100.0 <= 0.073335) {
+                return "GORDER";
+            } else {
+                return "HUBSORT";
+            }
+        } else {
+            if (feat.diameter_estimate / 50.0 <= 0.190000) {
+                return "LEIDEN";
+            } else {
+                return "RABBIT";
+            }
+        }
+    } else {
+        if (feat.hub_concentration <= 0.402295) {
+            return "GORDER";
+        } else {
+            return "SORT";
+        }
+    }
+}
+
+/**
+ * @brief Decision Tree selector for SSSP benchmark.
+ * depth=9, leaves=15, LOO regret=8.9%
+ */
+inline std::string SelectAlgorithmDecisionTree_sssp(const CommunityFeatures& feat) {
+    if (std::log2(feat.working_set_ratio + 1.0) <= 0.047741) {
+        if (std::log10(static_cast<double>(feat.num_edges) + 1.0) <= 4.692991) {
+            return "LEIDEN";
+        } else {
+            return "RABBIT";
+        }
+    } else {
+        if (std::log10(static_cast<double>(feat.num_edges) + 1.0) <= 5.518213) {
+            return "GORDER";
+        } else {
+            if (feat.avg_degree / 100.0 <= 0.063794) {
+                if (std::log10(static_cast<double>(feat.num_nodes) + 1.0) <= 6.219410) {
+                    return "LEIDEN";
+                } else {
+                    return "RABBIT";
+                }
+            } else {
+                if (feat.avg_degree / 100.0 <= 0.248853) {
+                    if (feat.modularity <= 0.819005) {
+                        if (feat.diameter_estimate / 50.0 <= 0.150000) {
+                            if (std::log10(static_cast<double>(feat.num_edges) + 1.0) <= 6.296836) {
+                                return "RCM";
+                            } else {
+                                if (feat.clustering_coeff <= 0.272790) {
+                                    if (feat.packing_factor <= 0.019515) {
+                                        return "GORDER";
+                                    } else {
+                                        return "RCM";
+                                    }
+                                } else {
+                                    return "RCM";
+                                }
+                            }
+                        } else {
+                            if (feat.forward_edge_fraction <= 0.502465) {
+                                if (feat.avg_degree / 100.0 <= 0.108048) {
+                                    return "RABBIT";
+                                } else {
+                                    if (feat.internal_density <= 0.000050) {
+                                        return "RCM";
+                                    } else {
+                                        return "LEIDEN";
+                                    }
+                                }
+                            } else {
+                                return "GORDER";
+                            }
+                        }
+                    } else {
+                        return "LEIDEN";
+                    }
+                } else {
+                    return "RABBIT";
+                }
+            }
+        }
+    }
+}
+
+/**
+ * @brief Decision Tree selector for BC benchmark.
+ * depth=6, leaves=12, LOO regret=14.7%
+ */
+inline std::string SelectAlgorithmDecisionTree_bc(const CommunityFeatures& feat) {
+    if (feat.clustering_coeff <= 0.005345) {
+        return "RCM";
+    } else {
+        if (feat.forward_edge_fraction <= 0.506860) {
+            if (std::log2(feat.working_set_ratio + 1.0) <= 0.051389) {
+                return "RABBIT";
+            } else {
+                if (feat.clustering_coeff <= 0.062330) {
+                    if (feat.hub_concentration <= 0.718720) {
+                        if (feat.clustering_coeff <= 0.006195) {
+                            return "GORDER";
+                        } else {
+                            return "RABBIT";
+                        }
+                    } else {
+                        return "RCM";
+                    }
+                } else {
+                    if (feat.forward_edge_fraction <= 0.498940) {
+                        return "GORDER";
+                    } else {
+                        if (feat.packing_factor <= 0.016770) {
+                            return "LEIDEN";
+                        } else {
+                            return "RCM";
+                        }
+                    }
+                }
+            }
+        } else {
+            if (feat.clustering_coeff <= 0.061480) {
+                return "LEIDEN";
+            } else {
+                return "RCM";
+            }
+        }
+    }
+}
+
+/**
+ * @brief Dispatch to the benchmark-specific Decision Tree.
+ *
+ * @param feat  Graph community features (computed at runtime)
+ * @param bench Benchmark type enum
+ * @return Algorithm family name (GORDER, LEIDEN, RABBIT, RCM, SORT, HUBSORT, ORIGINAL)
+ */
+inline std::string SelectAlgorithmDecisionTreeDispatch(
+    const CommunityFeatures& feat, BenchmarkType bench) {
+    switch (bench) {
+        case BENCH_PR:
+        case BENCH_PR_SPMV:  return SelectAlgorithmDecisionTree_pr(feat);
+        case BENCH_BFS:      return SelectAlgorithmDecisionTree_bfs(feat);
+        case BENCH_CC:
+        case BENCH_CC_SV:    return SelectAlgorithmDecisionTree_cc(feat);
+        case BENCH_SSSP:     return SelectAlgorithmDecisionTree_sssp(feat);
+        case BENCH_BC:       return SelectAlgorithmDecisionTree_bc(feat);
+        case BENCH_TC:       return SelectAlgorithmDecisionTree_cc(feat);  // CC-like
+        default:             return SelectAlgorithmDecisionTree_pr(feat);
+    }
 }
 
 /**
@@ -4250,6 +4983,17 @@ inline PerceptronSelection SelectReorderingWithMode(
                           << " (amortizes in " << best_iters << " iterations)\n";
             }
             return ResolveVariantSelection(best_name, 0.0);
+        }
+        
+        case MODE_DECISION_TREE: {
+            // Use the trained Decision Tree classifier (per-benchmark)
+            // Returns a family name (GORDER, LEIDEN, etc.) which is resolved
+            // to a concrete algorithm variant.
+            std::string family = SelectAlgorithmDecisionTreeDispatch(feat, bench);
+            if (verbose) {
+                std::cout << "Mode: decision-tree → family=" << family << "\n";
+            }
+            return ResolveVariantSelection(family, 0.0);
         }
         
         default:
@@ -4643,7 +5387,8 @@ inline SampledDegreeFeatures ComputeSampledDegreeFeatures(
         result.clustering_coeff = (triplets_sampled > 0) ? 
             static_cast<double>(triangles_sampled) / (2 * triplets_sampled) : 0.0;
         
-        // Rough modularity estimate: higher clustering = higher likely modularity
+        // Note: estimated_modularity is set by ComputeFastModularity() below
+        // if available. Fall back to the rough CC-based heuristic here.
         result.estimated_modularity = std::min(0.9, result.clustering_coeff * 1.5);
     }
     
