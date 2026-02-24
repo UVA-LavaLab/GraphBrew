@@ -378,17 +378,13 @@ Common issues: Windows line endings (`dos2unix`), 1-indexed vertices (`awk '{pri
 
 ## Test Graphs
 
-GraphBrew includes test graphs in `scripts/test/graphs/`:
+GraphBrew includes a test graph in `scripts/test/graphs/`:
 
-| File | Nodes | Edges (undirected) | Description |
-|------|-------|-------------------|-------------|
-| `4.el` | 14 | 53 | Small test graph |
-| `5.el` | 6 | 6 | Tiny test graph |
-| `4.mtx` | 14 | 53 | MTX format |
-| `4.gr` | 14 | 53 | DIMACS format |
-| `4.wel` | 14 | 53 | Weighted |
+| File | Description |
+|------|-------------|
+| `tiny/tiny.el` | Tiny edge list for quick testing |
 
-Use these for quick testing:
+Use for quick testing:
 ```bash
 ./bench/bin/pr -f scripts/test/graphs/tiny/tiny.el -s -n 3
 ```

@@ -92,21 +92,17 @@ python3 scripts/graphbrew_experiment.py --full --max-memory 32 --max-disk 100
 
 ## Perceptron Weight Files
 
-### Type Registry (type_registry.json)
+### Type Registry (registry.json)
 
 Maps graph types to clusters with centroid feature vectors:
 
 ```json
 {
   "type_0": {
-    "centroid": [0.811, 0.263, 0.420, 0.054, 0.512, 6.2e-05, 4.8e-05],
-    "graph_count": 2,
-    "algorithms": [],
-    "graphs": []
-  },
-  "type_1": {
-    "centroid": [0.479, 0.357, 0.426, 0.025, 0.5, 0.6, 0.7],
-    "graph_count": 4
+    "centroid": [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5],
+    "graph_count": 1,
+    "algorithms": ["..."],
+    "graphs": ["..."]
   }
 }
 ```
@@ -120,25 +116,22 @@ Per-algorithm weights for each cluster:
 
 ```json
 {
-  "RABBITORDER": {
-    "bias": 2.5,
-    "w_modularity": 0.15,
-    "w_log_nodes": 0.02,
-    "w_density": -0.05,
-    "w_hub_concentration": 0.12,
+  "ALGORITHM_NAME": {
+    "bias": ...,
+    "w_modularity": ...,
+    "w_log_nodes": ...,
+    "w_density": ...,
+    "w_hub_concentration": ...,
     "benchmark_weights": {
-      "pr": 1.2,
-      "bfs": 0.9,
-      "cc": 1.0
+      "pr": ...,
+      "bfs": ...,
+      "cc": ...
     }
-  },
-  "GraphBrewOrder": {
-    "bias": 3.2,
-    "w_modularity": 0.20,
-    "w_log_nodes": 0.01
   }
 }
 ```
+
+Run `--train` to generate actual weight values.
 
 ### Weight Field Descriptions
 
@@ -154,21 +147,23 @@ Cached graph features to avoid recomputation:
 
 ```json
 {
-  "email-Enron": {
-    "modularity": 0.586,
-    "degree_variance": 8.234,
-    "hub_concentration": 0.412,
-    "clustering_coefficient": 0.497,
-    "avg_degree": 10.02,
-    "avg_path_length": 4.25,
-    "diameter": 10.0,
-    "community_count": 45.0,
-    "nodes": 36692,
-    "edges": 183831,
-    "graph_type": "social"
+  "graph_name": {
+    "modularity": ...,
+    "degree_variance": ...,
+    "hub_concentration": ...,
+    "clustering_coefficient": ...,
+    "avg_degree": ...,
+    "avg_path_length": ...,
+    "diameter": ...,
+    "community_count": ...,
+    "nodes": ...,
+    "edges": ...,
+    "graph_type": "..."
   }
 }
 ```
+
+Run the pipeline to populate this cache automatically. See `results/graph_properties_cache.json` for actual values.
 
 ### Benchmark Results (benchmark_*.json)
 

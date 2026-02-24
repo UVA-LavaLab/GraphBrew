@@ -96,18 +96,7 @@ python3 scripts/graphbrew_experiment.py --phase benchmark --size small
 
 ### Example Output
 
-PageRank convergence varies by reordering algorithm:
-
-```
-Graph: facebook.el
-┌────────────────────┬────────────┬──────────────┐
-│ Algorithm          │ Iterations │ Final Error  │
-├────────────────────┼────────────┼──────────────┤
-│ ORIGINAL (0)       │ 18         │ 9.2e-7       │
-│ HUBCLUSTERDBG (7)  │ 16         │ 8.8e-7       │
-│ LeidenOrder (15)   │ 15         │ 9.1e-7       │
-└────────────────────┴────────────┴──────────────┘
-```
+PageRank convergence can vary by reordering algorithm. Run with `--benchmarks pr` to see iteration counts and final error for each algorithm on your graphs.
 
 ---
 

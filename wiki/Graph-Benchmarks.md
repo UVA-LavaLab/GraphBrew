@@ -4,7 +4,7 @@ GraphBrew includes implementations of classic graph algorithms used to measure t
 
 ## Overview of Benchmarks
 
-The automated pipeline runs **eight** benchmarks:
+GraphBrew includes **eight** benchmark binaries. The automated experiment pipeline runs **seven** by default (TC excluded — see [[Running-Benchmarks]]):
 
 | Benchmark | Binary | Description | Complexity |
 |-----------|--------|-------------|------------|
@@ -67,7 +67,7 @@ Level 2: [neighbors of level 1]
 ./bench/bin/bfs -f graph.el -s -o 12 -r 0 -n 3  # specific source
 ```
 
-See [[Command-Line-Reference]] for all options. GraphBrew implements **direction-optimizing BFS** (top-down/bottom-up switching) for ~10-20x speedup on high-diameter graphs.
+See [[Command-Line-Reference]] for all options. GraphBrew implements **direction-optimizing BFS** (top-down/bottom-up switching) for significant speedups on high-diameter graphs.
 
 **Why reordering helps:** Vertices at the same BFS level stay nearby in memory → better frontier locality.
 
@@ -185,7 +185,7 @@ Triangle: A-B, B-C, C-A
 ### Output
 
 ```
-Triangles: 1234567   # Total number of triangles
+Triangles: N   # Total number of triangles
 ```
 
 ### Optimization: Degree Ordering
@@ -224,18 +224,7 @@ See [[Benchmark-Suite]] for automated experiments and [[Running-Benchmarks]] for
 - For BFS/SSSP, use multiple source vertices (`-n 16`)
 - Warm up the cache with one untimed trial first
 
-### Expected Speedups by Benchmark
-
-| Benchmark | Typical Speedup Range |
-|-----------|----------------------|
-| PageRank | 1.2x - 2.5x |
-| PageRank (SpMV) | 1.2x - 2.5x |
-| BFS | 1.1x - 2.0x |
-| CC | 1.1x - 1.5x |
-| CC (SV) | 1.1x - 1.5x |
-| SSSP | 1.2x - 2.0x |
-| BC | 1.3x - 3.0x |
-| TC | 1.1x - 1.8x |
+Speedups vary significantly depending on graph topology and reordering algorithm. Run the full pipeline on your target graphs to measure actual improvements.
 
 ---
 

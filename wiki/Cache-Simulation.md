@@ -68,6 +68,8 @@ The default configuration models a typical modern CPU:
 |-------|------|---------------|-------|------|
 | L1 | 32 KB | 8-way | 512 | 64 |
 | L2 | 256 KB | 4-way | 4096 | 1024 |
+
+> **Note:** The `FastCacheHierarchy` (per-thread simulation) uses 8-way L2 associativity by default, reflecting modern per-core L2 caches.
 | L3 | 8 MB | 16-way | 131072 | 8192 |
 
 ### Eviction Policies
@@ -99,15 +101,15 @@ Statistics by Level:
 --------------------------------------------------------------------------------
   Level      Accesses         Hits       Misses    Hit Rate   Miss Rate
 --------------------------------------------------------------------------------
-     L1     123456789     98765432     24691357      80.00%      20.00%
-     L2      24691357     19753086      4938271      80.00%      20.00%
-     L3       4938271      4444444       493827      90.00%      10.00%
+     L1     ...              ...          ...       XX.XX%      XX.XX%
+     L2     ...              ...          ...       XX.XX%      XX.XX%
+     L3     ...              ...          ...       XX.XX%      XX.XX%
 --------------------------------------------------------------------------------
 
 Overall Statistics:
-  Total Memory Accesses: 123456789
-  Total Cache Hits:      122962962 (99.60% of memory)
-  Memory Accesses (L3 Misses): 493827 (0.40%)
+  Total Memory Accesses: ...
+  Total Cache Hits:      ... (XX.XX% of memory)
+  Memory Accesses (L3 Misses): ... (XX.XX%)
 ================================================================================
 ```
 
@@ -120,18 +122,18 @@ CACHE_OUTPUT_JSON=results.json ./bench/bin_sim/pr -g 15 -n 1
 Output format:
 ```json
 {
-  "total_accesses": 123456789,
-  "memory_accesses": 493827,
+  "total_accesses": ...,
+  "memory_accesses": ...,
   "L1": {
     "size_bytes": 32768,
     "ways": 8,
     "sets": 64,
     "line_size": 64,
     "policy": "LRU",
-    "hits": 98765432,
-    "misses": 24691357,
-    "hit_rate": 0.800000,
-    "evictions": 24691000,
+    "hits": ...,
+    "misses": ...,
+    "hit_rate": ...,
+    "evictions": ...,
     "writebacks": 0
   },
   "L2": {
@@ -140,10 +142,10 @@ Output format:
     "sets": 1024,
     "line_size": 64,
     "policy": "LRU",
-    "hits": 19753086,
-    "misses": 4938271,
-    "hit_rate": 0.800000,
-    "evictions": 4938000,
+    "hits": ...,
+    "misses": ...,
+    "hit_rate": ...,
+    "evictions": ...,
     "writebacks": 0
   },
   "L3": {
@@ -152,10 +154,10 @@ Output format:
     "sets": 8192,
     "line_size": 64,
     "policy": "LRU",
-    "hits": 4444444,
-    "misses": 493827,
-    "hit_rate": 0.900000,
-    "evictions": 493000,
+    "hits": ...,
+    "misses": ...,
+    "hit_rate": ...,
+    "evictions": ...,
     "writebacks": 0
   }
 }
@@ -207,21 +209,18 @@ Cache features are stored in `results/cache_*.json` and integrated into perceptr
 
 ```json
 {
-  "GraphBrewOrder": {
-    "bias": 0.85,
-    "w_modularity": 0.25,
-    "cache_l1_impact": 0.1,
-    "cache_l2_impact": 0.05,
-    "cache_l3_impact": 0.02,
-    "cache_dram_penalty": -0.1,
-    "_metadata": {
-      "avg_l1_hit_rate": 85.2,
-      "avg_l2_hit_rate": 92.1,
-      "avg_l3_hit_rate": 98.5
-    }
+  "ALGORITHM_NAME": {
+    "bias": ...,
+    "w_modularity": ...,
+    "cache_l1_impact": ...,
+    "cache_l2_impact": ...,
+    "cache_l3_impact": ...,
+    "cache_dram_penalty": ...
   }
 }
 ```
+
+Run `--phase cache` on your graphs to generate actual cache impact values. See [[Perceptron-Weights]] for the full weight schema.
 
 The perceptron uses these weights to factor cache performance into algorithm selection.
 

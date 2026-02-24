@@ -25,15 +25,12 @@ GraphBrew/
 │   ├── src_sim/              # Cache simulation sources
 │   └── backups/              # Backup files
 │
-├── scripts/                  # Python tools (~28,600 lines)
+├── scripts/                  # Python tools
 │   ├── graphbrew_experiment.py  # Main orchestration
 │   ├── lib/                     # Shared modules
-│   ├── benchmark/               # Benchmark shell scripts
-│   └── examples/                # Usage examples
-│
-├── scripts/test/             # Pytest suite
-│   ├── graphs/               # Sample graphs
-│   └── data/                 # Test data
+│   └── test/                    # Pytest suite
+│       ├── graphs/              # Sample graphs
+│       └── data/                # Test data
 │
 ├── docs/                     # Documentation
 │   └── figures/              # Images
@@ -111,7 +108,7 @@ reorder/
 | `reorder_types.h` | ~5,052 | Common types, perceptron model, `EdgeList`, threshold functions, `GetLLCSizeBytes()`, `getAlgorithmNameMap()` (~16 base names), `lookupAlgorithm()`, `ResolveVariantSelection()` |
 | `reorder_rabbit.h` | ~1,141 | RabbitOrder CSR native implementation (auto-adaptive resolution) |
 | `reorder_gorder.h` | ~932 | GOrder CSR variants: serial greedy (-o 9:csr) + parallel batch (-o 9:fast) |
-| `reorder_adaptive.h` | ~802 | `AdaptiveConfig`, ML-based per-community algorithm selection |
+| `reorder_adaptive.h` | ~802 | `AdaptiveConfig`, ML-based algorithm selection (full-graph default) |
 | `reorder_rcm.h` | ~645 | RCM BNF variant: CSR-native BNF start + deterministic parallel CM BFS |
 | `reorder_hub.h` | ~641 | Hub-based algorithms (DBG, HubSort, HubCluster) |
 | `reorder.h` | ~570 | Main dispatcher, `ApplyBasicReorderingStandalone` |
@@ -130,7 +127,7 @@ reorder/
 
 | Struct | Header | Key Fields |
 |--------|--------|------------|
-| `AdaptiveConfig` | `reorder_adaptive.h` | max_depth, resolution, min_recurse_size, mode (0=per-community, 1=full-graph) |
+| `AdaptiveConfig` | `reorder_adaptive.h` | selection_mode (0-3), graph_name; standalone uses full-graph mode |
 | `GraphBrewConfig` | `reorder_graphbrew.h` | algorithm, ordering, aggregation, resolution, finalAlgoId, recursiveDepth, subAlgoId |
 | `ReorderConfig` | `reorder_types.h` | Unified config: resolutionMode(AUTO), tolerance(1e-2), maxIterations(10), maxPasses(10), ordering(HIERARCHICAL) |
 

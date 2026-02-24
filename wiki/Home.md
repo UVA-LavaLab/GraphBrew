@@ -93,12 +93,9 @@ See [[Quick-Start]] for detailed examples, [[Benchmark-Suite]] for size categori
 
 ## 📊 Performance Overview
 
-GraphBrew typically achieves:
-- **1.2-3x speedup** on social networks (high modularity)
-- **1.1-1.5x speedup** on web graphs
-- **1.0-1.2x speedup** on road networks (low modularity)
+GraphBrew's performance gains depend on your graph's topology and the benchmark algorithm. Run the full pipeline on your target graphs to measure actual speedups.
 
-The best algorithm depends on your graph's topology!
+The best reordering algorithm depends on your graph's structure — see [[Correlation-Analysis]] for details.
 
 ## 📋 Page Index
 

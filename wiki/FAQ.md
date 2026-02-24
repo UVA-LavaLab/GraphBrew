@@ -127,25 +127,13 @@ See [[Supported-Graph-Formats]] for details.
 
 ### Why is reordering slow?
 
-Reordering is preprocessing that pays off over multiple algorithm runs:
-
-| Operation | Time |
-|-----------|------|
-| Load graph | 1x |
-| Reorder | 0.5-2x |
-| Benchmark | 0.7-0.9x (faster!) |
+Reordering is preprocessing that pays off over multiple algorithm runs. The reordering step adds upfront cost, but subsequent benchmark runs are faster due to improved cache locality.
 
 For repeated analyses, reorder once, save, reuse.
 
 ### How much speedup should I expect?
 
-Typical improvements:
-
-| Graph Type | PageRank | BFS | TC |
-|------------|----------|-----|-----|
-| Social | 1.2-1.5x | 1.1-1.3x | 1.5-3x |
-| Web | 1.3-1.8x | 1.2-1.4x | 2-4x |
-| Road | 1.0-1.1x | 1.0-1.1x | 1.1-1.3x |
+Speedups depend on graph topology, algorithm, and benchmark. High-modularity graphs (social, web) typically benefit more than low-modularity graphs (road networks). Run the full pipeline on your target graphs to measure actual improvements.
 
 ### Why is my graph loading slowly?
 
@@ -190,8 +178,7 @@ RabbitOrder (algorithm 8) has two variants:
 
 The CSR variant includes three correctness fixes over the original CSR code, making it match
 the Boost reference semantics, plus an auto-adaptive resolution parameter that further improves
-cache locality. In benchmarks (PR, BFS, CC across soc-LiveJournal1, indochina-2004, com-Orkut),
-CSR outperforms Boost by **4–40%**.
+cache locality.
 
 **Resolution parameter**: The CSR variant auto-tunes the Louvain resolution γ based on average
 degree: `γ = clamp(14 / avg_degree, 0.5, 1.0)`. Dense graphs (high avg degree) get a lower γ,
@@ -210,7 +197,7 @@ approximation from the original paper. The fixes are valid for both symmetric an
 
 ### How does AdaptiveOrder work?
 
-Detects communities via Leiden, computes features (15 linear + 3 quadratic), uses ML perceptron to select best algorithm per community with safety checks. See [[AdaptiveOrder-ML]].
+Computes graph features (15 linear + 3 quadratic), uses ML perceptron to select best algorithm for the graph with safety checks (OOD guardrail + ORIGINAL margin fallback). Default is full-graph mode (single algorithm for entire graph). See [[AdaptiveOrder-ML]].
 
 ### What is the training pipeline?
 
@@ -218,7 +205,7 @@ Detects communities via Leiden, computes features (15 linear + 3 quadratic), use
 
 ### Is there a single best algorithm?
 
-GraphBrewOrder was selected for 99.5% of subcommunities in C++ validation. As a single algorithm, it achieves 2.9% median regret. Recommended: `-o 12`.
+GraphBrewOrder is a strong general-purpose choice for most graph types. Recommended: `-o 12`.
 
 ### What are the quadratic cross-terms?
 
