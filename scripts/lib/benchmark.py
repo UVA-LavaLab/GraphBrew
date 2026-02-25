@@ -16,8 +16,11 @@ Library usage:
     results = run_benchmark_suite("graph.mtx", algorithms=["0", "1", "8"])
 """
 
+import json
 import os
 import re
+import subprocess
+import sys
 import time
 from pathlib import Path
 from typing import Dict, List, Tuple
@@ -26,7 +29,8 @@ from .utils import (
     BIN_DIR, ALGORITHMS, ALGORITHM_IDS, BENCHMARKS,
     BenchmarkResult, log, run_command, check_binary_exists,
     get_results_file, save_json, get_algorithm_name, parse_algorithm_option,
-    ENABLE_RUN_LOGGING, canonical_algo_key,
+    ENABLE_RUN_LOGGING, canonical_algo_key, algo_converter_opt,
+    ELIGIBLE_ALGORITHMS, GRAPHS_DIR, RESULTS_DIR, TIMEOUT_BENCHMARK,
 )
 from .reorder import get_algorithm_name_with_variant  # deprecated; kept for compat
 from .features import update_graph_properties, save_graph_properties_cache
@@ -1063,3 +1067,155 @@ Examples:
 
 if __name__ == "__main__":
     exit(main())
+
+
+# =============================================================================
+# Fresh Benchmark Runner (merged from benchmark_runner.py)
+# =============================================================================
+
+# Complexity guards: skip algorithms that are too slow on large graphs
+_FRESH_ALGO_NODE_LIMITS: Dict[int, int] = {
+    9: 500_000,     # GOrder: O(n*m*w) reorder
+    12: 500_000,    # GraphBrewOrder: slow community detection
+    10: 2_000_000,  # COrder: slow on very large graphs
+}
+
+
+def discover_sg_graphs(
+    graphs_dir: str = None,
+    graph_names: List[str] = None,
+) -> List[Tuple[str, str, int]]:
+    """Discover .sg graph files and their node counts.
+
+    Returns list of (graph_name, sg_path, node_count) sorted by node count.
+    """
+    gdir = Path(graphs_dir or GRAPHS_DIR)
+    results = []
+    for sg_path in sorted(gdir.glob("*/*.sg")):
+        name = sg_path.parent.name
+        if graph_names and name not in graph_names:
+            continue
+        feat_path = sg_path.parent / "features.json"
+        nodes = 0
+        if feat_path.is_file():
+            try:
+                with open(feat_path) as f:
+                    nodes = json.load(f).get("nodes", 0)
+            except Exception:
+                pass
+        results.append((name, str(sg_path), nodes))
+    results.sort(key=lambda x: x[2])
+    return results
+
+
+def run_fresh_benchmarks(
+    graphs_dir: str = None,
+    graph_names: List[str] = None,
+    benchmarks: List[str] = None,
+    algos: List[int] = None,
+    trials: int = 3,
+    timeout: int = TIMEOUT_BENCHMARK,
+    bin_dir: str = None,
+    output_file: str = None,
+) -> List[dict]:
+    """Run all AdaptiveOrder-eligible algorithms on all .sg graphs.
+
+    For each (graph, benchmark, algorithm) combination:
+    1. Discovers .sg graphs (or uses the provided list)
+    2. Runs every combination with complexity guards
+    3. Saves results to JSON
+
+    Args:
+        graphs_dir: Directory containing graph subdirectories with .sg files
+        graph_names: Optional list of specific graph names to benchmark
+        benchmarks: List of benchmark types (default: all)
+        algos: List of algorithm IDs (default: all eligible)
+        trials: Number of trials per combination
+        timeout: Timeout per benchmark invocation in seconds
+        bin_dir: Directory containing benchmark binaries
+        output_file: Path to save JSON results
+
+    Returns:
+        List of result dicts.
+    """
+    benchmarks = benchmarks or list(BENCHMARKS)
+    algos = algos or ELIGIBLE_ALGORITHMS
+    bin_dir = str(bin_dir or BIN_DIR)
+    if output_file is None:
+        output_file = str(Path(RESULTS_DIR) / "benchmark_fresh.json")
+
+    graphs = discover_sg_graphs(graphs_dir, graph_names)
+    if not graphs:
+        log.error("No .sg graphs found")
+        return []
+
+    log.info(f"Found {len(graphs)} graphs, {len(algos)} algos, {len(benchmarks)} benchmarks")
+
+    entries: List[dict] = []
+    total = 0
+    failed = 0
+
+    for graph_name, sg_path, nodes in graphs:
+        print(f"\n{'='*64}")
+        print(f"=== {graph_name} ({nodes:,} nodes) ===")
+        print(f"{'='*64}")
+
+        for bench in benchmarks:
+            binary = os.path.join(bin_dir, bench)
+            if not os.path.isfile(binary):
+                continue
+
+            for algo_id in algos:
+                algo_name = canonical_algo_key(algo_id)
+
+                node_limit = _FRESH_ALGO_NODE_LIMITS.get(algo_id)
+                if node_limit and nodes > node_limit:
+                    continue
+
+                sys.stdout.write(f"  {bench}/{algo_name}... ")
+                sys.stdout.flush()
+
+                opt = algo_converter_opt(algo_id)
+                cmd = [binary, "-f", sg_path, "-o", opt, "-n", str(trials)]
+                try:
+                    result = subprocess.run(cmd, capture_output=True, text=True,
+                                            timeout=timeout)
+                    if result.returncode != 0:
+                        print("ERROR")
+                        failed += 1
+                        continue
+                    avg_match = re.search(r"Average Time:\s+([\d.]+)",
+                                          result.stdout)
+                    reorder_match = re.search(r"Reorder Time:\s+([\d.]+)",
+                                              result.stdout)
+                    if avg_match:
+                        avg_time = float(avg_match.group(1))
+                        reorder_time = float(reorder_match.group(1)) \
+                            if reorder_match else 0.0
+                        print(f"{avg_time}s (reorder: {reorder_time}s)")
+                        entries.append({
+                            "graph": graph_name,
+                            "algorithm": algo_name,
+                            "algorithm_id": algo_id,
+                            "benchmark": bench,
+                            "time_seconds": avg_time,
+                            "reorder_time": reorder_time,
+                            "trials": trials,
+                            "success": True,
+                        })
+                        total += 1
+                    else:
+                        print("PARSE ERROR")
+                        failed += 1
+                except subprocess.TimeoutExpired:
+                    print("TIMEOUT")
+                    failed += 1
+                except Exception:
+                    print("ERROR")
+                    failed += 1
+
+    os.makedirs(os.path.dirname(output_file), exist_ok=True)
+    with open(output_file, "w") as f:
+        json.dump(entries, f, indent=2)
+    print(f"\nDone. {total} entries saved to {output_file} ({failed} failed)")
+    return entries

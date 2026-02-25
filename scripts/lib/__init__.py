@@ -44,7 +44,6 @@ This library provides functions for:
     from scripts.lib.cache import run_cache_simulations, run_cache_simulations_with_variants
     from scripts.lib.weights import assign_graph_type, update_type_weights_incremental
     from scripts.lib.progress import ProgressTracker, create_progress
-    from scripts.lib.results import ResultsManager, read_json, write_json
     from scripts.lib.analysis import analyze_adaptive_order, compare_adaptive_vs_fixed
     from scripts.lib.training import train_adaptive_weights_iterative
 """
@@ -52,7 +51,7 @@ This library provides functions for:
 __version__ = "1.2.0"
 __all__ = [
     "utils", "download", "build", "reorder", "benchmark", "cache", "weights",
-    "progress", "results", "analysis", "training", "features", "phases",
+    "progress", "analysis", "training", "features", "phases",
     "dependencies", "graph_data", "graph_types"
 ]
 
@@ -282,27 +281,6 @@ from .progress import (
     create_progress,
     get_progress,
     reset_progress,
-)
-
-# =============================================================================
-# Results management
-# =============================================================================
-from .results import (
-    ResultsManager,
-    read_json,
-    write_json,
-    read_csv,
-    write_csv,
-    append_csv,
-    generate_result_filename,
-    flatten_dict,
-    filter_results,
-    group_results,
-    compute_statistics,
-    ResultSchema,
-    BENCHMARK_RESULT_SCHEMA,
-    REORDER_RESULT_SCHEMA,
-    CACHE_RESULT_SCHEMA,
 )
 
 # =============================================================================

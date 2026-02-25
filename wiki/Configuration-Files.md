@@ -22,6 +22,8 @@ scripts/
     ├── weights.py             # Weight management
     ├── features.py            # Graph feature extraction
     ├── graph_data.py          # Per-graph data storage
+    ├── datastore.py           # Unified model datastore (DT, hybrid, kNN)
+    ├── decision_tree.py       # Decision tree training and inference
     └── ...                    # Additional modules
 
 results/
@@ -36,6 +38,12 @@ results/
 │       │   ├── reorder/       # Reorder times and mapping info
 │       │   └── weights/       # Computed perceptron weights
 │       └── *.log              # Individual operation logs
+│
+├── data/                      # Runtime model storage
+│   ├── adaptive_models.json   # Unified model store (DT, hybrid, kNN)
+│   ├── benchmarks.json        # Aggregated benchmark data
+│   ├── graph_properties.json  # Graph feature database
+│   └── runs/                  # Per-run snapshots
 │
 ├── graph_properties_cache.json # Cached graph features
 ├── benchmark_*.json           # Aggregate benchmark result files

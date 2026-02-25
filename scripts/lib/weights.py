@@ -588,30 +588,32 @@ def update_type_weights_incremental(
     current_score = algo_weights['bias']
     error = (speedup - 1.0) - current_score
     
-    # Gradient update
+    # Gradient update — feature transforms must match C++ scoreBase() exactly.
+    # This ensures the gradient ∂L/∂w uses the same feature values as the
+    # forward pass:  score = w · f(x), so ∂score/∂w = f(x).
     log_nodes = math.log10(features.get('nodes', 1) + 1)
     log_edges = math.log10(features.get('edges', 1) + 1)
     
     # Accept both clustering key names
     clustering = features.get('clustering_coefficient', features.get('clustering_coeff', 0.0))
     
-    # Use estimated_modularity (CC×1.5 heuristic) for consistency with
-    # C++ runtime scoreBase().  Phase 4 batch training uses REAL modularity
-    # for a better learning signal, but this incremental online update runs
-    # after Phase 4 and writes directly to type weights that C++ reads.
-    # Since C++ runtime only has the CC*1.5 estimate, we keep this aligned.
-    estimated_mod = min(0.9, clustering * 1.5)
+    # Use real modularity if available (C++ now computes it via
+    # computeFastModularity). Fall back to CC×1.5 estimate only if
+    # no modularity value is provided.
+    modularity_val = features.get('modularity', None)
+    if modularity_val is None:
+        modularity_val = min(0.9, clustering * 1.5)
     
     algo_weights['bias'] += learning_rate * error
-    algo_weights['w_modularity'] += learning_rate * error * estimated_mod
-    algo_weights['w_log_nodes'] += learning_rate * error * log_nodes * 0.1
-    algo_weights['w_log_edges'] += learning_rate * error * log_edges * 0.1
+    algo_weights['w_modularity'] += learning_rate * error * modularity_val
+    algo_weights['w_log_nodes'] += learning_rate * error * log_nodes
+    algo_weights['w_log_edges'] += learning_rate * error * log_edges
     algo_weights['w_density'] += learning_rate * error * features.get('density', 0.0)
     algo_weights['w_avg_degree'] += learning_rate * error * features.get('avg_degree', 0.0) / 100.0
     algo_weights['w_degree_variance'] += learning_rate * error * features.get('degree_variance', 0.0)
     algo_weights['w_hub_concentration'] += learning_rate * error * features.get('hub_concentration', 0.0)
     algo_weights['w_clustering_coeff'] += learning_rate * error * clustering
-    algo_weights['w_community_count'] += learning_rate * error * features.get('community_count', 0) / 1000.0
+    algo_weights['w_community_count'] += learning_rate * error * math.log10(features.get('community_count', 0) + 1)
     algo_weights['w_avg_path_length'] += learning_rate * error * features.get('avg_path_length', 0.0) / WEIGHT_PATH_LENGTH_NORMALIZATION
     algo_weights['w_diameter'] += learning_rate * error * features.get('diameter', 0.0) / 50.0
     
@@ -624,7 +626,7 @@ def update_type_weights_incremental(
     log_wsr = math.log2(features.get('working_set_ratio', 0.0) + 1.0)
     log_n = math.log10(features.get('nodes', 1) + 1)
     algo_weights['w_dv_x_hub'] = algo_weights.get('w_dv_x_hub', 0.0) + learning_rate * error * features.get('degree_variance', 0.0) * features.get('hub_concentration', 0.0)
-    algo_weights['w_mod_x_logn'] = algo_weights.get('w_mod_x_logn', 0.0) + learning_rate * error * estimated_mod * log_n
+    algo_weights['w_mod_x_logn'] = algo_weights.get('w_mod_x_logn', 0.0) + learning_rate * error * modularity_val * log_n
     algo_weights['w_pf_x_wsr'] = algo_weights.get('w_pf_x_wsr', 0.0) + learning_rate * error * features.get('packing_factor', 0.0) * log_wsr
     
     # Convergence bonus gradient (only for iterative benchmarks)

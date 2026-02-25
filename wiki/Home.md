@@ -10,7 +10,7 @@ GraphBrew is a high-performance graph reordering framework that combines **commu
 
 - **16 Algorithm IDs**: From simple sorting to advanced ML-based selection (IDs 0-15; 14 benchmark-eligible, 12 produce reorderings)
 - **Leiden Community Detection**: State-of-the-art community detection for graph partitioning
-- **AdaptiveOrder**: ML-powered perceptron with 15 linear features, 3 quadratic cross-terms, convergence-aware scoring, OOD guardrail, and LOGO cross-validation
+- **AdaptiveOrder**: ML-powered adaptive selection (perceptron, decision tree, hybrid, database) with 7 selection modes, 15 linear features, 3 quadratic cross-terms, convergence-aware scoring, OOD guardrail, and LOGO cross-validation
 - **Comprehensive Benchmarks**: 8 available (PR, PR_SPMV, BFS, CC, CC_SV, SSSP, BC, TC); experiments default to 7 (TC excluded — combinatorial counting, not cache-sensitive traversal)
 - **Random Baseline**: Graphs auto-converted to `.sg` with RANDOM ordering so all measurements are relative to a worst-case baseline
 - **Pre-generated Reordered .sg**: Each algorithm's reordered graph is pre-generated as `{graph}_{ALGO}.sg` and loaded at benchmark time with `-o 0`, eliminating runtime reorder overhead

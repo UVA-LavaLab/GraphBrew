@@ -12,7 +12,7 @@ GraphBrew/
 │   ├── include/              # Header libraries
 │   │   ├── graphbrew/        # 📦 GraphBrew extensions
 │   │   │   ├── graphbrew.h   # Umbrella header
-│   │   │   ├── reorder/      # Reordering algorithms (~18,100 lines)
+│   │   │   ├── reorder/      # Reordering algorithms (~20,600 lines)
 │   │   │   └── partition/    # Partitioning (trust.h, cagra/popt.h)
 │   │   ├── external/         # External libraries (bundled)
 │   │   │   ├── gapbs/        # Core GAPBS runtime (builder.h ~3,751 lines)
@@ -31,6 +31,17 @@ GraphBrew/
 │   └── test/                    # Pytest suite
 │       ├── graphs/              # Sample graphs
 │       └── data/                # Test data
+│
+├── results/                  # Experiment outputs
+│   ├── data/                 # Structured data store
+│   │   ├── adaptive_models.json     # Unified model store
+│   │   ├── benchmarks.json          # Benchmark database
+│   │   ├── graph_properties.json    # Graph feature cache
+│   │   └── runs/                    # Per-run data
+│   ├── graphs/               # Downloaded graphs
+│   ├── logs/                 # Run logs
+│   ├── mappings/             # Node mappings (.lo files)
+│   └── weights/              # Perceptron weights
 │
 ├── docs/                     # Documentation
 │   └── figures/              # Images
@@ -96,16 +107,18 @@ reorder/
 ├── reorder_gorder.h     # GOrder CSR variants: serial (-o 9:csr) + parallel (-o 9:fast) (~932 lines)
 ├── reorder_rcm.h        # RCM BNF variant (-o 11:bnf) (~645 lines)
 ├── reorder_adaptive.h   # ML-based selection (algo 14) (~802 lines)
+├── reorder_database.h   # Database-driven selection (MODE_DATABASE) (~1,222 lines)
 ├── reorder_graphbrew.h  # GraphBrew + Leiden unified reordering (algo 12, 15) (~7,490 lines)
 └── reorder.h            # Main dispatcher (~570 lines)
 ```
 
-**Total: ~18,118 lines**
+**Total: ~20,612 lines**
 
 | File | Lines | Purpose |
 |------|-------|---------|
 | `reorder_graphbrew.h` | ~7,490 | GraphBrew + Leiden unified reordering framework (algo 12, 15) |
 | `reorder_types.h` | ~5,052 | Common types, perceptron model, `EdgeList`, threshold functions, `GetLLCSizeBytes()`, `getAlgorithmNameMap()` (~16 base names), `lookupAlgorithm()`, `ResolveVariantSelection()` |
+| `reorder_database.h` | ~1,222 | Database-driven algorithm selection (MODE_DATABASE): oracle lookup + kNN fallback |
 | `reorder_rabbit.h` | ~1,141 | RabbitOrder CSR native implementation (auto-adaptive resolution) |
 | `reorder_gorder.h` | ~932 | GOrder CSR variants: serial greedy (-o 9:csr) + parallel batch (-o 9:fast) |
 | `reorder_adaptive.h` | ~802 | `AdaptiveConfig`, ML-based algorithm selection (full-graph default) |
@@ -127,7 +140,7 @@ reorder/
 
 | Struct | Header | Key Fields |
 |--------|--------|------------|
-| `AdaptiveConfig` | `reorder_adaptive.h` | selection_mode (0-3), graph_name; standalone uses full-graph mode |
+| `AdaptiveConfig` | `reorder_adaptive.h` | selection_mode (0-6), graph_name; standalone uses full-graph mode |
 | `GraphBrewConfig` | `reorder_graphbrew.h` | algorithm, ordering, aggregation, resolution, finalAlgoId, recursiveDepth, subAlgoId |
 | `ReorderConfig` | `reorder_types.h` | Unified config: resolutionMode(AUTO), tolerance(1e-2), maxIterations(10), maxPasses(10), ordering(HIERARCHICAL) |
 
@@ -297,7 +310,12 @@ Key entry points:
 - `lib/perceptron.py` — ML weight experimentation
 - `lib/adaptive_emulator.py` — C++ logic emulation
 - `lib/eval_weights.py` — Weight evaluation & accuracy reporting
-- `lib/` — 30 reusable modules (~22,400 lines total)
+- `lib/datastore.py` — Unified data store (BenchmarkStore class for adaptive_models.json)
+- `lib/decision_tree.py` — Decision tree classifier training (sklearn)
+- `lib/benchmark.py` — Benchmark execution + fresh benchmark runner
+- `lib/analysis.py` — Result analysis + A/B testing + Leiden variant comparison
+- `lib/cache.py` — Cache simulation + quick cache comparison
+- `lib/` — 27 reusable modules (~25,300 lines total)
 
 **Unified Naming Convention (SSOT):** All Python modules use five SSOT functions from `lib/utils.py`:
 
@@ -364,7 +382,7 @@ CSRGraph → Warmup → Trials → Timer → Results → Output
 
 JSON config: specify `graphs`, `benchmarks`, `algorithms`, `trials`, and `options` (symmetrize, verify). See [[Configuration-Files]] for format.
 
-Weight files: `results/weights/type_*/weights.json` (see [[Perceptron-Weights]]). Results: `results/graphs/`, `results/logs/`, `results/mappings/` (see [[Python-Scripts#output-structure]]).
+Weight files: `results/weights/type_*/weights.json` (see [[Perceptron-Weights]]). Results: `results/graphs/`, `results/logs/`, `results/mappings/` (see [[Python-Scripts#output-structure]]). Data store: `results/data/` (adaptive_models.json, benchmarks.json, graph_properties.json, runs/).
 
 ---
 

@@ -407,6 +407,8 @@ cat results/weights/registry.json | python3 -m json.tool
 python3 scripts/graphbrew_experiment.py --train --size small
 ```
 
+For decision tree and hybrid model issues, also check `results/data/adaptive_models.json` which stores the trained DT/hybrid/kNN models. Re-run `--train` or `python -m scripts.lib.decision_tree --train` to regenerate.
+
 **Auto-clustering system:**
 Uses 7 features and Euclidean distance to match graphs to the nearest cluster centroid.
 

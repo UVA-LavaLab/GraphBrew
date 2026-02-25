@@ -11,7 +11,7 @@ Common questions and answers about GraphBrew.
 GraphBrew is a graph processing benchmark framework that combines:
 - **16 algorithm IDs** (0-15): 14 reordering strategies + MAP (file loader) + AdaptiveOrder (ML selector)
 - **8 benchmarks** (PageRank, PageRank SpMV, BFS, CC, CC_SV, SSSP, BC, TC)
-- **ML-powered algorithm selection** via AdaptiveOrder
+- **ML-powered algorithm selection** via AdaptiveOrder (7 selection modes: perceptron, decision tree, hybrid DT+perceptron, database/kNN, fastest-reorder, best-endtoend, best-amortization)
 - **Leiden community detection** integration
 
 ### Who should use GraphBrew?
@@ -197,7 +197,7 @@ approximation from the original paper. The fixes are valid for both symmetric an
 
 ### How does AdaptiveOrder work?
 
-Computes graph features (15 linear + 3 quadratic), uses ML perceptron to select best algorithm for the graph with safety checks (OOD guardrail + ORIGINAL margin fallback). Default is full-graph mode (single algorithm for entire graph). See [[AdaptiveOrder-ML]].
+Computes graph features (15 linear + 3 quadratic), uses ML to select best algorithm for the graph with safety checks (OOD guardrail + ORIGINAL margin fallback). Supports 7 selection modes: perceptron (default), decision tree, hybrid DT+perceptron, database/kNN, fastest-reorder, best-endtoend, best-amortization. Default is full-graph mode (single algorithm for entire graph). See [[AdaptiveOrder-ML]].
 
 ### What is the training pipeline?
 
@@ -225,7 +225,7 @@ See [[Python-Scripts#-eval_weightspy---weight-evaluation--c-scoring-simulation]]
 
 ### Where are the trained weights saved?
 
-`results/weights/type_N/weights.json` (per-cluster) + `registry.json` (graph→type map). Loading priority: env var → best type match → fallback defaults. See [[Perceptron-Weights#weight-file-location]].
+`results/weights/type_N/weights.json` (per-cluster) + `registry.json` (graph→type map). Loading priority: env var → best type match → fallback defaults. Decision tree and hybrid models are stored in `results/data/adaptive_models.json`. See [[Perceptron-Weights#weight-file-location]].
 
 ### What's the difference between LeidenOrder and GraphBrewOrder?
 
