@@ -285,6 +285,8 @@ class GraphPropsStore:
 # Module-level convenience functions
 # =============================================================================
 
+ADAPTIVE_MODELS_FILE = DATA_DIR / "adaptive_models.json"
+
 _benchmark_store: Optional[BenchmarkStore] = None
 _props_store: Optional[GraphPropsStore] = None
 
@@ -303,6 +305,103 @@ def get_props_store() -> GraphPropsStore:
     if _props_store is None:
         _props_store = GraphPropsStore()
     return _props_store
+
+
+# =============================================================================
+# Unified Model Export: single adaptive_models.json
+# =============================================================================
+
+def export_unified_models(out_path: Optional[Path] = None) -> Path:
+    """
+    Merge all trained models (perceptron, DT, hybrid) into a single JSON file.
+
+    Reads from:
+      results/models/perceptron/type_0/weights.json  (+ per-bench .json)
+      results/models/decision_tree/{bench}.json
+      results/models/hybrid/{bench}.json
+
+    Writes to:
+      results/data/adaptive_models.json
+
+    This single file is loaded by the C++ BenchmarkDatabase singleton so that
+    all adaptive modes (perceptron, DT, hybrid, database) share one file.
+
+    Returns:
+        Path to the written file.
+    """
+    from .utils import MODELS_DIR
+
+    out_path = Path(out_path) if out_path else ADAPTIVE_MODELS_FILE
+
+    unified: Dict[str, Any] = {
+        "version": 1,
+        "created": datetime.now().isoformat(),
+    }
+
+    # ---- Perceptron weights ----
+    perceptron_section: Dict[str, Any] = {}
+    perceptron_dir = MODELS_DIR / "perceptron" / "type_0"
+
+    # Load the master weights.json (averaged weights)
+    master_weights = perceptron_dir / "weights.json"
+    if master_weights.exists():
+        with open(master_weights) as f:
+            perceptron_section["weights"] = json.load(f)
+
+    # Load per-benchmark weight files
+    per_bench: Dict[str, Any] = {}
+    for bench_file in sorted(perceptron_dir.glob("*.json")):
+        if bench_file.name == "weights.json":
+            continue
+        bench_name = bench_file.stem
+        with open(bench_file) as f:
+            per_bench[bench_name] = json.load(f)
+    if per_bench:
+        perceptron_section["per_benchmark"] = per_bench
+
+    if perceptron_section:
+        unified["perceptron"] = perceptron_section
+
+    # ---- Decision Tree models ----
+    dt_section: Dict[str, Any] = {}
+    dt_dir = MODELS_DIR / "decision_tree"
+    if dt_dir.exists():
+        for model_file in sorted(dt_dir.glob("*.json")):
+            bench_name = model_file.stem
+            with open(model_file) as f:
+                dt_section[bench_name] = json.load(f)
+    if dt_section:
+        unified["decision_tree"] = dt_section
+
+    # ---- Hybrid models ----
+    hybrid_section: Dict[str, Any] = {}
+    hybrid_dir = MODELS_DIR / "hybrid"
+    if hybrid_dir.exists():
+        for model_file in sorted(hybrid_dir.glob("*.json")):
+            bench_name = model_file.stem
+            with open(model_file) as f:
+                hybrid_section[bench_name] = json.load(f)
+    if hybrid_section:
+        unified["hybrid"] = hybrid_section
+
+    # ---- Write ----
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = out_path.with_suffix('.tmp')
+    with open(tmp, 'w') as f:
+        json.dump(unified, f, indent=2)
+    shutil.move(str(tmp), str(out_path))
+
+    # Summary
+    n_perceptron = len(perceptron_section.get("weights", {}))
+    n_per_bench = len(perceptron_section.get("per_benchmark", {}))
+    n_dt = len(dt_section)
+    n_hybrid = len(hybrid_section)
+    log.info(f"Unified models → {out_path}")
+    log.info(f"  Perceptron: {n_perceptron} algos, {n_per_bench} per-bench files")
+    log.info(f"  Decision Tree: {n_dt} benchmarks")
+    log.info(f"  Hybrid: {n_hybrid} benchmarks")
+
+    return out_path
 
 
 # =============================================================================
@@ -373,6 +472,8 @@ def main():
                         help="Ingest a specific JSON file into the store")
     parser.add_argument('--export', type=str,
                         help="Export store to a specific file path")
+    parser.add_argument('--export-models', action='store_true',
+                        help="Merge all trained models into results/data/adaptive_models.json")
     args = parser.parse_args()
 
     if args.migrate or args.dry_run:
@@ -395,6 +496,11 @@ def main():
         with open(args.export, 'w') as f:
             json.dump(store.to_list(), f, indent=2)
         print(f"Exported {len(store)} records to {args.export}")
+        return
+
+    if args.export_models:
+        path = export_unified_models()
+        print(f"Exported unified models to {path}")
         return
 
     # Default: show stats
