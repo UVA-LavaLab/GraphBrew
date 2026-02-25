@@ -1,6 +1,6 @@
 # AdaptiveOrder: ML-Powered Algorithm Selection
 
-AdaptiveOrder (algorithm 14) uses a **machine learning perceptron** to automatically select the best reordering algorithm for your graph. This page explains how it works and how to train it.
+AdaptiveOrder (algorithm 14) uses **machine learning models** (perceptron, decision tree, hybrid, and database-driven kNN) to automatically select the best reordering algorithm for your graph. This page explains how it works and how to train it.
 
 ## Overview
 
@@ -18,7 +18,7 @@ AdaptiveOrder operates in **full-graph mode**: it selects a single algorithm for
 ```bash
 # Format: -o 14[:_[:_[:_[:selection_mode[:graph_name]]]]]
 #   Positions 0-2 are reserved (currently unused)
-#   Position 3 = selection_mode (0-3)
+#   Position 3 = selection_mode (0-6)
 #   Position 4 = graph_name (string)
 
 # Default: full-graph selection with fastest-execution mode
@@ -26,14 +26,20 @@ AdaptiveOrder operates in **full-graph mode**: it selects a single algorithm for
 
 # Specify selection mode (position 3) — use colons to skip reserved positions
 ./bench/bin/pr -f graph.sg -s -o 14::::
+
+# Use decision-tree mode
+./bench/bin/pr -f graph.sg -s -o 14::::4
+
+# Use database mode with graph name hint
+./bench/bin/pr -f graph.sg -s -o 14::::6:web-Google
 ```
 
 ### Parameters
 
 | Parameter | Position | Default | Description |
 |-----------|----------|---------|-------------|
-| `selection_mode` | 3 | 1 (fastest-execution) | 0 = fastest-reorder, 1 = fastest-execution (perceptron), 2 = best-endtoend, 3 = best-amortization |
-| `graph_name` | 4 | (empty) | Graph name hint for weight file lookup |
+| `selection_mode` | 3 | 1 (fastest-execution) | 0–6, see Selection Modes table below |
+| `graph_name` | 4 | (empty) | Graph name hint for weight/database lookup |
 
 ### Selection Modes
 
@@ -43,6 +49,9 @@ AdaptiveOrder operates in **full-graph mode**: it selects a single algorithm for
 | 1 | `fastest-execution` | Use perceptron to predict best cache performance (default) |
 | 2 | `best-endtoend` | Balance perceptron score with reorder time penalty |
 | 3 | `best-amortization` | Minimize iterations to amortize reorder cost |
+| 4 | `decision-tree` | Decision Tree classifier per-benchmark (auto-depth, sklearn) |
+| 5 | `hybrid` | Hybrid DT+Perceptron: DT for initial selection, perceptron for tie-breaking |
+| 6 | `database` | Oracle and kNN-based algorithm selection from database |
 
 ## Architecture Diagram
 
@@ -65,15 +74,17 @@ AdaptiveOrder operates in **full-graph mode**: it selects a single algorithm for
 +--------+---------+
          |
          v
-+------------------+
-| Load Perceptron  |
-|   Weights        |
-| (per-benchmark)  |
-+--------+---------+
++-----------------------------------+
+| Load Model (mode-dependent)       |
+|  0-3: Perceptron weights          |
+|    4: Decision Tree (sklearn)     |
+|    5: Hybrid DT + Perceptron      |
+|    6: Database (Oracle / kNN)     |
++--------+--------------------------+
          |
          v
 +------------------+
-| Perceptron Score |
+| Score / Predict  |
 | All Algorithms   |
 +--------+---------+
          |
@@ -101,7 +112,15 @@ AdaptiveOrder uses automatic clustering to group similar graphs, rather than pre
 3. Train optimized weights for each cluster
 4. At runtime, find best matching cluster based on Euclidean distance to centroids
 
-**Type Files:**
+**Unified Model Store:**
+
+All trained models (perceptron weights, decision trees, hybrid parameters) are stored in a single file:
+```
+results/data/adaptive_models.json   # Unified model store (all benchmarks)
+```
+Managed by the `DataStore` class in `scripts/lib/datastore.py`. The C++ runtime loads this via `reorder_database.h`.
+
+**Legacy Type Files (still valid for C++ perceptron loading):**
 ```
 results/weights/
 ├── registry.json           # Graph→type mapping + centroids
@@ -254,9 +273,9 @@ sample_size = max(5000, min(√N, 50000))
 
 | Feature | Weight Field | Description | Range |
 |---------|--------------|-------------|-------|
-| `modularity` | `w_modularity` | Estimated from degree structure | 0.0 - 1.0 |
-| `log_nodes` | `w_log_nodes` | log10(num_nodes) | 0 - 10 |
-| `log_edges` | `w_log_edges` | log10(num_edges) | 0 - 15 |
+| `modularity` | `w_modularity` | Real modularity from graph features (CC×1.5 fallback) | 0.0 - 1.0 |
+| `log_nodes` | `w_log_nodes` | log10(num_nodes + 1) | 0 - 10 |
+| `log_edges` | `w_log_edges` | log10(num_edges + 1) | 0 - 15 |
 | `density` | `w_density` | edges / max_edges | 0.0 - 1.0 |
 | `avg_degree` | `w_avg_degree` | mean degree / 100 | 0.0 - 1.0 |
 | `degree_variance` | `w_degree_variance` | degree distribution spread (CV) | 0.0 - 5.0 |
@@ -274,7 +293,7 @@ These features are computed at runtime via sampled BFS traversals and connected-
 |---------|--------------|-------------|----------|
 | `avg_path_length` | `w_avg_path_length` | Multi-source BFS (5 sources, bounded visits) | ~50-500 ms |
 | `diameter_estimate` | `w_diameter` | Max BFS depth across sources | (included above) |
-| `community_count` | `w_community_count` | Connected component count via full BFS | O(V+E) |
+| `community_count` | `w_community_count` | log10(connected component count + 1) | O(V+E) |
 | `reorder_time` | `w_reorder_time` | Only meaningful in `MODE_FASTEST_REORDER` | N/A |
 
 **How extended features are computed:**
@@ -283,7 +302,7 @@ These features are computed at runtime via sampled BFS traversals and connected-
 
 - **diameter_estimate** — Maximum BFS depth observed across all 5 sources. This is a lower bound on the true diameter. High-diameter graphs (road networks, meshes) benefit from bandwidth-minimizing reorderings (RCM), while low-diameter graphs (social networks) benefit from hub-based reorderings.
 
-- **community_count** — Number of connected components found via a full BFS sweep over all vertices. Multi-component graphs benefit from reorderings that place each component contiguously in memory. Note: this counts connected components, not Leiden communities (which would be too expensive at runtime).
+- **community_count** — Number of connected components found via a full BFS sweep over all vertices. Transformed as `log10(community_count + 1)` before scoring. Multi-component graphs benefit from reorderings that place each component contiguously in memory. Note: this counts connected components, not Leiden communities (which would be too expensive at runtime).
 
 #### Quadratic Cross-Terms (3)
 
@@ -334,7 +353,7 @@ graph TD
 | Weight | Why Picked | Effect on Selection |
 |--------|-----------|---------------------|
 | **bias** | Base preference for each algorithm, computed as `0.5 × avg_speedup_vs_RANDOM`. Acts as a prior — algorithms that are generally fast get a head start. | Algorithms that are generally fast across graphs get higher bias values. ORIGINAL has the lowest bias since it is the baseline reference. |
-| **w_modularity** | Community structure quality. High modularity = strong communities → community-aware reorderings (GraphBrewOrder, LeidenOrder) can exploit this structure. | Positive weight → favors community-aware algorithms. Negative weight → favors simpler algorithms (SORT, DBG) that ignore community structure. |
+| **w_modularity** | Community structure quality. Uses real modularity from graph features when available; falls back to `min(0.9, clustering_coeff × 1.5)` heuristic. High modularity = strong communities → community-aware reorderings (GraphBrewOrder, LeidenOrder) can exploit this structure. | Positive weight → favors community-aware algorithms. Negative weight → favors simpler algorithms (SORT, DBG) that ignore community structure. |
 | **w_density** | Edge density = edges / max_possible. Dense graphs have many edges per vertex → less locality gain from reordering since most vertices are neighbors anyway. | Typically negative for reordering algorithms (less benefit on dense graphs), near-zero for ORIGINAL. |
 | **w_degree_variance** | Degree distribution spread (coefficient of variation). High DV = power-law graph with extreme hubs. Hub-based algorithms (HubSort, HubClusterDBG) excel because grouping hubs reduces cache misses. | Positive for hub-aware algorithms, negative for algorithms that ignore hubs (SORT, RCM). |
 | **w_hub_concentration** | Fraction of edges from the top 10% highest-degree vertices. Directly measures how much performance depends on hub access patterns. | Strong positive for HubClusterDBG, HubSortDBG. Near-zero for SORT, RCM. |
@@ -362,7 +381,7 @@ graph TD
 | **w_clustering_coeff** | Local clustering coefficient (triangle density). Measures how "cliquey" neighborhoods are. High clustering → community-aware reorderings can group cliques together for better cache utilization. | Positive for GraphBrewOrder, LeidenOrder. Near-zero for degree-only algorithms. |
 | **w_avg_path_length** | Average shortest path distance (sampled). Short paths (< 5) = small-world graph → hub-based reorderings help because traversals reach hubs quickly. Long paths (> 10) = spatial graph → bandwidth-minimization (RCM) is better. | Sign depends on algorithm: positive for RCM on high-APL graphs, positive for HubSort on low-APL graphs. |
 | **w_diameter** | Maximum BFS depth (diameter lower bound). High-diameter graphs need different reordering strategies than low-diameter graphs — algorithms that reduce graph bandwidth (RCM) perform well on high-diameter road networks but poorly on low-diameter social networks. | Positive for RCM, negative for hub-based algorithms. |
-| **w_community_count** | Connected component count. Multiple disconnected components benefit from reorderings that place each component contiguously — keeps working set contained within a component. | Positive for algorithms that respect component structure (GraphBrewOrder). |
+| **w_community_count** | Connected component count, transformed as `log10(community_count + 1)`. Multiple disconnected components benefit from reorderings that place each component contiguously — keeps working set contained within a component. | Positive for algorithms that respect component structure (GraphBrewOrder). |
 
 ### Centroid-Based Type System
 
@@ -429,6 +448,7 @@ AdaptiveOrder's implementation is split across modular header files in `bench/in
 |------|---------|
 | `reorder_types.h` | Base types, `PerceptronWeights`, `CommunityFeatures`, `ComputeSampledDegreeFeatures`, `ComputeExtendedFeatures`, scoring, weight loading |
 | `reorder_adaptive.h` | Entry points: `GenerateAdaptiveMappingStandalone`, `FullGraphStandalone`, `RecursiveStandalone` |
+| `reorder_database.h` | Database-driven selection (MODE_DATABASE=6): oracle lookup, kNN, unified model loading |
 
 **ComputeSampledDegreeFeatures Utility:**
 
@@ -704,7 +724,7 @@ flowchart LR
         S7["2000 Edge Samples"] --> S8["forward_edge_fraction<br/>(GoGraph)"]
         S9["Exact Calculation"] --> S10["working_set_ratio<br/>(P-OPT)"]
         S11["1000 Triangle Samples"] --> S12["clustering_coeff"]
-        S12 --> S13["estimated_modularity<br/>= min(0.9, CC × 1.5)"]
+        S12 --> S13["modularity:<br/>real value if available,<br/>fallback = min(0.9, CC × 1.5)"]
     end
 
     subgraph "Extended Path (~50-500ms)"
@@ -727,6 +747,120 @@ For a graph with 10,000 nodes, AdaptiveOrder (default full-graph mode):
 6. **Reordering** — Applies the selected algorithm to the entire graph
 
 In per-community mode (mode 1), Leiden detects communities first, and steps 1–5 are repeated for each community independently.
+
+---
+
+## Decision Tree Model (MODE_DECISION_TREE = 4)
+
+The Decision Tree (DT) selection mode uses a **sklearn `DecisionTreeClassifier`** trained per-benchmark. Unlike the perceptron, the DT makes hard classification decisions based on feature thresholds — no weighted linear combination.
+
+### How It Works
+
+1. **Training** — `scripts/lib/decision_tree.py` trains one tree per benchmark (pr, bfs, cc, sssp, bc, tc) using the same graph features as the perceptron. Tree depth is auto-optimized via LOO cross-validation to avoid overfitting.
+2. **Storage** — Trained trees are serialized into `results/data/adaptive_models.json` under the `"decision_trees"` key, one entry per benchmark.
+3. **Runtime** — The C++ code in `reorder_database.h` loads the DT rules from `adaptive_models.json` and traverses the tree to classify the input graph's feature vector.
+
+### Advantages
+
+- **Interpretable**: Tree structure shows exact decision rules (e.g., "if hub_concentration > 0.45 and log_nodes > 5.2 → RABBIT")
+- **No scoring ambiguity**: Each leaf maps to exactly one algorithm family
+- **Auto-depth**: Prevents overfitting by selecting the shallowest tree that maximizes LOO accuracy
+
+### Training Command
+
+```bash
+python -m scripts.lib.decision_tree --train --benchmark pr --max-depth 5 --show-tree
+```
+
+---
+
+## Hybrid DT+Perceptron (MODE_HYBRID = 5)
+
+The Hybrid mode combines **Decision Tree classification** with **perceptron scoring** for a best-of-both-worlds approach.
+
+### How It Works
+
+1. **DT Initial Selection** — The decision tree classifies the graph into an algorithm family (e.g., RABBIT, LEIDEN, HUBSORT)
+2. **Perceptron Tie-Breaking** — Within the selected family (and close alternatives), the perceptron's continuous scores rank specific algorithm variants
+3. **Final Selection** — The variant with the highest perceptron score from the DT-selected family wins
+
+### Why Hybrid?
+
+| Aspect | DT Only | Perceptron Only | Hybrid |
+|--------|---------|----------------|--------|
+| Decision boundary | Sharp (threshold) | Smooth (linear) | Sharp + smooth |
+| Interpretability | High | Medium | High |
+| Variant ranking | No (family only) | Yes (per-variant) | Yes |
+| Overfitting risk | Low (auto-depth) | Low (simple model) | Lowest |
+
+The hybrid approach uses the DT's strength at coarse-grained family selection (where threshold-based rules match the underlying structure) and the perceptron's strength at fine-grained variant ranking (where continuous scores differentiate similar algorithms).
+
+### Storage
+
+Hybrid parameters are stored in `results/data/adaptive_models.json` alongside the DT and perceptron models.
+
+---
+
+## Database Mode (MODE_DATABASE = 6)
+
+Database mode replaces pre-trained models with a **"streaming equation"** approach: the benchmark database IS the model. When new benchmark data is appended, selection automatically improves without retraining.
+
+Implemented in `bench/include/graphbrew/reorder/reorder_database.h` (`BenchmarkDatabase` singleton class).
+
+### Oracle Lookup (Known Graphs)
+
+If the graph name matches a known graph in `results/data/benchmarks.json`, the system returns the algorithm family with the **lowest benchmark time** — this is the ground-truth oracle.
+
+### kNN Fallback (Unknown Graphs)
+
+For unknown graphs, the system:
+1. Computes the graph's 12-dimensional feature vector (same features as the perceptron)
+2. Finds the **k=5 nearest known graphs** by Euclidean distance in normalized feature space
+3. Votes on the best algorithm family, weighted by inverse distance
+
+### Feature Vector (12D)
+
+```
+[modularity, hub_concentration, log_nodes, log_edges, density,
+ avg_degree/100, clustering_coeff, packing_factor,
+ forward_edge_fraction, log2(wsr+1), log10(cc+1), diameter/50]
+```
+
+### Data Files
+
+| File | Description |
+|------|-------------|
+| `results/data/benchmarks.json` | Append-only benchmark records (graph × algorithm × benchmark → time) |
+| `results/data/graph_properties.json` | Feature vectors for all known graphs |
+
+### Usage
+
+```bash
+# Use database mode
+./bench/bin/pr -f graph.sg -s -o 14::::6
+
+# With graph name hint (enables oracle lookup)
+./bench/bin/pr -f graph.sg -s -o 14::::6:web-Google
+```
+
+---
+
+## Runtime Data Directory
+
+The `results/data/` directory contains centralized runtime data:
+
+```
+results/data/
+├── adaptive_models.json      # Unified model store (perceptron + DT + hybrid)
+├── benchmarks.json            # Append-only benchmark results database
+├── graph_properties.json      # Graph feature vectors for all known graphs
+└── runs/                      # Per-run benchmark result snapshots
+```
+
+- **`adaptive_models.json`** — Single file containing all trained models. Managed by the `DataStore` class (`scripts/lib/datastore.py`). The C++ runtime loads perceptron weights, decision tree rules, and hybrid parameters from this file via `reorder_database.h`.
+- **`benchmarks.json`** — Append-only database of benchmark measurements. Used by MODE_DATABASE (6) for oracle lookup and kNN selection.
+- **`graph_properties.json`** — Cached graph features (12D vectors) for all benchmarked graphs. Used by kNN to compute nearest-neighbor distances.
+- **`runs/`** — Timestamped snapshots of individual benchmark runs.
 
 ---
 

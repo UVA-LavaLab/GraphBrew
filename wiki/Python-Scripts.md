@@ -13,15 +13,14 @@ scripts/
 │
 ├── lib/                         # 📦 Modular library
 │   ├── __init__.py              # Module exports
-│   ├── ab_test.py               # A/B test: AdaptiveOrder vs Original
 │   ├── adaptive_emulator.py     # 🔍 C++ AdaptiveOrder logic emulation (Python)
-│   ├── analysis.py              # Adaptive order analysis
-│   ├── benchmark.py             # Performance benchmark execution
-│   ├── benchmark_runner.py      # Fresh benchmarks on .sg graphs
+│   ├── analysis.py              # Adaptive order analysis, A/B testing & variant comparison
+│   ├── benchmark.py             # Performance benchmark execution & fresh benchmark runner
 │   ├── build.py                 # Binary compilation utilities
-│   ├── cache.py                 # Cache simulation analysis
-│   ├── cache_compare.py         # Quick cache comparison across variants
+│   ├── cache.py                 # Cache simulation analysis & quick cache comparison
 │   ├── check_includes.py        # CI: scan C++ for legacy includes
+│   ├── datastore.py             # Unified data store (BenchmarkStore, adaptive_models.json)
+│   ├── decision_tree.py         # Decision tree classifier training (sklearn, auto-depth)
 │   ├── dependencies.py          # System dependency detection & installation
 │   ├── download.py              # Graph downloading from SuiteSparse
 │   ├── eval_weights.py          # 📊 Weight evaluation & C++ scoring simulation
@@ -29,7 +28,6 @@ scripts/
 │   ├── figures.py               # Generate wiki SVG figures
 │   ├── graph_data.py            # Per-graph data storage & retrieval
 │   ├── graph_types.py           # Data classes (GraphInfo, BenchmarkResult, etc.)
-│   ├── leiden_compare.py        # Compare Leiden/Rabbit/GraphBrew variants
 │   ├── metrics.py               # Amortization & end-to-end metrics
 │   ├── oracle.py                # Oracle analysis: accuracy, regret, confusion
 │   ├── perceptron.py            # 🧪 ML weight experimentation
@@ -37,7 +35,6 @@ scripts/
 │   ├── progress.py              # Progress tracking & reporting
 │   ├── regen_features.py        # Regenerate features.json via C++ binary
 │   ├── reorder.py               # Vertex reordering generation
-│   ├── results.py               # Result file I/O
 │   ├── training.py              # ML weight training
 │   ├── utils.py                 # Core utilities (ALGORITHMS, run_command, etc.)
 │   ├── weight_merger.py         # Cross-run weight consolidation
@@ -358,7 +355,7 @@ python3 scripts/graphbrew_experiment.py --generate-maps --size small
 
 ## 📦 lib/ Module Reference
 
-The `lib/` folder (~22,400 lines) contains modular, reusable components:
+The `lib/` folder contains modular, reusable components:
 
 | Module | Purpose | Key Exports |
 |--------|---------|-------------|
@@ -369,15 +366,16 @@ The `lib/` folder (~22,400 lines) contains modular, reusable components:
 | `dependencies.py` | System deps | `check_dependencies`, `install_dependencies`, `install_boost_158` |
 | `download.py` | Graph download | `download_graphs`, `DOWNLOAD_GRAPHS_SMALL/MEDIUM` |
 | `reorder.py` | Vertex reordering | `generate_reorderings`, `ReorderResult`, `AlgorithmConfig`, `load_label_maps_index` |
-| `benchmark.py` | Benchmarking | `run_benchmark`, `run_benchmarks_multi_graph`, `run_benchmarks_with_variants` |
-| `cache.py` | Cache simulation | `run_cache_simulations`, `CacheResult`, `get_cache_stats_summary` |
+| `benchmark.py` | Benchmarking & fresh benchmark runner | `run_benchmark`, `run_benchmarks_multi_graph`, `run_benchmarks_with_variants` |
+| `cache.py` | Cache simulation & quick cache comparison | `run_cache_simulations`, `CacheResult`, `get_cache_stats_summary` |
 | `weights.py` | Weight management | `compute_weights_from_results`, `cross_validate_logo`, `assign_graph_type` |
 | `weight_merger.py` | Cross-run merge | Weight consolidation across training runs |
 | `training.py` | ML training | `train_adaptive_weights_iterative`, `train_adaptive_weights_large_scale` |
-| `analysis.py` | Adaptive analysis | `analyze_adaptive_order`, `parse_adaptive_output` |
+| `analysis.py` | Adaptive analysis, A/B testing & Leiden variant comparison | `analyze_adaptive_order`, `parse_adaptive_output` |
+| `datastore.py` | Unified data store | `BenchmarkStore`, adaptive_models.json management |
+| `decision_tree.py` | Decision tree classifier | sklearn-based training, auto-depth optimization |
 | `graph_data.py` | Per-graph storage | `GraphDataStore`, `list_graphs`, `list_runs` |
 | `progress.py` | Progress tracking | `ProgressTracker` (banners, phases, status) |
-| `results.py` | Result I/O | `read_json`, `write_json`, `ResultsManager` |
 | `metrics.py` | Amortization & E2E | `compute_amortization`, `format_amortization_table`, `AmortizationReport` |
 
 ### Key: `compute_weights_from_results()`
@@ -399,10 +397,11 @@ Computes derived metrics from `benchmark_*.json` and `reorder_*.json`:
 
 ```python
 from scripts.lib.metrics import compute_amortization_report, format_amortization_table
-from scripts.lib.results import read_json
+from scripts.lib.datastore import BenchmarkStore
 
-benchmark_results = read_json("results/benchmark_latest.json")
-reorder_results = read_json("results/reorder_latest.json")
+store = BenchmarkStore()
+benchmark_results = store.load_benchmark_results("results/benchmark_latest.json")
+reorder_results = store.load_reorder_results("results/reorder_latest.json")
 
 report = compute_amortization_report(benchmark_results, reorder_results)
 print(format_amortization_table(report))

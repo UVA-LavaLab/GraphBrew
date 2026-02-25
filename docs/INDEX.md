@@ -49,7 +49,8 @@ bench/include/
 - `scripts/graphbrew_experiment.py` — Main orchestration pipeline (reorder, benchmark, cache, weights)
 - `scripts/lib/adaptive_emulator.py` — AdaptiveOrder emulator and evaluation
 - `scripts/lib/perceptron.py` — Perceptron training experiments
-- `scripts/lib/cache_compare.py` — Quick cache miss comparison
+- `scripts/lib/datastore.py` — Unified data store (BenchmarkStore, adaptive_models.json)
+- `scripts/lib/decision_tree.py` — Decision tree classifier training (sklearn)
 - `scripts/lib/` — Shared modules (utils, reorder, features, weights, training, analysis, etc.)
 - `scripts/test/` — Pytest suite (algorithm variants, cache sim, weights, GraphBrew experiment)
 

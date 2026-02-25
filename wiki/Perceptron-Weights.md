@@ -12,9 +12,14 @@ results/weights/
 ├── type_N/
 │   └── weights.json
 └── ...
+
+results/data/
+└── adaptive_models.json    # Unified model store (DT, hybrid, kNN models)
 ```
 
 Each JSON file contains weights for each algorithm. When AdaptiveOrder processes a graph, it computes a score for each algorithm using these weights and selects the highest-scoring one.
+
+> **Feature vector:** The perceptron uses a 17-element feature vector with transforms (`log10`, `/100`, `/10`, `/50`, `log2`, quadratic products) matching the C++ `scoreBase()` implementation.
 
 ## How Perceptron Scoring Works
 
@@ -75,8 +80,8 @@ Algorithm names are produced by `canonical_algo_key(algo_id, variant)` from `scr
 |--------|---------|-------------|
 | `bias` | - | Base preference for algorithm (higher = more likely selected) |
 | `w_modularity` | modularity | Leiden community quality score (0-1) |
-| `w_log_nodes` | log₁₀(nodes) | Graph size (vertices) |
-| `w_log_edges` | log₁₀(edges) | Graph size (edges) |
+| `w_log_nodes` | log₁₀(nodes+1) | Graph size (vertices) |
+| `w_log_edges` | log₁₀(edges+1) | Graph size (edges) |
 | `w_density` | edge density | Edges / max possible edges |
 | `w_avg_degree` | avg_degree/100 | Mean vertex degree (normalized) |
 | `w_degree_variance` | degree_variance | Degree distribution spread (not normalized) |
@@ -363,6 +368,8 @@ for key in w_and_cache_keys:
 ```
 
 Positive error → increase weights for features that predicted success. Negative error → decrease. ORIGINAL is trained like any other algorithm, allowing the model to learn when *not reordering* is optimal.
+
+> **Note:** Modularity now uses the real value from graph features (computed via Leiden or loaded from cache), with `clustering_coefficient × 1.5` as a fallback if modularity is unavailable.
 
 ---
 

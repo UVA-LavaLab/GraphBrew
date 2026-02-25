@@ -2698,7 +2698,7 @@ def main():
     
     # ── Standalone sub-workflows (early exit) ────────────────────────
     if args.benchmark_fresh:
-        from scripts.lib.benchmark_runner import run_fresh_benchmarks
+        from scripts.lib.benchmark import run_fresh_benchmarks
         graph_list = args.graph_list or None
         run_fresh_benchmarks(
             graphs_dir=args.graphs_dir,
@@ -2709,7 +2709,7 @@ def main():
         return
 
     if args.ab_test:
-        from scripts.lib.ab_test import run_ab_test
+        from scripts.lib.analysis import run_ab_test
         graph_list = args.graph_list or None
         run_ab_test(
             graphs_dir=args.graphs_dir,
@@ -2749,8 +2749,8 @@ def main():
         return
 
     if args.cache_compare:
-        from scripts.lib.cache_compare import main as cache_compare_main
-        cache_compare_main()
+        from scripts.lib.cache import run_cache_compare
+        run_cache_compare()
         return
 
     if args.regen_features:
@@ -2770,9 +2770,15 @@ def main():
         return
 
     if args.compare_leiden:
-        from scripts.lib.leiden_compare import main as leiden_main
-        sys.argv = [sys.argv[0]]
-        leiden_main()
+        from scripts.lib.analysis import compare_leiden_variants
+        # Quick standalone comparison on a default graph
+        from pathlib import Path as _P
+        from scripts.lib.utils import GRAPHS_DIR as _GD
+        _test_graphs = list(_P(_GD).glob("*/*.sg"))[:1]
+        if _test_graphs:
+            compare_leiden_variants(_test_graphs[0], {"name": _test_graphs[0].parent.name})
+        else:
+            print("No .sg graphs found for Leiden comparison")
         return
 
     try:

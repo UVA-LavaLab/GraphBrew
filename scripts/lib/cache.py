@@ -17,6 +17,7 @@ Library usage:
 
 import os
 import re
+import subprocess
 import time
 from pathlib import Path
 from dataclasses import dataclass, asdict
@@ -27,9 +28,10 @@ os.environ.setdefault('CACHE_ULTRAFAST', '1')
 
 from .utils import (
     BIN_SIM_DIR, SIZE_MEDIUM,
-    TIMEOUT_SIM, TIMEOUT_SIM_HEAVY,
+    TIMEOUT_SIM, TIMEOUT_SIM_HEAVY, TIMEOUT_BENCHMARK,
     ALGORITHMS, Logger, run_command,
     canonical_algo_key, algo_converter_opt,
+    GRAPHS_DIR, GRAPHBREW_LAYERS,
 )
 from .graph_types import GraphInfo
 from .reorder import get_label_map_path
@@ -636,3 +638,114 @@ Examples:
 
 if __name__ == "__main__":
     main()
+
+
+# =============================================================================
+# Quick Cache Comparison  (merged from cache_compare.py)
+# =============================================================================
+
+_CACHE_COMPARE_GRAPHS = [
+    "web-Google", "web-BerkStan", "as-Skitter", "wiki-Talk", "roadNet-CA",
+]
+
+
+def _build_cache_compare_variants():
+    """Build VARIANTS list from SSOT registry + GRAPHBREW_LAYERS."""
+    variants = []
+    presets = list(GRAPHBREW_LAYERS["preset"].keys()) if GRAPHBREW_LAYERS else [
+        "leiden", "rabbit", "hubcluster",
+    ]
+    key_strategies = ["hrab", "dfs", "bfs", "conn"]
+    for preset in presets:
+        variants.append((f"12:{preset}", f"GraphBrew-{preset.title()}"))
+    for strat in key_strategies:
+        variants.append((f"12:leiden:{strat}", f"GraphBrew-Leiden-{strat.upper()}"))
+    variants.append(("8:csr", "RabbitCSR"))
+    variants.append(("8:boost", "RabbitBoost"))
+    variants.append(("15", "LeidenOrder"))
+    return variants
+
+
+def run_cache_compare_sim(graph: str, variant_opt: str, benchmark: str,
+                          graphs_dir: str = None, timeout: int = TIMEOUT_BENCHMARK):
+    """Run cache simulation and extract results."""
+    gdir = str(graphs_dir or GRAPHS_DIR)
+    graph_path = f"{gdir}/{graph}/{graph}.mtx"
+    cmd = [
+        f"{BIN_SIM_DIR}/{benchmark}", "-f", graph_path,
+        "-s", "-o", variant_opt, "-n", "1",
+    ]
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+        output = result.stdout + result.stderr
+        l1_match = re.search(r"L1 Hit Rate:\s*([\d.]+)", output)
+        l2_match = re.search(r"L2 Hit Rate:\s*([\d.]+)", output)
+        mem_match = re.search(r"Memory Accesses:\s*(\d+)", output)
+        reorder_match = re.search(r"Reorder Time:\s*([\d.]+)", output)
+        mod_match = re.search(r"[Mm]odularity[:\s]*([\d.]+)", output)
+        return {
+            "l1_hit": float(l1_match.group(1)) if l1_match else None,
+            "l2_hit": float(l2_match.group(1)) if l2_match else None,
+            "mem_access": int(mem_match.group(1)) if mem_match else None,
+            "reorder_time": float(reorder_match.group(1)) if reorder_match else None,
+            "modularity": float(mod_match.group(1)) if mod_match else None,
+            "output": output,
+        }
+    except subprocess.TimeoutExpired:
+        return {"error": "timeout"}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+def run_cache_compare(
+    graphs: List[str] = None,
+    graphs_dir: str = None,
+    benchmarks: List[str] = None,
+):
+    """Run quick cache comparison of GraphBrew variants vs RabbitOrder.
+
+    Prints a summary table. For more thorough cache simulation use
+    ``run_cache_simulations()`` instead.
+    """
+    graphs = graphs or _CACHE_COMPARE_GRAPHS
+    benchmarks = benchmarks or ["pr"]
+    variants = _build_cache_compare_variants()
+
+    print("=" * 80)
+    print("GraphBrew vs RabbitOrder Cache Performance Comparison")
+    print("=" * 80)
+
+    all_results: Dict[str, dict] = {}
+    for graph in graphs:
+        print(f"\n{'='*60}\nGraph: {graph}\n{'='*60}")
+        all_results[graph] = {}
+        for variant_opt, variant_name in variants:
+            print(f"  Running {variant_name}...", end=" ", flush=True)
+            for bench in benchmarks:
+                r = run_cache_compare_sim(graph, variant_opt, bench, graphs_dir)
+                if "error" in r:
+                    print(f"ERROR: {r['error']}")
+                    continue
+                all_results[graph][variant_name] = r
+                l1, l2, mem, rt = r.get("l1_hit"), r.get("l2_hit"), r.get("mem_access"), r.get("reorder_time")
+                if all(v is not None for v in (l1, l2, mem, rt)):
+                    print(f"L1={l1:.1f}% L2={l2:.1f}% Mem={mem:,} Time={rt:.2f}s")
+                else:
+                    print("Parse error (partial output)")
+
+    # Summary table
+    print("\n" + "=" * 100)
+    print("SUMMARY TABLE (PR Benchmark)")
+    print("=" * 100)
+    print(f"{'Graph':<15} {'Variant':<12} {'L1 Hit%':>10} {'L2 Hit%':>10} "
+          f"{'Mem Access':>15} {'Reorder(s)':>12} {'Modularity':>10}")
+    print("-" * 100)
+    for graph in graphs:
+        for _variant_opt, variant_name in variants:
+            if variant_name in all_results.get(graph, {}):
+                r = all_results[graph][variant_name]
+                if "error" not in r and r.get("l1_hit") is not None:
+                    print(f"{graph:<15} {variant_name:<12} {r['l1_hit']:>10.2f} "
+                          f"{r['l2_hit'] or 0:>10.2f} {r['mem_access'] or 0:>15,} "
+                          f"{r['reorder_time'] or 0:>12.2f} {r['modularity'] or 0:>10.4f}")
+        print()

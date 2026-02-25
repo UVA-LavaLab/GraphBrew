@@ -386,7 +386,7 @@ See [[Command-Line-Reference#graphbreworder-12]] for the full option reference a
 - **Features**: 15 linear + 3 quadratic cross-terms + convergence bonus
 - **Safety**: OOD guardrail, ORIGINAL margin fallback
 - **CLI format**: `-o 14[:_[:_[:_[:selection_mode[:graph_name]]]]]` (positions 0-2 reserved)
-- **Selection modes**: 0=fastest-reorder, 1=fastest-execution (default), 2=best-endtoend, 3=best-amortization
+- **Selection modes**: 0=fastest-reorder, 1=fastest-execution (default), 2=best-endtoend, 3=best-amortization, 4=decision-tree, 5=hybrid (DT+perceptron), 6=database (kNN)
 
 ![AdaptiveOrder Pipeline](../docs/figures/adaptive_pipeline.png)
 

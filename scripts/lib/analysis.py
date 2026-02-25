@@ -27,14 +27,23 @@ Example usage:
 import json
 import os
 import re
+import subprocess
+import sys
 import time
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
-from typing import Any, Dict, List, Tuple
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple
 
-from .utils import ALGORITHMS, ELIGIBLE_ALGORITHMS, TIMEOUT_BENCHMARK, TIMEOUT_SIM, run_command, Logger, canonical_algo_key, algo_converter_opt, resolve_canonical_name
+from .utils import (
+    ALGORITHMS, ELIGIBLE_ALGORITHMS, TIMEOUT_BENCHMARK, TIMEOUT_SIM,
+    run_command, Logger, canonical_algo_key, algo_converter_opt,
+    resolve_canonical_name, BENCHMARKS, BIN_DIR, GRAPHS_DIR,
+    _VARIANT_ALGO_REGISTRY, PROJECT_ROOT,
+)
 from .features import update_graph_properties, save_graph_properties_cache
 from .cache import parse_cache_output
+from .reorder import parse_reorder_time_from_converter
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1021,6 +1030,9 @@ __all__ = [
     'AdaptiveComparisonResult',
     'SubcommunityBruteForceResult',
     'GraphBruteForceAnalysis',
+    'ABResult',
+    'ABSummary',
+    'LeidenResult',
     # Parsing functions
     'parse_adaptive_output',
     'parse_benchmark_output',
@@ -1030,4 +1042,345 @@ __all__ = [
     'compare_adaptive_vs_fixed',
     'validate_adaptive_accuracy',
     'run_subcommunity_brute_force',
+    'run_ab_test',
+    'compare_leiden_variants',
+    'print_leiden_comparison_table',
 ]
+
+
+# =============================================================================
+# A/B Test: AdaptiveOrder vs Original  (merged from ab_test.py)
+# =============================================================================
+
+log = Logger()
+
+# Default graph ordering (sorted by size for predictable output)
+_AB_DEFAULT_GRAPHS = [
+    "soc-Epinions1", "soc-Slashdot0902", "cnr-2000", "web-BerkStan",
+    "web-Google", "com-Youtube", "as-Skitter", "roadNet-CA",
+    "wiki-topcats", "cit-Patents", "soc-LiveJournal1",
+]
+
+_AB_DEFAULT_BENCHMARKS = list(BENCHMARKS)
+
+
+@dataclass
+class ABResult:
+    """Result for a single (graph, benchmark) A/B comparison."""
+    graph: str
+    benchmark: str
+    original_time: float
+    adaptive_time: float
+
+    @property
+    def speedup(self) -> float:
+        if self.adaptive_time > 0:
+            return self.original_time / self.adaptive_time
+        return float("inf")
+
+    @property
+    def winner(self) -> str:
+        """ADAP if >5% faster, ORIG if >5% slower, TIE otherwise."""
+        r = self.speedup
+        if r > 1.05:
+            return "ADAP"
+        elif r < 0.95:
+            return "ORIG"
+        return "TIE"
+
+
+@dataclass
+class ABSummary:
+    """Aggregate summary of an A/B test run."""
+    results: List[ABResult] = field(default_factory=list)
+    total_original: float = 0.0
+    total_adaptive: float = 0.0
+
+    @property
+    def overall_speedup(self) -> float:
+        if self.total_adaptive > 0:
+            return self.total_original / self.total_adaptive
+        return float("inf")
+
+    @property
+    def wins(self) -> int:
+        return sum(1 for r in self.results if r.winner == "ADAP")
+
+    @property
+    def ties(self) -> int:
+        return sum(1 for r in self.results if r.winner == "TIE")
+
+    @property
+    def losses(self) -> int:
+        return sum(1 for r in self.results if r.winner == "ORIG")
+
+    def to_dict(self) -> dict:
+        return {
+            "overall_speedup": round(self.overall_speedup, 4),
+            "total_original": round(self.total_original, 6),
+            "total_adaptive": round(self.total_adaptive, 6),
+            "wins": self.wins,
+            "ties": self.ties,
+            "losses": self.losses,
+            "results": [
+                {
+                    "graph": r.graph,
+                    "benchmark": r.benchmark,
+                    "original_time": r.original_time,
+                    "adaptive_time": r.adaptive_time,
+                    "speedup": round(r.speedup, 2),
+                    "winner": r.winner,
+                }
+                for r in self.results
+            ],
+        }
+
+
+def _discover_ab_graphs(
+    graphs_dir: str = None,
+    graph_names: List[str] = None,
+) -> List[Tuple[str, str]]:
+    """Discover graphs for A/B testing. Returns (name, sg_path) pairs."""
+    gdir = Path(graphs_dir or GRAPHS_DIR)
+    candidates = graph_names or _AB_DEFAULT_GRAPHS
+    found = []
+    for name in candidates:
+        sg = gdir / name / f"{name}.sg"
+        if sg.is_file():
+            found.append((name, str(sg)))
+    if not graph_names:
+        for sg in sorted(gdir.glob("*/*.sg")):
+            name = sg.parent.name
+            if name not in [f[0] for f in found]:
+                found.append((name, str(sg)))
+    return found
+
+
+def _run_ab_bench(
+    binary: str, sg_path: str, algo_id: int,
+    trials: int, timeout: int,
+) -> Optional[float]:
+    """Run a benchmark and return the average time, or None on failure."""
+    cmd = [binary, "-f", sg_path, "-a", "0", "-o", str(algo_id), "-n", str(trials)]
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+        if result.returncode != 0:
+            return None
+        m = re.search(r"Average Time:\s+([\d.]+)", result.stdout)
+        return float(m.group(1)) if m else None
+    except (subprocess.TimeoutExpired, Exception):
+        return None
+
+
+def run_ab_test(
+    graphs_dir: str = None,
+    graph_names: List[str] = None,
+    benchmarks: List[str] = None,
+    trials: int = 3,
+    timeout: int = TIMEOUT_BENCHMARK,
+    bin_dir: str = None,
+) -> ABSummary:
+    """Run A/B test comparing AdaptiveOrder (-o 14) vs Original (-o 0).
+
+    Returns ABSummary with per-(graph, bench) results and aggregate stats.
+    """
+    benchmarks = benchmarks or _AB_DEFAULT_BENCHMARKS
+    bin_dir = str(bin_dir or BIN_DIR)
+
+    graphs = _discover_ab_graphs(graphs_dir, graph_names)
+    if not graphs:
+        log.error("No .sg graphs found for A/B testing")
+        return ABSummary()
+
+    print(f"{'Graph':<25} {'Bench':<8} {'Original(s)':>12} {'Adaptive(s)':>12} {'Speedup':>8}")
+    print(f"{'-'*25} {'-'*8} {'-'*12} {'-'*12} {'-'*8}")
+
+    summary = ABSummary()
+
+    for graph_name, sg_path in graphs:
+        for bench in benchmarks:
+            binary = os.path.join(bin_dir, bench)
+            if not os.path.isfile(binary):
+                continue
+            orig_time = _run_ab_bench(binary, sg_path, 0, trials, timeout)
+            adap_time = _run_ab_bench(binary, sg_path, 14, trials, timeout)
+            if orig_time and adap_time and orig_time > 0 and adap_time > 0:
+                r = ABResult(graph=graph_name, benchmark=bench,
+                             original_time=orig_time, adaptive_time=adap_time)
+                summary.results.append(r)
+                summary.total_original += orig_time
+                summary.total_adaptive += adap_time
+                print(f"{graph_name:<25} {bench:<8} {orig_time:>12.5f} "
+                      f"{adap_time:>12.5f} {r.speedup:>7.2f}x")
+
+    print(f"\n=== Summary ===")
+    print(f"Total Original: {summary.total_original:.4f}s  "
+          f"Total Adaptive: {summary.total_adaptive:.4f}s")
+    print(f"Overall speedup: {summary.overall_speedup:.2f}x")
+    print(f"Wins: {summary.wins}  Ties: {summary.ties}  Losses: {summary.losses}")
+    return summary
+
+
+# =============================================================================
+# Leiden Variant Comparison  (merged from leiden_compare.py)
+# =============================================================================
+
+@dataclass
+class LeidenResult:
+    """Result from a single Leiden variant run."""
+    algorithm: str
+    algo_id: int
+    variant: str
+    reorder_time: float
+    num_communities: int
+    num_passes: int
+    resolution: float
+    modularity: float = 0.0
+    raw_output: str = ""
+
+
+def _find_converter() -> Path:
+    """Find the converter binary."""
+    converter = PROJECT_ROOT / "bench" / "bin" / "converter"
+    if not converter.exists():
+        raise FileNotFoundError(f"Converter not found at {converter}. Run 'make all' first.")
+    return converter
+
+
+def _parse_leiden_output(output: str, algo_id: int) -> Dict:
+    """Parse Leiden algorithm output for metrics."""
+    result = {
+        "num_communities": 0, "num_passes": 0,
+        "resolution": 1.0, "modularity": 0.0, "reorder_time": 0.0,
+    }
+    patterns = {
+        "num_communities": [
+            r"Num Communities:\s*([\d.]+)", r"Num Comm:\s*([\d.]+)",
+            r"GVELeiden Communities:\s*([\d.]+)", r"Dendrogram Roots:\s*([\d.]+)",
+            r"communities:\s*(\d+)",
+        ],
+        "num_passes": [
+            r"Num Passes:\s*([\d.]+)", r"Leiden Passes:\s*([\d.]+)",
+            r"Community Passes Stored:\s*([\d.]+)", r"GVELeiden.*?(\d+) passes",
+        ],
+        "resolution": [r"Resolution:\s*([\d.]+)", r"resolution=([\d.]+)", r"Leiden Resolution:\s*([\d.]+)"],
+        "modularity": [r"Modularity:\s*([\d.]+)", r"GVELeiden Modularity:\s*([\d.]+)", r"modularity=([\d.]+)"],
+    }
+    for key, pattern_list in patterns.items():
+        for pattern in pattern_list:
+            match = re.search(pattern, output)
+            if match:
+                result[key] = float(match.group(1))
+                break
+    result["reorder_time"] = parse_reorder_time_from_converter(output)
+    return result
+
+
+def _run_leiden_variant(
+    converter: Path, graph: Path, algo_id: int,
+    variant: str = "",
+) -> Optional[LeidenResult]:
+    """Run a single Leiden variant and collect metrics."""
+    cmd = [str(converter), "-f", str(graph), "-b", "/tmp/leiden_test.sg"]
+    if variant:
+        cmd.extend(["-o", f"{algo_id}:{variant}"])
+    else:
+        cmd.extend(["-o", str(algo_id)])
+    algo_names = {12: ALGORITHMS[12], 15: ALGORITHMS[15]}
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=TIMEOUT_BENCHMARK)
+        output = result.stdout + result.stderr
+        metrics = _parse_leiden_output(output, algo_id)
+        return LeidenResult(
+            algorithm=algo_names.get(algo_id, f"Algorithm_{algo_id}"),
+            algo_id=algo_id,
+            variant=variant or "default",
+            reorder_time=metrics["reorder_time"] or 0.0,
+            num_communities=int(metrics["num_communities"]),
+            num_passes=int(metrics["num_passes"]),
+            resolution=metrics["resolution"],
+            modularity=metrics["modularity"],
+            raw_output=output,
+        )
+    except subprocess.TimeoutExpired:
+        print(f"  Timeout for algo {algo_id} variant {variant}")
+        return None
+    except Exception as e:
+        print(f"  Error running algo {algo_id}: {e}")
+        return None
+
+
+def compare_leiden_variants(
+    graph: Path, graph_info: Dict,
+    include_variants: bool = True,
+) -> List[LeidenResult]:
+    """Compare all Leiden variants on a single graph."""
+    converter = _find_converter()
+    results = []
+    variants_to_test = []
+    if 8 in _VARIANT_ALGO_REGISTRY:
+        prefix, variants, default = _VARIANT_ALGO_REGISTRY[8]
+        for v in variants:
+            label = "(default=CSR)" if v == default else f"-{v}"
+            variants_to_test.append((8, v if v != default else "", f"RabbitOrder {label}"))
+    variants_to_test.append((15, "", "LeidenOrder (native Leiden)"))
+    if 12 in _VARIANT_ALGO_REGISTRY:
+        prefix, variants, default = _VARIANT_ALGO_REGISTRY[12]
+        for v in variants:
+            variants_to_test.append((12, v if v != default else "", f"GraphBrewOrder-{v}"))
+        variants_to_test.append((12, "community", "GraphBrewOrder-community"))
+    if not include_variants:
+        variants_to_test = [
+            (8, "", "RabbitOrder (CSR)"),
+            (15, "", "LeidenOrder"),
+            (12, "", "GraphBrewOrder"),
+        ]
+    for algo_id, variant, desc in variants_to_test:
+        print(f"  Testing {desc}...", end=" ", flush=True)
+        result = _run_leiden_variant(converter, graph, algo_id, variant)
+        if result:
+            results.append(result)
+            print(f"OK {result.num_communities} communities, {result.reorder_time:.4f}s")
+        else:
+            print("FAILED")
+    return results
+
+
+def print_leiden_comparison_table(results: List[LeidenResult], graph_name: str):
+    """Print a formatted comparison table."""
+    if not results:
+        print("No results to display")
+        return
+    print(f"\n{'='*80}")
+    print(f"LEIDEN VARIANTS COMPARISON - {graph_name}")
+    print(f"{'='*80}")
+    print(f"{'Algorithm':<30} {'Communities':>12} {'Passes':>8} {'Time (s)':>10} {'Resolution':>10}")
+    print(f"{'-'*30} {'-'*12} {'-'*8} {'-'*10} {'-'*10}")
+    sorted_results = sorted(results, key=lambda x: (x.algo_id, x.variant))
+    leiden_order = next((r for r in results if r.algo_id == 15), None)
+    ref_communities = leiden_order.num_communities if leiden_order else 0
+    for r in sorted_results:
+        name = f"{r.algorithm}"
+        if r.variant and r.variant != "default":
+            name += f"-{r.variant}"
+        comm_diff = ""
+        if ref_communities > 0 and r.num_communities != ref_communities:
+            diff = r.num_communities - ref_communities
+            comm_diff = f" ({diff:+d})"
+        print(f"{name:<30} {r.num_communities:>12}{comm_diff:<6} {r.num_passes:>8} {r.reorder_time:>10.4f} {r.resolution:>10.2f}")
+    print(f"\n{'='*80}")
+    print("QUALITY COMPARISON (vs LeidenOrder - native Leiden reference)")
+    print(f"{'='*80}")
+    if leiden_order:
+        print(f"Reference: LeidenOrder detected {leiden_order.num_communities} communities in {leiden_order.num_passes} passes\n")
+        for r in sorted_results:
+            if r.algo_id == 15:
+                continue
+            name = f"{r.algorithm}"
+            if r.variant and r.variant != "default":
+                name += f"-{r.variant}"
+            comm_ratio = r.num_communities / ref_communities if ref_communities > 0 else 0
+            speed_ratio = leiden_order.reorder_time / r.reorder_time if r.reorder_time > 0 else 0
+            status = "~" if 0.8 <= comm_ratio <= 1.2 else ("+" if comm_ratio > 1 else "-")
+            print(f"  {name:<28}: {r.num_communities:>4} communities ({comm_ratio:.2f}x) {status}, "
+                  f"{speed_ratio:.1f}x faster")
