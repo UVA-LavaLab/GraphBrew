@@ -318,28 +318,115 @@ def _pearson_correlation(x: List[float], y: List[float]) -> float:
     return 0.0
 
 
-# Feature-to-weight mapping for correlation-based weight updates
-_FEATURE_WEIGHT_MAP = {
-    'modularity': ('w_modularity', 0.5),
-    'degree_variance': ('w_degree_variance', 0.3),
-    'hub_concentration': ('w_hub_concentration', 0.3),
-    'log_nodes': ('w_log_nodes', 0.2),
-    'log_edges': ('w_log_edges', 0.2),
-    'density': ('w_density', 0.3),
-    'avg_degree': ('w_avg_degree', 0.2),
-    'clustering_coefficient': ('w_clustering_coeff', 0.3),
-    'avg_path_length': ('w_avg_path_length', 0.2),
-    'diameter': ('w_diameter', 0.2),
-    'community_count': ('w_community_count', 0.2),
-    # IISWC'18 / GoGraph / P-OPT locality features
-    'packing_factor': ('w_packing_factor', 0.3),
-    'forward_edge_fraction': ('w_forward_edge_fraction', 0.3),
-    'log_working_set_ratio': ('w_working_set_ratio', 0.3),
-    # Quadratic interaction terms
-    'dv_x_hub': ('w_dv_x_hub', 0.2),
-    'mod_x_logn': ('w_mod_x_logn', 0.2),
-    'pf_x_wsr': ('w_pf_x_wsr', 0.2),
-}
+# =============================================================================
+# LOGO / CV Shared Helpers  (used by cross_validate_logo[_grouped])
+# =============================================================================
+
+# Weight keys in canonical order — must match C++ scoreBaseNormalized().
+_LOGO_WEIGHT_KEYS = [
+    'w_modularity', 'w_degree_variance', 'w_hub_concentration',
+    'w_log_nodes', 'w_log_edges', 'w_density', 'w_avg_degree',
+    'w_clustering_coeff', 'w_avg_path_length', 'w_diameter',
+    'w_community_count', 'w_packing_factor', 'w_forward_edge_fraction',
+    'w_working_set_ratio', 'w_dv_x_hub', 'w_mod_x_logn', 'w_pf_x_wsr',
+]
+
+
+def _build_logo_features(props: Dict) -> Dict:
+    """Build INFERENCE feature dict matching what C++ runtime computes.
+
+    Uses ESTIMATED modularity (CC*1.5) — NOT real modularity from
+    computeFastModularity — because C++ AdaptiveOrder only has the
+    estimate at runtime.  Training uses real modularity for better
+    signal, but LOGO/inference must simulate runtime conditions.
+    """
+    nodes = props.get('nodes', 1000)
+    edges = props.get('edges', 5000)
+    cc = props.get('clustering_coefficient', 0.0)
+    avg_degree = props.get('avg_degree', 10.0)
+    estimated_mod = min(0.9, cc * 1.5)
+    log_n = math.log10(nodes + 1) if nodes > 0 else 0
+    pf = props.get('packing_factor', 0.0)
+    wsr = props.get('working_set_ratio', 0.0)
+    log_wsr = math.log2(wsr + 1.0)
+    return {
+        'modularity': estimated_mod,
+        'degree_variance': props.get('degree_variance', 1.0),
+        'hub_concentration': props.get('hub_concentration', 0.3),
+        'avg_degree': avg_degree,
+        'log_nodes': log_n,
+        'log_edges': math.log10(edges + 1) if edges > 0 else 0,
+        'density': avg_degree / (nodes - 1) if nodes > 1 else 0,
+        'clustering_coefficient': cc,
+        'avg_path_length': props.get('avg_path_length', 0.0),
+        'diameter': props.get('diameter_estimate', 0.0),
+        'community_count': props.get('community_count', 0.0),
+        'packing_factor': pf,
+        'forward_edge_fraction': props.get('forward_edge_fraction', 0.5),
+        'log_working_set_ratio': log_wsr,
+        'working_set_ratio': wsr,
+        # Quadratic interaction terms (use estimated modularity)
+        'dv_x_hub': props.get('degree_variance', 1.0) * props.get('hub_concentration', 0.3),
+        'mod_x_logn': estimated_mod * log_n,
+        'pf_x_wsr': pf * log_wsr,
+    }
+
+
+def _make_logo_score_fv(feats: Dict) -> list:
+    """Build 17-element feature vector with C++ transforms applied."""
+    dv = feats.get('degree_variance', 1.0)
+    hc = feats.get('hub_concentration', 0.3)
+    modularity = feats.get('modularity', 0.0)
+    log_nodes = feats.get('log_nodes', 5.0)
+    pf = feats.get('packing_factor', 0.0)
+    wsr = feats.get('working_set_ratio', 0.0)
+    log_wsr = math.log2(wsr + 1.0)
+    comm = feats.get('community_count', 1.0)
+    return [
+        modularity,
+        dv,
+        hc,
+        log_nodes,
+        feats.get('log_edges', 6.0),
+        feats.get('density', 0.0),
+        feats.get('avg_degree', 10.0) / 100.0,
+        feats.get('clustering_coefficient', 0.0),
+        feats.get('avg_path_length', 0.0) / 10.0,
+        feats.get('diameter', feats.get('diameter_estimate', 0.0)) / 50.0,
+        math.log10(comm + 1) if comm > 0 else 0,
+        pf,
+        feats.get('forward_edge_fraction', 0.5),
+        log_wsr,
+        dv * hc,
+        modularity * log_nodes,
+        pf * log_wsr,
+    ]
+
+
+def _logo_score(algo_data: Dict, feats: Dict, norm_data: Dict = None) -> float:
+    """Score an algorithm for given features.
+
+    Covers the 17 core linear + quadratic terms used in LOGO cross-validation.
+    Intentionally omits cache constant offsets and convergence bonus —
+    these are graph-independent constants and per-benchmark conditionals
+    that don't affect relative ranking between algorithms within one graph.
+
+    When *norm_data* is provided, z-normalize the feature vector before
+    the dot product (matching C++ scoreBaseNormalized).
+    """
+    fv = _make_logo_score_fv(feats)
+    s = algo_data.get('bias', 0.5)
+    if norm_data is not None:
+        means = norm_data['feat_means']
+        stds = norm_data['feat_stds']
+        for i in range(len(fv)):
+            if i < len(stds) and stds[i] > 1e-12:
+                z = (fv[i] - means[i]) / stds[i]
+                s += algo_data.get(_LOGO_WEIGHT_KEYS[i], 0) * z
+    else:
+        for i in range(len(fv)):
+            s += algo_data.get(_LOGO_WEIGHT_KEYS[i], 0) * fv[i]
+    return s
 
 
 # =============================================================================
@@ -701,33 +788,7 @@ def get_best_algorithm_for_type(
         if algo_name.startswith('_') or algo_name not in candidates:
             continue
         
-        pw = PerceptronWeight(
-            bias=algo_weights.get('bias', 0.5),
-            w_modularity=algo_weights.get('w_modularity', 0.0),
-            w_log_nodes=algo_weights.get('w_log_nodes', 0.0),
-            w_log_edges=algo_weights.get('w_log_edges', 0.0),
-            w_density=algo_weights.get('w_density', 0.0),
-            w_avg_degree=algo_weights.get('w_avg_degree', 0.0),
-            w_degree_variance=algo_weights.get('w_degree_variance', 0.0),
-            w_hub_concentration=algo_weights.get('w_hub_concentration', 0.0),
-            cache_l1_impact=algo_weights.get('cache_l1_impact', 0.0),
-            cache_l2_impact=algo_weights.get('cache_l2_impact', 0.0),
-            cache_l3_impact=algo_weights.get('cache_l3_impact', 0.0),
-            cache_dram_penalty=algo_weights.get('cache_dram_penalty', 0.0),
-            w_reorder_time=algo_weights.get('w_reorder_time', 0.0),
-            w_clustering_coeff=algo_weights.get('w_clustering_coeff', 0.0),
-            w_avg_path_length=algo_weights.get('w_avg_path_length', 0.0),
-            w_diameter=algo_weights.get('w_diameter', 0.0),
-            w_community_count=algo_weights.get('w_community_count', 0.0),
-            w_packing_factor=algo_weights.get('w_packing_factor', 0.0),
-            w_forward_edge_fraction=algo_weights.get('w_forward_edge_fraction', 0.0),
-            w_working_set_ratio=algo_weights.get('w_working_set_ratio', 0.0),
-            w_dv_x_hub=algo_weights.get('w_dv_x_hub', 0.0),
-            w_mod_x_logn=algo_weights.get('w_mod_x_logn', 0.0),
-            w_pf_x_wsr=algo_weights.get('w_pf_x_wsr', 0.0),
-            w_fef_convergence=algo_weights.get('w_fef_convergence', 0.0),
-            benchmark_weights=algo_weights.get('benchmark_weights', {})
-        )
+        pw = PerceptronWeight.from_dict(algo_weights)
         
         score = pw.compute_score(features, benchmark)
         
@@ -1732,120 +1793,16 @@ def cross_validate_logo(
     if weights_dir is None:
         weights_dir = DEFAULT_WEIGHTS_DIR
 
-    def _build_features(props):
-        """Build INFERENCE feature dict matching what C++ runtime computes.
-        
-        Uses ESTIMATED modularity (CC*1.5) — NOT the real modularity from
-        computeFastModularity — because C++ AdaptiveOrder only has the
-        estimate at runtime.  Training uses real modularity for better
-        signal, but LOGO/inference must simulate the runtime conditions.
-        """
-        nodes = props.get('nodes', 1000)
-        edges = props.get('edges', 5000)
-        cc = props.get('clustering_coefficient', 0.0)
-        avg_degree = props.get('avg_degree', 10.0)
-        estimated_mod = min(0.9, cc * 1.5)
-        log_n = math.log10(nodes + 1) if nodes > 0 else 0
-        pf = props.get('packing_factor', 0.0)
-        wsr = props.get('working_set_ratio', 0.0)
-        log_wsr = math.log2(wsr + 1.0)
-        return {
-            'modularity': estimated_mod,
-            'degree_variance': props.get('degree_variance', 1.0),
-            'hub_concentration': props.get('hub_concentration', 0.3),
-            'avg_degree': avg_degree,
-            'log_nodes': log_n,
-            'log_edges': math.log10(edges + 1) if edges > 0 else 0,
-            'density': avg_degree / (nodes - 1) if nodes > 1 else 0,
-            'clustering_coefficient': cc,
-            'avg_path_length': props.get('avg_path_length', 0.0),
-            'diameter': props.get('diameter_estimate', 0.0),
-            'community_count': props.get('community_count', 0.0),
-            # Locality features from graph_properties_cache
-            'packing_factor': pf,
-            'forward_edge_fraction': props.get('forward_edge_fraction', 0.5),
-            'log_working_set_ratio': log_wsr,
-            'working_set_ratio': wsr,
-            # Quadratic interaction terms (use estimated modularity)
-            'dv_x_hub': props.get('degree_variance', 1.0) * props.get('hub_concentration', 0.3),
-            'mod_x_logn': estimated_mod * log_n,
-            'pf_x_wsr': pf * log_wsr,
-        }
-
-    # ---- Scoring helpers ----
-    # Weight keys in canonical order (must match C++ scoreBaseNormalized)
-    _WEIGHT_KEYS = [
-        'w_modularity', 'w_degree_variance', 'w_hub_concentration',
-        'w_log_nodes', 'w_log_edges', 'w_density', 'w_avg_degree',
-        'w_clustering_coeff', 'w_avg_path_length', 'w_diameter',
-        'w_community_count', 'w_packing_factor', 'w_forward_edge_fraction',
-        'w_working_set_ratio', 'w_dv_x_hub', 'w_mod_x_logn', 'w_pf_x_wsr',
-    ]
-
-    def _make_score_fv(feats):
-        """Build 17-element feature vector with C++ transforms applied."""
-        dv = feats.get('degree_variance', 1.0)
-        hc = feats.get('hub_concentration', 0.3)
-        modularity = feats.get('modularity', 0.0)
-        log_nodes = feats.get('log_nodes', 5.0)
-        pf = feats.get('packing_factor', 0.0)
-        wsr = feats.get('working_set_ratio', 0.0)
-        log_wsr = math.log2(wsr + 1.0)
-        comm = feats.get('community_count', 1.0)
-        return [
-            modularity,
-            dv,
-            hc,
-            log_nodes,
-            feats.get('log_edges', 6.0),
-            feats.get('density', 0.0),
-            feats.get('avg_degree', 10.0) / 100.0,
-            feats.get('clustering_coefficient', 0.0),
-            feats.get('avg_path_length', 0.0) / 10.0,
-            feats.get('diameter', feats.get('diameter_estimate', 0.0)) / 50.0,
-            math.log10(comm + 1) if comm > 0 else 0,
-            pf,
-            feats.get('forward_edge_fraction', 0.5),
-            log_wsr,
-            dv * hc,
-            modularity * log_nodes,
-            pf * log_wsr,
-        ]
-
-    def _score(algo_data, feats, norm_data=None):
-        """Score an algorithm for given features.
-        
-        Mode 5 (z-normalized): When norm_data is provided (from _normalization
-        block), z-normalize feature vector before dot product, matching the
-        C++ scoreBaseNormalized() path.
-        
-        Legacy: When norm_data is None, use raw feature values directly (old
-        de-normalized weight path).
-        """
-        fv = _make_score_fv(feats)
-        s = algo_data.get('bias', 0.5)
-        if norm_data is not None:
-            means = norm_data['feat_means']
-            stds = norm_data['feat_stds']
-            for i in range(len(fv)):
-                if i < len(stds) and stds[i] > 1e-12:
-                    z = (fv[i] - means[i]) / stds[i]
-                    s += algo_data.get(_WEIGHT_KEYS[i], 0) * z
-        else:
-            for i in range(len(fv)):
-                s += algo_data.get(_WEIGHT_KEYS[i], 0) * fv[i]
-        return s
+    # ---- Scoring helpers: use module-level SSO functions ----
+    # _build_logo_features, _make_logo_score_fv, _logo_score, _LOGO_WEIGHT_KEYS
 
     def _predict_top_k(scoring_algos, feats, k, norm_data=None):
-        """Return top-K algorithms sorted by descending score.
-        
-        Returns list of (algo_name, score) tuples.
-        """
+        """Return top-K algorithms sorted by descending score."""
         scores = []
         for algo, data in scoring_algos.items():
             if algo.startswith('_'):
                 continue
-            s = _score(data, feats, norm_data)
+            s = _logo_score(data, feats, norm_data)
             scores.append((algo, s))
         scores.sort(key=lambda x: -x[1])
         return scores[:k]
@@ -1931,7 +1888,7 @@ def cross_validate_logo(
         # Build features for held-out graph
         if held_out not in graph_props:
             continue
-        feats = _build_features(graph_props[held_out])
+        feats = _build_logo_features(graph_props[held_out])
 
         graph_correct = 0
         graph_total = 0
@@ -2037,7 +1994,7 @@ def cross_validate_logo(
     for (graph_name, bench), algo_times in gb_results.items():
         if graph_name not in graph_props:
             continue
-        feats = _build_features(graph_props[graph_name])
+        feats = _build_logo_features(graph_props[graph_name])
         scoring_algos = full_per_bench.get(bench, full_algos)
         bench_norm = full_per_bench_norm.get(bench, full_norm_data)
         top_preds = _predict_top_k(scoring_algos, feats, 1, bench_norm)
@@ -2119,82 +2076,7 @@ def cross_validate_logo_grouped(
     if weights_dir is None:
         weights_dir = DEFAULT_WEIGHTS_DIR
 
-    # Reuse helpers from cross_validate_logo (same feature/scoring logic)
-    def _build_features(props):
-        nodes = props.get('nodes', 1000)
-        edges = props.get('edges', 5000)
-        cc = props.get('clustering_coefficient', 0.0)
-        avg_degree = props.get('avg_degree', 10.0)
-        estimated_mod = min(0.9, cc * 1.5)
-        log_n = math.log10(nodes + 1) if nodes > 0 else 0
-        pf = props.get('packing_factor', 0.0)
-        wsr = props.get('working_set_ratio', 0.0)
-        log_wsr = math.log2(wsr + 1.0)
-        return {
-            'modularity': estimated_mod,
-            'degree_variance': props.get('degree_variance', 1.0),
-            'hub_concentration': props.get('hub_concentration', 0.3),
-            'avg_degree': avg_degree,
-            'log_nodes': log_n,
-            'log_edges': math.log10(edges + 1) if edges > 0 else 0,
-            'density': avg_degree / (nodes - 1) if nodes > 1 else 0,
-            'clustering_coefficient': cc,
-            'avg_path_length': props.get('avg_path_length', 0.0),
-            'diameter': props.get('diameter_estimate', 0.0),
-            'community_count': props.get('community_count', 0.0),
-            'packing_factor': pf,
-            'forward_edge_fraction': props.get('forward_edge_fraction', 0.5),
-            'log_working_set_ratio': log_wsr,
-            'working_set_ratio': wsr,
-            'dv_x_hub': props.get('degree_variance', 1.0) * props.get('hub_concentration', 0.3),
-            'mod_x_logn': estimated_mod * log_n,
-            'pf_x_wsr': pf * log_wsr,
-        }
-
-    _WEIGHT_KEYS = [
-        'w_modularity', 'w_degree_variance', 'w_hub_concentration',
-        'w_log_nodes', 'w_log_edges', 'w_density', 'w_avg_degree',
-        'w_clustering_coeff', 'w_avg_path_length', 'w_diameter',
-        'w_community_count', 'w_packing_factor', 'w_forward_edge_fraction',
-        'w_working_set_ratio', 'w_dv_x_hub', 'w_mod_x_logn', 'w_pf_x_wsr',
-    ]
-
-    def _make_score_fv(feats):
-        dv = feats.get('degree_variance', 1.0)
-        hc = feats.get('hub_concentration', 0.3)
-        modularity = feats.get('modularity', 0.0)
-        log_nodes = feats.get('log_nodes', 5.0)
-        pf = feats.get('packing_factor', 0.0)
-        wsr = feats.get('working_set_ratio', 0.0)
-        log_wsr = math.log2(wsr + 1.0)
-        comm = feats.get('community_count', 1.0)
-        return [
-            modularity, dv, hc, log_nodes,
-            feats.get('log_edges', 6.0),
-            feats.get('density', 0.0),
-            feats.get('avg_degree', 10.0) / 100.0,
-            feats.get('clustering_coefficient', 0.0),
-            feats.get('avg_path_length', 0.0) / 10.0,
-            feats.get('diameter', feats.get('diameter_estimate', 0.0)) / 50.0,
-            math.log10(comm + 1) if comm > 0 else 0,
-            pf, feats.get('forward_edge_fraction', 0.5), log_wsr,
-            dv * hc, modularity * log_nodes, pf * log_wsr,
-        ]
-
-    def _score(algo_data, feats, norm_data=None):
-        fv = _make_score_fv(feats)
-        s = algo_data.get('bias', 0.5)
-        if norm_data is not None:
-            means = norm_data['feat_means']
-            stds = norm_data['feat_stds']
-            for i in range(len(fv)):
-                if i < len(stds) and stds[i] > 1e-12:
-                    z = (fv[i] - means[i]) / stds[i]
-                    s += algo_data.get(_WEIGHT_KEYS[i], 0) * z
-        else:
-            for i in range(len(fv)):
-                s += algo_data.get(_WEIGHT_KEYS[i], 0) * fv[i]
-        return s
+    # Use module-level SSO helpers: _build_logo_features, _logo_score, _LOGO_WEIGHT_KEYS
 
     graph_props = load_graph_properties_cache(RESULTS_DIR)
 
@@ -2261,7 +2143,7 @@ def cross_validate_logo_grouped(
 
         if held_out not in graph_props:
             continue
-        feats = _build_features(graph_props[held_out])
+        feats = _build_logo_features(graph_props[held_out])
 
         for bench in sorted(set(b for (g, b) in gb_results if g == held_out)):
             key = (held_out, bench)
@@ -2278,7 +2160,7 @@ def cross_validate_logo_grouped(
             for algo, data in scoring_algos.items():
                 if algo.startswith('_'):
                     continue
-                s = _score(data, feats, bench_norm)
+                s = _logo_score(data, feats, bench_norm)
                 all_scores.append((algo, s))
 
             # Stage 1: Predict group by max mean score (size-normalized)

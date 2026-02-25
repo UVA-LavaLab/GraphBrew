@@ -61,35 +61,18 @@ from .utils import (
     weights_registry_path, weights_type_path,
 )
 
-# All weight fields used in perceptron scoring
-WEIGHT_FIELDS = [
-    "bias",
-    "w_modularity",
-    "w_log_nodes",
-    "w_log_edges", 
-    "w_density",
-    "w_avg_degree",
-    "w_degree_variance",
-    "w_hub_concentration",
-    "w_clustering_coeff",
-    "w_avg_path_length",
-    "w_diameter",
-    "w_community_count",
-    "w_reorder_time",
-    "w_packing_factor",
-    "w_forward_edge_fraction",
-    "w_working_set_ratio",
-    "w_dv_x_hub",
-    "w_mod_x_logn",
-    "w_pf_x_wsr",
-    "w_fef_convergence",
-    "cache_l1_impact",
-    "cache_l2_impact",
-    "cache_l3_impact",
-    "cache_dram_penalty",
-]
+# All weight fields — derived from PerceptronWeight dataclass (SSO).
+# This list is used by WeightConfig to enable/disable individual weights
+# for ablation experiments.  If you add a field to PerceptronWeight,
+# add it here too.
+from .weights import PerceptronWeight as _PW
+import dataclasses as _dc
+WEIGHT_FIELDS = [f.name for f in _dc.fields(_PW)]
 
 # Features used for algorithm scoring (Layer 2)
+# NOTE: to_scoring_dict() pre-applies C++ transforms (avg_degree/100,
+# diameter/50, log10(community+1), etc.), so compute_score() here
+# multiplies weight × pre-normalized feature value directly.
 SCORING_FEATURES = [
     ("modularity", "w_modularity"),
     ("log_nodes", "w_log_nodes"),
