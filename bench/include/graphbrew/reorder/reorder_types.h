@@ -4057,7 +4057,7 @@ inline PerceptronSelection SelectFastestReorderFromWeights(
 /**
  * Find the best matching type from the type registry AND return the distance.
  * 
- * The type registry (results/weights/type_registry.json) contains centroids
+ * The type registry (results/models/perceptron/registry.json) contains centroids
  * for each auto-generated type. This function finds the closest matching type
  * based on the graph features using Euclidean distance.
  * 
@@ -4219,9 +4219,9 @@ inline std::string FindBestTypeFromFeatures(
  * 
  * Checks for weights file in this order:
  * 1. Path from PERCEPTRON_WEIGHTS_FILE environment variable (overrides all)
- * 2. Per-benchmark file: results/weights/type_N/{bench}.json
- * 3. Type weights file: results/weights/type_N/weights.json
- * 4. Fallback: results/weights/type_0/weights.json
+ * 2. Per-benchmark file: results/models/perceptron/type_N/{bench}.json
+ * 3. Type weights file: results/models/perceptron/type_N/weights.json
+ * 4. Fallback: results/models/perceptron/type_0/weights.json
  * 5. If no files exist, returns hardcoded defaults from GetPerceptronWeights()
  * 
  * @param graph_type The detected or specified semantic graph type

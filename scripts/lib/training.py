@@ -16,7 +16,7 @@ Example usage:
         bin_dir="bench/bin",
         bin_sim_dir="bench/bin_sim",
         output_dir="results",
-        weights_file="results/weights/type_0/weights.json",
+        weights_file="results/models/perceptron/type_0/weights.json",
         target_accuracy=80.0
     )
     

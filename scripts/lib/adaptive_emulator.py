@@ -566,7 +566,7 @@ def load_cached_features(cache_path: Path = None) -> Dict[str, GraphFeatures]:
                 hub_concentration=props.get("hub_concentration", 0.0),
                 clustering_coeff=props.get("clustering_coefficient", 0.0),
                 avg_path_length=props.get("avg_path_length", 0.0),
-                diameter=props.get("diameter_estimate", 0.0),
+                diameter=props.get("diameter_estimate", props.get("diameter", 0.0)),
                 community_count=props.get("community_count", 0.0),
             )
     
