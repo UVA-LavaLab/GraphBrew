@@ -1094,6 +1094,525 @@ def export_tree_to_json(
 
 
 # =============================================================================
+# Hybrid DT + Perceptron (Model Tree)
+# =============================================================================
+
+# Perceptron weight keys in scoring order (maps to FEATURE_NAMES indices)
+PERCEPTRON_FEATURE_KEYS = [
+    'w_modularity',               # FEATURE_NAMES[0]
+    'w_hub_concentration',         # FEATURE_NAMES[1]
+    'w_log_nodes',                 # FEATURE_NAMES[2]
+    'w_log_edges',                 # FEATURE_NAMES[3]
+    'w_density',                   # FEATURE_NAMES[4]
+    'w_avg_degree',                # FEATURE_NAMES[5]
+    'w_clustering_coeff',          # FEATURE_NAMES[6]
+    'w_packing_factor',            # FEATURE_NAMES[7]
+    'w_forward_edge_fraction',     # FEATURE_NAMES[8]
+    'w_working_set_ratio',         # FEATURE_NAMES[9]
+    'w_community_count',           # FEATURE_NAMES[10]
+    'w_diameter',                  # FEATURE_NAMES[11]
+]
+
+
+def _train_leaf_perceptron(
+    X_leaf: np.ndarray,
+    graph_names_leaf: List[str],
+    perf_matrix: Dict,
+    benchmark: str,
+    families: List[str],
+    n_epochs: int = 200,
+    learning_rate: float = 0.01,
+    weight_decay: float = 0.001,
+    min_samples_for_perceptron: int = 4,
+) -> Tuple[Dict[str, np.ndarray], bool]:
+    """
+    Train a linear scoring model (perceptron) for a DT leaf.
+
+    For each family, learns weights w such that score = w · x + bias.
+    The family with highest score is predicted.
+
+    Training uses pairwise ranking loss with L2 regularization.
+    If the leaf has fewer than min_samples_for_perceptron graphs,
+    falls back to majority-vote (returns is_fallback=True).
+
+    Args:
+        X_leaf: Feature matrix for graphs in this leaf (n_leaf, n_features)
+        graph_names_leaf: Graph names for the leaf samples
+        perf_matrix: Full performance matrix
+        benchmark: Benchmark name
+        families: List of all family names to score
+        n_epochs: Training epochs
+        learning_rate: SGD learning rate
+        weight_decay: L2 regularization strength
+        min_samples_for_perceptron: Minimum leaf samples for perceptron training
+
+    Returns:
+        ({family: np.array of shape (n_features+1,)}, is_fallback)
+        is_fallback=True means majority-vote weights (no real perceptron)
+    """
+    n_features = X_leaf.shape[1]
+
+    # Build per-graph ground truth: best family timing
+    best_families = []
+    for g in graph_names_leaf:
+        ft = {}
+        for fam in families:
+            best_t = float('inf')
+            for algo, benches in perf_matrix.get(g, {}).items():
+                if coarsen_algo(algo) == fam:
+                    t = benches.get(benchmark, float('inf'))
+                    if t < best_t:
+                        best_t = t
+            ft[fam] = best_t
+        best_fam = min(ft, key=ft.get) if ft else families[0]
+        best_families.append(best_fam)
+
+    # Fallback: too few samples for meaningful perceptron learning
+    if len(X_leaf) < min_samples_for_perceptron:
+        # Use regret-weighted majority vote
+        from collections import Counter
+        vote_counts = Counter(best_families)
+        majority_fam = vote_counts.most_common(1)[0][0]
+        weights = {fam: np.zeros(n_features + 1) for fam in families}
+        weights[majority_fam][-1] = 100.0  # high bias for majority
+        return weights, True
+
+    # Initialize weights: small random values
+    rng = np.random.RandomState(42)
+    weights = {fam: rng.randn(n_features + 1) * 0.01 for fam in families}
+
+    # Pairwise ranking SGD with L2 regularization
+    for epoch in range(n_epochs):
+        for i in range(len(X_leaf)):
+            x = X_leaf[i]
+            x_aug = np.append(x, 1.0)  # add bias term
+            best = best_families[i]
+
+            # Compute scores for all families
+            scores = {fam: np.dot(weights[fam], x_aug) for fam in families}
+
+            # For each non-best family, enforce margin
+            margin = 1.0
+            for fam in families:
+                if fam == best:
+                    continue
+                # Hinge loss: max(0, margin - (score_best - score_fam))
+                gap = scores[best] - scores[fam]
+                if gap < margin:
+                    # Update: push best up, push fam down
+                    weights[best] += learning_rate * x_aug
+                    weights[fam] -= learning_rate * x_aug
+
+            # L2 weight decay (don't decay bias)
+            for fam in families:
+                weights[fam][:-1] *= (1.0 - learning_rate * weight_decay)
+
+    return weights, False
+
+
+def _perceptron_predict_family(
+    x: np.ndarray,
+    leaf_weights: Dict[str, np.ndarray],
+) -> str:
+    """Score all families and return the one with highest score."""
+    x_aug = np.append(x, 1.0)
+    best_fam = None
+    best_score = -float('inf')
+    for fam, w in leaf_weights.items():
+        s = np.dot(w, x_aug)
+        if s > best_score:
+            best_score = s
+            best_fam = fam
+    return best_fam
+
+
+def train_hybrid_model(
+    X: np.ndarray,
+    y: np.ndarray,
+    algo_classes: List[str],
+    graph_names: List[str],
+    perf_matrix: Dict,
+    benchmark: str,
+    max_depth: int = 4,
+    min_samples_leaf: int = 2,
+    n_epochs: int = 200,
+    learning_rate: float = 0.01,
+) -> Tuple[DecisionTreeClassifier, Dict[int, Dict[str, np.ndarray]], List[str]]:
+    """
+    Train a Hybrid DT + Perceptron model (Model Tree / HME).
+
+    1. Train a Decision Tree to partition the feature space
+    2. At each leaf, train a specialized perceptron on the local data
+
+    Args:
+        X, y, algo_classes, graph_names: standard training data
+        perf_matrix: performance matrix for regret-aware perceptron training
+        benchmark: benchmark name
+        max_depth, min_samples_leaf: DT hyperparameters
+        n_epochs, learning_rate: perceptron hyperparameters
+
+    Returns:
+        (dt_clf, leaf_perceptrons, families)
+        dt_clf: trained DecisionTreeClassifier (for routing)
+        leaf_perceptrons: {leaf_id: {family: weight_vector}}
+        families: sorted list of all family names
+    """
+    # Get all families present in training data
+    families = sorted(set(algo_classes))
+
+    # Train the routing DT
+    dt_clf = DecisionTreeClassifier(
+        max_depth=max_depth,
+        min_samples_leaf=min_samples_leaf,
+        class_weight='balanced',
+        random_state=42,
+    )
+    dt_clf.fit(X, y)
+
+    # Identify which leaf each sample lands on
+    leaf_ids = dt_clf.apply(X)
+    unique_leaves = sorted(set(leaf_ids))
+
+    log.info(f"Hybrid: DT depth={dt_clf.get_depth()}, "
+             f"leaves={dt_clf.get_n_leaves()}, training {len(unique_leaves)} leaf perceptrons")
+
+    # Train a perceptron at each leaf
+    leaf_perceptrons = {}
+    for leaf_id in unique_leaves:
+        mask = (leaf_ids == leaf_id)
+        X_leaf = X[mask]
+        g_leaf = [graph_names[i] for i in range(len(graph_names)) if mask[i]]
+
+        log.info(f"  Leaf {leaf_id}: {len(g_leaf)} graphs → "
+                 f"training perceptron ({n_epochs} epochs)")
+
+        leaf_weights, is_fallback = _train_leaf_perceptron(
+            X_leaf, g_leaf, perf_matrix, benchmark,
+            families, n_epochs, learning_rate,
+        )
+        leaf_perceptrons[leaf_id] = leaf_weights
+        if is_fallback:
+            log.info(f"    → fallback to majority vote (too few samples)")
+
+    return dt_clf, leaf_perceptrons, families
+
+
+def predict_hybrid(
+    dt_clf: DecisionTreeClassifier,
+    leaf_perceptrons: Dict[int, Dict[str, np.ndarray]],
+    X: np.ndarray,
+    families: List[str],
+) -> List[str]:
+    """
+    Predict using the hybrid model: DT routes → leaf perceptron scores.
+
+    Returns list of predicted family names.
+    """
+    leaf_ids = dt_clf.apply(X)
+    predictions = []
+    for i, leaf_id in enumerate(leaf_ids):
+        if leaf_id in leaf_perceptrons:
+            pred = _perceptron_predict_family(X[i], leaf_perceptrons[leaf_id])
+        else:
+            # Shouldn't happen, but fallback to DT prediction
+            pred_idx = dt_clf.predict(X[i:i+1])[0]
+            pred = families[pred_idx] if pred_idx < len(families) else families[0]
+        predictions.append(pred)
+    return predictions
+
+
+def cross_validate_hybrid_regret(
+    X: np.ndarray,
+    y: np.ndarray,
+    algo_classes: List[str],
+    graph_names: List[str],
+    perf_matrix: Dict,
+    benchmark: str,
+    max_depth: int = 4,
+    min_samples_leaf: int = 2,
+    n_epochs: int = 200,
+    learning_rate: float = 0.01,
+) -> Dict[str, float]:
+    """
+    Leave-One-Out cross-validation for the hybrid DT+Perceptron model.
+
+    Same metrics as cross_validate_regret but using hybrid prediction.
+    """
+    loo = LeaveOneOut()
+    exact = 0
+    within_5 = 0
+    within_10 = 0
+    regrets = []
+    n = len(y)
+    families = sorted(set(algo_classes))
+
+    for train_idx, test_idx in loo.split(X):
+        X_train, X_test = X[train_idx], X[test_idx]
+        y_train = y[train_idx]
+        g_train = [graph_names[i] for i in train_idx]
+
+        # Train hybrid on n-1 graphs
+        dt_clf, leaf_perceptrons, _ = train_hybrid_model(
+            X_train, y_train, algo_classes, g_train,
+            perf_matrix, benchmark,
+            max_depth=max_depth,
+            min_samples_leaf=min_samples_leaf,
+            n_epochs=n_epochs,
+            learning_rate=learning_rate,
+        )
+
+        # Predict on held-out graph
+        preds = predict_hybrid(dt_clf, leaf_perceptrons, X_test, families)
+        predicted_family = preds[0]
+
+        # Check exact match
+        idx = test_idx[0]
+        true_family = algo_classes[y[idx]]
+        if predicted_family == true_family:
+            exact += 1
+
+        # Compute regret
+        graph = graph_names[idx]
+        _, best_time = find_best_family(perf_matrix, graph, benchmark)
+
+        predicted_time = float('inf')
+        for algo, benches in perf_matrix.get(graph, {}).items():
+            if coarsen_algo(algo) == predicted_family:
+                t = benches.get(benchmark, float('inf'))
+                if t < predicted_time:
+                    predicted_time = t
+
+        if best_time > 0 and best_time != float('inf') and predicted_time != float('inf'):
+            regret = (predicted_time / best_time - 1.0) * 100
+        else:
+            regret = 100.0
+
+        regrets.append(regret)
+        if regret <= 5.0:
+            within_5 += 1
+        if regret <= 10.0:
+            within_10 += 1
+
+    return {
+        'loo_accuracy': round(exact / n * 100, 2),
+        'loo_accuracy_5pct': round(within_5 / n * 100, 2),
+        'loo_accuracy_10pct': round(within_10 / n * 100, 2),
+        'loo_avg_regret': round(np.mean(regrets), 2) if regrets else 0,
+        'loo_median_regret': round(np.median(regrets), 2) if regrets else 0,
+        'loo_max_regret': round(max(regrets), 2) if regrets else 0,
+        'n_splits': n,
+    }
+
+
+def _hybrid_tree_to_cpp_recursive(
+    tree,
+    node: int,
+    feature_names: List[str],
+    cpp_feature_exprs: List[str],
+    leaf_perceptrons: Dict[int, Dict[str, np.ndarray]],
+    families: List[str],
+    indent: int = 1,
+) -> str:
+    """
+    Recursively convert a hybrid model node to C++ if/else code.
+
+    At leaf nodes, emits perceptron dot-product scoring instead of
+    a fixed return value.
+    """
+    tab = '    ' * indent
+
+    left = tree.children_left[node]
+    right = tree.children_right[node]
+
+    # Leaf node → emit perceptron scoring
+    if left == right:
+        # Find the leaf_id for this node
+        # In sklearn, leaf node IDs are just the node indices
+        leaf_id = node
+        samples = int(tree.n_node_samples[node])
+
+        if leaf_id not in leaf_perceptrons:
+            # Fallback: return majority class
+            class_idx = int(np.argmax(tree.value[node]))
+            algo_name = families[class_idx] if class_idx < len(families) else 'ORIGINAL'
+            return f'{tab}return "{algo_name}"; // {samples} samples (no perceptron)\n'
+
+        weights = leaf_perceptrons[leaf_id]
+
+        code = f'{tab}// Leaf: {samples} training samples — perceptron scoring\n'
+        code += f'{tab}{{\n'
+        tab2 = '    ' * (indent + 1)
+
+        # Emit scoring for each family
+        code += f'{tab2}double best_score = -1e30;\n'
+        code += f'{tab2}std::string best_family = "ORIGINAL";\n'
+        code += f'{tab2}double score;\n'
+
+        for fam in families:
+            w = weights.get(fam)
+            if w is None:
+                continue
+            # Build dot product: w[0]*feat0 + w[1]*feat1 + ... + w[-1] (bias)
+            terms = []
+            for j, cpp_expr in enumerate(cpp_feature_exprs):
+                if j < len(w) - 1 and abs(w[j]) > 1e-10:
+                    terms.append(f'{w[j]:.8f} * {cpp_expr}')
+            bias = w[-1] if len(w) > 0 else 0.0
+            if abs(bias) > 1e-10:
+                terms.append(f'{bias:.8f}')
+            if not terms:
+                terms = ['0.0']
+
+            score_expr = '\n{0}         + '.format(tab2).join(terms)
+            code += f'{tab2}score = {score_expr};\n'
+            code += f'{tab2}if (score > best_score) {{ best_score = score; best_family = "{fam}"; }}\n'
+
+        code += f'{tab2}return best_family;\n'
+        code += f'{tab}}}\n'
+        return code
+
+    # Decision node
+    feat_idx = tree.feature[node]
+    threshold = tree.threshold[node]
+
+    feat_name = feature_names[feat_idx] if feat_idx < len(feature_names) else f"feat[{feat_idx}]"
+    cpp_expr = cpp_feature_exprs[feat_idx] if feat_idx < len(cpp_feature_exprs) else f"feat[{feat_idx}]"
+
+    code = ''
+    code += f'{tab}// Split on {feat_name}\n'
+    code += f'{tab}if ({cpp_expr} <= {threshold:.6f}) {{\n'
+    code += _hybrid_tree_to_cpp_recursive(
+        tree, left, feature_names, cpp_feature_exprs,
+        leaf_perceptrons, families, indent + 1,
+    )
+    code += f'{tab}}} else {{\n'
+    code += _hybrid_tree_to_cpp_recursive(
+        tree, right, feature_names, cpp_feature_exprs,
+        leaf_perceptrons, families, indent + 1,
+    )
+    code += f'{tab}}}\n'
+
+    return code
+
+
+def export_hybrid_to_cpp(
+    dt_clf: DecisionTreeClassifier,
+    leaf_perceptrons: Dict[int, Dict[str, np.ndarray]],
+    families: List[str],
+    benchmark: str,
+    feature_names: List[str] = None,
+    cpp_feature_exprs: List[str] = None,
+) -> str:
+    """
+    Export a hybrid DT+Perceptron model as a C++ function.
+
+    The tree structure routes via if/else, and each leaf contains
+    a perceptron dot-product scoring over all families.
+    """
+    if feature_names is None:
+        feature_names = FEATURE_NAMES
+    if cpp_feature_exprs is None:
+        cpp_feature_exprs = CPP_FEATURE_EXPR
+
+    tree = dt_clf.tree_
+    func_name = f"SelectAlgorithmHybrid_{benchmark}"
+
+    code = f'''/**
+ * @brief Hybrid DT+Perceptron selector for {benchmark.upper()} benchmark.
+ *
+ * Auto-generated by scripts/lib/decision_tree.py on {datetime.now().strftime("%Y-%m-%d %H:%M")}.
+ * Architecture: Decision Tree routes to leaf, per-leaf perceptron scores families.
+ * Scientific basis: Logistic Model Trees (Landwehr et al. 2005, Machine Learning),
+ *   Hierarchical Mixtures of Experts (Jordan & Jacobs 1994, Neural Computation).
+ * Tree depth: {dt_clf.get_depth()}, leaves: {dt_clf.get_n_leaves()}.
+ * Families: {", ".join(families)}.
+ * Features ({len(feature_names)}): {", ".join(feature_names)}.
+ *
+ * @param feat  Graph community features (computed at runtime)
+ * @return Algorithm family name
+ */
+inline std::string {func_name}(const CommunityFeatures& feat) {{
+'''
+
+    code += _hybrid_tree_to_cpp_recursive(
+        tree, 0, feature_names, cpp_feature_exprs,
+        leaf_perceptrons, families,
+    )
+
+    code += '}\n'
+    return code
+
+
+def export_hybrid_per_benchmark_to_cpp(
+    models: Dict[str, Tuple[DecisionTreeClassifier, Dict[int, Dict[str, np.ndarray]], List[str]]],
+) -> str:
+    """
+    Export per-benchmark hybrid models + dispatcher as C++ code.
+
+    Args:
+        models: {benchmark: (dt_clf, leaf_perceptrons, families)}
+    """
+    code = '''// ============================================================================
+// HYBRID DT + PERCEPTRON MODEL (Model Tree / Hierarchical Mixture of Experts)
+//
+// Architecture: Decision Tree routes input to a leaf node, where a specialized
+// perceptron scores all algorithm families. The family with the highest score wins.
+//
+// Scientific basis:
+//   - Logistic Model Trees: Landwehr, Hall & Frank (2005), Machine Learning
+//   - Hierarchical Mixtures of Experts: Jordan & Jacobs (1994), Neural Computation (4737 citations)
+//   - Model Trees: Frank et al. (1998), Machine Learning (558 citations)
+//   - Hybrid DT Learners: Seewald et al. (2001), FLAIRS/AAAI
+//
+// Features (12): modularity, hub_concentration, log_nodes, log_edges,
+//   density, avg_degree/100, clustering_coeff, packing_factor,
+//   forward_edge_fraction, log2(wsr+1), log10(community_count+1), diameter/50
+// ============================================================================
+
+'''
+
+    for bench, (dt_clf, leaf_perceptrons, families) in models.items():
+        code += export_hybrid_to_cpp(
+            dt_clf, leaf_perceptrons, families, bench,
+        )
+        code += '\n'
+
+    # Dispatcher
+    code += '''/**
+ * @brief Dispatch to the benchmark-specific Hybrid DT+Perceptron model.
+ *
+ * @param feat  Graph community features (computed at runtime)
+ * @param bench Benchmark type enum
+ * @return Algorithm family name
+ */
+inline std::string SelectAlgorithmHybridDispatch(
+    const CommunityFeatures& feat, BenchmarkType bench) {
+    switch (bench) {
+'''
+    bench_list = list(models.keys())
+    bench_to_enum = {
+        'pr': ['BENCH_PR', 'BENCH_PR_SPMV'],
+        'bfs': ['BENCH_BFS'],
+        'cc': ['BENCH_CC', 'BENCH_CC_SV'],
+        'sssp': ['BENCH_SSSP'],
+        'bc': ['BENCH_BC'],
+        'tc': ['BENCH_TC'],
+    }
+    for bench in bench_list:
+        for enum_val in bench_to_enum.get(bench, []):
+            code += f'        case {enum_val}:\n'
+        code += f'            return SelectAlgorithmHybrid_{bench}(feat);\n'
+
+    first_bench = bench_list[0] if bench_list else 'pr'
+    code += f'        default:\n'
+    code += f'            return SelectAlgorithmHybrid_{first_bench}(feat);\n'
+    code += f'    }}\n'
+    code += '}\n'
+
+    return code
+
+
+# =============================================================================
 # Comparison with Perceptron
 # =============================================================================
 
@@ -1219,11 +1738,15 @@ def main():
     parser.add_argument('--auto-depth', action='store_true',
                        help='Auto-select optimal depth per benchmark via LOO regret '
                             '(for --per-benchmark mode)')
+    parser.add_argument('--hybrid', action='store_true',
+                       help='Train Hybrid DT+Perceptron model (Model Tree). '
+                            'Uses --per-benchmark automatically.')
     
     args = parser.parse_args()
     
     if not any([args.train, args.grid_search, args.compare,
-                args.export_cpp, args.feature_importance, args.fine_tune]):
+                args.export_cpp, args.feature_importance, args.fine_tune,
+                args.hybrid]):
         parser.print_help()
         return
     
@@ -1234,6 +1757,127 @@ def main():
         log.error("No benchmark data found. Run benchmarks first.")
         sys.exit(1)
     
+    if args.hybrid:
+        print("\n" + "=" * 70)
+        print("HYBRID DT + PERCEPTRON (MODEL TREE)")
+        print("=" * 70)
+        print(f"Architecture: Decision Tree routes → per-leaf Perceptron scores")
+        print(f"Based on: LMT (Landwehr 2005), HME (Jordan & Jacobs 1994)")
+        print()
+
+        benchmarks = ['pr', 'bfs', 'cc', 'sssp', 'bc']
+        hybrid_models = {}  # {bench: (dt_clf, leaf_perceptrons, families)}
+        all_results = {}
+
+        for bench in benchmarks:
+            try:
+                X, y, graphs, algo_classes = build_training_data(
+                    perf_matrix, graph_props, bench
+                )
+            except ValueError:
+                log.warning(f"No data for {bench}")
+                continue
+
+            # Auto-depth search for the DT routing component
+            best_depth = args.max_depth
+            best_leaf = args.min_leaf
+            best_regret = float('inf')
+
+            if args.auto_depth:
+                print(f"\n--- {bench.upper()}: Auto-tuning hybrid depth ---")
+                for d in range(2, 8):
+                    for ml in [1, 2, 3, 5]:
+                        cv = cross_validate_hybrid_regret(
+                            X, y, algo_classes, graphs,
+                            perf_matrix, bench,
+                            max_depth=d, min_samples_leaf=ml,
+                            n_epochs=200, learning_rate=0.01,
+                        )
+                        if cv['loo_avg_regret'] < best_regret:
+                            best_regret = cv['loo_avg_regret']
+                            best_depth = d
+                            best_leaf = ml
+                print(f"  Best: depth={best_depth}, min_leaf={best_leaf}, "
+                      f"LOO_regret={best_regret:.1f}%")
+
+            # Train final model
+            dt_clf, leaf_perceptrons, families = train_hybrid_model(
+                X, y, algo_classes, graphs,
+                perf_matrix, bench,
+                max_depth=best_depth,
+                min_samples_leaf=best_leaf,
+                n_epochs=200,
+                learning_rate=0.01,
+            )
+            hybrid_models[bench] = (dt_clf, leaf_perceptrons, families)
+
+            # Evaluate with LOO
+            cv = cross_validate_hybrid_regret(
+                X, y, algo_classes, graphs,
+                perf_matrix, bench,
+                max_depth=best_depth,
+                min_samples_leaf=best_leaf,
+            )
+
+            # Also get pure DT LOO for comparison
+            cv_dt = cross_validate_regret(
+                X, y, algo_classes, graphs,
+                perf_matrix, bench,
+                max_depth=best_depth,
+                min_samples_leaf=best_leaf,
+            )
+
+            all_results[bench] = {
+                'hybrid': cv,
+                'dt': cv_dt,
+                'depth': best_depth,
+                'leaf': best_leaf,
+                'n_leaves': dt_clf.get_n_leaves(),
+            }
+
+            print(f"\n{bench.upper()} (depth={best_depth}, min_leaf={best_leaf}, "
+                  f"leaves={dt_clf.get_n_leaves()}):")
+            print(f"  {'Metric':<20} {'Hybrid':>10} {'Pure DT':>10}")
+            print(f"  {'-'*42}")
+            print(f"  {'LOO Accuracy':<20} {cv['loo_accuracy']:>9.1f}% {cv_dt['loo_accuracy']:>9.1f}%")
+            print(f"  {'Within 5%':<20} {cv['loo_accuracy_5pct']:>9.1f}% {cv_dt['loo_accuracy_5pct']:>9.1f}%")
+            print(f"  {'Within 10%':<20} {cv['loo_accuracy_10pct']:>9.1f}% {cv_dt['loo_accuracy_10pct']:>9.1f}%")
+            print(f"  {'Avg Regret':<20} {cv['loo_avg_regret']:>9.1f}% {cv_dt['loo_avg_regret']:>9.1f}%")
+            print(f"  {'Median Regret':<20} {cv['loo_median_regret']:>9.1f}% {cv_dt['loo_median_regret']:>9.1f}%")
+            print(f"  {'Max Regret':<20} {cv['loo_max_regret']:>9.1f}% {cv_dt['loo_max_regret']:>9.1f}%")
+
+        # Summary
+        if all_results:
+            print(f"\n{'='*70}")
+            print("SUMMARY: Hybrid vs Pure DT")
+            print(f"{'='*70}")
+            print(f"{'Bench':>6} {'Hybrid Regret':>14} {'DT Regret':>10} {'Winner':>8} {'Depth':>6}")
+            print(f"{'-'*48}")
+            h_total, d_total = 0, 0
+            for bench in benchmarks:
+                if bench not in all_results:
+                    continue
+                r = all_results[bench]
+                h_reg = r['hybrid']['loo_avg_regret']
+                d_reg = r['dt']['loo_avg_regret']
+                winner = 'Hybrid' if h_reg < d_reg else ('Tie' if h_reg == d_reg else 'DT')
+                print(f"{bench.upper():>6} {h_reg:>13.1f}% {d_reg:>9.1f}% {winner:>8} {r['depth']:>6}")
+                h_total += h_reg
+                d_total += d_reg
+            n_bench = len(all_results)
+            print(f"{'AVG':>6} {h_total/n_bench:>13.1f}% {d_total/n_bench:>9.1f}%")
+
+        if args.export_cpp and hybrid_models:
+            cpp_code = export_hybrid_per_benchmark_to_cpp(hybrid_models)
+            out_file = WEIGHTS_DIR / "hybrid_per_benchmark.cpp"
+            out_file.parent.mkdir(parents=True, exist_ok=True)
+            with open(out_file, 'w') as f:
+                f.write(cpp_code)
+            print(f"\nC++ code written to {out_file}")
+            print(f"Total lines: {cpp_code.count(chr(10))}")
+
+        return
+
     if args.grid_search:
         print("\n" + "=" * 70)
         print("GRID SEARCH: Decision Tree Depth vs Accuracy (Regret-Aware)")
