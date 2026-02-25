@@ -19,8 +19,7 @@ scripts/
 │   ├── benchmark.py          ← benchmark orchestration
 │   ├── ...                   ← (see lib/ for full listing)
 │   └── __init__.py
-├── test/                     ← pytest tests  (run: pytest scripts/test/)
-└── examples/                 ← standalone example scripts
+└── test/                     ← pytest tests  (run: pytest scripts/test/)
 ```
 
 Weight files live under `results/weights/` (not `scripts/`), managed by
