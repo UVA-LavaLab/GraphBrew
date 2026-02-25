@@ -225,10 +225,10 @@ class PerceptronWeight:
         score += self.cache_l3_impact * 0.2
         score += self.cache_dram_penalty
         
-        # Convergence bonus for iterative algorithms (PR, SSSP)
-        # Use the benchmark parameter passed to this function, not from features dict
+        # Convergence bonus for iterative algorithms (PR, PR_SPMV, SSSP)
+        # Matches C++ score(): bench == BENCH_PR || BENCH_PR_SPMV || BENCH_SSSP
         bench_name = benchmark if benchmark else features.get('benchmark', '')
-        if bench_name in ('pr', 'sssp'):
+        if bench_name in ('pr', 'pr_spmv', 'sssp'):
             score += self.w_fef_convergence * features.get('forward_edge_fraction', 0.0)
         
         # Apply benchmark-specific multiplier

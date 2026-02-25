@@ -12,10 +12,10 @@ GraphBrew/
 │   ├── include/              # Header libraries
 │   │   ├── graphbrew/        # 📦 GraphBrew extensions
 │   │   │   ├── graphbrew.h   # Umbrella header
-│   │   │   ├── reorder/      # Reordering algorithms (~20,600 lines)
+│   │   │   ├── reorder/      # Reordering algorithms (~20,612 lines)
 │   │   │   └── partition/    # Partitioning (trust.h, cagra/popt.h)
 │   │   ├── external/         # External libraries (bundled)
-│   │   │   ├── gapbs/        # Core GAPBS runtime (builder.h ~3,751 lines)
+│   │   │   ├── gapbs/        # Core GAPBS runtime (builder.h ~3,842 lines)
 │   │   │   ├── rabbit/       # RabbitOrder
 │   │   │   ├── gorder/       # GOrder
 │   │   │   ├── corder/       # COrder
@@ -99,32 +99,32 @@ The reorder module is a modular header library with standalone template function
 
 ```
 reorder/
-├── reorder_types.h      # Base: types, perceptron, feature computation (~5,052 lines)
+├── reorder_types.h      # Base: types, perceptron, feature computation (~6,293 lines)
 ├── reorder_basic.h      # Original, Random, Sort (algo 0-2) (~324 lines)
 ├── reorder_hub.h        # HubSort, HubCluster, DBG variants (algo 3-7) (~641 lines)
-├── reorder_rabbit.h     # RabbitOrder native CSR (algo 8) (~1,141 lines)
+├── reorder_rabbit.h     # RabbitOrder native CSR (algo 8) (~1,117 lines)
 ├── reorder_classic.h    # GOrder, COrder, RCMOrder dispatch (algo 9-11) (~521 lines)
-├── reorder_gorder.h     # GOrder CSR variants: serial (-o 9:csr) + parallel (-o 9:fast) (~932 lines)
+├── reorder_gorder.h     # GOrder CSR variants: serial (-o 9:csr) + parallel (-o 9:fast) (~926 lines)
 ├── reorder_rcm.h        # RCM BNF variant (-o 11:bnf) (~645 lines)
-├── reorder_adaptive.h   # ML-based selection (algo 14) (~802 lines)
-├── reorder_database.h   # Database-driven selection (MODE_DATABASE) (~1,222 lines)
-├── reorder_graphbrew.h  # GraphBrew + Leiden unified reordering (algo 12, 15) (~7,490 lines)
-└── reorder.h            # Main dispatcher (~570 lines)
+├── reorder_adaptive.h   # ML-based selection (algo 14) (~932 lines)
+├── reorder_database.h   # Database-driven selection (MODE_DATABASE) (~1,221 lines)
+├── reorder_graphbrew.h  # GraphBrew + Leiden unified reordering (algo 12, 15) (~7,359 lines)
+└── reorder.h            # Main dispatcher (~633 lines)
 ```
 
 **Total: ~20,612 lines**
 
 | File | Lines | Purpose |
 |------|-------|---------|
-| `reorder_graphbrew.h` | ~7,490 | GraphBrew + Leiden unified reordering framework (algo 12, 15) |
-| `reorder_types.h` | ~5,052 | Common types, perceptron model, `EdgeList`, threshold functions, `GetLLCSizeBytes()`, `getAlgorithmNameMap()` (~16 base names), `lookupAlgorithm()`, `ResolveVariantSelection()` |
-| `reorder_database.h` | ~1,222 | Database-driven algorithm selection (MODE_DATABASE): oracle lookup + kNN fallback |
-| `reorder_rabbit.h` | ~1,141 | RabbitOrder CSR native implementation (auto-adaptive resolution) |
-| `reorder_gorder.h` | ~932 | GOrder CSR variants: serial greedy (-o 9:csr) + parallel batch (-o 9:fast) |
-| `reorder_adaptive.h` | ~802 | `AdaptiveConfig`, ML-based algorithm selection (full-graph default) |
+| `reorder_graphbrew.h` | ~7,359 | GraphBrew + Leiden unified reordering framework (algo 12, 15) |
+| `reorder_types.h` | ~6,293 | Common types, perceptron model, `EdgeList`, threshold functions, `GetLLCSizeBytes()`, `getAlgorithmNameMap()` (~16 base names), `lookupAlgorithm()`, `ResolveVariantSelection()` |
+| `reorder_database.h` | ~1,221 | Database-driven algorithm selection (MODE_DATABASE): oracle lookup + kNN fallback |
+| `reorder_rabbit.h` | ~1,117 | RabbitOrder CSR native implementation (auto-adaptive resolution) |
+| `reorder_gorder.h` | ~926 | GOrder CSR variants: serial greedy (-o 9:csr) + parallel batch (-o 9:fast) |
+| `reorder_adaptive.h` | ~932 | `AdaptiveConfig`, ML-based algorithm selection (full-graph default) |
 | `reorder_rcm.h` | ~645 | RCM BNF variant: CSR-native BNF start + deterministic parallel CM BFS |
 | `reorder_hub.h` | ~641 | Hub-based algorithms (DBG, HubSort, HubCluster) |
-| `reorder.h` | ~570 | Main dispatcher, `ApplyBasicReorderingStandalone` |
+| `reorder.h` | ~633 | Main dispatcher, `ApplyBasicReorderingStandalone` |
 | `reorder_classic.h` | ~521 | Classic algorithms (GOrder, COrder, RCM dispatch) |
 | `reorder_basic.h` | ~324 | Basic algorithms (Original, Random, Sort) |
 
@@ -306,7 +306,7 @@ int main(int argc, char* argv[]) {
 See [[Python-Scripts]] for full documentation of the Python tooling.
 
 Key entry points:
-- `graphbrew_experiment.py` — Main orchestration (~2,680 lines)
+- `graphbrew_experiment.py` — Main orchestration (~2,838 lines)
 - `lib/perceptron.py` — ML weight experimentation
 - `lib/adaptive_emulator.py` — C++ logic emulation
 - `lib/eval_weights.py` — Weight evaluation & accuracy reporting
@@ -315,7 +315,7 @@ Key entry points:
 - `lib/benchmark.py` — Benchmark execution + fresh benchmark runner
 - `lib/analysis.py` — Result analysis + A/B testing + Leiden variant comparison
 - `lib/cache.py` — Cache simulation + quick cache comparison
-- `lib/` — 27 reusable modules (~25,300 lines total)
+- `lib/` — 27 reusable modules (~25,073 lines total)
 
 **Unified Naming Convention (SSOT):** All Python modules use five SSOT functions from `lib/utils.py`:
 

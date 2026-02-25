@@ -335,7 +335,7 @@ This ensures Python evaluation matches C++ `scoreBase() × benchmarkMultiplier()
 
 See [[Command-Line-Reference]] for the complete CLI option reference.
 
-Key flags: `--full` (complete pipeline), `--size small|medium|large`, `--phase reorder|benchmark|cache|weights|adaptive`, `--train` (8-phase weight training), `--train-benchmarks` (default: pr bfs cc), `--train-iterative` (feedback loop), `--brute-force` (validation), `--auto` (auto-detect RAM/disk limits).
+Key flags: `--full` (complete pipeline), `--size small|medium|large`, `--phase reorder|benchmark|cache|weights|adaptive`, `--train` (multi-phase weight training), `--train-benchmarks` (default: pr bfs cc), `--train-iterative` (feedback loop), `--brute-force` (validation), `--auto` (auto-detect RAM/disk limits).
 
 **Variant testing:** `--all-variants`, `--graphbrew-variants`, `--rabbit-variants`, `--gorder-variants`. Variant lists defined in `scripts/lib/utils.py`.
 
@@ -377,7 +377,7 @@ The `lib/` folder contains modular, reusable components:
 
 ### Key: `compute_weights_from_results()`
 
-The primary training function: multi-restart perceptrons (5×800 epochs, z-score normalized, L2 regularized) → variant pre-collapse → regret-aware grid search for benchmark multipliers → saves `type_0.json`. See [[Perceptron-Weights]] for details.
+The primary training function: multi-restart perceptrons (5×800 epochs, z-score normalized, L2 regularized) → variant-level weight saving → regret-aware grid search for benchmark multipliers → saves `type_0.json`. See [[Perceptron-Weights]] for details.
 
 ---
 

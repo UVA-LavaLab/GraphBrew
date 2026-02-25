@@ -351,7 +351,7 @@ python3 scripts/graphbrew_experiment.py --phase benchmark --use-maps
 python3 scripts/graphbrew_experiment.py --phase weights
 ```
 
-The 8-phase `--train` mode fills: (0) graph analysis, (1) reorder_time, (2) bias/scale, (3) cache impacts, (4) base weights, (5) topology weights, (6) benchmark multipliers, (7) per-graph-type files.
+The `--train` mode runs: (1) reorder, (2) benchmark, (3) cache simulation, (4) weight generation via `compute_weights_from_results()` (multi-restart perceptrons → regret-aware grid search → per-type file saving).
 
 See [[AdaptiveOrder-ML#training-the-perceptron]] for iterative training and progression recommendations.
 
@@ -383,7 +383,7 @@ Positive error → increase weights for features that predicted success. Negativ
 
 **Regret-aware grid search** optimizes per-benchmark multipliers (`benchmark_weights`) after base weight training. For each algorithm, it tests 30 random multiplier candidates from a log-spaced grid [0.1, 10.0], keeping combinations that maximize accuracy while minimizing regret (performance loss vs optimal).
 
-**Variant pre-collapse:** Before saving, only the highest-bias variant per base algorithm is kept (e.g., `GraphBrewOrder_leiden_dfs` beats `GraphBrewOrder_leiden` → saved as `GraphBrewOrder`).
+**Variant handling:** With string-keyed weights in C++, each variant has its own entry — all variants are saved directly (no collapsing). The training pipeline sets bias ordering based on mean-feature scores for backward compatibility.
 
 ---
 

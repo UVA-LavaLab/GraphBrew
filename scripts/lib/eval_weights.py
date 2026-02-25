@@ -91,6 +91,10 @@ def _build_features(props: dict) -> dict:
     if modularity is None or modularity <= 0:
         modularity = min(0.9, cc * 1.5)  # legacy fallback
     return {
+        # Raw node/edge counts — needed by PerceptronWeight.compute_score()
+        # which computes log_nodes = log10(nodes + 1) internally.
+        "nodes": nodes,
+        "edges": edges,
         "modularity": modularity,
         "degree_variance": props.get("degree_variance", 1.0),
         "hub_concentration": props.get("hub_concentration", 0.3),

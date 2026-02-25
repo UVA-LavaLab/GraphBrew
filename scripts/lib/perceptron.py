@@ -586,6 +586,7 @@ def train_weights_perceptron(
     graph_features = {g: compute_graph_features(g, results) for g in graphs}
 
     # Feature names and their weight keys (same mapping as add_feature_weights)
+    # Must match PerceptronWeight.compute_score() in weights.py.
     feat_map = {
         'modularity': 'w_modularity',
         'density': 'w_density',
@@ -597,6 +598,8 @@ def train_weights_perceptron(
         'forward_edge_fraction': 'w_forward_edge_fraction',
         'working_set_ratio': 'w_working_set_ratio',
         'community_count': 'w_community_count',
+        'avg_path_length': 'w_avg_path_length',
+        'diameter': 'w_diameter',
     }
 
     # Identify benchmarks that have data
@@ -657,13 +660,17 @@ def train_weights_perceptron(
                     fval = features.get(feat_name, 0.0)
                     if fval == 0.0:
                         continue
-                    # Normalize large features
+                    # Normalize large features — must match compute_score() transforms
                     if feat_name == 'avg_degree':
                         fval /= 100.0
                     elif feat_name == 'community_count':
                         fval = math.log10(fval + 1)
                     elif feat_name == 'working_set_ratio':
                         fval = math.log2(fval + 1.0)
+                    elif feat_name == 'avg_path_length':
+                        fval /= 10.0
+                    elif feat_name == 'diameter':
+                        fval /= 50.0
 
                     if w_key in weights[actual_best]:
                         weights[actual_best][w_key] += learning_rate * fval
