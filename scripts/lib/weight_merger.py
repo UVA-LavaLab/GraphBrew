@@ -7,7 +7,7 @@ accounting for the fact that type IDs may differ between runs (type_0 in run A
 might correspond to type_1 in run B based on centroid similarity).
 
 Directory Structure:
-    results/weights/
+    results/models/perceptron/
     ├── registry.json               # Graph-type cluster registry
     ├── type_0/                     # Default graph-type cluster
     │   ├── weights.json            # Generic perceptron weights
