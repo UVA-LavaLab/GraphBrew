@@ -14,7 +14,7 @@ Core library used by `graphbrew_experiment.py` and other scripts.
 | `cache.py` | Cache simulation orchestration, quick cache comparison |
 | `training.py` | Perceptron training pipeline |
 | `perceptron.py` | Perceptron model implementation |
-| `weights.py` | Weight file I/O and management |
+| `weights.py` | **SSO** scoring (`PerceptronWeight.compute_score()`), type-based weight training, LOGO CV, type registry, weight I/O |
 | `weight_merger.py` | Multi-run weight merging |
 | `eval_weights.py` | Weight evaluation and scoring |
 | `analysis.py` | Result analysis, A/B testing, Leiden variant comparison |

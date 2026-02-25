@@ -8,7 +8,7 @@ All Python tooling for GraphBrew lives here.
 scripts/
 ├── graphbrew_experiment.py   ← SINGLE entry point (the only top-level .py)
 ├── requirements.txt
-├── lib/                      ← internal library modules (import, never run directly)
+├── lib/                      ← internal library modules (imported; many also support standalone use)
 │   ├── utils.py              ← paths, constants, shared helpers
 │   ├── weights.py            ← weight training, type registry, LOGO CV
 │   ├── eval_weights.py       ← evaluation / accuracy reports
