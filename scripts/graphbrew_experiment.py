@@ -995,6 +995,7 @@ def ensure_prerequisites(project_dir: str = ".",
         graphs_dir,
         results_dir,
         weights_dir,
+        os.path.join(results_dir, "data"),
         os.path.join(project_dir, "bench", "bin"),
         os.path.join(project_dir, "bench", "bin_sim"),
     ]
@@ -2641,6 +2642,7 @@ def main():
         # At least ensure directories exist
         os.makedirs(args.results_dir, exist_ok=True)
         os.makedirs(args.weights_dir, exist_ok=True)
+        os.makedirs(os.path.join(args.results_dir, "data"), exist_ok=True)
     
     # Auto-setup: download graphs if needed
     if args.auto_setup or args.fill_weights or args.full:

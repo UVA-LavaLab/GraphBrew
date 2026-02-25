@@ -39,7 +39,7 @@ results/
 │       │   └── weights/       # Computed perceptron weights
 │       └── *.log              # Individual operation logs
 │
-├── data/                      # Runtime model storage
+├── data/                      # Runtime model storage (auto-created by ensure_prerequisites)
 │   ├── adaptive_models.json   # Unified model store (DT, hybrid, kNN)
 │   ├── benchmarks.json        # Aggregated benchmark data
 │   ├── graph_properties.json  # Graph feature database
