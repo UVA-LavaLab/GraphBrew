@@ -114,18 +114,25 @@ def initialize_enhanced_weights(weights_file: str, algorithms: List[str] = None)
             "w_avg_degree": 0.0,
             "w_degree_variance": 0.0,
             "w_hub_concentration": 0.0,
-            "cache_l1_impact": 0.0,
-            "cache_l2_impact": 0.0,
-            "cache_l3_impact": 0.0,
-            "cache_dram_penalty": 0.0,
-            "w_reorder_time": 0.0,
             "w_clustering_coeff": 0.0,
             "w_avg_path_length": 0.0,
             "w_diameter": 0.0,
             "w_community_count": 0.0,
+            "w_packing_factor": 0.0,
+            "w_forward_edge_fraction": 0.0,
+            "w_working_set_ratio": 0.0,
+            "w_dv_x_hub": 0.0,
+            "w_mod_x_logn": 0.0,
+            "w_pf_x_wsr": 0.0,
+            "w_fef_convergence": 0.0,
+            "w_reorder_time": 0.0,
+            "cache_l1_impact": 0.0,
+            "cache_l2_impact": 0.0,
+            "cache_l3_impact": 0.0,
+            "cache_dram_penalty": 0.0,
             "benchmark_weights": {
                 "pr": 1.0, "pr_spmv": 1.0, "bfs": 1.0, "cc": 1.0,
-                "cc_sv": 1.0, "sssp": 1.0, "bc": 1.0,
+                "cc_sv": 1.0, "sssp": 1.0, "bc": 1.0, "tc": 1.0,
             }
         }
     
@@ -412,10 +419,8 @@ def train_adaptive_weights_iterative(
                     weights_dir=weights_dir,
                     learning_rate=learning_rate
                 )
-                
-                # Also update legacy weights file
-                _update_legacy_weights(weights, correct_algo, adaptive_algo, 
-                                       features, benchmark, learning_rate)
+                # Legacy weights file update removed — type-based perceptron
+                # (update_type_weights_incremental) is the sole training path.
         
         # Add training metadata
         weights['_training_metadata'] = {
@@ -653,70 +658,9 @@ def train_adaptive_weights_large_scale(
     return result
 
 
-def _update_legacy_weights(weights: Dict, correct_algo: str, wrong_algo: str,
-                           features: Dict, benchmark: str, learning_rate: float):
-    """
-    Update legacy single weights file for backwards compatibility.
-    
-    Args:
-        weights: Weights dictionary to update
-        correct_algo: Algorithm that should have been chosen
-        wrong_algo: Algorithm that was incorrectly chosen
-        features: Graph features
-        benchmark: Benchmark name
-        learning_rate: Learning rate
-    """
-    if correct_algo in weights:
-        algo_weights = weights[correct_algo]
-        
-        # Feature-based adjustments
-        if features.get('density', 0) > 0.01:
-            current = algo_weights.get('w_density', 0)
-            algo_weights['w_density'] = round(current + learning_rate * 0.01 * features['density'], 6)
-        
-        if features.get('degree_variance', 0) > 0.5:
-            current = algo_weights.get('w_degree_variance', 0)
-            algo_weights['w_degree_variance'] = round(current + learning_rate * 0.005, 6)
-        
-        if features.get('hub_concentration', 0) > 0.3:
-            current = algo_weights.get('w_hub_concentration', 0)
-            algo_weights['w_hub_concentration'] = round(current + learning_rate * 0.01, 6)
-        
-        # Per-benchmark weight
-        benchmark_key = benchmark.lower()
-        if 'benchmark_weights' not in algo_weights:
-            algo_weights['benchmark_weights'] = {
-                'pr': 1.0, 'pr_spmv': 1.0, 'bfs': 1.0, 'cc': 1.0,
-                'cc_sv': 1.0, 'sssp': 1.0, 'bc': 1.0,
-            }
-        
-        if benchmark_key in algo_weights['benchmark_weights']:
-            current_bw = algo_weights['benchmark_weights'][benchmark_key]
-            algo_weights['benchmark_weights'][benchmark_key] = round(current_bw + learning_rate * 0.02, 4)
-        
-        # Increase bias
-        current_bias = algo_weights.get('bias', 0.5)
-        algo_weights['bias'] = round(current_bias + learning_rate * 0.02, 4)
-        
-        weights[correct_algo] = algo_weights
-    
-    # Decrease weights for wrong algorithm
-    if wrong_algo in weights:
-        algo_weights = weights[wrong_algo]
-        
-        current_bias = algo_weights.get('bias', 0.5)
-        algo_weights['bias'] = round(current_bias - learning_rate * 0.015, 4)
-        
-        if features.get('density', 0) > 0.01:
-            current = algo_weights.get('w_density', 0)
-            algo_weights['w_density'] = round(current - learning_rate * 0.003, 6)
-        
-        benchmark_key = benchmark.lower()
-        if 'benchmark_weights' in algo_weights and benchmark_key in algo_weights['benchmark_weights']:
-            current_bw = algo_weights['benchmark_weights'][benchmark_key]
-            algo_weights['benchmark_weights'][benchmark_key] = round(current_bw - learning_rate * 0.01, 4)
-        
-        weights[wrong_algo] = algo_weights
+# _update_legacy_weights removed — the ad-hoc gradient only adjusted 3 of 17+
+# weights and didn't match the perceptron's forward pass. All training now goes
+# through update_type_weights_incremental() which uses the correct gradient.
 
 
 __all__ = [

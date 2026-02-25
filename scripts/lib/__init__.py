@@ -340,13 +340,10 @@ from .utils import BenchmarkResult
 from .graph_data import (
     # Data stores
     GraphDataStore,
-    GraphFeaturesStore,
-    GraphRunStore,
     # Data classes
     GraphFeatures,
     AlgorithmBenchmarkData,
     AlgorithmReorderData,
-    GraphPerceptronWeights,
     # Convenience functions
     save_graph_features,
     load_all_graph_data,

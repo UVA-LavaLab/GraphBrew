@@ -231,6 +231,8 @@ score = bias
 
 The algorithm with the highest score is selected. Actual weight values are stored in `results/weights/type_N/weights.json` — run `--train` to generate them from your benchmark data.
 
+> **SSO Scoring:** Both Python (`eval_weights.py` → `PerceptronWeight.compute_score()`) and C++ (`scoreBase() × benchmarkMultiplier()`) implement the same formula. The Python `_simulate_score()` function delegates to `PerceptronWeight.from_dict(algo_data).compute_score(feats, benchmark)` — ensuring a single source of truth with no duplicated formula.
+
 ---
 
 ## Algorithm Name Mapping
@@ -368,6 +370,8 @@ for key in w_and_cache_keys:
 ```
 
 Positive error → increase weights for features that predicted success. Negative error → decrease. ORIGINAL is trained like any other algorithm, allowing the model to learn when *not reordering* is optimal.
+
+> **Unified training path:** All online training goes through `update_type_weights_incremental()`, which applies the correct gradient across all 17+ features, 3 quadratic terms, and convergence bonus. The legacy `_update_legacy_weights()` function (which only adjusted 3 weights via ad-hoc gradient) has been removed.
 
 > **Note:** Modularity now uses the real value from graph features (computed via Leiden or loaded from cache), with `clustering_coefficient × 1.5` as a fallback if modularity is unavailable.
 

@@ -301,26 +301,23 @@ Base-aware avg regret: X.X% (variant mismatches = 0%)
 Base-aware median regret: X.X%
 ```
 
-### How C++ Scoring Is Simulated
+### How C++ Scoring Is Simulated (SSO)
+
+Scoring uses a **single source of truth** — the canonical `PerceptronWeight.compute_score()` method in `weights.py`. No duplicated formula:
 
 ```python
-def simulate_score(algo_data, feats, bench_type):
-    """Mimic C++ scoreBase() * benchmarkMultiplier()"""
-    s = algo_data['bias']
-    s += algo_data['w_modularity'] * feats['modularity']
-    s += algo_data['w_log_nodes'] * feats['log_nodes']
-    s += algo_data['w_log_edges'] * feats['log_edges']
-    s += algo_data['w_density'] * feats['density']
-    s += algo_data['w_avg_degree'] * feats['avg_degree'] / 100.0
-    s += algo_data['w_degree_variance'] * feats['degree_variance']
-    s += algo_data['w_hub_concentration'] * feats['hub_concentration']
-    s += algo_data['w_clustering_coeff'] * feats['clustering_coefficient']
-    # ... (all features)
-    
-    # Benchmark multiplier from regret-aware grid search
-    mult = algo_data['benchmark_weights'][bench_type]
-    return s * mult
+def _simulate_score(algo_data, feats, benchmark='pr'):
+    """Simulate C++ scoreBase() × benchmarkMultiplier().
+
+    Delegates to PerceptronWeight.compute_score() — SSO scoring.
+    Covers all 17 features + 3 quadratic terms + convergence bonus
+    + cache constants + benchmark multiplier.
+    """
+    pw = PerceptronWeight.from_dict(algo_data)
+    return pw.compute_score(feats, benchmark)
 ```
+
+This ensures Python evaluation matches C++ `scoreBase() × benchmarkMultiplier()` exactly, with no risk of divergence from a separately maintained formula.
 
 ### vs Other Tools
 

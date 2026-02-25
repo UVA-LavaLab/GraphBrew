@@ -862,6 +862,8 @@ results/data/
 - **`graph_properties.json`** — Cached graph features (12D vectors) for all benchmarked graphs. Used by kNN to compute nearest-neighbor distances.
 - **`runs/`** — Timestamped snapshots of individual benchmark runs.
 
+> **From-scratch setup:** All directories under `results/data/` are created on-demand by `ensure_prerequisites()` with `exist_ok=True`. Data stores start empty when files are missing. Running a new graph simply adds its data to the existing database (SSO additive model) — no manual directory creation or initialization needed.
+
 ---
 
 ## Debugging

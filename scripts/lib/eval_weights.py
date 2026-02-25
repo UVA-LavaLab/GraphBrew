@@ -31,7 +31,7 @@ from .utils import (
     VARIANT_PREFIXES, DISPLAY_TO_CANONICAL,
 )
 from .datastore import get_benchmark_store
-from .weights import compute_weights_from_results, cross_validate_logo
+from .weights import compute_weights_from_results, cross_validate_logo, PerceptronWeight
 from .features import (
     load_graph_properties_cache,
     update_graph_properties,
@@ -62,67 +62,14 @@ _PER_BENCH_NAMES = list(BENCHMARKS)
 # No longer collapsing variants — comparison at canonical variant level.
 
 
-def _simulate_score(algo_data: dict, feats: dict) -> float:
-    """Mimic C++ scoreBase() — must match reorder_types.h PerceptronWeights::scoreBase() exactly.
+def _simulate_score(algo_data: dict, feats: dict, benchmark: str = 'pr') -> float:
+    """Simulate C++ scoreBase() using PerceptronWeight.compute_score().
 
-    Feature list (17 terms + 3 quadratic + reorder penalty):
-      1. bias
-      2. w_modularity * modularity
-      3. w_log_nodes * log10(nodes+1)
-      4. w_log_edges * log10(edges+1)
-      5. w_density * density
-      6. w_avg_degree * avg_degree/100
-      7. w_degree_variance * degree_variance
-      8. w_hub_concentration * hub_concentration
-      9. w_clustering_coeff * clustering_coefficient
-     10. w_avg_path_length * avg_path_length/10   (computed via sampled BFS)
-     11. w_diameter * diameter/50                  (computed via sampled BFS)
-     12. w_community_count * log10(community_count+1)  (connected components)
-     13. w_packing_factor * packing_factor
-     14. w_forward_edge_fraction * forward_edge_fraction
-     15. w_working_set_ratio * log2(working_set_ratio+1)
-     16. w_dv_x_hub * degree_variance * hub_concentration
-     17. w_mod_x_logn * modularity * log_nodes
-     18. w_pf_x_wsr * packing_factor * log2(wsr+1)
-     19. w_reorder_time * reorder_time  (unused in eval — no reorder_time in features)
+    Delegates to the canonical scoring implementation in weights.py to
+    ensure perfect consistency with C++ (no duplicated formula).
     """
-    s = algo_data.get("bias", 0.5)
-
-    # Core features
-    s += algo_data.get("w_modularity", 0) * feats.get("modularity", 0.0)
-    log_nodes = feats.get("log_nodes", 5.0)
-    log_edges = feats.get("log_edges", 6.0)
-    s += algo_data.get("w_log_nodes", 0) * log_nodes
-    s += algo_data.get("w_log_edges", 0) * log_edges
-    s += algo_data.get("w_density", 0) * feats.get("density", 0.0)
-    s += algo_data.get("w_avg_degree", 0) * feats.get("avg_degree", 10.0) / 100.0
-    dv = feats.get("degree_variance", 1.0)
-    hc = feats.get("hub_concentration", 0.3)
-    s += algo_data.get("w_degree_variance", 0) * dv
-    s += algo_data.get("w_hub_concentration", 0) * hc
-
-    # Extended features
-    s += algo_data.get("w_clustering_coeff", 0) * feats.get("clustering_coefficient", 0.0)
-    s += algo_data.get("w_avg_path_length", 0) * feats.get("avg_path_length", 0.0) / 10.0
-    s += algo_data.get("w_diameter", 0) * feats.get("diameter", 0.0) / 50.0
-    cc_val = feats.get("community_count", 0.0)
-    s += algo_data.get("w_community_count", 0) * (math.log10(cc_val + 1) if cc_val > 0 else 0)
-
-    # Locality features (IISWC'18 / GoGraph / P-OPT)
-    pf = feats.get("packing_factor", 0.0)
-    s += algo_data.get("w_packing_factor", 0) * pf
-    s += algo_data.get("w_forward_edge_fraction", 0) * feats.get("forward_edge_fraction", 0.5)
-    wsr = feats.get("working_set_ratio", 0.0)
-    log_wsr = math.log2(wsr + 1.0)
-    s += algo_data.get("w_working_set_ratio", 0) * log_wsr
-
-    # Quadratic interaction terms
-    modularity = feats.get("modularity", 0.0)
-    s += algo_data.get("w_dv_x_hub", 0) * dv * hc
-    s += algo_data.get("w_mod_x_logn", 0) * modularity * log_nodes
-    s += algo_data.get("w_pf_x_wsr", 0) * pf * log_wsr
-
-    return s
+    pw = PerceptronWeight.from_dict(algo_data)
+    return pw.compute_score(feats, benchmark)
 
 
 def _build_features(props: dict) -> dict:
@@ -371,7 +318,7 @@ def evaluate_predictions(
         for algo, data in scoring_algos.items():
             if algo.startswith("_"):
                 continue
-            score = _simulate_score(data, feats)
+            score = _simulate_score(data, feats, bench)
             if score > best_score:
                 best_score = score
                 predicted_algo = algo
