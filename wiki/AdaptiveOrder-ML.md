@@ -122,7 +122,7 @@ Managed by the `DataStore` class in `scripts/lib/datastore.py`. The C++ runtime 
 
 **Legacy Type Files (still valid for C++ perceptron loading):**
 ```
-results/weights/
+results/models/perceptron/
 ├── registry.json           # Graph→type mapping + centroids
 ├── type_0/               # Generic weights
 │   ├── weights.json      # Base weights
@@ -874,7 +874,7 @@ results/data/
 # Look for: "Graph Type: social", "Selected Algorithm: GraphBrewOrder"
 
 # Validate weights JSON
-python3 -c "import json; json.load(open('results/weights/type_0/weights.json'))"
+python3 -c "import json; json.load(open('results/models/perceptron/type_0/weights.json'))"
 
 # Ablation toggles (environment variables):
 # ADAPTIVE_NO_OOD=1      — disable OOD guardrail

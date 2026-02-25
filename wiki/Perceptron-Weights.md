@@ -5,7 +5,7 @@ The perceptron weights control how AdaptiveOrder selects algorithms. This page e
 ## Overview
 
 ```
-results/weights/
+results/models/perceptron/
 ├── registry.json           # Graph→type mapping + centroids
 ├── type_0/
 │   └── weights.json
@@ -31,7 +31,7 @@ See [[AdaptiveOrder-ML#perceptron-scoring-diagram]] for the full scoring diagram
 
 ## Weight File Location
 
-Weights live in `results/weights/` (see directory tree above). The auto-clustering type system groups graphs by 7 features (modularity, log_nodes, log_edges, avg_degree, degree_variance, hub_concentration, clustering_coefficient) and trains per-cluster weights.
+Weights live in `results/models/perceptron/` (see directory tree above). The auto-clustering type system groups graphs by 7 features (modularity, log_nodes, log_edges, avg_degree, degree_variance, hub_concentration, clustering_coefficient) and trains per-cluster weights.
 
 **Loading priority:** `PERCEPTRON_WEIGHTS_FILE` env var → per-benchmark `type_N/{bench}.json` → best matching `type_N/weights.json` → `type_0/weights.json` → hardcoded defaults.
 
@@ -66,7 +66,7 @@ Each type file maps algorithm names to weights. Example entry:
 }
 ```
 
-Run `--train` to generate actual weight values. See `results/weights/type_0/weights.json` for real data.
+Run `--train` to generate actual weight values. See `results/models/perceptron/type_0/weights.json` for real data.
 
 Algorithm names are produced by `canonical_algo_key(algo_id, variant)` from `scripts/lib/utils.py`. This is the SSOT for weight file keys, `.sg` filenames, and result JSON. See [[Code-Architecture#unified-naming-convention-ssot]].
 
@@ -229,7 +229,7 @@ score = bias
       + (w_fef_convergence × fef if PR/SSSP)                  # convergence
 ```
 
-The algorithm with the highest score is selected. Actual weight values are stored in `results/weights/type_N/weights.json` — run `--train` to generate them from your benchmark data.
+The algorithm with the highest score is selected. Actual weight values are stored in `results/models/perceptron/type_N/weights.json` — run `--train` to generate them from your benchmark data.
 
 > **SSO Scoring:** Both Python (`eval_weights.py` → `PerceptronWeight.compute_score()`) and C++ (`scoreBase() × benchmarkMultiplier()`) implement the same formula. The Python `_simulate_score()` function delegates to `PerceptronWeight.from_dict(algo_data).compute_score(feats, benchmark)` — ensuring a single source of truth with no duplicated formula.
 
@@ -307,8 +307,8 @@ python3 scripts/graphbrew_experiment.py --full --size small
 python3 scripts/graphbrew_experiment.py --phase weights
 
 # Manual edit + validate
-nano results/weights/type_0/weights.json
-python3 -c "import json; json.load(open('results/weights/type_0/weights.json'))"
+nano results/models/perceptron/type_0/weights.json
+python3 -c "import json; json.load(open('results/models/perceptron/type_0/weights.json'))"
 ```
 
 ---
@@ -409,11 +409,11 @@ print(f"LOGO: {result['accuracy']:.1%}, Overfit: {result['overfitting_score']:.2
 
 | Problem | Fix |
 |---------|-----|
-| Algorithm X never selected | Check bias: `grep -A1 '"AlgoX"' results/weights/type_0/weights.json` — increase bias or feature weights |
+| Algorithm X never selected | Check bias: `grep -A1 '"AlgoX"' results/models/perceptron/type_0/weights.json` — increase bias or feature weights |
 | Wrong algorithm selected | Run with `-v` to see scores, manually verify feature × weight products |
-| Weights not loading | Check `ls results/weights/type_*/weights.json` and `echo $PERCEPTRON_WEIGHTS_FILE` |
+| Weights not loading | Check `ls results/models/perceptron/type_*/weights.json` and `echo $PERCEPTRON_WEIGHTS_FILE` |
 
-**Best practices:** Start with moderate biases (0.5–0.7), validate empirically after tuning, keep backups (`cp -r results/weights/ results/weights.backup/`).
+**Best practices:** Start with moderate biases (0.5–0.7), validate empirically after tuning, keep backups (`cp -r results/models/perceptron/ results/weights.backup/`).
 
 ---
 

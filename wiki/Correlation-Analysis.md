@@ -193,7 +193,7 @@ Computing correlations...
 ----------------------------------------------------------------------
 Computing Perceptron Weights
 ----------------------------------------------------------------------
-Perceptron weights saved to: results/weights/type_0/weights.json
+Perceptron weights saved to: results/models/perceptron/type_0/weights.json
   16 algorithms configured (IDs 0-15; 14 are benchmark-eligible)
 
 Summary:
@@ -204,8 +204,8 @@ Summary:
 
 ### Generated Files
 
-1. **results/weights/type_N/weights.json** - Weights for C++ runtime (per cluster)
-2. **results/weights/registry.json** - Graph → type mappings + centroids
+1. **results/models/perceptron/type_N/weights.json** - Weights for C++ runtime (per cluster)
+2. **results/models/perceptron/registry.json** - Graph → type mappings + centroids
 3. **results/benchmark_*.json** - Full benchmark results
 
 ---
@@ -282,7 +282,7 @@ After running the full pipeline, results are in JSON format:
 cat results/benchmark_*.json | python3 -m json.tool
 
 # View generated weights
-cat results/weights/type_0/weights.json | python3 -m json.tool
+cat results/models/perceptron/type_0/weights.json | python3 -m json.tool
 ```
 
 ### Correlation Matrix
@@ -299,9 +299,9 @@ Re-run analysis when: adding new graphs, adding algorithms, changing target benc
 python3 scripts/graphbrew_experiment.py --train --size medium --auto
 ```
 
-After training, the system automatically clusters graphs and generates per-cluster weights in `results/weights/`. See [[Perceptron-Weights]] for weight file format and [[Python-Scripts]] for weight management.
+After training, the system automatically clusters graphs and generates per-cluster weights in `results/models/perceptron/`. See [[Perceptron-Weights]] for weight file format and [[Python-Scripts]] for weight management.
 
-To reset: `rm -rf results/weights/type_*/weights.json results/weights/registry.json`
+To reset: `rm -rf results/models/perceptron/type_*/weights.json results/models/perceptron/registry.json`
 
 ---
 

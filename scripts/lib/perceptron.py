@@ -226,6 +226,11 @@ def compute_graph_features(graph_name: str, results: Dict) -> Dict[str, float]:
     features['log_nodes'] = math.log10(features.get('nodes', 1000) + 1)
     features['log_edges'] = math.log10(features.get('edges', 5000) + 1)
     
+    # Normalize key names: source data may store 'diameter_estimate' instead of
+    # 'diameter'. Ensure 'diameter' is always present for compute_score().
+    if 'diameter' not in features and 'diameter_estimate' in features:
+        features['diameter'] = features['diameter_estimate']
+    
     return features
 
 

@@ -3,10 +3,10 @@
 Test Weight Flow - Verify weights are generated and read from correct locations.
 
 This test verifies:
-1. Python writes weights to results/weights/
-2. C++ reads from results/weights/
-3. Weight merger saves runs to results/weights/runs/
-4. Weight merger merges to results/weights/merged/
+1. Python writes weights to results/models/perceptron/
+2. C++ reads from results/models/perceptron/
+3. Weight merger saves runs to results/models/perceptron/runs/
+4. Weight merger merges to results/models/perceptron/merged/
 5. Use-run and use-merged copy to weights/
 
 Usage:
@@ -92,8 +92,8 @@ def weights_env(tmp_path, monkeypatch):
     import scripts.lib.weights as weights
     import scripts.lib.weight_merger as wm
 
-    tmp_weights = tmp_path / "weights"
-    tmp_active = tmp_weights / "active"
+    tmp_weights = tmp_path / "models" / "perceptron"
+    tmp_active = tmp_weights
     tmp_runs = tmp_weights / "runs"
     tmp_merged = tmp_weights / "merged"
     for d in [tmp_active, tmp_runs, tmp_merged]:
@@ -101,10 +101,10 @@ def weights_env(tmp_path, monkeypatch):
 
     # Patch utils
     monkeypatch.setattr(utils, "WEIGHTS_DIR", tmp_weights)
-    monkeypatch.setattr(utils, "ACTIVE_WEIGHTS_DIR", tmp_active)
+    monkeypatch.setattr(utils, "ACTIVE_WEIGHTS_DIR", tmp_weights)
 
     # Patch weights module
-    monkeypatch.setattr(weights, "DEFAULT_WEIGHTS_DIR", str(tmp_active))
+    monkeypatch.setattr(weights, "DEFAULT_WEIGHTS_DIR", str(tmp_weights))
 
     # Patch weight_merger path functions
     monkeypatch.setattr(wm, "get_weights_dir", lambda: tmp_weights)
@@ -116,13 +116,13 @@ def weights_env(tmp_path, monkeypatch):
     default_weights = {
         "Algo0": {"bias": 0.5, "w_modularity": 0.1, "w_log_nodes": 0.0}
     }
-    (tmp_active / "type_0").mkdir(parents=True, exist_ok=True)
-    (tmp_active / "type_0" / "weights.json").write_text(json.dumps(default_weights))
-    (tmp_active / "registry.json").write_text(json.dumps({
+    (tmp_weights / "type_0").mkdir(parents=True, exist_ok=True)
+    (tmp_weights / "type_0" / "weights.json").write_text(json.dumps(default_weights))
+    (tmp_weights / "registry.json").write_text(json.dumps({
         "type_0": {"centroid": [0]*7, "graph_count": 1, "algorithms": ["Algo0"]}
     }))
 
-    return tmp_weights, tmp_active, tmp_runs, tmp_merged
+    return tmp_weights, tmp_weights, tmp_runs, tmp_merged
 
 
 def test_path_constants(results: ResultsTracker):
@@ -130,10 +130,10 @@ def test_path_constants(results: ResultsTracker):
     print("\n1. Testing Path Constants")
     print("-" * 40)
     
-    # WEIGHTS_DIR should be results/weights
+    # WEIGHTS_DIR should be results/models/perceptron
     results.check(
-        WEIGHTS_DIR.name == "weights" and WEIGHTS_DIR.parent.name == "results",
-        f"WEIGHTS_DIR points to results/weights: {WEIGHTS_DIR}"
+        WEIGHTS_DIR.name == "perceptron" and WEIGHTS_DIR.parent.name == "models",
+        f"WEIGHTS_DIR points to results/models/perceptron: {WEIGHTS_DIR}"
     )
     
     # ACTIVE_WEIGHTS_DIR should equal WEIGHTS_DIR (no more /active/ sublevel)
@@ -161,12 +161,12 @@ def test_path_constants(results: ResultsTracker):
     
     results.check(
         get_runs_dir() == WEIGHTS_DIR / "runs",
-        "get_runs_dir() returns results/weights/runs"
+        "get_runs_dir() returns results/models/perceptron/runs"
     )
     
     results.check(
         get_merged_dir() == WEIGHTS_DIR / "merged",
-        "get_merged_dir() returns results/weights/merged"
+        "get_merged_dir() returns results/models/perceptron/merged"
     )
 
 
@@ -177,12 +177,12 @@ def test_directory_structure(results: ResultsTracker):
     
     results.check(
         WEIGHTS_DIR.exists(),
-        "results/weights/ exists"
+        "results/models/perceptron/ exists"
     )
     
     results.check(
         ACTIVE_WEIGHTS_DIR.exists(),
-        "results/weights/ (active) exists"
+        "results/models/perceptron/ (active) exists"
     )
     
     # Check for type directories in active
@@ -254,8 +254,8 @@ def test_cpp_path_constants(results: ResultsTracker):
         
         # Check TYPE_WEIGHTS_DIR
         results.check(
-            'TYPE_WEIGHTS_DIR = "results/weights/"' in content,
-            "TYPE_WEIGHTS_DIR points to results/weights/"
+            'TYPE_WEIGHTS_DIR = "results/models/perceptron/"' in content,
+            "TYPE_WEIGHTS_DIR points to results/models/perceptron/"
         )
 
 
