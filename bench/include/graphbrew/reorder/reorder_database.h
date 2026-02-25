@@ -65,6 +65,9 @@ inline constexpr const char* BENCHMARKS_FILE = "results/data/benchmarks.json";
 /// Graph properties file (feature vectors for all known graphs)
 inline constexpr const char* GRAPH_PROPS_FILE = "results/data/graph_properties.json";
 
+/// Unified adaptive model file (perceptron + DT + hybrid, all benchmarks)
+inline constexpr const char* ADAPTIVE_MODELS_FILE = "results/data/adaptive_models.json";
+
 /// Number of nearest neighbors for kNN selection
 inline constexpr int KNN_K = 5;
 
@@ -428,8 +431,81 @@ public:
         dedup_.clear();
         oracle_cache_.clear();
         graph_features_.clear();
+        perceptron_weights_.clear();
+        model_trees_.clear();
         loaded_ = false;
         load();
+    }
+
+    // ========================================================================
+    // Unified Model Access (perceptron, DT, hybrid)
+    // ========================================================================
+
+    /**
+     * @brief Check if the unified model file was loaded.
+     */
+    bool models_loaded() const { return models_loaded_; }
+
+    /**
+     * @brief Get perceptron weights for a specific benchmark.
+     *
+     * Tries per-benchmark weights first, falls back to averaged weights.
+     * Returns nullptr if no weights are available.
+     *
+     * @param bench Benchmark name ("pr", "bfs", etc.), or "" for averaged
+     * @return Pointer to JSON object, or nullptr if not found
+     */
+    const nlohmann::json* get_perceptron_weights(const std::string& bench = "") const {
+        if (!models_loaded_) return nullptr;
+
+        // Try per-benchmark weights first
+        if (!bench.empty() && !bench.empty()) {
+            auto it = perceptron_per_bench_.find(bench);
+            if (it != perceptron_per_bench_.end()) {
+                return &(it->second);
+            }
+        }
+
+        // Fall back to averaged weights
+        if (!perceptron_weights_.is_null() && !perceptron_weights_.empty()) {
+            return &perceptron_weights_;
+        }
+
+        return nullptr;
+    }
+
+    /**
+     * @brief Get a model tree (DT or hybrid) for a specific benchmark.
+     *
+     * @param bench  Benchmark name ("pr", "bfs", etc.)
+     * @param subdir "decision_tree" or "hybrid"
+     * @return Parsed ModelTree, or empty (loaded=false) if not found
+     */
+    ModelTree get_model_tree(const std::string& bench,
+                             const std::string& subdir) const {
+        ModelTree mt;
+        auto section_it = model_trees_.find(subdir);
+        if (section_it == model_trees_.end()) return mt;
+
+        auto bench_it = section_it->second.find(bench);
+        if (bench_it == section_it->second.end()) return mt;
+
+        return bench_it->second;
+    }
+
+    /**
+     * @brief Parse perceptron weights from JSON into PerceptronWeights map.
+     *
+     * Delegates to the global ParseWeightsFromJSON function in reorder_types.h.
+     */
+    bool parse_perceptron_weights(const std::string& bench,
+                                   std::map<std::string, PerceptronWeights>& out) const {
+        const nlohmann::json* jptr = get_perceptron_weights(bench);
+        if (!jptr) return false;
+
+        // Convert nlohmann JSON to string for existing parser
+        std::string json_str = jptr->dump();
+        return ParseWeightsFromJSON(json_str, out);
     }
 
     /**
@@ -464,12 +540,17 @@ private:
         load_benchmarks();
         load_graph_props();
         build_oracle_cache();
+        load_adaptive_models();
         loaded_ = !records_.empty();
 
         if (loaded_) {
             std::cout << "[DATABASE] Loaded " << records_.size()
                       << " records, " << graph_features_.size()
-                      << " graph feature vectors\n";
+                      << " graph feature vectors";
+            if (models_loaded_) {
+                std::cout << ", unified models";
+            }
+            std::cout << "\n";
         }
     }
 
@@ -734,6 +815,190 @@ private:
     }
 
     // ========================================================================
+    // Unified Model Loading
+    // ========================================================================
+
+    /**
+     * @brief Load adaptive_models.json (perceptron + DT + hybrid).
+     *
+     * Populates perceptron_weights_, perceptron_per_bench_, and model_trees_.
+     */
+    void load_adaptive_models() {
+        std::ifstream ifs(ADAPTIVE_MODELS_FILE);
+        if (!ifs.is_open()) {
+            // Fall back: try individual model files
+            load_model_trees_from_individual_files();
+            load_perceptron_from_individual_files();
+            models_loaded_ = !model_trees_.empty() || !perceptron_weights_.is_null();
+            return;
+        }
+
+        try {
+            nlohmann::json j;
+            ifs >> j;
+
+            // ---- Perceptron ----
+            if (j.contains("perceptron")) {
+                const auto& p = j["perceptron"];
+                if (p.contains("weights")) {
+                    perceptron_weights_ = p["weights"];
+                }
+                if (p.contains("per_benchmark")) {
+                    for (auto it = p["per_benchmark"].begin();
+                         it != p["per_benchmark"].end(); ++it) {
+                        perceptron_per_bench_[it.key()] = it.value();
+                    }
+                }
+            }
+
+            // ---- Decision Tree ----
+            if (j.contains("decision_tree")) {
+                for (auto it = j["decision_tree"].begin();
+                     it != j["decision_tree"].end(); ++it) {
+                    ModelTree mt;
+                    if (parse_model_tree_from_nlohmann(it.value(), mt)) {
+                        model_trees_["decision_tree"][it.key()] = mt;
+                    }
+                }
+            }
+
+            // ---- Hybrid ----
+            if (j.contains("hybrid")) {
+                for (auto it = j["hybrid"].begin();
+                     it != j["hybrid"].end(); ++it) {
+                    ModelTree mt;
+                    if (parse_model_tree_from_nlohmann(it.value(), mt)) {
+                        model_trees_["hybrid"][it.key()] = mt;
+                    }
+                }
+            }
+
+            models_loaded_ = true;
+        } catch (const std::exception& e) {
+            std::cerr << "[DATABASE] Error parsing " << ADAPTIVE_MODELS_FILE
+                      << ": " << e.what() << "\n";
+            // Fall back to individual files
+            load_model_trees_from_individual_files();
+            load_perceptron_from_individual_files();
+            models_loaded_ = !model_trees_.empty() || !perceptron_weights_.is_null();
+        }
+    }
+
+    /**
+     * @brief Fallback: load model trees from individual results/models/ files.
+     */
+    void load_model_trees_from_individual_files() {
+        const char* subdirs[] = {"decision_tree", "hybrid"};
+        const char* benches[] = {"pr", "bfs", "cc", "sssp", "bc", "tc"};
+
+        for (const char* subdir : subdirs) {
+            for (const char* bench : benches) {
+                std::string path = std::string("results/models/") + subdir + "/" + bench + ".json";
+                std::ifstream ifs(path);
+                if (!ifs.is_open()) continue;
+
+                try {
+                    nlohmann::json j;
+                    ifs >> j;
+                    ModelTree mt;
+                    if (parse_model_tree_from_nlohmann(j, mt)) {
+                        model_trees_[subdir][bench] = mt;
+                    }
+                } catch (...) {}
+            }
+        }
+    }
+
+    /**
+     * @brief Fallback: load perceptron weights from individual files.
+     */
+    void load_perceptron_from_individual_files() {
+        // Try type_0/weights.json
+        std::string path = "results/models/perceptron/type_0/weights.json";
+        std::ifstream ifs(path);
+        if (ifs.is_open()) {
+            try {
+                nlohmann::json j;
+                ifs >> j;
+                perceptron_weights_ = j;
+            } catch (...) {}
+        }
+
+        // Try per-benchmark files
+        const char* benches[] = {"pr", "bfs", "cc", "sssp", "bc", "tc"};
+        for (const char* bench : benches) {
+            std::string bp = "results/models/perceptron/type_0/" + std::string(bench) + ".json";
+            std::ifstream bifs(bp);
+            if (!bifs.is_open()) continue;
+            try {
+                nlohmann::json j;
+                bifs >> j;
+                perceptron_per_bench_[bench] = j;
+            } catch (...) {}
+        }
+    }
+
+    /**
+     * @brief Parse a ModelTree from a nlohmann::json object.
+     *
+     * Same format as ParseModelTreeFromJSON but using structured JSON access.
+     */
+    static bool parse_model_tree_from_nlohmann(const nlohmann::json& j, ModelTree& mt) {
+        try {
+            mt.model_type = j.value("model_type", "decision_tree");
+            mt.benchmark = j.value("benchmark", "");
+
+            // Parse families
+            if (j.contains("families") && j["families"].is_array()) {
+                for (const auto& f : j["families"]) {
+                    mt.families.push_back(f.get<std::string>());
+                }
+            }
+
+            // Parse nodes
+            if (!j.contains("nodes") || !j["nodes"].is_array()) return false;
+
+            for (const auto& node_j : j["nodes"]) {
+                ModelTreeNode node;
+
+                if (node_j.contains("leaf_class")) {
+                    // Leaf node
+                    node.feature_idx = -1;
+                    node.leaf_class = node_j.value("leaf_class", "ORIGINAL");
+                    node.samples = node_j.value("samples", 0);
+
+                    // Hybrid: parse per-family weights
+                    if (node_j.contains("weights") && node_j["weights"].is_object()) {
+                        for (auto wit = node_j["weights"].begin();
+                             wit != node_j["weights"].end(); ++wit) {
+                            std::vector<double> wvec;
+                            for (const auto& v : wit.value()) {
+                                wvec.push_back(v.get<double>());
+                            }
+                            node.leaf_weights[wit.key()] = wvec;
+                        }
+                    }
+                } else {
+                    // Split node
+                    node.feature_idx = node_j.value("feature_idx", -1);
+                    node.threshold = node_j.value("threshold", 0.0);
+                    node.left = node_j.value("left", -1);
+                    node.right = node_j.value("right", -1);
+                    node.samples = node_j.value("samples", 0);
+                }
+
+                mt.nodes.push_back(node);
+            }
+
+            mt.loaded = !mt.nodes.empty();
+            return mt.loaded;
+        } catch (const std::exception& e) {
+            std::cerr << "[DATABASE] Error parsing model tree: " << e.what() << "\n";
+            return false;
+        }
+    }
+
+    // ========================================================================
     // Data Members
     // ========================================================================
 
@@ -743,6 +1008,13 @@ private:
     std::map<std::string, GraphFeatureVec> graph_features_;   // graph_name → features
     bool loaded_ = false;
     std::mutex mutex_;
+
+    // --- Unified models (from adaptive_models.json) ---
+    bool models_loaded_ = false;
+    nlohmann::json perceptron_weights_;                        // averaged weights
+    std::map<std::string, nlohmann::json> perceptron_per_bench_; // bench → weights
+    // model_trees_[subdir][bench] → ModelTree
+    std::map<std::string, std::map<std::string, ModelTree>> model_trees_;
 };
 
 // ============================================================================
@@ -788,6 +1060,94 @@ inline std::string SelectAlgorithmDatabase(
     }
 
     return family;
+}
+
+/**
+ * @brief Get a model tree from the database for DT/hybrid modes.
+ *
+ * Called from SelectReorderingWithMode() for MODE_DECISION_TREE / MODE_HYBRID.
+ * Returns the prediction (family name), or empty string if no model is available.
+ *
+ * @param feat    Graph community features
+ * @param bench   Benchmark type enum
+ * @param subdir  "decision_tree" or "hybrid"
+ * @param verbose Print selection details
+ * @return Family name, or empty string if model not found
+ */
+inline std::string SelectAlgorithmModelTreeFromDB(
+    const CommunityFeatures& feat,
+    BenchmarkType bench,
+    const std::string& subdir,
+    bool verbose = false) {
+
+    auto& db = BenchmarkDatabase::Get();
+    if (!db.models_loaded()) return "";
+
+    // Convert BenchmarkType enum to string
+    static const char* bench_names[] = {
+        "generic", "pr", "bfs", "cc", "sssp", "bc", "tc", "pr_spmv", "cc_sv"
+    };
+    std::string bench_str = "generic";
+    if (static_cast<int>(bench) >= 0 &&
+        static_cast<int>(bench) < static_cast<int>(sizeof(bench_names)/sizeof(bench_names[0]))) {
+        bench_str = bench_names[static_cast<int>(bench)];
+    }
+
+    ModelTree mt = db.get_model_tree(bench_str, subdir);
+    if (!mt.loaded) {
+        if (verbose) {
+            std::cout << "  Database: no " << subdir << "/" << bench_str
+                      << " model in adaptive_models.json\n";
+        }
+        return "";
+    }
+
+    std::string family = mt.predict(feat);
+    if (verbose) {
+        std::cout << "  Database " << subdir << ": " << family
+                  << " (bench=" << bench_str << ")\n";
+    }
+    return family;
+}
+
+/**
+ * @brief Load perceptron weights from the database.
+ *
+ * Called from SelectReorderingWithMode() for perceptron modes (0-3).
+ * Tries per-benchmark weights first, falls back to averaged weights.
+ *
+ * @param bench   Benchmark type enum
+ * @param out     Output weights map
+ * @param verbose Print selection details
+ * @return true if weights were loaded from the database
+ */
+inline bool LoadPerceptronWeightsFromDB(
+    BenchmarkType bench,
+    std::map<std::string, PerceptronWeights>& out,
+    bool verbose = false) {
+
+    auto& db = BenchmarkDatabase::Get();
+    if (!db.models_loaded()) return false;
+
+    // Convert BenchmarkType enum to string
+    static const char* bench_names[] = {
+        "generic", "pr", "bfs", "cc", "sssp", "bc", "tc", "pr_spmv", "cc_sv"
+    };
+    std::string bench_str = "";
+    if (bench != BENCH_GENERIC &&
+        static_cast<int>(bench) >= 0 &&
+        static_cast<int>(bench) < static_cast<int>(sizeof(bench_names)/sizeof(bench_names[0]))) {
+        bench_str = bench_names[static_cast<int>(bench)];
+    }
+
+    bool ok = db.parse_perceptron_weights(bench_str, out);
+    if (ok && verbose) {
+        std::cout << "  Database perceptron: loaded " << out.size()
+                  << " algorithm weights"
+                  << (bench_str.empty() ? " (averaged)" : " (bench=" + bench_str + ")")
+                  << "\n";
+    }
+    return ok;
 }
 
 /**

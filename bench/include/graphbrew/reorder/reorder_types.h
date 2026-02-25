@@ -5091,12 +5091,20 @@ inline PerceptronSelection SelectReorderingWithMode(
     }
     
     // Handle each mode
+    // All modes try the centralized database (adaptive_models.json) first,
+    // falling back to individual model files or hardcoded defaults.
     switch (mode) {
         case MODE_FASTEST_REORDER: {
-            // Load weights for the matched type (pass bench for per-bench models)
-            auto weights = LoadPerceptronWeightsForFeatures(
-                global_modularity, global_degree_variance, global_hub_concentration,
-                feat.avg_degree, num_nodes, num_edges, false, feat.clustering_coeff, bench);
+            // Try database first for perceptron weights
+            auto weights = GetPerceptronWeights();  // Start with hardcoded defaults
+            std::map<std::string, PerceptronWeights> db_weights;
+            if (graphbrew::database::LoadPerceptronWeightsFromDB(bench, db_weights, verbose)) {
+                for (const auto& kv : db_weights) weights[kv.first] = kv.second;
+            } else {
+                weights = LoadPerceptronWeightsForFeatures(
+                    global_modularity, global_degree_variance, global_hub_concentration,
+                    feat.avg_degree, num_nodes, num_edges, false, feat.clustering_coeff, bench);
+            }
             
             // Select algorithm with highest w_reorder_time (fastest reorder)
             PerceptronSelection fastest = SelectFastestReorderFromWeights(weights, verbose);
@@ -5107,7 +5115,18 @@ inline PerceptronSelection SelectReorderingWithMode(
         }
         
         case MODE_FASTEST_EXECUTION: {
-            // Use perceptron to select best cache performance
+            // Try database first for perceptron weights
+            auto weights = GetPerceptronWeights();
+            std::map<std::string, PerceptronWeights> db_weights;
+            if (graphbrew::database::LoadPerceptronWeightsFromDB(bench, db_weights, verbose)) {
+                for (const auto& kv : db_weights) weights[kv.first] = kv.second;
+                PerceptronSelection best = SelectReorderingFromWeights(feat, weights, bench);
+                if (verbose) {
+                    std::cout << "Mode: fastest-execution → " << best.variant_name << " (from database)\n";
+                }
+                return best;
+            }
+            // Fall back to file-based loading
             PerceptronSelection best = SelectReorderingPerceptronWithFeatures(
                 feat, global_modularity, global_degree_variance,
                 global_hub_concentration, num_nodes, num_edges, bench);
@@ -5118,11 +5137,16 @@ inline PerceptronSelection SelectReorderingWithMode(
         }
         
         case MODE_BEST_ENDTOEND: {
-            // The perceptron score already includes w_reorder_time!
-            // We add an extra multiplier here for end-to-end optimization.
-            auto weights = LoadPerceptronWeightsForFeatures(
-                global_modularity, global_degree_variance, global_hub_concentration,
-                feat.avg_degree, num_nodes, num_edges, false, feat.clustering_coeff, bench);
+            // Try database first for perceptron weights
+            auto weights = GetPerceptronWeights();
+            std::map<std::string, PerceptronWeights> db_weights;
+            if (graphbrew::database::LoadPerceptronWeightsFromDB(bench, db_weights, verbose)) {
+                for (const auto& kv : db_weights) weights[kv.first] = kv.second;
+            } else {
+                weights = LoadPerceptronWeightsForFeatures(
+                    global_modularity, global_degree_variance, global_hub_concentration,
+                    feat.avg_degree, num_nodes, num_edges, false, feat.clustering_coeff, bench);
+            }
             
             std::string best_name = "ORIGINAL";
             double best_score = -std::numeric_limits<double>::infinity();
@@ -5148,10 +5172,16 @@ inline PerceptronSelection SelectReorderingWithMode(
         }
         
         case MODE_BEST_AMORTIZATION: {
-            // Select algorithm that amortizes reorder cost fastest
-            auto weights = LoadPerceptronWeightsForFeatures(
-                global_modularity, global_degree_variance, global_hub_concentration,
-                feat.avg_degree, num_nodes, num_edges, false, feat.clustering_coeff, bench);
+            // Try database first for perceptron weights
+            auto weights = GetPerceptronWeights();
+            std::map<std::string, PerceptronWeights> db_weights;
+            if (graphbrew::database::LoadPerceptronWeightsFromDB(bench, db_weights, verbose)) {
+                for (const auto& kv : db_weights) weights[kv.first] = kv.second;
+            } else {
+                weights = LoadPerceptronWeightsForFeatures(
+                    global_modularity, global_degree_variance, global_hub_concentration,
+                    feat.avg_degree, num_nodes, num_edges, false, feat.clustering_coeff, bench);
+            }
             
             std::string best_name = "ORIGINAL";
             double best_iters = std::numeric_limits<double>::infinity();
@@ -5182,13 +5212,17 @@ inline PerceptronSelection SelectReorderingWithMode(
         }
         
         case MODE_DECISION_TREE: {
-            // Runtime-loaded JSON model (retrain: just re-export JSON, no recompile)
-            // Models at: results/models/decision_tree/{bench}.json
-            std::string family = SelectAlgorithmModelTree(feat, bench, "decision_tree", verbose);
+            // Try unified database first, fall back to individual model files
+            std::string family = graphbrew::database::SelectAlgorithmModelTreeFromDB(
+                feat, bench, "decision_tree", verbose);
             if (family.empty()) {
-                // No model file found — fall back to perceptron-based selection
+                // Fall back to individual model files
+                family = SelectAlgorithmModelTree(feat, bench, "decision_tree", verbose);
+            }
+            if (family.empty()) {
+                // No model found anywhere — fall back to perceptron
                 if (verbose) {
-                    std::cout << "Mode: decision-tree → no JSON model, falling back to perceptron\n";
+                    std::cout << "Mode: decision-tree → no model, falling back to perceptron\n";
                 }
                 return SelectReorderingPerceptronWithFeatures(
                     feat, global_modularity, global_degree_variance,
@@ -5201,13 +5235,16 @@ inline PerceptronSelection SelectReorderingWithMode(
         }
         
         case MODE_HYBRID: {
-            // Runtime-loaded JSON model (retrain: just re-export JSON, no recompile)
-            // Models at: results/models/hybrid/{bench}.json
-            std::string family = SelectAlgorithmModelTree(feat, bench, "hybrid", verbose);
+            // Try unified database first, fall back to individual model files
+            std::string family = graphbrew::database::SelectAlgorithmModelTreeFromDB(
+                feat, bench, "hybrid", verbose);
             if (family.empty()) {
-                // No model file found — fall back to perceptron-based selection
+                family = SelectAlgorithmModelTree(feat, bench, "hybrid", verbose);
+            }
+            if (family.empty()) {
+                // No model found anywhere — fall back to perceptron
                 if (verbose) {
-                    std::cout << "Mode: hybrid → no JSON model, falling back to perceptron\n";
+                    std::cout << "Mode: hybrid → no model, falling back to perceptron\n";
                 }
                 return SelectReorderingPerceptronWithFeatures(
                     feat, global_modularity, global_degree_variance,
