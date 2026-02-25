@@ -781,6 +781,11 @@ public:
                 g_final = SquishGraph(g);
         }
         
+        // Auto-set graph name hint from input filename for database/oracle modes
+        if (!cli_.filename().empty()) {
+            SetGraphNameHint(ExtractGraphNameFromPath(cli_.filename()));
+        }
+        
         // Compute and print global graph topology features ONCE before any reordering
         // This provides clustering_coeff, avg_path_length, diameter, community_count
         // for the Python training scripts to use

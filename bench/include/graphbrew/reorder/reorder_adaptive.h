@@ -368,11 +368,38 @@ void GenerateAdaptiveMappingFullGraphStandalone(
     std::cout << "Diameter Estimate: " << ext_features.diameter_estimate << "\n";
     std::cout << "Component Count: " << ext_features.component_count << "\n";
     
+    // Parse selection mode and graph name from options (positions 3 & 4)
+    SelectionMode selection_mode = MODE_FASTEST_EXECUTION;
+    std::string graph_name;
+    
+    if (reordering_options.size() > 3 && !reordering_options[3].empty()
+        && reordering_options[3] != "_") {
+        try {
+            int mode_val = std::stoi(reordering_options[3]);
+            if (mode_val >= 0 && mode_val <= 6)
+                selection_mode = static_cast<SelectionMode>(mode_val);
+        } catch (...) {
+            selection_mode = GetSelectionMode(reordering_options[3]);
+        }
+    }
+    if (reordering_options.size() > 4 && !reordering_options[4].empty()
+        && reordering_options[4] != "_") {
+        graph_name = reordering_options[4];
+    }
+    // Fallback: use the global graph-name hint (auto-extracted from filename)
+    if (graph_name.empty()) {
+        graph_name = GetGraphNameHint();
+    }
+    
+    std::cout << "Selection Mode: " << SelectionModeToString(selection_mode);
+    if (!graph_name.empty()) std::cout << " (graph: " << graph_name << ")";
+    std::cout << "\n";
+    
     // Select best algorithm
     PerceptronSelection best = SelectBestReorderingForCommunity(
         global_feat, global_modularity, global_degree_variance, global_hub_concentration,
         global_avg_degree, static_cast<size_t>(num_nodes), num_edges,
-        GetBenchmarkTypeHint(), detected_graph_type);
+        GetBenchmarkTypeHint(), detected_graph_type, selection_mode, graph_name);
     
     // Complexity guard constants (shared by Top-K and single-selection paths)
     constexpr int64_t GORDER_MAX_NODES = 500000;
@@ -867,7 +894,7 @@ void GenerateAdaptiveMappingStandalone(
     if (reordering_options.size() > 3) {
         try {
             int mode_val = std::stoi(reordering_options[3]);
-            if (mode_val >= 0 && mode_val <= 3) {
+            if (mode_val >= 0 && mode_val <= 6) {
                 selection_mode = static_cast<SelectionMode>(mode_val);
             } else if (mode_val == 100) {
                 // Legacy full-graph mode
