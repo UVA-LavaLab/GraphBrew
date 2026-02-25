@@ -1093,6 +1093,138 @@ def export_tree_to_json(
     return model
 
 
+def export_model_to_flat_json(
+    dt_clf: DecisionTreeClassifier,
+    families: List[str],
+    benchmark: str,
+    model_type: str = 'decision_tree',
+    leaf_perceptrons: Dict[int, Dict[str, np.ndarray]] = None,
+    metadata: Dict = None,
+) -> Dict:
+    """
+    Export a DT or hybrid model as a flat-node-array JSON dict.
+
+    Uses a flat array of nodes (indexed by node ID) instead of a recursive
+    tree, making it trivial to parse in C++ without recursion.
+
+    For model_type='decision_tree', leaves store only ``leaf_class``.
+    For model_type='hybrid', leaves also store per-family perceptron weights.
+
+    Format::
+
+        {
+          "model_type": "decision_tree" | "hybrid",
+          "benchmark": "pr",
+          "families": ["GORDER", ...],
+          "features": ["modularity", ...],
+          "n_nodes": 7,
+          "nodes": [
+            {"feature_idx": 0, "threshold": 0.617, "left": 1, "right": 4},
+            {"leaf_class": "ORIGINAL", "weights": {...}}
+          ]
+        }
+    """
+    tree = dt_clf.tree_
+    n_nodes = tree.node_count
+    nodes = []
+
+    for i in range(n_nodes):
+        left = int(tree.children_left[i])
+        right = int(tree.children_right[i])
+        is_leaf = (left == right)
+
+        if is_leaf:
+            class_idx = int(np.argmax(tree.value[i]))
+            leaf_class = families[class_idx] if class_idx < len(families) else 'ORIGINAL'
+            node = {
+                'leaf_class': leaf_class,
+                'samples': int(tree.n_node_samples[i]),
+            }
+            # Hybrid: attach perceptron weights at this leaf
+            if model_type == 'hybrid' and leaf_perceptrons and i in leaf_perceptrons:
+                wts = {}
+                for fam, warr in leaf_perceptrons[i].items():
+                    wts[fam] = [float(v) for v in warr]
+                node['weights'] = wts
+            nodes.append(node)
+        else:
+            nodes.append({
+                'feature_idx': int(tree.feature[i]),
+                'threshold': float(tree.threshold[i]),
+                'left': left,
+                'right': right,
+                'samples': int(tree.n_node_samples[i]),
+            })
+
+    return {
+        'model_type': model_type,
+        'benchmark': benchmark,
+        'families': list(families),
+        'features': list(FEATURE_NAMES),
+        'depth': int(dt_clf.get_depth()),
+        'n_leaves': int(dt_clf.get_n_leaves()),
+        'n_nodes': int(n_nodes),
+        'nodes': nodes,
+        'metadata': metadata or {},
+        'created': datetime.now().isoformat(),
+    }
+
+
+def export_all_models_to_json(
+    dt_trees: Dict[str, Tuple] = None,
+    hybrid_models: Dict[str, Tuple] = None,
+    out_dir: Path = None,
+) -> List[Path]:
+    """
+    Export all trained models (DT and/or hybrid) to JSON files.
+
+    Writes one file per benchmark per model type:
+        results/weights/models/dt/{bench}.json
+        results/weights/models/hybrid/{bench}.json
+
+    Args:
+        dt_trees: {bench: (clf, algo_classes)} from per-benchmark DT training
+        hybrid_models: {bench: (dt_clf, leaf_perceptrons, families)}
+        out_dir: base directory (default: results/weights/models/)
+
+    Returns:
+        List of paths written.
+    """
+    if out_dir is None:
+        out_dir = WEIGHTS_DIR / 'models'
+
+    written = []
+
+    if dt_trees:
+        dt_dir = out_dir / 'dt'
+        dt_dir.mkdir(parents=True, exist_ok=True)
+        for bench, (clf, algo_classes) in dt_trees.items():
+            model = export_model_to_flat_json(
+                clf, algo_classes, bench, model_type='decision_tree',
+            )
+            p = dt_dir / f'{bench}.json'
+            with open(p, 'w') as f:
+                json.dump(model, f, indent=2)
+            written.append(p)
+            log.info(f"  DT model → {p}")
+
+    if hybrid_models:
+        h_dir = out_dir / 'hybrid'
+        h_dir.mkdir(parents=True, exist_ok=True)
+        for bench, (dt_clf, leaf_perceptrons, families) in hybrid_models.items():
+            model = export_model_to_flat_json(
+                dt_clf, families, bench, model_type='hybrid',
+                leaf_perceptrons=leaf_perceptrons,
+            )
+            p = h_dir / f'{bench}.json'
+            with open(p, 'w') as f:
+                json.dump(model, f, indent=2)
+            written.append(p)
+            log.info(f"  Hybrid model → {p}")
+
+    return written
+
+
 # =============================================================================
 # Hybrid DT + Perceptron (Model Tree)
 # =============================================================================
@@ -1876,6 +2008,13 @@ def main():
             print(f"\nC++ code written to {out_file}")
             print(f"Total lines: {cpp_code.count(chr(10))}")
 
+        # Always export JSON models (runtime-loadable by C++)
+        if hybrid_models:
+            written = export_all_models_to_json(hybrid_models=hybrid_models)
+            print(f"\nJSON models written ({len(written)} files):")
+            for p in written:
+                print(f"  {p}")
+
         return
 
     if args.grid_search:
@@ -2109,6 +2248,13 @@ def main():
                     json.dump(model, f, indent=2)
                 print(f"JSON model written to {out_file}")
         
+        # Always export flat JSON models (runtime-loadable by C++)
+        if trees:
+            written = export_all_models_to_json(dt_trees=trees)
+            print(f"\nJSON models written ({len(written)} files):")
+            for p in written:
+                print(f"  {p}")
+
         return
     
     # Single-benchmark mode
