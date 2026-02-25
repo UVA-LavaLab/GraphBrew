@@ -558,7 +558,9 @@ def extract_features_from_graph(graph_path: str, bin_dir: Path = None) -> Option
 
 def load_cached_features(cache_path: Path = None) -> Dict[str, GraphFeatures]:
     """Load cached graph features from JSON."""
-    cache_path = cache_path or (RESULTS_DIR / "graph_properties_cache.json")
+    if cache_path is None:
+        from .features import get_graph_properties_cache_file
+        cache_path = Path(get_graph_properties_cache_file())
     
     if not cache_path.exists():
         return {}

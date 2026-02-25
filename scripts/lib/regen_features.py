@@ -12,10 +12,11 @@ import json, os, re, subprocess, sys, glob
 from datetime import datetime
 
 from .utils import GRAPHS_DIR as _GRAPHS_DIR, BIN_DIR, RESULTS_DIR, Logger
+from .features import get_graph_properties_cache_file
 
 GRAPHS_DIR = str(_GRAPHS_DIR)
 BINARY = str(BIN_DIR / "pr")
-CACHE_PATH = str(RESULTS_DIR / "graph_properties_cache.json")
+CACHE_PATH = get_graph_properties_cache_file()
 
 log = Logger()
 

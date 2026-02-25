@@ -1942,7 +1942,8 @@ def run_experiment(args):
             
             # Run a quick benchmark to get topology features
             binary = os.path.join(args.bin_dir, "pr")
-            cmd = f"{binary} -f {graph_path} -a 0 -n 1"
+            env_prefix = "ADAPTIVE_SKIP_MODULARITY=1 " if getattr(args, 'skip_modularity', False) else ""
+            cmd = f"{env_prefix}{binary} -f {graph_path} -a 0 -n 1"
             try:
                 success, stdout, stderr = run_command(cmd, timeout=TIMEOUT_FEATURE_EXTRACTION)
                 if not success:
@@ -2032,20 +2033,15 @@ def run_experiment(args):
         # Save graph properties cache for future use
         cache_output_dir = args.weights_dir or "results"
         save_graph_properties_cache(output_dir=cache_output_dir)
-        cache_file_path = os.path.join(cache_output_dir, "graph_properties_cache.json")
+        from scripts.lib.features import get_graph_properties_cache_file
+        cache_file_path = get_graph_properties_cache_file(cache_output_dir)
         log(f"Saved graph properties cache to: {cache_file_path}")
         
-        # Re-run weight update now that graph properties cache is populated
-        # This ensures feature weights (w_modularity, etc.) are computed
-        # Only if we have a legacy weights file
-        if args.weights_file:
-            update_zero_weights(
-                weights_file=args.weights_file,
-                graphs_dir=os.path.dirname(args.weights_file) or "results",
-                benchmark_results=benchmark_results,
-                cache_results=cache_results,
-                reorder_results=reorder_results
-            )
+        # NOTE: We no longer re-run update_zero_weights here.
+        # Phase 4 (compute_weights_from_results) already trained a proper
+        # multi-class perceptron via SGD. Phase 5 fills only auxiliary
+        # weights (reorder time, cache stats). Re-running Phase 5 here
+        # would risk overwriting the trained weights.
         
         log_section("Fill Weights Complete")
         log("All weight fields have been populated")
@@ -2296,6 +2292,9 @@ def main():
     # Skip options
     parser.add_argument("--skip-cache", action="store_true",
                         help="Skip cache simulations (saves time, loses cache analysis data)")
+    parser.add_argument("--skip-modularity", action="store_true",
+                        help="Skip expensive computeFastModularity during topology analysis. "
+                             "Uses the same CC*1.5 heuristic as C++ runtime instead.")
     parser.add_argument("--skip-expensive", action="store_true", dest="skip_heavy",
                         help="Skip expensive benchmarks (BC, SSSP) on large graphs (>100MB)")
     

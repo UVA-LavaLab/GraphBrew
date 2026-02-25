@@ -219,9 +219,10 @@ def compute_graph_features(graph_name: str, results: Dict) -> Dict[str, float]:
         except Exception:
             pass
 
-    # Load from graph_properties_cache.json last — it typically has the richest
+    # Load from graph properties cache last — it typically has the richest
     # data including modularity, density, etc. computed from full graph analysis.
-    cache_file = RESULTS_DIR / "graph_properties_cache.json"
+    from .features import get_graph_properties_cache_file
+    cache_file = Path(get_graph_properties_cache_file())
     if cache_file.exists():
         try:
             with open(cache_file) as f:
