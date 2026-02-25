@@ -3937,7 +3937,7 @@ inline const std::map<std::string, PerceptronWeights>& GetPerceptronWeights() {
  * 3. Type-cluster files in TYPE_WEIGHTS_DIR (e.g., type_0/weights.json)
  * 4. Hardcoded defaults in GetPerceptronWeights()
  */
-inline constexpr const char* TYPE_WEIGHTS_DIR = "results/weights/";
+inline constexpr const char* TYPE_WEIGHTS_DIR = "results/models/perceptron/";
 
 /**
  * Threshold for determining "unknown" graph types
@@ -4559,8 +4559,8 @@ inline PerceptronSelection SelectReorderingPerceptron(
 // Instead of embedding thousands of lines of auto-generated C++ if/else trees,
 // this interpreter loads trained models from JSON files at runtime:
 //
-//   results/weights/models/dt/{bench}.json       — Decision Tree models
-//   results/weights/models/hybrid/{bench}.json   — Hybrid DT+Perceptron models
+//   results/models/decision_tree/{bench}.json    — Decision Tree models
+//   results/models/hybrid/{bench}.json           — Hybrid DT+Perceptron models
 //
 // Benefits:
 //   - Retrain on new graphs by running Python → new JSON files → zero recompile
@@ -4585,7 +4585,7 @@ inline PerceptronSelection SelectReorderingPerceptron(
 // ============================================================================
 
 /// Directory for model tree JSON files (relative to working directory)
-inline constexpr const char* MODEL_TREE_DIR = "results/weights/models/";
+inline constexpr const char* MODEL_TREE_DIR = "results/models/";
 
 /// Number of features used by the model trees
 inline constexpr int MODEL_TREE_N_FEATURES = 12;
@@ -4873,12 +4873,12 @@ inline bool ParseModelTreeFromJSON(const std::string& json_content, ModelTree& t
  * @brief Load a model tree from a JSON file, with caching.
  *
  * Looks for the model at: {MODEL_TREE_DIR}/{subdir}/{bench}.json
- * where subdir is "dt" or "hybrid".
+ * where subdir is "decision_tree" or "hybrid".
  *
  * Also checks env var MODEL_TREE_PATH for an override directory.
  *
  * @param bench    Benchmark type
- * @param subdir   "dt" or "hybrid"
+ * @param subdir   "decision_tree" or "hybrid"
  * @param verbose  Print loading messages
  * @return Reference to the (possibly cached) ModelTree
  */
@@ -4939,8 +4939,7 @@ inline const ModelTree& LoadModelTree(BenchmarkType bench, const std::string& su
  *
  * @param feat    Graph community features
  * @param bench   Benchmark type
- * @param subdir  "dt" or "hybrid"
- * @param verbose Print debug info
+ * @param subdir  "decision_tree" or "hybrid"
  * @return Family name, or empty string if model unavailable
  */
 inline std::string SelectAlgorithmModelTree(const CommunityFeatures& feat,
@@ -5138,8 +5137,8 @@ inline PerceptronSelection SelectReorderingWithMode(
         
         case MODE_DECISION_TREE: {
             // Runtime-loaded JSON model (retrain: just re-export JSON, no recompile)
-            // Models at: results/weights/models/dt/{bench}.json
-            std::string family = SelectAlgorithmModelTree(feat, bench, "dt", verbose);
+            // Models at: results/models/decision_tree/{bench}.json
+            std::string family = SelectAlgorithmModelTree(feat, bench, "decision_tree", verbose);
             if (family.empty()) {
                 // No model file found — fall back to perceptron-based selection
                 if (verbose) {
@@ -5157,7 +5156,7 @@ inline PerceptronSelection SelectReorderingWithMode(
         
         case MODE_HYBRID: {
             // Runtime-loaded JSON model (retrain: just re-export JSON, no recompile)
-            // Models at: results/weights/models/hybrid/{bench}.json
+            // Models at: results/models/hybrid/{bench}.json
             std::string family = SelectAlgorithmModelTree(feat, bench, "hybrid", verbose);
             if (family.empty()) {
                 // No model file found — fall back to perceptron-based selection

@@ -55,10 +55,30 @@ MEMORY_SAFETY_FACTOR = 1.5  # Add 50% buffer for algorithm overhead
 # Global cache for graph properties (populated during benchmark runs)
 _graph_properties_cache: Dict[str, Dict] = {}
 
+# Default cache file path (matches DATA_DIR / "graph_properties.json" from utils.py)
+_DEFAULT_PROPS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
+    os.path.abspath(__file__)))), "results", "data")
 
-def get_graph_properties_cache_file(output_dir: str = "results") -> str:
-    """Get the path to the graph properties cache file."""
-    return os.path.join(output_dir, "graph_properties_cache.json")
+
+def get_graph_properties_cache_file(output_dir: str = "") -> str:
+    """Get the path to the graph properties cache file.
+    
+    Args:
+        output_dir: Directory containing the cache file.
+                    Default: results/data/ (centralized data bank).
+                    If a results/ root is passed (absolute or relative),
+                    it's automatically redirected to results/data/.
+    """
+    if not output_dir:
+        d = _DEFAULT_PROPS_DIR
+    else:
+        d = str(output_dir)
+        # If caller passed a results/ root dir, redirect to data/ subdirectory
+        basename = os.path.basename(d.rstrip('/'))
+        if basename == 'results':
+            d = os.path.join(d, 'data')
+    os.makedirs(d, exist_ok=True)
+    return os.path.join(d, "graph_properties.json")
 
 
 def load_graph_properties_cache(output_dir: str = "results") -> Dict[str, Dict]:

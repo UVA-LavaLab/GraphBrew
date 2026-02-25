@@ -42,7 +42,7 @@ from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
 from sklearn.model_selection import cross_val_score, LeaveOneOut
 from sklearn.preprocessing import LabelEncoder
 
-from .utils import Logger, BENCHMARKS, RESULTS_DIR, WEIGHTS_DIR
+from .utils import Logger, BENCHMARKS, RESULTS_DIR, MODELS_DIR, DATA_DIR, GRAPH_PROPS_FILE, BENCHMARK_DATA_FILE, WEIGHTS_DIR
 
 log = Logger()
 
@@ -165,12 +165,13 @@ def load_benchmark_data() -> Tuple[Dict, Dict]:
         perf_matrix: {graph: {algo: {bench: time}}}
         graph_props: {graph: {feature: value}}
     """
-    # Load benchmark results (prefer merged, fall back to individual files)
-    merged = RESULTS_DIR / "benchmark_20260223_merged.json"
+    # Load benchmark results from centralized data bank
+    merged = BENCHMARK_DATA_FILE
     if merged.exists():
         with open(merged) as f:
             bench_data = json.load(f)
     else:
+        # Fallback: scan individual benchmark files in results/
         bench_data = []
         for bf in sorted(RESULTS_DIR.glob("benchmark_*.json")):
             try:
@@ -196,8 +197,8 @@ def load_benchmark_data() -> Tuple[Dict, Dict]:
             existing = perf_matrix[g][a].get(b, float('inf'))
             perf_matrix[g][a][b] = min(existing, t)
     
-    # Load graph properties
-    props_file = RESULTS_DIR / "graph_properties_cache.json"
+    # Load graph properties from centralized data bank
+    props_file = GRAPH_PROPS_FILE
     graph_props = {}
     if props_file.exists():
         with open(props_file) as f:
@@ -1179,24 +1180,24 @@ def export_all_models_to_json(
     Export all trained models (DT and/or hybrid) to JSON files.
 
     Writes one file per benchmark per model type:
-        results/weights/models/dt/{bench}.json
-        results/weights/models/hybrid/{bench}.json
+        results/models/decision_tree/{bench}.json
+        results/models/hybrid/{bench}.json
 
     Args:
         dt_trees: {bench: (clf, algo_classes)} from per-benchmark DT training
         hybrid_models: {bench: (dt_clf, leaf_perceptrons, families)}
-        out_dir: base directory (default: results/weights/models/)
+        out_dir: base directory (default: results/models/)
 
     Returns:
         List of paths written.
     """
     if out_dir is None:
-        out_dir = WEIGHTS_DIR / 'models'
+        out_dir = MODELS_DIR
 
     written = []
 
     if dt_trees:
-        dt_dir = out_dir / 'dt'
+        dt_dir = out_dir / 'decision_tree'
         dt_dir.mkdir(parents=True, exist_ok=True)
         for bench, (clf, algo_classes) in dt_trees.items():
             model = export_model_to_flat_json(

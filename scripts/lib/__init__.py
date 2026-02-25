@@ -108,6 +108,10 @@ from .utils import (
     RESULTS_DIR,
     GRAPHS_DIR,
     WEIGHTS_DIR,
+    MODELS_DIR,
+    DATA_DIR,
+    GRAPH_PROPS_FILE,
+    BENCHMARK_DATA_FILE,
     # Utilities
     Logger,
     Colors,

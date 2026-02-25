@@ -2477,7 +2477,32 @@ public:
         }
         
         // ============================================================
-        // 3. COMMUNITY COUNT (fast Leiden for estimate)
+        // 3. FAST MODULARITY (Afforest-style subgraph-sampled Louvain)
+        // ============================================================
+        // Hub-capped Louvain: O(ROUNDS × N × HUB_CAP) local-moving
+        // + O(N × HUB_CAP) sampled Q — sublinear in m for power-law graphs.
+        //
+        // This is OPTIONAL because:
+        //  - C++ runtime perceptron (scoreBase) uses estimated_modularity =
+        //    min(0.9, CC * 1.5), NOT this value.
+        //  - Training (Phase 4) also uses the CC*1.5 estimate for consistency.
+        //  - On twitter7 / com-Friendster this takes 25-44s — significant
+        //    overhead for what amounts to a reference/validation value.
+        //
+        // Enabled by default.  Set ADAPTIVE_SKIP_MODULARITY=1 to skip.
+        double modularity_estimate = 0.0;
+        {
+            const char* skip_mod = std::getenv("ADAPTIVE_SKIP_MODULARITY");
+            if (skip_mod && std::string(skip_mod) == "1") {
+                // Use the same heuristic as C++ runtime scoreBase
+                modularity_estimate = std::min(0.9, clustering_coeff * 1.5);
+            } else {
+                modularity_estimate = computeFastModularity<uint32_t>(g, 1.0, 3);
+            }
+        }
+        
+        // ============================================================
+        // 4. COMMUNITY COUNT (fast Leiden for estimate)
         // ============================================================
         int community_count = 1;  // Default: 1 large component
         
@@ -2510,6 +2535,7 @@ public:
         PrintTime("Packing Factor", packing_factor);
         PrintTime("Forward Edge Fraction", forward_edge_fraction);
         PrintTime("Working Set Ratio", working_set_ratio);
+        PrintTime("Modularity", modularity_estimate);
         PrintTime("Topology Analysis Time", t.Seconds());
         std::cout << "===============================" << std::endl;
     }
@@ -2562,10 +2588,10 @@ public:
      * 
      * AUTO-CLUSTERING TYPE SYSTEM:
      * The system uses auto-generated type files for specialized tuning:
-     * - results/weights/type_0/weights.json  (Cluster 0 weights)
-     * - results/weights/type_1/weights.json  (Cluster 1 weights)
-     * - results/weights/type_N/weights.json  (Additional clusters as needed)
-     * - results/weights/registry.json         (maps graph names → type + centroids)
+     * - results/models/perceptron/type_0/weights.json  (Cluster 0 weights)
+     * - results/models/perceptron/type_1/weights.json  (Cluster 1 weights)
+     * - results/models/perceptron/type_N/weights.json  (Additional clusters as needed)
+     * - results/models/perceptron/registry.json         (maps graph names → type + centroids)
      * 
      * At runtime, the system:
      * 1. Computes graph features (modularity, density, etc.)
@@ -2700,7 +2726,7 @@ public:
      * 
      * Checks for weights file in this order:
      * 1. Path from PERCEPTRON_WEIGHTS_FILE environment variable
-     * 2. results/weights/type_N/weights.json files (via LoadPerceptronWeightsForGraphType)
+     * 2. results/models/perceptron/type_N/weights.json files (via LoadPerceptronWeightsForGraphType)
      * 3. If neither exists, returns hardcoded defaults from GetPerceptronWeights()
      */
     static std::map<std::string, PerceptronWeights> LoadPerceptronWeights(bool verbose = false) {

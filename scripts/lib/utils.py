@@ -30,8 +30,25 @@ BIN_DIR = BENCH_DIR / "bin"
 BIN_SIM_DIR = BENCH_DIR / "bin_sim"
 RESULTS_DIR = PROJECT_ROOT / "results"
 GRAPHS_DIR = RESULTS_DIR / "graphs"
-WEIGHTS_DIR = RESULTS_DIR / "weights"
-ACTIVE_WEIGHTS_DIR = WEIGHTS_DIR  # Where C++ reads from
+
+# --- Centralized Data Bank ---------------------------------------------------
+# All benchmark runs, graph properties, and logs live under results/data/.
+DATA_DIR = RESULTS_DIR / "data"
+GRAPH_PROPS_FILE = DATA_DIR / "graph_properties.json"
+BENCHMARK_DATA_FILE = DATA_DIR / "benchmark_merged.json"
+
+# --- Trained Models -----------------------------------------------------------
+# All models are grouped by type under results/models/:
+#   results/models/perceptron/   — perceptron weights (type_0/, type_1/, ...)
+#   results/models/decision_tree/ — DT classifier per benchmark
+#   results/models/hybrid/        — hybrid DT+perceptron per benchmark
+MODELS_DIR = RESULTS_DIR / "models"
+
+# Perceptron weights live under models/perceptron/
+# Backward-compat aliases: WEIGHTS_DIR / ACTIVE_WEIGHTS_DIR point here so
+# that existing code (weights.py, training.py, etc.) keeps working.
+WEIGHTS_DIR = MODELS_DIR / "perceptron"
+ACTIVE_WEIGHTS_DIR = WEIGHTS_DIR
 
 
 def weights_registry_path(weights_dir: str = "") -> str:
@@ -603,7 +620,7 @@ class BenchmarkResult:
 
 def ensure_directories() -> None:
     """Create all required directories if they don't exist."""
-    for directory in [RESULTS_DIR, GRAPHS_DIR, WEIGHTS_DIR]:
+    for directory in [RESULTS_DIR, GRAPHS_DIR, WEIGHTS_DIR, DATA_DIR, MODELS_DIR]:
         directory.mkdir(parents=True, exist_ok=True)
 
 
