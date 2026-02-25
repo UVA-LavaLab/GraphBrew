@@ -586,7 +586,7 @@ def train_weights_perceptron(
     graph_features = {g: compute_graph_features(g, results) for g in graphs}
 
     # Feature names and their weight keys (same mapping as add_feature_weights)
-    # Must match PerceptronWeight.compute_score() in weights.py.
+    # Base features — must match PerceptronWeight.compute_score() in weights.py.
     feat_map = {
         'modularity': 'w_modularity',
         'density': 'w_density',
@@ -601,6 +601,12 @@ def train_weights_perceptron(
         'avg_path_length': 'w_avg_path_length',
         'diameter': 'w_diameter',
     }
+    # Interaction/derived features — computed from base features, trained
+    # alongside them so compute_score() interaction terms are not static.
+    interaction_keys = [
+        'w_log_nodes', 'w_log_edges',
+        'w_dv_x_hub', 'w_mod_x_logn', 'w_pf_x_wsr',
+    ]
 
     # Identify benchmarks that have data
     active_benchmarks = set()
@@ -676,6 +682,34 @@ def train_weights_perceptron(
                         weights[actual_best][w_key] += learning_rate * fval
                     if w_key in weights[predicted_best]:
                         weights[predicted_best][w_key] -= learning_rate * fval
+
+                # Update interaction/derived feature weights
+                # Must match compute_score() interaction terms exactly.
+                log_n = math.log10(features.get('nodes', 1) + 1)
+                log_e = math.log10(features.get('edges', 1) + 1)
+                dv_hub = features.get('degree_variance', 0.0) * features.get('hub_concentration', 0.0)
+                mod_logn = features.get('modularity', 0.0) * log_n
+                pf_wsr = features.get('packing_factor', 0.0) * math.log2(features.get('working_set_ratio', 0.0) + 1.0)
+                interaction_vals = {
+                    'w_log_nodes': log_n,
+                    'w_log_edges': log_e,
+                    'w_dv_x_hub': dv_hub,
+                    'w_mod_x_logn': mod_logn,
+                    'w_pf_x_wsr': pf_wsr,
+                }
+                for ik, iv in interaction_vals.items():
+                    if iv == 0.0:
+                        continue
+                    weights[actual_best][ik] = weights[actual_best].get(ik, 0.0) + learning_rate * iv
+                    weights[predicted_best][ik] = weights[predicted_best].get(ik, 0.0) - learning_rate * iv
+
+                # Convergence bonus gradient (only for iterative benchmarks)
+                # Matches C++ score(): bench == BENCH_PR || BENCH_PR_SPMV || BENCH_SSSP
+                if bench.lower() in ('pr', 'pr_spmv', 'sssp'):
+                    fef = features.get('forward_edge_fraction', 0.0)
+                    if fef != 0.0:
+                        weights[actual_best]['w_fef_convergence'] = weights[actual_best].get('w_fef_convergence', 0.0) + learning_rate * fef
+                        weights[predicted_best]['w_fef_convergence'] = weights[predicted_best].get('w_fef_convergence', 0.0) - learning_rate * fef
 
                 # Also update benchmark_weights for the specific benchmark
                 bw_key = bench.lower()

@@ -717,8 +717,8 @@ def update_type_weights_incremental(
     algo_weights['w_pf_x_wsr'] = algo_weights.get('w_pf_x_wsr', 0.0) + learning_rate * error * features.get('packing_factor', 0.0) * log_wsr
     
     # Convergence bonus gradient (only for iterative benchmarks)
-    # Use the benchmark parameter passed to this function, not from features dict
-    if benchmark in ('pr', 'sssp'):
+    # Matches C++ score(): bench == BENCH_PR || BENCH_PR_SPMV || BENCH_SSSP
+    if benchmark in ('pr', 'pr_spmv', 'sssp'):
         algo_weights['w_fef_convergence'] = algo_weights.get('w_fef_convergence', 0.0) + learning_rate * error * features.get('forward_edge_fraction', 0.0)
     
     # Update cache weights
