@@ -422,9 +422,9 @@ class AlgorithmSelector:
         
         feature_dict = features.to_scoring_dict()
         
-        # Set convergence bonus feature for iterative benchmarks (PR, SSSP)
-        # Matches C++ score() which adds w_fef_convergence * forward_edge_fraction
-        if benchmark and benchmark.lower() in ('pr', 'sssp'):
+        # Set convergence bonus feature for iterative benchmarks (PR, PR_SPMV, SSSP)
+        # Matches C++ score(): bench == BENCH_PR || BENCH_PR_SPMV || BENCH_SSSP
+        if benchmark and benchmark.lower() in ('pr', 'pr_spmv', 'sssp'):
             feature_dict['fef_convergence'] = features.forward_edge_fraction
         
         scores = {}

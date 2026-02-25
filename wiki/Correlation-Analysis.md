@@ -115,7 +115,7 @@ For each algorithm:
 
 ### Step 5: Generate Perceptron Weights
 
-Correlations are converted to weights via `compute_weights_from_results()` — a multi-stage pipeline (multi-restart perceptrons → variant pre-collapse → regret-aware grid search). See [[Perceptron-Weights#multi-restart-training--benchmark-multipliers]] for details.
+Correlations are converted to weights via `compute_weights_from_results()` — a multi-stage pipeline (multi-restart perceptrons → variant-level saving → regret-aware grid search). See [[Perceptron-Weights#multi-restart-training--benchmark-multipliers]] for details.
 
 > **Note:** The older correlation-to-weight approach (`r × scale`) has been superseded by multi-restart perceptron training which produces more robust weights.
 

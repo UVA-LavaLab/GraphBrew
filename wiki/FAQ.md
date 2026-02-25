@@ -201,7 +201,7 @@ Computes graph features (15 linear + 3 quadratic), uses ML to select best algori
 
 ### What is the training pipeline?
 
-4-stage process: multi-restart perceptrons → variant pre-collapse → regret-aware grid search → save. Validate with `python3 scripts/graphbrew_experiment.py --eval-weights`. See [[Perceptron-Weights]].
+4-stage process: multi-restart perceptrons → variant-level weight saving → regret-aware grid search → save. Validate with `python3 scripts/graphbrew_experiment.py --eval-weights`. See [[Perceptron-Weights]].
 
 ### Is there a single best algorithm?
 

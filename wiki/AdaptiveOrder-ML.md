@@ -650,7 +650,7 @@ print(f"LOGO: {result['accuracy']:.1%}, Overfit: {result['overfitting_score']:.2
 The primary training function in `lib/weights.py` implements a 4-stage pipeline:
 
 1. **Multi-Restart Perceptron Training** — 5 independent perceptrons × 800 epochs per benchmark, z-score normalized features, averaged across restarts and benchmarks
-2. **Variant Pre-Collapse** — Only the highest-bias variant per base algorithm is kept (e.g., `GraphBrewOrder_leiden_dfs` beats `GraphBrewOrder_leiden`)
+2. **Variant-Level Weight Saving** — All variants are saved directly (each has its own entry in C++ string-keyed weights); bias ordering set by mean-feature scoring for compatibility
 3. **Regret-Aware Benchmark Multiplier Optimization** — Grid search (30 iterations × 32 values) maximizing accuracy while minimizing regret
 4. **Save to `type_0.json`** with `_metadata` training statistics
 
