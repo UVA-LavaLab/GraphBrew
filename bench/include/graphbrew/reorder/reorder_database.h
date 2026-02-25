@@ -34,6 +34,7 @@
 #include <set>
 #include <unordered_map>
 #include <cmath>
+#include <cassert>
 #include <fstream>
 #include <sstream>
 #include <algorithm>
@@ -112,8 +113,15 @@ struct GraphFeatureVec {
     double log10_cc = 0.0;            // log10(community_count + 1)
     double diameter_50 = 0.0;         // diameter / 50
 
-    double& operator[](int i) { return reinterpret_cast<double*>(&modularity)[i]; }
-    double operator[](int i) const { return reinterpret_cast<const double*>(&modularity)[i]; }
+    static constexpr int N_FEATURES = 12;
+    double& operator[](int i) {
+        assert(i >= 0 && i < N_FEATURES && "GraphFeatureVec index out of bounds");
+        return (&modularity)[i];
+    }
+    double operator[](int i) const {
+        assert(i >= 0 && i < N_FEATURES && "GraphFeatureVec index out of bounds");
+        return (&modularity)[i];
+    }
 };
 
 /// Algorithm-to-family mapping (same as Python ALGO_FAMILY)
@@ -393,10 +401,26 @@ public:
      */
     void append_with_features(const BenchRecord& rec,
                                const CommunityFeatures& feat) {
-        append(rec);
+        // Single lock for both append and feature update (avoid TOCTOU race)
+        std::lock_guard<std::mutex> lock(mutex_);
+        // --- inline append logic under the same lock ---
+        {
+            auto key = rec.graph + "|" + rec.algorithm + "|" + rec.benchmark;
+            auto it = dedup_.find(key);
+            if (it != dedup_.end()) {
+                auto& existing = records_[it->second];
+                if (rec.time_seconds < existing.time_seconds) {
+                    existing = rec;
+                    rebuild_oracle_entry(rec);
+                }
+            } else {
+                dedup_[key] = records_.size();
+                records_.push_back(rec);
+                rebuild_oracle_entry(rec);
+            }
+        }
 
         // Update graph properties
-        std::lock_guard<std::mutex> lock(mutex_);
         auto& fv = graph_features_[rec.graph];
         fv.modularity = feat.modularity;
         fv.hub_concentration = feat.hub_concentration;
@@ -434,6 +458,8 @@ public:
         perceptron_weights_.clear();
         model_trees_.clear();
         loaded_ = false;
+        models_loaded_ = false;
+        models_from_unified_ = false;
         load();
     }
 
@@ -459,7 +485,7 @@ public:
         if (!models_loaded_) return nullptr;
 
         // Try per-benchmark weights first
-        if (!bench.empty() && !bench.empty()) {
+        if (!bench.empty() && !perceptron_per_bench_.empty()) {
             auto it = perceptron_per_bench_.find(bench);
             if (it != perceptron_per_bench_.end()) {
                 return &(it->second);
@@ -548,7 +574,7 @@ private:
                       << " records, " << graph_features_.size()
                       << " graph feature vectors";
             if (models_loaded_) {
-                std::cout << ", unified models";
+                std::cout << (models_from_unified_ ? ", unified models" : ", models (individual files)");
             }
             std::cout << "\n";
         }
@@ -778,8 +804,8 @@ private:
             // Reverse-transform features back to raw values for storage
             props["modularity"] = fv.modularity;
             props["hub_concentration"] = fv.hub_concentration;
-            props["nodes"] = static_cast<int>(std::pow(10.0, fv.log_nodes) - 1.0);
-            props["edges"] = static_cast<int>(std::pow(10.0, fv.log_edges) - 1.0);
+            props["nodes"] = static_cast<int64_t>(std::pow(10.0, fv.log_nodes) - 1.0);
+            props["edges"] = static_cast<int64_t>(std::pow(10.0, fv.log_edges) - 1.0);
             props["density"] = fv.density;
             props["avg_degree"] = fv.avg_degree_100 * 100.0;
             props["clustering_coefficient"] = fv.clustering_coeff;
@@ -830,6 +856,7 @@ private:
             load_model_trees_from_individual_files();
             load_perceptron_from_individual_files();
             models_loaded_ = !model_trees_.empty() || !perceptron_weights_.is_null();
+            models_from_unified_ = false;
             return;
         }
 
@@ -874,6 +901,7 @@ private:
             }
 
             models_loaded_ = true;
+            models_from_unified_ = true;
         } catch (const std::exception& e) {
             std::cerr << "[DATABASE] Error parsing " << ADAPTIVE_MODELS_FILE
                       << ": " << e.what() << "\n";
@@ -881,6 +909,7 @@ private:
             load_model_trees_from_individual_files();
             load_perceptron_from_individual_files();
             models_loaded_ = !model_trees_.empty() || !perceptron_weights_.is_null();
+            models_from_unified_ = false;
         }
     }
 
@@ -1011,6 +1040,7 @@ private:
 
     // --- Unified models (from adaptive_models.json) ---
     bool models_loaded_ = false;
+    bool models_from_unified_ = false;
     nlohmann::json perceptron_weights_;                        // averaged weights
     std::map<std::string, nlohmann::json> perceptron_per_bench_; // bench → weights
     // model_trees_[subdir][bench] → ModelTree
@@ -1042,8 +1072,9 @@ inline std::string SelectAlgorithmDatabase(
     }
 
     // Convert BenchmarkType enum to string
+    // Note: pr_spmv→pr and cc_sv→cc (no separate models/data for those variants)
     static const char* bench_names[] = {
-        "generic", "pr", "bfs", "cc", "sssp", "bc", "tc", "pr_spmv", "cc_sv"
+        "generic", "pr", "bfs", "cc", "sssp", "bc", "tc", "pr", "cc"
     };
     std::string bench_str = "generic";
     if (static_cast<int>(bench) >= 0 &&
@@ -1084,8 +1115,9 @@ inline std::string SelectAlgorithmModelTreeFromDB(
     if (!db.models_loaded()) return "";
 
     // Convert BenchmarkType enum to string
+    // Note: pr_spmv→pr and cc_sv→cc (no separate models for those variants)
     static const char* bench_names[] = {
-        "generic", "pr", "bfs", "cc", "sssp", "bc", "tc", "pr_spmv", "cc_sv"
+        "generic", "pr", "bfs", "cc", "sssp", "bc", "tc", "pr", "cc"
     };
     std::string bench_str = "generic";
     if (static_cast<int>(bench) >= 0 &&
@@ -1130,8 +1162,9 @@ inline bool LoadPerceptronWeightsFromDB(
     if (!db.models_loaded()) return false;
 
     // Convert BenchmarkType enum to string
+    // Note: pr_spmv→pr and cc_sv→cc (no separate weights for those variants)
     static const char* bench_names[] = {
-        "generic", "pr", "bfs", "cc", "sssp", "bc", "tc", "pr_spmv", "cc_sv"
+        "generic", "pr", "bfs", "cc", "sssp", "bc", "tc", "pr", "cc"
     };
     std::string bench_str = "";
     if (bench != BENCH_GENERIC &&

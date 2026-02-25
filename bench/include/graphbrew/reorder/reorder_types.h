@@ -4693,9 +4693,12 @@ struct ModelTree {
         double features[MODEL_TREE_N_FEATURES];
         extract_features(feat, features);
 
-        // Walk tree from root
+        // Walk tree from root (with iteration limit to prevent infinite loops
+        // on malformed trees with cycles)
         int idx = 0;
-        while (idx >= 0 && idx < static_cast<int>(nodes.size())) {
+        const int max_iters = static_cast<int>(nodes.size()) * 2;
+        for (int iter = 0; iter < max_iters && idx >= 0 &&
+             idx < static_cast<int>(nodes.size()); ++iter) {
             const auto& node = nodes[idx];
             if (node.is_leaf()) {
                 // Hybrid: score families via perceptron dot products
@@ -4721,14 +4724,16 @@ struct ModelTree {
                 return node.leaf_class;
             }
             // Split node: go left if feature <= threshold, else right
-            if (node.feature_idx < MODEL_TREE_N_FEATURES &&
-                features[node.feature_idx] <= node.threshold) {
+            if (node.feature_idx >= MODEL_TREE_N_FEATURES) {
+                // Invalid feature index — go right as fallback but warn
+                idx = node.right;
+            } else if (features[node.feature_idx] <= node.threshold) {
                 idx = node.left;
             } else {
                 idx = node.right;
             }
         }
-        return "ORIGINAL"; // Safety fallback
+        return "ORIGINAL"; // Safety fallback (exhausted iterations or OOB index)
     }
 };
 
@@ -4926,14 +4931,18 @@ inline bool ParseModelTreeFromJSON(const std::string& json_content, ModelTree& t
  */
 inline const ModelTree& LoadModelTree(BenchmarkType bench, const std::string& subdir,
                                        bool verbose = false) {
-    // Cache: one ModelTree per (bench, subdir) combination
+    // Cache: one ModelTree per (bench, subdir) combination (thread-safe)
+    static std::mutex cache_mtx;
     static std::map<std::pair<int,std::string>, ModelTree> cache;
     auto key = std::make_pair(static_cast<int>(bench), subdir);
 
-    auto it = cache.find(key);
-    if (it != cache.end()) return it->second;
+    {
+        std::lock_guard<std::mutex> lk(cache_mtx);
+        auto it = cache.find(key);
+        if (it != cache.end()) return it->second;
+    }
 
-    // Benchmark name mapping
+    // Benchmark name mapping (pr_spmv→pr, cc_sv→cc)
     const char* bench_names[] = {"generic","pr","bfs","cc","sssp","bc","tc","pr","cc"};
     int bench_idx = static_cast<int>(bench);
     if (bench_idx < 0 || bench_idx > 8) bench_idx = 0;
@@ -4946,18 +4955,18 @@ inline const ModelTree& LoadModelTree(BenchmarkType bench, const std::string& su
 
     std::string filepath = base_dir + subdir + "/" + bench_name + ".json";
 
-    ModelTree& mt = cache[key];
-
+    // Load the model (outside lock, I/O is slow)
+    ModelTree loaded;
     std::ifstream file(filepath);
     if (file.is_open()) {
         std::string json_content((std::istreambuf_iterator<char>(file)),
                                   std::istreambuf_iterator<char>());
         file.close();
 
-        if (ParseModelTreeFromJSON(json_content, mt)) {
+        if (ParseModelTreeFromJSON(json_content, loaded)) {
             if (verbose) {
                 std::cout << "ModelTree: Loaded " << subdir << "/" << bench_name
-                          << " (" << mt.nodes.size() << " nodes)\n";
+                          << " (" << loaded.nodes.size() << " nodes)\n";
             }
         } else {
             if (verbose) {
@@ -4970,7 +4979,11 @@ inline const ModelTree& LoadModelTree(BenchmarkType bench, const std::string& su
         }
     }
 
-    return mt;
+    // Insert into cache under lock
+    std::lock_guard<std::mutex> lk(cache_mtx);
+    auto& cached = cache[key];
+    cached = std::move(loaded);
+    return cached;
 }
 
 /**
