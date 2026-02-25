@@ -1198,6 +1198,45 @@ inline void SetBenchmarkTypeHint(BenchmarkType t) { _BenchmarkTypeHint() = t; }
 inline BenchmarkType GetBenchmarkTypeHint() { return _BenchmarkTypeHint(); }
 
 /**
+ * @brief Global graph name hint for AdaptiveOrder.
+ *
+ * Automatically extracted from the input filename so that
+ * database/oracle modes can identify known graphs without
+ * the user having to supply the name on the command line.
+ *
+ * Usage:  SetGraphNameHint("ca-GrQc");  // set in Builder::MakeGraph()
+ */
+inline std::string& _GraphNameHint() {
+    static std::string hint;
+    return hint;
+}
+inline void SetGraphNameHint(const std::string& name) { _GraphNameHint() = name; }
+inline const std::string& GetGraphNameHint() { return _GraphNameHint(); }
+
+/**
+ * @brief Extract a graph name from a file path.
+ *
+ * Given "results/graphs/ca-GrQc/ca-GrQc.sg" returns "ca-GrQc".
+ * Strips directory prefix and known extensions (.sg, .wsg, .el, .wel, .mtx, .txt, .tsv).
+ */
+inline std::string ExtractGraphNameFromPath(const std::string& path) {
+    // Find last component
+    std::string name = path;
+    auto slash = name.rfind('/');
+    if (slash != std::string::npos) name = name.substr(slash + 1);
+    // Strip known extensions
+    const char* exts[] = {".sg", ".wsg", ".el", ".wel", ".mtx", ".txt", ".tsv"};
+    for (auto ext : exts) {
+        std::string e(ext);
+        if (name.size() > e.size() && name.compare(name.size() - e.size(), e.size(), e) == 0) {
+            name = name.substr(0, name.size() - e.size());
+            break;
+        }
+    }
+    return name;
+}
+
+/**
  * @brief Convert benchmark name string to enum
  * @param name Benchmark name (e.g., "pr", "bfs", "generic")
  * @return Corresponding BenchmarkType enum value
@@ -1561,7 +1600,8 @@ enum SelectionMode {
     MODE_BEST_ENDTOEND = 2,        ///< Minimize total time
     MODE_BEST_AMORTIZATION = 3,    ///< Minimize iterations to amortize
     MODE_DECISION_TREE = 4,        ///< Decision Tree classifier (per-benchmark)
-    MODE_HYBRID = 5                ///< Hybrid DT+Perceptron (Model Tree)
+    MODE_HYBRID = 5,               ///< Hybrid DT+Perceptron (Model Tree)
+    MODE_DATABASE = 6              ///< Database-driven kNN (streaming equation)
 };
 
 /**
@@ -1575,6 +1615,7 @@ inline std::string SelectionModeToString(SelectionMode mode) {
         case MODE_BEST_AMORTIZATION:  return "best-amortization";
         case MODE_DECISION_TREE:      return "decision-tree";
         case MODE_HYBRID:              return "hybrid";
+        case MODE_DATABASE:            return "database";
         default:                      return "unknown";
     }
 }
@@ -1589,6 +1630,7 @@ inline SelectionMode GetSelectionMode(const std::string& name) {
     if (name == "3" || name == "best-amortization" || name == "amortization" || name == "amortize") return MODE_BEST_AMORTIZATION;
     if (name == "4" || name == "decision-tree" || name == "dt" || name == "tree") return MODE_DECISION_TREE;
     if (name == "5" || name == "hybrid" || name == "model-tree" || name == "hme") return MODE_HYBRID;
+    if (name == "6" || name == "database" || name == "db" || name == "knn") return MODE_DATABASE;
     return MODE_FASTEST_EXECUTION;  // Default
 }
 
@@ -4982,6 +5024,12 @@ inline PerceptronSelection SelectReorderingPerceptronWithFeatures(
     return SelectReorderingFromWeights(feat, weights, bench);
 }
 
+// ============================================================================
+// DATABASE-DRIVEN SELECTION (MODE_DATABASE)
+// Include after all types and helpers are defined.
+// ============================================================================
+#include "reorder_database.h"
+
 /**
  * Select best reordering algorithm with MODE-AWARE selection.
  * 
@@ -5011,8 +5059,6 @@ inline PerceptronSelection SelectReorderingWithMode(
     double global_hub_concentration, size_t num_nodes, size_t num_edges,
     SelectionMode mode, const std::string& graph_name = "",
     BenchmarkType bench = BENCH_GENERIC, bool verbose = false) {
-    
-    (void)graph_name;  // Reserved for future .time file support
     
     // Check graph type for verbose output (but don't change selection behavior)
     double type_distance = 0.0;
@@ -5169,6 +5215,25 @@ inline PerceptronSelection SelectReorderingWithMode(
             }
             if (verbose) {
                 std::cout << "Mode: hybrid → family=" << family << "\n";
+            }
+            return ResolveVariantSelection(family, 0.0);
+        }
+        
+        case MODE_DATABASE: {
+            // Database-driven selection: load benchmarks.json, use oracle/kNN
+            std::string family = graphbrew::database::SelectAlgorithmDatabase(
+                feat, bench, graph_name, verbose);
+            if (family.empty()) {
+                // Database not loaded — fall back to perceptron
+                if (verbose) {
+                    std::cout << "Mode: database → no data, falling back to perceptron\n";
+                }
+                return SelectReorderingPerceptronWithFeatures(
+                    feat, global_modularity, global_degree_variance,
+                    global_hub_concentration, num_nodes, num_edges, bench);
+            }
+            if (verbose) {
+                std::cout << "Mode: database → family=" << family << "\n";
             }
             return ResolveVariantSelection(family, 0.0);
         }
