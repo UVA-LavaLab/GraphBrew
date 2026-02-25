@@ -55,6 +55,86 @@ CLUSTER_DISTANCE_THRESHOLD = 0.15  # Max normalized distance to join existing cl
 # via ComputeExtendedFeatures(), so they are no longer dead.
 _DEAD_WEIGHT_KEYS: set = set()
 
+# =============================================================================
+# Algorithm Groups (Mode 4+3)
+# =============================================================================
+# Group algorithms by underlying strategy for hierarchical prediction:
+#   1. Predict group (3-class → higher accuracy)
+#   2. Within predicted group, rank by perceptron score and try top-K
+#
+# GROUP_COMMUNITY: Community-detection based orderings
+# GROUP_BANDWIDTH: Structural / bandwidth-reduction orderings
+# GROUP_CACHE: Cache-aware / degree-based heuristic orderings
+ALGO_GROUPS = {
+    'COMMUNITY': frozenset({
+        'LeidenOrder',
+        'GraphBrewOrder_leiden',
+        'GraphBrewOrder_hubcluster',
+        'GraphBrewOrder_rabbit',
+    }),
+    'BANDWIDTH': frozenset({
+        'GORDER',
+        'CORDER',
+        'RCM_default',
+        'RCM_bnf',
+    }),
+    'CACHE': frozenset({
+        'RABBITORDER_csr',
+        'RABBITORDER_boost',
+        'HUBSORT',
+        'HUBCLUSTER',
+        'SORT',
+        'DBG',
+        'HUBSORTDBG',
+        'HUBCLUSTERDBG',
+    }),
+}
+
+# Inverse mapping: algorithm → group name
+ALGO_TO_GROUP = {}
+for _gname, _algos in ALGO_GROUPS.items():
+    for _a in _algos:
+        ALGO_TO_GROUP[_a] = _gname
+
+# =============================================================================
+# Perceptron Candidate Algorithm Configuration
+# =============================================================================
+# PERCEPTRON_EXCLUDED: algorithms the perceptron should NEVER select.
+# ORIGINAL/RANDOM are graph states used for baseline / speedup measurement,
+# not reordering algorithms.  MAP and AdaptiveOrder are meta-algorithms.
+# Chained orderings are filtered separately (they can't be selected at C++
+# runtime since the perceptron picks a single algorithm ID).
+#
+# To exclude an algorithm from perceptron selection, add it here.
+# To include it again, remove it from this set.
+PERCEPTRON_EXCLUDED: frozenset = frozenset({
+    'ORIGINAL',
+    'RANDOM',
+})
+
+
+def get_perceptron_candidates(extra_exclude: set = None) -> frozenset:
+    """Return the set of algorithms the perceptron may select from.
+
+    Computed dynamically from the algorithm registry minus:
+      - PERCEPTRON_EXCLUDED (baseline states)
+      - Chained orderings (can't be selected at C++ runtime)
+      - Any additional names in *extra_exclude*
+
+    Returns:
+        frozenset of canonical algorithm names eligible for training /
+        inference.
+    """
+    base = set(get_all_algorithm_variant_names())
+    # Remove chained orderings (already excluded by get_all_algorithm_variant_names
+    # for the base set, but guard against future changes)
+    base = {n for n in base if not is_chained_ordering_name(n)}
+    # Remove excluded baselines
+    base -= PERCEPTRON_EXCLUDED
+    if extra_exclude:
+        base -= set(extra_exclude)
+    return frozenset(base)
+
 
 # =============================================================================
 # Data Classes
@@ -466,12 +546,8 @@ def update_type_weights_incremental(
     if not weights:
         weights = {}
     
-    # Skip chained orderings — analysis-only, not trainable by C++ perceptron
-    if is_chained_ordering_name(algorithm):
-        return
-    
-    # Skip baselines — ORIGINAL and RANDOM are states, not reorderings
-    if algorithm in ('ORIGINAL', 'RANDOM'):
+    # Skip algorithms not eligible for perceptron selection
+    if is_chained_ordering_name(algorithm) or algorithm in PERCEPTRON_EXCLUDED:
         return
     
     # Track algorithm in type registry
@@ -519,8 +595,15 @@ def update_type_weights_incremental(
     # Accept both clustering key names
     clustering = features.get('clustering_coefficient', features.get('clustering_coeff', 0.0))
     
+    # Use estimated_modularity (CC×1.5 heuristic) for consistency with
+    # C++ runtime scoreBase().  Phase 4 batch training uses REAL modularity
+    # for a better learning signal, but this incremental online update runs
+    # after Phase 4 and writes directly to type weights that C++ reads.
+    # Since C++ runtime only has the CC*1.5 estimate, we keep this aligned.
+    estimated_mod = min(0.9, clustering * 1.5)
+    
     algo_weights['bias'] += learning_rate * error
-    algo_weights['w_modularity'] += learning_rate * error * features.get('modularity', 0.0)
+    algo_weights['w_modularity'] += learning_rate * error * estimated_mod
     algo_weights['w_log_nodes'] += learning_rate * error * log_nodes * 0.1
     algo_weights['w_log_edges'] += learning_rate * error * log_edges * 0.1
     algo_weights['w_density'] += learning_rate * error * features.get('density', 0.0)
@@ -541,7 +624,7 @@ def update_type_weights_incremental(
     log_wsr = math.log2(features.get('working_set_ratio', 0.0) + 1.0)
     log_n = math.log10(features.get('nodes', 1) + 1)
     algo_weights['w_dv_x_hub'] = algo_weights.get('w_dv_x_hub', 0.0) + learning_rate * error * features.get('degree_variance', 0.0) * features.get('hub_concentration', 0.0)
-    algo_weights['w_mod_x_logn'] = algo_weights.get('w_mod_x_logn', 0.0) + learning_rate * error * features.get('modularity', 0.0) * log_n
+    algo_weights['w_mod_x_logn'] = algo_weights.get('w_mod_x_logn', 0.0) + learning_rate * error * estimated_mod * log_n
     algo_weights['w_pf_x_wsr'] = algo_weights.get('w_pf_x_wsr', 0.0) + learning_rate * error * features.get('packing_factor', 0.0) * log_wsr
     
     # Convergence bonus gradient (only for iterative benchmarks)
@@ -606,13 +689,14 @@ def get_best_algorithm_for_type(
     """
     weights = load_type_weights(type_name, weights_dir)
     if not weights:
-        return ("ORIGINAL", 0.0)
+        return ("SORT", 0.0)  # fallback: simplest real reordering
     
+    candidates = get_perceptron_candidates()
     best_algo = None
     best_score = float('-inf')
     
     for algo_name, algo_weights in weights.items():
-        if algo_name.startswith('_'):
+        if algo_name.startswith('_') or algo_name not in candidates:
             continue
         
         pw = PerceptronWeight(
@@ -655,7 +739,7 @@ def get_best_algorithm_for_type(
             best_score = score
             best_algo = algo_name
     
-    return (best_algo or "ORIGINAL", best_score)
+    return (best_algo or "SORT", best_score)  # fallback: simplest real reordering
 
 
 def list_known_types(weights_dir: str = DEFAULT_WEIGHTS_DIR) -> List[str]:
@@ -705,6 +789,7 @@ def compute_weights_from_results(
     reorder_results: List = None,
     output_file: str = None,
     weights_dir: str = None,
+    candidate_algos: frozenset = None,
 ) -> Dict:
     """
     Compute perceptron weights from benchmark results.
@@ -718,6 +803,9 @@ def compute_weights_from_results(
         reorder_results: Optional list of ReorderResult objects
         output_file: Optional file to save weights
         weights_dir: Optional directory to save type-based weights
+        candidate_algos: Optional frozenset of algorithm names the perceptron
+            may select from.  Defaults to ``get_perceptron_candidates()``.
+            Pass a custom set to restrict or expand the candidate pool.
         
     Returns:
         Dict of weights by algorithm
@@ -753,16 +841,15 @@ def compute_weights_from_results(
         if algo_name:
             all_algo_names.add(algo_name)
     
-    # Filter out chained orderings — they are pregeneration-only / analysis-only
-    # and the C++ perceptron cannot select them at runtime (it selects ONE
-    # algorithm ID).  Including them in training would train the perceptron
-    # toward algorithms it can't execute.
-    # Also filter ORIGINAL/RANDOM — they are baseline states, not reordering
-    # techniques.  ORIGINAL results are used as the baseline for speedup
-    # calculation but should not get weight entries.
-    _non_trainable = {'ORIGINAL', 'RANDOM'}
+    # Filter to perceptron-eligible algorithms only.
+    # Chained orderings can't be selected at C++ runtime (perceptron picks
+    # a single algorithm ID).  PERCEPTRON_EXCLUDED removes baseline states
+    # (ORIGINAL, RANDOM) that are not reordering techniques.
+    candidates = candidate_algos if candidate_algos is not None else get_perceptron_candidates()
+    log.info(f"Perceptron candidates ({len(candidates)}): "
+             f"{sorted(candidates)}")
     all_algo_names = {n for n in all_algo_names
-                      if not is_chained_ordering_name(n) and n not in _non_trainable}
+                      if not is_chained_ordering_name(n) and n in candidates}
     benchmark_results = [r for r in benchmark_results
                          if not is_chained_ordering_name(r.algorithm or '')]
     reorder_results = [r for r in reorder_results
@@ -880,6 +967,19 @@ def compute_weights_from_results(
     }
     
     # Collect features per graph
+    #
+    # TRAINING vs INFERENCE feature distinction:
+    #   - Training (here): use REAL modularity from computeFastModularity
+    #     (stored in graph_properties_cache.json).  This gives the SGD a
+    #     much higher-quality signal (CC*1.5 estimate is 2-178× off).
+    #   - LOGO / C++ runtime: use ESTIMATED modularity = min(0.9, CC*1.5)
+    #     since that's all the C++ runtime has without the expensive
+    #     computeFastModularity call.
+    #
+    # The de-normalized weights will be calibrated for real modularity
+    # scale.  At C++ runtime the estimated value is smaller, so the
+    # modularity contribution shrinks — but relative ordering across
+    # graphs is preserved, which is what the perceptron needs.
     graph_features = {}
     for graph_name, props in graph_props.items():
         nodes = props.get('nodes', 1000)
@@ -887,18 +987,20 @@ def compute_weights_from_results(
         cc = props.get('clustering_coefficient', 0.0)
         avg_degree = props.get('avg_degree', WEIGHT_AVG_DEGREE_DEFAULT)
         
-        # Align features to match what C++ computes at runtime:
-        # - modularity: C++ uses estimated_modularity = min(0.9, clustering_coeff * 1.5)
-        # - density: C++ uses internal_density = avg_degree / (num_nodes - 1)
+        # Use real modularity from cache if available, else fall back to estimate
+        real_modularity = props.get('modularity', None)
         estimated_modularity = min(0.9, cc * 1.5)
+        train_modularity = real_modularity if real_modularity is not None else estimated_modularity
+        
         internal_density = avg_degree / (nodes - 1) if nodes > 1 else 0
+        log_n = math.log10(nodes + 1) if nodes > 0 else 0
         
         graph_features[graph_name] = {
-            'modularity': estimated_modularity,
+            'modularity': train_modularity,
             'degree_variance': props.get('degree_variance', 1.0),
             'hub_concentration': props.get('hub_concentration', 0.3),
             'avg_degree': avg_degree,
-            'log_nodes': math.log10(nodes + 1) if nodes > 0 else 0,
+            'log_nodes': log_n,
             'log_edges': math.log10(edges + 1) if edges > 0 else 0,
             'density': internal_density,
             'clustering_coefficient': cc,
@@ -912,10 +1014,13 @@ def compute_weights_from_results(
             'packing_factor': props.get('packing_factor', 0.0),
             'forward_edge_fraction': props.get('forward_edge_fraction', 0.5),
             'log_working_set_ratio': math.log2(props.get('working_set_ratio', 0.0) + 1.0),
-            # Quadratic interaction terms — match C++ scoreBase() cross-features
+            # Quadratic interaction terms — use training modularity for mod_x_logn
             'dv_x_hub': props.get('degree_variance', 1.0) * props.get('hub_concentration', 0.3),
-            'mod_x_logn': estimated_modularity * (math.log10(nodes + 1) if nodes > 0 else 0),
+            'mod_x_logn': train_modularity * log_n,
             'pf_x_wsr': props.get('packing_factor', 0.0) * math.log2(props.get('working_set_ratio', 0.0) + 1.0),
+            # Estimated values for de-normalization (C++ runtime only has these)
+            '_est_modularity': estimated_modularity,
+            '_est_mod_x_logn': estimated_modularity * log_n,
         }
     
     # Build training examples: (feature_vector, best_algorithm)
@@ -931,8 +1036,18 @@ def compute_weights_from_results(
         for _bench, results in benchmarks.items():
             if not results:
                 continue
-            # Oracle by total time (exec + reorder) — practical end-to-end metric
-            best_result = min(results, key=lambda r: r.time_seconds + r.reorder_time)
+            # Oracle by execution time only — reorder cost is handled
+            # separately by the C++ reorder_time_penalty in scoreBase().
+            # Including raw reorder_time here causes ORIGINAL to dominate,
+            # masking the per-algorithm execution differences.
+            # Filter to perceptron candidates: if the overall winner is a
+            # baseline state (ORIGINAL/RANDOM), pick the best candidate
+            # algorithm instead so training targets a selectable algo.
+            candidate_results = [r for r in results
+                                 if r.algorithm in candidates]
+            if not candidate_results:
+                continue  # no candidate ran on this graph/bench — skip
+            best_result = min(candidate_results, key=lambda r: r.time_seconds)
             best_algo = best_result.algorithm
             
             # Build feature vector matching C++ scoreBase() scaling
@@ -962,7 +1077,16 @@ def compute_weights_from_results(
     
     if training_data and graph_features:
         # Get algorithm names for training (canonical variant names)
-        base_algos = sorted(set(a for a in weights if not a.startswith('_')))
+        # Include all algorithms from weights PLUS any that appear as winners
+        # in training data, filtered to perceptron candidates only.
+        # Baseline states (ORIGINAL, RANDOM) are excluded even if they win
+        # on execution time — the perceptron should only select real
+        # reordering algorithms.
+        training_labels = set(algo for _fv, algo in training_data)
+        base_algos = sorted(
+            (set(a for a in weights if not a.startswith('_')) | training_labels)
+            & candidates  # intersect with perceptron-eligible algorithms
+        )
         
         # =====================================================================
         # Per-benchmark perceptron training → C++ compatible output
@@ -1017,12 +1141,16 @@ def compute_weights_from_results(
             for bench, results in benchmarks.items():
                 if not results:
                     continue
-                # Oracle by total time (exec + reorder) — practical end-to-end metric
-                best_result = min(results, key=lambda r: r.time_seconds + r.reorder_time)
+                # Oracle by execution time — reorder cost handled by C++ penalty
+                # Filter to perceptron candidates only (exclude baselines)
+                cand_results = [r for r in results if r.algorithm in candidates]
+                if not cand_results:
+                    continue
+                best_result = min(cand_results, key=lambda r: r.time_seconds)
                 best_algo = best_result.algorithm
                 per_bench_data_raw[bench].append((fv, best_algo))
         
-        # Feature normalization stats
+        # Feature normalization stats (computed from REAL modularity for training)
         all_fvs = [fv for bn in bench_names for fv, _ in per_bench_data_raw[bn]]
         feat_means = [0.0] * n_feat
         feat_stds = [1.0] * n_feat
@@ -1033,6 +1161,32 @@ def compute_weights_from_results(
                 var = sum((v - feat_means[i])**2 for v in vals) / len(vals)
                 feat_stds[i] = max(math.sqrt(var), 1e-8)
         
+        # De-normalization stats: use ESTIMATED modularity for mod-related features.
+        # Training uses real modularity (better gradient signal), but C++ runtime
+        # only has estimated_mod = min(0.9, CC*1.5).  De-normalizing with real
+        # stats would bake the real mean into the bias, causing sign flips when
+        # C++ feeds in much-smaller estimated values.
+        # Indices: 0 = 'modularity', n_feat-2 = 'mod_x_logn'
+        MOD_IDX = 0
+        MOD_LOGN_IDX = n_feat - 2  # mod_x_logn is second-to-last feature
+        feat_means_denorm = list(feat_means)
+        feat_stds_denorm = list(feat_stds)
+        # Collect estimated values per unique training graph
+        training_graphs = [gn for gn in results_by_graph if gn in graph_features]
+        if training_graphs:
+            est_mod_vals = [graph_features[gn]['_est_modularity'] for gn in training_graphs]
+            est_mln_vals = [graph_features[gn]['_est_mod_x_logn'] for gn in training_graphs]
+            em_mean = sum(est_mod_vals) / len(est_mod_vals)
+            em_var = sum((v - em_mean)**2 for v in est_mod_vals) / len(est_mod_vals)
+            feat_means_denorm[MOD_IDX] = em_mean
+            feat_stds_denorm[MOD_IDX] = max(math.sqrt(em_var), 1e-8)
+            eml_mean = sum(est_mln_vals) / len(est_mln_vals)
+            eml_var = sum((v - eml_mean)**2 for v in est_mln_vals) / len(est_mln_vals)
+            feat_means_denorm[MOD_LOGN_IDX] = eml_mean
+            feat_stds_denorm[MOD_LOGN_IDX] = max(math.sqrt(eml_var), 1e-8)
+            log.info(f"  Modularity de-norm: real mean={feat_means[MOD_IDX]:.4f} std={feat_stds[MOD_IDX]:.4f}"
+                     f" → estimated mean={feat_means_denorm[MOD_IDX]:.4f} std={feat_stds_denorm[MOD_IDX]:.4f}")
+        
         # Normalize per-benchmark data
         per_bench_data = {}
         for bn in bench_names:
@@ -1042,14 +1196,36 @@ def compute_weights_from_results(
             ]
         
         # Train one perceptron per benchmark with multiple random restarts
+        # Using margin-based (theta) training, weight clamping, and averaged
+        # perceptron — inspired by Jimenez & Lin HPCA 2001 / Jimenez MICRO 2016
         per_bench_w = {}  # bench -> {base -> {'bias': float, 'w': [float]}}
         N_RESTARTS = 5
         N_EPOCHS = 800
+
+        # Theta threshold: update on wrong OR low-confidence correct predictions
+        # Jimenez formula: theta = floor(1.93 * h + 14) for binary features
+        # with weight cap 127.  Scale proportionally for our z-normalized
+        # features with W_MAX capped weights:
+        #   theta_scaled = floor((1.93*h + 14) * W_MAX / 127)
+        # This preserves the theta/W_MAX ratio (~0.36) from the original paper.
+        # Weight saturation: prevents overfitting on few training examples
+        # Jimenez uses [-127, +127] for binary {+1,-1} features;
+        # for z-normalized real features, use a proportional cap.
+        W_MAX = 16.0
+        THETA = max(1, int((1.93 * n_feat + 14) * W_MAX / 127))  # ~5 for 17 feat, W_MAX=16
         
         for bn in bench_names:
             data = per_bench_data[bn]
             if not data:
                 continue
+
+            # Restrict training to algorithms that actually appear as winners
+            # in this benchmark's training data.  With 5 graphs & 22 classes,
+            # the 15-17 classes with NO training data only add noise.
+            # Intersect with candidates as a safety guard.
+            active_algos = sorted(set(algo for _fv, algo in data) & candidates)
+            log.info(f"  {bn}: {len(active_algos)} active classes "
+                     f"(of {len(base_algos)}) → {active_algos}")
             
             global_best_acc = 0
             global_best_snap = None
@@ -1063,11 +1239,27 @@ def compute_weights_from_results(
                 bw = {base: {
                     'bias': random.gauss(0, 0.1),
                     'w': [random.gauss(0, 0.1) for _ in range(n_feat)]
-                } for base in base_algos}
+                } for base in active_algos}
                 
+                # Averaged perceptron: accumulate weight sums across all updates
+                # (Freund & Schapire 1999 — provably better generalization)
+                avg_bw = {base: {
+                    'bias': 0.0,
+                    'w': [0.0] * n_feat
+                } for base in active_algos}
+                avg_count = 0  # total steps for averaging
+
                 lr = 0.05
                 best_acc = 0
                 best_snap = None
+                # Adaptive theta (Jimenez MICRO 2016): auto-tune the margin
+                # threshold per restart.  Start from the static formula value.
+                # With few examples (5-10), naive ±1 steps cause theta to grow
+                # unboundedly since nearly all predictions are correct.
+                # Cap at 3× initial and use fractional steps ∝ 1/n_examples.
+                theta = float(THETA)
+                theta_max = THETA * 3.0
+                theta_step = max(0.1, 1.0 / max(len(data), 1))
                 
                 for _epoch in range(N_EPOCHS):
                     random.shuffle(data)
@@ -1075,20 +1267,59 @@ def compute_weights_from_results(
                     for fv_n, true_base in data:
                         if true_base not in bw:
                             continue
-                        # Predict
-                        best_s, pred = float('-inf'), None
-                        for base in base_algos:
-                            s = bw[base]['bias'] + sum(bw[base]['w'][i]*fv_n[i] for i in range(n_feat))
-                            if s > best_s:
-                                best_s, pred = s, base
-                        if pred == true_base:
+                        # Compute scores for all active classes
+                        scores = {}
+                        for base in active_algos:
+                            scores[base] = bw[base]['bias'] + sum(
+                                bw[base]['w'][i] * fv_n[i] for i in range(n_feat))
+
+                        # Find predicted (best) and runner-up
+                        pred = max(scores, key=scores.get)
+                        true_score = scores[true_base]
+                        pred_score = scores[pred]
+
+                        is_correct = (pred == true_base)
+                        if is_correct:
                             correct += 1
+                            # Margin = true_score - runner_up_score
+                            runner_up = max(
+                                (s for b, s in scores.items() if b != true_base),
+                                default=float('-inf'))
+                            margin = true_score - runner_up
                         else:
+                            margin = -1  # always below theta
+
+                        # Adaptive theta update (Jimenez MICRO 2016):
+                        #   correct & confident (margin > theta) → increment theta
+                        #     (demand wider margins → more updates → stronger generalization)
+                        #   wrong → decrement theta
+                        #     (relax threshold → fewer forced updates → let model stabilize)
+                        if is_correct and margin > theta:
+                            theta = min(theta_max, theta + theta_step)
+                        elif not is_correct:
+                            theta = max(0.0, theta - theta_step)
+
+                        # Jimenez update rule: update on wrong OR margin <= theta
+                        if not is_correct or margin <= theta:
+                            # Promote true class, demote predicted class
                             bw[true_base]['bias'] += lr
-                            bw[pred]['bias'] -= lr
+                            bw[true_base]['bias'] = max(-W_MAX, min(W_MAX, bw[true_base]['bias']))
+                            if not is_correct:
+                                bw[pred]['bias'] -= lr
+                                bw[pred]['bias'] = max(-W_MAX, min(W_MAX, bw[pred]['bias']))
                             for i in range(n_feat):
                                 bw[true_base]['w'][i] += lr * fv_n[i]
-                                bw[pred]['w'][i] -= lr * fv_n[i]
+                                bw[true_base]['w'][i] = max(-W_MAX, min(W_MAX, bw[true_base]['w'][i]))
+                                if not is_correct:
+                                    bw[pred]['w'][i] -= lr * fv_n[i]
+                                    bw[pred]['w'][i] = max(-W_MAX, min(W_MAX, bw[pred]['w'][i]))
+
+                        # Accumulate for averaged perceptron
+                        avg_count += 1
+                        for base in active_algos:
+                            avg_bw[base]['bias'] += bw[base]['bias']
+                            for i in range(n_feat):
+                                avg_bw[base]['w'][i] += bw[base]['w'][i]
                     
                     acc = correct / len(data) if data else 0
                     if acc > best_acc:
@@ -1099,14 +1330,47 @@ def compute_weights_from_results(
                         }
                     lr *= 0.997
                 
-                if best_acc > global_best_acc:
-                    global_best_acc = best_acc
-                    global_best_snap = best_snap
+                # Use averaged weights (better generalization, especially with few examples)
+                if avg_count > 0:
+                    avg_snap = {
+                        base: {
+                            'bias': avg_bw[base]['bias'] / avg_count,
+                            'w': [avg_bw[base]['w'][i] / avg_count for i in range(n_feat)]
+                        } for base in active_algos
+                    }
+                else:
+                    avg_snap = best_snap
+
+                # Evaluate averaged weights on training data
+                avg_acc = 0
+                if avg_snap is not None:
+                    avg_correct = 0
+                    for fv_n, true_base in data:
+                        if true_base not in avg_snap:
+                            continue
+                        best_s, apred = float('-inf'), None
+                        for base in active_algos:
+                            s = avg_snap[base]['bias'] + sum(
+                                avg_snap[base]['w'][i] * fv_n[i] for i in range(n_feat))
+                            if s > best_s:
+                                best_s, apred = s, base
+                        if apred == true_base:
+                            avg_correct += 1
+                    avg_acc = avg_correct / len(data) if data else 0
+
+                # Pick whichever is better: averaged or best-snapshot
+                use_acc = max(avg_acc, best_acc)
+                use_snap = (avg_snap if avg_acc >= best_acc and avg_snap is not None
+                            else best_snap)
+
+                if use_acc > global_best_acc:
+                    global_best_acc = use_acc
+                    global_best_snap = use_snap
             
             if global_best_snap:
                 per_bench_w[bn] = global_best_snap
             log.info(f"  {bn}: accuracy = {global_best_acc:.1%} ({len(data)} examples, "
-                     f"{N_RESTARTS} restarts)")
+                     f"{N_RESTARTS} restarts, theta_init={THETA}, theta_final={theta:.0f}, W_max={W_MAX})")
         
         # =====================================================================
         # Combine into C++ weight format
@@ -1129,6 +1393,9 @@ def compute_weights_from_results(
         # =====================================================================
         
         # Build per-bench weight dicts (one per benchmark)
+        # Mode 5: save z-score weights directly — C++ will z-normalize
+        # features before scoring.  Eliminates de-normalization weight
+        # explosion (density 1/std=10k → millions-scale weights).
         per_bench_dicts = {}  # bn -> {algo: weights}
         for bn, bn_weights in per_bench_w.items():
             per_bench_cpp = {}
@@ -1136,24 +1403,22 @@ def compute_weights_from_results(
                 if base not in bn_weights:
                     continue
                 bw_raw = bn_weights[base]
-                # De-normalize for C++ raw features (same transform as averaged weights)
-                bias_adj = sum(bw_raw['w'][i] * feat_means[i] / feat_stds[i] for i in range(n_feat))
-                denorm_bias = bw_raw['bias'] - bias_adj
-                denorm_w = {weight_keys[i]: bw_raw['w'][i] / feat_stds[i] for i in range(n_feat)}
-                
-                # Zero out dead features — these are ALWAYS 0 in training data
-                # (C++ doesn't compute them at runtime), but z-score
-                # denormalization creates millions-scale weights from noise.
-                for dk in _DEAD_WEIGHT_KEYS:
-                    denorm_w[dk] = 0.0
-                
-                entry = {'bias': denorm_bias}
-                entry.update(denorm_w)
+                # Save z-score weights directly (all within [-W_MAX, W_MAX])
+                entry = {'bias': bw_raw['bias']}
+                entry.update({weight_keys[i]: bw_raw['w'][i] for i in range(n_feat)})
                 # No benchmark_weights needed - this IS the benchmark-specific perceptron
                 entry['benchmark_weights'] = {}
                 entry['_metadata'] = {}
                 # Per-bench files use the canonical variant name directly
                 per_bench_cpp[base] = entry
+            # Shared normalization stats for C++ z-score normalization.
+            # Uses estimated-modularity stats for mod-related indices
+            # because C++ only has estimated_mod = min(0.9, CC*1.5).
+            per_bench_cpp['_normalization'] = {
+                'feat_means': [round(v, 10) for v in feat_means_denorm],
+                'feat_stds': [round(v, 10) for v in feat_stds_denorm],
+                'weight_keys': list(weight_keys),
+            }
             per_bench_dicts[bn] = per_bench_cpp
         
         # Save per-bench files to ALL types in the registry
@@ -1184,30 +1449,25 @@ def compute_weights_from_results(
         for base in base_algos:
             avg_bias = 0.0
             avg_w = [0.0] * n_feat
-            n_benches = len(per_bench_w)
+            n_counted = 0
             
             for bn in bench_names:
                 if bn not in per_bench_w:
                     continue
+                if base not in per_bench_w[bn]:
+                    continue  # this algo wasn't an active class for this bench
+                n_counted += 1
                 avg_bias += per_bench_w[bn][base]['bias']
                 for i in range(n_feat):
                     avg_w[i] += per_bench_w[bn][base]['w'][i]
             
-            if n_benches > 0:
-                avg_bias /= n_benches
-                avg_w = [w / n_benches for w in avg_w]
+            if n_counted > 0:
+                avg_bias /= n_counted
+                avg_w = [w / n_counted for w in avg_w]
             
-            # De-normalize for C++ raw features
-            bias_adj = sum(avg_w[i] * feat_means[i] / feat_stds[i] for i in range(n_feat))
-            denorm_bias = avg_bias - bias_adj
-            denorm_w = {weight_keys[i]: avg_w[i] / feat_stds[i] for i in range(n_feat)}
-            
-            # Zero out dead features (same as per-bench models)
-            for dk in _DEAD_WEIGHT_KEYS:
-                denorm_w[dk] = 0.0
-            
-            base_weights[base] = {'bias': denorm_bias}
-            base_weights[base].update(denorm_w)
+            # Mode 5: save z-score weights directly (no de-normalization)
+            base_weights[base] = {'bias': avg_bias}
+            base_weights[base].update({weight_keys[i]: avg_w[i] for i in range(n_feat)})
             bench_multipliers[base] = {bn: 1.0 for bn in bench_names}
         
         # Helper: compute raw feature vector for a graph
@@ -1235,8 +1495,13 @@ def compute_weights_from_results(
             ]
         
         # Helper: compute scoreBase for an algo on a graph
+        # Mode 5: z-normalize raw features before dot product with z-score weights
         def _score_base(bw, fv):
-            return bw['bias'] + sum(bw.get(weight_keys[i], 0) * fv[i] for i in range(n_feat))
+            s = bw['bias']
+            for i in range(n_feat):
+                z = (fv[i] - feat_means_denorm[i]) / feat_stds_denorm[i]
+                s += bw.get(weight_keys[i], 0) * z
+            return s
         
         # Build ground truth + timing data for all benchmarks
         bench_truth_all = {}  # bench -> {graph -> best_base}
@@ -1422,6 +1687,12 @@ def compute_weights_from_results(
         
         # With string-keyed weights in C++, each variant has its own entry.
         # No collapsing needed — save all variants directly.
+        # Mode 5: embed normalization stats so C++ can z-normalize features
+        weights['_normalization'] = {
+            'feat_means': [round(v, 10) for v in feat_means_denorm],
+            'feat_stds': [round(v, 10) for v in feat_stds_denorm],
+            'weight_keys': list(weight_keys),
+        }
         save_weights_to_active_type(weights, weights_dir, type_name="type_0")
     
     return weights
@@ -1460,61 +1731,122 @@ def cross_validate_logo(
         weights_dir = DEFAULT_WEIGHTS_DIR
 
     def _build_features(props):
-        """Build C++-aligned feature dict from graph properties."""
+        """Build INFERENCE feature dict matching what C++ runtime computes.
+        
+        Uses ESTIMATED modularity (CC*1.5) — NOT the real modularity from
+        computeFastModularity — because C++ AdaptiveOrder only has the
+        estimate at runtime.  Training uses real modularity for better
+        signal, but LOGO/inference must simulate the runtime conditions.
+        """
         nodes = props.get('nodes', 1000)
         edges = props.get('edges', 5000)
         cc = props.get('clustering_coefficient', 0.0)
         avg_degree = props.get('avg_degree', 10.0)
+        estimated_mod = min(0.9, cc * 1.5)
+        log_n = math.log10(nodes + 1) if nodes > 0 else 0
+        pf = props.get('packing_factor', 0.0)
+        wsr = props.get('working_set_ratio', 0.0)
+        log_wsr = math.log2(wsr + 1.0)
         return {
-            'modularity': min(0.9, cc * 1.5),
+            'modularity': estimated_mod,
             'degree_variance': props.get('degree_variance', 1.0),
             'hub_concentration': props.get('hub_concentration', 0.3),
             'avg_degree': avg_degree,
-            'log_nodes': math.log10(nodes + 1) if nodes > 0 else 0,
+            'log_nodes': log_n,
             'log_edges': math.log10(edges + 1) if edges > 0 else 0,
             'density': avg_degree / (nodes - 1) if nodes > 1 else 0,
             'clustering_coefficient': cc,
-            # Extended — C++ doesn't compute these at runtime, always 0
-            'avg_path_length': 0.0,
-            'diameter': 0.0,
-            'community_count': 0.0,
+            'avg_path_length': props.get('avg_path_length', 0.0),
+            'diameter': props.get('diameter_estimate', 0.0),
+            'community_count': props.get('community_count', 0.0),
             # Locality features from graph_properties_cache
-            'packing_factor': props.get('packing_factor', 0.0),
+            'packing_factor': pf,
             'forward_edge_fraction': props.get('forward_edge_fraction', 0.5),
-            'working_set_ratio': props.get('working_set_ratio', 0.0),
+            'log_working_set_ratio': log_wsr,
+            'working_set_ratio': wsr,
+            # Quadratic interaction terms (use estimated modularity)
+            'dv_x_hub': props.get('degree_variance', 1.0) * props.get('hub_concentration', 0.3),
+            'mod_x_logn': estimated_mod * log_n,
+            'pf_x_wsr': pf * log_wsr,
         }
 
-    def _score(algo_data, feats):
-        """Mimic C++ scoreBase() — must match reorder_types.h exactly."""
-        s = algo_data.get('bias', 0.5)
-        # Core features
-        s += algo_data.get('w_modularity', 0) * feats.get('modularity', 0.0)
-        log_nodes = feats.get('log_nodes', 5.0)
-        log_edges = feats.get('log_edges', 6.0)
-        s += algo_data.get('w_log_nodes', 0) * log_nodes
-        s += algo_data.get('w_log_edges', 0) * log_edges
-        s += algo_data.get('w_density', 0) * feats.get('density', 0.0)
-        s += algo_data.get('w_avg_degree', 0) * feats.get('avg_degree', 10.0) / 100.0
+    # ---- Scoring helpers ----
+    # Weight keys in canonical order (must match C++ scoreBaseNormalized)
+    _WEIGHT_KEYS = [
+        'w_modularity', 'w_degree_variance', 'w_hub_concentration',
+        'w_log_nodes', 'w_log_edges', 'w_density', 'w_avg_degree',
+        'w_clustering_coeff', 'w_avg_path_length', 'w_diameter',
+        'w_community_count', 'w_packing_factor', 'w_forward_edge_fraction',
+        'w_working_set_ratio', 'w_dv_x_hub', 'w_mod_x_logn', 'w_pf_x_wsr',
+    ]
+
+    def _make_score_fv(feats):
+        """Build 17-element feature vector with C++ transforms applied."""
         dv = feats.get('degree_variance', 1.0)
         hc = feats.get('hub_concentration', 0.3)
-        s += algo_data.get('w_degree_variance', 0) * dv
-        s += algo_data.get('w_hub_concentration', 0) * hc
-        # Extended features
-        s += algo_data.get('w_clustering_coeff', 0) * feats.get('clustering_coefficient', 0.0)
-        # avg_path_length, diameter, community_count → dead (always 0), omitted
-        # Locality features
+        modularity = feats.get('modularity', 0.0)
+        log_nodes = feats.get('log_nodes', 5.0)
         pf = feats.get('packing_factor', 0.0)
-        s += algo_data.get('w_packing_factor', 0) * pf
-        s += algo_data.get('w_forward_edge_fraction', 0) * feats.get('forward_edge_fraction', 0.5)
         wsr = feats.get('working_set_ratio', 0.0)
         log_wsr = math.log2(wsr + 1.0)
-        s += algo_data.get('w_working_set_ratio', 0) * log_wsr
-        # Quadratic interaction terms
-        modularity = feats.get('modularity', 0.0)
-        s += algo_data.get('w_dv_x_hub', 0) * dv * hc
-        s += algo_data.get('w_mod_x_logn', 0) * modularity * log_nodes
-        s += algo_data.get('w_pf_x_wsr', 0) * pf * log_wsr
+        comm = feats.get('community_count', 1.0)
+        return [
+            modularity,
+            dv,
+            hc,
+            log_nodes,
+            feats.get('log_edges', 6.0),
+            feats.get('density', 0.0),
+            feats.get('avg_degree', 10.0) / 100.0,
+            feats.get('clustering_coefficient', 0.0),
+            feats.get('avg_path_length', 0.0) / 10.0,
+            feats.get('diameter', feats.get('diameter_estimate', 0.0)) / 50.0,
+            math.log10(comm + 1) if comm > 0 else 0,
+            pf,
+            feats.get('forward_edge_fraction', 0.5),
+            log_wsr,
+            dv * hc,
+            modularity * log_nodes,
+            pf * log_wsr,
+        ]
+
+    def _score(algo_data, feats, norm_data=None):
+        """Score an algorithm for given features.
+        
+        Mode 5 (z-normalized): When norm_data is provided (from _normalization
+        block), z-normalize feature vector before dot product, matching the
+        C++ scoreBaseNormalized() path.
+        
+        Legacy: When norm_data is None, use raw feature values directly (old
+        de-normalized weight path).
+        """
+        fv = _make_score_fv(feats)
+        s = algo_data.get('bias', 0.5)
+        if norm_data is not None:
+            means = norm_data['feat_means']
+            stds = norm_data['feat_stds']
+            for i in range(len(fv)):
+                if i < len(stds) and stds[i] > 1e-12:
+                    z = (fv[i] - means[i]) / stds[i]
+                    s += algo_data.get(_WEIGHT_KEYS[i], 0) * z
+        else:
+            for i in range(len(fv)):
+                s += algo_data.get(_WEIGHT_KEYS[i], 0) * fv[i]
         return s
+
+    def _predict_top_k(scoring_algos, feats, k, norm_data=None):
+        """Return top-K algorithms sorted by descending score.
+        
+        Returns list of (algo_name, score) tuples.
+        """
+        scores = []
+        for algo, data in scoring_algos.items():
+            if algo.startswith('_'):
+                continue
+            s = _score(data, feats, norm_data)
+            scores.append((algo, s))
+        scores.sort(key=lambda x: -x[1])
+        return scores[:k]
 
     # Load graph properties for feature-based scoring
     graph_props = load_graph_properties_cache(RESULTS_DIR)
@@ -1531,13 +1863,21 @@ def cross_validate_logo(
                 'error': 'Need at least 3 graphs for LOGO validation'}
 
     # Build per-(graph, bench) result lists using total time
+    # Filter to perceptron candidates so oracle matches what the model can predict
+    candidates = get_perceptron_candidates()
     gb_results = {}
     for r in benchmark_results:
-        if r.success and r.time_seconds > 0:
+        if r.success and r.time_seconds > 0 and r.algorithm in candidates:
             key = (r.graph, r.benchmark)
             if key not in gb_results:
-                gb_results[key] = []
-            gb_results[key].append((r.algorithm, r.time_seconds + r.reorder_time))
+                gb_results[key] = {}
+            total_time = r.time_seconds + r.reorder_time
+            algo = r.algorithm
+            # Deduplicate: keep minimum total time per algorithm
+            if algo not in gb_results[key] or total_time < gb_results[key][algo]:
+                gb_results[key][algo] = total_time
+    # Convert to list-of-tuples format for downstream consumption
+    gb_results = {k: list(v.items()) for k, v in gb_results.items()}
 
     correct = 0
     total = 0
@@ -1545,6 +1885,10 @@ def cross_validate_logo(
     per_graph = {}
     per_bench_names = list(EXPERIMENT_BENCHMARKS)
 
+    # Top-K tracking (K = 1, 2, 3)
+    TOP_K_VALUES = [1, 2, 3]
+    topk_correct = {k: 0 for k in TOP_K_VALUES}
+    topk_regrets = {k: [] for k in TOP_K_VALUES}
     log.info(f"LOGO: {len(graphs)} graphs, {len(gb_results)} (graph, bench) tasks")
 
     for held_out in graphs:
@@ -1565,15 +1909,22 @@ def cross_validate_logo(
             if not os.path.isfile(type0_file):
                 continue
             with open(type0_file) as f:
-                saved_algos = {k: v for k, v in json.load(f).items()
-                               if not k.startswith('_')}
+                type0_data = json.load(f)
+            saved_algos = {k: v for k, v in type0_data.items()
+                           if not k.startswith('_')}
+            # Mode 5: extract normalization data if present
+            norm_data = type0_data.get('_normalization', None)
 
             per_bench_weights = {}
+            per_bench_norm = {}  # per-bench normalization data
             for bn in per_bench_names:
                 bfile = weights_bench_path('type_0', bn, tmpdir)
                 if os.path.isfile(bfile):
                     with open(bfile) as f:
-                        per_bench_weights[bn] = json.load(f)
+                        bdata = json.load(f)
+                    per_bench_weights[bn] = bdata
+                    # Per-bench files may have their own _normalization
+                    per_bench_norm[bn] = bdata.get('_normalization', norm_data)
 
         # Build features for held-out graph
         if held_out not in graph_props:
@@ -1592,39 +1943,51 @@ def cross_validate_logo(
 
             # Predict with feature-based scoring (per-bench weights preferred)
             scoring_algos = per_bench_weights.get(bench, saved_algos)
-            best_score = float('-inf')
-            predicted_algo = None
-            for algo, data in scoring_algos.items():
-                if algo.startswith('_'):
-                    continue
-                s = _score(data, feats)
-                if s > best_score:
-                    best_score = s
-                    predicted_algo = algo
+            bench_norm = per_bench_norm.get(bench, norm_data)
+
+            # Get top-K predictions (max K we need)
+            max_k = max(TOP_K_VALUES)
+            top_k_preds = _predict_top_k(scoring_algos, feats, max_k, bench_norm)
+            predicted_algo = top_k_preds[0][0] if top_k_preds else None
 
             # Ground truth: fastest algorithm by total time
             sorted_times = sorted(algo_times, key=lambda x: x[1])
             actual_algo = sorted_times[0][0]
             best_time = sorted_times[0][1]
+            algo_time_map = {a: t for a, t in algo_times}
+            # Median time for fallback when predicted algo has no data
+            median_time = sorted_times[len(sorted_times) // 2][1]
 
-            # Compare at variant level (canonical names)
+            # Top-1 accuracy (same as before)
             is_correct = (predicted_algo or '') == actual_algo
-
             if is_correct:
                 graph_correct += 1
                 correct += 1
             total += 1
             graph_total += 1
 
-            # Regret
-            pred_time = None
-            for a, t in algo_times:
-                if a == predicted_algo:
-                    pred_time = t
-                    break
+            # Top-K accuracy and regret
+            for k in TOP_K_VALUES:
+                top_k_names = {p[0] for p in top_k_preds[:k]}
+                if actual_algo in top_k_names:
+                    topk_correct[k] += 1
+                # Top-K regret: time of best candidate in top-K that we have data for
+                best_topk_time = None
+                for pname, _ in top_k_preds[:k]:
+                    if pname in algo_time_map:
+                        t = algo_time_map[pname]
+                        if best_topk_time is None or t < best_topk_time:
+                            best_topk_time = t
+                if best_topk_time is None:
+                    best_topk_time = median_time  # median fallback
+                if best_time > 0:
+                    topk_regrets[k].append(
+                        (best_topk_time - best_time) / best_time * 100)
+
+            # Top-1 regret (backward compat)
+            pred_time = algo_time_map.get(predicted_algo)
             if pred_time is None:
-                # Exact match not found — try any result
-                pred_time = sorted_times[-1][1]  # worst case
+                pred_time = median_time  # median fallback
 
             if best_time > 0:
                 r = (pred_time - best_time) / best_time * 100
@@ -1651,15 +2014,21 @@ def cross_validate_logo(
     type0_file = weights_type_path('type_0', weights_dir)
     full_algos = {}
     full_per_bench = {}
+    full_norm_data = None
     if os.path.isfile(type0_file):
         with open(type0_file) as f:
-            full_algos = {k: v for k, v in json.load(f).items()
-                          if not k.startswith('_')}
+            type0_data = json.load(f)
+        full_algos = {k: v for k, v in type0_data.items()
+                      if not k.startswith('_')}
+        full_norm_data = type0_data.get('_normalization', None)
+    full_per_bench_norm = {}
     for bn in per_bench_names:
         bfile = weights_bench_path('type_0', bn, weights_dir)
         if os.path.isfile(bfile):
             with open(bfile) as f:
-                full_per_bench[bn] = json.load(f)
+                bdata = json.load(f)
+            full_per_bench[bn] = bdata
+            full_per_bench_norm[bn] = bdata.get('_normalization', full_norm_data)
 
     full_correct = 0
     full_total = 0
@@ -1668,15 +2037,9 @@ def cross_validate_logo(
             continue
         feats = _build_features(graph_props[graph_name])
         scoring_algos = full_per_bench.get(bench, full_algos)
-        best_score = float('-inf')
-        predicted = None
-        for algo, data in scoring_algos.items():
-            if algo.startswith('_'):
-                continue
-            s = _score(data, feats)
-            if s > best_score:
-                best_score = s
-                predicted = algo
+        bench_norm = full_per_bench_norm.get(bench, full_norm_data)
+        top_preds = _predict_top_k(scoring_algos, feats, 1, bench_norm)
+        predicted = top_preds[0][0] if top_preds else None
         actual = sorted(algo_times, key=lambda x: x[1])[0][0]
         if (predicted or '') == actual:
             full_correct += 1
@@ -1684,6 +2047,21 @@ def cross_validate_logo(
 
     full_accuracy = full_correct / full_total if full_total > 0 else 0.0
     overfitting_score = full_accuracy - logo_accuracy
+
+    # Compute top-K metrics
+    topk_metrics = {}
+    for k in TOP_K_VALUES:
+        k_acc = topk_correct[k] / total if total > 0 else 0.0
+        k_regs = topk_regrets[k]
+        k_avg_reg = sum(k_regs) / len(k_regs) if k_regs else 0.0
+        k_sorted = sorted(k_regs) if k_regs else [0.0]
+        k_med_reg = k_sorted[len(k_sorted) // 2]
+        topk_metrics[f'top_{k}'] = {
+            'accuracy': k_acc,
+            'avg_regret': k_avg_reg,
+            'median_regret': k_med_reg,
+            'correct': topk_correct[k],
+        }
 
     return {
         'accuracy': logo_accuracy,
@@ -1695,7 +2073,275 @@ def cross_validate_logo(
         'correct': correct,
         'total': total,
         'per_graph': per_graph,
+        'topk': topk_metrics,
         'warning': 'Possible overfitting' if overfitting_score > 0.2 else 'OK',
+    }
+
+
+def cross_validate_logo_grouped(
+    benchmark_results: List,
+    reorder_results: List = None,
+    weights_dir: str = None,
+    within_group_k: int = 2,
+) -> Dict:
+    """
+    Mode 4+3: Group prediction + within-group Top-K LOGO evaluation.
+
+    Two-stage prediction:
+      1. Predict algorithm GROUP (3-class: COMMUNITY, BANDWIDTH, CACHE)
+         using majority vote of per-algorithm scores within each group.
+      2. Within the predicted group, rank algorithms by perceptron score
+         and select top-K candidates.
+
+    Measures:
+      - Group accuracy: how often the predicted group contains the oracle
+      - Final accuracy: how often the oracle algorithm is in the top-K
+        within the predicted group
+      - Regret: time penalty of the best candidate in the predicted group's
+        top-K vs the true oracle
+
+    Args:
+        benchmark_results: List of BenchmarkResult objects
+        reorder_results: Optional list of ReorderResult objects
+        weights_dir: Weights directory
+        within_group_k: K for within-group ranking (default 2)
+
+    Returns:
+        Dict with group_accuracy, final_accuracy, regret, per_group stats
+    """
+    import tempfile
+    from .features import load_graph_properties_cache
+    from .utils import RESULTS_DIR
+
+    reorder_results = reorder_results or []
+    if weights_dir is None:
+        weights_dir = DEFAULT_WEIGHTS_DIR
+
+    # Reuse helpers from cross_validate_logo (same feature/scoring logic)
+    def _build_features(props):
+        nodes = props.get('nodes', 1000)
+        edges = props.get('edges', 5000)
+        cc = props.get('clustering_coefficient', 0.0)
+        avg_degree = props.get('avg_degree', 10.0)
+        estimated_mod = min(0.9, cc * 1.5)
+        log_n = math.log10(nodes + 1) if nodes > 0 else 0
+        pf = props.get('packing_factor', 0.0)
+        wsr = props.get('working_set_ratio', 0.0)
+        log_wsr = math.log2(wsr + 1.0)
+        return {
+            'modularity': estimated_mod,
+            'degree_variance': props.get('degree_variance', 1.0),
+            'hub_concentration': props.get('hub_concentration', 0.3),
+            'avg_degree': avg_degree,
+            'log_nodes': log_n,
+            'log_edges': math.log10(edges + 1) if edges > 0 else 0,
+            'density': avg_degree / (nodes - 1) if nodes > 1 else 0,
+            'clustering_coefficient': cc,
+            'avg_path_length': props.get('avg_path_length', 0.0),
+            'diameter': props.get('diameter_estimate', 0.0),
+            'community_count': props.get('community_count', 0.0),
+            'packing_factor': pf,
+            'forward_edge_fraction': props.get('forward_edge_fraction', 0.5),
+            'log_working_set_ratio': log_wsr,
+            'working_set_ratio': wsr,
+            'dv_x_hub': props.get('degree_variance', 1.0) * props.get('hub_concentration', 0.3),
+            'mod_x_logn': estimated_mod * log_n,
+            'pf_x_wsr': pf * log_wsr,
+        }
+
+    _WEIGHT_KEYS = [
+        'w_modularity', 'w_degree_variance', 'w_hub_concentration',
+        'w_log_nodes', 'w_log_edges', 'w_density', 'w_avg_degree',
+        'w_clustering_coeff', 'w_avg_path_length', 'w_diameter',
+        'w_community_count', 'w_packing_factor', 'w_forward_edge_fraction',
+        'w_working_set_ratio', 'w_dv_x_hub', 'w_mod_x_logn', 'w_pf_x_wsr',
+    ]
+
+    def _make_score_fv(feats):
+        dv = feats.get('degree_variance', 1.0)
+        hc = feats.get('hub_concentration', 0.3)
+        modularity = feats.get('modularity', 0.0)
+        log_nodes = feats.get('log_nodes', 5.0)
+        pf = feats.get('packing_factor', 0.0)
+        wsr = feats.get('working_set_ratio', 0.0)
+        log_wsr = math.log2(wsr + 1.0)
+        comm = feats.get('community_count', 1.0)
+        return [
+            modularity, dv, hc, log_nodes,
+            feats.get('log_edges', 6.0),
+            feats.get('density', 0.0),
+            feats.get('avg_degree', 10.0) / 100.0,
+            feats.get('clustering_coefficient', 0.0),
+            feats.get('avg_path_length', 0.0) / 10.0,
+            feats.get('diameter', feats.get('diameter_estimate', 0.0)) / 50.0,
+            math.log10(comm + 1) if comm > 0 else 0,
+            pf, feats.get('forward_edge_fraction', 0.5), log_wsr,
+            dv * hc, modularity * log_nodes, pf * log_wsr,
+        ]
+
+    def _score(algo_data, feats, norm_data=None):
+        fv = _make_score_fv(feats)
+        s = algo_data.get('bias', 0.5)
+        if norm_data is not None:
+            means = norm_data['feat_means']
+            stds = norm_data['feat_stds']
+            for i in range(len(fv)):
+                if i < len(stds) and stds[i] > 1e-12:
+                    z = (fv[i] - means[i]) / stds[i]
+                    s += algo_data.get(_WEIGHT_KEYS[i], 0) * z
+        else:
+            for i in range(len(fv)):
+                s += algo_data.get(_WEIGHT_KEYS[i], 0) * fv[i]
+        return s
+
+    graph_props = load_graph_properties_cache(RESULTS_DIR)
+
+    graphs = sorted(set(r.graph for r in benchmark_results
+                        if r.success and r.time_seconds > 0))
+    if len(graphs) < 3:
+        return {'error': 'Need at least 3 graphs'}
+
+    candidates = get_perceptron_candidates()
+    gb_results = {}
+    for r in benchmark_results:
+        if r.success and r.time_seconds > 0 and r.algorithm in candidates:
+            key = (r.graph, r.benchmark)
+            if key not in gb_results:
+                gb_results[key] = {}
+            total_time = r.time_seconds + r.reorder_time
+            algo = r.algorithm
+            # Deduplicate: keep minimum total time per algorithm
+            if algo not in gb_results[key] or total_time < gb_results[key][algo]:
+                gb_results[key][algo] = total_time
+    # Convert to list-of-tuples format
+    gb_results = {k: list(v.items()) for k, v in gb_results.items()}
+
+    per_bench_names = list(EXPERIMENT_BENCHMARKS)
+
+    # Tracking
+    group_correct = 0
+    final_correct = 0
+    total = 0
+    regrets = []
+    per_group_stats = {g: {'oracle': 0, 'predicted': 0, 'correct': 0}
+                       for g in ALGO_GROUPS}
+
+    log.info(f"LOGO-Grouped: {len(graphs)} graphs, K={within_group_k}")
+
+    for held_out in graphs:
+        train_results = [r for r in benchmark_results if r.graph != held_out]
+        train_reorder = [r for r in reorder_results
+                         if getattr(r, 'graph', '') != held_out]
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            compute_weights_from_results(
+                train_results, reorder_results=train_reorder,
+                weights_dir=tmpdir)
+
+            type0_file = weights_type_path('type_0', tmpdir)
+            if not os.path.isfile(type0_file):
+                continue
+            with open(type0_file) as f:
+                type0_data = json.load(f)
+            saved_algos = {k: v for k, v in type0_data.items()
+                           if not k.startswith('_')}
+            norm_data = type0_data.get('_normalization', None)
+
+            per_bench_weights = {}
+            per_bench_norm = {}
+            for bn in per_bench_names:
+                bfile = weights_bench_path('type_0', bn, tmpdir)
+                if os.path.isfile(bfile):
+                    with open(bfile) as f:
+                        bdata = json.load(f)
+                    per_bench_weights[bn] = bdata
+                    per_bench_norm[bn] = bdata.get('_normalization', norm_data)
+
+        if held_out not in graph_props:
+            continue
+        feats = _build_features(graph_props[held_out])
+
+        for bench in sorted(set(b for (g, b) in gb_results if g == held_out)):
+            key = (held_out, bench)
+            if key not in gb_results:
+                continue
+            algo_times = gb_results[key]
+            algo_time_map = {a: t for a, t in algo_times}
+
+            scoring_algos = per_bench_weights.get(bench, saved_algos)
+            bench_norm = per_bench_norm.get(bench, norm_data)
+
+            # Score all algorithms
+            all_scores = []
+            for algo, data in scoring_algos.items():
+                if algo.startswith('_'):
+                    continue
+                s = _score(data, feats, bench_norm)
+                all_scores.append((algo, s))
+
+            # Stage 1: Predict group by max mean score (size-normalized)
+            group_scores = {}
+            for gname, gmembers in ALGO_GROUPS.items():
+                member_scores = [s for a, s in all_scores if a in gmembers]
+                gs = sum(member_scores) / len(member_scores) if member_scores else float('-inf')
+                group_scores[gname] = gs
+            predicted_group = max(group_scores, key=group_scores.get)
+
+            # Ground truth
+            sorted_times = sorted(algo_times, key=lambda x: x[1])
+            actual_algo = sorted_times[0][0]
+            best_time = sorted_times[0][1]
+            actual_group = ALGO_TO_GROUP.get(actual_algo, 'UNKNOWN')
+
+            is_group_correct = (predicted_group == actual_group)
+            if is_group_correct:
+                group_correct += 1
+            total += 1
+
+            per_group_stats[actual_group]['oracle'] += 1
+            per_group_stats[predicted_group]['predicted'] += 1
+            if is_group_correct:
+                per_group_stats[actual_group]['correct'] += 1
+
+            # Stage 2: Within predicted group, rank and take top-K
+            group_algos = [(a, s) for a, s in all_scores
+                           if a in ALGO_GROUPS.get(predicted_group, set())]
+            group_algos.sort(key=lambda x: -x[1])
+            topk_in_group = [a for a, _ in group_algos[:within_group_k]]
+
+            # Check if oracle is in top-K within predicted group
+            if actual_algo in topk_in_group:
+                final_correct += 1
+
+            # Regret: best available time among top-K in predicted group
+            best_topk_time = None
+            for a in topk_in_group:
+                if a in algo_time_map:
+                    t = algo_time_map[a]
+                    if best_topk_time is None or t < best_topk_time:
+                        best_topk_time = t
+            if best_topk_time is None:
+                best_topk_time = sorted_times[len(sorted_times) // 2][1]  # median fallback
+            if best_time > 0:
+                regrets.append(
+                    (best_topk_time - best_time) / best_time * 100)
+
+    group_accuracy = group_correct / total if total > 0 else 0.0
+    final_accuracy = final_correct / total if total > 0 else 0.0
+    avg_regret = sum(regrets) / len(regrets) if regrets else 0.0
+    sorted_regrets = sorted(regrets) if regrets else [0.0]
+    median_regret = sorted_regrets[len(sorted_regrets) // 2]
+
+    return {
+        'group_accuracy': group_accuracy,
+        'final_accuracy': final_accuracy,
+        'avg_regret': avg_regret,
+        'median_regret': median_regret,
+        'group_correct': group_correct,
+        'final_correct': final_correct,
+        'total': total,
+        'within_group_k': within_group_k,
+        'per_group': per_group_stats,
     }
 
 
@@ -2221,52 +2867,28 @@ def update_zero_weights(
         for algo, results in algo_speedups.items():
             if algo not in weights:
                 continue
-            # ORIGINAL is now trained as a regular algorithm:
-            # When ORIGINAL has speedup >= 1.0 (meaning no reorder beats it),
-            # its weights are updated positively so it can win perceptron selection.
             
-            # Collect feature arrays for correlation
+            # Compute average speedup for metadata
             speedups = []
-            feature_arrays = {
-                'modularity': [], 'degree_variance': [], 'hub_concentration': [],
-                'log_nodes': [], 'log_edges': [], 'density': [], 'avg_degree': [],
-                'clustering_coefficient': [], 'avg_path_length': [], 
-                'diameter': [], 'community_count': [],
-                'packing_factor': [], 'forward_edge_fraction': [],
-                'log_working_set_ratio': [],
-                'dv_x_hub': [], 'mod_x_logn': [], 'pf_x_wsr': [],
-            }
-            
             for r in results:
                 graph = r['graph']
                 baseline = baseline_times.get(graph, r['time'])
                 if baseline > 0:
-                    speedup = baseline / r['time']
-                    speedups.append(speedup)
-                    for feat_name in feature_arrays:
-                        feature_arrays[feat_name].append(r['features'].get(feat_name, 0))
+                    speedups.append(baseline / r['time'])
             
             if len(speedups) >= 2:
-                # Simple correlation-based weight update
                 avg_speedup = sum(speedups) / len(speedups)
                 
-                # Update bias based on average speedup (capped at 1.5)
-                if avg_speedup > 1.0:
-                    weights[algo]['bias'] = min(1.5, 0.5 + (avg_speedup - 1.0) * 0.5)
-                
-                # Update metadata to reflect the correlation-based analysis
+                # Only update metadata — do NOT overwrite bias or feature
+                # weights that were already trained by compute_weights_from_results
+                # (Phase 4 perceptron SGD).  The old code set
+                #   bias = min(1.5, 0.5 + (speedup-1)*0.5)
+                # which capped 9+ algorithms at the same 1.5 bias, making the
+                # perceptron unable to distinguish between them.
                 meta = weights[algo].get('_metadata', {})
                 meta['sample_count'] = max(meta.get('sample_count', 0), len(speedups))
                 meta['avg_speedup'] = avg_speedup
                 weights[algo]['_metadata'] = meta
-                
-                # Update feature weights based on correlation direction
-                for feat_name, (weight_name, scale) in _FEATURE_WEIGHT_MAP.items():
-                    feat_vals = feature_arrays[feat_name]
-                    # Only compute if we have variance in the feature
-                    if len(set(feat_vals)) > 1:
-                        corr = _pearson_correlation(feat_vals, speedups)
-                        weights[algo][weight_name] = corr * scale
     
     # Save updated weights to flat file if path specified
     if weights_file:

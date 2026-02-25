@@ -30,6 +30,7 @@ from .utils import (
     weights_type_path, weights_bench_path,
     VARIANT_PREFIXES, DISPLAY_TO_CANONICAL,
 )
+from .datastore import get_benchmark_store
 from .weights import compute_weights_from_results, cross_validate_logo
 from .features import (
     load_graph_properties_cache,
@@ -137,8 +138,13 @@ def _build_features(props: dict) -> dict:
     edges = props.get("edges", 5000)
     cc = props.get("clustering_coefficient", 0.0)
     avg_degree = props.get("avg_degree", 10.0)
+    # Prefer real modularity from ComputeFastModularity (sampled LP),
+    # fall back to old CC*1.5 heuristic for backward compatibility
+    modularity = props.get("modularity", None)
+    if modularity is None or modularity <= 0:
+        modularity = min(0.9, cc * 1.5)  # legacy fallback
     return {
-        "modularity": min(0.9, cc * 1.5),  # C++ estimated_modularity
+        "modularity": modularity,
         "degree_variance": props.get("degree_variance", 1.0),
         "hub_concentration": props.get("hub_concentration", 0.3),
         "avg_degree": avg_degree,
@@ -185,77 +191,29 @@ def load_benchmark_entries(
     benchmark_file: str = None,
 ) -> List[dict]:
     """
-    Load raw benchmark entries from JSON files in results_dir.
+    Load raw benchmark entries from the centralized data store.
 
     Args:
-        results_dir: Directory containing benchmark_*.json files
+        results_dir: Unused (kept for API compatibility)
         sg_only: If True, only load .sg benchmark data
-        benchmark_file: If set, load only this file
+        benchmark_file: If set, load only this file (override)
 
     Returns:
         List of raw entry dicts.
     """
-    results_dir = str(results_dir or RESULTS_DIR)
-
     if benchmark_file:
         with open(benchmark_file) as f:
             entries = json.load(f)
         print(f"Loaded {len(entries)} entries from {benchmark_file}")
         return entries
 
-    bench_files = sorted(
-        f for f in os.listdir(results_dir)
-        if f.startswith("benchmark_") and f.endswith(".json")
-    )
+    store = get_benchmark_store()
+    raw = store.to_list()
 
-    # Identify .sg benchmark files and graphs
-    graphs_dir = os.path.join(results_dir, "graphs")
-    sg_bench_files = set()
-    sg_bench_graphs = set()
-    for bf in bench_files:
-        path = os.path.join(results_dir, bf)
-        try:
-            with open(path) as f:
-                entries = json.load(f)
-            if entries and any(
-                e.get("extra") in ("sg", "sg_benchmark") for e in entries
-            ):
-                sg_bench_files.add(bf)
-                sg_bench_graphs.update(
-                    e["graph"] for e in entries
-                    if e.get("extra") in ("sg", "sg_benchmark")
-                )
-        except Exception:
-            pass
-    if sg_bench_graphs:
-        print(f"Found .sg benchmark data for {len(sg_bench_graphs)} graphs")
+    if sg_only:
+        raw = [e for e in raw if e.get("extra") in ("sg", "sg_benchmark")]
 
-    raw: List[dict] = []
-    for bf in bench_files:
-        path = os.path.join(results_dir, bf)
-        try:
-            with open(path) as f:
-                entries = json.load(f)
-            if bf in sg_bench_files:
-                raw.extend(entries)
-                print(f"Loaded {len(entries):>6} entries from {bf} [.sg data]")
-            elif sg_only:
-                print(f"  SKIP {bf} (sg_only mode)")
-            else:
-                kept = [
-                    e for e in entries
-                    if e.get("graph", "") not in sg_bench_graphs
-                ]
-                skipped = len(entries) - len(kept)
-                raw.extend(kept)
-                msg = f"Loaded {len(kept):>6} entries from {bf}"
-                if skipped:
-                    msg += f" (skipped {skipped} .sg-graph entries)"
-                print(msg)
-        except (json.JSONDecodeError, IOError) as e:
-            print(f"  SKIP {bf}: {e}")
-
-    print(f"Total: {len(raw)} raw entries from {len(bench_files)} files")
+    print(f"Loaded {len(raw)} entries from centralized store")
     return raw
 
 

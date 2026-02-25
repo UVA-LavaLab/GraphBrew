@@ -111,6 +111,7 @@ from .reorder import (
 from .utils import BenchmarkResult
 from .benchmark import run_benchmarks_multi_graph
 from .cache import CacheResult, run_cache_simulations, get_cache_stats_summary
+from .datastore import get_benchmark_store
 from .analysis import (
     AdaptiveOrderResult,
     analyze_adaptive_order, compare_adaptive_vs_fixed,
@@ -483,8 +484,10 @@ def run_benchmark_phase(
             progress=config.progress,
         )
     
-    # Save results
+    # Save results (timestamped backup + centralized store)
     filepath = _save_results(results, f"benchmark_{timestamp}.json", config.results_dir)
+    store = get_benchmark_store()
+    store.append(results)
     config.progress.success(f"Benchmark results saved to: {filepath}")
     
     # Show summary
@@ -600,7 +603,8 @@ def run_weights_phase(
     
     # Load previous results if not provided
     if not benchmark_results:
-        benchmark_results = _load_latest_results("benchmark_*.json", config.results_dir, BenchmarkResult)
+        store = get_benchmark_store()
+        benchmark_results = [BenchmarkResult(**r) for r in store.to_list()]
     if not cache_results and not config.skip_cache:
         cache_results = _load_latest_results("cache_*.json", config.results_dir, CacheResult)
     if not reorder_results:
@@ -652,7 +656,8 @@ def run_fill_weights_phase(
     
     # Load results if needed
     if not benchmark_results:
-        benchmark_results = _load_latest_results("benchmark_*.json", config.results_dir, BenchmarkResult)
+        store = get_benchmark_store()
+        benchmark_results = [BenchmarkResult(**r) for r in store.to_list()]
     if not cache_results and not config.skip_cache:
         cache_results = _load_latest_results("cache_*.json", config.results_dir, CacheResult)
     if not reorder_results:

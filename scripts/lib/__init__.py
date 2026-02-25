@@ -393,3 +393,13 @@ from .graph_data import (
     migrate_old_structure,
     migrate_all_graphs,
 )
+
+# =============================================================================
+# Centralized benchmark data store
+# =============================================================================
+from .datastore import (
+    BenchmarkStore,
+    GraphPropsStore,
+    get_benchmark_store,
+    get_props_store,
+)

@@ -42,7 +42,8 @@ from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
 from sklearn.model_selection import cross_val_score, LeaveOneOut
 from sklearn.preprocessing import LabelEncoder
 
-from .utils import Logger, BENCHMARKS, RESULTS_DIR, MODELS_DIR, DATA_DIR, GRAPH_PROPS_FILE, BENCHMARK_DATA_FILE, WEIGHTS_DIR
+from .utils import Logger, BENCHMARKS, RESULTS_DIR, MODELS_DIR, WEIGHTS_DIR
+from .datastore import get_benchmark_store, get_props_store
 
 log = Logger()
 
@@ -158,51 +159,18 @@ CPP_FEATURE_EXPR = [
 
 def load_benchmark_data() -> Tuple[Dict, Dict]:
     """
-    Load benchmark results and graph properties.
+    Load benchmark results and graph properties from the centralized data store.
     
     Returns:
         (perf_matrix, graph_props)
         perf_matrix: {graph: {algo: {bench: time}}}
         graph_props: {graph: {feature: value}}
     """
-    # Load benchmark results from centralized data bank
-    merged = BENCHMARK_DATA_FILE
-    if merged.exists():
-        with open(merged) as f:
-            bench_data = json.load(f)
-    else:
-        # Fallback: scan individual benchmark files in results/
-        bench_data = []
-        for bf in sorted(RESULTS_DIR.glob("benchmark_*.json")):
-            try:
-                with open(bf) as f:
-                    data = json.load(f)
-                    if isinstance(data, list):
-                        bench_data.extend(data)
-            except Exception:
-                pass
+    store = get_benchmark_store()
+    perf_matrix = store.perf_matrix()
     
-    # Build performance matrix: graph -> algo -> bench -> best_time
-    perf_matrix: Dict[str, Dict[str, Dict[str, float]]] = defaultdict(
-        lambda: defaultdict(dict)
-    )
-    for r in bench_data:
-        if not isinstance(r, dict):
-            continue
-        g = r.get('graph', '')
-        a = r.get('algorithm', '')
-        b = r.get('benchmark', '')
-        t = r.get('time_seconds', float('inf'))
-        if g and a and b and r.get('success', False):
-            existing = perf_matrix[g][a].get(b, float('inf'))
-            perf_matrix[g][a][b] = min(existing, t)
-    
-    # Load graph properties from centralized data bank
-    props_file = GRAPH_PROPS_FILE
-    graph_props = {}
-    if props_file.exists():
-        with open(props_file) as f:
-            graph_props = json.load(f)
+    props_store = get_props_store()
+    graph_props = props_store.all()
     
     log.info(f"Loaded benchmark data for {len(perf_matrix)} graphs, "
              f"{sum(len(v) for v in perf_matrix.values())} graph-algo pairs")

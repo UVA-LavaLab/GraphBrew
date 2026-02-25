@@ -37,6 +37,7 @@ from dataclasses import dataclass, field
 from collections import defaultdict
 
 from .utils import Logger, BENCHMARKS, RESULTS_DIR, WEIGHTS_DIR
+from .datastore import get_benchmark_store
 from .weights import (
     save_weights_to_active_type, load_type_weights,
     PerceptronWeight, _create_default_weight_entry
@@ -109,28 +110,16 @@ def load_all_results() -> Dict[str, Any]:
         'algorithms': set(),
     }
     
-    # Find most recent result files
-    result_files = list(RESULTS_DIR.glob("*.json"))
-    
-    # Group by type and get latest
-    benchmark_files = sorted([f for f in result_files if f.name.startswith("benchmark_")])
-    reorder_files = sorted([f for f in result_files if f.name.startswith("reorder_times_")])
-    cache_files = sorted([f for f in result_files if f.name.startswith("cache_")])
-    
-    # Load all benchmark results (merge all files)
-    for bf in benchmark_files:
-        try:
-            with open(bf) as f:
-                data = json.load(f)
-                if isinstance(data, list):
-                    results['benchmarks'].extend(data)
-                    for item in data:
-                        results['graphs'].add(item.get('graph', ''))
-                        results['algorithms'].add(item.get('algorithm', ''))
-        except Exception as e:
-            log.warning(f"Failed to load {bf}: {e}")
+    # Load benchmark results from centralized store
+    store = get_benchmark_store()
+    bench_records = store.to_list()
+    results['benchmarks'] = bench_records
+    for item in bench_records:
+        results['graphs'].add(item.get('graph', ''))
+        results['algorithms'].add(item.get('algorithm', ''))
     
     # Load all reorder times
+    reorder_files = sorted(RESULTS_DIR.glob("reorder_times_*.json"))
     for rf in reorder_files:
         try:
             with open(rf) as f:
@@ -141,6 +130,7 @@ def load_all_results() -> Dict[str, Any]:
             log.warning(f"Failed to load {rf}: {e}")
     
     # Load all cache results
+    cache_files = sorted(RESULTS_DIR.glob("cache_*.json"))
     for cf in cache_files:
         try:
             with open(cf) as f:

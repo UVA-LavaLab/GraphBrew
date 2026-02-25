@@ -35,7 +35,7 @@ GRAPHS_DIR = RESULTS_DIR / "graphs"
 # All benchmark runs, graph properties, and logs live under results/data/.
 DATA_DIR = RESULTS_DIR / "data"
 GRAPH_PROPS_FILE = DATA_DIR / "graph_properties.json"
-BENCHMARK_DATA_FILE = DATA_DIR / "benchmark_merged.json"
+BENCHMARK_DATA_FILE = DATA_DIR / "benchmarks.json"
 
 # --- Trained Models -----------------------------------------------------------
 # All models are grouped by type under results/models/:

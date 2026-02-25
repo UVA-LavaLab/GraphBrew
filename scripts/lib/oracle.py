@@ -33,6 +33,7 @@ from .utils import (
     TIMEOUT_BENCHMARK, VARIANT_PREFIXES,
     get_all_algorithm_variant_names,
 )
+from .datastore import get_benchmark_store
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -117,22 +118,12 @@ def is_candidate(algo_name: str) -> bool:
 # Load data
 # ─────────────────────────────────────────────────────────────────────────────
 
-def load_benchmark_data(results_dir: str) -> List[dict]:
-    """Load and merge all benchmark JSON files."""
-    pattern = os.path.join(results_dir, "benchmark_*.json")
-    files = sorted(glob.glob(pattern))
-    if not files:
-        print(f"No benchmark files found in {results_dir}")
-        return []
-    
-    all_records = []
-    for f in files:
-        with open(f) as fh:
-            data = json.load(fh)
-            all_records.extend(data)
-    
-    print(f"Loaded {len(all_records)} benchmark records from {len(files)} files")
-    return all_records
+def load_benchmark_data(results_dir: str = None) -> List[dict]:
+    """Load benchmark records from the centralized data store."""
+    store = get_benchmark_store()
+    records = store.to_list()
+    print(f"Loaded {len(records)} benchmark records from centralized store")
+    return records
 
 
 def load_adaptive_data(results_dir: str) -> List[dict]:

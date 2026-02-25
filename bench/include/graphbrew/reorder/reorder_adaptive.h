@@ -91,9 +91,11 @@
 #ifndef REORDER_ADAPTIVE_H_
 #define REORDER_ADAPTIVE_H_
 
+#include <cstddef>
+#include <iomanip>
+#include <limits>
 #include <string>
 #include <vector>
-#include <cstddef>
 #include "reorder_types.h"
 
 namespace adaptive {
@@ -372,29 +374,117 @@ void GenerateAdaptiveMappingFullGraphStandalone(
         global_avg_degree, static_cast<size_t>(num_nodes), num_edges,
         GetBenchmarkTypeHint(), detected_graph_type);
     
-    // Complexity guard: GOrder O(n×m×w) is prohibitively slow on large graphs.
-    // COrder O(n×m) is kept at a higher threshold since benchmarks show it
-    // remains fast on graphs up to ~1M nodes.
+    // Complexity guard constants (shared by Top-K and single-selection paths)
     constexpr int64_t GORDER_MAX_NODES = 500000;
     constexpr int64_t CORDER_MAX_NODES = 2000000;
-    if ((best.algo == GOrder && num_nodes > GORDER_MAX_NODES) ||
-        (best.algo == COrder && num_nodes > CORDER_MAX_NODES)) {
-        if (global_hub_concentration > 0.5 && global_degree_variance > 1.5) {
-            best = ResolveVariantSelection("HUBCLUSTERDBG", best.score);
-        } else if (global_hub_concentration > 0.3) {
-            best = ResolveVariantSelection("HUBSORT", best.score);
-        } else {
-            best = ResolveVariantSelection("DBG", best.score);
+    
+    // Helper lambda: apply complexity guard to a candidate, returning a safe
+    // fallback selection when the algorithm is too expensive for this graph.
+    auto apply_complexity_guard = [&](PerceptronSelection sel) -> PerceptronSelection {
+        if ((sel.algo == GOrder && num_nodes > GORDER_MAX_NODES) ||
+            (sel.algo == COrder && num_nodes > CORDER_MAX_NODES)) {
+            PerceptronSelection fallback;
+            if (global_hub_concentration > 0.5 && global_degree_variance > 1.5)
+                fallback = ResolveVariantSelection("HUBCLUSTERDBG", sel.score);
+            else if (global_hub_concentration > 0.3)
+                fallback = ResolveVariantSelection("HUBSORT", sel.score);
+            else
+                fallback = ResolveVariantSelection("DBG", sel.score);
+            std::cout << "Complexity guard: " << num_nodes << " nodes, "
+                      << sel.variant_name << " -> " << fallback.variant_name << "\n";
+            return fallback;
         }
-        std::cout << "Complexity guard: " << num_nodes << " nodes, using " 
-                  << best.variant_name << " instead\n";
+        return sel;
+    };
+    
+    // Mode 3: True Top-K execution
+    // When ADAPTIVE_TOP_K > 1, try each of the top-K candidates: apply the
+    // reordering, evaluate with a fast locality metric (average edge gap =
+    // mean |new_id[u] - new_id[v]| over all edges), and keep the reordering
+    // with the best cache locality.
+    const int top_k = AblationConfig::Get().top_k;
+    bool top_k_handled = false;
+    if (top_k > 1) {
+        auto weights = LoadPerceptronWeightsForFeatures(
+            global_modularity, global_degree_variance, global_hub_concentration,
+            global_avg_degree, static_cast<size_t>(num_nodes), num_edges, false,
+            clustering_coeff, GetBenchmarkTypeHint());
+        auto candidates = SelectTopKFromWeights(
+            global_feat, weights, GetBenchmarkTypeHint(), top_k);
+        
+        std::cout << "=== Top-" << top_k << " Execution ===\n";
+        
+        double best_avg_gap = std::numeric_limits<double>::max();
+        pvector<NodeID_> best_ids(num_nodes, -1);
+        
+        for (size_t ci = 0; ci < candidates.size(); ci++) {
+            PerceptronSelection cand = apply_complexity_guard(candidates[ci]);
+            
+            Timer trial_tm;
+            trial_tm.Start();
+            
+            pvector<NodeID_> trial_ids(num_nodes, -1);
+            ApplyBasicReorderingStandalone<NodeID_, DestID_, WeightT_, invert>(
+                g, trial_ids, cand, useOutdeg, "");
+            
+            // Locality metric: average |new_id[u] - new_id[v]| over all edges.
+            // Lower is better — nodes connected by edges are closer in memory.
+            double gap_sum = 0.0;
+            int64_t edge_count = 0;
+            #pragma omp parallel for reduction(+:gap_sum,edge_count)
+            for (NodeID_ u = 0; u < num_nodes; u++) {
+                for (DestID_ neighbor : g.out_neigh(u)) {
+                    NodeID_ v;
+                    if (g.is_weighted())
+                        v = static_cast<NodeWeight<NodeID_, WeightT_>>(neighbor).v;
+                    else
+                        v = static_cast<NodeID_>(neighbor);
+                    if (trial_ids[u] >= 0 && trial_ids[v] >= 0) {
+                        gap_sum += std::abs(
+                            static_cast<double>(trial_ids[u]) - trial_ids[v]);
+                        edge_count++;
+                    }
+                }
+            }
+            double avg_gap = (edge_count > 0) ? gap_sum / edge_count : 0.0;
+            
+            trial_tm.Stop();
+            
+            std::cout << "  " << (ci + 1) << ". " << cand.variant_name
+                      << " (score=" << cand.score
+                      << ", avg_gap=" << std::fixed << std::setprecision(1)
+                      << avg_gap << ", time=" << trial_tm.Seconds() << "s)\n";
+            
+            if (avg_gap < best_avg_gap) {
+                best_avg_gap = avg_gap;
+                std::swap(best_ids, trial_ids);
+                best = cand;
+            }
+        }
+        
+        if (best_avg_gap < std::numeric_limits<double>::max()) {
+            // Copy winning mapping to output
+            #pragma omp parallel for
+            for (NodeID_ n = 0; n < num_nodes; n++) {
+                new_ids[n] = best_ids[n];
+            }
+            top_k_handled = true;
+            std::cout << "=== Top-K Winner: " << best.variant_name
+                      << " (avg_gap=" << std::fixed << std::setprecision(1)
+                      << best_avg_gap << ") ===\n";
+        }
     }
     
-    std::cout << "\n=== Selected Algorithm: " << best.variant_name << " ===\n";
-    
-    // Use standalone dispatcher
-    ApplyBasicReorderingStandalone<NodeID_, DestID_, WeightT_, invert>(
-        g, new_ids, best, useOutdeg, "");
+    if (!top_k_handled) {
+        // Single-selection path (top_k <= 1 or Top-K produced no valid result)
+        best = apply_complexity_guard(best);
+        
+        std::cout << "\n=== Selected Algorithm: " << best.variant_name << " ===\n";
+        
+        // Use standalone dispatcher
+        ApplyBasicReorderingStandalone<NodeID_, DestID_, WeightT_, invert>(
+            g, new_ids, best, useOutdeg, "");
+    }
     
     tm.Stop();
     PrintTime("Full-Graph Adaptive Time", tm.Seconds());

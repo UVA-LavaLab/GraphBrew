@@ -263,6 +263,7 @@ from scripts.lib.weights import compute_weights_from_results, update_zero_weight
 from scripts.lib.metrics import compute_amortization, format_amortization_table
 from scripts.lib.graph_data import set_session_id
 from scripts.lib.weight_merger import auto_merge_after_run
+from scripts.lib.datastore import get_benchmark_store
 
 
 # Global progress tracker instance
@@ -1618,10 +1619,12 @@ def run_experiment(args):
             )
         all_benchmark_results.extend(benchmark_results)
         
-        # Save intermediate results
+        # Save intermediate results (timestamped backup + centralized store)
         bench_file = os.path.join(args.results_dir, f"benchmark_{timestamp}.json")
         with open(bench_file, 'w') as f:
             json.dump([asdict(r) for r in benchmark_results], f, indent=2)
+        store = get_benchmark_store()
+        store.append(benchmark_results)
         _progress.success(f"Benchmark results saved to: {bench_file}")
         
         # Show summary statistics
