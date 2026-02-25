@@ -382,7 +382,7 @@ CSRGraph → Warmup → Trials → Timer → Results → Output
 
 JSON config: specify `graphs`, `benchmarks`, `algorithms`, `trials`, and `options` (symmetrize, verify). See [[Configuration-Files]] for format.
 
-Weight files: `results/weights/type_*/weights.json` (see [[Perceptron-Weights]]). Results: `results/graphs/`, `results/logs/`, `results/mappings/` (see [[Python-Scripts#output-structure]]). Data store: `results/data/` (adaptive_models.json, benchmarks.json, graph_properties.json, runs/).
+Weight files: `results/models/perceptron/type_*/weights.json` (see [[Perceptron-Weights]]). Results: `results/graphs/`, `results/logs/`, `results/mappings/` (see [[Python-Scripts#output-structure]]). Data store: `results/data/` (adaptive_models.json, benchmarks.json, graph_properties.json, runs/).
 
 ---
 

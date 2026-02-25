@@ -14,7 +14,7 @@ A comprehensive one-click script that runs the complete GraphBrew experiment wor
  5. Phase 1: Generate reorderings (12 algorithms; baselines ORIGINAL/RANDOM are skipped)
  6. Phase 2: Run benchmarks (14 algorithms × 7 benchmarks; TC excluded by default)
  7. Phase 3: Run cache simulations (optional, skip with --skip-cache)
- 8. Phase 4: Generate type-based perceptron weights (results/weights/type_*/weights.json)
+ 8. Phase 4: Generate type-based perceptron weights (results/models/perceptron/type_*/weights.json)
 
 **Validation & Analysis:**
  9. Phase 5: Adaptive order analysis (--adaptive-analysis)
@@ -54,7 +54,7 @@ A comprehensive one-click script that runs the complete GraphBrew experiment wor
       - Dynamic: dynamic (adjust per-pass)
 
 All outputs are saved to the results/ directory for clean organization.
-Type-based weights are saved to results/weights/type_*/weights.json.
+Type-based weights are saved to results/models/perceptron/type_*/weights.json.
 
 Usage:
     python scripts/graphbrew_experiment.py --help
@@ -1808,6 +1808,11 @@ def run_experiment(args):
     # Fill ALL weights mode: comprehensive training to populate all weight fields
     # Triggered by --train, --full, or --phase weights
     if args.fill_weights or args.phase == "weights":
+        if not graphs:
+            log("⚠  No graphs found. Download graphs first:")
+            log("   python3 scripts/graphbrew_experiment.py --phase download --size small")
+            log("   Or specify graphs: --graph-list web-Google soc-LiveJournal1")
+            sys.exit(1)
         log_section("Fill All Weights - Comprehensive Training")
         log("This mode runs all phases to populate every weight field:")
         log("  - Phase 0: Graph Analysis (detects graph types from properties)")
@@ -2090,7 +2095,7 @@ def run_experiment(args):
                 merge_summary = auto_merge_after_run()
                 if "error" not in merge_summary:
                     log(f"  Merged {merge_summary.get('runs_merged', 0)} runs -> {merge_summary.get('total_types', 0)} types")
-                    log(f"  Merged weights saved to: {merge_summary.get('output_dir', 'results/weights/merged/')}")
+                    log(f"  Merged weights saved to: {merge_summary.get('output_dir', 'results/models/perceptron/merged/')}")
             except Exception as e:
                 log(f"  Warning: Weight merge failed: {e}")
     
@@ -2392,7 +2397,7 @@ def main():
                         help="Use merged weights (default after merge)")
     
     parser.add_argument("--weights-file", default=os.path.join(DEFAULT_WEIGHTS_DIR, "weights.json"),
-                        help="Path to weights file (default: results/weights/weights.json)")
+                        help="Path to weights file (default: results/models/perceptron/weights.json)")
     
     # Clean options
     parser.add_argument("--clean", action="store_true",

@@ -22,11 +22,11 @@ scripts/
 └── test/                     ← pytest tests  (run: pytest scripts/test/)
 ```
 
-Weight files live under `results/weights/` (not `scripts/`), managed by
+Weight files live under `results/models/perceptron/` (not `scripts/`), managed by
 `lib/utils.py` constants (`WEIGHTS_DIR`, `ACTIVE_WEIGHTS_DIR`):
 
 ```
-results/weights/              ← runtime weight data (gitignored)
+results/models/perceptron/              ← runtime weight data (gitignored)
 ├── registry.json
 ├── type_0/
 │   ├── weights.json

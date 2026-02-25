@@ -306,10 +306,9 @@ def save_type_weights(weights: Dict[str, Dict], type_path: Path):
 
 
 def get_weights_dir() -> Path:
-    """Get the base weights directory path."""
-    # Weights now live in results/weights/
-    script_dir = Path(__file__).parent.parent
-    return script_dir.parent / "results" / "weights"
+    """Get the base weights directory path (SSOT: WEIGHTS_DIR from utils)."""
+    from .utils import WEIGHTS_DIR
+    return WEIGHTS_DIR
 
 
 def get_active_dir() -> Path:

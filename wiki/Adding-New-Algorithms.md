@@ -248,11 +248,11 @@ If you want AdaptiveOrder to consider your algorithm:
 When adding a new algorithm, add weights to the type weight files:
 
 ```bash
-# Files to update (in results/weights/):
-results/weights/registry.json                # Contains centroids (no algorithm weights)
-results/weights/type_0/weights.json          # Cluster 0 weights
-results/weights/type_1/weights.json          # Cluster 1 weights
-results/weights/type_N/weights.json          # Additional clusters as needed
+# Files to update (in results/models/perceptron/):
+results/models/perceptron/registry.json                # Contains centroids (no algorithm weights)
+results/models/perceptron/type_0/weights.json          # Cluster 0 weights
+results/models/perceptron/type_1/weights.json          # Cluster 1 weights
+results/models/perceptron/type_N/weights.json          # Additional clusters as needed
 ```
 
 ### Example Entry (add to each type_N.json file)

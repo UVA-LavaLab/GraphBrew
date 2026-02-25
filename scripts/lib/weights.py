@@ -702,7 +702,7 @@ def update_type_weights_incremental(
     algo_weights['w_clustering_coeff'] += learning_rate * error * clustering
     algo_weights['w_community_count'] += learning_rate * error * math.log10(features.get('community_count', 0) + 1)
     algo_weights['w_avg_path_length'] += learning_rate * error * features.get('avg_path_length', 0.0) / WEIGHT_PATH_LENGTH_NORMALIZATION
-    algo_weights['w_diameter'] += learning_rate * error * features.get('diameter', 0.0) / 50.0
+    algo_weights['w_diameter'] += learning_rate * error * features.get('diameter', features.get('diameter_estimate', 0.0)) / 50.0
     
     # Locality features (IISWC'18 Packing Factor, GoGraph forward edge fraction)
     algo_weights['w_packing_factor'] += learning_rate * error * features.get('packing_factor', 0.0)
@@ -738,7 +738,7 @@ def update_type_weights_incremental(
         meta['avg_l3_hit_rate'] = meta.get('avg_l3_hit_rate', 0) + (l3_hit * 100 - meta.get('avg_l3_hit_rate', 0)) / count
     
     if reorder_time > 0:
-        algo_weights['w_reorder_time'] += learning_rate * error * (-reorder_time / WEIGHT_REORDER_TIME_NORMALIZATION)
+        algo_weights['w_reorder_time'] += learning_rate * error * (-reorder_time)
         meta['avg_reorder_time'] = meta.get('avg_reorder_time', 0) + (reorder_time - meta.get('avg_reorder_time', 0)) / count
     
     # Update benchmark-specific weight

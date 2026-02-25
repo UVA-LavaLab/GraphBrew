@@ -487,6 +487,10 @@ def train_and_evaluate(
     # 1. Load benchmark entries
     raw = load_benchmark_entries(results_dir, sg_only=sg_only,
                                  benchmark_file=benchmark_file)
+    if not raw:
+        print("\n⚠  No benchmark data found. Run benchmarks first:")
+        print("   python3 scripts/graphbrew_experiment.py --phase benchmark")
+        return EvalReport()
     bench_results = filter_to_benchmark_results(raw)
 
     # 2. Merge per-graph features

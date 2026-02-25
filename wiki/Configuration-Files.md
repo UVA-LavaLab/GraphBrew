@@ -321,7 +321,7 @@ struct ReorderConfig {
 
 ```bash
 # Check weight files exist
-ls -la results/weights/
+ls -la results/models/perceptron/
 
 # Regenerate weights
 python3 scripts/graphbrew_experiment.py --train --size small
@@ -341,7 +341,7 @@ ls -la graphs/
 
 ```bash
 # Validate JSON files
-python3 -m json.tool results/weights/type_0/weights.json
+python3 -m json.tool results/models/perceptron/type_0/weights.json
 ```
 
 ---

@@ -133,7 +133,7 @@ python3 -m scripts.lib.perceptron --interactive
 | `--scale SCALE` | Bias scale factor (default: 1.0) |
 | `--clusters N` | Number of graph clusters for type-based weights (default: 1) |
 | `--benchmark BENCH` | Benchmark to evaluate (default: pr) |
-| `--export` | Export weights to `results/weights/` |
+| `--export` | Export weights to `results/models/perceptron/` |
 | `--interactive` | Enter interactive mode for manual tuning |
 | `--save-results FILE` | Save experiment results to JSON file |
 
@@ -262,7 +262,7 @@ python3 scripts/graphbrew_experiment.py --eval-weights --sg-only
 
 1. **Loads** the latest `benchmark_*.json` and `reorder_*.json` from `results/`
 2. **Trains** weights via `compute_weights_from_results()` (multi-restart perceptrons + regret-aware grid search)
-3. **Saves** weights to `results/weights/type_0/weights.json`
+3. **Saves** weights to `results/models/perceptron/type_0/weights.json`
 4. **Simulates** C++ scoring: for each (graph, benchmark), computes `scoreBase(algo, features) × benchmarkMultiplier(algo, bench)` for all algorithms
 5. **Compares** predicted winner vs actual fastest algorithm (base-aware: variants of same algorithm count as correct)
 6. **Reports** accuracy, regret, top-2 accuracy, and per-benchmark breakdown
@@ -494,7 +494,7 @@ Results are organized as:
 - `results/logs/{name}/runs/{timestamp}/` — per-run benchmarks, reorder, weights
 - `results/mappings/{name}/` — pre-generated label mappings (`.lo` + `.time`)
 - `results/benchmark_*.json`, `reorder_*.json`, `cache_*.json` — aggregate results
-- `results/weights/` — type-based weights for C++
+- `results/models/perceptron/` — type-based weights for C++
 
 Use `python3 -m scripts.lib.graph_data --list-graphs` to browse per-graph data.
 
