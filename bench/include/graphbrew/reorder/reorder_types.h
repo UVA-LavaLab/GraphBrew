@@ -1259,7 +1259,7 @@ inline BenchmarkType GetBenchmarkType(const std::string& name) {
 // ============================================================================
 // Variant names (e.g. GraphBrewOrder_leiden, RABBITORDER_csr, RCM_bnf) are
 // resolved dynamically by ResolveVariantSelection() via prefix matching.
-// To add a new variant, update ONLY the Python SSOT in scripts/lib/utils.py;
+// To add a new variant, update ONLY the Python SSOT in scripts/lib/core/utils.py;
 // C++ recognizes any variant-prefixed name automatically.
 //
 // Variant prefixes used for dynamic dispatch and weight-file discovery:
@@ -1592,7 +1592,7 @@ inline GraphType DetectGraphType(double modularity, double degree_variance,
  * DECISION_TREE (4): Use trained Decision Tree classifier
  *   - Per-benchmark trees select algorithm family based on graph features
  *   - Lower regret than perceptron (~5-8% vs 45-1355%)
- *   - Auto-generated from scripts/lib/decision_tree.py --fine-tune
+ *   - C++ trains DT models at runtime from benchmarks.json (reorder_database.h)
  */
 enum SelectionMode {
     MODE_FASTEST_REORDER = 0,      ///< Minimize reordering time
@@ -3966,21 +3966,6 @@ inline const std::map<std::string, PerceptronWeights>& GetPerceptronWeights() {
     return weights;
 }
 
-// ============================================================================
-// PERCEPTRON WEIGHT FILE CONSTANTS
-// ============================================================================
-
-/**
- * Default path for perceptron weights files (relative to project root)
- * 
- * The weight system uses a hierarchy:
- * 1. Environment variable PERCEPTRON_WEIGHTS_FILE (highest priority)
- * 2. Per-benchmark files in TYPE_WEIGHTS_DIR (e.g., type_0/pr.json)
- * 3. Type-cluster files in TYPE_WEIGHTS_DIR (e.g., type_0/weights.json)
- * 4. Hardcoded defaults in GetPerceptronWeights()
- */
-inline constexpr const char* TYPE_WEIGHTS_DIR = "results/models/perceptron/";
-
 /**
  * Threshold for determining "unknown" graph types
  * 
@@ -4050,264 +4035,36 @@ inline PerceptronSelection SelectFastestReorderFromWeights(
     return ResolveVariantSelection(best_name, best_reorder_weight);
 }
 
-// ============================================================================
-// TYPE REGISTRY FUNCTIONS
-// ============================================================================
-
-/**
- * Find the best matching type from the type registry AND return the distance.
- * 
- * The type registry (results/models/perceptron/registry.json) contains centroids
- * for each auto-generated type. This function finds the closest matching type
- * based on the graph features using Euclidean distance.
- * 
- * @param modularity Graph modularity score
- * @param degree_variance Normalized degree variance
- * @param hub_concentration Hub concentration metric
- * @param avg_degree Average vertex degree (currently unused in distance calc)
- * @param num_nodes Number of nodes
- * @param num_edges Number of edges
- * @param out_distance Output parameter: Euclidean distance to best centroid
- * @param verbose Print matching details
- * @return Best matching type name (e.g., "type_0") or empty string if no registry
- */
-inline std::string FindBestTypeWithDistance(
-    double modularity, double degree_variance, double hub_concentration,
-    double avg_degree, size_t num_nodes, size_t num_edges,
-    double& out_distance, bool verbose = false,
-    double clustering_coeff = 0.0) {
-    
-    out_distance = 999999.0;  // Default: very high distance (unknown)
-    
-    // Ablation: ADAPTIVE_NO_TYPES=1 forces type_0 with zero distance
-    if (AblationConfig::Get().no_types) {
-        out_distance = 0.0;
-        return "type_0";
-    }
-    
-    // Try to load type registry
-    std::string registry_path = std::string(TYPE_WEIGHTS_DIR) + "registry.json";
-    std::ifstream registry_file(registry_path);
-    if (!registry_file.is_open()) {
-        if (verbose) {
-            std::cout << "Type registry not found at " << registry_path << "\n";
-        }
-        return "";
-    }
-    
-    std::string json_content((std::istreambuf_iterator<char>(registry_file)),
-                              std::istreambuf_iterator<char>());
-    registry_file.close();
-    
-    std::string best_type = "";
-    double best_distance = 999999.0;
-    
-    // Normalize features for distance calculation
-    // MUST match Python lib/weights.py _normalize_features() exactly:
-    //   ranges: modularity [0,1], degree_variance [0,5], hub_concentration [0,1],
-    //           avg_degree [0,100], clustering_coefficient [0,1],
-    //           log_nodes [3,10], log_edges [3,12]
-    //   normalize: (val - lo) / (hi - lo), clamped to [0,1]
-    double log_nodes = log10(std::max(1.0, (double)num_nodes) + 1.0);
-    double log_edges = log10(std::max(1.0, (double)num_edges) + 1.0);
-    
-    auto clamp01 = [](double v) { return std::max(0.0, std::min(1.0, v)); };
-    
-    // Feature vector: [modularity, degree_variance, hub_concentration, avg_degree,
-    //                  clustering_coeff, log_nodes_norm, log_edges_norm]
-    std::vector<double> query_vec = {
-        clamp01(modularity),                          // [0,1] → [0,1]
-        clamp01(degree_variance / 5.0),               // [0,5] → [0,1]
-        clamp01(hub_concentration),                    // [0,1] → [0,1]
-        clamp01(avg_degree / 100.0),                   // [0,100] → [0,1]
-        clamp01(clustering_coeff),                     // [0,1] → [0,1]
-        clamp01((log_nodes - 3.0) / 7.0),             // [3,10] → [0,1]
-        clamp01((log_edges - 3.0) / 9.0)              // [3,12] → [0,1]
-    };
-    
-    // Parse types from JSON (simplified parsing)
-    size_t pos = 0;
-    while ((pos = json_content.find("\"type_", pos)) != std::string::npos) {
-        // Extract type name
-        size_t name_start = pos + 1;
-        size_t name_end = json_content.find("\"", name_start);
-        if (name_end == std::string::npos) break;
-        std::string type_name = json_content.substr(name_start, name_end - name_start);
-        
-        // Find centroid array
-        size_t centroid_pos = json_content.find("\"centroid\"", name_end);
-        if (centroid_pos == std::string::npos || centroid_pos > pos + 2000) {
-            pos = name_end + 1;
-            continue;
-        }
-        
-        size_t array_start = json_content.find("[", centroid_pos);
-        size_t array_end = json_content.find("]", array_start);
-        if (array_start == std::string::npos || array_end == std::string::npos) {
-            pos = name_end + 1;
-            continue;
-        }
-        
-        // Parse centroid values
-        std::string centroid_str = json_content.substr(array_start + 1, array_end - array_start - 1);
-        std::vector<double> centroid;
-        std::stringstream ss(centroid_str);
-        std::string item;
-        while (std::getline(ss, item, ',')) {
-            try { centroid.push_back(std::stod(item)); } catch (...) {}
-        }
-        
-        // Compute distance
-        if (centroid.size() >= query_vec.size()) {
-            double distance = 0.0;
-            for (size_t i = 0; i < query_vec.size(); i++) {
-                double diff = query_vec[i] - centroid[i];
-                distance += diff * diff;
-            }
-            distance = sqrt(distance);
-            
-            if (distance < best_distance) {
-                best_distance = distance;
-                best_type = type_name;
-            }
-        }
-        
-        pos = name_end + 1;
-    }
-    
-    out_distance = best_distance;
-    
-    if (verbose && !best_type.empty()) {
-        std::cout << "Best matching type: " << best_type 
-                  << " (distance: " << best_distance << ")\n";
-    }
-    
-    return best_type;
+// ---------------------------------------------------------------------------
+// M2 database hook — LoadPerceptronWeightsFromDB lives in reorder_database.h
+// which cannot be included yet (it needs ModelTree, defined later).  We use a
+// late-bound function pointer that is set once reorder_database.h is included.
+// ---------------------------------------------------------------------------
+using LoadPerceptronDBFn = bool(*)(BenchmarkType,
+                                   std::map<std::string, PerceptronWeights>&,
+                                   bool);
+inline LoadPerceptronDBFn& GetLoadPerceptronDBHook() {
+    static LoadPerceptronDBFn fn = nullptr;
+    return fn;
 }
 
 /**
- * Find the best matching type file from the type registry (without distance output).
- * 
- * This is a convenience wrapper around FindBestTypeWithDistance.
- * 
- * @param modularity Graph modularity score
- * @param degree_variance Normalized degree variance
- * @param hub_concentration Hub concentration metric
- * @param avg_degree Average vertex degree
- * @param num_nodes Number of nodes
- * @param num_edges Number of edges
- * @param verbose Print matching details
- * @return Best matching type name (e.g., "type_0") or empty string if no match
- */
-inline std::string FindBestTypeFromFeatures(
-    double modularity, double degree_variance, double hub_concentration,
-    double avg_degree, size_t num_nodes, size_t num_edges, bool verbose = false,
-    double clustering_coeff = 0.0) {
-    
-    double distance;  // Unused
-    return FindBestTypeWithDistance(modularity, degree_variance, hub_concentration,
-                                    avg_degree, num_nodes, num_edges, distance, verbose,
-                                    clustering_coeff);
-}
-
-// ============================================================================
-// PERCEPTRON WEIGHT LOADING FUNCTIONS
-// ============================================================================
-
-/**
- * Load perceptron weights for a specific semantic graph type.
- * 
- * Checks for weights file in this order:
- * 1. Path from PERCEPTRON_WEIGHTS_FILE environment variable (overrides all)
- * 2. Per-benchmark file: results/models/perceptron/type_N/{bench}.json
- * 3. Type weights file: results/models/perceptron/type_N/weights.json
- * 4. Fallback: results/models/perceptron/type_0/weights.json
- * 5. If no files exist, returns hardcoded defaults from GetPerceptronWeights()
- * 
- * @param graph_type The detected or specified semantic graph type
- * @param verbose Print which file was loaded
- * @return Map of algorithm -> perceptron weights
- */
-inline std::map<std::string, PerceptronWeights> LoadPerceptronWeightsForGraphType(
-    GraphType graph_type, bool verbose = false) {
-    
-    // Start with defaults
-    auto weights = GetPerceptronWeights();
-    
-    // Check environment variable override first
-    const char* env_path = std::getenv("PERCEPTRON_WEIGHTS_FILE");
-    if (env_path != nullptr) {
-        std::ifstream file(env_path);
-        if (file.is_open()) {
-            std::string json_content((std::istreambuf_iterator<char>(file)),
-                                      std::istreambuf_iterator<char>());
-            file.close();
-            
-            std::map<std::string, PerceptronWeights> loaded_weights;
-            if (ParseWeightsFromJSON(json_content, loaded_weights)) {
-                for (const auto& kv : loaded_weights) {
-                    weights[kv.first] = kv.second;
-                }
-                if (verbose) {
-                    std::cout << "Perceptron: Loaded " << loaded_weights.size() 
-                              << " weights from env override: " << env_path << "\n";
-                }
-                return weights;
-            }
-        }
-    }
-    
-    // Try type_0/weights.json as default
-    std::string default_file = std::string(TYPE_WEIGHTS_DIR) + "type_0/weights.json";
-    std::ifstream file(default_file);
-    if (file.is_open()) {
-        std::string json_content((std::istreambuf_iterator<char>(file)),
-                                  std::istreambuf_iterator<char>());
-        file.close();
-        
-        std::map<std::string, PerceptronWeights> loaded_weights;
-        if (ParseWeightsFromJSON(json_content, loaded_weights)) {
-            for (const auto& kv : loaded_weights) {
-                weights[kv.first] = kv.second;
-            }
-            if (verbose) {
-                std::cout << "Perceptron: Loaded " << loaded_weights.size() 
-                          << " weights from " << default_file << "\n";
-            }
-            return weights;
-        }
-    }
-    
-    // No files found - use defaults
-    if (verbose) {
-        std::cout << "Perceptron: Using hardcoded defaults (no weight files found)\n";
-    }
-    return weights;
-}
-
-/**
- * Load perceptron weights using graph features to find the best type match.
- * 
- * This function first tries to find a matching auto-generated type (type_0, type_1, etc.)
- * from the type registry, then falls back to semantic types (social, road, etc.) and
- * finally to the default weights.
- * 
- * FALLBACK MECHANISM:
- * 1. Starts with GetPerceptronWeights() which provides defaults for ALL algorithms
- * 2. Per-benchmark files: tries {matched_type}/{bench}.json, then type_0/{bench}.json
- * 3. Falls back to type-generic weights.json from matched type or DEFAULT_WEIGHTS_FILE
- * 4. Any algorithm missing from loaded files uses the default weights
- * 
- * This ensures we ALWAYS have weights for every algorithm, even if the type file
- * was trained with only a subset of algorithms.
- * 
- * @param modularity Graph modularity score
- * @param degree_variance Normalized degree variance
- * @param hub_concentration Hub concentration metric
- * @param avg_degree Average vertex degree
- * @param num_nodes Number of nodes
- * @param num_edges Number of edges
- * @param verbose Print which file was loaded
+ * Load perceptron weights for the given benchmark.
+ *
+ * M2: Delegates to BenchmarkDatabase which reads from the unified
+ * adaptive_models.json.  Falls back to hardcoded defaults if the
+ * database has no model data.
+ *
+ * The PERCEPTRON_WEIGHTS_FILE env-var override is preserved as a
+ * development escape hatch.
+ *
+ * @param modularity Graph modularity score (unused after M2, kept for ABI compat)
+ * @param degree_variance (unused)
+ * @param hub_concentration (unused)
+ * @param avg_degree (unused)
+ * @param num_nodes (unused)
+ * @param num_edges (unused)
+ * @param verbose Print which source was used
  * @return Map of algorithm -> perceptron weights
  */
 inline std::map<std::string, PerceptronWeights> LoadPerceptronWeightsForFeatures(
@@ -4315,10 +4072,10 @@ inline std::map<std::string, PerceptronWeights> LoadPerceptronWeightsForFeatures
     double avg_degree, size_t num_nodes, size_t num_edges, bool verbose = false,
     double clustering_coeff = 0.0, BenchmarkType bench = BENCH_GENERIC) {
     
-    // Start with defaults - this ensures ALL algorithms have weights
+    // Start with hardcoded defaults — ensures ALL algorithms have weights
     auto weights = GetPerceptronWeights();
     
-    // Check environment variable override first
+    // Check environment variable override first (dev escape hatch)
     const char* env_path = std::getenv("PERCEPTRON_WEIGHTS_FILE");
     if (env_path != nullptr) {
         std::ifstream file(env_path);
@@ -4333,7 +4090,7 @@ inline std::map<std::string, PerceptronWeights> LoadPerceptronWeightsForFeatures
                     weights[kv.first] = kv.second;
                 }
                 if (verbose) {
-                    std::cout << "Perceptron: Loaded " << loaded_weights.size() 
+                    std::cout << "Perceptron: Loaded " << loaded_weights.size()
                               << " weights from env override: " << env_path << "\n";
                 }
                 return weights;
@@ -4341,119 +4098,29 @@ inline std::map<std::string, PerceptronWeights> LoadPerceptronWeightsForFeatures
         }
     }
     
-    // Find matching type from registry (type_0, type_1, etc.)
-    std::string best_type = FindBestTypeFromFeatures(
-        modularity, degree_variance, hub_concentration,
-        avg_degree, num_nodes, num_edges, verbose, clustering_coeff);
-    if (best_type.empty()) best_type = "type_0";
-    
-    // Try per-benchmark weight file first (these have much higher accuracy
-    // because they are trained specifically for each benchmark type, avoiding
-    // the accuracy loss of the averaged scoreBase × multiplier model).
-    //
-    // Loading priority for per-bench files:
-    //   1. {best_type}/{bench}.json  (type matched by features)
-    //   2. type_0/{bench}.json       (default/fallback type)
-    if (bench != BENCH_GENERIC) {
-        const char* bench_names[] = {"generic", "pr", "bfs", "cc", "sssp", "bc", "tc", "pr_spmv", "cc_sv"};
-        if (static_cast<int>(bench) < 9) {
-            // Build candidate per-bench files: matched type first, then type_0 fallback
-            std::vector<std::string> bench_candidates;
-            if (best_type != "type_0") {
-                bench_candidates.push_back(
-                    std::string(TYPE_WEIGHTS_DIR) + best_type + "/" + bench_names[bench] + ".json");
-            }
-            bench_candidates.push_back(
-                std::string(TYPE_WEIGHTS_DIR) + "type_0/" + bench_names[bench] + ".json");
-            
-            for (const auto& bench_file : bench_candidates) {
-                std::ifstream file(bench_file);
-                if (!file.is_open()) continue;
-                
-                std::string json_content((std::istreambuf_iterator<char>(file)),
-                                          std::istreambuf_iterator<char>());
-                file.close();
-                
-                std::map<std::string, PerceptronWeights> loaded_weights;
-                if (ParseWeightsFromJSON(json_content, loaded_weights)) {
-                    for (const auto& kv : loaded_weights) {
-                        weights[kv.first] = kv.second;
-                    }
-                    if (verbose) {
-                        std::cout << "Perceptron: Loaded " << loaded_weights.size()
-                                  << " per-benchmark weights from " << bench_file << "\n";
-                    }
-                    return weights;
-                }
-            }
-        }
-    }
-    
-    // Fall back to averaged weights.json for matched type, then type_0
-    std::vector<std::string> candidate_files;
-    if (best_type != "type_0") {
-        candidate_files.push_back(
-            std::string(TYPE_WEIGHTS_DIR) + best_type + "/weights.json");
-    }
-    candidate_files.push_back(
-        std::string(TYPE_WEIGHTS_DIR) + "type_0/weights.json");
-    
-    for (const auto& weights_file : candidate_files) {
-        std::ifstream file(weights_file);
-        if (!file.is_open()) continue;
-        
-        std::string json_content((std::istreambuf_iterator<char>(file)),
-                                  std::istreambuf_iterator<char>());
-        file.close();
-        
-        std::map<std::string, PerceptronWeights> loaded_weights;
-        if (ParseWeightsFromJSON(json_content, loaded_weights)) {
-            for (const auto& kv : loaded_weights) {
+    // M2: Load from BenchmarkDatabase (reads adaptive_models.json)
+    // Uses late-bound hook set after reorder_database.h is included.
+    auto dbFn = GetLoadPerceptronDBHook();
+    if (dbFn) {
+        std::map<std::string, PerceptronWeights> db_weights;
+        if (dbFn(bench, db_weights, verbose)) {
+            for (const auto& kv : db_weights) {
                 weights[kv.first] = kv.second;
             }
             if (verbose) {
-                std::cout << "Perceptron: Loaded " << loaded_weights.size() 
-                          << " weights from " << weights_file << "\n";
+                std::cout << "Perceptron: Loaded " << db_weights.size()
+                          << " weights from adaptive_models.json\n";
             }
             return weights;
         }
     }
     
-    // No files found - use defaults
+    // No model data available — use hardcoded defaults
     if (verbose) {
-        std::cout << "Perceptron: Using hardcoded defaults (no weight files found)\n";
+        std::cout << "Perceptron: Using hardcoded defaults (adaptive_models.json "
+                  << "not loaded or empty)\n";
     }
     return weights;
-}
-
-// ============================================================================
-// PERCEPTRON WEIGHT CACHING
-// ============================================================================
-
-/**
- * Get cached weights for a specific graph type.
- * Uses thread-safe cache to avoid repeated file loading.
- * 
- * @param graph_type The graph type to get weights for
- * @param verbose_first_load Print debug info on first load
- * @return Reference to cached weights map
- */
-inline const std::map<std::string, PerceptronWeights>& GetCachedWeights(
-    GraphType graph_type, bool verbose_first_load = false) {
-    // Cache weights per graph type (static map persists across calls)
-    static std::map<GraphType, std::map<std::string, PerceptronWeights>> weight_cache;
-    static std::mutex cache_mutex;
-    
-    std::lock_guard<std::mutex> lock(cache_mutex);
-    
-    auto it = weight_cache.find(graph_type);
-    if (it != weight_cache.end()) {
-        return it->second;
-    }
-    
-    // Load and cache (with verbose output if requested)
-    weight_cache[graph_type] = LoadPerceptronWeightsForGraphType(graph_type, verbose_first_load);
-    return weight_cache[graph_type];
 }
 
 // ============================================================================
@@ -4576,24 +4243,6 @@ inline std::vector<PerceptronSelection> SelectTopKFromWeights(
     return result;
 }
 
-/**
- * Select best reordering algorithm using perceptron scores and cached weights.
- * 
- * This is a convenience function that loads/caches weights for the given graph type.
- * 
- * @param feat Community features for scoring
- * @param bench Benchmark type
- * @param graph_type The detected graph type for loading appropriate weights
- * @return Best algorithm based on perceptron scoring
- */
-inline PerceptronSelection SelectReorderingPerceptron(
-    const CommunityFeatures& feat, 
-    BenchmarkType bench = BENCH_GENERIC,
-    GraphType graph_type = GRAPH_GENERIC) {
-    const auto& weights = GetCachedWeights(graph_type);
-    return SelectReorderingFromWeights(feat, weights, bench);
-}
-
 // ============================================================================
 // RUNTIME MODEL TREE INTERPRETER (Decision Tree & Hybrid DT+Perceptron)
 // ============================================================================
@@ -4622,8 +4271,8 @@ inline PerceptronSelection SelectReorderingPerceptron(
 //     ]
 //   }
 //
-// Training: python3 -m scripts.lib.decision_tree --per-benchmark --auto-depth
-//           python3 -m scripts.lib.decision_tree --hybrid --auto-depth
+// Training: C++ trains DT/hybrid models at runtime from benchmarks.json
+//           via reorder_database.h — no Python training step needed.
 // ============================================================================
 
 /// Directory for model tree JSON files (relative to working directory)
@@ -4741,8 +4390,8 @@ struct ModelTree {
  * @brief Parse a model tree from JSON content.
  *
  * Hand-rolled parser matching the project's existing JSON parsing style
- * (no external dependencies). Parses the flat node array format exported
- * by scripts/lib/decision_tree.py.
+ * (no external dependencies). Parses the flat node array format from
+ * adaptive_models.json (C++ runtime training or legacy export).
  *
  * @param json_content  Raw JSON string
  * @param tree          Output ModelTree to populate
@@ -5042,18 +4691,37 @@ inline PerceptronSelection SelectReorderingPerceptronWithFeatures(
 // Include after all types and helpers are defined.
 // ============================================================================
 #include "reorder_database.h"
+// Register the M2 database loader now that reorder_database.h is available.
+inline bool _InitLoadPerceptronDBHook() {
+    GetLoadPerceptronDBHook() = &graphbrew::database::LoadPerceptronWeightsFromDB;
+    return true;
+}
+static const bool _loadPerceptronDBHookInit = _InitLoadPerceptronDBHook();
+
 
 /**
  * Select best reordering algorithm with MODE-AWARE selection.
- * 
+ *
  * This is the main entry point for AdaptiveOrder algorithm selection.
- * It supports different selection modes:
- * 
- * - MODE_FASTEST_REORDER: Select algorithm with lowest reordering time
- * - MODE_FASTEST_EXECUTION: Use perceptron to predict best cache performance
- * - MODE_BEST_ENDTOEND: Balance perceptron score with reorder time penalty
- * - MODE_BEST_AMORTIZATION: Minimize iterations to amortize reorder cost
- * 
+ *
+ * **Streaming Database Model (v2.0)**:
+ * ALL modes first try the streaming database (benchmarks.json + graph_properties.json).
+ * Predictions are computed directly from raw benchmark data at runtime — no
+ * pre-trained weight files needed. If the database has data, it IS the model.
+ *
+ * Fallback: if the database is empty or unloaded, modes 0-3 fall back to
+ * pre-trained perceptron weights, modes 4-5 to model tree files, and mode 6
+ * returns ORIGINAL.
+ *
+ * Selection Modes:
+ * - MODE_FASTEST_REORDER (0): Algorithm with lowest reorder time
+ * - MODE_FASTEST_EXECUTION (1): Algorithm with lowest kernel time
+ * - MODE_BEST_ENDTOEND (2): Algorithm with lowest (kernel + reorder) time
+ * - MODE_BEST_AMORTIZATION (3): Algorithm that amortizes reorder cost fastest
+ * - MODE_DECISION_TREE (4): Trained DT classifier (optional, DB fallback)
+ * - MODE_HYBRID (5): Hybrid DT+Perceptron (optional, DB fallback)
+ * - MODE_DATABASE (6): Explicit database mode (oracle + kNN)
+ *
  * @param feat Community features for scoring
  * @param global_modularity Global graph modularity
  * @param global_degree_variance Global degree variance
@@ -5061,7 +4729,7 @@ inline PerceptronSelection SelectReorderingPerceptronWithFeatures(
  * @param num_nodes Total number of nodes
  * @param num_edges Total number of edges
  * @param mode Selection mode (see SelectionMode enum)
- * @param graph_name Name of the graph (currently unused, for future .time file support)
+ * @param graph_name Name of the graph (for oracle lookup)
  * @param bench Benchmark type
  * @param verbose Print selection details
  * @return Best algorithm based on the specified mode
@@ -5073,53 +4741,42 @@ inline PerceptronSelection SelectReorderingWithMode(
     SelectionMode mode, const std::string& graph_name = "",
     BenchmarkType bench = BENCH_GENERIC, bool verbose = false) {
     
-    // Check graph type for verbose output (but don't change selection behavior)
-    double type_distance = 0.0;
-    std::string best_type = FindBestTypeWithDistance(
-        global_modularity, global_degree_variance, global_hub_concentration,
-        feat.avg_degree, num_nodes, num_edges, type_distance, verbose,
-        feat.clustering_coeff);
-    
-    // For UNKNOWN graphs (high distance), we still use perceptron with the
-    // closest type's weights - that's the whole point of type-based matching.
-    // However, if the distance is very high, the prediction is unreliable.
-    if (verbose && (type_distance > UNKNOWN_TYPE_DISTANCE_THRESHOLD || best_type.empty())) {
-        std::cout << "Note: Graph has high type distance (" << type_distance 
-                  << ") - using closest type '" << best_type << "' for perceptron weights\n";
-    }
-    
-    // OOD guardrail: if graph is too far from any known type centroid,
-    // perceptron predictions are unreliable (extrapolating beyond training
-    // distribution). Fall back to ORIGINAL for safety.
-    // Exception: MODE_FASTEST_REORDER (reorder speed doesn't depend on graph features)
-    // Ablation: ADAPTIVE_NO_OOD=1 disables this guardrail.
-    bool ood = IsDistantGraphType(type_distance) || best_type.empty();
-    if (ood && mode != MODE_FASTEST_REORDER && !AblationConfig::Get().no_ood) {
-        if (verbose) {
-            std::cout << "OOD guardrail: type_distance=" << type_distance
-                      << " > threshold=" << UNKNOWN_TYPE_DISTANCE_THRESHOLD
-                      << ", falling back to ORIGINAL\n";
+    // ================================================================
+    // Step 1: Try streaming database first (all modes)
+    // ================================================================
+    // The database IS the model — predictions come directly from raw
+    // benchmark data. No pre-trained weights needed.
+    {
+        std::string family = graphbrew::database::SelectForMode(
+            feat, bench, graph_name, mode, verbose);
+        if (!family.empty()) {
+            if (verbose) {
+                std::cout << "Mode " << static_cast<int>(mode)
+                          << ": streaming database → " << family << "\n";
+            }
+            return ResolveVariantSelection(family, 0.0);
         }
-        return ResolveVariantSelection("ORIGINAL", 0.0);
     }
     
-    // Handle each mode
-    // All modes try the centralized database (adaptive_models.json) first,
-    // falling back to individual model files or hardcoded defaults.
+    // ================================================================
+    // Step 2: Fallback to file-based models (backward compatibility)
+    // ================================================================
+    // Only reached when the database is empty or unloaded.
+    if (verbose) {
+        std::cout << "Database empty — falling back to model-based selection\n";
+    }
+    
+    // M2: All model data comes from adaptive_models.json via BenchmarkDatabase.
+    // LoadPerceptronWeightsForFeatures() delegates to the DB internally.
+    // No file-based type registry or per-type weight files are consulted.
+    
+    // Handle each mode — weights come from adaptive_models.json → defaults
     switch (mode) {
         case MODE_FASTEST_REORDER: {
-            // Try database first for perceptron weights
-            auto weights = GetPerceptronWeights();  // Start with hardcoded defaults
-            std::map<std::string, PerceptronWeights> db_weights;
-            if (graphbrew::database::LoadPerceptronWeightsFromDB(bench, db_weights, verbose)) {
-                for (const auto& kv : db_weights) weights[kv.first] = kv.second;
-            } else {
-                weights = LoadPerceptronWeightsForFeatures(
-                    global_modularity, global_degree_variance, global_hub_concentration,
-                    feat.avg_degree, num_nodes, num_edges, false, feat.clustering_coeff, bench);
-            }
+            auto weights = LoadPerceptronWeightsForFeatures(
+                global_modularity, global_degree_variance, global_hub_concentration,
+                feat.avg_degree, num_nodes, num_edges, verbose, feat.clustering_coeff, bench);
             
-            // Select algorithm with highest w_reorder_time (fastest reorder)
             PerceptronSelection fastest = SelectFastestReorderFromWeights(weights, verbose);
             if (verbose) {
                 std::cout << "Mode: fastest-reorder → " << fastest.variant_name << "\n";
@@ -5128,18 +4785,6 @@ inline PerceptronSelection SelectReorderingWithMode(
         }
         
         case MODE_FASTEST_EXECUTION: {
-            // Try database first for perceptron weights
-            auto weights = GetPerceptronWeights();
-            std::map<std::string, PerceptronWeights> db_weights;
-            if (graphbrew::database::LoadPerceptronWeightsFromDB(bench, db_weights, verbose)) {
-                for (const auto& kv : db_weights) weights[kv.first] = kv.second;
-                PerceptronSelection best = SelectReorderingFromWeights(feat, weights, bench);
-                if (verbose) {
-                    std::cout << "Mode: fastest-execution → " << best.variant_name << " (from database)\n";
-                }
-                return best;
-            }
-            // Fall back to file-based loading
             PerceptronSelection best = SelectReorderingPerceptronWithFeatures(
                 feat, global_modularity, global_degree_variance,
                 global_hub_concentration, num_nodes, num_edges, bench);
@@ -5150,21 +4795,12 @@ inline PerceptronSelection SelectReorderingWithMode(
         }
         
         case MODE_BEST_ENDTOEND: {
-            // Try database first for perceptron weights
-            auto weights = GetPerceptronWeights();
-            std::map<std::string, PerceptronWeights> db_weights;
-            if (graphbrew::database::LoadPerceptronWeightsFromDB(bench, db_weights, verbose)) {
-                for (const auto& kv : db_weights) weights[kv.first] = kv.second;
-            } else {
-                weights = LoadPerceptronWeightsForFeatures(
-                    global_modularity, global_degree_variance, global_hub_concentration,
-                    feat.avg_degree, num_nodes, num_edges, false, feat.clustering_coeff, bench);
-            }
+            auto weights = LoadPerceptronWeightsForFeatures(
+                global_modularity, global_degree_variance, global_hub_concentration,
+                feat.avg_degree, num_nodes, num_edges, verbose, feat.clustering_coeff, bench);
             
             std::string best_name = "ORIGINAL";
             double best_score = -std::numeric_limits<double>::infinity();
-            
-            // Extra weight multiplier for reorder time in end-to-end mode
             const double REORDER_WEIGHT_BOOST = 2.0;
             
             for (const auto& [name, w] : weights) {
@@ -5185,27 +4821,20 @@ inline PerceptronSelection SelectReorderingWithMode(
         }
         
         case MODE_BEST_AMORTIZATION: {
-            // Try database first for perceptron weights
-            auto weights = GetPerceptronWeights();
-            std::map<std::string, PerceptronWeights> db_weights;
-            if (graphbrew::database::LoadPerceptronWeightsFromDB(bench, db_weights, verbose)) {
-                for (const auto& kv : db_weights) weights[kv.first] = kv.second;
-            } else {
-                weights = LoadPerceptronWeightsForFeatures(
-                    global_modularity, global_degree_variance, global_hub_concentration,
-                    feat.avg_degree, num_nodes, num_edges, false, feat.clustering_coeff, bench);
-            }
+            auto weights = LoadPerceptronWeightsForFeatures(
+                global_modularity, global_degree_variance, global_hub_concentration,
+                feat.avg_degree, num_nodes, num_edges, verbose, feat.clustering_coeff, bench);
             
             std::string best_name = "ORIGINAL";
             double best_iters = std::numeric_limits<double>::infinity();
             
             for (const auto& [name, w] : weights) {
-                if (name == "ORIGINAL") continue;  // ORIGINAL has no reorder cost
+                if (name == "ORIGINAL") continue;
                 
                 double iters = w.iterationsToAmortize();
                 
                 if (verbose) {
-                    std::cout << "  " << name 
+                    std::cout << "  " << name
                               << ": speedup=" << w.avg_speedup
                               << ", reorder=" << w.avg_reorder_time << "s"
                               << ", iters_to_amortize=" << iters << "\n";
@@ -5225,15 +4854,10 @@ inline PerceptronSelection SelectReorderingWithMode(
         }
         
         case MODE_DECISION_TREE: {
-            // Try unified database first, fall back to individual model files
+            // M2: model trees come only from adaptive_models.json
             std::string family = graphbrew::database::SelectAlgorithmModelTreeFromDB(
                 feat, bench, "decision_tree", verbose);
             if (family.empty()) {
-                // Fall back to individual model files
-                family = SelectAlgorithmModelTree(feat, bench, "decision_tree", verbose);
-            }
-            if (family.empty()) {
-                // No model found anywhere — fall back to perceptron
                 if (verbose) {
                     std::cout << "Mode: decision-tree → no model, falling back to perceptron\n";
                 }
@@ -5248,14 +4872,10 @@ inline PerceptronSelection SelectReorderingWithMode(
         }
         
         case MODE_HYBRID: {
-            // Try unified database first, fall back to individual model files
+            // M2: hybrid models come only from adaptive_models.json
             std::string family = graphbrew::database::SelectAlgorithmModelTreeFromDB(
                 feat, bench, "hybrid", verbose);
             if (family.empty()) {
-                family = SelectAlgorithmModelTree(feat, bench, "hybrid", verbose);
-            }
-            if (family.empty()) {
-                // No model found anywhere — fall back to perceptron
                 if (verbose) {
                     std::cout << "Mode: hybrid → no model, falling back to perceptron\n";
                 }
@@ -5270,11 +4890,10 @@ inline PerceptronSelection SelectReorderingWithMode(
         }
         
         case MODE_DATABASE: {
-            // Database-driven selection: load benchmarks.json, use oracle/kNN
+            // Safety fallback — normally handled by SelectForMode above
             std::string family = graphbrew::database::SelectAlgorithmDatabase(
                 feat, bench, graph_name, verbose);
             if (family.empty()) {
-                // Database not loaded — fall back to perceptron
                 if (verbose) {
                     std::cout << "Mode: database → no data, falling back to perceptron\n";
                 }
@@ -5289,7 +4908,6 @@ inline PerceptronSelection SelectReorderingWithMode(
         }
         
         default:
-            // Default to perceptron-based selection
             return SelectReorderingPerceptronWithFeatures(
                 feat, global_modularity, global_degree_variance,
                 global_hub_concentration, num_nodes, num_edges, bench);

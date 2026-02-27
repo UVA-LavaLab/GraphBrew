@@ -1165,7 +1165,11 @@ public:
         // Unified timing wrapper for all reordering algorithms
         Timer reorder_timer;
         reorder_timer.Start();
-        
+
+        // Clear staged reorder metadata before dispatch
+        using namespace graphbrew::database;
+        ClearStagedReorderMeta();
+
         switch (reordering_algo)
         {
         case HubSort:
@@ -1288,6 +1292,58 @@ public:
         std::cout << "=== Reorder Summary ===" << std::endl;
         PrintLabel("Algorithm", ReorderingAlgoStr(reordering_algo));
         PrintTime("Reorder Time", reorder_timer.Seconds());
+
+        // ---- Self-recording: set global hints + record reorder metadata ----
+        {
+            // Note: 'using namespace graphbrew::database' already in scope from above
+            std::string algo_name = ReorderingAlgoStr(reordering_algo);
+            double reorder_secs = reorder_timer.Seconds();
+            int algo_id = static_cast<int>(reordering_algo);
+
+            // ── MAP mode: derive real algorithm identity from .lo filename ──
+            // When using pre-generated mappings (MAP, id=13), the .lo filename
+            // IS the algorithm name (e.g., GORDER.lo, GraphBrewOrder_leiden.lo).
+            // Also load the real reorder time from the corresponding .time file.
+            if (reordering_algo == MAP && !reordering_options.empty()) {
+                const std::string& lo_path = reordering_options[0];
+                // Extract filename stem: /path/to/GORDER.lo → GORDER
+                auto last_sep = lo_path.find_last_of("/\\");
+                std::string filename = (last_sep != std::string::npos)
+                    ? lo_path.substr(last_sep + 1) : lo_path;
+                auto dot_pos = filename.rfind(".lo");
+                if (dot_pos != std::string::npos) {
+                    algo_name = filename.substr(0, dot_pos);
+                }
+                // Try to resolve real algorithm_id from name
+                auto [found, real_algo] = lookupAlgorithm(algo_name);
+                if (found) {
+                    algo_id = static_cast<int>(real_algo);
+                }
+                // Load actual reorder time from .time file (not the .lo load time)
+                if (lo_path.size() > 3) {
+                    std::string time_path = lo_path.substr(0, lo_path.size() - 3) + ".time";
+                    std::ifstream tf(time_path);
+                    if (tf.is_open()) {
+                        double file_time;
+                        if (tf >> file_time && file_time > 0) {
+                            reorder_secs = file_time;
+                        }
+                    }
+                }
+            }
+
+            // Set global hints for BenchmarkKernel's RunReport
+            SetReorderTimeHint(reorder_secs);
+            SetReorderAlgoHint(algo_name);
+            SetReorderAlgoIdHint(algo_id);
+
+            // Build ReorderMeta hint, merging any staged algorithm-specific details
+            ReorderMeta meta = GetStagedReorderMeta();
+            meta.algorithm    = algo_name;
+            meta.algorithm_id = algo_id;
+            meta.reorder_time = reorder_secs;
+            AppendReorderMetaHint(meta);
+        }
 
         // std::cout << std::endl;
         // for (size_t i = 0; i < new_ids.size(); ++i)
@@ -2313,6 +2369,15 @@ public:
         PrintTime("Num Passes", x.communityMappingPerPass.size());
         PrintTime("Num Communities", num_communities);
         PrintTime("Resolution", resolution);
+
+        // Stage reorder metadata for GenerateMapping's ReorderMeta hint
+        {
+            using namespace graphbrew::database;
+            auto& staged = GetStagedReorderMeta();
+            staged.num_passes      = static_cast<int>(x.communityMappingPerPass.size());
+            staged.num_communities = static_cast<int>(num_communities);
+            staged.resolution      = resolution;
+        }
     }
 
     // ========================================================================
@@ -2406,7 +2471,19 @@ public:
         const int64_t num_edges = g.num_edges_directed();
         
         if (num_nodes < 100) {
-            // Too small for meaningful topology analysis
+            // Too small for meaningful topology analysis — but still
+            // record basic graph dimensions when self-recording is on.
+            if (graphbrew::database::SelfRecordingEnabled()) {
+                graphbrew::database::GraphProperties props;
+                props.graph_name = GetGraphNameHint();
+                props.nodes      = num_nodes;
+                props.edges      = num_edges;
+                props.avg_degree = (num_nodes > 0) ? static_cast<double>(num_edges) / num_nodes : 0.0;
+                props.density    = (num_nodes > 1)
+                    ? static_cast<double>(num_edges) / (static_cast<double>(num_nodes) * (num_nodes - 1))
+                    : 0.0;
+                graphbrew::database::BenchmarkDatabase::Get().update_graph_props(props);
+            }
             return;
         }
         
@@ -2543,6 +2620,28 @@ public:
         PrintTime("Modularity", modularity_estimate);
         PrintTime("Topology Analysis Time", t.Seconds());
         std::cout << "===============================" << std::endl;
+
+        // ---- Self-recording: save graph properties to database ----
+        if (graphbrew::database::SelfRecordingEnabled()) {
+            graphbrew::database::GraphProperties props;
+            props.graph_name           = GetGraphNameHint();
+            props.nodes                = num_nodes;
+            props.edges                = num_edges;
+            props.modularity           = modularity_estimate;
+            props.degree_variance      = degree_variance;
+            props.hub_concentration    = hub_concentration;
+            props.clustering_coeff     = clustering_coeff;
+            props.avg_degree           = avg_degree;
+            props.avg_path_length      = avg_path_length;
+            props.diameter_estimate    = diameter_estimate;
+            props.community_count      = community_count;
+            props.packing_factor       = packing_factor;
+            props.forward_edge_fraction = forward_edge_fraction;
+            props.working_set_ratio    = working_set_ratio;
+            props.density              = density;
+
+            graphbrew::database::BenchmarkDatabase::Get().update_graph_props(props);
+        }
     }
 
     /**
@@ -2591,22 +2690,18 @@ public:
      * 
      * Format: {"AlgorithmName": {"bias": X, "w_modularity": X, ...}, ...}
      * 
-     * AUTO-CLUSTERING TYPE SYSTEM:
-     * The system uses auto-generated type files for specialized tuning:
-     * - results/models/perceptron/type_0/weights.json  (Cluster 0 weights)
-     * - results/models/perceptron/type_1/weights.json  (Cluster 1 weights)
-     * - results/models/perceptron/type_N/weights.json  (Additional clusters as needed)
-     * - results/models/perceptron/registry.json         (maps graph names → type + centroids)
-     * 
+     * AUTO-CLUSTERING TYPE SYSTEM (DEPRECATED — see reorder_database.h):
+     * Weights are now loaded from results/data/adaptive_models.json via
+     * LoadPerceptronWeightsFromDB() in reorder_database.h.  C++ trains
+     * perceptron, DT, and hybrid models at runtime from benchmarks.json +
+     * graph_properties.json.  The legacy type_N/ directory structure is
+     * no longer generated.
+     *
      * At runtime, the system:
-     * 1. Computes graph features (modularity, density, etc.)
-     * 2. Uses FindBestTypeFromFeatures() to find the best matching cluster
-     * 3. Loads weights from the corresponding type_N/weights.json file
-     * 4. Falls back to hardcoded defaults if no type file exists
+     * 1. Queries the streaming database for oracle/kNN predictions
+     * 2. Falls back to adaptive_models.json if the database has <3 graphs
+     * 3. Falls back to hardcoded defaults if no model file exists
      */
-    
-    // Weight path constants - now defined in reorder/reorder_types.h
-    static constexpr const char* TYPE_WEIGHTS_DIR = ::TYPE_WEIGHTS_DIR;
     
     /**
      * Graph type enum for graph-type-specific weight selection
@@ -2711,78 +2806,23 @@ public:
     }
 
     /**
-     * Simple JSON parser for perceptron weights file
-     * 
-     * Parses a JSON file with format:
-     * {
-     *   "ORIGINAL": {"bias": 1.0, "w_modularity": 0.3, ...},
-     *   "LeidenHybrid": {"bias": 0.95, ...},
-     *   ...
-     * }
-     * 
-     * Delegates to the global ::ParseWeightsFromJSON in reorder_types.h.
+     * Parse weights from JSON (delegates to global function)
      */
-    static bool ParseWeightsFromJSON(const std::string& json_content, 
+    static bool ParseWeightsFromJSON(const std::string& json_content,
                                   std::map<std::string, PerceptronWeights>& weights) {
+        return ::ParseWeightsFromJSON(json_content, weights);
     }
 
     /**
-     * Load perceptron weights from file, or return defaults if file doesn't exist.
-     * 
-     * Checks for weights file in this order:
-     * 1. Path from PERCEPTRON_WEIGHTS_FILE environment variable
-     * 2. results/models/perceptron/type_N/weights.json files (via LoadPerceptronWeightsForGraphType)
-     * 3. If neither exists, returns hardcoded defaults from GetPerceptronWeights()
-     */
-    static std::map<std::string, PerceptronWeights> LoadPerceptronWeights(bool verbose = false) {
-        return LoadPerceptronWeightsForGraphType(GRAPH_GENERIC, verbose);
-    }
-    
-    /**
      * Select algorithm with fastest reorder time based on w_reorder_time weight.
-     * 
      * Delegates to the global ::SelectFastestReorderFromWeights in reorder_types.h.
-     * The w_reorder_time weight encodes how fast each algorithm is at reordering:
-     * - Higher (less negative) = faster reordering
-     * - Lower (more negative) = slower reordering
      */
-static PerceptronSelection SelectFastestReorderFromWeights(
-    const std::map<std::string, PerceptronWeights>& weights, bool verbose = false) {
+    static PerceptronSelection SelectFastestReorderFromWeights(
+        const std::map<std::string, PerceptronWeights>& weights, bool verbose = false) {
         return ::SelectFastestReorderFromWeights(weights, verbose);
     }
     
-    /**
-     * Find the best matching type file from the type registry.
-     * 
-    /**
-     * Find the best matching type file from the type registry.
-     * Delegates to the global ::FindBestTypeFromFeatures in reorder_types.h.
-     */
-    static std::string FindBestTypeFromFeatures(
-        double modularity, double degree_variance, double hub_concentration,
-        double avg_degree, size_t num_nodes, size_t num_edges, bool verbose = false,
-        double clustering_coeff = 0.0) {
-        return ::FindBestTypeFromFeatures(modularity, degree_variance, hub_concentration,
-                                          avg_degree, num_nodes, num_edges, verbose,
-                                          clustering_coeff);
-    }
-    
-    /**
-     * Find the best matching type AND return the distance.
-     * Delegates to the global ::FindBestTypeWithDistance in reorder_types.h.
-     */
-    static std::string FindBestTypeWithDistance(
-        double modularity, double degree_variance, double hub_concentration,
-        double avg_degree, size_t num_nodes, size_t num_edges,
-        double& out_distance, bool verbose = false,
-        double clustering_coeff = 0.0) {
-        return ::FindBestTypeWithDistance(modularity, degree_variance, hub_concentration,
-                                          avg_degree, num_nodes, num_edges, out_distance, verbose,
-                                          clustering_coeff);
-    }
-    
-    // Threshold constant now defined in reorder/reorder_types.h
-    // Alias for backward compatibility
+    // Threshold constant - defined in reorder/reorder_types.h
     static constexpr double UNKNOWN_TYPE_DISTANCE_THRESHOLD = ::UNKNOWN_TYPE_DISTANCE_THRESHOLD;
     
     /**
@@ -2793,53 +2833,16 @@ static PerceptronSelection SelectFastestReorderFromWeights(
     }
     
     /**
-     * Load perceptron weights for a specific graph type.
-     * Delegates to the global ::LoadPerceptronWeightsForGraphType in reorder_types.h.
-     */
-static std::map<std::string, PerceptronWeights> LoadPerceptronWeightsForGraphType(
-        GraphType graph_type, bool verbose = false) {
-        return ::LoadPerceptronWeightsForGraphType(graph_type, verbose);
-    }
-    
-    /**
      * Load perceptron weights using graph features to find the best type match.
      * Delegates to the global ::LoadPerceptronWeightsForFeatures in reorder_types.h.
      */
-static std::map<std::string, PerceptronWeights> LoadPerceptronWeightsForFeatures(
+    static std::map<std::string, PerceptronWeights> LoadPerceptronWeightsForFeatures(
         double modularity, double degree_variance, double hub_concentration,
         double avg_degree, size_t num_nodes, size_t num_edges, bool verbose = false,
         double clustering_coeff = 0.0) {
         return ::LoadPerceptronWeightsForFeatures(modularity, degree_variance, hub_concentration,
                                                    avg_degree, num_nodes, num_edges, verbose,
                                                    clustering_coeff);
-    }
-    
-    /**
-     * Get cached weights for a specific graph type.
-     * Delegates to the global ::GetCachedWeights in reorder_types.h.
-     */
-static const std::map<std::string, PerceptronWeights>& GetCachedWeights(
-        GraphType graph_type, bool verbose_first_load = false) {
-        return ::GetCachedWeights(graph_type, verbose_first_load);
-    }
-
-    /**
-     * Select best reordering algorithm using perceptron scores.
-     * Delegates to the global ::SelectReorderingPerceptron in reorder_types.h.
-     */
-    PerceptronSelection SelectReorderingPerceptron(const CommunityFeatures& feat, 
-                                               BenchmarkType bench = BENCH_GENERIC,
-                                               GraphType graph_type = GRAPH_GENERIC) {
-        return ::SelectReorderingPerceptron(feat, bench, graph_type);
-    }
-    
-    /**
-     * Overload that accepts benchmark name as string
-     */
-    PerceptronSelection SelectReorderingPerceptron(const CommunityFeatures& feat,
-                                               const std::string& benchmark_name,
-                                               GraphType graph_type = GRAPH_GENERIC) {
-        return SelectReorderingPerceptron(feat, GetBenchmarkType(benchmark_name), graph_type);
     }
     
     /**
@@ -3213,6 +3216,14 @@ static const std::map<std::string, PerceptronWeights>& GetCachedWeights(
             graphbrew::generateGraphBrewMapping<K>(g, new_ids, config);
             totalTimer.Stop();
             PrintTime("GraphBrew Total Time", totalTimer.Seconds());
+            // Stage config-level metadata for GenerateMapping's ReorderMeta hint
+            {
+                using namespace graphbrew::database;
+                auto& staged = GetStagedReorderMeta();
+                staged.resolution = config.resolution;
+                staged.final_algo = ReorderingAlgoStr(finalAlgo);
+                staged.depth      = config.recursiveDepth;
+            }
             return;
         }
         
@@ -3241,6 +3252,13 @@ static const std::map<std::string, PerceptronWeights>& GetCachedWeights(
             
             totalTimer.Stop();
             PrintTime("GraphBrew Total Time", totalTimer.Seconds());
+            // Stage config-level metadata for GenerateMapping's ReorderMeta hint
+            {
+                using namespace graphbrew::database;
+                auto& staged = GetStagedReorderMeta();
+                staged.resolution = config.resolution;
+                staged.final_algo = "RabbitOrder";
+            }
             return;
         }
         
@@ -3263,6 +3281,22 @@ static const std::map<std::string, PerceptronWeights>& GetCachedWeights(
             mergeTimer.Stop();
             result.numCommunities = finalComms;
             printf("GraphBrew: community merge: %zu communities, %.4fs\n", finalComms, mergeTimer.Seconds());
+        }
+
+        // Stage reorder metadata for GenerateMapping's ReorderMeta hint
+        {
+            using namespace graphbrew::database;
+            auto& staged = GetStagedReorderMeta();
+            staged.num_communities = static_cast<int>(result.numCommunities);
+            staged.modularity      = result.modularity;
+            staged.num_passes      = result.totalPasses;
+            staged.resolution      = config.resolution;
+            staged.final_algo      = ReorderingAlgoStr(static_cast<ReorderingAlgo>(
+                (config.finalAlgoId >= 0 && config.finalAlgoId <= 11) ? config.finalAlgoId : 8));
+            staged.depth           = config.recursiveDepth;
+            if (config.subAlgoId >= 0 && config.subAlgoId <= 11) {
+                staged.sub_algo = ReorderingAlgoStr(static_cast<ReorderingAlgo>(config.subAlgoId));
+            }
         }
         
         // ===== Phase 2: Classify Communities =====
