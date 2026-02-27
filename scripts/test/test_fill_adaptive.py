@@ -30,12 +30,12 @@ REPO_ROOT = SCRIPT_DIR.parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from scripts.lib import (
-    ALGORITHMS, Logger,
+    ALGORITHMS, Logger, WEIGHTS_DIR,
 )
-from scripts.lib.weights import (
+from scripts.lib.ml.weights import (
     list_known_types, get_best_algorithm_for_type,
 )
-from scripts.lib.progress import ProgressTracker
+from scripts.lib.pipeline.progress import ProgressTracker
 
 log = Logger()
 @pytest.fixture
@@ -291,8 +291,8 @@ def main():
                         help='Clean weights directory before testing')
     parser.add_argument('--skip-fill', action='store_true',
                         help='Skip fill-weights phase (use existing weights)')
-    parser.add_argument('--weights-dir', default='results/models/perceptron',
-                        help='Weights directory')
+    parser.add_argument('--weights-dir', default=str(WEIGHTS_DIR),
+                        help='Weights staging directory')
     parser.add_argument('--verbose', '-v', action='store_true',
                         help='Verbose output')
     
