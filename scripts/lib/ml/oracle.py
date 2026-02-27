@@ -11,9 +11,9 @@ Usage:
     python3 scripts/graphbrew_experiment.py --oracle-analysis
 
     # Or directly via module
-    python3 -m scripts.lib.oracle --results-dir results/
-    python3 -m scripts.lib.oracle --run-experiment --size small
-    python3 -m scripts.lib.oracle --results-dir results/ --benchmarks pr bfs
+    python3 -m scripts.lib.ml.oracle --results-dir results/
+    python3 -m scripts.lib.ml.oracle --run-experiment --size small
+    python3 -m scripts.lib.ml.oracle --results-dir results/ --benchmarks pr bfs
 """
 
 import argparse
@@ -28,12 +28,12 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Dict, List, Optional, Tuple
 
-from .utils import (
+from ..core.utils import (
     _VARIANT_ALGO_REGISTRY, ALGORITHMS, DISPLAY_TO_CANONICAL,
     TIMEOUT_BENCHMARK, VARIANT_PREFIXES,
     get_all_algorithm_variant_names,
 )
-from .datastore import get_benchmark_store
+from ..core.datastore import get_benchmark_store
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -127,20 +127,35 @@ def load_benchmark_data(results_dir: str = None) -> List[dict]:
 
 
 def load_adaptive_data(results_dir: str) -> List[dict]:
-    """Load and merge all adaptive analysis JSON files."""
+    """Load adaptive analysis data from the central GraphPropsStore.
+
+    Falls back to legacy ``adaptive_analysis_*.json`` files if the store
+    is empty (e.g. from a pre-consolidation run).
+    """
+    from .features import load_graph_properties_cache
+    all_props = load_graph_properties_cache(results_dir)
+    if all_props:
+        records = [
+            {"graph": gname, **props}
+            for gname, props in all_props.items()
+        ]
+        print(f"Loaded {len(records)} adaptive analysis records from GraphPropsStore")
+        return records
+
+    # Legacy fallback
     pattern = os.path.join(results_dir, "adaptive_analysis_*.json")
     files = sorted(glob.glob(pattern))
     if not files:
-        print(f"No adaptive analysis files found in {results_dir}")
+        print(f"No adaptive analysis data found in {results_dir}")
         return []
-    
+
     all_records = []
     for f in files:
         with open(f) as fh:
             data = json.load(fh)
             all_records.extend(data)
-    
-    print(f"Loaded {len(all_records)} adaptive analysis records from {len(files)} files")
+
+    print(f"Loaded {len(all_records)} adaptive analysis records from {len(files)} legacy files")
     return all_records
 
 

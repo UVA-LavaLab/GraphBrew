@@ -7,58 +7,80 @@ This library provides functions for:
 - Generating vertex reorderings
 - Running performance benchmarks
 - Running cache simulations
+- Streaming database model (benchmarks.json → C++ runtime predictions)
 - Managing type-based weights for AdaptiveOrder
-- Training ML weights
+- Training & evaluating perceptron weights
 - Progress tracking and reporting
-- Result file management
+- Centralized benchmark data storage (SSO)
 - Adaptive order analysis
 
-**Module Overview:**
-- `utils`: Core constants (ALGORITHMS, BENCHMARKS), logging, command execution
-- `download`: Graph catalog and download functions
-- `build`: Binary compilation utilities
-- `reorder`: Vertex reordering generation
-- `benchmark`: Performance benchmark execution
-- `cache`: Cache simulation analysis
-- `weights`: Type-based weight management for AdaptiveOrder
-- `progress`: Visual progress tracking and reporting
-- `results`: Result file I/O and aggregation
-- `analysis`: Adaptive order analysis functions
-- `training`: Weight training functions
+**Module Overview (SSO Architecture):**
+
+Sub-packages:
+- `core/`:     Constants, logging, data types, storage primitives
+  - `utils`:            Core constants (ALGORITHMS, BENCHMARKS), logging, command execution
+  - `graph_types`:      Data classes (GraphInfo, BenchmarkResult)
+  - `datastore`:        Centralized benchmark data store (BenchmarkStore)
+  - `graph_data`:       Per-graph data storage and run logging
+- `pipeline/`: Experiment pipeline stages
+  - `download`:         Graph catalog and download functions
+  - `build`:            Binary compilation utilities
+  - `dependencies`:     System dependency detection
+  - `reorder`:          Vertex reordering generation
+  - `benchmark`:        Performance benchmark execution
+  - `cache`:            Cache simulation analysis
+  - `phases`:           Phase orchestration
+  - `progress`:         Visual progress tracking and reporting
+- `ml/`:       Machine learning models
+  - `weights`:          SSO for perceptron scoring & training (PerceptronWeight)
+  - `eval_weights`:     Weight evaluation, data loading
+  - `training`:         Iterative training loop
+  - `adaptive_emulator`:Python emulator of C++ AdaptiveOrder
+  - `oracle`:           Oracle (best-known) analysis
+  - `features`:         Graph feature extraction
+- `analysis/`: Result analysis and visualization
+  - `adaptive`:         Adaptive order analysis functions
+  - `metrics`:          Amortization & end-to-end metrics
+  - `figures`:          SVG figure generation
+- `tools/`:    Standalone maintenance tools
+  - `check_includes`:   CI: scan C++ for legacy includes
+  - `regen_features`:   Regenerate features.json via C++ binary
 
 **Standalone Usage:**
-    python -m scripts.lib.download --size SMALL --list --stats
-    python -m scripts.lib.build --check --build
-    python -m scripts.lib.reorder --graph test.mtx --algorithms 0,8,9
-    python -m scripts.lib.benchmark --graph test.mtx --algorithms 0,1,8
-    python -m scripts.lib.cache --graph test.mtx --benchmarks pr,bfs
-    python -m scripts.lib.weights --list-types --show-type type_0
-    python -m scripts.lib.utils --list-algorithms
+    python -m scripts.lib.pipeline.download --size SMALL --list --stats
+    python -m scripts.lib.pipeline.build --check --build
+    python -m scripts.lib.pipeline.reorder --graph test.mtx --algorithms 0,8,9
+    python -m scripts.lib.pipeline.benchmark --graph test.mtx --algorithms 0,1,8
+    python -m scripts.lib.pipeline.cache --graph test.mtx --benchmarks pr,bfs
+    python -m scripts.lib.ml.weights --list-types
+    python -m scripts.lib.ml.eval_weights --logo
+    python -m scripts.lib.core.utils --list-algorithms
 
 **Library Usage:**
     from scripts.lib import ALGORITHMS, BENCHMARKS, GRAPH_CATALOG
-    from scripts.lib.download import download_graphs, DOWNLOAD_GRAPHS_SMALL
-    from scripts.lib.build import build_binaries, check_binaries
-    from scripts.lib.reorder import generate_reorderings, generate_label_maps
-    from scripts.lib.benchmark import run_benchmark, run_benchmarks_multi_graph
-    from scripts.lib.cache import run_cache_simulations, run_cache_simulations_with_variants
-    from scripts.lib.weights import assign_graph_type, update_type_weights_incremental
-    from scripts.lib.progress import ProgressTracker, create_progress
+    from scripts.lib.pipeline.download import download_graphs, DOWNLOAD_GRAPHS_SMALL
+    from scripts.lib.pipeline.build import build_binaries, check_binaries
+    from scripts.lib.pipeline.reorder import generate_reorderings, generate_label_maps
+    from scripts.lib.pipeline.benchmark import run_benchmark, run_benchmarks_multi_graph
+    from scripts.lib.pipeline.cache import run_cache_simulations, run_cache_simulations_with_variants
+    from scripts.lib.ml.weights import assign_graph_type, update_type_weights_incremental, PerceptronWeight
+    from scripts.lib.ml.eval_weights import load_all_results, compute_graph_features, find_best_algorithm
+    from scripts.lib.core.datastore import get_benchmark_store, get_props_store
+    from scripts.lib.pipeline.progress import ProgressTracker, create_progress
     from scripts.lib.analysis import analyze_adaptive_order, compare_adaptive_vs_fixed
-    from scripts.lib.training import train_adaptive_weights_iterative
+    from scripts.lib.ml.training import train_adaptive_weights_iterative
 """
 
-__version__ = "1.2.0"
+__version__ = "2.0.0"
 __all__ = [
-    "utils", "download", "build", "reorder", "benchmark", "cache", "weights",
-    "progress", "analysis", "training", "features", "phases",
-    "dependencies", "graph_data", "graph_types"
+    # Sub-packages
+    "core", "pipeline", "ml", "analysis", "tools",
 ]
 
 # =============================================================================
 # Core utilities
 # =============================================================================
-from .utils import (
+from .core.utils import (
     # Constants
     ALGORITHMS,
     ALGORITHM_IDS,
@@ -74,7 +96,7 @@ from .utils import (
     # RCM variants (default=GoGraph, bnf=CSR-native BNF)
     RCM_VARIANTS,
     RCM_DEFAULT_VARIANT,
-    # GraphBrewOrder variants (leiden default for backward compat)
+    # GraphBrewOrder variants
     GRAPHBREW_VARIANTS,
     GRAPHBREW_DEFAULT_VARIANT,
     # Variant helpers
@@ -127,7 +149,7 @@ from .utils import (
 # =============================================================================
 # Graph features and system utilities
 # =============================================================================
-from .features import (
+from .ml.features import (
     # Graph type constants
     GRAPH_TYPE_GENERIC,
     GRAPH_TYPE_SOCIAL,
@@ -167,7 +189,7 @@ from .features import (
 # =============================================================================
 # Graph download
 # =============================================================================
-from .download import (
+from .pipeline.download import (
     GRAPH_CATALOG,
     DOWNLOAD_GRAPHS_SMALL,
     DOWNLOAD_GRAPHS_MEDIUM,
@@ -188,7 +210,7 @@ from .download import (
 # =============================================================================
 # Build utilities
 # =============================================================================
-from .build import (
+from .pipeline.build import (
     build_binaries,
     check_binaries,
     clean_build,
@@ -201,7 +223,7 @@ from .build import (
 # Dependency management
 # =============================================================================
 try:
-    from .dependencies import (
+    from .pipeline.dependencies import (
         check_dependencies,
         install_dependencies,
         install_boost_158,
@@ -218,7 +240,7 @@ except ImportError:
 # =============================================================================
 # Reordering
 # =============================================================================
-from .reorder import (
+from .pipeline.reorder import (
     ReorderResult,
     AlgorithmConfig,
     generate_reorderings,
@@ -233,7 +255,7 @@ from .reorder import (
 # =============================================================================
 # Benchmarking
 # =============================================================================
-from .benchmark import (
+from .pipeline.benchmark import (
     run_benchmark,
     parse_benchmark_output,
 )
@@ -241,7 +263,7 @@ from .benchmark import (
 # =============================================================================
 # Cache simulation
 # =============================================================================
-from .cache import (
+from .pipeline.cache import (
     CacheResult,
     run_cache_simulation,
     run_cache_simulations,
@@ -251,9 +273,12 @@ from .cache import (
 )
 
 # =============================================================================
-# Weight management
+# Weight management (SSO: scoring & training)
+# NOTE: Type system functions (load_type_registry, assign_graph_type, etc.)
+# are DEPRECATED — C++ now trains models from raw DB data at runtime.
+# They are kept for backward compatibility but should not be used in new code.
 # =============================================================================
-from .weights import (
+from .ml.weights import (
     PerceptronWeight,
     load_type_registry,
     save_type_registry,
@@ -267,14 +292,26 @@ from .weights import (
     get_type_summary,
     initialize_default_weights,
     update_zero_weights,
-    store_per_graph_results,
     CLUSTER_DISTANCE_THRESHOLD,
+)
+
+# =============================================================================
+# Weight evaluation & data loading
+# =============================================================================
+from .ml.eval_weights import (
+    load_all_results,
+    build_performance_matrix,
+    compute_graph_features,
+    find_best_algorithm,
+    evaluate_predictions,
+    evaluate_weights,
+    train_and_evaluate,
 )
 
 # =============================================================================
 # Progress tracking
 # =============================================================================
-from .progress import (
+from .pipeline.progress import (
     ProgressTracker,
     ConsoleColors,
     Timer,
@@ -286,7 +323,7 @@ from .progress import (
 # =============================================================================
 # Analysis functions
 # =============================================================================
-from .analysis import (
+from .analysis.adaptive import (
     SubcommunityInfo,
     AdaptiveOrderResult,
     AdaptiveComparisonResult,
@@ -301,7 +338,7 @@ from .analysis import (
 # =============================================================================
 # Training functions
 # =============================================================================
-from .training import (
+from .ml.training import (
     TrainingIterationResult,
     TrainingResult,
     initialize_enhanced_weights,
@@ -311,7 +348,7 @@ from .training import (
 # =============================================================================
 # Phase orchestration
 # =============================================================================
-from .phases import (
+from .pipeline.phases import (
     PhaseConfig,
     run_reorder_phase,
     run_benchmark_phase,
@@ -331,13 +368,13 @@ from .phases import (
 # =============================================================================
 # Type definitions (GraphInfo lives in graph_types to avoid circular imports)
 # =============================================================================
-from .graph_types import GraphInfo
-from .utils import BenchmarkResult
+from .core.graph_types import GraphInfo
+from .core.utils import BenchmarkResult
 
 # =============================================================================
 # Per-graph data storage and run logging
 # =============================================================================
-from .graph_data import (
+from .core.graph_data import (
     # Data stores
     GraphDataStore,
     # Data classes
@@ -372,7 +409,7 @@ from .graph_data import (
 # =============================================================================
 # Centralized benchmark data store
 # =============================================================================
-from .datastore import (
+from .core.datastore import (
     BenchmarkStore,
     GraphPropsStore,
     get_benchmark_store,

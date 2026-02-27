@@ -11,12 +11,10 @@ Usage:
 import json, os, re, subprocess, sys, glob
 from datetime import datetime
 
-from .utils import GRAPHS_DIR as _GRAPHS_DIR, BIN_DIR, RESULTS_DIR, Logger
-from .features import get_graph_properties_cache_file
+from ..core.utils import GRAPHS_DIR as _GRAPHS_DIR, BIN_DIR, RESULTS_DIR, Logger
 
 GRAPHS_DIR = str(_GRAPHS_DIR)
 BINARY = str(BIN_DIR / "pr")
-CACHE_PATH = get_graph_properties_cache_file()
 
 log = Logger()
 
@@ -56,11 +54,8 @@ def main():
     if not os.path.isfile(BINARY):
         log.error(f"Binary not found: {BINARY}"); sys.exit(1)
 
-    # Load cache
-    cache = {}
-    if os.path.isfile(CACHE_PATH):
-        with open(CACHE_PATH) as f:
-            cache = json.load(f)
+    from scripts.lib.core.datastore import get_props_store
+    store = get_props_store()
 
     sg_files = sorted(glob.glob(os.path.join(GRAPHS_DIR, "*", "*.sg")))
     log.info(f"Found {len(sg_files)} .sg files")
@@ -69,11 +64,11 @@ def main():
     for sg_path in sg_files:
         graph_dir = os.path.dirname(sg_path)
         graph_name = os.path.basename(graph_dir)
-        
+
         log.info(f"\n{'='*60}")
         log.info(f"Processing: {graph_name}")
         log.info(f"  .sg file: {sg_path}")
-        
+
         # Run C++ binary in analysis mode
         cmd = [BINARY, "-f", sg_path, "-a", "0", "-n", "1"]
         try:
@@ -92,14 +87,8 @@ def main():
             log.info(f"  stdout: {result.stdout[:200]}")
             continue
 
-        # Load existing features.json
-        feat_path = os.path.join(graph_dir, "features.json")
-        old_features = {}
-        if os.path.isfile(feat_path):
-            with open(feat_path) as f:
-                old_features = json.load(f)
-
         # Show diff for key fields
+        old_features = store.get(graph_name) or {}
         for key in ["degree_variance", "hub_concentration", "avg_degree", "packing_factor", "forward_edge_fraction", "working_set_ratio"]:
             old_val = old_features.get(key, "N/A")
             new_val = features.get(key, "N/A")
@@ -108,31 +97,18 @@ def main():
                 changed = " ← CHANGED"
             log.info(f"  {key:30s} old={old_val!s:>12s}  new={new_val!s:>12s}{changed}")
 
-        # Merge new features into old (update all float fields)
-        merged = dict(old_features)
-        merged.update(features)
-        merged["graph_name"] = graph_name
-        merged["last_updated"] = datetime.now().strftime("%Y%m%d_%H%M%S")
-
-        # Save features.json
-        with open(feat_path, "w") as f:
-            json.dump(merged, f, indent=2)
-
-        # Update cache
-        cache_entry = cache.get(graph_name, {})
-        cache_entry.update(features)
-        cache_entry["graph_name"] = graph_name
-        cache[graph_name] = cache_entry
-
+        # Merge into central store
+        features["graph_name"] = graph_name
+        features["last_updated"] = datetime.now().strftime("%Y%m%d_%H%M%S")
+        store.update(graph_name, features)
         updated += 1
 
-    # Save cache
-    with open(CACHE_PATH, "w") as f:
-        json.dump(cache, f, indent=2)
+    # Persist once
+    store.save()
 
     log.info(f"\n{'='*60}")
     log.info(f"Updated {updated}/{len(sg_files)} graphs")
-    log.info(f"Cache saved with {len(cache)} entries")
+    log.info(f"Store has {len(store.all())} entries")
 
 if __name__ == "__main__":
     main()

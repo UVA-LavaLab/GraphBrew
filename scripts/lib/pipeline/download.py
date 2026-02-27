@@ -6,13 +6,13 @@ Downloads benchmark graphs from SuiteSparse Matrix Collection.
 Can be used standalone or as a library.
 
 Standalone usage:
-    python -m scripts.lib.download --size SMALL
-    python -m scripts.lib.download --list
-    python -m scripts.lib.download --graph email-Enron
+    python -m scripts.lib.pipeline.download --size SMALL
+    python -m scripts.lib.pipeline.download --list
+    python -m scripts.lib.pipeline.download --graph email-Enron
 
 Library usage:
-    from scripts.lib.download import download_graphs, GRAPH_CATALOG
-    from scripts.lib.download import DOWNLOAD_GRAPHS_SMALL, DOWNLOAD_GRAPHS_MEDIUM
+    from scripts.lib.pipeline.download import download_graphs, GRAPH_CATALOG
+    from scripts.lib.pipeline.download import DOWNLOAD_GRAPHS_SMALL, DOWNLOAD_GRAPHS_MEDIUM
     
     download_graphs(size="SMALL")
     download_graphs(graphs=["email-Enron", "web-Google"])
@@ -30,7 +30,7 @@ from dataclasses import dataclass
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from enum import Enum
 
-from .utils import GRAPHS_DIR, log, ensure_directories
+from ..core.utils import GRAPHS_DIR, log, ensure_directories
 
 
 # =============================================================================
@@ -1040,21 +1040,21 @@ def main():
         epilog="""
 Examples:
     # List available graphs
-    python -m scripts.lib.download --list
-    python -m scripts.lib.download --list --size MEDIUM
+    python -m scripts.lib.pipeline.download --list
+    python -m scripts.lib.pipeline.download --list --size MEDIUM
     
     # Download by size category
-    python -m scripts.lib.download --size SMALL
-    python -m scripts.lib.download --size ALL --max-count 10
+    python -m scripts.lib.pipeline.download --size SMALL
+    python -m scripts.lib.pipeline.download --size ALL --max-count 10
     
     # Download specific graphs
-    python -m scripts.lib.download --graph email-Enron web-Google
+    python -m scripts.lib.pipeline.download --graph email-Enron web-Google
     
     # Download by category
-    python -m scripts.lib.download --size ALL --category social
+    python -m scripts.lib.pipeline.download --size ALL --category social
     
     # Check what's already downloaded
-    python -m scripts.lib.download --list-downloaded
+    python -m scripts.lib.pipeline.download --list-downloaded
         """
     )
     

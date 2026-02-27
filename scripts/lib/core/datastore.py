@@ -13,7 +13,7 @@ Graph properties: results/data/graph_properties.json
     Schema: JSON dict keyed by graph name, values are feature dicts.
 
 Usage:
-    from scripts.lib.datastore import BenchmarkStore
+    from scripts.lib.core.datastore import BenchmarkStore
 
     store = BenchmarkStore()           # loads results/data/benchmarks.json
     store.append(results)              # append + dedup, auto-saves
@@ -31,7 +31,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Any, Tuple
 from collections import defaultdict
 
-from .utils import DATA_DIR, RESULTS_DIR, Logger
+from .utils import DATA_DIR, RESULTS_DIR, Logger, DISPLAY_TO_CANONICAL, VARIANT_PREFIXES
 
 log = Logger()
 
@@ -89,6 +89,24 @@ class BenchmarkStore:
 
     # ── core operations ──────────────────────────────────────────────────
 
+    @staticmethod
+    def _normalize_algorithm(name: str) -> str:
+        """Normalize algorithm display name → canonical training name.
+
+        Variant-prefixed names (``GraphBrewOrder_*``, ``RABBITORDER_*``,
+        ``RCM_*``) pass through unchanged.  Known display names are mapped
+        via ``DISPLAY_TO_CANONICAL``.  Unknown names pass through as-is.
+
+        ``MAP`` is explicitly rejected — callers must resolve the real
+        algorithm identity from the ``.lo`` filename before inserting.
+        """
+        if not name:
+            return name
+        for prefix in VARIANT_PREFIXES:
+            if name.startswith(prefix):
+                return name
+        return DISPLAY_TO_CANONICAL.get(name, name)
+
     def _key(self, record: dict) -> Optional[tuple]:
         """Extract composite key from a record. Returns None if incomplete."""
         vals = tuple(record.get(f, '') for f in _KEY_FIELDS)
@@ -97,7 +115,28 @@ class BenchmarkStore:
         return None
 
     def _insert(self, record: dict):
-        """Insert a record, keeping the one with lower time on conflict."""
+        """Insert a record, keeping the one with lower time on conflict.
+
+        B4 safeguards:
+        - Records with algorithm="MAP" are rejected (MAP is a mechanism,
+          not an algorithm — the caller must resolve the real name from
+          the .lo filename before storing).
+        - Algorithm names are auto-normalized via DISPLAY_TO_CANONICAL
+          so legacy display names (e.g. "RabbitOrder") become canonical
+          training names (e.g. "RABBITORDER_csr").
+        """
+        algo = record.get('algorithm', '')
+        if algo == 'MAP':
+            log.debug(f"DataStore: rejected MAP record for "
+                      f"{record.get('graph', '?')}/{record.get('benchmark', '?')} "
+                      f"— resolve to real algorithm name before inserting")
+            return
+
+        # Auto-normalize algorithm name
+        canonical = self._normalize_algorithm(algo)
+        if canonical != algo:
+            record['algorithm'] = canonical
+
         key = self._key(record)
         if key is None:
             return
@@ -190,8 +229,8 @@ class BenchmarkStore:
         """
         Build performance matrix: {graph: {algo: {bench: best_time}}}.
 
-        This is the standard format consumed by decision_tree.py,
-        perceptron training, and evaluation scripts.
+        This is the standard format consumed by
+        perceptron training, evaluation scripts, and C++ runtime.
         """
         matrix: Dict[str, Dict[str, Dict[str, float]]] = defaultdict(
             lambda: defaultdict(dict)
@@ -285,6 +324,8 @@ class GraphPropsStore:
 # Module-level convenience functions
 # =============================================================================
 
+# DEPRECATED: C++ now trains models from DB at runtime (train_all_models).
+# adaptive_models.json is no longer the mechanism for model delivery.
 ADAPTIVE_MODELS_FILE = DATA_DIR / "adaptive_models.json"
 
 _benchmark_store: Optional[BenchmarkStore] = None
@@ -309,98 +350,22 @@ def get_props_store() -> GraphPropsStore:
 
 # =============================================================================
 # Unified Model Export: single adaptive_models.json
+# DEPRECATED: C++ now trains models from raw DB data at runtime.
+# This function is retained only for legacy compatibility.
 # =============================================================================
 
 def export_unified_models(out_path: Optional[Path] = None) -> Path:
     """
-    Merge all trained models (perceptron, DT, hybrid) into a single JSON file.
-
-    Reads from:
-      results/models/perceptron/type_0/weights.json  (+ per-bench .json)
-      results/models/decision_tree/{bench}.json
-      results/models/hybrid/{bench}.json
-
-    Writes to:
-      results/data/adaptive_models.json
-
-    This single file is loaded by the C++ BenchmarkDatabase singleton so that
-    all adaptive modes (perceptron, DT, hybrid, database) share one file.
-
-    Returns:
-        Path to the written file.
+    DEPRECATED: C++ now trains perceptron, DT, and hybrid models from
+    benchmarks.json + graph_properties.json at load time.  This function
+    is a no-op stub retained for backward compatibility.
     """
-    from .utils import MODELS_DIR
-
+    import warnings
+    warnings.warn(
+        "export_unified_models() is deprecated: C++ trains models at runtime.",
+        DeprecationWarning, stacklevel=2,
+    )
     out_path = Path(out_path) if out_path else ADAPTIVE_MODELS_FILE
-
-    unified: Dict[str, Any] = {
-        "version": 1,
-        "created": datetime.now().isoformat(),
-    }
-
-    # ---- Perceptron weights ----
-    perceptron_section: Dict[str, Any] = {}
-    perceptron_dir = MODELS_DIR / "perceptron" / "type_0"
-
-    # Load the master weights.json (averaged weights)
-    master_weights = perceptron_dir / "weights.json"
-    if master_weights.exists():
-        with open(master_weights) as f:
-            perceptron_section["weights"] = json.load(f)
-
-    # Load per-benchmark weight files
-    per_bench: Dict[str, Any] = {}
-    for bench_file in sorted(perceptron_dir.glob("*.json")):
-        if bench_file.name == "weights.json":
-            continue
-        bench_name = bench_file.stem
-        with open(bench_file) as f:
-            per_bench[bench_name] = json.load(f)
-    if per_bench:
-        perceptron_section["per_benchmark"] = per_bench
-
-    if perceptron_section:
-        unified["perceptron"] = perceptron_section
-
-    # ---- Decision Tree models ----
-    dt_section: Dict[str, Any] = {}
-    dt_dir = MODELS_DIR / "decision_tree"
-    if dt_dir.exists():
-        for model_file in sorted(dt_dir.glob("*.json")):
-            bench_name = model_file.stem
-            with open(model_file) as f:
-                dt_section[bench_name] = json.load(f)
-    if dt_section:
-        unified["decision_tree"] = dt_section
-
-    # ---- Hybrid models ----
-    hybrid_section: Dict[str, Any] = {}
-    hybrid_dir = MODELS_DIR / "hybrid"
-    if hybrid_dir.exists():
-        for model_file in sorted(hybrid_dir.glob("*.json")):
-            bench_name = model_file.stem
-            with open(model_file) as f:
-                hybrid_section[bench_name] = json.load(f)
-    if hybrid_section:
-        unified["hybrid"] = hybrid_section
-
-    # ---- Write ----
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = out_path.with_suffix('.tmp')
-    with open(tmp, 'w') as f:
-        json.dump(unified, f, indent=2)
-    shutil.move(str(tmp), str(out_path))
-
-    # Summary
-    n_perceptron = len(perceptron_section.get("weights", {}))
-    n_per_bench = len(perceptron_section.get("per_benchmark", {}))
-    n_dt = len(dt_section)
-    n_hybrid = len(hybrid_section)
-    log.info(f"Unified models → {out_path}")
-    log.info(f"  Perceptron: {n_perceptron} algos, {n_per_bench} per-bench files")
-    log.info(f"  Decision Tree: {n_dt} benchmarks")
-    log.info(f"  Hybrid: {n_hybrid} benchmarks")
-
     return out_path
 
 
@@ -499,6 +464,11 @@ def main():
         return
 
     if args.export_models:
+        import warnings
+        warnings.warn(
+            "--export-models is deprecated: C++ now trains models from "
+            "raw DB data at runtime (no adaptive_models.json needed).",
+            DeprecationWarning, stacklevel=2)
         path = export_unified_models()
         print(f"Exported unified models to {path}")
         return

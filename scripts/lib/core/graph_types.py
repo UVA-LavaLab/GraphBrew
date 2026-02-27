@@ -5,15 +5,15 @@ GraphBrew Type Definitions
 Central type for graph metadata used across the GraphBrew library.
 
 Canonical type definitions live in the modules that produce them:
-    - ``ReorderResult``, ``AlgorithmConfig`` → :pymod:`lib.reorder`
-    - ``BenchmarkResult``                   → :pymod:`lib.utils`
-    - ``CacheResult``                       → :pymod:`lib.cache`
-    - ``TrainingResult``, ``TrainingIterationResult`` → :pymod:`lib.training`
-    - ``PerceptronWeight``                  → :pymod:`lib.weights`
+    - ``ReorderResult``, ``AlgorithmConfig`` → :pymod:`lib.pipeline.reorder`
+    - ``BenchmarkResult``                   → :pymod:`lib.core.utils`
+    - ``CacheResult``                       → :pymod:`lib.pipeline.cache`
+    - ``TrainingResult``, ``TrainingIterationResult`` → :pymod:`lib.ml.training`
+    - ``PerceptronWeight``                  → :pymod:`lib.ml.weights`
     - ``SubcommunityInfo``, ``AdaptiveOrderResult``,
       ``AdaptiveComparisonResult``, ``SubcommunityBruteForceResult``,
-      ``GraphBruteForceAnalysis``           → :pymod:`lib.analysis`
-    - ``DownloadableGraph``                 → :pymod:`lib.download`
+      ``GraphBruteForceAnalysis``           → :pymod:`lib.analysis.adaptive`
+    - ``DownloadableGraph``                 → :pymod:`lib.pipeline.download`
 
 This module defines only **GraphInfo**, which is imported by several
 modules that cannot import from one another without creating circular

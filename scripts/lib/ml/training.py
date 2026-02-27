@@ -9,14 +9,14 @@ This module provides:
 - Weight initialization and update utilities
 
 Example usage:
-    from scripts.lib.training import train_adaptive_weights_iterative
+    from scripts.lib.ml.training import train_adaptive_weights_iterative
     
     result = train_adaptive_weights_iterative(
         graphs=graphs,
         bin_dir="bench/bin",
         bin_sim_dir="bench/bin_sim",
         output_dir="results",
-        weights_file="results/models/perceptron/type_0/weights.json",
+        weights_file="results/data/adaptive_models.json",
         target_accuracy=80.0
     )
     
@@ -31,15 +31,16 @@ from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from typing import Dict, List, Set
 
-from .utils import Logger, WEIGHTS_DIR, TIMEOUT_SIM, TIMEOUT_BENCHMARK, get_all_algorithm_variant_names
-from .analysis import (
+from ..core.utils import Logger, WEIGHTS_DIR, TIMEOUT_SIM, TIMEOUT_BENCHMARK, get_all_algorithm_variant_names
+from ..analysis.adaptive import (
     run_subcommunity_brute_force,
 )
-from .benchmark import load_reorder_time_for_algo
+from ..pipeline.benchmark import load_reorder_time_for_algo
 from .weights import (
     assign_graph_type,
     update_type_weights_incremental,
     load_type_registry,
+    PerceptronWeight,
 )
 
 
@@ -85,6 +86,10 @@ def initialize_enhanced_weights(weights_file: str, algorithms: List[str] = None)
     Creates a new weights file with all extended features, or upgrades
     an existing weights file to include new features.
     
+    SSO: Default weight structure is derived from PerceptronWeight dataclass
+    in weights.py. The bias priors below provide a starting point before
+    perceptron training adjusts them based on benchmark data.
+    
     Args:
         weights_file: Path to weights JSON file
         algorithms: List of algorithm names (uses defaults if None)
@@ -97,44 +102,21 @@ def initialize_enhanced_weights(weights_file: str, algorithms: List[str] = None)
     if algorithms is None:
         algorithms = default_algorithms
     
+    # Algorithm-specific bias priors (before training)
+    _BIAS_PRIORS = {
+        "GraphBrewOrder_leiden": 0.6, "LeidenOrder": 0.55,
+        "GORDER": 0.52, "RABBITORDER_csr": 0.5, "CORDER": 0.48,
+        "HUBCLUSTERDBG": 0.45, "HUBSORT": 0.42, "RCM_default": 0.4,
+    }
+    
     def make_default_weights(algo_name: str) -> Dict:
-        """Create default weights for an algorithm."""
-        biases = {
-            "GraphBrewOrder_leiden": 0.6, "LeidenOrder": 0.55,
-            "GORDER": 0.52, "RABBITORDER_csr": 0.5, "CORDER": 0.48,
-            "HUBCLUSTERDBG": 0.45, "HUBSORT": 0.42, "RCM_default": 0.4,
-        }
+        """Create default weights — delegates to PerceptronWeight (SSO).
         
-        return {
-            "bias": biases.get(algo_name, 0.5),
-            "w_modularity": 0.0,
-            "w_log_nodes": 0.0,
-            "w_log_edges": 0.0,
-            "w_density": 0.0,
-            "w_avg_degree": 0.0,
-            "w_degree_variance": 0.0,
-            "w_hub_concentration": 0.0,
-            "w_clustering_coeff": 0.0,
-            "w_avg_path_length": 0.0,
-            "w_diameter": 0.0,
-            "w_community_count": 0.0,
-            "w_packing_factor": 0.0,
-            "w_forward_edge_fraction": 0.0,
-            "w_working_set_ratio": 0.0,
-            "w_dv_x_hub": 0.0,
-            "w_mod_x_logn": 0.0,
-            "w_pf_x_wsr": 0.0,
-            "w_fef_convergence": 0.0,
-            "w_reorder_time": 0.0,
-            "cache_l1_impact": 0.0,
-            "cache_l2_impact": 0.0,
-            "cache_l3_impact": 0.0,
-            "cache_dram_penalty": 0.0,
-            "benchmark_weights": {
-                "pr": 1.0, "pr_spmv": 1.0, "bfs": 1.0, "cc": 1.0,
-                "cc_sv": 1.0, "sssp": 1.0, "bc": 1.0, "tc": 1.0,
-            }
-        }
+        Uses PerceptronWeight.to_dict() to ensure the weight structure
+        always stays in sync with the canonical dataclass definition.
+        """
+        pw = PerceptronWeight(bias=_BIAS_PRIORS.get(algo_name, 0.5))
+        return pw.to_dict()
     
     # Try to load existing weights
     weights = {}

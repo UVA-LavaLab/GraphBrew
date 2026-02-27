@@ -6,12 +6,12 @@ Checks and optionally installs system dependencies required for building
 and running GraphBrew benchmarks.
 
 Standalone usage:
-    python -m scripts.lib.dependencies --check           # Check all dependencies
-    python -m scripts.lib.dependencies --install         # Install missing (needs sudo)
-    python -m scripts.lib.dependencies --check --verbose # Detailed status
+    python -m scripts.lib.pipeline.dependencies --check           # Check all dependencies
+    python -m scripts.lib.pipeline.dependencies --install         # Install missing (needs sudo)
+    python -m scripts.lib.pipeline.dependencies --check --verbose # Detailed status
 
 Library usage:
-    from scripts.lib.dependencies import check_dependencies, install_dependencies
+    from scripts.lib.pipeline.dependencies import check_dependencies, install_dependencies
     
     ok, missing = check_dependencies()
     if not ok:
@@ -26,7 +26,7 @@ import sys
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
-from .utils import Logger
+from ..core.utils import Logger
 
 # Initialize logger
 log = Logger()
@@ -815,12 +815,12 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-    python -m scripts.lib.dependencies --check           # Check dependencies
-    python -m scripts.lib.dependencies --check --verbose # Detailed status
-    python -m scripts.lib.dependencies --install         # Install missing
-    python -m scripts.lib.dependencies --install-boost   # Install Boost 1.58
-    python -m scripts.lib.dependencies --install --dry-run  # Show what would install
-    python -m scripts.lib.dependencies --instructions    # Print install guide
+    python -m scripts.lib.pipeline.dependencies --check           # Check dependencies
+    python -m scripts.lib.pipeline.dependencies --check --verbose # Detailed status
+    python -m scripts.lib.pipeline.dependencies --install         # Install missing
+    python -m scripts.lib.pipeline.dependencies --install-boost   # Install Boost 1.58
+    python -m scripts.lib.pipeline.dependencies --install --dry-run  # Show what would install
+    python -m scripts.lib.pipeline.dependencies --instructions    # Print install guide
 """
     )
     
@@ -863,9 +863,9 @@ Examples:
         all_ok, status = check_dependencies(verbose=True)
         if not all_ok and not args.install:
             print("\nTo install missing dependencies:")
-            print("  python -m scripts.lib.dependencies --install")
+            print("  python -m scripts.lib.pipeline.dependencies --install")
             print("\nOr see manual instructions:")
-            print("  python -m scripts.lib.dependencies --instructions")
+            print("  python -m scripts.lib.pipeline.dependencies --instructions")
         sys.exit(0 if all_ok else 1)
     
     if args.install:

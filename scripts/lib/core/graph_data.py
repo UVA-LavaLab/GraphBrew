@@ -29,16 +29,16 @@ Directory structure:
         cache_<bench>_<algorithm>_<timestamp>.log    - Cache simulation output
             
 Standalone usage:
-    python -m scripts.lib.graph_data --list-graphs
-    python -m scripts.lib.graph_data --show-graph email-Enron
-    python -m scripts.lib.graph_data --export-csv results/all_data.csv
-    python -m scripts.lib.graph_data --list-logs email-Enron
-    python -m scripts.lib.graph_data --show-log email-Enron reorder_HUBCLUSTERDBG_20260127_123456.log
-    python -m scripts.lib.graph_data --list-runs email-Enron
-    python -m scripts.lib.graph_data --show-run email-Enron 20260127_145547
+    python -m scripts.lib.core.graph_data --list-graphs
+    python -m scripts.lib.core.graph_data --show-graph email-Enron
+    python -m scripts.lib.core.graph_data --export-csv results/all_data.csv
+    python -m scripts.lib.core.graph_data --list-logs email-Enron
+    python -m scripts.lib.core.graph_data --show-log email-Enron reorder_HUBCLUSTERDBG_20260127_123456.log
+    python -m scripts.lib.core.graph_data --list-runs email-Enron
+    python -m scripts.lib.core.graph_data --show-run email-Enron 20260127_145547
 
 Library usage:
-    from scripts.lib.graph_data import (
+    from scripts.lib.core.graph_data import (
         GraphDataStore, GraphRunStore, save_graph_features,
         save_run_log, list_graph_logs, read_log, get_latest_run
     )
@@ -549,21 +549,25 @@ class GraphFeaturesStore:
         os.makedirs(self.base_dir, exist_ok=True)
     
     def save_features(self, features: GraphFeatures) -> None:
-        """Save graph topology features."""
+        """Save graph topology features to the central GraphPropsStore.
+
+        Previously wrote per-graph ``features.json``; now delegates to
+        ``results/data/graph_properties.json`` via :class:`GraphPropsStore`.
+        """
+        from .datastore import get_props_store
         features.last_updated = get_timestamp()
-        features_file = os.path.join(self.base_dir, "features.json")
-        with open(features_file, 'w') as f:
-            json.dump(features.to_dict(), f, indent=2)
-        log.debug(f"Saved features for {self.graph_name}")
-    
+        store = get_props_store()
+        store.update(self.graph_name, features.to_dict())
+        store.save()
+        log.debug(f"Saved features for {self.graph_name} (central store)")
+
     def load_features(self) -> Optional[GraphFeatures]:
-        """Load graph topology features."""
-        features_file = os.path.join(self.base_dir, "features.json")
-        if not os.path.exists(features_file):
+        """Load graph topology features from the central GraphPropsStore."""
+        from .datastore import get_props_store
+        data = get_props_store().get(self.graph_name)
+        if not data:
             return None
         try:
-            with open(features_file) as f:
-                data = json.load(f)
             return GraphFeatures.from_dict(data)
         except Exception as e:
             log.warning(f"Failed to load features for {self.graph_name}: {e}")
@@ -591,7 +595,12 @@ class GraphRunStore:
     def __init__(self, graph_name: str, run_timestamp: str = None, logs_dir: str = LOGS_DIR):
         """
         Initialize store for a specific graph run.
-        
+
+        Per-file benchmark/reorder JSON writes are **disabled** — all data
+        is stored centrally via :class:`BenchmarkStore`.  Directory paths are
+        still set for backward-compatible attribute access but are only
+        created lazily (e.g. for weights/summary).
+
         Args:
             graph_name: Name of the graph
             run_timestamp: Timestamp for this run (default: current time)
@@ -600,34 +609,31 @@ class GraphRunStore:
         self.graph_name = graph_name
         self.run_timestamp = run_timestamp or get_timestamp()
         self.logs_dir = logs_dir
-        
+
         self.runs_dir = os.path.join(logs_dir, graph_name, "runs")
         self.run_dir = os.path.join(self.runs_dir, self.run_timestamp)
         self.benchmarks_dir = os.path.join(self.run_dir, "benchmarks")
         self.reorder_dir = os.path.join(self.run_dir, "reorder")
         self.weights_dir = os.path.join(self.run_dir, "weights")
-        
-        # Create directories
+
+        # Only create run_dir lazily when actually writing (weights/summary)
+
+    def _ensure_run_dir(self):
+        """Create ``run_dir`` tree on first real write."""
         os.makedirs(self.run_dir, exist_ok=True)
-        os.makedirs(self.benchmarks_dir, exist_ok=True)
-        os.makedirs(self.reorder_dir, exist_ok=True)
-        os.makedirs(self.weights_dir, exist_ok=True)
-    
+
     # -------------------------------------------------------------------------
-    # Benchmark Results
+    # Benchmark Results  (no-op writes — data lives in BenchmarkStore)
     # -------------------------------------------------------------------------
-    
+
     def save_benchmark_result(self, result: AlgorithmBenchmarkData) -> None:
-        """Save benchmark result for an algorithm."""
+        """No-op — benchmark data is stored centrally in BenchmarkStore."""
         result.timestamp = self.run_timestamp
-        filename = f"{result.benchmark}_{result.algorithm_name}.json"
-        filepath = os.path.join(self.benchmarks_dir, filename)
-        with open(filepath, 'w') as f:
-            json.dump(result.to_dict(), f, indent=2)
-        log.debug(f"Saved benchmark {result.benchmark}/{result.algorithm_name} for {self.graph_name}")
-    
+        log.debug(f"[no-op] benchmark {result.benchmark}/{result.algorithm_name} "
+                  f"for {self.graph_name} (central store)")
+
     def load_benchmark_result(self, benchmark: str, algorithm_name: str) -> Optional[AlgorithmBenchmarkData]:
-        """Load benchmark result for an algorithm."""
+        """Load from legacy per-file if it exists (backward compat)."""
         filename = f"{benchmark}_{algorithm_name}.json"
         filepath = os.path.join(self.benchmarks_dir, filename)
         if not os.path.exists(filepath):
@@ -639,13 +645,13 @@ class GraphRunStore:
         except Exception as e:
             log.warning(f"Failed to load benchmark {benchmark}/{algorithm_name}: {e}")
             return None
-    
+
     def load_all_benchmarks(self) -> List[AlgorithmBenchmarkData]:
-        """Load all benchmark results for this run."""
+        """Load all benchmark results from legacy per-file storage."""
         results = []
         if not os.path.exists(self.benchmarks_dir):
             return results
-        
+
         for filename in os.listdir(self.benchmarks_dir):
             if filename.endswith('.json'):
                 filepath = os.path.join(self.benchmarks_dir, filename)
@@ -656,22 +662,19 @@ class GraphRunStore:
                 except Exception:
                     continue
         return results
-    
+
     # -------------------------------------------------------------------------
-    # Reorder Results
+    # Reorder Results  (no-op writes — data lives in BenchmarkStore)
     # -------------------------------------------------------------------------
-    
+
     def save_reorder_result(self, result: AlgorithmReorderData) -> None:
-        """Save reorder result for an algorithm."""
+        """No-op — reorder data is stored centrally in BenchmarkStore."""
         result.timestamp = self.run_timestamp
-        filename = f"{result.algorithm_name}.json"
-        filepath = os.path.join(self.reorder_dir, filename)
-        with open(filepath, 'w') as f:
-            json.dump(result.to_dict(), f, indent=2)
-        log.debug(f"Saved reorder {result.algorithm_name} for {self.graph_name}")
-    
+        log.debug(f"[no-op] reorder {result.algorithm_name} "
+                  f"for {self.graph_name} (central store)")
+
     def load_reorder_result(self, algorithm_name: str) -> Optional[AlgorithmReorderData]:
-        """Load reorder result for an algorithm."""
+        """Load from legacy per-file if it exists (backward compat)."""
         filename = f"{algorithm_name}.json"
         filepath = os.path.join(self.reorder_dir, filename)
         if not os.path.exists(filepath):
@@ -683,13 +686,13 @@ class GraphRunStore:
         except Exception as e:
             log.warning(f"Failed to load reorder {algorithm_name}: {e}")
             return None
-    
+
     def load_all_reorders(self) -> List[AlgorithmReorderData]:
-        """Load all reorder results for this run."""
+        """Load all reorder results from legacy per-file storage."""
         results = []
         if not os.path.exists(self.reorder_dir):
             return results
-        
+
         for filename in os.listdir(self.reorder_dir):
             if filename.endswith('.json'):
                 filepath = os.path.join(self.reorder_dir, filename)
@@ -707,6 +710,8 @@ class GraphRunStore:
     
     def save_weights(self, weights: GraphPerceptronWeights) -> None:
         """Save computed perceptron weights for this run."""
+        self._ensure_run_dir()
+        os.makedirs(self.weights_dir, exist_ok=True)
         weights.timestamp = self.run_timestamp
         weights_file = os.path.join(self.weights_dir, "perceptron.json")
         with open(weights_file, 'w') as f:
@@ -732,6 +737,7 @@ class GraphRunStore:
     
     def save_summary(self, metadata: Dict = None) -> None:
         """Save run summary."""
+        self._ensure_run_dir()
         benchmarks = self.load_all_benchmarks()
         reorders = self.load_all_reorders()
         

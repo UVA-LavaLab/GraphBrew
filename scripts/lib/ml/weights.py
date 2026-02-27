@@ -6,12 +6,12 @@ Handles type-based perceptron weights for adaptive algorithm selection.
 Implements auto-clustering type system for graph classification.
 
 Standalone usage:
-    python -m scripts.lib.weights --list-types
-    python -m scripts.lib.weights --show-type type_0
-    python -m scripts.lib.weights --best-algo type_0 --benchmark pr
+    python -m scripts.lib.ml.weights --list-types
+    python -m scripts.lib.ml.weights --show-type type_0
+    python -m scripts.lib.ml.weights --best-algo type_0 --benchmark pr
 
 Library usage:
-    from scripts.lib.weights import (
+    from scripts.lib.ml.weights import (
         assign_graph_type, load_type_weights, update_type_weights_incremental,
         get_best_algorithm_for_type
     )
@@ -25,7 +25,7 @@ from dataclasses import dataclass, field, asdict
 from datetime import datetime
 from typing import Dict, List, Optional, Tuple
 
-from .utils import (
+from ..core.utils import (
     ACTIVE_WEIGHTS_DIR,
     EXPERIMENT_BENCHMARKS,
     Logger, get_timestamp,
@@ -33,7 +33,6 @@ from .utils import (
     WEIGHT_AVG_DEGREE_DEFAULT,
     get_all_algorithm_variant_names,
     is_chained_ordering_name,
-    LEGACY_ALGO_NAME_MAP,
     weights_registry_path, weights_type_path, weights_bench_path,
 )
 
@@ -137,59 +136,246 @@ def get_perceptron_candidates(extra_exclude: set = None) -> frozenset:
 
 
 # =============================================================================
-# Data Classes
+# Data Classes — Single Source of Truth (SSO) for Perceptron Weights
+# =============================================================================
+#
+# This is the CANONICAL Python implementation of the perceptron scoring model.
+# The C++ mirror lives in bench/include/graphbrew/reorder/reorder_types.h
+# (struct PerceptronWeights, scoreBase(), scoreBaseNormalized(), score()).
+#
+# ANY change to weight fields or scoring logic MUST be mirrored in BOTH files.
+# No other Python module should re-implement scoring — all must delegate here.
+#
+# Weight Conceptual Reference (Paper Motivation)
+# ───────────────────────────────────────────────
+#
+# ┌─────────────────────────┬─────────────────────────────────────────────────┐
+# │ Weight                  │ Conceptual Meaning                              │
+# ├─────────────────────────┼─────────────────────────────────────────────────┤
+# │ bias                    │ Algorithm-level prior: base preference before   │
+# │                         │ any graph features are considered. Captures the │
+# │                         │ algorithm's overall effectiveness.              │
+# ├─────────────────────────┼─────────────────────────────────────────────────┤
+# │ w_modularity            │ Community structure quality (Leiden/Louvain Q).  │
+# │                         │ High → GraphBrewOrder & community-aware algos   │
+# │                         │ can exploit strong partition structure.          │
+# ├─────────────────────────┼─────────────────────────────────────────────────┤
+# │ w_log_nodes             │ Graph scale (log₁₀(N+1)). Some algorithms have │
+# │                         │ scale-dependent advantages — e.g., RCM benefits │
+# │                         │ from smaller graphs, hub-sort from larger ones. │
+# ├─────────────────────────┼─────────────────────────────────────────────────┤
+# │ w_log_edges             │ Edge count scale (log₁₀(E+1)). Complements     │
+# │                         │ node count; sparse vs dense at equal N.         │
+# ├─────────────────────────┼─────────────────────────────────────────────────┤
+# │ w_density               │ Edge density (E / (N*(N-1)/2)). Dense graphs    │
+# │                         │ have different locality patterns.               │
+# ├─────────────────────────┼─────────────────────────────────────────────────┤
+# │ w_avg_degree            │ Average degree / 100. High avg-degree graphs    │
+# │                         │ benefit from cache-line packing optimizations.  │
+# ├─────────────────────────┼─────────────────────────────────────────────────┤
+# │ w_degree_variance       │ Degree distribution skewness. Power-law graphs  │
+# │                         │ with high DV benefit from hub-aware orderings.  │
+# ├─────────────────────────┼─────────────────────────────────────────────────┤
+# │ w_hub_concentration     │ Fraction of edges touching top-1% nodes.       │
+# │                         │ High → HubSort/HubCluster effectively isolate  │
+# │                         │ hot vertices into cache-resident blocks.        │
+# ├─────────────────────────┼─────────────────────────────────────────────────┤
+# │ w_clustering_coeff      │ Local clustering coefficient (sampled).        │
+# │                         │ High → triangles are dense → community-aware   │
+# │                         │ orderings improve spatial locality.             │
+# ├─────────────────────────┼─────────────────────────────────────────────────┤
+# │ w_avg_path_length       │ Average shortest-path length / 10. Long paths  │
+# │                         │ → road-network-like → RCM/BFS-order excel.     │
+# ├─────────────────────────┼─────────────────────────────────────────────────┤
+# │ w_diameter              │ Graph diameter estimate / 50. Large diameter    │
+# │                         │ favors bandwidth-reducing orderings (RCM).      │
+# ├─────────────────────────┼─────────────────────────────────────────────────┤
+# │ w_community_count       │ log₁₀(community_count + 1). More communities   │
+# │                         │ → finer partition → GraphBrewOrder can exploit  │
+# │                         │ per-community local ordering.                   │
+# ├─────────────────────────┼─────────────────────────────────────────────────┤
+# │ w_packing_factor        │ Cache-line utilization ratio (IISWC 2018).     │
+# │                         │ Measures how well neighbors pack into cache    │
+# │                         │ lines. High PF → ordering preserves locality.  │
+# ├─────────────────────────┼─────────────────────────────────────────────────┤
+# │ w_forward_edge_fraction │ Fraction of edges pointing to higher-numbered  │
+# │                         │ vertices (GoGraph). High FEF → ordering aligns │
+# │                         │ with data-flow direction.                      │
+# ├─────────────────────────┼─────────────────────────────────────────────────┤
+# │ w_working_set_ratio     │ log₂(WSR + 1). Working-set / cache size ratio. │
+# │                         │ Measures cache pressure — high WSR means the   │
+# │                         │ active working set exceeds available cache.     │
+# ├─────────────────────────┼─────────────────────────────────────────────────┤
+# │ w_dv_x_hub              │ DV × HC cross-term. Captures hub-dominated     │
+# │                         │ power-law structure where both skewness AND    │
+# │                         │ hub concentration are high simultaneously.      │
+# ├─────────────────────────┼─────────────────────────────────────────────────┤
+# │ w_mod_x_logn            │ Modularity × log(N). Community structure value │
+# │                         │ at scale — strong communities matter MORE in   │
+# │                         │ large graphs.                                  │
+# ├─────────────────────────┼─────────────────────────────────────────────────┤
+# │ w_pf_x_wsr              │ Packing Factor × log₂(WSR+1). Captures the    │
+# │                         │ interaction between cache utilization quality  │
+# │                         │ and cache pressure — locality gains matter     │
+# │                         │ more when cache is under pressure.             │
+# ├─────────────────────────┼─────────────────────────────────────────────────┤
+# │ w_fef_convergence       │ FEF convergence bonus (PR/PR_SPMV/SSSP only). │
+# │                         │ Iterative algorithms converge faster when      │
+# │                         │ edges align with Gauss-Seidel update order.    │
+# ├─────────────────────────┼─────────────────────────────────────────────────┤
+# │ cache_l1/l2/l3_impact   │ Per-cache-level impact (×0.5, ×0.3, ×0.2).    │
+# │                         │ From cache simulation; captures how well the   │
+# │                         │ ordering fits each cache tier.                 │
+# ├─────────────────────────┼─────────────────────────────────────────────────┤
+# │ cache_dram_penalty      │ DRAM access penalty (×1.0). High → ordering   │
+# │                         │ causes excessive main-memory traffic.           │
+# ├─────────────────────────┼─────────────────────────────────────────────────┤
+# │ w_reorder_time          │ Reordering cost (seconds). Penalizes slow     │
+# │                         │ algorithms — amortization trade-off.           │
+# ├─────────────────────────┼─────────────────────────────────────────────────┤
+# │ benchmark_weights       │ Per-benchmark multiplier {pr: 1.0, bfs: 1.2,  │
+# │                         │ ...}. Trained to specialize algorithm scoring  │
+# │                         │ per workload type.                             │
+# └─────────────────────────┴─────────────────────────────────────────────────┘
+#
+# Feature Vector (17 elements, matches C++ scoreBase() exactly):
+#   [modularity, dv, hc, log₁₀(N+1), log₁₀(E+1), density, avg_deg/100,
+#    cc, apl/10, dia/50, log₁₀(comm+1), pf, fef, log₂(wsr+1),
+#    dv×hc, mod×log(N), pf×log₂(wsr+1)]
+#
+# Training: Multi-class Jimenez perceptron with θ-margin, averaged weights,
+# W_MAX=16 clamping, 5 restarts, 800 epochs. See compute_weights_from_results().
+#
+# Normalization: Mode 5 uses z-score normalization — features are centered
+# (mean=0, std=1) before scoring; trained weights are in z-score space.
+# See C++ scoreBaseNormalized() and Python _logo_score(norm_data=...).
 # =============================================================================
 
 @dataclass
 class PerceptronWeight:
-    """Perceptron weight for an algorithm."""
-    bias: float = 0.5
-    w_modularity: float = 0.0
-    w_log_nodes: float = 0.0
-    w_log_edges: float = 0.0
-    w_density: float = 0.0
-    w_avg_degree: float = 0.0
-    w_degree_variance: float = 0.0
-    w_hub_concentration: float = 0.0
-    cache_l1_impact: float = 0.0
-    cache_l2_impact: float = 0.0
-    cache_l3_impact: float = 0.0
-    cache_dram_penalty: float = 0.0
-    w_reorder_time: float = 0.0
-    w_clustering_coeff: float = 0.0
-    w_avg_path_length: float = 0.0
-    w_diameter: float = 0.0
-    w_community_count: float = 0.0
-    w_packing_factor: float = 0.0
-    w_forward_edge_fraction: float = 0.0
-    w_working_set_ratio: float = 0.0
-    w_dv_x_hub: float = 0.0
-    w_mod_x_logn: float = 0.0
-    w_pf_x_wsr: float = 0.0
-    w_fef_convergence: float = 0.0
+    """Single Source of Truth (SSO) perceptron weight vector for one algorithm.
+    
+    Each field corresponds to a learned weight for a graph feature.
+    The scoring formula is:
+    
+        score = bias
+              + Σ(wᵢ × transform(featureᵢ))       # 14 linear features
+              + Σ(wⱼ × featureₐ × featureᵦ)        # 3 quadratic cross-terms
+              + cache_l1 × 0.5 + cache_l2 × 0.3     # cache impact constants
+              + cache_l3 × 0.2 + cache_dram          #   (from simulation)
+              + w_fef_convergence × fef              # convergence bonus (PR/SSSP only)
+        final = score × benchmark_multiplier
+    
+    This MUST stay in sync with C++ PerceptronWeights::scoreBase() and score()
+    in bench/include/graphbrew/reorder/reorder_types.h.
+    """
+    # --- Algorithm prior ---
+    bias: float = 0.0                    # Base score before any features
+                                         # (matches C++ PerceptronWeights default)
+    
+    # --- Core topology weights (paper: community & degree structure) ---
+    w_modularity: float = 0.0            # Leiden/Louvain modularity Q
+    w_log_nodes: float = 0.0             # log₁₀(N+1) — graph scale
+    w_log_edges: float = 0.0             # log₁₀(E+1) — edge scale
+    w_density: float = 0.0               # Edge density E/(N·(N-1)/2)
+    w_avg_degree: float = 0.0            # Average degree (÷100 at scoring)
+    w_degree_variance: float = 0.0       # Degree distribution skewness
+    w_hub_concentration: float = 0.0     # Edge fraction on top-1% hubs
+    
+    # --- Cache impact constants (from cache simulation) ---
+    cache_l1_impact: float = 0.0         # L1 cache hit impact (×0.5)
+    cache_l2_impact: float = 0.0         # L2 cache hit impact (×0.3)
+    cache_l3_impact: float = 0.0         # L3 cache hit impact (×0.2)
+    cache_dram_penalty: float = 0.0      # DRAM access penalty (×1.0)
+    
+    # --- Reordering cost ---
+    w_reorder_time: float = 0.0          # Reorder time penalty (seconds)
+    
+    # --- Extended structural weights (paper: locality & path structure) ---
+    w_clustering_coeff: float = 0.0      # Local clustering coefficient
+    w_avg_path_length: float = 0.0       # Average shortest path (÷10)
+    w_diameter: float = 0.0              # Diameter estimate (÷50)
+    w_community_count: float = 0.0       # log₁₀(communities + 1)
+    
+    # --- Locality features (IISWC'18 packing factor, GoGraph FEF) ---
+    w_packing_factor: float = 0.0        # Cache-line utilization ratio
+    w_forward_edge_fraction: float = 0.0 # Forward edge fraction
+    w_working_set_ratio: float = 0.0     # log₂(WSR + 1) cache pressure
+    
+    # --- Quadratic cross-terms (paper: feature interactions) ---
+    w_dv_x_hub: float = 0.0             # DV × HC — hub-dominated structure
+    w_mod_x_logn: float = 0.0           # Modularity × Scale
+    w_pf_x_wsr: float = 0.0            # Packing × Cache pressure
+    
+    # --- Convergence bonus (iterative benchmarks only) ---
+    w_fef_convergence: float = 0.0       # FEF bonus for PR/PR_SPMV/SSSP
+    
+    # --- Per-benchmark multiplier ---
     benchmark_weights: Dict[str, float] = field(default_factory=lambda: {
         b: 1.0 for b in EXPERIMENT_BENCHMARKS
     })
+    
+    # --- Training metadata (used by amortization mode, not in scoring) ---
+    avg_speedup: float = 1.0             # Average speedup vs ORIGINAL
+    avg_reorder_time: float = 0.0        # Average reorder time (seconds)
+    
+    # --- Auto-generated metadata (not used in scoring) ---
     _metadata: Dict = field(default_factory=dict)
     
     def to_dict(self) -> Dict:
-        return asdict(self)
+        d = asdict(self)
+        # Backward compat: also store in _metadata for legacy consumers
+        d.setdefault('_metadata', {})['avg_speedup'] = self.avg_speedup
+        d['_metadata']['avg_reorder_time'] = self.avg_reorder_time
+        return d
     
     @classmethod
     def from_dict(cls, d: Dict) -> 'PerceptronWeight':
         """Create PerceptronWeight from a dict (e.g., JSON weight entry)."""
         valid_fields = {f.name for f in cls.__dataclass_fields__.values()}
         kwargs = {k: v for k, v in d.items() if k in valid_fields}
+        # Backward compat: pull avg_speedup/avg_reorder_time from _metadata
+        meta = d.get('_metadata', {})
+        if 'avg_speedup' not in kwargs and 'avg_speedup' in meta:
+            kwargs['avg_speedup'] = meta['avg_speedup']
+        if 'avg_reorder_time' not in kwargs and 'avg_reorder_time' in meta:
+            kwargs['avg_reorder_time'] = meta['avg_reorder_time']
         return cls(**kwargs)
     
     def compute_score(self, features: Dict, benchmark: str = 'pr') -> float:
-        """Compute perceptron score for given features and benchmark.
+        """Compute perceptron score — SINGLE SOURCE OF TRUTH for Python scoring.
         
-        Matches C++ scoreBase() + score() in reorder_types.h.
+        This is the CANONICAL scoring function. All other Python code MUST
+        delegate here. Mirrors C++ scoreBase() + score() in reorder_types.h.
+        
+        Score formula:
+            1. Base score = bias + Σ(wᵢ × transformᵢ(featureᵢ))
+            2. + quadratic cross-terms (dv×hc, mod×logN, pf×log₂(wsr+1))
+            3. + cache impact (l1×0.5 + l2×0.3 + l3×0.2 + dram)
+            4. + convergence bonus (w_fef_convergence × fef, PR/SSSP only)
+            5. × benchmark_multiplier
+        
+        Feature transforms (matching C++ exactly):
+            - log_nodes  = log₁₀(N + 1)
+            - log_edges  = log₁₀(E + 1)
+            - avg_degree → ÷ 100
+            - avg_path_length → ÷ 10 (WEIGHT_PATH_LENGTH_NORMALIZATION)
+            - diameter → ÷ 50
+            - community_count → log₁₀(count + 1)
+            - working_set_ratio → log₂(wsr + 1)
+        
+        Args:
+            features: Dict with graph properties (nodes, edges, modularity, etc.)
+            benchmark: Benchmark name for convergence bonus + multiplier
+        
+        Returns:
+            Perceptron score (higher = algorithm more suitable for this graph)
         """
+        # Derived scale features
         log_nodes = math.log10(features.get('nodes', 1) + 1)
         log_edges = math.log10(features.get('edges', 1) + 1)
         
+        # ── Layer 1: Linear features ──────────────────────────────────
         score = self.bias
         score += self.w_modularity * features.get('modularity', 0.0)
         score += self.w_log_nodes * log_nodes
@@ -210,14 +396,15 @@ class PerceptronWeight:
         score += self.w_forward_edge_fraction * features.get('forward_edge_fraction', 0.0)
         score += self.w_working_set_ratio * math.log2(features.get('working_set_ratio', 0.0) + 1.0)
         
-        # Quadratic interaction terms
+        # ── Layer 2: Quadratic interaction terms ──────────────────────
         log_wsr = math.log2(features.get('working_set_ratio', 0.0) + 1.0)
         log_n = math.log10(features.get('nodes', 1) + 1)
         score += self.w_dv_x_hub * features.get('degree_variance', 0.0) * features.get('hub_concentration', 0.0)
         score += self.w_mod_x_logn * features.get('modularity', 0.0) * log_n
         score += self.w_pf_x_wsr * features.get('packing_factor', 0.0) * log_wsr
         
-        # Cache impact weights — matches C++ scoreBase():
+        # ── Layer 3: Cache impact constants ───────────────────────────
+        # Matches C++ scoreBase():
         #   s += cache_l1_impact * 0.5 + cache_l2_impact * 0.3
         #      + cache_l3_impact * 0.2 + cache_dram_penalty
         score += self.cache_l1_impact * 0.5
@@ -225,13 +412,136 @@ class PerceptronWeight:
         score += self.cache_l3_impact * 0.2
         score += self.cache_dram_penalty
         
-        # Convergence bonus for iterative algorithms (PR, PR_SPMV, SSSP)
+        # ── Layer 4: Convergence bonus (iterative benchmarks only) ────
         # Matches C++ score(): bench == BENCH_PR || BENCH_PR_SPMV || BENCH_SSSP
+        # Iterative algorithms converge faster when edges align with
+        # Gauss-Seidel update order (high forward-edge fraction).
         bench_name = benchmark if benchmark else features.get('benchmark', '')
         if bench_name in ('pr', 'pr_spmv', 'sssp'):
             score += self.w_fef_convergence * features.get('forward_edge_fraction', 0.0)
         
-        # Apply benchmark-specific multiplier
+        # ── Layer 5: Benchmark-specific multiplier ────────────────────
+        bench_mult = self.benchmark_weights.get(bench_name.lower(), 1.0)
+        return score * bench_mult
+
+    def compute_score_normalized(
+        self,
+        features: Dict,
+        benchmark: str = 'pr',
+        norm_mean: List[float] = None,
+        norm_std: List[float] = None,
+    ) -> float:
+        """Compute z-score-normalized perceptron score.
+
+        Mirrors C++ ``scoreBaseNormalized()`` in reorder_types.h.
+
+        The 17-element raw feature vector (in the same order as C++):
+            [0]  modularity
+            [1]  degree_variance
+            [2]  hub_concentration
+            [3]  log10(N+1)
+            [4]  log10(E+1)
+            [5]  density
+            [6]  avg_degree / 100
+            [7]  clustering_coeff
+            [8]  avg_path_length / 10
+            [9]  diameter / 50
+            [10] log10(community_count + 1)
+            [11] packing_factor
+            [12] forward_edge_fraction
+            [13] log2(wsr + 1)
+            [14] degree_variance * hub_concentration  (quadratic)
+            [15] modularity * log10(N+1)               (quadratic)
+            [16] packing_factor * log2(wsr+1)          (quadratic)
+
+        Each raw[i] is z-normalized: ``z = (raw - mean[i]) / std[i]``
+        (skipped when ``std < 1e-12``).
+
+        Cache and reorder_time terms are **outside** the z-score loop
+        (matching C++).
+
+        Args:
+            features: Dict with graph properties.
+            benchmark: Benchmark name for convergence bonus + multiplier.
+            norm_mean: 17-element list of per-feature means.
+            norm_std: 17-element list of per-feature standard deviations.
+
+        Returns:
+            Perceptron score (higher = algorithm more suitable).
+        """
+        if norm_mean is None or norm_std is None:
+            # Without normalization data, fall back to the regular scorer.
+            return self.compute_score(features, benchmark)
+
+        log_n = math.log10(features.get('nodes', 1) + 1)
+        log_e = math.log10(features.get('edges', 1) + 1)
+        clustering = features.get(
+            'clustering_coefficient', features.get('clustering_coeff', 0.0))
+        pf = features.get('packing_factor', 0.0)
+        fef = features.get('forward_edge_fraction', 0.0)
+        log_wsr = math.log2(features.get('working_set_ratio', 0.0) + 1.0)
+        dv = features.get('degree_variance', 0.0)
+        hc = features.get('hub_concentration', 0.0)
+        mod = features.get('modularity', 0.0)
+
+        raw = [
+            mod,
+            dv,
+            hc,
+            log_n,
+            log_e,
+            features.get('density', 0.0),
+            features.get('avg_degree', 0.0) / 100.0,
+            clustering,
+            features.get('avg_path_length', 0.0) / WEIGHT_PATH_LENGTH_NORMALIZATION,
+            features.get('diameter', features.get('diameter_estimate', 0.0)) / 50.0,
+            math.log10(features.get('community_count', 1) + 1),
+            pf,
+            fef,
+            log_wsr,
+            dv * hc,
+            mod * log_n,
+            pf * log_wsr,
+        ]
+
+        weights_17 = [
+            self.w_modularity,
+            self.w_degree_variance,
+            self.w_hub_concentration,
+            self.w_log_nodes,
+            self.w_log_edges,
+            self.w_density,
+            self.w_avg_degree,
+            self.w_clustering_coeff,
+            self.w_avg_path_length,
+            self.w_diameter,
+            self.w_community_count,
+            self.w_packing_factor,
+            self.w_forward_edge_fraction,
+            self.w_working_set_ratio,
+            self.w_dv_x_hub,
+            self.w_mod_x_logn,
+            self.w_pf_x_wsr,
+        ]
+
+        score = self.bias
+        for i in range(17):
+            if i < len(norm_std) and norm_std[i] >= 1e-12:
+                z = (raw[i] - norm_mean[i]) / norm_std[i]
+                score += weights_17[i] * z
+
+        # Cache and reorder terms are outside the z-score loop (matching C++)
+        score += self.cache_l1_impact * 0.5
+        score += self.cache_l2_impact * 0.3
+        score += self.cache_l3_impact * 0.2
+        score += self.cache_dram_penalty
+        score += self.w_reorder_time * features.get('reorder_time', 0.0)
+
+        # Convergence bonus
+        bench_name = benchmark if benchmark else features.get('benchmark', '')
+        if bench_name in ('pr', 'pr_spmv', 'sssp'):
+            score += self.w_fef_convergence * fef
+
         bench_mult = self.benchmark_weights.get(bench_name.lower(), 1.0)
         return score * bench_mult
 
@@ -461,39 +771,13 @@ def get_type_weights_file(type_name: str, weights_dir: str = DEFAULT_WEIGHTS_DIR
     return weights_type_path(type_name, weights_dir)
 
 
-def _normalize_legacy_weight_keys(weights: Dict) -> Dict:
-    """Normalize legacy bare algorithm names in loaded weights.
-    
-    Maps old keys like 'GraphBrewOrder' → 'GraphBrewOrder_leiden' so that
-    weight lookups work consistently after the variant-everywhere change.
-    Uses centralized LEGACY_ALGO_NAME_MAP from utils.py (SSOT).
-    """
-    normalized = {}
-    for key, value in weights.items():
-        new_key = LEGACY_ALGO_NAME_MAP.get(key, key)
-        # If the new key already exists, merge by keeping the one with higher bias
-        if new_key in normalized:
-            existing_bias = normalized[new_key].get('bias', 0)
-            new_bias = value.get('bias', 0) if isinstance(value, dict) else 0
-            if new_bias > existing_bias:
-                normalized[new_key] = value
-        else:
-            normalized[new_key] = value
-    return normalized
-
-
 def load_type_weights(type_name: str, weights_dir: str = DEFAULT_WEIGHTS_DIR) -> Dict:
-    """Load weights for a specific type.
-    
-    Normalizes legacy algorithm names (e.g., 'GraphBrewOrder' →
-    'GraphBrewOrder_leiden') for backward compatibility.
-    """
+    """Load weights for a specific type."""
     weights_file = get_type_weights_file(type_name, weights_dir)
     if os.path.exists(weights_file):
         try:
             with open(weights_file) as f:
-                weights = json.load(f)
-            return _normalize_legacy_weight_keys(weights)
+                return json.load(f)
         except Exception:
             pass
     return {}
@@ -881,19 +1165,6 @@ def compute_weights_from_results(
     # Initialize weights - start with default then add from results
     weights = initialize_default_weights()
     
-    # Normalize legacy bare algo names → variant-suffixed names in results
-    # Uses centralized LEGACY_ALGO_NAME_MAP from utils.py (SSOT)
-    for r in benchmark_results:
-        if r.algorithm in LEGACY_ALGO_NAME_MAP:
-            r.algorithm = LEGACY_ALGO_NAME_MAP[r.algorithm]
-    for r in reorder_results:
-        algo_name = getattr(r, 'algorithm_name', None) or getattr(r, 'algorithm', '')
-        if algo_name in LEGACY_ALGO_NAME_MAP:
-            if hasattr(r, 'algorithm_name'):
-                r.algorithm_name = LEGACY_ALGO_NAME_MAP[algo_name]
-            elif hasattr(r, 'algorithm'):
-                r.algorithm = LEGACY_ALGO_NAME_MAP[algo_name]
-    
     # Collect all unique algorithm names from results (includes variants)
     all_algo_names = set()
     for r in benchmark_results:
@@ -1002,8 +1273,7 @@ def compute_weights_from_results(
     # This directly optimizes for correct algorithm selection.
     
     from .features import load_graph_properties_cache
-    from .utils import RESULTS_DIR
-    
+    from scripts.lib.core.utils import RESULTS_DIR
     graph_props = load_graph_properties_cache(RESULTS_DIR)
     
     # Feature keys used in C++ scoreBase()
@@ -1033,7 +1303,7 @@ def compute_weights_from_results(
     #
     # TRAINING vs INFERENCE feature distinction:
     #   - Training (here): use REAL modularity from computeFastModularity
-    #     (stored in graph_properties_cache.json).  This gives the SGD a
+    #     (stored in data/graph_properties.json).  This gives the SGD a
     #     much higher-quality signal (CC*1.5 estimate is 2-178× off).
     #   - LOGO / C++ runtime: use ESTIMATED modularity = min(0.9, CC*1.5)
     #     since that's all the C++ runtime has without the expensive
@@ -1751,11 +2021,26 @@ def compute_weights_from_results(
         # With string-keyed weights in C++, each variant has its own entry.
         # No collapsing needed — save all variants directly.
         # Mode 5: embed normalization stats so C++ can z-normalize features
-        weights['_normalization'] = {
-            'feat_means': [round(v, 10) for v in feat_means_denorm],
-            'feat_stds': [round(v, 10) for v in feat_stds_denorm],
-            'weight_keys': list(weight_keys),
-        }
+        # Only available when per-benchmark training produced feat_means/feat_stds.
+        try:
+            _means = feat_means_denorm
+            _stds = feat_stds_denorm
+        except NameError:
+            try:
+                _means = list(feat_means)
+                _stds = list(feat_stds)
+            except NameError:
+                _means = None
+                _stds = None
+        if _means is not None and _stds is not None:
+            try:
+                weights['_normalization'] = {
+                    'feat_means': [round(v, 10) for v in _means],
+                    'feat_stds': [round(v, 10) for v in _stds],
+                    'weight_keys': list(weight_keys),
+                }
+            except NameError:
+                pass  # weight_keys not defined — skip normalization
         save_weights_to_active_type(weights, weights_dir, type_name="type_0")
     
     return weights
@@ -1787,7 +2072,7 @@ def cross_validate_logo(
     """
     import tempfile
     from .features import load_graph_properties_cache
-    from .utils import RESULTS_DIR
+    from scripts.lib.core.utils import RESULTS_DIR
 
     reorder_results = reorder_results or []
     if weights_dir is None:
@@ -2070,7 +2355,7 @@ def cross_validate_logo_grouped(
     """
     import tempfile
     from .features import load_graph_properties_cache
-    from .utils import RESULTS_DIR
+    from scripts.lib.core.utils import RESULTS_DIR
 
     reorder_results = reorder_results or []
     if weights_dir is None:
@@ -2238,9 +2523,9 @@ def save_weights_to_active_type(
     """
     Save weights to active type-based weights directory for C++ to use.
     
-    This creates/updates:
-    - results/models/perceptron/type_N/weights.json - Algorithm weights
-    - results/models/perceptron/registry.json - Type registry
+    This creates/updates (DEPRECATED — C++ trains at runtime):
+    - results/models/perceptron/type_N/weights.json - Legacy algorithm weights
+    - results/models/perceptron/registry.json - Legacy type registry
     
     Args:
         weights: Dictionary of algorithm weights
@@ -2297,6 +2582,14 @@ def save_weights_to_active_type(
     
     save_type_registry(weights_dir)
     log.info(f"Saved weights to {type_file} ({len(canonical_algos)} algorithms)")
+    
+    # M1: auto-regenerate unified adaptive_models.json so C++ always has
+    # up-to-date model data in a single file.
+    try:
+        from scripts.lib.core.datastore import export_unified_models
+        export_unified_models()
+    except Exception as e:
+        log.warning(f"export_unified_models() failed (non-fatal): {e}")
     
     return type_file
 
@@ -2368,181 +2661,21 @@ def store_per_graph_results(
     create_new_run: bool = True,
 ) -> str:
     """
-    Store benchmark/reorder/cache results per-graph for later analysis.
-    
-    This enables:
-    1. Re-analyzing data without re-running experiments
-    2. Partial experiment runs (redo specific graphs)
-    3. Multiple perceptron flavors comparison
-    4. Historical tracking
-    
-    Args:
-        benchmark_results: List of BenchmarkResult objects
-        cache_results: List of CacheResult objects
-        reorder_results: List of ReorderResult objects
-        graphs_dir: Directory with graph files (for feature extraction)
-        data_dir: Output directory for per-graph data (default: results/graphs/)
-        run_timestamp: Explicit timestamp for this run (default: generate new)
-        create_new_run: If True, create a new run instead of updating latest (default: True)
-        
-    Returns:
-        The run timestamp used for storage
+    DEPRECATED: Per-graph results are now stored by the C++ binary directly
+    into the central database (results/data/benchmarks.json).
+
+    This function is kept as a no-op for backward compatibility.
+    Use ``datastore.BenchmarkStore`` to query results instead.
     """
-    from .utils import get_timestamp
-    
-    benchmark_results = benchmark_results or []
-    cache_results = cache_results or []
-    reorder_results = reorder_results or []
-    
-    if data_dir is None:
-        from .utils import RESULTS_DIR
-        data_dir = os.path.join(RESULTS_DIR, "graphs")
-    
-    # Generate a shared timestamp for all graphs in this run
-    if run_timestamp is None and create_new_run:
-        run_timestamp = get_timestamp()
-    
-    # Import graph_data module
-    from .graph_data import (
-        GraphDataStore, GraphFeatures,
-        AlgorithmBenchmarkData, AlgorithmReorderData,
+    import warnings
+    warnings.warn(
+        "store_per_graph_results is deprecated. "
+        "C++ now writes directly to results/data/benchmarks.json. "
+        "Use datastore.BenchmarkStore to query results.",
+        DeprecationWarning,
+        stacklevel=2,
     )
-    
-    # Load graph properties for features
-    from .features import load_graph_properties_cache
-    graph_props = load_graph_properties_cache(graphs_dir or "results")
-    
-    # Group results by graph
-    graph_benchmarks = {}  # graph_name -> [BenchmarkResult, ...]
-    graph_reorders = {}    # graph_name -> [ReorderResult, ...]
-    graph_caches = {}      # graph_name -> [CacheResult, ...]
-    
-    for r in benchmark_results:
-        graph_name = r.graph
-        if graph_name not in graph_benchmarks:
-            graph_benchmarks[graph_name] = []
-        graph_benchmarks[graph_name].append(r)
-    
-    for r in reorder_results:
-        graph_name = r.graph
-        if graph_name not in graph_reorders:
-            graph_reorders[graph_name] = []
-        graph_reorders[graph_name].append(r)
-    
-    for r in cache_results:
-        graph_name = r.graph if hasattr(r, 'graph') else getattr(r, 'graph_name', 'unknown')
-        if graph_name not in graph_caches:
-            graph_caches[graph_name] = []
-        graph_caches[graph_name].append(r)
-    
-    # Get all unique graphs
-    all_graphs = set(graph_benchmarks.keys()) | set(graph_reorders.keys()) | set(graph_caches.keys())
-    
-    log.info(f"Storing per-graph data for {len(all_graphs)} graphs")
-    
-    for graph_name in all_graphs:
-        # Use shared timestamp for all graphs in this run
-        store = GraphDataStore(graph_name, data_dir, run_timestamp=run_timestamp, 
-                              create_new_run=create_new_run)
-        
-        # Store features from properties cache
-        props = graph_props.get(graph_name, {})
-        if props:
-            features = GraphFeatures(
-                graph_name=graph_name,
-                nodes=props.get('nodes', 0),
-                edges=props.get('edges', 0),
-                avg_degree=props.get('avg_degree', 0.0),
-                density=props.get('density', 0.0),
-                modularity=props.get('modularity', 0.0),
-                degree_variance=props.get('degree_variance', 0.0),
-                hub_concentration=props.get('hub_concentration', 0.0),
-                clustering_coefficient=props.get('clustering_coefficient', 0.0),
-                avg_path_length=props.get('avg_path_length', 0.0),
-                diameter_estimate=props.get('diameter', 0.0),
-                community_count=props.get('community_count', 0),
-                graph_type=props.get('graph_type', 'unknown'),
-            )
-            store.save_features(features)
-        
-        # Store benchmark results
-        # Compute baseline time for speedup calculation
-        benchmarks = graph_benchmarks.get(graph_name, [])
-        baseline_times = {}  # benchmark -> baseline time (algo=0 or ORIGINAL)
-        
-        for r in benchmarks:
-            # Handle both algorithm_name (graph_types.py) and algorithm (utils.py) attributes
-            algo_name = getattr(r, 'algorithm_name', None) or getattr(r, 'algorithm', '')
-            if r.algorithm_id == 0 or algo_name == 'ORIGINAL':
-                bench = r.benchmark
-                time_val = getattr(r, 'avg_time', 0) or getattr(r, 'time_seconds', 0)
-                if time_val > 0:
-                    baseline_times[bench] = time_val
-        
-        for r in benchmarks:
-            time_val = getattr(r, 'avg_time', 0) or getattr(r, 'time_seconds', 0)
-            trial_times = getattr(r, 'trial_times', [time_val]) if hasattr(r, 'trial_times') else [time_val]
-            # Handle both algorithm_name (graph_types.py) and algorithm (utils.py) attributes
-            algo_name = getattr(r, 'algorithm_name', None) or getattr(r, 'algorithm', '')
-            
-            # Compute speedup vs baseline
-            baseline = baseline_times.get(r.benchmark, time_val)
-            speedup = baseline / time_val if time_val > 0 else 1.0
-            
-            bench_data = AlgorithmBenchmarkData(
-                graph_name=graph_name,
-                algorithm_id=r.algorithm_id,
-                algorithm_name=algo_name,
-                benchmark=r.benchmark,
-                avg_time=time_val,
-                trial_times=trial_times,
-                speedup=speedup,
-                num_trials=len(trial_times),
-                success=getattr(r, 'success', True),
-                error=getattr(r, 'error', ''),
-            )
-            store.save_benchmark_result(bench_data)
-        
-        # Store reorder results
-        for r in graph_reorders.get(graph_name, []):
-            reorder_time = getattr(r, 'reorder_time', 0.0) or getattr(r, 'time_seconds', 0.0)
-            # Handle both algorithm_name (graph_types.py) and algorithm (utils.py) attributes
-            algo_name = getattr(r, 'algorithm_name', None) or getattr(r, 'algorithm', '')
-            
-            reorder_data = AlgorithmReorderData(
-                graph_name=graph_name,
-                algorithm_id=r.algorithm_id,
-                algorithm_name=algo_name,
-                reorder_time=reorder_time,
-                modularity=getattr(r, 'modularity', 0.0),
-                communities=getattr(r, 'communities', 0),
-                isolated_vertices=getattr(r, 'isolated_vertices', 0),
-                mapping_file=getattr(r, 'mapping_file', ''),
-                success=getattr(r, 'success', True),
-                error=getattr(r, 'error', ''),
-            )
-            store.save_reorder_result(reorder_data)
-        
-        # Store cache stats with benchmark results
-        for r in graph_caches.get(graph_name, []):
-            # Find matching benchmark and update cache stats
-            algo_name = r.algorithm_name if hasattr(r, 'algorithm_name') else str(getattr(r, 'algorithm_id', 0))
-            bench = getattr(r, 'benchmark', 'pr')
-            
-            # Load existing benchmark and update with cache stats
-            existing = store.load_benchmark_result(bench, algo_name)
-            if existing:
-                existing.l1_hit_rate = 100.0 - getattr(r, 'l1_miss_rate', 0.0)
-                existing.l2_hit_rate = 100.0 - getattr(r, 'l2_miss_rate', 0.0) 
-                existing.l3_hit_rate = 100.0 - getattr(r, 'l3_miss_rate', 0.0)
-                existing.llc_misses = getattr(r, 'llc_misses', 0)
-                store.save_benchmark_result(existing)
-    
-    # Use the actual timestamp used (could be existing or new)
-    used_timestamp = run_timestamp or store.run_timestamp if all_graphs else run_timestamp
-    log.info(f"Stored per-graph data in {data_dir} (run: {used_timestamp})")
-    
-    return used_timestamp
+    return run_timestamp or ""
 
 
 def update_zero_weights(
@@ -2577,17 +2710,8 @@ def update_zero_weights(
     cache_results = cache_results or []
     reorder_results = reorder_results or []
     
-    # Store per-graph results for later analysis (before aggregation)
-    if store_per_graph:
-        try:
-            store_per_graph_results(
-                benchmark_results=benchmark_results,
-                cache_results=cache_results,
-                reorder_results=reorder_results,
-                graphs_dir=graphs_dir
-            )
-        except Exception as e:
-            log.warning(f"Failed to store per-graph results: {e}")
+    # Per-graph storage is deprecated — C++ writes to benchmarks.json directly.
+    # The store_per_graph parameter is retained for API compat but ignored.
     
     # Load graph properties cache for features
     from .features import load_graph_properties_cache
@@ -2800,10 +2924,10 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-    python -m scripts.lib.weights --list-types
-    python -m scripts.lib.weights --show-type type_0
-    python -m scripts.lib.weights --best-algo type_0 --benchmark pr
-    python -m scripts.lib.weights --init-type type_0
+    python -m scripts.lib.ml.weights --list-types
+    python -m scripts.lib.ml.weights --show-type type_0
+    python -m scripts.lib.ml.weights --best-algo type_0 --benchmark pr
+    python -m scripts.lib.ml.weights --init-type type_0
 """
     )
     

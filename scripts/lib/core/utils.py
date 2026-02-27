@@ -6,8 +6,8 @@ This module provides common functions used across all GraphBrew library modules.
 Can be used standalone or imported by other modules.
 
 Standalone usage:
-    python -m scripts.lib.utils --check-deps
-    python -m scripts.lib.utils --list-algorithms
+    python -m scripts.lib.core.utils --check-deps
+    python -m scripts.lib.core.utils --list-algorithms
 """
 
 import os
@@ -23,8 +23,8 @@ from dataclasses import dataclass, asdict
 # Path Constants
 # =============================================================================
 
-SCRIPT_DIR = Path(__file__).parent.parent.resolve()
-PROJECT_ROOT = SCRIPT_DIR.parent
+SCRIPT_DIR = Path(__file__).resolve().parent.parent.parent  # scripts/
+PROJECT_ROOT = SCRIPT_DIR.parent  # repo root
 BENCH_DIR = PROJECT_ROOT / "bench"
 BIN_DIR = BENCH_DIR / "bin"
 BIN_SIM_DIR = BENCH_DIR / "bin_sim"
@@ -37,11 +37,14 @@ DATA_DIR = RESULTS_DIR / "data"
 GRAPH_PROPS_FILE = DATA_DIR / "graph_properties.json"
 BENCHMARK_DATA_FILE = DATA_DIR / "benchmarks.json"
 
-# --- Trained Models -----------------------------------------------------------
-# All models are grouped by type under results/models/:
-#   results/models/perceptron/   — perceptron weights (type_0/, type_1/, ...)
-#   results/models/decision_tree/ — DT classifier per benchmark
-#   results/models/hybrid/        — hybrid DT+perceptron per benchmark
+# Export DATA_DIR so C++ binaries auto-enable self-recording via InitSelfRecording().
+# The C++ side checks GRAPHBREW_DB_DIR when no --db-dir / -D flag is given.
+os.environ.setdefault("GRAPHBREW_DB_DIR", str(DATA_DIR))
+
+# --- Trained Models (DEPRECATED) -----------------------------------------------
+# C++ now trains perceptron, DT, and hybrid models from benchmarks.json +
+# graph_properties.json at load time.  No results/models/ directory needed.
+# These constants are retained for backward compatibility with legacy code.
 MODELS_DIR = RESULTS_DIR / "models"
 
 # Perceptron weights live under models/perceptron/
@@ -390,13 +393,15 @@ DISPLAY_TO_CANONICAL: dict[str, str] = {
     "ORIGINAL": "ORIGINAL", "SORT": "SORT", "HUBSORT": "HUBSORT",
     "HUBCLUSTER": "HUBCLUSTER", "DBG": "DBG", "HUBSORTDBG": "HUBSORTDBG",
     "HUBCLUSTERDBG": "HUBCLUSTERDBG", "GORDER": "GORDER", "CORDER": "CORDER",
-    "RCM": "RCM", "RANDOM": "RANDOM",
+    "RANDOM": "RANDOM",
     # Mixed-case C++ display → uppercase canonical
     "Random": "RANDOM", "Sort": "SORT", "HubSort": "HUBSORT",
     "HubCluster": "HUBCLUSTER", "HubSortDBG": "HUBSORTDBG",
-    "HubClusterDBG": "HUBCLUSTERDBG", "COrder": "CORDER", "RCMOrder": "RCM",
+    "HubClusterDBG": "HUBCLUSTERDBG", "COrder": "CORDER",
     "GOrder": "GORDER", "Original": "ORIGINAL",
     # Bare C++ display → default variant (backward compat)
+    # Variant algorithms: bare name → canonical with default variant suffix
+    "RCM": "RCM_default", "RCMOrder": "RCM_default",
     "RabbitOrder": "RABBITORDER_csr",
     "GraphBrewOrder": "GraphBrewOrder_leiden",
     # LeidenOrder is its own algorithm (C++ enum 15)
@@ -619,8 +624,14 @@ class BenchmarkResult:
 # =============================================================================
 
 def ensure_directories() -> None:
-    """Create all required directories if they don't exist."""
-    for directory in [RESULTS_DIR, GRAPHS_DIR, WEIGHTS_DIR, DATA_DIR, MODELS_DIR]:
+    """Create all required directories if they don't exist.
+
+    Note: MODELS_DIR is intentionally omitted — it is a temporary build
+    directory created on demand by weights.py during training, and cleaned
+    up after export_unified_models() merges everything into
+    results/data/adaptive_models.json.
+    """
+    for directory in [RESULTS_DIR, GRAPHS_DIR, DATA_DIR]:
         directory.mkdir(parents=True, exist_ok=True)
 
 
@@ -1070,16 +1081,6 @@ def _build_chained_orderings() -> None:
     CHAINED_ORDERINGS.extend(
         (chain_canonical_name(opts), opts) for opts in _CHAINED_ORDERING_OPTS
     )
-
-
-# Legacy name migration — bare algorithm names from pre-variant era.
-# Centralized here so there's only ONE copy across the entire codebase.
-LEGACY_ALGO_NAME_MAP: dict[str, str] = {
-    "GraphBrewOrder": "GraphBrewOrder_leiden",
-}
-LEGACY_ALGO_NAME_MAP_REV: dict[str, str] = {
-    v: k for k, v in LEGACY_ALGO_NAME_MAP.items()
-}
 
 
 # =============================================================================

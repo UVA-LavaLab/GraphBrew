@@ -6,12 +6,12 @@ Generates vertex reorderings (label mappings) for graphs using various algorithm
 Can be used standalone or as a library.
 
 Standalone usage:
-    python -m scripts.lib.reorder --graph graphs/email-Enron/email-Enron.mtx
-    python -m scripts.lib.reorder --graph test.mtx --algorithms 0,8,9 --output results/mappings
-    python -m scripts.lib.reorder --graph test.mtx --expand-variants
+    python -m scripts.lib.pipeline.reorder --graph graphs/email-Enron/email-Enron.mtx
+    python -m scripts.lib.pipeline.reorder --graph test.mtx --algorithms 0,8,9 --output results/mappings
+    python -m scripts.lib.pipeline.reorder --graph test.mtx --expand-variants
 
 Library usage:
-    from scripts.lib.reorder import generate_reorderings, generate_label_maps
+    from scripts.lib.pipeline.reorder import generate_reorderings, generate_label_maps
     
     results = generate_reorderings(graphs, algorithms=[0, 8, 9], bin_dir="bench/bin")
     maps, times = generate_label_maps(graphs, algorithms, output_dir="results")
@@ -25,7 +25,7 @@ from pathlib import Path
 from dataclasses import dataclass, asdict
 from typing import Dict, List, Optional, Tuple
 
-from .utils import (
+from ..core.utils import (
     BIN_DIR, RESULTS_DIR,
     ALGORITHMS, SLOW_ALGORITHMS, SIZE_MEDIUM,
     LEIDEN_DEFAULT_RESOLUTION, LEIDEN_DEFAULT_PASSES,
@@ -34,9 +34,8 @@ from .utils import (
     TIMEOUT_REORDER,
     Logger, run_command, get_timestamp,
     canonical_algo_key, algo_converter_opt,
-    LEGACY_ALGO_NAME_MAP, LEGACY_ALGO_NAME_MAP_REV,
 )
-from .graph_types import GraphInfo
+from ..core.graph_types import GraphInfo
 
 # Initialize logger
 log = Logger()
@@ -45,12 +44,7 @@ log = Logger()
 # Constants
 # =============================================================================
 
-from .utils import ENABLE_RUN_LOGGING
-
-# Backward-compat aliases — use the centralized SSOT map from utils.py
-# DEPRECATED: new code should use LEGACY_ALGO_NAME_MAP directly.
-_LEGACY_ALGO_NAMES = LEGACY_ALGO_NAME_MAP
-_LEGACY_ALGO_NAMES_REV = LEGACY_ALGO_NAME_MAP_REV
+from ..core.utils import ENABLE_RUN_LOGGING
 
 
 def safe_filename(name: str) -> str:
@@ -154,7 +148,7 @@ def expand_algorithms_with_variants(
     Returns:
         List of AlgorithmConfig objects
     """
-    from .utils import GORDER_VARIANTS, GORDER_DEFAULT_VARIANT
+    from scripts.lib.core.utils import GORDER_VARIANTS, GORDER_DEFAULT_VARIANT
     
     if rabbit_variants is None:
         # When expanding variants, include both RabbitOrder variants; otherwise just csr
@@ -511,7 +505,7 @@ def generate_reorderings(
             # Save run log
             if ENABLE_RUN_LOGGING:
                 try:
-                    from .graph_data import save_run_log
+                    from scripts.lib.core.graph_data import save_run_log
                     save_run_log(
                         graph_name=graph.name,
                         operation='reorder',
@@ -709,7 +703,7 @@ def generate_label_maps(
             # Save run log
             if ENABLE_RUN_LOGGING:
                 try:
-                    from .graph_data import save_run_log
+                    from scripts.lib.core.graph_data import save_run_log
                     save_run_log(
                         graph_name=graph.name,
                         operation='reorder',
@@ -930,7 +924,7 @@ def generate_reorderings_with_variants(
             # Save run log
             if ENABLE_RUN_LOGGING:
                 try:
-                    from .graph_data import save_run_log
+                    from scripts.lib.core.graph_data import save_run_log
                     save_run_log(
                         graph_name=graph.name,
                         operation='reorder',
@@ -1036,10 +1030,10 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-    python -m scripts.lib.reorder --graph graphs/email-Enron/email-Enron.mtx
-    python -m scripts.lib.reorder --graph test.mtx --algorithms 0,8,9
-    python -m scripts.lib.reorder --graph test.mtx --expand-variants
-    python -m scripts.lib.reorder --list-algorithms
+    python -m scripts.lib.pipeline.reorder --graph graphs/email-Enron/email-Enron.mtx
+    python -m scripts.lib.pipeline.reorder --graph test.mtx --algorithms 0,8,9
+    python -m scripts.lib.pipeline.reorder --graph test.mtx --expand-variants
+    python -m scripts.lib.pipeline.reorder --list-algorithms
 """
     )
     
