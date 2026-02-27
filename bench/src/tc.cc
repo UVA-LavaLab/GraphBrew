@@ -133,12 +133,19 @@ int main(int argc, char* argv[]) {
   if (!cli.ParseArgs())
     return -1;
   SetBenchmarkTypeHint(BENCH_TC);
+  graphbrew::database::InitSelfRecording(cli.db_dir());
   Builder b(cli);
   Graph g = b.MakeGraph();
   if (g.directed()) {
     cout << "Input graph is directed but tc requires undirected" << endl;
     return -2;
   }
-  BenchmarkKernel(cli, g, Hybrid, PrintTriangleStats, TCVerifier);
+  BenchmarkKernel(cli, g, Hybrid, PrintTriangleStats, TCVerifier,
+    "tc",
+    [](const Graph &, size_t total_triangles) -> nlohmann::json {
+      nlohmann::json ans;
+      ans["total_triangles"] = static_cast<int64_t>(total_triangles);
+      return ans;
+    });
   return 0;
 }

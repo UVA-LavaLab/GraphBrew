@@ -15,6 +15,7 @@ int main(int argc, char *argv[])
 {
     CLConvert cli(argc, argv, "converter");
     cli.ParseArgs();
+    graphbrew::database::InitSelfRecording(cli.db_dir());
     if (cli.out_weighted())
     {
         WeightedBuilder bw(cli);

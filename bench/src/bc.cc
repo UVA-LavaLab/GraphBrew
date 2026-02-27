@@ -94,6 +94,7 @@ void PBFS(const Graph &g, NodeID source, pvector<CountT> &path_counts,
 
 pvector<ScoreT> Brandes(const Graph &g, SourcePicker<Graph> &sp,
                         NodeID num_iters, bool logging_enabled = false) {
+  using graphbrew::database::AppendBenchmarkIterationEntry;
   Timer t;
   t.Start();
   pvector<ScoreT> scores(g.num_nodes(), 0);
@@ -116,8 +117,9 @@ pvector<ScoreT> Brandes(const Graph &g, SourcePicker<Graph> &sp,
     succ.reset();
     PBFS(g, source, path_counts, succ, depth_index, queue);
     t.Stop();
+    double bfs_time = t.Seconds();
     if (logging_enabled)
-      PrintStep("b", t.Seconds());
+      PrintStep("b", bfs_time);
     pvector<ScoreT> deltas(g.num_nodes(), 0);
     t.Start();
     for (int d=depth_index.size()-2; d >= 0; d--) {
@@ -135,8 +137,15 @@ pvector<ScoreT> Brandes(const Graph &g, SourcePicker<Graph> &sp,
       }
     }
     t.Stop();
+    double backprop_time = t.Seconds();
     if (logging_enabled)
-      PrintStep("p", t.Seconds());
+      PrintStep("p", backprop_time);
+    AppendBenchmarkIterationEntry({
+        {"source_iter", static_cast<int64_t>(iter)},
+        {"source_id", static_cast<int64_t>(source)},
+        {"bfs_time_s", bfs_time},
+        {"backprop_time_s", backprop_time},
+        {"depth", static_cast<int64_t>(depth_index.size() > 1 ? depth_index.size() - 1 : 0)}});
   }
   // normalize scores
   ScoreT biggest_score = 0;
@@ -235,6 +244,7 @@ int main(int argc, char* argv[]) {
   if (!cli.ParseArgs())
     return -1;
   SetBenchmarkTypeHint(BENCH_BC);
+  graphbrew::database::InitSelfRecording(cli.db_dir());
   if (cli.num_iters() > 1 && cli.start_vertex() != -1)
     cout << "Warning: iterating from same source (-r & -i)" << endl;
   Builder b(cli);
@@ -250,6 +260,13 @@ int main(int argc, char* argv[]) {
                                      const pvector<ScoreT> &scores) {
     return BCVerifier(g, vsp, cli.num_iters(), scores);
   };
-  BenchmarkKernel(cli, g, BCBound, PrintTopScores, VerifierBound);
+  BenchmarkKernel(cli, g, BCBound, PrintTopScores, VerifierBound,
+    "bc",
+    [](const Graph &g, const pvector<ScoreT> &scores) -> nlohmann::json {
+      nlohmann::json ans;
+      ScoreT max_centrality = *std::max_element(scores.begin(), scores.end());
+      ans["max_centrality"] = static_cast<double>(max_centrality);
+      return ans;
+    });
   return 0;
 }

@@ -79,6 +79,7 @@ pvector<NodeID> ShiloachVishkin(const Graph &g) {
     }
   }
   cout << "Shiloach-Vishkin took " << num_iter << " iterations" << endl;
+  graphbrew::database::AppendBenchmarkIterationEntry({{"num_iterations", num_iter}});
   return comp;
 }
 
@@ -154,8 +155,20 @@ int main(int argc, char* argv[]) {
   if (!cli.ParseArgs())
     return -1;
   SetBenchmarkTypeHint(BENCH_CC_SV);
+  graphbrew::database::InitSelfRecording(cli.db_dir());
   Builder b(cli);
   Graph g = b.MakeGraph();
-  BenchmarkKernel(cli, g, ShiloachVishkin, PrintCompStats, CCVerifier);
+  BenchmarkKernel(cli, g, ShiloachVishkin, PrintCompStats, CCVerifier,
+    "cc_sv",
+    [](const Graph &g, const pvector<NodeID> &comp) -> nlohmann::json {
+      nlohmann::json ans;
+      std::unordered_map<NodeID, NodeID> count;
+      for (NodeID n = 0; n < g.num_nodes(); n++) count[comp[n]]++;
+      ans["num_components"] = static_cast<int64_t>(count.size());
+      NodeID largest = 0;
+      for (auto& kv : count) if (kv.second > largest) largest = kv.second;
+      ans["largest_component"] = largest;
+      return ans;
+    });
   return 0;
 }
