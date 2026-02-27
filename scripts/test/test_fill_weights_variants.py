@@ -29,13 +29,13 @@ import pytest
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from scripts.lib.utils import (
+from scripts.lib.core.utils import (
     BenchmarkResult,
     EXPERIMENT_BENCHMARKS,
     get_all_algorithm_variant_names,
     is_chained_ordering_name,
 )
-from scripts.lib.weights import (
+from scripts.lib.ml.weights import (
     assign_graph_type,
     compute_weights_from_results,
     get_best_algorithm_for_type,
@@ -167,7 +167,7 @@ def benchmark_results():
 def _patch_graph_props(monkeypatch):
     """Monkeypatch load_graph_properties_cache to return SMALL_GRAPHS."""
     monkeypatch.setattr(
-        "scripts.lib.features.load_graph_properties_cache",
+        "scripts.lib.ml.features.load_graph_properties_cache",
         lambda *_a, **_kw: dict(SMALL_GRAPHS),
     )
 

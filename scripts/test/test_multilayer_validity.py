@@ -31,7 +31,7 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from scripts.lib.utils import (
+from scripts.lib.core.utils import (
     enumerate_graphbrew_multilayer, BIN_DIR, GRAPHS_DIR,
 )
 

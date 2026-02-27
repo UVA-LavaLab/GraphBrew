@@ -14,12 +14,12 @@ A comprehensive one-click script that runs the complete GraphBrew experiment wor
  5. Phase 1: Generate reorderings (12 algorithms; baselines ORIGINAL/RANDOM are skipped)
  6. Phase 2: Run benchmarks (14 algorithms × 7 benchmarks; TC excluded by default)
  7. Phase 3: Run cache simulations (optional, skip with --skip-cache)
- 8. Phase 4: Generate type-based perceptron weights (results/models/perceptron/type_*/weights.json)
+ 8. Store results to results/data/ — C++ trains ML models at runtime from this data
 
 **Validation & Analysis:**
- 9. Phase 5: Adaptive order analysis (--adaptive-analysis)
-10. Phase 6: Adaptive vs fixed comparison (--adaptive-comparison)
-11. Phase 7: Brute-force validation (--brute-force)
+ 9. Adaptive order analysis (--adaptive-analysis)
+10. Adaptive vs fixed comparison (--adaptive-comparison)
+11. Brute-force validation (--brute-force)
 
 **Training Modes:**
 12. Standard training (--train): One-pass pipeline that runs all phases
@@ -54,7 +54,7 @@ A comprehensive one-click script that runs the complete GraphBrew experiment wor
       - Dynamic: dynamic (adjust per-pass)
 
 All outputs are saved to the results/ directory for clean organization.
-Type-based weights are saved to results/models/perceptron/type_*/weights.json.
+Benchmark data is stored in results/data/ (benchmarks.json, graph_properties.json, adaptive_models.json).
 
 Usage:
     python scripts/graphbrew_experiment.py --help
@@ -97,10 +97,8 @@ from scripts.lib import (
     BENCHMARKS,
     # Variant definitions
     RABBITORDER_VARIANTS,
-    # Graph property helpers
-    load_graph_properties_cache,
-    save_graph_properties_cache,
-    update_graph_properties,
+    # Graph property helpers (legacy cache functions removed in v2.1 —
+    # C++ self-recording now writes graph_properties.json directly)
     get_total_memory_gb,
     estimate_graph_memory_gb,
     get_available_disk_gb,
@@ -125,7 +123,7 @@ from scripts.lib import (
 
 # Try to import dependency manager
 try:
-    from scripts.lib.dependencies import (
+    from scripts.lib.pipeline.dependencies import (
         check_dependencies,
         install_dependencies,
     )
@@ -134,11 +132,11 @@ except ImportError:
     HAS_DEPENDENCY_MANAGER = False
 
 # ============================================================================
-# Configuration - Import from Single Source of Truth (lib/utils.py)
+# Configuration - Import from Single Source of Truth (lib/core/utils.py)
 # ============================================================================
 
 # Import algorithm definitions and constants from utils.py (Single Source of Truth)
-from scripts.lib.utils import (
+from scripts.lib.core.utils import (
     ALGORITHMS, ALGORITHM_IDS, ELIGIBLE_ALGORITHMS, REORDER_ALGORITHMS,
     RESULTS_DIR, GRAPHS_DIR, BIN_DIR, BIN_SIM_DIR, WEIGHTS_DIR,
     SIZE_SMALL, SIZE_MEDIUM, SIZE_LARGE,
@@ -174,7 +172,7 @@ assert all(a in ALGORITHMS for a in KEY_ALGORITHMS), "KEY_ALGORITHMS contains un
 # Algorithm Configuration with Variant Support
 # ============================================================================
 
-# Default paths — derived from SSOT (lib/utils.py), converted to strings for argparse
+# Default paths — derived from SSOT (lib/core/utils.py), converted to strings for argparse
 DEFAULT_RESULTS_DIR = str(RESULTS_DIR)
 DEFAULT_GRAPHS_DIR = str(GRAPHS_DIR)
 DEFAULT_BIN_DIR = str(BIN_DIR)
@@ -216,54 +214,41 @@ _SIZE_RANGES = {
     "xlarge": (SIZE_LARGE, float('inf')),
 }
 
-# Feature patterns parsed from C++ topology output (hoisted to module level)
-_FEATURE_PATTERNS = [
-    # (regex_label, feature_key, default_value)
-    (r'Degree Variance:\s*([\d.]+)', 'degree_variance', 1.0),
-    (r'Hub Concentration:\s*([\d.]+)', 'hub_concentration', 0.3),
-    (r'Avg Degree:\s*([\d.]+)', 'avg_degree', 10.0),
-    (r'Clustering Coefficient:\s*([\d.]+)', 'clustering_coefficient', 0.0),
-    (r'Avg Path Length:\s*([\d.]+)', 'avg_path_length', 0.0),
-    (r'Diameter Estimate:\s*([\d.]+)', 'diameter', 0.0),
-    (r'Community Count Estimate:\s*([\d.]+)', 'community_count', 0.0),
-    (r'Packing Factor:\s*([\d.]+)', 'packing_factor', 0.0),
-    (r'Forward Edge Fraction:\s*([\d.]+)', 'forward_edge_fraction', 0.5),
-    (r'Working Set Ratio:\s*([\d.]+)', 'working_set_ratio', 0.0),
-    (r'Graph Density:\s*([\d.eE+-]+)', 'density', 0.0),
-]
+# _FEATURE_PATTERNS removed in v2.1 — C++ self-recording writes topology
+# features directly to graph_properties.json; Phase 6 now reads from
+# GraphPropsStore instead of parsing C++ stdout with regex.
 
 # ============================================================================
 # Data Classes
 # ============================================================================
 
 # Use the canonical GraphInfo from lib/graph_types.py (includes extended properties)
-from scripts.lib.graph_types import GraphInfo
+from scripts.lib.core.graph_types import GraphInfo
 
 # Pipeline stage imports from lib/ modules
-from scripts.lib.reorder import (
+from scripts.lib.pipeline.reorder import (
     generate_reorderings,
     generate_reorderings_with_variants,
     generate_label_maps,
     load_label_maps_index,
 )
-from scripts.lib.benchmark import run_benchmarks_multi_graph, run_benchmarks_with_variants
-from scripts.lib.cache import run_cache_simulations_with_variants
-from scripts.lib.analysis import (
+from scripts.lib.pipeline.benchmark import run_benchmarks_multi_graph, run_benchmarks_with_variants
+from scripts.lib.pipeline.cache import run_cache_simulations_with_variants
+from scripts.lib.analysis.adaptive import (
     analyze_adaptive_order,
     compare_adaptive_vs_fixed,
     run_subcommunity_brute_force,
     validate_adaptive_accuracy,
 )
-from scripts.lib.training import (
+from scripts.lib.ml.training import (
     train_adaptive_weights_iterative,
     train_adaptive_weights_large_scale,
     initialize_enhanced_weights,
 )
-from scripts.lib.weights import compute_weights_from_results, update_zero_weights
-from scripts.lib.metrics import compute_amortization, format_amortization_table
-from scripts.lib.graph_data import set_session_id
-from scripts.lib.weight_merger import auto_merge_after_run
-from scripts.lib.datastore import get_benchmark_store
+from scripts.lib.ml.weights import compute_weights_from_results, update_zero_weights
+from scripts.lib.analysis.metrics import compute_amortization, format_amortization_table
+from scripts.lib.core.graph_data import set_session_id
+from scripts.lib.core.datastore import get_benchmark_store, get_props_store
 
 
 # Global progress tracker instance
@@ -303,6 +288,196 @@ def _print_amortization_report(benchmark_results, reorder_results, max_rows: int
             log("\n" + format_amortization_table(report, max_rows=max_rows))
     except Exception as e:
         log(f"  Note: Amortization report skipped: {e}")
+
+
+def _dispatch_tool(main_fn, extra_argv: list[str] | None = None):
+    """Call a standalone tool's main() with a clean sys.argv, then restore.
+
+    Instead of mutating sys.argv globally (which is error-prone and leaves
+    stale state if the tool raises), this saves and restores the original
+    value via a try/finally block.
+    """
+    saved_argv = sys.argv
+    try:
+        sys.argv = [saved_argv[0]] + (extra_argv or [])
+        main_fn()
+    finally:
+        sys.argv = saved_argv
+
+
+# ============================================================================
+# Shared Phase Helpers (used by both phase=all and fill_weights paths)
+# ============================================================================
+
+def _do_reorder_phase(args, graphs, reorder_algorithms, label_maps,
+                      *, expand_variants: bool = False,
+                      save_results: bool = True, timestamp: str = ""):
+    """Run reordering phase — shared by phase=all and fill_weights.
+
+    Returns (reorder_results, label_maps).  *label_maps* is mutated in-place
+    for variant expansion; callers may pass the same dict repeatedly.
+    """
+    if expand_variants:
+        _progress.info("Leiden/RabbitOrder variant expansion: ENABLED")
+        variant_label_maps, reorder_results = generate_reorderings_with_variants(
+            graphs=graphs,
+            algorithms=reorder_algorithms,
+            bin_dir=args.bin_dir,
+            output_dir=args.results_dir,
+            expand_leiden_variants=True,
+            leiden_resolution=args.leiden_resolution,
+            leiden_passes=args.leiden_passes,
+            rabbit_variants=getattr(args, 'rabbit_variants', None),
+            graphbrew_variants=getattr(args, 'graphbrew_variants', None),
+            gorder_variants=getattr(args, 'gorder_variants', None),
+            timeout=args.timeout_reorder,
+            skip_slow=args.skip_slow,
+            force_reorder=args.force_reorder,
+        )
+        # Merge variant label maps into main label_maps
+        for graph_name, algo_maps in variant_label_maps.items():
+            if graph_name not in label_maps:
+                label_maps[graph_name] = {}
+            label_maps[graph_name].update(algo_maps)
+    else:
+        reorder_results = generate_reorderings(
+            graphs=graphs,
+            algorithms=reorder_algorithms,
+            bin_dir=args.bin_dir,
+            output_dir=args.results_dir,
+            timeout=args.timeout_reorder,
+            skip_slow=args.skip_slow,
+            generate_maps=True,
+            force_reorder=args.force_reorder,
+        )
+        # Build label_maps from successful reorder results if not already populated
+        if not label_maps:
+            for r in reorder_results:
+                if r.success and r.mapping_file:
+                    if r.graph not in label_maps:
+                        label_maps[r.graph] = {}
+                    label_maps[r.graph][r.algorithm_name] = r.mapping_file
+            if label_maps:
+                _progress.info(f"Built label_maps for {len(label_maps)} graphs from reorder results")
+
+    # Save intermediate results (optional — phase=all saves, fill_weights skips)
+    if save_results and timestamp:
+        reorder_file = os.path.join(args.results_dir, f"reorder_{timestamp}.json")
+        with open(reorder_file, 'w') as f:
+            json.dump([asdict(r) for r in reorder_results], f, indent=2)
+        _progress.success(f"Reorder results saved to: {reorder_file}")
+
+    return reorder_results, label_maps
+
+
+def _do_benchmark_phase(args, graphs, algorithms, label_maps,
+                        *, benchmarks: list, expand_variants: bool = False,
+                        has_variant_maps: bool = False,
+                        update_weights: bool = True,
+                        use_pregenerated: bool = False,
+                        save_results: bool = True, timestamp: str = ""):
+    """Run benchmark phase — shared by phase=all and fill_weights.
+
+    Returns list[BenchmarkResult].
+    """
+    if has_variant_maps and expand_variants:
+        _progress.info("Mode: Variant-aware benchmarking (GraphBrewOrder_leiden, GraphBrewOrder_rabbit, etc.)")
+        benchmark_results = run_benchmarks_with_variants(
+            graphs=graphs,
+            label_maps=label_maps,
+            benchmarks=benchmarks,
+            bin_dir=args.bin_dir,
+            num_trials=args.trials,
+            timeout=args.timeout_benchmark,
+            weights_dir=args.weights_dir,
+            update_weights=update_weights,
+            progress=_progress,
+        )
+    else:
+        _progress.info("Mode: Standard benchmarking")
+        if use_pregenerated:
+            _progress.info("  Using pre-generated .sg files (no runtime reorder overhead)")
+        benchmark_results = run_benchmarks_multi_graph(
+            graphs=graphs,
+            algorithms=algorithms,
+            benchmarks=benchmarks,
+            bin_dir=args.bin_dir,
+            num_trials=args.trials,
+            timeout=args.timeout_benchmark,
+            skip_slow=args.skip_slow,
+            label_maps=label_maps,
+            weights_dir=args.weights_dir,
+            update_weights=update_weights,
+            use_pregenerated=use_pregenerated,
+        )
+
+    # Save intermediate results (optional)
+    if save_results and timestamp:
+        bench_file = os.path.join(args.results_dir, f"benchmark_{timestamp}.json")
+        with open(bench_file, 'w') as f:
+            json.dump([asdict(r) for r in benchmark_results], f, indent=2)
+        store = get_benchmark_store()
+        store.append(benchmark_results)
+        _progress.success(f"Benchmark results saved to: {bench_file}")
+
+    # Show summary statistics
+    if benchmark_results:
+        successful = [r for r in benchmark_results if r.time_seconds > 0]
+        _progress.stats_box("Benchmark Statistics", {
+            "Total runs": len(benchmark_results),
+            "Successful": len(successful),
+            "Failed/Timeout": len(benchmark_results) - len(successful),
+            "Avg time": f"{sum(r.time_seconds for r in successful) / len(successful):.4f}s" if successful else "N/A",
+        })
+
+    return benchmark_results
+
+
+def _do_cache_phase(args, graphs, algorithms, label_maps,
+                    *, benchmarks: list, expand_variants: bool = False,
+                    has_variant_maps: bool = False,
+                    save_results: bool = True, timestamp: str = ""):
+    """Run cache simulation phase — shared by phase=all and fill_weights.
+
+    Returns list of cache simulation results.
+    """
+    if has_variant_maps and expand_variants:
+        _progress.info("Mode: Variant-aware cache simulation (GraphBrewOrder_leiden, GraphBrewOrder_rabbit, etc.)")
+        cache_results = run_cache_simulations_with_variants(
+            graphs=graphs,
+            label_maps=label_maps,
+            benchmarks=benchmarks,
+            bin_sim_dir=args.bin_sim_dir,
+            timeout=args.timeout_sim,
+            skip_heavy=args.skip_heavy,
+        )
+    else:
+        _progress.info("Mode: Standard cache simulation")
+        rabbit_variants = getattr(args, 'rabbit_variants', None)
+        if rabbit_variants:
+            _progress.info(f"  RabbitOrder variants: {rabbit_variants or ['csr (default)']}")
+        cache_results = run_cache_simulations(
+            graphs=graphs,
+            algorithms=algorithms,
+            benchmarks=benchmarks,
+            bin_sim_dir=args.bin_sim_dir,
+            timeout=args.timeout_sim,
+            skip_heavy=args.skip_heavy,
+            label_maps=label_maps,
+            rabbit_variants=rabbit_variants,
+            resolution=getattr(args, 'leiden_resolution', None),
+            passes=getattr(args, 'leiden_passes', None),
+        )
+
+    # Save intermediate results (optional)
+    if save_results and timestamp:
+        cache_file = os.path.join(args.results_dir, f"cache_{timestamp}.json")
+        with open(cache_file, 'w') as f:
+            json.dump([asdict(r) for r in cache_results], f, indent=2)
+        _progress.success(f"Cache results saved to: {cache_file}")
+
+    return cache_results
+
 
 def get_graph_path(graphs_dir: str, graph_name: str) -> Optional[str]:
     """Get the path to a graph file.
@@ -1397,7 +1572,7 @@ def run_experiment(args):
         # Build reverse mapping from name to id (auto-generated from SSOT)
         name_to_id = {v.upper(): k for k, v in ALGORITHMS.items()}
         # Add variant names → base algo IDs (from SSOT API)
-        from scripts.lib.utils import get_all_algorithm_variant_names
+        from scripts.lib.core.utils import get_all_algorithm_variant_names
         for name in get_all_algorithm_variant_names():
             algo_id_for_name = next(
                 (aid for aid in ALGORITHMS
@@ -1516,64 +1691,12 @@ def run_experiment(args):
     # (skip if fill_weights is active — it has its own reorder phase)
     if args.phase in ["all", "reorder"] and not args.fill_weights:
         _progress.phase_start("REORDERING", "Generating vertex reorderings for all graphs")
-        
-        # Check if variant expansion is requested
-        if args.expand_variants:
-            _progress.info("Leiden/RabbitOrder variant expansion: ENABLED")
-            
-            # Use variant-aware reordering
-            variant_label_maps, reorder_results = generate_reorderings_with_variants(
-                graphs=graphs,
-                algorithms=reorder_algorithms,
-                bin_dir=args.bin_dir,
-                output_dir=args.results_dir,
-                expand_leiden_variants=True,
-                leiden_resolution=args.leiden_resolution,
-                leiden_passes=args.leiden_passes,
-                rabbit_variants=args.rabbit_variants,
-                graphbrew_variants=args.graphbrew_variants,
-                gorder_variants=args.gorder_variants,
-                timeout=args.timeout_reorder,
-                skip_slow=args.skip_slow,
-                force_reorder=args.force_reorder
-            )
-            
-            # Merge variant label maps into main label_maps
-            for graph_name, algo_maps in variant_label_maps.items():
-                if graph_name not in label_maps:
-                    label_maps[graph_name] = {}
-                label_maps[graph_name].update(algo_maps)
-        else:
-            # Standard reordering (no variant expansion)
-            reorder_results = generate_reorderings(
-                graphs=graphs,
-                algorithms=reorder_algorithms,
-                bin_dir=args.bin_dir,
-                output_dir=args.results_dir,
-                timeout=args.timeout_reorder,
-                skip_slow=args.skip_slow,
-                generate_maps=True,  # Always generate .lo mapping files
-                force_reorder=args.force_reorder
-            )
-            
-            # Build label_maps from successful reorder results if not already populated
-            if not label_maps:
-                for r in reorder_results:
-                    if r.success and r.mapping_file:
-                        if r.graph not in label_maps:
-                            label_maps[r.graph] = {}
-                        label_maps[r.graph][r.algorithm_name] = r.mapping_file
-                if label_maps:
-                    _progress.info(f"Built label_maps for {len(label_maps)} graphs from reorder results")
-        
+        reorder_results, label_maps = _do_reorder_phase(
+            args, graphs, reorder_algorithms, label_maps,
+            expand_variants=args.expand_variants,
+            save_results=True, timestamp=timestamp,
+        )
         all_reorder_results.extend(reorder_results)
-        
-        # Save intermediate results
-        reorder_file = os.path.join(args.results_dir, f"reorder_{timestamp}.json")
-        with open(reorder_file, 'w') as f:
-            json.dump([asdict(r) for r in reorder_results], f, indent=2)
-        _progress.success(f"Reorder results saved to: {reorder_file}")
-        
         _progress.phase_end(f"Generated {len(reorder_results)} reorderings")
     
     # Pre-compute variant map detection once (used by Phase 2 & 3)
@@ -1585,109 +1708,31 @@ def run_experiment(args):
     # (skip if fill_weights is active — it has its own benchmark phase)
     if args.phase in ["all", "benchmark"] and not args.fill_weights:
         _progress.phase_start("BENCHMARKING", "Running performance benchmarks")
-        
-        if has_variant_maps and args.expand_variants:
-            # Use variant-aware benchmarking with pre-generated variant mappings
-            _progress.info("Mode: Variant-aware benchmarking (GraphBrewOrder_leiden, GraphBrewOrder_rabbit, etc.)")
-            benchmark_results = run_benchmarks_with_variants(
-                graphs=graphs,
-                label_maps=label_maps,
-                benchmarks=args.benchmarks,
-                bin_dir=args.bin_dir,
-                num_trials=args.trials,
-                timeout=args.timeout_benchmark,
-                weights_dir=args.weights_dir,
-                update_weights=not args.no_incremental,
-                progress=_progress
-            )
-        else:
-            # Standard benchmarking
-            _progress.info("Mode: Standard benchmarking")
-            if pregenerated_available:
-                _progress.info("  Using pre-generated .sg files (no runtime reorder overhead)")
-            benchmark_results = run_benchmarks_multi_graph(
-                graphs=graphs,
-                algorithms=algorithms,
-                benchmarks=args.benchmarks,
-                bin_dir=args.bin_dir,
-                num_trials=args.trials,
-                timeout=args.timeout_benchmark,
-                skip_slow=args.skip_slow,
-                label_maps=label_maps,
-                weights_dir=args.weights_dir,
-                update_weights=not args.no_incremental,
-                use_pregenerated=pregenerated_available,
-            )
+        benchmark_results = _do_benchmark_phase(
+            args, graphs, algorithms, label_maps,
+            benchmarks=args.benchmarks,
+            expand_variants=args.expand_variants,
+            has_variant_maps=has_variant_maps,
+            update_weights=not args.no_incremental,
+            use_pregenerated=pregenerated_available,
+            save_results=True, timestamp=timestamp,
+        )
         all_benchmark_results.extend(benchmark_results)
-        
-        # Save intermediate results (timestamped backup + centralized store)
-        bench_file = os.path.join(args.results_dir, f"benchmark_{timestamp}.json")
-        with open(bench_file, 'w') as f:
-            json.dump([asdict(r) for r in benchmark_results], f, indent=2)
-        store = get_benchmark_store()
-        store.append(benchmark_results)
-        _progress.success(f"Benchmark results saved to: {bench_file}")
-        
-        # Show summary statistics
-        if benchmark_results:
-            successful = [r for r in benchmark_results if r.time_seconds > 0]
-            _progress.stats_box("Benchmark Statistics", {
-                "Total runs": len(benchmark_results),
-                "Successful": len(successful),
-                "Failed/Timeout": len(benchmark_results) - len(successful),
-                "Avg time": f"{sum(r.time_seconds for r in successful) / len(successful):.4f}s" if successful else "N/A"
-            })
-        
         _progress.phase_end(f"Completed {len(benchmark_results)} benchmark runs")
-        
-        # Amortization report (auto-generated after benchmarking)
         _print_amortization_report(benchmark_results, all_reorder_results)
     
     # Phase 3: Cache Simulations
     # (skip if fill_weights is active — it has its own cache phase)
     if args.phase in ["all", "cache"] and not args.skip_cache and not args.fill_weights:
         _progress.phase_start("CACHE SIMULATION", "Running cache miss simulations")
-        
-        if has_variant_maps and args.expand_variants:
-            # Use variant-aware cache simulation
-            _progress.info("Mode: Variant-aware cache simulation (GraphBrewOrder_leiden, GraphBrewOrder_rabbit, etc.)")
-            cache_results = run_cache_simulations_with_variants(
-                graphs=graphs,
-                label_maps=label_maps,
-                benchmarks=args.benchmarks,
-                bin_sim_dir=args.bin_sim_dir,
-                timeout=args.timeout_sim,
-                skip_heavy=args.skip_heavy
-            )
-        else:
-            # Standard cache simulation with variant support
-            _progress.info("Mode: Standard cache simulation")
-            
-            # Pass variant lists if specified
-            rabbit_variants = args.rabbit_variants
-            
-            if rabbit_variants:
-                _progress.info(f"  RabbitOrder variants: {rabbit_variants or ['csr (default)']}")
-            
-            cache_results = run_cache_simulations(
-                graphs=graphs,
-                algorithms=algorithms,
-                benchmarks=args.benchmarks,
-                bin_sim_dir=args.bin_sim_dir,
-                timeout=args.timeout_sim,
-                skip_heavy=args.skip_heavy,
-                label_maps=label_maps,
-                rabbit_variants=rabbit_variants,
-                resolution=args.leiden_resolution,
-                passes=args.leiden_passes
-            )
+        cache_results = _do_cache_phase(
+            args, graphs, algorithms, label_maps,
+            benchmarks=args.benchmarks,
+            expand_variants=args.expand_variants,
+            has_variant_maps=has_variant_maps,
+            save_results=True, timestamp=timestamp,
+        )
         all_cache_results.extend(cache_results)
-        
-        # Save intermediate results
-        cache_file = os.path.join(args.results_dir, f"cache_{timestamp}.json")
-        with open(cache_file, 'w') as f:
-            json.dump([asdict(r) for r in cache_results], f, indent=2)
-        _progress.success(f"Cache results saved to: {cache_file}")
         _progress.phase_end(f"Completed {len(cache_results)} cache simulations")
     
     # Phase 6: Adaptive Order Analysis
@@ -1819,22 +1864,16 @@ def run_experiment(args):
         log("  - Phase 1: Reorderings (fills w_reorder_time)")
         log("  - Phase 2: Benchmarks (fills bias, w_log_*, w_density, w_avg_degree)")
         log("  - Phase 3: Cache Simulation (fills cache_l1/l2/l3_impact)")
-        log("  - Phase 4: Generate base weights")
-        log("  - Phase 5: Update topology weights (fills w_clustering_coeff, etc.)")
-        log("  - Phase 6: Compute per-benchmark weights")
+        log("  - Phase 4–6: Skipped (C++ trains models at runtime from DB)")
         log("  - Phase 7: Generate per-graph-type weight files (from detected properties)")
         log("")
-        
-        # Load existing graph properties cache if available
-        weights_file = args.weights_file or os.path.join(args.weights_dir, 'weights.json')
-        cache_dir = os.path.dirname(weights_file) or args.weights_dir
-        props_cache = load_graph_properties_cache(cache_dir)
-        log(f"Loaded graph properties cache: {len(props_cache)} graphs")
         
         # Respect --skip-cache flag
         skip_cache_original = args.skip_cache
         
         # Phase 0: Graph Analysis - Run AdaptiveOrder to detect graph types
+        # (graph properties are auto-recorded by C++ to graph_properties.json
+        # via GRAPHBREW_DB_DIR; analysis.py also saves to legacy cache internally)
         log_section("Phase 0: Graph Property Analysis")
         log("Running AdaptiveOrder to compute graph properties (modularity, degree variance, etc.)")
         adaptive_results = analyze_adaptive_order(
@@ -1843,273 +1882,62 @@ def run_experiment(args):
             output_dir=args.results_dir,
             timeout=args.timeout_reorder
         )
-        # Save the cache after analysis
-        save_graph_properties_cache(cache_dir)
-        props_cache = load_graph_properties_cache(cache_dir)
-        log(f"Graph properties cached for {len(props_cache)} graphs")
+        log(f"Graph properties computed for {len(adaptive_results)} graphs")
         
-        # Phase 1: Reorderings
+        # Phase 1: Reorderings (shared helper, no intermediate save)
         log_section("Phase 1: Generate Reorderings")
-        reorder_results = generate_reorderings(
-            graphs=graphs,
-            algorithms=algorithms,
-            bin_dir=args.bin_dir,
-            output_dir=args.results_dir,
-            timeout=args.timeout_reorder,
-            skip_slow=args.skip_slow,
-            generate_maps=True,  # Always generate .lo mapping files
-            force_reorder=args.force_reorder
+        reorder_results, label_maps = _do_reorder_phase(
+            args, graphs, reorder_algorithms, label_maps,
+            expand_variants=False, save_results=False,
         )
         
-        # Phase 2: Benchmarks (all of them)
+        # Phase 2: Benchmarks — all benchmarks (shared helper, no intermediate save)
         log_section("Phase 2: Execution Benchmarks (All)")
-        all_benchmarks = BENCHMARKS
-        if has_variant_maps and args.expand_variants:
-            # Variant-aware benchmarking (uses pre-generated .sg files or label maps)
-            log("  Mode: Variant-aware benchmarking")
-            benchmark_results = run_benchmarks_with_variants(
-                graphs=graphs,
-                label_maps=label_maps,
-                benchmarks=all_benchmarks,
-                bin_dir=args.bin_dir,
-                num_trials=args.trials,
-                timeout=args.timeout_benchmark,
-                weights_dir=args.weights_dir,
-                update_weights=True,
-            )
-        else:
-            benchmark_results = run_benchmarks_multi_graph(
-                graphs=graphs,
-                algorithms=algorithms,
-                benchmarks=all_benchmarks,
-                bin_dir=args.bin_dir,
-                num_trials=args.trials,
-                timeout=args.timeout_benchmark,
-                skip_slow=args.skip_slow,
-                label_maps=label_maps,
-                weights_dir=args.weights_dir,
-                update_weights=True  # Always update incrementally in fill-weights
-            )
-        
-        # Amortization report after fill-weights benchmarks
+        benchmark_results = _do_benchmark_phase(
+            args, graphs, algorithms, label_maps,
+            benchmarks=BENCHMARKS,
+            expand_variants=args.expand_variants,
+            has_variant_maps=has_variant_maps,
+            update_weights=True,
+            save_results=False,
+        )
         _print_amortization_report(benchmark_results, reorder_results)
         
-        # Phase 3: Cache Simulation
+        # Phase 3: Cache Simulation (shared helper, no intermediate save)
         log_section("Phase 3: Cache Simulation")
         if skip_cache_original:
             log("SKIPPED (--skip-cache specified)")
             cache_results = []
         else:
-            # Get variant lists for expanded cache simulation
-            expand_variants = args.expand_variants
-            rabbit_variants = args.rabbit_variants or RABBITORDER_VARIANTS
-            
-            cache_results = run_cache_simulations(
-                graphs=graphs,
-                algorithms=algorithms,
+            cache_results = _do_cache_phase(
+                args, graphs, algorithms, label_maps,
                 benchmarks=CACHE_KEY_BENCHMARKS,
-                bin_sim_dir=args.bin_sim_dir,
-                timeout=args.timeout_sim,
-                skip_heavy=args.skip_heavy,
-                label_maps={},
-                rabbit_variants=rabbit_variants if expand_variants else ['csr']
+                expand_variants=args.expand_variants,
+                has_variant_maps=has_variant_maps,
+                save_results=False,
             )
         
-        # Phase 4: Generate Base Weights
-        log_section("Phase 4: Generate Perceptron Weights")
-        weights = compute_weights_from_results(
-            benchmark_results=benchmark_results,
-            cache_results=cache_results,
-            reorder_results=reorder_results,
-            output_file=args.weights_file
-        )
-        
-        # Phase 5: Update Zero Weights with topology features
-        log_section("Phase 5: Update Topology Weights")
-        update_zero_weights(
-            weights_file=args.weights_file,
-            graphs_dir=args.graphs_dir,
-            benchmark_results=benchmark_results,
-            cache_results=cache_results,
-            reorder_results=reorder_results
-        )
-        
-        # Phase 6: Update type-based weights from results
-        log_section("Phase 6: Assign Graph Types & Update Weights")
-        
-        # Extract features for each graph and assign to types
-        for graph_info in graphs:
-            graph_name = graph_info.name
-            graph_path = graph_info.path
-            
-            # Get modularity from adaptive results
-            modularity = DEFAULT_MODULARITY
-            for ar in adaptive_results:
-                if ar.graph == graph_name:
-                    modularity = ar.modularity
-                    break
-            
-            # Run a quick benchmark to get topology features
-            binary = os.path.join(args.bin_dir, "pr")
-            env_prefix = "ADAPTIVE_SKIP_MODULARITY=1 " if getattr(args, 'skip_modularity', False) else ""
-            cmd = f"{env_prefix}{binary} -f {graph_path} -a 0 -n 1"
-            try:
-                success, stdout, stderr = run_command(cmd, timeout=TIMEOUT_FEATURE_EXTRACTION)
-                if not success:
-                    log(f"  {graph_name}: feature extraction command failed", "WARN")
-                output = stdout + stderr
-                
-                # Parse all topology features from C++ output
-                parsed = {}
-                for pattern, key, default in _FEATURE_PATTERNS:
-                    m = re.search(pattern, output)
-                    parsed[key] = float(m.group(1)) if m else default
-                
-                graph_nodes = graph_info.nodes
-                graph_edges = graph_info.edges
-                
-                # Assign to type
-                features = {
-                    'modularity': modularity,
-                    **parsed,
-                    'nodes': graph_nodes,
-                    'edges': graph_edges,
-                }
-                
-                # Save all features to graph properties cache
-                update_graph_properties(graph_name, features)
-                
-                type_name = assign_graph_type(features, args.weights_dir, create_if_outlier=True)
-                log(f"  {graph_name} → {type_name} (mod={modularity:.3f}, dv={parsed['degree_variance']:.3f}, hc={parsed['hub_concentration']:.3f})")
-                
-                # Update type weights with benchmark results for this graph
-                graph_benchmark_results = [r for r in benchmark_results if r.graph == graph_name]
-                graph_cache_results = [r for r in cache_results if r.graph == graph_name]
-                
-                # Find best algorithm for each benchmark
-                for bench in set(r.benchmark for r in graph_benchmark_results):
-                    bench_results = [r for r in graph_benchmark_results if r.benchmark == bench and r.success]
-                    if not bench_results:
-                        continue
-                    
-                    # Find baseline and best
-                    baseline = next((r for r in bench_results if r.algorithm == ALGORITHMS[_ORIGINAL_ID]), bench_results[0])
-                    best = min(bench_results, key=lambda r: r.time_seconds)
-                    
-                    if baseline.time_seconds > 0:
-                        speedup = baseline.time_seconds / best.time_seconds
-                        
-                        # Get cache stats for best algorithm
-                        cache_stat = next((c for c in graph_cache_results 
-                                          if c.algorithm_name == best.algorithm and c.benchmark == bench), None)
-                        
-                        # Get reorder time
-                        reorder = next((r for r in reorder_results 
-                                       if r.graph == graph_name and r.algorithm_name == best.algorithm), None)
-                        reorder_time = reorder.reorder_time if reorder else 0.0
-                        
-                        # Update type weights
-                        update_type_weights_incremental(
-                            type_name=type_name,
-                            algorithm=best.algorithm,
-                            benchmark=bench,
-                            speedup=speedup,
-                            features=features,
-                            cache_stats={'l1_hit_rate': (1.0 - cache_stat.l1_miss_rate) * 100 if cache_stat else 0,
-                                        'l2_hit_rate': (1.0 - cache_stat.l2_miss_rate) * 100 if cache_stat else 0,
-                                        'l3_hit_rate': (1.0 - cache_stat.l3_miss_rate) * 100 if cache_stat else 0} if cache_stat else None,
-                            reorder_time=reorder_time,
-                            weights_dir=args.weights_dir
-                        )
-                        
-            except Exception as e:
-                log(f"  {graph_name}: could not extract features ({e})")
-        
-        # Show types summary
-        known_types = list_known_types(args.weights_dir)
-        if known_types:
-            log(f"\nTypes created/updated: {len(known_types)}")
-            for type_name in known_types:
-                type_file = get_type_weights_file(type_name, args.weights_dir)
-                if os.path.exists(type_file):
-                    with open(type_file) as f:
-                        type_data = json.load(f)
-                    algo_count = len([k for k in type_data.keys() if not k.startswith('_')])
-                    log(f"  {type_name}: {algo_count} algorithms trained")
-        else:
-            log("No types created (weights are in main perceptron_weights.json)")
-        
-        # Save graph properties cache for future use
-        cache_output_dir = args.weights_dir or "results"
-        save_graph_properties_cache(output_dir=cache_output_dir)
-        from scripts.lib.features import get_graph_properties_cache_file
-        cache_file_path = get_graph_properties_cache_file(cache_output_dir)
-        log(f"Saved graph properties cache to: {cache_file_path}")
-        
-        # NOTE: We no longer re-run update_zero_weights here.
-        # Phase 4 (compute_weights_from_results) already trained a proper
-        # multi-class perceptron via SGD. Phase 5 fills only auxiliary
-        # weights (reorder time, cache stats). Re-running Phase 5 here
-        # would risk overwriting the trained weights.
+        # Phase 4–6: DEPRECATED
+        # C++ now trains perceptron, decision tree, and hybrid models directly
+        # from benchmarks.json + graph_properties.json at load time.
+        # No need for Python-side weight computation, zero-weight updates,
+        # or type assignment — the data IS the model.
+        log_section("Phase 4–6: Skipped (C++ trains from DB at runtime)")
+        log("  C++ BenchmarkDatabase::train_all_models() trains:")
+        log("    - Multi-class averaged perceptron (Jimenez margin, 5 restarts)")
+        log("    - CART decision tree (Gini, depth 6)")
+        log("    - Hybrid DT + per-leaf perceptron")
+        log("  All models are views over benchmarks.json + graph_properties.json.")
+        log("  No adaptive_models.json or results/models/ directory needed.")
         
         log_section("Fill Weights Complete")
-        log("All weight fields have been populated")
-        log(f"Weights directory: {args.weights_dir}")
-        
-        # Show summary from type-based weights
-        summary_weights_file = None
-        if args.weights_file and os.path.exists(args.weights_file):
-            summary_weights_file = args.weights_file
-        else:
-            # Try type_0/weights.json as the main type-based weights file
-            type_0_file = get_type_weights_file('type_0', args.weights_dir)
-            if os.path.exists(type_0_file):
-                summary_weights_file = type_0_file
-        
-        if summary_weights_file:
-            with open(summary_weights_file) as f:
-                final_weights = json.load(f)
-            
-            log("\nWeight field population summary:")
-            # Pick a non-ORIGINAL algorithm to show (ORIGINAL doesn't learn feature weights)
-            sample_algo = next((k for k in final_weights if not k.startswith("_") and k != "ORIGINAL"), None)
-            if not sample_algo:
-                sample_algo = next((k for k in final_weights if not k.startswith("_")), None)
-            if sample_algo:
-                w = final_weights[sample_algo]
-                for key, val in w.items():
-                    if key.startswith("_") or key == "benchmark_weights":
-                        continue
-                    status = "✓ filled" if val != 0 else "○ zero"
-                    log(f"  {key}: {status}")
-                
-                if "benchmark_weights" in w:
-                    bw = w["benchmark_weights"]
-                    all_same = len(set(bw.values())) == 1
-                    log(f"  benchmark_weights: {'○ defaults' if all_same else '✓ tuned'}")
-        
-        # Auto-merge weights from this run with previous runs
-        if not args.no_merge:
-            try:
-                log("\nMerging weights with previous runs...")
-                merge_summary = auto_merge_after_run()
-                if "error" not in merge_summary:
-                    log(f"  Merged {merge_summary.get('runs_merged', 0)} runs -> {merge_summary.get('total_types', 0)} types")
-                    log(f"  Merged weights saved to: {merge_summary.get('output_dir', 'results/models/perceptron/merged/')}")
-            except Exception as e:
-                log(f"  Warning: Weight merge failed: {e}")
+        log("Benchmark data recorded to DB. C++ trains models at runtime.")
     
     # Show final summary with statistics
     _progress.final_summary()
     
     log(f"Results directory: {args.results_dir}")
-    log(f"Weights directory: {args.weights_dir}")
-    
-    # Show type system summary
-    known_types = list_known_types(args.weights_dir)
-    if known_types:
-        log(f"Known types: {', '.join(known_types)}")
-        log("Run --show-types to see full type details")
+    log(f"DB directory: {args.weights_dir}")
 
 # ============================================================================
 # CLI
@@ -2167,8 +1995,7 @@ def main():
   # Phase 3: Cache simulation only (uses .lo maps from Phase 1)
   python scripts/graphbrew_experiment.py --phase cache --size small
 
-  # Phase 4: Generate weights (loads benchmark + cache results from files)
-  python scripts/graphbrew_experiment.py --phase weights
+  # Phase 4–6: Deprecated (C++ trains models at runtime from benchmarks.json)
 
   # Run phases sequentially (no --train needed)
   python scripts/graphbrew_experiment.py --phase reorder --size small && \\
@@ -2384,20 +2211,8 @@ def main():
     parser.add_argument("--batch-only", action="store_true", dest="no_incremental",
                         help="Only update weights at end of run (disable per-graph incremental updates)")
     
-    # Weight merging options
-    parser.add_argument("--isolate-run", action="store_true", dest="no_merge",
-                        help="Keep this run's weights isolated (don't merge with previous runs)")
-    parser.add_argument("--list-runs", action="store_true",
-                        help="List all saved weight runs")
-    parser.add_argument("--merge-runs", nargs="*", metavar="TIMESTAMP",
-                        help="Merge specific runs (or all if no args)")
-    parser.add_argument("--use-run", metavar="TIMESTAMP",
-                        help="Use weights from a specific run instead of merged")
-    parser.add_argument("--use-merged", action="store_true",
-                        help="Use merged weights (default after merge)")
-    
     parser.add_argument("--weights-file", default=os.path.join(DEFAULT_WEIGHTS_DIR, "weights.json"),
-                        help="Path to weights file (default: results/models/perceptron/weights.json)")
+                        help="Path to staging weights file (canonical: results/data/adaptive_models.json)")
     
     # Clean options
     parser.add_argument("--clean", action="store_true",
@@ -2493,7 +2308,7 @@ def main():
         if args.install_boost:
             # Import Boost-specific functions
             try:
-                from scripts.lib.dependencies import install_boost_158, check_boost_158
+                from scripts.lib.pipeline.dependencies import install_boost_158, check_boost_158
             except ImportError:
                 print("ERROR: Could not import Boost installation functions")
                 sys.exit(1)
@@ -2520,7 +2335,7 @@ def main():
                 print("\nTo install missing dependencies:")
                 print("  python scripts/graphbrew_experiment.py --install-deps")
                 print("\nOr see manual instructions:")
-                print("  python -m scripts.lib.dependencies --instructions")
+                print("  python -m scripts.lib.pipeline.dependencies --instructions")
             sys.exit(0 if all_ok else 1)
         
         if args.install_deps:
@@ -2571,42 +2386,6 @@ def main():
         if not (args.full or args.download_only or args.phase != "all" or 
                 args.validate_adaptive or args.brute_force):
             return  # Just clean cache, don't run experiments
-    
-    # Handle weight management commands early
-    if args.list_runs:
-        from scripts.lib.weight_merger import list_runs
-        runs = list_runs()
-        if not runs:
-            log("No saved runs found")
-        else:
-            log(f"Available runs ({len(runs)}):\n")
-            for run in runs:
-                log(f"  {run.timestamp}:")
-                log(f"    Types: {len(run.types)}")
-                for tid, tinfo in run.types.items():
-                    log(f"      {tid}: {tinfo.graph_count} graphs, {len(tinfo.algorithms)} algos")
-        return
-    
-    if args.merge_runs is not None:
-        from scripts.lib.weight_merger import merge_runs, use_merged
-        run_timestamps = args.merge_runs if args.merge_runs else None
-        summary = merge_runs(run_timestamps=run_timestamps)
-        if "error" not in summary:
-            use_merged()
-            log(f"Merged {summary.get('runs_merged', 0)} runs -> {summary.get('total_types', 0)} types")
-        return
-    
-    if args.use_run:
-        from scripts.lib.weight_merger import use_run
-        if use_run(args.use_run):
-            log(f"Now using weights from run: {args.use_run}")
-        return
-    
-    if args.use_merged:
-        from scripts.lib.weight_merger import use_merged
-        if use_merged():
-            log("Now using merged weights")
-        return
     
     # Handle --show-types early (informational command)
     if args.show_types:
@@ -2705,7 +2484,7 @@ def main():
     
     # ── Standalone sub-workflows (early exit) ────────────────────────
     if args.benchmark_fresh:
-        from scripts.lib.benchmark import run_fresh_benchmarks
+        from scripts.lib.pipeline.benchmark import run_fresh_benchmarks
         graph_list = args.graph_list or None
         run_fresh_benchmarks(
             graphs_dir=args.graphs_dir,
@@ -2716,7 +2495,7 @@ def main():
         return
 
     if args.ab_test:
-        from scripts.lib.analysis import run_ab_test
+        from scripts.lib.analysis.adaptive import run_ab_test
         graph_list = args.graph_list or None
         run_ab_test(
             graphs_dir=args.graphs_dir,
@@ -2727,7 +2506,7 @@ def main():
         return
 
     if args.eval_weights:
-        from scripts.lib.eval_weights import train_and_evaluate
+        from scripts.lib.ml.eval_weights import train_and_evaluate
         train_and_evaluate(
             results_dir=args.results_dir,
             sg_only=args.sg_only,
@@ -2738,49 +2517,45 @@ def main():
 
     # ── Dispatchers for moved standalone tools ───────────────────────
     if args.emulator:
-        from scripts.lib.adaptive_emulator import main as emulator_main
-        sys.argv = [sys.argv[0]]  # clear args so emulator's argparse takes over
-        emulator_main()
+        from scripts.lib.ml.adaptive_emulator import main as emulator_main
+        _dispatch_tool(emulator_main)
         return
 
     if args.oracle_analysis:
-        from scripts.lib.oracle import main as oracle_main
-        sys.argv = [sys.argv[0], "--results-dir", args.results_dir]
-        oracle_main()
+        from scripts.lib.ml.oracle import main as oracle_main
+        _dispatch_tool(oracle_main, ["--results-dir", args.results_dir])
         return
 
     if args.perceptron:
-        from scripts.lib.perceptron import main as perceptron_main
-        sys.argv = [sys.argv[0]]
-        perceptron_main()
+        from scripts.lib.ml.eval_weights import main as eval_weights_main
+        _dispatch_tool(eval_weights_main)
         return
 
     if args.cache_compare:
-        from scripts.lib.cache import run_cache_compare
+        from scripts.lib.pipeline.cache import run_cache_compare
         run_cache_compare()
         return
 
     if args.regen_features:
-        from scripts.lib.regen_features import main as regen_main
+        from scripts.lib.tools.regen_features import main as regen_main
         regen_main()
         return
 
     if args.check_includes:
-        from scripts.lib.check_includes import main as check_main
-        sys.argv = [sys.argv[0]]
-        check_main()
+        from scripts.lib.tools.check_includes import main as check_main
+        _dispatch_tool(check_main)
         return
 
     if args.generate_figures:
-        from scripts.lib.figures import main as figures_main
+        from scripts.lib.analysis.figures import main as figures_main
         figures_main()
         return
 
     if args.compare_leiden:
-        from scripts.lib.analysis import compare_leiden_variants
+        from scripts.lib.analysis.adaptive import compare_leiden_variants
         # Quick standalone comparison on a default graph
         from pathlib import Path as _P
-        from scripts.lib.utils import GRAPHS_DIR as _GD
+        from scripts.lib.core.utils import GRAPHS_DIR as _GD
         _test_graphs = list(_P(_GD).glob("*/*.sg"))[:1]
         if _test_graphs:
             compare_leiden_variants(_test_graphs[0], {"name": _test_graphs[0].parent.name})

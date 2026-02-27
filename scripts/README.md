@@ -8,34 +8,24 @@ All Python tooling for GraphBrew lives here.
 scripts/
 ├── graphbrew_experiment.py   ← SINGLE entry point (the only top-level .py)
 ├── requirements.txt
-├── lib/                      ← internal library modules (imported; many also support standalone use)
-│   ├── utils.py              ← paths, constants, shared helpers
-│   ├── weights.py            ← weight training, type registry, LOGO CV
-│   ├── eval_weights.py       ← evaluation / accuracy reports
-│   ├── adaptive_emulator.py  ← Python mirror of C++ adaptive selector
-│   ├── perceptron.py         ← interactive perceptron experimentation
-│   ├── weight_merger.py      ← merge weights across experiment runs
-│   ├── features.py           ← graph feature computation
-│   ├── benchmark.py          ← benchmark orchestration
-│   ├── ...                   ← (see lib/ for full listing)
-│   └── __init__.py
+├── lib/                      ← modular library, 5 sub-packages (see lib/README.md)
+│   ├── core/                 ← constants, logging, data stores
+│   ├── pipeline/             ← experiment execution stages
+│   ├── ml/                   ← ML scoring & training (fallback)
+│   ├── analysis/             ← post-run analysis & visualisation
+│   ├── tools/                ← standalone CLI utilities
+│   └── __init__.py           ← re-exports every public name
 └── test/                     ← pytest tests  (run: pytest scripts/test/)
 ```
 
-Weight files live under `results/models/perceptron/` (not `scripts/`), managed by
-`lib/utils.py` constants (`WEIGHTS_DIR`, `ACTIVE_WEIGHTS_DIR`):
+Weight and model data live under `results/data/` (not `scripts/`), managed by
+`lib/core/utils.py` constants:
 
 ```
-results/models/perceptron/              ← runtime weight data (gitignored)
-├── registry.json
-├── type_0/
-│   ├── weights.json
-│   ├── pr.json
-│   └── ...
-├── type_1/
-│   └── weights.json
-└── type_2/
-    └── weights.json
+results/data/                           ← runtime data (gitignored)
+├── benchmarks.json                     ← streaming benchmark database (primary)
+├── graph_properties.json               ← graph feature vectors
+└── adaptive_models.json                ← perceptron weights + DT/hybrid models (fallback)
 ```
 
 ## Rules for AI agents
@@ -47,13 +37,14 @@ results/models/perceptron/              ← runtime weight data (gitignored)
 2. **Library code goes in `lib/`.**  Modules there are imported by
    `graphbrew_experiment.py`; they are never executed directly.
 
-3. **Weight file paths** are built by helpers in `lib/utils.py`:
-   `weights_registry_path()`, `weights_type_path()`, `weights_bench_path()`.
-   Never hard-code paths like `type_0.json` or `type_registry.json`.
+3. **Weight/model paths** use helpers in `lib/core/utils.py`:
+   `results_data_dir()`, `benchmarks_db_path()`, `graph_properties_path()`,
+   `adaptive_models_path()`.
+   Never hard-code paths like `benchmarks.json` or `adaptive_models.json`.
 
 4. **Tests** go in `test/`.  Run with `pytest scripts/test/ -x -q`.
 
-5. **Algorithm naming** uses SSOT functions in `lib/utils.py`:
+5. **Algorithm naming** uses SSOT functions in `lib/core/utils.py`:
    `canonical_algo_key()`, `algo_converter_opt()`,
    `canonical_name_from_converter_opt()`, `chain_canonical_name()`,
    `get_algo_variants()`.

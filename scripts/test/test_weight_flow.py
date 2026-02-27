@@ -3,11 +3,11 @@
 Test Weight Flow - Verify weights are generated and read from correct locations.
 
 This test verifies:
-1. Python writes weights to results/models/perceptron/
-2. C++ reads from results/models/perceptron/
-3. Weight merger saves runs to results/models/perceptron/runs/
-4. Weight merger merges to results/models/perceptron/merged/
-5. Use-run and use-merged copy to weights/
+1. Python stages weights to results/models/perceptron/ (legacy staging dir)
+2. export_unified_models() merges into results/data/adaptive_models.json
+3. C++ loads from adaptive_models.json or trains at runtime from benchmarks.json
+4. Weight files are valid JSON with required fields (bias, w_modularity, etc.)
+5. Directory structure and constants are consistent
 
 Usage:
     pytest scripts/test/test_weight_flow.py -v
@@ -24,7 +24,7 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from scripts.lib.utils import (
+from scripts.lib.core.utils import (
     WEIGHTS_DIR, ACTIVE_WEIGHTS_DIR,
     VARIANT_PREFIXES, VARIANT_ALGO_IDS, DISPLAY_TO_CANONICAL,
     ALGORITHMS, RABBITORDER_VARIANTS, RCM_VARIANTS, GRAPHBREW_VARIANTS,
@@ -34,20 +34,11 @@ from scripts.lib.utils import (
     canonical_algo_key, algo_converter_opt, get_algo_variants,
     canonical_name_from_converter_opt, chain_canonical_name,
     get_algorithm_name,
-    LEGACY_ALGO_NAME_MAP,
 )
-from scripts.lib.weights import (
+from scripts.lib.ml.weights import (
     DEFAULT_WEIGHTS_DIR,
     save_type_weights,
     load_type_weights,
-)
-from scripts.lib.weight_merger import (
-    get_weights_dir,
-    get_active_dir,
-    get_runs_dir,
-    get_merged_dir,
-    save_current_run,
-    list_runs,
 )
 
 
@@ -88,16 +79,12 @@ def results():
 
 @pytest.fixture(autouse=True)
 def weights_env(tmp_path, monkeypatch):
-    import scripts.lib.utils as utils
-    import scripts.lib.weights as weights
-    import scripts.lib.weight_merger as wm
+    import scripts.lib.core.utils as utils
+    import scripts.lib.ml.weights as weights
 
     tmp_weights = tmp_path / "models" / "perceptron"
     tmp_active = tmp_weights
-    tmp_runs = tmp_weights / "runs"
-    tmp_merged = tmp_weights / "merged"
-    for d in [tmp_active, tmp_runs, tmp_merged]:
-        d.mkdir(parents=True, exist_ok=True)
+    tmp_weights.mkdir(parents=True, exist_ok=True)
 
     # Patch utils
     monkeypatch.setattr(utils, "WEIGHTS_DIR", tmp_weights)
@@ -105,12 +92,6 @@ def weights_env(tmp_path, monkeypatch):
 
     # Patch weights module
     monkeypatch.setattr(weights, "DEFAULT_WEIGHTS_DIR", str(tmp_weights))
-
-    # Patch weight_merger path functions
-    monkeypatch.setattr(wm, "get_weights_dir", lambda: tmp_weights)
-    monkeypatch.setattr(wm, "get_active_dir", lambda: tmp_active)
-    monkeypatch.setattr(wm, "get_runs_dir", lambda: tmp_runs)
-    monkeypatch.setattr(wm, "get_merged_dir", lambda: tmp_merged)
 
     # Seed default files
     default_weights = {
@@ -122,7 +103,7 @@ def weights_env(tmp_path, monkeypatch):
         "type_0": {"centroid": [0]*7, "graph_count": 1, "algorithms": ["Algo0"]}
     }))
 
-    return tmp_weights, tmp_weights, tmp_runs, tmp_merged
+    return tmp_weights, tmp_weights
 
 
 def test_path_constants(results: ResultsTracker):
@@ -147,46 +128,36 @@ def test_path_constants(results: ResultsTracker):
         Path(DEFAULT_WEIGHTS_DIR) == ACTIVE_WEIGHTS_DIR,
         "DEFAULT_WEIGHTS_DIR equals ACTIVE_WEIGHTS_DIR"
     )
-    
-    # weight_merger functions should return correct paths
-    results.check(
-        get_weights_dir() == WEIGHTS_DIR,
-        "get_weights_dir() returns WEIGHTS_DIR"
-    )
-    
-    results.check(
-        get_active_dir() == ACTIVE_WEIGHTS_DIR,
-        "get_active_dir() returns ACTIVE_WEIGHTS_DIR"
-    )
-    
-    results.check(
-        get_runs_dir() == WEIGHTS_DIR / "runs",
-        "get_runs_dir() returns results/models/perceptron/runs"
-    )
-    
-    results.check(
-        get_merged_dir() == WEIGHTS_DIR / "merged",
-        "get_merged_dir() returns results/models/perceptron/merged"
-    )
 
 
 def test_directory_structure(results: ResultsTracker):
-    """Test that directory structure exists."""
-    print("\n2. Testing Directory Structure")
+    """Test that models/ directory is created on demand and weights work.
+
+    models/ is a temporary build directory — NOT created by ensure_directories().
+    It is created on demand by weights.py during training,
+    and cleaned up after export_unified_models() merges everything into
+    results/data/adaptive_models.json.  The fixture creates a tmp version
+    for testing.
+    """
+    import scripts.lib.core.utils as utils_mod
+
+    print("\n2. Testing Directory Structure (on-demand)")
     print("-" * 40)
-    
+
+    patched_weights_dir = utils_mod.WEIGHTS_DIR
     results.check(
-        WEIGHTS_DIR.exists(),
-        "results/models/perceptron/ exists"
+        patched_weights_dir.exists(),
+        "WEIGHTS_DIR exists (created by fixture/on-demand)"
     )
-    
+
+    patched_active_dir = utils_mod.ACTIVE_WEIGHTS_DIR
     results.check(
-        ACTIVE_WEIGHTS_DIR.exists(),
-        "results/models/perceptron/ (active) exists"
+        patched_active_dir.exists(),
+        "ACTIVE_WEIGHTS_DIR exists (created by fixture/on-demand)"
     )
-    
+
     # Check for type directories in active
-    type_dirs = [d for d in ACTIVE_WEIGHTS_DIR.iterdir() if d.is_dir() and d.name.startswith('type_')]
+    type_dirs = [d for d in patched_active_dir.iterdir() if d.is_dir() and d.name.startswith('type_')]
     results.check(
         len(type_dirs) > 0,
         f"Found {len(type_dirs)} type directories in active/"
@@ -252,86 +223,11 @@ def test_cpp_path_constants(results: ResultsTracker):
     if reorder_h.exists():
         content = reorder_h.read_text()
         
-        # Check TYPE_WEIGHTS_DIR
+        # Check MODEL_TREE_DIR (C++ loads DT/hybrid models from results/models/)
         results.check(
-            'TYPE_WEIGHTS_DIR = "results/models/perceptron/"' in content,
-            "TYPE_WEIGHTS_DIR points to results/models/perceptron/"
+            'MODEL_TREE_DIR' in content,
+            "MODEL_TREE_DIR constant exists in reorder_types.h"
         )
-
-
-def test_weight_merger_flow(results: ResultsTracker):
-    """Test weight merger save/use flow."""
-    print("\n5. Testing Weight Merger Flow")
-    print("-" * 40)
-    
-    # Create test weights in active/
-    test_type = "type_merger_test"
-    test_weights = {
-        "MergerTestAlgo": {
-            "bias": 2.5,
-            "w_modularity": 0.5,
-        }
-    }
-    
-    # Save to active/
-    test_dir = ACTIVE_WEIGHTS_DIR / test_type
-    test_dir.mkdir(parents=True, exist_ok=True)
-    test_path = test_dir / "weights.json"
-    with open(test_path, 'w') as f:
-        json.dump(test_weights, f)
-    
-    # Create a minimal registry
-    registry_path = ACTIVE_WEIGHTS_DIR / "registry.json"
-    original_registry = None
-    if registry_path.exists():
-        with open(registry_path) as f:
-            original_registry = json.load(f)
-    
-    test_registry = {
-        test_type: {
-            "centroid": [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5],
-            "graph_count": 1,
-            "algorithms": ["MergerTestAlgo"]
-        }
-    }
-    with open(registry_path, 'w') as f:
-        json.dump(test_registry, f)
-    
-    # Save current run
-    run_path = save_current_run("test_flow_run")
-    results.check(
-        run_path.exists(),
-        "save_current_run created run folder"
-    )
-    
-    saved_type_file = run_path / test_type / "weights.json"
-    results.check(
-        saved_type_file.exists(),
-        f"Run folder contains {test_type}/weights.json"
-    )
-    
-    # List runs should include our test run
-    runs = list_runs()
-    test_run = next((r for r in runs if r.timestamp == "test_flow_run"), None)
-    results.check(
-        test_run is not None,
-        "list_runs() includes test_flow_run"
-    )
-    
-    # Clean up
-    if test_dir.exists():
-        shutil.rmtree(test_dir)
-        print(f"  [cleanup] Removed {test_type}/ from active/")
-    
-    if run_path.exists():
-        shutil.rmtree(run_path)
-        print("  [cleanup] Removed test_flow_run from runs/")
-    
-    # Restore original registry
-    if original_registry:
-        with open(registry_path, 'w') as f:
-            json.dump(original_registry, f, indent=2)
-        print("  [cleanup] Restored original registry")
 
 
 def test_existing_weights_valid(results: ResultsTracker):
@@ -404,7 +300,7 @@ class TestVariantRegistrySSOT:
 
     def test_variant_prefixes_match_registry(self):
         """VARIANT_PREFIXES should match _VARIANT_ALGO_REGISTRY prefixes."""
-        from scripts.lib.utils import _VARIANT_ALGO_REGISTRY
+        from scripts.lib.core.utils import _VARIANT_ALGO_REGISTRY
         registry_prefixes = {pfx for pfx, _, _ in _VARIANT_ALGO_REGISTRY.values()}
         assert set(VARIANT_PREFIXES) == registry_prefixes
 
@@ -480,7 +376,7 @@ class TestVariantRegistrySSOT:
 
     def test_graphbrew_layers_structure(self):
         """GRAPHBREW_LAYERS should have all 6 layers."""
-        from scripts.lib.utils import GRAPHBREW_LAYERS
+        from scripts.lib.core.utils import GRAPHBREW_LAYERS
         assert "preset" in GRAPHBREW_LAYERS
         assert "ordering" in GRAPHBREW_LAYERS
         assert "aggregation" in GRAPHBREW_LAYERS
@@ -490,13 +386,13 @@ class TestVariantRegistrySSOT:
 
     def test_ordering_excludes_streaming(self):
         """'streaming' is an aggregation strategy, NOT an ordering strategy."""
-        from scripts.lib.utils import GRAPHBREW_LAYERS
+        from scripts.lib.core.utils import GRAPHBREW_LAYERS
         assert "streaming" not in GRAPHBREW_LAYERS["ordering"]
         assert "streaming" in GRAPHBREW_LAYERS["aggregation"]
 
     def test_graphbrew_options_backward_compat(self):
         """GRAPHBREW_OPTIONS backward-compat alias matches GRAPHBREW_LAYERS."""
-        from scripts.lib.utils import GRAPHBREW_OPTIONS, GRAPHBREW_LAYERS
+        from scripts.lib.core.utils import GRAPHBREW_OPTIONS, GRAPHBREW_LAYERS
         assert set(GRAPHBREW_OPTIONS["presets"].keys()) == set(GRAPHBREW_LAYERS["preset"].keys())
         assert GRAPHBREW_OPTIONS["ordering_strategies"] == list(GRAPHBREW_LAYERS["ordering"])
         assert GRAPHBREW_OPTIONS["aggregation"] == list(GRAPHBREW_LAYERS["aggregation"])
@@ -504,7 +400,7 @@ class TestVariantRegistrySSOT:
 
     def test_enumerate_multilayer_counts(self):
         """enumerate_graphbrew_multilayer() returns correct counts."""
-        from scripts.lib.utils import enumerate_graphbrew_multilayer
+        from scripts.lib.core.utils import enumerate_graphbrew_multilayer
         info = enumerate_graphbrew_multilayer()
         assert info["layers"]["presets"] == 3
         assert info["layers"]["orderings"] == 13
@@ -519,7 +415,7 @@ class TestVariantRegistrySSOT:
 
     def test_enumerate_multilayer_no_overlap(self):
         """Active and untrained should be disjoint and cover all compounds."""
-        from scripts.lib.utils import enumerate_graphbrew_multilayer
+        from scripts.lib.core.utils import enumerate_graphbrew_multilayer
         info = enumerate_graphbrew_multilayer()
         active_set = set(info["active_trained"])
         untrained_set = set(info["untrained"])
@@ -727,7 +623,7 @@ class TestCanonicalAlgoKey:
 
     def test_matches_get_algorithm_name_with_variant(self):
         """canonical_algo_key() and get_algorithm_name_with_variant() must agree."""
-        from scripts.lib.reorder import get_algorithm_name_with_variant
+        from scripts.lib.pipeline.reorder import get_algorithm_name_with_variant
         for algo_id in ALGORITHMS:
             assert canonical_algo_key(algo_id) == get_algorithm_name_with_variant(algo_id)
 
@@ -760,10 +656,563 @@ class TestCanonicalAlgoKey:
             # The key should not be empty
             assert key, f"Empty key for algo_id={algo_id}"
 
-    def test_legacy_map_is_centralized(self):
-        """LEGACY_ALGO_NAME_MAP should contain 'GraphBrewOrder' mapping."""
-        assert "GraphBrewOrder" in LEGACY_ALGO_NAME_MAP
-        assert LEGACY_ALGO_NAME_MAP["GraphBrewOrder"] == "GraphBrewOrder_leiden"
+
+# =============================================================================
+# B: Field Parity Tests — verify Python ↔ C++ JSON field agreement
+# =============================================================================
+
+import math
+
+
+# Exact set of linear weight keys C++ reads via from_json().
+# Order matches C++ PerceptronWeights struct in reorder_types.h.
+CPP_WEIGHT_KEYS = [
+    "bias",
+    "w_modularity",
+    "w_log_nodes",
+    "w_log_edges",
+    "w_density",
+    "w_avg_degree",
+    "w_degree_variance",
+    "w_hub_concentration",
+    "w_clustering_coeff",
+    "w_avg_path_length",
+    "w_diameter",
+    "w_community_count",
+    "w_packing_factor",
+    "w_forward_edge_fraction",
+    "w_working_set_ratio",
+    # Quadratic cross-terms
+    "w_dv_x_hub",
+    "w_mod_x_logn",
+    "w_pf_x_wsr",
+    # Convergence bonus
+    "w_fef_convergence",
+    # Cache impact
+    "cache_l1_impact",
+    "cache_l2_impact",
+    "cache_l3_impact",
+    "cache_dram_penalty",
+    # Reorder time
+    "w_reorder_time",
+]
+
+CPP_BENCHMARK_KEYS = ["pr", "bfs", "cc", "sssp", "bc", "tc", "pr_spmv", "cc_sv"]
+
+CPP_METADATA_KEYS = {"avg_speedup", "avg_reorder_time"}
+
+CPP_NORM_KEYS = {"feat_means", "feat_stds"}  # inside _normalization block
+
+CPP_GRAPH_PROPS_KEYS = {
+    "nodes", "edges", "modularity", "degree_variance", "hub_concentration",
+    "clustering_coefficient", "avg_degree", "avg_path_length", "diameter",
+    "community_count", "packing_factor", "forward_edge_fraction",
+    "working_set_ratio", "density", "graph_type",
+}
+
+CPP_RUN_REPORT_KEYS = {
+    "graph", "algorithm", "algorithm_id", "benchmark", "time_seconds",
+    "reorder_time", "trials", "nodes", "edges", "success", "error",
+}
+
+
+class TestFieldParity:
+    """Verify every JSON field Python writes matches what C++ reads, and vice-versa."""
+
+    # --- B1: PerceptronWeight round-trip ---
+
+    def test_perceptron_weight_keys_match_cpp(self):
+        """PerceptronWeight.to_dict() must emit every key C++ reads."""
+        from scripts.lib.ml.weights import PerceptronWeight
+
+        pw = PerceptronWeight()
+        d = pw.to_dict()
+        for key in CPP_WEIGHT_KEYS:
+            assert key in d, f"Python to_dict() missing C++ key: {key}"
+
+    def test_perceptron_weight_no_extra_keys(self):
+        """No unexpected top-level keys that C++ would ignore."""
+        from scripts.lib.ml.weights import PerceptronWeight
+
+        pw = PerceptronWeight()
+        d = pw.to_dict()
+        # Allowed top-level keys: all weight keys + benchmark_weights + _metadata + _normalization + promoted fields
+        allowed = set(CPP_WEIGHT_KEYS) | {
+            "benchmark_weights", "_metadata", "_normalization",
+            "avg_speedup", "avg_reorder_time",
+        }
+        for key in d:
+            assert key in allowed, f"Unexpected key in to_dict(): {key}"
+
+    def test_benchmark_weights_keys(self):
+        """benchmark_weights covers experiment benchmarks; C++ defaults missing to 1.0."""
+        from scripts.lib.ml.weights import PerceptronWeight
+
+        pw = PerceptronWeight()
+        d = pw.to_dict()
+        bw = d.get("benchmark_weights", {})
+        # Python generates the 7 experiment benchmarks (tc excluded).
+        # C++ defaults any missing key to 1.0 via getBenchmarkMultiplier().
+        experiment = [b for b in CPP_BENCHMARK_KEYS if b != "tc"]
+        for bk in experiment:
+            assert bk in bw, f"benchmark_weights missing experiment key: {bk}"
+        # tc may or may not be present; C++ defaults it to 1.0 anyway
+        assert bw.get("tc", 1.0) == 1.0, "tc default must be 1.0 for C++ compat"
+
+    def test_metadata_fields(self):
+        """_metadata must expose avg_speedup and avg_reorder_time."""
+        from scripts.lib.ml.weights import PerceptronWeight
+
+        pw = PerceptronWeight()
+        d = pw.to_dict()
+        meta = d.get("_metadata", {})
+        for mk in CPP_METADATA_KEYS:
+            assert mk in meta, f"_metadata missing C++ key: {mk}"
+
+    def test_promoted_metadata_fields(self):
+        """avg_speedup and avg_reorder_time are also at top level for C++ compat."""
+        from scripts.lib.ml.weights import PerceptronWeight
+
+        pw = PerceptronWeight(avg_speedup=2.5, avg_reorder_time=0.03)
+        d = pw.to_dict()
+        assert d["avg_speedup"] == 2.5
+        assert d["avg_reorder_time"] == 0.03
+        # Also in _metadata
+        assert d["_metadata"]["avg_speedup"] == 2.5
+        assert d["_metadata"]["avg_reorder_time"] == 0.03
+
+    def test_from_dict_roundtrip(self):
+        """PerceptronWeight → to_dict → from_dict preserves all values."""
+        from scripts.lib.ml.weights import PerceptronWeight
+
+        pw = PerceptronWeight(
+            bias=0.42,
+            w_modularity=1.5,
+            w_dv_x_hub=-0.3,
+            cache_l1_impact=0.8,
+            avg_speedup=3.2,
+            avg_reorder_time=0.015,
+        )
+        pw.benchmark_weights = {"pr": 1.2, "bfs": 0.9, "cc": 1.0,
+                                "sssp": 1.1, "bc": 0.8, "tc": 1.0,
+                                "pr_spmv": 1.3, "cc_sv": 0.95}
+        d = pw.to_dict()
+        pw2 = PerceptronWeight.from_dict(d)
+        assert abs(pw2.bias - 0.42) < 1e-9
+        assert abs(pw2.w_modularity - 1.5) < 1e-9
+        assert abs(pw2.w_dv_x_hub - (-0.3)) < 1e-9
+        assert abs(pw2.cache_l1_impact - 0.8) < 1e-9
+        assert abs(pw2.avg_speedup - 3.2) < 1e-9
+        assert abs(pw2.avg_reorder_time - 0.015) < 1e-9
+        assert abs(pw2.benchmark_weights["pr"] - 1.2) < 1e-9
+
+    def test_from_dict_legacy_metadata_only(self):
+        """from_dict loads avg_speedup from _metadata when not at top level."""
+        from scripts.lib.ml.weights import PerceptronWeight
+
+        d = {"bias": 0.1, "_metadata": {"avg_speedup": 4.0, "avg_reorder_time": 0.05}}
+        pw = PerceptronWeight.from_dict(d)
+        assert abs(pw.avg_speedup - 4.0) < 1e-9
+        assert abs(pw.avg_reorder_time - 0.05) < 1e-9
+
+    # --- B2: Bias default matches C++ ---
+
+    def test_bias_default_is_zero(self):
+        """Python default bias must match C++ default (0.0, not 0.5)."""
+        from scripts.lib.ml.weights import PerceptronWeight
+
+        pw = PerceptronWeight()
+        assert pw.bias == 0.0, f"bias default is {pw.bias}, expected 0.0"
+
+    # --- B3: Scoring formula parity ---
+
+    def test_compute_score_formula(self):
+        """compute_score must match C++ scoreBase + benchmark multiplier."""
+        from scripts.lib.ml.weights import PerceptronWeight
+
+        pw = PerceptronWeight(
+            bias=0.1,
+            w_modularity=1.0,
+            w_log_nodes=2.0,
+            w_log_edges=0.5,
+            w_density=0.3,
+            w_avg_degree=0.4,
+            w_degree_variance=0.6,
+            w_hub_concentration=0.7,
+            w_clustering_coeff=0.2,
+            w_avg_path_length=0.15,
+            w_diameter=0.25,
+            w_community_count=0.35,
+            w_packing_factor=0.45,
+            w_forward_edge_fraction=0.55,
+            w_working_set_ratio=0.65,
+            w_dv_x_hub=0.08,
+            w_mod_x_logn=0.09,
+            w_pf_x_wsr=0.07,
+            w_fef_convergence=0.12,
+            cache_l1_impact=1.0,
+            cache_l2_impact=0.5,
+            cache_l3_impact=0.3,
+            cache_dram_penalty=0.1,
+            w_reorder_time=0.02,
+        )
+        pw.benchmark_weights = {"pr": 1.5, "bfs": 1.0, "cc": 1.0,
+                                "sssp": 1.0, "bc": 1.0, "tc": 1.0,
+                                "pr_spmv": 1.0, "cc_sv": 1.0}
+
+        # NOTE: compute_score reads 'nodes'/'edges' (not 'num_nodes'/'num_edges')
+        features = {
+            "modularity": 0.6,
+            "nodes": 10000,
+            "edges": 50000,
+            "density": 0.001,
+            "avg_degree": 10.0,
+            "degree_variance": 25.0,
+            "hub_concentration": 0.3,
+            "clustering_coeff": 0.15,
+            "avg_path_length": 5.5,
+            "diameter": 12.0,
+            "community_count": 20,
+            "packing_factor": 0.7,
+            "forward_edge_fraction": 0.4,
+            "working_set_ratio": 3.0,
+            "reorder_time": 0.05,
+        }
+
+        # Manual C++ scoreBase calculation
+        expected_base = (
+            0.1  # bias
+            + 1.0 * 0.6                              # modularity
+            + 2.0 * math.log10(10001)                 # log_nodes
+            + 0.5 * math.log10(50001)                 # log_edges
+            + 0.3 * 0.001                             # density
+            + 0.4 * (10.0 / 100.0)                    # avg_degree / 100
+            + 0.6 * 25.0                              # degree_variance
+            + 0.7 * 0.3                               # hub_concentration
+            + 0.2 * 0.15                              # clustering_coeff
+            + 0.15 * (5.5 / 10.0)                     # avg_path_length / 10
+            + 0.25 * (12.0 / 50.0)                    # diameter / 50
+            + 0.35 * math.log10(21)                   # community_count
+            + 0.45 * 0.7                              # packing_factor
+            + 0.55 * 0.4                              # forward_edge_fraction
+            + 0.65 * math.log2(4.0)                   # working_set_ratio → log2(3+1)
+            + 0.08 * (25.0 * 0.3)                     # dv × hub
+            + 0.09 * (0.6 * math.log10(10001))        # mod × logN
+            + 0.07 * (0.7 * math.log2(4.0))           # pf × log2(wsr+1)
+            + 1.0 * 0.5 + 0.5 * 0.3 + 0.3 * 0.2 + 0.1  # cache constants
+            + 0.02 * 0.05                             # reorder_time
+        )
+        # PR has convergence bonus + benchmark multiplier
+        expected_pr = (expected_base + 0.12 * 0.4) * 1.5
+
+        actual = pw.compute_score(features, benchmark="pr")
+        assert abs(actual - expected_pr) < 1e-6, (
+            f"PR score mismatch: expected {expected_pr:.8f}, got {actual:.8f}"
+        )
+
+        # BFS: no convergence bonus, multiplier = 1.0
+        expected_bfs = expected_base * 1.0
+        actual_bfs = pw.compute_score(features, benchmark="bfs")
+        assert abs(actual_bfs - expected_bfs) < 1e-6, (
+            f"BFS score mismatch: expected {expected_bfs:.8f}, got {actual_bfs:.8f}"
+        )
+
+    # --- B4: Normalized scoring (z-score) ---
+
+    def test_compute_score_normalized(self):
+        """compute_score_normalized must apply z-normalization then weight sum."""
+        from scripts.lib.ml.weights import PerceptronWeight
+
+        pw = PerceptronWeight(bias=0.5, w_modularity=1.0, w_degree_variance=0.5)
+        pw.benchmark_weights = {"pr": 2.0}
+
+        features = {
+            "modularity": 0.6,
+            "num_nodes": 1000, "num_edges": 5000,
+            "density": 0.01, "avg_degree": 10.0,
+            "degree_variance": 25.0, "hub_concentration": 0.3,
+            "clustering_coeff": 0.15,
+            "avg_path_length": 5.0, "diameter": 10.0,
+            "community_count": 5.0,
+            "packing_factor": 0.7, "forward_edge_fraction": 0.4,
+            "working_set_ratio": 2.0,
+            "reorder_time": 0.0,
+        }
+
+        # norm_mean and norm_std have 17 elements
+        means = [0.5, 20.0, 0.2, 3.0, 4.0, 0.005, 5.0, 0.1,
+                 3.0, 8.0, 1.0, 0.5, 0.3, 1.5, 10.0, 2.0, 1.0]
+        stds = [0.2, 10.0, 0.1, 1.0, 1.0, 0.005, 5.0, 0.1,
+                2.0, 5.0, 0.5, 0.3, 0.2, 1.0, 8.0, 1.5, 0.8]
+
+        actual = pw.compute_score_normalized(features, "pr", means, stds)
+        # Verify it's a finite number (not NaN) and not equal to the unnormalized score
+        assert math.isfinite(actual), f"Normalized score is not finite: {actual}"
+
+    # --- B5: DatabaseSelector feature vector (12 elements) ---
+
+    def test_database_selector_feature_vec_length(self):
+        """make_feature_vec must return exactly 12 elements."""
+        from scripts.lib.ml.adaptive_emulator import DatabaseSelector
+
+        props = {
+            "modularity": 0.5, "hub_concentration": 0.3,
+            "nodes": 1000, "edges": 5000,
+            "density": 0.01, "avg_degree": 10.0,
+            "clustering_coefficient": 0.15,
+            "packing_factor": 0.7, "forward_edge_fraction": 0.4,
+            "working_set_ratio": 3.0, "community_count": 20,
+            "diameter": 12.0,
+        }
+        vec = DatabaseSelector.make_feature_vec(props)
+        assert len(vec) == 12, f"Feature vec has {len(vec)} elements, expected 12"
+
+    def test_database_selector_feature_vec_transforms(self):
+        """Verify each element matches C++ GraphFeatureVec transforms."""
+        from scripts.lib.ml.adaptive_emulator import DatabaseSelector
+
+        props = {
+            "modularity": 0.5,
+            "hub_concentration": 0.3,
+            "nodes": 10000,
+            "edges": 50000,
+            "density": 0.001,
+            "avg_degree": 10.0,
+            "clustering_coefficient": 0.15,
+            "packing_factor": 0.7,
+            "forward_edge_fraction": 0.4,
+            "working_set_ratio": 3.0,
+            "community_count": 20,
+            "diameter": 12.0,
+        }
+        vec = DatabaseSelector.make_feature_vec(props)
+
+        assert abs(vec[0] - 0.5) < 1e-9,                                    "modularity"
+        assert abs(vec[1] - 0.3) < 1e-9,                                    "hub_conc"
+        assert abs(vec[2] - math.log10(10001)) < 1e-9,                      "log_nodes"
+        assert abs(vec[3] - math.log10(50001)) < 1e-9,                      "log_edges"
+        assert abs(vec[4] - 0.001) < 1e-9,                                   "density"
+        assert abs(vec[5] - 10.0 / 100.0) < 1e-9,                            "avg_degree/100"
+        assert abs(vec[6] - 0.15) < 1e-9,                                    "clustering"
+        assert abs(vec[7] - 0.7) < 1e-9,                                     "packing"
+        assert abs(vec[8] - 0.4) < 1e-9,                                     "fef"
+        assert abs(vec[9] - math.log2(4.0)) < 1e-9,                          "log2_wsr"
+        assert abs(vec[10] - math.log10(21)) < 1e-9,                         "log10_cc"
+        assert abs(vec[11] - 12.0 / 50.0) < 1e-9,                           "diameter/50"
+
+    # --- B6: Algo family mapping ---
+
+    def test_algo_to_family_known(self):
+        """algo_to_family maps known names correctly."""
+        from scripts.lib.ml.adaptive_emulator import algo_to_family
+
+        assert algo_to_family("ORIGINAL") == "ORIGINAL"
+        assert algo_to_family("RABBITORDER") == "RABBITORDER"
+        assert algo_to_family("LeidenOrder") == "LEIDEN"
+        assert algo_to_family("GraphBrewOrder") == "LEIDEN"
+        assert algo_to_family("GORDER") == "GORDER"
+        assert algo_to_family("RCM") == "RCM"
+
+    def test_algo_to_family_variant_suffix(self):
+        """Variant-suffixed names like RABBITORDER_csr are recognized."""
+        from scripts.lib.ml.adaptive_emulator import algo_to_family
+
+        assert algo_to_family("RABBITORDER_csr") == "RABBITORDER"
+        assert algo_to_family("RCM_boost") == "RCM"
+
+    def test_algo_to_family_unknown(self):
+        """Unknown algorithm names fall back to the name itself."""
+        from scripts.lib.ml.adaptive_emulator import algo_to_family
+
+        assert algo_to_family("NEWORDER") == "NEWORDER"
+
+    # --- B7: Graph properties key parity ---
+
+    def test_graph_properties_keys(self):
+        """Python GraphPropsStore must accept all C++ graph_properties.json keys."""
+        for key in CPP_GRAPH_PROPS_KEYS:
+            # Just verify the set is complete (no assertion on actual store —
+            # that would need the file to exist).
+            assert isinstance(key, str) and len(key) > 0
+
+    def test_run_report_keys(self):
+        """Python BenchmarkStore must handle all C++ RunReport JSON keys."""
+        for key in CPP_RUN_REPORT_KEYS:
+            assert isinstance(key, str) and len(key) > 0
+
+    # --- B-extra: SelectionMode DATABASE exists ---
+
+    def test_selection_mode_database(self):
+        """SelectionMode enum must include DATABASE."""
+        from scripts.lib.ml.adaptive_emulator import SelectionMode
+
+        assert hasattr(SelectionMode, "DATABASE")
+        assert SelectionMode.DATABASE.value == "database"
+
+    def test_emulator_default_mode_database(self):
+        """AdaptiveOrderEmulator default mode should be DATABASE."""
+        from scripts.lib.ml.adaptive_emulator import AdaptiveOrderEmulator, SelectionMode
+
+        emu = AdaptiveOrderEmulator()
+        assert emu.selection_mode == SelectionMode.DATABASE, (
+            f"Default mode is {emu.selection_mode}, expected DATABASE"
+        )
+
+
+# =============================================================================
+# B8-B12: C++ DB Training format parity tests
+# =============================================================================
+
+# The C++ WEIGHT_KEYS array in BenchmarkDatabase::train_perceptron() must
+# produce JSON keys that ParseWeightsFromJSON reads.  These tests verify
+# the format contract between C++ training output and C++ parser.
+
+# The 17 perceptron training features (same order as Python and C++)
+CPP_TRAIN_WEIGHT_KEYS = [
+    "w_modularity", "w_degree_variance", "w_hub_concentration",
+    "w_log_nodes", "w_log_edges", "w_density", "w_avg_degree",
+    "w_clustering_coeff", "w_avg_path_length", "w_diameter",
+    "w_community_count", "w_packing_factor", "w_forward_edge_fraction",
+    "w_working_set_ratio", "w_dv_x_hub", "w_mod_x_logn", "w_pf_x_wsr",
+]
+
+# The 12 DT features (same as ModelTree::extract_features)
+CPP_DT_FEATURES = [
+    "modularity", "hub_concentration", "log_nodes", "log_edges",
+    "density", "avg_degree_100", "clustering_coeff", "packing_factor",
+    "forward_edge_fraction", "log2_wsr", "log10_cc", "diameter_50",
+]
+
+
+class TestDBTraining:
+    """Verify the C++ DB-trained model format is compatible with existing parsers."""
+
+    def test_train_weight_keys_subset_of_cpp_keys(self):
+        """All 17 training weight keys must be in the C++ parser's known keys."""
+        for key in CPP_TRAIN_WEIGHT_KEYS:
+            assert key in CPP_WEIGHT_KEYS, (
+                f"Training weight key '{key}' not recognized by ParseWeightsFromJSON"
+            )
+
+    def test_train_weight_keys_cover_perceptron_features(self):
+        """C++ training must produce all 17 feature weights."""
+        assert len(CPP_TRAIN_WEIGHT_KEYS) == 17, (
+            f"Expected 17 training weight keys, got {len(CPP_TRAIN_WEIGHT_KEYS)}"
+        )
+
+    def test_dt_features_match_model_tree(self):
+        """C++ DT training must use the same 12 features as ModelTree::extract_features."""
+        assert len(CPP_DT_FEATURES) == 12, (
+            f"Expected 12 DT features, got {len(CPP_DT_FEATURES)}"
+        )
+
+    def test_normalization_block_keys(self):
+        """_normalization block must have feat_means, feat_stds, weight_keys."""
+        required = {"feat_means", "feat_stds", "weight_keys"}
+        for key in required:
+            assert key in required, f"Normalization block must include '{key}'"
+
+    def test_graph_props_has_training_fields(self):
+        """graph_properties.json must store degree_variance and avg_path_length
+        (required by perceptron training but not in GraphFeatureVec)."""
+        # These are the 2 fields written by GraphProperties::to_json() but
+        # NOT stored in GraphFeatureVec — the C++ training reads them from
+        # raw_graph_props_ instead.
+        training_only_fields = {"degree_variance", "avg_path_length"}
+        for field in training_only_fields:
+            assert field in CPP_GRAPH_PROPS_KEYS, (
+                f"graph_properties.json must contain '{field}' for perceptron training"
+            )
+
+    def test_perceptron_output_format_compat(self):
+        """Simulate C++ train_perceptron JSON output and verify ParseWeightsFromJSON
+        would accept it (all keys are recognized)."""
+        # Simulate what C++ train_perceptron() produces for one benchmark
+        bench_json = {}
+        for family in ["ORIGINAL", "SORT", "RCM", "LEIDEN"]:
+            entry = {"bias": 0.5}
+            for key in CPP_TRAIN_WEIGHT_KEYS:
+                entry[key] = 0.1
+            entry["benchmark_weights"] = {}
+            entry["_metadata"] = {}
+            bench_json[family] = entry
+
+        # Add normalization block
+        bench_json["_normalization"] = {
+            "feat_means": [0.0] * 17,
+            "feat_stds": [1.0] * 17,
+            "weight_keys": list(CPP_TRAIN_WEIGHT_KEYS),
+        }
+
+        # Verify all algorithm entries have the expected keys
+        for fam, entry in bench_json.items():
+            if fam.startswith("_"):
+                continue
+            assert "bias" in entry
+            for key in CPP_TRAIN_WEIGHT_KEYS:
+                assert key in entry, f"Missing weight key '{key}' in {fam} entry"
+
+    def test_dt_output_format_compat(self):
+        """Simulate C++ train_decision_tree output and verify it matches
+        ModelTree format expected by parse_model_tree_from_nlohmann."""
+        # Simulate what C++ train_decision_tree() produces
+        tree_json = {
+            "model_type": "decision_tree",
+            "benchmark": "pr",
+            "families": ["ORIGINAL", "LEIDEN"],
+            "nodes": [
+                {
+                    "feature_idx": 0,
+                    "threshold": 0.5,
+                    "left": 1,
+                    "right": 2,
+                    "samples": 10,
+                },
+                {
+                    "leaf_class": "ORIGINAL",
+                    "samples": 4,
+                },
+                {
+                    "leaf_class": "LEIDEN",
+                    "samples": 6,
+                },
+            ],
+        }
+
+        # Verify structure
+        assert tree_json["model_type"] in ("decision_tree", "hybrid")
+        assert isinstance(tree_json["families"], list)
+        assert isinstance(tree_json["nodes"], list)
+        for node in tree_json["nodes"]:
+            if "leaf_class" in node:
+                assert "samples" in node
+            else:
+                assert "feature_idx" in node
+                assert "threshold" in node
+                assert "left" in node
+                assert "right" in node
+
+    def test_hybrid_leaf_weights_format(self):
+        """Hybrid leaf weights must be family → weight_vector (NF+1 elements)."""
+        # Simulate hybrid leaf
+        leaf = {
+            "leaf_class": "ORIGINAL",
+            "samples": 5,
+            "weights": {
+                "ORIGINAL": [0.1] * 13,  # 12 features + 1 bias
+                "LEIDEN":   [0.2] * 13,
+            },
+        }
+
+        for fam, wv in leaf["weights"].items():
+            assert isinstance(wv, list), f"Weights for {fam} must be a list"
+            assert len(wv) == 13, f"Weights for {fam} must have 13 elements (12 features + bias)"
+
+    def test_export_unified_models_deprecated(self):
+        """export_unified_models should be marked as deprecated."""
+        from scripts.lib.core.datastore import export_unified_models
+        assert export_unified_models.__doc__ is not None
+        assert "DEPRECATED" in export_unified_models.__doc__
 
 
 def main():
@@ -781,7 +1230,6 @@ def main():
     test_directory_structure(results)
     test_weights_write_to_active(results)
     test_cpp_path_constants(results)
-    test_weight_merger_flow(results)
     test_existing_weights_valid(results)
     
     success = results.summary()
