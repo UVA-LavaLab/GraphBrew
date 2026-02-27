@@ -35,15 +35,15 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-from .utils import (
+from ..core.utils import (
     ALGORITHMS, ELIGIBLE_ALGORITHMS, TIMEOUT_BENCHMARK, TIMEOUT_SIM,
     run_command, Logger, canonical_algo_key, algo_converter_opt,
     resolve_canonical_name, BENCHMARKS, BIN_DIR, GRAPHS_DIR,
     _VARIANT_ALGO_REGISTRY, PROJECT_ROOT,
 )
-from .features import update_graph_properties, save_graph_properties_cache
-from .cache import parse_cache_output
-from .reorder import parse_reorder_time_from_converter
+from ..ml.features import update_graph_properties, save_graph_properties_cache
+from ..pipeline.cache import parse_cache_output
+from ..pipeline.reorder import parse_reorder_time_from_converter
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -502,43 +502,10 @@ def analyze_adaptive_order(
                 error=error
             ))
     
-    # Save results
-    os.makedirs(output_dir, exist_ok=True)
-    results_file = os.path.join(output_dir, f"adaptive_analysis_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json")
-    
-    results_data = []
-    for r in results:
-        data = {
-            "graph": r.graph,
-            "modularity": r.modularity,
-            "num_communities": r.num_communities,
-            "algorithm_distribution": r.algorithm_distribution,
-            "reorder_time": r.reorder_time,
-            "success": r.success,
-            "error": r.error,
-            "subcommunities": [
-                {
-                    "community_id": s.community_id,
-                    "nodes": s.nodes,
-                    "edges": s.edges,
-                    "density": s.density,
-                    "degree_variance": s.degree_variance,
-                    "hub_concentration": s.hub_concentration,
-                    "selected_algorithm": s.selected_algorithm
-                }
-                for s in r.subcommunities
-            ]
-        }
-        results_data.append(data)
-    
-    with open(results_file, 'w') as f:
-        json.dump(results_data, f, indent=2)
-    
-    # Save the graph properties cache with all extracted features
+    # Graph properties already updated via update_graph_properties() above.
+    # No separate adaptive_analysis_*.json dump — data lives in GraphPropsStore.
     save_graph_properties_cache(output_dir)
-    log(f"\nGraph properties cached for {len(results)} graphs")
-    
-    log(f"\nAdaptive analysis saved to: {results_file}")
+    log(f"\nGraph properties cached for {len(results)} graphs (central store)")
     
     return results
 

@@ -19,10 +19,10 @@ Features:
 
 Usage:
   python3 scripts/graphbrew_experiment.py --emulator
-  python3 -m scripts.lib.adaptive_emulator --graph results/graphs/email-Enron/email-Enron.mtx
-  python3 -m scripts.lib.adaptive_emulator --all-graphs --disable-weight w_modularity
-  python3 -m scripts.lib.adaptive_emulator --compare-benchmark results/benchmark_*.json
-  python3 -m scripts.lib.adaptive_emulator --mode best-endtoend --compare-benchmark results/benchmark.json
+  python3 -m scripts.lib.ml.adaptive_emulator --graph results/graphs/email-Enron/email-Enron.mtx
+  python3 -m scripts.lib.ml.adaptive_emulator --all-graphs --disable-weight w_modularity
+  python3 -m scripts.lib.ml.adaptive_emulator --compare-benchmark results/benchmark_*.json
+  python3 -m scripts.lib.ml.adaptive_emulator --mode best-endtoend --compare-benchmark results/benchmark.json
 """
 
 import argparse
@@ -49,14 +49,15 @@ class SelectionMode(Enum):
     BEST_AMORTIZATION = "best-amortization"  # Minimize iterations to amortize
     HEURISTIC = "heuristic"                  # Feature-based heuristic (more robust)
     TYPE_BENCH = "type-bench"                # Type+benchmark recommendations (best accuracy)
+    DATABASE = "database"                    # Database-driven kNN (mirrors C++ MODE_DATABASE)
 
 
 # =============================================================================
 # Constants
 # =============================================================================
 
-# Path constants from SSOT (lib/utils.py)
-from .utils import (
+# Path constants from SSOT (lib/core/utils.py)
+from ..core.utils import (
     WEIGHTS_DIR, RESULTS_DIR, GRAPHS_DIR, PROJECT_ROOT,
     weights_registry_path, weights_type_path,
 )
@@ -69,34 +70,8 @@ from .weights import PerceptronWeight as _PW
 import dataclasses as _dc
 WEIGHT_FIELDS = [f.name for f in _dc.fields(_PW)]
 
-# Features used for algorithm scoring (Layer 2)
-# NOTE: to_scoring_dict() pre-applies C++ transforms (avg_degree/100,
-# diameter/50, log10(community+1), etc.), so compute_score() here
-# multiplies weight × pre-normalized feature value directly.
-SCORING_FEATURES = [
-    ("modularity", "w_modularity"),
-    ("log_nodes", "w_log_nodes"),
-    ("log_edges", "w_log_edges"),
-    ("density", "w_density"),
-    ("avg_degree", "w_avg_degree"),
-    ("degree_variance", "w_degree_variance"),
-    ("hub_concentration", "w_hub_concentration"),
-    ("clustering_coeff", "w_clustering_coeff"),
-    ("avg_path_length", "w_avg_path_length"),
-    ("diameter", "w_diameter"),
-    ("community_count", "w_community_count"),
-    ("reorder_time", "w_reorder_time"),
-    ("packing_factor", "w_packing_factor"),
-    ("forward_edge_fraction", "w_forward_edge_fraction"),
-    ("working_set_ratio", "w_working_set_ratio"),
-    ("dv_x_hub", "w_dv_x_hub"),
-    ("mod_x_logn", "w_mod_x_logn"),
-    ("pf_x_wsr", "w_pf_x_wsr"),
-    ("fef_convergence", "w_fef_convergence"),
-]
-
-# Import ALGORITHMS from lib/utils.py (Single Source of Truth)
-from .utils import ALGORITHMS
+# Import ALGORITHMS from lib/core/utils.py (Single Source of Truth)
+from ..core.utils import ALGORITHMS
 
 # =============================================================================
 # Data Classes
@@ -164,38 +139,32 @@ class GraphFeatures:
         ]
     
     def to_scoring_dict(self) -> Dict[str, float]:
-        """Convert to dict for algorithm scoring.
+        """Convert to RAW feature dict for PerceptronWeight.compute_score().
         
-        MUST match C++ scoreBase() normalization in reorder_types.h:
-        - avg_degree: divided by 100.0
-        - degree_variance: RAW (no normalization)
-        - avg_path_length: divided by 10.0
-        - diameter: divided by 50.0
-        - community_count: log10(count + 1)
-        - log_nodes/log_edges: log10(val + 1)
+        Returns RAW (untransformed) features. All normalization and transform
+        logic (avg_degree/100, log10(community+1), etc.) is applied inside
+        PerceptronWeight.compute_score() — the Single Source of Truth.
+        
+        This replaces the old pre-normalized approach where transforms were
+        applied here and scoring was a simple dot product. Now scoring is
+        fully delegated to PerceptronWeight.compute_score() from weights.py.
         """
         return {
+            "nodes": self.num_nodes,
+            "edges": self.num_edges,
             "modularity": self.modularity,
-            "log_nodes": self.log_nodes,
-            "log_edges": self.log_edges,
             "density": self.density,
-            "avg_degree": self.avg_degree / 100.0,  # Normalized as in C++
-            "degree_variance": self.degree_variance,  # Raw, matching C++ scoreBase()
+            "avg_degree": self.avg_degree,
+            "degree_variance": self.degree_variance,
             "hub_concentration": self.hub_concentration,
             "clustering_coeff": self.clustering_coeff,
-            "avg_path_length": self.avg_path_length / 10.0,  # Normalized as in C++
-            "diameter": self.diameter / 50.0,  # Normalized as in C++
-            "community_count": math.log10(self.community_count + 1) if self.community_count >= 0 else 0,
+            "avg_path_length": self.avg_path_length,
+            "diameter": self.diameter,
+            "community_count": self.community_count,
             "reorder_time": self.reorder_time,
             "packing_factor": self.packing_factor,
             "forward_edge_fraction": self.forward_edge_fraction,
-            "working_set_ratio": math.log2(self.working_set_ratio + 1.0),
-            # Quadratic interaction terms
-            "dv_x_hub": self.degree_variance * self.hub_concentration,
-            "mod_x_logn": self.modularity * math.log10(self.num_nodes + 1),
-            "pf_x_wsr": self.packing_factor * math.log2(self.working_set_ratio + 1.0),
-            # Convergence bonus (set per-benchmark by caller, default 0 = no bonus)
-            "fef_convergence": 0.0,
+            "working_set_ratio": self.working_set_ratio,
         }
 
 
@@ -347,51 +316,35 @@ class AlgorithmSelector:
         config: WeightConfig,
         benchmark: str = None
     ) -> float:
-        """Compute perceptron score for an algorithm given features."""
-        score = 0.0
+        """Compute perceptron score — delegates to PerceptronWeight.compute_score().
         
-        # Add bias if enabled
-        if config.is_enabled("bias"):
-            bias = algo_weights.get("bias", 0.5)
-            # Apply bias cap if configured
-            if config.bias_cap is not None:
-                bias = min(bias, config.bias_cap)
-            score += bias * config.get_multiplier("bias")
+        This method applies WeightConfig ablation (disable/cap/multiplier)
+        by modifying the weight dict before delegating to the SSO scorer.
         
-        # Add weighted features
-        for feature_name, weight_name in SCORING_FEATURES:
-            if not config.is_enabled(weight_name):
+        The SSO scoring function (PerceptronWeight.compute_score in weights.py)
+        handles all feature transforms (log10, /100, /50, etc.) internally.
+        """
+        # Apply ablation config: zero disabled weights, apply caps/multipliers
+        ablated = dict(algo_weights)
+        for field_name in WEIGHT_FIELDS:
+            if field_name.startswith('_') or field_name == 'benchmark_weights':
                 continue
-            
-            weight = algo_weights.get(weight_name, 0.0)
-            # Apply weight cap if configured
-            weight = config.apply_cap(weight)
-            feature_value = features.get(feature_name, 0.0)
-            multiplier = config.get_multiplier(weight_name)
-            
-            score += weight * feature_value * multiplier
+            if not config.is_enabled(field_name):
+                ablated[field_name] = 0.0
+            else:
+                val = ablated.get(field_name, 0.0)
+                if isinstance(val, (int, float)):
+                    val = config.apply_cap(val)
+                    val *= config.get_multiplier(field_name)
+                    ablated[field_name] = val
         
-        # Cache impact weights — match C++ scoreBase() multipliers:
-        #   s += cache_l1_impact * 0.5 + cache_l2_impact * 0.3
-        #      + cache_l3_impact * 0.2 + cache_dram_penalty
-        cache_multipliers = {
-            "cache_l1_impact": 0.5,
-            "cache_l2_impact": 0.3,
-            "cache_l3_impact": 0.2,
-            "cache_dram_penalty": 1.0,
-        }
-        for cache_weight, cpp_mult in cache_multipliers.items():
-            if config.is_enabled(cache_weight):
-                cache_w = config.apply_cap(algo_weights.get(cache_weight, 0.0))
-                score += cache_w * cpp_mult * config.get_multiplier(cache_weight)
+        # Apply bias cap if configured
+        if config.bias_cap is not None and 'bias' in ablated:
+            ablated['bias'] = min(ablated['bias'], config.bias_cap)
         
-        # Apply benchmark-specific multiplier if available
-        if benchmark:
-            bench_weights = algo_weights.get("benchmark_weights", {})
-            bench_multiplier = bench_weights.get(benchmark, 1.0)
-            score *= bench_multiplier
-        
-        return score
+        # Delegate to SSO scoring function
+        pw = _PW.from_dict(ablated)
+        return pw.compute_score(features, benchmark or '')
     
     def select_algorithm(
         self,
@@ -420,12 +373,8 @@ class AlgorithmSelector:
         if not weights:
             return "ORIGINAL", {}
         
+        # Raw features — PerceptronWeight.compute_score() handles all transforms
         feature_dict = features.to_scoring_dict()
-        
-        # Set convergence bonus feature for iterative benchmarks (PR, PR_SPMV, SSSP)
-        # Matches C++ score(): bench == BENCH_PR || BENCH_PR_SPMV || BENCH_SSSP
-        if benchmark and benchmark.lower() in ('pr', 'pr_spmv', 'sssp'):
-            feature_dict['fef_convergence'] = features.forward_edge_fraction
         
         scores = {}
         
@@ -478,6 +427,366 @@ class AlgorithmSelector:
                 best_algo = "ORIGINAL"
         
         return best_algo, scores
+
+
+# =============================================================================
+# Algorithm Family Mapping (mirrors C++ AlgoToFamily)
+# =============================================================================
+
+# Map fine-grained algorithm names to coarse family names.
+# Must match C++ AlgoToFamily() in reorder_database.h.
+_ALGO_FAMILY_MAP = {
+    "ORIGINAL": "ORIGINAL",
+    "RANDOM": "RANDOM",
+    "SORT": "SORT",
+    "HUBSORT": "HUBSORT",
+    "HUBCLUSTER": "HUBCLUSTER",
+    "DBG": "DBG",
+    "HUBCLUSTERDBG": "HUBCLUSTERDBG",
+    "RCM": "RCM",
+    "GORDER": "GORDER",
+    "CORDER": "CORDER",
+    "RABBITORDER": "RABBITORDER",
+    "LeidenOrder": "LEIDEN",
+    "GraphBrewOrder": "LEIDEN",
+    "MAP": "MAP",
+    "AdaptiveOrder": "ADAPTIVE",
+}
+
+
+def algo_to_family(algo_name: str) -> str:
+    """Map an algorithm name to its family (mirrors C++ AlgoToFamily).
+
+    Variant-prefixed names like ``RABBITORDER_csr`` are handled by
+    stripping the ``_`` suffix and looking up the base name.
+    """
+    # Direct lookup first
+    fam = _ALGO_FAMILY_MAP.get(algo_name)
+    if fam:
+        return fam
+    # Strip variant suffix (e.g. RABBITORDER_csr → RABBITORDER)
+    base = algo_name.split("_")[0]
+    fam = _ALGO_FAMILY_MAP.get(base)
+    if fam:
+        return fam
+    # Fall back to the name itself as the family
+    return algo_name
+
+
+# =============================================================================
+# Layer 3: Database Selector (mirrors C++ select_for_mode / knn_algo_scores)
+# =============================================================================
+
+class DatabaseSelector:
+    """Selects algorithms using the central benchmark DB via kNN.
+
+    Mirrors the exact C++ logic in ``BenchmarkDatabase::select_for_mode()``
+    and ``knn_algo_scores()`` from ``reorder_database.h``.
+    This allows verifying C++ correctness from Python and predicting
+    how AdaptiveOrder will behave without running the binary.
+    """
+
+    KNN_K = 5
+
+    def __init__(self):
+        from scripts.lib.core.datastore import get_benchmark_store, get_props_store
+        self._bench_store = get_benchmark_store()
+        self._props_store = get_props_store()
+
+    # ---- public helpers to allow injection in tests ----
+
+    def reload(self):
+        """Reload stores from disk (after C++ writes new data)."""
+        from scripts.lib.core.datastore import BenchmarkStore, GraphPropsStore, BENCHMARKS_FILE, GRAPH_PROPS_FILE
+        self._bench_store = BenchmarkStore(BENCHMARKS_FILE)
+        self._props_store = GraphPropsStore(GRAPH_PROPS_FILE)
+
+    # ---- feature vector (12 elements, same order as C++ GraphFeatureVec) ----
+
+    @staticmethod
+    def make_feature_vec(props: Dict) -> List[float]:
+        """Build 12-element feature vector from raw graph properties.
+
+        Transforms match ``GraphFeatureVec`` construction in C++
+        ``reorder_database.h`` (L895-L907).
+        """
+        clustering = props.get('clustering_coefficient',
+                               props.get('clustering_coeff', 0.0))
+        diameter = props.get('diameter', props.get('diameter_estimate', 0.0))
+        return [
+            props.get('modularity', 0.0),
+            props.get('hub_concentration', 0.0),
+            math.log10(props.get('nodes', 1) + 1),          # log_nodes
+            math.log10(props.get('edges', 1) + 1),          # log_edges
+            props.get('density', 0.0),
+            props.get('avg_degree', 0.0) / 100.0,           # avg_degree_100
+            clustering,
+            props.get('packing_factor', 0.0),
+            props.get('forward_edge_fraction', 0.0),
+            math.log2(props.get('working_set_ratio', 0.0) + 1.0),  # log2_wsr
+            math.log10(props.get('community_count', 1) + 1),       # log10_cc
+            diameter / 50.0,                                        # diameter_50
+        ]
+
+    # ---- Euclidean distance ----
+
+    @staticmethod
+    def _euclidean(a: List[float], b: List[float]) -> float:
+        return math.sqrt(sum((x - y) ** 2 for x, y in zip(a, b)))
+
+    # ---- Oracle (exact-match) lookup ----
+
+    def oracle_lookup(
+        self, graph_name: str, benchmark: str
+    ) -> Optional[Tuple[str, Dict[str, float]]]:
+        """Return the oracle-best family for *graph_name* if it is in the DB.
+
+        Returns ``(family, {family: time})`` or ``None`` if graph is unknown.
+        """
+        records = self._bench_store.query(graph=graph_name, benchmark=benchmark)
+        if not records:
+            return None
+
+        family_times: Dict[str, float] = {}
+        for r in records:
+            fam = algo_to_family(r.get('algorithm', ''))
+            t = r.get('time_seconds', float('inf'))
+            if fam not in family_times or t < family_times[fam]:
+                family_times[fam] = t
+
+        if not family_times:
+            return None
+        best_fam = min(family_times, key=family_times.get)
+        return best_fam, family_times
+
+    # ---- kNN scoring (mirrors C++ knn_algo_scores) ----
+
+    def knn_scores(
+        self, query_features: Dict, benchmark: str, k: int = None,
+    ) -> List[Dict]:
+        """Compute per-family weighted kNN scores.
+
+        Args:
+            query_features: Raw graph property dict (nodes, edges, modularity, …).
+            benchmark: Benchmark name (e.g. ``"pr"``).
+            k: Number of neighbors (default 5, matching C++).
+
+        Returns:
+            Sorted list of dicts ``{family, avg_kernel_time, avg_reorder_time,
+            vote_weight, vote_count}`` — lowest ``avg_kernel_time`` first.
+        """
+        k = k or self.KNN_K
+        query_vec = self.make_feature_vec(query_features)
+
+        # Compute distance to every graph in the props store
+        all_props = self._props_store.all()
+        if not all_props:
+            return []
+
+        neighbors: List[Tuple[float, str]] = []
+        for gname, gprops in all_props.items():
+            gvec = self.make_feature_vec(gprops)
+            dist = self._euclidean(query_vec, gvec)
+            neighbors.append((dist, gname))
+
+        neighbors.sort(key=lambda x: x[0])
+        actual_k = min(k, len(neighbors))
+        nearest = neighbors[:actual_k]
+
+        # Accumulate per-family weighted sums
+        fam_kernel: Dict[str, float] = defaultdict(float)
+        fam_reorder: Dict[str, float] = defaultdict(float)
+        fam_weight: Dict[str, float] = defaultdict(float)
+        fam_count: Dict[str, int] = defaultdict(int)
+
+        for dist, gname in nearest:
+            w = 1.0 / (dist + 1e-8)
+            records = self._bench_store.query(graph=gname, benchmark=benchmark)
+            for r in records:
+                fam = algo_to_family(r.get('algorithm', ''))
+                t = r.get('time_seconds', float('inf'))
+                rt = r.get('reorder_time', 0.0) or 0.0
+                fam_kernel[fam] += w * t
+                fam_reorder[fam] += w * rt
+                fam_weight[fam] += w
+                fam_count[fam] += 1
+
+        scores = []
+        for fam in fam_kernel:
+            wsum = fam_weight[fam]
+            if wsum <= 0:
+                continue
+            scores.append({
+                'family': fam,
+                'avg_kernel_time': fam_kernel[fam] / wsum,
+                'avg_reorder_time': fam_reorder[fam] / wsum,
+                'vote_weight': wsum,
+                'vote_count': fam_count[fam],
+            })
+
+        scores.sort(key=lambda s: s['avg_kernel_time'])
+        return scores
+
+    # ---- Mode-aware selection (mirrors C++ select_for_mode) ----
+
+    def select_for_mode(
+        self,
+        features: Dict,
+        benchmark: str,
+        mode: 'SelectionMode',
+        graph_name: str = None,
+    ) -> Optional[Tuple[str, Dict[str, float]]]:
+        """Select the best algorithm family from the central DB.
+
+        Mirrors C++ ``BenchmarkDatabase::select_for_mode()`` logic:
+
+        1. Try oracle first (if graph exists in DB and mode != fastest-reorder).
+        2. Fall back to kNN scoring.
+        3. Apply mode-specific metric to pick the winner.
+
+        Returns ``(family, scores_dict)`` or ``None`` if DB is empty.
+        """
+        # Step 1: Oracle shortcut (direct DB match)
+        if graph_name and mode != SelectionMode.FASTEST_REORDER:
+            oracle = self.oracle_lookup(graph_name, benchmark)
+            if oracle is not None:
+                fam, fam_times = oracle
+                return fam, fam_times
+
+        # Step 2: kNN scores
+        scores = self.knn_scores(features, benchmark)
+        if not scores:
+            return None
+
+        # Step 3: Mode dispatch
+        if mode == SelectionMode.FASTEST_REORDER:
+            # Sort by avg_reorder_time ascending, pick lowest
+            by_reorder = sorted(scores, key=lambda s: s['avg_reorder_time'])
+            winner = by_reorder[0]
+            return winner['family'], {s['family']: s['avg_reorder_time'] for s in scores}
+
+        if mode in (SelectionMode.FASTEST_EXECUTION, SelectionMode.DATABASE):
+            # Already sorted by avg_kernel_time
+            winner = scores[0]
+            return winner['family'], {s['family']: s['avg_kernel_time'] for s in scores}
+
+        if mode == SelectionMode.BEST_ENDTOEND:
+            total = [(s, s['avg_kernel_time'] + s['avg_reorder_time']) for s in scores]
+            total.sort(key=lambda x: x[1])
+            winner = total[0][0]
+            return winner['family'], {s['family']: s['avg_kernel_time'] + s['avg_reorder_time'] for s in scores}
+
+        if mode == SelectionMode.BEST_AMORTIZATION:
+            # Find ORIGINAL kernel time (baseline)
+            orig_time = None
+            for s in scores:
+                if s['family'] == 'ORIGINAL':
+                    orig_time = s['avg_kernel_time']
+                    break
+            if orig_time is None:
+                orig_time = max(s['avg_kernel_time'] for s in scores)
+
+            best_fam = None
+            best_val = float('inf')
+            amort_dict: Dict[str, float] = {}
+            for s in scores:
+                saving = orig_time - s['avg_kernel_time']
+                if saving <= 0 or s['family'] == 'ORIGINAL':
+                    amort_dict[s['family']] = float('inf')
+                    continue
+                iters = s['avg_reorder_time'] / saving
+                amort_dict[s['family']] = iters
+                if iters < best_val:
+                    best_val = iters
+                    best_fam = s['family']
+
+            if best_fam is None:
+                return 'ORIGINAL', amort_dict
+            return best_fam, amort_dict
+
+        # Default: fastest execution
+        winner = scores[0]
+        return winner['family'], {s['family']: s['avg_kernel_time'] for s in scores}
+
+    # ---- Comparison: DB vs perceptron vs oracle ----
+
+    def compare_with_perceptron(
+        self,
+        emulator: 'AdaptiveOrderEmulator',
+        benchmark: str = 'pr',
+    ) -> Dict:
+        """Compare DB-driven, perceptron, and oracle selections for all graphs.
+
+        Returns summary with agreement rates and per-graph details.
+        """
+        all_props = self._props_store.all()
+        details = []
+        agree_db_oracle = 0
+        agree_perc_oracle = 0
+        agree_db_perc = 0
+        total = 0
+
+        for gname, gprops in all_props.items():
+            # Oracle
+            oracle = self.oracle_lookup(gname, benchmark)
+            if oracle is None:
+                continue
+            oracle_fam, _ = oracle
+
+            # kNN-DB
+            db_result = self.select_for_mode(
+                gprops, benchmark, SelectionMode.DATABASE, graph_name=None
+            )
+            db_fam = db_result[0] if db_result else 'ORIGINAL'
+
+            # Perceptron
+            gf = GraphFeatures(
+                name=gname, path='',
+                num_nodes=gprops.get('nodes', 0),
+                num_edges=gprops.get('edges', 0),
+                modularity=gprops.get('modularity', 0.0),
+                density=gprops.get('density', 0.0),
+                avg_degree=gprops.get('avg_degree', 0.0),
+                degree_variance=gprops.get('degree_variance', 0.0),
+                hub_concentration=gprops.get('hub_concentration', 0.0),
+                clustering_coeff=gprops.get('clustering_coefficient',
+                                            gprops.get('clustering_coeff', 0.0)),
+                avg_path_length=gprops.get('avg_path_length', 0.0),
+                diameter=gprops.get('diameter', gprops.get('diameter_estimate', 0.0)),
+                community_count=gprops.get('community_count', 0.0),
+                packing_factor=gprops.get('packing_factor', 0.0),
+                forward_edge_fraction=gprops.get('forward_edge_fraction', 0.5),
+                working_set_ratio=gprops.get('working_set_ratio', 0.0),
+            )
+            perc_result = emulator.emulate(gf, benchmark)
+            perc_fam = algo_to_family(perc_result.selected_algorithm)
+
+            total += 1
+            if db_fam == oracle_fam:
+                agree_db_oracle += 1
+            if perc_fam == oracle_fam:
+                agree_perc_oracle += 1
+            if db_fam == perc_fam:
+                agree_db_perc += 1
+
+            details.append({
+                'graph': gname,
+                'oracle': oracle_fam,
+                'database': db_fam,
+                'perceptron': perc_fam,
+                'db_correct': db_fam == oracle_fam,
+                'perc_correct': perc_fam == oracle_fam,
+            })
+
+        return {
+            'total': total,
+            'db_oracle_agree': agree_db_oracle,
+            'perc_oracle_agree': agree_perc_oracle,
+            'db_perc_agree': agree_db_perc,
+            'db_accuracy': agree_db_oracle / total if total else 0,
+            'perc_accuracy': agree_perc_oracle / total if total else 0,
+            'details': details,
+        }
 
 
 # =============================================================================
@@ -585,7 +894,7 @@ class AdaptiveOrderEmulator:
         self.type_matcher = TypeMatcher()
         self.algorithm_selector = AlgorithmSelector(weights_dir)
         self.config = WeightConfig()
-        self.selection_mode = SelectionMode.FASTEST_EXECUTION  # Default mode
+        self.selection_mode = SelectionMode.DATABASE  # Default: DB-driven (mirrors C++)
     
     def get_reorder_time_weights(self, type_name: str) -> Dict[str, float]:
         """Get w_reorder_time weights for all algorithms from type weights.
@@ -644,6 +953,20 @@ class AdaptiveOrderEmulator:
             selected_algo, scores = self._select_best_amortization(
                 matched_type, features, benchmark
             )
+        elif mode == SelectionMode.DATABASE:
+            db_sel = DatabaseSelector()
+            raw_props = features.__dict__  # GraphFeatures has the same keys
+            result = db_sel.select_for_mode(
+                raw_props, benchmark or 'pr', mode,
+                graph_name=features.name,
+            )
+            if result is not None:
+                selected_algo, scores = result
+            else:
+                # DB empty — fall back to perceptron
+                selected_algo, scores = self.algorithm_selector.select_algorithm(
+                    matched_type, features, self.config, benchmark
+                )
         else:
             selected_algo, scores = self.algorithm_selector.select_algorithm(
                 matched_type, features, self.config, benchmark
@@ -1267,7 +1590,7 @@ def compare_with_benchmark(
     emulator: "AdaptiveOrderEmulator",
     benchmark_path: Path,
     features_cache: Dict[str, "GraphFeatures"],
-    mode: SelectionMode = SelectionMode.FASTEST_EXECUTION
+    mode: SelectionMode = SelectionMode.DATABASE
 ) -> Dict:
     """Compare emulated selections against actual benchmark results for a given mode."""
     all_data = load_benchmark_data(benchmark_path)

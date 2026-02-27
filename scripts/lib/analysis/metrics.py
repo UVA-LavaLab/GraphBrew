@@ -18,7 +18,7 @@ Usage:
 from dataclasses import dataclass, field
 from typing import Dict, List, Tuple
 import math
-from .utils import Logger
+from ..core.utils import Logger
 
 log = Logger()
 

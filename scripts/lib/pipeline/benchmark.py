@@ -6,11 +6,11 @@ Runs graph algorithm benchmarks with various reordering strategies.
 Can be used standalone or as a library.
 
 Standalone usage:
-    python -m scripts.lib.benchmark --graph graphs/email-Enron/email-Enron.mtx -a 0,1,8
-    python -m scripts.lib.benchmark --graph test.mtx --leiden-variants
+    python -m scripts.lib.pipeline.benchmark --graph graphs/email-Enron/email-Enron.mtx -a 0,1,8
+    python -m scripts.lib.pipeline.benchmark --graph test.mtx --leiden-variants
 
 Library usage:
-    from scripts.lib.benchmark import run_benchmark, run_benchmark_suite
+    from scripts.lib.pipeline.benchmark import run_benchmark, run_benchmark_suite
     
     result = run_benchmark("pr", "graph.mtx", algorithm="12:community")
     results = run_benchmark_suite("graph.mtx", algorithms=["0", "1", "8"])
@@ -25,7 +25,7 @@ import time
 from pathlib import Path
 from typing import Dict, List, Tuple
 
-from .utils import (
+from ..core.utils import (
     BIN_DIR, ALGORITHMS, ALGORITHM_IDS, BENCHMARKS,
     BenchmarkResult, log, run_command, check_binary_exists,
     get_results_file, save_json, get_algorithm_name, parse_algorithm_option,
@@ -33,7 +33,7 @@ from .utils import (
     ELIGIBLE_ALGORITHMS, GRAPHS_DIR, RESULTS_DIR, TIMEOUT_BENCHMARK,
 )
 from .reorder import get_algorithm_name_with_variant  # deprecated; kept for compat
-from .features import update_graph_properties, save_graph_properties_cache
+from ..ml.features import update_graph_properties, save_graph_properties_cache
 
 
 # =============================================================================
@@ -76,8 +76,8 @@ def compute_adaptive_timeout(edges: int, base_timeout: int = 600) -> int:
 # =============================================================================
 
 # Default directory for mappings (relative to results dir)
-_DEFAULT_MAPPINGS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
-    os.path.abspath(__file__)))), "results", "mappings")
+_DEFAULT_MAPPINGS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(
+    os.path.abspath(__file__))))), "results", "mappings")
 
 
 def load_reorder_time_for_algo(graph_name: str, algo_name: str,
@@ -263,7 +263,7 @@ def run_benchmark(
         # Save run log
         if ENABLE_RUN_LOGGING:
             try:
-                from .graph_data import save_run_log
+                from scripts.lib.core.graph_data import save_run_log
                 save_run_log(
                     graph_name=log_graph_name or graph_name,
                     operation='benchmark',
@@ -417,7 +417,7 @@ def run_benchmarks_multi_graph(
     
     # Filter slow algorithms if requested
     if skip_slow:
-        from .utils import SLOW_ALGORITHMS
+        from scripts.lib.core.utils import SLOW_ALGORITHMS
         algorithms = [a for a in algorithms if a not in SLOW_ALGORITHMS]
     
     total_configs = len(graphs) * len(algorithms) * len(benchmarks)
@@ -585,7 +585,7 @@ def run_benchmarks_multi_graph(
     # they exist only as pre-generated .lo mapping files.  We scan for
     # them and run with MAP mode (-o 13:path.lo).
     if use_pregenerated:
-        from .utils import CHAINED_ORDERINGS
+        from scripts.lib.core.utils import CHAINED_ORDERINGS
         for graph in graphs:
             graph_name = graph.name
             graph_timeout = compute_adaptive_timeout(graph.edges, timeout)
@@ -1001,9 +1001,9 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-    python -m scripts.lib.benchmark --graph graph.mtx -a 0,1,8
-    python -m scripts.lib.benchmark --graph graph.mtx --leiden-variants
-    python -m scripts.lib.benchmark --graph graph.mtx -a 0,8,12 --expand
+    python -m scripts.lib.pipeline.benchmark --graph graph.mtx -a 0,1,8
+    python -m scripts.lib.pipeline.benchmark --graph graph.mtx --leiden-variants
+    python -m scripts.lib.pipeline.benchmark --graph graph.mtx -a 0,8,12 --expand
         """
     )
     
@@ -1095,14 +1095,9 @@ def discover_sg_graphs(
         name = sg_path.parent.name
         if graph_names and name not in graph_names:
             continue
-        feat_path = sg_path.parent / "features.json"
-        nodes = 0
-        if feat_path.is_file():
-            try:
-                with open(feat_path) as f:
-                    nodes = json.load(f).get("nodes", 0)
-            except Exception:
-                pass
+        # Read node count from central GraphPropsStore (no per-graph features.json)
+        from scripts.lib.ml.features import get_graph_properties
+        nodes = get_graph_properties(name).get("nodes", 0)
         results.append((name, str(sg_path), nodes))
     results.sort(key=lambda x: x[2])
     return results

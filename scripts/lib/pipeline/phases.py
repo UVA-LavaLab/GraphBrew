@@ -90,9 +90,8 @@ pipelines simple and maintainable.
     - Results are auto-saved after each phase
 
 See Also:
-    - lib/graph_types.py for data class definitions
-    - lib/progress.py for progress tracking
-    - scripts/examples/ for usage examples
+    - lib/core/graph_types.py for data class definitions
+    - lib/pipeline/progress.py for progress tracking
 """
 
 import os
@@ -102,30 +101,30 @@ from dataclasses import asdict
 from typing import List, Dict, Any, Tuple
 
 # Import from lib modules
-from .graph_types import GraphInfo
+from ..core.graph_types import GraphInfo
 from .reorder import (
     ReorderResult,
     generate_reorderings, generate_reorderings_with_variants,
     load_label_maps_index, expand_algorithms_with_variants
 )
-from .utils import BenchmarkResult
+from ..core.utils import BenchmarkResult
 from .benchmark import run_benchmarks_multi_graph
 from .cache import CacheResult, run_cache_simulations, get_cache_stats_summary
-from .datastore import get_benchmark_store
-from .analysis import (
+from ..core.datastore import get_benchmark_store
+from ..analysis.adaptive import (
     AdaptiveOrderResult,
     analyze_adaptive_order, compare_adaptive_vs_fixed,
     run_subcommunity_brute_force
 )
-from .training import (
+from ..ml.training import (
     TrainingResult,
     train_adaptive_weights_iterative, train_adaptive_weights_large_scale,
 )
-from .weights import (
+from ..ml.weights import (
     initialize_default_weights
 )
 from .progress import ProgressTracker
-from .utils import (
+from ..core.utils import (
     LEIDEN_DEFAULT_PASSES,
     BIN_DIR, BIN_SIM_DIR, GRAPHS_DIR, RESULTS_DIR, WEIGHTS_DIR,
     TIMEOUT_REORDER, TIMEOUT_BENCHMARK, TIMEOUT_SIM,
@@ -152,7 +151,8 @@ class PhaseConfig:
         bin_sim_dir: Path to cache simulation binaries (default: "bench/bin_sim")
         graphs_dir: Path to graph files (default: "results/graphs")
         results_dir: Where to save results (default: "results")
-        weights_dir: Where perceptron weights are stored (default: results/models/perceptron)
+        weights_dir: Staging dir for perceptron weights (default: results/models/perceptron;
+            canonical store is results/data/adaptive_models.json)
         
         timeout_reorder: Max seconds for reordering (default: TIMEOUT_REORDER from SSOT)
         timeout_benchmark: Max seconds per benchmark (default: TIMEOUT_BENCHMARK from SSOT)
@@ -197,7 +197,7 @@ class PhaseConfig:
     def __init__(
         self,
         # ─────────────────────────────────────────────────────────────────────
-        # Directory paths (from SSOT — lib/utils.py)
+        # Directory paths (from SSOT — lib/core/utils.py)
         # ─────────────────────────────────────────────────────────────────────
         bin_dir: str = str(BIN_DIR),
         bin_sim_dir: str = str(BIN_SIM_DIR),
@@ -206,7 +206,7 @@ class PhaseConfig:
         weights_dir: str = str(WEIGHTS_DIR),
         
         # ─────────────────────────────────────────────────────────────────────
-        # Timeout settings (from SSOT — lib/utils.py)
+        # Timeout settings (from SSOT — lib/core/utils.py)
         # ─────────────────────────────────────────────────────────────────────
         timeout_reorder: int = TIMEOUT_REORDER,
         timeout_benchmark: int = TIMEOUT_BENCHMARK,
@@ -274,7 +274,7 @@ class PhaseConfig:
         self.expand_variants = expand_variants
         self.update_weights = update_weights
         
-        # Leiden settings - use lib/utils.py as single source of truth
+        # Leiden settings - use lib/core/utils.py as single source of truth
         self.leiden_resolution = leiden_resolution
         self.leiden_passes = leiden_passes
         self.rabbit_variants = rabbit_variants or ['csr']  # Default: csr only (not all variants)
@@ -616,7 +616,7 @@ def run_weights_phase(
         return {}
     
     # Import weight generation function
-    from .weights import compute_weights_from_results
+    from scripts.lib.ml.weights import compute_weights_from_results
     
     weights = compute_weights_from_results(
         benchmark_results=benchmark_results,
@@ -664,7 +664,7 @@ def run_fill_weights_phase(
         reorder_results = _load_latest_results("reorder_*.json", config.results_dir, ReorderResult)
     
     # Import update function
-    from .weights import update_zero_weights
+    from scripts.lib.ml.weights import update_zero_weights
     
     update_zero_weights(
         weights_dir=config.weights_dir,
@@ -901,16 +901,24 @@ def run_full_pipeline(
     """
     Run the full experiment pipeline.
     
+    **Streaming Database Model (v2.0)**: The default pipeline no longer
+    includes the ``weights`` phase.  After benchmarking, data is appended
+    to ``benchmarks.json`` + ``graph_properties.json``, and the C++ runtime
+    computes predictions directly from that database (kNN / oracle).
+    
+    To generate legacy perceptron weight files, pass
+    ``phases=['reorder', 'benchmark', 'cache', 'weights']`` explicitly.
+    
     Args:
         graphs: List of graphs to process
         algorithms: List of algorithm IDs
         config: Phase configuration
-        phases: List of phases to run (default: all)
+        phases: List of phases to run (default: reorder, benchmark, cache)
     
     Returns:
         Dictionary with all results
     """
-    phases = phases or ['reorder', 'benchmark', 'cache', 'weights']
+    phases = phases or ['reorder', 'benchmark', 'cache']
     results = {}
     label_maps = {}
     
@@ -1002,7 +1010,7 @@ def quick_benchmark(
     Returns:
         Benchmark results
     """
-    from .utils import get_graph_dimensions
+    from scripts.lib.core.utils import get_graph_dimensions
     
     algorithms = algorithms or [0, 1, 2, 4, 7, 15]
     benchmarks = benchmarks or ['pr', 'bfs', 'cc']

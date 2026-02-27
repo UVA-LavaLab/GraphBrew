@@ -11,8 +11,8 @@ This module provides:
 Can be used standalone or as a library.
 
 Standalone usage:
-    python -m scripts.lib.features --detect-type graph.mtx
-    python -m scripts.lib.features --system-info
+    python -m scripts.lib.ml.features --detect-type graph.mtx
+    python -m scripts.lib.ml.features --system-info
 """
 
 import json
@@ -49,104 +49,74 @@ MEMORY_SAFETY_FACTOR = 1.5  # Add 50% buffer for algorithm overhead
 
 
 # =============================================================================
-# Graph Properties Cache
+# Graph Properties — delegates to centralized GraphPropsStore
 # =============================================================================
+#
+# All graph property data lives in ONE file: results/data/graph_properties.json
+# Accessed via the GraphPropsStore singleton in datastore.py.
+# The functions below are thin wrappers kept for backward compatibility.
+#
 
-# Global cache for graph properties (populated during benchmark runs)
-_graph_properties_cache: Dict[str, Dict] = {}
-
-# Default cache file path (matches DATA_DIR / "graph_properties.json" from utils.py)
-_DEFAULT_PROPS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
-    os.path.abspath(__file__)))), "results", "data")
+def _get_store():
+    """Lazy import to avoid circular dependency at module load time."""
+    from scripts.lib.core.datastore import get_props_store
+    return get_props_store()
 
 
 def get_graph_properties_cache_file(output_dir: str = "") -> str:
-    """Get the path to the graph properties cache file.
-    
-    Args:
-        output_dir: Directory containing the cache file.
-                    Default: results/data/ (centralized data bank).
-                    If a results/ root is passed (absolute or relative),
-                    it's automatically redirected to results/data/.
+    """Return the canonical graph_properties.json path.
+
+    The *output_dir* parameter is accepted for backward compatibility but
+    ignored — the path is always ``results/data/graph_properties.json``.
     """
-    if not output_dir:
-        d = _DEFAULT_PROPS_DIR
-    else:
-        d = str(output_dir)
-        # If caller passed a results/ root dir, redirect to data/ subdirectory
-        basename = os.path.basename(d.rstrip('/'))
-        if basename == 'results':
-            d = os.path.join(d, 'data')
-    os.makedirs(d, exist_ok=True)
-    return os.path.join(d, "graph_properties.json")
+    return str(_get_store().path)
 
 
 def load_graph_properties_cache(output_dir: str = "results") -> Dict[str, Dict]:
-    """Load graph properties cache from file."""
-    global _graph_properties_cache
-    cache_file = get_graph_properties_cache_file(output_dir)
-    if os.path.exists(cache_file):
-        try:
-            with open(cache_file) as f:
-                _graph_properties_cache = json.load(f)
-        except Exception:
-            _graph_properties_cache = {}
-    return _graph_properties_cache
+    """Return the full graph-properties dict (loads from disk on first call)."""
+    return _get_store().all()
 
 
 def save_graph_properties_cache(output_dir: str = "results"):
-    """Save graph properties cache to file."""
-    global _graph_properties_cache
-    cache_file = get_graph_properties_cache_file(output_dir)
-    os.makedirs(output_dir, exist_ok=True)
-    with open(cache_file, 'w') as f:
-        json.dump(_graph_properties_cache, f, indent=2)
+    """Persist the current graph-properties dict to disk."""
+    _get_store().save()
 
 
 def update_graph_properties(graph_name: str, properties: Dict, output_dir: str = "results"):
+    """Merge *properties* into the entry for *graph_name*.
+
+    Auto-detects ``graph_type`` when enough features are present.
     """
-    Update graph properties in the cache.
-    
-    Args:
-        graph_name: Name of the graph
-        properties: Dict with keys like 'modularity', 'degree_variance', 
-                   'hub_concentration', 'avg_degree', 'graph_type', 'nodes', 'edges'
-    """
-    global _graph_properties_cache
-    if graph_name not in _graph_properties_cache:
-        _graph_properties_cache[graph_name] = {}
-    
-    # Update with new properties (don't overwrite existing valid values with None)
-    for key, value in properties.items():
-        if value is not None:
-            _graph_properties_cache[graph_name][key] = value
-    
+    store = _get_store()
+    store.update(graph_name, properties)
+
     # Auto-detect graph type if we have enough features
-    if 'graph_type' not in _graph_properties_cache[graph_name]:
-        props = _graph_properties_cache[graph_name]
+    props = store.get(graph_name) or {}
+    if 'graph_type' not in props:
         if all(k in props for k in ['modularity', 'degree_variance', 'hub_concentration']):
             avg_degree = props.get('avg_degree', 0)
             if avg_degree == 0 and 'nodes' in props and 'edges' in props:
                 avg_degree = 2 * props['edges'] / props['nodes'] if props['nodes'] > 0 else 0
-            
-            _graph_properties_cache[graph_name]['graph_type'] = detect_graph_type(
-                props['modularity'],
-                props['degree_variance'],
-                props['hub_concentration'],
-                avg_degree
-            )
+            store.update(graph_name, {
+                'graph_type': detect_graph_type(
+                    props['modularity'],
+                    props['degree_variance'],
+                    props['hub_concentration'],
+                    avg_degree,
+                )
+            })
 
 
 def get_graph_properties(graph_name: str) -> Dict:
     """Get cached properties for a graph."""
-    global _graph_properties_cache
-    return _graph_properties_cache.get(graph_name, {})
+    return _get_store().get(graph_name) or {}
 
 
 def clear_graph_properties_cache():
-    """Clear the in-memory graph properties cache."""
-    global _graph_properties_cache
-    _graph_properties_cache = {}
+    """Reset the in-memory store (mainly for tests)."""
+    from scripts.lib.core.datastore import _props_store
+    import scripts.lib.core.datastore as _ds
+    _ds._props_store = None
 
 
 # =============================================================================
@@ -239,10 +209,9 @@ def get_graph_type_from_properties(graph_name: str, fallback_to_name: bool = Tru
     Returns:
         Graph type string
     """
-    global _graph_properties_cache
+    props = get_graph_properties(graph_name)
     
-    if graph_name in _graph_properties_cache:
-        props = _graph_properties_cache[graph_name]
+    if props:
         
         # If we have pre-computed graph type, use it
         if 'graph_type' in props:

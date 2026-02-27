@@ -6,11 +6,11 @@ Runs cache simulations to analyze memory access patterns for different reorderin
 Can be used standalone or as a library.
 
 Standalone usage:
-    python -m scripts.lib.cache --graph graphs/email-Enron/email-Enron.mtx
-    python -m scripts.lib.cache --graph test.mtx --algorithms 0,8,9 --benchmarks pr,bfs
+    python -m scripts.lib.pipeline.cache --graph graphs/email-Enron/email-Enron.mtx
+    python -m scripts.lib.pipeline.cache --graph test.mtx --algorithms 0,8,9 --benchmarks pr,bfs
 
 Library usage:
-    from scripts.lib.cache import run_cache_simulations, parse_cache_output
+    from scripts.lib.pipeline.cache import run_cache_simulations, parse_cache_output
     
     results = run_cache_simulations(graphs, algorithms=[0, 8], benchmarks=["pr", "bfs"])
 """
@@ -26,14 +26,14 @@ from typing import Dict, List, Optional
 # Enable ULTRAFAST cache simulation mode by default (packed structures, ~1.5x faster)
 os.environ.setdefault('CACHE_ULTRAFAST', '1')
 
-from .utils import (
+from ..core.utils import (
     BIN_SIM_DIR, SIZE_MEDIUM,
     TIMEOUT_SIM, TIMEOUT_SIM_HEAVY, TIMEOUT_BENCHMARK,
     ALGORITHMS, Logger, run_command,
     canonical_algo_key, algo_converter_opt,
     GRAPHS_DIR, GRAPHBREW_LAYERS,
 )
-from .graph_types import GraphInfo
+from ..core.graph_types import GraphInfo
 from .reorder import get_label_map_path
 
 # Initialize logger
@@ -212,7 +212,7 @@ def run_cache_simulation(
     # Save run log
     if ENABLE_RUN_LOGGING:
         try:
-            from .graph_data import save_run_log
+            from scripts.lib.core.graph_data import save_run_log
             save_run_log(
                 graph_name=graph_name,
                 operation='cache',
@@ -578,9 +578,9 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-    python -m scripts.lib.cache --graph graphs/email-Enron/email-Enron.mtx
-    python -m scripts.lib.cache --graph test.mtx --algorithms 0,8,9 --benchmarks pr,bfs
-    python -m scripts.lib.cache --graph test.mtx -o results/cache_results.json
+    python -m scripts.lib.pipeline.cache --graph graphs/email-Enron/email-Enron.mtx
+    python -m scripts.lib.pipeline.cache --graph test.mtx --algorithms 0,8,9 --benchmarks pr,bfs
+    python -m scripts.lib.pipeline.cache --graph test.mtx -o results/cache_results.json
 """
     )
     

@@ -33,7 +33,7 @@ import time
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from .utils import format_duration
+from ..core.utils import format_duration
 
 
 class ConsoleColors:

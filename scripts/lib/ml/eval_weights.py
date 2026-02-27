@@ -7,12 +7,12 @@ Replaces the legacy eval_weights.py top-level script with a proper lib module
 that can be called from graphbrew_experiment.py or standalone.
 
 Usage (standalone):
-    python -m scripts.lib.eval_weights
-    python -m scripts.lib.eval_weights --sg-only
-    python -m scripts.lib.eval_weights --benchmark-file results/benchmark_fresh.json
+    python -m scripts.lib.ml.eval_weights
+    python -m scripts.lib.ml.eval_weights --sg-only
+    python -m scripts.lib.ml.eval_weights --benchmark-file results/benchmark_fresh.json
 
 Usage (library):
-    from scripts.lib.eval_weights import train_and_evaluate
+    from scripts.lib.ml.eval_weights import train_and_evaluate
     report = train_and_evaluate(sg_only=True)
     print(f"Accuracy: {report['accuracy']:.1%}")
 """
@@ -25,18 +25,14 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List, Tuple
 
-from .utils import (
+from ..core.utils import (
     BENCHMARKS, BenchmarkResult, RESULTS_DIR, WEIGHTS_DIR, Logger,
     weights_type_path, weights_bench_path,
     VARIANT_PREFIXES, DISPLAY_TO_CANONICAL,
 )
-from .datastore import get_benchmark_store
+from ..core.datastore import get_benchmark_store
 from .weights import compute_weights_from_results, cross_validate_logo, PerceptronWeight
-from .features import (
-    load_graph_properties_cache,
-    update_graph_properties,
-    save_graph_properties_cache,
-)
+from .features import load_graph_properties_cache
 
 log = Logger()
 
@@ -207,32 +203,13 @@ def filter_to_benchmark_results(raw: List[dict]) -> List[BenchmarkResult]:
 
 
 def merge_per_graph_features(results_dir: str = None):
-    """Merge per-graph features.json into central cache."""
-    results_dir = str(results_dir or RESULTS_DIR)
-    graph_props = load_graph_properties_cache(results_dir)
-    graphs_dir = os.path.join(results_dir, "graphs")
-    merged = 0
-    if os.path.isdir(graphs_dir):
-        for gname in os.listdir(graphs_dir):
-            feat_path = os.path.join(graphs_dir, gname, "features.json")
-            if not os.path.isfile(feat_path):
-                continue
-            try:
-                with open(feat_path) as f:
-                    gfeats = json.load(f)
-                existing = graph_props.get(gname, {})
-                for k, v in gfeats.items():
-                    if isinstance(v, (int, float)) and v == 0 and existing.get(k, 0) != 0:
-                        continue
-                    existing[k] = v
-                update_graph_properties(gname, existing, results_dir)
-                merged += 1
-            except Exception:
-                pass
-        if merged:
-            save_graph_properties_cache(results_dir)
-            print(f"Merged features from {merged} per-graph features.json "
-                  f"({len(graph_props)} total)")
+    """No-op — per-graph features.json files are no longer written.
+
+    All graph property data is now stored centrally in
+    ``results/data/graph_properties.json`` via :class:`GraphPropsStore`.
+    This stub is kept for backward-compatible call sites.
+    """
+    pass
 
 
 def load_reorder_results(results_dir: str = None) -> List[BenchmarkResult]:
@@ -560,6 +537,267 @@ def train_and_evaluate(
 # ============================================================================
 # CLI
 # ============================================================================
+
+# =============================================================================
+# SSO data-loading & utility functions
+# =============================================================================
+
+def load_all_results() -> dict:
+    """Load all benchmark, reorder, and cache results from results/ directory.
+    
+    Returns a dict with keys:
+        benchmarks: List[dict]  — benchmark records from BenchmarkStore
+        reorder_times: List[dict]  — loaded from reorder_times_*.json
+        cache: List[dict]  — loaded from cache_*.json
+        graphs: List[str]  — sorted list of graph names
+        algorithms: List[str]  — sorted list of algorithm names
+        has_benchmarks, has_reorder, has_cache: bool
+    """
+    results: dict = {
+        'benchmarks': [],
+        'reorder_times': [],
+        'cache': [],
+        'graphs': set(),
+        'algorithms': set(),
+    }
+    
+    # Load benchmark results from centralized store (SSO)
+    store = get_benchmark_store()
+    bench_records = store.to_list()
+    results['benchmarks'] = bench_records
+    for item in bench_records:
+        results['graphs'].add(item.get('graph', ''))
+        results['algorithms'].add(item.get('algorithm', ''))
+    
+    # Load all reorder times
+    reorder_files = sorted(RESULTS_DIR.glob("reorder_times_*.json"))
+    for rf in reorder_files:
+        try:
+            with open(rf) as f:
+                data = json.load(f)
+                if isinstance(data, list):
+                    results['reorder_times'].extend(data)
+        except Exception as e:
+            log.warning(f"Failed to load {rf}: {e}")
+    
+    # Load all cache results
+    cache_files = sorted(RESULTS_DIR.glob("cache_*.json"))
+    for cf in cache_files:
+        try:
+            with open(cf) as f:
+                data = json.load(f)
+                if isinstance(data, list):
+                    results['cache'].extend(data)
+        except Exception as e:
+            log.warning(f"Failed to load {cf}: {e}")
+    
+    results['graphs'] = sorted(results['graphs'])
+    results['algorithms'] = sorted(results['algorithms'])
+    
+    results['has_benchmarks'] = len(results['benchmarks']) > 0
+    results['has_reorder'] = len(results['reorder_times']) > 0
+    results['has_cache'] = len(results['cache']) > 0
+    
+    log.info(f"Loaded {len(results['benchmarks'])} benchmark results")
+    log.info(f"Loaded {len(results['reorder_times'])} reorder times")
+    if results['has_cache']:
+        log.info(f"Loaded {len(results['cache'])} cache results")
+    
+    return results
+
+
+def build_performance_matrix(results: dict) -> dict:
+    """Build a performance matrix: graph → algorithm → benchmark → time.
+    
+    Returns:
+        {graph: {algorithm: {benchmark: time_seconds}}}
+    """
+    matrix: dict = defaultdict(lambda: defaultdict(dict))
+    
+    for bench in results['benchmarks']:
+        graph = bench.get('graph', '')
+        algo = bench.get('algorithm', '')
+        benchmark = bench.get('benchmark', '')
+        time = bench.get('time_seconds', float('inf'))
+        
+        if graph and algo and benchmark and bench.get('success', False):
+            existing = matrix[graph][algo].get(benchmark, float('inf'))
+            matrix[graph][algo][benchmark] = min(existing, time)
+    
+    return dict(matrix)
+
+
+def find_best_algorithm(perf_matrix: dict, graph: str, benchmark: str) -> tuple:
+    """Find the best algorithm for a graph/benchmark combination.
+    
+    Returns:
+        (algo_name, best_time)
+    """
+    if graph not in perf_matrix:
+        return 'ORIGINAL', float('inf')
+    
+    best_algo = 'ORIGINAL'
+    best_time = float('inf')
+    
+    for algo, benchmarks in perf_matrix[graph].items():
+        time = benchmarks.get(benchmark, float('inf'))
+        if time < best_time:
+            best_time = time
+            best_algo = algo
+    
+    return best_algo, best_time
+
+
+def compute_graph_features(graph_name: str, results: dict = None) -> dict:
+    """Compute/estimate graph features from the central GraphPropsStore.
+
+    Args:
+        graph_name: Name of the graph
+        results: Optional results dict (unused, kept for API compat)
+
+    Returns:
+        Dict with graph features suitable for PerceptronWeight.compute_score()
+    """
+    # Defaults — overridden by any non-zero value from the store
+    features: dict = {
+        'modularity': 0.5,
+        'nodes': 1000,
+        'edges': 5000,
+        'density': 0.01,
+        'avg_degree': 10.0,
+        'degree_variance': 1.0,
+        'hub_concentration': 0.3,
+        'clustering_coefficient': 0.1,
+        'community_count': 10,
+    }
+
+    from .features import get_graph_properties
+    stored = get_graph_properties(graph_name)
+    if stored:
+        _metadata_keys = {'graph_name', 'graph_type', 'source_file', 'last_updated'}
+        for k, v in stored.items():
+            if k in _metadata_keys:
+                features[k] = v
+            elif isinstance(v, (int, float)):
+                if v != 0 or k not in features:
+                    features[k] = v
+            else:
+                features[k] = v
+
+    # Compute derived features
+    features['log_nodes'] = math.log10(features.get('nodes', 1000) + 1)
+    features['log_edges'] = math.log10(features.get('edges', 5000) + 1)
+
+    # Normalize key names
+    if 'diameter' not in features and 'diameter_estimate' in features:
+        features['diameter'] = features['diameter_estimate']
+
+    return features
+
+
+# =============================================================================
+# Backward-compat evaluate_weights
+# =============================================================================
+
+def evaluate_weights(weights, perf_matrix, graphs, results, benchmark='pr'):
+    """Evaluate perceptron weights against a performance matrix.
+
+    Computes accuracy by predicting the best algorithm for each graph using
+    ``PerceptronWeight.compute_score()`` and comparing against the actual best.
+
+    Return format matches the legacy implementation so that
+    callers (backward-compat shims) continue to work.
+
+    Args:
+        weights: Dict mapping algorithm names to weight dicts.
+        perf_matrix: ``{graph: {algo: {bench: time}}}`` performance data.
+        graphs: List of graph names to evaluate.
+        results: Raw results dict (used for feature computation).
+        benchmark: Benchmark name (default ``'pr'``).
+
+    Returns:
+        Dict with ``accuracy`` (percentage 0–100), ``accuracy_5pct``,
+        ``accuracy_10pct``, ``accuracy_20pct``, ``avg_regret_pct``,
+        ``correct``, ``total``, ``confusion``, ``details``, ``benchmark``.
+    """
+    from .weights import PerceptronWeight
+
+    correct = 0
+    total = 0
+    details = []
+    confusion = defaultdict(lambda: defaultdict(int))
+
+    graph_features = {g: compute_graph_features(g, results) for g in graphs}
+
+    for graph in graphs:
+        if graph not in perf_matrix:
+            continue
+        features = graph_features.get(graph, {})
+        actual_best, actual_time = find_best_algorithm(perf_matrix, graph, benchmark)
+
+        best_score = float('-inf')
+        predicted_best = 'ORIGINAL'
+
+        for algo, w in weights.items():
+            if algo.startswith('_') or not isinstance(w, dict):
+                continue
+            if algo not in perf_matrix.get(graph, {}):
+                continue
+            if benchmark not in perf_matrix[graph].get(algo, {}):
+                continue
+
+            pw = PerceptronWeight.from_dict(w)
+            score = pw.compute_score(features, benchmark)
+            if score > best_score:
+                best_score = score
+                predicted_best = algo
+
+        is_correct = (predicted_best == actual_best)
+        if is_correct:
+            correct += 1
+        total += 1
+
+        confusion[actual_best][predicted_best] += 1
+
+        # Compute regret (how much slower than optimal)
+        predicted_time = perf_matrix[graph].get(predicted_best, {}).get(benchmark, float('inf'))
+        regret = (predicted_time / actual_time - 1.0) * 100 if actual_time > 0 else 0
+
+        details.append({
+            'graph': graph,
+            'actual_best': actual_best,
+            'actual_time': actual_time,
+            'predicted_best': predicted_best,
+            'predicted_time': predicted_time,
+            'correct': is_correct,
+            'regret_pct': round(regret, 2),
+        })
+
+    accuracy = round(correct / total * 100, 2) if total > 0 else 0
+    avg_regret = sum(d['regret_pct'] for d in details) / len(details) if details else 0
+
+    # Tolerance-based accuracy: predictions within X% of optimal
+    within_5 = sum(1 for d in details if d['regret_pct'] <= 5.0)
+    within_10 = sum(1 for d in details if d['regret_pct'] <= 10.0)
+    within_20 = sum(1 for d in details if d['regret_pct'] <= 20.0)
+
+    return {
+        'accuracy': accuracy,
+        'accuracy_5pct': round(within_5 / total * 100, 2) if total > 0 else 0,
+        'accuracy_10pct': round(within_10 / total * 100, 2) if total > 0 else 0,
+        'accuracy_20pct': round(within_20 / total * 100, 2) if total > 0 else 0,
+        'correct': correct,
+        'total': total,
+        'avg_regret_pct': round(avg_regret, 2),
+        'confusion': dict(confusion),
+        'details': details,
+        'benchmark': benchmark,
+    }
+
+
+# =============================================================================
+# CLI
+# =============================================================================
 
 def main():
     import argparse

@@ -6,13 +6,13 @@ Handles compilation of benchmark binaries from source.
 Can be used standalone or as a library.
 
 Standalone usage:
-    python -m scripts.lib.build --check          # Check if binaries exist
-    python -m scripts.lib.build --build          # Build all binaries
-    python -m scripts.lib.build --build --sim    # Build simulation binaries
-    python -m scripts.lib.build --clean          # Clean build artifacts
+    python -m scripts.lib.pipeline.build --check          # Check if binaries exist
+    python -m scripts.lib.pipeline.build --build          # Build all binaries
+    python -m scripts.lib.pipeline.build --build --sim    # Build simulation binaries
+    python -m scripts.lib.pipeline.build --clean          # Clean build artifacts
 
 Library usage:
-    from scripts.lib.build import build_binaries, check_binaries
+    from scripts.lib.pipeline.build import build_binaries, check_binaries
     
     if not check_binaries():
         build_binaries()
@@ -23,7 +23,7 @@ import subprocess
 import sys
 from typing import List, Tuple
 
-from .utils import (
+from ..core.utils import (
     BENCHMARKS,
     BENCH_DIR, BIN_DIR, BIN_SIM_DIR,
     Logger,
@@ -182,7 +182,7 @@ def ensure_dependencies(auto_install: bool = False, verbose: bool = False) -> Tu
     
     # Build manual install message
     missing_names = [name for name, (ok, _) in status.items() if not ok]
-    return False, f"Missing dependencies: {', '.join(missing_names)}. Run: python -m scripts.lib.dependencies --install"
+    return False, f"Missing dependencies: {', '.join(missing_names)}. Run: python -m scripts.lib.pipeline.dependencies --install"
 
 
 def build_binaries(
@@ -332,12 +332,12 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-    python -m scripts.lib.build --check              # Check if binaries exist
-    python -m scripts.lib.build --check --sim        # Check simulation binaries
-    python -m scripts.lib.build --build              # Build benchmark binaries
-    python -m scripts.lib.build --build --sim        # Build simulation binaries
-    python -m scripts.lib.build --build --clean      # Clean and rebuild
-    python -m scripts.lib.build --clean              # Just clean
+    python -m scripts.lib.pipeline.build --check              # Check if binaries exist
+    python -m scripts.lib.pipeline.build --check --sim        # Check simulation binaries
+    python -m scripts.lib.pipeline.build --build              # Build benchmark binaries
+    python -m scripts.lib.pipeline.build --build --sim        # Build simulation binaries
+    python -m scripts.lib.pipeline.build --build --clean      # Clean and rebuild
+    python -m scripts.lib.pipeline.build --clean              # Just clean
 """
     )
     
