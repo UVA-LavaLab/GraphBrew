@@ -53,6 +53,7 @@ pvector<ScoreT> PageRankPullGS(const Graph &g, int max_iters,
     }
     if (logging_enabled)
       PrintStep(iter, error);
+    graphbrew::database::AppendBenchmarkIterationEntry({{"iter", iter}, {"error", error}});
     if (error < epsilon)
       break;
   }
@@ -103,6 +104,7 @@ int main(int argc, char *argv[]) {
   if (!cli.ParseArgs())
     return -1;
   SetBenchmarkTypeHint(BENCH_PR);
+  graphbrew::database::InitSelfRecording(cli.db_dir());
   Builder b(cli);
   Graph g = b.MakeGraph();
 
@@ -113,6 +115,20 @@ int main(int argc, char *argv[]) {
   auto VerifierBound = [&cli](const Graph &g, const pvector<ScoreT> &scores) {
     return PRVerifier(g, scores, cli.tolerance());
   };
-  BenchmarkKernel(cli, g, PRBound, PrintTopScores, VerifierBound);
+  BenchmarkKernel(cli, g, PRBound, PrintTopScores, VerifierBound,
+    "pr",
+    [](const Graph &g, const pvector<ScoreT> &scores) -> nlohmann::json {
+      nlohmann::json ans;
+      // Sum scores for total_score check
+      double total = 0;
+      ScoreT max_score = 0;
+      for (NodeID n = 0; n < g.num_nodes(); n++) {
+        total += scores[n];
+        if (scores[n] > max_score) max_score = scores[n];
+      }
+      ans["total_score"] = total;
+      ans["max_score"] = static_cast<double>(max_score);
+      return ans;
+    });
   return 0;
 }

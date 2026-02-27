@@ -94,6 +94,7 @@ NodeID SampleFrequentElement(const pvector<NodeID>& comp,
 
 pvector<NodeID> Afforest(const Graph &g, bool logging_enabled = false,
                          int32_t neighbor_rounds = 2) {
+  using graphbrew::database::AppendBenchmarkIterationEntry;
   pvector<NodeID> comp(g.num_nodes());
 
   // Initialize each node to a single-node self-pointing tree
@@ -113,6 +114,7 @@ pvector<NodeID> Afforest(const Graph &g, bool logging_enabled = false,
       }
     }
     Compress(g, comp);
+    AppendBenchmarkIterationEntry({{"phase", "neighbor_round"}, {"round", r}});
   }
 
   // Sample 'comp' to find the most frequent element -- due to prior
@@ -147,6 +149,7 @@ pvector<NodeID> Afforest(const Graph &g, bool logging_enabled = false,
   }
   // Finally, 'compress' for final convergence
   Compress(g, comp);
+  AppendBenchmarkIterationEntry({{"phase", "final_compress"}, {"neighbor_rounds", neighbor_rounds}});
   return comp;
 }
 
@@ -222,9 +225,22 @@ int main(int argc, char* argv[]) {
   if (!cli.ParseArgs())
     return -1;
   SetBenchmarkTypeHint(BENCH_CC);
+  graphbrew::database::InitSelfRecording(cli.db_dir());
   Builder b(cli);
   Graph g = b.MakeGraph();
   auto CCBound = [&cli](const Graph& gr){ return Afforest(gr, cli.logging_en()); };
-  BenchmarkKernel(cli, g, CCBound, PrintCompStats, CCVerifier);
+  BenchmarkKernel(cli, g, CCBound, PrintCompStats, CCVerifier,
+    "cc",
+    [](const Graph &g, const pvector<NodeID> &comp) -> nlohmann::json {
+      nlohmann::json ans;
+      std::unordered_map<NodeID, NodeID> count;
+      for (NodeID n = 0; n < g.num_nodes(); n++) count[comp[n]]++;
+      ans["num_components"] = static_cast<int64_t>(count.size());
+      // Find largest component
+      NodeID largest = 0;
+      for (auto& kv : count) if (kv.second > largest) largest = kv.second;
+      ans["largest_component"] = largest;
+      return ans;
+    });
   return 0;
 }
