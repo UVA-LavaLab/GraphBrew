@@ -475,9 +475,9 @@ make kcore
 
 ## Integration with Python Scripts
 
-### Add to lib/utils.py
+### Add to lib/core/utils.py
 
-Edit `scripts/lib/utils.py` to add the benchmark to the BENCHMARKS list:
+Edit `scripts/lib/core/utils.py` to add the benchmark to the BENCHMARKS list:
 
 ```python
 # Current BENCHMARKS list:

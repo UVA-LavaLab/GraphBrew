@@ -83,13 +83,13 @@ Run the complete benchmark + training workflow with one command:
 # Install Python dependencies
 pip install -r scripts/requirements.txt
 
-# Full pipeline: download graphs → build → benchmark → train ML weights
+# Full pipeline: download graphs → build → benchmark → store results for C++ runtime ML
 python3 scripts/graphbrew_experiment.py --train --all-variants --size medium --auto --trials 5
 ```
 
 | Parameter | Description |
 |-----------|-------------|
-| `--train` | Train perceptron weights (runs the complete pipeline) |
+| `--train` | Run the complete pipeline (benchmark + store results for C++ runtime training) |
 | `--full` | Run full evaluation pipeline (no training) |
 | `--all-variants` | Test all algorithm variants |
 | `--size SIZE` | Graph category: `small` (62 MB), `medium` (1.1 GB), `large` (25 GB), `xlarge` (63 GB), `all` (89 GB) |
@@ -99,7 +99,7 @@ python3 scripts/graphbrew_experiment.py --train --all-variants --size medium --a
 | `--brute-force` | Compare adaptive selection vs all eligible algorithms |
 | `--download-only` | Download graphs without running benchmarks |
 
-Results are saved to `./results/`. Trained weights go to `./results/weights/`.
+Results are saved to `./results/`. Benchmark data goes to `./results/data/` — C++ trains ML models (perceptron, DT, hybrid) at runtime from this data.
 
 ```bash
 # See all options
@@ -192,8 +192,6 @@ bench/
 scripts/
 ├── graphbrew_experiment.py   # Main experiment orchestration
 ├── lib/                      # Core Python modules
-├── benchmark/                # Shell benchmark scripts
-├── examples/                 # Example scripts
 └── test/                     # Test suite
 
 results/                      # Benchmark outputs, graph features, mappings

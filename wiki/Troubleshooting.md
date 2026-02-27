@@ -376,38 +376,29 @@ make all
 --bin-dir /full/path/to/GraphBrew/bench/bin
 ```
 
-### JSON decode error in perceptron weights
+### JSON decode error in model weights
 
 ```bash
 # Validate JSON
-python3 -c "import json; json.load(open('results/models/perceptron/type_0/weights.json'))"
+python3 -c "import json; json.load(open('results/data/adaptive_models.json'))"
 
 # Pretty-print to find error
-python3 -m json.tool results/models/perceptron/type_0/weights.json
-
-# Check all type weight files
-for f in results/models/perceptron/type_*/weights.json; do
-    echo "Checking $f..."
-    python3 -c "import json; json.load(open('$f'))" && echo "OK" || echo "FAILED"
-done
+python3 -m json.tool results/data/adaptive_models.json
 ```
 
-### Wrong type cluster selected
+### Wrong algorithm selected
 
-Graph type is selected via Euclidean distance to cluster centroids. If selection is wrong:
+The streaming database (kNN) or perceptron fallback may select a suboptimal algorithm. To debug:
 
 ```bash
 # Check what properties were detected
-cat results/graph_properties_cache.json | python3 -m json.tool | grep -A 10 "your_graph_name"
+cat results/data/graph_properties.json | python3 -m json.tool | grep -A 10 "your_graph_name"
 
-# Check type registry centroids
-cat results/models/perceptron/registry.json | python3 -m json.tool
-
-# Re-run Phase 0 to recompute properties
+# Re-run training to regenerate weights
 python3 scripts/graphbrew_experiment.py --train --size small
 ```
 
-For decision tree and hybrid model issues, also check `results/data/adaptive_models.json` which stores the trained DT/hybrid/kNN models. Re-run `--train` or `python -m scripts.lib.decision_tree --train` to regenerate.
+For decision tree and hybrid model issues, also check `results/data/adaptive_models.json` which stores the trained DT/hybrid/kNN models. Re-run `--train` to regenerate — C++ trains DT/hybrid models automatically at runtime when ≥3 graphs are available.
 
 **Auto-clustering system:**
 Uses 7 features and Euclidean distance to match graphs to the nearest cluster centroid.
@@ -420,16 +411,16 @@ Uses 7 features and Euclidean distance to match graphs to the nearest cluster ce
 | powerlaw | degree_variance > 1.5, modularity < 0.3 |
 | uniform | degree_variance < 0.5, hub_concentration < 0.3, modularity < 0.1 |
 
-### Per-type weight files not generated
+### Adaptive models not generated
 
-Ensure `--train` completes all phases:
+Ensure `--train` completes all phases and enough graphs (≥3) are benchmarked:
 
 ```bash
-# Check Phase 7 ran
-grep "Phase 7" results/logs/*.log
+# Check training output
+grep "train_all_models" results/logs/*.log
 
-# Manually generate per-type weights from existing results
-python3 scripts/graphbrew_experiment.py --phase weights
+# Re-run training to regenerate from benchmark data
+python3 scripts/graphbrew_experiment.py --train --size small
 ```
 
 ---
@@ -491,20 +482,20 @@ export OMP_NUM_THREADS=1
 
 ```bash
 # Migrate all graphs to new structure
-python3 -m scripts.lib.graph_data --migrate
+python3 -m scripts.lib.core.graph_data --migrate
 
 # Migrate a specific graph
-python3 -m scripts.lib.graph_data --migrate-graph ca-GrQc
+python3 -m scripts.lib.core.graph_data --migrate-graph ca-GrQc
 
 # Verify migration
-python3 -m scripts.lib.graph_data --list-runs ca-GrQc
+python3 -m scripts.lib.core.graph_data --list-runs ca-GrQc
 ```
 
 ### Managing Multiple Experiment Runs
 
 **List runs for a graph**:
 ```bash
-python3 -m scripts.lib.graph_data --list-runs ca-GrQc
+python3 -m scripts.lib.core.graph_data --list-runs ca-GrQc
 # Output: Runs for ca-GrQc (3 total):
 #   20260127_152449: 80 benchmarks, 16 reorders
 #   20260127_152437: 80 benchmarks, 16 reorders
@@ -513,12 +504,12 @@ python3 -m scripts.lib.graph_data --list-runs ca-GrQc
 
 **Show specific run details**:
 ```bash
-python3 -m scripts.lib.graph_data --show-run ca-GrQc 20260127_152449
+python3 -m scripts.lib.core.graph_data --show-run ca-GrQc 20260127_152449
 ```
 
 **Clean up old runs** (keep most recent N):
 ```bash
-python3 -m scripts.lib.graph_data --cleanup-runs --max-runs 5
+python3 -m scripts.lib.core.graph_data --cleanup-runs --max-runs 5
 ```
 
 ---
@@ -543,8 +534,8 @@ wc -l graph.el
 head -5 graph.el
 
 # Per-graph data check
-python3 -m scripts.lib.graph_data --list-graphs
-python3 -m scripts.lib.graph_data --list-runs ca-GrQc
+python3 -m scripts.lib.core.graph_data --list-graphs
+python3 -m scripts.lib.core.graph_data --list-runs ca-GrQc
 
 # Resource monitoring
 top -d 1 -p $(pgrep -f "bench/bin")

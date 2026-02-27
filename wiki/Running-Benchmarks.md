@@ -171,10 +171,10 @@ After running benchmarks, analyze whether reordering pays off:
 python3 scripts/graphbrew_experiment.py --phase all
 
 # Standalone amortization analysis
-python3 -m scripts.lib.metrics --results-dir results/
+python3 -m scripts.lib.analysis.metrics --results-dir results/
 
 # Compare two algorithms head-to-head
-python3 -m scripts.lib.metrics --results-dir results/ \
+python3 -m scripts.lib.analysis.metrics --results-dir results/ \
   --compare RABBITORDER_csr GraphBrewOrder_graphbrew:hrab
 ```
 

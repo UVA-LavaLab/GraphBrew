@@ -225,7 +225,7 @@ See [[Python-Scripts#-eval_weightspy---weight-evaluation--c-scoring-simulation]]
 
 ### Where are the trained weights saved?
 
-`results/models/perceptron/type_N/weights.json` (per-cluster) + `registry.json` (graph→type map). Loading priority: env var → best type match → fallback defaults. Decision tree and hybrid models are stored in `results/data/adaptive_models.json`. See [[Perceptron-Weights#weight-file-location]].
+All trained models (perceptron weights, decision trees, hybrid parameters) are stored in `results/data/adaptive_models.json`. The C++ runtime loads perceptron weights from this file via `LoadPerceptronWeightsFromDB()`. If the file is missing, hardcoded defaults are used. See [[Perceptron-Weights#weight-file-location]].
 
 ### What's the difference between LeidenOrder and GraphBrewOrder?
 

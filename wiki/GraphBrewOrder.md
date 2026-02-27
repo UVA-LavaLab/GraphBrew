@@ -233,7 +233,7 @@ How vertices are permuted within/across communities.
 | `hcache` | Cache-aware hierarchical ordering |
 | `tqr` | Tile-quantized graph + RabbitOrder |
 
-See `GRAPHBREW_LAYERS["ordering"]` in `scripts/lib/utils.py` for the complete list.
+See `GRAPHBREW_LAYERS["ordering"]` in `scripts/lib/core/utils.py` for the complete list.
 
 ### Layer 2: Aggregation Strategy (one-of)
 How the community super-graph is built.
@@ -273,7 +273,7 @@ Resolution (float 0.1-3.0), max_iterations, max_passes.
 # features=[merge,hubx], resolution=0.75
 ```
 
-See `GRAPHBREW_LAYERS` in `scripts/lib/utils.py` for the authoritative definition.
+See `GRAPHBREW_LAYERS` in `scripts/lib/core/utils.py` for the authoritative definition.
 
 ---
 

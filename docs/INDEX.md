@@ -46,17 +46,15 @@ bench/include/
 - `bench/include/external/leiden/` — GVE-Leiden community detection
 
 ## Python Tooling
-- `scripts/graphbrew_experiment.py` — Main orchestration pipeline (reorder, benchmark, cache, weights)
-- `scripts/lib/adaptive_emulator.py` — AdaptiveOrder emulator and evaluation
-- `scripts/lib/perceptron.py` — Perceptron training experiments
-- `scripts/lib/datastore.py` — Unified data store (BenchmarkStore, adaptive_models.json)
-- `scripts/lib/decision_tree.py` — Decision tree classifier training (sklearn)
-- `scripts/lib/` — Shared modules (utils, reorder, features, weights, training, analysis, etc.)
+- `scripts/graphbrew_experiment.py` — Main orchestration pipeline (reorder, benchmark, cache)
+- `scripts/lib/` — 5 sub-packages (core, pipeline, ml, analysis, tools); see `scripts/lib/README.md`
+- `scripts/lib/ml/adaptive_emulator.py` — AdaptiveOrder emulator and evaluation
+- `scripts/lib/core/datastore.py` — Unified data store (BenchmarkStore, GraphPropsStore)
 - `scripts/test/` — Pytest suite (algorithm variants, cache sim, weights, GraphBrew experiment)
 
 ## Tooling
 - `make lint-includes` — check for legacy includes
-- `python3 scripts/lib/check_includes.py` — same as above
+- `python3 -m scripts.lib.tools.check_includes` — same as above
 
 ## Conventions
 - CLI `-j type:n:m`

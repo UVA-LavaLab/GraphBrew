@@ -412,7 +412,7 @@ GraphBrew provides LeidenOrder as a baseline reference implementation.
 - **Complexity**: O(n log n) average
 - **Best for**: Baseline comparison — measures how much GraphBrewOrder (12) improved over the reference implementation
 - **Default resolution**: Auto-detected via continuous formula (0.5-1.2) with CV guardrail for power-law graphs
-- **Note**: LeidenCSR (ID 16) was removed — its CSR-native Leiden implementation was merged into GraphBrewOrder (12). The SSOT defines IDs 0-15 only. Use GraphBrewOrder for production workloads.
+- **Note**: The SSOT defines IDs 0-15 only. LeidenCSR's CSR-native Leiden implementation is part of GraphBrewOrder (12).
 
 **Key features:**
 - Uses GVE-Leiden C++ library by Subhajit Sahu (`external/leiden/`)
@@ -435,7 +435,7 @@ GraphBrew supports **chained orderings** — applying two reordering algorithms 
 
 Canonical names use `+` as separator: `SORT+RABBITORDER_csr`, `HUBCLUSTERDBG+RABBITORDER_csr`.
 
-Current chains defined in `scripts/lib/utils.py` → `_CHAINED_ORDERING_OPTS`:
+Current chains defined in `scripts/lib/core/utils.py` → `_CHAINED_ORDERING_OPTS`:
 
 | Chain | Canonical Name | Rationale |
 |-------|---------------|-----------|
@@ -445,9 +445,9 @@ Current chains defined in `scripts/lib/utils.py` → `_CHAINED_ORDERING_OPTS`:
 | `-o 2 -o 12:leiden:flat` | `SORT+GraphBrewOrder_leiden` | Degree sort + community-aware |
 | `-o 5 -o 12:leiden:flat` | `DBG+GraphBrewOrder_leiden` | DBG + community-aware |
 
-See `chain_canonical_name()` and `CHAINED_ORDERINGS` in `scripts/lib/utils.py`.
+See `chain_canonical_name()` and `CHAINED_ORDERINGS` in `scripts/lib/core/utils.py`.
 
-> **Note:** For current variant lists, see `scripts/lib/utils.py` which defines:
+> **Note:** For current variant lists, see `scripts/lib/core/utils.py` which defines:
 > - `RABBITORDER_VARIANTS`, `GORDER_VARIANTS`, `RCM_VARIANTS`, `GRAPHBREW_VARIANTS`
 > - Use `get_algo_variants(algo_id)` to query programmatically
 

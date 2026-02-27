@@ -7,19 +7,16 @@ The GraphBrew Benchmark Suite provides automated tools for running comprehensive
 ```
 scripts/
 ├── graphbrew_experiment.py     # ⭐ MAIN: One-click unified pipeline
-│                                #    Downloads, builds, benchmarks, analyzes
 ├── requirements.txt            # Python dependencies
-├── lib/                        # 📦 Core modules (all functionality)
-│   ├── download.py             # Graph downloading
-│   ├── benchmark.py            # Benchmark execution
-│   ├── cache.py                # Cache simulation
-│   ├── weights.py              # Weight management
-│   ├── training.py             # ML training
-│   ├── features.py             # Graph feature extraction
-│   └── ...                     # Other modules
+└── lib/                        # 📦 5 sub-packages (see lib/README.md)
+    ├── core/                   # Constants, logging, data stores
+    ├── pipeline/               # Experiment execution stages
+    ├── ml/                     # ML scoring & training (fallback)
+    ├── analysis/               # Post-run analysis & visualisation
+    └── tools/                  # Standalone CLI utilities
 ```
 
-Weight files are stored under `results/models/perceptron/` (not `scripts/`).
+Weight files are stored under `results/data/adaptive_models.json` (not `scripts/`).
 
 ---
 
@@ -34,7 +31,7 @@ python3 scripts/graphbrew_experiment.py --brute-force               # Validation
 
 Sizes: `small` (16 graphs, 62MB) · `medium` (28, 1.1GB) · `large` (37, 25GB) · `xlarge` (6, 63GB) · `all` (87, 89GB). Categories include mesh, web, social, road, citation, P2P, and synthetic graphs.
 
-Results saved to `./results/` (`reorder_*.json`, `benchmark_*.json`, `cache_*.json`) and weights to `./results/models/perceptron/` (`registry.json`, `type_N/weights.json`).
+Results saved to `./results/` (`reorder_*.json`, `benchmark_*.json`, `cache_*.json`) and weights to `./results/data/adaptive_models.json`.
 
 ---
 
@@ -53,7 +50,7 @@ See [[Command-Line-Reference]] for all options including `--min-mb`, `--max-grap
 
 ## Output Format
 
-Results are JSON arrays. See [[Configuration-Files]] for the complete schema of `benchmark_*.json`, `cache_*.json`, `reorder_*.json`, and `type_N.json` weight files.
+Results are JSON arrays. See [[Configuration-Files]] for the complete schema of `benchmark_*.json`, `cache_*.json`, and `reorder_*.json`. Weight data is consolidated in `results/data/adaptive_models.json`.
 
 ### Amortization Analysis
 
@@ -65,7 +62,7 @@ After benchmarking, the pipeline automatically computes amortization metrics:
 
 ```bash
 python3 scripts/graphbrew_experiment.py --phase all  # Amortization computed automatically
-python3 -m scripts.lib.metrics  # Standalone amortization analysis
+python3 -m scripts.lib.analysis.metrics  # Standalone amortization analysis
 ```
 
 > **Note:** Experiments default to 7 benchmarks (`EXPERIMENT_BENCHMARKS` — TC excluded). After RANDOM baseline `.sg` conversion, the pipeline pre-generates reordered `.sg` for each of the 12 reorder algorithms (`--pregenerate-sg`, default ON). At benchmark time, pre-generated `.sg` files are loaded with `-o 0` — no runtime reorder overhead. The reorder phase runs 12 algorithms (baselines ORIGINAL/RANDOM skipped). Benchmarking runs all 14 eligible algorithms.

@@ -71,7 +71,7 @@ This single command will:
 4. Pre-generate reordered `.sg` per algorithm (12 algorithms, loaded at benchmark time with no runtime reorder overhead)
 5. Run all benchmarks with all 14 eligible algorithms
 6. Execute cache simulations (L1/L2/L3 hit rates)
-7. Generate perceptron weights for AdaptiveOrder (includes cache + reorder time features)
+7. Store benchmark data to `results/data/` — C++ trains ML models (perceptron, DT, hybrid) at runtime from this data
 
 ### Options
 
