@@ -11,44 +11,54 @@ scripts/
 ├── graphbrew_experiment.py      # ⭐ MAIN: Single entry point for all experiments
 ├── requirements.txt             # Python dependencies
 │
-├── lib/                         # 📦 Modular library
-│   ├── __init__.py              # Module exports
-│   ├── adaptive_emulator.py     # 🔍 C++ AdaptiveOrder logic emulation (Python)
-│   ├── analysis.py              # Adaptive order analysis, A/B testing & variant comparison
-│   ├── benchmark.py             # Performance benchmark execution & fresh benchmark runner
-│   ├── build.py                 # Binary compilation utilities
-│   ├── cache.py                 # Cache simulation analysis & quick cache comparison
-│   ├── check_includes.py        # CI: scan C++ for legacy includes
-│   ├── datastore.py             # Unified data store (BenchmarkStore, adaptive_models.json)
-│   ├── decision_tree.py         # Decision tree classifier training (sklearn, auto-depth)
-│   ├── dependencies.py          # System dependency detection & installation
-│   ├── download.py              # Graph downloading from SuiteSparse
-│   ├── eval_weights.py          # 📊 Weight evaluation & C++ scoring simulation
-│   ├── features.py              # Graph feature computation & system utilities
-│   ├── figures.py               # Generate wiki SVG figures
-│   ├── graph_data.py            # Per-graph data storage & retrieval
-│   ├── graph_types.py           # Data classes (GraphInfo, BenchmarkResult, etc.)
-│   ├── metrics.py               # Amortization & end-to-end metrics
-│   ├── oracle.py                # Oracle analysis: accuracy, regret, confusion
-│   ├── perceptron.py            # 🧪 ML weight experimentation
-│   ├── phases.py                # Phase orchestration
-│   ├── progress.py              # Progress tracking & reporting
-│   ├── regen_features.py        # Regenerate features.json via C++ binary
-│   ├── reorder.py               # Vertex reordering generation
-│   ├── training.py              # ML weight training
-│   ├── utils.py                 # Core utilities (ALGORITHMS, run_command, etc.)
-│   ├── weight_merger.py         # Cross-run weight consolidation
-│   └── weights.py               # Type-based weight management
+├── lib/                         # 📦 Modular library (5 sub-packages)
+│   ├── __init__.py              # Re-exports every public name (backward-compatible)
+│   ├── README.md                # Package map & import conventions
+│   │
+│   ├── core/                    # Constants, logging, data stores
+│   │   ├── utils.py             # SSOT — algorithm IDs, variant registry, paths, logging
+│   │   ├── graph_types.py       # Data classes (GraphInfo, BenchmarkResult, etc.)
+│   │   ├── datastore.py         # BenchmarkStore, GraphPropsStore (append-only JSON DBs)
+│   │   └── graph_data.py        # Graph metadata & dataset catalog
+│   │
+│   ├── pipeline/                # Experiment execution stages
+│   │   ├── dependencies.py      # System dependency detection & installation
+│   │   ├── build.py             # Binary compilation utilities
+│   │   ├── download.py          # Graph downloading from SuiteSparse
+│   │   ├── reorder.py           # Vertex reordering generation
+│   │   ├── benchmark.py         # Performance benchmark execution
+│   │   ├── cache.py             # Cache simulation analysis
+│   │   ├── phases.py            # Phase orchestration (reorder → benchmark → cache)
+│   │   └── progress.py          # Progress tracking & reporting
+│   │
+│   ├── ml/                      # ML scoring & training (legacy / fallback)
+│   │   ├── weights.py           # SSO scoring — PerceptronWeight.compute_score()
+│   │   ├── eval_weights.py      # Weight evaluation & data loading
+│   │   ├── training.py          # Iterative / batched perceptron training
+│   │   ├── adaptive_emulator.py # C++ AdaptiveOrder logic emulation
+│   │   ├── oracle.py            # Oracle (best-possible) analysis
+│   │   └── features.py          # Graph topology feature extraction
+│   │
+│   ├── analysis/                # Post-run analysis & visualisation
+│   │   ├── adaptive.py          # A/B testing, Leiden variant comparison
+│   │   ├── metrics.py           # Amortization & end-to-end metrics
+│   │   └── figures.py           # SVG / PNG plot generation
+│   │
+│   └── tools/                   # Standalone CLI utilities
+│       ├── check_includes.py    # C++ header-include linting
+│       └── regen_features.py    # Feature-vector regeneration
 │
 ├── test/                        # Pytest suite
 │   ├── __init__.py
 │   ├── test_algorithm_variants.py
 │   ├── test_cache_simulation.py
+│   ├── test_experiment_validation.py
 │   ├── test_fill_adaptive.py
+│   ├── test_fill_weights_variants.py
 │   ├── test_graphbrew_experiment.py
 │   ├── test_multilayer_validity.py
+│   ├── test_self_recording.py
 │   ├── test_weight_flow.py
-│   ├── test_weight_merger.py
 │   ├── data/                    # Test data fixtures
 │   └── graphs/                  # Test graph fixtures
 │
@@ -82,100 +92,7 @@ python3 scripts/graphbrew_experiment.py --help
 | **Reordering** | Tests all 16 algorithm IDs (0-15), with variants (RCM:bnf, RabbitOrder:csr/boost, GOrder:csr/fast, etc.) |
 | **Benchmarks** | PR, PR_SPMV, BFS, CC, CC_SV, SSSP, BC, TC |
 | **Cache Simulation** | L1/L2/L3 hit rate analysis |
-| **Perceptron Training** | Generates weights for AdaptiveOrder |
 | **Brute-Force Validation** | Compares adaptive vs all algorithms |
-
----
-
-## 🧪 Perceptron Experimentation (--perceptron)
-
-**Experiment with perceptron configurations WITHOUT re-running expensive phases.**
-
-This script loads existing benchmark results and lets you:
-- Try different weight training methods (speedup, winrate, rank, hybrid)
-- Run grid search to find optimal configurations
-- Interactively tweak weights and evaluate accuracy
-- Export optimized weights to active directory for C++ to use
-
-### Quick Start
-
-```bash
-# Via entry point
-python3 scripts/graphbrew_experiment.py --perceptron
-
-# Or directly via module (supports full argparse)
-python3 -m scripts.lib.perceptron --show
-python3 -m scripts.lib.perceptron --grid-search
-python3 -m scripts.lib.perceptron --train --method hybrid --export
-python3 -m scripts.lib.perceptron --interactive
-```
-
-### Training Methods
-
-| Method | Description |
-|--------|-------------|
-| `speedup` | Bias = average speedup over ORIGINAL baseline |
-| `winrate` | Bias = win rate (how often algorithm is best) |
-| `rank` | Bias = inverse average rank across benchmarks |
-| `hybrid` | Weighted combination: 0.4×speedup + 0.4×winrate + 0.2×rank |
-| `per_benchmark` | Benchmark-specific multipliers (generates `benchmark_weights` per algorithm) |
-| `perceptron` | Online SGD with feature weight training (multi-restart, z-normalized); the only method that produces non-zero feature weights |
-
-### Command-Line Options
-
-| Option | Description |
-|--------|-------------|
-| `--show` | Show current weights and evaluate accuracy |
-| `--analyze` | Taxonomy analysis: best algorithms per category per benchmark |
-| `--grid-search` | Run grid search over 32 configurations |
-| `--train` | Train new weights with specified method |
-| `--method METHOD` | Training method: speedup, winrate, rank, hybrid, per_benchmark, perceptron |
-| `--scale SCALE` | Bias scale factor (default: 1.0) |
-| `--clusters N` | Number of graph clusters for type-based weights (default: 1) |
-| `--benchmark BENCH` | Benchmark to evaluate (default: pr) |
-| `--export` | Export weights to `results/models/perceptron/` |
-| `--interactive` | Enter interactive mode for manual tuning |
-| `--save-results FILE` | Save experiment results to JSON file |
-
-### Taxonomy Analysis (--analyze)
-
-The `--analyze` command provides insights into which algorithms work best for different graph types and benchmarks:
-
-```bash
-python3 -m scripts.lib.perceptron --analyze
-```
-
-**Output includes:**
-- **Algorithm Taxonomy:** Categorizes algorithms into groups (basic, hub, community, leiden, composite)
-- **Graph Type Detection:** Identifies graph type (social, web, road, citation, p2p, email, random)
-- **Best Algorithm per Category:** Shows which algorithm from each category performs best per benchmark
-- **Overall Winners:** Which algorithm wins most often for each graph type
-
-**Algorithm Categories:**
-- `basic`: ORIGINAL, RANDOM, SORT
-- `hub`: HUBSORT, HUBCLUSTER, DBG, HUBSORTDBG, HUBCLUSTERDBG
-- `community`: GORDER, RABBITORDER, CORDER, RCM
-- `leiden`: LeidenOrder
-- `composite`: AdaptiveOrder, GraphBrewOrder
-
-### Example: Reproducible Experimentation
-
-```bash
-# 1. Run expensive phases once
-python3 scripts/graphbrew_experiment.py --full --size medium --auto
-
-# 2. Experiment with different perceptron configs (fast, no re-running)
-python3 -m scripts.lib.perceptron --grid-search
-
-# 3. Analyze which algorithms work best per benchmark/graph type
-python3 -m scripts.lib.perceptron --analyze
-
-# 4. Train with per-benchmark weights
-python3 -m scripts.lib.perceptron --train --method per_benchmark --export
-
-# 5. Validate with AdaptiveOrder
-./bench/bin/pr -f graph.el -s -o 14 -n 3
-```
 
 ---
 
@@ -196,10 +113,10 @@ This is useful for:
 python3 scripts/graphbrew_experiment.py --emulator
 
 # Or directly via module (supports full argparse)
-python3 -m scripts.lib.adaptive_emulator --graph graphs/email-Enron/email-Enron.mtx
-python3 -m scripts.lib.adaptive_emulator --compare-benchmark results/benchmark_*.json
-python3 -m scripts.lib.adaptive_emulator --all-graphs --disable-weight w_modularity
-python3 -m scripts.lib.adaptive_emulator --mode best-endtoend --compare-benchmark results/benchmark.json
+python3 -m scripts.lib.ml.adaptive_emulator --graph graphs/email-Enron/email-Enron.mtx
+python3 -m scripts.lib.ml.adaptive_emulator --compare-benchmark results/benchmark_*.json
+python3 -m scripts.lib.ml.adaptive_emulator --all-graphs --disable-weight w_modularity
+python3 -m scripts.lib.ml.adaptive_emulator --mode best-endtoend --compare-benchmark results/benchmark.json
 ```
 
 ### Selection Modes
@@ -237,11 +154,11 @@ Layer 2: Algorithm Selection
 
 | Tool | Purpose |
 |------|---------|  
-| `--emulator` / `scripts.lib.adaptive_emulator` | Emulate C++ selection logic, analyze weight impact |
-| `--perceptron` / `scripts.lib.perceptron` | Train new weights from benchmark data |
+| `--emulator` / `scripts.lib.ml.adaptive_emulator` | Emulate C++ selection logic, analyze weight impact |
+| `--eval-weights` / `scripts.lib.ml.eval_weights` | Evaluate weights, train from benchmark data |
 
 Use **adaptive_emulator** when you want to understand why a specific algorithm was selected.
-Use **perceptron** (via `--perceptron`) when you want to train better weights.
+Use **eval_weights** (via `--eval-weights`) when you want to train or evaluate weights.
 
 ---
 
@@ -262,7 +179,7 @@ python3 scripts/graphbrew_experiment.py --eval-weights --sg-only
 
 1. **Loads** the latest `benchmark_*.json` and `reorder_*.json` from `results/`
 2. **Trains** weights via `compute_weights_from_results()` (multi-restart perceptrons + regret-aware grid search)
-3. **Saves** weights to `results/models/perceptron/type_0/weights.json`
+3. **Saves** weights to `results/data/adaptive_models.json`
 4. **Simulates** C++ scoring: for each (graph, benchmark), computes `scoreBase(algo, features) × benchmarkMultiplier(algo, bench)` for all algorithms
 5. **Compares** predicted winner vs actual fastest algorithm (base-aware: variants of same algorithm count as correct)
 6. **Reports** accuracy, regret, top-2 accuracy, and per-benchmark breakdown
@@ -325,7 +242,6 @@ This ensures Python evaluation matches C++ `scoreBase() × benchmarkMultiplier()
 |------|---------|------------------|
 | `eval_weights.py` | Train + evaluate + report accuracy/regret | ✅ Yes |
 | `adaptive_emulator.py` | Emulate C++ selection logic for debugging | ❌ No |
-| `perceptron.py` | Grid search over training configurations | ✅ Yes |
 
 ---
 
@@ -337,7 +253,7 @@ See [[Command-Line-Reference]] for the complete CLI option reference.
 
 Key flags: `--full` (complete pipeline), `--size small|medium|large`, `--phase reorder|benchmark|cache|weights|adaptive`, `--train` (multi-phase weight training), `--train-benchmarks` (default: pr bfs cc), `--train-iterative` (feedback loop), `--brute-force` (validation), `--auto` (auto-detect RAM/disk limits).
 
-**Variant testing:** `--all-variants`, `--graphbrew-variants`, `--rabbit-variants`, `--gorder-variants`. Variant lists defined in `scripts/lib/utils.py`.
+**Variant testing:** `--all-variants`, `--graphbrew-variants`, `--rabbit-variants`, `--gorder-variants`. Variant lists defined in `scripts/lib/core/utils.py`.
 
 ### Examples
 
@@ -352,36 +268,63 @@ python3 scripts/graphbrew_experiment.py --generate-maps --size small
 
 ## 📦 lib/ Module Reference
 
-The `lib/` folder contains modular, reusable components:
+The `lib/` folder is organised into five sub-packages. All public names are re-exported from `lib/__init__.py` for backward compatibility.
+
+### core/ — Constants, logging, data stores
 
 | Module | Purpose | Key Exports |
 |--------|---------|-------------|
-| `graph_types.py` | Core type | `GraphInfo` (graph metadata) |
-| `phases.py` | Phase orchestration | `PhaseConfig`, `run_reorder_phase`, `run_benchmark_phase`, `run_full_pipeline` |
-| `utils.py` | Constants & utilities | `ALGORITHMS`, `BENCHMARKS`, `BenchmarkResult`, variant lists, `canonical_algo_key()`, `algo_converter_opt()`, `run_command` |
-| `features.py` | Graph features | `compute_extended_features`, `detect_graph_type`, `get_available_memory_gb` |
-| `dependencies.py` | System deps | `check_dependencies`, `install_dependencies`, `install_boost_158` |
-| `download.py` | Graph download | `download_graphs`, `DOWNLOAD_GRAPHS_SMALL/MEDIUM` |
-| `reorder.py` | Vertex reordering | `generate_reorderings`, `ReorderResult`, `AlgorithmConfig`, `load_label_maps_index` |
-| `benchmark.py` | Benchmarking & fresh benchmark runner | `run_benchmark`, `run_benchmarks_multi_graph`, `run_benchmarks_with_variants` |
-| `cache.py` | Cache simulation & quick cache comparison | `run_cache_simulations`, `CacheResult`, `get_cache_stats_summary` |
-| `weights.py` | Weight management | `compute_weights_from_results`, `cross_validate_logo`, `assign_graph_type` |
-| `weight_merger.py` | Cross-run merge | Weight consolidation across training runs |
-| `training.py` | ML training | `train_adaptive_weights_iterative`, `train_adaptive_weights_large_scale` |
-| `analysis.py` | Adaptive analysis, A/B testing & Leiden variant comparison | `analyze_adaptive_order`, `parse_adaptive_output` |
-| `datastore.py` | Unified data store | `BenchmarkStore`, adaptive_models.json management |
-| `decision_tree.py` | Decision tree classifier | sklearn-based training, auto-depth optimization |
+| `utils.py` | **SSOT** constants & utilities | `ALGORITHMS`, `BENCHMARKS`, `BenchmarkResult`, variant lists, `canonical_algo_key()`, `run_command` |
+| `graph_types.py` | Core types | `GraphInfo`, `AlgorithmConfig` |
+| `datastore.py` | Unified data store | `BenchmarkStore`, `GraphPropsStore`, `adaptive_models.json` |
 | `graph_data.py` | Per-graph storage | `GraphDataStore`, `list_graphs`, `list_runs` |
+
+### pipeline/ — Experiment execution stages
+
+| Module | Purpose | Key Exports |
+|--------|---------|-------------|
+| `dependencies.py` | System deps | `check_dependencies`, `install_dependencies` |
+| `build.py` | C++ build | `build_benchmarks`, `build_converter` |
+| `download.py` | Graph download | `download_graphs`, `DOWNLOAD_GRAPHS_SMALL/MEDIUM` |
+| `reorder.py` | Vertex reordering | `generate_reorderings`, `ReorderResult`, `load_label_maps_index` |
+| `benchmark.py` | Benchmarking | `run_benchmark`, `run_benchmarks_multi_graph`, `run_benchmarks_with_variants` |
+| `cache.py` | Cache simulation | `run_cache_simulations`, `CacheResult`, `get_cache_stats_summary` |
+| `phases.py` | Phase orchestration | `PhaseConfig`, `run_reorder_phase`, `run_benchmark_phase`, `run_full_pipeline` |
 | `progress.py` | Progress tracking | `ProgressTracker` (banners, phases, status) |
+
+### ml/ — ML scoring & training (legacy / fallback)
+
+| Module | Purpose | Key Exports |
+|--------|---------|-------------|
+| `weights.py` | **SSO** scoring (fallback) | `PerceptronWeight`, `compute_weights_from_results`, `cross_validate_logo` |
+| `eval_weights.py` | Data loading | `load_all_results`, `build_performance_matrix`, `compute_graph_features` |
+| `training.py` | ML training | `train_adaptive_weights_iterative`, `train_adaptive_weights_large_scale` |
+| `adaptive_emulator.py` | C++ emulation | `AdaptiveOrderEmulator` |
+| `oracle.py` | Oracle analysis | `compute_oracle_accuracy`, `compute_regret` |
+| `features.py` | Graph features | `compute_extended_features`, `detect_graph_type`, `get_available_memory_gb` |
+
+### analysis/ — Post-run analysis & visualisation
+
+| Module | Purpose | Key Exports |
+|--------|---------|-------------|
+| `adaptive.py` | Adaptive analysis, A/B testing | `analyze_adaptive_order`, `parse_adaptive_output` |
 | `metrics.py` | Amortization & E2E | `compute_amortization`, `format_amortization_table`, `AmortizationReport` |
+| `figures.py` | Plot generation | SVG / PNG figures for wiki |
+
+### tools/ — Standalone CLI utilities
+
+| Module | Purpose |
+|--------|---------|
+| `check_includes.py` | Scan C++ headers for legacy includes |
+| `regen_features.py` | Regenerate graph features via C++ binary |
 
 ### Key: `compute_weights_from_results()`
 
-The primary training function: multi-restart perceptrons (5×800 epochs, z-score normalized, L2 regularized) → variant-level weight saving → regret-aware grid search for benchmark multipliers → saves `type_0.json`. See [[Perceptron-Weights]] for details.
+The primary training function: multi-restart perceptrons (5×800 epochs, z-score normalized, L2 regularized) → variant-level weight saving → regret-aware grid search for benchmark multipliers → stages to `type_0.json` (merged into `adaptive_models.json` by `export_unified_models()`). See [[Perceptron-Weights]] for details.
 
 ---
 
-## 📏 lib/metrics.py - Amortization & End-to-End Evaluation
+## 📏 lib/analysis/metrics.py - Amortization & End-to-End Evaluation
 
 **Post-hoc analysis of existing benchmark results — no new benchmarks needed.**
 
@@ -393,8 +336,8 @@ Computes derived metrics from `benchmark_*.json` and `reorder_*.json`:
 ### Quick Start
 
 ```python
-from scripts.lib.metrics import compute_amortization_report, format_amortization_table
-from scripts.lib.datastore import BenchmarkStore
+from scripts.lib.analysis.metrics import compute_amortization_report, format_amortization_table
+from scripts.lib.core.datastore import BenchmarkStore
 
 store = BenchmarkStore()
 benchmark_results = store.load_benchmark_results("results/benchmark_latest.json")
@@ -444,7 +387,7 @@ The amortization report is also auto-printed by `graphbrew_experiment.py` after 
 
 ## Custom Pipeline Example
 
-Create custom experiment pipelines using `lib/phases.py`:
+Create custom experiment pipelines using `lib/pipeline/phases.py`:
 
 ```python
 #!/usr/bin/env python3
@@ -453,9 +396,9 @@ Create custom experiment pipelines using `lib/phases.py`:
 import sys
 sys.path.insert(0, "scripts")
 
-from lib.phases import PhaseConfig, run_reorder_phase, run_benchmark_phase
-from lib.graph_types import GraphInfo
-from lib.progress import ProgressTracker
+from lib.pipeline.phases import PhaseConfig, run_reorder_phase, run_benchmark_phase
+from lib.core.graph_types import GraphInfo
+from lib.pipeline.progress import ProgressTracker
 
 # Discover graphs
 graphs = [
@@ -483,7 +426,7 @@ for r in benchmark_results:
         print(f"{r.graph} / {r.algorithm_name} / {r.benchmark}: {r.avg_time:.4f}s")
 ```
 
-See the `lib/phases.py` module for phase orchestration details.
+See the `lib/pipeline/phases.py` module for phase orchestration details.
 
 ---
 
@@ -494,9 +437,9 @@ Results are organized as:
 - `results/logs/{name}/runs/{timestamp}/` — per-run benchmarks, reorder, weights
 - `results/mappings/{name}/` — pre-generated label mappings (`.lo` + `.time`)
 - `results/benchmark_*.json`, `reorder_*.json`, `cache_*.json` — aggregate results
-- `results/models/perceptron/` — type-based weights for C++
+- `results/data/adaptive_models.json` — trained model weights for C++
 
-Use `python3 -m scripts.lib.graph_data --list-graphs` to browse per-graph data.
+Use `python3 -m scripts.lib.core.graph_data --list-graphs` to browse per-graph data.
 
 ---
 

@@ -238,8 +238,7 @@ See [[Code-Architecture]] for full directory layout. Key paths:
 - `bench/bin/` — Compiled binaries (pr, bfs, cc, etc.)
 - `bench/bin_sim/` — Cache simulation binaries
 - `scripts/lib/` — Core Python modules
-- `results/models/perceptron/` — Perceptron weight files
-- `results/data/` — Runtime model storage (DT, hybrid, kNN models), auto-created on first run by `ensure_prerequisites()`
+- `results/data/` — Runtime model storage (perceptron weights, DT, hybrid, kNN models in `adaptive_models.json`), auto-created on first run by `ensure_prerequisites()`
 - `results/` — Experiment outputs
 
 ## Troubleshooting Build Issues

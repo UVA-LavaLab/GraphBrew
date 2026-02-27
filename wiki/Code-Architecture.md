@@ -22,12 +22,11 @@ GraphBrew/
 │   │   │   └── leiden/       # GVE-Leiden
 │   │   └── cache_sim/        # Cache simulation headers
 │   ├── src/                  # Benchmark source files
-│   ├── src_sim/              # Cache simulation sources
-│   └── backups/              # Backup files
+│   └── src_sim/              # Cache simulation sources
 │
 ├── scripts/                  # Python tools
 │   ├── graphbrew_experiment.py  # Main orchestration
-│   ├── lib/                     # Shared modules
+│   ├── lib/                     # Shared modules (5 sub-packages: core, pipeline, ml, analysis, tools)
 │   └── test/                    # Pytest suite
 │       ├── graphs/              # Sample graphs
 │       └── data/                # Test data
@@ -36,12 +35,10 @@ GraphBrew/
 │   ├── data/                 # Structured data store
 │   │   ├── adaptive_models.json     # Unified model store
 │   │   ├── benchmarks.json          # Benchmark database
-│   │   ├── graph_properties.json    # Graph feature cache
-│   │   └── runs/                    # Per-run data
+│   │   └── graph_properties.json    # Graph feature cache
 │   ├── graphs/               # Downloaded graphs
 │   ├── logs/                 # Run logs
-│   ├── mappings/             # Node mappings (.lo files)
-│   └── weights/              # Perceptron weights
+│   └── mappings/             # Node mappings (.lo files)
 │
 ├── docs/                     # Documentation
 │   └── figures/              # Images
@@ -307,17 +304,56 @@ See [[Python-Scripts]] for full documentation of the Python tooling.
 
 Key entry points:
 - `graphbrew_experiment.py` — Main orchestration (~2,838 lines)
-- `lib/perceptron.py` — ML weight experimentation
-- `lib/adaptive_emulator.py` — C++ logic emulation
-- `lib/eval_weights.py` — Weight evaluation & accuracy reporting
-- `lib/datastore.py` — Unified data store (BenchmarkStore class for adaptive_models.json)
-- `lib/decision_tree.py` — Decision tree classifier training (sklearn)
-- `lib/benchmark.py` — Benchmark execution + fresh benchmark runner
-- `lib/analysis.py` — Result analysis + A/B testing + Leiden variant comparison
-- `lib/cache.py` — Cache simulation + quick cache comparison
-- `lib/` — 27 reusable modules (~25,073 lines total)
+- `lib/ml/weights.py` — **SSO** for scoring (`PerceptronWeight.compute_score()`), type-based weight training, LOGO CV
+- `lib/ml/eval_weights.py` — **SSO** for data loading (`load_all_results()`, `build_performance_matrix()`, `compute_graph_features()`)
+- `lib/ml/adaptive_emulator.py` — C++ logic emulation (delegates scoring to `PerceptronWeight`)
+- `lib/ml/training.py` — Iterative/batched training pipeline
+- `lib/core/datastore.py` — Unified data store (BenchmarkStore, GraphPropsStore)
+- `lib/pipeline/benchmark.py` — Benchmark execution
+- `lib/analysis/adaptive.py` — Result analysis + A/B testing + Leiden variant comparison
+- `lib/pipeline/cache.py` — Cache simulation
+- `lib/` — 5 sub-packages, 24 modules (~19,000 lines total)
 
-**Unified Naming Convention (SSOT):** All Python modules use five SSOT functions from `lib/utils.py`:
+#### Streaming Database Architecture (v2.0)
+
+All adaptive selection modes now use the **streaming database** as their primary
+selection path. The database IS the model — predictions are computed directly from
+raw benchmark data at C++ runtime, with no pre-trained weight files needed.
+
+```
+┌──────────────────────────────────────────────────────────────────┐
+│  PRIMARY: Streaming Database (v2.0)                              │
+│                                                                  │
+│  benchmarks.json + graph_properties.json                         │
+│    ↓                                                             │
+│  BenchmarkDatabase::select_for_mode()  [reorder_database.h]     │
+│    → Oracle (known graph): direct lookup                         │
+│    → kNN (unknown graph): knn_algo_scores() → per-mode scoring  │
+│    → All modes (0-6) handled                                     │
+├──────────────────────────────────────────────────────────────────┤
+│  FALLBACK: SSO Perceptron Weights                                │
+│                                                                  │
+│  weights.py  →  PerceptronWeight.compute_score()                │
+│                 (26 fields: bias + 15 linear + 3 quadratic      │
+│                  + convergence + cache + reorder_time + bench)   │
+│                 SOLE scoring implementation in Python             │
+├──────────────────────────────────────────────────────────────────┤
+│  eval_weights.py  →  load_all_results()                          │
+│                      build_performance_matrix()                   │
+│                      compute_graph_features()                     │
+│                      find_best_algorithm()                        │
+│                 SOLE data-loading implementation                  │
+├──────────────────────────────────────────────────────────────────┤
+│  adaptive_emulator.py  →  delegates to PerceptronWeight          │
+│  training.py           →  delegates to PerceptronWeight           │
+└──────────────────────────────────────────────────────────────────┘
+```
+
+**C++ selection flow:** `SelectReorderingWithMode()` first calls `database::SelectForMode()` which uses `knn_algo_scores()` to compute per-algorithm performance metrics from the k nearest neighbors. Only if the database is empty does it fall back to perceptron weights.
+
+**C++ fallback alignment:** `PerceptronWeight.compute_score()` mirrors `scoreBase() × getBenchmarkMultiplier()` in `reorder_types.h`. Both apply identical transforms (log₁₀, /100, /10, /50, log₂, log₁₀) and the same 17-feature dot product + convergence bonus.
+
+**Unified Naming Convention (SSOT):** All Python modules use five SSOT functions from `lib/core/utils.py`:
 
 | Function | Purpose | Example |
 |----------|---------|---------|
@@ -361,6 +397,42 @@ CSRGraph → Warmup → Trials → Timer → Results → Output
   Input    Cache    N runs  Measure  Verify    Print
 ```
 
+### Self-Recording Database (v2.1)
+
+C++ benchmark binaries now write directly to `benchmarks.json` and
+`graph_properties.json`, eliminating Python as the data-persistence middleman.
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  C++ Self-Recording Pipeline                                     │
+│                                                                   │
+│  main() → InitSelfRecording(cli.db_dir())                        │
+│    ↓  resolves: --db-dir > $GRAPHBREW_DB_DIR > default           │
+│    ↓  enables SelfRecordingEnabled() if explicit source found     │
+│                                                                   │
+│  Builder::MakeGraph()                                             │
+│    → ComputeAndPrintGlobalTopologyFeatures()                     │
+│      → update_graph_props(props)  [writes graph_properties.json] │
+│    → GenerateMapping()                                            │
+│      → AppendReorderMetaHint(meta)  [stored for BenchmarkKernel] │
+│                                                                   │
+│  BenchmarkKernel(cli, g, kernel, stats, verify, name, extractor) │
+│    → per-trial TrialResult(time, answer_json)                    │
+│    → RunReport(graph, algorithm, benchmark, trials, reorder_meta)│
+│    → append_run(report)  [file-locked write to benchmarks.json]  │
+│                                                                   │
+│  Python sets GRAPHBREW_DB_DIR=results/data/ via os.environ        │
+│  (utils.py at module load time)                                   │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Key files:**
+- `reorder_database.h` — `InitSelfRecording()`, `append_run()`, `update_graph_props()`, `FileLockGuard`
+- `benchmark.h` — 7-arg `BenchmarkKernel` overload with `benchmark_name` + `result_extractor`
+- `builder.h` — auto-records graph properties and reorder metadata
+- `command_line.h` — `--db-dir` / `-D` flag on `CLBase`
+- All 10 binaries (9 benchmarks + converter) call `InitSelfRecording(cli.db_dir())`
+
 ---
 
 ## Key Data Structures
@@ -382,7 +454,7 @@ CSRGraph → Warmup → Trials → Timer → Results → Output
 
 JSON config: specify `graphs`, `benchmarks`, `algorithms`, `trials`, and `options` (symmetrize, verify). See [[Configuration-Files]] for format.
 
-Weight files: `results/models/perceptron/type_*/weights.json` (see [[Perceptron-Weights]]). Results: `results/graphs/`, `results/logs/`, `results/mappings/` (see [[Python-Scripts#output-structure]]). Data store: `results/data/` (adaptive_models.json, benchmarks.json, graph_properties.json, runs/).
+Weight files: `results/data/adaptive_models.json` (see [[Perceptron-Weights]]). Results: `results/graphs/`, `results/logs/`, `results/mappings/` (see [[Python-Scripts#output-structure]]). Data store: `results/data/` (adaptive_models.json, benchmarks.json, graph_properties.json, runs/).
 
 ---
 

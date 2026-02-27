@@ -6,10 +6,9 @@ AdaptiveOrder (algorithm 14) uses **machine learning models** (perceptron, decis
 
 Instead of requiring the user to pick a reordering algorithm, AdaptiveOrder:
 1. **Computes graph features** (degree variance, hub concentration, packing factor, etc.)
-2. **Finds best matching type** from auto-clustered type files using Euclidean distance
-3. **Loads specialized weights** for that type (per-benchmark files like `type_0/pr.json`, or generic `type_0/weights.json`)
-4. **Uses a trained perceptron** to predict the best algorithm
-5. **Applies the selected algorithm** to the entire graph
+2. **Queries the streaming database** (`benchmarks.json` + `graph_properties.json`) for oracle/kNN predictions
+3. **Falls back to perceptron weights** from `adaptive_models.json` if the database is empty
+4. **Applies the selected algorithm** to the entire graph
 
 AdaptiveOrder operates in **full-graph mode**: it selects a single algorithm for the entire graph based on global features. This was found to outperform per-community selection because training data is whole-graph, so features match better, there is no Leiden partitioning overhead, and cross-community edge patterns are preserved.
 
@@ -68,25 +67,21 @@ AdaptiveOrder operates in **full-graph mode**: it selects a single algorithm for
 +--------+---------+
          |
          v
-+------------------+
-| DetectGraphType  |
-| + Type Matching  |
-+--------+---------+
-         |
++-----------------------------------+
+| PRIMARY: Streaming Database       |
+|   benchmarks.json +               |
+|   graph_properties.json           |
+|   → Oracle (known graph)          |
+|   → kNN (unknown graph)           |
++--------+--------------------------+
+         |  (empty DB? fallback ↓)
          v
 +-----------------------------------+
-| Load Model (mode-dependent)       |
-|  0-3: Perceptron weights          |
+| FALLBACK: Perceptron / Model Tree |
+|  0-3: Perceptron (adaptive_models)|
 |    4: Decision Tree (sklearn)     |
 |    5: Hybrid DT + Perceptron      |
-|    6: Database (Oracle / kNN)     |
 +--------+--------------------------+
-         |
-         v
-+------------------+
-| Score / Predict  |
-| All Algorithms   |
-+--------+---------+
          |
          v
 +------------------+
@@ -104,13 +99,13 @@ AdaptiveOrder operates in **full-graph mode**: it selects a single algorithm for
 
 ## Auto-Clustering Type System
 
-AdaptiveOrder uses automatic clustering to group similar graphs, rather than predefined categories:
+AdaptiveOrder uses automatic clustering to group similar graphs during Python training, rather than predefined categories:
 
-**How It Works:**
+**How It Works (Training Side):**
 1. Extract 7 features per graph: modularity, log_nodes, log_edges, avg_degree, degree_variance, hub_concentration, clustering_coefficient
 2. Cluster similar graphs using k-means-like clustering
 3. Train optimized weights for each cluster
-4. At runtime, find best matching cluster based on Euclidean distance to centroids
+4. Export trained weights to `adaptive_models.json`
 
 **Unified Model Store:**
 
@@ -118,34 +113,11 @@ All trained models (perceptron weights, decision trees, hybrid parameters) are s
 ```
 results/data/adaptive_models.json   # Unified model store (all benchmarks)
 ```
-Managed by the `DataStore` class in `scripts/lib/datastore.py`. The C++ runtime loads this via `reorder_database.h`.
+Managed by the `BenchmarkStore` class in `scripts/lib/core/datastore.py`. The C++ runtime loads this via `reorder_database.h`.
 
-**Legacy Type Files (still valid for C++ perceptron loading):**
-```
-results/models/perceptron/
-├── registry.json           # Graph→type mapping + centroids
-├── type_0/               # Generic weights
-│   ├── weights.json      # Base weights
-│   ├── pr.json           # PageRank-specific
-│   ├── bfs.json          # BFS-specific
-│   ├── cc.json           # CC-specific
-│   ├── cc_sv.json        # CC_SV-specific
-│   └── pr_spmv.json      # PR_SPMV-specific
-├── type_1/               # Cluster 1 weights
-│   └── ...
-└── type_N/               # Additional clusters
-```
+## Type Matching (Training Only)
 
-**Weight File Loading Priority:**
-1. Environment variable `PERCEPTRON_WEIGHTS_FILE` (if set)
-2. Per-benchmark weight file (e.g., `type_0/pr.json` for PageRank) — highest accuracy
-3. Best matching type file from type registry (e.g., `type_0/weights.json`)
-4. Default weights file (`type_0/weights.json`)
-5. Hardcoded defaults (`GetPerceptronWeights()`)
-
-## Type Matching at Runtime
-
-Each type has a **centroid** — the average feature vector of its training graphs. At runtime, the system computes the new graph's features and selects the type with the smallest Euclidean distance. If all centroids are too far (distance > 1.5), the OOD guardrail falls back to ORIGINAL.
+During Python training, each type has a **centroid** — the average feature vector of its training graphs. New graphs are assigned to the nearest centroid by Euclidean distance. This clustering happens offline during `compute_weights_from_results()` and the resulting weights are exported to `adaptive_models.json`. The C++ runtime does not perform centroid matching — it loads pre-trained weights directly.
 
 ## How to Use
 
@@ -526,13 +498,12 @@ Each algorithm has weights for each feature. See [[Perceptron-Weights#file-struc
 
 ### Benchmark-Specific Scoring
 
-The perceptron supports per-benchmark multipliers via `getBenchmarkMultiplier()` in each algorithm's weight entry. The final score is `base_score × benchmark_multiplier[type]`. Per-benchmark weight files (`type_0/pr.json`, `type_0/bfs.json`, etc.) are loaded with higher priority than generic `type_0/weights.json` because they are trained specifically for each benchmark.
+The perceptron supports per-benchmark multipliers via `getBenchmarkMultiplier()` in each algorithm's weight entry. The final score is `base_score × benchmark_multiplier[type]`. Per-benchmark weights are stored in `adaptive_models.json` under the `per_benchmark` key and loaded via the DB hook.
 
 ```cpp
-// C++ Usage:
-SelectReorderingPerceptron(features);                     // BENCH_GENERIC (multiplier = 1.0)
-SelectReorderingPerceptron(features, BENCH_PR);           // PageRank-optimized
-SelectReorderingPerceptron(features, BENCH_BFS, graph_type); // BFS-optimized with graph type
+// C++ Usage (current entry points):
+SelectReorderingWithMode(features, mode, bench, verbose);           // Primary: DB → fallback
+SelectReorderingPerceptronWithFeatures(features, bench, verbose);   // Direct perceptron scoring
 ```
 
 **Supported benchmarks:** PR, BFS, CC, SSSP, BC, TC, PR_SPMV, CC_SV
@@ -632,7 +603,7 @@ See [[Perceptron-Weights]] for the full training pipeline details, gradient upda
 Leave-One-Graph-Out (LOGO) validation measures generalization: hold out one graph, train on the rest, predict the held-out graph, repeat.
 
 ```python
-from scripts.lib.weights import cross_validate_logo
+from scripts.lib.ml.weights import cross_validate_logo
 result = cross_validate_logo(benchmark_results, reorder_results=reorder_results, weights_dir=weights_dir)
 print(f"LOGO: {result['accuracy']:.1%}, Overfit: {result['overfitting_score']:.2f}")
 ```
@@ -647,12 +618,12 @@ print(f"LOGO: {result['accuracy']:.1%}, Overfit: {result['overfitting_score']:.2
 
 ## Advanced Training: `compute_weights_from_results()`
 
-The primary training function in `lib/weights.py` implements a 4-stage pipeline:
+The primary training function in `lib/ml/weights.py` implements a 4-stage pipeline:
 
 1. **Multi-Restart Perceptron Training** — 5 independent perceptrons × 800 epochs per benchmark, z-score normalized features, averaged across restarts and benchmarks
 2. **Variant-Level Weight Saving** — All variants are saved directly (each has its own entry in C++ string-keyed weights); bias ordering set by mean-feature scoring for compatibility
 3. **Regret-Aware Benchmark Multiplier Optimization** — Grid search (30 iterations × 32 values) maximizing accuracy while minimizing regret
-4. **Save to `type_0.json`** with `_metadata` training statistics
+4. **Stage to `type_0.json`** (merged into `adaptive_models.json` by `export_unified_models()`)
 
 See [[Perceptron-Weights#multi-restart-training--benchmark-multipliers]] for details on the training internals.
 
@@ -663,6 +634,19 @@ python3 scripts/graphbrew_experiment.py --eval-weights
 ```
 
 Reports accuracy, median regret, top-2 accuracy, and unique predictions. Run `--eval-weights` on your own data to see current metrics.
+
+### SSO Module Responsibilities (v1.3.0+)
+
+The training and evaluation pipeline follows a strict **Single Source of Truth** architecture:
+
+| Module | SSO Responsibility |
+|--------|--------------------|
+| `weights.py` → `PerceptronWeight` | Sole scoring formula (26-field dataclass: `compute_score()`) |
+| `eval_weights.py` | Sole data loading (`load_all_results()`, `build_performance_matrix()`, `compute_graph_features()`, `find_best_algorithm()`) + evaluation reporting |
+| `adaptive_emulator.py` | C++ emulation — delegates scoring to `PerceptronWeight.compute_score()` |
+| `training.py` | Iterative/batched training — delegates weight defaults to `PerceptronWeight` |
+
+See [[Perceptron-Weights#sso-architecture-v130]] and [[Code-Architecture#sso-single-source-of-truth-architecture]] for the full SSO design.
 
 ---
 
@@ -740,23 +724,20 @@ flowchart LR
 For a graph with 10,000 nodes, AdaptiveOrder (default full-graph mode):
 
 1. **Feature Extraction** — `ComputeSampledDegreeFeatures()` computes degree_variance, hub_concentration, packing_factor, forward_edge_fraction, working_set_ratio, clustering_coeff. `ComputeExtendedFeatures()` computes avg_path_length, diameter_estimate, component_count.
-2. **Type Matching** — Normalizes features to 7D vector, finds closest type centroid in the type registry (Euclidean distance). If distance > 1.5, OOD guardrail → ORIGINAL.
-3. **Weight Loading** — Loads per-benchmark weights (e.g., `type_0/pr.json`) or falls back to generic `type_0/weights.json`
-4. **Perceptron Scoring** — Evaluates all algorithms using the score formula (linear terms + quadratic cross-terms + convergence bonus) × benchmark multiplier
-5. **Algorithm Selection** — Selects the algorithm with the highest score (subject to safety checks: OOD guardrail, ORIGINAL margin, complexity guards)
-6. **Reordering** — Applies the selected algorithm to the entire graph
-
-In per-community mode (mode 1), Leiden detects communities first, and steps 1–5 are repeated for each community independently.
+2. **Database Lookup** — `SelectReorderingWithMode()` calls `database::SelectForMode()`, which queries `benchmarks.json` for oracle/kNN predictions. If the database has data for this graph or similar graphs, the result is returned directly.
+3. **Perceptron Fallback** — If the database is empty, `LoadPerceptronWeightsFromDB()` loads weights from `adaptive_models.json` and scores all algorithms using the perceptron formula.
+4. **Algorithm Selection** — Selects the algorithm with the highest score (subject to safety checks: OOD guardrail, ORIGINAL margin, complexity guards)
+5. **Reordering** — Applies the selected algorithm to the entire graph
 
 ---
 
 ## Decision Tree Model (MODE_DECISION_TREE = 4)
 
-The Decision Tree (DT) selection mode uses a **sklearn `DecisionTreeClassifier`** trained per-benchmark. Unlike the perceptron, the DT makes hard classification decisions based on feature thresholds — no weighted linear combination.
+The Decision Tree (DT) selection mode uses a **C++ runtime-trained tree** stored in `adaptive_models.json`. Unlike the perceptron, the DT makes hard classification decisions based on feature thresholds — no weighted linear combination.
 
 ### How It Works
 
-1. **Training** — `scripts/lib/decision_tree.py` trains one tree per benchmark (pr, bfs, cc, sssp, bc, tc) using the same graph features as the perceptron. Tree depth is auto-optimized via LOO cross-validation to avoid overfitting.
+1. **Training** — C++ `train_decision_tree()` in `reorder_database.h` builds one tree per benchmark (pr, bfs, cc, sssp, bc, tc) using the same 12D graph features as the perceptron. Tree depth is auto-optimized to avoid overfitting.
 2. **Storage** — Trained trees are serialized into `results/data/adaptive_models.json` under the `"decision_trees"` key, one entry per benchmark.
 3. **Runtime** — The C++ code in `reorder_database.h` loads the DT rules from `adaptive_models.json` and traverses the tree to classify the input graph's feature vector.
 
@@ -764,13 +745,11 @@ The Decision Tree (DT) selection mode uses a **sklearn `DecisionTreeClassifier`*
 
 - **Interpretable**: Tree structure shows exact decision rules (e.g., "if hub_concentration > 0.45 and log_nodes > 5.2 → RABBIT")
 - **No scoring ambiguity**: Each leaf maps to exactly one algorithm family
-- **Auto-depth**: Prevents overfitting by selecting the shallowest tree that maximizes LOO accuracy
+- **No Python dependency**: Training and inference are both C++
 
-### Training Command
+### Training
 
-```bash
-python -m scripts.lib.decision_tree --train --benchmark pr --max-depth 5 --show-tree
-```
+DT models are trained automatically by the C++ runtime when ≥3 graphs are in the benchmark database. No separate training command is needed — simply run benchmarks and the models are updated in-place.
 
 ---
 
@@ -801,22 +780,52 @@ Hybrid parameters are stored in `results/data/adaptive_models.json` alongside th
 
 ---
 
-## Database Mode (MODE_DATABASE = 6)
+## Streaming Database Model (v2.0)
 
-Database mode replaces pre-trained models with a **"streaming equation"** approach: the benchmark database IS the model. When new benchmark data is appended, selection automatically improves without retraining.
+> **All modes now use the streaming database as their primary selection path.**
+> The database IS the model — no pre-trained weight files are needed. When new
+> benchmark data is appended, selection automatically improves for ALL modes
+> without any Python retraining step.
 
 Implemented in `bench/include/graphbrew/reorder/reorder_database.h` (`BenchmarkDatabase` singleton class).
+
+### How It Works
+
+1. **`SelectReorderingWithMode()`** first calls `SelectForMode()` which reads
+   `benchmarks.json` + `graph_properties.json` directly
+2. For **known graphs** (oracle): returns the algorithm with the lowest time
+3. For **unknown graphs** (kNN): finds k=5 nearest graphs by 12D feature distance,
+   computes per-algorithm scores weighted by inverse distance
+4. Different modes use different scoring strategies on the same kNN data:
+
+| Mode | Scoring Strategy |
+|------|-----------------|
+| 0: fastest_reorder | Pick algorithm with lowest avg `reorder_time` from neighbors |
+| 1: fastest_execution | Pick algorithm with lowest avg `kernel_time` from neighbors |
+| 2: best_endtoend | Pick algorithm with lowest `kernel_time + reorder_time` |
+| 3: best_amortization | Pick algorithm with lowest `reorder_time / time_saved` |
+| 4: decision_tree | DB kNN first, then DT model tree fallback |
+| 5: hybrid | DB kNN first, then hybrid model tree fallback |
+| 6: database | Same as mode 1 (explicit database selection) |
+
+### Fallback: Perceptron Weights
+
+If `benchmarks.json` is empty or missing, modes 0-3 fall back to
+`PerceptronWeights` loaded from `adaptive_models.json`.
+Modes 4-5 fall back to model tree files stored in `adaptive_models.json`.
 
 ### Oracle Lookup (Known Graphs)
 
 If the graph name matches a known graph in `results/data/benchmarks.json`, the system returns the algorithm family with the **lowest benchmark time** — this is the ground-truth oracle.
 
-### kNN Fallback (Unknown Graphs)
+### kNN Selection (Unknown Graphs)
 
 For unknown graphs, the system:
-1. Computes the graph's 12-dimensional feature vector (same features as the perceptron)
-2. Finds the **k=5 nearest known graphs** by Euclidean distance in normalized feature space
-3. Votes on the best algorithm family, weighted by inverse distance
+1. Computes the graph's 12-dimensional feature vector
+2. Finds the **k=5 nearest known graphs** by Euclidean distance
+3. For each neighbor, looks up benchmark times for ALL algorithm families
+4. Computes weighted-average kernel time and reorder time per family (weighted by 1/distance)
+5. Selects the best family based on the mode's scoring strategy
 
 ### Feature Vector (12D)
 
@@ -832,15 +841,31 @@ For unknown graphs, the system:
 |------|-------------|
 | `results/data/benchmarks.json` | Append-only benchmark records (graph × algorithm × benchmark → time) |
 | `results/data/graph_properties.json` | Feature vectors for all known graphs |
+| `results/data/adaptive_models.json` | Pre-trained perceptron/DT/hybrid models |
 
 ### Usage
 
 ```bash
-# Use database mode
+# Any mode now uses the streaming database first
+./bench/bin/pr -f graph.sg -s -o 14::::1        # fastest-execution from DB
+
+# Explicit database mode (same as mode 1 under streaming model)
 ./bench/bin/pr -f graph.sg -s -o 14::::6
 
-# With graph name hint (enables oracle lookup)
-./bench/bin/pr -f graph.sg -s -o 14::::6:web-Google
+# With graph name hint (enables oracle lookup for any mode)
+./bench/bin/pr -f graph.sg -s -o 14::::1:web-Google
+```
+
+### Pipeline
+
+The default pipeline does not include the "weights" phase:
+
+```bash
+# Default: reorder → benchmark → cache  (weights is opt-in)
+python3 scripts/graphbrew_experiment.py --phase all
+
+# To generate perceptron weights:
+python3 scripts/graphbrew_experiment.py --phase weights
 ```
 
 ---
@@ -851,15 +876,14 @@ The `results/data/` directory contains centralized runtime data:
 
 ```
 results/data/
-├── adaptive_models.json      # Unified model store (perceptron + DT + hybrid)
-├── benchmarks.json            # Append-only benchmark results database
-├── graph_properties.json      # Graph feature vectors for all known graphs
-└── runs/                      # Per-run benchmark result snapshots
+├── benchmarks.json            # Primary: append-only benchmark database
+├── graph_properties.json      # Primary: graph feature vectors
+└── adaptive_models.json       # Pre-trained perceptron/DT/hybrid models
 ```
 
-- **`adaptive_models.json`** — Single file containing all trained models. Managed by the `DataStore` class (`scripts/lib/datastore.py`). The C++ runtime loads perceptron weights, decision tree rules, and hybrid parameters from this file via `reorder_database.h`.
-- **`benchmarks.json`** — Append-only database of benchmark measurements. Used by MODE_DATABASE (6) for oracle lookup and kNN selection.
+- **`benchmarks.json`** — Append-only database of benchmark measurements. The **primary data source** for all adaptive modes. Contains `{graph, algorithm, benchmark, time_seconds, reorder_time}` records. The C++ runtime computes oracle/kNN predictions directly from this file.
 - **`graph_properties.json`** — Cached graph features (12D vectors) for all benchmarked graphs. Used by kNN to compute nearest-neighbor distances.
+- **`adaptive_models.json`** — Pre-trained perceptron weights, decision tree rules, and hybrid parameters. Used as fallback when the benchmark database is empty.
 - **`runs/`** — Timestamped snapshots of individual benchmark runs.
 
 > **From-scratch setup:** All directories under `results/data/` are created on-demand by `ensure_prerequisites()` with `exist_ok=True`. Data stores start empty when files are missing. Running a new graph simply adds its data to the existing database (SSO additive model) — no manual directory creation or initialization needed.
@@ -874,7 +898,7 @@ results/data/
 # Look for: "Graph Type: social", "Selected Algorithm: GraphBrewOrder"
 
 # Validate weights JSON
-python3 -c "import json; json.load(open('results/models/perceptron/type_0/weights.json'))"
+python3 -c "import json; json.load(open('results/data/adaptive_models.json'))"
 
 # Ablation toggles (environment variables):
 # ADAPTIVE_NO_OOD=1      — disable OOD guardrail

@@ -13,18 +13,30 @@ scripts/
 ├── graphbrew_experiment.py    # Main script (uses CLI args)
 ├── requirements.txt           # Python dependencies
 │
-└── lib/                       # Python library modules
-    ├── utils.py               # ⭐ Single source of truth for constants:
-    │                          #    ALGORITHMS, BENCHMARKS, SIZE_*, TIMEOUT_*,
-    │                          #    GRAPHBREW_VARIANTS, canonical_algo_key(), etc.
-    ├── benchmark.py           # Benchmark execution
-    ├── cache.py               # Cache simulation
-    ├── weights.py             # Weight management
-    ├── features.py            # Graph feature extraction
-    ├── graph_data.py          # Per-graph data storage
-    ├── datastore.py           # Unified model datastore (DT, hybrid, kNN)
-    ├── decision_tree.py       # Decision tree training and inference
-    └── ...                    # Additional modules
+└── lib/                       # Python library (5 sub-packages)
+    ├── core/                  # Constants, logging, data stores
+    │   ├── utils.py           # ⭐ SSOT: ALGORITHMS, BENCHMARKS, canonical_algo_key(), etc.
+    │   ├── graph_types.py     # GraphInfo dataclass
+    │   ├── datastore.py       # BenchmarkStore, GraphPropsStore
+    │   └── graph_data.py      # Per-graph data storage
+    ├── pipeline/              # Experiment execution stages
+    │   ├── benchmark.py       # Benchmark execution
+    │   ├── cache.py           # Cache simulation
+    │   ├── reorder.py         # Vertex reordering
+    │   ├── phases.py          # Phase orchestration
+    │   └── ...                # build, download, progress
+    ├── ml/                    # ML scoring & training
+    │   ├── weights.py         # PerceptronWeight, compute_weights_from_results
+    │   ├── eval_weights.py    # Data loading, evaluation
+    │   ├── training.py        # Iterative/batched training
+    │   └── ...                # adaptive_emulator, oracle, features
+    ├── analysis/              # Post-run analysis
+    │   ├── adaptive.py        # Adaptive analysis, A/B testing
+    │   ├── metrics.py         # Amortization & end-to-end
+    │   └── figures.py         # Plot generation
+    └── tools/                 # Standalone CLI utilities
+        ├── check_includes.py  # Scan C++ headers for legacy includes
+        └── regen_features.py  # Regenerate graph features via C++ binary
 
 results/
 ├── graphs/                    # Static per-graph features
@@ -42,10 +54,8 @@ results/
 ├── data/                      # Runtime model storage (auto-created by ensure_prerequisites)
 │   ├── adaptive_models.json   # Unified model store (DT, hybrid, kNN)
 │   ├── benchmarks.json        # Aggregated benchmark data
-│   ├── graph_properties.json  # Graph feature database
-│   └── runs/                  # Per-run snapshots
+│   └── graph_properties.json  # Graph feature database
 │
-├── graph_properties_cache.json # Cached graph features
 ├── benchmark_*.json           # Aggregate benchmark result files
 ├── cache_*.json               # Aggregate cache simulation results
 └── reorder_*.json             # Aggregate reorder timing results
@@ -100,46 +110,9 @@ python3 scripts/graphbrew_experiment.py --full --max-memory 32 --max-disk 100
 
 ## Perceptron Weight Files
 
-### Type Registry (registry.json)
+All trained perceptron weights are stored in `results/data/adaptive_models.json` under the `perceptron` key. The C++ runtime loads these via `LoadPerceptronWeightsFromDB()` in `reorder_database.h`.
 
-Maps graph types to clusters with centroid feature vectors:
-
-```json
-{
-  "type_0": {
-    "centroid": [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5],
-    "graph_count": 1,
-    "algorithms": ["..."],
-    "graphs": ["..."]
-  }
-}
-```
-
-Centroid array indices: [modularity, degree_variance, hub_concentration, avg_degree, clustering_coefficient, log_nodes, log_edges]
-```
-
-### Type Weight Files (type_N.json)
-
-Per-algorithm weights for each cluster:
-
-```json
-{
-  "ALGORITHM_NAME": {
-    "bias": ...,
-    "w_modularity": ...,
-    "w_log_nodes": ...,
-    "w_density": ...,
-    "w_hub_concentration": ...,
-    "benchmark_weights": {
-      "pr": ...,
-      "bfs": ...,
-      "cc": ...
-    }
-  }
-}
-```
-
-Run `--train` to generate actual weight values.
+Per-algorithm weights contain bias, feature weights, benchmark multipliers, and metadata. Run `--train` to generate actual weight values.
 
 ### Weight Field Descriptions
 
@@ -149,9 +122,9 @@ See [[Perceptron-Weights#weight-definitions]] for the complete 24-field referenc
 
 ## Results Files
 
-### Graph Properties Cache (graph_properties_cache.json)
+### Graph Properties (data/graph_properties.json)
 
-Cached graph features to avoid recomputation:
+Graph feature vectors used by kNN and perceptron scoring. Managed by `GraphPropsStore` in `scripts/lib/core/datastore.py`. Populated automatically when C++ binaries run with `InitSelfRecording()`.
 
 ```json
 {
@@ -170,8 +143,6 @@ Cached graph features to avoid recomputation:
   }
 }
 ```
-
-Run the pipeline to populate this cache automatically. See `results/graph_properties_cache.json` for actual values.
 
 ### Benchmark Results (benchmark_*.json)
 
@@ -219,13 +190,13 @@ See [[Command-Line-Reference]] for all options.
 
 All tunable constants are defined in **one location** to ensure consistency between C++ and Python.
 
-### Unified Algorithm Naming (scripts/lib/utils.py)
+### Unified Algorithm Naming (scripts/lib/core/utils.py)
 
 Every subsystem that needs an algorithm name — weight files, `.sg` filenames, result JSON,
 benchmark display — **MUST** use the canonical naming API:
 
 ```python
-from scripts.lib.utils import canonical_algo_key, algo_converter_opt
+from scripts.lib.core.utils import canonical_algo_key, algo_converter_opt
 
 # canonical_algo_key(algo_id, variant=None) → string key
 canonical_algo_key(0)             # → "ORIGINAL"
@@ -255,10 +226,7 @@ suffix is **always** included — omitting the variant uses the registered defau
 | Benchmark result field | `{ "algorithm": "RABBITORDER_csr", ... }` |
 | Per-graph data dirs | `results/graphs/email-Enron/RABBITORDER_csr/` |
 
-**Legacy migration:** The `LEGACY_ALGO_NAME_MAP` dict in `utils.py` handles
-bare pre-variant names (e.g., `"GraphBrewOrder"` → `"GraphBrewOrder_leiden"`).
-
-### Python Constants (scripts/lib/utils.py)
+### Python Constants (scripts/lib/core/utils.py)
 
 ```python
 # Unified Reorder Configuration (match C++ reorder::ReorderConfig in reorder_types.h)
@@ -320,8 +288,8 @@ struct ReorderConfig {
 ### "Weight file not found"
 
 ```bash
-# Check weight files exist
-ls -la results/models/perceptron/
+# Check model store exists
+ls -la results/data/adaptive_models.json
 
 # Regenerate weights
 python3 scripts/graphbrew_experiment.py --train --size small
@@ -334,14 +302,14 @@ python3 scripts/graphbrew_experiment.py --train --size small
 python3 scripts/graphbrew_experiment.py --download-only --size small
 
 # Check graphs directory
-ls -la graphs/
+ls -la results/graphs/
 ```
 
 ### "Invalid JSON"
 
 ```bash
 # Validate JSON files
-python3 -m json.tool results/models/perceptron/type_0/weights.json
+python3 -m json.tool results/data/adaptive_models.json
 ```
 
 ---

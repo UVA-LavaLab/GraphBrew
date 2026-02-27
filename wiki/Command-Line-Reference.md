@@ -46,26 +46,24 @@ You can run each phase independently. Later phases automatically load results fr
 | **Phase 1** | `--phase reorder` | Generate reordered graphs (.lo label maps) |
 | **Phase 2** | `--phase benchmark` | Run graph algorithm benchmarks (BFS, PR, etc.) |
 | **Phase 3** | `--phase cache` | Run cache simulation |
-| **Phase 4** | `--phase weights` | Generate perceptron weights from results |
-| **Phase 5** | `--phase adaptive` | Adaptive order analysis (evaluate AdaptiveOrder accuracy) |
+| **Phase 4** | `--phase weights` | _(deprecated)_ Generate perceptron weights — C++ now trains at runtime |
+| **Phase 5** | `--phase adaptive` | _(deprecated)_ Adaptive order analysis — use `--eval-weights` instead |
 
 ```bash
 # Run each phase separately
 python3 scripts/graphbrew_experiment.py --phase reorder --size small
 python3 scripts/graphbrew_experiment.py --phase benchmark --size small
 python3 scripts/graphbrew_experiment.py --phase cache --size small
-python3 scripts/graphbrew_experiment.py --phase weights
 
 # Or chain them
 python3 scripts/graphbrew_experiment.py --phase reorder --size small && \
 python3 scripts/graphbrew_experiment.py --phase benchmark --size small && \
-python3 scripts/graphbrew_experiment.py --phase cache --size small && \
-python3 scripts/graphbrew_experiment.py --phase weights
+python3 scripts/graphbrew_experiment.py --phase cache --size small
 ```
 
 **Note:** Results are saved to `results/` directory after each phase. Later phases automatically load:
 - Phase 2 & 3: Load `.lo` label maps from Phase 1
-- Phase 4: Load `benchmark_*.json`, `cache_*.json`, `reorder_*.json` from Phases 1-3
+- C++ runtime: Trains perceptron, decision tree, and hybrid models automatically from benchmark data when ≥3 graphs are available
 
 ---
 
@@ -178,7 +176,7 @@ Use with `-o <id>`:
 | 14 | AdaptiveOrder | ML |
 | 15 | LeidenOrder | Leiden (GVE-Leiden baseline) |
 
-> **Note:** For current variant lists, see `scripts/lib/utils.py` which defines:
+> **Note:** For current variant lists, see `scripts/lib/core/utils.py` which defines:
 > - `RABBITORDER_VARIANTS`, `GORDER_VARIANTS`, `RCM_VARIANTS`, `GRAPHBREW_VARIANTS`
 > - Use `get_algo_variants(algo_id)` to query programmatically
 
@@ -238,8 +236,6 @@ Options can be passed directly — the `graphbrew` prefix is **not required**.
 | Dynamic | `-o 12:dynamic` | Auto initial, adjust each pass |
 | Fixed | `-o 12:0.75` or `-o 12:hrab:0.75` | Use specified resolution value |
 
-> **Note:** The `graphbrew` prefix (e.g., `-o 12:graphbrew:hrab`) is still accepted for backward compatibility but is no longer required.
-
 **Cluster variants** (for per-community dispatch mode):
 
 | Variant | Description | Default Final Algo |
@@ -260,7 +256,7 @@ Override the final reordering algorithm with `:<algo_id>`, e.g. `-o "12:leiden:7
 
 Example: `-o 12:leiden:hrab:gvecsr:merge:hubx:0.75` sets preset=leiden, ordering=hrab, aggregation=gvecsr, features=[merge,hubx], resolution=0.75.
 
-See `GRAPHBREW_LAYERS` in `scripts/lib/utils.py` for the full definition.
+See `GRAPHBREW_LAYERS` in `scripts/lib/core/utils.py` for the full definition.
 
 **Chained reorderings:** Pass multiple `-o` flags to apply orderings sequentially:
 ```bash
@@ -443,12 +439,12 @@ export OMP_NUM_THREADS=8
 ### Perceptron Weights
 
 ```bash
-# Override default weights file (overrides type matching)
+# Override default weights file
 export PERCEPTRON_WEIGHTS_FILE=/path/to/weights.json
 ./bench/bin/pr -f graph.el -s -o 14 -n 3
 ```
 
-**Note:** If not set, AdaptiveOrder uses type-based weight loading (see [[Perceptron-Weights#weight-file-location]]).
+**Note:** If not set, AdaptiveOrder loads weights from `adaptive_models.json` via the DB hook (see [[Perceptron-Weights#weight-file-location]]).
 
 ### NUMA Binding
 
@@ -572,7 +568,7 @@ See [[Python-Scripts]] for complete script documentation and module reference.
 | Size/Resources | `--size small\|medium\|large`, `--auto`, `--max-memory GB` |
 | Speed | `--quick`, `--skip-cache`, `--skip-expensive`, `--skip-slow` |
 | Variants | `--all-variants`, `--rabbit-variants LIST`, `--gorder-variants LIST`, `--graphbrew-variants LIST`, `--resolution VALUE` |
-| Weights | `--isolate-run`, `--merge-runs`, `--use-run TIMESTAMP` |
+| Weights | *(automatic via `adaptive_models.json`)* |
 | Labels | `--precompute`, `--generate-maps`, `--use-maps` |
 | Validation | `--brute-force`, `--validation-benchmark NAME` |
 | Dependencies | `--check-deps`, `--install-deps`, `--install-boost` |
