@@ -12,12 +12,8 @@ PIP=@pip
 # =========================================================
 SCRIPT_DIR  = scripts
 # Lint
-LINT_INCLUDES = $(PYTHON) $(SCRIPT_DIR)/lib/check_includes.py
+LINT_INCLUDES = $(PYTHON) $(SCRIPT_DIR)/lib/tools/check_includes.py
 BENCH_DIR   = bench
-CONFIG_DIR  = $(SCRIPT_DIR)/config
-# =========================================================
-RES_DIR    = $(BENCH_DIR)/results
-BACKUP_DIR = $(BENCH_DIR)/backups
 # =========================================================
 BIN_DIR = $(BENCH_DIR)/bin
 LIB_DIR = $(BENCH_DIR)/lib
@@ -135,7 +131,7 @@ run-all: $(addprefix run-, $(KERNELS))
 
 # Define a rule that sweeps through -o 1 to 7
 run-%-sweep: $(BIN_DIR)/%
-	@for o in 0 1 2 3 4 5 6 7 8 9 10 11 12 13; do \
+	@for o in 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15; do \
 		echo "========================================================="; \
 		if [ "$(FLUSH_CACHE)" = "1" ]; then \
 		    echo "Attempting to mitigate cache effects by busy-looping..."; \
@@ -150,11 +146,6 @@ install-py-deps: ./$(SCRIPT_DIR)/requirements.txt
 	$(PIP) install -q --upgrade pip
 	$(PIP) install -q -r ./$(SCRIPT_DIR)/requirements.txt
 
-exp-%: install-py-deps all $(BIN_DIR)/converter
-	$(PYTHON) ./$(SCRIPT_DIR)/$*/run_experiment.py
-
-graph-%: install-py-deps $(BIN_DIR)/converter
-	$(PYTHON) ./$(SCRIPT_DIR)/graph_brew.py $(CONFIG_DIR)/$*/convert.json
 
 # =========================================================
 # Compilation Rules
@@ -180,29 +171,8 @@ clean-all: clean-results clean-sim
 # =========================================================
 # Testing
 # =========================================================
-test-topology: $(BIN_DIR)/bfs
-	@echo "Running topology verification tests..."
-	@python3 $(SCRIPT_DIR)/test_topology.py --graph="-g 12" --quick
-
-test-topology-full: $(BIN_DIR)/bfs
-	@echo "Running full topology verification tests..."
-	@python3 $(SCRIPT_DIR)/test_topology.py --graph="-g 12"
-
-test-topology-large: $(BIN_DIR)/bfs
-	@echo "Running topology verification on larger graph..."
-	@python3 $(SCRIPT_DIR)/test_topology.py --graph="-g 16" --quick
 scrub-all:
-	@rm -rf $(BIN_DIR) $(BACKUP_DIR) $(RES_DIR) 00_* $(EXIT_STATUS) 
-
-clean-results: 
-	@mkdir -p $(BACKUP_DIR)
-	@if [ -d "$(RES_DIR)" ]; then \
-		echo "Backing up results directory..."; \
-		tar -czf $(BACKUP_DIR)/result_`date +"%Y%m%d_%H%M%S"`.tar.gz $(RES_DIR); \
-		echo "Cleaning results directory..."; \
-		rm -rf $(RES_DIR); \
-		echo "Backup and clean completed."; \
-	fi
+	@rm -rf $(BIN_DIR) $(BIN_SIM_DIR) 00_* $(EXIT_STATUS)
 
 # =========================================================
 # Cache Simulation Builds
@@ -316,10 +286,12 @@ help-%: $(BIN_DIR)/%
 	@echo "  │ GraphBrewOrder(12):  Leiden clustering + per-community ordering             │"
 	@echo "  │                      Format: -o 12:<freq>:<intra_algo>:<resolution>         │"
 	@echo "  │ MAP           (13):  Load reordering from file (-o 13:mapping.<lo|so>)      │"
-	@echo "  │ AdaptiveOrder (14):  ML-based perceptron selector for optimal algorithm     │"
-	@echo "  │                      Format: -o 14:<depth>:<res>:<min_size>:<mode>          │"
-	@echo "  │                      depth=0: per-community, 1+: multi-level recursion      │"
-	@echo "  │                      mode=0: per-community, 1: full-graph adaptive          │"
+	@echo "  │ AdaptiveOrder (14):  ML-based algorithm selector (perceptron/DT/hybrid)    │"
+	@echo "  │                      Format: -o 14[:_[:_[:_[:selection_mode[:graph_name]]]]]│"
+	@echo "  │                      Positions 0–2 are reserved (unused)                    │"
+	@echo "  │                      selection_mode(pos 3): 0=fastest-reorder,              │"
+	@echo "  │                        1=fastest-execution(default), 2=best-endtoend,       │"
+	@echo "  │                        3=best-amortization                                  │"
 	@echo "  ├─────────────────────────────────────────────────────────────────────────────┤"
 	@echo "  │ Leiden Algorithms                                                           │"
 	@echo "  ├─────────────────────────────────────────────────────────────────────────────┤"
@@ -330,8 +302,8 @@ help-%: $(BIN_DIR)/%
 	@echo "  make all - Compile the program."
 	@echo "  make clean - Clean build files."
 	@echo "  ./$< -g 15 -n 1 -o 14           - Execute with AdaptiveOrder (auto-select best)"
-	@echo "  ./$< -g 15 -n 1 -o 14:2         - Execute with multi-level AdaptiveOrder (depth=2)"
-	@echo "  ./$< -g 15 -n 1 -o 14:0:0.75:50000:1 - Full-graph mode (pick single best algo)"
+	@echo "  ./$< -g 15 -n 1 -o 14::::0       - AdaptiveOrder with fastest-reorder mode"
+	@echo "  ./$< -g 15 -n 1 -o 14::::1:web-Google - fastest-execution with graph name hint"
 	@echo "  ./$< -g 15 -n 1 -o 12:hrab              - Execute GraphBrewOrder with hybrid Leiden+Rabbit"
 	@echo "  ./$< -g 15 -n 1 -o 12:community         - Execute GraphBrew with community sort"
 	@echo "  ./$< -f graph.mtx -o 13:map.lo  - Execute with MAP reordering from file"

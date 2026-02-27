@@ -14,11 +14,11 @@ __pycache__/
 graphs/
 *.log
 cache_results
-results/weights/
 results/models/
 results/data/
 /test/
 agent
+plans
 docs/agent_*
 # Graph data files (edge lists, weighted edge lists, serialized graphs)
 *.el
