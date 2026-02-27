@@ -9,6 +9,7 @@
 #include <functional>
 #include <parallel/algorithm>
 #include <random>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -17,6 +18,7 @@
 #include "timer.h"
 #include "util.h"
 #include "writer.h"
+#include "graphbrew/reorder/reorder_database.h"
 
 /*
    GAP Benchmark Suite
@@ -251,6 +253,122 @@ void BenchmarkKernel(const CLApp &cli, const GraphT_ &g, GraphFunc kernel,
         }
     }
     PrintTime("Average Time", total_seconds / cli.num_trials());
+}
+
+// ============================================================================
+// Self-Recording BenchmarkKernel (v2.1)
+// ============================================================================
+
+/// Extract a clean graph name from a file path.
+/// "/path/to/graphs/amazon/amazon.sg" → "amazon"
+/// "/data/web-Google.sg" → "web-Google"
+inline std::string ExtractGraphName(const std::string& filepath) {
+    // Find the last path separator
+    std::string base = filepath;
+    auto slash = base.rfind('/');
+    if (slash != std::string::npos)
+        base = base.substr(slash + 1);
+    // Strip extension (.sg, .el, .wel, .mtx, etc.)
+    auto dot = base.rfind('.');
+    if (dot != std::string::npos)
+        base = base.substr(0, dot);
+    return base;
+}
+
+/// Self-recording BenchmarkKernel overload.
+///
+/// In addition to timing and verifying, this overload:
+///  1. Captures per-trial TrialResult (time, verification, answer data)
+///  2. Constructs a RunReport after the trial loop
+///  3. Auto-saves to benchmarks.json if self-recording is enabled
+///
+/// @param benchmark_name    Short name: "pr", "bfs", "cc", "sssp", "bc", "tc"
+/// @param result_extractor  Lambda (graph, result) → json with answer fields
+template <typename GraphT_, typename GraphFunc, typename AnalysisFunc,
+          typename VerifierFunc, typename ResultExtractor>
+void BenchmarkKernel(const CLApp &cli, const GraphT_ &g, GraphFunc kernel,
+                     AnalysisFunc stats, VerifierFunc verify,
+                     const std::string& benchmark_name,
+                     ResultExtractor result_extractor)
+{
+    using namespace graphbrew::database;
+
+    g.PrintStats();
+    double total_seconds = 0;
+    Timer trial_timer;
+
+    // Collect per-trial results
+    std::vector<TrialResult> trial_results;
+    trial_results.reserve(cli.num_trials());
+
+    for (int iter = 0; iter < cli.num_trials(); iter++)
+    {
+        ClearBenchmarkIterationLog();   // reset per-iteration log for this trial
+        trial_timer.Start();
+        auto result = kernel(g);
+        trial_timer.Stop();
+        PrintTime("Trial Time", trial_timer.Seconds());
+        total_seconds += trial_timer.Seconds();
+
+        // Build TrialResult
+        TrialResult tr;
+        tr.trial_id = iter;
+        tr.time_seconds = trial_timer.Seconds();
+
+        // Extract benchmark-specific answer data
+        try {
+            tr.answer = result_extractor(g, result);
+        } catch (...) {
+            tr.answer = nlohmann::json::object();
+        }
+
+        // Attach per-iteration granular data collected by the kernel
+        auto& iter_log = GetBenchmarkIterationLog();
+        if (!iter_log.empty()) {
+            tr.answer["iterations"] = iter_log;
+        }
+
+        if (cli.do_analysis() && (iter == (cli.num_trials() - 1)))
+            stats(g, result);
+        if (cli.do_verify())
+        {
+            trial_timer.Start();
+            bool passed = verify(std::ref(g), std::ref(result));
+            PrintLabel("Verification", passed ? "PASS" : "FAIL");
+            trial_timer.Stop();
+            PrintTime("Verification Time", trial_timer.Seconds());
+            tr.verified = passed;
+        }
+
+        trial_results.push_back(std::move(tr));
+    }
+
+    double avg_time = total_seconds / cli.num_trials();
+    PrintTime("Average Time", avg_time);
+
+    // ---- Self-recording: build and save RunReport ----
+    if (SelfRecordingEnabled()) {
+        RunReport report;
+        report.graph_name   = ExtractGraphName(cli.filename());
+        report.algorithm    = GetReorderAlgoHint();
+        report.algorithm_id = GetReorderAlgoIdHint();
+        report.benchmark    = benchmark_name;
+        report.avg_time     = avg_time;
+        report.reorder_time = GetReorderTimeHint();
+        report.num_trials   = cli.num_trials();
+        report.trials       = std::move(trial_results);
+        report.reorder_metas = GetReorderMetaHints();  // accumulated reorder metadata
+        report.nodes        = g.num_nodes();
+        report.edges        = g.num_edges_directed();
+        report.success      = true;
+
+        // If no algorithm hint was set, default to "Original"
+        if (report.algorithm.empty()) {
+            report.algorithm = "Original";
+        }
+
+        BenchmarkDatabase::Get().append_run(report);
+    }
 }
 
 #endif // BENCHMARK_H_

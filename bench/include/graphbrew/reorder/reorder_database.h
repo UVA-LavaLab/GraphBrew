@@ -43,6 +43,9 @@
 #include <mutex>
 #include <limits>
 #include <cstdio>
+#include <sys/file.h>   // flock() for concurrent-write safety
+#include <sys/stat.h>   // mkdir() for directory creation
+#include <cerrno>
 
 // nlohmann/json for robust JSON parsing of the 140K-line database
 #include "../../external/nlohmann_json.hpp"
@@ -54,20 +57,11 @@ namespace graphbrew {
 namespace database {
 
 // ============================================================================
-// Constants
+// Constants & Runtime-Configurable Paths
 // ============================================================================
 
-/// Directory containing the centralized data files
-inline constexpr const char* DATA_DIR = "results/data/";
-
-/// Benchmark database file (append-only, deduplicated)
-inline constexpr const char* BENCHMARKS_FILE = "results/data/benchmarks.json";
-
-/// Graph properties file (feature vectors for all known graphs)
-inline constexpr const char* GRAPH_PROPS_FILE = "results/data/graph_properties.json";
-
-/// Unified adaptive model file (perceptron + DT + hybrid, all benchmarks)
-inline constexpr const char* ADAPTIVE_MODELS_FILE = "results/data/adaptive_models.json";
+/// Default directory containing the centralized data files
+inline constexpr const char* DEFAULT_DATA_DIR = "results/data/";
 
 /// Number of nearest neighbors for kNN selection
 inline constexpr int KNN_K = 5;
@@ -80,9 +74,121 @@ inline const std::vector<std::string> FAMILY_NAMES = {
     "ORIGINAL", "SORT", "RCM", "HUBSORT", "GORDER", "RABBIT", "LEIDEN"
 };
 
+/// Runtime-configurable database directory.
+/// Call SetDataDir() before BenchmarkDatabase::Get() to override.
+inline std::string& GetDataDir() {
+    static std::string dir = DEFAULT_DATA_DIR;
+    return dir;
+}
+
+/// Set the database directory at runtime (from --db-dir / -D flag or env).
+/// Ensures the directory exists (creates it if needed).
+/// Must be called BEFORE BenchmarkDatabase::Get().
+inline void SetDataDir(const std::string& dir) {
+    std::string d = dir;
+    if (!d.empty() && d.back() != '/') d += '/';
+    GetDataDir() = d;
+    // Ensure directory exists (mkdir -p equivalent, one level)
+    ::mkdir(d.c_str(), 0755);
+}
+
+/// Resolve the data directory: --db-dir flag > GRAPHBREW_DB_DIR env > default.
+inline void ResolveDataDir(const std::string& cli_db_dir) {
+    if (!cli_db_dir.empty()) {
+        SetDataDir(cli_db_dir);
+        return;
+    }
+    const char* env = std::getenv("GRAPHBREW_DB_DIR");
+    if (env && env[0] != '\0') {
+        SetDataDir(env);
+        return;
+    }
+    // Keep default
+}
+
+/// Get the benchmarks.json path (runtime-resolved)
+inline std::string GetBenchmarksFile() {
+    return GetDataDir() + "benchmarks.json";
+}
+
+/// Get the graph_properties.json path (runtime-resolved)
+inline std::string GetGraphPropsFile() {
+    return GetDataDir() + "graph_properties.json";
+}
+
+/// Get the adaptive_models.json path (runtime-resolved)
+inline std::string GetAdaptiveModelsFile() {
+    return GetDataDir() + "adaptive_models.json";
+}
+
+/// Check if self-recording is enabled (a data dir has been explicitly set)
+inline bool& SelfRecordingEnabled() {
+    static bool enabled = false;
+    return enabled;
+}
+
+/// Enable self-recording (called when --db-dir is provided or env is set)
+inline void EnableSelfRecording() {
+    SelfRecordingEnabled() = true;
+}
+
+/// One-call init: resolve data dir (--db-dir > $GRAPHBREW_DB_DIR > default)
+/// and enable self-recording if any explicit source was provided.
+/// Call this once in main() after CLI parsing; replaces manual if-blocks.
+inline void InitSelfRecording(const std::string& cli_db_dir) {
+    ResolveDataDir(cli_db_dir);
+    if (!cli_db_dir.empty()) {
+        EnableSelfRecording();
+        return;
+    }
+    const char* env = std::getenv("GRAPHBREW_DB_DIR");
+    if (env && env[0] != '\0') {
+        EnableSelfRecording();
+    }
+}
+
+// ============================================================================
+// File Locking (flock-based, for concurrent write safety)
+// ============================================================================
+
+/// RAII file lock guard using flock(). Acquires LOCK_EX on construction,
+/// releases on destruction. Used by save methods for concurrent writes.
+class FileLockGuard {
+public:
+    explicit FileLockGuard(const std::string& path)
+        : fd_(-1), path_(path + ".lock") {
+        fd_ = ::open(path_.c_str(), O_CREAT | O_RDWR, 0644);
+        if (fd_ >= 0) {
+            ::flock(fd_, LOCK_EX);
+        }
+    }
+    ~FileLockGuard() {
+        if (fd_ >= 0) {
+            ::flock(fd_, LOCK_UN);
+            ::unlink(path_.c_str());   // Clean up lock file
+            ::close(fd_);
+        }
+    }
+    bool locked() const { return fd_ >= 0; }
+    FileLockGuard(const FileLockGuard&) = delete;
+    FileLockGuard& operator=(const FileLockGuard&) = delete;
+private:
+    int fd_;
+    std::string path_;
+};
+
 // ============================================================================
 // Data Structures
 // ============================================================================
+
+/// Per-algorithm score computed from kNN neighbors (streaming model)
+struct AlgoKNNScore {
+    std::string family;          ///< Algorithm family name
+    double avg_kernel_time = 0;  ///< Weighted-avg kernel time from neighbors
+    double avg_reorder_time = 0; ///< Weighted-avg reorder time from neighbors
+    double vote_weight = 0;      ///< Total 1/dist weight from neighbors
+    int    vote_count = 0;       ///< Number of neighbors that benchmarked this algo
+};
 
 /// A single benchmark record from benchmarks.json
 struct BenchRecord {
@@ -97,6 +203,285 @@ struct BenchRecord {
     int edges = 0;
     bool success = true;
 };
+
+// ============================================================================
+// Self-Recording Structs (Phase 2 — v2.1)
+// ============================================================================
+
+/// Per-trial detail: timing + benchmark-specific answer data
+struct TrialResult {
+    int         trial_id = 0;
+    double      time_seconds = 0.0;       ///< wall-clock for this trial
+    bool        verified = false;          ///< verification pass/fail
+
+    /// Benchmark-specific result data (flexible key-value bag):
+    ///  BFS:  {"tree_nodes": N, "tree_edges": E, "source": S}
+    ///  CC:   {"num_components": N, "largest_component": S}
+    ///  PR:   {"total_error": E, "iterations": I}
+    ///  SSSP: {"source": S, "reachable_nodes": R}
+    ///  BC:   {"source": S, "max_centrality": C}
+    ///  TC:   {"total_triangles": T}
+    nlohmann::json answer;
+
+    nlohmann::json to_json() const {
+        nlohmann::json j;
+        j["trial_id"] = trial_id;
+        j["time_seconds"] = time_seconds;
+        j["verified"] = verified;
+        if (!answer.is_null() && !answer.empty()) {
+            j["answer"] = answer;
+        }
+        return j;
+    }
+};
+
+/// Reorder metadata — stored alongside graph properties for debugging
+struct ReorderMeta {
+    std::string algorithm;                ///< e.g. "GraphBrewOrder", "LeidenOrder"
+    int         algorithm_id = 0;
+    double      reorder_time = 0.0;       ///< total wall-clock
+
+    // Leiden/GraphBrew specific
+    int         num_passes = 0;           ///< Leiden coarsening passes
+    int         num_communities = 0;      ///< final community count
+    double      resolution = 0.0;         ///< Leiden resolution parameter
+    double      modularity = 0.0;         ///< final community modularity
+    std::string final_algo;               ///< per-community algo (e.g. "RabbitOrder")
+    int         depth = 0;                ///< recursive depth
+    std::string sub_algo;                 ///< sub-community algo
+
+    // Generic reorder meta
+    int         bandwidth_before = 0;     ///< graph bandwidth before reorder
+    int         bandwidth_after = 0;      ///< graph bandwidth after reorder
+
+    nlohmann::json to_json() const {
+        nlohmann::json j;
+        j["algorithm"] = algorithm;
+        j["algorithm_id"] = algorithm_id;
+        j["reorder_time"] = reorder_time;
+        if (num_passes > 0) j["num_passes"] = num_passes;
+        if (num_communities > 0) j["num_communities"] = num_communities;
+        if (resolution > 0) j["resolution"] = resolution;
+        if (modularity > 0) j["modularity"] = modularity;
+        if (!final_algo.empty()) j["final_algo"] = final_algo;
+        if (depth > 0) j["depth"] = depth;
+        if (!sub_algo.empty()) j["sub_algo"] = sub_algo;
+        if (bandwidth_before > 0) j["bandwidth_before"] = bandwidth_before;
+        if (bandwidth_after > 0) j["bandwidth_after"] = bandwidth_after;
+        return j;
+    }
+};
+
+/// Complete benchmark run report (written by BenchmarkKernel)
+struct RunReport {
+    // Identity
+    std::string graph_name;               ///< from filename or --graph-name
+    std::string algorithm;                ///< from -o flag (e.g. "GraphBrewOrder")
+    int         algorithm_id = 0;         ///< numeric algo ID
+    std::string benchmark;                ///< "pr", "bfs", "cc", etc.
+
+    // Aggregate timing
+    double      avg_time = 0.0;           ///< average across trials
+    double      reorder_time = 0.0;       ///< from builder reorder step
+    int         num_trials = 0;
+
+    // Per-trial details
+    std::vector<TrialResult> trials;      ///< per-trial timing + answer
+
+    // Reorder metadata (accumulated from builder reorder steps)
+    std::vector<ReorderMeta> reorder_metas;  ///< per-reorder-step details
+
+    // Graph dimensions
+    int64_t     nodes = 0;
+    int64_t     edges = 0;
+
+    // Success
+    bool        success = true;
+    std::string error;
+
+    /// Convert to JSON matching existing benchmarks.json schema
+    nlohmann::json to_json() const {
+        nlohmann::json j;
+        j["graph"] = graph_name;
+        j["algorithm"] = algorithm;
+        j["algorithm_id"] = algorithm_id;
+        j["benchmark"] = benchmark;
+        j["time_seconds"] = avg_time;
+        j["reorder_time"] = reorder_time;
+        j["trials"] = num_trials;
+        j["nodes"] = nodes;
+        j["edges"] = edges;
+        j["success"] = success;
+        j["error"] = error;
+
+        // Per-trial detail (new in v2.1)
+        nlohmann::json trial_arr = nlohmann::json::array();
+        for (const auto& t : trials) {
+            trial_arr.push_back(t.to_json());
+        }
+        j["trial_details"] = trial_arr;
+
+        // Reorder details (new in v2.2)
+        if (!reorder_metas.empty()) {
+            nlohmann::json reorder_arr = nlohmann::json::array();
+            for (const auto& rm : reorder_metas) {
+                reorder_arr.push_back(rm.to_json());
+            }
+            j["reorder_details"] = reorder_arr;
+        }
+
+        // Extra (backward compat placeholder)
+        j["extra"] = nlohmann::json::object();
+        return j;
+    }
+
+    /// Convert from BenchRecord (for backward compat)
+    static RunReport from_bench_record(const BenchRecord& r) {
+        RunReport rr;
+        rr.graph_name = r.graph;
+        rr.algorithm = r.algorithm;
+        rr.algorithm_id = r.algorithm_id;
+        rr.benchmark = r.benchmark;
+        rr.avg_time = r.time_seconds;
+        rr.reorder_time = r.reorder_time;
+        rr.num_trials = r.trials;
+        rr.nodes = r.nodes;
+        rr.edges = r.edges;
+        rr.success = r.success;
+        return rr;
+    }
+
+    /// Convert to BenchRecord (for internal dedup/oracle)
+    BenchRecord to_bench_record() const {
+        BenchRecord r;
+        r.graph = graph_name;
+        r.algorithm = algorithm;
+        r.algorithm_id = algorithm_id;
+        r.benchmark = benchmark;
+        r.time_seconds = avg_time;
+        r.reorder_time = reorder_time;
+        r.trials = num_trials;
+        r.nodes = static_cast<int>(nodes);
+        r.edges = static_cast<int>(edges);
+        r.success = success;
+        return r;
+    }
+};
+
+/// Graph-level properties for graph_properties.json (raw values, not transformed)
+struct GraphProperties {
+    std::string graph_name;
+    int64_t     nodes = 0;
+    int64_t     edges = 0;
+    double      modularity = 0.0;
+    double      degree_variance = 0.0;
+    double      hub_concentration = 0.0;
+    double      clustering_coeff = 0.0;
+    double      avg_degree = 0.0;
+    double      avg_path_length = 0.0;
+    double      diameter_estimate = 0.0;
+    double      community_count = 0.0;
+    double      packing_factor = 0.0;
+    double      forward_edge_fraction = 0.0;
+    double      working_set_ratio = 0.0;
+    double      density = 0.0;
+    std::string graph_type;               ///< "SOCIAL", "ROAD", etc.
+
+    // Reorder history (one per algorithm applied to this graph)
+    std::vector<ReorderMeta> reorder_history;
+
+    nlohmann::json to_json() const {
+        nlohmann::json j;
+        j["nodes"] = nodes;
+        j["edges"] = edges;
+        j["modularity"] = modularity;
+        j["degree_variance"] = degree_variance;
+        j["hub_concentration"] = hub_concentration;
+        j["clustering_coefficient"] = clustering_coeff;
+        j["avg_degree"] = avg_degree;
+        j["avg_path_length"] = avg_path_length;
+        j["diameter"] = diameter_estimate;
+        j["community_count"] = community_count;
+        j["packing_factor"] = packing_factor;
+        j["forward_edge_fraction"] = forward_edge_fraction;
+        j["working_set_ratio"] = working_set_ratio;
+        j["density"] = density;
+        if (!graph_type.empty()) j["graph_type"] = graph_type;
+
+        if (!reorder_history.empty()) {
+            nlohmann::json hist = nlohmann::json::array();
+            for (const auto& rm : reorder_history) {
+                hist.push_back(rm.to_json());
+            }
+            j["reorder_history"] = hist;
+        }
+        return j;
+    }
+};
+
+// ============================================================================
+// Global Hints for Reorder State Passing
+// ============================================================================
+
+/// Global hint: reorder time (set in GenerateMapping, read in BenchmarkKernel)
+inline double& GetReorderTimeHint() {
+    static double t = 0.0;
+    return t;
+}
+inline void SetReorderTimeHint(double t) { GetReorderTimeHint() = t; }
+
+/// Global hint: algorithm name chain (set in MakeGraph, read in BenchmarkKernel)
+inline std::string& GetReorderAlgoHint() {
+    static std::string name;
+    return name;
+}
+inline void SetReorderAlgoHint(const std::string& name) { GetReorderAlgoHint() = name; }
+
+/// Global hint: algorithm ID (set in MakeGraph, read in BenchmarkKernel)
+inline int& GetReorderAlgoIdHint() {
+    static int id = 0;
+    return id;
+}
+inline void SetReorderAlgoIdHint(int id) { GetReorderAlgoIdHint() = id; }
+
+/// Global hint: accumulated ReorderMeta from builder (read in BenchmarkKernel)
+inline std::vector<ReorderMeta>& GetReorderMetaHints() {
+    static std::vector<ReorderMeta> metas;
+    return metas;
+}
+inline void AppendReorderMetaHint(const ReorderMeta& meta) {
+    GetReorderMetaHints().push_back(meta);
+}
+inline void ClearReorderMetaHints() {
+    GetReorderMetaHints().clear();
+}
+
+/// Global staging area: algorithm-specific ReorderMeta details.
+/// Reorder algorithms (GraphBrew, Rabbit, Leiden, Adaptive) populate this
+/// with rich metadata (num_communities, modularity, resolution, etc.).
+/// GenerateMapping() reads it to enrich the ReorderMeta hint.
+inline ReorderMeta& GetStagedReorderMeta() {
+    static ReorderMeta staged;
+    return staged;
+}
+inline void ClearStagedReorderMeta() {
+    GetStagedReorderMeta() = ReorderMeta();
+}
+
+/// Global per-iteration benchmark log.
+/// Kernel functions (DOBFS, PageRankPullGS, DeltaStep, etc.) append
+/// per-step entries here.  BenchmarkKernel clears before each trial
+/// and reads after the kernel returns.
+inline std::vector<nlohmann::json>& GetBenchmarkIterationLog() {
+    static std::vector<nlohmann::json> log;
+    return log;
+}
+inline void AppendBenchmarkIterationEntry(nlohmann::json entry) {
+    GetBenchmarkIterationLog().push_back(std::move(entry));
+}
+inline void ClearBenchmarkIterationLog() {
+    GetBenchmarkIterationLog().clear();
+}
 
 /// Feature vector for a graph (12 features, same order as Python)
 struct GraphFeatureVec {
@@ -363,6 +748,272 @@ public:
     }
 
     // ========================================================================
+    // Streaming kNN Algorithm Scoring (all modes from raw data)
+    // ========================================================================
+
+    /**
+     * @brief Compute per-algorithm-family scores from k nearest neighbors.
+     *
+     * For each of the k nearest graphs (by 12D feature distance), looks up
+     * all benchmark records for each algorithm family and computes the
+     * weighted-average kernel time and reorder time (weighted by 1/distance).
+     *
+     * This is the core of the streaming model: the database IS the model.
+     * No pre-trained weights needed — predictions come directly from the
+     * raw benchmark data.
+     *
+     * @param query  Transformed feature vector of the query graph
+     * @param benchmark  Benchmark name (e.g., "pr", "bfs")
+     * @param k  Number of nearest neighbors
+     * @param verbose  Print details
+     * @return  Vector of per-family scores, sorted by avg_kernel_time ascending
+     */
+    std::vector<AlgoKNNScore> knn_algo_scores(
+        const GraphFeatureVec& query,
+        const std::string& benchmark,
+        int k = KNN_K,
+        bool verbose = false) const {
+
+        std::vector<AlgoKNNScore> result;
+        if (graph_features_.empty() || records_.empty()) return result;
+
+        // Step 1: Find k nearest neighbors by feature distance
+        struct Neighbor { std::string name; double distance; };
+        std::vector<Neighbor> neighbors;
+        neighbors.reserve(graph_features_.size());
+
+        for (const auto& [name, fv] : graph_features_) {
+            double dist = euclidean_distance(query, fv);
+            neighbors.push_back({name, dist});
+        }
+        std::sort(neighbors.begin(), neighbors.end(),
+                  [](const Neighbor& a, const Neighbor& b) {
+                      return a.distance < b.distance;
+                  });
+        int actual_k = std::min(k, static_cast<int>(neighbors.size()));
+
+        // Step 2: For each family, accumulate weighted kernel_time and reorder_time
+        // from the k nearest neighbors
+        struct FamilyAccum {
+            double weighted_kernel_sum = 0;
+            double weighted_reorder_sum = 0;
+            double weight_sum = 0;
+            int count = 0;
+        };
+        std::map<std::string, FamilyAccum> accum;
+        const double eps = 1e-8;
+
+        for (int i = 0; i < actual_k; ++i) {
+            const auto& nb = neighbors[i];
+            double w = 1.0 / (nb.distance + eps);
+
+            // Find all records for this neighbor graph + benchmark
+            for (const auto& r : records_) {
+                if (r.graph != nb.name) continue;
+                if (r.benchmark != benchmark && benchmark != "generic") continue;
+
+                std::string fam = AlgoToFamily(r.algorithm);
+                auto& a = accum[fam];
+                a.weighted_kernel_sum += w * r.time_seconds;
+                a.weighted_reorder_sum += w * r.reorder_time;
+                a.weight_sum += w;
+                a.count++;
+            }
+        }
+
+        // Step 3: Convert accumulated data to AlgoKNNScore
+        for (const auto& [fam, a] : accum) {
+            if (a.weight_sum <= 0) continue;
+            AlgoKNNScore score;
+            score.family = fam;
+            score.avg_kernel_time = a.weighted_kernel_sum / a.weight_sum;
+            score.avg_reorder_time = a.weighted_reorder_sum / a.weight_sum;
+            score.vote_weight = a.weight_sum;
+            score.vote_count = a.count;
+            result.push_back(score);
+        }
+
+        // Sort by avg_kernel_time ascending (fastest first)
+        std::sort(result.begin(), result.end(),
+                  [](const AlgoKNNScore& a, const AlgoKNNScore& b) {
+                      return a.avg_kernel_time < b.avg_kernel_time;
+                  });
+
+        if (verbose && !result.empty()) {
+            std::cout << "  kNN algo scores (" << actual_k << " neighbors, bench=" << benchmark << "):\n";
+            for (const auto& s : result) {
+                std::cout << "    " << s.family
+                          << ": kernel=" << s.avg_kernel_time
+                          << "s, reorder=" << s.avg_reorder_time
+                          << "s, votes=" << s.vote_count << "\n";
+            }
+        }
+
+        return result;
+    }
+
+    /**
+     * @brief Mode-aware streaming selection from the database.
+     *
+     * Uses the raw benchmark data directly (no pre-trained weights) to
+     * select the best algorithm for any SelectionMode. This is the unified
+     * entry point that replaces per-mode logic with database-driven scoring.
+     *
+     * @param feat  CommunityFeatures of the query graph
+     * @param graph_name  Graph name (for oracle lookup)
+     * @param benchmark  Benchmark name string
+     * @param mode  SelectionMode enum value
+     * @param verbose  Print selection details
+     * @return Best algorithm family name, or "" if no data
+     */
+    std::string select_for_mode(const CommunityFeatures& feat,
+                                const std::string& graph_name,
+                                const std::string& benchmark,
+                                SelectionMode mode,
+                                bool verbose = false) const {
+        if (!loaded_ || records_.empty()) return "";
+
+        // Oracle shortcut for known graphs (all modes benefit from direct lookup)
+        if (!graph_name.empty() && has_graph(graph_name)) {
+            std::string oracle = best_family_oracle(graph_name, benchmark);
+            if (!oracle.empty()) {
+                if (verbose) {
+                    std::cout << "  Database streaming: oracle → " << oracle
+                              << " (known: " << graph_name << ")\n";
+                }
+                // For MODE_FASTEST_REORDER, oracle may not be the right answer —
+                // the fastest kernel algo isn't necessarily the fastest to reorder.
+                // But for most modes, oracle is optimal.
+                if (mode != MODE_FASTEST_REORDER) {
+                    return oracle;
+                }
+                // For fastest reorder, we still use kNN scoring below
+            }
+        }
+
+        // Extract feature vector for kNN
+        GraphFeatureVec query;
+        query.modularity = feat.modularity;
+        query.hub_concentration = feat.hub_concentration;
+        query.log_nodes = std::log10(static_cast<double>(feat.num_nodes) + 1.0);
+        query.log_edges = std::log10(static_cast<double>(feat.num_edges) + 1.0);
+        query.density = feat.internal_density;
+        query.avg_degree_100 = feat.avg_degree / 100.0;
+        query.clustering_coeff = feat.clustering_coeff;
+        query.packing_factor = feat.packing_factor;
+        query.forward_edge_fraction = feat.forward_edge_fraction;
+        query.log2_wsr = std::log2(feat.working_set_ratio + 1.0);
+        query.log10_cc = std::log10(feat.community_count + 1.0);
+        query.diameter_50 = feat.diameter_estimate / 50.0;
+
+        auto scores = knn_algo_scores(query, benchmark, KNN_K, verbose);
+        if (scores.empty()) return "";
+
+        std::string best;
+
+        switch (mode) {
+            case MODE_FASTEST_REORDER: {
+                // Pick algorithm with lowest average reorder time
+                double best_rt = std::numeric_limits<double>::infinity();
+                for (const auto& s : scores) {
+                    if (s.avg_reorder_time < best_rt) {
+                        best_rt = s.avg_reorder_time;
+                        best = s.family;
+                    }
+                }
+                if (verbose) {
+                    std::cout << "  Streaming fastest-reorder → " << best
+                              << " (reorder=" << best_rt << "s)\n";
+                }
+                break;
+            }
+
+            case MODE_FASTEST_EXECUTION:
+            case MODE_DATABASE: {
+                // Pick family with lowest average kernel time
+                // (scores are pre-sorted by kernel time ascending)
+                best = scores.front().family;
+                if (verbose) {
+                    std::cout << "  Streaming fastest-exec → " << best
+                              << " (kernel=" << scores.front().avg_kernel_time << "s)\n";
+                }
+                break;
+            }
+
+            case MODE_BEST_ENDTOEND: {
+                // Pick family with lowest (kernel_time + reorder_time)
+                double best_total = std::numeric_limits<double>::infinity();
+                for (const auto& s : scores) {
+                    double total = s.avg_kernel_time + s.avg_reorder_time;
+                    if (total < best_total) {
+                        best_total = total;
+                        best = s.family;
+                    }
+                }
+                if (verbose) {
+                    std::cout << "  Streaming end-to-end → " << best
+                              << " (total=" << best_total << "s)\n";
+                }
+                break;
+            }
+
+            case MODE_BEST_AMORTIZATION: {
+                // Pick family that amortizes fastest:
+                //   iterations = reorder_time / time_saved_per_iter
+                //   time_saved = (original_time - algo_time)
+                // ORIGINAL kernel time as baseline
+                double orig_time = 0;
+                for (const auto& s : scores) {
+                    if (s.family == "ORIGINAL") {
+                        orig_time = s.avg_kernel_time;
+                        break;
+                    }
+                }
+                if (orig_time <= 0) {
+                    // No ORIGINAL baseline — use max kernel time as proxy
+                    for (const auto& s : scores) {
+                        orig_time = std::max(orig_time, s.avg_kernel_time);
+                    }
+                }
+
+                double best_iters = std::numeric_limits<double>::infinity();
+                for (const auto& s : scores) {
+                    if (s.family == "ORIGINAL") continue;
+                    double saved = orig_time - s.avg_kernel_time;
+                    if (saved <= 0) continue;  // No speedup → skip
+                    double iters = s.avg_reorder_time / saved;
+                    if (iters < best_iters) {
+                        best_iters = iters;
+                        best = s.family;
+                    }
+                }
+                if (best.empty()) best = "ORIGINAL";
+                if (verbose) {
+                    std::cout << "  Streaming amortization → " << best
+                              << " (amortizes in " << best_iters << " iters)\n";
+                }
+                break;
+            }
+
+            case MODE_DECISION_TREE:
+            case MODE_HYBRID:
+            default: {
+                // For DT/hybrid modes: use fastest-execution from database
+                // (the DT/hybrid model tree path is handled as fallback in
+                //  SelectReorderingWithMode if this returns non-empty)
+                best = scores.front().family;
+                if (verbose) {
+                    std::cout << "  Streaming (DT/hybrid fallback) → " << best
+                              << " (kernel=" << scores.front().avg_kernel_time << "s)\n";
+                }
+                break;
+            }
+        }
+
+        return best;
+    }
+
+    // ========================================================================
     // Append New Records
     // ========================================================================
 
@@ -444,6 +1095,80 @@ public:
     bool save() {
         std::lock_guard<std::mutex> lock(mutex_);
         return save_benchmarks() && save_graph_props();
+    }
+
+    // ========================================================================
+    // Self-Recording API (v2.1)
+    // ========================================================================
+
+    /**
+     * @brief Append a RunReport to the database and save to disk.
+     *
+     * Flock-safe: acquires file lock, re-reads latest data from disk,
+     * merges in-memory, writes back. This ensures multiple concurrent
+     * benchmark binaries can safely append.
+     */
+    void append_run(const RunReport& report) {
+        if (!SelfRecordingEnabled()) return;
+
+        std::lock_guard<std::mutex> lock(mutex_);
+
+        // File-level lock for concurrent process safety
+        FileLockGuard flock(GetBenchmarksFile());
+
+        // Re-read from disk to get latest (another process may have written)
+        reload_benchmarks_unlocked();
+
+        // Insert into in-memory store
+        BenchRecord rec = report.to_bench_record();
+        auto key = rec.graph + "|" + rec.algorithm + "|" + rec.benchmark;
+        auto it = dedup_.find(key);
+        if (it != dedup_.end()) {
+            auto& existing = records_[it->second];
+            if (rec.time_seconds < existing.time_seconds) {
+                existing = rec;
+                rebuild_oracle_entry(rec);
+            }
+        } else {
+            dedup_[key] = records_.size();
+            records_.push_back(rec);
+            rebuild_oracle_entry(rec);
+        }
+        loaded_ = true;
+
+        // Save with full RunReport JSON (includes trial_details)
+        save_benchmarks_with_run(report);
+    }
+
+    /**
+     * @brief Update graph properties from a GraphProperties struct.
+     *
+     * Flock-safe: acquires file lock, re-reads latest, merges, writes.
+     */
+    void update_graph_props(const GraphProperties& props) {
+        if (!SelfRecordingEnabled()) return;
+
+        std::lock_guard<std::mutex> lock(mutex_);
+
+        FileLockGuard flock(GetGraphPropsFile());
+
+        // Update internal feature vector
+        auto& fv = graph_features_[props.graph_name];
+        fv.modularity = props.modularity;
+        fv.hub_concentration = props.hub_concentration;
+        fv.log_nodes = std::log10(static_cast<double>(props.nodes) + 1.0);
+        fv.log_edges = std::log10(static_cast<double>(props.edges) + 1.0);
+        fv.density = props.density;
+        fv.avg_degree_100 = props.avg_degree / 100.0;
+        fv.clustering_coeff = props.clustering_coeff;
+        fv.packing_factor = props.packing_factor;
+        fv.forward_edge_fraction = props.forward_edge_fraction;
+        fv.log2_wsr = std::log2(props.working_set_ratio + 1.0);
+        fv.log10_cc = std::log10(props.community_count + 1.0);
+        fv.diameter_50 = props.diameter_estimate / 50.0;
+
+        // Save: re-read from disk, merge, write
+        save_graph_props_with_raw(props);
     }
 
     /**
@@ -566,7 +1291,15 @@ private:
         load_benchmarks();
         load_graph_props();
         build_oracle_cache();
-        load_adaptive_models();
+
+        // Train models from raw DB data (replaces load_adaptive_models).
+        // Falls back to adaptive_models.json if training data is insufficient.
+        if (raw_graph_props_.size() >= 3 && !oracle_cache_.empty()) {
+            train_all_models();
+        } else {
+            load_adaptive_models();
+        }
+
         loaded_ = !records_.empty();
 
         if (loaded_) {
@@ -574,16 +1307,19 @@ private:
                       << " records, " << graph_features_.size()
                       << " graph feature vectors";
             if (models_loaded_) {
-                std::cout << (models_from_unified_ ? ", unified models" : ", models (individual files)");
+                std::cout << (models_from_unified_
+                    ? ", unified models (from file)"
+                    : ", models (trained from DB)");
             }
             std::cout << "\n";
         }
     }
 
     void load_benchmarks() {
-        std::ifstream ifs(BENCHMARKS_FILE);
+        std::string path = GetBenchmarksFile();
+        std::ifstream ifs(path);
         if (!ifs.is_open()) {
-            std::cerr << "[DATABASE] Warning: cannot open " << BENCHMARKS_FILE << "\n";
+            std::cerr << "[DATABASE] Warning: cannot open " << path << "\n";
             return;
         }
 
@@ -626,15 +1362,25 @@ private:
                 }
             }
         } catch (const std::exception& e) {
-            std::cerr << "[DATABASE] Error parsing " << BENCHMARKS_FILE
+            std::cerr << "[DATABASE] Error parsing " << path
                       << ": " << e.what() << "\n";
         }
     }
 
+    /// Re-read benchmarks from disk without clearing other state (for append_run)
+    void reload_benchmarks_unlocked() {
+        records_.clear();
+        dedup_.clear();
+        oracle_cache_.clear();
+        load_benchmarks();
+        build_oracle_cache();
+    }
+
     void load_graph_props() {
-        std::ifstream ifs(GRAPH_PROPS_FILE);
+        std::string path = GetGraphPropsFile();
+        std::ifstream ifs(path);
         if (!ifs.is_open()) {
-            std::cerr << "[DATABASE] Warning: cannot open " << GRAPH_PROPS_FILE << "\n";
+            std::cerr << "[DATABASE] Warning: cannot open " << path << "\n";
             return;
         }
 
@@ -674,9 +1420,10 @@ private:
                 fv.diameter_50 = raw_diameter / 50.0;
 
                 graph_features_[name] = fv;
+                raw_graph_props_[name] = props;  // keep raw JSON for training
             }
         } catch (const std::exception& e) {
-            std::cerr << "[DATABASE] Error parsing " << GRAPH_PROPS_FILE
+            std::cerr << "[DATABASE] Error parsing " << path
                       << ": " << e.what() << "\n";
         }
     }
@@ -750,6 +1497,7 @@ private:
     // ========================================================================
 
     bool save_benchmarks() {
+        std::string filepath = GetBenchmarksFile();
         nlohmann::json j = nlohmann::json::array();
 
         // Sort by (graph, benchmark, algorithm) for deterministic output
@@ -778,25 +1526,55 @@ private:
             j.push_back(entry);
         }
 
-        // Atomic write via temp file
-        std::string tmp = std::string(BENCHMARKS_FILE) + ".tmp";
+        return atomic_write_json(filepath, j);
+    }
+
+    /// Save benchmarks with full RunReport JSON (includes trial_details).
+    /// Re-reads existing file, merges the new run report, writes back.
+    bool save_benchmarks_with_run(const RunReport& report) {
+        std::string filepath = GetBenchmarksFile();
+
+        // Read existing array from disk
+        nlohmann::json j = nlohmann::json::array();
         {
-            std::ofstream ofs(tmp);
-            if (!ofs.is_open()) {
-                std::cerr << "[DATABASE] Cannot write to " << tmp << "\n";
-                return false;
+            std::ifstream ifs(filepath);
+            if (ifs.is_open()) {
+                try {
+                    nlohmann::json existing;
+                    ifs >> existing;
+                    if (existing.is_array()) j = existing;
+                } catch (...) {}
             }
-            ofs << j.dump(2) << "\n";
         }
-        if (std::rename(tmp.c_str(), BENCHMARKS_FILE) != 0) {
-            std::cerr << "[DATABASE] Cannot rename " << tmp << " → "
-                      << BENCHMARKS_FILE << "\n";
-            return false;
+
+        // Dedup key
+        std::string key = report.graph_name + "|" + report.algorithm + "|" + report.benchmark;
+
+        // Find and replace existing entry, or append
+        bool found = false;
+        nlohmann::json new_entry = report.to_json();
+        for (auto& entry : j) {
+            std::string ek = entry.value("graph", "") + "|" +
+                             entry.value("algorithm", "") + "|" +
+                             entry.value("benchmark", "");
+            if (ek == key) {
+                double existing_time = entry.value("time_seconds", 1e99);
+                if (report.avg_time < existing_time) {
+                    entry = new_entry;
+                }
+                found = true;
+                break;
+            }
         }
-        return true;
+        if (!found) {
+            j.push_back(new_entry);
+        }
+
+        return atomic_write_json(filepath, j);
     }
 
     bool save_graph_props() {
+        std::string filepath = GetGraphPropsFile();
         nlohmann::json j;
 
         for (const auto& [name, fv] : graph_features_) {
@@ -817,13 +1595,51 @@ private:
             j[name] = props;
         }
 
-        std::string tmp = std::string(GRAPH_PROPS_FILE) + ".tmp";
+        return atomic_write_json(filepath, j);
+    }
+
+    /// Save graph properties with raw GraphProperties struct (no reverse-transform).
+    /// Re-reads existing file, merges the new graph entry, writes back.
+    bool save_graph_props_with_raw(const GraphProperties& props) {
+        std::string filepath = GetGraphPropsFile();
+
+        // Read existing object from disk
+        nlohmann::json j = nlohmann::json::object();
+        {
+            std::ifstream ifs(filepath);
+            if (ifs.is_open()) {
+                try {
+                    nlohmann::json existing;
+                    ifs >> existing;
+                    if (existing.is_object()) j = existing;
+                } catch (...) {}
+            }
+        }
+
+        // Merge: overwrite this graph's properties
+        j[props.graph_name] = props.to_json();
+
+        return atomic_write_json(filepath, j);
+    }
+
+    /// Atomic JSON write: write to .tmp, then rename over target.
+    static bool atomic_write_json(const std::string& filepath,
+                                   const nlohmann::json& j) {
+        std::string tmp = filepath + ".tmp";
         {
             std::ofstream ofs(tmp);
-            if (!ofs.is_open()) return false;
+            if (!ofs.is_open()) {
+                std::cerr << "[DATABASE] Cannot write to " << tmp << "\n";
+                return false;
+            }
             ofs << j.dump(2) << "\n";
         }
-        return std::rename(tmp.c_str(), GRAPH_PROPS_FILE) == 0;
+        if (std::rename(tmp.c_str(), filepath.c_str()) != 0) {
+            std::cerr << "[DATABASE] Cannot rename " << tmp << " → "
+                      << filepath << "\n";
+            return false;
+        }
+        return true;
     }
 
     // ========================================================================
@@ -850,12 +1666,15 @@ private:
      * Populates perceptron_weights_, perceptron_per_bench_, and model_trees_.
      */
     void load_adaptive_models() {
-        std::ifstream ifs(ADAPTIVE_MODELS_FILE);
+        std::string models_path = GetAdaptiveModelsFile();
+        std::ifstream ifs(models_path);
         if (!ifs.is_open()) {
-            // Fall back: try individual model files
-            load_model_trees_from_individual_files();
-            load_perceptron_from_individual_files();
-            models_loaded_ = !model_trees_.empty() || !perceptron_weights_.is_null();
+            // M2: No individual-file fallback — adaptive_models.json is the
+            // single source of truth.  Run `export_unified_models()` from
+            // Python to generate it from results/models/ staging files.
+            std::cerr << "[DATABASE] adaptive_models.json not found at "
+                      << models_path << " — model-based modes unavailable.\n";
+            models_loaded_ = false;
             models_from_unified_ = false;
             return;
         }
@@ -903,67 +1722,10 @@ private:
             models_loaded_ = true;
             models_from_unified_ = true;
         } catch (const std::exception& e) {
-            std::cerr << "[DATABASE] Error parsing " << ADAPTIVE_MODELS_FILE
+            std::cerr << "[DATABASE] Error parsing " << models_path
                       << ": " << e.what() << "\n";
-            // Fall back to individual files
-            load_model_trees_from_individual_files();
-            load_perceptron_from_individual_files();
-            models_loaded_ = !model_trees_.empty() || !perceptron_weights_.is_null();
+            models_loaded_ = false;
             models_from_unified_ = false;
-        }
-    }
-
-    /**
-     * @brief Fallback: load model trees from individual results/models/ files.
-     */
-    void load_model_trees_from_individual_files() {
-        const char* subdirs[] = {"decision_tree", "hybrid"};
-        const char* benches[] = {"pr", "bfs", "cc", "sssp", "bc", "tc"};
-
-        for (const char* subdir : subdirs) {
-            for (const char* bench : benches) {
-                std::string path = std::string("results/models/") + subdir + "/" + bench + ".json";
-                std::ifstream ifs(path);
-                if (!ifs.is_open()) continue;
-
-                try {
-                    nlohmann::json j;
-                    ifs >> j;
-                    ModelTree mt;
-                    if (parse_model_tree_from_nlohmann(j, mt)) {
-                        model_trees_[subdir][bench] = mt;
-                    }
-                } catch (...) {}
-            }
-        }
-    }
-
-    /**
-     * @brief Fallback: load perceptron weights from individual files.
-     */
-    void load_perceptron_from_individual_files() {
-        // Try type_0/weights.json
-        std::string path = "results/models/perceptron/type_0/weights.json";
-        std::ifstream ifs(path);
-        if (ifs.is_open()) {
-            try {
-                nlohmann::json j;
-                ifs >> j;
-                perceptron_weights_ = j;
-            } catch (...) {}
-        }
-
-        // Try per-benchmark files
-        const char* benches[] = {"pr", "bfs", "cc", "sssp", "bc", "tc"};
-        for (const char* bench : benches) {
-            std::string bp = "results/models/perceptron/type_0/" + std::string(bench) + ".json";
-            std::ifstream bifs(bp);
-            if (!bifs.is_open()) continue;
-            try {
-                nlohmann::json j;
-                bifs >> j;
-                perceptron_per_bench_[bench] = j;
-            } catch (...) {}
         }
     }
 
@@ -1028,6 +1790,861 @@ private:
     }
 
     // ========================================================================
+    // Runtime Model Training (from raw DB data)
+    // ========================================================================
+
+    /// Number of perceptron features (17: 14 base + 3 quadratic interactions)
+    static constexpr int N_PERCEPTRON_FEATURES = 17;
+
+    /// Weight key names matching Python training order (index → JSON field name)
+    static constexpr const char* WEIGHT_KEYS[N_PERCEPTRON_FEATURES] = {
+        "w_modularity", "w_degree_variance", "w_hub_concentration",
+        "w_log_nodes", "w_log_edges", "w_density", "w_avg_degree",
+        "w_clustering_coeff", "w_avg_path_length", "w_diameter",
+        "w_community_count", "w_packing_factor", "w_forward_edge_fraction",
+        "w_working_set_ratio", "w_dv_x_hub", "w_mod_x_logn", "w_pf_x_wsr"
+    };
+
+    /**
+     * @brief Extract 17 perceptron features from raw graph properties JSON.
+     *
+     * Feature order matches Python training and scoreBaseNormalized():
+     *   0=modularity, 1=degree_variance, 2=hub_concentration,
+     *   3=log_nodes, 4=log_edges, 5=density, 6=avg_degree/100,
+     *   7=clustering_coeff, 8=avg_path_length/10, 9=diameter/50,
+     *   10=log10(community_count+1), 11=packing_factor,
+     *   12=forward_edge_fraction, 13=log2(working_set_ratio+1),
+     *   14=dv×hc, 15=mod×logn, 16=pf×log_wsr
+     */
+    static void extract_perceptron_features(const nlohmann::json& props,
+                                             double out[N_PERCEPTRON_FEATURES]) {
+        double modularity   = props.value("modularity", 0.0);
+        double dv           = props.value("degree_variance", 0.0);
+        double hc           = props.value("hub_concentration", 0.0);
+        double log_n        = std::log10(props.value("nodes", 0.0) + 1.0);
+        double log_e        = std::log10(props.value("edges", 0.0) + 1.0);
+        double density      = props.value("density", 0.0);
+        double ad_100       = props.value("avg_degree", 0.0) / 100.0;
+        double cc           = props.value("clustering_coefficient", 0.0);
+        double apl_10       = props.value("avg_path_length", 0.0) / 10.0;
+        double dia_50       = props.value("diameter", 0.0) / 50.0;
+        double log_comm     = std::log10(props.value("community_count", 0.0) + 1.0);
+        double pf           = props.value("packing_factor", 0.0);
+        double fef          = props.value("forward_edge_fraction", 0.0);
+        double log_wsr      = std::log2(props.value("working_set_ratio", 0.0) + 1.0);
+
+        out[0]  = modularity;
+        out[1]  = dv;
+        out[2]  = hc;
+        out[3]  = log_n;
+        out[4]  = log_e;
+        out[5]  = density;
+        out[6]  = ad_100;
+        out[7]  = cc;
+        out[8]  = apl_10;
+        out[9]  = dia_50;
+        out[10] = log_comm;
+        out[11] = pf;
+        out[12] = fef;
+        out[13] = log_wsr;
+        // Quadratic interactions
+        out[14] = dv * hc;
+        out[15] = modularity * log_n;
+        out[16] = pf * log_wsr;
+    }
+
+    /**
+     * @brief Simple deterministic LCG PRNG for reproducible training.
+     *
+     * Avoids dependency on <random> and gives identical results across platforms.
+     */
+    struct SimpleRNG {
+        uint64_t state;
+        explicit SimpleRNG(uint64_t seed) : state(seed ^ 0x9e3779b97f4a7c15ULL) {}
+        uint64_t next() {
+            state = state * 6364136223846793005ULL + 1442695040888963407ULL;
+            return state >> 16;
+        }
+        double uniform() { return (next() & 0xFFFFFFFF) / 4294967296.0; }
+        double gauss(double mean, double std) {
+            // Box-Muller transform
+            double u1 = uniform(), u2 = uniform();
+            if (u1 < 1e-15) u1 = 1e-15;
+            return mean + std * std::sqrt(-2.0 * std::log(u1)) * std::cos(2.0 * M_PI * u2);
+        }
+        void shuffle(std::vector<int>& v) {
+            for (int i = static_cast<int>(v.size()) - 1; i > 0; --i) {
+                int j = static_cast<int>(next() % (i + 1));
+                std::swap(v[i], v[j]);
+            }
+        }
+    };
+
+    /**
+     * @brief Train per-benchmark perceptrons from raw DB data.
+     *
+     * Implements the same multi-class averaged perceptron as Python's
+     * compute_weights_from_results():
+     *   - 800 epochs, 5 restarts
+     *   - Jimenez margin-based updates with adaptive theta
+     *   - Weight clamping at [-16, +16]
+     *   - LR 0.05 with 0.997 decay per epoch
+     *   - Averaged perceptron (Freund & Schapire 1999)
+     *   - Best of averaged vs snapshot per restart
+     *
+     * Populates perceptron_per_bench_ and perceptron_weights_.
+     */
+    void train_perceptron() {
+        static constexpr int N_EPOCHS   = 800;
+        static constexpr int N_RESTARTS = 5;
+        static constexpr double W_MAX   = 16.0;
+        static constexpr double LR_INIT = 0.05;
+        static constexpr double LR_DECAY = 0.997;
+        static constexpr int NF = N_PERCEPTRON_FEATURES;
+        // Jimenez theta: floor((1.93*h + 14) * W_MAX / 127)
+        const int THETA_INIT = std::max(1, static_cast<int>(
+            (1.93 * NF + 14) * W_MAX / 127.0));
+
+        // Collect unique benchmarks
+        std::set<std::string> bench_set;
+        for (const auto& r : records_) bench_set.insert(r.benchmark);
+
+        // Collect unique graphs that have both features and benchmark data
+        std::set<std::string> graph_set;
+        for (const auto& r : records_) {
+            if (raw_graph_props_.count(r.graph)) graph_set.insert(r.graph);
+        }
+        if (graph_set.empty()) return;
+
+        // Extract features for all training graphs
+        std::map<std::string, std::vector<double>> graph_feats;
+        for (const auto& g : graph_set) {
+            std::vector<double> fv(NF);
+            extract_perceptron_features(raw_graph_props_.at(g), fv.data());
+            graph_feats[g] = std::move(fv);
+        }
+
+        // Compute z-score normalization stats from ALL training graphs
+        std::vector<double> feat_means(NF, 0.0);
+        std::vector<double> feat_stds(NF, 0.0);
+        {
+            int n = static_cast<int>(graph_feats.size());
+            for (const auto& [g, fv] : graph_feats)
+                for (int i = 0; i < NF; i++) feat_means[i] += fv[i];
+            for (int i = 0; i < NF; i++) feat_means[i] /= n;
+
+            for (const auto& [g, fv] : graph_feats)
+                for (int i = 0; i < NF; i++) {
+                    double d = fv[i] - feat_means[i];
+                    feat_stds[i] += d * d;
+                }
+            for (int i = 0; i < NF; i++)
+                feat_stds[i] = std::sqrt(feat_stds[i] / std::max(1, n));
+        }
+
+        // Z-normalize all feature vectors
+        std::map<std::string, std::vector<double>> graph_feats_z;
+        for (const auto& [g, fv] : graph_feats) {
+            std::vector<double> z(NF);
+            for (int i = 0; i < NF; i++) {
+                z[i] = (feat_stds[i] > 1e-12) ? (fv[i] - feat_means[i]) / feat_stds[i] : 0.0;
+            }
+            graph_feats_z[g] = std::move(z);
+        }
+
+        // Build per-benchmark training data: (z-features, oracle_family)
+        // across per-bench averaged perceptrons for global weights
+        std::map<std::string, std::vector<double>> global_accum;  // family → accumulated bias+weights
+        std::map<std::string, int> global_count;  // family → count of benchmarks contributing
+        int bench_idx = 0;
+
+        for (const auto& bn : bench_set) {
+            // Collect (graph, best_family) pairs for this benchmark
+            struct Sample { std::vector<double> fv; std::string family; };
+            std::vector<Sample> data;
+            std::set<std::string> active_families;
+
+            for (const auto& g : graph_set) {
+                std::string key = g + "|" + bn;
+                auto it = oracle_cache_.find(key);
+                if (it == oracle_cache_.end()) continue;
+                data.push_back({graph_feats_z.at(g), it->second});
+                active_families.insert(it->second);
+            }
+            if (data.empty() || active_families.empty()) {
+                bench_idx++;
+                continue;
+            }
+
+            // Sort active families for determinism
+            std::vector<std::string> families(active_families.begin(), active_families.end());
+
+            // Multi-class averaged perceptron training
+            struct FamilyWeights {
+                double bias = 0.0;
+                std::vector<double> w;
+                FamilyWeights() : w(NF, 0.0) {}
+            };
+
+            double global_best_acc = 0.0;
+            std::map<std::string, FamilyWeights> global_best_snap;
+
+            for (int restart = 0; restart < N_RESTARTS; restart++) {
+                SimpleRNG rng(42 + restart * 1000 + bench_idx * 100);
+
+                // Initialize with small random weights
+                std::map<std::string, FamilyWeights> bw;
+                for (const auto& fam : families) {
+                    bw[fam].bias = rng.gauss(0.0, 0.1);
+                    bw[fam].w.resize(NF);
+                    for (int i = 0; i < NF; i++) bw[fam].w[i] = rng.gauss(0.0, 0.1);
+                }
+
+                // Averaged weight accumulators
+                std::map<std::string, FamilyWeights> avg_bw;
+                for (const auto& fam : families) avg_bw[fam].w.resize(NF, 0.0);
+                int avg_count = 0;
+
+                double lr = LR_INIT;
+                double best_acc = 0.0;
+                std::map<std::string, FamilyWeights> best_snap;
+
+                // Adaptive theta
+                double theta = static_cast<double>(THETA_INIT);
+                double theta_max = THETA_INIT * 3.0;
+                double theta_step = std::max(0.1, 1.0 / std::max(static_cast<int>(data.size()), 1));
+
+                // Shuffled index array
+                std::vector<int> indices(data.size());
+                std::iota(indices.begin(), indices.end(), 0);
+
+                for (int epoch = 0; epoch < N_EPOCHS; epoch++) {
+                    rng.shuffle(indices);
+                    int correct = 0;
+
+                    for (int idx : indices) {
+                        const auto& fv = data[idx].fv;
+                        const auto& true_fam = data[idx].family;
+                        if (bw.find(true_fam) == bw.end()) continue;
+
+                        // Score all families
+                        std::string pred;
+                        double pred_score = -1e30, true_score = -1e30;
+                        for (const auto& [fam, fw] : bw) {
+                            double s = fw.bias;
+                            for (int i = 0; i < NF; i++) s += fw.w[i] * fv[i];
+                            if (s > pred_score) { pred_score = s; pred = fam; }
+                            if (fam == true_fam) true_score = s;
+                        }
+
+                        bool is_correct = (pred == true_fam);
+                        if (is_correct) correct++;
+
+                        // Compute margin
+                        double margin;
+                        if (is_correct) {
+                            double runner_up = -1e30;
+                            for (const auto& [fam, fw] : bw) {
+                                if (fam == true_fam) continue;
+                                double s = fw.bias;
+                                for (int i = 0; i < NF; i++) s += fw.w[i] * fv[i];
+                                if (s > runner_up) runner_up = s;
+                            }
+                            margin = true_score - runner_up;
+                        } else {
+                            margin = -1.0;
+                        }
+
+                        // Adaptive theta update (Jimenez MICRO 2016)
+                        if (is_correct && margin > theta)
+                            theta = std::min(theta_max, theta + theta_step);
+                        else if (!is_correct)
+                            theta = std::max(0.0, theta - theta_step);
+
+                        // Jimenez update: wrong OR margin <= theta
+                        if (!is_correct || margin <= theta) {
+                            auto clamp = [](double v, double lo, double hi) {
+                                return std::max(lo, std::min(hi, v));
+                            };
+                            // Promote true class
+                            bw[true_fam].bias = clamp(bw[true_fam].bias + lr, -W_MAX, W_MAX);
+                            for (int i = 0; i < NF; i++)
+                                bw[true_fam].w[i] = clamp(bw[true_fam].w[i] + lr * fv[i], -W_MAX, W_MAX);
+                            // Demote predicted class (only on error)
+                            if (!is_correct) {
+                                bw[pred].bias = clamp(bw[pred].bias - lr, -W_MAX, W_MAX);
+                                for (int i = 0; i < NF; i++)
+                                    bw[pred].w[i] = clamp(bw[pred].w[i] - lr * fv[i], -W_MAX, W_MAX);
+                            }
+                        }
+
+                        // Accumulate for averaging
+                        avg_count++;
+                        for (const auto& fam : families) {
+                            avg_bw[fam].bias += bw[fam].bias;
+                            for (int i = 0; i < NF; i++)
+                                avg_bw[fam].w[i] += bw[fam].w[i];
+                        }
+                    }
+
+                    double acc = static_cast<double>(correct) / data.size();
+                    if (acc > best_acc) {
+                        best_acc = acc;
+                        best_snap = bw;
+                    }
+                    lr *= LR_DECAY;
+                }
+
+                // Compute averaged weights
+                std::map<std::string, FamilyWeights> avg_snap;
+                if (avg_count > 0) {
+                    for (const auto& fam : families) {
+                        avg_snap[fam].bias = avg_bw[fam].bias / avg_count;
+                        avg_snap[fam].w.resize(NF);
+                        for (int i = 0; i < NF; i++)
+                            avg_snap[fam].w[i] = avg_bw[fam].w[i] / avg_count;
+                    }
+                } else {
+                    avg_snap = best_snap;
+                }
+
+                // Evaluate averaged weights
+                double avg_acc = 0.0;
+                if (!avg_snap.empty()) {
+                    int avg_correct = 0;
+                    for (const auto& d : data) {
+                        if (avg_snap.find(d.family) == avg_snap.end()) continue;
+                        double best_s = -1e30;
+                        std::string apred;
+                        for (const auto& [fam, fw] : avg_snap) {
+                            double s = fw.bias;
+                            for (int i = 0; i < NF; i++) s += fw.w[i] * d.fv[i];
+                            if (s > best_s) { best_s = s; apred = fam; }
+                        }
+                        if (apred == d.family) avg_correct++;
+                    }
+                    avg_acc = static_cast<double>(avg_correct) / data.size();
+                }
+
+                // Pick better of averaged vs snapshot
+                double use_acc = std::max(avg_acc, best_acc);
+                const auto& use_snap = (avg_acc >= best_acc && !avg_snap.empty())
+                                        ? avg_snap : best_snap;
+
+                if (use_acc > global_best_acc) {
+                    global_best_acc = use_acc;
+                    global_best_snap = use_snap;
+                }
+            }
+
+            // Convert global_best_snap to JSON for this benchmark
+            if (!global_best_snap.empty()) {
+                nlohmann::json bench_j;
+                for (const auto& [fam, fw] : global_best_snap) {
+                    nlohmann::json entry;
+                    entry["bias"] = fw.bias;
+                    for (int i = 0; i < NF; i++) entry[WEIGHT_KEYS[i]] = fw.w[i];
+                    entry["benchmark_weights"] = nlohmann::json::object();
+                    entry["_metadata"] = nlohmann::json::object();
+                    bench_j[fam] = entry;
+
+                    // Accumulate for global averaged weights
+                    if (global_accum.find(fam) == global_accum.end())
+                        global_accum[fam].resize(NF + 1, 0.0);  // +1 for bias
+                    global_accum[fam][0] += fw.bias;
+                    for (int i = 0; i < NF; i++) global_accum[fam][i + 1] += fw.w[i];
+                    global_count[fam]++;
+                }
+
+                // Add normalization stats (using raw means/stds before z-score)
+                nlohmann::json norm;
+                nlohmann::json means_arr = nlohmann::json::array();
+                nlohmann::json stds_arr = nlohmann::json::array();
+                nlohmann::json keys_arr = nlohmann::json::array();
+                for (int i = 0; i < NF; i++) {
+                    means_arr.push_back(feat_means[i]);
+                    stds_arr.push_back(feat_stds[i]);
+                    keys_arr.push_back(WEIGHT_KEYS[i]);
+                }
+                norm["feat_means"] = means_arr;
+                norm["feat_stds"] = stds_arr;
+                norm["weight_keys"] = keys_arr;
+                bench_j["_normalization"] = norm;
+
+                perceptron_per_bench_[bn] = bench_j;
+            }
+
+            std::cout << "[TRAIN] Perceptron " << bn << ": acc="
+                      << static_cast<int>(global_best_acc * 100) << "% ("
+                      << data.size() << " examples, "
+                      << global_best_snap.size() << " families)\n";
+            bench_idx++;
+        }
+
+        // Build averaged global weights from per-bench perceptrons
+        if (!global_accum.empty()) {
+            nlohmann::json avg_j;
+            for (const auto& [fam, acc] : global_accum) {
+                int nc = global_count[fam];
+                if (nc <= 0) continue;
+                nlohmann::json entry;
+                entry["bias"] = acc[0] / nc;
+                for (int i = 0; i < NF; i++) entry[WEIGHT_KEYS[i]] = acc[i + 1] / nc;
+                entry["benchmark_weights"] = nlohmann::json::object();
+                entry["_metadata"] = nlohmann::json::object();
+                avg_j[fam] = entry;
+            }
+            // Add normalization to global too
+            nlohmann::json norm;
+            nlohmann::json means_arr = nlohmann::json::array();
+            nlohmann::json stds_arr = nlohmann::json::array();
+            nlohmann::json keys_arr = nlohmann::json::array();
+            for (int i = 0; i < NF; i++) {
+                means_arr.push_back(feat_means[i]);
+                stds_arr.push_back(feat_stds[i]);
+                keys_arr.push_back(WEIGHT_KEYS[i]);
+            }
+            norm["feat_means"] = means_arr;
+            norm["feat_stds"] = stds_arr;
+            norm["weight_keys"] = keys_arr;
+            avg_j["_normalization"] = norm;
+            perceptron_weights_ = avg_j;
+        }
+    }
+
+    // ========================================================================
+    // Decision Tree Training (CART)
+    // ========================================================================
+
+    /**
+     * @brief Compute weighted Gini impurity for a set of label indices.
+     */
+    static double gini_impurity(const std::vector<int>& labels,
+                                 const std::vector<int>& indices,
+                                 int n_classes,
+                                 const std::vector<double>& sample_weights) {
+        if (indices.empty()) return 0.0;
+        std::vector<double> class_sum(n_classes, 0.0);
+        double total = 0.0;
+        for (int idx : indices) {
+            class_sum[labels[idx]] += sample_weights[idx];
+            total += sample_weights[idx];
+        }
+        if (total <= 0.0) return 0.0;
+        double gini = 1.0;
+        for (int c = 0; c < n_classes; c++) {
+            double p = class_sum[c] / total;
+            gini -= p * p;
+        }
+        return gini;
+    }
+
+    /**
+     * @brief Find the weighted majority class in a subset.
+     */
+    static int majority_class(const std::vector<int>& labels,
+                               const std::vector<int>& indices,
+                               int n_classes,
+                               const std::vector<double>& sample_weights) {
+        std::vector<double> class_sum(n_classes, 0.0);
+        for (int idx : indices) class_sum[labels[idx]] += sample_weights[idx];
+        return static_cast<int>(std::max_element(class_sum.begin(), class_sum.end()) - class_sum.begin());
+    }
+
+    /**
+     * @brief Recursively build a CART decision tree node.
+     *
+     * @param features   [n_samples][n_features] feature matrix
+     * @param labels     [n_samples] class labels (indices into class_names)
+     * @param weights    [n_samples] sample weights (for class balancing)
+     * @param indices    Subset of sample indices at this node
+     * @param n_classes  Number of unique classes
+     * @param tree       Output ModelTree (nodes appended)
+     * @param depth      Current tree depth
+     * @param max_depth  Maximum allowed depth
+     * @param min_leaf   Minimum samples per leaf
+     * @param n_features Number of features
+     * @return Index of the created node in tree.nodes
+     */
+    static int build_cart_node(
+            const std::vector<std::vector<double>>& features,
+            const std::vector<int>& labels,
+            const std::vector<double>& weights,
+            const std::vector<int>& indices,
+            int n_classes,
+            ModelTree& tree,
+            int depth, int max_depth, int min_leaf, int n_features) {
+
+        int my_idx = static_cast<int>(tree.nodes.size());
+        tree.nodes.emplace_back();
+
+        // Stopping conditions: max depth, too few samples, or pure node
+        bool all_same = true;
+        int first_label = labels[indices[0]];
+        for (size_t i = 1; i < indices.size(); i++) {
+            if (labels[indices[i]] != first_label) { all_same = false; break; }
+        }
+
+        if (depth >= max_depth || static_cast<int>(indices.size()) < min_leaf * 2 || all_same) {
+            int mc = majority_class(labels, indices, n_classes, weights);
+            tree.nodes[my_idx].feature_idx = -1;
+            tree.nodes[my_idx].leaf_class = tree.families[mc];
+            tree.nodes[my_idx].samples = static_cast<int>(indices.size());
+            return my_idx;
+        }
+
+        // Find best split across all features
+        int best_feat = -1;
+        double best_thresh = 0.0;
+        double best_gini = std::numeric_limits<double>::infinity();
+        std::vector<int> best_left, best_right;
+
+        // Re-usable sorted-index buffer
+        std::vector<std::pair<double, int>> feat_vals(indices.size());
+
+        for (int f = 0; f < n_features; f++) {
+            // Sort indices by feature value
+            for (size_t i = 0; i < indices.size(); i++)
+                feat_vals[i] = {features[indices[i]][f], indices[i]};
+            std::sort(feat_vals.begin(), feat_vals.end());
+
+            // Sweep to find best threshold
+            // Accumulate left partition
+            std::vector<double> left_sum(n_classes, 0.0);
+            std::vector<double> right_sum(n_classes, 0.0);
+            double left_total = 0.0, right_total = 0.0;
+
+            for (const auto& [val, idx] : feat_vals) {
+                right_sum[labels[idx]] += weights[idx];
+                right_total += weights[idx];
+            }
+
+            for (size_t i = 0; i < feat_vals.size() - 1; i++) {
+                int idx = feat_vals[i].second;
+                left_sum[labels[idx]] += weights[idx];
+                left_total += weights[idx];
+                right_sum[labels[idx]] -= weights[idx];
+                right_total -= weights[idx];
+
+                // Only split between different feature values
+                if (feat_vals[i].first == feat_vals[i + 1].first) continue;
+
+                // Check min_leaf constraint
+                if (static_cast<int>(i + 1) < min_leaf ||
+                    static_cast<int>(feat_vals.size() - i - 1) < min_leaf) continue;
+
+                // Compute weighted Gini
+                double gini_left = 1.0, gini_right = 1.0;
+                for (int c = 0; c < n_classes; c++) {
+                    double pl = left_sum[c] / left_total;
+                    gini_left -= pl * pl;
+                    double pr = right_sum[c] / right_total;
+                    gini_right -= pr * pr;
+                }
+                double total = left_total + right_total;
+                double weighted_gini = (left_total * gini_left + right_total * gini_right) / total;
+
+                if (weighted_gini < best_gini) {
+                    best_gini = weighted_gini;
+                    best_feat = f;
+                    best_thresh = (feat_vals[i].first + feat_vals[i + 1].first) / 2.0;
+                }
+            }
+        }
+
+        // If no valid split found, make leaf
+        if (best_feat < 0) {
+            int mc = majority_class(labels, indices, n_classes, weights);
+            tree.nodes[my_idx].feature_idx = -1;
+            tree.nodes[my_idx].leaf_class = tree.families[mc];
+            tree.nodes[my_idx].samples = static_cast<int>(indices.size());
+            return my_idx;
+        }
+
+        // Partition indices
+        std::vector<int> left_idx, right_idx;
+        for (int idx : indices) {
+            if (features[idx][best_feat] <= best_thresh)
+                left_idx.push_back(idx);
+            else
+                right_idx.push_back(idx);
+        }
+
+        // Set split info
+        tree.nodes[my_idx].feature_idx = best_feat;
+        tree.nodes[my_idx].threshold = best_thresh;
+        tree.nodes[my_idx].samples = static_cast<int>(indices.size());
+
+        // Recursively build children
+        int left_child = build_cart_node(features, labels, weights, left_idx,
+                                          n_classes, tree, depth + 1, max_depth, min_leaf, n_features);
+        int right_child = build_cart_node(features, labels, weights, right_idx,
+                                           n_classes, tree, depth + 1, max_depth, min_leaf, n_features);
+
+        tree.nodes[my_idx].left = left_child;
+        tree.nodes[my_idx].right = right_child;
+        return my_idx;
+    }
+
+    /**
+     * @brief Train decision trees from raw DB data (one per benchmark).
+     *
+     * CART with Gini impurity, max_depth=6, min_samples_leaf=2,
+     * balanced class weights. Uses 12 features matching ModelTree::extract_features.
+     *
+     * Populates model_trees_["decision_tree"][bench].
+     */
+    void train_decision_tree() {
+        static constexpr int MAX_DEPTH = 6;
+        static constexpr int MIN_LEAF = 2;
+        static constexpr int NF = MODEL_TREE_N_FEATURES;  // 12
+
+        std::set<std::string> bench_set;
+        for (const auto& r : records_) bench_set.insert(r.benchmark);
+
+        for (const auto& bn : bench_set) {
+            // Build training samples: (12 features, family_label)
+            std::set<std::string> family_set;
+            struct Sample { std::vector<double> fv; std::string family; };
+            std::vector<Sample> samples;
+
+            for (const auto& [g, fv] : graph_features_) {
+                std::string key = g + "|" + bn;
+                auto it = oracle_cache_.find(key);
+                if (it == oracle_cache_.end()) continue;
+
+                std::vector<double> feat(NF);
+                for (int i = 0; i < NF; i++) feat[i] = fv[i];
+                samples.push_back({std::move(feat), it->second});
+                family_set.insert(it->second);
+            }
+
+            if (samples.size() < 3) continue;
+
+            // Build class index
+            std::vector<std::string> families(family_set.begin(), family_set.end());
+            std::map<std::string, int> fam_to_idx;
+            for (size_t i = 0; i < families.size(); i++) fam_to_idx[families[i]] = static_cast<int>(i);
+            int n_classes = static_cast<int>(families.size());
+
+            // Convert to arrays
+            std::vector<std::vector<double>> feat_matrix;
+            std::vector<int> label_vec;
+            feat_matrix.reserve(samples.size());
+            label_vec.reserve(samples.size());
+            for (const auto& s : samples) {
+                feat_matrix.push_back(s.fv);
+                label_vec.push_back(fam_to_idx[s.family]);
+            }
+
+            // Balanced class weights: total / (n_classes * class_count)
+            std::vector<int> class_counts(n_classes, 0);
+            for (int l : label_vec) class_counts[l]++;
+            std::vector<double> sample_weights(samples.size());
+            double total = static_cast<double>(samples.size());
+            for (size_t i = 0; i < samples.size(); i++) {
+                int c = label_vec[i];
+                sample_weights[i] = (class_counts[c] > 0)
+                    ? total / (n_classes * class_counts[c]) : 1.0;
+            }
+
+            // Build tree
+            ModelTree tree;
+            tree.model_type = "decision_tree";
+            tree.benchmark = bn;
+            tree.families = families;
+
+            std::vector<int> all_indices(samples.size());
+            std::iota(all_indices.begin(), all_indices.end(), 0);
+
+            build_cart_node(feat_matrix, label_vec, sample_weights,
+                           all_indices, n_classes, tree, 0, MAX_DEPTH, MIN_LEAF, NF);
+
+            tree.loaded = !tree.nodes.empty();
+            model_trees_["decision_tree"][bn] = std::move(tree);
+
+            std::cout << "[TRAIN] Decision tree " << bn << ": "
+                      << model_trees_["decision_tree"][bn].nodes.size()
+                      << " nodes (" << samples.size() << " examples, "
+                      << n_classes << " families)\n";
+        }
+    }
+
+    /**
+     * @brief Train hybrid models (DT routing + per-leaf perceptron).
+     *
+     * Builds DT (depth 4) then trains a small perceptron at each leaf
+     * (200 epochs, hinge loss). Leaf weights stored in ModelTreeNode::leaf_weights
+     * for dot-product scoring at prediction time.
+     *
+     * Populates model_trees_["hybrid"][bench].
+     */
+    void train_hybrid() {
+        static constexpr int DT_MAX_DEPTH = 4;  // Shallower tree for routing
+        static constexpr int MIN_LEAF = 2;
+        static constexpr int LEAF_EPOCHS = 200;
+        static constexpr double LEAF_LR = 0.01;
+        static constexpr int NF = MODEL_TREE_N_FEATURES;  // 12
+
+        std::set<std::string> bench_set;
+        for (const auto& r : records_) bench_set.insert(r.benchmark);
+
+        for (const auto& bn : bench_set) {
+            // Build training samples with 12 features
+            std::set<std::string> family_set;
+            struct Sample { std::vector<double> fv; std::string family; };
+            std::vector<Sample> samples;
+
+            for (const auto& [g, fv] : graph_features_) {
+                std::string key = g + "|" + bn;
+                auto it = oracle_cache_.find(key);
+                if (it == oracle_cache_.end()) continue;
+
+                std::vector<double> feat(NF);
+                for (int i = 0; i < NF; i++) feat[i] = fv[i];
+                samples.push_back({std::move(feat), it->second});
+                family_set.insert(it->second);
+            }
+
+            if (samples.size() < 3) continue;
+
+            std::vector<std::string> families(family_set.begin(), family_set.end());
+            std::map<std::string, int> fam_to_idx;
+            for (size_t i = 0; i < families.size(); i++) fam_to_idx[families[i]] = static_cast<int>(i);
+            int n_classes = static_cast<int>(families.size());
+
+            // Build arrays
+            std::vector<std::vector<double>> feat_matrix;
+            std::vector<int> label_vec;
+            for (const auto& s : samples) {
+                feat_matrix.push_back(s.fv);
+                label_vec.push_back(fam_to_idx[s.family]);
+            }
+
+            // Balanced weights
+            std::vector<int> class_counts(n_classes, 0);
+            for (int l : label_vec) class_counts[l]++;
+            std::vector<double> sample_weights(samples.size());
+            double total = static_cast<double>(samples.size());
+            for (size_t i = 0; i < samples.size(); i++) {
+                int c = label_vec[i];
+                sample_weights[i] = (class_counts[c] > 0)
+                    ? total / (n_classes * class_counts[c]) : 1.0;
+            }
+
+            // Build routing tree (shallower)
+            ModelTree tree;
+            tree.model_type = "hybrid";
+            tree.benchmark = bn;
+            tree.families = families;
+
+            std::vector<int> all_indices(samples.size());
+            std::iota(all_indices.begin(), all_indices.end(), 0);
+
+            build_cart_node(feat_matrix, label_vec, sample_weights,
+                           all_indices, n_classes, tree, 0, DT_MAX_DEPTH, MIN_LEAF, NF);
+
+            // Train per-leaf perceptrons
+            // Route each sample to its leaf, then train a pairwise ranking perceptron
+            // at each leaf that has multiple classes
+            auto route_to_leaf = [&](const std::vector<double>& fv) -> int {
+                int idx = 0;
+                for (int iter = 0; iter < static_cast<int>(tree.nodes.size()) * 2; iter++) {
+                    if (idx < 0 || idx >= static_cast<int>(tree.nodes.size())) return 0;
+                    const auto& node = tree.nodes[idx];
+                    if (node.is_leaf()) return idx;
+                    if (node.feature_idx >= NF) { idx = node.right; continue; }
+                    idx = (fv[node.feature_idx] <= node.threshold) ? node.left : node.right;
+                }
+                return 0;
+            };
+
+            // Group samples by leaf
+            std::map<int, std::vector<int>> leaf_samples;
+            for (size_t i = 0; i < samples.size(); i++) {
+                int leaf = route_to_leaf(feat_matrix[i]);
+                leaf_samples[leaf].push_back(static_cast<int>(i));
+            }
+
+            // Train perceptron at each leaf
+            for (auto& [leaf_idx, sample_ids] : leaf_samples) {
+                if (sample_ids.size() < 2) continue;
+
+                // Check if leaf has multiple classes
+                std::set<int> leaf_classes;
+                for (int si : sample_ids) leaf_classes.insert(label_vec[si]);
+                if (leaf_classes.size() < 2) continue;
+
+                // Train multi-class perceptron: weights = [w0..w11, bias]
+                std::map<std::string, std::vector<double>> leaf_w;
+                for (int ci : leaf_classes) {
+                    leaf_w[families[ci]].resize(NF + 1, 0.0);  // NF weights + 1 bias
+                }
+
+                SimpleRNG rng(42 + leaf_idx * 37);
+                std::vector<int> perm = sample_ids;
+
+                for (int epoch = 0; epoch < LEAF_EPOCHS; epoch++) {
+                    rng.shuffle(perm);
+                    for (int si : perm) {
+                        const auto& fv = feat_matrix[si];
+                        const auto& true_fam = families[label_vec[si]];
+
+                        // Score all families at this leaf
+                        std::string pred;
+                        double pred_s = -1e30, true_s = -1e30;
+                        for (const auto& [fam, wv] : leaf_w) {
+                            double s = wv[NF]; // bias
+                            for (int f = 0; f < NF; f++) s += wv[f] * fv[f];
+                            if (s > pred_s) { pred_s = s; pred = fam; }
+                            if (fam == true_fam) true_s = s;
+                        }
+
+                        // Hinge update: margin = true - pred
+                        if (pred != true_fam) {
+                            for (int f = 0; f < NF; f++) {
+                                leaf_w[true_fam][f] += LEAF_LR * fv[f];
+                                leaf_w[pred][f] -= LEAF_LR * fv[f];
+                            }
+                            leaf_w[true_fam][NF] += LEAF_LR;
+                            leaf_w[pred][NF] -= LEAF_LR;
+                        }
+                    }
+                }
+
+                tree.nodes[leaf_idx].leaf_weights = std::move(leaf_w);
+            }
+
+            tree.loaded = !tree.nodes.empty();
+            model_trees_["hybrid"][bn] = std::move(tree);
+
+            std::cout << "[TRAIN] Hybrid " << bn << ": "
+                      << model_trees_["hybrid"][bn].nodes.size()
+                      << " nodes, " << leaf_samples.size() << " leaves ("
+                      << samples.size() << " examples)\n";
+        }
+    }
+
+    /**
+     * @brief Train all models from raw DB data.
+     *
+     * Called by load() when sufficient training data exists.
+     * Replaces load_adaptive_models() — no adaptive_models.json needed.
+     */
+    void train_all_models() {
+        std::cout << "[TRAIN] Training models from DB ("
+                  << raw_graph_props_.size() << " graphs, "
+                  << records_.size() << " records)...\n";
+
+        train_perceptron();
+        train_decision_tree();
+        train_hybrid();
+
+        models_loaded_ = true;
+        models_from_unified_ = false;
+    }
+
+    // ========================================================================
     // Data Members
     // ========================================================================
 
@@ -1035,6 +2652,7 @@ private:
     std::unordered_map<std::string, size_t> dedup_;           // key → index
     std::unordered_map<std::string, std::string> oracle_cache_;  // "graph|bench" → family
     std::map<std::string, GraphFeatureVec> graph_features_;   // graph_name → features
+    std::map<std::string, nlohmann::json> raw_graph_props_;   // graph_name → raw JSON (for training)
     bool loaded_ = false;
     std::mutex mutex_;
 
@@ -1215,6 +2833,61 @@ inline void AppendBenchmarkResult(
     auto& db = BenchmarkDatabase::Get();
     db.append_with_features(rec, feat);
     db.save();
+}
+
+// ============================================================================
+// Streaming Selection — Unified entry point for all modes
+// ============================================================================
+
+/// Convert BenchmarkType enum to string (shared helper)
+inline std::string BenchTypeToString(BenchmarkType bench) {
+    static const char* names[] = {
+        "generic", "pr", "bfs", "cc", "sssp", "bc", "tc", "pr", "cc"
+    };
+    if (static_cast<int>(bench) >= 0 &&
+        static_cast<int>(bench) < static_cast<int>(sizeof(names)/sizeof(names[0]))) {
+        return names[static_cast<int>(bench)];
+    }
+    return "generic";
+}
+
+/**
+ * @brief Streaming mode-aware algorithm selection from the database.
+ *
+ * This is the main entry point for the streaming database model. All
+ * selection modes (fastest reorder, fastest execution, end-to-end,
+ * amortization, DT, hybrid, database) are handled by computing
+ * predictions directly from the raw benchmark data — no pre-trained
+ * model files needed.
+ *
+ * Called from SelectReorderingWithMode() as the primary selection path.
+ * If this returns empty string, the caller falls back to file-based
+ * weights (backward compatibility).
+ *
+ * @param feat       Graph community features
+ * @param bench      Benchmark type enum
+ * @param graph_name Graph name (for oracle lookup)
+ * @param mode       Selection mode
+ * @param verbose    Print selection details
+ * @return Family name, or empty string if database has no data
+ */
+inline std::string SelectForMode(
+    const CommunityFeatures& feat,
+    BenchmarkType bench,
+    const std::string& graph_name,
+    SelectionMode mode,
+    bool verbose = false) {
+
+    auto& db = BenchmarkDatabase::Get();
+    if (!db.loaded()) {
+        if (verbose) {
+            std::cout << "  Database streaming: not loaded\n";
+        }
+        return "";
+    }
+
+    std::string bench_str = BenchTypeToString(bench);
+    return db.select_for_mode(feat, graph_name, bench_str, mode, verbose);
 }
 
 }  // namespace database

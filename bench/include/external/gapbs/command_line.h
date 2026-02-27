@@ -34,7 +34,7 @@ protected:
     int argc_;
     char **argv_;
     std::string name_;
-    std::string get_args_ = "f:g:hk:su:m:o:zj:Sl";
+    std::string get_args_ = "f:g:hk:su:m:o:zj:SlD:";
     std::vector<std::string> help_strings_;
     std::vector<std::pair<ReorderingAlgo, std::vector<std::string> > >
     reorder_options_;
@@ -49,6 +49,7 @@ protected:
     bool use_out_degree_ = true;
     std::vector<int> segments_{0, 1, 1};   // Default to one segment ir
     bool enable_logging_ = false;
+    std::string db_dir_ = "";              // --db-dir: JSON database output directory
 
     void AddHelpLine(char opt, std::string opt_arg, std::string text,
                      std::string def = "")
@@ -87,6 +88,7 @@ public:
                     "          [type:n:m] <0:GRAPHIT/Cagra> <1:TRUST>", "0:1:1");
         AddHelpLine('l', "", "log performance within each trial", "false");
         AddHelpLine('S', "", "keep self loops", "false");
+        AddHelpLine('D', "dir", "database directory for JSON output", "results/data");
     }
 
     bool ParseArgs()
@@ -141,6 +143,9 @@ public:
             break;
         case 'S':
             keep_self_ = true;
+            break;
+        case 'D':
+            db_dir_ = std::string(opt_arg);
             break;
         case 'o':
         {
@@ -256,6 +261,10 @@ public:
     const std::vector<int> &segments() const
     {
         return segments_;
+    }
+    std::string db_dir() const
+    {
+        return db_dir_;
     }
 };
 
