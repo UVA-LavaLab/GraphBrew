@@ -19,6 +19,7 @@ results/data/
 /test/
 agent
 plans
+research
 docs/agent_*
 # Graph data files (edge lists, weighted edge lists, serialized graphs)
 *.el

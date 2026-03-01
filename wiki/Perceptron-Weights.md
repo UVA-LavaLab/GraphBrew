@@ -363,9 +363,9 @@ See [[AdaptiveOrder-ML#training-the-perceptron]] for iterative training and prog
 Online SGD with error signal `error = (speedup - 1.0) - current_score`:
 
 ```python
-lr = 0.1   # default learning rate
+effective_lr = lr * significance_weight   # P0 3.1c
 for feature in all_features:  # linear + quadratic + convergence
-    weights[feature] += lr * error * feature_value
+    weights[feature] += effective_lr * error * feature_value
 for key in w_and_cache_keys:
     weights[key] *= (1.0 - 1e-4)  # L2 regularization
 ```
@@ -373,6 +373,8 @@ for key in w_and_cache_keys:
 Positive error → increase weights for features that predicted success. Negative error → decrease. ORIGINAL is trained like any other algorithm, allowing the model to learn when *not reordering* is optimal.
 
 > **Unified training path:** All online training goes through `update_type_weights_incremental()`, which applies the correct gradient across all 17+ features, 3 quadratic terms, and convergence bonus.
+
+> **Significance-weighted training (P0 3.1c):** Inspired by DON-RL (Zhao et al.), training examples are weighted by speedup range (best/worst algorithm time ratio). Graphs where algorithm choice has high impact get larger gradient updates, improving convergence 2-3×. The `significance_weight` parameter (default 1.0) is computed by `compute_significance_weight()` in `training.py`.
 
 > **Note:** Modularity now uses the real value from graph features (computed via Leiden or loaded from cache), with `clustering_coefficient × 1.5` as a fallback if modularity is unavailable.
 
