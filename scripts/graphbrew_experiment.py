@@ -109,6 +109,7 @@ from scripts.lib import (
     DOWNLOAD_GRAPHS_XLARGE,
     download_graphs_parallel,
     download_graph as lib_download_graph,
+    get_graphs_by_size as get_graphs_by_size_dl,
     # Cache
     run_cache_simulations,
     load_type_registry,
@@ -380,6 +381,8 @@ def _do_benchmark_phase(args, graphs, algorithms, label_maps,
 
     Returns list[BenchmarkResult].
     """
+    _flushed_graphs = set()  # tracks graphs flushed incrementally
+
     if has_variant_maps and expand_variants:
         _progress.info("Mode: Variant-aware benchmarking (GraphBrewOrder_leiden, GraphBrewOrder_rabbit, etc.)")
         benchmark_results = run_benchmarks_with_variants(
@@ -397,6 +400,23 @@ def _do_benchmark_phase(args, graphs, algorithms, label_maps,
         _progress.info("Mode: Standard benchmarking")
         if use_pregenerated:
             _progress.info("  Using pre-generated .sg files (no runtime reorder overhead)")
+
+        # ── Incremental per-graph flush ──────────────────────────────
+        # Build a callback that flushes each graph's results to the
+        # datastore immediately, so progress is not lost on interruption.
+        _incremental_store = get_benchmark_store() if save_results else None
+        _skip_existing = _incremental_store.get_existing_keys() if _incremental_store else None
+        _flushed_graphs = set()
+
+        def _flush_graph(graph_name: str, graph_results: list):
+            """Callback: persist one graph's results immediately."""
+            if _incremental_store is not None:
+                _incremental_store.append(graph_results)
+                _flushed_graphs.add(graph_name)
+
+        if _skip_existing:
+            _progress.info(f"  Resume mode: {len(_skip_existing)} existing runs in DB")
+
         benchmark_results = run_benchmarks_multi_graph(
             graphs=graphs,
             algorithms=algorithms,
@@ -409,6 +429,8 @@ def _do_benchmark_phase(args, graphs, algorithms, label_maps,
             weights_dir=args.weights_dir,
             update_weights=update_weights,
             use_pregenerated=use_pregenerated,
+            on_graph_complete=_flush_graph,
+            skip_existing=_skip_existing,
         )
 
     # Save intermediate results (optional)
@@ -416,8 +438,12 @@ def _do_benchmark_phase(args, graphs, algorithms, label_maps,
         bench_file = os.path.join(args.results_dir, f"benchmark_{timestamp}.json")
         with open(bench_file, 'w') as f:
             json.dump([asdict(r) for r in benchmark_results], f, indent=2)
+        # Only do batch append for results NOT already flushed per-graph
         store = get_benchmark_store()
-        store.append(benchmark_results)
+        unflushed = [r for r in benchmark_results
+                     if getattr(r, 'graph', '') not in _flushed_graphs]
+        if unflushed:
+            store.append(unflushed)
         _progress.success(f"Benchmark results saved to: {bench_file}")
 
     # Show summary statistics
@@ -654,6 +680,7 @@ def download_graphs(
     max_disk_gb: float = None,
     parallel: bool = True,
     max_workers: int = 4,
+    catalog_size: int = 0,
 ) -> List[str]:
     """Download graphs by size category with optional memory and disk filtering.
     
@@ -669,21 +696,25 @@ def download_graphs(
         max_disk_gb: If set, skip downloads that would exceed this disk space
         parallel: If True, download graphs in parallel (default: True)
         max_workers: Number of parallel download threads (default: 4)
+        catalog_size: When > 0, expand each tier to this many graphs via
+            SuiteSparse auto-discovery (e.g. 100).
         
     Returns:
         List of successfully downloaded graph names
     """
     # Select graphs based on category
-    graphs_to_download = []
-    
-    if size_category.upper() in ["SMALL", "ALL"]:
-        graphs_to_download.extend(DOWNLOAD_GRAPHS_SMALL)
-    if size_category.upper() in ["MEDIUM", "ALL"]:
-        graphs_to_download.extend(DOWNLOAD_GRAPHS_MEDIUM)
-    if size_category.upper() in ["LARGE", "ALL"]:
-        graphs_to_download.extend(DOWNLOAD_GRAPHS_LARGE)
-    if size_category.upper() in ["XLARGE", "ALL"]:
-        graphs_to_download.extend(DOWNLOAD_GRAPHS_XLARGE)
+    if catalog_size > 0:
+        graphs_to_download = get_graphs_by_size_dl(size_category, catalog_size=catalog_size)
+    else:
+        graphs_to_download = []
+        if size_category.upper() in ["SMALL", "ALL"]:
+            graphs_to_download.extend(DOWNLOAD_GRAPHS_SMALL)
+        if size_category.upper() in ["MEDIUM", "ALL"]:
+            graphs_to_download.extend(DOWNLOAD_GRAPHS_MEDIUM)
+        if size_category.upper() in ["LARGE", "ALL"]:
+            graphs_to_download.extend(DOWNLOAD_GRAPHS_LARGE)
+        if size_category.upper() in ["XLARGE", "ALL"]:
+            graphs_to_download.extend(DOWNLOAD_GRAPHS_XLARGE)
     
     if not graphs_to_download:
         log(f"Unknown size category: {size_category}", "WARN")
@@ -1464,7 +1495,8 @@ def run_experiment(args):
             graphs_dir=args.graphs_dir,
             force=False,  # Don't re-download existing
             max_memory_gb=args.max_memory,
-            max_disk_gb=args.max_disk
+            max_disk_gb=args.max_disk,
+            catalog_size=getattr(args, 'catalog_size', 0),
         )
     
     # Pre-discover graphs matching size filter so that conversion and
@@ -2035,6 +2067,9 @@ def main():
                         default=None, 
                         help="Graph size category - controls both download and filtering. "
                              "small=<50MB, medium=50-500MB, large=500MB-2GB, xlarge=>2GB, all=everything")
+    parser.add_argument("--catalog-size", type=int, default=0, metavar="N",
+                        help="Expand graph catalog to N graphs per tier via SuiteSparse "
+                             "auto-discovery (e.g. --catalog-size 100). Default 0 = hardcoded only.")
     
     parser.add_argument("--force-download", action="store_true",
                         help="Re-download graphs even if they exist")
@@ -2439,7 +2474,8 @@ def main():
             graphs_dir=args.graphs_dir,
             force=False,  # Don't re-download existing
             max_memory_gb=args.max_memory,
-            max_disk_gb=args.max_disk
+            max_disk_gb=args.max_disk,
+            catalog_size=getattr(args, 'catalog_size', 0),
         )
         
         # Determine size range for filtering conversion/pre-generation
@@ -2571,7 +2607,8 @@ def main():
                 graphs_dir=args.graphs_dir,
                 force=args.force_download,
                 max_memory_gb=args.max_memory,
-                max_disk_gb=args.max_disk
+                max_disk_gb=args.max_disk,
+                catalog_size=getattr(args, 'catalog_size', 0),
             )
             # Convert to random-baseline .sg if enabled
             if args.random_baseline:

@@ -28,6 +28,7 @@ Usage:
 import argparse
 import json
 import math
+import os
 import re
 import subprocess
 from dataclasses import dataclass, field
@@ -38,18 +39,69 @@ from collections import defaultdict
 
 
 # =============================================================================
-# Selection Modes
+# Selection Model × Criterion (clean 2D architecture)
+# =============================================================================
+
+class SelectionModel(Enum):
+    """Which prediction model to use (how to predict)."""
+    PERCEPTRON = "perceptron"          # Multi-class perceptron with SSO-trained weights
+    DECISION_TREE = "decision-tree"    # Trained DT classifier (12D features, per-benchmark)
+    HYBRID = "hybrid"                  # DT structure with per-leaf perceptron weights
+    KNN_DATABASE = "knn-database"      # Distance-weighted k-NN from benchmark database
+    HEURISTIC = "heuristic"            # Feature-based heuristic (Python-only, experimental)
+    TYPE_BENCH = "type-bench"          # Type+benchmark recommendations (Python-only, experimental)
+    # ── Label granularity modes ──
+    # These control how many distinct labels the model predicts:
+    #   FAMILY:     7 labels  (ORIGINAL/SORT/RCM/HUBSORT/GORDER/RABBIT/LEIDEN)
+    #   TOPN:       Top-N individual algorithms (default N=8)
+    #   INDIVIDUAL: All ~17 individual algorithm variants
+    FAMILY = "family"                  # Predict at family level (7 classes)
+    TOPN = "topn"                      # Predict top-N algorithms (8 classes)
+    INDIVIDUAL = "individual"          # Predict individual algorithm (all ~17)
+
+
+class SelectionCriterion(Enum):
+    """What metric to optimize (what to optimize)."""
+    FASTEST_REORDER = "fastest-reorder"      # Minimize reordering time only
+    FASTEST_EXECUTION = "fastest-execution"  # Minimize algorithm execution time
+    BEST_ENDTOEND = "best-endtoend"          # Minimize (reorder_time + execution_time)
+    BEST_AMORTIZATION = "best-amortization"  # Minimize iterations to amortize
+
+
+# =============================================================================
+# Legacy SelectionMode — kept for backward compatibility
 # =============================================================================
 
 class SelectionMode(Enum):
-    """Algorithm selection optimization target."""
+    """Algorithm selection optimization target (legacy, conflated enum)."""
     FASTEST_REORDER = "fastest-reorder"      # Minimize reordering time
     FASTEST_EXECUTION = "fastest-execution"  # Minimize execution time (default)
     BEST_ENDTOEND = "best-endtoend"          # Minimize reorder + execution time
     BEST_AMORTIZATION = "best-amortization"  # Minimize iterations to amortize
-    HEURISTIC = "heuristic"                  # Feature-based heuristic (more robust)
-    TYPE_BENCH = "type-bench"                # Type+benchmark recommendations (best accuracy)
-    DATABASE = "database"                    # Database-driven kNN (mirrors C++ MODE_DATABASE)
+    DECISION_TREE = "decision-tree"          # Decision Tree classifier (C++ MODE_DECISION_TREE=4)
+    HYBRID = "hybrid"                        # Hybrid DT+Perceptron Model Tree (C++ MODE_HYBRID=5)
+    DATABASE = "database"                    # Database-driven kNN (mirrors C++ MODE_DATABASE=6)
+    HEURISTIC = "heuristic"                  # Feature-based heuristic (Python-only, experimental)
+    TYPE_BENCH = "type-bench"                # Type+benchmark recommendations (Python-only, experimental)
+
+
+def decompose_selection_mode(mode: SelectionMode) -> tuple:
+    """Decompose legacy SelectionMode into (SelectionModel, SelectionCriterion).
+
+    Mirrors C++ DecomposeSelectionMode().
+    """
+    _MAP = {
+        SelectionMode.FASTEST_REORDER:    (SelectionModel.PERCEPTRON, SelectionCriterion.FASTEST_REORDER),
+        SelectionMode.FASTEST_EXECUTION:  (SelectionModel.PERCEPTRON, SelectionCriterion.FASTEST_EXECUTION),
+        SelectionMode.BEST_ENDTOEND:      (SelectionModel.PERCEPTRON, SelectionCriterion.BEST_ENDTOEND),
+        SelectionMode.BEST_AMORTIZATION:  (SelectionModel.PERCEPTRON, SelectionCriterion.BEST_AMORTIZATION),
+        SelectionMode.DECISION_TREE:      (SelectionModel.DECISION_TREE, SelectionCriterion.FASTEST_EXECUTION),
+        SelectionMode.HYBRID:             (SelectionModel.HYBRID, SelectionCriterion.FASTEST_EXECUTION),
+        SelectionMode.DATABASE:           (SelectionModel.KNN_DATABASE, SelectionCriterion.FASTEST_EXECUTION),
+        SelectionMode.HEURISTIC:          (SelectionModel.HEURISTIC, SelectionCriterion.FASTEST_EXECUTION),
+        SelectionMode.TYPE_BENCH:         (SelectionModel.TYPE_BENCH, SelectionCriterion.FASTEST_EXECUTION),
+    }
+    return _MAP.get(mode, (SelectionModel.PERCEPTRON, SelectionCriterion.FASTEST_EXECUTION))
 
 
 # =============================================================================
@@ -98,6 +150,8 @@ class GraphFeatures:
     packing_factor: float = 0.0
     forward_edge_fraction: float = 0.5
     working_set_ratio: float = 0.0
+    vertex_significance_skewness: float = 0.0
+    window_neighbor_overlap: float = 0.0
     
     @property
     def log_nodes(self) -> float:
@@ -229,6 +283,7 @@ class TypeMatcher:
         self.registry_path = registry_path or Path(weights_registry_path(str(WEIGHTS_DIR)))
         self.registry = {}
         self.centroids = {}
+        self.radii = {}  # P2 2.2: per-type OOD radius
         self._load_registry()
     
     def _load_registry(self):
@@ -240,12 +295,14 @@ class TypeMatcher:
         with open(self.registry_path) as f:
             self.registry = json.load(f)
         
-        # Extract centroids from nested structure
-        # Format: {"type_N": {"centroid": [...], "graph_count": N, ...}}
+        # Extract centroids and radii from nested structure
+        # Format: {"type_N": {"centroid": [...], "radius": 0.1, ...}}
         self.centroids = {}
+        self.radii = {}
         for type_name, type_info in self.registry.items():
             if isinstance(type_info, dict) and "centroid" in type_info:
                 self.centroids[type_name] = type_info["centroid"]
+                self.radii[type_name] = type_info.get("radius", 0.0)
         
         if not self.centroids:
             print("Warning: No centroids found in registry")
@@ -309,6 +366,35 @@ class AlgorithmSelector:
         self.weights_cache[type_name] = weights
         return weights
     
+    def _load_regime_weights(self, regime: str, type_name: str) -> Optional[Dict[str, Dict]]:
+        """P3 3.3: Load regime-specific weights for hierarchical gating.
+        
+        Looks for weights in <weights_dir>/<regime>/weights.json.
+        Falls back to None if not found (caller uses default weights).
+        
+        Args:
+            regime: Graph regime from _classify_graph_type() (e.g. 'sparse_hub')
+            type_name: Original type name for cache key namespacing
+        
+        Returns:
+            Regime-specific weight dict, or None if not available
+        """
+        cache_key = f"__regime_{regime}_{type_name}"
+        if cache_key in self.weights_cache:
+            return self.weights_cache[cache_key]
+        
+        regime_path = self.weights_dir / regime / "weights.json"
+        if not regime_path.exists():
+            return None
+        
+        try:
+            with open(regime_path) as f:
+                weights = json.load(f)
+            self.weights_cache[cache_key] = weights
+            return weights
+        except (json.JSONDecodeError, IOError):
+            return None
+    
     def compute_score(
         self,
         algo_weights: Dict[str, float],
@@ -352,7 +438,9 @@ class AlgorithmSelector:
         features: GraphFeatures,
         config: WeightConfig,
         benchmark: str = None,
-        type_distance: float = 0.0
+        type_distance: float = 0.0,
+        type_radius: float = 0.0,
+        hierarchical: bool = False
     ) -> Tuple[str, Dict[str, float]]:
         """Select the best algorithm for given features.
         
@@ -362,14 +450,34 @@ class AlgorithmSelector:
             config: Weight configuration
             benchmark: Optional benchmark name for per-benchmark multiplier
             type_distance: Euclidean distance to nearest centroid (0 = unknown)
+            type_radius: P2 2.2 per-type OOD radius (p95 of training distances)
+            hierarchical: P3 3.3 hierarchical gating — try regime-specific weights
         """
-        # OOD guardrail: if graph is too far from any known centroid,
-        # predictions are unreliable — fall back to ORIGINAL
-        OOD_DISTANCE_THRESHOLD = 1.5
-        if type_distance > OOD_DISTANCE_THRESHOLD:
-            return "ORIGINAL", {}
+        # OOD guardrail: if graph is too far from known centroid,
+        # predictions are unreliable — fall back to ORIGINAL.
+        # P2 2.2: Use per-type radius when available, else global threshold.
+        if type_distance > 0:
+            if type_radius > 0:
+                # Per-type OOD: distance / radius > OOD_RADIUS_RATIO → OOD
+                from scripts.lib.ml.weights import OOD_RADIUS_RATIO
+                if type_distance / type_radius > OOD_RADIUS_RATIO:
+                    return "ORIGINAL", {}
+            else:
+                # Fallback: global threshold
+                OOD_DISTANCE_THRESHOLD = 1.5
+                if type_distance > OOD_DISTANCE_THRESHOLD:
+                    return "ORIGINAL", {}
         
-        weights = self.load_weights(type_name)
+        # P3 3.3: Hierarchical gating — try regime-specific weights first
+        if hierarchical:
+            regime = self._classify_graph_type(features)
+            regime_weights = self._load_regime_weights(regime, type_name)
+            if regime_weights:
+                weights = regime_weights
+            else:
+                weights = self.load_weights(type_name)
+        else:
+            weights = self.load_weights(type_name)
         if not weights:
             return "ORIGINAL", {}
         
@@ -423,8 +531,69 @@ class AlgorithmSelector:
         ORIGINAL_MARGIN_THRESHOLD = 0.05
         if best_algo != "ORIGINAL" and "ORIGINAL" in scores:
             margin = scores[best_algo] - scores["ORIGINAL"]
-            if margin < ORIGINAL_MARGIN_THRESHOLD:
-                best_algo = "ORIGINAL"
+            
+            # Determine if margin is below threshold
+            below_threshold = False
+            
+            # P1 1.4: Platt-calibrated margin threshold.
+            # If Platt params are available for the selected algo, use calibrated
+            # probability instead of fixed threshold.
+            algo_w = weights.get(best_algo, {})
+            platt_a = algo_w.get('platt_A', 0.0) if isinstance(algo_w, dict) else 0.0
+            if platt_a != 0.0:
+                platt_b = algo_w.get('platt_B', 0.0) if isinstance(algo_w, dict) else 0.0
+                from scripts.lib.ml.weights import platt_probability
+                conf = platt_probability(margin, platt_a, platt_b)
+                below_threshold = (conf < 0.55)  # PLATT_CONFIDENCE_THRESHOLD
+            else:
+                below_threshold = (margin < ORIGINAL_MARGIN_THRESHOLD)
+            
+            if below_threshold:
+                # P2 2.1: ε-greedy bandit exploration for low-margin cases.
+                # When ADAPTIVE_BANDIT=1, with probability ε, explore by using
+                # the model's top pick despite low margin.  ε decays with
+                # log(evaluations) to converge toward exploitation.
+                import os
+                if os.environ.get('ADAPTIVE_BANDIT', '') in ('1', 'true'):
+                    import random as _rng
+                    if not hasattr(self, '_bandit_eval_count'):
+                        self._bandit_eval_count = 0
+                    self._bandit_eval_count += 1
+                    
+                    eps0_str = os.environ.get('ADAPTIVE_BANDIT_EPSILON', '0.1')
+                    try:
+                        eps0 = float(eps0_str)
+                    except ValueError:
+                        eps0 = 0.1
+                    import math
+                    eps = eps0 / (1.0 + 0.1 * math.log(self._bandit_eval_count))
+                    
+                    # Safety: never explore with algos whose avg_reorder_time
+                    # exceeds estimated kernel time × overhead ratio
+                    safe = True
+                    avg_rt = algo_w.get('avg_reorder_time', 0.0) if isinstance(algo_w, dict) else 0.0
+                    if avg_rt and avg_rt > 0:
+                        est_kernel = feature_dict.get('num_edges', 0) * 1e-8
+                        if avg_rt > est_kernel * 0.5:
+                            safe = False
+                    
+                    if safe and _rng.random() < eps:
+                        return best_algo, scores  # explore
+                
+                best_algo = "ORIGINAL"  # exploit
+        
+        # P3 3.1f: DON-Lite neural ordering override.
+        # When enabled and the perceptron margin is low on a large community,
+        # override with DON_LITE (the C++ side dispatches to GenerateDonLiteMapping).
+        DON_LITE_MIN_COMMUNITY = 50000
+        DON_LITE_MARGIN_THRESHOLD = 0.1
+        if os.environ.get('ADAPTIVE_DON_LITE', '') in ('1', 'true'):
+            num_nodes = feature_dict.get('num_nodes', 0)
+            if num_nodes >= DON_LITE_MIN_COMMUNITY and scores:
+                sorted_scores = sorted(scores.values(), reverse=True)
+                margin = (sorted_scores[0] - sorted_scores[1]) if len(sorted_scores) >= 2 else abs(sorted_scores[0])
+                if margin < DON_LITE_MARGIN_THRESHOLD:
+                    best_algo = "DON_LITE"
         
         return best_algo, scores
 
@@ -435,32 +604,51 @@ class AlgorithmSelector:
 
 # Map fine-grained algorithm names to coarse family names.
 # Must match C++ AlgoToFamily() in reorder_database.h.
+# C++ has exactly 7 families: ORIGINAL, SORT, RCM, HUBSORT, GORDER, RABBIT, LEIDEN.
 _ALGO_FAMILY_MAP = {
     "ORIGINAL": "ORIGINAL",
-    "RANDOM": "RANDOM",
+    # SORT family (C++: RANDOM|SORT → "SORT")
+    "RANDOM": "SORT",
     "SORT": "SORT",
+    # HUBSORT family (C++: anything with "HUB" or "DBG" → "HUBSORT")
     "HUBSORT": "HUBSORT",
-    "HUBCLUSTER": "HUBCLUSTER",
-    "DBG": "DBG",
-    "HUBCLUSTERDBG": "HUBCLUSTERDBG",
+    "HUBCLUSTER": "HUBSORT",
+    "DBG": "HUBSORT",
+    "HUBSORTDBG": "HUBSORT",
+    "HUBCLUSTERDBG": "HUBSORT",
+    # RCM family
     "RCM": "RCM",
+    # GORDER family (C++: GORDER|CORDER → "GORDER")
     "GORDER": "GORDER",
-    "CORDER": "CORDER",
-    "RABBITORDER": "RABBITORDER",
+    "CORDER": "GORDER",
+    # RABBIT family
+    "RABBITORDER": "RABBIT",
+    # LEIDEN family (C++: Leiden|GraphBrew → "LEIDEN")
     "LeidenOrder": "LEIDEN",
     "GraphBrewOrder": "LEIDEN",
+    # GoGraph family (P3 3.4)
+    "GoGraphOrder": "GOGRAPH",
+    "GOGRAPHORDER": "GOGRAPH",
+    # Mechanism/meta — not real families
     "MAP": "MAP",
     "AdaptiveOrder": "ADAPTIVE",
 }
+
+# The 7 canonical families recognised by C++ AlgoToFamily().
+CANONICAL_FAMILIES = ["ORIGINAL", "SORT", "RCM", "HUBSORT", "GORDER", "RABBIT", "LEIDEN", "GOGRAPH"]
 
 
 def algo_to_family(algo_name: str) -> str:
     """Map an algorithm name to its family (mirrors C++ AlgoToFamily).
 
-    Variant-prefixed names like ``RABBITORDER_csr`` are handled by
-    stripping the ``_`` suffix and looking up the base name.
+    Follows the exact C++ matching order:
+    1. Direct lookup in ``_ALGO_FAMILY_MAP``
+    2. Strip variant suffix (``RABBITORDER_csr`` → ``RABBITORDER``)
+    3. Substring matching (HUB, RCM, GORDER, RABBIT, Leiden, GraphBrew)
+    4. Compound ordering (``SORT+RABBITORDER_csr`` → family of second part)
+    5. Fall back to ``ORIGINAL``
     """
-    # Direct lookup first
+    # Direct lookup
     fam = _ALGO_FAMILY_MAP.get(algo_name)
     if fam:
         return fam
@@ -469,8 +657,24 @@ def algo_to_family(algo_name: str) -> str:
     fam = _ALGO_FAMILY_MAP.get(base)
     if fam:
         return fam
-    # Fall back to the name itself as the family
-    return algo_name
+    # Substring matching (mirrors C++ .find() checks)
+    if "RCM" in algo_name:
+        return "RCM"
+    if "HUB" in algo_name or "DBG" in algo_name:
+        return "HUBSORT"
+    if "GORDER" in algo_name or algo_name == "CORDER":
+        return "GORDER"
+    if "RABBIT" in algo_name:
+        return "RABBIT"
+    if "Leiden" in algo_name or "GraphBrew" in algo_name:
+        return "LEIDEN"
+    if algo_name == "RANDOM" or algo_name == "SORT":
+        return "SORT"
+    # Compound ordering: SORT+RABBITORDER_csr → family of the second part
+    if "+" in algo_name:
+        _, suffix = algo_name.split("+", 1)
+        return algo_to_family(suffix)
+    return "ORIGINAL"
 
 
 # =============================================================================
@@ -501,14 +705,14 @@ class DatabaseSelector:
         self._bench_store = BenchmarkStore(BENCHMARKS_FILE)
         self._props_store = GraphPropsStore(GRAPH_PROPS_FILE)
 
-    # ---- feature vector (12 elements, same order as C++ GraphFeatureVec) ----
+    # ---- feature vector (14 elements, same order as C++ GraphFeatureVec) ----
 
     @staticmethod
     def make_feature_vec(props: Dict) -> List[float]:
-        """Build 12-element feature vector from raw graph properties.
+        """Build 14-element feature vector from raw graph properties.
 
         Transforms match ``GraphFeatureVec`` construction in C++
-        ``reorder_database.h`` (L895-L907).
+        ``reorder_database.h``.
         """
         clustering = props.get('clustering_coefficient',
                                props.get('clustering_coeff', 0.0))
@@ -526,6 +730,8 @@ class DatabaseSelector:
             math.log2(props.get('working_set_ratio', 0.0) + 1.0),  # log2_wsr
             math.log10(props.get('community_count', 1) + 1),       # log10_cc
             diameter / 50.0,                                        # diameter_50
+            props.get('vertex_significance_skewness', 0.0),         # DON-RL
+            props.get('window_neighbor_overlap', 0.0),              # DON-RL
         ]
 
     # ---- Euclidean distance ----
@@ -535,6 +741,196 @@ class DatabaseSelector:
         return math.sqrt(sum((x - y) ** 2 for x, y in zip(a, b)))
 
     # ---- Oracle (exact-match) lookup ----
+
+    def oracle_lookup_individual(
+        self, graph_name: str, benchmark: str
+    ) -> Optional[Tuple[str, Dict[str, float]]]:
+        """Return the oracle-best individual algorithm for *graph_name*.
+
+        Like ``oracle_lookup`` but returns individual algorithm names
+        instead of family names.
+        """
+        records = self._bench_store.query(graph=graph_name, benchmark=benchmark)
+        if not records:
+            return None
+        algo_times: Dict[str, float] = {}
+        for r in records:
+            a = r.get('algorithm', '')
+            t = r.get('time_seconds', float('inf'))
+            if a not in algo_times or t < algo_times[a]:
+                algo_times[a] = t
+        if not algo_times:
+            return None
+        best = min(algo_times, key=algo_times.get)
+        return best, algo_times
+
+    def knn_scores_individual(
+        self, query_features: Dict, benchmark: str, k: int = None,
+    ) -> List[Dict]:
+        """Per-algorithm weighted kNN scores (individual granularity).
+
+        Same as ``knn_scores()`` but does NOT aggregate by family —
+        each algorithm variant gets its own score entry.
+        """
+        k = k or self.KNN_K
+        query_vec = self.make_feature_vec(query_features)
+
+        all_props = self._props_store.all()
+        if not all_props:
+            return []
+
+        neighbors: List[Tuple[float, str]] = []
+        for gname, gprops in all_props.items():
+            gvec = self.make_feature_vec(gprops)
+            dist = self._euclidean(query_vec, gvec)
+            neighbors.append((dist, gname))
+
+        neighbors.sort(key=lambda x: x[0])
+        actual_k = min(k, len(neighbors))
+        nearest = neighbors[:actual_k]
+
+        algo_kernel: Dict[str, float] = defaultdict(float)
+        algo_reorder: Dict[str, float] = defaultdict(float)
+        algo_weight: Dict[str, float] = defaultdict(float)
+        algo_count: Dict[str, int] = defaultdict(int)
+
+        for dist, gname in nearest:
+            w = 1.0 / (dist + 1e-8)
+            records = self._bench_store.query(graph=gname, benchmark=benchmark)
+            for r in records:
+                a = r.get('algorithm', '')
+                t = r.get('time_seconds', float('inf'))
+                rt = r.get('reorder_time', 0.0) or 0.0
+                algo_kernel[a] += w * t
+                algo_reorder[a] += w * rt
+                algo_weight[a] += w
+                algo_count[a] += 1
+
+        scores = []
+        for a in algo_kernel:
+            wsum = algo_weight[a]
+            if wsum <= 0:
+                continue
+            scores.append({
+                'algorithm': a,
+                'family': algo_to_family(a),
+                'avg_kernel_time': algo_kernel[a] / wsum,
+                'avg_reorder_time': algo_reorder[a] / wsum,
+                'vote_weight': wsum,
+                'vote_count': algo_count[a],
+            })
+
+        scores.sort(key=lambda s: s['avg_kernel_time'])
+        return scores
+
+    def select_individual(
+        self,
+        features: Dict,
+        benchmark: str,
+        graph_name: str = None,
+        *,
+        criterion: 'SelectionCriterion' = None,
+        top_n: int = 0,
+    ) -> Optional[Tuple[str, Dict[str, float]]]:
+        """Select best individual algorithm (or top-N subset).
+
+        When ``top_n > 0``, only the top-N fastest algorithms (by kernel
+        time across all graphs) are considered candidates.
+
+        Returns ``(algorithm, scores_dict)`` or ``None`` if DB is empty.
+        """
+        if criterion is None:
+            criterion = SelectionCriterion.FASTEST_EXECUTION
+
+        # Oracle shortcut
+        if graph_name and criterion != SelectionCriterion.FASTEST_REORDER:
+            oracle = self.oracle_lookup_individual(graph_name, benchmark)
+            if oracle is not None:
+                algo, algo_times = oracle
+                if top_n > 0:
+                    # Filter to top-N candidates
+                    top_algos = self._top_n_algorithms(benchmark, top_n)
+                    filtered = {a: t for a, t in algo_times.items() if a in top_algos}
+                    if filtered:
+                        algo = min(filtered, key=filtered.get)
+                        return algo, filtered
+                return algo, algo_times
+
+        # kNN
+        scores = self.knn_scores_individual(features, benchmark)
+        if not scores:
+            return None
+
+        # Filter to top-N if requested
+        if top_n > 0:
+            top_algos = self._top_n_algorithms(benchmark, top_n)
+            scores = [s for s in scores if s['algorithm'] in top_algos]
+            if not scores:
+                return None
+
+        # Criterion dispatch
+        if criterion == SelectionCriterion.FASTEST_REORDER:
+            by_reorder = sorted(scores, key=lambda s: s['avg_reorder_time'])
+            winner = by_reorder[0]
+            return winner['algorithm'], {s['algorithm']: s['avg_reorder_time'] for s in scores}
+
+        if criterion == SelectionCriterion.FASTEST_EXECUTION:
+            winner = scores[0]
+            return winner['algorithm'], {s['algorithm']: s['avg_kernel_time'] for s in scores}
+
+        if criterion == SelectionCriterion.BEST_ENDTOEND:
+            total = [(s, s['avg_kernel_time'] + s['avg_reorder_time']) for s in scores]
+            total.sort(key=lambda x: x[1])
+            winner = total[0][0]
+            return winner['algorithm'], {s['algorithm']: s['avg_kernel_time'] + s['avg_reorder_time'] for s in scores}
+
+        if criterion == SelectionCriterion.BEST_AMORTIZATION:
+            orig_time = None
+            for s in scores:
+                if s['algorithm'] == 'ORIGINAL':
+                    orig_time = s['avg_kernel_time']
+                    break
+            if orig_time is None:
+                orig_time = max(s['avg_kernel_time'] for s in scores)
+            best_algo = None
+            best_val = float('inf')
+            amort_dict: Dict[str, float] = {}
+            for s in scores:
+                saving = orig_time - s['avg_kernel_time']
+                if saving <= 0 or s['algorithm'] == 'ORIGINAL':
+                    amort_dict[s['algorithm']] = float('inf')
+                    continue
+                iters = s['avg_reorder_time'] / saving
+                amort_dict[s['algorithm']] = iters
+                if iters < best_val:
+                    best_val = iters
+                    best_algo = s['algorithm']
+            if best_algo is None:
+                return 'ORIGINAL', amort_dict
+            return best_algo, amort_dict
+
+        winner = scores[0]
+        return winner['algorithm'], {s['algorithm']: s['avg_kernel_time'] for s in scores}
+
+    def _top_n_algorithms(self, benchmark: str, n: int) -> set:
+        """Return the set of top-N individual algorithms by average kernel
+        time across all graphs in the DB."""
+        perf = self._bench_store.perf_matrix()
+        algo_sums: Dict[str, float] = defaultdict(float)
+        algo_counts: Dict[str, int] = defaultdict(int)
+        for g, algos in perf.items():
+            for a, benches in algos.items():
+                if benchmark in benches:
+                    algo_sums[a] += benches[benchmark]
+                    algo_counts[a] += 1
+        # Average
+        algo_avg = {}
+        for a in algo_sums:
+            if algo_counts[a] > 0:
+                algo_avg[a] = algo_sums[a] / algo_counts[a]
+        # Top N
+        sorted_algos = sorted(algo_avg, key=algo_avg.get)
+        return set(sorted_algos[:n])
 
     def oracle_lookup(
         self, graph_name: str, benchmark: str
@@ -633,21 +1029,32 @@ class DatabaseSelector:
         self,
         features: Dict,
         benchmark: str,
-        mode: 'SelectionMode',
+        mode: 'SelectionMode' = None,
         graph_name: str = None,
+        *,
+        criterion: 'SelectionCriterion' = None,
     ) -> Optional[Tuple[str, Dict[str, float]]]:
         """Select the best algorithm family from the central DB.
 
         Mirrors C++ ``BenchmarkDatabase::select_for_mode()`` logic:
 
-        1. Try oracle first (if graph exists in DB and mode != fastest-reorder).
+        1. Try oracle first (if graph exists in DB and criterion != fastest-reorder).
         2. Fall back to kNN scoring.
-        3. Apply mode-specific metric to pick the winner.
+        3. Apply criterion-specific metric to pick the winner.
+
+        Accepts either a legacy ``mode`` or the new ``criterion``.
+        If ``criterion`` is given, it takes precedence.
 
         Returns ``(family, scores_dict)`` or ``None`` if DB is empty.
         """
+        # Convert legacy mode to criterion if needed
+        if criterion is None and mode is not None:
+            _, criterion = decompose_selection_mode(mode)
+        if criterion is None:
+            criterion = SelectionCriterion.FASTEST_EXECUTION
+
         # Step 1: Oracle shortcut (direct DB match)
-        if graph_name and mode != SelectionMode.FASTEST_REORDER:
+        if graph_name and criterion != SelectionCriterion.FASTEST_REORDER:
             oracle = self.oracle_lookup(graph_name, benchmark)
             if oracle is not None:
                 fam, fam_times = oracle
@@ -658,25 +1065,25 @@ class DatabaseSelector:
         if not scores:
             return None
 
-        # Step 3: Mode dispatch
-        if mode == SelectionMode.FASTEST_REORDER:
+        # Step 3: Criterion dispatch
+        if criterion == SelectionCriterion.FASTEST_REORDER:
             # Sort by avg_reorder_time ascending, pick lowest
             by_reorder = sorted(scores, key=lambda s: s['avg_reorder_time'])
             winner = by_reorder[0]
             return winner['family'], {s['family']: s['avg_reorder_time'] for s in scores}
 
-        if mode in (SelectionMode.FASTEST_EXECUTION, SelectionMode.DATABASE):
+        if criterion == SelectionCriterion.FASTEST_EXECUTION:
             # Already sorted by avg_kernel_time
             winner = scores[0]
             return winner['family'], {s['family']: s['avg_kernel_time'] for s in scores}
 
-        if mode == SelectionMode.BEST_ENDTOEND:
+        if criterion == SelectionCriterion.BEST_ENDTOEND:
             total = [(s, s['avg_kernel_time'] + s['avg_reorder_time']) for s in scores]
             total.sort(key=lambda x: x[1])
             winner = total[0][0]
             return winner['family'], {s['family']: s['avg_kernel_time'] + s['avg_reorder_time'] for s in scores}
 
-        if mode == SelectionMode.BEST_AMORTIZATION:
+        if criterion == SelectionCriterion.BEST_AMORTIZATION:
             # Find ORIGINAL kernel time (baseline)
             orig_time = None
             for s in scores:
@@ -735,7 +1142,8 @@ class DatabaseSelector:
 
             # kNN-DB
             db_result = self.select_for_mode(
-                gprops, benchmark, SelectionMode.DATABASE, graph_name=None
+                gprops, benchmark, SelectionMode.DATABASE, graph_name=None,
+                criterion=SelectionCriterion.FASTEST_EXECUTION,
             )
             db_fam = db_result[0] if db_result else 'ORIGINAL'
 
@@ -877,6 +1285,11 @@ def load_cached_features(cache_path: Path = None) -> Dict[str, GraphFeatures]:
                 avg_path_length=props.get("avg_path_length", 0.0),
                 diameter=props.get("diameter_estimate", props.get("diameter", 0.0)),
                 community_count=props.get("community_count", 0.0),
+                packing_factor=props.get("packing_factor", 0.0),
+                forward_edge_fraction=props.get("forward_edge_fraction", 0.5),
+                working_set_ratio=props.get("working_set_ratio", 0.0),
+                vertex_significance_skewness=props.get("vertex_significance_skewness", 0.0),
+                window_neighbor_overlap=props.get("window_neighbor_overlap", 0.0),
             )
     
     return features
@@ -895,6 +1308,11 @@ class AdaptiveOrderEmulator:
         self.algorithm_selector = AlgorithmSelector(weights_dir)
         self.config = WeightConfig()
         self.selection_mode = SelectionMode.DATABASE  # Default: DB-driven (mirrors C++)
+        # New 2D defaults
+        self.selection_model = SelectionModel.KNN_DATABASE
+        self.selection_criterion = SelectionCriterion.FASTEST_EXECUTION
+        # P3 3.3: Hierarchical gating (set via ADAPTIVE_HIERARCHICAL=1)
+        self.hierarchical = os.environ.get('ADAPTIVE_HIERARCHICAL', '') in ('1', 'true')
     
     def get_reorder_time_weights(self, type_name: str) -> Dict[str, float]:
         """Get w_reorder_time weights for all algorithms from type weights.
@@ -914,63 +1332,42 @@ class AdaptiveOrderEmulator:
         self,
         features: GraphFeatures,
         benchmark: str = None,
-        mode: SelectionMode = None
+        mode: SelectionMode = None,
+        *,
+        model: SelectionModel = None,
+        criterion: SelectionCriterion = None,
     ) -> EmulationResult:
         """Emulate AdaptiveOrder for given graph features.
-        
-        For ALL graphs (including unknown/untrained), we use the perceptron
-        approach: extract features, find closest type centroid, and use that
-        type's weights to select the best algorithm. This is the whole point
-        of the type-based perceptron system - it generalizes to new graphs.
+
+        Supports both legacy ``mode`` and new ``(model, criterion)`` API.
+        If ``model`` or ``criterion`` are given they take precedence.
+
+        **Models** (how to predict):
+          PERCEPTRON, DECISION_TREE, HYBRID, KNN_DATABASE, HEURISTIC, TYPE_BENCH
+
+        **Criteria** (what to optimize):
+          FASTEST_REORDER, FASTEST_EXECUTION, BEST_ENDTOEND, BEST_AMORTIZATION
         """
-        mode = mode or self.selection_mode
+        # Resolve model & criterion
+        if model is None and criterion is None:
+            # Legacy path: use mode
+            mode = mode or self.selection_mode
+            model, criterion = decompose_selection_mode(mode)
+        else:
+            model = model or self.selection_model
+            criterion = criterion or self.selection_criterion
         
         # Layer 1: Type matching - finds the closest type centroid
         matched_type, type_distance = self.type_matcher.find_best_type(features)
         
-        # Note: For unknown graphs (high distance), we still use perceptron with
-        # the closest type's weights. The type matching finds the most similar
-        # graph type, and we use those learned weights. No fallback needed.
+        # P2 2.2: Get per-type OOD radius
+        type_radius = self.type_matcher.radii.get(matched_type, 0.0)
         
-        # Layer 2: Algorithm selection (mode-dependent)
-        # All modes use the type weights - no .time files needed
-        if mode == SelectionMode.FASTEST_REORDER:
-            selected_algo, scores = self._select_fastest_reorder(matched_type, features)
-        elif mode == SelectionMode.HEURISTIC:
-            selected_algo, scores = self._select_by_heuristic(features)
-        elif mode == SelectionMode.TYPE_BENCH:
-            selected_algo, scores = self._select_by_type_bench(features, benchmark)
-        elif mode == SelectionMode.FASTEST_EXECUTION:
-            selected_algo, scores = self.algorithm_selector.select_algorithm(
-                matched_type, features, self.config, benchmark
-            )
-        elif mode == SelectionMode.BEST_ENDTOEND:
-            # Use standard selection but weight reorder_time heavily
-            selected_algo, scores = self._select_best_endtoend(
-                matched_type, features, benchmark
-            )
-        elif mode == SelectionMode.BEST_AMORTIZATION:
-            selected_algo, scores = self._select_best_amortization(
-                matched_type, features, benchmark
-            )
-        elif mode == SelectionMode.DATABASE:
-            db_sel = DatabaseSelector()
-            raw_props = features.__dict__  # GraphFeatures has the same keys
-            result = db_sel.select_for_mode(
-                raw_props, benchmark or 'pr', mode,
-                graph_name=features.name,
-            )
-            if result is not None:
-                selected_algo, scores = result
-            else:
-                # DB empty — fall back to perceptron
-                selected_algo, scores = self.algorithm_selector.select_algorithm(
-                    matched_type, features, self.config, benchmark
-                )
-        else:
-            selected_algo, scores = self.algorithm_selector.select_algorithm(
-                matched_type, features, self.config, benchmark
-            )
+        # Layer 2: Model × Criterion dispatch
+        selected_algo, scores = self._dispatch(
+            model, criterion, matched_type, features, benchmark,
+            type_distance=type_distance, type_radius=type_radius,
+        )
         
         return EmulationResult(
             graph_name=features.name,
@@ -980,6 +1377,192 @@ class AdaptiveOrderEmulator:
             algorithm_scores=scores,
             features=features,
         )
+
+    def _dispatch(
+        self,
+        model: SelectionModel,
+        criterion: SelectionCriterion,
+        matched_type: str,
+        features: GraphFeatures,
+        benchmark: str,
+        type_distance: float = 0.0,
+        type_radius: float = 0.0,
+    ) -> Tuple[str, Dict[str, float]]:
+        """Two-dimensional dispatch: model × criterion.
+
+        Mirrors C++ SelectReorderingWithModelCriterion().
+        """
+        # ---- KNN_DATABASE ----
+        if model == SelectionModel.KNN_DATABASE:
+            db_sel = DatabaseSelector()
+            raw_props = features.__dict__
+            result = db_sel.select_for_mode(
+                raw_props, benchmark or 'pr',
+                graph_name=features.name,
+                criterion=criterion,
+            )
+            if result is not None:
+                return result
+            # DB empty — fall through to perceptron
+
+        # ---- DECISION_TREE / HYBRID ----
+        if model in (SelectionModel.DECISION_TREE, SelectionModel.HYBRID):
+            subdir = 'decision_tree' if model == SelectionModel.DECISION_TREE else 'hybrid'
+            try:
+                algo, scores = self._select_by_model_tree(features, benchmark, subdir)
+                return algo, scores
+            except Exception:
+                pass  # fall through to perceptron
+
+        # ---- HEURISTIC ----
+        if model == SelectionModel.HEURISTIC:
+            return self._select_by_heuristic(features)
+
+        # ---- TYPE_BENCH ----
+        if model == SelectionModel.TYPE_BENCH:
+            return self._select_by_type_bench(features, benchmark)
+
+        # ---- FAMILY (label granularity: 7 families via DB) ----
+        if model == SelectionModel.FAMILY:
+            db_sel = DatabaseSelector()
+            raw_props = features.__dict__
+            result = db_sel.select_for_mode(
+                raw_props, benchmark or 'pr',
+                graph_name=features.name,
+                criterion=criterion,
+            )
+            if result is not None:
+                return result
+            # Fallback to perceptron (already family-level)
+            return self._perceptron_for_criterion(
+                criterion, matched_type, features, benchmark,
+                type_distance=type_distance, type_radius=type_radius,
+            )
+
+        # ---- INDIVIDUAL (label granularity: all ~17 algorithms via DB) ----
+        if model == SelectionModel.INDIVIDUAL:
+            db_sel = DatabaseSelector()
+            raw_props = features.__dict__
+            result = db_sel.select_individual(
+                raw_props, benchmark or 'pr',
+                graph_name=features.name,
+                criterion=criterion,
+            )
+            if result is not None:
+                return result
+            return self._perceptron_for_criterion(
+                criterion, matched_type, features, benchmark,
+                type_distance=type_distance, type_radius=type_radius,
+            )
+
+        # ---- TOPN (label granularity: top-8 algorithms via DB) ----
+        if model == SelectionModel.TOPN:
+            db_sel = DatabaseSelector()
+            raw_props = features.__dict__
+            result = db_sel.select_individual(
+                raw_props, benchmark or 'pr',
+                graph_name=features.name,
+                criterion=criterion,
+                top_n=8,
+            )
+            if result is not None:
+                return result
+            return self._perceptron_for_criterion(
+                criterion, matched_type, features, benchmark,
+                type_distance=type_distance, type_radius=type_radius,
+            )
+
+        # ---- PERCEPTRON (default / fallback) ----
+        return self._perceptron_for_criterion(
+            criterion, matched_type, features, benchmark,
+            type_distance=type_distance, type_radius=type_radius,
+        )
+
+    def _perceptron_for_criterion(
+        self,
+        criterion: SelectionCriterion,
+        matched_type: str,
+        features: GraphFeatures,
+        benchmark: str,
+        type_distance: float = 0.0,
+        type_radius: float = 0.0,
+    ) -> Tuple[str, Dict[str, float]]:
+        """Perceptron selection parameterized by criterion."""
+        hierarchical = self.hierarchical
+        if criterion == SelectionCriterion.FASTEST_REORDER:
+            return self._select_fastest_reorder(matched_type, features)
+        if criterion == SelectionCriterion.FASTEST_EXECUTION:
+            return self.algorithm_selector.select_algorithm(
+                matched_type, features, self.config, benchmark,
+                type_distance=type_distance, type_radius=type_radius,
+                hierarchical=hierarchical,
+            )
+        if criterion == SelectionCriterion.BEST_ENDTOEND:
+            return self._select_best_endtoend(matched_type, features, benchmark)
+        if criterion == SelectionCriterion.BEST_AMORTIZATION:
+            return self._select_best_amortization(matched_type, features, benchmark)
+        # Default
+        return self.algorithm_selector.select_algorithm(
+            matched_type, features, self.config, benchmark,
+            type_distance=type_distance, type_radius=type_radius,
+            hierarchical=hierarchical,
+        )
+
+    # -- Model Tree (DT / Hybrid) cache --
+    _model_tree_cache: Dict = None
+
+    def _load_model_trees(self) -> Dict:
+        """Load model trees from adaptive_models.json (lazy, cached)."""
+        if AdaptiveOrderEmulator._model_tree_cache is None:
+            from .model_tree import load_adaptive_models
+            AdaptiveOrderEmulator._model_tree_cache = load_adaptive_models()
+        return AdaptiveOrderEmulator._model_tree_cache
+
+    def _select_by_model_tree(
+        self,
+        features: GraphFeatures,
+        benchmark: str,
+        subdir: str,  # 'decision_tree' or 'hybrid'
+    ) -> Tuple[str, Dict[str, float]]:
+        """Select algorithm using a Decision Tree or Hybrid Model Tree.
+
+        Mirrors C++ SelectAlgorithmModelTreeFromDB() → ModelTree::predict().
+        Falls back to perceptron if no model exists for this benchmark.
+        """
+        from .model_tree import extract_dt_features
+
+        models = self._load_model_trees()
+        bench_models = models.get(subdir, {})
+        bench = benchmark or 'pr'
+
+        tree = bench_models.get(bench)
+        if tree is None or not tree.nodes:
+            # No model — fall back to perceptron (matches C++ fallback)
+            matched_type, _ = self.type_matcher.find_best_type(features)
+            return self.algorithm_selector.select_algorithm(
+                matched_type, features, self.config, benchmark
+            )
+
+        # Build feature dict from GraphFeatures for extract_dt_features
+        props = {
+            'nodes': features.num_nodes,
+            'edges': features.num_edges,
+            'modularity': features.modularity,
+            'hub_concentration': features.hub_concentration,
+            'avg_degree': features.avg_degree,
+            'clustering_coefficient': features.clustering_coeff,
+            'packing_factor': features.packing_factor,
+            'forward_edge_fraction': features.forward_edge_fraction,
+            'working_set_ratio': features.working_set_ratio,
+            'community_count': features.community_count,
+            'diameter_estimate': features.diameter_estimate,
+        }
+        feats_12d = extract_dt_features(props)
+        predicted = tree.predict(feats_12d)
+
+        # Build scores dict (single winner)
+        scores = {predicted: 1.0}
+        return predicted, scores
     
     def _select_by_heuristic(
         self,

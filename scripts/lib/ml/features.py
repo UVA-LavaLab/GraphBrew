@@ -472,6 +472,336 @@ def compute_forward_edge_fraction(adjacency_list: Dict[int, List[int]],
     return forward_count / total_count if total_count > 0 else 0.5
 
 
+def compute_vertex_significance_skewness(adjacency_list: Dict[int, List[int]],
+                                          sample_size: int = 2000) -> float:
+    """
+    Compute vertex significance skewness (DON-RL, Zhao et al.).
+    
+    Coefficient of variation of per-vertex locality contributions
+    (degree × local fraction). High skewness → hub-dominated graph →
+    HubSort works well. Low skewness → uniform → community-based better.
+    
+    Matches C++ ComputeSampledDegreeFeatures() vertex_significance_skewness.
+    
+    Args:
+        adjacency_list: Adjacency list {node: [neighbors]}
+        sample_size: Number of vertices to sample
+    
+    Returns:
+        CV (std/mean) of per-vertex significance values
+    """
+    import math
+    nodes = sorted(adjacency_list.keys())
+    n = len(nodes)
+    if n < 10:
+        return 0.0
+    
+    stride = max(1, n // sample_size)
+    sampled = nodes[::stride][:sample_size]
+    locality_window = max(64, n // 100)
+    
+    significance = []
+    for node in sampled:
+        neighbors = adjacency_list.get(node, [])
+        deg = len(neighbors)
+        if deg == 0:
+            significance.append(0.0)
+            continue
+        local_count = sum(1 for nb in neighbors if abs(nb - node) <= locality_window)
+        significance.append(deg * (local_count / deg))
+    
+    if not significance:
+        return 0.0
+    
+    mean = sum(significance) / len(significance)
+    if mean < 1e-12:
+        return 0.0
+    variance = sum((s - mean) ** 2 for s in significance) / max(1, len(significance) - 1)
+    return math.sqrt(variance) / mean
+
+
+def compute_window_neighbor_overlap(adjacency_list: Dict[int, List[int]],
+                                     sample_size: int = 2000) -> float:
+    """
+    Compute window neighbor overlap (DON-RL, Zhao et al.).
+    
+    Mean fraction of a vertex's neighbors within a locality window.
+    Generalizes packing_factor with uniform sampling across the graph
+    (packing_factor only samples hubs).
+    
+    Matches C++ ComputeSampledDegreeFeatures() window_neighbor_overlap.
+    
+    Args:
+        adjacency_list: Adjacency list {node: [neighbors]}
+        sample_size: Number of vertices to sample
+    
+    Returns:
+        Mean neighbor-in-window fraction across sampled vertices
+    """
+    nodes = sorted(adjacency_list.keys())
+    n = len(nodes)
+    if n < 10:
+        return 0.0
+    
+    stride = max(1, n // sample_size)
+    sampled = nodes[::stride][:sample_size]
+    locality_window = max(64, n // 100)
+    
+    total_overlap = 0.0
+    counted = 0
+    
+    for node in sampled:
+        neighbors = adjacency_list.get(node, [])
+        deg = len(neighbors)
+        if deg == 0:
+            continue
+        in_window = sum(1 for nb in neighbors if abs(nb - node) <= locality_window)
+        total_overlap += in_window / deg
+        counted += 1
+    
+    return total_overlap / counted if counted > 0 else 0.0
+
+
+def compute_sampled_locality_score(adjacency_list: Dict[int, List[int]],
+                                    sample_size: int = 1000) -> float:
+    """
+    Compute sampled locality score — F(σ) approximation (P1 3.1d).
+    
+    Measures how well the CURRENT vertex ordering preserves graph locality,
+    using a narrow cache-line-sized window (~16 vertices or N/1000).
+    
+    High value → current ordering is already cache-friendly → ORIGINAL likely wins.
+    Low value  → current ordering is poor → reordering has high potential benefit.
+    
+    Complementary to window_neighbor_overlap which uses a broader window (N/100).
+    
+    Matches C++ ComputeSampledDegreeFeatures() sampled_locality_score.
+    
+    Args:
+        adjacency_list: Adjacency list {node: [neighbors]}
+        sample_size: Number of vertices to sample
+    
+    Returns:
+        Mean neighbor-in-cache-window fraction across sampled vertices
+    """
+    nodes = sorted(adjacency_list.keys())
+    n = len(nodes)
+    if n < 10:
+        return 0.0
+    
+    stride = max(1, n // sample_size)
+    sampled = nodes[::stride][:sample_size]
+    # Narrow window approximating L1 cache line reach (~16 vertices)
+    cache_window = max(16, n // 1000)
+    
+    total_locality = 0.0
+    counted = 0
+    
+    for node in sampled:
+        neighbors = adjacency_list.get(node, [])
+        deg = len(neighbors)
+        if deg == 0:
+            continue
+        in_cache = sum(1 for nb in neighbors if abs(nb - node) <= cache_window)
+        total_locality += in_cache / deg
+        counted += 1
+    
+    return total_locality / counted if counted > 0 else 0.0
+
+
+def compute_avg_reuse_distance(adjacency_list: Dict[int, List[int]],
+                                sample_size: int = 1000) -> float:
+    """
+    Compute average transpose reuse distance (P3 3.2, P-OPT inspired).
+    
+    For sampled vertices, computes the mean absolute distance to in-neighbors
+    (predecessors in the transpose graph). High reuse distance indicates
+    the graph benefits from reordering to reduce cache misses.
+    
+    Matches C++ ComputeSampledDegreeFeatures() avg_reuse_distance.
+    
+    Args:
+        adjacency_list: Adjacency list {node: [neighbors]}
+        sample_size: Number of vertices to sample
+    
+    Returns:
+        Mean reuse distance normalized by graph size [0, ~0.5]
+    """
+    nodes = sorted(adjacency_list.keys())
+    n = len(nodes)
+    if n < 10:
+        return 0.0
+    
+    # Build reverse adjacency list (transpose)
+    reverse_adj: Dict[int, List[int]] = {}
+    for src, neighbors in adjacency_list.items():
+        for dst in neighbors:
+            if dst not in reverse_adj:
+                reverse_adj[dst] = []
+            reverse_adj[dst].append(src)
+    
+    stride = max(1, n // sample_size)
+    sampled = nodes[::stride][:sample_size]
+    
+    total_reuse = 0.0
+    counted = 0
+    
+    for node in sampled:
+        predecessors = reverse_adj.get(node, [])
+        in_deg = len(predecessors)
+        if in_deg == 0:
+            continue
+        sum_dist = sum(abs(pred - node) for pred in predecessors)
+        total_reuse += sum_dist / in_deg
+        counted += 1
+    
+    # Normalize by graph size
+    return (total_reuse / counted) / n if counted > 0 and n > 0 else 0.0
+
+
+def compute_packing_factor_cl(adjacency_list: Dict[int, List[int]],
+                               sample_size: int = 500) -> float:
+    """
+    Compute IISWC'18 cache-line packing factor — paper-aligned variant.
+    
+    Fraction of a hub's neighbors that map to the SAME cache line
+    (vertex_id // CL_VERTS) as the hub. More faithful to Su et al.'s
+    definition than the ID-distance proxy (compute_packing_factor).
+    
+    Args:
+        adjacency_list: Dict mapping node ID to list of neighbor IDs
+        sample_size: Number of hub nodes to sample
+    
+    Returns:
+        Fraction of hub neighbors on same cache line, in [0, 1]
+    """
+    CL_VERTS = 64 // 4  # 16 vertices per 64-byte cache line
+    
+    if not adjacency_list:
+        return 0.0
+    
+    nodes = sorted(adjacency_list.keys())
+    num_nodes = len(nodes)
+    if num_nodes < 10:
+        return 0.0
+    
+    node_degrees = [(node, len(adjacency_list[node])) for node in nodes]
+    node_degrees.sort(key=lambda x: x[1], reverse=True)
+    
+    hub_count = max(1, min(sample_size, num_nodes) // 10)
+    total_neighbors = 0
+    same_cl_neighbors = 0
+    
+    for node, deg in node_degrees[:hub_count]:
+        if deg < 2:
+            continue
+        node_cl = node // CL_VERTS
+        for neighbor in adjacency_list[node]:
+            total_neighbors += 1
+            if neighbor // CL_VERTS == node_cl:
+                same_cl_neighbors += 1
+    
+    return same_cl_neighbors / total_neighbors if total_neighbors > 0 else 0.0
+
+
+def compute_locality_score_pairwise(adjacency_list: Dict[int, List[int]],
+                                     sample_size: int = 2000) -> float:
+    """
+    Compute DON-RL pairwise locality score — paper-aligned variant.
+    
+    Sampled mean of 1/|σ(u)−σ(v)| over edges, approximating the paper's
+    F(σ) = Σ_{(u,v)∈E} 1/(|σ(u)−σ(v)|) objective.
+    
+    Args:
+        adjacency_list: Dict mapping node ID to list of neighbor IDs
+        sample_size: Number of nodes to sample
+    
+    Returns:
+        Mean reciprocal ID-distance over sampled edges
+    """
+    if not adjacency_list:
+        return 0.0
+    
+    nodes = sorted(adjacency_list.keys())
+    n = len(nodes)
+    if n < 10:
+        return 0.0
+    
+    stride = max(1, n // sample_size)
+    sampled = nodes[::stride][:sample_size]
+    
+    total_recip = 0.0
+    counted_edges = 0
+    
+    for node in sampled:
+        for neighbor in adjacency_list.get(node, []):
+            diff = abs(neighbor - node)
+            if diff > 0:
+                total_recip += 1.0 / diff
+                counted_edges += 1
+    
+    return total_recip / counted_edges if counted_edges > 0 else 0.0
+
+
+def compute_reuse_distance_lru(adjacency_list: Dict[int, List[int]],
+                                sample_size: int = 500) -> float:
+    """
+    Compute P-OPT LRU stack distance — paper-aligned variant.
+    
+    Simulates a small LRU cache (64 cache lines) and measures the mean
+    stack distance when accessing each vertex's neighbors in order.
+    More faithful to P-OPT's temporal reuse distance than the spatial
+    ID-distance proxy (compute_avg_reuse_distance).
+    
+    Args:
+        adjacency_list: Dict mapping node ID to list of neighbor IDs
+        sample_size: Number of vertices to sample
+    
+    Returns:
+        Mean LRU stack distance normalized by cache size, in [0, 1]
+    """
+    CL_VERTS = 64 // 4  # 16 vertices per cache line
+    LRU_CAP = 64
+    
+    if not adjacency_list:
+        return 0.0
+    
+    nodes = sorted(adjacency_list.keys())
+    n = len(nodes)
+    if n < 10:
+        return 0.0
+    
+    stride = max(1, n // sample_size)
+    sampled = nodes[::stride][:sample_size]
+    
+    total_stack_dist = 0.0
+    counted_access = 0
+    
+    for node in sampled:
+        neighbors = adjacency_list.get(node, [])
+        if len(neighbors) < 2:
+            continue
+        
+        lru_stack = []  # most-recent at end
+        for neighbor in neighbors:
+            cl = neighbor // CL_VERTS
+            try:
+                idx = lru_stack.index(cl)
+                # Hit: distance = items between this and top
+                total_stack_dist += len(lru_stack) - idx - 1
+                lru_stack.pop(idx)
+                lru_stack.append(cl)
+            except ValueError:
+                # Miss: distance = current LRU size
+                total_stack_dist += len(lru_stack)
+                lru_stack.append(cl)
+                if len(lru_stack) > LRU_CAP:
+                    lru_stack.pop(0)
+            counted_access += 1
+    
+    return (total_stack_dist / counted_access) / LRU_CAP if counted_access > 0 else 0.0
+
+
 def compute_working_set_ratio(nodes: int, edges: int) -> float:
     """
     Compute working set ratio (P-OPT): graph_bytes / LLC_size.
@@ -574,6 +904,13 @@ def compute_extended_features(nodes: int, edges: int, density: float,
         'packing_factor': 0.0,
         'forward_edge_fraction': 0.5,
         'working_set_ratio': 0.0,
+        # DON-RL features (Zhao et al.)
+        'vertex_significance_skewness': 0.0,
+        'window_neighbor_overlap': 0.0,
+        # P1 3.1d: Sampled locality score
+        'sampled_locality_score': 0.0,
+        # P3 3.2: Transpose reuse distance
+        'avg_reuse_distance': 0.0,
     }
     
     # If we have the adjacency list, compute additional features
@@ -588,6 +925,18 @@ def compute_extended_features(nodes: int, edges: int, density: float,
             # Locality features (match C++ ComputeSampledDegreeFeatures)
             features['packing_factor'] = compute_packing_factor(adjacency_list)
             features['forward_edge_fraction'] = compute_forward_edge_fraction(adjacency_list)
+            
+            # DON-RL features (Zhao et al.)
+            features['vertex_significance_skewness'] = compute_vertex_significance_skewness(adjacency_list)
+            features['window_neighbor_overlap'] = compute_window_neighbor_overlap(adjacency_list)
+            # P1 3.1d: Sampled locality score
+            features['sampled_locality_score'] = compute_sampled_locality_score(adjacency_list)
+            # P3 3.2: Transpose reuse distance
+            features['avg_reuse_distance'] = compute_avg_reuse_distance(adjacency_list)
+            # Paper-aligned feature variants
+            features['packing_factor_cl'] = compute_packing_factor_cl(adjacency_list)
+            features['locality_score_pairwise'] = compute_locality_score_pairwise(adjacency_list)
+            features['reuse_distance_lru'] = compute_reuse_distance_lru(adjacency_list)
         except Exception:
             pass  # Use defaults on error
     

@@ -682,12 +682,28 @@ CPP_WEIGHT_KEYS = [
     "w_packing_factor",
     "w_forward_edge_fraction",
     "w_working_set_ratio",
+    # DON-RL features
+    "w_vertex_significance_skewness",
+    "w_window_neighbor_overlap",
     # Quadratic cross-terms
     "w_dv_x_hub",
     "w_mod_x_logn",
     "w_pf_x_wsr",
+    "w_vss_x_hc",
+    "w_wno_x_pf",
     # Convergence bonus
     "w_fef_convergence",
+    # P1 3.1d: Sampled locality score
+    "w_sampled_locality",
+    # P3 3.2: Transpose reuse distance
+    "w_avg_reuse_distance",
+    # Paper-aligned feature weights
+    "w_packing_factor_cl",
+    "w_locality_score_pairwise",
+    "w_reuse_distance_lru",
+    # P1 1.4: Platt scaling parameters
+    "platt_A",
+    "platt_B",
     # Cache impact
     "cache_l1_impact",
     "cache_l2_impact",
@@ -708,6 +724,7 @@ CPP_GRAPH_PROPS_KEYS = {
     "clustering_coefficient", "avg_degree", "avg_path_length", "diameter",
     "community_count", "packing_factor", "forward_edge_fraction",
     "working_set_ratio", "density", "graph_type",
+    "vertex_significance_skewness", "window_neighbor_overlap",
 }
 
 CPP_RUN_REPORT_KEYS = {
@@ -949,10 +966,10 @@ class TestFieldParity:
         # Verify it's a finite number (not NaN) and not equal to the unnormalized score
         assert math.isfinite(actual), f"Normalized score is not finite: {actual}"
 
-    # --- B5: DatabaseSelector feature vector (12 elements) ---
+    # --- B5: DatabaseSelector feature vector (14 elements) ---
 
     def test_database_selector_feature_vec_length(self):
-        """make_feature_vec must return exactly 12 elements."""
+        """make_feature_vec must return exactly 14 elements."""
         from scripts.lib.ml.adaptive_emulator import DatabaseSelector
 
         props = {
@@ -963,9 +980,11 @@ class TestFieldParity:
             "packing_factor": 0.7, "forward_edge_fraction": 0.4,
             "working_set_ratio": 3.0, "community_count": 20,
             "diameter": 12.0,
+            "vertex_significance_skewness": 5.0,
+            "window_neighbor_overlap": 0.02,
         }
         vec = DatabaseSelector.make_feature_vec(props)
-        assert len(vec) == 12, f"Feature vec has {len(vec)} elements, expected 12"
+        assert len(vec) == 14, f"Feature vec has {len(vec)} elements, expected 14"
 
     def test_database_selector_feature_vec_transforms(self):
         """Verify each element matches C++ GraphFeatureVec transforms."""
@@ -984,6 +1003,8 @@ class TestFieldParity:
             "working_set_ratio": 3.0,
             "community_count": 20,
             "diameter": 12.0,
+            "vertex_significance_skewness": 5.0,
+            "window_neighbor_overlap": 0.02,
         }
         vec = DatabaseSelector.make_feature_vec(props)
 
@@ -999,32 +1020,40 @@ class TestFieldParity:
         assert abs(vec[9] - math.log2(4.0)) < 1e-9,                          "log2_wsr"
         assert abs(vec[10] - math.log10(21)) < 1e-9,                         "log10_cc"
         assert abs(vec[11] - 12.0 / 50.0) < 1e-9,                           "diameter/50"
+        assert abs(vec[12] - 5.0) < 1e-9,                                    "vss"
+        assert abs(vec[13] - 0.02) < 1e-9,                                   "wno"
 
     # --- B6: Algo family mapping ---
 
     def test_algo_to_family_known(self):
-        """algo_to_family maps known names correctly."""
+        """algo_to_family maps known names correctly (C++ 7-family alignment)."""
         from scripts.lib.ml.adaptive_emulator import algo_to_family
 
         assert algo_to_family("ORIGINAL") == "ORIGINAL"
-        assert algo_to_family("RABBITORDER") == "RABBITORDER"
+        assert algo_to_family("RABBITORDER") == "RABBIT"  # C++ AlgoToFamily
         assert algo_to_family("LeidenOrder") == "LEIDEN"
         assert algo_to_family("GraphBrewOrder") == "LEIDEN"
         assert algo_to_family("GORDER") == "GORDER"
         assert algo_to_family("RCM") == "RCM"
+        assert algo_to_family("SORT") == "SORT"
+        assert algo_to_family("RANDOM") == "SORT"  # C++ maps RANDOM to SORT family
+        assert algo_to_family("HUBSORT") == "HUBSORT"
+        assert algo_to_family("HUBCLUSTER") == "HUBSORT"  # C++ maps HUB* to HUBSORT
+        assert algo_to_family("DBG") == "HUBSORT"  # C++ maps DBG to HUBSORT
+        assert algo_to_family("CORDER") == "GORDER"  # C++ maps CORDER to GORDER
 
     def test_algo_to_family_variant_suffix(self):
         """Variant-suffixed names like RABBITORDER_csr are recognized."""
         from scripts.lib.ml.adaptive_emulator import algo_to_family
 
-        assert algo_to_family("RABBITORDER_csr") == "RABBITORDER"
+        assert algo_to_family("RABBITORDER_csr") == "RABBIT"  # C++ family
         assert algo_to_family("RCM_boost") == "RCM"
 
     def test_algo_to_family_unknown(self):
-        """Unknown algorithm names fall back to the name itself."""
+        """Unknown algorithm names fall back to ORIGINAL (C++ default)."""
         from scripts.lib.ml.adaptive_emulator import algo_to_family
 
-        assert algo_to_family("NEWORDER") == "NEWORDER"
+        assert algo_to_family("NEWORDER") == "ORIGINAL"
 
     # --- B7: Graph properties key parity ---
 

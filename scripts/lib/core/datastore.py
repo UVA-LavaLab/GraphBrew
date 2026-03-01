@@ -192,6 +192,14 @@ class BenchmarkStore:
 
     # ── queries ──────────────────────────────────────────────────────────
 
+    def get_existing_keys(self) -> set:
+        """Return the set of ``(graph, algorithm, benchmark)`` composite keys.
+
+        This is used by the incremental pipeline to skip runs that are
+        already present in the database.
+        """
+        return set(self._records.keys())
+
     def to_list(self) -> List[dict]:
         """Return all records as a sorted list."""
         records = list(self._records.values())

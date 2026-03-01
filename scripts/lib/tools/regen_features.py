@@ -30,6 +30,8 @@ PATTERNS = {
     "packing_factor":        r"Packing Factor[:\s]+([\d.]+)",
     "forward_edge_fraction": r"Forward Edge Fraction[:\s]+([\d.]+)",
     "working_set_ratio":     r"Working Set Ratio[:\s]+([\d.]+)",
+    "vertex_significance_skewness": r"Vertex Significance Skewness[:\s]+([\d.]+)",
+    "window_neighbor_overlap":      r"Window Neighbor Overlap[:\s]+([\d.]+)",
     "modularity":            r"[Mm]odularity[:\s]+([\d.]+)",
     "graph_density":         r"Graph Density[:\s]+([\d.]+e?[+-]?\d*)",
 }

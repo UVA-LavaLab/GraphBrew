@@ -387,6 +387,8 @@ def run_benchmarks_multi_graph(
     skip_slow: bool = False,
     progress = None,  # Optional ProgressTracker
     use_pregenerated: bool = False,
+    on_graph_complete = None,  # Optional[Callable[[str, List[BenchmarkResult]], None]]
+    skip_existing: set = None,  # Optional[Set[Tuple[str,str,str]]] of (graph, benchmark, algo) already in DB
 ) -> List[BenchmarkResult]:
     """
     Run benchmarks across multiple graphs.
@@ -407,6 +409,12 @@ def run_benchmarks_multi_graph(
         progress: Optional progress tracker
         use_pregenerated: If True, use pre-generated ``{graph}_{ALGO}.sg``
             files (loaded with ``-o 0``) to skip runtime reorder overhead
+        on_graph_complete: Optional callback invoked after each graph's
+            benchmarks finish.  Receives ``(graph_name, graph_results)``.
+            Useful for per-graph incremental flushing to the datastore.
+        skip_existing: Optional set of ``(graph, benchmark, algorithm)``
+            tuples already in the database.  Matching runs are skipped
+            (enables benchmark resume after interruption).
         
     Returns:
         List of BenchmarkResult objects
@@ -414,6 +422,7 @@ def run_benchmarks_multi_graph(
     bin_dir = bin_dir or str(BIN_DIR)
     label_maps = label_maps or {}
     results = []
+    skip_existing = skip_existing or set()
     
     # Filter slow algorithms if requested
     if skip_slow:
@@ -423,16 +432,16 @@ def run_benchmarks_multi_graph(
     total_configs = len(graphs) * len(algorithms) * len(benchmarks)
     completed = 0
     skipped = 0
+    skipped_existing = 0
     
     # Track (graph, benchmark) combos where ORIGINAL or first algo timed out / crashed.
-    # If the baseline is intractable, every reordering variant will be too — skip them
-    # to avoid burning hours of timeout budget on a single graph×benchmark pair.
     timed_out_combos: set = set()
     
     for graph in graphs:
         graph_name = graph.name
         graph_path = graph.path
         graph_label_maps = label_maps.get(graph_name, {})
+        graph_results = []  # Per-graph results for on_graph_complete callback
         
         if progress:
             progress.info(f"Benchmarking: {graph_name}")
@@ -451,6 +460,12 @@ def run_benchmarks_multi_graph(
                 # Always include variant in name for algorithms that have variants
                 algo_name = get_algorithm_name_with_variant(algo_id)
                 
+                # Resume: skip runs already in the database
+                if (graph_name, bench, algo_name) in skip_existing:
+                    completed += 1
+                    skipped_existing += 1
+                    continue
+                
                 # Early-exit: skip remaining algorithms if this graph×benchmark
                 # already proved intractable (timeout or crash on a prior algorithm)
                 combo_key = (graph_name, bench)
@@ -467,6 +482,7 @@ def run_benchmarks_multi_graph(
                     result.nodes = graph.nodes
                     result.edges = graph.edges
                     results.append(result)
+                    graph_results.append(result)
                     completed += 1
                     skipped += 1
                     continue
@@ -510,6 +526,7 @@ def run_benchmarks_multi_graph(
                         if result.reorder_time <= 0:
                             result.reorder_time = load_reorder_time_for_algo(graph_name, algo_name)
                         results.append(result)
+                        graph_results.append(result)
                         completed += 1
                         if progress and completed % 10 == 0:
                             progress.info(f"  Progress: {completed}/{total_configs}")
@@ -572,13 +589,23 @@ def run_benchmarks_multi_graph(
                     result.algorithm_id = algo_id
                 
                 results.append(result)
+                graph_results.append(result)
                 completed += 1
                 
                 if progress and completed % 10 == 0:
                     progress.info(f"  Progress: {completed}/{total_configs}")
+        
+        # ── Per-graph callback (incremental flush) ──
+        if on_graph_complete and graph_results:
+            try:
+                on_graph_complete(graph_name, graph_results)
+            except Exception as e:
+                log.warning(f"on_graph_complete callback failed for {graph_name}: {e}")
     
     if skipped > 0:
         log.info(f"Benchmark early-exit: skipped {skipped}/{total_configs} runs due to timeout/crash")
+    if skipped_existing > 0:
+        log.info(f"Benchmark resume: skipped {skipped_existing} already-completed runs")
     
     # ── Benchmark chained (multi-pass) pre-generated .lo mappings ──
     # Chained orderings like SORT+RABBITORDER_csr have no single algo_id;

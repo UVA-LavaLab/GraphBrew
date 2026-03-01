@@ -126,6 +126,7 @@ ALGORITHMS = {
     13: "MAP",  # Load from file
     14: "AdaptiveOrder",
     15: "LeidenOrder",
+    16: "GoGraphOrder",
 }
 
 # Reverse mapping
@@ -225,6 +226,14 @@ RABBITORDER_DEFAULT_VARIANT = "csr"
 # NOT in _VARIANT_ALGO_REGISTRY because they share a single perceptron weight.
 GORDER_VARIANTS = ("default", "csr", "fast")
 GORDER_DEFAULT_VARIANT = "default"
+
+# GoGraph variants: -o 16:variant
+# "default" = faithful GetOptVal greedy M-maximizing insertion (paper algorithm)
+# "fast"  = iterative flow-score sorting (heuristic, O(n log n + m) per iter)
+# "naive" = original faithful (per-call unordered_map, for validation)
+# Both target M(σ) maximization; share a single perceptron weight.
+GOGRAPH_VARIANTS = ("default", "fast", "naive")
+GOGRAPH_DEFAULT_VARIANT = "default"
 
 # RCM variants: -o 11:variant
 RCM_VARIANTS = ("default", "bnf")
@@ -406,6 +415,8 @@ DISPLAY_TO_CANONICAL: dict[str, str] = {
     "GraphBrewOrder": "GraphBrewOrder_leiden",
     # LeidenOrder is its own algorithm (C++ enum 15)
     "LeidenOrder": "LeidenOrder",
+    # GoGraph FEF-maximizing reordering (P3 3.4)
+    "GoGraphOrder": "GoGraphOrder",
 }
 
 

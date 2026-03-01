@@ -20,6 +20,7 @@ lib/
 │   ├── dependencies.py  # External-tool checks (cmake, numactl, …)
 │   ├── build.py         # C++ build helpers
 │   ├── download.py      # Graph dataset downloading
+│   ├── suitesparse_catalog.py  # SuiteSparse auto-discovery (ssgetpy)
 │   ├── reorder.py       # Reordering execution, mapping I/O
 │   ├── benchmark.py     # Benchmark runner & result parsing
 │   ├── cache.py         # Cache-simulation orchestration
@@ -30,6 +31,7 @@ lib/
 │   ├── weights.py       # SSO scoring — PerceptronWeight.compute_score()
 │   ├── eval_weights.py  # SSO data loading — load_all_results(), etc.
 │   ├── training.py      # Iterative / batched perceptron training
+│   ├── model_tree.py    # Decision tree & hybrid DT+Perceptron models
 │   ├── adaptive_emulator.py  # AdaptiveOrder C++ emulation
 │   ├── oracle.py        # Oracle (best-possible) analysis
 │   └── features.py      # Graph topology feature extraction

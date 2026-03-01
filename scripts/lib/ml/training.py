@@ -45,6 +45,59 @@ from .weights import (
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Significance Weighting (P0 3.1c — DON-RL-inspired)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def compute_significance_weight(
+    sc_result,
+    *,
+    min_weight: float = 0.1,
+    max_weight: float = 3.0,
+) -> float:
+    """
+    Compute a significance weight for a training example based on how much
+    the algorithm choice matters for this graph/subcommunity.
+    
+    Inspired by DON-RL (Zhao et al.): examples where the performance gap
+    between best and worst algorithms is large should contribute more to
+    gradient updates, since getting them right has higher impact.
+    
+    The weight is proportional to the speedup range (best_time / worst_time).
+    Clamped to [min_weight, max_weight] to avoid instability.
+    
+    Args:
+        sc_result: SubcommunityBruteForceResult with all_results dict
+        min_weight: Floor to prevent zero-weighting any example
+        max_weight: Cap to prevent a single outlier from dominating
+        
+    Returns:
+        Significance weight in [min_weight, max_weight]
+    """
+    all_results = getattr(sc_result, 'all_results', {})
+    if len(all_results) < 2:
+        return 1.0
+    
+    times = [r.get('time', 999999) for r in all_results.values()
+             if isinstance(r, dict) and r.get('time', 999999) < 999999]
+    if len(times) < 2:
+        return 1.0
+    
+    best_time = min(times)
+    worst_time = max(times)
+    
+    if best_time <= 0:
+        return 1.0
+    
+    # speedup_range = worst / best.  If all algos are equal → 1.0 → weight=min.
+    # If best is 2× faster than worst → range=2.0 → weight ~= 2.0.
+    speedup_range = worst_time / best_time
+    
+    # Linear mapping: weight = speedup_range, clamped
+    weight = max(min_weight, min(max_weight, speedup_range))
+    return weight
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Data Classes
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -373,8 +426,24 @@ def train_adaptive_weights_iterative(
                     graph_name, adaptive_algo)
                 
                 # Update type-based weights
-                correct_speedup = 1.2  # Positive reinforcement
-                wrong_speedup = 0.8   # Negative reinforcement
+                # P0 3.1c: Use actual speedups from brute-force instead of
+                # hardcoded 1.2/0.8.  Scale learning by significance weight:
+                # graphs where algorithm choice matters more get larger updates.
+                correct_time = sc_result.all_results.get(correct_algo, {}).get('time', 0)
+                adaptive_time_val = sc_result.all_results.get(adaptive_algo, {}).get('time', 0)
+                original_time = sc_result.all_results.get('ORIGINAL', {}).get('time', 0)
+                
+                if original_time > 0 and correct_time > 0:
+                    correct_speedup = original_time / correct_time
+                else:
+                    correct_speedup = 1.2  # Fallback
+                
+                if original_time > 0 and adaptive_time_val > 0:
+                    wrong_speedup = original_time / adaptive_time_val
+                else:
+                    wrong_speedup = 0.8  # Fallback
+                
+                sig_weight = compute_significance_weight(sc_result)
                 
                 update_type_weights_incremental(
                     type_name=graph_type,
@@ -385,7 +454,8 @@ def train_adaptive_weights_iterative(
                     cache_stats=None,
                     reorder_time=correct_reorder_time,
                     weights_dir=weights_dir,
-                    learning_rate=learning_rate
+                    learning_rate=learning_rate,
+                    significance_weight=sig_weight,
                 )
                 types_updated_this_iter.add(graph_type)
                 weights_updated += 1
@@ -399,7 +469,8 @@ def train_adaptive_weights_iterative(
                     cache_stats=None,
                     reorder_time=adaptive_reorder_time,
                     weights_dir=weights_dir,
-                    learning_rate=learning_rate
+                    learning_rate=learning_rate,
+                    significance_weight=sig_weight,
                 )
                 # Legacy weights file update removed — type-based perceptron
                 # (update_type_weights_incremental) is the sole training path.
@@ -648,6 +719,7 @@ def train_adaptive_weights_large_scale(
 __all__ = [
     'TrainingIterationResult',
     'TrainingResult',
+    'compute_significance_weight',
     'initialize_enhanced_weights',
     'train_adaptive_weights_iterative',
     'train_adaptive_weights_large_scale',
