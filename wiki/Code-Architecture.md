@@ -304,15 +304,18 @@ See [[Python-Scripts]] for full documentation of the Python tooling.
 
 Key entry points:
 - `graphbrew_experiment.py` — Main orchestration (~2,838 lines)
+- `evaluate_all_modes.py` — Model × Criterion evaluation with LOGO cross-validation
 - `lib/ml/weights.py` — **SSO** for scoring (`PerceptronWeight.compute_score()`), type-based weight training, LOGO CV
 - `lib/ml/eval_weights.py` — **SSO** for data loading (`load_all_results()`, `build_performance_matrix()`, `compute_graph_features()`)
 - `lib/ml/adaptive_emulator.py` — C++ logic emulation (delegates scoring to `PerceptronWeight`)
-- `lib/ml/training.py` — Iterative/batched training pipeline
+- `lib/ml/training.py` — Iterative/batched training with significance weighting (P0 3.1c)
+- `lib/ml/model_tree.py` — Decision tree & hybrid DT+Perceptron model training
 - `lib/core/datastore.py` — Unified data store (BenchmarkStore, GraphPropsStore)
 - `lib/pipeline/benchmark.py` — Benchmark execution
+- `lib/pipeline/suitesparse_catalog.py` — SuiteSparse auto-discovery (ssgetpy)
 - `lib/analysis/adaptive.py` — Result analysis + A/B testing + Leiden variant comparison
 - `lib/pipeline/cache.py` — Cache simulation
-- `lib/` — 5 sub-packages, 24 modules (~19,000 lines total)
+- `lib/` — 5 sub-packages, 27 modules (~21,000 lines total)
 
 #### Streaming Database Architecture (v2.0)
 
