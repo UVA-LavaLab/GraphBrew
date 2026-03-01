@@ -40,6 +40,7 @@ enum ReorderingAlgo
     // Leiden algorithms
     LeidenOrder = 15,       // -o 15:resolution (GVE-Leiden baseline)
     // Note: LeidenCSR (16) has been deprecated — GraphBrew (12) subsumes it.
+    GoGraphOrder = 16,      // -o 16 (FEF-maximizing divide-and-conquer, P3 3.4)
     // RCM variants: -o 11 (GoGraph baseline), -o 11:bnf (CSR-native BNF)
 };
 

@@ -1275,6 +1275,9 @@ public:
         case AdaptiveOrder:
             GenerateAdaptiveMapping(g, new_ids, useOutdeg, reordering_options);
             break;
+        case GoGraphOrder:
+            GenerateGoGraphMapping(g, new_ids, useOutdeg);
+            break;
         case MAP:
             LoadMappingFromFile(g, new_ids, reordering_options);
             break;
@@ -1507,6 +1510,9 @@ public:
             break;
         case AdaptiveOrder:
             GenerateAdaptiveMapping(g, new_ids, useOutdeg, reordering_options);
+            break;
+        case GoGraphOrder:
+            GenerateGoGraphMapping(g, new_ids, useOutdeg);
             break;
         case MAP:
             LoadMappingFromFile(g, new_ids, reordering_options);
@@ -2498,6 +2504,9 @@ public:
         double packing_factor = deg_features.packing_factor;
         double forward_edge_fraction = deg_features.forward_edge_fraction;
         double working_set_ratio = deg_features.working_set_ratio;
+        double vertex_significance_skewness = deg_features.vertex_significance_skewness;
+        double window_neighbor_overlap = deg_features.window_neighbor_overlap;
+        double sampled_locality_score = deg_features.sampled_locality_score;
         
         // ============================================================
         // 2. DIAMETER & AVG PATH LENGTH (single BFS from high-degree node)
@@ -2617,6 +2626,9 @@ public:
         PrintTime("Packing Factor", packing_factor);
         PrintTime("Forward Edge Fraction", forward_edge_fraction);
         PrintTime("Working Set Ratio", working_set_ratio);
+        PrintTime("Vertex Significance Skewness", vertex_significance_skewness);
+        PrintTime("Window Neighbor Overlap", window_neighbor_overlap);
+        PrintTime("Sampled Locality Score", sampled_locality_score);
         PrintTime("Modularity", modularity_estimate);
         PrintTime("Topology Analysis Time", t.Seconds());
         std::cout << "===============================" << std::endl;
@@ -2639,6 +2651,9 @@ public:
             props.forward_edge_fraction = forward_edge_fraction;
             props.working_set_ratio    = working_set_ratio;
             props.density              = density;
+            props.vertex_significance_skewness = vertex_significance_skewness;
+            props.window_neighbor_overlap = window_neighbor_overlap;
+            props.sampled_locality_score = sampled_locality_score;
 
             graphbrew::database::BenchmarkDatabase::Get().update_graph_props(props);
         }
@@ -2828,8 +2843,8 @@ public:
     /**
      * Check if a graph is far from known types (delegates to global function)
      */
-    static bool IsDistantGraphType(double type_distance) {
-        return ::IsDistantGraphType(type_distance);
+    static bool IsDistantGraphType(double type_distance, double type_radius = 0.0) {
+        return ::IsDistantGraphType(type_distance, type_radius);
     }
     
     /**

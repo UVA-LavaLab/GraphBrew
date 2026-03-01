@@ -167,6 +167,41 @@ public:
         return tmptop;
     }
 
+    /**
+     * P2 3.1e: DON-augmented ExtractMax — within the top bucket,
+     * pick the vertex with highest DON priority (degree-based) to
+     * break ties.  Scans at most the entire bucket, so overhead
+     * scales with bucket size, not N.
+     */
+    int ExtractMaxDON(const std::vector<int>& don_priority) {
+        // Resolve pending updates at top
+        int tmptop;
+        do {
+            tmptop = top;
+            if (update[top] < 0) DecreaseTop();
+        } while (top != tmptop);
+
+        // Scan the bucket for max DON priority
+        int best = tmptop;
+        int best_prio = don_priority[tmptop];
+        int cur = list[tmptop].next;
+        int bucket_key = list[tmptop].key;
+        while (cur >= 0 && list[cur].key == bucket_key) {
+            // Resolve deferred decrements for this element
+            if (update[cur] < 0) {
+                // Effective key is lower — not really in this bucket; stop scan
+                break;
+            }
+            if (don_priority[cur] > best_prio) {
+                best = cur;
+                best_prio = don_priority[cur];
+            }
+            cur = list[cur].next;
+        }
+        DeleteElement(best);
+        return best;
+    }
+
     void IncrementKey(int index) {
         int key = list[index].key;
         int head = header[key].first;
@@ -474,8 +509,21 @@ void gorder_greedy_csr(const CSRGraph<NodeID_, DestID_, invert>& g,
     const int num_active = n - 1 - static_cast<int>(zero.size());
     std::vector<char> popvexist(n, 0);
 
+    // P2 3.1e: DON priority for tiebreaking (total degree as proxy)
+    // Only computed when ADAPTIVE_DON_TIEBREAK=1
+    std::vector<int> don_priority;
+    bool use_don = false;
+    #ifndef GORDER_NO_ABLATION  // allow standalone builds without AblationConfig
+    use_don = AblationConfig::Get().don_tiebreak;
+    #endif
+    if (use_don) {
+        don_priority.resize(n);
+        for (int i = 0; i < n; ++i)
+            don_priority[i] = indeg(i) + outdeg(i);
+    }
+
     while (count < num_active) {
-        int v = heap.ExtractMax();
+        int v = use_don ? heap.ExtractMaxDON(don_priority) : heap.ExtractMax();
         count++;
         order.push_back(v);
         heap.update[v] = INT_MAX / 2;
@@ -605,6 +653,18 @@ void gorder_greedy_parallel(const CSRGraph<NodeID_, DestID_, invert>& g,
         [&](int a, int b) { return indeg(a) > indeg(b); });
     int fill_cursor = 0;
 
+    // P2 3.1e: DON priority for tiebreaking (total degree as proxy)
+    std::vector<int> don_priority;
+    bool use_don = false;
+    #ifndef GORDER_NO_ABLATION
+    use_don = AblationConfig::Get().don_tiebreak;
+    #endif
+    if (use_don) {
+        don_priority.resize(n);
+        for (int i = 0; i < n; ++i)
+            don_priority[i] = indeg(i) + outdeg(i);
+    }
+
     // --- Neighbor update helper (thread-safe via atomic delta) ---
     // sign = +1 for push (vertex enters window)
     // sign = -1 for pop  (vertex exits window)
@@ -688,11 +748,25 @@ void gorder_greedy_parallel(const CSRGraph<NodeID_, DestID_, invert>& g,
             frontier.resize(wp);
         }
 
-        // Select top-B by score (tie-break: indeg descending)
+        // Select top-B by score (tie-break: DON priority or indeg)
         int B_front = std::min(B, static_cast<int>(frontier.size()));
         if (B_front > 0) {
             auto cmp = [&](int a, int b) {
-                if (score[a] != score[b]) return score[a] > score[b];
+                if (score[a] != score[b]) {
+                    // P2 3.1e: When scores are within 5%, use DON priority
+                    if (use_don) {
+                        int hi = std::max(score[a], score[b]);
+                        if (hi > 0 && std::abs(score[a] - score[b]) * 20 <= hi) {
+                            // Within 5%: break tie by DON priority
+                            if (don_priority[a] != don_priority[b])
+                                return don_priority[a] > don_priority[b];
+                        }
+                    }
+                    return score[a] > score[b];
+                }
+                // Exact tie: use DON priority if available, else indeg
+                if (use_don && don_priority[a] != don_priority[b])
+                    return don_priority[a] > don_priority[b];
                 return indeg(a) > indeg(b);
             };
             if (static_cast<int>(frontier.size()) > B_front)
