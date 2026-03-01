@@ -474,7 +474,13 @@ class TestDefaultWeights:
             "cache_l1_impact", "cache_l2_impact", "cache_l3_impact",
             "cache_dram_penalty",
             "w_dv_x_hub", "w_mod_x_logn", "w_pf_x_wsr",
+            "w_vss_x_hc", "w_wno_x_pf",
             "w_fef_convergence",
+            "w_sampled_locality",
+            "w_avg_reuse_distance",
+            "w_vertex_significance_skewness",
+            "w_window_neighbor_overlap",
+            "platt_A", "platt_B",
         ]
         for key in required:
             assert key in entry, f"Missing key in default entry: {key}"
@@ -491,15 +497,15 @@ class TestDefaultWeights:
 
     def test_variant_count(self):
         """Sanity: variant count matches expected total."""
-        # 16 base algos - ORIGINAL - RANDOM - MAP - AdaptiveOrder = 12 base IDs
+        # 17 base algos - ORIGINAL - RANDOM - MAP - AdaptiveOrder = 13 base IDs
         # Algo 8 (RABBITORDER) → 2 variants, algo 11 (RCM) → 2, algo 12 (GraphBrew) → 3
-        # So: 12 - 3 (expanded) + 2 + 2 + 3 = 16 single variants
+        # So: 13 - 3 (expanded) + 2 + 2 + 3 = 17 single variants
         # Plus chained orderings
         single = [n for n in ALL_VARIANTS if not is_chained_ordering_name(n)]
         chained = [n for n in ALL_VARIANTS if is_chained_ordering_name(n)]
-        assert len(single) == 16, f"Expected 16 single variants, got {len(single)}: {single}"
+        assert len(single) == 17, f"Expected 17 single variants, got {len(single)}: {single}"
         assert len(chained) == 5, f"Expected 5 chained orderings, got {len(chained)}: {chained}"
-        assert len(ALL_VARIANTS) == 21
+        assert len(ALL_VARIANTS) == 22
 
 
 # ---------------------------------------------------------------------------
@@ -702,4 +708,172 @@ class TestEndToEnd:
         shifted = [b for b in EXPERIMENT_BENCHMARKS if abs(bw[b] - 1.0) > 1e-10]
         assert len(shifted) == len(EXPERIMENT_BENCHMARKS), (
             f"Some benchmark_weights unchanged: {[b for b in EXPERIMENT_BENCHMARKS if b not in shifted]}"
+        )
+
+
+# ===========================================================================
+# P0 3.1c — Significance-weighted training tests
+# ===========================================================================
+
+class TestSignificanceWeighting:
+    """Tests for compute_significance_weight and its effect on training."""
+
+    def test_compute_significance_weight_high_range(self):
+        """Large speedup range → high significance weight."""
+        from scripts.lib.ml.training import compute_significance_weight
+        from dataclasses import dataclass, field
+
+        @dataclass
+        class FakeSubcommunity:
+            all_results: dict = field(default_factory=dict)
+
+        sc = FakeSubcommunity(all_results={
+            'HUBSORT': {'time': 0.5},
+            'GORDER': {'time': 1.0},
+            'ORIGINAL': {'time': 2.0},
+        })
+        w = compute_significance_weight(sc)
+        # range = 2.0 / 0.5 = 4.0, but capped at max_weight=3.0
+        assert w == 3.0, f"Expected 3.0 for large range, got {w}"
+
+    def test_compute_significance_weight_low_range(self):
+        """Small speedup range → low significance weight."""
+        from scripts.lib.ml.training import compute_significance_weight
+        from dataclasses import dataclass, field
+
+        @dataclass
+        class FakeSubcommunity:
+            all_results: dict = field(default_factory=dict)
+
+        sc = FakeSubcommunity(all_results={
+            'HUBSORT': {'time': 1.0},
+            'GORDER': {'time': 1.02},
+        })
+        w = compute_significance_weight(sc)
+        # range = 1.02 / 1.0 = 1.02 → clamped to min_weight=0.1?  No, 1.02 > 0.1.
+        assert abs(w - 1.02) < 1e-6, f"Expected ~1.02 for small range, got {w}"
+
+    def test_compute_significance_weight_single_result(self):
+        """Single algorithm result → default weight 1.0."""
+        from scripts.lib.ml.training import compute_significance_weight
+        from dataclasses import dataclass, field
+
+        @dataclass
+        class FakeSubcommunity:
+            all_results: dict = field(default_factory=dict)
+
+        sc = FakeSubcommunity(all_results={'HUBSORT': {'time': 1.0}})
+        assert compute_significance_weight(sc) == 1.0
+
+    def test_compute_significance_weight_no_results(self):
+        """Empty results → default weight 1.0."""
+        from scripts.lib.ml.training import compute_significance_weight
+        from dataclasses import dataclass, field
+
+        @dataclass
+        class FakeSubcommunity:
+            all_results: dict = field(default_factory=dict)
+
+        sc = FakeSubcommunity(all_results={})
+        assert compute_significance_weight(sc) == 1.0
+
+    def test_compute_significance_weight_invalid_times(self):
+        """All times at sentinel → default weight 1.0."""
+        from scripts.lib.ml.training import compute_significance_weight
+        from dataclasses import dataclass, field
+
+        @dataclass
+        class FakeSubcommunity:
+            all_results: dict = field(default_factory=dict)
+
+        sc = FakeSubcommunity(all_results={
+            'HUBSORT': {'time': 999999},
+            'GORDER': {'time': 999999},
+        })
+        assert compute_significance_weight(sc) == 1.0
+
+    def test_significance_weight_amplifies_gradient(self, weights_dir):
+        """High significance weight should produce larger weight updates."""
+        type_name_1x = "type_sig_1x"
+        type_name_3x = "type_sig_3x"
+        features = SMALL_GRAPHS["graph_sparse"]
+        algo = "HUBSORT"
+
+        # Default bias=0.5, so error = (speedup-1.0) - 0.5.
+        # Use speedup=2.0 → error = 1.0 - 0.5 = 0.5 (non-zero).
+        update_type_weights_incremental(
+            type_name=type_name_1x,
+            algorithm=algo,
+            benchmark="pr",
+            speedup=2.0,
+            features=features,
+            weights_dir=weights_dir,
+            learning_rate=0.1,
+            significance_weight=1.0,
+        )
+        w1 = load_type_weights(type_name_1x, weights_dir)
+        bias_1x = w1[algo]["bias"]
+
+        # Same training with significance_weight=3.0 on a fresh type
+        update_type_weights_incremental(
+            type_name=type_name_3x,
+            algorithm=algo,
+            benchmark="pr",
+            speedup=2.0,
+            features=features,
+            weights_dir=weights_dir,
+            learning_rate=0.1,
+            significance_weight=3.0,
+        )
+        w3 = load_type_weights(type_name_3x, weights_dir)
+        bias_3x = w3[algo]["bias"]
+
+        default_bias = 0.5
+        delta_1x = abs(bias_1x - default_bias)
+        delta_3x = abs(bias_3x - default_bias)
+        assert delta_1x > 0, f"1x significance should produce non-zero update, got {delta_1x}"
+        assert delta_3x > delta_1x, (
+            f"3x significance ({delta_3x}) should produce larger update than 1x ({delta_1x})"
+        )
+
+    def test_significance_weight_zero_no_update(self, weights_dir):
+        """significance_weight=0 should produce no gradient update."""
+        type_name = "type_sig_zero"
+        features = SMALL_GRAPHS["graph_dense"]
+        algo = "GORDER"
+
+        # First update to get non-default weights
+        update_type_weights_incremental(
+            type_name=type_name,
+            algorithm=algo,
+            benchmark="bfs",
+            speedup=1.5,
+            features=features,
+            weights_dir=weights_dir,
+            learning_rate=0.1,
+            significance_weight=1.0,
+        )
+        w_before = load_type_weights(type_name, weights_dir)
+        bias_before = w_before[algo]["bias"]
+
+        # Now update with significance_weight=0
+        update_type_weights_incremental(
+            type_name=type_name,
+            algorithm=algo,
+            benchmark="bfs",
+            speedup=2.0,
+            features=features,
+            weights_dir=weights_dir,
+            learning_rate=0.1,
+            significance_weight=0.0,
+        )
+        w_after = load_type_weights(type_name, weights_dir)
+        bias_after = w_after[algo]["bias"]
+
+        # Weight decay alone moves weights, but the gradient (lr*error) is zeroed
+        # Check that bias didn't move significantly from the gradient component
+        # (decay is 1e-4 per update, so trivially small)
+        assert abs(bias_after - bias_before) < 0.01, (
+            f"significance_weight=0 should suppress gradient, "
+            f"but bias moved from {bias_before} to {bias_after}"
         )

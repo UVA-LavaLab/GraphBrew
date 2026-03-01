@@ -76,6 +76,7 @@ def _build_features(props: dict) -> dict:
     - Extended: clustering_coefficient, avg_path_length, diameter, community_count
       (now computed at runtime via ComputeExtendedFeatures; falls back to 0 if absent)
     - Locality: packing_factor, forward_edge_fraction, working_set_ratio
+    - DON-RL: vertex_significance_skewness, window_neighbor_overlap
     """
     nodes = props.get("nodes", 1000)
     edges = props.get("edges", 5000)
@@ -107,6 +108,9 @@ def _build_features(props: dict) -> dict:
         "packing_factor": props.get("packing_factor", 0.0),
         "forward_edge_fraction": props.get("forward_edge_fraction", 0.5),
         "working_set_ratio": props.get("working_set_ratio", 0.0),
+        # DON-RL features (default 0.0 for graphs without extraction)
+        "vertex_significance_skewness": props.get("vertex_significance_skewness", 0.0),
+        "window_neighbor_overlap": props.get("window_neighbor_overlap", 0.0),
     }
 
 

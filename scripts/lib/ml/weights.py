@@ -49,6 +49,12 @@ DEFAULT_WEIGHTS_DIR = str(ACTIVE_WEIGHTS_DIR)
 # Auto-clustering configuration
 CLUSTER_DISTANCE_THRESHOLD = 0.15  # Max normalized distance to join existing cluster
 
+# P2 2.2: Per-type OOD — fallback global threshold (used when type has no radius)
+OOD_DISTANCE_THRESHOLD_GLOBAL = 1.5
+
+# P2 2.2: OOD ratio threshold — distance / type_radius > this → OOD
+OOD_RADIUS_RATIO = 1.5
+
 # Dead feature keys — features that are ALWAYS 0 in training data.
 # C++ now computes avg_path_length, diameter, community_count at runtime
 # via ComputeExtendedFeatures(), so they are no longer dead.
@@ -238,10 +244,11 @@ def get_perceptron_candidates(extra_exclude: set = None) -> frozenset:
 # │                         │ per workload type.                             │
 # └─────────────────────────┴─────────────────────────────────────────────────┘
 #
-# Feature Vector (17 elements, matches C++ scoreBase() exactly):
+# Feature Vector (21 elements, matches C++ scoreBase() exactly):
 #   [modularity, dv, hc, log₁₀(N+1), log₁₀(E+1), density, avg_deg/100,
 #    cc, apl/10, dia/50, log₁₀(comm+1), pf, fef, log₂(wsr+1),
-#    dv×hc, mod×log(N), pf×log₂(wsr+1)]
+#    vss, wno,
+#    dv×hc, mod×log(N), pf×log₂(wsr+1), vss×hc, wno×pf]
 #
 # Training: Multi-class Jimenez perceptron with θ-margin, averaged weights,
 # W_MAX=16 clamping, 5 restarts, 800 epochs. See compute_weights_from_results().
@@ -302,13 +309,30 @@ class PerceptronWeight:
     w_forward_edge_fraction: float = 0.0 # Forward edge fraction
     w_working_set_ratio: float = 0.0     # log₂(WSR + 1) cache pressure
     
+    # --- DON-RL features (Zhao et al.) ---
+    w_vertex_significance_skewness: float = 0.0  # CV of per-vertex locality
+    w_window_neighbor_overlap: float = 0.0       # Mean neighbor-in-window fraction
+    
     # --- Quadratic cross-terms (paper: feature interactions) ---
     w_dv_x_hub: float = 0.0             # DV × HC — hub-dominated structure
     w_mod_x_logn: float = 0.0           # Modularity × Scale
     w_pf_x_wsr: float = 0.0            # Packing × Cache pressure
+    w_vss_x_hc: float = 0.0            # Significance skewness × Hub concentration
+    w_wno_x_pf: float = 0.0            # Window overlap × Packing factor
     
     # --- Convergence bonus (iterative benchmarks only) ---
     w_fef_convergence: float = 0.0       # FEF bonus for PR/PR_SPMV/SSSP
+    
+    # --- P1 3.1d: Sampled locality score ---
+    w_sampled_locality: float = 0.0      # F(σ) approximation for current ordering quality
+    
+    # --- P3 3.2: Transpose reuse distance ---
+    w_avg_reuse_distance: float = 0.0    # Mean next-reuse distance from transpose (CSC)
+    
+    # --- Paper-aligned feature weights ---
+    w_packing_factor_cl: float = 0.0         # IISWC'18 cache-line packing factor
+    w_locality_score_pairwise: float = 0.0   # DON-RL pairwise F(σ)
+    w_reuse_distance_lru: float = 0.0        # P-OPT LRU stack distance
     
     # --- Per-benchmark multiplier ---
     benchmark_weights: Dict[str, float] = field(default_factory=lambda: {
@@ -318,6 +342,13 @@ class PerceptronWeight:
     # --- Training metadata (used by amortization mode, not in scoring) ---
     avg_speedup: float = 1.0             # Average speedup vs ORIGINAL
     avg_reorder_time: float = 0.0        # Average reorder time (seconds)
+    
+    # --- P1 1.4: Platt scaling parameters ---
+    # After training, logistic regression maps score margin → P(win):
+    #   P(win) = 1 / (1 + exp(-(platt_A * margin + platt_B)))
+    # platt_A == 0 means uncalibrated (Platt scaling disabled).
+    platt_A: float = 0.0                 # Platt sigmoid slope
+    platt_B: float = 0.0                 # Platt sigmoid intercept
     
     # --- Auto-generated metadata (not used in scoring) ---
     _metadata: Dict = field(default_factory=dict)
@@ -395,13 +426,27 @@ class PerceptronWeight:
         score += self.w_packing_factor * features.get('packing_factor', 0.0)
         score += self.w_forward_edge_fraction * features.get('forward_edge_fraction', 0.0)
         score += self.w_working_set_ratio * math.log2(features.get('working_set_ratio', 0.0) + 1.0)
+        score += self.w_vertex_significance_skewness * features.get('vertex_significance_skewness', 0.0)
+        score += self.w_window_neighbor_overlap * features.get('window_neighbor_overlap', 0.0)
+        # P1 3.1d: Sampled locality score
+        score += self.w_sampled_locality * features.get('sampled_locality_score', 0.0)
+        # P3 3.2: Transpose reuse distance
+        score += self.w_avg_reuse_distance * features.get('avg_reuse_distance', 0.0)
+        # Paper-aligned feature variants
+        score += self.w_packing_factor_cl * features.get('packing_factor_cl', 0.0)
+        score += self.w_locality_score_pairwise * features.get('locality_score_pairwise', 0.0)
+        score += self.w_reuse_distance_lru * features.get('reuse_distance_lru', 0.0)
         
         # ── Layer 2: Quadratic interaction terms ──────────────────────
         log_wsr = math.log2(features.get('working_set_ratio', 0.0) + 1.0)
         log_n = math.log10(features.get('nodes', 1) + 1)
+        vss = features.get('vertex_significance_skewness', 0.0)
+        wno = features.get('window_neighbor_overlap', 0.0)
         score += self.w_dv_x_hub * features.get('degree_variance', 0.0) * features.get('hub_concentration', 0.0)
         score += self.w_mod_x_logn * features.get('modularity', 0.0) * log_n
         score += self.w_pf_x_wsr * features.get('packing_factor', 0.0) * log_wsr
+        score += self.w_vss_x_hc * vss * features.get('hub_concentration', 0.0)
+        score += self.w_wno_x_pf * wno * features.get('packing_factor', 0.0)
         
         # ── Layer 3: Cache impact constants ───────────────────────────
         # Matches C++ scoreBase():
@@ -435,7 +480,7 @@ class PerceptronWeight:
 
         Mirrors C++ ``scoreBaseNormalized()`` in reorder_types.h.
 
-        The 17-element raw feature vector (in the same order as C++):
+        The 21-element raw feature vector (in the same order as C++):
             [0]  modularity
             [1]  degree_variance
             [2]  hub_concentration
@@ -450,9 +495,13 @@ class PerceptronWeight:
             [11] packing_factor
             [12] forward_edge_fraction
             [13] log2(wsr + 1)
-            [14] degree_variance * hub_concentration  (quadratic)
-            [15] modularity * log10(N+1)               (quadratic)
-            [16] packing_factor * log2(wsr+1)          (quadratic)
+            [14] vertex_significance_skewness           (DON-RL)
+            [15] window_neighbor_overlap                (DON-RL)
+            [16] degree_variance * hub_concentration    (quadratic)
+            [17] modularity * log10(N+1)               (quadratic)
+            [18] packing_factor * log2(wsr+1)          (quadratic)
+            [19] vss * hub_concentration               (quadratic)
+            [20] wno * packing_factor                  (quadratic)
 
         Each raw[i] is z-normalized: ``z = (raw - mean[i]) / std[i]``
         (skipped when ``std < 1e-12``).
@@ -463,8 +512,8 @@ class PerceptronWeight:
         Args:
             features: Dict with graph properties.
             benchmark: Benchmark name for convergence bonus + multiplier.
-            norm_mean: 17-element list of per-feature means.
-            norm_std: 17-element list of per-feature standard deviations.
+            norm_mean: 21-element list of per-feature means.
+            norm_std: 21-element list of per-feature standard deviations.
 
         Returns:
             Perceptron score (higher = algorithm more suitable).
@@ -483,6 +532,8 @@ class PerceptronWeight:
         dv = features.get('degree_variance', 0.0)
         hc = features.get('hub_concentration', 0.0)
         mod = features.get('modularity', 0.0)
+        vss = features.get('vertex_significance_skewness', 0.0)
+        wno = features.get('window_neighbor_overlap', 0.0)
 
         raw = [
             mod,
@@ -499,12 +550,16 @@ class PerceptronWeight:
             pf,
             fef,
             log_wsr,
+            vss,
+            wno,
             dv * hc,
             mod * log_n,
             pf * log_wsr,
+            vss * hc,
+            wno * pf,
         ]
 
-        weights_17 = [
+        weights_21 = [
             self.w_modularity,
             self.w_degree_variance,
             self.w_hub_concentration,
@@ -519,16 +574,20 @@ class PerceptronWeight:
             self.w_packing_factor,
             self.w_forward_edge_fraction,
             self.w_working_set_ratio,
+            self.w_vertex_significance_skewness,
+            self.w_window_neighbor_overlap,
             self.w_dv_x_hub,
             self.w_mod_x_logn,
             self.w_pf_x_wsr,
+            self.w_vss_x_hc,
+            self.w_wno_x_pf,
         ]
 
         score = self.bias
-        for i in range(17):
+        for i in range(21):
             if i < len(norm_std) and norm_std[i] >= 1e-12:
                 z = (raw[i] - norm_mean[i]) / norm_std[i]
-                score += weights_17[i] * z
+                score += weights_21[i] * z
 
         # Cache and reorder terms are outside the z-score loop (matching C++)
         score += self.cache_l1_impact * 0.5
@@ -536,6 +595,12 @@ class PerceptronWeight:
         score += self.cache_l3_impact * 0.2
         score += self.cache_dram_penalty
         score += self.w_reorder_time * features.get('reorder_time', 0.0)
+        # Extra terms (not z-normalized, matching C++ scoreBaseNormalized)
+        score += self.w_sampled_locality * features.get('sampled_locality_score', 0.0)
+        score += self.w_avg_reuse_distance * features.get('avg_reuse_distance', 0.0)
+        score += self.w_packing_factor_cl * features.get('packing_factor_cl', 0.0)
+        score += self.w_locality_score_pairwise * features.get('locality_score_pairwise', 0.0)
+        score += self.w_reuse_distance_lru * features.get('reuse_distance_lru', 0.0)
 
         # Convergence bonus
         bench_name = benchmark if benchmark else features.get('benchmark', '')
@@ -629,6 +694,134 @@ def _pearson_correlation(x: List[float], y: List[float]) -> float:
 
 
 # =============================================================================
+# Platt Scaling (P1 1.4) — Calibrate score margins to probabilities
+# =============================================================================
+
+def platt_probability(margin: float, A: float, B: float) -> float:
+    """Compute Platt-calibrated P(win) from score margin.
+    
+    P(win) = 1 / (1 + exp(-(A * margin + B)))
+    
+    Args:
+        margin: score(best) - score(ORIGINAL)
+        A: Platt sigmoid slope (0 = uncalibrated)
+        B: Platt sigmoid intercept
+    
+    Returns:
+        Calibrated probability in [0, 1], or 0.0 if uncalibrated
+    """
+    if A == 0.0:
+        return 0.0
+    z = A * margin + B
+    z = max(-20.0, min(20.0, z))  # clamp to avoid overflow
+    return 1.0 / (1.0 + math.exp(-z))
+
+
+def fit_platt_scaling(margins: List[float], wins: List[bool],
+                       lr: float = 0.01, epochs: int = 200) -> tuple:
+    """Fit Platt scaling parameters from (margin, win) pairs.
+    
+    Uses gradient descent to fit logistic regression:
+        P(win) = σ(A * margin + B)
+    
+    This is used after training to calibrate the perceptron's score
+    margins into proper probabilities, enabling data-driven margin
+    thresholds (replacing the hardcoded ORIGINAL_MARGIN_THRESHOLD).
+    
+    Args:
+        margins: List of score margins (best - ORIGINAL)
+        wins: List of whether the selected algorithm actually won
+        lr: Learning rate for gradient descent
+        epochs: Number of gradient descent iterations
+    
+    Returns:
+        (A, B) tuple of Platt sigmoid parameters
+    """
+    if len(margins) < 5:
+        return (0.0, 0.0)  # not enough data
+    
+    A = 1.0
+    B = 0.0
+    
+    n = len(margins)
+    for _ in range(epochs):
+        grad_A = 0.0
+        grad_B = 0.0
+        for m, w in zip(margins, wins):
+            y = 1.0 if w else 0.0
+            z = A * m + B
+            z = max(-20.0, min(20.0, z))
+            p = 1.0 / (1.0 + math.exp(-z))
+            err = p - y  # cross-entropy gradient
+            grad_A += err * m
+            grad_B += err
+        
+        A -= lr * grad_A / n
+        B -= lr * grad_B / n
+    
+    return (A, B)
+
+
+def calibrate_weights_platt(weights: Dict, training_data: List[Dict],
+                             benchmark: str = 'pr') -> Dict:
+    """Calibrate Platt parameters for each algorithm's weights.
+    
+    After perceptron training, collects (margin, win) pairs from
+    training data and fits logistic regression for each algorithm.
+    
+    Args:
+        weights: Dict of algo_name → weight dict
+        training_data: List of training examples, each with:
+            - 'features': dict of graph features
+            - 'best_algo': actual best algorithm for this graph
+        benchmark: Benchmark name for scoring
+    
+    Returns:
+        Updated weights dict with platt_A and platt_B set per algorithm
+    """
+    from collections import defaultdict
+    
+    # Collect (margin, win) pairs per algorithm
+    algo_margins: Dict[str, List[float]] = defaultdict(list)
+    algo_wins: Dict[str, List[bool]] = defaultdict(list)
+    
+    for example in training_data:
+        features = example.get('features', {})
+        true_best = example.get('best_algo', '')
+        
+        # Score all algorithms for this example
+        scores = {}
+        for algo_name, algo_weights in weights.items():
+            if algo_name in ('ORIGINAL', 'RANDOM'):
+                continue
+            pw = PerceptronWeight.from_dict(algo_weights)
+            scores[algo_name] = pw.compute_score(features, benchmark)
+        
+        orig_pw = PerceptronWeight.from_dict(weights.get('ORIGINAL', {}))
+        orig_score = orig_pw.compute_score(features, benchmark)
+        
+        # For each non-ORIGINAL algo, record margin vs ORIGINAL and whether it won
+        for algo_name, score in scores.items():
+            margin = score - orig_score
+            won = (algo_name == true_best)
+            algo_margins[algo_name].append(margin)
+            algo_wins[algo_name].append(won)
+    
+    # Fit Platt parameters per algorithm
+    for algo_name in weights:
+        if algo_name in ('ORIGINAL', 'RANDOM'):
+            continue
+        margins = algo_margins.get(algo_name, [])
+        wins_list = algo_wins.get(algo_name, [])
+        if len(margins) >= 5:
+            A, B = fit_platt_scaling(margins, wins_list)
+            weights[algo_name]['platt_A'] = round(A, 6)
+            weights[algo_name]['platt_B'] = round(B, 6)
+    
+    return weights
+
+
+# =============================================================================
 # LOGO / CV Shared Helpers  (used by cross_validate_logo[_grouped])
 # =============================================================================
 
@@ -638,7 +831,10 @@ _LOGO_WEIGHT_KEYS = [
     'w_log_nodes', 'w_log_edges', 'w_density', 'w_avg_degree',
     'w_clustering_coeff', 'w_avg_path_length', 'w_diameter',
     'w_community_count', 'w_packing_factor', 'w_forward_edge_fraction',
-    'w_working_set_ratio', 'w_dv_x_hub', 'w_mod_x_logn', 'w_pf_x_wsr',
+    'w_working_set_ratio', 'w_vertex_significance_skewness',
+    'w_window_neighbor_overlap',
+    'w_dv_x_hub', 'w_mod_x_logn', 'w_pf_x_wsr',
+    'w_vss_x_hc', 'w_wno_x_pf',
 ]
 
 
@@ -675,15 +871,19 @@ def _build_logo_features(props: Dict) -> Dict:
         'forward_edge_fraction': props.get('forward_edge_fraction', 0.5),
         'log_working_set_ratio': log_wsr,
         'working_set_ratio': wsr,
+        'vertex_significance_skewness': props.get('vertex_significance_skewness', 0.0),
+        'window_neighbor_overlap': props.get('window_neighbor_overlap', 0.0),
         # Quadratic interaction terms (use estimated modularity)
         'dv_x_hub': props.get('degree_variance', 1.0) * props.get('hub_concentration', 0.3),
         'mod_x_logn': estimated_mod * log_n,
         'pf_x_wsr': pf * log_wsr,
+        'vss_x_hc': props.get('vertex_significance_skewness', 0.0) * props.get('hub_concentration', 0.3),
+        'wno_x_pf': props.get('window_neighbor_overlap', 0.0) * pf,
     }
 
 
 def _make_logo_score_fv(feats: Dict) -> list:
-    """Build 17-element feature vector with C++ transforms applied."""
+    """Build 21-element feature vector with C++ transforms applied."""
     dv = feats.get('degree_variance', 1.0)
     hc = feats.get('hub_concentration', 0.3)
     modularity = feats.get('modularity', 0.0)
@@ -692,6 +892,8 @@ def _make_logo_score_fv(feats: Dict) -> list:
     wsr = feats.get('working_set_ratio', 0.0)
     log_wsr = math.log2(wsr + 1.0)
     comm = feats.get('community_count', 1.0)
+    vss = feats.get('vertex_significance_skewness', 0.0)
+    wno = feats.get('window_neighbor_overlap', 0.0)
     return [
         modularity,
         dv,
@@ -707,16 +909,20 @@ def _make_logo_score_fv(feats: Dict) -> list:
         pf,
         feats.get('forward_edge_fraction', 0.5),
         log_wsr,
+        vss,
+        wno,
         dv * hc,
         modularity * log_nodes,
         pf * log_wsr,
+        vss * hc,
+        wno * pf,
     ]
 
 
 def _logo_score(algo_data: Dict, feats: Dict, norm_data: Dict = None) -> float:
     """Score an algorithm for given features.
 
-    Covers the 17 core linear + quadratic terms used in LOGO cross-validation.
+    Covers the 21 core linear + quadratic terms used in LOGO cross-validation.
     Intentionally omits cache constant offsets and convergence bonus —
     these are graph-independent constants and per-benchmark conditionals
     that don't affect relative ranking between algorithms within one graph.
@@ -848,6 +1054,20 @@ def assign_graph_type(
         _type_registry[closest_type]['graph_count'] = count + 1
         _type_registry[closest_type]['last_updated'] = datetime.now().isoformat()
         
+        # P2 2.2: Track distances for per-type radius computation
+        if 'distances' not in _type_registry[closest_type]:
+            _type_registry[closest_type]['distances'] = []
+        _type_registry[closest_type]['distances'].append(min_distance)
+        # Compute p95 radius from all observed distances
+        dists = _type_registry[closest_type]['distances']
+        if len(dists) >= 2:
+            sorted_dists = sorted(dists)
+            p95_idx = int(len(sorted_dists) * 0.95)
+            p95_idx = min(p95_idx, len(sorted_dists) - 1)
+            _type_registry[closest_type]['radius'] = sorted_dists[p95_idx]
+        else:
+            _type_registry[closest_type]['radius'] = max(dists) if dists else CLUSTER_DISTANCE_THRESHOLD
+        
         # Track graph names
         if graph_name:
             if 'graphs' not in _type_registry[closest_type]:
@@ -867,6 +1087,8 @@ def assign_graph_type(
             'graph_count': 1,
             'algorithms': [],
             'graphs': [graph_name] if graph_name else [],
+            'distances': [],  # P2 2.2: distance history for radius computation
+            'radius': 0.0,    # P2 2.2: p95 distance to centroid (0 = single sample)
             'created': datetime.now().isoformat(),
             'last_updated': datetime.now().isoformat(),
             'representative_features': {
@@ -897,7 +1119,8 @@ def update_type_weights_incremental(
     cache_stats: Optional[Dict] = None,
     reorder_time: float = 0.0,
     weights_dir: str = DEFAULT_WEIGHTS_DIR,
-    learning_rate: float = 0.01
+    learning_rate: float = 0.01,
+    significance_weight: float = 1.0,
 ):
     """
     Incrementally update weights for a type after a benchmark run.
@@ -912,6 +1135,10 @@ def update_type_weights_incremental(
         reorder_time: Time to reorder the graph
         weights_dir: Directory for type files
         learning_rate: Learning rate for weight updates
+        significance_weight: Multiplier for effective learning rate (P0 3.1c).
+            Graphs where algorithm choice matters more (large speedup range)
+            get higher weight, improving convergence 2-3× (DON-RL, Zhao et al.).
+            Default 1.0 preserves backward compatibility.
     """
     weights = load_type_weights(type_name, weights_dir)
     if not weights:
@@ -959,6 +1186,11 @@ def update_type_weights_incremental(
     current_score = algo_weights['bias']
     error = (speedup - 1.0) - current_score
     
+    # P0 3.1c: Scale effective learning rate by significance weight.
+    # High-impact examples (where algorithm choice matters most) contribute
+    # more to gradient updates, improving convergence 2-3× (DON-RL).
+    effective_lr = learning_rate * max(0.0, significance_weight)
+    
     # Gradient update — feature transforms must match C++ scoreBase() exactly.
     # This ensures the gradient ∂L/∂w uses the same feature values as the
     # forward pass:  score = w · f(x), so ∂score/∂w = f(x).
@@ -975,35 +1207,53 @@ def update_type_weights_incremental(
     if modularity_val is None:
         modularity_val = min(0.9, clustering * 1.5)
     
-    algo_weights['bias'] += learning_rate * error
-    algo_weights['w_modularity'] += learning_rate * error * modularity_val
-    algo_weights['w_log_nodes'] += learning_rate * error * log_nodes
-    algo_weights['w_log_edges'] += learning_rate * error * log_edges
-    algo_weights['w_density'] += learning_rate * error * features.get('density', 0.0)
-    algo_weights['w_avg_degree'] += learning_rate * error * features.get('avg_degree', 0.0) / 100.0
-    algo_weights['w_degree_variance'] += learning_rate * error * features.get('degree_variance', 0.0)
-    algo_weights['w_hub_concentration'] += learning_rate * error * features.get('hub_concentration', 0.0)
-    algo_weights['w_clustering_coeff'] += learning_rate * error * clustering
-    algo_weights['w_community_count'] += learning_rate * error * math.log10(features.get('community_count', 0) + 1)
-    algo_weights['w_avg_path_length'] += learning_rate * error * features.get('avg_path_length', 0.0) / WEIGHT_PATH_LENGTH_NORMALIZATION
-    algo_weights['w_diameter'] += learning_rate * error * features.get('diameter', features.get('diameter_estimate', 0.0)) / 50.0
+    algo_weights['bias'] += effective_lr * error
+    algo_weights['w_modularity'] += effective_lr * error * modularity_val
+    algo_weights['w_log_nodes'] += effective_lr * error * log_nodes
+    algo_weights['w_log_edges'] += effective_lr * error * log_edges
+    algo_weights['w_density'] += effective_lr * error * features.get('density', 0.0)
+    algo_weights['w_avg_degree'] += effective_lr * error * features.get('avg_degree', 0.0) / 100.0
+    algo_weights['w_degree_variance'] += effective_lr * error * features.get('degree_variance', 0.0)
+    algo_weights['w_hub_concentration'] += effective_lr * error * features.get('hub_concentration', 0.0)
+    algo_weights['w_clustering_coeff'] += effective_lr * error * clustering
+    algo_weights['w_community_count'] += effective_lr * error * math.log10(features.get('community_count', 0) + 1)
+    algo_weights['w_avg_path_length'] += effective_lr * error * features.get('avg_path_length', 0.0) / WEIGHT_PATH_LENGTH_NORMALIZATION
+    algo_weights['w_diameter'] += effective_lr * error * features.get('diameter', features.get('diameter_estimate', 0.0)) / 50.0
     
     # Locality features (IISWC'18 Packing Factor, GoGraph forward edge fraction)
-    algo_weights['w_packing_factor'] += learning_rate * error * features.get('packing_factor', 0.0)
-    algo_weights['w_forward_edge_fraction'] += learning_rate * error * features.get('forward_edge_fraction', 0.0)
-    algo_weights['w_working_set_ratio'] += learning_rate * error * math.log2(features.get('working_set_ratio', 0.0) + 1.0)
+    algo_weights['w_packing_factor'] += effective_lr * error * features.get('packing_factor', 0.0)
+    algo_weights['w_forward_edge_fraction'] += effective_lr * error * features.get('forward_edge_fraction', 0.0)
+    algo_weights['w_working_set_ratio'] += effective_lr * error * math.log2(features.get('working_set_ratio', 0.0) + 1.0)
+    
+    # DON-RL feature gradients (Zhao et al.)
+    vss = features.get('vertex_significance_skewness', 0.0)
+    wno = features.get('window_neighbor_overlap', 0.0)
+    algo_weights['w_vertex_significance_skewness'] = algo_weights.get('w_vertex_significance_skewness', 0.0) + effective_lr * error * vss
+    algo_weights['w_window_neighbor_overlap'] = algo_weights.get('w_window_neighbor_overlap', 0.0) + effective_lr * error * wno
+    
+    # P1 3.1d: Sampled locality score gradient
+    algo_weights['w_sampled_locality'] = algo_weights.get('w_sampled_locality', 0.0) + effective_lr * error * features.get('sampled_locality_score', 0.0)
+    # P3 3.2: Transpose reuse distance gradient
+    algo_weights['w_avg_reuse_distance'] = algo_weights.get('w_avg_reuse_distance', 0.0) + effective_lr * error * features.get('avg_reuse_distance', 0.0)
+    # Paper-aligned feature gradients
+    algo_weights['w_packing_factor_cl'] = algo_weights.get('w_packing_factor_cl', 0.0) + effective_lr * error * features.get('packing_factor_cl', 0.0)
+    algo_weights['w_locality_score_pairwise'] = algo_weights.get('w_locality_score_pairwise', 0.0) + effective_lr * error * features.get('locality_score_pairwise', 0.0)
+    algo_weights['w_reuse_distance_lru'] = algo_weights.get('w_reuse_distance_lru', 0.0) + effective_lr * error * features.get('reuse_distance_lru', 0.0)
     
     # Quadratic interaction gradients
     log_wsr = math.log2(features.get('working_set_ratio', 0.0) + 1.0)
     log_n = math.log10(features.get('nodes', 1) + 1)
-    algo_weights['w_dv_x_hub'] = algo_weights.get('w_dv_x_hub', 0.0) + learning_rate * error * features.get('degree_variance', 0.0) * features.get('hub_concentration', 0.0)
-    algo_weights['w_mod_x_logn'] = algo_weights.get('w_mod_x_logn', 0.0) + learning_rate * error * modularity_val * log_n
-    algo_weights['w_pf_x_wsr'] = algo_weights.get('w_pf_x_wsr', 0.0) + learning_rate * error * features.get('packing_factor', 0.0) * log_wsr
+    algo_weights['w_dv_x_hub'] = algo_weights.get('w_dv_x_hub', 0.0) + effective_lr * error * features.get('degree_variance', 0.0) * features.get('hub_concentration', 0.0)
+    algo_weights['w_mod_x_logn'] = algo_weights.get('w_mod_x_logn', 0.0) + effective_lr * error * modularity_val * log_n
+    algo_weights['w_pf_x_wsr'] = algo_weights.get('w_pf_x_wsr', 0.0) + effective_lr * error * features.get('packing_factor', 0.0) * log_wsr
+    # DON-RL quadratic interaction gradients
+    algo_weights['w_vss_x_hc'] = algo_weights.get('w_vss_x_hc', 0.0) + effective_lr * error * vss * features.get('hub_concentration', 0.0)
+    algo_weights['w_wno_x_pf'] = algo_weights.get('w_wno_x_pf', 0.0) + effective_lr * error * wno * features.get('packing_factor', 0.0)
     
     # Convergence bonus gradient (only for iterative benchmarks)
     # Matches C++ score(): bench == BENCH_PR || BENCH_PR_SPMV || BENCH_SSSP
     if benchmark in ('pr', 'pr_spmv', 'sssp'):
-        algo_weights['w_fef_convergence'] = algo_weights.get('w_fef_convergence', 0.0) + learning_rate * error * features.get('forward_edge_fraction', 0.0)
+        algo_weights['w_fef_convergence'] = algo_weights.get('w_fef_convergence', 0.0) + effective_lr * error * features.get('forward_edge_fraction', 0.0)
     
     # Update cache weights
     if cache_stats:
@@ -1012,24 +1262,24 @@ def update_type_weights_incremental(
         l3_hit = cache_stats.get('l3_hit_rate', 0) / 100.0
         dram_penalty = 1.0 - (l1_hit + l2_hit * 0.3 + l3_hit * 0.1)
         
-        algo_weights['cache_l1_impact'] += learning_rate * error * l1_hit
-        algo_weights['cache_l2_impact'] += learning_rate * error * l2_hit
-        algo_weights['cache_l3_impact'] += learning_rate * error * l3_hit
-        algo_weights['cache_dram_penalty'] += learning_rate * error * dram_penalty
+        algo_weights['cache_l1_impact'] += effective_lr * error * l1_hit
+        algo_weights['cache_l2_impact'] += effective_lr * error * l2_hit
+        algo_weights['cache_l3_impact'] += effective_lr * error * l3_hit
+        algo_weights['cache_dram_penalty'] += effective_lr * error * dram_penalty
         
         meta['avg_l1_hit_rate'] = meta.get('avg_l1_hit_rate', 0) + (l1_hit * 100 - meta.get('avg_l1_hit_rate', 0)) / count
         meta['avg_l2_hit_rate'] = meta.get('avg_l2_hit_rate', 0) + (l2_hit * 100 - meta.get('avg_l2_hit_rate', 0)) / count
         meta['avg_l3_hit_rate'] = meta.get('avg_l3_hit_rate', 0) + (l3_hit * 100 - meta.get('avg_l3_hit_rate', 0)) / count
     
     if reorder_time > 0:
-        algo_weights['w_reorder_time'] += learning_rate * error * (-reorder_time)
+        algo_weights['w_reorder_time'] += effective_lr * error * (-reorder_time)
         meta['avg_reorder_time'] = meta.get('avg_reorder_time', 0) + (reorder_time - meta.get('avg_reorder_time', 0)) / count
     
     # Update benchmark-specific weight
     bench_weights = algo_weights.get('benchmark_weights', {})
     if benchmark.lower() in bench_weights:
         current_bench_weight = bench_weights[benchmark.lower()]
-        bench_weights[benchmark.lower()] = current_bench_weight + learning_rate * error * 0.1
+        bench_weights[benchmark.lower()] = current_bench_weight + effective_lr * error * 0.1
     
     # L2 weight decay (regularization) to prevent weight explosion
     # Applied to all feature weights (not bias, not metadata, not benchmark_weights)
@@ -2620,7 +2870,18 @@ def _create_default_weight_entry() -> Dict:
         'w_dv_x_hub': 0.0,
         'w_mod_x_logn': 0.0,
         'w_pf_x_wsr': 0.0,
+        'w_vss_x_hc': 0.0,
+        'w_wno_x_pf': 0.0,
         'w_fef_convergence': 0.0,
+        'w_sampled_locality': 0.0,
+        'w_avg_reuse_distance': 0.0,
+        'w_packing_factor_cl': 0.0,
+        'w_locality_score_pairwise': 0.0,
+        'w_reuse_distance_lru': 0.0,
+        'w_vertex_significance_skewness': 0.0,
+        'w_window_neighbor_overlap': 0.0,
+        'platt_A': 0.0,
+        'platt_B': 0.0,
         'benchmark_weights': {b: 1.0 for b in EXPERIMENT_BENCHMARKS},
         '_metadata': {
             'sample_count': 0,

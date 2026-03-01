@@ -341,6 +341,7 @@ from .analysis.adaptive import (
 from .ml.training import (
     TrainingIterationResult,
     TrainingResult,
+    compute_significance_weight,
     initialize_enhanced_weights,
     train_adaptive_weights_iterative,
     train_adaptive_weights_large_scale,

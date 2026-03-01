@@ -370,6 +370,15 @@ def parse_benchmark_output(output: str) -> Dict[str, Any]:
     if wsr_match:
         parsed['working_set_ratio'] = float(wsr_match.group(1))
     
+    # Parse DON-RL features
+    vss_match = re.search(r'Vertex Significance Skewness:\s*([\d.]+)', output)
+    if vss_match:
+        parsed['vertex_significance_skewness'] = float(vss_match.group(1))
+    
+    wno_match = re.search(r'Window Neighbor Overlap:\s*([\d.]+)', output)
+    if wno_match:
+        parsed['window_neighbor_overlap'] = float(wno_match.group(1))
+    
     # Parse graph type
     type_match = re.search(r'Graph Type:\s*(\w+)', output)
     if type_match:

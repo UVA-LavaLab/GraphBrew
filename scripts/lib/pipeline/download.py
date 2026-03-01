@@ -33,6 +33,11 @@ from enum import Enum
 from ..core.utils import GRAPHS_DIR, log, ensure_directories
 
 
+# Canonical SuiteSparse base URL (replaces deprecated Heroku URL)
+SUITESPARSE_BASE_URL = "https://sparse.tamu.edu/MM"
+_LEGACY_HEROKU_URL = "https://suitesparse-collection-website.herokuapp.com/MM"
+
+
 # =============================================================================
 # Data Classes
 # =============================================================================
@@ -72,238 +77,315 @@ class DownloadableGraph:
 # Graph Catalog - Complete Collection
 # =============================================================================
 
+def _ss_url(group: str, name: str) -> str:
+    """Build canonical SuiteSparse download URL."""
+    return f"{SUITESPARSE_BASE_URL}/{group}/{name}.tar.gz"
+
+
 # Small graphs (<20MB) - good for quick testing and development
 DOWNLOAD_GRAPHS_SMALL = [
     # Communication networks
-    DownloadableGraph("email-Enron", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/email-Enron.tar.gz",
+    DownloadableGraph("email-Enron", _ss_url("SNAP", "email-Enron"),
                       5, 36692, 183831, True, "communication", "Enron email network"),
-    DownloadableGraph("email-EuAll", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/email-EuAll.tar.gz",
+    DownloadableGraph("email-EuAll", _ss_url("SNAP", "email-EuAll"),
                       4, 265214, 420045, False, "communication", "EU email network"),
     # Collaboration networks
-    DownloadableGraph("ca-AstroPh", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/ca-AstroPh.tar.gz",
+    DownloadableGraph("ca-AstroPh", _ss_url("SNAP", "ca-AstroPh"),
                       3, 18772, 198110, True, "collaboration", "Arxiv Astro Physics"),
-    DownloadableGraph("ca-CondMat", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/ca-CondMat.tar.gz",
+    DownloadableGraph("ca-CondMat", _ss_url("SNAP", "ca-CondMat"),
                       2, 23133, 93497, True, "collaboration", "Condensed Matter"),
-    DownloadableGraph("ca-GrQc", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/ca-GrQc.tar.gz",
+    DownloadableGraph("ca-GrQc", _ss_url("SNAP", "ca-GrQc"),
                       1, 5242, 14496, True, "collaboration", "General Relativity"),
-    DownloadableGraph("ca-HepPh", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/ca-HepPh.tar.gz",
+    DownloadableGraph("ca-HepPh", _ss_url("SNAP", "ca-HepPh"),
                       2, 12008, 118521, True, "collaboration", "High Energy Physics"),
-    DownloadableGraph("ca-HepTh", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/ca-HepTh.tar.gz",
+    DownloadableGraph("ca-HepTh", _ss_url("SNAP", "ca-HepTh"),
                       1, 9877, 25998, True, "collaboration", "High Energy Physics Theory"),
     # P2P networks
-    DownloadableGraph("p2p-Gnutella31", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/p2p-Gnutella31.tar.gz",
+    DownloadableGraph("p2p-Gnutella31", _ss_url("SNAP", "p2p-Gnutella31"),
                       2, 62586, 147892, False, "p2p", "Gnutella P2P network"),
-    DownloadableGraph("p2p-Gnutella30", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/p2p-Gnutella30.tar.gz",
+    DownloadableGraph("p2p-Gnutella30", _ss_url("SNAP", "p2p-Gnutella30"),
                       1, 36682, 88328, False, "p2p", "Gnutella P2P Aug 30"),
-    DownloadableGraph("p2p-Gnutella25", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/p2p-Gnutella25.tar.gz",
+    DownloadableGraph("p2p-Gnutella25", _ss_url("SNAP", "p2p-Gnutella25"),
                       1, 22687, 54705, False, "p2p", "Gnutella P2P Aug 25"),
-    DownloadableGraph("p2p-Gnutella24", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/p2p-Gnutella24.tar.gz",
+    DownloadableGraph("p2p-Gnutella24", _ss_url("SNAP", "p2p-Gnutella24"),
                       1, 26518, 65369, False, "p2p", "Gnutella P2P Aug 24"),
     # Social networks (small)
-    DownloadableGraph("soc-Slashdot0811", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/soc-Slashdot0811.tar.gz",
+    DownloadableGraph("soc-Slashdot0811", _ss_url("SNAP", "soc-Slashdot0811"),
                       8, 77360, 905468, False, "social", "Slashdot Nov 2008"),
-    DownloadableGraph("soc-Slashdot0902", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/soc-Slashdot0902.tar.gz",
+    DownloadableGraph("soc-Slashdot0902", _ss_url("SNAP", "soc-Slashdot0902"),
                       9, 82168, 948464, False, "social", "Slashdot Feb 2009"),
-    DownloadableGraph("soc-sign-epinions", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/soc-sign-epinions.tar.gz",
+    DownloadableGraph("soc-sign-epinions", _ss_url("SNAP", "soc-sign-epinions"),
                       10, 131828, 841372, False, "social", "Epinions signed network"),
     # Citation networks (small)
-    DownloadableGraph("cit-HepPh", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/cit-HepPh.tar.gz",
+    DownloadableGraph("cit-HepPh", _ss_url("SNAP", "cit-HepPh"),
                       8, 34546, 421578, False, "citation", "HEP-PH citations"),
-    DownloadableGraph("cit-HepTh", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/cit-HepTh.tar.gz",
+    DownloadableGraph("cit-HepTh", _ss_url("SNAP", "cit-HepTh"),
                       4, 27770, 352807, False, "citation", "HEP-TH citations"),
 ]
 
 # Medium graphs (20MB - 200MB) - ~35 graphs
 DOWNLOAD_GRAPHS_MEDIUM = [
     # Communication
-    DownloadableGraph("wiki-Talk", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/wiki-Talk.tar.gz",
+    DownloadableGraph("wiki-Talk", _ss_url("SNAP", "wiki-Talk"),
                       80, 2394385, 5021410, False, "communication", "Wikipedia talk"),
-    DownloadableGraph("wiki-topcats", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/wiki-topcats.tar.gz",
+    DownloadableGraph("wiki-topcats", _ss_url("SNAP", "wiki-topcats"),
                       120, 1791489, 28511807, False, "web", "Wikipedia top categories"),
     # Citation networks
-    DownloadableGraph("cit-Patents", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/cit-Patents.tar.gz",
+    DownloadableGraph("cit-Patents", _ss_url("SNAP", "cit-Patents"),
                       262, 3774768, 16518948, False, "citation", "US Patent citations"),
     # Road networks
-    DownloadableGraph("roadNet-PA", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/roadNet-PA.tar.gz",
+    DownloadableGraph("roadNet-PA", _ss_url("SNAP", "roadNet-PA"),
                       40, 1090920, 1541898, True, "road", "Pennsylvania roads"),
-    DownloadableGraph("roadNet-CA", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/roadNet-CA.tar.gz",
+    DownloadableGraph("roadNet-CA", _ss_url("SNAP", "roadNet-CA"),
                       60, 1971281, 2766607, True, "road", "California roads"),
-    DownloadableGraph("roadNet-TX", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/roadNet-TX.tar.gz",
+    DownloadableGraph("roadNet-TX", _ss_url("SNAP", "roadNet-TX"),
                       45, 1393383, 1921660, True, "road", "Texas roads"),
     # Social networks (medium)
-    DownloadableGraph("soc-Epinions1", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/soc-Epinions1.tar.gz",
+    DownloadableGraph("soc-Epinions1", _ss_url("SNAP", "soc-Epinions1"),
                       12, 75888, 508837, False, "social", "Epinions social"),
     # Commerce networks
-    DownloadableGraph("amazon0302", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/amazon0302.tar.gz",
+    DownloadableGraph("amazon0302", _ss_url("SNAP", "amazon0302"),
                       15, 262111, 1234877, False, "commerce", "Amazon Mar 2003"),
-    DownloadableGraph("amazon0312", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/amazon0312.tar.gz",
+    DownloadableGraph("amazon0312", _ss_url("SNAP", "amazon0312"),
                       18, 400727, 3200440, False, "commerce", "Amazon Dec 2003"),
-    DownloadableGraph("amazon0505", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/amazon0505.tar.gz",
+    DownloadableGraph("amazon0505", _ss_url("SNAP", "amazon0505"),
                       22, 410236, 3356824, False, "commerce", "Amazon May 2005"),
-    DownloadableGraph("amazon0601", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/amazon0601.tar.gz",
+    DownloadableGraph("amazon0601", _ss_url("SNAP", "amazon0601"),
                       25, 403394, 3387388, False, "commerce", "Amazon Jun 2001"),
     # Web graphs
-    DownloadableGraph("web-NotreDame", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/web-NotreDame.tar.gz",
+    DownloadableGraph("web-NotreDame", _ss_url("SNAP", "web-NotreDame"),
                       15, 325729, 1497134, False, "web", "Notre Dame web"),
-    DownloadableGraph("web-Stanford", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/web-Stanford.tar.gz",
+    DownloadableGraph("web-Stanford", _ss_url("SNAP", "web-Stanford"),
                       20, 281903, 2312497, False, "web", "Stanford web"),
-    DownloadableGraph("web-BerkStan", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/web-BerkStan.tar.gz",
+    DownloadableGraph("web-BerkStan", _ss_url("SNAP", "web-BerkStan"),
                       50, 685230, 7600595, False, "web", "Berkeley-Stanford web"),
-    DownloadableGraph("web-Google", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/web-Google.tar.gz",
+    DownloadableGraph("web-Google", _ss_url("SNAP", "web-Google"),
                       35, 916428, 5105039, False, "web", "Google web graph"),
     # Infrastructure
-    DownloadableGraph("as-Skitter", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/as-Skitter.tar.gz",
+    DownloadableGraph("as-Skitter", _ss_url("SNAP", "as-Skitter"),
                       90, 1696415, 11095298, True, "infrastructure", "Internet topology"),
     # Autonomous systems
-    DownloadableGraph("Oregon-1", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/Oregon-1.tar.gz",
+    DownloadableGraph("Oregon-1", _ss_url("SNAP", "Oregon-1"),
                       1, 11174, 23409, False, "infrastructure", "Oregon AS peering"),
-    DownloadableGraph("Oregon-2", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/Oregon-2.tar.gz",
+    DownloadableGraph("Oregon-2", _ss_url("SNAP", "Oregon-2"),
                       1, 11461, 32730, False, "infrastructure", "Oregon AS peering 2"),
     # DIMACS10 graphs (sparse)
-    DownloadableGraph("delaunay_n17", "https://suitesparse-collection-website.herokuapp.com/MM/DIMACS10/delaunay_n17.tar.gz",
+    DownloadableGraph("delaunay_n17", _ss_url("DIMACS10", "delaunay_n17"),
                       5, 131072, 393176, True, "mesh", "Delaunay triangulation n=17"),
-    DownloadableGraph("delaunay_n18", "https://suitesparse-collection-website.herokuapp.com/MM/DIMACS10/delaunay_n18.tar.gz",
+    DownloadableGraph("delaunay_n18", _ss_url("DIMACS10", "delaunay_n18"),
                       10, 262144, 786396, True, "mesh", "Delaunay triangulation n=18"),
-    DownloadableGraph("delaunay_n19", "https://suitesparse-collection-website.herokuapp.com/MM/DIMACS10/delaunay_n19.tar.gz",
+    DownloadableGraph("delaunay_n19", _ss_url("DIMACS10", "delaunay_n19"),
                       20, 524288, 1572823, True, "mesh", "Delaunay triangulation n=19"),
-    DownloadableGraph("delaunay_n20", "https://suitesparse-collection-website.herokuapp.com/MM/DIMACS10/delaunay_n20.tar.gz",
+    DownloadableGraph("delaunay_n20", _ss_url("DIMACS10", "delaunay_n20"),
                       40, 1048576, 3145686, True, "mesh", "Delaunay triangulation n=20"),
-    DownloadableGraph("rgg_n_2_17_s0", "https://suitesparse-collection-website.herokuapp.com/MM/DIMACS10/rgg_n_2_17_s0.tar.gz",
+    DownloadableGraph("rgg_n_2_17_s0", _ss_url("DIMACS10", "rgg_n_2_17_s0"),
                       15, 131072, 728753, True, "mesh", "Random geometric graph n=17"),
-    DownloadableGraph("rgg_n_2_18_s0", "https://suitesparse-collection-website.herokuapp.com/MM/DIMACS10/rgg_n_2_18_s0.tar.gz",
+    DownloadableGraph("rgg_n_2_18_s0", _ss_url("DIMACS10", "rgg_n_2_18_s0"),
                       30, 262144, 1457506, True, "mesh", "Random geometric graph n=18"),
-    DownloadableGraph("rgg_n_2_19_s0", "https://suitesparse-collection-website.herokuapp.com/MM/DIMACS10/rgg_n_2_19_s0.tar.gz",
+    DownloadableGraph("rgg_n_2_19_s0", _ss_url("DIMACS10", "rgg_n_2_19_s0"),
                       60, 524288, 2915013, True, "mesh", "Random geometric graph n=19"),
     # Power-law and scale-free
-    DownloadableGraph("preferentialAttachment", "https://suitesparse-collection-website.herokuapp.com/MM/DIMACS10/preferentialAttachment.tar.gz",
+    DownloadableGraph("preferentialAttachment", _ss_url("DIMACS10", "preferentialAttachment"),
                       10, 100000, 499985, True, "synthetic", "Preferential attachment model"),
-    DownloadableGraph("smallworld", "https://suitesparse-collection-website.herokuapp.com/MM/DIMACS10/smallworld.tar.gz",
+    DownloadableGraph("smallworld", _ss_url("DIMACS10", "smallworld"),
                       10, 100000, 499998, True, "synthetic", "Small world model"),
     # Additional web graphs
-    DownloadableGraph("cnr-2000", "https://suitesparse-collection-website.herokuapp.com/MM/LAW/cnr-2000.tar.gz",
+    DownloadableGraph("cnr-2000", _ss_url("LAW", "cnr-2000"),
                       30, 325557, 3216152, False, "web", "Italian CNR web 2000"),
 ]
 
 # Large graphs (200MB - 2GB) - ~40 graphs  
 DOWNLOAD_GRAPHS_LARGE = [
     # Social networks (large)
-    DownloadableGraph("soc-LiveJournal1", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/soc-LiveJournal1.tar.gz",
+    DownloadableGraph("soc-LiveJournal1", _ss_url("SNAP", "soc-LiveJournal1"),
                       1024, 4847571, 68993773, False, "social", "LiveJournal social"),
-    DownloadableGraph("com-Orkut", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/com-Orkut.tar.gz",
+    DownloadableGraph("com-Orkut", _ss_url("SNAP", "com-Orkut"),
                       800, 3072441, 117185083, True, "social", "Orkut social network"),
-    DownloadableGraph("com-Youtube", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/com-Youtube.tar.gz",
+    DownloadableGraph("com-Youtube", _ss_url("SNAP", "com-Youtube"),
                       250, 1134890, 2987624, True, "social", "Youtube social network"),
-    DownloadableGraph("com-Amazon", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/com-Amazon.tar.gz",
+    DownloadableGraph("com-Amazon", _ss_url("SNAP", "com-Amazon"),
                       220, 334863, 925872, True, "commerce", "Amazon product network"),
-    DownloadableGraph("com-DBLP", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/com-DBLP.tar.gz",
+    DownloadableGraph("com-DBLP", _ss_url("SNAP", "com-DBLP"),
                       200, 317080, 1049866, True, "collaboration", "DBLP collaboration"),
     # Collaboration
-    DownloadableGraph("hollywood-2009", "https://suitesparse-collection-website.herokuapp.com/MM/LAW/hollywood-2009.tar.gz",
+    DownloadableGraph("hollywood-2009", _ss_url("LAW", "hollywood-2009"),
                       600, 1139905, 57515616, True, "collaboration", "Hollywood actors"),
-    DownloadableGraph("dblp-2010", "https://suitesparse-collection-website.herokuapp.com/MM/LAW/dblp-2010.tar.gz",
+    DownloadableGraph("dblp-2010", _ss_url("LAW", "dblp-2010"),
                       200, 326186, 1615400, True, "collaboration", "DBLP 2010"),
     # Web graphs (large)
-    DownloadableGraph("in-2004", "https://suitesparse-collection-website.herokuapp.com/MM/LAW/in-2004.tar.gz",
+    DownloadableGraph("in-2004", _ss_url("LAW", "in-2004"),
                       450, 1382908, 16917053, False, "web", "Indian web 2004"),
-    DownloadableGraph("eu-2005", "https://suitesparse-collection-website.herokuapp.com/MM/LAW/eu-2005.tar.gz",
+    DownloadableGraph("eu-2005", _ss_url("LAW", "eu-2005"),
                       500, 862664, 19235140, False, "web", "European web 2005"),
-    DownloadableGraph("uk-2002", "https://suitesparse-collection-website.herokuapp.com/MM/LAW/uk-2002.tar.gz",
+    DownloadableGraph("uk-2002", _ss_url("LAW", "uk-2002"),
                       2500, 18520486, 298113762, False, "web", "UK web 2002"),
-    DownloadableGraph("arabic-2005", "https://suitesparse-collection-website.herokuapp.com/MM/LAW/arabic-2005.tar.gz",
+    DownloadableGraph("arabic-2005", _ss_url("LAW", "arabic-2005"),
                       2200, 22744080, 639999458, False, "web", "Arabic web 2005"),
-    DownloadableGraph("indochina-2004", "https://suitesparse-collection-website.herokuapp.com/MM/LAW/indochina-2004.tar.gz",
+    DownloadableGraph("indochina-2004", _ss_url("LAW", "indochina-2004"),
                       600, 7414866, 194109311, False, "web", "Indochina web 2004"),
-    DownloadableGraph("sk-2005", "https://suitesparse-collection-website.herokuapp.com/MM/LAW/sk-2005.tar.gz",
+    DownloadableGraph("sk-2005", _ss_url("LAW", "sk-2005"),
                       1100, 50636154, 1949412601, False, "web", "Slovakia web 2005"),
     # Road networks (large) - OSM graphs
-    DownloadableGraph("europe-osm", "https://suitesparse-collection-website.herokuapp.com/MM/DIMACS10/europe_osm.tar.gz",
+    DownloadableGraph("europe-osm", _ss_url("DIMACS10", "europe_osm"),
                       1200, 50912018, 108109320, True, "road", "European OSM roads"),
-    DownloadableGraph("asia-osm", "https://suitesparse-collection-website.herokuapp.com/MM/DIMACS10/asia_osm.tar.gz",
+    DownloadableGraph("asia-osm", _ss_url("DIMACS10", "asia_osm"),
                       600, 11950757, 25423206, True, "road", "Asian OSM roads"),
-    DownloadableGraph("great-britain-osm", "https://suitesparse-collection-website.herokuapp.com/MM/DIMACS10/great-britain_osm.tar.gz",
+    DownloadableGraph("great-britain-osm", _ss_url("DIMACS10", "great-britain_osm"),
                       250, 7733822, 16313034, True, "road", "Great Britain OSM roads"),
-    DownloadableGraph("germany-osm", "https://suitesparse-collection-website.herokuapp.com/MM/DIMACS10/germany_osm.tar.gz",
+    DownloadableGraph("germany-osm", _ss_url("DIMACS10", "germany_osm"),
                       300, 11548845, 24738362, True, "road", "Germany OSM roads"),
     # DIMACS10 large meshes
-    DownloadableGraph("delaunay_n21", "https://suitesparse-collection-website.herokuapp.com/MM/DIMACS10/delaunay_n21.tar.gz",
+    DownloadableGraph("delaunay_n21", _ss_url("DIMACS10", "delaunay_n21"),
                       80, 2097152, 6291372, True, "mesh", "Delaunay triangulation n=21"),
-    DownloadableGraph("delaunay_n22", "https://suitesparse-collection-website.herokuapp.com/MM/DIMACS10/delaunay_n22.tar.gz",
+    DownloadableGraph("delaunay_n22", _ss_url("DIMACS10", "delaunay_n22"),
                       160, 4194304, 12582869, True, "mesh", "Delaunay triangulation n=22"),
-    DownloadableGraph("delaunay_n23", "https://suitesparse-collection-website.herokuapp.com/MM/DIMACS10/delaunay_n23.tar.gz",
+    DownloadableGraph("delaunay_n23", _ss_url("DIMACS10", "delaunay_n23"),
                       320, 8388608, 25165784, True, "mesh", "Delaunay triangulation n=23"),
-    DownloadableGraph("delaunay_n24", "https://suitesparse-collection-website.herokuapp.com/MM/DIMACS10/delaunay_n24.tar.gz",
+    DownloadableGraph("delaunay_n24", _ss_url("DIMACS10", "delaunay_n24"),
                       640, 16777216, 50331601, True, "mesh", "Delaunay triangulation n=24"),
-    DownloadableGraph("rgg_n_2_20_s0", "https://suitesparse-collection-website.herokuapp.com/MM/DIMACS10/rgg_n_2_20_s0.tar.gz",
+    DownloadableGraph("rgg_n_2_20_s0", _ss_url("DIMACS10", "rgg_n_2_20_s0"),
                       120, 1048576, 5830030, True, "mesh", "Random geometric graph n=20"),
-    DownloadableGraph("rgg_n_2_21_s0", "https://suitesparse-collection-website.herokuapp.com/MM/DIMACS10/rgg_n_2_21_s0.tar.gz",
+    DownloadableGraph("rgg_n_2_21_s0", _ss_url("DIMACS10", "rgg_n_2_21_s0"),
                       240, 2097152, 11660061, True, "mesh", "Random geometric graph n=21"),
-    DownloadableGraph("rgg_n_2_22_s0", "https://suitesparse-collection-website.herokuapp.com/MM/DIMACS10/rgg_n_2_22_s0.tar.gz",
+    DownloadableGraph("rgg_n_2_22_s0", _ss_url("DIMACS10", "rgg_n_2_22_s0"),
                       480, 4194304, 23320130, True, "mesh", "Random geometric graph n=22"),
-    DownloadableGraph("rgg_n_2_23_s0", "https://suitesparse-collection-website.herokuapp.com/MM/DIMACS10/rgg_n_2_23_s0.tar.gz",
+    DownloadableGraph("rgg_n_2_23_s0", _ss_url("DIMACS10", "rgg_n_2_23_s0"),
                       960, 8388608, 46640257, True, "mesh", "Random geometric graph n=23"),
-    DownloadableGraph("rgg_n_2_24_s0", "https://suitesparse-collection-website.herokuapp.com/MM/DIMACS10/rgg_n_2_24_s0.tar.gz",
+    DownloadableGraph("rgg_n_2_24_s0", _ss_url("DIMACS10", "rgg_n_2_24_s0"),
                       1920, 16777216, 93280513, True, "mesh", "Random geometric graph n=24"),
     # Clustering benchmarks
-    DownloadableGraph("coPapersDBLP", "https://suitesparse-collection-website.herokuapp.com/MM/DIMACS10/coPapersDBLP.tar.gz",
+    DownloadableGraph("coPapersDBLP", _ss_url("DIMACS10", "coPapersDBLP"),
                       400, 540486, 15245729, True, "collaboration", "DBLP co-author papers"),
-    DownloadableGraph("coPapersCiteseer", "https://suitesparse-collection-website.herokuapp.com/MM/DIMACS10/coPapersCiteseer.tar.gz",
+    DownloadableGraph("coPapersCiteseer", _ss_url("DIMACS10", "coPapersCiteseer"),
                       450, 434102, 16036720, True, "citation", "Citeseer co-papers"),
-    DownloadableGraph("citationCiteseer", "https://suitesparse-collection-website.herokuapp.com/MM/DIMACS10/citationCiteseer.tar.gz",
+    DownloadableGraph("citationCiteseer", _ss_url("DIMACS10", "citationCiteseer"),
                       350, 268495, 1156647, False, "citation", "Citeseer citations"),
-    DownloadableGraph("coAuthorsDBLP", "https://suitesparse-collection-website.herokuapp.com/MM/DIMACS10/coAuthorsDBLP.tar.gz",
+    DownloadableGraph("coAuthorsDBLP", _ss_url("DIMACS10", "coAuthorsDBLP"),
                       200, 299067, 977676, True, "collaboration", "DBLP co-authors"),
-    DownloadableGraph("coAuthorsCiteseer", "https://suitesparse-collection-website.herokuapp.com/MM/DIMACS10/coAuthorsCiteseer.tar.gz",
+    DownloadableGraph("coAuthorsCiteseer", _ss_url("DIMACS10", "coAuthorsCiteseer"),
                       160, 227320, 814134, True, "collaboration", "Citeseer co-authors"),
     # Wikipedia graphs
-    DownloadableGraph("wiki-Vote", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/wiki-Vote.tar.gz",
+    DownloadableGraph("wiki-Vote", _ss_url("SNAP", "wiki-Vote"),
                       2, 7115, 103689, False, "social", "Wikipedia adminship votes"),
     # Kron graphs (synthetic power-law)
-    DownloadableGraph("kron_g500-logn16", "https://suitesparse-collection-website.herokuapp.com/MM/DIMACS10/kron_g500-logn16.tar.gz",
+    DownloadableGraph("kron_g500-logn16", _ss_url("DIMACS10", "kron_g500-logn16"),
                       200, 65536, 4912201, True, "synthetic", "Kronecker graph logn=16"),
-    DownloadableGraph("kron_g500-logn17", "https://suitesparse-collection-website.herokuapp.com/MM/DIMACS10/kron_g500-logn17.tar.gz",
+    DownloadableGraph("kron_g500-logn17", _ss_url("DIMACS10", "kron_g500-logn17"),
                       400, 131072, 10228360, True, "synthetic", "Kronecker graph logn=17"),
-    DownloadableGraph("kron_g500-logn18", "https://suitesparse-collection-website.herokuapp.com/MM/DIMACS10/kron_g500-logn18.tar.gz",
+    DownloadableGraph("kron_g500-logn18", _ss_url("DIMACS10", "kron_g500-logn18"),
                       800, 262144, 21165908, True, "synthetic", "Kronecker graph logn=18"),
-    DownloadableGraph("kron_g500-logn19", "https://suitesparse-collection-website.herokuapp.com/MM/DIMACS10/kron_g500-logn19.tar.gz",
+    DownloadableGraph("kron_g500-logn19", _ss_url("DIMACS10", "kron_g500-logn19"),
                       1600, 524288, 43561574, True, "synthetic", "Kronecker graph logn=19"),
-    DownloadableGraph("kron_g500-logn20", "https://suitesparse-collection-website.herokuapp.com/MM/DIMACS10/kron_g500-logn20.tar.gz",
+    DownloadableGraph("kron_g500-logn20", _ss_url("DIMACS10", "kron_g500-logn20"),
                       3200, 1048576, 89239674, True, "synthetic", "Kronecker graph logn=20"),
 ]
 
 # Extra-large graphs (>2GB) - requires significant memory
 DOWNLOAD_GRAPHS_XLARGE = [
     # Massive web graphs
-    DownloadableGraph("uk-2005", "https://suitesparse-collection-website.herokuapp.com/MM/LAW/uk-2005.tar.gz",
+    DownloadableGraph("uk-2005", _ss_url("LAW", "uk-2005"),
                       3200, 39459925, 936364282, False, "web", "UK web 2005"),
-    DownloadableGraph("webbase-2001", "https://suitesparse-collection-website.herokuapp.com/MM/LAW/webbase-2001.tar.gz",
+    DownloadableGraph("webbase-2001", _ss_url("LAW", "webbase-2001"),
                       8500, 118142155, 1019903190, False, "web", "WebBase 2001 crawl"),
-    DownloadableGraph("it-2004", "https://suitesparse-collection-website.herokuapp.com/MM/LAW/it-2004.tar.gz",
+    DownloadableGraph("it-2004", _ss_url("LAW", "it-2004"),
                       3500, 41291594, 1150725436, False, "web", "Italian web 2004"),
     # Massive social
-    DownloadableGraph("com-Friendster", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/com-Friendster.tar.gz",
+    DownloadableGraph("com-Friendster", _ss_url("SNAP", "com-Friendster"),
                       31000, 65608366, 1806067135, True, "social", "Friendster social network"),
-    DownloadableGraph("twitter7", "https://suitesparse-collection-website.herokuapp.com/MM/SNAP/twitter7.tar.gz",
+    DownloadableGraph("twitter7", _ss_url("SNAP", "twitter7"),
                       12000, 41652230, 1468365182, False, "social", "Twitter follower network"),
     # Large meshes
-    DownloadableGraph("kron_g500-logn21", "https://suitesparse-collection-website.herokuapp.com/MM/DIMACS10/kron_g500-logn21.tar.gz",
+    DownloadableGraph("kron_g500-logn21", _ss_url("DIMACS10", "kron_g500-logn21"),
                       6400, 2097152, 182081864, True, "synthetic", "Kronecker graph logn=21"),
 ]
 
-# Combined catalog by size
-GRAPH_CATALOG = {
+# Combined catalog by size (hardcoded seed graphs — always available)
+_HARDCODED_CATALOG = {
     "SMALL": {g.name: g for g in DOWNLOAD_GRAPHS_SMALL},
     "MEDIUM": {g.name: g for g in DOWNLOAD_GRAPHS_MEDIUM},
     "LARGE": {g.name: g for g in DOWNLOAD_GRAPHS_LARGE},
     "XLARGE": {g.name: g for g in DOWNLOAD_GRAPHS_XLARGE},
 }
 
-# All graphs combined
+# Backward-compatible alias (static, no auto-discovery)
+GRAPH_CATALOG = _HARDCODED_CATALOG
+
+# All hardcoded graphs combined
 ALL_GRAPHS = (
     DOWNLOAD_GRAPHS_SMALL + 
     DOWNLOAD_GRAPHS_MEDIUM + 
     DOWNLOAD_GRAPHS_LARGE + 
     DOWNLOAD_GRAPHS_XLARGE
 )
+
+
+# =============================================================================
+# Catalog Builder — merges hardcoded + auto-discovered graphs
+# =============================================================================
+
+def build_catalog(
+    tier: str,
+    limit: int = 100,
+    *,
+    auto_discover: bool = True,
+) -> Dict[str, DownloadableGraph]:
+    """Build an expanded catalog for *tier* by merging hardcoded entries
+    with auto-discovered graphs from SuiteSparse.
+
+    Hardcoded entries always take priority (dedup by name).
+
+    Parameters
+    ----------
+    tier : str
+        ``"SMALL"``, ``"MEDIUM"``, ``"LARGE"``, ``"XLARGE"``
+    limit : int
+        Target number of graphs (hardcoded + discovered).
+    auto_discover : bool
+        If False, return only hardcoded entries.
+
+    Returns
+    -------
+    dict mapping graph name → DownloadableGraph
+    """
+    tier = tier.upper()
+    base = dict(_HARDCODED_CATALOG.get(tier, {}))
+
+    if not auto_discover:
+        return base
+
+    remaining = max(0, limit - len(base))
+    if remaining <= 0:
+        return base
+
+    try:
+        from .suitesparse_catalog import discover_graphs
+        discovered = discover_graphs(
+            tier,
+            limit=remaining,
+            exclude_names=set(base.keys()),
+        )
+        for g in discovered:
+            if g.name not in base:
+                base[g.name] = g
+    except Exception as e:
+        log.warning(f"Auto-discovery failed for tier {tier}: {e}")
+
+    return base
+
+
+def build_full_catalog(
+    limit_per_tier: int = 100,
+    *,
+    auto_discover: bool = True,
+) -> Dict[str, Dict[str, DownloadableGraph]]:
+    """Build expanded catalogs for all tiers.
+
+    Returns dict mapping tier → {name → DownloadableGraph}.
+    """
+    return {
+        tier: build_catalog(tier, limit=limit_per_tier, auto_discover=auto_discover)
+        for tier in ("SMALL", "MEDIUM", "LARGE", "XLARGE")
+    }
 
 
 # =============================================================================
@@ -318,11 +400,32 @@ def get_graph_info(name: str) -> Optional[DownloadableGraph]:
     return None
 
 
-def get_graphs_by_size(size: str) -> List[DownloadableGraph]:
-    """Get list of graphs for a size category."""
+def get_graphs_by_size(
+    size: str,
+    catalog_size: int = 0,
+) -> List[DownloadableGraph]:
+    """Get list of graphs for a size category.
+
+    Parameters
+    ----------
+    size : str
+        ``"SMALL"``, ``"MEDIUM"``, ``"LARGE"``, ``"XLARGE"``, ``"ALL"``
+    catalog_size : int
+        When > 0, use ``build_catalog()`` to expand the tier with
+        auto-discovered graphs up to this count.  When 0 (default),
+        return only hardcoded entries.
+    """
     size = size.upper()
     if size == "ALL":
+        if catalog_size > 0:
+            expanded = build_full_catalog(limit_per_tier=catalog_size)
+            result = []
+            for tier_graphs in expanded.values():
+                result.extend(tier_graphs.values())
+            return result
         return ALL_GRAPHS.copy()
+    if catalog_size > 0:
+        return list(build_catalog(size, limit=catalog_size).values())
     return list(GRAPH_CATALOG.get(size, {}).values())
 
 

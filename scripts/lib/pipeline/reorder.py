@@ -46,6 +46,15 @@ log = Logger()
 
 from ..core.utils import ENABLE_RUN_LOGGING
 
+# Legacy name migration — bare algorithm names from pre-variant era.
+# Maps old bare names → new canonical variant names (and reverse).
+_LEGACY_ALGO_NAMES: dict[str, str] = {
+    "GraphBrewOrder": "GraphBrewOrder_leiden",
+}
+_LEGACY_ALGO_NAMES_REV: dict[str, str] = {
+    v: k for k, v in _LEGACY_ALGO_NAMES.items()
+}
+
 
 def safe_filename(name: str) -> str:
     """Sanitize algorithm name for use in filenames.
