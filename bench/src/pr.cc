@@ -29,6 +29,10 @@ using namespace std;
 typedef float ScoreT;
 const float kDamp = 0.85;
 
+// Global variable to expose iteration count to the benchmark harness.
+// Set by PageRankPullGS after convergence; read by main() for JSON output.
+static int g_pr_iterations_to_convergence = 0;
+
 pvector<ScoreT> PageRankPullGS(const Graph &g, int max_iters,
                                double epsilon = 0,
                                bool logging_enabled = false) {
@@ -36,6 +40,7 @@ pvector<ScoreT> PageRankPullGS(const Graph &g, int max_iters,
   const ScoreT base_score = (1.0f - kDamp) / g.num_nodes();
   pvector<ScoreT> scores(g.num_nodes(), init_score);
   pvector<ScoreT> outgoing_contrib(g.num_nodes());
+  int converged_iter = max_iters;
 #pragma omp parallel for
   for (NodeID n = 0; n < g.num_nodes(); n++)
     outgoing_contrib[n] = init_score / g.out_degree(n);
@@ -54,9 +59,13 @@ pvector<ScoreT> PageRankPullGS(const Graph &g, int max_iters,
     if (logging_enabled)
       PrintStep(iter, error);
     graphbrew::database::AppendBenchmarkIterationEntry({{"iter", iter}, {"error", error}});
-    if (error < epsilon)
+    if (error < epsilon) {
+      converged_iter = iter + 1;
       break;
+    }
   }
+  g_pr_iterations_to_convergence = converged_iter;
+  PrintTime("Iterations", converged_iter);
   return scores;
 }
 
@@ -128,6 +137,7 @@ int main(int argc, char *argv[]) {
       }
       ans["total_score"] = total;
       ans["max_score"] = static_cast<double>(max_score);
+      ans["iterations_to_convergence"] = g_pr_iterations_to_convergence;
       return ans;
     });
   return 0;

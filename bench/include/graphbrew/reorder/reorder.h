@@ -69,6 +69,8 @@
 #include "reorder_hub.h"     // HUBSORT, HUBCLUSTER, DBG variants (3-7)
 #include "reorder_rabbit.h"  // RABBITORDER (8)
 #include "reorder_classic.h" // GORDER, CORDER, RCM (9-11)
+#include "reorder_gograph.h"   // GOGRAPHORDER (16) - FEF-maximizing reordering (P3 3.4)
+#include "reorder_don_lite.h"  // DON-Lite neural ordering (P3 3.1f) — margin-gated MLP
 // Note: LeidenCSR (16) has been deprecated — GraphBrew (12) subsumes it.
 // LeidenOrder (15) uses external/leiden/leiden.hxx directly.
 
@@ -323,6 +325,19 @@ inline void ApplyBasicReorderingStandalone(
             // LeidenOrder standalone: DBG is a reasonable proxy when the full
             // Leiden pipeline isn't available in this compilation unit.
             ::GenerateDBGMapping<NodeID_, DestID_, invert>(g, new_ids, useOutdeg);
+            break;
+        }
+        case GoGraphOrder:
+        {
+            std::string variant = resolveVariant(options);
+            warnUnknownVariant(variant, "GoGraph", {"fast", "naive"});
+            if (variant == "fast") {
+                ::GenerateGoGraphFastMapping<NodeID_, DestID_, invert>(g, new_ids, useOutdeg);
+            } else if (variant == "naive") {
+                ::GenerateGoGraphNaiveMapping<NodeID_, DestID_, invert>(g, new_ids, useOutdeg);
+            } else {
+                ::GenerateGoGraphMapping<NodeID_, DestID_, invert>(g, new_ids, useOutdeg);
+            }
             break;
         }
         case ORIGINAL:

@@ -358,6 +358,13 @@ void GenerateAdaptiveMappingFullGraphStandalone(
     global_feat.packing_factor = features.packing_factor;
     global_feat.forward_edge_fraction = features.forward_edge_fraction;
     global_feat.working_set_ratio = features.working_set_ratio;
+    global_feat.vertex_significance_skewness = features.vertex_significance_skewness;
+    global_feat.window_neighbor_overlap = features.window_neighbor_overlap;
+    global_feat.sampled_locality_score = features.sampled_locality_score;
+    global_feat.avg_reuse_distance = features.avg_reuse_distance;
+    global_feat.packing_factor_cl = features.packing_factor_cl;
+    global_feat.locality_score_pairwise = features.locality_score_pairwise;
+    global_feat.reuse_distance_lru = features.reuse_distance_lru;
     
     // Populate extended features (previously always 0 at runtime)
     global_feat.avg_path_length = ext_features.avg_path_length;
@@ -368,12 +375,20 @@ void GenerateAdaptiveMappingFullGraphStandalone(
     std::cout << "Diameter Estimate: " << ext_features.diameter_estimate << "\n";
     std::cout << "Component Count: " << ext_features.component_count << "\n";
     
-    // Parse selection mode and graph name from options (positions 3 & 4)
-    SelectionMode selection_mode = MODE_FASTEST_EXECUTION;
+    // Parse selection model:criterion and graph name from options (positions 3 & 4)
+    // Supports both new "model:criterion" format (e.g. "dt:e2e") and legacy
+    // integer modes (0-6) for backward compatibility.
+    SelectionModel selection_model = SELECTION_MODEL_PERCEPTRON;
+    SelectionCriterion selection_criterion = CRITERION_FASTEST_EXECUTION;
+    SelectionMode selection_mode = MODE_FASTEST_EXECUTION;  // kept for legacy callers
     std::string graph_name;
     
     if (reordering_options.size() > 3 && !reordering_options[3].empty()
         && reordering_options[3] != "_") {
+        auto mc = ParseModelCriterion(reordering_options[3]);
+        selection_model = mc.first;
+        selection_criterion = mc.second;
+        // Also set legacy mode for any remaining callers
         try {
             int mode_val = std::stoi(reordering_options[3]);
             if (mode_val >= 0 && mode_val <= 6)
@@ -391,7 +406,8 @@ void GenerateAdaptiveMappingFullGraphStandalone(
         graph_name = GetGraphNameHint();
     }
     
-    std::cout << "Selection Mode: " << SelectionModeToString(selection_mode);
+    std::cout << "Selection: model=" << SelectionModelToString(selection_model)
+              << " criterion=" << SelectionCriterionToString(selection_criterion);
     if (!graph_name.empty()) std::cout << " (graph: " << graph_name << ")";
     std::cout << "\n";
     
@@ -733,6 +749,13 @@ void GenerateAdaptiveMappingRecursiveStandalone(
         comm_feat.packing_factor = deg_features.packing_factor;
         comm_feat.forward_edge_fraction = deg_features.forward_edge_fraction;
         comm_feat.working_set_ratio = deg_features.working_set_ratio;
+        comm_feat.vertex_significance_skewness = deg_features.vertex_significance_skewness;
+        comm_feat.window_neighbor_overlap = deg_features.window_neighbor_overlap;
+        comm_feat.sampled_locality_score = deg_features.sampled_locality_score;
+        comm_feat.avg_reuse_distance = deg_features.avg_reuse_distance;
+        comm_feat.packing_factor_cl = deg_features.packing_factor_cl;
+        comm_feat.locality_score_pairwise = deg_features.locality_score_pairwise;
+        comm_feat.reuse_distance_lru = deg_features.reuse_distance_lru;
         const BenchmarkType bench_hint = GetBenchmarkTypeHint();
         if (verbose) {
             const char* bnames[] = {"GENERIC","PR","BFS","CC","SSSP","BC","TC","PR_SPMV","CC_SV"};
@@ -785,6 +808,36 @@ void GenerateAdaptiveMappingRecursiveStandalone(
             std::sort(degree_node_pairs.begin(), degree_node_pairs.end());
             for (auto& [neg_deg, node] : degree_node_pairs) {
                 new_ids[node] = current_id++;
+            }
+        } else if (small_sel.variant_name == "DON_LITE") {
+            // P3 3.1f: DON-Lite neural ordering override.
+            // Build local subgraph and apply MLP-based reordering.
+            std::unordered_map<NodeID_, NodeID_> g2l;
+            std::vector<NodeID_> l2g(small_community_nodes.size());
+            for (size_t i = 0; i < small_community_nodes.size(); ++i) {
+                g2l[small_community_nodes[i]] = static_cast<NodeID_>(i);
+                l2g[i] = small_community_nodes[i];
+            }
+            std::vector<std::pair<NodeID_, DestID_>> sub_edges;
+            for (NodeID_ node : small_community_nodes) {
+                NodeID_ ls = g2l[node];
+                for (DestID_ nb : g.out_neigh(node)) {
+                    if (small_node_set.count(static_cast<NodeID_>(nb)))
+                        sub_edges.push_back({ls, static_cast<DestID_>(g2l[static_cast<NodeID_>(nb)])});
+                }
+            }
+            if (!sub_edges.empty()) {
+                auto sub_g = MakeLocalGraphFromELStandalone<NodeID_, DestID_, invert>(sub_edges, false);
+                pvector<NodeID_> sub_ids(small_community_nodes.size(), -1);
+                GenerateDonLiteMapping<NodeID_, DestID_, invert>(sub_g, sub_ids, useOutdeg);
+                std::vector<NodeID_> reordered(small_community_nodes.size());
+                for (size_t i = 0; i < small_community_nodes.size(); ++i)
+                    reordered[sub_ids[i]] = l2g[i];
+                for (NodeID_ node : reordered)
+                    new_ids[node] = current_id++;
+            } else {
+                for (NodeID_ node : small_community_nodes)
+                    new_ids[node] = current_id++;
             }
         } else {
             ReorderCommunitySubgraphStandalone<NodeID_, DestID_, WeightT_, invert>(
@@ -847,8 +900,39 @@ void GenerateAdaptiveMappingRecursiveStandalone(
         // Apply algorithm
         Timer t_cr;
         t_cr.Start();
-        ReorderCommunitySubgraphStandalone<NodeID_, DestID_, WeightT_, invert>(
-            g, comm_nodes, comm_node_set, selected, useOutdeg, new_ids, current_id);
+        if (selected.variant_name == "DON_LITE") {
+            // P3 3.1f: DON-Lite neural ordering override for large community.
+            std::unordered_map<NodeID_, NodeID_> g2l;
+            std::vector<NodeID_> l2g(comm_nodes.size());
+            for (size_t i = 0; i < comm_nodes.size(); ++i) {
+                g2l[comm_nodes[i]] = static_cast<NodeID_>(i);
+                l2g[i] = comm_nodes[i];
+            }
+            std::vector<std::pair<NodeID_, DestID_>> sub_edges;
+            for (NodeID_ node : comm_nodes) {
+                NodeID_ ls = g2l[node];
+                for (DestID_ nb : g.out_neigh(node)) {
+                    if (comm_node_set.count(static_cast<NodeID_>(nb)))
+                        sub_edges.push_back({ls, static_cast<DestID_>(g2l[static_cast<NodeID_>(nb)])});
+                }
+            }
+            if (!sub_edges.empty()) {
+                auto sub_g = MakeLocalGraphFromELStandalone<NodeID_, DestID_, invert>(sub_edges, false);
+                pvector<NodeID_> sub_ids(comm_nodes.size(), -1);
+                GenerateDonLiteMapping<NodeID_, DestID_, invert>(sub_g, sub_ids, useOutdeg);
+                std::vector<NodeID_> reordered(comm_nodes.size());
+                for (size_t i = 0; i < comm_nodes.size(); ++i)
+                    reordered[sub_ids[i]] = l2g[i];
+                for (NodeID_ node : reordered)
+                    new_ids[node] = current_id++;
+            } else {
+                for (NodeID_ node : comm_nodes)
+                    new_ids[node] = current_id++;
+            }
+        } else {
+            ReorderCommunitySubgraphStandalone<NodeID_, DestID_, WeightT_, invert>(
+                g, comm_nodes, comm_node_set, selected, useOutdeg, new_ids, current_id);
+        }
         t_cr.Stop();
         t_comm_reorder_total += t_cr.Seconds();
     }
@@ -888,20 +972,30 @@ void GenerateAdaptiveMappingStandalone(
     bool useOutdeg,
     const std::vector<std::string>& reordering_options) {
     
-    SelectionMode selection_mode = MODE_FASTEST_EXECUTION;
+    SelectionModel selection_model = SELECTION_MODEL_PERCEPTRON;
+    SelectionCriterion selection_criterion = CRITERION_FASTEST_EXECUTION;
+    SelectionMode selection_mode = MODE_FASTEST_EXECUTION;  // kept for legacy callers
     std::string graph_name = "";
     
     if (reordering_options.size() > 3) {
+        // Check for legacy mode=100 first
         try {
             int mode_val = std::stoi(reordering_options[3]);
-            if (mode_val >= 0 && mode_val <= 6) {
-                selection_mode = static_cast<SelectionMode>(mode_val);
-            } else if (mode_val == 100) {
-                // Legacy full-graph mode
+            if (mode_val == 100) {
                 GenerateAdaptiveMappingFullGraphStandalone<NodeID_, DestID_, WeightT_, invert>(
                     g, new_ids, useOutdeg, reordering_options);
                 return;
             }
+        } catch (...) {}
+        
+        auto mc = ParseModelCriterion(reordering_options[3]);
+        selection_model = mc.first;
+        selection_criterion = mc.second;
+        // Also set legacy mode for any remaining callers
+        try {
+            int mode_val = std::stoi(reordering_options[3]);
+            if (mode_val >= 0 && mode_val <= 6)
+                selection_mode = static_cast<SelectionMode>(mode_val);
         } catch (...) {
             selection_mode = GetSelectionMode(reordering_options[3]);
         }
@@ -911,7 +1005,9 @@ void GenerateAdaptiveMappingStandalone(
         graph_name = reordering_options[4];
     }
     
-    printf("AdaptiveOrder: Selection Mode: %s", SelectionModeToString(selection_mode).c_str());
+    printf("AdaptiveOrder: model=%s criterion=%s",
+           SelectionModelToString(selection_model).c_str(),
+           SelectionCriterionToString(selection_criterion).c_str());
     if (!graph_name.empty()) {
         printf(" (graph: %s)", graph_name.c_str());
     }

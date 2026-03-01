@@ -47,7 +47,9 @@
 #include <parallel/algorithm>
 #include <parallel/numeric>
 #include <queue>
+#include <random>
 #include <set>
+#include <thread>
 #include <tuple>
 #include <unordered_map>
 #include <unordered_set>
@@ -122,6 +124,7 @@ inline const std::string ReorderingAlgoStr(ReorderingAlgo algo) {
         case MAP:             return "MAP";
         case AdaptiveOrder:   return "AdaptiveOrder";
         case LeidenOrder:     return "LeidenOrder";
+        case GoGraphOrder:    return "GoGraphOrder";
         default:
             std::cerr << "Unknown Reordering Algorithm: " << static_cast<int>(algo) << std::endl;
             std::abort();
@@ -154,6 +157,7 @@ inline ReorderingAlgo getReorderingAlgo(int value) {
         case 13: return MAP;
         case 14: return AdaptiveOrder;
         case 15: return LeidenOrder;
+        case 16: return GoGraphOrder;
         default:
             std::cerr << "Unknown algorithm ID: " << value << std::endl;
             std::abort();
@@ -1131,6 +1135,19 @@ struct CommunityFeatures {
     
     // ---------- System-Cache Metric (P-OPT) ----------
     double working_set_ratio = 0.0;  ///< graph_bytes / LLC_size (>1 = exceeds cache)
+    
+    // ---------- DON-RL Features (Zhao et al.) ----------
+    double vertex_significance_skewness = 0.0; ///< Skewness of per-vertex locality contributions (CV)
+    double window_neighbor_overlap = 0.0;      ///< Mean fraction of neighbors within locality window
+    
+    // ---------- Sampled Locality Score (P1 3.1d) ----------
+    double sampled_locality_score = 0.0;       ///< Sampled F(σ) approximation — baseline ordering quality
+    // ---------- Transpose Reuse Distance (P3 3.2) ----------
+    double avg_reuse_distance = 0.0;           ///< Mean next-reuse distance from transpose (CSC)
+    // ---- Paper-aligned feature variants ----
+    double packing_factor_cl = 0.0;            ///< IISWC'18 cache-line packing
+    double locality_score_pairwise = 0.0;      ///< DON-RL pairwise F(σ)
+    double reuse_distance_lru = 0.0;           ///< P-OPT LRU stack distance
 };
 
 /**
@@ -1309,6 +1326,7 @@ inline const std::map<std::string, ReorderingAlgo>& getAlgorithmNameMap() {
         {"MAP",             MAP},
         {"ADAPTIVEORDER",   AdaptiveOrder},
         {"LEIDENORDER",     LeidenOrder},
+        {"GOGRAPHORDER",    GoGraphOrder},
     };
     return name_to_algo;
 }
@@ -1346,6 +1364,9 @@ struct PerceptronSelection {
     std::string variant_name;             ///< Canonical name (e.g. "GraphBrewOrder_leiden")
     std::vector<std::string> options;     ///< Variant options for dispatch (e.g. {"leiden"})
     double score = 0.0;                   ///< Winning score
+    double margin = 0.0;                  ///< Score margin over ORIGINAL (P1 1.4)
+    double confidence = 0.0;              ///< Platt-calibrated P(win) in [0,1] (P1 1.4)
+    bool explored = false;                ///< True if selected via bandit exploration (P2 2.1)
 
     /// Chained ordering steps (e.g. SORT+RABBITORDER_csr → 2 steps).
     /// Empty for single-algorithm selections.
@@ -1594,6 +1615,95 @@ inline GraphType DetectGraphType(double modularity, double degree_variance,
  *   - Lower regret than perceptron (~5-8% vs 45-1355%)
  *   - C++ trains DT models at runtime from benchmarks.json (reorder_database.h)
  */
+
+// ============================================================================
+// NEW: Separated Model + Criterion enums (orthogonal axes)
+// ============================================================================
+
+/**
+ * @brief Which prediction model to use for algorithm selection.
+ *
+ * Orthogonal to SelectionCriterion — any model can optimize any criterion.
+ */
+enum SelectionModel {
+    SELECTION_MODEL_PERCEPTRON = 0,        ///< Multi-class perceptron (SSO weights)
+    SELECTION_MODEL_DECISION_TREE = 1,     ///< Trained Decision Tree classifier
+    SELECTION_MODEL_HYBRID = 2,            ///< Hybrid DT + per-leaf perceptron
+    SELECTION_MODEL_KNN_DATABASE = 3,      ///< Distance-weighted k-NN from DB
+    // Label granularity modes (orthogonal to model; controls class count)
+    SELECTION_MODEL_FAMILY = 4,            ///< Predict at family level (7 classes)
+    SELECTION_MODEL_TOPN = 5,              ///< Predict top-N algorithms (~8 classes)
+    SELECTION_MODEL_INDIVIDUAL = 6         ///< Predict individual algorithm (~17 classes)
+};
+
+/**
+ * @brief What metric defines the "best" reordering algorithm.
+ *
+ * Orthogonal to SelectionModel — any criterion can be evaluated by any model.
+ */
+enum SelectionCriterion {
+    CRITERION_FASTEST_REORDER = 0,         ///< Minimize reordering time only
+    CRITERION_FASTEST_EXECUTION = 1,       ///< Minimize kernel execution time
+    CRITERION_BEST_ENDTOEND = 2,           ///< Minimize (reorder_time + exec_time)
+    CRITERION_BEST_AMORTIZATION = 3        ///< Minimize iterations to amortize
+};
+
+/**
+ * @brief Convert selection model enum to string
+ */
+inline std::string SelectionModelToString(SelectionModel m) {
+    switch (m) {
+        case SELECTION_MODEL_PERCEPTRON:     return "perceptron";
+        case SELECTION_MODEL_DECISION_TREE:  return "decision-tree";
+        case SELECTION_MODEL_HYBRID:         return "hybrid";
+        case SELECTION_MODEL_KNN_DATABASE:   return "knn-database";
+        case SELECTION_MODEL_FAMILY:         return "family";
+        case SELECTION_MODEL_TOPN:           return "topn";
+        case SELECTION_MODEL_INDIVIDUAL:     return "individual";
+        default:                             return "unknown-model";
+    }
+}
+
+/**
+ * @brief Convert selection criterion enum to string
+ */
+inline std::string SelectionCriterionToString(SelectionCriterion c) {
+    switch (c) {
+        case CRITERION_FASTEST_REORDER:    return "fastest-reorder";
+        case CRITERION_FASTEST_EXECUTION:  return "fastest-execution";
+        case CRITERION_BEST_ENDTOEND:      return "best-endtoend";
+        case CRITERION_BEST_AMORTIZATION:  return "best-amortization";
+        default:                           return "unknown-criterion";
+    }
+}
+
+/**
+ * @brief Parse a model string (e.g. "perceptron", "dt", "hybrid", "knn")
+ */
+inline SelectionModel GetSelectionModel(const std::string& name) {
+    if (name == "perceptron" || name == "perc" || name == "p") return SELECTION_MODEL_PERCEPTRON;
+    if (name == "decision-tree" || name == "dt" || name == "tree") return SELECTION_MODEL_DECISION_TREE;
+    if (name == "hybrid" || name == "model-tree" || name == "hme") return SELECTION_MODEL_HYBRID;
+    if (name == "knn-database" || name == "knn" || name == "database" || name == "db") return SELECTION_MODEL_KNN_DATABASE;
+    if (name == "family" || name == "fam") return SELECTION_MODEL_FAMILY;
+    if (name == "topn" || name == "top-n" || name == "top") return SELECTION_MODEL_TOPN;
+    if (name == "individual" || name == "ind" || name == "all") return SELECTION_MODEL_INDIVIDUAL;
+    return SELECTION_MODEL_KNN_DATABASE;  // Default: use the database model
+}
+
+/**
+ * @brief Parse a criterion string (e.g. "execution", "e2e", "reorder")
+ */
+inline SelectionCriterion GetSelectionCriterion(const std::string& name) {
+    if (name == "fastest-reorder" || name == "reorder" || name == "fr") return CRITERION_FASTEST_REORDER;
+    if (name == "fastest-execution" || name == "execution" || name == "fe") return CRITERION_FASTEST_EXECUTION;
+    if (name == "best-endtoend" || name == "endtoend" || name == "e2e") return CRITERION_BEST_ENDTOEND;
+    if (name == "best-amortization" || name == "amortization" || name == "amortize") return CRITERION_BEST_AMORTIZATION;
+    return CRITERION_FASTEST_EXECUTION;  // Default
+}
+
+// Legacy SelectionMode enum — kept for backward compatibility.
+// Internally, all dispatch uses (SelectionModel, SelectionCriterion).
 enum SelectionMode {
     MODE_FASTEST_REORDER = 0,      ///< Minimize reordering time
     MODE_FASTEST_EXECUTION = 1,    ///< Minimize execution time (perceptron)
@@ -1632,6 +1742,56 @@ inline SelectionMode GetSelectionMode(const std::string& name) {
     if (name == "5" || name == "hybrid" || name == "model-tree" || name == "hme") return MODE_HYBRID;
     if (name == "6" || name == "database" || name == "db" || name == "knn") return MODE_DATABASE;
     return MODE_FASTEST_EXECUTION;  // Default
+}
+
+/**
+ * @brief Decompose legacy SelectionMode into (model, criterion) pair.
+ *
+ * Backward compatibility: the old 0-6 enum maps as follows:
+ *   0 → (perceptron, fastest-reorder)
+ *   1 → (perceptron, fastest-execution)
+ *   2 → (perceptron, best-endtoend)
+ *   3 → (perceptron, best-amortization)
+ *   4 → (decision-tree, fastest-execution)
+ *   5 → (hybrid, fastest-execution)
+ *   6 → (knn-database, fastest-execution)
+ */
+inline std::pair<SelectionModel, SelectionCriterion>
+DecomposeSelectionMode(SelectionMode mode) {
+    switch (mode) {
+        case MODE_FASTEST_REORDER:    return {SELECTION_MODEL_PERCEPTRON, CRITERION_FASTEST_REORDER};
+        case MODE_FASTEST_EXECUTION:  return {SELECTION_MODEL_PERCEPTRON, CRITERION_FASTEST_EXECUTION};
+        case MODE_BEST_ENDTOEND:      return {SELECTION_MODEL_PERCEPTRON, CRITERION_BEST_ENDTOEND};
+        case MODE_BEST_AMORTIZATION:  return {SELECTION_MODEL_PERCEPTRON, CRITERION_BEST_AMORTIZATION};
+        case MODE_DECISION_TREE:      return {SELECTION_MODEL_DECISION_TREE, CRITERION_FASTEST_EXECUTION};
+        case MODE_HYBRID:             return {SELECTION_MODEL_HYBRID, CRITERION_FASTEST_EXECUTION};
+        case MODE_DATABASE:           return {SELECTION_MODEL_KNN_DATABASE, CRITERION_FASTEST_EXECUTION};
+        default:                      return {SELECTION_MODEL_PERCEPTRON, CRITERION_FASTEST_EXECUTION};
+    }
+}
+
+/**
+ * @brief Parse "model:criterion" format or fall back to legacy mode parsing.
+ *
+ * Accepts formats:
+ *   "dt:e2e"               → (decision-tree, best-endtoend)
+ *   "perceptron:reorder"   → (perceptron, fastest-reorder)
+ *   "knn:amortize"         → (knn-database, best-amortization)
+ *   "4" or "decision-tree" → legacy DecomposeSelectionMode
+ *   "1" or "execution"     → legacy DecomposeSelectionMode
+ */
+inline std::pair<SelectionModel, SelectionCriterion>
+ParseModelCriterion(const std::string& spec) {
+    // Try "model:criterion" format first
+    auto colon = spec.find(':');
+    if (colon != std::string::npos) {
+        std::string model_str = spec.substr(0, colon);
+        std::string crit_str = spec.substr(colon + 1);
+        return {GetSelectionModel(model_str), GetSelectionCriterion(crit_str)};
+    }
+    // Fall back to legacy SelectionMode
+    SelectionMode legacy = GetSelectionMode(spec);
+    return DecomposeSelectionMode(legacy);
 }
 
 // ============================================================================
@@ -1715,6 +1875,18 @@ struct AblationConfig {
     // Phase 6 P0 improvements
     bool cost_model;         // Enable cost-aware dynamic margin threshold (1.1)
     bool packing_skip;       // Enable packing factor short-circuit (1.2)
+    // Phase 7 P1 improvements
+    bool overhead_filter;    // Skip heavyweight algos when cost > budget (2.3)
+    bool fef_validate;       // Post-selection FEF validation for PR/SSSP (1.3)
+    bool platt_scaling;      // Use Platt-calibrated margin threshold (1.4)
+    // Phase 8 P2 improvements
+    bool bandit_explore;     // ε-greedy exploration for low-margin cases (2.1)
+    double bandit_epsilon;   // Initial ε (probability of exploring), default 0.1
+    bool don_tiebreak;       // DON-augmented Gorder tiebreaking (3.1e)
+    // P3 3.3: Hierarchical model gating
+    bool hierarchical_gate;   // Two-level model: graph-type gate + regime-specific expert
+    // P3 3.1f: DON-Lite neural ordering
+    bool don_lite;            // MLP-based vertex ordering for uncertain communities
     // Mode 3: Top-K pilot selection
     int top_k;               // Number of candidate orderings to try (default 1)
     
@@ -1727,7 +1899,8 @@ struct AblationConfig {
         return no_types || no_ood || no_margin || no_leiden ||
                force_algo >= 0 || zero_packing || zero_fef ||
                zero_wsr || zero_quadratic || cost_model || packing_skip ||
-               top_k > 1;
+               overhead_filter || fef_validate || platt_scaling ||
+               bandit_explore || don_tiebreak || hierarchical_gate || don_lite || top_k > 1;
     }
     
     void print() const {
@@ -1744,6 +1917,13 @@ struct AblationConfig {
         if (zero_quadratic) printf("  ZERO: quadratic interaction terms\n");
         if (cost_model)     printf("  COST_MODEL: cost-aware dynamic margin (P0 1.1)\n");
         if (packing_skip)   printf("  PACKING_SKIP: packing factor short-circuit (P0 1.2)\n");
+        if (overhead_filter) printf("  OVERHEAD_FILTER: skip heavyweights (P1 2.3)\n");
+        if (fef_validate)   printf("  FEF_VALIDATE: post-selection FEF check (P1 1.3)\n");
+        if (platt_scaling)  printf("  PLATT_SCALING: calibrated margin threshold (P1 1.4)\n");
+        if (bandit_explore) printf("  BANDIT_EXPLORE: ε-greedy exploration, ε₀=%.3f (P2 2.1)\n", bandit_epsilon);
+        if (don_tiebreak)   printf("  DON_TIEBREAK: DON-augmented Gorder tiebreaking (P2 3.1e)\n");
+        if (hierarchical_gate) printf("  HIERARCHICAL: two-level regime-specific gating (P3 3.3)\n");
+        if (don_lite)       printf("  DON_LITE: MLP-based vertex ordering (P3 3.1f)\n");
         if (top_k > 1)      printf("  TOP_K: try %d candidate orderings\n", top_k);
         printf("===============================\n");
     }
@@ -1758,6 +1938,12 @@ private:
         const char* val = std::getenv(name);
         if (!val) return default_val;
         try { return std::stoi(val); } catch (...) { return default_val; }
+    }
+    
+    static double env_double(const char* name, double default_val) {
+        const char* val = std::getenv(name);
+        if (!val) return default_val;
+        try { return std::stod(val); } catch (...) { return default_val; }
     }
     
     static bool feature_in_list(const char* feature) {
@@ -1780,6 +1966,14 @@ private:
         cfg.zero_quadratic = feature_in_list("quadratic");
         cfg.cost_model     = env_bool("ADAPTIVE_COST_MODEL");
         cfg.packing_skip   = env_bool("ADAPTIVE_PACKING_SKIP");
+        cfg.overhead_filter = env_bool("ADAPTIVE_OVERHEAD_FILTER");
+        cfg.fef_validate   = env_bool("ADAPTIVE_FEF_VALIDATE");
+        cfg.platt_scaling  = env_bool("ADAPTIVE_PLATT");
+        cfg.bandit_explore = env_bool("ADAPTIVE_BANDIT");
+        cfg.bandit_epsilon = env_double("ADAPTIVE_BANDIT_EPSILON", 0.1);
+        cfg.don_tiebreak   = env_bool("ADAPTIVE_DON_TIEBREAK");
+        cfg.hierarchical_gate = env_bool("ADAPTIVE_HIERARCHICAL");
+        cfg.don_lite       = env_bool("ADAPTIVE_DON_LITE");
         cfg.top_k          = env_int("ADAPTIVE_TOP_K", 1);
         if (cfg.top_k < 1) cfg.top_k = 1;
         return cfg;
@@ -1833,6 +2027,17 @@ struct PerceptronWeights {
     // ---------- Convergence Bonus Weight (GoGraph) ----------
     double w_fef_convergence = 0.0;     ///< Extra forward_edge_fraction weight for iterative algos (PR/SSSP)
     
+    // ---------- Sampled Locality Score Weight (P1 3.1d) ----------
+    double w_sampled_locality = 0.0;    ///< Weight for sampled F(σ) locality quality
+    
+    // ---------- Transpose Reuse Distance Weight (P3 3.2) ----------
+    double w_avg_reuse_distance = 0.0;  ///< Weight for transpose-derived reuse distance
+    
+    // ---------- Paper-Aligned Feature Weights ----------
+    double w_packing_factor_cl = 0.0;       ///< IISWC'18 cache-line packing factor
+    double w_locality_score_pairwise = 0.0; ///< DON-RL pairwise F(σ)
+    double w_reuse_distance_lru = 0.0;      ///< P-OPT LRU stack distance
+    
     // ---------- Cache Impact Weights ----------
     double cache_l1_impact = 0.0;    ///< L1 cache impact weight
     double cache_l2_impact = 0.0;    ///< L2 cache impact weight
@@ -1846,11 +2051,18 @@ struct PerceptronWeights {
     double avg_speedup = 1.0;        ///< Average speedup observed during training
     double avg_reorder_time = 0.0;   ///< Average reorder time in seconds
     
+    // ---------- Platt Scaling (P1 1.4) ----------
+    // After training, logistic regression maps score margin to P(win):
+    //   P(win) = 1 / (1 + exp(-(platt_A * margin + platt_B)))
+    // When platt_A == 0, Platt scaling is disabled (uncalibrated).
+    double platt_A = 0.0;           ///< Platt sigmoid slope parameter
+    double platt_B = 0.0;           ///< Platt sigmoid intercept parameter
+    
     // ---------- Z-score Normalization (Mode 5) ----------
     // When use_normalization is true, weights are in z-score space and
     // scoreBase() normalizes features before computing the dot product.
     // This eliminates de-normalization weight explosion from Python training.
-    static constexpr int N_FEATURES = 17;
+    static constexpr int N_FEATURES = 20;
     bool use_normalization = false;      ///< True when _normalization block present in JSON
     double norm_mean[N_FEATURES] = {};   ///< Per-feature means for z-score normalization
     double norm_std[N_FEATURES] = {};    ///< Per-feature stds for z-score normalization
@@ -1968,6 +2180,15 @@ struct PerceptronWeights {
         // Reorder time penalty
         s += w_reorder_time * feat.reorder_time;
         
+        // Sampled locality score (P1 3.1d: baseline ordering quality)
+        s += w_sampled_locality * feat.sampled_locality_score;
+        // P3 3.2: Transpose reuse distance
+        s += w_avg_reuse_distance * feat.avg_reuse_distance;
+        // Paper-aligned feature variants
+        s += w_packing_factor_cl * feat.packing_factor_cl;
+        s += w_locality_score_pairwise * feat.locality_score_pairwise;
+        s += w_reuse_distance_lru * feat.reuse_distance_lru;
+        
         return s;
     }
     
@@ -1982,14 +2203,14 @@ struct PerceptronWeights {
      * Feature order matches Python training:
      *   0=modularity, 1=dv, 2=hc, 3=log_n, 4=log_e, 5=density, 6=ad/100,
      *   7=cc, 8=apl/10, 9=dia/50, 10=log_comm, 11=pf, 12=fef, 13=log_wsr,
-     *   14=dv×hc, 15=mod×logn, 16=pf×logwsr
+     *   14=dv×hc, 15=mod×logn, 16=pf×logwsr, 17=pf_cl, 18=loc_pair, 19=rd_lru
      */
     double scoreBaseNormalized(const CommunityFeatures& feat) const {
         double log_nodes = std::log10(static_cast<double>(feat.num_nodes) + 1.0);
         double log_edges = std::log10(static_cast<double>(feat.num_edges) + 1.0);
         double log_wsr = std::log2(feat.working_set_ratio + 1.0);
         
-        // Compute 17 transformed features matching Python training order
+        // Compute 20 transformed features matching Python training order
         const double raw[N_FEATURES] = {
             feat.modularity,                                    // 0
             feat.degree_variance,                               // 1
@@ -2008,6 +2229,9 @@ struct PerceptronWeights {
             feat.degree_variance * feat.hub_concentration,      // 14
             feat.modularity * log_nodes,                        // 15
             feat.packing_factor * log_wsr,                      // 16
+            feat.packing_factor_cl,                             // 17
+            feat.locality_score_pairwise,                       // 18
+            feat.reuse_distance_lru,                            // 19
         };
         
         // Corresponding z-score weights in the same order
@@ -2017,6 +2241,7 @@ struct PerceptronWeights {
             w_clustering_coeff, w_avg_path_length, w_diameter,
             w_community_count, w_packing_factor, w_forward_edge_fraction,
             w_working_set_ratio, w_dv_x_hub, w_mod_x_logn, w_pf_x_wsr,
+            w_packing_factor_cl, w_locality_score_pairwise, w_reuse_distance_lru,
         };
         
         const auto& abl = AblationConfig::Get();
@@ -2038,6 +2263,15 @@ struct PerceptronWeights {
         s += cache_l1_impact * 0.5 + cache_l2_impact * 0.3
            + cache_l3_impact * 0.2 + cache_dram_penalty;
         s += w_reorder_time * feat.reorder_time;
+        // P1 3.1d: Sampled locality score (extra term, not z-normalized)
+        s += w_sampled_locality * feat.sampled_locality_score;
+        // P3 3.2: Transpose reuse distance (extra term, not z-normalized)
+        s += w_avg_reuse_distance * feat.avg_reuse_distance;
+        // Paper-aligned feature variants (extra terms, not z-normalized)
+        // (These will be z-normalized once training produces norm stats)
+        s += w_packing_factor_cl * feat.packing_factor_cl;
+        s += w_locality_score_pairwise * feat.locality_score_pairwise;
+        s += w_reuse_distance_lru * feat.reuse_distance_lru;
         
         return s;
     }
@@ -3573,6 +3807,21 @@ inline bool ParseWeightsFromJSON(const std::string& json_content,
         // Convergence bonus weight (GoGraph)
         w.w_fef_convergence = find_double(block, "w_fef_convergence");
         
+        // P1 3.1d: Sampled locality score weight
+        w.w_sampled_locality = find_double(block, "w_sampled_locality");
+        
+        // P3 3.2: Transpose reuse distance weight
+        w.w_avg_reuse_distance = find_double(block, "w_avg_reuse_distance");
+        
+        // Paper-aligned feature weights
+        w.w_packing_factor_cl = find_double(block, "w_packing_factor_cl");
+        w.w_locality_score_pairwise = find_double(block, "w_locality_score_pairwise");
+        w.w_reuse_distance_lru = find_double(block, "w_reuse_distance_lru");
+        
+        // P1 1.4: Platt scaling parameters
+        w.platt_A = find_double(block, "platt_A");
+        w.platt_B = find_double(block, "platt_B");
+        
         // Parse _metadata block for avg_speedup and avg_reorder_time
         size_t meta_pos = block.find("\"_metadata\"");
         if (meta_pos != std::string::npos) {
@@ -3962,6 +4211,22 @@ inline const std::map<std::string, PerceptronWeights>& GetPerceptronWeights() {
             .cache_l1_impact = 0.0, .cache_l2_impact = 0.0, .cache_l3_impact = 0.0, .cache_dram_penalty = 0.0,
             .w_reorder_time = -0.6
         }},
+        // GoGraphOrder: M(σ)-maximizing GetOptVal reordering (P3 3.4)
+        {"GOGRAPHORDER", {
+            .bias = 0.65,
+            .w_modularity = 0.1,
+            .w_log_nodes = -0.02,
+            .w_log_edges = -0.02,
+            .w_density = -0.1,
+            .w_avg_degree = 0.02,
+            .w_degree_variance = 0.1,
+            .w_hub_concentration = 0.1,
+            .w_clustering_coeff = 0.0, .w_avg_path_length = 0.0, .w_diameter = 0.0, .w_community_count = 0.0,
+            .w_forward_edge_fraction = 0.3,   // GoGraph excels at maximizing FEF
+            .w_fef_convergence = 0.4,          // strongly helps iterative convergence
+            .cache_l1_impact = 0.0, .cache_l2_impact = 0.0, .cache_l3_impact = 0.0, .cache_dram_penalty = 0.0,
+            .w_reorder_time = -0.3
+        }},
     };
     return weights;
 }
@@ -3984,10 +4249,18 @@ inline constexpr double UNKNOWN_TYPE_DISTANCE_THRESHOLD = 1.5;
 /**
  * Check if a graph is distant from known types (i.e., "unknown")
  * 
+ * P2 2.2: When per-type radius is available, uses distance/radius > 1.5
+ * instead of a global distance threshold.  Falls back to the global
+ * threshold when radius is 0 (uncalibrated).
+ * 
  * @param type_distance Distance to the closest type centroid
+ * @param type_radius   Per-type OOD radius (p95 of training distances), 0 = unknown
  * @return true if the graph is considered "unknown"
  */
-inline bool IsDistantGraphType(double type_distance) {
+inline bool IsDistantGraphType(double type_distance, double type_radius = 0.0) {
+    if (type_radius > 0.0) {
+        return (type_distance / type_radius) > UNKNOWN_TYPE_DISTANCE_THRESHOLD;
+    }
     return type_distance > UNKNOWN_TYPE_DISTANCE_THRESHOLD;
 }
 
@@ -4046,6 +4319,90 @@ using LoadPerceptronDBFn = bool(*)(BenchmarkType,
 inline LoadPerceptronDBFn& GetLoadPerceptronDBHook() {
     static LoadPerceptronDBFn fn = nullptr;
     return fn;
+}
+
+/**
+ * @brief P3 3.3: Hierarchical gating — regime-specific weight loading.
+ *
+ * Two-level model (Rabbit Order insight, Arai et al. IPDPS'16):
+ *   Level 1 (gate): GraphType classifies broad regime (social/road/web/etc.)
+ *   Level 2 (expert): Regime-specific perceptron weights for finer decisions
+ *
+ * Tries PERCEPTRON_WEIGHTS_DIR/<regime_name>/weights.json or
+ * PERCEPTRON_WEIGHTS_FILE_<REGIME> env var. Falls back to default if
+ * no regime-specific data exists.
+ *
+ * @param graph_type Detected graph type from DetectGraphType()
+ * @param bench Benchmark type
+ * @param verbose Print loading details
+ * @param out_weights Output map of regime-specific weights
+ * @return true if regime-specific weights were loaded successfully
+ */
+inline bool LoadPerceptronWeightsForRegime(
+    GraphType graph_type, BenchmarkType bench,
+    bool verbose, std::map<std::string, PerceptronWeights>& out_weights) {
+    
+    if (graph_type == GRAPH_GENERIC) return false;
+    
+    // Map GraphType → regime name for file lookup
+    const char* regime_names[] = {"generic", "social", "road", "web", "powerlaw", "uniform"};
+    const char* regime = regime_names[static_cast<int>(graph_type)];
+    
+    // Try env var override: PERCEPTRON_WEIGHTS_FILE_SOCIAL, etc.
+    std::string env_name = std::string("PERCEPTRON_WEIGHTS_FILE_") + regime;
+    // Convert to uppercase
+    for (auto& c : env_name) c = static_cast<char>(std::toupper(c));
+    
+    const char* env_path = std::getenv(env_name.c_str());
+    if (env_path != nullptr) {
+        std::ifstream file(env_path);
+        if (file.is_open()) {
+            std::string json_content((std::istreambuf_iterator<char>(file)),
+                                      std::istreambuf_iterator<char>());
+            file.close();
+            
+            auto base = GetPerceptronWeights();
+            if (ParseWeightsFromJSON(json_content, out_weights)) {
+                // Merge: regime-specific overrides on top of defaults
+                for (const auto& kv : out_weights) {
+                    base[kv.first] = kv.second;
+                }
+                out_weights = base;
+                if (verbose) {
+                    printf("Hierarchical: Loaded regime '%s' weights from %s\n",
+                           regime, env_path);
+                }
+                return true;
+            }
+        }
+    }
+    
+    // Try PERCEPTRON_WEIGHTS_DIR/<regime>/weights.json
+    const char* weights_dir = std::getenv("PERCEPTRON_WEIGHTS_DIR");
+    if (weights_dir != nullptr) {
+        std::string regime_path = std::string(weights_dir) + "/" + regime + "/weights.json";
+        std::ifstream file(regime_path);
+        if (file.is_open()) {
+            std::string json_content((std::istreambuf_iterator<char>(file)),
+                                      std::istreambuf_iterator<char>());
+            file.close();
+            
+            auto base = GetPerceptronWeights();
+            if (ParseWeightsFromJSON(json_content, out_weights)) {
+                for (const auto& kv : out_weights) {
+                    base[kv.first] = kv.second;
+                }
+                out_weights = base;
+                if (verbose) {
+                    printf("Hierarchical: Loaded regime '%s' weights from %s\n",
+                           regime, regime_path.c_str());
+                }
+                return true;
+            }
+        }
+    }
+    
+    return false;  // No regime-specific data → caller uses default path
 }
 
 /**
@@ -4139,6 +4496,24 @@ inline std::map<std::string, PerceptronWeights> LoadPerceptronWeightsForFeatures
 constexpr double ORIGINAL_MARGIN_THRESHOLD = 0.05;
 
 /**
+ * @brief Platt sigmoid: convert score margin to calibrated probability.
+ * P(win) = 1 / (1 + exp(-(A * margin + B)))
+ * When A == 0 (uncalibrated), returns 0.0 to signal "not available".
+ */
+inline double PlattProbability(double margin, double A, double B) {
+    if (A == 0.0) return 0.0;  // uncalibrated
+    double z = A * margin + B;
+    // Clamp to avoid overflow
+    if (z > 20.0) return 1.0;
+    if (z < -20.0) return 0.0;
+    return 1.0 / (1.0 + std::exp(-z));
+}
+
+/// Default calibrated confidence threshold for Platt scaling.
+/// If P(win) < this, fall back to ORIGINAL.
+constexpr double PLATT_CONFIDENCE_THRESHOLD = 0.55;
+
+/**
  * Select best reordering algorithm using perceptron scores.
  * 
  * Evaluates all candidate algorithms and returns the one with
@@ -4161,7 +4536,23 @@ inline PerceptronSelection SelectReorderingFromWeights(
     double best_score = -std::numeric_limits<double>::infinity();
     double original_score = -std::numeric_limits<double>::infinity();
     
+    // P1 2.3: Overhead-class filtering — skip heavyweight algorithms whose
+    // expected reorder time exceeds a fraction of expected kernel time.
+    // ADAPTIVE_OVERHEAD_FILTER=1 enables this enhancement.
+    // Estimate kernel time from graph size: ~1ms per 100K edges (rough median).
+    constexpr double OVERHEAD_RATIO_THRESHOLD = 0.5;  // skip if reorder > 50% of kernel
+    double estimated_kernel_time = static_cast<double>(feat.num_edges) * 1e-8;  // rough estimate
+    
     for (const auto& kv : weights) {
+        // P1 2.3: Skip heavyweight algorithms when cost exceeds budget
+        if (AblationConfig::Get().overhead_filter && kv.first != "ORIGINAL" && kv.first != "RANDOM") {
+            if (kv.second.avg_reorder_time > 0 && estimated_kernel_time > 0) {
+                if (kv.second.avg_reorder_time / estimated_kernel_time > OVERHEAD_RATIO_THRESHOLD) {
+                    continue;  // Too expensive for this graph size
+                }
+            }
+        }
+        
         double score = kv.second.score(feat, bench);
         if (kv.first == "ORIGINAL") {
             original_score = score;
@@ -4176,28 +4567,98 @@ inline PerceptronSelection SelectReorderingFromWeights(
     // If the best algorithm doesn't beat ORIGINAL by a sufficient margin,
     // the reordering overhead likely exceeds the benefit.
     // Ablation: ADAPTIVE_NO_MARGIN=1 disables this fallback.
+    double margin = (original_score > -1e30) ? best_score - original_score : best_score;
+    double platt_conf = 0.0;
+    
     if (best_name != "ORIGINAL" && original_score > -1e30 && !AblationConfig::Get().no_margin) {
-        double margin = best_score - original_score;
-        double threshold = ORIGINAL_MARGIN_THRESHOLD;
-        
-        // P0 1.1: Cost-aware dynamic threshold (IISWC'18 cost model).
-        // Higher avg_reorder_time → need proportionally larger margin to justify.
-        // ADAPTIVE_COST_MODEL=1 enables this enhancement.
-        if (AblationConfig::Get().cost_model) {
+        // P1 1.4: Platt-calibrated margin threshold.
+        // If Platt params are available and ADAPTIVE_PLATT=1, use calibrated
+        // P(win) instead of fixed margin threshold.
+        bool used_platt = false;
+        bool below_threshold = false;   // For P2 2.1 bandit exploration
+        if (AblationConfig::Get().platt_scaling) {
             auto it = weights.find(best_name);
-            if (it != weights.end() && it->second.avg_reorder_time > 0) {
-                constexpr double COST_MODEL_ALPHA = 0.01;  // seconds → score units
-                double cost_threshold = COST_MODEL_ALPHA * it->second.avg_reorder_time;
-                threshold = std::max(threshold, cost_threshold);
+            if (it != weights.end() && it->second.platt_A != 0.0) {
+                platt_conf = PlattProbability(margin, it->second.platt_A, it->second.platt_B);
+                below_threshold = (platt_conf < PLATT_CONFIDENCE_THRESHOLD);
+                used_platt = true;
             }
         }
         
-        if (margin < threshold) {
+        double threshold = ORIGINAL_MARGIN_THRESHOLD;
+        if (!used_platt) {
+            // Legacy fixed-threshold path
+            
+            // P0 1.1: Cost-aware dynamic threshold (IISWC'18 cost model).
+            // Higher avg_reorder_time → need proportionally larger margin to justify.
+            // ADAPTIVE_COST_MODEL=1 enables this enhancement.
+            if (AblationConfig::Get().cost_model) {
+                auto it = weights.find(best_name);
+                if (it != weights.end() && it->second.avg_reorder_time > 0) {
+                    constexpr double COST_MODEL_ALPHA = 0.01;  // seconds → score units
+                    double cost_threshold = COST_MODEL_ALPHA * it->second.avg_reorder_time;
+                    threshold = std::max(threshold, cost_threshold);
+                }
+            }
+            
+            below_threshold = (margin < threshold);
+        }
+        
+        if (below_threshold) {
+            // P2 2.1: ε-greedy bandit exploration for low-margin cases.
+            // When the model is uncertain (margin below threshold), with
+            // probability ε, explore by using the model's top pick anyway.
+            // ε decays with log(evaluations) to converge toward exploitation.
+            // ADAPTIVE_BANDIT=1 enables, ADAPTIVE_BANDIT_EPSILON sets ε₀ (default 0.1).
+            if (AblationConfig::Get().bandit_explore) {
+                // Thread-local evaluation counter for ε decay
+                static thread_local int eval_count = 0;
+                ++eval_count;
+                
+                // ε = ε₀ / (1 + 0.1 × ln(n_evals))
+                double eps0 = AblationConfig::Get().bandit_epsilon;
+                double eps = eps0 / (1.0 + 0.1 * std::log(static_cast<double>(eval_count)));
+                
+                // Safety rail: never explore with algos whose avg_reorder_time
+                // exceeds estimated kernel time × overhead ratio
+                bool safe_to_explore = true;
+                {
+                    auto it = weights.find(best_name);
+                    if (it != weights.end() && it->second.avg_reorder_time > 0) {
+                        double est_kernel = static_cast<double>(feat.num_edges) * 1e-8;
+                        constexpr double EXPLORE_OVERHEAD_RATIO = 0.5;
+                        if (it->second.avg_reorder_time > est_kernel * EXPLORE_OVERHEAD_RATIO) {
+                            safe_to_explore = false;
+                        }
+                    }
+                }
+                
+                if (safe_to_explore) {
+                    // Thread-local RNG for ε-greedy coin flip
+                    static thread_local std::mt19937 rng(
+                        std::hash<std::thread::id>{}(std::this_thread::get_id()));
+                    std::uniform_real_distribution<double> dist(0.0, 1.0);
+                    
+                    if (dist(rng) < eps) {
+                        // Explore: use model's pick despite low margin
+                        auto result = ResolveVariantSelection(best_name, best_score);
+                        result.margin = margin;
+                        result.confidence = platt_conf;
+                        result.explored = true;
+                        return result;
+                    }
+                }
+            }
+            // Exploit: fall back to ORIGINAL
             return ResolveVariantSelection("ORIGINAL", original_score);
         }
     }
     
-    return ResolveVariantSelection(best_name, best_score);
+    // Populate margin and confidence on the result
+    auto result = ResolveVariantSelection(best_name, best_score);
+    result.margin = margin;
+    result.confidence = platt_conf;
+    return result;
 }
 
 /**
@@ -4222,9 +4683,22 @@ inline std::vector<PerceptronSelection> SelectTopKFromWeights(
     // Score all algorithms
     std::vector<std::pair<double, std::string>> scored;
     scored.reserve(weights.size());
+
+    // P1 2.3: Overhead-class filtering — same logic as SelectReorderingFromWeights
+    constexpr double TOPK_OVERHEAD_RATIO = 0.5;
+    double est_kernel = static_cast<double>(feat.num_edges) * 1e-8;
+
     for (const auto& kv : weights) {
         // Skip baselines — they add no value to Top-K reordering
         if (kv.first == "ORIGINAL" || kv.first == "RANDOM") continue;
+        // P1 2.3: Skip heavyweight algorithms when overhead filter is active
+        if (AblationConfig::Get().overhead_filter) {
+            if (kv.second.avg_reorder_time > 0 && est_kernel > 0) {
+                if (kv.second.avg_reorder_time / est_kernel > TOPK_OVERHEAD_RATIO) {
+                    continue;
+                }
+            }
+        }
         double s = kv.second.score(feat, bench);
         scored.push_back({s, kv.first});
     }
@@ -4700,27 +5174,22 @@ static const bool _loadPerceptronDBHookInit = _InitLoadPerceptronDBHook();
 
 
 /**
- * Select best reordering algorithm with MODE-AWARE selection.
+ * Select best reordering algorithm with MODEL × CRITERION selection.
  *
  * This is the main entry point for AdaptiveOrder algorithm selection.
+ * Model and Criterion are orthogonal axes:
  *
- * **Streaming Database Model (v2.0)**:
- * ALL modes first try the streaming database (benchmarks.json + graph_properties.json).
- * Predictions are computed directly from raw benchmark data at runtime — no
- * pre-trained weight files needed. If the database has data, it IS the model.
+ * **Models** (how to predict):
+ * - PERCEPTRON: Multi-class perceptron with SSO-trained weights
+ * - DECISION_TREE: Trained DT classifier (12D features, per-benchmark)
+ * - HYBRID: DT structure with per-leaf perceptron weights
+ * - KNN_DATABASE: Distance-weighted k-NN from benchmark database
  *
- * Fallback: if the database is empty or unloaded, modes 0-3 fall back to
- * pre-trained perceptron weights, modes 4-5 to model tree files, and mode 6
- * returns ORIGINAL.
- *
- * Selection Modes:
- * - MODE_FASTEST_REORDER (0): Algorithm with lowest reorder time
- * - MODE_FASTEST_EXECUTION (1): Algorithm with lowest kernel time
- * - MODE_BEST_ENDTOEND (2): Algorithm with lowest (kernel + reorder) time
- * - MODE_BEST_AMORTIZATION (3): Algorithm that amortizes reorder cost fastest
- * - MODE_DECISION_TREE (4): Trained DT classifier (optional, DB fallback)
- * - MODE_HYBRID (5): Hybrid DT+Perceptron (optional, DB fallback)
- * - MODE_DATABASE (6): Explicit database mode (oracle + kNN)
+ * **Criteria** (what to optimize):
+ * - FASTEST_REORDER: Minimize reordering time only
+ * - FASTEST_EXECUTION: Minimize kernel execution time
+ * - BEST_ENDTOEND: Minimize (reorder + execution) time
+ * - BEST_AMORTIZATION: Minimize iterations needed to amortize reorder cost
  *
  * @param feat Community features for scoring
  * @param global_modularity Global graph modularity
@@ -4728,11 +5197,169 @@ static const bool _loadPerceptronDBHookInit = _InitLoadPerceptronDBHook();
  * @param global_hub_concentration Global hub concentration
  * @param num_nodes Total number of nodes
  * @param num_edges Total number of edges
- * @param mode Selection mode (see SelectionMode enum)
+ * @param model Which prediction model to use
+ * @param criterion What metric to optimize
  * @param graph_name Name of the graph (for oracle lookup)
  * @param bench Benchmark type
  * @param verbose Print selection details
- * @return Best algorithm based on the specified mode
+ * @return Best algorithm based on model and criterion
+ */
+inline PerceptronSelection SelectReorderingWithModelCriterion(
+    const CommunityFeatures& feat,
+    double global_modularity, double global_degree_variance,
+    double global_hub_concentration, size_t num_nodes, size_t num_edges,
+    SelectionModel model, SelectionCriterion criterion,
+    const std::string& graph_name = "",
+    BenchmarkType bench = BENCH_GENERIC, bool verbose = false) {
+
+    if (verbose) {
+        std::cout << "Selection: model=" << SelectionModelToString(model)
+                  << " criterion=" << SelectionCriterionToString(criterion) << "\n";
+    }
+
+    // ================================================================
+    // Model dispatch: KNN_DATABASE uses streaming DB directly
+    // ================================================================
+    if (model == SELECTION_MODEL_KNN_DATABASE) {
+        // Map criterion to legacy mode for the DB's select_for_mode()
+        SelectionMode legacy_mode;
+        switch (criterion) {
+            case CRITERION_FASTEST_REORDER:    legacy_mode = MODE_FASTEST_REORDER; break;
+            case CRITERION_FASTEST_EXECUTION:  legacy_mode = MODE_DATABASE; break;
+            case CRITERION_BEST_ENDTOEND:      legacy_mode = MODE_BEST_ENDTOEND; break;
+            case CRITERION_BEST_AMORTIZATION:  legacy_mode = MODE_BEST_AMORTIZATION; break;
+            default:                           legacy_mode = MODE_DATABASE; break;
+        }
+
+        std::string family = graphbrew::database::SelectForMode(
+            feat, bench, graph_name, legacy_mode, verbose);
+        if (!family.empty()) {
+            if (verbose) {
+                std::cout << "kNN-database → " << family << "\n";
+            }
+            return ResolveVariantSelection(family, 0.0);
+        }
+        // If DB is empty, fall through to perceptron fallback
+        if (verbose) {
+            std::cout << "kNN-database: no data, falling back to perceptron\n";
+        }
+    }
+
+    // ================================================================
+    // Model dispatch: DECISION_TREE or HYBRID
+    // ================================================================
+    if (model == SELECTION_MODEL_DECISION_TREE || model == SELECTION_MODEL_HYBRID) {
+        std::string subdir = (model == SELECTION_MODEL_DECISION_TREE) ? "decision_tree" : "hybrid";
+        std::string family = graphbrew::database::SelectAlgorithmModelTreeFromDB(
+            feat, bench, subdir, verbose);
+        if (!family.empty()) {
+            if (verbose) {
+                std::cout << SelectionModelToString(model) << " → " << family << "\n";
+            }
+            return ResolveVariantSelection(family, 0.0);
+        }
+        // No model tree available — fall through to perceptron
+        if (verbose) {
+            std::cout << SelectionModelToString(model) << ": no model, falling back to perceptron\n";
+        }
+    }
+
+    // ================================================================
+    // Model: PERCEPTRON (or fallback from other models)
+    // Criterion dispatch determines how to score algorithms
+    // ================================================================
+    switch (criterion) {
+        case CRITERION_FASTEST_REORDER: {
+            auto weights = LoadPerceptronWeightsForFeatures(
+                global_modularity, global_degree_variance, global_hub_concentration,
+                feat.avg_degree, num_nodes, num_edges, verbose, feat.clustering_coeff, bench);
+
+            PerceptronSelection fastest = SelectFastestReorderFromWeights(weights, verbose);
+            if (verbose) {
+                std::cout << "Perceptron (fastest-reorder) → " << fastest.variant_name << "\n";
+            }
+            return fastest;
+        }
+
+        case CRITERION_FASTEST_EXECUTION: {
+            PerceptronSelection best = SelectReorderingPerceptronWithFeatures(
+                feat, global_modularity, global_degree_variance,
+                global_hub_concentration, num_nodes, num_edges, bench);
+            if (verbose) {
+                std::cout << "Perceptron (fastest-execution) → " << best.variant_name << "\n";
+            }
+            return best;
+        }
+
+        case CRITERION_BEST_ENDTOEND: {
+            auto weights = LoadPerceptronWeightsForFeatures(
+                global_modularity, global_degree_variance, global_hub_concentration,
+                feat.avg_degree, num_nodes, num_edges, verbose, feat.clustering_coeff, bench);
+
+            std::string best_name = "ORIGINAL";
+            double best_score = -std::numeric_limits<double>::infinity();
+            const double REORDER_WEIGHT_BOOST = 2.0;
+
+            for (const auto& [name, w] : weights) {
+                double exec_score = w.score(feat, bench);
+                double reorder_bonus = w.w_reorder_time * REORDER_WEIGHT_BOOST;
+                double total_score = exec_score + reorder_bonus;
+
+                if (total_score > best_score) {
+                    best_score = total_score;
+                    best_name = name;
+                }
+            }
+
+            if (verbose) {
+                std::cout << "Perceptron (best-endtoend) → " << best_name << "\n";
+            }
+            return ResolveVariantSelection(best_name, best_score);
+        }
+
+        case CRITERION_BEST_AMORTIZATION: {
+            auto weights = LoadPerceptronWeightsForFeatures(
+                global_modularity, global_degree_variance, global_hub_concentration,
+                feat.avg_degree, num_nodes, num_edges, verbose, feat.clustering_coeff, bench);
+
+            std::string best_name = "ORIGINAL";
+            double best_iters = std::numeric_limits<double>::infinity();
+
+            for (const auto& [name, w] : weights) {
+                if (name == "ORIGINAL") continue;
+                double iters = w.iterationsToAmortize();
+                if (verbose) {
+                    std::cout << "  " << name
+                              << ": speedup=" << w.avg_speedup
+                              << ", reorder=" << w.avg_reorder_time << "s"
+                              << ", iters_to_amortize=" << iters << "\n";
+                }
+                if (iters < best_iters) {
+                    best_iters = iters;
+                    best_name = name;
+                }
+            }
+
+            if (verbose) {
+                std::cout << "Perceptron (best-amortization) → " << best_name
+                          << " (amortizes in " << best_iters << " iterations)\n";
+            }
+            return ResolveVariantSelection(best_name, 0.0);
+        }
+
+        default:
+            return SelectReorderingPerceptronWithFeatures(
+                feat, global_modularity, global_degree_variance,
+                global_hub_concentration, num_nodes, num_edges, bench);
+    }
+}
+
+/**
+ * Select best reordering algorithm with MODE-AWARE selection (LEGACY).
+ *
+ * Backward-compatible wrapper: decomposes the single SelectionMode into
+ * (SelectionModel, SelectionCriterion) and delegates to
+ * SelectReorderingWithModelCriterion().
  */
 inline PerceptronSelection SelectReorderingWithMode(
     const CommunityFeatures& feat,
@@ -4740,178 +5367,12 @@ inline PerceptronSelection SelectReorderingWithMode(
     double global_hub_concentration, size_t num_nodes, size_t num_edges,
     SelectionMode mode, const std::string& graph_name = "",
     BenchmarkType bench = BENCH_GENERIC, bool verbose = false) {
-    
-    // ================================================================
-    // Step 1: Try streaming database first (all modes)
-    // ================================================================
-    // The database IS the model — predictions come directly from raw
-    // benchmark data. No pre-trained weights needed.
-    {
-        std::string family = graphbrew::database::SelectForMode(
-            feat, bench, graph_name, mode, verbose);
-        if (!family.empty()) {
-            if (verbose) {
-                std::cout << "Mode " << static_cast<int>(mode)
-                          << ": streaming database → " << family << "\n";
-            }
-            return ResolveVariantSelection(family, 0.0);
-        }
-    }
-    
-    // ================================================================
-    // Step 2: Fallback to file-based models (backward compatibility)
-    // ================================================================
-    // Only reached when the database is empty or unloaded.
-    if (verbose) {
-        std::cout << "Database empty — falling back to model-based selection\n";
-    }
-    
-    // M2: All model data comes from adaptive_models.json via BenchmarkDatabase.
-    // LoadPerceptronWeightsForFeatures() delegates to the DB internally.
-    // No file-based type registry or per-type weight files are consulted.
-    
-    // Handle each mode — weights come from adaptive_models.json → defaults
-    switch (mode) {
-        case MODE_FASTEST_REORDER: {
-            auto weights = LoadPerceptronWeightsForFeatures(
-                global_modularity, global_degree_variance, global_hub_concentration,
-                feat.avg_degree, num_nodes, num_edges, verbose, feat.clustering_coeff, bench);
-            
-            PerceptronSelection fastest = SelectFastestReorderFromWeights(weights, verbose);
-            if (verbose) {
-                std::cout << "Mode: fastest-reorder → " << fastest.variant_name << "\n";
-            }
-            return fastest;
-        }
-        
-        case MODE_FASTEST_EXECUTION: {
-            PerceptronSelection best = SelectReorderingPerceptronWithFeatures(
-                feat, global_modularity, global_degree_variance,
-                global_hub_concentration, num_nodes, num_edges, bench);
-            if (verbose) {
-                std::cout << "Mode: fastest-execution → " << best.variant_name << "\n";
-            }
-            return best;
-        }
-        
-        case MODE_BEST_ENDTOEND: {
-            auto weights = LoadPerceptronWeightsForFeatures(
-                global_modularity, global_degree_variance, global_hub_concentration,
-                feat.avg_degree, num_nodes, num_edges, verbose, feat.clustering_coeff, bench);
-            
-            std::string best_name = "ORIGINAL";
-            double best_score = -std::numeric_limits<double>::infinity();
-            const double REORDER_WEIGHT_BOOST = 2.0;
-            
-            for (const auto& [name, w] : weights) {
-                double exec_score = w.score(feat, bench);
-                double reorder_bonus = w.w_reorder_time * REORDER_WEIGHT_BOOST;
-                double total_score = exec_score + reorder_bonus;
-                
-                if (total_score > best_score) {
-                    best_score = total_score;
-                    best_name = name;
-                }
-            }
-            
-            if (verbose) {
-                std::cout << "Mode: best-endtoend → " << best_name << "\n";
-            }
-            return ResolveVariantSelection(best_name, best_score);
-        }
-        
-        case MODE_BEST_AMORTIZATION: {
-            auto weights = LoadPerceptronWeightsForFeatures(
-                global_modularity, global_degree_variance, global_hub_concentration,
-                feat.avg_degree, num_nodes, num_edges, verbose, feat.clustering_coeff, bench);
-            
-            std::string best_name = "ORIGINAL";
-            double best_iters = std::numeric_limits<double>::infinity();
-            
-            for (const auto& [name, w] : weights) {
-                if (name == "ORIGINAL") continue;
-                
-                double iters = w.iterationsToAmortize();
-                
-                if (verbose) {
-                    std::cout << "  " << name
-                              << ": speedup=" << w.avg_speedup
-                              << ", reorder=" << w.avg_reorder_time << "s"
-                              << ", iters_to_amortize=" << iters << "\n";
-                }
-                
-                if (iters < best_iters) {
-                    best_iters = iters;
-                    best_name = name;
-                }
-            }
-            
-            if (verbose) {
-                std::cout << "Mode: best-amortization → " << best_name
-                          << " (amortizes in " << best_iters << " iterations)\n";
-            }
-            return ResolveVariantSelection(best_name, 0.0);
-        }
-        
-        case MODE_DECISION_TREE: {
-            // M2: model trees come only from adaptive_models.json
-            std::string family = graphbrew::database::SelectAlgorithmModelTreeFromDB(
-                feat, bench, "decision_tree", verbose);
-            if (family.empty()) {
-                if (verbose) {
-                    std::cout << "Mode: decision-tree → no model, falling back to perceptron\n";
-                }
-                return SelectReorderingPerceptronWithFeatures(
-                    feat, global_modularity, global_degree_variance,
-                    global_hub_concentration, num_nodes, num_edges, bench);
-            }
-            if (verbose) {
-                std::cout << "Mode: decision-tree → family=" << family << "\n";
-            }
-            return ResolveVariantSelection(family, 0.0);
-        }
-        
-        case MODE_HYBRID: {
-            // M2: hybrid models come only from adaptive_models.json
-            std::string family = graphbrew::database::SelectAlgorithmModelTreeFromDB(
-                feat, bench, "hybrid", verbose);
-            if (family.empty()) {
-                if (verbose) {
-                    std::cout << "Mode: hybrid → no model, falling back to perceptron\n";
-                }
-                return SelectReorderingPerceptronWithFeatures(
-                    feat, global_modularity, global_degree_variance,
-                    global_hub_concentration, num_nodes, num_edges, bench);
-            }
-            if (verbose) {
-                std::cout << "Mode: hybrid → family=" << family << "\n";
-            }
-            return ResolveVariantSelection(family, 0.0);
-        }
-        
-        case MODE_DATABASE: {
-            // Safety fallback — normally handled by SelectForMode above
-            std::string family = graphbrew::database::SelectAlgorithmDatabase(
-                feat, bench, graph_name, verbose);
-            if (family.empty()) {
-                if (verbose) {
-                    std::cout << "Mode: database → no data, falling back to perceptron\n";
-                }
-                return SelectReorderingPerceptronWithFeatures(
-                    feat, global_modularity, global_degree_variance,
-                    global_hub_concentration, num_nodes, num_edges, bench);
-            }
-            if (verbose) {
-                std::cout << "Mode: database → family=" << family << "\n";
-            }
-            return ResolveVariantSelection(family, 0.0);
-        }
-        
-        default:
-            return SelectReorderingPerceptronWithFeatures(
-                feat, global_modularity, global_degree_variance,
-                global_hub_concentration, num_nodes, num_edges, bench);
-    }
+
+    auto [model, criterion] = DecomposeSelectionMode(mode);
+    return SelectReorderingWithModelCriterion(
+        feat, global_modularity, global_degree_variance,
+        global_hub_concentration, num_nodes, num_edges,
+        model, criterion, graph_name, bench, verbose);
 }
 
 // ============================================================================
@@ -5016,12 +5477,24 @@ inline PerceptronSelection SelectBestReorderingForCommunity(
     size_t dynamic_min_size = 0)
 {
     (void)global_avg_degree;  // Reserved for future use
-    (void)graph_type;         // Type is auto-detected from features
     
     // Ablation: ADAPTIVE_FORCE_ALGO=N bypasses all perceptron logic
     if (AblationConfig::Get().force_algo >= 0) {
         ReorderingAlgo forced = static_cast<ReorderingAlgo>(AblationConfig::Get().force_algo);
         return PerceptronSelection{forced, ReorderingAlgoStr(forced), {}, 0.0};
+    }
+    
+    // P3 3.3: Hierarchical gating — use regime-specific perceptron weights
+    // when graph type is non-generic and hierarchical mode is enabled.
+    if (AblationConfig::Get().hierarchical_gate && graph_type != GRAPH_GENERIC) {
+        std::map<std::string, PerceptronWeights> regime_weights;
+        if (LoadPerceptronWeightsForRegime(graph_type, bench, false, regime_weights)) {
+            feat.modularity = global_modularity;
+            auto sel = SelectReorderingFromWeights(feat, regime_weights, bench);
+            // Tag as hierarchical selection for diagnostics
+            return sel;
+        }
+        // No regime-specific data → fall through to default path
     }
     
     // P0 1.2 (IISWC'18): Packing factor short-circuit.
@@ -5067,6 +5540,49 @@ inline PerceptronSelection SelectBestReorderingForCommunity(
     }
 #endif
     
+    // P1 1.3: FEF convergence validation for iterative benchmarks.
+    // For PR/PR_SPMV/SSSP: if the selected algorithm's w_fef_convergence
+    // weight is negative (i.e., it's expected to hurt convergence), try
+    // runner-up from top-2 selection. ADAPTIVE_FEF_VALIDATE=1 enables.
+    if (AblationConfig::Get().fef_validate &&
+        (bench == BENCH_PR || bench == BENCH_PR_SPMV || bench == BENCH_SSSP)) {
+        // Load perceptron weights for this graph's features
+        auto pw = LoadPerceptronWeightsForFeatures(
+            global_modularity, global_degree_variance, global_hub_concentration,
+            feat.avg_degree, num_nodes, num_edges, false, feat.clustering_coeff, bench);
+        auto it = pw.find(selected.variant_name);
+        if (it != pw.end() && it->second.w_fef_convergence < -0.01) {
+            // Selected algo has negative FEF convergence weight → bad for iterative
+            // Try top-2 and see if runner-up has a positive convergence weight
+            auto topk = SelectTopKFromWeights(feat, pw, bench, 2);
+            if (topk.size() >= 2) {
+                auto it2 = pw.find(topk[1].variant_name);
+                if (it2 != pw.end() && it2->second.w_fef_convergence > 0.0) {
+                    selected = topk[1];
+                }
+            }
+        }
+    }
+    
+    // P3 3.1f: DON-Lite neural ordering override.
+    // When the perceptron is uncertain (low margin) on a large community,
+    // override with the DON-Lite MLP-based ordering which can capture
+    // nonlinear feature interactions that the linear perceptron misses.
+    // DON-Lite constants (mirrored from reorder_don_lite.h to avoid circular include)
+    constexpr size_t kDonLiteMinCommunity = 50000;
+    constexpr double kDonLiteMarginThreshold = 0.1;
+
+    if (AblationConfig::Get().don_lite &&
+        feat.num_nodes >= kDonLiteMinCommunity) {
+        // Check selection margin: |best_score - runner_up_score|
+        // If below threshold, perceptron is uncertain → DON-Lite may do better.
+        double margin = std::abs(selected.score);
+        if (margin < kDonLiteMarginThreshold) {
+            selected.variant_name = "DON_LITE";
+            // Keep selected.algo as-is (fallback if dispatch doesn't catch name)
+        }
+    }
+    
     return selected;
 }
 
@@ -5088,6 +5604,17 @@ struct SampledDegreeFeatures {
     double packing_factor = 0.0;       ///< Hub neighbor co-location (IISWC'18)
     double forward_edge_fraction = 0.0;///< Fraction of edges (u,v) where u < v (GoGraph)
     double working_set_ratio = 0.0;    ///< graph_bytes / LLC_size (P-OPT)
+    // DON-RL-inspired features (Zhao et al.)
+    double vertex_significance_skewness = 0.0; ///< Skewness of per-vertex locality contributions (CV)
+    double window_neighbor_overlap = 0.0;      ///< Mean fraction of neighbors within locality window
+    // Sampled locality score (P1 3.1d)
+    double sampled_locality_score = 0.0;       ///< Sampled F(σ) approximation — baseline ordering quality
+    // P3 3.2: Transpose reuse distance (P-OPT inspired)
+    double avg_reuse_distance = 0.0;           ///< Mean next-reuse distance from transpose (CSC)
+    // ---- Paper-aligned variants (kept alongside approximations) ----
+    double packing_factor_cl = 0.0;            ///< IISWC'18 cache-line packing: fraction of neighbors on same CL
+    double locality_score_pairwise = 0.0;      ///< DON-RL pairwise F(σ): sampled Σ 1/(|σ(u)-σ(v)|) over edges
+    double reuse_distance_lru = 0.0;           ///< P-OPT LRU stack distance: mean unique-accesses between reuses
 };
 
 /**
@@ -5187,10 +5714,14 @@ inline SampledDegreeFeatures ComputeSampledDegreeFeatures(
     result.hub_concentration = (total_edge_sum > 0) ? 
         static_cast<double>(top_edge_sum) / total_edge_sum : 0.0;
     
-    // Packing Factor (IISWC'18): measures how many hub neighbors are already
-    // co-located in memory (have nearby IDs). High packing = less benefit from
-    // hub-based reordering. Samples top-degree nodes and checks if their
-    // neighbors have IDs within a locality window.
+    // Packing Factor — hub neighborhood co-location proxy.
+    // APPROXIMATION of IISWC'18 Algorithm 2:  The paper defines packing as
+    // the ratio of hub *vertices* fitting in a cache line (vertices per CL ÷
+    // expected CL per hub access, yielding values ≥1).  Our implementation
+    // instead measures the *fraction* of hub *neighbors* with nearby IDs
+    // (within a locality window), producing [0,1] values.  Both metrics
+    // correlate with cache-line utilization, but the scales differ.
+    // High packing = less benefit from hub-based reordering.
     {
         size_t pf_samples = std::min(sample_size, static_cast<size_t>(500));
         size_t hub_count = std::max(size_t(1), pf_samples / 10);
@@ -5261,6 +5792,260 @@ inline SampledDegreeFeatures ComputeSampledDegreeFeatures(
         size_t llc_bytes = GetLLCSizeBytes();
         result.working_set_ratio = (llc_bytes > 0) ?
             static_cast<double>(graph_bytes) / llc_bytes : 0.0;
+    }
+
+    // DON-RL Feature 1: Vertex Significance Skewness (Zhao et al.)
+    // Coefficient of variation of per-vertex "locality contributions"
+    // (degree × packing). High skewness → hub-dominated → HubSort works well.
+    // Low skewness → uniform → community-based algorithms better.
+    {
+        size_t vss_samples = std::min(sample_size, static_cast<size_t>(2000));
+        int64_t locality_window = std::max(int64_t(64), num_nodes / 100);
+        std::vector<double> significance(vss_samples);
+
+        for (size_t i = 0; i < vss_samples; ++i) {
+            int64_t node = (num_nodes > static_cast<int64_t>(vss_samples)) ?
+                static_cast<int64_t>((i * num_nodes) / vss_samples) : static_cast<int64_t>(i);
+            int64_t deg = g.out_degree(node);
+            if (deg == 0) { significance[i] = 0.0; continue; }
+
+            // Count neighbors within locality window
+            int64_t local_count = 0;
+            for (auto n : g.out_neigh(node)) {
+                if (std::abs(static_cast<int64_t>(n) - node) <= locality_window)
+                    local_count++;
+            }
+            // Significance = degree * local fraction (how much this vertex
+            // contributes to locality if placed optimally)
+            significance[i] = static_cast<double>(deg) *
+                               (static_cast<double>(local_count) / deg);
+        }
+
+        // Compute CV = std / mean
+        double sig_sum = 0.0;
+        for (size_t i = 0; i < vss_samples; ++i) sig_sum += significance[i];
+        double sig_mean = sig_sum / vss_samples;
+
+        double sig_var = 0.0;
+        for (size_t i = 0; i < vss_samples; ++i) {
+            double d = significance[i] - sig_mean;
+            sig_var += d * d;
+        }
+        sig_var /= std::max(size_t(1), vss_samples - 1);
+        result.vertex_significance_skewness = (sig_mean > 1e-12) ?
+            std::sqrt(sig_var) / sig_mean : 0.0;
+    }
+
+    // DON-RL Feature 2: Window Neighbor Overlap
+    // Mean fraction of a vertex's neighbors within a locality window.
+    // Generalizes packing_factor with broader sampling — packing_factor
+    // only samples hubs, this samples uniformly across the graph.
+    {
+        size_t wno_samples = std::min(sample_size, static_cast<size_t>(2000));
+        int64_t locality_window = std::max(int64_t(64), num_nodes / 100);
+        double total_overlap = 0.0;
+        size_t counted = 0;
+
+        for (size_t i = 0; i < wno_samples; ++i) {
+            int64_t node = (num_nodes > static_cast<int64_t>(wno_samples)) ?
+                static_cast<int64_t>((i * num_nodes) / wno_samples) : static_cast<int64_t>(i);
+            int64_t deg = g.out_degree(node);
+            if (deg == 0) continue;
+
+            int64_t in_window = 0;
+            for (auto n : g.out_neigh(node)) {
+                if (std::abs(static_cast<int64_t>(n) - node) <= locality_window)
+                    in_window++;
+            }
+            total_overlap += static_cast<double>(in_window) / deg;
+            counted++;
+        }
+        result.window_neighbor_overlap = (counted > 0) ?
+            total_overlap / counted : 0.0;
+    }
+
+    // P1 3.1d: Sampled Locality Score — simplified F(σ) proxy.
+    // APPROXIMATION of DON-RL's F(σ): The paper computes F(σ) by summing
+    // pairwise joint similarity over a permutation window, combining S_s
+    // (common sibling count) and S_n (common neighbor count) for each pair.
+    // Our proxy instead measures the fraction of a vertex's neighbors within
+    // a narrow cache window (|neighbor_id − node_id| ≤ cache_window),
+    // omitting the sibling-similarity (S_s) component entirely.
+    // Both capture "how cache-friendly is the current ordering" but at
+    // different granularity.  High value → already cache-friendly.
+    // Complementary to window_neighbor_overlap which uses a broader window.
+    {
+        size_t loc_samples = std::min(sample_size, static_cast<size_t>(1000));
+        // Use a narrow window approximating L1 cache line reach (~16 vertices)
+        int64_t cache_window = std::max(int64_t(16), num_nodes / 1000);
+        double total_locality = 0.0;
+        size_t counted_loc = 0;
+
+        for (size_t i = 0; i < loc_samples; ++i) {
+            int64_t node = (num_nodes > static_cast<int64_t>(loc_samples)) ?
+                static_cast<int64_t>((i * num_nodes) / loc_samples) : static_cast<int64_t>(i);
+            int64_t deg = g.out_degree(node);
+            if (deg == 0) continue;
+
+            int64_t in_cache = 0;
+            for (auto n : g.out_neigh(node)) {
+                if (std::abs(static_cast<int64_t>(n) - node) <= cache_window)
+                    in_cache++;
+            }
+            total_locality += static_cast<double>(in_cache) / deg;
+            counted_loc++;
+        }
+        result.sampled_locality_score = (counted_loc > 0) ?
+            total_locality / counted_loc : 0.0;
+    }
+    
+    // P3 3.2: Transpose reuse distance — spatial ID-distance proxy.
+    // APPROXIMATION of P-OPT's temporal reuse distance: The paper measures
+    // the number of DISTINCT memory accesses between consecutive references
+    // to the same cache line during an execution trace (LRU stack distance).
+    // Our proxy uses SPATIAL vertex-ID distance: mean |in_neighbor_id − node_id|
+    // from the transpose (CSC).  This correlates with temporal reuse because
+    // vertices with far-apart IDs tend to map to distant cache lines, but it
+    // does not capture access-pattern-specific reuse.
+    // High reuse distance → graph benefits from reordering to reduce cache misses.
+    {
+        const size_t reuse_samples = std::min(sample_size, static_cast<size_t>(1000));
+        double total_reuse = 0.0;
+        size_t counted_reuse = 0;
+        for (size_t i = 0; i < reuse_samples; ++i) {
+            int64_t node = (num_nodes > static_cast<int64_t>(reuse_samples)) ?
+                static_cast<int64_t>((i * num_nodes) / reuse_samples) : static_cast<int64_t>(i);
+            int64_t in_deg = g.in_degree(node);
+            if (in_deg == 0) continue;
+
+            double sum_dist = 0.0;
+            for (auto pred : g.in_neigh(node)) {
+                sum_dist += std::abs(static_cast<int64_t>(pred) - node);
+            }
+            total_reuse += sum_dist / in_deg;
+            counted_reuse++;
+        }
+        // Normalize by num_nodes to get a [0,1]-ish scale
+        result.avg_reuse_distance = (counted_reuse > 0 && num_nodes > 0) ?
+            (total_reuse / counted_reuse) / num_nodes : 0.0;
+    }
+    
+    // ====================================================================
+    // PAPER-ALIGNED FEATURE VARIANTS
+    // Kept alongside the approximations above for comparison/training.
+    // ====================================================================
+    
+    // IISWC'18 cache-line packing factor — fraction of a hub's neighbors
+    // that map to the SAME cache line as the hub (vertex ID / CL_VERTS).
+    // More faithful to Su et al.'s "packing factor" which measures cache-line
+    // utilization rather than ID-distance proximity.
+    {
+        constexpr int64_t CL_BYTES = 64;  // x86 cache line size
+        constexpr int64_t VERT_BYTES = 4; // sizeof(int32_t) vertex ID
+        constexpr int64_t CL_VERTS = CL_BYTES / VERT_BYTES;  // 16 verts per CL
+        
+        size_t pf_samples = std::min(sample_size, static_cast<size_t>(500));
+        size_t hub_count = std::max(size_t(1), pf_samples / 10);
+        size_t total_neighbors = 0;
+        size_t same_cl_neighbors = 0;
+        
+        for (size_t i = 0; i < hub_count; ++i) {
+            int64_t node = (num_nodes > static_cast<int64_t>(sample_size)) ?
+                static_cast<int64_t>((i * num_nodes) / sample_size) : static_cast<int64_t>(i);
+            int64_t deg = g.out_degree(node);
+            if (deg < 2) continue;
+            
+            int64_t node_cl = node / CL_VERTS;
+            for (auto n : g.out_neigh(node)) {
+                int64_t neighbor = static_cast<int64_t>(n);
+                total_neighbors++;
+                if (neighbor / CL_VERTS == node_cl) {
+                    same_cl_neighbors++;
+                }
+            }
+        }
+        result.packing_factor_cl = (total_neighbors > 0) ?
+            static_cast<double>(same_cl_neighbors) / total_neighbors : 0.0;
+    }
+    
+    // DON-RL pairwise locality score — sampled Σ 1/(|σ(u)−σ(v)|) over edges.
+    // The paper defines F(σ) = Σ_{(u,v)∈E} 1/(|σ(u)−σ(v)|) as the locality
+    // objective.  We sample edges uniformly and compute the mean reciprocal
+    // ID-distance, normalized to [0,1] by dividing by 1 (since max single
+    // contribution is 1 for adjacent IDs).
+    {
+        size_t loc_p_samples = std::min(sample_size, static_cast<size_t>(2000));
+        double total_recip = 0.0;
+        size_t counted_edges = 0;
+        
+        for (size_t i = 0; i < loc_p_samples; ++i) {
+            int64_t node = (num_nodes > static_cast<int64_t>(loc_p_samples)) ?
+                static_cast<int64_t>((i * num_nodes) / loc_p_samples) : static_cast<int64_t>(i);
+            
+            for (auto n : g.out_neigh(node)) {
+                int64_t diff = std::abs(static_cast<int64_t>(n) - node);
+                if (diff > 0) {
+                    total_recip += 1.0 / static_cast<double>(diff);
+                    counted_edges++;
+                }
+            }
+        }
+        result.locality_score_pairwise = (counted_edges > 0) ?
+            total_recip / counted_edges : 0.0;
+    }
+    
+    // P-OPT LRU stack distance — approximate temporal reuse distance using
+    // a small LRU simulation.  For each sampled vertex, simulate cache-line
+    // accesses to its neighbors and measure the mean LRU position (number of
+    // unique cache lines accessed since last reference to same line).
+    // This is much more faithful to P-OPT's stack distance than the spatial
+    // ID-distance proxy (avg_reuse_distance) but more expensive.
+    {
+        constexpr int64_t CL_BYTES = 64;
+        constexpr int64_t VERT_BYTES = 4;
+        constexpr int64_t CL_VERTS = CL_BYTES / VERT_BYTES;
+        constexpr size_t LRU_CAP = 64;  // small LRU cache (64 cache lines)
+        
+        size_t lru_samples = std::min(sample_size, static_cast<size_t>(500));
+        double total_stack_dist = 0.0;
+        size_t counted_access = 0;
+        
+        for (size_t i = 0; i < lru_samples; ++i) {
+            int64_t node = (num_nodes > static_cast<int64_t>(lru_samples)) ?
+                static_cast<int64_t>((i * num_nodes) / lru_samples) : static_cast<int64_t>(i);
+            int64_t deg = g.out_degree(node);
+            if (deg < 2) continue;
+            
+            // Mini LRU simulation: access neighbors' cache lines in order
+            std::vector<int64_t> lru_stack;  // most-recent at back
+            lru_stack.reserve(std::min(static_cast<size_t>(deg), LRU_CAP));
+            
+            for (auto n : g.out_neigh(node)) {
+                int64_t cl = static_cast<int64_t>(n) / CL_VERTS;
+                
+                // Search for cl in LRU stack
+                auto it = std::find(lru_stack.begin(), lru_stack.end(), cl);
+                if (it != lru_stack.end()) {
+                    // Hit: distance = number of unique lines between this and top
+                    size_t dist = static_cast<size_t>(lru_stack.end() - it - 1);
+                    total_stack_dist += static_cast<double>(dist);
+                    // Move to most-recent
+                    lru_stack.erase(it);
+                    lru_stack.push_back(cl);
+                } else {
+                    // Miss: distance = LRU size (cold miss)
+                    total_stack_dist += static_cast<double>(lru_stack.size());
+                    lru_stack.push_back(cl);
+                    if (lru_stack.size() > LRU_CAP) {
+                        lru_stack.erase(lru_stack.begin());  // evict oldest
+                    }
+                }
+                counted_access++;
+            }
+        }
+        // Normalize by LRU_CAP to get [0,1]-ish scale
+        result.reuse_distance_lru = (counted_access > 0) ?
+            (total_stack_dist / counted_access) / static_cast<double>(LRU_CAP) : 0.0;
     }
     
     // Optional: Compute clustering coefficient (expensive but useful)
@@ -5903,6 +6688,75 @@ CommunityFeatures ComputeCommunityFeaturesStandalone(
         size_t llc_bytes = GetLLCSizeBytes();
         feat.working_set_ratio = (llc_bytes > 0) ?
             static_cast<double>(comm_bytes) / llc_bytes : 0.0;
+    }
+    
+    // Paper-aligned features (cache-line packing, pairwise locality, LRU distance)
+    {
+        constexpr int64_t CL_VERTS = 64 / 4;  // 16 verts per cache line
+        size_t pf_cl_total = 0, pf_cl_same = 0;
+        double loc_recip_sum = 0.0;
+        size_t loc_edge_count = 0;
+        
+        size_t pa_samples = std::min(feat.num_nodes, size_t(1000));
+        for (size_t i = 0; i < pa_samples; ++i) {
+            size_t idx = (i * feat.num_nodes) / pa_samples;
+            NodeID_ node = comm_nodes[idx];
+            int64_t node_cl = static_cast<int64_t>(node) / CL_VERTS;
+            
+            for (DestID_ neighbor : g.out_neigh(node)) {
+                NodeID_ dest = static_cast<NodeID_>(neighbor);
+                if (!node_set.count(dest)) continue;
+                
+                // Cache-line packing
+                pf_cl_total++;
+                if (static_cast<int64_t>(dest) / CL_VERTS == node_cl) pf_cl_same++;
+                
+                // Pairwise reciprocal distance
+                int64_t diff = std::abs(static_cast<int64_t>(dest) - static_cast<int64_t>(node));
+                if (diff > 0) {
+                    loc_recip_sum += 1.0 / static_cast<double>(diff);
+                    loc_edge_count++;
+                }
+            }
+        }
+        feat.packing_factor_cl = (pf_cl_total > 0) ?
+            static_cast<double>(pf_cl_same) / pf_cl_total : 0.0;
+        feat.locality_score_pairwise = (loc_edge_count > 0) ?
+            loc_recip_sum / loc_edge_count : 0.0;
+    }
+    // LRU stack distance for community subgraph
+    {
+        constexpr int64_t CL_VERTS = 64 / 4;
+        constexpr size_t LRU_CAP = 64;
+        size_t lru_samples = std::min(feat.num_nodes, size_t(500));
+        double total_sd = 0.0;
+        size_t counted = 0;
+        
+        for (size_t i = 0; i < lru_samples; ++i) {
+            size_t idx = (i * feat.num_nodes) / lru_samples;
+            NodeID_ node = comm_nodes[idx];
+            std::vector<int64_t> lru;
+            lru.reserve(LRU_CAP);
+            
+            for (DestID_ neighbor : g.out_neigh(node)) {
+                NodeID_ dest = static_cast<NodeID_>(neighbor);
+                if (!node_set.count(dest)) continue;
+                int64_t cl = static_cast<int64_t>(dest) / CL_VERTS;
+                auto it = std::find(lru.begin(), lru.end(), cl);
+                if (it != lru.end()) {
+                    total_sd += static_cast<double>(lru.end() - it - 1);
+                    lru.erase(it);
+                    lru.push_back(cl);
+                } else {
+                    total_sd += static_cast<double>(lru.size());
+                    lru.push_back(cl);
+                    if (lru.size() > LRU_CAP) lru.erase(lru.begin());
+                }
+                counted++;
+            }
+        }
+        feat.reuse_distance_lru = (counted > 0) ?
+            (total_sd / counted) / static_cast<double>(LRU_CAP) : 0.0;
     }
     
     return feat;

@@ -67,7 +67,7 @@ inline constexpr const char* DEFAULT_DATA_DIR = "results/data/";
 inline constexpr int KNN_K = 5;
 
 /// Number of features used for kNN distance computation
-inline constexpr int N_FEATURES = 12;
+inline constexpr int N_FEATURES = 14;
 
 /// Algorithm family names (must match Python ALGO_FAMILY values)
 inline const std::vector<std::string> FAMILY_NAMES = {
@@ -385,6 +385,11 @@ struct GraphProperties {
     double      forward_edge_fraction = 0.0;
     double      working_set_ratio = 0.0;
     double      density = 0.0;
+    // DON-RL features
+    double      vertex_significance_skewness = 0.0;
+    double      window_neighbor_overlap = 0.0;
+    // P1 3.1d: Sampled locality score
+    double      sampled_locality_score = 0.0;
     std::string graph_type;               ///< "SOCIAL", "ROAD", etc.
 
     // Reorder history (one per algorithm applied to this graph)
@@ -406,6 +411,9 @@ struct GraphProperties {
         j["forward_edge_fraction"] = forward_edge_fraction;
         j["working_set_ratio"] = working_set_ratio;
         j["density"] = density;
+        j["vertex_significance_skewness"] = vertex_significance_skewness;
+        j["window_neighbor_overlap"] = window_neighbor_overlap;
+        j["sampled_locality_score"] = sampled_locality_score;
         if (!graph_type.empty()) j["graph_type"] = graph_type;
 
         if (!reorder_history.empty()) {
@@ -483,7 +491,7 @@ inline void ClearBenchmarkIterationLog() {
     GetBenchmarkIterationLog().clear();
 }
 
-/// Feature vector for a graph (12 features, same order as Python)
+/// Feature vector for a graph (14 features, same order as Python)
 struct GraphFeatureVec {
     double modularity = 0.0;
     double hub_concentration = 0.0;
@@ -497,8 +505,13 @@ struct GraphFeatureVec {
     double log2_wsr = 0.0;            // log2(working_set_ratio + 1)
     double log10_cc = 0.0;            // log10(community_count + 1)
     double diameter_50 = 0.0;         // diameter / 50
+    // DON-RL features (Zhao et al.)
+    double vertex_significance_skewness = 0.0;  // CV of per-vertex locality
+    double window_neighbor_overlap = 0.0;       // mean neighbor-in-window fraction
+    // P1 3.1d: Sampled locality score (F(σ) approximation)
+    double sampled_locality_score = 0.0;        // cache-line-window locality
 
-    static constexpr int N_FEATURES = 12;
+    static constexpr int N_FEATURES = 15;
     double& operator[](int i) {
         assert(i >= 0 && i < N_FEATURES && "GraphFeatureVec index out of bounds");
         return (&modularity)[i];
@@ -524,6 +537,8 @@ inline std::string AlgoToFamily(const std::string& algo) {
     if (algo.find("RABBIT") != std::string::npos) return "RABBIT";
     // Leiden / GraphBrew
     if (algo.find("Leiden") != std::string::npos || algo.find("GraphBrew") != std::string::npos) return "LEIDEN";
+    // GoGraph
+    if (algo.find("GoGraph") != std::string::npos || algo.find("GOGRAPH") != std::string::npos) return "GOGRAPH";
     // Compound: check suffix
     if (algo.find("+") != std::string::npos) {
         // Use the second component as the family
@@ -628,6 +643,9 @@ public:
         query.log2_wsr = std::log2(feat.working_set_ratio + 1.0);
         query.log10_cc = std::log10(feat.community_count + 1.0);
         query.diameter_50 = feat.diameter_estimate / 50.0;
+        query.vertex_significance_skewness = feat.vertex_significance_skewness;
+        query.window_neighbor_overlap = feat.window_neighbor_overlap;
+        query.sampled_locality_score = feat.sampled_locality_score;
 
         return best_family_knn_from_features(query, benchmark, k, verbose);
     }
@@ -905,6 +923,9 @@ public:
         query.log2_wsr = std::log2(feat.working_set_ratio + 1.0);
         query.log10_cc = std::log10(feat.community_count + 1.0);
         query.diameter_50 = feat.diameter_estimate / 50.0;
+        query.vertex_significance_skewness = feat.vertex_significance_skewness;
+        query.window_neighbor_overlap = feat.window_neighbor_overlap;
+        query.sampled_locality_score = feat.sampled_locality_score;
 
         auto scores = knn_algo_scores(query, benchmark, KNN_K, verbose);
         if (scores.empty()) return "";
@@ -1085,6 +1106,9 @@ public:
         fv.log2_wsr = std::log2(feat.working_set_ratio + 1.0);
         fv.log10_cc = std::log10(feat.community_count + 1.0);
         fv.diameter_50 = feat.diameter_estimate / 50.0;
+        fv.vertex_significance_skewness = feat.vertex_significance_skewness;
+        fv.window_neighbor_overlap = feat.window_neighbor_overlap;
+        fv.sampled_locality_score = feat.sampled_locality_score;
     }
 
     /**
@@ -1166,6 +1190,9 @@ public:
         fv.log2_wsr = std::log2(props.working_set_ratio + 1.0);
         fv.log10_cc = std::log10(props.community_count + 1.0);
         fv.diameter_50 = props.diameter_estimate / 50.0;
+        fv.vertex_significance_skewness = props.vertex_significance_skewness;
+        fv.window_neighbor_overlap = props.window_neighbor_overlap;
+        fv.sampled_locality_score = props.sampled_locality_score;
 
         // Save: re-read from disk, merge, write
         save_graph_props_with_raw(props);
@@ -1290,6 +1317,7 @@ private:
     void load() {
         load_benchmarks();
         load_graph_props();
+        compute_feature_stats();  // z-norm stats for kNN
         build_oracle_cache();
 
         // Train models from raw DB data (replaces load_adaptive_models).
@@ -1418,6 +1446,9 @@ private:
                 fv.log2_wsr = std::log2(raw_wsr + 1.0);
                 fv.log10_cc = std::log10(raw_cc + 1.0);
                 fv.diameter_50 = raw_diameter / 50.0;
+                fv.vertex_significance_skewness = props.value("vertex_significance_skewness", 0.0);
+                fv.window_neighbor_overlap = props.value("window_neighbor_overlap", 0.0);
+                fv.sampled_locality_score = props.value("sampled_locality_score", 0.0);
 
                 graph_features_[name] = fv;
                 raw_graph_props_[name] = props;  // keep raw JSON for training
@@ -1592,6 +1623,9 @@ private:
             props["working_set_ratio"] = std::pow(2.0, fv.log2_wsr) - 1.0;
             props["community_count"] = std::pow(10.0, fv.log10_cc) - 1.0;
             props["diameter"] = fv.diameter_50 * 50.0;
+            props["vertex_significance_skewness"] = fv.vertex_significance_skewness;
+            props["window_neighbor_overlap"] = fv.window_neighbor_overlap;
+            props["sampled_locality_score"] = fv.sampled_locality_score;
             j[name] = props;
         }
 
@@ -1643,14 +1677,61 @@ private:
     }
 
     // ========================================================================
+    // Feature Statistics (z-normalization for kNN)
+    // ========================================================================
+
+    /**
+     * @brief Compute mean/std of each feature across all known graphs.
+     *
+     * Called after load_graph_props(). Used by euclidean_distance() to
+     * z-normalize features so that no single feature dominates distance
+     * (e.g., log_nodes ~6 vs density ~0.001).
+     */
+    void compute_feature_stats() {
+        int n = static_cast<int>(graph_features_.size());
+        for (int i = 0; i < N_FEATURES; i++) {
+            feat_means_[i] = 0.0;
+            feat_stds_[i] = 1.0;  // default: no scaling
+        }
+        if (n < 2) return;
+
+        // Compute means
+        for (const auto& [name, fv] : graph_features_)
+            for (int i = 0; i < N_FEATURES; i++)
+                feat_means_[i] += fv[i];
+        for (int i = 0; i < N_FEATURES; i++)
+            feat_means_[i] /= n;
+
+        // Compute stds
+        for (int i = 0; i < N_FEATURES; i++) feat_stds_[i] = 0.0;
+        for (const auto& [name, fv] : graph_features_)
+            for (int i = 0; i < N_FEATURES; i++) {
+                double d = fv[i] - feat_means_[i];
+                feat_stds_[i] += d * d;
+            }
+        for (int i = 0; i < N_FEATURES; i++) {
+            feat_stds_[i] = std::sqrt(feat_stds_[i] / n);
+            if (feat_stds_[i] < 1e-12) feat_stds_[i] = 1.0;  // avoid div-by-zero
+        }
+    }
+
+    // ========================================================================
     // Distance Computation
     // ========================================================================
 
-    static double euclidean_distance(const GraphFeatureVec& a,
-                                      const GraphFeatureVec& b) {
+    /**
+     * @brief Z-normalized Euclidean distance between two feature vectors.
+     *
+     * Each feature is scaled by (x - mean) / std before computing L2 distance,
+     * ensuring features with different ranges contribute equally.
+     */
+    double euclidean_distance(const GraphFeatureVec& a,
+                              const GraphFeatureVec& b) const {
         double sum = 0.0;
         for (int i = 0; i < N_FEATURES; ++i) {
-            double d = a[i] - b[i];
+            double za = (a[i] - feat_means_[i]) / feat_stds_[i];
+            double zb = (b[i] - feat_means_[i]) / feat_stds_[i];
+            double d = za - zb;
             sum += d * d;
         }
         return std::sqrt(sum);
@@ -1793,8 +1874,8 @@ private:
     // Runtime Model Training (from raw DB data)
     // ========================================================================
 
-    /// Number of perceptron features (17: 14 base + 3 quadratic interactions)
-    static constexpr int N_PERCEPTRON_FEATURES = 17;
+    /// Number of perceptron features (22: 16 base + 5 quadratic interactions + 1 reuse distance)
+    static constexpr int N_PERCEPTRON_FEATURES = 22;
 
     /// Weight key names matching Python training order (index → JSON field name)
     static constexpr const char* WEIGHT_KEYS[N_PERCEPTRON_FEATURES] = {
@@ -1802,11 +1883,15 @@ private:
         "w_log_nodes", "w_log_edges", "w_density", "w_avg_degree",
         "w_clustering_coeff", "w_avg_path_length", "w_diameter",
         "w_community_count", "w_packing_factor", "w_forward_edge_fraction",
-        "w_working_set_ratio", "w_dv_x_hub", "w_mod_x_logn", "w_pf_x_wsr"
+        "w_working_set_ratio", "w_vertex_significance_skewness",
+        "w_window_neighbor_overlap",
+        "w_dv_x_hub", "w_mod_x_logn", "w_pf_x_wsr",
+        "w_vss_x_hc", "w_wno_x_pf",
+        "w_avg_reuse_distance"
     };
 
     /**
-     * @brief Extract 17 perceptron features from raw graph properties JSON.
+     * @brief Extract 21 perceptron features from raw graph properties JSON.
      *
      * Feature order matches Python training and scoreBaseNormalized():
      *   0=modularity, 1=degree_variance, 2=hub_concentration,
@@ -1814,7 +1899,9 @@ private:
      *   7=clustering_coeff, 8=avg_path_length/10, 9=diameter/50,
      *   10=log10(community_count+1), 11=packing_factor,
      *   12=forward_edge_fraction, 13=log2(working_set_ratio+1),
-     *   14=dv×hc, 15=mod×logn, 16=pf×log_wsr
+     *   14=vertex_significance_skewness, 15=window_neighbor_overlap,
+     *   16=dv×hc, 17=mod×logn, 18=pf×log_wsr,
+     *   19=vss×hc, 20=wno×pf, 21=avg_reuse_distance
      */
     static void extract_perceptron_features(const nlohmann::json& props,
                                              double out[N_PERCEPTRON_FEATURES]) {
@@ -1832,6 +1919,8 @@ private:
         double pf           = props.value("packing_factor", 0.0);
         double fef          = props.value("forward_edge_fraction", 0.0);
         double log_wsr      = std::log2(props.value("working_set_ratio", 0.0) + 1.0);
+        double vss          = props.value("vertex_significance_skewness", 0.0);
+        double wno          = props.value("window_neighbor_overlap", 0.0);
 
         out[0]  = modularity;
         out[1]  = dv;
@@ -1847,10 +1936,16 @@ private:
         out[11] = pf;
         out[12] = fef;
         out[13] = log_wsr;
+        out[14] = vss;
+        out[15] = wno;
         // Quadratic interactions
-        out[14] = dv * hc;
-        out[15] = modularity * log_n;
-        out[16] = pf * log_wsr;
+        out[16] = dv * hc;
+        out[17] = modularity * log_n;
+        out[18] = pf * log_wsr;
+        out[19] = vss * hc;     // significance skewness × hub concentration
+        out[20] = wno * pf;     // window overlap × packing factor
+        // P3 3.2: Transpose reuse distance
+        out[21] = props.value("avg_reuse_distance", 0.0);
     }
 
     /**
@@ -1960,7 +2055,7 @@ private:
 
         for (const auto& bn : bench_set) {
             // Collect (graph, best_family) pairs for this benchmark
-            struct Sample { std::vector<double> fv; std::string family; };
+            struct Sample { std::vector<double> fv; std::string family; double importance; };
             std::vector<Sample> data;
             std::set<std::string> active_families;
 
@@ -1968,7 +2063,24 @@ private:
                 std::string key = g + "|" + bn;
                 auto it = oracle_cache_.find(key);
                 if (it == oracle_cache_.end()) continue;
-                data.push_back({graph_feats_z.at(g), it->second});
+
+                // Significance-weighted training (DON-RL): compute speedup
+                // range for this graph+benchmark. High range = algorithm
+                // choice matters a lot → weight sample higher.
+                double best_time = 1e30, worst_time = 0.0;
+                for (const auto& r : records_) {
+                    if (r.graph == g && r.benchmark == bn && r.success) {
+                        best_time = std::min(best_time, r.time_seconds);
+                        worst_time = std::max(worst_time, r.time_seconds);
+                    }
+                }
+                double speedup_range = (best_time > 1e-12 && worst_time > 0.0)
+                    ? worst_time / best_time : 1.0;
+                // Importance = log(speedup_range + 1), clamped to [1, 5]
+                double importance = std::max(1.0, std::min(5.0,
+                    std::log(speedup_range + 1.0)));
+
+                data.push_back({graph_feats_z.at(g), it->second, importance});
                 active_families.insert(it->second);
             }
             if (data.empty() || active_families.empty()) {
@@ -2025,6 +2137,7 @@ private:
                     for (int idx : indices) {
                         const auto& fv = data[idx].fv;
                         const auto& true_fam = data[idx].family;
+                        const double imp = data[idx].importance;
                         if (bw.find(true_fam) == bw.end()) continue;
 
                         // Score all families
@@ -2062,19 +2175,21 @@ private:
                             theta = std::max(0.0, theta - theta_step);
 
                         // Jimenez update: wrong OR margin <= theta
+                        // Scaled by sample importance (DON-RL significance weighting)
                         if (!is_correct || margin <= theta) {
                             auto clamp = [](double v, double lo, double hi) {
                                 return std::max(lo, std::min(hi, v));
                             };
+                            double scaled_lr = lr * imp;
                             // Promote true class
-                            bw[true_fam].bias = clamp(bw[true_fam].bias + lr, -W_MAX, W_MAX);
+                            bw[true_fam].bias = clamp(bw[true_fam].bias + scaled_lr, -W_MAX, W_MAX);
                             for (int i = 0; i < NF; i++)
-                                bw[true_fam].w[i] = clamp(bw[true_fam].w[i] + lr * fv[i], -W_MAX, W_MAX);
+                                bw[true_fam].w[i] = clamp(bw[true_fam].w[i] + scaled_lr * fv[i], -W_MAX, W_MAX);
                             // Demote predicted class (only on error)
                             if (!is_correct) {
-                                bw[pred].bias = clamp(bw[pred].bias - lr, -W_MAX, W_MAX);
+                                bw[pred].bias = clamp(bw[pred].bias - scaled_lr, -W_MAX, W_MAX);
                                 for (int i = 0; i < NF; i++)
-                                    bw[pred].w[i] = clamp(bw[pred].w[i] - lr * fv[i], -W_MAX, W_MAX);
+                                    bw[pred].w[i] = clamp(bw[pred].w[i] - scaled_lr * fv[i], -W_MAX, W_MAX);
                             }
                         }
 
@@ -2655,6 +2770,10 @@ private:
     std::map<std::string, nlohmann::json> raw_graph_props_;   // graph_name → raw JSON (for training)
     bool loaded_ = false;
     std::mutex mutex_;
+
+    // --- kNN z-normalization stats (computed from graph_features_) ---
+    double feat_means_[N_FEATURES] = {};
+    double feat_stds_[N_FEATURES] = {};
 
     // --- Unified models (from adaptive_models.json) ---
     bool models_loaded_ = false;
