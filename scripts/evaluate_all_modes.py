@@ -38,6 +38,12 @@ from scripts.lib.ml.model_tree import (
     Criterion, compute_oracle, criterion_value,
     extract_dt_features, train_all_models, load_adaptive_models,
     cross_validate_logo_model_tree,
+    cross_validate_logo_random_forest,
+    cross_validate_logo_two_stage,
+    cross_validate_logo_xgboost_family,
+    cross_validate_logo_xgboost_family_xbench,
+    cross_validate_logo_regression_xbench,
+    train_random_forest, predict_random_forest,
 )
 
 log = Logger()
@@ -226,10 +232,14 @@ def evaluate_model_vs_criteria(
     criteria = criteria or ALL_CRITERIA
     results = {}
 
+    from scripts.lib.ml.adaptive_emulator import algo_to_family
+
     for crit in criteria:
         correct = 0
         total = 0
         regrets = []
+        within_5pct = 0
+        family_correct = 0
 
         for (g, b), oracle_info in oracles[crit].items():
             if (g, b) not in predictions:
@@ -243,6 +253,10 @@ def evaluate_model_vs_criteria(
             total += 1
             if _algo_matches(predicted, oracle_algo, granularity):
                 correct += 1
+
+            # Family-level match
+            if algo_to_family(predicted) == algo_to_family(oracle_algo):
+                family_correct += 1
 
             # Find predicted algo's value for this criterion
             original_exec = None
@@ -259,7 +273,10 @@ def evaluate_model_vs_criteria(
                 pred_val = max(vals) if vals else oracle_val
 
             if oracle_val > 0 and oracle_val < float('inf') and pred_val < float('inf'):
-                regrets.append((pred_val - oracle_val) / oracle_val * 100)
+                reg_pct = (pred_val - oracle_val) / oracle_val * 100
+                regrets.append(reg_pct)
+                if reg_pct <= 5.0:
+                    within_5pct += 1
 
         avg_r = sum(regrets) / len(regrets) if regrets else 0
         sorted_r = sorted(regrets) if regrets else [0]
@@ -269,6 +286,8 @@ def evaluate_model_vs_criteria(
             'correct': correct,
             'total': total,
             'top1': correct / total if total else 0,
+            'within_5pct': within_5pct / total if total else 0,
+            'family_acc': family_correct / total if total else 0,
             'avg_regret': avg_r,
             'median_regret': med_r,
         }
@@ -367,6 +386,36 @@ def predict_model_tree(raw_records, graph_props, model_type='decision_tree',
                 continue
             feats = extract_dt_features(graph_props[g])
             predictions[key] = tree.predict(feats)
+
+    return predictions
+
+
+# ===================================================================
+# Model: Random Forest predictions
+# ===================================================================
+
+def predict_random_forest_insample(raw_records, graph_props,
+                                    criterion=Criterion.FASTEST_EXECUTION):
+    """Train RF on all data, predict on all data (in-sample).
+
+    Returns:
+        dict[(graph, bench)] -> predicted algorithm name
+    """
+    benchmarks = sorted(set(r['benchmark'] for r in raw_records))
+
+    predictions = {}
+    for bench in benchmarks:
+        rf_trees = train_random_forest(
+            raw_records, graph_props, bench, criterion)
+
+        for g in sorted(set(r['graph'] for r in raw_records if r['benchmark'] == bench)):
+            if g not in graph_props or g == 'tiny':
+                continue
+            key = (g, bench)
+            if key in predictions:
+                continue
+            feats = extract_dt_features(graph_props[g])
+            predictions[key] = predict_random_forest(rf_trees, feats)
 
     return predictions
 
@@ -490,6 +539,16 @@ def eval_insample_matrix(bench_results, raw_records, graph_props, reorder_result
             crit_results = evaluate_model_vs_criteria(crit_preds, oracles, [crit])
             matrix[label][crit] = crit_results[crit]
 
+    # Random Forest: train per-criterion, in-sample
+    for crit in ALL_CRITERIA:
+        rf_preds = predict_random_forest_insample(
+            raw_records, graph_props, crit)
+        crit_results = evaluate_model_vs_criteria(rf_preds, oracles, [crit])
+        if 'Random Forest' not in matrix:
+            matrix['Random Forest'] = {}
+        matrix['Random Forest'][crit] = crit_results[crit]
+    print(f"  Random Forest predictions: {len(rf_preds)} tasks")
+
     # Database kNN: criterion-aware, generate per-criterion predictions
     matrix['Database kNN'] = {}
     for crit in ALL_CRITERIA:
@@ -504,6 +563,8 @@ def eval_insample_matrix(bench_results, raw_records, graph_props, reorder_result
     elapsed = time.time() - t0
     _print_model_criterion_matrix(matrix, "IN-SAMPLE (Top-1 Accuracy)")
     _print_regret_matrix(matrix, "IN-SAMPLE (Avg Regret %)")
+    _print_within5pct_matrix(matrix, "IN-SAMPLE (Regret ≤ 5%)")
+    _print_family_acc_matrix(matrix, "IN-SAMPLE (Family-Level Accuracy)")
     print(f"  Time: {elapsed:.1f}s\n")
 
     return matrix
@@ -574,6 +635,8 @@ def eval_logo_all_models(bench_results, raw_records, graph_props, reorder_result
                 'top1': result['accuracy'],
                 'avg_regret': result['avg_regret'],
                 'median_regret': result['median_regret'],
+                'within_5pct': result.get('within_5pct', 0),
+                'family_acc': result.get('family_acc', 0),
             }
             print(f"  {result['accuracy']:.1%}  "
                   f"regret={result['avg_regret']:.1f}%  [{elapsed:.1f}s]")
@@ -585,13 +648,236 @@ def eval_logo_all_models(bench_results, raw_records, graph_props, reorder_result
                     print(f"      {mark} {g:<28} {pg['correct']}/{pg['total']}"
                           f"  regret={pg['avg_regret']:.1f}%")
 
+    # -- Random Forest LOGO for each criterion --
+    logo_matrix['Random Forest'] = {}
+    for crit in ALL_CRITERIA:
+        print(f"  Training Random Forest LOGO ({CRITERION_LABELS[crit]})...",
+              end='', flush=True)
+        t0 = time.time()
+        result = cross_validate_logo_random_forest(
+            raw_records, graph_props, criterion=crit,
+        )
+        elapsed = time.time() - t0
+
+        logo_matrix['Random Forest'][crit] = {
+            'correct': result['correct'],
+            'total': result['total'],
+            'top1': result['accuracy'],
+            'avg_regret': result['avg_regret'],
+            'median_regret': result['median_regret'],
+            'within_5pct': result.get('within_5pct', 0),
+            'family_acc': result.get('family_acc', 0),
+        }
+        print(f"  {result['accuracy']:.1%}  "
+              f"regret={result['avg_regret']:.1f}%  [{elapsed:.1f}s]")
+
+        if result.get('per_graph'):
+            for g in sorted(result['per_graph']):
+                pg = result['per_graph'][g]
+                mark = "+" if pg['accuracy'] == 1.0 else "-" if pg['accuracy'] == 0.0 else "~"
+                print(f"      {mark} {g:<28} {pg['correct']}/{pg['total']}"
+                      f"  regret={pg['avg_regret']:.1f}%")
+
+    # -- XGBoost LOGO for each criterion --
+    try:
+        from scripts.lib.ml.model_tree import cross_validate_logo_xgboost
+        logo_matrix['XGBoost'] = {}
+        for crit in ALL_CRITERIA:
+            print(f"  Training XGBoost LOGO ({CRITERION_LABELS[crit]})...",
+                  end='', flush=True)
+            t0 = time.time()
+            result = cross_validate_logo_xgboost(
+                raw_records, graph_props, criterion=crit,
+            )
+            elapsed = time.time() - t0
+
+            logo_matrix['XGBoost'][crit] = {
+                'correct': result['correct'],
+                'total': result['total'],
+                'top1': result['accuracy'],
+                'avg_regret': result['avg_regret'],
+                'median_regret': result['median_regret'],
+                'within_5pct': result.get('within_5pct', 0),
+                'family_acc': result.get('family_acc', 0),
+            }
+            print(f"  {result['accuracy']:.1%}  "
+                  f"regret={result['avg_regret']:.1f}%  [{elapsed:.1f}s]")
+    except ImportError:
+        print("  XGBoost: skipped (not installed)")
+
+    # -- Two-Stage LOGO for each criterion --
+    try:
+        logo_matrix['Two-Stage (XGB)'] = {}
+        for crit in ALL_CRITERIA:
+            print(f"  Training Two-Stage LOGO ({CRITERION_LABELS[crit]})...",
+                  end='', flush=True)
+            t0 = time.time()
+            result = cross_validate_logo_two_stage(
+                raw_records, graph_props, criterion=crit,
+            )
+            elapsed = time.time() - t0
+
+            logo_matrix['Two-Stage (XGB)'][crit] = {
+                'correct': result['correct'],
+                'total': result['total'],
+                'top1': result['accuracy'],
+                'avg_regret': result['avg_regret'],
+                'median_regret': result['median_regret'],
+                'within_5pct': result.get('within_5pct', 0),
+                'family_acc': result.get('family_acc', 0),
+            }
+            s1 = result.get('stage1_accuracy', 0)
+            print(f"  {result['accuracy']:.1%}  "
+                  f"regret={result['avg_regret']:.1f}%  "
+                  f"stage1={s1:.1%}  [{elapsed:.1f}s]")
+    except Exception as e:
+        print(f"  Two-Stage: failed ({e})")
+
+    # -- XGBoost Family+ORIGINAL (single-stage) LOGO --
+    try:
+        logo_matrix['XGB Fam+Orig'] = {}
+        for crit in ALL_CRITERIA:
+            print(f"  Training XGB Fam+Orig LOGO ({CRITERION_LABELS[crit]})...",
+                  end='', flush=True)
+            t0 = time.time()
+            result = cross_validate_logo_xgboost_family(
+                raw_records, graph_props, criterion=crit,
+            )
+            elapsed = time.time() - t0
+
+            logo_matrix['XGB Fam+Orig'][crit] = {
+                'correct': result['correct'],
+                'total': result['total'],
+                'top1': result['accuracy'],
+                'avg_regret': result['avg_regret'],
+                'median_regret': result['median_regret'],
+                'within_5pct': result.get('within_5pct', 0),
+                'family_acc': result.get('family_acc', 0),
+            }
+            print(f"  {result['accuracy']:.1%}  "
+                  f"regret={result['avg_regret']:.1f}%  [{elapsed:.1f}s]")
+    except Exception as e:
+        print(f"  XGB Fam+Orig: failed ({e})")
+
+    # -- Cross-Bench XGBoost Family+ORIGINAL LOGO (best model) --
+    try:
+        logo_matrix['XBench Fam+Orig'] = {}
+        for crit in ALL_CRITERIA:
+            print(f"  Training XBench Fam+Orig LOGO ({CRITERION_LABELS[crit]})...",
+                  end='', flush=True)
+            t0 = time.time()
+            result = cross_validate_logo_xgboost_family_xbench(
+                raw_records, graph_props, criterion=crit,
+            )
+            elapsed = time.time() - t0
+
+            logo_matrix['XBench Fam+Orig'][crit] = {
+                'correct': result['correct'],
+                'total': result['total'],
+                'top1': result['accuracy'],
+                'avg_regret': result['avg_regret'],
+                'median_regret': result['median_regret'],
+                'within_5pct': result.get('within_5pct', 0),
+                'family_acc': result.get('family_acc', 0),
+            }
+            print(f"  {result['accuracy']:.1%}  "
+                  f"regret={result['avg_regret']:.1f}%  [{elapsed:.1f}s]")
+    except Exception as e:
+        print(f"  XBench Fam+Orig: failed ({e})")
+
+    # -- Regression XBench LOGO --
+    try:
+        logo_matrix['Regression XBench'] = {}
+        for crit in ALL_CRITERIA:
+            print(f"  Training Regression XBench LOGO ({CRITERION_LABELS[crit]})...",
+                  end='', flush=True)
+            t0 = time.time()
+            result = cross_validate_logo_regression_xbench(
+                raw_records, graph_props, criterion=crit,
+            )
+            elapsed = time.time() - t0
+
+            logo_matrix['Regression XBench'][crit] = {
+                'correct': result['correct'],
+                'total': result['total'],
+                'top1': result['accuracy'],
+                'avg_regret': result['avg_regret'],
+                'median_regret': result['median_regret'],
+                'within_5pct': result.get('within_5pct', 0),
+                'family_acc': result.get('accuracy', 0),
+            }
+            print(f"  {result['accuracy']:.1%}  "
+                  f"regret={result['avg_regret']:.1f}%  [{elapsed:.1f}s]")
+    except Exception as e:
+        print(f"  Regression XBench: failed ({e})")
+
     # Database kNN: oracle for known graphs, no LOGO needed
     print("\n  Database kNN: N/A (oracle on known graphs, kNN on unknown)")
     print()
 
     _print_model_criterion_matrix(logo_matrix, "LOGO CV (Top-1 Accuracy)")
     _print_regret_matrix(logo_matrix, "LOGO CV (Avg Regret %)")
+    _print_within5pct_matrix(logo_matrix, "LOGO CV (Regret ≤ 5%)")
+    _print_family_acc_matrix(logo_matrix, "LOGO CV (Family-Level Accuracy)")
     return logo_matrix
+
+
+# ===================================================================
+# Section 2b: Family-Class LOGO Ablation
+# ===================================================================
+
+def eval_logo_family_ablation(raw_records, graph_props):
+    """Compare LOGO CV with 17-class (individual) vs 8-class (family) labels.
+
+    Trains DT, RF on family-level labels and evaluates whether the reduced
+    class space improves generalization.
+    """
+    print("=" * 80)
+    print("  [2b] FAMILY-CLASS LOGO ABLATION")
+    print("=" * 80)
+    print()
+
+    family_matrix = {}
+
+    for model_type, label, train_fn_name in [
+        ('decision_tree', 'DT (family)', 'dt'),
+        ('random_forest', 'RF (family)', 'rf'),
+    ]:
+        family_matrix[label] = {}
+        for crit in ALL_CRITERIA:
+            print(f"  Training {label} LOGO ({CRITERION_LABELS[crit]})...",
+                  end='', flush=True)
+            t0 = time.time()
+
+            if train_fn_name == 'dt':
+                result = cross_validate_logo_model_tree(
+                    raw_records, graph_props,
+                    model_type='decision_tree',
+                    criterion=crit,
+                    use_families=True,
+                )
+            else:
+                result = cross_validate_logo_random_forest(
+                    raw_records, graph_props,
+                    criterion=crit,
+                    use_families=True,
+                )
+
+            elapsed = time.time() - t0
+            family_matrix[label][crit] = {
+                'correct': result['correct'],
+                'total': result['total'],
+                'top1': result['accuracy'],
+                'avg_regret': result.get('avg_regret', 0),
+                'median_regret': result.get('median_regret', 0),
+            }
+            print(f"  {result['accuracy']:.1%}  "
+                  f"regret={result.get('avg_regret', 0):.1f}%  [{elapsed:.1f}s]")
+
+    print()
+    _print_model_criterion_matrix(family_matrix, "FAMILY-CLASS LOGO (Top-1 Accuracy)")
+    _print_regret_matrix(family_matrix, "FAMILY-CLASS LOGO (Avg Regret %)")
+    return family_matrix
 
 
 # ===================================================================
@@ -776,7 +1062,8 @@ def _print_model_criterion_matrix(matrix, label=""):
     print(row)
 
     # Model rows
-    model_order = ['Perceptron', 'Decision Tree', 'Hybrid (DT+Perc)', 'Database kNN']
+    model_order = ['Perceptron', 'Decision Tree', 'Hybrid (DT+Perc)',
+                   'Random Forest', 'XGBoost', 'Database kNN']
     for model_name in model_order:
         if model_name not in matrix:
             continue
@@ -807,7 +1094,8 @@ def _print_regret_matrix(matrix, label=""):
     print(header)
     print("  " + "-" * (model_w + col_w * len(ALL_CRITERIA) + len(ALL_CRITERIA)))
 
-    model_order = ['Perceptron', 'Decision Tree', 'Hybrid (DT+Perc)', 'Database kNN']
+    model_order = ['Perceptron', 'Decision Tree', 'Hybrid (DT+Perc)',
+                   'Random Forest', 'XGBoost', 'Database kNN']
     for model_name in model_order:
         if model_name not in matrix:
             continue
@@ -819,6 +1107,66 @@ def _print_regret_matrix(matrix, label=""):
             else:
                 reg = f"{data['avg_regret']:.1f}%"
                 row += f" {reg:>{col_w}}"
+        print(row)
+
+    print()
+
+
+def _print_within5pct_matrix(matrix, label=""):
+    """Print a Model x Criterion regret-bounded (≤5%) accuracy table."""
+    col_w = 14
+    model_w = 22
+
+    print(f"  {label}")
+    header = f"  {'Model':<{model_w}}"
+    for crit in ALL_CRITERIA:
+        header += f" {CRITERION_LABELS[crit]:>{col_w}}"
+    print(header)
+    print("  " + "-" * (model_w + col_w * len(ALL_CRITERIA) + len(ALL_CRITERIA)))
+
+    model_order = ['Perceptron', 'Decision Tree', 'Hybrid (DT+Perc)',
+                   'Random Forest', 'XGBoost', 'Database kNN']
+    for model_name in model_order:
+        if model_name not in matrix:
+            continue
+        row = f"  {model_name:<{model_w}}"
+        for crit in ALL_CRITERIA:
+            data = matrix[model_name].get(crit)
+            if data is None:
+                row += f" {'--':>{col_w}}"
+            else:
+                pct = data.get('within_5pct', 0)
+                row += f" {pct:>{col_w}.1%}"
+        print(row)
+
+    print()
+
+
+def _print_family_acc_matrix(matrix, label=""):
+    """Print a Model x Criterion family-level accuracy table."""
+    col_w = 14
+    model_w = 22
+
+    print(f"  {label}")
+    header = f"  {'Model':<{model_w}}"
+    for crit in ALL_CRITERIA:
+        header += f" {CRITERION_LABELS[crit]:>{col_w}}"
+    print(header)
+    print("  " + "-" * (model_w + col_w * len(ALL_CRITERIA) + len(ALL_CRITERIA)))
+
+    model_order = ['Perceptron', 'Decision Tree', 'Hybrid (DT+Perc)',
+                   'Random Forest', 'XGBoost', 'Database kNN']
+    for model_name in model_order:
+        if model_name not in matrix:
+            continue
+        row = f"  {model_name:<{model_w}}"
+        for crit in ALL_CRITERIA:
+            data = matrix[model_name].get(crit)
+            if data is None:
+                row += f" {'--':>{col_w}}"
+            else:
+                fam = data.get('family_acc', 0)
+                row += f" {fam:>{col_w}.1%}"
         print(row)
 
     print()
@@ -878,8 +1226,10 @@ def main():
     )
     parser.add_argument("--logo", action="store_true",
                         help="Include LOGO cross-validation")
+    parser.add_argument("--family", action="store_true",
+                        help="Include family-class LOGO ablation")
     parser.add_argument("--all", action="store_true",
-                        help="Run everything: LOGO + weight analysis")
+                        help="Run everything: LOGO + family + weight analysis")
     parser.add_argument("--weights", action="store_true",
                         help="Run weight & feature importance analysis")
     parser.add_argument("--json", action="store_true",
@@ -897,6 +1247,10 @@ def main():
     if args.logo or args.all:
         logo = eval_logo_all_models(
             bench_results, raw_records, graph_props, reorder_results)
+
+    # 2b. Family-class LOGO ablation
+    if args.family or args.all:
+        eval_logo_family_ablation(raw_records, graph_props)
 
     # 3. Weight analysis
     if args.weights or args.all:

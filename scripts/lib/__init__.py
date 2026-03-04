@@ -347,24 +347,9 @@ from .ml.training import (
     train_adaptive_weights_large_scale,
 )
 # =============================================================================
-# Phase orchestration
+# Phase orchestration (removed — phases.py was dead code; graphbrew_experiment.py
+# orchestrates all phases directly)
 # =============================================================================
-from .pipeline.phases import (
-    PhaseConfig,
-    run_reorder_phase,
-    run_benchmark_phase,
-    run_cache_phase,
-    run_weights_phase,
-    run_fill_weights_phase,
-    run_adaptive_analysis_phase,
-    run_comparison_phase,
-    run_brute_force_phase,
-    run_training_phase,
-    run_large_scale_training_phase,
-    run_full_pipeline,
-    quick_benchmark,
-    compare_algorithms,
-)
 
 # =============================================================================
 # Type definitions (GraphInfo lives in graph_types to avoid circular imports)

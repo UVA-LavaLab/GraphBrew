@@ -2504,14 +2504,14 @@ private:
     /**
      * @brief Train decision trees from raw DB data (one per benchmark).
      *
-     * CART with Gini impurity, max_depth=6, min_samples_leaf=2,
+     * CART with Gini impurity, max_depth=3, min_samples_leaf=3,
      * balanced class weights. Uses 12 features matching ModelTree::extract_features.
      *
      * Populates model_trees_["decision_tree"][bench].
      */
     void train_decision_tree() {
-        static constexpr int MAX_DEPTH = 6;
-        static constexpr int MIN_LEAF = 2;
+        static constexpr int MAX_DEPTH = 3;
+        static constexpr int MIN_LEAF = 3;
         static constexpr int NF = MODEL_TREE_N_FEATURES;  // 12
 
         std::set<std::string> bench_set;
@@ -2595,8 +2595,8 @@ private:
      * Populates model_trees_["hybrid"][bench].
      */
     void train_hybrid() {
-        static constexpr int DT_MAX_DEPTH = 4;  // Shallower tree for routing
-        static constexpr int MIN_LEAF = 2;
+        static constexpr int DT_MAX_DEPTH = 3;  // Shallower tree for routing
+        static constexpr int MIN_LEAF = 3;
         static constexpr int LEAF_EPOCHS = 200;
         static constexpr double LEAF_LR = 0.01;
         static constexpr int NF = MODEL_TREE_N_FEATURES;  // 12

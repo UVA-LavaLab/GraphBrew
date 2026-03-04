@@ -26,5 +26,6 @@ Markdown source for the [GraphBrew Wiki](../../wiki). Published via `make publis
 | `Python-Scripts.md` | Python tooling reference |
 | `Configuration-Files.md` | Config file formats |
 | `Correlation-Analysis.md` | Feature correlation analysis |
+| `VLDB-Experiments.md` | VLDB 2026 full experiment guide |
 | `Troubleshooting.md` | Common issues and fixes |
 | `FAQ.md` | Frequently asked questions |

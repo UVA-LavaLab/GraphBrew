@@ -430,8 +430,8 @@ ALGORITHMS = {
 
 ```bash
 make clean && make all
-# Test your new algorithm (ID 16 = next available after existing 0-15)
-./bench/bin/pr -f scripts/test/graphs/tiny/tiny.el -s -o 16 -n 3
+# Test your new algorithm (ID 17 = next available after existing 0-16)
+./bench/bin/pr -f scripts/test/graphs/tiny/tiny.el -s -o 17 -n 3
 ```
 
 ---

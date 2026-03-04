@@ -167,10 +167,10 @@ class TestComputeOracle:
 # ===================================================================
 
 class TestFeatureExtraction:
-    def test_dt_features_12D(self):
+    def test_dt_features_14D(self):
         feats = extract_dt_features(SAMPLE_PROPS['graph_A'])
         assert len(feats) == MODEL_TREE_N_FEATURES
-        assert len(feats) == 12
+        assert len(feats) == 14
 
     def test_dt_feature_names_match(self):
         assert len(DT_FEATURE_NAMES) == MODEL_TREE_N_FEATURES
@@ -344,9 +344,14 @@ class TestSaveLoad:
         assert 'hybrid' in loaded
 
         # Check structure
-        for bench_trees in loaded.values():
-            for bench, tree in bench_trees.items():
-                assert isinstance(tree, ModelTree)
+        for model_name, bench_trees in loaded.items():
+            for bench, tree_or_list in bench_trees.items():
+                if model_name == 'random_forest':
+                    assert isinstance(tree_or_list, list)
+                    for t in tree_or_list:
+                        assert isinstance(t, ModelTree)
+                else:
+                    assert isinstance(tree_or_list, ModelTree)
 
 
 # ===================================================================

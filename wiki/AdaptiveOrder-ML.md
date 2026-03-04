@@ -97,6 +97,33 @@ AdaptiveOrder operates in **full-graph mode**: it selects a single algorithm for
 +------------------+
 ```
 
+### Training Pipeline Flow
+
+The `--target-graphs N` command runs this full pipeline:
+
+```mermaid
+flowchart TD
+    A["--target-graphs N --size small"] --> B["Phase 0: Download\n(SuiteSparse auto-discovery)"]
+    B --> C["Phase 1: Build\n(C++ binaries)"]
+    C --> D["Phase 2: Convert\n(.mtx → .sg + pre-generate\nreordered .sg per algorithm)"]
+    D --> E["Phase 3: Reorder\n(17 algos × 14 variants\n→ .lo label maps)"]
+    E --> F["Phase 4: Benchmark\n(7 kernels × all orderings\n× 2 trials)"]
+    F --> G["Phase 5: Cache Sim\n(L1/L2/L3 hit rates)"]
+    G --> H["Phase 6: LOGO CV\n(Leave-One-Graph-Out\ncross-validation)"]
+
+    F -->|"benchmarks.json"| I["Training Data"]
+    B -->|"graph_properties.json"| I
+    I --> H
+
+    H --> J["evaluation_summary.json\n• Perceptron\n• Decision Tree\n• Hybrid DT+Perceptron\n• XGBoost\n• kNN"]
+
+    style A fill:#e1f5fe
+    style H fill:#fff3e0
+    style J fill:#e8f5e9
+```
+
+**Key insight:** The pipeline is *evaluation-only* — it does not update runtime weights. The C++ AdaptiveOrder trains its perceptron at runtime from `benchmarks.json` + `graph_properties.json` whenever ≥3 graphs are available. The Python pipeline's role is to *generate training data* and *evaluate model accuracy* via cross-validation.
+
 ## Auto-Clustering Type System
 
 AdaptiveOrder uses automatic clustering to group similar graphs during Python training, rather than predefined categories:
@@ -613,6 +640,35 @@ print(f"LOGO: {result['accuracy']:.1%}, Overfit: {result['overfitting_score']:.2
 | LOGO Accuracy | Higher is better — measures generalization to unseen graphs |
 | Overfitting Score | Lower is better — large gap between full-train and LOGO suggests overfitting |
 | Full-Train Accuracy | Training set accuracy — very high values (>95%) may indicate overfitting |
+
+### Current Best Models (P10, 102 graphs)
+
+LOGO cross-validation results across all model types and selection criteria:
+
+| Model | E2E Accuracy | ≤5% Regret | Avg Regret |
+|-------|-------------|------------|------------|
+| **XBench Fam+Orig XGBoost** | **66.3%** | 56.8% | 280% |
+| XBench Family XGBoost | 64.1% | 55.5% | 289% |
+| LTR Regression (XGBRanker) | 61.4% | — | — |
+| Two-Stage Gate+XGBoost | 59.5% | — | — |
+| Perceptron (LOGO) | ~52% | — | — |
+| Decision Tree | ~45% | — | — |
+
+**Key findings (P10):**
+- Classification (66.3%) outperforms all regression/LTR approaches (61.4% max) on the current 102-graph corpus
+- ORIGINAL wins 64% of E2E tasks, creating a strong bias toward conservative "don't reorder" predictions
+- Regression models struggle because the penalty for wrong reordering (+208%) vastly outweighs gains from correct reordering (-22%)
+- Larger graphs with stronger reorder speedups are expected to shift the balance toward regression models
+
+Run `python3 scripts/evaluate_all_modes.py --logo --json` to reproduce these numbers, or use the auto-eval built into the pipeline:
+
+```bash
+# Full pipeline including LOGO evaluation at end
+python3 scripts/graphbrew_experiment.py --target-graphs 150
+
+# Skip auto-eval
+python3 scripts/graphbrew_experiment.py --target-graphs 150 --skip-eval
+```
 
 ---
 

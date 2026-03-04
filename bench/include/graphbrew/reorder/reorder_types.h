@@ -4753,7 +4753,7 @@ inline std::vector<PerceptronSelection> SelectTopKFromWeights(
 inline constexpr const char* MODEL_TREE_DIR = "results/models/";
 
 /// Number of features used by the model trees
-inline constexpr int MODEL_TREE_N_FEATURES = 12;
+inline constexpr int MODEL_TREE_N_FEATURES = 14;
 
 /**
  * @brief A single node in a serialized model tree.
@@ -4801,6 +4801,8 @@ struct ModelTree {
         out[9]  = std::log2(feat.working_set_ratio + 1.0);
         out[10] = std::log10(feat.community_count + 1.0);
         out[11] = feat.diameter_estimate / 50.0;
+        out[12] = feat.degree_variance;
+        out[13] = feat.avg_path_length / 10.0;
     }
 
     /**

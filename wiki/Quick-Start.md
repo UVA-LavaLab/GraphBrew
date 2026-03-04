@@ -11,65 +11,66 @@ Get up and running with GraphBrew in 5 minutes!
 
 ---
 
-## 🚀 One-Command Training (Recommended)
+## 🚀 One-Command Pipeline (Recommended)
 
-Train perceptron weights with all algorithm variants in a single command:
+Run the full pipeline — download, build, benchmark, and ML evaluation — with a single flag:
 
 ```bash
-# Clone and train - that's it!
+# Clone and run - that's it!
 git clone https://github.com/UVA-LavaLab/GraphBrew.git
 cd GraphBrew
 
-# Full training with ALL graphs, all variants, 5 trials
-python3 scripts/graphbrew_experiment.py --train --all-variants \
-    --size all --min-edges 100000 --auto --trials 5
+# Download 150 graphs per size, run full pipeline + ML evaluation
+python3 scripts/graphbrew_experiment.py --target-graphs 150
 ```
 
-This will automatically:
-- ✅ Download benchmark graphs from SuiteSparse (87 graphs available)
+`--target-graphs N` auto-enables `--full`, `--catalog-size N`, `--auto`, and `--all-variants`. It will:
+- ✅ Download N graphs per size category from SuiteSparse
 - ✅ Auto-detect RAM and skip graphs that won't fit
 - ✅ Auto-detect disk space and limit downloads accordingly
-- ✅ Skip small graphs (<100k edges) that introduce training noise
 - ✅ Build all binaries (standard + cache simulation)
-- ✅ Pre-generate reordered `.sg` per algorithm (12 algorithms; loaded at benchmark time — no runtime reorder overhead)
+- ✅ Pre-generate reordered `.sg` per algorithm (MAP mode — no runtime reorder overhead)
 - ✅ Expand Leiden algorithms into all variants (dfs, bfs, hubsort, etc.)
-- ✅ Run 5 trials per benchmark for statistical reliability
-- ✅ Train per-graph-type perceptron weights for AdaptiveOrder
+- ✅ Run benchmarks (7 kernels × 18 algorithms × 2 trials)
+- ✅ Run LOGO cross-validation and report ML model accuracy
+- ✅ Save evaluation summary to `results/data/evaluation_summary.json`
 
-See [[Command-Line-Reference]] for all parameters (`--size`, `--all-variants`, `--min-edges`, `--auto`, `--trials`, etc.) and [[Benchmark-Suite]] for size categories.
+Use `--dry-run` to preview what would happen without executing:
 
-### Training Examples by Scale
+```bash
+python3 scripts/graphbrew_experiment.py --target-graphs 150 --dry-run
+```
+
+See [[Command-Line-Reference]] for all parameters and [[Benchmark-Suite]] for size categories.
+
+### Examples by Scale
 
 ```bash
 # Quick test (~10 min): small graphs, skip tiny ones
-python3 scripts/graphbrew_experiment.py --train --all-variants \
-    --size small --min-edges 50000 --auto --trials 3
+python3 scripts/graphbrew_experiment.py --target-graphs 30 --size small
 
 # Standard training (~1 hour): medium graphs
-python3 scripts/graphbrew_experiment.py --train --all-variants \
-    --size medium --min-edges 100000 --auto --trials 5
+python3 scripts/graphbrew_experiment.py --target-graphs 80 --size medium
 
-# Full training (~4-8 hours): all graphs
-python3 scripts/graphbrew_experiment.py --train --all-variants \
-    --size all --min-edges 100000 --auto --trials 5
+# Full training (~4-8 hours): all graphs, 150 per size
+python3 scripts/graphbrew_experiment.py --target-graphs 150
+
+# Skip ML evaluation at end
+python3 scripts/graphbrew_experiment.py --target-graphs 150 --skip-eval
 ```
 
----
+### Equivalent Explicit Flags
 
-## 🎯 Quick Full Pipeline
-
-Run the complete GraphBrew experiment with a single command:
+`--target-graphs N` is shorthand for:
 
 ```bash
-python3 scripts/graphbrew_experiment.py --full --size small --auto
+python3 scripts/graphbrew_experiment.py --full --catalog-size N \
+    --auto --all-variants --size all
 ```
 
 ### More Pipeline Examples
 
 ```bash
-# Download medium graphs and run full pipeline
-python3 scripts/graphbrew_experiment.py --full --size medium --auto
-
 # Just download graphs (no experiments)
 python3 scripts/graphbrew_experiment.py --download-only --size medium
 
@@ -81,7 +82,7 @@ python3 scripts/graphbrew_experiment.py --full --size large --skip-download
 
 # Clean start (remove all generated data)
 python3 scripts/graphbrew_experiment.py --clean-all
-python3 scripts/graphbrew_experiment.py --full --size small --auto
+python3 scripts/graphbrew_experiment.py --target-graphs 50
 ```
 
 ---
@@ -223,7 +224,7 @@ python3 scripts/graphbrew_experiment.py --train-iterative --size small --target-
 |--------|-------------|---------|
 | `-f` | Input graph file | `-f graph.el` |
 | `-s` | Symmetrize (make undirected) | `-s` |
-| `-o` | Ordering algorithm (0-15) | `-o 7` |
+| `-o` | Ordering algorithm (0-16) | `-o 7` |
 | `-n` | Number of trials | `-n 5` |
 | `-r` | Root vertex (for BFS/SSSP) | `-r 0` |
 

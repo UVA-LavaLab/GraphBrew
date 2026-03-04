@@ -4,12 +4,40 @@ Complete reference for all GraphBrew command-line options.
 
 ---
 
-## Quick Reference: Evaluation vs Training
+## Quick Reference
+
+### One-Command Mode (Recommended)
+
+```bash
+# Download N graphs per size, run full pipeline + ML evaluation
+python3 scripts/graphbrew_experiment.py --target-graphs 150
+
+# Preview without executing
+python3 scripts/graphbrew_experiment.py --target-graphs 150 --dry-run
+```
+
+`--target-graphs N` auto-enables: `--full`, `--catalog-size N`, `--auto`, `--all-variants`, `--size all`.
+
+Combine with `--size` to target a specific size category:
+
+```bash
+python3 scripts/graphbrew_experiment.py --target-graphs 200 --size small
+```
+
+**Size categories** (edge-count ranges, auto-discovered from SuiteSparse):
+
+| Size | Edge Range | Max Available |
+|------|-----------|---------------|
+| `small` | 10K – 500K | ~225 |
+| `medium` | 500K – 5M | ~134 |
+| `large` | 5M – 50M | ~70 |
+| `xlarge` | 50M – 500M | ~37 |
 
 ### Evaluation Modes (No Weight Updates)
 
 | Mode | Command | Description |
 |------|---------|-------------|
+| **One-Command** | `--target-graphs 150` | Download + build + benchmark + ML eval |
 | **Reorder Only** | `--phase reorder --size small` | Test reordering algorithms only |
 | **Benchmark Only** | `--phase benchmark --size small --skip-cache` | Run graph algorithm benchmarks (BFS, PR, etc.) |
 | **End-to-End** | `--full --size small --auto` | Full evaluation pipeline without training |
@@ -22,6 +50,14 @@ Complete reference for all GraphBrew command-line options.
 | **Standard** | `--train --size small --auto` | One-pass training: reorder → benchmark → cache → weights |
 | **Iterative** | `--train-iterative --target-accuracy 90` | Repeated training until target accuracy |
 | **Batched** | `--train-batched --size medium --batch-size 8` | Large-scale batched training |
+
+### New Flags
+
+| Flag | Description |
+|------|-------------|
+| `--target-graphs N` | One-command mode: download N graphs/size, run full pipeline + ML eval |
+| `--dry-run` | Print planned stages and resource requirements, then exit |
+| `--skip-eval` | Skip ML evaluation phase at end of `--full` / `--target-graphs` |
 
 ### Common Modifiers
 
@@ -94,7 +130,7 @@ These options work with all benchmarks:
 | Option | Description | Example |
 |--------|-------------|---------|
 | `-f <file>` | Input graph file (required) | `-f graph.el` |
-| `-o <id>` | Reordering algorithm ID (0-15) | `-o 7` |
+| `-o <id>` | Reordering algorithm ID (0-16) | `-o 7` |
 | `-s` | Make graph undirected (symmetrize) | `-s` |
 | `-j type:n:m` | Partition graph (`type=0` Cagra, `1` TRUST), default `0:1:1` | `-j 0:2:2` |
 | `-n <trials>` | Number of benchmark trials | `-n 5` |
@@ -175,9 +211,10 @@ Use with `-o <id>`:
 | 13 | MAP | External mapping |
 | 14 | AdaptiveOrder | ML |
 | 15 | LeidenOrder | Leiden (GVE-Leiden baseline) |
+| 16 | GoGraphOrder | Flow-edge (has variants, see below) |
 
 > **Note:** For current variant lists, see `scripts/lib/core/utils.py` which defines:
-> - `RABBITORDER_VARIANTS`, `GORDER_VARIANTS`, `RCM_VARIANTS`, `GRAPHBREW_VARIANTS`
+> - `RABBITORDER_VARIANTS`, `GORDER_VARIANTS`, `RCM_VARIANTS`, `GRAPHBREW_VARIANTS`, `GOGRAPH_VARIANTS`
 > - Use `get_algo_variants(algo_id)` to query programmatically
 
 ### GOrder Variants (Algorithm 9)
@@ -193,6 +230,18 @@ GOrder supports three variants:
 The CSR variant uses a lightweight GoGraph-matching BFS-CM pre-ordering and `RelabelByMappingStandalone` to rebuild the CSR in RCM order, then runs the GOrder greedy directly on sorted CSRGraph neighbor iterators. Deterministic with single thread.
 
 The fast variant replaces the serial UnitHeap with a score array + active frontier for thread safety. It auto-tunes batch size and window to the available thread count. Recommended for graphs with high degree variance (power-law, social networks).
+
+### GoGraphOrder Variants (Algorithm 16)
+
+GoGraphOrder maximises M(σ) — the count of edges where source precedes destination in the ordering. Primarily benefits **directed** graphs (M(σ) is constant for symmetric/undirected graphs).
+
+| Variant | Example | Description |
+|---------|---------|-------------|
+| (default) | `-o 16` | Optimised faithful: flat delta array, merged pev, degree-1 short-circuit |
+| `fast` | `-o 16:fast` | Iterative flow-score sorting — heuristic O(n log n + m) per iteration |
+| `naive` | `-o 16:naive` | Original faithful (per-call map, for validation) |
+
+All three variants produce *different* orderings and get separate perceptron weights in the ML pipeline.
 
 ### RCMOrder Variants (Algorithm 11)
 
