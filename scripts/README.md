@@ -2,6 +2,21 @@
 
 All Python tooling for GraphBrew lives here.
 
+## Quick Start
+
+```bash
+# One-command: download 150 graphs/size, benchmark, train, evaluate
+python3 scripts/graphbrew_experiment.py --target-graphs 150
+
+# Preview what would run (no execution)
+python3 scripts/graphbrew_experiment.py --target-graphs 150 --dry-run
+
+# Skip ML evaluation at end
+python3 scripts/graphbrew_experiment.py --target-graphs 150 --skip-eval
+```
+
+`--target-graphs N` auto-enables `--full`, `--catalog-size N`, `--auto`, `--all-variants`.
+
 ## Structure
 
 ```

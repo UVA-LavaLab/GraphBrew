@@ -29,7 +29,7 @@ python3 scripts/graphbrew_experiment.py --size small --quick         # Quick tes
 python3 scripts/graphbrew_experiment.py --brute-force               # Validation
 ```
 
-Sizes: `small` (16 graphs, 62MB) · `medium` (28, 1.1GB) · `large` (37, 25GB) · `xlarge` (6, 63GB) · `all` (87, 89GB). Categories include mesh, web, social, road, citation, P2P, and synthetic graphs.
+Sizes: `small` (16 hardcoded + up to ~225 auto-discovered, 10K–500K edges) · `medium` (28 + ~134, 500K–5M) · `large` (37 + ~70, 5M–50M) · `xlarge` (6 + ~37, 50M–500M) · `all` (combined). Auto-discovery searches SuiteSparse for graph, network, and multigraph matrices. Categories include mesh, web, social, road, citation, P2P, and synthetic graphs.
 
 Results saved to `./results/` (`reorder_*.json`, `benchmark_*.json`, `cache_*.json`) and weights to `./results/data/adaptive_models.json`.
 

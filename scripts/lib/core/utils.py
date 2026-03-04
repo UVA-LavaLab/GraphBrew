@@ -231,7 +231,7 @@ GORDER_DEFAULT_VARIANT = "default"
 # "default" = faithful GetOptVal greedy M-maximizing insertion (paper algorithm)
 # "fast"  = iterative flow-score sorting (heuristic, O(n log n + m) per iter)
 # "naive" = original faithful (per-call unordered_map, for validation)
-# Both target M(σ) maximization; share a single perceptron weight.
+# Each variant produces a *different* ordering, so they get separate weights.
 GOGRAPH_VARIANTS = ("default", "fast", "naive")
 GOGRAPH_DEFAULT_VARIANT = "default"
 
@@ -241,7 +241,12 @@ RCM_DEFAULT_VARIANT = "default"
 
 # GraphBrewOrder variants: -o 12:variant
 # Compound variants use '_' separator: "leiden_dfs" → options=["leiden","dfs"]
-GRAPHBREW_VARIANTS = ("leiden", "rabbit", "hubcluster")
+# Presets:      leiden, rabbit, hubcluster  (original 3)
+# Strategies:   hrab  = Hybrid Leiden+RabbitOrder super-graph (best locality)
+#               tqr   = Tile-Quantized RabbitOrder (cache-line-aligned)
+#               hcache = Hierarchical Cache-Aware (multi-level Leiden hierarchy)
+#               streaming = Leiden with lazy/streaming aggregation (fast)
+GRAPHBREW_VARIANTS = ("leiden", "rabbit", "hubcluster", "hrab", "tqr", "hcache", "streaming")
 GRAPHBREW_DEFAULT_VARIANT = "leiden"
 
 # =============================================================================
@@ -373,6 +378,7 @@ _VARIANT_ALGO_REGISTRY = {
     8:  ("RABBITORDER_",     RABBITORDER_VARIANTS,  RABBITORDER_DEFAULT_VARIANT),
     11: ("RCM_",             RCM_VARIANTS,          RCM_DEFAULT_VARIANT),
     12: ("GraphBrewOrder_",  GRAPHBREW_VARIANTS,    GRAPHBREW_DEFAULT_VARIANT),
+    16: ("GOGRAPHORDER_",    GOGRAPH_VARIANTS,      GOGRAPH_DEFAULT_VARIANT),
 }
 
 # Set of algo IDs that expand to variants
@@ -389,7 +395,8 @@ def get_algo_variants(algo_id: int) -> tuple[str, ...] | None:
     Examples::
 
         get_algo_variants(8)   → ("csr", "boost")
-        get_algo_variants(12)  → ("leiden", "rabbit", "hubcluster")
+        get_algo_variants(12)  → ("leiden", "rabbit", "hubcluster", "hrab", "tqr", "hcache", "streaming")
+        get_algo_variants(16)  → ("default", "fast", "naive")
         get_algo_variants(2)   → None
     """
     entry = _VARIANT_ALGO_REGISTRY.get(algo_id)

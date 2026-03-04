@@ -31,6 +31,7 @@ from ..core.utils import (
     LEIDEN_DEFAULT_RESOLUTION, LEIDEN_DEFAULT_PASSES,
     RABBITORDER_VARIANTS, RABBITORDER_DEFAULT_VARIANT,
     GRAPHBREW_VARIANTS, GRAPHBREW_DEFAULT_VARIANT,
+    GOGRAPH_VARIANTS, GOGRAPH_DEFAULT_VARIANT,
     TIMEOUT_REORDER,
     Logger, run_command, get_timestamp,
     canonical_algo_key, algo_converter_opt,
@@ -136,14 +137,16 @@ def expand_algorithms_with_variants(
     leiden_passes: int = LEIDEN_DEFAULT_PASSES,
     rabbit_variants: List[str] = None,
     graphbrew_variants: List[str] = None,
-    gorder_variants: List[str] = None
+    gorder_variants: List[str] = None,
+    gograph_variants: List[str] = None,
 ) -> List[AlgorithmConfig]:
     """
     Expand algorithm IDs into AlgorithmConfig objects.
     
     For GOrder (9), optionally expand into default/csr/fast implementation variants.
     For RabbitOrder (8), optionally expand into csr/boost variants.
-    For GraphBrewOrder (12), optionally expand into leiden/rabbit/hubcluster variants.
+    For GraphBrewOrder (12), optionally expand into all preset/strategy variants.
+    For GoGraphOrder (16), optionally expand into default/fast/naive variants.
     
     Args:
         algorithms: List of algorithm IDs
@@ -153,6 +156,7 @@ def expand_algorithms_with_variants(
         rabbit_variants: Which RabbitOrder variants to include (default: csr only)
         graphbrew_variants: Which GraphBrewOrder variants to include (default: leiden only)
         gorder_variants: Which GOrder implementation variants to include (default: None = plain GOrder)
+        gograph_variants: Which GoGraphOrder variants to include (default: default only)
     
     Returns:
         List of AlgorithmConfig objects
@@ -165,6 +169,9 @@ def expand_algorithms_with_variants(
     if graphbrew_variants is None:
         # When expanding variants, include all GraphBrewOrder variants; otherwise just leiden
         graphbrew_variants = GRAPHBREW_VARIANTS if expand_leiden_variants else [GRAPHBREW_DEFAULT_VARIANT]
+    if gograph_variants is None:
+        # When expanding variants, include all GoGraphOrder variants; otherwise just default
+        gograph_variants = GOGRAPH_VARIANTS if expand_leiden_variants else [GOGRAPH_DEFAULT_VARIANT]
     
     configs = []
     
@@ -246,6 +253,24 @@ def expand_algorithms_with_variants(
                 option_string=algo_converter_opt(algo_id, variant),
                 variant=variant,
                 resolution=leiden_resolution
+            ))
+        elif algo_id == 16 and expand_leiden_variants and len(gograph_variants) > 1:
+            # GoGraphOrder: expand into all variants (different orderings)
+            for variant in gograph_variants:
+                configs.append(AlgorithmConfig(
+                    algo_id=algo_id,
+                    name=canonical_algo_key(algo_id, variant),
+                    option_string=algo_converter_opt(algo_id, variant),
+                    variant=variant
+                ))
+        elif algo_id == 16:
+            # GoGraphOrder: single variant - ALWAYS include variant in name
+            variant = gograph_variants[0] if gograph_variants else GOGRAPH_DEFAULT_VARIANT
+            configs.append(AlgorithmConfig(
+                algo_id=algo_id,
+                name=canonical_algo_key(algo_id, variant),
+                option_string=algo_converter_opt(algo_id, variant),
+                variant=variant
             ))
         else:
             # Non-variant algorithms: use canonical key (which includes

@@ -194,7 +194,7 @@ Computing correlations...
 Computing Perceptron Weights
 ----------------------------------------------------------------------
 Perceptron weights saved to: results/data/adaptive_models.json
-  16 algorithms configured (IDs 0-15; 14 are benchmark-eligible)
+  17 algorithms configured (IDs 0-16; 15 are benchmark-eligible)
 
 Summary:
   Total graphs analyzed: N

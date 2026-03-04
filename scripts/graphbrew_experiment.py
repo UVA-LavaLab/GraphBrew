@@ -696,7 +696,7 @@ def download_graphs(
         max_disk_gb: If set, skip downloads that would exceed this disk space
         parallel: If True, download graphs in parallel (default: True)
         max_workers: Number of parallel download threads (default: 4)
-        catalog_size: When > 0, expand each tier to this many graphs via
+        catalog_size: When > 0, expand each size category to this many graphs via
             SuiteSparse auto-discovery (e.g. 100).
         
     Returns:
@@ -765,7 +765,7 @@ def download_graphs(
     # Use parallel download (blocks until all complete)
     if parallel:
         successful_paths, failed_names = download_graphs_parallel(
-            graphs=[g.name for g in graphs_to_download],
+            graphs=graphs_to_download,  # Pass DownloadableGraph objects directly
             dest_dir=Path(graphs_dir),
             max_workers=max_workers,
             force=force,
@@ -1488,7 +1488,8 @@ def run_experiment(args):
     _progress.info(f"Size filter: {min_size:.1f}MB - {max_size:.1f}MB")
     
     # Auto-download: ensure graphs are available (skips already-downloaded, safe to call multiple times)
-    if args.auto and not args.skip_download:
+    # Guard: skip if main() already handled downloads via auto-setup block
+    if args.auto and not args.skip_download and not getattr(args, '_downloads_done', False):
         _progress.info(f"Auto-download: ensuring all {args.download_size} graphs are available...")
         download_graphs(
             size_category=args.download_size,
@@ -1890,6 +1891,15 @@ def run_experiment(args):
             log("   python3 scripts/graphbrew_experiment.py --phase download --size small")
             log("   Or specify graphs: --graph-list web-Google soc-LiveJournal1")
             sys.exit(1)
+        # Minimum-graph validation: LOGO CV needs ≥3 graphs; warn if <10
+        n_graphs = len(graphs)
+        if n_graphs < 3:
+            log(f"ERROR: Only {n_graphs} graph(s) available — need at least 3 for LOGO CV.", "ERROR")
+            log("   Download more graphs: --target-graphs 50  or  --size medium --catalog-size 50")
+            sys.exit(1)
+        if n_graphs < 10:
+            log(f"WARNING: Only {n_graphs} graphs available. ML evaluation needs ≥10 graphs for "
+                "meaningful results. Consider --target-graphs 50+.", "WARN")
         log_section("Fill All Weights - Comprehensive Training")
         log("This mode runs all phases to populate every weight field:")
         log("  - Phase 0: Graph Analysis (detects graph types from properties)")
@@ -1964,6 +1974,40 @@ def run_experiment(args):
         
         log_section("Fill Weights Complete")
         log("Benchmark data recorded to DB. C++ trains models at runtime.")
+        
+        # Phase 7: ML Evaluation (auto-eval unless --skip-eval)
+        if not getattr(args, 'skip_eval', False):
+            log_section("Phase 7: ML Model Evaluation (LOGO Cross-Validation)")
+            try:
+                from scripts.evaluate_all_modes import load_data, eval_logo_all_models, print_final_summary
+                bench_results, reorder_results, graph_props, raw_records = load_data()
+                if len(graph_props) >= 3:
+                    logo_matrix = eval_logo_all_models(
+                        bench_results, raw_records, graph_props, reorder_results)
+                    print_final_summary({}, logo_matrix)
+                    # Save evaluation summary
+                    eval_summary_path = os.path.join(args.results_dir, "data", "evaluation_summary.json")
+                    summary = {}
+                    for model, results in logo_matrix.items():
+                        summary[model] = {}
+                        for crit, d in results.items():
+                            summary[model][crit.value] = {
+                                'top1': d['top1'],
+                                'avg_regret': d['avg_regret'],
+                                'within_5pct': d.get('within_5pct', 0),
+                                'correct': d['correct'],
+                                'total': d['total'],
+                            }
+                    with open(eval_summary_path, 'w') as f:
+                        json.dump(summary, f, indent=2)
+                    log(f"Evaluation summary saved to: {eval_summary_path}")
+                else:
+                    log(f"Only {len(graph_props)} graphs with properties — skipping ML eval (need ≥3)", "WARN")
+            except Exception as e:
+                log(f"ML evaluation failed (non-fatal): {e}", "WARN")
+                traceback.print_exc()
+        else:
+            log_section("Phase 7: ML Evaluation — SKIPPED (--skip-eval)")
     
     # Show final summary with statistics
     _progress.final_summary()
@@ -2048,250 +2092,241 @@ def main():
         """
     )
     
-    # Dependency management
-    parser.add_argument("--check-deps", action="store_true",
-                        help="Check system dependencies (Boost, g++, libnuma, etc.) and exit")
-    parser.add_argument("--install-deps", action="store_true",
-                        help="Install missing system dependencies (may require sudo)")
-    parser.add_argument("--install-boost", action="store_true",
-                        help="Download and install Boost 1.58.0 for RabbitOrder compatibility")
-    
-    # One-click full pipeline
-    parser.add_argument("--full", action="store_true",
+    # ── Pipeline ───────────────────────────────────────────────────────
+    g_pipe = parser.add_argument_group("Pipeline", "One-command and full pipeline options")
+    g_pipe.add_argument("--target-graphs", type=int, default=None, metavar="N",
+                        help="One-command mode: download N graphs per size category, run full "
+                             "pipeline (download → build → reorder → benchmark → evaluate). "
+                             "Auto-enables --full, --catalog-size N, --auto, --all-variants. "
+                             "Example: --target-graphs 150")
+    g_pipe.add_argument("--full", action="store_true",
                         help="Run complete pipeline: download, build, experiment, weights")
-    parser.add_argument("--download-only", action="store_true",
+    g_pipe.add_argument("--download-only", action="store_true",
                         help="Only download graphs (no experiments)")
-    
-    # Unified size parameter (user-friendly)
-    parser.add_argument("--size", choices=["small", "medium", "large", "xlarge", "all"],
-                        default=None, 
-                        help="Graph size category - controls both download and filtering. "
-                             "small=<50MB, medium=50-500MB, large=500MB-2GB, xlarge=>2GB, all=everything")
-    parser.add_argument("--catalog-size", type=int, default=0, metavar="N",
-                        help="Expand graph catalog to N graphs per tier via SuiteSparse "
-                             "auto-discovery (e.g. --catalog-size 100). Default 0 = hardcoded only.")
-    
-    parser.add_argument("--force-download", action="store_true",
-                        help="Re-download graphs even if they exist")
-    parser.add_argument("--skip-build", action="store_true",
-                        help="Skip build check (assume binaries exist)")
-    parser.add_argument("--skip-download", action="store_true",
-                        help="Skip graph download phase (use existing graphs only)")
-    
-    # Random-baseline .sg conversion
-    parser.add_argument("--random-baseline", action="store_true", default=True,
-                        help="Convert graphs to .sg with RANDOM ordering (default: enabled). "
-                             "This ensures benchmarks measure improvement over a random baseline.")
-    parser.add_argument("--no-random-baseline", action="store_false", dest="random_baseline",
-                        help="Disable random-baseline conversion (use original .mtx files directly)")
-    parser.add_argument("--force-convert", action="store_true",
-                        help="Force re-conversion of .sg files even if they already exist")
-    
-    # Pre-generated reordered .sg files
-    parser.add_argument("--pregenerate-sg", action="store_true", default=True,
-                        help="Pre-generate reorder mapping (.lo) files for each algorithm so "
-                             "benchmarks use MAP mode instead of runtime reordering (default: enabled).")
-    parser.add_argument("--no-pregenerate-sg", action="store_false", dest="pregenerate_sg",
-                        help="Disable pre-generation of .lo mapping files "
-                             "(use real-time reordering during benchmarks)")
-    
-    # Resource limits
-    parser.add_argument("--max-memory", type=float, default=None,
-                        help="Maximum RAM (GB) for graph processing. Auto-detects available memory if not set. "
-                             "Graphs requiring more memory are automatically skipped.")
-    parser.add_argument("--max-disk", type=float, default=None,
-                        help="Maximum disk space (GB) for graph downloads. Graphs are skipped if total "
-                             "download size would exceed this limit.")
-    
-    # Auto resource detection (user-friendly combined flag)
-    parser.add_argument("--auto", action="store_true",
-                        help="Automatically detect memory and disk limits (combines --auto-memory and --auto-disk)")
-    parser.add_argument("--auto-memory", action="store_true",
-                        help="Automatically skip graphs that won't fit in available system RAM")
-    parser.add_argument("--auto-disk", action="store_true",
-                        help="Automatically limit downloads to available disk space (uses 80%% of free space)")
-    
-    parser.add_argument("--min-edges", type=int, default=0,
-                        help="Minimum number of edges for graph inclusion. Graphs with fewer edges are skipped. "
-                             f"Recommended: {MIN_EDGES_FOR_TRAINING:,} for weight training to avoid noise.")
-    
-    # Phase selection
-    parser.add_argument("--phase", choices=["all", "reorder", "benchmark", "cache", "weights", "adaptive"],
+    g_pipe.add_argument("--skip-eval", action="store_true",
+                        help="Skip ML evaluation phase at end of --full / --target-graphs pipeline")
+    g_pipe.add_argument("--dry-run", action="store_true",
+                        help="Print planned pipeline stages and estimated resources, then exit")
+    g_pipe.add_argument("--phase", choices=["all", "reorder", "benchmark", "cache", "weights", "adaptive"],
                         default="all", help="Which phase(s) to run")
-    
-    # Graph selection
-    parser.add_argument("--graphs-dir", default=DEFAULT_GRAPHS_DIR,
-                        help="Directory containing graph datasets")
-    parser.add_argument("--graph", "--graph-name", type=str, default=None, dest="graph_name",
-                        help="Run on a specific graph by name (e.g., wiki-Talk)")
-    parser.add_argument("--graph-list", nargs="+", type=str, default=None, dest="graph_list",
-                        help="Run on specific graphs (e.g., --graph-list wiki-Talk web-Google)")
-    parser.add_argument("--min-mb", type=float, default=0, dest="min_size",
-                        help="Minimum graph file size in MB (for custom filtering)")
-    parser.add_argument("--max-mb", type=float, default=float('inf'), dest="max_size",
-                        help="Maximum graph file size in MB (for custom filtering)")
-    parser.add_argument("--max-graphs", type=int, default=None,
-                        help="Maximum number of graphs to test")
-    
-    # Algorithm selection
-    parser.add_argument("--quick", action="store_true", dest="key_only",
+    g_pipe.add_argument("--auto-setup", action="store_true",
+                        help="Automatically setup everything: create dirs, build, download graphs")
+
+    # ── Download & Build ─────────────────────────────────────────────
+    g_dl = parser.add_argument_group("Download & Build", "Graph download, conversion, and build options")
+    g_dl.add_argument("--size", choices=["small", "medium", "large", "xlarge", "all"],
+                      default=None,
+                      help="Graph size category - controls both download and filtering. "
+                           "small=<50MB, medium=50-500MB, large=500MB-2GB, xlarge=>2GB, all=everything")
+    g_dl.add_argument("--catalog-size", type=int, default=0, metavar="N",
+                      help="Expand graph catalog to N graphs per size category via SuiteSparse "
+                           "auto-discovery (e.g. --catalog-size 100). Default 0 = hardcoded only.")
+    g_dl.add_argument("--force-download", action="store_true",
+                      help="Re-download graphs even if they exist")
+    g_dl.add_argument("--skip-build", action="store_true",
+                      help="Skip build check (assume binaries exist)")
+    g_dl.add_argument("--skip-download", action="store_true",
+                      help="Skip graph download phase (use existing graphs only)")
+    g_dl.add_argument("--random-baseline", action="store_true", default=True,
+                      help="Convert graphs to .sg with RANDOM ordering (default: enabled)")
+    g_dl.add_argument("--no-random-baseline", action="store_false", dest="random_baseline",
+                      help="Disable random-baseline conversion (use original .mtx files directly)")
+    g_dl.add_argument("--force-convert", action="store_true",
+                      help="Force re-conversion of .sg files even if they already exist")
+    g_dl.add_argument("--pregenerate-sg", action="store_true", default=True,
+                      help="Pre-generate reorder mapping (.lo) files for MAP mode (default: enabled)")
+    g_dl.add_argument("--no-pregenerate-sg", action="store_false", dest="pregenerate_sg",
+                      help="Disable pre-generation of .lo mapping files")
+
+    # ── Resource Limits ──────────────────────────────────────────────
+    g_res = parser.add_argument_group("Resources", "Memory, disk, and edge limits")
+    g_res.add_argument("--max-memory", type=float, default=None,
+                       help="Maximum RAM (GB) for graph processing. Auto-detects if not set.")
+    g_res.add_argument("--max-disk", type=float, default=None,
+                       help="Maximum disk space (GB) for graph downloads.")
+    g_res.add_argument("--auto", action="store_true",
+                       help="Auto-detect memory and disk limits (combines --auto-memory --auto-disk)")
+    g_res.add_argument("--auto-memory", action="store_true",
+                       help="Auto-skip graphs that won't fit in available RAM")
+    g_res.add_argument("--auto-disk", action="store_true",
+                       help="Auto-limit downloads to available disk (80%% of free space)")
+    g_res.add_argument("--min-edges", type=int, default=0,
+                       help="Minimum edges for graph inclusion. "
+                            f"Recommended: {MIN_EDGES_FOR_TRAINING:,} for training.")
+
+    # ── Graph Selection ──────────────────────────────────────────────
+    g_graph = parser.add_argument_group("Graph Selection", "Filter which graphs to process")
+    g_graph.add_argument("--graphs-dir", default=DEFAULT_GRAPHS_DIR,
+                         help="Directory containing graph datasets")
+    g_graph.add_argument("--graph", "--graph-name", type=str, default=None, dest="graph_name",
+                         help="Run on a specific graph by name (e.g., wiki-Talk)")
+    g_graph.add_argument("--graph-list", nargs="+", type=str, default=None, dest="graph_list",
+                         help="Run on specific graphs (e.g., --graph-list wiki-Talk web-Google)")
+    g_graph.add_argument("--min-mb", type=float, default=0, dest="min_size",
+                         help="Minimum graph file size in MB")
+    g_graph.add_argument("--max-mb", type=float, default=float('inf'), dest="max_size",
+                         help="Maximum graph file size in MB")
+    g_graph.add_argument("--max-graphs", type=int, default=None,
+                         help="Maximum number of graphs to test")
+
+    # ── Algorithm & Benchmark ────────────────────────────────────────
+    g_algo = parser.add_argument_group("Algorithms & Benchmarks", "Algorithm and benchmark selection")
+    g_algo.add_argument("--quick", action="store_true", dest="key_only",
                         help="Quick mode: test only key algorithms (Original, Random, HubClusterDBG, "
                              "RabbitOrder, Gorder, RCM, Leiden)")
-    parser.add_argument("--algo", "--algorithm", type=str, default=None, dest="algo_name",
-                        help="Run only a specific algorithm (e.g., RABBITORDER_boost, GraphBrewOrder_leiden)")
-    parser.add_argument("--algo-list", nargs="+", type=str, default=None, dest="algo_list",
-                        help="Run specific algorithms (e.g., --algo-list RABBITORDER_csr GraphBrewOrder_leiden GORDER GORDER_csr)")
-    parser.add_argument("--skip-slow", action="store_true",
+    g_algo.add_argument("--algo", "--algorithm", type=str, default=None, dest="algo_name",
+                        help="Run only a specific algorithm (e.g., RABBITORDER_boost)")
+    g_algo.add_argument("--algo-list", nargs="+", type=str, default=None, dest="algo_list",
+                        help="Run specific algorithms (e.g., --algo-list RABBITORDER_csr GORDER)")
+    g_algo.add_argument("--skip-slow", action="store_true",
                         help="Skip slow algorithms (Gorder, Corder, RCM) on large graphs")
-    
-    # Benchmark selection
-    parser.add_argument("--benchmarks", nargs="+", default=EXPERIMENT_BENCHMARKS,
+    g_algo.add_argument("--benchmarks", nargs="+", default=EXPERIMENT_BENCHMARKS,
                         help="Benchmarks to run (default: excludes TC)")
-    parser.add_argument("--trials", type=int, default=2,
+    g_algo.add_argument("--trials", type=int, default=2,
                         help="Number of trials per benchmark")
-    
-    # Paths
-    parser.add_argument("--bin-dir", default=DEFAULT_BIN_DIR,
-                        help="Directory containing benchmark binaries")
-    parser.add_argument("--bin-sim-dir", default=DEFAULT_BIN_SIM_DIR,
-                        help="Directory containing simulation binaries")
-    parser.add_argument("--results-dir", default=DEFAULT_RESULTS_DIR,
-                        help="Directory for results")
-    parser.add_argument("--weights-dir", default=DEFAULT_WEIGHTS_DIR,
-                        help="Directory for auto-generated type weight files")
-    
-    # Skip options
-    parser.add_argument("--skip-cache", action="store_true",
-                        help="Skip cache simulations (saves time, loses cache analysis data)")
-    parser.add_argument("--skip-modularity", action="store_true",
-                        help="Skip expensive computeFastModularity during topology analysis. "
-                             "Uses the same CC*1.5 heuristic as C++ runtime instead.")
-    parser.add_argument("--skip-expensive", action="store_true", dest="skip_heavy",
-                        help="Skip expensive benchmarks (BC, SSSP) on large graphs (>100MB)")
-    
-    # Timeouts
-    parser.add_argument("--timeout-reorder", type=int, default=TIMEOUT_REORDER,
-                        help="Timeout for reordering (seconds)")
-    parser.add_argument("--timeout-benchmark", type=int, default=TIMEOUT_BENCHMARK,
-                        help="Timeout for benchmarks (seconds)")
-    parser.add_argument("--timeout-sim", type=int, default=TIMEOUT_SIM,
-                        help="Timeout for simulations (seconds)")
-    
-    # Adaptive order analysis
-    parser.add_argument("--adaptive-analysis", action="store_true",
-                        help="Run adaptive order subcommunity analysis")
-    parser.add_argument("--adaptive-comparison", action="store_true",
-                        help="Compare adaptive vs fixed algorithm performance")
-    
-    # Label map options (for consistent, reproducible reorderings)
-    parser.add_argument("--precompute", action="store_true",
-                        help="Pre-generate and use label maps for consistent reordering (combines --generate-maps --use-maps)")
-    parser.add_argument("--generate-maps", action="store_true",
-                        help="Pre-generate .lo label map files for each algorithm")
-    parser.add_argument("--use-maps", action="store_true",
-                        help="Use pre-generated label maps (faster, reproducible results)")
-    parser.add_argument("--force-reorder", action="store_true",
-                        help="Force regeneration of reorderings even if .lo/.time files exist")
-    parser.add_argument("--clean-reorder-cache", action="store_true",
-                        help="Remove all .lo and .time files to force fresh reordering")
-    
-    # Leiden variant expansion options
-    parser.add_argument("--all-variants", action="store_true", dest="expand_variants",
-                        help="Test ALL algorithm variants (Leiden, RabbitOrder) instead of just defaults")
-    parser.add_argument("--rabbit-variants", nargs="+",
+    g_algo.add_argument("--all-variants", action="store_true", dest="expand_variants",
+                        help="Test ALL algorithm variants (Leiden, RabbitOrder)")
+    g_algo.add_argument("--rabbit-variants", nargs="+",
                         default=None, choices=["csr", "boost"],
-                        help="RabbitOrder variants: csr (default, no deps), boost (requires libboost-graph-dev)")
-    parser.add_argument("--gorder-variants", nargs="+",
+                        help="RabbitOrder variants: csr (default), boost (requires libboost)")
+    g_algo.add_argument("--gorder-variants", nargs="+",
                         default=None, choices=["default", "csr", "fast"],
-                        help="GOrder implementation variants: default, csr, fast (differ in speed, same ordering)")
-    parser.add_argument("--graphbrew-variants", nargs="+", dest="graphbrew_variants",
+                        help="GOrder implementation variants: default, csr, fast")
+    g_algo.add_argument("--graphbrew-variants", nargs="+", dest="graphbrew_variants",
                         default=None, choices=["leiden", "rabbit", "hubcluster"],
-                        help="GraphBrewOrder variants (GraphBrew-powered): leiden (default), rabbit, hubcluster")
-    parser.add_argument("--resolution", type=str, default="dynamic", dest="leiden_resolution",
-                        help="Leiden resolution: dynamic (default, best PR), auto, fixed (1.5), dynamic_2.0")
-    parser.add_argument("--passes", type=int, default=LEIDEN_DEFAULT_PASSES, dest="leiden_passes",
-                        help=f"Leiden refinement passes - higher = better quality (default: {LEIDEN_DEFAULT_PASSES})")
-    
-    # Brute-force validation
-    parser.add_argument("--brute-force", action="store_true",
-                        help="Run brute-force validation: test all algorithms vs AdaptiveOrder choice")
-    parser.add_argument("--validation-benchmark", default="pr", dest="bf_benchmark",
-                        help="Benchmark to use for brute-force validation (default: pr)")
-    parser.add_argument("--validate-adaptive", action="store_true",
-                        help="Validate adaptive algorithm accuracy: compare predicted vs actual best")
-    
-    # Training options
-    parser.add_argument("--train", action="store_true", dest="fill_weights",
-                        help="Train perceptron weights: runs reorder → benchmark → cache sim → compute weights")
-    parser.add_argument("--train-iterative", action="store_true", dest="train_adaptive",
-                        help="Iterative training: repeatedly adjust weights until target accuracy is reached")
-    parser.add_argument("--train-batched", action="store_true", dest="train_large",
-                        help="Batched training: process graphs in batches with multiple benchmarks")
-    parser.add_argument("--target-accuracy", type=float, default=80.0,
-                        help="Target accuracy %% for iterative training (default: 80)")
-    parser.add_argument("--max-iterations", type=int, default=10,
-                        help="Maximum training iterations (default: 10)")
-    parser.add_argument("--learning-rate", type=float, default=0.1,
-                        help="Learning rate for weight adjustments (default: 0.1)")
-    parser.add_argument("--batch-size", type=int, default=8,
-                        help="Batch size for batched training (default: 8)")
-    parser.add_argument("--train-benchmarks", nargs="+", default=DEFAULT_TRAIN_BENCHMARKS,
-                        help="Benchmarks to use for multi-benchmark training (default: pr bfs cc)")
-    parser.add_argument("--init-weights", action="store_true",
-                        help="Initialize empty weights file (run once before first training)")
-    
-    # Type system options
-    parser.add_argument("--show-types", action="store_true",
-                        help="Show all known graph types and their statistics")
-    parser.add_argument("--batch-only", action="store_true", dest="no_incremental",
-                        help="Only update weights at end of run (disable per-graph incremental updates)")
-    
-    parser.add_argument("--weights-file", default=os.path.join(DEFAULT_WEIGHTS_DIR, "weights.json"),
-                        help="Path to staging weights file (canonical: results/data/adaptive_models.json)")
-    
-    # Clean options
-    parser.add_argument("--clean", action="store_true",
-                        help="Clean results directory before running (keeps graphs and weights)")
-    parser.add_argument("--clean-all", action="store_true",
-                        help="Remove ALL generated data (graphs, results, mappings) - fresh start")
-    
-    # Auto-setup option
-    parser.add_argument("--auto-setup", action="store_true",
-                        help="Automatically setup everything: create directories, build if missing, download graphs if needed")
+                        help="GraphBrewOrder variants: leiden (default), rabbit, hubcluster")
+    g_algo.add_argument("--resolution", type=str, default="dynamic", dest="leiden_resolution",
+                        help="Leiden resolution: dynamic (default), auto, fixed (1.5), dynamic_2.0")
+    g_algo.add_argument("--passes", type=int, default=LEIDEN_DEFAULT_PASSES, dest="leiden_passes",
+                        help=f"Leiden refinement passes (default: {LEIDEN_DEFAULT_PASSES})")
 
-    # ── Standalone sub-workflows (replace shell scripts) ─────────────
-    parser.add_argument("--benchmark-fresh", action="store_true",
-                        help="Run all AdaptiveOrder-eligible algorithms on all .sg graphs (replaces benchmark_fresh.sh)")
-    parser.add_argument("--ab-test", action="store_true",
-                        help="A/B test: AdaptiveOrder vs Original on all .sg graphs (replaces ab_test.sh)")
-    parser.add_argument("--eval-weights", action="store_true",
-                        help="Train perceptron weights and evaluate prediction accuracy (replaces eval_weights.py)")
-    parser.add_argument("--logo", action="store_true",
-                        help="[eval-weights] Run Leave-One-Graph-Out cross-validation to measure generalization")
-    parser.add_argument("--sg-only", action="store_true",
-                        help="[eval-weights] Only use .sg benchmark data for training")
-    parser.add_argument("--benchmark-file", default=None,
-                        help="[eval-weights] Load a specific benchmark JSON file")
-    parser.add_argument("--timeout", type=int, default=TIMEOUT_BENCHMARK,
-                        help=f"[benchmark-fresh/ab-test] Timeout per benchmark invocation in seconds (default: {TIMEOUT_BENCHMARK})")
+    # ── Training ─────────────────────────────────────────────────────
+    g_train = parser.add_argument_group("Training", "Model training options")
+    g_train.add_argument("--train", action="store_true", dest="fill_weights",
+                         help="Train: runs reorder → benchmark → cache sim → compute weights")
+    g_train.add_argument("--train-iterative", action="store_true", dest="train_adaptive",
+                         help="Iterative training: adjust weights until target accuracy")
+    g_train.add_argument("--train-batched", action="store_true", dest="train_large",
+                         help="Batched training: process graphs in batches")
+    g_train.add_argument("--target-accuracy", type=float, default=80.0,
+                         help="Target accuracy %% for iterative training (default: 80)")
+    g_train.add_argument("--max-iterations", type=int, default=10,
+                         help="Maximum training iterations (default: 10)")
+    g_train.add_argument("--learning-rate", type=float, default=0.1,
+                         help="Learning rate for weight adjustments (default: 0.1)")
+    g_train.add_argument("--batch-size", type=int, default=8,
+                         help="Batch size for batched training (default: 8)")
+    g_train.add_argument("--train-benchmarks", nargs="+", default=DEFAULT_TRAIN_BENCHMARKS,
+                         help="Benchmarks for training (default: pr bfs cc)")
+    g_train.add_argument("--init-weights", action="store_true",
+                         help="Initialize empty weights file")
+    g_train.add_argument("--show-types", action="store_true",
+                         help="Show all known graph types and their statistics")
+    g_train.add_argument("--batch-only", action="store_true", dest="no_incremental",
+                         help="Only update weights at end (disable per-graph updates)")
+    g_train.add_argument("--weights-file", default=os.path.join(DEFAULT_WEIGHTS_DIR, "weights.json"),
+                         help="Path to staging weights file")
 
-    # ── Tools (moved from standalone scripts) ────────────────────────
-    parser.add_argument("--emulator", action="store_true",
-                        help="Run AdaptiveOrder emulator for weight analysis (pass extra args after --)")
-    parser.add_argument("--oracle-analysis", action="store_true",
+    # ── Reorder & Cache ──────────────────────────────────────────────
+    g_reorder = parser.add_argument_group("Reorder & Cache", "Label map generation and cache simulation")
+    g_reorder.add_argument("--precompute", action="store_true",
+                           help="Pre-generate and use label maps (combines --generate-maps --use-maps)")
+    g_reorder.add_argument("--generate-maps", action="store_true",
+                           help="Pre-generate .lo label map files for each algorithm")
+    g_reorder.add_argument("--use-maps", action="store_true",
+                           help="Use pre-generated label maps (faster, reproducible)")
+    g_reorder.add_argument("--force-reorder", action="store_true",
+                           help="Force regeneration of reorderings even if .lo/.time exist")
+    g_reorder.add_argument("--clean-reorder-cache", action="store_true",
+                           help="Remove all .lo and .time files to force fresh reordering")
+    g_reorder.add_argument("--skip-cache", action="store_true",
+                           help="Skip cache simulations")
+    g_reorder.add_argument("--skip-modularity", action="store_true",
+                           help="Skip expensive computeFastModularity (use CC*1.5 heuristic)")
+    g_reorder.add_argument("--skip-expensive", action="store_true", dest="skip_heavy",
+                           help="Skip expensive benchmarks (BC, SSSP) on large graphs (>100MB)")
+
+    # ── Timeouts ─────────────────────────────────────────────────────
+    g_time = parser.add_argument_group("Timeouts", "Timeout settings for various phases")
+    g_time.add_argument("--timeout-reorder", type=int, default=TIMEOUT_REORDER,
+                        help="Timeout for reordering (seconds)")
+    g_time.add_argument("--timeout-benchmark", type=int, default=TIMEOUT_BENCHMARK,
+                        help="Timeout for benchmarks (seconds)")
+    g_time.add_argument("--timeout-sim", type=int, default=TIMEOUT_SIM,
+                        help="Timeout for simulations (seconds)")
+    g_time.add_argument("--timeout", type=int, default=TIMEOUT_BENCHMARK,
+                        help=f"Timeout per benchmark invocation in seconds (default: {TIMEOUT_BENCHMARK})")
+
+    # ── Paths ────────────────────────────────────────────────────────
+    g_path = parser.add_argument_group("Paths", "Directory and file paths")
+    g_path.add_argument("--bin-dir", default=DEFAULT_BIN_DIR,
+                        help="Directory containing benchmark binaries")
+    g_path.add_argument("--bin-sim-dir", default=DEFAULT_BIN_SIM_DIR,
+                        help="Directory containing simulation binaries")
+    g_path.add_argument("--results-dir", default=DEFAULT_RESULTS_DIR,
+                        help="Directory for results")
+    g_path.add_argument("--weights-dir", default=DEFAULT_WEIGHTS_DIR,
+                        help="Directory for auto-generated type weight files")
+
+    # ── Validation ───────────────────────────────────────────────────
+    g_val = parser.add_argument_group("Validation", "Brute-force and adaptive accuracy testing")
+    g_val.add_argument("--adaptive-analysis", action="store_true",
+                       help="Run adaptive order subcommunity analysis")
+    g_val.add_argument("--adaptive-comparison", action="store_true",
+                       help="Compare adaptive vs fixed algorithm performance")
+    g_val.add_argument("--brute-force", action="store_true",
+                       help="Brute-force validation: test all algorithms vs AdaptiveOrder")
+    g_val.add_argument("--validation-benchmark", default="pr", dest="bf_benchmark",
+                       help="Benchmark for brute-force validation (default: pr)")
+    g_val.add_argument("--validate-adaptive", action="store_true",
+                       help="Validate adaptive accuracy: predicted vs actual best")
+
+    # ── Clean & Maintenance ──────────────────────────────────────────
+    g_clean = parser.add_argument_group("Clean & Maintenance", "Cleanup and dependency management")
+    g_clean.add_argument("--clean", action="store_true",
+                         help="Clean results directory (keeps graphs and weights)")
+    g_clean.add_argument("--clean-all", action="store_true",
+                         help="Remove ALL generated data (fresh start)")
+    g_clean.add_argument("--check-deps", action="store_true",
+                         help="Check system dependencies and exit")
+    g_clean.add_argument("--install-deps", action="store_true",
+                         help="Install missing system dependencies (may require sudo)")
+    g_clean.add_argument("--install-boost", action="store_true",
+                         help="Download and install Boost 1.58.0 for RabbitOrder")
+
+    # ── Standalone Sub-workflows ─────────────────────────────────────
+    g_sub = parser.add_argument_group("Sub-workflows", "Standalone analysis tasks (early exit)")
+    g_sub.add_argument("--benchmark-fresh", action="store_true",
+                       help="Benchmark all algorithms on all .sg graphs")
+    g_sub.add_argument("--ab-test", action="store_true",
+                       help="A/B test: AdaptiveOrder vs Original on all .sg graphs")
+    g_sub.add_argument("--eval-weights", action="store_true",
+                       help="Train perceptron weights and evaluate accuracy")
+    g_sub.add_argument("--logo", action="store_true",
+                       help="[eval-weights] LOGO cross-validation for generalization")
+    g_sub.add_argument("--sg-only", action="store_true",
+                       help="[eval-weights] Only use .sg benchmark data")
+    g_sub.add_argument("--benchmark-file", default=None,
+                       help="[eval-weights] Load a specific benchmark JSON file")
+
+    # ── Tools ────────────────────────────────────────────────────────
+    g_tool = parser.add_argument_group("Tools", "Standalone analysis and diagnostic tools")
+    g_tool.add_argument("--emulator", action="store_true",
+                        help="Run AdaptiveOrder emulator for weight analysis")
+    g_tool.add_argument("--oracle-analysis", action="store_true",
                         help="Oracle analysis: selection accuracy, regret, confusion matrix")
-    parser.add_argument("--perceptron", action="store_true",
-                        help="Perceptron experimentation: grid search, training, interactive mode")
-    parser.add_argument("--cache-compare", action="store_true",
-                        help="Quick cache simulation comparison across algorithm variants")
-    parser.add_argument("--regen-features", action="store_true",
+    g_tool.add_argument("--perceptron", action="store_true",
+                        help="Perceptron experimentation: grid search, training, interactive")
+    g_tool.add_argument("--cache-compare", action="store_true",
+                        help="Quick cache simulation comparison across variants")
+    g_tool.add_argument("--regen-features", action="store_true",
                         help="Regenerate features.json for all .sg graphs via C++ binary")
-    parser.add_argument("--check-includes", action="store_true",
+    g_tool.add_argument("--check-includes", action="store_true",
                         help="Scan C++ sources for legacy include paths")
-    parser.add_argument("--generate-figures", action="store_true",
-                        help="Generate reordering visualization SVG figures for docs")
-    parser.add_argument("--compare-leiden", action="store_true",
-                        help="Compare Leiden/RabbitOrder/GraphBrew community detection variants")
+    g_tool.add_argument("--generate-figures", action="store_true",
+                        help="Generate reordering visualization SVG figures")
+    g_tool.add_argument("--compare-leiden", action="store_true",
+                        help="Compare Leiden/RabbitOrder/GraphBrew community detection")
 
     args = parser.parse_args()
     
@@ -2299,6 +2334,22 @@ def main():
     # Parameter Resolution: Unify related flags
     # ==========================================================================
     
+    # Resolve --target-graphs N (one-command mode)
+    if args.target_graphs is not None:
+        N = args.target_graphs
+        if N < 3:
+            print(f"ERROR: --target-graphs {N} is too small (minimum 3 for LOGO CV)")
+            sys.exit(1)
+        args.full = True
+        args.catalog_size = N
+        args.auto = True
+        args.expand_variants = True
+        # Use ALL size categories so --catalog-size can pull from each
+        if args.size is None:
+            args.size = "all"
+        log(f"--target-graphs {N}: enabled --full, --catalog-size {N}, "
+            f"--auto, --all-variants, --size {args.size}", "INFO")
+
     # Resolve --auto flag (combines --auto-memory and --auto-disk)
     if args.auto:
         args.auto_memory = True
@@ -2315,13 +2366,13 @@ def main():
             args.expand_variants = True
             log("Auto-enabling variant expansion (specific variants requested)", "INFO")
     
-    # Auto-enable --all-variants when running --full pipeline
+    # Auto-enable --all-variants when running --full or --train pipeline
     # Training on all variants is critical for the perceptron to learn which
     # variant works best for each graph structure (e.g., GraphBrewOrder_leiden vs
     # GraphBrewOrder_rabbit, RABBITORDER_csr vs RABBITORDER_boost, etc.)
-    if args.full and not args.expand_variants:
+    if (args.full or args.fill_weights) and not args.expand_variants:
         args.expand_variants = True
-        log("Auto-enabling variant expansion for --full pipeline (train on all variants)", "INFO")
+        log("Auto-enabling variant expansion for training pipeline (train on all variants)", "INFO")
     
     # Resolve unified --size parameter
     if args.size is not None:
@@ -2405,6 +2456,42 @@ def main():
     if args.min_edges > 0:
         log(f"Min edges filter: {args.min_edges:,} (graphs with fewer edges will be skipped for training)", "INFO")
     
+    # --dry-run: print planned pipeline and exit
+    if args.dry_run:
+        print("=" * 60)
+        print("  GRAPHBREW DRY RUN — planned pipeline stages")
+        print("=" * 60)
+        stages = []
+        if args.full or args.fill_weights:
+            stages += [
+                ("1. Download",  f"size={getattr(args, 'download_size', 'SMALL')}, "
+                                 f"catalog-size={args.catalog_size}"),
+                ("2. Build",     "compile C++ benchmark binaries"),
+                ("3. Convert",   ".mtx → .sg (RANDOM baseline)"),
+                ("4. Reorder",   f"generate .lo mappings, variants={'ALL' if args.expand_variants else 'default'}"),
+                ("5. Benchmark", f"benchmarks={', '.join(args.benchmarks)}, trials={args.trials}"),
+                ("6. Cache Sim", "SKIP" if args.skip_cache else "pr, bfs"),
+                ("7. Evaluate",  "SKIP" if getattr(args, 'skip_eval', False) else "LOGO CV on all ML models"),
+            ]
+        elif args.download_only:
+            stages.append(("1. Download", f"size={getattr(args, 'download_size', 'SMALL')}"))
+        else:
+            stages.append(("1. Experiment", f"phase={args.phase}, benchmarks={', '.join(args.benchmarks)}"))
+        for name, desc in stages:
+            print(f"  {name:<16} {desc}")
+        print()
+        mem_str = f"{args.max_memory:.1f} GB" if args.max_memory else "unlimited"
+        disk_str = f"{args.max_disk:.1f} GB" if args.max_disk else "unlimited"
+        print(f"  Memory limit:  {mem_str}")
+        print(f"  Disk limit:    {disk_str}")
+        print(f"  Graphs dir:    {args.graphs_dir}")
+        print(f"  Results dir:   {args.results_dir}")
+        if args.target_graphs:
+            print(f"  Target graphs: {args.target_graphs} per size")
+        print("=" * 60)
+        print("  (Remove --dry-run to execute)")
+        return
+    
     # Handle clean operations first
     if args.clean_all:
         clean_all(".", confirm=False)
@@ -2477,7 +2564,7 @@ def main():
             max_disk_gb=args.max_disk,
             catalog_size=getattr(args, 'catalog_size', 0),
         )
-        
+        args._downloads_done = True  # Guard: prevent duplicate download in run_experiment()
         # Determine size range for filtering conversion/pre-generation
         _setup_min, _setup_max = _SIZE_RANGES.get(
             args.graphs if hasattr(args, 'graphs') else "all",

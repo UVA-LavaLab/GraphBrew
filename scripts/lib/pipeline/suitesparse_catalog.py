@@ -6,11 +6,14 @@ Uses the ``ssgetpy`` library to query the cached SuiteSparse CSV index
 and automatically build graph catalogs.  Falls back gracefully when
 ``ssgetpy`` is unavailable (e.g.  offline / minimal installs).
 
-Tier boundaries are by **edge count** (nnz), not file size:
-    Small   :   50 K –  500 K edges
-    Medium  :  500 K –    5 M edges
-    Large   :    5 M –   50 M edges
-    XLarge  :   50 M –  500 M edges
+Size categories are by **edge count** (nnz), not file size:
+    Small   :   10 K –  500 K edges   (~225 available)
+    Medium  :  500 K –    5 M edges   (~134 available)
+    Large   :    5 M –   50 M edges   (~ 70 available)
+    XLarge  :   50 M –  500 M edges   (~ 37 available)
+
+Discovery searches multiple SuiteSparse ``kind`` keywords
+(graph, network, multigraph) to maximise the pool.
 
 Usage:
     from scripts.lib.pipeline.suitesparse_catalog import discover_graphs
@@ -27,13 +30,17 @@ from typing import Dict, List, Optional, Tuple
 
 log = logging.getLogger("graphbrew.suitesparse_catalog")
 
-# ── tier boundaries (by nnz / edge count) ─────────────────────────────────
-TIER_BOUNDS: Dict[str, Tuple[int, int]] = {
-    "SMALL":  (50_000, 500_000),
+# ── size-category boundaries (by nnz / edge count) ───────────────────────
+SIZE_BOUNDS: Dict[str, Tuple[int, int]] = {
+    "SMALL":  (10_000, 500_000),
     "MEDIUM": (500_000, 5_000_000),
     "LARGE":  (5_000_000, 50_000_000),
     "XLARGE": (50_000_000, 500_000_000),
 }
+
+# SuiteSparse kind keywords that represent graph-like matrices.
+# Searching all three maximises the discoverable pool.
+_DISCOVERY_KINDS: Tuple[str, ...] = ("graph", "network", "multigraph")
 
 # Canonical download URL pattern  (replaces old Heroku URL)
 SUITESPARSE_MM_URL = "https://sparse.tamu.edu/MM/{group}/{name}.tar.gz"
@@ -97,17 +104,17 @@ def _is_symmetric(psym: float) -> bool:
 # ── main discovery function ──────────────────────────────────────────────
 
 def discover_graphs(
-    tier: str,
+    size_category: str,
     limit: int = 100,
     *,
     prefer_diverse: bool = True,
     exclude_names: Optional[set] = None,
 ) -> List["DownloadableGraph"]:
-    """Auto-discover graph matrices from SuiteSparse for a given tier.
+    """Auto-discover graph matrices from SuiteSparse for a given size category.
 
     Parameters
     ----------
-    tier : str
+    size_category : str
         One of ``"SMALL"``, ``"MEDIUM"``, ``"LARGE"``, ``"XLARGE"`` (case-insensitive).
     limit : int
         Maximum number of graphs to return (default 100).
@@ -135,27 +142,32 @@ def discover_graphs(
     # Avoid circular import at module level
     from .download import DownloadableGraph
 
-    tier = tier.upper()
-    if tier not in TIER_BOUNDS:
-        log.error(f"Unknown tier '{tier}'. Choose from: {list(TIER_BOUNDS)}")
+    size_category = size_category.upper()
+    if size_category not in SIZE_BOUNDS:
+        log.error(f"Unknown size '{size_category}'. Choose from: {list(SIZE_BOUNDS)}")
         return []
 
-    lo, hi = TIER_BOUNDS[tier]
+    lo, hi = SIZE_BOUNDS[size_category]
     exclude_names = exclude_names or set()
 
-    # Query for graph-kind matrices in the nnz range
-    # ssgetpy's ``kind`` filter uses SQL LIKE, so ``%graph%`` matches
-    # "directed graph", "undirected weighted graph", etc.
-    candidates = ssgetpy.search(kind="graph", nzbounds=(lo, hi), limit=10_000)
-
-    # Keep only square matrices (proper adjacency representation)
-    candidates = [m for m in candidates if m.rows == m.cols]
+    # Query for graph-kind matrices in the nnz range.
+    # Search multiple kind keywords to maximise the discovery pool:
+    #   "graph"      — directed/undirected/weighted graph, etc.
+    #   "network"    — power network, communication network, etc.
+    #   "multigraph" — multi-edge graphs
+    seen_ids: set = set()
+    candidates = []
+    for kind_kw in _DISCOVERY_KINDS:
+        for m in ssgetpy.search(kind=kind_kw, nzbounds=(lo, hi), limit=10_000):
+            if m.id not in seen_ids and m.rows == m.cols:
+                seen_ids.add(m.id)
+                candidates.append(m)
 
     # Exclude already-catalogued names
     candidates = [m for m in candidates if m.name not in exclude_names]
 
     if not candidates:
-        log.warning(f"No candidate graphs found for tier {tier} ({lo:,}–{hi:,} nnz)")
+        log.warning(f"No candidate graphs found for size {size_category} ({lo:,}–{hi:,} nnz)")
         return []
 
     # ── diversity-aware sampling ──────────────────────────────────────
@@ -209,32 +221,38 @@ def discover_graphs(
 
     result.sort(key=lambda g: (g.category, g.name))
     log.info(
-        f"SuiteSparse auto-discovery: {len(result)} graphs for tier {tier} "
+        f"SuiteSparse auto-discovery: {len(result)} graphs for size {size_category} "
         f"({lo:,}–{hi:,} nnz) from {len(set(m.group for m in candidates))} groups"
     )
     return result
 
 
-def discover_all_tiers(
-    limit_per_tier: int = 100,
+def discover_all_sizes(
+    limit_per_size: int = 100,
     *,
     exclude_names: Optional[set] = None,
 ) -> Dict[str, List["DownloadableGraph"]]:
-    """Discover graphs for all four tiers at once.
+    """Discover graphs for all four size categories at once.
 
     Returns
     -------
-    dict mapping tier name → list of DownloadableGraph
+    dict mapping size name → list of DownloadableGraph
     """
     return {
-        tier: discover_graphs(tier, limit=limit_per_tier, exclude_names=exclude_names)
-        for tier in TIER_BOUNDS
+        sc: discover_graphs(sc, limit=limit_per_size, exclude_names=exclude_names)
+        for sc in SIZE_BOUNDS
     }
 
 
-def tier_for_graph(nnz: int) -> Optional[str]:
-    """Return the tier name for a graph with the given nnz, or None."""
-    for tier, (lo, hi) in TIER_BOUNDS.items():
+def size_for_graph(nnz: int) -> Optional[str]:
+    """Return the size category name for a graph with the given nnz, or None."""
+    for sc, (lo, hi) in SIZE_BOUNDS.items():
         if lo <= nnz < hi:
-            return tier
+            return sc
     return None
+
+
+# ── backward-compatible aliases ───────────────────────────────────────────
+TIER_BOUNDS = SIZE_BOUNDS  # deprecated alias
+discover_all_tiers = discover_all_sizes  # deprecated alias
+tier_for_graph = size_for_graph  # deprecated alias

@@ -324,19 +324,19 @@ ALL_GRAPHS = (
 # =============================================================================
 
 def build_catalog(
-    tier: str,
+    size_category: str,
     limit: int = 100,
     *,
     auto_discover: bool = True,
 ) -> Dict[str, DownloadableGraph]:
-    """Build an expanded catalog for *tier* by merging hardcoded entries
+    """Build an expanded catalog for *size_category* by merging hardcoded entries
     with auto-discovered graphs from SuiteSparse.
 
     Hardcoded entries always take priority (dedup by name).
 
     Parameters
     ----------
-    tier : str
+    size_category : str
         ``"SMALL"``, ``"MEDIUM"``, ``"LARGE"``, ``"XLARGE"``
     limit : int
         Target number of graphs (hardcoded + discovered).
@@ -347,8 +347,8 @@ def build_catalog(
     -------
     dict mapping graph name → DownloadableGraph
     """
-    tier = tier.upper()
-    base = dict(_HARDCODED_CATALOG.get(tier, {}))
+    size_category = size_category.upper()
+    base = dict(_HARDCODED_CATALOG.get(size_category, {}))
 
     if not auto_discover:
         return base
@@ -360,7 +360,7 @@ def build_catalog(
     try:
         from .suitesparse_catalog import discover_graphs
         discovered = discover_graphs(
-            tier,
+            size_category,
             limit=remaining,
             exclude_names=set(base.keys()),
         )
@@ -368,23 +368,23 @@ def build_catalog(
             if g.name not in base:
                 base[g.name] = g
     except Exception as e:
-        log.warning(f"Auto-discovery failed for tier {tier}: {e}")
+        log.warning(f"Auto-discovery failed for size {size_category}: {e}")
 
     return base
 
 
 def build_full_catalog(
-    limit_per_tier: int = 100,
+    limit_per_size: int = 100,
     *,
     auto_discover: bool = True,
 ) -> Dict[str, Dict[str, DownloadableGraph]]:
-    """Build expanded catalogs for all tiers.
+    """Build expanded catalogs for all size categories.
 
-    Returns dict mapping tier → {name → DownloadableGraph}.
+    Returns dict mapping size → {name → DownloadableGraph}.
     """
     return {
-        tier: build_catalog(tier, limit=limit_per_tier, auto_discover=auto_discover)
-        for tier in ("SMALL", "MEDIUM", "LARGE", "XLARGE")
+        sc: build_catalog(sc, limit=limit_per_size, auto_discover=auto_discover)
+        for sc in ("SMALL", "MEDIUM", "LARGE", "XLARGE")
     }
 
 
@@ -411,17 +411,17 @@ def get_graphs_by_size(
     size : str
         ``"SMALL"``, ``"MEDIUM"``, ``"LARGE"``, ``"XLARGE"``, ``"ALL"``
     catalog_size : int
-        When > 0, use ``build_catalog()`` to expand the tier with
+        When > 0, use ``build_catalog()`` to expand the size category with
         auto-discovered graphs up to this count.  When 0 (default),
         return only hardcoded entries.
     """
     size = size.upper()
     if size == "ALL":
         if catalog_size > 0:
-            expanded = build_full_catalog(limit_per_tier=catalog_size)
+            expanded = build_full_catalog(limit_per_size=catalog_size)
             result = []
-            for tier_graphs in expanded.values():
-                result.extend(tier_graphs.values())
+            for size_graphs in expanded.values():
+                result.extend(size_graphs.values())
             return result
         return ALL_GRAPHS.copy()
     if catalog_size > 0:
@@ -821,12 +821,15 @@ def download_graphs_parallel(
     # Build download list
     if graphs:
         download_list = []
-        for name in graphs:
-            info = get_graph_info(name)
-            if info:
-                download_list.append(info)
+        for item in graphs:
+            if isinstance(item, DownloadableGraph):
+                download_list.append(item)
             else:
-                log.warning(f"Unknown graph: {name}")
+                info = get_graph_info(item)
+                if info:
+                    download_list.append(info)
+                else:
+                    log.warning(f"Unknown graph: {item}")
     else:
         download_list = get_graphs_by_size(size)
     
@@ -1026,14 +1029,17 @@ def download_graphs(
     
     # Build download list
     if graphs:
-        # Specific graphs by name
+        # Specific graphs by name or DownloadableGraph objects
         download_list = []
-        for name in graphs:
-            info = get_graph_info(name)
-            if info:
-                download_list.append(info)
+        for item in graphs:
+            if isinstance(item, DownloadableGraph):
+                download_list.append(item)
             else:
-                log.warning(f"Unknown graph: {name}")
+                info = get_graph_info(item)
+                if info:
+                    download_list.append(info)
+                else:
+                    log.warning(f"Unknown graph: {item}")
     else:
         download_list = get_graphs_by_size(size)
     

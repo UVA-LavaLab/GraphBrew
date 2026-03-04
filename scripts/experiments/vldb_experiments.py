@@ -143,22 +143,22 @@ def exp1_oracle_gap(
     os.makedirs(out_dir, exist_ok=True)
 
     # Run brute-force: all algorithms × all benchmarks × all graphs
-    algo_str = " ".join(str(a) for a in BASELINE_IDS)
+    algo_str = " ".join(ALGORITHMS[a] for a in BASELINE_IDS)
     bench_str = " ".join(BENCHMARKS)
 
     if graphs:
         for g in graphs:
             run_experiment_script(
-                f"--full --precompute -a {algo_str} -b {bench_str} "
-                f"-n {num_trials} --graphs {g} "
-                f"--output-dir {out_dir}",
+                f"--full --precompute --algo-list {algo_str} --benchmarks {bench_str} "
+                f"--trials {num_trials} --graph-list {g} "
+                f"--results-dir {out_dir}",
                 dry_run=dry_run,
             )
     else:
         run_experiment_script(
             f"--full --precompute --size {size} "
-            f"-a {algo_str} -b {bench_str} -n {num_trials} --auto "
-            f"--output-dir {out_dir}",
+            f"--algo-list {algo_str} --benchmarks {bench_str} --trials {num_trials} --auto "
+            f"--results-dir {out_dir}",
             dry_run=dry_run,
         )
 
@@ -192,16 +192,16 @@ def exp2_adaptive_vs_baselines(
         if graphs:
             for g in graphs:
                 run_experiment_script(
-                    f"--full --precompute -a 14 -b {bench_str} "
-                    f"-n {num_trials} --graphs {g} "
-                    f"--output-dir {out_dir}/{mode_name}",
+                    f"--full --precompute --algo-list AdaptiveOrder --benchmarks {bench_str} "
+                    f"--trials {num_trials} --graph-list {g} "
+                    f"--results-dir {out_dir}/{mode_name}",
                     dry_run=dry_run,
                 )
         else:
             run_experiment_script(
                 f"--full --precompute --size {size} "
-                f"-a 14 -b {bench_str} -n {num_trials} --auto "
-                f"--output-dir {out_dir}/{mode_name}",
+                f"--algo-list AdaptiveOrder --benchmarks {bench_str} --trials {num_trials} --auto "
+                f"--results-dir {out_dir}/{mode_name}",
                 dry_run=dry_run,
             )
 
@@ -269,8 +269,8 @@ def exp4_feature_ablation(
         cmd = (
             f"{env_prefix} python {EXPERIMENT_SCRIPT} "
             f"--full --precompute --size {size} "
-            f"-a 14 -b {bench_str} -n 3 --auto "
-            f"--output-dir {out_dir}/{group_name}"
+            f"--algo-list AdaptiveOrder --benchmarks {bench_str} --trials 3 --auto "
+            f"--results-dir {out_dir}/{group_name}"
         )
         run_cmd(cmd, dry_run=dry_run)
 
@@ -298,13 +298,13 @@ def exp5_cold_start(
     # 3. After each graph, evaluates selection accuracy on remaining
     #
     # For now, generate the brute-force data needed for the simulation
-    algo_str = " ".join(str(a) for a in BASELINE_IDS)
+    algo_str = " ".join(ALGORITHMS[a] for a in BASELINE_IDS)
     bench_str = " ".join(BENCHMARKS)
 
     run_experiment_script(
         f"--full --precompute --size {size} "
-        f"-a {algo_str} 14 -b {bench_str} -n 3 --auto "
-        f"--output-dir {out_dir}",
+        f"--algo-list {algo_str} AdaptiveOrder --benchmarks {bench_str} --trials 3 --auto "
+        f"--results-dir {out_dir}",
         dry_run=dry_run,
     )
 

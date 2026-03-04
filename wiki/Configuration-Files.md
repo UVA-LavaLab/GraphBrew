@@ -23,7 +23,7 @@ scripts/
     │   ├── benchmark.py       # Benchmark execution
     │   ├── cache.py           # Cache simulation
     │   ├── reorder.py         # Vertex reordering
-    │   ├── phases.py          # Phase orchestration
+    │   ├── suitesparse_catalog.py # SuiteSparse auto-discovery
     │   └── ...                # build, download, progress
     ├── ml/                    # ML scoring & training
     │   ├── weights.py         # PerceptronWeight, compute_weights_from_results

@@ -29,7 +29,13 @@ The automated pipeline runs **seven** benchmarks by default (`EXPERIMENT_BENCHMA
 For comprehensive benchmarking, use the unified experiment script:
 
 ```bash
-# One-click: downloads graphs, builds, runs all benchmarks
+# One-command: download 150 graphs per size, run full pipeline + ML evaluation
+python3 scripts/graphbrew_experiment.py --target-graphs 150
+
+# Preview what would run (no execution)
+python3 scripts/graphbrew_experiment.py --target-graphs 150 --dry-run
+
+# One-click with explicit flags: downloads graphs, builds, runs all benchmarks
 python3 scripts/graphbrew_experiment.py --full --size small
 
 # Auto-detect RAM and disk limits
@@ -52,6 +58,45 @@ python3 scripts/graphbrew_experiment.py --train --auto --size all
 ```
 
 See [[Command-Line-Reference]] for `--train` phases, download size options, and memory/disk management. See [[Python-Scripts]] for full script documentation.
+
+### Full Training Example
+
+Here is exactly what happens when you run:
+
+```bash
+python3 scripts/graphbrew_experiment.py --target-graphs 150 --size small
+```
+
+**What `--target-graphs 150 --size small` does:**
+- Auto-enables `--full`, `--catalog-size 150`, `--auto`, `--all-variants`
+- Limits to the `small` size category (10K–500K edges)
+
+**Pipeline phases (in order):**
+
+| Phase | What Happens | Output |
+|-------|-------------|--------|
+| **Download** | Fetches up to 150 small graphs from SuiteSparse (16 hardcoded + auto-discovered) | `results/graphs/<name>/<name>.mtx` |
+| **Build** | Compiles C++ benchmark binaries (standard + cache sim) | `bench/bin/pr`, `bench/bin/bfs`, ... |
+| **Convert** | Converts `.mtx` → `.sg` with RANDOM baseline ordering | `results/graphs/<name>/<name>.sg` |
+| **Pre-generate** | Creates reordered `.sg` per algorithm (MAP mode — no runtime overhead) | `results/graphs/<name>/<name>_<algo>.sg` |
+| **Reorder** | Runs 17 algorithms × 14 variants on each graph → `.lo` label maps | `results/mappings/<name>/<algo>.lo` |
+| **Benchmark** | Runs 7 kernels (PR, PR_SPMV, BFS, CC, CC_SV, SSSP, BC) × all orderings × 2 trials | `results/data/benchmarks.json` |
+| **Cache Sim** | Simulates L1/L2/L3 cache hit rates for PR and BFS | `results/data/benchmarks.json` (cache fields) |
+| **Evaluate** | LOGO (Leave-One-Graph-Out) cross-validation on perceptron, decision-tree, hybrid, kNN | `results/data/evaluation_summary.json` |
+
+**What the ML models learn:** For each graph, the pipeline records benchmark runtimes for every reordering algorithm. The ML model learns to predict which algorithm gives the best speedup based on graph topology features (degree distribution, modularity, hub concentration, etc.). More graphs = better predictions.
+
+**Expected timeline** (on a modern workstation):
+- 50 small graphs: ~15–20 min
+- 150 small graphs: ~1–2 hours
+- 150 all sizes: ~4–8 hours
+
+**Output:** After completion, check `results/data/evaluation_summary.json` for model accuracy:
+```
+XBench Fam+Orig XGBoost  — 66.3% top-1  (current best)
+DT-Hybrid Perceptron     — 64.1% top-1
+Perceptron (vanilla)     — 58.2% top-1
+```
 
 ---
 
@@ -85,7 +130,7 @@ See [[Command-Line-Reference]] for `--train` phases, download size options, and 
 | Option | Description | Default |
 |--------|-------------|---------|
 | `-f <file>` | Input graph file | Required |
-| `-o <id>` | Ordering algorithm (0-15) | 0 (none) |
+| `-o <id>` | Ordering algorithm (0-16) | 0 (none) |
 | `-s` | Symmetrize graph (make undirected) | Off |
 | `-g <scale>` | Generate 2^scale kronecker graph | - |
 | `-n <num>` | Number of trials | 16 |
@@ -143,7 +188,7 @@ See [[Command-Line-Reference]] for complete option reference, output format deta
 
 ## Reordering Options
 
-See [[Command-Line-Reference#reordering-algorithm-ids]] for the full algorithm table (IDs 0-15) and variant syntax.
+See [[Command-Line-Reference#reordering-algorithm-ids]] for the full algorithm table (IDs 0-16) and variant syntax.
 
 | Use Case | Algorithm | ID |
 |----------|-----------|-----|

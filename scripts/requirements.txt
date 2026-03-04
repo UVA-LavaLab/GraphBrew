@@ -19,5 +19,8 @@ matplotlib>=3.4.0      # Required by scripts/lib/figures.py
 # scipy>=1.7.0         # For correlation analysis
 # seaborn>=0.11.0
 
+# ML model ablation (XGBoost gradient-boosted trees)
+xgboost>=2.0.0
+
 # Graph catalog auto-discovery from SuiteSparse Matrix Collection
 ssgetpy>=1.0.0

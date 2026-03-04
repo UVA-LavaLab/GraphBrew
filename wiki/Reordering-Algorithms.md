@@ -1,6 +1,6 @@
 # Graph Reordering Algorithms
 
-GraphBrew implements **16 algorithm IDs** (0-15):
+GraphBrew implements **17 algorithm IDs** (0-16):
 
 - **2 Baselines** (IDs 0-1): ORIGINAL and RANDOM — graph states, not reordering techniques. Used to establish reference benchmark times.
 - **12 Reordering Algorithms** (IDs 2-12, 15): Produce vertex reorderings. Benchmarked to measure speedup vs baselines.
@@ -412,7 +412,7 @@ GraphBrew provides LeidenOrder as a baseline reference implementation.
 - **Complexity**: O(n log n) average
 - **Best for**: Baseline comparison — measures how much GraphBrewOrder (12) improved over the reference implementation
 - **Default resolution**: Auto-detected via continuous formula (0.5-1.2) with CV guardrail for power-law graphs
-- **Note**: The SSOT defines IDs 0-15 only. LeidenCSR's CSR-native Leiden implementation is part of GraphBrewOrder (12).
+- **Note**: The SSOT defines IDs 0-16. LeidenCSR's CSR-native Leiden implementation is part of GraphBrewOrder (12).
 
 **Key features:**
 - Uses GVE-Leiden C++ library by Subhajit Sahu (`external/leiden/`)

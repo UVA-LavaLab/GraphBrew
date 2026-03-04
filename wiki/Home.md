@@ -4,11 +4,11 @@ Welcome to the **GraphBrew** wiki! This comprehensive guide will help you unders
 
 ## 🍺 What is GraphBrew?
 
-GraphBrew is a high-performance graph reordering framework that combines **community detection** with **cache-aware vertex reordering** to dramatically improve graph algorithm performance. It implements **16 algorithm IDs** (0-15): 2 baselines (ORIGINAL, RANDOM), 12 reordering algorithms, and 2 reserved meta-algorithms (MAP, AdaptiveOrder).
+GraphBrew is a high-performance graph reordering framework that combines **community detection** with **cache-aware vertex reordering** to dramatically improve graph algorithm performance. It implements **17 algorithm IDs** (0-16): 2 baselines (ORIGINAL, RANDOM), 13 reordering algorithms, and 2 reserved meta-algorithms (MAP, AdaptiveOrder).
 
 ### Key Features
 
-- **16 Algorithm IDs**: From simple sorting to advanced ML-based selection (IDs 0-15; 14 benchmark-eligible, 12 produce reorderings)
+- **17 Algorithm IDs**: From simple sorting to advanced ML-based selection (IDs 0-16; 15 benchmark-eligible, 13 produce reorderings)
 - **Leiden Community Detection**: State-of-the-art community detection for graph partitioning
 - **AdaptiveOrder**: ML-powered adaptive selection (perceptron, decision tree, hybrid, database) with 7 selection modes, 15 linear features, 3 quadratic cross-terms, convergence-aware scoring, OOD guardrail, and LOGO cross-validation
 - **Comprehensive Benchmarks**: 8 available (PR, PR_SPMV, BFS, CC, CC_SV, SSSP, BC, TC); experiments default to 7 (TC excluded — combinatorial counting, not cache-sensitive traversal)
@@ -33,6 +33,7 @@ GraphBrew is a high-performance graph reordering framework that combines **commu
 ### Running Experiments
 - [[Running-Benchmarks]] - Command-line usage and options
 - [[Benchmark-Suite]] - Automated experiment runner
+- [[VLDB-Experiments]] - VLDB 2026 full experiment guide (training, models, features)
 - [[Correlation-Analysis]] - Finding the best algorithm for your graphs
 
 ### Advanced Topics
@@ -110,6 +111,7 @@ The best reordering algorithm depends on your graph's structure — see [[Correl
 | [[Community-Detection]] | Leiden algorithm details |
 | [[Running-Benchmarks]] | Manual benchmark execution |
 | [[Benchmark-Suite]] | Automated experiment runner |
+| [[VLDB-Experiments]] | VLDB 2026 experiment guide |
 | [[Correlation-Analysis]] | Feature-algorithm correlation |
 | [[AdaptiveOrder-ML]] | ML-based algorithm selection |
 | [[Perceptron-Weights]] | Weight file format & tuning |

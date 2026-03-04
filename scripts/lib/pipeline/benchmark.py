@@ -524,7 +524,8 @@ def run_benchmarks_multi_graph(
                         result.edges = graph.edges
                         # Load reorder_time from .time file (written during pregeneration)
                         if result.reorder_time <= 0:
-                            result.reorder_time = load_reorder_time_for_algo(graph_name, algo_name)
+                            result.reorder_time = load_reorder_time_for_algo(
+                                graph_name, algo_name, mappings_dir=mappings_dir)
                         results.append(result)
                         graph_results.append(result)
                         completed += 1
@@ -647,7 +648,8 @@ def run_benchmarks_multi_graph(
                     result.edges = graph.edges
                     # Load reorder_time from .time file (written during pregeneration)
                     if result.reorder_time <= 0:
-                        result.reorder_time = load_reorder_time_for_algo(graph_name, canonical)
+                        result.reorder_time = load_reorder_time_for_algo(
+                            graph_name, canonical, mappings_dir=mappings_dir)
                     results.append(result)
     
     # Save the graph properties cache after all benchmarks

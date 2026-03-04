@@ -28,7 +28,7 @@ scripts/
 │   │   ├── reorder.py           # Vertex reordering generation
 │   │   ├── benchmark.py         # Performance benchmark execution
 │   │   ├── cache.py             # Cache simulation analysis
-│   │   ├── phases.py            # Phase orchestration (reorder → benchmark → cache)
+│   │   ├── suitesparse_catalog.py # SuiteSparse auto-discovery (ssgetpy)
 │   │   └── progress.py          # Progress tracking & reporting
 │   │
 │   ├── ml/                      # ML scoring & training (legacy / fallback)
@@ -85,11 +85,11 @@ python3 scripts/graphbrew_experiment.py --help
 
 | Feature | Description |
 |---------|-------------|
-| **Graph Download** | Downloads from SuiteSparse collection (87 graphs available) |
+| **Graph Download** | Downloads from SuiteSparse collection (up to ~466 graphs via auto-discovery) |
 | **Auto Build** | Compiles binaries if missing |
 | **Memory Management** | Automatically skips graphs exceeding RAM limits |
 | **Label Maps** | Pre-generates reordering maps for consistency |
-| **Reordering** | Tests all 16 algorithm IDs (0-15), with variants (RCM:bnf, RabbitOrder:csr/boost, GOrder:csr/fast, etc.) |
+| **Reordering** | Tests all 17 algorithm IDs (0-16), with variants (RCM:bnf, RabbitOrder:csr/boost, GOrder:csr/fast, GoGraphOrder:default/fast/naive, GraphBrewOrder:leiden/rabbit/hubcluster/hrab/tqr/hcache/streaming) |
 | **Benchmarks** | PR, PR_SPMV, BFS, CC, CC_SV, SSSP, BC, TC |
 | **Cache Simulation** | L1/L2/L3 hit rate analysis |
 | **Brute-Force Validation** | Compares adaptive vs all algorithms |
@@ -289,7 +289,7 @@ The `lib/` folder is organised into five sub-packages. All public names are re-e
 | `reorder.py` | Vertex reordering | `generate_reorderings`, `ReorderResult`, `load_label_maps_index` |
 | `benchmark.py` | Benchmarking | `run_benchmark`, `run_benchmarks_multi_graph`, `run_benchmarks_with_variants` |
 | `cache.py` | Cache simulation | `run_cache_simulations`, `CacheResult`, `get_cache_stats_summary` |
-| `phases.py` | Phase orchestration | `PhaseConfig`, `run_reorder_phase`, `run_benchmark_phase`, `run_full_pipeline` |
+| ~~`phases.py`~~ | _(removed)_ | Orchestration is handled directly by `graphbrew_experiment.py` |
 | `progress.py` | Progress tracking | `ProgressTracker` (banners, phases, status) |
 
 ### ml/ — ML scoring & training (legacy / fallback)
@@ -387,46 +387,23 @@ The amortization report is also auto-printed by `graphbrew_experiment.py` after 
 
 ## Custom Pipeline Example
 
-Create custom experiment pipelines using `lib/pipeline/phases.py`:
+The primary entry point is `graphbrew_experiment.py`, which orchestrates all pipeline
+phases directly. Use `--target-graphs N` for one-command operation:
 
-```python
-#!/usr/bin/env python3
-"""Custom GraphBrew pipeline example."""
+```bash
+# Full pipeline: download 100 graphs per size, benchmark, train, evaluate
+python3 scripts/graphbrew_experiment.py --target-graphs 100
 
-import sys
-sys.path.insert(0, "scripts")
+# Preview what would run (no execution)
+python3 scripts/graphbrew_experiment.py --target-graphs 100 --dry-run
 
-from lib.pipeline.phases import PhaseConfig, run_reorder_phase, run_benchmark_phase
-from lib.core.graph_types import GraphInfo
-from lib.pipeline.progress import ProgressTracker
-
-# Discover graphs
-graphs = [
-    GraphInfo(name="web-Stanford", path="graphs/web-Stanford/web-Stanford.mtx",
-              size_mb=5.2, nodes=281903, edges=2312497)
-]
-
-# Select algorithms
-algorithms = [0, 7, 12, 15]  # ORIGINAL, HUBCLUSTERDBG, GraphBrewOrder, LeidenOrder
-
-# Create configuration
-config = PhaseConfig(
-    benchmarks=['pr', 'bfs'],
-    trials=3,
-    progress=ProgressTracker()
-)
-
-# Run phases
-reorder_results, label_maps = run_reorder_phase(graphs, algorithms, config)
-benchmark_results = run_benchmark_phase(graphs, algorithms, label_maps, config)
-
-# Print results
-for r in benchmark_results:
-    if r.success:
-        print(f"{r.graph} / {r.algorithm_name} / {r.benchmark}: {r.avg_time:.4f}s")
+# Run individual phases
+python3 scripts/graphbrew_experiment.py --phase reorder --size small
+python3 scripts/graphbrew_experiment.py --phase benchmark --size small
 ```
 
-See the `lib/pipeline/phases.py` module for phase orchestration details.
+See `--help` for all 90+ flags, organized into argument groups (Pipeline, Download,
+Resources, Graph Selection, Algorithms, Training, Validation, Tools, etc.).
 
 ---
 

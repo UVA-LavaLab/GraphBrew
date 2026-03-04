@@ -1543,10 +1543,15 @@ def compute_weights_from_results(
         'packing_factor': 'w_packing_factor',
         'forward_edge_fraction': 'w_forward_edge_fraction',
         'log_working_set_ratio': 'w_working_set_ratio',
+        # DON-RL features (Zhao et al.)
+        'vertex_significance_skewness': 'w_vertex_significance_skewness',
+        'window_neighbor_overlap': 'w_window_neighbor_overlap',
         # Quadratic interaction terms (matches C++ scoreBase cross-features)
         'dv_x_hub': 'w_dv_x_hub',
         'mod_x_logn': 'w_mod_x_logn',
         'pf_x_wsr': 'w_pf_x_wsr',
+        'vss_x_hc': 'w_vss_x_hc',
+        'wno_x_pf': 'w_wno_x_pf',
     }
     
     # Collect features per graph
@@ -1601,6 +1606,12 @@ def compute_weights_from_results(
             'dv_x_hub': props.get('degree_variance', 1.0) * props.get('hub_concentration', 0.3),
             'mod_x_logn': train_modularity * log_n,
             'pf_x_wsr': props.get('packing_factor', 0.0) * math.log2(props.get('working_set_ratio', 0.0) + 1.0),
+            # DON-RL features (Zhao et al.) — match C++ scaling
+            'vertex_significance_skewness': props.get('vertex_significance_skewness', 0.0),
+            'window_neighbor_overlap': props.get('window_neighbor_overlap', 0.0),
+            # DON-RL cross-terms
+            'vss_x_hc': props.get('vertex_significance_skewness', 0.0) * props.get('hub_concentration', 0.3),
+            'wno_x_pf': props.get('window_neighbor_overlap', 0.0) * props.get('packing_factor', 0.0),
             # Estimated values for de-normalization (C++ runtime only has these)
             '_est_modularity': estimated_modularity,
             '_est_mod_x_logn': estimated_modularity * log_n,
@@ -1650,10 +1661,15 @@ def compute_weights_from_results(
                 feats['packing_factor'],
                 feats['forward_edge_fraction'],
                 feats['log_working_set_ratio'],
+                # DON-RL features (Zhao et al.)
+                feats['vertex_significance_skewness'],
+                feats['window_neighbor_overlap'],
                 # Quadratic interaction terms
                 feats['dv_x_hub'],
                 feats['mod_x_logn'],
                 feats['pf_x_wsr'],
+                feats['vss_x_hc'],
+                feats['wno_x_pf'],
             ]
             
             training_data.append((fv, best_algo))
@@ -1716,10 +1732,15 @@ def compute_weights_from_results(
                 feats['packing_factor'],
                 feats['forward_edge_fraction'],
                 feats['log_working_set_ratio'],
+                # DON-RL features (Zhao et al.)
+                feats['vertex_significance_skewness'],
+                feats['window_neighbor_overlap'],
                 # Quadratic interaction terms
                 feats['dv_x_hub'],
                 feats['mod_x_logn'],
                 feats['pf_x_wsr'],
+                feats['vss_x_hc'],
+                feats['wno_x_pf'],
             ]
             for bench, results in benchmarks.items():
                 if not results:
@@ -2071,10 +2092,15 @@ def compute_weights_from_results(
                 feats['packing_factor'],
                 feats['forward_edge_fraction'],
                 feats['log_working_set_ratio'],
+                # DON-RL features (Zhao et al.)
+                feats['vertex_significance_skewness'],
+                feats['window_neighbor_overlap'],
                 # Quadratic interaction terms
                 feats['dv_x_hub'],
                 feats['mod_x_logn'],
                 feats['pf_x_wsr'],
+                feats['vss_x_hc'],
+                feats['wno_x_pf'],
             ]
         
         # Helper: compute scoreBase for an algo on a graph
