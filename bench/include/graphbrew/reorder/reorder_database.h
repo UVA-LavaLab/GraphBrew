@@ -386,6 +386,8 @@ struct GraphProperties {
     double      packing_factor_cl = 0.0;   ///< Cache-line packing factor (IISWC'18 faithful)
     double      forward_edge_fraction = 0.0;
     double      working_set_ratio = 0.0;
+    double      wsr_l1 = 0.0;              ///< Per-level L1 WSR: graph_bytes / L1_size
+    double      wsr_l2 = 0.0;              ///< Per-level L2 WSR: graph_bytes / L2_size
     double      density = 0.0;
     // DON-RL features
     double      vertex_significance_skewness = 0.0;
@@ -413,6 +415,8 @@ struct GraphProperties {
         j["packing_factor_cl"] = packing_factor_cl;
         j["forward_edge_fraction"] = forward_edge_fraction;
         j["working_set_ratio"] = working_set_ratio;
+        j["wsr_l1"] = wsr_l1;
+        j["wsr_l2"] = wsr_l2;
         j["density"] = density;
         j["vertex_significance_skewness"] = vertex_significance_skewness;
         j["window_neighbor_overlap"] = window_neighbor_overlap;
