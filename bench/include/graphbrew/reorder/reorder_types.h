@@ -713,16 +713,27 @@ CSRGraph<NodeID_, DestID_, invert> RelabelByMappingStandalone(
     bool outDegree = true;
     CSRGraph<NodeID_, DestID_, invert> g_relabel;
 
-    // Find max assigned ID and assign IDs to any unmapped vertices
-    auto max_iter = __gnu_parallel::max_element(new_ids.begin(), new_ids.end());
-    size_t max_id = *max_iter;
+    // Find max assigned ID, excluding unmapped (-1) entries.
+    // Bug fix: the old code ran max_element over the entire array including
+    // sentinel -1 values, which for unsigned NodeID_ is UINT_MAX, causing
+    // subsequent IDs to overflow.
+    const NodeID_ sentinel = static_cast<NodeID_>(-1);
+    size_t max_id = 0;
+    #pragma omp parallel for reduction(max:max_id)
+    for (NodeID_ v = 0; v < g.num_nodes(); ++v) {
+        if (new_ids[v] != sentinel && static_cast<size_t>(new_ids[v]) > max_id) {
+            max_id = static_cast<size_t>(new_ids[v]);
+        }
+    }
+    // Start assigning unmapped IDs after the current maximum
+    max_id += 1;
 
     #pragma omp parallel for
     for (NodeID_ v = 0; v < g.num_nodes(); ++v) {
-        if (new_ids[v] == static_cast<NodeID_>(-1)) {
-            // Assign new IDs starting from max_id atomically
-            NodeID_ local_max = __sync_fetch_and_add(&max_id, 1);
-            new_ids[v] = local_max + 1;
+        if (new_ids[v] == sentinel) {
+            // Assign new IDs atomically starting from max_id
+            size_t local_id = __sync_fetch_and_add(&max_id, 1);
+            new_ids[v] = static_cast<NodeID_>(local_id);
         }
     }
 
@@ -2019,10 +2030,16 @@ struct PerceptronWeights {
     // ---------- System-Cache Feature Weight (P-OPT) ----------
     double w_working_set_ratio = 0.0;  ///< Weight for working set ratio (graph_bytes / LLC)
     
+    // ---------- DON-RL Feature Weights (Zhao et al.) ----------
+    double w_vertex_significance_skewness = 0.0;  ///< Weight for vertex significance skewness
+    double w_window_neighbor_overlap = 0.0;       ///< Weight for window neighbor overlap
+    
     // ---------- Quadratic Interaction Weights ----------
     double w_dv_x_hub = 0.0;            ///< degree_variance × hub_concentration (IISWC'18)
     double w_mod_x_logn = 0.0;          ///< modularity × log_nodes (community-at-scale)
     double w_pf_x_wsr = 0.0;            ///< packing_factor × working_set_ratio (cache-locality)
+    double w_vss_x_hc = 0.0;            ///< vertex_significance_skewness × hub_concentration
+    double w_wno_x_pf = 0.0;            ///< window_neighbor_overlap × packing_factor
     
     // ---------- Convergence Bonus Weight (GoGraph) ----------
     double w_fef_convergence = 0.0;     ///< Extra forward_edge_fraction weight for iterative algos (PR/SSSP)
@@ -2062,7 +2079,7 @@ struct PerceptronWeights {
     // When use_normalization is true, weights are in z-score space and
     // scoreBase() normalizes features before computing the dot product.
     // This eliminates de-normalization weight explosion from Python training.
-    static constexpr int N_FEATURES = 20;
+    static constexpr int N_FEATURES = 21;
     bool use_normalization = false;      ///< True when _normalization block present in JSON
     double norm_mean[N_FEATURES] = {};   ///< Per-feature means for z-score normalization
     double norm_std[N_FEATURES] = {};    ///< Per-feature stds for z-score normalization
@@ -2163,12 +2180,18 @@ struct PerceptronWeights {
         if (!abl.zero_wsr)
             s += w_working_set_ratio * log_wsr;
         
+        // DON-RL features (Zhao et al.)
+        s += w_vertex_significance_skewness * feat.vertex_significance_skewness;
+        s += w_window_neighbor_overlap * feat.window_neighbor_overlap;
+        
         // Quadratic interaction terms (paper-motivated cross-features)
-        // Ablation: ADAPTIVE_ZERO_FEATURES=quadratic zeroes all three
+        // Ablation: ADAPTIVE_ZERO_FEATURES=quadratic zeroes all five
         if (!abl.zero_quadratic) {
             s += w_dv_x_hub * feat.degree_variance * feat.hub_concentration;
             s += w_mod_x_logn * feat.modularity * log_nodes;
             s += w_pf_x_wsr * feat.packing_factor * log_wsr;
+            s += w_vss_x_hc * feat.vertex_significance_skewness * feat.hub_concentration;
+            s += w_wno_x_pf * feat.window_neighbor_overlap * feat.packing_factor;
         }
         
         // Cache impact weights
@@ -2200,17 +2223,17 @@ struct PerceptronWeights {
      * weight explosion that occurred when dividing by feature stds (e.g.
      * density std=1e-5 → 1/std=10k → millions-scale weights).
      *
-     * Feature order matches Python training:
+     * Feature order matches Python training (feat_to_weight):
      *   0=modularity, 1=dv, 2=hc, 3=log_n, 4=log_e, 5=density, 6=ad/100,
      *   7=cc, 8=apl/10, 9=dia/50, 10=log_comm, 11=pf, 12=fef, 13=log_wsr,
-     *   14=dv×hc, 15=mod×logn, 16=pf×logwsr, 17=pf_cl, 18=loc_pair, 19=rd_lru
+     *   14=vss, 15=wno, 16=dv×hc, 17=mod×logn, 18=pf×wsr, 19=vss×hc, 20=wno×pf
      */
     double scoreBaseNormalized(const CommunityFeatures& feat) const {
         double log_nodes = std::log10(static_cast<double>(feat.num_nodes) + 1.0);
         double log_edges = std::log10(static_cast<double>(feat.num_edges) + 1.0);
         double log_wsr = std::log2(feat.working_set_ratio + 1.0);
         
-        // Compute 20 transformed features matching Python training order
+        // Compute 21 transformed features matching Python training order
         const double raw[N_FEATURES] = {
             feat.modularity,                                    // 0
             feat.degree_variance,                               // 1
@@ -2226,12 +2249,13 @@ struct PerceptronWeights {
             feat.packing_factor,                                // 11
             feat.forward_edge_fraction,                         // 12
             log_wsr,                                            // 13
-            feat.degree_variance * feat.hub_concentration,      // 14
-            feat.modularity * log_nodes,                        // 15
-            feat.packing_factor * log_wsr,                      // 16
-            feat.packing_factor_cl,                             // 17
-            feat.locality_score_pairwise,                       // 18
-            feat.reuse_distance_lru,                            // 19
+            feat.vertex_significance_skewness,                  // 14 (DON-RL)
+            feat.window_neighbor_overlap,                       // 15 (DON-RL)
+            feat.degree_variance * feat.hub_concentration,      // 16 (quadratic)
+            feat.modularity * log_nodes,                        // 17 (quadratic)
+            feat.packing_factor * log_wsr,                      // 18 (quadratic)
+            feat.vertex_significance_skewness * feat.hub_concentration, // 19 (quadratic)
+            feat.window_neighbor_overlap * feat.packing_factor, // 20 (quadratic)
         };
         
         // Corresponding z-score weights in the same order
@@ -2240,8 +2264,10 @@ struct PerceptronWeights {
             w_log_nodes, w_log_edges, w_density, w_avg_degree,
             w_clustering_coeff, w_avg_path_length, w_diameter,
             w_community_count, w_packing_factor, w_forward_edge_fraction,
-            w_working_set_ratio, w_dv_x_hub, w_mod_x_logn, w_pf_x_wsr,
-            w_packing_factor_cl, w_locality_score_pairwise, w_reuse_distance_lru,
+            w_working_set_ratio, w_vertex_significance_skewness,
+            w_window_neighbor_overlap,
+            w_dv_x_hub, w_mod_x_logn, w_pf_x_wsr,
+            w_vss_x_hc, w_wno_x_pf,
         };
         
         const auto& abl = AblationConfig::Get();
@@ -2250,16 +2276,16 @@ struct PerceptronWeights {
         double s = bias;
         for (int i = 0; i < N_FEATURES; i++) {
             if (norm_std[i] < 1e-12) continue;  // skip zero-variance features
-            // Ablation zeroing: packing=11, fef=12, wsr=13, quadratic=14-16
+            // Ablation zeroing: packing=11, fef=12, wsr=13, quadratic=16-20
             if (i == 11 && abl.zero_packing) continue;
             if (i == 12 && abl.zero_fef) continue;
             if (i == 13 && abl.zero_wsr) continue;
-            if (i >= 14 && abl.zero_quadratic) continue;
+            if (i >= 16 && abl.zero_quadratic) continue;
             double z = (raw[i] - norm_mean[i]) / norm_std[i];
             s += w[i] * z;
         }
         
-        // Extra terms not part of the 17-feature perceptron
+        // Extra terms not part of the 21-feature perceptron
         s += cache_l1_impact * 0.5 + cache_l2_impact * 0.3
            + cache_l3_impact * 0.2 + cache_dram_penalty;
         s += w_reorder_time * feat.reorder_time;
@@ -2268,7 +2294,6 @@ struct PerceptronWeights {
         // P3 3.2: Transpose reuse distance (extra term, not z-normalized)
         s += w_avg_reuse_distance * feat.avg_reuse_distance;
         // Paper-aligned feature variants (extra terms, not z-normalized)
-        // (These will be z-normalized once training produces norm stats)
         s += w_packing_factor_cl * feat.packing_factor_cl;
         s += w_locality_score_pairwise * feat.locality_score_pairwise;
         s += w_reuse_distance_lru * feat.reuse_distance_lru;
@@ -2294,6 +2319,8 @@ struct PerceptronWeights {
         // Convergence bonus: iterative algorithms benefit from ordering
         // that respects data-flow direction (forward edges → faster convergence)
         // Ablation: ADAPTIVE_ZERO_FEATURES=fef zeroes this bonus too
+        // NOTE: The benchmark multiplier below intentionally scales the full
+        // score including this bonus (consistent with per-benchmark weighting).
         if ((bench == BENCH_PR || bench == BENCH_PR_SPMV || bench == BENCH_SSSP) && !AblationConfig::Get().zero_fef) {
             s += w_fef_convergence * feat.forward_edge_fraction;
         }
@@ -3803,6 +3830,12 @@ inline bool ParseWeightsFromJSON(const std::string& json_content,
         w.w_dv_x_hub = find_double(block, "w_dv_x_hub");
         w.w_mod_x_logn = find_double(block, "w_mod_x_logn");
         w.w_pf_x_wsr = find_double(block, "w_pf_x_wsr");
+        w.w_vss_x_hc = find_double(block, "w_vss_x_hc");
+        w.w_wno_x_pf = find_double(block, "w_wno_x_pf");
+        
+        // DON-RL feature weights (Zhao et al.)
+        w.w_vertex_significance_skewness = find_double(block, "w_vertex_significance_skewness");
+        w.w_window_neighbor_overlap = find_double(block, "w_window_neighbor_overlap");
         
         // Convergence bonus weight (GoGraph)
         w.w_fef_convergence = find_double(block, "w_fef_convergence");
@@ -3826,7 +3859,7 @@ inline bool ParseWeightsFromJSON(const std::string& json_content,
         size_t meta_pos = block.find("\"_metadata\"");
         if (meta_pos != std::string::npos) {
             size_t meta_start = block.find('{', meta_pos);
-            size_t meta_end = block.find('}', meta_start);
+            size_t meta_end = find_matching_brace(block, meta_start);
             if (meta_start != std::string::npos && meta_end != std::string::npos) {
                 std::string meta_block = block.substr(meta_start, meta_end - meta_start + 1);
                 double speedup = find_double(meta_block, "avg_speedup");
@@ -3840,7 +3873,7 @@ inline bool ParseWeightsFromJSON(const std::string& json_content,
         size_t bw_pos = block.find("\"benchmark_weights\"");
         if (bw_pos != std::string::npos) {
             size_t bw_start = block.find('{', bw_pos);
-            size_t bw_end = block.find('}', bw_start);
+            size_t bw_end = find_matching_brace(block, bw_start);
             if (bw_start != std::string::npos && bw_end != std::string::npos) {
                 std::string bw_block = block.substr(bw_start, bw_end - bw_start + 1);
                 auto find_bench_weight = [&](const std::string& blk, const std::string& bkey) -> double {
@@ -5578,8 +5611,7 @@ inline PerceptronSelection SelectBestReorderingForCommunity(
         feat.num_nodes >= kDonLiteMinCommunity) {
         // Check selection margin: |best_score - runner_up_score|
         // If below threshold, perceptron is uncertain → DON-Lite may do better.
-        double margin = std::abs(selected.score);
-        if (margin < kDonLiteMarginThreshold) {
+        if (selected.margin < kDonLiteMarginThreshold) {
             selected.variant_name = "DON_LITE";
             // Keep selected.algo as-is (fallback if dispatch doesn't catch name)
         }
@@ -6051,6 +6083,8 @@ inline SampledDegreeFeatures ComputeSampledDegreeFeatures(
     }
     
     // Optional: Compute clustering coefficient (expensive but useful)
+    // NOTE: Assumes symmetric CSR (invert=true). Counts undirected triplets
+    // using out_neigh() traversal. Incorrect for directed-only graph inputs.
     if (compute_clustering && sample_size >= 100) {
         size_t triangles_sampled = 0;
         size_t triplets_sampled = 0;

@@ -313,9 +313,11 @@ void GenerateCOrderMapping(const CSRGraph<NodeID_, DestID_, invert>& g,
     const unsigned num_small_per_seg = corder_params::partition_size - num_large_per_seg;
     
     // Find last complete segment
+    // Fix: Guard against unsigned underflow when last_cls reaches 0
     unsigned last_cls = num_partitions - 1;
-    while ((num_large_per_seg * last_cls > segment_large.size()) ||
-           (num_small_per_seg * last_cls > segment_small.size())) {
+    while (last_cls > 0 &&
+           ((num_large_per_seg * last_cls > segment_large.size()) ||
+            (num_small_per_seg * last_cls > segment_small.size()))) {
         last_cls -= 1;
     }
     

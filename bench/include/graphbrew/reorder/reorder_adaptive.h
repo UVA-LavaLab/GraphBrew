@@ -350,7 +350,7 @@ void GenerateAdaptiveMappingFullGraphStandalone(
     CommunityFeatures global_feat;
     global_feat.num_nodes = num_nodes;
     global_feat.num_edges = num_edges;
-    global_feat.internal_density = global_avg_degree / (num_nodes - 1);
+    global_feat.internal_density = (num_nodes > 1) ? global_avg_degree / (num_nodes - 1) : 0.0;
     global_feat.avg_degree = global_avg_degree;
     global_feat.degree_variance = global_degree_variance;
     global_feat.hub_concentration = global_hub_concentration;
@@ -830,9 +830,28 @@ void GenerateAdaptiveMappingRecursiveStandalone(
                 auto sub_g = MakeLocalGraphFromELStandalone<NodeID_, DestID_, invert>(sub_edges, false);
                 pvector<NodeID_> sub_ids(small_community_nodes.size(), -1);
                 GenerateDonLiteMapping<NodeID_, DestID_, invert>(sub_g, sub_ids, useOutdeg);
+                // Fix: Validate sub_ids before using as index — unmapped entries
+                // are still -1 (UINT32_MAX for unsigned), which would OOB.
                 std::vector<NodeID_> reordered(small_community_nodes.size());
-                for (size_t i = 0; i < small_community_nodes.size(); ++i)
-                    reordered[sub_ids[i]] = l2g[i];
+                std::vector<bool> placed(small_community_nodes.size(), false);
+                for (size_t i = 0; i < small_community_nodes.size(); ++i) {
+                    NodeID_ sid = sub_ids[i];
+                    if (sid < small_community_nodes.size()) {
+                        reordered[sid] = l2g[i];
+                        placed[sid] = true;
+                    }
+                }
+                // Append any unplaced nodes (unmapped by DON-Lite)
+                size_t fill = 0;
+                for (size_t i = 0; i < small_community_nodes.size(); ++i) {
+                    if (!placed[i]) {
+                        while (fill < small_community_nodes.size() && placed[fill]) ++fill;
+                        if (fill < small_community_nodes.size()) {
+                            reordered[fill] = l2g[i];
+                            placed[fill] = true;
+                        }
+                    }
+                }
                 for (NodeID_ node : reordered)
                     new_ids[node] = current_id++;
             } else {
@@ -881,7 +900,11 @@ void GenerateAdaptiveMappingRecursiveStandalone(
         // Per-community complexity guard: GOrder O(n*m*w) is expensive even for
         // mid-size communities when there are hundreds of them. Also, GOrder can
         // produce invalid permutations on some subgraph topologies.
-        if (selected.algo == GOrder || selected.algo == COrder) {
+        // Only block for communities above EXPENSIVE_ALGO_MAX_NODES — small
+        // communities where GOrder is genuinely optimal should not be overridden.
+        constexpr size_t EXPENSIVE_ALGO_MAX_NODES = 20000;
+        if ((selected.algo == GOrder || selected.algo == COrder) &&
+            comm_nodes.size() > EXPENSIVE_ALGO_MAX_NODES) {
             if (feat.hub_concentration > 0.5 && feat.degree_variance > 1.5) {
                 selected = ResolveVariantSelection("HUBCLUSTERDBG", selected.score);
             } else if (feat.hub_concentration > 0.3) {
@@ -920,9 +943,28 @@ void GenerateAdaptiveMappingRecursiveStandalone(
                 auto sub_g = MakeLocalGraphFromELStandalone<NodeID_, DestID_, invert>(sub_edges, false);
                 pvector<NodeID_> sub_ids(comm_nodes.size(), -1);
                 GenerateDonLiteMapping<NodeID_, DestID_, invert>(sub_g, sub_ids, useOutdeg);
+                // Fix: Validate sub_ids before using as index — unmapped entries
+                // are still -1 (UINT32_MAX for unsigned), which would OOB.
                 std::vector<NodeID_> reordered(comm_nodes.size());
-                for (size_t i = 0; i < comm_nodes.size(); ++i)
-                    reordered[sub_ids[i]] = l2g[i];
+                std::vector<bool> placed(comm_nodes.size(), false);
+                for (size_t i = 0; i < comm_nodes.size(); ++i) {
+                    NodeID_ sid = sub_ids[i];
+                    if (sid < comm_nodes.size()) {
+                        reordered[sid] = l2g[i];
+                        placed[sid] = true;
+                    }
+                }
+                // Append any unplaced nodes (unmapped by DON-Lite)
+                size_t fill = 0;
+                for (size_t i = 0; i < comm_nodes.size(); ++i) {
+                    if (!placed[i]) {
+                        while (fill < comm_nodes.size() && placed[fill]) ++fill;
+                        if (fill < comm_nodes.size()) {
+                            reordered[fill] = l2g[i];
+                            placed[fill] = true;
+                        }
+                    }
+                }
                 for (NodeID_ node : reordered)
                     new_ids[node] = current_id++;
             } else {

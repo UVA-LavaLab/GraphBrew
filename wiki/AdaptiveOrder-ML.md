@@ -268,7 +268,7 @@ sample_size = max(5000, min(√N, 50000))
 
 **Why this is enough:** Strided sampling (evenly spaced across vertex IDs) provides spatial coverage proportional to the sample size, which is sufficient for degree statistics on power-law graphs because degree-distribution moments converge quickly — 5000 samples give <1% error on variance/mean estimates for typical power-law exponents (α ∈ [2, 3]). For very large graphs (>25M) we increase the sample to maintain significance on secondary features like hub concentration and packing factor. The 50K cap bounds overhead at ~0.5% of graph size.
 
-#### Active Linear Features (11)
+#### Active Linear Features (16)
 
 | Feature | Weight Field | Description | Range |
 |---------|--------------|-------------|-------|
@@ -283,8 +283,13 @@ sample_size = max(5000, min(√N, 50000))
 | `packing_factor` | `w_packing_factor` | hub neighbor co-location (IISWC'18) | 0.0 - 1.0 |
 | `forward_edge_fraction` | `w_forward_edge_fraction` | edges to higher-ID vertices (GoGraph) | 0.0 - 1.0 |
 | `working_set_ratio` | `w_working_set_ratio` | log₂(graph_bytes / LLC_size + 1) (P-OPT) | 0 - 10 |
+| `avg_path_length` | `w_avg_path_length` | sampled BFS mean distance / 10 | 0 - 5 |
+| `diameter_estimate` | `w_diameter` | max BFS depth / 50 | 0 - 1 |
+| `community_count` | `w_community_count` | log10(connected components + 1) | 0 - 5 |
+| `vertex_significance_skewness` | `w_vertex_significance_skewness` | CV of per-vertex locality contributions (DON-RL) | 0.0 - 5.0 |
+| `window_neighbor_overlap` | `w_window_neighbor_overlap` | mean neighbor-in-window fraction (DON-RL) | 0.0 - 1.0 |
 
-#### Extended Structural Features (computed via `ComputeExtendedFeatures`)
+#### Extended Structural Features (included in the 16 linear features above)
 
 These features are computed at runtime via sampled BFS traversals and connected-component counting. They complement degree-based features with path-based and connectivity information:
 

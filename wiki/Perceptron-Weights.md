@@ -21,7 +21,7 @@ All scoring logic is centralized in a **Single Source of Truth (SSO)** design:
 
 | Component | Role | Location |
 |-----------|------|----------|
-| `PerceptronWeight.compute_score()` | **Sole Python scoring** — 26-field dataclass with `bias` + 15 linear + 3 quadratic + convergence + cache + reorder_time + benchmark multipliers | `scripts/lib/ml/weights.py` |
+| `PerceptronWeight.compute_score()` | **Sole Python scoring** — dataclass with `bias` + 16 linear + 5 quadratic + convergence + cache + reorder_time + benchmark multipliers (see `PerceptronWeight` in `weights.py` for full field list) | `scripts/lib/ml/weights.py` |
 | `scoreBase() × getBenchmarkMultiplier()` | **C++ scoring** — identical formula, identical transforms | `bench/include/graphbrew/reorder/reorder_types.h` |
 | `eval_weights.py` | **Sole data loading** — `load_all_results()`, `build_performance_matrix()`, `compute_graph_features()`, `find_best_algorithm()` | `scripts/lib/ml/eval_weights.py` |
 | `adaptive_emulator.py` | C++ emulator — delegates to `PerceptronWeight.compute_score()` | `scripts/lib/ml/adaptive_emulator.py` |

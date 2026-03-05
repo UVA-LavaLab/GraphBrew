@@ -61,6 +61,7 @@
 #include <climits>
 #include <cstdint>
 #include <cstring>
+#include <limits>
 #include <numeric>
 #include <vector>
 #include <queue>
@@ -243,7 +244,8 @@ public:
         int key = list[tmptop].key;
         int next = list[tmptop].next;
         int p = key;
-        int newkey = key + update[tmptop] - (update[tmptop] / 2);
+        // Clamp to 0 — negative keys would cause OOB in header[]
+        int newkey = std::max(0, key + update[tmptop] - (update[tmptop] / 2));
 
         if (next >= 0 && newkey < list[next].key) {
             int tmp = (header[p].second >= 0) ? list[header[p].second].next : -1;
@@ -267,10 +269,8 @@ public:
 
             list[tmptop].key = newkey;
             update[tmptop] /= 2;
-            if (newkey >= 0) {
-                header[newkey].second = tmptop;
-                if (header[newkey].first < 0) header[newkey].first = tmptop;
-            }
+            header[newkey].second = tmptop;
+            if (header[newkey].first < 0) header[newkey].first = tmptop;
         }
     }
 
@@ -884,6 +884,15 @@ void GenerateGOrderCSRMapping(const CSRGraph<NodeID_, DestID_, invert>& g,
     // quality while only preserving PR quality — the reduced window captures
     // less sequential neighborhood context, hurting traversal algorithms.
     Timer tm;
+    if (g.num_nodes() > static_cast<int64_t>(std::numeric_limits<int>::max())) {
+        std::cerr << "GOrder: graph has " << g.num_nodes()
+                  << " nodes, exceeding int32 limit. Falling back to identity.\n";
+        new_ids.resize(g.num_nodes());
+        #pragma omp parallel for
+        for (int64_t i = 0; i < g.num_nodes(); ++i)
+            new_ids[i] = static_cast<NodeID_>(i);
+        return;
+    }
     const int n = static_cast<int>(g.num_nodes());
     if (n == 0) return;
 
@@ -952,6 +961,15 @@ void GenerateGOrderFastMapping(const CSRGraph<NodeID_, DestID_, invert>& g,
                                pvector<NodeID_>& new_ids,
                                const std::string& /*filename*/) {
     Timer tm;
+    if (g.num_nodes() > static_cast<int64_t>(std::numeric_limits<int>::max())) {
+        std::cerr << "GOrder_fast: graph has " << g.num_nodes()
+                  << " nodes, exceeding int32 limit. Falling back to identity.\n";
+        new_ids.resize(g.num_nodes());
+        #pragma omp parallel for
+        for (int64_t i = 0; i < g.num_nodes(); ++i)
+            new_ids[i] = static_cast<NodeID_>(i);
+        return;
+    }
     const int n = static_cast<int>(g.num_nodes());
 
     if (n == 0) return;

@@ -219,6 +219,8 @@ class GraphFeatures:
             "packing_factor": self.packing_factor,
             "forward_edge_fraction": self.forward_edge_fraction,
             "working_set_ratio": self.working_set_ratio,
+            "vertex_significance_skewness": self.vertex_significance_skewness,
+            "window_neighbor_overlap": self.window_neighbor_overlap,
         }
 
 

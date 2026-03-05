@@ -421,7 +421,7 @@ class PerceptronWeight:
         score += self.w_clustering_coeff * clustering
         score += self.w_avg_path_length * features.get('avg_path_length', 0.0) / WEIGHT_PATH_LENGTH_NORMALIZATION
         score += self.w_diameter * features.get('diameter', features.get('diameter_estimate', 0.0)) / 50.0
-        score += self.w_community_count * math.log10(features.get('community_count', 1) + 1)
+        score += self.w_community_count * math.log10(features.get('community_count', 0) + 1)
         score += self.w_reorder_time * features.get('reorder_time', 0.0)
         score += self.w_packing_factor * features.get('packing_factor', 0.0)
         score += self.w_forward_edge_fraction * features.get('forward_edge_fraction', 0.0)
@@ -546,7 +546,7 @@ class PerceptronWeight:
             clustering,
             features.get('avg_path_length', 0.0) / WEIGHT_PATH_LENGTH_NORMALIZATION,
             features.get('diameter', features.get('diameter_estimate', 0.0)) / 50.0,
-            math.log10(features.get('community_count', 1) + 1),
+            math.log10(features.get('community_count', 0) + 1),
             pf,
             fef,
             log_wsr,
@@ -891,7 +891,7 @@ def _make_logo_score_fv(feats: Dict) -> list:
     pf = feats.get('packing_factor', 0.0)
     wsr = feats.get('working_set_ratio', 0.0)
     log_wsr = math.log2(wsr + 1.0)
-    comm = feats.get('community_count', 1.0)
+    comm = feats.get('community_count', 0.0)
     vss = feats.get('vertex_significance_skewness', 0.0)
     wno = feats.get('window_neighbor_overlap', 0.0)
     return [
@@ -1593,8 +1593,8 @@ def compute_weights_from_results(
             'density': internal_density,
             'clustering_coefficient': cc,
             'avg_path_length': props.get('avg_path_length', 0.0),
-            'diameter': props.get('diameter_estimate', 0.0),
-            'community_count': props.get('community_count', 1.0),
+            'diameter': props.get('diameter_estimate', props.get('diameter', 0.0)),
+            'community_count': props.get('community_count', 0.0),
             # Locality features — match C++ transforms:
             # packing_factor: raw (IISWC'18)
             # forward_edge_fraction: raw (GoGraph)
@@ -1770,9 +1770,9 @@ def compute_weights_from_results(
         # only has estimated_mod = min(0.9, CC*1.5).  De-normalizing with real
         # stats would bake the real mean into the bias, causing sign flips when
         # C++ feeds in much-smaller estimated values.
-        # Indices: 0 = 'modularity', n_feat-2 = 'mod_x_logn'
+        # Indices: 0 = 'modularity', 17 = 'mod_x_logn'
         MOD_IDX = 0
-        MOD_LOGN_IDX = n_feat - 2  # mod_x_logn is second-to-last feature
+        MOD_LOGN_IDX = list(feat_to_weight.keys()).index('mod_x_logn')  # =17
         feat_means_denorm = list(feat_means)
         feat_stds_denorm = list(feat_stds)
         # Collect estimated values per unique training graph
