@@ -970,6 +970,16 @@ def analyze_weights(graph_props, raw_records):
     _eval_feature_importance(raw_records, graph_props)
     print()
 
+    # -- XGBoost SHAP interaction analysis --
+    print("  XGBoost SHAP Interaction Analysis:")
+    print("  " + "-" * 70)
+    try:
+        from scripts.lib.ml.model_tree import analyze_xgboost_interactions
+        analyze_xgboost_interactions(raw_records, graph_props, top_k=10)
+    except Exception as e:
+        print(f"    [SKIP] {e}")
+    print()
+
 
 def _eval_feature_importance(raw_records, graph_props):
     """Rank features by permutation importance on DT accuracy."""

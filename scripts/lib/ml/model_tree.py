@@ -2265,3 +2265,167 @@ def cross_validate_logo_random_forest(
         'per_graph': per_graph,
         'per_bench': _summarize_per_bench(per_bench),
     }
+
+
+# ===================================================================
+# XGBoost SHAP Interaction Analysis (Gap #6)
+# ===================================================================
+
+def analyze_xgboost_interactions(
+    bench_records: List[dict],
+    graph_props: dict,
+    criterion: 'Criterion' = None,
+    top_k: int = 10,
+    benchmarks: Optional[List[str]] = None,
+) -> dict:
+    """Train XGBoost and extract SHAP interaction values to discover
+    the most important feature pairs for cross-term selection.
+
+    This replaces hand-picked quadratic cross-terms with data-driven
+    feature pair discovery. After running, the top-K pairs can be added
+    to the perceptron as new cross-terms.
+
+    Args:
+        bench_records: Benchmark result records
+        graph_props: Graph property dicts keyed by graph name
+        criterion: Oracle criterion (default: FASTEST_EXECUTION)
+        top_k: Number of top interaction pairs to return
+        benchmarks: List of benchmarks to analyze (default: all)
+
+    Returns:
+        Dict with 'interactions' (sorted list of (feat_i, feat_j, importance)),
+        'feature_importance' (single-feature ranking), and 'accuracy' per bench.
+
+    Usage:
+        from scripts.lib.ml.model_tree import analyze_xgboost_interactions
+        result = analyze_xgboost_interactions(records, graph_props)
+        # result['interactions'] = [('degree_variance', 'hub_concentration', 0.15), ...]
+    """
+    try:
+        from xgboost import XGBClassifier
+        import shap
+        import numpy as np
+    except ImportError as e:
+        print(f"  [SKIP] SHAP analysis requires: pip install xgboost shap\n  {e}")
+        return {'interactions': [], 'feature_importance': {}, 'accuracy': {}}
+
+    if criterion is None:
+        criterion = Criterion.FASTEST_EXECUTION
+
+    if benchmarks is None:
+        benchmarks = sorted(set(r.get('benchmark', '') for r in bench_records
+                                if r.get('benchmark', '')))
+
+    all_interactions = {}  # (i,j) -> total |SHAP interaction|
+    all_importance = {}    # feat_name -> total |SHAP value|
+    accuracy_per_bench = {}
+
+    for bench in benchmarks:
+        X_all, y_all, _g_names = _build_training_data(
+            bench_records, graph_props, bench, criterion, use_families=False)
+
+        if len(X_all) < 5:
+            continue
+
+        from sklearn.preprocessing import LabelEncoder
+        le = LabelEncoder()
+        y_enc = le.fit_transform(y_all)
+
+        clf = XGBClassifier(
+            n_estimators=200, max_depth=4, learning_rate=0.1,
+            min_child_weight=2, random_state=42,
+            eval_metric='mlogloss', verbosity=0,
+            use_label_encoder=False, n_jobs=1,
+        )
+        clf.fit(X_all, y_enc)
+
+        preds = clf.predict(X_all)
+        acc = sum(p == t for p, t in zip(preds, y_enc)) / len(y_enc)
+        accuracy_per_bench[bench] = acc
+
+        explainer = shap.TreeExplainer(clf)
+        shap_values = explainer.shap_values(X_all)
+
+        if isinstance(shap_values, list):
+            shap_abs = sum(abs(np.array(sv)) for sv in shap_values) / len(shap_values)
+        else:
+            shap_abs = abs(np.array(shap_values))
+
+        mean_shap = shap_abs.mean(axis=0)
+        for idx, feat_name in enumerate(DT_FEATURE_NAMES[:len(mean_shap)]):
+            all_importance[feat_name] = all_importance.get(feat_name, 0.0) + mean_shap[idx]
+
+        # SHAP interaction values (costly — only for small datasets)
+        if len(X_all) <= 500:
+            try:
+                interaction_values = explainer.shap_interaction_values(X_all)
+                if isinstance(interaction_values, list):
+                    inter_abs = sum(abs(np.array(iv)) for iv in interaction_values) / len(interaction_values)
+                else:
+                    inter_abs = abs(np.array(interaction_values))
+
+                mean_inter = inter_abs.mean(axis=0)
+                n_feat = mean_inter.shape[0]
+                for i in range(n_feat):
+                    for j in range(i + 1, n_feat):
+                        pair = (min(i, j), max(i, j))
+                        all_interactions[pair] = all_interactions.get(pair, 0.0) + mean_inter[i, j]
+            except Exception as e:
+                print(f"    [WARN] SHAP interactions failed for {bench}: {e}")
+                for i in range(len(mean_shap)):
+                    for j in range(i + 1, len(mean_shap)):
+                        all_interactions[(i, j)] = all_interactions.get((i, j), 0.0) + mean_shap[i] * mean_shap[j]
+        else:
+            for i in range(len(mean_shap)):
+                for j in range(i + 1, len(mean_shap)):
+                    all_interactions[(i, j)] = all_interactions.get((i, j), 0.0) + mean_shap[i] * mean_shap[j]
+
+    feat_names = DT_FEATURE_NAMES
+    ranked_interactions = sorted(all_interactions.items(), key=lambda x: -x[1])[:top_k]
+    result_interactions = []
+    for (i, j), imp in ranked_interactions:
+        fi = feat_names[i] if i < len(feat_names) else f"feat_{i}"
+        fj = feat_names[j] if j < len(feat_names) else f"feat_{j}"
+        result_interactions.append((fi, fj, round(imp, 6)))
+
+    ranked_features = sorted(all_importance.items(), key=lambda x: -x[1])
+
+    print("\n=== XGBoost SHAP Interaction Analysis ===")
+    print(f"\nTop-{top_k} Feature Pair Interactions:")
+    for rank, (fi, fj, imp) in enumerate(result_interactions, 1):
+        bar = "#" * min(int(imp * 50), 40)
+        print(f"  {rank:2d}. {fi} x {fj:<25} importance={imp:.4f}  {bar}")
+
+    print(f"\nSingle-Feature Importance:")
+    for feat_name, imp in ranked_features:
+        bar = "#" * min(int(imp * 50), 40)
+        print(f"      {feat_name:<30} {imp:.4f}  {bar}")
+
+    print(f"\nPer-Benchmark In-Sample Accuracy:")
+    for bench, acc in sorted(accuracy_per_bench.items()):
+        print(f"      {bench:<10} {acc:.1%}")
+
+    # Identify new pairs not in the existing 5 cross-terms
+    existing_pairs = {
+        (12, 1),   # dv x hc (positions in DT feature vector)
+        (0, 2),    # mod x logn
+        (7, 9),    # pf x wsr
+        (14, 1),   # vss x hc
+        (15, 7),   # wno x pf
+    }
+    print(f"\nRecommended NEW cross-terms (not already in feature set):")
+    new_count = 0
+    for (i, j), imp in ranked_interactions:
+        if (i, j) not in existing_pairs and (j, i) not in existing_pairs:
+            fi = feat_names[i] if i < len(feat_names) else f"feat_{i}"
+            fj = feat_names[j] if j < len(feat_names) else f"feat_{j}"
+            print(f"  NEW: {fi} x {fj}  (importance={imp:.4f})")
+            new_count += 1
+            if new_count >= 5:
+                break
+
+    return {
+        'interactions': result_interactions,
+        'feature_importance': dict(ranked_features),
+        'accuracy': accuracy_per_bench,
+    }
