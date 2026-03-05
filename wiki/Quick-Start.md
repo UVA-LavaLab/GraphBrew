@@ -184,7 +184,7 @@ Average Time:        0.001xx
 | 7 | HUBCLUSTERDBG | General purpose |
 | 12 | GraphBrewOrder | Modular graphs |
 | 14 | AdaptiveOrder | Auto-selection |
-Best algorithm: GraphBrewOrder (`-o 12`, best quality). See [[Reordering-Algorithms]] for all 16 algorithm IDs (12 reorderers + 2 baselines + 2 meta) and variants.
+Best algorithm: GraphBrewOrder (`-o 12`, best quality). See [[Reordering-Algorithms]] for all 17 algorithm IDs (12 reorderers + 2 baselines + 3 meta) and variants.
 
 ---
 
@@ -233,7 +233,7 @@ python3 scripts/graphbrew_experiment.py --train-iterative --size small --target-
 ## What's Next?
 
 1. **[[Installation]]** - Detailed installation guide
-2. **[[Reordering-Algorithms]]** - Learn about all 16 algorithms
+2. **[[Reordering-Algorithms]]** - Learn about all 17 algorithms
 3. **[[Graph-Benchmarks]]** - Understanding the benchmarks
 4. **[[Running-Benchmarks]]** - Advanced usage
 5. **[[AdaptiveOrder-ML]]** - ML-powered algorithm selection
