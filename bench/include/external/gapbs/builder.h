@@ -2522,6 +2522,7 @@ public:
         double hub_concentration = deg_features.hub_concentration;
         double clustering_coeff = deg_features.clustering_coeff;
         double packing_factor = deg_features.packing_factor;
+        double packing_factor_cl = deg_features.packing_factor_cl;
         double forward_edge_fraction = deg_features.forward_edge_fraction;
         double working_set_ratio = deg_features.working_set_ratio;
         double vertex_significance_skewness = deg_features.vertex_significance_skewness;
@@ -2644,6 +2645,7 @@ public:
         PrintTime("Avg Degree", avg_degree);
         PrintTime("Graph Density", density);
         PrintTime("Packing Factor", packing_factor);
+        PrintTime("Packing Factor CL", packing_factor_cl);
         PrintTime("Forward Edge Fraction", forward_edge_fraction);
         PrintTime("Working Set Ratio", working_set_ratio);
         PrintTime("Vertex Significance Skewness", vertex_significance_skewness);
@@ -2668,6 +2670,7 @@ public:
             props.diameter_estimate    = diameter_estimate;
             props.community_count      = community_count;
             props.packing_factor       = packing_factor;
+            props.packing_factor_cl    = packing_factor_cl;
             props.forward_edge_fraction = forward_edge_fraction;
             props.working_set_ratio    = working_set_ratio;
             props.density              = density;

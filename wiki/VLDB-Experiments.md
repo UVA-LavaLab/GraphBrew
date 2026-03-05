@@ -14,7 +14,7 @@ folder** and understand every output file produced.
 3. [The 7-Phase Training Pipeline](#3-the-7-phase-training-pipeline)
 4. [The 8 VLDB Experiments](#4-the-8-vldb-experiments)
 5. [ML Models Explained](#5-ml-models-explained)
-6. [The 21-Feature Vector](#6-the-21-feature-vector)
+6. [The 22-Feature Vector](#6-the-22-feature-vector)
 7. [Running from Scratch](#7-running-from-scratch)
 8. [Interpreting Results](#8-interpreting-results)
 9. [Variant System](#9-variant-system)
@@ -49,7 +49,7 @@ ML-powered selector, closes it.
 1. **Train** — Run all 13 reordering algorithms on a diverse corpus of graphs,
    benchmark 7 kernels, collect execution times + graph properties.
 2. **Learn** — Train a perceptron (and auxiliary models) to predict the fastest
-   algorithm for a new, unseen graph based on 21 topological features.
+   algorithm for a new, unseen graph based on 22 topological features.
 3. **Deploy** — At runtime, AdaptiveOrder extracts features from the input
    graph in ≈0.1 s, scores each algorithm, and picks the one with the highest
    predicted speedup — all inside the C++ binary, zero Python dependency.
@@ -400,7 +400,7 @@ Where:
   between correct and incorrect is below threshold $\theta$
 - **Averaged perceptron** (Freund & Schapire 1999): final weights = average
   over all training steps (smooths noise)
-- **Adaptive theta**: $\theta = \lfloor (1.93 \times n_{\text{feat}} + 14) \times W_{\max} / 127 \rfloor \approx 5$ for 21 features
+- **Adaptive theta**: $\theta = \lfloor (1.93 \times n_{\text{feat}} + 14) \times W_{\max} / 127 \rfloor \approx 5$ for 22 features
 - **Hyperparameters:** 5 random restarts × 800 epochs, learning rate 0.05
   decayed by 0.997/epoch, weight cap $W_{\max} = 16.0$
 - **Seed:** `42 + restart × 1000 + bench_idx × 100` (deterministic)
@@ -420,7 +420,7 @@ split decision.
 ### 5.3 Hybrid DT + Perceptron
 
 **What:** DT does initial algorithm selection.  Within each leaf node, a
-per-leaf perceptron refines the choice using the full 21-feature vector.  This
+per-leaf perceptron refines the choice using the full 22-feature vector.  This
 combines the DT's coarse partitioning with the perceptron's fine-grained
 scoring.
 
@@ -453,14 +453,14 @@ normalized feature distance.  Use the best algorithm from the closest neighbor.
 | `results/models/perceptron/type_0/<benchmark>.json` | Per-benchmark specialized weights |
 | `results/models/perceptron/registry.json` | Graph-type cluster registry (centroids) |
 | `results/data/benchmarks.json` | Centralized benchmark database (append-only) |
-| `results/data/graph_properties.json` | Per-graph 21-element feature vectors |
+| `results/data/graph_properties.json` | Per-graph 22-element feature vectors |
 | `results/data/evaluation_summary.json` | LOGO CV results for all models |
 
 ---
 
-## 6. The 21-Feature Vector
+## 6. The 22-Feature Vector
 
-The perceptron ingests a **21-element feature vector** per graph, designed to
+The perceptron ingests a **22-element feature vector** per graph, designed to
 capture topology, locality, and convergence properties.  All features are
 computed in the C++ binary at runtime (no Python needed for inference).
 
@@ -496,6 +496,12 @@ These capture non-linear interactions that individual features miss:
 | 18 | `packing_factor × log₂(WSR+1)` | Locality-vs-capacity trade-off: good packing + LLC overflow → reordering is critical |
 | 19 | `vertex_significance_skew × hub_concentration` | DON-RL cross-term: skewed locality + hubs → hub-aware methods win |
 | 20 | `window_neighbor_overlap × packing_factor` | DON-RL cross-term: existing locality quality interaction |
+
+### 6.2.5 Cache-Line Feature (21)
+
+| # | Name | Transform | What It Measures | Source |
+|---|------|-----------|-----------------|--------|
+| 21 | `packing_factor_cl` | raw | Fraction of neighbors on the same 64-byte cache line as the hub vertex. Faithful IISWC'18 definition using CL_VERTS=16 | IISWC'18 |
 
 ### 6.3 Sampling Strategy
 
