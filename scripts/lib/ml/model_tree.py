@@ -7,25 +7,35 @@ Supports:
   - Pure Decision Tree: leaf_class prediction
   - Hybrid (Model Tree): per-leaf perceptron weights for scoring
 
-The 12-feature vector matches C++ ModelTree::extract_features():
-  [0] modularity
-  [1] hub_concentration
-  [2] log10(N+1)
-  [3] log10(E+1)
-  [4] density
-  [5] avg_degree/100
-  [6] clustering_coeff
-  [7] packing_factor
-  [8] forward_edge_fraction
-  [9] log2(working_set_ratio+1)
+The 21-feature vector aligns with the perceptron's feat_to_weight:
+  [0]  modularity
+  [1]  hub_concentration
+  [2]  log10(N+1)
+  [3]  log10(E+1)
+  [4]  density
+  [5]  avg_degree/100
+  [6]  clustering_coeff
+  [7]  packing_factor
+  [8]  forward_edge_fraction
+  [9]  log2(working_set_ratio+1)
   [10] log10(community_count+1)
   [11] diameter/50
+  [12] degree_variance
+  [13] avg_path_length/10
+  [14] vertex_significance_skewness  (DON-RL)
+  [15] window_neighbor_overlap       (DON-RL)
+  [16] dv×hub   (quadratic)
+  [17] mod×logn (quadratic)
+  [18] pf×wsr   (quadratic)
+  [19] vss×hc   (quadratic)
+  [20] wno×pf   (quadratic)
 
 Training uses scikit-learn and exports to C++-compatible JSON format.
 """
 
 import json
 import math
+from collections import defaultdict
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
@@ -119,43 +129,68 @@ def compute_oracle(records: List[dict], criterion: Criterion) -> Tuple[str, floa
 
 
 # ============================================================================
-# Feature extraction (12D — matches C++ ModelTree::extract_features)
+# Feature extraction (21D — matches perceptron feat_to_weight ordering)
 # ============================================================================
 
-MODEL_TREE_N_FEATURES = 14
+MODEL_TREE_N_FEATURES = 21
 
 DT_FEATURE_NAMES = [
     'modularity', 'hub_concentration', 'log_nodes', 'log_edges',
     'density', 'avg_degree_100', 'clustering_coeff', 'packing_factor',
     'forward_edge_fraction', 'log2_wsr', 'log10_community_count',
     'diameter_50', 'degree_variance', 'avg_path_length_10',
+    # DON-RL features (Zhao et al.)
+    'vertex_significance_skewness', 'window_neighbor_overlap',
+    # Quadratic cross-terms (paper-motivated)
+    'dv_x_hub', 'mod_x_logn', 'pf_x_wsr', 'vss_x_hc', 'wno_x_pf',
 ]
 
 
 def extract_dt_features(props: dict) -> List[float]:
-    """Extract the 14-element feature vector for DT splits.
+    """Extract the 21-element feature vector for DT/XGBoost splits.
 
-    Matches C++ ModelTree::extract_features() exactly.
+    Aligned with perceptron feat_to_weight:
+      [0-13]  14 linear features (same transforms as scoreBase)
+      [14-15] 2 DON-RL features
+      [16-20] 5 quadratic cross-terms
     """
     nodes = props.get('nodes', 1000)
     edges = props.get('edges', 5000)
     avg_degree = props.get('avg_degree', 10.0)
 
+    modularity = props.get('modularity', 0.5)
+    hub_conc = props.get('hub_concentration', 0.3)
+    log_nodes = math.log10(nodes + 1) if nodes > 0 else 0
+    degree_var = props.get('degree_variance', 0.0)
+    pf = props.get('packing_factor', 0.0)
+    log_wsr = math.log2(props.get('working_set_ratio', 0.0) + 1.0)
+    vss = props.get('vertex_significance_skewness', 0.0)
+    wno = props.get('window_neighbor_overlap', 0.0)
+
     return [
-        props.get('modularity', 0.5),                                    # 0
-        props.get('hub_concentration', 0.3),                             # 1
-        math.log10(nodes + 1) if nodes > 0 else 0,                      # 2
+        modularity,                                                      # 0
+        hub_conc,                                                        # 1
+        log_nodes,                                                       # 2
         math.log10(edges + 1) if edges > 0 else 0,                      # 3
         avg_degree / (nodes - 1) if nodes > 1 else 0,                   # 4: density
         avg_degree / 100.0,                                              # 5
         props.get('clustering_coefficient', 0.0),                        # 6
-        props.get('packing_factor', 0.0),                                # 7
+        pf,                                                              # 7
         props.get('forward_edge_fraction', 0.5),                         # 8
-        math.log2(props.get('working_set_ratio', 0.0) + 1.0),           # 9
+        log_wsr,                                                         # 9
         math.log10(props.get('community_count', 0.0) + 1.0),            # 10
         props.get('diameter_estimate', props.get('diameter', 0.0)) / 50, # 11
-        props.get('degree_variance', 0.0),                               # 12
+        degree_var,                                                      # 12
         props.get('avg_path_length', 0.0) / 10.0,                       # 13
+        # DON-RL
+        vss,                                                             # 14
+        wno,                                                             # 15
+        # Quadratic cross-terms
+        degree_var * hub_conc,                                           # 16
+        modularity * log_nodes,                                          # 17
+        pf * log_wsr,                                                    # 18
+        vss * hub_conc,                                                  # 19
+        wno * pf,                                                        # 20
     ]
 
 
@@ -218,7 +253,7 @@ class ModelTree:
         self.families = families or []
         self.nodes = nodes or []
 
-    def predict(self, features_12d: List[float]) -> str:
+    def predict(self, features: List[float]) -> str:
         """Walk the tree and return predicted algorithm family.
 
         For pure DT: returns leaf_class directly.
@@ -246,7 +281,7 @@ class ModelTree:
                         n_w = len(weights)
                         # weights = [w0, w1, ..., w_{n-2}, bias]
                         for i in range(min(n_w - 1, MODEL_TREE_N_FEATURES)):
-                            score += weights[i] * features_12d[i]
+                            score += weights[i] * features[i]
                         if n_w > 0:
                             score += weights[-1]  # bias
                         if score > best_score:
@@ -257,8 +292,8 @@ class ModelTree:
                 return node.leaf_class
 
             # Split node
-            feat_val = (features_12d[node.feature_idx]
-                        if 0 <= node.feature_idx < len(features_12d) else 0.0)
+            feat_val = (features[node.feature_idx]
+                        if 0 <= node.feature_idx < len(features) else 0.0)
             if feat_val <= node.threshold:
                 idx = node.left
             else:
@@ -313,7 +348,7 @@ def _build_training_data(
         use_families: if True, map oracle labels to algorithm families
 
     Returns:
-        X: list of 14D feature vectors (one per graph)
+        X: list of 21D feature vectors (one per graph)
         y: list of best algorithm labels per graph
         graphs: list of graph names (parallel to X, y)
     """
@@ -511,12 +546,12 @@ def train_random_forest(
     return trees
 
 
-def predict_random_forest(trees: List[ModelTree], features_12d: List[float]) -> str:
+def predict_random_forest(trees: List[ModelTree], features: List[float]) -> str:
     """Majority-vote prediction from a list of ModelTree estimators."""
     from collections import Counter
     votes = Counter()
     for tree in trees:
-        pred = tree.predict(features_12d)
+        pred = tree.predict(features)
         votes[pred] += 1
     return votes.most_common(1)[0][0] if votes else 'ORIGINAL'
 
@@ -577,20 +612,34 @@ def train_xgboost(
     return clf, le
 
 
-def predict_xgboost(model_tuple, features_14d: List[float]) -> str:
+def predict_xgboost(model_tuple, features: List[float]) -> str:
     """Predict class using XGBoost model.
 
     Args:
         model_tuple: (XGBClassifier, LabelEncoder) from train_xgboost()
-        features_14d: 14-element feature vector
+        features: 21-element feature vector
     """
     import numpy as np
     clf, le = model_tuple
     if clf is None or le is None:
         return 'ORIGINAL'
-    X = np.array([features_14d])
+    X = np.array([features])
     pred_encoded = clf.predict(X)[0]
     return str(le.inverse_transform([pred_encoded])[0])
+
+
+def _summarize_per_bench(per_bench: dict) -> dict:
+    """Summarise per-benchmark accumulator into accuracy / avg_regret dict."""
+    return {
+        b: {
+            'correct': d['correct'],
+            'total': d['total'],
+            'accuracy': d['correct'] / d['total'] if d['total'] > 0 else 0,
+            'avg_regret': (sum(d['regrets']) / len(d['regrets'])
+                          if d['regrets'] else 0),
+        }
+        for b, d in sorted(per_bench.items())
+    }
 
 
 def cross_validate_logo_xgboost(
@@ -628,13 +677,14 @@ def cross_validate_logo_xgboost(
     regrets = []
     family_correct = 0
     per_graph = {}
+    per_bench = defaultdict(lambda: {'correct': 0, 'total': 0, 'regrets': []})
 
     for held_out in graphs:
         if held_out not in graph_props:
             continue
 
         train_records = [r for r in bench_records if r.get('graph') != held_out]
-        feats_14d = extract_dt_features(graph_props[held_out])
+        feats = extract_dt_features(graph_props[held_out])
         g_correct = 0
         g_total = 0
         g_regrets = []
@@ -657,13 +707,15 @@ def cross_validate_logo_xgboost(
                 min_child_weight=min_child_weight,
                 learning_rate=learning_rate,
                 use_families=use_families)
-            predicted = predict_xgboost(model_tuple, feats_14d)
+            predicted = predict_xgboost(model_tuple, feats)
 
             g_total += 1
             total += 1
+            per_bench[bench]['total'] += 1
             if predicted == oracle_label:
                 g_correct += 1
                 correct += 1
+                per_bench[bench]['correct'] += 1
 
             # Family-level match
             pred_family = algo_to_family(predicted) if not use_families else predicted
@@ -690,6 +742,7 @@ def cross_validate_logo_xgboost(
                 reg = (pred_val - oracle_val) / oracle_val * 100
                 regrets.append(reg)
                 g_regrets.append(reg)
+                per_bench[bench]['regrets'].append(reg)
 
         per_graph[held_out] = {
             'correct': g_correct,
@@ -716,6 +769,7 @@ def cross_validate_logo_xgboost(
         'within_5pct': within_5pct,
         'family_acc': family_correct / total if total > 0 else 0,
         'per_graph': per_graph,
+        'per_bench': _summarize_per_bench(per_bench),
     }
 
 
@@ -980,6 +1034,7 @@ def cross_validate_logo_model_tree(
     regrets = []
     family_correct = 0
     per_graph = {}
+    per_bench = defaultdict(lambda: {'correct': 0, 'total': 0, 'regrets': []})
 
     for held_out in graphs:
         if held_out not in graph_props:
@@ -989,7 +1044,7 @@ def cross_validate_logo_model_tree(
         train_records = [r for r in bench_records if r.get('graph') != held_out]
         train_fn = train_decision_tree if model_type == 'decision_tree' else train_hybrid_tree
 
-        feats_12d = extract_dt_features(graph_props[held_out])
+        feats = extract_dt_features(graph_props[held_out])
         g_correct = 0
         g_total = 0
         g_regrets = []
@@ -1011,13 +1066,15 @@ def cross_validate_logo_model_tree(
             # Train model on other graphs, predict
             tree = train_fn(train_records, graph_props, bench, criterion,
                            use_families=use_families)
-            predicted = tree.predict(feats_12d)
+            predicted = tree.predict(feats)
 
             g_total += 1
             total += 1
+            per_bench[bench]['total'] += 1
             if predicted == oracle_label:
                 g_correct += 1
                 correct += 1
+                per_bench[bench]['correct'] += 1
 
             # Family-level match
             pred_family = algo_to_family(predicted) if not use_families else predicted
@@ -1045,6 +1102,7 @@ def cross_validate_logo_model_tree(
                 reg = (pred_val - oracle_val) / oracle_val * 100
                 regrets.append(reg)
                 g_regrets.append(reg)
+                per_bench[bench]['regrets'].append(reg)
 
         per_graph[held_out] = {
             'correct': g_correct,
@@ -1071,6 +1129,7 @@ def cross_validate_logo_model_tree(
         'within_5pct': within_5pct,
         'family_acc': family_correct / total if total > 0 else 0,
         'per_graph': per_graph,
+        'per_bench': _summarize_per_bench(per_bench),
     }
 
 
@@ -1225,7 +1284,7 @@ def train_two_stage(
     }
 
 
-def predict_two_stage(model_dict, features_14d: List[float]) -> str:
+def predict_two_stage(model_dict, features: List[float]) -> str:
     """Predict using two-stage classifier.
 
     Returns predicted algorithm family or 'ORIGINAL'.
@@ -1235,7 +1294,7 @@ def predict_two_stage(model_dict, features_14d: List[float]) -> str:
     if model_dict is None:
         return 'ORIGINAL'
 
-    X = np.array([features_14d])
+    X = np.array([features])
 
     # If Stage 1 is skipped (almost all tasks need reordering), go to Stage 2
     if model_dict.get('skip_stage1', False) or model_dict.get('stage1') is None:
@@ -1304,6 +1363,7 @@ def cross_validate_logo_two_stage(
     stage1_correct = 0
     stage1_total = 0
     per_graph = {}
+    per_bench = defaultdict(lambda: {'correct': 0, 'total': 0, 'regrets': []})
 
     for held_out in graphs:
         if held_out not in graph_props:
@@ -1344,6 +1404,7 @@ def cross_validate_logo_two_stage(
             # Overall accuracy: compare at family level
             g_total += 1
             total += 1
+            per_bench[bench]['total'] += 1
 
             if oracle_is_noreorder:
                 # Oracle says no-reorder: correct if we also predicted no-reorder
@@ -1355,6 +1416,7 @@ def cross_validate_logo_two_stage(
             if is_correct:
                 g_correct += 1
                 correct += 1
+                per_bench[bench]['correct'] += 1
 
             # Family match (always family-level comparison)
             pred_fam = algo_to_family(predicted_family) if predicted_family != 'ORIGINAL' else 'ORIGINAL'
@@ -1396,6 +1458,7 @@ def cross_validate_logo_two_stage(
                 reg = (pred_val - oracle_val) / oracle_val * 100
                 regrets.append(reg)
                 g_regrets.append(reg)
+                per_bench[bench]['regrets'].append(reg)
 
         per_graph[held_out] = {
             'correct': g_correct,
@@ -1424,6 +1487,7 @@ def cross_validate_logo_two_stage(
         'family_acc': family_correct / total if total > 0 else 0,
         'stage1_accuracy': stage1_acc,
         'per_graph': per_graph,
+        'per_bench': _summarize_per_bench(per_bench),
     }
 
 
@@ -1473,6 +1537,7 @@ def cross_validate_logo_xgboost_family(
     regrets = []
     family_correct = 0
     per_graph = {}
+    per_bench = defaultdict(lambda: {'correct': 0, 'total': 0, 'regrets': []})
 
     for held_out in graphs:
         if held_out not in graph_props:
@@ -1542,10 +1607,12 @@ def cross_validate_logo_xgboost_family(
             # Accuracy (family-level)
             g_total += 1
             total += 1
+            per_bench[bench]['total'] += 1
             is_correct = (predicted_family == oracle_family)
             if is_correct:
                 g_correct += 1
                 correct += 1
+                per_bench[bench]['correct'] += 1
                 family_correct += 1
 
             # Regret
@@ -1581,6 +1648,7 @@ def cross_validate_logo_xgboost_family(
                 reg = (pred_val - oracle_val) / oracle_val * 100
                 regrets.append(reg)
                 g_regrets.append(reg)
+                per_bench[bench]['regrets'].append(reg)
 
         per_graph[held_out] = {
             'correct': g_correct,
@@ -1607,6 +1675,7 @@ def cross_validate_logo_xgboost_family(
         'within_5pct': within_5pct,
         'family_acc': family_correct / total if total > 0 else 0,
         'per_graph': per_graph,
+        'per_bench': _summarize_per_bench(per_bench),
     }
 
 
@@ -1616,17 +1685,13 @@ _BENCH_INDEX = {b: i for i, b in enumerate(
 
 
 def _extract_extended_features(props: dict) -> List[float]:
-    """Extended features: 14D base + DON-RL + locality features.
+    """Extended features: 21D base + edge/node ratio.
 
-    Returns 17D vector:
-      [0..13] standard extract_dt_features()
-      [14]    vertex_significance_skewness  (DON-RL)
-      [15]    window_neighbor_overlap       (DON-RL)
-      [16]    edges / nodes ratio           (complements density)
+    Returns 22D vector:
+      [0..20] standard extract_dt_features() (14 linear + 2 DON-RL + 5 quadratic)
+      [21]    edges / nodes ratio (complements density)
     """
     base = extract_dt_features(props)
-    base.append(props.get('vertex_significance_skewness', 0.0))
-    base.append(props.get('window_neighbor_overlap', 0.0))
     nodes = props.get('nodes', 1)
     edges = props.get('edges', 1)
     base.append(edges / max(nodes, 1))
@@ -1644,8 +1709,8 @@ def cross_validate_logo_xgboost_family_xbench(
     """LOGO CV for cross-benchmark XGBoost family classifier.
 
     Trains a SINGLE model across ALL benchmarks per LOGO fold, with
-    benchmark index appended as an additional feature (18D total).
-    Uses extended features: 14D base + DON-RL + locality = 17D + 1 bench = 18D.
+    benchmark index appended as an additional feature (22D total).
+    Uses extended features: 21D base + 1 bench = 22D.
     This gives ~8× more training data per fold than per-benchmark training.
 
     Classes: algorithm families + ORIGINAL.
@@ -1684,6 +1749,7 @@ def cross_validate_logo_xgboost_family_xbench(
     regrets = []
     family_correct = 0
     per_graph = {}
+    per_bench = defaultdict(lambda: {'correct': 0, 'total': 0, 'regrets': []})
 
     for held_out in graphs:
         if held_out not in graph_props:
@@ -1747,10 +1813,12 @@ def cross_validate_logo_xgboost_family_xbench(
 
             g_total += 1
             total += 1
+            per_bench[bench]['total'] += 1
             is_correct = (predicted_family == oracle_family)
             if is_correct:
                 g_correct += 1
                 correct += 1
+                per_bench[bench]['correct'] += 1
                 family_correct += 1
 
             # Regret
@@ -1786,6 +1854,7 @@ def cross_validate_logo_xgboost_family_xbench(
                 reg = (pred_val - oracle_val) / oracle_val * 100
                 regrets.append(reg)
                 g_regrets.append(reg)
+                per_bench[bench]['regrets'].append(reg)
 
         per_graph[held_out] = {
             'correct': g_correct,
@@ -1812,6 +1881,7 @@ def cross_validate_logo_xgboost_family_xbench(
         'within_5pct': within_5pct,
         'family_acc': family_correct / total if total > 0 else 0,
         'per_graph': per_graph,
+        'per_bench': _summarize_per_bench(per_bench),
     }
 
 
@@ -1830,8 +1900,8 @@ def cross_validate_logo_regression_xbench(
     (graph, benchmark) pair.  Each training group contains one item per
     family with ordinal rank labels (higher = cheaper).
 
-    The feature vector is ``[14D graph features, bench_index, family_index]``
-    (16 D total).  A single model across all benchmarks and families gives
+    The feature vector is ``[21D graph features, bench_index, family_index]``
+    (23 D total).  A single model across all benchmarks and families gives
     ~8× more training data per LOGO fold than per-benchmark training.
 
     Why Learning-to-Rank?
@@ -1879,6 +1949,7 @@ def cross_validate_logo_regression_xbench(
     total = 0
     regrets = []
     per_graph = {}
+    per_bench = defaultdict(lambda: {'correct': 0, 'total': 0, 'regrets': []})
 
     for held_out in graphs:
         if held_out not in graph_props:
@@ -1972,10 +2043,12 @@ def cross_validate_logo_regression_xbench(
 
             g_total += 1
             total += 1
+            per_bench[bench]['total'] += 1
             is_correct = (predicted_family == oracle_family)
             if is_correct:
                 g_correct += 1
                 correct += 1
+                per_bench[bench]['correct'] += 1
 
             # ---- compute regret using ACTUAL performance ----
             original_exec = None
@@ -2015,6 +2088,7 @@ def cross_validate_logo_regression_xbench(
                 reg = (pred_val - oracle_val) / oracle_val * 100
                 regrets.append(reg)
                 g_regrets.append(reg)
+                per_bench[bench]['regrets'].append(reg)
 
         per_graph[held_out] = {
             'correct': g_correct,
@@ -2042,6 +2116,7 @@ def cross_validate_logo_regression_xbench(
         'median_regret': median_regret,
         'within_5pct': within_5pct,
         'per_graph': per_graph,
+        'per_bench': _summarize_per_bench(per_bench),
     }
 
 
@@ -2084,13 +2159,14 @@ def cross_validate_logo_random_forest(
     regrets = []
     family_correct = 0
     per_graph = {}
+    per_bench = defaultdict(lambda: {'correct': 0, 'total': 0, 'regrets': []})
 
     for held_out in graphs:
         if held_out not in graph_props:
             continue
 
         train_records = [r for r in bench_records if r.get('graph') != held_out]
-        feats_12d = extract_dt_features(graph_props[held_out])
+        feats = extract_dt_features(graph_props[held_out])
         g_correct = 0
         g_total = 0
         g_regrets = []
@@ -2112,13 +2188,15 @@ def cross_validate_logo_random_forest(
                 n_estimators=n_estimators, max_depth=max_depth,
                 min_samples_leaf=min_samples_leaf,
                 use_families=use_families)
-            predicted = predict_random_forest(rf_trees, feats_12d)
+            predicted = predict_random_forest(rf_trees, feats)
 
             g_total += 1
             total += 1
+            per_bench[bench]['total'] += 1
             if predicted == oracle_label:
                 g_correct += 1
                 correct += 1
+                per_bench[bench]['correct'] += 1
 
             # Family-level match
             pred_family = algo_to_family(predicted) if not use_families else predicted
@@ -2145,6 +2223,7 @@ def cross_validate_logo_random_forest(
                 reg = (pred_val - oracle_val) / oracle_val * 100
                 regrets.append(reg)
                 g_regrets.append(reg)
+                per_bench[bench]['regrets'].append(reg)
 
         per_graph[held_out] = {
             'correct': g_correct,
@@ -2172,4 +2251,5 @@ def cross_validate_logo_random_forest(
         'within_5pct': within_5pct,
         'family_acc': family_correct / total if total > 0 else 0,
         'per_graph': per_graph,
+        'per_bench': _summarize_per_bench(per_bench),
     }
