@@ -1200,6 +1200,7 @@ public:
             // Format: -o 8:variant (e.g., -o 8:boost for original Boost-based)
             std::string variant = resolveVariant(reordering_options, "csr");
             
+#ifdef RABBIT_ENABLE
             if (variant == "boost") {
                 // Original Boost-based RabbitOrder needs preprocessing
                 pvector<NodeID_> new_ids_local(g.num_nodes(), -1);
@@ -1213,7 +1214,9 @@ public:
                 {
                     new_ids[n] = new_ids_local_2[new_ids_local[n]];
                 }
-            } else {
+            } else
+#endif
+            {
                 // Native CSR implementation with degree preprocessing (like boost)
                 // Pre-sort nodes by degree for better community detection convergence
                 pvector<NodeID_> new_ids_local(g.num_nodes(), -1);
@@ -1419,6 +1422,7 @@ public:
             // RabbitOrder with variants: csr (default), boost
             std::string variant = resolveVariant(reordering_options, "csr");
             
+#ifdef RABBIT_ENABLE
             if (variant == "boost") {
                 // Original Boost-based RabbitOrder needs preprocessing
                 pvector<NodeID_> new_ids_local(g_org.num_nodes(), -1);
@@ -1445,7 +1449,9 @@ public:
                         }
                     }
                 }
-            } else {
+            } else
+#endif
+            {
                 // Native CSR implementation with degree preprocessing (like boost)
                 // Pre-sort nodes by degree for better community detection convergence
                 pvector<NodeID_> new_ids_local(g.num_nodes(), -1);
@@ -1829,6 +1835,7 @@ public:
     }
 
 
+#ifdef RABBIT_ENABLE
     /**
      * @brief RabbitOrder - Community-aware reordering using hierarchical clustering
      * Delegates to ::GenerateRabbitOrderMapping in reorder/reorder_rabbit.h
@@ -1860,8 +1867,6 @@ public:
         }
         return ::GenerateRabbitModularityEdgelist<NodeID_>(edges);
     }
-
-#ifdef RABBIT_ENABLE
     /**
      * @brief RabbitOrder from edge list
      * Delegates to ::GenerateRabbitOrderMappingEdgelist in reorder/reorder_rabbit.h
