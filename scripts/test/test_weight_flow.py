@@ -309,6 +309,7 @@ class TestVariantRegistrySSOT:
         assert 8 in VARIANT_ALGO_IDS   # RabbitOrder
         assert 11 in VARIANT_ALGO_IDS  # RCM
         assert 12 in VARIANT_ALGO_IDS  # GraphBrewOrder
+        assert 16 in VARIANT_ALGO_IDS  # GoGraphOrder
 
     def test_get_all_variant_names_no_duplicates(self):
         """get_all_algorithm_variant_names() should return unique names."""

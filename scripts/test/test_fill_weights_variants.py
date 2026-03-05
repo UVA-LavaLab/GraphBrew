@@ -498,14 +498,16 @@ class TestDefaultWeights:
     def test_variant_count(self):
         """Sanity: variant count matches expected total."""
         # 17 base algos - ORIGINAL - RANDOM - MAP - AdaptiveOrder = 13 base IDs
-        # Algo 8 (RABBITORDER) → 2 variants, algo 11 (RCM) → 2, algo 12 (GraphBrew) → 3
-        # So: 13 - 3 (expanded) + 2 + 2 + 3 = 17 single variants
+        # Algo 8 (RABBITORDER) → 2 variants, algo 11 (RCM) → 2,
+        # algo 12 (GraphBrew) → 7, algo 16 (GoGraph) → 3
+        # Plus LeidenOrder (single, non-variant)
+        # So: 13 - 4 (expanded) + 2 + 2 + 7 + 3 = 23 single variants
         # Plus chained orderings
         single = [n for n in ALL_VARIANTS if not is_chained_ordering_name(n)]
         chained = [n for n in ALL_VARIANTS if is_chained_ordering_name(n)]
-        assert len(single) == 17, f"Expected 17 single variants, got {len(single)}: {single}"
+        assert len(single) == 23, f"Expected 23 single variants, got {len(single)}: {single}"
         assert len(chained) == 5, f"Expected 5 chained orderings, got {len(chained)}: {chained}"
-        assert len(ALL_VARIANTS) == 22
+        assert len(ALL_VARIANTS) == 28
 
 
 # ---------------------------------------------------------------------------

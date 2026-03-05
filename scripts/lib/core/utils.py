@@ -215,7 +215,7 @@ def is_chained_ordering_name(name: str) -> bool:
 
 # Variant prefixes — shared between Python and C++ (matches VARIANT_PREFIXES
 # in reorder_types.h).  Used for auto-discovery and name resolution.
-VARIANT_PREFIXES = ("GraphBrewOrder_", "RABBITORDER_", "RCM_")
+VARIANT_PREFIXES = ("GOGRAPHORDER_", "GraphBrewOrder_", "RABBITORDER_", "RCM_")
 
 # RabbitOrder variants: -o 8:variant
 RABBITORDER_VARIANTS = ("csr", "boost")
