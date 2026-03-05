@@ -2251,7 +2251,7 @@ struct PerceptronWeights {
         double log_edges = std::log10(static_cast<double>(feat.num_edges) + 1.0);
         double log_wsr = std::log2(feat.working_set_ratio + 1.0);
         
-        // Compute 22 transformed features matching Python training order
+        // Compute 24 transformed features matching Python training order
         const double raw[N_FEATURES] = {
             feat.modularity,                                    // 0
             feat.degree_variance,                               // 1
@@ -2303,12 +2303,12 @@ struct PerceptronWeights {
             if (i == 11 && abl.zero_packing) continue;
             if (i == 12 && abl.zero_fef) continue;
             if (i == 13 && abl.zero_wsr) continue;
-            if (i >= 16 && abl.zero_quadratic) continue;
+            if (i >= 16 && i <= 20 && abl.zero_quadratic) continue;
             double z = (raw[i] - norm_mean[i]) / norm_std[i];
             s += w[i] * z;
         }
         
-        // Extra terms not part of the 22-feature perceptron
+        // Extra terms not part of the 24-feature perceptron
         s += cache_l1_impact * 0.5 + cache_l2_impact * 0.3
            + cache_l3_impact * 0.2 + cache_dram_penalty;
         s += w_reorder_time * feat.reorder_time;

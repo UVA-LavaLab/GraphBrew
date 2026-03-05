@@ -7,7 +7,7 @@ Supports:
   - Pure Decision Tree: leaf_class prediction
   - Hybrid (Model Tree): per-leaf perceptron weights for scoring
 
-The 22-feature vector aligns with the perceptron's feat_to_weight:
+The 24-feature vector aligns with the perceptron's feat_to_weight:
   [0]  modularity
   [1]  hub_concentration
   [2]  log10(N+1)
@@ -30,6 +30,8 @@ The 22-feature vector aligns with the perceptron's feat_to_weight:
   [19] vss×hc   (quadratic)
   [20] wno×pf   (quadratic)
   [21] packing_factor_cl (IISWC'18 CL)
+  [22] log2(wsr_l1+1)   (P-OPT L1)
+  [23] log2(wsr_l2+1)   (P-OPT L2)
 
 Training uses scikit-learn and exports to C++-compatible JSON format.
 """
@@ -130,7 +132,7 @@ def compute_oracle(records: List[dict], criterion: Criterion) -> Tuple[str, floa
 
 
 # ============================================================================
-# Feature extraction (22D — matches perceptron feat_to_weight ordering)
+# Feature extraction (24D — matches perceptron feat_to_weight ordering)
 # ============================================================================
 
 MODEL_TREE_N_FEATURES = 24

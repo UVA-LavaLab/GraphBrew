@@ -482,7 +482,7 @@ class PerceptronWeight:
 
         Mirrors C++ ``scoreBaseNormalized()`` in reorder_types.h.
 
-        The 22-element raw feature vector (in the same order as C++):
+        The 24-element raw feature vector (in the same order as C++):
             [0]  modularity
             [1]  degree_variance
             [2]  hub_concentration
@@ -505,6 +505,8 @@ class PerceptronWeight:
             [19] vss * hub_concentration               (quadratic)
             [20] wno * packing_factor                  (quadratic)
             [21] packing_factor_cl                      (IISWC'18 CL)
+            [22] log2(wsr_l1 + 1)                      (P-OPT L1)
+            [23] log2(wsr_l2 + 1)                      (P-OPT L2)
 
         Each raw[i] is z-normalized: ``z = (raw - mean[i]) / std[i]``
         (skipped when ``std < 1e-12``).
@@ -515,8 +517,8 @@ class PerceptronWeight:
         Args:
             features: Dict with graph properties.
             benchmark: Benchmark name for convergence bonus + multiplier.
-            norm_mean: 22-element list of per-feature means.
-            norm_std: 22-element list of per-feature standard deviations.
+            norm_mean: 24-element list of per-feature means.
+            norm_std: 24-element list of per-feature standard deviations.
 
         Returns:
             Perceptron score (higher = algorithm more suitable).
@@ -891,11 +893,14 @@ def _build_logo_features(props: Dict) -> Dict:
         'wno_x_pf': props.get('window_neighbor_overlap', 0.0) * pf,
         # IISWC'18 cache-line packing factor
         'packing_factor_cl': props.get('packing_factor_cl', 0.0),
+        # Per-cache-level WSR
+        'wsr_l1': props.get('wsr_l1', 0.0),
+        'wsr_l2': props.get('wsr_l2', 0.0),
     }
 
 
 def _make_logo_score_fv(feats: Dict) -> list:
-    """Build 22-element feature vector with C++ transforms applied."""
+    """Build 24-element feature vector with C++ transforms applied."""
     dv = feats.get('degree_variance', 1.0)
     hc = feats.get('hub_concentration', 0.3)
     modularity = feats.get('modularity', 0.0)
@@ -929,13 +934,15 @@ def _make_logo_score_fv(feats: Dict) -> list:
         vss * hc,
         wno * pf,
         feats.get('packing_factor_cl', 0.0),
+        math.log2(feats.get('wsr_l1', 0.0) + 1.0),   # 22 (P-OPT L1)
+        math.log2(feats.get('wsr_l2', 0.0) + 1.0),   # 23 (P-OPT L2)
     ]
 
 
 def _logo_score(algo_data: Dict, feats: Dict, norm_data: Dict = None) -> float:
     """Score an algorithm for given features.
 
-    Covers the 22 core linear + quadratic terms used in LOGO cross-validation.
+    Covers the 24 core linear + quadratic terms used in LOGO cross-validation.
     Intentionally omits cache constant offsets and convergence bonus —
     these are graph-independent constants and per-benchmark conditionals
     that don't affect relative ranking between algorithms within one graph.
@@ -1635,6 +1642,9 @@ def compute_weights_from_results(
             'wno_x_pf': props.get('window_neighbor_overlap', 0.0) * props.get('packing_factor', 0.0),
             # IISWC'18 cache-line packing factor
             'packing_factor_cl': props.get('packing_factor_cl', 0.0),
+            # Per-cache-level WSR
+            'wsr_l1': props.get('wsr_l1', 0.0),
+            'wsr_l2': props.get('wsr_l2', 0.0),
             # Estimated values for de-normalization (C++ runtime only has these)
             '_est_modularity': estimated_modularity,
             '_est_mod_x_logn': estimated_modularity * log_n,
@@ -1695,6 +1705,9 @@ def compute_weights_from_results(
                 feats['wno_x_pf'],
                 # IISWC'18 cache-line packing factor
                 feats['packing_factor_cl'],
+                # Per-cache-level WSR
+                math.log2(feats.get('wsr_l1', 0.0) + 1.0),
+                math.log2(feats.get('wsr_l2', 0.0) + 1.0),
             ]
             
             training_data.append((fv, best_algo))
@@ -1768,6 +1781,9 @@ def compute_weights_from_results(
                 feats['wno_x_pf'],
                 # IISWC'18 cache-line packing factor
                 feats['packing_factor_cl'],
+                # Per-cache-level WSR
+                math.log2(feats.get('wsr_l1', 0.0) + 1.0),
+                math.log2(feats.get('wsr_l2', 0.0) + 1.0),
             ]
             for bench, results in benchmarks.items():
                 if not results:
@@ -2130,6 +2146,9 @@ def compute_weights_from_results(
                 feats['wno_x_pf'],
                 # IISWC'18 cache-line packing factor
                 feats['packing_factor_cl'],
+                # Per-cache-level WSR
+                math.log2(feats.get('wsr_l1', 0.0) + 1.0),
+                math.log2(feats.get('wsr_l2', 0.0) + 1.0),
             ]
         
         # Helper: compute scoreBase for an algo on a graph
