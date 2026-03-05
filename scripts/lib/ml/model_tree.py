@@ -7,7 +7,7 @@ Supports:
   - Pure Decision Tree: leaf_class prediction
   - Hybrid (Model Tree): per-leaf perceptron weights for scoring
 
-The 21-feature vector aligns with the perceptron's feat_to_weight:
+The 22-feature vector aligns with the perceptron's feat_to_weight:
   [0]  modularity
   [1]  hub_concentration
   [2]  log10(N+1)
@@ -29,6 +29,7 @@ The 21-feature vector aligns with the perceptron's feat_to_weight:
   [18] pf×wsr   (quadratic)
   [19] vss×hc   (quadratic)
   [20] wno×pf   (quadratic)
+  [21] packing_factor_cl (IISWC'18 CL)
 
 Training uses scikit-learn and exports to C++-compatible JSON format.
 """
@@ -129,10 +130,10 @@ def compute_oracle(records: List[dict], criterion: Criterion) -> Tuple[str, floa
 
 
 # ============================================================================
-# Feature extraction (21D — matches perceptron feat_to_weight ordering)
+# Feature extraction (22D — matches perceptron feat_to_weight ordering)
 # ============================================================================
 
-MODEL_TREE_N_FEATURES = 21
+MODEL_TREE_N_FEATURES = 22
 
 DT_FEATURE_NAMES = [
     'modularity', 'hub_concentration', 'log_nodes', 'log_edges',
@@ -143,16 +144,19 @@ DT_FEATURE_NAMES = [
     'vertex_significance_skewness', 'window_neighbor_overlap',
     # Quadratic cross-terms (paper-motivated)
     'dv_x_hub', 'mod_x_logn', 'pf_x_wsr', 'vss_x_hc', 'wno_x_pf',
+    # IISWC'18 cache-line packing factor
+    'packing_factor_cl',
 ]
 
 
 def extract_dt_features(props: dict) -> List[float]:
-    """Extract the 21-element feature vector for DT/XGBoost splits.
+    """Extract the 22-element feature vector for DT/XGBoost splits.
 
     Aligned with perceptron feat_to_weight:
       [0-13]  14 linear features (same transforms as scoreBase)
       [14-15] 2 DON-RL features
       [16-20] 5 quadratic cross-terms
+      [21]    IISWC'18 cache-line packing factor
     """
     nodes = props.get('nodes', 1000)
     edges = props.get('edges', 5000)
@@ -191,6 +195,8 @@ def extract_dt_features(props: dict) -> List[float]:
         pf * log_wsr,                                                    # 18
         vss * hub_conc,                                                  # 19
         wno * pf,                                                        # 20
+        # IISWC'18 cache-line packing factor
+        props.get('packing_factor_cl', 0.0),                             # 21
     ]
 
 
@@ -348,7 +354,7 @@ def _build_training_data(
         use_families: if True, map oracle labels to algorithm families
 
     Returns:
-        X: list of 21D feature vectors (one per graph)
+        X: list of 22D feature vectors (one per graph)
         y: list of best algorithm labels per graph
         graphs: list of graph names (parallel to X, y)
     """
@@ -617,7 +623,7 @@ def predict_xgboost(model_tuple, features: List[float]) -> str:
 
     Args:
         model_tuple: (XGBClassifier, LabelEncoder) from train_xgboost()
-        features: 21-element feature vector
+        features: 22-element feature vector
     """
     import numpy as np
     clf, le = model_tuple
@@ -1685,11 +1691,11 @@ _BENCH_INDEX = {b: i for i, b in enumerate(
 
 
 def _extract_extended_features(props: dict) -> List[float]:
-    """Extended features: 21D base + edge/node ratio.
+    """Extended features: 22D base + edge/node ratio.
 
-    Returns 22D vector:
-      [0..20] standard extract_dt_features() (14 linear + 2 DON-RL + 5 quadratic)
-      [21]    edges / nodes ratio (complements density)
+    Returns 23D vector:
+      [0..21] standard extract_dt_features() (14 linear + 2 DON-RL + 5 quadratic + 1 CL)
+      [22]    edges / nodes ratio (complements density)
     """
     base = extract_dt_features(props)
     nodes = props.get('nodes', 1)
@@ -1710,7 +1716,7 @@ def cross_validate_logo_xgboost_family_xbench(
 
     Trains a SINGLE model across ALL benchmarks per LOGO fold, with
     benchmark index appended as an additional feature (22D total).
-    Uses extended features: 21D base + 1 bench = 22D.
+    Uses extended features: 22D base + 1 bench = 23D.
     This gives ~8× more training data per fold than per-benchmark training.
 
     Classes: algorithm families + ORIGINAL.
@@ -1900,8 +1906,8 @@ def cross_validate_logo_regression_xbench(
     (graph, benchmark) pair.  Each training group contains one item per
     family with ordinal rank labels (higher = cheaper).
 
-    The feature vector is ``[21D graph features, bench_index, family_index]``
-    (23 D total).  A single model across all benchmarks and families gives
+    The feature vector is ``[22D graph features, bench_index, family_index]``
+    (24 D total).  A single model across all benchmarks and families gives
     ~8× more training data per LOGO fold than per-benchmark training.
 
     Why Learning-to-Rank?

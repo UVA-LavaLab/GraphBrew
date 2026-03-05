@@ -383,6 +383,7 @@ struct GraphProperties {
     double      diameter_estimate = 0.0;
     double      community_count = 0.0;
     double      packing_factor = 0.0;
+    double      packing_factor_cl = 0.0;   ///< Cache-line packing factor (IISWC'18 faithful)
     double      forward_edge_fraction = 0.0;
     double      working_set_ratio = 0.0;
     double      density = 0.0;
@@ -409,6 +410,7 @@ struct GraphProperties {
         j["diameter"] = diameter_estimate;
         j["community_count"] = community_count;
         j["packing_factor"] = packing_factor;
+        j["packing_factor_cl"] = packing_factor_cl;
         j["forward_edge_fraction"] = forward_edge_fraction;
         j["working_set_ratio"] = working_set_ratio;
         j["density"] = density;
@@ -1873,7 +1875,7 @@ private:
     // Runtime Model Training (from raw DB data)
     // ========================================================================
 
-    /// Number of perceptron features (22: 16 base + 5 quadratic interactions + 1 reuse distance)
+    /// Number of perceptron features (22: 16 base + 5 quadratic interactions + 1 CL packing factor)
     static constexpr int N_PERCEPTRON_FEATURES = 22;
 
     /// Weight key names matching Python training order (index → JSON field name)
@@ -1886,11 +1888,11 @@ private:
         "w_window_neighbor_overlap",
         "w_dv_x_hub", "w_mod_x_logn", "w_pf_x_wsr",
         "w_vss_x_hc", "w_wno_x_pf",
-        "w_avg_reuse_distance"
+        "w_packing_factor_cl"
     };
 
     /**
-     * @brief Extract 21 perceptron features from raw graph properties JSON.
+     * @brief Extract 22 perceptron features from raw graph properties JSON.
      *
      * Feature order matches Python training and scoreBaseNormalized():
      *   0=modularity, 1=degree_variance, 2=hub_concentration,
@@ -1900,7 +1902,7 @@ private:
      *   12=forward_edge_fraction, 13=log2(working_set_ratio+1),
      *   14=vertex_significance_skewness, 15=window_neighbor_overlap,
      *   16=dv×hc, 17=mod×logn, 18=pf×log_wsr,
-     *   19=vss×hc, 20=wno×pf, 21=avg_reuse_distance
+     *   19=vss×hc, 20=wno×pf, 21=packing_factor_cl
      */
     static void extract_perceptron_features(const nlohmann::json& props,
                                              double out[N_PERCEPTRON_FEATURES]) {
@@ -1943,8 +1945,8 @@ private:
         out[18] = pf * log_wsr;
         out[19] = vss * hc;     // significance skewness × hub concentration
         out[20] = wno * pf;     // window overlap × packing factor
-        // P3 3.2: Transpose reuse distance
-        out[21] = props.value("avg_reuse_distance", 0.0);
+        // IISWC'18 cache-line packing factor
+        out[21] = props.value("packing_factor_cl", 0.0);
     }
 
     /**

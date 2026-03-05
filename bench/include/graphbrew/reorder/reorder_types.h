@@ -2079,7 +2079,7 @@ struct PerceptronWeights {
     // When use_normalization is true, weights are in z-score space and
     // scoreBase() normalizes features before computing the dot product.
     // This eliminates de-normalization weight explosion from Python training.
-    static constexpr int N_FEATURES = 21;
+    static constexpr int N_FEATURES = 22;
     bool use_normalization = false;      ///< True when _normalization block present in JSON
     double norm_mean[N_FEATURES] = {};   ///< Per-feature means for z-score normalization
     double norm_std[N_FEATURES] = {};    ///< Per-feature stds for z-score normalization
@@ -2233,7 +2233,7 @@ struct PerceptronWeights {
         double log_edges = std::log10(static_cast<double>(feat.num_edges) + 1.0);
         double log_wsr = std::log2(feat.working_set_ratio + 1.0);
         
-        // Compute 21 transformed features matching Python training order
+        // Compute 22 transformed features matching Python training order
         const double raw[N_FEATURES] = {
             feat.modularity,                                    // 0
             feat.degree_variance,                               // 1
@@ -2256,6 +2256,7 @@ struct PerceptronWeights {
             feat.packing_factor * log_wsr,                      // 18 (quadratic)
             feat.vertex_significance_skewness * feat.hub_concentration, // 19 (quadratic)
             feat.window_neighbor_overlap * feat.packing_factor, // 20 (quadratic)
+            feat.packing_factor_cl,                             // 21 (IISWC'18 CL)
         };
         
         // Corresponding z-score weights in the same order
@@ -2268,6 +2269,7 @@ struct PerceptronWeights {
             w_window_neighbor_overlap,
             w_dv_x_hub, w_mod_x_logn, w_pf_x_wsr,
             w_vss_x_hc, w_wno_x_pf,
+            w_packing_factor_cl,
         };
         
         const auto& abl = AblationConfig::Get();
@@ -2285,7 +2287,7 @@ struct PerceptronWeights {
             s += w[i] * z;
         }
         
-        // Extra terms not part of the 21-feature perceptron
+        // Extra terms not part of the 22-feature perceptron
         s += cache_l1_impact * 0.5 + cache_l2_impact * 0.3
            + cache_l3_impact * 0.2 + cache_dram_penalty;
         s += w_reorder_time * feat.reorder_time;
@@ -2294,7 +2296,6 @@ struct PerceptronWeights {
         // P3 3.2: Transpose reuse distance (extra term, not z-normalized)
         s += w_avg_reuse_distance * feat.avg_reuse_distance;
         // Paper-aligned feature variants (extra terms, not z-normalized)
-        s += w_packing_factor_cl * feat.packing_factor_cl;
         s += w_locality_score_pairwise * feat.locality_score_pairwise;
         s += w_reuse_distance_lru * feat.reuse_distance_lru;
         
