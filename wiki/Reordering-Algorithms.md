@@ -4,7 +4,7 @@ GraphBrew implements **17 algorithm IDs** (0-16):
 
 - **2 Baselines** (IDs 0-1): ORIGINAL and RANDOM — graph states, not reordering techniques. Used to establish reference benchmark times.
 - **12 Reordering Algorithms** (IDs 2-12, 15): Produce vertex reorderings. Benchmarked to measure speedup vs baselines.
-- **2 Reserved Meta-Algorithms** (IDs 13-14): MAP (external label map) and AdaptiveOrder (ML selector). Not included in standard benchmarks.
+- **3 Meta-Algorithms** (IDs 13-14, 16): MAP (external label map), AdaptiveOrder (ML selector), and GoGraphOrder (flow-edge ordering). Not included in standard benchmarks.
 
 Note: Algorithm ID 13 (MAP) is reserved for external label mapping files, not a standalone reordering algorithm.
 
@@ -35,6 +35,7 @@ The effect is visible when plotting the adjacency matrix — a well-ordered grap
 | **Community** | RABBITORDER | Hierarchical communities |
 | **Classic** | GORDER, CORDER, RCM | Bandwidth reduction |
 | **Leiden-Based** | LeidenOrder (15, baseline) | Strong community structure |
+| **Flow-Edge** | GoGraphOrder (16) | Directed graphs (M(σ) optimization) |
 | **Hybrid** | GraphBrewOrder (12), MAP (13), AdaptiveOrder (14) | External/Adaptive selection |
 
 ---
@@ -383,7 +384,7 @@ See [[Command-Line-Reference#graphbreworder-12]] for the full option reference a
 ```
 
 - **Description**: Uses ML to select the best algorithm for the graph
-- **Features**: 15 linear + 3 quadratic cross-terms + convergence bonus
+- **Features**: 16 linear + 5 quadratic cross-terms (21 total)
 - **Safety**: OOD guardrail, ORIGINAL margin fallback
 - **CLI format**: `-o 14[:_[:_[:_[:selection_mode[:graph_name]]]]]` (positions 0-2 reserved)
 - **Selection modes**: 0=fastest-reorder, 1=fastest-execution (default), 2=best-endtoend, 3=best-amortization, 4=decision-tree, 5=hybrid (DT+perceptron), 6=database (kNN)
@@ -418,6 +419,29 @@ GraphBrew provides LeidenOrder as a baseline reference implementation.
 - Uses GVE-Leiden C++ library by Subhajit Sahu (`external/leiden/`)
 - Requires CSR → DiGraph format conversion (adds overhead)
 - Produces high-quality modularity scores (reference quality)
+
+---
+
+## Flow-Edge Algorithms (16)
+
+### 16. GoGraphOrder
+**Flow-edge M(σ) optimization**
+
+```bash
+# Format: -o 16[:variant]
+./bench/bin/pr -f graph.el -s -o 16 -n 3            # Default (optimised faithful)
+./bench/bin/pr -f graph.el -s -o 16:fast -n 3        # Iterative flow-score sorting
+./bench/bin/pr -f graph.el -s -o 16:naive -n 3       # Original faithful (validation)
+```
+
+- **Description**: Maximises M(σ) — the count of edges where source precedes destination in the ordering. Primarily benefits **directed** graphs (M(σ) is constant for symmetric/undirected graphs).
+- **Variants**:
+  - `default`: Optimised faithful — flat delta array, merged pev, degree-1 short-circuit
+  - `fast`: Iterative flow-score sorting — heuristic O(n log n + m) per iteration
+  - `naive`: Original faithful (per-call map, for validation)
+- **Best for**: Directed graphs where edge-direction locality matters
+
+See [[Command-Line-Reference#gographorder-variants-algorithm-16]] for the full variant reference.
 
 ---
 
