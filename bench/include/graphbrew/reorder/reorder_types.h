@@ -4785,8 +4785,8 @@ inline std::vector<PerceptronSelection> SelectTopKFromWeights(
 /// Directory for model tree JSON files (relative to working directory)
 inline constexpr const char* MODEL_TREE_DIR = "results/models/";
 
-/// Number of features used by the model trees
-inline constexpr int MODEL_TREE_N_FEATURES = 14;
+/// Number of features used by the model trees (matches Python DT_FEATURE_NAMES)
+inline constexpr int MODEL_TREE_N_FEATURES = 21;
 
 /**
  * @brief A single node in a serialized model tree.
@@ -4820,22 +4820,34 @@ struct ModelTree {
     std::vector<ModelTreeNode> nodes;        ///< Flat node array
     bool loaded = false;                    ///< True if successfully loaded
 
-    /// Extract feature array from CommunityFeatures (same order as Python FEATURE_NAMES)
+    /// Extract feature array from CommunityFeatures (same order as Python DT_FEATURE_NAMES)
     static void extract_features(const CommunityFeatures& feat, double out[MODEL_TREE_N_FEATURES]) {
+        double log_nodes = std::log10(static_cast<double>(feat.num_nodes) + 1.0);
+        double log_wsr   = std::log2(feat.working_set_ratio + 1.0);
+        // 14 linear features
         out[0]  = feat.modularity;
         out[1]  = feat.hub_concentration;
-        out[2]  = std::log10(static_cast<double>(feat.num_nodes) + 1.0);
+        out[2]  = log_nodes;
         out[3]  = std::log10(static_cast<double>(feat.num_edges) + 1.0);
         out[4]  = feat.internal_density;
         out[5]  = feat.avg_degree / 100.0;
         out[6]  = feat.clustering_coeff;
         out[7]  = feat.packing_factor;
         out[8]  = feat.forward_edge_fraction;
-        out[9]  = std::log2(feat.working_set_ratio + 1.0);
+        out[9]  = log_wsr;
         out[10] = std::log10(feat.community_count + 1.0);
         out[11] = feat.diameter_estimate / 50.0;
         out[12] = feat.degree_variance;
         out[13] = feat.avg_path_length / 10.0;
+        // DON-RL features
+        out[14] = feat.vertex_significance_skewness;
+        out[15] = feat.window_neighbor_overlap;
+        // Quadratic cross-terms
+        out[16] = feat.degree_variance * feat.hub_concentration;
+        out[17] = feat.modularity * log_nodes;
+        out[18] = feat.packing_factor * log_wsr;
+        out[19] = feat.vertex_significance_skewness * feat.hub_concentration;
+        out[20] = feat.window_neighbor_overlap * feat.packing_factor;
     }
 
     /**
