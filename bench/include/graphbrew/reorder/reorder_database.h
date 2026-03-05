@@ -67,7 +67,8 @@ inline constexpr const char* DEFAULT_DATA_DIR = "results/data/";
 inline constexpr int KNN_K = 5;
 
 /// Number of features used for kNN distance computation
-inline constexpr int N_FEATURES = 14;
+/// (excludes sampled_locality_score which is only available post-ordering)
+inline constexpr int N_KNN_FEATURES = 14;
 
 /// Algorithm family names (must match Python ALGO_FAMILY values)
 inline const std::vector<std::string> FAMILY_NAMES = {
@@ -1479,16 +1480,16 @@ private:
             grouped[key][family].push_back(r.time_seconds);
         }
 
-        // For each (graph, benchmark), pick the family with the lowest min time
+        // For each (graph, benchmark), pick the family with the lowest average time
         for (const auto& [key, families] : grouped) {
             std::string best_fam;
             double best_time = std::numeric_limits<double>::infinity();
 
             for (const auto& [fam, times] : families) {
-                // Use the minimum time across all algorithms in this family
-                double min_t = *std::min_element(times.begin(), times.end());
-                if (min_t < best_time) {
-                    best_time = min_t;
+                // Use the average time across all algorithms in this family
+                double avg_t = std::accumulate(times.begin(), times.end(), 0.0) / times.size();
+                if (avg_t < best_time) {
+                    best_time = avg_t;
                     best_fam = fam;
                 }
             }
@@ -1498,25 +1499,23 @@ private:
     }
 
     void rebuild_oracle_entry(const BenchRecord& rec) {
-        // Rebuild oracle cache for this (graph, benchmark) pair
+        // Rebuild oracle cache for this (graph, benchmark) pair using average
         std::string bench_key = rec.graph + "|" + rec.benchmark;
-        std::map<std::string, double> family_best;
+        std::map<std::string, std::vector<double>> family_times;
 
         for (const auto& r : records_) {
             if (r.graph == rec.graph && r.benchmark == rec.benchmark) {
                 std::string fam = AlgoToFamily(r.algorithm);
-                auto it = family_best.find(fam);
-                if (it == family_best.end() || r.time_seconds < it->second) {
-                    family_best[fam] = r.time_seconds;
-                }
+                family_times[fam].push_back(r.time_seconds);
             }
         }
 
         std::string best_fam = "ORIGINAL";
         double best_time = std::numeric_limits<double>::infinity();
-        for (const auto& [fam, t] : family_best) {
-            if (t < best_time) {
-                best_time = t;
+        for (const auto& [fam, times] : family_times) {
+            double avg = std::accumulate(times.begin(), times.end(), 0.0) / times.size();
+            if (avg < best_time) {
+                best_time = avg;
                 best_fam = fam;
             }
         }
@@ -1689,7 +1688,7 @@ private:
      */
     void compute_feature_stats() {
         int n = static_cast<int>(graph_features_.size());
-        for (int i = 0; i < N_FEATURES; i++) {
+        for (int i = 0; i < N_KNN_FEATURES; i++) {
             feat_means_[i] = 0.0;
             feat_stds_[i] = 1.0;  // default: no scaling
         }
@@ -1697,19 +1696,19 @@ private:
 
         // Compute means
         for (const auto& [name, fv] : graph_features_)
-            for (int i = 0; i < N_FEATURES; i++)
+            for (int i = 0; i < N_KNN_FEATURES; i++)
                 feat_means_[i] += fv[i];
-        for (int i = 0; i < N_FEATURES; i++)
+        for (int i = 0; i < N_KNN_FEATURES; i++)
             feat_means_[i] /= n;
 
         // Compute stds
-        for (int i = 0; i < N_FEATURES; i++) feat_stds_[i] = 0.0;
+        for (int i = 0; i < N_KNN_FEATURES; i++) feat_stds_[i] = 0.0;
         for (const auto& [name, fv] : graph_features_)
-            for (int i = 0; i < N_FEATURES; i++) {
+            for (int i = 0; i < N_KNN_FEATURES; i++) {
                 double d = fv[i] - feat_means_[i];
                 feat_stds_[i] += d * d;
             }
-        for (int i = 0; i < N_FEATURES; i++) {
+        for (int i = 0; i < N_KNN_FEATURES; i++) {
             feat_stds_[i] = std::sqrt(feat_stds_[i] / n);
             if (feat_stds_[i] < 1e-12) feat_stds_[i] = 1.0;  // avoid div-by-zero
         }
@@ -1728,7 +1727,7 @@ private:
     double euclidean_distance(const GraphFeatureVec& a,
                               const GraphFeatureVec& b) const {
         double sum = 0.0;
-        for (int i = 0; i < N_FEATURES; ++i) {
+        for (int i = 0; i < N_KNN_FEATURES; ++i) {
             double za = (a[i] - feat_means_[i]) / feat_stds_[i];
             double zb = (b[i] - feat_means_[i]) / feat_stds_[i];
             double d = za - zb;
@@ -2772,8 +2771,8 @@ private:
     std::mutex mutex_;
 
     // --- kNN z-normalization stats (computed from graph_features_) ---
-    double feat_means_[N_FEATURES] = {};
-    double feat_stds_[N_FEATURES] = {};
+    double feat_means_[N_KNN_FEATURES] = {};
+    double feat_stds_[N_KNN_FEATURES] = {};
 
     // --- Unified models (from adaptive_models.json) ---
     bool models_loaded_ = false;

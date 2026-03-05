@@ -127,7 +127,7 @@ reorder/
 
 **Key Utilities in reorder_types.h:**
 
-- `PerceptronWeights` / `TypeRegistry` — ML scoring & graph clustering (see [[AdaptiveOrder-ML]])
+- `PerceptronWeights` / `GraphType` enum — ML scoring & graph type classification (see [[AdaptiveOrder-ML]])
 - `SampledDegreeFeatures` — 8-feature topology vector: degree_variance, hub_concentration, avg_degree, clustering_coeff, estimated_modularity, packing_factor, forward_edge_fraction, working_set_ratio
 - `ComputeSampledDegreeFeatures()` — Auto-scaled sampling (max(5000, min(√N, 50000))) for fast feature extraction
 - `GetLLCSizeBytes()` — LLC detection (sysconf on Linux, 30MB fallback) for working_set_ratio
