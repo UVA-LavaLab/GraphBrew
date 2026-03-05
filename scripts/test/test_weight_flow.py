@@ -702,6 +702,9 @@ CPP_WEIGHT_KEYS = [
     "w_packing_factor_cl",
     "w_locality_score_pairwise",
     "w_reuse_distance_lru",
+    # Per-cache-level WSR
+    "w_wsr_l1",
+    "w_wsr_l2",
     # P1 1.4: Platt scaling parameters
     "platt_A",
     "platt_B",
@@ -726,6 +729,7 @@ CPP_GRAPH_PROPS_KEYS = {
     "community_count", "packing_factor", "forward_edge_fraction",
     "working_set_ratio", "density", "graph_type",
     "vertex_significance_skewness", "window_neighbor_overlap",
+    "packing_factor_cl", "wsr_l1", "wsr_l2",
 }
 
 CPP_RUN_REPORT_KEYS = {
@@ -1097,20 +1101,30 @@ class TestFieldParity:
 # produce JSON keys that ParseWeightsFromJSON reads.  These tests verify
 # the format contract between C++ training output and C++ parser.
 
-# The 17 perceptron training features (same order as Python and C++)
+# The 24 perceptron training features (same order as Python and C++)
 CPP_TRAIN_WEIGHT_KEYS = [
     "w_modularity", "w_degree_variance", "w_hub_concentration",
     "w_log_nodes", "w_log_edges", "w_density", "w_avg_degree",
     "w_clustering_coeff", "w_avg_path_length", "w_diameter",
     "w_community_count", "w_packing_factor", "w_forward_edge_fraction",
-    "w_working_set_ratio", "w_dv_x_hub", "w_mod_x_logn", "w_pf_x_wsr",
+    "w_working_set_ratio", "w_vertex_significance_skewness",
+    "w_window_neighbor_overlap",
+    "w_dv_x_hub", "w_mod_x_logn", "w_pf_x_wsr",
+    "w_vss_x_hc", "w_wno_x_pf",
+    "w_packing_factor_cl",
+    "w_wsr_l1", "w_wsr_l2",
 ]
 
-# The 12 DT features (same as ModelTree::extract_features)
+# The 24 DT features (same as ModelTree::extract_features)
 CPP_DT_FEATURES = [
     "modularity", "hub_concentration", "log_nodes", "log_edges",
     "density", "avg_degree_100", "clustering_coeff", "packing_factor",
     "forward_edge_fraction", "log2_wsr", "log10_cc", "diameter_50",
+    "degree_variance", "avg_path_length_10",
+    "vertex_significance_skewness", "window_neighbor_overlap",
+    "dv_x_hub", "mod_x_logn", "pf_x_wsr", "vss_x_hc", "wno_x_pf",
+    "packing_factor_cl",
+    "log2_wsr_l1", "log2_wsr_l2",
 ]
 
 
@@ -1118,22 +1132,22 @@ class TestDBTraining:
     """Verify the C++ DB-trained model format is compatible with existing parsers."""
 
     def test_train_weight_keys_subset_of_cpp_keys(self):
-        """All 17 training weight keys must be in the C++ parser's known keys."""
+        """All 24 training weight keys must be in the C++ parser's known keys."""
         for key in CPP_TRAIN_WEIGHT_KEYS:
             assert key in CPP_WEIGHT_KEYS, (
                 f"Training weight key '{key}' not recognized by ParseWeightsFromJSON"
             )
 
     def test_train_weight_keys_cover_perceptron_features(self):
-        """C++ training must produce all 17 feature weights."""
-        assert len(CPP_TRAIN_WEIGHT_KEYS) == 17, (
-            f"Expected 17 training weight keys, got {len(CPP_TRAIN_WEIGHT_KEYS)}"
+        """C++ training must produce all 24 feature weights."""
+        assert len(CPP_TRAIN_WEIGHT_KEYS) == 24, (
+            f"Expected 24 training weight keys, got {len(CPP_TRAIN_WEIGHT_KEYS)}"
         )
 
     def test_dt_features_match_model_tree(self):
-        """C++ DT training must use the same 12 features as ModelTree::extract_features."""
-        assert len(CPP_DT_FEATURES) == 12, (
-            f"Expected 12 DT features, got {len(CPP_DT_FEATURES)}"
+        """C++ DT training must use the same 24 features as ModelTree::extract_features."""
+        assert len(CPP_DT_FEATURES) == 24, (
+            f"Expected 24 DT features, got {len(CPP_DT_FEATURES)}"
         )
 
     def test_normalization_block_keys(self):
@@ -1169,8 +1183,8 @@ class TestDBTraining:
 
         # Add normalization block
         bench_json["_normalization"] = {
-            "feat_means": [0.0] * 17,
-            "feat_stds": [1.0] * 17,
+            "feat_means": [0.0] * 24,
+            "feat_stds": [1.0] * 24,
             "weight_keys": list(CPP_TRAIN_WEIGHT_KEYS),
         }
 
@@ -1229,14 +1243,14 @@ class TestDBTraining:
             "leaf_class": "ORIGINAL",
             "samples": 5,
             "weights": {
-                "ORIGINAL": [0.1] * 13,  # 12 features + 1 bias
-                "LEIDEN":   [0.2] * 13,
+                "ORIGINAL": [0.1] * 25,  # 24 features + 1 bias
+                "LEIDEN":   [0.2] * 25,
             },
         }
 
         for fam, wv in leaf["weights"].items():
             assert isinstance(wv, list), f"Weights for {fam} must be a list"
-            assert len(wv) == 13, f"Weights for {fam} must have 13 elements (12 features + bias)"
+            assert len(wv) == 25, f"Weights for {fam} must have 25 elements (24 features + bias)"
 
     def test_export_unified_models_deprecated(self):
         """export_unified_models should be marked as deprecated."""
