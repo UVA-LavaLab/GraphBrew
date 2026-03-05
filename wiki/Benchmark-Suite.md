@@ -65,7 +65,7 @@ python3 scripts/graphbrew_experiment.py --phase all  # Amortization computed aut
 python3 -m scripts.lib.analysis.metrics  # Standalone amortization analysis
 ```
 
-> **Note:** Experiments default to 7 benchmarks (`EXPERIMENT_BENCHMARKS` — TC excluded). After RANDOM baseline `.sg` conversion, the pipeline pre-generates reordered `.sg` for each of the 12 reorder algorithms (`--pregenerate-sg`, default ON). At benchmark time, pre-generated `.sg` files are loaded with `-o 0` — no runtime reorder overhead. The reorder phase runs 12 algorithms (baselines ORIGINAL/RANDOM skipped). Benchmarking runs all 14 eligible algorithms.
+> **Note:** Experiments default to 7 benchmarks (`EXPERIMENT_BENCHMARKS` — TC excluded). After RANDOM baseline `.sg` conversion, the pipeline pre-generates reordered `.sg` for each of the 13 reorder algorithms (`--pregenerate-sg`, default ON). At benchmark time, pre-generated `.sg` files are loaded with `-o 0` — no runtime reorder overhead. The reorder phase runs 13 algorithms (baselines ORIGINAL/RANDOM skipped). Benchmarking runs all 15 eligible algorithms.
 
 See [[Python-Scripts#-amortization--end-to-end-evaluation---phase-all]] for full details.
 

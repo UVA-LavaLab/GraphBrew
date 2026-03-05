@@ -184,7 +184,7 @@ Average Time:        0.001xx
 | 7 | HUBCLUSTERDBG | General purpose |
 | 12 | GraphBrewOrder | Modular graphs |
 | 14 | AdaptiveOrder | Auto-selection |
-Best algorithm: GraphBrewOrder (`-o 12`, best quality). See [[Reordering-Algorithms]] for all 17 algorithm IDs (12 reorderers + 2 baselines + 3 meta) and variants.
+Best algorithm: GraphBrewOrder (`-o 12`, best quality). See [[Reordering-Algorithms]] for all 17 algorithm IDs (13 reorderers + 2 baselines + 2 meta) and variants.
 
 ---
 

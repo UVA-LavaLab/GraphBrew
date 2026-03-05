@@ -5,7 +5,7 @@
 
 # GraphBrew <img src="./docs/figures/logo_left.png" width="50" align="center">
 
-A graph reordering and benchmarking framework built on the [GAP Benchmark Suite (GAPBS)](https://github.com/sbeamer/gapbs). GraphBrew reorders graph vertices to improve cache locality and speed up graph algorithms — with **17 algorithm IDs** (12 reorderers + 2 baselines + 3 meta), an **ML-based adaptive selector**, and a **one-click experiment pipeline**.
+A graph reordering and benchmarking framework built on the [GAP Benchmark Suite (GAPBS)](https://github.com/sbeamer/gapbs). GraphBrew reorders graph vertices to improve cache locality and speed up graph algorithms — with **17 algorithm IDs** (13 reorderers + 2 baselines + 2 meta), an **ML-based adaptive selector**, and a **one-click experiment pipeline**.
 
 > **📖 Full documentation:** [Wiki](https://github.com/UVA-LavaLab/GraphBrew/wiki) · [Quick Start](https://github.com/UVA-LavaLab/GraphBrew/wiki/Quick-Start) · [Command-Line Reference](https://github.com/UVA-LavaLab/GraphBrew/wiki/Command-Line-Reference)
 
@@ -43,7 +43,7 @@ RABBIT_ENABLE=0 make all
 
 ## Reordering Algorithms
 
-GraphBrew provides 17 algorithm IDs (0-16). IDs 0-1 are baselines, IDs 2-12 and 15 produce reorderings, and IDs 13-14, 16 are meta-algorithms. Use `-o <id>` to select one:
+GraphBrew provides 17 algorithm IDs (0-16). IDs 0-1 are baselines, IDs 2-12, 15-16 produce reorderings, and IDs 13-14 are meta-algorithms. Use `-o <id>` to select one:
 
 | ID | Algorithm | Description |
 |----|-----------|-------------|

@@ -1292,6 +1292,7 @@ inline BenchmarkType GetBenchmarkType(const std::string& name) {
 //
 // Variant prefixes used for dynamic dispatch and weight-file discovery:
 constexpr const char* VARIANT_PREFIXES[] = {
+    "GOGRAPHORDER_",
     "GraphBrewOrder_",
     "RABBITORDER_",
     "RCM_",
@@ -1473,6 +1474,16 @@ inline PerceptronSelection ResolveVariantSelection(
         sel.variant_name = variant_name;
         std::string suffix = variant_name.substr(4);  // after "RCM_"
         if (suffix == "default") suffix = "";  // default RCM needs no option
+        if (!suffix.empty()) sel.options = splitString(suffix, '_');
+        return sel;
+    }
+    
+    // GoGraphOrder variants: GOGRAPHORDER_{default,fast,naive}
+    if (variant_name.rfind("GOGRAPHORDER_", 0) == 0) {
+        sel.algo = GoGraphOrder;
+        sel.variant_name = variant_name;
+        std::string suffix = variant_name.substr(13);  // after "GOGRAPHORDER_"
+        if (suffix == "default") suffix = "";  // default needs no option
         if (!suffix.empty()) sel.options = splitString(suffix, '_');
         return sel;
     }

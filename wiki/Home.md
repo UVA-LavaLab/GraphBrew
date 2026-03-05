@@ -69,8 +69,8 @@ This single command will:
 1. Download benchmark graphs from SuiteSparse (87 graphs available)
 2. Build binaries automatically
 3. Convert `.mtx` → `.sg` with RANDOM baseline ordering
-4. Pre-generate reordered `.sg` per algorithm (12 algorithms, loaded at benchmark time with no runtime reorder overhead)
-5. Run all benchmarks with all 14 eligible algorithms
+4. Pre-generate reordered `.sg` per algorithm (13 algorithms, loaded at benchmark time with no runtime reorder overhead)
+5. Run all benchmarks with all 15 eligible algorithms
 6. Execute cache simulations (L1/L2/L3 hit rates)
 7. Store benchmark data to `results/data/` — C++ trains ML models (perceptron, DT, hybrid) at runtime from this data
 

@@ -3,8 +3,8 @@
 GraphBrew implements **17 algorithm IDs** (0-16):
 
 - **2 Baselines** (IDs 0-1): ORIGINAL and RANDOM — graph states, not reordering techniques. Used to establish reference benchmark times.
-- **12 Reordering Algorithms** (IDs 2-12, 15): Produce vertex reorderings. Benchmarked to measure speedup vs baselines.
-- **3 Meta-Algorithms** (IDs 13-14, 16): MAP (external label map), AdaptiveOrder (ML selector), and GoGraphOrder (flow-edge ordering). Not included in standard benchmarks.
+- **13 Reordering Algorithms** (IDs 2-12, 15-16): Produce vertex reorderings. Benchmarked to measure speedup vs baselines.
+- **2 Meta-Algorithms** (IDs 13-14): MAP (external label map) and AdaptiveOrder (ML selector). Not included in standard benchmarks.
 
 Note: Algorithm ID 13 (MAP) is reserved for external label mapping files, not a standalone reordering algorithm.
 
