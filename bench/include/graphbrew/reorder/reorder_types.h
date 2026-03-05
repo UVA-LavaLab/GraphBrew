@@ -4489,6 +4489,41 @@ inline std::map<std::string, PerceptronWeights> LoadPerceptronWeightsForFeatures
     // Start with hardcoded defaults — ensures ALL algorithms have weights
     auto weights = GetPerceptronWeights();
     
+    // Per-benchmark weight resolution: if the loaded JSON contains keys like
+    // "HUBSORT__pr", "HUBSORT__bfs", etc., prefer those over the global "HUBSORT"
+    // for the active benchmark. This allows per-feature per-benchmark weights
+    // instead of global multipliers (Gap #1 from theory audit).
+    auto resolveBenchmarkWeights = [&](std::map<std::string, PerceptronWeights>& w,
+                                       BenchmarkType b, bool v) {
+        if (b == BENCH_GENERIC) return;
+        static const char* bench_suffixes[] = {
+            "", "pr", "bfs", "cc", "sssp", "bc", "tc", "pr_spmv", "cc_sv"
+        };
+        const char* suffix = bench_suffixes[static_cast<int>(b)];
+        if (!suffix[0]) return;
+        
+        std::string sep("__");
+        size_t resolved = 0;
+        // Collect per-bench keys first to avoid iterator invalidation
+        std::vector<std::pair<std::string, std::string>> overrides;
+        for (const auto& kv : w) {
+            if (kv.first.size() > sep.size() + std::strlen(suffix) &&
+                kv.first.compare(kv.first.size() - sep.size() - std::strlen(suffix),
+                                  std::string::npos, sep + suffix) == 0) {
+                std::string base_algo = kv.first.substr(0, kv.first.size() - sep.size() - std::strlen(suffix));
+                overrides.emplace_back(base_algo, kv.first);
+            }
+        }
+        for (const auto& [base_algo, bench_key] : overrides) {
+            w[base_algo] = w[bench_key];
+            resolved++;
+        }
+        if (v && resolved > 0) {
+            printf("Perceptron: Resolved %zu per-benchmark (%s) weight overrides\n",
+                   resolved, suffix);
+        }
+    };
+    
     // Check environment variable override first (dev escape hatch)
     const char* env_path = std::getenv("PERCEPTRON_WEIGHTS_FILE");
     if (env_path != nullptr) {
@@ -4503,6 +4538,7 @@ inline std::map<std::string, PerceptronWeights> LoadPerceptronWeightsForFeatures
                 for (const auto& kv : loaded_weights) {
                     weights[kv.first] = kv.second;
                 }
+                resolveBenchmarkWeights(weights, bench, verbose);
                 if (verbose) {
                     std::cout << "Perceptron: Loaded " << loaded_weights.size()
                               << " weights from env override: " << env_path << "\n";
@@ -4513,7 +4549,6 @@ inline std::map<std::string, PerceptronWeights> LoadPerceptronWeightsForFeatures
     }
     
     // M2: Load from BenchmarkDatabase (reads adaptive_models.json)
-    // Uses late-bound hook set after reorder_database.h is included.
     auto dbFn = GetLoadPerceptronDBHook();
     if (dbFn) {
         std::map<std::string, PerceptronWeights> db_weights;
@@ -4521,6 +4556,7 @@ inline std::map<std::string, PerceptronWeights> LoadPerceptronWeightsForFeatures
             for (const auto& kv : db_weights) {
                 weights[kv.first] = kv.second;
             }
+            resolveBenchmarkWeights(weights, bench, verbose);
             if (verbose) {
                 std::cout << "Perceptron: Loaded " << db_weights.size()
                           << " weights from adaptive_models.json\n";
