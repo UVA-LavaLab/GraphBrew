@@ -833,6 +833,77 @@ def compute_working_set_ratio(nodes: int, edges: int) -> float:
     return graph_bytes / llc_bytes if llc_bytes > 0 else 0.0
 
 
+def get_cache_size_bytes(level: int) -> int:
+    """
+    Get cache size in bytes for a specific level.
+    
+    Matches C++ GetL1SizeBytes()/GetL2SizeBytes()/GetLLCSizeBytes().
+    Reads from /sys/devices/system/cpu/ on Linux.
+    
+    Args:
+        level: Cache level (1=L1d, 2=L2, 3=LLC)
+    
+    Returns:
+        Cache size in bytes, or default fallback if detection fails.
+        Fallbacks: L1=32KB, L2=256KB, LLC=30MB (same as C++).
+    """
+    defaults = {1: 32 * 1024, 2: 256 * 1024, 3: 30 * 1024 * 1024}
+    try:
+        import glob
+        cache_dirs = sorted(glob.glob('/sys/devices/system/cpu/cpu0/cache/index*'))
+        for cache_dir in cache_dirs:
+            try:
+                with open(os.path.join(cache_dir, 'level'), 'r') as f:
+                    clevel = int(f.read().strip())
+                if clevel != level:
+                    continue
+                # For L1, only match data cache (not instruction)
+                if level == 1:
+                    type_path = os.path.join(cache_dir, 'type')
+                    if os.path.exists(type_path):
+                        with open(type_path, 'r') as f:
+                            ctype = f.read().strip()
+                        if ctype == 'Instruction':
+                            continue
+                with open(os.path.join(cache_dir, 'size'), 'r') as f:
+                    size_str = f.read().strip()
+                    if size_str.endswith('K'):
+                        return int(size_str[:-1]) * 1024
+                    elif size_str.endswith('M'):
+                        return int(size_str[:-1]) * 1024 * 1024
+                    elif size_str.endswith('G'):
+                        return int(size_str[:-1]) * 1024 * 1024 * 1024
+                    else:
+                        return int(size_str)
+            except (IOError, ValueError):
+                continue
+    except ImportError:
+        pass
+    return defaults.get(level, 30 * 1024 * 1024)
+
+
+def compute_wsr_per_level(nodes: int, edges: int, level: str) -> float:
+    """
+    Compute per-cache-level working set ratio.
+    
+    Matches C++ ComputeSampledDegreeFeatures() wsr_l1/wsr_l2 logic.
+    
+    Args:
+        nodes: Number of nodes
+        edges: Number of directed edges
+        level: 'l1' or 'l2'
+    
+    Returns:
+        graph_bytes / cache_size ratio
+    """
+    if nodes <= 0:
+        return 0.0
+    graph_bytes = (nodes + 1) * 8 + edges * 4 + nodes * 8
+    cache_level = 1 if level == 'l1' else 2
+    cache_bytes = get_cache_size_bytes(cache_level)
+    return graph_bytes / cache_bytes if cache_bytes > 0 else 0.0
+
+
 def get_llc_size_bytes() -> int:
     """
     Get Last-Level Cache size in bytes.
@@ -904,6 +975,8 @@ def compute_extended_features(nodes: int, edges: int, density: float,
         'packing_factor': 0.0,
         'forward_edge_fraction': 0.5,
         'working_set_ratio': 0.0,
+        'wsr_l1': 0.0,
+        'wsr_l2': 0.0,
         # DON-RL features (Zhao et al.)
         'vertex_significance_skewness': 0.0,
         'window_neighbor_overlap': 0.0,
@@ -942,6 +1015,9 @@ def compute_extended_features(nodes: int, edges: int, density: float,
     
     # Working set ratio (can compute without adjacency list)
     features['working_set_ratio'] = compute_working_set_ratio(nodes, edges)
+    # Per-cache-level WSR (P-OPT L1/L2)
+    features['wsr_l1'] = compute_wsr_per_level(nodes, edges, 'l1')
+    features['wsr_l2'] = compute_wsr_per_level(nodes, edges, 'l2')
     
     return features
 

@@ -2673,6 +2673,8 @@ public:
             props.packing_factor_cl    = packing_factor_cl;
             props.forward_edge_fraction = forward_edge_fraction;
             props.working_set_ratio    = working_set_ratio;
+            props.wsr_l1               = deg_features.wsr_l1;
+            props.wsr_l2               = deg_features.wsr_l2;
             props.density              = density;
             props.vertex_significance_skewness = vertex_significance_skewness;
             props.window_neighbor_overlap = window_neighbor_overlap;
