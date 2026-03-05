@@ -4798,7 +4798,7 @@ inline std::vector<PerceptronSelection> SelectTopKFromWeights(
 inline constexpr const char* MODEL_TREE_DIR = "results/models/";
 
 /// Number of features used by the model trees (matches Python DT_FEATURE_NAMES)
-inline constexpr int MODEL_TREE_N_FEATURES = 21;
+inline constexpr int MODEL_TREE_N_FEATURES = 22;
 
 /**
  * @brief A single node in a serialized model tree.
@@ -4860,6 +4860,8 @@ struct ModelTree {
         out[18] = feat.packing_factor * log_wsr;
         out[19] = feat.vertex_significance_skewness * feat.hub_concentration;
         out[20] = feat.window_neighbor_overlap * feat.packing_factor;
+        // IISWC'18 cache-line packing factor
+        out[21] = feat.packing_factor_cl;
     }
 
     /**
@@ -5740,13 +5742,58 @@ inline SampledDegreeFeatures ComputeSampledDegreeFeatures(
     sample_size = std::min(sample_size, static_cast<size_t>(num_nodes));
     std::vector<int64_t> sampled_degrees(sample_size);
     
-    // Sample degrees evenly across the graph
+    // Hybrid sampling: 80% evenly strided (spatial coverage) +
+    // 20% highest-degree vertices (hub oversampling for power-law graphs).
+    // This ensures hub concentration is computed from actual hubs rather
+    // than uniformly-spaced IDs that may miss spatially clustered hubs.
+    const size_t uniform_count = sample_size * 4 / 5;
+    const size_t hub_extra = sample_size - uniform_count;
+    
+    // Phase 1: Uniform stride for spatial coverage
     double sum = 0.0;
-    for (size_t i = 0; i < sample_size; ++i) {
-        int64_t node = (num_nodes > static_cast<int64_t>(sample_size)) ? 
-            static_cast<int64_t>((i * num_nodes) / sample_size) : static_cast<int64_t>(i);
+    for (size_t i = 0; i < uniform_count; ++i) {
+        int64_t node = (num_nodes > static_cast<int64_t>(uniform_count)) ? 
+            static_cast<int64_t>((i * num_nodes) / uniform_count) : static_cast<int64_t>(i);
         sampled_degrees[i] = g.out_degree(node);
         sum += sampled_degrees[i];
+    }
+    
+    // Phase 2: Hub oversampling — find highest-degree vertices from a
+    // scan of the uniform sample, then replace the tail of sampled_degrees
+    // with actual top-degree nodes. This is O(sample_size) not O(N).
+    if (hub_extra > 0 && num_nodes > static_cast<int64_t>(sample_size)) {
+        // Use the uniform sample to find a degree threshold for "hubs"
+        std::vector<int64_t> sorted_copy(sampled_degrees.begin(),
+                                          sampled_degrees.begin() + uniform_count);
+        std::sort(sorted_copy.rbegin(), sorted_copy.rend());
+        int64_t hub_threshold = sorted_copy[std::min(hub_extra, uniform_count) - 1];
+        
+        // Scan a second strided pass with offset to find high-degree nodes
+        size_t found = 0;
+        for (size_t i = 0; i < static_cast<size_t>(num_nodes) && found < hub_extra; ++i) {
+            int64_t node = static_cast<int64_t>((i * num_nodes) / (hub_extra * 50));
+            if (node >= num_nodes) break;
+            int64_t deg = g.out_degree(node);
+            if (deg >= hub_threshold) {
+                sampled_degrees[uniform_count + found] = deg;
+                sum += deg;
+                found++;
+            }
+        }
+        // Fill any remaining slots with strided samples
+        for (size_t i = found; i < hub_extra; ++i) {
+            int64_t node = static_cast<int64_t>(
+                ((uniform_count + i) * num_nodes) / sample_size);
+            sampled_degrees[uniform_count + i] = g.out_degree(node);
+            sum += sampled_degrees[uniform_count + i];
+        }
+    } else {
+        // Small graph: just fill remaining with stride
+        for (size_t i = uniform_count; i < sample_size; ++i) {
+            int64_t node = static_cast<int64_t>((i * num_nodes) / sample_size);
+            sampled_degrees[i] = g.out_degree(node);
+            sum += sampled_degrees[i];
+        }
     }
     double sample_mean = sum / sample_size;
     result.avg_degree = sample_mean;
