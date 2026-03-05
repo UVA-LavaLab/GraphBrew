@@ -145,20 +145,24 @@ void GenerateRandomMapping_v2(const CSRGraph<NodeID_, DestID_, invert>& g,
     Timer t;
     t.Start();
     
-    std::srand(0);  // Fixed seed for reproducibility
-    
     // Claimed positions tracking
     pvector<NodeID_> claimedVtxs(g.num_nodes(), 0);
     
-    // Each vertex tries to claim a random position
-    #pragma omp parallel for
-    for (NodeID_ v = 0; v < g.num_nodes(); ++v) {
-        while (true) {
-            NodeID_ randID = std::rand() % g.num_nodes();
-            if (claimedVtxs[randID] != 1) {
-                if (compare_and_swap(claimedVtxs[randID], NodeID_(0), NodeID_(1))) {
-                    new_ids[v] = randID;
-                    break;
+    // Each vertex tries to claim a random position using per-thread PRNG
+    // (std::rand() is not thread-safe — concurrent calls cause data races)
+    #pragma omp parallel
+    {
+        std::mt19937 gen(42 + omp_get_thread_num());
+        std::uniform_int_distribution<NodeID_> dis(0, g.num_nodes() - 1);
+        #pragma omp for
+        for (NodeID_ v = 0; v < g.num_nodes(); ++v) {
+            while (true) {
+                NodeID_ randID = dis(gen);
+                if (claimedVtxs[randID] != 1) {
+                    if (compare_and_swap(claimedVtxs[randID], NodeID_(0), NodeID_(1))) {
+                        new_ids[v] = randID;
+                        break;
+                    }
                 }
             }
         }

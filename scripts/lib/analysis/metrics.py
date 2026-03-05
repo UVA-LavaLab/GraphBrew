@@ -64,7 +64,7 @@ class AmortizationMetrics:
             for n in [1, 10, 100]:
                 e2e_orig = n * self.original_kernel_time
                 e2e_reord = self.reorder_time + n * self.reordered_kernel_time
-                speedup = e2e_orig / e2e_reord if e2e_reord > 0 else 0.0
+                speedup = e2e_orig / e2e_reord if e2e_reord > 0 else float('inf')
                 if n == 1: self.e2e_speedup_at_1 = speedup
                 elif n == 10: self.e2e_speedup_at_10 = speedup
                 elif n == 100: self.e2e_speedup_at_100 = speedup
@@ -84,7 +84,7 @@ class AmortizationMetrics:
         """End-to-end speedup at N iterations (amortized: includes reorder cost)."""
         e2e_orig = n * self.original_kernel_time
         e2e_reord = self.reorder_time + n * self.reordered_kernel_time
-        return e2e_orig / e2e_reord if e2e_reord > 0 else 0.0
+        return e2e_orig / e2e_reord if e2e_reord > 0 else float('inf')
     
     def amortized_cost_per_iter(self, n: int) -> float:
         """Per-iteration cost including amortized reorder overhead.
@@ -158,14 +158,16 @@ class AmortizationReport:
     
     def geo_mean_kernel_speedup(self) -> float:
         """Geometric mean of kernel speedups (all entries)."""
-        vals = [e.kernel_speedup for e in self.entries if e.kernel_speedup > 0]
+        vals = [e.kernel_speedup for e in self.entries
+                if 0 < e.kernel_speedup < float('inf')]
         if not vals:
             return 0.0
         return math.exp(sum(math.log(v) for v in vals) / len(vals))
     
     def geo_mean_e2e_speedup(self, n: int = 10) -> float:
         """Geometric mean of end-to-end speedup at N iterations."""
-        vals = [e.e2e_speedup_at(n) for e in self.entries if e.e2e_speedup_at(n) > 0]
+        vals = [e.e2e_speedup_at(n) for e in self.entries
+                if 0 < e.e2e_speedup_at(n) < float('inf')]
         if not vals:
             return 0.0
         return math.exp(sum(math.log(v) for v in vals) / len(vals))

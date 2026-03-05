@@ -798,6 +798,21 @@ public:
             new_ids.fill(-1);
             GenerateMapping(g_final, new_ids, option.first, cli_.use_out_degree(),
                             option.second);
+
+            // Debug-mode bijection check: verify mapping is a valid permutation
+            #ifndef NDEBUG
+            {
+                std::vector<bool> seen(g_final.num_nodes(), false);
+                for (NodeID_ v = 0; v < g_final.num_nodes(); ++v) {
+                    assert(new_ids[v] >= 0 && new_ids[v] < g_final.num_nodes()
+                           && "Mapping ID out of range");
+                    assert(!seen[new_ids[v]]
+                           && "Duplicate mapping ID — not a permutation");
+                    seen[new_ids[v]] = true;
+                }
+            }
+            #endif
+
             g_final = RelabelByMapping(g_final, new_ids);
         }
 

@@ -637,6 +637,7 @@ def eval_logo_all_models(bench_results, raw_records, graph_props, reorder_result
                 'median_regret': result['median_regret'],
                 'within_5pct': result.get('within_5pct', 0),
                 'family_acc': result.get('family_acc', 0),
+                'per_bench': result.get('per_bench', {}),
             }
             print(f"  {result['accuracy']:.1%}  "
                   f"regret={result['avg_regret']:.1f}%  [{elapsed:.1f}s]")
@@ -667,6 +668,7 @@ def eval_logo_all_models(bench_results, raw_records, graph_props, reorder_result
             'median_regret': result['median_regret'],
             'within_5pct': result.get('within_5pct', 0),
             'family_acc': result.get('family_acc', 0),
+            'per_bench': result.get('per_bench', {}),
         }
         print(f"  {result['accuracy']:.1%}  "
               f"regret={result['avg_regret']:.1f}%  [{elapsed:.1f}s]")
@@ -699,6 +701,7 @@ def eval_logo_all_models(bench_results, raw_records, graph_props, reorder_result
                 'median_regret': result['median_regret'],
                 'within_5pct': result.get('within_5pct', 0),
                 'family_acc': result.get('family_acc', 0),
+                'per_bench': result.get('per_bench', {}),
             }
             print(f"  {result['accuracy']:.1%}  "
                   f"regret={result['avg_regret']:.1f}%  [{elapsed:.1f}s]")
@@ -725,6 +728,7 @@ def eval_logo_all_models(bench_results, raw_records, graph_props, reorder_result
                 'median_regret': result['median_regret'],
                 'within_5pct': result.get('within_5pct', 0),
                 'family_acc': result.get('family_acc', 0),
+                'per_bench': result.get('per_bench', {}),
             }
             s1 = result.get('stage1_accuracy', 0)
             print(f"  {result['accuracy']:.1%}  "
@@ -753,6 +757,7 @@ def eval_logo_all_models(bench_results, raw_records, graph_props, reorder_result
                 'median_regret': result['median_regret'],
                 'within_5pct': result.get('within_5pct', 0),
                 'family_acc': result.get('family_acc', 0),
+                'per_bench': result.get('per_bench', {}),
             }
             print(f"  {result['accuracy']:.1%}  "
                   f"regret={result['avg_regret']:.1f}%  [{elapsed:.1f}s]")
@@ -779,6 +784,7 @@ def eval_logo_all_models(bench_results, raw_records, graph_props, reorder_result
                 'median_regret': result['median_regret'],
                 'within_5pct': result.get('within_5pct', 0),
                 'family_acc': result.get('family_acc', 0),
+                'per_bench': result.get('per_bench', {}),
             }
             print(f"  {result['accuracy']:.1%}  "
                   f"regret={result['avg_regret']:.1f}%  [{elapsed:.1f}s]")
@@ -805,6 +811,7 @@ def eval_logo_all_models(bench_results, raw_records, graph_props, reorder_result
                 'median_regret': result['median_regret'],
                 'within_5pct': result.get('within_5pct', 0),
                 'family_acc': result.get('accuracy', 0),
+                'per_bench': result.get('per_bench', {}),
             }
             print(f"  {result['accuracy']:.1%}  "
                   f"regret={result['avg_regret']:.1f}%  [{elapsed:.1f}s]")
@@ -819,6 +826,15 @@ def eval_logo_all_models(bench_results, raw_records, graph_props, reorder_result
     _print_regret_matrix(logo_matrix, "LOGO CV (Avg Regret %)")
     _print_within5pct_matrix(logo_matrix, "LOGO CV (Regret ≤ 5%)")
     _print_family_acc_matrix(logo_matrix, "LOGO CV (Family-Level Accuracy)")
+
+    # Per-benchmark breakdown for key criteria
+    for crit in ALL_CRITERIA:
+        _print_per_bench_accuracy(
+            logo_matrix,
+            f"LOGO CV (Per-Benchmark Accuracy — {CRITERION_LABELS[crit]})",
+            criterion=crit,
+        )
+
     return logo_matrix
 
 
@@ -1035,8 +1051,7 @@ def _eval_feature_importance(raw_records, graph_props):
         indicator = "+" if drop > 0.01 else "." if drop > -0.01 else "-"
         print(f"    {indicator} {feat_name:<25} acc_drop = {drop:>+7.1%}  {bar}")
 
-    print(f"\n  Note: DON-RL features (vss, wno) are in 14D kNN / 21D perceptron,")
-    print(f"        but NOT in the 12D DT feature space.")
+    print(f"\n  Note: All models now use the aligned 21D feature vector.")
 
 
 # ===================================================================
@@ -1167,6 +1182,68 @@ def _print_family_acc_matrix(matrix, label=""):
             else:
                 fam = data.get('family_acc', 0)
                 row += f" {fam:>{col_w}.1%}"
+        print(row)
+
+    print()
+
+
+def _print_per_bench_accuracy(matrix, label="", criterion=None):
+    """Print a Model × Benchmark accuracy table for a given criterion.
+
+    Args:
+        matrix: {model_name: {Criterion: {... 'per_bench': {bench: {...}}}}}
+        label:  Table heading.
+        criterion: Which Criterion to show.  If None, uses FASTEST_EXECUTION.
+    """
+    from scripts.lib.ml.model_tree import Criterion as _Crit
+    if criterion is None:
+        criterion = _Crit.FASTEST_EXECUTION
+
+    benchmarks = ['bc', 'bfs', 'cc', 'cc_sv', 'pr', 'pr_spmv', 'sssp', 'tc']
+    bench_w = 8
+    model_w = 22
+
+    print(f"  {label}")
+    header = f"  {'Model':<{model_w}}"
+    for b in benchmarks:
+        header += f" {b:>{bench_w}}"
+    header += f" {'AVG':>{bench_w}}"
+    print(header)
+    print("  " + "-" * (model_w + (bench_w + 1) * (len(benchmarks) + 1)))
+
+    model_order = [
+        'Perceptron', 'Decision Tree', 'Hybrid (DT+Perc)',
+        'Random Forest', 'XGBoost', 'Two-Stage (XGB)',
+        'XGB Fam+Orig', 'XBench Fam+Orig', 'Regression XBench',
+    ]
+    for model_name in model_order:
+        if model_name not in matrix:
+            continue
+        data = matrix[model_name].get(criterion)
+        if data is None:
+            continue
+        pb = data.get('per_bench', {})
+        if not pb:
+            # Perceptron etc. may not have per_bench
+            row = f"  {model_name:<{model_w}}"
+            for _ in benchmarks:
+                row += f" {'--':>{bench_w}}"
+            row += f" {'--':>{bench_w}}"
+            print(row)
+            continue
+
+        row = f"  {model_name:<{model_w}}"
+        accs = []
+        for b in benchmarks:
+            bd = pb.get(b)
+            if bd and bd.get('total', 0) > 0:
+                acc = bd['accuracy']
+                accs.append(acc)
+                row += f" {acc:>{bench_w}.1%}"
+            else:
+                row += f" {'--':>{bench_w}}"
+        avg = sum(accs) / len(accs) if accs else 0
+        row += f" {avg:>{bench_w}.1%}"
         print(row)
 
     print()

@@ -1559,8 +1559,8 @@ class AdaptiveOrderEmulator:
             'community_count': features.community_count,
             'diameter_estimate': features.diameter_estimate,
         }
-        feats_12d = extract_dt_features(props)
-        predicted = tree.predict(feats_12d)
+        feats = extract_dt_features(props)
+        predicted = tree.predict(feats)
 
         # Build scores dict (single winner)
         scores = {predicted: 1.0}

@@ -167,10 +167,10 @@ class TestComputeOracle:
 # ===================================================================
 
 class TestFeatureExtraction:
-    def test_dt_features_14D(self):
+    def test_dt_features_21D(self):
         feats = extract_dt_features(SAMPLE_PROPS['graph_A'])
         assert len(feats) == MODEL_TREE_N_FEATURES
-        assert len(feats) == 14
+        assert len(feats) == 21
 
     def test_dt_feature_names_match(self):
         assert len(DT_FEATURE_NAMES) == MODEL_TREE_N_FEATURES
