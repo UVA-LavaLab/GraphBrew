@@ -384,7 +384,7 @@ See [[Command-Line-Reference#graphbreworder-12]] for the full option reference a
 ```
 
 - **Description**: Uses ML to select the best algorithm for the graph
-- **Features**: 16 linear + 5 quadratic cross-terms (21 total)
+- **Features**: 18 linear + 5 quadratic cross-terms + 1 IISWC'18 CL (24 total)
 - **Safety**: OOD guardrail, ORIGINAL margin fallback
 - **CLI format**: `-o 14[:_[:_[:_[:selection_mode[:graph_name]]]]]` (positions 0-2 reserved)
 - **Selection modes**: 0=fastest-reorder, 1=fastest-execution (default), 2=best-endtoend, 3=best-amortization, 4=decision-tree, 5=hybrid (DT+perceptron), 6=database (kNN)

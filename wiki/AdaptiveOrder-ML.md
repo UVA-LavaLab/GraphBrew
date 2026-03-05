@@ -266,9 +266,9 @@ sample_size = max(5000, min(√N, 50000))
 | 1B | 31,623 | 0.003% |
 | 10B+ | 50,000 | cap |
 
-**Why this is enough:** Strided sampling (evenly spaced across vertex IDs) provides spatial coverage proportional to the sample size, which is sufficient for degree statistics on power-law graphs because degree-distribution moments converge quickly — 5000 samples give <1% error on variance/mean estimates for typical power-law exponents (α ∈ [2, 3]). For very large graphs (>25M) we increase the sample to maintain significance on secondary features like hub concentration and packing factor. The 50K cap bounds overhead at ~0.5% of graph size.
+**Why this is enough:** Hybrid sampling (80% evenly strided + 20% hub-oversampled) provides both spatial coverage and accurate hub characterization. The 80% uniform stride captures degree statistics (mean, variance) with <1% error on power-law graphs (α ∈ [2, 3]), while the 20% hub-focused pass ensures hub concentration and packing factor are computed from actual high-degree vertices rather than arbitrary IDs. For very large graphs (>25M) sqrt(N) scaling maintains significance while capping at 50K to bound overhead.
 
-#### Active Linear Features (16)
+#### Active Linear Features (18)
 
 | Feature | Weight Field | Description | Range |
 |---------|--------------|-------------|-------|
@@ -288,6 +288,9 @@ sample_size = max(5000, min(√N, 50000))
 | `community_count` | `w_community_count` | log10(connected components + 1) | 0 - 5 |
 | `vertex_significance_skewness` | `w_vertex_significance_skewness` | CV of per-vertex locality contributions (DON-RL) | 0.0 - 5.0 |
 | `window_neighbor_overlap` | `w_window_neighbor_overlap` | mean neighbor-in-window fraction (DON-RL) | 0.0 - 1.0 |
+| `packing_factor_cl` | `w_packing_factor_cl` | fraction of hub neighbors on same cache line (IISWC'18) | 0.0 - 1.0 |
+| `wsr_l1` | `w_wsr_l1` | log₂(graph_bytes / L1_size + 1) — L1 cache pressure (P-OPT) | 0 - 20 |
+| `wsr_l2` | `w_wsr_l2` | log₂(graph_bytes / L2_size + 1) — L2 cache pressure (P-OPT) | 0 - 15 |
 
 #### Extended Structural Features (included in the 16 linear features above)
 
@@ -308,7 +311,7 @@ These features are computed at runtime via sampled BFS traversals and connected-
 
 - **community_count** — Number of connected components found via a full BFS sweep over all vertices. Transformed as `log10(community_count + 1)` before scoring. Multi-component graphs benefit from reorderings that place each component contiguously in memory. Note: this counts connected components, not Leiden communities (which would be too expensive at runtime).
 
-#### Quadratic Cross-Terms (3)
+#### Quadratic Cross-Terms (5)
 
 Quadratic cross-terms capture **non-linear feature interactions** that a linear model cannot represent. Each cross-term is the product of two features, allowing the perceptron to learn conditional logic like "this algorithm wins when *both* conditions hold simultaneously":
 
@@ -317,8 +320,10 @@ Quadratic cross-terms capture **non-linear feature interactions** that a linear 
 | degree_variance × hub_concentration | `w_dv_x_hub` | **Power-law indicator.** High DV + high HC = classic power-law topology. Hub-aware algorithms (HubClusterDBG, GraphBrewOrder) shine here because concentrating hubs in cache dramatically reduces random access. | Social networks, web graphs |
 | modularity × log₁₀(nodes) | `w_mod_x_logn` | **Scalable community structure.** A 1000-node modular graph differs from a 10M-node modular graph — larger modular graphs benefit more from Leiden-based reorderings because the modularity "payoff" scales with community size. | Large social/citation networks |
 | packing_factor × log₂(wsr+1) | `w_pf_x_wsr` | **Uniform-degree + cache pressure.** High packing (neighbors already co-located) combined with high WSR (graph overflows LLC) signals a graph where current ordering is locally good but globally poor — reordering the inter-community edges helps. | Road networks, meshes |
+| vertex_significance_skewness × hub_concentration | `w_vss_x_hc` | **Hub-dominated skewness.** High VSS + high HC = small set of hubs dominate locality contributions. Hub-aware algorithms (HubClusterDBG) benefit most; community-based algorithms less needed. | Social networks with extreme hubs |
+| window_neighbor_overlap × packing_factor | `w_wno_x_pf` | **Already-localized graphs.** High WNO + high PF = current ordering is already good. Reordering overhead may not pay off — ORIGINAL or lightweight algorithms preferred. | Pre-sorted or BFS-ordered graphs |
 
-**Why 3 cross-terms?** These were selected because they capture the three dominant interaction effects observed in correlation analysis: (1) power-law structure, (2) scale-dependent community quality, and (3) locality-vs-capacity trade-off. Adding more cross-terms risks overfitting on small training sets.
+**Why 5 cross-terms?** These were selected to capture five dominant interaction effects: (1) power-law structure, (2) scale-dependent community quality, (3) locality-vs-capacity trade-off, (4) hub-dominated skewness, and (5) already-localized detection.
 
 #### Convergence Bonus (1)
 

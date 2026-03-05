@@ -133,7 +133,7 @@ def compute_oracle(records: List[dict], criterion: Criterion) -> Tuple[str, floa
 # Feature extraction (22D — matches perceptron feat_to_weight ordering)
 # ============================================================================
 
-MODEL_TREE_N_FEATURES = 22
+MODEL_TREE_N_FEATURES = 24
 
 DT_FEATURE_NAMES = [
     'modularity', 'hub_concentration', 'log_nodes', 'log_edges',
@@ -146,17 +146,20 @@ DT_FEATURE_NAMES = [
     'dv_x_hub', 'mod_x_logn', 'pf_x_wsr', 'vss_x_hc', 'wno_x_pf',
     # IISWC'18 cache-line packing factor
     'packing_factor_cl',
+    # Per-level WSR (P-OPT cache hierarchy)
+    'log2_wsr_l1', 'log2_wsr_l2',
 ]
 
 
 def extract_dt_features(props: dict) -> List[float]:
-    """Extract the 22-element feature vector for DT/XGBoost splits.
+    """Extract the 24-element feature vector for DT/XGBoost splits.
 
     Aligned with perceptron feat_to_weight:
       [0-13]  14 linear features (same transforms as scoreBase)
       [14-15] 2 DON-RL features
       [16-20] 5 quadratic cross-terms
       [21]    IISWC'18 cache-line packing factor
+      [22-23] Per-level WSR (P-OPT cache hierarchy)
     """
     nodes = props.get('nodes', 1000)
     edges = props.get('edges', 5000)
@@ -197,6 +200,9 @@ def extract_dt_features(props: dict) -> List[float]:
         wno * pf,                                                        # 20
         # IISWC'18 cache-line packing factor
         props.get('packing_factor_cl', 0.0),                             # 21
+        # Per-level WSR (P-OPT cache hierarchy)
+        math.log2(props.get('wsr_l1', 0.0) + 1.0),                      # 22
+        math.log2(props.get('wsr_l2', 0.0) + 1.0),                      # 23
     ]
 
 
