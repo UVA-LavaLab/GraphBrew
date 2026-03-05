@@ -249,7 +249,7 @@ See [[Python-Scripts#lib-metrics-py]] for full documentation.
 
 ### Pre-generated .sg: Disk Space vs Speed
 
-Pre-generating reordered `.sg` files trades disk space for benchmark speed. Each `.sg` is roughly the same size as the RANDOM baseline, so 12 algorithms × N graphs can require significant storage. The pipeline estimates required disk space before pre-generating (`estimate_pregeneration_size()`) and falls back to real-time reordering if space is insufficient. Use `--no-pregenerate-sg` to skip pre-generation on disk-constrained systems.
+Pre-generating reordered `.sg` files trades disk space for benchmark speed. Each `.sg` is roughly the same size as the RANDOM baseline, so 13 algorithms × N graphs can require significant storage. The pipeline estimates required disk space before pre-generating (`estimate_pregeneration_size()`) and falls back to real-time reordering if space is insufficient. Use `--no-pregenerate-sg` to skip pre-generation on disk-constrained systems.
 
 ### For Fair Comparisons
 

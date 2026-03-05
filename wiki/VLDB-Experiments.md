@@ -75,7 +75,7 @@ cross-validation.
 | Default benchmarks | 7 | TC excluded (combinatorial, not cache-sensitive) |
 | Features (linear) | 16 | Topology, locality, convergence |
 | Features (quadratic) | 5 | Cross-terms for non-linear interactions |
-| Features (total) | 21 | Fed to perceptron; DT uses a 12-element subset |
+| Features (total) | 22 | Fed to perceptron; DT uses the same 22 features |
 | ML models | 6 | Perceptron, DT, Hybrid, RF, XGBoost, Database kNN |
 | Size categories | 4 | SMALL, MEDIUM, LARGE, XLARGE |
 | SuiteSparse graphs | ~603 | Square, graph-like (kind ∈ {graph, network, multigraph}) |
@@ -193,7 +193,7 @@ python scripts/experiments/vldb_experiments_small.py --all
 
 **What it proves:** No single reordering algorithm dominates across all graphs.
 
-**Method:** Run *all* 12 baseline algorithms (every ID except 13 MAP and 14
+**Method:** Run *all* 15 eligible algorithms (every ID except 13 MAP and 14
 AdaptiveOrder) on every graph in the corpus.  For each graph, identify the
 **oracle** (fastest algorithm).  Plot the distribution of oracle choices — if
 every graph had the same winner, adaptive selection would be pointless.
