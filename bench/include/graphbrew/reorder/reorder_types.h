@@ -1144,8 +1144,10 @@ struct CommunityFeatures {
     double packing_factor = 0.0;     ///< Fraction of hub neighbors already co-located (nearby IDs)
     double forward_edge_fraction = 0.0; ///< Fraction of edges (u,v) where ID(u) < ID(v)
     
-    // ---------- System-Cache Metric (P-OPT) ----------
+    // ---------- System-Cache Metrics (P-OPT) ----------
     double working_set_ratio = 0.0;  ///< graph_bytes / LLC_size (>1 = exceeds cache)
+    double wsr_l1 = 0.0;             ///< graph_bytes / L1_size (per-level cache geometry)
+    double wsr_l2 = 0.0;             ///< graph_bytes / L2_size (per-level cache geometry)
     
     // ---------- DON-RL Features (Zhao et al.) ----------
     double vertex_significance_skewness = 0.0; ///< Skewness of per-vertex locality contributions (CV)
@@ -2038,8 +2040,10 @@ struct PerceptronWeights {
     double w_packing_factor = 0.0;     ///< Weight for packing factor (hub co-location)
     double w_forward_edge_fraction = 0.0; ///< Weight for forward edge fraction (convergence)
     
-    // ---------- System-Cache Feature Weight (P-OPT) ----------
+    // ---------- System-Cache Feature Weights (P-OPT) ----------
     double w_working_set_ratio = 0.0;  ///< Weight for working set ratio (graph_bytes / LLC)
+    double w_wsr_l1 = 0.0;             ///< Weight for L1-level WSR
+    double w_wsr_l2 = 0.0;             ///< Weight for L2-level WSR
     
     // ---------- DON-RL Feature Weights (Zhao et al.) ----------
     double w_vertex_significance_skewness = 0.0;  ///< Weight for vertex significance skewness
@@ -2090,7 +2094,7 @@ struct PerceptronWeights {
     // When use_normalization is true, weights are in z-score space and
     // scoreBase() normalizes features before computing the dot product.
     // This eliminates de-normalization weight explosion from Python training.
-    static constexpr int N_FEATURES = 22;
+    static constexpr int N_FEATURES = 24;
     bool use_normalization = false;      ///< True when _normalization block present in JSON
     double norm_mean[N_FEATURES] = {};   ///< Per-feature means for z-score normalization
     double norm_std[N_FEATURES] = {};    ///< Per-feature stds for z-score normalization
@@ -2188,8 +2192,11 @@ struct PerceptronWeights {
         // System-cache feature (P-OPT: cache hierarchy geometry)
         // Ablation: ADAPTIVE_ZERO_FEATURES=wsr zeroes working_set_ratio
         double log_wsr = std::log2(feat.working_set_ratio + 1.0);
-        if (!abl.zero_wsr)
+        if (!abl.zero_wsr) {
             s += w_working_set_ratio * log_wsr;
+            s += w_wsr_l1 * std::log2(feat.wsr_l1 + 1.0);
+            s += w_wsr_l2 * std::log2(feat.wsr_l2 + 1.0);
+        }
         
         // DON-RL features (Zhao et al.)
         s += w_vertex_significance_skewness * feat.vertex_significance_skewness;
@@ -2268,6 +2275,8 @@ struct PerceptronWeights {
             feat.vertex_significance_skewness * feat.hub_concentration, // 19 (quadratic)
             feat.window_neighbor_overlap * feat.packing_factor, // 20 (quadratic)
             feat.packing_factor_cl,                             // 21 (IISWC'18 CL)
+            std::log2(feat.wsr_l1 + 1.0),                      // 22 (P-OPT L1)
+            std::log2(feat.wsr_l2 + 1.0),                      // 23 (P-OPT L2)
         };
         
         // Corresponding z-score weights in the same order
@@ -2281,6 +2290,7 @@ struct PerceptronWeights {
             w_dv_x_hub, w_mod_x_logn, w_pf_x_wsr,
             w_vss_x_hc, w_wno_x_pf,
             w_packing_factor_cl,
+            w_wsr_l1, w_wsr_l2,
         };
         
         const auto& abl = AblationConfig::Get();
@@ -3860,6 +3870,8 @@ inline bool ParseWeightsFromJSON(const std::string& json_content,
         
         // Paper-aligned feature weights
         w.w_packing_factor_cl = find_double(block, "w_packing_factor_cl");
+        w.w_wsr_l1 = find_double(block, "w_wsr_l1");
+        w.w_wsr_l2 = find_double(block, "w_wsr_l2");
         w.w_locality_score_pairwise = find_double(block, "w_locality_score_pairwise");
         w.w_reuse_distance_lru = find_double(block, "w_reuse_distance_lru");
         
@@ -4798,7 +4810,7 @@ inline std::vector<PerceptronSelection> SelectTopKFromWeights(
 inline constexpr const char* MODEL_TREE_DIR = "results/models/";
 
 /// Number of features used by the model trees (matches Python DT_FEATURE_NAMES)
-inline constexpr int MODEL_TREE_N_FEATURES = 22;
+inline constexpr int MODEL_TREE_N_FEATURES = 24;
 
 /**
  * @brief A single node in a serialized model tree.
@@ -4862,6 +4874,9 @@ struct ModelTree {
         out[20] = feat.window_neighbor_overlap * feat.packing_factor;
         // IISWC'18 cache-line packing factor
         out[21] = feat.packing_factor_cl;
+        // Per-level WSR (P-OPT cache hierarchy)
+        out[22] = std::log2(feat.wsr_l1 + 1.0);
+        out[23] = std::log2(feat.wsr_l2 + 1.0);
     }
 
     /**
@@ -5664,6 +5679,8 @@ struct SampledDegreeFeatures {
     double packing_factor = 0.0;       ///< Hub neighbor co-location (IISWC'18)
     double forward_edge_fraction = 0.0;///< Fraction of edges (u,v) where u < v (GoGraph)
     double working_set_ratio = 0.0;    ///< graph_bytes / LLC_size (P-OPT)
+    double wsr_l1 = 0.0;               ///< graph_bytes / L1_size (per-level P-OPT)
+    double wsr_l2 = 0.0;               ///< graph_bytes / L2_size (per-level P-OPT)
     // DON-RL-inspired features (Zhao et al.)
     double vertex_significance_skewness = 0.0; ///< Skewness of per-vertex locality contributions (CV)
     double window_neighbor_overlap = 0.0;      ///< Mean fraction of neighbors within locality window
@@ -5683,13 +5700,30 @@ struct SampledDegreeFeatures {
  */
 inline size_t GetLLCSizeBytes() {
 #if defined(__linux__)
-    // Try L3 first, fall back to L2
     long llc = sysconf(_SC_LEVEL3_CACHE_SIZE);
     if (llc > 0) return static_cast<size_t>(llc);
     llc = sysconf(_SC_LEVEL2_CACHE_SIZE);
     if (llc > 0) return static_cast<size_t>(llc);
 #endif
     return 30ULL * 1024 * 1024;  // 30 MB fallback
+}
+
+/// L1 data cache size in bytes. Falls back to 32 KB.
+inline size_t GetL1SizeBytes() {
+#if defined(__linux__)
+    long l1 = sysconf(_SC_LEVEL1_DCACHE_SIZE);
+    if (l1 > 0) return static_cast<size_t>(l1);
+#endif
+    return 32ULL * 1024;  // 32 KB fallback
+}
+
+/// L2 cache size in bytes. Falls back to 256 KB.
+inline size_t GetL2SizeBytes() {
+#if defined(__linux__)
+    long l2 = sysconf(_SC_LEVEL2_CACHE_SIZE);
+    if (l2 > 0) return static_cast<size_t>(l2);
+#endif
+    return 256ULL * 1024;  // 256 KB fallback
 }
 
 /**
@@ -5897,6 +5931,13 @@ inline SampledDegreeFeatures ComputeSampledDegreeFeatures(
         size_t llc_bytes = GetLLCSizeBytes();
         result.working_set_ratio = (llc_bytes > 0) ?
             static_cast<double>(graph_bytes) / llc_bytes : 0.0;
+        // Per-level WSR (P-OPT: distinguishes L1-optimal vs L3-optimal algorithms)
+        size_t l1_bytes = GetL1SizeBytes();
+        size_t l2_bytes = GetL2SizeBytes();
+        result.wsr_l1 = (l1_bytes > 0) ?
+            static_cast<double>(graph_bytes) / l1_bytes : 0.0;
+        result.wsr_l2 = (l2_bytes > 0) ?
+            static_cast<double>(graph_bytes) / l2_bytes : 0.0;
     }
 
     // DON-RL Feature 1: Vertex Significance Skewness (Zhao et al.)

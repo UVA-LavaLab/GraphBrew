@@ -331,6 +331,8 @@ class PerceptronWeight:
     
     # --- Paper-aligned feature weights ---
     w_packing_factor_cl: float = 0.0         # IISWC'18 cache-line packing factor
+    w_wsr_l1: float = 0.0                    # P-OPT per-level L1 WSR
+    w_wsr_l2: float = 0.0                    # P-OPT per-level L2 WSR
     w_locality_score_pairwise: float = 0.0   # DON-RL pairwise F(σ)
     w_reuse_distance_lru: float = 0.0        # P-OPT LRU stack distance
     
@@ -559,9 +561,11 @@ class PerceptronWeight:
             vss * hc,
             wno * pf,
             features.get('packing_factor_cl', 0.0),
+            math.log2(features.get('wsr_l1', 0.0) + 1.0),
+            math.log2(features.get('wsr_l2', 0.0) + 1.0),
         ]
 
-        weights_22 = [
+        weights_24 = [
             self.w_modularity,
             self.w_degree_variance,
             self.w_hub_concentration,
@@ -584,13 +588,15 @@ class PerceptronWeight:
             self.w_vss_x_hc,
             self.w_wno_x_pf,
             self.w_packing_factor_cl,
+            self.w_wsr_l1,
+            self.w_wsr_l2,
         ]
 
         score = self.bias
-        for i in range(22):
+        for i in range(24):
             if i < len(norm_std) and norm_std[i] >= 1e-12:
                 z = (raw[i] - norm_mean[i]) / norm_std[i]
-                score += weights_22[i] * z
+                score += weights_24[i] * z
 
         # Cache and reorder terms are outside the z-score loop (matching C++)
         score += self.cache_l1_impact * 0.5
@@ -838,6 +844,7 @@ _LOGO_WEIGHT_KEYS = [
     'w_dv_x_hub', 'w_mod_x_logn', 'w_pf_x_wsr',
     'w_vss_x_hc', 'w_wno_x_pf',
     'w_packing_factor_cl',
+    'w_wsr_l1', 'w_wsr_l2',
 ]
 
 
@@ -1243,6 +1250,9 @@ def update_type_weights_incremental(
     algo_weights['w_avg_reuse_distance'] = algo_weights.get('w_avg_reuse_distance', 0.0) + effective_lr * error * features.get('avg_reuse_distance', 0.0)
     # Paper-aligned feature gradients
     algo_weights['w_packing_factor_cl'] = algo_weights.get('w_packing_factor_cl', 0.0) + effective_lr * error * features.get('packing_factor_cl', 0.0)
+    # Per-level WSR gradients (P-OPT cache hierarchy)
+    algo_weights['w_wsr_l1'] = algo_weights.get('w_wsr_l1', 0.0) + effective_lr * error * math.log2(features.get('wsr_l1', 0.0) + 1.0)
+    algo_weights['w_wsr_l2'] = algo_weights.get('w_wsr_l2', 0.0) + effective_lr * error * math.log2(features.get('wsr_l2', 0.0) + 1.0)
     algo_weights['w_locality_score_pairwise'] = algo_weights.get('w_locality_score_pairwise', 0.0) + effective_lr * error * features.get('locality_score_pairwise', 0.0)
     algo_weights['w_reuse_distance_lru'] = algo_weights.get('w_reuse_distance_lru', 0.0) + effective_lr * error * features.get('reuse_distance_lru', 0.0)
     
@@ -1560,6 +1570,9 @@ def compute_weights_from_results(
         'wno_x_pf': 'w_wno_x_pf',
         # IISWC'18 cache-line packing factor
         'packing_factor_cl': 'w_packing_factor_cl',
+        # Per-level WSR (P-OPT cache hierarchy)
+        'log_wsr_l1': 'w_wsr_l1',
+        'log_wsr_l2': 'w_wsr_l2',
     }
     
     # Collect features per graph
@@ -2918,6 +2931,8 @@ def _create_default_weight_entry() -> Dict:
         'w_sampled_locality': 0.0,
         'w_avg_reuse_distance': 0.0,
         'w_packing_factor_cl': 0.0,
+        'w_wsr_l1': 0.0,
+        'w_wsr_l2': 0.0,
         'w_locality_score_pairwise': 0.0,
         'w_reuse_distance_lru': 0.0,
         'w_vertex_significance_skewness': 0.0,
