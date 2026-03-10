@@ -46,7 +46,7 @@ python3 scripts/experiments/vldb_paper_experiments.py --figures-only
 ```bash
 # On Linux (native):
 make all RABBIT_ENABLE=1
-make sim   # cache simulation binaries
+make all-sim   # cache simulation binaries
 
 # On Windows (via WSL):
 .\build_wsl.ps1 all
@@ -85,7 +85,7 @@ experiments in the runner:
 
 ### Algorithms Evaluated
 
-**Baselines (11):** Original, Random, SORT, HubSort, HubCluster, DBG,
+**Baselines (12):** Original, Random, SORT, HubSort, HubCluster, DBG,
 HubSortDBG, HubClusterDBG, RabbitOrder, Gorder, RCM, GoGraph
 
 **GraphBrew Variants (7):** Leiden, Rabbit, HubCluster, HRAB, TQR, HCache, Streaming
@@ -97,19 +97,21 @@ DBG→GB-Leiden, SORT→GB-HRAB, HubClusterDBG→RabbitOrder
 
 BFS, PR (PageRank), PR-SpMV, SSSP, CC (Afforest), CC-SV, BC
 
-### Evaluation Graphs (9)
+### Evaluation Graphs (11)
 
 | Graph | Vertices (M) | Edges (M) | Type |
 |-------|------------:|----------:|------|
 | cit-Patents | 6.01 | 16.52 | Citation |
 | soc-pokec | 1.63 | 30.62 | Social |
-| USA-Road | 23.95 | 58.33 | Road |
+| USA-road-d.USA | 23.95 | 58.33 | Road |
 | soc-LiveJournal1 | 4.85 | 68.99 | Social |
-| com-orkut | 3.07 | 117.19 | Social |
+| delaunay_n24 | 16.78 | 100.66 | Mesh |
+| hollywood-2009 | 1.14 | 113.89 | Collaboration |
+| com-Orkut | 3.07 | 117.19 | Social |
 | wikipedia_link_en | 12.15 | 378.14 | Content |
 | Gong-gplus | 28.94 | 462.99 | Social |
 | webbase-2001 | 118.14 | 1,019.90 | Web |
-| twitter | 61.79 | 1,468.36 | Social |
+| twitter7 | 61.79 | 1,468.36 | Social |
 
 ---
 
@@ -199,7 +201,7 @@ All experiment parameters are defined in
 |-----------|------|---------|
 | Trials | 3 | 1 |
 | Benchmarks | 7 (bfs, pr, pr_spmv, sssp, cc, cc_sv, bc) | 2 (pr, bfs) |
-| Graphs | 9 | 2 |
+| Graphs | 11 | 2 |
 | Timeout (per command) | 3600s | 300s |
 | Thread counts (scaling) | 1, 2, 4, 8, 16, 32 | 1, 2, 4, 8, 16, 32 |
 
