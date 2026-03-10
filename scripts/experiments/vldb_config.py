@@ -179,6 +179,7 @@ def get_converter_flags(algo_key: str) -> list[str]:
 
 VLDB_GRAPH_SOURCES = {
     # ── Auto-download from SuiteSparse (already in catalog) ──
+    "email-Eu-core":     {"source": "catalog"},
     "cit-Patents":       {"source": "catalog"},
     "soc-pokec":         {"source": "catalog"},
     "USA-road-d.USA":    {"source": "catalog"},

@@ -193,8 +193,18 @@ def build_benchmark_cmd(
 
 
 def resolve_graph_path(graph_name: str, graph_dir: str, ext: str = ".sg") -> str:
-    """Build the full path to a graph file."""
-    return str(Path(graph_dir) / f"{graph_name}{ext}")
+    """Build the full path to a graph file.
+
+    Checks two layouts:
+      1. flat:   graph_dir/name.sg
+      2. nested: graph_dir/name/name.sg   (created by auto-setup download)
+    Returns the first that exists, or the flat path if neither does.
+    """
+    flat = Path(graph_dir) / f"{graph_name}{ext}"
+    nested = Path(graph_dir) / graph_name / f"{graph_name}{ext}"
+    if nested.exists():
+        return str(nested)
+    return str(flat)
 
 
 # ============================================================================

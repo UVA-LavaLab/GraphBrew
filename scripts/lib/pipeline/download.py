@@ -121,6 +121,9 @@ DOWNLOAD_GRAPHS_SMALL = [
                       8, 34546, 421578, False, "citation", "HEP-PH citations"),
     DownloadableGraph("cit-HepTh", _ss_url("SNAP", "cit-HepTh"),
                       4, 27770, 352807, False, "citation", "HEP-TH citations"),
+    # Email networks (small — used by VLDB preview mode)
+    DownloadableGraph("email-Eu-core", _ss_url("SNAP", "email-Eu-core"),
+                      1, 1005, 25571, False, "communication", "EU core email"),
 ]
 
 # Medium graphs (20MB - 200MB) - ~35 graphs
