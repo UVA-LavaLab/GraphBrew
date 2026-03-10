@@ -1,0 +1,621 @@
+#!/usr/bin/env python3
+"""
+VLDB 2026 GraphBrew Paper — Experiment Runner.
+
+Reproduces all figures and tables from the paper. Each experiment
+dumps structured JSON results; a final step generates publication-
+ready figures (PNG/PDF) and LaTeX table snippets.
+
+Usage:
+    # Full reproducibility run (experiments + figures):
+    python scripts/experiments/vldb_paper_experiments.py --all --graph-dir /data/graphs
+
+    # Experiments only (no figure generation):
+    python scripts/experiments/vldb_paper_experiments.py --all --graph-dir /data/graphs --no-figures
+
+    # Figures only (from previously saved results):
+    python scripts/experiments/vldb_paper_experiments.py --figures-only
+
+    # Preview mode (small graphs, 1 trial, 2 benchmarks):
+    python scripts/experiments/vldb_paper_experiments.py --all --preview --graph-dir /data/graphs
+
+    # Dry run (print commands without executing):
+    python scripts/experiments/vldb_paper_experiments.py --all --dry-run
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import logging
+import os
+import platform
+import subprocess
+import sys
+import time
+from datetime import datetime
+from pathlib import Path
+from typing import Any, Dict, List, Optional
+
+# Ensure project root is on path
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+sys.path.insert(0, str(PROJECT_ROOT / "scripts"))
+
+from experiments.vldb_config import (
+    ABLATION_CONFIGS,
+    ALL_ALGORITHMS,
+    BASELINE_ALGORITHMS,
+    BENCHMARKS,
+    BENCHMARKS_PREVIEW,
+    BIN_DIR,
+    BIN_SIM_DIR,
+    CACHE_SIZES,
+    CHAINED_ORDERINGS,
+    EVAL_GRAPHS,
+    FIGURES_DIR,
+    GRAPH_TYPE_GROUPS,
+    GRAPHBREW_VARIANTS,
+    PREVIEW_GRAPHS,
+    RESULTS_DIR,
+    TABLES_DIR,
+    THREAD_COUNTS,
+    TIMEOUT_FULL,
+    TIMEOUT_PREVIEW,
+    TRIALS_FULL,
+    TRIALS_PREVIEW,
+    get_converter_flags,
+)
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    datefmt="%H:%M:%S",
+)
+log = logging.getLogger("vldb_paper")
+
+
+# ============================================================================
+# Helpers
+# ============================================================================
+
+
+def ts() -> str:
+    return datetime.now().strftime("%Y%m%d_%H%M%S")
+
+
+def ensure_dir(p: Path) -> Path:
+    p.mkdir(parents=True, exist_ok=True)
+    return p
+
+
+def run_cmd(
+    cmd: list[str],
+    dry_run: bool = False,
+    timeout: int = 3600,
+    env: Optional[dict] = None,
+) -> Optional[str]:
+    """Run a command and return stdout, or None on failure."""
+    cmd_str = " ".join(str(c) for c in cmd)
+    log.info(f"  CMD: {cmd_str}")
+    if dry_run:
+        return ""
+    merged_env = {**os.environ, **(env or {})}
+    try:
+        result = subprocess.run(
+            cmd, timeout=timeout, capture_output=True, text=True, env=merged_env,
+        )
+        if result.returncode != 0:
+            log.error(f"  FAILED (rc={result.returncode}): {result.stderr[:500]}")
+            return None
+        return result.stdout
+    except subprocess.TimeoutExpired:
+        log.error(f"  TIMEOUT after {timeout}s")
+        return None
+    except Exception as e:
+        log.error(f"  ERROR: {e}")
+        return None
+
+
+def save_json(data: Any, path: Path) -> None:
+    ensure_dir(path.parent)
+    with open(path, "w") as f:
+        json.dump(data, f, indent=2)
+    log.info(f"  Saved: {path}")
+
+
+def parse_timing(output: Optional[str]) -> dict:
+    """Extract timing fields from benchmark stdout.
+
+    GraphBrew binaries print lines like:
+        Trial Time:       0.1234
+        Reorder Time:     0.0567
+        Average Time:     0.1100
+    """
+    result: dict = {}
+    if not output:
+        return result
+    for line in output.splitlines():
+        line = line.strip()
+        for key in ("Trial Time", "Reorder Time", "Average Time",
+                    "Preprocessing Time", "Total Time"):
+            if line.startswith(key):
+                try:
+                    result[key.lower().replace(" ", "_")] = float(
+                        line.split(":", 1)[1].strip().split()[0]
+                    )
+                except (ValueError, IndexError):
+                    pass
+    return result
+
+
+def git_revision() -> str:
+    """Return short git hash, or 'unknown'."""
+    try:
+        return subprocess.check_output(
+            ["git", "rev-parse", "--short", "HEAD"],
+            cwd=str(PROJECT_ROOT), text=True, timeout=5,
+        ).strip()
+    except Exception:
+        return "unknown"
+
+
+def save_manifest(args: argparse.Namespace, elapsed: float) -> None:
+    """Write a reproducibility manifest with config + environment info."""
+    manifest = {
+        "timestamp": datetime.now().isoformat(),
+        "git_revision": git_revision(),
+        "platform": platform.platform(),
+        "python": sys.version,
+        "args": vars(args),
+        "elapsed_seconds": round(elapsed, 1),
+        "config": {
+            "baselines": list(BASELINE_ALGORITHMS.values()),
+            "graphbrew_variants": GRAPHBREW_VARIANTS,
+            "chained_orderings": [c[0] for c in CHAINED_ORDERINGS],
+            "benchmarks": BENCHMARKS,
+            "graphs": [g["name"] for g in EVAL_GRAPHS],
+        },
+    }
+    save_json(manifest, RESULTS_DIR / "MANIFEST.json")
+
+
+def build_benchmark_cmd(
+    benchmark: str, graph_path: str, algo_flags: list[str], trials: int = 3,
+    sim: bool = False,
+) -> list[str]:
+    """Build the CLI command to run a benchmark with a reorder algorithm."""
+    bin_dir = BIN_SIM_DIR if sim else BIN_DIR
+    binary = bin_dir / benchmark
+    cmd = [str(binary), "-f", graph_path, "-s", "-n", str(trials)]
+    cmd.extend(algo_flags)
+    return cmd
+
+
+def resolve_graph_path(graph_name: str, graph_dir: str, ext: str = ".sg") -> str:
+    """Build the full path to a graph file."""
+    return str(Path(graph_dir) / f"{graph_name}{ext}")
+
+
+# ============================================================================
+# Experiment 1: Cache Performance Analysis
+# ============================================================================
+
+
+def exp1_cache_performance(
+    graphs: list[dict], benchmarks: list[str], trials: int,
+    timeout: int, dry_run: bool, graph_dir: str = ".",
+) -> None:
+    log.info("=" * 60)
+    log.info("EXPERIMENT 1: Cache Performance Analysis")
+    log.info("=" * 60)
+
+    out_dir = ensure_dir(RESULTS_DIR / "exp1_cache")
+    results = []
+
+    # Use PR for cache simulation (canonical benchmark)
+    cache_bench = "pr"
+    if cache_bench not in benchmarks:
+        cache_bench = benchmarks[0]
+
+    for graph in graphs:
+        gname = graph["name"]
+        log.info(f"  Graph: {gname}")
+
+        # Collect all algorithms to test
+        algo_list: list[tuple[str, list[str]]] = []
+
+        # Baselines
+        for aid, aname in BASELINE_ALGORITHMS.items():
+            algo_list.append((aname, ["-o", str(aid)]))
+
+        # GraphBrew variants
+        for v in GRAPHBREW_VARIANTS:
+            algo_list.append((f"GB-{v}", ["-o", f"12:{v}"]))
+
+        for aname, aflags in algo_list:
+            gpath = resolve_graph_path(gname, graph_dir)
+            cmd = build_benchmark_cmd(cache_bench, gpath, aflags, trials, sim=True)
+            log.info(f"    {aname}")
+            output = run_cmd(cmd, dry_run=dry_run, timeout=timeout)
+            timing = parse_timing(output)
+            results.append({
+                "graph": gname, "algorithm": aname, "benchmark": cache_bench,
+                **timing,
+            })
+
+    save_json(results, out_dir / "cache_results.json")
+
+
+# ============================================================================
+# Experiment 2: Kernel Speedup
+# ============================================================================
+
+
+def exp2_kernel_speedup(
+    graphs: list[dict], benchmarks: list[str], trials: int,
+    timeout: int, dry_run: bool, graph_dir: str = ".",
+) -> None:
+    log.info("=" * 60)
+    log.info("EXPERIMENT 2: Kernel Speedup")
+    log.info("=" * 60)
+
+    out_dir = ensure_dir(RESULTS_DIR / "exp2_speedup")
+    results = []
+
+    for graph in graphs:
+        gname = graph["name"]
+        log.info(f"  Graph: {gname}")
+
+        for bench in benchmarks:
+            log.info(f"    Benchmark: {bench}")
+
+            # All baselines
+            for aid, aname in BASELINE_ALGORITHMS.items():
+                gpath = resolve_graph_path(gname, graph_dir)
+                cmd = build_benchmark_cmd(bench, gpath, ["-o", str(aid)], trials)
+                output = run_cmd(cmd, dry_run=dry_run, timeout=timeout)
+                timing = parse_timing(output)
+                results.append({
+                    "graph": gname, "algorithm": aname, "benchmark": bench,
+                    "algo_id": aid, **timing,
+                })
+
+            # GraphBrew variants
+            for v in GRAPHBREW_VARIANTS:
+                gpath = resolve_graph_path(gname, graph_dir)
+                cmd = build_benchmark_cmd(bench, gpath, ["-o", f"12:{v}"], trials)
+                output = run_cmd(cmd, dry_run=dry_run, timeout=timeout)
+                timing = parse_timing(output)
+                results.append({
+                    "graph": gname, "algorithm": f"GB-{v}", "benchmark": bench,
+                    "algo_id": f"12:{v}", **timing,
+                })
+
+    save_json(results, out_dir / "speedup_results.json")
+
+
+# ============================================================================
+# Experiment 3: Reorder Overhead & Amortization
+# ============================================================================
+
+
+def exp3_reorder_overhead(
+    graphs: list[dict], benchmarks: list[str], trials: int,
+    timeout: int, dry_run: bool, graph_dir: str = ".",
+) -> None:
+    log.info("=" * 60)
+    log.info("EXPERIMENT 3: Reorder Overhead & Amortization")
+    log.info("=" * 60)
+
+    out_dir = ensure_dir(RESULTS_DIR / "exp3_overhead")
+    results = []
+
+    for graph in graphs:
+        gname = graph["name"]
+        log.info(f"  Graph: {gname}")
+
+        converter = BIN_DIR / "converter"
+        for aid, aname in {**BASELINE_ALGORITHMS}.items():
+            if aid == 0:
+                continue  # No reorder for original
+            gpath = resolve_graph_path(gname, graph_dir, ext=".el")
+            cmd = [str(converter), "-f", gpath, "-o", str(aid)]
+            output = run_cmd(cmd, dry_run=dry_run, timeout=timeout)
+            timing = parse_timing(output)
+            results.append({
+                "graph": gname, "algorithm": aname, "algo_id": aid, **timing,
+            })
+
+        for v in GRAPHBREW_VARIANTS:
+            gpath = resolve_graph_path(gname, graph_dir, ext=".el")
+            cmd = [str(converter), "-f", gpath, "-o", f"12:{v}"]
+            output = run_cmd(cmd, dry_run=dry_run, timeout=timeout)
+            timing = parse_timing(output)
+            results.append({
+                "graph": gname, "algorithm": f"GB-{v}", "algo_id": f"12:{v}", **timing,
+            })
+
+    save_json(results, out_dir / "overhead_results.json")
+
+
+# ============================================================================
+# Experiment 4: End-to-End Performance
+# ============================================================================
+
+
+def exp4_end_to_end(
+    graphs: list[dict], benchmarks: list[str], trials: int,
+    timeout: int, dry_run: bool, graph_dir: str = ".",
+) -> None:
+    log.info("=" * 60)
+    log.info("EXPERIMENT 4: End-to-End Performance")
+    log.info("=" * 60)
+    log.info("  (Combines reorder overhead + kernel execution)")
+    log.info("  Results derived from Exp 2 + Exp 3 data.")
+
+    # E2E is computed as reorder_time + trials * kernel_time
+    # No additional commands needed; analysis done in figure generation.
+    out_dir = ensure_dir(RESULTS_DIR / "exp4_e2e")
+    save_json({"note": "Derived from exp2 + exp3 data"}, out_dir / "e2e_note.json")
+
+
+# ============================================================================
+# Experiment 5: Variant Ablation Study
+# ============================================================================
+
+
+def exp5_ablation(
+    graphs: list[dict], benchmarks: list[str], trials: int,
+    timeout: int, dry_run: bool, graph_dir: str = ".",
+) -> None:
+    log.info("=" * 60)
+    log.info("EXPERIMENT 5: Variant Ablation Study")
+    log.info("=" * 60)
+
+    out_dir = ensure_dir(RESULTS_DIR / "exp5_ablation")
+    results = []
+
+    # Focus on PR for ablation (most representative iterative algorithm)
+    abl_bench = "pr"
+
+    for graph in graphs:
+        gname = graph["name"]
+        log.info(f"  Graph: {gname}")
+
+        for config in ABLATION_CONFIGS:
+            aflags = get_converter_flags(config["algo"])
+            gpath = resolve_graph_path(gname, graph_dir)
+            cmd = build_benchmark_cmd(abl_bench, gpath, aflags, trials)
+            output = run_cmd(cmd, dry_run=dry_run, timeout=timeout)
+            timing = parse_timing(output)
+            results.append({
+                "graph": gname, "config": config["name"],
+                "algo": config["algo"], "desc": config["desc"],
+                "benchmark": abl_bench, **timing,
+            })
+
+    save_json(results, out_dir / "ablation_results.json")
+
+
+# ============================================================================
+# Experiment 6: Graph-Type Sensitivity
+# ============================================================================
+
+
+def exp6_sensitivity(
+    graphs: list[dict], benchmarks: list[str], trials: int,
+    timeout: int, dry_run: bool, graph_dir: str = ".",
+) -> None:
+    log.info("=" * 60)
+    log.info("EXPERIMENT 6: Graph-Type Sensitivity")
+    log.info("=" * 60)
+    log.info("  Results derived from Exp 2 data, grouped by graph type.")
+
+    out_dir = ensure_dir(RESULTS_DIR / "exp6_sensitivity")
+    save_json(
+        {"note": "Analysis performed by vldb_generate_figures.py from exp2 data",
+         "groups": GRAPH_TYPE_GROUPS},
+        out_dir / "sensitivity_note.json",
+    )
+
+
+# ============================================================================
+# Experiment 7: Chained Ordering Analysis
+# ============================================================================
+
+
+def exp7_chained(
+    graphs: list[dict], benchmarks: list[str], trials: int,
+    timeout: int, dry_run: bool, graph_dir: str = ".",
+) -> None:
+    log.info("=" * 60)
+    log.info("EXPERIMENT 7: Chained Ordering Analysis")
+    log.info("=" * 60)
+
+    out_dir = ensure_dir(RESULTS_DIR / "exp7_chained")
+    results = []
+
+    chain_bench = "pr"
+
+    for graph in graphs:
+        gname = graph["name"]
+        log.info(f"  Graph: {gname}")
+
+        for chain_name, chain_flags in CHAINED_ORDERINGS:
+            gpath = resolve_graph_path(gname, graph_dir)
+            cmd = build_benchmark_cmd(chain_bench, gpath, chain_flags, trials)
+            output = run_cmd(cmd, dry_run=dry_run, timeout=timeout)
+            timing = parse_timing(output)
+            results.append({
+                "graph": gname, "chain": chain_name,
+                "flags": chain_flags, "benchmark": chain_bench, **timing,
+            })
+
+    save_json(results, out_dir / "chained_results.json")
+
+
+# ============================================================================
+# Experiment 8: Reorder Scalability
+# ============================================================================
+
+
+def exp8_scalability(
+    graphs: list[dict], benchmarks: list[str], trials: int,
+    timeout: int, dry_run: bool, graph_dir: str = ".",
+) -> None:
+    log.info("=" * 60)
+    log.info("EXPERIMENT 8: Reorder Scalability")
+    log.info("=" * 60)
+
+    out_dir = ensure_dir(RESULTS_DIR / "exp8_scalability")
+    results = []
+
+    # Test GraphBrew variants and Gorder at different thread counts
+    test_algos = [
+        ("GB-leiden", ["-o", "12:leiden"]),
+        ("GB-hrab",   ["-o", "12:hrab"]),
+        ("GB-rabbit", ["-o", "12:rabbit"]),
+        ("Gorder",    ["-o", "9"]),
+        ("RabbitOrder",["-o", "8"]),
+    ]
+
+    converter = BIN_DIR / "converter"
+    for graph in graphs:
+        gname = graph["name"]
+        log.info(f"  Graph: {gname}")
+
+        for aname, aflags in test_algos:
+            for nthreads in THREAD_COUNTS:
+                env = {"OMP_NUM_THREADS": str(nthreads)}
+                gpath = resolve_graph_path(gname, graph_dir, ext=".el")
+                cmd = [str(converter), "-f", gpath] + aflags
+                output = run_cmd(cmd, dry_run=dry_run, timeout=timeout, env=env)
+                timing = parse_timing(output)
+                results.append({
+                    "graph": gname, "algorithm": aname, "threads": nthreads,
+                    **timing,
+                })
+
+    save_json(results, out_dir / "scalability_results.json")
+
+
+# ============================================================================
+# Main
+# ============================================================================
+
+EXPERIMENTS = {
+    1: ("Cache Performance Analysis", exp1_cache_performance),
+    2: ("Kernel Speedup", exp2_kernel_speedup),
+    3: ("Reorder Overhead & Amortization", exp3_reorder_overhead),
+    4: ("End-to-End Performance", exp4_end_to_end),
+    5: ("Variant Ablation Study", exp5_ablation),
+    6: ("Graph-Type Sensitivity", exp6_sensitivity),
+    7: ("Chained Ordering Analysis", exp7_chained),
+    8: ("Reorder Scalability", exp8_scalability),
+}
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(
+        description="VLDB 2026 GraphBrew Paper — Experiment Runner"
+    )
+    parser.add_argument("--all", action="store_true", help="Run all experiments")
+    parser.add_argument("--exp", nargs="+", type=int, choices=range(1, 9),
+                        help="Run specific experiment(s) by number")
+    parser.add_argument("--preview", action="store_true",
+                        help="Preview mode: small graphs, 1 trial, 2 benchmarks")
+    parser.add_argument("--dry-run", action="store_true",
+                        help="Print commands without executing")
+    parser.add_argument("--graphs", nargs="+",
+                        help="Override graph list (by name)")
+    parser.add_argument("--graph-dir", type=str, default=".",
+                        help="Directory containing graph files (.sg, .el)")
+    parser.add_argument("--no-figures", action="store_true",
+                        help="Skip figure generation after experiments")
+    parser.add_argument("--figures-only", action="store_true",
+                        help="Only generate figures from existing results (no experiments)")
+    args = parser.parse_args()
+
+    if not args.all and not args.exp and not args.figures_only:
+        parser.print_help()
+        sys.exit(1)
+
+    # ---- Figures-only mode ----
+    if args.figures_only:
+        log.info("Generating figures from existing results...")
+        _generate_figures()
+        return
+
+    # Select configuration
+    if args.preview:
+        graphs = PREVIEW_GRAPHS
+        benchmarks = BENCHMARKS_PREVIEW
+        trials = TRIALS_PREVIEW
+        timeout = TIMEOUT_PREVIEW
+    else:
+        graphs = EVAL_GRAPHS
+        benchmarks = BENCHMARKS
+        trials = TRIALS_FULL
+        timeout = TIMEOUT_FULL
+
+    # Override graphs if specified
+    if args.graphs:
+        graphs = [g for g in (EVAL_GRAPHS + PREVIEW_GRAPHS) if g["name"] in args.graphs]
+        if not graphs:
+            graphs = [{"name": g, "short": g, "type": "unknown", "vertices_m": 0, "edges_m": 0}
+                      for g in args.graphs]
+
+    # Determine which experiments to run
+    exp_ids = list(range(1, 9)) if args.all else (args.exp or [])
+
+    log.info(f"GraphBrew VLDB Paper Experiments")
+    log.info(f"  Mode: {'preview' if args.preview else 'full'}")
+    log.info(f"  Graphs: {len(graphs)} in {args.graph_dir}")
+    log.info(f"  Benchmarks: {benchmarks}")
+    log.info(f"  Trials: {trials}")
+    log.info(f"  Experiments: {exp_ids}")
+    log.info(f"  Dry run: {args.dry_run}")
+    log.info("")
+
+    ensure_dir(RESULTS_DIR)
+    start = time.time()
+
+    for eid in exp_ids:
+        name, func = EXPERIMENTS[eid]
+        log.info(f"\n{'#' * 60}")
+        log.info(f"# Starting Experiment {eid}: {name}")
+        log.info(f"{'#' * 60}\n")
+        func(graphs, benchmarks, trials, timeout, args.dry_run,
+             graph_dir=args.graph_dir)
+
+    elapsed = time.time() - start
+
+    # Save reproducibility manifest
+    save_manifest(args, elapsed)
+
+    log.info(f"\nAll experiments completed in {elapsed:.1f}s")
+    log.info(f"Results: {RESULTS_DIR}")
+    log.info(f"Manifest: {RESULTS_DIR / 'MANIFEST.json'}")
+
+    # Auto-generate figures unless --no-figures
+    if not args.no_figures and not args.dry_run:
+        log.info("\n--- Generating figures ---")
+        _generate_figures()
+
+
+def _generate_figures() -> None:
+    """Invoke the figure generator on saved results."""
+    fig_script = PROJECT_ROOT / "scripts" / "experiments" / "vldb_generate_figures.py"
+    cmd = [sys.executable, str(fig_script)]
+
+    # If results don't have real data yet, use sample data
+    has_data = (RESULTS_DIR / "exp2_speedup" / "speedup_results.json").exists()
+    if not has_data:
+        cmd.append("--sample-data")
+
+    log.info(f"  CMD: {' '.join(cmd)}")
+    subprocess.run(cmd, cwd=str(PROJECT_ROOT))
+
+
+if __name__ == "__main__":
+    main()
