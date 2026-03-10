@@ -63,6 +63,7 @@ from experiments.vldb_config import (
     TIMEOUT_PREVIEW,
     TRIALS_FULL,
     TRIALS_PREVIEW,
+    VLDB_GRAPH_SOURCES,
     get_converter_flags,
 )
 
@@ -515,6 +516,216 @@ EXPERIMENTS = {
 }
 
 
+# ============================================================================
+# Auto-Setup: dependencies, binaries, graph download & conversion
+# ============================================================================
+
+def _setup_environment(
+    graph_dir: str,
+    graphs: list[dict],
+    dry_run: bool = False,
+    skip_download: bool = False,
+) -> str:
+    """Ensure binaries are built, graphs are downloaded, and .sg files exist.
+
+    Returns the *resolved* graph directory (may differ from input when
+    graphs live under ``results/graphs``).
+    """
+    log.info("=" * 60)
+    log.info("  AUTO-SETUP")
+    log.info("=" * 60)
+
+    graphs_path = Path(graph_dir) if graph_dir != "." else PROJECT_ROOT / "results" / "graphs"
+    graphs_path.mkdir(parents=True, exist_ok=True)
+    graph_dir_resolved = str(graphs_path)
+
+    if dry_run:
+        log.info("  [dry-run] Skipping auto-setup")
+        return graph_dir_resolved
+
+    # ── 1. Python dependencies ──────────────────────────────────────────
+    log.info("\n── Step 1/4: Python dependencies ──")
+    try:
+        import matplotlib  # noqa: F401
+        log.info("  matplotlib: OK")
+    except ImportError:
+        log.warning("  matplotlib not installed — figures will be skipped")
+        log.info("  Install with: pip install matplotlib numpy")
+
+    # ── 2. Build binaries ───────────────────────────────────────────────
+    log.info("\n── Step 2/4: Build binaries ──")
+    _setup_build_binaries()
+
+    # ── 3. Download graphs ──────────────────────────────────────────────
+    log.info("\n── Step 3/4: Download graphs ──")
+    if skip_download:
+        log.info("  Skipping download (--skip-download)")
+    else:
+        _setup_download_graphs(graphs, graphs_path)
+
+    # ── 4. Convert .mtx → .sg ──────────────────────────────────────────
+    log.info("\n── Step 4/4: Convert graphs to .sg ──")
+    _setup_convert_graphs(graphs, graphs_path)
+
+    log.info("\n" + "=" * 60)
+    log.info("  AUTO-SETUP COMPLETE")
+    log.info("=" * 60 + "\n")
+    return graph_dir_resolved
+
+
+def _setup_build_binaries() -> None:
+    """Build standard and cache-simulation binaries if missing."""
+    missing_std = [b for b in BENCHMARKS if not (BIN_DIR / b).exists()]
+    missing_sim = [b for b in BENCHMARKS if not (BIN_SIM_DIR / b).exists()]
+    converter = BIN_DIR / "converter"
+
+    if not missing_std and not missing_sim and converter.exists():
+        log.info("  All binaries present ✓")
+        return
+
+    makefile = PROJECT_ROOT / "Makefile"
+    if not makefile.exists():
+        log.error("  Makefile not found — cannot build binaries!")
+        return
+
+    if missing_std or not converter.exists():
+        log.info(f"  Building standard binaries ({len(missing_std)} missing)...")
+        result = subprocess.run(
+            ["make", "-j", str(os.cpu_count() or 4)],
+            cwd=str(PROJECT_ROOT), capture_output=True, text=True,
+        )
+        if result.returncode != 0:
+            log.error(f"  Build failed: {result.stderr[:300]}")
+        else:
+            log.info("  Standard binaries: OK ✓")
+
+    if missing_sim:
+        log.info(f"  Building simulation binaries ({len(missing_sim)} missing)...")
+        result = subprocess.run(
+            ["make", "all-sim", "-j", str(os.cpu_count() or 4)],
+            cwd=str(PROJECT_ROOT), capture_output=True, text=True,
+        )
+        if result.returncode != 0:
+            log.error(f"  Sim build failed: {result.stderr[:300]}")
+        else:
+            log.info("  Simulation binaries: OK ✓")
+
+
+def _setup_download_graphs(graphs: list[dict], dest_dir: Path) -> None:
+    """Download evaluation graphs from SuiteSparse; report manual-download graphs."""
+    # Collect graphs that need downloading from catalog
+    catalog_names = []
+    manual_graphs = []
+
+    for g in graphs:
+        name = g["name"]
+        sg_path = dest_dir / name / f"{name}.sg"
+        el_path = dest_dir / name / f"{name}.el"
+        # Already have .sg or .el — skip
+        if sg_path.exists() or el_path.exists():
+            log.info(f"  {name}: already present ✓")
+            continue
+
+        src = VLDB_GRAPH_SOURCES.get(name, {})
+        if src.get("source") == "catalog":
+            catalog_names.append(name)
+        elif src.get("source") == "manual":
+            manual_graphs.append((name, src))
+        else:
+            # Graph not in VLDB sources — check if .mtx exists
+            mtx_dir = dest_dir / name
+            if mtx_dir.exists():
+                log.info(f"  {name}: directory exists (will convert)")
+            else:
+                log.warning(f"  {name}: not in download catalog — place .sg/.el manually")
+
+    # Download from catalog
+    if catalog_names:
+        log.info(f"  Downloading {len(catalog_names)} graphs from SuiteSparse...")
+        try:
+            from lib.pipeline.download import (
+                download_graphs_parallel,
+                get_graph_info,
+                DownloadableGraph,
+            )
+            # Build DownloadableGraph list for graphs in the catalog
+            to_download = []
+            for name in catalog_names:
+                info = get_graph_info(name)
+                if info:
+                    to_download.append(info)
+                else:
+                    log.warning(f"  {name}: not found in download catalog")
+            if to_download:
+                paths, failed = download_graphs_parallel(
+                    graphs=to_download,
+                    dest_dir=dest_dir,
+                    max_workers=min(4, len(to_download)),
+                    show_progress=True,
+                )
+                log.info(f"  Downloaded {len(paths)} graphs, {len(failed)} failed")
+                for name in failed:
+                    log.warning(f"    FAILED: {name}")
+        except Exception as e:
+            log.error(f"  Download failed: {e}")
+
+    # Report manual-download graphs
+    if manual_graphs:
+        log.info("")
+        log.info("  ┌─ MANUAL DOWNLOAD REQUIRED ─────────────────────────────")
+        for name, src in manual_graphs:
+            log.info(f"  │ {name}:")
+            for line in src.get("instructions", "").split("\n"):
+                log.info(f"  │   {line}")
+        log.info("  └─────────────────────────────────────────────────────────")
+
+
+def _setup_convert_graphs(graphs: list[dict], graphs_dir: Path) -> None:
+    """Convert downloaded .mtx files to .sg format."""
+    converter = BIN_DIR / "converter"
+    if not converter.exists():
+        log.warning("  Converter binary not found — skipping conversion")
+        return
+
+    converted = 0
+    skipped = 0
+    for g in graphs:
+        name = g["name"]
+        graph_subdir = graphs_dir / name
+        sg_path = graph_subdir / f"{name}.sg"
+
+        if sg_path.exists() and sg_path.stat().st_size > 0:
+            skipped += 1
+            continue
+
+        # Find a convertible file (.mtx or .el)
+        input_file = None
+        if graph_subdir.exists():
+            for pattern in ("**/*.mtx", "**/*.el"):
+                matches = list(graph_subdir.glob(pattern))
+                if matches:
+                    input_file = matches[0]
+                    break
+
+        if not input_file:
+            continue
+
+        log.info(f"  Converting {name}...")
+        result = subprocess.run(
+            [str(converter), "-f", str(input_file), "-s", "-o", "1",
+             "-b", str(sg_path)],
+            capture_output=True, text=True, timeout=1800,
+        )
+        if result.returncode == 0 and sg_path.exists():
+            sz_mb = sg_path.stat().st_size / (1024 * 1024)
+            log.info(f"    → {sz_mb:.0f} MB ✓")
+            converted += 1
+        else:
+            log.warning(f"    Conversion failed for {name}")
+
+    log.info(f"  Conversion: {converted} new, {skipped} already existed")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="VLDB 2026 GraphBrew Paper — Experiment Runner"
@@ -530,6 +741,10 @@ def main() -> None:
                         help="Override graph list (by name)")
     parser.add_argument("--graph-dir", type=str, default=".",
                         help="Directory containing graph files (.sg, .el)")
+    parser.add_argument("--skip-setup", action="store_true",
+                        help="Skip auto-setup (build, download, convert)")
+    parser.add_argument("--skip-download", action="store_true",
+                        help="Skip graph download (use existing graphs only)")
     parser.add_argument("--no-figures", action="store_true",
                         help="Skip figure generation after experiments")
     parser.add_argument("--figures-only", action="store_true",
@@ -568,9 +783,19 @@ def main() -> None:
     # Determine which experiments to run
     exp_ids = list(range(1, 9)) if args.all else (args.exp or [])
 
+    # ── Auto-setup: build, download, convert ──
+    if not args.skip_setup:
+        graph_dir_resolved = _setup_environment(
+            args.graph_dir, graphs,
+            dry_run=args.dry_run,
+            skip_download=getattr(args, "skip_download", False),
+        )
+    else:
+        graph_dir_resolved = args.graph_dir
+
     log.info(f"GraphBrew VLDB Paper Experiments")
     log.info(f"  Mode: {'preview' if args.preview else 'full'}")
-    log.info(f"  Graphs: {len(graphs)} in {args.graph_dir}")
+    log.info(f"  Graphs: {len(graphs)} in {graph_dir_resolved}")
     log.info(f"  Benchmarks: {benchmarks}")
     log.info(f"  Trials: {trials}")
     log.info(f"  Experiments: {exp_ids}")
@@ -586,7 +811,7 @@ def main() -> None:
         log.info(f"# Starting Experiment {eid}: {name}")
         log.info(f"{'#' * 60}\n")
         func(graphs, benchmarks, trials, timeout, args.dry_run,
-             graph_dir=args.graph_dir)
+             graph_dir=graph_dir_resolved)
 
     elapsed = time.time() - start
 

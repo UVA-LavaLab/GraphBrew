@@ -13,6 +13,7 @@ Standalone usage:
 import os
 import sys
 import json
+import resource
 import subprocess
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Any
@@ -836,6 +837,38 @@ log = Logger()
 # System Utilities
 # =============================================================================
 
+def _get_memory_limit_bytes() -> Optional[int]:
+    """Return 80% of total physical RAM in bytes, or None if undetectable."""
+    try:
+        with open("/proc/meminfo") as f:
+            for line in f:
+                if line.startswith("MemTotal:"):
+                    kb = int(line.split()[1])
+                    return int(kb * 1024 * 0.80)
+    except (OSError, ValueError):
+        pass
+    return None
+
+_SUBPROCESS_MEM_LIMIT = _get_memory_limit_bytes()
+
+
+def _limit_subprocess_memory():
+    """preexec_fn: cap child virtual address space to 80% of system RAM.
+
+    This prevents a single reorder/benchmark subprocess from consuming
+    all memory and triggering the OOM killer (which could kill the parent
+    Python pipeline).  When the limit is hit, malloc returns NULL / mmap
+    returns ENOMEM and the child crashes cleanly — the parent sees a
+    non-zero exit code and continues.
+    """
+    if _SUBPROCESS_MEM_LIMIT is not None:
+        try:
+            resource.setrlimit(resource.RLIMIT_AS,
+                               (_SUBPROCESS_MEM_LIMIT, _SUBPROCESS_MEM_LIMIT))
+        except (ValueError, resource.error):
+            pass  # best-effort; don't block execution
+
+
 def run_command(
     cmd,
     timeout: Optional[int] = None,
@@ -846,6 +879,10 @@ def run_command(
     """
     Run a shell command with timeout and error handling.
     
+    Child processes are limited to 80% of system RAM (via RLIMIT_AS) so that
+    an allocation failure in the child produces a clean crash rather than an
+    OOM kill of the parent pipeline.
+
     Args:
         cmd: Command as string or list of strings
         timeout: Timeout in seconds (None for no timeout)
@@ -867,7 +904,8 @@ def run_command(
                 timeout=timeout,
                 capture_output=True,
                 text=True,
-                cwd=cwd
+                cwd=cwd,
+                preexec_fn=_limit_subprocess_memory,
             )
             return result.returncode == 0, result.stdout, result.stderr
         except subprocess.TimeoutExpired:
@@ -886,7 +924,8 @@ def run_command(
             capture_output=capture_output,
             text=True,
             check=check,
-            cwd=cwd
+            cwd=cwd,
+            preexec_fn=_limit_subprocess_memory,
         )
         return result
     except subprocess.TimeoutExpired:

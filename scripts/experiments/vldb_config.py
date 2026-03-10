@@ -169,3 +169,46 @@ def get_converter_flags(algo_key: str) -> list[str]:
         parts = algo_key.split(":", 1)
         return ["-o", f"{parts[0]}:{parts[1]}"]
     return ["-o", algo_key]
+
+
+# ---------------------------------------------------------------------------
+# VLDB Graph Download Sources
+# ---------------------------------------------------------------------------
+# Maps EVAL_GRAPHS name → download info.  Graphs marked source="suitesparse"
+# are fetched automatically; others require manual download.
+
+VLDB_GRAPH_SOURCES = {
+    # ── Auto-download from SuiteSparse (already in catalog) ──
+    "cit-Patents":       {"source": "catalog"},
+    "soc-pokec":         {"source": "catalog"},
+    "USA-road-d.USA":    {"source": "catalog"},
+    "soc-LiveJournal1":  {"source": "catalog"},
+    "delaunay_n24":      {"source": "catalog"},
+    "com-Orkut":         {"source": "catalog"},
+    "hollywood-2009":    {"source": "catalog"},
+    "webbase-2001":      {"source": "catalog"},
+    "twitter7":          {"source": "catalog"},
+
+    # ── Manual download required ──
+    "wikipedia_link_en": {
+        "source": "manual",
+        "url": "http://konect.cc/networks/wikipedia_link_en/",
+        "instructions": (
+            "Download from KONECT: http://konect.cc/networks/wikipedia_link_en/\n"
+            "Extract and convert to Matrix Market (.mtx) or edge-list (.el) format,\n"
+            "then place as results/graphs/wikipedia_link_en/wikipedia_link_en.el"
+        ),
+    },
+    "Gong-gplus": {
+        "source": "manual",
+        "url": "https://people.duke.edu/~zg70/gplus.html",
+        "gdrive_id": "1HF8Q2N_hxsaQ26MarKYxZEQhqI66qAxV",
+        "instructions": (
+            "Download from https://people.duke.edu/~zg70/gplus.html\n"
+            "  (Google Drive: https://drive.google.com/file/d/"
+            "1HF8Q2N_hxsaQ26MarKYxZEQhqI66qAxV/view)\n"
+            "Extract snapshot 4 (keep all edges with TimeID 0-3), convert to\n"
+            "edge-list format, and place as results/graphs/Gong-gplus/Gong-gplus.el"
+        ),
+    },
+}

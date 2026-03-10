@@ -2555,15 +2555,18 @@ def main():
         log_section("Auto-Setup: Downloading Graphs")
         # 3. Download ALL requested graphs FIRST (before any experiments)
         # This ensures all graphs are ready before we start reordering/benchmarks
-        log("Downloading graphs (ensuring all are ready before experiments)...")
-        download_graphs(
-            size_category=args.download_size,
-            graphs_dir=args.graphs_dir,
-            force=False,  # Don't re-download existing
-            max_memory_gb=args.max_memory,
-            max_disk_gb=args.max_disk,
-            catalog_size=getattr(args, 'catalog_size', 0),
-        )
+        if args.skip_download:
+            log("Skipping graph download (--skip-download)")
+        else:
+            log("Downloading graphs (ensuring all are ready before experiments)...")
+            download_graphs(
+                size_category=args.download_size,
+                graphs_dir=args.graphs_dir,
+                force=False,  # Don't re-download existing
+                max_memory_gb=args.max_memory,
+                max_disk_gb=args.max_disk,
+                catalog_size=getattr(args, 'catalog_size', 0),
+            )
         args._downloads_done = True  # Guard: prevent duplicate download in run_experiment()
         # Determine size range for filtering conversion/pre-generation
         _setup_min, _setup_max = _SIZE_RANGES.get(

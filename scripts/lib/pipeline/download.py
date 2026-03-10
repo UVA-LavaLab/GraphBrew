@@ -199,6 +199,8 @@ DOWNLOAD_GRAPHS_LARGE = [
     # Social networks (large)
     DownloadableGraph("soc-LiveJournal1", _ss_url("SNAP", "soc-LiveJournal1"),
                       1024, 4847571, 68993773, False, "social", "LiveJournal social"),
+    DownloadableGraph("soc-pokec", _ss_url("SNAP", "soc-Pokec"),
+                      250, 1632803, 30622564, False, "social", "Pokec social network (Slovakia)"),
     DownloadableGraph("com-Orkut", _ss_url("SNAP", "com-Orkut"),
                       800, 3072441, 117185083, True, "social", "Orkut social network"),
     DownloadableGraph("com-Youtube", _ss_url("SNAP", "com-Youtube"),
@@ -225,7 +227,10 @@ DOWNLOAD_GRAPHS_LARGE = [
                       600, 7414866, 194109311, False, "web", "Indochina web 2004"),
     DownloadableGraph("sk-2005", _ss_url("LAW", "sk-2005"),
                       1100, 50636154, 1949412601, False, "web", "Slovakia web 2005"),
-    # Road networks (large) - OSM graphs
+    # Road networks (large)
+    DownloadableGraph("USA-road-d.USA", _ss_url("DIMACS10", "road_usa"),
+                      500, 23947347, 57708624, True, "road", "USA full road network (DIMACS10)"),
+    # Road networks - OSM graphs
     DownloadableGraph("europe-osm", _ss_url("DIMACS10", "europe_osm"),
                       1200, 50912018, 108109320, True, "road", "European OSM roads"),
     DownloadableGraph("asia-osm", _ss_url("DIMACS10", "asia_osm"),

@@ -48,7 +48,7 @@ BENCHMARK_BINARIES = list(BENCHMARKS)
 
 # Makefile targets
 MAKE_TARGET_ALL = "all"
-MAKE_TARGET_SIM = "sim"
+MAKE_TARGET_SIM = "all-sim"
 
 
 # =============================================================================
