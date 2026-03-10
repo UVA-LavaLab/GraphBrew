@@ -20,53 +20,94 @@ every number in the paper from an **empty `results/` folder**.
 
 ## 1. Quick Start
 
+The experiment script is **self-contained**: it automatically builds binaries,
+downloads graphs from SuiteSparse, and converts them to `.sg` format before
+running any experiments.
+
 ```bash
-# One command reproduces all paper figures:
-python3 scripts/experiments/vldb_paper_experiments.py \
-    --all --graph-dir /path/to/graphs
+# Full reproducibility (builds, downloads, runs all experiments + figures):
+python3 scripts/experiments/vldb_paper_experiments.py --all
 
-# Preview mode (fast validation, small graphs):
-python3 scripts/experiments/vldb_paper_experiments.py \
-    --all --preview --graph-dir /path/to/graphs
+# Preview mode (fast validation — 2 small graphs, 1 trial):
+python3 scripts/experiments/vldb_paper_experiments.py --all --preview
 
-# Dry run (show commands without executing):
-python3 scripts/experiments/vldb_paper_experiments.py \
-    --all --dry-run
+# Dry run (validate commands without executing):
+python3 scripts/experiments/vldb_paper_experiments.py --all --dry-run
 
 # Regenerate figures from existing results:
 python3 scripts/experiments/vldb_paper_experiments.py --figures-only
+```
+
+The auto-setup phase will:
+1. **Build** standard and cache-simulation binaries via `make`
+2. **Download** 9 of 11 evaluation graphs from SuiteSparse (2 require manual download — see below)
+3. **Convert** downloaded `.mtx` files to `.sg` format
+
+To skip auto-setup (if binaries and graphs are already in place):
+
+```bash
+python3 scripts/experiments/vldb_paper_experiments.py --all --skip-setup \
+    --graph-dir /path/to/graphs
 ```
 
 ---
 
 ## 2. Prerequisites
 
-### Build
+### System Requirements
+
+- Linux x86-64 with GCC ≥ 7 (tested on Ubuntu 22.04)
+- ≥ 16 GB RAM for full evaluation (64 GB+ recommended for webbase-2001, twitter7)
+- Python ≥ 3.8
+
+### Automatic Steps (handled by `--all`)
+
+The script calls `make -j$(nproc)` and `make all-sim -j$(nproc)` automatically.
+If you prefer to build manually:
 
 ```bash
-# On Linux (native):
-make all RABBIT_ENABLE=1
-make all-sim   # cache simulation binaries
-
-# On Windows (via WSL):
-.\build_wsl.ps1 all
+make all RABBIT_ENABLE=1      # standard benchmark binaries
+make all-sim                   # cache simulation binaries
+pip install matplotlib numpy   # optional: figure generation
 ```
 
-### Graph Data
+### Manual-Download Graphs (2 of 11)
 
-Download the evaluation graphs and convert to `.sg` format:
+Nine evaluation graphs are downloaded automatically from SuiteSparse. Two
+require manual preparation:
+
+#### wikipedia\_link\_en
+
+Source: [KONECT — Wikipedia link (en)](http://konect.cc/networks/wikipedia_link_en/)
+
+Download the dataset, extract it, and convert the edge list to a file the
+converter can read (tab-separated edge list → `.el`):
 
 ```bash
-python3 scripts/graphbrew_experiment.py --full --size medium
+mkdir -p results/graphs/wikipedia_link_en
+# Download from KONECT, extract, and rename to .el
+# Place the edge-list file at:
+#   results/graphs/wikipedia_link_en/wikipedia_link_en.el
 ```
 
-Or manually place `.sg` files in a directory and pass `--graph-dir <path>`.
+#### Gong-gplus
 
-### Python Dependencies
+Source: [Duke University — Google+ Social Networks](https://people.duke.edu/~zg70/gplus.html)
+([Google Drive link](https://drive.google.com/file/d/1HF8Q2N_hxsaQ26MarKYxZEQhqI66qAxV/view))
+
+The dataset contains 4 temporal snapshots. To reconstruct snapshot 4
+(28.9M vertices, 463M edges), keep all edges with TimeID 0–3:
 
 ```bash
-pip install matplotlib numpy  # optional: for figure generation
+mkdir -p results/graphs/Gong-gplus
+# 1. Download from the Google Drive link above
+# 2. Extract and keep all directed social links (TimeID 0–3)
+# 3. Strip the TimeID column to produce a two-column edge list
+# 4. Place as: results/graphs/Gong-gplus/Gong-gplus.el
 ```
+
+> **Note:** The auto-setup will print clear instructions for any missing
+> manual-download graphs and proceed with the available ones.
 
 ---
 
@@ -120,17 +161,20 @@ BFS, PR (PageRank), PR-SpMV, SSSP, CC (Afforest), CC-SV, BC
 ### Full Evaluation
 
 ```bash
-# Run all 8 experiments + auto-generate figures:
+# Run all 8 experiments (auto-setup included):
+python3 scripts/experiments/vldb_paper_experiments.py --all
+
+# Run all experiments with graphs in a specific directory:
 python3 scripts/experiments/vldb_paper_experiments.py \
-    --all --graph-dir /data/graphs
+    --all --skip-setup --graph-dir /data/graphs
 
 # Run specific experiments (e.g., cache + speedup only):
 python3 scripts/experiments/vldb_paper_experiments.py \
-    --exp 1 2 --graph-dir /data/graphs
+    --exp 1 2
 
 # Skip figure generation:
 python3 scripts/experiments/vldb_paper_experiments.py \
-    --all --graph-dir /data/graphs --no-figures
+    --all --no-figures
 ```
 
 ### Preview Mode
@@ -138,8 +182,7 @@ python3 scripts/experiments/vldb_paper_experiments.py \
 For fast validation before the full run:
 
 ```bash
-python3 scripts/experiments/vldb_paper_experiments.py \
-    --all --preview --graph-dir /data/graphs
+python3 scripts/experiments/vldb_paper_experiments.py --all --preview
 ```
 
 Preview uses: 2 small graphs, 1 trial, 2 benchmarks (PR, BFS), 300s timeout.
@@ -148,7 +191,7 @@ Preview uses: 2 small graphs, 1 trial, 2 benchmarks (PR, BFS), 300s timeout.
 
 ```bash
 python3 scripts/experiments/vldb_paper_experiments.py \
-    --all --graphs cit-Patents soc-pokec --graph-dir /data/graphs
+    --all --graphs cit-Patents soc-pokec
 ```
 
 ### Figure Generation Only
@@ -215,6 +258,8 @@ All experiment parameters are defined in
 | `--dry-run` | Print commands without executing |
 | `--graph-dir PATH` | Directory containing `.sg` and `.el` graph files |
 | `--graphs NAME [...]` | Override graph list by name |
+| `--skip-setup` | Skip the auto-setup phase (build, download, convert) |
+| `--skip-download` | Skip graph download but still build + convert |
 | `--no-figures` | Skip automatic figure generation |
 | `--figures-only` | Generate figures from existing results (no experiments) |
 
@@ -224,15 +269,22 @@ All experiment parameters are defined in
 
 ### Common Issues
 
-**"Binary not found"** — Run `make all RABBIT_ENABLE=1` first.
+**"Binary not found"** — The script builds binaries automatically.
+If auto-build fails, run `make all RABBIT_ENABLE=1 && make all-sim` manually.
 
-**"Graph file not found"** — Ensure `--graph-dir` points to a directory with
-`.sg` files matching the graph names in the config (e.g., `cit-Patents.sg`).
+**"Graph file not found"** — Either let auto-setup download the graphs, or
+ensure `--graph-dir` points to a directory with `.sg` files matching the graph
+names in the config (e.g., `cit-Patents.sg`).
+
+**Graphs that need manual download** — `wikipedia_link_en` (KONECT) and
+`Gong-gplus` (Google Drive) cannot be auto-downloaded. See
+[Prerequisites §2](#2-prerequisites) for download instructions. The script will
+skip these graphs and proceed with the rest.
 
 **"matplotlib not available"** — Install with `pip install matplotlib numpy`.
 Tables will still be generated without matplotlib.
 
-**"Timeout"** — Large graphs (twitter, webbase) may need longer timeouts.
+**"Timeout"** — Large graphs (twitter7, webbase-2001) may need longer timeouts.
 Edit `TIMEOUT_FULL` in `vldb_config.py`.
 
 ### Extending
