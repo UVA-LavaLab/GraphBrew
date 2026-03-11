@@ -138,7 +138,9 @@ def parse_timing(output: Optional[str]) -> dict:
     for line in output.splitlines():
         line = line.strip()
         for key in ("Trial Time", "Reorder Time", "Average Time",
-                    "Preprocessing Time", "Total Time"):
+                    "Preprocessing Time", "Total Time",
+                    "Topology Analysis Time", "Read Time",
+                    "Relabel Map Time"):
             if line.startswith(key):
                 try:
                     result[key.lower().replace(" ", "_")] = float(
@@ -146,6 +148,51 @@ def parse_timing(output: Optional[str]) -> dict:
                     )
                 except (ValueError, IndexError):
                     pass
+    return result
+
+
+def parse_cache_sim(output: Optional[str]) -> dict:
+    """Extract cache simulation metrics from sim binary stdout.
+
+    The sim binary outputs a formatted table like:
+        ║ L1 Cache (32KB, 8-way, Clock)
+        ║   Hits:                       110358
+        ║   Misses:                         67
+        ║   Hit Rate:                 99.9393%
+        ║ L2 Cache ...
+        ║ Total Accesses:                98188
+        ║ Memory Accesses:                  64
+        ║ Overall Hit Rate:           99.9348%
+    """
+    result: dict = {}
+    if not output:
+        return result
+    current_level = ""
+    for line in output.splitlines():
+        stripped = line.strip().strip("║").strip()
+        if not stripped:
+            continue
+        # Detect cache level header: "L1 Cache (32KB, ...)"
+        if stripped.startswith("L1 Cache"):
+            current_level = "l1"
+        elif stripped.startswith("L2 Cache"):
+            current_level = "l2"
+        elif stripped.startswith("L3 Cache"):
+            current_level = "l3"
+        elif stripped.startswith("SUMMARY"):
+            current_level = "summary"
+        elif current_level and ":" in stripped:
+            key_part, _, val_part = stripped.partition(":")
+            key_part = key_part.strip().lower().replace(" ", "_")
+            val_part = val_part.strip().rstrip("%")
+            try:
+                val = float(val_part)
+                if current_level == "summary":
+                    result[key_part] = val
+                else:
+                    result[f"{current_level}_{key_part}"] = val
+            except (ValueError, IndexError):
+                pass
     return result
 
 
@@ -249,9 +296,10 @@ def exp1_cache_performance(
             log.info(f"    {aname}")
             output = run_cmd(cmd, dry_run=dry_run, timeout=timeout)
             timing = parse_timing(output)
+            cache = parse_cache_sim(output)
             results.append({
                 "graph": gname, "algorithm": aname, "benchmark": cache_bench,
-                **timing,
+                **timing, **cache,
             })
 
     save_json(results, out_dir / "cache_results.json")
@@ -329,7 +377,10 @@ def exp3_reorder_overhead(
         for aid, aname in {**BASELINE_ALGORITHMS}.items():
             if aid == 0:
                 continue  # No reorder for original
-            gpath = resolve_graph_path(gname, graph_dir, ext=".el")
+            # Try .sg first (auto-setup creates .sg); fall back to .el
+            gpath = resolve_graph_path(gname, graph_dir, ext=".sg")
+            if not Path(gpath).exists():
+                gpath = resolve_graph_path(gname, graph_dir, ext=".el")
             cmd = [str(converter), "-f", gpath, "-o", str(aid)]
             output = run_cmd(cmd, dry_run=dry_run, timeout=timeout)
             timing = parse_timing(output)
@@ -338,7 +389,9 @@ def exp3_reorder_overhead(
             })
 
         for v in GRAPHBREW_VARIANTS:
-            gpath = resolve_graph_path(gname, graph_dir, ext=".el")
+            gpath = resolve_graph_path(gname, graph_dir, ext=".sg")
+            if not Path(gpath).exists():
+                gpath = resolve_graph_path(gname, graph_dir, ext=".el")
             cmd = [str(converter), "-f", gpath, "-o", f"12:{v}"]
             output = run_cmd(cmd, dry_run=dry_run, timeout=timeout)
             timing = parse_timing(output)
@@ -498,7 +551,10 @@ def exp8_scalability(
         for aname, aflags in test_algos:
             for nthreads in THREAD_COUNTS:
                 env = {"OMP_NUM_THREADS": str(nthreads)}
-                gpath = resolve_graph_path(gname, graph_dir, ext=".el")
+                # Try .sg first (auto-setup creates .sg); fall back to .el
+                gpath = resolve_graph_path(gname, graph_dir, ext=".sg")
+                if not Path(gpath).exists():
+                    gpath = resolve_graph_path(gname, graph_dir, ext=".el")
                 cmd = [str(converter), "-f", gpath] + aflags
                 output = run_cmd(cmd, dry_run=dry_run, timeout=timeout, env=env)
                 timing = parse_timing(output)
@@ -801,7 +857,11 @@ def main() -> None:
             skip_download=getattr(args, "skip_download", False),
         )
     else:
-        graph_dir_resolved = args.graph_dir
+        # Still resolve default graph directory even when skipping setup
+        if args.graph_dir == ".":
+            graph_dir_resolved = str(PROJECT_ROOT / "results" / "graphs")
+        else:
+            graph_dir_resolved = args.graph_dir
 
     log.info(f"GraphBrew VLDB Paper Experiments")
     log.info(f"  Mode: {'preview' if args.preview else 'full'}")

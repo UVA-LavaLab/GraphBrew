@@ -313,15 +313,57 @@ def fig3_reorder_overhead(sample: bool = False) -> None:
 # ============================================================================
 
 
+def _geo_mean(values: list[float]) -> float:
+    """Compute geometric mean of positive values."""
+    if not values or any(v <= 0 for v in values):
+        return 0.0
+    import math
+    return math.exp(sum(math.log(v) for v in values) / len(values))
+
+
 def fig5_ablation(sample: bool = False) -> None:
     log.info("Figure 5: Variant Ablation")
 
     ensure_dir(TABLES_DIR)
 
-    # Generate LaTeX table (always possible)
+    # Try loading experiment data
+    data = load_json(RESULTS_DIR / "exp5_ablation" / "ablation_results.json")
+    config_stats: Dict[str, tuple] = {}  # name -> (speedup_str, reorder_str)
+
+    if isinstance(data, list) and data:
+        # Build baseline: Original average_time per graph
+        baseline = {}
+        for r in data:
+            if r.get("config") == "Original" and r.get("average_time"):
+                baseline[r["graph"]] = r["average_time"]
+
+        # Compute per-config geo-mean speedup and avg reorder time
+        from collections import defaultdict
+        config_times: Dict[str, list] = defaultdict(list)
+        config_reorder: Dict[str, list] = defaultdict(list)
+        for r in data:
+            cfg = r.get("config", "")
+            graph = r.get("graph", "")
+            avg_t = r.get("average_time")
+            reorder_t = r.get("reorder_time")
+            if avg_t and graph in baseline and baseline[graph] > 0:
+                speedup = baseline[graph] / avg_t
+                config_times[cfg].append(speedup)
+            if reorder_t is not None:
+                config_reorder[cfg].append(reorder_t)
+
+        for config in ABLATION_CONFIGS:
+            name = config["name"]
+            speedups = config_times.get(name, [])
+            reorders = config_reorder.get(name, [])
+            su_str = f"{_geo_mean(speedups):.2f}$\\times$" if speedups else "\\emph{TBD}"
+            ro_str = f"{sum(reorders)/len(reorders):.4f}" if reorders else "\\emph{TBD}"
+            config_stats[name] = (su_str, ro_str)
+
     rows = []
     for config in ABLATION_CONFIGS:
-        rows.append(f"        {config['name']:<30s} & \\emph{{TBD}} & \\emph{{TBD}} \\\\")
+        su, ro = config_stats.get(config["name"], ("\\emph{TBD}", "\\emph{TBD}"))
+        rows.append(f"        {config['name']:<30s} & {su} & {ro} \\\\")
 
     latex = (
         "\\begin{table}[t]\n"
@@ -351,9 +393,56 @@ def fig6_sensitivity(sample: bool = False) -> None:
 
     ensure_dir(TABLES_DIR)
 
+    # Try loading exp2 speedup data (sensitivity is derived from it)
+    data = load_json(RESULTS_DIR / "exp2_speedup" / "speedup_results.json")
+    type_stats: Dict[str, tuple] = {}  # gtype -> (best_variant, speedup_str, runner_up)
+
+    if isinstance(data, list) and data:
+        from collections import defaultdict
+
+        # Build baseline: ORIGINAL average_time per (graph, benchmark)
+        baseline: Dict[tuple, float] = {}
+        for r in data:
+            if r.get("algorithm") == "ORIGINAL" and r.get("average_time"):
+                baseline[(r["graph"], r["benchmark"])] = r["average_time"]
+
+        # Map graph names to types
+        graph_type_map = {}
+        for gtype, gnames in GRAPH_TYPE_GROUPS.items():
+            for gn in gnames:
+                graph_type_map[gn] = gtype
+
+        # Collect speedups per (graph_type, algorithm)
+        type_algo_speedups: Dict[tuple, list] = defaultdict(list)
+        for r in data:
+            algo = r.get("algorithm", "")
+            if algo == "ORIGINAL":
+                continue
+            graph = r.get("graph", "")
+            bench = r.get("benchmark", "")
+            avg_t = r.get("average_time")
+            key = (graph, bench)
+            gtype = graph_type_map.get(graph)
+            if gtype and key in baseline and baseline[key] > 0 and avg_t and avg_t > 0:
+                speedup = baseline[key] / avg_t
+                type_algo_speedups[(gtype, algo)].append(speedup)
+
+        # Find best and runner-up per type
+        for gtype in GRAPH_TYPE_GROUPS:
+            algo_means = {}
+            for (gt, algo), vals in type_algo_speedups.items():
+                if gt == gtype:
+                    algo_means[algo] = _geo_mean(vals)
+            if algo_means:
+                ranked = sorted(algo_means.items(), key=lambda x: x[1], reverse=True)
+                best_name, best_su = ranked[0]
+                runner = ranked[1][0] if len(ranked) > 1 else "---"
+                type_stats[gtype] = (best_name, f"{best_su:.2f}$\\times$", runner)
+
     rows = []
     for gtype in GRAPH_TYPE_GROUPS:
-        rows.append(f"        {gtype:<15s} & \\emph{{TBD}} & \\emph{{TBD}} & \\emph{{TBD}} \\\\")
+        best, su, runner = type_stats.get(gtype, ("\\emph{TBD}", "\\emph{TBD}", "\\emph{TBD}"))
+        rows.append(f"        {gtype:<15s} & {best} & {su} & {runner} \\\\")
 
     latex = (
         "\\begin{table}[t]\n"
@@ -383,9 +472,53 @@ def fig7_chained(sample: bool = False) -> None:
 
     ensure_dir(TABLES_DIR)
 
+    # Try loading chained results
+    data = load_json(RESULTS_DIR / "exp7_chained" / "chained_results.json")
+    chain_stats: Dict[str, tuple] = {}  # chain_name -> (speedup_str, reorder_str)
+
+    if isinstance(data, list) and data:
+        # We need a baseline. Try exp5 ablation (has "Original" config on PR)
+        # or exp2 speedup (has "ORIGINAL" on PR).
+        baseline_data = load_json(RESULTS_DIR / "exp5_ablation" / "ablation_results.json")
+        baseline: Dict[str, float] = {}
+        if isinstance(baseline_data, list):
+            for r in baseline_data:
+                if r.get("config") == "Original" and r.get("average_time"):
+                    baseline[r["graph"]] = r["average_time"]
+
+        # If no ablation data, try exp2
+        if not baseline:
+            exp2_data = load_json(RESULTS_DIR / "exp2_speedup" / "speedup_results.json")
+            if isinstance(exp2_data, list):
+                for r in exp2_data:
+                    if r.get("algorithm") == "ORIGINAL" and r.get("benchmark") == "pr" and r.get("average_time"):
+                        baseline[r["graph"]] = r["average_time"]
+
+        from collections import defaultdict
+        chain_speedups: Dict[str, list] = defaultdict(list)
+        chain_reorder: Dict[str, list] = defaultdict(list)
+
+        for r in data:
+            chain = r.get("chain", "")
+            graph = r.get("graph", "")
+            avg_t = r.get("average_time")
+            reorder_t = r.get("reorder_time")
+            if avg_t and graph in baseline and baseline[graph] > 0:
+                chain_speedups[chain].append(baseline[graph] / avg_t)
+            if reorder_t is not None:
+                chain_reorder[chain].append(reorder_t)
+
+        for chain_name, _ in CHAINED_ORDERINGS:
+            speedups = chain_speedups.get(chain_name, [])
+            reorders = chain_reorder.get(chain_name, [])
+            su_str = f"{_geo_mean(speedups):.2f}$\\times$" if speedups else "\\emph{TBD}"
+            ro_str = f"{sum(reorders)/len(reorders):.4f}" if reorders else "\\emph{TBD}"
+            chain_stats[chain_name] = (su_str, ro_str)
+
     rows = []
     for chain_name, _ in CHAINED_ORDERINGS:
-        rows.append(f"        {chain_name:<25s} & \\emph{{TBD}} & \\emph{{TBD}} \\\\")
+        su, ro = chain_stats.get(chain_name, ("\\emph{TBD}", "\\emph{TBD}"))
+        rows.append(f"        {chain_name:<25s} & {su} & {ro} \\\\")
 
     latex = (
         "\\begin{table}[t]\n"
