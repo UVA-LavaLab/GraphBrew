@@ -4,12 +4,22 @@ Documentation for all Python tools in the GraphBrew framework.
 
 ## Overview
 
-The scripts folder contains a single entry point and a modular library (`lib/`):
+The scripts folder contains a single entry point, a modular library (`lib/`),
+and a VLDB experiment suite (`experiments/`):
 
 ```
 scripts/
 ├── graphbrew_experiment.py      # ⭐ MAIN: Single entry point for all experiments
 ├── requirements.txt             # Python dependencies
+│
+├── experiments/                 # 📊 VLDB 2026 paper experiment suite
+│   ├── __init__.py
+│   ├── vldb_paper_experiments.py  # Self-contained runner (8 experiments, auto-setup)
+│   ├── vldb_generate_figures.py   # PNG figures & LaTeX table generation from JSON data
+│   ├── vldb_config.py             # Shared config (graphs, algorithms, parameters)
+│   ├── vldb_experiments.py        # Supplementary experiment scripts
+│   ├── vldb_experiments_small.py  # Small-scale experiments
+│   └── exp3_model_ablation.py     # Model ablation experiment
 │
 ├── lib/                         # 📦 Modular library (5 sub-packages)
 │   ├── __init__.py              # Re-exports every public name (backward-compatible)
@@ -64,6 +74,19 @@ scripts/
 │
 └── README.md
 ```
+
+---
+
+## 📊 experiments/ — VLDB Paper Suite
+
+The `scripts/experiments/` package provides the self-contained experiment runner
+for the VLDB 2026 paper. See the [[VLDB-Experiments]] wiki page for full usage.
+
+| Module | Purpose |
+|--------|---------|
+| `vldb_paper_experiments.py` | Main runner: 8 experiments, auto-build/download/convert, output parsers (`parse_timing`, `parse_cache_sim`) |
+| `vldb_generate_figures.py` | LaTeX table & PNG figure generation from experiment JSON data |
+| `vldb_config.py` | Shared configuration: graph list (11 eval + 2 preview), algorithm IDs, variant names, parameters |
 
 ---
 
