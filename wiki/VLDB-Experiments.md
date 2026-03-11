@@ -46,6 +46,10 @@ The auto-setup phase will:
 To skip auto-setup (if binaries and graphs are already in place):
 
 ```bash
+# Uses results/graphs/ by default:
+python3 scripts/experiments/vldb_paper_experiments.py --all --skip-setup
+
+# Or specify a custom graph directory:
 python3 scripts/experiments/vldb_paper_experiments.py --all --skip-setup \
     --graph-dir /path/to/graphs
 ```
@@ -212,13 +216,15 @@ python3 scripts/experiments/vldb_generate_figures.py --sample-data
 results/vldb_paper/
 ├── MANIFEST.json              # Reproducibility metadata (git hash, config, timing)
 ├── exp1_cache/                # Cache simulation results (JSON)
+│                              #   Per-record fields: timing (average_time, reorder_time, …)
+│                              #   + L1/L2/L3 cache metrics (l1_hits, l1_misses, l1_hit_rate, …)
 ├── exp2_speedup/              # Kernel speedup results (JSON)
-├── exp3_overhead/             # Reorder overhead results (JSON)
+├── exp3_overhead/             # Reorder overhead results (JSON, .sg input with .el fallback)
 ├── exp4_e2e/                  # End-to-end derived data
 ├── exp5_ablation/             # Ablation study results (JSON)
 ├── exp6_sensitivity/          # Graph-type sensitivity metadata
 ├── exp7_chained/              # Chained ordering results (JSON)
-├── exp8_scalability/          # Thread scaling results (JSON)
+├── exp8_scalability/          # Thread scaling results (JSON, .sg input with .el fallback)
 ├── figures/                   # Generated PNG figures
 │   ├── fig1_cache_performance.png
 │   ├── fig2_kernel_speedup.png
@@ -256,7 +262,7 @@ All experiment parameters are defined in
 | `--exp N [N ...]` | Run specific experiment(s) by number (1-8) |
 | `--preview` | Use small graphs, 1 trial, 2 benchmarks |
 | `--dry-run` | Print commands without executing |
-| `--graph-dir PATH` | Directory containing `.sg` and `.el` graph files |
+| `--graph-dir PATH` | Directory containing graph files (default: `results/graphs` with `--skip-setup`) |
 | `--graphs NAME [...]` | Override graph list by name |
 | `--skip-setup` | Skip the auto-setup phase (build, download, convert) |
 | `--skip-download` | Skip graph download but still build + convert |
@@ -274,7 +280,9 @@ If auto-build fails, run `make all RABBIT_ENABLE=1 && make all-sim` manually.
 
 **"Graph file not found"** — Either let auto-setup download the graphs, or
 ensure `--graph-dir` points to a directory with `.sg` files matching the graph
-names in the config (e.g., `cit-Patents.sg`).
+names in the config. Both flat layout (`cit-Patents.sg`) and nested layout
+(`cit-Patents/cit-Patents.sg`) are supported. Experiments 3 and 8 try `.sg`
+first and fall back to `.el` automatically.
 
 **Graphs that need manual download** — `wikipedia_link_en` (KONECT) and
 `Gong-gplus` (Google Drive) cannot be auto-downloaded. See
@@ -297,4 +305,22 @@ To add a new graph or algorithm, edit `scripts/experiments/vldb_config.py`:
 
 ---
 
-*See also: [[GraphBrewOrder]], [[Running-Benchmarks]], [[Command-Line-Reference]], [[Cache-Simulation]]*
+### Result JSON Schema
+
+All experiment JSON files share a common set of timing fields extracted by
+`parse_timing()`: `trial_time`, `reorder_time`, `average_time`,
+`preprocessing_time`, `total_time`, `topology_analysis_time`, `read_time`,
+`relabel_map_time`.
+
+Experiment 1 additionally includes per-cache-level metrics extracted by
+`parse_cache_sim()`: `l1_hits`, `l1_misses`, `l1_hit_rate`, `l2_hits`,
+`l2_misses`, `l2_hit_rate`, `l3_hits`, `l3_misses`, `l3_hit_rate`,
+`total_accesses`, `memory_accesses`, `overall_hit_rate`.
+
+LaTeX tables (`table_ablation.tex`, `table_sensitivity.tex`,
+`table_chained.tex`) are populated from the JSON data automatically;
+fields that have no data yet show `\emph{TBD}`.
+
+---
+
+*See also: [[GraphBrewOrder]], [[Running-Benchmarks]], [[Command-Line-Reference]], [[Cache-Simulation]], [[Python-Scripts]]*
