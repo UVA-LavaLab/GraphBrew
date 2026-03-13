@@ -130,13 +130,14 @@ experiments in the runner:
 
 ### Algorithms Evaluated
 
-**Baselines (12):** Original, Random, SORT, HubSort, HubCluster, DBG,
-HubSortDBG, HubClusterDBG, RabbitOrder, Gorder, RCM, GoGraph
+**Algorithms Evaluated (13):** Original, Random, SORT, HubSort, HubCluster, DBG,
+HubSortDBG, HubClusterDBG, RabbitOrder (CSR), RabbitOrder (Boost), Gorder, RCM, GoGraph
 
-**GraphBrew Variants (7):** Leiden, Rabbit, HubCluster, HRAB, TQR, HCache, Streaming
+**GraphBrew Variants (9):** Leiden, Rabbit, HubCluster, HRAB, TQR, HCache, Streaming,
+Rabbit-DBG, Rabbit-HubCluster
 
-**Chained Orderings (5):** SORT→RabbitOrder, SORT→GB-Leiden,
-DBG→GB-Leiden, SORT→GB-HRAB, HubClusterDBG→RabbitOrder
+**Chained Orderings (5):** GB-Leiden→DBG, GB-Leiden→HubCluster,
+GB-HRAB→DBG, GB-Leiden→GoGraph, RabbitOrder→DBG
 
 ### Benchmark Algorithms (7)
 

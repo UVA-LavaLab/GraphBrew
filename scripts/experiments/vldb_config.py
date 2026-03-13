@@ -55,13 +55,19 @@ GRAPHBREW_VARIANTS = [
     "rabbit:hubcluster", # Rabbit detection + hub-cluster ordering
 ]
 
+# RabbitOrder implementation variants (both use algorithm ID 8)
+RABBITORDER_VARIANTS = {
+    "8:csr":   "RabbitOrder (CSR)",    # GraphBrew native reimplementation
+    "8:boost": "RabbitOrder (Boost)",  # Original Boost-based implementation
+}
+
 # Chained orderings: list of (display_name, cli_flags) tuples
 CHAINED_ORDERINGS = [
-    ("SORT+RabbitOrder",     ["-o", "2", "-o", "8:csr"]),
-    ("SORT+GB-Leiden",       ["-o", "2", "-o", "12:leiden"]),
-    ("DBG+GB-Leiden",        ["-o", "5", "-o", "12:leiden"]),
-    ("SORT+GB-HRAB",         ["-o", "2", "-o", "12:hrab"]),
-    ("HubClusterDBG+Rabbit", ["-o", "7", "-o", "8:csr"]),
+    ("GB-Leiden+DBG",        ["-o", "12:leiden", "-o", "5"]),
+    ("GB-Leiden+HubCluster", ["-o", "12:leiden", "-o", "4"]),
+    ("GB-HRAB+DBG",          ["-o", "12:hrab",   "-o", "5"]),
+    ("GB-Leiden+GoGraph",    ["-o", "12:leiden", "-o", "16"]),
+    ("RabbitOrder+DBG",      ["-o", "8:csr",     "-o", "5"]),
 ]
 
 # Full algorithm list for experiments: ID → display name
@@ -72,6 +78,7 @@ def _gb_display(v: str) -> str:
 
 ALL_ALGORITHMS = {
     **BASELINE_ALGORITHMS,
+    **RABBITORDER_VARIANTS,
     **{f"12:{v}": f"GB-{_gb_display(v)}" for v in GRAPHBREW_VARIANTS},
 }
 
@@ -147,11 +154,12 @@ THREAD_COUNTS = [1, 2, 4, 8, 16, 32]
 
 ABLATION_CONFIGS = [
     {"name": "Original",                  "algo": "0",                    "desc": "No reordering"},
-    {"name": "Leiden-only",               "algo": "12:leiden",            "desc": "Leiden + hierarchical sort"},
-    {"name": "Leiden+BFS",                "algo": "12:leiden",            "desc": "Leiden + BFS intra-community"},
+    {"name": "Leiden-only",               "algo": "12:leiden:flat",       "desc": "Leiden communities + flat hierarchical sort (no BFS)"},
+    {"name": "Leiden+BFS",                "algo": "12:leiden",            "desc": "Leiden + BFS intra-community (default)"},
     {"name": "Leiden+HubCluster",         "algo": "12:hubcluster",        "desc": "Leiden + hub-first ordering"},
     {"name": "HRAB",                      "algo": "12:hrab",              "desc": "Leiden + RabbitOrder super-graph"},
     {"name": "HRAB+hubx",                "algo": "12:hrab:hubx",         "desc": "HRAB + hub extraction"},
+    {"name": "Leiden (recursive)",         "algo": "12:leiden:8:1",        "desc": "Leiden + 1-level recursive sub-community detection"},
     {"name": "Rabbit+DBG",               "algo": "12:rabbit:dbg",        "desc": "Rabbit detection + DBG ordering"},
     {"name": "Rabbit+HubCluster",        "algo": "12:rabbit:hubcluster", "desc": "Rabbit detection + hub-cluster"},
     {"name": "Gorder",                    "algo": "9",                    "desc": "Gorder (reference)"},
