@@ -290,8 +290,15 @@ Options can be passed directly — the `graphbrew` prefix is **not required**.
 | Variant | Description | Default Final Algo |
 |---------|-------------|--------------------|
 | `leiden` | Leiden community detection (default) | RabbitOrder (8) |
-| `rabbit` | Full RabbitOrder via GraphBrew pipeline | N/A (single-pass) |
+| `rabbit` | RabbitOrder community detection (supports all orderings) | Native DFS |
 | `hubcluster` | Hub-degree based clustering | N/A (native) |
+
+Both `leiden` and `rabbit` presets can be combined with any **ordering strategy** (Layer 1). For example:
+- `-o 12:rabbit:dbg` — Rabbit communities + DBG ordering
+- `-o 12:rabbit:hubcluster` — Rabbit communities + hub-cluster ordering
+- `-o 12:leiden:dbg` — Leiden communities + DBG ordering
+
+Without an ordering suffix, `12:rabbit` uses its native DFS and `12:leiden` uses the default LAYER ordering.
 
 Override the final reordering algorithm with `:<algo_id>`, e.g. `-o "12:leiden:7"` uses HubClusterDBG.
 

@@ -330,7 +330,7 @@ These algorithms use different approaches: RabbitOrder detects communities, whil
 - **Description**: Runs GraphBrew +community detection, then applies per-community reordering
 - **Variants** (powered by GraphBrew pipeline):
   - `leiden`: GraphBrew Leiden with GVE-CSR aggregation - **default**
-  - `rabbit`: GraphBrew RabbitOrder single-pass pipeline
+  - `rabbit`: GraphBrew RabbitOrder community detection (supports all ordering strategies)
   - `hubcluster`: GraphBrew Leiden + hub-cluster ordering
 - **Parameters**:
   - `final_algo`: Algorithm ID (0-11) to use within communities (default: 8 = RabbitOrder)
@@ -340,22 +340,29 @@ These algorithms use different approaches: RabbitOrder detects communities, whil
 - **Dynamic thresholds**: Community size thresholds are computed dynamically based on `avg_community_size/4` and `sqrt(N)`
 - **Best for**: Fine-grained control over per-community ordering
 
-**GraphBrew Unified Framework**: GraphBrewOrder provides a unified interface for graph reordering. It uses Leiden community detection, then applies configurable per-community ordering strategies. The `graphbrew` prefix is **not required** — pass ordering strategies directly:
+**GraphBrew Unified Framework**: GraphBrewOrder provides a unified interface for graph reordering. Both Leiden and RabbitOrder community detection can be freely combined with any of the 14 ordering strategies. The `graphbrew` prefix is **not required** — pass ordering strategies directly:
 
 ```bash
-# Ordering strategies (no "graphbrew" prefix needed)
+# Leiden-based ordering strategies:
 ./bench/bin/pr -f graph.mtx -s -o 12 -n 3                  # Default (leiden + per-community RabbitOrder)
 ./bench/bin/pr -f graph.mtx -s -o 12:hrab -n 3             # Hybrid Leiden+RabbitOrder (best locality)
 ./bench/bin/pr -f graph.mtx -s -o 12:dfs -n 3              # DFS dendrogram traversal
 ./bench/bin/pr -f graph.mtx -s -o 12:conn -n 3             # Connectivity BFS within communities
-./bench/bin/pr -f graph.mtx -s -o 12:rabbit -n 3           # RabbitOrder single-pass pipeline
 ./bench/bin/pr -f graph.mtx -s -o 12:0.75 -n 3             # Fixed resolution (0.75)
+
+# Rabbit-based ordering strategies (Rabbit detection × any ordering):
+./bench/bin/pr -f graph.mtx -s -o 12:rabbit -n 3           # RabbitOrder native DFS (default)
+./bench/bin/pr -f graph.mtx -s -o 12:rabbit:dbg -n 3       # Rabbit communities + DBG ordering
+./bench/bin/pr -f graph.mtx -s -o 12:rabbit:hubcluster -n 3 # Rabbit communities + hub-cluster
+./bench/bin/pr -f graph.mtx -s -o 12:rabbit:hrab -n 3      # Rabbit communities + hybrid ordering
 ```
 
 **Key recommendations:**
 - **Best overall**: `12:leiden` (default) — Leiden + per-community RabbitOrder
 - **Fastest**: `12:rabbit` — single-pass RabbitOrder pipeline
 - **Power-law**: `12:hubcluster` — hub-aware community ordering
+- **Large power-law**: `12:rabbit:dbg` — fast Rabbit detection + DBG degree-grouping
+- **Large modular**: `12:rabbit:hubcluster` — fast Rabbit detection + hub-cluster ordering
 
 See [[Command-Line-Reference#graphbreworder-12]] for the full option reference and [[Community-Detection]] for algorithm details.
 
@@ -483,10 +490,10 @@ See `chain_canonical_name()` and `CHAINED_ORDERINGS` in `scripts/lib/core/utils.
 
 | Graph Type | Recommended | Alternatives |
 |------------|-------------|--------------|
-| Social Networks | GraphBrewOrder (12) | GraphBrewOrder (12:rabbit) |
-| Web Graphs | GraphBrewOrder (12) | HUBCLUSTERDBG (7) |
+| Social Networks | GraphBrewOrder (12) | 12:rabbit:dbg, 12:rabbit:hubcluster |
+| Web Graphs | GraphBrewOrder (12) | 12:rabbit:dbg, HUBCLUSTERDBG (7) |
 | Road Networks | ORIGINAL (0), RCM (11) | GraphBrewOrder (12) |
-| Citation Networks | GraphBrewOrder (12) | LeidenOrder (15) |
+| Citation Networks | GraphBrewOrder (12) | 12:rabbit:hubcluster, LeidenOrder (15) |
 | Random Geometric | GraphBrewOrder (12) | GraphBrewOrder (12:rabbit) |
 | Unknown | GraphBrewOrder (12) | AdaptiveOrder (14) |
 
@@ -496,19 +503,19 @@ See `chain_canonical_name()` and `CHAINED_ORDERINGS` in `scripts/lib/core/utils.
 |------|-------|-------------|
 | Small | < 100K | Any (try several) |
 | Medium | 100K - 1M | GraphBrewOrder (12) |
-| Large | 1M - 100M | GraphBrewOrder (12), GraphBrewOrder (12:rabbit) |
-| Very Large | > 100M | GraphBrewOrder (12:rabbit), HUBCLUSTERDBG (7) |
+| Large | 1M - 100M | GraphBrewOrder (12), 12:rabbit:dbg, 12:rabbit:hubcluster |
+| Very Large | > 100M | 12:rabbit:dbg, 12:rabbit:hubcluster, 12:rabbit |
 
 ### Quick Decision Tree
 
 ```
 Is your graph modular (has communities)?
 ├── Yes → Is it very large (>10M vertices)?
-│         ├── Yes → GraphBrewOrder (12:rabbit) for speed
-│         │         GraphBrewOrder (12) for quality
+│         ├── Yes → 12:rabbit:dbg or 12:rabbit:hubcluster (fast detection + good ordering)
+│         │         GraphBrewOrder (12) for best quality
 │         └── No → GraphBrewOrder (12) - best quality
 └── No/Unknown → Is it a power-law graph?
-              ├── Yes → HUBCLUSTERDBG (7)
+              ├── Yes → 12:rabbit:dbg or HUBCLUSTERDBG (7)
               └── No → Try AdaptiveOrder (14)
 ```
 
