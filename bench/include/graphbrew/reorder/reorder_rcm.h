@@ -559,6 +559,7 @@ template <typename NodeID_, typename DestID_, typename WeightT_, bool invert>
 void GenerateRCMBNFOrderMapping(const CSRGraph<NodeID_, DestID_, invert>& g,
                                 pvector<NodeID_>& new_ids,
                                 const std::string& /*filename*/) {
+    using namespace rcm_bnf_detail;
     Timer tm;
     const int64_t n = g.num_nodes();
 
@@ -583,21 +584,8 @@ void GenerateRCMBNFOrderMapping(const CSRGraph<NodeID_, DestID_, invert>& g,
         new_ids[i] = static_cast<NodeID_>(i);
     }
 
-    // --- Step 2: RCM each component ---
+    // --- Step 2: RCM each component (parallel across components) ---
     tm.Start();
-
-    // Global CM ordering (before reversal)
-    std::vector<NodeID_> global_order;
-    global_order.reserve(n);
-
-    // Shared visited arrays (reset between components)
-    std::vector<uint8_t> visited_bnf(n, 0);
-    std::vector<uint8_t> visited_cm(n, 0);
-
-    // Owner array for deterministic parallel CM BFS.
-    // owner[v] = frontier index of claiming parent (INT64_MAX = unclaimed).
-    // Allocated once, reused across components (reset in cm_bfs Phase 3).
-    std::vector<int64_t> owner(n, std::numeric_limits<int64_t>::max());
 
     // Sort components by size descending — process largest first
     std::sort(components.begin(), components.end(),
@@ -605,25 +593,165 @@ void GenerateRCMBNFOrderMapping(const CSRGraph<NodeID_, DestID_, invert>& g,
                   return a.size() > b.size();
               });
 
-    for (const auto& comp : components) {
-        if (comp.empty()) continue;
+    const size_t numComp = components.size();
 
-        if (comp.size() == 1) {
-            global_order.push_back(comp[0]);
-            continue;
+    // Compute prefix-sum offsets for each component's position in global_order
+    // This allows parallel components to write to non-overlapping regions
+    std::vector<int64_t> compOffsets(numComp + 1, 0);
+    for (size_t ci = 0; ci < numComp; ++ci) {
+        compOffsets[ci + 1] = compOffsets[ci] + static_cast<int64_t>(components[ci].size());
+    }
+    const int64_t totalOrdered = compOffsets[numComp];
+
+    // Pre-allocate global order array (parallel write via offsets)
+    std::vector<NodeID_> global_order(totalOrdered);
+
+    // Per-component CM orderings computed in parallel
+    // Each component writes to global_order[compOffsets[ci] .. compOffsets[ci+1])
+    // Components are independent — no synchronization needed between them.
+    //
+    // Tiered strategy:
+    //   - 1 vertex: trivial
+    //   - 2-32 vertices: min-degree start + serial CM BFS (skip BNF)
+    //   - 33-256 vertices: simplified BNF (max 3 GL iterations) + serial CM
+    //   - >256 vertices: full BNF (up to 20 GL iterations) + parallel CM BFS
+
+    // Threshold: process components larger than this with full BNF + parallel CM
+    constexpr size_t FULL_BNF_THRESHOLD = 256;
+    constexpr size_t SKIP_BNF_THRESHOLD = 32;
+
+    #pragma omp parallel
+    {
+        // Thread-local visited/owner arrays for small components
+        // (avoids using the shared n-sized arrays which would conflict)
+        std::vector<uint8_t> localVisited;
+        std::vector<NodeID_> localCmOrder;
+
+        #pragma omp for schedule(dynamic, 1)
+        for (size_t ci = 0; ci < numComp; ++ci) {
+            const auto& comp = components[ci];
+            const size_t sz = comp.size();
+            if (sz == 0) continue;
+
+            const int64_t offset = compOffsets[ci];
+
+            if (sz == 1) {
+                global_order[offset] = comp[0];
+                continue;
+            }
+
+            // --- Find starting node ---
+            NodeID_ startNode;
+
+            if (sz <= SKIP_BNF_THRESHOLD) {
+                // Small component: just use min-degree vertex (no GL iteration)
+                startNode = comp[0];
+                int64_t minDeg = sym_degree(g, comp[0]);
+                for (size_t i = 1; i < sz; ++i) {
+                    int64_t d = sym_degree(g, comp[i]);
+                    if (d < minDeg) {
+                        minDeg = d;
+                        startNode = comp[i];
+                    }
+                }
+            } else if (sz <= FULL_BNF_THRESHOLD) {
+                // Medium component: simplified BNF (max 3 GL iterations)
+                // Use thread-local visited array sized to n (sparse usage but avoids alloc)
+                localVisited.assign(n, 0);
+
+                startNode = comp[0];
+                int64_t minDeg = sym_degree(g, comp[0]);
+                for (size_t i = 1; i < sz; ++i) {
+                    int64_t d = sym_degree(g, comp[i]);
+                    if (d < minDeg) {
+                        minDeg = d;
+                        startNode = comp[i];
+                    }
+                }
+
+                NodeID_ v = startNode;
+                int64_t prevEcc = 0;
+                int64_t bestWidth = std::numeric_limits<int64_t>::max();
+                std::vector<NodeID_> farthest;
+
+                for (int iter = 0; iter < 3; ++iter) {
+                    LevelInfo info = bfs_level_info_with_farthest(g, v, comp, localVisited, farthest);
+                    if (info.max_width < bestWidth || (info.max_width == bestWidth && info.eccentricity > prevEcc)) {
+                        bestWidth = info.max_width;
+                        startNode = v;
+                    }
+                    if (info.eccentricity <= prevEcc) break;
+                    prevEcc = info.eccentricity;
+
+                    NodeID_ next = farthest[0];
+                    int64_t nextDeg = sym_degree(g, next);
+                    for (size_t i = 1; i < farthest.size(); ++i) {
+                        int64_t d = sym_degree(g, farthest[i]);
+                        if (d < nextDeg) {
+                            nextDeg = d;
+                            next = farthest[i];
+                        }
+                    }
+                    v = next;
+                }
+
+                // Reset localVisited for comp vertices
+                for (NodeID_ cv : comp) localVisited[cv] = 0;
+            } else {
+                // Large component: full BNF with up to 20 GL iterations
+                // Use thread-local visited array
+                localVisited.assign(n, 0);
+                startNode = find_bnf_start(g, comp, localVisited);
+                for (NodeID_ cv : comp) localVisited[cv] = 0;
+            }
+
+            // --- CM BFS with degree-sorted neighbors ---
+            // For small/medium components: serial CM BFS (no owner array needed)
+            localCmOrder.clear();
+            localCmOrder.reserve(sz);
+            localVisited.assign(n, 0);
+
+            localCmOrder.push_back(startNode);
+            localVisited[startNode] = 1;
+
+            std::queue<NodeID_> bfsQ;
+            bfsQ.push(startNode);
+
+            while (!bfsQ.empty()) {
+                NodeID_ u = bfsQ.front();
+                bfsQ.pop();
+
+                std::vector<std::pair<int64_t, NodeID_>> candidates;
+                for_each_sym_neigh(g, u, [&](NodeID_ v) {
+                    if (!localVisited[v]) {
+                        localVisited[v] = 1;
+                        candidates.push_back({sym_degree(g, v), v});
+                    }
+                });
+
+                std::sort(candidates.begin(), candidates.end());
+
+                for (auto& [d, v] : candidates) {
+                    localCmOrder.push_back(v);
+                    bfsQ.push(v);
+                }
+            }
+
+            // Handle disconnected vertices within this component
+            for (NodeID_ cv : comp) {
+                if (!localVisited[cv]) {
+                    localCmOrder.push_back(cv);
+                }
+            }
+
+            // Reset visited
+            for (NodeID_ cv : comp) localVisited[cv] = 0;
+
+            // Write to global_order at this component's offset
+            for (size_t i = 0; i < localCmOrder.size(); ++i) {
+                global_order[offset + static_cast<int64_t>(i)] = localCmOrder[i];
+            }
         }
-
-        // BNF starting node selection
-        NodeID_ start = rcm_bnf_detail::find_bnf_start(g, comp, visited_bnf);
-
-        // Deterministic parallel CM BFS
-        std::vector<NodeID_> cm_order;
-        rcm_bnf_detail::cm_bfs(g, start, comp, visited_cm, owner, cm_order);
-
-        // Reset visited_cm for next component
-        for (NodeID_ v : cm_order) visited_cm[v] = 0;
-
-        global_order.insert(global_order.end(), cm_order.begin(), cm_order.end());
     }
 
     tm.Stop();
@@ -631,11 +759,10 @@ void GenerateRCMBNFOrderMapping(const CSRGraph<NodeID_, DestID_, invert>& g,
 
     // --- Step 3: Reverse to get RCM ---
     tm.Start();
-    const int64_t total = static_cast<int64_t>(global_order.size());
 
     #pragma omp parallel for schedule(static)
-    for (int64_t i = 0; i < total; ++i) {
-        new_ids[global_order[i]] = static_cast<NodeID_>(total - 1 - i);
+    for (int64_t i = 0; i < totalOrdered; ++i) {
+        new_ids[global_order[i]] = static_cast<NodeID_>(totalOrdered - 1 - i);
     }
 
     tm.Stop();

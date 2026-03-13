@@ -53,6 +53,7 @@ GRAPHBREW_VARIANTS = [
     "streaming",         # Leiden + lazy aggregation
     "rabbit:dbg",        # Rabbit detection + DBG degree-grouping
     "rabbit:hubcluster", # Rabbit detection + hub-cluster ordering
+    "rcm",               # Leiden + per-community RCM + super-graph BNF-RCM
 ]
 
 # RabbitOrder implementation variants (both use algorithm ID 8)
