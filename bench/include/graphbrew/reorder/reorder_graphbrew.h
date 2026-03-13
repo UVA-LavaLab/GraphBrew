@@ -315,6 +315,7 @@ struct GraphBrewConfig {
     int  gorderFallback = 0;           ///< Community size threshold for BFS fallback (0 = auto = N, i.e. no fallback)
     bool useHubSort = false;           ///< Post-process: pack hub vertices contiguously sorted by descending degree (graphbrew:hsort)
     bool useRCMSuper = false;          ///< Use RCM on super-graph instead of RabbitOrder dendrogram DFS (graphbrew:rcm)
+    bool useRCMIntra = false;          ///< Use RCM (Cuthill-McKee) within each community instead of BFS (graphbrew:rcm_intra)
     
     // GraphBrew mode: per-community external algorithm dispatch
     int  finalAlgoId = -1;             ///< Final reordering algorithm ID (0-11) for LAYER ordering. -1 = not set (uses GraphBrew ordering)
@@ -3811,9 +3812,14 @@ void orderHybridLeidenRabbit(
     // RCM minimizes bandwidth (max edge span) — ensures heavily-connected
     // communities are placed near each other in the ID space. This is
     // proximity-based rather than degree-based like dendrogram DFS.
+    //
+    // Enhanced with George-Liu pseudo-peripheral starting node (BNF
+    // criterion from RCM++, Hou et al. 2024): iterate BFS → pick
+    // min-degree in farthest level → repeat until eccentricity plateaus.
+    // Track best-width candidate across iterations (BNF enhancement).
     // ================================================================
     if (config.useRCMSuper) {
-        printf("  hybrid-rabbit: applying RCM on super-graph (%zu communities)\n", C);
+        printf("  hybrid-rabbit: applying BNF-RCM on super-graph (%zu communities)\n", C);
         
         // Build symmetric adjacency list for super-graph
         std::vector<std::vector<std::pair<K, float>>> superAdj(C);
@@ -3825,37 +3831,105 @@ void orderHybridLeidenRabbit(
             }
         }
         
-        // RCM: BFS from lowest-degree community, neighbors sorted by ascending degree
+        // Compute super-graph degrees
         std::vector<K> rcmDegree(C);
         for (size_t c = 0; c < C; ++c) {
             rcmDegree[c] = static_cast<K>(superAdj[c].size());
         }
         
-        // Find lowest-degree non-empty community as seed
-        K rcmSeed = 0;
-        K minDeg = std::numeric_limits<K>::max();
+        // Collect non-empty communities for processing
+        std::vector<K> nonEmpty;
+        nonEmpty.reserve(C);
         for (size_t c = 0; c < C; ++c) {
-            if (!commVertices[c].empty() && rcmDegree[c] > 0 && rcmDegree[c] < minDeg) {
-                minDeg = rcmDegree[c];
-                rcmSeed = static_cast<K>(c);
+            if (!commVertices[c].empty() && rcmDegree[c] > 0) {
+                nonEmpty.push_back(static_cast<K>(c));
             }
         }
         
+        // --- George-Liu BNF starting node finder on super-graph ---
+        // Lambda: BFS on super-graph, returns (eccentricity, max_width, farthest_level)
+        auto superBFS = [&](K root, std::vector<bool>& vis) 
+            -> std::tuple<int64_t, int64_t, std::vector<K>> {
+            vis.assign(C, false);
+            std::vector<K> curLevel = {root};
+            vis[root] = true;
+            int64_t ecc = 0;
+            int64_t maxWidth = 1;
+
+            while (true) {
+                std::vector<K> nextLevel;
+                for (K cur : curLevel) {
+                    for (auto& [nbr, w] : superAdj[cur]) {
+                        if (!vis[nbr] && !commVertices[nbr].empty()) {
+                            vis[nbr] = true;
+                            nextLevel.push_back(nbr);
+                        }
+                    }
+                }
+                if (nextLevel.empty()) break;
+                ecc++;
+                int64_t w = static_cast<int64_t>(nextLevel.size());
+                if (w > maxWidth) maxWidth = w;
+                curLevel = std::move(nextLevel);
+            }
+            return {ecc, maxWidth, curLevel};  // curLevel = farthest level
+        };
+
+        // Find initial seed: min-degree non-empty community
+        K glNode = nonEmpty.empty() ? K(0) : nonEmpty[0];
+        K minDeg = std::numeric_limits<K>::max();
+        for (K c : nonEmpty) {
+            if (rcmDegree[c] < minDeg) {
+                minDeg = rcmDegree[c];
+                glNode = c;
+            }
+        }
+
+        // George-Liu iteration with BNF width tracking
+        std::vector<bool> glVis(C, false);
+        int64_t prevEcc = 0;
+        int64_t bestWidth = std::numeric_limits<int64_t>::max();
+        K bestNode = glNode;
+
+        for (int glIt = 0; glIt < 20; ++glIt) {
+            auto [ecc, maxW, farthest] = superBFS(glNode, glVis);
+
+            // BNF criterion: prefer narrower BFS tree; tie-break by higher eccentricity
+            if (maxW < bestWidth || (maxW == bestWidth && ecc > prevEcc)) {
+                bestWidth = maxW;
+                bestNode = glNode;
+            }
+
+            if (ecc <= prevEcc) break;
+            prevEcc = ecc;
+
+            // Pick min-degree from farthest level
+            K nextNode = farthest[0];
+            K nextDeg = rcmDegree[farthest[0]];
+            for (size_t i = 1; i < farthest.size(); ++i) {
+                if (rcmDegree[farthest[i]] < nextDeg) {
+                    nextDeg = rcmDegree[farthest[i]];
+                    nextNode = farthest[i];
+                }
+            }
+            glNode = nextNode;
+        }
+
+        // --- CM BFS from BNF-selected start with degree-sorted neighbors ---
         std::vector<bool> rcmVisited(C, false);
         std::vector<K> rcmOrder;
         rcmOrder.reserve(C);
         std::queue<K> rcmQueue;
         
-        // Multi-seed BFS (handles disconnected super-graph)
-        // Sort all communities by degree ascending for seed priority
+        // Multi-seed: BNF-selected node first, then remaining by ascending degree
         std::vector<K> seedOrder(C);
         std::iota(seedOrder.begin(), seedOrder.end(), K(0));
         std::sort(seedOrder.begin(), seedOrder.end(),
             [&](K a, K b) { return rcmDegree[a] < rcmDegree[b]; });
         
-        for (K seed : seedOrder) {
-            if (rcmVisited[seed] || commVertices[seed].empty()) continue;
-            
+        // Process BNF node first
+        auto doCMBFS = [&](K seed) {
+            if (rcmVisited[seed] || commVertices[seed].empty()) return;
             rcmQueue.push(seed);
             rcmVisited[seed] = true;
             
@@ -3864,7 +3938,7 @@ void orderHybridLeidenRabbit(
                 rcmQueue.pop();
                 rcmOrder.push_back(cur);
                 
-                // Sort neighbors by ascending degree (RCM heuristic)
+                // Sort neighbors by ascending degree (CM heuristic)
                 auto& nbrs = superAdj[cur];
                 std::sort(nbrs.begin(), nbrs.end(),
                     [&](const std::pair<K,float>& a, const std::pair<K,float>& b) {
@@ -3878,6 +3952,11 @@ void orderHybridLeidenRabbit(
                     }
                 }
             }
+        };
+
+        doCMBFS(bestNode);  // BNF-selected seed first
+        for (K seed : seedOrder) {  // remaining disconnected components
+            doCMBFS(seed);
         }
         
         // Reverse for RCM (Reverse Cuthill-McKee)
@@ -3895,7 +3974,8 @@ void orderHybridLeidenRabbit(
             }
         }
         
-        printf("  hybrid-rabbit-rcm: ordered %zu communities via RCM\n", rcmOrder.size());
+        printf("  hybrid-rabbit-rcm: BNF-ordered %zu communities (GL best_width=%lld)\n",
+               rcmOrder.size(), static_cast<long long>(bestWidth));
     }
     
     // ================================================================
@@ -4315,6 +4395,200 @@ void orderHybridLeidenRabbit(
         
         printf("  hybrid-rabbit-gord: %zu comms gord (%zu verts), %zu comms bfs-fallback (%zu verts)\n",
                gordCount.load(), gordVerts.load(), bfsCount.load(), bfsVerts.load());
+    } else if (config.useRCMIntra) {
+        // ============================================================
+        // RCM (Cuthill-McKee) within each community
+        //
+        // Applies Reverse Cuthill-McKee ordering within each community
+        // to minimize bandwidth (max edge span) at the community level.
+        // This is embarrassingly parallel: each community is an
+        // independent problem processed by a separate thread.
+        //
+        // Tiered strategy by community size:
+        //   - ≤1 vertex: trivial (id=0)
+        //   - 2-32 vertices: min-degree start + serial CM BFS (skip BNF)
+        //   - 33-4096 vertices: simplified BNF (max 3 GL iterations)
+        //                       + serial CM BFS
+        //   - >4096 vertices: full BNF start + serial CM BFS
+        //
+        // The CM BFS at each level sorts neighbors by ascending degree
+        // (Cuthill-McKee heuristic), producing an ordering that places
+        // nearby-degree vertices together. The final reversal converts
+        // CM to RCM, which empirically yields tighter bandwidth.
+        // ============================================================
+        std::atomic<size_t> rcmTinyCount{0}, rcmSmallCount{0}, rcmMedCount{0}, rcmLargeCount{0};
+        std::atomic<size_t> rcmTinyVerts{0}, rcmSmallVerts{0}, rcmMedVerts{0}, rcmLargeVerts{0};
+
+        #pragma omp parallel
+        {
+            // Thread-local buffers reused across communities
+            std::vector<bool> visited;
+            std::queue<K> bfsQueue;
+            std::vector<K> cmOrder;
+
+            #pragma omp for schedule(dynamic, 1)
+            for (size_t ci = 0; ci < C; ++ci) {
+                K c = sortedComms[ci];
+                auto& verts = commVertices[c];
+                const size_t sz = verts.size();
+                if (sz == 0) continue;
+
+                if (sz == 1) {
+                    localIds[verts[0]] = 0;
+                    rcmTinyCount.fetch_add(1, std::memory_order_relaxed);
+                    rcmTinyVerts.fetch_add(1, std::memory_order_relaxed);
+                    continue;
+                }
+
+                visited.assign(sz, false);
+                cmOrder.clear();
+                cmOrder.reserve(sz);
+
+                // --- BNF-inspired starting node selection ---
+                // Find min-degree vertex as initial seed
+                K startV = verts[0];
+                K minDeg = degrees[verts[0]];
+                for (K v : verts) {
+                    if (degrees[v] < minDeg) {
+                        minDeg = degrees[v];
+                        startV = v;
+                    }
+                }
+
+                // For medium/large communities: George-Liu pseudo-peripheral iteration
+                // BFS from start → pick min-degree in farthest level → repeat
+                // until eccentricity stops increasing
+                const int maxGLIter = (sz <= 32) ? 0 : (sz <= 4096) ? 3 : 20;
+
+                if (maxGLIter > 0) {
+                    K glNode = startV;
+                    int64_t prevEcc = 0;
+
+                    for (int glIt = 0; glIt < maxGLIter; ++glIt) {
+                        // BFS to measure eccentricity and find farthest level
+                        visited.assign(sz, false);
+                        bfsQueue = std::queue<K>();  // clear
+
+                        std::vector<K> lastLevel;
+                        std::vector<K> curLevel;
+                        curLevel.push_back(glNode);
+                        int64_t ecc = 0;
+
+                        while (!curLevel.empty()) {
+                            std::vector<K> nextLevel;
+                            for (K u : curLevel) {
+                                for (auto neighbor : g.out_neigh(u)) {
+                                    NodeID_T v;
+                                    if constexpr (std::is_same_v<DestID_T, NodeID_T>) {
+                                        v = neighbor;
+                                    } else {
+                                        v = neighbor.v;
+                                    }
+                                    if (membership[v] != c) continue;
+                                    size_t localIdx = vertToLocalHrab[static_cast<K>(v)];
+                                    if (localIdx != static_cast<size_t>(-1) && !visited[localIdx]) {
+                                        visited[localIdx] = true;
+                                        nextLevel.push_back(static_cast<K>(v));
+                                    }
+                                }
+                            }
+                            if (!nextLevel.empty()) {
+                                ecc++;
+                                lastLevel = curLevel;
+                                curLevel = std::move(nextLevel);
+                            } else {
+                                break;
+                            }
+                        }
+
+                        // GL termination: eccentricity stopped increasing
+                        if (ecc <= prevEcc) break;
+                        prevEcc = ecc;
+
+                        // Pick min-degree vertex among farthest level
+                        K bestV = curLevel[0];
+                        K bestDeg = degrees[curLevel[0]];
+                        for (size_t i = 1; i < curLevel.size(); ++i) {
+                            if (degrees[curLevel[i]] < bestDeg) {
+                                bestDeg = degrees[curLevel[i]];
+                                bestV = curLevel[i];
+                            }
+                        }
+                        glNode = bestV;
+                    }
+                    startV = glNode;
+                }
+
+                // --- Cuthill-McKee BFS: sort neighbors by ascending degree ---
+                visited.assign(sz, false);
+                cmOrder.clear();
+
+                bfsQueue = std::queue<K>();
+                bfsQueue.push(startV);
+                visited[vertToLocalHrab[startV]] = true;
+
+                while (!bfsQueue.empty()) {
+                    K u = bfsQueue.front();
+                    bfsQueue.pop();
+                    cmOrder.push_back(u);
+
+                    // Collect unvisited neighbors within this community
+                    std::vector<std::pair<K, K>> candidates; // (degree, vertex)
+                    for (auto neighbor : g.out_neigh(u)) {
+                        NodeID_T v;
+                        if constexpr (std::is_same_v<DestID_T, NodeID_T>) {
+                            v = neighbor;
+                        } else {
+                            v = neighbor.v;
+                        }
+                        if (membership[v] != c) continue;
+                        size_t localIdx = vertToLocalHrab[static_cast<K>(v)];
+                        if (localIdx != static_cast<size_t>(-1) && !visited[localIdx]) {
+                            visited[localIdx] = true;
+                            candidates.push_back({degrees[static_cast<K>(v)], static_cast<K>(v)});
+                        }
+                    }
+
+                    // CM heuristic: sort by ascending degree
+                    std::sort(candidates.begin(), candidates.end());
+
+                    for (auto& [d, v] : candidates) {
+                        bfsQueue.push(v);
+                    }
+                }
+
+                // Handle disconnected vertices within this community
+                for (size_t i = 0; i < sz; ++i) {
+                    if (!visited[i]) {
+                        cmOrder.push_back(verts[i]);
+                    }
+                }
+
+                // Reverse to get RCM
+                const size_t total = cmOrder.size();
+                for (size_t i = 0; i < total; ++i) {
+                    localIds[cmOrder[i]] = static_cast<K>(total - 1 - i);
+                }
+
+                // Track stats
+                if (sz <= 32) {
+                    rcmSmallCount.fetch_add(1, std::memory_order_relaxed);
+                    rcmSmallVerts.fetch_add(sz, std::memory_order_relaxed);
+                } else if (sz <= 4096) {
+                    rcmMedCount.fetch_add(1, std::memory_order_relaxed);
+                    rcmMedVerts.fetch_add(sz, std::memory_order_relaxed);
+                } else {
+                    rcmLargeCount.fetch_add(1, std::memory_order_relaxed);
+                    rcmLargeVerts.fetch_add(sz, std::memory_order_relaxed);
+                }
+            }
+        }
+
+        printf("  hybrid-rabbit-rcm-intra: tiny=%zu(%zuv) small=%zu(%zuv) med=%zu(%zuv) large=%zu(%zuv)\n",
+               rcmTinyCount.load(), rcmTinyVerts.load(),
+               rcmSmallCount.load(), rcmSmallVerts.load(),
+               rcmMedCount.load(), rcmMedVerts.load(),
+               rcmLargeCount.load(), rcmLargeVerts.load());
     } else {
         // ============================================================
         // Standard BFS within each community (default)
@@ -7341,6 +7615,13 @@ inline GraphBrewConfig parseGraphBrewConfig(const std::vector<std::string>& opti
         }
         else if (opt == "rcm") {
             config.useRCMSuper = true;
+            config.useRCMIntra = true;
+        }
+        else if (opt == "rcm_super" || opt == "rcmsuper") {
+            config.useRCMSuper = true;
+        }
+        else if (opt == "rcm_intra" || opt == "rcmintra") {
+            config.useRCMIntra = true;
         }
         // Check for refinement
         else if (opt == "norefine") {
