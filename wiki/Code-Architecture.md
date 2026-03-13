@@ -363,10 +363,10 @@ raw benchmark data at C++ runtime, with no pre-trained weight files needed.
 | `canonical_algo_key(algo_id, variant)` | Canonical name for weights/filenames/JSON | `canonical_algo_key(12, "leiden")` → `"GraphBrewOrder_leiden"` |
 | `algo_converter_opt(algo_id, variant)` | C++ `-o` argument | `algo_converter_opt(8, "boost")` → `"8:boost"` |
 | `canonical_name_from_converter_opt(opt)` | Reverse: `-o` string → canonical name | `canonical_name_from_converter_opt("12:leiden")` → `"GraphBrewOrder_leiden"` |
-| `chain_canonical_name(converter_opts)` | Multi-step chain name | `chain_canonical_name("-o 2 -o 8:csr")` → `"SORT+RABBITORDER_csr"` |
+| `chain_canonical_name(converter_opts)` | Multi-step chain name | `chain_canonical_name("-o 12:leiden -o 5")` → `"GraphBrewOrder_leiden+DBG"` |
 | `get_algo_variants(algo_id)` | Variant tuple (or `None`) | `get_algo_variants(12)` → `("leiden", "rabbit", "hubcluster")` |
 
-**Chained Orderings:** `CHAINED_ORDERINGS` is auto-populated at module load from `_CHAINED_ORDERING_OPTS` via `chain_canonical_name()`. These are pregeneration-only (not used in perceptron training). Each entry is a `(canonical_name, converter_opts)` tuple. Current chains: `SORT+RABBITORDER_csr`, `SORT+RABBITORDER_boost`, `HUBCLUSTERDBG+RABBITORDER_csr`, `SORT+GraphBrewOrder_leiden`, `DBG+GraphBrewOrder_leiden`.
+**Chained Orderings:** `CHAINED_ORDERINGS` is auto-populated at module load from `_CHAINED_ORDERING_OPTS` via `chain_canonical_name()`. These are pregeneration-only (not used in perceptron training). Each entry is a `(canonical_name, converter_opts)` tuple. Current chains: `GraphBrewOrder_leiden+DBG`, `GraphBrewOrder_leiden+HUBCLUSTER`, `GraphBrewOrder_hrab+DBG`, `GraphBrewOrder_leiden+GoGraphOrder`, `RABBITORDER_csr+DBG`.
 
 **Variant Registry:** `_VARIANT_ALGO_REGISTRY` maps algo IDs 8, 11, 12 to `(prefix, variants, default)` tuples. GOrder variants (9: default/csr/fast) are tracked separately in `GORDER_VARIANTS` but share a single perceptron weight (they produce equivalent orderings).
 
