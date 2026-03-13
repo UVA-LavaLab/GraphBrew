@@ -52,6 +52,7 @@ from experiments.vldb_config import (
     CACHE_SIZES,
     CHAINED_ORDERINGS,
     EVAL_GRAPHS,
+    EVAL_GRAPHS_64GB,
     FIGURES_DIR,
     GRAPH_TYPE_GROUPS,
     GRAPHBREW_VARIANTS,
@@ -807,6 +808,8 @@ def main() -> None:
                         help="Override graph list (by name)")
     parser.add_argument("--graph-dir", type=str, default=".",
                         help="Directory containing graph files (.sg, .el)")
+    parser.add_argument("--64gb", action="store_true", dest="use_64gb",
+                        help="Use 64 GB graph set (11 auto-downloadable graphs, no >1B-edge graphs)")
     parser.add_argument("--skip-setup", action="store_true",
                         help="Skip auto-setup (build, download, convert)")
     parser.add_argument("--skip-download", action="store_true",
@@ -833,6 +836,11 @@ def main() -> None:
         benchmarks = BENCHMARKS_PREVIEW
         trials = TRIALS_PREVIEW
         timeout = TIMEOUT_PREVIEW
+    elif getattr(args, "use_64gb", False):
+        graphs = EVAL_GRAPHS_64GB
+        benchmarks = BENCHMARKS
+        trials = TRIALS_FULL
+        timeout = TIMEOUT_FULL
     else:
         graphs = EVAL_GRAPHS
         benchmarks = BENCHMARKS

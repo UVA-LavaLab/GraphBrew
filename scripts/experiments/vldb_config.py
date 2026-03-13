@@ -111,6 +111,23 @@ EVAL_GRAPHS = [
     {"name": "twitter7",           "short": "twitter",   "type": "social",        "vertices_m": 61.79,  "edges_m": 1468.36},
 ]
 
+# Graphs for 64 GB machines (11 graphs, all auto-downloadable from SuiteSparse)
+# Drops twitter7/webbase-2001 (>1B edges) and manual-download graphs;
+# adds as-Skitter, kron_g500-logn21, indochina-2004, uk-2002 for type diversity.
+EVAL_GRAPHS_64GB = [
+    {"name": "as-Skitter",         "short": "skitter",   "type": "infrastructure", "vertices_m": 1.70,   "edges_m": 11.10},
+    {"name": "cit-Patents",        "short": "patents",   "type": "citation",       "vertices_m": 3.77,   "edges_m": 16.52},
+    {"name": "soc-pokec",          "short": "pokec",     "type": "social",         "vertices_m": 1.63,   "edges_m": 30.62},
+    {"name": "USA-road-d.USA",     "short": "road",      "type": "road",           "vertices_m": 23.95,  "edges_m": 58.33},
+    {"name": "soc-LiveJournal1",   "short": "journal",   "type": "social",         "vertices_m": 4.85,   "edges_m": 68.99},
+    {"name": "delaunay_n24",       "short": "delaunay",  "type": "mesh",           "vertices_m": 16.78,  "edges_m": 100.66},
+    {"name": "hollywood-2009",     "short": "hollywood", "type": "collaboration",  "vertices_m": 1.14,   "edges_m": 113.89},
+    {"name": "com-Orkut",          "short": "orkut",     "type": "social",         "vertices_m": 3.07,   "edges_m": 117.19},
+    {"name": "kron_g500-logn21",   "short": "kron21",    "type": "synthetic",      "vertices_m": 2.10,   "edges_m": 182.08},
+    {"name": "indochina-2004",     "short": "indochina", "type": "web",            "vertices_m": 7.41,   "edges_m": 194.11},
+    {"name": "uk-2002",            "short": "uk02",      "type": "web",            "vertices_m": 18.52,  "edges_m": 298.11},
+]
+
 # Small graphs for preview mode
 PREVIEW_GRAPHS = [
     {"name": "email-Eu-core",      "short": "email",     "type": "social",   "vertices_m": 0.001,  "edges_m": 0.025},
@@ -206,6 +223,12 @@ VLDB_GRAPH_SOURCES = {
     "hollywood-2009":    {"source": "catalog"},
     "webbase-2001":      {"source": "catalog"},
     "twitter7":          {"source": "catalog"},
+
+    # ── Additional graphs for EVAL_GRAPHS_64GB ──
+    "as-Skitter":        {"source": "catalog"},
+    "kron_g500-logn21":  {"source": "catalog"},
+    "indochina-2004":    {"source": "catalog"},
+    "uk-2002":           {"source": "catalog"},
 
     # ── Manual download required ──
     "wikipedia_link_en": {
