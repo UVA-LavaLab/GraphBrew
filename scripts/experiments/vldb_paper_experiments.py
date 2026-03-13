@@ -30,8 +30,10 @@ import json
 import logging
 import os
 import platform
+import re
 import subprocess
 import sys
+import tempfile
 import time
 from datetime import datetime
 from pathlib import Path
@@ -132,13 +134,24 @@ def parse_timing(output: Optional[str]) -> dict:
         Trial Time:       0.1234
         Reorder Time:     0.0567
         Average Time:     0.1100
+
+    For chained orderings, multiple ``Reorder Time:`` lines may appear.
+    These are **summed** to give the total reorder cost.
     """
     result: dict = {}
     if not output:
         return result
+    reorder_times: list[float] = []
     for line in output.splitlines():
         line = line.strip()
-        for key in ("Trial Time", "Reorder Time", "Average Time",
+        # Collect all Reorder Time values (summed below)
+        if line.startswith("Reorder Time"):
+            try:
+                reorder_times.append(float(line.split(":", 1)[1].strip().split()[0]))
+            except (ValueError, IndexError):
+                pass
+            continue
+        for key in ("Trial Time", "Average Time",
                     "Preprocessing Time", "Total Time",
                     "Topology Analysis Time", "Read Time",
                     "Relabel Map Time"):
@@ -149,6 +162,8 @@ def parse_timing(output: Optional[str]) -> dict:
                     )
                 except (ValueError, IndexError):
                     pass
+    if reorder_times:
+        result["reorder_time"] = sum(reorder_times)
     return result
 
 
@@ -228,6 +243,148 @@ def save_manifest(args: argparse.Namespace, elapsed: float) -> None:
     save_json(manifest, RESULTS_DIR / "MANIFEST.json")
 
 
+# ---------------------------------------------------------------------------
+# Mapping (.lo) pre-generation infrastructure
+# ---------------------------------------------------------------------------
+
+MAPPINGS_DIR = PROJECT_ROOT / "results" / "vldb_mappings"
+
+
+def _lo_path(graph_name: str, algo_key: str) -> Path:
+    """Path for a pre-generated label-order mapping file."""
+    safe = algo_key.replace(":", "_").replace("/", "_")
+    return MAPPINGS_DIR / graph_name / f"{safe}.lo"
+
+
+def _time_path(graph_name: str, algo_key: str) -> Path:
+    """Path for the recorded reorder time alongside a .lo file."""
+    safe = algo_key.replace(":", "_").replace("/", "_")
+    return MAPPINGS_DIR / graph_name / f"{safe}.time"
+
+
+def _load_reorder_time(graph_name: str, algo_key: str) -> float:
+    """Load pre-recorded reorder time from .time file, or 0.0."""
+    tp = _time_path(graph_name, algo_key)
+    if tp.exists():
+        try:
+            return float(tp.read_text().strip())
+        except (ValueError, OSError):
+            pass
+    return 0.0
+
+
+def _pregenerate_mappings(
+    graphs: list[dict],
+    graph_dir: str,
+    dry_run: bool = False,
+    timeout: int = 1800,
+) -> None:
+    """Pre-generate .lo mapping files for all (graph, algorithm) pairs.
+
+    Runs the converter once per pair with ``-q {lo_path}`` to produce
+    a vertex-permutation file.  Also records ``Reorder Time:`` from
+    converter stdout into a ``.time`` companion file.
+
+    Subsequent experiments use MAP mode (``-o 13:{lo_path}``) so the
+    benchmark binary loads the pre-computed ordering with zero reorder
+    cost, and all benchmarks for the same graph×algorithm see exactly
+    the same ordering.
+    """
+    converter = BIN_DIR / "converter"
+    if not converter.exists():
+        log.warning("  Converter binary not found — skipping .lo pre-generation")
+        return
+
+    # Build the full algo list: baselines + GB variants + chained
+    algo_list: list[tuple[str, list[str]]] = []  # (key, flags)
+    for aid, _aname in BASELINE_ALGORITHMS.items():
+        if aid == 0:
+            continue  # ORIGINAL — no mapping needed
+        algo_list.append((str(aid), ["-o", str(aid)]))
+    for v in GRAPHBREW_VARIANTS:
+        algo_list.append((f"12:{v}", ["-o", f"12:{v}"]))
+    for chain_name, chain_flags in CHAINED_ORDERINGS:
+        algo_list.append((f"chain:{chain_name}", chain_flags))
+    # Ablation configs that aren't already covered
+    for cfg in ABLATION_CONFIGS:
+        key = cfg["algo"]
+        if key == "0":
+            continue
+        if not any(k == key for k, _ in algo_list):
+            algo_list.append((key, get_converter_flags(key)))
+
+    generated = 0
+    skipped = 0
+    failed = 0
+
+    for graph in graphs:
+        gname = graph["name"]
+        sg = resolve_graph_path(gname, graph_dir, ext=".sg")
+        if not Path(sg).exists():
+            log.warning(f"  {gname}: no .sg file — skipping")
+            continue
+
+        for algo_key, aflags in algo_list:
+            lo = _lo_path(gname, algo_key)
+            tf = _time_path(gname, algo_key)
+
+            if lo.exists() and lo.stat().st_size > 0:
+                skipped += 1
+                continue
+
+            if dry_run:
+                log.info(f"  [dry-run] {gname} → {algo_key}")
+                skipped += 1
+                continue
+
+            lo.parent.mkdir(parents=True, exist_ok=True)
+
+            # Converter needs -b (output .sg) even though we only want -q (.lo).
+            # Use a tempfile that gets discarded.
+            with tempfile.NamedTemporaryFile(suffix=".sg", delete=True) as tmp:
+                cmd = [str(converter), "-f", sg, "-s"]
+                cmd.extend(aflags)
+                cmd.extend(["-b", tmp.name, "-q", str(lo)])
+                output = run_cmd(cmd, dry_run=False, timeout=timeout)
+
+            if output is None or not lo.exists() or lo.stat().st_size == 0:
+                log.warning(f"  FAILED: {gname} → {algo_key}")
+                if lo.exists():
+                    lo.unlink()
+                failed += 1
+                continue
+
+            # Save reorder time (sum of all Reorder Time: lines)
+            reorder_times = re.findall(r"Reorder Time:\s*([\d.]+)", output)
+            if reorder_times:
+                total = sum(float(t) for t in reorder_times)
+                tf.parent.mkdir(parents=True, exist_ok=True)
+                tf.write_text(str(total))
+
+            generated += 1
+
+    log.info(f"  Mappings: {generated} generated, {skipped} existing, {failed} failed")
+
+
+def algo_flags_or_map(
+    algo_key: str, algo_flags: list[str], graph_name: str,
+) -> tuple[list[str], float]:
+    """Return (flags, prerecorded_reorder_time) using MAP mode if .lo exists.
+
+    If a pre-generated .lo file exists for this (graph, algo), returns
+    ``["-o", "13:{lo_path}"]`` so the benchmark loads the cached
+    ordering with zero runtime reorder cost.  The recorded reorder time
+    from the ``.time`` file is returned as the second element.
+
+    Otherwise falls back to the original *algo_flags* (runtime reorder).
+    """
+    lo = _lo_path(graph_name, algo_key)
+    if lo.exists() and lo.stat().st_size > 0:
+        rt = _load_reorder_time(graph_name, algo_key)
+        return ["-o", f"13:{lo}"], rt
+    return algo_flags, 0.0
+
+
 def build_benchmark_cmd(
     benchmark: str, graph_path: str, algo_flags: list[str], trials: int = 3,
     sim: bool = False,
@@ -281,23 +438,26 @@ def exp1_cache_performance(
         log.info(f"  Graph: {gname}")
 
         # Collect all algorithms to test
-        algo_list: list[tuple[str, list[str]]] = []
+        algo_list: list[tuple[str, str, list[str]]] = []  # (name, key, flags)
 
         # Baselines
         for aid, aname in BASELINE_ALGORITHMS.items():
-            algo_list.append((aname, ["-o", str(aid)]))
+            algo_list.append((aname, str(aid), ["-o", str(aid)]))
 
         # GraphBrew variants
         for v in GRAPHBREW_VARIANTS:
-            algo_list.append((f"GB-{v}", ["-o", f"12:{v}"]))
+            algo_list.append((f"GB-{v}", f"12:{v}", ["-o", f"12:{v}"]))
 
-        for aname, aflags in algo_list:
+        for aname, akey, aflags in algo_list:
             gpath = resolve_graph_path(gname, graph_dir)
-            cmd = build_benchmark_cmd(cache_bench, gpath, aflags, trials, sim=True)
+            flags, pregen_rt = algo_flags_or_map(akey, aflags, gname)
+            cmd = build_benchmark_cmd(cache_bench, gpath, flags, trials, sim=True)
             log.info(f"    {aname}")
             output = run_cmd(cmd, dry_run=dry_run, timeout=timeout)
             timing = parse_timing(output)
             cache = parse_cache_sim(output)
+            if pregen_rt > 0 and "reorder_time" not in timing:
+                timing["reorder_time"] = pregen_rt
             results.append({
                 "graph": gname, "algorithm": aname, "benchmark": cache_bench,
                 **timing, **cache,
@@ -332,9 +492,12 @@ def exp2_kernel_speedup(
             # All baselines
             for aid, aname in BASELINE_ALGORITHMS.items():
                 gpath = resolve_graph_path(gname, graph_dir)
-                cmd = build_benchmark_cmd(bench, gpath, ["-o", str(aid)], trials)
+                flags, pregen_rt = algo_flags_or_map(str(aid), ["-o", str(aid)], gname)
+                cmd = build_benchmark_cmd(bench, gpath, flags, trials)
                 output = run_cmd(cmd, dry_run=dry_run, timeout=timeout)
                 timing = parse_timing(output)
+                if pregen_rt > 0 and "reorder_time" not in timing:
+                    timing["reorder_time"] = pregen_rt
                 results.append({
                     "graph": gname, "algorithm": aname, "benchmark": bench,
                     "algo_id": aid, **timing,
@@ -343,9 +506,12 @@ def exp2_kernel_speedup(
             # GraphBrew variants
             for v in GRAPHBREW_VARIANTS:
                 gpath = resolve_graph_path(gname, graph_dir)
-                cmd = build_benchmark_cmd(bench, gpath, ["-o", f"12:{v}"], trials)
+                flags, pregen_rt = algo_flags_or_map(f"12:{v}", ["-o", f"12:{v}"], gname)
+                cmd = build_benchmark_cmd(bench, gpath, flags, trials)
                 output = run_cmd(cmd, dry_run=dry_run, timeout=timeout)
                 timing = parse_timing(output)
+                if pregen_rt > 0 and "reorder_time" not in timing:
+                    timing["reorder_time"] = pregen_rt
                 results.append({
                     "graph": gname, "algorithm": f"GB-{v}", "benchmark": bench,
                     "algo_id": f"12:{v}", **timing,
@@ -448,11 +614,15 @@ def exp5_ablation(
         log.info(f"  Graph: {gname}")
 
         for config in ABLATION_CONFIGS:
-            aflags = get_converter_flags(config["algo"])
+            algo_key = config["algo"]
+            aflags = get_converter_flags(algo_key)
             gpath = resolve_graph_path(gname, graph_dir)
-            cmd = build_benchmark_cmd(abl_bench, gpath, aflags, trials)
+            flags, pregen_rt = algo_flags_or_map(algo_key, aflags, gname)
+            cmd = build_benchmark_cmd(abl_bench, gpath, flags, trials)
             output = run_cmd(cmd, dry_run=dry_run, timeout=timeout)
             timing = parse_timing(output)
+            if pregen_rt > 0 and "reorder_time" not in timing:
+                timing["reorder_time"] = pregen_rt
             results.append({
                 "graph": gname, "config": config["name"],
                 "algo": config["algo"], "desc": config["desc"],
@@ -508,9 +678,13 @@ def exp7_chained(
 
         for chain_name, chain_flags in CHAINED_ORDERINGS:
             gpath = resolve_graph_path(gname, graph_dir)
-            cmd = build_benchmark_cmd(chain_bench, gpath, chain_flags, trials)
+            chain_key = f"chain:{chain_name}"
+            flags, pregen_rt = algo_flags_or_map(chain_key, chain_flags, gname)
+            cmd = build_benchmark_cmd(chain_bench, gpath, flags, trials)
             output = run_cmd(cmd, dry_run=dry_run, timeout=timeout)
             timing = parse_timing(output)
+            if pregen_rt > 0 and "reorder_time" not in timing:
+                timing["reorder_time"] = pregen_rt
             results.append({
                 "graph": gname, "chain": chain_name,
                 "flags": chain_flags, "benchmark": chain_bench, **timing,
@@ -611,7 +785,7 @@ def _setup_environment(
         return graph_dir_resolved
 
     # ── 1. Python dependencies ──────────────────────────────────────────
-    log.info("\n── Step 1/4: Python dependencies ──")
+    log.info("\n── Step 1/5: Python dependencies ──")
     try:
         import matplotlib  # noqa: F401
         log.info("  matplotlib: OK")
@@ -620,19 +794,23 @@ def _setup_environment(
         log.info("  Install with: pip install matplotlib numpy")
 
     # ── 2. Build binaries ───────────────────────────────────────────────
-    log.info("\n── Step 2/4: Build binaries ──")
+    log.info("\n── Step 2/5: Build binaries ──")
     _setup_build_binaries()
 
     # ── 3. Download graphs ──────────────────────────────────────────────
-    log.info("\n── Step 3/4: Download graphs ──")
+    log.info("\n── Step 3/5: Download graphs ──")
     if skip_download:
         log.info("  Skipping download (--skip-download)")
     else:
         _setup_download_graphs(graphs, graphs_path)
 
     # ── 4. Convert .mtx → .sg ──────────────────────────────────────────
-    log.info("\n── Step 4/4: Convert graphs to .sg ──")
+    log.info("\n── Step 4/5: Convert graphs to .sg ──")
     _setup_convert_graphs(graphs, graphs_path)
+
+    # ── 5. Pre-generate .lo mapping files ──────────────────────────────
+    log.info("\n── Step 5/5: Pre-generate reorder mappings (.lo) ──")
+    _pregenerate_mappings(graphs, graph_dir_resolved, dry_run=dry_run)
 
     log.info("\n" + "=" * 60)
     log.info("  AUTO-SETUP COMPLETE")
