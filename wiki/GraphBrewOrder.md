@@ -13,10 +13,13 @@ Unlike traditional reordering that treats the entire graph uniformly, GraphBrewO
 5. **Preserves community locality** in the final ordering
 
 ```
-Input Graph → GraphBrew Leiden → Communities → Classify → Per-Community Reorder → Merge → Output
+Input Graph → Community Detection → Communities → Classify → Per-Community Reorder → Merge → Output
+                (Leiden or Rabbit)
 ```
 
 **Why per-community?** Global algorithms (HUBCLUSTER, RCM) break community locality by interleaving vertices from different communities. GraphBrewOrder keeps communities contiguous while optimizing cache locality within each.
+
+**Generic ordering pipeline:** Both Leiden and RabbitOrder community detection can be freely combined with any of the 14 ordering strategies (DBG, hub-cluster, DFS, etc.). This enables systematic comparison of community detection quality vs. ordering strategy quality.
 
 ---
 
@@ -41,16 +44,22 @@ Input Graph → GraphBrew Leiden → Communities → Classify → Per-Community 
 ### New Format (Recommended)
 
 ```bash
-# Format: -o 12:cluster_variant:final_algo:resolution
+# Format: -o 12:cluster_variant:ordering_strategy:resolution
 # cluster_variant: leiden (default), rabbit, hubcluster
-# final_algo: per-community ordering algorithm ID (default: 8 = RabbitOrder)
+# ordering_strategy: how vertices are ordered within/across communities
 # resolution: Leiden resolution parameter (default: auto-computed from graph)
 
-# Examples:
-./bench/bin/pr -f graph.el -s -o 12:leiden -n 5            # Leiden detection, RabbitOrder final
-./bench/bin/pr -f graph.el -s -o 12:rabbit -n 5           # GraphBrew RabbitOrder single-pass
-./bench/bin/pr -f graph.el -s -o 12:leiden:6 -n 5          # Use HubSortDBG as final algorithm
+# Leiden-based examples:
+./bench/bin/pr -f graph.el -s -o 12:leiden -n 5            # Leiden detection + default ordering
+./bench/bin/pr -f graph.el -s -o 12:leiden:dbg -n 5        # Leiden + DBG ordering
 ./bench/bin/pr -f graph.el -s -o 12:leiden:8:0.75 -n 5     # Custom resolution 0.75
+
+# Rabbit-based examples (NEW — Rabbit × any ordering strategy):
+./bench/bin/pr -f graph.el -s -o 12:rabbit -n 5            # RabbitOrder native DFS (default)
+./bench/bin/pr -f graph.el -s -o 12:rabbit:dbg -n 5        # Rabbit communities + DBG ordering
+./bench/bin/pr -f graph.el -s -o 12:rabbit:hubcluster -n 5 # Rabbit communities + hub-cluster
+./bench/bin/pr -f graph.el -s -o 12:rabbit:hrab -n 5       # Rabbit communities + hybrid ordering
+./bench/bin/pr -f graph.el -s -o 12:rabbit:dfs -n 5        # Rabbit communities + DFS dendrogram
 ```
 
 ### Old Format (Backward Compatible)
@@ -189,14 +198,22 @@ new_id = community_start_offset + position_within_community
 | Variant | Description | GraphBrew Configuration |
 |---------|-------------|-------------------|
 | `leiden` | **Default.** GraphBrew Leiden-CSR with GVE aggregation | GVE-CSR, TOTAL_EDGES, refine depth 0 |
-| `rabbit` | GraphBrew RabbitOrder single-pass | RABBIT_ORDER algorithm, resolution=0.5 |
+| `rabbit` | GraphBrew RabbitOrder community detection | RABBIT_ORDER algorithm, resolution=0.5 |
 | `hubcluster` | GraphBrew Leiden + hub-cluster ordering | HUB_CLUSTER ordering (native GraphBrew) |
 
+Both `leiden` and `rabbit` presets support **all 14 ordering strategies**. When an ordering strategy is appended to `rabbit` (e.g., `12:rabbit:dbg`), Rabbit performs community detection only and the specified strategy orders vertices within/across communities. Without an ordering suffix, `12:rabbit` uses its native DFS ordering.
+
 ```bash
-# Format: -o 12:variant:final_algo:resolution
-./bench/bin/pr -f graph.el -s -o 12:leiden -n 5            # Leiden detection + RabbitOrder
-./bench/bin/pr -f graph.el -s -o 12:leiden:6 -n 5          # Leiden + HubSortDBG
-./bench/bin/pr -f graph.el -s -o 12:leiden:8:0.75 -n 5     # Custom resolution
+# Leiden × orderings:
+./bench/bin/pr -f graph.el -s -o 12:leiden -n 5              # Leiden + default ordering
+./bench/bin/pr -f graph.el -s -o 12:leiden:dbg -n 5          # Leiden + DBG
+./bench/bin/pr -f graph.el -s -o 12:leiden:hubcluster -n 5   # Leiden + hub-cluster
+
+# Rabbit × orderings (NEW):
+./bench/bin/pr -f graph.el -s -o 12:rabbit -n 5              # Rabbit native DFS
+./bench/bin/pr -f graph.el -s -o 12:rabbit:dbg -n 5          # Rabbit + DBG
+./bench/bin/pr -f graph.el -s -o 12:rabbit:hubcluster -n 5   # Rabbit + hub-cluster
+./bench/bin/pr -f graph.el -s -o 12:rabbit:hrab -n 5         # Rabbit + hybrid ordering
 ```
 
 See [[Command-Line-Reference]] for full variant list and [[Python-Scripts]] for experiment integration.
@@ -213,7 +230,7 @@ Selects the algorithm skeleton and defaults.
 | Preset | Description |
 |--------|-------------|
 | `leiden` | GVE-CSR Leiden + per-community RabbitOrder **(default)** |
-| `rabbit` | Full RabbitOrder pipeline (single-pass, no Leiden) |
+| `rabbit` | RabbitOrder community detection (supports all orderings) |
 | `hubcluster` | Leiden + hub-cluster native ordering |
 
 ### Layer 1: Ordering Strategy (one-of)

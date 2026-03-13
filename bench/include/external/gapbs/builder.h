@@ -3192,6 +3192,7 @@ public:
                     extra.ordering != graphbrew::OrderingStrategy::LAYER) {
                     config.ordering = extra.ordering;
                 }
+                if (extra.hasExplicitOrdering) config.hasExplicitOrdering = true;
             }
         } else {
             // ── Direct token mode (hrab, dfs, conn, graphbrew:hrab, etc.) ─

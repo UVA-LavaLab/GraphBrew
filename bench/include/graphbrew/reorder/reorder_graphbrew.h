@@ -323,6 +323,9 @@ struct GraphBrewConfig {
     int  recursiveDepth = -1;          ///< Recursive sub-community depth: -1=auto (default), 0=flat, 1+=recurse into large communities
     int  subAlgoId = 8;                ///< Algo for sub-communities: -1=adaptive, 0-11=fixed algo ID (default=8 RabbitOrder)
     
+    // Pipeline control
+    bool hasExplicitOrdering = false;  ///< True when user specified an ordering token (e.g. :dbg, :hrab). Used to distinguish 12:rabbit (native DFS) from 12:rabbit:conn (explicit ordering override).
+    
     // Memory optimizations
     bool useLazyUpdates = false;       ///< Batch community weight updates (reduces atomics in non-REFINE phase)
     bool useRelaxedMemory = false;     ///< Use relaxed memory ordering in LazyUpdateBuffer [requires useLazyUpdates]
@@ -2087,6 +2090,88 @@ void rabbitDescendants(
 }
 
 /**
+ * Extract flat community membership from Rabbit Order dendrogram
+ * 
+ * Traverses the dendrogram (toplevel roots → descendants → siblings) to produce
+ * a flat membership[v] = communityId vector compatible with all ordering strategies.
+ * This enables Rabbit's community detection to be combined with any ordering 
+ * strategy (DBG, hubcluster, corder, hrab, etc.) via the generic pipeline.
+ * 
+ * Also sorts toplevel into: active communities first, isolated (zero-degree) last.
+ * Returns the number of communities.
+ */
+template <typename K>
+size_t rabbitExtractMembership(
+    std::vector<K>& membership,
+    const std::vector<RabbitNode<K>>& nodes,
+    std::vector<K>& toplevel,  // Non-const: we sort it for determinism
+    const std::vector<float>& degrees,  // For zero-degree separation
+    size_t N) {
+    
+    GRAPHBREW_TRACE("rabbitExtractMembership: %zu top-level, N=%zu", toplevel.size(), N);
+    
+    membership.resize(N);
+    constexpr K INVALID = static_cast<K>(-1);
+    
+    // Separate zero-degree (isolated singleton) communities
+    // Group them at the end for better cache locality
+    std::vector<K> activeTop, isolatedTop;
+    for (K root : toplevel) {
+        if (degrees[root] == 0.0f) {
+            isolatedTop.push_back(root);
+        } else {
+            activeTop.push_back(root);
+        }
+    }
+    
+    // Sort active and isolated separately, then concatenate
+    std::sort(activeTop.begin(), activeTop.end());
+    std::sort(isolatedTop.begin(), isolatedTop.end());
+    
+    // Rebuild toplevel: active first, isolated last
+    toplevel.clear();
+    toplevel.insert(toplevel.end(), activeTop.begin(), activeTop.end());
+    toplevel.insert(toplevel.end(), isolatedTop.begin(), isolatedTop.end());
+    
+    const K ncom = static_cast<K>(toplevel.size());
+    
+    // Determine parallelism: use task-based distribution
+    const int np = omp_get_max_threads();
+    const K ntask = std::min<K>(ncom, static_cast<K>(128 * np));
+    
+    // Parallel per-community DFS to assign membership
+    #pragma omp parallel
+    {
+        std::deque<K> stack;
+        
+        #pragma omp for schedule(dynamic, 1)
+        for (K i = 0; i < ntask; ++i) {
+            for (K comid = i; comid < ncom; comid += ntask) {
+                K root = toplevel[comid];
+                
+                rabbitDescendants(nodes, root, stack);
+                
+                while (!stack.empty()) {
+                    K v = stack.back();
+                    stack.pop_back();
+                    
+                    membership[v] = comid;
+                    
+                    if (nodes[v].sibling != INVALID) {
+                        rabbitDescendants(nodes, nodes[v].sibling, stack);
+                    }
+                }
+            }
+        }
+    }
+    
+    GRAPHBREW_TRACE("rabbitExtractMembership: %zu active, %zu isolated communities", 
+               activeTop.size(), isolatedTop.size());
+    
+    return static_cast<size_t>(ncom);
+}
+
+/**
  * Generate ordering from Rabbit Order dendrogram using Boost's two-phase approach
  * 
  * This is a FAITHFUL implementation of Boost's compute_perm():
@@ -2119,29 +2204,11 @@ void rabbitOrderingGeneration(
     permutation.resize(N);
     constexpr K INVALID = static_cast<K>(-1);
     
-    // Separate zero-degree (isolated singleton) communities
-    // Group them at the end for better cache locality
-    std::vector<K> activeTop, isolatedTop;
-    for (K root : toplevel) {
-        if (degrees[root] == 0.0f) {
-            isolatedTop.push_back(root);
-        } else {
-            activeTop.push_back(root);
-        }
-    }
+    // Extract membership (also sorts toplevel: active first, isolated last)
+    std::vector<K> coms;
+    size_t numComm = rabbitExtractMembership(coms, nodes, toplevel, degrees, N);
     
-    // Sort active and isolated separately, then concatenate
-    // Active communities first (sorted by ID for determinism), isolated at end
-    std::sort(activeTop.begin(), activeTop.end());
-    std::sort(isolatedTop.begin(), isolatedTop.end());
-    
-    // Rebuild toplevel: active first, isolated last
-    toplevel.clear();
-    toplevel.insert(toplevel.end(), activeTop.begin(), activeTop.end());
-    toplevel.insert(toplevel.end(), isolatedTop.begin(), isolatedTop.end());
-    
-    const K ncom = static_cast<K>(toplevel.size());
-    std::vector<K> coms(N);           // coms[v] = community ID (index into toplevel)
+    const K ncom = static_cast<K>(numComm);
     std::vector<K> offsets(ncom + 1); // offsets[c+1] = size of community c (then prefix sum)
     
     // Determine parallelism like Boost: use task-based distribution
@@ -2149,6 +2216,8 @@ void rabbitOrderingGeneration(
     const K ntask = std::min<K>(ncom, static_cast<K>(128 * np));
     
     // Phase 1: Parallel per-community DFS, assign local IDs
+    // We re-traverse the dendrogram (same order as membership extraction)
+    // to assign DFS-based local IDs within each community
     #pragma omp parallel
     {
         std::deque<K> stack;
@@ -2167,7 +2236,6 @@ void rabbitOrderingGeneration(
                     K v = stack.back();
                     stack.pop_back();
                     
-                    coms[v] = comid;
                     permutation[v] = localId++;
                     
                     if (nodes[v].sibling != INVALID) {
@@ -2195,8 +2263,7 @@ void rabbitOrderingGeneration(
         permutation[v] += offsets[coms[v]];
     }
     
-    GRAPHBREW_TRACE("rabbitOrderingGeneration: %zu active, %zu isolated communities", 
-               activeTop.size(), isolatedTop.size());
+    GRAPHBREW_TRACE("rabbitOrderingGeneration: %zu communities", numComm);
 }
 
 /**
@@ -2210,7 +2277,8 @@ template <typename K, typename NodeID_T, typename DestID_T>
 void runRabbitOrder(
     const CSRGraph<NodeID_T, DestID_T, true>& g,
     pvector<NodeID_T>& mapping,
-    const GraphBrewConfig& config) {
+    const GraphBrewConfig& config,
+    GraphBrewResult<K>* resultOut = nullptr) {
     
     const size_t N = g.num_nodes();
     
@@ -2278,7 +2346,28 @@ void runRabbitOrder(
                                                   vertexOrder, M, config);
     cdTimer.Stop();
     
-    // Step 5: Generate ordering from dendrogram
+    // If caller wants community detection results only (for generic ordering pipeline),
+    // extract membership and return without generating native DFS ordering.
+    if (resultOut) {
+        Timer memberTimer;
+        memberTimer.Start();
+        
+        size_t ncom = rabbitExtractMembership(resultOut->membership, nodes, toplevel, degrees, N);
+        resultOut->numCommunities = ncom;
+        // No multi-level hierarchy for Rabbit — membershipPerPass stays empty
+        // (buildSyntheticDendrogram will be used if dendrogram orderings are requested)
+        
+        memberTimer.Stop();
+        timer.Stop();
+        
+        printf("RabbitOrder (community detection only): %zu communities, time=%.4fs\n", 
+               ncom, timer.Seconds());
+        printf("  community-detection: %.4fs, membership-extract: %.4fs\n", 
+               cdTimer.Seconds(), memberTimer.Seconds());
+        return;
+    }
+    
+    // Step 5: Generate ordering from dendrogram (native DFS)
     Timer orderTimer;
     orderTimer.Start();
     std::vector<K> permutation;
@@ -2669,6 +2758,74 @@ void buildDendrogram(
     }
     
     GRAPHBREW_TRACE("buildDendrogram: %zu nodes, %zu roots", dendrogram.size(), roots.size());
+}
+
+/**
+ * Build a synthetic single-level dendrogram from a flat membership vector.
+ * 
+ * This is used when community detection (e.g., Rabbit Order) produces only
+ * a flat membership[v] = communityId without a hierarchical dendrogram.
+ * The synthetic dendrogram has:
+ *   - One leaf node per community (level 0), containing its vertex list
+ *   - One root node (level 1) whose children are all leaf nodes
+ *
+ * This enables dendrogram-dependent orderings (DFS, BFS, etc.) to work
+ * with any community detection algorithm.
+ */
+template <typename K>
+void buildSyntheticDendrogram(
+    std::vector<DendrogramNode<K>>& dendrogram,
+    std::vector<K>& roots,
+    const std::vector<K>& membership,
+    size_t N,
+    size_t numCommunities) {
+    
+    GRAPHBREW_TRACE("buildSyntheticDendrogram: N=%zu, C=%zu", N, numCommunities);
+    
+    dendrogram.clear();
+    roots.clear();
+    
+    const K C = static_cast<K>(numCommunities);
+    
+    // Group vertices by community
+    std::vector<std::vector<K>> commVertices(C);
+    for (size_t v = 0; v < N; ++v) {
+        K c = membership[v];
+        if (c < C) {
+            commVertices[c].push_back(static_cast<K>(v));
+        }
+    }
+    
+    // Create leaf nodes (level 0): one per community
+    dendrogram.resize(C + 1);  // C leaves + 1 root
+    
+    K rootId = C;  // Root is the last node
+    
+    for (K c = 0; c < C; ++c) {
+        auto& node = dendrogram[c];
+        node.id = c;
+        node.parent = rootId;
+        node.children = std::move(commVertices[c]);
+        node.size = node.children.size();
+        node.weight = 0.0;
+        node.level = 0;
+    }
+    
+    // Create root node (level 1): parent of all leaves
+    auto& root = dendrogram[rootId];
+    root.id = rootId;
+    root.parent = static_cast<K>(-1);
+    root.children.resize(C);
+    root.size = N;
+    root.weight = 0.0;
+    root.level = 1;
+    for (K c = 0; c < C; ++c) {
+        root.children[c] = c;
+    }
+    
+    roots.push_back(rootId);
+    
+    GRAPHBREW_TRACE("buildSyntheticDendrogram: %zu nodes, 1 root", dendrogram.size());
 }
 
 //=============================================================================
@@ -6626,6 +6783,195 @@ bool verifyReorderingTopology(
     bool verbose);
 
 /**
+ * Apply an ordering strategy to produce vertex newIds from community detection results.
+ *
+ * This is the shared ordering pipeline used by both Leiden and Rabbit Order paths.
+ * Steps:
+ *   1. Community merging (if enabled)
+ *   2. Dendrogram construction (if ordering needs it)
+ *   3. Degree computation
+ *   4. Ordering dispatch (14-strategy switch)
+ *   5. Post-ordering analysis (debug builds)
+ *   6. Topology verification (if requested)
+ */
+template <typename K, typename NodeID_T, typename DestID_T>
+void applyOrderingStrategy(
+    const CSRGraph<NodeID_T, DestID_T, true>& g,
+    pvector<NodeID_T>& newIds,
+    GraphBrewResult<K>& result,
+    const GraphBrewConfig& config) {
+    
+    const int64_t N = g.num_nodes();
+    
+    // Apply community merging if enabled (key for cache locality!)
+    if (config.useCommunityMerging) {
+        Timer mergeTimer;
+        mergeTimer.Start();
+        size_t finalComms = mergeCommunities<K>(result.membership, g, config.targetCommunities);
+        mergeTimer.Stop();
+        result.numCommunities = finalComms;
+        printf("  community merge: %.4fs\n", mergeTimer.Seconds());
+    }
+    
+    // Build dendrogram if needed by the ordering strategy
+    if (config.ordering == OrderingStrategy::DENDROGRAM_DFS ||
+        config.ordering == OrderingStrategy::DENDROGRAM_BFS ||
+        config.ordering == OrderingStrategy::HIERARCHICAL ||
+        config.ordering == OrderingStrategy::HIERARCHICAL_CACHE_AWARE) {
+        if (result.dendrogram.empty()) {
+            Timer dendroTimer;
+            dendroTimer.Start();
+            if (!result.membershipPerPass.empty()) {
+                // Multi-level hierarchy available (Leiden)
+                buildDendrogram(result.dendrogram, result.roots, result.membershipPerPass, N);
+            } else {
+                // Flat membership only (Rabbit Order, etc.) → synthetic single-level
+                buildSyntheticDendrogram(result.dendrogram, result.roots,
+                                         result.membership, N, result.numCommunities);
+            }
+            dendroTimer.Stop();
+            result.dendrogramTime = dendroTimer.Seconds();
+            printf("  dendrogram: %.4fs\n", result.dendrogramTime);
+        }
+    }
+    
+    // Get degrees for ordering
+    std::vector<K> degrees(N);
+    #pragma omp parallel for
+    for (int64_t u = 0; u < N; ++u) {
+        degrees[u] = g.out_degree(u);
+    }
+    
+    // Initialize newIds
+    newIds.resize(N);
+    std::fill(newIds.begin(), newIds.end(), static_cast<NodeID_T>(-1));
+    
+    // Generate ordering
+    Timer orderTimer;
+    orderTimer.Start();
+    
+    switch (config.ordering) {
+        case OrderingStrategy::HIERARCHICAL:
+            orderHierarchicalSort<K, NodeID_T>(newIds, result, degrees, N, config);
+            break;
+        case OrderingStrategy::CONNECTIVITY_BFS:
+            orderConnectivityBFS<K, NodeID_T, DestID_T>(newIds, result.membership, degrees, g, N, config);
+            break;
+        case OrderingStrategy::DENDROGRAM_DFS:
+            orderDendrogramDFS<K, NodeID_T>(newIds, result, degrees, N, config);
+            break;
+        case OrderingStrategy::DENDROGRAM_BFS:
+            orderDendrogramBFS<K, NodeID_T>(newIds, result, degrees, N, config);
+            break;
+        case OrderingStrategy::COMMUNITY_SORT:
+            orderCommunitySort<K, NodeID_T>(newIds, result.membership, degrees, N, config);
+            break;
+        case OrderingStrategy::HUB_CLUSTER:
+            orderHubCluster<K, NodeID_T>(newIds, result.membership, degrees, N, config);
+            break;
+        case OrderingStrategy::DBG:
+            orderDBG<K, NodeID_T>(newIds, result.membership, degrees, N, config);
+            break;
+        case OrderingStrategy::CORDER:
+            orderCorder<K, NodeID_T>(newIds, result.membership, degrees, N, config);
+            break;
+        case OrderingStrategy::DBG_GLOBAL:
+            orderDBGGlobal<K, NodeID_T>(newIds, result.membership, degrees, N, config);
+            break;
+        case OrderingStrategy::CORDER_GLOBAL:
+            orderCorderGlobal<K, NodeID_T>(newIds, result.membership, degrees, N, config);
+            break;
+        case OrderingStrategy::HIERARCHICAL_CACHE_AWARE:
+            orderHierarchicalCacheAware<K, NodeID_T, DestID_T>(newIds, result, degrees, g, N, config);
+            break;
+        case OrderingStrategy::HYBRID_LEIDEN_RABBIT:
+            orderHybridLeidenRabbit<K, NodeID_T, DestID_T>(newIds, result.membership, degrees, g, N, config);
+            break;
+        case OrderingStrategy::TILE_QUANTIZED_RABBIT:
+            orderTileQuantizedRabbit<K, NodeID_T, DestID_T>(newIds, result.membership, degrees, g, N, config);
+            break;
+        case OrderingStrategy::LAYER:
+            printf("GraphBrew: GraphBrew mode - ordering deferred to external dispatch\n");
+            orderConnectivityBFS<K, NodeID_T, DestID_T>(newIds, result.membership, degrees, g, N, config);
+            break;
+    }
+    
+    orderTimer.Stop();
+    result.orderingTime = orderTimer.Seconds();
+    printf("  ordering (%s): %.4fs\n",
+           config.ordering == OrderingStrategy::HIERARCHICAL ? "hierarchical" :
+           config.ordering == OrderingStrategy::DBG ? "dbg" :
+           config.ordering == OrderingStrategy::CORDER ? "corder" :
+           config.ordering == OrderingStrategy::COMMUNITY_SORT ? "community" :
+           config.ordering == OrderingStrategy::HUB_CLUSTER ? "hubcluster" :
+           config.ordering == OrderingStrategy::CONNECTIVITY_BFS ? "connectivity-bfs" :
+           config.ordering == OrderingStrategy::DENDROGRAM_DFS ? "dfs" :
+           config.ordering == OrderingStrategy::DENDROGRAM_BFS ? "bfs" :
+           "other", result.orderingTime);
+    
+    // Post-ordering locality analysis (gated behind GRAPHBREW_DEBUG)
+#ifdef GRAPHBREW_DEBUG
+    {
+        std::vector<size_t> distBuckets(10, 0);
+        size_t totalEdges = 0;
+        double sumLogDist = 0;
+        size_t nearEdges = 0;
+        
+        #pragma omp parallel for reduction(+:totalEdges, sumLogDist, nearEdges)
+        for (int64_t u = 0; u < N; ++u) {
+            for (auto neighbor : g.out_neigh(u)) {
+                NodeID_T v;
+                if constexpr (std::is_same_v<DestID_T, NodeID_T>) {
+                    v = neighbor;
+                } else {
+                    v = neighbor.v;
+                }
+                
+                size_t dist = (newIds[u] > newIds[v]) 
+                    ? (newIds[u] - newIds[v]) 
+                    : (newIds[v] - newIds[u]);
+                
+                sumLogDist += std::log(std::max(size_t(1), dist));
+                totalEdges++;
+                
+                if (dist < 1000) nearEdges++;
+                
+                size_t bucket = 0;
+                size_t d = dist;
+                while (d >= 100 && bucket < 9) {
+                    d /= 10;
+                    bucket++;
+                }
+                #pragma omp atomic
+                distBuckets[bucket]++;
+            }
+        }
+        
+        double geoMeanDist = std::exp(sumLogDist / std::max(size_t(1), totalEdges));
+        double nearRatio = 100.0 * nearEdges / std::max(size_t(1), totalEdges);
+        
+        printf("  === ORDERING LOCALITY ===\n");
+        printf("  geo-mean edge distance: %.1f\n", geoMeanDist);
+        printf("  near edges (dist<1K): %.1f%%\n", nearRatio);
+        printf("  distance buckets: [0-100)=%zu, [100-1K)=%zu, [1K-10K)=%zu, [10K-100K)=%zu, [100K+)=%zu\n",
+               distBuckets[0], distBuckets[1], distBuckets[2], distBuckets[3],
+               distBuckets[4] + distBuckets[5] + distBuckets[6] + distBuckets[7] + distBuckets[8] + distBuckets[9]);
+        printf("  ==========================\n");
+    }
+#endif
+    
+    // Verify topology if requested
+    if (config.verifyTopology) {
+        if (!verifyReorderingTopology(g, newIds, true)) {
+            const char* orderingName = 
+                config.ordering == OrderingStrategy::HIERARCHICAL ? "hierarchical" :
+                config.ordering == OrderingStrategy::DBG ? "dbg" : "other";
+            printf("ERROR: Topology verification FAILED for ordering=%s!\n", orderingName);
+        }
+    }
+}
+
+/**
  * Main entry point: Run GraphBrew and generate vertex reordering
  */
 template <typename K = uint32_t, typename NodeID_T, typename DestID_T>
@@ -6638,14 +6984,24 @@ void generateGraphBrewMapping(
     
     // Branch based on main algorithm choice
     if (config.algorithm == GraphBrewAlgorithm::RABBIT_ORDER) {
-        // Use full Rabbit Order algorithm from the paper
         printf("RabbitOrder: resolution=%.4f\n", config.resolution);
-        runRabbitOrder<K>(g, newIds, config);
         
-        // Verify if requested
-        if (config.verifyTopology) {
-            if (!verifyReorderingTopology(g, newIds, true)) {
-                printf("ERROR: Topology verification FAILED for RabbitOrder!\n");
+        if (config.hasExplicitOrdering) {
+            // Generic pipeline: Rabbit community detection → shared ordering strategy
+            // e.g., -o 12:rabbit:dbg, -o 12:rabbit:hubcluster, -o 12:rabbit:dfs
+            GraphBrewResult<K> result;
+            runRabbitOrder<K>(g, newIds, config, &result);
+            applyOrderingStrategy<K>(g, newIds, result, config);
+        } else {
+            // Native path: Rabbit's built-in DFS ordering (backward compat)
+            // e.g., -o 12:rabbit (no ordering token)
+            runRabbitOrder<K>(g, newIds, config);
+            
+            // Verify if requested
+            if (config.verifyTopology) {
+                if (!verifyReorderingTopology(g, newIds, true)) {
+                    printf("ERROR: Topology verification FAILED for RabbitOrder!\n");
+                }
             }
         }
         return;
@@ -6783,159 +7139,8 @@ void generateGraphBrewMapping(
     }
 #endif
     
-    // Apply community merging if enabled (key for cache locality!)
-    if (config.useCommunityMerging) {
-        Timer mergeTimer;
-        mergeTimer.Start();
-        size_t finalComms = mergeCommunities<K>(result.membership, g, config.targetCommunities);
-        mergeTimer.Stop();
-        result.numCommunities = finalComms;
-        printf("  community merge: %.4fs\n", mergeTimer.Seconds());
-    }
-    
-    // Build dendrogram if needed
-    if (config.ordering == OrderingStrategy::DENDROGRAM_DFS ||
-        config.ordering == OrderingStrategy::DENDROGRAM_BFS) {
-        Timer dendroTimer;
-        dendroTimer.Start();
-        buildDendrogram(result.dendrogram, result.roots, result.membershipPerPass, N);
-        dendroTimer.Stop();
-        result.dendrogramTime = dendroTimer.Seconds();
-        printf("  dendrogram: %.4fs\n", result.dendrogramTime);
-    }
-    
-    // Get degrees for ordering
-    std::vector<K> degrees(N);
-    #pragma omp parallel for
-    for (int64_t u = 0; u < N; ++u) {
-        degrees[u] = g.out_degree(u);
-    }
-    
-    // Initialize newIds
-    newIds.resize(N);
-    std::fill(newIds.begin(), newIds.end(), static_cast<NodeID_T>(-1));
-    
-    // Generate ordering
-    Timer orderTimer;
-    orderTimer.Start();
-    
-    switch (config.ordering) {
-        case OrderingStrategy::HIERARCHICAL:
-            orderHierarchicalSort<K, NodeID_T>(newIds, result, degrees, N, config);
-            break;
-        case OrderingStrategy::CONNECTIVITY_BFS:
-            orderConnectivityBFS<K, NodeID_T, DestID_T>(newIds, result.membership, degrees, g, N, config);
-            break;
-        case OrderingStrategy::DENDROGRAM_DFS:
-            orderDendrogramDFS<K, NodeID_T>(newIds, result, degrees, N, config);
-            break;
-        case OrderingStrategy::DENDROGRAM_BFS:
-            orderDendrogramBFS<K, NodeID_T>(newIds, result, degrees, N, config);
-            break;
-        case OrderingStrategy::COMMUNITY_SORT:
-            orderCommunitySort<K, NodeID_T>(newIds, result.membership, degrees, N, config);
-            break;
-        case OrderingStrategy::HUB_CLUSTER:
-            orderHubCluster<K, NodeID_T>(newIds, result.membership, degrees, N, config);
-            break;
-        case OrderingStrategy::DBG:
-            orderDBG<K, NodeID_T>(newIds, result.membership, degrees, N, config);
-            break;
-        case OrderingStrategy::CORDER:
-            orderCorder<K, NodeID_T>(newIds, result.membership, degrees, N, config);
-            break;
-        case OrderingStrategy::DBG_GLOBAL:
-            orderDBGGlobal<K, NodeID_T>(newIds, result.membership, degrees, N, config);
-            break;
-        case OrderingStrategy::CORDER_GLOBAL:
-            orderCorderGlobal<K, NodeID_T>(newIds, result.membership, degrees, N, config);
-            break;
-        case OrderingStrategy::HIERARCHICAL_CACHE_AWARE:
-            orderHierarchicalCacheAware<K, NodeID_T, DestID_T>(newIds, result, degrees, g, N, config);
-            break;
-        case OrderingStrategy::HYBRID_LEIDEN_RABBIT:
-            orderHybridLeidenRabbit<K, NodeID_T, DestID_T>(newIds, result.membership, degrees, g, N, config);
-            break;
-        case OrderingStrategy::TILE_QUANTIZED_RABBIT:
-            orderTileQuantizedRabbit<K, NodeID_T, DestID_T>(newIds, result.membership, degrees, g, N, config);
-            break;
-        case OrderingStrategy::LAYER:
-            // GraphBrew mode: per-community external algorithm dispatch
-            // Community detection already done above. Ordering is handled externally
-            // by the caller (builder.h) using ReorderCommunitySubgraphStandalone.
-            // Fall through to connectivity BFS as sensible default if called directly.
-            printf("GraphBrew: GraphBrew mode - ordering deferred to external dispatch\n");
-            orderConnectivityBFS<K, NodeID_T, DestID_T>(newIds, result.membership, degrees, g, N, config);
-            break;
-    }
-    
-    orderTimer.Stop();
-    result.orderingTime = orderTimer.Seconds();
-    printf("GraphBrew ordering: %.4fs\n", result.orderingTime);
-    
-    // ===============================================================
-    // POST-ORDERING LOCALITY ANALYSIS (gated behind GRAPHBREW_DEBUG)
-    // ===============================================================
-#ifdef GRAPHBREW_DEBUG
-    {
-        // Compute edge distance distribution in new ordering
-        // Distance = |newId[u] - newId[v]| for each edge (u,v)
-        std::vector<size_t> distBuckets(10, 0);  // [0-100), [100-1K), [1K-10K), etc.
-        size_t totalEdges = 0;
-        double sumLogDist = 0;
-        size_t nearEdges = 0;  // edges with distance < 1000
-        
-        #pragma omp parallel for reduction(+:totalEdges, sumLogDist, nearEdges)
-        for (int64_t u = 0; u < N; ++u) {
-            for (auto neighbor : g.out_neigh(u)) {
-                NodeID_T v;
-                if constexpr (std::is_same_v<DestID_T, NodeID_T>) {
-                    v = neighbor;
-                } else {
-                    v = neighbor.v;
-                }
-                
-                size_t dist = (newIds[u] > newIds[v]) 
-                    ? (newIds[u] - newIds[v]) 
-                    : (newIds[v] - newIds[u]);
-                
-                // Log-scale distance for geometric mean
-                sumLogDist += std::log(std::max(size_t(1), dist));
-                totalEdges++;
-                
-                if (dist < 1000) nearEdges++;
-                
-                // Bucket by log10
-                size_t bucket = 0;
-                size_t d = dist;
-                while (d >= 100 && bucket < 9) {
-                    d /= 10;
-                    bucket++;
-                }
-                #pragma omp atomic
-                distBuckets[bucket]++;
-            }
-        }
-        
-        double geoMeanDist = std::exp(sumLogDist / std::max(size_t(1), totalEdges));
-        double nearRatio = 100.0 * nearEdges / std::max(size_t(1), totalEdges);
-        
-        printf("  === ORDERING LOCALITY ===\n");
-        printf("  geo-mean edge distance: %.1f\n", geoMeanDist);
-        printf("  near edges (dist<1K): %.1f%%\n", nearRatio);
-        printf("  distance buckets: [0-100)=%zu, [100-1K)=%zu, [1K-10K)=%zu, [10K-100K)=%zu, [100K+)=%zu\n",
-               distBuckets[0], distBuckets[1], distBuckets[2], distBuckets[3],
-               distBuckets[4] + distBuckets[5] + distBuckets[6] + distBuckets[7] + distBuckets[8] + distBuckets[9]);
-        printf("  ==========================\n");
-    }
-#endif
-    
-    // Verify topology if requested
-    if (config.verifyTopology) {
-        if (!verifyReorderingTopology(g, newIds, true)) {
-            printf("ERROR: Topology verification FAILED for ordering=%s!\n", orderingName);
-        }
-    }
+    // Apply ordering strategy (shared pipeline with Rabbit Order path)
+    applyOrderingStrategy<K>(g, newIds, result, config);
 }
 
 //=============================================================================
@@ -6985,36 +7190,50 @@ inline GraphBrewConfig parseGraphBrewConfig(const std::vector<std::string>& opti
         // Check for ordering strategy
         if (opt == "hierarchical" || opt == "hier") {
             config.ordering = OrderingStrategy::HIERARCHICAL;
+            config.hasExplicitOrdering = true;
         } else if (opt == "connectivity" || opt == "conn" || opt == "connbfs") {
             config.ordering = OrderingStrategy::CONNECTIVITY_BFS;
+            config.hasExplicitOrdering = true;
         } else if (opt == "dfs") {
             config.ordering = OrderingStrategy::DENDROGRAM_DFS;
+            config.hasExplicitOrdering = true;
         } else if (opt == "bfs") {
             config.ordering = OrderingStrategy::DENDROGRAM_BFS;
+            config.hasExplicitOrdering = true;
         } else if (opt == "community" || opt == "comm") {
             config.ordering = OrderingStrategy::COMMUNITY_SORT;
+            config.hasExplicitOrdering = true;
         } else if (opt == "hubcluster" || opt == "hub") {
             config.ordering = OrderingStrategy::HUB_CLUSTER;
+            config.hasExplicitOrdering = true;
         } else if (opt == "dbg") {
             config.ordering = OrderingStrategy::DBG;
+            config.hasExplicitOrdering = true;
         } else if (opt == "corder") {
             config.ordering = OrderingStrategy::CORDER;
+            config.hasExplicitOrdering = true;
         } else if (opt == "dbg-global" || opt == "dbgglobal") {
             config.ordering = OrderingStrategy::DBG_GLOBAL;
+            config.hasExplicitOrdering = true;
         } else if (opt == "corder-global" || opt == "corderglobal") {
             config.ordering = OrderingStrategy::CORDER_GLOBAL;
+            config.hasExplicitOrdering = true;
         } else if (opt == "hcache" || opt == "hiercache" || opt == "hierarchical-cache") {
             config.ordering = OrderingStrategy::HIERARCHICAL_CACHE_AWARE;
+            config.hasExplicitOrdering = true;
         } else if (opt == "hrab" || opt == "hybrid-rabbit" || opt == "leidenrabbit") {
             config.ordering = OrderingStrategy::HYBRID_LEIDEN_RABBIT;
+            config.hasExplicitOrdering = true;
         } else if (opt == "tqr" || opt == "tile-quantized" || opt == "tilequantized" || opt == "tilerabbit") {
             config.ordering = OrderingStrategy::TILE_QUANTIZED_RABBIT;
+            config.hasExplicitOrdering = true;
         }
         // GraphBrew mode: per-community external algorithm dispatch
         // "graphbrew" or "gb" activates LAYER ordering (default final algo = RabbitOrder 8)
         // "final:N" or "finalN" sets the final algo ID (0-11)
         else if (opt == "graphbrew" || opt == "gb") {
             config.ordering = OrderingStrategy::LAYER;
+            config.hasExplicitOrdering = true;
             config.useSmallCommunityMerging = true;
             if (config.finalAlgoId < 0) config.finalAlgoId = 8;  // Default: RabbitOrder
         }
