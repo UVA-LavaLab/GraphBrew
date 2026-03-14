@@ -26,9 +26,11 @@ using namespace cache_sim;
 
 // Link two vertices in union-find with cache tracking
 template<typename CacheType>
-void Link_Sim(NodeID u, NodeID v, pvector<NodeID>& comp, NodeID* comp_ptr, CacheType& cache) {
+void Link_Sim(NodeID u, NodeID v, pvector<NodeID>& comp, NodeID* comp_ptr,
+             CacheType& cache, GraphCacheContext& graph_ctx,
+             const std::vector<uint8_t>& vertex_masks) {
     SIM_CACHE_READ(cache, comp_ptr, u);
-    SIM_CACHE_READ(cache, comp_ptr, v);
+    SIM_CACHE_READ_MASKED(cache, comp_ptr, v, graph_ctx, vertex_masks[v]);
     NodeID p1 = comp[u];
     NodeID p2 = comp[v];
     while (p1 != p2) {
@@ -51,7 +53,9 @@ void Link_Sim(NodeID u, NodeID v, pvector<NodeID>& comp, NodeID* comp_ptr, Cache
 
 // Compress (path shortening) with cache tracking
 template<typename CacheType>
-void Compress_Sim(const Graph &g, pvector<NodeID>& comp, NodeID* comp_ptr, CacheType& cache) {
+void Compress_Sim(const Graph &g, pvector<NodeID>& comp, NodeID* comp_ptr,
+                 CacheType& cache, GraphCacheContext& graph_ctx,
+                 const std::vector<uint8_t>& vertex_masks) {
     #pragma omp parallel for schedule(dynamic, 16384)
     for (NodeID n = 0; n < g.num_nodes(); n++) {
         SIM_CACHE_READ(cache, comp_ptr, n);
@@ -103,11 +107,11 @@ pvector<NodeID> Afforest_Sim(const Graph &g, CacheType &cache,
         for (NodeID u = 0; u < g.num_nodes(); u++) {
             SIM_SET_VERTEX(cache, u);
             for (NodeID v : g.out_neigh(u, r)) {
-                Link_Sim(u, v, comp, comp_ptr, cache);
+                Link_Sim(u, v, comp, comp_ptr, cache, graph_ctx, vertex_masks);
                 break;  // exactly ONE neighbor per round
             }
         }
-        Compress_Sim(g, comp, comp_ptr, cache);
+        Compress_Sim(g, comp, comp_ptr, cache, graph_ctx, vertex_masks);
     }
 
     // Sample to find the largest intermediate component
@@ -128,10 +132,10 @@ pvector<NodeID> Afforest_Sim(const Graph &g, CacheType &cache,
         SIM_CACHE_READ(cache, comp_ptr, u);
         if (comp[u] == c) continue;  // skip largest component
         for (NodeID v : g.out_neigh(u)) {
-            Link_Sim(u, v, comp, comp_ptr, cache);
+            Link_Sim(u, v, comp, comp_ptr, cache, graph_ctx, vertex_masks);
         }
     }
-    Compress_Sim(g, comp, comp_ptr, cache);
+    Compress_Sim(g, comp, comp_ptr, cache, graph_ctx, vertex_masks);
 
     return comp;
 }
