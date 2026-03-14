@@ -23,7 +23,8 @@ using namespace cache_sim;
 
 template<typename CacheType>
 int64_t BUStep_Sim(const Graph &g, pvector<NodeID> &parent, Bitmap &front,
-                   Bitmap &next, CacheType &cache) {
+                   Bitmap &next, CacheType &cache,
+                   GraphCacheContext &graph_ctx, const std::vector<uint8_t> &vertex_masks) {
     int64_t awake_count = 0;
     next.reset();
     #pragma omp parallel for reduction(+ : awake_count) schedule(dynamic, 1024)
@@ -51,7 +52,8 @@ int64_t BUStep_Sim(const Graph &g, pvector<NodeID> &parent, Bitmap &front,
 
 template<typename CacheType>
 int64_t TDStep_Sim(const Graph &g, pvector<NodeID> &parent,
-                   SlidingQueue<NodeID> &queue, CacheType &cache) {
+                   SlidingQueue<NodeID> &queue, CacheType &cache,
+                   GraphCacheContext &graph_ctx, const std::vector<uint8_t> &vertex_masks) {
     int64_t scout_count = 0;
     #pragma omp parallel
     {
@@ -61,7 +63,7 @@ int64_t TDStep_Sim(const Graph &g, pvector<NodeID> &parent,
             NodeID u = *q_iter;
             for (NodeID v : g.out_neigh(u)) {
                 // Track: read parent[v]
-                SIM_CACHE_READ(cache, parent.data(), v);
+                SIM_CACHE_READ_MASKED(cache, parent.data(), v, graph_ctx, vertex_masks[v]);
                 NodeID curr_val = parent[v];
                 if (curr_val < 0) {
                     // Track: write parent[v]
@@ -151,7 +153,7 @@ pvector<NodeID> DOBFS_Sim(const Graph &g, NodeID source, CacheType &cache,
             queue.slide_window();
             do {
                 old_awake_count = awake_count;
-                awake_count = BUStep_Sim(g, parent, front, curr, cache);
+                awake_count = BUStep_Sim(g, parent, front, curr, cache, graph_ctx, vertex_masks);
                 front.swap(curr);
             } while ((awake_count >= old_awake_count) ||
                      (awake_count > g.num_nodes() / beta));
@@ -159,7 +161,7 @@ pvector<NodeID> DOBFS_Sim(const Graph &g, NodeID source, CacheType &cache,
             scout_count = 1;
         } else {
             edges_to_check -= scout_count;
-            scout_count = TDStep_Sim(g, parent, queue, cache);
+            scout_count = TDStep_Sim(g, parent, queue, cache, graph_ctx, vertex_masks);
             queue.slide_window();
         }
     }
