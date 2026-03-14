@@ -137,8 +137,7 @@ struct CacheLine {
     uint64_t access_count = 0;   // For LFU
     uint8_t rrpv = 3;            // For SRRIP, GRASP, P-OPT, ECG
     uint64_t line_addr = 0;      // Cache-line-aligned address
-    uint8_t ecg_popt_dist = 0;   // ECG: stored P-OPT rereference distance (for eviction tiebreak)
-    uint8_t ecg_dbg_tier = 0;    // ECG: stored DBG degree tier (for eviction tiebreak)
+    uint8_t ecg_dbg_tier = 0;    // ECG: stored DBG degree tier (structural, for eviction tiebreak)
 };
 
 // ============================================================================
@@ -618,17 +617,16 @@ public:
             set[victim_idx].rrpv = 6;  // M_RRPV - 1 = long re-reference (SRRIP default)
         }
 
-        // ECG: Combined DBG+P-OPT insertion with bias control.
-        // If mask array is available: decode mask → combined RRPV.
-        // Fallback: use bucket classification from address.
-        // Stores ecg_popt_dist and ecg_dbg_tier for 3-level eviction tiebreaking.
+        // ECG: DBG-based insertion (structural priority).
+        // RRPV from DBG tier only — P-OPT is consulted dynamically at eviction.
+        // Stores ecg_dbg_tier for tiebreaking.
         if (policy_ == EvictionPolicy::ECG) {
             if (graph_ctx_ && graph_ctx_->mask_array.enabled) {
-                // Mask array path: use per-access hints.mask (set by sim benchmark)
+                // Mask array path: decode DBG tier from per-access mask hint
                 uint32_t mask_entry = graph_ctx_->hints.mask;
+                uint8_t dbg = graph_ctx_->mask_config.decodeDBG(mask_entry);
                 set[victim_idx].rrpv = graph_ctx_->maskToRRPV(mask_entry);
-                set[victim_idx].ecg_dbg_tier = graph_ctx_->mask_config.decodeDBG(mask_entry);
-                set[victim_idx].ecg_popt_dist = graph_ctx_->mask_config.decodePOPT(mask_entry);
+                set[victim_idx].ecg_dbg_tier = dbg;
             } else if (graph_ctx_) {
                 // Fallback: bucket classification from address
                 uint32_t bucket = graph_ctx_->classifyBucket(address);
@@ -955,58 +953,124 @@ private:
     // ================================================================
     // ECG: Graph-aware cache replacement (Mughrabi et al., GrAPL)
     //
-    // In the full ECG flow, hints are encoded in CSR neighbor IDs (fat IDs)
-    // and decoded at access time. In the current simulator, ECG uses the
-    // ECG 3-level eviction priority:
-    //   Level 1: max ecg_popt_dist (farthest-future = evict first)
-    //   Level 2: max ecg_dbg_tier (coldest vertex = evict first)
-    //   Level 3: max rrpv (RRIP aging = evict oldest)
-    // Falls back to RRIP-only if no ecg fields are set.
+    // Layered eviction with mode-dependent tiebreaker priority:
+    //   Level 1 (all modes): SRRIP aging — find max RRPV, age until found
+    //   Level 2/3 depend on ECGMode:
+    //     DBG_PRIMARY:  L2=DBG tier (coldest vertex), L3=dynamic P-OPT
+    //     POPT_PRIMARY: L2=dynamic P-OPT (furthest future), L3=DBG tier
+    //     DBG_ONLY:     L2=DBG tier, no L3
+    //
+    // Key design points:
+    //  - RRPV set at insert from DBG tier (bucketToRRPV), ages via SRRIP
+    //  - ecg_dbg_tier stored per-line (structural, constant)
+    //  - P-OPT consulted dynamically via findNextRef() at eviction time
+    //    (not cached — avoids stale snapshot problem)
     // ================================================================
     size_t findVictimECG(std::vector<CacheLine>& set) {
-        // Check if any line has ECG metadata stored
-        bool has_ecg_data = false;
-        for (size_t i = 0; i < associativity_; i++) {
-            if (set[i].ecg_popt_dist > 0 || set[i].ecg_dbg_tier > 0) {
-                has_ecg_data = true;
-                break;
+        uint8_t rrpv_max = (graph_ctx_ && graph_ctx_->mask_config.enabled)
+            ? graph_ctx_->mask_config.rrpv_max : 7;
+
+        // Determine ECG mode
+        ECGMode mode = (graph_ctx_ && graph_ctx_->mask_config.enabled)
+            ? graph_ctx_->mask_config.ecg_mode : ECGMode::DBG_PRIMARY;
+
+        // ── Level 1: SRRIP aging — find lines at max RRPV ──
+        // Age all lines until at least one reaches rrpv_max.
+        while (true) {
+            bool found = false;
+            for (size_t i = 0; i < associativity_; i++) {
+                if (set[i].rrpv >= rrpv_max) { found = true; break; }
+            }
+            if (found) break;
+            for (size_t i = 0; i < associativity_; i++) {
+                if (set[i].rrpv < rrpv_max) set[i].rrpv++;
             }
         }
 
-        if (has_ecg_data) {
-            // Level 1: Find max P-OPT rereference distance
-            uint8_t max_popt = 0;
-            for (size_t i = 0; i < associativity_; i++)
-                if (set[i].ecg_popt_dist > max_popt) max_popt = set[i].ecg_popt_dist;
+        // Collect candidates at max RRPV
+        size_t candidates[64];
+        size_t num_candidates = 0;
+        for (size_t i = 0; i < associativity_; i++) {
+            if (set[i].rrpv >= rrpv_max && num_candidates < 64)
+                candidates[num_candidates++] = i;
+        }
+        if (num_candidates == 1) return candidates[0];
 
-            // Level 2: Among max-popt ties, find max DBG tier (coldest)
+        // ── Level 2 tiebreak (mode-dependent) ──
+        if (mode == ECGMode::DBG_PRIMARY || mode == ECGMode::DBG_ONLY) {
+            // DBG tiebreak: evict highest ecg_dbg_tier (coldest/lowest-degree)
             uint8_t max_dbg = 0;
-            for (size_t i = 0; i < associativity_; i++)
-                if (set[i].ecg_popt_dist == max_popt && set[i].ecg_dbg_tier > max_dbg)
-                    max_dbg = set[i].ecg_dbg_tier;
+            for (size_t c = 0; c < num_candidates; c++)
+                if (set[candidates[c]].ecg_dbg_tier > max_dbg)
+                    max_dbg = set[candidates[c]].ecg_dbg_tier;
 
-            // Level 3: Among popt+dbg ties, find max RRPV (oldest)
-            uint8_t max_rrpv = 0;
-            size_t victim = 0;
-            for (size_t i = 0; i < associativity_; i++) {
-                if (set[i].ecg_popt_dist == max_popt &&
-                    set[i].ecg_dbg_tier == max_dbg &&
-                    set[i].rrpv >= max_rrpv) {
-                    max_rrpv = set[i].rrpv;
-                    victim = i;
+            // Narrow candidates to max-DBG lines
+            size_t narrowed[64];
+            size_t num_narrowed = 0;
+            for (size_t c = 0; c < num_candidates; c++)
+                if (set[candidates[c]].ecg_dbg_tier == max_dbg)
+                    narrowed[num_narrowed++] = candidates[c];
+
+            if (num_narrowed == 1 || mode == ECGMode::DBG_ONLY)
+                return narrowed[0];
+
+            // ── Level 3: Dynamic P-OPT tiebreak ──
+            if (graph_ctx_ && graph_ctx_->rereference.matrix) {
+                uint32_t max_dist = 0;
+                size_t victim = narrowed[0];
+                for (size_t c = 0; c < num_narrowed; c++) {
+                    uint32_t dist = graph_ctx_->findNextRef(set[narrowed[c]].line_addr);
+                    if (dist > max_dist) {
+                        max_dist = dist;
+                        victim = narrowed[c];
+                    }
+                }
+                return victim;
+            }
+            return narrowed[0];
+
+        } else {  // POPT_PRIMARY
+            // Dynamic P-OPT tiebreak: evict furthest next-reference
+            if (graph_ctx_ && graph_ctx_->rereference.matrix) {
+                uint32_t max_dist = 0;
+                for (size_t c = 0; c < num_candidates; c++) {
+                    uint32_t dist = graph_ctx_->findNextRef(set[candidates[c]].line_addr);
+                    if (dist > max_dist) max_dist = dist;
+                }
+
+                // Narrow to max-dist lines
+                size_t narrowed[64];
+                size_t num_narrowed = 0;
+                for (size_t c = 0; c < num_candidates; c++) {
+                    uint32_t dist = graph_ctx_->findNextRef(set[candidates[c]].line_addr);
+                    if (dist == max_dist)
+                        narrowed[num_narrowed++] = candidates[c];
+                }
+
+                if (num_narrowed == 1) return narrowed[0];
+
+                // Level 3: DBG tiebreak among P-OPT ties
+                uint8_t max_dbg = 0;
+                size_t victim = narrowed[0];
+                for (size_t c = 0; c < num_narrowed; c++) {
+                    if (set[narrowed[c]].ecg_dbg_tier > max_dbg) {
+                        max_dbg = set[narrowed[c]].ecg_dbg_tier;
+                        victim = narrowed[c];
+                    }
+                }
+                return victim;
+            }
+
+            // No P-OPT matrix: fall back to DBG tiebreak
+            uint8_t max_dbg = 0;
+            size_t victim = candidates[0];
+            for (size_t c = 0; c < num_candidates; c++) {
+                if (set[candidates[c]].ecg_dbg_tier > max_dbg) {
+                    max_dbg = set[candidates[c]].ecg_dbg_tier;
+                    victim = candidates[c];
                 }
             }
             return victim;
-        }
-
-        // Fallback: RRIP aging (same as GRASP)
-        uint8_t rrpv_max = graph_ctx_ && graph_ctx_->mask_config.enabled
-            ? graph_ctx_->mask_config.rrpv_max : 7;
-        while (true) {
-            for (size_t i = 0; i < associativity_; i++)
-                if (set[i].rrpv >= rrpv_max) return i;
-            for (size_t i = 0; i < associativity_; i++)
-                if (set[i].rrpv < rrpv_max) set[i].rrpv++;
         }
     }
 

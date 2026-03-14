@@ -103,6 +103,39 @@ struct PropertyRegion {
 static constexpr uint32_t MAX_PROPERTY_REGIONS = 8;
 
 // ============================================================================
+// ECGMode: Controls how the ECG policy layers its eviction signals
+// ============================================================================
+// ECG uses a 3-level layered eviction strategy. The mode determines the
+// priority order of the tiebreakers after SRRIP aging (Level 1).
+//
+// All modes use SRRIP aging as Level 1 (find max RRPV, age until found).
+// The mode controls Level 2 and Level 3 tiebreakers:
+//
+//   DBG_PRIMARY  (default): SRRIP → DBG tier → dynamic P-OPT
+//   POPT_PRIMARY:           SRRIP → dynamic P-OPT → DBG tier
+//   DBG_ONLY:               SRRIP → DBG tier (no P-OPT, fast path)
+enum class ECGMode {
+    DBG_PRIMARY,   // DBG tier is primary tiebreaker, P-OPT is secondary
+    POPT_PRIMARY,  // Dynamic P-OPT is primary tiebreaker, DBG is secondary
+    DBG_ONLY       // DBG tier only, no P-OPT consulted (equivalent to GRASP+mask)
+};
+
+inline std::string ECGModeToString(ECGMode mode) {
+    switch (mode) {
+        case ECGMode::DBG_PRIMARY:  return "DBG_PRIMARY";
+        case ECGMode::POPT_PRIMARY: return "POPT_PRIMARY";
+        case ECGMode::DBG_ONLY:     return "DBG_ONLY";
+        default:                    return "UNKNOWN";
+    }
+}
+
+inline ECGMode StringToECGMode(const std::string& s) {
+    if (s == "POPT_PRIMARY" || s == "popt_primary" || s == "popt") return ECGMode::POPT_PRIMARY;
+    if (s == "DBG_ONLY" || s == "dbg_only" || s == "dbg") return ECGMode::DBG_ONLY;
+    return ECGMode::DBG_PRIMARY;  // Default
+}
+
+// ============================================================================
 // MaskConfig: Configuration for per-edge mask array
 // ============================================================================
 // Controls how per-edge cache hints are encoded, how DBG and P-OPT signals
@@ -127,14 +160,12 @@ struct MaskConfig {
     uint32_t hot_table_size = 0;     // 2^prefetch_bits (only if !prefetch_direct)
     uint8_t  prefetch_window = 8;    // Dedup window size for prefetch (4,8,16)
 
-    // ── Policy biases (for combined DBG+P-OPT RRPV) ──
-    // Controls the weight of each signal in the combined insertion RRPV:
-    //   combined_rrpv = dbg_bias × dbg_rrpv + popt_bias × popt_rrpv
-    // Set popt_bias=1.0 dbg_bias=0.0 for pure P-OPT behavior
-    // Set popt_bias=0.0 dbg_bias=1.0 for pure GRASP behavior
-    // Set both to 0.5 for balanced (default)
-    float    popt_bias = 0.5f;      // P-OPT weight in combined RRPV (0.0-1.0)
-    float    dbg_bias = 0.5f;       // DBG weight in combined RRPV (0.0-1.0)
+    // ── ECG Mode ──
+    // Controls eviction tiebreaker priority (see ECGMode enum above).
+    // DBG_PRIMARY:  SRRIP → DBG tier → dynamic P-OPT (default)
+    // POPT_PRIMARY: SRRIP → dynamic P-OPT → DBG tier
+    // DBG_ONLY:     SRRIP → DBG tier (no P-OPT, fast path)
+    ECGMode  ecg_mode = ECGMode::DBG_PRIMARY;
 
     // ── Classification ──
     uint8_t  num_buckets = 11;      // Number of degree buckets (2-16)
@@ -187,8 +218,7 @@ struct MaskConfig {
     void initFromEnv() {
         const char* v;
         if ((v = std::getenv("ECG_MASK_WIDTH")))    mask_width = static_cast<uint8_t>(std::atoi(v));
-        if ((v = std::getenv("ECG_POPT_BIAS")))     popt_bias = std::atof(v);
-        if ((v = std::getenv("ECG_DBG_BIAS")))      dbg_bias = std::atof(v);
+        if ((v = std::getenv("ECG_MODE")))          ecg_mode = StringToECGMode(v);
         if ((v = std::getenv("ECG_NUM_BUCKETS")))   num_buckets = static_cast<uint8_t>(std::atoi(v));
         if ((v = std::getenv("ECG_RRPV_BITS"))) {
             int bits = std::atoi(v);
@@ -223,18 +253,14 @@ struct MaskConfig {
         return prefetch_bits ? (entry & prefetch_mask_val) : 0;
     }
 
-    // Compute combined RRPV from DBG tier and P-OPT distance
-    uint8_t computeCombinedRRPV(uint8_t dbg_tier, uint8_t popt_quant) const {
-        uint8_t popt_max_val = popt_bits ? ((1 << popt_bits) - 1) : 1;
-        // DBG RRPV: higher tier = lower degree = higher RRPV (evict sooner)
-        float dbg_rrpv = rrpv_max * (static_cast<float>(dbg_tier) / std::max(uint8_t(1), num_buckets));
-        // P-OPT RRPV: higher quant = farther reference = higher RRPV
-        float popt_rrpv = rrpv_max * (static_cast<float>(popt_quant) / popt_max_val);
-        // Blend
-        float combined = dbg_bias * dbg_rrpv + popt_bias * popt_rrpv;
-        uint8_t result = static_cast<uint8_t>(combined);
+    // Compute RRPV from DBG tier (structural priority).
+    // Higher tier = lower degree = higher RRPV (evict sooner).
+    // P-OPT is NOT used at insert — consulted dynamically at eviction.
+    uint8_t dbgTierToRRPV(uint8_t dbg_tier) const {
+        float fraction = static_cast<float>(dbg_tier) / std::max(uint8_t(1), num_buckets);
+        uint8_t result = static_cast<uint8_t>(rrpv_max * fraction);
         if (result > rrpv_max) result = rrpv_max;
-        if (result == 0 && combined > 0.0f) result = 1;  // Reserve 0 for hit promotion
+        if (result == 0 && fraction > 0.0f) result = 1;  // Reserve 0 for hit promotion
         return result;
     }
 
@@ -244,7 +270,7 @@ struct MaskConfig {
            << " [DBG=" << int(dbg_bits)
            << " POPT=" << int(popt_bits)
            << " PFX=" << int(prefetch_bits) << "]"
-           << " bias(dbg=" << dbg_bias << " popt=" << popt_bias << ")"
+           << " mode=" << ECGModeToString(ecg_mode)
            << " buckets=" << int(num_buckets)
            << " rrpv_max=" << int(rrpv_max)
            << " prefetch=" << (prefetch_direct ? "direct" : "table")
@@ -953,11 +979,12 @@ struct GraphCacheContext {
         prefetch_target = mask_config.decodePrefetch(entry);
     }
 
-    // Compute combined RRPV from a mask entry (for ECG insert).
+    // Compute RRPV from a mask entry (for ECG insert).
+    // Uses only the DBG tier from the mask — P-OPT is consulted dynamically
+    // at eviction time via findNextRef(), not at insert.
     uint8_t maskToRRPV(uint32_t mask_entry) const {
         uint8_t dbg = mask_config.decodeDBG(mask_entry);
-        uint8_t popt = mask_config.decodePOPT(mask_entry);
-        return mask_config.computeCombinedRRPV(dbg, popt);
+        return mask_config.dbgTierToRRPV(dbg);
     }
 
     // Resolve prefetch target vertex ID from a mask entry.
