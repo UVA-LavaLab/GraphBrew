@@ -306,7 +306,7 @@ See [[Python-Scripts]] for full documentation of the Python tooling.
 
 Key entry points:
 - `graphbrew_experiment.py` — Main orchestration (~2,838 lines)
-- `evaluate_all_modes.py` — Model × Criterion evaluation with LOGO cross-validation
+- `lib/tools/evaluate_all_modes.py` — Model × Criterion evaluation with LOGO cross-validation (invoke via `--evaluate`)
 - `lib/ml/weights.py` — **SSO** for scoring (`PerceptronWeight.compute_score()`), type-based weight training, LOGO CV
 - `lib/ml/eval_weights.py` — **SSO** for data loading (`load_all_results()`, `build_performance_matrix()`, `compute_graph_features()`)
 - `lib/ml/adaptive_emulator.py` — C++ logic emulation (delegates scoring to `PerceptronWeight`)

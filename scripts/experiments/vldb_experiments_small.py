@@ -184,7 +184,7 @@ def exp3_logo_cv(dry_run: bool = False) -> None:
     os.makedirs(out_dir, exist_ok=True)
 
     cmd = (
-        f"python scripts/evaluate_all_modes.py --all --json "
+        f"python scripts/lib/tools/evaluate_all_modes.py --all --json "
         f"2>&1 | tee {out_dir}/logo_cv_results.log"
     )
     run_cmd(cmd, dry_run=dry_run)

@@ -22,7 +22,6 @@ python3 scripts/graphbrew_experiment.py --target-graphs 150 --skip-eval
 ```
 scripts/
 ├── graphbrew_experiment.py        ← SINGLE entry point (the only top-level .py)
-├── evaluate_all_modes.py          ← Model × Criterion evaluation with LOGO CV
 ├── requirements.txt
 ├── experiments/                   ← Paper experiment runners
 │   ├── vldb_config.py             ← VLDB paper: graph/algorithm configuration
@@ -54,10 +53,10 @@ results/data/                           ← runtime data (gitignored)
 
 ## Rules for AI agents
 
-1. **Two top-level Python files exist: `graphbrew_experiment.py` and `evaluate_all_modes.py`.**
-   `graphbrew_experiment.py` is the main pipeline entry point.
-   `evaluate_all_modes.py` evaluates Model × Criterion performance.
+1. **One top-level Python file: `graphbrew_experiment.py`.**
+   It is the single pipeline entry point.
    Do NOT create other `.py` files at `scripts/` root.
+   Analysis tools (e.g., `evaluate_all_modes.py`) live in `lib/tools/`.
    Everything else belongs in `lib/` or `experiments/`.
 
 2. **Library code goes in `lib/`.**  Modules there are imported by
