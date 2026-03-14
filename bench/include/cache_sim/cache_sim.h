@@ -587,7 +587,7 @@ public:
         set[victim_idx].last_access = global_time_++;
         set[victim_idx].insert_time = global_time_;
         set[victim_idx].access_count = 1;
-        set[victim_idx].rrpv = 2;  // For SRRIP: near-immediate
+        set[victim_idx].rrpv = 2;  // For SRRIP: long re-reference (M-1 = 2, per Jaleel ISCA'10)
         set[victim_idx].line_addr = address & ~(uint64_t(line_size_ - 1));  // Store line-aligned address
 
         // GRASP: 4-tier RRIP insertion based on address region
@@ -613,9 +613,9 @@ public:
             set[victim_idx].rrpv = 6;  // M_RRPV - 1 = long re-reference (SRRIP default)
         }
 
-        // ECG: insert RRPV from fat-ID encoded hints (same tiers as GRASP)
-        // The hint was precomputed from degree + rereference at preprocessing time.
-        // Uses graph_ctx_ classifyAddress as fallback if fat-ID not yet integrated.
+        // ECG: insert RRPV from tier classification.
+        // In full ECG flow, tier comes from fat-ID bits decoded from neighbor ID.
+        // In simulator, uses GraphCacheContext region classification as fallback.
         if (policy_ == EvictionPolicy::ECG) {
             uint32_t tier = 0;
             if (graph_ctx_) {
@@ -817,6 +817,14 @@ private:
     }
 
     size_t findVictimLFU(std::vector<CacheLine>& set) {
+        // LFU aging: periodically halve access counts to prevent stale data
+        // from staying cached forever. Triggered every 1024 evictions.
+        // (ECG reference ages by decrementing; halving is equivalent and faster.)
+        if ((stats_.evictions.load() & 1023) == 0) {
+            for (size_t i = 0; i < associativity_; i++) {
+                if (set[i].valid) set[i].access_count >>= 1;
+            }
+        }
         size_t victim = 0;
         uint64_t min_count = set[0].access_count;
         for (size_t i = 1; i < associativity_; i++) {
@@ -940,17 +948,16 @@ private:
     }
 
     // ================================================================
-    // ECG: Fat-ID-based cache replacement (Mughrabi et al., GrAPL)
+    // ECG: Graph-aware cache replacement (Mughrabi et al., GrAPL)
     //
-    // Uses hints encoded directly in CSR neighbor IDs (fat IDs):
-    //   - DBG tier bits for insertion RRPV (same as GRASP but zero lookup)
-    //   - P-OPT quantized bits for eviction (replaces LLC-stored matrix)
-    //   - Combined: GRASP insertion + RRIP eviction with ZERO runtime overhead
+    // In the full ECG flow, hints are encoded in CSR neighbor IDs (fat IDs)
+    // and decoded at access time. In the current simulator, ECG uses the
+    // GraphCacheContext multi-region classification as a functionally
+    // equivalent fallback (same tier assignment, same RRPV values).
     //
-    // Insert: RRPV from fat-ID DBG tier (HOT=1, WARM=3, LUKEWARM=5, COLD=7)
+    // Insert: RRPV from DBG tier (HOT=1, WARM=3, LUKEWARM=5, COLD=7)
     // Hit:    HOT→0, WARM→decrement by 2, others by 1
-    // Evict:  RRIP aging (same as GRASP eviction — fat-ID encoding already
-    //         factors P-OPT distance into the insertion RRPV)
+    // Evict:  RRIP aging (same mechanism as GRASP)
     // ================================================================
     size_t findVictimECG(std::vector<CacheLine>& set) {
         constexpr uint8_t M_RRIP = 7;
