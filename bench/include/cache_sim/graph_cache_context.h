@@ -86,6 +86,198 @@ struct PropertyRegion {
 static constexpr uint32_t MAX_PROPERTY_REGIONS = 8;
 
 // ============================================================================
+// FatIDConfig: Adaptive bit layout for encoded neighbor IDs
+// ============================================================================
+// After DBG reordering, vertex IDs carry inherent degree information (low
+// IDs = high degree). ECG encodes cache hints into the top bits of CSR
+// neighbor IDs so hints travel with the data through the cache hierarchy.
+//
+// This struct computes the adaptive bit allocation based on graph size:
+//   [container_bits-1 ... real_id_bits]  = metadata fields
+//   [real_id_bits-1 ... 0]              = real vertex ID
+//
+// Metadata fields (allocated from MSB to LSB in priority order):
+//   1. DBG tier    (2 bits min) — cache insertion priority (HOT/WARM/LUKEWARM/COLD)
+//   2. P-OPT quant (2-4 bits)  — rereference distance (log-quantized from transpose)
+//   3. Prefetch Δ  (1-4 bits)  — prefetch delta hint
+//
+// Unlike P-OPT's rereference matrix (stored in LLC, consuming cache ways),
+// fat-ID encoding has ZERO runtime storage overhead — hints are precomputed
+// and baked into the CSR edge array during preprocessing.
+//
+// Quantization: With 2-4 bits instead of P-OPT's 7 bits, we use non-linear
+// (logarithmic) mapping — more resolution at short distances where eviction
+// decisions matter most.
+struct FatIDConfig {
+    uint8_t  container_bits = 32; // 32 or 64
+    uint8_t  real_id_bits = 32;   // ceil(log2(num_vertices))
+    uint8_t  spare_bits = 0;      // container_bits - real_id_bits
+
+    // Metadata field widths (computed from spare_bits)
+    uint8_t  dbg_bits = 0;        // Cache tier hint (min 2 when spare >= 2)
+    uint8_t  popt_bits = 0;       // Rereference quantization
+    uint8_t  prefetch_bits = 0;   // Prefetch delta
+    uint8_t  _pad[2] = {};
+
+    // Field positions (bit offset from LSB)
+    uint8_t  prefetch_shift = 0;
+    uint8_t  popt_shift = 0;
+    uint8_t  dbg_shift = 0;
+
+    // Masks for extraction
+    uint64_t real_id_mask = 0;
+    uint64_t dbg_mask = 0;
+    uint64_t popt_mask = 0;
+    uint64_t prefetch_mask = 0;
+
+    bool     enabled = false;     // True after computeFromGraph()
+
+    // Compute adaptive bit allocation from graph size.
+    // Call once during preprocessing, before encoding any edges.
+    void computeFromGraph(uint64_t num_vertices) {
+        // Determine container size
+        container_bits = (num_vertices > (1ULL << 30)) ? 64 : 32;
+
+        // Real ID bits: minimum to address all vertices
+        real_id_bits = 1;
+        while ((1ULL << real_id_bits) < num_vertices)
+            real_id_bits++;
+
+        spare_bits = container_bits - real_id_bits;
+
+        // If less than 2 spare bits in 32-bit, try 64-bit
+        if (spare_bits < 2 && container_bits == 32) {
+            container_bits = 64;
+            spare_bits = container_bits - real_id_bits;
+        }
+
+        // Priority allocation: DBG (always 2) > P-OPT (up to 4) > Prefetch (rest)
+        dbg_bits = (spare_bits >= 2) ? 2 : spare_bits;
+        uint8_t remaining = spare_bits - dbg_bits;
+
+        popt_bits = (remaining >= 4) ? 4 : remaining;
+        remaining -= popt_bits;
+
+        prefetch_bits = (remaining >= 4) ? 4 : remaining;
+
+        // Compute shifts (fields packed from real_id upward)
+        prefetch_shift = real_id_bits;
+        popt_shift = prefetch_shift + prefetch_bits;
+        dbg_shift = popt_shift + popt_bits;
+
+        // Compute masks
+        real_id_mask = (1ULL << real_id_bits) - 1;
+        prefetch_mask = prefetch_bits ? (((1ULL << prefetch_bits) - 1) << prefetch_shift) : 0;
+        popt_mask = popt_bits ? (((1ULL << popt_bits) - 1) << popt_shift) : 0;
+        dbg_mask = dbg_bits ? (((1ULL << dbg_bits) - 1) << dbg_shift) : 0;
+
+        enabled = true;
+    }
+
+    // ================================================================
+    // Encoding (preprocessing time — called per edge)
+    // ================================================================
+
+    // Encode a fat neighbor ID from components.
+    // dbg_tier: 0-3 (HOT=3, WARM=2, LUKEWARM=1, COLD=0 — high value = high priority)
+    // popt_q:   quantized rereference distance (0=imminent, max=distant)
+    // pfx_d:    prefetch delta encoding (0=none)
+    uint64_t encode(uint32_t real_id, uint8_t dbg_tier,
+                    uint8_t popt_q, uint8_t pfx_d) const {
+        uint64_t fat = real_id & real_id_mask;
+        if (dbg_bits)      fat |= (uint64_t(dbg_tier & ((1 << dbg_bits) - 1)) << dbg_shift);
+        if (popt_bits)     fat |= (uint64_t(popt_q & ((1 << popt_bits) - 1)) << popt_shift);
+        if (prefetch_bits) fat |= (uint64_t(pfx_d & ((1 << prefetch_bits) - 1)) << prefetch_shift);
+        return fat;
+    }
+
+    // ================================================================
+    // Decoding (runtime — called per neighbor access)
+    // ================================================================
+
+    uint32_t extractRealID(uint64_t fat) const {
+        return static_cast<uint32_t>(fat & real_id_mask);
+    }
+
+    uint8_t extractDBGTier(uint64_t fat) const {
+        return dbg_bits ? static_cast<uint8_t>((fat & dbg_mask) >> dbg_shift) : 0;
+    }
+
+    uint8_t extractPOPT(uint64_t fat) const {
+        return popt_bits ? static_cast<uint8_t>((fat & popt_mask) >> popt_shift) : 0;
+    }
+
+    uint8_t extractPrefetch(uint64_t fat) const {
+        return prefetch_bits ? static_cast<uint8_t>((fat & prefetch_mask) >> prefetch_shift) : 0;
+    }
+
+    // ================================================================
+    // Quantization helpers (preprocessing time)
+    // ================================================================
+
+    // Quantize a full rereference distance (0..num_epochs) to popt_bits.
+    // Uses logarithmic mapping: more resolution at short distances.
+    // distance=0 → 0 (imminent), distance=max → max_val (distant)
+    uint8_t quantizeRereference(uint32_t full_distance) const {
+        if (popt_bits == 0) return 0;
+        uint8_t max_val = (1 << popt_bits) - 1;
+        if (full_distance == 0) return 0;
+        // Log2-based quantization
+        uint32_t log_dist = 0;
+        uint32_t d = full_distance;
+        while (d > 0) { d >>= 1; log_dist++; }
+        return (log_dist > max_val) ? max_val : static_cast<uint8_t>(log_dist);
+    }
+
+    // Compute DBG tier for a vertex given its degree and graph topology.
+    // Returns: 3=HOT, 2=WARM, 1=LUKEWARM, 0=COLD (higher = more important)
+    uint8_t computeDBGTier(uint32_t degree, uint32_t avg_degree) const {
+        if (dbg_bits == 0) return 0;
+        // ECG-style: geometric thresholds from avg_degree
+        uint32_t hot_thresh = avg_degree * 4;   // Top hubs
+        uint32_t warm_thresh = avg_degree;       // Above average
+        uint32_t lukewarm_thresh = avg_degree / 2; // Near average
+        if (degree >= hot_thresh)      return 3;  // HOT
+        if (degree >= warm_thresh)     return 2;  // WARM
+        if (degree >= lukewarm_thresh) return 1;  // LUKEWARM
+        return 0;                                 // COLD
+    }
+
+    // Compute prefetch delta: distance to the next likely access vertex.
+    // After DBG ordering, nearby IDs have similar degrees → likely co-accessed.
+    // Returns encoded delta (0=none, 1=+1, 2=+2, 3=+4, etc.)
+    uint8_t computePrefetchDelta(uint32_t src_id, uint32_t dst_id,
+                                  uint32_t num_vertices) const {
+        if (prefetch_bits == 0) return 0;
+        // Simple heuristic: encode the stride to the next neighbor
+        // In DBG-ordered graphs, consecutively-IDed vertices are often
+        // co-accessed (same degree bucket). Delta encoding captures this.
+        // For now: 0=no prefetch (default)
+        // Future: compute from graph transpose neighbor patterns
+        (void)src_id; (void)dst_id; (void)num_vertices;
+        return 0;  // Placeholder — requires graph-specific analysis
+    }
+
+    // ================================================================
+    // Diagnostics
+    // ================================================================
+
+    void printConfig(std::ostream& os = std::cout) const {
+        if (!enabled) { os << "FatID: disabled\n"; return; }
+        os << "FatID: " << int(container_bits) << "-bit container, "
+           << int(real_id_bits) << "-bit ID, "
+           << int(spare_bits) << " spare bits "
+           << "[DBG=" << int(dbg_bits)
+           << " POPT=" << int(popt_bits)
+           << " PFX=" << int(prefetch_bits) << "]\n";
+        os << "  Layout: [" << int(dbg_shift) << ":" << int(dbg_shift + dbg_bits - 1) << "]=DBG"
+           << " [" << int(popt_shift) << ":" << int(popt_shift + popt_bits - 1) << "]=POPT"
+           << " [" << int(prefetch_shift) << ":" << int(prefetch_shift + prefetch_bits - 1) << "]=PFX"
+           << " [0:" << int(real_id_bits - 1) << "]=ID\n";
+    }
+};
+
+// ============================================================================
 // RereferenceConfig: P-OPT compressed transpose matrix
 // ============================================================================
 // Stored as flat uint8_t array of size [num_epochs × num_cache_lines].
@@ -292,6 +484,11 @@ struct GraphCacheContext {
     const uint32_t* prefetch_map = nullptr;
     uint32_t prefetch_num_vertices = 0;
 
+    // --- Fat ID Configuration (ECG adaptive encoding) ---
+    // Encodes cache hints directly into CSR neighbor IDs.
+    // Zero runtime overhead — hints travel with data through cache hierarchy.
+    FatIDConfig fat_id;
+
     // --- Per-Vertex Statistics (optional) ---
     VertexStats vertex_stats;
 
@@ -415,6 +612,42 @@ struct GraphCacheContext {
         return prefetch_map[vertex_id];
     }
 
+    // Initialize fat-ID encoding for ECG-style embedded hints.
+    // Call after initTopology(). Computes adaptive bit allocation.
+    void initFatID() {
+        if (topology.num_vertices > 0) {
+            fat_id.computeFromGraph(topology.num_vertices);
+        }
+    }
+
+    // Encode a neighbor ID with all metadata fields.
+    // Called during preprocessing (once per edge).
+    uint64_t encodeFatNeighbor(uint32_t real_id, uint32_t degree,
+                                uint32_t rereference_distance) const {
+        if (!fat_id.enabled) return real_id;
+        uint8_t dbg_tier = fat_id.computeDBGTier(degree, topology.avg_degree);
+        uint8_t popt_q = fat_id.quantizeRereference(rereference_distance);
+        uint8_t pfx_d = 0;  // Prefetch delta: placeholder for future
+        return fat_id.encode(real_id, dbg_tier, popt_q, pfx_d);
+    }
+
+    // Decode a fat neighbor ID — extract just the real vertex ID.
+    // Called at every neighbor access in the algorithm.
+    uint32_t decodeFatNeighbor(uint64_t fat) const {
+        if (!fat_id.enabled) return static_cast<uint32_t>(fat);
+        return fat_id.extractRealID(fat);
+    }
+
+    // Extract all fields from a fat neighbor ID at once.
+    // Used by the ECG cache policy for making replacement decisions.
+    void decodeFatFull(uint64_t fat, uint32_t& real_id, uint8_t& dbg_tier,
+                       uint8_t& popt_q, uint8_t& pfx_delta) const {
+        real_id = fat_id.extractRealID(fat);
+        dbg_tier = fat_id.extractDBGTier(fat);
+        popt_q = fat_id.extractPOPT(fat);
+        pfx_delta = fat_id.extractPrefetch(fat);
+    }
+
     // ================================================================
     // Per-Access Updates (maps to simulator registers/magic instructions)
     // ================================================================
@@ -505,6 +738,9 @@ struct GraphCacheContext {
         }
         if (vertex_stats.enabled) {
             os << "Per-vertex stats: enabled (" << vertex_stats.accesses.size() << " vertices)\n";
+        }
+        if (fat_id.enabled) {
+            fat_id.printConfig(os);
         }
         os << std::defaultfloat << "===========================\n";
     }
