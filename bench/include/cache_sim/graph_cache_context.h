@@ -44,39 +44,56 @@ namespace cache_sim {
 // ============================================================================
 // Each graph algorithm accesses multiple vertex property arrays (e.g., scores,
 // outgoing_contrib, comp). GRASP/ECG need to know which array an address
-// belongs to, and where the hot/warm/cold boundaries are within that array.
+// belongs to, and which degree bucket a vertex falls in.
 //
-// Memory layout (requires DBG-reordered graph):
-//   [base_address ... hot_bound)       = HOT       (high-degree hubs, RRPV = 1)
-//   [hot_bound ... warm_bound)          = WARM      (moderate-degree, RRPV = 3)
-//   [warm_bound ... lukewarm_bound)     = LUKEWARM  (low-moderate, RRPV = 5)
-//   [lukewarm_bound ... upper_bound)    = COLD      (low-degree, RRPV = 7)
+// After DBG reordering, vertices are sorted by descending degree. The array
+// is partitioned into N degree buckets (default 11, matching DBG). Each
+// bucket maps to a proportional RRPV based on its share of total edges.
 //
-// The 4-tier classification matches ECG's MASK encoding:
-//   11=HOT, 10=WARM, 01=LUKEWARM, 00=COLD
+// The number of buckets is flexible:
+//   - GRASP paper uses 3 regions (simplified from the RRPV space)
+//   - ECG GRASP-XP uses all 11 DBG buckets with 8-bit RRPV
+//   - Our implementation supports 1-16 buckets (configurable)
 //
-// Region boundaries can be:
-//   a) Auto-computed from degree distribution + cache geometry (preferred)
-//   b) Manually specified via manual_hot_fraction
-struct PropertyRegion {
-    uint64_t base_address = 0;     // Start address of the property array
-    uint64_t upper_bound = 0;      // End address
-    uint64_t hot_bound = 0;        // [base, hot_bound) = HOT
-    uint64_t warm_bound = 0;       // [hot_bound, warm_bound) = WARM
-    uint64_t lukewarm_bound = 0;   // [warm_bound, lukewarm_bound) = LUKEWARM
-    uint32_t num_elements = 0;     // Number of elements
-    uint32_t elem_size = 0;        // Size of each element in bytes
-    uint32_t region_id = 0;        // ID for per-region statistics
-    uint32_t _pad = 0;             // Padding for 8-byte alignment
+// bucket_bounds[i] = byte offset where bucket i ends in the array
+// bucket_bounds[0] = end of highest-degree bucket (smallest, at front)
+// bucket_bounds[N-1] = end of lowest-degree bucket (= upper_bound)
+//
+// Requires DBG-reordered graph for meaningful classification.
+static constexpr uint32_t MAX_REGION_BUCKETS = 16;
 
-    // Classify an address within this region
-    // Returns: 0=not in region, 1=HOT, 2=WARM, 3=LUKEWARM, 4=COLD
+struct PropertyRegion {
+    uint64_t base_address = 0;      // Start address of the property array
+    uint64_t upper_bound = 0;       // End address
+    uint32_t num_elements = 0;      // Number of elements
+    uint32_t elem_size = 0;         // Size of each element in bytes
+    uint32_t region_id = 0;         // ID for per-region statistics
+    uint32_t num_buckets = 0;       // Active bucket count (0 = uninitialized)
+
+    // Bucket boundaries: bucket_bounds[i] = upper byte address of bucket i
+    // Bucket 0 = highest-degree (most important to cache)
+    // Bucket num_buckets-1 = lowest-degree (least important)
+    uint64_t bucket_bounds[MAX_REGION_BUCKETS] = {};
+
+    // Classify an address into a bucket index.
+    // Returns: 0..num_buckets-1 for valid buckets, num_buckets for outside region
+    uint32_t classifyBucket(uint64_t addr) const {
+        if (addr < base_address || addr >= upper_bound || num_buckets == 0)
+            return num_buckets;  // Outside region
+        for (uint32_t b = 0; b < num_buckets; ++b) {
+            if (addr < bucket_bounds[b]) return b;
+        }
+        return num_buckets - 1;  // Last bucket
+    }
+
+    // Legacy 4-tier classification (for backward compatibility)
+    // Maps N buckets to 4 tiers: first quarter = HOT(1), etc.
     uint32_t classify(uint64_t addr) const {
-        if (addr < base_address || addr >= upper_bound) return 0;
-        if (addr < hot_bound)      return 1;  // HOT
-        if (addr < warm_bound)     return 2;  // WARM
-        if (addr < lukewarm_bound) return 3;  // LUKEWARM
-        return 4;                             // COLD
+        uint32_t b = classifyBucket(addr);
+        if (b >= num_buckets) return 0;  // Outside
+        // Map bucket to tier: 0..N/4=HOT(1), N/4..N/2=WARM(2), etc.
+        uint32_t quarter = (num_buckets > 0) ? (b * 4 / num_buckets) : 3;
+        return quarter + 1;  // 1=HOT, 2=WARM, 3=LUKEWARM, 4=COLD
     }
 };
 
@@ -564,67 +581,53 @@ struct GraphCacheContext {
         r.num_elements = num_elements;
         r.elem_size = elem_size;
         r.region_id = num_regions;
-        r._pad = 0;
 
         constexpr uint64_t LINE_MASK = ~uint64_t(63);
-        uint64_t array_bytes = static_cast<uint64_t>(num_elements) * elem_size;
 
-        if (manual_hot_fraction > 0.0 && manual_hot_fraction <= 1.0) {
-            // Manual override: fixed fraction, geometric ×4 tiers
-            uint64_t hot_bytes = static_cast<uint64_t>(manual_hot_fraction * array_bytes);
-            r.hot_bound = (r.base_address + hot_bytes + 63) & LINE_MASK;
-            r.warm_bound = (r.base_address + hot_bytes * 4 + 63) & LINE_MASK;
-            r.lukewarm_bound = (r.base_address + hot_bytes * 16 + 63) & LINE_MASK;
-        } else if (topology.num_vertices > 0 && elem_size > 0) {
-            // DBG bucket-aligned region computation:
-            // How many vertex elements fit in this array's LLC share?
-            uint32_t total_arrays = num_regions + 1;
-            uint64_t llc_share = llc_size / total_arrays;
-            uint32_t cache_capacity_vtx = static_cast<uint32_t>(llc_share / elem_size);
-            if (cache_capacity_vtx == 0) cache_capacity_vtx = 1;
+        if (topology.num_vertices > 0 && elem_size > 0) {
+            // N-bucket boundaries aligned with DBG degree buckets.
+            // Each bucket boundary marks where the next degree group starts.
+            // DBG order: highest-degree at front (bucket N-1 → position 0).
+            uint32_t active_buckets = 0;
+            uint64_t cumulative_vtx = 0;
 
-            // Walk buckets from highest-degree (back of array = front of DBG order)
-            // to find how many vertices fit in each tier
-            uint32_t hot_vtx = 0, warm_vtx = 0, lukewarm_vtx = 0;
-            uint64_t cumulative = 0;
+            // Walk from highest-degree bucket to lowest, accumulating vertex counts
             for (int b = GraphTopology::NUM_BUCKETS - 1; b >= 0; --b) {
-                uint64_t bucket_count = topology.bucket_counts[b];
-                cumulative += bucket_count;
-
-                // Hot: first cache_capacity_vtx vertices
-                if (hot_vtx == 0 && cumulative >= cache_capacity_vtx)
-                    hot_vtx = static_cast<uint32_t>(cumulative);
-
-                // Warm: 2× capacity
-                if (warm_vtx == 0 && cumulative >= cache_capacity_vtx * 2)
-                    warm_vtx = static_cast<uint32_t>(cumulative);
-
-                // Lukewarm: 4× capacity
-                if (lukewarm_vtx == 0 && cumulative >= cache_capacity_vtx * 4)
-                    lukewarm_vtx = static_cast<uint32_t>(cumulative);
+                uint64_t count = topology.bucket_counts[b];
+                if (count == 0) continue;  // Skip empty buckets
+                cumulative_vtx += count;
+                if (active_buckets < MAX_REGION_BUCKETS) {
+                    uint64_t bound_bytes = cumulative_vtx * elem_size;
+                    r.bucket_bounds[active_buckets] = (r.base_address + bound_bytes + 63) & LINE_MASK;
+                    if (r.bucket_bounds[active_buckets] > r.upper_bound)
+                        r.bucket_bounds[active_buckets] = r.upper_bound;
+                    active_buckets++;
+                }
             }
+            r.num_buckets = active_buckets;
 
-            // Fallback if thresholds weren't reached (small graph)
-            if (hot_vtx == 0)      hot_vtx = static_cast<uint32_t>(std::min(cumulative, uint64_t(num_elements / 3)));
-            if (warm_vtx == 0)     warm_vtx = static_cast<uint32_t>(std::min(cumulative, uint64_t(2 * num_elements / 3)));
-            if (lukewarm_vtx == 0) lukewarm_vtx = num_elements;
-
-            // Convert vertex counts to byte offsets (DBG: high-degree at front)
-            r.hot_bound = (r.base_address + uint64_t(hot_vtx) * elem_size + 63) & LINE_MASK;
-            r.warm_bound = (r.base_address + uint64_t(warm_vtx) * elem_size + 63) & LINE_MASK;
-            r.lukewarm_bound = (r.base_address + uint64_t(lukewarm_vtx) * elem_size + 63) & LINE_MASK;
+            // Ensure last bucket covers entire array
+            if (active_buckets > 0)
+                r.bucket_bounds[active_buckets - 1] = r.upper_bound;
+        } else if (manual_hot_fraction > 0.0 && manual_hot_fraction <= 1.0) {
+            // Manual: 4 buckets with geometric sizing
+            uint64_t array_bytes = static_cast<uint64_t>(num_elements) * elem_size;
+            uint64_t hot = static_cast<uint64_t>(manual_hot_fraction * array_bytes);
+            r.bucket_bounds[0] = (r.base_address + hot + 63) & LINE_MASK;
+            r.bucket_bounds[1] = (r.base_address + hot * 4 + 63) & LINE_MASK;
+            r.bucket_bounds[2] = (r.base_address + hot * 16 + 63) & LINE_MASK;
+            r.bucket_bounds[3] = r.upper_bound;
+            for (int i = 0; i < 4; ++i)
+                if (r.bucket_bounds[i] > r.upper_bound) r.bucket_bounds[i] = r.upper_bound;
+            r.num_buckets = 4;
         } else {
-            // No topology: fallback to equal thirds
-            uint64_t third = array_bytes / 3;
-            r.hot_bound = (r.base_address + third + 63) & LINE_MASK;
-            r.warm_bound = (r.base_address + 2 * third + 63) & LINE_MASK;
-            r.lukewarm_bound = r.upper_bound;
+            // Fallback: equal thirds (3 buckets)
+            uint64_t array_bytes = static_cast<uint64_t>(num_elements) * elem_size;
+            r.bucket_bounds[0] = (r.base_address + array_bytes / 3 + 63) & LINE_MASK;
+            r.bucket_bounds[1] = (r.base_address + 2 * array_bytes / 3 + 63) & LINE_MASK;
+            r.bucket_bounds[2] = r.upper_bound;
+            r.num_buckets = 3;
         }
-
-        // Clamp all bounds to array end
-        if (r.hot_bound > r.upper_bound) r.hot_bound = r.upper_bound;
-        if (r.warm_bound > r.upper_bound) r.warm_bound = r.upper_bound;
-        if (r.lukewarm_bound > r.upper_bound) r.lukewarm_bound = r.upper_bound;
 
         num_regions++;
     }
@@ -736,6 +739,55 @@ struct GraphCacheContext {
         return 0;
     }
 
+    // Classify an address to its degree bucket index (0 = highest-degree).
+    // Returns: bucket index (0..N-1), or UINT32_MAX if not in any region.
+    uint32_t classifyBucket(uint64_t addr) const {
+        for (uint32_t i = 0; i < num_regions; ++i) {
+            uint32_t b = regions[i].classifyBucket(addr);
+            if (b < regions[i].num_buckets) return b;
+        }
+        return UINT32_MAX;
+    }
+
+    // Map a bucket index to an RRPV value (GRASP-XP style).
+    // Uses degree-proportional mapping: buckets with more total edges
+    // get lower RRPV (higher cache priority).
+    //
+    // max_rrpv: maximum RRPV value (3-bit=7, 8-bit=255)
+    // bucket: bucket index from classifyBucket() or extractDBGTier()
+    //
+    // Mapping: RRPV = max_rrpv × (1 - edge_fraction_of_bucket)
+    //   High-degree bucket (many edges) → low RRPV (keep in cache)
+    //   Low-degree bucket (few edges) → high RRPV (evict sooner)
+    uint8_t bucketToRRPV(uint32_t bucket, uint8_t max_rrpv = 7) const {
+        if (topology.num_vertices == 0 || topology.num_edges == 0)
+            return max_rrpv;  // No topology: default to cold
+
+        if (bucket >= GraphTopology::NUM_BUCKETS)
+            return max_rrpv;  // Unknown bucket: cold
+
+        // Compute cumulative edge fraction for this and higher buckets
+        // (DBG: bucket 0 = lowest degree, bucket N-1 = highest degree)
+        // But classifyBucket returns 0 = highest degree (front of array).
+        // So reverse: actual_dbg_bucket = NUM_BUCKETS - 1 - bucket
+        uint32_t dbg_bucket = GraphTopology::NUM_BUCKETS - 1 - bucket;
+
+        // Edge fraction: what fraction of total edges belong to this and higher buckets
+        uint64_t edge_sum = 0;
+        for (uint32_t b = dbg_bucket; b < GraphTopology::NUM_BUCKETS; ++b)
+            edge_sum += topology.bucket_total_degrees[b];
+
+        double edge_fraction = static_cast<double>(edge_sum) / topology.num_edges;
+
+        // RRPV = max × (1 - edge_fraction)
+        // High edge_fraction → low RRPV (important, keep in cache)
+        // Low edge_fraction → high RRPV (unimportant, evict)
+        uint8_t rrpv = static_cast<uint8_t>(max_rrpv * (1.0 - edge_fraction));
+        if (rrpv >= max_rrpv) rrpv = max_rrpv;
+        if (rrpv == 0 && edge_fraction < 1.0) rrpv = 1;  // Reserve 0 for hit promotion
+        return rrpv;
+    }
+
     // Check if address is in any registered property region.
     bool isPropertyData(uint64_t addr) const {
         return classifyAddress(addr) != 0;
@@ -774,15 +826,9 @@ struct GraphCacheContext {
         for (uint32_t i = 0; i < num_regions; ++i) {
             const auto& r = regions[i];
             uint64_t total = r.upper_bound - r.base_address;
-            uint64_t hot = r.hot_bound - r.base_address;
-            uint64_t warm = r.warm_bound - r.base_address;
-            uint64_t lukewarm = r.lukewarm_bound - r.base_address;
             os << "  [" << i << "] "
                << total << "B (elem=" << r.elem_size << "B × " << r.num_elements << ")"
-               << "  hot=" << std::fixed << std::setprecision(1)
-               << (total > 0 ? 100.0 * hot / total : 0) << "%"
-               << "  warm=" << (total > 0 ? 100.0 * warm / total : 0) << "%"
-               << "  lukewarm=" << (total > 0 ? 100.0 * lukewarm / total : 0) << "%\n";
+               << "  " << r.num_buckets << " buckets\n";
         }
         if (rereference.matrix) {
             os << "Rereference: " << rereference.num_epochs << " epochs × "

@@ -590,22 +590,25 @@ public:
         set[victim_idx].rrpv = 2;  // For SRRIP: long re-reference (M-1 = 2, per Jaleel ISCA'10)
         set[victim_idx].line_addr = address & ~(uint64_t(line_size_ - 1));  // Store line-aligned address
 
-        // GRASP: 4-tier RRIP insertion based on address region
-        // HOT=1, WARM=3, LUKEWARM=5, COLD=7 (matching ECG MASK 11/10/01/00)
+        // GRASP: N-bucket RRIP insertion (degree-proportional RRPV)
+        // Uses GraphCacheContext bucket classification + bucketToRRPV for
+        // proportional RRPV based on edge fraction (GRASP-XP approach).
+        // Falls back to legacy 3-tier GRASPState if no context.
         if (policy_ == EvictionPolicy::GRASP) {
-            uint32_t tier = 0;
             if (graph_ctx_) {
-                tier = graph_ctx_->classifyAddress(address);
+                uint32_t bucket = graph_ctx_->classifyBucket(address);
+                if (bucket != UINT32_MAX) {
+                    set[victim_idx].rrpv = graph_ctx_->bucketToRRPV(bucket, 7);
+                }
             } else if (grasp_state_.enabled) {
                 auto t = grasp_state_.classify(address);
-                tier = (t == GRASPState::ReuseTier::HIGH) ? 1 :
+                uint32_t tier = (t == GRASPState::ReuseTier::HIGH) ? 1 :
                        (t == GRASPState::ReuseTier::MODERATE) ? 2 : 4;
+                constexpr uint8_t M_RRIP = 7;
+                if (tier == 1)       set[victim_idx].rrpv = 1;
+                else if (tier == 2)  set[victim_idx].rrpv = M_RRIP - 1;
+                else                 set[victim_idx].rrpv = M_RRIP;
             }
-            constexpr uint8_t M_RRIP = 7;
-            if (tier == 1)       set[victim_idx].rrpv = 1;  // HOT
-            else if (tier == 2)  set[victim_idx].rrpv = 3;  // WARM
-            else if (tier == 3)  set[victim_idx].rrpv = 5;  // LUKEWARM
-            else if (tier >= 4)  set[victim_idx].rrpv = M_RRIP;  // COLD
         }
 
         // P-OPT: insert with SRRIP-style RRPV (long re-reference = M-1)
@@ -613,18 +616,15 @@ public:
             set[victim_idx].rrpv = 6;  // M_RRPV - 1 = long re-reference (SRRIP default)
         }
 
-        // ECG: insert RRPV from tier classification.
-        // In full ECG flow, tier comes from fat-ID bits decoded from neighbor ID.
-        // In simulator, uses GraphCacheContext region classification as fallback.
+        // ECG: N-bucket RRIP insertion (same as GRASP when using region classification)
+        // In full ECG flow, tier comes from fat-ID bits in neighbor IDs.
         if (policy_ == EvictionPolicy::ECG) {
-            uint32_t tier = 0;
             if (graph_ctx_) {
-                tier = graph_ctx_->classifyAddress(address);
+                uint32_t bucket = graph_ctx_->classifyBucket(address);
+                if (bucket != UINT32_MAX) {
+                    set[victim_idx].rrpv = graph_ctx_->bucketToRRPV(bucket, 7);
+                }
             }
-            if (tier == 1)       set[victim_idx].rrpv = 1;  // HOT
-            else if (tier == 2)  set[victim_idx].rrpv = 3;  // WARM
-            else if (tier == 3)  set[victim_idx].rrpv = 5;  // LUKEWARM
-            else                 set[victim_idx].rrpv = 7;  // COLD
         }
     }
 
@@ -714,25 +714,21 @@ private:
             set[idx].rrpv = 0;
         }
 
-        // GRASP: 4-tier hit promotion
-        // HOT → RRPV=0 (aggressive), WARM → decrement by 2, LUKEWARM/COLD → decrement by 1
+        // GRASP: bucket-aware hit promotion
+        // Top bucket → RRPV=0 (aggressive), others → decrement proportionally
         if (policy_ == EvictionPolicy::GRASP) {
             uint64_t addr = set[idx].line_addr;
-            uint32_t tier = 0;
             if (graph_ctx_) {
-                tier = graph_ctx_->classifyAddress(addr);
+                uint32_t bucket = graph_ctx_->classifyBucket(addr);
+                if (bucket == 0) {
+                    set[idx].rrpv = 0;  // Highest-degree bucket: aggressive
+                } else if (bucket != UINT32_MAX) {
+                    if (set[idx].rrpv > 0) set[idx].rrpv--;  // Others: gradual
+                }
             } else if (grasp_state_.enabled) {
                 auto t = grasp_state_.classify(addr);
-                tier = (t == GRASPState::ReuseTier::HIGH) ? 1 :
-                       (t == GRASPState::ReuseTier::MODERATE) ? 2 : 4;
-            }
-            if (tier == 1) {
-                set[idx].rrpv = 0;  // HOT: aggressive promotion
-            } else if (tier == 2) {
-                if (set[idx].rrpv > 1) set[idx].rrpv -= 2;  // WARM: faster promotion
-                else set[idx].rrpv = 0;
-            } else if (tier > 0) {
-                if (set[idx].rrpv > 0) set[idx].rrpv--;  // LUKEWARM/COLD: gradual
+                if (t == GRASPState::ReuseTier::HIGH) set[idx].rrpv = 0;
+                else if (set[idx].rrpv > 0) set[idx].rrpv--;
             }
         }
 
@@ -741,17 +737,13 @@ private:
             set[idx].rrpv = 0;
         }
 
-        // ECG: same tier-based hit promotion as GRASP
+        // ECG: bucket-aware hit promotion (same as GRASP with context)
         if (policy_ == EvictionPolicy::ECG) {
-            uint64_t addr = set[idx].line_addr;
-            uint32_t tier = graph_ctx_ ? graph_ctx_->classifyAddress(addr) : 0;
-            if (tier == 1) {
-                set[idx].rrpv = 0;
-            } else if (tier == 2) {
-                if (set[idx].rrpv > 1) set[idx].rrpv -= 2;
-                else set[idx].rrpv = 0;
-            } else if (tier > 0) {
-                if (set[idx].rrpv > 0) set[idx].rrpv--;
+            if (graph_ctx_) {
+                uint64_t addr = set[idx].line_addr;
+                uint32_t bucket = graph_ctx_->classifyBucket(addr);
+                if (bucket == 0) set[idx].rrpv = 0;
+                else if (bucket != UINT32_MAX && set[idx].rrpv > 0) set[idx].rrpv--;
             }
         }
     }
