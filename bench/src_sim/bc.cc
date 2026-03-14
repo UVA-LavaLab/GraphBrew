@@ -50,6 +50,8 @@ void BCBFS_Sim(const Graph &g, NodeID source,
         #pragma omp parallel for schedule(dynamic, 64)
         for (auto q_iter = queue.begin(); q_iter < queue.end(); q_iter++) {
             NodeID u = *q_iter;
+            // P-OPT: update current destination vertex
+            SIM_SET_VERTEX(cache, u);
             // Track depth read
             SIM_CACHE_READ(cache, depths.data(), u);
             

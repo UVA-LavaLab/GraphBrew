@@ -28,6 +28,8 @@ int64_t BUStep_Sim(const Graph &g, pvector<NodeID> &parent, Bitmap &front,
     next.reset();
     #pragma omp parallel for reduction(+ : awake_count) schedule(dynamic, 1024)
     for (NodeID u = 0; u < g.num_nodes(); u++) {
+        // P-OPT: update current destination vertex
+        SIM_SET_VERTEX(cache, u);
         // Track: read parent[u]
         SIM_CACHE_READ(cache, parent.data(), u);
         if (parent[u] < 0) {

@@ -32,6 +32,8 @@ pvector<NodeID> ShiloachVishkin_Sim(const Graph &g, CacheType &cache) {
         change = false;
         #pragma omp parallel for
         for (NodeID u = 0; u < g.num_nodes(); u++) {
+            // P-OPT: update current destination vertex
+            SIM_SET_VERTEX(cache, u);
             for (NodeID v : g.out_neigh(u)) {
                 // Track: read comp[u] and comp[v]
                 SIM_CACHE_READ(cache, comp.data(), u);

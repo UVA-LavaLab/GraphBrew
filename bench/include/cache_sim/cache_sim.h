@@ -33,7 +33,9 @@ enum class EvictionPolicy {
     RANDOM,   // Random eviction
     LFU,      // Least Frequently Used
     PLRU,     // Pseudo-LRU (tree-based)
-    SRRIP     // Static Re-Reference Interval Prediction
+    SRRIP,    // Static Re-Reference Interval Prediction
+    GRASP,    // Graph-aware cache Replacement with Software Prefetching (Faldu et al., HPCA 2020)
+    POPT      // Practical Optimal cache replacement for Graph Analytics (Balaji et al., HPCA 2021)
 };
 
 inline std::string PolicyToString(EvictionPolicy policy) {
@@ -44,6 +46,8 @@ inline std::string PolicyToString(EvictionPolicy policy) {
         case EvictionPolicy::LFU:    return "LFU";
         case EvictionPolicy::PLRU:   return "PLRU";
         case EvictionPolicy::SRRIP:  return "SRRIP";
+        case EvictionPolicy::GRASP:  return "GRASP";
+        case EvictionPolicy::POPT:   return "POPT";
         default: return "UNKNOWN";
     }
 }
@@ -55,6 +59,8 @@ inline EvictionPolicy StringToPolicy(const std::string& s) {
     if (s == "LFU" || s == "lfu") return EvictionPolicy::LFU;
     if (s == "PLRU" || s == "plru") return EvictionPolicy::PLRU;
     if (s == "SRRIP" || s == "srrip") return EvictionPolicy::SRRIP;
+    if (s == "GRASP" || s == "grasp") return EvictionPolicy::GRASP;
+    if (s == "POPT" || s == "popt" || s == "P-OPT" || s == "p-opt") return EvictionPolicy::POPT;
     return EvictionPolicy::LRU;  // Default
 }
 
@@ -125,6 +131,79 @@ struct CacheLine {
     uint64_t insert_time = 0;    // For FIFO
     uint64_t access_count = 0;   // For LFU
     uint8_t rrpv = 3;            // For SRRIP (2-bit)
+    bool is_hot = false;         // For GRASP: true if address maps to a hot (high-degree) vertex
+};
+
+// ============================================================================
+// P-OPT State: Rereference Matrix context for graph-aware replacement
+// ============================================================================
+struct POPTState {
+    const uint8_t* reref_matrix = nullptr;  // Compressed rereference matrix [epochs × cache_lines]
+    uint64_t irreg_base = 0;       // Base address of irregular (vertex) data region
+    uint64_t irreg_bound = 0;      // Upper bound of irregular data region
+    uint32_t num_cache_lines = 0;  // Number of cache lines covering vertex data
+    uint32_t num_epochs = 256;     // Number of epochs (default 256)
+    uint32_t epoch_size = 0;       // Vertices per epoch
+    uint32_t sub_epoch_size = 0;   // Vertices per sub-epoch (epoch_size / 128)
+    uint32_t current_vertex = 0;   // Current destination vertex being processed
+    bool enabled = false;          // Whether P-OPT state has been initialized
+
+    // Algorithm 2 from P-OPT paper: compute next-reference distance for a cache line
+    uint32_t findNextRef(uint32_t cline_id) const {
+        if (!enabled || cline_id >= num_cache_lines) return 0;
+        uint32_t epoch_id = current_vertex / epoch_size;
+        if (epoch_id >= num_epochs) return 0;
+
+        // Look up rereference matrix entry: matrix is transposed as [epoch][cline]
+        uint8_t entry = reref_matrix[epoch_id * num_cache_lines + cline_id];
+        uint8_t msb = entry >> 7;
+        uint8_t data = entry & 0x7F;
+
+        if (msb == 0) {
+            // No reference in this epoch — data = distance to next epoch with reference
+            return data;
+        } else {
+            // Referenced in this epoch — data = sub-epoch of final access
+            uint32_t curr_sub_epoch = (current_vertex % epoch_size) / sub_epoch_size;
+            if (curr_sub_epoch <= data) {
+                return 0;  // Still will be accessed in current epoch
+            } else {
+                // Past final access in this epoch, check next epoch
+                if (epoch_id + 1 < num_epochs) {
+                    uint8_t next_entry = reref_matrix[(epoch_id + 1) * num_cache_lines + cline_id];
+                    uint8_t next_data = next_entry & 0x7F;
+                    return 1 + next_data;
+                }
+                return num_epochs;  // No future reference found
+            }
+        }
+    }
+};
+
+// ============================================================================
+// GRASP State: Degree-aware retention metadata
+// ============================================================================
+struct GRASPState {
+    const uint64_t* degree_array = nullptr;  // Vertex degrees (out-degree for pull, in-degree for push)
+    uint64_t data_base = 0;         // Base address of vertex data array
+    size_t data_elem_size = 0;      // Size of each vertex data element (e.g., sizeof(float) for PR)
+    uint32_t num_vertices = 0;      // Total number of vertices
+    uint32_t avg_degree = 0;        // Average degree (threshold for hot/cold classification)
+    bool enabled = false;
+
+    // Map a cache address to vertex ID, return degree (0 if not in vertex data range)
+    uint64_t getVertexDegree(uint64_t address) const {
+        if (!enabled || data_elem_size == 0) return 0;
+        if (address < data_base) return 0;
+        uint64_t offset = address - data_base;
+        uint32_t vtx_id = static_cast<uint32_t>(offset / data_elem_size);
+        if (vtx_id >= num_vertices) return 0;
+        return degree_array[vtx_id];
+    }
+
+    bool isHotVertex(uint64_t address) const {
+        return getVertexDegree(address) > avg_degree;
+    }
 };
 
 // ============================================================================
@@ -459,6 +538,11 @@ public:
         set[victim_idx].insert_time = global_time_;
         set[victim_idx].access_count = 1;
         set[victim_idx].rrpv = 2;  // For SRRIP: near-immediate
+
+        // GRASP: tag line as hot/cold based on vertex degree
+        if (policy_ == EvictionPolicy::GRASP && grasp_state_.enabled) {
+            set[victim_idx].is_hot = grasp_state_.isHotVertex(address);
+        }
     }
 
     const CacheStats& getStats() const { return stats_; }
@@ -470,6 +554,45 @@ public:
     size_t getAssociativity() const { return associativity_; }
     size_t getNumSets() const { return num_sets_; }
     EvictionPolicy getPolicy() const { return policy_; }
+
+    // ================================================================
+    // P-OPT initialization: call once after building the rereference
+    // matrix with makeOffsetMatrix() from popt.h
+    // ================================================================
+    void initPOPT(const uint8_t* reref_matrix, uint64_t irreg_base,
+                  uint64_t irreg_bound, uint32_t num_vertices,
+                  uint32_t num_epochs = 256) {
+        uint32_t vtx_per_line = static_cast<uint32_t>(line_size_ / sizeof(float));
+        if (vtx_per_line == 0) vtx_per_line = 1;
+        popt_state_.reref_matrix = reref_matrix;
+        popt_state_.irreg_base = irreg_base;
+        popt_state_.irreg_bound = irreg_bound;
+        popt_state_.num_cache_lines = (num_vertices + vtx_per_line - 1) / vtx_per_line;
+        popt_state_.num_epochs = num_epochs;
+        popt_state_.epoch_size = (num_vertices + num_epochs - 1) / num_epochs;
+        popt_state_.sub_epoch_size = (popt_state_.epoch_size + 127) / 128;
+        popt_state_.current_vertex = 0;
+        popt_state_.enabled = true;
+    }
+
+    // ================================================================
+    // GRASP initialization: call once with vertex degree information
+    // ================================================================
+    void initGRASP(const uint64_t* degree_array, uint64_t data_base,
+                   size_t data_elem_size, uint32_t num_vertices,
+                   uint32_t avg_degree) {
+        grasp_state_.degree_array = degree_array;
+        grasp_state_.data_base = data_base;
+        grasp_state_.data_elem_size = data_elem_size;
+        grasp_state_.num_vertices = num_vertices;
+        grasp_state_.avg_degree = avg_degree;
+        grasp_state_.enabled = true;
+    }
+
+    // Update current vertex for P-OPT (call at each outer-loop iteration)
+    void setCurrentVertex(uint32_t vertex_id) {
+        popt_state_.current_vertex = vertex_id;
+    }
 
 private:
     static size_t log2i(size_t n) {
@@ -516,6 +639,10 @@ private:
                 return findVictimPLRU(set);
             case EvictionPolicy::SRRIP:
                 return findVictimSRRIP(set);
+            case EvictionPolicy::GRASP:
+                return findVictimGRASP(set);
+            case EvictionPolicy::POPT:
+                return findVictimPOPT(set);
             default:
                 return findVictimLRU(set);
         }
@@ -581,6 +708,72 @@ private:
         }
     }
 
+    // ================================================================
+    // GRASP: Graph-aware cache Replacement with Software Prefetching
+    // (Faldu et al., HPCA 2020)
+    //
+    // Uses vertex degree information to make retention decisions:
+    // - Hot vertices (degree > avg_degree) get higher priority to stay
+    // - Cold vertices are evicted first (LRU among cold lines)
+    // - If no cold lines, fall back to LRU among hot lines
+    // Requires DBG-reordered graph for best results.
+    // ================================================================
+    size_t findVictimGRASP(std::vector<CacheLine>& set) {
+        // Phase 1: Try to evict a cold (low-degree) line using LRU
+        size_t cold_victim = associativity_;  // sentinel: not found
+        uint64_t cold_oldest = UINT64_MAX;
+        for (size_t i = 0; i < associativity_; i++) {
+            if (!set[i].is_hot && set[i].last_access < cold_oldest) {
+                cold_oldest = set[i].last_access;
+                cold_victim = i;
+            }
+        }
+        if (cold_victim < associativity_) return cold_victim;
+
+        // Phase 2: All lines are hot — fall back to LRU among hot lines
+        return findVictimLRU(set);
+    }
+
+    // ================================================================
+    // P-OPT: Practical Optimal cache replacement for Graph Analytics
+    // (Balaji et al., HPCA 2021)
+    //
+    // Uses the graph's transpose (encoded in a compressed rereference
+    // matrix) to predict exactly when each cache line will be accessed
+    // again. Evicts the line with the furthest next-reference distance,
+    // approximating Belady's MIN policy.
+    //
+    // Requires: initPOPT() called before simulation with a precomputed
+    // rereference matrix from makeOffsetMatrix() in popt.h.
+    // ================================================================
+    size_t findVictimPOPT(std::vector<CacheLine>& set) {
+        if (!popt_state_.enabled) {
+            return findVictimLRU(set);  // Fallback if not initialized
+        }
+
+        size_t victim = 0;
+        uint32_t max_distance = 0;
+
+        for (size_t i = 0; i < associativity_; i++) {
+            // Compute cache line ID in vertex data space
+            uint64_t line_addr = set[i].tag << (offset_bits_ + index_bits_);
+            if (line_addr < popt_state_.irreg_base || line_addr >= popt_state_.irreg_bound) {
+                // Not in irregular data region — evict streaming data immediately
+                return i;
+            }
+
+            uint32_t cline_id = static_cast<uint32_t>(
+                (line_addr - popt_state_.irreg_base) / line_size_);
+            uint32_t distance = popt_state_.findNextRef(cline_id);
+
+            if (distance > max_distance) {
+                max_distance = distance;
+                victim = i;
+            }
+        }
+        return victim;
+    }
+
     std::string name_;
     size_t size_bytes_;
     size_t line_size_;
@@ -595,6 +788,9 @@ private:
     uint64_t global_time_ = 0;
     std::mt19937 rng_;
     std::mutex mutex_;
+
+    POPTState popt_state_;    // P-OPT rereference matrix state
+    GRASPState grasp_state_;  // GRASP degree-aware state
 };
 
 // ============================================================================
@@ -720,6 +916,28 @@ public:
     CacheLevel* L1() { return l1_.get(); }
     CacheLevel* L2() { return l2_.get(); }
     CacheLevel* L3() { return l3_.get(); }
+
+    // P-OPT: Initialize rereference matrix on LLC (L3)
+    // Call after makeOffsetMatrix() from popt.h
+    void initPOPT(const uint8_t* reref_matrix, uint64_t irreg_base,
+                  uint64_t irreg_bound, uint32_t num_vertices,
+                  uint32_t num_epochs = 256) {
+        l3_->initPOPT(reref_matrix, irreg_base, irreg_bound, num_vertices, num_epochs);
+    }
+
+    // GRASP: Initialize degree-aware retention on all levels
+    void initGRASP(const uint64_t* degree_array, uint64_t data_base,
+                   size_t data_elem_size, uint32_t num_vertices,
+                   uint32_t avg_degree) {
+        l1_->initGRASP(degree_array, data_base, data_elem_size, num_vertices, avg_degree);
+        l2_->initGRASP(degree_array, data_base, data_elem_size, num_vertices, avg_degree);
+        l3_->initGRASP(degree_array, data_base, data_elem_size, num_vertices, avg_degree);
+    }
+
+    // P-OPT: Update current vertex (call at each outer-loop iteration)
+    void setCurrentVertex(uint32_t vertex_id) {
+        l3_->setCurrentVertex(vertex_id);
+    }
 
     uint64_t getTotalAccesses() const { return total_accesses_; }
     uint64_t getMemoryAccesses() const { return memory_accesses_; }
@@ -933,6 +1151,9 @@ public:
     void enable() { enabled_ = true; }
     void disable() { enabled_ = false; }
     bool isEnabled() const { return enabled_; }
+
+    // No-op: FastCacheHierarchy uses clock algorithm, not policy-based eviction
+    void setCurrentVertex(uint32_t) {}
     
     uint64_t getTotalAccesses() const { return total_accesses_; }
     uint64_t getMemoryAccesses() const { return memory_accesses_; }
@@ -1125,6 +1346,9 @@ public:
     void enable() { enabled_ = true; }
     void disable() { enabled_ = false; }
     bool isEnabled() const { return enabled_; }
+
+    // No-op: UltraFastCacheHierarchy uses packed clock algorithm
+    void setCurrentVertex(uint32_t) {}
     
     uint64_t getTotalAccesses() const { return total_accesses_; }
     uint64_t getMemoryAccesses() const { return memory_accesses_; }
@@ -1365,6 +1589,29 @@ public:
     CacheLevel* L2(int core) { return l2_caches_[core % num_cores_].get(); }
     CacheLevel* L3() { return l3_shared_.get(); }
     int getNumCores() const { return num_cores_; }
+
+    // P-OPT: Initialize rereference matrix on shared LLC (L3)
+    void initPOPT(const uint8_t* reref_matrix, uint64_t irreg_base,
+                  uint64_t irreg_bound, uint32_t num_vertices,
+                  uint32_t num_epochs = 256) {
+        l3_shared_->initPOPT(reref_matrix, irreg_base, irreg_bound, num_vertices, num_epochs);
+    }
+
+    // GRASP: Initialize degree-aware retention on all levels
+    void initGRASP(const uint64_t* degree_array, uint64_t data_base,
+                   size_t data_elem_size, uint32_t num_vertices,
+                   uint32_t avg_degree) {
+        for (int i = 0; i < num_cores_; i++) {
+            l1_caches_[i]->initGRASP(degree_array, data_base, data_elem_size, num_vertices, avg_degree);
+            l2_caches_[i]->initGRASP(degree_array, data_base, data_elem_size, num_vertices, avg_degree);
+        }
+        l3_shared_->initGRASP(degree_array, data_base, data_elem_size, num_vertices, avg_degree);
+    }
+
+    // P-OPT: Update current vertex (call at each outer-loop iteration)
+    void setCurrentVertex(uint32_t vertex_id) {
+        l3_shared_->setCurrentVertex(vertex_id);
+    }
 
     uint64_t getTotalAccesses() const { return total_accesses_; }
     uint64_t getMemoryAccesses() const { return memory_accesses_; }
@@ -1662,6 +1909,9 @@ public:
     void enable() { enabled_ = true; }
     void disable() { enabled_ = false; }
     bool isEnabled() const { return enabled_; }
+
+    // No-op: P-OPT/GRASP require CacheLevel-based hierarchy
+    void setCurrentVertex(uint32_t) {}
     
     uint64_t getTotalAccesses() const { return total_accesses_; }
     uint64_t getSampleRate() const { return sample_rate_; }
