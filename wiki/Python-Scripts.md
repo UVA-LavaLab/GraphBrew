@@ -77,16 +77,26 @@ scripts/
 
 ---
 
-## 📊 experiments/ — VLDB Paper Suite
+## 📊 experiments/ — Paper Experiment Suites
 
-The `scripts/experiments/` package provides the self-contained experiment runner
-for the VLDB 2026 paper. See the [[VLDB-Experiments]] wiki page for full usage.
+Two self-contained experiment runners for two papers:
+
+### VLDB 2026 — Graph Reordering
+
+See the [[VLDB-Experiments]] wiki page for full usage.
 
 | Module | Purpose |
-|--------|---------|
-| `vldb_paper_experiments.py` | Main runner: 8 experiments, auto-build/download/convert, output parsers (`parse_timing`, `parse_cache_sim`) |
+|--------|─────────|
+| `vldb_paper_experiments.py` | Main runner: 8 experiments, auto-build/download/convert, output parsers |
 | `vldb_generate_figures.py` | LaTeX table & PNG figure generation from experiment JSON data |
-| `vldb_config.py` | Shared configuration: graph list (11 eval + 2 preview), algorithm IDs, variant names, parameters |
+| `vldb_config.py` | Shared configuration: graph list, algorithm IDs, variant names |
+
+### ECG/GrAPL — Cache Replacement Policies
+
+| Module | Purpose |
+|--------|─────────|
+| `ecg_paper_experiments.py` | 6 experiments: policy comparison, reorder interaction, cache sweep, fat-ID analysis |
+| `ecg_config.py` | Configuration: 9 policies, 11 reorder×policy pairs, 6 graphs, cache sweep sizes |
 
 ---
 
