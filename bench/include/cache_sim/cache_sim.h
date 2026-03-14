@@ -22,6 +22,8 @@
 #include <atomic>
 #include <omp.h>
 
+#include "graph_cache_context.h"
+
 namespace cache_sim {
 
 // ============================================================================
@@ -586,24 +588,22 @@ public:
         set[victim_idx].line_addr = address & ~(uint64_t(line_size_ - 1));  // Store line-aligned address
 
         // GRASP: 3-tier RRIP insertion based on address region
-        // (matching reference grasp.cpp: P_RRIP=1, I_RRIP=M-1, M_RRIP=M)
-        if (policy_ == EvictionPolicy::GRASP && grasp_state_.enabled) {
-            auto tier = grasp_state_.classify(address);
-            constexpr uint8_t M_RRIP = 7;   // 3-bit max
-            constexpr uint8_t P_RRIP = 1;   // Priority insertion (hot hubs)
-            constexpr uint8_t I_RRIP = M_RRIP - 1;  // Intermediate insertion
-            switch (tier) {
-                case GRASPState::ReuseTier::HIGH:
-                    set[victim_idx].rrpv = P_RRIP;
-                    break;
-                case GRASPState::ReuseTier::MODERATE:
-                    set[victim_idx].rrpv = I_RRIP;
-                    break;
-                case GRASPState::ReuseTier::LOW:
-                default:
-                    set[victim_idx].rrpv = M_RRIP;
-                    break;
+        // Uses unified GraphCacheContext if available, legacy GRASPState otherwise
+        if (policy_ == EvictionPolicy::GRASP) {
+            uint32_t tier = 0;
+            if (graph_ctx_) {
+                tier = graph_ctx_->classifyAddress(address);
+            } else if (grasp_state_.enabled) {
+                auto t = grasp_state_.classify(address);
+                tier = (t == GRASPState::ReuseTier::HIGH) ? 1 :
+                       (t == GRASPState::ReuseTier::MODERATE) ? 2 : 3;
             }
+            constexpr uint8_t M_RRIP = 7;
+            constexpr uint8_t P_RRIP = 1;
+            constexpr uint8_t I_RRIP = M_RRIP - 1;
+            if (tier == 1)       set[victim_idx].rrpv = P_RRIP;
+            else if (tier == 2)  set[victim_idx].rrpv = I_RRIP;
+            else if (tier >= 3)  set[victim_idx].rrpv = M_RRIP;
         }
 
         // P-OPT: insert with SRRIP-style RRPV (long re-reference = M-1)
@@ -660,6 +660,18 @@ public:
     // Update current vertex for P-OPT (call at each outer-loop iteration)
     void setCurrentVertex(uint32_t vertex_id) {
         popt_state_.current_vertex = vertex_id;
+        // Also update unified context if available
+        if (graph_ctx_) {
+            const_cast<GraphCacheContext*>(graph_ctx_)->setCurrentVertices(vertex_id, vertex_id);
+        }
+    }
+
+    // ================================================================
+    // Unified GraphCacheContext: preferred over legacy init methods.
+    // Replaces initPOPT() and initGRASP() with a single context.
+    // ================================================================
+    void initGraphContext(const GraphCacheContext* ctx) {
+        graph_ctx_ = ctx;
     }
 
 private:
@@ -689,11 +701,19 @@ private:
         // GRASP: tier-sensitive hit promotion (reference grasp.cpp)
         // High-reuse → promote to RRPV=0 (H_RRIP)
         // Others → decrement RRPV by 1 (gradual promotion)
-        if (policy_ == EvictionPolicy::GRASP && grasp_state_.enabled) {
+        if (policy_ == EvictionPolicy::GRASP) {
             uint64_t addr = set[idx].line_addr;
-            if (grasp_state_.classify(addr) == GRASPState::ReuseTier::HIGH) {
+            uint32_t tier = 0;
+            if (graph_ctx_) {
+                tier = graph_ctx_->classifyAddress(addr);
+            } else if (grasp_state_.enabled) {
+                auto t = grasp_state_.classify(addr);
+                tier = (t == GRASPState::ReuseTier::HIGH) ? 1 :
+                       (t == GRASPState::ReuseTier::MODERATE) ? 2 : 3;
+            }
+            if (tier == 1) {
                 set[idx].rrpv = 0;  // H_RRIP: hub hit promotion
-            } else {
+            } else if (tier > 0) {
                 if (set[idx].rrpv > 0) set[idx].rrpv--;  // gradual promotion
             }
         }
@@ -831,29 +851,40 @@ private:
     // rereference matrix from makeOffsetMatrix() in popt.h.
     // ================================================================
     size_t findVictimPOPT(std::vector<CacheLine>& set) {
-        if (!popt_state_.enabled) {
+        // Check if either unified context or legacy state is available
+        bool has_popt = (graph_ctx_ && graph_ctx_->rereference.matrix) || popt_state_.enabled;
+        if (!has_popt) {
             return findVictimLRU(set);  // Fallback if not initialized
         }
 
         // Phase 1: Evict non-graph data first (streaming/CSR metadata)
         for (size_t i = 0; i < associativity_; i++) {
             uint64_t la = set[i].line_addr;
-            if (la < popt_state_.irreg_base || la >= popt_state_.irreg_bound) {
-                return i;  // Not irregular vertex data — evict immediately
+            bool is_graph_data = false;
+            if (graph_ctx_) {
+                is_graph_data = graph_ctx_->isPropertyData(la);
+            } else {
+                is_graph_data = (la >= popt_state_.irreg_base && la < popt_state_.irreg_bound);
             }
+            if (!is_graph_data) return i;  // Not graph vertex data — evict immediately
         }
 
         // Phase 2: All ways contain graph vertex data — find max rereference distance
         uint8_t maxRerefDist = 0;
-        uint8_t wayRerefDists[64] = {};  // supports up to 64-way associativity
+        uint8_t wayRerefDists[64] = {};
         for (size_t i = 0; i < associativity_; i++) {
             uint64_t la = set[i].line_addr;
-            uint32_t cline_id = static_cast<uint32_t>(
-                (la - popt_state_.irreg_base) / line_size_);
-            uint8_t dist = static_cast<uint8_t>(
-                std::min(popt_state_.findNextRef(cline_id), uint32_t(127)));
-            wayRerefDists[i] = dist;
-            if (dist > maxRerefDist) maxRerefDist = dist;
+            uint32_t dist;
+            if (graph_ctx_) {
+                dist = graph_ctx_->findNextRef(la);
+            } else {
+                uint32_t cline_id = static_cast<uint32_t>(
+                    (la - popt_state_.irreg_base) / line_size_);
+                dist = popt_state_.findNextRef(cline_id);
+            }
+            uint8_t d = static_cast<uint8_t>(std::min(dist, uint32_t(127)));
+            wayRerefDists[i] = d;
+            if (d > maxRerefDist) maxRerefDist = d;
         }
 
         // Phase 3: RRIP tiebreaker among lines with max rereference distance
@@ -889,8 +920,9 @@ private:
     std::mt19937 rng_;
     std::mutex mutex_;
 
-    POPTState popt_state_;    // P-OPT rereference matrix state
-    GRASPState grasp_state_;  // GRASP degree-aware state
+    POPTState popt_state_;    // P-OPT rereference matrix state (legacy, used if no GraphCacheContext)
+    GRASPState grasp_state_;  // GRASP degree-aware state (legacy, used if no GraphCacheContext)
+    const GraphCacheContext* graph_ctx_ = nullptr;  // Unified graph-aware context (preferred)
 };
 
 // ============================================================================
@@ -1017,15 +1049,23 @@ public:
     CacheLevel* L2() { return l2_.get(); }
     CacheLevel* L3() { return l3_.get(); }
 
-    // P-OPT: Initialize rereference matrix on LLC (L3)
-    // Call after makeOffsetMatrix() from popt.h
+    // ================================================================
+    // Unified GraphCacheContext (preferred over legacy init methods)
+    // ================================================================
+    void initGraphContext(const GraphCacheContext* ctx) {
+        l1_->initGraphContext(ctx);
+        l2_->initGraphContext(ctx);
+        l3_->initGraphContext(ctx);
+    }
+
+    // P-OPT: Initialize rereference matrix on LLC (L3) — legacy API
     void initPOPT(const uint8_t* reref_matrix, uint64_t irreg_base,
                   uint64_t irreg_bound, uint32_t num_vertices,
                   uint32_t num_epochs = 256) {
         l3_->initPOPT(reref_matrix, irreg_base, irreg_bound, num_vertices, num_epochs);
     }
 
-    // GRASP: Initialize degree-aware RRIP retention on all levels
+    // GRASP: Initialize degree-aware RRIP retention — legacy API
     void initGRASP(uint64_t data_ptr, uint32_t num_vertices,
                    size_t elem_size, double hot_fraction = 0.1) {
         size_t llc_size = l3_->getSizeBytes();
@@ -1254,6 +1294,7 @@ public:
 
     // No-op: FastCacheHierarchy uses clock algorithm, not policy-based eviction
     void setCurrentVertex(uint32_t) {}
+    void initGraphContext(const GraphCacheContext*) {}
     
     uint64_t getTotalAccesses() const { return total_accesses_; }
     uint64_t getMemoryAccesses() const { return memory_accesses_; }
@@ -1449,6 +1490,7 @@ public:
 
     // No-op: UltraFastCacheHierarchy uses packed clock algorithm
     void setCurrentVertex(uint32_t) {}
+    void initGraphContext(const GraphCacheContext*) {}
     
     uint64_t getTotalAccesses() const { return total_accesses_; }
     uint64_t getMemoryAccesses() const { return memory_accesses_; }
@@ -1690,14 +1732,23 @@ public:
     CacheLevel* L3() { return l3_shared_.get(); }
     int getNumCores() const { return num_cores_; }
 
-    // P-OPT: Initialize rereference matrix on shared LLC (L3)
+    // Unified GraphCacheContext (preferred over legacy init methods)
+    void initGraphContext(const GraphCacheContext* ctx) {
+        for (int i = 0; i < num_cores_; i++) {
+            l1_caches_[i]->initGraphContext(ctx);
+            l2_caches_[i]->initGraphContext(ctx);
+        }
+        l3_shared_->initGraphContext(ctx);
+    }
+
+    // P-OPT: Initialize rereference matrix on shared LLC (L3) — legacy API
     void initPOPT(const uint8_t* reref_matrix, uint64_t irreg_base,
                   uint64_t irreg_bound, uint32_t num_vertices,
                   uint32_t num_epochs = 256) {
         l3_shared_->initPOPT(reref_matrix, irreg_base, irreg_bound, num_vertices, num_epochs);
     }
 
-    // GRASP: Initialize degree-aware RRIP retention on all levels
+    // GRASP: Initialize degree-aware RRIP retention — legacy API
     void initGRASP(uint64_t data_ptr, uint32_t num_vertices,
                    size_t elem_size, double hot_fraction = 0.1) {
         size_t llc_size = l3_shared_->getSizeBytes();
@@ -2012,6 +2063,7 @@ public:
 
     // No-op: P-OPT/GRASP require CacheLevel-based hierarchy
     void setCurrentVertex(uint32_t) {}
+    void initGraphContext(const GraphCacheContext*) {}
     
     uint64_t getTotalAccesses() const { return total_accesses_; }
     uint64_t getSampleRate() const { return sample_rate_; }
