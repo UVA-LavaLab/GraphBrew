@@ -24,6 +24,20 @@ using namespace cache_sim;
 template<typename CacheType>
 pvector<NodeID> ShiloachVishkin_Sim(const Graph &g, CacheType &cache) {
     pvector<NodeID> comp(g.num_nodes());
+
+    // --- Graph-aware cache context ---
+    GraphCacheContext graph_ctx;
+    pvector<uint32_t> deg_arr(g.num_nodes());
+    #pragma omp parallel for
+    for (NodeID n = 0; n < g.num_nodes(); n++)
+        deg_arr[n] = static_cast<uint32_t>(g.out_degree(n));
+    graph_ctx.initTopology(deg_arr.data(), g.num_nodes(),
+                           g.num_edges_directed(), g.directed());
+    size_t llc_size = 8 * 1024 * 1024;
+    const char* llc_env = getenv("CACHE_L3_SIZE");
+    if (llc_env) llc_size = std::strtoul(llc_env, nullptr, 10);
+    graph_ctx.registerPropertyArray(comp.data(), g.num_nodes(), sizeof(NodeID), llc_size);
+    cache.initGraphContext(&graph_ctx);
     
     #pragma omp parallel for
     for (NodeID n = 0; n < g.num_nodes(); n++) {

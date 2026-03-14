@@ -113,6 +113,21 @@ pvector<NodeID> DOBFS_Sim(const Graph &g, NodeID source, CacheType &cache,
                           int alpha = 15, int beta = 18) {
     pvector<NodeID> parent = InitParent(g);
     parent[source] = source;
+
+    // --- Graph-aware cache context ---
+    GraphCacheContext graph_ctx;
+    pvector<uint32_t> deg_arr(g.num_nodes());
+    #pragma omp parallel for
+    for (NodeID n = 0; n < g.num_nodes(); n++)
+        deg_arr[n] = static_cast<uint32_t>(g.out_degree(n));
+    graph_ctx.initTopology(deg_arr.data(), g.num_nodes(),
+                           g.num_edges_directed(), g.directed());
+    size_t llc_size = 8 * 1024 * 1024;
+    const char* llc_env = getenv("CACHE_L3_SIZE");
+    if (llc_env) llc_size = std::strtoul(llc_env, nullptr, 10);
+    graph_ctx.registerPropertyArray(parent.data(), g.num_nodes(), sizeof(NodeID), llc_size);
+    cache.initGraphContext(&graph_ctx);
+
     SlidingQueue<NodeID> queue(g.num_nodes());
     queue.push_back(source);
     queue.slide_window();

@@ -33,6 +33,23 @@ void BCBFS_Sim(const Graph &g, NodeID source,
     pvector<int64_t> succ_start(g.num_nodes() + 1, 0);
     pvector<int64_t> path_counts(g.num_nodes(), 0);
     path_counts[source] = 1;
+
+    // --- Graph-aware cache context ---
+    // BC accesses depths[], path_counts[], deltas[], scores[] — register all
+    GraphCacheContext graph_ctx;
+    pvector<uint32_t> deg_arr(g.num_nodes());
+    #pragma omp parallel for
+    for (NodeID n = 0; n < g.num_nodes(); n++)
+        deg_arr[n] = static_cast<uint32_t>(g.out_degree(n));
+    graph_ctx.initTopology(deg_arr.data(), g.num_nodes(),
+                           g.num_edges_directed(), g.directed());
+    size_t llc_size = 8 * 1024 * 1024;
+    const char* llc_env = getenv("CACHE_L3_SIZE");
+    if (llc_env) llc_size = std::strtoul(llc_env, nullptr, 10);
+    graph_ctx.registerPropertyArray(depths.data(), g.num_nodes(), sizeof(int32_t), llc_size);
+    graph_ctx.registerPropertyArray(path_counts.data(), g.num_nodes(), sizeof(int64_t), llc_size);
+    graph_ctx.registerPropertyArray(scores.data(), g.num_nodes(), sizeof(ScoreT), llc_size);
+    cache.initGraphContext(&graph_ctx);
     
     vector<SlidingQueue<NodeID>::iterator> depth_index;
     SlidingQueue<NodeID> queue(g.num_nodes());

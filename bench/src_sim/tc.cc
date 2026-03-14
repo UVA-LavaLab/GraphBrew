@@ -23,6 +23,18 @@ using namespace cache_sim;
 template<typename CacheType>
 size_t CountTriangles_Sim(const Graph &g, CacheType &cache) {
     size_t total = 0;
+
+    // --- Graph-aware cache context ---
+    // TC primarily accesses CSR neighbor lists, not vertex property arrays.
+    // Register topology for degree distribution awareness.
+    GraphCacheContext graph_ctx;
+    pvector<uint32_t> deg_arr(g.num_nodes());
+    #pragma omp parallel for
+    for (NodeID n = 0; n < g.num_nodes(); n++)
+        deg_arr[n] = static_cast<uint32_t>(g.out_degree(n));
+    graph_ctx.initTopology(deg_arr.data(), g.num_nodes(),
+                           g.num_edges_directed(), g.directed());
+    cache.initGraphContext(&graph_ctx);
     
     #pragma omp parallel reduction(+ : total)
     {
