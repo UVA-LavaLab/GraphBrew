@@ -119,7 +119,7 @@ reorder/
 | `reorder_rabbit.h` | ~1,117 | RabbitOrder CSR native implementation (auto-adaptive resolution) |
 | `reorder_gorder.h` | ~926 | GOrder CSR variants: serial greedy (-o 9:csr) + parallel batch (-o 9:fast) |
 | `reorder_adaptive.h` | ~932 | `AdaptiveConfig`, ML-based algorithm selection (full-graph default) |
-| `reorder_rcm.h` | ~645 | RCM BNF variant: CSR-native BNF start + deterministic parallel CM BFS |
+| `reorder_rcm.h` | ~645 | RCM BNF variant: parallel component processing + tiered BNF + serial CM BFS. Also used by GraphBrew-RCM variant (`-o 12:rcm`) for per-community RCM |
 | `reorder_hub.h` | ~641 | Hub-based algorithms (DBG, HubSort, HubCluster) |
 | `reorder.h` | ~633 | Main dispatcher, `ApplyBasicReorderingStandalone` |
 | `reorder_classic.h` | ~521 | Classic algorithms (GOrder, COrder, RCM dispatch) |

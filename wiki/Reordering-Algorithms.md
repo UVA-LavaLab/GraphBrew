@@ -309,6 +309,10 @@ These algorithms use different approaches: RabbitOrder detects communities, whil
 - BNF criterion (RCM++ paper) selects the candidate with minimum BFS level-set width
 - Deterministic parallel BFS: two-phase speculative discovery where the lowest-index frontier parent always wins shared neighbors (matching serial CM behavior)
 - CSR-native — no intermediate adjacency-list conversion
+- **Parallel component processing**: Components processed independently via prefix-sum offsets (no serial bottleneck)
+- **Fast-path for small components**: Skip BNF for components ≤32 vertices; max 3 George-Liu iterations for ≤256
+
+**GraphBrew-RCM variant (`-o 12:rcm`)**: GraphBrewOrder also supports a composable RCM variant that applies Leiden community detection, then runs RCM within each community in parallel (embarrassingly parallel), and orders communities via BNF-quality RCM on the super-graph. See [[GraphBrewOrder]] for details.
 
 ![RCM Adjacency Matrix](../docs/figures/reorder_rcm.png)
 
@@ -332,6 +336,7 @@ These algorithms use different approaches: RabbitOrder detects communities, whil
   - `leiden`: GraphBrew Leiden with GVE-CSR aggregation - **default**
   - `rabbit`: GraphBrew RabbitOrder community detection (supports all ordering strategies)
   - `hubcluster`: GraphBrew Leiden + hub-cluster ordering
+  - `rcm`: GraphBrew Leiden + per-community RCM + super-graph BNF-RCM (bandwidth minimization)
 - **Parameters**:
   - `final_algo`: Algorithm ID (0-11) to use within communities (default: 8 = RabbitOrder)
   - `resolution`: Leiden resolution parameter (default: auto-computed from graph)

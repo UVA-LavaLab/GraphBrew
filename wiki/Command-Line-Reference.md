@@ -292,11 +292,13 @@ Options can be passed directly — the `graphbrew` prefix is **not required**.
 | `leiden` | Leiden community detection (default) | RabbitOrder (8) |
 | `rabbit` | RabbitOrder community detection (supports all orderings) | Native DFS |
 | `hubcluster` | Hub-degree based clustering | N/A (native) |
+| `rcm` | Leiden + per-community RCM + super-graph BNF-RCM | N/A (bandwidth minimization) |
 
 Both `leiden` and `rabbit` presets can be combined with any **ordering strategy** (Layer 1). For example:
 - `-o 12:rabbit:dbg` — Rabbit communities + DBG ordering
 - `-o 12:rabbit:hubcluster` — Rabbit communities + hub-cluster ordering
 - `-o 12:leiden:dbg` — Leiden communities + DBG ordering
+- `-o 12:rcm` — Leiden communities + per-community RCM + super-graph RCM
 
 Without an ordering suffix, `12:rabbit` uses its native DFS and `12:leiden` uses the default LAYER ordering.
 
