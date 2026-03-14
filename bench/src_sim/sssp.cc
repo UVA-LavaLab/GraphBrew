@@ -28,6 +28,20 @@ pvector<WeightT> DeltaStep_Sim(const WGraph &g, NodeID source,
                                 WeightT delta, CacheType &cache) {
     pvector<WeightT> dist(g.num_nodes(), kDistInf);
     dist[source] = 0;
+
+    // --- Graph-aware cache context ---
+    GraphCacheContext graph_ctx;
+    pvector<uint32_t> deg_arr(g.num_nodes());
+    #pragma omp parallel for
+    for (NodeID n = 0; n < g.num_nodes(); n++)
+        deg_arr[n] = static_cast<uint32_t>(g.out_degree(n));
+    graph_ctx.initTopology(deg_arr.data(), g.num_nodes(),
+                           g.num_edges_directed(), g.directed());
+    size_t llc_size = 8 * 1024 * 1024;
+    const char* llc_env = getenv("CACHE_L3_SIZE");
+    if (llc_env) llc_size = std::strtoul(llc_env, nullptr, 10);
+    graph_ctx.registerPropertyArray(dist.data(), g.num_nodes(), sizeof(WeightT), llc_size);
+    cache.initGraphContext(&graph_ctx);
     
     pvector<NodeID> frontier(g.num_edges_directed());
     size_t shared_indexes[2] = {0, kMaxBin};
