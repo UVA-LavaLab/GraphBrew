@@ -2294,6 +2294,22 @@ def main():
     g_clean.add_argument("--install-boost", action="store_true",
                          help="Download and install Boost 1.58.0 for RabbitOrder")
 
+    # ── Paper Experiments & Testing ──────────────────────────────────
+    g_paper = parser.add_argument_group("Paper Experiments & Testing",
+        "Run paper experiment suites or tests (early exit)")
+    g_paper.add_argument("--vldb", nargs="*", type=int, metavar="EXP",
+                         help="Run VLDB paper experiments (all or specific: --vldb 1 2 3)")
+    g_paper.add_argument("--ecg", nargs="*", type=int, metavar="EXP",
+                         help="Run ECG paper experiments (all or specific: --ecg 1 6)")
+    g_paper.add_argument("--evaluate", action="store_true",
+                         help="Run evaluate_all_modes.py (Model × Criterion analysis)")
+    g_paper.add_argument("--test", nargs="?", const="", metavar="FILTER",
+                         help="Run pytest test suite (optional: filter pattern e.g. --test gorder)")
+    g_paper.add_argument("--paper-preview", action="store_true",
+                         help="Use preview mode for --vldb/--ecg (fewer graphs/benchmarks)")
+    g_paper.add_argument("--paper-graph-dir", default=".", metavar="DIR",
+                         help="Graph directory for --vldb/--ecg experiments")
+
     # ── Standalone Sub-workflows ─────────────────────────────────────
     g_sub = parser.add_argument_group("Sub-workflows", "Standalone analysis tasks (early exit)")
     g_sub.add_argument("--benchmark-fresh", action="store_true",
@@ -2501,6 +2517,50 @@ def main():
         clean_results(args.results_dir, keep_graphs=True)
         if not (args.full or args.download_only or args.phase != "all"):
             return  # Just clean, don't run experiments
+
+    # ── Paper Experiments & Testing (early exit) ─────────────────────
+    if args.test is not None:
+        import subprocess as _sp
+        cmd = ["python3", "-m", "pytest", "scripts/test/", "-v"]
+        if args.test:  # Filter pattern provided
+            cmd += ["-k", args.test]
+        log_section(f"RUNNING TESTS: {' '.join(cmd)}")
+        _sp.run(cmd)
+        return
+
+    if args.evaluate:
+        import subprocess as _sp
+        log_section("RUNNING evaluate_all_modes.py")
+        _sp.run(["python3", "scripts/evaluate_all_modes.py", "--all"])
+        return
+
+    if args.vldb is not None:
+        import subprocess as _sp
+        cmd = ["python3", "scripts/experiments/vldb_paper_experiments.py"]
+        if args.vldb:  # Specific experiments
+            cmd += ["--exp"] + [str(e) for e in args.vldb]
+        else:  # No numbers = all
+            cmd += ["--all"]
+        if args.paper_preview:
+            cmd += ["--preview"]
+        cmd += ["--graph-dir", args.paper_graph_dir]
+        log_section(f"VLDB EXPERIMENTS: {' '.join(cmd)}")
+        _sp.run(cmd)
+        return
+
+    if args.ecg is not None:
+        import subprocess as _sp
+        cmd = ["python3", "scripts/experiments/ecg_paper_experiments.py"]
+        if args.ecg:  # Specific experiments
+            cmd += ["--exp"] + [str(e) for e in args.ecg]
+        else:  # No numbers = all
+            cmd += ["--all"]
+        if args.paper_preview:
+            cmd += ["--preview"]
+        cmd += ["--graph-dir", args.paper_graph_dir]
+        log_section(f"ECG EXPERIMENTS: {' '.join(cmd)}")
+        _sp.run(cmd)
+        return
     
     # Handle --clean-reorder-cache early
     if args.clean_reorder_cache:

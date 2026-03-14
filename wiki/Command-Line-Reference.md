@@ -630,12 +630,24 @@ See [[Python-Scripts]] for complete script documentation and module reference.
 | Labels | `--precompute`, `--generate-maps`, `--use-maps` |
 | Validation | `--brute-force`, `--validation-benchmark NAME` |
 | Dependencies | `--check-deps`, `--install-deps`, `--install-boost` |
+| Paper Experiments | `--vldb [EXP...]`, `--ecg [EXP...]`, `--paper-preview`, `--paper-graph-dir DIR` |
+| Testing | `--test [FILTER]`, `--evaluate` |
 
 ```bash
 # Quick examples
 python3 scripts/graphbrew_experiment.py --full --size small --auto --quick
 python3 scripts/graphbrew_experiment.py --train --size medium --auto --precompute
 python3 scripts/graphbrew_experiment.py --brute-force --validation-benchmark bfs
+
+# Paper experiments
+python3 scripts/graphbrew_experiment.py --vldb                # All 8 VLDB experiments
+python3 scripts/graphbrew_experiment.py --ecg 1 6             # ECG experiments 1 and 6
+python3 scripts/graphbrew_experiment.py --ecg --paper-preview  # ECG preview mode
+
+# Testing & evaluation
+python3 scripts/graphbrew_experiment.py --test                # Run all pytest tests
+python3 scripts/graphbrew_experiment.py --test gorder          # Filter: only gorder tests
+python3 scripts/graphbrew_experiment.py --evaluate             # Model × Criterion analysis
 ```
 
 ### eval_weights
