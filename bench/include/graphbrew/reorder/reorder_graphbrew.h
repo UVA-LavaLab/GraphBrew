@@ -4467,7 +4467,6 @@ void orderHybridLeidenRabbit(
                     for (int glIt = 0; glIt < maxGLIter; ++glIt) {
                         // BFS to measure eccentricity and find farthest level
                         visited.assign(sz, false);
-                        bfsQueue = std::queue<K>();  // clear
 
                         std::vector<K> lastLevel;
                         std::vector<K> curLevel;
@@ -4524,8 +4523,11 @@ void orderHybridLeidenRabbit(
                 cmOrder.clear();
 
                 bfsQueue = std::queue<K>();
-                bfsQueue.push(startV);
-                visited[vertToLocalHrab[startV]] = true;
+                size_t startLocalIdx = vertToLocalHrab[static_cast<K>(startV)];
+                if (startLocalIdx < sz) {
+                    bfsQueue.push(startV);
+                    visited[startLocalIdx] = true;
+                }
 
                 while (!bfsQueue.empty()) {
                     K u = bfsQueue.front();
@@ -4558,16 +4560,22 @@ void orderHybridLeidenRabbit(
                 }
 
                 // Handle disconnected vertices within this community
+                // Place them after the main RCM ordering (not reversed)
+                size_t mainSize = cmOrder.size();
                 for (size_t i = 0; i < sz; ++i) {
                     if (!visited[i]) {
                         cmOrder.push_back(verts[i]);
                     }
                 }
 
-                // Reverse to get RCM
-                const size_t total = cmOrder.size();
-                for (size_t i = 0; i < total; ++i) {
-                    localIds[cmOrder[i]] = static_cast<K>(total - 1 - i);
+                // Reverse ONLY the main connected component (RCM)
+                // Disconnected vertices keep their positions at the end
+                for (size_t i = 0; i < mainSize; ++i) {
+                    localIds[cmOrder[i]] = static_cast<K>(mainSize - 1 - i);
+                }
+                // Disconnected vertices get IDs after the main component
+                for (size_t i = mainSize; i < cmOrder.size(); ++i) {
+                    localIds[cmOrder[i]] = static_cast<K>(i);
                 }
 
                 // Track stats
