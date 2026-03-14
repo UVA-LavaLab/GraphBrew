@@ -540,6 +540,19 @@ struct GraphCacheContext {
     //
     // This makes hot/warm boundaries self-tuning based on graph properties
     // instead of requiring manual parameter tuning (GRASP's key weakness).
+    //
+    // Region boundary computation (DBG bucket-aligned):
+    //   1. Compute how many vertex elements fit in LLC share for this array
+    //      (cache_capacity_vertices = LLC_share / elem_size)
+    //   2. Walk DBG degree buckets from highest to lowest, accumulating
+    //      vertex counts until cache_capacity_vertices is reached
+    //   3. That bucket boundary becomes hot_bound
+    //   4. Continue for WARM (2× capacity) and LUKEWARM (4× capacity)
+    //   5. Boundaries align with DBG bucket boundaries so region cuts
+    //      don't split within a degree group
+    //
+    // Requires: initTopology() called before registerPropertyArray()
+    //           Graph must be DBG-reordered for regions to be meaningful
     void registerPropertyArray(const void* data_ptr, uint32_t num_elements,
                                uint32_t elem_size, size_t llc_size,
                                double manual_hot_fraction = -1.0) {
@@ -553,43 +566,59 @@ struct GraphCacheContext {
         r.region_id = num_regions;
         r._pad = 0;
 
-        // Compute hot fraction
-        double hot_fraction;
-        if (manual_hot_fraction > 0.0 && manual_hot_fraction <= 1.0) {
-            // Manual override
-            hot_fraction = manual_hot_fraction;
-        } else {
-            // Auto-compute from LLC capacity and degree distribution
-            hot_fraction = autoComputeHotFraction(num_elements, elem_size, llc_size);
-        }
-
-        // Compute bounds aligned to 64-byte cache line boundary
-        // 4-tier geometric sizing (matching ECG reorder.c):
-        //   HOT:      hot_fraction of array
-        //   WARM:     4× HOT region (ECG: cache_regions[1] = cache_regions[0] * 4)
-        //   LUKEWARM: 4× WARM region (ECG: cache_regions[2] = cache_regions[1] * 4)
-        //   COLD:     everything else
-        uint64_t array_bytes = static_cast<uint64_t>(num_elements) * elem_size;
-        uint64_t hot_bytes = static_cast<uint64_t>(hot_fraction * array_bytes);
         constexpr uint64_t LINE_MASK = ~uint64_t(63);
+        uint64_t array_bytes = static_cast<uint64_t>(num_elements) * elem_size;
 
-        // Check if array is small enough to split equally (ECG fallback)
-        uint64_t cache_vtx_bytes = static_cast<uint64_t>((llc_size / (num_regions + 1)));
-        bool small_graph = (array_bytes < 3 * cache_vtx_bytes);
+        if (manual_hot_fraction > 0.0 && manual_hot_fraction <= 1.0) {
+            // Manual override: fixed fraction, geometric ×4 tiers
+            uint64_t hot_bytes = static_cast<uint64_t>(manual_hot_fraction * array_bytes);
+            r.hot_bound = (r.base_address + hot_bytes + 63) & LINE_MASK;
+            r.warm_bound = (r.base_address + hot_bytes * 4 + 63) & LINE_MASK;
+            r.lukewarm_bound = (r.base_address + hot_bytes * 16 + 63) & LINE_MASK;
+        } else if (topology.num_vertices > 0 && elem_size > 0) {
+            // DBG bucket-aligned region computation:
+            // How many vertex elements fit in this array's LLC share?
+            uint32_t total_arrays = num_regions + 1;
+            uint64_t llc_share = llc_size / total_arrays;
+            uint32_t cache_capacity_vtx = static_cast<uint32_t>(llc_share / elem_size);
+            if (cache_capacity_vtx == 0) cache_capacity_vtx = 1;
 
-        if (small_graph) {
-            // Small graph: equal thirds (ECG: diff < 2*cache_size)
+            // Walk buckets from highest-degree (back of array = front of DBG order)
+            // to find how many vertices fit in each tier
+            uint32_t hot_vtx = 0, warm_vtx = 0, lukewarm_vtx = 0;
+            uint64_t cumulative = 0;
+            for (int b = GraphTopology::NUM_BUCKETS - 1; b >= 0; --b) {
+                uint64_t bucket_count = topology.bucket_counts[b];
+                cumulative += bucket_count;
+
+                // Hot: first cache_capacity_vtx vertices
+                if (hot_vtx == 0 && cumulative >= cache_capacity_vtx)
+                    hot_vtx = static_cast<uint32_t>(cumulative);
+
+                // Warm: 2× capacity
+                if (warm_vtx == 0 && cumulative >= cache_capacity_vtx * 2)
+                    warm_vtx = static_cast<uint32_t>(cumulative);
+
+                // Lukewarm: 4× capacity
+                if (lukewarm_vtx == 0 && cumulative >= cache_capacity_vtx * 4)
+                    lukewarm_vtx = static_cast<uint32_t>(cumulative);
+            }
+
+            // Fallback if thresholds weren't reached (small graph)
+            if (hot_vtx == 0)      hot_vtx = static_cast<uint32_t>(std::min(cumulative, uint64_t(num_elements / 3)));
+            if (warm_vtx == 0)     warm_vtx = static_cast<uint32_t>(std::min(cumulative, uint64_t(2 * num_elements / 3)));
+            if (lukewarm_vtx == 0) lukewarm_vtx = num_elements;
+
+            // Convert vertex counts to byte offsets (DBG: high-degree at front)
+            r.hot_bound = (r.base_address + uint64_t(hot_vtx) * elem_size + 63) & LINE_MASK;
+            r.warm_bound = (r.base_address + uint64_t(warm_vtx) * elem_size + 63) & LINE_MASK;
+            r.lukewarm_bound = (r.base_address + uint64_t(lukewarm_vtx) * elem_size + 63) & LINE_MASK;
+        } else {
+            // No topology: fallback to equal thirds
             uint64_t third = array_bytes / 3;
             r.hot_bound = (r.base_address + third + 63) & LINE_MASK;
             r.warm_bound = (r.base_address + 2 * third + 63) & LINE_MASK;
             r.lukewarm_bound = r.upper_bound;
-        } else {
-            // Large graph: geometric progression (ECG: ×4 per tier)
-            r.hot_bound = (r.base_address + hot_bytes + 63) & LINE_MASK;
-            uint64_t warm_bytes = hot_bytes * 4;
-            r.warm_bound = (r.base_address + warm_bytes + 63) & LINE_MASK;
-            uint64_t lukewarm_bytes = warm_bytes * 4;
-            r.lukewarm_bound = (r.base_address + lukewarm_bytes + 63) & LINE_MASK;
         }
 
         // Clamp all bounds to array end
