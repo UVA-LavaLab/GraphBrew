@@ -130,8 +130,7 @@ struct CacheLine {
     uint64_t last_access = 0;    // For LRU
     uint64_t insert_time = 0;    // For FIFO
     uint64_t access_count = 0;   // For LFU
-    uint8_t rrpv = 3;            // For SRRIP (2-bit)
-    bool is_hot = false;         // For GRASP: true if address maps to a hot (high-degree) vertex
+    uint8_t rrpv = 3;            // For SRRIP, GRASP, P-OPT (3-bit)
 };
 
 // ============================================================================
@@ -148,7 +147,16 @@ struct POPTState {
     uint32_t current_vertex = 0;   // Current destination vertex being processed
     bool enabled = false;          // Whether P-OPT state has been initialized
 
-    // Algorithm 2 from P-OPT paper: compute next-reference distance for a cache line
+    // Algorithm 2 from P-OPT paper (Balaji et al., HPCA 2021, Section 4.1):
+    // Compute next-reference distance for a cache line.
+    //
+    // Encoding (from makeOffsetMatrix in popt.h, matching reference llc.cpp):
+    //   MSB=1 (bit 7 set): cache line IS referenced in this epoch
+    //     → bits [6:0] = sub-epoch of LAST access within the epoch
+    //   MSB=0 (bit 7 clear): cache line is NOT referenced in this epoch
+    //     → bits [6:0] = distance (in epochs) to next epoch with a reference
+    //
+    // Returns: rereference distance (0 = accessed soon, higher = farther away)
     uint32_t findNextRef(uint32_t cline_id) const {
         if (!enabled || cline_id >= num_cache_lines) return 0;
         uint32_t epoch_id = current_vertex / epoch_size;
@@ -156,53 +164,87 @@ struct POPTState {
 
         // Look up rereference matrix entry: matrix is transposed as [epoch][cline]
         uint8_t entry = reref_matrix[epoch_id * num_cache_lines + cline_id];
-        uint8_t msb = entry >> 7;
-        uint8_t data = entry & 0x7F;
+        constexpr uint8_t OR_MASK = 0x80;   // MSB
+        constexpr uint8_t AND_MASK = 0x7F;  // lower 7 bits
 
-        if (msb == 0) {
-            // No reference in this epoch — data = distance to next epoch with reference
-            return data;
-        } else {
-            // Referenced in this epoch — data = sub-epoch of final access
-            uint32_t curr_sub_epoch = (current_vertex % epoch_size) / sub_epoch_size;
-            if (curr_sub_epoch <= data) {
-                return 0;  // Still will be accessed in current epoch
+        if ((entry & OR_MASK) != 0) {
+            // MSB=1: Referenced in this epoch — data = sub-epoch of last access
+            uint8_t lastRefSubEpoch = entry & AND_MASK;
+            uint32_t currSubEpoch = (current_vertex % epoch_size) / sub_epoch_size;
+            if (currSubEpoch <= lastRefSubEpoch) {
+                return 0;  // Still will be accessed within this epoch
             } else {
-                // Past final access in this epoch, check next epoch
+                // Past final access in this epoch — check next epoch
                 if (epoch_id + 1 < num_epochs) {
                     uint8_t next_entry = reref_matrix[(epoch_id + 1) * num_cache_lines + cline_id];
-                    uint8_t next_data = next_entry & 0x7F;
-                    return 1 + next_data;
+                    if ((next_entry & OR_MASK) != 0) {
+                        return 1;  // Referenced next epoch
+                    } else {
+                        uint8_t reref = next_entry & AND_MASK;
+                        return (reref < 127) ? reref + 1 : 127;
+                    }
                 }
-                return num_epochs;  // No future reference found
+                return 127;  // No future reference found (max distance)
             }
+        } else {
+            // MSB=0: NOT referenced in this epoch — data = distance to next epoch
+            uint8_t reref = entry & AND_MASK;
+            return reref;  // 0 = check next epoch, 127 = very far away
         }
     }
 };
 
 // ============================================================================
-// GRASP State: Degree-aware retention metadata
+// GRASP State: Degree-aware retention with 3-tier RRIP insertion
+// (Faldu et al., HPCA 2020 — reference: grasp.cpp + common.h)
+//
+// GRASP uses DBG-reordered vertex data where high-degree vertices are
+// placed at the front of the array.  Three reuse tiers:
+//   High-reuse:      addr ∈ [data_base, data_base + high_reuse_bound)
+//   Moderate-reuse:  addr ∈ [high_reuse_bound, moderate_reuse_bound)
+//   Low-reuse:       addr ∉ above ranges
+//
+// The border between high/moderate is determined by what fraction of
+// the LLC capacity should be reserved for high-degree vertices (default
+// from paper: the "f" parameter in the trace header, typically 5-20%).
 // ============================================================================
 struct GRASPState {
-    const uint64_t* degree_array = nullptr;  // Vertex degrees (out-degree for pull, in-degree for push)
-    uint64_t data_base = 0;         // Base address of vertex data array
-    size_t data_elem_size = 0;      // Size of each vertex data element (e.g., sizeof(float) for PR)
-    uint32_t num_vertices = 0;      // Total number of vertices
-    uint32_t avg_degree = 0;        // Average degree (threshold for hot/cold classification)
+    uint64_t data_base = 0;            // Base address of vertex data array (DBG-ordered)
+    uint64_t data_end = 0;             // End address of vertex data array
+    uint64_t high_reuse_bound = 0;     // Addresses < this are high-reuse (hot hubs)
+    uint64_t moderate_reuse_bound = 0; // Addresses < this (and >= high_reuse_bound) are moderate
     bool enabled = false;
 
-    // Map a cache address to vertex ID, return degree (0 if not in vertex data range)
-    uint64_t getVertexDegree(uint64_t address) const {
-        if (!enabled || data_elem_size == 0) return 0;
-        if (address < data_base) return 0;
-        uint64_t offset = address - data_base;
-        uint32_t vtx_id = static_cast<uint32_t>(offset / data_elem_size);
-        if (vtx_id >= num_vertices) return 0;
-        return degree_array[vtx_id];
+    enum class ReuseTier { HIGH, MODERATE, LOW };
+
+    // Classify an address into one of three reuse tiers
+    ReuseTier classify(uint64_t address) const {
+        if (!enabled) return ReuseTier::LOW;
+        if (address >= data_base && address < high_reuse_bound)
+            return ReuseTier::HIGH;
+        if (address >= high_reuse_bound && address < moderate_reuse_bound)
+            return ReuseTier::MODERATE;
+        return ReuseTier::LOW;
     }
 
-    bool isHotVertex(uint64_t address) const {
-        return getVertexDegree(address) > avg_degree;
+    // Initialize from graph properties:
+    //   data_ptr: base address of the vertex property array (must be DBG-ordered)
+    //   num_vertices: total vertices
+    //   elem_size: sizeof each element (e.g., sizeof(float) for PageRank scores)
+    //   llc_size: LLC size in bytes
+    //   hot_fraction: fraction of LLC to reserve for hot vertices (0.0-1.0, default 0.1)
+    void init(uint64_t data_ptr, uint32_t num_vertices, size_t elem_size,
+              size_t llc_size, double hot_fraction = 0.1) {
+        data_base = data_ptr;
+        data_end = data_ptr + num_vertices * elem_size;
+        // High-reuse border: hot_fraction of LLC capacity worth of vertex data
+        uint64_t high_bytes = static_cast<uint64_t>(hot_fraction * llc_size);
+        high_reuse_bound = data_base + high_bytes;
+        if (high_reuse_bound > data_end) high_reuse_bound = data_end;
+        // Moderate-reuse border: 2× the high-reuse region (per reference common.h)
+        moderate_reuse_bound = data_base + 2 * high_bytes;
+        if (moderate_reuse_bound > data_end) moderate_reuse_bound = data_end;
+        enabled = true;
     }
 };
 
@@ -539,9 +581,30 @@ public:
         set[victim_idx].access_count = 1;
         set[victim_idx].rrpv = 2;  // For SRRIP: near-immediate
 
-        // GRASP: tag line as hot/cold based on vertex degree
+        // GRASP: 3-tier RRIP insertion based on address region
+        // (matching reference grasp.cpp: P_RRIP=1, I_RRIP=M-1, M_RRIP=M)
         if (policy_ == EvictionPolicy::GRASP && grasp_state_.enabled) {
-            set[victim_idx].is_hot = grasp_state_.isHotVertex(address);
+            auto tier = grasp_state_.classify(address);
+            constexpr uint8_t M_RRIP = 7;   // 3-bit max
+            constexpr uint8_t P_RRIP = 1;   // Priority insertion (hot hubs)
+            constexpr uint8_t I_RRIP = M_RRIP - 1;  // Intermediate insertion
+            switch (tier) {
+                case GRASPState::ReuseTier::HIGH:
+                    set[victim_idx].rrpv = P_RRIP;
+                    break;
+                case GRASPState::ReuseTier::MODERATE:
+                    set[victim_idx].rrpv = I_RRIP;
+                    break;
+                case GRASPState::ReuseTier::LOW:
+                default:
+                    set[victim_idx].rrpv = M_RRIP;
+                    break;
+            }
+        }
+
+        // P-OPT: insert with SRRIP-style RRPV (long re-reference = M-1)
+        if (policy_ == EvictionPolicy::POPT) {
+            set[victim_idx].rrpv = 6;  // M_RRPV - 1 = long re-reference (SRRIP default)
         }
     }
 
@@ -576,17 +639,18 @@ public:
     }
 
     // ================================================================
-    // GRASP initialization: call once with vertex degree information
+    // GRASP initialization: call once with vertex data address range.
+    // Requires DBG-reordered graph (hot vertices at low addresses).
+    //   data_ptr: base address of vertex property array
+    //   num_vertices: total vertices
+    //   elem_size: sizeof each element (e.g. sizeof(float))
+    //   llc_size: LLC size in bytes (for computing border regions)
+    //   hot_fraction: fraction of LLC reserved for hot vertices (0.0-1.0)
     // ================================================================
-    void initGRASP(const uint64_t* degree_array, uint64_t data_base,
-                   size_t data_elem_size, uint32_t num_vertices,
-                   uint32_t avg_degree) {
-        grasp_state_.degree_array = degree_array;
-        grasp_state_.data_base = data_base;
-        grasp_state_.data_elem_size = data_elem_size;
-        grasp_state_.num_vertices = num_vertices;
-        grasp_state_.avg_degree = avg_degree;
-        grasp_state_.enabled = true;
+    void initGRASP(uint64_t data_ptr, uint32_t num_vertices,
+                   size_t elem_size, size_t llc_size,
+                   double hot_fraction = 0.1) {
+        grasp_state_.init(data_ptr, num_vertices, elem_size, llc_size, hot_fraction);
     }
 
     // Update current vertex for P-OPT (call at each outer-loop iteration)
@@ -615,6 +679,23 @@ private:
         
         // SRRIP: reset RRPV to 0 on hit
         if (policy_ == EvictionPolicy::SRRIP) {
+            set[idx].rrpv = 0;
+        }
+
+        // GRASP: tier-sensitive hit promotion (reference grasp.cpp)
+        // High-reuse → promote to RRPV=0 (H_RRIP)
+        // Others → decrement RRPV by 1 (gradual promotion)
+        if (policy_ == EvictionPolicy::GRASP && grasp_state_.enabled) {
+            uint64_t addr = set[idx].tag << (offset_bits_ + index_bits_);
+            if (grasp_state_.classify(addr) == GRASPState::ReuseTier::HIGH) {
+                set[idx].rrpv = 0;  // H_RRIP: hub hit promotion
+            } else {
+                if (set[idx].rrpv > 0) set[idx].rrpv--;  // gradual promotion
+            }
+        }
+
+        // P-OPT: reset RRPV to 0 on hit (same as SRRIP hit promotion)
+        if (policy_ == EvictionPolicy::POPT) {
             set[idx].rrpv = 0;
         }
     }
@@ -710,38 +791,37 @@ private:
 
     // ================================================================
     // GRASP: Graph-aware cache Replacement with Software Prefetching
-    // (Faldu et al., HPCA 2020)
+    // (Faldu et al., HPCA 2020 — reference: grasp.cpp)
     //
-    // Uses vertex degree information to make retention decisions:
-    // - Hot vertices (degree > avg_degree) get higher priority to stay
-    // - Cold vertices are evicted first (LRU among cold lines)
-    // - If no cold lines, fall back to LRU among hot lines
-    // Requires DBG-reordered graph for best results.
+    // RRIP-based policy with 3-tier insertion depending on address region:
+    //   High-reuse (hot hubs):    insert RRPV = 1 (P_RRIP), hit → 0
+    //   Moderate-reuse:           insert RRPV = M-1 (I_RRIP), hit → decrement
+    //   Low-reuse (cold/other):   insert RRPV = M (M_RRIP), hit → decrement
+    // Eviction: find way with max RRPV, age all if none at max.
+    // Requires DBG-reordered graph so hot vertices occupy low addresses.
     // ================================================================
     size_t findVictimGRASP(std::vector<CacheLine>& set) {
-        // Phase 1: Try to evict a cold (low-degree) line using LRU
-        size_t cold_victim = associativity_;  // sentinel: not found
-        uint64_t cold_oldest = UINT64_MAX;
-        for (size_t i = 0; i < associativity_; i++) {
-            if (!set[i].is_hot && set[i].last_access < cold_oldest) {
-                cold_oldest = set[i].last_access;
-                cold_victim = i;
+        // Same eviction as SRRIP: find way with rrpv == max, age until found
+        constexpr uint8_t M_RRIP = 7;  // 3-bit RRPV, max = 2^3-1
+        while (true) {
+            for (size_t i = 0; i < associativity_; i++) {
+                if (set[i].rrpv >= M_RRIP) return i;
+            }
+            for (size_t i = 0; i < associativity_; i++) {
+                if (set[i].rrpv < M_RRIP) set[i].rrpv++;
             }
         }
-        if (cold_victim < associativity_) return cold_victim;
-
-        // Phase 2: All lines are hot — fall back to LRU among hot lines
-        return findVictimLRU(set);
     }
 
     // ================================================================
     // P-OPT: Practical Optimal cache replacement for Graph Analytics
-    // (Balaji et al., HPCA 2021)
+    // (Balaji et al., HPCA 2021 — reference: llc.cpp)
     //
     // Uses the graph's transpose (encoded in a compressed rereference
     // matrix) to predict exactly when each cache line will be accessed
-    // again. Evicts the line with the furthest next-reference distance,
-    // approximating Belady's MIN policy.
+    // again. Evicts the line with the furthest next-reference distance.
+    // When multiple lines tie on rereference distance, uses RRIP aging
+    // to break ties (matching the reference implementation).
     //
     // Requires: initPOPT() called before simulation with a precomputed
     // rereference matrix from makeOffsetMatrix() in popt.h.
@@ -751,27 +831,43 @@ private:
             return findVictimLRU(set);  // Fallback if not initialized
         }
 
-        size_t victim = 0;
-        uint32_t max_distance = 0;
-
+        // Phase 1: Evict non-graph data first (streaming/CSR metadata)
         for (size_t i = 0; i < associativity_; i++) {
-            // Compute cache line ID in vertex data space
             uint64_t line_addr = set[i].tag << (offset_bits_ + index_bits_);
             if (line_addr < popt_state_.irreg_base || line_addr >= popt_state_.irreg_bound) {
-                // Not in irregular data region — evict streaming data immediately
-                return i;
-            }
-
-            uint32_t cline_id = static_cast<uint32_t>(
-                (line_addr - popt_state_.irreg_base) / line_size_);
-            uint32_t distance = popt_state_.findNextRef(cline_id);
-
-            if (distance > max_distance) {
-                max_distance = distance;
-                victim = i;
+                return i;  // Not irregular vertex data — evict immediately
             }
         }
-        return victim;
+
+        // Phase 2: All ways contain graph vertex data — find max rereference distance
+        uint8_t maxRerefDist = 0;
+        uint8_t wayRerefDists[64] = {};  // supports up to 64-way associativity
+        for (size_t i = 0; i < associativity_; i++) {
+            uint64_t line_addr = set[i].tag << (offset_bits_ + index_bits_);
+            uint32_t cline_id = static_cast<uint32_t>(
+                (line_addr - popt_state_.irreg_base) / line_size_);
+            uint8_t dist = static_cast<uint8_t>(
+                std::min(popt_state_.findNextRef(cline_id), uint32_t(127)));
+            wayRerefDists[i] = dist;
+            if (dist > maxRerefDist) maxRerefDist = dist;
+        }
+
+        // Phase 3: RRIP tiebreaker among lines with max rereference distance
+        // (matching reference llc.cpp: age RRPV only for tied lines)
+        constexpr uint8_t M_RRPV = 7;
+        while (true) {
+            for (size_t i = 0; i < associativity_; i++) {
+                if (wayRerefDists[i] == maxRerefDist && set[i].rrpv >= M_RRPV) {
+                    return i;
+                }
+            }
+            // Age only the tied lines
+            for (size_t i = 0; i < associativity_; i++) {
+                if (wayRerefDists[i] == maxRerefDist && set[i].rrpv < M_RRPV) {
+                    set[i].rrpv++;
+                }
+            }
+        }
     }
 
     std::string name_;
@@ -925,13 +1021,13 @@ public:
         l3_->initPOPT(reref_matrix, irreg_base, irreg_bound, num_vertices, num_epochs);
     }
 
-    // GRASP: Initialize degree-aware retention on all levels
-    void initGRASP(const uint64_t* degree_array, uint64_t data_base,
-                   size_t data_elem_size, uint32_t num_vertices,
-                   uint32_t avg_degree) {
-        l1_->initGRASP(degree_array, data_base, data_elem_size, num_vertices, avg_degree);
-        l2_->initGRASP(degree_array, data_base, data_elem_size, num_vertices, avg_degree);
-        l3_->initGRASP(degree_array, data_base, data_elem_size, num_vertices, avg_degree);
+    // GRASP: Initialize degree-aware RRIP retention on all levels
+    void initGRASP(uint64_t data_ptr, uint32_t num_vertices,
+                   size_t elem_size, double hot_fraction = 0.1) {
+        size_t llc_size = l3_->getSizeBytes();
+        l1_->initGRASP(data_ptr, num_vertices, elem_size, l1_->getSizeBytes(), hot_fraction);
+        l2_->initGRASP(data_ptr, num_vertices, elem_size, l2_->getSizeBytes(), hot_fraction);
+        l3_->initGRASP(data_ptr, num_vertices, elem_size, llc_size, hot_fraction);
     }
 
     // P-OPT: Update current vertex (call at each outer-loop iteration)
@@ -1597,15 +1693,15 @@ public:
         l3_shared_->initPOPT(reref_matrix, irreg_base, irreg_bound, num_vertices, num_epochs);
     }
 
-    // GRASP: Initialize degree-aware retention on all levels
-    void initGRASP(const uint64_t* degree_array, uint64_t data_base,
-                   size_t data_elem_size, uint32_t num_vertices,
-                   uint32_t avg_degree) {
+    // GRASP: Initialize degree-aware RRIP retention on all levels
+    void initGRASP(uint64_t data_ptr, uint32_t num_vertices,
+                   size_t elem_size, double hot_fraction = 0.1) {
+        size_t llc_size = l3_shared_->getSizeBytes();
         for (int i = 0; i < num_cores_; i++) {
-            l1_caches_[i]->initGRASP(degree_array, data_base, data_elem_size, num_vertices, avg_degree);
-            l2_caches_[i]->initGRASP(degree_array, data_base, data_elem_size, num_vertices, avg_degree);
+            l1_caches_[i]->initGRASP(data_ptr, num_vertices, elem_size, l1_caches_[i]->getSizeBytes(), hot_fraction);
+            l2_caches_[i]->initGRASP(data_ptr, num_vertices, elem_size, l2_caches_[i]->getSizeBytes(), hot_fraction);
         }
-        l3_shared_->initGRASP(degree_array, data_base, data_elem_size, num_vertices, avg_degree);
+        l3_shared_->initGRASP(data_ptr, num_vertices, elem_size, llc_size, hot_fraction);
     }
 
     // P-OPT: Update current vertex (call at each outer-loop iteration)
