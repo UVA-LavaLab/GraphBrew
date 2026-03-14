@@ -133,8 +133,8 @@ experiments in the runner:
 **Algorithms Evaluated (13):** Original, Random, SORT, HubSort, HubCluster, DBG,
 HubSortDBG, HubClusterDBG, RabbitOrder (CSR), RabbitOrder (Boost), Gorder, RCM, GoGraph
 
-**GraphBrew Variants (9):** Leiden, Rabbit, HubCluster, HRAB, TQR, HCache, Streaming,
-Rabbit-DBG, Rabbit-HubCluster
+**GraphBrew Variants (10):** Leiden, Rabbit, HubCluster, HRAB, TQR, HCache, Streaming,
+Rabbit-DBG, Rabbit-HubCluster, RCM
 
 **Chained Orderings (5):** GB-Leiden→DBG, GB-Leiden→HubCluster,
 GB-HRAB→DBG, GB-Leiden→GoGraph, RabbitOrder→DBG

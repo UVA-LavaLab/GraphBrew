@@ -210,11 +210,16 @@ Both `leiden` and `rabbit` presets support **all 14 ordering strategies**. When 
 ./bench/bin/pr -f graph.el -s -o 12:leiden:dbg -n 5          # Leiden + DBG
 ./bench/bin/pr -f graph.el -s -o 12:leiden:hubcluster -n 5   # Leiden + hub-cluster
 
-# Rabbit × orderings (NEW):
+# Advanced variants:
+./bench/bin/pr -f graph.el -s -o 12:hrab -n 5                # Hybrid Leiden + RabbitOrder (best locality)
+./bench/bin/pr -f graph.el -s -o 12:tqr -n 5                 # Tile-Quantized RabbitOrder (cache-geometry)
+./bench/bin/pr -f graph.el -s -o 12:hcache -n 5              # Hierarchical Cache-Aware (deep communities)
+./bench/bin/pr -f graph.el -s -o 12:streaming -n 5           # Leiden with lazy aggregation (low memory)
+
+# Rabbit × orderings:
 ./bench/bin/pr -f graph.el -s -o 12:rabbit -n 5              # Rabbit native DFS
 ./bench/bin/pr -f graph.el -s -o 12:rabbit:dbg -n 5          # Rabbit + DBG
 ./bench/bin/pr -f graph.el -s -o 12:rabbit:hubcluster -n 5   # Rabbit + hub-cluster
-./bench/bin/pr -f graph.el -s -o 12:rabbit:hrab -n 5         # Rabbit + hybrid ordering
 
 # RCM variant (bandwidth minimization):
 ./bench/bin/pr -f graph.el -s -o 12:rcm -n 5                 # Leiden + per-community RCM + super-graph RCM
