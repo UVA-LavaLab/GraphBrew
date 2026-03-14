@@ -42,6 +42,11 @@ pvector<WeightT> DeltaStep_Sim(const WGraph &g, NodeID source,
     if (llc_env) llc_size = std::strtoul(llc_env, nullptr, 10);
     graph_ctx.registerPropertyArray(dist.data(), g.num_nodes(), sizeof(WeightT), llc_size);
     cache.initGraphContext(&graph_ctx);
+
+    // Compute per-vertex ECG mask array
+    graph_ctx.initMaskConfig();
+    auto vertex_masks = graph_ctx.computeVertexMasks8(g);
+    graph_ctx.initMaskArray8(vertex_masks.data(), vertex_masks.size());
     
     pvector<NodeID> frontier(g.num_edges_directed());
     size_t shared_indexes[2] = {0, kMaxBin};
@@ -70,7 +75,7 @@ pvector<WeightT> DeltaStep_Sim(const WGraph &g, NodeID source,
                         WeightT old_dist = dist[wn.v];
                         WeightT new_dist = dist[u] + wn.w;
                         // Track: read/write dist[wn.v]
-                        SIM_CACHE_READ(cache, dist.data(), wn.v);
+                        SIM_CACHE_READ_MASKED(cache, dist.data(), wn.v, graph_ctx, vertex_masks[wn.v]);
                         if (new_dist < old_dist) {
                             SIM_CACHE_WRITE(cache, dist.data(), wn.v);
                             bool changed_dist = true;

@@ -35,6 +35,11 @@ size_t CountTriangles_Sim(const Graph &g, CacheType &cache) {
     graph_ctx.initTopology(deg_arr.data(), g.num_nodes(),
                            g.num_edges_directed(), g.directed());
     cache.initGraphContext(&graph_ctx);
+
+    // Compute per-vertex ECG mask array
+    graph_ctx.initMaskConfig();
+    auto vertex_masks = graph_ctx.computeVertexMasks8(g);
+    graph_ctx.initMaskArray8(vertex_masks.data(), vertex_masks.size());
     
     #pragma omp parallel reduction(+ : total)
     {
