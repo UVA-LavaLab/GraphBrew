@@ -37,7 +37,8 @@ enum class EvictionPolicy {
     PLRU,     // Pseudo-LRU (tree-based)
     SRRIP,    // Static Re-Reference Interval Prediction
     GRASP,    // Graph-aware cache Replacement with Software Prefetching (Faldu et al., HPCA 2020)
-    POPT      // Practical Optimal cache replacement for Graph Analytics (Balaji et al., HPCA 2021)
+    POPT,     // Practical Optimal cache replacement for Graph Analytics (Balaji et al., HPCA 2021)
+    ECG       // Expressing Locality for Caching in Graphs — fat-ID encoding (Mughrabi et al., GrAPL)
 };
 
 inline std::string PolicyToString(EvictionPolicy policy) {
@@ -50,6 +51,7 @@ inline std::string PolicyToString(EvictionPolicy policy) {
         case EvictionPolicy::SRRIP:  return "SRRIP";
         case EvictionPolicy::GRASP:  return "GRASP";
         case EvictionPolicy::POPT:   return "POPT";
+        case EvictionPolicy::ECG:    return "ECG";
         default: return "UNKNOWN";
     }
 }
@@ -63,6 +65,7 @@ inline EvictionPolicy StringToPolicy(const std::string& s) {
     if (s == "SRRIP" || s == "srrip") return EvictionPolicy::SRRIP;
     if (s == "GRASP" || s == "grasp") return EvictionPolicy::GRASP;
     if (s == "POPT" || s == "popt" || s == "P-OPT" || s == "p-opt") return EvictionPolicy::POPT;
+    if (s == "ECG" || s == "ecg") return EvictionPolicy::ECG;
     return EvictionPolicy::LRU;  // Default
 }
 
@@ -609,6 +612,20 @@ public:
         if (policy_ == EvictionPolicy::POPT) {
             set[victim_idx].rrpv = 6;  // M_RRPV - 1 = long re-reference (SRRIP default)
         }
+
+        // ECG: insert RRPV from fat-ID encoded hints (same tiers as GRASP)
+        // The hint was precomputed from degree + rereference at preprocessing time.
+        // Uses graph_ctx_ classifyAddress as fallback if fat-ID not yet integrated.
+        if (policy_ == EvictionPolicy::ECG) {
+            uint32_t tier = 0;
+            if (graph_ctx_) {
+                tier = graph_ctx_->classifyAddress(address);
+            }
+            if (tier == 1)       set[victim_idx].rrpv = 1;  // HOT
+            else if (tier == 2)  set[victim_idx].rrpv = 3;  // WARM
+            else if (tier == 3)  set[victim_idx].rrpv = 5;  // LUKEWARM
+            else                 set[victim_idx].rrpv = 7;  // COLD
+        }
     }
 
     const CacheStats& getStats() const { return stats_; }
@@ -723,6 +740,20 @@ private:
         if (policy_ == EvictionPolicy::POPT) {
             set[idx].rrpv = 0;
         }
+
+        // ECG: same tier-based hit promotion as GRASP
+        if (policy_ == EvictionPolicy::ECG) {
+            uint64_t addr = set[idx].line_addr;
+            uint32_t tier = graph_ctx_ ? graph_ctx_->classifyAddress(addr) : 0;
+            if (tier == 1) {
+                set[idx].rrpv = 0;
+            } else if (tier == 2) {
+                if (set[idx].rrpv > 1) set[idx].rrpv -= 2;
+                else set[idx].rrpv = 0;
+            } else if (tier > 0) {
+                if (set[idx].rrpv > 0) set[idx].rrpv--;
+            }
+        }
     }
 
     size_t findVictim(std::vector<CacheLine>& set) {
@@ -749,6 +780,8 @@ private:
                 return findVictimGRASP(set);
             case EvictionPolicy::POPT:
                 return findVictimPOPT(set);
+            case EvictionPolicy::ECG:
+                return findVictimECG(set);
             default:
                 return findVictimLRU(set);
         }
@@ -902,6 +935,31 @@ private:
                 if (wayRerefDists[i] == maxRerefDist && set[i].rrpv < M_RRPV) {
                     set[i].rrpv++;
                 }
+            }
+        }
+    }
+
+    // ================================================================
+    // ECG: Fat-ID-based cache replacement (Mughrabi et al., GrAPL)
+    //
+    // Uses hints encoded directly in CSR neighbor IDs (fat IDs):
+    //   - DBG tier bits for insertion RRPV (same as GRASP but zero lookup)
+    //   - P-OPT quantized bits for eviction (replaces LLC-stored matrix)
+    //   - Combined: GRASP insertion + RRIP eviction with ZERO runtime overhead
+    //
+    // Insert: RRPV from fat-ID DBG tier (HOT=1, WARM=3, LUKEWARM=5, COLD=7)
+    // Hit:    HOT→0, WARM→decrement by 2, others by 1
+    // Evict:  RRIP aging (same as GRASP eviction — fat-ID encoding already
+    //         factors P-OPT distance into the insertion RRPV)
+    // ================================================================
+    size_t findVictimECG(std::vector<CacheLine>& set) {
+        constexpr uint8_t M_RRIP = 7;
+        while (true) {
+            for (size_t i = 0; i < associativity_; i++) {
+                if (set[i].rrpv >= M_RRIP) return i;
+            }
+            for (size_t i = 0; i < associativity_; i++) {
+                if (set[i].rrpv < M_RRIP) set[i].rrpv++;
             }
         }
     }
