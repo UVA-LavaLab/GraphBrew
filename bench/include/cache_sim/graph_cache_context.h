@@ -249,15 +249,19 @@ struct FatIDConfig {
     }
 
     // Compute DBG tier for a vertex given its degree and graph topology.
-    // Returns: 3=HOT, 2=WARM, 1=LUKEWARM, 0=COLD (higher = more important)
+    // Returns: 1=HOT, 2=WARM, 3=LUKEWARM, 4=COLD
+    // Matches PropertyRegion::classify() numbering so fat-ID decode values
+    // can be used directly by cache insertion code without remapping.
     uint8_t computeDBGTier(uint32_t degree, uint32_t avg_degree) const {
-        if (dbg_bits == 0) return 0;
+        if (dbg_bits == 0) return 4;  // COLD if no bits
         // ECG-style: geometric thresholds from avg_degree
         uint32_t hot_thresh = avg_degree * 4;   // Top hubs
         uint32_t warm_thresh = avg_degree;       // Above average
         uint32_t lukewarm_thresh = avg_degree / 2; // Near average
-        if (degree >= hot_thresh)      return 3;  // HOT
+        if (degree >= hot_thresh)      return 1;  // HOT
         if (degree >= warm_thresh)     return 2;  // WARM
+        if (degree >= lukewarm_thresh) return 3;  // LUKEWARM
+        return 4;                                 // COLD
         if (degree >= lukewarm_thresh) return 1;  // LUKEWARM
         return 0;                                 // COLD
     }
