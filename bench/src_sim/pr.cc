@@ -58,6 +58,11 @@ pvector<ScoreT> PageRankPullGS_Sim(const Graph &g, CacheType &cache,
     graph_ctx.registerPropertyArray(scores_ptr, g.num_nodes(), sizeof(ScoreT), llc_size);
     graph_ctx.registerPropertyArray(contrib_ptr, g.num_nodes(), sizeof(ScoreT), llc_size);
     cache.initGraphContext(&graph_ctx);
+
+    // Compute per-vertex ECG mask array (DBG tier classification, no reordering)
+    graph_ctx.initMaskConfig();
+    auto vertex_masks = graph_ctx.computeVertexMasks8(g);
+    graph_ctx.initMaskArray8(vertex_masks.data(), vertex_masks.size());
     graph_ctx.printSummary();
     
     // Initialize outgoing contributions
@@ -81,8 +86,8 @@ pvector<ScoreT> PageRankPullGS_Sim(const Graph &g, CacheType &cache,
             
             // Iterate over incoming neighbors
             for (NodeID v : g.in_neigh(u)) {
-                // Track: read neighbor ID, read contrib[v]
-                SIM_CACHE_READ(cache, contrib_ptr, v);
+                // ECG: read contrib[v] with per-vertex mask (DBG tier for v)
+                SIM_CACHE_READ_MASKED(cache, contrib_ptr, v, graph_ctx, vertex_masks[v]);
                 incoming_total += outgoing_contrib[v];
             }
             

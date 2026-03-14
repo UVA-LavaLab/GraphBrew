@@ -60,6 +60,11 @@ pvector<ScoreT> PageRankSpMV_Sim(const Graph &g, CacheType &cache,
     graph_ctx.registerPropertyArray(scores_ptr, g.num_nodes(), sizeof(ScoreT), llc_size);
     graph_ctx.registerPropertyArray(contrib_ptr, g.num_nodes(), sizeof(ScoreT), llc_size);
     cache.initGraphContext(&graph_ctx);
+
+    // Compute per-vertex ECG mask array
+    graph_ctx.initMaskConfig();
+    auto vertex_masks = graph_ctx.computeVertexMasks8(g);
+    graph_ctx.initMaskArray8(vertex_masks.data(), vertex_masks.size());
     graph_ctx.printSummary();
 
     for (int iter = 0; iter < max_iters; iter++) {
@@ -81,7 +86,7 @@ pvector<ScoreT> PageRankSpMV_Sim(const Graph &g, CacheType &cache,
 
             ScoreT incoming_total = 0;
             for (NodeID v : g.in_neigh(u)) {
-                SIM_CACHE_READ(cache, contrib_ptr, v);
+                SIM_CACHE_READ_MASKED(cache, contrib_ptr, v, graph_ctx, vertex_masks[v]);
                 incoming_total += outgoing_contrib[v];
             }
 
