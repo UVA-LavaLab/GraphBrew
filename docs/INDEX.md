@@ -29,7 +29,10 @@ bench/include/
 │   ├── gorder/                 # GOrder graph ordering (GoGraph baseline)
 │   ├── corder/                 # COrder cache-aware ordering
 │   └── leiden/                 # GVE-Leiden community detection
-└── cache_sim/                  # Cache simulation (cache_sim.h, graph_sim.h)
+└── cache_sim/                  # Cache simulation
+    ├── cache_sim.h             # 9 eviction policies (LRU,FIFO,RANDOM,LFU,PLRU,SRRIP,GRASP,P-OPT,ECG)
+    ├── graph_sim.h             # Graph wrappers + SIM_CACHE_READ/WRITE/SET_VERTEX macros
+    └── graph_cache_context.h   # Unified context: PropertyRegion, FatIDConfig, GraphTopology
 ```
 
 ## Core C++ Modules
@@ -37,7 +40,7 @@ bench/include/
 - `bench/include/graphbrew/` — GraphBrew extensions (graphbrew.h umbrella, reorder/, partition/)
 - `bench/include/graphbrew/reorder/` — All reordering algorithms (0–15), variant dispatch, perceptron weights
 - `bench/include/graphbrew/partition/` — TRUST partitioning (`trust.h`), Cagra/P-OPT (`cagra/popt.h`)
-- `bench/include/cache_sim/` — Cache simulation (L1/L2/L3 policies; `cache_sim.h`, `graph_sim.h`)
+- `bench/include/cache_sim/` — Cache simulation: 9 eviction policies, `GraphCacheContext` (multi-region 4-tier classification, `FatIDConfig` adaptive fat-ID encoding), `graph_sim.h` macros
 
 ## External Libraries
 - `bench/include/external/rabbit/` — RabbitOrder community clustering

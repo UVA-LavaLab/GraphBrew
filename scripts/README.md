@@ -24,9 +24,14 @@ scripts/
 ├── graphbrew_experiment.py        ← SINGLE entry point (the only top-level .py)
 ├── evaluate_all_modes.py          ← Model × Criterion evaluation with LOGO CV
 ├── requirements.txt
-├── experiments/                   ← VLDB experiment runners
-│   ├── vldb_experiments.py        ← full 8-experiment suite (lab machine)
-│   └── vldb_experiments_small.py  ← lightweight preview (local machine)
+├── experiments/                   ← Paper experiment runners
+│   ├── vldb_config.py             ← VLDB paper: graph/algorithm configuration
+│   ├── vldb_paper_experiments.py  ← VLDB paper: 8-experiment suite
+│   ├── vldb_generate_figures.py   ← VLDB paper: figure/table generation
+│   ├── vldb_experiments.py        ← VLDB: full lab suite
+│   ├── vldb_experiments_small.py  ← VLDB: lightweight preview
+│   ├── ecg_config.py              ← ECG paper: cache policy configuration
+│   └── ecg_paper_experiments.py   ← ECG paper: 6-experiment suite
 ├── lib/                           ← modular library, 5 sub-packages (see lib/README.md)
 │   ├── core/                      ← constants, logging, data stores
 │   ├── pipeline/                  ← experiment execution stages
@@ -59,8 +64,8 @@ results/data/                           ← runtime data (gitignored)
    `graphbrew_experiment.py`; they are never executed directly.
 
 3. **Experiment runners go in `experiments/`.**
-   `vldb_experiments.py` is the full lab runner; `vldb_experiments_small.py`
-   is a lightweight local preview.  Both output to `results/`.
+   Two paper suites: VLDB 2026 (graph reordering) and ECG/GrAPL (cache policies).
+   Both output JSON results to `results/`.
 
 4. **Weight/model paths** use helpers in `lib/core/utils.py`:
    `results_data_dir()`, `benchmarks_db_path()`, `graph_properties_path()`,
