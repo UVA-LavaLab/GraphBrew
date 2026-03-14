@@ -2531,7 +2531,7 @@ def main():
     if args.evaluate:
         import subprocess as _sp
         log_section("RUNNING evaluate_all_modes.py")
-        _sp.run(["python3", "scripts/evaluate_all_modes.py", "--all"])
+        _sp.run(["python3", "scripts/lib/tools/evaluate_all_modes.py", "--all"])
         return
 
     if args.vldb is not None:

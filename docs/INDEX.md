@@ -10,8 +10,7 @@ GraphBrew/
 │   ├── bin_sim/                    # Compiled simulation binaries
 │   └── include/                    # Headers (see Include Structure below)
 ├── scripts/                        # Python experiment infrastructure
-│   ├── graphbrew_experiment.py      # Main pipeline entry point
-│   ├── evaluate_all_modes.py        # Model × Criterion evaluation
+│   ├── graphbrew_experiment.py      # Main pipeline entry point (single top-level script)
 │   ├── experiments/                 # Paper experiment suites (VLDB + ECG)
 │   ├── lib/                         # 5 sub-packages (core, pipeline, ml, analysis, tools)
 │   └── test/                        # pytest test suite

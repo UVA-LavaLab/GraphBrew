@@ -670,7 +670,7 @@ LOGO cross-validation results across all model types and selection criteria:
 - Regression models struggle because the penalty for wrong reordering (+208%) vastly outweighs gains from correct reordering (-22%)
 - Larger graphs with stronger reorder speedups are expected to shift the balance toward regression models
 
-Run `python3 scripts/evaluate_all_modes.py --logo --json` to reproduce these numbers, or use the auto-eval built into the pipeline:
+Run `python3 scripts/graphbrew_experiment.py --evaluate` to reproduce these numbers, or use the auto-eval built into the pipeline:
 
 ```bash
 # Full pipeline including LOGO evaluation at end
