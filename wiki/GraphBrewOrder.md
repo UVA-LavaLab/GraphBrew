@@ -200,6 +200,7 @@ new_id = community_start_offset + position_within_community
 | `leiden` | **Default.** GraphBrew Leiden-CSR with GVE aggregation | GVE-CSR, TOTAL_EDGES, refine depth 0 |
 | `rabbit` | GraphBrew RabbitOrder community detection | RABBIT_ORDER algorithm, resolution=0.5 |
 | `hubcluster` | GraphBrew Leiden + hub-cluster ordering | HUB_CLUSTER ordering (native GraphBrew) |
+| `rcm` | GraphBrew Leiden + per-community RCM + super-graph BNF-RCM | Bandwidth minimization within communities |
 
 Both `leiden` and `rabbit` presets support **all 14 ordering strategies**. When an ordering strategy is appended to `rabbit` (e.g., `12:rabbit:dbg`), Rabbit performs community detection only and the specified strategy orders vertices within/across communities. Without an ordering suffix, `12:rabbit` uses its native DFS ordering.
 
@@ -214,6 +215,9 @@ Both `leiden` and `rabbit` presets support **all 14 ordering strategies**. When 
 ./bench/bin/pr -f graph.el -s -o 12:rabbit:dbg -n 5          # Rabbit + DBG
 ./bench/bin/pr -f graph.el -s -o 12:rabbit:hubcluster -n 5   # Rabbit + hub-cluster
 ./bench/bin/pr -f graph.el -s -o 12:rabbit:hrab -n 5         # Rabbit + hybrid ordering
+
+# RCM variant (bandwidth minimization):
+./bench/bin/pr -f graph.el -s -o 12:rcm -n 5                 # Leiden + per-community RCM + super-graph RCM
 ```
 
 See [[Command-Line-Reference]] for full variant list and [[Python-Scripts]] for experiment integration.
@@ -271,7 +275,9 @@ Multiple can be combined in a single `-o` string.
 | `hubx` | Extract high-degree hubs before ordering |
 | `gord` | Gorder-inspired intra-community optimization |
 | `hsort` | Post-process: pack hubs by descending degree |
-| `rcm` | RCM on super-graph instead of dendrogram DFS |
+| `rcm` | RCM on super-graph + per-community RCM (bandwidth minimization) |
+| `rcm_super` | RCM on super-graph only (BNF-quality George-Liu start) |
+| `rcm_intra` | Per-community RCM only (parallel, tiered BNF) |
 | `norefine` | Disable Leiden refinement step |
 | `graphbrew` | Activate LAYER ordering (per-community dispatch) |
 | `recursive` | Force recursive sub-community dispatch |

@@ -9,7 +9,7 @@ Graph algorithms are memory-intensive and cache performance significantly impact
 **Key Features:**
 - Multi-level cache hierarchy (L1/L2/L3)
 - Configurable cache parameters (size, associativity, line size)
-- Six eviction policies (LRU, FIFO, RANDOM, LFU, PLRU, SRRIP)
+- Eight eviction policies (LRU, FIFO, RANDOM, LFU, PLRU, SRRIP, GRASP, P-OPT)
 - Detailed per-level statistics
 - JSON export for analysis integration
 - Feature vector output for perceptron training
@@ -35,10 +35,12 @@ bench/
 │   ├── cache_sim.h     # Cache simulator core
 │   └── graph_sim.h     # Graph wrappers for tracking
 ├── src_sim/            # Instrumented algorithms
-│   ├── pr.cc           # PageRank
+│   ├── pr.cc           # PageRank (Gauss-Seidel, in-place updates)
+│   ├── pr_spmv.cc      # PageRank SpMV (Jacobi, double-buffered)
 │   ├── bfs.cc          # Breadth-First Search
 │   ├── bc.cc           # Betweenness Centrality
-│   ├── cc.cc           # Connected Components
+│   ├── cc.cc           # Connected Components (Afforest)
+│   ├── cc_sv.cc        # Connected Components (Shiloach-Vishkin)
 │   ├── sssp.cc         # Single-Source Shortest Paths
 │   └── tc.cc           # Triangle Counting
 └── bin_sim/            # Compiled binaries
@@ -82,6 +84,8 @@ The default configuration models a typical modern CPU:
 | **LFU** | Evicts least frequently used | Good for hot data |
 | **PLRU** | Tree-based pseudo-LRU | Hardware-efficient LRU approximation |
 | **SRRIP** | Re-reference interval prediction | Scan-resistant, good for streaming |
+| **GRASP** | Graph-aware degree-based RRIP (Faldu et al., HPCA'20) | Power-law graphs with DBG reordering |
+| **P-OPT** | Graph-transpose Belady approximation (Balaji et al., HPCA'21) | Best miss reduction; requires rereference matrix |
 
 ## Output Format
 
