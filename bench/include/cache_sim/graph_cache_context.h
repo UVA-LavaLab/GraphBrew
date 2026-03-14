@@ -1079,6 +1079,57 @@ struct GraphCacheContext {
     }
 
     // ================================================================
+    // Mask Computation (Phase 2 — preprocessing, called once)
+    // ================================================================
+
+    // Compute per-vertex DBG tier classification WITHOUT reordering.
+    // Classifies each vertex by degree bucket relative to avg_degree.
+    // Works with ANY vertex ordering (Rabbit, Leiden, GraphBrew, etc.).
+    //
+    // Returns: tier per vertex (0 = highest-degree, NUM_BUCKETS-1 = lowest)
+    template<typename GraphT>
+    std::vector<uint8_t> computeVertexTiers(const GraphT& g) const {
+        uint32_t n = g.num_nodes();
+        std::vector<uint8_t> tiers(n, 0);
+        if (topology.num_vertices == 0) return tiers;
+
+        #pragma omp parallel for schedule(static)
+        for (uint32_t v = 0; v < n; ++v) {
+            uint32_t deg = (mask_config.degree_mode == 1)
+                ? static_cast<uint32_t>(g.in_degree(v))
+                : static_cast<uint32_t>(g.out_degree(v));
+            uint8_t tier = static_cast<uint8_t>(topology.NUM_BUCKETS - 1);
+            for (uint32_t b = 0; b < topology.NUM_BUCKETS; ++b) {
+                if (deg <= topology.bucket_thresholds[b]) {
+                    tier = static_cast<uint8_t>(topology.NUM_BUCKETS - 1 - b);
+                    break;
+                }
+            }
+            tiers[v] = tier;
+        }
+        return tiers;
+    }
+
+    // Compute per-vertex mask entries (DBG tier only — O(n)).
+    // All edges to vertex v share the same mask.
+    // For per-edge masks with P-OPT rereference, extend with transpose.
+    template<typename GraphT>
+    std::vector<uint8_t> computeVertexMasks8(const GraphT& g) {
+        if (!mask_config.enabled) {
+            initMaskConfig();
+            if (topology.num_vertices > 0)
+                mask_config.autoAllocate(topology.num_vertices);
+        }
+        auto tiers = computeVertexTiers(g);
+        uint32_t n = g.num_nodes();
+        std::vector<uint8_t> masks(n, 0);
+        #pragma omp parallel for schedule(static)
+        for (uint32_t v = 0; v < n; ++v)
+            masks[v] = static_cast<uint8_t>(mask_config.encode(tiers[v], 0, 0));
+        return masks;
+    }
+
+    // ================================================================
     // Diagnostics
     // ================================================================
 

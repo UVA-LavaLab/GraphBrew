@@ -79,6 +79,16 @@ private:
 #define SIM_SET_VERTEX(cache, vertex_id) \
     (cache).setCurrentVertex(static_cast<uint32_t>(vertex_id))
 
+// ECG: Read with per-edge mask hint.
+// Sets the mask in GraphCacheContext before the access so the ECG policy
+// can read DBG tier + P-OPT quant from the mask instead of address-range.
+// mask_val = pre-encoded mask entry from the parallel mask array.
+#define SIM_CACHE_READ_MASKED(cache, arr, idx, graph_ctx, mask_val) \
+    do { \
+        (graph_ctx).hints.mask = static_cast<uint8_t>(mask_val); \
+        (cache).access(reinterpret_cast<uint64_t>(&(arr)[idx]), false); \
+    } while(0)
+
 } // namespace cache_sim
 
 #endif // GRAPH_SIM_H_
