@@ -6,6 +6,7 @@
 #define GRAPH_SIM_H_
 
 #include "cache_sim.h"
+#include "graph_cache_context.h"
 #include <graph.h>
 #include <pvector.h>
 
