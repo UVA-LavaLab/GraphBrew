@@ -103,6 +103,195 @@ struct PropertyRegion {
 static constexpr uint32_t MAX_PROPERTY_REGIONS = 8;
 
 // ============================================================================
+// MaskConfig: Configuration for per-edge mask array
+// ============================================================================
+// Controls how per-edge cache hints are encoded, how DBG and P-OPT signals
+// are combined, and how prefetch targets are resolved.
+//
+// The mask array is a parallel array alongside the CSR edge list: same size,
+// same indexing. Each entry packs DBG tier + P-OPT rereference + prefetch
+// target into mask_width bits.
+//
+// Key insight: mask decouples classification (degree/rereference) from
+// ordering (community). You can use Rabbit Order for locality AND get
+// GRASP-quality caching via the mask, without DBG reordering.
+struct MaskConfig {
+    // ── Field widths ──
+    uint8_t  mask_width = 8;        // Total bits per mask entry (2,4,8,16,32)
+    uint8_t  dbg_bits = 2;          // Bits for degree tier (2-4)
+    uint8_t  popt_bits = 4;         // Bits for rereference quantization (0-8)
+    uint8_t  prefetch_bits = 2;     // Bits for prefetch target (remaining)
+
+    // ── Prefetch ──
+    bool     prefetch_direct = false; // true = raw vertex ID, false = hot table index
+    uint32_t hot_table_size = 0;     // 2^prefetch_bits (only if !prefetch_direct)
+    uint8_t  prefetch_window = 8;    // Dedup window size for prefetch (4,8,16)
+
+    // ── Policy biases (for combined DBG+P-OPT RRPV) ──
+    // Controls the weight of each signal in the combined insertion RRPV:
+    //   combined_rrpv = dbg_bias × dbg_rrpv + popt_bias × popt_rrpv
+    // Set popt_bias=1.0 dbg_bias=0.0 for pure P-OPT behavior
+    // Set popt_bias=0.0 dbg_bias=1.0 for pure GRASP behavior
+    // Set both to 0.5 for balanced (default)
+    float    popt_bias = 0.5f;      // P-OPT weight in combined RRPV (0.0-1.0)
+    float    dbg_bias = 0.5f;       // DBG weight in combined RRPV (0.0-1.0)
+
+    // ── Classification ──
+    uint8_t  num_buckets = 11;      // Number of degree buckets (2-16)
+    uint8_t  rrpv_max = 7;          // Maximum RRPV value (3-bit=7, 8-bit=255)
+    uint8_t  degree_mode = 0;       // 0=OUT, 1=IN, 2=BOTH
+    bool     per_vertex = false;    // false=per-edge O(m), true=per-vertex O(n)
+    bool     enabled = false;
+
+    // ── Field positions (computed) ──
+    uint8_t  prefetch_shift = 0;
+    uint8_t  popt_shift = 0;
+    uint8_t  dbg_shift = 0;
+    uint32_t prefetch_mask_val = 0;
+    uint32_t popt_mask_val = 0;
+    uint32_t dbg_mask_val = 0;
+
+    // Auto-compute field allocation from mask_width and graph size
+    void autoAllocate(uint32_t num_vertices) {
+        dbg_bits = 2;
+        uint8_t remaining = mask_width - dbg_bits;
+
+        // Scale P-OPT bits with available space
+        if (remaining >= 12) popt_bits = 8;
+        else if (remaining >= 6) popt_bits = 4;
+        else if (remaining >= 2) popt_bits = 2;
+        else popt_bits = 0;
+        remaining -= popt_bits;
+
+        prefetch_bits = remaining;
+
+        // Can we encode vertex IDs directly?
+        uint8_t id_bits = 1;
+        while ((1ULL << id_bits) < num_vertices) id_bits++;
+        prefetch_direct = (prefetch_bits >= id_bits);
+        hot_table_size = prefetch_direct ? 0 : (prefetch_bits > 0 ? (1U << prefetch_bits) : 0);
+
+        // Compute shifts and masks
+        prefetch_shift = 0;
+        popt_shift = prefetch_bits;
+        dbg_shift = prefetch_bits + popt_bits;
+
+        prefetch_mask_val = prefetch_bits ? ((1U << prefetch_bits) - 1) : 0;
+        popt_mask_val = popt_bits ? (((1U << popt_bits) - 1) << popt_shift) : 0;
+        dbg_mask_val = dbg_bits ? (((1U << dbg_bits) - 1) << dbg_shift) : 0;
+
+        enabled = true;
+    }
+
+    // Initialize from environment variables
+    void initFromEnv() {
+        const char* v;
+        if ((v = std::getenv("ECG_MASK_WIDTH")))    mask_width = static_cast<uint8_t>(std::atoi(v));
+        if ((v = std::getenv("ECG_POPT_BIAS")))     popt_bias = std::atof(v);
+        if ((v = std::getenv("ECG_DBG_BIAS")))      dbg_bias = std::atof(v);
+        if ((v = std::getenv("ECG_NUM_BUCKETS")))   num_buckets = static_cast<uint8_t>(std::atoi(v));
+        if ((v = std::getenv("ECG_RRPV_BITS"))) {
+            int bits = std::atoi(v);
+            rrpv_max = (1 << bits) - 1;
+        }
+        if ((v = std::getenv("ECG_PREFETCH_WINDOW"))) prefetch_window = static_cast<uint8_t>(std::atoi(v));
+        if ((v = std::getenv("ECG_PER_VERTEX")))    per_vertex = (std::atoi(v) != 0);
+        if ((v = std::getenv("ECG_DEGREE_MODE"))) {
+            if (std::string(v) == "IN") degree_mode = 1;
+            else if (std::string(v) == "BOTH") degree_mode = 2;
+            else degree_mode = 0;
+        }
+    }
+
+    // Encode a mask entry from fields
+    uint32_t encode(uint8_t dbg_tier, uint8_t popt_quant, uint32_t prefetch_target) const {
+        uint32_t entry = 0;
+        entry |= (prefetch_target & prefetch_mask_val);
+        entry |= ((uint32_t(popt_quant) << popt_shift) & popt_mask_val);
+        entry |= ((uint32_t(dbg_tier) << dbg_shift) & dbg_mask_val);
+        return entry;
+    }
+
+    // Decode fields from a mask entry
+    uint8_t decodeDBG(uint32_t entry) const {
+        return dbg_bits ? static_cast<uint8_t>((entry & dbg_mask_val) >> dbg_shift) : 0;
+    }
+    uint8_t decodePOPT(uint32_t entry) const {
+        return popt_bits ? static_cast<uint8_t>((entry & popt_mask_val) >> popt_shift) : 0;
+    }
+    uint32_t decodePrefetch(uint32_t entry) const {
+        return prefetch_bits ? (entry & prefetch_mask_val) : 0;
+    }
+
+    // Compute combined RRPV from DBG tier and P-OPT distance
+    uint8_t computeCombinedRRPV(uint8_t dbg_tier, uint8_t popt_quant) const {
+        uint8_t popt_max_val = popt_bits ? ((1 << popt_bits) - 1) : 1;
+        // DBG RRPV: higher tier = lower degree = higher RRPV (evict sooner)
+        float dbg_rrpv = rrpv_max * (static_cast<float>(dbg_tier) / std::max(uint8_t(1), num_buckets));
+        // P-OPT RRPV: higher quant = farther reference = higher RRPV
+        float popt_rrpv = rrpv_max * (static_cast<float>(popt_quant) / popt_max_val);
+        // Blend
+        float combined = dbg_bias * dbg_rrpv + popt_bias * popt_rrpv;
+        uint8_t result = static_cast<uint8_t>(combined);
+        if (result > rrpv_max) result = rrpv_max;
+        if (result == 0 && combined > 0.0f) result = 1;  // Reserve 0 for hit promotion
+        return result;
+    }
+
+    void printConfig(std::ostream& os = std::cout) const {
+        if (!enabled) { os << "MaskConfig: disabled\n"; return; }
+        os << "MaskConfig: " << int(mask_width) << "-bit"
+           << " [DBG=" << int(dbg_bits)
+           << " POPT=" << int(popt_bits)
+           << " PFX=" << int(prefetch_bits) << "]"
+           << " bias(dbg=" << dbg_bias << " popt=" << popt_bias << ")"
+           << " buckets=" << int(num_buckets)
+           << " rrpv_max=" << int(rrpv_max)
+           << " prefetch=" << (prefetch_direct ? "direct" : "table")
+           << (per_vertex ? " per-vertex" : " per-edge") << "\n";
+    }
+};
+
+// ============================================================================
+// MaskArray: Per-edge (or per-vertex) mask storage
+// ============================================================================
+// Parallel array alongside CSR edges. Same indexing: masks[edge_idx].
+// Stores encoded ECG hints (DBG tier + P-OPT rereference + prefetch target).
+//
+// For per-vertex mode: masks[vertex_id] — one entry per vertex, applied to
+// all its edges. Cheaper (O(n) vs O(m)) but P-OPT loses per-edge precision.
+struct MaskArray {
+    const uint8_t*  data8 = nullptr;   // 8-bit mask entries
+    const uint16_t* data16 = nullptr;  // 16-bit mask entries
+    const uint32_t* data32 = nullptr;  // 32-bit mask entries
+    uint64_t        count = 0;         // Number of entries
+    uint8_t         entry_width = 0;   // 8, 16, or 32
+    bool            enabled = false;
+
+    // Get mask entry by index (auto-width)
+    uint32_t get(uint64_t idx) const {
+        if (!enabled || idx >= count) return 0;
+        switch (entry_width) {
+            case 8:  return data8  ? data8[idx]  : 0;
+            case 16: return data16 ? data16[idx] : 0;
+            case 32: return data32 ? data32[idx] : 0;
+            default: return 0;
+        }
+    }
+
+    // Initialize from raw data pointer
+    void init8(const uint8_t* data, uint64_t n) {
+        data8 = data; count = n; entry_width = 8; enabled = true;
+    }
+    void init16(const uint16_t* data, uint64_t n) {
+        data16 = data; count = n; entry_width = 16; enabled = true;
+    }
+    void init32(const uint32_t* data, uint64_t n) {
+        data32 = data; count = n; entry_width = 32; enabled = true;
+    }
+};
+
+// ============================================================================
 // FatIDConfig: Adaptive bit layout for encoded neighbor IDs
 // ============================================================================
 // After DBG reordering, vertex IDs carry inherent degree information (low
@@ -525,9 +714,14 @@ struct GraphCacheContext {
     uint32_t prefetch_num_vertices = 0;
 
     // --- Fat ID Configuration (ECG adaptive encoding) ---
-    // Encodes cache hints directly into CSR neighbor IDs.
-    // Zero runtime overhead — hints travel with data through cache hierarchy.
     FatIDConfig fat_id;
+
+    // --- ECG Mask Configuration + Array ---
+    // Parallel mask array alongside CSR edges for per-edge cache hints.
+    // Decouples degree classification from vertex ordering.
+    MaskConfig mask_config;
+    MaskArray  mask_array;
+    std::vector<uint32_t> hot_table;  // Hot vertex table for indexed prefetch
 
     // --- Per-Vertex Statistics (optional) ---
     VertexStats vertex_stats;
@@ -701,6 +895,78 @@ struct GraphCacheContext {
         dbg_tier = fat_id.extractDBGTier(fat);
         popt_q = fat_id.extractPOPT(fat);
         pfx_delta = fat_id.extractPrefetch(fat);
+    }
+
+    // ================================================================
+    // ECG Mask Array Initialization
+    // ================================================================
+
+    // Initialize mask configuration from environment variables and graph size.
+    // Call after initTopology().
+    void initMaskConfig() {
+        mask_config.initFromEnv();
+        if (topology.num_vertices > 0) {
+            mask_config.autoAllocate(topology.num_vertices);
+        }
+    }
+
+    // Register a pre-computed mask array (per-edge or per-vertex).
+    // The caller owns the data; the context stores a non-owning view.
+    void initMaskArray8(const uint8_t* data, uint64_t count) {
+        mask_array.init8(data, count);
+    }
+    void initMaskArray16(const uint16_t* data, uint64_t count) {
+        mask_array.init16(data, count);
+    }
+    void initMaskArray32(const uint32_t* data, uint64_t count) {
+        mask_array.init32(data, count);
+    }
+
+    // Build hot table for indexed prefetch targets (sorted by degree descending).
+    // Only needed when prefetch_bits < id_bits (small mask width, large graph).
+    void buildHotTable(const uint32_t* degrees, uint32_t num_vertices) {
+        if (mask_config.hot_table_size == 0) return;
+        // Collect (degree, vertex_id) pairs, sort descending
+        std::vector<std::pair<uint32_t, uint32_t>> dv(num_vertices);
+        for (uint32_t i = 0; i < num_vertices; ++i)
+            dv[i] = {degrees[i], i};
+        std::partial_sort(dv.begin(),
+                          dv.begin() + std::min(uint32_t(mask_config.hot_table_size), num_vertices),
+                          dv.end(),
+                          [](const auto& a, const auto& b) { return a.first > b.first; });
+        hot_table.resize(std::min(uint32_t(mask_config.hot_table_size), num_vertices));
+        for (size_t i = 0; i < hot_table.size(); ++i)
+            hot_table[i] = dv[i].second;
+    }
+
+    // Get mask entry for an edge (or vertex in per-vertex mode).
+    uint32_t getMaskEntry(uint64_t edge_or_vertex_idx) const {
+        if (!mask_array.enabled) return 0;
+        return mask_array.get(edge_or_vertex_idx);
+    }
+
+    // Decode a mask entry into its components.
+    void decodeMask(uint32_t entry, uint8_t& dbg_tier, uint8_t& popt_quant,
+                    uint32_t& prefetch_target) const {
+        dbg_tier = mask_config.decodeDBG(entry);
+        popt_quant = mask_config.decodePOPT(entry);
+        prefetch_target = mask_config.decodePrefetch(entry);
+    }
+
+    // Compute combined RRPV from a mask entry (for ECG insert).
+    uint8_t maskToRRPV(uint32_t mask_entry) const {
+        uint8_t dbg = mask_config.decodeDBG(mask_entry);
+        uint8_t popt = mask_config.decodePOPT(mask_entry);
+        return mask_config.computeCombinedRRPV(dbg, popt);
+    }
+
+    // Resolve prefetch target vertex ID from a mask entry.
+    uint32_t resolvePrefetchTarget(uint32_t mask_entry) const {
+        uint32_t raw = mask_config.decodePrefetch(mask_entry);
+        if (raw == 0) return UINT32_MAX;  // No prefetch
+        if (mask_config.prefetch_direct) return raw;  // Direct vertex ID
+        if (raw < hot_table.size()) return hot_table[raw];  // Table lookup
+        return UINT32_MAX;
     }
 
     // ================================================================

@@ -135,8 +135,10 @@ struct CacheLine {
     uint64_t last_access = 0;    // For LRU
     uint64_t insert_time = 0;    // For FIFO
     uint64_t access_count = 0;   // For LFU
-    uint8_t rrpv = 3;            // For SRRIP, GRASP, P-OPT (3-bit)
-    uint64_t line_addr = 0;      // Cache-line-aligned address (for GRASP/P-OPT region checks)
+    uint8_t rrpv = 3;            // For SRRIP, GRASP, P-OPT, ECG
+    uint64_t line_addr = 0;      // Cache-line-aligned address
+    uint8_t ecg_popt_dist = 0;   // ECG: stored P-OPT rereference distance (for eviction tiebreak)
+    uint8_t ecg_dbg_tier = 0;    // ECG: stored DBG degree tier (for eviction tiebreak)
 };
 
 // ============================================================================
@@ -616,13 +618,24 @@ public:
             set[victim_idx].rrpv = 6;  // M_RRPV - 1 = long re-reference (SRRIP default)
         }
 
-        // ECG: N-bucket RRIP insertion (same as GRASP when using region classification)
-        // In full ECG flow, tier comes from fat-ID bits in neighbor IDs.
+        // ECG: Combined DBG+P-OPT insertion with bias control.
+        // If mask array is available: decode mask → combined RRPV.
+        // Fallback: use bucket classification from address.
+        // Stores ecg_popt_dist and ecg_dbg_tier for 3-level eviction tiebreaking.
         if (policy_ == EvictionPolicy::ECG) {
-            if (graph_ctx_) {
+            if (graph_ctx_ && graph_ctx_->mask_array.enabled) {
+                // Mask array path: use per-access hints.mask (set by sim benchmark)
+                uint32_t mask_entry = graph_ctx_->hints.mask;
+                set[victim_idx].rrpv = graph_ctx_->maskToRRPV(mask_entry);
+                set[victim_idx].ecg_dbg_tier = graph_ctx_->mask_config.decodeDBG(mask_entry);
+                set[victim_idx].ecg_popt_dist = graph_ctx_->mask_config.decodePOPT(mask_entry);
+            } else if (graph_ctx_) {
+                // Fallback: bucket classification from address
                 uint32_t bucket = graph_ctx_->classifyBucket(address);
                 if (bucket != UINT32_MAX) {
-                    set[victim_idx].rrpv = graph_ctx_->bucketToRRPV(bucket, 7);
+                    set[victim_idx].rrpv = graph_ctx_->bucketToRRPV(bucket,
+                        graph_ctx_->mask_config.enabled ? graph_ctx_->mask_config.rrpv_max : 7);
+                    set[victim_idx].ecg_dbg_tier = static_cast<uint8_t>(bucket);
                 }
             }
         }
@@ -944,22 +957,56 @@ private:
     //
     // In the full ECG flow, hints are encoded in CSR neighbor IDs (fat IDs)
     // and decoded at access time. In the current simulator, ECG uses the
-    // GraphCacheContext multi-region classification as a functionally
-    // equivalent fallback (same tier assignment, same RRPV values).
-    //
-    // Insert: RRPV from DBG tier (HOT=1, WARM=3, LUKEWARM=5, COLD=7)
-    // Hit:    HOT→0, WARM→decrement by 2, others by 1
-    // Evict:  RRIP aging (same mechanism as GRASP)
+    // ECG 3-level eviction priority:
+    //   Level 1: max ecg_popt_dist (farthest-future = evict first)
+    //   Level 2: max ecg_dbg_tier (coldest vertex = evict first)
+    //   Level 3: max rrpv (RRIP aging = evict oldest)
+    // Falls back to RRIP-only if no ecg fields are set.
     // ================================================================
     size_t findVictimECG(std::vector<CacheLine>& set) {
-        constexpr uint8_t M_RRIP = 7;
+        // Check if any line has ECG metadata stored
+        bool has_ecg_data = false;
+        for (size_t i = 0; i < associativity_; i++) {
+            if (set[i].ecg_popt_dist > 0 || set[i].ecg_dbg_tier > 0) {
+                has_ecg_data = true;
+                break;
+            }
+        }
+
+        if (has_ecg_data) {
+            // Level 1: Find max P-OPT rereference distance
+            uint8_t max_popt = 0;
+            for (size_t i = 0; i < associativity_; i++)
+                if (set[i].ecg_popt_dist > max_popt) max_popt = set[i].ecg_popt_dist;
+
+            // Level 2: Among max-popt ties, find max DBG tier (coldest)
+            uint8_t max_dbg = 0;
+            for (size_t i = 0; i < associativity_; i++)
+                if (set[i].ecg_popt_dist == max_popt && set[i].ecg_dbg_tier > max_dbg)
+                    max_dbg = set[i].ecg_dbg_tier;
+
+            // Level 3: Among popt+dbg ties, find max RRPV (oldest)
+            uint8_t max_rrpv = 0;
+            size_t victim = 0;
+            for (size_t i = 0; i < associativity_; i++) {
+                if (set[i].ecg_popt_dist == max_popt &&
+                    set[i].ecg_dbg_tier == max_dbg &&
+                    set[i].rrpv >= max_rrpv) {
+                    max_rrpv = set[i].rrpv;
+                    victim = i;
+                }
+            }
+            return victim;
+        }
+
+        // Fallback: RRIP aging (same as GRASP)
+        uint8_t rrpv_max = graph_ctx_ && graph_ctx_->mask_config.enabled
+            ? graph_ctx_->mask_config.rrpv_max : 7;
         while (true) {
-            for (size_t i = 0; i < associativity_; i++) {
-                if (set[i].rrpv >= M_RRIP) return i;
-            }
-            for (size_t i = 0; i < associativity_; i++) {
-                if (set[i].rrpv < M_RRIP) set[i].rrpv++;
-            }
+            for (size_t i = 0; i < associativity_; i++)
+                if (set[i].rrpv >= rrpv_max) return i;
+            for (size_t i = 0; i < associativity_; i++)
+                if (set[i].rrpv < rrpv_max) set[i].rrpv++;
         }
     }
 
