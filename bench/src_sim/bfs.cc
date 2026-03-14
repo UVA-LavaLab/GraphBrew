@@ -128,6 +128,11 @@ pvector<NodeID> DOBFS_Sim(const Graph &g, NodeID source, CacheType &cache,
     graph_ctx.registerPropertyArray(parent.data(), g.num_nodes(), sizeof(NodeID), llc_size);
     cache.initGraphContext(&graph_ctx);
 
+    // Compute per-vertex ECG mask array
+    graph_ctx.initMaskConfig();
+    auto vertex_masks = graph_ctx.computeVertexMasks8(g);
+    graph_ctx.initMaskArray8(vertex_masks.data(), vertex_masks.size());
+
     SlidingQueue<NodeID> queue(g.num_nodes());
     queue.push_back(source);
     queue.slide_window();

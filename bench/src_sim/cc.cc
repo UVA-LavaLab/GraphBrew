@@ -86,6 +86,11 @@ pvector<NodeID> Afforest_Sim(const Graph &g, CacheType &cache,
     graph_ctx.registerPropertyArray(comp_ptr, g.num_nodes(), sizeof(NodeID), llc_size);
     cache.initGraphContext(&graph_ctx);
 
+    // Compute per-vertex ECG mask array
+    graph_ctx.initMaskConfig();
+    auto vertex_masks = graph_ctx.computeVertexMasks8(g);
+    graph_ctx.initMaskArray8(vertex_masks.data(), vertex_masks.size());
+
     #pragma omp parallel for
     for (NodeID n = 0; n < g.num_nodes(); n++) {
         SIM_CACHE_WRITE(cache, comp_ptr, n);

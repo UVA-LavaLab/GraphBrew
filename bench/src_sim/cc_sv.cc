@@ -38,6 +38,11 @@ pvector<NodeID> ShiloachVishkin_Sim(const Graph &g, CacheType &cache) {
     if (llc_env) llc_size = std::strtoul(llc_env, nullptr, 10);
     graph_ctx.registerPropertyArray(comp.data(), g.num_nodes(), sizeof(NodeID), llc_size);
     cache.initGraphContext(&graph_ctx);
+
+    // Compute per-vertex ECG mask array
+    graph_ctx.initMaskConfig();
+    auto vertex_masks = graph_ctx.computeVertexMasks8(g);
+    graph_ctx.initMaskArray8(vertex_masks.data(), vertex_masks.size());
     
     #pragma omp parallel for
     for (NodeID n = 0; n < g.num_nodes(); n++) {
@@ -55,7 +60,7 @@ pvector<NodeID> ShiloachVishkin_Sim(const Graph &g, CacheType &cache) {
             for (NodeID v : g.out_neigh(u)) {
                 // Track: read comp[u] and comp[v]
                 SIM_CACHE_READ(cache, comp.data(), u);
-                SIM_CACHE_READ(cache, comp.data(), v);
+                SIM_CACHE_READ_MASKED(cache, comp.data(), v, graph_ctx, vertex_masks[v]);
                 NodeID comp_u = comp[u];
                 NodeID comp_v = comp[v];
                 

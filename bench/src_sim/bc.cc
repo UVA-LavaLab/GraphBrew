@@ -50,7 +50,12 @@ void BCBFS_Sim(const Graph &g, NodeID source,
     graph_ctx.registerPropertyArray(path_counts.data(), g.num_nodes(), sizeof(int64_t), llc_size);
     graph_ctx.registerPropertyArray(scores.data(), g.num_nodes(), sizeof(ScoreT), llc_size);
     cache.initGraphContext(&graph_ctx);
-    
+
+    // Compute per-vertex ECG mask array
+    graph_ctx.initMaskConfig();
+    auto vertex_masks = graph_ctx.computeVertexMasks8(g);
+    graph_ctx.initMaskArray8(vertex_masks.data(), vertex_masks.size());
+
     vector<SlidingQueue<NodeID>::iterator> depth_index;
     SlidingQueue<NodeID> queue(g.num_nodes());
     queue.push_back(source);
@@ -73,9 +78,9 @@ void BCBFS_Sim(const Graph &g, NodeID source,
             SIM_CACHE_READ(cache, depths.data(), u);
             
             for (NodeID v : g.out_neigh(u)) {
-                // Track depth and path_counts accesses
-                SIM_CACHE_READ(cache, depths.data(), v);
-                SIM_CACHE_READ(cache, path_counts.data(), v);
+                // ECG: read depths and path_counts with mask
+                SIM_CACHE_READ_MASKED(cache, depths.data(), v, graph_ctx, vertex_masks[v]);
+                SIM_CACHE_READ_MASKED(cache, path_counts.data(), v, graph_ctx, vertex_masks[v]);
                 
                 if (depths[v] == -1 && 
                     compare_and_swap(depths[v], static_cast<int32_t>(-1), depth)) {
