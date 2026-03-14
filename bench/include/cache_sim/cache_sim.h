@@ -131,6 +131,7 @@ struct CacheLine {
     uint64_t insert_time = 0;    // For FIFO
     uint64_t access_count = 0;   // For LFU
     uint8_t rrpv = 3;            // For SRRIP, GRASP, P-OPT (3-bit)
+    uint64_t line_addr = 0;      // Cache-line-aligned address (for GRASP/P-OPT region checks)
 };
 
 // ============================================================================
@@ -158,9 +159,9 @@ struct POPTState {
     //
     // Returns: rereference distance (0 = accessed soon, higher = farther away)
     uint32_t findNextRef(uint32_t cline_id) const {
-        if (!enabled || cline_id >= num_cache_lines) return 0;
+        if (!enabled || cline_id >= num_cache_lines) return 127;
         uint32_t epoch_id = current_vertex / epoch_size;
-        if (epoch_id >= num_epochs) return 0;
+        if (epoch_id >= num_epochs) return 127;
 
         // Look up rereference matrix entry: matrix is transposed as [epoch][cline]
         uint8_t entry = reref_matrix[epoch_id * num_cache_lines + cline_id];
@@ -580,6 +581,7 @@ public:
         set[victim_idx].insert_time = global_time_;
         set[victim_idx].access_count = 1;
         set[victim_idx].rrpv = 2;  // For SRRIP: near-immediate
+        set[victim_idx].line_addr = address & ~(uint64_t(line_size_ - 1));  // Store line-aligned address
 
         // GRASP: 3-tier RRIP insertion based on address region
         // (matching reference grasp.cpp: P_RRIP=1, I_RRIP=M-1, M_RRIP=M)
@@ -686,7 +688,7 @@ private:
         // High-reuse → promote to RRPV=0 (H_RRIP)
         // Others → decrement RRPV by 1 (gradual promotion)
         if (policy_ == EvictionPolicy::GRASP && grasp_state_.enabled) {
-            uint64_t addr = set[idx].tag << (offset_bits_ + index_bits_);
+            uint64_t addr = set[idx].line_addr;
             if (grasp_state_.classify(addr) == GRASPState::ReuseTier::HIGH) {
                 set[idx].rrpv = 0;  // H_RRIP: hub hit promotion
             } else {
@@ -833,8 +835,8 @@ private:
 
         // Phase 1: Evict non-graph data first (streaming/CSR metadata)
         for (size_t i = 0; i < associativity_; i++) {
-            uint64_t line_addr = set[i].tag << (offset_bits_ + index_bits_);
-            if (line_addr < popt_state_.irreg_base || line_addr >= popt_state_.irreg_bound) {
+            uint64_t la = set[i].line_addr;
+            if (la < popt_state_.irreg_base || la >= popt_state_.irreg_bound) {
                 return i;  // Not irregular vertex data — evict immediately
             }
         }
@@ -843,9 +845,9 @@ private:
         uint8_t maxRerefDist = 0;
         uint8_t wayRerefDists[64] = {};  // supports up to 64-way associativity
         for (size_t i = 0; i < associativity_; i++) {
-            uint64_t line_addr = set[i].tag << (offset_bits_ + index_bits_);
+            uint64_t la = set[i].line_addr;
             uint32_t cline_id = static_cast<uint32_t>(
-                (line_addr - popt_state_.irreg_base) / line_size_);
+                (la - popt_state_.irreg_base) / line_size_);
             uint8_t dist = static_cast<uint8_t>(
                 std::min(popt_state_.findNextRef(cline_id), uint32_t(127)));
             wayRerefDists[i] = dist;

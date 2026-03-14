@@ -182,7 +182,7 @@ BIN_SIM_DIR = $(BENCH_DIR)/bin_sim
 DEP_CACHE = $(wildcard $(INCLUDE_CACHE)/*.h)
 
 # Simulation kernels (algorithms with cache instrumentation)
-KERNELS_SIM = pr bfs bc cc sssp tc
+KERNELS_SIM = pr pr_spmv bfs bc cc cc_sv sssp tc
 
 # Create bin_sim directory
 $(BIN_SIM_DIR):

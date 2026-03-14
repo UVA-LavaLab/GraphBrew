@@ -468,10 +468,33 @@ void makeOffsetMatrix(const CSRGraph<NodeID_, DestID_, invert> &g,
             }
             else
             {
-                compressedOffsets[idx] = 0;  // No reference in this epoch
+                compressedOffsets[idx] = 0;  // No reference in this epoch (distance filled in Step II-b)
             }
         }
     }
+
+    // Step II-b: For "no reference" entries (MSB=0), compute forward distance
+    // to the next epoch that HAS a reference. Scan backwards from the end
+    // so each entry records how many epochs ahead the next reference is.
+    // (Reference: llc.cpp findRereferenceVal — MSB=0 data field = epoch distance)
+    #pragma omp parallel for schedule(dynamic, chunkSz)
+    for (NodeID_ c = 0; c < numCacheLines; ++c)
+    {
+        uint8_t distToNext = maxReref;  // Start from end: very far away
+        for (int e = numEpochs - 1; e >= 0; --e)
+        {
+            int idx = (c * numEpochs) + e;
+            if ((compressedOffsets[idx] & mask) != 0) {
+                // This epoch HAS a reference (MSB=1) — reset distance
+                distToNext = 0;
+            } else {
+                // No reference — store forward distance to next referenced epoch
+                compressedOffsets[idx] = (distToNext < maxReref) ? distToNext : maxReref;
+                if (distToNext < maxReref) distToNext++;
+            }
+        }
+    }
+
     tm.Stop();
     std::cout << "[P-OPT] Time to convert to offsets matrix = "
               << tm.Seconds() << std::endl;

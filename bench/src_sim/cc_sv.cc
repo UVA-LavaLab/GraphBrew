@@ -1,15 +1,12 @@
 // Copyright (c) 2024, UVA LavaLab
-// Connected Components — Afforest variant with Cache Simulation
+// Connected Components — Shiloach-Vishkin variant with Cache Simulation
 //
-// Two-phase adaptive algorithm: (1) sparse sampling of 1 neighbor per round,
-// (2) full edge traversal skipping the largest component.
-// Different cache profile from SV (cc_sv.cc): fewer total edge touches but
-// scattered sampling pattern in phase 1.
+// Iterative hook-and-shortcut algorithm that processes ALL edges every round.
+// O(m log n) total edge traversals with tight pointer-chasing on comp[] array.
+// Different cache profile from Afforest (cc.cc) which uses adaptive sampling.
 
 #include <iostream>
 #include <fstream>
-#include <random>
-#include <unordered_map>
 
 #include "benchmark.h"
 #include "bitmap.h"
@@ -24,96 +21,54 @@
 using namespace std;
 using namespace cache_sim;
 
-// Link two vertices in union-find with cache tracking
 template<typename CacheType>
-void Link_Sim(NodeID u, NodeID v, pvector<NodeID>& comp, NodeID* comp_ptr, CacheType& cache) {
-    SIM_CACHE_READ(cache, comp_ptr, u);
-    SIM_CACHE_READ(cache, comp_ptr, v);
-    NodeID p1 = comp[u];
-    NodeID p2 = comp[v];
-    while (p1 != p2) {
-        NodeID high = p1 > p2 ? p1 : p2;
-        NodeID low = p1 + (p2 - high);
-        SIM_CACHE_READ(cache, comp_ptr, high);
-        NodeID p_high = comp[high];
-        if ((p_high == low) ||
-            (p_high == high && __sync_bool_compare_and_swap(&comp[high], high, low))) {
-            SIM_CACHE_WRITE(cache, comp_ptr, high);
-            break;
-        }
-        SIM_CACHE_READ(cache, comp_ptr, high);
-        p1 = comp[comp[high]];
-        SIM_CACHE_READ(cache, comp_ptr, p1);
-        p2 = comp[low];
-        SIM_CACHE_READ(cache, comp_ptr, p2);
-    }
-}
-
-// Compress (path shortening) with cache tracking
-template<typename CacheType>
-void Compress_Sim(const Graph &g, pvector<NodeID>& comp, NodeID* comp_ptr, CacheType& cache) {
-    #pragma omp parallel for schedule(dynamic, 16384)
-    for (NodeID n = 0; n < g.num_nodes(); n++) {
-        SIM_CACHE_READ(cache, comp_ptr, n);
-        SIM_CACHE_READ(cache, comp_ptr, comp[n]);
-        while (comp[n] != comp[comp[n]]) {
-            SIM_CACHE_READ(cache, comp_ptr, comp[comp[n]]);
-            SIM_CACHE_WRITE(cache, comp_ptr, n);
-            comp[n] = comp[comp[n]];
-            SIM_CACHE_READ(cache, comp_ptr, n);
-            SIM_CACHE_READ(cache, comp_ptr, comp[n]);
-        }
-    }
-}
-
-template<typename CacheType>
-pvector<NodeID> Afforest_Sim(const Graph &g, CacheType &cache,
-                              int32_t neighbor_rounds = 2) {
+pvector<NodeID> ShiloachVishkin_Sim(const Graph &g, CacheType &cache) {
     pvector<NodeID> comp(g.num_nodes());
-    NodeID* comp_ptr = comp.data();
-
+    
     #pragma omp parallel for
     for (NodeID n = 0; n < g.num_nodes(); n++) {
-        SIM_CACHE_WRITE(cache, comp_ptr, n);
+        SIM_CACHE_WRITE(cache, comp.data(), n);
         comp[n] = n;
     }
-
-    // Phase 1: Sparse neighbor sampling (1 edge per vertex per round)
-    for (int r = 0; r < neighbor_rounds; ++r) {
-        #pragma omp parallel for schedule(dynamic, 16384)
+    
+    bool change = true;
+    while (change) {
+        change = false;
+        #pragma omp parallel for
         for (NodeID u = 0; u < g.num_nodes(); u++) {
+            // P-OPT: update current destination vertex
             SIM_SET_VERTEX(cache, u);
-            for (NodeID v : g.out_neigh(u, r)) {
-                Link_Sim(u, v, comp, comp_ptr, cache);
-                break;  // exactly ONE neighbor per round
+            for (NodeID v : g.out_neigh(u)) {
+                // Track: read comp[u] and comp[v]
+                SIM_CACHE_READ(cache, comp.data(), u);
+                SIM_CACHE_READ(cache, comp.data(), v);
+                NodeID comp_u = comp[u];
+                NodeID comp_v = comp[v];
+                
+                if (comp_u == comp_v) continue;
+                NodeID high = comp_u > comp_v ? comp_u : comp_v;
+                NodeID low = comp_u + (comp_v - high);
+                if (high == comp[high]) {
+                    change = true;
+                    // Track: write comp[high]
+                    SIM_CACHE_WRITE(cache, comp.data(), high);
+                    comp[high] = low;
+                }
             }
         }
-        Compress_Sim(g, comp, comp_ptr, cache);
-    }
-
-    // Sample to find the largest intermediate component
-    std::unordered_map<NodeID, int> sample_counts(32);
-    std::mt19937 gen;
-    std::uniform_int_distribution<NodeID> distribution(0, comp.size() - 1);
-    for (int i = 0; i < 1024; i++) {
-        NodeID n = distribution(gen);
-        sample_counts[comp[n]]++;
-    }
-    NodeID c = std::max_element(sample_counts.begin(), sample_counts.end(),
-        [](const auto& a, const auto& b) { return a.second < b.second; })->first;
-
-    // Phase 2: Full traversal, skipping the largest component
-    #pragma omp parallel for schedule(dynamic, 16384)
-    for (NodeID u = 0; u < g.num_nodes(); u++) {
-        SIM_SET_VERTEX(cache, u);
-        SIM_CACHE_READ(cache, comp_ptr, u);
-        if (comp[u] == c) continue;  // skip largest component
-        for (NodeID v : g.out_neigh(u)) {
-            Link_Sim(u, v, comp, comp_ptr, cache);
+        
+        #pragma omp parallel for
+        for (NodeID n = 0; n < g.num_nodes(); n++) {
+            while (comp[n] != comp[comp[n]]) {
+                // Track: read comp[n], comp[comp[n]]
+                SIM_CACHE_READ(cache, comp.data(), n);
+                SIM_CACHE_READ(cache, comp.data(), comp[n]);
+                SIM_CACHE_WRITE(cache, comp.data(), n);
+                comp[n] = comp[comp[n]];
+            }
         }
     }
-    Compress_Sim(g, comp, comp_ptr, cache);
-
+    
     return comp;
 }
 
@@ -170,7 +125,7 @@ bool CCVerifier(const Graph &g, const pvector<NodeID> &comp) {
 }
 
 int main(int argc, char *argv[]) {
-    CLApp cli(argc, argv, "cc-afforest-sim");
+    CLApp cli(argc, argv, "cc-sv-sim");
     if (!cli.ParseArgs())
         return -1;
     
@@ -184,7 +139,7 @@ int main(int argc, char *argv[]) {
         MultiCoreCacheHierarchy cache = MultiCoreCacheHierarchy::fromEnvironment();
         
         auto CCBound = [&cache](const Graph &g) {
-            return Afforest_Sim(g, cache);
+            return ShiloachVishkin_Sim(g, cache);
         };
         
         BenchmarkKernel(cli, g, CCBound, PrintCompStats, CCVerifier);
@@ -205,7 +160,7 @@ int main(int argc, char *argv[]) {
         FastCacheHierarchy cache = FastCacheHierarchy::fromEnvironment();
         
         auto CCBound = [&cache](const Graph &g) {
-            return Afforest_Sim(g, cache);
+            return ShiloachVishkin_Sim(g, cache);
         };
         
         BenchmarkKernel(cli, g, CCBound, PrintCompStats, CCVerifier);
@@ -225,7 +180,7 @@ int main(int argc, char *argv[]) {
         CacheHierarchy cache = CacheHierarchy::fromEnvironment();
         
         auto CCBound = [&cache](const Graph &g) {
-            return Afforest_Sim(g, cache);
+            return ShiloachVishkin_Sim(g, cache);
         };
         
         BenchmarkKernel(cli, g, CCBound, PrintCompStats, CCVerifier);
