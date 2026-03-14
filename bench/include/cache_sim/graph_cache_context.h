@@ -145,20 +145,39 @@ struct FatIDConfig {
 
         spare_bits = container_bits - real_id_bits;
 
-        // If less than 2 spare bits in 32-bit, try 64-bit
+        // If less than 2 spare bits in 32-bit, upgrade to 64-bit
         if (spare_bits < 2 && container_bits == 32) {
             container_bits = 64;
             spare_bits = container_bits - real_id_bits;
         }
 
-        // Priority allocation: DBG (always 2) > P-OPT (up to 4) > Prefetch (rest)
-        dbg_bits = (spare_bits >= 2) ? 2 : spare_bits;
-        uint8_t remaining = spare_bits - dbg_bits;
-
-        popt_bits = (remaining >= 4) ? 4 : remaining;
-        remaining -= popt_bits;
-
-        prefetch_bits = (remaining >= 4) ? 4 : remaining;
+        // Adaptive allocation scales with available spare bits.
+        // 64-bit containers get much richer metadata than 32-bit.
+        // With 8+ P-OPT bits, fat-ID encoding EXCEEDS P-OPT's original
+        // 7-bit matrix precision — with zero LLC capacity consumed.
+        //
+        // Allocation tiers:
+        //   spare >= 16: DBG=2, POPT=8, PFX=6 (exceeds P-OPT matrix!)
+        //   spare >= 10: DBG=2, POPT=4, PFX=4
+        //   spare >= 6:  DBG=2, POPT=2, PFX=2
+        //   spare >= 4:  DBG=2, POPT=2, PFX=0
+        //   spare >= 2:  DBG=2, POPT=0, PFX=0
+        //   spare < 2:   DBG=spare, POPT=0, PFX=0
+        if (spare_bits >= 16) {
+            dbg_bits = 2;  popt_bits = 8;
+            prefetch_bits = (spare_bits - 10 > 6) ? 6 : (spare_bits - 10);
+        } else if (spare_bits >= 10) {
+            dbg_bits = 2;  popt_bits = 4;
+            prefetch_bits = (spare_bits - 6 > 4) ? 4 : (spare_bits - 6);
+        } else if (spare_bits >= 6) {
+            dbg_bits = 2;  popt_bits = 2;  prefetch_bits = spare_bits - 4;
+        } else if (spare_bits >= 4) {
+            dbg_bits = 2;  popt_bits = 2;  prefetch_bits = 0;
+        } else if (spare_bits >= 2) {
+            dbg_bits = 2;  popt_bits = 0;  prefetch_bits = 0;
+        } else {
+            dbg_bits = spare_bits;  popt_bits = 0;  prefetch_bits = 0;
+        }
 
         // Compute shifts (fields packed from real_id upward)
         prefetch_shift = real_id_bits;
@@ -182,7 +201,7 @@ struct FatIDConfig {
     // dbg_tier: 0-3 (HOT=3, WARM=2, LUKEWARM=1, COLD=0 — high value = high priority)
     // popt_q:   quantized rereference distance (0=imminent, max=distant)
     // pfx_d:    prefetch delta encoding (0=none)
-    uint64_t encode(uint32_t real_id, uint8_t dbg_tier,
+    uint64_t encode(uint64_t real_id, uint8_t dbg_tier,
                     uint8_t popt_q, uint8_t pfx_d) const {
         uint64_t fat = real_id & real_id_mask;
         if (dbg_bits)      fat |= (uint64_t(dbg_tier & ((1 << dbg_bits) - 1)) << dbg_shift);
@@ -195,8 +214,8 @@ struct FatIDConfig {
     // Decoding (runtime — called per neighbor access)
     // ================================================================
 
-    uint32_t extractRealID(uint64_t fat) const {
-        return static_cast<uint32_t>(fat & real_id_mask);
+    uint64_t extractRealID(uint64_t fat) const {
+        return fat & real_id_mask;
     }
 
     uint8_t extractDBGTier(uint64_t fat) const {
@@ -622,7 +641,7 @@ struct GraphCacheContext {
 
     // Encode a neighbor ID with all metadata fields.
     // Called during preprocessing (once per edge).
-    uint64_t encodeFatNeighbor(uint32_t real_id, uint32_t degree,
+    uint64_t encodeFatNeighbor(uint64_t real_id, uint32_t degree,
                                 uint32_t rereference_distance) const {
         if (!fat_id.enabled) return real_id;
         uint8_t dbg_tier = fat_id.computeDBGTier(degree, topology.avg_degree);
@@ -633,14 +652,14 @@ struct GraphCacheContext {
 
     // Decode a fat neighbor ID — extract just the real vertex ID.
     // Called at every neighbor access in the algorithm.
-    uint32_t decodeFatNeighbor(uint64_t fat) const {
-        if (!fat_id.enabled) return static_cast<uint32_t>(fat);
+    uint64_t decodeFatNeighbor(uint64_t fat) const {
+        if (!fat_id.enabled) return fat;
         return fat_id.extractRealID(fat);
     }
 
     // Extract all fields from a fat neighbor ID at once.
     // Used by the ECG cache policy for making replacement decisions.
-    void decodeFatFull(uint64_t fat, uint32_t& real_id, uint8_t& dbg_tier,
+    void decodeFatFull(uint64_t fat, uint64_t& real_id, uint8_t& dbg_tier,
                        uint8_t& popt_q, uint8_t& pfx_delta) const {
         real_id = fat_id.extractRealID(fat);
         dbg_tier = fat_id.extractDBGTier(fat);
