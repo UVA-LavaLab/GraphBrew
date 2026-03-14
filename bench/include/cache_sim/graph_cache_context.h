@@ -47,31 +47,36 @@ namespace cache_sim {
 // belongs to, and where the hot/warm/cold boundaries are within that array.
 //
 // Memory layout (requires DBG-reordered graph):
-//   [base_address ... hot_bound)  = HOT   (high-degree hubs, RRPV = P_RRIP)
-//   [hot_bound ... warm_bound)    = WARM  (moderate-degree, RRPV = I_RRIP)
-//   [warm_bound ... upper_bound)  = COLD  (low-degree vertices, RRPV = M_RRIP)
+//   [base_address ... hot_bound)       = HOT       (high-degree hubs, RRPV = 1)
+//   [hot_bound ... warm_bound)          = WARM      (moderate-degree, RRPV = 3)
+//   [warm_bound ... lukewarm_bound)     = LUKEWARM  (low-moderate, RRPV = 5)
+//   [lukewarm_bound ... upper_bound)    = COLD      (low-degree, RRPV = 7)
 //
-// The hot/warm boundaries can be:
-//   a) Auto-computed from degree distribution (preferred)
-//   b) Computed from LLC capacity fraction (GRASP-style fallback)
-//   c) Manually specified
+// The 4-tier classification matches ECG's MASK encoding:
+//   11=HOT, 10=WARM, 01=LUKEWARM, 00=COLD
+//
+// Region boundaries can be:
+//   a) Auto-computed from degree distribution + cache geometry (preferred)
+//   b) Manually specified via manual_hot_fraction
 struct PropertyRegion {
-    uint64_t base_address = 0;   // Start address of the property array
-    uint64_t upper_bound = 0;    // End address (base + num_elements * elem_size)
-    uint64_t hot_bound = 0;      // Addresses [base, hot_bound) are high-reuse
-    uint64_t warm_bound = 0;     // Addresses [hot_bound, warm_bound) are moderate-reuse
-    uint32_t num_elements = 0;   // Number of elements (= num_vertices typically)
-    uint32_t elem_size = 0;      // Size of each element in bytes (e.g., sizeof(float))
-    uint32_t region_id = 0;      // ID for per-region statistics
-    uint32_t _pad = 0;           // Padding for 8-byte alignment (simulator DMA)
+    uint64_t base_address = 0;     // Start address of the property array
+    uint64_t upper_bound = 0;      // End address
+    uint64_t hot_bound = 0;        // [base, hot_bound) = HOT
+    uint64_t warm_bound = 0;       // [hot_bound, warm_bound) = WARM
+    uint64_t lukewarm_bound = 0;   // [warm_bound, lukewarm_bound) = LUKEWARM
+    uint32_t num_elements = 0;     // Number of elements
+    uint32_t elem_size = 0;        // Size of each element in bytes
+    uint32_t region_id = 0;        // ID for per-region statistics
+    uint32_t _pad = 0;             // Padding for 8-byte alignment
 
     // Classify an address within this region
-    // Returns: 0=not in region, 1=HOT, 2=WARM, 3=COLD
+    // Returns: 0=not in region, 1=HOT, 2=WARM, 3=LUKEWARM, 4=COLD
     uint32_t classify(uint64_t addr) const {
         if (addr < base_address || addr >= upper_bound) return 0;
-        if (addr < hot_bound)  return 1;  // HOT
-        if (addr < warm_bound) return 2;  // WARM
-        return 3;                         // COLD
+        if (addr < hot_bound)      return 1;  // HOT
+        if (addr < warm_bound)     return 2;  // WARM
+        if (addr < lukewarm_bound) return 3;  // LUKEWARM
+        return 4;                             // COLD
     }
 };
 
@@ -187,14 +192,25 @@ struct GraphTopology {
 struct AccessHints {
     uint32_t current_src = UINT32_MAX;  // Outer-loop vertex (regInd in P-OPT)
     uint32_t current_dst = UINT32_MAX;  // Inner-loop neighbor (irregInd in P-OPT)
-    uint8_t  mask = 0;                  // ECG MASK hint (2-bit encoding)
-    uint8_t  _pad[3] = {};
+    uint8_t  mask = 0;                  // ECG MASK hint (width determined by mask_bits)
+    uint8_t  mask_bits = 2;             // Number of mask bits (2=ECG default, 4/8 for finer control)
+    uint8_t  _pad[2] = {};
 
-    // ECG mask encoding constants (from ECG -M flag)
+    // ECG mask encoding constants (2-bit, from ECG -M flag graphConfig.h)
     static constexpr uint8_t MASK_HOT      = 0x03;  // 11
     static constexpr uint8_t MASK_WARM     = 0x02;  // 10
     static constexpr uint8_t MASK_LUKEWARM = 0x01;  // 01
     static constexpr uint8_t MASK_COLD     = 0x00;  // 00
+
+    // Compute mask value from tier classification (0-4) using current mask_bits
+    // Maps tier 1=HOT → highest mask, tier 4=COLD → 0
+    uint8_t tierToMask(uint32_t tier) const {
+        if (tier == 0) return MASK_COLD;  // Unknown = cold
+        uint8_t max_val = (1 << mask_bits) - 1;
+        // Linearly map: tier 1 → max_val, tier 4 → 0
+        if (tier >= 4) return 0;
+        return static_cast<uint8_t>(max_val * (4 - tier) / 3);
+    }
 };
 
 // ============================================================================
@@ -268,6 +284,14 @@ struct GraphCacheContext {
     // --- Rereference Matrix (P-OPT) ---
     RereferenceConfig rereference;
 
+    // --- Prefetch Matrix (ECG-style graph-aware prefetching) ---
+    // Maps each vertex to its predicted next-access vertex.
+    // When a vertex v is accessed, prefetch data for prefetch_map[v].
+    // Built from graph transpose (similar to P-OPT but for prefetching).
+    // nullptr = prefetching disabled.
+    const uint32_t* prefetch_map = nullptr;
+    uint32_t prefetch_num_vertices = 0;
+
     // --- Per-Vertex Statistics (optional) ---
     VertexStats vertex_stats;
 
@@ -320,14 +344,38 @@ struct GraphCacheContext {
         }
 
         // Compute bounds aligned to 64-byte cache line boundary
-        uint64_t hot_bytes = static_cast<uint64_t>(hot_fraction * num_elements * elem_size);
+        // 4-tier geometric sizing (matching ECG reorder.c):
+        //   HOT:      hot_fraction of array
+        //   WARM:     4× HOT region (ECG: cache_regions[1] = cache_regions[0] * 4)
+        //   LUKEWARM: 4× WARM region (ECG: cache_regions[2] = cache_regions[1] * 4)
+        //   COLD:     everything else
+        uint64_t array_bytes = static_cast<uint64_t>(num_elements) * elem_size;
+        uint64_t hot_bytes = static_cast<uint64_t>(hot_fraction * array_bytes);
         constexpr uint64_t LINE_MASK = ~uint64_t(63);
-        r.hot_bound = (r.base_address + hot_bytes + 63) & LINE_MASK;
-        if (r.hot_bound > r.upper_bound) r.hot_bound = r.upper_bound;
 
-        // Warm region: 2× the hot region (matching GRASP reference)
-        r.warm_bound = (r.base_address + 2 * hot_bytes + 63) & LINE_MASK;
+        // Check if array is small enough to split equally (ECG fallback)
+        uint64_t cache_vtx_bytes = static_cast<uint64_t>((llc_size / (num_regions + 1)));
+        bool small_graph = (array_bytes < 3 * cache_vtx_bytes);
+
+        if (small_graph) {
+            // Small graph: equal thirds (ECG: diff < 2*cache_size)
+            uint64_t third = array_bytes / 3;
+            r.hot_bound = (r.base_address + third + 63) & LINE_MASK;
+            r.warm_bound = (r.base_address + 2 * third + 63) & LINE_MASK;
+            r.lukewarm_bound = r.upper_bound;
+        } else {
+            // Large graph: geometric progression (ECG: ×4 per tier)
+            r.hot_bound = (r.base_address + hot_bytes + 63) & LINE_MASK;
+            uint64_t warm_bytes = hot_bytes * 4;
+            r.warm_bound = (r.base_address + warm_bytes + 63) & LINE_MASK;
+            uint64_t lukewarm_bytes = warm_bytes * 4;
+            r.lukewarm_bound = (r.base_address + lukewarm_bytes + 63) & LINE_MASK;
+        }
+
+        // Clamp all bounds to array end
+        if (r.hot_bound > r.upper_bound) r.hot_bound = r.upper_bound;
         if (r.warm_bound > r.upper_bound) r.warm_bound = r.upper_bound;
+        if (r.lukewarm_bound > r.upper_bound) r.lukewarm_bound = r.upper_bound;
 
         num_regions++;
     }
@@ -351,6 +399,20 @@ struct GraphCacheContext {
         if (topology.num_vertices > 0) {
             vertex_stats.init(topology.num_vertices);
         }
+    }
+
+    // Register prefetch matrix for ECG-style graph-aware prefetching.
+    // The map stores: prefetch_map[v] = vertex whose data to prefetch
+    // when vertex v is accessed. Built from graph transpose.
+    void initPrefetchMap(const uint32_t* map, uint32_t num_vertices) {
+        prefetch_map = map;
+        prefetch_num_vertices = num_vertices;
+    }
+
+    // Get prefetch target for a vertex (UINT32_MAX if none)
+    uint32_t getPrefetchTarget(uint32_t vertex_id) const {
+        if (!prefetch_map || vertex_id >= prefetch_num_vertices) return UINT32_MAX;
+        return prefetch_map[vertex_id];
     }
 
     // ================================================================
@@ -380,7 +442,7 @@ struct GraphCacheContext {
     // ================================================================
 
     // Classify an address across all registered property regions.
-    // Returns: 0=unknown/streaming, 1=HOT, 2=WARM, 3=COLD
+    // Returns: 0=unknown/streaming, 1=HOT, 2=WARM, 3=LUKEWARM, 4=COLD
     uint32_t classifyAddress(uint64_t addr) const {
         for (uint32_t i = 0; i < num_regions; ++i) {
             uint32_t tier = regions[i].classify(addr);
@@ -429,11 +491,13 @@ struct GraphCacheContext {
             uint64_t total = r.upper_bound - r.base_address;
             uint64_t hot = r.hot_bound - r.base_address;
             uint64_t warm = r.warm_bound - r.base_address;
+            uint64_t lukewarm = r.lukewarm_bound - r.base_address;
             os << "  [" << i << "] "
                << total << "B (elem=" << r.elem_size << "B × " << r.num_elements << ")"
-               << "  hot=" << hot << "B (" << std::fixed << std::setprecision(1)
-               << (total > 0 ? 100.0 * hot / total : 0) << "%)"
-               << "  warm=" << warm << "B (" << (total > 0 ? 100.0 * warm / total : 0) << "%)\n";
+               << "  hot=" << std::fixed << std::setprecision(1)
+               << (total > 0 ? 100.0 * hot / total : 0) << "%"
+               << "  warm=" << (total > 0 ? 100.0 * warm / total : 0) << "%"
+               << "  lukewarm=" << (total > 0 ? 100.0 * lukewarm / total : 0) << "%\n";
         }
         if (rereference.matrix) {
             os << "Rereference: " << rereference.num_epochs << " epochs × "

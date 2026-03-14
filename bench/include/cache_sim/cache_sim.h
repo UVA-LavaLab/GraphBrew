@@ -587,8 +587,8 @@ public:
         set[victim_idx].rrpv = 2;  // For SRRIP: near-immediate
         set[victim_idx].line_addr = address & ~(uint64_t(line_size_ - 1));  // Store line-aligned address
 
-        // GRASP: 3-tier RRIP insertion based on address region
-        // Uses unified GraphCacheContext if available, legacy GRASPState otherwise
+        // GRASP: 4-tier RRIP insertion based on address region
+        // HOT=1, WARM=3, LUKEWARM=5, COLD=7 (matching ECG MASK 11/10/01/00)
         if (policy_ == EvictionPolicy::GRASP) {
             uint32_t tier = 0;
             if (graph_ctx_) {
@@ -596,14 +596,13 @@ public:
             } else if (grasp_state_.enabled) {
                 auto t = grasp_state_.classify(address);
                 tier = (t == GRASPState::ReuseTier::HIGH) ? 1 :
-                       (t == GRASPState::ReuseTier::MODERATE) ? 2 : 3;
+                       (t == GRASPState::ReuseTier::MODERATE) ? 2 : 4;
             }
             constexpr uint8_t M_RRIP = 7;
-            constexpr uint8_t P_RRIP = 1;
-            constexpr uint8_t I_RRIP = M_RRIP - 1;
-            if (tier == 1)       set[victim_idx].rrpv = P_RRIP;
-            else if (tier == 2)  set[victim_idx].rrpv = I_RRIP;
-            else if (tier >= 3)  set[victim_idx].rrpv = M_RRIP;
+            if (tier == 1)       set[victim_idx].rrpv = 1;  // HOT
+            else if (tier == 2)  set[victim_idx].rrpv = 3;  // WARM
+            else if (tier == 3)  set[victim_idx].rrpv = 5;  // LUKEWARM
+            else if (tier >= 4)  set[victim_idx].rrpv = M_RRIP;  // COLD
         }
 
         // P-OPT: insert with SRRIP-style RRPV (long re-reference = M-1)
@@ -698,9 +697,8 @@ private:
             set[idx].rrpv = 0;
         }
 
-        // GRASP: tier-sensitive hit promotion (reference grasp.cpp)
-        // High-reuse → promote to RRPV=0 (H_RRIP)
-        // Others → decrement RRPV by 1 (gradual promotion)
+        // GRASP: 4-tier hit promotion
+        // HOT → RRPV=0 (aggressive), WARM → decrement by 2, LUKEWARM/COLD → decrement by 1
         if (policy_ == EvictionPolicy::GRASP) {
             uint64_t addr = set[idx].line_addr;
             uint32_t tier = 0;
@@ -709,12 +707,15 @@ private:
             } else if (grasp_state_.enabled) {
                 auto t = grasp_state_.classify(addr);
                 tier = (t == GRASPState::ReuseTier::HIGH) ? 1 :
-                       (t == GRASPState::ReuseTier::MODERATE) ? 2 : 3;
+                       (t == GRASPState::ReuseTier::MODERATE) ? 2 : 4;
             }
             if (tier == 1) {
-                set[idx].rrpv = 0;  // H_RRIP: hub hit promotion
+                set[idx].rrpv = 0;  // HOT: aggressive promotion
+            } else if (tier == 2) {
+                if (set[idx].rrpv > 1) set[idx].rrpv -= 2;  // WARM: faster promotion
+                else set[idx].rrpv = 0;
             } else if (tier > 0) {
-                if (set[idx].rrpv > 0) set[idx].rrpv--;  // gradual promotion
+                if (set[idx].rrpv > 0) set[idx].rrpv--;  // LUKEWARM/COLD: gradual
             }
         }
 
