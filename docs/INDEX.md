@@ -1,5 +1,28 @@
 # GraphBrew Documentation Index
 
+## Project Folder Hierarchy
+```
+GraphBrew/
+├── bench/                          # C++ benchmark suite
+│   ├── src/                        # Algorithm source (pr, bfs, sssp, cc, cc_sv, pr_spmv, bc, tc)
+│   ├── src_sim/                    # Cache-instrumented versions (8 algorithms)
+│   ├── bin/                        # Compiled benchmark binaries
+│   ├── bin_sim/                    # Compiled simulation binaries
+│   └── include/                    # Headers (see Include Structure below)
+├── scripts/                        # Python experiment infrastructure
+│   ├── graphbrew_experiment.py      # Main pipeline entry point
+│   ├── evaluate_all_modes.py        # Model × Criterion evaluation
+│   ├── experiments/                 # Paper experiment suites (VLDB + ECG)
+│   ├── lib/                         # 5 sub-packages (core, pipeline, ml, analysis, tools)
+│   └── test/                        # pytest test suite
+├── wiki/                           # 24 documentation pages
+├── docs/                           # Quick guides + INDEX.md
+├── research/                       # Paper drafts and reference materials
+├── Makefile                        # Build system (make all, make all-sim)
+├── build_wsl.ps1                   # WSL build helper
+└── setup_wsl.ps1                   # WSL setup (dependencies + Boost 1.58)
+```
+
 ## Top-Level Guides
 - `README.md` — Quick start, CLI overview
 - `wiki/` — Detailed guides (Quick Start, Command-Line Reference, Benchmarks)

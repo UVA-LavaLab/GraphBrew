@@ -7,7 +7,7 @@ This directory contains cache-instrumented versions of GraphBrew's graph algorit
 The cache simulation framework provides:
 - **Multi-level cache hierarchy**: Simulates L1, L2, and L3 caches
 - **Configurable parameters**: Cache sizes, associativity, line size
-- **Multiple eviction policies**: LRU, FIFO, RANDOM, LFU, PLRU, SRRIP
+- **Multiple eviction policies**: LRU, FIFO, RANDOM, LFU, PLRU, SRRIP, GRASP, P-OPT, ECG
 - **Detailed statistics**: Hits, misses, hit rate, miss rate per level
 - **JSON export**: For integration with analysis tools and perceptron features
 
@@ -19,9 +19,11 @@ make all-sim
 
 # Build specific algorithm
 make sim-pr
+make sim-pr_spmv
 make sim-bfs
 make sim-bc
 make sim-cc
+make sim-cc_sv
 make sim-sssp
 make sim-tc
 ```
@@ -148,15 +150,18 @@ These cache features can help the perceptron predict which reordering algorithm 
 bench/
 ├── include/
 │   └── cache_sim/
-│       ├── cache_sim.h     # Cache simulator implementation
-│       └── graph_sim.h     # Graph wrappers for cache tracking
+│       ├── cache_sim.h            # Cache simulator (9 eviction policies)
+│       ├── graph_sim.h            # Graph wrappers + SIM_ macros
+│       └── graph_cache_context.h  # Unified context: PropertyRegion, FatIDConfig, GraphTopology
 ├── src_sim/
-│   ├── pr.cc              # PageRank with cache simulation
-│   ├── bfs.cc             # BFS with cache simulation
-│   ├── bc.cc              # BC with cache simulation
-│   ├── cc.cc              # CC with cache simulation
-│   ├── sssp.cc            # SSSP with cache simulation
-│   └── tc.cc              # TC with cache simulation
+│   ├── pr.cc              # PageRank Gauss-Seidel (in-place updates)
+│   ├── pr_spmv.cc         # PageRank Jacobi/SpMV (double-buffered)
+│   ├── bfs.cc             # Breadth-First Search
+│   ├── bc.cc              # Betweenness Centrality
+│   ├── cc.cc              # Connected Components (Afforest)
+│   ├── cc_sv.cc           # Connected Components (Shiloach-Vishkin)
+│   ├── sssp.cc            # Single-Source Shortest Paths
+│   └── tc.cc              # Triangle Counting
 └── bin_sim/               # Compiled simulation binaries
 ```
 
