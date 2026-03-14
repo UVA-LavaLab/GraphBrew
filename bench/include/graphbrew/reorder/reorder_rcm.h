@@ -695,14 +695,12 @@ void GenerateRCMBNFOrderMapping(const CSRGraph<NodeID_, DestID_, invert>& g,
                     v = next;
                 }
 
-                // Reset localVisited for comp vertices
-                for (NodeID_ cv : comp) localVisited[cv] = 0;
+                // Medium BNF done — visited will be fully reset before CM BFS
             } else {
                 // Large component: full BNF with up to 20 GL iterations
-                // Use thread-local visited array
                 localVisited.assign(n, 0);
                 startNode = find_bnf_start(g, comp, localVisited);
-                for (NodeID_ cv : comp) localVisited[cv] = 0;
+                // find_bnf_start internally resets visited; full reset before CM BFS below
             }
 
             // --- CM BFS with degree-sorted neighbors ---

@@ -239,11 +239,13 @@ struct GRASPState {
         data_base = data_ptr;
         data_end = data_ptr + num_vertices * elem_size;
         // High-reuse border: hot_fraction of LLC capacity worth of vertex data
+        // Align to 64-byte cache line boundary for correct line_addr classification
         uint64_t high_bytes = static_cast<uint64_t>(hot_fraction * llc_size);
-        high_reuse_bound = data_base + high_bytes;
+        constexpr uint64_t LINE_MASK = ~uint64_t(63);
+        high_reuse_bound = (data_base + high_bytes + 63) & LINE_MASK;
         if (high_reuse_bound > data_end) high_reuse_bound = data_end;
         // Moderate-reuse border: 2× the high-reuse region (per reference common.h)
-        moderate_reuse_bound = data_base + 2 * high_bytes;
+        moderate_reuse_bound = (data_base + 2 * high_bytes + 63) & LINE_MASK;
         if (moderate_reuse_bound > data_end) moderate_reuse_bound = data_end;
         enabled = true;
     }
