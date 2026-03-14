@@ -72,6 +72,12 @@ private:
 #define SIM_CACHE_TRACK_NEIGHBOR(cache, neighbor_ptr) \
     (cache).access(reinterpret_cast<uint64_t>(neighbor_ptr), false)
 
+// P-OPT / GRASP: Update current destination vertex being processed.
+// Call this at the top of the outer loop (for each destination vertex)
+// so P-OPT can compute next-reference distances from the rereference matrix.
+#define SIM_SET_VERTEX(cache, vertex_id) \
+    (cache).setCurrentVertex(static_cast<uint32_t>(vertex_id))
+
 } // namespace cache_sim
 
 #endif // GRAPH_SIM_H_

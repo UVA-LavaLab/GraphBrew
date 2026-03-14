@@ -47,6 +47,8 @@ pvector<WeightT> DeltaStep_Sim(const WGraph &g, NodeID source,
             #pragma omp for nowait schedule(dynamic, 64)
             for (size_t i = 0; i < curr_frontier_tail; i++) {
                 NodeID u = frontier[i];
+                // P-OPT: update current destination vertex
+                SIM_SET_VERTEX(cache, u);
                 // Track: read dist[u]
                 SIM_CACHE_READ(cache, dist.data(), u);
                 if (dist[u] >= delta * static_cast<WeightT>(curr_bin_index)) {

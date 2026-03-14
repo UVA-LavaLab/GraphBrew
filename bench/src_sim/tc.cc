@@ -28,6 +28,8 @@ size_t CountTriangles_Sim(const Graph &g, CacheType &cache) {
     {
         #pragma omp for schedule(dynamic, 64)
         for (NodeID u = 0; u < g.num_nodes(); u++) {
+            // P-OPT: update current destination vertex
+            SIM_SET_VERTEX(cache, u);
             for (NodeID v : g.out_neigh(u)) {
                 if (v > u) {
                     // Count common neighbors between u and v

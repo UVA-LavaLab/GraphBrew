@@ -54,6 +54,9 @@ pvector<ScoreT> PageRankPullGS_Sim(const Graph &g, CacheType &cache,
         for (NodeID u = 0; u < g.num_nodes(); u++) {
             ScoreT incoming_total = 0;
             
+            // P-OPT: update current destination vertex for rereference lookup
+            SIM_SET_VERTEX(cache, u);
+            
             // Iterate over incoming neighbors
             for (NodeID v : g.in_neigh(u)) {
                 // Track: read neighbor ID, read contrib[v]
