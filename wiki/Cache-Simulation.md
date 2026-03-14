@@ -9,7 +9,7 @@ Graph algorithms are memory-intensive and cache performance significantly impact
 **Key Features:**
 - Multi-level cache hierarchy (L1/L2/L3)
 - Configurable cache parameters (size, associativity, line size)
-- Eight eviction policies (LRU, FIFO, RANDOM, LFU, PLRU, SRRIP, GRASP, P-OPT)
+- Nine eviction policies (LRU, FIFO, RANDOM, LFU, PLRU, SRRIP, GRASP, P-OPT, ECG)
 - Detailed per-level statistics
 - JSON export for analysis integration
 - Feature vector output for perceptron training
@@ -86,6 +86,7 @@ The default configuration models a typical modern CPU:
 | **SRRIP** | Re-reference interval prediction | Scan-resistant, good for streaming |
 | **GRASP** | Graph-aware degree-based RRIP (Faldu et al., HPCA'20) | Power-law graphs with DBG reordering |
 | **P-OPT** | Graph-transpose Belady approximation (Balaji et al., HPCA'21) | Best miss reduction; requires rereference matrix |
+| **ECG** | Fat-ID encoded hints (Mughrabi et al., GrAPL) | Zero LLC overhead; hints travel with data |
 
 ## Output Format
 
