@@ -622,27 +622,32 @@ public:
             set[victim_idx].rrpv = 6;  // M_RRPV - 1 = long re-reference (SRRIP default)
         }
 
-        // ECG: DBG-based insertion (structural priority).
-        // RRPV from DBG tier only — P-OPT is consulted dynamically at eviction.
-        // Stores ecg_dbg_tier and ecg_popt_hint for tiebreaking.
+        // ECG: Structural insertion with degree-awareness.
+        // Uses the same 3-tier GRASP classification for RRPV (matching the
+        // faithful Faldu et al. approach), plus stores DBG tier and P-OPT
+        // hint for the 3-level eviction tiebreaker.
         if (policy_ == EvictionPolicy::ECG) {
+            constexpr uint8_t P_RRIP = 1;   // Priority (hot)
+            constexpr uint8_t I_RRIP = 6;   // Intermediate (moderate)
+            constexpr uint8_t M_RRIP_C = 7; // Max (cold)
+
+            // Set RRPV using GRASP-faithful 3-tier classification
+            if (graph_ctx_) {
+                uint32_t tier = graph_ctx_->classifyGRASP(address, size_bytes_);
+                if (tier == 1)       set[victim_idx].rrpv = P_RRIP;
+                else if (tier == 2)  set[victim_idx].rrpv = I_RRIP;
+                else                 set[victim_idx].rrpv = M_RRIP_C;
+            }
+
+            // Store ECG mask fields for eviction tiebreaking
             if (graph_ctx_ && graph_ctx_->mask_array.enabled) {
-                // Mask array path: decode DBG tier and P-OPT hint from per-access mask
                 uint32_t mask_entry = graph_ctx_->hints.mask;
-                uint8_t dbg = graph_ctx_->mask_config.decodeDBG(mask_entry);
-                uint8_t popt_hint = graph_ctx_->mask_config.decodePOPT(mask_entry);
-                set[victim_idx].rrpv = graph_ctx_->maskToRRPV(mask_entry);
-                set[victim_idx].ecg_dbg_tier = dbg;
-                set[victim_idx].ecg_popt_hint = popt_hint;
+                set[victim_idx].ecg_dbg_tier = graph_ctx_->mask_config.decodeDBG(mask_entry);
+                set[victim_idx].ecg_popt_hint = graph_ctx_->mask_config.decodePOPT(mask_entry);
             } else if (graph_ctx_) {
-                // Fallback: bucket classification from address
                 uint32_t bucket = graph_ctx_->classifyBucket(address);
-                if (bucket != UINT32_MAX) {
-                    set[victim_idx].rrpv = graph_ctx_->bucketToRRPV(bucket,
-                        graph_ctx_->mask_config.enabled ? graph_ctx_->mask_config.rrpv_max : 7);
-                    set[victim_idx].ecg_dbg_tier = static_cast<uint8_t>(bucket);
-                    set[victim_idx].ecg_popt_hint = 0;
-                }
+                set[victim_idx].ecg_dbg_tier = (bucket < 11) ? static_cast<uint8_t>(bucket) : 0;
+                set[victim_idx].ecg_popt_hint = 0;
             }
         }
     }
@@ -756,13 +761,13 @@ private:
             set[idx].rrpv = 0;
         }
 
-        // ECG: bucket-aware hit promotion (same as GRASP with context)
+        // ECG: GRASP-faithful 3-tier hit promotion
         if (policy_ == EvictionPolicy::ECG) {
             if (graph_ctx_) {
                 uint64_t addr = set[idx].line_addr;
-                uint32_t bucket = graph_ctx_->classifyBucket(addr);
-                if (bucket == 0) set[idx].rrpv = 0;
-                else if (bucket != UINT32_MAX && set[idx].rrpv > 0) set[idx].rrpv--;
+                uint32_t tier = graph_ctx_->classifyGRASP(addr, size_bytes_);
+                if (tier == 1) set[idx].rrpv = 0;           // Hot: aggressive reset
+                else if (set[idx].rrpv > 0) set[idx].rrpv--; // Others: gradual
             }
         }
     }
