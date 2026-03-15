@@ -95,8 +95,18 @@ See the [[VLDB-Experiments]] wiki page for full usage.
 
 | Module | Purpose |
 |--------|─────────|
-| `ecg_paper_experiments.py` | 6 experiments: policy comparison, reorder interaction, cache sweep, fat-ID analysis |
-| `ecg_config.py` | Configuration: 9 policies, 11 reorder×policy pairs, 6 graphs, cache sweep sizes |
+| `ecg_paper_experiments.py` | 11 experiments in 2 sections: A1-A3 accuracy validation (GRASP/P-OPT faithfulness, ECG mode equivalence), B1-B8 performance showcase (policy comparison, reorder effect, cache sweep, ECG mode comparison, fat-ID analysis) |
+| `ecg_config.py` | Configuration: 9 policies, 3 ECG modes, 10 accuracy pairs, 11 reorder×policy pairs, 4 reorder variants, 6 eval graphs, cache sweep sizes |
+
+**Section A** — Accuracy validation with PASS/FAIL reports against paper claims:
+- A1: GRASP invariants (Faldu et al., HPCA'20)
+- A2: P-OPT invariants (Balaji et al., HPCA'21)
+- A3: ECG mode equivalence (DBG_ONLY≈GRASP, POPT_PRIMARY≈P-OPT)
+
+**Section B** — Performance showcase:
+- B1: Policy comparison, B2: Reorder effect, B3: Reorder×policy interaction
+- B4: Cache size sweep, B5: Algorithm analysis, B6: Graph sensitivity
+- B7: ECG mode comparison, B8: Fat-ID bit allocation
 
 ---
 
