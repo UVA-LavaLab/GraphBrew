@@ -89,6 +89,32 @@ private:
         (cache).access(reinterpret_cast<uint64_t>(&(arr)[idx]), false); \
     } while(0)
 
+// ECG: Read with mask + prefetch hint.
+// After the primary access, resolves the prefetch target from the mask
+// and issues a prefetch (read into cache hierarchy without data use).
+#define SIM_CACHE_READ_MASKED_PREFETCH(cache, arr, idx, graph_ctx, mask_val) \
+    do { \
+        (graph_ctx).hints.mask = static_cast<uint8_t>(mask_val); \
+        (cache).access(reinterpret_cast<uint64_t>(&(arr)[idx]), false); \
+        uint32_t _pfx_target = (graph_ctx).resolvePrefetchTarget(mask_val); \
+        if (_pfx_target != UINT32_MAX) { \
+            (cache).access(reinterpret_cast<uint64_t>(&(arr)[_pfx_target]), false); \
+        } \
+    } while(0)
+
+// Track CSR edge list traversal (reading neighbor IDs from edge array).
+// Call once per edge during neighbor iteration.
+#define SIM_CACHE_READ_EDGE(cache, neighbor_ptr) \
+    (cache).access(reinterpret_cast<uint64_t>(neighbor_ptr), false)
+
+// Track CSR offset array access (reading row pointer for vertex u).
+// Call once per vertex to track the offset[u] and offset[u+1] lookups.
+#define SIM_CACHE_READ_OFFSET(cache, offset_arr, u) \
+    do { \
+        (cache).access(reinterpret_cast<uint64_t>(&(offset_arr)[u]), false); \
+        (cache).access(reinterpret_cast<uint64_t>(&(offset_arr)[(u)+1]), false); \
+    } while(0)
+
 } // namespace cache_sim
 
 #endif // GRAPH_SIM_H_

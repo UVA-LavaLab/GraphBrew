@@ -18,6 +18,9 @@
 #include "cache_sim/cache_sim.h"
 #include "cache_sim/graph_sim.h"
 
+// P-OPT rereference matrix builder
+#include "graphbrew/partition/cagra/popt.h"
+
 using namespace std;
 using namespace cache_sim;
 
@@ -34,7 +37,10 @@ int64_t BUStep_Sim(const Graph &g, pvector<NodeID> &parent, Bitmap &front,
         // Track: read parent[u]
         SIM_CACHE_READ(cache, parent.data(), u);
         if (parent[u] < 0) {
-            for (NodeID v : g.in_neigh(u)) {
+            auto in_neigh = g.in_neigh(u);
+            for (auto it = in_neigh.begin(); it != in_neigh.end(); ++it) {
+                SIM_CACHE_READ_EDGE(cache, it);
+                NodeID v = *it;
                 // Track: check if v is in frontier
                 if (front.get_bit(v)) {
                     // Track: write parent[u]
@@ -61,7 +67,10 @@ int64_t TDStep_Sim(const Graph &g, pvector<NodeID> &parent,
         #pragma omp for reduction(+ : scout_count)
         for (auto q_iter = queue.begin(); q_iter < queue.end(); q_iter++) {
             NodeID u = *q_iter;
-            for (NodeID v : g.out_neigh(u)) {
+            auto out_neigh = g.out_neigh(u);
+            for (auto it = out_neigh.begin(); it != out_neigh.end(); ++it) {
+                SIM_CACHE_READ_EDGE(cache, it);
+                NodeID v = *it;
                 // Track: read parent[v]
                 SIM_CACHE_READ_MASKED(cache, parent.data(), v, graph_ctx, vertex_masks[v]);
                 NodeID curr_val = parent[v];
@@ -134,6 +143,21 @@ pvector<NodeID> DOBFS_Sim(const Graph &g, NodeID source, CacheType &cache,
     graph_ctx.initMaskConfig();
     auto vertex_masks = graph_ctx.computeVertexMasks8(g);
     graph_ctx.initMaskArray8(vertex_masks.data(), vertex_masks.size());
+
+    // Build P-OPT rereference matrix (for POPT and ECG policies)
+    static pvector<uint8_t> popt_matrix;
+    {
+        const char* policy_env = getenv("CACHE_POLICY");
+        std::string policy_str = policy_env ? policy_env : "";
+        if (policy_str == "POPT" || policy_str == "ECG") {
+            constexpr int numVtxPerLine = 64 / sizeof(NodeID);
+            constexpr int numEpochs = 256;
+            makeOffsetMatrix(g, popt_matrix, numVtxPerLine, numEpochs);
+            int numCacheLines = (g.num_nodes() + numVtxPerLine - 1) / numVtxPerLine;
+            graph_ctx.initRereference(popt_matrix.data(), numCacheLines,
+                                      numEpochs, g.num_nodes(), 64);
+        }
+    }
 
     SlidingQueue<NodeID> queue(g.num_nodes());
     queue.push_back(source);

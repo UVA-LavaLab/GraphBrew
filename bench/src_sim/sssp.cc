@@ -17,6 +17,8 @@
 #include "cache_sim/cache_sim.h"
 #include "cache_sim/graph_sim.h"
 
+#include "graphbrew/partition/cagra/popt.h"
+
 using namespace std;
 using namespace cache_sim;
 
@@ -47,6 +49,21 @@ pvector<WeightT> DeltaStep_Sim(const WGraph &g, NodeID source,
     graph_ctx.initMaskConfig();
     auto vertex_masks = graph_ctx.computeVertexMasks8(g);
     graph_ctx.initMaskArray8(vertex_masks.data(), vertex_masks.size());
+
+    // Build P-OPT rereference matrix (for POPT and ECG policies)
+    static pvector<uint8_t> popt_matrix;
+    {
+        const char* policy_env = getenv("CACHE_POLICY");
+        std::string policy_str = policy_env ? policy_env : "";
+        if (policy_str == "POPT" || policy_str == "ECG") {
+            constexpr int numVtxPerLine = 64 / sizeof(WeightT);
+            constexpr int numEpochs = 256;
+            makeOffsetMatrix(g, popt_matrix, numVtxPerLine, numEpochs);
+            int numCacheLines = (g.num_nodes() + numVtxPerLine - 1) / numVtxPerLine;
+            graph_ctx.initRereference(popt_matrix.data(), numCacheLines,
+                                      numEpochs, g.num_nodes(), 64);
+        }
+    }
     
     pvector<NodeID> frontier(g.num_edges_directed());
     size_t shared_indexes[2] = {0, kMaxBin};
