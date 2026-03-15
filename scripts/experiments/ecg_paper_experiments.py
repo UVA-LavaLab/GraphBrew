@@ -60,6 +60,60 @@ from experiments.ecg_config import (
 
 
 # ============================================================================
+# Graph File Discovery
+# ============================================================================
+
+def find_graph_file(graph_dir, graph_name):
+    """Find the best available graph file in a graph directory.
+
+    Prefers .sg (fast binary) over .mtx (text) over .el (edge list).
+    Searches both the graph directory and common nested layouts from
+    SuiteSparse downloads.
+
+    Returns:
+        str: Path to graph file, or None if not found.
+    """
+    base = Path(graph_dir) / graph_name
+    if not base.exists():
+        return None
+
+    # Priority 1: Pre-converted .sg files (fastest loading)
+    for pattern in [
+        f"{graph_name}.sg",
+        "graph.sg",
+        "*.sg",
+    ]:
+        matches = sorted(base.glob(pattern))
+        for m in matches:
+            if m.is_file() or (m.is_symlink() and m.resolve().exists()):
+                return str(m)
+
+    # Priority 2: Matrix Market .mtx files (need -s flag at runtime)
+    #   Check nested SuiteSparse layout: {name}/{Name}/{Name}.mtx
+    for pattern in [
+        f"{graph_name}.mtx",
+        f"*/{graph_name}.mtx",
+        f"*/*{graph_name}*.mtx",
+    ]:
+        matches = sorted(base.glob(pattern), key=lambda p: len(str(p)))
+        for m in matches:
+            if m.is_file() and m.stat().st_size > 1_000_000:
+                return str(m)
+
+    # Priority 3: Any .mtx larger than 1MB (skip metadata .mtx files)
+    for m in sorted(base.rglob("*.mtx"), key=lambda p: -p.stat().st_size):
+        if m.stat().st_size > 1_000_000:
+            return str(m)
+
+    # Priority 4: Edge list
+    for m in base.glob("*.el"):
+        if m.is_file():
+            return str(m)
+
+    return None
+
+
+# ============================================================================
 # Output Parsing
 # ============================================================================
 
@@ -162,7 +216,10 @@ def expA1_grasp_accuracy(graphs, benchmarks, dry_run, graph_dir):
     done = 0
 
     for g in graphs:
-        gpath = str(Path(graph_dir) / g["name"] / "graph.sg")
+        gpath = find_graph_file(graph_dir, g["name"])
+        if not gpath:
+            print(f"  [SKIP] Graph not found: {g['name']} in {graph_dir}")
+            continue
         for bench in benchmarks:
             for reorder, policy, extra, label in configs:
                 done += 1
@@ -271,7 +328,10 @@ def expA2_popt_accuracy(graphs, benchmarks, dry_run, graph_dir):
     done = 0
 
     for g in graphs:
-        gpath = str(Path(graph_dir) / g["name"] / "graph.sg")
+        gpath = find_graph_file(graph_dir, g["name"])
+        if not gpath:
+            print(f"  [SKIP] Graph not found: {g['name']} in {graph_dir}")
+            continue
         for bench in benchmarks:
             for reorder, policy, extra, label in configs:
                 done += 1
@@ -385,7 +445,10 @@ def expA3_ecg_mode_accuracy(graphs, benchmarks, dry_run, graph_dir):
     done = 0
 
     for g in graphs:
-        gpath = str(Path(graph_dir) / g["name"] / "graph.sg")
+        gpath = find_graph_file(graph_dir, g["name"])
+        if not gpath:
+            print(f"  [SKIP] Graph not found: {g['name']} in {graph_dir}")
+            continue
         for bench in benchmarks:
             for reorder, policy, extra, label in configs:
                 done += 1
@@ -496,7 +559,10 @@ def expB1_policy_comparison(graphs, benchmarks, policies, dry_run, graph_dir):
     done = 0
 
     for g in graphs:
-        gpath = str(Path(graph_dir) / g["name"] / "graph.sg")
+        gpath = find_graph_file(graph_dir, g["name"])
+        if not gpath:
+            print(f"  [SKIP] Graph not found: {g['name']} in {graph_dir}")
+            continue
         for bench in benchmarks:
             # Baseline: Original+LRU
             done += 1
@@ -550,7 +616,10 @@ def expB2_reorder_effect(graphs, benchmarks, dry_run, graph_dir):
     done = 0
 
     for g in graphs:
-        gpath = str(Path(graph_dir) / g["name"] / "graph.sg")
+        gpath = find_graph_file(graph_dir, g["name"])
+        if not gpath:
+            print(f"  [SKIP] Graph not found: {g['name']} in {graph_dir}")
+            continue
         for bench in benchmarks:
             for reorder_opt, reorder_name in REORDER_VARIANTS:
                 for policy in key_policies:
@@ -624,7 +693,10 @@ def expB3_reorder_interaction(graphs, benchmarks, dry_run, graph_dir):
     done = 0
 
     for g in graphs:
-        gpath = str(Path(graph_dir) / g["name"] / "graph.sg")
+        gpath = find_graph_file(graph_dir, g["name"])
+        if not gpath:
+            print(f"  [SKIP] Graph not found: {g['name']} in {graph_dir}")
+            continue
         for bench in benchmarks:
             for reorder_opt, policy, label in REORDER_POLICY_PAIRS:
                 done += 1
@@ -660,7 +732,10 @@ def expB4_cache_sweep(graphs, benchmarks, policies, dry_run, graph_dir):
     done = 0
 
     for g in graphs:
-        gpath = str(Path(graph_dir) / g["name"] / "graph.sg")
+        gpath = find_graph_file(graph_dir, g["name"])
+        if not gpath:
+            print(f"  [SKIP] Graph not found: {g['name']} in {graph_dir}")
+            continue
         for bench in benchmarks:
             for policy in policies:
                 for cache_size in CACHE_SIZES_SWEEP:
@@ -774,7 +849,10 @@ def expB7_ecg_mode_comparison(graphs, benchmarks, dry_run, graph_dir):
     done = 0
 
     for g in graphs:
-        gpath = str(Path(graph_dir) / g["name"] / "graph.sg")
+        gpath = find_graph_file(graph_dir, g["name"])
+        if not gpath:
+            print(f"  [SKIP] Graph not found: {g['name']} in {graph_dir}")
+            continue
         for bench in benchmarks:
             for reorder, policy, extra, label in configs:
                 done += 1
