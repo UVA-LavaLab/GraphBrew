@@ -641,8 +641,10 @@ python3 scripts/graphbrew_experiment.py --brute-force --validation-benchmark bfs
 
 # Paper experiments
 python3 scripts/graphbrew_experiment.py --vldb                # All 8 VLDB experiments
-python3 scripts/graphbrew_experiment.py --ecg 1 6             # ECG experiments 1 and 6
-python3 scripts/graphbrew_experiment.py --ecg --paper-preview  # ECG preview mode
+python3 scripts/graphbrew_experiment.py --ecg --section A      # ECG accuracy validation only
+python3 scripts/graphbrew_experiment.py --ecg --exp A1 A2 A3   # Specific ECG experiments
+python3 scripts/graphbrew_experiment.py --ecg --exp B1 B7      # Policy comparison + ECG modes
+python3 scripts/graphbrew_experiment.py --ecg --preview        # ECG preview mode
 
 # Testing & evaluation
 python3 scripts/graphbrew_experiment.py --test                # Run all pytest tests

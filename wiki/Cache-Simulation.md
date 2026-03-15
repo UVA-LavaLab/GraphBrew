@@ -61,6 +61,12 @@ bench/
 | `CACHE_LINE_SIZE` | 64 | Line size (bytes) |
 | `CACHE_POLICY` | LRU | Eviction policy |
 | `CACHE_OUTPUT_JSON` | - | JSON output file path |
+| `ECG_MODE` | DBG_PRIMARY | ECG eviction mode: DBG_PRIMARY, POPT_PRIMARY, DBG_ONLY |
+| `ECG_MASK_WIDTH` | 8 | ECG mask bits per edge (2,4,8,16,32) |
+| `ECG_NUM_BUCKETS` | 11 | Number of degree buckets (2-16) |
+| `ECG_RRPV_BITS` | 3 | RRPV bit width (max RRPV = 2^bits - 1) |
+| `ECG_PER_VERTEX` | 0 | Per-vertex masks (1) vs per-edge (0) |
+| `ECG_DEGREE_MODE` | OUT | Degree mode: OUT, IN, BOTH |
 
 ### Default Cache Configuration
 
@@ -86,7 +92,21 @@ The default configuration models a typical modern CPU:
 | **SRRIP** | Re-reference interval prediction | Scan-resistant, good for streaming |
 | **GRASP** | Graph-aware degree-based RRIP (Faldu et al., HPCA'20) | Power-law graphs with DBG reordering |
 | **P-OPT** | Graph-transpose Belady approximation (Balaji et al., HPCA'21) | Best miss reduction; requires rereference matrix |
-| **ECG** | Fat-ID encoded hints (Mughrabi et al., GrAPL) | Zero LLC overhead; hints travel with data |
+| **ECG** | Layered SRRIP + DBG + dynamic P-OPT (Mughrabi et al., GrAPL) | Combines structural + oracle signals; 3 modes |
+
+#### ECG Modes
+
+ECG uses a 3-level layered eviction strategy. All modes start with SRRIP aging (Level 1), then apply mode-dependent tiebreakers:
+
+| Mode | Level 2 | Level 3 | Env Variable |
+|------|---------|---------|------|
+| **DBG_PRIMARY** (default) | DBG tier (coldest vertex) | Dynamic P-OPT `findNextRef()` | `ECG_MODE=DBG_PRIMARY` |
+| **POPT_PRIMARY** | Dynamic P-OPT (furthest future) | DBG tier | `ECG_MODE=POPT_PRIMARY` |
+| **DBG_ONLY** | DBG tier only | None (fast path) | `ECG_MODE=DBG_ONLY` |
+
+- **Insert**: RRPV from `bucketToRRPV(dbg_tier)` — structural priority only; P-OPT is not baked at insert
+- **Hit**: Top bucket → RRPV=0 (aggressive keep), others → decrement
+- **Evict**: P-OPT is consulted dynamically via `findNextRef()` at eviction time (avoids stale snapshots)
 
 ## Output Format
 

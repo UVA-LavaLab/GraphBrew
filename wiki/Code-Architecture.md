@@ -90,7 +90,7 @@ The foundation is built on the GAP Benchmark Suite with extensions.
 
 > **Cache vs Cagra:** Cache **simulation** lives in `bench/include/cache_sim/` (`cache_sim.h`, `graph_sim.h`, `graph_cache_context.h`). Cagra **partitioning** helpers live in `bench/include/graphbrew/partition/cagra/` (`popt.h`). See `docs/INDEX.md` and folder READMEs for a quick map.
 >
-> **Graph Cache Context:** `graph_cache_context.h` provides the unified `GraphCacheContext` structure for graph-aware cache policies (GRASP, P-OPT, ECG). It includes: multi-region property tracking with 4-tier classification (HOT/WARM/LUKEWARM/COLD), `FatIDConfig` for adaptive fat-ID encoding in CSR neighbor IDs, `RereferenceConfig` for P-OPT transpose matrix, degree-bucket topology, per-vertex statistics, and prefetch matrix support. Designed for future Sniper/gem5 simulator integration.
+> **Graph Cache Context:** `graph_cache_context.h` provides the unified `GraphCacheContext` structure for graph-aware cache policies (GRASP, P-OPT, ECG). It includes: multi-region property tracking with N-bucket classification, `FatIDConfig` for adaptive fat-ID encoding in CSR neighbor IDs, `RereferenceConfig` for P-OPT transpose matrix, `ECGMode` enum (DBG_PRIMARY/POPT_PRIMARY/DBG_ONLY) for layered eviction control, `MaskConfig` + `MaskArray` for per-edge cache hints, degree-bucket topology, per-vertex statistics, and prefetch matrix support. Designed for future Sniper/gem5 simulator integration.
 
 #### Reorder Module (bench/include/graphbrew/reorder/)
 
