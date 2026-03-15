@@ -117,7 +117,8 @@ static constexpr uint32_t MAX_PROPERTY_REGIONS = 8;
 enum class ECGMode {
     DBG_PRIMARY,   // DBG tier is primary tiebreaker, P-OPT is secondary
     POPT_PRIMARY,  // Dynamic P-OPT is primary tiebreaker, DBG is secondary
-    DBG_ONLY       // DBG tier only, no P-OPT consulted (equivalent to GRASP+mask)
+    DBG_ONLY,      // DBG tier only, no P-OPT consulted (equivalent to GRASP+mask)
+    ECG_EMBEDDED   // DBG tier primary, stored P-OPT hint (from mask) as secondary — zero LLC overhead
 };
 
 inline std::string ECGModeToString(ECGMode mode) {
@@ -125,6 +126,7 @@ inline std::string ECGModeToString(ECGMode mode) {
         case ECGMode::DBG_PRIMARY:  return "DBG_PRIMARY";
         case ECGMode::POPT_PRIMARY: return "POPT_PRIMARY";
         case ECGMode::DBG_ONLY:     return "DBG_ONLY";
+        case ECGMode::ECG_EMBEDDED: return "ECG_EMBEDDED";
         default:                    return "UNKNOWN";
     }
 }
@@ -132,6 +134,7 @@ inline std::string ECGModeToString(ECGMode mode) {
 inline ECGMode StringToECGMode(const std::string& s) {
     if (s == "POPT_PRIMARY" || s == "popt_primary" || s == "popt") return ECGMode::POPT_PRIMARY;
     if (s == "DBG_ONLY" || s == "dbg_only" || s == "dbg") return ECGMode::DBG_ONLY;
+    if (s == "ECG_EMBEDDED" || s == "ecg_embedded" || s == "embedded") return ECGMode::ECG_EMBEDDED;
     return ECGMode::DBG_PRIMARY;  // Default
 }
 
@@ -1042,6 +1045,31 @@ struct GraphCacheContext {
         return UINT32_MAX;
     }
 
+    // Classify address into GRASP 3-tier reuse (Faldu et al. HPCA 2020).
+    //
+    // After DBG reorder, highest-degree vertices are at front (low addresses).
+    // The original GRASP uses hot_fraction (default 10%) of LLC capacity to
+    // define the hot boundary within each property region:
+    //   HOT:      [base, base + f × llc_size)
+    //   MODERATE: [base + f × llc_size, base + 2 × f × llc_size)
+    //   COLD:     everything else (including non-property data)
+    //
+    // Returns: 1=HOT, 2=MODERATE, 3=COLD (0=not in any region)
+    uint32_t classifyGRASP(uint64_t addr, size_t llc_size) const {
+        constexpr double hot_fraction = 0.10;  // 10% of LLC, matches paper "f"
+        uint64_t hot_bytes = static_cast<uint64_t>(hot_fraction * llc_size);
+
+        for (uint32_t i = 0; i < num_regions; ++i) {
+            if (addr >= regions[i].base_address && addr < regions[i].upper_bound) {
+                uint64_t offset = addr - regions[i].base_address;
+                if (offset < hot_bytes)          return 1;  // HOT (hubs)
+                if (offset < 2 * hot_bytes)      return 2;  // MODERATE
+                return 3;                                    // COLD
+            }
+        }
+        return 3;  // Not in any property region → cold
+    }
+
     // Map a bucket index to an RRPV value (GRASP-XP style).
     // Uses degree-proportional mapping: buckets with more total edges
     // get lower RRPV (higher cache priority).
@@ -1059,15 +1087,27 @@ struct GraphCacheContext {
         if (bucket >= GraphTopology::NUM_BUCKETS)
             return max_rrpv;  // Unknown bucket: cold
 
-        // Compute cumulative edge fraction for this and higher buckets
-        // (DBG: bucket 0 = lowest degree, bucket N-1 = highest degree)
-        // But classifyBucket returns 0 = highest degree (front of array).
-        // So reverse: actual_dbg_bucket = NUM_BUCKETS - 1 - bucket
+        // classifyBucket() returns: 0 = highest degree (front after DBG reorder),
+        //                           N-1 = lowest degree (back).
+        // topology.bucket_total_degrees[]: 0 = lowest degree, N-1 = highest.
+        // Reverse spatial → topology: dbg_bucket = N-1 - classifier_bucket.
         uint32_t dbg_bucket = GraphTopology::NUM_BUCKETS - 1 - bucket;
 
-        // Edge fraction: what fraction of total edges belong to this and higher buckets
+        // GRASP RRPV formula: edge_fraction = cumulative share of edges at this
+        // degree level and ALL HIGHER degree levels. For the highest-degree bucket
+        // (dbg_bucket = N-1), this includes everything from N-1 down... but we want
+        // hubs to get LOW RRPV, meaning HIGH edge_fraction.
+        //
+        // Correct summation: from dbg_bucket UP to N-1 (all degrees >= this level).
+        // For hubs (dbg_bucket = N-1): just the top bucket → fraction = hub edge share.
+        // For cold (dbg_bucket = 0): all buckets → fraction = 1.0.
+        //
+        // But this gives cold vertices LOW RRPV (fraction=1.0 → rrpv=0)!
+        // The fix: sum from 0 to dbg_bucket (cumulative from bottom), so:
+        //   hubs (dbg_bucket = N-1) → sum all → fraction = 1.0 → rrpv = 0 (keep)
+        //   cold (dbg_bucket = 0) → sum just bottom → fraction = small → rrpv = high (evict)
         uint64_t edge_sum = 0;
-        for (uint32_t b = dbg_bucket; b < GraphTopology::NUM_BUCKETS; ++b)
+        for (uint32_t b = 0; b <= dbg_bucket; ++b)
             edge_sum += topology.bucket_total_degrees[b];
 
         double edge_fraction = static_cast<double>(edge_sum) / topology.num_edges;
