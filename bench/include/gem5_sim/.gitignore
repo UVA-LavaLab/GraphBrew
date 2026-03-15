@@ -1,2 +1,3 @@
 # Cloned gem5 repository (large, not tracked)
 gem5/
+.gem5_version
