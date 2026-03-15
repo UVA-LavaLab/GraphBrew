@@ -204,6 +204,22 @@ all-sim: $(addprefix $(BIN_SIM_DIR)/, $(KERNELS_SIM))
 clean-sim:
 	rm -rf $(BIN_SIM_DIR)
 
+# =========================================================
+# gem5 Simulation Setup
+# =========================================================
+GEM5_SIM_DIR = $(INC_DIR)/gem5_sim
+GEM5_DIR = $(GEM5_SIM_DIR)/gem5
+
+.PHONY: setup-gem5 clean-gem5
+
+setup-gem5:
+	@echo "Setting up gem5 for GraphBrew..."
+	$(PYTHON) $(SCRIPT_DIR)/setup_gem5.py --isa X86 --jobs $(PARALLEL)
+
+clean-gem5:
+	@echo "Removing cloned gem5..."
+	$(PYTHON) $(SCRIPT_DIR)/setup_gem5.py --clean
+
 .PHONY: lint-includes
 lint-includes:
 	@$(LINT_INCLUDES)
@@ -235,6 +251,10 @@ help: help-pr
 	@echo "  run-sim-%        - Run cache simulation (single-core mode)"
 	@echo "  run-sim-multicore-% - Run multi-core simulation (8 cores, private L1/L2, shared L3)"
 	@echo "  clean-sim        - Remove simulation build artifacts"
+	@echo ""
+	@echo "gem5 Simulation:"
+	@echo "  setup-gem5       - Clone, patch, and build gem5 with GraphBrew policies"
+	@echo "  clean-gem5       - Remove cloned gem5 directory"
 	@echo ""
 	@echo "Cache Simulation Environment Variables:"
 	@echo "  CACHE_L1_SIZE=32768       - L1 cache size in bytes (default: 32KB)"

@@ -1,0 +1,5 @@
+# Append to gem5/src/mem/cache/prefetch/SConscript
+# Registers GraphBrew DROPLET indirect graph prefetcher
+
+SimObject('GraphPrefetchers.py', sim_objects=['GraphDropletPrefetcher'])
+Source('droplet.cc')

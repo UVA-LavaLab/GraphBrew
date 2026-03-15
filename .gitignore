@@ -19,9 +19,14 @@ results/data/
 /test/
 agent
 plans
-research
+research/*
+!research/gem5/
 paper
 docs/agent_*
+# gem5 cloned repository (large, managed by scripts/setup_gem5.py)
+bench/include/gem5_sim/gem5/
+# gem5 simulation output
+m5out/
 # Graph data files (edge lists, weighted edge lists, serialized graphs)
 *.el
 *.wel
