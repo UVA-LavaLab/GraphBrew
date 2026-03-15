@@ -8,6 +8,10 @@ Configuration for cache replacement policy experiments comparing:
 
 Designed for the ECG paper: "Expressing Locality and Prefetching
 for Optimal Caching in Graph Structures"
+
+Organized into two sections:
+  Section A: Accuracy Validation — verify GRASP and P-OPT faithfulness
+  Section B: Performance Showcase — method comparison and reorder effects
 """
 
 from pathlib import Path
@@ -28,10 +32,51 @@ GRAPH_AWARE_POLICIES = ["GRASP", "POPT", "ECG"]
 ALL_POLICIES = BASELINE_POLICIES + GRAPH_AWARE_POLICIES
 PREVIEW_POLICIES = ["LRU", "SRRIP", "GRASP", "POPT", "ECG"]
 
+# ECG modes (from ECGMode enum: DBG_PRIMARY, POPT_PRIMARY, DBG_ONLY)
+ECG_MODES = ["DBG_PRIMARY", "POPT_PRIMARY", "DBG_ONLY"]
+
 # ============================================================================
-# Reorder × Policy Interaction Pairs
+# Section A: Accuracy Validation — GRASP and P-OPT faithfulness
 # ============================================================================
-# GRASP/ECG require DBG reordering; P-OPT is reorder-agnostic
+# Pairs designed to test specific paper claims.
+#
+# A1: GRASP invariants (Faldu et al., HPCA 2020)
+#   Claim 1: With DBG reordering, GRASP should always beat SRRIP (same eviction,
+#            but degree-aware insertion gives hot vertices lower RRPV)
+#   Claim 2: GRASP on original ordering ~ SRRIP (no DBG -> no region info)
+#   Claim 3: Hot hub vertices (bucket-0) get RRPV much lower than cold vertices
+#
+# A2: P-OPT invariants (Balaji et al., HPCA 2021)
+#   Claim 1: P-OPT should approach OPT miss rate (within 1-5% on small graphs)
+#   Claim 2: P-OPT is reorder-agnostic — rereference matrix captures vertex ID
+#            patterns regardless of ordering (similar miss rate with/without DBG)
+#   Claim 3: P-OPT should beat all RRIP variants (pure look-ahead dominates aging)
+#
+# A3: ECG layered correctness
+#   Claim 1: ECG(DBG_ONLY mode) ~ GRASP (same DBG insertion + SRRIP eviction)
+#   Claim 2: ECG(POPT_PRIMARY) should approach P-OPT miss rate when matrix present
+#   Claim 3: ECG(DBG_PRIMARY) is the sweet spot — DBG structure + P-OPT tiebreak
+
+ACCURACY_PAIRS = [
+    # (reorder, policy, env_extra, label, expected_relation)
+    # --- GRASP vs SRRIP ---
+    ("-o 5",  "SRRIP", {},                          "DBG+SRRIP",           "baseline"),
+    ("-o 5",  "GRASP", {},                          "DBG+GRASP",           "grasp_beats_srrip"),
+    ("-o 0",  "GRASP", {},                          "Original+GRASP",      "grasp_no_dbg_eq_srrip"),
+    ("-o 0",  "SRRIP", {},                          "Original+SRRIP",      "baseline"),
+    # --- P-OPT invariants ---
+    ("-o 0",  "POPT",  {},                          "Original+P-OPT",      "popt_best"),
+    ("-o 5",  "POPT",  {},                          "DBG+P-OPT",           "popt_reorder_agnostic"),
+    ("-o 0",  "LRU",   {},                          "Original+LRU",        "baseline"),
+    # --- ECG mode equivalences ---
+    ("-o 5",  "ECG",   {"ECG_MODE": "DBG_ONLY"},    "DBG+ECG(DBG_ONLY)",   "ecg_dbg_eq_grasp"),
+    ("-o 5",  "ECG",   {"ECG_MODE": "POPT_PRIMARY"},"DBG+ECG(POPT_PRIMARY)","ecg_popt_approach"),
+    ("-o 5",  "ECG",   {"ECG_MODE": "DBG_PRIMARY"}, "DBG+ECG(DBG_PRIMARY)", "ecg_sweet_spot"),
+]
+
+# ============================================================================
+# Section B: Reorder x Policy Interaction Pairs (Performance)
+# ============================================================================
 REORDER_POLICY_PAIRS = [
     # (reorder_opt, policy, label)
     ("-o 0",         "LRU",   "Original+LRU"),
@@ -45,6 +90,14 @@ REORDER_POLICY_PAIRS = [
     ("-o 8:csr",     "LRU",   "Rabbit+LRU"),
     ("-o 12:leiden", "LRU",   "GraphBrew+LRU"),
     ("-o 12:leiden", "ECG",   "GraphBrew+ECG"),
+]
+
+# Reorderings to test in isolation (for reorder effect analysis)
+REORDER_VARIANTS = [
+    ("-o 0",         "Original"),
+    ("-o 5",         "DBG"),
+    ("-o 8:csr",     "RabbitOrder"),
+    ("-o 12:leiden", "GraphBrew"),
 ]
 
 # ============================================================================
@@ -86,6 +139,9 @@ EVAL_GRAPHS = [
 ]
 EVAL_GRAPHS_PREVIEW = EVAL_GRAPHS[:2]
 
+# Accuracy validation uses fewer graphs for focused testing
+ACCURACY_GRAPHS = EVAL_GRAPHS[:3]  # pokec, livejournal, orkut (social -- most relevant)
+
 # ============================================================================
 # Timeouts
 # ============================================================================
@@ -94,13 +150,14 @@ TIMEOUT_SIM_HEAVY = 1800
 TRIALS = 1  # Cache simulation is deterministic
 
 
-def policy_env(policy, cache_config=None):
+def policy_env(policy, cache_config=None, extra_env=None):
     """Build environment variables for a cache sim run."""
     env = dict(os.environ)
     env["CACHE_POLICY"] = policy
-    # Graph-aware policies need full CacheHierarchy (not UltraFast clock-based)
     env["CACHE_ULTRAFAST"] = "0"
     env.update(cache_config or DEFAULT_CACHE)
+    if extra_env:
+        env.update(extra_env)
     return env
 
 
