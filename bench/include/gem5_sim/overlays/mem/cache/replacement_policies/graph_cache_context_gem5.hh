@@ -46,12 +46,14 @@ static constexpr uint32_t MAX_PROPERTY_REGIONS = 8;
 enum class ECGMode : uint8_t {
     DBG_PRIMARY,    // SRRIP → DBG tier → dynamic P-OPT
     POPT_PRIMARY,   // SRRIP → dynamic P-OPT → DBG tier
-    DBG_ONLY        // SRRIP → DBG tier (no P-OPT, fast path)
+    DBG_ONLY,       // SRRIP → DBG tier (no P-OPT, fast path)
+    ECG_EMBEDDED    // SRRIP → DBG tier → stored P-OPT hint (zero LLC overhead)
 };
 
 inline ECGMode stringToECGMode(const std::string& s) {
     if (s == "POPT_PRIMARY" || s == "popt_primary") return ECGMode::POPT_PRIMARY;
     if (s == "DBG_ONLY" || s == "dbg_only") return ECGMode::DBG_ONLY;
+    if (s == "ECG_EMBEDDED" || s == "ecg_embedded" || s == "embedded") return ECGMode::ECG_EMBEDDED;
     return ECGMode::DBG_PRIMARY;
 }
 
@@ -60,6 +62,7 @@ inline std::string ecgModeToString(ECGMode mode) {
         case ECGMode::DBG_PRIMARY:  return "DBG_PRIMARY";
         case ECGMode::POPT_PRIMARY: return "POPT_PRIMARY";
         case ECGMode::DBG_ONLY:     return "DBG_ONLY";
+        case ECGMode::ECG_EMBEDDED: return "ECG_EMBEDDED";
         default:                    return "UNKNOWN";
     }
 }
@@ -258,6 +261,23 @@ struct GraphCacheContext {
     // Find next reference distance for P-OPT
     uint32_t findNextRef(uint64_t addr) const {
         return rereference.findNextRefByAddr(addr, current_dst_vertex);
+    }
+
+    // Classify address into GRASP 3-tier reuse (Faldu et al. HPCA 2020).
+    // After DBG reorder, highest-degree vertices are at front (low addresses).
+    // Returns: 1=HOT, 2=MODERATE, 3=COLD
+    uint32_t classifyGRASP(uint64_t addr, size_t llc_size) const {
+        constexpr double hot_fraction = 0.10;  // 10% of LLC, matches paper
+        uint64_t hot_bytes = static_cast<uint64_t>(hot_fraction * llc_size);
+        for (uint32_t i = 0; i < num_regions; ++i) {
+            if (regions[i].contains(addr)) {
+                uint64_t offset = addr - regions[i].base_address;
+                if (offset < hot_bytes)      return 1;  // HOT (hubs)
+                if (offset < 2 * hot_bytes)  return 2;  // MODERATE
+                return 3;                                // COLD
+            }
+        }
+        return 3;  // Not in any property region → cold
     }
 
     // Get RRPV for an address based on its degree bucket

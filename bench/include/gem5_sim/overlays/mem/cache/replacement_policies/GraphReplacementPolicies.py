@@ -74,4 +74,4 @@ class GraphEcgRP(BaseReplacementPolicy):
     num_buckets = Param.Int(11,
         "Number of degree buckets for DBG classification.")
     ecg_mode = Param.String("DBG_PRIMARY",
-        "Eviction mode: DBG_PRIMARY, POPT_PRIMARY, or DBG_ONLY.")
+        "Eviction mode: DBG_PRIMARY, POPT_PRIMARY, DBG_ONLY, or ECG_EMBEDDED.")

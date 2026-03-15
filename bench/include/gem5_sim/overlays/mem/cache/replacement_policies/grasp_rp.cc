@@ -124,17 +124,11 @@ GraphGraspRP::instantiateEntry()
 GraphGraspRP::ReuseTier
 GraphGraspRP::classifyAddress(uint64_t addr) const
 {
-    // Prefer unified GraphCacheContext over legacy GRASP state
+    // Prefer classifyGRASP (faithful 3-tier per Faldu et al.)
     if (graphCtx) {
-        uint32_t bucket = graphCtx->classifyBucket(addr);
-        if (bucket >= graphCtx->mask_config.num_buckets) return ReuseTier::LOW;
-        // Map bucket index to 3-tier model:
-        //   Bucket 0 (highest degree) → HIGH
-        //   Buckets 1..(N/3) → MODERATE
-        //   Rest → LOW
-        uint32_t third = std::max(1u, static_cast<uint32_t>(graphCtx->mask_config.num_buckets / 3));
-        if (bucket == 0) return ReuseTier::HIGH;
-        if (bucket < third) return ReuseTier::MODERATE;
+        uint32_t tier = graphCtx->classifyGRASP(addr, 8 * 1024 * 1024); // 8MB LLC default
+        if (tier == 1) return ReuseTier::HIGH;
+        if (tier == 2) return ReuseTier::MODERATE;
         return ReuseTier::LOW;
     }
 
@@ -148,11 +142,11 @@ GraphGraspRP::classifyAddress(uint64_t addr) const
 uint8_t
 GraphGraspRP::insertionRRPV(ReuseTier tier) const
 {
-    // Matching GRASP paper: P_RRIP=1 (high), I_RRIP=M-1 (moderate), M_RRIP=M (low)
+    // Matching Faldu et al. HPCA 2020: P_RRIP=1, I_RRIP=6, M_RRIP=7
     switch (tier) {
-        case ReuseTier::HIGH:     return 1;
-        case ReuseTier::MODERATE: return maxRRPV - 1;
-        case ReuseTier::LOW:      return maxRRPV;
+        case ReuseTier::HIGH:     return 1;              // P_RRIP
+        case ReuseTier::MODERATE: return maxRRPV - 1;    // I_RRIP (6)
+        case ReuseTier::LOW:      return maxRRPV;        // M_RRIP (7)
     }
     return maxRRPV;
 }
@@ -160,10 +154,10 @@ GraphGraspRP::insertionRRPV(ReuseTier tier) const
 void
 GraphGraspRP::promoteOnHit(GraspReplData* data) const
 {
-    // Matching standalone cache_sim GRASP hit logic:
-    //   High-reuse (bucket 0): RRPV → 0
+    // GRASP hit promotion (Faldu et al. HPCA 2020):
+    //   Hot region (bucket 0): RRPV → 0 (aggressive reset)
     //   Others: decrement by 1
-    if (data->degree_bucket == 0 || data->rrpv <= 1) {
+    if (data->degree_bucket == 0) {
         data->rrpv = 0;
     } else if (data->rrpv > 0) {
         data->rrpv--;

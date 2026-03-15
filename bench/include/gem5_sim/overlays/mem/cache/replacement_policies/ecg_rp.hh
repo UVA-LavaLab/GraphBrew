@@ -46,11 +46,12 @@ class GraphEcgRP : public Base
     {
         uint8_t rrpv;             // RRPV (configurable width: 3-8 bits)
         uint8_t ecg_dbg_tier;     // Stored DBG degree tier (structural, constant)
+        uint8_t ecg_popt_hint;    // ECG_EMBEDDED: stored P-OPT quantized rereference hint
         bool is_property_data;    // Whether this line contains vertex property data
         uint64_t line_addr;       // Cache-line-aligned address (for P-OPT lookup)
 
         EcgReplData(uint8_t max_rrpv)
-            : rrpv(max_rrpv), ecg_dbg_tier(0),
+            : rrpv(max_rrpv), ecg_dbg_tier(0), ecg_popt_hint(0),
               is_property_data(false), line_addr(0) {}
     };
 

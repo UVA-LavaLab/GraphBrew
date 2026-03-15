@@ -31,6 +31,7 @@ GraphEcgRP::invalidate(
     auto data = std::static_pointer_cast<EcgReplData>(replacement_data);
     data->rrpv = rrpvMax;
     data->ecg_dbg_tier = 0;
+    data->ecg_popt_hint = 0;
     data->is_property_data = false;
     data->line_addr = 0;
 }
@@ -87,12 +88,15 @@ GraphEcgRP::reset(
             }
 
             // If per-access mask is available (from custom instruction),
-            // override with mask-derived tier
+            // override with mask-derived tier and store P-OPT hint
             if (graphCtx->current_mask != 0 &&
                 graphCtx->mask_config.enabled) {
                 uint8_t mask_dbg = graphCtx->mask_config.decodeDBG(
                     graphCtx->current_mask);
+                uint8_t popt_hint = graphCtx->mask_config.decodePOPT(
+                    graphCtx->current_mask);
                 data->ecg_dbg_tier = mask_dbg;
+                data->ecg_popt_hint = popt_hint;
                 data->rrpv = graphCtx->mask_config.dbgTierToRRPV(mask_dbg);
             }
         } else {
@@ -147,7 +151,8 @@ GraphEcgRP::getVictim(const ReplacementCandidates& candidates) const
     // ── Level 2/3 tiebreakers (mode-dependent) ──
 
     if (ecgMode == graph::ECGMode::DBG_PRIMARY ||
-        ecgMode == graph::ECGMode::DBG_ONLY) {
+        ecgMode == graph::ECGMode::DBG_ONLY ||
+        ecgMode == graph::ECGMode::ECG_EMBEDDED) {
         // ── L2: DBG tier tiebreak (evict highest tier = coldest) ──
         uint8_t maxDBG = 0;
         for (const auto& c : maxRrpvCandidates) {
@@ -164,7 +169,23 @@ GraphEcgRP::getVictim(const ReplacementCandidates& candidates) const
         if (dbgTied.size() == 1 || ecgMode == graph::ECGMode::DBG_ONLY)
             return dbgTied[0];
 
-        // ── L3: Dynamic P-OPT tiebreak ──
+        // ── L3 tiebreak ──
+        if (ecgMode == graph::ECGMode::ECG_EMBEDDED) {
+            // ECG_EMBEDDED: use stored P-OPT hint (zero LLC overhead)
+            uint8_t maxHint = 0;
+            ReplaceableEntry* victim = dbgTied[0];
+            for (const auto& c : dbgTied) {
+                auto d = std::static_pointer_cast<EcgReplData>(
+                    c->replacementData);
+                if (d->ecg_popt_hint > maxHint) {
+                    maxHint = d->ecg_popt_hint;
+                    victim = c;
+                }
+            }
+            return victim;
+        }
+
+        // DBG_PRIMARY: Dynamic P-OPT tiebreak via rereference matrix
         if (graphCtx && graphCtx->rereference.enabled) {
             uint32_t maxDist = 0;
             ReplaceableEntry* victim = dbgTied[0];
