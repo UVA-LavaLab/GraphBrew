@@ -641,7 +641,7 @@ public:
 
             // Store ECG mask fields for eviction tiebreaking
             if (graph_ctx_ && graph_ctx_->mask_array.enabled) {
-                uint32_t mask_entry = graph_ctx_->hints.mask;
+                uint32_t mask_entry = graph_ctx_->hints_for_thread().mask;
                 set[victim_idx].ecg_dbg_tier = graph_ctx_->mask_config.decodeDBG(mask_entry);
                 set[victim_idx].ecg_popt_hint = graph_ctx_->mask_config.decodePOPT(mask_entry);
             } else if (graph_ctx_) {
@@ -700,7 +700,7 @@ public:
     // Update current vertex for P-OPT (call at each outer-loop iteration)
     void setCurrentVertex(uint32_t vertex_id) {
         popt_state_.current_vertex = vertex_id;
-        // Also update unified context if available
+        // Update unified context (thread-safe via per-thread hints)
         if (graph_ctx_) {
             const_cast<GraphCacheContext*>(graph_ctx_)->setCurrentVertices(vertex_id, vertex_id);
         }

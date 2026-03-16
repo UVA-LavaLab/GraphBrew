@@ -36,6 +36,9 @@
 #include <iostream>
 #include <iomanip>
 #include <cmath>
+#ifdef _OPENMP
+#include <omp.h>
+#endif
 
 namespace cache_sim {
 
@@ -729,8 +732,34 @@ struct GraphCacheContext {
     // --- Graph Topology (degree distribution) ---
     GraphTopology topology;
 
-    // --- Per-Access Hints (mutable, updated each vertex iteration) ---
-    AccessHints hints;
+    // --- Per-Access Hints (thread-safe: one per OMP thread) ---
+    // Each OMP thread gets its own AccessHints to avoid data races
+    // when setting current_src/mask during parallel graph traversal.
+    // Mutable because hints are updated via const GraphCacheContext* in cache.
+    static constexpr int ECG_MAX_THREADS = 128;
+    mutable AccessHints thread_hints[ECG_MAX_THREADS];
+
+    // Convenience accessor: returns hints for the calling thread.
+    AccessHints& hints_for_thread() {
+#ifdef _OPENMP
+        int tid = omp_get_thread_num();
+#else
+        int tid = 0;
+#endif
+        return thread_hints[tid < ECG_MAX_THREADS ? tid : 0];
+    }
+    const AccessHints& hints_for_thread() const {
+#ifdef _OPENMP
+        int tid = omp_get_thread_num();
+#else
+        int tid = 0;
+#endif
+        return thread_hints[tid < ECG_MAX_THREADS ? tid : 0];
+    }
+
+    // Legacy single-thread alias (for backward compatibility with non-parallel code).
+    // Accesses thread_hints[0] directly. In parallel regions, use hints_for_thread().
+    AccessHints& hints_thread0() { return thread_hints[0]; }
 
     // --- Rereference Matrix (P-OPT) ---
     RereferenceConfig rereference;
@@ -1007,19 +1036,20 @@ struct GraphCacheContext {
     // Set current source and destination vertices (outer loop).
     // In Sniper: SimMagic1(CMD_SET_VERTICES, pack(src, dst))
     void setCurrentVertices(uint32_t src, uint32_t dst) {
-        hints.current_src = src;
-        hints.current_dst = dst;
+        auto& h = hints_for_thread();
+        h.current_src = src;
+        h.current_dst = dst;
     }
 
     // Update destination vertex only (inner loop neighbor).
     void setCurrentDst(uint32_t dst) {
-        hints.current_dst = dst;
+        hints_for_thread().current_dst = dst;
     }
 
     // Set ECG mask hint for current access.
     // In Sniper: the mask is encoded in the last 2 bits of vertex property data.
     void setMask(uint8_t mask) {
-        hints.mask = mask;
+        hints_for_thread().mask = mask;
     }
 
     // ================================================================
@@ -1139,12 +1169,12 @@ struct GraphCacheContext {
     // Compute P-OPT rereference distance for a cache line address.
     uint32_t findNextRef(uint64_t line_addr) const {
         if (rereference.matrix == nullptr) return 127;
-        if (hints.current_src == UINT32_MAX) return 127;  // No vertex context set
+        if (hints_for_thread().current_src == UINT32_MAX) return 127;  // No vertex context set
         const PropertyRegion* r = findRegion(line_addr);
         if (r == nullptr) return 127;
         uint32_t cline_id = static_cast<uint32_t>(
             (line_addr - r->base_address) / rereference.line_size);
-        return rereference.findNextRef(cline_id, hints.current_src);
+        return rereference.findNextRef(cline_id, hints_for_thread().current_src);
     }
 
     // ================================================================
