@@ -70,9 +70,19 @@ GraphGraspRP::reset(const std::shared_ptr<ReplacementData>& replacement_data,
 
     if (pkt && pkt->req) {
         uint64_t addr = pkt->req->getPaddr();
-        ReuseTier tier = classifyAddress(addr);
-        data->rrpv = insertionRRPV(tier);
-        data->is_property_data = (tier != ReuseTier::LOW);
+
+        // Only apply GRASP classification to known property regions.
+        // Non-property data (instructions, CSR edges, stack) gets SRRIP
+        // default RRPV=2. This matches standalone cache_sim where GRASP
+        // only sees property array accesses via SIM_CACHE_READ.
+        if (ctx.loaded && ctx.isPropertyData(addr)) {
+            ReuseTier tier = classifyAddress(addr);
+            data->rrpv = insertionRRPV(tier);
+            data->is_property_data = true;
+        } else {
+            data->rrpv = 2;  // SRRIP default: long re-reference (M-1 for 3-bit)
+            data->is_property_data = false;
+        }
     } else {
         data->rrpv = maxRRPV - 1;
         data->is_property_data = false;

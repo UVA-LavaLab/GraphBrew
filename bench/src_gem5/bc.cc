@@ -31,6 +31,19 @@ pvector<ScoreT> Brandes_Gem5(const Graph &g, int num_iters) {
     gem5_report_region("depth", depth.data(), g.num_nodes(), sizeof(int32_t));
     gem5_report_region("path_counts", path_counts.data(), g.num_nodes(), sizeof(int64_t));
 
+    Gem5PropertyRegion regions[3] = {
+        {"scores", reinterpret_cast<uint64_t>(scores.data()),
+         static_cast<uint64_t>(g.num_nodes()) * sizeof(ScoreT),
+         static_cast<uint32_t>(g.num_nodes()), sizeof(ScoreT)},
+        {"depth", reinterpret_cast<uint64_t>(depth.data()),
+         static_cast<uint64_t>(g.num_nodes()) * sizeof(int32_t),
+         static_cast<uint32_t>(g.num_nodes()), sizeof(int32_t)},
+        {"path_counts", reinterpret_cast<uint64_t>(path_counts.data()),
+         static_cast<uint64_t>(g.num_nodes()) * sizeof(int64_t),
+         static_cast<uint32_t>(g.num_nodes()), sizeof(int64_t)},
+    };
+    gem5_export_context(regions, 3, g);
+
     GEM5_RESET_STATS();
     GEM5_WORK_BEGIN(GEM5_WORK_COMPUTE);
 

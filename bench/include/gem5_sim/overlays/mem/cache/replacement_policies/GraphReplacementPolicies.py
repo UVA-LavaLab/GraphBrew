@@ -49,13 +49,18 @@ class GraphPoptRP(BaseReplacementPolicy):
     Oracle baseline using pre-computed rereference distances from the graph
     transpose. 3-phase eviction: non-graph first, then max rereference
     distance, then RRIP tiebreaker.
+    Property regions and P-OPT matrix loaded from sideband files at runtime.
     """
     type = 'GraphPoptRP'
     cxx_header = "mem/cache/replacement_policies/popt_rp.hh"
     cxx_class = 'gem5::replacement_policy::GraphPoptRP'
 
-    max_rrpv = Param.Int(7,
+    max_rrpv = Param.Unsigned(7,
         "Maximum RRPV value for tiebreaking. Default 7 (3-bit).")
+    sideband_path = Param.String("/tmp/gem5_graphbrew_ctx.json",
+        "Path to sideband JSON with property regions.")
+    popt_matrix_path = Param.String("/tmp/gem5_popt_matrix.bin",
+        "Path to P-OPT rereference matrix binary file.")
 
 
 class GraphEcgRP(BaseReplacementPolicy):

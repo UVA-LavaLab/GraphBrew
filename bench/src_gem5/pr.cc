@@ -17,6 +17,9 @@
 #include "graph.h"
 #include "pvector.h"
 
+// P-OPT rereference matrix builder (same as standalone cache_sim)
+#include "graphbrew/partition/cagra/popt.h"
+
 #include "gem5_sim/gem5_harness.h"
 
 using namespace std;
@@ -46,6 +49,18 @@ pvector<ScoreT> PageRankPullGS_Gem5(const Graph &g, int max_iters,
          static_cast<uint32_t>(g.num_nodes()), sizeof(ScoreT)},
     };
     gem5_export_context(regions, 2, g);
+
+    // Build P-OPT rereference matrix (matching standalone src_sim/pr.cc)
+    // Predicts future cache line accesses from graph structure.
+    {
+        constexpr int numVtxPerLine = 64 / sizeof(ScoreT);  // 16 floats per line
+        constexpr int numEpochs = 256;
+        static pvector<uint8_t> popt_matrix;
+        makeOffsetMatrix(g, popt_matrix, numVtxPerLine, numEpochs);
+        int numCacheLines = (g.num_nodes() + numVtxPerLine - 1) / numVtxPerLine;
+        gem5_export_popt_matrix(popt_matrix.data(), numCacheLines,
+                                numEpochs, g.num_nodes());
+    }
 
     for (NodeID n = 0; n < g.num_nodes(); n++)
         outgoing_contrib[n] = init_score / g.out_degree(n);

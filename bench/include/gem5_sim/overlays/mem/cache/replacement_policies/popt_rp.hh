@@ -67,17 +67,15 @@ class GraphPoptRP : public Base
 
     std::shared_ptr<ReplacementData> instantiateEntry() override;
 
-    void setGraphContext(graph::GraphCacheContext* ctx) { graphCtx = ctx; }
-
-    // Update current vertex (called per-iteration or via magic instruction)
-    void setCurrentVertex(uint32_t v) {
-        if (graphCtx) graphCtx->current_dst_vertex = v;
-    }
-
   private:
-    const uint8_t maxRRPV;
+    void tryLoadContext() const;
 
-    graph::GraphCacheContext* graphCtx = nullptr;
+    const uint8_t maxRRPV;
+    const std::string sidebandPath;
+    const std::string poptMatrixPath;
+
+    mutable graph::GraphCacheContext ctx;
+    mutable bool loadAttempted = false;
 };
 
 } // namespace replacement_policy

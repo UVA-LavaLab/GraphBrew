@@ -173,4 +173,36 @@ inline void gem5_report_region(const char* name, const void* base,
            name, reinterpret_cast<uint64_t>(base), count, elem_size);
 }
 
+// Export P-OPT rereference matrix to binary file for gem5 SimObjects.
+// Binary format: [num_epochs(4B)][num_cache_lines(4B)][epoch_size(4B)]
+//                [sub_epoch_size(4B)][matrix data (num_epochs * num_cache_lines bytes)]
+// This matches RereferenceMatrix::loadFromFile() in graph_cache_context_gem5.hh.
+inline bool gem5_export_popt_matrix(
+    const uint8_t* matrix_data,
+    uint32_t num_cache_lines,
+    uint32_t num_epochs,
+    uint32_t num_vertices,
+    uint32_t cache_line_size = 64,
+    const char* path = GEM5_POPT_MATRIX_PATH)
+{
+    FILE* f = fopen(path, "wb");
+    if (!f) return false;
+
+    uint32_t epoch_size = (num_vertices + num_epochs - 1) / num_epochs;
+    uint32_t sub_epoch_size = (epoch_size > 128) ? epoch_size / 128 : 1;
+
+    fwrite(&num_epochs, 4, 1, f);
+    fwrite(&num_cache_lines, 4, 1, f);
+    fwrite(&epoch_size, 4, 1, f);
+    fwrite(&sub_epoch_size, 4, 1, f);
+    fwrite(matrix_data, 1, (size_t)num_epochs * num_cache_lines, f);
+    fclose(f);
+
+    printf("gem5_harness: exported P-OPT matrix to %s "
+           "(%u epochs x %u lines = %lu bytes)\n",
+           path, num_epochs, num_cache_lines,
+           (unsigned long)num_epochs * num_cache_lines);
+    return true;
+}
+
 #endif // GEM5_HARNESS_H_

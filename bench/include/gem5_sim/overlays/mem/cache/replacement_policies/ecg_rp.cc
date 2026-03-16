@@ -89,14 +89,19 @@ GraphEcgRP::reset(
         constexpr uint8_t I_RRIP = 6;
         constexpr uint8_t M_RRIP = 7;
 
-        if (ctx.loaded) {
+        if (ctx.loaded && ctx.isPropertyData(addr)) {
+            // Property data: apply GRASP 3-tier classification
             uint32_t tier = ctx.classifyGRASP(addr, llcSize);
-            data->is_property_data = ctx.isPropertyData(addr);
+            data->is_property_data = true;
             if (tier == 1)       data->rrpv = P_RRIP;
             else if (tier == 2)  data->rrpv = I_RRIP;
             else                 data->rrpv = M_RRIP;
-            // DBG tier for eviction tiebreaking
             data->ecg_dbg_tier = (tier <= 3) ? static_cast<uint8_t>(tier) : 3;
+        } else if (ctx.loaded) {
+            // Non-property data: SRRIP default (don't penalize instructions/edges)
+            data->rrpv = 2;  // SRRIP default
+            data->is_property_data = false;
+            data->ecg_dbg_tier = 0;  // Neutral tier
         } else {
             data->rrpv = rrpvMax - 1;
             data->is_property_data = false;

@@ -29,6 +29,13 @@ pvector<WeightT> Dijkstra_Gem5(const WGraph &g, NodeID source) {
 
     gem5_report_region("dist", dist.data(), g.num_nodes(), sizeof(WeightT));
 
+    Gem5PropertyRegion regions[1] = {
+        {"dist", reinterpret_cast<uint64_t>(dist.data()),
+         static_cast<uint64_t>(g.num_nodes()) * sizeof(WeightT),
+         static_cast<uint32_t>(g.num_nodes()), sizeof(WeightT)},
+    };
+    gem5_export_context(regions, 1, g);
+
     GEM5_RESET_STATS();
     GEM5_WORK_BEGIN(GEM5_WORK_COMPUTE);
 

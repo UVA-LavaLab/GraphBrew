@@ -30,6 +30,16 @@ pvector<ScoreT> PageRankPull_Gem5(const Graph &g, int max_iters,
     gem5_report_region("scores", scores.data(), g.num_nodes(), sizeof(ScoreT));
     gem5_report_region("contrib", outgoing_contrib.data(), g.num_nodes(), sizeof(ScoreT));
 
+    Gem5PropertyRegion regions[2] = {
+        {"scores", reinterpret_cast<uint64_t>(scores.data()),
+         static_cast<uint64_t>(g.num_nodes()) * sizeof(ScoreT),
+         static_cast<uint32_t>(g.num_nodes()), sizeof(ScoreT)},
+        {"contrib", reinterpret_cast<uint64_t>(outgoing_contrib.data()),
+         static_cast<uint64_t>(g.num_nodes()) * sizeof(ScoreT),
+         static_cast<uint32_t>(g.num_nodes()), sizeof(ScoreT)},
+    };
+    gem5_export_context(regions, 2, g);
+
     GEM5_RESET_STATS();
     GEM5_WORK_BEGIN(GEM5_WORK_COMPUTE);
 

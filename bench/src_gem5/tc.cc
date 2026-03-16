@@ -22,6 +22,13 @@ using namespace std;
 size_t OrderedCount_Gem5(const Graph &g) {
     size_t total = 0;
 
+    // TC accesses CSR neighbor lists (no separate property arrays),
+    // but export context with empty regions for topology info
+    Gem5PropertyRegion regions[1] = {
+        {"csr_edges", 0, 0, 0, 0},  // Placeholder — TC has no vertex property array
+    };
+    gem5_export_context(regions, 0, g);  // 0 regions, just topology
+
     GEM5_RESET_STATS();
     GEM5_WORK_BEGIN(GEM5_WORK_COMPUTE);
 

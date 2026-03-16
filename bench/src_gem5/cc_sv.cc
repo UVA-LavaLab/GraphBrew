@@ -22,6 +22,13 @@ pvector<NodeID> ShiloachVishkin_Gem5(const Graph &g) {
 
     gem5_report_region("comp", comp.data(), g.num_nodes(), sizeof(NodeID));
 
+    Gem5PropertyRegion regions[1] = {
+        {"comp", reinterpret_cast<uint64_t>(comp.data()),
+         static_cast<uint64_t>(g.num_nodes()) * sizeof(NodeID),
+         static_cast<uint32_t>(g.num_nodes()), sizeof(NodeID)},
+    };
+    gem5_export_context(regions, 1, g);
+
     GEM5_RESET_STATS();
     GEM5_WORK_BEGIN(GEM5_WORK_COMPUTE);
 
