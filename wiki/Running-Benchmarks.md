@@ -57,7 +57,22 @@ python3 scripts/graphbrew_experiment.py --precompute --phase benchmark
 python3 scripts/graphbrew_experiment.py --train --auto --size all
 ```
 
-See [[Command-Line-Reference]] for `--train` phases, download size options, and memory/disk management. See [[Python-Scripts]] for full script documentation.
+See [[Command-Line-Reference]] for `--train` phases, download size options, and memory/disk management. See [[Python-Scripts]] for full script documentation. See [[VLDB-Experiments]] for reproducing the VLDB 2026 paper results.
+
+### VLDB 2026 Paper Experiments
+
+For reproducing the GraphBrew VLDB paper, use the dedicated experiment runner:
+
+```bash
+# Preview (fast validation — 2 small graphs, ~30 min):
+python3 scripts/experiments/vldb_paper_experiments.py --all --preview
+
+# 64 GB machine (11 auto-downloadable graphs):
+python3 scripts/experiments/vldb_paper_experiments.py --all --64gb
+
+# Full evaluation (11 graphs, 7 benchmarks, 3 trials):
+python3 scripts/experiments/vldb_paper_experiments.py --all
+```
 
 ### Full Training Example
 

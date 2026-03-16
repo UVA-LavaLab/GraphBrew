@@ -166,6 +166,30 @@ wc -l graph.el
 head -5 graph.el
 ```
 
+### SuiteSparse .mtx Conversion Fails
+
+**Cause**: SuiteSparse archives often contain auxiliary `.mtx` files
+(e.g., `*_nodename.mtx`, `*_coord.mtx`) alongside the actual graph matrix.
+The converter picks the first `.mtx` file found, which may be a metadata
+file (array format) rather than the sparse graph (coordinate format).
+
+**Diagnose**:
+```bash
+# List all .mtx files in the graph directory
+find results/graphs/GRAPH_NAME/ -name "*.mtx"
+# The graph file has "coordinate" format in its header:
+head -1 results/graphs/GRAPH_NAME/GRAPH_NAME/GRAPH_NAME.mtx
+# Should show: %%MatrixMarket matrix coordinate ...
+```
+
+**Solution**:
+```bash
+# Convert manually using the correct .mtx file
+./bench/bin/converter \
+    -f results/graphs/GRAPH_NAME/GRAPH_NAME/GRAPH_NAME.mtx \
+    -s -o 1 -b results/graphs/GRAPH_NAME/GRAPH_NAME.sg
+```
+
 ### "Vertex index out of range"
 
 **Cause**: Vertices not 0-indexed

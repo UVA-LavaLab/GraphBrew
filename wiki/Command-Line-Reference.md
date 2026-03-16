@@ -227,9 +227,9 @@ GOrder supports three variants:
 | `csr` | `-o 9:csr` | CSR-native — direct CSRGraph iterator access, lightweight BFS-RCM, faster reorder |
 | `fast` | `-o 9:fast` | Parallel batch — atomic score updates, fan-out cap, scales across threads |
 
-The CSR variant uses a lightweight GoGraph-matching BFS-CM pre-ordering and `RelabelByMappingStandalone` to rebuild the CSR in RCM order, then runs the GOrder greedy directly on sorted CSRGraph neighbor iterators. Deterministic with single thread.
+The CSR variant uses a lightweight GoGraph-matching BFS-CM pre-ordering and `RelabelByMappingStandalone` to rebuild the CSR in RCM order, then runs the GOrder greedy directly on sorted CSRGraph neighbor iterators. Default window size w=5 (matching the original SIGMOD'16 paper). Deterministic with single thread. Override with `GORDER_WINDOW=N` environment variable.
 
-The fast variant replaces the serial UnitHeap with a score array + active frontier for thread safety. It auto-tunes batch size and window to the available thread count. Recommended for graphs with high degree variance (power-law, social networks).
+The fast variant replaces the serial UnitHeap with a score array + active frontier for thread safety. It auto-tunes batch size and window to the available thread count (W=max(5, 2×batch)). Recommended for graphs with high degree variance (power-law, social networks).
 
 ### GoGraphOrder Variants (Algorithm 16)
 
