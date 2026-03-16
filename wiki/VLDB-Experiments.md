@@ -60,8 +60,8 @@ python3 scripts/experiments/vldb_paper_experiments.py --all --skip-setup \
 
 ### System Requirements
 
-- Linux x86-64 with GCC ≥ 7 (tested on Ubuntu 22.04)
-- ≥ 16 GB RAM for full evaluation (64 GB+ recommended for webbase-2001, twitter7)
+- Linux x86-64 with GCC ≥ 7 (tested on Ubuntu 22.04 / 24.04)
+- ≥ 16 GB RAM for preview; 32–64 GB for `--64gb` graph set; 64 GB+ for full evaluation (webbase-2001, twitter7)
 - Python ≥ 3.8
 
 ### Automatic Steps (handled by `--all`)
@@ -262,6 +262,7 @@ All experiment parameters are defined in
 | `--all` | Run all 8 experiments |
 | `--exp N [N ...]` | Run specific experiment(s) by number (1-8) |
 | `--preview` | Use small graphs, 1 trial, 2 benchmarks |
+| `--64gb` | Use 64 GB graph set (11 auto-downloadable graphs, no >1B-edge graphs) |
 | `--dry-run` | Print commands without executing |
 | `--graph-dir PATH` | Directory containing graph files (default: `results/graphs` with `--skip-setup`) |
 | `--graphs NAME [...]` | Override graph list by name |
@@ -269,6 +270,17 @@ All experiment parameters are defined in
 | `--skip-download` | Skip graph download but still build + convert |
 | `--no-figures` | Skip automatic figure generation |
 | `--figures-only` | Generate figures from existing results (no experiments) |
+
+### 64 GB Graph Set
+
+For machines with 32–64 GB RAM, use `--64gb` to select an alternative set of 11
+auto-downloadable graphs that avoids twitter7 and webbase-2001 (both >1B edges,
+require >64 GB RAM). This set adds as-Skitter, kron_g500-logn21, indochina-2004,
+and uk-2002 for type diversity:
+
+```bash
+python3 scripts/experiments/vldb_paper_experiments.py --all --64gb
+```
 
 ---
 
@@ -284,6 +296,12 @@ ensure `--graph-dir` points to a directory with `.sg` files matching the graph
 names in the config. Both flat layout (`cit-Patents.sg`) and nested layout
 (`cit-Patents/cit-Patents.sg`) are supported. Experiments 3 and 8 try `.sg`
 first and fall back to `.el` automatically.
+
+**"Conversion failed" for SuiteSparse graphs** — Some SuiteSparse archives
+contain auxiliary `.mtx` files (e.g., `*_nodename.mtx`) alongside the actual
+graph matrix. The converter prefers files named exactly `{graph_name}.mtx`.
+If conversion fails, check that the correct `.mtx` file exists in the nested
+directory (`results/graphs/{name}/{name}/{name}.mtx`).
 
 **Graphs that need manual download** — `wikipedia_link_en` (KONECT) and
 `Gong-gplus` (Google Drive) cannot be auto-downloaded. See

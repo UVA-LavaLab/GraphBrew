@@ -36,6 +36,9 @@
 #include <iostream>
 #include <iomanip>
 #include <cmath>
+#ifdef _OPENMP
+#include <omp.h>
+#endif
 
 namespace cache_sim {
 
@@ -558,6 +561,7 @@ struct RereferenceConfig {
     // Algorithm 2: compute next-reference distance for a cache line
     uint32_t findNextRef(uint32_t cline_id, uint32_t current_vertex) const {
         if (matrix == nullptr || cline_id >= num_cache_lines) return 127;
+        if (epoch_size == 0 || sub_epoch_size == 0) return 127;
         uint32_t epoch_id = current_vertex / epoch_size;
         if (epoch_id >= num_epochs) return 127;
 
@@ -728,8 +732,34 @@ struct GraphCacheContext {
     // --- Graph Topology (degree distribution) ---
     GraphTopology topology;
 
-    // --- Per-Access Hints (mutable, updated each vertex iteration) ---
-    AccessHints hints;
+    // --- Per-Access Hints (thread-safe: one per OMP thread) ---
+    // Each OMP thread gets its own AccessHints to avoid data races
+    // when setting current_src/mask during parallel graph traversal.
+    // Mutable because hints are updated via const GraphCacheContext* in cache.
+    static constexpr int ECG_MAX_THREADS = 128;
+    mutable AccessHints thread_hints[ECG_MAX_THREADS];
+
+    // Convenience accessor: returns hints for the calling thread.
+    AccessHints& hints_for_thread() {
+#ifdef _OPENMP
+        int tid = omp_get_thread_num();
+#else
+        int tid = 0;
+#endif
+        return thread_hints[tid < ECG_MAX_THREADS ? tid : 0];
+    }
+    const AccessHints& hints_for_thread() const {
+#ifdef _OPENMP
+        int tid = omp_get_thread_num();
+#else
+        int tid = 0;
+#endif
+        return thread_hints[tid < ECG_MAX_THREADS ? tid : 0];
+    }
+
+    // Legacy single-thread alias (for backward compatibility with non-parallel code).
+    // Accesses thread_hints[0] directly. In parallel regions, use hints_for_thread().
+    AccessHints& hints_thread0() { return thread_hints[0]; }
 
     // --- Rereference Matrix (P-OPT) ---
     RereferenceConfig rereference;
@@ -1006,19 +1036,20 @@ struct GraphCacheContext {
     // Set current source and destination vertices (outer loop).
     // In Sniper: SimMagic1(CMD_SET_VERTICES, pack(src, dst))
     void setCurrentVertices(uint32_t src, uint32_t dst) {
-        hints.current_src = src;
-        hints.current_dst = dst;
+        auto& h = hints_for_thread();
+        h.current_src = src;
+        h.current_dst = dst;
     }
 
     // Update destination vertex only (inner loop neighbor).
     void setCurrentDst(uint32_t dst) {
-        hints.current_dst = dst;
+        hints_for_thread().current_dst = dst;
     }
 
     // Set ECG mask hint for current access.
     // In Sniper: the mask is encoded in the last 2 bits of vertex property data.
     void setMask(uint8_t mask) {
-        hints.mask = mask;
+        hints_for_thread().mask = mask;
     }
 
     // ================================================================
@@ -1138,11 +1169,12 @@ struct GraphCacheContext {
     // Compute P-OPT rereference distance for a cache line address.
     uint32_t findNextRef(uint64_t line_addr) const {
         if (rereference.matrix == nullptr) return 127;
+        if (hints_for_thread().current_src == UINT32_MAX) return 127;  // No vertex context set
         const PropertyRegion* r = findRegion(line_addr);
         if (r == nullptr) return 127;
         uint32_t cline_id = static_cast<uint32_t>(
             (line_addr - r->base_address) / rereference.line_size);
-        return rereference.findNextRef(cline_id, hints.current_src);
+        return rereference.findNextRef(cline_id, hints_for_thread().current_src);
     }
 
     // ================================================================
@@ -1177,9 +1209,10 @@ struct GraphCacheContext {
         return tiers;
     }
 
-    // Compute per-vertex mask entries (DBG tier only — O(n)).
-    // All edges to vertex v share the same mask.
-    // For per-edge masks with P-OPT rereference, extend with transpose.
+    // Compute per-vertex mask entries with DBG tier and P-OPT rereference hint.
+    // P-OPT hint is quantized from the rereference matrix if available,
+    // otherwise zero. The hint represents expected rereference distance
+    // (0 = soon, max = far away), quantized to popt_bits (default 4 → 0-15).
     template<typename GraphT>
     std::vector<uint8_t> computeVertexMasks8(const GraphT& g) {
         if (!mask_config.enabled) {
@@ -1190,9 +1223,41 @@ struct GraphCacheContext {
         auto tiers = computeVertexTiers(g);
         uint32_t n = g.num_nodes();
         std::vector<uint8_t> masks(n, 0);
+
+        // Compute P-OPT quantized hints from degree (proxy for rereference).
+        // Higher degree → more edges → more frequent access → lower hint value.
+        // This provides a degree-based oracle approximation without the full matrix.
+        uint8_t popt_max = mask_config.popt_bits > 0 ? ((1 << mask_config.popt_bits) - 1) : 0;
+
         #pragma omp parallel for schedule(static)
-        for (uint32_t v = 0; v < n; ++v)
-            masks[v] = static_cast<uint8_t>(mask_config.encode(tiers[v], 0, 0));
+        for (uint32_t v = 0; v < n; ++v) {
+            uint8_t popt_hint = 0;
+            if (popt_max > 0 && topology.num_vertices > 0) {
+                // Use rereference matrix if available for true oracle hint
+                if (rereference.matrix) {
+                    constexpr int numVtxPerLine = 16;  // 64B / 4B per vertex
+                    uint32_t cline = v / numVtxPerLine;
+                    // Sample middle epoch for representative distance
+                    uint32_t mid_epoch = rereference.num_epochs / 2;
+                    if (cline < rereference.num_cache_lines && mid_epoch < rereference.num_epochs) {
+                        uint8_t entry = rereference.matrix[mid_epoch * rereference.num_cache_lines + cline];
+                        uint8_t dist = (entry & 0x80) ? 0 : (entry & 0x7F);
+                        // Quantize 0-127 → 0-popt_max
+                        popt_hint = static_cast<uint8_t>((uint32_t(dist) * popt_max) / 127);
+                    }
+                } else {
+                    // Proxy: inverse degree → high degree = low hint (soon), low degree = high hint (far)
+                    uint32_t deg = g.out_degree(v);
+                    if (deg == 0) {
+                        popt_hint = popt_max;  // No edges → never re-accessed
+                    } else {
+                        double ratio = static_cast<double>(deg) / topology.max_degree;
+                        popt_hint = static_cast<uint8_t>(popt_max * (1.0 - ratio));
+                    }
+                }
+            }
+            masks[v] = static_cast<uint8_t>(mask_config.encode(tiers[v], popt_hint, 0));
+        }
         return masks;
     }
 

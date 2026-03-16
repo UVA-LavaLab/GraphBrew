@@ -944,12 +944,16 @@ def _setup_convert_graphs(graphs: list[dict], graphs_dir: Path) -> None:
             continue
 
         # Find a convertible file (.mtx or .el)
+        # Prefer exact-name match (name.mtx) to avoid picking auxiliary files
+        # like *_nodename.mtx which are metadata, not graph data.
         input_file = None
         if graph_subdir.exists():
             for pattern in ("**/*.mtx", "**/*.el"):
-                matches = list(graph_subdir.glob(pattern))
+                matches = sorted(graph_subdir.glob(pattern))
                 if matches:
-                    input_file = matches[0]
+                    # Prefer file named exactly {name}.{ext}
+                    exact = [m for m in matches if m.stem == name]
+                    input_file = exact[0] if exact else matches[0]
                     break
 
         if not input_file:
