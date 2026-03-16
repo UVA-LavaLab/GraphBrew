@@ -67,44 +67,26 @@ class GraphGraspRP : public Base
 
     std::shared_ptr<ReplacementData> instantiateEntry() override;
 
-    // Set the graph cache context (called from Python config)
-    void setGraphContext(graph::GraphCacheContext* ctx) { graphCtx = ctx; }
-
   private:
-    // GRASP reuse tier classification
     enum class ReuseTier { HIGH, MODERATE, LOW };
+
+    // Try to load sideband context (called lazily on first access)
+    void tryLoadContext() const;
 
     ReuseTier classifyAddress(uint64_t addr) const;
     uint8_t insertionRRPV(ReuseTier tier) const;
     void promoteOnHit(GraspReplData* data) const;
 
     // Configuration
-    const uint8_t maxRRPV;          // Maximum RRPV value (2^rrpv_bits - 1)
-    const uint8_t numBuckets;       // Number of degree buckets
-    const double hotFraction;       // Fraction of LLC for hot vertices
-    const uint64_t llcSize;         // LLC size in bytes (for hot-region boundary)
-    const bool learnRegions;        // Dynamically learn property regions
+    const uint8_t maxRRPV;
+    const uint8_t numBuckets;
+    const double hotFraction;
+    const uint64_t llcSize;
+    const std::string sidebandPath;
 
-    // Graph metadata
-    graph::GraphCacheContext* graphCtx = nullptr;
-
-    // Online region learning state
-    mutable bool regionsLearned = false;
-    mutable uint64_t learnedBase = 0;
-    mutable uint64_t learnedEnd = 0;
-    mutable uint64_t minAddr = UINT64_MAX;
-    mutable uint64_t maxAddr = 0;
-    mutable uint64_t accessCount = 0;
-    static constexpr uint64_t LEARN_WARMUP = 10000;  // Accesses before learning
-
-    // Classify using learned regions (no GraphCacheContext needed)
-    ReuseTier classifyFromLearnedRegion(uint64_t addr) const;
-
-    // Legacy GRASP state (used when no GraphCacheContext and no learning)
-    uint64_t dataBase = 0;
-    uint64_t highReuseBound = 0;
-    uint64_t moderateReuseBound = 0;
-    uint64_t dataEnd = 0;
+    // Graph context — loaded lazily from sideband file
+    mutable graph::GraphCacheContext ctx;
+    mutable bool loadAttempted = false;
 };
 
 } // namespace replacement_policy

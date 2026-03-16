@@ -288,6 +288,71 @@ struct GraphCacheContext {
         }
         return mask_config.dbgTierToRRPV(static_cast<uint8_t>(bucket));
     }
+
+    // Load context from sideband JSON file written by benchmark.
+    // This is the gem5 equivalent of cache_sim's registerPropertyArray()
+    // + initTopology(). Returns true if loaded successfully.
+    bool loadFromSideband(const std::string& path) {
+        std::ifstream f(path);
+        if (!f.is_open()) return false;
+
+        // Simple JSON parser (no external dependency)
+        std::string content((std::istreambuf_iterator<char>(f)),
+                            std::istreambuf_iterator<char>());
+        f.close();
+
+        // Parse num_vertices
+        topology.num_vertices = parseJsonUint(content, "\"num_vertices\"");
+        topology.num_edges = parseJsonUint(content, "\"num_edges\"");
+        topology.avg_degree = (topology.num_vertices > 0) ?
+            (double)topology.num_edges / topology.num_vertices : 0.0;
+        topology.enabled = true;
+
+        // Parse property regions
+        num_regions = 0;
+        size_t pos = content.find("\"property_regions\"");
+        if (pos != std::string::npos) {
+            size_t arr_start = content.find('[', pos);
+            size_t arr_end = content.find(']', arr_start);
+            if (arr_start != std::string::npos && arr_end != std::string::npos) {
+                std::string arr = content.substr(arr_start, arr_end - arr_start + 1);
+                size_t obj_pos = 0;
+                while ((obj_pos = arr.find('{', obj_pos)) != std::string::npos &&
+                       num_regions < MAX_PROPERTY_REGIONS) {
+                    size_t obj_end = arr.find('}', obj_pos);
+                    if (obj_end == std::string::npos) break;
+                    std::string obj = arr.substr(obj_pos, obj_end - obj_pos + 1);
+
+                    regions[num_regions].base_address = parseJsonUint(obj, "\"base\"");
+                    uint64_t sz = parseJsonUint(obj, "\"size\"");
+                    regions[num_regions].upper_bound = regions[num_regions].base_address + sz;
+                    regions[num_regions].num_elements = static_cast<uint32_t>(
+                        parseJsonUint(obj, "\"count\""));
+                    regions[num_regions].elem_size = static_cast<uint32_t>(
+                        parseJsonUint(obj, "\"elem_size\""));
+                    regions[num_regions].region_id = num_regions;
+                    num_regions++;
+                    obj_pos = obj_end + 1;
+                }
+            }
+        }
+
+        return num_regions > 0;
+    }
+
+    bool loaded = false;  // True after successful loadFromSideband()
+
+private:
+    // Minimal JSON value parser (no external deps)
+    static uint64_t parseJsonUint(const std::string& json, const std::string& key) {
+        size_t pos = json.find(key);
+        if (pos == std::string::npos) return 0;
+        pos = json.find(':', pos);
+        if (pos == std::string::npos) return 0;
+        pos++;
+        while (pos < json.size() && (json[pos] == ' ' || json[pos] == '\t')) pos++;
+        return std::strtoull(json.c_str() + pos, nullptr, 10);
+    }
 };
 
 } // namespace graph

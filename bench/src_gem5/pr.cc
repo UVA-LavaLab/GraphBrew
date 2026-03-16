@@ -34,6 +34,19 @@ pvector<ScoreT> PageRankPullGS_Gem5(const Graph &g, int max_iters,
     gem5_report_region("scores", scores.data(), g.num_nodes(), sizeof(ScoreT));
     gem5_report_region("contrib", outgoing_contrib.data(), g.num_nodes(), sizeof(ScoreT));
 
+    // Export graph context sideband file for gem5 replacement policies.
+    // This is the gem5 equivalent of cache_sim's registerPropertyArray() +
+    // initTopology(). The SimObjects lazily load this on first eviction.
+    Gem5PropertyRegion regions[2] = {
+        {"scores",  reinterpret_cast<uint64_t>(scores.data()),
+         static_cast<uint64_t>(g.num_nodes()) * sizeof(ScoreT),
+         static_cast<uint32_t>(g.num_nodes()), sizeof(ScoreT)},
+        {"contrib", reinterpret_cast<uint64_t>(outgoing_contrib.data()),
+         static_cast<uint64_t>(g.num_nodes()) * sizeof(ScoreT),
+         static_cast<uint32_t>(g.num_nodes()), sizeof(ScoreT)},
+    };
+    gem5_export_context(regions, 2, g);
+
     for (NodeID n = 0; n < g.num_nodes(); n++)
         outgoing_contrib[n] = init_score / g.out_degree(n);
 

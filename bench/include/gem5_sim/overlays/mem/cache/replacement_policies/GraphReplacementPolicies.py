@@ -24,10 +24,7 @@ class GraphGraspRP(BaseReplacementPolicy):
     (Faldu et al., HPCA 2020)
 
     Extends SRRIP with degree-based 3-tier insertion and hit promotion.
-    Requires DBG-reordered graph or GraphCacheContext for bucket classification.
-
-    Property region discovery: If property_base > 0, uses explicit region.
-    Otherwise, learns the hot region from access patterns dynamically.
+    Property regions loaded from sideband JSON written by benchmark at runtime.
     """
     type = 'GraphGraspRP'
     cxx_header = "mem/cache/replacement_policies/grasp_rp.hh"
@@ -39,10 +36,10 @@ class GraphGraspRP(BaseReplacementPolicy):
         "Number of degree buckets for vertex classification (matching DBG).")
     hot_fraction = Param.Float(0.1,
         "Fraction of LLC capacity reserved for high-degree hub vertices.")
-    llc_size = Param.Unsigned(8388608,
+    llc_size_bytes = Param.Unsigned(8388608,
         "LLC size in bytes (default 8MB). Used for GRASP hot-region boundary.")
-    learn_regions = Param.Bool(True,
-        "Dynamically learn property regions from access patterns.")
+    sideband_path = Param.String("/tmp/gem5_graphbrew_ctx.json",
+        "Path to sideband JSON written by benchmark with property regions.")
 
 
 class GraphPoptRP(BaseReplacementPolicy):
@@ -71,20 +68,19 @@ class GraphEcgRP(BaseReplacementPolicy):
       DBG_ONLY:     SRRIP -> DBG tier (fast path, no P-OPT)
       ECG_EMBEDDED: SRRIP -> DBG tier -> stored P-OPT hint (zero LLC overhead)
 
-    Supports per-access mask hints via custom ECG instruction.
-    Property region discovery: learns from access patterns dynamically.
+    Property regions loaded from sideband JSON written by benchmark at runtime.
     """
     type = 'GraphEcgRP'
     cxx_header = "mem/cache/replacement_policies/ecg_rp.hh"
     cxx_class = 'gem5::replacement_policy::GraphEcgRP'
 
-    rrpv_max = Param.Int(7,
+    rrpv_max = Param.Unsigned(7,
         "Maximum RRPV value. 7 for 3-bit, 255 for 8-bit.")
-    num_buckets = Param.Int(11,
+    num_buckets = Param.Unsigned(11,
         "Number of degree buckets for DBG classification.")
     ecg_mode = Param.String("DBG_PRIMARY",
         "Eviction mode: DBG_PRIMARY, POPT_PRIMARY, DBG_ONLY, or ECG_EMBEDDED.")
-    llc_size = Param.Unsigned(8388608,
-        "LLC size in bytes (default 8MB). Used for GRASP-faithful classification.")
-    learn_regions = Param.Bool(True,
-        "Dynamically learn property regions from access patterns.")
+    llc_size_bytes = Param.Unsigned(8388608,
+        "LLC size in bytes (default 8MB).")
+    sideband_path = Param.String("/tmp/gem5_graphbrew_ctx.json",
+        "Path to sideband JSON written by benchmark with property regions.")

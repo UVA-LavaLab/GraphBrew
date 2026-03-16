@@ -1,7 +1,8 @@
 // ============================================================================
 // GRASP Replacement Policy for gem5 — Implementation
 // ============================================================================
-// Reference: Faldu et al., HPCA 2020 + bench/include/cache_sim/cache_sim.h
+// Faithful implementation matching bench/include/cache_sim/cache_sim.h.
+// Loads property region metadata from sideband JSON (written by benchmark).
 // ============================================================================
 
 #include "mem/cache/replacement_policies/grasp_rp.hh"
@@ -17,9 +18,19 @@ GraphGraspRP::GraphGraspRP(const Params &p)
       maxRRPV(p.max_rrpv),
       numBuckets(p.num_buckets),
       hotFraction(p.hot_fraction),
-      llcSize(p.llc_size),
-      learnRegions(p.learn_regions)
+      llcSize(p.llc_size_bytes),
+      sidebandPath(p.sideband_path)
 {
+}
+
+void
+GraphGraspRP::tryLoadContext() const
+{
+    if (loadAttempted) return;
+    loadAttempted = true;
+    if (ctx.loadFromSideband(sidebandPath)) {
+        ctx.loaded = true;
+    }
 }
 
 void
@@ -45,7 +56,6 @@ GraphGraspRP::touch(
     const std::shared_ptr<ReplacementData>& replacement_data) const
 {
     auto data = std::static_pointer_cast<GraspReplData>(replacement_data);
-    // Without packet, use generic promotion: decrement RRPV
     if (data->rrpv > 0) data->rrpv--;
 }
 
@@ -55,34 +65,16 @@ GraphGraspRP::reset(const std::shared_ptr<ReplacementData>& replacement_data,
 {
     auto data = std::static_pointer_cast<GraspReplData>(replacement_data);
 
+    // Try loading context on first access
+    tryLoadContext();
+
     if (pkt && pkt->req) {
         uint64_t addr = pkt->req->getPaddr();
-
-        // Online region learning: track address range during warmup
-        if (learnRegions && !regionsLearned) {
-            uint64_t lineAddr = addr & ~uint64_t(63);
-            if (lineAddr < minAddr) minAddr = lineAddr;
-            if (lineAddr + 64 > maxAddr) maxAddr = lineAddr + 64;
-            accessCount++;
-            if (accessCount >= LEARN_WARMUP && minAddr < maxAddr) {
-                learnedBase = minAddr;
-                learnedEnd = maxAddr;
-                regionsLearned = true;
-            }
-        }
-
         ReuseTier tier = classifyAddress(addr);
         data->rrpv = insertionRRPV(tier);
         data->is_property_data = (tier != ReuseTier::LOW);
-
-        // Classify degree bucket if context available
-        if (graphCtx) {
-            uint32_t bucket = graphCtx->classifyBucket(addr);
-            data->degree_bucket = static_cast<uint8_t>(
-                std::min(bucket, static_cast<uint32_t>(numBuckets - 1)));
-        }
     } else {
-        data->rrpv = maxRRPV - 1; // Default: long re-reference
+        data->rrpv = maxRRPV - 1;
         data->is_property_data = false;
     }
 }
@@ -92,7 +84,7 @@ GraphGraspRP::reset(
     const std::shared_ptr<ReplacementData>& replacement_data) const
 {
     auto data = std::static_pointer_cast<GraspReplData>(replacement_data);
-    data->rrpv = maxRRPV - 1; // SRRIP default insertion
+    data->rrpv = maxRRPV - 1;
 }
 
 ReplaceableEntry*
@@ -100,25 +92,14 @@ GraphGraspRP::getVictim(const ReplacementCandidates& candidates) const
 {
     assert(candidates.size() > 0);
 
-    // Find line with max RRPV; if none at maxRRPV, age all until found
-    // (Matching standalone cache_sim findVictimGRASP)
+    // SRRIP eviction: find way with max RRPV, age all if none found
     while (true) {
-        ReplaceableEntry* victim = nullptr;
-        uint8_t highestRRPV = 0;
-
         for (const auto& candidate : candidates) {
             auto data = std::static_pointer_cast<GraspReplData>(
                 candidate->replacementData);
-            if (data->rrpv >= maxRRPV) {
-                return candidate; // Found victim at max RRPV
-            }
-            if (data->rrpv > highestRRPV) {
-                highestRRPV = data->rrpv;
-                victim = candidate;
-            }
+            if (data->rrpv >= maxRRPV)
+                return candidate;
         }
-
-        // Age all lines: increment RRPV by 1
         for (const auto& candidate : candidates) {
             auto data = std::static_pointer_cast<GraspReplData>(
                 candidate->replacementData);
@@ -134,55 +115,28 @@ GraphGraspRP::instantiateEntry()
 }
 
 // ============================================================================
-// Private helpers
+// Private: faithful GRASP 3-tier classification
 // ============================================================================
 
 GraphGraspRP::ReuseTier
 GraphGraspRP::classifyAddress(uint64_t addr) const
 {
-    // Prefer classifyGRASP with explicit context
-    if (graphCtx) {
-        uint32_t tier = graphCtx->classifyGRASP(addr, llcSize);
+    if (ctx.loaded) {
+        uint32_t tier = ctx.classifyGRASP(addr, llcSize);
         if (tier == 1) return ReuseTier::HIGH;
         if (tier == 2) return ReuseTier::MODERATE;
         return ReuseTier::LOW;
     }
-
-    // Use learned regions (online discovery from access patterns)
-    if (learnRegions && regionsLearned) {
-        return classifyFromLearnedRegion(addr);
-    }
-
-    // Legacy GRASP state (address-range based, requires DBG ordering)
-    if (dataBase == 0 && dataEnd == 0) return ReuseTier::LOW;
-    if (addr >= dataBase && addr < highReuseBound) return ReuseTier::HIGH;
-    if (addr >= highReuseBound && addr < moderateReuseBound) return ReuseTier::MODERATE;
-    return ReuseTier::LOW;
-}
-
-GraphGraspRP::ReuseTier
-GraphGraspRP::classifyFromLearnedRegion(uint64_t addr) const
-{
-    // GRASP 3-tier classification using learned region
-    // Hot boundary = first hot_fraction of LLC capacity within the region
-    if (addr < learnedBase || addr >= learnedEnd)
-        return ReuseTier::LOW;
-
-    uint64_t offset = addr - learnedBase;
-    uint64_t hotBytes = static_cast<uint64_t>(hotFraction * llcSize);
-    if (offset < hotBytes)      return ReuseTier::HIGH;
-    if (offset < 2 * hotBytes)  return ReuseTier::MODERATE;
     return ReuseTier::LOW;
 }
 
 uint8_t
 GraphGraspRP::insertionRRPV(ReuseTier tier) const
 {
-    // Matching Faldu et al. HPCA 2020: P_RRIP=1, I_RRIP=6, M_RRIP=7
     switch (tier) {
-        case ReuseTier::HIGH:     return 1;              // P_RRIP
-        case ReuseTier::MODERATE: return maxRRPV - 1;    // I_RRIP (6)
-        case ReuseTier::LOW:      return maxRRPV;        // M_RRIP (7)
+        case ReuseTier::HIGH:     return 1;
+        case ReuseTier::MODERATE: return maxRRPV - 1;
+        case ReuseTier::LOW:      return maxRRPV;
     }
     return maxRRPV;
 }
@@ -190,10 +144,7 @@ GraphGraspRP::insertionRRPV(ReuseTier tier) const
 void
 GraphGraspRP::promoteOnHit(GraspReplData* data) const
 {
-    // GRASP hit promotion (Faldu et al. HPCA 2020):
-    //   Hot region (bucket 0): RRPV → 0 (aggressive reset)
-    //   Others: decrement by 1
-    if (data->degree_bucket == 0) {
+    if (data->is_property_data && data->rrpv <= 1) {
         data->rrpv = 0;
     } else if (data->rrpv > 0) {
         data->rrpv--;
