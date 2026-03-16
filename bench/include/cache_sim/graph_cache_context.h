@@ -194,23 +194,36 @@ struct MaskConfig {
     // Priority: DBG (min 2) → POPT (scales with space) → PFX (remaining).
     // Wider masks give more P-OPT precision and larger prefetch target space.
     //
-    // Allocation tiers:
-    //   8-bit:  DBG=2, POPT=4, PFX=2  (16 reref levels, 4 prefetch targets)
-    //  16-bit:  DBG=2, POPT=8, PFX=6  (256 reref levels = matches P-OPT matrix)
-    //  32-bit:  DBG=2, POPT=12, PFX=18 (4096 reref = exceeds matrix, 256K direct IDs)
+    // Allocation strategy:
+    //   1. DBG always gets 2 bits (4 tiers)
+    //   2. P-OPT gets as many bits as practical for oracle quality
+    //   3. Prefetch gets remaining — but if < 4 bits, reallocate to P-OPT
+    //      (fewer than 16 prefetch targets isn't meaningful for coverage)
+    //
+    // Results:
+    //   8-bit:  DBG=2, POPT=6, PFX=0  (64 reref levels, no prefetch)
+    //  16-bit:  DBG=2, POPT=8, PFX=6  (256 levels = matrix precision, 64 targets)
+    //  32-bit:  DBG=2, POPT=8, PFX=22 (256 levels, 4M direct IDs)
     void autoAllocate(uint32_t num_vertices) {
         dbg_bits = 2;
         uint8_t remaining = mask_width - dbg_bits;
 
-        // Scale P-OPT bits with available space — wider = less quantization loss
-        if (remaining >= 14) popt_bits = 12;      // 32-bit: lossless oracle
-        else if (remaining >= 10) popt_bits = 8;   // 16-bit: matches matrix precision
-        else if (remaining >= 6) popt_bits = 4;    // 8-bit: 16 levels (some loss)
+        // First pass: allocate P-OPT generously
+        if (remaining >= 30) popt_bits = 8;        // 32-bit: cap at 8 (matrix precision), save rest for PFX
+        else if (remaining >= 14) popt_bits = 8;   // 16-bit+: matrix-quality oracle
+        else if (remaining >= 6) popt_bits = 6;    // 8-bit: 64 levels (decent precision)
         else if (remaining >= 2) popt_bits = 2;
         else popt_bits = 0;
         remaining -= popt_bits;
 
-        prefetch_bits = remaining;
+        // Second pass: prefetch only if >= 4 bits (16+ targets)
+        // Otherwise give remaining bits to P-OPT for better oracle
+        if (remaining >= 4) {
+            prefetch_bits = remaining;
+        } else {
+            popt_bits += remaining;  // Reallocate to P-OPT
+            prefetch_bits = 0;
+        }
 
         // Can we encode vertex IDs directly?
         uint8_t id_bits = 1;
