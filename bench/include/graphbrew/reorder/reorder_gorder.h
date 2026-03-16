@@ -36,7 +36,7 @@
 //     - Batch extraction: stale scores within each batch
 //     - Fan-out cap (64): bounds 2-hop inner loop work
 //     - Hub threshold n^(1/3) instead of n^(1/2)
-//   Auto-tunes: batch=max(64, 4×threads), window=max(7, 2×batch).
+//   Auto-tunes: batch=max(64, 4×threads), window=max(5, 2×batch).
 //   2-3× greedy speedup on power-law graphs at 8 threads.
 //
 // RCM pre-ordering:
@@ -603,7 +603,7 @@ void gorder_greedy_csr(const CSRGraph<NodeID_, DestID_, invert>& g,
 //   - Active frontier for O(frontier_size) extraction vs O(n)
 //
 // Parameters:
-//   window     — sliding window size (auto-scaled to max(7, 2*batch))
+//   window     — sliding window size (auto-scaled to max(5, 2*batch))
 //   batch_size — vertices placed per round (auto-scaled to 2*threads)
 // --------------------------------------------------------------------------
 template <typename NodeID_, typename DestID_, bool invert>
@@ -879,10 +879,8 @@ void GenerateGOrderCSRMapping(const CSRGraph<NodeID_, DestID_, invert>& g,
                               const std::string& /*filename*/,
                               bool /*symmetric*/ = false,
                               int window = -1) {
-    // Window size: default W=7 matches GoGraph baseline exactly.
-    // Auto-tuning (W<7 for dense graphs) was found to degrade BFS/CC/SSSP
-    // quality while only preserving PR quality — the reduced window captures
-    // less sequential neighborhood context, hurting traversal algorithms.
+    // Window size: default W=5 matches SIGMOD'16 paper exactly.
+    // The original GOrder paper (Wei et al., 2016) uses w=5 as its default.
     Timer tm;
     if (g.num_nodes() > static_cast<int64_t>(std::numeric_limits<int>::max())) {
         std::cerr << "GOrder: graph has " << g.num_nodes()
@@ -897,7 +895,7 @@ void GenerateGOrderCSRMapping(const CSRGraph<NodeID_, DestID_, invert>& g,
     if (n == 0) return;
 
     if (window <= 0) {
-        window = 7;  // Match GoGraph default exactly
+        window = 5;  // Match SIGMOD'16 paper default (w=5)
     }
 
     // Allow runtime window override via GORDER_WINDOW env var
@@ -953,7 +951,7 @@ void GenerateGOrderCSRMapping(const CSRGraph<NodeID_, DestID_, invert>& g,
 //   Step 3: Parallel batch greedy with atomic score updates
 //   Step 4: Compose permutations (parallel)
 //
-// Auto-tuning: batch = max(8, 2*threads), window = max(7, 2*batch)
+// Auto-tuning: batch = max(8, 2*threads), window = max(5, 2*batch)
 // ============================================================================
 
 template <typename NodeID_, typename DestID_, typename WeightT_, bool invert>
@@ -979,7 +977,7 @@ void GenerateGOrderFastMapping(const CSRGraph<NodeID_, DestID_, invert>& g,
 
     const int nthreads = omp_get_max_threads();
     const int batch  = std::max(64, nthreads * 4);
-    const int window = std::max(7, batch * 2);
+    const int window = std::max(5, batch * 2);
 
     std::cout << "GOrder_fast config: batch=" << batch
               << " window=" << window

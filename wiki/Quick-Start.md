@@ -237,6 +237,26 @@ python3 scripts/graphbrew_experiment.py --train-iterative --size small --target-
 3. **[[Graph-Benchmarks]]** - Understanding the benchmarks
 4. **[[Running-Benchmarks]]** - Advanced usage
 5. **[[AdaptiveOrder-ML]]** - ML-powered algorithm selection
+6. **[[VLDB-Experiments]]** - Reproduce the VLDB 2026 paper experiments
+
+---
+
+## VLDB 2026 Paper Experiments
+
+To reproduce the GraphBrew VLDB paper results:
+
+```bash
+# Preview mode (fast validation — 2 small graphs, ~30 min):
+python3 scripts/experiments/vldb_paper_experiments.py --all --preview
+
+# 64 GB machine (11 auto-downloadable graphs, no >1B-edge graphs):
+python3 scripts/experiments/vldb_paper_experiments.py --all --64gb
+
+# Full evaluation (11 graphs including twitter7 and webbase-2001, needs 64+ GB RAM):
+python3 scripts/experiments/vldb_paper_experiments.py --all
+```
+
+See [[VLDB-Experiments]] for the complete guide.
 
 ---
 

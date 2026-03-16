@@ -60,7 +60,7 @@ namespace corder_params {
  *   3. Apply greedy ordering with window size w
  *   4. Map back to original vertex IDs
  * 
- * Complexity: O(n × w) where w is window size (default: 7)
+ * Complexity: O(n × w) where w is window size (default: 5)
  * 
  * Reference:
  *   Wei, H., Yu, J.X., Lu, C., Lin, X. (2016). Speedup Graph Processing
@@ -81,7 +81,7 @@ void GenerateGOrderMapping(const CSRGraph<NodeID_, DestID_, invert>& g,
                            pvector<NodeID_>& new_ids,
                            const std::string& filename) {
     
-    const int window = 7;  // Default window size
+    const int window = 5;  // Default window size (w=5 per SIGMOD'16 paper)
     
     const int64_t num_nodes = g.num_nodes();
     const int64_t num_edges = g.num_edges_directed();

@@ -142,14 +142,20 @@ Ordering: v2, v1, v5, v8, [next hub], ...
 - **Rationale**: Vertices with similar degrees have similar access frequencies
 - **Best for**: General-purpose, works well on most graphs
 
-**Bucket structure:**
+**Bucket structure** (thresholds based on average degree `avg`):
 ```
-Bucket 0: degree 1
-Bucket 1: degree 2-3
-Bucket 2: degree 4-7
-Bucket 3: degree 8-15
-...
+Bucket 0: degree ≤ avg/2       (cold — low degree)
+Bucket 1: degree ≤ avg
+Bucket 2: degree ≤ avg × 2
+Bucket 3: degree ≤ avg × 4
+Bucket 4: degree ≤ avg × 8
+Bucket 5: degree ≤ avg × 16
+Bucket 6: degree ≤ avg × 32
+Bucket 7: degree > avg × 32     (hottest — highest degree)
 ```
+
+Higher-degree buckets are placed first (lowest vertex IDs) for better cache utilization.
+Reference: Faldu et al., "When is Graph Reordering an Optimization?", IISWC 2018.
 
 ### 6. HUBSORTDBG
 **HUBSORT within DBG buckets**
@@ -244,8 +250,9 @@ These algorithms use different approaches: RabbitOrder detects communities, whil
 ```
 
 - **Description**: Greedy sliding-window algorithm that places vertices to maximize the number of 2-hop neighbors already in a cache-sized window. Pre-orders with BFS-RCM, then greedily picks the highest-scoring candidate at each step.
-- **Complexity**: O(n × m × w) where w = window size (default 7)
+- **Complexity**: O(n × m × w) where w = window size (default 5, per SIGMOD'16 paper)
 - **Best for**: Graphs where local structure matters
+- **Environment override**: Set `GORDER_WINDOW=N` to change w at runtime (values 2–100)
 - **Variants**:
   - `default`: GoGraph baseline — converts to GoGraph adjacency format, runs original C++ GOrder
   - `csr`: **CSR-native variant** — operates directly on CSRGraph iterators via lightweight BFS-RCM pre-ordering and `RelabelByMappingStandalone`. Faster reordering than the GoGraph baseline, equivalent PR performance, deterministic with single thread.
@@ -262,7 +269,7 @@ These algorithms use different approaches: RabbitOrder detects communities, whil
 **Fast variant details:**
 - Replaces UnitHeap with score array + atomic delta for thread safety
 - Batch extraction: top-B vertices placed per round (B=max(64, 4×threads))
-- Window auto-scaled: W=max(7, 2×batch) — still within L1 cache
+- Window auto-scaled: W=max(5, 2×batch) — still within L1 cache
 - Fan-out cap: 2-hop expansion limited to first 64 out-neighbors per in-neighbor
 - Per-thread dedup arrays eliminate redundant atomic exchanges in merge phase
 - Usage: `-o 9:fast` (recommended for graphs with high degree variance)
