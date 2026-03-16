@@ -32,18 +32,21 @@ CACHE_L1_SIZE=65536 CACHE_POLICY=LFU ./bench/bin_sim/bfs -g 15 -n 1
 ```
 bench/
 ├── include/cache_sim/
-│   ├── cache_sim.h     # Cache simulator core
-│   └── graph_sim.h     # Graph wrappers for tracking
-├── src_sim/            # Instrumented algorithms
-│   ├── pr.cc           # PageRank (Gauss-Seidel, in-place updates)
-│   ├── pr_spmv.cc      # PageRank SpMV (Jacobi, double-buffered)
-│   ├── bfs.cc          # Breadth-First Search
-│   ├── bc.cc           # Betweenness Centrality
-│   ├── cc.cc           # Connected Components (Afforest)
-│   ├── cc_sv.cc        # Connected Components (Shiloach-Vishkin)
-│   ├── sssp.cc         # Single-Source Shortest Paths
-│   └── tc.cc           # Triangle Counting
-└── bin_sim/            # Compiled binaries
+│   ├── cache_sim.h              # Cache simulator core (9 policies, 5 variants)
+│   ├── graph_cache_context.h    # Unified graph metadata (GRASP/P-OPT/ECG context)
+│   └── graph_sim.h              # Macros: SIM_CACHE_READ, SIM_CACHE_READ_MASKED, SIM_CACHE_READ_EDGE
+├── include/graphbrew/partition/cagra/
+│   └── popt.h                   # P-OPT rereference matrix builder (makeOffsetMatrix)
+├── src_sim/                     # Instrumented algorithms (with P-OPT + CSR tracking)
+│   ├── pr.cc                    # PageRank (Gauss-Seidel, CSR edge tracking)
+│   ├── pr_spmv.cc               # PageRank SpMV (Jacobi, CSR edge tracking)
+│   ├── bfs.cc                   # Breadth-First Search (CSR edge tracking)
+│   ├── bc.cc                    # Betweenness Centrality
+│   ├── cc.cc                    # Connected Components (Afforest)
+│   ├── cc_sv.cc                 # Connected Components (Shiloach-Vishkin)
+│   ├── sssp.cc                  # Single-Source Shortest Paths
+│   └── tc.cc                    # Triangle Counting
+└── bin_sim/                     # Compiled binaries
 ```
 
 ## Configuration
@@ -61,7 +64,7 @@ bench/
 | `CACHE_LINE_SIZE` | 64 | Line size (bytes) |
 | `CACHE_POLICY` | LRU | Eviction policy |
 | `CACHE_OUTPUT_JSON` | - | JSON output file path |
-| `ECG_MODE` | DBG_PRIMARY | ECG eviction mode: DBG_PRIMARY, POPT_PRIMARY, DBG_ONLY |
+| `ECG_MODE` | DBG_PRIMARY | ECG eviction mode: DBG_PRIMARY, POPT_PRIMARY, DBG_ONLY, ECG_EMBEDDED |
 | `ECG_MASK_WIDTH` | 8 | ECG mask bits per edge (2,4,8,16,32) |
 | `ECG_NUM_BUCKETS` | 11 | Number of degree buckets (2-16) |
 | `ECG_RRPV_BITS` | 3 | RRPV bit width (max RRPV = 2^bits - 1) |
@@ -90,9 +93,9 @@ The default configuration models a typical modern CPU:
 | **LFU** | Evicts least frequently used | Good for hot data |
 | **PLRU** | Tree-based pseudo-LRU | Hardware-efficient LRU approximation |
 | **SRRIP** | Re-reference interval prediction | Scan-resistant, good for streaming |
-| **GRASP** | Graph-aware degree-based RRIP (Faldu et al., HPCA'20) | Power-law graphs with DBG reordering |
-| **P-OPT** | Graph-transpose Belady approximation (Balaji et al., HPCA'21) | Best miss reduction; requires rereference matrix |
-| **ECG** | Layered SRRIP + DBG + dynamic P-OPT (Mughrabi et al., GrAPL) | Combines structural + oracle signals; 3 modes |
+| **GRASP** | Graph-aware 3-tier RRIP: HOT=1/MODERATE=6/COLD=7 (Faldu et al., HPCA'20) | Power-law graphs with DBG reordering |
+| **P-OPT** | Graph-transpose Belady 3-phase: non-property first → oracle distance → RRIP tiebreak (Balaji et al., HPCA'21) | Best miss reduction; requires rereference matrix |
+| **ECG** | Layered: GRASP insertion + P-OPT/DBG eviction tiebreak, 4 modes (Mughrabi et al., GrAPL) | Combines structural + oracle; zero-overhead embedded mode |
 
 #### ECG Modes
 
@@ -101,12 +104,27 @@ ECG uses a 3-level layered eviction strategy. All modes start with SRRIP aging (
 | Mode | Level 2 | Level 3 | Env Variable |
 |------|---------|---------|------|
 | **DBG_PRIMARY** (default) | DBG tier (coldest vertex) | Dynamic P-OPT `findNextRef()` | `ECG_MODE=DBG_PRIMARY` |
-| **POPT_PRIMARY** | Dynamic P-OPT (furthest future) | DBG tier | `ECG_MODE=POPT_PRIMARY` |
+| **POPT_PRIMARY** | P-OPT 3-phase algorithm (exact match) | DBG tier among P-OPT ties | `ECG_MODE=POPT_PRIMARY` |
 | **DBG_ONLY** | DBG tier only | None (fast path) | `ECG_MODE=DBG_ONLY` |
+| **ECG_EMBEDDED** | Stored P-OPT hint (from mask, zero LLC overhead) | DBG tier | `ECG_MODE=ECG_EMBEDDED` |
 
-- **Insert**: RRPV from `bucketToRRPV(dbg_tier)` — structural priority only; P-OPT is not baked at insert
-- **Hit**: Top bucket → RRPV=0 (aggressive keep), others → decrement
-- **Evict**: P-OPT is consulted dynamically via `findNextRef()` at eviction time (avoids stale snapshots)
+**Insertion RRPV by mode:**
+- **DBG_ONLY / DBG_PRIMARY / ECG_EMBEDDED**: GRASP-faithful 3-tier — HOT=1 (P_RRIP), MODERATE=6 (I_RRIP), COLD=7 (M_RRIP)
+- **POPT_PRIMARY**: Uniform RRPV=6 for all lines (matching pure P-OPT)
+
+**Non-property data handling:**
+- **POPT_PRIMARY**: Phase 0 evicts non-property data (CSR edges, offsets) before property data
+- **DBG modes**: Non-property data gets RRPV=7 (cold) at insert, naturally ages out
+
+**Hit promotion:**
+- **DBG modes**: Hot region → RRPV=0 (aggressive), others → decrement by 1
+- **POPT_PRIMARY**: Universal RRPV=0 (same as SRRIP/P-OPT)
+
+**P-OPT rereference matrix:**
+All sim kernels build the P-OPT rereference matrix via `makeOffsetMatrix()` when `CACHE_POLICY=POPT` or `CACHE_POLICY=ECG`. The matrix is a 256-epoch × num_cache_lines compressed oracle.
+
+**CSR edge tracking:**
+The PR, BFS, and PR_SPMV kernels track CSR edge list reads via `SIM_CACHE_READ_EDGE()`, providing realistic cache pressure from structure data alongside property data.
 
 ## Output Format
 
@@ -304,10 +322,24 @@ All eight benchmarks (`pr`, `pr_spmv`, `bfs`, `cc`, `cc_sv`, `sssp`, `bc`, `tc`)
 
 ## Limitations
 
-1. **Performance**: ~10-100x slower than uninstrumented code
-2. **Threading**: Accesses are serialized for accurate counting
-3. **Simplifications**: No cache coherence, prefetching, or speculation modeling
+1. **Performance**: ~10-100x slower than uninstrumented code (CSR edge tracking doubles access count)
+2. **Threading**: Use `OMP_NUM_THREADS=1` for accurate single-threaded results. Per-thread AccessHints are thread-safe, but cache data structures are shared and not mutex-protected — multi-threaded runs may produce data races in cache sets
+3. **Simplifications**: No cache coherence, hardware prefetching, or speculation modeling
 4. **Scope**: Data cache only (no instruction cache or TLB)
+5. **CSR tracking**: PR, BFS, PR_SPMV track edge list reads; other kernels (BC, CC, SSSP) track property arrays only
+
+## Validation Results
+
+The cache policies have been validated against the original reference implementations:
+
+**GRASP** (Faldu et al., HPCA'20): Faithful 3-tier implementation matching the [original repo](https://github.com/faldupriyank/grasp). GRASP/LRU ratio = 0.65 (paper: 0.64) on web-Google PR at 1MB LLC.
+
+**P-OPT** (Balaji et al., HPCA'21): Algorithm 2 three-phase eviction matching the [original repo](https://github.com/CMUAbstract/POPT-CacheSim-HPCA21). Achieves 40% miss reduction vs LRU.
+
+**ECG mode equivalences** (validated on web-Google PR, 1MB LLC, OMP=1):
+- ECG(DBG_ONLY) ≈ GRASP: 0.1-1.5% relative difference
+- ECG(POPT_PRIMARY) ≈ P-OPT: 0.1% relative difference
+- P-OPT ≤ ECG(DBG_PRIMARY) ≤ GRASP: hierarchy holds
 
 ## Perceptron Integration
 
