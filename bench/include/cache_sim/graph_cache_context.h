@@ -558,6 +558,7 @@ struct RereferenceConfig {
     // Algorithm 2: compute next-reference distance for a cache line
     uint32_t findNextRef(uint32_t cline_id, uint32_t current_vertex) const {
         if (matrix == nullptr || cline_id >= num_cache_lines) return 127;
+        if (epoch_size == 0 || sub_epoch_size == 0) return 127;
         uint32_t epoch_id = current_vertex / epoch_size;
         if (epoch_id >= num_epochs) return 127;
 
@@ -1138,6 +1139,7 @@ struct GraphCacheContext {
     // Compute P-OPT rereference distance for a cache line address.
     uint32_t findNextRef(uint64_t line_addr) const {
         if (rereference.matrix == nullptr) return 127;
+        if (hints.current_src == UINT32_MAX) return 127;  // No vertex context set
         const PropertyRegion* r = findRegion(line_addr);
         if (r == nullptr) return 127;
         uint32_t cline_id = static_cast<uint32_t>(
