@@ -1016,10 +1016,51 @@ private:
         // For DBG modes, this is already handled by RRPV=7 at insert (cold).
         // For POPT_PRIMARY, all lines get RRPV=6 at insert, so non-property
         // lines compete equally — we must explicitly prefer evicting them.
-        if (graph_ctx_ && (mode == ECGMode::POPT_PRIMARY || mode == ECGMode::ECG_EMBEDDED)) {
+        if (graph_ctx_ && mode == ECGMode::POPT_PRIMARY) {
             for (size_t i = 0; i < associativity_; i++) {
                 if (!graph_ctx_->isPropertyData(set[i].line_addr)) {
                     return i;  // Evict non-property data immediately
+                }
+            }
+        }
+
+        // ── POPT_PRIMARY: Use P-OPT's exact 3-phase algorithm ──
+        // Bypass SRRIP aging entirely — P-OPT operates on ALL ways, not
+        // just RRPV-aged candidates. This ensures ECG(POPT_PRIMARY)
+        // matches pure P-OPT's eviction behavior exactly.
+        if (mode == ECGMode::POPT_PRIMARY && graph_ctx_ && graph_ctx_->rereference.matrix) {
+            // Phase 2: Find max rereference distance across ALL ways
+            uint8_t maxRerefDist = 0;
+            uint8_t wayRerefDists[64] = {};
+            for (size_t i = 0; i < associativity_; i++) {
+                uint32_t dist = graph_ctx_->findNextRef(set[i].line_addr);
+                uint8_t d = static_cast<uint8_t>(std::min(dist, uint32_t(127)));
+                wayRerefDists[i] = d;
+                if (d > maxRerefDist) maxRerefDist = d;
+            }
+
+            // Phase 3: RRIP tiebreak among max-distance lines
+            // (age only tied lines, matching P-OPT's Algorithm 2)
+            // Level 3 enhancement: among RRIP ties, prefer highest DBG tier
+            constexpr uint8_t M_RRPV = 7;
+            while (true) {
+                size_t best = SIZE_MAX;
+                uint8_t best_dbg = 0;
+                for (size_t i = 0; i < associativity_; i++) {
+                    if (wayRerefDists[i] == maxRerefDist && set[i].rrpv >= M_RRPV) {
+                        if (best == SIZE_MAX || set[i].ecg_dbg_tier > best_dbg) {
+                            best = i;
+                            best_dbg = set[i].ecg_dbg_tier;
+                        }
+                    }
+                }
+                if (best != SIZE_MAX) return best;
+
+                // Age only the tied lines
+                for (size_t i = 0; i < associativity_; i++) {
+                    if (wayRerefDists[i] == maxRerefDist && set[i].rrpv < M_RRPV) {
+                        set[i].rrpv++;
+                    }
                 }
             }
         }
@@ -1107,37 +1148,8 @@ private:
             }
             return victim;
 
-        } else {  // POPT_PRIMARY
-            // Dynamic P-OPT tiebreak: evict furthest next-reference
-            if (graph_ctx_ && graph_ctx_->rereference.matrix) {
-                uint32_t max_dist = 0;
-                for (size_t c = 0; c < num_candidates; c++) {
-                    uint32_t dist = graph_ctx_->findNextRef(set[candidates[c]].line_addr);
-                    if (dist > max_dist) max_dist = dist;
-                }
-
-                // Narrow to max-dist lines
-                size_t narrowed[64];
-                size_t num_narrowed = 0;
-                for (size_t c = 0; c < num_candidates; c++) {
-                    uint32_t dist = graph_ctx_->findNextRef(set[candidates[c]].line_addr);
-                    if (dist == max_dist)
-                        narrowed[num_narrowed++] = candidates[c];
-                }
-
-                if (num_narrowed == 1) return narrowed[0];
-
-                // Level 3: DBG tiebreak among P-OPT ties
-                uint8_t max_dbg = 0;
-                size_t victim = narrowed[0];
-                for (size_t c = 0; c < num_narrowed; c++) {
-                    if (set[narrowed[c]].ecg_dbg_tier > max_dbg) {
-                        max_dbg = set[narrowed[c]].ecg_dbg_tier;
-                        victim = narrowed[c];
-                    }
-                }
-                return victim;
-            }
+        } else {  // POPT_PRIMARY fallback (no matrix available)
+            // Fall back to DBG tiebreak if no P-OPT matrix
 
             // No P-OPT matrix: fall back to DBG tiebreak
             uint8_t max_dbg = 0;
