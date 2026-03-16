@@ -110,8 +110,8 @@ pvector<ScoreT> PageRankPullGS_Sim(const Graph &g, CacheType &cache,
                 // Track CSR edge list read (reading neighbor ID from edge array)
                 SIM_CACHE_READ_EDGE(cache, it);
                 NodeID v = *it;
-                // ECG: read contrib[v] with per-vertex mask (DBG tier for v)
-                SIM_CACHE_READ_MASKED(cache, contrib_ptr, v, graph_ctx, vertex_masks[v]);
+                // ECG: read contrib[v] with mask (DBG + P-OPT + optional prefetch)
+                SIM_CACHE_READ_MASKED_PREFETCH(cache, contrib_ptr, v, graph_ctx, vertex_masks[v]);
                 incoming_total += outgoing_contrib[v];
             }
             
