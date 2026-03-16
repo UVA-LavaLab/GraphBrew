@@ -52,13 +52,17 @@ GraphEcgRP::touch(
     const PacketPtr pkt)
 {
     auto data = std::static_pointer_cast<EcgReplData>(replacement_data);
-    // Faithful GRASP-style hit promotion:
-    //   Hot property data: RRPV -> 0
-    //   Others: decrement by 1
-    if (data->is_property_data && data->rrpv <= 1) {
+    // Mode-dependent hit promotion (matching standalone cache_sim.h)
+    if (ecgMode == graph::ECGMode::POPT_PRIMARY) {
+        // P-OPT: reset to 0 on hit (same as SRRIP)
         data->rrpv = 0;
-    } else if (data->rrpv > 0) {
-        data->rrpv--;
+    } else {
+        // GRASP-faithful 3-tier for DBG modes and ECG_EMBEDDED
+        if (data->is_property_data && data->rrpv <= 1) {
+            data->rrpv = 0;
+        } else if (data->rrpv > 0) {
+            data->rrpv--;
+        }
     }
 }
 
@@ -83,14 +87,26 @@ GraphEcgRP::reset(
         uint64_t addr = pkt->req->getPaddr();
         data->line_addr = addr & ~uint64_t(63);
 
-        // ECG insertion: same as GRASP 3-tier classification
-        // (matching standalone cache_sim.h ECG insertion block)
+        // ECG insertion: mode-dependent RRPV
+        // POPT_PRIMARY: uniform RRPV=6 (matches pure P-OPT aging)
+        // DBG modes: GRASP 3-tier classification (1/6/7)
         constexpr uint8_t P_RRIP = 1;
         constexpr uint8_t I_RRIP = 6;
         constexpr uint8_t M_RRIP = 7;
 
-        if (ctx.loaded && ctx.isPropertyData(addr)) {
-            // Property data: apply GRASP 3-tier classification
+        if (ecgMode == graph::ECGMode::POPT_PRIMARY) {
+            // P-OPT-style: uniform insertion RRPV for all
+            data->rrpv = 6;
+            data->is_property_data = ctx.loaded && ctx.isPropertyData(addr);
+            // Still set DBG tier for L3 tiebreaking
+            if (ctx.loaded) {
+                uint32_t tier = ctx.classifyGRASP(addr, llcSize);
+                data->ecg_dbg_tier = (tier <= 3) ? static_cast<uint8_t>(tier) : 3;
+            } else {
+                data->ecg_dbg_tier = numBuckets - 1;
+            }
+        } else if (ctx.loaded && ctx.isPropertyData(addr)) {
+            // DBG modes: GRASP 3-tier classification for property data
             uint32_t tier = ctx.classifyGRASP(addr, llcSize);
             data->is_property_data = true;
             if (tier == 1)       data->rrpv = P_RRIP;
@@ -98,10 +114,10 @@ GraphEcgRP::reset(
             else                 data->rrpv = M_RRIP;
             data->ecg_dbg_tier = (tier <= 3) ? static_cast<uint8_t>(tier) : 3;
         } else if (ctx.loaded) {
-            // Non-property data: SRRIP default (don't penalize instructions/edges)
-            data->rrpv = 2;  // SRRIP default
+            // Non-property data: SRRIP default
+            data->rrpv = 2;
             data->is_property_data = false;
-            data->ecg_dbg_tier = 0;  // Neutral tier
+            data->ecg_dbg_tier = 0;
         } else {
             data->rrpv = rrpvMax - 1;
             data->is_property_data = false;
@@ -129,6 +145,52 @@ ReplaceableEntry*
 GraphEcgRP::getVictim(const ReplacementCandidates& candidates) const
 {
     assert(candidates.size() > 0);
+
+    // Phase 0: POPT_PRIMARY — evict non-property data first
+    // Non-property data (instructions, CSR edges) has no oracle prediction.
+    // For DBG modes, non-property gets RRPV=2 (SRRIP) so it ages normally.
+    // For POPT_PRIMARY, all lines get RRPV=6, so we must explicitly prefer
+    // evicting non-property to avoid polluting oracle-managed property data.
+    if (ecgMode == graph::ECGMode::POPT_PRIMARY && ctx.loaded) {
+        for (const auto& c : candidates) {
+            auto d = std::static_pointer_cast<EcgReplData>(c->replacementData);
+            if (!d->is_property_data) return c;
+        }
+    }
+
+    // POPT_PRIMARY: Use exact P-OPT 3-phase algorithm (bypass SRRIP aging)
+    if (ecgMode == graph::ECGMode::POPT_PRIMARY && ctx.loaded &&
+        ctx.rereference.enabled) {
+        // Phase 2: Find max rereference distance across ALL ways
+        uint32_t maxDist = 0;
+        for (const auto& c : candidates) {
+            auto d = std::static_pointer_cast<EcgReplData>(c->replacementData);
+            uint32_t dist = ctx.findNextRef(d->line_addr);
+            if (dist > maxDist) maxDist = dist;
+        }
+        // Phase 3: Among max-distance lines, prefer highest DBG tier
+        constexpr uint8_t M_RRPV = 7;
+        while (true) {
+            ReplaceableEntry* best = nullptr;
+            uint8_t bestDBG = 0;
+            for (const auto& c : candidates) {
+                auto d = std::static_pointer_cast<EcgReplData>(c->replacementData);
+                if (ctx.findNextRef(d->line_addr) == maxDist && d->rrpv >= M_RRPV) {
+                    if (!best || d->ecg_dbg_tier > bestDBG) {
+                        best = c;
+                        bestDBG = d->ecg_dbg_tier;
+                    }
+                }
+            }
+            if (best) return best;
+            // Age only tied lines
+            for (const auto& c : candidates) {
+                auto d = std::static_pointer_cast<EcgReplData>(c->replacementData);
+                if (ctx.findNextRef(d->line_addr) == maxDist && d->rrpv < M_RRPV)
+                    d->rrpv++;
+            }
+        }
+    }
 
     // Level 1: SRRIP aging — find lines at max RRPV
     while (true) {
