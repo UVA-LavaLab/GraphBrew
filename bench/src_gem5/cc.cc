@@ -1,0 +1,104 @@
+// ============================================================================
+// Connected Components (Afforest) for gem5 SE-mode simulation
+// ============================================================================
+// Single-threaded Afforest (subgraph sampling) for gem5 SE mode.
+// ============================================================================
+
+#include <iostream>
+#include <random>
+#include <unordered_map>
+#include <vector>
+
+#include "benchmark.h"
+#include "builder.h"
+#include "command_line.h"
+#include "graph.h"
+#include "pvector.h"
+
+#include "gem5_sim/gem5_harness.h"
+
+using namespace std;
+
+void Link(NodeID u, NodeID v, pvector<NodeID>& comp) {
+    NodeID p1 = comp[u], p2 = comp[v];
+    while (p1 != p2) {
+        NodeID high = p1 > p2 ? p1 : p2;
+        NodeID low = p1 + (p2 - high);
+        if (comp[high] == high) { comp[high] = low; break; }
+        NodeID p_high = comp[high];
+        p1 = comp[p_high];
+        p2 = comp[low];
+    }
+}
+
+void Compress(const Graph &g, pvector<NodeID>& comp) {
+    for (NodeID n = 0; n < g.num_nodes(); n++)
+        while (comp[n] != comp[comp[n]])
+            comp[n] = comp[comp[n]];
+}
+
+pvector<NodeID> Afforest_Gem5(const Graph &g, int32_t neighbor_rounds = 2) {
+    pvector<NodeID> comp(g.num_nodes());
+    for (NodeID n = 0; n < g.num_nodes(); n++) comp[n] = n;
+
+    gem5_report_region("comp", comp.data(), g.num_nodes(), sizeof(NodeID));
+
+    GEM5_RESET_STATS();
+    GEM5_WORK_BEGIN(GEM5_WORK_COMPUTE);
+
+    // Phase 1: sparse sampling
+    for (int32_t r = 0; r < neighbor_rounds; r++) {
+        for (NodeID u = 0; u < g.num_nodes(); u++) {
+            auto it = g.out_neigh(u).begin();
+            for (int32_t i = 0; i < r && it != g.out_neigh(u).end(); ++i, ++it) {}
+            if (it != g.out_neigh(u).end())
+                Link(u, *it, comp);
+        }
+        Compress(g, comp);
+    }
+
+    // Find largest component
+    unordered_map<NodeID, int64_t> count;
+    for (NodeID n = 0; n < g.num_nodes(); n++) count[comp[n]]++;
+    NodeID largest = max_element(count.begin(), count.end(),
+        [](auto &a, auto &b){ return a.second < b.second; })->first;
+
+    // Phase 2: full edge traversal skipping largest
+    for (NodeID u = 0; u < g.num_nodes(); u++) {
+        if (comp[u] == largest) continue;
+        for (NodeID v : g.out_neigh(u))
+            Link(u, v, comp);
+    }
+    Compress(g, comp);
+
+    GEM5_WORK_END(GEM5_WORK_COMPUTE);
+    GEM5_DUMP_STATS();
+    return comp;
+}
+
+void PrintCompStats(const Graph &g, const pvector<NodeID> &comp) {
+    unordered_map<NodeID, int64_t> count;
+    for (NodeID n = 0; n < g.num_nodes(); n++) count[comp[n]]++;
+    cout << "Components: " << count.size() << endl;
+}
+
+bool CCVerifier(const Graph &g, const pvector<NodeID> &comp) {
+    // Check: all connected vertices have same component
+    for (NodeID u = 0; u < g.num_nodes(); u++)
+        for (NodeID v : g.out_neigh(u))
+            if (comp[u] != comp[v]) return false;
+    return true;
+}
+
+int main(int argc, char *argv[]) {
+    CLApp cli(argc, argv, "cc-gem5");
+    if (!cli.ParseArgs()) return -1;
+    Builder b(cli);
+    Graph g = b.MakeGraph();
+
+    auto CCBound = [](const Graph &g) { return Afforest_Gem5(g); };
+    auto PrintBound = [](const Graph &g, const pvector<NodeID> &c) { PrintCompStats(g, c); };
+    auto VerifyBound = [](const Graph &g, const pvector<NodeID> &c) { return CCVerifier(g, c); };
+    BenchmarkKernel(cli, g, CCBound, PrintBound, VerifyBound);
+    return 0;
+}

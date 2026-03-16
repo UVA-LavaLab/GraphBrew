@@ -205,6 +205,40 @@ clean-sim:
 	rm -rf $(BIN_SIM_DIR)
 
 # =========================================================
+# gem5 Benchmark Builds (static, single-threaded, for SE mode)
+# =========================================================
+SRC_GEM5_DIR = $(BENCH_DIR)/src_gem5
+BIN_GEM5_DIR = $(BENCH_DIR)/bin_gem5
+GEM5_HARNESS_INC = $(INC_DIR)/gem5_sim
+
+# gem5 benchmarks: single-threaded at runtime but headers need OpenMP.
+# Static linking for gem5 SE mode. -O1 to avoid unsupported instructions.
+CXXFLAGS_GEM5 = -std=c++17 -O1 -Wall -g -DNDEBUG -DNO_M5OPS -fopenmp
+KERNELS_GEM5 = pr pr_spmv bfs sssp cc cc_sv bc tc
+
+$(BIN_GEM5_DIR):
+	@mkdir -p $@ $(CREATE_STATUS)
+
+$(BIN_GEM5_DIR)/%: $(SRC_GEM5_DIR)/%.cc $(DEP_GAPBS) | $(BIN_GEM5_DIR)
+	@$(CXX) $(CXXFLAGS_GEM5) $(CXXFLAGS_LEIDEN) $(INCLUDES) $< $(LDLIBS) -o $@ $(EXIT_STATUS)
+
+.PHONY: gem5-% all-gem5 clean-gem5-bin run-gem5-%
+
+gem5-%: $(BIN_GEM5_DIR)/%
+	@echo "Built gem5 version: $<"
+
+all-gem5: $(addprefix $(BIN_GEM5_DIR)/, $(KERNELS_GEM5))
+	@echo "Built all gem5 benchmarks"
+
+clean-gem5-bin:
+	rm -rf $(BIN_GEM5_DIR)
+
+# Run gem5 benchmark natively (for testing without gem5)
+run-gem5-%: $(BIN_GEM5_DIR)/%
+	@echo "Running gem5 benchmark natively: $<"
+	@./$< -g 10 -n 1
+
+# =========================================================
 # gem5 Simulation Setup
 # =========================================================
 GEM5_SIM_DIR = $(INC_DIR)/gem5_sim
@@ -255,6 +289,12 @@ help: help-pr
 	@echo "gem5 Simulation:"
 	@echo "  setup-gem5       - Clone, patch, and build gem5 with GraphBrew policies"
 	@echo "  clean-gem5       - Remove cloned gem5 directory"
+	@echo ""
+	@echo "gem5 Benchmarks (static, single-threaded for SE mode):"
+	@echo "  all-gem5         - Build all gem5 benchmark binaries"
+	@echo "  gem5-%           - Build gem5 version of specified algorithm"
+	@echo "  run-gem5-%       - Run gem5 benchmark natively (for testing)"
+	@echo "  clean-gem5-bin   - Remove gem5 benchmark binaries"
 	@echo ""
 	@echo "Cache Simulation Environment Variables:"
 	@echo "  CACHE_L1_SIZE=32768       - L1 cache size in bytes (default: 32KB)"

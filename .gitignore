@@ -1,5 +1,6 @@
 bench/bin
 bench/bin_sim
+bench/bin_gem5
 bench/lib
 bench/results
 bench/backups
