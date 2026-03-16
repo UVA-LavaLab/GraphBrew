@@ -1209,9 +1209,10 @@ struct GraphCacheContext {
         return tiers;
     }
 
-    // Compute per-vertex mask entries (DBG tier only — O(n)).
-    // All edges to vertex v share the same mask.
-    // For per-edge masks with P-OPT rereference, extend with transpose.
+    // Compute per-vertex mask entries with DBG tier and P-OPT rereference hint.
+    // P-OPT hint is quantized from the rereference matrix if available,
+    // otherwise zero. The hint represents expected rereference distance
+    // (0 = soon, max = far away), quantized to popt_bits (default 4 → 0-15).
     template<typename GraphT>
     std::vector<uint8_t> computeVertexMasks8(const GraphT& g) {
         if (!mask_config.enabled) {
@@ -1222,9 +1223,41 @@ struct GraphCacheContext {
         auto tiers = computeVertexTiers(g);
         uint32_t n = g.num_nodes();
         std::vector<uint8_t> masks(n, 0);
+
+        // Compute P-OPT quantized hints from degree (proxy for rereference).
+        // Higher degree → more edges → more frequent access → lower hint value.
+        // This provides a degree-based oracle approximation without the full matrix.
+        uint8_t popt_max = mask_config.popt_bits > 0 ? ((1 << mask_config.popt_bits) - 1) : 0;
+
         #pragma omp parallel for schedule(static)
-        for (uint32_t v = 0; v < n; ++v)
-            masks[v] = static_cast<uint8_t>(mask_config.encode(tiers[v], 0, 0));
+        for (uint32_t v = 0; v < n; ++v) {
+            uint8_t popt_hint = 0;
+            if (popt_max > 0 && topology.num_vertices > 0) {
+                // Use rereference matrix if available for true oracle hint
+                if (rereference.matrix) {
+                    constexpr int numVtxPerLine = 16;  // 64B / 4B per vertex
+                    uint32_t cline = v / numVtxPerLine;
+                    // Sample middle epoch for representative distance
+                    uint32_t mid_epoch = rereference.num_epochs / 2;
+                    if (cline < rereference.num_cache_lines && mid_epoch < rereference.num_epochs) {
+                        uint8_t entry = rereference.matrix[mid_epoch * rereference.num_cache_lines + cline];
+                        uint8_t dist = (entry & 0x80) ? 0 : (entry & 0x7F);
+                        // Quantize 0-127 → 0-popt_max
+                        popt_hint = static_cast<uint8_t>((uint32_t(dist) * popt_max) / 127);
+                    }
+                } else {
+                    // Proxy: inverse degree → high degree = low hint (soon), low degree = high hint (far)
+                    uint32_t deg = g.out_degree(v);
+                    if (deg == 0) {
+                        popt_hint = popt_max;  // No edges → never re-accessed
+                    } else {
+                        double ratio = static_cast<double>(deg) / topology.max_degree;
+                        popt_hint = static_cast<uint8_t>(popt_max * (1.0 - ratio));
+                    }
+                }
+            }
+            masks[v] = static_cast<uint8_t>(mask_config.encode(tiers[v], popt_hint, 0));
+        }
         return masks;
     }
 
