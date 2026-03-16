@@ -19,7 +19,18 @@ import m5
 from m5.objects import *
 
 
-def make_l3_policy(name, ecg_mode="DBG_PRIMARY"):
+def parse_size(s):
+    """Parse size string like '256kB' or '8MB' to bytes."""
+    s = s.strip().upper()
+    if s.endswith("KB"):
+        return int(s[:-2]) * 1024
+    elif s.endswith("MB"):
+        return int(s[:-2]) * 1024 * 1024
+    elif s.endswith("B"):
+        return int(s[:-1])
+    return int(s)
+
+def make_l3_policy(name, ecg_mode="DBG_PRIMARY", llc_bytes=8*1024*1024):
     """Create L3 replacement policy SimObject by name."""
     if name == "LRU":
         return LRURP()
@@ -30,15 +41,16 @@ def make_l3_policy(name, ecg_mode="DBG_PRIMARY"):
     elif name == "RANDOM":
         return RandomRP()
     elif name == "GRASP":
-        return GraphGraspRP(max_rrpv=7, num_buckets=11, hot_fraction=0.1)
+        return GraphGraspRP(max_rrpv=7, num_buckets=11, hot_fraction=0.1,
+                            llc_size_bytes=llc_bytes)
     elif name == "POPT":
         return GraphPoptRP(max_rrpv=7)
     elif name == "ECG":
-        return GraphEcgRP(rrpv_max=7, num_buckets=11, ecg_mode=ecg_mode)
+        return GraphEcgRP(rrpv_max=7, num_buckets=11, ecg_mode=ecg_mode,
+                          llc_size_bytes=llc_bytes)
     else:
         print(f"Unknown policy '{name}', using LRU")
         return LRURP()
-
 
 # Parse args (gem5 passes remaining args after config script)
 parser = argparse.ArgumentParser()
@@ -50,6 +62,10 @@ parser.add_argument("--ecg-mode", default="DBG_PRIMARY",
                     help="ECG mode: DBG_PRIMARY, POPT_PRIMARY, DBG_ONLY, ECG_EMBEDDED")
 parser.add_argument("--binary-args", default="",
                     help="Arguments to pass to the binary")
+parser.add_argument("--l3-size", default="8MB",
+                    help="L3 cache size (default: 8MB)")
+parser.add_argument("--l2-size", default="256kB",
+                    help="L2 cache size (default: 256kB)")
 
 args = parser.parse_args()
 
@@ -82,16 +98,17 @@ system.cpu.dcache = Cache(
 
 # L2 cache (LRU — standard)
 system.l2cache = Cache(
-    size="256kB", assoc=4,
+    size=args.l2_size, assoc=4,
     tag_latency=10, data_latency=10, response_latency=10,
     mshrs=20, tgts_per_mshr=12)
 
 # L3 cache with selectable policy
 system.l3cache = Cache(
-    size="8MB", assoc=16,
+    size=args.l3_size, assoc=16,
     tag_latency=20, data_latency=20, response_latency=20,
     mshrs=32, tgts_per_mshr=16,
-    replacement_policy=make_l3_policy(args.policy, args.ecg_mode))
+    replacement_policy=make_l3_policy(args.policy, args.ecg_mode,
+                                     parse_size(args.l3_size)))
 
 # Buses
 system.membus = SystemXBar()
@@ -144,7 +161,7 @@ print(f"=== gem5 Policy Test ===")
 print(f"  Binary:  {args.binary}")
 print(f"  Policy:  {args.policy}"
       + (f" ({args.ecg_mode})" if args.policy == "ECG" else ""))
-print(f"  L3:      8MB 16-way")
+print(f"  L3:      {args.l3_size} 16-way")
 print(f"  CPU:     TimingSimpleCPU @ 2GHz")
 print(f"========================")
 
