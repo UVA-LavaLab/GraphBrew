@@ -25,17 +25,24 @@ class GraphGraspRP(BaseReplacementPolicy):
 
     Extends SRRIP with degree-based 3-tier insertion and hit promotion.
     Requires DBG-reordered graph or GraphCacheContext for bucket classification.
+
+    Property region discovery: If property_base > 0, uses explicit region.
+    Otherwise, learns the hot region from access patterns dynamically.
     """
     type = 'GraphGraspRP'
     cxx_header = "mem/cache/replacement_policies/grasp_rp.hh"
     cxx_class = 'gem5::replacement_policy::GraphGraspRP'
 
-    max_rrpv = Param.Int(7,
+    max_rrpv = Param.Unsigned(7,
         "Maximum RRPV value (2^rrpv_bits - 1). Default 7 for 3-bit RRPV.")
-    num_buckets = Param.Int(11,
+    num_buckets = Param.Unsigned(11,
         "Number of degree buckets for vertex classification (matching DBG).")
     hot_fraction = Param.Float(0.1,
         "Fraction of LLC capacity reserved for high-degree hub vertices.")
+    llc_size = Param.Unsigned(8388608,
+        "LLC size in bytes (default 8MB). Used for GRASP hot-region boundary.")
+    learn_regions = Param.Bool(True,
+        "Dynamically learn property regions from access patterns.")
 
 
 class GraphPoptRP(BaseReplacementPolicy):
@@ -59,11 +66,13 @@ class GraphEcgRP(BaseReplacementPolicy):
     (Mughrabi et al., GrAPL @ IPDPS 2026)
 
     3-level layered eviction with mode-dependent tiebreaker:
-      DBG_PRIMARY:  SRRIP → DBG tier → dynamic P-OPT (default)
-      POPT_PRIMARY: SRRIP → dynamic P-OPT → DBG tier
-      DBG_ONLY:     SRRIP → DBG tier (fast path, no P-OPT)
+      DBG_PRIMARY:  SRRIP -> DBG tier -> dynamic P-OPT (default)
+      POPT_PRIMARY: SRRIP -> dynamic P-OPT -> DBG tier
+      DBG_ONLY:     SRRIP -> DBG tier (fast path, no P-OPT)
+      ECG_EMBEDDED: SRRIP -> DBG tier -> stored P-OPT hint (zero LLC overhead)
 
     Supports per-access mask hints via custom ECG instruction.
+    Property region discovery: learns from access patterns dynamically.
     """
     type = 'GraphEcgRP'
     cxx_header = "mem/cache/replacement_policies/ecg_rp.hh"
@@ -75,3 +84,7 @@ class GraphEcgRP(BaseReplacementPolicy):
         "Number of degree buckets for DBG classification.")
     ecg_mode = Param.String("DBG_PRIMARY",
         "Eviction mode: DBG_PRIMARY, POPT_PRIMARY, DBG_ONLY, or ECG_EMBEDDED.")
+    llc_size = Param.Unsigned(8388608,
+        "LLC size in bytes (default 8MB). Used for GRASP-faithful classification.")
+    learn_regions = Param.Bool(True,
+        "Dynamically learn property regions from access patterns.")

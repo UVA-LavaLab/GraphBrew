@@ -82,11 +82,25 @@ class GraphGraspRP : public Base
     const uint8_t maxRRPV;          // Maximum RRPV value (2^rrpv_bits - 1)
     const uint8_t numBuckets;       // Number of degree buckets
     const double hotFraction;       // Fraction of LLC for hot vertices
+    const uint64_t llcSize;         // LLC size in bytes (for hot-region boundary)
+    const bool learnRegions;        // Dynamically learn property regions
 
     // Graph metadata
     graph::GraphCacheContext* graphCtx = nullptr;
 
-    // Legacy GRASP state (used when no GraphCacheContext)
+    // Online region learning state
+    mutable bool regionsLearned = false;
+    mutable uint64_t learnedBase = 0;
+    mutable uint64_t learnedEnd = 0;
+    mutable uint64_t minAddr = UINT64_MAX;
+    mutable uint64_t maxAddr = 0;
+    mutable uint64_t accessCount = 0;
+    static constexpr uint64_t LEARN_WARMUP = 10000;  // Accesses before learning
+
+    // Classify using learned regions (no GraphCacheContext needed)
+    ReuseTier classifyFromLearnedRegion(uint64_t addr) const;
+
+    // Legacy GRASP state (used when no GraphCacheContext and no learning)
     uint64_t dataBase = 0;
     uint64_t highReuseBound = 0;
     uint64_t moderateReuseBound = 0;

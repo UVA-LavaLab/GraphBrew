@@ -16,7 +16,9 @@ GraphGraspRP::GraphGraspRP(const Params &p)
     : Base(p),
       maxRRPV(p.max_rrpv),
       numBuckets(p.num_buckets),
-      hotFraction(p.hot_fraction)
+      hotFraction(p.hot_fraction),
+      llcSize(p.llc_size),
+      learnRegions(p.learn_regions)
 {
 }
 
@@ -55,6 +57,20 @@ GraphGraspRP::reset(const std::shared_ptr<ReplacementData>& replacement_data,
 
     if (pkt && pkt->req) {
         uint64_t addr = pkt->req->getPaddr();
+
+        // Online region learning: track address range during warmup
+        if (learnRegions && !regionsLearned) {
+            uint64_t lineAddr = addr & ~uint64_t(63);
+            if (lineAddr < minAddr) minAddr = lineAddr;
+            if (lineAddr + 64 > maxAddr) maxAddr = lineAddr + 64;
+            accessCount++;
+            if (accessCount >= LEARN_WARMUP && minAddr < maxAddr) {
+                learnedBase = minAddr;
+                learnedEnd = maxAddr;
+                regionsLearned = true;
+            }
+        }
+
         ReuseTier tier = classifyAddress(addr);
         data->rrpv = insertionRRPV(tier);
         data->is_property_data = (tier != ReuseTier::LOW);
@@ -124,18 +140,38 @@ GraphGraspRP::instantiateEntry()
 GraphGraspRP::ReuseTier
 GraphGraspRP::classifyAddress(uint64_t addr) const
 {
-    // Prefer classifyGRASP (faithful 3-tier per Faldu et al.)
+    // Prefer classifyGRASP with explicit context
     if (graphCtx) {
-        uint32_t tier = graphCtx->classifyGRASP(addr, 8 * 1024 * 1024); // 8MB LLC default
+        uint32_t tier = graphCtx->classifyGRASP(addr, llcSize);
         if (tier == 1) return ReuseTier::HIGH;
         if (tier == 2) return ReuseTier::MODERATE;
         return ReuseTier::LOW;
+    }
+
+    // Use learned regions (online discovery from access patterns)
+    if (learnRegions && regionsLearned) {
+        return classifyFromLearnedRegion(addr);
     }
 
     // Legacy GRASP state (address-range based, requires DBG ordering)
     if (dataBase == 0 && dataEnd == 0) return ReuseTier::LOW;
     if (addr >= dataBase && addr < highReuseBound) return ReuseTier::HIGH;
     if (addr >= highReuseBound && addr < moderateReuseBound) return ReuseTier::MODERATE;
+    return ReuseTier::LOW;
+}
+
+GraphGraspRP::ReuseTier
+GraphGraspRP::classifyFromLearnedRegion(uint64_t addr) const
+{
+    // GRASP 3-tier classification using learned region
+    // Hot boundary = first hot_fraction of LLC capacity within the region
+    if (addr < learnedBase || addr >= learnedEnd)
+        return ReuseTier::LOW;
+
+    uint64_t offset = addr - learnedBase;
+    uint64_t hotBytes = static_cast<uint64_t>(hotFraction * llcSize);
+    if (offset < hotBytes)      return ReuseTier::HIGH;
+    if (offset < 2 * hotBytes)  return ReuseTier::MODERATE;
     return ReuseTier::LOW;
 }
 

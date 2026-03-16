@@ -89,8 +89,22 @@ class GraphEcgRP : public Base
     const uint8_t rrpvMax;          // Maximum RRPV value
     const uint8_t numBuckets;       // Number of degree buckets
     const graph::ECGMode ecgMode;   // Eviction tiebreaker mode
+    const uint64_t llcSize;         // LLC size for classification
+    const bool learnRegions;        // Dynamically learn property regions
 
     graph::GraphCacheContext* graphCtx = nullptr;
+
+    // Online region learning state
+    mutable bool regionsLearned = false;
+    mutable uint64_t learnedBase = 0;
+    mutable uint64_t learnedEnd = 0;
+    mutable uint64_t minAddr = UINT64_MAX;
+    mutable uint64_t maxAddr = 0;
+    mutable uint64_t accessCount = 0;
+    static constexpr uint64_t LEARN_WARMUP = 10000;
+
+    // Classify using learned region
+    uint32_t classifyGRASPTier(uint64_t addr) const;
 };
 
 } // namespace replacement_policy

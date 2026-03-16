@@ -20,7 +20,9 @@ GraphEcgRP::GraphEcgRP(const Params &p)
     : Base(p),
       rrpvMax(p.rrpv_max),
       numBuckets(p.num_buckets),
-      ecgMode(graph::stringToECGMode(p.ecg_mode))
+      ecgMode(graph::stringToECGMode(p.ecg_mode)),
+      llcSize(p.llc_size),
+      learnRegions(p.learn_regions)
 {
 }
 
@@ -43,11 +45,15 @@ GraphEcgRP::touch(
 {
     auto data = std::static_pointer_cast<EcgReplData>(replacement_data);
 
-    // DBG-aware hit promotion (matching standalone cache_sim):
-    //   Bucket 0 (hubs) → RRPV=0
-    //   Others → decrement by 1
-    if (data->ecg_dbg_tier == 0) {
-        data->rrpv = 0;
+    // ECG: GRASP-faithful 3-tier hit promotion
+    if (pkt && pkt->req) {
+        uint64_t addr = pkt->req->getPaddr() & ~uint64_t(63);
+        uint32_t tier = classifyGRASPTier(addr);
+        if (tier == 1) {
+            data->rrpv = 0;            // Hot: aggressive reset
+        } else if (data->rrpv > 0) {
+            data->rrpv--;              // Others: gradual decrement
+        }
     } else if (data->rrpv > 0) {
         data->rrpv--;
     }
@@ -72,37 +78,45 @@ GraphEcgRP::reset(
         uint64_t addr = pkt->req->getPaddr();
         data->line_addr = addr & ~uint64_t(63);
 
-        if (graphCtx) {
-            data->is_property_data = graphCtx->isPropertyData(data->line_addr);
+        // Online region learning: track address range during warmup
+        if (learnRegions && !regionsLearned) {
+            if (data->line_addr < minAddr) minAddr = data->line_addr;
+            if (data->line_addr + 64 > maxAddr) maxAddr = data->line_addr + 64;
+            accessCount++;
+            if (accessCount >= LEARN_WARMUP && minAddr < maxAddr) {
+                learnedBase = minAddr;
+                learnedEnd = maxAddr;
+                regionsLearned = true;
+            }
+        }
 
-            // Classify degree bucket
+        // ECG insertion: GRASP-faithful 3-tier RRPV (matching standalone)
+        constexpr uint8_t P_RRIP = 1;    // Priority (hot)
+        constexpr uint8_t I_RRIP = 6;    // Intermediate (moderate)
+        constexpr uint8_t M_RRIP_C = 7;  // Max (cold)
+
+        uint32_t tier = classifyGRASPTier(data->line_addr);
+        if (tier == 1)       data->rrpv = P_RRIP;
+        else if (tier == 2)  data->rrpv = I_RRIP;
+        else                 data->rrpv = M_RRIP_C;
+
+        data->is_property_data = (tier <= 3);
+
+        // Store ECG mask fields for eviction tiebreaking
+        if (graphCtx && graphCtx->current_mask != 0 &&
+            graphCtx->mask_config.enabled) {
+            data->ecg_dbg_tier = graphCtx->mask_config.decodeDBG(
+                graphCtx->current_mask);
+            data->ecg_popt_hint = graphCtx->mask_config.decodePOPT(
+                graphCtx->current_mask);
+        } else if (graphCtx) {
             uint32_t bucket = graphCtx->classifyBucket(data->line_addr);
-            if (bucket < numBuckets) {
-                data->ecg_dbg_tier = static_cast<uint8_t>(bucket);
-                // RRPV from DBG tier (structural priority, set at insert)
-                data->rrpv = graphCtx->mask_config.dbgTierToRRPV(
-                    data->ecg_dbg_tier);
-            } else {
-                data->ecg_dbg_tier = numBuckets - 1; // Unknown → cold
-                data->rrpv = rrpvMax;
-            }
-
-            // If per-access mask is available (from custom instruction),
-            // override with mask-derived tier and store P-OPT hint
-            if (graphCtx->current_mask != 0 &&
-                graphCtx->mask_config.enabled) {
-                uint8_t mask_dbg = graphCtx->mask_config.decodeDBG(
-                    graphCtx->current_mask);
-                uint8_t popt_hint = graphCtx->mask_config.decodePOPT(
-                    graphCtx->current_mask);
-                data->ecg_dbg_tier = mask_dbg;
-                data->ecg_popt_hint = popt_hint;
-                data->rrpv = graphCtx->mask_config.dbgTierToRRPV(mask_dbg);
-            }
+            data->ecg_dbg_tier = (bucket < numBuckets)
+                ? static_cast<uint8_t>(bucket) : 0;
+            data->ecg_popt_hint = 0;
         } else {
-            data->ecg_dbg_tier = numBuckets - 1;
-            data->rrpv = rrpvMax - 1;
-            data->is_property_data = false;
+            data->ecg_dbg_tier = (tier == 1) ? 0 : (tier == 2) ? 4 : 10;
+            data->ecg_popt_hint = 0;
         }
     } else {
         data->ecg_dbg_tier = numBuckets - 1;
@@ -256,6 +270,28 @@ std::shared_ptr<ReplacementData>
 GraphEcgRP::instantiateEntry()
 {
     return std::make_shared<EcgReplData>(rrpvMax);
+}
+
+uint32_t
+GraphEcgRP::classifyGRASPTier(uint64_t addr) const
+{
+    // Use explicit context first
+    if (graphCtx) {
+        return graphCtx->classifyGRASP(addr, llcSize);
+    }
+
+    // Use learned region
+    if (learnRegions && regionsLearned) {
+        if (addr < learnedBase || addr >= learnedEnd)
+            return 3;  // COLD
+        uint64_t offset = addr - learnedBase;
+        uint64_t hotBytes = static_cast<uint64_t>(0.10 * llcSize);
+        if (offset < hotBytes)      return 1;  // HOT
+        if (offset < 2 * hotBytes)  return 2;  // MODERATE
+        return 3;                               // COLD
+    }
+
+    return 3;  // No context, no learning → cold
 }
 
 } // namespace replacement_policy
