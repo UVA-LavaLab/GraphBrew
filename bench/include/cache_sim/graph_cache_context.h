@@ -118,11 +118,14 @@ static constexpr uint32_t MAX_PROPERTY_REGIONS = 8;
 //   DBG_PRIMARY  (default): SRRIP → DBG tier → dynamic P-OPT
 //   POPT_PRIMARY:           SRRIP → dynamic P-OPT → DBG tier
 //   DBG_ONLY:               SRRIP → DBG tier (no P-OPT, fast path)
+//   ECG_EMBEDDED:           Stored P-OPT hint as primary, DBG as secondary
+//   ECG_COMBINED:           Both DBG + P-OPT hint → unified insertion RRPV (Hawkeye-inspired)
 enum class ECGMode {
     DBG_PRIMARY,   // DBG tier is primary tiebreaker, P-OPT is secondary
     POPT_PRIMARY,  // Dynamic P-OPT is primary tiebreaker, DBG is secondary
     DBG_ONLY,      // DBG tier only, no P-OPT consulted (equivalent to GRASP+mask)
-    ECG_EMBEDDED   // DBG tier primary, stored P-OPT hint (from mask) as secondary — zero LLC overhead
+    ECG_EMBEDDED,  // DBG tier primary, stored P-OPT hint (from mask) as secondary — zero LLC overhead
+    ECG_COMBINED   // Combined DBG+P-OPT → insertion RRPV (both signals at insert, not evict)
 };
 
 inline std::string ECGModeToString(ECGMode mode) {
@@ -131,6 +134,7 @@ inline std::string ECGModeToString(ECGMode mode) {
         case ECGMode::POPT_PRIMARY: return "POPT_PRIMARY";
         case ECGMode::DBG_ONLY:     return "DBG_ONLY";
         case ECGMode::ECG_EMBEDDED: return "ECG_EMBEDDED";
+        case ECGMode::ECG_COMBINED: return "ECG_COMBINED";
         default:                    return "UNKNOWN";
     }
 }
@@ -139,6 +143,7 @@ inline ECGMode StringToECGMode(const std::string& s) {
     if (s == "POPT_PRIMARY" || s == "popt_primary" || s == "popt") return ECGMode::POPT_PRIMARY;
     if (s == "DBG_ONLY" || s == "dbg_only" || s == "dbg") return ECGMode::DBG_ONLY;
     if (s == "ECG_EMBEDDED" || s == "ecg_embedded" || s == "embedded") return ECGMode::ECG_EMBEDDED;
+    if (s == "ECG_COMBINED" || s == "ecg_combined" || s == "combined") return ECGMode::ECG_COMBINED;
     return ECGMode::DBG_PRIMARY;  // Default
 }
 
