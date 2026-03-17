@@ -1335,13 +1335,26 @@ struct GraphCacheContext {
             uint32_t popt_hint = 0;
             if (popt_max > 0 && topology.num_vertices > 0) {
                 if (rereference.matrix) {
+                    // Average rereference distance across ALL epochs for this
+                    // vertex's cache line. This gives a representative distance
+                    // instead of sampling a single epoch.
                     constexpr int numVtxPerLine = 16;
                     uint32_t cline = v / numVtxPerLine;
-                    uint32_t mid_epoch = rereference.num_epochs / 2;
-                    if (cline < rereference.num_cache_lines && mid_epoch < rereference.num_epochs) {
-                        uint8_t entry = rereference.matrix[mid_epoch * rereference.num_cache_lines + cline];
-                        uint8_t dist = (entry & 0x80) ? 0 : (entry & 0x7F);
-                        popt_hint = (uint32_t(dist) * popt_max) / 127;
+                    if (cline < rereference.num_cache_lines) {
+                        uint32_t total_dist = 0;
+                        uint32_t count = 0;
+                        for (uint32_t e = 0; e < rereference.num_epochs; e++) {
+                            uint8_t entry = rereference.matrix[e * rereference.num_cache_lines + cline];
+                            if ((entry & 0x80) == 0) {  // Not referenced this epoch
+                                total_dist += (entry & 0x7F);
+                                count++;
+                            }
+                            // Referenced epochs (MSB=1) have distance 0 — skip
+                        }
+                        uint8_t avg_dist = count > 0
+                            ? static_cast<uint8_t>(std::min(total_dist / count, uint32_t(127)))
+                            : 0;
+                        popt_hint = (uint32_t(avg_dist) * popt_max) / 127;
                     }
                 } else {
                     uint32_t deg = g.out_degree(v);
@@ -1370,15 +1383,19 @@ struct GraphCacheContext {
                         }
                     }
                 } else if (mask_config.prefetch_mode == 2 && rereference.matrix) {
-                    // POPT mode: neighbor with shortest rereference distance
+                    // POPT mode: neighbor with shortest avg rereference distance
                     uint32_t best_dist = 128;
                     constexpr int numVtxPerLine = 16;
-                    uint32_t mid_epoch = rereference.num_epochs / 2;
                     for (auto ngh : g.out_neigh(v)) {
                         uint32_t ncline = static_cast<uint32_t>(ngh) / numVtxPerLine;
-                        if (ncline < rereference.num_cache_lines && mid_epoch < rereference.num_epochs) {
-                            uint8_t entry = rereference.matrix[mid_epoch * rereference.num_cache_lines + ncline];
-                            uint8_t dist = (entry & 0x80) ? 0 : (entry & 0x7F);
+                        if (ncline < rereference.num_cache_lines) {
+                            // Average distance across epochs for this neighbor
+                            uint32_t td = 0, cnt = 0;
+                            for (uint32_t e = 0; e < rereference.num_epochs; e++) {
+                                uint8_t entry = rereference.matrix[e * rereference.num_cache_lines + ncline];
+                                if ((entry & 0x80) == 0) { td += (entry & 0x7F); cnt++; }
+                            }
+                            uint32_t dist = cnt > 0 ? td / cnt : 127;
                             if (dist < best_dist && !build_dedup.contains(ngh)) {
                                 best_dist = dist;
                                 best_target = ngh;
