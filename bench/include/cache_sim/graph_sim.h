@@ -85,7 +85,7 @@ private:
 // mask_val = pre-encoded mask entry from the parallel mask array.
 #define SIM_CACHE_READ_MASKED(cache, arr, idx, graph_ctx, mask_val) \
     do { \
-        (graph_ctx).hints_for_thread().mask = static_cast<uint8_t>(mask_val); \
+        (graph_ctx).hints_for_thread().mask = static_cast<uint32_t>(mask_val); \
         (cache).access(reinterpret_cast<uint64_t>(&(arr)[idx]), false); \
     } while(0)
 
@@ -96,7 +96,7 @@ private:
 // as a demand access — prefetch misses don't inflate the miss rate.
 #define SIM_CACHE_READ_MASKED_PREFETCH(cache, arr, idx, graph_ctx, mask_val) \
     do { \
-        (graph_ctx).hints_for_thread().mask = static_cast<uint8_t>(mask_val); \
+        (graph_ctx).hints_for_thread().mask = static_cast<uint32_t>(mask_val); \
         (cache).access(reinterpret_cast<uint64_t>(&(arr)[idx]), false); \
         uint32_t _pfx_target = (graph_ctx).resolvePrefetchTarget(mask_val); \
         if (_pfx_target != UINT32_MAX) { \

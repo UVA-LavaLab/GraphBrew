@@ -79,10 +79,14 @@ pvector<ScoreT> PageRankPullGS_Sim(const Graph &g, CacheType &cache,
         }
     }
 
-    // Compute per-vertex ECG mask array (DBG tier classification, no reordering)
+    // Compute per-vertex ECG mask array (supports 8/16/32-bit widths)
     graph_ctx.initMaskConfig();
-    auto vertex_masks = graph_ctx.computeVertexMasks8(g);
-    graph_ctx.initMaskArray8(vertex_masks.data(), vertex_masks.size());
+    auto vertex_masks = graph_ctx.computeVertexMasks(g);  // uint32_t per vertex
+    // Register as 8-bit array for backward compat (ECG insertion reads full mask from hints)
+    std::vector<uint8_t> masks8(vertex_masks.size());
+    for (size_t i = 0; i < vertex_masks.size(); i++)
+        masks8[i] = static_cast<uint8_t>(vertex_masks[i]);
+    graph_ctx.initMaskArray8(masks8.data(), masks8.size());
     graph_ctx.printSummary();
     
     // Initialize outgoing contributions
