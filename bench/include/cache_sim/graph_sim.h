@@ -92,6 +92,8 @@ private:
 // ECG: Read with mask + prefetch hint.
 // After the primary access, resolves the prefetch target from the mask
 // and issues a prefetch if the target is not in the runtime dedup window.
+// Prefetch uses cache.prefetch() which fills the cache WITHOUT counting
+// as a demand access — prefetch misses don't inflate the miss rate.
 #define SIM_CACHE_READ_MASKED_PREFETCH(cache, arr, idx, graph_ctx, mask_val) \
     do { \
         (graph_ctx).hints_for_thread().mask = static_cast<uint8_t>(mask_val); \
@@ -101,7 +103,7 @@ private:
             auto& _dw = (graph_ctx).dedup_for_thread(); \
             if (!_dw.contains(_pfx_target)) { \
                 _dw.push(_pfx_target); \
-                (cache).access(reinterpret_cast<uint64_t>(&(arr)[_pfx_target]), false); \
+                (cache).prefetch(reinterpret_cast<uint64_t>(&(arr)[_pfx_target])); \
             } \
         } \
     } while(0)

@@ -1256,6 +1256,36 @@ public:
         l1_->insert(address, is_write);
     }
 
+    // Prefetch: bring data into cache without counting as a demand access.
+    // In real hardware, prefetches are non-blocking fills that don't
+    // appear in demand miss statistics. Only demand accesses count.
+    //
+    // Prefetch hits: data already in cache — no action needed.
+    // Prefetch misses: fill cache from memory but do NOT increment
+    //   total_accesses_ or memory_accesses_.
+    void prefetch(uint64_t address) {
+        if (!enabled_) return;
+        
+        // Check if already in cache (any level)
+        if (l1_->access(address, false)) return;
+        if (l2_->access(address, false)) {
+            l1_->insert(address, false);
+            return;
+        }
+        if (l3_->access(address, false)) {
+            l2_->insert(address, false);
+            l1_->insert(address, false);
+            return;
+        }
+        
+        // Not in cache — fetch from memory into hierarchy
+        // Does NOT increment demand counters
+        prefetch_fills_++;
+        l3_->insert(address, false);
+        l2_->insert(address, false);
+        l1_->insert(address, false);
+    }
+
     // Convenience methods for common access patterns
     template<typename T>
     void read(const T* ptr) {
@@ -1296,6 +1326,7 @@ public:
         l3_->resetStats();
         total_accesses_ = 0;
         memory_accesses_ = 0;
+        prefetch_fills_ = 0;
     }
 
     // Enable/disable simulation
@@ -1470,6 +1501,7 @@ private:
     bool enabled_;
     std::atomic<uint64_t> total_accesses_{0};
     std::atomic<uint64_t> memory_accesses_{0};
+    std::atomic<uint64_t> prefetch_fills_{0};
 };
 
 // ============================================================================
@@ -1553,6 +1585,7 @@ public:
 
     // No-op: FastCacheHierarchy uses clock algorithm, not policy-based eviction
     void setCurrentVertex(uint32_t) {}
+    void prefetch(uint64_t address) { access(address, false); }
     void initGraphContext(const GraphCacheContext*) {}
     
     uint64_t getTotalAccesses() const { return total_accesses_; }
@@ -1749,6 +1782,7 @@ public:
 
     // No-op: UltraFastCacheHierarchy uses packed clock algorithm
     void setCurrentVertex(uint32_t) {}
+    void prefetch(uint64_t address) { access(address, false); }
     void initGraphContext(const GraphCacheContext*) {}
     
     uint64_t getTotalAccesses() const { return total_accesses_; }
@@ -2022,6 +2056,8 @@ public:
     void setCurrentVertex(uint32_t vertex_id) {
         l3_shared_->setCurrentVertex(vertex_id);
     }
+
+    void prefetch(uint64_t address) { access(address, false); }
 
     uint64_t getTotalAccesses() const { return total_accesses_; }
     uint64_t getMemoryAccesses() const { return memory_accesses_; }
@@ -2322,6 +2358,7 @@ public:
 
     // No-op: P-OPT/GRASP require CacheLevel-based hierarchy
     void setCurrentVertex(uint32_t) {}
+    void prefetch(uint64_t address) { access(address, false); }
     void initGraphContext(const GraphCacheContext*) {}
     
     uint64_t getTotalAccesses() const { return total_accesses_; }
