@@ -675,9 +675,9 @@ struct GraphTopology {
 struct AccessHints {
     uint32_t current_src = UINT32_MAX;  // Outer-loop vertex (regInd in P-OPT)
     uint32_t current_dst = UINT32_MAX;  // Inner-loop neighbor (irregInd in P-OPT)
-    uint8_t  mask = 0;                  // ECG MASK hint (width determined by mask_bits)
+    uint32_t mask = 0;                  // ECG MASK hint (supports 8/16/32-bit widths)
     uint8_t  mask_bits = 2;             // Number of mask bits (2=ECG default, 4/8 for finer control)
-    uint8_t  _pad[2] = {};
+    uint8_t  _pad[3] = {};
 
     // ECG mask encoding constants (2-bit, from ECG -M flag graphConfig.h)
     static constexpr uint8_t MASK_HOT      = 0x03;  // 11
