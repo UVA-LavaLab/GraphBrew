@@ -195,39 +195,55 @@ struct MaskConfig {
     uint32_t popt_mask_val = 0;
     uint32_t dbg_mask_val = 0;
 
-    // Auto-compute field allocation from mask_width and graph size.
-    // Priority: DBG (min 2) → POPT (scales with space) → PFX (remaining).
-    // Wider masks give more P-OPT precision and larger prefetch target space.
+    // Dynamic bit allocation based on graph size and container width.
     //
-    // Allocation strategy:
-    //   1. DBG always gets 2 bits (4 tiers)
-    //   2. P-OPT gets as many bits as practical for oracle quality
-    //   3. Prefetch gets remaining — but if < 4 bits, reallocate to P-OPT
-    //      (fewer than 16 prefetch targets isn't meaningful for coverage)
+    // The mask array entry emulates a fat-ID: given a container of mask_width
+    // bits and a graph with num_vertices, the vertex ID needs ceil(log2(N)) bits.
+    // The remaining bits are metadata for ECG (DBG + P-OPT + prefetch).
     //
-    // Results:
-    //   8-bit:  DBG=2, POPT=6, PFX=0  (64 reref levels, no prefetch)
-    //  16-bit:  DBG=2, POPT=8, PFX=6  (256 levels = matrix precision, 64 targets)
-    //  32-bit:  DBG=2, POPT=8, PFX=22 (256 levels, 4M direct IDs)
+    // If the user sets ECG_DBG_BITS / ECG_POPT_BITS / ECG_PFX_BITS env vars,
+    // those override the automatic allocation. Otherwise:
+    //   1. Compute id_bits = ceil(log2(num_vertices))
+    //   2. spare = mask_width - id_bits (for fat-ID mode) or mask_width (for standalone mask)
+    //   3. DBG = min(2, spare)
+    //   4. POPT gets up to 7 bits (matches matrix precision)
+    //   5. PFX gets remaining (for prefetch target vertex IDs)
+    //
+    // The user can also set mask_width to any value (not just 8/16/32) to
+    // emulate different hardware tag SRAM budgets.
     void autoAllocate(uint32_t num_vertices) {
-        dbg_bits = 2;
-        uint8_t remaining = mask_width - dbg_bits;
+        // Check for user-specified bit allocation (overrides auto)
+        const char* v_dbg = std::getenv("ECG_DBG_BITS");
+        const char* v_popt = std::getenv("ECG_POPT_BITS");
+        const char* v_pfx = std::getenv("ECG_PFX_BITS");
 
-        // First pass: allocate P-OPT generously
-        if (remaining >= 30) popt_bits = 8;        // 32-bit: cap at 8 (matrix precision), save rest for PFX
-        else if (remaining >= 14) popt_bits = 8;   // 16-bit+: matrix-quality oracle
-        else if (remaining >= 6) popt_bits = 6;    // 8-bit: 64 levels (decent precision)
-        else if (remaining >= 2) popt_bits = 2;
-        else popt_bits = 0;
-        remaining -= popt_bits;
-
-        // Second pass: prefetch only if >= 4 bits (16+ targets)
-        // Otherwise give remaining bits to P-OPT for better oracle
-        if (remaining >= 4) {
-            prefetch_bits = remaining;
+        if (v_dbg || v_popt || v_pfx) {
+            // User-controlled allocation — use exactly what they specify
+            if (v_dbg)  dbg_bits = static_cast<uint8_t>(std::atoi(v_dbg));
+            if (v_popt) popt_bits = static_cast<uint8_t>(std::atoi(v_popt));
+            if (v_pfx)  prefetch_bits = static_cast<uint8_t>(std::atoi(v_pfx));
+            // Recompute mask_width from user allocation
+            mask_width = dbg_bits + popt_bits + prefetch_bits;
         } else {
-            popt_bits += remaining;  // Reallocate to P-OPT
-            prefetch_bits = 0;
+            // Auto allocation based on available space
+            dbg_bits = 2;
+            uint8_t remaining = (mask_width > dbg_bits) ? (mask_width - dbg_bits) : 0;
+
+            // P-OPT: cap at 7 (matches 7-bit rereference matrix precision)
+            if (remaining >= 27) popt_bits = 7;
+            else if (remaining >= 13) popt_bits = 7;
+            else if (remaining >= 6) popt_bits = 6;
+            else if (remaining >= 2) popt_bits = 2;
+            else popt_bits = 0;
+            remaining -= popt_bits;
+
+            // PFX: remaining bits (if >= 4, otherwise give to P-OPT)
+            if (remaining >= 4) {
+                prefetch_bits = remaining;
+            } else {
+                popt_bits += remaining;
+                prefetch_bits = 0;
+            }
         }
 
         // Can we encode vertex IDs directly?
@@ -1029,11 +1045,38 @@ struct GraphCacheContext {
     // ================================================================
 
     // Initialize mask configuration from environment variables and graph size.
+    // If ECG_MASK_WIDTH is not set, dynamically determines available bits
+    // from the edge list data type width (default 32) minus vertex ID bits.
     // Call after initTopology().
     void initMaskConfig() {
         mask_config.initFromEnv();
         if (topology.num_vertices > 0) {
+            // If mask_width not explicitly set, compute from vertex count
+            // Default emulates 32-bit edge list: spare = 32 - ceil(log2(N))
+            const char* v_width = std::getenv("ECG_MASK_WIDTH");
+            if (!v_width) {
+                // Compute how many bits the vertex ID needs
+                uint8_t id_bits = 1;
+                uint32_t n = topology.num_vertices;
+                while ((1ULL << id_bits) < n) id_bits++;
+                // Default 32-bit edge list data type → spare bits for ECG
+                uint8_t container = 32;
+                const char* v_container = std::getenv("ECG_CONTAINER_BITS");
+                if (v_container) container = static_cast<uint8_t>(std::atoi(v_container));
+                mask_config.mask_width = (container > id_bits) ? (container - id_bits) : 2;
+            }
             mask_config.autoAllocate(topology.num_vertices);
+
+            // Print the allocation for debugging
+            std::cout << "ECG Mask: " << int(mask_config.mask_width) << "-bit"
+                      << " [DBG=" << int(mask_config.dbg_bits)
+                      << " POPT=" << int(mask_config.popt_bits)
+                      << " PFX=" << int(mask_config.prefetch_bits) << "]"
+                      << " pfx_direct=" << mask_config.prefetch_direct
+                      << " hot_table=" << mask_config.hot_table_size
+                      << " mode=" << ECGModeToString(mask_config.ecg_mode)
+                      << " pfx_mode=" << int(mask_config.prefetch_mode)
+                      << std::endl;
         }
     }
 
