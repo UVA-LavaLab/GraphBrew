@@ -56,6 +56,7 @@ class GraphEcgRP : public Base
     const graph::ECGMode ecgMode;
     const uint64_t llcSize;
     const std::string sidebandPath;
+    const std::string poptMatrixPath;
 
     mutable graph::GraphCacheContext ctx;
     mutable bool loadAttempted = false;

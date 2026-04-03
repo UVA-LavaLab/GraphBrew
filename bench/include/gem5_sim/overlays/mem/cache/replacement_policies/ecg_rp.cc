@@ -20,7 +20,8 @@ GraphEcgRP::GraphEcgRP(const Params &p)
       numBuckets(p.num_buckets),
       ecgMode(graph::stringToECGMode(p.ecg_mode)),
       llcSize(p.llc_size_bytes),
-      sidebandPath(p.sideband_path)
+      sidebandPath(p.sideband_path),
+      poptMatrixPath(p.popt_matrix_path)
 {
 }
 
@@ -31,6 +32,13 @@ GraphEcgRP::tryLoadContext() const
     loadAttempted = true;
     if (ctx.loadFromSideband(sidebandPath)) {
         ctx.loaded = true;
+    }
+    // Load P-OPT rereference matrix for Level 3 tiebreaking
+    // (DBG_PRIMARY and POPT_PRIMARY modes use dynamic P-OPT)
+    if (ctx.rereference.loadFromFile(poptMatrixPath)) {
+        if (ctx.num_regions > 0) {
+            ctx.rereference.base_address = ctx.regions[0].base_address;
+        }
     }
 }
 
@@ -165,15 +173,24 @@ GraphEcgRP::getVictim(const ReplacementCandidates& candidates) const
 {
     assert(candidates.size() > 0);
 
-    // Phase 0: POPT_PRIMARY — evict non-property data first
-    // Non-property data (instructions, CSR edges) has no oracle prediction.
-    // For DBG modes, non-property gets RRPV=2 (SRRIP) so it ages normally.
-    // For POPT_PRIMARY, all lines get RRPV=6, so we must explicitly prefer
-    // evicting non-property to avoid polluting oracle-managed property data.
+    // Phase 0: POPT_PRIMARY — prefer evicting non-property data when
+    // there are property lines to protect. In gem5, most L3 lines are
+    // non-property (instructions, CSR edges). Only evict non-property
+    // if the set contains BOTH property and non-property lines.
     if (ecgMode == graph::ECGMode::POPT_PRIMARY && ctx.loaded) {
+        int propCount = 0;
+        ReplaceableEntry* nonPropVictim = nullptr;
         for (const auto& c : candidates) {
             auto d = std::static_pointer_cast<EcgReplData>(c->replacementData);
-            if (!d->is_property_data) return c;
+            if (d->is_property_data) {
+                propCount++;
+            } else if (!nonPropVictim) {
+                nonPropVictim = c;
+            }
+        }
+        // Only evict non-property if there ARE property lines to protect
+        if (propCount > 0 && nonPropVictim) {
+            return nonPropVictim;
         }
     }
 

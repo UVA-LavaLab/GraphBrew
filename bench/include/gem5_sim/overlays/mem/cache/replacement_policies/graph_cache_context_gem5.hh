@@ -240,25 +240,26 @@ struct GraphCacheContext {
     mutable uint32_t current_dst_vertex = 0;
     uint8_t current_mask = 0;
 
-    // Track maximum vertex seen from property accesses (for P-OPT epoch).
-    // Updated on every property data access to approximate the algorithm's
-    // progress through the vertex iteration. This replaces the standalone's
-    // SIM_SET_VERTEX(cache, u) which gem5 benchmarks can't call.
-    mutable uint32_t max_vertex_seen = 0;
+    // Track current outer-loop vertex for P-OPT epoch computation.
+    // In PageRank, the outer loop iterates u=0..N-1 and writes scores[u].
+    // Inner loop reads contrib[v] for scattered neighbors.
+    // Only accesses to region[0] (the outer-loop array) update the tracker.
+    // This matches standalone's SIM_SET_VERTEX(cache, u).
+    mutable uint32_t current_outer_vertex = 0;
 
     // Update vertex tracking from a property data address.
-    // Called on every cache access to property data.
+    // Only region[0] (scores in PR) advances the vertex — this is the
+    // array the outer loop iterates over. Other regions (contrib) are
+    // inner-loop reads with scattered vertex indices.
     void updateVertexFromAddr(uint64_t addr) const {
-        for (uint32_t i = 0; i < num_regions; ++i) {
-            if (regions[i].contains(addr) && regions[i].elem_size > 0) {
-                uint32_t vtx = static_cast<uint32_t>(
-                    (addr - regions[i].base_address) / regions[i].elem_size);
-                if (vtx > max_vertex_seen) {
-                    max_vertex_seen = vtx;
-                    current_dst_vertex = vtx;
-                }
-                return;
-            }
+        // Only track from region 0 (outer-loop array)
+        if (num_regions > 0 && regions[0].contains(addr) &&
+            regions[0].elem_size > 0) {
+            uint32_t vtx = static_cast<uint32_t>(
+                (addr - regions[0].base_address) / regions[0].elem_size);
+            // Allow both forward and backward movement (new iteration restarts)
+            current_dst_vertex = vtx;
+            current_outer_vertex = vtx;
         }
     }
 

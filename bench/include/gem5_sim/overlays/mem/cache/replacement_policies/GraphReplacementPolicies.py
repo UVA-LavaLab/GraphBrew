@@ -89,3 +89,5 @@ class GraphEcgRP(BaseReplacementPolicy):
         "LLC size in bytes (default 8MB).")
     sideband_path = Param.String("/tmp/gem5_graphbrew_ctx.json",
         "Path to sideband JSON written by benchmark with property regions.")
+    popt_matrix_path = Param.String("/tmp/gem5_popt_matrix.bin",
+        "Path to P-OPT rereference matrix binary file.")
