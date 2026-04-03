@@ -62,18 +62,111 @@ pvector<ScoreT> PageRankPullGS_Gem5(const Graph &g, int max_iters,
                                 numEpochs, g.num_nodes());
     }
 
+    // === ECG Adaptive Prefetch ===
+    // Compute bit layout dynamically from graph size (FatIDConfig logic).
+    // For 32-bit edge IDs with N vertices needing B bits, we have (32-B)
+    // spare bits for metadata. With 16K vertices (14 bits), we get 18 spare
+    // bits → DBG=2, POPT=8, PFX=6 → 64-entry hot table.
+    //
+    // The hot table contains the top-K highest-degree vertices, sorted by
+    // degree. Each neighbor access can prefetch one of these hub vertices
+    // based on which hub is most likely to be needed next (and not already
+    // in cache from a recent prefetch — dedup window prevents redundancy).
+    
+    // Compute spare bits (matching FatIDConfig::computeFromGraph)
+    uint8_t id_bits = 1;
+    while ((1ULL << id_bits) < (uint64_t)g.num_nodes()) id_bits++;
+    uint8_t container_bits = (g.num_nodes() > (1LL << 30)) ? 64 : 32;
+    uint8_t spare = container_bits - id_bits;
+    if (spare < 2 && container_bits == 32) { container_bits = 64; spare = container_bits - id_bits; }
+
+    // Compute prefetch bits (matching FatIDConfig allocation tiers)
+    uint8_t pfx_bits = 0;
+    if (spare >= 16)     pfx_bits = min((int)(spare - 10), 6);
+    else if (spare >= 10) pfx_bits = min((int)(spare - 6), 4);
+    else if (spare >= 6)  pfx_bits = spare - 4;
+    // else: pfx_bits = 0
+    
+    int hot_table_size = pfx_bits > 0 ? (1 << pfx_bits) : 0;
+    hot_table_size = min(hot_table_size, (int)g.num_nodes());
+    constexpr int PREFETCH_WINDOW = 16;  // Dedup window
+
+    vector<NodeID> hot_table(hot_table_size);
+    if (hot_table_size > 0) {
+        // Build hot table: top-K by degree
+        vector<pair<int64_t, NodeID>> deg_vtx(g.num_nodes());
+        for (NodeID n = 0; n < g.num_nodes(); n++)
+            deg_vtx[n] = {g.out_degree(n), n};
+        partial_sort(deg_vtx.begin(),
+                     deg_vtx.begin() + hot_table_size,
+                     deg_vtx.end(),
+                     [](const auto& a, const auto& b) { return a.first > b.first; });
+        for (int i = 0; i < hot_table_size; i++)
+            hot_table[i] = deg_vtx[i].second;
+        
+        printf("ECG adaptive prefetch: %d-bit container, %d-bit ID, %d spare, "
+               "%d prefetch bits -> %d-entry hot table\n",
+               container_bits, id_bits, spare, pfx_bits, hot_table_size);
+        printf("  Top hubs: [%d(d=%ld)", hot_table[0], (long)g.out_degree(hot_table[0]));
+        for (int i = 1; i < min(hot_table_size, 5); i++)
+            printf(", %d(d=%ld)", hot_table[i], (long)g.out_degree(hot_table[i]));
+        if (hot_table_size > 5) printf(", ... +%d more", hot_table_size - 5);
+        printf("]\n");
+    }
+    
+    // Build per-vertex prefetch index: for each vertex, what's its rank
+    // in the hot table? This lets us quickly check if a neighbor is a hub.
+    vector<int> hub_rank(g.num_nodes(), -1);  // -1 = not a hub
+    for (int i = 0; i < hot_table_size; i++)
+        hub_rank[hot_table[i]] = i;
+
+    // Check environment variable to enable/disable ECG prefetch
+    const char* ecg_prefetch_env = getenv("ECG_PREFETCH");
+    bool ecg_prefetch_enabled = ecg_prefetch_env && string(ecg_prefetch_env) != "0";
+
     for (NodeID n = 0; n < g.num_nodes(); n++)
         outgoing_contrib[n] = init_score / g.out_degree(n);
 
     GEM5_RESET_STATS();
     GEM5_WORK_BEGIN(GEM5_WORK_COMPUTE);
 
+    // Prefetch dedup window — tracks recently prefetched hub indices
+    vector<NodeID> pfx_window(PREFETCH_WINDOW, -1);
+    int pfx_window_pos = 0;
+
     for (int iter = 0; iter < max_iters; iter++) {
         double error = 0;
         for (NodeID u = 0; u < g.num_nodes(); u++) {
             ScoreT incoming_total = 0;
-            for (NodeID v : g.in_neigh(u))
+
+            for (NodeID v : g.in_neigh(u)) {
                 incoming_total += outgoing_contrib[v];
+                
+                // ECG per-edge prefetch: if neighbor v is a hub vertex,
+                // prefetch the NEXT hub in the hot table (the one after v's
+                // rank). This brings in the most likely next high-reuse
+                // vertex before it's demanded.
+                if (ecg_prefetch_enabled && hub_rank[v] >= 0) {
+                    int next_hub = (hub_rank[v] + 1) % hot_table_size;
+                    NodeID pfx_target = hot_table[next_hub];
+                    
+                    // Dedup: skip if recently prefetched
+                    bool in_window = false;
+                    for (int w = 0; w < PREFETCH_WINDOW; w++) {
+                        if (pfx_window[w] == pfx_target) {
+                            in_window = true;
+                            break;
+                        }
+                    }
+                    if (!in_window) {
+                        // Issue SW prefetch — gem5 sees as regular read
+                        volatile ScoreT pf = outgoing_contrib[pfx_target];
+                        (void)pf;
+                        pfx_window[pfx_window_pos % PREFETCH_WINDOW] = pfx_target;
+                        pfx_window_pos++;
+                    }
+                }
+            }
             ScoreT old_score = scores[u];
             scores[u] = base_score + kDamp * incoming_total;
             error += fabs(scores[u] - old_score);
