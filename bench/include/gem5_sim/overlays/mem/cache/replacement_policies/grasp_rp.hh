@@ -43,9 +43,11 @@ class GraphGraspRP : public Base
         uint8_t rrpv;           // Re-Reference Prediction Value (0 = near, M = distant)
         uint8_t degree_bucket;  // Degree bucket index (0=hub, N-1=cold)
         bool is_property_data;  // Whether this line holds vertex property data
+        uint64_t line_addr;     // Cache-line-aligned address (for hit re-classification)
 
         GraspReplData(uint8_t max_rrpv)
-            : rrpv(max_rrpv), degree_bucket(0), is_property_data(false) {}
+            : rrpv(max_rrpv), degree_bucket(0), is_property_data(false),
+              line_addr(0) {}
     };
 
     GraphGraspRP(const Params &p);

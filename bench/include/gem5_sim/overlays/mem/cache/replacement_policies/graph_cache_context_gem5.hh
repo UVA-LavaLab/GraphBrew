@@ -237,8 +237,30 @@ struct GraphCacheContext {
 
     // Per-access mutable state (set by custom instruction or sideband)
     uint32_t current_src_vertex = 0;
-    uint32_t current_dst_vertex = 0;
+    mutable uint32_t current_dst_vertex = 0;
     uint8_t current_mask = 0;
+
+    // Track maximum vertex seen from property accesses (for P-OPT epoch).
+    // Updated on every property data access to approximate the algorithm's
+    // progress through the vertex iteration. This replaces the standalone's
+    // SIM_SET_VERTEX(cache, u) which gem5 benchmarks can't call.
+    mutable uint32_t max_vertex_seen = 0;
+
+    // Update vertex tracking from a property data address.
+    // Called on every cache access to property data.
+    void updateVertexFromAddr(uint64_t addr) const {
+        for (uint32_t i = 0; i < num_regions; ++i) {
+            if (regions[i].contains(addr) && regions[i].elem_size > 0) {
+                uint32_t vtx = static_cast<uint32_t>(
+                    (addr - regions[i].base_address) / regions[i].elem_size);
+                if (vtx > max_vertex_seen) {
+                    max_vertex_seen = vtx;
+                    current_dst_vertex = vtx;
+                }
+                return;
+            }
+        }
+    }
 
     // Check if an address belongs to any tracked property region
     bool isPropertyData(uint64_t addr) const {
@@ -258,9 +280,22 @@ struct GraphCacheContext {
         return mask_config.num_buckets; // Outside all regions
     }
 
-    // Find next reference distance for P-OPT
+    // Find next reference distance for P-OPT.
+    // Uses the tracked current vertex for epoch computation.
+    // Searches ALL property regions (not just the first) to find
+    // which region the address belongs to.
     uint32_t findNextRef(uint64_t addr) const {
-        return rereference.findNextRefByAddr(addr, current_dst_vertex);
+        if (!rereference.enabled) return 127;
+        // Find which region this address belongs to
+        for (uint32_t i = 0; i < num_regions; ++i) {
+            if (regions[i].contains(addr)) {
+                // Compute cache line ID relative to this region's base
+                uint32_t cline_id = static_cast<uint32_t>(
+                    (addr - regions[i].base_address) / rereference.cache_line_size);
+                return rereference.findNextRef(cline_id, current_dst_vertex);
+            }
+        }
+        return 127; // Not in any property region
     }
 
     // Classify address into GRASP 3-tier reuse (Faldu et al. HPCA 2020).

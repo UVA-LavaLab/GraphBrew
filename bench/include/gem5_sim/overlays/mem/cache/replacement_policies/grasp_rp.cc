@@ -70,6 +70,7 @@ GraphGraspRP::reset(const std::shared_ptr<ReplacementData>& replacement_data,
 
     if (pkt && pkt->req) {
         uint64_t addr = pkt->req->getPaddr();
+        data->line_addr = addr & ~uint64_t(63);
 
         // Only apply GRASP classification to known property regions.
         // Non-property data (instructions, CSR edges, stack) gets SRRIP
@@ -79,6 +80,8 @@ GraphGraspRP::reset(const std::shared_ptr<ReplacementData>& replacement_data,
             ReuseTier tier = classifyAddress(addr);
             data->rrpv = insertionRRPV(tier);
             data->is_property_data = true;
+            // Update P-OPT vertex tracking from property access
+            ctx.updateVertexFromAddr(addr);
         } else {
             data->rrpv = 2;  // SRRIP default: long re-reference (M-1 for 3-bit)
             data->is_property_data = false;
@@ -154,10 +157,19 @@ GraphGraspRP::insertionRRPV(ReuseTier tier) const
 void
 GraphGraspRP::promoteOnHit(GraspReplData* data) const
 {
-    if (data->is_property_data && data->rrpv <= 1) {
-        data->rrpv = 0;
+    // Re-classify address on hit (matching standalone cache_sim).
+    // The standalone re-classifies every hit using classifyGRASP().
+    if (data->is_property_data && ctx.loaded) {
+        uint32_t tier = ctx.classifyGRASP(data->line_addr, llcSize);
+        if (tier == 1) {
+            data->rrpv = 0;  // Hot (hub): aggressive reset
+        } else if (data->rrpv > 0) {
+            data->rrpv--;    // Others: gradual decrement
+        }
+        // Update vertex tracking from property hit
+        ctx.updateVertexFromAddr(data->line_addr);
     } else if (data->rrpv > 0) {
-        data->rrpv--;
+        data->rrpv--;  // Non-property: standard decrement
     }
 }
 

@@ -57,9 +57,15 @@ GraphEcgRP::touch(
         // P-OPT: reset to 0 on hit (same as SRRIP)
         data->rrpv = 0;
     } else {
-        // GRASP-faithful 3-tier for DBG modes and ECG_EMBEDDED
-        if (data->is_property_data && data->rrpv <= 1) {
-            data->rrpv = 0;
+        // GRASP-faithful 3-tier: re-classify address on hit
+        if (data->is_property_data && ctx.loaded) {
+            uint32_t tier = ctx.classifyGRASP(data->line_addr, llcSize);
+            if (tier == 1) {
+                data->rrpv = 0;  // Hot: aggressive reset
+            } else if (data->rrpv > 0) {
+                data->rrpv--;    // Others: gradual
+            }
+            ctx.updateVertexFromAddr(data->line_addr);
         } else if (data->rrpv > 0) {
             data->rrpv--;
         }
@@ -98,10 +104,11 @@ GraphEcgRP::reset(
             // P-OPT-style: uniform insertion RRPV for all
             data->rrpv = 6;
             data->is_property_data = ctx.loaded && ctx.isPropertyData(addr);
-            // Still set DBG tier for L3 tiebreaking
+            // Set DBG tier from full 11-bucket classification for tiebreaking
             if (ctx.loaded) {
-                uint32_t tier = ctx.classifyGRASP(addr, llcSize);
-                data->ecg_dbg_tier = (tier <= 3) ? static_cast<uint8_t>(tier) : 3;
+                uint32_t bucket = ctx.classifyBucket(addr);
+                data->ecg_dbg_tier = (bucket < numBuckets)
+                    ? static_cast<uint8_t>(bucket) : (numBuckets - 1);
             } else {
                 data->ecg_dbg_tier = numBuckets - 1;
             }
@@ -112,7 +119,12 @@ GraphEcgRP::reset(
             if (tier == 1)       data->rrpv = P_RRIP;
             else if (tier == 2)  data->rrpv = I_RRIP;
             else                 data->rrpv = M_RRIP;
-            data->ecg_dbg_tier = (tier <= 3) ? static_cast<uint8_t>(tier) : 3;
+            // Full 11-bucket classification for L2 tiebreaking
+            uint32_t bucket = ctx.classifyBucket(addr);
+            data->ecg_dbg_tier = (bucket < numBuckets)
+                ? static_cast<uint8_t>(bucket) : (numBuckets - 1);
+            // Update P-OPT vertex tracking from property access
+            ctx.updateVertexFromAddr(addr);
         } else if (ctx.loaded) {
             // Non-property data: SRRIP default
             data->rrpv = 2;
@@ -123,7 +135,14 @@ GraphEcgRP::reset(
             data->is_property_data = false;
             data->ecg_dbg_tier = numBuckets - 1;
         }
-        data->ecg_popt_hint = 0;
+        // Compute ecg_popt_hint from P-OPT matrix (matching standalone)
+        if (data->is_property_data && ctx.loaded && ctx.rereference.enabled) {
+            uint32_t dist = ctx.findNextRef(data->line_addr);
+            data->ecg_popt_hint = static_cast<uint8_t>(
+                std::min(dist, uint32_t(127)) >> 3);
+        } else {
+            data->ecg_popt_hint = 0;
+        }
     } else {
         data->rrpv = rrpvMax - 1;
         data->ecg_dbg_tier = numBuckets - 1;

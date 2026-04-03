@@ -38,6 +38,11 @@ GraphPoptRP::tryLoadContext() const
     ctx.loadFromSideband(sidebandPath);
 
     if (ctx.rereference.loadFromFile(poptMatrixPath)) {
+        // base_address is no longer hardcoded to region[0].
+        // findNextRef() in GraphCacheContext now searches all regions
+        // to find which one the address belongs to.
+        // Set base_address to region[0] as a fallback for RereferenceMatrix's
+        // direct findNextRefByAddr() (used when findNextRef bypasses context).
         if (ctx.num_regions > 0) {
             ctx.rereference.base_address = ctx.regions[0].base_address;
         }
@@ -88,6 +93,10 @@ GraphPoptRP::reset(
         uint64_t addr = pkt->req->getPaddr();
         data->line_addr = addr & ~uint64_t(63);
         data->is_property_data = ctx.loaded && ctx.isPropertyData(data->line_addr);
+        // Update P-OPT vertex tracking from property accesses
+        if (data->is_property_data) {
+            ctx.updateVertexFromAddr(addr);
+        }
     } else {
         data->line_addr = 0;
         data->is_property_data = false;
