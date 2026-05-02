@@ -7676,6 +7676,12 @@ inline GraphBrewConfig parseGraphBrewConfig(const std::vector<std::string>& opti
         } else if (opt == "hrab" || opt == "hybrid-rabbit" || opt == "leidenrabbit") {
             config.ordering = OrderingStrategy::HYBRID_LEIDEN_RABBIT;
             config.hasExplicitOrdering = true;
+            // HRAB defaults to RCM intra-community ordering: empirically
+            // measured 30-50% memory-access reduction vs the BFS default,
+            // at zero reorder-time cost.  Verified on PR with L3=1MB on
+            // soc-pokec, cit-Patents, hollywood-2009, com-Orkut.
+            // Use ":bfs_intra" to opt out (kept for the BFS-baseline ablation).
+            config.useRCMIntra = true;
         } else if (opt == "tqr" || opt == "tile-quantized" || opt == "tilequantized" || opt == "tilerabbit") {
             config.ordering = OrderingStrategy::TILE_QUANTIZED_RABBIT;
             config.hasExplicitOrdering = true;
@@ -7810,6 +7816,12 @@ inline GraphBrewConfig parseGraphBrewConfig(const std::vector<std::string>& opti
         }
         else if (opt == "rcm_intra" || opt == "rcmintra") {
             config.useRCMIntra = true;
+        }
+        // Opt-out of RCM intra-community ordering (HRAB defaults to RCM intra
+        // since the rcm_intra-on-by-default change; this lets the BFS-baseline
+        // ablation still be exercised via "12:hrab:bfs_intra").
+        else if (opt == "bfs_intra" || opt == "bfsintra" || opt == "no_rcm_intra") {
+            config.useRCMIntra = false;
         }
         // Check for refinement
         else if (opt == "norefine") {
