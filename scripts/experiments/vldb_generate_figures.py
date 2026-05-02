@@ -48,7 +48,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(me
 log = logging.getLogger("vldb_figures")
 
 # Paper figure directory (for direct LaTeX inclusion)
-PAPER_DIR = PROJECT_ROOT / "research" / "research" / (
+PAPER_DIR = PROJECT_ROOT / "research" / (
     "GraphBrew__Multilayered_Graph_Reordering_Techniques_for_"
     "Accelerated_Graph_Processing__VLDB_2024_"
 )
@@ -172,41 +172,106 @@ def generate_sample_overhead_data() -> dict:
 
 def fig1_cache_performance(sample: bool = False) -> None:
     log.info("Figure 1: Cache Miss Rate vs Cache Size")
-    if not HAS_MPL:
-        log.warning("  Skipped (no matplotlib)")
+    if not HAS_MPL or not HAS_NP:
+        log.warning("  Skipped (no matplotlib/numpy)")
         return
 
     ensure_dir(FIGURES_DIR)
-    # Placeholder: generate sample cache curves
-    if sample and HAS_NP:
+
+    if sample:
+        # Placeholder with random data
         cache_sizes_kb = [32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536]
-        algos = ["ORIGINAL", "DBG", "RABBITORDER", "GORDER", "GB-leiden", "GB-hrab", "GB-tqr"]
-        colors = ["gray", "orange", "blue", "red", "green", "darkgreen", "purple"]
-
+        algos = ["ORIGINAL", "DBG", "RABBITORDER", "GORDER", "GB-leiden", "GB-hrab"]
         fig, axes = plt.subplots(2, 3, figsize=(14, 8))
-        graphs = ["road", "twitter", "gplus", "wikipedia", "webbase", "GM"]
-
-        for ax, graph in zip(axes.flat, graphs):
-            for algo, color in zip(algos, colors):
-                base_miss = np.random.uniform(0.3, 0.8)
-                misses = [max(0.01, base_miss * (1.0 - 0.06 * i) + np.random.normal(0, 0.02))
-                          for i in range(len(cache_sizes_kb))]
-                ax.plot(cache_sizes_kb, misses, marker="o", markersize=3, label=algo, color=color)
-            ax.set_title(graph, fontsize=10)
-            ax.set_xscale("log", base=2)
-            ax.set_xlabel("Cache Size (KB)")
-            ax.set_ylabel("Miss Rate")
-            ax.set_ylim(0, 1)
-            ax.grid(True, alpha=0.3)
-
-        axes[0, 0].legend(fontsize=6, loc="upper right")
+        for ax, graph in zip(axes.flat, ["G1", "G2", "G3", "G4", "G5", "GM"]):
+            for algo in algos:
+                base = np.random.uniform(0.3, 0.8)
+                ax.plot(cache_sizes_kb, [max(0.01, base * (1 - 0.06*i) + np.random.normal(0, 0.02))
+                        for i in range(len(cache_sizes_kb))], marker="o", markersize=3, label=algo)
+            ax.set_title(graph); ax.set_xscale("log", base=2); ax.set_ylim(0, 1); ax.grid(True, alpha=0.3)
+        axes[0, 0].legend(fontsize=6)
         plt.tight_layout()
-        plt.savefig(FIGURES_DIR / "fig1_cache_performance.png", dpi=300)
-        plt.close()
-        log.info(f"  Saved: {FIGURES_DIR / 'fig1_cache_performance.png'}")
-        copy_to_paper(FIGURES_DIR / "fig1_cache_performance.png", "cache", "cacheGM.png")
-    else:
-        log.info("  Skipped (no data or no numpy)")
+        plt.savefig(FIGURES_DIR / "fig1_cache_performance.png", dpi=300); plt.close()
+        log.info(f"  Saved (sample): {FIGURES_DIR / 'fig1_cache_performance.png'}")
+        return
+
+    # ---- Real data from exp1 ----
+    data = load_json(RESULTS_DIR / "exp1_cache" / "cache_results.json")
+    if not isinstance(data, list) or not data:
+        log.warning("  Skipped (no cache data)")
+        return
+
+    # Data has single-cache-size results from sim benchmarks.  Plot miss rate
+    # per graph as a grouped bar chart (algo on x-axis, miss rate on y-axis).
+    from collections import defaultdict
+
+    # Group: graph -> algo -> l3_miss_rate  (average across benchmarks)
+    graph_algo_miss: Dict[str, Dict[str, list]] = defaultdict(lambda: defaultdict(list))
+    for r in data:
+        miss = r.get("l3_miss_rate") or r.get("l3_hit_rate")
+        if miss is None:
+            continue
+        # If we got hit_rate, convert
+        if "l3_miss_rate" not in r and "l3_hit_rate" in r:
+            miss = 100.0 - r["l3_hit_rate"]
+        graph_algo_miss[r["graph"]][r["algorithm"]].append(miss)
+
+    graphs = sorted(graph_algo_miss.keys())
+    if not graphs:
+        log.warning("  Skipped (no valid miss rate data)")
+        return
+
+    # Select representative algorithms for readability
+    show_algos = ["ORIGINAL", "DBG", "RABBITORDER", "GORDER", "GB-Leiden", "GB-HRAB",
+                  "GB-Rabbit", "GB-Hubcluster", "GB-TQR", "GoGraphOrder", "RCM"]
+    # Map display names
+    all_algos_in_data = set()
+    for g in graphs:
+        all_algos_in_data.update(graph_algo_miss[g].keys())
+    show_algos = [a for a in show_algos if a in all_algos_in_data]
+    if not show_algos:
+        show_algos = sorted(all_algos_in_data)[:10]
+
+    colors_map = {
+        "ORIGINAL": "#888888", "RANDOM": "#aaaaaa", "DBG": "#1f77b4",
+        "RABBITORDER": "#9467bd", "GORDER": "#d62728", "GoGraphOrder": "#17becf",
+        "RCM": "#7f7f7f",
+    }
+    gb_colors = ["#2ca02c", "#98df8a", "#006400", "#228B22", "#32CD32",
+                 "#3CB371", "#66CDAA", "#8FBC8F", "#556B2F", "#6B8E23"]
+
+    ncols = min(3, len(graphs) + 1)
+    nrows = (len(graphs) + ncols) // ncols  # +1 for GM
+    fig, axes = plt.subplots(nrows, ncols, figsize=(5 * ncols, 4 * nrows))
+    axes = np.array(axes).flatten()
+
+    x = np.arange(len(show_algos))
+    width = 0.7
+
+    for idx, graph in enumerate(graphs):
+        ax = axes[idx]
+        vals = []
+        for algo in show_algos:
+            rates = graph_algo_miss[graph].get(algo, [])
+            vals.append(np.mean(rates) if rates else 0)
+        c = [colors_map.get(a, gb_colors[i % len(gb_colors)])
+             for i, a in enumerate(show_algos)]
+        ax.bar(x, vals, width, color=c, edgecolor="black", linewidth=0.3)
+        ax.set_xticks(x)
+        ax.set_xticklabels([a[:10] for a in show_algos], rotation=45, ha="right", fontsize=6)
+        ax.set_ylabel("L3 Miss Rate (%)")
+        ax.set_title(graph, fontsize=9)
+        ax.grid(axis="y", alpha=0.3)
+
+    # Turn off unused axes
+    for i in range(len(graphs), len(axes)):
+        axes[i].axis("off")
+
+    plt.tight_layout()
+    out = FIGURES_DIR / "fig1_cache_performance.png"
+    plt.savefig(out, dpi=300); plt.close()
+    log.info(f"  Saved: {out}")
+    copy_to_paper(out, "cache", "cacheGM.png")
 
 
 # ============================================================================
@@ -216,55 +281,149 @@ def fig1_cache_performance(sample: bool = False) -> None:
 
 def fig2_kernel_speedup(sample: bool = False) -> None:
     log.info("Figure 2: Kernel Speedup")
-    if not HAS_MPL:
-        log.warning("  Skipped (no matplotlib)")
+    if not HAS_MPL or not HAS_NP:
+        log.warning("  Skipped (no matplotlib/numpy)")
         return
 
     ensure_dir(FIGURES_DIR)
-    data = generate_sample_speedup_data() if sample else load_json(RESULTS_DIR / "exp2_speedup" / "speedup_results.json")
-    if data is None:
+
+    data = load_json(RESULTS_DIR / "exp2_speedup" / "speedup_results.json")
+    if not isinstance(data, list) or not data:
         log.warning("  No data available")
         return
 
-    if sample:
-        benchmarks = list(data.keys())
-        fig, axes = plt.subplots(2, 3, figsize=(16, 9))
+    from collections import defaultdict
 
-        for idx, (ax, bench) in enumerate(zip(axes.flat, benchmarks + ["Aggregate"])):
-            if bench == "Aggregate":
-                ax.set_title("Geometric Mean", fontsize=10)
-                ax.text(0.5, 0.5, "TBD", transform=ax.transAxes, ha="center", fontsize=14)
-                continue
+    # Build baseline: ORIGINAL average_time per (graph, benchmark)
+    baseline: Dict[tuple, float] = {}
+    for r in data:
+        if r.get("algorithm") == "ORIGINAL" and r.get("average_time"):
+            baseline[(r["graph"], r["benchmark"])] = r["average_time"]
 
-            bench_data = data.get(bench, {})
-            if not bench_data:
-                continue
+    # Compute speedup per (benchmark, algorithm) — geo-mean across graphs
+    bench_algo_speedups: Dict[str, Dict[str, list]] = defaultdict(lambda: defaultdict(list))
+    for r in data:
+        algo = r.get("algorithm", "")
+        if algo == "ORIGINAL":
+            continue
+        graph, bench = r.get("graph", ""), r.get("benchmark", "")
+        avg_t = r.get("average_time")
+        key = (graph, bench)
+        if key in baseline and baseline[key] > 0 and avg_t and avg_t > 0:
+            bench_algo_speedups[bench][algo].append(baseline[key] / avg_t)
 
-            # Average across graphs for each algorithm
-            algos = list(next(iter(bench_data.values())).keys()) if bench_data else []
-            means = []
-            for algo in algos:
-                vals = [bench_data[g].get(algo, 1.0) for g in bench_data]
-                means.append(sum(vals) / len(vals) if vals else 1.0)
+    benchmarks_plot = [b for b in BENCHMARKS if b in bench_algo_speedups]
+    if not benchmarks_plot:
+        log.warning("  No benchmark data")
+        return
 
-            colors = ["green" if "GB" in a else "gray" if a in ("ORIGINAL", "RANDOM")
-                       else "steelblue" for a in algos]
-            bars = ax.barh(range(len(algos)), means, color=colors, edgecolor="black", linewidth=0.5)
-            ax.set_yticks(range(len(algos)))
-            ax.set_yticklabels([a[:12] for a in algos], fontsize=6)
-            ax.set_xlabel("Speedup (vs Original)")
-            ax.set_title(bench.upper(), fontsize=10)
-            ax.axvline(x=1.0, color="red", linestyle="--", linewidth=0.5)
+    # Select key algorithms for readability
+    key_algos = ["DBG", "RABBITORDER", "GORDER", "GB-Leiden", "GB-HRAB",
+                 "GB-Rabbit", "GB-Hubcluster", "GoGraphOrder", "RCM"]
+    all_algos = set()
+    for b in benchmarks_plot:
+        all_algos.update(bench_algo_speedups[b].keys())
+    key_algos = [a for a in key_algos if a in all_algos]
+    if not key_algos:
+        key_algos = sorted(all_algos)[:10]
 
-        if len(benchmarks) < 6:
-            for ax in axes.flat[len(benchmarks):]:
-                ax.axis("off")
+    algo_colors = {
+        "DBG": "#1f77b4", "RABBITORDER": "#9467bd", "GORDER": "#d62728",
+        "GoGraphOrder": "#17becf", "RCM": "#7f7f7f",
+        "GB-Leiden": "#2ca02c", "GB-HRAB": "#006400", "GB-Rabbit": "#98df8a",
+        "GB-Hubcluster": "#228B22", "GB-TQR": "#3CB371", "GB-Hcache": "#66CDAA",
+        "GB-Streaming": "#556B2F", "GB-Rabbit:dbg": "#6B8E23",
+        "GB-Rabbit:hubcluster": "#8FBC8F", "GB-Rcm": "#808000",
+    }
 
+    ncols = min(4, len(benchmarks_plot) + 1)
+    nrows = (len(benchmarks_plot) + ncols) // ncols
+    fig, axes = plt.subplots(nrows, ncols, figsize=(5 * ncols, 4 * nrows))
+    axes = np.array(axes).flatten()
+
+    # Per-benchmark subplot
+    for idx, bench in enumerate(benchmarks_plot):
+        ax = axes[idx]
+        means = []
+        for algo in key_algos:
+            vals = bench_algo_speedups[bench].get(algo, [])
+            means.append(_geo_mean(vals) if vals else 1.0)
+        colors = [algo_colors.get(a, "#aaaaaa") for a in key_algos]
+        x = np.arange(len(key_algos))
+        ax.bar(x, means, 0.7, color=colors, edgecolor="black", linewidth=0.3)
+        ax.axhline(y=1.0, color="red", linestyle="--", linewidth=0.5, alpha=0.7)
+        ax.set_xticks(x)
+        ax.set_xticklabels([a.replace("GB-", "") for a in key_algos],
+                           rotation=45, ha="right", fontsize=6)
+        ax.set_ylabel("Speedup (vs Original)")
+        ax.set_title(bench.upper(), fontsize=10)
+        ax.grid(axis="y", alpha=0.3)
+
+    # Aggregate (geo-mean across benchmarks)
+    if len(benchmarks_plot) < len(axes):
+        ax = axes[len(benchmarks_plot)]
+        gm_vals = []
+        for algo in key_algos:
+            all_speedups = []
+            for bench in benchmarks_plot:
+                vals = bench_algo_speedups[bench].get(algo, [])
+                if vals:
+                    all_speedups.append(_geo_mean(vals))
+            gm_vals.append(_geo_mean(all_speedups) if all_speedups else 1.0)
+        colors = [algo_colors.get(a, "#aaaaaa") for a in key_algos]
+        x = np.arange(len(key_algos))
+        ax.bar(x, gm_vals, 0.7, color=colors, edgecolor="black", linewidth=0.3)
+        ax.axhline(y=1.0, color="red", linestyle="--", linewidth=0.5, alpha=0.7)
+        ax.set_xticks(x)
+        ax.set_xticklabels([a.replace("GB-", "") for a in key_algos],
+                           rotation=45, ha="right", fontsize=6)
+        ax.set_ylabel("Geo-Mean Speedup")
+        ax.set_title("Aggregate (GM)", fontsize=10)
+        ax.grid(axis="y", alpha=0.3)
+
+    for i in range(min(len(benchmarks_plot) + 1, len(axes)), len(axes)):
+        axes[i].axis("off")
+
+    plt.tight_layout()
+    out = FIGURES_DIR / "fig2_kernel_speedup.png"
+    plt.savefig(out, dpi=300); plt.close()
+    log.info(f"  Saved: {out}")
+    copy_to_paper(out, "speedup", "aggregateSpeedups.png")
+
+    # Also generate per-benchmark per-graph charts
+    for bench in benchmarks_plot:
+        fig, ax = plt.subplots(figsize=(12, 5))
+        graphs_in_bench = sorted(set(r["graph"] for r in data if r["benchmark"] == bench))
+        x = np.arange(len(graphs_in_bench))
+        n_algos = len(key_algos)
+        width = 0.8 / n_algos
+        for i, algo in enumerate(key_algos):
+            vals = []
+            for g in graphs_in_bench:
+                bl = baseline.get((g, bench), 1.0)
+                rec = [r for r in data if r["graph"] == g and r["benchmark"] == bench
+                       and r["algorithm"] == algo]
+                if rec and rec[0].get("average_time") and bl > 0:
+                    vals.append(bl / rec[0]["average_time"])
+                else:
+                    vals.append(0)
+            ax.bar(x + i * width - 0.4 + width/2, vals, width,
+                   label=algo.replace("GB-", ""),
+                   color=algo_colors.get(algo, "#aaaaaa"), edgecolor="black", linewidth=0.2)
+        ax.set_xticks(x)
+        short_names = {g["name"]: g["short"] for gl in [EVAL_GRAPHS] for g in gl}
+        ax.set_xticklabels([short_names.get(g, g[:12]) for g in graphs_in_bench],
+                           rotation=30, ha="right", fontsize=8)
+        ax.set_ylabel("Speedup")
+        ax.set_title(f"{bench.upper()} — Per-Graph Speedup")
+        ax.axhline(y=1.0, color="red", linestyle="--", linewidth=0.5)
+        ax.legend(fontsize=5, ncol=3, loc="upper right")
+        ax.grid(axis="y", alpha=0.3)
         plt.tight_layout()
-        plt.savefig(FIGURES_DIR / "fig2_kernel_speedup.png", dpi=300)
-        plt.close()
-        log.info(f"  Saved: {FIGURES_DIR / 'fig2_kernel_speedup.png'}")
-        copy_to_paper(FIGURES_DIR / "fig2_kernel_speedup.png", "speedup", "aggregateSpeedups.png")
+        out_b = FIGURES_DIR / f"fig2_{bench}.png"
+        plt.savefig(out_b, dpi=300); plt.close()
+        log.info(f"  Saved: {out_b}")
+        copy_to_paper(out_b, "speedup", f"{bench.upper()}.png")
 
 
 # ============================================================================
@@ -274,38 +433,74 @@ def fig2_kernel_speedup(sample: bool = False) -> None:
 
 def fig3_reorder_overhead(sample: bool = False) -> None:
     log.info("Figure 3: Reorder Overhead")
-    if not HAS_MPL:
+    if not HAS_MPL or not HAS_NP:
         return
 
     ensure_dir(FIGURES_DIR)
-    data = generate_sample_overhead_data() if sample else None
-    if data is None and not sample:
+
+    data = load_json(RESULTS_DIR / "exp3_overhead" / "overhead_results.json")
+    if not isinstance(data, list) or not data:
         log.warning("  No data available")
         return
 
-    if sample:
-        fig, ax = plt.subplots(figsize=(12, 6))
-        graphs = list(data.keys())
-        algos = ["GORDER", "RABBITORDER", "GB-leiden", "GB-hrab", "GB-rabbit", "GB-streaming"]
-        x = range(len(graphs))
-        width = 0.12
+    from collections import defaultdict
 
-        for i, algo in enumerate(algos):
-            vals = [data[g].get(algo, 0) for g in graphs]
-            offset = (i - len(algos) / 2) * width
-            ax.bar([xi + offset for xi in x], vals, width, label=algo)
+    # Group: graph -> algo -> reorder_time
+    graph_algo_time: Dict[str, Dict[str, float]] = defaultdict(dict)
+    for r in data:
+        algo = r.get("algorithm", "")
+        graph = r.get("graph", "")
+        rt = r.get("reorder_time")
+        if rt is not None and rt > 0 and algo != "ORIGINAL":
+            graph_algo_time[graph][algo] = rt
 
-        ax.set_xticks(x)
-        ax.set_xticklabels(graphs, rotation=45, ha="right", fontsize=8)
-        ax.set_ylabel("Reorder Time (s)")
-        ax.set_title("Reorder Overhead Comparison")
-        ax.legend(fontsize=7, ncol=3)
-        ax.set_yscale("log")
-        plt.tight_layout()
-        plt.savefig(FIGURES_DIR / "fig3_reorder_overhead.png", dpi=300)
-        plt.close()
-        log.info(f"  Saved: {FIGURES_DIR / 'fig3_reorder_overhead.png'}")
-        copy_to_paper(FIGURES_DIR / "fig3_reorder_overhead.png", "speedup", "overheadReorder.png")
+    graphs = sorted(graph_algo_time.keys())
+    if not graphs:
+        log.warning("  No valid overhead data")
+        return
+
+    # Select key algorithms
+    key_algos = ["DBG", "RABBITORDER", "GORDER", "GB-Leiden", "GB-HRAB",
+                 "GB-Rabbit", "GB-Hubcluster", "GoGraphOrder", "RCM"]
+    all_algos = set()
+    for g in graphs:
+        all_algos.update(graph_algo_time[g].keys())
+    key_algos = [a for a in key_algos if a in all_algos]
+    if not key_algos:
+        key_algos = sorted(all_algos)[:10]
+
+    algo_colors = {
+        "DBG": "#1f77b4", "RABBITORDER": "#9467bd", "GORDER": "#d62728",
+        "GoGraphOrder": "#17becf", "RCM": "#7f7f7f",
+        "GB-Leiden": "#2ca02c", "GB-HRAB": "#006400", "GB-Rabbit": "#98df8a",
+        "GB-Hubcluster": "#228B22", "GB-TQR": "#3CB371",
+    }
+
+    fig, ax = plt.subplots(figsize=(max(10, len(graphs) * 1.5), 5))
+    x = np.arange(len(graphs))
+    n_algos = len(key_algos)
+    width = 0.8 / n_algos
+
+    for i, algo in enumerate(key_algos):
+        vals = [graph_algo_time[g].get(algo, 0) for g in graphs]
+        ax.bar(x + i * width - 0.4 + width/2, vals, width,
+               label=algo.replace("GB-", ""),
+               color=algo_colors.get(algo, "#aaaaaa"), edgecolor="black", linewidth=0.2)
+
+    short_names = {g["name"]: g["short"] for gl in [EVAL_GRAPHS] for g in gl}
+    ax.set_xticks(x)
+    ax.set_xticklabels([short_names.get(g, g[:12]) for g in graphs],
+                       rotation=30, ha="right", fontsize=8)
+    ax.set_ylabel("Reorder Time (s)")
+    ax.set_title("Reorder Overhead")
+    ax.set_yscale("log")
+    ax.legend(fontsize=6, ncol=3, loc="upper left")
+    ax.grid(axis="y", alpha=0.3)
+    plt.tight_layout()
+    out = FIGURES_DIR / "fig3_reorder_overhead.png"
+    plt.savefig(out, dpi=300); plt.close()
+    log.info(f"  Saved: {out}")
+    copy_to_paper(out, "speedup", "overheadReorder.png")
 
 
 # ============================================================================
