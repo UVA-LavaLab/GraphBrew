@@ -3542,51 +3542,28 @@ void orderHybridLeidenRabbit(
         }
     }
     
-    // Build super-graph: aggregate edges between communities
+    // Build super-graph: aggregate edges between communities.
     //
-    // Implementation note (was: per-thread vector<unordered_map<K,float>>(C)):
-    //   The previous approach allocated C empty unordered_maps per thread.
-    //   For C = 100K and T = 32 that's 3.2M empty hashmaps with ~64B base
-    //   overhead each (200 MB before any insertion).  This was the dominant
-    //   contributor to HRAB's 2.7 GB peak RSS on cit-Patents.
+    // Per-thread vector<unordered_map<K,float>>(C) approach: each thread
+    // accumulates partial sums into its own per-community hashmaps; a
+    // parallel-by-community reduction then merges them into commEdges.
+    // Work: O(E/T) per thread with O(1) hashmap inserts; final merge is
+    // O(C × T) and parallelizes cleanly across communities.
     //
-    // New approach (mirrors orderTileQuantizedRabbit's tile-adjacency build):
-    //   1. Each thread collects (commU, commV) pairs as packed uint64_t
-    //      keys + float weights into a single flat vector — no per-community
-    //      allocation, no hashmap overhead.
-    //   2. Concatenate all thread-local vectors and sort once globally.
-    //   3. Linear scan to merge duplicates and emit per-community CSR.
-    //
-    // Memory: O(|edges seen|) instead of O(C × T + |edges|).
-    // Time: same asymptotic O(E log E) but with much better constants
-    //       (no hash, no atomic, sequential access patterns).
-    std::vector<std::vector<std::pair<K, float>>> commEdges(C);
+    // We measured a flat sort-and-merge alternative on soc-pokec and
+    // hollywood-2009; it was 13% slower and used more peak RSS due to the
+    // O(E log E) global sort, so we kept this approach.
+    std::vector<std::unordered_map<K, float>> commEdges(C);
     std::vector<float> commDegrees(C, 0.0f);
 
     {
         const int nT = omp_get_max_threads();
-        std::vector<std::vector<std::pair<uint64_t, float>>> threadEdges(nT);
+        std::vector<std::vector<std::unordered_map<K, float>>> allLocalEdges(nT);
 
-        // Heuristic reservation: each non-hub edge contributes one entry,
-        // distributed roughly evenly across threads.  Slight over-reservation
-        // is preferable to repeated reallocation under push_back contention.
-        size_t totalEdgesEstimate = 0;
-        for (size_t v = 0; v < N; ++v) totalEdgesEstimate += degrees[v];
-        for (int t = 0; t < nT; ++t) {
-            threadEdges[t].reserve(totalEdgesEstimate / nT / 2 + 1024);
-        }
-
-        auto packCommPair = [](K c1, K c2) -> uint64_t {
-            // Sort the pair so (a,b) and (b,a) collide on global sort
-            if (c1 > c2) std::swap(c1, c2);
-            return (static_cast<uint64_t>(c1) << 32) | static_cast<uint64_t>(c2);
-        };
-
-        // Phase A: parallel per-edge emit into thread-local flat buffers
         #pragma omp parallel
         {
             int tid = omp_get_thread_num();
-            auto& localBuf = threadEdges[tid];
+            allLocalEdges[tid].resize(C);
 
             #pragma omp for schedule(dynamic, 1024)
             for (size_t u = 0; u < N; ++u) {
@@ -3608,71 +3585,42 @@ void orderHybridLeidenRabbit(
 
                     K commV = membership[v];
                     if (commU <= commV) {
-                        localBuf.emplace_back(packCommPair(commU, commV), w);
+                        allLocalEdges[tid][commU][commV] += w;
                     }
                 }
             }
         }
 
-        // Phase B: concatenate thread-local buffers, free originals as we go
-        size_t totalPairs = 0;
-        for (int t = 0; t < nT; ++t) totalPairs += threadEdges[t].size();
-
-        std::vector<std::pair<uint64_t, float>> allEdges;
-        allEdges.reserve(totalPairs);
-        for (int t = 0; t < nT; ++t) {
-            allEdges.insert(allEdges.end(),
-                            std::make_move_iterator(threadEdges[t].begin()),
-                            std::make_move_iterator(threadEdges[t].end()));
-            threadEdges[t].clear();
-            threadEdges[t].shrink_to_fit();
-        }
-        threadEdges.clear();
-
-        // Phase C: parallel sort by packed key (groups duplicates)
-        __gnu_parallel::sort(allEdges.begin(), allEdges.end(),
-            [](const std::pair<uint64_t, float>& a, const std::pair<uint64_t, float>& b) {
-                return a.first < b.first;
-            });
-
-        // Phase D: merge duplicates and emit symmetric per-community lists
-        size_t ei = 0;
-        while (ei < allEdges.size()) {
-            uint64_t key = allEdges[ei].first;
-            float weight = 0.0f;
-            while (ei < allEdges.size() && allEdges[ei].first == key) {
-                weight += allEdges[ei].second;
-                ++ei;
+        // Parallel merge across communities (each community is independent —
+        // no locking needed).
+        #pragma omp parallel for schedule(dynamic, 64)
+        for (size_t c = 0; c < C; ++c) {
+            for (int t = 0; t < nT; ++t) {
+                for (auto& [d, w] : allLocalEdges[t][c]) {
+                    commEdges[c][d] += w;
+                }
             }
-            K c1 = static_cast<K>(key >> 32);
-            K c2 = static_cast<K>(key & 0xFFFFFFFFULL);
-            commEdges[c1].emplace_back(c2, weight);
-            if (c1 != c2) commEdges[c2].emplace_back(c1, weight);
         }
-        allEdges.clear();
-        allEdges.shrink_to_fit();
     }
 
-    // Compute community degrees (sum of edge weights)
-    // Symmetric edge lists already include both (c1,c2) and (c2,c1) entries
-    // (when c1 != c2), so summing each community's edge weights gives the
-    // correct strength.
-    #pragma omp parallel for schedule(dynamic, 256)
+    // Compute community degrees (sum of edge weights, both directions —
+    // commEdges[c] only stores entries where c <= d, so we count d-side too)
     for (size_t c = 0; c < C; ++c) {
-        float deg = 0.0f;
         for (auto& [d, w] : commEdges[c]) {
-            deg += w;
+            commDegrees[c] += w;
+            if (d != c) {
+                commDegrees[d] += w;
+            }
         }
-        commDegrees[c] = deg;
     }
-    
+
     // Total edge weight for modularity
     float M = 0.0f;
     for (size_t c = 0; c < C; ++c) {
         M += commDegrees[c];
     }
     M /= 2.0f;
-    
+
     printf("  hybrid-rabbit: super-graph M=%.0f\n", M);
     
     // ================================================================
@@ -3696,25 +3644,17 @@ void orderHybridLeidenRabbit(
         dest[c] = static_cast<K>(c);
     }
     
-    // Second pass: populate RabbitVertex edge lists.
-    // commEdges is already symmetric (Phase D above stores both (c1,c2)
-    // and (c2,c1) entries for c1 != c2), so a simple parallel copy suffices.
-    //
-    // We COPY (not move) when useRCMSuper is enabled, because that branch
-    // needs the original (pre-RabbitOrder-merge) Leiden super-graph adjacency
-    // to do BNF-RCM, while RabbitOrder's unite() mutates vtx[c].edges in place.
-    // Otherwise we move and free commEdges to minimize peak RSS.
-    if (config.useRCMSuper) {
-        #pragma omp parallel for schedule(dynamic, 256)
-        for (size_t c = 0; c < C; ++c) {
-            vtx[c].edges = commEdges[c];   // copy — commEdges retained for RCM
+    // Second pass: build symmetric edge lists from commEdges into vtx[c].edges.
+    // commEdges only stored entries where commU <= commV, so we expand both
+    // directions here.  Sequential to avoid races on vtx[d].edges from
+    // multiple c → d emissions.
+    for (size_t c = 0; c < C; ++c) {
+        for (auto& [d, w] : commEdges[c]) {
+            vtx[c].edges.emplace_back(d, w);
+            if (d != c) {
+                vtx[d].edges.emplace_back(static_cast<K>(c), w);
+            }
         }
-    } else {
-        #pragma omp parallel for schedule(dynamic, 256)
-        for (size_t c = 0; c < C; ++c) {
-            vtx[c].edges = std::move(commEdges[c]);
-        }
-        std::vector<std::vector<std::pair<K, float>>>().swap(commEdges);
     }
     
     // Sort communities by degree (ascending) - key to RabbitOrder
@@ -4022,10 +3962,9 @@ void orderHybridLeidenRabbit(
     if (config.useRCMSuper) {
         printf("  hybrid-rabbit: applying BNF-RCM on super-graph (%zu communities)\n", C);
 
-        // Build symmetric adjacency list for super-graph from the *original*
-        // Leiden super-graph (commEdges, kept alive by the conditional copy
-        // above) — RabbitOrder's unite() mutated vtx[c].edges so it can no
-        // longer be used as the source of pre-merge adjacency.
+        // Build symmetric adjacency list for super-graph from commEdges
+        // (preserved across STEP 2 because RabbitOrder mutates vtx[c].edges
+        // and BNF-RCM needs the original Leiden super-graph view).
         std::vector<std::vector<std::pair<K, float>>> superAdj(C);
         for (size_t c = 0; c < C; ++c) {
             for (auto& [nbr, w] : commEdges[c]) {
@@ -5564,36 +5503,22 @@ void orderTileQuantizedRabbit(
     
     // 5b: Build community super-graph (aggregate edges between communities)
     //
-    // Same flat-edge optimization as HRAB: replace per-thread
-    // vector<unordered_map<K,float>>(C) with a flat vector<(uint64,float)>
-    // per thread, then global sort + duplicate-merge.  Eliminates the
-    // O(C × T) baseline allocation and gives much better cache behaviour
-    // during the per-edge accumulation loop.
+    // Per-thread vector<unordered_map<K,float>>(C) approach (matches HRAB).
+    // We tested a flat sort-and-merge alternative; it was 13% slower with
+    // higher peak RSS due to the O(E log E) global sort.
     phaseTimer.Start();
 
-    std::vector<std::vector<std::pair<K, float>>> commEdges(C);
+    std::vector<std::unordered_map<K, float>> commEdges(C);
     std::vector<float> commDeg(C, 0.0f);
 
     {
         const int nT = omp_get_max_threads();
-        std::vector<std::vector<std::pair<uint64_t, float>>> threadEdges(nT);
+        std::vector<std::vector<std::unordered_map<K, float>>> allLocalEdges(nT);
 
-        size_t totalEdgesEstimate = 0;
-        for (size_t v = 0; v < N; ++v) totalEdgesEstimate += degrees[v];
-        for (int t = 0; t < nT; ++t) {
-            threadEdges[t].reserve(totalEdgesEstimate / nT / 2 + 1024);
-        }
-
-        auto packCommPair = [](K c1, K c2) -> uint64_t {
-            if (c1 > c2) std::swap(c1, c2);
-            return (static_cast<uint64_t>(c1) << 32) | static_cast<uint64_t>(c2);
-        };
-
-        // Phase A: parallel emit
         #pragma omp parallel
         {
             int tid = omp_get_thread_num();
-            auto& localBuf = threadEdges[tid];
+            allLocalEdges[tid].resize(C);
 
             #pragma omp for schedule(dynamic, 1024)
             for (size_t u = 0; u < N; ++u) {
@@ -5613,58 +5538,31 @@ void orderTileQuantizedRabbit(
 
                     K commV = membership[v];
                     if (commU <= commV) {
-                        localBuf.emplace_back(packCommPair(commU, commV), w);
+                        allLocalEdges[tid][commU][commV] += w;
                     }
                 }
             }
         }
 
-        // Phase B: concatenate
-        size_t totalPairs = 0;
-        for (int t = 0; t < nT; ++t) totalPairs += threadEdges[t].size();
-        std::vector<std::pair<uint64_t, float>> allEdges;
-        allEdges.reserve(totalPairs);
-        for (int t = 0; t < nT; ++t) {
-            allEdges.insert(allEdges.end(),
-                            std::make_move_iterator(threadEdges[t].begin()),
-                            std::make_move_iterator(threadEdges[t].end()));
-            threadEdges[t].clear();
-            threadEdges[t].shrink_to_fit();
-        }
-        threadEdges.clear();
-
-        // Phase C: parallel sort
-        __gnu_parallel::sort(allEdges.begin(), allEdges.end(),
-            [](const std::pair<uint64_t, float>& a, const std::pair<uint64_t, float>& b) {
-                return a.first < b.first;
-            });
-
-        // Phase D: merge duplicates and emit symmetric per-community lists
-        size_t ei = 0;
-        while (ei < allEdges.size()) {
-            uint64_t key = allEdges[ei].first;
-            float weight = 0.0f;
-            while (ei < allEdges.size() && allEdges[ei].first == key) {
-                weight += allEdges[ei].second;
-                ++ei;
+        // Parallel merge across communities
+        #pragma omp parallel for schedule(dynamic, 64)
+        for (size_t c = 0; c < C; ++c) {
+            for (int t = 0; t < nT; ++t) {
+                for (auto& [d, w] : allLocalEdges[t][c]) {
+                    commEdges[c][d] += w;
+                }
             }
-            K c1 = static_cast<K>(key >> 32);
-            K c2 = static_cast<K>(key & 0xFFFFFFFFULL);
-            commEdges[c1].emplace_back(c2, weight);
-            if (c1 != c2) commEdges[c2].emplace_back(c1, weight);
         }
-        allEdges.clear();
-        allEdges.shrink_to_fit();
     }
 
-    // Compute community degrees from symmetric edge lists
-    #pragma omp parallel for schedule(dynamic, 256)
+    // Compute community degrees (sum of edge weights, both directions)
     for (size_t c = 0; c < C; ++c) {
-        float deg = 0.0f;
         for (auto& [d, w] : commEdges[c]) {
-            deg += w;
+            commDeg[c] += w;
+            if (d != static_cast<K>(c)) {
+                commDeg[d] += w;
+            }
         }
-        commDeg[c] = deg;
     }
 
     // Total super-graph weight for modularity (M_comm = sum(commDeg)/2)
@@ -5695,13 +5593,19 @@ void orderTileQuantizedRabbit(
         commDestRO[c] = static_cast<K>(c);
     }
 
-    // Move pre-built symmetric edge lists into RabbitVertex (no copy needed —
-    // commEdges is no longer used after this point in TQR's pipeline).
-    #pragma omp parallel for schedule(dynamic, 256)
+    // Build symmetric edge lists for communities from commEdges.
+    // commEdges only stored entries where commU <= commV, so we expand.
+    // Sequential to avoid races on commVtx[d].edges from multiple c → d emissions.
     for (size_t c = 0; c < C; ++c) {
-        commVtx[c].edges = std::move(commEdges[c]);
+        for (auto& [d, w] : commEdges[c]) {
+            commVtx[c].edges.emplace_back(d, w);
+            if (d != static_cast<K>(c)) {
+                commVtx[d].edges.emplace_back(static_cast<K>(c), w);
+            }
+        }
     }
-    std::vector<std::vector<std::pair<K, float>>>().swap(commEdges);
+    commEdges.clear();
+    std::vector<std::unordered_map<K, float>>().swap(commEdges);
 
     // Sort communities by degree ascending
     std::vector<K> commOrder(C);
