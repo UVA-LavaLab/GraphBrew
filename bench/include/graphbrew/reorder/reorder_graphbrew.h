@@ -329,12 +329,20 @@ struct GraphBrewConfig {
     // so we lower γ.  γ ∈ (0, 1] trades merge aggressiveness for modularity
     // preservation:
     //   γ = 1.00  → almost no merges (faithful to original Rabbit on raw graph)
-    //   γ = 0.25  → balanced; typical 100K → ~1-5K blocks  ← default
+    //   γ = 0.10  → balanced; typical 100K → ~1-5K blocks  ← default
     //   γ = 0.05  → very aggressive; merges any connected components
+    //
+    // Default γ=0.10 chosen from a 4-graph PR cache-sim sweep (L3=8MB, iters=5):
+    //   soc-pokec      γ=0.10 11.93M acc / 15.6s   (best on graph)
+    //   hollywood-2009 γ=0.10 35.84M acc / 40.5s   (within 0.3% of best)
+    //   USA-road-d.USA γ=0.10 33.56M acc / 39.6s   (best on graph)
+    //   com-Orkut      γ=0.10 96.04M acc / 162.5s  (best mem; γ=0.25 still best kernel)
+    // Previous default γ=0.25 was worst or near-worst on 3/4 graphs.
+    // com-Orkut-shaped graphs (very dense communities) may benefit from sgres0.25.
     //
     // Override via -o 12:hrab:sgres0.5  (sets γ=0.5)
     // or          -o 12:tqr:sgres0.1
-    double superGraphResolution = 0.25;
+    double superGraphResolution = 0.10;
     
     // GraphBrew mode: per-community external algorithm dispatch
     int  finalAlgoId = -1;             ///< Final reordering algorithm ID (0-11) for LAYER ordering. -1 = not set (uses GraphBrew ordering)
@@ -3737,11 +3745,11 @@ void orderHybridLeidenRabbit(
     //
     //     ΔQ(u, v) = w_uv − γ · str(u) · str(v) / (2 · M_super)
     //
-    // where γ = config.superGraphResolution (default 0.25 — see GraphBrewConfig).
+    // where γ = config.superGraphResolution (default 0.10 — see GraphBrewConfig).
     // The Leiden output that built this super-graph already maximized ΔQ at
     // γ=1.0 on the *original* graph; with γ=1.0 here, almost no edge would
     // satisfy ΔQ > 0 and the super-graph would barely coarsen.  Lowering γ
-    // (default 0.25) restores the paper's intended behavior of merging
+    // (default 0.10) restores the paper's intended behavior of merging
     // ~100K Leiden communities into ~1K cache-sized blocks while remaining
     // a true Rabbit Order modularity-gain criterion (not a raw edge-weight
     // heuristic).
@@ -5771,7 +5779,7 @@ void orderTileQuantizedRabbit(
     
     // Community-level Rabbit Order on the super-graph using the modularity
     // gain criterion:  ΔQ(u, v) = w_uv − γ · str(u)·str(v) / (2·M_comm)
-    // with γ = config.superGraphResolution (default 0.25; see GraphBrewConfig).
+    // with γ = config.superGraphResolution (default 0.10; see GraphBrewConfig).
     // This matches HRAB's super-graph criterion (no longer raw edge weight).
     std::atomic<size_t> numCommTop(0);
 
