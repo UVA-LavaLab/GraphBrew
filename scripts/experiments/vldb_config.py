@@ -129,6 +129,18 @@ EVAL_GRAPHS_64GB = [
     {"name": "uk-2002",            "short": "uk02",      "type": "web",            "vertices_m": 18.52,  "edges_m": 298.11},
 ]
 
+# Local evaluation (fits 64GB RAM, covers all topology types from paper Table 5).
+# Results use the same chart pipeline as EVAL_GRAPHS — just swap the list and
+# re-run.  Full suite targets the lab machine with 256GB RAM.
+EVAL_GRAPHS_LOCAL = [
+    {"name": "cit-Patents",        "short": "patents",   "type": "citation",       "vertices_m": 6.01,   "edges_m": 16.52},
+    {"name": "soc-pokec",          "short": "pokec",     "type": "social",         "vertices_m": 1.63,   "edges_m": 30.62},
+    {"name": "USA-road-d.USA",     "short": "road",      "type": "road",           "vertices_m": 23.95,  "edges_m": 58.33},
+    {"name": "soc-LiveJournal1",   "short": "journal",   "type": "social",         "vertices_m": 4.85,   "edges_m": 68.99},
+    {"name": "hollywood-2009",     "short": "hollywood", "type": "collaboration",  "vertices_m": 1.14,   "edges_m": 113.89},
+    {"name": "com-Orkut",          "short": "orkut",     "type": "social",         "vertices_m": 3.07,   "edges_m": 117.19},
+]
+
 # Small graphs for preview mode
 PREVIEW_GRAPHS = [
     {"name": "email-Eu-core",      "short": "email",     "type": "social",   "vertices_m": 0.001,  "edges_m": 0.025},
