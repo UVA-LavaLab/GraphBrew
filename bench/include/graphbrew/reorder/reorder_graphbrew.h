@@ -316,6 +316,25 @@ struct GraphBrewConfig {
     bool useHubSort = false;           ///< Post-process: pack hub vertices contiguously sorted by descending degree (graphbrew:hsort)
     bool useRCMSuper = false;          ///< Use RCM on super-graph instead of RabbitOrder dendrogram DFS (graphbrew:rcm)
     bool useRCMIntra = false;          ///< Use RCM (Cuthill-McKee) within each community instead of BFS (graphbrew:rcm_intra)
+
+    // Super-graph modularity resolution (HRAB / TQR community-level merges)
+    //
+    // Standard Rabbit Order modularity gain on a super-graph is:
+    //     ΔQ(u,v) = w_uv − γ · str(u)·str(v) / (2·M_super)
+    //
+    // The Leiden output that feeds the super-graph has already been optimized
+    // for ΔQ at γ=1.0 on the original graph; with γ=1.0 on the super-graph,
+    // very few merges would happen (Leiden left no positive-ΔQ edges at γ=1).
+    // For HRAB/TQR we want aggressive coarsening to ~1K cache-sized blocks,
+    // so we lower γ.  γ ∈ (0, 1] trades merge aggressiveness for modularity
+    // preservation:
+    //   γ = 1.00  → almost no merges (faithful to original Rabbit on raw graph)
+    //   γ = 0.25  → balanced; typical 100K → ~1-5K blocks  ← default
+    //   γ = 0.05  → very aggressive; merges any connected components
+    //
+    // Override via -o 12:hrab:sgres0.5  (sets γ=0.5)
+    // or          -o 12:tqr:sgres0.1
+    double superGraphResolution = 0.25;
     
     // GraphBrew mode: per-community external algorithm dispatch
     int  finalAlgoId = -1;             ///< Final reordering algorithm ID (0-11) for LAYER ordering. -1 = not set (uses GraphBrew ordering)
@@ -548,51 +567,134 @@ struct SuperGraph {
 };
 
 //=============================================================================
-// SECTION 4: CACHE-OPTIMIZED COMMUNITY SCANNER
+// SECTION 4: CACHE-OPTIMIZED COMMUNITY SCANNER (sparse open-address hashmap)
+//=============================================================================
+//
+// Thread-local sparse hashtable for accumulating community → weight pairs
+// during community scanning.  Replaces the previous dense vector<W>(N) layout
+// to bound peak memory at O(touched_communities) per scanner instead of O(N).
+//
+// Why a sparse table:
+//   The previous dense layout allocated values.resize(N, 0) per scanner.
+//   For a graph with N=118M vertices and 32 threads, peak resident memory was
+//   118M × 8B × 32 ≈ 30 GB just for the scanners — enough to OOM webbase-2001
+//   and twitter7 before any communities were even formed.  The new layout
+//   holds only the touched buckets (~max community-degree per vertex), so
+//   peak per-scanner memory caps at a few hundred KB.
+//
+// API preserved:
+//   keys                public vector of touched community IDs (iteration)
+//   add(c, w)           accumulate weight w into bucket c
+//   get(c)              O(1) average-case lookup
+//   clear()             zero out touched buckets (O(|keys|))
+//   compactIfNeeded()   no-op kept for source compatibility
+//
+// Implementation:
+//   Linear-probing open-address hashtable with power-of-2 size.  Initial
+//   capacity 256, doubles when load > 0.5 (rare on modern graphs because
+//   per-vertex unique-neighbor counts are usually small).  Sentinel EMPTY
+//   = numeric_limits<K>::max() — guaranteed not to clash with valid community
+//   IDs since K is uint32_t and Leiden never emits > N communities.
 //=============================================================================
 
-/**
- * Thread-local hash table for scanning communities
- * Optimized for cache locality with linear probing
- */
 template <typename K, typename W>
 struct CommunityScanner {
-    std::vector<K> keys;           ///< Community IDs found
-    std::vector<W> values;         ///< Total weight to each community
-    size_t capacity;               ///< Hash table capacity
-    
-    explicit CommunityScanner(size_t cap) : capacity(cap) {
-        values.resize(cap, W(0));
-        keys.reserve(256);  // Most vertices have limited neighbors
+    static_assert(std::is_unsigned<K>::value,
+                  "CommunityScanner requires unsigned K (uses numeric_limits<K>::max() as EMPTY)");
+    static constexpr K EMPTY = std::numeric_limits<K>::max();
+
+    std::vector<K> keys;       ///< Touched community IDs (insertion order)
+    std::vector<K> ht_keys;    ///< Hashtable buckets — key (EMPTY = free)
+    std::vector<W> ht_vals;    ///< Hashtable buckets — accumulated weight
+    size_t mask;               ///< ht_keys.size() − 1  (power-of-2 mask)
+
+    explicit CommunityScanner(size_t /*cap_hint*/) {
+        // Always start at 256 slots; grow on demand.  cap_hint is ignored
+        // because most vertices touch only a few-dozen communities even on
+        // billion-edge graphs, so over-allocating to N would defeat the
+        // purpose of the sparse layout.
+        const size_t init = 256;
+        ht_keys.assign(init, EMPTY);
+        ht_vals.assign(init, W(0));
+        mask = init - 1;
+        keys.reserve(64);
     }
-    
+
+    static inline size_t mix(K x) {
+        // Knuth's multiplicative hash on 64 bits (good distribution for
+        // dense integer keys with a power-of-2 table size)
+        uint64_t h = static_cast<uint64_t>(x) * 0x9E3779B97F4A7C15ULL;
+        h ^= h >> 27;
+        return static_cast<size_t>(h);
+    }
+
     void clear() {
         for (K c : keys) {
-            values[c] = W(0);
+            size_t h = mix(c) & mask;
+            while (ht_keys[h] != c) h = (h + 1) & mask;
+            ht_keys[h] = EMPTY;
+            ht_vals[h] = W(0);
         }
         keys.clear();
     }
-    
+
     void add(K community, W weight) {
-        if (values[community] == W(0)) {
-            keys.push_back(community);
+        // Resize when load > 0.5 to keep probe length bounded
+        if ((keys.size() + 1) * 2 > ht_keys.size()) grow();
+
+        size_t h = mix(community) & mask;
+        while (true) {
+            const K slot = ht_keys[h];
+            if (slot == community) {
+                ht_vals[h] += weight;
+                return;
+            }
+            if (slot == EMPTY) {
+                ht_keys[h] = community;
+                ht_vals[h] = weight;
+                keys.push_back(community);
+                return;
+            }
+            h = (h + 1) & mask;
         }
-        values[community] += weight;
     }
-    
-    /**
-     * Compact edges by removing duplicates (sort-based like Boost)
-     * Call this periodically during edge aggregation to prevent overflow
-     */
-    void compactIfNeeded(size_t threshold = 2048) {
-        if (keys.size() < threshold) return;
-        
-        // Already compacted since we use hash-based aggregation
-        // This is a no-op for CommunityScanner but matches Boost's API
-    }
-    
+
     W get(K community) const {
-        return values[community];
+        size_t h = mix(community) & mask;
+        while (true) {
+            const K slot = ht_keys[h];
+            if (slot == community) return ht_vals[h];
+            if (slot == EMPTY) return W(0);
+            h = (h + 1) & mask;
+        }
+    }
+
+    /**
+     * Kept for source compatibility with the old API (Boost's edge-aggregator
+     * pattern called this every 2048 inserts).  No-op for the hashtable layout
+     * because aggregation happens implicitly on every add().
+     */
+    void compactIfNeeded(size_t /*threshold*/ = 2048) {}
+
+private:
+    void grow() {
+        const size_t old_size = ht_keys.size();
+        const size_t new_size = old_size * 2;
+        const size_t new_mask = new_size - 1;
+        std::vector<K> new_keys(new_size, EMPTY);
+        std::vector<W> new_vals(new_size, W(0));
+
+        for (size_t i = 0; i < old_size; ++i) {
+            const K k = ht_keys[i];
+            if (k == EMPTY) continue;
+            size_t h = mix(k) & new_mask;
+            while (new_keys[h] != EMPTY) h = (h + 1) & new_mask;
+            new_keys[h] = k;
+            new_vals[h] = ht_vals[i];
+        }
+        ht_keys = std::move(new_keys);
+        ht_vals = std::move(new_vals);
+        mask = new_mask;
     }
 };
 
@@ -2933,9 +3035,19 @@ void orderHierarchicalCacheAware(
     GRAPHBREW_TRACE("orderHierarchicalCacheAware: N=%zu, passes=%zu", N, result.membershipPerPass.size());
     
     const size_t numPasses = result.membershipPerPass.size();
-    if (numPasses == 0) {
-        // Fallback
-        printf("  hierarchical-cache: no passes, falling back\n");
+    // hcache exploits Leiden's *hierarchy*: it needs at least 2 passes
+    // (one fine + one coarse) to map cache levels.  If Leiden converged
+    // in a single pass (typical for road/mesh graphs that lack hierarchical
+    // community structure), the "coarsest" and "finest" levels would be
+    // identical -- the algorithm degenerates to plain community sort.
+    // Fall through to the multi-level hierarchical sort, which is well-defined
+    // for any number of passes including 1.
+    if (numPasses < 2) {
+        std::cerr << "  [warning] hcache requires Leiden hierarchy with >= 2 passes "
+                  << "(got " << numPasses << ").  Falling back to orderHierarchicalSort.\n"
+                  << "  This typically happens on road/mesh graphs with weak community "
+                  << "structure.  Consider using -o 12:leiden or -o 12:rcm instead.\n";
+        orderHierarchicalSort<K, NodeID_T>(newIds, result, degrees, N, config);
         return;
     }
     
@@ -3423,26 +3535,56 @@ void orderHybridLeidenRabbit(
     }
     
     // Build super-graph: aggregate edges between communities
-    // For RabbitOrder, we need float weights and edge list per community
-    std::vector<std::unordered_map<K, float>> commEdges(C);
+    //
+    // Implementation note (was: per-thread vector<unordered_map<K,float>>(C)):
+    //   The previous approach allocated C empty unordered_maps per thread.
+    //   For C = 100K and T = 32 that's 3.2M empty hashmaps with ~64B base
+    //   overhead each (200 MB before any insertion).  This was the dominant
+    //   contributor to HRAB's 2.7 GB peak RSS on cit-Patents.
+    //
+    // New approach (mirrors orderTileQuantizedRabbit's tile-adjacency build):
+    //   1. Each thread collects (commU, commV) pairs as packed uint64_t
+    //      keys + float weights into a single flat vector — no per-community
+    //      allocation, no hashmap overhead.
+    //   2. Concatenate all thread-local vectors and sort once globally.
+    //   3. Linear scan to merge duplicates and emit per-community CSR.
+    //
+    // Memory: O(|edges seen|) instead of O(C × T + |edges|).
+    // Time: same asymptotic O(E log E) but with much better constants
+    //       (no hash, no atomic, sequential access patterns).
+    std::vector<std::vector<std::pair<K, float>>> commEdges(C);
     std::vector<float> commDegrees(C, 0.0f);
-    
-    // Parallel edge aggregation with per-community parallel merge
-    // (replaces previous single #pragma omp critical over ALL communities)
+
     {
         const int nT = omp_get_max_threads();
-        std::vector<std::vector<std::unordered_map<K, float>>> allLocalEdges(nT);
-        
+        std::vector<std::vector<std::pair<uint64_t, float>>> threadEdges(nT);
+
+        // Heuristic reservation: each non-hub edge contributes one entry,
+        // distributed roughly evenly across threads.  Slight over-reservation
+        // is preferable to repeated reallocation under push_back contention.
+        size_t totalEdgesEstimate = 0;
+        for (size_t v = 0; v < N; ++v) totalEdgesEstimate += degrees[v];
+        for (int t = 0; t < nT; ++t) {
+            threadEdges[t].reserve(totalEdgesEstimate / nT / 2 + 1024);
+        }
+
+        auto packCommPair = [](K c1, K c2) -> uint64_t {
+            // Sort the pair so (a,b) and (b,a) collide on global sort
+            if (c1 > c2) std::swap(c1, c2);
+            return (static_cast<uint64_t>(c1) << 32) | static_cast<uint64_t>(c2);
+        };
+
+        // Phase A: parallel per-edge emit into thread-local flat buffers
         #pragma omp parallel
         {
             int tid = omp_get_thread_num();
-            allLocalEdges[tid].resize(C);
-            
+            auto& localBuf = threadEdges[tid];
+
             #pragma omp for schedule(dynamic, 1024)
             for (size_t u = 0; u < N; ++u) {
                 if (degrees[u] == 0 || isHub[u]) continue;
                 K commU = membership[u];
-                
+
                 for (auto neighbor : g.out_neigh(u)) {
                     NodeID_T v;
                     float w;
@@ -3453,36 +3595,67 @@ void orderHybridLeidenRabbit(
                         v = neighbor.v;
                         w = static_cast<float>(neighbor.w);
                     }
-                    
+
                     if (isHub[v]) continue;
-                    
+
                     K commV = membership[v];
                     if (commU <= commV) {
-                        allLocalEdges[tid][commU][commV] += w;
+                        localBuf.emplace_back(packCommPair(commU, commV), w);
                     }
                 }
             }
         }
-        
-        // Parallel merge: each community is independent (no locking needed)
-        #pragma omp parallel for schedule(dynamic, 64)
-        for (size_t c = 0; c < C; ++c) {
-            for (int t = 0; t < nT; ++t) {
-                for (auto& [d, w] : allLocalEdges[t][c]) {
-                    commEdges[c][d] += w;
-                }
-            }
+
+        // Phase B: concatenate thread-local buffers, free originals as we go
+        size_t totalPairs = 0;
+        for (int t = 0; t < nT; ++t) totalPairs += threadEdges[t].size();
+
+        std::vector<std::pair<uint64_t, float>> allEdges;
+        allEdges.reserve(totalPairs);
+        for (int t = 0; t < nT; ++t) {
+            allEdges.insert(allEdges.end(),
+                            std::make_move_iterator(threadEdges[t].begin()),
+                            std::make_move_iterator(threadEdges[t].end()));
+            threadEdges[t].clear();
+            threadEdges[t].shrink_to_fit();
         }
+        threadEdges.clear();
+
+        // Phase C: parallel sort by packed key (groups duplicates)
+        __gnu_parallel::sort(allEdges.begin(), allEdges.end(),
+            [](const std::pair<uint64_t, float>& a, const std::pair<uint64_t, float>& b) {
+                return a.first < b.first;
+            });
+
+        // Phase D: merge duplicates and emit symmetric per-community lists
+        size_t ei = 0;
+        while (ei < allEdges.size()) {
+            uint64_t key = allEdges[ei].first;
+            float weight = 0.0f;
+            while (ei < allEdges.size() && allEdges[ei].first == key) {
+                weight += allEdges[ei].second;
+                ++ei;
+            }
+            K c1 = static_cast<K>(key >> 32);
+            K c2 = static_cast<K>(key & 0xFFFFFFFFULL);
+            commEdges[c1].emplace_back(c2, weight);
+            if (c1 != c2) commEdges[c2].emplace_back(c1, weight);
+        }
+        allEdges.clear();
+        allEdges.shrink_to_fit();
     }
-    
+
     // Compute community degrees (sum of edge weights)
+    // Symmetric edge lists already include both (c1,c2) and (c2,c1) entries
+    // (when c1 != c2), so summing each community's edge weights gives the
+    // correct strength.
+    #pragma omp parallel for schedule(dynamic, 256)
     for (size_t c = 0; c < C; ++c) {
+        float deg = 0.0f;
         for (auto& [d, w] : commEdges[c]) {
-            commDegrees[c] += w;
-            if (d != c) {
-                commDegrees[d] += w;  // Undirected: count both directions
-            }
+            deg += w;
         }
+        commDegrees[c] = deg;
     }
     
     // Total edge weight for modularity
@@ -3515,15 +3688,25 @@ void orderHybridLeidenRabbit(
         dest[c] = static_cast<K>(c);
     }
     
-    // Second pass: build symmetric edge lists (sequential to avoid race)
-    // Since we only stored edges where commU <= commV, add both directions
-    for (size_t c = 0; c < C; ++c) {
-        for (auto& [d, w] : commEdges[c]) {
-            vtx[c].edges.emplace_back(d, w);
-            if (d != c) {
-                vtx[d].edges.emplace_back(static_cast<K>(c), w);
-            }
+    // Second pass: populate RabbitVertex edge lists.
+    // commEdges is already symmetric (Phase D above stores both (c1,c2)
+    // and (c2,c1) entries for c1 != c2), so a simple parallel copy suffices.
+    //
+    // We COPY (not move) when useRCMSuper is enabled, because that branch
+    // needs the original (pre-RabbitOrder-merge) Leiden super-graph adjacency
+    // to do BNF-RCM, while RabbitOrder's unite() mutates vtx[c].edges in place.
+    // Otherwise we move and free commEdges to minimize peak RSS.
+    if (config.useRCMSuper) {
+        #pragma omp parallel for schedule(dynamic, 256)
+        for (size_t c = 0; c < C; ++c) {
+            vtx[c].edges = commEdges[c];   // copy — commEdges retained for RCM
         }
+    } else {
+        #pragma omp parallel for schedule(dynamic, 256)
+        for (size_t c = 0; c < C; ++c) {
+            vtx[c].edges = std::move(commEdges[c]);
+        }
+        std::vector<std::vector<std::pair<K, float>>>().swap(commEdges);
     }
     
     // Sort communities by degree (ascending) - key to RabbitOrder
@@ -3550,12 +3733,22 @@ void orderHybridLeidenRabbit(
         return d;
     };
     
-    // Lambda: compute modularity gain
-    // Use edge weight directly with minimal penalty to encourage aggressive merging
-    // The goal is to merge 100K communities into ~1K blocks
-    auto deltaQ = [&](float w_uv, float /* d_u */, float /* d_v */) -> float {
-        // Simply use edge weight - merge any communities that have edges between them
-        return w_uv > 0.0f ? w_uv : -1.0f;
+    // Lambda: compute modularity gain (Rabbit Order ΔQ on the super-graph)
+    //
+    //     ΔQ(u, v) = w_uv − γ · str(u) · str(v) / (2 · M_super)
+    //
+    // where γ = config.superGraphResolution (default 0.25 — see GraphBrewConfig).
+    // The Leiden output that built this super-graph already maximized ΔQ at
+    // γ=1.0 on the *original* graph; with γ=1.0 here, almost no edge would
+    // satisfy ΔQ > 0 and the super-graph would barely coarsen.  Lowering γ
+    // (default 0.25) restores the paper's intended behavior of merging
+    // ~100K Leiden communities into ~1K cache-sized blocks while remaining
+    // a true Rabbit Order modularity-gain criterion (not a raw edge-weight
+    // heuristic).
+    const float sgGamma = static_cast<float>(config.superGraphResolution);
+    const float inv2M_super = (M > 0.0f) ? 1.0f / (2.0f * M) : 0.0f;
+    auto deltaQ = [sgGamma, inv2M_super](float w_uv, float d_u, float d_v) -> float {
+        return w_uv - sgGamma * d_u * d_v * inv2M_super;
     };
     
     // Lambda: unite edges from children
@@ -3820,8 +4013,11 @@ void orderHybridLeidenRabbit(
     // ================================================================
     if (config.useRCMSuper) {
         printf("  hybrid-rabbit: applying BNF-RCM on super-graph (%zu communities)\n", C);
-        
-        // Build symmetric adjacency list for super-graph
+
+        // Build symmetric adjacency list for super-graph from the *original*
+        // Leiden super-graph (commEdges, kept alive by the conditional copy
+        // above) — RabbitOrder's unite() mutated vtx[c].edges so it can no
+        // longer be used as the source of pre-merge adjacency.
         std::vector<std::vector<std::pair<K, float>>> superAdj(C);
         for (size_t c = 0; c < C; ++c) {
             for (auto& [nbr, w] : commEdges[c]) {
@@ -5359,60 +5555,121 @@ void orderTileQuantizedRabbit(
     printf("  tqr: community center-tile assignment in %.4fs\n", phaseTimer.Seconds());
     
     // 5b: Build community super-graph (aggregate edges between communities)
+    //
+    // Same flat-edge optimization as HRAB: replace per-thread
+    // vector<unordered_map<K,float>>(C) with a flat vector<(uint64,float)>
+    // per thread, then global sort + duplicate-merge.  Eliminates the
+    // O(C × T) baseline allocation and gives much better cache behaviour
+    // during the per-edge accumulation loop.
     phaseTimer.Start();
-    
-    std::vector<std::unordered_map<K, float>> commEdges(C);
+
+    std::vector<std::vector<std::pair<K, float>>> commEdges(C);
     std::vector<float> commDeg(C, 0.0f);
-    
-    #pragma omp parallel
+
     {
-        std::vector<std::unordered_map<K, float>> localEdges(C);
-        
-        #pragma omp for schedule(dynamic, 1024)
-        for (size_t u = 0; u < N; ++u) {
-            if (isIsolated[u]) continue;
-            K commU = membership[u];
-            
-            for (auto neighbor : g.out_neigh(u)) {
-                NodeID_T v;
-                float w;
-                if constexpr (std::is_same_v<DestID_T, NodeID_T>) {
-                    v = neighbor;
-                    w = 1.0f;
-                } else {
-                    v = neighbor.v;
-                    w = static_cast<float>(neighbor.w);
-                }
-                
-                K commV = membership[v];
-                if (commU <= commV) {
-                    localEdges[commU][commV] += w;
-                }
-            }
+        const int nT = omp_get_max_threads();
+        std::vector<std::vector<std::pair<uint64_t, float>>> threadEdges(nT);
+
+        size_t totalEdgesEstimate = 0;
+        for (size_t v = 0; v < N; ++v) totalEdgesEstimate += degrees[v];
+        for (int t = 0; t < nT; ++t) {
+            threadEdges[t].reserve(totalEdgesEstimate / nT / 2 + 1024);
         }
-        
-        #pragma omp critical
+
+        auto packCommPair = [](K c1, K c2) -> uint64_t {
+            if (c1 > c2) std::swap(c1, c2);
+            return (static_cast<uint64_t>(c1) << 32) | static_cast<uint64_t>(c2);
+        };
+
+        // Phase A: parallel emit
+        #pragma omp parallel
         {
-            for (size_t c = 0; c < C; ++c) {
-                for (auto& [d, w] : localEdges[c]) {
-                    commEdges[c][d] += w;
+            int tid = omp_get_thread_num();
+            auto& localBuf = threadEdges[tid];
+
+            #pragma omp for schedule(dynamic, 1024)
+            for (size_t u = 0; u < N; ++u) {
+                if (isIsolated[u]) continue;
+                K commU = membership[u];
+
+                for (auto neighbor : g.out_neigh(u)) {
+                    NodeID_T v;
+                    float w;
+                    if constexpr (std::is_same_v<DestID_T, NodeID_T>) {
+                        v = neighbor;
+                        w = 1.0f;
+                    } else {
+                        v = neighbor.v;
+                        w = static_cast<float>(neighbor.w);
+                    }
+
+                    K commV = membership[v];
+                    if (commU <= commV) {
+                        localBuf.emplace_back(packCommPair(commU, commV), w);
+                    }
                 }
             }
         }
-    }
-    
-    // Compute community degrees
-    for (size_t c = 0; c < C; ++c) {
-        for (auto& [d, w] : commEdges[c]) {
-            commDeg[c] += w;
-            if (d != static_cast<K>(c)) {
-                commDeg[d] += w;
-            }
+
+        // Phase B: concatenate
+        size_t totalPairs = 0;
+        for (int t = 0; t < nT; ++t) totalPairs += threadEdges[t].size();
+        std::vector<std::pair<uint64_t, float>> allEdges;
+        allEdges.reserve(totalPairs);
+        for (int t = 0; t < nT; ++t) {
+            allEdges.insert(allEdges.end(),
+                            std::make_move_iterator(threadEdges[t].begin()),
+                            std::make_move_iterator(threadEdges[t].end()));
+            threadEdges[t].clear();
+            threadEdges[t].shrink_to_fit();
         }
+        threadEdges.clear();
+
+        // Phase C: parallel sort
+        __gnu_parallel::sort(allEdges.begin(), allEdges.end(),
+            [](const std::pair<uint64_t, float>& a, const std::pair<uint64_t, float>& b) {
+                return a.first < b.first;
+            });
+
+        // Phase D: merge duplicates and emit symmetric per-community lists
+        size_t ei = 0;
+        while (ei < allEdges.size()) {
+            uint64_t key = allEdges[ei].first;
+            float weight = 0.0f;
+            while (ei < allEdges.size() && allEdges[ei].first == key) {
+                weight += allEdges[ei].second;
+                ++ei;
+            }
+            K c1 = static_cast<K>(key >> 32);
+            K c2 = static_cast<K>(key & 0xFFFFFFFFULL);
+            commEdges[c1].emplace_back(c2, weight);
+            if (c1 != c2) commEdges[c2].emplace_back(c1, weight);
+        }
+        allEdges.clear();
+        allEdges.shrink_to_fit();
     }
-    
+
+    // Compute community degrees from symmetric edge lists
+    #pragma omp parallel for schedule(dynamic, 256)
+    for (size_t c = 0; c < C; ++c) {
+        float deg = 0.0f;
+        for (auto& [d, w] : commEdges[c]) {
+            deg += w;
+        }
+        commDeg[c] = deg;
+    }
+
+    // Total super-graph weight for modularity (M_comm = sum(commDeg)/2)
+    // Used by the Rabbit Order ΔQ criterion below.
+    float M_comm = 0.0f;
+    for (size_t c = 0; c < C; ++c) M_comm += commDeg[c];
+    M_comm /= 2.0f;
+    const float sgGammaComm = static_cast<float>(config.superGraphResolution);
+    const float inv2M_comm = (M_comm > 0.0f) ? 1.0f / (2.0f * M_comm) : 0.0f;
+
     phaseTimer.Stop();
-    printf("  tqr: community super-graph built in %.4fs\n", phaseTimer.Seconds());
+    printf("  tqr: community super-graph built in %.4fs (M_comm=%.0f, γ=%.2f)\n",
+           phaseTimer.Seconds(), M_comm, sgGammaComm);
     
     // 5c: Run RabbitOrder on community super-graph
     phaseTimer.Start();
@@ -5429,18 +5686,15 @@ void orderTileQuantizedRabbit(
         commAtom[c].init(commDeg[c]);
         commDestRO[c] = static_cast<K>(c);
     }
-    
-    // Build symmetric edge lists for communities
+
+    // Move pre-built symmetric edge lists into RabbitVertex (no copy needed —
+    // commEdges is no longer used after this point in TQR's pipeline).
+    #pragma omp parallel for schedule(dynamic, 256)
     for (size_t c = 0; c < C; ++c) {
-        for (auto& [d, w] : commEdges[c]) {
-            commVtx[c].edges.emplace_back(d, w);
-            if (d != static_cast<K>(c)) {
-                commVtx[d].edges.emplace_back(static_cast<K>(c), w);
-            }
-        }
+        commVtx[c].edges = std::move(commEdges[c]);
     }
-    commEdges.clear(); commEdges.shrink_to_fit();
-    
+    std::vector<std::vector<std::pair<K, float>>>().swap(commEdges);
+
     // Sort communities by degree ascending
     std::vector<K> commOrder(C);
     std::iota(commOrder.begin(), commOrder.end(), K(0));
@@ -5515,64 +5769,67 @@ void orderTileQuantizedRabbit(
         vu.united_child = first_child;
     };
     
-    // Community-level RabbitOrder: use aggressive merge (any edge weight > 0)
-    // This is the same criterion as hrab — merge any connected communities
+    // Community-level Rabbit Order on the super-graph using the modularity
+    // gain criterion:  ΔQ(u, v) = w_uv − γ · str(u)·str(v) / (2·M_comm)
+    // with γ = config.superGraphResolution (default 0.25; see GraphBrewConfig).
+    // This matches HRAB's super-graph criterion (no longer raw edge weight).
     std::atomic<size_t> numCommTop(0);
-    
+
     #pragma omp parallel
     {
         int tid = omp_get_thread_num();
         auto& scanner = commScanners[tid];
         auto& retryQueue = commRetryQueues[tid];
-        
+
         #pragma omp for schedule(static, 1)
         for (size_t i = 0; i < C; ++i) {
             K u = commOrder[i];
-            
+
             if (commDeg[u] == 0.0f) {
                 #pragma omp critical
                 commToplevel.push_back(u);
                 numCommTop++;
                 continue;
             }
-            
+
             float str_u = commAtom[u].invalidate();
             if (str_u == RabbitAtom::INVALID_STR) continue;
-            
+
             commUnite(u, scanner);
-            
+
             K bestDest = INVALID;
-            float bestW = 0.0f;
-            
+            float bestDeltaQ = 0.0f;
+
             for (K d : scanner.keys) {
                 float w_ud = scanner.get(d);
                 auto [str_d, _] = commAtom[d].load();
                 if (str_d == RabbitAtom::INVALID_STR) continue;
-                
-                if (w_ud > bestW) {
-                    bestW = w_ud;
+
+                float dq = w_ud - sgGammaComm * str_u * str_d * inv2M_comm;
+                if (dq > bestDeltaQ) {
+                    bestDeltaQ = dq;
                     bestDest = d;
                 }
             }
-            
-            if (bestDest == INVALID || bestW <= 0.0f) {
+
+            if (bestDest == INVALID || bestDeltaQ <= 0.0f) {
                 commAtom[u].restore(str_u);
                 #pragma omp critical
                 commToplevel.push_back(u);
                 numCommTop++;
                 continue;
             }
-            
+
             auto [str_v, child_v] = commAtom[bestDest].load();
             if (str_v == RabbitAtom::INVALID_STR) {
                 commAtom[u].restore(str_u);
                 retryQueue.push_back(u);
                 continue;
             }
-            
+
             commSibling[u] = child_v;
             float new_str = str_v + str_u;
-            
+
             if (commAtom[bestDest].tryMerge(str_v, child_v, new_str, static_cast<uint32_t>(u))) {
                 commDestRO[u] = bestDest;
             } else {
@@ -5583,36 +5840,37 @@ void orderTileQuantizedRabbit(
         }
     }
     
-    // Process retries
+    // Process retries with the same modularity criterion as the parallel loop
     for (int t = 0; t < numThreads; ++t) {
         auto& scanner = commScanners[t];
         for (K u : commRetryQueues[t]) {
             float str_u = commAtom[u].invalidate();
             if (str_u == RabbitAtom::INVALID_STR) continue;
-            
+
             commUnite(u, scanner);
-            
+
             K bestDest = INVALID;
-            float bestW = 0.0f;
-            
+            float bestDeltaQ = 0.0f;
+
             for (K d : scanner.keys) {
                 float w_ud = scanner.get(d);
                 auto [str_d, _] = commAtom[d].load();
                 if (str_d == RabbitAtom::INVALID_STR) continue;
-                
-                if (w_ud > bestW) {
-                    bestW = w_ud;
+
+                float dq = w_ud - sgGammaComm * str_u * str_d * inv2M_comm;
+                if (dq > bestDeltaQ) {
+                    bestDeltaQ = dq;
                     bestDest = d;
                 }
             }
-            
-            if (bestDest == INVALID || bestW <= 0.0f) {
+
+            if (bestDest == INVALID || bestDeltaQ <= 0.0f) {
                 commAtom[u].restore(str_u);
                 commToplevel.push_back(u);
                 numCommTop++;
                 continue;
             }
-            
+
             auto [str_v, child_v] = commAtom[bestDest].load();
             commSibling[u] = child_v;
             commAtom[bestDest].packed.store(
@@ -7616,6 +7874,16 @@ inline GraphBrewConfig parseGraphBrewConfig(const std::vector<std::string>& opti
             try {
                 int f = std::stoi(opt.substr(5));
                 if (f > 0) config.gorderFallback = f;
+            } catch (...) {}
+        }
+        // Super-graph modularity resolution for HRAB / TQR community merge
+        // (γ in ΔQ = w_uv − γ·str(u)·str(v)/(2M_super)).  Default 0.25.
+        // Token forms:  sgres0.5  /  sgres1  /  gamma0.1  (alias)
+        else if ((opt.size() > 5 && opt.substr(0, 5) == "sgres") ||
+                 (opt.size() > 5 && opt.substr(0, 5) == "gamma")) {
+            try {
+                double g = std::stod(opt.substr(5));
+                if (g > 0.0 && g <= 10.0) config.superGraphResolution = g;
             } catch (...) {}
         }
         else if (opt == "hsort" || opt == "hubsort") {
