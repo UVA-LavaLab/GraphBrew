@@ -95,10 +95,13 @@ def save_latex_table(content: str, path: Path) -> None:
     with open(path, "w") as f:
         f.write(content)
     log.info(f"  Saved LaTeX table: {path}")
+    # Also mirror into the paper's dataCharts/tables/ so main.tex can
+    # \input{} the generated table directly without an extra copy step.
+    copy_to_paper(path, "tables")
 
 
 def copy_to_paper(src: Path, subdir: str, filename: Optional[str] = None) -> None:
-    """Copy a generated figure into the paper's dataCharts directory."""
+    """Copy a generated figure or table into the paper's dataCharts directory."""
     import shutil
     dst_dir = PAPER_CHARTS_DIR / subdir
     ensure_dir(dst_dir)
