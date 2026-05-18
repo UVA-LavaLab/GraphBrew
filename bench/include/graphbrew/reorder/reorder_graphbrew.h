@@ -4583,6 +4583,76 @@ void orderHybridLeidenRabbit(
                     continue;
                 }
 
+                // ----------------------------------------------------------
+                // Adaptive intra-community ordering (May 2026):
+                // For HUGE communities (>4096 vertices), use BFS-intra
+                // instead of full RCM.  Empirically (hollywood-2009 PR,
+                // 20 iters, 3 trials):
+                //   sz>4096 RCM-intra:   0.348s avg kernel  (1.28x speedup)
+                //   sz>4096 BFS-intra:   0.267s avg kernel  (1.66x speedup)
+                // Cause: RCM's neighbor-degree sort + final reversal puts
+                // low-degree (peripheral) vertices FIRST in memory for huge
+                // communities, hurting working-set retention.  Plain BFS
+                // from the highest-degree vertex places hubs first — better
+                // cache behavior for dense communities with large diameter.
+                // For sz<=4096 (typical sparse-graph communities), RCM's
+                // bandwidth minimization still wins (cit-Patents data).
+                // ----------------------------------------------------------
+                if (sz > 4096) {
+                    visited.assign(sz, false);
+
+                    // Find highest-degree vertex as start (BFS-intra style)
+                    K startV = verts[0];
+                    K maxDeg = degrees[verts[0]];
+                    for (K v : verts) {
+                        if (degrees[v] > maxDeg) {
+                            maxDeg = degrees[v];
+                            startV = v;
+                        }
+                    }
+
+                    // Plain BFS — no neighbor-degree sort, no reversal
+                    K localId = 0;
+                    bfsQueue = std::queue<K>();
+                    size_t startLocalIdx = vertToLocalHrab[static_cast<K>(startV)];
+                    if (startLocalIdx < sz) {
+                        bfsQueue.push(startV);
+                        visited[startLocalIdx] = true;
+                    }
+
+                    while (!bfsQueue.empty()) {
+                        K u = bfsQueue.front();
+                        bfsQueue.pop();
+                        localIds[u] = localId++;
+
+                        for (auto neighbor : g.out_neigh(u)) {
+                            NodeID_T v;
+                            if constexpr (std::is_same_v<DestID_T, NodeID_T>) {
+                                v = neighbor;
+                            } else {
+                                v = neighbor.v;
+                            }
+                            if (membership[v] != c) continue;
+                            size_t localIdx = vertToLocalHrab[static_cast<K>(v)];
+                            if (localIdx != static_cast<size_t>(-1) && !visited[localIdx]) {
+                                visited[localIdx] = true;
+                                bfsQueue.push(static_cast<K>(v));
+                            }
+                        }
+                    }
+
+                    // Handle disconnected vertices
+                    for (size_t i = 0; i < sz; ++i) {
+                        if (!visited[i]) {
+                            localIds[verts[i]] = localId++;
+                        }
+                    }
+
+                    rcmLargeCount.fetch_add(1, std::memory_order_relaxed);
+                    rcmLargeVerts.fetch_add(sz, std::memory_order_relaxed);
+                    continue;
+                }
+
                 visited.assign(sz, false);
                 cmOrder.clear();
                 cmOrder.reserve(sz);
@@ -4598,10 +4668,12 @@ void orderHybridLeidenRabbit(
                     }
                 }
 
-                // For medium/large communities: George-Liu pseudo-peripheral iteration
+                // For medium communities: George-Liu pseudo-peripheral iteration
                 // BFS from start → pick min-degree in farthest level → repeat
-                // until eccentricity stops increasing
-                const int maxGLIter = (sz <= 32) ? 0 : (sz <= 4096) ? 3 : 20;
+                // until eccentricity stops increasing.
+                // Huge communities (sz > 4096) are handled by the adaptive
+                // BFS-intra path above, so this branch only sees sz <= 4096.
+                const int maxGLIter = (sz <= 32) ? 0 : 3;
 
                 if (maxGLIter > 0) {
                     K glNode = startV;
