@@ -270,12 +270,20 @@ enum class OrderingStrategy {
 enum class ComposeStage2Sort {
     SizeDesc,    ///< Sort communities by vertex-count descending (large first)
     DegreeDesc,  ///< Sort communities by total in-community degree descending
+    Identity,    ///< Keep the Stage 1 permutation order untouched
 };
 
 /** Stage 3 menu for OrderingStrategy::COMPOSE (how to order vertices within each community). */
 enum class ComposeStage3Intra {
     BFSFromHub,  ///< intraBFSFromHub<>() primitive (SECTION 16-PRIMITIVES)
     RCM,         ///< intraRCM<>() primitive (SECTION 16-PRIMITIVES)
+};
+
+/** Stage 1 menu for OrderingStrategy::COMPOSE (how to derive a base community permutation). */
+enum class ComposeStage1Build {
+    None,         ///< Identity permutation; Stage 2 sorts from scratch
+    SuperRabbit,  ///< Build community super-graph, run RabbitOrder (HRAB's Stage 1)
+    SuperRCM,     ///< Build community super-graph, run BNF+George-Liu+RCM
 };
 
 /** Community detection mode */
@@ -331,6 +339,7 @@ struct GraphBrewConfig {
     bool useRCMIntra = false;          ///< Use RCM (Cuthill-McKee) within each community instead of BFS (graphbrew:rcm_intra)
 
     // COMPOSE strategy picks (only used when ordering == OrderingStrategy::COMPOSE)
+    ComposeStage1Build composeStage1 = ComposeStage1Build::None;
     ComposeStage2Sort composeStage2 = ComposeStage2Sort::SizeDesc;
     ComposeStage3Intra composeStage3 = ComposeStage3Intra::BFSFromHub;
 
@@ -4067,11 +4076,39 @@ void orderCompose(
     // -------- Stage 2: community ordering --------
     std::vector<K> commOrder(numComm);
     std::iota(commOrder.begin(), commOrder.end(), K(0));
+
+    // -------- Stage 1: optional super-graph permutation --------
+    // Produces a base community permutation that Stage 2 either keeps
+    // (Identity) or overrides (SizeDesc / DegreeDesc).
+    std::vector<K> stage1Perm;
+    if (config.composeStage1 != ComposeStage1Build::None) {
+        // Per-community vertex count (used to flag empty/active for Stage 1)
+        std::vector<size_t> numVertsPerComm(numComm, 0);
+        for (K c = 0; c < numComm; ++c) numVertsPerComm[c] = commVertices[c].size();
+
+        // Build super-graph (no hub mask in compose; hubx is HRAB-specific)
+        std::vector<K> vertDegreesView(degrees.begin(), degrees.end());
+        auto sg = buildCommunitySuperGraph<K, NodeID_T, DestID_T>(
+            membership, vertDegreesView, /*vertexIsHub*/{}, g, N, numComm);
+
+        if (config.composeStage1 == ComposeStage1Build::SuperRabbit) {
+            stage1Perm = runRabbitOnSuperCSR<K>(
+                std::move(sg), numVertsPerComm,
+                static_cast<float>(config.superGraphResolution));
+        } else { // SuperRCM
+            stage1Perm = runRCMOnSuperCSR<K>(sg, numVertsPerComm);
+        }
+        // Order commOrder by Stage 1 permutation (lowest perm first)
+        std::sort(commOrder.begin(), commOrder.end(),
+                  [&](K a, K b) { return stage1Perm[a] < stage1Perm[b]; });
+    }
+
+    // Stage 2 reorders the Stage 1 result (or sorts from identity if Stage 1=None)
     if (config.composeStage2 == ComposeStage2Sort::SizeDesc) {
         std::sort(commOrder.begin(), commOrder.end(), [&](K a, K b) {
             return commVertices[a].size() > commVertices[b].size();
         });
-    } else { // DegreeDesc
+    } else if (config.composeStage2 == ComposeStage2Sort::DegreeDesc) {
         std::vector<size_t> commTotalDeg(numComm, 0);
         #pragma omp parallel for schedule(dynamic, 256)
         for (K c = 0; c < numComm; ++c) {
@@ -4083,6 +4120,7 @@ void orderCompose(
             return commTotalDeg[a] > commTotalDeg[b];
         });
     }
+    // ComposeStage2Sort::Identity: leave commOrder as-is (Stage 1 result or 0..C)
 
     // Offsets in the sorted community order
     std::vector<size_t> offsets(numComm + 1, 0);
@@ -4138,8 +4176,16 @@ void orderCompose(
     }
 
     phaseTimer.Stop();
-    printf("  compose: s2=%s s3=%s, %zu communities, %zu isolated, %.4fs\n",
-           config.composeStage2 == ComposeStage2Sort::SizeDesc ? "size_desc" : "degree_desc",
+    const char* s1Name =
+        config.composeStage1 == ComposeStage1Build::None ? "none" :
+        config.composeStage1 == ComposeStage1Build::SuperRabbit ? "super_rabbit" :
+        "super_rcm";
+    const char* s2Name =
+        config.composeStage2 == ComposeStage2Sort::SizeDesc ? "size_desc" :
+        config.composeStage2 == ComposeStage2Sort::DegreeDesc ? "degree_desc" :
+        "identity";
+    printf("  compose: s1=%s s2=%s s3=%s, %zu communities, %zu isolated, %.4fs\n",
+           s1Name, s2Name,
            config.composeStage3 == ComposeStage3Intra::BFSFromHub ? "bfs_from_hub" : "rcm",
            static_cast<size_t>(numComm), isolated.size(),
            phaseTimer.Seconds());
@@ -8406,6 +8452,14 @@ inline GraphBrewConfig parseGraphBrewConfig(const std::vector<std::string>& opti
             config.composeStage3 = ComposeStage3Intra::BFSFromHub;
         } else if (opt == "s3_rcm" || opt == "s3:rcm" || opt == "s3rcm") {
             config.composeStage3 = ComposeStage3Intra::RCM;
+        } else if (opt == "s1_none" || opt == "s1:none" || opt == "s1none") {
+            config.composeStage1 = ComposeStage1Build::None;
+        } else if (opt == "s1_super_rabbit" || opt == "s1:super_rabbit" || opt == "s1srabbit") {
+            config.composeStage1 = ComposeStage1Build::SuperRabbit;
+        } else if (opt == "s1_super_rcm" || opt == "s1:super_rcm" || opt == "s1srcm") {
+            config.composeStage1 = ComposeStage1Build::SuperRCM;
+        } else if (opt == "s2_identity" || opt == "s2:identity" || opt == "s2identity") {
+            config.composeStage2 = ComposeStage2Sort::Identity;
         }
         // GraphBrew mode: per-community external algorithm dispatch
         // "graphbrew" or "gb" activates LAYER ordering (default final algo = RabbitOrder 8)
