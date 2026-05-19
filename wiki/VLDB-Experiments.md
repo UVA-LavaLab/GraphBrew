@@ -1,8 +1,9 @@
 # VLDB 2026 Experiment Guide
 
-Complete reference for reproducing the GraphBrew **multilayered reordering** paper experiments.
-This document explains how to run all experiments, generate figures, and reproduce
-every number in the paper from an **empty `results/` folder**.
+Reproduces every figure and table in the GraphBrew paper from an empty
+`results/` directory. The runner auto-builds binaries, downloads graphs
+from SuiteSparse where possible, converts them to `.sg`, runs the eight
+experiments, and regenerates the figures and LaTeX tables.
 
 ---
 
@@ -20,18 +21,20 @@ every number in the paper from an **empty `results/` folder**.
 
 ## 1. Quick Start
 
-The experiment script is **self-contained**: it automatically builds binaries,
-downloads graphs from SuiteSparse, and converts them to `.sg` format before
-running any experiments.
-
 ```bash
-# Full reproducibility (builds, downloads, runs all experiments + figures):
+# Full paper run (256 GB+ RAM, includes twitter7 + webbase-2001):
 python3 scripts/experiments/vldb_paper_experiments.py --all
 
-# Preview mode (fast validation — 2 small graphs, 1 trial):
+# 64 GB RAM machine (11 auto-downloadable graphs, no >1B-edge graphs):
+python3 scripts/experiments/vldb_paper_experiments.py --all --64gb
+
+# Local-machine smoke test (6 graphs ≤ 117M edges, fits 64 GB easily):
+python3 scripts/experiments/vldb_paper_experiments.py --all --local
+
+# Preview (2 small graphs, 1 trial — ~5 min validation):
 python3 scripts/experiments/vldb_paper_experiments.py --all --preview
 
-# Dry run (validate commands without executing):
+# Dry run (print commands without executing):
 python3 scripts/experiments/vldb_paper_experiments.py --all --dry-run
 
 # Regenerate figures from existing results:
@@ -226,19 +229,26 @@ results/vldb_paper/
 ├── exp6_sensitivity/          # Graph-type sensitivity metadata
 ├── exp7_chained/              # Chained ordering results (JSON)
 ├── exp8_scalability/          # Thread scaling results (JSON, .sg input with .el fallback)
-├── figures/                   # Generated PNG figures
+├── figures/                   # Generated PNG / PDF figures
 │   ├── fig1_cache_performance.png
 │   ├── fig2_kernel_speedup.png
-│   └── fig3_reorder_overhead.png
+│   ├── fig3_reorder_overhead.png
+│   └── fig_h2h_pareto.{png,pdf}  # head-to-head vs Gorder + Rabbit Pareto
 └── tables/                    # Generated LaTeX table snippets
     ├── table_variants.tex
     ├── table_ablation.tex
     ├── table_sensitivity.tex
-    └── table_chained.tex
+    ├── table_chained.tex
+    ├── table_h2h_per_graph.tex  # paper headline comparison
+    └── table_h2h_summary.tex    # cross-graph geo-mean + wins
 ```
 
-Figures are also copied to the paper's `dataCharts/` directory for direct
-`\includegraphics` inclusion.
+Figures and tables are also mirrored to the paper's `dataCharts/`
+directory so `main.tex` can `\input{dataCharts/tables/...}` and
+`\includegraphics{dataCharts/speedup/h2h_pareto}` directly without an
+extra copy step. See `comparison_vs_baselines()` in
+`scripts/experiments/vldb_generate_figures.py` for the head-to-head
+artifact generation.
 
 ---
 
@@ -261,8 +271,9 @@ All experiment parameters are defined in
 |------|-------------|
 | `--all` | Run all 8 experiments |
 | `--exp N [N ...]` | Run specific experiment(s) by number (1-8) |
-| `--preview` | Use small graphs, 1 trial, 2 benchmarks |
-| `--64gb` | Use 64 GB graph set (11 auto-downloadable graphs, no >1B-edge graphs) |
+| `--preview` | 2 small graphs, 1 trial, 2 benchmarks (validation) |
+| `--local` | 6 graphs ≤117M edges (cit-Patents → com-Orkut, fits 64 GB) |
+| `--64gb` | 11 auto-downloadable graphs (no >1B-edge graphs) |
 | `--dry-run` | Print commands without executing |
 | `--graph-dir PATH` | Directory containing graph files (default: `results/graphs` with `--skip-setup`) |
 | `--graphs NAME [...]` | Override graph list by name |

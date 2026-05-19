@@ -1,31 +1,40 @@
 # Cache Simulation
 
-The Cache Simulation framework in GraphBrew provides detailed cache performance analysis for graph algorithms. This allows you to understand memory access patterns and cache efficiency at L1, L2, and L3 levels.
+Trace-driven cache simulator for graph kernels. Instruments each
+memory access in PR / BFS / CC / SSSP / BC / TC and reports L1 / L2 / L3
+hit rates under nine eviction policies. Use it to compare reorderings
+on a fixed cache geometry without machine noise — the metric is
+deterministic per process.
+
+## Quick start
+
+```bash
+make all-sim
+./bench/bin_sim/pr -f graph.sg -s -n 1 -o 12:hrab
+
+# Custom cache geometry / policy
+CACHE_L3_SIZE=1048576 CACHE_POLICY=SRRIP \
+    ./bench/bin_sim/pr -f graph.sg -s -n 1 -o 12:hrab
+```
+
+The summary block in the output reports `Memory Accesses` and
+`Overall Hit Rate` — these are the headline numbers for cache-quality
+comparisons.
 
 ## Overview
 
-Graph algorithms are memory-intensive and cache performance significantly impacts execution time. The cache simulation framework instruments graph algorithms to track every memory access, simulating how data flows through a three-level cache hierarchy.
+Real wallclock kernel time mixes cache effects with TLB pressure,
+branch prediction, scheduler noise, and OS jitter. The simulator
+isolates cache behaviour by replaying every load address through a
+deterministic three-level cache hierarchy and reports:
 
-**Key Features:**
-- Multi-level cache hierarchy (L1/L2/L3)
-- Configurable cache parameters (size, associativity, line size)
-- Nine eviction policies (LRU, FIFO, RANDOM, LFU, PLRU, SRRIP, GRASP, P-OPT, ECG)
-- Detailed per-level statistics
-- JSON export for analysis integration
-- Feature vector output for perceptron training
+- per-level hits / misses / hit-rate
+- overall memory accesses
+- per-policy eviction stats (RRPV histograms for SRRIP / GRASP / P-OPT / ECG)
+- optional JSON export for downstream analysis
 
-## Quick Start
-
-```bash
-# Build all cache simulation binaries
-make all-sim
-
-# Run PageRank with cache simulation
-./bench/bin_sim/pr -g 15 -n 1
-
-# Run with custom cache configuration
-CACHE_L1_SIZE=65536 CACHE_POLICY=LFU ./bench/bin_sim/bfs -g 15 -n 1
-```
+Output is deterministic for a given (graph, ordering, policy, cache
+size) tuple, so a single run suffices — there is no noise to average out.
 
 ## Architecture
 
