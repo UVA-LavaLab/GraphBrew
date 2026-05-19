@@ -3508,6 +3508,138 @@ inline void intraRCM(
 }
 
 //=============================================================================
+// SECTION 16-STAGE1: Reusable Stage 1 (super-graph) primitives
+//=============================================================================
+//
+// Stage 1 produces a permutation of community IDs that becomes the base
+// ordering for Stage 2.  The picks are:
+//
+//   None         : identity permutation; let Stage 2 sort from scratch
+//                  (CONNECTIVITY_BFS / current orderCompose default)
+//   SuperRabbit  : build community super-graph, run RabbitOrder on it
+//                  (HRAB's Stage 1)
+//   SuperRCM     : build community super-graph, run RCM on it
+//                  (HRAB :rcm_super)
+//   TileRabbit   : 2-level tile + community RabbitOrder
+//                  (TQR's Stage 1; added in Phase 4)
+//
+// The shared building block for all super-graph picks is the community
+// super-graph itself.  We provide it as `buildCommunitySuperGraph<>()`
+// returning a `CommunitySuperGraph` POD.  Phase 2 will add the runners.
+
+/**
+ * Community super-graph aggregated from vertex-level edges.
+ *
+ * Storage: upper-triangular adjacency only — `edges[c]` contains
+ *          {d -> weight} pairs where d >= c.  This matches HRAB's
+ *          original layout so we can reuse the same modularity
+ *          arithmetic without rewriting it.
+ */
+template <typename K>
+struct CommunitySuperGraph {
+    std::vector<std::unordered_map<K, float>> edges;  // size C; upper-triangular
+    std::vector<float> degrees;                        // size C; total weight per community
+    float M = 0.0f;                                    // total edge weight (sum of degrees / 2)
+};
+
+/**
+ * Build the community super-graph from a vertex-level CSR + membership.
+ *
+ * @param membership     final community id per vertex (size N)
+ * @param vertexDegrees  out-degree per vertex; vertices with degree 0
+ *                       are skipped (they are isolated)
+ * @param vertexIsHub    optional hub mask (size N); if non-empty,
+ *                       hub vertices are skipped in BOTH the source
+ *                       and destination check (matches HRAB hubx).
+ *                       Pass {} to disable.
+ * @param g              original directed CSR
+ * @param N              vertex count
+ * @param C              community count (max membership + 1)
+ *
+ * @return CommunitySuperGraph<K> filled with edges/degrees/M
+ *
+ * Parallel per-thread accumulation, then per-community merge.  Matches
+ * the HRAB STEP 1 algorithm exactly so a follow-up commit can replace
+ * HRAB's inline copy with a call to this primitive without behaviour
+ * change.
+ */
+template <typename K, typename NodeID_T, typename DestID_T>
+CommunitySuperGraph<K> buildCommunitySuperGraph(
+    const std::vector<K>& membership,
+    const std::vector<K>& vertexDegrees,
+    const std::vector<bool>& vertexIsHub,
+    const CSRGraph<NodeID_T, DestID_T, true>& g,
+    size_t N,
+    K C)
+{
+    CommunitySuperGraph<K> sg;
+    sg.edges.resize(C);
+    sg.degrees.assign(C, 0.0f);
+
+    const bool hasHubMask = !vertexIsHub.empty();
+
+    const int nT = omp_get_max_threads();
+    std::vector<std::vector<std::unordered_map<K, float>>> allLocalEdges(nT);
+
+    #pragma omp parallel
+    {
+        int tid = omp_get_thread_num();
+        allLocalEdges[tid].resize(C);
+
+        #pragma omp for schedule(dynamic, 1024)
+        for (size_t u = 0; u < N; ++u) {
+            if (vertexDegrees[u] == 0) continue;
+            if (hasHubMask && vertexIsHub[u]) continue;
+            K commU = membership[u];
+
+            for (auto neighbor : g.out_neigh(u)) {
+                NodeID_T v;
+                float w;
+                if constexpr (std::is_same_v<DestID_T, NodeID_T>) {
+                    v = neighbor;
+                    w = 1.0f;
+                } else {
+                    v = neighbor.v;
+                    w = static_cast<float>(neighbor.w);
+                }
+
+                if (hasHubMask && vertexIsHub[v]) continue;
+
+                K commV = membership[v];
+                if (commU <= commV) {
+                    allLocalEdges[tid][commU][commV] += w;
+                }
+            }
+        }
+    }
+
+    // Per-community merge across threads (each community independent)
+    #pragma omp parallel for schedule(dynamic, 64)
+    for (K c = 0; c < C; ++c) {
+        for (int t = 0; t < nT; ++t) {
+            for (auto& [d, w] : allLocalEdges[t][c]) {
+                sg.edges[c][d] += w;
+            }
+        }
+    }
+
+    // Community degrees (both directions: upper-triangular storage means
+    // c <= d entries also contribute to degree[d])
+    for (K c = 0; c < C; ++c) {
+        for (auto& [d, w] : sg.edges[c]) {
+            sg.degrees[c] += w;
+            if (d != c) sg.degrees[d] += w;
+        }
+    }
+
+    sg.M = 0.0f;
+    for (K c = 0; c < C; ++c) sg.M += sg.degrees[c];
+    sg.M /= 2.0f;
+
+    return sg;
+}
+
+//=============================================================================
 // SECTION 16-COMPOSE: Pluggable Stage 2 + Stage 3 composition
 //=============================================================================
 //
