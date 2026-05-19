@@ -3639,6 +3639,382 @@ CommunitySuperGraph<K> buildCommunitySuperGraph(
     return sg;
 }
 
+/**
+ * Run RabbitOrder on a community super-graph and return the community
+ * permutation produced by the resulting dendrogram DFS.
+ *
+ * Faithful extraction of HRAB STEPs 2 + 3.  Identity-equivalent to the
+ * inline path when called with the same `sg` and gamma.
+ *
+ * @param sg                   community super-graph from buildCommunitySuperGraph<>()
+ * @param numVertsPerComm      per-community vertex count (used only to
+ *                             classify roots as "active" vs "empty";
+ *                             empty roots are placed after active ones)
+ * @param gamma                modularity-gain resolution
+ *                             (default 0.10 — see GraphBrewConfig)
+ *
+ * @return commPerm of size C; commPerm[c] is the position of community c
+ *         in the final ordering.
+ */
+template <typename K>
+std::vector<K> runRabbitOnSuperCSR(
+    CommunitySuperGraph<K> sg,                   // taken by value: mutated internally
+    const std::vector<size_t>& numVertsPerComm,
+    float gamma)
+{
+    const K C = static_cast<K>(sg.edges.size());
+    constexpr K INVALID = static_cast<K>(-1);
+
+    // Initialise RabbitOrder structures for communities
+    std::vector<RabbitAtom> atom(C);
+    std::vector<RabbitVertex<K>> vtx(C);
+    std::vector<K> dest(C);
+    std::vector<K> sibling(C, INVALID);
+
+    #pragma omp parallel for
+    for (K c = 0; c < C; ++c) {
+        atom[c].init(sg.degrees[c]);
+        dest[c] = c;
+    }
+
+    // Build symmetric edge lists (sg.edges is upper-triangular)
+    for (K c = 0; c < C; ++c) {
+        for (auto& [d, w] : sg.edges[c]) {
+            vtx[c].edges.emplace_back(d, w);
+            if (d != c) vtx[d].edges.emplace_back(c, w);
+        }
+    }
+
+    // Community processing order: ascending degree (RabbitOrder convention)
+    std::vector<K> commOrder(C);
+    std::iota(commOrder.begin(), commOrder.end(), K(0));
+    std::sort(commOrder.begin(), commOrder.end(),
+              [&](K a, K b) { return sg.degrees[a] < sg.degrees[b]; });
+
+    const int numThreads = omp_get_max_threads();
+    std::vector<CommunityScanner<K, float>> scanners;
+    for (int t = 0; t < numThreads; ++t) scanners.emplace_back(C);
+
+    auto findDest = [&](K v) -> K {
+        K d = dest[v];
+        while (dest[d] != d) {
+            K dd = dest[d];
+            dest[v] = dd;
+            d = dd;
+        }
+        return d;
+    };
+
+    const float inv2M_super = (sg.M > 0.0f) ? 1.0f / (2.0f * sg.M) : 0.0f;
+    auto deltaQ = [gamma, inv2M_super](float w_uv, float d_u, float d_v) -> float {
+        return w_uv - gamma * d_u * d_v * inv2M_super;
+    };
+
+    auto unite = [&](K u, CommunityScanner<K, float>& scanner) -> void {
+        auto& vu = vtx[u];
+        scanner.clear();
+        for (auto& [d, w] : vu.edges) {
+            K root = findDest(d);
+            if (root != u) scanner.add(root, w);
+        }
+        auto [_, first_child] = atom[u].load();
+        K uc = vu.united_child;
+        std::vector<K> childStack;
+        if (first_child != uc && first_child != INVALID) childStack.push_back(first_child);
+        while (!childStack.empty()) {
+            K c = childStack.back();
+            childStack.pop_back();
+            if (c == uc || c == INVALID) continue;
+            auto& vc = vtx[c];
+            for (auto& [d, w] : vc.edges) {
+                K root = findDest(d);
+                if (root != u) scanner.add(root, w);
+            }
+            if (sibling[c] != uc && sibling[c] != INVALID) childStack.push_back(sibling[c]);
+            auto [__, child_first] = atom[c].load();
+            if (child_first != vc.united_child && child_first != INVALID)
+                childStack.push_back(child_first);
+            vc.united_child = child_first;
+        }
+        vu.edges.clear();
+        for (K d : scanner.keys) vu.edges.emplace_back(d, scanner.get(d));
+        vu.united_child = first_child;
+    };
+
+    std::atomic<size_t> numToplevel(0);
+    std::vector<std::deque<K>> superTopss(numThreads);
+
+    #pragma omp parallel
+    {
+        int tid = omp_get_thread_num();
+        auto& scanner = scanners[tid];
+        std::deque<K> tops, pends;
+
+        auto tryMerge = [&](K u) -> bool {
+            unite(u, scanner);
+            float str_u = atom[u].invalidate();
+            if (str_u == RabbitAtom::INVALID_STR) return false;
+            {
+                auto [_re, first_child_re] = atom[u].load();
+                if (first_child_re != vtx[u].united_child) unite(u, scanner);
+            }
+            K bestDest = INVALID;
+            float bestDeltaQ = 0.0f;
+            for (K d : scanner.keys) {
+                float w_ud = scanner.get(d);
+                auto [str_d, _] = atom[d].load();
+                if (str_d == RabbitAtom::INVALID_STR) continue;
+                float dq = deltaQ(w_ud, str_u, str_d);
+                if (dq > bestDeltaQ) { bestDeltaQ = dq; bestDest = d; }
+            }
+            if (bestDest == INVALID || bestDeltaQ <= 0.0f) {
+                atom[u].restore(str_u);
+                tops.push_back(u);
+                return false;
+            }
+            auto [str_v, child_v] = atom[bestDest].load();
+            if (str_v == RabbitAtom::INVALID_STR) {
+                atom[u].restore(str_u);
+                return true;
+            }
+            sibling[u] = child_v;
+            float new_str = str_v + str_u;
+            if (atom[bestDest].tryMerge(str_v, child_v, new_str, static_cast<uint32_t>(u))) {
+                dest[u] = bestDest;
+                return false;
+            } else {
+                sibling[u] = INVALID;
+                atom[u].restore(str_u);
+                return true;
+            }
+        };
+
+        #pragma omp for schedule(static, 1)
+        for (K i = 0; i < C; ++i) {
+            pends.erase(std::remove_if(pends.begin(), pends.end(),
+                        [&](K w) { return !tryMerge(w); }), pends.end());
+            K u = commOrder[i];
+            if (sg.degrees[u] == 0.0f) { tops.push_back(u); continue; }
+            if (tryMerge(u)) pends.push_back(u);
+        }
+
+        #pragma omp barrier
+        #pragma omp critical
+        {
+            for (K u : pends) {
+                bool retry = tryMerge(u);
+                if (retry) {
+                    float str_u = atom[u].invalidate();
+                    if (str_u != RabbitAtom::INVALID_STR) atom[u].restore(str_u);
+                    tops.push_back(u);
+                }
+            }
+            superTopss[tid] = std::move(tops);
+        }
+    }
+
+    std::vector<K> toplevel;
+    toplevel.reserve(C / 10);
+    for (int t = 0; t < numThreads; ++t)
+        toplevel.insert(toplevel.end(), superTopss[t].begin(), superTopss[t].end());
+    numToplevel.store(toplevel.size(), std::memory_order_relaxed);
+
+    printf("  stage1-super-rabbit: %zu super-communities (merged from %u)\n",
+           numToplevel.load(), static_cast<unsigned>(C));
+
+    // Find all dendrogram roots (active vs empty separated)
+    std::vector<K> allRoots;
+    for (K c = 0; c < C; ++c) {
+        K root = dest[c];
+        while (dest[root] != root) root = dest[root];
+        if (root == c) allRoots.push_back(c);
+    }
+    std::vector<K> activeTop, emptyTop;
+    for (K r : allRoots) {
+        if (sg.degrees[r] == 0.0f &&
+            (r < numVertsPerComm.size() ? numVertsPerComm[r] == 0 : true)) {
+            emptyTop.push_back(r);
+        } else {
+            activeTop.push_back(r);
+        }
+    }
+    std::sort(activeTop.begin(), activeTop.end());
+    std::sort(emptyTop.begin(), emptyTop.end());
+    toplevel.clear();
+    toplevel.insert(toplevel.end(), activeTop.begin(), activeTop.end());
+    toplevel.insert(toplevel.end(), emptyTop.begin(), emptyTop.end());
+
+    // Dendrogram DFS to produce commPerm
+    std::vector<K> commPerm(C, static_cast<K>(-1));
+    K nextCommId = 0;
+    for (K bi = 0; bi < (K)toplevel.size(); ++bi) {
+        K root = toplevel[bi];
+        std::deque<K> stack;
+        rabbitDescendants(atom, root, stack);
+        while (!stack.empty()) {
+            K c = stack.back();
+            stack.pop_back();
+            if (commPerm[c] != static_cast<K>(-1)) continue;
+            commPerm[c] = nextCommId++;
+            if (sibling[c] != INVALID) rabbitDescendants(atom, sibling[c], stack);
+        }
+    }
+    for (K c = 0; c < C; ++c) {
+        if (commPerm[c] == static_cast<K>(-1)) commPerm[c] = nextCommId++;
+    }
+    return commPerm;
+}
+
+/**
+ * Run BNF+George-Liu RCM on a community super-graph and return the
+ * community permutation produced.
+ *
+ * Faithful extraction of HRAB STEP 3b (the `:rcm_super` path).
+ *
+ * @param sg                   community super-graph
+ * @param numVertsPerComm      per-community vertex count; empty
+ *                             communities (count == 0) are excluded
+ *                             from the BFS and appended at the tail
+ *
+ * @return commPerm of size C
+ */
+template <typename K>
+std::vector<K> runRCMOnSuperCSR(
+    const CommunitySuperGraph<K>& sg,
+    const std::vector<size_t>& numVertsPerComm)
+{
+    const K C = static_cast<K>(sg.edges.size());
+
+    // Build symmetric adjacency (excluding self-loops)
+    std::vector<std::vector<std::pair<K, float>>> superAdj(C);
+    for (K c = 0; c < C; ++c) {
+        for (auto& [nbr, w] : sg.edges[c]) {
+            if (nbr != c) superAdj[c].push_back({nbr, w});
+        }
+    }
+    // commEdges is upper-triangular, so we need to add the reverse edges
+    for (K c = 0; c < C; ++c) {
+        for (auto& [nbr, w] : sg.edges[c]) {
+            if (nbr != c) superAdj[nbr].push_back({c, w});
+        }
+    }
+
+    std::vector<K> rcmDegree(C);
+    for (K c = 0; c < C; ++c) rcmDegree[c] = static_cast<K>(superAdj[c].size());
+
+    auto isActive = [&](K c) -> bool {
+        return c < (K)numVertsPerComm.size() && numVertsPerComm[c] > 0;
+    };
+
+    std::vector<K> nonEmpty;
+    nonEmpty.reserve(C);
+    for (K c = 0; c < C; ++c) {
+        if (isActive(c) && rcmDegree[c] > 0) nonEmpty.push_back(c);
+    }
+
+    // George-Liu pseudoperipheral start
+    auto superBFS = [&](K root, std::vector<bool>& vis)
+        -> std::tuple<int64_t, int64_t, std::vector<K>> {
+        vis.assign(C, false);
+        std::vector<K> curLevel = {root};
+        vis[root] = true;
+        int64_t ecc = 0;
+        int64_t maxWidth = 1;
+        while (true) {
+            std::vector<K> nextLevel;
+            for (K cur : curLevel) {
+                for (auto& [nbr, w] : superAdj[cur]) {
+                    if (!vis[nbr] && isActive(nbr)) {
+                        vis[nbr] = true;
+                        nextLevel.push_back(nbr);
+                    }
+                }
+            }
+            if (nextLevel.empty()) break;
+            ecc++;
+            int64_t w = static_cast<int64_t>(nextLevel.size());
+            if (w > maxWidth) maxWidth = w;
+            curLevel = std::move(nextLevel);
+        }
+        return {ecc, maxWidth, curLevel};
+    };
+
+    K glNode = nonEmpty.empty() ? K(0) : nonEmpty[0];
+    K minDeg = std::numeric_limits<K>::max();
+    for (K c : nonEmpty) {
+        if (rcmDegree[c] < minDeg) { minDeg = rcmDegree[c]; glNode = c; }
+    }
+    std::vector<bool> glVis(C, false);
+    int64_t prevEcc = 0;
+    int64_t bestWidth = std::numeric_limits<int64_t>::max();
+    K bestNode = glNode;
+    for (int it = 0; it < 20; ++it) {
+        auto [ecc, maxW, farthest] = superBFS(glNode, glVis);
+        if (maxW < bestWidth || (maxW == bestWidth && ecc > prevEcc)) {
+            bestWidth = maxW;
+            bestNode = glNode;
+        }
+        if (ecc <= prevEcc) break;
+        prevEcc = ecc;
+        K nextNode = farthest[0];
+        K nextDeg = rcmDegree[farthest[0]];
+        for (size_t i = 1; i < farthest.size(); ++i) {
+            if (rcmDegree[farthest[i]] < nextDeg) {
+                nextDeg = rcmDegree[farthest[i]];
+                nextNode = farthest[i];
+            }
+        }
+        glNode = nextNode;
+    }
+
+    // CM BFS with degree-sorted neighbours
+    std::vector<bool> rcmVisited(C, false);
+    std::vector<K> rcmOrder;
+    rcmOrder.reserve(C);
+    std::queue<K> rcmQueue;
+    std::vector<K> seedOrder(C);
+    std::iota(seedOrder.begin(), seedOrder.end(), K(0));
+    std::sort(seedOrder.begin(), seedOrder.end(),
+              [&](K a, K b) { return rcmDegree[a] < rcmDegree[b]; });
+
+    auto doCMBFS = [&](K seed) {
+        if (rcmVisited[seed] || !isActive(seed)) return;
+        rcmQueue.push(seed);
+        rcmVisited[seed] = true;
+        while (!rcmQueue.empty()) {
+            K cur = rcmQueue.front();
+            rcmQueue.pop();
+            rcmOrder.push_back(cur);
+            auto& nbrs = superAdj[cur];
+            std::sort(nbrs.begin(), nbrs.end(),
+                [&](const std::pair<K, float>& a, const std::pair<K, float>& b) {
+                    return rcmDegree[a.first] < rcmDegree[b.first];
+                });
+            for (auto& [nbr, w] : nbrs) {
+                if (!rcmVisited[nbr] && isActive(nbr)) {
+                    rcmVisited[nbr] = true;
+                    rcmQueue.push(nbr);
+                }
+            }
+        }
+    };
+
+    doCMBFS(bestNode);
+    for (K seed : seedOrder) doCMBFS(seed);
+
+    std::reverse(rcmOrder.begin(), rcmOrder.end());
+
+    std::vector<K> commPerm(C, static_cast<K>(-1));
+    for (size_t i = 0; i < rcmOrder.size(); ++i)
+        commPerm[rcmOrder[i]] = static_cast<K>(i);
+    K rcmNext = static_cast<K>(rcmOrder.size());
+    for (K c = 0; c < C; ++c) if (commPerm[c] == static_cast<K>(-1)) commPerm[c] = rcmNext++;
+
+    printf("  stage1-super-rcm: BNF-ordered %zu communities (GL best_width=%lld)\n",
+           rcmOrder.size(), static_cast<long long>(bestWidth));
+    return commPerm;
+}
+
 //=============================================================================
 // SECTION 16-COMPOSE: Pluggable Stage 2 + Stage 3 composition
 //=============================================================================
