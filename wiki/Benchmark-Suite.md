@@ -1,6 +1,7 @@
 # Benchmark Suite
 
-The GraphBrew Benchmark Suite provides automated tools for running comprehensive experiments across multiple graphs, algorithms, and benchmarks.
+The GraphBrew Benchmark Suite provides automated tools for running
+experiments across multiple graphs, algorithms, and benchmarks.
 
 ## Overview
 

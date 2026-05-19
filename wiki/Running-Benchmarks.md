@@ -26,7 +26,7 @@ The automated pipeline runs **seven** benchmarks by default (`EXPERIMENT_BENCHMA
 
 ## Automated Pipeline (Recommended)
 
-For comprehensive benchmarking, use the unified experiment script:
+For batch benchmarking, use the unified experiment script:
 
 ```bash
 # One-command: download 150 graphs per size, run full pipeline + ML evaluation

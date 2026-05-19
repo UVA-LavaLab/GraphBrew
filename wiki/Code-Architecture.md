@@ -10,7 +10,7 @@ GraphBrew/
 │   ├── bin/                  # Compiled binaries
 │   ├── bin_sim/              # Cache simulation binaries
 │   ├── include/              # Header libraries
-│   │   ├── graphbrew/        # 📦 GraphBrew extensions
+│   │   ├── graphbrew/        # GraphBrew extensions
 │   │   │   ├── graphbrew.h   # Umbrella header
 │   │   │   ├── reorder/      # Reordering algorithms (~20,612 lines)
 │   │   │   └── partition/    # Partitioning (trust.h, cagra/popt.h)
@@ -145,7 +145,8 @@ reorder/
 
 All configs parse from CLI options via `FromOptions()`. Defaults are centralized constants in `reorder_types.h` (see [[AdaptiveOrder-ML#command-line-format]]).
 
-> ⚠️ Use `graphbrew::leiden::DEFAULT_RESOLUTION` or `adaptive::DEFAULT_RESOLUTION` explicitly — they are separate namespaces.
+> Note: use `graphbrew::leiden::DEFAULT_RESOLUTION` or
+> `adaptive::DEFAULT_RESOLUTION` explicitly — they are separate namespaces.
 
 #### graph.h - CSRGraph Class
 

@@ -269,7 +269,7 @@ The perceptron uses these weights to factor cache performance into algorithm sel
 
 ### 4. Automated Cache Benchmark Suite
 
-Run comprehensive cache benchmarks using the unified script:
+Run cache benchmarks using the unified script:
 
 ```bash
 # Run cache simulation on all graphs
