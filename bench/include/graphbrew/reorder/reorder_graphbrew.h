@@ -4811,156 +4811,21 @@ void orderHybridLeidenRabbit(
                     continue;
                 }
 
-                visited.assign(sz, false);
-                cmOrder.clear();
-                cmOrder.reserve(sz);
-
-                // --- BNF-inspired starting node selection ---
-                // Find min-degree vertex as initial seed
-                K startV = verts[0];
-                K minDeg = degrees[verts[0]];
-                for (K v : verts) {
-                    if (degrees[v] < minDeg) {
-                        minDeg = degrees[v];
-                        startV = v;
-                    }
-                }
-
-                // For medium communities: George-Liu pseudo-peripheral iteration
-                // BFS from start → pick min-degree in farthest level → repeat
-                // until eccentricity stops increasing.
-                // Huge communities (sz > 4096) are handled by the adaptive
-                // BFS-intra path above, so this branch only sees sz <= 4096.
-                const int maxGLIter = (sz <= 32) ? 0 : 3;
-
-                if (maxGLIter > 0) {
-                    K glNode = startV;
-                    int64_t prevEcc = 0;
-
-                    for (int glIt = 0; glIt < maxGLIter; ++glIt) {
-                        // BFS to measure eccentricity and find farthest level
-                        visited.assign(sz, false);
-
-                        std::vector<K> lastLevel;
-                        std::vector<K> curLevel;
-                        curLevel.push_back(glNode);
-                        int64_t ecc = 0;
-
-                        while (!curLevel.empty()) {
-                            std::vector<K> nextLevel;
-                            for (K u : curLevel) {
-                                for (auto neighbor : g.out_neigh(u)) {
-                                    NodeID_T v;
-                                    if constexpr (std::is_same_v<DestID_T, NodeID_T>) {
-                                        v = neighbor;
-                                    } else {
-                                        v = neighbor.v;
-                                    }
-                                    if (membership[v] != c) continue;
-                                    size_t localIdx = vertToLocalHrab[static_cast<K>(v)];
-                                    if (localIdx != static_cast<size_t>(-1) && !visited[localIdx]) {
-                                        visited[localIdx] = true;
-                                        nextLevel.push_back(static_cast<K>(v));
-                                    }
-                                }
-                            }
-                            if (!nextLevel.empty()) {
-                                ecc++;
-                                lastLevel = curLevel;
-                                curLevel = std::move(nextLevel);
-                            } else {
-                                break;
-                            }
-                        }
-
-                        // GL termination: eccentricity stopped increasing
-                        if (ecc <= prevEcc) break;
-                        prevEcc = ecc;
-
-                        // Pick min-degree vertex among farthest level
-                        K bestV = curLevel[0];
-                        K bestDeg = degrees[curLevel[0]];
-                        for (size_t i = 1; i < curLevel.size(); ++i) {
-                            if (degrees[curLevel[i]] < bestDeg) {
-                                bestDeg = degrees[curLevel[i]];
-                                bestV = curLevel[i];
-                            }
-                        }
-                        glNode = bestV;
-                    }
-                    startV = glNode;
-                }
-
-                // --- Cuthill-McKee BFS: sort neighbors by ascending degree ---
-                visited.assign(sz, false);
-                cmOrder.clear();
-
-                bfsQueue = std::queue<K>();
-                size_t startLocalIdx = vertToLocalHrab[static_cast<K>(startV)];
-                if (startLocalIdx < sz) {
-                    bfsQueue.push(startV);
-                    visited[startLocalIdx] = true;
-                }
-
-                while (!bfsQueue.empty()) {
-                    K u = bfsQueue.front();
-                    bfsQueue.pop();
-                    cmOrder.push_back(u);
-
-                    // Collect unvisited neighbors within this community
-                    std::vector<std::pair<K, K>> candidates; // (degree, vertex)
-                    for (auto neighbor : g.out_neigh(u)) {
-                        NodeID_T v;
-                        if constexpr (std::is_same_v<DestID_T, NodeID_T>) {
-                            v = neighbor;
-                        } else {
-                            v = neighbor.v;
-                        }
-                        if (membership[v] != c) continue;
-                        size_t localIdx = vertToLocalHrab[static_cast<K>(v)];
-                        if (localIdx != static_cast<size_t>(-1) && !visited[localIdx]) {
-                            visited[localIdx] = true;
-                            candidates.push_back({degrees[static_cast<K>(v)], static_cast<K>(v)});
-                        }
-                    }
-
-                    // CM heuristic: sort by ascending degree
-                    std::sort(candidates.begin(), candidates.end());
-
-                    for (auto& [d, v] : candidates) {
-                        bfsQueue.push(v);
-                    }
-                }
-
-                // Handle disconnected vertices within this community
-                // Place them after the main RCM ordering (not reversed)
-                size_t mainSize = cmOrder.size();
-                for (size_t i = 0; i < sz; ++i) {
-                    if (!visited[i]) {
-                        cmOrder.push_back(verts[i]);
-                    }
-                }
-
-                // Reverse ONLY the main connected component (RCM)
-                // Disconnected vertices keep their positions at the end
-                for (size_t i = 0; i < mainSize; ++i) {
-                    localIds[cmOrder[i]] = static_cast<K>(mainSize - 1 - i);
-                }
-                // Disconnected vertices get IDs after the main component
-                for (size_t i = mainSize; i < cmOrder.size(); ++i) {
-                    localIds[cmOrder[i]] = static_cast<K>(i);
-                }
+                // sz in [2, 4096] -> intraRCM primitive (BNF/George-Liu
+                // start when sz > 32, min-degree start otherwise; then
+                // CM-BFS with neighbour-degree sort and final reversal).
+                // This was previously ~110 lines inlined here.
+                intraRCM<K, NodeID_T, DestID_T>(
+                    verts, c, membership, degrees, g,
+                    vertToLocalHrab, visited, bfsQueue, cmOrder, localIds);
 
                 // Track stats
                 if (sz <= 32) {
                     rcmSmallCount.fetch_add(1, std::memory_order_relaxed);
                     rcmSmallVerts.fetch_add(sz, std::memory_order_relaxed);
-                } else if (sz <= 4096) {
+                } else {
                     rcmMedCount.fetch_add(1, std::memory_order_relaxed);
                     rcmMedVerts.fetch_add(sz, std::memory_order_relaxed);
-                } else {
-                    rcmLargeCount.fetch_add(1, std::memory_order_relaxed);
-                    rcmLargeVerts.fetch_add(sz, std::memory_order_relaxed);
                 }
             }
         }
