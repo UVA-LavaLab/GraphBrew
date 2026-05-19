@@ -139,7 +139,7 @@ python3 scripts/graphbrew_experiment.py --help
 
 ---
 
-## 🔍 Adaptive Emulator (--emulator)
+## Adaptive Emulator (--emulator)
 
 **Pure Python emulator that replicates C++ AdaptiveOrder logic without recompiling.**
 
@@ -367,7 +367,7 @@ The primary training function: multi-restart perceptrons (5×800 epochs, z-score
 
 ---
 
-## 📏 lib/analysis/metrics.py - Amortization & End-to-End Evaluation
+## lib/analysis/metrics.py - Amortization & End-to-End Evaluation
 
 **Post-hoc analysis of existing benchmark results — no new benchmarks needed.**
 

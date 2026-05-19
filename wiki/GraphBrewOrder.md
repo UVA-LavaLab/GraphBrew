@@ -1,343 +1,156 @@
-# GraphBrewOrder: Per-Community Reordering (GraphBrew-Powered)
+# GraphBrewOrder
 
-GraphBrewOrder (algorithm 12) is the core reordering algorithm that applies **different optimizations to different communities**. As of 2026, GraphBrewOrder is powered by the **GraphBrew pipeline**, using its modular Leiden community detection and then applying per-community reordering.
-
-## Overview
-
-Unlike traditional reordering that treats the entire graph uniformly, GraphBrewOrder:
-
-1. **Detects communities** using GraphBrew's Leiden pipeline (configurable aggregation)
-2. **Classifies communities** into small/large using dynamic thresholds
-3. **Merges small communities** and applies heuristic algorithm selection
-4. **Applies configurable reordering** within large communities (default: RabbitOrder)
-5. **Preserves community locality** in the final ordering
+`-o 12` is the framework that produces all ten GraphBrew reordering
+variants from a single three-stage pipeline.
 
 ```
-Input Graph → Community Detection → Communities → Classify → Per-Community Reorder → Merge → Output
-                (Leiden or Rabbit)
+Stage 1               Stage 2                Stage 3
+community detection → intra-community order → inter-community arrangement
+(Leiden / Rabbit)    (BFS, RCM, hub, DBG)   (hierarchy sort, Rabbit,
+                                              RCM, tile, dendrogram)
 ```
 
-**Why per-community?** Global algorithms (HUBCLUSTER, RCM) break community locality by interleaving vertices from different communities. GraphBrewOrder keeps communities contiguous while optimizing cache locality within each.
+The variant you ask for selects which algorithm runs at each stage.
 
-**Generic ordering pipeline:** Both Leiden and RabbitOrder community detection can be freely combined with any of the 14 ordering strategies (DBG, hub-cluster, DFS, etc.). This enables systematic comparison of community detection quality vs. ordering strategy quality.
+## The variants
 
----
+| Flag | Stage 1 | Stage 2 | Stage 3 | When to use |
+|---|---|---|---|---|
+| `-o 12:leiden` (default) | multi-pass Leiden | BFS in community | hierarchy sort | general purpose; balanced |
+| `-o 12:rabbit` | single-pass Rabbit | dendrogram DFS | dendrogram order | lowest reorder cost; dynamic graphs |
+| `-o 12:hrab` | multi-pass Leiden | adaptive BFS/RCM | Rabbit on super-graph | iterative workloads, dense graphs |
+| `-o 12:tqr` | cache-line tiling | BFS within tile | Rabbit on tile graph | cache-geometry-sensitive workloads |
+| `-o 12:hcache` | Leiden, all levels | BFS within finest | multi-level | deep hierarchical structure |
+| `-o 12:streaming` | Leiden, lazy aggregation | BFS in community | hierarchy sort | memory-constrained / very large graphs |
+| `-o 12:rcm` | multi-pass Leiden | RCM in community | BNF-RCM super-graph | sparse / mesh graphs (road networks) |
+| `-o 12:hubcluster` | multi-pass Leiden | hub-first by degree | hierarchy sort | power-law graphs with dominant hubs |
+| `-o 12:rabbit:dbg` | single-pass Rabbit | DBG bucketing | dendrogram order | fast reorder + degree refinement |
+| `-o 12:rabbit:hubcluster` | single-pass Rabbit | hub-first by degree | dendrogram order | fast reorder + hub-aware |
 
-## Algorithm Steps
+All variants have $O(n\log n + m)$ time complexity. HRAB and TQR
+additionally run RabbitOrder on a super-graph of size $n_c \ll n$;
+that cost is dominated by Leiden on the original graph.
 
-1. **Community Detection**: Leiden maps each vertex to a community ID
-2. **Community Analysis**: Compute features per community (density, degree variance, hub concentration, etc.) — see `CommunityFeatures` struct in [[Code-Architecture]]
-3. **Per-Community Ordering**: Reorder within each community using configurable algorithm (default: RabbitOrder)
-4. **Size-Sorted Merge**: Concatenate communities largest-first → final vertex IDs
+## Modifier tokens
 
----
+These compose with any variant after a `:`.
 
-## How to Use
+| Token | Effect | Default |
+|---|---|---|
+| `:sgres0.10` | super-graph modularity resolution γ in ΔQ = w − γ·str(u)·str(v)/(2·M) | 0.10 |
+| `:gamma0.10` | alias for `:sgres` | — |
+| `:rcm_intra` | force RCM within communities | on for `hrab`, off elsewhere |
+| `:bfs_intra` | force BFS within communities | off |
+| `:rcm_super` | RCM on super-graph instead of Rabbit dendrogram DFS | off |
+| `:hubx` | extract top-1% hubs and place adjacent to their dominant block | off |
+| `:gord` | Gorder-greedy intra-community via UnitHeap | off |
+| `:norefine` | skip Leiden refinement phase | off (refine on) |
 
-### Basic Usage
+Example: `-o 12:hrab:sgres0.25:hubx` — HRAB variant with γ=0.25 and
+hub extraction enabled.
+
+## How the pipeline composes
+
+For each variant, the pipeline (`bench/include/graphbrew/reorder/reorder_graphbrew.h`)
+does:
+
+1. **Detect communities** — Leiden multi-pass or Rabbit single-pass
+   builds a `membership[v]` vector mapping each vertex to a community
+   ID and a hierarchy / dendrogram describing the merge tree.
+2. **Order within each community** — for every community `c`, build
+   a local ordering `localIds[v]` of its members using BFS, RCM,
+   hub-first sort, DBG, etc. (parallel per-community).
+3. **Order the communities themselves** — produce a `commPerm[c]`
+   permutation across communities. For `hrab` this comes from running
+   RabbitOrder on the super-graph built from inter-community edge
+   weights; for `leiden` it follows the Leiden hierarchy.
+4. **Compose** — every vertex `v` lands at
+   `newIds[v] = vertexOffsets[commPerm[membership[v]]] + localIds[v]`.
+
+The composition keeps each community contiguous in memory (Stage 1 +
+Stage 3 give the inter-community layout; Stage 2 gives the intra-community
+layout) so that cache lines fetched for one vertex hold useful data
+for its community neighbours.
+
+## HRAB (the workhorse variant)
+
+`-o 12:hrab` is the default we benchmark in the paper. Pipeline:
+
+1. Multi-pass Leiden produces ~100K communities on a typical 100M-edge
+   social graph.
+2. Build a super-graph where each community is a vertex and edge
+   weights aggregate the inter-community connectivity.
+3. Run RabbitOrder on the super-graph with modularity gain
+   ΔQ = w − γ·str(u)·str(v)/(2·M_super) and γ = `:sgres` (default 0.10).
+   This merges Leiden's fine communities into ~1-5K cache-sized blocks
+   and assigns them a dendrogram-DFS order.
+4. Within each surviving block, apply intra-community ordering.
+   The default is **adaptive**: blocks with > 4096 vertices use BFS
+   (better for dense graphs with huge natural communities), smaller
+   blocks use the full BNF-RCM pipeline (better for sparse graphs).
+   This adaptive split was empirically tuned in May 2026 — see
+   `results/data/empirical_validation_FINAL_2026_05_18.md`.
+
+For why each step matters, see the paper §3.3.2.
+
+## When to override the defaults
+
+| Symptom | Try |
+|---|---|
+| HRAB reorder takes too long on a 1B-edge graph | `-o 12:rabbit` (skip Leiden entirely) or `-o 12:streaming` (lazy aggregation) |
+| HRAB cache quality is great but real kernel is slower than ORIGINAL | force `:bfs_intra` (already adaptive default, but you can pin it) |
+| Memory pressure during build | `-o 12:streaming` cuts aggregation peak to O(n) |
+| Need to compare against a specific γ | `-o 12:hrab:sgres0.05` (more aggressive) or `:sgres1.0` (faithful Rabbit) |
+| Sparse / mesh graph | `-o 12:rcm` — Leiden first then RCM per community |
+
+## Implementation files
+
+| Function | File | Purpose |
+|---|---|---|
+| `GenerateGraphBrewMappingUnified` | `bench/include/external/gapbs/builder.h` | top-level dispatch |
+| `parseGraphBrewConfig` | `reorder_graphbrew.h` | turns `12:tokens:…` into a `GraphBrewConfig` |
+| `orderHybridLeidenRabbit` | `reorder_graphbrew.h` (~L3444) | HRAB; the most heavily-commented implementation |
+| `orderTileQuantizedRabbit` | `reorder_graphbrew.h` (~L4920) | TQR |
+| `orderHierarchicalCacheAware` | `reorder_graphbrew.h` (~L3035) | HCache |
+| `CommunityScanner` | `reorder_graphbrew.h` (~L601) | sparse open-address hashmap used by all variants' super-graph build |
+
+## Chaining
+
+GraphBrew variants compose with later passes via repeated `-o` flags:
 
 ```bash
-# Use GraphBrewOrder (algorithm 12) with auto-resolution
-./bench/bin/pr -f graph.el -s -o 12 -n 5
+# Leiden communities, then DBG refinement
+./bench/bin/pr -f g.el -s -o 12:leiden -o 5 -n 5
+
+# HRAB then GoGraph (forward-edge maximisation for PR Gauss-Seidel)
+./bench/bin/pr -f g.el -s -o 12:hrab -o 16 -n 5
 ```
 
-### New Format (Recommended)
+See [Reordering-Algorithms#chained-orderings](Reordering-Algorithms)
+for the five chains evaluated in the paper.
 
-```bash
-# Format: -o 12:cluster_variant:ordering_strategy:resolution
-# cluster_variant: leiden (default), rabbit, hubcluster
-# ordering_strategy: how vertices are ordered within/across communities
-# resolution: Leiden resolution parameter (default: auto-computed from graph)
+## Output
 
-# Leiden-based examples:
-./bench/bin/pr -f graph.el -s -o 12:leiden -n 5            # Leiden detection + default ordering
-./bench/bin/pr -f graph.el -s -o 12:leiden:dbg -n 5        # Leiden + DBG ordering
-./bench/bin/pr -f graph.el -s -o 12:leiden:8:0.75 -n 5     # Custom resolution 0.75
+Running with `-o 12:hrab` prints a community-size histogram and the
+final number of super-communities:
 
-# Rabbit-based examples (NEW — Rabbit × any ordering strategy):
-./bench/bin/pr -f graph.el -s -o 12:rabbit -n 5            # RabbitOrder native DFS (default)
-./bench/bin/pr -f graph.el -s -o 12:rabbit:dbg -n 5        # Rabbit communities + DBG ordering
-./bench/bin/pr -f graph.el -s -o 12:rabbit:hubcluster -n 5 # Rabbit communities + hub-cluster
-./bench/bin/pr -f graph.el -s -o 12:rabbit:hrab -n 5       # Rabbit communities + hybrid ordering
-./bench/bin/pr -f graph.el -s -o 12:rabbit:dfs -n 5        # Rabbit communities + DFS dendrogram
+```
+  hybrid-rabbit: 99489 Leiden communities
+  hybrid-rabbit: super-graph M=56371200
+  hybrid-rabbit: 48266 super-communities (merged from 99489)
+  comm-sizes: <=3: 25653 comms | 4-10: 24012 | … | >10K: 10 | max=98888
+  hybrid-rabbit-rcm-intra: tiny=2 small=60479 med=2563 large=30
+Reorder Time:        5.09693
 ```
 
-### Old Format (Backward Compatible)
-
-```bash
-# Format: -o 12:freq:algo:resolution:maxIterations:maxPasses
-# freq: frequency threshold for small communities (default: 10)
-# algo: per-community ordering algorithm ID (default: 8 = RabbitOrder)
-# resolution: Leiden resolution parameter (default: dynamic)
-
-# Use HubClusterDBG (7) for per-community ordering with resolution 1.0
-./bench/bin/pr -f graph.el -s -o 12:10:7:1.0
-
-# Full example with all parameters (explicit resolution)
-./bench/bin/pr -f graph.el -s -o 12:10:8:1.0:30:30
-```
-
-### With Community Output
-
-```bash
-# Verbose output shows community breakdown
-./bench/bin/pr -f graph.el -s -o 12 -n 1 2>&1 | head -30
-```
-
-The output shows detected communities, reorder time, community size distribution, and per-community hub concentration. Run on your graph to see actual values.
-
----
-
-## Comparison with Other Algorithms
-
-| Aspect | HUBCLUSTER (4) | LeidenOrder (15) | GraphBrewOrder (12) |
-|--------|---------------|-----------------|--------------------|
-| Community locality | Poor | Good | Excellent |
-| Internal ordering | Hub sort | Original | Per-community (RabbitOrder) |
-| Speed | Fast | Moderate | Moderate |
-| Best for | Uniform hub graphs | Basic grouping | Modular graphs |
-
----
-
-## When to Use
-
-**Modular graphs**: social networks, web graphs, citation networks (modularity > 0.3)
-**Not ideal for**: road networks (low modularity), random graphs, very small graphs (< 10K vertices)
-
-**Overhead**: Leiden community detection + hub sorting add some overhead (O(n) memory). Run the pipeline on your target graphs to measure actual overhead and cache performance trade-offs.
-
----
-
-## Implementation Details
-
-### Architecture: GraphBrew-Powered Pipeline
-
-GraphBrewOrder uses GraphBrew's modular Leiden community detection, then applies per-community reordering:
-
-| Component | File | Purpose |
-|-----------|------|---------|
-| CLI → GraphBrewConfig | `builder.h` | `ParseGraphBrewConfig()` |
-| Main entry point | `builder.h` | `GenerateGraphBrewMappingUnified()` |
-| Community detection | `reorder_graphbrew.h` | `graphbrew::runGraphBrew()` (Leiden pipeline) |
-| Per-community dispatch | `reorder.h` | `ReorderCommunitySubgraphStandalone()` |
-| Small community heuristic | `reorder_types.h` | `SelectAlgorithmForSmallGroup()` |
-| Config types | `reorder_graphbrew.h` | `GraphBrewConfig` (supersedes old `GraphBrewConfig`) |
-
-### Cluster Variant → GraphBrew Configuration Mapping
-
-```cpp
-// In builder.h: ParseGraphBrewConfig()
-"leiden"     → GraphBrew GVE-CSR aggregation, TOTAL_EDGES M, refinement depth 0
-"rabbit"     → GraphBrew RabbitOrder algorithm, resolution=0.5
-"hubcluster" → GraphBrew Leiden + HUB_CLUSTER ordering (native, no external dispatch)
-```
-
-### Community Ordering Strategy
-
-Communities are processed in this order:
-
-```cpp
-// Sort communities by size (largest first)
-// Rationale: largest communities benefit most from optimization
-sort(communities.begin(), communities.end(), 
-     [](auto& a, auto& b) { return a.size > b.size; });
-```
-
-### Per-Community Reordering
-
-Each large community subgraph is reordered using the configured final algorithm:
-
-```cpp
-// Default: RabbitOrder (algorithm 8)
-// Can be any algorithm 0-11 via format: -o 12:variant:algo_id
-ReorderCommunitySubgraphStandalone(g, nodes, node_set, finalAlgo, useOutdeg, new_ids, current_id);
-```
-
-### Edge Case Handling
-
-GraphBrewOrder includes guards for graphs with extreme community structure (e.g., Kronecker graphs):
-
-```cpp
-// In ReorderCommunitySubgraphStandalone (reorder.h):
-// If community has no internal edges (all edges go to other communities),
-// skip reordering and assign nodes in original order
-if (sub_edges.empty()) {
-    for (NodeID_ node : nodes) {
-        new_ids[node] = current_id++;
-    }
-    return;
-}
-```
-
-This prevents division-by-zero errors when:
-- Leiden creates communities where nodes only connect to OTHER communities
-- The induced subgraph has 0 edges
-- Hub-based algorithms compute `avgDegree = num_edges / num_nodes`
-
-**Graphs that benefit from this handling:**
-- Kronecker graphs (kron_g500-logn*)
-- Synthetic power-law graphs with extreme degree distributions
-- Graphs with highly disconnected community structure
-
-### Vertex Relabeling
-
-```cpp
-// New vertex ID assignment
-new_id = community_start_offset + position_within_community
-
-// Example:
-// Community 0 starts at offset 0, has 1000 vertices
-// Community 1 starts at offset 1000, has 500 vertices
-// Vertex 45 in Community 1 (position 23) gets ID: 1000 + 23 = 1023
-```
-
----
-
-## Variants
-
-| Variant | Description | GraphBrew Configuration |
-|---------|-------------|-------------------|
-| `leiden` | **Default.** GraphBrew Leiden-CSR with GVE aggregation | GVE-CSR, TOTAL_EDGES, refine depth 0 |
-| `rabbit` | GraphBrew RabbitOrder community detection | RABBIT_ORDER algorithm, resolution=0.5 |
-| `hubcluster` | GraphBrew Leiden + hub-cluster ordering | HUB_CLUSTER ordering (native GraphBrew) |
-| `rcm` | GraphBrew Leiden + per-community RCM + super-graph BNF-RCM | Bandwidth minimization within communities |
-
-Both `leiden` and `rabbit` presets support **all 14 ordering strategies**. When an ordering strategy is appended to `rabbit` (e.g., `12:rabbit:dbg`), Rabbit performs community detection only and the specified strategy orders vertices within/across communities. Without an ordering suffix, `12:rabbit` uses its native DFS ordering.
-
-```bash
-# Leiden × orderings:
-./bench/bin/pr -f graph.el -s -o 12:leiden -n 5              # Leiden + default ordering
-./bench/bin/pr -f graph.el -s -o 12:leiden:dbg -n 5          # Leiden + DBG
-./bench/bin/pr -f graph.el -s -o 12:leiden:hubcluster -n 5   # Leiden + hub-cluster
-
-# Advanced variants:
-./bench/bin/pr -f graph.el -s -o 12:hrab -n 5                # Hybrid Leiden + RabbitOrder (best locality)
-./bench/bin/pr -f graph.el -s -o 12:tqr -n 5                 # Tile-Quantized RabbitOrder (cache-geometry)
-./bench/bin/pr -f graph.el -s -o 12:hcache -n 5              # Hierarchical Cache-Aware (deep communities)
-./bench/bin/pr -f graph.el -s -o 12:streaming -n 5           # Leiden with lazy aggregation (low memory)
-
-# Rabbit × orderings:
-./bench/bin/pr -f graph.el -s -o 12:rabbit -n 5              # Rabbit native DFS
-./bench/bin/pr -f graph.el -s -o 12:rabbit:dbg -n 5          # Rabbit + DBG
-./bench/bin/pr -f graph.el -s -o 12:rabbit:hubcluster -n 5   # Rabbit + hub-cluster
-
-# RCM variant (bandwidth minimization):
-./bench/bin/pr -f graph.el -s -o 12:rcm -n 5                 # Leiden + per-community RCM + super-graph RCM
-```
-
-See [[Command-Line-Reference]] for full variant list and [[Python-Scripts]] for experiment integration.
-
----
-
-## Multi-Layer Configuration
-
-GraphBrewOrder's `-o 12:...` string is parsed as a multi-layer pipeline. Each layer is an independent dimension that can be combined freely.
-
-### Layer 0: Preset (one-of)
-Selects the algorithm skeleton and defaults.
-
-| Preset | Description |
-|--------|-------------|
-| `leiden` | GVE-CSR Leiden + per-community RabbitOrder **(default)** |
-| `rabbit` | RabbitOrder community detection (supports all orderings) |
-| `hubcluster` | Leiden + hub-cluster native ordering |
-
-### Layer 1: Ordering Strategy (one-of)
-How vertices are permuted within/across communities.
-
-| Strategy | Description |
-|----------|-------------|
-| `hrab` | Hybrid Leiden+Rabbit BFS **(best general locality)** |
-| `dfs` | DFS traversal of community dendrogram |
-| `bfs` | BFS traversal of community dendrogram |
-| `conn` | Connectivity BFS within communities |
-| `dbg` | Degree-Based Grouping within communities |
-| `corder` | Hot/cold partitioning within communities |
-| `dbg-global` | DBG across all vertices (post-clustering) |
-| `corder-global` | Corder across all vertices |
-| `hierarchical` | Multi-level sort by all Leiden passes |
-| `hcache` | Cache-aware hierarchical ordering |
-| `tqr` | Tile-quantized graph + RabbitOrder |
-
-See `GRAPHBREW_LAYERS["ordering"]` in `scripts/lib/core/utils.py` for the complete list.
-
-### Layer 2: Aggregation Strategy (one-of)
-How the community super-graph is built.
-
-| Strategy | Description |
-|----------|-------------|
-| `gvecsr` | GVE-style explicit super-graph **(best quality)** |
-| `leiden` | Standard Leiden CSR aggregation |
-| `streaming` | RabbitOrder-style lazy incremental merge (fast) |
-| `hybrid` | Lazy for early passes, CSR for final |
-
-### Layer 3: Feature Flags (additive)
-Multiple can be combined in a single `-o` string.
-
-| Flag | Description |
-|------|-------------|
-| `merge` | Merge small communities for cache locality |
-| `hubx` | Extract high-degree hubs before ordering |
-| `gord` | Gorder-inspired intra-community optimization |
-| `hsort` | Post-process: pack hubs by descending degree |
-| `rcm` | RCM on super-graph + per-community RCM (bandwidth minimization) |
-| `rcm_super` | RCM on super-graph only (BNF-quality George-Liu start) |
-| `rcm_intra` | Per-community RCM only (parallel, tiered BNF) |
-| `norefine` | Disable Leiden refinement step |
-| `graphbrew` | Activate LAYER ordering (per-community dispatch) |
-| `recursive` | Force recursive sub-community dispatch |
-| `flat` | Force flat dispatch (no recursion) |
-
-### Layer 4: GraphBrew Dispatch
-When `graphbrew` feature is active: `finalAlgoId` (0-11), `depth` (-1=auto), `subAlgoId`.
-
-### Layer 5: Numeric Parameters
-Resolution (float 0.1-3.0), max_iterations, max_passes.
-
-### Example
-```bash
--o 12:leiden:hrab:gvecsr:merge:hubx:0.75
-# preset=leiden, ordering=hrab, aggregation=gvecsr,
-# features=[merge,hubx], resolution=0.75
-```
-
-See `GRAPHBREW_LAYERS` in `scripts/lib/core/utils.py` for the authoritative definition.
-
----
-
-## Configuration
-
-- **Dynamic thresholds**: `min_size = max(50, min(avg_comm_size/4, √N))`, capped at 2000
-- **Local reorder threshold**: `2 × min_size`, capped at 5000
-- **Small communities**: Grouped into a "mega community" for perceptron-based algorithm selection
-- **AdaptiveOrder integration**: Can select GraphBrewOrder per-community — see [[AdaptiveOrder-ML]]
-
----
-
-## Benchmarking
-
-```bash
-./bench/bin/pr -f graph.el -s -o 12 -n 10  # Single benchmark
-
-# Compare with alternatives
-for algo in 0 4 7 12 14 15; do
-    echo "Algorithm $algo:"
-    ./bench/bin/pr -f graph.el -s -o $algo -n 5 2>&1 | grep "Average"
-done
-```
-
-Run the full pipeline on your graphs to measure actual speedups.
-
-See [[Troubleshooting]] for common issues (small communities, worse than HUBCLUSTER, memory).
-
----
-
-## Next Steps
-
-- [[AdaptiveOrder-ML]] - Automatic algorithm selection per community
-- [[Reordering-Algorithms]] - All available algorithms
-- [[Running-Benchmarks]] - Benchmark commands
-
----
-
-[← Back to Home](Home) | [Reordering Algorithms →](Reordering-Algorithms)
+This is the canonical signal that the pipeline ran correctly. The
+`max=` in `comm-sizes` is the largest single community — if it's >5%
+of N on a sparse graph, something went wrong (Leiden likely collapsed
+the graph into one mega-community; check the input is connected).
+
+## Further reading
+
+- [Reordering-Algorithms](Reordering-Algorithms) — every algorithm including the non-GraphBrew baselines
+- [Cache-Simulation](Cache-Simulation) — how to measure cache quality of a variant
+- [Code-Architecture](Code-Architecture) — codebase map
+- [VLDB-Experiments](VLDB-Experiments) — the paper's variant evaluation
