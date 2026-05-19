@@ -276,6 +276,24 @@ Options can be passed directly — the `graphbrew` prefix is **not required**.
 | `lazyupdate` | `-o 12:lazyupdate` | Batched community weight updates |
 | `rabbit` | `-o 12:rabbit` | RabbitOrder single-pass pipeline |
 | `rabbit:dfs` | `-o 12:rabbit:dfs` | RabbitOrder + DFS post-ordering |
+| `compose` | `-o 12:compose:sg_*:comm_*:intra_*` | Pluggable three-axis composition (see below) |
+
+**Compose-variant axes** (paper-aligned vocabulary; pick one of each):
+
+| Axis | Prefix | Picks | Maps to |
+|------|--------|-------|---------|
+| Super-graph order | `sg_` | `none`, `super_rabbit`, `super_rcm`, `tile_rabbit` | `SuperGraphOrder` enum |
+| Community order   | `comm_` | `size`, `degree`, `identity` | `CommunityOrder` enum |
+| Intra-community order | `intra_` | `bfs`, `rcm` | `IntraCommunityOrder` enum |
+
+Legacy alias tokens `s1_*`, `s2_*`, `s3_*` are still accepted (older parity scripts depend on them).
+
+Examples:
+- `-o 12:compose:sg_super_rabbit:comm_identity:intra_rcm` — equivalent to `12:hrab`
+- `-o 12:compose:sg_tile_rabbit:comm_identity:intra_bfs` — equivalent to `12:tqr`
+- `-o 12:compose:sg_none:comm_size:intra_rcm` — no super-graph, sort by size, RCM intra
+
+Defaults if omitted: `sg_none`, `comm_size`, `intra_bfs`.  See [GraphBrewOrder#the-compose-variant-pluggable-axes](GraphBrewOrder#the-compose-variant-pluggable-axes) for details.
 
 **Resolution modes:**
 
