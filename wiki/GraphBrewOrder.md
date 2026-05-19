@@ -92,7 +92,7 @@ The output shows detected communities, reorder time, community size distribution
 
 | Aspect | HUBCLUSTER (4) | LeidenOrder (15) | GraphBrewOrder (12) |
 |--------|---------------|-----------------|--------------------|
-| Community locality | ❌ Poor | ✅ Good | ✅ Excellent |
+| Community locality | Poor | Good | Excellent |
 | Internal ordering | Hub sort | Original | Per-community (RabbitOrder) |
 | Speed | Fast | Moderate | Moderate |
 | Best for | Uniform hub graphs | Basic grouping | Modular graphs |
@@ -101,8 +101,8 @@ The output shows detected communities, reorder time, community size distribution
 
 ## When to Use
 
-✅ **Modular graphs**: social networks, web graphs, citation networks (modularity > 0.3)
-❌ **Not ideal for**: road networks (low modularity), random graphs, very small graphs (< 10K vertices)
+**Modular graphs**: social networks, web graphs, citation networks (modularity > 0.3)
+**Not ideal for**: road networks (low modularity), random graphs, very small graphs (< 10K vertices)
 
 **Overhead**: Leiden community detection + hub sorting add some overhead (O(n) memory). Run the pipeline on your target graphs to measure actual overhead and cache performance trade-offs.
 

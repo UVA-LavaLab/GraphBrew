@@ -394,7 +394,7 @@ Use for quick testing:
 ## Next Steps
 
 - [[Running-Benchmarks]] - How to run benchmarks
-- [[Quick-Start]] - Getting started guide
+- [[Getting-Started]] - Getting started guide
 - [[Graph-Benchmarks]] - Available algorithms
 
 ---

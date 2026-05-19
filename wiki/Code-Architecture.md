@@ -372,7 +372,7 @@ raw benchmark data at C++ runtime, with no pre-trained weight files needed.
 
 **Variant Registry:** `_VARIANT_ALGO_REGISTRY` maps algo IDs 8, 11, 12 to `(prefix, variants, default)` tuples. GOrder variants (9: default/csr/fast) are tracked separately in `GORDER_VARIANTS` but share a single perceptron weight (they produce equivalent orderings).
 
-See [[Configuration-Files#unified-algorithm-naming-scriptslibutilspy]].
+See [[Python-Scripts#unified-algorithm-naming-scriptslibutilspy]].
 
 ---
 
@@ -457,9 +457,9 @@ C++ benchmark binaries now write directly to `benchmarks.json` and
 
 ## Configuration & Data Locations
 
-JSON config: specify `graphs`, `benchmarks`, `algorithms`, `trials`, and `options` (symmetrize, verify). See [[Configuration-Files]] for format.
+JSON config: specify `graphs`, `benchmarks`, `algorithms`, `trials`, and `options` (symmetrize, verify). See [[Python-Scripts]] for format.
 
-Weight files: `results/data/adaptive_models.json` (see [[Perceptron-Weights]]). Results: `results/graphs/`, `results/logs/`, `results/mappings/` (see [[Python-Scripts#output-structure]]). Data store: `results/data/` (adaptive_models.json, benchmarks.json, graph_properties.json, runs/).
+Weight files: `results/data/adaptive_models.json` (see [[AdaptiveOrder-ML]]). Results: `results/graphs/`, `results/logs/`, `results/mappings/` (see [[Python-Scripts#output-structure]]). Data store: `results/data/` (adaptive_models.json, benchmarks.json, graph_properties.json, runs/).
 
 ---
 
@@ -526,8 +526,8 @@ valgrind ./bench/bin/pr -f scripts/test/graphs/tiny/tiny.el -s -n 1
 
 ## Next Steps
 
-- [[Adding-New-Algorithms]] - Add reordering algorithms
-- [[Adding-New-Benchmarks]] - Add graph algorithms
+- [[Contributing]] - Add reordering algorithms
+- [[Contributing]] - Add graph algorithms
 - [[Python-Scripts]] - Python tools documentation
 
 ---

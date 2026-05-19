@@ -502,7 +502,7 @@ export PERCEPTRON_WEIGHTS_FILE=/path/to/weights.json
 ./bench/bin/pr -f graph.el -s -o 14 -n 3
 ```
 
-**Note:** If not set, AdaptiveOrder loads weights from `adaptive_models.json` via the DB hook (see [[Perceptron-Weights#weight-file-location]]).
+**Note:** If not set, AdaptiveOrder loads weights from `adaptive_models.json` via the DB hook (see [[AdaptiveOrder-ML#weight-file-location]]).
 
 ### NUMA Binding
 
@@ -672,4 +672,4 @@ python3 scripts/graphbrew_experiment.py --eval-weights  # No arguments needed
 
 ---
 
-[← Back to Home](Home) | [Configuration Files →](Configuration-Files)
+[← Back to Home](Home) | [Configuration Files →](Python-Scripts)

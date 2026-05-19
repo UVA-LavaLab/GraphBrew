@@ -256,7 +256,7 @@ make test-topology-full
 
 - [[Running-Benchmarks]] - Detailed command-line reference
 - [[Benchmark-Suite]] - Automated benchmarking
-- [[Correlation-Analysis]] - Find the best algorithm for your graphs
+- [[Benchmark-Suite]] - Find the best algorithm for your graphs
 
 ---
 

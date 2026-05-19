@@ -24,7 +24,7 @@ The automated pipeline runs **seven** benchmarks by default (`EXPERIMENT_BENCHMA
 
 ---
 
-## 🚀 Automated Pipeline (Recommended)
+## Automated Pipeline (Recommended)
 
 For comprehensive benchmarking, use the unified experiment script:
 

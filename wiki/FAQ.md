@@ -66,7 +66,7 @@ make all CXX=g++-13
 2. C++17 support: `g++ -std=c++17 --version`
 3. OpenMP: `echo '#include <omp.h>' | g++ -fopenmp -x c++ - -c`
 
-See [[Installation]] for detailed troubleshooting.
+See [[Getting-Started]] for detailed troubleshooting.
 
 ---
 
@@ -201,7 +201,7 @@ Computes graph features (15 linear + 3 quadratic), uses ML to select best algori
 
 ### What is the training pipeline?
 
-4-stage process: multi-restart perceptrons → variant-level weight saving → regret-aware grid search → save. Validate with `python3 scripts/graphbrew_experiment.py --eval-weights`. See [[Perceptron-Weights]].
+4-stage process: multi-restart perceptrons → variant-level weight saving → regret-aware grid search → save. Validate with `python3 scripts/graphbrew_experiment.py --eval-weights`. See [[AdaptiveOrder-ML]].
 
 ### Is there a single best algorithm?
 
@@ -213,7 +213,7 @@ GraphBrewOrder is a strong general-purpose choice for most graph types. Recommen
 
 ### Why are some perceptron weights 0?
 
-Cache simulation was skipped, features weren't computed, or no benchmark data. Fix: `--train --size small` (full pipeline). See [[Perceptron-Weights#troubleshooting]].
+Cache simulation was skipped, features weren't computed, or no benchmark data. Fix: `--train --size small` (full pipeline). See [[AdaptiveOrder-ML#troubleshooting]].
 
 ### How do I validate trained weights?
 
@@ -225,7 +225,7 @@ See [[Python-Scripts#-eval_weightspy---weight-evaluation--c-scoring-simulation]]
 
 ### Where are the trained weights saved?
 
-All trained models (perceptron weights, decision trees, hybrid parameters) are stored in `results/data/adaptive_models.json`. The C++ runtime loads perceptron weights from this file via `LoadPerceptronWeightsFromDB()`. If the file is missing, hardcoded defaults are used. See [[Perceptron-Weights#weight-file-location]].
+All trained models (perceptron weights, decision trees, hybrid parameters) are stored in `results/data/adaptive_models.json`. The C++ runtime loads perceptron weights from this file via `LoadPerceptronWeightsFromDB()`. If the file is missing, hardcoded defaults are used. See [[AdaptiveOrder-ML#weight-file-location]].
 
 ### What's the difference between LeidenOrder and GraphBrewOrder?
 
@@ -259,7 +259,7 @@ See [[Troubleshooting]] for detailed solutions. Quick answers:
 
 ### How do I add a new reordering algorithm?
 
-See [[Adding-New-Algorithms]] for a complete guide:
+See [[Contributing]] for a complete guide:
 1. Add enum value in `reorder_types.h`
 2. Implement reorder function
 3. Add switch case
@@ -267,7 +267,7 @@ See [[Adding-New-Algorithms]] for a complete guide:
 
 ### How do I add a new benchmark?
 
-See [[Adding-New-Benchmarks]] for a complete guide:
+See [[Contributing]] for a complete guide:
 1. Create `bench/src/my_algo.cc`
 2. Implement algorithm
 3. Add to Makefile
