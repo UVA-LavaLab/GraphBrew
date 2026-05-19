@@ -31,6 +31,42 @@ All variants have $O(n\log n + m)$ time complexity. HRAB and TQR
 additionally run RabbitOrder on a super-graph of size $n_c \ll n$;
 that cost is dominated by Leiden on the original graph.
 
+## The `compose` variant (pluggable axes)
+
+`-o 12:compose` exposes the same three pipeline axes — super-graph
+order, community order, intra-community order — as orthogonal CLI
+picks.  Every other variant in the table above is a fixed configuration
+of these axes; `compose` lets you mix them freely and was used to
+prove that HRAB and TQR are literally compositions of the underlying
+primitives (see `results/data/composability_phase6_final_2026_05_19.md`).
+
+Three axes, two-or-more picks each:
+
+| Axis | CLI prefix | Picks |
+|---|---|---|
+| Super-graph order (which communities sit next to which) | `sg_` | `none`, `super_rabbit`, `super_rcm`, `tile_rabbit` |
+| Community order (sort key on top of the super-graph perm) | `comm_` | `size`, `degree`, `identity` |
+| Intra-community order (vertex layout within a community) | `intra_` | `bfs`, `rcm` |
+
+Examples:
+
+```bash
+# HRAB-equivalent
+-o 12:compose:sg_super_rabbit:comm_identity:intra_rcm
+
+# TQR-equivalent
+-o 12:compose:sg_tile_rabbit:comm_identity:intra_bfs
+
+# Pure intra (no super-graph), order communities by size, RCM inside
+-o 12:compose:sg_none:comm_size:intra_rcm
+```
+
+Legacy aliases `s1_*`/`s2_*`/`s3_*` are still accepted (the older
+parity sweeps and CI scripts use them); the new `sg_`/`comm_`/`intra_`
+forms are the primary spelling and match the paper's vocabulary.
+
+Defaults if any axis is omitted: `sg_none`, `comm_size`, `intra_bfs`.
+
 ## Modifier tokens
 
 These compose with any variant after a `:`.
