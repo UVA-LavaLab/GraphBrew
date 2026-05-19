@@ -1,137 +1,52 @@
 # GraphBrew Wiki
 
-Welcome to the **GraphBrew** wiki! This comprehensive guide will help you understand, use, and extend the GraphBrew framework for graph reordering and benchmark analysis.
+GraphBrew is a graph reordering framework. It composes lightweight
+primitives — Leiden communities, Rabbit Order, RCM, degree bucketing —
+into ten variants that match Gorder's cache quality at a fraction of
+the reorder cost.
 
-## 🍺 What is GraphBrew?
+## Documentation
 
-GraphBrew is a high-performance graph reordering framework that combines **community detection** with **cache-aware vertex reordering** to dramatically improve graph algorithm performance. It implements **17 algorithm IDs** (0-16): 2 baselines (ORIGINAL, RANDOM), 13 reordering algorithms, and 2 reserved meta-algorithms (MAP, AdaptiveOrder).
+**Start here**
+- [Getting-Started](Getting-Started) — build, run your first benchmark
+- [Reordering-Algorithms](Reordering-Algorithms) — every algorithm explained
+- [Running-Benchmarks](Running-Benchmarks) — command-line workflow
 
-### Key Features
+**Reference**
+- [Command-Line-Reference](Command-Line-Reference) — all flags
+- [Supported-Graph-Formats](Supported-Graph-Formats) — `.sg`, `.el`, `.wel`
+- [Graph-Benchmarks](Graph-Benchmarks) — graph catalog
+- [Troubleshooting](Troubleshooting) — common errors and fixes
+- [FAQ](FAQ) — short answers to common questions
 
-- **17 Algorithm IDs**: From simple sorting to advanced ML-based selection (IDs 0-16; 15 benchmark-eligible, 13 produce reorderings)
-- **Leiden Community Detection**: State-of-the-art community detection for graph partitioning
-- **AdaptiveOrder**: ML-powered adaptive selection (perceptron, decision tree, hybrid, database) with 7 selection modes, 16 linear features, 5 quadratic cross-terms, convergence-aware scoring, OOD guardrail, and LOGO cross-validation
-- **Comprehensive Benchmarks**: 8 available (PR, PR_SPMV, BFS, CC, CC_SV, SSSP, BC, TC); experiments default to 7 (TC excluded — combinatorial counting, not cache-sensitive traversal)
-- **Random Baseline**: Graphs auto-converted to `.sg` with RANDOM ordering so all measurements are relative to a worst-case baseline
-- **Pre-generated Reordered .sg**: Each algorithm's reordered graph is pre-generated as `{graph}_{ALGO}.sg` and loaded at benchmark time with `-o 0`, eliminating runtime reorder overhead
-- **Amortization Analysis**: Break-even iterations (N*), end-to-end speedup at N, and minimum efficient workload (MinN@95%)
-- **Python Analysis Tools**: Correlation analysis, benchmark automation, and weight training with multi-restart perceptrons, regret-aware optimization, and weight evaluation
-- **Iterative Training**: Feedback loop to optimize adaptive algorithm selection
+**Deep dives**
+- [GraphBrewOrder](GraphBrewOrder) — the composable pipeline
+- [Cache-Simulation](Cache-Simulation) — `bench/bin_sim/*` usage
+- [Code-Architecture](Code-Architecture) — codebase map
+- [VLDB-Experiments](VLDB-Experiments) — reproducing the paper
 
-## 📚 Wiki Contents
+**Developer**
+- [Contributing](Contributing) — adding algorithms and benchmarks
+- [Python-Scripts](Python-Scripts) — analysis tools
 
-### Getting Started
-- [[Installation]] - System requirements and build instructions
-- [[Quick-Start]] - Run your first benchmark in 5 minutes
-- [[Supported-Graph-Formats]] - EL, MTX, GRAPH, and other formats
+**Research-only (not part of the VLDB submission)**
+- [AdaptiveOrder-ML](AdaptiveOrder-ML) — runtime algorithm selector
 
-### Understanding the Algorithms
-- [[Reordering-Algorithms]] - Complete guide to all 16 algorithms
-- [[Graph-Benchmarks]] - PageRank, BFS, CC, SSSP, BC, TC explained
-- [[Community-Detection]] - How Leiden clustering works
+## What GraphBrew gives you
 
-### Running Experiments
-- [[Running-Benchmarks]] - Command-line usage and options
-- [[Benchmark-Suite]] - Automated experiment runner
-- [[VLDB-Experiments]] - VLDB 2026 full experiment guide (training, models, features)
-- [[Correlation-Analysis]] - Finding the best algorithm for your graphs
+| Pipeline stage | Choices | What it controls |
+|---|---|---|
+| Community detection | Leiden, Rabbit Order | spatial locality |
+| Intra-community ordering | BFS, RCM, HubCluster, DBG, Gorder | temporal locality |
+| Inter-community arrangement | hierarchical sort, Rabbit on super-graph, RCM, tile | global layout |
 
-### Advanced Topics
-- [[AdaptiveOrder-ML]] - The perceptron-based algorithm selector
-- [[Perceptron-Weights]] - Training and tuning the ML model
-- [[GraphBrewOrder]] - Per-community reordering explained
-- [[Cache-Simulation]] - Cache performance analysis for algorithms
+Variants ship as flags: `-o 12:leiden`, `-o 12:rabbit`, `-o 12:hrab`,
+`-o 12:tqr`, `-o 12:hcache`, `-o 12:rcm`, `-o 12:hubcluster`, `-o 12:streaming`.
 
-### Developer Guide
-- [[Adding-New-Algorithms]] - Implement your own reordering method
-- [[Adding-New-Benchmarks]] - Add new graph algorithms
-- [[Code-Architecture]] - Understanding the codebase structure
-- [[Python-Scripts]] - Analysis and utility scripts
+See [Reordering-Algorithms](Reordering-Algorithms) for the full list.
 
-### Reference
-- [[Command-Line-Reference]] - All flags and options
-- [[Configuration-Files]] - JSON configs and settings
-- [[Troubleshooting]] - Common issues and solutions
-- [[FAQ]] - Frequently asked questions
+## Repository
 
-## 🚀 Quick Example
-
-### One-Click Full Pipeline (Recommended)
-
-```bash
-# Clone, download graphs, build, and run complete experiment
-git clone https://github.com/UVA-LavaLab/GraphBrew.git
-cd GraphBrew
-python3 scripts/graphbrew_experiment.py --full --size small
-```
-
-This single command will:
-1. Download benchmark graphs from SuiteSparse (87 graphs available)
-2. Build binaries automatically
-3. Convert `.mtx` → `.sg` with RANDOM baseline ordering
-4. Pre-generate reordered `.sg` per algorithm (13 algorithms, loaded at benchmark time with no runtime reorder overhead)
-5. Run all benchmarks with all 15 eligible algorithms
-6. Execute cache simulations (L1/L2/L3 hit rates)
-7. Store benchmark data to `results/data/` — C++ trains ML models (perceptron, DT, hybrid) at runtime from this data
-
-### Options
-
-```bash
-# Auto-detect RAM and disk limits
-python3 scripts/graphbrew_experiment.py --full --size all --auto
-
-# Train perceptron weights
-python3 scripts/graphbrew_experiment.py --train --size small
-
-# Manual: run PageRank with GraphBrewOrder
-./bench/bin/pr -f your_graph.el -s -o 12 -n 3
-
-# Let AdaptiveOrder choose the best algorithm
-./bench/bin/pr -f your_graph.el -s -o 14 -n 3
-```
-
-See [[Quick-Start]] for detailed examples, [[Benchmark-Suite]] for size categories, and [[Command-Line-Reference]] for all flags.
-
-## 📊 Performance Overview
-
-GraphBrew's performance gains depend on your graph's topology and the benchmark algorithm. Run the full pipeline on your target graphs to measure actual speedups.
-
-The best reordering algorithm depends on your graph's structure — see [[Correlation-Analysis]] for details.
-
-## 📋 Page Index
-
-| Page | Description |
-|------|-------------|
-| [[Home]] | This page - wiki overview |
-| [[Installation]] | Build requirements and instructions |
-| [[Quick-Start]] | 5-minute getting started guide |
-| [[Supported-Graph-Formats]] | EL, MTX, GRAPH format specs |
-| [[Reordering-Algorithms]] | All 16 algorithms explained |
-| [[Graph-Benchmarks]] | PR, PR_SPMV, BFS, CC, CC_SV, SSSP, BC, TC |
-| [[Community-Detection]] | Leiden algorithm details |
-| [[Running-Benchmarks]] | Manual benchmark execution |
-| [[Benchmark-Suite]] | Automated experiment runner |
-| [[VLDB-Experiments]] | VLDB 2026 experiment guide |
-| [[Correlation-Analysis]] | Feature-algorithm correlation |
-| [[AdaptiveOrder-ML]] | ML-based algorithm selection |
-| [[Perceptron-Weights]] | Weight file format & tuning |
-| [[GraphBrewOrder]] | Per-community hub ordering |
-| [[Cache-Simulation]] | Cache performance analysis |
-| [[Adding-New-Algorithms]] | Developer: add algorithms |
-| [[Adding-New-Benchmarks]] | Developer: add benchmarks |
-| [[Code-Architecture]] | Codebase structure |
-| [[Python-Scripts]] | Analysis & utility tools |
-| [[Command-Line-Reference]] | All CLI flags |
-| [[Configuration-Files]] | JSON config reference |
-| [[Troubleshooting]] | Common issues |
-| [[FAQ]] | Frequently asked questions |
-
-## 🔗 Quick Links
-
-- [GitHub Repository](https://github.com/UVA-LavaLab/GraphBrew)
-- [Issue Tracker](https://github.com/UVA-LavaLab/GraphBrew/issues)
-- [Contributing Guide](https://github.com/UVA-LavaLab/GraphBrew/blob/main/CONTRIBUTING.md)
-
----
-
-*Last updated: February 2026*
+- Code: https://github.com/UVA-LavaLab/GraphBrew
+- Issues: https://github.com/UVA-LavaLab/GraphBrew/issues
+- Paper: see `paper/main.tex` (VLDB 2026 submission)

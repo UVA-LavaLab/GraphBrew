@@ -263,7 +263,7 @@ Cache features are stored in `results/cache_*.json` and integrated into perceptr
 }
 ```
 
-Run `--phase cache` on your graphs to generate actual cache impact values. See [[Perceptron-Weights]] for the full weight schema.
+Run `--phase cache` on your graphs to generate actual cache impact values. See [[AdaptiveOrder-ML]] for the full weight schema.
 
 The perceptron uses these weights to factor cache performance into algorithm selection.
 
@@ -343,7 +343,7 @@ The cache policies have been validated against the original reference implementa
 
 ## Perceptron Integration
 
-Cache features integrate with the perceptron-based algorithm selector. See [[Perceptron-Weights]] for the full feature vector.
+Cache features integrate with the perceptron-based algorithm selector. See [[AdaptiveOrder-ML]] for the full feature vector.
 
 **Cache-specific features:** `cache_l1_impact`, `cache_l2_impact`, `cache_l3_impact`, `cache_dram_penalty` — automatically collected during `--phase cache` and integrated into weight files.
 
@@ -359,8 +359,8 @@ C++ access: `cache_sim::GlobalCache().getFeatures()` or `CACHE_FEATURES()` macro
 
 ## Related Pages
 
-- [[Perceptron-Weights]] - Using cache features for algorithm selection
-- [[Correlation-Analysis]] - Correlating cache stats with performance
+- [[AdaptiveOrder-ML]] - Using cache features for algorithm selection
+- [[Benchmark-Suite]] - Correlating cache stats with performance
 - [[Benchmark-Suite]] - Running performance experiments
 
 ---

@@ -6,9 +6,9 @@ The GraphBrew Benchmark Suite provides automated tools for running comprehensive
 
 ```
 scripts/
-├── graphbrew_experiment.py     # ⭐ MAIN: One-click unified pipeline
+├── graphbrew_experiment.py     # One-click unified pipeline
 ├── requirements.txt            # Python dependencies
-└── lib/                        # 📦 5 sub-packages (see lib/README.md)
+└── lib/                        # 5 sub-packages (see lib/README.md)
     ├── core/                   # Constants, logging, data stores
     ├── pipeline/               # Experiment execution stages
     ├── ml/                     # ML scoring & training (fallback)
@@ -20,7 +20,7 @@ Weight files are stored under `results/data/adaptive_models.json` (not `scripts/
 
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
 ```bash
 python3 scripts/graphbrew_experiment.py --full --size small          # Full pipeline
@@ -50,7 +50,7 @@ See [[Command-Line-Reference]] for all options including `--min-mb`, `--max-grap
 
 ## Output Format
 
-Results are JSON arrays. See [[Configuration-Files]] for the complete schema of `benchmark_*.json`, `cache_*.json`, and `reorder_*.json`. Weight data is consolidated in `results/data/adaptive_models.json`.
+Results are JSON arrays. See [[Python-Scripts]] for the complete schema of `benchmark_*.json`, `cache_*.json`, and `reorder_*.json`. Weight data is consolidated in `results/data/adaptive_models.json`.
 
 ### Amortization Analysis
 
@@ -119,11 +119,11 @@ See [[Troubleshooting]] for common issues. Quick fixes:
 
 ## Next Steps
 
-- [[Correlation-Analysis]] - Analyze benchmark results
+- [[Benchmark-Suite]] - Analyze benchmark results
 - [[AdaptiveOrder-ML]] - Train the perceptron
 - [[Running-Benchmarks]] - Manual benchmark commands
 - [[Python-Scripts]] - Full script documentation
 
 ---
 
-[← Back to Home](Home) | [Correlation Analysis →](Correlation-Analysis)
+[← Back to Home](Home) | [Correlation Analysis →](Benchmark-Suite)
