@@ -262,29 +262,35 @@ enum class OrderingStrategy {
     HIERARCHICAL_CACHE_AWARE,  ///< Use Leiden hierarchy as dendrogram for cache-aware ordering
     HYBRID_LEIDEN_RABBIT,      ///< Leiden communities + RabbitOrder super-graph ordering (best locality)
     TILE_QUANTIZED_RABBIT,     ///< Tile-quantized graph + RabbitOrder: cache-line-aligned macro-ordering
-    COMPOSE,                   ///< Pluggable: pick Stage 2 (community sort) + Stage 3 (intra primitive)
+    COMPOSE,                   ///< Pluggable: pick {super-graph order} + {community order} + {intra-community order}
     LAYER                      ///< GraphBrew mode: apply any algo 0-11 per community (external dispatch)
 };
 
-/** Stage 2 menu for OrderingStrategy::COMPOSE (how to order the communities themselves). */
-enum class ComposeStage2Sort {
+/** Community-ordering menu for OrderingStrategy::COMPOSE
+ *  (how to order the communities themselves, on top of the super-graph permutation).
+ */
+enum class CommunityOrder {
     SizeDesc,    ///< Sort communities by vertex-count descending (large first)
     DegreeDesc,  ///< Sort communities by total in-community degree descending
-    Identity,    ///< Keep the Stage 1 permutation order untouched
+    Identity,    ///< Keep the super-graph permutation order untouched
 };
 
-/** Stage 3 menu for OrderingStrategy::COMPOSE (how to order vertices within each community). */
-enum class ComposeStage3Intra {
+/** Intra-community-ordering menu for OrderingStrategy::COMPOSE
+ *  (how to order vertices within each community).
+ */
+enum class IntraCommunityOrder {
     BFSFromHub,  ///< intraBFSFromHub<>() primitive (SECTION 16-PRIMITIVES)
     RCM,         ///< intraRCM<>() primitive (SECTION 16-PRIMITIVES)
 };
 
-/** Stage 1 menu for OrderingStrategy::COMPOSE (how to derive a base community permutation). */
-enum class ComposeStage1Build {
-    None,         ///< Identity permutation; Stage 2 sorts from scratch
-    SuperRabbit,  ///< Build community super-graph, run RabbitOrder (HRAB's Stage 1)
+/** Super-graph-ordering menu for OrderingStrategy::COMPOSE
+ *  (how to derive a base community permutation from the community super-graph).
+ */
+enum class SuperGraphOrder {
+    None,         ///< Identity permutation; the community-order axis sorts from scratch
+    SuperRabbit,  ///< Build community super-graph, run RabbitOrder (HRAB's super-graph order)
     SuperRCM,     ///< Build community super-graph, run BNF+George-Liu+RCM
-    TileRabbit,   ///< 2-level: tile-RabbitOrder + community-RabbitOrder (TQR's Stage 1)
+    TileRabbit,   ///< 2-level: tile-RabbitOrder + community-RabbitOrder (TQR's super-graph order)
 };
 
 /** Community detection mode */
@@ -339,10 +345,12 @@ struct GraphBrewConfig {
     bool useRCMSuper = false;          ///< Use RCM on super-graph instead of RabbitOrder dendrogram DFS (graphbrew:rcm)
     bool useRCMIntra = false;          ///< Use RCM (Cuthill-McKee) within each community instead of BFS (graphbrew:rcm_intra)
 
-    // COMPOSE strategy picks (only used when ordering == OrderingStrategy::COMPOSE)
-    ComposeStage1Build composeStage1 = ComposeStage1Build::None;
-    ComposeStage2Sort composeStage2 = ComposeStage2Sort::SizeDesc;
-    ComposeStage3Intra composeStage3 = ComposeStage3Intra::BFSFromHub;
+    // COMPOSE-strategy picks (only used when ordering == OrderingStrategy::COMPOSE).
+    // The three axes are: super-graph order, community order, intra-community order.
+    // See SuperGraphOrder / CommunityOrder / IntraCommunityOrder.
+    SuperGraphOrder superGraphOrder = SuperGraphOrder::None;
+    CommunityOrder communityOrder = CommunityOrder::SizeDesc;
+    IntraCommunityOrder intraCommunityOrder = IntraCommunityOrder::BFSFromHub;
 
     // Super-graph modularity resolution (HRAB / TQR community-level merges)
     //
@@ -3276,7 +3284,8 @@ void orderHierarchicalCacheAware(
 //=============================================================================
 //
 // These free template functions are the per-community building blocks
-// (Stage 2 in the paper's three-stage pipeline).  They operate on a
+// (the intra-community order axis in the paper's three-axis pipeline).
+// They operate on a
 // SINGLE community's vertex list and write into a shared `localIds`
 // vector that the caller composes into the final permutation.
 //
@@ -3518,20 +3527,20 @@ inline void intraRCM(
 }
 
 //=============================================================================
-// SECTION 16-STAGE1: Reusable Stage 1 (super-graph) primitives
+// SECTION 16-SUPER-GRAPH: Reusable super-graph-order primitives
 //=============================================================================
 //
-// Stage 1 produces a permutation of community IDs that becomes the base
-// ordering for Stage 2.  The picks are:
+// Super-graph ordering produces a permutation of community IDs that
+// becomes the base ordering for the community-order axis.  Picks:
 //
-//   None         : identity permutation; let Stage 2 sort from scratch
+//   None         : identity permutation; community-order sorts from scratch
 //                  (CONNECTIVITY_BFS / current orderCompose default)
 //   SuperRabbit  : build community super-graph, run RabbitOrder on it
-//                  (HRAB's Stage 1)
+//                  (HRAB's super-graph order)
 //   SuperRCM     : build community super-graph, run RCM on it
 //                  (HRAB :rcm_super)
 //   TileRabbit   : 2-level tile + community RabbitOrder
-//                  (TQR's Stage 1; added in Phase 4)
+//                  (TQR's super-graph order)
 //
 // The shared building block for all super-graph picks is the community
 // super-graph itself.  We provide it as `buildCommunitySuperGraph<>()`
@@ -4026,8 +4035,8 @@ std::vector<K> runRCMOnSuperCSR(
 }
 
 /**
- * Choose tile parameters for tile-quantised Stage 1.  Matches TQR STEP 0
- * verbatim:
+ * Choose tile parameters for tile-quantised super-graph ordering.
+ * Matches TQR STEP 0 verbatim:
  *
  *   tileSz = clamp(512 / log2(avgDeg+2), 32, 512)
  *   numTiles = ceil(N / tileSz)
@@ -4072,7 +4081,7 @@ inline std::pair<size_t, size_t> chooseTileParams(size_t N, double avgDeg)
  *
  * @return pair (tilePerm, tileBlockId).  tilePerm[t] = position of tile
  *         t in the final ordering.  tileBlockId[t] = root of t in the
- *         RabbitOrder dendrogram (used by Stage 1 orchestrator).
+ *         RabbitOrder dendrogram (used by the super-graph-order orchestrator).
  */
 template <typename K>
 std::pair<std::vector<K>, std::vector<K>> runRabbitOnTileGraph(
@@ -4294,8 +4303,8 @@ std::pair<std::vector<K>, std::vector<K>> runRabbitOnTileGraph(
 }
 
 /**
- * Stage 1: tile_rabbit — TQR's full 2-level (tile + community) Stage 1
- * expressed as a single function.  Output is a community permutation.
+ * tile_rabbit super-graph order — TQR's full 2-level (tile + community)
+ * pipeline expressed as a single function.  Output is a community permutation.
  *
  * Faithful composition of TQR STEPs 0–4 + 5a–5e:
  *   1. Choose tile parameters via chooseTileParams().
@@ -4406,7 +4415,7 @@ std::vector<K> runTileRabbit(
 }
 
 //=============================================================================
-// SECTION 16-COMPOSE: Pluggable Stage 2 + Stage 3 composition
+// SECTION 16-COMPOSE: Pluggable {super-graph + community + intra-community} composition
 //=============================================================================
 //
 // The first variant in this file that is *expressed* as a composition of
@@ -4454,28 +4463,28 @@ void orderCompose(
         }
     }
 
-    // -------- Stage 2: community ordering --------
+    // -------- Community order --------
     std::vector<K> commOrder(numComm);
     std::iota(commOrder.begin(), commOrder.end(), K(0));
 
-    // -------- Stage 1: optional super-graph permutation --------
+    // -------- Super-graph order (optional) --------
     // Produces a base community permutation that Stage 2 either keeps
     // (Identity) or overrides (SizeDesc / DegreeDesc).
     std::vector<K> stage1Perm;
-    if (config.composeStage1 != ComposeStage1Build::None) {
+    if (config.superGraphOrder != SuperGraphOrder::None) {
         // Per-community vertex count (used to flag empty/active for Stage 1)
         std::vector<size_t> numVertsPerComm(numComm, 0);
         for (K c = 0; c < numComm; ++c) numVertsPerComm[c] = commVertices[c].size();
 
         std::vector<K> vertDegreesView(degrees.begin(), degrees.end());
 
-        if (config.composeStage1 == ComposeStage1Build::SuperRabbit) {
+        if (config.superGraphOrder == SuperGraphOrder::SuperRabbit) {
             auto sg = buildCommunitySuperGraph<K, NodeID_T, DestID_T>(
                 membership, vertDegreesView, /*vertexIsHub*/{}, g, N, numComm);
             stage1Perm = runRabbitOnSuperCSR<K>(
                 std::move(sg), numVertsPerComm,
                 static_cast<float>(config.superGraphResolution));
-        } else if (config.composeStage1 == ComposeStage1Build::SuperRCM) {
+        } else if (config.superGraphOrder == SuperGraphOrder::SuperRCM) {
             auto sg = buildCommunitySuperGraph<K, NodeID_T, DestID_T>(
                 membership, vertDegreesView, /*vertexIsHub*/{}, g, N, numComm);
             stage1Perm = runRCMOnSuperCSR<K>(sg, numVertsPerComm);
@@ -4490,11 +4499,11 @@ void orderCompose(
     }
 
     // Stage 2 reorders the Stage 1 result (or sorts from identity if Stage 1=None)
-    if (config.composeStage2 == ComposeStage2Sort::SizeDesc) {
+    if (config.communityOrder == CommunityOrder::SizeDesc) {
         std::sort(commOrder.begin(), commOrder.end(), [&](K a, K b) {
             return commVertices[a].size() > commVertices[b].size();
         });
-    } else if (config.composeStage2 == ComposeStage2Sort::DegreeDesc) {
+    } else if (config.communityOrder == CommunityOrder::DegreeDesc) {
         std::vector<size_t> commTotalDeg(numComm, 0);
         #pragma omp parallel for schedule(dynamic, 256)
         for (K c = 0; c < numComm; ++c) {
@@ -4506,7 +4515,7 @@ void orderCompose(
             return commTotalDeg[a] > commTotalDeg[b];
         });
     }
-    // ComposeStage2Sort::Identity: leave commOrder as-is (Stage 1 result or 0..C)
+    // CommunityOrder::Identity: leave commOrder as-is (Stage 1 result or 0..C)
 
     // Offsets in the sorted community order
     std::vector<size_t> offsets(numComm + 1, 0);
@@ -4523,7 +4532,7 @@ void orderCompose(
         }
     }
 
-    // -------- Stage 3: per-community ordering via shared primitives --------
+    // -------- Intra-community order (per-community ordering via shared primitives) --------
     std::vector<K> localIds(N, 0);
     #pragma omp parallel
     {
@@ -4534,7 +4543,7 @@ void orderCompose(
         #pragma omp for schedule(dynamic, 1)
         for (size_t i = 0; i < (size_t)numComm; ++i) {
             K c = commOrder[i];
-            if (config.composeStage3 == ComposeStage3Intra::BFSFromHub) {
+            if (config.intraCommunityOrder == IntraCommunityOrder::BFSFromHub) {
                 intraBFSFromHub<K, NodeID_T, DestID_T>(
                     commVertices[c], c, membership, degrees, g,
                     vertToLocal, visited, bfsQueue, localIds);
@@ -4563,17 +4572,17 @@ void orderCompose(
 
     phaseTimer.Stop();
     const char* s1Name =
-        config.composeStage1 == ComposeStage1Build::None ? "none" :
-        config.composeStage1 == ComposeStage1Build::SuperRabbit ? "super_rabbit" :
-        config.composeStage1 == ComposeStage1Build::SuperRCM ? "super_rcm" :
+        config.superGraphOrder == SuperGraphOrder::None ? "none" :
+        config.superGraphOrder == SuperGraphOrder::SuperRabbit ? "super_rabbit" :
+        config.superGraphOrder == SuperGraphOrder::SuperRCM ? "super_rcm" :
         "tile_rabbit";
     const char* s2Name =
-        config.composeStage2 == ComposeStage2Sort::SizeDesc ? "size_desc" :
-        config.composeStage2 == ComposeStage2Sort::DegreeDesc ? "degree_desc" :
+        config.communityOrder == CommunityOrder::SizeDesc ? "size_desc" :
+        config.communityOrder == CommunityOrder::DegreeDesc ? "degree_desc" :
         "identity";
-    printf("  compose: s1=%s s2=%s s3=%s, %zu communities, %zu isolated, %.4fs\n",
+    printf("  compose: sg=%s comm=%s intra=%s, %zu communities, %zu isolated, %.4fs\n",
            s1Name, s2Name,
-           config.composeStage3 == ComposeStage3Intra::BFSFromHub ? "bfs_from_hub" : "rcm",
+           config.intraCommunityOrder == IntraCommunityOrder::BFSFromHub ? "bfs_from_hub" : "rcm",
            static_cast<size_t>(numComm), isolated.size(),
            phaseTimer.Seconds());
 }
@@ -4847,7 +4856,7 @@ void orderHybridLeidenRabbit(
     // Data: results/data/composability_parity_envelope_2026_05_19.md.
     //
     // HRAB is now literally a composition:
-    //     {Stage1=SuperRabbit (or SuperRCM), Stage2=Identity, Stage3=RCM}
+    //     {super-graph=SuperRabbit (or SuperRCM), community=Identity, intra=RCM}
     //     + hubx feature flag (STEP 0)
     //     + hsort feature flag (STEP 5)
     // ================================================================
@@ -5551,7 +5560,7 @@ void orderTileQuantizedRabbit(
     // Data: results/data/composability_parity_envelope_2026_05_19.md.
     //
     // TQR is now literally a composition:
-    //     {Stage1=TileRabbit, Stage2=Identity, Stage3=BFSFromHub}
+    //     {super-graph=TileRabbit, community=Identity, intra=BFSFromHub}
     // ================================================================
 
     // STEP 1: Community count + per-community vertex grouping (preserved;
@@ -5577,7 +5586,7 @@ void orderTileQuantizedRabbit(
     auto commPerm = runTileRabbit<K, NodeID_T, DestID_T>(
         membership, degrees, commVertices, g, N, static_cast<K>(C), sgGammaTqr);
     phaseTimer.Stop();
-    printf("  tqr: stage1=tile_rabbit composed in %.4fs\n", phaseTimer.Seconds());
+    printf("  tqr: super-graph=tile_rabbit composed in %.4fs\n", phaseTimer.Seconds());
 
     // Derive sortedComms / vertexOffsets / commToSortedIdx from commPerm.
     std::vector<K> sortedComms(C);
@@ -7390,24 +7399,33 @@ inline GraphBrewConfig parseGraphBrewConfig(const std::vector<std::string>& opti
         else if (opt == "compose" || opt == "pluggable") {
             config.ordering = OrderingStrategy::COMPOSE;
             config.hasExplicitOrdering = true;
-        } else if (opt == "s2_size" || opt == "s2:size" || opt == "s2size") {
-            config.composeStage2 = ComposeStage2Sort::SizeDesc;
-        } else if (opt == "s2_degree" || opt == "s2:degree" || opt == "s2degree") {
-            config.composeStage2 = ComposeStage2Sort::DegreeDesc;
-        } else if (opt == "s3_bfs" || opt == "s3:bfs" || opt == "s3bfs") {
-            config.composeStage3 = ComposeStage3Intra::BFSFromHub;
-        } else if (opt == "s3_rcm" || opt == "s3:rcm" || opt == "s3rcm") {
-            config.composeStage3 = ComposeStage3Intra::RCM;
-        } else if (opt == "s1_none" || opt == "s1:none" || opt == "s1none") {
-            config.composeStage1 = ComposeStage1Build::None;
-        } else if (opt == "s1_super_rabbit" || opt == "s1:super_rabbit" || opt == "s1srabbit") {
-            config.composeStage1 = ComposeStage1Build::SuperRabbit;
-        } else if (opt == "s1_super_rcm" || opt == "s1:super_rcm" || opt == "s1srcm") {
-            config.composeStage1 = ComposeStage1Build::SuperRCM;
-        } else if (opt == "s1_tile_rabbit" || opt == "s1:tile_rabbit" || opt == "s1tilerabbit") {
-            config.composeStage1 = ComposeStage1Build::TileRabbit;
-        } else if (opt == "s2_identity" || opt == "s2:identity" || opt == "s2identity") {
-            config.composeStage2 = ComposeStage2Sort::Identity;
+        } else if (opt == "s2_size" || opt == "s2:size" || opt == "s2size" ||
+                   opt == "comm_size" || opt == "comm:size" || opt == "commsize") {
+            config.communityOrder = CommunityOrder::SizeDesc;
+        } else if (opt == "s2_degree" || opt == "s2:degree" || opt == "s2degree" ||
+                   opt == "comm_degree" || opt == "comm:degree" || opt == "commdegree") {
+            config.communityOrder = CommunityOrder::DegreeDesc;
+        } else if (opt == "s3_bfs" || opt == "s3:bfs" || opt == "s3bfs" ||
+                   opt == "intra_bfs" || opt == "intra:bfs" || opt == "intrabfs") {
+            config.intraCommunityOrder = IntraCommunityOrder::BFSFromHub;
+        } else if (opt == "s3_rcm" || opt == "s3:rcm" || opt == "s3rcm" ||
+                   opt == "intra_rcm" || opt == "intra:rcm" || opt == "intrarcm") {
+            config.intraCommunityOrder = IntraCommunityOrder::RCM;
+        } else if (opt == "s1_none" || opt == "s1:none" || opt == "s1none" ||
+                   opt == "sg_none" || opt == "sg:none" || opt == "sgnone") {
+            config.superGraphOrder = SuperGraphOrder::None;
+        } else if (opt == "s1_super_rabbit" || opt == "s1:super_rabbit" || opt == "s1srabbit" ||
+                   opt == "sg_super_rabbit" || opt == "sg:super_rabbit" || opt == "sgsrabbit") {
+            config.superGraphOrder = SuperGraphOrder::SuperRabbit;
+        } else if (opt == "s1_super_rcm" || opt == "s1:super_rcm" || opt == "s1srcm" ||
+                   opt == "sg_super_rcm" || opt == "sg:super_rcm" || opt == "sgsrcm") {
+            config.superGraphOrder = SuperGraphOrder::SuperRCM;
+        } else if (opt == "s1_tile_rabbit" || opt == "s1:tile_rabbit" || opt == "s1tilerabbit" ||
+                   opt == "sg_tile_rabbit" || opt == "sg:tile_rabbit" || opt == "sgtilerabbit") {
+            config.superGraphOrder = SuperGraphOrder::TileRabbit;
+        } else if (opt == "s2_identity" || opt == "s2:identity" || opt == "s2identity" ||
+                   opt == "comm_identity" || opt == "comm:identity" || opt == "commidentity") {
+            config.communityOrder = CommunityOrder::Identity;
         }
         // GraphBrew mode: per-community external algorithm dispatch
         // "graphbrew" or "gb" activates LAYER ordering (default final algo = RabbitOrder 8)
