@@ -3245,6 +3245,252 @@ void orderHierarchicalCacheAware(
 }
 
 //=============================================================================
+// SECTION 16-PRIMITIVES: Reusable per-community ordering primitives
+//=============================================================================
+//
+// These free template functions are the per-community building blocks
+// (Stage 2 in the paper's three-stage pipeline).  They operate on a
+// SINGLE community's vertex list and write into a shared `localIds`
+// vector that the caller composes into the final permutation.
+//
+// Design rules so multiple variants can share them safely:
+//   - The function processes ONE community per call; the caller is
+//     responsible for the outer parallel-for across communities.
+//   - The caller pre-populates `vertToLocal[v]` for every v in `verts`
+//     with v's position inside `verts` (so BFS membership lookups stay
+//     O(1) without a per-call hashmap).
+//   - The function writes `localIds[v]` for every v in `verts` and
+//     does not touch any other entries.
+//   - No global allocations; all scratch buffers are reused arguments
+//     so the caller can size them once per thread.
+//
+// Available primitives:
+//   intraBFSFromHub<...>      max-degree-start BFS, neighbour insertion order
+//   intraRCM<...>             BNF pseudo-peripheral start + CM (ascending
+//                             neighbour-degree) BFS + final reversal
+//
+// HRAB's STEP 4 ("intra-community ordering") and the standalone
+// CONNECTIVITY_BFS variant both call these.  TQR's micro-ordering also
+// uses intraBFSFromHub.  Adding a new variant amounts to writing one
+// short function that picks which primitive to call per community.
+
+/**
+ * BFS within a single community from the highest-degree vertex.
+ *
+ * @param verts        vertices in the community
+ * @param c            community ID (for membership[] check)
+ * @param membership   full membership vector
+ * @param degrees      full degree vector (used to pick start vertex)
+ * @param g            original graph (for adjacency)
+ * @param vertToLocal  flat vertex->local-index map (caller-populated)
+ * @param visited      thread-local scratch, sized to verts.size()
+ * @param bfsQueue     thread-local scratch FIFO
+ * @param localIds     output: localIds[v] gets v's position within the community
+ */
+template <typename K, typename NodeID_T, typename DestID_T>
+inline void intraBFSFromHub(
+    const std::vector<K>& verts,
+    K c,
+    const std::vector<K>& membership,
+    const std::vector<K>& degrees,
+    const CSRGraph<NodeID_T, DestID_T, true>& g,
+    const std::vector<size_t>& vertToLocal,
+    std::vector<bool>& visited,
+    std::queue<K>& bfsQueue,
+    std::vector<K>& localIds)
+{
+    const size_t sz = verts.size();
+    if (sz == 0) return;
+    if (sz == 1) { localIds[verts[0]] = 0; return; }
+
+    visited.assign(sz, false);
+
+    // Pick highest-degree vertex as BFS start.
+    K startV = verts[0];
+    K maxDeg = degrees[verts[0]];
+    for (K v : verts) {
+        if (degrees[v] > maxDeg) { maxDeg = degrees[v]; startV = v; }
+    }
+
+    K localId = 0;
+    while (!bfsQueue.empty()) bfsQueue.pop();
+    bfsQueue.push(startV);
+    visited[vertToLocal[startV]] = true;
+
+    while (!bfsQueue.empty()) {
+        K u = bfsQueue.front();
+        bfsQueue.pop();
+        localIds[u] = localId++;
+
+        for (auto neighbor : g.out_neigh(u)) {
+            NodeID_T v;
+            if constexpr (std::is_same_v<DestID_T, NodeID_T>) {
+                v = neighbor;
+            } else {
+                v = neighbor.v;
+            }
+            if (membership[v] != c) continue;
+            size_t localIdx = vertToLocal[static_cast<K>(v)];
+            if (localIdx != static_cast<size_t>(-1) && !visited[localIdx]) {
+                visited[localIdx] = true;
+                bfsQueue.push(static_cast<K>(v));
+            }
+        }
+    }
+
+    // Disconnected vertices get IDs at the end (preserves verts[] order).
+    for (size_t i = 0; i < sz; ++i) {
+        if (!visited[i]) localIds[verts[i]] = localId++;
+    }
+}
+
+/**
+ * Reverse Cuthill-McKee within a single community.
+ *
+ * Tiered pseudoperipheral-start (BNF) cost based on sz:
+ *   sz <= 32       : min-degree start, skip George-Liu iteration
+ *   sz > 32        : up to 3 George-Liu iterations to find a better
+ *                    pseudoperipheral start vertex
+ * Then standard CM-BFS (neighbours sorted by ascending degree) and
+ * final reversal of the connected component.  Disconnected vertices
+ * keep their input order at the tail (not reversed).
+ *
+ * Same argument convention as intraBFSFromHub plus one extra scratch
+ * vector `cmOrder` (sized to verts.size()).
+ */
+template <typename K, typename NodeID_T, typename DestID_T>
+inline void intraRCM(
+    const std::vector<K>& verts,
+    K c,
+    const std::vector<K>& membership,
+    const std::vector<K>& degrees,
+    const CSRGraph<NodeID_T, DestID_T, true>& g,
+    const std::vector<size_t>& vertToLocal,
+    std::vector<bool>& visited,
+    std::queue<K>& bfsQueue,
+    std::vector<K>& cmOrder,
+    std::vector<K>& localIds)
+{
+    const size_t sz = verts.size();
+    if (sz == 0) return;
+    if (sz == 1) { localIds[verts[0]] = 0; return; }
+
+    visited.assign(sz, false);
+    cmOrder.clear();
+    cmOrder.reserve(sz);
+
+    // BNF start: min-degree seed vertex
+    K startV = verts[0];
+    K minDeg = degrees[verts[0]];
+    for (K v : verts) {
+        if (degrees[v] < minDeg) { minDeg = degrees[v]; startV = v; }
+    }
+
+    // George-Liu pseudoperipheral iteration for sz > 32.  Bounded at 3
+    // iterations (cheap heuristic — full GL converges in <10 on most
+    // sub-4096-vertex communities).
+    const int maxGLIter = (sz <= 32) ? 0 : 3;
+    if (maxGLIter > 0) {
+        K glNode = startV;
+        int64_t prevEcc = 0;
+        for (int glIt = 0; glIt < maxGLIter; ++glIt) {
+            visited.assign(sz, false);
+            std::vector<K> curLevel;
+            curLevel.push_back(glNode);
+            int64_t ecc = 0;
+            while (!curLevel.empty()) {
+                std::vector<K> nextLevel;
+                for (K u : curLevel) {
+                    for (auto neighbor : g.out_neigh(u)) {
+                        NodeID_T v;
+                        if constexpr (std::is_same_v<DestID_T, NodeID_T>) {
+                            v = neighbor;
+                        } else {
+                            v = neighbor.v;
+                        }
+                        if (membership[v] != c) continue;
+                        size_t localIdx = vertToLocal[static_cast<K>(v)];
+                        if (localIdx != static_cast<size_t>(-1) && !visited[localIdx]) {
+                            visited[localIdx] = true;
+                            nextLevel.push_back(static_cast<K>(v));
+                        }
+                    }
+                }
+                if (!nextLevel.empty()) {
+                    ecc++;
+                    curLevel = std::move(nextLevel);
+                } else {
+                    break;
+                }
+            }
+            if (ecc <= prevEcc) break;
+            prevEcc = ecc;
+
+            // Pick min-degree vertex in the farthest BFS level
+            K bestV = curLevel[0];
+            K bestDeg = degrees[curLevel[0]];
+            for (size_t i = 1; i < curLevel.size(); ++i) {
+                if (degrees[curLevel[i]] < bestDeg) {
+                    bestDeg = degrees[curLevel[i]];
+                    bestV = curLevel[i];
+                }
+            }
+            glNode = bestV;
+        }
+        startV = glNode;
+    }
+
+    // Cuthill-McKee BFS: enqueue children sorted by ascending degree
+    visited.assign(sz, false);
+    cmOrder.clear();
+    while (!bfsQueue.empty()) bfsQueue.pop();
+    size_t startLocalIdx = vertToLocal[static_cast<K>(startV)];
+    if (startLocalIdx < sz) {
+        bfsQueue.push(startV);
+        visited[startLocalIdx] = true;
+    }
+
+    while (!bfsQueue.empty()) {
+        K u = bfsQueue.front();
+        bfsQueue.pop();
+        cmOrder.push_back(u);
+
+        std::vector<std::pair<K, K>> candidates; // (degree, vertex)
+        for (auto neighbor : g.out_neigh(u)) {
+            NodeID_T v;
+            if constexpr (std::is_same_v<DestID_T, NodeID_T>) {
+                v = neighbor;
+            } else {
+                v = neighbor.v;
+            }
+            if (membership[v] != c) continue;
+            size_t localIdx = vertToLocal[static_cast<K>(v)];
+            if (localIdx != static_cast<size_t>(-1) && !visited[localIdx]) {
+                visited[localIdx] = true;
+                candidates.push_back({degrees[static_cast<K>(v)], static_cast<K>(v)});
+            }
+        }
+        std::sort(candidates.begin(), candidates.end());
+        for (auto& [d, v] : candidates) bfsQueue.push(v);
+    }
+
+    // Disconnected vertices get appended (not reversed)
+    size_t mainSize = cmOrder.size();
+    for (size_t i = 0; i < sz; ++i) {
+        if (!visited[i]) cmOrder.push_back(verts[i]);
+    }
+
+    // Reverse the main connected component (the R in RCM)
+    for (size_t i = 0; i < mainSize; ++i) {
+        localIds[cmOrder[i]] = static_cast<K>(mainSize - 1 - i);
+    }
+    // Disconnected tail
+    for (size_t i = mainSize; i < cmOrder.size(); ++i) {
+        localIds[cmOrder[i]] = static_cast<K>(i);
+    }
+}
+
+//=============================================================================
 // SECTION 16b: ORDERING - CONNECTIVITY-BASED (Boost-style for Leiden)
 //=============================================================================
 
@@ -3334,62 +3580,16 @@ void orderConnectivityBFS(
     {
         std::queue<K> bfsQueue;
         std::vector<bool> visited;
-        
+
         #pragma omp for schedule(dynamic, 1)
         for (size_t ci = 0; ci < numComm; ++ci) {
             K c = commOrder[ci];
-            auto& verts = commVertices[c];
-            if (verts.empty()) continue;
-            
-            visited.assign(verts.size(), false);
-            
-            // Find starting vertex (highest degree in community)
-            K startV = verts[0];
-            K maxDeg = degrees[verts[0]];
-            for (K v : verts) {
-                if (degrees[v] > maxDeg) {
-                    maxDeg = degrees[v];
-                    startV = v;
-                }
-            }
-            
-            // BFS from startV within this community
-            K localId = 0;
-            bfsQueue.push(startV);
-            visited[vertToLocal[startV]] = true;
-            
-            while (!bfsQueue.empty()) {
-                K u = bfsQueue.front();
-                bfsQueue.pop();
-                
-                localIds[u] = localId++;
-                
-                // Add unvisited neighbors that are in same community
-                for (auto neighbor : g.out_neigh(u)) {
-                    NodeID_T v;
-                    if constexpr (std::is_same_v<DestID_T, NodeID_T>) {
-                        v = neighbor;
-                    } else {
-                        v = neighbor.v;
-                    }
-                    
-                    // Check if v is in same community
-                    if (membership[v] != c) continue;
-                    
-                    size_t localIdx = vertToLocal[static_cast<K>(v)];
-                    if (localIdx != static_cast<size_t>(-1) && !visited[localIdx]) {
-                        visited[localIdx] = true;
-                        bfsQueue.push(static_cast<K>(v));
-                    }
-                }
-            }
-            
-            // Handle any disconnected vertices within community
-            for (size_t i = 0; i < verts.size(); ++i) {
-                if (!visited[i]) {
-                    localIds[verts[i]] = localId++;
-                }
-            }
+            // Delegate per-community BFS to the shared primitive
+            // (SECTION 16-PRIMITIVES).  This eliminates a copy of the
+            // BFS-from-max-degree loop that used to live inline here.
+            intraBFSFromHub<K, NodeID_T, DestID_T>(
+                commVertices[c], c, membership, degrees, g,
+                vertToLocal, visited, bfsQueue, localIds);
         }
     }
     
@@ -4599,55 +4799,13 @@ void orderHybridLeidenRabbit(
                 // bandwidth minimization still wins (cit-Patents data).
                 // ----------------------------------------------------------
                 if (sz > 4096) {
-                    visited.assign(sz, false);
-
-                    // Find highest-degree vertex as start (BFS-intra style)
-                    K startV = verts[0];
-                    K maxDeg = degrees[verts[0]];
-                    for (K v : verts) {
-                        if (degrees[v] > maxDeg) {
-                            maxDeg = degrees[v];
-                            startV = v;
-                        }
-                    }
-
-                    // Plain BFS — no neighbor-degree sort, no reversal
-                    K localId = 0;
-                    bfsQueue = std::queue<K>();
-                    size_t startLocalIdx = vertToLocalHrab[static_cast<K>(startV)];
-                    if (startLocalIdx < sz) {
-                        bfsQueue.push(startV);
-                        visited[startLocalIdx] = true;
-                    }
-
-                    while (!bfsQueue.empty()) {
-                        K u = bfsQueue.front();
-                        bfsQueue.pop();
-                        localIds[u] = localId++;
-
-                        for (auto neighbor : g.out_neigh(u)) {
-                            NodeID_T v;
-                            if constexpr (std::is_same_v<DestID_T, NodeID_T>) {
-                                v = neighbor;
-                            } else {
-                                v = neighbor.v;
-                            }
-                            if (membership[v] != c) continue;
-                            size_t localIdx = vertToLocalHrab[static_cast<K>(v)];
-                            if (localIdx != static_cast<size_t>(-1) && !visited[localIdx]) {
-                                visited[localIdx] = true;
-                                bfsQueue.push(static_cast<K>(v));
-                            }
-                        }
-                    }
-
-                    // Handle disconnected vertices
-                    for (size_t i = 0; i < sz; ++i) {
-                        if (!visited[i]) {
-                            localIds[verts[i]] = localId++;
-                        }
-                    }
-
+                    // Composes intraBFSFromHub() from SECTION 16-PRIMITIVES.
+                    // BFS-from-max-degree wins on huge communities: it
+                    // places hubs first, which matters for the working set
+                    // of PR-style power-law access patterns.
+                    intraBFSFromHub<K, NodeID_T, DestID_T>(
+                        verts, c, membership, degrees, g,
+                        vertToLocalHrab, visited, bfsQueue, localIds);
                     rcmLargeCount.fetch_add(1, std::memory_order_relaxed);
                     rcmLargeVerts.fetch_add(sz, std::memory_order_relaxed);
                     continue;
@@ -4814,67 +4972,21 @@ void orderHybridLeidenRabbit(
                rcmLargeCount.load(), rcmLargeVerts.load());
     } else {
         // ============================================================
-        // Standard BFS within each community (default)
-        // Uses pre-built flat vertToLocalHrab[] for O(1) lookup
+        // Standard BFS within each community (default when neither
+        // useGorderIntra nor useRCMIntra is set).  Composes
+        // intraBFSFromHub() from SECTION 16-PRIMITIVES.
         // ============================================================
         #pragma omp parallel
         {
             std::queue<K> bfsQueue;
             std::vector<bool> visited;
-            
+
             #pragma omp for schedule(dynamic, 1)
             for (size_t ci = 0; ci < C; ++ci) {
                 K c = sortedComms[ci];
-                auto& verts = commVertices[c];
-                if (verts.empty()) continue;
-                
-                visited.assign(verts.size(), false);
-                
-                // Find highest-degree vertex as start
-                K startV = verts[0];
-                K maxDeg = degrees[verts[0]];
-                for (K v : verts) {
-                    if (degrees[v] > maxDeg) {
-                        maxDeg = degrees[v];
-                        startV = v;
-                    }
-                }
-                
-                // BFS
-                K localId = 0;
-                bfsQueue.push(startV);
-                visited[vertToLocalHrab[startV]] = true;
-                
-                while (!bfsQueue.empty()) {
-                    K u = bfsQueue.front();
-                    bfsQueue.pop();
-                    
-                    localIds[u] = localId++;
-                    
-                    for (auto neighbor : g.out_neigh(u)) {
-                        NodeID_T v;
-                        if constexpr (std::is_same_v<DestID_T, NodeID_T>) {
-                            v = neighbor;
-                        } else {
-                            v = neighbor.v;
-                        }
-                        
-                        if (membership[v] != c) continue;
-                        
-                        size_t localIdx = vertToLocalHrab[static_cast<K>(v)];
-                        if (localIdx != static_cast<size_t>(-1) && !visited[localIdx]) {
-                            visited[localIdx] = true;
-                            bfsQueue.push(static_cast<K>(v));
-                        }
-                    }
-                }
-                
-                // Handle disconnected vertices
-                for (size_t i = 0; i < verts.size(); ++i) {
-                    if (!visited[i]) {
-                        localIds[verts[i]] = localId++;
-                    }
-                }
+                intraBFSFromHub<K, NodeID_T, DestID_T>(
+                    commVertices[c], c, membership, degrees, g,
+                    vertToLocalHrab, visited, bfsQueue, localIds);
             }
         }
     }
