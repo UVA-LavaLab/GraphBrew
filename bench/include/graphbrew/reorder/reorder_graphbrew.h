@@ -262,7 +262,20 @@ enum class OrderingStrategy {
     HIERARCHICAL_CACHE_AWARE,  ///< Use Leiden hierarchy as dendrogram for cache-aware ordering
     HYBRID_LEIDEN_RABBIT,      ///< Leiden communities + RabbitOrder super-graph ordering (best locality)
     TILE_QUANTIZED_RABBIT,     ///< Tile-quantized graph + RabbitOrder: cache-line-aligned macro-ordering
+    COMPOSE,                   ///< Pluggable: pick Stage 2 (community sort) + Stage 3 (intra primitive)
     LAYER                      ///< GraphBrew mode: apply any algo 0-11 per community (external dispatch)
+};
+
+/** Stage 2 menu for OrderingStrategy::COMPOSE (how to order the communities themselves). */
+enum class ComposeStage2Sort {
+    SizeDesc,    ///< Sort communities by vertex-count descending (large first)
+    DegreeDesc,  ///< Sort communities by total in-community degree descending
+};
+
+/** Stage 3 menu for OrderingStrategy::COMPOSE (how to order vertices within each community). */
+enum class ComposeStage3Intra {
+    BFSFromHub,  ///< intraBFSFromHub<>() primitive (SECTION 16-PRIMITIVES)
+    RCM,         ///< intraRCM<>() primitive (SECTION 16-PRIMITIVES)
 };
 
 /** Community detection mode */
@@ -316,6 +329,10 @@ struct GraphBrewConfig {
     bool useHubSort = false;           ///< Post-process: pack hub vertices contiguously sorted by descending degree (graphbrew:hsort)
     bool useRCMSuper = false;          ///< Use RCM on super-graph instead of RabbitOrder dendrogram DFS (graphbrew:rcm)
     bool useRCMIntra = false;          ///< Use RCM (Cuthill-McKee) within each community instead of BFS (graphbrew:rcm_intra)
+
+    // COMPOSE strategy picks (only used when ordering == OrderingStrategy::COMPOSE)
+    ComposeStage2Sort composeStage2 = ComposeStage2Sort::SizeDesc;
+    ComposeStage3Intra composeStage3 = ComposeStage3Intra::BFSFromHub;
 
     // Super-graph modularity resolution (HRAB / TQR community-level merges)
     //
@@ -3488,6 +3505,136 @@ inline void intraRCM(
     for (size_t i = mainSize; i < cmOrder.size(); ++i) {
         localIds[cmOrder[i]] = static_cast<K>(i);
     }
+}
+
+//=============================================================================
+// SECTION 16-COMPOSE: Pluggable Stage 2 + Stage 3 composition
+//=============================================================================
+//
+// The first variant in this file that is *expressed* as a composition of
+// independent stage picks rather than as a bespoke end-to-end algorithm.
+// HRAB and TQR retain their bespoke pipelines (they each do non-trivial
+// Stage 1 super-graph construction that does not generalise cleanly), but
+// orderCompose<>() demonstrates that for the subset of variants that need
+// no super-graph (CONNECTIVITY_BFS-style), the pipeline genuinely is just:
+//
+//     for each community c in <Stage 2 sort>(communities):
+//         <Stage 3 primitive>(c, ...)
+//
+// Adding a new pick at either stage means adding one enum value + one
+// switch arm; no other code changes.
+//
+// CLI: -o 12:compose            (defaults: s2=size_desc, s3=bfs)
+//      -o 12:compose:s2_degree  (Stage 2 = total-degree desc)
+//      -o 12:compose:s3_rcm     (Stage 3 = intraRCM)
+//      -o 12:compose:s2_degree:s3_rcm
+
+template <typename K, typename NodeID_T, typename DestID_T>
+void orderCompose(
+    pvector<NodeID_T>& newIds,
+    const std::vector<K>& membership,
+    const std::vector<K>& degrees,
+    const CSRGraph<NodeID_T, DestID_T, true>& g,
+    size_t N,
+    const GraphBrewConfig& config)
+{
+    Timer phaseTimer;
+    phaseTimer.Start();
+
+    // Group vertices by community; isolated (zero-degree) vertices go to tail
+    K numComm = 0;
+    for (K c : membership) if (c >= 0 && c + 1 > numComm) numComm = c + 1;
+
+    std::vector<std::vector<K>> commVertices(numComm);
+    std::vector<K> isolated;
+    isolated.reserve(N / 16);
+    for (int64_t v = 0; v < N; ++v) {
+        if (degrees[v] == 0) {
+            isolated.push_back(static_cast<K>(v));
+        } else {
+            commVertices[membership[v]].push_back(static_cast<K>(v));
+        }
+    }
+
+    // -------- Stage 2: community ordering --------
+    std::vector<K> commOrder(numComm);
+    std::iota(commOrder.begin(), commOrder.end(), K(0));
+    if (config.composeStage2 == ComposeStage2Sort::SizeDesc) {
+        std::sort(commOrder.begin(), commOrder.end(), [&](K a, K b) {
+            return commVertices[a].size() > commVertices[b].size();
+        });
+    } else { // DegreeDesc
+        std::vector<size_t> commTotalDeg(numComm, 0);
+        #pragma omp parallel for schedule(dynamic, 256)
+        for (K c = 0; c < numComm; ++c) {
+            size_t s = 0;
+            for (K v : commVertices[c]) s += degrees[v];
+            commTotalDeg[c] = s;
+        }
+        std::sort(commOrder.begin(), commOrder.end(), [&](K a, K b) {
+            return commTotalDeg[a] > commTotalDeg[b];
+        });
+    }
+
+    // Offsets in the sorted community order
+    std::vector<size_t> offsets(numComm + 1, 0);
+    for (size_t i = 0; i < (size_t)numComm; ++i) {
+        offsets[i + 1] = offsets[i] + commVertices[commOrder[i]].size();
+    }
+
+    // Flat global vertex -> local-index map (caller-owned for the primitives)
+    std::vector<size_t> vertToLocal(N, static_cast<size_t>(-1));
+    for (size_t i = 0; i < (size_t)numComm; ++i) {
+        const auto& verts = commVertices[commOrder[i]];
+        for (size_t j = 0; j < verts.size(); ++j) {
+            vertToLocal[verts[j]] = j;
+        }
+    }
+
+    // -------- Stage 3: per-community ordering via shared primitives --------
+    std::vector<K> localIds(N, 0);
+    #pragma omp parallel
+    {
+        std::queue<K> bfsQueue;
+        std::vector<bool> visited;
+        std::vector<K> cmOrder;  // only used by RCM
+
+        #pragma omp for schedule(dynamic, 1)
+        for (size_t i = 0; i < (size_t)numComm; ++i) {
+            K c = commOrder[i];
+            if (config.composeStage3 == ComposeStage3Intra::BFSFromHub) {
+                intraBFSFromHub<K, NodeID_T, DestID_T>(
+                    commVertices[c], c, membership, degrees, g,
+                    vertToLocal, visited, bfsQueue, localIds);
+            } else { // RCM
+                intraRCM<K, NodeID_T, DestID_T>(
+                    commVertices[c], c, membership, degrees, g,
+                    vertToLocal, visited, bfsQueue, cmOrder, localIds);
+            }
+        }
+    }
+
+    // Compose final newIds = community-offset + local id within community
+    #pragma omp parallel for schedule(dynamic, 1)
+    for (size_t i = 0; i < (size_t)numComm; ++i) {
+        size_t base = offsets[i];
+        for (K v : commVertices[commOrder[i]]) {
+            newIds[v] = static_cast<NodeID_T>(base + localIds[v]);
+        }
+    }
+
+    // Isolated vertices appended in their natural order
+    size_t tail = offsets[numComm];
+    for (size_t i = 0; i < isolated.size(); ++i) {
+        newIds[isolated[i]] = static_cast<NodeID_T>(tail + i);
+    }
+
+    phaseTimer.Stop();
+    printf("  compose: s2=%s s3=%s, %zu communities, %zu isolated, %.4fs\n",
+           config.composeStage2 == ComposeStage2Sort::SizeDesc ? "size_desc" : "degree_desc",
+           config.composeStage3 == ComposeStage3Intra::BFSFromHub ? "bfs_from_hub" : "rcm",
+           static_cast<size_t>(numComm), isolated.size(),
+           phaseTimer.Seconds());
 }
 
 //=============================================================================
@@ -7391,6 +7538,9 @@ void applyOrderingStrategy(
         case OrderingStrategy::TILE_QUANTIZED_RABBIT:
             orderTileQuantizedRabbit<K, NodeID_T, DestID_T>(newIds, result.membership, degrees, g, N, config);
             break;
+        case OrderingStrategy::COMPOSE:
+            orderCompose<K, NodeID_T, DestID_T>(newIds, result.membership, degrees, g, N, config);
+            break;
         case OrderingStrategy::LAYER:
             printf("GraphBrew: GraphBrew mode - ordering deferred to external dispatch\n");
             orderConnectivityBFS<K, NodeID_T, DestID_T>(newIds, result.membership, degrees, g, N, config);
@@ -7528,6 +7678,7 @@ void generateGraphBrewMapping(
         config.ordering == OrderingStrategy::HIERARCHICAL_CACHE_AWARE ? "hcache" :
         config.ordering == OrderingStrategy::HYBRID_LEIDEN_RABBIT ? "hybrid-rabbit" :
         config.ordering == OrderingStrategy::TILE_QUANTIZED_RABBIT ? "tile-quantized-rabbit" :
+        config.ordering == OrderingStrategy::COMPOSE ? "compose" :
         config.ordering == OrderingStrategy::LAYER ? "graphbrew" : "unknown";
     
     printf("GraphBrew: aggregation=%s, ordering=%s, refinement=%s (depth=%d)%s%s\n",
@@ -7734,6 +7885,19 @@ inline GraphBrewConfig parseGraphBrewConfig(const std::vector<std::string>& opti
         } else if (opt == "tqr" || opt == "tile-quantized" || opt == "tilequantized" || opt == "tilerabbit") {
             config.ordering = OrderingStrategy::TILE_QUANTIZED_RABBIT;
             config.hasExplicitOrdering = true;
+        }
+        // COMPOSE strategy + Stage 2/Stage 3 picks (SECTION 16-COMPOSE)
+        else if (opt == "compose" || opt == "pluggable") {
+            config.ordering = OrderingStrategy::COMPOSE;
+            config.hasExplicitOrdering = true;
+        } else if (opt == "s2_size" || opt == "s2:size" || opt == "s2size") {
+            config.composeStage2 = ComposeStage2Sort::SizeDesc;
+        } else if (opt == "s2_degree" || opt == "s2:degree" || opt == "s2degree") {
+            config.composeStage2 = ComposeStage2Sort::DegreeDesc;
+        } else if (opt == "s3_bfs" || opt == "s3:bfs" || opt == "s3bfs") {
+            config.composeStage3 = ComposeStage3Intra::BFSFromHub;
+        } else if (opt == "s3_rcm" || opt == "s3:rcm" || opt == "s3rcm") {
+            config.composeStage3 = ComposeStage3Intra::RCM;
         }
         // GraphBrew mode: per-community external algorithm dispatch
         // "graphbrew" or "gb" activates LAYER ordering (default final algo = RabbitOrder 8)
