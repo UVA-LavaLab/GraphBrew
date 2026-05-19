@@ -284,6 +284,7 @@ enum class ComposeStage1Build {
     None,         ///< Identity permutation; Stage 2 sorts from scratch
     SuperRabbit,  ///< Build community super-graph, run RabbitOrder (HRAB's Stage 1)
     SuperRCM,     ///< Build community super-graph, run BNF+George-Liu+RCM
+    TileRabbit,   ///< 2-level: tile-RabbitOrder + community-RabbitOrder (TQR's Stage 1)
 };
 
 /** Community detection mode */
@@ -4024,6 +4025,386 @@ std::vector<K> runRCMOnSuperCSR(
     return commPerm;
 }
 
+/**
+ * Choose tile parameters for tile-quantised Stage 1.  Matches TQR STEP 0
+ * verbatim:
+ *
+ *   tileSz = clamp(512 / log2(avgDeg+2), 32, 512)
+ *   numTiles = ceil(N / tileSz)
+ *   numTiles capped at 65536
+ *
+ * @return pair (tileSz, numTiles)
+ */
+inline std::pair<size_t, size_t> chooseTileParams(size_t N, double avgDeg)
+{
+    const double logFactor = std::log2(avgDeg + 2.0);
+    size_t targetTileSz = static_cast<size_t>(512.0 / logFactor);
+    targetTileSz = std::max(size_t(32), std::min(size_t(512), targetTileSz));
+
+    size_t numTiles = std::max(size_t(256), (N + targetTileSz - 1) / targetTileSz);
+    const size_t MAX_TILES = 65536;
+    if (numTiles > MAX_TILES) numTiles = MAX_TILES;
+
+    size_t tileSz = (N + numTiles - 1) / numTiles;
+    if (tileSz < 16) {
+        tileSz = 16;
+        numTiles = (N + tileSz - 1) / tileSz;
+    }
+    return {tileSz, numTiles};
+}
+
+/**
+ * Run RabbitOrder on a tile super-graph (standard ΔQ, no gamma scaling).
+ *
+ * Faithful extraction of TQR STEP 3 + STEP 4.  Differs from
+ * runRabbitOnSuperCSR<>() in three ways:
+ *
+ *   1. Modularity formula: `ΔQ = w_uv / (2M) - str_u * str_v / (4M²)`
+ *      (standard Rabbit Order, NOT γ-scaled).  Tiles are not Leiden
+ *      communities so γ tuning does not apply.
+ *   2. Two-phase retry (parallel + serial) instead of inline pending
+ *      queue.
+ *   3. Toplevel collected inline via `#pragma omp critical` instead of
+ *      per-thread join.
+ *
+ * Empty-tile detection uses `tileStartVertexBeyondN` instead of vertex
+ * count (the last tile may be partially populated when N % tileSz != 0).
+ *
+ * @return pair (tilePerm, tileBlockId).  tilePerm[t] = position of tile
+ *         t in the final ordering.  tileBlockId[t] = root of t in the
+ *         RabbitOrder dendrogram (used by Stage 1 orchestrator).
+ */
+template <typename K>
+std::pair<std::vector<K>, std::vector<K>> runRabbitOnTileGraph(
+    CommunitySuperGraph<K> tileSG,                  // taken by value
+    size_t tileSz,
+    size_t N)
+{
+    const size_t numTiles = tileSG.edges.size();
+    constexpr K INVALID = static_cast<K>(-1);
+
+    std::vector<RabbitAtom> atom(numTiles);
+    std::vector<RabbitVertex<K>> vtx(numTiles);
+    std::vector<K> dest(numTiles);
+    std::vector<K> tileSibling(numTiles, INVALID);
+    std::vector<K> toplevel;
+    toplevel.reserve(numTiles / 10);
+
+    #pragma omp parallel for
+    for (size_t t = 0; t < numTiles; ++t) {
+        atom[t].init(tileSG.degrees[t]);
+        dest[t] = static_cast<K>(t);
+    }
+
+    // Build symmetric edge lists from upper-triangular tileSG.edges
+    for (K c = 0; c < (K)numTiles; ++c) {
+        for (auto& [d, w] : tileSG.edges[c]) {
+            vtx[c].edges.emplace_back(d, w);
+            if (d != c) vtx[d].edges.emplace_back(c, w);
+        }
+    }
+
+    std::vector<K> tileOrder(numTiles);
+    std::iota(tileOrder.begin(), tileOrder.end(), K(0));
+    std::sort(tileOrder.begin(), tileOrder.end(),
+        [&](K a, K b) { return tileSG.degrees[a] < tileSG.degrees[b]; });
+
+    const int numThreads = omp_get_max_threads();
+    std::vector<CommunityScanner<K, float>> scanners;
+    for (int t = 0; t < numThreads; ++t) scanners.emplace_back(numTiles);
+    std::vector<std::vector<K>> retryQueues(numThreads);
+
+    auto findDest = [&](K v) -> K {
+        K d = dest[v];
+        while (dest[d] != d) {
+            K dd = dest[d];
+            dest[v] = dd;
+            d = dd;
+        }
+        return d;
+    };
+
+    auto unite = [&](K u, CommunityScanner<K, float>& scanner) -> void {
+        auto& vu = vtx[u];
+        scanner.clear();
+        for (auto& [d, w] : vu.edges) {
+            K root = findDest(d);
+            if (root != u) scanner.add(root, w);
+        }
+        auto [_, first_child] = atom[u].load();
+        K uc = vu.united_child;
+        std::vector<K> childStack;
+        if (first_child != uc && first_child != INVALID) childStack.push_back(first_child);
+        while (!childStack.empty()) {
+            K c = childStack.back();
+            childStack.pop_back();
+            if (c == uc || c == INVALID) continue;
+            auto& vc = vtx[c];
+            for (auto& [d, w] : vc.edges) {
+                K root = findDest(d);
+                if (root != u) scanner.add(root, w);
+            }
+            if (tileSibling[c] != uc && tileSibling[c] != INVALID) childStack.push_back(tileSibling[c]);
+            auto [__, child_first] = atom[c].load();
+            if (child_first != vc.united_child && child_first != INVALID)
+                childStack.push_back(child_first);
+            vc.united_child = child_first;
+        }
+        vu.edges.clear();
+        for (K d : scanner.keys) vu.edges.emplace_back(d, scanner.get(d));
+        vu.united_child = first_child;
+    };
+
+    std::atomic<size_t> numToplevel(0);
+    const float inv2M = (tileSG.M > 0.0f) ? 1.0f / (2.0f * tileSG.M) : 0.0f;
+    const float inv4M2 = inv2M * inv2M;
+
+    #pragma omp parallel
+    {
+        int tid = omp_get_thread_num();
+        auto& scanner = scanners[tid];
+        auto& retryQueue = retryQueues[tid];
+
+        #pragma omp for schedule(static, 1)
+        for (size_t i = 0; i < numTiles; ++i) {
+            K u = tileOrder[i];
+            if (tileSG.degrees[u] == 0.0f) {
+                #pragma omp critical
+                toplevel.push_back(u);
+                numToplevel++;
+                continue;
+            }
+            float str_u = atom[u].invalidate();
+            if (str_u == RabbitAtom::INVALID_STR) continue;
+            unite(u, scanner);
+            K bestDest = INVALID;
+            float bestDeltaQ = 0.0f;
+            for (K d : scanner.keys) {
+                float w_ud = scanner.get(d);
+                auto [str_d, _] = atom[d].load();
+                if (str_d == RabbitAtom::INVALID_STR) continue;
+                float dq = w_ud * inv2M - str_u * str_d * inv4M2;
+                if (dq > bestDeltaQ) { bestDeltaQ = dq; bestDest = d; }
+            }
+            if (bestDest == INVALID || bestDeltaQ <= 0.0f) {
+                atom[u].restore(str_u);
+                #pragma omp critical
+                toplevel.push_back(u);
+                numToplevel++;
+                continue;
+            }
+            auto [str_v, child_v] = atom[bestDest].load();
+            if (str_v == RabbitAtom::INVALID_STR) {
+                atom[u].restore(str_u);
+                retryQueue.push_back(u);
+                continue;
+            }
+            tileSibling[u] = child_v;
+            float new_str = str_v + str_u;
+            if (atom[bestDest].tryMerge(str_v, child_v, new_str, static_cast<uint32_t>(u))) {
+                dest[u] = bestDest;
+            } else {
+                tileSibling[u] = INVALID;
+                atom[u].restore(str_u);
+                retryQueue.push_back(u);
+            }
+        }
+    }
+
+    // Serial retry pass
+    for (int t = 0; t < numThreads; ++t) {
+        auto& scanner = scanners[t];
+        for (K u : retryQueues[t]) {
+            float str_u = atom[u].invalidate();
+            if (str_u == RabbitAtom::INVALID_STR) continue;
+            unite(u, scanner);
+            K bestDest = INVALID;
+            float bestDeltaQ = 0.0f;
+            for (K d : scanner.keys) {
+                float w_ud = scanner.get(d);
+                auto [str_d, _] = atom[d].load();
+                if (str_d == RabbitAtom::INVALID_STR) continue;
+                float dq = w_ud * inv2M - str_u * str_d * inv4M2;
+                if (dq > bestDeltaQ) { bestDeltaQ = dq; bestDest = d; }
+            }
+            if (bestDest == INVALID || bestDeltaQ <= 0.0f) {
+                atom[u].restore(str_u);
+                toplevel.push_back(u);
+                numToplevel++;
+                continue;
+            }
+            auto [str_v, child_v] = atom[bestDest].load();
+            tileSibling[u] = child_v;
+            atom[bestDest].packed.store(
+                RabbitAtom::pack(str_v + str_u, static_cast<uint32_t>(u)),
+                std::memory_order_release);
+            dest[u] = bestDest;
+        }
+    }
+
+    printf("  stage1-tile-rabbit: %zu tile-blocks (from %zu tiles)\n",
+           numToplevel.load(), numTiles);
+
+    // Find roots and separate active vs empty (matches TQR STEP 4)
+    std::vector<K> allRoots;
+    for (size_t t = 0; t < numTiles; ++t) {
+        K root = dest[t];
+        while (dest[root] != root) root = dest[root];
+        if (root == static_cast<K>(t)) allRoots.push_back(static_cast<K>(t));
+    }
+    std::vector<K> activeTop, emptyTop;
+    for (K root : allRoots) {
+        size_t tileStart = static_cast<size_t>(root) * tileSz;
+        if (tileStart >= N && tileSG.degrees[root] == 0.0f) emptyTop.push_back(root);
+        else activeTop.push_back(root);
+    }
+    std::sort(activeTop.begin(), activeTop.end());
+    std::sort(emptyTop.begin(), emptyTop.end());
+    toplevel.clear();
+    toplevel.insert(toplevel.end(), activeTop.begin(), activeTop.end());
+    toplevel.insert(toplevel.end(), emptyTop.begin(), emptyTop.end());
+
+    // Dendrogram DFS → tilePerm
+    std::vector<K> tilePerm(numTiles, static_cast<K>(-1));
+    K nextTileId = 0;
+    for (K root : toplevel) {
+        std::deque<K> stack;
+        rabbitDescendants(atom, root, stack);
+        while (!stack.empty()) {
+            K t = stack.back();
+            stack.pop_back();
+            if (tilePerm[t] != static_cast<K>(-1)) continue;
+            tilePerm[t] = nextTileId++;
+            if (tileSibling[t] != INVALID) rabbitDescendants(atom, tileSibling[t], stack);
+        }
+    }
+    for (size_t t = 0; t < numTiles; ++t) {
+        if (tilePerm[t] == static_cast<K>(-1)) tilePerm[t] = nextTileId++;
+    }
+
+    // tileBlockId[t] = root of t (path-compressed)
+    std::vector<K> tileBlockId(numTiles, 0);
+    for (size_t t = 0; t < numTiles; ++t) {
+        K root = dest[t];
+        while (dest[root] != root) root = dest[root];
+        tileBlockId[t] = root;
+    }
+
+    return {std::move(tilePerm), std::move(tileBlockId)};
+}
+
+/**
+ * Stage 1: tile_rabbit — TQR's full 2-level (tile + community) Stage 1
+ * expressed as a single function.  Output is a community permutation.
+ *
+ * Faithful composition of TQR STEPs 0–4 + 5a–5e:
+ *   1. Choose tile parameters via chooseTileParams().
+ *   2. Build tile super-graph via buildCommunitySuperGraph()
+ *      (vertex's "community" = its tile).
+ *   3. Run RabbitOrder on tiles via runRabbitOnTileGraph() (standard ΔQ).
+ *   4. Assign each Leiden community a center tile (majority-vertex tile).
+ *   5. Build community super-graph via buildCommunitySuperGraph()
+ *      (the real one this time).
+ *   6. Run RabbitOrder on community super-graph via runRabbitOnSuperCSR()
+ *      (γ-scaled ΔQ — matches TQR's STEP 5c which already shares
+ *      criterion with HRAB STEP 2).
+ *   7. Composite sort by (tilePerm[centerTile[c]], commPermRO[c]).
+ *
+ * @return commPerm of size C; commPerm[c] = position of community c.
+ */
+template <typename K, typename NodeID_T, typename DestID_T>
+std::vector<K> runTileRabbit(
+    const std::vector<K>& membership,
+    const std::vector<K>& degrees,
+    const std::vector<std::vector<K>>& commVertices,
+    const CSRGraph<NodeID_T, DestID_T, true>& g,
+    size_t N,
+    K C,
+    float gamma)
+{
+    // Average degree → tile params
+    size_t totalEdges = 0;
+    size_t numActive = 0;
+    for (size_t v = 0; v < N; ++v) {
+        if (degrees[v] > 0) { totalEdges += degrees[v]; numActive++; }
+    }
+    double avgDeg = numActive > 0 ? static_cast<double>(totalEdges) / numActive : 1.0;
+    auto [tileSz, numTiles] = chooseTileParams(N, avgDeg);
+
+    printf("  stage1-tile-rabbit: N=%zu avgDeg=%.1f tileSz=%zu numTiles=%zu\n",
+           N, avgDeg, tileSz, numTiles);
+
+    // Precompute per-vertex "tile membership" so we can reuse the
+    // existing super-graph builder.
+    std::vector<K> tileMembership(N);
+    auto tileOf = [tileSz](size_t v) -> K { return static_cast<K>(v / tileSz); };
+    #pragma omp parallel for schedule(static)
+    for (size_t v = 0; v < N; ++v) tileMembership[v] = tileOf(v);
+
+    // Skip isolated vertices via the hub-mask channel of buildCommunitySuperGraph
+    std::vector<bool> isolatedMask(N, false);
+    for (size_t v = 0; v < N; ++v) if (degrees[v] == 0) isolatedMask[v] = true;
+
+    // Tile super-graph (uses tile membership; isolated vertices excluded)
+    auto tileSG = buildCommunitySuperGraph<K, NodeID_T, DestID_T>(
+        tileMembership, degrees, isolatedMask, g, N, static_cast<K>(numTiles));
+    tileMembership.clear(); tileMembership.shrink_to_fit();
+
+    // Tile-level RabbitOrder → (tilePerm, tileBlockId)
+    auto [tilePerm, tileBlockId] = runRabbitOnTileGraph<K>(std::move(tileSG), tileSz, N);
+
+    // Assign each community its center tile (majority of vertices)
+    std::vector<K> commCenterTile(C, 0);
+    #pragma omp parallel for schedule(dynamic, 64)
+    for (K c = 0; c < C; ++c) {
+        const auto& verts = commVertices[c];
+        if (verts.empty()) { commCenterTile[c] = 0; continue; }
+        struct TileCount { K tile; size_t count; };
+        std::vector<TileCount> tileCounts;
+        tileCounts.reserve(8);
+        for (K v : verts) {
+            K t = tileOf(v);
+            bool found = false;
+            for (auto& tc : tileCounts) {
+                if (tc.tile == t) { tc.count++; found = true; break; }
+            }
+            if (!found) tileCounts.push_back({t, 1});
+        }
+        K bestTile = tileCounts[0].tile;
+        size_t bestCount = tileCounts[0].count;
+        for (size_t i = 1; i < tileCounts.size(); ++i) {
+            if (tileCounts[i].count > bestCount) {
+                bestCount = tileCounts[i].count;
+                bestTile = tileCounts[i].tile;
+            }
+        }
+        commCenterTile[c] = bestTile;
+    }
+
+    // Community super-graph + RabbitOrder (γ-scaled, reused primitives)
+    auto commSG = buildCommunitySuperGraph<K, NodeID_T, DestID_T>(
+        membership, degrees, /*vertexIsHub*/{}, g, N, C);
+    std::vector<size_t> numVertsPerComm(C, 0);
+    for (K c = 0; c < C; ++c) numVertsPerComm[c] = commVertices[c].size();
+    auto commPermRO = runRabbitOnSuperCSR<K>(std::move(commSG), numVertsPerComm, gamma);
+
+    // Composite sort: primary = tilePerm[centerTile], secondary = commPermRO
+    std::vector<K> sortedComms(C);
+    std::iota(sortedComms.begin(), sortedComms.end(), K(0));
+    std::sort(sortedComms.begin(), sortedComms.end(),
+        [&](K a, K b) {
+            K permA = tilePerm[commCenterTile[a]];
+            K permB = tilePerm[commCenterTile[b]];
+            if (permA != permB) return permA < permB;
+            return commPermRO[a] < commPermRO[b];
+        });
+
+    // commPerm[c] = position of community c in sortedComms
+    std::vector<K> commPerm(C);
+    for (K i = 0; i < C; ++i) commPerm[sortedComms[i]] = i;
+    return commPerm;
+}
+
 //=============================================================================
 // SECTION 16-COMPOSE: Pluggable Stage 2 + Stage 3 composition
 //=============================================================================
@@ -4086,17 +4467,22 @@ void orderCompose(
         std::vector<size_t> numVertsPerComm(numComm, 0);
         for (K c = 0; c < numComm; ++c) numVertsPerComm[c] = commVertices[c].size();
 
-        // Build super-graph (no hub mask in compose; hubx is HRAB-specific)
         std::vector<K> vertDegreesView(degrees.begin(), degrees.end());
-        auto sg = buildCommunitySuperGraph<K, NodeID_T, DestID_T>(
-            membership, vertDegreesView, /*vertexIsHub*/{}, g, N, numComm);
 
         if (config.composeStage1 == ComposeStage1Build::SuperRabbit) {
+            auto sg = buildCommunitySuperGraph<K, NodeID_T, DestID_T>(
+                membership, vertDegreesView, /*vertexIsHub*/{}, g, N, numComm);
             stage1Perm = runRabbitOnSuperCSR<K>(
                 std::move(sg), numVertsPerComm,
                 static_cast<float>(config.superGraphResolution));
-        } else { // SuperRCM
+        } else if (config.composeStage1 == ComposeStage1Build::SuperRCM) {
+            auto sg = buildCommunitySuperGraph<K, NodeID_T, DestID_T>(
+                membership, vertDegreesView, /*vertexIsHub*/{}, g, N, numComm);
             stage1Perm = runRCMOnSuperCSR<K>(sg, numVertsPerComm);
+        } else { // TileRabbit — builds both tile and community super-graphs internally
+            stage1Perm = runTileRabbit<K, NodeID_T, DestID_T>(
+                membership, vertDegreesView, commVertices, g, N, numComm,
+                static_cast<float>(config.superGraphResolution));
         }
         // Order commOrder by Stage 1 permutation (lowest perm first)
         std::sort(commOrder.begin(), commOrder.end(),
@@ -4179,7 +4565,8 @@ void orderCompose(
     const char* s1Name =
         config.composeStage1 == ComposeStage1Build::None ? "none" :
         config.composeStage1 == ComposeStage1Build::SuperRabbit ? "super_rabbit" :
-        "super_rcm";
+        config.composeStage1 == ComposeStage1Build::SuperRCM ? "super_rcm" :
+        "tile_rabbit";
     const char* s2Name =
         config.composeStage2 == ComposeStage2Sort::SizeDesc ? "size_desc" :
         config.composeStage2 == ComposeStage2Sort::DegreeDesc ? "degree_desc" :
@@ -8458,6 +8845,8 @@ inline GraphBrewConfig parseGraphBrewConfig(const std::vector<std::string>& opti
             config.composeStage1 = ComposeStage1Build::SuperRabbit;
         } else if (opt == "s1_super_rcm" || opt == "s1:super_rcm" || opt == "s1srcm") {
             config.composeStage1 = ComposeStage1Build::SuperRCM;
+        } else if (opt == "s1_tile_rabbit" || opt == "s1:tile_rabbit" || opt == "s1tilerabbit") {
+            config.composeStage1 = ComposeStage1Build::TileRabbit;
         } else if (opt == "s2_identity" || opt == "s2:identity" || opt == "s2identity") {
             config.composeStage2 = ComposeStage2Sort::Identity;
         }
