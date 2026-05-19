@@ -143,7 +143,7 @@ reorder/
 | `GraphBrewConfig` | `reorder_graphbrew.h` | algorithm, ordering, aggregation, resolution, finalAlgoId, recursiveDepth, subAlgoId |
 | `ReorderConfig` | `reorder_types.h` | Unified config: resolutionMode(AUTO), tolerance(1e-2), maxIterations(10), maxPasses(10), ordering(HIERARCHICAL) |
 
-All configs parse from CLI options via `FromOptions()`. Defaults are centralized constants in `reorder_types.h` (see [[AdaptiveOrder-ML#command-line-format]]).
+All configs parse from CLI options via `FromOptions()`. Defaults are centralized constants in `reorder_types.h` (see [[AdaptiveOrder-ML]]).
 
 > Note: use `graphbrew::leiden::DEFAULT_RESOLUTION` or
 > `adaptive::DEFAULT_RESOLUTION` explicitly — they are separate namespaces.
@@ -373,7 +373,7 @@ raw benchmark data at C++ runtime, with no pre-trained weight files needed.
 
 **Variant Registry:** `_VARIANT_ALGO_REGISTRY` maps algo IDs 8, 11, 12 to `(prefix, variants, default)` tuples. GOrder variants (9: default/csr/fast) are tracked separately in `GORDER_VARIANTS` but share a single perceptron weight (they produce equivalent orderings).
 
-See [[Python-Scripts#unified-algorithm-naming-scriptslibutilspy]].
+See [[Python-Scripts]].
 
 ---
 

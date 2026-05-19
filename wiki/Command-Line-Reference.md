@@ -320,7 +320,7 @@ See `GRAPHBREW_LAYERS` in `scripts/lib/core/utils.py` for the full definition.
 ```bash
 ./bench/bin/converter -f graph.el -s -o 2 -o 8:csr -b graph.sg  # SORT then RABBITORDER
 ```
-See [[Reordering-Algorithms#chained-orderings-multi-pass]] for all defined chains.
+See [[Reordering-Algorithms#chained-orderings]] for all defined chains.
 
 **Auto-Resolution:** Automatically computed based on graph's coefficient of variation (CV):
 - High-CV graphs (social/web): resolution ≈ 0.50 (coarser communities, better locality)
@@ -502,7 +502,7 @@ export PERCEPTRON_WEIGHTS_FILE=/path/to/weights.json
 ./bench/bin/pr -f graph.el -s -o 14 -n 3
 ```
 
-**Note:** If not set, AdaptiveOrder loads weights from `adaptive_models.json` via the DB hook (see [[AdaptiveOrder-ML#weight-file-location]]).
+**Note:** If not set, AdaptiveOrder loads weights from `adaptive_models.json` via the DB hook (see [[AdaptiveOrder-ML#where-the-models-live]]).
 
 ### NUMA Binding
 
@@ -654,7 +654,7 @@ python3 scripts/graphbrew_experiment.py --evaluate             # Model × Criter
 
 ### eval_weights
 
-Trains weights and simulates C++ scoring to report accuracy/regret. See [[Python-Scripts#-weight-evaluation---eval-weights]].
+Trains weights and simulates C++ scoring to report accuracy/regret. See [[Python-Scripts#weight-evaluation---eval-weights]].
 
 ```bash
 python3 scripts/graphbrew_experiment.py --eval-weights  # No arguments needed
