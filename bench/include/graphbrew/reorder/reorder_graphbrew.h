@@ -261,6 +261,7 @@ enum class OrderingStrategy {
     CORDER_GLOBAL,   ///< Corder across all vertices (post-clustering)
     HIERARCHICAL_CACHE_AWARE,  ///< Use Leiden hierarchy as dendrogram for cache-aware ordering
     HYBRID_LEIDEN_RABBIT,      ///< Leiden communities + RabbitOrder super-graph ordering (best locality)
+    HIERARCHICAL_LEIDEN_RABBIT,///< Run RabbitOrder at EVERY Leiden dendrogram level (multi-level super-graph ordering)
     TILE_QUANTIZED_RABBIT,     ///< Tile-quantized graph + RabbitOrder: cache-line-aligned macro-ordering
     COMPOSE,                   ///< Pluggable: pick {super-graph order} + {community order} + {intra-community order}
     LAYER                      ///< GraphBrew mode: apply any algo 0-11 per community (external dispatch)
@@ -5491,6 +5492,197 @@ void orderHybridLeidenRabbit(
 }
 
 //=============================================================================
+// SECTION 16b-HIER: HIERARCHICAL LEIDEN + RABBIT (HLR)
+//=============================================================================
+
+/**
+ * @brief Hierarchical Leiden + RabbitOrder reordering (graphbrew:hlr).
+ *
+ * Generalises HRAB by running the gamma-tuned super-graph RabbitOrder primitive
+ * at EVERY level of the Leiden dendrogram, not just the finest.  HRAB uses
+ * the final (coarsest-aggregation) membership only; HLR consumes the full
+ * vector membershipPerPass[0..L-1] and emits a permutation whose locality is
+ * fractal: vertices in the same coarsest community are contiguous; within
+ * each coarsest community, vertices in the same finer community are
+ * contiguous; ...; within each finest community, vertices retain their
+ * original index order (a future pass may add intra-community BFS-from-hub).
+ *
+ * Algorithm (L = membershipPerPass.size(), gamma = config.superGraphResolution):
+ *   for k = 0 .. L-1:
+ *     C_k          = max(membershipPerPass[k]) + 1
+ *     sg_k         = buildCommunitySuperGraph(membershipPerPass[k], degrees, ..., C_k)
+ *     levelPerm[k] = runRabbitOnSuperCSR(sg_k, ..., gamma)
+ *   sort vertices v by tuple ( levelPerm[L-1][mpp[L-1][v]], ..., levelPerm[0][mpp[0][v]], v )
+ *
+ * Falls back to orderHybridLeidenRabbit when no multi-level hierarchy is
+ * available (membershipPerPass empty or only one level).
+ */
+template <typename K, typename NodeID_T, typename DestID_T>
+void orderHierarchicalLeidenRabbit(
+    pvector<NodeID_T>& newIds,
+    const GraphBrewResult<K>& result,
+    const std::vector<K>& degrees,
+    const CSRGraph<NodeID_T, DestID_T, true>& g,
+    size_t N,
+    const GraphBrewConfig& config)
+{
+    GRAPHBREW_TRACE("orderHierarchicalLeidenRabbit: N=%zu, passes=%zu",
+                    N, result.membershipPerPass.size());
+    const auto& mpp = result.membershipPerPass;
+    const size_t L = mpp.size();
+
+    if (L <= 1) {
+        printf("  hier-rabbit: only %zu Leiden pass(es); delegating to HRAB.\n", L);
+        orderHybridLeidenRabbit<K, NodeID_T, DestID_T>(
+            newIds, result.membership, degrees, g, N, config);
+        return;
+    }
+
+    const float gamma = static_cast<float>(config.superGraphResolution);
+    std::vector<bool> emptyHubMask;  // no hub extraction in HLR (could be added later)
+
+    std::vector<K> levelC(L, 0);
+    std::vector<double> levelM(L, 0.0);
+    std::vector<std::vector<K>> levelPerm(L);
+
+    for (size_t k = 0; k < L; ++k) {
+        K C_k = 0;
+        for (size_t v = 0; v < N; ++v) {
+            if (static_cast<K>(mpp[k][v] + 1) > C_k) C_k = static_cast<K>(mpp[k][v] + 1);
+        }
+        levelC[k] = C_k;
+
+        if (C_k <= 1) {
+            levelPerm[k].assign(C_k, K(0));
+            printf("  hier-rabbit: level %zu: C=%u (trivial, skipped)\n", k, (unsigned)C_k);
+            continue;
+        }
+
+        auto sg = buildCommunitySuperGraph<K, NodeID_T, DestID_T>(
+            mpp[k], degrees, emptyHubMask, g, N, C_k);
+
+        std::vector<size_t> numVertsPerComm(C_k, 0);
+        for (size_t v = 0; v < N; ++v) numVertsPerComm[mpp[k][v]]++;
+
+        levelM[k] = static_cast<double>(sg.M);
+        printf("  hier-rabbit: level %zu: C=%u, M_sg=%.0f, gamma=%.3f\n",
+               k, (unsigned)C_k, sg.M, gamma);
+
+        levelPerm[k] = runRabbitOnSuperCSR<K>(std::move(sg), numVertsPerComm, gamma);
+    }
+
+    // ---- Hierarchy-depth + super-graph-density heuristic ----
+    // We keep a level only if (1) it produces a strictly new partition
+    // (collapsed level check: C_k != C_{lastKept}) AND (2) the super-graph
+    // at that level is dense enough for the gamma-Rabbit merge criterion to
+    // yield meaningful merges.  Empirically (PR cache-sim, 3 trials on
+    // {cit-Patents, soc-pokec, hollywood-2009, com-Orkut}) we observed:
+    //   - cit-Patents finest super-graph M_sg/C = 14    -> +40% regression
+    //   - soc-pokec    finest super-graph M_sg/C = 29   -> noise (~0%)
+    //   - hollywood    finest super-graph M_sg/C = 317  -> -14.3% win
+    //   - com-Orkut    finest super-graph M_sg/C = 190  -> noise (~+4%)
+    // i.e., the multi-level Rabbit pays off iff every kept fine level has
+    // average super-node weight >= ~50.  We use that threshold as a
+    // graph-agnostic guard.  The COARSEST level is always kept regardless
+    // (otherwise HLR has no Rabbit ordering at all and degenerates below
+    // even the original layout).
+    constexpr double kMinAvgSuperWeight = 50.0;
+    std::vector<bool> keepLevel(L, false);
+    K lastKept = 0;
+    // Coarsest first: always kept.
+    for (size_t k = L; k-- > 0; ) {
+        if (levelC[k] <= 1) continue;
+        keepLevel[k] = true;
+        lastKept = levelC[k];
+        break;
+    }
+    // Finer levels: include only if non-collapsed and dense enough.
+    for (size_t k = L; k-- > 0; ) {
+        if (keepLevel[k]) continue;             // already taken (coarsest)
+        if (levelC[k] <= 1) continue;            // trivial
+        if (levelC[k] == lastKept) continue;     // collapsed
+        const double avg = (levelC[k] > 0)
+            ? static_cast<double>(levelM[k]) / static_cast<double>(levelC[k])
+            : 0.0;
+        if (avg < kMinAvgSuperWeight) {
+            printf("  hier-rabbit: level %zu: avg M_sg/C=%.1f < %.0f, skipping (super-graph too sparse for gamma-Rabbit)\n",
+                   k, avg, kMinAvgSuperWeight);
+            continue;
+        }
+        keepLevel[k] = true;
+        lastKept = levelC[k];
+    }
+    size_t numKept = 0;
+    for (size_t k = 0; k < L; ++k) if (keepLevel[k]) ++numKept;
+    printf("  hier-rabbit: keeping %zu of %zu Leiden levels (collapsed/sparse levels skipped)\n",
+           numKept, L);
+
+    // ---- Intra-community RCM (matches HRAB's default tail step) ----
+    // HRAB enables RCM intra-community ordering by default (CLI parser:
+    // config.useRCMIntra = true), which gives 30-50% better memory accesses
+    // than BFS-from-hub on the test set.  We use the same primitive
+    // (intraRCM, SECTION 16-PRIMITIVES) within each block of the FINEST
+    // KEPT membership.  When the finest level was skipped for being too
+    // sparse, kBFS falls back to the coarsest kept level (HRAB-equivalent
+    // single-block layer), restoring single-pass behaviour rather than
+    // scattering RCM over meaningless tiny groups.
+    size_t kBFS = 0;
+    for (size_t k = 0; k < L; ++k) { if (keepLevel[k]) { kBFS = k; break; } }
+    const auto& bfsMembership = mpp[kBFS];
+    const K C_bfs = levelC[kBFS];
+    printf("  hier-rabbit: intra-RCM within %u level-%zu communities\n",
+           (unsigned)C_bfs, kBFS);
+
+    std::vector<std::vector<K>> commVertices(C_bfs);
+    for (size_t v = 0; v < N; ++v) {
+        commVertices[bfsMembership[v]].push_back(static_cast<K>(v));
+    }
+    std::vector<K> localIds(N, K(0));
+    std::vector<size_t> vertToLocal(N, static_cast<size_t>(-1));
+    #pragma omp parallel
+    {
+        std::vector<bool> visited;
+        std::queue<K> bfsQueue;
+        std::vector<K> cmOrder;
+        #pragma omp for schedule(dynamic, 64)
+        for (K c = 0; c < C_bfs; ++c) {
+            const auto& verts = commVertices[c];
+            if (verts.empty()) continue;
+            for (size_t i = 0; i < verts.size(); ++i) vertToLocal[verts[i]] = i;
+            intraRCM<K, NodeID_T, DestID_T>(
+                verts, c, bfsMembership, degrees, g,
+                vertToLocal, visited, bfsQueue, cmOrder, localIds);
+            for (K v : verts) vertToLocal[v] = static_cast<size_t>(-1);
+        }
+    }
+
+    // Multi-key sort: only KEPT levels contribute keys; coarsest dominates;
+    // intra-finest-community BFS-from-hub local position is the final
+    // tie-break (replaces a raw vertex-id break).
+    std::vector<size_t> order(N);
+    std::iota(order.begin(), order.end(), size_t(0));
+    std::sort(order.begin(), order.end(), [&](size_t a, size_t b) {
+        for (size_t kk = L; kk-- > 0; ) {
+            if (!keepLevel[kk]) continue;
+            K pa = levelPerm[kk][mpp[kk][a]];
+            K pb = levelPerm[kk][mpp[kk][b]];
+            if (pa != pb) return pa < pb;
+        }
+        return localIds[a] < localIds[b];
+    });
+
+    #pragma omp parallel for schedule(static)
+    for (size_t i = 0; i < N; ++i) {
+        newIds[order[i]] = static_cast<NodeID_T>(i);
+    }
+
+    printf("  hier-rabbit: ordered %zu vertices across %zu Leiden levels (C: ", N, L);
+    for (size_t k = 0; k < L; ++k) printf("%u%s", (unsigned)levelC[k], k + 1 == L ? "" : " -> ");
+    printf(")\n");
+    GRAPHBREW_TRACE("orderHierarchicalLeidenRabbit: done, %zu levels", L);
+}
+
+//=============================================================================
 // SECTION 16c: TILE-QUANTIZED RABBITORDER ORDERING
 //=============================================================================
 
@@ -7044,6 +7236,9 @@ void applyOrderingStrategy(
         case OrderingStrategy::HYBRID_LEIDEN_RABBIT:
             orderHybridLeidenRabbit<K, NodeID_T, DestID_T>(newIds, result.membership, degrees, g, N, config);
             break;
+        case OrderingStrategy::HIERARCHICAL_LEIDEN_RABBIT:
+            orderHierarchicalLeidenRabbit<K, NodeID_T, DestID_T>(newIds, result, degrees, g, N, config);
+            break;
         case OrderingStrategy::TILE_QUANTIZED_RABBIT:
             orderTileQuantizedRabbit<K, NodeID_T, DestID_T>(newIds, result.membership, degrees, g, N, config);
             break;
@@ -7393,6 +7588,12 @@ inline GraphBrewConfig parseGraphBrewConfig(const std::vector<std::string>& opti
             config.useRCMIntra = true;
         } else if (opt == "tqr" || opt == "tile-quantized" || opt == "tilequantized" || opt == "tilerabbit") {
             config.ordering = OrderingStrategy::TILE_QUANTIZED_RABBIT;
+            config.hasExplicitOrdering = true;
+        } else if (opt == "hlr" || opt == "hier-rabbit" || opt == "hierarchical-rabbit" || opt == "hierleidenrabbit") {
+            // HLR: run RabbitOrder at every Leiden dendrogram level
+            // (multi-level super-graph ordering -- generalises HRAB which
+            // only uses the finest level).
+            config.ordering = OrderingStrategy::HIERARCHICAL_LEIDEN_RABBIT;
             config.hasExplicitOrdering = true;
         }
         // COMPOSE strategy + Stage 2/Stage 3 picks (SECTION 16-COMPOSE)
