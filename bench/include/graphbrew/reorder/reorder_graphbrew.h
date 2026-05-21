@@ -275,6 +275,9 @@ enum class CommunityOrder {
     SizeAsc,     ///< Sort communities by vertex-count ascending (small first, tail-heavy graphs)
     DegreeDesc,  ///< Sort communities by total in-community degree descending
     DegreeAsc,   ///< Sort communities by total in-community degree ascending
+    CutMin,      ///< Mt-METIS-style: minimise inter-community edge crossing
+                 ///< by greedy NN-TSP over the C×C crossing-edge graph.
+                 ///< Cost O(|E|) + O(C^2).  Fallback to DegreeDesc if C>4096.
     Identity,    ///< Keep the super-graph permutation order untouched
 };
 
@@ -301,6 +304,10 @@ enum class IntraCommunityOrder {
                  ///< ASCENDING degree order (leaves first, hubs last).
                  ///< Useful as an ablation control and for workloads
                  ///< where leaf vertices benefit from being co-located.
+    Hub2,        ///< Second-moment degree (DRO/Lakhotia-style): sort within-
+                 ///< community by sum-of-neighbor-degree descending.  Cost
+                 ///< O(|E_local|) per community.  Captures hub-of-hubs
+                 ///< locality that pure first-moment HubSort misses.
     Alternate,   ///< Interleave hubs and leaves: take sorted-by-degree-desc
                  ///< list, then output [hub0, leaf0, hub1, leaf1, ...].
                  ///< Combines locality (hubs get prefetched early) with
@@ -355,6 +362,9 @@ enum class SuperGraphOrder {
     SuperRabbit,  ///< Build community super-graph, run RabbitOrder (HRAB's super-graph order)
     SuperRCM,     ///< Build community super-graph, run BNF+George-Liu+RCM
     TileRabbit,   ///< 2-level: tile-RabbitOrder + community-RabbitOrder (TQR's super-graph order)
+    Hilbert,      ///< Mosaic-style: 2-D Hilbert curve over (size_bucket, deg_bucket)
+                  ///< of each community.  Cost O(C log C).  Provides edge-plane
+                  ///< locality on the super-graph without building it.
 };
 
 /** Community detection mode */
@@ -5012,10 +5022,50 @@ void orderCompose(
             auto sg = buildCommunitySuperGraph<K, NodeID_T, DestID_T>(
                 membership, vertDegreesView, /*vertexIsHub*/{}, g, N, numComm);
             stage1Perm = runRCMOnSuperCSR<K>(sg, numVertsPerComm);
-        } else { // TileRabbit — builds both tile and community super-graphs internally
+        } else if (config.superGraphOrder == SuperGraphOrder::TileRabbit) {
             stage1Perm = runTileRabbit<K, NodeID_T, DestID_T>(
                 membership, vertDegreesView, commVertices, g, N, numComm,
                 static_cast<float>(config.superGraphResolution));
+        }
+        if (config.superGraphOrder == SuperGraphOrder::Hilbert) {
+            // Mosaic-style 2-D Hilbert curve over (community_size, avg_degree).
+            // Bucket each axis to [0,256), compute 16-bit Hilbert d, sort by d.
+            const uint32_t ORDER = 256;
+            std::vector<size_t> sz(numComm, 0), totDeg(numComm, 0);
+            size_t maxSz = 1; size_t maxAvg = 1;
+            for (K c = 0; c < numComm; ++c) {
+                sz[c] = commVertices[c].size();
+                size_t s = 0;
+                for (K v : commVertices[c]) s += degrees[v];
+                totDeg[c] = s;
+                if (sz[c] > maxSz) maxSz = sz[c];
+                size_t avg = sz[c] ? totDeg[c] / sz[c] : 0;
+                if (avg > maxAvg) maxAvg = avg;
+            }
+            // 8-bit Hilbert curve d2xy (xy2d inverse from Wikipedia)
+            auto xy2d = [&](uint32_t n, uint32_t x, uint32_t y) -> uint64_t {
+                uint64_t d = 0;
+                for (uint32_t s = n/2; s > 0; s /= 2) {
+                    uint32_t rx = (x & s) > 0;
+                    uint32_t ry = (y & s) > 0;
+                    d += (uint64_t)s * s * ((3u * rx) ^ ry);
+                    if (ry == 0) {
+                        if (rx == 1) { x = s - 1 - x; y = s - 1 - y; }
+                        uint32_t t = x; x = y; y = t;
+                    }
+                }
+                return d;
+            };
+            stage1Perm.assign(numComm, 0);
+            std::vector<std::pair<uint64_t,K>> rank(numComm);
+            for (K c = 0; c < numComm; ++c) {
+                size_t avg = sz[c] ? totDeg[c] / sz[c] : 0;
+                uint32_t bx = (uint32_t)((sz[c] * (uint64_t)(ORDER-1)) / maxSz);
+                uint32_t by = (uint32_t)((avg    * (uint64_t)(ORDER-1)) / maxAvg);
+                rank[c] = { xy2d(ORDER, bx, by), c };
+            }
+            std::sort(rank.begin(), rank.end());
+            for (K i = 0; i < numComm; ++i) stage1Perm[rank[i].second] = i;
         }
         // Order commOrder by Stage 1 permutation (lowest perm first)
         std::sort(commOrder.begin(), commOrder.end(),
@@ -5053,6 +5103,56 @@ void orderCompose(
         std::sort(commOrder.begin(), commOrder.end(), [&](K a, K b) {
             return commTotalDeg[a] < commTotalDeg[b];
         });
+    } else if (config.communityOrder == CommunityOrder::CutMin) {
+        // Mt-METIS-style: greedy nearest-neighbour TSP over inter-community
+        // crossing-edge counts.  Skip if C>4096 (matrix gets too big).
+        if (numComm > 4096) {
+            // Fallback to DegreeDesc when C is too large.
+            std::vector<size_t> commTotalDeg(numComm, 0);
+            #pragma omp parallel for schedule(dynamic, 256)
+            for (K c = 0; c < numComm; ++c) {
+                size_t s = 0;
+                for (K v : commVertices[c]) s += degrees[v];
+                commTotalDeg[c] = s;
+            }
+            std::sort(commOrder.begin(), commOrder.end(), [&](K a, K b) {
+                return commTotalDeg[a] > commTotalDeg[b];
+            });
+        } else {
+            const size_t C = static_cast<size_t>(numComm);
+            std::vector<uint64_t> cross(C * C, 0);
+            // One pass over all edges to build the symmetric crossing matrix.
+            for (NodeID_T v = 0; v < static_cast<NodeID_T>(N); ++v) {
+                K cv = membership[v];
+                for (auto u : g.out_neigh(v)) {
+                    K cu = membership[u];
+                    if (cu != cv) cross[(size_t)cv * C + (size_t)cu]++;
+                }
+            }
+            // NN-TSP: start from largest community, walk to unvisited neighbour
+            // with maximum crossing weight.  Ties broken by community ID.
+            std::vector<char> visited(C, 0);
+            std::vector<K> tour; tour.reserve(C);
+            K start = 0; size_t bestSz = 0;
+            for (K c = 0; c < numComm; ++c)
+                if (commVertices[c].size() > bestSz) { bestSz = commVertices[c].size(); start = c; }
+            K cur = start; tour.push_back(cur); visited[cur] = 1;
+            for (size_t step = 1; step < C; ++step) {
+                uint64_t bestW = 0; K bestC = (K)-1;
+                for (K c = 0; c < numComm; ++c) {
+                    if (visited[c]) continue;
+                    uint64_t w = cross[(size_t)cur * C + (size_t)c];
+                    if (w > bestW || bestC == (K)-1) { bestW = w; bestC = c; }
+                }
+                if (bestC == (K)-1) {
+                    // Disconnected: pick smallest unvisited ID
+                    for (K c = 0; c < numComm; ++c)
+                        if (!visited[c]) { bestC = c; break; }
+                }
+                visited[bestC] = 1; tour.push_back(bestC); cur = bestC;
+            }
+            commOrder = std::move(tour);
+        }
     }
     // CommunityOrder::Identity: leave commOrder as-is (Stage 1 result or 0..C)
 
@@ -5143,6 +5243,29 @@ void orderCompose(
                     std::sort(sorted.begin(), sorted.end(),
                         [&](K a, K b) { return degrees[a] < degrees[b]; });
                     for (size_t j = 0; j < sz; ++j) localIds[sorted[j]] = static_cast<K>(j);
+                }
+            } else if (config.intraCommunityOrder == IntraCommunityOrder::Hub2) {
+                // Second-moment degree (DRO/Lakhotia, IISWC'19): per-community
+                // sort by sum-of-neighbor-degree descending.  Captures hub-of-hubs
+                // locality missed by pure HubSort.  O(|E_local|) per community.
+                const auto& verts = commVertices[c];
+                const size_t sz = verts.size();
+                if (sz == 0) { /* nothing */ }
+                else if (sz == 1) { localIds[verts[0]] = 0; }
+                else {
+                    std::vector<K> sorted(verts.begin(), verts.end());
+                    std::vector<uint64_t> score(sz, 0);
+                    for (size_t j = 0; j < sz; ++j) {
+                        K v = sorted[j];
+                        uint64_t s = 0;
+                        for (auto u : g.out_neigh(v)) s += static_cast<uint64_t>(degrees[u]);
+                        score[j] = s;
+                    }
+                    std::vector<size_t> idx(sz);
+                    for (size_t j = 0; j < sz; ++j) idx[j] = j;
+                    std::sort(idx.begin(), idx.end(),
+                        [&](size_t a, size_t b) { return score[a] > score[b]; });
+                    for (size_t j = 0; j < sz; ++j) localIds[sorted[idx[j]]] = static_cast<K>(j);
                 }
             } else if (config.intraCommunityOrder == IntraCommunityOrder::Alternate) {
                 // Sort by degree desc, then interleave [hub0,leaf0,hub1,leaf1,...]
@@ -5358,6 +5481,7 @@ void orderCompose(
         config.intraCommunityOrder == IntraCommunityOrder::Gorder  ? "gorder"       :
         config.intraCommunityOrder == IntraCommunityOrder::HubSort ? "hubsort"      :
         config.intraCommunityOrder == IntraCommunityOrder::DegreeAsc ? "deg_asc"    :
+        config.intraCommunityOrder == IntraCommunityOrder::Hub2      ? "hub2"        :
         config.intraCommunityOrder == IntraCommunityOrder::Alternate ? "alternate"  :
         config.intraCommunityOrder == IntraCommunityOrder::Random    ? "random"     :
         config.intraCommunityOrder == IntraCommunityOrder::BoundaryLast ? "bndlast" :
@@ -8407,6 +8531,12 @@ inline GraphBrewConfig parseGraphBrewConfig(const std::vector<std::string>& opti
         } else if (opt == "s2_degree_asc" || opt == "s2:degree_asc" || opt == "s2degreeasc" ||
                    opt == "comm_degree_asc" || opt == "comm:degree_asc" || opt == "commdegreeasc") {
             config.communityOrder = CommunityOrder::DegreeAsc;
+        } else if (opt == "s2_cut_min" || opt == "s2:cut_min" || opt == "s2cutmin" ||
+                   opt == "comm_cut_min" || opt == "comm:cut_min" || opt == "commcutmin" ||
+                   opt == "cut_min" || opt == "cutmin") {
+            // Mt-METIS-style: greedy NN-TSP over inter-community crossing edges.
+            // Cost O(|E|+C^2).  Falls back to DegreeDesc if C>4096.
+            config.communityOrder = CommunityOrder::CutMin;
         } else if (opt == "s3_bfs" || opt == "s3:bfs" || opt == "s3bfs" ||
                    opt == "intra_bfs" || opt == "intra:bfs" || opt == "intrabfs") {
             config.intraCommunityOrder = IntraCommunityOrder::BFSFromHub;
@@ -8439,6 +8569,12 @@ inline GraphBrewConfig parseGraphBrewConfig(const std::vector<std::string>& opti
             // Per-community degree-ascending sort.  Inverse of HubSort;
             // ablation control.  Same O(sz log sz) cost.
             config.intraCommunityOrder = IntraCommunityOrder::DegreeAsc;
+        } else if (opt == "s3_hub2" || opt == "s3:hub2" || opt == "s3hub2" ||
+                   opt == "intra_hub2" || opt == "intra:hub2" || opt == "intrahub2" ||
+                   opt == "hub2") {
+            // Second-moment degree (DRO/Lakhotia IISWC'19): per-community sort
+            // by sum-of-neighbor-degree descending.  Cost O(|E_local|) per community.
+            config.intraCommunityOrder = IntraCommunityOrder::Hub2;
         } else if (opt == "s3_alternate" || opt == "s3:alternate" || opt == "s3alt" ||
                    opt == "intra_alternate" || opt == "intra:alternate" || opt == "intra_alt" ||
                    opt == "alternate" || opt == "alt") {
@@ -8479,6 +8615,12 @@ inline GraphBrewConfig parseGraphBrewConfig(const std::vector<std::string>& opti
         } else if (opt == "s1_tile_rabbit" || opt == "s1:tile_rabbit" || opt == "s1tilerabbit" ||
                    opt == "sg_tile_rabbit" || opt == "sg:tile_rabbit" || opt == "sgtilerabbit") {
             config.superGraphOrder = SuperGraphOrder::TileRabbit;
+        } else if (opt == "s1_hilbert" || opt == "s1:hilbert" || opt == "s1hilbert" ||
+                   opt == "sg_hilbert" || opt == "sg:hilbert" || opt == "sghilbert" ||
+                   opt == "hilbert") {
+            // Mosaic-style: 2-D Hilbert curve over (community size, avg degree).
+            // Generates a super-graph permutation without building the super-graph.
+            config.superGraphOrder = SuperGraphOrder::Hilbert;
         } else if (opt == "s2_identity" || opt == "s2:identity" || opt == "s2identity" ||
                    opt == "comm_identity" || opt == "comm:identity" || opt == "commidentity") {
             config.communityOrder = CommunityOrder::Identity;
