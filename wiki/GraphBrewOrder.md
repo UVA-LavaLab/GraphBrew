@@ -220,9 +220,9 @@ the graph into one mega-community; check the input is connected).
 
 | Token | Axis | Mechanism | Status |
 |---|---|---|---|
-| `intra_hub2` | IntraCommunityOrder | Sort by Σ deg(neighbor) descending (DRO/Lakhotia IISWC'19) | Callable; loses 0/10 vs §19 champions — see `results/data/composition_vs_native_2026_05_20_v5.md` §39.2 |
-| `comm_cut_min` | CommunityOrder | NN-TSP over inter-community crossing-edge graph (Mt-METIS LaSalle IPDPS'13). Falls back to DegreeDesc if C>4096. | Callable; +69% slower than SgRabH_dgd on cit-P PR smoke — see §39.3 |
-| `sg_hilbert` | SuperGraphOrder | 2-D 8-bit Hilbert curve over (community size, avg degree) (Mosaic EuroSys'17) | Callable; +79% slower than SgRabH_dgd on cit-P PR smoke — see §39.4 |
+| `intra_hub2` | IntraCommunityOrder | Sort by Σ deg(neighbor) descending (DRO/Lakhotia IISWC'19) | Callable; **negative result**: loses 0/12 vs §19 champions — see v5 §40.2 |
+| `comm_cut_min` | CommunityOrder | NN-TSP over inter-community crossing-edge graph (Mt-METIS LaSalle IPDPS'13). Falls back to DegreeDesc if C>4096. | Callable; **wins 2/12 cells**: cit-P CC −8.1%, pokec PR −4.4% vs §19 champions — see v5 §40 |
+| `sg_hilbert` | SuperGraphOrder | 2-D 8-bit Hilbert curve over (community size, avg degree) (Mosaic EuroSys'17) | Callable; **wins 1/12 cells marginally**: cit-P BFS −1.1% (within n=5 σ; needs n=10 hardening) — see v5 §40 |
 
 All three slot into the existing parser with zero CLI changes. Composable
 with any other axis. Reference recipe:
