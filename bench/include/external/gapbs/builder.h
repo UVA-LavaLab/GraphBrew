@@ -3193,6 +3193,26 @@ public:
                     config.ordering = extra.ordering;
                 }
                 if (extra.hasExplicitOrdering) config.hasExplicitOrdering = true;
+                // COMPOSE-axis tokens (sg_*, comm_*, intra_*, sgresN.N, cd_*).
+                // Each compose token sets exactly one axis from default; merging
+                // any non-default value from `extra` is safe because the parser
+                // never sets these axes implicitly.
+                if (extra.superGraphOrder != graphbrew::SuperGraphOrder::None)
+                    config.superGraphOrder = extra.superGraphOrder;
+                if (extra.communityOrder != graphbrew::CommunityOrder::SizeDesc)
+                    config.communityOrder = extra.communityOrder;
+                if (extra.intraCommunityOrder != graphbrew::IntraCommunityOrder::BFSFromHub)
+                    config.intraCommunityOrder = extra.intraCommunityOrder;
+                if (extra.refinementPass != graphbrew::RefinementPass::None)
+                    config.refinementPass = extra.refinementPass;
+                if (extra.superGraphResolution != 0.10)
+                    config.superGraphResolution = extra.superGraphResolution;
+                // cd_rabbit / cd_leiden after a preset must override the preset's CD
+                if (tok == "cd_rabbit" || tok == "cd:rabbit" || tok == "cdrabbit" ||
+                    tok == "rabbit" || tok == "rabbitorder")
+                    config.algorithm = graphbrew::GraphBrewAlgorithm::RABBIT_ORDER;
+                if (tok == "cd_leiden" || tok == "cd:leiden" || tok == "cdleiden")
+                    config.algorithm = graphbrew::GraphBrewAlgorithm::LEIDEN;
             }
         } else {
             // ── Direct token mode (hrab, dfs, conn, graphbrew:hrab, etc.) ─
