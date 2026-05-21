@@ -45,8 +45,21 @@ Three axes, two-or-more picks each:
 | Axis | CLI prefix | Picks |
 |---|---|---|
 | Super-graph order (which communities sit next to which) | `sg_` | `none`, `super_rabbit`, `super_rcm`, `tile_rabbit` |
-| Community order (sort key on top of the super-graph perm) | `comm_` | `size`, `degree`, `identity` |
-| Intra-community order (vertex layout within a community) | `intra_` | `bfs`, `rcm` |
+| Community order (sort key on top of the super-graph perm) | `comm_` | `size`, `size_asc`, `degree_desc`, `degree_asc`, `identity` |
+| Intra-community order (vertex layout within a community) | `intra_` | `bfs`, `rcm`, `hubsort`, `deg_asc`, `alternate`, `random`, `bndlast`, `core`, `dendrogram`, `gorder` |
+| Refinement pass (post-intra polish) | `refine_` | `none`, `2swap` (adjacent-swap FM polish) |
+
+Intra-community picks at a glance:
+
+- `bfs` / `rcm` — original BFS-from-hub and reverse Cuthill–McKee.
+- `hubsort` (alias `hub`) — sort by degree desc inside the community. Cheap (no traversal), strong for CC.
+- `deg_asc` — sort by degree asc. Disperses hubs to high IDs; reduces false-sharing on `visited[]`/`father[]` CAS lines for parallel BFS.
+- `alternate` (alias `alt`) — interleave `[hub, leaf, hub, leaf, ...]` after a degree-desc sort.
+- `random` — seeded shuffle, useful as a sanity-check baseline.
+- `bndlast` (alias `boundary_last`) — community-internal vertices first, cross-community boundary vertices last.
+- `core` — k-core order: peel by minimum degree, place the deepest core at the highest IDs.
+- `dendrogram` — DFS over the Rabbit dendrogram (no extra traversal; reuses the merge tree).
+- `gorder` — Gorder window-greedy via the per-community subgraph; pair with `gw<N>` to set the window.
 
 Examples:
 
@@ -59,13 +72,22 @@ Examples:
 
 # Pure intra (no super-graph), order communities by size, RCM inside
 -o 12:compose:sg_none:comm_size:intra_rcm
+
+# Leiden + per-community hub-first sort, communities ordered by total degree desc
+-o 9:leiden:compose:comm_degree_desc:intra_hubsort
+
+# 4-axis: Rabbit super-graph × degree-desc community order × hub-first intra
+-o 12:rabbit:compose:sg_super_rabbit:comm_degree_desc:intra_hubsort
+
+# Leiden + Gorder with a wider window than the default 5
+-o 9:leiden:compose:intra_gorder:gw8
 ```
 
 Legacy aliases `s1_*`/`s2_*`/`s3_*` are still accepted (the older
-parity sweeps and CI scripts use them); the new `sg_`/`comm_`/`intra_`
+parity sweeps and CI scripts use them); the new `sg_`/`comm_`/`intra_`/`refine_`
 forms are the primary spelling and match the paper's vocabulary.
 
-Defaults if any axis is omitted: `sg_none`, `comm_size`, `intra_bfs`.
+Defaults if any axis is omitted: `sg_none`, `comm_size`, `intra_bfs`, `refine_none`.
 
 ## Modifier tokens
 
@@ -75,11 +97,14 @@ These compose with any variant after a `:`.
 |---|---|---|
 | `:sgres0.10` | super-graph modularity resolution γ in ΔQ = w − γ·str(u)·str(v)/(2·M) | 0.10 |
 | `:gamma0.10` | alias for `:sgres` | — |
+| `:gw<N>` | Gorder window size (only meaningful with `intra_gorder`) | 5 |
+| `:cd_rabbit` / `:cd_leiden` | force the community-detection backend after a preset (`12:`, `9:`) | preset's CD |
 | `:rcm_intra` | force RCM within communities | on for `hrab`, off elsewhere |
 | `:bfs_intra` | force BFS within communities | off |
 | `:rcm_super` | RCM on super-graph instead of Rabbit dendrogram DFS | off |
 | `:hubx` | extract top-1% hubs and place adjacent to their dominant block | off |
 | `:gord` | Gorder-greedy intra-community via UnitHeap | off |
+| `:refine_2swap` | adjacent-swap FM polish after intra-community ordering | off |
 | `:norefine` | skip Leiden refinement phase | off (refine on) |
 
 Example: `-o 12:hrab:sgres0.25:hubx` — HRAB variant with γ=0.25 and
