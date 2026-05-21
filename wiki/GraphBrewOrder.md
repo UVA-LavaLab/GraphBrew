@@ -215,3 +215,21 @@ the graph into one mega-community; check the input is connected).
 - [Cache-Simulation](Cache-Simulation) — how to measure cache quality of a variant
 - [Code-Architecture](Code-Architecture) — codebase map
 - [VLDB-Experiments](VLDB-Experiments) — the paper's variant evaluation
+
+## Compose tokens added 2026-05-21 (8h autonomous run)
+
+| Token | Axis | Mechanism | Status |
+|---|---|---|---|
+| `intra_hub2` | IntraCommunityOrder | Sort by Σ deg(neighbor) descending (DRO/Lakhotia IISWC'19) | Callable; loses 0/10 vs §19 champions — see `results/data/composition_vs_native_2026_05_20_v5.md` §39.2 |
+| `comm_cut_min` | CommunityOrder | NN-TSP over inter-community crossing-edge graph (Mt-METIS LaSalle IPDPS'13). Falls back to DegreeDesc if C>4096. | Callable; +69% slower than SgRabH_dgd on cit-P PR smoke — see §39.3 |
+| `sg_hilbert` | SuperGraphOrder | 2-D 8-bit Hilbert curve over (community size, avg degree) (Mosaic EuroSys'17) | Callable; +79% slower than SgRabH_dgd on cit-P PR smoke — see §39.4 |
+
+All three slot into the existing parser with zero CLI changes. Composable
+with any other axis. Reference recipe:
+
+```
+-o 9:cd_leiden:compose:comm_degree_desc:intra_hub2
+-o 9:cd_leiden:compose:comm_cut_min:intra_hubsort
+-o 9:cd_leiden:compose:sg_hilbert:comm_identity:intra_hubsort
+```
+
