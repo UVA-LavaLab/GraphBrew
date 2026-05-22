@@ -56,6 +56,24 @@ GRAPHBREW_VARIANTS = [
     "rcm",               # Leiden + per-community RCM + super-graph BNF-RCM
 ]
 
+# ---------------------------------------------------------------------------
+# COMPOSE configurations — v5 paper headline configs (§15, §18, §19, §49).
+# Each entry is (label, order_spec). The order_spec is passed verbatim to
+# `-o <spec>`. These cover the SuperGraph × Community × Intra × Refinement
+# design space and include the new HubSort / DegreeAsc / RCM++ primitives.
+# ---------------------------------------------------------------------------
+COMPOSE_VARIANTS = [
+    # label,        order_spec
+    ("LeidG8",      "9:leiden:compose:intra_gorder:gw8"),
+    ("LeidH",       "9:leiden:compose:intra_hubsort"),
+    ("LeidDA",      "9:leiden:compose:intra_deg_asc"),
+    ("LeidH_dgd",   "9:leiden:compose:comm_degree_desc:intra_hubsort"),
+    ("LeidDA_dgd",  "9:leiden:compose:comm_degree_desc:intra_deg_asc"),
+    ("SgRabH_dgd",  "12:rabbit:compose:sg_super_rabbit:comm_degree_desc:intra_hubsort"),
+    ("LeidRCMpp",   "9:leiden:compose:intra_rcmpp"),
+    ("LeidRCMpp_dgd","9:leiden:compose:comm_degree_desc:intra_rcmpp"),
+]
+
 # RabbitOrder implementation variants (both use algorithm ID 8)
 RABBITORDER_VARIANTS = {
     "8:csr":   "RabbitOrder (CSR)",    # GraphBrew native reimplementation
@@ -81,6 +99,7 @@ ALL_ALGORITHMS = {
     **BASELINE_ALGORITHMS,
     **RABBITORDER_VARIANTS,
     **{f"12:{v}": f"GB-{_gb_display(v)}" for v in GRAPHBREW_VARIANTS},
+    **{spec: f"GB-{label}" for label, spec in COMPOSE_VARIANTS},
 }
 
 # ---------------------------------------------------------------------------
