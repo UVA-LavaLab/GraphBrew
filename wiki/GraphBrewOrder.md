@@ -46,12 +46,13 @@ Three axes, two-or-more picks each:
 |---|---|---|
 | Super-graph order (which communities sit next to which) | `sg_` | `none`, `super_rabbit`, `super_rcm`, `tile_rabbit` |
 | Community order (sort key on top of the super-graph perm) | `comm_` | `size`, `size_asc`, `degree_desc`, `degree_asc`, `identity` |
-| Intra-community order (vertex layout within a community) | `intra_` | `bfs`, `rcm`, `hubsort`, `deg_asc`, `alternate`, `random`, `bndlast`, `core`, `dendrogram`, `gorder` |
+| Intra-community order (vertex layout within a community) | `intra_` | `bfs`, `rcm`, `rcmpp`, `hubsort`, `deg_asc`, `alternate`, `random`, `bndlast`, `core`, `dendrogram`, `gorder` |
 | Refinement pass (post-intra polish) | `refine_` | `none`, `2swap` (adjacent-swap FM polish) |
 
 Intra-community picks at a glance:
 
 - `bfs` / `rcm` — original BFS-from-hub and reverse Cuthill–McKee.
+- `rcmpp` (alias `rcm++`) — RCM++ (Hou/Liu/Zhu, arXiv 2409.04171, 2024). Same CM-BFS body as `rcm` but the initial start vertex is picked by the bi-criteria score `argmin(0.5·deg_rank + 0.5·depth_rank)` instead of plain BNF min-degree. Costs one extra per-community BFS; sometimes finds a more peripheral seed in a single shot. Skipped for `sz ≤ 32` (overhead dominates).
 - `hubsort` (alias `hub`) — sort by degree desc inside the community. Cheap (no traversal), strong for CC.
 - `deg_asc` — sort by degree asc. Disperses hubs to high IDs; reduces false-sharing on `visited[]`/`father[]` CAS lines for parallel BFS.
 - `alternate` (alias `alt`) — interleave `[hub, leaf, hub, leaf, ...]` after a degree-desc sort.
