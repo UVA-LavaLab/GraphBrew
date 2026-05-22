@@ -59,6 +59,7 @@ from experiments.vldb_config import (
     FIGURES_DIR,
     GRAPH_TYPE_GROUPS,
     GRAPHBREW_VARIANTS,
+    COMPOSE_VARIANTS,
     PREVIEW_GRAPHS,
     RESULTS_DIR,
     TABLES_DIR,
@@ -126,6 +127,59 @@ def save_json(data: Any, path: Path) -> None:
     with open(path, "w") as f:
         json.dump(data, f, indent=2)
     log.info(f"  Saved: {path}")
+
+
+# ---------------------------------------------------------------------------
+# ResultsStore — checkpoint-after-every-cell + resume on restart.
+# CRITICAL for SLURM / remote-cluster runs: a job killed mid-sweep loses
+# nothing, and rerunning with --resume picks up exactly where it stopped.
+# ---------------------------------------------------------------------------
+class ResultsStore:
+    """JSON-backed result accumulator with per-cell checkpoint + resume.
+
+    Usage:
+        store = ResultsStore(out_dir / "results.json",
+                             key_fields=["graph", "algorithm", "benchmark"])
+        for ... in ...:
+            row = {"graph": g, "algorithm": a, "benchmark": b, ...}
+            if store.has(row): continue       # resume: skip done cells
+            ... run command ...
+            store.add(row)                    # appends + flushes to disk
+    """
+    def __init__(self, path: Path, key_fields: list[str]):
+        self.path = Path(path)
+        self.key_fields = key_fields
+        self.results: list[dict] = []
+        self._seen: set[tuple] = set()
+        if self.path.exists():
+            try:
+                with self.path.open() as f:
+                    loaded = json.load(f)
+                if isinstance(loaded, list):
+                    self.results = loaded
+                    for r in self.results:
+                        self._seen.add(self._key(r))
+                    log.info(f"  Resume: loaded {len(self.results)} existing "
+                             f"results from {self.path.name}")
+            except Exception as e:
+                log.warning(f"  Could not load existing results ({e}); starting fresh")
+
+    def _key(self, row: dict) -> tuple:
+        return tuple(row.get(k) for k in self.key_fields)
+
+    def has(self, row: dict) -> bool:
+        return self._key(row) in self._seen
+
+    def add(self, row: dict) -> None:
+        self.results.append(row)
+        self._seen.add(self._key(row))
+        # Atomic write: tmp + rename, so a kill during flush leaves the
+        # previous file intact.
+        ensure_dir(self.path.parent)
+        tmp = self.path.with_suffix(self.path.suffix + ".tmp")
+        with tmp.open("w") as f:
+            json.dump(self.results, f, indent=2)
+        tmp.replace(self.path)
 
 
 def parse_timing(output: Optional[str]) -> dict:
@@ -481,7 +535,10 @@ def exp2_kernel_speedup(
     log.info("=" * 60)
 
     out_dir = ensure_dir(RESULTS_DIR / "exp2_speedup")
-    results = []
+    store = ResultsStore(
+        out_dir / "speedup_results.json",
+        key_fields=["graph", "algo_id", "benchmark"],
+    )
 
     for graph in graphs:
         gname = graph["name"]
@@ -492,6 +549,9 @@ def exp2_kernel_speedup(
 
             # All baselines
             for aid, aname in BASELINE_ALGORITHMS.items():
+                key_row = {"graph": gname, "algo_id": aid, "benchmark": bench}
+                if store.has(key_row):
+                    continue
                 gpath = resolve_graph_path(gname, graph_dir)
                 flags, pregen_rt = algo_flags_or_map(str(aid), ["-o", str(aid)], gname)
                 cmd = build_benchmark_cmd(bench, gpath, flags, trials)
@@ -499,26 +559,48 @@ def exp2_kernel_speedup(
                 timing = parse_timing(output)
                 if pregen_rt > 0 and "reorder_time" not in timing:
                     timing["reorder_time"] = pregen_rt
-                results.append({
+                store.add({
                     "graph": gname, "algorithm": aname, "benchmark": bench,
                     "algo_id": aid, **timing,
                 })
 
-            # GraphBrew variants
+            # GraphBrew variants (legacy `12:<v>` form)
             for v in GRAPHBREW_VARIANTS:
+                algo_id = f"12:{v}"
+                key_row = {"graph": gname, "algo_id": algo_id, "benchmark": bench}
+                if store.has(key_row):
+                    continue
                 gpath = resolve_graph_path(gname, graph_dir)
-                flags, pregen_rt = algo_flags_or_map(f"12:{v}", ["-o", f"12:{v}"], gname)
+                flags, pregen_rt = algo_flags_or_map(algo_id, ["-o", algo_id], gname)
                 cmd = build_benchmark_cmd(bench, gpath, flags, trials)
                 output = run_cmd(cmd, dry_run=dry_run, timeout=timeout)
                 timing = parse_timing(output)
                 if pregen_rt > 0 and "reorder_time" not in timing:
                     timing["reorder_time"] = pregen_rt
-                results.append({
+                store.add({
                     "graph": gname, "algorithm": f"GB-{v}", "benchmark": bench,
-                    "algo_id": f"12:{v}", **timing,
+                    "algo_id": algo_id, **timing,
                 })
 
-    save_json(results, out_dir / "speedup_results.json")
+            # NEW: Compose configurations (v5 §15/§18/§19/§49 paper headlines)
+            for label, spec in COMPOSE_VARIANTS:
+                algo_id = spec
+                key_row = {"graph": gname, "algo_id": algo_id, "benchmark": bench}
+                if store.has(key_row):
+                    continue
+                gpath = resolve_graph_path(gname, graph_dir)
+                flags, pregen_rt = algo_flags_or_map(algo_id, ["-o", algo_id], gname)
+                cmd = build_benchmark_cmd(bench, gpath, flags, trials)
+                output = run_cmd(cmd, dry_run=dry_run, timeout=timeout)
+                timing = parse_timing(output)
+                if pregen_rt > 0 and "reorder_time" not in timing:
+                    timing["reorder_time"] = pregen_rt
+                store.add({
+                    "graph": gname, "algorithm": f"GB-{label}", "benchmark": bench,
+                    "algo_id": algo_id, **timing,
+                })
+
+    log.info(f"  exp2: {len(store.results)} total result rows in {store.path.name}")
 
 
 # ============================================================================
@@ -708,16 +790,20 @@ def exp8_scalability(
     log.info("=" * 60)
 
     out_dir = ensure_dir(RESULTS_DIR / "exp8_scalability")
-    results = []
+    store = ResultsStore(
+        out_dir / "scalability_results.json",
+        key_fields=["graph", "algorithm", "threads"],
+    )
 
-    # Test GraphBrew variants and Gorder at different thread counts
+    # Reorder algorithms to sweep across thread counts.
+    # Baselines + GraphBrew variants + COMPOSE configs (v5 headlines).
     test_algos = [
-        ("GB-leiden", ["-o", "12:leiden"]),
-        ("GB-hrab",   ["-o", "12:hrab"]),
-        ("GB-rabbit", ["-o", "12:rabbit"]),
-        ("Gorder",    ["-o", "9"]),
+        ("GB-leiden",  ["-o", "12:leiden"]),
+        ("GB-hrab",    ["-o", "12:hrab"]),
+        ("GB-rabbit",  ["-o", "12:rabbit"]),
+        ("Gorder",     ["-o", "9"]),
         ("RabbitOrder",["-o", "8"]),
-    ]
+    ] + [(f"GB-{label}", ["-o", spec]) for label, spec in COMPOSE_VARIANTS]
 
     converter = BIN_DIR / "converter"
     for graph in graphs:
@@ -726,6 +812,9 @@ def exp8_scalability(
 
         for aname, aflags in test_algos:
             for nthreads in THREAD_COUNTS:
+                key_row = {"graph": gname, "algorithm": aname, "threads": nthreads}
+                if store.has(key_row):
+                    continue
                 env = {"OMP_NUM_THREADS": str(nthreads)}
                 # Try .sg first (auto-setup creates .sg); fall back to .el
                 gpath = resolve_graph_path(gname, graph_dir, ext=".sg")
@@ -734,12 +823,12 @@ def exp8_scalability(
                 cmd = [str(converter), "-f", gpath] + aflags
                 output = run_cmd(cmd, dry_run=dry_run, timeout=timeout, env=env)
                 timing = parse_timing(output)
-                results.append({
+                store.add({
                     "graph": gname, "algorithm": aname, "threads": nthreads,
                     **timing,
                 })
 
-    save_json(results, out_dir / "scalability_results.json")
+    log.info(f"  exp8: {len(store.results)} total result rows in {store.path.name}")
 
 
 # ============================================================================

@@ -8987,6 +8987,38 @@ inline GraphBrewConfig parseGraphBrewConfig(const std::vector<std::string>& opti
         else if (opt == "norefine") {
             config.useRefinement = false;
         }
+        // CD-mode composability tokens (expose existing CommunityMode + flags).
+        // These let composition recipes select the community-detection algorithm
+        // axis independently of the rest of the pipeline.  See v5 §53.
+        //   cd_full     = full Leiden + refinement (default reference)
+        //   cd_louvain  = Leiden without refinement (≈ Louvain semantics)
+        //   cd_lp_only  = single-level label propagation (no aggregation hierarchy)
+        //   cd_hybrid   = LP first pass + Leiden refinement of survivors
+        //   cd_gve      = alias for `refine0` (refine pass 0 only, GVE-Leiden)
+        //   cd_leiden   = alias for cd_full
+        else if (opt == "cd_full" || opt == "cd_leiden") {
+            config.communityMode = CommunityMode::FULL_LEIDEN;
+            config.useRefinement = true;
+            config.refinementDepth = -1;
+        }
+        else if (opt == "cd_louvain") {
+            config.communityMode = CommunityMode::FULL_LEIDEN;
+            config.useRefinement = false;
+        }
+        else if (opt == "cd_lp_only" || opt == "cd_lp") {
+            config.communityMode = CommunityMode::FAST_LP;
+            config.useRefinement = false;
+        }
+        else if (opt == "cd_hybrid") {
+            config.communityMode = CommunityMode::HYBRID;
+            config.useRefinement = true;
+            config.refinementDepth = 0;
+        }
+        else if (opt == "cd_gve") {
+            config.communityMode = CommunityMode::FULL_LEIDEN;
+            config.useRefinement = true;
+            config.refinementDepth = 0;
+        }
         // Refinement depth control: refine0 = pass 0 only (GVE), refine2 = passes 0-2
         else if (opt.size() > 6 && opt.substr(0, 6) == "refine" && std::isdigit(opt[6])) {
             try {

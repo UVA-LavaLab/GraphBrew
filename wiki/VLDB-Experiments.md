@@ -16,6 +16,7 @@ experiments, and regenerates the figures and LaTeX tables.
 5. [Generated Outputs](#5-generated-outputs)
 6. [Configuration Reference](#6-configuration-reference)
 7. [Troubleshooting](#7-troubleshooting)
+8. [SLURM Runbook — UVA Cluster](#8-slurm-runbook--uva-cluster) — smoke test first, then full paper eval
 
 ---
 
@@ -350,6 +351,191 @@ Experiment 1 additionally includes per-cache-level metrics extracted by
 LaTeX tables (`table_ablation.tex`, `table_sensitivity.tex`,
 `table_chained.tex`) are populated from the JSON data automatically;
 fields that have no data yet show `\emph{TBD}`.
+
+---
+
+## 8. SLURM Runbook — UVA Cluster
+
+Two-phase recipe: (a) a 30-minute **smoke test** that proves the harness,
+binaries, and ResultsStore work on the cluster, then (b) the **full
+evaluation** parallelised over per-(experiment, graph) jobs.
+
+### 8.1 One-time UVA setup
+
+```bash
+# Clone + checkout
+git clone https://github.com/<you>/GraphBrew.git
+cd GraphBrew
+
+# Inspect available partitions / accounts on UVA
+sinfo -o "%P %a %l %D %m"
+sacctmgr -p show user $USER
+
+# Edit scripts/experiments/vldb_slurm.sbatch:
+#   - Set --account=YOUR_UVA_ALLOC
+#   - Set --partition=... to a partition you have access to
+#   - Adjust `module load ...` lines (gcc/12 and python/3.11 are placeholders)
+```
+
+> **Data safety reminder:** every job writes per-cell results via
+> `ResultsStore` with atomic `tmp + rename`. If a job times out you can
+> resubmit it verbatim — already-completed cells are skipped.
+
+### 8.2 Phase A — SLURM smoke test (30 min, one graph, one experiment)
+
+The goal here is to validate environment / modules / scratch I/O / SLURM
+account *before* spending real allocation on the full sweep.
+
+```bash
+# Submit ONE job: smallest experiment × smallest graph
+sbatch --time=00:30:00 \
+       --export=ALL,EXP=2,GRAPH=cit-Patents,GRAPHSET=local \
+       scripts/experiments/vldb_slurm.sbatch
+
+# Watch it land
+squeue -u $USER
+tail -f results/slurm_logs/gbrew-vldb-*-exp2-cit-Patents.out
+```
+
+**Success criteria** — check after job completes:
+
+```bash
+# 1. Did it write the JSON?
+ls -la results/vldb_paper/exp2_speedup/speedup_results.json
+
+# 2. Are all cells valid (60 rows expected for --preview-ish single-graph)?
+python3 -c "
+import json
+d = json.load(open('results/vldb_paper/exp2_speedup/speedup_results.json'))
+valid = [r for r in d if r.get('average_time') is not None]
+compose = [r for r in d if 'compose' in str(r.get('algo_id') or '')]
+print(f'rows={len(d)} valid={len(valid)}/{len(d)} compose={len(compose)}')
+assert len(valid) == len(d), 'some cells have no timing — check logs'
+assert len(compose) > 0, 'compose configs did not run — parser failure?'
+print('SMOKE TEST PASSED')
+"
+
+# 3. Test resume — resubmit; should finish in <1 min thanks to ResultsStore
+sbatch --time=00:10:00 \
+       --export=ALL,EXP=2,GRAPH=cit-Patents,GRAPHSET=local \
+       scripts/experiments/vldb_slurm.sbatch
+# Look for "Resume: loaded N existing results" in the new log.
+```
+
+If any of the three checks fails, **stop and fix before Phase B**.
+Common gotchas:
+
+| Symptom | Cause | Fix |
+|---|---|---|
+| `module: command not found` | wrong module env on partition | check `module avail` and edit `vldb_slurm.sbatch` |
+| `bench/bin/converter: not found` | build failed silently | run `make -j$SLURM_CPUS_PER_TASK pr bfs cc sssp bc tc converter` manually first |
+| `Permission denied` on `results/slurm_logs/` | log dir doesn't exist | `mkdir -p results/slurm_logs` before sbatch |
+| `Invalid account` | wrong `--account=` | `sacctmgr -p show user $USER` to list yours |
+| All cells valid timing but 0 compose rows | old `vldb_config.py` deployed | `git pull` on the cluster |
+
+### 8.3 Phase B — Full paper evaluation (parallel fan-out)
+
+After smoke test passes, fan out the **priority A** experiments
+(exp2 kernel speedup, exp3 reorder amortisation, exp8 thread
+scalability) across 9 graphs from the 64-GB set. That's 27 jobs,
+each runs independently, each ≤ 4h wall.
+
+```bash
+# Skip the smallest graphs you already smoked + the manual-download ones
+GRAPHS_64GB=(
+  cit-Patents soc-pokec USA-road-d.USA soc-LiveJournal1
+  delaunay_n24 hollywood-2009 com-Orkut
+  kron_g500-logn21 indochina-2004 uk-2002
+)
+
+# Three priority experiments — these together produce the paper's
+# headline table (kernel speedup), amortisation column, and scalability
+# figure.
+for g in "${GRAPHS_64GB[@]}"; do
+  for exp in 2 3 8; do
+    sbatch --time=04:00:00 \
+           --export=ALL,EXP=$exp,GRAPH=$g,GRAPHSET=64gb \
+           scripts/experiments/vldb_slurm.sbatch
+  done
+done
+
+# Check submission count (should be 30 jobs)
+squeue -u $USER -h | wc -l
+```
+
+**Re-submit timeouts**. SLURM returns exit code 124 for `timeout`;
+just rerun the exact same `sbatch` line — `ResultsStore` picks up
+where it left off. Find timeouts with:
+
+```bash
+sacct -u $USER --format=JobID,JobName,State,ExitCode,Elapsed --state=TIMEOUT
+```
+
+### 8.4 What NOT to run (or run only if budget allows)
+
+| Experiment | Why skip | If you have time |
+|---|---|---|
+| **exp1** cache-sim | 3+ days on 64gb (cycle-accurate sim per cell). v5 §17 already gives the cache-mechanism story. | Run only on 3 representative graphs: `cit-Patents`, `hollywood-2009`, `com-Orkut`. |
+| **exp4** end-to-end | Derivable from exp2 + exp3 JSON by `vldb_generate_figures.py` — no new measurement needed. | (already auto-computed) |
+| **exp5** ablation | Mostly redundant with v5 §15 / §18 / §19 ablations done locally. | Run on `cit-Patents` + `hollywood-2009` only. |
+| **exp6** sensitivity | Already covered by exp2's per-graph breakdown. | (skip) |
+| **exp7** chained | Small (210 cells). Adds the chained-ordering comparison. | Run if reviewers may ask about chains. |
+
+### 8.5 Big-graph addendum (256 GB nodes)
+
+Twitter7 (1.5B edges) and webbase-2001 (1B edges) are the most
+impactful generalization checks but only fit on 256-GB partitions.
+
+```bash
+# Submit to a high-memory partition with extra wall time
+sbatch --partition=highmem --mem=256G --time=24:00:00 \
+       --export=ALL,EXP=2,GRAPH=twitter7,GRAPHSET=full \
+       scripts/experiments/vldb_slurm.sbatch
+
+sbatch --partition=highmem --mem=256G --time=24:00:00 \
+       --export=ALL,EXP=2,GRAPH=webbase-2001,GRAPHSET=full \
+       scripts/experiments/vldb_slurm.sbatch
+```
+
+These two graphs require **manual download** (KONECT / Google Drive
+links in `VLDB_GRAPH_SOURCES`). Stage them under
+`results/graphs/<name>/<name>.el` before submitting, then add
+`--skip-download` so the harness doesn't try to fetch.
+
+### 8.6 Aggregation & figure generation
+
+Once all jobs finish (or even mid-run), pull JSONs locally and
+generate figures. Because every job writes to the same
+`results/vldb_paper/exp{N}_*/...json` paths, the cluster filesystem
+already has the merged dataset.
+
+```bash
+# On the cluster (or rsync to local)
+python3 scripts/experiments/vldb_paper_experiments.py --figures-only --64gb
+
+# Outputs:
+ls results/vldb_paper/figures/
+ls results/vldb_paper/tables/
+```
+
+For multi-machine merges (some jobs on UVA, others elsewhere), each
+ResultsStore JSON is a flat list of result dicts — concat them with
+`jq -s '.[0]+.[1]'` or a 3-line Python script before running
+`--figures-only`.
+
+### 8.7 Time budget at a glance
+
+With 32-core nodes, 1 trial, all eight COMPOSE configs added to exp2/exp8:
+
+| Phase | Cells | Parallel jobs | Wall (worst-job) | Total alloc time |
+|---|---|---|---|---|
+| 8.2 Smoke (1 graph × exp2) | 60 | 1 | ~30 min | 30 min |
+| 8.3 Priority A (10 graphs × exp 2,3,8) | ~5,000 | 30 | ≤ 4 h | ~120 CPU-hr |
+| 8.5 Big graphs (twitter, webbase × exp2) | ~420 | 2 | ≤ 24 h | ~48 CPU-hr |
+| 8.4 (optional) exp1 cache-sim on 3 graphs | ~840 | 3 | ≤ 24 h | ~72 CPU-hr |
+
+**Total wall ≤ 1 day** thanks to parallelism. **Total alloc ≈ 270 CPU-h**
+if you include the optional cache-sim.
 
 ---
 
