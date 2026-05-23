@@ -68,6 +68,52 @@ python3 scripts/experiments/vldb_paper_experiments.py --all --skip-setup \
 - ≥ 16 GB RAM for preview; 32–64 GB for `--64gb` graph set; 64 GB+ for full evaluation (webbase-2001, twitter7)
 - Python ≥ 3.8
 
+### Graph Folder Layout (canonical reference)
+
+All scripts resolve graphs through `resolve_graph_path()`, which tries two
+filesystem layouts and uses the first that exists:
+
+```
+# Nested layout (PREFERRED — what auto-download produces)
+results/graphs/<name>/<name>.sg            # serialized graph (used by benchmarks)
+results/graphs/<name>/<name>.el            # raw edge list (input to converter)
+results/graphs/<name>/<name>.wel           # weighted edge list (sssp)
+results/graphs/<name>/<name>.mtx           # MatrixMarket (intermediate from SuiteSparse)
+
+# Flat layout (also accepted)
+results/graphs/<name>.sg
+```
+
+Graph `<name>` must **exactly** match the `"name"` field in the graph
+catalog (`EVAL_GRAPHS`, `EVAL_GRAPHS_64GB`, etc. in
+[scripts/experiments/vldb_config.py](../scripts/experiments/vldb_config.py)) —
+e.g. `cit-Patents`, `soc-pokec`, `hollywood-2009`, `USA-road-d.USA`,
+`com-Orkut`.
+
+**Three ways to populate this folder:**
+
+| Method | Command | When |
+|---|---|---|
+| 1. Auto-download (recommended) | `python3 scripts/experiments/vldb_paper_experiments.py --exp 2 --graphs cit-Patents --64gb --no-figures` | All 11 `--64gb` graphs except the 2 manual-download ones; fetches `.mtx` from SuiteSparse, converts to `.el` then `.sg` |
+| 2. Bulk pre-stage (login node before SLURM) | The for-loop in §8.1.5 below | One-time staging for cluster jobs |
+| 3. Manual placement | `mkdir -p results/graphs/<name> && cp my-graph.el results/graphs/<name>/<name>.el` then `bench/bin/converter -f .../<name>.el -b .../<name>.sg` | Custom datasets or twitter7/webbase-2001/Gong-gplus/wikipedia_link_en |
+
+**Where graph derivatives are written** (created automatically):
+
+```
+results/vldb_mappings/<name>/<algo_key>.lo    # cached vertex permutation (§see "reorder-once-reuse-everywhere" below)
+results/vldb_mappings/<name>/<algo_key>.time  # recorded reorder time
+results/data/<name>/features.json             # ML-feature extraction (optional)
+```
+
+**Override with `--graph-dir`** if you keep graphs elsewhere (e.g. shared
+filesystem on HPC):
+
+```bash
+python3 scripts/experiments/vldb_paper_experiments.py --exp 2 --64gb \
+    --graph-dir /scratch/$USER/graphs        # nested layout under here
+```
+
 ### Automatic Steps (handled by `--all`)
 
 The script calls `make -j$(nproc)` and `make all-sim -j$(nproc)` automatically.
