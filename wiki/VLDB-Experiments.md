@@ -362,24 +362,41 @@ evaluation** parallelised over per-(experiment, graph) jobs.
 
 ### 8.1 One-time UVA setup
 
+UVA Research Computing's Slurm reference:
+<https://www.rc.virginia.edu/userinfo/hpc/slurm/>
+
 ```bash
 # Clone + checkout
 git clone https://github.com/<you>/GraphBrew.git
 cd GraphBrew
 
-# Inspect available partitions / accounts on UVA
-sinfo -o "%P %a %l %D %m"
-sacctmgr -p show user $USER
+# Inspect available partitions and your allocation accounts
+qlist                          # partition list (UVA convenience wrapper)
+qlimits                        # per-partition core/memory/time caps
+sacctmgr -p show user $USER    # accounts you can charge
+module avail gcc               # confirm gcc module name on the cluster
+module avail miniforge         # confirm python/conda module name
 
 # Edit scripts/experiments/vldb_slurm.sbatch:
-#   - Set --account=YOUR_UVA_ALLOC
-#   - Set --partition=... to a partition you have access to
-#   - Adjust `module load ...` lines (gcc/12 and python/3.11 are placeholders)
+#   - --account=YOUR_UVA_ALLOC
+#   - --partition=... (standard for single-node threaded jobs is the default)
+#   - module load gcc miniforge   # change names if `module avail` shows different
 ```
+
+> **Why standard partition?** UVA's `standard` is the single-node
+> serial/threaded queue, which is exactly what our 32-core OpenMP runs
+> need. Use `parallel` only for true MPI multi-node work.
 
 > **Data safety reminder:** every job writes per-cell results via
 > `ResultsStore` with atomic `tmp + rename`. If a job times out you can
 > resubmit it verbatim — already-completed cells are skipped.
+
+> **#SBATCH gotcha (UVA-confirmed):** SLURM directives do **not** expand
+> shell variables. Lines like `#SBATCH --output=...-${GRAPH}.out` produce
+> filenames with literal `${GRAPH}`. Use only `%x` (job-name) and `%j`
+> (jobid) in `--output=`, and pass `--job-name=gbrew-exp${exp}-${g}` on
+> the `sbatch` command line so the EXP/GRAPH appear in the log filename
+> via `%x`. The template and examples below already do this.
 
 ### 8.2 Phase A — SLURM smoke test (30 min, one graph, one experiment)
 
@@ -387,14 +404,16 @@ The goal here is to validate environment / modules / scratch I/O / SLURM
 account *before* spending real allocation on the full sweep.
 
 ```bash
-# Submit ONE job: smallest experiment × smallest graph
+# Submit ONE job: smallest experiment × smallest graph.
+# Pass --job-name with EXP/GRAPH baked in so the log filename is descriptive.
 sbatch --time=00:30:00 \
+       --job-name=gbrew-exp2-cit-Patents \
        --export=ALL,EXP=2,GRAPH=cit-Patents,GRAPHSET=local \
        scripts/experiments/vldb_slurm.sbatch
 
 # Watch it land
 squeue -u $USER
-tail -f results/slurm_logs/gbrew-vldb-*-exp2-cit-Patents.out
+tail -f results/slurm_logs/gbrew-exp2-cit-Patents-*.out
 ```
 
 **Success criteria** — check after job completes:
@@ -417,9 +436,20 @@ print('SMOKE TEST PASSED')
 
 # 3. Test resume — resubmit; should finish in <1 min thanks to ResultsStore
 sbatch --time=00:10:00 \
+       --job-name=gbrew-exp2-cit-Patents-resume \
        --export=ALL,EXP=2,GRAPH=cit-Patents,GRAPHSET=local \
        scripts/experiments/vldb_slurm.sbatch
 # Look for "Resume: loaded N existing results" in the new log.
+```
+
+UVA-specific health checks (the canonical commands from
+<https://www.rc.virginia.edu/userinfo/hpc/slurm/#displaying-job-status>):
+
+```bash
+squeue -u $USER                              # is it queued / running?
+scontrol show job <jobid>                    # detailed state
+seff <jobid>                                 # CPU + memory efficiency after completion
+sacct -u $USER --format=JobID,JobName,State,ExitCode,Elapsed
 ```
 
 If any of the three checks fails, **stop and fix before Phase B**.
@@ -428,9 +458,11 @@ Common gotchas:
 | Symptom | Cause | Fix |
 |---|---|---|
 | `module: command not found` | wrong module env on partition | check `module avail` and edit `vldb_slurm.sbatch` |
+| `gcc/12: Unable to locate` | module name differs on cluster | run `module avail gcc` and update the `module load` line |
 | `bench/bin/converter: not found` | build failed silently | run `make -j$SLURM_CPUS_PER_TASK pr bfs cc sssp bc tc converter` manually first |
 | `Permission denied` on `results/slurm_logs/` | log dir doesn't exist | `mkdir -p results/slurm_logs` before sbatch |
 | `Invalid account` | wrong `--account=` | `sacctmgr -p show user $USER` to list yours |
+| Log file literally named `*-exp${EXP}-${GRAPH}.out` | shell vars don't expand in `#SBATCH` | use `--job-name=gbrew-exp${exp}-${g}` on the sbatch command line; the template's `--output=%x-%j.out` then bakes EXP/GRAPH in via `%x` |
 | All cells valid timing but 0 compose rows | old `vldb_config.py` deployed | `git pull` on the cluster |
 
 ### 8.3 Phase B — Full paper evaluation (parallel fan-out)
@@ -450,10 +482,12 @@ GRAPHS_64GB=(
 
 # Three priority experiments — these together produce the paper's
 # headline table (kernel speedup), amortisation column, and scalability
-# figure.
+# figure. Each iteration pre-sets --job-name so the EXP/GRAPH show up
+# in squeue and in the log filename via the %x token.
 for g in "${GRAPHS_64GB[@]}"; do
   for exp in 2 3 8; do
     sbatch --time=04:00:00 \
+           --job-name=gbrew-exp${exp}-${g} \
            --export=ALL,EXP=$exp,GRAPH=$g,GRAPHSET=64gb \
            scripts/experiments/vldb_slurm.sbatch
   done
@@ -462,6 +496,15 @@ done
 # Check submission count (should be 30 jobs)
 squeue -u $USER -h | wc -l
 ```
+
+> **Alternative — Job Arrays (UVA-recommended for large fan-outs).**
+> SLURM job arrays (`--array=1-N`) submit hundreds of tasks under one
+> jobid, and cancel/requeue is per-task. They require an `options.txt`
+> with one `(EXP,GRAPH)` per line and a small wrapper around the
+> template. See
+> <https://www.rc.virginia.edu/userinfo/hpc/slurm/#using-files-with-job-arrays>.
+> For 30 jobs the simple `for` loop above is fine; switch to arrays if
+> you ever scale to hundreds of cells.
 
 **Re-submit timeouts**. SLURM returns exit code 124 for `timeout`;
 just rerun the exact same `sbatch` line — `ResultsStore` picks up
@@ -487,12 +530,16 @@ Twitter7 (1.5B edges) and webbase-2001 (1B edges) are the most
 impactful generalization checks but only fit on 256-GB partitions.
 
 ```bash
-# Submit to a high-memory partition with extra wall time
-sbatch --partition=highmem --mem=256G --time=24:00:00 \
+# Submit to a high-memory partition with extra wall time.
+# Check `qlist` for the exact high-mem partition name on your cluster
+# (commonly `largemem` on UVA Rivanna).
+sbatch --partition=largemem --mem=256G --time=24:00:00 \
+       --job-name=gbrew-exp2-twitter7 \
        --export=ALL,EXP=2,GRAPH=twitter7,GRAPHSET=full \
        scripts/experiments/vldb_slurm.sbatch
 
-sbatch --partition=highmem --mem=256G --time=24:00:00 \
+sbatch --partition=largemem --mem=256G --time=24:00:00 \
+       --job-name=gbrew-exp2-webbase-2001 \
        --export=ALL,EXP=2,GRAPH=webbase-2001,GRAPHSET=full \
        scripts/experiments/vldb_slurm.sbatch
 ```
