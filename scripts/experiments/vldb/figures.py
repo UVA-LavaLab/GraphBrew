@@ -7,13 +7,13 @@ publication-quality figures (PNG) and LaTeX table snippets.
 
 Usage:
     # Generate all figures from experiment results:
-    python scripts/experiments/vldb_generate_figures.py
+    python scripts/experiments/vldb/figures.py
 
     # Generate with sample/placeholder data (for layout preview):
-    python scripts/experiments/vldb_generate_figures.py --sample-data
+    python scripts/experiments/vldb/figures.py --sample-data
 
     # Generate specific figure:
-    python scripts/experiments/vldb_generate_figures.py --fig 1 2 5
+    python scripts/experiments/vldb/figures.py --fig 1 2 5
 """
 
 from __future__ import annotations
@@ -27,10 +27,10 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 # Ensure project root is on path
-PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT / "scripts"))
 
-from experiments.vldb_config import (
+from experiments.vldb.config import (
     ALL_ALGORITHMS,
     BASELINE_ALGORITHMS,
     BENCHMARKS,
@@ -47,11 +47,10 @@ from experiments.vldb_config import (
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 log = logging.getLogger("vldb_figures")
 
-# Paper figure directory (for direct LaTeX inclusion)
-PAPER_DIR = PROJECT_ROOT / "research" / (
-    "GraphBrew__Multilayered_Graph_Reordering_Techniques_for_"
-    "Accelerated_Graph_Processing__VLDB_2024_"
-)
+# Paper figure directory (for direct LaTeX inclusion).
+# The canonical paper source lives at paper/ — figures are copied into
+# paper/dataCharts/<subdir>/ so main.tex can \includegraphics{dataCharts/...}.
+PAPER_DIR = PROJECT_ROOT / "paper"
 PAPER_CHARTS_DIR = PAPER_DIR / "dataCharts"
 
 # Try importing matplotlib; if not available, skip figure generation
@@ -70,6 +69,130 @@ try:
     HAS_NP = True
 except ImportError:
     HAS_NP = False
+
+
+# ============================================================================
+# Paper style — matches paper/dataCharts/*.png (LibreOffice-Calc palette)
+# ============================================================================
+
+# Canonical palette pulled from the existing paper figures. Order is the
+# usual baselines-then-GraphBrew progression: deep-blue, light-blue, cream,
+# orange, green, grey for "other".
+PAPER_PALETTE = {
+    "blue":       "#2E75B6",   # DBG / first baseline
+    "lightblue":  "#9DC3E6",   # Rabbit / second baseline
+    "cream":      "#FFE699",   # Gorder / third baseline
+    "orange":     "#ED7D31",   # GraphBrew headline
+    "green":      "#548235",   # extra (used in cache plots)
+    "grey":       "#A6A6A6",   # neutral / RCM / fallback
+    "darkorange": "#C55A11",   # GB compose variants
+    "darkblue":   "#1F4E79",   # baseline ORIGINAL outline
+}
+
+# Per-algorithm assignment so the same algo always gets the same colour
+# across all figures in the paper. Keys cover canonical aliases, GraphBrew
+# variants, and compose recipes.
+ALGO_COLORS = {
+    # Baselines
+    "ORIGINAL":      PAPER_PALETTE["grey"],
+    "RANDOM":        PAPER_PALETTE["grey"],
+    "DBG":           PAPER_PALETTE["blue"],
+    "HUBSORTDBG":    PAPER_PALETTE["blue"],
+    "HUBCLUSTERDBG": PAPER_PALETTE["blue"],
+    "HUBSORT":       PAPER_PALETTE["lightblue"],
+    "HUBCLUSTER":    PAPER_PALETTE["lightblue"],
+    "SORT":          PAPER_PALETTE["lightblue"],
+    "RABBITORDER":   PAPER_PALETTE["lightblue"],
+    "Rabbit":        PAPER_PALETTE["lightblue"],
+    "GORDER":        PAPER_PALETTE["cream"],
+    "Gorder":        PAPER_PALETTE["cream"],
+    "GoGraphOrder":  PAPER_PALETTE["green"],
+    "RCM":           PAPER_PALETTE["grey"],
+    # GraphBrew headline
+    "GraphBrew":     PAPER_PALETTE["orange"],
+    "GB-Leiden":     PAPER_PALETTE["orange"],
+    "GB-leiden":     PAPER_PALETTE["orange"],
+    "GB-HRAB":       PAPER_PALETTE["darkorange"],
+    "GB-hrab":       PAPER_PALETTE["darkorange"],
+    "GB-Rabbit":     PAPER_PALETTE["orange"],
+    "GB-rabbit":     PAPER_PALETTE["orange"],
+    "GB-Hubcluster": PAPER_PALETTE["orange"],
+    "GB-hubcluster": PAPER_PALETTE["orange"],
+    "GB-TQR":        PAPER_PALETTE["darkorange"],
+    "GB-tqr":        PAPER_PALETTE["darkorange"],
+    "GB-Hcache":     PAPER_PALETTE["darkorange"],
+    "GB-hcache":     PAPER_PALETTE["darkorange"],
+    "GB-Streaming":  PAPER_PALETTE["darkorange"],
+    "GB-streaming":  PAPER_PALETTE["darkorange"],
+    "GB-Rcm":        PAPER_PALETTE["grey"],
+    "GB-rcm":        PAPER_PALETTE["grey"],
+    # Compose recipes — keep the orange family
+    "GB-LeidG8":     PAPER_PALETTE["darkorange"],
+    "GB-LeidH":      PAPER_PALETTE["orange"],
+    "GB-LeidDA":     PAPER_PALETTE["darkorange"],
+    "GB-LeidRCMpp":  PAPER_PALETTE["darkorange"],
+    "GB-LeidH_dgd":  PAPER_PALETTE["orange"],
+    "GB-LeidDA_dgd": PAPER_PALETTE["darkorange"],
+    "GB-LeidRCMpp_dgd": PAPER_PALETTE["darkorange"],
+    "GB-SgRabH_dgd": PAPER_PALETTE["orange"],
+}
+
+
+def algo_color(name: str) -> str:
+    """Return the paper-palette colour for an algorithm name."""
+    return ALGO_COLORS.get(name, PAPER_PALETTE["grey"])
+
+
+def apply_paper_style() -> None:
+    """Apply the paper's matplotlib rcParams (Times-like, compact, IEEE-2col).
+
+    Idempotent; safe to call multiple times.
+    """
+    if not HAS_MPL:
+        return
+    plt.rcParams.update({
+        # Fonts — readable when the figure is shrunk to a 2-col paper column.
+        "font.family":       "DejaVu Sans",   # widely available, sans-serif
+        "font.size":          9,
+        "axes.titlesize":     9,
+        "axes.labelsize":     8,
+        "xtick.labelsize":    7,
+        "ytick.labelsize":    7,
+        "legend.fontsize":    7,
+        "legend.title_fontsize": 7,
+        # Axes / spines / grid
+        "axes.edgecolor":    "#333333",
+        "axes.linewidth":     0.6,
+        "axes.grid":          True,
+        "axes.axisbelow":     True,
+        "axes.spines.top":    False,
+        "axes.spines.right":  False,
+        "grid.color":        "#CCCCCC",
+        "grid.linewidth":     0.4,
+        # Bar / line defaults
+        "patch.linewidth":    0.5,    # black border on every bar
+        "patch.edgecolor":   "black",
+        "lines.linewidth":    1.2,
+        "lines.markersize":   4,
+        # Legend
+        "legend.frameon":     True,
+        "legend.framealpha":  0.9,
+        "legend.edgecolor":  "#888888",
+        "legend.borderpad":   0.3,
+        "legend.columnspacing": 1.0,
+        "legend.handlelength":  1.2,
+        "legend.handletextpad": 0.4,
+        # Output
+        "savefig.dpi":        300,
+        "savefig.bbox":       "tight",
+        "savefig.pad_inches": 0.02,
+    })
+
+
+# IEEE 2-column figure widths (inches)
+COL_WIDTH_IN      = 3.4   # single-column
+TWOCOL_WIDTH_IN   = 7.0   # full text width
+ROW_HEIGHT_IN     = 1.8   # short row, tweak per plot
 
 
 # ============================================================================
@@ -196,6 +319,7 @@ def fig1_cache_performance(sample: bool = False) -> None:
         return
 
     # ---- Real data from exp1 ----
+    apply_paper_style()
     data = load_json(RESULTS_DIR / "exp1_cache" / "cache_results.json")
     if not isinstance(data, list) or not data:
         log.warning("  Skipped (no cache data)")
@@ -232,21 +356,18 @@ def fig1_cache_performance(sample: bool = False) -> None:
     if not show_algos:
         show_algos = sorted(all_algos_in_data)[:10]
 
-    colors_map = {
-        "ORIGINAL": "#888888", "RANDOM": "#aaaaaa", "DBG": "#1f77b4",
-        "RABBITORDER": "#9467bd", "GORDER": "#d62728", "GoGraphOrder": "#17becf",
-        "RCM": "#7f7f7f",
-    }
-    gb_colors = ["#2ca02c", "#98df8a", "#006400", "#228B22", "#32CD32",
-                 "#3CB371", "#66CDAA", "#8FBC8F", "#556B2F", "#6B8E23"]
+    colors_map = {a: algo_color(a) for a in show_algos}
 
-    ncols = min(3, len(graphs) + 1)
-    nrows = (len(graphs) + ncols) // ncols  # +1 for GM
-    fig, axes = plt.subplots(nrows, ncols, figsize=(5 * ncols, 4 * nrows))
+    ncols = min(3, len(graphs))
+    nrows = (len(graphs) + ncols - 1) // ncols
+    fig, axes = plt.subplots(nrows, ncols,
+                             figsize=(TWOCOL_WIDTH_IN,
+                                      ROW_HEIGHT_IN * nrows + 0.4),
+                             sharey=True)
     axes = np.array(axes).flatten()
 
     x = np.arange(len(show_algos))
-    width = 0.7
+    width = 0.78
 
     for idx, graph in enumerate(graphs):
         ax = axes[idx]
@@ -254,22 +375,24 @@ def fig1_cache_performance(sample: bool = False) -> None:
         for algo in show_algos:
             rates = graph_algo_miss[graph].get(algo, [])
             vals.append(np.mean(rates) if rates else 0)
-        c = [colors_map.get(a, gb_colors[i % len(gb_colors)])
-             for i, a in enumerate(show_algos)]
-        ax.bar(x, vals, width, color=c, edgecolor="black", linewidth=0.3)
+        c = [colors_map[a] for a in show_algos]
+        ax.bar(x, vals, width, color=c, edgecolor="black", linewidth=0.5)
         ax.set_xticks(x)
-        ax.set_xticklabels([a[:10] for a in show_algos], rotation=45, ha="right", fontsize=6)
-        ax.set_ylabel("L3 Miss Rate (%)")
-        ax.set_title(graph, fontsize=9)
-        ax.grid(axis="y", alpha=0.3)
+        ax.set_xticklabels([a.replace("GB-", "")[:10] for a in show_algos],
+                           rotation=40, ha="right", fontsize=6)
+        if idx % ncols == 0:
+            ax.set_ylabel("L3 miss (%)", fontsize=8)
+        ax.set_title(graph, fontsize=8, pad=2)
+        ax.tick_params(axis="y", pad=1)
+        ax.margins(x=0.02)
 
     # Turn off unused axes
     for i in range(len(graphs), len(axes)):
         axes[i].axis("off")
 
-    plt.tight_layout()
+    plt.tight_layout(pad=0.4, w_pad=0.5, h_pad=0.6)
     out = FIGURES_DIR / "fig1_cache_performance.png"
-    plt.savefig(out, dpi=300); plt.close()
+    plt.savefig(out); plt.close()
     log.info(f"  Saved: {out}")
     copy_to_paper(out, "cache", "cacheGM.png")
 
@@ -286,6 +409,7 @@ def fig2_kernel_speedup(sample: bool = False) -> None:
         return
 
     ensure_dir(FIGURES_DIR)
+    apply_paper_style()
 
     data = load_json(RESULTS_DIR / "exp2_speedup" / "speedup_results.json")
     if not isinstance(data, list) or not data:
@@ -327,18 +451,17 @@ def fig2_kernel_speedup(sample: bool = False) -> None:
     if not key_algos:
         key_algos = sorted(all_algos)[:10]
 
-    algo_colors = {
-        "DBG": "#1f77b4", "RABBITORDER": "#9467bd", "GORDER": "#d62728",
-        "GoGraphOrder": "#17becf", "RCM": "#7f7f7f",
-        "GB-Leiden": "#2ca02c", "GB-HRAB": "#006400", "GB-Rabbit": "#98df8a",
-        "GB-Hubcluster": "#228B22", "GB-TQR": "#3CB371", "GB-Hcache": "#66CDAA",
-        "GB-Streaming": "#556B2F", "GB-Rabbit:dbg": "#6B8E23",
-        "GB-Rabbit:hubcluster": "#8FBC8F", "GB-Rcm": "#808000",
-    }
+    algo_colors = {a: algo_color(a) for a in key_algos}
 
-    ncols = min(4, len(benchmarks_plot) + 1)
-    nrows = (len(benchmarks_plot) + ncols) // ncols
-    fig, axes = plt.subplots(nrows, ncols, figsize=(5 * ncols, 4 * nrows))
+    # Compact layout for paper inclusion: per-benchmark stacked vertically,
+    # full text width.  One axes per benchmark + one aggregate.
+    n_panels = len(benchmarks_plot) + 1
+    ncols = min(4, n_panels)
+    nrows = (n_panels + ncols - 1) // ncols
+    fig, axes = plt.subplots(nrows, ncols,
+                             figsize=(TWOCOL_WIDTH_IN,
+                                      ROW_HEIGHT_IN * nrows + 0.4),
+                             sharey=False)
     axes = np.array(axes).flatten()
 
     # Per-benchmark subplot
@@ -348,16 +471,19 @@ def fig2_kernel_speedup(sample: bool = False) -> None:
         for algo in key_algos:
             vals = bench_algo_speedups[bench].get(algo, [])
             means.append(_geo_mean(vals) if vals else 1.0)
-        colors = [algo_colors.get(a, "#aaaaaa") for a in key_algos]
+        colors = [algo_colors[a] for a in key_algos]
         x = np.arange(len(key_algos))
-        ax.bar(x, means, 0.7, color=colors, edgecolor="black", linewidth=0.3)
-        ax.axhline(y=1.0, color="red", linestyle="--", linewidth=0.5, alpha=0.7)
+        ax.bar(x, means, 0.78, color=colors,
+               edgecolor="black", linewidth=0.5)
+        ax.axhline(y=1.0, color="#666666", linestyle="--", linewidth=0.5)
         ax.set_xticks(x)
         ax.set_xticklabels([a.replace("GB-", "") for a in key_algos],
-                           rotation=45, ha="right", fontsize=6)
-        ax.set_ylabel("Speedup (vs Original)")
-        ax.set_title(bench.upper(), fontsize=10)
-        ax.grid(axis="y", alpha=0.3)
+                           rotation=40, ha="right", fontsize=6)
+        if idx % ncols == 0:
+            ax.set_ylabel("Speedup", fontsize=8)
+        ax.set_title(bench.upper(), fontsize=8, pad=2)
+        ax.tick_params(axis="y", pad=1)
+        ax.margins(x=0.02)
 
     # Aggregate (geo-mean across benchmarks)
     if len(benchmarks_plot) < len(axes):
@@ -370,33 +496,34 @@ def fig2_kernel_speedup(sample: bool = False) -> None:
                 if vals:
                     all_speedups.append(_geo_mean(vals))
             gm_vals.append(_geo_mean(all_speedups) if all_speedups else 1.0)
-        colors = [algo_colors.get(a, "#aaaaaa") for a in key_algos]
+        colors = [algo_colors[a] for a in key_algos]
         x = np.arange(len(key_algos))
-        ax.bar(x, gm_vals, 0.7, color=colors, edgecolor="black", linewidth=0.3)
-        ax.axhline(y=1.0, color="red", linestyle="--", linewidth=0.5, alpha=0.7)
+        ax.bar(x, gm_vals, 0.78, color=colors,
+               edgecolor="black", linewidth=0.5)
+        ax.axhline(y=1.0, color="#666666", linestyle="--", linewidth=0.5)
         ax.set_xticks(x)
         ax.set_xticklabels([a.replace("GB-", "") for a in key_algos],
-                           rotation=45, ha="right", fontsize=6)
-        ax.set_ylabel("Geo-Mean Speedup")
-        ax.set_title("Aggregate (GM)", fontsize=10)
-        ax.grid(axis="y", alpha=0.3)
+                           rotation=40, ha="right", fontsize=6)
+        ax.set_title("GM", fontsize=8, pad=2)
+        ax.tick_params(axis="y", pad=1)
+        ax.margins(x=0.02)
 
     for i in range(min(len(benchmarks_plot) + 1, len(axes)), len(axes)):
         axes[i].axis("off")
 
-    plt.tight_layout()
+    plt.tight_layout(pad=0.4, w_pad=0.5, h_pad=0.6)
     out = FIGURES_DIR / "fig2_kernel_speedup.png"
     plt.savefig(out, dpi=300); plt.close()
     log.info(f"  Saved: {out}")
     copy_to_paper(out, "speedup", "aggregateSpeedups.png")
 
-    # Also generate per-benchmark per-graph charts
+    # Also generate per-benchmark per-graph charts (one PNG each, 2-col wide)
     for bench in benchmarks_plot:
-        fig, ax = plt.subplots(figsize=(12, 5))
+        fig, ax = plt.subplots(figsize=(TWOCOL_WIDTH_IN, 2.2))
         graphs_in_bench = sorted(set(r["graph"] for r in data if r["benchmark"] == bench))
         x = np.arange(len(graphs_in_bench))
         n_algos = len(key_algos)
-        width = 0.8 / n_algos
+        width = 0.84 / max(n_algos, 1)
         for i, algo in enumerate(key_algos):
             vals = []
             for g in graphs_in_bench:
@@ -407,21 +534,22 @@ def fig2_kernel_speedup(sample: bool = False) -> None:
                     vals.append(bl / rec[0]["average_time"])
                 else:
                     vals.append(0)
-            ax.bar(x + i * width - 0.4 + width/2, vals, width,
+            ax.bar(x + i * width - 0.42 + width/2, vals, width,
                    label=algo.replace("GB-", ""),
-                   color=algo_colors.get(algo, "#aaaaaa"), edgecolor="black", linewidth=0.2)
+                   color=algo_colors[algo], edgecolor="black", linewidth=0.4)
         ax.set_xticks(x)
         short_names = {g["name"]: g["short"] for gl in [EVAL_GRAPHS] for g in gl}
         ax.set_xticklabels([short_names.get(g, g[:12]) for g in graphs_in_bench],
-                           rotation=30, ha="right", fontsize=8)
-        ax.set_ylabel("Speedup")
-        ax.set_title(f"{bench.upper()} — Per-Graph Speedup")
-        ax.axhline(y=1.0, color="red", linestyle="--", linewidth=0.5)
-        ax.legend(fontsize=5, ncol=3, loc="upper right")
-        ax.grid(axis="y", alpha=0.3)
-        plt.tight_layout()
+                           rotation=30, ha="right", fontsize=7)
+        ax.set_ylabel("Speedup", fontsize=8)
+        ax.set_title(f"{bench.upper()} — per-graph", fontsize=8, pad=2)
+        ax.axhline(y=1.0, color="#666666", linestyle="--", linewidth=0.5)
+        ax.legend(fontsize=6, ncol=min(len(key_algos), 5),
+                  loc="upper center", bbox_to_anchor=(0.5, 1.22),
+                  frameon=True)
+        plt.tight_layout(pad=0.3)
         out_b = FIGURES_DIR / f"fig2_{bench}.png"
-        plt.savefig(out_b, dpi=300); plt.close()
+        plt.savefig(out_b); plt.close()
         log.info(f"  Saved: {out_b}")
         copy_to_paper(out_b, "speedup", f"{bench.upper()}.png")
 

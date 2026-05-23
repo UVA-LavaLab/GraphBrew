@@ -104,49 +104,89 @@ def load_reorder_time_for_algo(graph_name: str, algo_name: str,
 def parse_benchmark_output(output: str) -> Tuple[float, float, Dict]:
     """
     Parse benchmark stdout to extract timing information.
-    
+
+    Returns a flat dict in ``extra`` containing (when present):
+      - ``trial_times``: list of per-trial wall-clock times (seconds)
+      - ``average_time``: same as the tuple's first element
+      - ``preprocessing_time``, ``total_time``: standalone timings
+      - ``read_time``, ``topology_analysis_time``, ``relabel_map_time``:
+        GraphBrew-specific load/topology timings
+      - ``reorder_time_passes``: list of per-pass reorder times for chained
+        orderings; the returned ``reorder_time`` is the *sum* of these
+      - ``mteps``, ``iterations``: BFS / PR specific
+      - topology features (degree_variance, hub_concentration, modularity, ...)
+
     Args:
         output: Stdout from benchmark execution
-        
+
     Returns:
-        Tuple of (average_time, reorder_time, extra_info)
+        Tuple of (average_time, reorder_time_total, extra_info)
     """
     avg_time = 0.0
-    reorder_time = 0.0
-    extra = {}
-    
-    for line in output.split("\n"):
+    extra: Dict = {}
+    trial_times: List[float] = []
+    reorder_passes: List[float] = []
+
+    def _num(line: str) -> float | None:
+        try:
+            return float(line.split(":", 1)[1].strip().split()[0])
+        except (ValueError, IndexError):
+            return None
+
+    for raw in output.split("\n"):
+        line = raw.strip()
+        if not line:
+            continue
         line_lower = line.lower()
-        
-        # Average time - various formats
-        if "average" in line_lower and ("time" in line_lower or ":" in line):
-            match = re.search(r"[\d.]+", line.split(":")[-1] if ":" in line else line)
-            if match:
-                avg_time = float(match.group())
-        
-        # Reorder time
-        if "reorder" in line_lower and "time" in line_lower:
-            match = re.search(r"[\d.]+", line.split(":")[-1] if ":" in line else line)
-            if match:
-                reorder_time = float(match.group())
-        
-        # Trial times
-        if "trial" in line_lower and "time" in line_lower:
-            match = re.search(r"trial\s*(\d+).*?([\d.]+)", line_lower)
-            if match:
-                extra[f"trial_{match.group(1)}"] = float(match.group(2))
-        
-        # MTEPS (for BFS)
+
+        # ---- Reorder Time (may appear multiple times for chained orderings)
+        if line.startswith("Reorder Time"):
+            v = _num(line)
+            if v is not None:
+                reorder_passes.append(v)
+            continue
+
+        # ---- Trial Time:   <secs>     (one per trial, ordered)
+        if line.startswith("Trial Time"):
+            v = _num(line)
+            if v is not None:
+                trial_times.append(v)
+            continue
+
+        # ---- Average Time
+        if line.startswith("Average Time"):
+            v = _num(line)
+            if v is not None:
+                avg_time = v
+                extra["average_time"] = v
+            continue
+
+        # ---- Other standalone timings produced by GraphBrew binaries
+        for key in ("Preprocessing Time", "Total Time", "Read Time",
+                    "Topology Analysis Time", "Relabel Map Time"):
+            if line.startswith(key):
+                v = _num(line)
+                if v is not None:
+                    extra[key.lower().replace(" ", "_")] = v
+                break
+
+        # ---- MTEPS (BFS)
         if "mteps" in line_lower:
-            match = re.search(r"[\d.]+", line)
-            if match:
-                extra["mteps"] = float(match.group())
-        
-        # PageRank iterations
+            m = re.search(r"[\d.]+", line)
+            if m:
+                extra["mteps"] = float(m.group())
+
+        # ---- PageRank / SSSP iteration count
         if "iteration" in line_lower:
-            match = re.search(r"(\d+)\s*iteration", line_lower)
-            if match:
-                extra["iterations"] = int(match.group(1))
+            m = re.search(r"(\d+)\s*iteration", line_lower)
+            if m:
+                extra["iterations"] = int(m.group(1))
+
+    if trial_times:
+        extra["trial_times"] = trial_times
+    if reorder_passes:
+        extra["reorder_time_passes"] = reorder_passes
+    reorder_time = sum(reorder_passes) if reorder_passes else 0.0
     
     # Extract topology features for weight learning
     # These are printed by the C++ code during graph loading

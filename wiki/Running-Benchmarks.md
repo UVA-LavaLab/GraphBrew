@@ -65,13 +65,13 @@ For reproducing the GraphBrew VLDB paper, use the dedicated experiment runner:
 
 ```bash
 # Preview (fast validation — 2 small graphs, ~30 min):
-python3 scripts/experiments/vldb_paper_experiments.py --all --preview
+python3 scripts/experiments/vldb/runner.py --all --preview
 
 # 64 GB machine (11 auto-downloadable graphs):
-python3 scripts/experiments/vldb_paper_experiments.py --all --64gb
+python3 scripts/experiments/vldb/runner.py --all --64gb
 
 # Full evaluation (11 graphs, 7 benchmarks, 3 trials):
-python3 scripts/experiments/vldb_paper_experiments.py --all
+python3 scripts/experiments/vldb/runner.py --all
 ```
 
 ### Full Training Example

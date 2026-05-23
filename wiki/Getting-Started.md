@@ -132,16 +132,16 @@ python3 scripts/graphbrew_experiment.py --target-graphs 150 --dry-run
 
 ```bash
 # Preview: 2 small graphs, 1 trial — sanity check (~5 min)
-python3 scripts/experiments/vldb_paper_experiments.py --all --preview
+python3 scripts/experiments/vldb/runner.py --all --preview
 
 # 6-graph local set (cit-Patents → com-Orkut, fits 64 GB)
-python3 scripts/experiments/vldb_paper_experiments.py --all --local
+python3 scripts/experiments/vldb/runner.py --all --local
 
 # 11-graph 64 GB-RAM set (adds web/mesh/synthetic, all auto-downloadable)
-python3 scripts/experiments/vldb_paper_experiments.py --all --64gb
+python3 scripts/experiments/vldb/runner.py --all --64gb
 
 # Full set (includes twitter7 + webbase-2001, needs 256 GB+ RAM)
-python3 scripts/experiments/vldb_paper_experiments.py --all
+python3 scripts/experiments/vldb/runner.py --all
 ```
 
 See [VLDB-Experiments](VLDB-Experiments) for the experiment-by-experiment guide.

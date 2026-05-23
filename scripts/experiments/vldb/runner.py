@@ -8,19 +8,19 @@ ready figures (PNG/PDF) and LaTeX table snippets.
 
 Usage:
     # Full reproducibility run (experiments + figures):
-    python scripts/experiments/vldb_paper_experiments.py --all --graph-dir /data/graphs
+    python scripts/experiments/vldb/runner.py --all --graph-dir /data/graphs
 
     # Experiments only (no figure generation):
-    python scripts/experiments/vldb_paper_experiments.py --all --graph-dir /data/graphs --no-figures
+    python scripts/experiments/vldb/runner.py --all --graph-dir /data/graphs --no-figures
 
     # Figures only (from previously saved results):
-    python scripts/experiments/vldb_paper_experiments.py --figures-only
+    python scripts/experiments/vldb/runner.py --figures-only
 
     # Preview mode (small graphs, 1 trial, 2 benchmarks):
-    python scripts/experiments/vldb_paper_experiments.py --all --preview --graph-dir /data/graphs
+    python scripts/experiments/vldb/runner.py --all --preview --graph-dir /data/graphs
 
     # Dry run (print commands without executing):
-    python scripts/experiments/vldb_paper_experiments.py --all --dry-run
+    python scripts/experiments/vldb/runner.py --all --dry-run
 """
 
 from __future__ import annotations
@@ -40,10 +40,10 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 # Ensure project root is on path
-PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT / "scripts"))
 
-from experiments.vldb_config import (
+from experiments.vldb.config import (
     ABLATION_CONFIGS,
     ALL_ALGORITHMS,
     BASELINE_ALGORITHMS,
@@ -185,40 +185,25 @@ class ResultsStore:
 def parse_timing(output: Optional[str]) -> dict:
     """Extract timing fields from benchmark stdout.
 
-    GraphBrew binaries print lines like:
-        Trial Time:       0.1234
-        Reorder Time:     0.0567
-        Average Time:     0.1100
+    Delegates to :func:`scripts.lib.pipeline.benchmark.parse_benchmark_output`
+    (the shared, rich parser) and flattens its ``(avg, reorder, extra)``
+    return into the flat dict that the rest of this runner consumes.
 
-    For chained orderings, multiple ``Reorder Time:`` lines may appear.
-    These are **summed** to give the total reorder cost.
+    Captures (when present in stdout):
+      - ``trial_times`` (per-trial wall-clock list)
+      - ``average_time``, ``preprocessing_time``, ``total_time``
+      - ``read_time``, ``topology_analysis_time``, ``relabel_map_time``
+      - ``reorder_time`` (SUM of all "Reorder Time:" lines for chained orderings)
+        + ``reorder_time_passes`` (per-pass list)
+      - ``mteps`` (BFS), ``iterations`` (PR/SSSP)
+      - Topology features (degree_variance, hub_concentration, modularity, ...)
     """
-    result: dict = {}
     if not output:
-        return result
-    reorder_times: list[float] = []
-    for line in output.splitlines():
-        line = line.strip()
-        # Collect all Reorder Time values (summed below)
-        if line.startswith("Reorder Time"):
-            try:
-                reorder_times.append(float(line.split(":", 1)[1].strip().split()[0]))
-            except (ValueError, IndexError):
-                pass
-            continue
-        for key in ("Trial Time", "Average Time",
-                    "Preprocessing Time", "Total Time",
-                    "Topology Analysis Time", "Read Time",
-                    "Relabel Map Time"):
-            if line.startswith(key):
-                try:
-                    result[key.lower().replace(" ", "_")] = float(
-                        line.split(":", 1)[1].strip().split()[0]
-                    )
-                except (ValueError, IndexError):
-                    pass
-    if reorder_times:
-        result["reorder_time"] = sum(reorder_times)
+        return {}
+    _avg, reorder_total, extra = _lib_parse_bench(output)
+    result = dict(extra)
+    if reorder_total > 0:
+        result["reorder_time"] = reorder_total
     return result
 
 
@@ -303,6 +288,12 @@ def save_manifest(args: argparse.Namespace, elapsed: float) -> None:
 # ---------------------------------------------------------------------------
 
 MAPPINGS_DIR = PROJECT_ROOT / "results" / "vldb_mappings"
+KERNEL_RUNS_DIR = PROJECT_ROOT / "results" / "vldb_runs"
+
+# Library parser: superset of the runner's old parse_timing(), plus per-trial
+# vectors, MTEPS, iteration counts, topology features, and chained-reorder
+# summing. Delegated to here so the rich data flows through to sidecars.
+from lib.pipeline.benchmark import parse_benchmark_output as _lib_parse_bench  # noqa: E402
 
 
 def _lo_path(graph_name: str, algo_key: str) -> Path:
@@ -311,21 +302,26 @@ def _lo_path(graph_name: str, algo_key: str) -> Path:
     return MAPPINGS_DIR / graph_name / f"{safe}.lo"
 
 
-def _time_path(graph_name: str, algo_key: str) -> Path:
-    """Path for the recorded reorder time alongside a .lo file."""
+def _meta_path(graph_name: str, algo_key: str) -> Path:
+    """Rich JSON sidecar with full reorder parameters + stdout."""
     safe = algo_key.replace(":", "_").replace("/", "_")
-    return MAPPINGS_DIR / graph_name / f"{safe}.time"
+    return MAPPINGS_DIR / graph_name / f"{safe}.json"
+
+
+def _load_reorder_meta(graph_name: str, algo_key: str) -> dict:
+    """Load the reorder_meta/v1 sidecar, or ``{}`` if not yet generated."""
+    mp = _meta_path(graph_name, algo_key)
+    if mp.exists():
+        try:
+            return json.loads(mp.read_text())
+        except (ValueError, OSError):
+            pass
+    return {}
 
 
 def _load_reorder_time(graph_name: str, algo_key: str) -> float:
-    """Load pre-recorded reorder time from .time file, or 0.0."""
-    tp = _time_path(graph_name, algo_key)
-    if tp.exists():
-        try:
-            return float(tp.read_text().strip())
-        except (ValueError, OSError):
-            pass
-    return 0.0
+    """Return the cached precompute wall-clock from the sidecar, or 0.0."""
+    return float(_load_reorder_meta(graph_name, algo_key).get("reorder_time", 0.0))
 
 
 def _pregenerate_mappings(
@@ -337,8 +333,8 @@ def _pregenerate_mappings(
     """Pre-generate .lo mapping files for all (graph, algorithm) pairs.
 
     Runs the converter once per pair with ``-q {lo_path}`` to produce
-    a vertex-permutation file.  Also records ``Reorder Time:`` from
-    converter stdout into a ``.time`` companion file.
+    a vertex-permutation file, and writes a reorder_meta/v1 ``.json``
+    sidecar next to it with the full cmd / env / timing / stdout tail.
 
     Subsequent experiments use MAP mode (``-o 13:{lo_path}``) so the
     benchmark binary loads the pre-computed ordering with zero reorder
@@ -388,7 +384,6 @@ def _pregenerate_mappings(
 
         for algo_key, aflags in algo_list:
             lo = _lo_path(gname, algo_key)
-            tf = _time_path(gname, algo_key)
 
             if lo.exists() and lo.stat().st_size > 0:
                 skipped += 1
@@ -416,12 +411,26 @@ def _pregenerate_mappings(
                 failed += 1
                 continue
 
-            # Save reorder time (sum of all Reorder Time: lines)
+            # Save the full reorder record as reorder_meta/v1 JSON sidecar.
             reorder_times = re.findall(r"Reorder Time:\s*([\d.]+)", output)
-            if reorder_times:
-                total = sum(float(t) for t in reorder_times)
-                tf.parent.mkdir(parents=True, exist_ok=True)
-                tf.write_text(str(total))
+            total = sum(float(t) for t in reorder_times) if reorder_times else 0.0
+            timing = parse_timing(output)
+            meta = {
+                "schema": "reorder_meta/v1",
+                "graph": gname,
+                "algo_key": algo_key,
+                "converter_flags": list(aflags),
+                "cmd": cmd,
+                "omp_num_threads": os.environ.get("OMP_NUM_THREADS"),
+                "timestamp": datetime.utcnow().isoformat(timespec="seconds") + "Z",
+                "reorder_time": total,
+                "reorder_time_passes": [float(t) for t in reorder_times],
+                "lo_path": str(lo.relative_to(PROJECT_ROOT)),
+                "lo_bytes": lo.stat().st_size,
+                "timing": timing,
+                "stdout_tail": output.strip().splitlines()[-40:],
+            }
+            _meta_path(gname, algo_key).write_text(json.dumps(meta, indent=2))
 
             generated += 1
 
@@ -436,7 +445,7 @@ def algo_flags_or_map(
     If a pre-generated .lo file exists for this (graph, algo), returns
     ``["-o", "13:{lo_path}"]`` so the benchmark loads the cached
     ordering with zero runtime reorder cost.  The recorded reorder time
-    from the ``.time`` file is returned as the second element.
+    from the sidecar JSON is returned as the second element.
 
     Otherwise falls back to the original *algo_flags* (runtime reorder).
     """
@@ -472,6 +481,109 @@ def resolve_graph_path(graph_name: str, graph_dir: str, ext: str = ".sg") -> str
     if nested.exists():
         return str(nested)
     return str(flat)
+
+
+# ---------------------------------------------------------------------------
+# Per-kernel-run JSON sidecar (schema kernel_run/v1)
+# Mirrors the reorder_meta/v1 sidecar in vldb_mappings/ but for kernel runs.
+# Layout: results/vldb_runs/<graph>/<safe_algo_key>__<benchmark>.json
+# ---------------------------------------------------------------------------
+
+def _kernel_sidecar_path(graph_name: str, algo_key: str, benchmark: str) -> Path:
+    safe = str(algo_key).replace(":", "_").replace("/", "_")
+    return KERNEL_RUNS_DIR / graph_name / f"{safe}__{benchmark}.json"
+
+
+def _save_kernel_sidecar(
+    *,
+    graph_name: str,
+    algo_key: str,
+    benchmark: str,
+    cmd: list[str],
+    output: Optional[str],
+    timing: dict,
+    cache: Optional[dict] = None,
+    pregen_rt: float = 0.0,
+    env: Optional[dict] = None,
+    sim: bool = False,
+) -> None:
+    """Write a full ``kernel_run/v1`` JSON record for a single kernel invocation.
+
+    Captures everything needed to reproduce + analyse the run: command,
+    env, parsed timings, cache metrics (if any), pregen reorder cost,
+    and the tail of stdout.
+    """
+    path = _kernel_sidecar_path(graph_name, algo_key, benchmark)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    rec: dict = {
+        "schema": "kernel_run/v1",
+        "graph": graph_name,
+        "algo_key": str(algo_key),
+        "benchmark": benchmark,
+        "sim_binary": sim,
+        "cmd": [str(c) for c in cmd],
+        "env": dict(env) if env else {},
+        "omp_num_threads": (env or {}).get("OMP_NUM_THREADS")
+            or os.environ.get("OMP_NUM_THREADS"),
+        "timestamp": datetime.now().isoformat(timespec="seconds"),
+        "pregen_reorder_time": pregen_rt,
+        "reorder_source": "cache" if pregen_rt > 0 else "direct",
+        "timing": timing,
+        "cache": cache or {},
+        "stdout_tail": (output.strip().splitlines()[-40:] if output else []),
+    }
+    tmp = path.with_suffix(".json.tmp")
+    with tmp.open("w") as f:
+        json.dump(rec, f, indent=2)
+    tmp.replace(path)
+
+
+def _merge_pregen(timing: dict, pregen_rt: float) -> dict:
+    """Apply the cached-mapping bookkeeping in one place.
+
+    When a ``.lo`` was loaded, the binary reports only its load+apply time
+    as "Reorder Time". We overwrite ``reorder_time`` with the real precompute
+    cost (from the sidecar) and keep the binary's tiny value as
+    ``map_load_time`` for transparency.
+    """
+    if pregen_rt > 0:
+        if "reorder_time" in timing:
+            timing["map_load_time"] = timing["reorder_time"]
+        timing["reorder_time"] = pregen_rt
+        timing["reorder_source"] = "cache"
+    return timing
+
+
+def _run_kernel(
+    *,
+    cmd: list[str],
+    graph_name: str,
+    algo_key: str,
+    benchmark: str,
+    pregen_rt: float,
+    dry_run: bool,
+    timeout: int,
+    env: Optional[dict] = None,
+    sim: bool = False,
+    parse_cache: bool = False,
+) -> tuple[dict, dict]:
+    """One-stop helper: run a kernel binary, parse rich timings, apply cache
+    bookkeeping, write the per-kernel sidecar, and return ``(timing, cache)``.
+
+    Replaces the repeated ``run_cmd + parse_timing + pregen-merge`` block
+    that previously appeared in every experiment function.
+    """
+    output = run_cmd(cmd, dry_run=dry_run, timeout=timeout, env=env)
+    timing = parse_timing(output)
+    cache: dict = parse_cache_sim(output) if parse_cache else {}
+    _merge_pregen(timing, pregen_rt)
+    if not dry_run:
+        _save_kernel_sidecar(
+            graph_name=graph_name, algo_key=algo_key, benchmark=benchmark,
+            cmd=cmd, output=output, timing=timing, cache=cache,
+            pregen_rt=pregen_rt, env=env, sim=sim,
+        )
+    return timing, cache
 
 
 # ============================================================================
@@ -515,11 +627,12 @@ def exp1_cache_performance(
             flags, pregen_rt = algo_flags_or_map(akey, aflags, gname)
             cmd = build_benchmark_cmd(cache_bench, gpath, flags, trials, sim=True)
             log.info(f"    {aname}")
-            output = run_cmd(cmd, dry_run=dry_run, timeout=timeout)
-            timing = parse_timing(output)
-            cache = parse_cache_sim(output)
-            if pregen_rt > 0 and "reorder_time" not in timing:
-                timing["reorder_time"] = pregen_rt
+            timing, cache = _run_kernel(
+                cmd=cmd, graph_name=gname, algo_key=akey,
+                benchmark=cache_bench, pregen_rt=pregen_rt,
+                dry_run=dry_run, timeout=timeout,
+                sim=True, parse_cache=True,
+            )
             results.append({
                 "graph": gname, "algorithm": aname, "benchmark": cache_bench,
                 **timing, **cache,
@@ -562,16 +675,17 @@ def exp2_kernel_speedup(
                 gpath = resolve_graph_path(gname, graph_dir)
                 flags, pregen_rt = algo_flags_or_map(str(aid), ["-o", str(aid)], gname)
                 cmd = build_benchmark_cmd(bench, gpath, flags, trials)
-                output = run_cmd(cmd, dry_run=dry_run, timeout=timeout)
-                timing = parse_timing(output)
-                if pregen_rt > 0 and "reorder_time" not in timing:
-                    timing["reorder_time"] = pregen_rt
+                timing, _ = _run_kernel(
+                    cmd=cmd, graph_name=gname, algo_key=str(aid),
+                    benchmark=bench, pregen_rt=pregen_rt,
+                    dry_run=dry_run, timeout=timeout,
+                )
                 store.add({
                     "graph": gname, "algorithm": aname, "benchmark": bench,
                     "algo_id": aid, **timing,
                 })
 
-            # GraphBrew variants (legacy `12:<v>` form)
+            # GraphBrew variants (`12:<v>` form)
             for v in GRAPHBREW_VARIANTS:
                 algo_id = f"12:{v}"
                 key_row = {"graph": gname, "algo_id": algo_id, "benchmark": bench}
@@ -580,10 +694,11 @@ def exp2_kernel_speedup(
                 gpath = resolve_graph_path(gname, graph_dir)
                 flags, pregen_rt = algo_flags_or_map(algo_id, ["-o", algo_id], gname)
                 cmd = build_benchmark_cmd(bench, gpath, flags, trials)
-                output = run_cmd(cmd, dry_run=dry_run, timeout=timeout)
-                timing = parse_timing(output)
-                if pregen_rt > 0 and "reorder_time" not in timing:
-                    timing["reorder_time"] = pregen_rt
+                timing, _ = _run_kernel(
+                    cmd=cmd, graph_name=gname, algo_key=algo_id,
+                    benchmark=bench, pregen_rt=pregen_rt,
+                    dry_run=dry_run, timeout=timeout,
+                )
                 store.add({
                     "graph": gname, "algorithm": f"GB-{v}", "benchmark": bench,
                     "algo_id": algo_id, **timing,
@@ -598,10 +713,11 @@ def exp2_kernel_speedup(
                 gpath = resolve_graph_path(gname, graph_dir)
                 flags, pregen_rt = algo_flags_or_map(algo_id, ["-o", algo_id], gname)
                 cmd = build_benchmark_cmd(bench, gpath, flags, trials)
-                output = run_cmd(cmd, dry_run=dry_run, timeout=timeout)
-                timing = parse_timing(output)
-                if pregen_rt > 0 and "reorder_time" not in timing:
-                    timing["reorder_time"] = pregen_rt
+                timing, _ = _run_kernel(
+                    cmd=cmd, graph_name=gname, algo_key=algo_id,
+                    benchmark=bench, pregen_rt=pregen_rt,
+                    dry_run=dry_run, timeout=timeout,
+                )
                 store.add({
                     "graph": gname, "algorithm": f"GB-{label}", "benchmark": bench,
                     "algo_id": algo_id, **timing,
@@ -709,10 +825,11 @@ def exp5_ablation(
             gpath = resolve_graph_path(gname, graph_dir)
             flags, pregen_rt = algo_flags_or_map(algo_key, aflags, gname)
             cmd = build_benchmark_cmd(abl_bench, gpath, flags, trials)
-            output = run_cmd(cmd, dry_run=dry_run, timeout=timeout)
-            timing = parse_timing(output)
-            if pregen_rt > 0 and "reorder_time" not in timing:
-                timing["reorder_time"] = pregen_rt
+            timing, _ = _run_kernel(
+                cmd=cmd, graph_name=gname, algo_key=algo_key,
+                benchmark=abl_bench, pregen_rt=pregen_rt,
+                dry_run=dry_run, timeout=timeout,
+            )
             results.append({
                 "graph": gname, "config": config["name"],
                 "algo": config["algo"], "desc": config["desc"],
@@ -771,10 +888,11 @@ def exp7_chained(
             chain_key = f"chain:{chain_name}"
             flags, pregen_rt = algo_flags_or_map(chain_key, chain_flags, gname)
             cmd = build_benchmark_cmd(chain_bench, gpath, flags, trials)
-            output = run_cmd(cmd, dry_run=dry_run, timeout=timeout)
-            timing = parse_timing(output)
-            if pregen_rt > 0 and "reorder_time" not in timing:
-                timing["reorder_time"] = pregen_rt
+            timing, _ = _run_kernel(
+                cmd=cmd, graph_name=gname, algo_key=chain_key,
+                benchmark=chain_bench, pregen_rt=pregen_rt,
+                dry_run=dry_run, timeout=timeout,
+            )
             results.append({
                 "graph": gname, "chain": chain_name,
                 "flags": chain_flags, "benchmark": chain_bench, **timing,
@@ -1194,7 +1312,7 @@ def main() -> None:
 
 def _generate_figures() -> None:
     """Invoke the figure generator on saved results."""
-    fig_script = PROJECT_ROOT / "scripts" / "experiments" / "vldb_generate_figures.py"
+    fig_script = PROJECT_ROOT / "scripts" / "experiments" / "vldb" / "figures.py"
     cmd = [sys.executable, str(fig_script)]
 
     # If results don't have real data yet, use sample data

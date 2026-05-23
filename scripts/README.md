@@ -1,81 +1,70 @@
-# scripts/
-
-All Python tooling for GraphBrew lives here.
-
-## Quick Start
-
-```bash
-# One-command: download 150 graphs/size, benchmark, train, evaluate
-python3 scripts/graphbrew_experiment.py --target-graphs 150
-
-# Preview what would run (no execution)
-python3 scripts/graphbrew_experiment.py --target-graphs 150 --dry-run
-
-# Skip ML evaluation at end
-python3 scripts/graphbrew_experiment.py --target-graphs 150 --skip-eval
-```
-
-`--target-graphs N` auto-enables `--full`, `--catalog-size N`, `--auto`, `--all-variants`.
-
-## Structure
+# `scripts/` — single source of truth
 
 ```
 scripts/
-├── graphbrew_experiment.py        ← SINGLE entry point (the only top-level .py)
-├── requirements.txt
-├── experiments/                   ← Paper experiment runners
-│   ├── vldb_config.py             ← VLDB paper: graph/algorithm configuration
-│   ├── vldb_paper_experiments.py  ← VLDB paper: 8-experiment suite
-│   ├── vldb_generate_figures.py   ← VLDB paper: figure/table generation
-│   ├── vldb_experiments.py        ← VLDB: full lab suite
-│   ├── vldb_experiments_small.py  ← VLDB: lightweight preview
-│   ├── ecg_config.py              ← ECG paper: cache policy configuration
-│   └── ecg_paper_experiments.py   ← ECG paper: 6-experiment suite
-├── lib/                           ← modular library, 5 sub-packages (see lib/README.md)
-│   ├── core/                      ← constants, logging, data stores
-│   ├── pipeline/                  ← experiment execution stages
-│   ├── ml/                        ← ML scoring & training (fallback)
-│   ├── analysis/                  ← post-run analysis & visualisation
-│   ├── tools/                     ← standalone CLI utilities
-│   └── __init__.py                ← re-exports every public name
-└── test/                          ← pytest tests  (run: pytest scripts/test/)
+├── experiments/               ← paper experiment runners (see experiments/README.md)
+│   ├── vldb/                   VLDB 2026 paper — everything in one place
+│   ├── ecg/                    ECG / GrAPL paper
+│   ├── adaptive_ml/            ML-ordering model ablation
+│   └── legacy/                 archived (no live imports)
+├── lib/                       ← reusable Python modules (imported, not run)
+│   ├── core/                   ResultsStore, parsing, run helpers
+│   ├── pipeline/               download.py (catalog auto-download), build, convert
+│   ├── analysis/               amortise, figures, cold-start sim
+│   ├── ml/                     adaptive ordering model
+│   └── tools/                  misc CLIs
+├── test/                      ← pytest tests
+├── graphbrew_experiment.py    ← legacy unified one-click pipeline
+└── requirements.txt
 ```
 
-Weight and model data live under `results/data/` (not `scripts/`), managed by
-`lib/core/utils.py` constants:
+## Canonical paths (single source of truth)
 
+| Artifact | Path |
+|---|---|
+| Graphs (downloaded + converted)        | `results/graphs/<name>/<name>.{sg,mtx,el}` |
+| Reorder mappings cache (`.lo` + `.time`) | `results/vldb_mappings/<graph>/<algo_key>.lo` |
+| VLDB experiment JSON                  | `results/vldb_paper/exp<N>_*/` |
+| Aggregated figures + tables           | `paper/figures/`, `paper/dataCharts/`, `results/vldb_paper/{figures,tables}/` |
+| ECG experiments                       | `results/ecg_experiments/` |
+| Generic logs                          | `results/logs/`, `results/slurm_logs/` |
+
+Auto-download for the VLDB pipeline is driven by
+[`experiments/vldb/config.py:VLDB_GRAPH_SOURCES`](experiments/vldb/config.py).
+
+## Quick start (VLDB stage-based, recommended)
+
+```bash
+source .venv/bin/activate
+
+# Smoke (~1 min, 2 tiny graphs)
+python3 scripts/experiments/vldb/stages/01_prep.py     --exp 2 --preview
+python3 scripts/experiments/vldb/stages/02_reorder.py  --exp 2 --preview
+python3 scripts/experiments/vldb/stages/03_cpu_perf.py --exp 2 --preview
+
+# Local 6-graph eval
+python3 scripts/experiments/vldb/stages/01_prep.py     --exp 2 --local
+python3 scripts/experiments/vldb/stages/02_reorder.py  --exp 2 --local
+python3 scripts/experiments/vldb/stages/03_cpu_perf.py --exp 2 --local
+
+# Cache stats only (host CPU speed doesn't matter)
+python3 scripts/experiments/vldb/stages/04_cache_sim.py --exp 1 --local
+
+# Figures
+python3 scripts/experiments/vldb/stages/05_aggregate.py --exp 0
 ```
-results/data/                           ← runtime data (gitignored)
-├── benchmarks.json                     ← streaming benchmark database (primary)
-├── graph_properties.json               ← graph feature vectors
-└── adaptive_models.json                ← perceptron weights + DT/hybrid models (fallback)
+
+SLURM templates: `scripts/experiments/vldb/stages/slurm/*.sbatch`.
+
+## Legacy / all-in-one entry points
+
+- `scripts/experiments/vldb/runner.py --all --local` — monolithic VLDB runner
+- `scripts/experiments/ecg/runner.py --all` — monolithic ECG runner
+- `scripts/graphbrew_experiment.py --phase all` — original one-click pipeline
+- `scripts/experiments/vldb/slurm/monolithic.sbatch` — monolithic SLURM template
+
+## Tests
+
+```bash
+pytest scripts/test/
 ```
-
-## Rules for AI agents
-
-1. **One top-level Python file: `graphbrew_experiment.py`.**
-   It is the single pipeline entry point.
-   Do NOT create other `.py` files at `scripts/` root.
-   Analysis tools (e.g., `evaluate_all_modes.py`) live in `lib/tools/`.
-   Everything else belongs in `lib/` or `experiments/`.
-
-2. **Library code goes in `lib/`.**  Modules there are imported by
-   `graphbrew_experiment.py`; they are never executed directly.
-
-3. **Experiment runners go in `experiments/`.**
-   Two paper suites: VLDB 2026 (graph reordering) and ECG/GrAPL (cache policies).
-   Both output JSON results to `results/`.
-
-4. **Weight/model paths** use helpers in `lib/core/utils.py`:
-   `results_data_dir()`, `benchmarks_db_path()`, `graph_properties_path()`,
-   `adaptive_models_path()`.
-   Never hard-code paths like `benchmarks.json` or `adaptive_models.json`.
-
-5. **Tests** go in `test/`.  Run with `pytest scripts/test/ -x -q`.
-
-6. **Algorithm naming** uses SSOT functions in `lib/core/utils.py`:
-   `canonical_algo_key()`, `algo_converter_opt()`,
-   `canonical_name_from_converter_opt()`, `chain_canonical_name()`,
-   `get_algo_variants()`.
-   Never hard-code algorithm names — always derive them from these functions.
-   `CHAINED_ORDERINGS` is auto-populated at import time.

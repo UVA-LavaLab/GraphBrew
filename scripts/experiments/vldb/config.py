@@ -15,7 +15,7 @@ from pathlib import Path
 # Paths
 # ---------------------------------------------------------------------------
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent
 BIN_DIR = PROJECT_ROOT / "bench" / "bin"
 BIN_SIM_DIR = PROJECT_ROOT / "bench" / "bin_sim"
 RESULTS_DIR = PROJECT_ROOT / "results" / "vldb_paper"
