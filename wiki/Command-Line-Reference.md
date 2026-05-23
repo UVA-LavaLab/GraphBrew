@@ -276,6 +276,35 @@ Options can be passed directly — the `graphbrew` prefix is **not required**.
 | `lazyupdate` | `-o 12:lazyupdate` | Batched community weight updates |
 | `rabbit` | `-o 12:rabbit` | RabbitOrder single-pass pipeline |
 | `rabbit:dfs` | `-o 12:rabbit:dfs` | RabbitOrder + DFS post-ordering |
+| `compose` | `-o 12:compose:sg_*:comm_*:intra_*` | Pluggable three-axis composition (see below) |
+
+**Compose-variant axes** (paper-aligned vocabulary; pick one of each):
+
+| Axis | Prefix | Picks | Maps to |
+|------|--------|-------|---------|
+| Super-graph order | `sg_` | `none`, `super_rabbit`, `super_rcm`, `tile_rabbit` | `SuperGraphOrder` enum |
+| Community order   | `comm_` | `size`, `size_asc`, `degree_desc`, `degree_asc`, `identity` | `CommunityOrder` enum |
+| Intra-community order | `intra_` | `bfs`, `rcm`, `hubsort`, `deg_asc`, `alternate`, `random`, `bndlast`, `core`, `dendrogram`, `gorder` | `IntraCommunityOrder` enum |
+| Refinement pass | `refine_` | `none`, `2swap` | `RefinementPass` enum |
+
+Extra compose modifiers (anywhere after `compose:`):
+
+| Token | Effect |
+|-------|--------|
+| `gw<N>` | Gorder window size, only with `intra_gorder` (default 5; `gw8` wins on dense PR cells) |
+| `sgres<F>` | Super-graph modularity resolution γ (default 0.10) |
+| `cd_rabbit` / `cd_leiden` | Override community-detection backend after a preset like `12:` or `9:` |
+
+Legacy alias tokens `s1_*`, `s2_*`, `s3_*` are still accepted (older parity scripts depend on them).
+
+Examples:
+- `-o 12:compose:sg_super_rabbit:comm_identity:intra_rcm` — equivalent to `12:hrab`
+- `-o 12:compose:sg_tile_rabbit:comm_identity:intra_bfs` — equivalent to `12:tqr`
+- `-o 12:compose:sg_none:comm_size:intra_rcm` — no super-graph, sort by size, RCM intra
+- `-o 9:leiden:compose:comm_degree_desc:intra_hubsort` — Leiden + per-community hub-first sort, communities ordered by total degree desc
+- `-o 12:rabbit:compose:sg_super_rabbit:comm_degree_desc:intra_hubsort` — 4-axis Rabbit-super × degree-desc × hub-first
+
+Defaults if omitted: `sg_none`, `comm_size`, `intra_bfs`, `refine_none`.  See [GraphBrewOrder#the-compose-variant-pluggable-axes](GraphBrewOrder#the-compose-variant-pluggable-axes) for details.
 
 **Resolution modes:**
 
@@ -320,7 +349,7 @@ See `GRAPHBREW_LAYERS` in `scripts/lib/core/utils.py` for the full definition.
 ```bash
 ./bench/bin/converter -f graph.el -s -o 2 -o 8:csr -b graph.sg  # SORT then RABBITORDER
 ```
-See [[Reordering-Algorithms#chained-orderings-multi-pass]] for all defined chains.
+See [[Reordering-Algorithms#chained-orderings]] for all defined chains.
 
 **Auto-Resolution:** Automatically computed based on graph's coefficient of variation (CV):
 - High-CV graphs (social/web): resolution ≈ 0.50 (coarser communities, better locality)
@@ -502,7 +531,7 @@ export PERCEPTRON_WEIGHTS_FILE=/path/to/weights.json
 ./bench/bin/pr -f graph.el -s -o 14 -n 3
 ```
 
-**Note:** If not set, AdaptiveOrder loads weights from `adaptive_models.json` via the DB hook (see [[Perceptron-Weights#weight-file-location]]).
+**Note:** If not set, AdaptiveOrder loads weights from `adaptive_models.json` via the DB hook (see [[AdaptiveOrder-ML#where-the-models-live]]).
 
 ### NUMA Binding
 
@@ -654,7 +683,7 @@ python3 scripts/graphbrew_experiment.py --evaluate             # Model × Criter
 
 ### eval_weights
 
-Trains weights and simulates C++ scoring to report accuracy/regret. See [[Python-Scripts#-weight-evaluation---eval-weights]].
+Trains weights and simulates C++ scoring to report accuracy/regret. See [[Python-Scripts#weight-evaluation---eval-weights]].
 
 ```bash
 python3 scripts/graphbrew_experiment.py --eval-weights  # No arguments needed
@@ -672,4 +701,4 @@ python3 scripts/graphbrew_experiment.py --eval-weights  # No arguments needed
 
 ---
 
-[← Back to Home](Home) | [Configuration Files →](Configuration-Files)
+[← Back to Home](Home) | [Configuration Files →](Python-Scripts)

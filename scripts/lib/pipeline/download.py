@@ -825,6 +825,8 @@ def download_graphs_parallel(
     
     if dest_dir is None:
         dest_dir = GRAPHS_DIR
+    else:
+        dest_dir = Path(dest_dir)
     
     # Build download list
     if graphs:

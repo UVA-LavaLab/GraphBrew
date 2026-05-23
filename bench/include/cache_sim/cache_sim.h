@@ -632,8 +632,41 @@ public:
             if (mode == ECGMode::POPT_PRIMARY) {
                 // Match P-OPT insertion: uniform RRPV=6 for all lines
                 set[victim_idx].rrpv = 6;
+            } else if (mode == ECGMode::ECG_COMBINED) {
+                // Hawkeye-inspired: combine DBG tier + P-OPT hint into
+                // unified insertion RRPV. Both signals affect every insertion.
+                //
+                // Theory: Insertion RRPV is the dominant lever (Hawkeye ISCA'16).
+                // Using both degree (reuse frequency) and rereference distance
+                // (reuse timing) at insertion captures more information than
+                // either signal alone.
+                //
+                // Formula: RRPV = max(0, min(7, dbg_rrpv + popt_rrpv) / 2))
+                //   dbg_rrpv:  0 (hub) to 7 (cold) from GRASP 3-tier
+                //   popt_rrpv: 0 (near) to 7 (far) from stored P-OPT hint
+                //   Combined:  average → smooth 8-level priority
+                uint8_t dbg_rrpv = 7;
+                if (graph_ctx_) {
+                    uint32_t tier = graph_ctx_->classifyGRASP(address, size_bytes_);
+                    if (tier == 1)      dbg_rrpv = 1;
+                    else if (tier == 2) dbg_rrpv = 4;
+                    else                dbg_rrpv = 7;
+                }
+                uint8_t popt_rrpv = 6;  // default: assume distant
+                if (graph_ctx_ && graph_ctx_->mask_array.enabled) {
+                    uint32_t mask_entry = graph_ctx_->hints_for_thread().mask;
+                    uint8_t hint = graph_ctx_->mask_config.decodePOPT(mask_entry);
+                    uint8_t popt_max = graph_ctx_->mask_config.popt_bits > 0
+                        ? ((1 << graph_ctx_->mask_config.popt_bits) - 1) : 1;
+                    // Map hint (0=near, max=far) to RRPV (0=keep, 7=evict)
+                    popt_rrpv = static_cast<uint8_t>((uint32_t(hint) * 7) / std::max(uint8_t(1), popt_max));
+                }
+                // Weighted combination: both signals contribute equally
+                uint8_t combined = static_cast<uint8_t>((uint32_t(dbg_rrpv) + uint32_t(popt_rrpv)) / 2);
+                if (combined == 0 && dbg_rrpv > 0) combined = 1;  // Reserve 0 for hits
+                set[victim_idx].rrpv = combined;
             } else {
-                // GRASP-faithful 3-tier for DBG modes
+                // GRASP-faithful 3-tier for DBG_PRIMARY, DBG_ONLY, ECG_EMBEDDED
                 constexpr uint8_t P_RRIP = 1;
                 constexpr uint8_t I_RRIP = 6;
                 constexpr uint8_t M_RRIP_C = 7;
@@ -780,8 +813,9 @@ private:
             ECGMode mode = (graph_ctx_ && graph_ctx_->mask_config.enabled)
                 ? graph_ctx_->mask_config.ecg_mode : ECGMode::DBG_PRIMARY;
 
-            if (mode == ECGMode::POPT_PRIMARY) {
-                // Match P-OPT: reset to 0 on hit (same as SRRIP)
+            if (mode == ECGMode::POPT_PRIMARY || mode == ECGMode::ECG_COMBINED) {
+                // Hawkeye/P-OPT-style: reset to 0 on hit
+                // Every hit is evidence of cache-friendliness
                 set[idx].rrpv = 0;
             } else {
                 // GRASP-faithful 3-tier for DBG modes and ECG_EMBEDDED
@@ -1024,6 +1058,21 @@ private:
             }
         }
 
+        // ── ECG_COMBINED: Pure SRRIP aging (both signals already at insertion) ──
+        // Hawkeye-inspired: the combined insertion RRPV already encodes
+        // both degree and rereference signals. Standard SRRIP aging is
+        // sufficient — no tiebreakers needed. First line at max RRPV wins.
+        if (mode == ECGMode::ECG_COMBINED) {
+            while (true) {
+                for (size_t i = 0; i < associativity_; i++) {
+                    if (set[i].rrpv >= rrpv_max) return i;
+                }
+                for (size_t i = 0; i < associativity_; i++) {
+                    if (set[i].rrpv < rrpv_max) set[i].rrpv++;
+                }
+            }
+        }
+
         // ── POPT_PRIMARY: Use P-OPT's exact 3-phase algorithm ──
         // Bypass SRRIP aging entirely — P-OPT operates on ALL ways, not
         // just RRPV-aged candidates. This ensures ECG(POPT_PRIMARY)
@@ -1256,6 +1305,36 @@ public:
         l1_->insert(address, is_write);
     }
 
+    // Prefetch: bring data into cache without counting as a demand access.
+    // In real hardware, prefetches are non-blocking fills that don't
+    // appear in demand miss statistics. Only demand accesses count.
+    //
+    // Prefetch hits: data already in cache — no action needed.
+    // Prefetch misses: fill cache from memory but do NOT increment
+    //   total_accesses_ or memory_accesses_.
+    void prefetch(uint64_t address) {
+        if (!enabled_) return;
+        
+        // Check if already in cache (any level)
+        if (l1_->access(address, false)) return;
+        if (l2_->access(address, false)) {
+            l1_->insert(address, false);
+            return;
+        }
+        if (l3_->access(address, false)) {
+            l2_->insert(address, false);
+            l1_->insert(address, false);
+            return;
+        }
+        
+        // Not in cache — fetch from memory into hierarchy
+        // Does NOT increment demand counters
+        prefetch_fills_++;
+        l3_->insert(address, false);
+        l2_->insert(address, false);
+        l1_->insert(address, false);
+    }
+
     // Convenience methods for common access patterns
     template<typename T>
     void read(const T* ptr) {
@@ -1296,6 +1375,7 @@ public:
         l3_->resetStats();
         total_accesses_ = 0;
         memory_accesses_ = 0;
+        prefetch_fills_ = 0;
     }
 
     // Enable/disable simulation
@@ -1470,6 +1550,7 @@ private:
     bool enabled_;
     std::atomic<uint64_t> total_accesses_{0};
     std::atomic<uint64_t> memory_accesses_{0};
+    std::atomic<uint64_t> prefetch_fills_{0};
 };
 
 // ============================================================================
@@ -1553,6 +1634,7 @@ public:
 
     // No-op: FastCacheHierarchy uses clock algorithm, not policy-based eviction
     void setCurrentVertex(uint32_t) {}
+    void prefetch(uint64_t address) { access(address, false); }
     void initGraphContext(const GraphCacheContext*) {}
     
     uint64_t getTotalAccesses() const { return total_accesses_; }
@@ -1749,6 +1831,7 @@ public:
 
     // No-op: UltraFastCacheHierarchy uses packed clock algorithm
     void setCurrentVertex(uint32_t) {}
+    void prefetch(uint64_t address) { access(address, false); }
     void initGraphContext(const GraphCacheContext*) {}
     
     uint64_t getTotalAccesses() const { return total_accesses_; }
@@ -2022,6 +2105,8 @@ public:
     void setCurrentVertex(uint32_t vertex_id) {
         l3_shared_->setCurrentVertex(vertex_id);
     }
+
+    void prefetch(uint64_t address) { access(address, false); }
 
     uint64_t getTotalAccesses() const { return total_accesses_; }
     uint64_t getMemoryAccesses() const { return memory_accesses_; }
@@ -2322,6 +2407,7 @@ public:
 
     // No-op: P-OPT/GRASP require CacheLevel-based hierarchy
     void setCurrentVertex(uint32_t) {}
+    void prefetch(uint64_t address) { access(address, false); }
     void initGraphContext(const GraphCacheContext*) {}
     
     uint64_t getTotalAccesses() const { return total_accesses_; }
