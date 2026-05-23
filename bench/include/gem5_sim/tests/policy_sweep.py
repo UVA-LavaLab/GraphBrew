@@ -66,6 +66,8 @@ parser.add_argument("--l3-size", default="8MB",
                     help="L3 cache size (default: 8MB)")
 parser.add_argument("--l2-size", default="256kB",
                     help="L2 cache size (default: 256kB)")
+parser.add_argument("--l1d-size", default="32kB",
+                    help="L1 data cache size (default: 32kB)")
 
 args = parser.parse_args()
 
@@ -92,7 +94,7 @@ system.cpu.icache = Cache(
     tag_latency=2, data_latency=2, response_latency=2,
     mshrs=4, tgts_per_mshr=20)
 system.cpu.dcache = Cache(
-    size="32kB", assoc=8,
+    size=args.l1d_size, assoc=8,
     tag_latency=2, data_latency=2, response_latency=2,
     mshrs=4, tgts_per_mshr=20)
 

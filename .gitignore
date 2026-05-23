@@ -20,7 +20,6 @@ results/data/
 /test/
 agent
 plans
-research
 paper
 docs/agent_*
 # gem5 cloned repository (large, managed by scripts/setup_gem5.py)

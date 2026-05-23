@@ -1,0 +1,226 @@
+\documentclass{article}
+\usepackage{algorithm2e}
+\usepackage{amsmath}
+\usepackage{xcolor}
+
+\begin{document}
+
+\title{Pseudo-Code for Graph Brew Mapping}
+\author{Author Name}
+\date{\today}
+\maketitle
+
+\begin{abstract}
+This document presents a pseudo-code for the `GenerateGraphBrewMapping` function. The function optimizes graph mappings and reassigns community IDs based on frequency thresholds.
+\end{abstract}
+
+\section{Pseudo-Code}
+
+\begin{algorithm}[H]
+\caption{\textcolor{blue}{GenerateGraphBrewMapping}}
+\KwData{Graph $g$, Vector $new\_ids$, Boolean $useOutdeg$, Vector $reordering\_options$}
+\KwResult{Updated $new\_ids$}
+%\SetKwFunction{GenerateRabbitOrderMappingEdgelist}{GenerateRabbitOrderMappingEdgelist}
+%\SetKwFunction{readVecOmpW}{readVecOmpW}
+%\SetKwFunction{symmetricizeOmp}{symmetricizeOmp}
+%\SetKwFunction{runExperiment}{runExperiment}
+%\SetKwFunction{sort_by_vector_element}{sort_by_vector_element}
+
+\tcc{\textcolor{red}{Initialization}}
+Initialize Timer $tm$ \tcp*{\textcolor{teal}{Timer setup}}
+Install signal handler for segmentation faults \tcp*{\textcolor{teal}{Fault tolerance setup}}
+$num\_nodes \leftarrow g.num\_nodes()$ \;
+$num\_edges \leftarrow g.num\_edges\_directed()$ \;
+$edges \leftarrow$ vector of tuples of size $num\_edges$ \;
+$comm\_ids \leftarrow$ vector of size $num\_nodes$ initialized to $0$ \;
+
+\tcc{\textcolor{red}{Construct the Edge List}}
+\For{each node $i$ in parallel}{
+    $out\_start \leftarrow g.out\_offset(i)$ \;
+    \For{each neighbor $neighbor$ of $i$}{
+        \If{$g.is\_weighted()$}{
+            $dest \leftarrow neighbor.v$ \;
+            $weight \leftarrow neighbor.w$ \;
+            $edges[out\_start + j] \leftarrow (i, dest, weight)$ \;
+        }
+        \Else{
+            $edges[out\_start + j] \leftarrow (i, neighbor, 1.0)$ \;
+        }
+        Increment $j$ \;
+    }
+}
+
+\tcc{\textcolor{red}{Graph Processing}}
+Start Timer $tm$ \;
+$x \leftarrow$ readVecOmpW(edges, num\_nodes, false, g.is\_weighted()) \;
+Clear $edges$ \;
+$x \leftarrow$ symmetricizeOmp(x) \;
+Stop Timer $tm$ \;
+Print "DiGraph graph" time \;
+
+\tcc{\textcolor{red}{Set Parameters from Reordering Options}}
+$resolution \leftarrow 0.8$ \;
+$maxIterations \leftarrow 10$ \;
+$maxPasses \leftarrow 10$ \;
+\If{not $reordering\_options.empty()$}{
+    $resolution \leftarrow$ First element of $reordering\_options$ \;
+    \If{size of $reordering\_options > 1$}{
+        $maxIterations \leftarrow$ Second element of $reordering\_options$ \;
+    }
+    \If{size of $reordering\_options > 2$}{
+        $maxPasses \leftarrow$ Third element of $reordering\_options$ \;
+    }
+}
+
+\tcc{\textcolor{red}{Run Experiment on the Graph}}
+runExperiment($x, resolution, maxIterations, maxPasses$) \;
+
+\tcc{\textcolor{red}{Prepare Community Vector}}
+$num\_nodesx \leftarrow x.span()$ \;
+$num\_passes \leftarrow x.communityMappingPerPass.size() + 3$ \;
+$communityVectorTuplePerPass \leftarrow$ vector of vectors of size $num\_nodesx$ and $num\_passes$ \;
+
+\tcc{\textcolor{red}{Initialize Community Vector}}
+Start Timer $tm$ \;
+\For{each node $i$ in parallel}{
+    $communityVectorTuplePerPass[i][0] \leftarrow UINT\_E\_MAX$ \;
+    $communityVectorTuplePerPass[i][1] \leftarrow i$ \;
+    $communityVectorTuplePerPass[i][2] \leftarrow x.degree(i)$ \;
+}
+
+\tcc{\textcolor{red}{Fill Community Vector with Community Mappings}}
+\For{each pass $i$ from 0 to $num\_passes - 3$}{
+    \For{each node $j$ in parallel}{
+        $communityVectorTuplePerPass[j][3 + i] \leftarrow x.communityMappingPerPass[i][j]$ \;
+    }
+}
+
+\tcc{\textcolor{red}{Sort Community Vector by Last Element}}
+% sort_by_vector_element($communityVectorTuplePerPass, num\_passes - 1$) \;
+
+\tcc{\textcolor{red}{Assign Community IDs}}
+\For{each node $i$ in parallel}{
+    $comm\_ids[i] \leftarrow communityVectorTuplePerPass[i][num\_passes - 1]$ \;
+}
+
+$num\_comm \leftarrow \text{max element of } comm\_ids + 1$ \;
+Stop Timer $tm$ \;
+
+\tcc{\textcolor{red}{Calculate Frequency Array}}
+$frequency\_array \leftarrow$ vector of size $num\_comm$ initialized to 0 \;
+\For{each element $i$ in $comm\_ids$ in parallel}{
+    Increment $frequency\_array[comm\_ids[i]]$ \;
+}
+
+\tcc{\textcolor{red}{Reassign Nodes with Low Frequency}}
+$min\_freq\_comm\_id \leftarrow$ Index of minimum element in $frequency\_array$ \;
+$frequency\_threshold \leftarrow$ First element of $reordering\_options$ or 4 \;
+\For{each element $i$ in $comm\_ids$ in parallel}{
+    \If{$frequency\_array[comm\_ids[i]] < frequency\_threshold$}{
+        $comm\_ids[i] \leftarrow min\_freq\_comm\_id$ \;
+    }
+}
+
+\tcc{\textcolor{red}{Update Frequency Array}}
+Fill $frequency\_array$ with zeros \;
+\For{each element $i$ in $comm\_ids$ in parallel}{
+    Increment $frequency\_array[comm\_ids[i]]$ \;
+}
+
+\tcc{\textcolor{red}{Identify and Sort Top Communities}}
+$freq\_comm\_pairs \leftarrow$ Vector of pairs (frequency, community ID) \;
+\For{each element $i$ in $frequency\_array$}{
+    \If{$frequency\_array[i] \ge 1$}{
+        Add $(frequency\_array[i], i)$ to $freq\_comm\_pairs$ \;
+    }
+}
+Sort $freq\_comm\_pairs$ in descending order \;
+$top\_communities \leftarrow$ Vector of top community IDs from $freq\_comm\_pairs$ \;
+
+% \COMMENT{\textcolor{red}{Print Top Community Frequencies}}
+\For{each element $i$ in $top\_communities$}{
+    Print "Community ID" $i$ "has frequency" $freq\_comm\_pairs[i].first$ \;
+}
+
+\tcc{\textcolor{red}{Create Edge Lists for Each Community}}
+$thread\_edge\_lists \leftarrow$ Vector of maps of size $omp\_get\_max\_threads()$ \;
+\For{each node $i$ in parallel}{
+    $tid \leftarrow omp\_get\_thread\_num()$ \;
+    $src\_comm\_id \leftarrow comm\_ids[i]$ \;
+    \If{$src\_comm\_id \in top\_communities$}{
+        \For{each neighbor $neighbor$ of $i$}{
+            \If{$g.is\_weighted()$}{
+                $dest \leftarrow neighbor.v$ \;
+                $weight \leftarrow neighbor.w$ \;
+                Add $(i, dest, weight)$ to $thread\_edge\_lists[tid][src\_comm\_id]$ \;
+            }
+            \Else{
+                Add $(i, neighbor, 1.0)$ to $thread\_edge\_lists[tid][src\_comm\_id]$ \;
+            }
+        }
+    }
+}
+
+\tcc{\textcolor{red}{Merge Thread-Private Edge Lists}}
+$community\_edge\_lists \leftarrow$ Map of community ID to edge list \;
+\For{each $local\_edge\_list$ in $thread\_edge\_lists$}{
+    \For{each $entry$ in $local\_edge\_list$}{
+        Append $entry.second$ to $community\_edge\_lists[entry.first]$ \;
+    }
+}
+
+% \COMMENT{\textcolor{red}{Print Community Edge Lists}}
+\For{each $entry$ in $community\_edge\_lists$}{
+    Print "Community ID" $entry.first$ "edge list size:" $entry.second.size()$ \;
+}
+
+\tcc{\textcolor{red}{Generate New IDs for Each Community}}
+$community\_id\_mappings \leftarrow$ Map of community ID to vector of ID pairs \;
+\For{each $comm\_id$ in $top\_communities$}{
+    $edge\_list \leftarrow community\_edge\_lists[comm\_id]$ \;
+    $new\_ids\_sub \leftarrow$ Vector of size $num\_nodes$ initialized to -1 \;
+    GenerateRabbitOrderMappingEdgelist($edge\_list$, $new\_ids\_sub$) \;
+    \For{each $i$ in $new\_ids\_sub$ in parallel}{
+        \If{$new\_ids\_sub[i] \neq -1$ and $comm\_id == comm\_ids[i]$}{
+            \#pragma omp critical \;
+            Add $(i, new\_ids\_sub[i])$ to $community\_id\_mappings[comm\_id]$ \;
+        }
+    }
+}
+
+\tcc{\textcolor{red}{Make Mapping Consecutive Within Each Community}}
+\For{each $entry$ in $community\_id\_mappings$}{
+    Sort $entry.second$ by new ID \;
+    \For{each $i$ in $entry.second$ in parallel}{
+        $entry.second[i].second \leftarrow i$ \;
+    }
+}
+
+\tcc{\textcolor{red}{Create a Global List of All Pairs}}
+$total\_size \leftarrow$ Sum of sizes of all $entry.second$ in $community\_id\_mappings$ \;
+$all\_pairs \leftarrow$ Vector of size $total\_size$ \;
+$index \leftarrow 0$ \;
+\For{each $entry$ in $community\_id\_mappings$}{
+    \For{each $i$ in $entry.second$ in parallel}{
+        $entry.second[i].second \leftarrow index + i$ \;
+        $all\_pairs[index + i] \leftarrow entry.second[i]$ \;
+    }
+    $index \leftarrow index + entry.second.size()$ \;
+}
+
+\tcc{\textcolor{red}{Sort All Pairs by Original ID}}
+Sort $all\_pairs$ by original ID \;
+
+\tcc{\textcolor{red}{Update New IDs}}
+\For{each $i$ in $all\_pairs$ in parallel}{
+    $new\_ids[all\_pairs[i].first] \leftarrow all\_pairs[i].second$ \;
+}
+
+Print "GenID Time" \;
+Print "Num Passes" \;
+Print "Num Comm" \;
+Print "Resolution" \;
+
+\end{algorithm}
+
+\end{document}
