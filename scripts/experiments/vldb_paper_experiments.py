@@ -360,6 +360,13 @@ def _pregenerate_mappings(
         algo_list.append((f"12:{v}", ["-o", f"12:{v}"]))
     for chain_name, chain_flags in CHAINED_ORDERINGS:
         algo_list.append((f"chain:{chain_name}", chain_flags))
+    # v5 COMPOSE_VARIANTS (LeidG8, LeidH, LeidDA, *_dgd, SgRabH_dgd, RCMpp...).
+    # Pre-generating these guarantees the same ordering is reused across every
+    # kernel for a given graph: reorder cost paid once per (graph, algo) and
+    # every kernel sees byte-identical layout.
+    for _label, spec in COMPOSE_VARIANTS:
+        if not any(k == spec for k, _ in algo_list):
+            algo_list.append((spec, ["-o", spec]))
     # Ablation configs that aren't already covered
     for cfg in ABLATION_CONFIGS:
         key = cfg["algo"]
