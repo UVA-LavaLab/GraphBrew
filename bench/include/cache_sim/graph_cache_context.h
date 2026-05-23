@@ -33,9 +33,13 @@
 #include <cstring>
 #include <vector>
 #include <algorithm>
+#include <unordered_set>
 #include <iostream>
 #include <iomanip>
 #include <cmath>
+#ifdef _OPENMP
+#include <omp.h>
+#endif
 
 namespace cache_sim {
 
@@ -114,10 +118,14 @@ static constexpr uint32_t MAX_PROPERTY_REGIONS = 8;
 //   DBG_PRIMARY  (default): SRRIP → DBG tier → dynamic P-OPT
 //   POPT_PRIMARY:           SRRIP → dynamic P-OPT → DBG tier
 //   DBG_ONLY:               SRRIP → DBG tier (no P-OPT, fast path)
+//   ECG_EMBEDDED:           Stored P-OPT hint as primary, DBG as secondary
+//   ECG_COMBINED:           Both DBG + P-OPT hint → unified insertion RRPV (Hawkeye-inspired)
 enum class ECGMode {
     DBG_PRIMARY,   // DBG tier is primary tiebreaker, P-OPT is secondary
     POPT_PRIMARY,  // Dynamic P-OPT is primary tiebreaker, DBG is secondary
-    DBG_ONLY       // DBG tier only, no P-OPT consulted (equivalent to GRASP+mask)
+    DBG_ONLY,      // DBG tier only, no P-OPT consulted (equivalent to GRASP+mask)
+    ECG_EMBEDDED,  // DBG tier primary, stored P-OPT hint (from mask) as secondary — zero LLC overhead
+    ECG_COMBINED   // Combined DBG+P-OPT → insertion RRPV (both signals at insert, not evict)
 };
 
 inline std::string ECGModeToString(ECGMode mode) {
@@ -125,6 +133,8 @@ inline std::string ECGModeToString(ECGMode mode) {
         case ECGMode::DBG_PRIMARY:  return "DBG_PRIMARY";
         case ECGMode::POPT_PRIMARY: return "POPT_PRIMARY";
         case ECGMode::DBG_ONLY:     return "DBG_ONLY";
+        case ECGMode::ECG_EMBEDDED: return "ECG_EMBEDDED";
+        case ECGMode::ECG_COMBINED: return "ECG_COMBINED";
         default:                    return "UNKNOWN";
     }
 }
@@ -132,6 +142,8 @@ inline std::string ECGModeToString(ECGMode mode) {
 inline ECGMode StringToECGMode(const std::string& s) {
     if (s == "POPT_PRIMARY" || s == "popt_primary" || s == "popt") return ECGMode::POPT_PRIMARY;
     if (s == "DBG_ONLY" || s == "dbg_only" || s == "dbg") return ECGMode::DBG_ONLY;
+    if (s == "ECG_EMBEDDED" || s == "ecg_embedded" || s == "embedded") return ECGMode::ECG_EMBEDDED;
+    if (s == "ECG_COMBINED" || s == "ecg_combined" || s == "combined") return ECGMode::ECG_COMBINED;
     return ECGMode::DBG_PRIMARY;  // Default
 }
 
@@ -150,15 +162,16 @@ inline ECGMode StringToECGMode(const std::string& s) {
 // GRASP-quality caching via the mask, without DBG reordering.
 struct MaskConfig {
     // ── Field widths ──
-    uint8_t  mask_width = 8;        // Total bits per mask entry (2,4,8,16,32)
+    uint8_t  mask_width = 8;        // Total bits per mask entry (8,16,32)
     uint8_t  dbg_bits = 2;          // Bits for degree tier (2-4)
-    uint8_t  popt_bits = 4;         // Bits for rereference quantization (0-8)
+    uint8_t  popt_bits = 4;         // Bits for rereference quantization (0-12)
     uint8_t  prefetch_bits = 2;     // Bits for prefetch target (remaining)
 
     // ── Prefetch ──
     bool     prefetch_direct = false; // true = raw vertex ID, false = hot table index
     uint32_t hot_table_size = 0;     // 2^prefetch_bits (only if !prefetch_direct)
     uint8_t  prefetch_window = 8;    // Dedup window size for prefetch (4,8,16)
+    uint8_t  prefetch_mode = 0;      // 0=NONE, 1=DEGREE (highest-deg neighbor), 2=POPT (nearest reref)
 
     // ── ECG Mode ──
     // Controls eviction tiebreaker priority (see ECGMode enum above).
@@ -182,19 +195,56 @@ struct MaskConfig {
     uint32_t popt_mask_val = 0;
     uint32_t dbg_mask_val = 0;
 
-    // Auto-compute field allocation from mask_width and graph size
+    // Dynamic bit allocation based on graph size and container width.
+    //
+    // The mask array entry emulates a fat-ID: given a container of mask_width
+    // bits and a graph with num_vertices, the vertex ID needs ceil(log2(N)) bits.
+    // The remaining bits are metadata for ECG (DBG + P-OPT + prefetch).
+    //
+    // If the user sets ECG_DBG_BITS / ECG_POPT_BITS / ECG_PFX_BITS env vars,
+    // those override the automatic allocation. Otherwise:
+    //   1. Compute id_bits = ceil(log2(num_vertices))
+    //   2. spare = mask_width - id_bits (for fat-ID mode) or mask_width (for standalone mask)
+    //   3. DBG = min(2, spare)
+    //   4. POPT gets up to 7 bits (matches matrix precision)
+    //   5. PFX gets remaining (for prefetch target vertex IDs)
+    //
+    // The user can also set mask_width to any value (not just 8/16/32) to
+    // emulate different hardware tag SRAM budgets.
     void autoAllocate(uint32_t num_vertices) {
-        dbg_bits = 2;
-        uint8_t remaining = mask_width - dbg_bits;
+        // Check for user-specified bit allocation (overrides auto)
+        const char* v_dbg = std::getenv("ECG_DBG_BITS");
+        const char* v_popt = std::getenv("ECG_POPT_BITS");
+        const char* v_pfx = std::getenv("ECG_PFX_BITS");
 
-        // Scale P-OPT bits with available space
-        if (remaining >= 12) popt_bits = 8;
-        else if (remaining >= 6) popt_bits = 4;
-        else if (remaining >= 2) popt_bits = 2;
-        else popt_bits = 0;
-        remaining -= popt_bits;
+        if (v_dbg || v_popt || v_pfx) {
+            // User-controlled allocation — use exactly what they specify
+            if (v_dbg)  dbg_bits = static_cast<uint8_t>(std::atoi(v_dbg));
+            if (v_popt) popt_bits = static_cast<uint8_t>(std::atoi(v_popt));
+            if (v_pfx)  prefetch_bits = static_cast<uint8_t>(std::atoi(v_pfx));
+            // Recompute mask_width from user allocation
+            mask_width = dbg_bits + popt_bits + prefetch_bits;
+        } else {
+            // Auto allocation based on available space
+            dbg_bits = 2;
+            uint8_t remaining = (mask_width > dbg_bits) ? (mask_width - dbg_bits) : 0;
 
-        prefetch_bits = remaining;
+            // P-OPT: cap at 7 (matches 7-bit rereference matrix precision)
+            if (remaining >= 27) popt_bits = 7;
+            else if (remaining >= 13) popt_bits = 7;
+            else if (remaining >= 6) popt_bits = 6;
+            else if (remaining >= 2) popt_bits = 2;
+            else popt_bits = 0;
+            remaining -= popt_bits;
+
+            // PFX: remaining bits (if >= 4, otherwise give to P-OPT)
+            if (remaining >= 4) {
+                prefetch_bits = remaining;
+            } else {
+                popt_bits += remaining;
+                prefetch_bits = 0;
+            }
+        }
 
         // Can we encode vertex IDs directly?
         uint8_t id_bits = 1;
@@ -225,6 +275,7 @@ struct MaskConfig {
             rrpv_max = (1 << bits) - 1;
         }
         if ((v = std::getenv("ECG_PREFETCH_WINDOW"))) prefetch_window = static_cast<uint8_t>(std::atoi(v));
+        if ((v = std::getenv("ECG_PREFETCH_MODE"))) prefetch_mode = static_cast<uint8_t>(std::atoi(v));
         if ((v = std::getenv("ECG_PER_VERTEX")))    per_vertex = (std::atoi(v) != 0);
         if ((v = std::getenv("ECG_DEGREE_MODE"))) {
             if (std::string(v) == "IN") degree_mode = 1;
@@ -555,6 +606,7 @@ struct RereferenceConfig {
     // Algorithm 2: compute next-reference distance for a cache line
     uint32_t findNextRef(uint32_t cline_id, uint32_t current_vertex) const {
         if (matrix == nullptr || cline_id >= num_cache_lines) return 127;
+        if (epoch_size == 0 || sub_epoch_size == 0) return 127;
         uint32_t epoch_id = current_vertex / epoch_size;
         if (epoch_id >= num_epochs) return 127;
 
@@ -639,9 +691,9 @@ struct GraphTopology {
 struct AccessHints {
     uint32_t current_src = UINT32_MAX;  // Outer-loop vertex (regInd in P-OPT)
     uint32_t current_dst = UINT32_MAX;  // Inner-loop neighbor (irregInd in P-OPT)
-    uint8_t  mask = 0;                  // ECG MASK hint (width determined by mask_bits)
+    uint32_t mask = 0;                  // ECG MASK hint (supports 8/16/32-bit widths)
     uint8_t  mask_bits = 2;             // Number of mask bits (2=ECG default, 4/8 for finer control)
-    uint8_t  _pad[2] = {};
+    uint8_t  _pad[3] = {};
 
     // ECG mask encoding constants (2-bit, from ECG -M flag graphConfig.h)
     static constexpr uint8_t MASK_HOT      = 0x03;  // 11
@@ -725,8 +777,73 @@ struct GraphCacheContext {
     // --- Graph Topology (degree distribution) ---
     GraphTopology topology;
 
-    // --- Per-Access Hints (mutable, updated each vertex iteration) ---
-    AccessHints hints;
+    // --- Per-Access Hints (thread-safe: one per OMP thread) ---
+    // Each OMP thread gets its own AccessHints to avoid data races
+    // when setting current_src/mask during parallel graph traversal.
+    // Mutable because hints are updated via const GraphCacheContext* in cache.
+    static constexpr int ECG_MAX_THREADS = 128;
+    mutable AccessHints thread_hints[ECG_MAX_THREADS];
+
+    // Convenience accessor: returns hints for the calling thread.
+    AccessHints& hints_for_thread() {
+#ifdef _OPENMP
+        int tid = omp_get_thread_num();
+#else
+        int tid = 0;
+#endif
+        return thread_hints[tid < ECG_MAX_THREADS ? tid : 0];
+    }
+    const AccessHints& hints_for_thread() const {
+#ifdef _OPENMP
+        int tid = omp_get_thread_num();
+#else
+        int tid = 0;
+#endif
+        return thread_hints[tid < ECG_MAX_THREADS ? tid : 0];
+    }
+
+    // Legacy single-thread alias (for backward compatibility with non-parallel code).
+    // Accesses thread_hints[0] directly. In parallel regions, use hints_for_thread().
+    AccessHints& hints_thread0() { return thread_hints[0]; }
+
+    // --- Runtime prefetch dedup window (per-thread) ---
+    // Tracks recently prefetched vertex IDs to suppress duplicates.
+    // When a prefetch target matches any entry in the window, it's skipped.
+    static constexpr int PREFETCH_DEDUP_MAX = 16;
+    struct PrefetchDedupWindow {
+        uint32_t entries[PREFETCH_DEDUP_MAX] = {};
+        uint8_t head = 0;
+        uint8_t size = 0;
+        uint8_t capacity = 8;  // configurable via prefetch_window
+
+        bool contains(uint32_t target) const {
+            for (uint8_t i = 0; i < size; i++) {
+                if (entries[(head + i) % PREFETCH_DEDUP_MAX] == target) return true;
+            }
+            return false;
+        }
+
+        void push(uint32_t target) {
+            if (size < capacity) {
+                entries[(head + size) % PREFETCH_DEDUP_MAX] = target;
+                size++;
+            } else {
+                // Overwrite oldest
+                entries[head] = target;
+                head = (head + 1) % PREFETCH_DEDUP_MAX;
+            }
+        }
+    };
+    mutable PrefetchDedupWindow prefetch_dedup[ECG_MAX_THREADS];
+
+    PrefetchDedupWindow& dedup_for_thread() const {
+#ifdef _OPENMP
+        int tid = omp_get_thread_num();
+#else
+        int tid = 0;
+#endif
+        return prefetch_dedup[tid < ECG_MAX_THREADS ? tid : 0];
+    }
 
     // --- Rereference Matrix (P-OPT) ---
     RereferenceConfig rereference;
@@ -928,11 +1045,38 @@ struct GraphCacheContext {
     // ================================================================
 
     // Initialize mask configuration from environment variables and graph size.
+    // If ECG_MASK_WIDTH is not set, dynamically determines available bits
+    // from the edge list data type width (default 32) minus vertex ID bits.
     // Call after initTopology().
     void initMaskConfig() {
         mask_config.initFromEnv();
         if (topology.num_vertices > 0) {
+            // If mask_width not explicitly set, compute from vertex count
+            // Default emulates 32-bit edge list: spare = 32 - ceil(log2(N))
+            const char* v_width = std::getenv("ECG_MASK_WIDTH");
+            if (!v_width) {
+                // Compute how many bits the vertex ID needs
+                uint8_t id_bits = 1;
+                uint32_t n = topology.num_vertices;
+                while ((1ULL << id_bits) < n) id_bits++;
+                // Default 32-bit edge list data type → spare bits for ECG
+                uint8_t container = 32;
+                const char* v_container = std::getenv("ECG_CONTAINER_BITS");
+                if (v_container) container = static_cast<uint8_t>(std::atoi(v_container));
+                mask_config.mask_width = (container > id_bits) ? (container - id_bits) : 2;
+            }
             mask_config.autoAllocate(topology.num_vertices);
+
+            // Print the allocation for debugging
+            std::cout << "ECG Mask: " << int(mask_config.mask_width) << "-bit"
+                      << " [DBG=" << int(mask_config.dbg_bits)
+                      << " POPT=" << int(mask_config.popt_bits)
+                      << " PFX=" << int(mask_config.prefetch_bits) << "]"
+                      << " pfx_direct=" << mask_config.prefetch_direct
+                      << " hot_table=" << mask_config.hot_table_size
+                      << " mode=" << ECGModeToString(mask_config.ecg_mode)
+                      << " pfx_mode=" << int(mask_config.prefetch_mode)
+                      << std::endl;
         }
     }
 
@@ -1003,19 +1147,20 @@ struct GraphCacheContext {
     // Set current source and destination vertices (outer loop).
     // In Sniper: SimMagic1(CMD_SET_VERTICES, pack(src, dst))
     void setCurrentVertices(uint32_t src, uint32_t dst) {
-        hints.current_src = src;
-        hints.current_dst = dst;
+        auto& h = hints_for_thread();
+        h.current_src = src;
+        h.current_dst = dst;
     }
 
     // Update destination vertex only (inner loop neighbor).
     void setCurrentDst(uint32_t dst) {
-        hints.current_dst = dst;
+        hints_for_thread().current_dst = dst;
     }
 
     // Set ECG mask hint for current access.
     // In Sniper: the mask is encoded in the last 2 bits of vertex property data.
     void setMask(uint8_t mask) {
-        hints.mask = mask;
+        hints_for_thread().mask = mask;
     }
 
     // ================================================================
@@ -1042,6 +1187,31 @@ struct GraphCacheContext {
         return UINT32_MAX;
     }
 
+    // Classify address into GRASP 3-tier reuse (Faldu et al. HPCA 2020).
+    //
+    // After DBG reorder, highest-degree vertices are at front (low addresses).
+    // The original GRASP uses hot_fraction (default 10%) of LLC capacity to
+    // define the hot boundary within each property region:
+    //   HOT:      [base, base + f × llc_size)
+    //   MODERATE: [base + f × llc_size, base + 2 × f × llc_size)
+    //   COLD:     everything else (including non-property data)
+    //
+    // Returns: 1=HOT, 2=MODERATE, 3=COLD (0=not in any region)
+    uint32_t classifyGRASP(uint64_t addr, size_t llc_size) const {
+        constexpr double hot_fraction = 0.10;  // 10% of LLC, matches paper "f"
+        uint64_t hot_bytes = static_cast<uint64_t>(hot_fraction * llc_size);
+
+        for (uint32_t i = 0; i < num_regions; ++i) {
+            if (addr >= regions[i].base_address && addr < regions[i].upper_bound) {
+                uint64_t offset = addr - regions[i].base_address;
+                if (offset < hot_bytes)          return 1;  // HOT (hubs)
+                if (offset < 2 * hot_bytes)      return 2;  // MODERATE
+                return 3;                                    // COLD
+            }
+        }
+        return 3;  // Not in any property region → cold
+    }
+
     // Map a bucket index to an RRPV value (GRASP-XP style).
     // Uses degree-proportional mapping: buckets with more total edges
     // get lower RRPV (higher cache priority).
@@ -1059,15 +1229,27 @@ struct GraphCacheContext {
         if (bucket >= GraphTopology::NUM_BUCKETS)
             return max_rrpv;  // Unknown bucket: cold
 
-        // Compute cumulative edge fraction for this and higher buckets
-        // (DBG: bucket 0 = lowest degree, bucket N-1 = highest degree)
-        // But classifyBucket returns 0 = highest degree (front of array).
-        // So reverse: actual_dbg_bucket = NUM_BUCKETS - 1 - bucket
+        // classifyBucket() returns: 0 = highest degree (front after DBG reorder),
+        //                           N-1 = lowest degree (back).
+        // topology.bucket_total_degrees[]: 0 = lowest degree, N-1 = highest.
+        // Reverse spatial → topology: dbg_bucket = N-1 - classifier_bucket.
         uint32_t dbg_bucket = GraphTopology::NUM_BUCKETS - 1 - bucket;
 
-        // Edge fraction: what fraction of total edges belong to this and higher buckets
+        // GRASP RRPV formula: edge_fraction = cumulative share of edges at this
+        // degree level and ALL HIGHER degree levels. For the highest-degree bucket
+        // (dbg_bucket = N-1), this includes everything from N-1 down... but we want
+        // hubs to get LOW RRPV, meaning HIGH edge_fraction.
+        //
+        // Correct summation: from dbg_bucket UP to N-1 (all degrees >= this level).
+        // For hubs (dbg_bucket = N-1): just the top bucket → fraction = hub edge share.
+        // For cold (dbg_bucket = 0): all buckets → fraction = 1.0.
+        //
+        // But this gives cold vertices LOW RRPV (fraction=1.0 → rrpv=0)!
+        // The fix: sum from 0 to dbg_bucket (cumulative from bottom), so:
+        //   hubs (dbg_bucket = N-1) → sum all → fraction = 1.0 → rrpv = 0 (keep)
+        //   cold (dbg_bucket = 0) → sum just bottom → fraction = small → rrpv = high (evict)
         uint64_t edge_sum = 0;
-        for (uint32_t b = dbg_bucket; b < GraphTopology::NUM_BUCKETS; ++b)
+        for (uint32_t b = 0; b <= dbg_bucket; ++b)
             edge_sum += topology.bucket_total_degrees[b];
 
         double edge_fraction = static_cast<double>(edge_sum) / topology.num_edges;
@@ -1098,11 +1280,12 @@ struct GraphCacheContext {
     // Compute P-OPT rereference distance for a cache line address.
     uint32_t findNextRef(uint64_t line_addr) const {
         if (rereference.matrix == nullptr) return 127;
+        if (hints_for_thread().current_src == UINT32_MAX) return 127;  // No vertex context set
         const PropertyRegion* r = findRegion(line_addr);
         if (r == nullptr) return 127;
         uint32_t cline_id = static_cast<uint32_t>(
             (line_addr - r->base_address) / rereference.line_size);
-        return rereference.findNextRef(cline_id, hints.current_src);
+        return rereference.findNextRef(cline_id, hints_for_thread().current_src);
     }
 
     // ================================================================
@@ -1137,11 +1320,33 @@ struct GraphCacheContext {
         return tiers;
     }
 
-    // Compute per-vertex mask entries (DBG tier only — O(n)).
-    // All edges to vertex v share the same mask.
-    // For per-edge masks with P-OPT rereference, extend with transpose.
+    // Compute per-vertex mask entries with DBG tier, P-OPT hint, and prefetch target.
+    //
+    // P-OPT hint: quantized rereference distance from matrix (or degree proxy).
+    //   Wider popt_bits → less quantization loss → better ECG_EMBEDDED oracle.
+    //
+    // Prefetch target: neighbor vertex ID to prefetch when this vertex is accessed.
+    //   prefetch_mode 0 (NONE): no prefetch target (all zeros)
+    //   prefetch_mode 1 (DEGREE): highest-degree neighbor not in dedup window
+    //   prefetch_mode 2 (POPT): neighbor with shortest rereference distance
+    //
+    // Construction-time dedup: sliding window over vertex scan order prevents
+    //   encoding the same prefetch target for consecutive vertices.
+    //
+    // Returns: vector of encoded mask entries (8-bit for mask_width=8)
     template<typename GraphT>
     std::vector<uint8_t> computeVertexMasks8(const GraphT& g) {
+        auto masks32 = computeVertexMasks(g);
+        std::vector<uint8_t> masks8(masks32.size());
+        for (size_t i = 0; i < masks32.size(); i++)
+            masks8[i] = static_cast<uint8_t>(masks32[i]);
+        return masks8;
+    }
+
+    // General mask computation supporting any width (8/16/32 bits).
+    // Returns uint32_t entries — caller truncates to mask_width.
+    template<typename GraphT>
+    std::vector<uint32_t> computeVertexMasks(const GraphT& g) {
         if (!mask_config.enabled) {
             initMaskConfig();
             if (topology.num_vertices > 0)
@@ -1149,10 +1354,139 @@ struct GraphCacheContext {
         }
         auto tiers = computeVertexTiers(g);
         uint32_t n = g.num_nodes();
-        std::vector<uint8_t> masks(n, 0);
-        #pragma omp parallel for schedule(static)
-        for (uint32_t v = 0; v < n; ++v)
-            masks[v] = static_cast<uint8_t>(mask_config.encode(tiers[v], 0, 0));
+        std::vector<uint32_t> masks(n, 0);
+
+        uint32_t popt_max = mask_config.popt_bits > 0 ? ((1U << mask_config.popt_bits) - 1) : 0;
+        uint32_t pfx_max = mask_config.prefetch_bits > 0 ? ((1U << mask_config.prefetch_bits) - 1) : 0;
+
+        // Build hot table if using TABLE mode for prefetch
+        if (pfx_max > 0 && !mask_config.prefetch_direct && hot_table.empty()) {
+            std::vector<uint32_t> deg_arr(n);
+            for (uint32_t v = 0; v < n; v++)
+                deg_arr[v] = static_cast<uint32_t>(g.out_degree(v));
+            buildHotTable(deg_arr.data(), n);
+        }
+
+        // Build hot table set for O(1) membership lookup
+        std::unordered_set<uint32_t> hot_set;
+        if (!mask_config.prefetch_direct && !hot_table.empty()) {
+            for (auto id : hot_table) hot_set.insert(id);
+        }
+
+        // Construction-time dedup window (sliding across vertex scan order)
+        // Not parallelized — sequential scan to maintain window state
+        PrefetchDedupWindow build_dedup;
+        build_dedup.capacity = mask_config.prefetch_window;
+
+        for (uint32_t v = 0; v < n; ++v) {
+            // --- P-OPT hint ---
+            uint32_t popt_hint = 0;
+            if (popt_max > 0 && topology.num_vertices > 0) {
+                if (rereference.matrix) {
+                    // Average rereference distance across ALL epochs for this
+                    // vertex's cache line. This gives a representative distance
+                    // instead of sampling a single epoch.
+                    constexpr int numVtxPerLine = 16;
+                    uint32_t cline = v / numVtxPerLine;
+                    if (cline < rereference.num_cache_lines) {
+                        uint32_t total_dist = 0;
+                        uint32_t count = 0;
+                        for (uint32_t e = 0; e < rereference.num_epochs; e++) {
+                            uint8_t entry = rereference.matrix[e * rereference.num_cache_lines + cline];
+                            if ((entry & 0x80) == 0) {  // Not referenced this epoch
+                                total_dist += (entry & 0x7F);
+                                count++;
+                            }
+                            // Referenced epochs (MSB=1) have distance 0 — skip
+                        }
+                        uint8_t avg_dist = count > 0
+                            ? static_cast<uint8_t>(std::min(total_dist / count, uint32_t(127)))
+                            : 0;
+                        popt_hint = (uint32_t(avg_dist) * popt_max) / 127;
+                    }
+                } else {
+                    uint32_t deg = g.out_degree(v);
+                    if (deg == 0) popt_hint = popt_max;
+                    else {
+                        double ratio = static_cast<double>(deg) / topology.max_degree;
+                        popt_hint = static_cast<uint32_t>(popt_max * (1.0 - ratio));
+                    }
+                }
+            }
+
+            // --- Prefetch target ---
+            uint32_t pfx_value = 0;
+            if (pfx_max > 0 && mask_config.prefetch_mode > 0) {
+                // Find best neighbor to prefetch
+                uint32_t best_target = UINT32_MAX;
+
+                if (mask_config.prefetch_mode == 1) {
+                    // DEGREE mode: highest-degree neighbor not in dedup window
+                    uint32_t best_deg = 0;
+                    for (auto ngh : g.out_neigh(v)) {
+                        uint32_t nd = static_cast<uint32_t>(g.out_degree(ngh));
+                        if (nd > best_deg && !build_dedup.contains(ngh)) {
+                            best_deg = nd;
+                            best_target = ngh;
+                        }
+                    }
+                } else if (mask_config.prefetch_mode == 2 && rereference.matrix) {
+                    // POPT mode: neighbor with shortest avg rereference distance
+                    uint32_t best_dist = 128;
+                    constexpr int numVtxPerLine = 16;
+                    for (auto ngh : g.out_neigh(v)) {
+                        uint32_t ncline = static_cast<uint32_t>(ngh) / numVtxPerLine;
+                        if (ncline < rereference.num_cache_lines) {
+                            // Average distance across epochs for this neighbor
+                            uint32_t td = 0, cnt = 0;
+                            for (uint32_t e = 0; e < rereference.num_epochs; e++) {
+                                uint8_t entry = rereference.matrix[e * rereference.num_cache_lines + ncline];
+                                if ((entry & 0x80) == 0) { td += (entry & 0x7F); cnt++; }
+                            }
+                            uint32_t dist = cnt > 0 ? td / cnt : 127;
+                            if (dist < best_dist && !build_dedup.contains(ngh)) {
+                                best_dist = dist;
+                                best_target = ngh;
+                            }
+                        }
+                    }
+                }
+
+                if (best_target != UINT32_MAX) {
+                    build_dedup.push(best_target);
+                    if (mask_config.prefetch_direct) {
+                        pfx_value = best_target & pfx_max;
+                    } else if (!hot_table.empty()) {
+                        // Encode as hot table index (+1, 0 = no prefetch)
+                        for (uint32_t hi = 0; hi < hot_table.size(); hi++) {
+                            if (hot_table[hi] == best_target) {
+                                pfx_value = hi + 1;
+                                break;
+                            }
+                        }
+                        // If target not in hot table, try to find any hot neighbor
+                        if (pfx_value == 0) {
+                            for (auto ngh : g.out_neigh(v)) {
+                                if (hot_set.count(ngh) && !build_dedup.contains(ngh)) {
+                                    for (uint32_t hi = 0; hi < hot_table.size(); hi++) {
+                                        if (hot_table[hi] == static_cast<uint32_t>(ngh)) {
+                                            pfx_value = hi + 1;
+                                            build_dedup.push(ngh);
+                                            break;
+                                        }
+                                    }
+                                    if (pfx_value != 0) break;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            masks[v] = mask_config.encode(tiers[v],
+                                          static_cast<uint8_t>(std::min(popt_hint, popt_max)),
+                                          pfx_value);
+        }
         return masks;
     }
 

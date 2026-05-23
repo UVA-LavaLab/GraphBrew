@@ -1,10 +1,10 @@
 # Graph Benchmarks
 
-GraphBrew includes implementations of classic graph algorithms used to measure the performance impact of vertex reordering. This page explains each algorithm and how to run it.
+Eight benchmark binaries ship with GraphBrew. Use them to measure how
+a reordering affects each access pattern. The default experiment
+pipeline runs seven (TC excluded — see [[Running-Benchmarks]]).
 
-## Overview of Benchmarks
-
-GraphBrew includes **eight** benchmark binaries. The automated experiment pipeline runs **seven** by default (TC excluded — see [[Running-Benchmarks]]):
+## At a glance
 
 | Benchmark | Binary | Description | Complexity |
 |-----------|--------|-------------|------------|
@@ -256,7 +256,7 @@ make test-topology-full
 
 - [[Running-Benchmarks]] - Detailed command-line reference
 - [[Benchmark-Suite]] - Automated benchmarking
-- [[Correlation-Analysis]] - Find the best algorithm for your graphs
+- [[Benchmark-Suite]] - Find the best algorithm for your graphs
 
 ---
 

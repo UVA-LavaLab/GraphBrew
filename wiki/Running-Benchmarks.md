@@ -24,9 +24,9 @@ The automated pipeline runs **seven** benchmarks by default (`EXPERIMENT_BENCHMA
 
 ---
 
-## 🚀 Automated Pipeline (Recommended)
+## Automated Pipeline (Recommended)
 
-For comprehensive benchmarking, use the unified experiment script:
+For batch benchmarking, use the unified experiment script:
 
 ```bash
 # One-command: download 150 graphs per size, run full pipeline + ML evaluation
@@ -57,7 +57,22 @@ python3 scripts/graphbrew_experiment.py --precompute --phase benchmark
 python3 scripts/graphbrew_experiment.py --train --auto --size all
 ```
 
-See [[Command-Line-Reference]] for `--train` phases, download size options, and memory/disk management. See [[Python-Scripts]] for full script documentation.
+See [[Command-Line-Reference]] for `--train` phases, download size options, and memory/disk management. See [[Python-Scripts]] for full script documentation. See [[VLDB-Experiments]] for reproducing the VLDB 2026 paper results.
+
+### VLDB 2026 Paper Experiments
+
+For reproducing the GraphBrew VLDB paper, use the dedicated experiment runner:
+
+```bash
+# Preview (fast validation — 2 small graphs, ~30 min):
+python3 scripts/experiments/vldb/runner.py --all --preview
+
+# 64 GB machine (11 auto-downloadable graphs):
+python3 scripts/experiments/vldb/runner.py --all --64gb
+
+# Full evaluation (11 graphs, 7 benchmarks, 3 trials):
+python3 scripts/experiments/vldb/runner.py --all
+```
 
 ### Full Training Example
 
@@ -228,7 +243,7 @@ The report shows for each (graph, algorithm, benchmark):
 - **E2E speedup** — speedup including reorder cost at 1, 10, 100 iterations
 - **Verdict** — INSTANT (<1), FAST (1–10), OK (10–100), SLOW (>100), NEVER
 
-See [[Python-Scripts#lib-metrics-py]] for full documentation.
+See [[Python-Scripts#libanalysismetricspy---amortization--end-to-end-evaluation]] for full documentation.
 
 ---
 

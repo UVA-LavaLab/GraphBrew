@@ -1,537 +1,240 @@
-# Graph Reordering Algorithms
+# Reordering Algorithms
 
-GraphBrew implements **17 algorithm IDs** (0-16):
+GraphBrew implements 17 algorithm IDs (`-o 0` through `-o 16`).
+Two are baselines (no useful reordering), one is a runtime selector
+(AdaptiveOrder, research-only), one loads a precomputed permutation
+from disk (MAP). The remaining 13 produce orderings you can benchmark.
 
-- **2 Baselines** (IDs 0-1): ORIGINAL and RANDOM — graph states, not reordering techniques. Used to establish reference benchmark times.
-- **13 Reordering Algorithms** (IDs 2-12, 15-16): Produce vertex reorderings. Benchmarked to measure speedup vs baselines.
-- **2 Meta-Algorithms** (IDs 13-14): MAP (external label map) and AdaptiveOrder (ML selector). Not included in standard benchmarks.
+## Why reorder
 
-Note: Algorithm ID 13 (MAP) is reserved for external label mapping files, not a standalone reordering algorithm.
+Power-law and clustered graphs have neighbour-access patterns that
+miss in cache when vertices are placed randomly. Renumbering vertices
+so that frequently co-accessed ones land on nearby cache lines turns
+unpredictable misses into hits. Reordering does **not** change the
+graph's topology — only the integer labels.
 
-## Why Reorder Graphs?
+Three orthogonal locality dimensions matter:
 
-Graph algorithms spend significant time accessing memory. When vertices are ordered randomly, memory access patterns are unpredictable, causing **cache misses**. Reordering places frequently co-accessed vertices together in memory, dramatically improving cache utilization.
+| Dimension | Captured by | Example algorithms |
+|---|---|---|
+| Spatial (community structure) | Leiden, Rabbit Order | `12:leiden`, `12:rabbit`, RABBIT (8) |
+| Temporal (degree skew) | hub grouping | HUBCLUSTER (4), DBG (5) |
+| Convergence (forward-edge fraction) | edge-direction optimisation | GoGraph (16), chained `12:leiden → 16` |
 
-```
-Before Reordering:           After Reordering:
-Vertex 1 → 5, 99, 2000       Vertex 1 → 2, 3, 4
-Vertex 2 → 8, 1500, 3        Vertex 2 → 1, 3, 5
-(scattered neighbors)         (nearby neighbors)
-```
+GraphBrew (`-o 12`) is the framework that composes these dimensions;
+the other IDs are individual primitives or baselines.
 
-The effect is visible when plotting the adjacency matrix — a well-ordered graph has non-zero entries clustered near the diagonal, while a poorly-ordered graph has them scattered:
+## Quick reference
 
-![Reordering Algorithm Comparison](../docs/figures/reorder_comparison.png)
+| ID | Flag | Algorithm | Complexity | Notes |
+|---|---|---|---|---|
+| 0 | `-o 0` | ORIGINAL | O(1) | input ordering, baseline |
+| 1 | `-o 1` | RANDOM | O(n) | random permutation, worst-case baseline |
+| 2 | `-o 2` | SORT | O(n log n) | degree-descending sort |
+| 3 | `-o 3` | HUBSORT | O(n log n) | hubs first (full degree sort) |
+| 4 | `-o 4` | HUBCLUSTER | O(n) | hubs first, non-hubs keep original order |
+| 5 | `-o 5` | DBG | O(n) | logarithmic degree buckets |
+| 6 | `-o 6` | HUBSORTDBG | O(n log n) | DBG buckets + degree sort within |
+| 7 | `-o 7` | HUBCLUSTERDBG | O(n) | DBG buckets + hub-cluster within |
+| 8 | `-o 8` | RABBITORDER | O(n log n + m) | Louvain + dendrogram DFS; variants `csr` (default), `boost` |
+| 9 | `-o 9` | GORDER | O(n·w + m) | sliding-window greedy, w=5; high cache quality, slow reorder |
+| 10 | `-o 10` | CORDER | O(n log n) | cache-aware bandwidth reduction |
+| 11 | `-o 11` | RCM | O(n log n + m) | Reverse Cuthill–McKee; variants `default`, `bnf` |
+| 12 | `-o 12` | GraphBrewOrder | O(n log n + m) | composable pipeline — see [GraphBrewOrder](GraphBrewOrder) |
+| 13 | `-o 13:<file>` | MAP | O(n) | load permutation from `.lo` / `.so` file |
+| 14 | `-o 14` | AdaptiveOrder | varies | ML selector; research-only, see [AdaptiveOrder-ML](AdaptiveOrder-ML) |
+| 15 | `-o 15` | LeidenOrder | O(n log n + m) | native GVE-Leiden, no post-ordering layer |
+| 16 | `-o 16` | GoGraphOrder | O(m log d + n log n) | maximises forward-edge fraction |
 
-## Algorithm Categories
+## When to use what
 
-![Algorithm Overview](../docs/figures/reorder_overview.png)
+| Workload | First try | Why |
+|---|---|---|
+| Power-law social graph + PR | `12:hrab` or `12:leiden` | best cache quality on community-strong graphs |
+| Mesh / road network | `12:rcm` or `11:bnf` | RCM reduces bandwidth on sparse near-planar graphs |
+| Iterative PR / SpMV with many trials | `12:hrab`, `12:leiden` | high quality amortises preprocessing cost |
+| Single-pass BFS / SSSP from one source | HUBCLUSTERDBG (7) or `12:rabbit` | cheap reorder, hub-cached frontier |
+| Dynamic / frequently-updated graph | `12:streaming` or RABBITORDER (8) | low memory + low reorder time |
+| Quick experimentation, any graph | HUBCLUSTERDBG (7) | O(n), often within 10% of the best |
+| Comparing against Gorder | GORDER (9) | the heavyweight cache-quality baseline |
 
-| Category | Algorithms | Best For |
-|----------|------------|----------|
-| **Basic** | ORIGINAL, RANDOM, SORT | Baseline comparisons |
-| **Hub-Based** | HUBSORT, HUBCLUSTER | Power-law graphs |
-| **DBG-Based** | DBG, HUBSORTDBG, HUBCLUSTERDBG | Cache locality |
-| **Community** | RABBITORDER | Hierarchical communities |
-| **Classic** | GORDER, CORDER, RCM | Bandwidth reduction |
-| **Leiden-Based** | LeidenOrder (15, baseline) | Strong community structure |
-| **Flow-Edge** | GoGraphOrder (16) | Directed graphs (M(σ) optimization) |
-| **Hybrid** | GraphBrewOrder (12), MAP (13), AdaptiveOrder (14) | External/Adaptive selection |
+## Algorithm details
 
----
+### Baselines (0, 1)
 
-## Basic Algorithms (0-2)
+**ORIGINAL** (`-o 0`) keeps the input ordering. Always run this first
+to know what you're improving over.
 
-### 0. ORIGINAL
-**Keep original vertex ordering**
+**RANDOM** (`-o 1`) permutes vertices uniformly. Useful as a
+worst-case reference and as a starting state for evaluating
+deterministic reorderings on top of it.
+
+### Degree-based (2-7)
+
+All cheap (O(n) or O(n log n)) and effective on power-law graphs
+where a small set of hubs dominates access frequency.
+
+- **SORT** (`-o 2`): sort all vertices by degree, descending.
+- **HUBSORT** (`-o 3`): same as SORT but framed around the hub idea.
+- **HUBCLUSTER** (`-o 4`): split into hubs (high-degree) and non-hubs,
+  reorder only the hubs, leave the rest in input order. Preserves
+  non-hub spatial structure.
+- **DBG** (`-o 5`): partition vertices into logarithmic degree
+  buckets, place buckets contiguously. Hub bucket goes first.
+- **HUBSORTDBG** (`-o 6`): DBG bucketing + sort by degree inside
+  each bucket.
+- **HUBCLUSTERDBG** (`-o 7`): DBG bucketing + hub-cluster inside
+  each bucket. Reasonable default for power-law graphs when you
+  want a cheap, predictable speedup.
+
+### Community-based (8)
+
+**RABBITORDER** (`-o 8`) — single-pass parallel Louvain that builds
+a dendrogram of community merges, then orders vertices by DFS of that
+dendrogram. Fast (~2-10× slower than degree-based, much faster than
+Gorder) and produces high-quality cache locality on graphs with clear
+community structure.
+
+Variants:
+
+| Flag | Implementation |
+|---|---|
+| `-o 8` or `-o 8:csr` | native CSR implementation (default) |
+| `-o 8:boost` | original Boost-based implementation; requires Boost 1.58 |
+
+The CSR variant has no Boost / numa / tcmalloc dependency and
+benchmarks slightly faster.
+
+### Heavyweight (9, 10)
+
+**GORDER** (`-o 9`) — Wei et al. (2016). Sliding window of width 5
+greedy vertex placement maximising a local cache-locality score
+(Gscore). Produces best-in-class cache hits but is serial and
+NP-hard in the limit; reorder time is typically 10-100× a community
+method on the same graph. Use for paper comparisons.
+
+**CORDER** (`-o 10`) — cache-aware bandwidth reduction. Less common;
+included for completeness.
+
+### Bandwidth-based (11)
+
+**RCM** (`-o 11`) — Reverse Cuthill–McKee. BFS from a peripheral
+vertex with neighbours visited in ascending-degree order, then
+reverse the result. Bandwidth reduction translates directly to
+sequential cache access on sparse, near-planar graphs (road
+networks, finite-element meshes).
+
+Variants:
+
+| Flag | Description |
+|---|---|
+| `-o 11` | GoGraph-baseline RCM |
+| `-o 11:bnf` | CSR-native George–Liu pseudoperipheral BFS |
+
+### Composable (12 — the GraphBrew framework)
+
+`-o 12` is the framework that combines community detection,
+intra-community ordering, and inter-community arrangement into
+ten variants. Variant selection is by flag suffix:
+
+| Flag | Variant | One-line summary |
+|---|---|---|
+| `-o 12:leiden` (default) | Leiden | Leiden + BFS within community + hierarchical sort |
+| `-o 12:rabbit` | Rabbit | single-pass Rabbit + dendrogram DFS |
+| `-o 12:hrab` | HRAB | Leiden + RabbitOrder on super-graph + adaptive intra |
+| `-o 12:tqr` | TQR | cache-line tile + RabbitOrder on tile adjacency |
+| `-o 12:hcache` | HCache | uses every Leiden level as a cache-tier mapping |
+| `-o 12:streaming` | Streaming | lazy-aggregation Leiden; lower memory |
+| `-o 12:rcm` | RCM | Leiden + RCM within community + BNF-RCM super-graph |
+| `-o 12:hubcluster` | HubCluster | Leiden + hub-first intra-community |
+| `-o 12:rabbit:dbg` | Rabbit-DBG | single-pass Rabbit + DBG within community |
+| `-o 12:rabbit:hubcluster` | Rabbit-HubCluster | single-pass Rabbit + hub-first intra |
+
+Modifier tokens that compose with the variants:
+
+| Token | Effect |
+|---|---|
+| `:sgres0.10` | super-graph modularity resolution γ (default 0.10) |
+| `:gamma0.10` | alias for `:sgres` |
+| `:rcm_intra` | force RCM within communities (HRAB default) |
+| `:bfs_intra` | force BFS within communities |
+| `:rcm_super` | RCM on super-graph instead of dendrogram DFS |
+| `:hubx` | extract top-1% hubs first, place adjacent to their best block |
+| `:gord` | Gorder-greedy intra-community (with UnitHeap) |
+
+Example: `-o 12:hrab:sgres0.25:hubx`. See [GraphBrewOrder](GraphBrewOrder)
+for the pipeline and how variants compose.
+
+### Meta (13, 14)
+
+**MAP** (`-o 13:<file>`) loads a vertex permutation from disk
+(`.lo` or `.so` file). Used by the benchmark pipeline to apply a
+pregenerated reordering without redoing the work.
+
+**AdaptiveOrder** (`-o 14`) — runtime ML selector. Not part of the
+VLDB submission; see [AdaptiveOrder-ML](AdaptiveOrder-ML).
+
+### Reference Leiden (15)
+
+**LeidenOrder** (`-o 15`) — direct GVE-Leiden ordering with no
+GraphBrew post-processing layer. Use as a community-detection
+baseline distinct from RabbitOrder's single-pass Louvain.
+
+### Forward-edge maximisation (16)
+
+**GoGraphOrder** (`-o 16`) — Zhou et al. (2024). Hub-aware BFS
+followed by greedy vertex insertion that maximises the fraction of
+edges where `src < dst` in the ordering. Specifically helps
+Gauss-Seidel iterations (standard PR formulation). Has no effect
+on double-buffered Jacobi algorithms like PR-SpMV.
+
+Variants:
+
+| Flag | Implementation |
+|---|---|
+| `-o 16` | default |
+| `-o 16:fast` | parallel approximation |
+| `-o 16:naive` | naive reference |
+
+## Chained orderings
+
+Multiple reorderings can be applied in sequence. Order matters:
+community detection should precede degree refinement because the
+degree-based methods preserve relative position within their buckets,
+so they refine the existing community layout instead of destroying it.
 
 ```bash
-./bench/bin/pr -f graph.el -s -o 0 -n 3
+# Leiden then DBG: community spatial layout + hub temporal locality
+./bench/bin/pr -f g.el -s -o 12:leiden -o 5 -n 5
+
+# HRAB then DBG
+./bench/bin/pr -f g.el -s -o 12:hrab -o 5 -n 5
+
+# Leiden then GoGraph: cache locality + convergence speed (PR only, not PR-SpMV)
+./bench/bin/pr -f g.el -s -o 12:leiden -o 16 -n 5
+
+# Rabbit then DBG (the lightweight chain)
+./bench/bin/pr -f g.el -s -o 8 -o 5 -n 5
 ```
 
-- **Description**: Uses vertices in their original order from the input file
-- **Complexity**: O(1) - no reordering
-- **Best for**: Baseline comparison, already well-ordered graphs
-- **When to use**: Always run this first to establish baseline performance
+Five chains are formally evaluated in the VLDB paper §4.5.2.
 
-### 1. RANDOM
-**Random vertex permutation**
-
-```bash
-./bench/bin/pr -f graph.el -s -o 1 -n 3
-```
-
-- **Description**: Randomly shuffles all vertices
-- **Complexity**: O(n) where n = number of vertices
-- **Best for**: Testing, worst-case scenarios
-- **When to use**: Debugging, establishing worst-case baseline
-
-### 2. SORT
-**Sort vertices by degree**
-
-```bash
-./bench/bin/pr -f graph.el -s -o 2 -n 3
-```
-
-- **Description**: Sorts vertices by degree (descending by default, high-degree first)
-- **Complexity**: O(n log n)
-- **Best for**: Grouping high-degree vertices together for cache locality
-- **When to use**: Simple degree-based baseline, quick improvement over original ordering
-
----
-
-## Hub-Based Algorithms (3-4)
-
-These algorithms prioritize **high-degree vertices (hubs)** which are accessed frequently.
-
-### 3. HUBSORT
-**Sort by degree (hubs first)**
-
-```bash
-./bench/bin/pr -f graph.el -s -o 3 -n 3
-```
-
-- **Description**: Places high-degree vertices (hubs) at the beginning
-- **Complexity**: O(n log n)
-- **Rationale**: Hubs are accessed most frequently; placing them together improves cache reuse
-- **Best for**: Power-law graphs (social networks, web graphs)
-
-**How it works:**
-```
-Original:  v1(deg=5), v2(deg=100), v3(deg=2), v4(deg=50)
-After:     v2(deg=100), v4(deg=50), v1(deg=5), v3(deg=2)
-```
-
-![HubSort Adjacency Matrix](../docs/figures/reorder_hubsort.png)
-
-### 4. HUBCLUSTER
-**Cluster hubs with their neighbors**
-
-```bash
-./bench/bin/pr -f graph.el -s -o 4 -n 3
-```
-
-- **Description**: Places each hub followed by its neighbors
-- **Complexity**: O(n + m) where m = number of edges
-- **Rationale**: When accessing a hub, its neighbors are likely accessed next
-- **Best for**: Graphs with hub-and-spoke patterns
-
-**How it works:**
-```
-Hub v2 has neighbors: v1, v5, v8
-Ordering: v2, v1, v5, v8, [next hub], ...
-```
-
-![HubCluster Adjacency Matrix](../docs/figures/reorder_hubcluster.png)
-
----
-
-## DBG-Based Algorithms (5-7)
-
-**Degree-Based Grouping (DBG)** creates "frequency zones" based on access patterns.
-
-### 5. DBG
-**Degree-Based Grouping**
-
-```bash
-./bench/bin/pr -f graph.el -s -o 5 -n 3
-```
-
-- **Description**: Groups vertices by degree into logarithmic buckets
-- **Complexity**: O(n)
-- **Rationale**: Vertices with similar degrees have similar access frequencies
-- **Best for**: General-purpose, works well on most graphs
-
-**Bucket structure:**
-```
-Bucket 0: degree 1
-Bucket 1: degree 2-3
-Bucket 2: degree 4-7
-Bucket 3: degree 8-15
-...
-```
-
-### 6. HUBSORTDBG
-**HUBSORT within DBG buckets**
-
-```bash
-./bench/bin/pr -f graph.el -s -o 6 -n 3
-```
-
-- **Description**: First groups by DBG, then sorts each bucket by degree
-- **Complexity**: O(n log n)
-- **Best for**: Combines benefits of both approaches
-
-### 7. HUBCLUSTERDBG ⭐ (Recommended for power-law)
-**HUBCLUSTER within DBG buckets**
-
-```bash
-./bench/bin/pr -f graph.el -s -o 7 -n 3
-```
-
-- **Description**: First groups by DBG, then clusters hubs with neighbors in each bucket
-- **Complexity**: O(n + m)
-- **Best for**: Power-law graphs with clear hub structure
-
-### Edge Case Handling (Hub-Based Algorithms)
-
-All hub-based algorithms (HUBSORT, HUBCLUSTER, DBG, HUBSORTDBG, HUBCLUSTERDBG) include guards for empty subgraphs:
-
-```cpp
-// Guard against empty graphs (prevents division by zero)
-if (num_nodes == 0) {
-    return;  // Nothing to reorder
-}
-const int64_t avgDegree = num_edges / num_nodes;
-```
-
-This is important when these algorithms are used as the **final algorithm** in GraphBrewOrder, where community subgraphs may have no internal edges on graphs with extreme structure (e.g., Kronecker graphs).
-
----
-
-## Community & Classic Algorithms (8-11)
-
-These algorithms use different approaches: RabbitOrder detects communities, while GORDER, CORDER, and RCM focus on bandwidth reduction and cache optimization.
-
-### 8. RABBITORDER
-**Rabbit Order (community + incremental aggregation using Louvain)**
-
-```bash
-# Format: -o 8[:variant] where variant = csr (default) or boost
-./bench/bin/pr -f graph.el -s -o 8 -n 3         # Default: CSR variant (native, fast)
-./bench/bin/pr -f graph.el -s -o 8:csr -n 3     # Explicit CSR variant
-./bench/bin/pr -f graph.el -s -o 8:boost -n 3   # Original Boost-based variant
-```
-
-- **Description**: Hierarchical community detection with incremental aggregation (Louvain-based)
-- **Complexity**: O(n log n) average
-- **Variants**:
-  - `csr` (default): Native CSR implementation — faster, no external dependencies, improved cache locality thanks to correctness fixes and auto-adaptive resolution
-  - `boost`: Original Boost-based implementation — requires Boost library. Kept as a reference baseline.
-- **Note**: RabbitOrder is enabled by default (`RABBIT_ENABLE=1` in Makefile)
-- **Best for**: Large graphs with hierarchical community structure
-- **Limitation**: Uses Louvain (no refinement), can over-merge communities
-
-**CSR variant improvements** (over the original CSR code):
-1. **Edge weight normalization**: Fixed total weight computation to avoid doubling an already-correct 2m value
-2. **Self-loop handling**: Self-loops are now included in vertex strength, matching Boost
-3. **Permutation ordering**: All single-vertex communities are interleaved in discovery order (matching Boost), instead of being segregated to the end
-4. **Auto-adaptive resolution**: γ = clamp(14 / avg_degree, 0.5, 1.0) — prevents over-merging on dense graphs. Override via `RABBIT_RESOLUTION` env var.
-
-**Directed graph note**: Both variants read only out-edges and use the undirected modularity approximation from the original paper. The CSR fixes are valid for both symmetric and directed inputs.
-
-**Key insight**: Uses a "rabbit" metaphor where vertices "hop" to form communities.
-
-![Community Detection Reordering](../docs/figures/reorder_community.png)
-
-**Comparison with GVE-Leiden (Algorithm 15)**:
-| Metric | RabbitOrder | GVE-Leiden |
-|--------|-------------|------------|
-| Algorithm | Louvain (no refinement) | Leiden (with refinement) |
-| Community Quality | Good | Better |
-| Speed | Faster | Slightly slower |
-| Over-merging | Can occur | Prevented by refinement |
-
-### 9. GORDER
-**Graph Ordering (sliding window cache optimization)**
-
-```bash
-# Default (GoGraph baseline)
-./bench/bin/pr -f graph.el -s -o 9 -n 3
-
-# CSR-native variant — faster reordering, no GoGraph conversion
-./bench/bin/pr -f graph.el -s -o 9:csr -n 3
-```
-
-- **Description**: Greedy sliding-window algorithm that places vertices to maximize the number of 2-hop neighbors already in a cache-sized window. Pre-orders with BFS-RCM, then greedily picks the highest-scoring candidate at each step.
-- **Complexity**: O(n × m × w) where w = window size (default 7)
-- **Best for**: Graphs where local structure matters
-- **Variants**:
-  - `default`: GoGraph baseline — converts to GoGraph adjacency format, runs original C++ GOrder
-  - `csr`: **CSR-native variant** — operates directly on CSRGraph iterators via lightweight BFS-RCM pre-ordering and `RelabelByMappingStandalone`. Faster reordering than the GoGraph baseline, equivalent PR performance, deterministic with single thread.
-  - `fast`: **Parallel batch variant** — scalable across threads via batch extraction with atomic score updates. Uses fan-out cap (64), stricter hub threshold (n^⅓), and active frontier for efficient extraction. Auto-tunes batch/window to thread count.
-
-**How it works:**
-1. Pre-order vertices with BFS-RCM for initial locality
-2. Initialize priority heap with in-degree as key
-3. Greedy loop: extract max-priority vertex v, place it, update sliding window W:
-   - Push v: increment scores of v's 2-hop neighbors (out→in paths)
-   - Pop oldest: decrement scores of oldest's 2-hop neighbors
-4. Hub vertices (degree > √n) are skipped in 2-hop expansion
-
-**Fast variant details:**
-- Replaces UnitHeap with score array + atomic delta for thread safety
-- Batch extraction: top-B vertices placed per round (B=max(64, 4×threads))
-- Window auto-scaled: W=max(7, 2×batch) — still within L1 cache
-- Fan-out cap: 2-hop expansion limited to first 64 out-neighbors per in-neighbor
-- Per-thread dedup arrays eliminate redundant atomic exchanges in merge phase
-- Usage: `-o 9:fast` (recommended for graphs with high degree variance)
-
-
-
-### 10. CORDER
-**Cache-aware Ordering**
-
-```bash
-./bench/bin/pr -f graph.el -s -o 10 -n 3
-```
-
-- **Description**: Explicitly optimizes for CPU cache hierarchy
-- **Complexity**: O(n + m)
-- **Best for**: Cache-sensitive applications
-
-### 11. RCM
-**Reverse Cuthill-McKee**
-
-```bash
-# Default (GoGraph double-RCM)
-./bench/bin/pr -f graph.el -s -o 11 -n 3
-
-# BNF variant — faster reordering with George-Liu + BNF starting node
-./bench/bin/pr -f graph.el -s -o 11:bnf -n 3
-```
-
-- **Description**: Classic bandwidth-reduction algorithm (BFS-based)
-- **Complexity**: O(n + m)
-- **Best for**: Sparse matrices, scientific computing graphs, road networks
-- **Note**: Originally designed for sparse matrix solvers
-- **Variants**:
-  - `default`: GoGraph double-RCM — runs two full RCM passes (Transform + explicit), high-quality ordering
-  - `bnf`: **CSR-native BNF variant** — George-Liu pseudo-peripheral node finder with BNF width-minimizing criterion from RCM++ (Hou et al. 2024), deterministic parallel CM BFS via speculative atomic_min resolution (inspired by Mlakar et al. 2021). Faster reordering than the GoGraph baseline, comparable algorithm performance
-
-**How it works:**
-1. Start from a peripheral vertex (far from center)
-2. BFS traversal, ordering by increasing degree
-3. Reverse the final ordering
-
-**BNF variant improvements:**
-- George-Liu iteration finds a pseudo-peripheral starting node (higher eccentricity → better bandwidth)
-- BNF criterion (RCM++ paper) selects the candidate with minimum BFS level-set width
-- Deterministic parallel BFS: two-phase speculative discovery where the lowest-index frontier parent always wins shared neighbors (matching serial CM behavior)
-- CSR-native — no intermediate adjacency-list conversion
-- **Parallel component processing**: Components processed independently via prefix-sum offsets (no serial bottleneck)
-- **Fast-path for small components**: Skip BNF for components ≤32 vertices; max 3 George-Liu iterations for ≤256
-
-**GraphBrew-RCM variant (`-o 12:rcm`)**: GraphBrewOrder also supports a composable RCM variant that applies Leiden community detection, then runs RCM within each community in parallel (embarrassingly parallel), and orders communities via BNF-quality RCM on the super-graph. See [[GraphBrewOrder]] for details.
-
-![RCM Adjacency Matrix](../docs/figures/reorder_rcm.png)
-
----
-
-## Advanced Hybrid Algorithms (12-14)
-
-### 12. GraphBrewOrder
-**Per-community reordering with variant support**
-
-```bash
-# Format: -o 12[:variant[:frequency[:intra_algo[:resolution[:maxIterations[:maxPasses]]]]]]
-./bench/bin/pr -f graph.el -s -o 12 -n 3                   # Use defaults (leiden variant)
-./bench/bin/pr -f graph.el -s -o 12:leiden -n 3            # Explicit leiden variant
-./bench/bin/pr -f graph.el -s -o 12:rabbit -n 3            # RabbitOrder single-pass
-./bench/bin/pr -f graph.el -s -o 12:hubcluster -n 3        # Hub-based clustering
-```
-
-- **Description**: Runs GraphBrew +community detection, then applies per-community reordering
-- **Variants** (powered by GraphBrew pipeline):
-  - `leiden`: GraphBrew Leiden with GVE-CSR aggregation - **default**
-  - `rabbit`: GraphBrew RabbitOrder community detection (supports all ordering strategies)
-  - `hubcluster`: GraphBrew Leiden + hub-cluster ordering
-  - `rcm`: GraphBrew Leiden + per-community RCM + super-graph BNF-RCM (bandwidth minimization)
-- **Parameters**:
-  - `final_algo`: Algorithm ID (0-11) to use within communities (default: 8 = RabbitOrder)
-  - `resolution`: Leiden resolution parameter (default: auto-computed from graph)
-  - `maxIterations`: Maximum Leiden iterations (default: 10)
-  - `maxPasses`: Maximum Leiden passes (default: 10)
-- **Dynamic thresholds**: Community size thresholds are computed dynamically based on `avg_community_size/4` and `sqrt(N)`
-- **Best for**: Fine-grained control over per-community ordering
-
-**GraphBrew Unified Framework**: GraphBrewOrder provides a unified interface for graph reordering. Both Leiden and RabbitOrder community detection can be freely combined with any of the 14 ordering strategies. The `graphbrew` prefix is **not required** — pass ordering strategies directly:
-
-```bash
-# Leiden-based ordering strategies:
-./bench/bin/pr -f graph.mtx -s -o 12 -n 3                  # Default (leiden + per-community RabbitOrder)
-./bench/bin/pr -f graph.mtx -s -o 12:hrab -n 3             # Hybrid Leiden+RabbitOrder (best locality)
-./bench/bin/pr -f graph.mtx -s -o 12:dfs -n 3              # DFS dendrogram traversal
-./bench/bin/pr -f graph.mtx -s -o 12:conn -n 3             # Connectivity BFS within communities
-./bench/bin/pr -f graph.mtx -s -o 12:0.75 -n 3             # Fixed resolution (0.75)
-
-# Rabbit-based ordering strategies (Rabbit detection × any ordering):
-./bench/bin/pr -f graph.mtx -s -o 12:rabbit -n 3           # RabbitOrder native DFS (default)
-./bench/bin/pr -f graph.mtx -s -o 12:rabbit:dbg -n 3       # Rabbit communities + DBG ordering
-./bench/bin/pr -f graph.mtx -s -o 12:rabbit:hubcluster -n 3 # Rabbit communities + hub-cluster
-./bench/bin/pr -f graph.mtx -s -o 12:rabbit:hrab -n 3      # Rabbit communities + hybrid ordering
-```
-
-**Key recommendations:**
-- **Best overall**: `12:leiden` (default) — Leiden + per-community RabbitOrder
-- **Fastest**: `12:rabbit` — single-pass RabbitOrder pipeline
-- **Power-law**: `12:hubcluster` — hub-aware community ordering
-- **Large power-law**: `12:rabbit:dbg` — fast Rabbit detection + DBG degree-grouping
-- **Large modular**: `12:rabbit:hubcluster` — fast Rabbit detection + hub-cluster ordering
-
-See [[Command-Line-Reference#graphbreworder-12]] for the full option reference and [[Community-Detection]] for algorithm details.
-
-![GraphBrewOrder Pipeline](../docs/figures/graphbrew_pipeline.png)
-
-![GraphBrewOrder Adjacency Matrix](../docs/figures/reorder_graphbrew.png)
-
-### 13. MAP
-**Load mapping from file**
-
-```bash
-./bench/bin/pr -f graph.el -s -o 13:mapping.lo -n 3
-```
-
-- **Description**: Loads a pre-computed vertex ordering from file
-- **File formats**: `.lo` (list order) or `.so` (source order)
-- **Best for**: Using externally computed orderings
-
-### 14. AdaptiveOrder ⭐ (ML-powered)
-**Perceptron-based algorithm selection**
-
-```bash
-./bench/bin/pr -f graph.el -s -o 14 -n 3              # Default: full-graph, fastest-execution
-./bench/bin/pr -f graph.el -s -o 14::::0 -n 3          # Full-graph, fastest-reorder
-./bench/bin/pr -f graph.el -s -o 14::::1:web-Google -n 3  # With graph name hint
-```
-
-- **Description**: Uses ML to select the best algorithm for the graph
-- **Features**: 18 linear + 5 quadratic cross-terms + 1 IISWC'18 CL (24 total)
-- **Safety**: OOD guardrail, ORIGINAL margin fallback
-- **CLI format**: `-o 14[:_[:_[:_[:selection_mode[:graph_name]]]]]` (positions 0-2 reserved)
-- **Selection modes**: 0=fastest-reorder, 1=fastest-execution (default), 2=best-endtoend, 3=best-amortization, 4=decision-tree, 5=hybrid (DT+perceptron), 6=database (kNN)
-
-![AdaptiveOrder Pipeline](../docs/figures/adaptive_pipeline.png)
-
-See [[AdaptiveOrder-ML]] for the full ML model details.
-
----
-
-## Leiden Variants (15)
-
-GraphBrew provides LeidenOrder as a baseline reference implementation.
-
-### 15. LeidenOrder (Baseline Reference)
-**Leiden community detection via GVE-Leiden library**
-
-```bash
-# Format: -o 15:resolution
-./bench/bin/pr -f graph.el -s -o 15 -n 3                    # Default (auto-resolution)
-./bench/bin/pr -f graph.el -s -o 15:0.75 -n 3               # Lower resolution
-./bench/bin/pr -f graph.el -s -o 15:1.5 -n 3                # Higher resolution
-```
-
-- **Description**: Leiden community detection using the external GVE-Leiden library (requires CSR→DiGraph conversion)
-- **Complexity**: O(n log n) average
-- **Best for**: Baseline comparison — measures how much GraphBrewOrder (12) improved over the reference implementation
-- **Default resolution**: Auto-detected via continuous formula (0.5-1.2) with CV guardrail for power-law graphs
-- **Note**: The SSOT defines IDs 0-16. LeidenCSR's CSR-native Leiden implementation is part of GraphBrewOrder (12).
-
-**Key features:**
-- Uses GVE-Leiden C++ library by Subhajit Sahu (`external/leiden/`)
-- Requires CSR → DiGraph format conversion (adds overhead)
-- Produces high-quality modularity scores (reference quality)
-
----
-
-## Flow-Edge Algorithms (16)
-
-### 16. GoGraphOrder
-**Flow-edge M(σ) optimization**
-
-```bash
-# Format: -o 16[:variant]
-./bench/bin/pr -f graph.el -s -o 16 -n 3            # Default (optimised faithful)
-./bench/bin/pr -f graph.el -s -o 16:fast -n 3        # Iterative flow-score sorting
-./bench/bin/pr -f graph.el -s -o 16:naive -n 3       # Original faithful (validation)
-```
-
-- **Description**: Maximises M(σ) — the count of edges where source precedes destination in the ordering. Primarily benefits **directed** graphs (M(σ) is constant for symmetric/undirected graphs).
-- **Variants**:
-  - `default`: Optimised faithful — flat delta array, merged pev, degree-1 short-circuit
-  - `fast`: Iterative flow-score sorting — heuristic O(n log n + m) per iteration
-  - `naive`: Original faithful (per-call map, for validation)
-- **Best for**: Directed graphs where edge-direction locality matters
-
-See [[Command-Line-Reference#gographorder-variants-algorithm-16]] for the full variant reference.
-
----
-
-## Chained Orderings (Multi-Pass)
-
-GraphBrew supports **chained orderings** — applying two reordering algorithms sequentially. The first pass reorders the graph, then the second pass reorders the already-reordered graph. This is a **pregeneration-only** concept (the C++ AdaptiveOrder perceptron selects a single algorithm ID).
-
-```bash
-# SORT then RABBITORDER: degree-sort first, then cache-aware BFS
-./bench/bin/converter -f graph.el -s -o 2 -o 8:csr -b graph_sorted_rabbit.sg
-
-# HUBCLUSTERDBG then RABBITORDER
-./bench/bin/converter -f graph.el -s -o 7 -o 8:csr -b graph_hcdbg_rabbit.sg
-```
-
-Canonical names use `+` as separator: `SORT+RABBITORDER_csr`, `HUBCLUSTERDBG+RABBITORDER_csr`.
-
-Current chains defined in `scripts/lib/core/utils.py` → `_CHAINED_ORDERING_OPTS`:
-
-| Chain | Canonical Name | Rationale |
-|-------|---------------|-----------|
-| `-o 2 -o 8:csr` | `SORT+RABBITORDER_csr` | Degree sort + cache-aware BFS |
-| `-o 2 -o 8:boost` | `SORT+RABBITORDER_boost` | Degree sort + Boost-based BFS |
-| `-o 7 -o 8:csr` | `HUBCLUSTERDBG+RABBITORDER_csr` | Hub-cluster + cache BFS |
-| `-o 2 -o 12:leiden:flat` | `SORT+GraphBrewOrder_leiden` | Degree sort + community-aware |
-| `-o 5 -o 12:leiden:flat` | `DBG+GraphBrewOrder_leiden` | DBG + community-aware |
-
-See `chain_canonical_name()` and `CHAINED_ORDERINGS` in `scripts/lib/core/utils.py`.
-
-> **Note:** For current variant lists, see `scripts/lib/core/utils.py` which defines:
-> - `RABBITORDER_VARIANTS`, `GORDER_VARIANTS`, `RCM_VARIANTS`, `GRAPHBREW_VARIANTS`
-> - Use `get_algo_variants(algo_id)` to query programmatically
-
----
-
-## Algorithm Selection Guide
-
-### By Graph Type
-
-| Graph Type | Recommended | Alternatives |
-|------------|-------------|--------------|
-| Social Networks | GraphBrewOrder (12) | 12:rabbit:dbg, 12:rabbit:hubcluster |
-| Web Graphs | GraphBrewOrder (12) | 12:rabbit:dbg, HUBCLUSTERDBG (7) |
-| Road Networks | ORIGINAL (0), RCM (11) | GraphBrewOrder (12) |
-| Citation Networks | GraphBrewOrder (12) | 12:rabbit:hubcluster, LeidenOrder (15) |
-| Random Geometric | GraphBrewOrder (12) | GraphBrewOrder (12:rabbit) |
-| Unknown | GraphBrewOrder (12) | AdaptiveOrder (14) |
-
-### By Graph Size
-
-| Size | Nodes | Recommended |
-|------|-------|-------------|
-| Small | < 100K | Any (try several) |
-| Medium | 100K - 1M | GraphBrewOrder (12) |
-| Large | 1M - 100M | GraphBrewOrder (12), 12:rabbit:dbg, 12:rabbit:hubcluster |
-| Very Large | > 100M | 12:rabbit:dbg, 12:rabbit:hubcluster, 12:rabbit |
-
-### Quick Decision Tree
+## Algorithm selection cheatsheet
 
 ```
-Is your graph modular (has communities)?
-├── Yes → Is it very large (>10M vertices)?
-│         ├── Yes → 12:rabbit:dbg or 12:rabbit:hubcluster (fast detection + good ordering)
-│         │         GraphBrewOrder (12) for best quality
-│         └── No → GraphBrewOrder (12) - best quality
-└── No/Unknown → Is it a power-law graph?
-              ├── Yes → 12:rabbit:dbg or HUBCLUSTERDBG (7)
-              └── No → Try AdaptiveOrder (14)
+Is your graph mesh-like (road, FE)?
+└── yes → 12:rcm   (or 11:bnf for standalone RCM)
+└── no  → Does it have strong community structure?
+          ├── yes (social, collaboration, web) → 12:hrab or 12:leiden
+          └── no  (citation, sparse) → HUBCLUSTERDBG (7) or 12:rabbit
 ```
 
----
+When in doubt, run HUBCLUSTERDBG (cheap baseline) and `12:hrab`
+(usually best) and compare on your actual workload.
 
-## Next Steps
+## Further reading
 
-- [[Running-Benchmarks]] - How to run experiments
-- [[AdaptiveOrder-ML]] - Deep dive into ML-based selection
-- [[Adding-New-Algorithms]] - Implement your own algorithm
-
----
-
-[← Back to Home](Home)
+- [GraphBrewOrder](GraphBrewOrder) — the `-o 12` pipeline in detail
+- [Cache-Simulation](Cache-Simulation) — measuring cache quality
+- [Command-Line-Reference](Command-Line-Reference) — every flag
+- [VLDB-Experiments](VLDB-Experiments) — paper reproduction

@@ -18,6 +18,9 @@
 #include "cache_sim/cache_sim.h"
 #include "cache_sim/graph_sim.h"
 
+// P-OPT rereference matrix builder
+#include "graphbrew/partition/cagra/popt.h"
+
 using namespace std;
 using namespace cache_sim;
 
@@ -59,10 +62,31 @@ pvector<ScoreT> PageRankPullGS_Sim(const Graph &g, CacheType &cache,
     graph_ctx.registerPropertyArray(contrib_ptr, g.num_nodes(), sizeof(ScoreT), llc_size);
     cache.initGraphContext(&graph_ctx);
 
-    // Compute per-vertex ECG mask array (DBG tier classification, no reordering)
+    // Build P-OPT rereference matrix (for POPT and ECG policies)
+    // Uses graph structure to predict future cache line accesses.
+    // numVtxPerLine = cache_line_size / sizeof(ScoreT) = 64/4 = 16
+    static pvector<uint8_t> popt_matrix;  // Must outlive graph_ctx
+    {
+        const char* policy_env = getenv("CACHE_POLICY");
+        std::string policy_str = policy_env ? policy_env : "";
+        if (policy_str == "POPT" || policy_str == "ECG") {
+            constexpr int numVtxPerLine = 64 / sizeof(ScoreT);
+            constexpr int numEpochs = 256;
+            makeOffsetMatrix(g, popt_matrix, numVtxPerLine, numEpochs);
+            int numCacheLines = (g.num_nodes() + numVtxPerLine - 1) / numVtxPerLine;
+            graph_ctx.initRereference(popt_matrix.data(), numCacheLines,
+                                      numEpochs, g.num_nodes(), 64);
+        }
+    }
+
+    // Compute per-vertex ECG mask array (supports 8/16/32-bit widths)
     graph_ctx.initMaskConfig();
-    auto vertex_masks = graph_ctx.computeVertexMasks8(g);
-    graph_ctx.initMaskArray8(vertex_masks.data(), vertex_masks.size());
+    auto vertex_masks = graph_ctx.computeVertexMasks(g);  // uint32_t per vertex
+    // Register as 8-bit array for backward compat (ECG insertion reads full mask from hints)
+    std::vector<uint8_t> masks8(vertex_masks.size());
+    for (size_t i = 0; i < vertex_masks.size(); i++)
+        masks8[i] = static_cast<uint8_t>(vertex_masks[i]);
+    graph_ctx.initMaskArray8(masks8.data(), masks8.size());
     graph_ctx.printSummary();
     
     // Initialize outgoing contributions
@@ -84,10 +108,14 @@ pvector<ScoreT> PageRankPullGS_Sim(const Graph &g, CacheType &cache,
             // P-OPT: update current destination vertex for rereference lookup
             SIM_SET_VERTEX(cache, u);
             
-            // Iterate over incoming neighbors
-            for (NodeID v : g.in_neigh(u)) {
-                // ECG: read contrib[v] with per-vertex mask (DBG tier for v)
-                SIM_CACHE_READ_MASKED(cache, contrib_ptr, v, graph_ctx, vertex_masks[v]);
+            // Iterate over incoming neighbors with CSR edge tracking
+            auto in_neigh = g.in_neigh(u);
+            for (auto it = in_neigh.begin(); it != in_neigh.end(); ++it) {
+                // Track CSR edge list read (reading neighbor ID from edge array)
+                SIM_CACHE_READ_EDGE(cache, it);
+                NodeID v = *it;
+                // ECG: read contrib[v] with mask (DBG + P-OPT + optional prefetch)
+                SIM_CACHE_READ_MASKED_PREFETCH(cache, contrib_ptr, v, graph_ctx, vertex_masks[v]);
                 incoming_total += outgoing_contrib[v];
             }
             

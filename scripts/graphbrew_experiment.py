@@ -2536,7 +2536,7 @@ def main():
 
     if args.vldb is not None:
         import subprocess as _sp
-        cmd = ["python3", "scripts/experiments/vldb_paper_experiments.py"]
+        cmd = ["python3", "scripts/experiments/vldb/runner.py"]
         if args.vldb:  # Specific experiments
             cmd += ["--exp"] + [str(e) for e in args.vldb]
         else:  # No numbers = all
@@ -2550,7 +2550,7 @@ def main():
 
     if args.ecg is not None:
         import subprocess as _sp
-        cmd = ["python3", "scripts/experiments/ecg_paper_experiments.py"]
+        cmd = ["python3", "scripts/experiments/ecg/runner.py"]
         if args.ecg:  # Specific experiments
             cmd += ["--exp"] + [str(e) for e in args.ecg]
         else:  # No numbers = all

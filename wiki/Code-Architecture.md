@@ -10,7 +10,7 @@ GraphBrew/
 │   ├── bin/                  # Compiled binaries
 │   ├── bin_sim/              # Cache simulation binaries
 │   ├── include/              # Header libraries
-│   │   ├── graphbrew/        # 📦 GraphBrew extensions
+│   │   ├── graphbrew/        # GraphBrew extensions
 │   │   │   ├── graphbrew.h   # Umbrella header
 │   │   │   ├── reorder/      # Reordering algorithms (~20,612 lines)
 │   │   │   └── partition/    # Partitioning (trust.h, cagra/popt.h)
@@ -143,9 +143,10 @@ reorder/
 | `GraphBrewConfig` | `reorder_graphbrew.h` | algorithm, ordering, aggregation, resolution, finalAlgoId, recursiveDepth, subAlgoId |
 | `ReorderConfig` | `reorder_types.h` | Unified config: resolutionMode(AUTO), tolerance(1e-2), maxIterations(10), maxPasses(10), ordering(HIERARCHICAL) |
 
-All configs parse from CLI options via `FromOptions()`. Defaults are centralized constants in `reorder_types.h` (see [[AdaptiveOrder-ML#command-line-format]]).
+All configs parse from CLI options via `FromOptions()`. Defaults are centralized constants in `reorder_types.h` (see [[AdaptiveOrder-ML]]).
 
-> ⚠️ Use `graphbrew::leiden::DEFAULT_RESOLUTION` or `adaptive::DEFAULT_RESOLUTION` explicitly — they are separate namespaces.
+> Note: use `graphbrew::leiden::DEFAULT_RESOLUTION` or
+> `adaptive::DEFAULT_RESOLUTION` explicitly — they are separate namespaces.
 
 #### graph.h - CSRGraph Class
 
@@ -372,7 +373,7 @@ raw benchmark data at C++ runtime, with no pre-trained weight files needed.
 
 **Variant Registry:** `_VARIANT_ALGO_REGISTRY` maps algo IDs 8, 11, 12 to `(prefix, variants, default)` tuples. GOrder variants (9: default/csr/fast) are tracked separately in `GORDER_VARIANTS` but share a single perceptron weight (they produce equivalent orderings).
 
-See [[Configuration-Files#unified-algorithm-naming-scriptslibutilspy]].
+See [[Python-Scripts]].
 
 ---
 
@@ -457,9 +458,9 @@ C++ benchmark binaries now write directly to `benchmarks.json` and
 
 ## Configuration & Data Locations
 
-JSON config: specify `graphs`, `benchmarks`, `algorithms`, `trials`, and `options` (symmetrize, verify). See [[Configuration-Files]] for format.
+JSON config: specify `graphs`, `benchmarks`, `algorithms`, `trials`, and `options` (symmetrize, verify). See [[Python-Scripts]] for format.
 
-Weight files: `results/data/adaptive_models.json` (see [[Perceptron-Weights]]). Results: `results/graphs/`, `results/logs/`, `results/mappings/` (see [[Python-Scripts#output-structure]]). Data store: `results/data/` (adaptive_models.json, benchmarks.json, graph_properties.json, runs/).
+Weight files: `results/data/adaptive_models.json` (see [[AdaptiveOrder-ML]]). Results: `results/graphs/`, `results/logs/`, `results/mappings/` (see [[Python-Scripts#output-structure]]). Data store: `results/data/` (adaptive_models.json, benchmarks.json, graph_properties.json, runs/).
 
 ---
 
@@ -526,8 +527,8 @@ valgrind ./bench/bin/pr -f scripts/test/graphs/tiny/tiny.el -s -n 1
 
 ## Next Steps
 
-- [[Adding-New-Algorithms]] - Add reordering algorithms
-- [[Adding-New-Benchmarks]] - Add graph algorithms
+- [[Contributing]] - Add reordering algorithms
+- [[Contributing]] - Add graph algorithms
 - [[Python-Scripts]] - Python tools documentation
 
 ---

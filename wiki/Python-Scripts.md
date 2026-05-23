@@ -9,10 +9,10 @@ and a VLDB experiment suite (`experiments/`):
 
 ```
 scripts/
-├── graphbrew_experiment.py      # ⭐ MAIN: Single entry point for all experiments
+├── graphbrew_experiment.py      # Single entry point for all experiments
 ├── requirements.txt             # Python dependencies
 │
-├── experiments/                 # 📊 VLDB 2026 paper experiment suite
+├── experiments/                 # VLDB 2026 paper experiment suite
 │   ├── __init__.py
 │   ├── vldb_paper_experiments.py  # Self-contained runner (8 experiments, auto-setup)
 │   ├── vldb_generate_figures.py   # PNG figures & LaTeX table generation from JSON data
@@ -21,7 +21,7 @@ scripts/
 │   ├── vldb_experiments_small.py  # Small-scale experiments
 │   └── exp3_model_ablation.py     # Model ablation experiment
 │
-├── lib/                         # 📦 Modular library (5 sub-packages)
+├── lib/                         # Modular library (5 sub-packages)
 │   ├── __init__.py              # Re-exports every public name (backward-compatible)
 │   ├── README.md                # Package map & import conventions
 │   │
@@ -77,7 +77,7 @@ scripts/
 
 ---
 
-## 📊 experiments/ — Paper Experiment Suites
+## experiments/ — Paper Experiment Suites
 
 Two self-contained experiment runners for two papers:
 
@@ -110,7 +110,7 @@ See the [[VLDB-Experiments]] wiki page for full usage.
 
 ---
 
-## ⭐ graphbrew_experiment.py - Main Orchestration
+## graphbrew_experiment.py - Main Orchestration
 
 The main script provides orchestration over the `lib/` modules. It handles argument parsing and calls the appropriate phase functions.
 
@@ -139,7 +139,7 @@ python3 scripts/graphbrew_experiment.py --help
 
 ---
 
-## 🔍 Adaptive Emulator (--emulator)
+## Adaptive Emulator (--emulator)
 
 **Pure Python emulator that replicates C++ AdaptiveOrder logic without recompiling.**
 
@@ -205,7 +205,7 @@ Use **eval_weights** (via `--eval-weights`) when you want to train or evaluate w
 
 ---
 
-## 📊 Weight Evaluation (--eval-weights)
+## Weight Evaluation (--eval-weights)
 
 **Quick evaluation script that trains weights, simulates C++ `scoreBase() × benchmarkMultiplier()` scoring, and reports accuracy/regret metrics.**
 
@@ -283,12 +283,12 @@ This ensures Python evaluation matches C++ `scoreBase() × benchmarkMultiplier()
 
 | Tool | Purpose | Updates Weights? |
 |------|---------|------------------|
-| `eval_weights.py` | Train + evaluate + report accuracy/regret | ✅ Yes |
-| `adaptive_emulator.py` | Emulate C++ selection logic for debugging | ❌ No |
+| `eval_weights.py` | Train + evaluate + report accuracy/regret | Yes |
+| `adaptive_emulator.py` | Emulate C++ selection logic for debugging | No |
 
 ---
 
-## ⭐ graphbrew_experiment.py - Main Orchestration (continued)
+## graphbrew_experiment.py - Main Orchestration (continued)
 
 ### Command-Line Options
 
@@ -309,7 +309,7 @@ python3 scripts/graphbrew_experiment.py --generate-maps --size small
 
 ---
 
-## 📦 lib/ Module Reference
+## lib/ Module Reference
 
 The `lib/` folder is organised into five sub-packages. All public names are re-exported from `lib/__init__.py` for backward compatibility.
 
@@ -363,11 +363,11 @@ The `lib/` folder is organised into five sub-packages. All public names are re-e
 
 ### Key: `compute_weights_from_results()`
 
-The primary training function: multi-restart perceptrons (5×800 epochs, z-score normalized, L2 regularized) → variant-level weight saving → regret-aware grid search for benchmark multipliers → stages to `type_0.json` (merged into `adaptive_models.json` by `export_unified_models()`). See [[Perceptron-Weights]] for details.
+The primary training function: multi-restart perceptrons (5×800 epochs, z-score normalized, L2 regularized) → variant-level weight saving → regret-aware grid search for benchmark multipliers → stages to `type_0.json` (merged into `adaptive_models.json` by `export_unified_models()`). See [[AdaptiveOrder-ML]] for details.
 
 ---
 
-## 📏 lib/analysis/metrics.py - Amortization & End-to-End Evaluation
+## lib/analysis/metrics.py - Amortization & End-to-End Evaluation
 
 **Post-hoc analysis of existing benchmark results — no new benchmarks needed.**
 

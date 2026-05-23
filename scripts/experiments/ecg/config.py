@@ -20,7 +20,7 @@ import os
 # ============================================================================
 # Paths
 # ============================================================================
-PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent
 BIN_SIM_DIR = PROJECT_ROOT / "bench" / "bin_sim"
 RESULTS_DIR = PROJECT_ROOT / "results" / "ecg_experiments"
 
@@ -32,8 +32,8 @@ GRAPH_AWARE_POLICIES = ["GRASP", "POPT", "ECG"]
 ALL_POLICIES = BASELINE_POLICIES + GRAPH_AWARE_POLICIES
 PREVIEW_POLICIES = ["LRU", "SRRIP", "GRASP", "POPT", "ECG"]
 
-# ECG modes (from ECGMode enum: DBG_PRIMARY, POPT_PRIMARY, DBG_ONLY)
-ECG_MODES = ["DBG_PRIMARY", "POPT_PRIMARY", "DBG_ONLY"]
+# ECG modes (from ECGMode enum: DBG_PRIMARY, POPT_PRIMARY, DBG_ONLY, ECG_EMBEDDED)
+ECG_MODES = ["DBG_PRIMARY", "POPT_PRIMARY", "DBG_ONLY", "ECG_EMBEDDED"]
 
 # ============================================================================
 # Section A: Accuracy Validation — GRASP and P-OPT faithfulness

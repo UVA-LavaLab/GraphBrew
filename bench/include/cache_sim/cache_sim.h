@@ -138,6 +138,7 @@ struct CacheLine {
     uint8_t rrpv = 3;            // For SRRIP, GRASP, P-OPT, ECG
     uint64_t line_addr = 0;      // Cache-line-aligned address
     uint8_t ecg_dbg_tier = 0;    // ECG: stored DBG degree tier (structural, for eviction tiebreak)
+    uint8_t ecg_popt_hint = 0;   // ECG_EMBEDDED: stored P-OPT quantized rereference hint
 };
 
 // ============================================================================
@@ -591,24 +592,28 @@ public:
         set[victim_idx].rrpv = 2;  // For SRRIP: long re-reference (M-1 = 2, per Jaleel ISCA'10)
         set[victim_idx].line_addr = address & ~(uint64_t(line_size_ - 1));  // Store line-aligned address
 
-        // GRASP: N-bucket RRIP insertion (degree-proportional RRPV)
-        // Uses GraphCacheContext bucket classification + bucketToRRPV for
-        // proportional RRPV based on edge fraction (GRASP-XP approach).
-        // Falls back to legacy 3-tier GRASPState if no context.
+        // GRASP: 3-tier RRIP insertion matching Faldu et al. HPCA 2020.
+        // HIGH reuse (hubs):    RRPV = 1 (P_RRIP — protect in cache)
+        // MODERATE reuse:       RRPV = 6 (I_RRIP — intermediate)
+        // LOW reuse (cold/OOB): RRPV = 7 (M_RRIP — evict sooner)
+        //
+        // Hot boundary: first hot_fraction (10%) of LLC capacity within
+        // each property region. Moderate = next 10%. Cold = rest.
+        // After DBG reorder, highest-degree vertices are at front (low addr).
         if (policy_ == EvictionPolicy::GRASP) {
+            constexpr uint8_t P_RRIP = 1;   // Priority (hot)
+            constexpr uint8_t I_RRIP = 6;   // Intermediate (moderate)
+            constexpr uint8_t M_RRIP = 7;   // Max (cold)
             if (graph_ctx_) {
-                uint32_t bucket = graph_ctx_->classifyBucket(address);
-                if (bucket != UINT32_MAX) {
-                    set[victim_idx].rrpv = graph_ctx_->bucketToRRPV(bucket, 7);
-                }
+                uint32_t tier = graph_ctx_->classifyGRASP(address, size_bytes_);
+                if (tier == 1)       set[victim_idx].rrpv = P_RRIP;
+                else if (tier == 2)  set[victim_idx].rrpv = I_RRIP;
+                else                 set[victim_idx].rrpv = M_RRIP;
             } else if (grasp_state_.enabled) {
                 auto t = grasp_state_.classify(address);
-                uint32_t tier = (t == GRASPState::ReuseTier::HIGH) ? 1 :
-                       (t == GRASPState::ReuseTier::MODERATE) ? 2 : 4;
-                constexpr uint8_t M_RRIP = 7;
-                if (tier == 1)       set[victim_idx].rrpv = 1;
-                else if (tier == 2)  set[victim_idx].rrpv = M_RRIP - 1;
-                else                 set[victim_idx].rrpv = M_RRIP;
+                if (t == GRASPState::ReuseTier::HIGH)           set[victim_idx].rrpv = P_RRIP;
+                else if (t == GRASPState::ReuseTier::MODERATE)  set[victim_idx].rrpv = I_RRIP;
+                else                                            set[victim_idx].rrpv = M_RRIP;
             }
         }
 
@@ -617,23 +622,78 @@ public:
             set[victim_idx].rrpv = 6;  // M_RRPV - 1 = long re-reference (SRRIP default)
         }
 
-        // ECG: DBG-based insertion (structural priority).
-        // RRPV from DBG tier only — P-OPT is consulted dynamically at eviction.
-        // Stores ecg_dbg_tier for tiebreaking.
+        // ECG: Mode-dependent insertion RRPV.
+        // DBG_ONLY / DBG_PRIMARY / ECG_EMBEDDED: use GRASP 3-tier (1/6/7)
+        // POPT_PRIMARY: use P-OPT-style RRPV=6 (matches pure P-OPT aging)
         if (policy_ == EvictionPolicy::ECG) {
+            ECGMode mode = (graph_ctx_ && graph_ctx_->mask_config.enabled)
+                ? graph_ctx_->mask_config.ecg_mode : ECGMode::DBG_PRIMARY;
+
+            if (mode == ECGMode::POPT_PRIMARY) {
+                // Match P-OPT insertion: uniform RRPV=6 for all lines
+                set[victim_idx].rrpv = 6;
+            } else if (mode == ECGMode::ECG_COMBINED) {
+                // Hawkeye-inspired: combine DBG tier + P-OPT hint into
+                // unified insertion RRPV. Both signals affect every insertion.
+                //
+                // Theory: Insertion RRPV is the dominant lever (Hawkeye ISCA'16).
+                // Using both degree (reuse frequency) and rereference distance
+                // (reuse timing) at insertion captures more information than
+                // either signal alone.
+                //
+                // Formula: RRPV = max(0, min(7, dbg_rrpv + popt_rrpv) / 2))
+                //   dbg_rrpv:  0 (hub) to 7 (cold) from GRASP 3-tier
+                //   popt_rrpv: 0 (near) to 7 (far) from stored P-OPT hint
+                //   Combined:  average → smooth 8-level priority
+                uint8_t dbg_rrpv = 7;
+                if (graph_ctx_) {
+                    uint32_t tier = graph_ctx_->classifyGRASP(address, size_bytes_);
+                    if (tier == 1)      dbg_rrpv = 1;
+                    else if (tier == 2) dbg_rrpv = 4;
+                    else                dbg_rrpv = 7;
+                }
+                uint8_t popt_rrpv = 6;  // default: assume distant
+                if (graph_ctx_ && graph_ctx_->mask_array.enabled) {
+                    uint32_t mask_entry = graph_ctx_->hints_for_thread().mask;
+                    uint8_t hint = graph_ctx_->mask_config.decodePOPT(mask_entry);
+                    uint8_t popt_max = graph_ctx_->mask_config.popt_bits > 0
+                        ? ((1 << graph_ctx_->mask_config.popt_bits) - 1) : 1;
+                    // Map hint (0=near, max=far) to RRPV (0=keep, 7=evict)
+                    popt_rrpv = static_cast<uint8_t>((uint32_t(hint) * 7) / std::max(uint8_t(1), popt_max));
+                }
+                // Weighted combination: both signals contribute equally
+                uint8_t combined = static_cast<uint8_t>((uint32_t(dbg_rrpv) + uint32_t(popt_rrpv)) / 2);
+                if (combined == 0 && dbg_rrpv > 0) combined = 1;  // Reserve 0 for hits
+                set[victim_idx].rrpv = combined;
+            } else {
+                // GRASP-faithful 3-tier for DBG_PRIMARY, DBG_ONLY, ECG_EMBEDDED
+                constexpr uint8_t P_RRIP = 1;
+                constexpr uint8_t I_RRIP = 6;
+                constexpr uint8_t M_RRIP_C = 7;
+                if (graph_ctx_) {
+                    uint32_t tier = graph_ctx_->classifyGRASP(address, size_bytes_);
+                    if (tier == 1)       set[victim_idx].rrpv = P_RRIP;
+                    else if (tier == 2)  set[victim_idx].rrpv = I_RRIP;
+                    else                 set[victim_idx].rrpv = M_RRIP_C;
+                }
+            }
+
+            // Store ECG mask fields for eviction tiebreaking
             if (graph_ctx_ && graph_ctx_->mask_array.enabled) {
-                // Mask array path: decode DBG tier from per-access mask hint
-                uint32_t mask_entry = graph_ctx_->hints.mask;
-                uint8_t dbg = graph_ctx_->mask_config.decodeDBG(mask_entry);
-                set[victim_idx].rrpv = graph_ctx_->maskToRRPV(mask_entry);
-                set[victim_idx].ecg_dbg_tier = dbg;
+                uint32_t mask_entry = graph_ctx_->hints_for_thread().mask;
+                set[victim_idx].ecg_dbg_tier = graph_ctx_->mask_config.decodeDBG(mask_entry);
+                set[victim_idx].ecg_popt_hint = graph_ctx_->mask_config.decodePOPT(mask_entry);
             } else if (graph_ctx_) {
-                // Fallback: bucket classification from address
                 uint32_t bucket = graph_ctx_->classifyBucket(address);
-                if (bucket != UINT32_MAX) {
-                    set[victim_idx].rrpv = graph_ctx_->bucketToRRPV(bucket,
-                        graph_ctx_->mask_config.enabled ? graph_ctx_->mask_config.rrpv_max : 7);
-                    set[victim_idx].ecg_dbg_tier = static_cast<uint8_t>(bucket);
+                set[victim_idx].ecg_dbg_tier = (bucket < 11) ? static_cast<uint8_t>(bucket) : 0;
+                // Compute live P-OPT hint if matrix available
+                if (graph_ctx_->rereference.matrix) {
+                    uint32_t dist = graph_ctx_->findNextRef(address);
+                    // Quantize 0-127 distance to 4-bit (0-15)
+                    set[victim_idx].ecg_popt_hint = static_cast<uint8_t>(
+                        std::min(dist, uint32_t(127)) >> 3);
+                } else {
+                    set[victim_idx].ecg_popt_hint = 0;
                 }
             }
         }
@@ -687,7 +747,7 @@ public:
     // Update current vertex for P-OPT (call at each outer-loop iteration)
     void setCurrentVertex(uint32_t vertex_id) {
         popt_state_.current_vertex = vertex_id;
-        // Also update unified context if available
+        // Update unified context (thread-safe via per-thread hints)
         if (graph_ctx_) {
             const_cast<GraphCacheContext*>(graph_ctx_)->setCurrentVertices(vertex_id, vertex_id);
         }
@@ -725,16 +785,16 @@ private:
             set[idx].rrpv = 0;
         }
 
-        // GRASP: bucket-aware hit promotion
-        // Top bucket → RRPV=0 (aggressive), others → decrement proportionally
+        // GRASP: 3-tier hit promotion (Faldu et al. HPCA 2020)
+        // Hot region → RRPV=0 (aggressive reset), others → decrement by 1
         if (policy_ == EvictionPolicy::GRASP) {
             uint64_t addr = set[idx].line_addr;
             if (graph_ctx_) {
-                uint32_t bucket = graph_ctx_->classifyBucket(addr);
-                if (bucket == 0) {
-                    set[idx].rrpv = 0;  // Highest-degree bucket: aggressive
-                } else if (bucket != UINT32_MAX) {
-                    if (set[idx].rrpv > 0) set[idx].rrpv--;  // Others: gradual
+                uint32_t tier = graph_ctx_->classifyGRASP(addr, size_bytes_);
+                if (tier == 1) {
+                    set[idx].rrpv = 0;  // Hot (hub): aggressive reset
+                } else if (set[idx].rrpv > 0) {
+                    set[idx].rrpv--;    // Others: gradual decrement
                 }
             } else if (grasp_state_.enabled) {
                 auto t = grasp_state_.classify(addr);
@@ -748,13 +808,23 @@ private:
             set[idx].rrpv = 0;
         }
 
-        // ECG: bucket-aware hit promotion (same as GRASP with context)
+        // ECG: Mode-dependent hit promotion
         if (policy_ == EvictionPolicy::ECG) {
-            if (graph_ctx_) {
-                uint64_t addr = set[idx].line_addr;
-                uint32_t bucket = graph_ctx_->classifyBucket(addr);
-                if (bucket == 0) set[idx].rrpv = 0;
-                else if (bucket != UINT32_MAX && set[idx].rrpv > 0) set[idx].rrpv--;
+            ECGMode mode = (graph_ctx_ && graph_ctx_->mask_config.enabled)
+                ? graph_ctx_->mask_config.ecg_mode : ECGMode::DBG_PRIMARY;
+
+            if (mode == ECGMode::POPT_PRIMARY || mode == ECGMode::ECG_COMBINED) {
+                // Hawkeye/P-OPT-style: reset to 0 on hit
+                // Every hit is evidence of cache-friendliness
+                set[idx].rrpv = 0;
+            } else {
+                // GRASP-faithful 3-tier for DBG modes and ECG_EMBEDDED
+                if (graph_ctx_) {
+                    uint64_t addr = set[idx].line_addr;
+                    uint32_t tier = graph_ctx_->classifyGRASP(addr, size_bytes_);
+                    if (tier == 1) set[idx].rrpv = 0;           // Hot: aggressive reset
+                    else if (set[idx].rrpv > 0) set[idx].rrpv--; // Others: gradual
+                }
             }
         }
     }
@@ -974,6 +1044,76 @@ private:
         ECGMode mode = (graph_ctx_ && graph_ctx_->mask_config.enabled)
             ? graph_ctx_->mask_config.ecg_mode : ECGMode::DBG_PRIMARY;
 
+        // ── Phase 0: Evict non-property data first (matching P-OPT Phase 1) ──
+        // Non-property data (CSR edges, offsets, streaming) has no oracle
+        // prediction and should be evicted before property data.
+        // For DBG modes, this is already handled by RRPV=7 at insert (cold).
+        // For POPT_PRIMARY, all lines get RRPV=6 at insert, so non-property
+        // lines compete equally — we must explicitly prefer evicting them.
+        if (graph_ctx_ && mode == ECGMode::POPT_PRIMARY) {
+            for (size_t i = 0; i < associativity_; i++) {
+                if (!graph_ctx_->isPropertyData(set[i].line_addr)) {
+                    return i;  // Evict non-property data immediately
+                }
+            }
+        }
+
+        // ── ECG_COMBINED: Pure SRRIP aging (both signals already at insertion) ──
+        // Hawkeye-inspired: the combined insertion RRPV already encodes
+        // both degree and rereference signals. Standard SRRIP aging is
+        // sufficient — no tiebreakers needed. First line at max RRPV wins.
+        if (mode == ECGMode::ECG_COMBINED) {
+            while (true) {
+                for (size_t i = 0; i < associativity_; i++) {
+                    if (set[i].rrpv >= rrpv_max) return i;
+                }
+                for (size_t i = 0; i < associativity_; i++) {
+                    if (set[i].rrpv < rrpv_max) set[i].rrpv++;
+                }
+            }
+        }
+
+        // ── POPT_PRIMARY: Use P-OPT's exact 3-phase algorithm ──
+        // Bypass SRRIP aging entirely — P-OPT operates on ALL ways, not
+        // just RRPV-aged candidates. This ensures ECG(POPT_PRIMARY)
+        // matches pure P-OPT's eviction behavior exactly.
+        if (mode == ECGMode::POPT_PRIMARY && graph_ctx_ && graph_ctx_->rereference.matrix) {
+            // Phase 2: Find max rereference distance across ALL ways
+            uint8_t maxRerefDist = 0;
+            uint8_t wayRerefDists[64] = {};
+            for (size_t i = 0; i < associativity_; i++) {
+                uint32_t dist = graph_ctx_->findNextRef(set[i].line_addr);
+                uint8_t d = static_cast<uint8_t>(std::min(dist, uint32_t(127)));
+                wayRerefDists[i] = d;
+                if (d > maxRerefDist) maxRerefDist = d;
+            }
+
+            // Phase 3: RRIP tiebreak among max-distance lines
+            // (age only tied lines, matching P-OPT's Algorithm 2)
+            // Level 3 enhancement: among RRIP ties, prefer highest DBG tier
+            constexpr uint8_t M_RRPV = 7;
+            while (true) {
+                size_t best = SIZE_MAX;
+                uint8_t best_dbg = 0;
+                for (size_t i = 0; i < associativity_; i++) {
+                    if (wayRerefDists[i] == maxRerefDist && set[i].rrpv >= M_RRPV) {
+                        if (best == SIZE_MAX || set[i].ecg_dbg_tier > best_dbg) {
+                            best = i;
+                            best_dbg = set[i].ecg_dbg_tier;
+                        }
+                    }
+                }
+                if (best != SIZE_MAX) return best;
+
+                // Age only the tied lines
+                for (size_t i = 0; i < associativity_; i++) {
+                    if (wayRerefDists[i] == maxRerefDist && set[i].rrpv < M_RRPV) {
+                        set[i].rrpv++;
+                    }
+                }
+            }
+        }
+
         // ── Level 1: SRRIP aging — find lines at max RRPV ──
         // Age all lines until at least one reaches rrpv_max.
         while (true) {
@@ -1014,7 +1154,7 @@ private:
             if (num_narrowed == 1 || mode == ECGMode::DBG_ONLY)
                 return narrowed[0];
 
-            // ── Level 3: Dynamic P-OPT tiebreak ──
+            // ── Level 3: Dynamic P-OPT tiebreak via rereference matrix ──
             if (graph_ctx_ && graph_ctx_->rereference.matrix) {
                 uint32_t max_dist = 0;
                 size_t victim = narrowed[0];
@@ -1029,37 +1169,36 @@ private:
             }
             return narrowed[0];
 
-        } else {  // POPT_PRIMARY
-            // Dynamic P-OPT tiebreak: evict furthest next-reference
-            if (graph_ctx_ && graph_ctx_->rereference.matrix) {
-                uint32_t max_dist = 0;
-                for (size_t c = 0; c < num_candidates; c++) {
-                    uint32_t dist = graph_ctx_->findNextRef(set[candidates[c]].line_addr);
-                    if (dist > max_dist) max_dist = dist;
-                }
+        } else if (mode == ECGMode::ECG_EMBEDDED) {
+            // ECG_EMBEDDED: stored P-OPT hint as Level 2 (zero LLC overhead).
+            // Evict line with highest stored rereference hint (furthest future).
+            // Falls back to DBG tier as Level 3 tiebreaker.
+            uint8_t max_hint = 0;
+            for (size_t c = 0; c < num_candidates; c++)
+                if (set[candidates[c]].ecg_popt_hint > max_hint)
+                    max_hint = set[candidates[c]].ecg_popt_hint;
 
-                // Narrow to max-dist lines
-                size_t narrowed[64];
-                size_t num_narrowed = 0;
-                for (size_t c = 0; c < num_candidates; c++) {
-                    uint32_t dist = graph_ctx_->findNextRef(set[candidates[c]].line_addr);
-                    if (dist == max_dist)
-                        narrowed[num_narrowed++] = candidates[c];
-                }
+            size_t narrowed[64];
+            size_t num_narrowed = 0;
+            for (size_t c = 0; c < num_candidates; c++)
+                if (set[candidates[c]].ecg_popt_hint == max_hint)
+                    narrowed[num_narrowed++] = candidates[c];
 
-                if (num_narrowed == 1) return narrowed[0];
+            if (num_narrowed == 1) return narrowed[0];
 
-                // Level 3: DBG tiebreak among P-OPT ties
-                uint8_t max_dbg = 0;
-                size_t victim = narrowed[0];
-                for (size_t c = 0; c < num_narrowed; c++) {
-                    if (set[narrowed[c]].ecg_dbg_tier > max_dbg) {
-                        max_dbg = set[narrowed[c]].ecg_dbg_tier;
-                        victim = narrowed[c];
-                    }
+            // Level 3: DBG tier tiebreak among same-hint lines
+            uint8_t max_dbg = 0;
+            size_t victim = narrowed[0];
+            for (size_t c = 0; c < num_narrowed; c++) {
+                if (set[narrowed[c]].ecg_dbg_tier > max_dbg) {
+                    max_dbg = set[narrowed[c]].ecg_dbg_tier;
+                    victim = narrowed[c];
                 }
-                return victim;
             }
+            return victim;
+
+        } else {  // POPT_PRIMARY fallback (no matrix available)
+            // Fall back to DBG tiebreak if no P-OPT matrix
 
             // No P-OPT matrix: fall back to DBG tiebreak
             uint8_t max_dbg = 0;
@@ -1166,6 +1305,36 @@ public:
         l1_->insert(address, is_write);
     }
 
+    // Prefetch: bring data into cache without counting as a demand access.
+    // In real hardware, prefetches are non-blocking fills that don't
+    // appear in demand miss statistics. Only demand accesses count.
+    //
+    // Prefetch hits: data already in cache — no action needed.
+    // Prefetch misses: fill cache from memory but do NOT increment
+    //   total_accesses_ or memory_accesses_.
+    void prefetch(uint64_t address) {
+        if (!enabled_) return;
+        
+        // Check if already in cache (any level)
+        if (l1_->access(address, false)) return;
+        if (l2_->access(address, false)) {
+            l1_->insert(address, false);
+            return;
+        }
+        if (l3_->access(address, false)) {
+            l2_->insert(address, false);
+            l1_->insert(address, false);
+            return;
+        }
+        
+        // Not in cache — fetch from memory into hierarchy
+        // Does NOT increment demand counters
+        prefetch_fills_++;
+        l3_->insert(address, false);
+        l2_->insert(address, false);
+        l1_->insert(address, false);
+    }
+
     // Convenience methods for common access patterns
     template<typename T>
     void read(const T* ptr) {
@@ -1206,6 +1375,7 @@ public:
         l3_->resetStats();
         total_accesses_ = 0;
         memory_accesses_ = 0;
+        prefetch_fills_ = 0;
     }
 
     // Enable/disable simulation
@@ -1380,6 +1550,7 @@ private:
     bool enabled_;
     std::atomic<uint64_t> total_accesses_{0};
     std::atomic<uint64_t> memory_accesses_{0};
+    std::atomic<uint64_t> prefetch_fills_{0};
 };
 
 // ============================================================================
@@ -1463,6 +1634,7 @@ public:
 
     // No-op: FastCacheHierarchy uses clock algorithm, not policy-based eviction
     void setCurrentVertex(uint32_t) {}
+    void prefetch(uint64_t address) { access(address, false); }
     void initGraphContext(const GraphCacheContext*) {}
     
     uint64_t getTotalAccesses() const { return total_accesses_; }
@@ -1659,6 +1831,7 @@ public:
 
     // No-op: UltraFastCacheHierarchy uses packed clock algorithm
     void setCurrentVertex(uint32_t) {}
+    void prefetch(uint64_t address) { access(address, false); }
     void initGraphContext(const GraphCacheContext*) {}
     
     uint64_t getTotalAccesses() const { return total_accesses_; }
@@ -1932,6 +2105,8 @@ public:
     void setCurrentVertex(uint32_t vertex_id) {
         l3_shared_->setCurrentVertex(vertex_id);
     }
+
+    void prefetch(uint64_t address) { access(address, false); }
 
     uint64_t getTotalAccesses() const { return total_accesses_; }
     uint64_t getMemoryAccesses() const { return memory_accesses_; }
@@ -2232,6 +2407,7 @@ public:
 
     // No-op: P-OPT/GRASP require CacheLevel-based hierarchy
     void setCurrentVertex(uint32_t) {}
+    void prefetch(uint64_t address) { access(address, false); }
     void initGraphContext(const GraphCacheContext*) {}
     
     uint64_t getTotalAccesses() const { return total_accesses_; }

@@ -1,6 +1,7 @@
 # Supported Graph Formats
 
-GraphBrew supports multiple graph file formats for flexibility and compatibility with existing datasets.
+Five formats are supported. `.sg` is the binary form GraphBrew converts
+everything to on first load; subsequent runs use the cached `.sg`.
 
 ## Quick Reference
 
@@ -394,7 +395,7 @@ Use for quick testing:
 ## Next Steps
 
 - [[Running-Benchmarks]] - How to run benchmarks
-- [[Quick-Start]] - Getting started guide
+- [[Getting-Started]] - Getting started guide
 - [[Graph-Benchmarks]] - Available algorithms
 
 ---

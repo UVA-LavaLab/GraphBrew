@@ -1,8 +1,9 @@
 # VLDB 2026 Experiment Guide
 
-Complete reference for reproducing the GraphBrew **multilayered reordering** paper experiments.
-This document explains how to run all experiments, generate figures, and reproduce
-every number in the paper from an **empty `results/` folder**.
+Reproduces every figure and table in the GraphBrew paper from an empty
+`results/` directory. The runner auto-builds binaries, downloads graphs
+from SuiteSparse where possible, converts them to `.sg`, runs the eight
+experiments, and regenerates the figures and LaTeX tables.
 
 ---
 
@@ -15,27 +16,30 @@ every number in the paper from an **empty `results/` folder**.
 5. [Generated Outputs](#5-generated-outputs)
 6. [Configuration Reference](#6-configuration-reference)
 7. [Troubleshooting](#7-troubleshooting)
+8. [SLURM Runbook — UVA Cluster](#8-slurm-runbook--uva-cluster) — smoke test first, then full paper eval
 
 ---
 
 ## 1. Quick Start
 
-The experiment script is **self-contained**: it automatically builds binaries,
-downloads graphs from SuiteSparse, and converts them to `.sg` format before
-running any experiments.
-
 ```bash
-# Full reproducibility (builds, downloads, runs all experiments + figures):
-python3 scripts/experiments/vldb_paper_experiments.py --all
+# Full paper run (256 GB+ RAM, includes twitter7 + webbase-2001):
+python3 scripts/experiments/vldb/runner.py --all
 
-# Preview mode (fast validation — 2 small graphs, 1 trial):
-python3 scripts/experiments/vldb_paper_experiments.py --all --preview
+# 64 GB RAM machine (11 auto-downloadable graphs, no >1B-edge graphs):
+python3 scripts/experiments/vldb/runner.py --all --64gb
 
-# Dry run (validate commands without executing):
-python3 scripts/experiments/vldb_paper_experiments.py --all --dry-run
+# Local-machine smoke test (6 graphs ≤ 117M edges, fits 64 GB easily):
+python3 scripts/experiments/vldb/runner.py --all --local
+
+# Preview (2 small graphs, 1 trial — ~5 min validation):
+python3 scripts/experiments/vldb/runner.py --all --preview
+
+# Dry run (print commands without executing):
+python3 scripts/experiments/vldb/runner.py --all --dry-run
 
 # Regenerate figures from existing results:
-python3 scripts/experiments/vldb_paper_experiments.py --figures-only
+python3 scripts/experiments/vldb/runner.py --figures-only
 ```
 
 The auto-setup phase will:
@@ -47,10 +51,10 @@ To skip auto-setup (if binaries and graphs are already in place):
 
 ```bash
 # Uses results/graphs/ by default:
-python3 scripts/experiments/vldb_paper_experiments.py --all --skip-setup
+python3 scripts/experiments/vldb/runner.py --all --skip-setup
 
 # Or specify a custom graph directory:
-python3 scripts/experiments/vldb_paper_experiments.py --all --skip-setup \
+python3 scripts/experiments/vldb/runner.py --all --skip-setup \
     --graph-dir /path/to/graphs
 ```
 
@@ -60,9 +64,63 @@ python3 scripts/experiments/vldb_paper_experiments.py --all --skip-setup \
 
 ### System Requirements
 
-- Linux x86-64 with GCC ≥ 7 (tested on Ubuntu 22.04)
-- ≥ 16 GB RAM for full evaluation (64 GB+ recommended for webbase-2001, twitter7)
+- Linux x86-64 with GCC ≥ 7 (tested on Ubuntu 22.04 / 24.04)
+- ≥ 16 GB RAM for preview; 32–64 GB for `--64gb` graph set; 64 GB+ for full evaluation (webbase-2001, twitter7)
 - Python ≥ 3.8
+
+### Graph Folder Layout (canonical reference)
+
+All scripts resolve graphs through `resolve_graph_path()`, which tries two
+filesystem layouts and uses the first that exists:
+
+```
+# Nested layout (PREFERRED — what auto-download produces)
+results/graphs/<name>/<name>.sg            # serialized graph (used by benchmarks)
+results/graphs/<name>/<name>.el            # raw edge list (input to converter)
+results/graphs/<name>/<name>.wel           # weighted edge list (sssp)
+results/graphs/<name>/<name>.mtx           # MatrixMarket (intermediate from SuiteSparse)
+
+# Flat layout (also accepted)
+results/graphs/<name>.sg
+```
+
+Graph `<name>` must **exactly** match the `"name"` field in the graph
+catalog (`EVAL_GRAPHS`, `EVAL_GRAPHS_64GB`, etc. in
+[scripts/experiments/vldb/config.py](../scripts/experiments/vldb/config.py)) —
+e.g. `cit-Patents`, `soc-pokec`, `hollywood-2009`, `USA-road-d.USA`,
+`com-Orkut`.
+
+**Three ways to populate this folder:**
+
+| Method | Command | When |
+|---|---|---|
+| 1. Auto-download (recommended) | `python3 scripts/experiments/vldb/runner.py --exp 2 --graphs cit-Patents --64gb --no-figures` | All 11 `--64gb` graphs except the 2 manual-download ones; fetches `.mtx` from SuiteSparse, converts to `.el` then `.sg` |
+| 2. Bulk pre-stage (login node before SLURM) | The for-loop in §8.1.5 below | One-time staging for cluster jobs |
+| 3. Manual placement | `mkdir -p results/graphs/<name> && cp my-graph.el results/graphs/<name>/<name>.el` then `bench/bin/converter -f .../<name>.el -b .../<name>.sg` | Custom datasets or twitter7/webbase-2001/Gong-gplus/wikipedia_link_en |
+
+**Where graph derivatives are written** (created automatically):
+
+```
+results/vldb_mappings/<name>/<algo>.lo     # cached vertex permutation (reorder-once)
+results/vldb_mappings/<name>/<algo>.json   # schema reorder_meta/v1 — full cmd/env/timing/stdout_tail
+results/vldb_runs/<name>/<algo>__<bench>.json   # schema kernel_run/v1 — per-kernel record
+results/vldb_paper/exp<N>_<name>/*.json    # aggregated tables (one row per cell)
+results/INDEX.json                         # auto-rebuilt manifest of the above
+results/data/graph_properties.json         # lib ML-feature cache (auto-managed)
+```
+
+> See [results/README.md](../results/README.md) for full schema docs and
+> per-cell reproduction recipes. Use
+> `python3 -m scripts.lib.analysis.results_index --build-index` to refresh
+> the manifest on demand.
+
+**Override with `--graph-dir`** if you keep graphs elsewhere (e.g. shared
+filesystem on HPC):
+
+```bash
+python3 scripts/experiments/vldb/runner.py --exp 2 --64gb \
+    --graph-dir /scratch/$USER/graphs        # nested layout under here
+```
 
 ### Automatic Steps (handled by `--all`)
 
@@ -163,22 +221,103 @@ BFS, PR (PageRank), PR-SpMV, SSSP, CC (Afforest), CC-SV, BC
 
 ## 4. Running Experiments
 
-### Full Evaluation
+### 4.0 Recipe Cheatsheet (most common tasks)
+
+Each row is a copy-pasteable command — run from the repo root with the venv
+activated. **Bold** = which artefacts the recipe produces.
+
+| Goal | Command | Produces |
+|---|---|---|
+| Smoke test (2 graphs, ~10 min) | `python3 scripts/experiments/vldb/stages/02_reorder.py --exp 2 --preview && python3 scripts/experiments/vldb/stages/03_cpu_perf.py --exp 2 --preview && python3 scripts/experiments/vldb/stages/05_aggregate.py --exp 0` | mappings, runs, exp2 table, figures, INDEX.json |
+| **Reorder `.lo` only** — cache the permutation, no kernels | `python3 scripts/experiments/vldb/stages/02_reorder.py --exp 2 --graphs cit-Patents soc-pokec` | `results/vldb_mappings/<g>/<algo>.{lo,json}` |
+| **Speedups only** (assumes `.lo` already cached) | `python3 scripts/experiments/vldb/stages/03_cpu_perf.py --exp 2 --graphs cit-Patents` | `results/vldb_runs/<g>/<algo>__<bench>.json` + `vldb_paper/exp2_speedup/speedup_results.json` |
+| Reorder + kernels in one shot for new graph | `python3 scripts/experiments/vldb/stages/02_reorder.py --exp 2 --graphs <g> && python3 scripts/experiments/vldb/stages/03_cpu_perf.py --exp 2 --graphs <g>` | both of the above |
+| **Cache performance only** (sim binary) | `python3 scripts/experiments/vldb/stages/04_cache_sim.py --exp 1 --graphs cit-Patents` | `results/vldb_paper/exp1_cache/cache_results.json` |
+| Aggregate + rebuild figures from existing JSON | `python3 scripts/experiments/vldb/stages/05_aggregate.py --exp 0` | `results/INDEX.json`, `results/vldb_paper/figures/*.png`, mirrored to `paper/dataCharts/` |
+| Full sweep, all 11 graphs, all 8 experiments | `python3 scripts/experiments/vldb/runner.py --all --64gb` | everything |
+| Just figures from existing data | `python3 scripts/experiments/vldb/runner.py --figures-only` | regenerates `paper/dataCharts/` |
+
+The stages are independent and resumable — re-running 02 with `.lo` already
+present skips quickly; re-running 03 picks up exactly where it stopped (via
+`ResultsStore` in [scripts/experiments/vldb/runner.py](../scripts/experiments/vldb/runner.py)).
+
+### 4.1 SLURM submission
+
+All stages have matching sbatch wrappers under
+[scripts/experiments/vldb/stages/slurm/](../scripts/experiments/vldb/stages/slurm/).
+
+**SLURM smoke test** (validates env + the 2-graph preview pipeline,
+~10–30 min):
+
+```bash
+sbatch scripts/experiments/vldb/stages/slurm/smoke.sbatch
+squeue -u $USER                       # track
+tail -f results/slurm_logs/gbrew-smoke-*.out
+```
+
+**Chained full pipeline** (01 → 02 → 03 → 04 → 05 with proper deps):
+
+```bash
+# Full --64gb sweep (default)
+EXTRA_ARGS="--64gb" bash scripts/experiments/vldb/stages/slurm/run_all.sh
+
+# Skip the cache simulator (much faster — exp1 not needed)
+SKIP_CACHE=1 EXTRA_ARGS="--64gb" bash scripts/experiments/vldb/stages/slurm/run_all.sh
+
+# Preview on cluster (sanity-check job environment)
+EXTRA_ARGS="--preview" bash scripts/experiments/vldb/stages/slurm/run_all.sh
+
+# Specific subset (e.g. cit-Patents only)
+GRAPHS="cit-Patents" bash scripts/experiments/vldb/stages/slurm/run_all.sh
+```
+
+**Individual stages with env overrides:**
+
+```bash
+# Just reorder cache for a single big graph
+sbatch --export=ALL,GRAPHS=twitter7 \
+       scripts/experiments/vldb/stages/slurm/02_reorder.sbatch
+
+# Just speedups (requires .lo files from stage 02)
+sbatch --export=ALL,GRAPHS=com-Orkut,EXP=2 \
+       scripts/experiments/vldb/stages/slurm/03_cpu_perf.sbatch
+
+# Cache sim on a slow / shared partition (CPU-speed independent)
+sbatch --partition=largemem --mem=512G \
+       --export=ALL,GRAPHS=twitter7 \
+       scripts/experiments/vldb/stages/slurm/04_cache_sim.sbatch
+
+# Final figures + INDEX.json
+sbatch scripts/experiments/vldb/stages/slurm/05_aggregate.sbatch
+```
+
+Override knobs supported by every sbatch wrapper via `--export=ALL,KEY=VAL`:
+
+| Var | Default | Notes |
+|---|---|---|
+| `EXP`        | 2 (or 1 for cache_sim) | Experiment selector |
+| `GRAPHS`     | `""` → uses `EVAL_GRAPHS` | Space-separated graph names |
+| `EXTRA_ARGS` | `""` | Extra CLI flags, e.g. `"--preview"`, `"--64gb"`, `"--local"` |
+| `OMP_NUM_THREADS` | `SLURM_CPUS_PER_TASK` | Override for thread sweeps |
+
+### 4.2 Direct Python entry points
+
+The legacy monolithic runner is still available for development:
 
 ```bash
 # Run all 8 experiments (auto-setup included):
-python3 scripts/experiments/vldb_paper_experiments.py --all
+python3 scripts/experiments/vldb/runner.py --all
 
 # Run all experiments with graphs in a specific directory:
-python3 scripts/experiments/vldb_paper_experiments.py \
+python3 scripts/experiments/vldb/runner.py \
     --all --skip-setup --graph-dir /data/graphs
 
 # Run specific experiments (e.g., cache + speedup only):
-python3 scripts/experiments/vldb_paper_experiments.py \
+python3 scripts/experiments/vldb/runner.py \
     --exp 1 2
 
 # Skip figure generation:
-python3 scripts/experiments/vldb_paper_experiments.py \
+python3 scripts/experiments/vldb/runner.py \
     --all --no-figures
 ```
 
@@ -187,7 +326,7 @@ python3 scripts/experiments/vldb_paper_experiments.py \
 For fast validation before the full run:
 
 ```bash
-python3 scripts/experiments/vldb_paper_experiments.py --all --preview
+python3 scripts/experiments/vldb/runner.py --all --preview
 ```
 
 Preview uses: 2 small graphs, 1 trial, 2 benchmarks (PR, BFS), 300s timeout.
@@ -195,7 +334,7 @@ Preview uses: 2 small graphs, 1 trial, 2 benchmarks (PR, BFS), 300s timeout.
 ### Custom Graph Set
 
 ```bash
-python3 scripts/experiments/vldb_paper_experiments.py \
+python3 scripts/experiments/vldb/runner.py \
     --all --graphs cit-Patents soc-pokec
 ```
 
@@ -203,10 +342,10 @@ python3 scripts/experiments/vldb_paper_experiments.py \
 
 ```bash
 # From real experiment data:
-python3 scripts/experiments/vldb_paper_experiments.py --figures-only
+python3 scripts/experiments/vldb/runner.py --figures-only
 
 # With sample/placeholder data (for layout preview):
-python3 scripts/experiments/vldb_generate_figures.py --sample-data
+python3 scripts/experiments/vldb/figures.py --sample-data
 ```
 
 ---
@@ -226,26 +365,108 @@ results/vldb_paper/
 ├── exp6_sensitivity/          # Graph-type sensitivity metadata
 ├── exp7_chained/              # Chained ordering results (JSON)
 ├── exp8_scalability/          # Thread scaling results (JSON, .sg input with .el fallback)
-├── figures/                   # Generated PNG figures
+├── figures/                   # Generated PNG / PDF figures
 │   ├── fig1_cache_performance.png
 │   ├── fig2_kernel_speedup.png
-│   └── fig3_reorder_overhead.png
+│   ├── fig3_reorder_overhead.png
+│   └── fig_h2h_pareto.{png,pdf}  # head-to-head vs Gorder + Rabbit Pareto
 └── tables/                    # Generated LaTeX table snippets
     ├── table_variants.tex
     ├── table_ablation.tex
     ├── table_sensitivity.tex
-    └── table_chained.tex
+    ├── table_chained.tex
+    ├── table_h2h_per_graph.tex  # paper headline comparison
+    └── table_h2h_summary.tex    # cross-graph geo-mean + wins
 ```
 
-Figures are also copied to the paper's `dataCharts/` directory for direct
-`\includegraphics` inclusion.
+Figures and tables are also mirrored to the paper's `dataCharts/`
+directory so `main.tex` can `\input{dataCharts/tables/...}` and
+`\includegraphics{dataCharts/speedup/h2h_pareto}` directly without an
+extra copy step. See `comparison_vs_baselines()` in
+`scripts/experiments/vldb/figures.py` for the head-to-head
+artifact generation.
+
+### 5.1 Per-cell sidecars (raw measurements)
+
+Every algorithm run also writes a self-describing JSON sidecar next to
+its cached artefacts, in addition to the aggregated tables above. Each
+sidecar holds the exact `cmd`, environment, parsed timings, and a stdout
+tail — enough to replay a single (graph, algo, benchmark) cell in
+isolation.
+
+| Sidecar | Path | Schema | Written by |
+|---|---|---|---|
+| Reorder cache | `results/vldb_mappings/<graph>/<algo>.json` | `reorder_meta/v1` | stage 02 |
+| Kernel run    | `results/vldb_runs/<graph>/<algo>__<bench>.json` | `kernel_run/v1` | stage 03 |
+| Manifest      | `results/INDEX.json` | `results_index/v1` | stage 05 |
+
+`<algo>` is the algorithm key with `:` and `/` replaced by `_` (e.g.
+`9_leiden_compose_intra_hubsort`). See
+[results/README.md](../results/README.md) for the full schema docs.
+
+### 5.2 Analysing results — canonical loader
+
+The shared library exposes one entry point that flattens any sidecar
+tree to row-shaped dicts (and pandas DataFrames when `pandas` is
+installed):
+
+```python
+from scripts.lib.analysis.results_index import (
+    walk_kernel_runs, walk_reorder_meta, walk_aggregates,   # dict-list (no deps)
+    load_runs_df,    load_reorder_df,    load_aggregates_df, # pandas (optional)
+    build_index,
+)
+
+runs = load_runs_df()        # one row per kernel run
+agg  = load_aggregates_df()  # one row per cell across all exp tables
+
+# Example: PR speedup vs ORIGINAL across all graphs
+import pandas as pd
+pr = runs[runs.benchmark == "pr"]
+base = pr[pr.algo_key == "0"].set_index("graph").average_time
+pr["speedup"] = pr.apply(lambda r: base[r.graph] / r.average_time, axis=1)
+print(pr.groupby("algo_key").speedup.mean().sort_values(ascending=False).head(10))
+```
+
+Available row columns (when present in stdout): `graph, algo_key,
+benchmark, average_time, trial_times, reorder_time, reorder_time_passes,
+reorder_source, map_load_time, read_time, topology_analysis_time,
+relabel_map_time, mteps, iterations, modularity, degree_variance,
+hub_concentration, clustering_coefficient, avg_path_length, …`.
+
+Rebuild the top-level manifest on demand:
+
+```bash
+python3 -m scripts.lib.analysis.results_index --build-index
+# wrote /…/results/INDEX.json
+```
+
+### 5.3 Replaying a single cell
+
+Every sidecar embeds the exact command and env. To re-run one (graph,
+algo, benchmark) cell:
+
+```bash
+F=results/vldb_runs/email-Eu-core/9_leiden_compose_intra_hubsort__bfs.json
+cmd=$(jq -r '.cmd | join(" ")' "$F")
+env $(jq -r '.env | to_entries | map("\(.key)=\(.value)") | join(" ")' "$F") $cmd
+```
+
+### 5.4 Adding a new analysis figure
+
+1. Load the data once via `load_runs_df()` or `load_aggregates_df()`.
+2. Filter / group with pandas.
+3. Write the figure under `paper/dataCharts/<name>/<fig>.{png,pdf}`
+   so `main.tex` can `\includegraphics{dataCharts/<name>/<fig>}` directly.
+4. Stage 05 will regenerate `INDEX.json` on the next run; the new file
+   does not need to be tracked by the pipeline.
 
 ---
 
 ## 6. Configuration Reference
 
 All experiment parameters are defined in
-`scripts/experiments/vldb_config.py`:
+`scripts/experiments/vldb/config.py`:
 
 | Parameter | Full | Preview |
 |-----------|------|---------|
@@ -261,7 +482,9 @@ All experiment parameters are defined in
 |------|-------------|
 | `--all` | Run all 8 experiments |
 | `--exp N [N ...]` | Run specific experiment(s) by number (1-8) |
-| `--preview` | Use small graphs, 1 trial, 2 benchmarks |
+| `--preview` | 2 small graphs, 1 trial, 2 benchmarks (validation) |
+| `--local` | 6 graphs ≤117M edges (cit-Patents → com-Orkut, fits 64 GB) |
+| `--64gb` | 11 auto-downloadable graphs (no >1B-edge graphs) |
 | `--dry-run` | Print commands without executing |
 | `--graph-dir PATH` | Directory containing graph files (default: `results/graphs` with `--skip-setup`) |
 | `--graphs NAME [...]` | Override graph list by name |
@@ -269,6 +492,17 @@ All experiment parameters are defined in
 | `--skip-download` | Skip graph download but still build + convert |
 | `--no-figures` | Skip automatic figure generation |
 | `--figures-only` | Generate figures from existing results (no experiments) |
+
+### 64 GB Graph Set
+
+For machines with 32–64 GB RAM, use `--64gb` to select an alternative set of 11
+auto-downloadable graphs that avoids twitter7 and webbase-2001 (both >1B edges,
+require >64 GB RAM). This set adds as-Skitter, kron_g500-logn21, indochina-2004,
+and uk-2002 for type diversity:
+
+```bash
+python3 scripts/experiments/vldb/runner.py --all --64gb
+```
 
 ---
 
@@ -285,6 +519,12 @@ names in the config. Both flat layout (`cit-Patents.sg`) and nested layout
 (`cit-Patents/cit-Patents.sg`) are supported. Experiments 3 and 8 try `.sg`
 first and fall back to `.el` automatically.
 
+**"Conversion failed" for SuiteSparse graphs** — Some SuiteSparse archives
+contain auxiliary `.mtx` files (e.g., `*_nodename.mtx`) alongside the actual
+graph matrix. The converter prefers files named exactly `{graph_name}.mtx`.
+If conversion fails, check that the correct `.mtx` file exists in the nested
+directory (`results/graphs/{name}/{name}/{name}.mtx`).
+
 **Graphs that need manual download** — `wikipedia_link_en` (KONECT) and
 `Gong-gplus` (Google Drive) cannot be auto-downloaded. See
 [Prerequisites §2](#2-prerequisites) for download instructions. The script will
@@ -298,7 +538,7 @@ Edit `TIMEOUT_FULL` in `vldb_config.py`.
 
 ### Extending
 
-To add a new graph or algorithm, edit `scripts/experiments/vldb_config.py`:
+To add a new graph or algorithm, edit `scripts/experiments/vldb/config.py`:
 - `EVAL_GRAPHS` — add graph metadata
 - `BASELINE_ALGORITHMS` — add algorithm ID and name
 - `GRAPHBREW_VARIANTS` — add variant string
@@ -321,6 +561,280 @@ Experiment 1 additionally includes per-cache-level metrics extracted by
 LaTeX tables (`table_ablation.tex`, `table_sensitivity.tex`,
 `table_chained.tex`) are populated from the JSON data automatically;
 fields that have no data yet show `\emph{TBD}`.
+
+---
+
+## 8. SLURM Runbook — UVA Cluster
+
+Two-phase recipe: (a) a 30-minute **smoke test** that proves the harness,
+binaries, and ResultsStore work on the cluster, then (b) the **full
+evaluation** parallelised over per-(experiment, graph) jobs.
+
+### 8.1 One-time UVA setup
+
+UVA Research Computing's Slurm reference:
+<https://www.rc.virginia.edu/userinfo/hpc/slurm/>
+
+```bash
+# Clone + checkout
+git clone https://github.com/<you>/GraphBrew.git
+cd GraphBrew
+
+# Inspect available partitions and your allocation accounts
+qlist                          # partition list (UVA convenience wrapper)
+qlimits                        # per-partition core/memory/time caps
+sacctmgr -p show user $USER    # accounts you can charge
+module avail gcc               # confirm gcc module name on the cluster
+module avail miniforge         # confirm python/conda module name
+
+# Edit scripts/experiments/vldb/slurm/monolithic.sbatch:
+#   - --account=YOUR_UVA_ALLOC
+#   - --partition=... (standard for single-node threaded jobs is the default)
+#   - module load gcc miniforge   # change names if `module avail` shows different
+```
+
+> **Why standard partition?** UVA's `standard` is the single-node
+> serial/threaded queue, which is exactly what our 32-core OpenMP runs
+> need. Use `parallel` only for true MPI multi-node work.
+
+> **Data safety reminder:** every job writes per-cell results via
+> `ResultsStore` with atomic `tmp + rename`. If a job times out you can
+> resubmit it verbatim — already-completed cells are skipped.
+
+> **#SBATCH gotcha (UVA-confirmed):** SLURM directives do **not** expand
+> shell variables. Lines like `#SBATCH --output=...-${GRAPH}.out` produce
+> filenames with literal `${GRAPH}`. Use only `%x` (job-name) and `%j`
+> (jobid) in `--output=`, and pass `--job-name=gbrew-exp${exp}-${g}` on
+> the `sbatch` command line so the EXP/GRAPH appear in the log filename
+> via `%x`. The template and examples below already do this.
+
+### 8.1.5 Stage graphs on the login node (REQUIRED — compute nodes have no internet)
+
+UVA Rivanna compute nodes do **not** have outbound internet, so SLURM
+jobs cannot themselves fetch graphs from SuiteSparse. The
+`vldb_slurm.sbatch` template therefore runs with `--skip-setup
+--skip-download` and aborts with a clear error if the `.sg` file is
+missing. Stage every graph **once** on the login node before submitting:
+
+```bash
+# Stage all 64GB graphs at once (builds binaries, downloads, converts to .sg).
+# Each graph is small (~100MB-2GB .sg); total ~10GB; ~20-40 min on the
+# login node depending on SuiteSparse mirror speed.
+for g in cit-Patents soc-pokec hollywood-2009 soc-LiveJournal1 \
+         com-Orkut USA-road-d.USA kron_g500-logn21 \
+         indochina-2004 uk-2002; do
+  python3 scripts/experiments/vldb/runner.py \
+      --exp 2 --graphs "$g" --64gb --no-figures
+done
+
+# Verify all .sg files exist before sbatch:
+for g in cit-Patents soc-pokec hollywood-2009 soc-LiveJournal1 \
+         com-Orkut USA-road-d.USA kron_g500-logn21 \
+         indochina-2004 uk-2002; do
+  ls -la "results/graphs/$g/$g.sg" 2>/dev/null || echo "MISSING: $g"
+done
+```
+
+The login-node `--exp 2` invocation does double duty: it triggers
+auto-setup (build + download + .el → .sg conversion) *and* runs the
+experiment for that one graph. Because `ResultsStore` saves cells
+atomically, those results carry into the later SLURM run for free.
+
+**Big-graph addendum (twitter7, webbase-2001):** these are not on
+SuiteSparse and need manual download from KONECT/Google-Drive — see
+`VLDB_GRAPH_SOURCES` in [scripts/experiments/vldb/config.py](../scripts/experiments/vldb/config.py).
+Place the `.el` under `results/graphs/<name>/<name>.el` on the login
+node and the SLURM job's converter step will pick it up.
+
+**Escape hatch:** if your cluster *does* allow outbound HTTPS from
+compute nodes, set `AUTO_SETUP=1` in `--export` to let the SLURM job
+download itself (not recommended on UVA standard partition).
+
+### 8.2 Phase A — SLURM smoke test (30 min, one graph, one experiment)
+
+The goal here is to validate environment / modules / scratch I/O / SLURM
+account *before* spending real allocation on the full sweep.
+
+```bash
+# Submit ONE job: smallest experiment × smallest graph.
+# Pass --job-name with EXP/GRAPH baked in so the log filename is descriptive.
+sbatch --time=00:30:00 \
+       --job-name=gbrew-exp2-cit-Patents \
+       --export=ALL,EXP=2,GRAPH=cit-Patents,GRAPHSET=local \
+       scripts/experiments/vldb/slurm/monolithic.sbatch
+
+# Watch it land
+squeue -u $USER
+tail -f results/slurm_logs/gbrew-exp2-cit-Patents-*.out
+```
+
+**Success criteria** — check after job completes:
+
+```bash
+# 1. Did it write the JSON?
+ls -la results/vldb_paper/exp2_speedup/speedup_results.json
+
+# 2. Are all cells valid (60 rows expected for --preview-ish single-graph)?
+python3 -c "
+import json
+d = json.load(open('results/vldb_paper/exp2_speedup/speedup_results.json'))
+valid = [r for r in d if r.get('average_time') is not None]
+compose = [r for r in d if 'compose' in str(r.get('algo_id') or '')]
+print(f'rows={len(d)} valid={len(valid)}/{len(d)} compose={len(compose)}')
+assert len(valid) == len(d), 'some cells have no timing — check logs'
+assert len(compose) > 0, 'compose configs did not run — parser failure?'
+print('SMOKE TEST PASSED')
+"
+
+# 3. Test resume — resubmit; should finish in <1 min thanks to ResultsStore
+sbatch --time=00:10:00 \
+       --job-name=gbrew-exp2-cit-Patents-resume \
+       --export=ALL,EXP=2,GRAPH=cit-Patents,GRAPHSET=local \
+       scripts/experiments/vldb/slurm/monolithic.sbatch
+# Look for "Resume: loaded N existing results" in the new log.
+```
+
+UVA-specific health checks (the canonical commands from
+<https://www.rc.virginia.edu/userinfo/hpc/slurm/#displaying-job-status>):
+
+```bash
+squeue -u $USER                              # is it queued / running?
+scontrol show job <jobid>                    # detailed state
+seff <jobid>                                 # CPU + memory efficiency after completion
+sacct -u $USER --format=JobID,JobName,State,ExitCode,Elapsed
+```
+
+If any of the three checks fails, **stop and fix before Phase B**.
+Common gotchas:
+
+| Symptom | Cause | Fix |
+|---|---|---|
+| `module: command not found` | wrong module env on partition | check `module avail` and edit `vldb_slurm.sbatch` |
+| `gcc/12: Unable to locate` | module name differs on cluster | run `module avail gcc` and update the `module load` line |
+| `bench/bin/converter: not found` | build failed silently | run `make -j$SLURM_CPUS_PER_TASK pr bfs cc sssp bc tc converter` manually first |
+| `Permission denied` on `results/slurm_logs/` | log dir doesn't exist | `mkdir -p results/slurm_logs` before sbatch |
+| `Invalid account` | wrong `--account=` | `sacctmgr -p show user $USER` to list yours |
+| Log file literally named `*-exp${EXP}-${GRAPH}.out` | shell vars don't expand in `#SBATCH` | use `--job-name=gbrew-exp${exp}-${g}` on the sbatch command line; the template's `--output=%x-%j.out` then bakes EXP/GRAPH in via `%x` |
+| All cells valid timing but 0 compose rows | old `vldb_config.py` deployed | `git pull` on the cluster |
+
+### 8.3 Phase B — Full paper evaluation (parallel fan-out)
+
+After smoke test passes, fan out the **priority A** experiments
+(exp2 kernel speedup, exp3 reorder amortisation, exp8 thread
+scalability) across 9 graphs from the 64-GB set. That's 27 jobs,
+each runs independently, each ≤ 4h wall.
+
+```bash
+# Skip the smallest graphs you already smoked + the manual-download ones
+GRAPHS_64GB=(
+  cit-Patents soc-pokec USA-road-d.USA soc-LiveJournal1
+  delaunay_n24 hollywood-2009 com-Orkut
+  kron_g500-logn21 indochina-2004 uk-2002
+)
+
+# Three priority experiments — these together produce the paper's
+# headline table (kernel speedup), amortisation column, and scalability
+# figure. Each iteration pre-sets --job-name so the EXP/GRAPH show up
+# in squeue and in the log filename via the %x token.
+for g in "${GRAPHS_64GB[@]}"; do
+  for exp in 2 3 8; do
+    sbatch --time=04:00:00 \
+           --job-name=gbrew-exp${exp}-${g} \
+           --export=ALL,EXP=$exp,GRAPH=$g,GRAPHSET=64gb \
+           scripts/experiments/vldb/slurm/monolithic.sbatch
+  done
+done
+
+# Check submission count (should be 30 jobs)
+squeue -u $USER -h | wc -l
+```
+
+> **Alternative — Job Arrays (UVA-recommended for large fan-outs).**
+> SLURM job arrays (`--array=1-N`) submit hundreds of tasks under one
+> jobid, and cancel/requeue is per-task. They require an `options.txt`
+> with one `(EXP,GRAPH)` per line and a small wrapper around the
+> template. See
+> <https://www.rc.virginia.edu/userinfo/hpc/slurm/#using-files-with-job-arrays>.
+> For 30 jobs the simple `for` loop above is fine; switch to arrays if
+> you ever scale to hundreds of cells.
+
+**Re-submit timeouts**. SLURM returns exit code 124 for `timeout`;
+just rerun the exact same `sbatch` line — `ResultsStore` picks up
+where it left off. Find timeouts with:
+
+```bash
+sacct -u $USER --format=JobID,JobName,State,ExitCode,Elapsed --state=TIMEOUT
+```
+
+### 8.4 What NOT to run (or run only if budget allows)
+
+| Experiment | Why skip | If you have time |
+|---|---|---|
+| **exp1** cache-sim | 3+ days on 64gb (cycle-accurate sim per cell). v5 §17 already gives the cache-mechanism story. | Run only on 3 representative graphs: `cit-Patents`, `hollywood-2009`, `com-Orkut`. |
+| **exp4** end-to-end | Derivable from exp2 + exp3 JSON by `vldb_generate_figures.py` — no new measurement needed. | (already auto-computed) |
+| **exp5** ablation | Mostly redundant with v5 §15 / §18 / §19 ablations done locally. | Run on `cit-Patents` + `hollywood-2009` only. |
+| **exp6** sensitivity | Already covered by exp2's per-graph breakdown. | (skip) |
+| **exp7** chained | Small (210 cells). Adds the chained-ordering comparison. | Run if reviewers may ask about chains. |
+
+### 8.5 Big-graph addendum (256 GB nodes)
+
+Twitter7 (1.5B edges) and webbase-2001 (1B edges) are the most
+impactful generalization checks but only fit on 256-GB partitions.
+
+```bash
+# Submit to a high-memory partition with extra wall time.
+# Check `qlist` for the exact high-mem partition name on your cluster
+# (commonly `largemem` on UVA Rivanna).
+sbatch --partition=largemem --mem=256G --time=24:00:00 \
+       --job-name=gbrew-exp2-twitter7 \
+       --export=ALL,EXP=2,GRAPH=twitter7,GRAPHSET=full \
+       scripts/experiments/vldb/slurm/monolithic.sbatch
+
+sbatch --partition=largemem --mem=256G --time=24:00:00 \
+       --job-name=gbrew-exp2-webbase-2001 \
+       --export=ALL,EXP=2,GRAPH=webbase-2001,GRAPHSET=full \
+       scripts/experiments/vldb/slurm/monolithic.sbatch
+```
+
+These two graphs require **manual download** (KONECT / Google Drive
+links in `VLDB_GRAPH_SOURCES`). Stage them under
+`results/graphs/<name>/<name>.el` before submitting, then add
+`--skip-download` so the harness doesn't try to fetch.
+
+### 8.6 Aggregation & figure generation
+
+Once all jobs finish (or even mid-run), pull JSONs locally and
+generate figures. Because every job writes to the same
+`results/vldb_paper/exp{N}_*/...json` paths, the cluster filesystem
+already has the merged dataset.
+
+```bash
+# On the cluster (or rsync to local)
+python3 scripts/experiments/vldb/runner.py --figures-only --64gb
+
+# Outputs:
+ls results/vldb_paper/figures/
+ls results/vldb_paper/tables/
+```
+
+For multi-machine merges (some jobs on UVA, others elsewhere), each
+ResultsStore JSON is a flat list of result dicts — concat them with
+`jq -s '.[0]+.[1]'` or a 3-line Python script before running
+`--figures-only`.
+
+### 8.7 Time budget at a glance
+
+With 32-core nodes, 1 trial, all eight COMPOSE configs added to exp2/exp8:
+
+| Phase | Cells | Parallel jobs | Wall (worst-job) | Total alloc time |
+|---|---|---|---|---|
+| 8.2 Smoke (1 graph × exp2) | 60 | 1 | ~30 min | 30 min |
+| 8.3 Priority A (10 graphs × exp 2,3,8) | ~5,000 | 30 | ≤ 4 h | ~120 CPU-hr |
+| 8.5 Big graphs (twitter, webbase × exp2) | ~420 | 2 | ≤ 24 h | ~48 CPU-hr |
+| 8.4 (optional) exp1 cache-sim on 3 graphs | ~840 | 3 | ≤ 24 h | ~72 CPU-hr |
+
+**Total wall ≤ 1 day** thanks to parallelism. **Total alloc ≈ 270 CPU-h**
+if you include the optional cache-sim.
 
 ---
 
