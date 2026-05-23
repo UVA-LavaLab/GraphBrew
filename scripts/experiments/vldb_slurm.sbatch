@@ -7,34 +7,44 @@
 #  - --resume (built into ResultsStore) skips already-completed cells
 #  - Per-job stdout/stderr stays small and greppable
 #
-# USAGE — submit a single experiment on a single graph:
-#   sbatch --export=ALL,EXP=8,GRAPH=hollywood-2009 \
+# USAGE — submit a single experiment on a single graph (recommended: set
+# --job-name on the sbatch line so the EXP/GRAPH show up in squeue/%x):
+#   sbatch --job-name=gbrew-exp8-hollywood \
+#          --export=ALL,EXP=8,GRAPH=hollywood-2009 \
 #          scripts/experiments/vldb_slurm.sbatch
 #
 # USAGE — fan out all experiments × all 64GB graphs:
 #   for g in cit-Patents soc-pokec hollywood-2009 soc-LiveJournal1 \
 #            com-Orkut USA-road-d.USA kron_g500-logn21 indochina-2004 uk-2002; do
 #     for exp in 2 3 5 7 8; do
-#       sbatch --export=ALL,EXP=$exp,GRAPH=$g \
+#       sbatch --job-name=gbrew-exp${exp}-${g} \
+#              --export=ALL,EXP=$exp,GRAPH=$g \
 #              scripts/experiments/vldb_slurm.sbatch
 #     done
 #   done
 #
-# USAGE — re-run a job after it timed out (will pick up where it left off):
-#   sbatch --export=ALL,EXP=2,GRAPH=twitter7 \
+# USAGE — re-run a job after it timed out (picks up via ResultsStore):
+#   sbatch --job-name=gbrew-exp2-twitter7 \
+#          --export=ALL,EXP=2,GRAPH=twitter7 \
 #          scripts/experiments/vldb_slurm.sbatch
+#
+# NOTE — SLURM does NOT expand shell variables inside #SBATCH directives,
+# so we cannot bake $EXP/$GRAPH into --output=. We use %x (job-name) and
+# %j (jobid) instead, and the caller is expected to pass --job-name with
+# the EXP/GRAPH baked in (see examples above). Per UVA docs:
+# https://www.rc.virginia.edu/userinfo/hpc/slurm/#standard-output-and-standard-error
 # =============================================================================
 
 #SBATCH --job-name=gbrew-vldb
-#SBATCH --partition=standard                # adjust for your UVA partition
-#SBATCH --account=YOUR_ALLOC                # CHANGE ME
+#SBATCH --partition=standard                # `qlist` to see partitions; `standard` is single-node serial/threaded
+#SBATCH --account=YOUR_ALLOC                # CHANGE ME — see `sacctmgr -p show user $USER`
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task=32                  # max OMP threads we'll sweep
-#SBATCH --mem=128G                          # bump to 256G for twitter/webbase
-#SBATCH --time=24:00:00                     # ResultsStore makes restarts cheap
-#SBATCH --output=results/slurm_logs/%x-%j-exp${EXP}-${GRAPH}.out
-#SBATCH --error=results/slurm_logs/%x-%j-exp${EXP}-${GRAPH}.err
+#SBATCH --cpus-per-task=32                  # OMP threads; tune to partition core count
+#SBATCH --mem=128G                          # bump to 256G for twitter/webbase; do NOT also set --mem-per-cpu
+#SBATCH --time=24:00:00                     # standard partition cap; ResultsStore makes restarts cheap
+#SBATCH --output=results/slurm_logs/%x-%j.out
+#SBATCH --error=results/slurm_logs/%x-%j.err
 
 set -euo pipefail
 
@@ -52,8 +62,11 @@ cd "$REPO_ROOT"
 mkdir -p results/slurm_logs
 
 # ---- environment ----
+# UVA's documented sample scripts use `module load gcc` and `module load miniforge`.
+# Verify exact names on your cluster with `module avail gcc` and `module avail miniforge`
+# (or `module avail python` if a standalone python module is available).
 module purge 2>/dev/null || true
-module load gcc/12 python/3.11 2>/dev/null || true   # adjust to UVA modules
+module load gcc miniforge 2>/dev/null || true
 
 # Use the repo's venv if present; create one if not
 if [[ -d .venv ]]; then
