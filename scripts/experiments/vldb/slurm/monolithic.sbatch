@@ -11,7 +11,7 @@
 # --job-name on the sbatch line so the EXP/GRAPH show up in squeue/%x):
 #   sbatch --job-name=gbrew-exp8-hollywood \
 #          --export=ALL,EXP=8,GRAPH=hollywood-2009 \
-#          scripts/experiments/vldb_slurm.sbatch
+#          scripts/experiments/vldb/slurm/monolithic.sbatch
 #
 # USAGE — fan out all experiments × all 64GB graphs:
 #   for g in cit-Patents soc-pokec hollywood-2009 soc-LiveJournal1 \
@@ -19,14 +19,14 @@
 #     for exp in 2 3 5 7 8; do
 #       sbatch --job-name=gbrew-exp${exp}-${g} \
 #              --export=ALL,EXP=$exp,GRAPH=$g \
-#              scripts/experiments/vldb_slurm.sbatch
+#              scripts/experiments/vldb/slurm/monolithic.sbatch
 #     done
 #   done
 #
 # USAGE — re-run a job after it timed out (picks up via ResultsStore):
 #   sbatch --job-name=gbrew-exp2-twitter7 \
 #          --export=ALL,EXP=2,GRAPH=twitter7 \
-#          scripts/experiments/vldb_slurm.sbatch
+#          scripts/experiments/vldb/slurm/monolithic.sbatch
 #
 # NOTE — SLURM does NOT expand shell variables inside #SBATCH directives,
 # so we cannot bake $EXP/$GRAPH into --output=. We use %x (job-name) and
@@ -119,7 +119,7 @@ GRAPH_SG="results/graphs/${GRAPH}/${GRAPH}.sg"
 if [[ ! -f "$GRAPH_SG" && "$AUTO_SETUP" != "1" ]]; then
   echo "ERROR: $GRAPH_SG not found on compute node."
   echo "  Stage graphs ONCE on the login node first (downloads + converts):"
-  echo "    python3 scripts/experiments/vldb_paper_experiments.py \\"
+  echo "    python3 scripts/experiments/vldb/runner.py \\"
   echo "        --exp 2 --graphs $GRAPH ${GRAPHSET_FLAG:-} --no-figures"
   echo "  (Drops the --skip-setup / --skip-download flags, so the harness auto-builds"
   echo "   binaries and downloads/converts the graph from SuiteSparse before running.)"
@@ -132,7 +132,7 @@ if [[ "$AUTO_SETUP" == "1" ]]; then
   SKIP_FLAGS=""   # let the harness build + download itself
 fi
 
-python3 scripts/experiments/vldb_paper_experiments.py \
+python3 scripts/experiments/vldb/runner.py \
     --exp "$EXP" \
     --graphs "$GRAPH" \
     $GRAPHSET_FLAG \

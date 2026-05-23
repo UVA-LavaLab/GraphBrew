@@ -23,12 +23,12 @@ Organized into two sections:
     B8. Fat-ID Analysis     -- Bit allocation per graph size (analytical)
 
 Usage:
-  python3 scripts/experiments/ecg_paper_experiments.py --all --graph-dir /path/to/graphs
-  python3 scripts/experiments/ecg_paper_experiments.py --section A --preview
-  python3 scripts/experiments/ecg_paper_experiments.py --exp A1 A2 A3
-  python3 scripts/experiments/ecg_paper_experiments.py --exp B1 B7
-  python3 scripts/experiments/ecg_paper_experiments.py --exp B8
-  python3 scripts/experiments/ecg_paper_experiments.py --all --dry-run
+  python3 scripts/experiments/ecg/runner.py --all --graph-dir /path/to/graphs
+  python3 scripts/experiments/ecg/runner.py --section A --preview
+  python3 scripts/experiments/ecg/runner.py --exp A1 A2 A3
+  python3 scripts/experiments/ecg/runner.py --exp B1 B7
+  python3 scripts/experiments/ecg/runner.py --exp B8
+  python3 scripts/experiments/ecg/runner.py --all --dry-run
 """
 
 import argparse
@@ -43,9 +43,9 @@ from datetime import datetime
 from pathlib import Path
 
 # Add project root to path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
-from experiments.ecg_config import (
+from experiments.ecg.config import (
     BIN_SIM_DIR, RESULTS_DIR,
     ALL_POLICIES, PREVIEW_POLICIES, GRAPH_AWARE_POLICIES,
     BASELINE_POLICIES, REORDER_POLICY_PAIRS, REORDER_VARIANTS,

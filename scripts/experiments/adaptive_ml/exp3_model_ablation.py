@@ -13,10 +13,10 @@ Output:
   JSON results table + LaTeX-ready summary.
 
 Usage:
-  python scripts/experiments/exp3_model_ablation.py
-  python scripts/experiments/exp3_model_ablation.py --json results.json
-  python scripts/experiments/exp3_model_ablation.py --models dt rf xgboost
-  python scripts/experiments/exp3_model_ablation.py --quick   # Only F-Execution
+  python scripts/experiments/adaptive_ml/exp3_model_ablation.py
+  python scripts/experiments/adaptive_ml/exp3_model_ablation.py --json results.json
+  python scripts/experiments/adaptive_ml/exp3_model_ablation.py --models dt rf xgboost
+  python scripts/experiments/adaptive_ml/exp3_model_ablation.py --quick   # Only F-Execution
 """
 
 from __future__ import annotations

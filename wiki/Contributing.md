@@ -209,7 +209,7 @@ Edit `scripts/lib/core/utils.py` and add your benchmark to the
 `graphbrew_experiment.py` knows to run it.
 
 For the VLDB experiment script, also edit
-`scripts/experiments/vldb_config.py` if you want it included in the
+`scripts/experiments/vldb/config.py` if you want it included in the
 paper's benchmark list (it has a separate `BENCHMARKS` constant —
 keep the paper's 7-benchmark default unless you're extending the
 study).
