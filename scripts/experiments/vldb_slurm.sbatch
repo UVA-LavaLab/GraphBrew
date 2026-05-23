@@ -55,6 +55,10 @@ set -euo pipefail
 # Optional overrides
 GRAPHSET="${GRAPHSET:-64gb}"      # 64gb | local | full
 EXTRA_ARGS="${EXTRA_ARGS:-}"      # e.g. "--dry-run"
+# Set AUTO_SETUP=1 to let the compute node build binaries + download missing
+# graphs itself (most HPC compute nodes have NO outbound internet, so this is
+# off by default — stage graphs on the login node first; see wiki §8.1).
+AUTO_SETUP="${AUTO_SETUP:-0}"
 
 REPO_ROOT="${REPO_ROOT:-$SLURM_SUBMIT_DIR}"
 cd "$REPO_ROOT"
@@ -106,11 +110,33 @@ case "$GRAPHSET" in
 esac
 
 # --graphs <name> restricts to that single graph (matches name in EVAL_GRAPHS).
+# By default skip setup+download (compute nodes usually have no internet, and
+# you don't want 30 parallel jobs racing to download the same files). Stage
+# graphs once on the login node first — see wiki §8.1.
+#
+# Pre-flight: fail fast with a clear message if the graph isn't already there.
+GRAPH_SG="results/graphs/${GRAPH}/${GRAPH}.sg"
+if [[ ! -f "$GRAPH_SG" && "$AUTO_SETUP" != "1" ]]; then
+  echo "ERROR: $GRAPH_SG not found on compute node."
+  echo "  Stage graphs ONCE on the login node first (downloads + converts):"
+  echo "    python3 scripts/experiments/vldb_paper_experiments.py \\"
+  echo "        --exp 2 --graphs $GRAPH ${GRAPHSET_FLAG:-} --no-figures"
+  echo "  (Drops the --skip-setup / --skip-download flags, so the harness auto-builds"
+  echo "   binaries and downloads/converts the graph from SuiteSparse before running.)"
+  echo "  Or resubmit this sbatch with AUTO_SETUP=1 (requires compute-node internet)."
+  exit 2
+fi
+
+SKIP_FLAGS="--skip-setup --skip-download"
+if [[ "$AUTO_SETUP" == "1" ]]; then
+  SKIP_FLAGS=""   # let the harness build + download itself
+fi
+
 python3 scripts/experiments/vldb_paper_experiments.py \
     --exp "$EXP" \
     --graphs "$GRAPH" \
     $GRAPHSET_FLAG \
-    --skip-setup --skip-download --no-figures \
+    $SKIP_FLAGS --no-figures \
     $EXTRA_ARGS
 
 echo "================================================================"

@@ -398,6 +398,48 @@ module avail miniforge         # confirm python/conda module name
 > the `sbatch` command line so the EXP/GRAPH appear in the log filename
 > via `%x`. The template and examples below already do this.
 
+### 8.1.5 Stage graphs on the login node (REQUIRED — compute nodes have no internet)
+
+UVA Rivanna compute nodes do **not** have outbound internet, so SLURM
+jobs cannot themselves fetch graphs from SuiteSparse. The
+`vldb_slurm.sbatch` template therefore runs with `--skip-setup
+--skip-download` and aborts with a clear error if the `.sg` file is
+missing. Stage every graph **once** on the login node before submitting:
+
+```bash
+# Stage all 64GB graphs at once (builds binaries, downloads, converts to .sg).
+# Each graph is small (~100MB-2GB .sg); total ~10GB; ~20-40 min on the
+# login node depending on SuiteSparse mirror speed.
+for g in cit-Patents soc-pokec hollywood-2009 soc-LiveJournal1 \
+         com-Orkut USA-road-d.USA kron_g500-logn21 \
+         indochina-2004 uk-2002; do
+  python3 scripts/experiments/vldb_paper_experiments.py \
+      --exp 2 --graphs "$g" --64gb --no-figures
+done
+
+# Verify all .sg files exist before sbatch:
+for g in cit-Patents soc-pokec hollywood-2009 soc-LiveJournal1 \
+         com-Orkut USA-road-d.USA kron_g500-logn21 \
+         indochina-2004 uk-2002; do
+  ls -la "results/graphs/$g/$g.sg" 2>/dev/null || echo "MISSING: $g"
+done
+```
+
+The login-node `--exp 2` invocation does double duty: it triggers
+auto-setup (build + download + .el → .sg conversion) *and* runs the
+experiment for that one graph. Because `ResultsStore` saves cells
+atomically, those results carry into the later SLURM run for free.
+
+**Big-graph addendum (twitter7, webbase-2001):** these are not on
+SuiteSparse and need manual download from KONECT/Google-Drive — see
+`VLDB_GRAPH_SOURCES` in [scripts/experiments/vldb_config.py](../scripts/experiments/vldb_config.py).
+Place the `.el` under `results/graphs/<name>/<name>.el` on the login
+node and the SLURM job's converter step will pick it up.
+
+**Escape hatch:** if your cluster *does* allow outbound HTTPS from
+compute nodes, set `AUTO_SETUP=1` in `--export` to let the SLURM job
+download itself (not recommended on UVA standard partition).
+
 ### 8.2 Phase A — SLURM smoke test (30 min, one graph, one experiment)
 
 The goal here is to validate environment / modules / scratch I/O / SLURM
