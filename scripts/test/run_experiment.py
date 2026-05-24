@@ -1,11 +1,18 @@
+"""
+Run graph benchmark experiments for GraphBlox.
+
+This script executes graph reordering and kernel benchmarks across multiple
+graph datasets, collecting timing results and writing them to CSV files.
+"""
+
 import os
 import re
 import subprocess
 import csv
 
 # Define the base directory containing the graph datasets
-BASE_DIR   = "/media/cmv6ru/Data/00_GraphDatasets/GBREW"
-RESULT_DIR = "bench/results"
+BASE_DIR = os.environ.get("GRAPHBLOX_DATASETS_DIR", "/path/to/GraphDatasets/GBREW")
+RESULT_DIR = os.environ.get("GRAPHBLOX_RESULTS_DIR", "bench/results")
 
 # Define the list of graphs and their extensions
 graph_extensions = {
