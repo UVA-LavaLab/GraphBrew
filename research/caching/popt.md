@@ -30,7 +30,7 @@ P-OPT is the **oracle baseline** in the ECG paper. If our implementation deviate
 1. **ECG Section A2 validation breaks** — P-OPT must beat LRU by >10%, must be reorder-agnostic within 10%
 2. **ECG mode equivalence fails** — ECG(POPT_PRIMARY) must match pure P-OPT within 5% (Section A3)
 3. **Oracle ceiling is wrong** — P-OPT is the upper bound for what graph-aware replacement can achieve; if it's weak, ECG looks artificially good
-4. **Rereference matrix encoding** must exactly match the paper's Algorithm 2 (Section 4.1) — wrong encoding gives wrong predictions
+4. **Rereference matrix lookup semantics** must match the paper's Algorithm 2 (Section 4.1) — wrong next-reference distances give wrong predictions
 
 Critical implementation parameters:
 - Rereference matrix: **256 epochs**, 8-bit entries with MSB encoding (see pseudo-code below)
@@ -47,6 +47,13 @@ From the official P-OPT repo's simulator:
 - All levels: **64B cache line**, **non-inclusive**
 - **No coherence modeled** (pull-style graph apps use read-only shared data)
 - P-OPT reserves LLC capacity for Rereference Matrix Columns
+
+GraphBrew therefore separates two experiment labels:
+- `POPT`: oracle P-OPT, where the rereference matrix is host-side metadata and
+    no LLC space or bandwidth is charged. This is useful as an upper bound.
+- `POPT_CHARGED`: overhead-aware P-OPT approximation. The runners reserve LLC
+    ways for the current and next rereference matrix columns and report estimated
+    matrix-stream traffic. Use this for the most honest prior-method baseline.
 
 ## Paper Performance Claims
 
@@ -106,12 +113,18 @@ function findVictimPOPT(cache_set):
 // Matrix: num_epochs × num_cache_lines, each entry = 8 bits
 // 256 epochs, each epoch = |V| / 256 vertices
 
-Entry encoding:
+GraphBrew entry encoding (generator + decoder convention):
   MSB=1 (bit 7 set):   cache line IS referenced in this epoch
                         bits [6:0] = sub-epoch position of LAST access
   MSB=0 (bit 7 clear): cache line is NOT referenced in this epoch
                         bits [6:0] = distance (in epochs) to next reference
                         127 = no future reference known
+
+Note: this is the opposite bit polarity from the HPCA paper text, where MSB=1
+marks a distance entry. GraphBrew's `makeOffsetMatrix()` and `findNextRef()` are
+paired and preserve the same next-reference semantics, but matrix files should
+not be interchanged with a paper-literal implementation without converting the
+MSB convention.
 
 function findNextRef(cline_id, current_vertex):
     epoch_id = current_vertex / epoch_size

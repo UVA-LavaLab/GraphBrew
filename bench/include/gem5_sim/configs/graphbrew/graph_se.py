@@ -41,6 +41,36 @@ from graph_cache_config import (
 from graph_metadata_loader import load_graph_metadata, metadata_summary
 
 
+RUNTIME_SIDEBAND_FILES = (
+    ("GEM5_GRAPHBREW_CTX", "/tmp/gem5_graphbrew_ctx.json"),
+    ("GEM5_POPT_MATRIX", "/tmp/gem5_popt_matrix.bin"),
+    ("GEM5_GRAPHBREW_OUT_EDGES", "/tmp/gem5_graphbrew_out_edges.bin"),
+    ("GEM5_GRAPHBREW_IN_EDGES", "/tmp/gem5_graphbrew_in_edges.bin"),
+)
+
+
+def clear_runtime_sideband_files():
+    """Remove stale benchmark-written metadata before simulation starts."""
+    for env_name, default_path in RUNTIME_SIDEBAND_FILES:
+        path = os.environ.get(env_name, default_path)
+        if not path:
+            continue
+        try:
+            os.remove(path)
+            print(f"  Cleared stale runtime sideband: {path}")
+        except FileNotFoundError:
+            pass
+        except OSError as exc:
+            print(f"Warning: could not clear stale runtime sideband {path}: {exc}")
+
+
+def needs_vertex_hints(args):
+    """Return whether benchmark should emit explicit P-OPT current-vertex hints."""
+    return args.policy == "POPT" or (
+        args.policy == "ECG" and args.ecg_mode != "DBG_ONLY"
+    )
+
+
 def parse_args():
     """Parse command-line arguments for graph benchmark SE simulation."""
     parser = argparse.ArgumentParser(
@@ -56,7 +86,8 @@ def parse_args():
         choices=["LRU", "FIFO", "SRRIP", "RANDOM", "GRASP", "POPT", "ECG"],
         help="Cache replacement policy for L3 (default: LRU)")
     parser.add_argument("--ecg-mode", default="DBG_PRIMARY",
-        choices=["DBG_PRIMARY", "POPT_PRIMARY", "DBG_ONLY"],
+        choices=["DBG_PRIMARY", "POPT_PRIMARY", "DBG_ONLY",
+                 "ECG_EMBEDDED", "ECG_COMBINED"],
         help="ECG eviction mode (only used with --policy ECG)")
     parser.add_argument("--l1-policy", default="LRU",
         help="L1 cache replacement policy (default: LRU)")
@@ -66,7 +97,10 @@ def parse_args():
     # Prefetcher
     parser.add_argument("--prefetcher", default="none",
         choices=["none", "DROPLET"],
-        help="Prefetcher to attach to L2 cache (default: none)")
+        help="Graph prefetcher to attach (default: none)")
+    parser.add_argument("--prefetcher-level", default="l2",
+        choices=["l1d", "l2"],
+        help="Cache level for graph prefetcher attachment (default: l2)")
 
     # CPU model
     parser.add_argument("--cpu-type", default="timing",
@@ -82,6 +116,8 @@ def parse_args():
     parser.add_argument("--l1i-size", default=DEFAULTS["l1i_size"])
     parser.add_argument("--l2-size", default=DEFAULTS["l2_size"])
     parser.add_argument("--l3-size", default=DEFAULTS["l3_size"])
+    parser.add_argument("--l3-ways", type=int, default=DEFAULTS["l3_assoc"],
+        help="L3 associativity / data ways (default: GraphBrew DEFAULTS l3_assoc)")
 
     return parser.parse_args()
 
@@ -112,14 +148,22 @@ def create_system(args):
         l3_policy_kwargs["num_buckets"] = 11
 
     # ── Cache hierarchy ──
-    system.cpu.icache = make_l1i_cache(policy=args.l1_policy)
-    system.cpu.dcache = make_l1d_cache(policy=args.l1_policy)
-    system.l2cache = make_l2_cache(policy=args.l2_policy)
-    system.l3cache = make_l3_cache(policy=args.policy, **l3_policy_kwargs)
+    system.cpu.icache = make_l1i_cache(
+        policy=args.l1_policy, size=args.l1i_size)
+    system.cpu.dcache = make_l1d_cache(
+        policy=args.l1_policy, size=args.l1d_size)
+    system.l2cache = make_l2_cache(
+        policy=args.l2_policy, size=args.l2_size)
+    system.l3cache = make_l3_cache(
+        policy=args.policy, size=args.l3_size, assoc=args.l3_ways,
+        **l3_policy_kwargs)
 
     # ── Prefetcher ──
     if args.prefetcher == "DROPLET":
-        system.l2cache.prefetcher = make_droplet_prefetcher()
+        if args.prefetcher_level == "l1d":
+            system.cpu.dcache.prefetcher = make_droplet_prefetcher()
+        else:
+            system.l2cache.prefetcher = make_droplet_prefetcher()
 
     # ── Memory bus connections ──
     system.membus = SystemXBar()
@@ -165,6 +209,9 @@ def create_system(args):
 
     process = Process()
     process.cmd = [binary] + args.options.split()
+    process.env = (
+        f"GEM5_ENABLE_VERTEX_HINTS={1 if needs_vertex_hints(args) else 0}",
+    )
     system.cpu.workload = process
     system.cpu.createThreads()
 
@@ -174,6 +221,8 @@ def create_system(args):
 def main():
     args = parse_args()
 
+    clear_runtime_sideband_files()
+
     # Load graph metadata if provided
     if args.graph_metadata:
         metadata = load_graph_metadata(args.graph_metadata)
@@ -181,10 +230,9 @@ def main():
         print()
     else:
         if args.policy in ("GRASP", "POPT", "ECG"):
-            print(f"Warning: --graph-metadata not provided for {args.policy} policy.")
-            print("  Graph-aware features will be limited.")
-            print("  Generate metadata: python scripts/graphbrew_experiment.py "
-                  "--phase export-gem5-metadata")
+            print(f"Info: --graph-metadata not provided for {args.policy} policy.")
+            print("  C++ graph policies will use benchmark-written runtime sideband.")
+            print("  Static Python metadata is only needed for pre-exported contexts.")
             print()
 
     print(f"Configuring gem5 SE simulation:")
@@ -193,7 +241,7 @@ def main():
     print(f"  CPU:        {args.cpu_type}")
     print(f"  L3 Policy:  {args.policy}"
           + (f" ({args.ecg_mode})" if args.policy == "ECG" else ""))
-    print(f"  Prefetcher: {args.prefetcher}")
+    print(f"  Prefetcher: {args.prefetcher} ({args.prefetcher_level})")
     print()
 
     # Create system

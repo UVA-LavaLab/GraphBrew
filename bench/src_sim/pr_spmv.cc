@@ -57,16 +57,15 @@ pvector<ScoreT> PageRankSpMV_Sim(const Graph &g, CacheType &cache,
     graph_ctx.initTopology(degrees.data(), g.num_nodes(),
                            g.num_edges_directed(), g.directed());
     size_t llc_size = 8 * 1024 * 1024;
-    const char* llc_env = getenv("CACHE_L3_SIZE");
-    if (llc_env) llc_size = std::strtoul(llc_env, nullptr, 10);
+    llc_size = GetEnvSizeBytes("CACHE_L3_SIZE", llc_size);
     graph_ctx.registerPropertyArray(scores_ptr, g.num_nodes(), sizeof(ScoreT), llc_size);
     graph_ctx.registerPropertyArray(contrib_ptr, g.num_nodes(), sizeof(ScoreT), llc_size);
     cache.initGraphContext(&graph_ctx);
 
     // Compute per-vertex ECG mask array
     graph_ctx.initMaskConfig();
-    auto vertex_masks = graph_ctx.computeVertexMasks8(g);
-    graph_ctx.initMaskArray8(vertex_masks.data(), vertex_masks.size());
+    auto vertex_masks = graph_ctx.computeVertexMasks(g);
+    graph_ctx.initMaskArray32(vertex_masks.data(), vertex_masks.size());
 
     // Build P-OPT rereference matrix (for POPT and ECG policies)
     static pvector<uint8_t> popt_matrix;

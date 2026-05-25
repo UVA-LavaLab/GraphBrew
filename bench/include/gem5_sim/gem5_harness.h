@@ -23,6 +23,7 @@
 #define GEM5_HARNESS_H_
 
 #include <cstdint>
+#include <cstdlib>
 #include <cstdio>
 #include <cstring>
 
@@ -41,6 +42,26 @@
 
 #define GEM5_WORK_INIT    0
 #define GEM5_WORK_COMPUTE 1
+#define GEM5_WORK_SET_VERTEX 0x47525654ULL  // GraphBrew current vertex hint
+
+#ifndef NO_M5OPS
+inline bool gem5_vertex_hints_enabled() {
+    static int enabled = []() {
+        const char* value = std::getenv("GEM5_ENABLE_VERTEX_HINTS");
+        return (value && std::strcmp(value, "0") != 0) ? 1 : 0;
+    }();
+    return enabled != 0;
+}
+
+#define GEM5_SET_VERTEX(vertex_id) \
+    do { \
+        if (gem5_vertex_hints_enabled()) { \
+            m5_work_begin(GEM5_WORK_SET_VERTEX, static_cast<uint64_t>(vertex_id)); \
+        } \
+    } while (0)
+#else
+#define GEM5_SET_VERTEX(vertex_id) do {} while(0)
+#endif
 
 // Default sideband file path — gem5 SE mode forwards file I/O to host
 #define GEM5_SIDEBAND_PATH "/tmp/gem5_graphbrew_ctx.json"
@@ -71,6 +92,48 @@ struct Gem5PropertyRegion {
     uint32_t elem_size;
 };
 
+struct Gem5EdgeRegion {
+    const char* name;
+    uint64_t base_address;
+    uint64_t size_bytes;
+    uint32_t elem_size;
+    const void* data = nullptr;
+    const char* data_path = nullptr;
+};
+
+template<typename GraphType>
+inline int gem5_make_edge_regions(const GraphType& g,
+                                  Gem5EdgeRegion* edge_regions,
+                                  int max_edge_regions,
+                                  bool prefer_in_edges = false)
+{
+    if (max_edge_regions < 2 || g.num_nodes() == 0 ||
+        g.num_edges_directed() == 0) {
+        return 0;
+    }
+
+    auto out0 = g.out_neigh(0);
+    auto in0 = g.in_neigh(0);
+    const void* out_base = static_cast<const void*>(out0.begin());
+    const void* in_base = static_cast<const void*>(in0.begin());
+    const uint64_t edge_count = static_cast<uint64_t>(g.num_edges_directed());
+    const uint32_t out_elem_size = static_cast<uint32_t>(sizeof(*out0.begin()));
+    const uint32_t in_elem_size = static_cast<uint32_t>(sizeof(*in0.begin()));
+
+    Gem5EdgeRegion out_region = {
+        "out_edges", reinterpret_cast<uint64_t>(out_base),
+        edge_count * out_elem_size, out_elem_size, out_base
+    };
+    Gem5EdgeRegion in_region = {
+        "in_edges", reinterpret_cast<uint64_t>(in_base),
+        edge_count * in_elem_size, in_elem_size, in_base
+    };
+
+    edge_regions[0] = prefer_in_edges ? in_region : out_region;
+    edge_regions[1] = prefer_in_edges ? out_region : in_region;
+    return 2;
+}
+
 // Export graph cache context to sideband JSON file.
 // Called by the benchmark after allocating all property arrays.
 //
@@ -83,7 +146,9 @@ template<typename GraphType>
 inline void gem5_export_context(
     const Gem5PropertyRegion* regions, int num_regions,
     const GraphType& g,
-    const char* path = GEM5_SIDEBAND_PATH)
+    const char* path = GEM5_SIDEBAND_PATH,
+    const Gem5EdgeRegion* edge_regions = nullptr,
+    int num_edge_regions = 0)
 {
     FILE* f = fopen(path, "w");
     if (!f) {
@@ -107,6 +172,44 @@ inline void gem5_export_context(
                 regions[i].num_elements,
                 regions[i].elem_size,
                 (i < num_regions - 1) ? "," : "");
+    }
+    fprintf(f, "  ],\n");
+
+    // Edge regions for graph prefetchers such as DROPLET. These are runtime
+    // addresses of CSR neighbor arrays inside the simulated process.
+    fprintf(f, "  \"edge_regions\": [\n");
+    for (int i = 0; i < num_edge_regions; i++) {
+        char default_data_path[256];
+        const char* data_path = edge_regions[i].data_path;
+        if (!data_path && edge_regions[i].data && edge_regions[i].size_bytes > 0) {
+            snprintf(default_data_path, sizeof(default_data_path),
+                     "/tmp/gem5_graphbrew_%s.bin", edge_regions[i].name);
+            data_path = default_data_path;
+        }
+        if (data_path && edge_regions[i].data && edge_regions[i].size_bytes > 0) {
+            FILE* ef = fopen(data_path, "wb");
+            if (ef) {
+                fwrite(edge_regions[i].data, 1,
+                       static_cast<size_t>(edge_regions[i].size_bytes), ef);
+                fclose(ef);
+            } else {
+                fprintf(stderr, "gem5_harness: cannot write edge data to %s\n",
+                        data_path);
+                data_path = nullptr;
+            }
+        }
+        fprintf(f, "    {\"name\": \"%s\", \"base\": %lu, \"size\": %lu, "
+            "\"elem_size\": %u, \"preferred\": %s",
+                edge_regions[i].name,
+                (unsigned long)edge_regions[i].base_address,
+                (unsigned long)edge_regions[i].size_bytes,
+            edge_regions[i].elem_size,
+            (i == 0) ? "true" : "false");
+        if (data_path) {
+            fprintf(f, ", \"data_path\": \"%s\"", data_path);
+        }
+        fprintf(f, "}%s\n",
+                (i < num_edge_regions - 1) ? "," : "");
     }
     fprintf(f, "  ],\n");
 
@@ -189,7 +292,8 @@ inline bool gem5_export_popt_matrix(
     if (!f) return false;
 
     uint32_t epoch_size = (num_vertices + num_epochs - 1) / num_epochs;
-    uint32_t sub_epoch_size = (epoch_size > 128) ? epoch_size / 128 : 1;
+    uint32_t sub_epoch_size = (epoch_size + 127) / 128;
+    if (sub_epoch_size == 0) sub_epoch_size = 1;
 
     fwrite(&num_epochs, 4, 1, f);
     fwrite(&num_cache_lines, 4, 1, f);

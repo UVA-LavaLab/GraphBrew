@@ -1,8 +1,8 @@
 // ============================================================================
-// GRASP Replacement Policy for gem5 — Implementation
+// GRASP Replacement Policy for gem5 - Implementation
 // ============================================================================
 // Faithful implementation matching bench/include/cache_sim/cache_sim.h.
-// Loads property region metadata from sideband JSON (written by benchmark).
+// Loads property region metadata from sideband JSON written by the benchmark.
 // ============================================================================
 
 #include "mem/cache/replacement_policies/grasp_rp.hh"
@@ -26,8 +26,12 @@ GraphGraspRP::GraphGraspRP(const Params &p)
 void
 GraphGraspRP::tryLoadContext() const
 {
-    if (loadAttempted) return;
+    if (ctx.loaded) return;
     loadAttempted = true;
+
+    constexpr uint64_t retryInterval = 512;
+    if ((loadAttemptCount++ % retryInterval) != 0) return;
+
     if (ctx.loadFromSideband(sidebandPath)) {
         ctx.loaded = true;
     }
@@ -65,25 +69,20 @@ GraphGraspRP::reset(const std::shared_ptr<ReplacementData>& replacement_data,
 {
     auto data = std::static_pointer_cast<GraspReplData>(replacement_data);
 
-    // Try loading context on first access
     tryLoadContext();
 
     if (pkt && pkt->req) {
-        uint64_t addr = pkt->req->getPaddr();
+        uint64_t addr = pkt->req->hasVaddr() ? pkt->req->getVaddr()
+                             : pkt->req->getPaddr();
         data->line_addr = addr & ~uint64_t(63);
 
-        // Only apply GRASP classification to known property regions.
-        // Non-property data (instructions, CSR edges, stack) gets SRRIP
-        // default RRPV=2. This matches standalone cache_sim where GRASP
-        // only sees property array accesses via SIM_CACHE_READ.
         if (ctx.loaded && ctx.isPropertyData(addr)) {
             ReuseTier tier = classifyAddress(addr);
             data->rrpv = insertionRRPV(tier);
             data->is_property_data = true;
-            // Update P-OPT vertex tracking from property access
             ctx.updateVertexFromAddr(addr);
         } else {
-            data->rrpv = 2;  // SRRIP default: long re-reference (M-1 for 3-bit)
+            data->rrpv = 2;
             data->is_property_data = false;
         }
     } else {
@@ -105,13 +104,11 @@ GraphGraspRP::getVictim(const ReplacementCandidates& candidates) const
 {
     assert(candidates.size() > 0);
 
-    // SRRIP eviction: find way with max RRPV, age all if none found
     while (true) {
         for (const auto& candidate : candidates) {
             auto data = std::static_pointer_cast<GraspReplData>(
                 candidate->replacementData);
-            if (data->rrpv >= maxRRPV)
-                return candidate;
+            if (data->rrpv >= maxRRPV) return candidate;
         }
         for (const auto& candidate : candidates) {
             auto data = std::static_pointer_cast<GraspReplData>(
@@ -126,10 +123,6 @@ GraphGraspRP::instantiateEntry()
 {
     return std::make_shared<GraspReplData>(maxRRPV);
 }
-
-// ============================================================================
-// Private: faithful GRASP 3-tier classification
-// ============================================================================
 
 GraphGraspRP::ReuseTier
 GraphGraspRP::classifyAddress(uint64_t addr) const
@@ -147,7 +140,7 @@ uint8_t
 GraphGraspRP::insertionRRPV(ReuseTier tier) const
 {
     switch (tier) {
-        case ReuseTier::HIGH:     return 1;
+        case ReuseTier::HIGH:     return 0;
         case ReuseTier::MODERATE: return maxRRPV - 1;
         case ReuseTier::LOW:      return maxRRPV;
     }
@@ -157,19 +150,17 @@ GraphGraspRP::insertionRRPV(ReuseTier tier) const
 void
 GraphGraspRP::promoteOnHit(GraspReplData* data) const
 {
-    // Re-classify address on hit (matching standalone cache_sim).
-    // The standalone re-classifies every hit using classifyGRASP().
-    if (data->is_property_data && ctx.loaded) {
+    if (ctx.loaded && ctx.isPropertyData(data->line_addr)) {
+        data->is_property_data = true;
         uint32_t tier = ctx.classifyGRASP(data->line_addr, llcSize);
         if (tier == 1) {
-            data->rrpv = 0;  // Hot (hub): aggressive reset
+            data->rrpv = 0;
         } else if (data->rrpv > 0) {
-            data->rrpv--;    // Others: gradual decrement
+            data->rrpv--;
         }
-        // Update vertex tracking from property hit
         ctx.updateVertexFromAddr(data->line_addr);
     } else if (data->rrpv > 0) {
-        data->rrpv--;  // Non-property: standard decrement
+        data->rrpv--;
     }
 }
 

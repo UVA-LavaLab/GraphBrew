@@ -32,12 +32,19 @@ GraphPoptRP::GraphPoptRP(const Params &p)
 void
 GraphPoptRP::tryLoadContext() const
 {
-    if (loadAttempted) return;
+    if (ctx.loaded && ctx.rereference.enabled) return;
     loadAttempted = true;
 
-    ctx.loadFromSideband(sidebandPath);
+    constexpr uint64_t retryInterval = 512;
+    if ((loadAttemptCount++ % retryInterval) != 0) return;
 
-    if (ctx.rereference.loadFromFile(poptMatrixPath)) {
+    if (!ctx.loaded) {
+        ctx.loadFromSideband(sidebandPath);
+        ctx.loaded = (ctx.num_regions > 0);
+    }
+
+    if (!ctx.rereference.enabled &&
+        ctx.rereference.loadFromFile(poptMatrixPath)) {
         // base_address is no longer hardcoded to region[0].
         // findNextRef() in GraphCacheContext now searches all regions
         // to find which one the address belongs to.
@@ -47,7 +54,6 @@ GraphPoptRP::tryLoadContext() const
             ctx.rereference.base_address = ctx.regions[0].base_address;
         }
     }
-    ctx.loaded = (ctx.num_regions > 0);
 }
 
 void
@@ -90,7 +96,8 @@ GraphPoptRP::reset(
     data->rrpv = (maxRRPV > 0) ? maxRRPV - 1 : 0;
 
     if (pkt && pkt->req) {
-        uint64_t addr = pkt->req->getPaddr();
+        uint64_t addr = pkt->req->hasVaddr() ? pkt->req->getVaddr()
+                             : pkt->req->getPaddr();
         data->line_addr = addr & ~uint64_t(63);
         data->is_property_data = ctx.loaded && ctx.isPropertyData(data->line_addr);
         // Update P-OPT vertex tracking from property accesses
@@ -136,6 +143,7 @@ GraphPoptRP::getVictim(const ReplacementCandidates& candidates) const
     int propCount = 0;
     for (const auto& c : candidates) {
         auto d = std::static_pointer_cast<PoptReplData>(c->replacementData);
+        d->is_property_data = ctx.isPropertyData(d->line_addr);
         if (d->is_property_data) propCount++;
     }
 
@@ -179,6 +187,7 @@ GraphPoptRP::getVictim(const ReplacementCandidates& candidates) const
     // This avoids the Phase 1 problem of blindly evicting non-property data.
     for (const auto& c : candidates) {
         auto d = std::static_pointer_cast<PoptReplData>(c->replacementData);
+        d->is_property_data = ctx.isPropertyData(d->line_addr);
         if (d->is_property_data) {
             uint32_t dist = ctx.findNextRef(d->line_addr);
             // Far rereference -> boost RRPV toward eviction

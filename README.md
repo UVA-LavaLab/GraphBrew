@@ -109,6 +109,32 @@ python3 scripts/graphbrew_experiment.py --help
 
 > 📖 See [Running Benchmarks Wiki](https://github.com/UVA-LavaLab/GraphBrew/wiki/Running-Benchmarks) for advanced workflows.
 
+### ECG / gem5 Final-Run Infrastructure
+
+The ECG cache-policy work uses a separate manifest-driven runner for long
+cache_sim and gem5 matrices:
+
+```bash
+python3 scripts/experiments/ecg/final_paper_run.py --profile rehearsal --dry-run
+python3 scripts/experiments/ecg/final_paper_run.py --profile available_replacement --list --dry-run
+python3 scripts/experiments/ecg/final_paper_run.py --profile final_replacement --check-graphs --allow-missing-graphs
+```
+
+To run profiles, collect CSVs, and auto-generate normalized SVG paper figures
+plus summary tables in one command, use:
+
+```bash
+python3 scripts/experiments/ecg/paper_pipeline.py --profiles rehearsal --dry-run
+```
+
+Current final replacement labels include `LRU`, `SRRIP`, `GRASP`,
+`POPT_CHARGED`, `POPT`, `ECG_DBG_ONLY`, `ECG_DBG_PRIMARY_CHARGED`,
+`ECG_DBG_PRIMARY`, and `ECG_POPT_PRIMARY`. Use `POPT_CHARGED` as the honest
+P-OPT prior-method baseline; `POPT` is the uncharged oracle ceiling.
+
+See [ECG final runs](wiki/ECG-Final-Runs.md) for the current supported profiles,
+charged P-OPT interpretation, graph checks, and run-status commands.
+
 ---
 
 ## Graph Benchmarks

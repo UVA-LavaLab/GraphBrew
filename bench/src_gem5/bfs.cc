@@ -15,6 +15,8 @@
 #include "graph.h"
 #include "pvector.h"
 
+#include "graphbrew/partition/cagra/popt.h"
+
 #include "gem5_sim/gem5_harness.h"
 
 using namespace std;
@@ -30,7 +32,20 @@ pvector<NodeID> BFS_Gem5(const Graph &g, NodeID source) {
          static_cast<uint64_t>(g.num_nodes()) * sizeof(NodeID),
          static_cast<uint32_t>(g.num_nodes()), sizeof(NodeID)},
     };
-    gem5_export_context(regions, 1, g);
+    Gem5EdgeRegion edge_regions[2];
+    int num_edge_regions = gem5_make_edge_regions(g, edge_regions, 2);
+    gem5_export_context(regions, 1, g, GEM5_SIDEBAND_PATH,
+                        edge_regions, num_edge_regions);
+
+    {
+        constexpr int numVtxPerLine = 64 / sizeof(NodeID);
+        constexpr int numEpochs = 256;
+        static pvector<uint8_t> popt_matrix;
+        makeOffsetMatrix(g, popt_matrix, numVtxPerLine, numEpochs);
+        int numCacheLines = (g.num_nodes() + numVtxPerLine - 1) / numVtxPerLine;
+        gem5_export_popt_matrix(popt_matrix.data(), numCacheLines,
+                                numEpochs, g.num_nodes());
+    }
 
     GEM5_RESET_STATS();
     GEM5_WORK_BEGIN(GEM5_WORK_COMPUTE);
@@ -40,6 +55,7 @@ pvector<NodeID> BFS_Gem5(const Graph &g, NodeID source) {
     while (!frontier.empty()) {
         NodeID u = frontier.front();
         frontier.pop();
+        GEM5_SET_VERTEX(u);
         for (NodeID v : g.out_neigh(u)) {
             if (parent[v] == -1) {
                 parent[v] = u;

@@ -18,6 +18,7 @@ graphs/
 cache_results
 results/models/
 results/data/
+research/
 /test/
 agent
 plans

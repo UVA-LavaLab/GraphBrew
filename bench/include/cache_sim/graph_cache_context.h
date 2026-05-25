@@ -33,9 +33,12 @@
 #include <cstring>
 #include <vector>
 #include <algorithm>
+#include <atomic>
+#include <chrono>
 #include <unordered_set>
 #include <iostream>
 #include <iomanip>
+#include <sstream>
 #include <cmath>
 #ifdef _OPENMP
 #include <omp.h>
@@ -117,14 +120,14 @@ static constexpr uint32_t MAX_PROPERTY_REGIONS = 8;
 //
 //   DBG_PRIMARY  (default): SRRIP → DBG tier → dynamic P-OPT
 //   POPT_PRIMARY:           SRRIP → dynamic P-OPT → DBG tier
-//   DBG_ONLY:               SRRIP → DBG tier (no P-OPT, fast path)
+//   DBG_ONLY:               GRASP-faithful insertion/hit hints, plain SRRIP victim
 //   ECG_EMBEDDED:           Stored P-OPT hint as primary, DBG as secondary
 //   ECG_COMBINED:           Both DBG + P-OPT hint → unified insertion RRPV (Hawkeye-inspired)
 enum class ECGMode {
     DBG_PRIMARY,   // DBG tier is primary tiebreaker, P-OPT is secondary
     POPT_PRIMARY,  // Dynamic P-OPT is primary tiebreaker, DBG is secondary
-    DBG_ONLY,      // DBG tier only, no P-OPT consulted (equivalent to GRASP+mask)
-    ECG_EMBEDDED,  // DBG tier primary, stored P-OPT hint (from mask) as secondary — zero LLC overhead
+    DBG_ONLY,      // GRASP-equivalent insertion/hit hints, no eviction tiebreak
+    ECG_EMBEDDED,  // Stored P-OPT hint (from mask) primary, DBG tier secondary — zero LLC overhead
     ECG_COMBINED   // Combined DBG+P-OPT → insertion RRPV (both signals at insert, not evict)
 };
 
@@ -177,7 +180,7 @@ struct MaskConfig {
     // Controls eviction tiebreaker priority (see ECGMode enum above).
     // DBG_PRIMARY:  SRRIP → DBG tier → dynamic P-OPT (default)
     // POPT_PRIMARY: SRRIP → dynamic P-OPT → DBG tier
-    // DBG_ONLY:     SRRIP → DBG tier (no P-OPT, fast path)
+    // DBG_ONLY:     GRASP-faithful insertion/hit hints, plain SRRIP victim
     ECGMode  ecg_mode = ECGMode::DBG_PRIMARY;
 
     // ── Classification ──
@@ -250,7 +253,7 @@ struct MaskConfig {
         uint8_t id_bits = 1;
         while ((1ULL << id_bits) < num_vertices) id_bits++;
         prefetch_direct = (prefetch_bits >= id_bits);
-        hot_table_size = prefetch_direct ? 0 : (prefetch_bits > 0 ? (1U << prefetch_bits) : 0);
+        hot_table_size = prefetch_direct ? 0 : (prefetch_bits > 0 ? ((1U << prefetch_bits) - 1) : 0);
 
         // Compute shifts and masks
         prefetch_shift = 0;
@@ -275,6 +278,7 @@ struct MaskConfig {
             rrpv_max = (1 << bits) - 1;
         }
         if ((v = std::getenv("ECG_PREFETCH_WINDOW"))) prefetch_window = static_cast<uint8_t>(std::atoi(v));
+        if (prefetch_window > 16) prefetch_window = 16;
         if ((v = std::getenv("ECG_PREFETCH_MODE"))) prefetch_mode = static_cast<uint8_t>(std::atoi(v));
         if ((v = std::getenv("ECG_PER_VERTEX")))    per_vertex = (std::atoi(v) != 0);
         if ((v = std::getenv("ECG_DEGREE_MODE"))) {
@@ -311,7 +315,6 @@ struct MaskConfig {
         float fraction = static_cast<float>(dbg_tier) / std::max(uint8_t(1), num_buckets);
         uint8_t result = static_cast<uint8_t>(rrpv_max * fraction);
         if (result > rrpv_max) result = rrpv_max;
-        if (result == 0 && fraction > 0.0f) result = 1;  // Reserve 0 for hit promotion
         return result;
     }
 
@@ -589,11 +592,14 @@ struct FatIDConfig {
 // Stored as flat uint8_t array of size [num_epochs × num_cache_lines].
 // Layout: matrix[epoch * num_cache_lines + cache_line_id]
 //
-// Entry encoding (8-bit, from makeOffsetMatrix in popt.h):
+// Entry encoding (8-bit, GraphBrew makeOffsetMatrix convention):
 //   MSB=1: cache line IS referenced in this epoch
 //     bits [6:0] = sub-epoch of LAST access within epoch
 //   MSB=0: cache line is NOT referenced in this epoch
 //     bits [6:0] = distance (in epochs) to next epoch with a reference
+// This is the inverse bit polarity of the HPCA'21 paper text, but the
+// generator and decoder are paired and preserve the same next-reference
+// semantics.
 struct RereferenceConfig {
     const uint8_t* matrix = nullptr;  // Rereference matrix data (not owned)
     uint32_t num_cache_lines = 0;     // Cache lines covering vertex data
@@ -836,6 +842,33 @@ struct GraphCacheContext {
     };
     mutable PrefetchDedupWindow prefetch_dedup[ECG_MAX_THREADS];
 
+    struct ECGInstrumentation {
+        uint64_t mask_build_us = 0;
+        uint64_t mask_vertices = 0;
+        uint64_t pfx_candidates = 0;
+        uint64_t pfx_encoded = 0;
+        uint64_t pfx_no_candidate = 0;
+        uint64_t pfx_table_miss = 0;
+        uint64_t pfx_dedup_skips = 0;
+        mutable std::atomic<uint64_t> runtime_pfx_no_target{0};
+        mutable std::atomic<uint64_t> runtime_pfx_duplicate{0};
+        mutable std::atomic<uint64_t> runtime_pfx_issued{0};
+
+        void resetBuild() {
+            mask_build_us = 0;
+            mask_vertices = 0;
+            pfx_candidates = 0;
+            pfx_encoded = 0;
+            pfx_no_candidate = 0;
+            pfx_table_miss = 0;
+            pfx_dedup_skips = 0;
+            runtime_pfx_no_target.store(0);
+            runtime_pfx_duplicate.store(0);
+            runtime_pfx_issued.store(0);
+        }
+    };
+    mutable ECGInstrumentation ecg_stats;
+
     PrefetchDedupWindow& dedup_for_thread() const {
 #ifdef _OPENMP
         int tid = omp_get_thread_num();
@@ -844,6 +877,10 @@ struct GraphCacheContext {
 #endif
         return prefetch_dedup[tid < ECG_MAX_THREADS ? tid : 0];
     }
+
+    void recordPrefetchNoTarget() const { ecg_stats.runtime_pfx_no_target++; }
+    void recordPrefetchDuplicate() const { ecg_stats.runtime_pfx_duplicate++; }
+    void recordPrefetchIssued() const { ecg_stats.runtime_pfx_issued++; }
 
     // --- Rereference Matrix (P-OPT) ---
     RereferenceConfig rereference;
@@ -865,6 +902,10 @@ struct GraphCacheContext {
     MaskConfig mask_config;
     MaskArray  mask_array;
     std::vector<uint32_t> hot_table;  // Hot vertex table for indexed prefetch
+
+    ~GraphCacheContext() {
+        if (mask_config.enabled) printECGStats();
+    }
 
     // --- Per-Vertex Statistics (optional) ---
     VertexStats vertex_stats;
@@ -1066,6 +1107,11 @@ struct GraphCacheContext {
                 mask_config.mask_width = (container > id_bits) ? (container - id_bits) : 2;
             }
             mask_config.autoAllocate(topology.num_vertices);
+            for (auto& window : prefetch_dedup) {
+                window.capacity = mask_config.prefetch_window;
+                window.size = 0;
+                window.head = 0;
+            }
 
             // Print the allocation for debugging
             std::cout << "ECG Mask: " << int(mask_config.mask_width) << "-bit"
@@ -1136,7 +1182,7 @@ struct GraphCacheContext {
         uint32_t raw = mask_config.decodePrefetch(mask_entry);
         if (raw == 0) return UINT32_MAX;  // No prefetch
         if (mask_config.prefetch_direct) return raw;  // Direct vertex ID
-        if (raw < hot_table.size()) return hot_table[raw];  // Table lookup
+        if (raw - 1 < hot_table.size()) return hot_table[raw - 1];  // 1-based table lookup
         return UINT32_MAX;
     }
 
@@ -1259,7 +1305,6 @@ struct GraphCacheContext {
         // Low edge_fraction → high RRPV (unimportant, evict)
         uint8_t rrpv = static_cast<uint8_t>(max_rrpv * (1.0 - edge_fraction));
         if (rrpv >= max_rrpv) rrpv = max_rrpv;
-        if (rrpv == 0 && edge_fraction < 1.0) rrpv = 1;  // Reserve 0 for hit promotion
         return rrpv;
     }
 
@@ -1347,6 +1392,10 @@ struct GraphCacheContext {
     // Returns uint32_t entries — caller truncates to mask_width.
     template<typename GraphT>
     std::vector<uint32_t> computeVertexMasks(const GraphT& g) {
+        using Clock = std::chrono::steady_clock;
+        auto build_start = Clock::now();
+        ecg_stats.resetBuild();
+
         if (!mask_config.enabled) {
             initMaskConfig();
             if (topology.num_vertices > 0)
@@ -1359,11 +1408,38 @@ struct GraphCacheContext {
         uint32_t popt_max = mask_config.popt_bits > 0 ? ((1U << mask_config.popt_bits) - 1) : 0;
         uint32_t pfx_max = mask_config.prefetch_bits > 0 ? ((1U << mask_config.prefetch_bits) - 1) : 0;
 
+        std::vector<uint32_t> deg_arr(n);
+#ifdef _OPENMP
+        #pragma omp parallel for
+#endif
+        for (uint32_t v = 0; v < n; v++)
+            deg_arr[v] = static_cast<uint32_t>(g.out_degree(v));
+
+        std::vector<uint8_t> avg_reref_by_line;
+        if (rereference.matrix && (popt_max > 0 || mask_config.prefetch_mode == 2)) {
+            avg_reref_by_line.resize(rereference.num_cache_lines, 0);
+#ifdef _OPENMP
+            #pragma omp parallel for schedule(static)
+#endif
+            for (int64_t cline_i = 0; cline_i < static_cast<int64_t>(rereference.num_cache_lines); ++cline_i) {
+                uint32_t cline = static_cast<uint32_t>(cline_i);
+                uint32_t total_dist = 0;
+                uint32_t count = 0;
+                for (uint32_t e = 0; e < rereference.num_epochs; e++) {
+                    uint8_t entry = rereference.matrix[e * rereference.num_cache_lines + cline];
+                    if ((entry & 0x80) == 0) {
+                        total_dist += (entry & 0x7F);
+                        count++;
+                    }
+                }
+                avg_reref_by_line[cline] = count > 0
+                    ? static_cast<uint8_t>(std::min(total_dist / count, uint32_t(127)))
+                    : 0;
+            }
+        }
+
         // Build hot table if using TABLE mode for prefetch
         if (pfx_max > 0 && !mask_config.prefetch_direct && hot_table.empty()) {
-            std::vector<uint32_t> deg_arr(n);
-            for (uint32_t v = 0; v < n; v++)
-                deg_arr[v] = static_cast<uint32_t>(g.out_degree(v));
             buildHotTable(deg_arr.data(), n);
         }
 
@@ -1378,34 +1454,25 @@ struct GraphCacheContext {
         PrefetchDedupWindow build_dedup;
         build_dedup.capacity = mask_config.prefetch_window;
 
+        uint64_t pfx_candidates = 0;
+        uint64_t pfx_encoded = 0;
+        uint64_t pfx_no_candidate = 0;
+        uint64_t pfx_table_miss = 0;
+        uint64_t pfx_dedup_skips = 0;
+
         for (uint32_t v = 0; v < n; ++v) {
             // --- P-OPT hint ---
             uint32_t popt_hint = 0;
             if (popt_max > 0 && topology.num_vertices > 0) {
                 if (rereference.matrix) {
-                    // Average rereference distance across ALL epochs for this
-                    // vertex's cache line. This gives a representative distance
-                    // instead of sampling a single epoch.
                     constexpr int numVtxPerLine = 16;
                     uint32_t cline = v / numVtxPerLine;
-                    if (cline < rereference.num_cache_lines) {
-                        uint32_t total_dist = 0;
-                        uint32_t count = 0;
-                        for (uint32_t e = 0; e < rereference.num_epochs; e++) {
-                            uint8_t entry = rereference.matrix[e * rereference.num_cache_lines + cline];
-                            if ((entry & 0x80) == 0) {  // Not referenced this epoch
-                                total_dist += (entry & 0x7F);
-                                count++;
-                            }
-                            // Referenced epochs (MSB=1) have distance 0 — skip
-                        }
-                        uint8_t avg_dist = count > 0
-                            ? static_cast<uint8_t>(std::min(total_dist / count, uint32_t(127)))
-                            : 0;
+                    if (cline < avg_reref_by_line.size()) {
+                        uint8_t avg_dist = avg_reref_by_line[cline];
                         popt_hint = (uint32_t(avg_dist) * popt_max) / 127;
                     }
                 } else {
-                    uint32_t deg = g.out_degree(v);
+                    uint32_t deg = deg_arr[v];
                     if (deg == 0) popt_hint = popt_max;
                     else {
                         double ratio = static_cast<double>(deg) / topology.max_degree;
@@ -1424,8 +1491,12 @@ struct GraphCacheContext {
                     // DEGREE mode: highest-degree neighbor not in dedup window
                     uint32_t best_deg = 0;
                     for (auto ngh : g.out_neigh(v)) {
-                        uint32_t nd = static_cast<uint32_t>(g.out_degree(ngh));
-                        if (nd > best_deg && !build_dedup.contains(ngh)) {
+                        if (build_dedup.contains(ngh)) {
+                            pfx_dedup_skips++;
+                            continue;
+                        }
+                        uint32_t nd = deg_arr[static_cast<uint32_t>(ngh)];
+                        if (nd > best_deg) {
                             best_deg = nd;
                             best_target = ngh;
                         }
@@ -1435,16 +1506,14 @@ struct GraphCacheContext {
                     uint32_t best_dist = 128;
                     constexpr int numVtxPerLine = 16;
                     for (auto ngh : g.out_neigh(v)) {
+                        if (build_dedup.contains(ngh)) {
+                            pfx_dedup_skips++;
+                            continue;
+                        }
                         uint32_t ncline = static_cast<uint32_t>(ngh) / numVtxPerLine;
-                        if (ncline < rereference.num_cache_lines) {
-                            // Average distance across epochs for this neighbor
-                            uint32_t td = 0, cnt = 0;
-                            for (uint32_t e = 0; e < rereference.num_epochs; e++) {
-                                uint8_t entry = rereference.matrix[e * rereference.num_cache_lines + ncline];
-                                if ((entry & 0x80) == 0) { td += (entry & 0x7F); cnt++; }
-                            }
-                            uint32_t dist = cnt > 0 ? td / cnt : 127;
-                            if (dist < best_dist && !build_dedup.contains(ngh)) {
+                        if (ncline < avg_reref_by_line.size()) {
+                            uint32_t dist = avg_reref_by_line[ncline];
+                            if (dist < best_dist) {
                                 best_dist = dist;
                                 best_target = ngh;
                             }
@@ -1453,6 +1522,7 @@ struct GraphCacheContext {
                 }
 
                 if (best_target != UINT32_MAX) {
+                    pfx_candidates++;
                     build_dedup.push(best_target);
                     if (mask_config.prefetch_direct) {
                         pfx_value = best_target & pfx_max;
@@ -1467,7 +1537,11 @@ struct GraphCacheContext {
                         // If target not in hot table, try to find any hot neighbor
                         if (pfx_value == 0) {
                             for (auto ngh : g.out_neigh(v)) {
-                                if (hot_set.count(ngh) && !build_dedup.contains(ngh)) {
+                                if (build_dedup.contains(ngh)) {
+                                    pfx_dedup_skips++;
+                                    continue;
+                                }
+                                if (hot_set.count(ngh)) {
                                     for (uint32_t hi = 0; hi < hot_table.size(); hi++) {
                                         if (hot_table[hi] == static_cast<uint32_t>(ngh)) {
                                             pfx_value = hi + 1;
@@ -1479,15 +1553,70 @@ struct GraphCacheContext {
                                 }
                             }
                         }
+                        if (pfx_value == 0) pfx_table_miss++;
                     }
+                } else {
+                    pfx_no_candidate++;
                 }
+                if (pfx_value != 0) pfx_encoded++;
             }
 
             masks[v] = mask_config.encode(tiers[v],
                                           static_cast<uint8_t>(std::min(popt_hint, popt_max)),
                                           pfx_value);
         }
+        ecg_stats.mask_build_us = static_cast<uint64_t>(
+            std::chrono::duration_cast<std::chrono::microseconds>(Clock::now() - build_start).count());
+        ecg_stats.mask_vertices = n;
+        ecg_stats.pfx_candidates = pfx_candidates;
+        ecg_stats.pfx_encoded = pfx_encoded;
+        ecg_stats.pfx_no_candidate = pfx_no_candidate;
+        ecg_stats.pfx_table_miss = pfx_table_miss;
+        ecg_stats.pfx_dedup_skips = pfx_dedup_skips;
+
+        std::cout << "ECG Mask Build Time: " << std::fixed << std::setprecision(6)
+                  << (double(ecg_stats.mask_build_us) / 1000000.0)
+                  << " s vertices=" << ecg_stats.mask_vertices
+                  << " pfx_candidates=" << ecg_stats.pfx_candidates
+                  << " pfx_encoded=" << ecg_stats.pfx_encoded
+                  << " pfx_no_candidate=" << ecg_stats.pfx_no_candidate
+                  << " pfx_table_miss=" << ecg_stats.pfx_table_miss
+                  << " pfx_dedup_skips=" << ecg_stats.pfx_dedup_skips
+                  << std::defaultfloat << std::endl;
         return masks;
+    }
+
+    void printECGStats(std::ostream& os = std::cout) const {
+        if (!mask_config.enabled) return;
+        os << "ECG Mask Stats: build_s=" << std::fixed << std::setprecision(6)
+           << (double(ecg_stats.mask_build_us) / 1000000.0)
+           << " vertices=" << ecg_stats.mask_vertices
+           << " pfx_candidates=" << ecg_stats.pfx_candidates
+           << " pfx_encoded=" << ecg_stats.pfx_encoded
+           << " pfx_no_candidate=" << ecg_stats.pfx_no_candidate
+           << " pfx_table_miss=" << ecg_stats.pfx_table_miss
+           << " pfx_dedup_skips=" << ecg_stats.pfx_dedup_skips
+           << " runtime_no_target=" << ecg_stats.runtime_pfx_no_target.load()
+           << " runtime_duplicate=" << ecg_stats.runtime_pfx_duplicate.load()
+           << " runtime_issued=" << ecg_stats.runtime_pfx_issued.load()
+           << std::defaultfloat << "\n";
+    }
+
+    std::string ecgStatsJSON() const {
+        std::ostringstream ss;
+        ss << "{"
+           << "\"mask_build_us\":" << ecg_stats.mask_build_us << ","
+           << "\"mask_vertices\":" << ecg_stats.mask_vertices << ","
+           << "\"pfx_candidates\":" << ecg_stats.pfx_candidates << ","
+           << "\"pfx_encoded\":" << ecg_stats.pfx_encoded << ","
+           << "\"pfx_no_candidate\":" << ecg_stats.pfx_no_candidate << ","
+           << "\"pfx_table_miss\":" << ecg_stats.pfx_table_miss << ","
+           << "\"pfx_dedup_skips\":" << ecg_stats.pfx_dedup_skips << ","
+           << "\"runtime_no_target\":" << ecg_stats.runtime_pfx_no_target.load() << ","
+           << "\"runtime_duplicate\":" << ecg_stats.runtime_pfx_duplicate.load() << ","
+           << "\"runtime_issued\":" << ecg_stats.runtime_pfx_issued.load()
+           << "}";
+        return ss.str();
     }
 
     // ================================================================

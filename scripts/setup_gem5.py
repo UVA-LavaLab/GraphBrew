@@ -255,6 +255,41 @@ def apply_patches():
         log.success(f"  Patched: {patch_dir}/SConscript")
 
 
+def apply_current_vertex_pseudo_inst_patch():
+    """Patch m5_work_begin to carry GraphBrew current-vertex hints."""
+    target = GEM5_DIR / "src" / "sim" / "pseudo_inst.cc"
+    if not target.exists():
+        log.warn(f"  pseudo_inst.cc not found: {target}")
+        return
+
+    content = target.read_text()
+    include_line = '#include "mem/cache/replacement_policies/graph_cache_context_gem5.hh"\n'
+    include_anchor = '#include "sim/pseudo_inst.hh"\n'
+    if include_line not in content:
+        if include_anchor not in content:
+            log.warn("  Could not locate pseudo_inst include anchor")
+        else:
+            content = content.replace(include_anchor, include_anchor + "\n" + include_line, 1)
+
+    marker = "GRAPHBREW_SET_VERTEX_WORK_ID"
+    workbegin_anchor = '    DPRINTF(PseudoInst, "pseudo_inst::workbegin(%i, %i)\\n", workid, threadid);\n'
+    if marker not in content:
+        patch = (
+            workbegin_anchor +
+            "    if (workid == replacement_policy::graph::GRAPHBREW_SET_VERTEX_WORK_ID) {\n"
+            "        replacement_policy::graph::setCurrentVertexHint(threadid);\n"
+            "        return;\n"
+            "    }\n\n"
+        )
+        if workbegin_anchor not in content:
+            log.warn("  Could not locate workbegin patch anchor")
+        else:
+            content = content.replace(workbegin_anchor, patch, 1)
+
+    target.write_text(content)
+    log.success("  Patched sim/pseudo_inst.cc for GraphBrew current-vertex hints.")
+
+
 def build_gem5(isas: list, build_type: str, jobs: int):
     """Build gem5 for the specified ISAs."""
     for isa in isas:
@@ -429,6 +464,7 @@ def main():
     # Step 4: Apply patches
     log.step(4, total_steps, "Applying SConscript patches...")
     apply_patches()
+    apply_current_vertex_pseudo_inst_patch()
 
     if not args.skip_build:
         # Step 5: Build

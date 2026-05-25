@@ -76,6 +76,7 @@ class GraphPoptRP : public Base
 
     mutable graph::GraphCacheContext ctx;
     mutable bool loadAttempted = false;
+    mutable uint64_t loadAttemptCount = 0;
 };
 
 } // namespace replacement_policy

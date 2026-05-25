@@ -41,9 +41,11 @@ class GraphEcgRP : public Base
     ~GraphEcgRP() override = default;
 
     void invalidate(const std::shared_ptr<ReplacementData>& replacement_data) override;
-    void touch(const std::shared_ptr<ReplacementData>& replacement_data, const PacketPtr pkt) override;
+    void touch(const std::shared_ptr<ReplacementData>& replacement_data,
+               const PacketPtr pkt) override;
     void touch(const std::shared_ptr<ReplacementData>& replacement_data) const override;
-    void reset(const std::shared_ptr<ReplacementData>& replacement_data, const PacketPtr pkt) override;
+    void reset(const std::shared_ptr<ReplacementData>& replacement_data,
+               const PacketPtr pkt) override;
     void reset(const std::shared_ptr<ReplacementData>& replacement_data) const override;
     ReplaceableEntry* getVictim(const ReplacementCandidates& candidates) const override;
     std::shared_ptr<ReplacementData> instantiateEntry() override;
@@ -60,6 +62,7 @@ class GraphEcgRP : public Base
 
     mutable graph::GraphCacheContext ctx;
     mutable bool loadAttempted = false;
+    mutable uint64_t loadAttemptCount = 0;
 };
 
 } // namespace replacement_policy

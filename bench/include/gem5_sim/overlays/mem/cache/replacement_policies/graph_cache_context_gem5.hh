@@ -9,9 +9,9 @@
 //
 // Key differences from standalone cache_sim version:
 //   - Loaded from JSON sideband file (not inline C++ initialization)
-//   - Uses gem5 Addr type for addresses
-//   - P-OPT rereference matrix stored host-side (oracle, not in simulated memory)
-//   - Per-access hints delivered via CSR written by custom ECG instruction
+//   - Uses gem5 physical addresses observed by the cache
+//   - P-OPT rereference matrix stored host-side (oracle, not simulated memory)
+//   - Per-access hints can be delivered by custom ECG instruction / CSR
 //
 // References:
 //   - GRASP: Faldu et al., HPCA 2020
@@ -22,38 +22,64 @@
 #ifndef __MEM_CACHE_REPLACEMENT_POLICIES_GRAPH_CACHE_CONTEXT_GEM5_HH__
 #define __MEM_CACHE_REPLACEMENT_POLICIES_GRAPH_CACHE_CONTEXT_GEM5_HH__
 
+#include <algorithm>
+#include <atomic>
+#include <cmath>
 #include <cstdint>
+#include <cstdlib>
 #include <cstring>
+#include <fstream>
 #include <string>
 #include <vector>
-#include <fstream>
-#include <algorithm>
-#include <cmath>
 
 namespace gem5 {
 namespace replacement_policy {
 namespace graph {
 
-// ============================================================================
-// Constants
-// ============================================================================
 static constexpr uint32_t MAX_REGION_BUCKETS = 16;
 static constexpr uint32_t MAX_PROPERTY_REGIONS = 8;
+static constexpr uint64_t GRAPHBREW_SET_VERTEX_WORK_ID = 0x47525654ULL;
+
+inline std::atomic<uint32_t>& currentVertexHintStorage() {
+    static std::atomic<uint32_t> vertex{0};
+    return vertex;
+}
+
+inline std::atomic<bool>& currentVertexHintValidStorage() {
+    static std::atomic<bool> valid{false};
+    return valid;
+}
+
+inline void setCurrentVertexHint(uint64_t vertex) {
+    uint32_t clamped = vertex > UINT32_MAX ? UINT32_MAX : static_cast<uint32_t>(vertex);
+    currentVertexHintStorage().store(clamped, std::memory_order_release);
+    currentVertexHintValidStorage().store(true, std::memory_order_release);
+}
+
+inline bool hasCurrentVertexHint() {
+    return currentVertexHintValidStorage().load(std::memory_order_acquire);
+}
+
+inline uint32_t getCurrentVertexHint() {
+    return currentVertexHintStorage().load(std::memory_order_acquire);
+}
 
 // ============================================================================
 // ECGMode: Controls eviction tiebreaker priority
 // ============================================================================
 enum class ECGMode : uint8_t {
-    DBG_PRIMARY,    // SRRIP → DBG tier → dynamic P-OPT
-    POPT_PRIMARY,   // SRRIP → dynamic P-OPT → DBG tier
-    DBG_ONLY,       // SRRIP → DBG tier (no P-OPT, fast path)
-    ECG_EMBEDDED    // SRRIP → DBG tier → stored P-OPT hint (zero LLC overhead)
+    DBG_PRIMARY,    // SRRIP -> DBG tier -> dynamic P-OPT
+    POPT_PRIMARY,   // P-OPT exact 3-phase (bypasses SRRIP aging) -> DBG
+    DBG_ONLY,       // GRASP-faithful DBG insertion/hit, plain SRRIP victim
+    ECG_EMBEDDED,   // SRRIP -> stored P-OPT hint -> DBG (zero LLC overhead)
+    ECG_COMBINED    // Pure SRRIP aging; insertion RRPV combines DBG+P-OPT
 };
 
 inline ECGMode stringToECGMode(const std::string& s) {
-    if (s == "POPT_PRIMARY" || s == "popt_primary") return ECGMode::POPT_PRIMARY;
-    if (s == "DBG_ONLY" || s == "dbg_only") return ECGMode::DBG_ONLY;
+    if (s == "POPT_PRIMARY" || s == "popt_primary" || s == "popt") return ECGMode::POPT_PRIMARY;
+    if (s == "DBG_ONLY" || s == "dbg_only" || s == "dbg") return ECGMode::DBG_ONLY;
     if (s == "ECG_EMBEDDED" || s == "ecg_embedded" || s == "embedded") return ECGMode::ECG_EMBEDDED;
+    if (s == "ECG_COMBINED" || s == "ecg_combined" || s == "combined") return ECGMode::ECG_COMBINED;
     return ECGMode::DBG_PRIMARY;
 }
 
@@ -63,6 +89,7 @@ inline std::string ecgModeToString(ECGMode mode) {
         case ECGMode::POPT_PRIMARY: return "POPT_PRIMARY";
         case ECGMode::DBG_ONLY:     return "DBG_ONLY";
         case ECGMode::ECG_EMBEDDED: return "ECG_EMBEDDED";
+        case ECGMode::ECG_COMBINED: return "ECG_COMBINED";
         default:                    return "UNKNOWN";
     }
 }
@@ -80,10 +107,11 @@ struct PropertyRegion {
     uint64_t bucket_bounds[MAX_REGION_BUCKETS] = {};
 
     uint32_t classifyBucket(uint64_t addr) const {
-        if (addr < base_address || addr >= upper_bound || num_buckets == 0)
+        if (addr < base_address || addr >= upper_bound || num_buckets == 0) {
             return num_buckets;
-        for (uint32_t b = 0; b < num_buckets; ++b) {
-            if (addr < bucket_bounds[b]) return b;
+        }
+        for (uint32_t bucket = 0; bucket < num_buckets; ++bucket) {
+            if (addr < bucket_bounds[bucket]) return bucket;
         }
         return num_buckets - 1;
     }
@@ -97,16 +125,20 @@ struct PropertyRegion {
 // RereferenceMatrix: P-OPT oracle data (host-side, not in simulated memory)
 // ============================================================================
 struct RereferenceMatrix {
-    std::vector<uint8_t> data;      // Flat [num_epochs × num_cache_lines]
+    std::vector<uint8_t> data;
     uint32_t num_cache_lines = 0;
     uint32_t num_epochs = 256;
     uint32_t epoch_size = 0;
     uint32_t sub_epoch_size = 0;
-    uint64_t base_address = 0;      // Base address of tracked region
+    uint64_t base_address = 0;
     uint64_t cache_line_size = 64;
     bool enabled = false;
 
-    // Algorithm 2 from P-OPT paper (Balaji et al., HPCA 2021)
+    // P-OPT Algorithm 2 semantics using GraphBrew's paired matrix convention:
+    // MSB=1 means referenced in this epoch (final sub-epoch in low bits),
+    // MSB=0 means not referenced (distance-to-next in low bits). This is the
+    // inverse bit polarity of the HPCA'21 paper text, but matches
+    // bench/include/graphbrew/partition/cagra/popt.h::makeOffsetMatrix().
     uint32_t findNextRef(uint32_t cline_id, uint32_t current_vertex) const {
         if (!enabled || cline_id >= num_cache_lines) return 127;
         uint32_t epoch_id = (epoch_size > 0) ? (current_vertex / epoch_size) : 0;
@@ -117,26 +149,21 @@ struct RereferenceMatrix {
         constexpr uint8_t AND_MASK = 0x7F;
 
         if ((entry & OR_MASK) != 0) {
-            uint8_t lastRefSubEpoch = entry & AND_MASK;
-            uint32_t currSubEpoch = (sub_epoch_size > 0)
+            uint8_t last_ref_sub_epoch = entry & AND_MASK;
+            uint32_t current_sub_epoch = (sub_epoch_size > 0)
                 ? ((current_vertex % epoch_size) / sub_epoch_size) : 0;
-            if (currSubEpoch <= lastRefSubEpoch) {
-                return 0;
-            } else {
-                if (epoch_id + 1 < num_epochs) {
-                    uint8_t next_entry = data[(epoch_id + 1) * num_cache_lines + cline_id];
-                    if ((next_entry & OR_MASK) != 0) return 1;
-                    uint8_t reref = next_entry & AND_MASK;
-                    return (reref < 127) ? reref + 1 : 127;
-                }
-                return 127;
+            if (current_sub_epoch <= last_ref_sub_epoch) return 0;
+            if (epoch_id + 1 < num_epochs) {
+                uint8_t next_entry = data[(epoch_id + 1) * num_cache_lines + cline_id];
+                if ((next_entry & OR_MASK) != 0) return 1;
+                uint8_t reref = next_entry & AND_MASK;
+                return (reref < 127) ? reref + 1 : 127;
             }
-        } else {
-            return entry & AND_MASK;
+            return 127;
         }
+        return entry & AND_MASK;
     }
 
-    // Find next reference for a physical address
     uint32_t findNextRefByAddr(uint64_t addr, uint32_t current_vertex) const {
         if (!enabled || addr < base_address) return 127;
         uint32_t cline_id = static_cast<uint32_t>(
@@ -144,22 +171,20 @@ struct RereferenceMatrix {
         return findNextRef(cline_id, current_vertex);
     }
 
-    // Load from binary file (same format as standalone cache_sim)
     bool loadFromFile(const std::string& path) {
-        std::ifstream f(path, std::ios::binary);
-        if (!f.is_open()) return false;
+        std::ifstream file(path, std::ios::binary);
+        if (!file.is_open()) return false;
 
-        // Read header: num_epochs(4) + num_cache_lines(4) + epoch_size(4) + sub_epoch_size(4)
-        f.read(reinterpret_cast<char*>(&num_epochs), 4);
-        f.read(reinterpret_cast<char*>(&num_cache_lines), 4);
-        f.read(reinterpret_cast<char*>(&epoch_size), 4);
-        f.read(reinterpret_cast<char*>(&sub_epoch_size), 4);
+        file.read(reinterpret_cast<char*>(&num_epochs), 4);
+        file.read(reinterpret_cast<char*>(&num_cache_lines), 4);
+        file.read(reinterpret_cast<char*>(&epoch_size), 4);
+        file.read(reinterpret_cast<char*>(&sub_epoch_size), 4);
 
         size_t matrix_size = static_cast<size_t>(num_epochs) * num_cache_lines;
         data.resize(matrix_size);
-        f.read(reinterpret_cast<char*>(data.data()), matrix_size);
+        file.read(reinterpret_cast<char*>(data.data()), matrix_size);
 
-        enabled = f.good();
+        enabled = file.good();
         return enabled;
     }
 };
@@ -177,7 +202,6 @@ struct MaskConfig {
     ECGMode ecg_mode = ECGMode::DBG_PRIMARY;
     bool enabled = false;
 
-    // Computed shifts/masks
     uint8_t prefetch_shift = 0;
     uint8_t popt_shift = 0;
     uint8_t dbg_shift = 0;
@@ -219,7 +243,6 @@ struct GraphTopology {
     uint64_t num_edges = 0;
     uint32_t num_buckets = 11;
     double avg_degree = 0.0;
-    // Degree bucket boundaries (vertex count thresholds)
     uint32_t bucket_vertex_counts[MAX_REGION_BUCKETS] = {};
     bool enabled = false;
 };
@@ -235,35 +258,32 @@ struct GraphCacheContext {
     MaskConfig mask_config;
     RereferenceMatrix rereference;
 
-    // Per-access mutable state (set by custom instruction or sideband)
     uint32_t current_src_vertex = 0;
     mutable uint32_t current_dst_vertex = 0;
     uint8_t current_mask = 0;
-
-    // Track current outer-loop vertex for P-OPT epoch computation.
-    // In PageRank, the outer loop iterates u=0..N-1 and writes scores[u].
-    // Inner loop reads contrib[v] for scattered neighbors.
-    // Only accesses to region[0] (the outer-loop array) update the tracker.
-    // This matches standalone's SIM_SET_VERTEX(cache, u).
     mutable uint32_t current_outer_vertex = 0;
+    bool loaded = false;
 
-    // Update vertex tracking from a property data address.
-    // Only region[0] (scores in PR) advances the vertex — this is the
-    // array the outer loop iterates over. Other regions (contrib) are
-    // inner-loop reads with scattered vertex indices.
+    uint32_t currentVertexForPopt() const {
+        if (hasCurrentVertexHint()) {
+            uint32_t vertex = getCurrentVertexHint();
+            current_dst_vertex = vertex;
+            current_outer_vertex = vertex;
+            return vertex;
+        }
+        return current_dst_vertex;
+    }
+
     void updateVertexFromAddr(uint64_t addr) const {
-        // Only track from region 0 (outer-loop array)
         if (num_regions > 0 && regions[0].contains(addr) &&
             regions[0].elem_size > 0) {
-            uint32_t vtx = static_cast<uint32_t>(
+            uint32_t vertex = static_cast<uint32_t>(
                 (addr - regions[0].base_address) / regions[0].elem_size);
-            // Allow both forward and backward movement (new iteration restarts)
-            current_dst_vertex = vtx;
-            current_outer_vertex = vtx;
+            current_dst_vertex = vertex;
+            if (!hasCurrentVertexHint()) current_outer_vertex = vertex;
         }
     }
 
-    // Check if an address belongs to any tracked property region
     bool isPropertyData(uint64_t addr) const {
         for (uint32_t i = 0; i < num_regions; ++i) {
             if (regions[i].contains(addr)) return true;
@@ -271,80 +291,59 @@ struct GraphCacheContext {
         return false;
     }
 
-    // Classify address into degree bucket (across all regions)
     uint32_t classifyBucket(uint64_t addr) const {
         for (uint32_t i = 0; i < num_regions; ++i) {
-            if (regions[i].contains(addr)) {
-                return regions[i].classifyBucket(addr);
-            }
+            if (regions[i].contains(addr)) return regions[i].classifyBucket(addr);
         }
-        return mask_config.num_buckets; // Outside all regions
+        return mask_config.num_buckets;
     }
 
-    // Find next reference distance for P-OPT.
-    // Uses the tracked current vertex for epoch computation.
-    // Searches ALL property regions (not just the first) to find
-    // which region the address belongs to.
     uint32_t findNextRef(uint64_t addr) const {
         if (!rereference.enabled) return 127;
-        // Find which region this address belongs to
         for (uint32_t i = 0; i < num_regions; ++i) {
             if (regions[i].contains(addr)) {
-                // Compute cache line ID relative to this region's base
                 uint32_t cline_id = static_cast<uint32_t>(
                     (addr - regions[i].base_address) / rereference.cache_line_size);
-                return rereference.findNextRef(cline_id, current_dst_vertex);
+                return rereference.findNextRef(cline_id, currentVertexForPopt());
             }
         }
-        return 127; // Not in any property region
+        return 127;
     }
 
-    // Classify address into GRASP 3-tier reuse (Faldu et al. HPCA 2020).
-    // After DBG reorder, highest-degree vertices are at front (low addresses).
-    // Returns: 1=HOT, 2=MODERATE, 3=COLD
     uint32_t classifyGRASP(uint64_t addr, size_t llc_size) const {
-        constexpr double hot_fraction = 0.10;  // 10% of LLC, matches paper
+        constexpr double hot_fraction = 0.10;
         uint64_t hot_bytes = static_cast<uint64_t>(hot_fraction * llc_size);
         for (uint32_t i = 0; i < num_regions; ++i) {
             if (regions[i].contains(addr)) {
                 uint64_t offset = addr - regions[i].base_address;
-                if (offset < hot_bytes)      return 1;  // HOT (hubs)
-                if (offset < 2 * hot_bytes)  return 2;  // MODERATE
-                return 3;                                // COLD
+                if (offset < hot_bytes) return 1;
+                if (offset < 2 * hot_bytes) return 2;
+                return 3;
             }
         }
-        return 3;  // Not in any property region → cold
+        return 3;
     }
 
-    // Get RRPV for an address based on its degree bucket
     uint8_t getInsertRRPV(uint64_t addr) const {
         uint32_t bucket = classifyBucket(addr);
-        if (bucket >= mask_config.num_buckets) {
-            return mask_config.rrpv_max; // Unknown → evict soon
-        }
+        if (bucket >= mask_config.num_buckets) return mask_config.rrpv_max;
         return mask_config.dbgTierToRRPV(static_cast<uint8_t>(bucket));
     }
 
-    // Load context from sideband JSON file written by benchmark.
-    // This is the gem5 equivalent of cache_sim's registerPropertyArray()
-    // + initTopology(). Returns true if loaded successfully.
     bool loadFromSideband(const std::string& path) {
-        std::ifstream f(path);
-        if (!f.is_open()) return false;
+        std::ifstream file(path);
+        if (!file.is_open()) return false;
 
-        // Simple JSON parser (no external dependency)
-        std::string content((std::istreambuf_iterator<char>(f)),
+        std::string content((std::istreambuf_iterator<char>(file)),
                             std::istreambuf_iterator<char>());
-        f.close();
+        file.close();
 
-        // Parse num_vertices
         topology.num_vertices = parseJsonUint(content, "\"num_vertices\"");
         topology.num_edges = parseJsonUint(content, "\"num_edges\"");
-        topology.avg_degree = (topology.num_vertices > 0) ?
-            (double)topology.num_edges / topology.num_vertices : 0.0;
+        topology.avg_degree = (topology.num_vertices > 0)
+            ? static_cast<double>(topology.num_edges) / topology.num_vertices : 0.0;
         topology.enabled = true;
 
-        // Parse property regions
         num_regions = 0;
         size_t pos = content.find("\"property_regions\"");
         if (pos != std::string::npos) {
@@ -360,26 +359,32 @@ struct GraphCacheContext {
                     std::string obj = arr.substr(obj_pos, obj_end - obj_pos + 1);
 
                     regions[num_regions].base_address = parseJsonUint(obj, "\"base\"");
-                    uint64_t sz = parseJsonUint(obj, "\"size\"");
-                    regions[num_regions].upper_bound = regions[num_regions].base_address + sz;
+                    uint64_t size = parseJsonUint(obj, "\"size\"");
+                    regions[num_regions].upper_bound = regions[num_regions].base_address + size;
                     regions[num_regions].num_elements = static_cast<uint32_t>(
                         parseJsonUint(obj, "\"count\""));
                     regions[num_regions].elem_size = static_cast<uint32_t>(
                         parseJsonUint(obj, "\"elem_size\""));
                     regions[num_regions].region_id = num_regions;
+
+                    uint64_t region_bytes = size;
+                    uint64_t third = (region_bytes / 3 + 63) & ~uint64_t(63);
+                    regions[num_regions].num_buckets = 3;
+                    regions[num_regions].bucket_bounds[0] = regions[num_regions].base_address + third;
+                    regions[num_regions].bucket_bounds[1] = regions[num_regions].base_address + 2 * third;
+                    regions[num_regions].bucket_bounds[2] = regions[num_regions].upper_bound;
+
                     num_regions++;
                     obj_pos = obj_end + 1;
                 }
             }
         }
 
-        return num_regions > 0;
+        loaded = (num_regions > 0);
+        return loaded;
     }
 
-    bool loaded = false;  // True after successful loadFromSideband()
-
 private:
-    // Minimal JSON value parser (no external deps)
     static uint64_t parseJsonUint(const std::string& json, const std::string& key) {
         size_t pos = json.find(key);
         if (pos == std::string::npos) return 0;

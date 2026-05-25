@@ -12,6 +12,14 @@
 
 namespace cache_sim {
 
+inline int GraphSimEnvIntClamped(const char* name, int default_value,
+                                 int min_value, int max_value) {
+    const char* value = std::getenv(name);
+    if (!value) return default_value;
+    int parsed = std::atoi(value);
+    return std::max(min_value, std::min(max_value, parsed));
+}
+
 // ============================================================================
 // SimArray: Wrapper for property arrays with cache tracking
 // Works with both single-core CacheHierarchy and MultiCoreCacheHierarchy
@@ -104,7 +112,28 @@ private:
             if (!_dw.contains(_pfx_target)) { \
                 _dw.push(_pfx_target); \
                 (cache).prefetch(reinterpret_cast<uint64_t>(&(arr)[_pfx_target])); \
+                (graph_ctx).recordPrefetchIssued(); \
+            } else { \
+                (graph_ctx).recordPrefetchDuplicate(); \
             } \
+        } else { \
+            (graph_ctx).recordPrefetchNoTarget(); \
+        } \
+    } while(0)
+
+// ECG: Prefetch a known future vertex property element.
+// This is useful for runtime lookahead paths where the access stream already
+// exposes a future vertex ID and the current mask target would be too late.
+#define SIM_CACHE_PREFETCH_VERTEX(cache, arr, idx, graph_ctx) \
+    do { \
+        uint32_t _pfx_target = static_cast<uint32_t>(idx); \
+        auto& _dw = (graph_ctx).dedup_for_thread(); \
+        if (!_dw.contains(_pfx_target)) { \
+            _dw.push(_pfx_target); \
+            (cache).prefetch(reinterpret_cast<uint64_t>(&(arr)[_pfx_target])); \
+            (graph_ctx).recordPrefetchIssued(); \
+        } else { \
+            (graph_ctx).recordPrefetchDuplicate(); \
         } \
     } while(0)
 

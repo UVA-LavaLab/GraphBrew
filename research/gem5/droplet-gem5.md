@@ -52,11 +52,12 @@ Result: Property data arrives BEFORE the core's load instruction
 **Two engines**:
 
 1. **Edge-list stride detector**: Tracks last N accesses to the CSR edge array,
-   detects stride pattern, predicts next edge addresses.
+    detects stride pattern at cache-line granularity, predicts next structure
+    cache-line addresses.
 
-2. **Indirect property prefetcher**: When an edge-list cache miss occurs, computes
-   property addresses for vertices stored at upcoming edge positions and issues
-   prefetch requests.
+2. **Indirect property prefetcher**: When a predicted edge-list cache line is
+    selected, scans the exported structure-cache-line contents for 4B/8B neighbor
+    IDs and issues `property_base + elem_size * neighbor_id` prefetch requests.
 
 ```cpp
 void calculatePrefetch(const PrefetchInfo &pfi,
@@ -70,9 +71,8 @@ void calculatePrefetch(const PrefetchInfo &pfi,
         for (pred : stridePredictions)
             addresses.push_back(AddrPriority(pred, 0));
 
-        // Engine 2: indirect property prefetch (on miss)
-        if (pfi.isCacheMiss())
-            issueIndirectPrefetches(addr, addresses);
+        // Engine 2: scan predicted structure line for neighbor IDs
+        issueIndirectPrefetches(pred, addresses);
     }
 }
 ```
@@ -87,6 +87,9 @@ prefetcher = GraphDropletPrefetcher(
     prefetch_degree=4,     # Edge lines to prefetch ahead
     indirect_degree=8,     # Property prefetches per edge access
     stride_table_size=16,  # Stride detector entries
+    use_virtual_addresses=True,
+    prefetch_on_access=True,
+    on_inst=False,
 )
 
 # Regions set from graph metadata:
@@ -94,16 +97,39 @@ prefetcher.setPropertyRegion(base=0x1000000, size=N*4, elemSize=4)
 prefetcher.setEdgeArrayRegion(base=0x2000000, size=M*4)
 ```
 
-### Step 5: Attach to L2 Cache
+GraphBrew exports runtime sideband regions from benchmark virtual addresses.
+The gem5 `QueuedPrefetcher` base uses physical addresses by default, so DROPLET
+must be configured with `use_virtual_addresses=True`. Without that, the
+prefetcher loads sideband metadata but never recognizes edge-array accesses, and
+all `pf*` counters stay at zero. DROPLET also trains on every data access
+(`prefetch_on_access=True`, `on_inst=False`) so the edge stream can build stride
+confidence before it becomes a miss-only signal.
 
-DROPLET is most effective at the L2 level (where edge data fits but property
-data misses):
+For paper-faithful indirect prefetching, the benchmark sideband exports a shadow
+copy of the preferred CSR edge array to `/tmp/gem5_graphbrew_{in,out}_edges.bin`.
+The first `edge_regions[]` entry is marked `"preferred": true`; PR marks
+`in_edges` because pull PageRank traverses incoming rows, while BFS/SSSP/CC-like
+kernels default to `out_edges`. DROPLET loads that shadow structure array and
+scans real neighbor IDs from predicted structure cache lines. If the element
+size is 8B, as in weighted SSSP (`NodeWeight<int,int>`), the property address
+generator reads the low 4B vertex ID and skips the weight field, matching the
+paper's 4B/8B scan-granularity model.
+
+### Step 5: Attach to L1D or L2 Cache
+
+DROPLET can be attached at L1D or L2 using `graph_se.py --prefetcher-level`.
+The current active GraphBrew proof path uses L1D because it directly observes the
+core's virtual edge-array stream and matches the original DROPLET L1 stream
+prefetcher structure. L2 remains available for follow-up sensitivity runs.
 
 ```python
-l2cache = Cache(size="256kB", assoc=4, ...)
-l2cache.prefetcher = GraphDropletPrefetcher(
+l1d_cache = Cache(size="32kB", assoc=8, ...)
+l1d_cache.prefetcher = GraphDropletPrefetcher(
     prefetch_degree=4,
     indirect_degree=8,
+    use_virtual_addresses=True,
+    prefetch_on_access=True,
+    on_inst=False,
 )
 ```
 
@@ -116,6 +142,77 @@ l2cache.prefetcher = GraphDropletPrefetcher(
 
 **Key test**: Compare baseline (no prefetch) vs DROPLET on BFS bottom-up phase
 (most irregular access pattern → largest benefit).
+
+GraphBrew activation smoke:
+- PR synthetic point: `-g 10 -k 16 -o 5 -n 1 -i 1`, L1D=1kB, L2=2kB, L3=4kB.
+- Output: `results/ecg_experiments/roi_matrix/pr_g10_l3_4kb_droplet_fresh_sideband_smoke/`.
+- Diagnostics show the benchmark context export before sideband loading, then
+    first edge-array access.
+- L1D prefetch counters are nonzero (`pfIdentified=1136`, `pfIssued=1136`,
+    `pfUseful=111` in ROI section 1), proving the baseline is active.
+
+Paper-faithful actual-edge smoke:
+- Output: `results/ecg_experiments/roi_matrix/pr_g10_l3_4kb_droplet_line_actual_edge_smoke/`.
+- DROPLET loaded `edge_data=20992`, selected the preferred `in_edges` stream,
+    and issued `pfIssued=1166`, `pfUseful=106` in ROI section 1.
+- This replaces the earlier edge-offset approximation with actual neighbor-ID
+    scanning from the predicted structure line.
+
+Faithfulness checklist:
+- Structure accesses are identified by benchmark-exported sideband ranges.
+- Structure streaming trains at cache-line granularity.
+- Property prefetches are generated from actual neighbor IDs in the predicted
+    structure line, not from edge-array offsets.
+- The property address equation is `property_base + elem_size * neighbor_id`.
+- The model uses benchmark virtual addresses, matching the paper's virtual
+    address buffers and specialized-malloc communication path.
+
+Remaining model boundary: gem5 does not model the paper's memory-controller MTLB
+or explicit coherence-engine query as separate hardware structures. It also does
+not yet schedule property prefetch generation on the exact structure-cache-line
+fill event inside the memory controller; instead, it uses the exported shadow
+structure line when the structure streamer predicts that line. The
+`QueuedPrefetcher` path still accounts for queueing, cache snooping, page checks,
+and useful/late/drop stats, but area/timing claims for those DROPLET hardware
+blocks must not be inferred from this SimObject.
+
+Clean PR g12 activation proof before actual-edge scanner:
+- Output: `results/ecg_experiments/roi_matrix/pr_g12_l3_4kb_gem5_droplet_vaddr_repl_proof/`.
+- Benchmark: `pr -g 12 -k 16 -o 5 -n 1 -i 2`, L1D=1kB, L2=2kB, L3=4kB.
+- All policy legs loaded the same current sideband ranges:
+    property `[0xb54000,0xb58000)`, edge `[0xb6c000,0xbca810)`.
+- Average per ROI section: LRU+DROPLET `pfIssued=11411`, `pfUseful=867`;
+    POPT+DROPLET `pfIssued=11411`, `pfUseful=861`; ECG_POPT_PRIMARY+DROPLET
+    `pfIssued=11411`, `pfUseful=875`.
+- POPT+DROPLET was the strongest prior-method row on this activation point;
+    ECG_POPT_PRIMARY remained near POPT parity while producing slightly more useful
+    prefetch fills.
+- This g12 matrix predates the paper-faithful actual-edge-data scanner and
+    cache-line-oriented structure streamer. Rerun it before final paper claims.
+
+Post-audit PR g12 actual-edge proof:
+- Output: `results/ecg_experiments/roi_matrix/pr_g12_l3_4kb_gem5_droplet_actual_edge_proof/`
+- Benchmark: `pr -g 12 -k 16 -o 5 -n 1 -i 2`, L1D=1kB, L2=2kB, L3=4kB.
+- Placement: L1D DROPLET.
+- All policy legs loaded actual CSR shadow data: `edge_data=96772`.
+- Every policy issued `pfIssued=11967` per ROI section.
+
+Average over two ROI sections:
+
+| Policy | Avg ticks | Avg L3 misses | Avg IPC | Avg pfIssued | Avg pfUseful | Avg pfLate | Readout |
+|--------|-----------|---------------|---------|--------------|--------------|------------|---------|
+| LRU + DROPLET | 9,046,504,500 | 73,547.5 | 0.091179 | 11,967 | 1,038 | 337 | active graph-prefetch baseline |
+| GRASP + DROPLET | 9,058,299,500 | 73,331.5 | 0.091060 | 11,967 | 1,041 | 341 | paper-faithful GRASP path active; slightly fewer L3 misses than LRU but slower |
+| POPT + DROPLET | 8,604,178,250 | 64,175.5 | 0.095866 | 11,967 | 1,031 | 343 | strongest prior replacement + DROPLET row |
+| ECG_POPT_PRIMARY + DROPLET | 8,591,908,500 | 64,313.0 | 0.096004 | 11,967 | 1,027 | 341 | near POPT miss parity and slightly faster ticks on this point |
+
+Readout: the final actual-edge scanner is active and measurable on PR/g12. P-OPT
+remains the strongest prior replacement by L3 misses under DROPLET, while
+ECG_POPT_PRIMARY is within about `0.21%` L3 misses of POPT and is about `0.14%`
+faster in ticks on this stress point. These numbers replace the older
+activation-only `pr_g12_l3_4kb_gem5_droplet_vaddr_repl_proof` matrix for DROPLET
+baseline discussion, subject to the remaining MC-fill/MTLB hardware boundary
+above.
 
 ## Complementarity with ECG
 

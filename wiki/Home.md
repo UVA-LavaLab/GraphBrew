@@ -22,6 +22,8 @@ the reorder cost.
 **Deep dives**
 - [GraphBrewOrder](GraphBrewOrder) — the composable pipeline
 - [Cache-Simulation](Cache-Simulation) — `bench/bin_sim/*` usage
+- [ECG-Final-Runs](ECG-Final-Runs) — current ECG/gem5 final-run profiles, charged P-OPT, and supported baselines
+- [ECG-Slurm-Runs](ECG-Slurm-Runs) — split ECG/gem5 final runs across UVA Slurm and aggregate later
 - [Code-Architecture](Code-Architecture) — codebase map
 - [VLDB-Experiments](VLDB-Experiments) — reproducing the paper
 

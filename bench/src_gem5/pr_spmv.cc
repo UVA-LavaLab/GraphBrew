@@ -38,7 +38,10 @@ pvector<ScoreT> PageRankPull_Gem5(const Graph &g, int max_iters,
          static_cast<uint64_t>(g.num_nodes()) * sizeof(ScoreT),
          static_cast<uint32_t>(g.num_nodes()), sizeof(ScoreT)},
     };
-    gem5_export_context(regions, 2, g);
+    Gem5EdgeRegion edge_regions[2];
+    int num_edge_regions = gem5_make_edge_regions(g, edge_regions, 2);
+    gem5_export_context(regions, 2, g, GEM5_SIDEBAND_PATH,
+                        edge_regions, num_edge_regions);
 
     GEM5_RESET_STATS();
     GEM5_WORK_BEGIN(GEM5_WORK_COMPUTE);
@@ -50,6 +53,7 @@ pvector<ScoreT> PageRankPull_Gem5(const Graph &g, int max_iters,
             outgoing_contrib[n] = scores[n] / g.out_degree(n);
         // Phase 2: SpMV accumulation
         for (NodeID u = 0; u < g.num_nodes(); u++) {
+            GEM5_SET_VERTEX(u);
             ScoreT incoming_total = 0;
             for (NodeID v : g.in_neigh(u))
                 incoming_total += outgoing_contrib[v];

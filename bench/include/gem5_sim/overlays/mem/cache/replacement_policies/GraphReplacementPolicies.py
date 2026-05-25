@@ -69,9 +69,10 @@ class GraphEcgRP(BaseReplacementPolicy):
 
     3-level layered eviction with mode-dependent tiebreaker:
       DBG_PRIMARY:  SRRIP -> DBG tier -> dynamic P-OPT (default)
-      POPT_PRIMARY: SRRIP -> dynamic P-OPT -> DBG tier
-      DBG_ONLY:     SRRIP -> DBG tier (fast path, no P-OPT)
-      ECG_EMBEDDED: SRRIP -> DBG tier -> stored P-OPT hint (zero LLC overhead)
+            POPT_PRIMARY: pure P-OPT 3-phase -> DBG tier
+    DBG_ONLY:     GRASP-faithful DBG insertion/hit, plain SRRIP victim
+            ECG_EMBEDDED: SRRIP -> stored P-OPT hint -> DBG tier (zero LLC overhead)
+            ECG_COMBINED: combined DBG+P-OPT insertion RRPV, then pure SRRIP
 
     Property regions loaded from sideband JSON written by benchmark at runtime.
     """
@@ -84,7 +85,7 @@ class GraphEcgRP(BaseReplacementPolicy):
     num_buckets = Param.Unsigned(11,
         "Number of degree buckets for DBG classification.")
     ecg_mode = Param.String("DBG_PRIMARY",
-        "Eviction mode: DBG_PRIMARY, POPT_PRIMARY, DBG_ONLY, or ECG_EMBEDDED.")
+        "Eviction mode: DBG_PRIMARY, POPT_PRIMARY, DBG_ONLY, ECG_EMBEDDED, or ECG_COMBINED.")
     llc_size_bytes = Param.Unsigned(8388608,
         "LLC size in bytes (default 8MB).")
     sideband_path = Param.String("/tmp/gem5_graphbrew_ctx.json",

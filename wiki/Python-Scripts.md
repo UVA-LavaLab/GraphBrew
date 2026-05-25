@@ -95,8 +95,13 @@ See the [[VLDB-Experiments]] wiki page for full usage.
 
 | Module | Purpose |
 |--------|─────────|
-| `ecg_paper_experiments.py` | 11 experiments in 2 sections: A1-A3 accuracy validation (GRASP/P-OPT faithfulness, ECG mode equivalence), B1-B8 performance showcase (policy comparison, reorder effect, cache sweep, ECG mode comparison, fat-ID analysis) |
-| `ecg_config.py` | Configuration: 9 policies, 3 ECG modes, 10 accuracy pairs, 11 reorder×policy pairs, 4 reorder variants, 6 eval graphs, cache sweep sizes |
+| `scripts/experiments/ecg/paper_pipeline.py` | One-command ECG paper workflow: launches profiles, aggregates ROI/proof CSVs, and emits normalized summary CSVs, SVG paper figures with PNG previews, and LaTeX table snippets |
+| `scripts/experiments/ecg/final_paper_run.py` | Manifest-driven final ECG/gem5 runner with resume, graph checks, validation gate, per-job logs, status mode, and combined CSV outputs |
+| `scripts/experiments/ecg/final_paper_manifest.json` | Final-run profiles: `rehearsal`, `available_replacement`, `final_cache_sim`, `final_replacement`, `final_droplet` |
+| `scripts/experiments/ecg/roi_matrix.py` | Focused cache_sim/gem5 ROI matrix runner; supports charged labels such as `POPT_CHARGED` and `ECG:DBG_PRIMARY_CHARGED` |
+| `scripts/experiments/ecg/proof_matrix.py` | cache_sim component ablation runner for DBG, P-OPT, PFX, and combined ECG proof |
+| `scripts/experiments/ecg/check_proof_claims.py` | Claim checker for proof matrices |
+| `scripts/experiments/ecg/summarize_proof_matrix.py` | Summary helper for proof matrix CSV/JSON output |
 
 **Section A** — Accuracy validation with PASS/FAIL reports against paper claims:
 - A1: GRASP invariants (Faldu et al., HPCA'20)
@@ -107,6 +112,8 @@ See the [[VLDB-Experiments]] wiki page for full usage.
 - B1: Policy comparison, B2: Reorder effect, B3: Reorder×policy interaction
 - B4: Cache size sweep, B5: Algorithm analysis, B6: Graph sensitivity
 - B7: ECG mode comparison, B8: Fat-ID bit allocation
+
+For the current final-run workflow and policy interpretation, see [[ECG-Final-Runs]].
 
 ---
 

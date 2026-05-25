@@ -27,7 +27,10 @@ pvector<NodeID> ShiloachVishkin_Gem5(const Graph &g) {
          static_cast<uint64_t>(g.num_nodes()) * sizeof(NodeID),
          static_cast<uint32_t>(g.num_nodes()), sizeof(NodeID)},
     };
-    gem5_export_context(regions, 1, g);
+    Gem5EdgeRegion edge_regions[2];
+    int num_edge_regions = gem5_make_edge_regions(g, edge_regions, 2);
+    gem5_export_context(regions, 1, g, GEM5_SIDEBAND_PATH,
+                        edge_regions, num_edge_regions);
 
     GEM5_RESET_STATS();
     GEM5_WORK_BEGIN(GEM5_WORK_COMPUTE);
@@ -36,6 +39,7 @@ pvector<NodeID> ShiloachVishkin_Gem5(const Graph &g) {
     while (change) {
         change = false;
         for (NodeID u = 0; u < g.num_nodes(); u++) {
+            GEM5_SET_VERTEX(u);
             for (NodeID v : g.out_neigh(u)) {
                 NodeID comp_u = comp[u], comp_v = comp[v];
                 if (comp_u != comp_v) {

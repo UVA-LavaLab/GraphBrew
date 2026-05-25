@@ -56,8 +56,7 @@ pvector<ScoreT> PageRankPullGS_Sim(const Graph &g, CacheType &cache,
 
     // Register both property arrays (scores + contrib)
     size_t llc_size = 8 * 1024 * 1024;  // Default 8MB, overridden by env
-    const char* llc_env = getenv("CACHE_L3_SIZE");
-    if (llc_env) llc_size = std::strtoul(llc_env, nullptr, 10);
+    llc_size = GetEnvSizeBytes("CACHE_L3_SIZE", llc_size);
     graph_ctx.registerPropertyArray(scores_ptr, g.num_nodes(), sizeof(ScoreT), llc_size);
     graph_ctx.registerPropertyArray(contrib_ptr, g.num_nodes(), sizeof(ScoreT), llc_size);
     cache.initGraphContext(&graph_ctx);
@@ -69,7 +68,9 @@ pvector<ScoreT> PageRankPullGS_Sim(const Graph &g, CacheType &cache,
     {
         const char* policy_env = getenv("CACHE_POLICY");
         std::string policy_str = policy_env ? policy_env : "";
-        if (policy_str == "POPT" || policy_str == "ECG") {
+        const char* pfx_env = getenv("ECG_PREFETCH_MODE");
+        bool popt_prefetch = pfx_env && atoi(pfx_env) == 2;
+        if (policy_str == "POPT" || policy_str == "ECG" || popt_prefetch) {
             constexpr int numVtxPerLine = 64 / sizeof(ScoreT);
             constexpr int numEpochs = 256;
             makeOffsetMatrix(g, popt_matrix, numVtxPerLine, numEpochs);
@@ -82,12 +83,13 @@ pvector<ScoreT> PageRankPullGS_Sim(const Graph &g, CacheType &cache,
     // Compute per-vertex ECG mask array (supports 8/16/32-bit widths)
     graph_ctx.initMaskConfig();
     auto vertex_masks = graph_ctx.computeVertexMasks(g);  // uint32_t per vertex
-    // Register as 8-bit array for backward compat (ECG insertion reads full mask from hints)
-    std::vector<uint8_t> masks8(vertex_masks.size());
-    for (size_t i = 0; i < vertex_masks.size(); i++)
-        masks8[i] = static_cast<uint8_t>(vertex_masks[i]);
-    graph_ctx.initMaskArray8(masks8.data(), masks8.size());
+    graph_ctx.initMaskArray32(vertex_masks.data(), vertex_masks.size());
     graph_ctx.printSummary();
+    int pfx_lookahead = GraphSimEnvIntClamped("ECG_PREFETCH_LOOKAHEAD", 0, 0, 64);
+    if (pfx_lookahead > 0 && graph_ctx.mask_config.prefetch_mode > 0) {
+        cout << "PR PFX lookahead: window=" << pfx_lookahead
+             << " mode=" << int(graph_ctx.mask_config.prefetch_mode) << endl;
+    }
     
     // Initialize outgoing contributions
     #pragma omp parallel for
@@ -114,8 +116,39 @@ pvector<ScoreT> PageRankPullGS_Sim(const Graph &g, CacheType &cache,
                 // Track CSR edge list read (reading neighbor ID from edge array)
                 SIM_CACHE_READ_EDGE(cache, it);
                 NodeID v = *it;
-                // ECG: read contrib[v] with mask (DBG + P-OPT + optional prefetch)
-                SIM_CACHE_READ_MASKED_PREFETCH(cache, contrib_ptr, v, graph_ctx, vertex_masks[v]);
+                // ECG: read contrib[v] with mask. With lookahead enabled, issue
+                // the prefetch from upcoming incoming-neighbor IDs before their
+                // demand read; otherwise use the per-vertex PFX target directly.
+                if (pfx_lookahead > 0 && graph_ctx.mask_config.prefetch_mode > 0) {
+                    uint32_t lookahead_target = UINT32_MAX;
+                    auto jt = it;
+                    for (int step = 0; step < pfx_lookahead; step++) {
+                        ++jt;
+                        if (jt == in_neigh.end()) break;
+                        NodeID candidate = *jt;
+                        if (candidate < 0) continue;
+                        if (graph_ctx.mask_config.prefetch_mode == 1) {
+                            if (lookahead_target == UINT32_MAX ||
+                                g.out_degree(candidate) > g.out_degree(lookahead_target)) {
+                                lookahead_target = static_cast<uint32_t>(candidate);
+                            }
+                        } else {
+                            uint8_t candidate_popt = graph_ctx.mask_config.decodePOPT(vertex_masks[candidate]);
+                            if (lookahead_target == UINT32_MAX ||
+                                candidate_popt < graph_ctx.mask_config.decodePOPT(vertex_masks[lookahead_target])) {
+                                lookahead_target = static_cast<uint32_t>(candidate);
+                            }
+                        }
+                    }
+                    if (lookahead_target != UINT32_MAX) {
+                        SIM_CACHE_PREFETCH_VERTEX(cache, contrib_ptr, lookahead_target, graph_ctx);
+                    } else {
+                        graph_ctx.recordPrefetchNoTarget();
+                    }
+                    SIM_CACHE_READ_MASKED(cache, contrib_ptr, v, graph_ctx, vertex_masks[v]);
+                } else {
+                    SIM_CACHE_READ_MASKED_PREFETCH(cache, contrib_ptr, v, graph_ctx, vertex_masks[v]);
+                }
                 incoming_total += outgoing_contrib[v];
             }
             

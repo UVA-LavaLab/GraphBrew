@@ -11,6 +11,7 @@
 #include <cstring>
 #include <vector>
 #include <unordered_map>
+#include <unordered_set>
 #include <list>
 #include <random>
 #include <algorithm>
@@ -19,6 +20,7 @@
 #include <fstream>
 #include <string>
 #include <mutex>
+#include <memory>
 #include <atomic>
 #include <omp.h>
 
@@ -67,6 +69,29 @@ inline EvictionPolicy StringToPolicy(const std::string& s) {
     if (s == "POPT" || s == "popt" || s == "P-OPT" || s == "p-opt") return EvictionPolicy::POPT;
     if (s == "ECG" || s == "ecg") return EvictionPolicy::ECG;
     return EvictionPolicy::LRU;  // Default
+}
+
+inline EvictionPolicy GetEnvPolicy(const char* name, EvictionPolicy default_policy) {
+    const char* val = std::getenv(name);
+    return val ? StringToPolicy(val) : default_policy;
+}
+
+inline size_t ParseSizeBytes(const char* value, size_t default_val) {
+    if (!value) return default_val;
+
+    char* end;
+    size_t result = std::strtoull(value, &end, 10);
+    if (result == 0) return default_val;
+
+    if (*end == 'K' || *end == 'k') result *= 1024;
+    else if (*end == 'M' || *end == 'm') result *= 1024 * 1024;
+    else if (*end == 'G' || *end == 'g') result *= 1024 * 1024 * 1024;
+
+    return result;
+}
+
+inline size_t GetEnvSizeBytes(const char* name, size_t default_val) {
+    return ParseSizeBytes(std::getenv(name), default_val);
 }
 
 // ============================================================================
@@ -593,7 +618,7 @@ public:
         set[victim_idx].line_addr = address & ~(uint64_t(line_size_ - 1));  // Store line-aligned address
 
         // GRASP: 3-tier RRIP insertion matching Faldu et al. HPCA 2020.
-        // HIGH reuse (hubs):    RRPV = 1 (P_RRIP — protect in cache)
+        // HIGH reuse (hubs):    RRPV = 0 (MRU — protect in cache)
         // MODERATE reuse:       RRPV = 6 (I_RRIP — intermediate)
         // LOW reuse (cold/OOB): RRPV = 7 (M_RRIP — evict sooner)
         //
@@ -601,7 +626,7 @@ public:
         // each property region. Moderate = next 10%. Cold = rest.
         // After DBG reorder, highest-degree vertices are at front (low addr).
         if (policy_ == EvictionPolicy::GRASP) {
-            constexpr uint8_t P_RRIP = 1;   // Priority (hot)
+            constexpr uint8_t P_RRIP = 0;   // Priority/MRU (hot)
             constexpr uint8_t I_RRIP = 6;   // Intermediate (moderate)
             constexpr uint8_t M_RRIP = 7;   // Max (cold)
             if (graph_ctx_) {
@@ -623,7 +648,7 @@ public:
         }
 
         // ECG: Mode-dependent insertion RRPV.
-        // DBG_ONLY / DBG_PRIMARY / ECG_EMBEDDED: use GRASP 3-tier (1/6/7)
+        // DBG_ONLY / DBG_PRIMARY / ECG_EMBEDDED: use GRASP 3-tier (0/6/7)
         // POPT_PRIMARY: use P-OPT-style RRPV=6 (matches pure P-OPT aging)
         if (policy_ == EvictionPolicy::ECG) {
             ECGMode mode = (graph_ctx_ && graph_ctx_->mask_config.enabled)
@@ -648,7 +673,7 @@ public:
                 uint8_t dbg_rrpv = 7;
                 if (graph_ctx_) {
                     uint32_t tier = graph_ctx_->classifyGRASP(address, size_bytes_);
-                    if (tier == 1)      dbg_rrpv = 1;
+                    if (tier == 1)      dbg_rrpv = 0;
                     else if (tier == 2) dbg_rrpv = 4;
                     else                dbg_rrpv = 7;
                 }
@@ -667,7 +692,7 @@ public:
                 set[victim_idx].rrpv = combined;
             } else {
                 // GRASP-faithful 3-tier for DBG_PRIMARY, DBG_ONLY, ECG_EMBEDDED
-                constexpr uint8_t P_RRIP = 1;
+                constexpr uint8_t P_RRIP = 0;
                 constexpr uint8_t I_RRIP = 6;
                 constexpr uint8_t M_RRIP_C = 7;
                 if (graph_ctx_) {
@@ -933,7 +958,7 @@ private:
     // (Faldu et al., HPCA 2020 — reference: grasp.cpp)
     //
     // RRIP-based policy with 3-tier insertion depending on address region:
-    //   High-reuse (hot hubs):    insert RRPV = 1 (P_RRIP), hit → 0
+    //   High-reuse (hot hubs):    insert RRPV = 0 (MRU), hit → 0
     //   Moderate-reuse:           insert RRPV = M-1 (I_RRIP), hit → decrement
     //   Low-reuse (cold/other):   insert RRPV = M (M_RRIP), hit → decrement
     // Eviction: find way with max RRPV, age all if none at max.
@@ -1028,7 +1053,7 @@ private:
     //   Level 2/3 depend on ECGMode:
     //     DBG_PRIMARY:  L2=DBG tier (coldest vertex), L3=dynamic P-OPT
     //     POPT_PRIMARY: L2=dynamic P-OPT (furthest future), L3=DBG tier
-    //     DBG_ONLY:     L2=DBG tier, no L3
+    //     DBG_ONLY:     GRASP-faithful SRRIP victim selection, no L2/L3 tiebreak
     //
     // Key design points:
     //  - RRPV set at insert from DBG tier (bucketToRRPV), ages via SRRIP
@@ -1112,6 +1137,14 @@ private:
                     }
                 }
             }
+        }
+
+        // ── DBG_ONLY: GRASP-faithful mode ──
+        // DBG_ONLY should isolate the degree/DBG insertion effect and match
+        // GRASP's RRIP victim selection. Extra DBG tiebreaking belongs to
+        // DBG_PRIMARY, not the GRASP-equivalence mode.
+        if (mode == ECGMode::DBG_ONLY) {
+            return findVictimGRASP(set);
         }
 
         // ── Level 1: SRRIP aging — find lines at max RRPV ──
@@ -1251,10 +1284,26 @@ public:
         size_t l3_ways = 16,
         size_t line_size = 64,
         EvictionPolicy policy = EvictionPolicy::LRU
+    ) : CacheHierarchy(l1_size, l1_ways, l2_size, l2_ways,
+                       l3_size, l3_ways, line_size,
+                       policy, policy, policy) {
+    }
+
+    CacheHierarchy(
+        size_t l1_size,
+        size_t l1_ways,
+        size_t l2_size,
+        size_t l2_ways,
+        size_t l3_size,
+        size_t l3_ways,
+        size_t line_size,
+        EvictionPolicy l1_policy,
+        EvictionPolicy l2_policy,
+        EvictionPolicy l3_policy
     ) : line_size_(line_size), enabled_(true) {
-        l1_ = std::make_unique<CacheLevel>("L1", l1_size, line_size, l1_ways, policy);
-        l2_ = std::make_unique<CacheLevel>("L2", l2_size, line_size, l2_ways, policy);
-        l3_ = std::make_unique<CacheLevel>("L3", l3_size, line_size, l3_ways, policy);
+        l1_ = std::make_unique<CacheLevel>("L1", l1_size, line_size, l1_ways, l1_policy);
+        l2_ = std::make_unique<CacheLevel>("L2", l2_size, line_size, l2_ways, l2_policy);
+        l3_ = std::make_unique<CacheLevel>("L3", l3_size, line_size, l3_ways, l3_policy);
     }
 
     // Configure from environment variables
@@ -1267,32 +1316,41 @@ public:
         size_t l3_ways = getEnvSize("CACHE_L3_WAYS", 16);
         size_t line_size = getEnvSize("CACHE_LINE_SIZE", 64);
         
-        const char* policy_str = std::getenv("CACHE_POLICY");
-        EvictionPolicy policy = policy_str ? StringToPolicy(policy_str) : EvictionPolicy::LRU;
+        EvictionPolicy policy = GetEnvPolicy("CACHE_POLICY", EvictionPolicy::LRU);
+        EvictionPolicy l1_policy = GetEnvPolicy("CACHE_L1_POLICY", policy);
+        EvictionPolicy l2_policy = GetEnvPolicy("CACHE_L2_POLICY", policy);
+        EvictionPolicy l3_policy = GetEnvPolicy("CACHE_L3_POLICY", policy);
         
         return CacheHierarchy(l1_size, l1_ways, l2_size, l2_ways,
-                             l3_size, l3_ways, line_size, policy);
+                     l3_size, l3_ways, line_size,
+                     l1_policy, l2_policy, l3_policy);
     }
 
     // Main access function - simulates hierarchical access
     void access(uint64_t address, bool is_write = false) {
         if (!enabled_) return;
+
+        const uint64_t line_addr = lineAddress(address);
+        const bool was_prefetched = hasPrefetchedLine(line_addr);
         
         total_accesses_++;
         
         // Try L1
         if (l1_->access(address, is_write)) {
+            if (was_prefetched) markPrefetchUseful(line_addr);
             return;  // L1 hit
         }
         
         // L1 miss, try L2
         if (l2_->access(address, is_write)) {
+            if (was_prefetched) markPrefetchUseful(line_addr);
             l1_->insert(address, is_write);  // Bring to L1
             return;  // L2 hit
         }
         
         // L2 miss, try L3
         if (l3_->access(address, is_write)) {
+            if (was_prefetched) markPrefetchUseful(line_addr);
             l2_->insert(address, is_write);  // Bring to L2
             l1_->insert(address, is_write);  // Bring to L1
             return;  // L3 hit
@@ -1300,6 +1358,7 @@ public:
         
         // L3 miss - fetch from memory
         memory_accesses_++;
+        if (was_prefetched) markPrefetchEvictedBeforeUse(line_addr);
         l3_->insert(address, is_write);
         l2_->insert(address, is_write);
         l1_->insert(address, is_write);
@@ -1314,14 +1373,22 @@ public:
     //   total_accesses_ or memory_accesses_.
     void prefetch(uint64_t address) {
         if (!enabled_) return;
+
+        const uint64_t line_addr = lineAddress(address);
+        prefetch_requests_++;
         
         // Check if already in cache (any level)
-        if (l1_->access(address, false)) return;
+        if (l1_->access(address, false)) {
+            prefetch_cache_hits_++;
+            return;
+        }
         if (l2_->access(address, false)) {
+            prefetch_cache_hits_++;
             l1_->insert(address, false);
             return;
         }
         if (l3_->access(address, false)) {
+            prefetch_cache_hits_++;
             l2_->insert(address, false);
             l1_->insert(address, false);
             return;
@@ -1330,6 +1397,7 @@ public:
         // Not in cache — fetch from memory into hierarchy
         // Does NOT increment demand counters
         prefetch_fills_++;
+        markPrefetchFill(line_addr);
         l3_->insert(address, false);
         l2_->insert(address, false);
         l1_->insert(address, false);
@@ -1375,7 +1443,13 @@ public:
         l3_->resetStats();
         total_accesses_ = 0;
         memory_accesses_ = 0;
+        prefetch_requests_ = 0;
+        prefetch_cache_hits_ = 0;
         prefetch_fills_ = 0;
+        prefetch_useful_ = 0;
+        prefetch_evicted_before_use_ = 0;
+        std::lock_guard<std::mutex> lock(prefetch_mutex_);
+        prefetched_lines_.clear();
     }
 
     // Enable/disable simulation
@@ -1420,6 +1494,16 @@ public:
 
     uint64_t getTotalAccesses() const { return total_accesses_; }
     uint64_t getMemoryAccesses() const { return memory_accesses_; }
+    uint64_t getPrefetchRequests() const { return prefetch_requests_; }
+    uint64_t getPrefetchCacheHits() const { return prefetch_cache_hits_; }
+    uint64_t getPrefetchFills() const { return prefetch_fills_; }
+    uint64_t getPrefetchUseful() const { return prefetch_useful_; }
+    uint64_t getPrefetchEvictedBeforeUse() const { return prefetch_evicted_before_use_; }
+    uint64_t getPrefetchPending() const {
+        std::lock_guard<std::mutex> lock(prefetch_mutex_);
+        return prefetched_lines_.size();
+    }
+    uint64_t getTotalMemoryTraffic() const { return memory_accesses_ + prefetch_fills_; }
 
     // Print statistics
     void printStats(std::ostream& os = std::cout) const {
@@ -1439,6 +1523,14 @@ public:
            << "                          ║\n";
         os << "║ Memory Accesses:     " << std::setw(15) << memory_accesses_
            << "                          ║\n";
+          os << "║ Prefetch Requests:   " << std::setw(15) << prefetch_requests_
+              << "                          ║\n";
+          os << "║ Prefetch Fills:      " << std::setw(15) << prefetch_fills_
+              << "                          ║\n";
+          os << "║ Useful Prefetches:   " << std::setw(15) << prefetch_useful_
+              << "                          ║\n";
+          os << "║ Total Memory Traffic:" << std::setw(15) << getTotalMemoryTraffic()
+              << "                          ║\n";
         os << "║ Overall Hit Rate:    " << std::setw(14) << std::fixed 
            << std::setprecision(4) << (1.0 - (double)memory_accesses_ / total_accesses_)
            << "%                          ║\n";
@@ -1451,6 +1543,13 @@ public:
         ss << "{\n";
         ss << "  \"total_accesses\": " << total_accesses_ << ",\n";
         ss << "  \"memory_accesses\": " << memory_accesses_ << ",\n";
+        ss << "  \"prefetch_requests\": " << prefetch_requests_ << ",\n";
+        ss << "  \"prefetch_cache_hits\": " << prefetch_cache_hits_ << ",\n";
+        ss << "  \"prefetch_fills\": " << prefetch_fills_ << ",\n";
+        ss << "  \"prefetch_useful\": " << prefetch_useful_ << ",\n";
+        ss << "  \"prefetch_evicted_before_use\": " << prefetch_evicted_before_use_ << ",\n";
+        ss << "  \"prefetch_pending\": " << getPrefetchPending() << ",\n";
+        ss << "  \"total_memory_traffic\": " << getTotalMemoryTraffic() << ",\n";
         ss << "  \"L1\": " << levelToJSON(*l1_) << ",\n";
         ss << "  \"L2\": " << levelToJSON(*l2_) << ",\n";
         ss << "  \"L3\": " << levelToJSON(*l3_) << "\n";
@@ -1532,6 +1631,34 @@ private:
         return ss.str();
     }
 
+    uint64_t lineAddress(uint64_t address) const {
+        return address & ~(uint64_t(line_size_ - 1));
+    }
+
+    bool hasPrefetchedLine(uint64_t line_addr) const {
+        std::lock_guard<std::mutex> lock(prefetch_mutex_);
+        return prefetched_lines_.find(line_addr) != prefetched_lines_.end();
+    }
+
+    void markPrefetchFill(uint64_t line_addr) {
+        std::lock_guard<std::mutex> lock(prefetch_mutex_);
+        prefetched_lines_.insert(line_addr);
+    }
+
+    void markPrefetchUseful(uint64_t line_addr) {
+        std::lock_guard<std::mutex> lock(prefetch_mutex_);
+        if (prefetched_lines_.erase(line_addr) > 0) {
+            prefetch_useful_++;
+        }
+    }
+
+    void markPrefetchEvictedBeforeUse(uint64_t line_addr) {
+        std::lock_guard<std::mutex> lock(prefetch_mutex_);
+        if (prefetched_lines_.erase(line_addr) > 0) {
+            prefetch_evicted_before_use_++;
+        }
+    }
+
     static std::string formatSize(size_t bytes) {
         if (bytes >= 1024 * 1024 * 1024) {
             return std::to_string(bytes / (1024 * 1024 * 1024)) + "GB";
@@ -1550,7 +1677,13 @@ private:
     bool enabled_;
     std::atomic<uint64_t> total_accesses_{0};
     std::atomic<uint64_t> memory_accesses_{0};
+    std::atomic<uint64_t> prefetch_requests_{0};
+    std::atomic<uint64_t> prefetch_cache_hits_{0};
     std::atomic<uint64_t> prefetch_fills_{0};
+    std::atomic<uint64_t> prefetch_useful_{0};
+    std::atomic<uint64_t> prefetch_evicted_before_use_{0};
+    mutable std::mutex prefetch_mutex_;
+    std::unordered_set<uint64_t> prefetched_lines_;
 };
 
 // ============================================================================
@@ -1945,6 +2078,23 @@ public:
         size_t l3_ways = 16,
         size_t line_size = 64,
         EvictionPolicy policy = EvictionPolicy::LRU
+    ) : MultiCoreCacheHierarchy(num_cores, l1_size, l1_ways, l2_size, l2_ways,
+                                l3_size, l3_ways, line_size,
+                                policy, policy, policy) {
+    }
+
+    MultiCoreCacheHierarchy(
+        int num_cores,
+        size_t l1_size,
+        size_t l1_ways,
+        size_t l2_size,
+        size_t l2_ways,
+        size_t l3_size,
+        size_t l3_ways,
+        size_t line_size,
+        EvictionPolicy l1_policy,
+        EvictionPolicy l2_policy,
+        EvictionPolicy l3_policy
     ) : num_cores_(num_cores), line_size_(line_size), enabled_(true) {
         
         if (num_cores_ > MAX_CORES) num_cores_ = MAX_CORES;
@@ -1953,13 +2103,13 @@ public:
         // Create private L1 and L2 for each core
         for (int i = 0; i < num_cores_; i++) {
             l1_caches_.push_back(std::make_unique<CacheLevel>(
-                "L1-Core" + std::to_string(i), l1_size, line_size, l1_ways, policy));
+                "L1-Core" + std::to_string(i), l1_size, line_size, l1_ways, l1_policy));
             l2_caches_.push_back(std::make_unique<CacheLevel>(
-                "L2-Core" + std::to_string(i), l2_size, line_size, l2_ways, policy));
+                "L2-Core" + std::to_string(i), l2_size, line_size, l2_ways, l2_policy));
         }
         
         // Create shared L3 (total size, not per-core)
-        l3_shared_ = std::make_unique<CacheLevel>("L3-Shared", l3_size, line_size, l3_ways, policy);
+        l3_shared_ = std::make_unique<CacheLevel>("L3-Shared", l3_size, line_size, l3_ways, l3_policy);
         
         // Initialize per-core statistics
         core_accesses_.resize(num_cores_, 0);
@@ -1977,11 +2127,14 @@ public:
         size_t l3_ways = getEnvSize("CACHE_L3_WAYS", 16);
         size_t line_size = getEnvSize("CACHE_LINE_SIZE", 64);
         
-        const char* policy_str = std::getenv("CACHE_POLICY");
-        EvictionPolicy policy = policy_str ? StringToPolicy(policy_str) : EvictionPolicy::LRU;
+        EvictionPolicy policy = GetEnvPolicy("CACHE_POLICY", EvictionPolicy::LRU);
+        EvictionPolicy l1_policy = GetEnvPolicy("CACHE_L1_POLICY", policy);
+        EvictionPolicy l2_policy = GetEnvPolicy("CACHE_L2_POLICY", policy);
+        EvictionPolicy l3_policy = GetEnvPolicy("CACHE_L3_POLICY", policy);
         
         return MultiCoreCacheHierarchy(num_cores, l1_size, l1_ways, l2_size, l2_ways,
-                                       l3_size, l3_ways, line_size, policy);
+                           l3_size, l3_ways, line_size,
+                           l1_policy, l2_policy, l3_policy);
     }
 
     // Main access function - uses OMP thread ID to select core

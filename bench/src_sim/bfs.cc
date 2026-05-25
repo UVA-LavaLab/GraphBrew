@@ -27,7 +27,7 @@ using namespace cache_sim;
 template<typename CacheType>
 int64_t BUStep_Sim(const Graph &g, pvector<NodeID> &parent, Bitmap &front,
                    Bitmap &next, CacheType &cache,
-                   GraphCacheContext &graph_ctx, const std::vector<uint8_t> &vertex_masks) {
+                   GraphCacheContext &graph_ctx, const std::vector<uint32_t> &vertex_masks) {
     int64_t awake_count = 0;
     next.reset();
     #pragma omp parallel for reduction(+ : awake_count) schedule(dynamic, 1024)
@@ -59,7 +59,8 @@ int64_t BUStep_Sim(const Graph &g, pvector<NodeID> &parent, Bitmap &front,
 template<typename CacheType>
 int64_t TDStep_Sim(const Graph &g, pvector<NodeID> &parent,
                    SlidingQueue<NodeID> &queue, CacheType &cache,
-                   GraphCacheContext &graph_ctx, const std::vector<uint8_t> &vertex_masks) {
+                   GraphCacheContext &graph_ctx, const std::vector<uint32_t> &vertex_masks,
+                   int pfx_lookahead) {
     int64_t scout_count = 0;
     #pragma omp parallel
     {
@@ -71,6 +72,33 @@ int64_t TDStep_Sim(const Graph &g, pvector<NodeID> &parent,
             for (auto it = out_neigh.begin(); it != out_neigh.end(); ++it) {
                 SIM_CACHE_READ_EDGE(cache, it);
                 NodeID v = *it;
+                if (pfx_lookahead > 0 && graph_ctx.mask_config.prefetch_mode > 0) {
+                    uint32_t lookahead_target = UINT32_MAX;
+                    auto jt = it;
+                    for (int step = 0; step < pfx_lookahead; step++) {
+                        ++jt;
+                        if (jt == out_neigh.end()) break;
+                        NodeID candidate = *jt;
+                        if (candidate < 0) continue;
+                        if (graph_ctx.mask_config.prefetch_mode == 1) {
+                            if (lookahead_target == UINT32_MAX ||
+                                g.out_degree(candidate) > g.out_degree(lookahead_target)) {
+                                lookahead_target = static_cast<uint32_t>(candidate);
+                            }
+                        } else {
+                            uint8_t candidate_popt = graph_ctx.mask_config.decodePOPT(vertex_masks[candidate]);
+                            if (lookahead_target == UINT32_MAX ||
+                                candidate_popt < graph_ctx.mask_config.decodePOPT(vertex_masks[lookahead_target])) {
+                                lookahead_target = static_cast<uint32_t>(candidate);
+                            }
+                        }
+                    }
+                    if (lookahead_target != UINT32_MAX) {
+                        SIM_CACHE_PREFETCH_VERTEX(cache, parent.data(), lookahead_target, graph_ctx);
+                    } else {
+                        graph_ctx.recordPrefetchNoTarget();
+                    }
+                }
                 // Track: read parent[v]
                 SIM_CACHE_READ_MASKED(cache, parent.data(), v, graph_ctx, vertex_masks[v]);
                 NodeID curr_val = parent[v];
@@ -134,22 +162,28 @@ pvector<NodeID> DOBFS_Sim(const Graph &g, NodeID source, CacheType &cache,
     graph_ctx.initTopology(deg_arr.data(), g.num_nodes(),
                            g.num_edges_directed(), g.directed());
     size_t llc_size = 8 * 1024 * 1024;
-    const char* llc_env = getenv("CACHE_L3_SIZE");
-    if (llc_env) llc_size = std::strtoul(llc_env, nullptr, 10);
+    llc_size = GetEnvSizeBytes("CACHE_L3_SIZE", llc_size);
     graph_ctx.registerPropertyArray(parent.data(), g.num_nodes(), sizeof(NodeID), llc_size);
     cache.initGraphContext(&graph_ctx);
 
     // Compute per-vertex ECG mask array
     graph_ctx.initMaskConfig();
-    auto vertex_masks = graph_ctx.computeVertexMasks8(g);
-    graph_ctx.initMaskArray8(vertex_masks.data(), vertex_masks.size());
+    auto vertex_masks = graph_ctx.computeVertexMasks(g);
+    graph_ctx.initMaskArray32(vertex_masks.data(), vertex_masks.size());
+    int pfx_lookahead = GraphSimEnvIntClamped("ECG_PREFETCH_LOOKAHEAD", 0, 0, 64);
+    if (pfx_lookahead > 0 && graph_ctx.mask_config.prefetch_mode > 0) {
+        cout << "BFS TD PFX lookahead: window=" << pfx_lookahead
+             << " mode=" << int(graph_ctx.mask_config.prefetch_mode) << endl;
+    }
 
     // Build P-OPT rereference matrix (for POPT and ECG policies)
     static pvector<uint8_t> popt_matrix;
     {
         const char* policy_env = getenv("CACHE_POLICY");
         std::string policy_str = policy_env ? policy_env : "";
-        if (policy_str == "POPT" || policy_str == "ECG") {
+        const char* pfx_env = getenv("ECG_PREFETCH_MODE");
+        bool popt_prefetch = pfx_env && atoi(pfx_env) == 2;
+        if (policy_str == "POPT" || policy_str == "ECG" || popt_prefetch) {
             constexpr int numVtxPerLine = 64 / sizeof(NodeID);
             constexpr int numEpochs = 256;
             makeOffsetMatrix(g, popt_matrix, numVtxPerLine, numEpochs);
@@ -185,7 +219,8 @@ pvector<NodeID> DOBFS_Sim(const Graph &g, NodeID source, CacheType &cache,
             scout_count = 1;
         } else {
             edges_to_check -= scout_count;
-            scout_count = TDStep_Sim(g, parent, queue, cache, graph_ctx, vertex_masks);
+            scout_count = TDStep_Sim(g, parent, queue, cache, graph_ctx, vertex_masks,
+                                     pfx_lookahead);
             queue.slide_window();
         }
     }

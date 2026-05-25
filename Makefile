@@ -210,10 +210,15 @@ clean-sim:
 SRC_GEM5_DIR = $(BENCH_DIR)/src_gem5
 BIN_GEM5_DIR = $(BENCH_DIR)/bin_gem5
 GEM5_HARNESS_INC = $(INC_DIR)/gem5_sim
+GEM5_SIM_DIR = $(INC_DIR)/gem5_sim
+GEM5_DIR = $(GEM5_SIM_DIR)/gem5
+GEM5_M5_DIR = $(GEM5_DIR)/util/m5
+GEM5_M5_LIB = $(GEM5_M5_DIR)/build/x86/out/libm5.a
 
 # gem5 benchmarks: single-threaded at runtime but headers need OpenMP.
 # Static linking for gem5 SE mode. -O1 to avoid unsupported instructions.
 CXXFLAGS_GEM5 = -std=c++17 -O1 -Wall -g -DNDEBUG -DNO_M5OPS -fopenmp
+CXXFLAGS_GEM5_M5OPS = $(filter-out -DNO_M5OPS,$(CXXFLAGS_GEM5)) -I$(GEM5_DIR)/include
 KERNELS_GEM5 = pr pr_spmv bfs sssp cc cc_sv bc tc
 
 $(BIN_GEM5_DIR):
@@ -222,10 +227,21 @@ $(BIN_GEM5_DIR):
 $(BIN_GEM5_DIR)/%: $(SRC_GEM5_DIR)/%.cc $(DEP_GAPBS) | $(BIN_GEM5_DIR)
 	@$(CXX) $(CXXFLAGS_GEM5) $(CXXFLAGS_LEIDEN) $(INCLUDES) $< $(LDLIBS) -o $@ $(EXIT_STATUS)
 
-.PHONY: gem5-% all-gem5 clean-gem5-bin run-gem5-%
+$(GEM5_M5_LIB):
+	@cd $(GEM5_M5_DIR) && scons -j$(PARALLEL) build/x86/out/m5
+
+$(BIN_GEM5_DIR)/%_m5ops: $(SRC_GEM5_DIR)/%.cc $(DEP_GAPBS) $(GEM5_M5_LIB) | $(BIN_GEM5_DIR)
+	@$(CXX) $(CXXFLAGS_GEM5_M5OPS) $(CXXFLAGS_LEIDEN) $(INCLUDES) $< $(GEM5_M5_LIB) $(LDLIBS) -o $@ $(EXIT_STATUS)
+
+.PRECIOUS: $(BIN_GEM5_DIR)/%_m5ops
+
+.PHONY: gem5-% gem5-m5ops-% all-gem5 clean-gem5-bin run-gem5-%
 
 gem5-%: $(BIN_GEM5_DIR)/%
 	@echo "Built gem5 version: $<"
+
+gem5-m5ops-%: $(BIN_GEM5_DIR)/%_m5ops
+	@echo "Built gem5 ROI/m5ops version: $<"
 
 all-gem5: $(addprefix $(BIN_GEM5_DIR)/, $(KERNELS_GEM5))
 	@echo "Built all gem5 benchmarks"
@@ -241,9 +257,6 @@ run-gem5-%: $(BIN_GEM5_DIR)/%
 # =========================================================
 # gem5 Simulation Setup
 # =========================================================
-GEM5_SIM_DIR = $(INC_DIR)/gem5_sim
-GEM5_DIR = $(GEM5_SIM_DIR)/gem5
-
 .PHONY: setup-gem5 clean-gem5
 
 setup-gem5:
@@ -293,6 +306,7 @@ help: help-pr
 	@echo "gem5 Benchmarks (static, single-threaded for SE mode):"
 	@echo "  all-gem5         - Build all gem5 benchmark binaries"
 	@echo "  gem5-%           - Build gem5 version of specified algorithm"
+	@echo "  gem5-m5ops-%     - Build gem5 benchmark with ROI m5ops markers"
 	@echo "  run-gem5-%       - Run gem5 benchmark natively (for testing)"
 	@echo "  clean-gem5-bin   - Remove gem5 benchmark binaries"
 	@echo ""
@@ -305,6 +319,9 @@ help: help-pr
 	@echo "  CACHE_L3_WAYS=16          - L3 associativity (default: 16-way)"
 	@echo "  CACHE_LINE_SIZE=64        - Cache line size in bytes (default: 64)"
 	@echo "  CACHE_POLICY=LRU          - Eviction policy: LRU, FIFO, RANDOM, LFU, PLRU, SRRIP"
+	@echo "  CACHE_L1_POLICY=LRU       - Optional L1 policy override (defaults to CACHE_POLICY)"
+	@echo "  CACHE_L2_POLICY=LRU       - Optional L2 policy override (defaults to CACHE_POLICY)"
+	@echo "  CACHE_L3_POLICY=LRU       - Optional L3 policy override (defaults to CACHE_POLICY)"
 	@echo "  CACHE_MULTICORE=1         - Enable multi-core mode (private L1/L2, shared L3)"
 	@echo "  CACHE_NUM_CORES=8         - Number of cores for multi-core mode"
 	@echo "  CACHE_OUTPUT_JSON=file    - Export stats to JSON file"

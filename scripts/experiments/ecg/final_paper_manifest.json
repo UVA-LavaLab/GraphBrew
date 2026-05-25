@@ -1,0 +1,130 @@
+{
+  "version": 1,
+  "description": "GraphBrew ECG final-paper run manifest. Profiles expand into resumable roi_matrix/proof_matrix jobs.",
+  "defaults": {
+    "l1d_size": "1kB",
+    "l2_size": "2kB",
+    "l3_sizes": ["4kB"],
+    "l3_ways": "16",
+    "line_size": "64",
+    "timeout_cache": 1800,
+    "timeout_gem5": 7200,
+    "no_build": true
+  },
+  "profiles": {
+    "rehearsal": "Validated synthetic g12 preflight before multi-day runs.",
+    "available_replacement": "Replacement-only gem5 sweep on graph files currently present in results/graphs.",
+    "final_cache_sim": "Large-graph cache_sim replacement-only sweep.",
+    "final_replacement": "Large-graph gem5 replacement-only sweep for PR/BFS/SSSP.",
+    "final_droplet": "Large-graph gem5 DROPLET baseline sweep after actual-edge smokes pass."
+  },
+  "benchmark_options": {
+    "synthetic_g12": {
+      "pr": "-g 12 -k 16 -o 5 -n 1 -i 2",
+      "bfs": "-g 12 -k 16 -o 5 -n 1 -r 0",
+      "sssp": "-g 12 -k 16 -o 5 -n 1 -r 0 -d 1"
+    },
+    "file_dbg": {
+      "pr": "-f {graph_path} -s -o 5 -n 1 -i 2",
+      "bfs": "-f {graph_path} -s -o 5 -n 1 -r 0",
+      "sssp": "-f {graph_path} -s -o 5 -n 1 -r 0 -d 1"
+    }
+  },
+  "graph_sets": {
+    "synthetic_g12": [
+      {"name": "synthetic_g12", "options_key": "synthetic_g12"}
+    ],
+    "local_large": [
+      {"name": "soc-pokec", "path": "results/graphs/soc-pokec/soc-pokec.sg", "options_key": "file_dbg"},
+      {"name": "soc-LiveJournal1", "path": "results/graphs/soc-LiveJournal1/soc-LiveJournal1.sg", "options_key": "file_dbg"},
+      {"name": "com-orkut", "path": "results/graphs/com-orkut/com-orkut.sg", "options_key": "file_dbg"},
+      {"name": "cit-Patents", "path": "results/graphs/cit-Patents/cit-Patents.sg", "options_key": "file_dbg"}
+    ],
+    "available_local": [
+      {"name": "email-Eu-core", "path": "results/graphs/email-Eu-core/email-Eu-core.sg", "options_key": "file_dbg"},
+      {"name": "cit-Patents", "path": "results/graphs/cit-Patents/cit-Patents.sg", "options_key": "file_dbg"}
+    ]
+  },
+  "stages": [
+    {
+      "name": "01_cache_sim_component_proof",
+      "kind": "proof_matrix",
+      "profiles": ["rehearsal"],
+      "benchmarks": ["pr", "bfs", "sssp"],
+      "l3_sizes": ["4kB"],
+      "out_subdir": "01_cache_sim_component_proof"
+    },
+    {
+      "name": "02_gem5_replacement_rehearsal",
+      "kind": "roi_matrix",
+      "profiles": ["rehearsal"],
+      "suite": "gem5",
+      "graph_set": "synthetic_g12",
+      "benchmarks": ["pr", "bfs", "sssp"],
+      "policies": ["LRU", "SRRIP", "GRASP", "POPT_CHARGED", "POPT", "ECG:DBG_ONLY", "ECG:DBG_PRIMARY_CHARGED", "ECG:DBG_PRIMARY", "ECG:POPT_PRIMARY"],
+      "prefetcher": "none",
+      "out_subdir": "02_gem5_replacement_rehearsal"
+    },
+    {
+      "name": "03_droplet_actual_edge_rehearsal",
+      "kind": "roi_matrix",
+      "profiles": ["rehearsal"],
+      "suite": "gem5",
+      "graph_set": "synthetic_g12",
+      "benchmarks": ["pr", "bfs", "sssp"],
+      "policies": ["LRU", "GRASP", "POPT_CHARGED", "POPT", "ECG:DBG_PRIMARY_CHARGED", "ECG:DBG_PRIMARY", "ECG:POPT_PRIMARY"],
+      "prefetcher": "DROPLET",
+      "prefetcher_level": "l1d",
+      "out_subdir": "03_droplet_actual_edge_rehearsal"
+    },
+    {
+      "name": "10_cache_sim_large_replacement",
+      "kind": "roi_matrix",
+      "profiles": ["final_cache_sim"],
+      "suite": "cache-sim",
+      "graph_set": "local_large",
+      "benchmarks": ["pr", "bfs", "sssp"],
+      "policies": ["LRU", "SRRIP", "GRASP", "POPT_CHARGED", "POPT", "ECG:DBG_ONLY", "ECG:DBG_PRIMARY_CHARGED", "ECG:DBG_PRIMARY", "ECG:POPT_PRIMARY"],
+      "prefetcher": "none",
+      "out_subdir": "10_cache_sim_large_replacement",
+      "timeout_cache": 7200
+    },
+    {
+      "name": "15_gem5_available_replacement",
+      "kind": "roi_matrix",
+      "profiles": ["available_replacement"],
+      "suite": "gem5",
+      "graph_set": "available_local",
+      "benchmarks": ["pr", "bfs", "sssp"],
+      "policies": ["LRU", "SRRIP", "GRASP", "POPT_CHARGED", "POPT", "ECG:DBG_ONLY", "ECG:DBG_PRIMARY_CHARGED", "ECG:DBG_PRIMARY", "ECG:POPT_PRIMARY"],
+      "prefetcher": "none",
+      "out_subdir": "15_gem5_available_replacement",
+      "timeout_gem5": 86400
+    },
+    {
+      "name": "20_gem5_large_replacement",
+      "kind": "roi_matrix",
+      "profiles": ["final_replacement"],
+      "suite": "gem5",
+      "graph_set": "local_large",
+      "benchmarks": ["pr", "bfs", "sssp"],
+      "policies": ["LRU", "SRRIP", "GRASP", "POPT_CHARGED", "POPT", "ECG:DBG_ONLY", "ECG:DBG_PRIMARY_CHARGED", "ECG:DBG_PRIMARY", "ECG:POPT_PRIMARY"],
+      "prefetcher": "none",
+      "out_subdir": "20_gem5_large_replacement",
+      "timeout_gem5": 259200
+    },
+    {
+      "name": "30_gem5_large_droplet",
+      "kind": "roi_matrix",
+      "profiles": ["final_droplet"],
+      "suite": "gem5",
+      "graph_set": "local_large",
+      "benchmarks": ["pr", "bfs", "sssp"],
+      "policies": ["LRU", "GRASP", "POPT_CHARGED", "POPT", "ECG:DBG_PRIMARY_CHARGED", "ECG:DBG_PRIMARY", "ECG:POPT_PRIMARY"],
+      "prefetcher": "DROPLET",
+      "prefetcher_level": "l1d",
+      "out_subdir": "30_gem5_large_droplet",
+      "timeout_gem5": 259200
+    }
+  ]
+}

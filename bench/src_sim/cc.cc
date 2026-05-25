@@ -30,7 +30,7 @@ using namespace cache_sim;
 template<typename CacheType>
 void Link_Sim(NodeID u, NodeID v, pvector<NodeID>& comp, NodeID* comp_ptr,
              CacheType& cache, GraphCacheContext& graph_ctx,
-             const std::vector<uint8_t>& vertex_masks) {
+             const std::vector<uint32_t>& vertex_masks) {
     SIM_CACHE_READ(cache, comp_ptr, u);
     SIM_CACHE_READ_MASKED(cache, comp_ptr, v, graph_ctx, vertex_masks[v]);
     NodeID p1 = comp[u];
@@ -57,7 +57,7 @@ void Link_Sim(NodeID u, NodeID v, pvector<NodeID>& comp, NodeID* comp_ptr,
 template<typename CacheType>
 void Compress_Sim(const Graph &g, pvector<NodeID>& comp, NodeID* comp_ptr,
                  CacheType& cache, GraphCacheContext& graph_ctx,
-                 const std::vector<uint8_t>& vertex_masks) {
+                 const std::vector<uint32_t>& vertex_masks) {
     #pragma omp parallel for schedule(dynamic, 16384)
     for (NodeID n = 0; n < g.num_nodes(); n++) {
         SIM_CACHE_READ(cache, comp_ptr, n);
@@ -87,15 +87,14 @@ pvector<NodeID> Afforest_Sim(const Graph &g, CacheType &cache,
     graph_ctx.initTopology(deg_arr.data(), g.num_nodes(),
                            g.num_edges_directed(), g.directed());
     size_t llc_size = 8 * 1024 * 1024;
-    const char* llc_env = getenv("CACHE_L3_SIZE");
-    if (llc_env) llc_size = std::strtoul(llc_env, nullptr, 10);
+    llc_size = GetEnvSizeBytes("CACHE_L3_SIZE", llc_size);
     graph_ctx.registerPropertyArray(comp_ptr, g.num_nodes(), sizeof(NodeID), llc_size);
     cache.initGraphContext(&graph_ctx);
 
     // Compute per-vertex ECG mask array
     graph_ctx.initMaskConfig();
-    auto vertex_masks = graph_ctx.computeVertexMasks8(g);
-    graph_ctx.initMaskArray8(vertex_masks.data(), vertex_masks.size());
+    auto vertex_masks = graph_ctx.computeVertexMasks(g);
+    graph_ctx.initMaskArray32(vertex_masks.data(), vertex_masks.size());
 
     // Build P-OPT rereference matrix (for POPT and ECG policies)
     static pvector<uint8_t> popt_matrix;

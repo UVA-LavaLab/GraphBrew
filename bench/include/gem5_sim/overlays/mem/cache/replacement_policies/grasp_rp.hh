@@ -6,7 +6,7 @@
 // Faldu et al., HPCA 2020
 //
 // Extends BRRIP with degree-based insertion and promotion:
-//   - High-reuse (hot hubs): insert RRPV=1, hit → RRPV=0
+//   - High-reuse (hot hubs): insert RRPV=0, hit → RRPV=0
 //   - Moderate-reuse:        insert RRPV=M-1, hit → decrement
 //   - Low-reuse (cold):      insert RRPV=M, hit → decrement
 //
@@ -89,6 +89,7 @@ class GraphGraspRP : public Base
     // Graph context — loaded lazily from sideband file
     mutable graph::GraphCacheContext ctx;
     mutable bool loadAttempted = false;
+    mutable uint64_t loadAttemptCount = 0;
 };
 
 } // namespace replacement_policy

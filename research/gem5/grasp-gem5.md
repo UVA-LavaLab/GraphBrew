@@ -17,7 +17,7 @@ GRASP classifies cache lines based on the degree of the vertex whose data they c
 
 | Reuse Tier | Degree | Insert RRPV | Hit Behavior |
 |------------|--------|-------------|--------------|
-| HIGH (hot hubs) | Top 10% by edges | 1 (P_RRIP) | RRPV → 0 |
+| HIGH (hot hubs) | Top 10% by edges | 0 (MRU) | RRPV → 0 |
 | MODERATE | Next ~20% | M-1 (6) | Decrement by 1 |
 | LOW (cold) | Remaining | M (7) | Decrement by 1 |
 
@@ -38,7 +38,7 @@ struct GraspReplData : public ReplacementData {
 
 **Key methods**:
 
-1. **`reset()` (insertion)**: Classify address → property region → degree bucket → 3-tier RRPV
+1. **`reset()` (insertion)**: Classify address → property region → degree bucket → 3-tier RRPV (`0/6/7`)
 2. **`touch()` (hit)**: Bucket-0 hubs → RRPV=0; others → decrement
 3. **`getVictim()` (eviction)**: Same as SRRIP (scan for max RRPV, age)
 
@@ -87,6 +87,13 @@ l3_repl = GraphGraspRP(
 
 **Paper result**: 33-62% miss reduction vs LRU on web-Google with DBG reordering.
 
+**Current corrected SSSP observation (2026-05-23)**: On the reference
+delta-stepping SSSP gem5 point `-g 12 -k 16 -o 5 -n 1 -r 0 -d 1` with a 4kB
+L3, GRASP improves over SRRIP but regresses versus LRU. This does not violate
+the core GRASP-vs-SRRIP paper check, but it does show that SRRIP is a poor
+baseline for this tiny-cache stress point. Use larger or paper-like graph/cache
+settings before using GRASP-vs-LRU as a headline claim.
+
 ## Data Flow
 
 ```
@@ -127,4 +134,4 @@ l3_repl = GraphGraspRP(
 | `GRASPState::classify()` | `classifyAddress()` → `ReuseTier` |
 | Lines 755-780 (hit promotion) | `promoteOnHit()` |
 | `findVictimGRASP()` line ~870 | `getVictim()` |
-| 3-tier RRPV: P=1, I=M-1, M=M | `insertionRRPV(tier)` |
+| 3-tier RRPV: P=0, I=M-1, M=M | `insertionRRPV(tier)` |

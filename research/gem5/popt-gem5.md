@@ -30,13 +30,24 @@ The rereference matrix is oracle data:
 
 ### Step 2: Rereference Matrix in gem5
 
-**Critical design decision**: The rereference matrix is **host-side oracle data**,
-NOT loaded into simulated memory. The `GraphPoptRP` SimObject holds a pointer to
-the matrix on the host and queries it during `getVictim()` calls.
+**Critical design decision**: the base `POPT` policy in GraphBrew is an
+**oracle P-OPT** path. The rereference matrix is **host-side oracle data**, NOT
+loaded into simulated memory. The `GraphPoptRP` SimObject holds a pointer to the
+matrix on the host and queries it during `getVictim()` calls.
 
 This matches the standalone cache_sim approach where `POPTState.reref_matrix`
 is a host pointer, and reflects the fact that Bélady's optimal algorithm
 requires future knowledge that no real hardware can provide.
+
+For paper-fair overhead comparisons, use `POPT_CHARGED` in the experiment
+runners. It maps to the same dynamic P-OPT replacement policy but charges the
+paper's reserved-rereference-column overhead by reducing effective L3 data ways.
+The model reserves enough LLC ways to hold the current and next rereference
+matrix columns (`2 * num_cache_lines` bytes by default), keeps the same number
+of cache sets, and records estimated matrix-stream traffic (`num_epochs` matrix
+columns) in the output CSV. gem5 timing currently models the capacity charge;
+the matrix-stream traffic is reported as bandwidth metadata rather than injected
+as additional simulated memory requests.
 
 ```
 Pipeline (scripts/)                    gem5 (C++)
@@ -48,6 +59,23 @@ makeOffsetMatrix() ──►  matrix.bin ──► POPTState loads matrix
                                   findNextRef(cline_id, current_vertex)
                                   → returns distance 0..127
 ```
+
+Experiment labels:
+- `POPT`: uncharged oracle P-OPT ceiling.
+- `POPT_CHARGED`: paper-overhead P-OPT approximation with reserved LLC ways.
+- `ECG_*_CHARGED`: dynamic P-OPT ECG mode with the same reserved-way charge.
+
+Charged smoke validation:
+- Output: `results/ecg_experiments/roi_matrix/popt_charged_gem5_smoke/`
+- Benchmark: `pr -g 10 -k 16 -o 5 -n 1 -i 1`, L3=4kB.
+- `POPT_CHARGED` reserved one of 16 LLC ways for current+next matrix columns,
+  running with effective L3 `3840B` / 15 ways and reporting 256 matrix-stream
+  cache lines.
+- Versus uncharged `POPT`, charged P-OPT increased ticks by `13,676,500` /
+  `13,995,500` and L3 misses by `103` / `114` across the two ROI sections.
+- `ECG_DBG_PRIMARY_CHARGED` used the same charge and increased ticks by
+  `23,604,000` / `25,069,500` and L3 misses by `338` / `370` versus uncharged
+  `ECG_DBG_PRIMARY`. All four gem5 legs exited with code 0.
 
 ### Step 3: gem5 SimObject Implementation
 
@@ -79,9 +107,56 @@ sub_epoch = (current_vertex % epoch_size) / sub_epoch_size
 ```
 
 The `current_vertex` is updated via:
-- **m5 pseudo-instruction** (x86): `m5_popt_set_vertex(v)`
-- **Custom instruction** (RISC-V): via CSR write
-- **Sideband** (simpler): gem5 config schedules vertex updates
+- **m5 pseudo-instruction** (x86 SE): `GEM5_SET_VERTEX(v)`, implemented as a
+  GraphBrew-reserved `m5_work_begin` work ID carrying `v` in the second operand.
+- **Custom instruction** (RISC-V): future CSR write / ECG hint latch.
+- **Address inference fallback**: property-array accesses update the vertex only
+  when no explicit hint has been seen.
+
+Current GraphBrew status: cache_sim uses explicit `SIM_SET_VERTEX(cache, u)` at
+the top of the outer graph loop and the x86 SE-mode gem5 wrappers now mirror that
+with `GEM5_SET_VERTEX(u)` in graph traversal loops. gem5's pseudo-instruction handler
+intercepts the reserved GraphBrew work ID before normal work-item accounting and
+updates a host-side graph current-vertex hint. `GraphCacheContext::findNextRef()`
+uses that explicit hint for P-OPT/ECG POPT lookups, falling back to
+`updateVertexFromAddr()` only when the hint path has not been used.
+`graph_se.py` enables the macro with `GEM5_ENABLE_VERTEX_HINTS=1` only for POPT
+and POPT-using ECG modes so LRU/GRASP/ECG_DBG_ONLY runs do not pay the m5ops
+overhead.
+
+Implementation options reviewed on 2026-05-23:
+
+| Option | Status | Reason |
+|--------|--------|--------|
+| Infer from property addresses | Fallback only | Can identify the accessed property vertex, but PR/SSSP often access neighbor/source properties while P-OPT needs the outer loop vertex. |
+| Infer from edge/CSR addresses | Insufficient for final claims | L3 replacement policy only observes packets that reach L3; upper-level hits can skip the update, so epoch state can lag. |
+| Memory-mapped hint array | Rejected for final evidence | A volatile access can encode the vertex in the address, but it adds simulated memory traffic and cache state. |
+| m5ops/pseudo-op `GEM5_SET_VERTEX(v)` | Implemented x86 SE path | Carries the dynamic update without data-cache pollution and matches the paper's explicit `update_index` register semantics. |
+| ECG custom instruction / CSR | Preferred ISA path | Same semantic endpoint as m5ops, but suitable for the final ECG ISA story. |
+
+Initial validation after implementing the explicit hint:
+- Output: `results/ecg_experiments/roi_matrix/gem5_popt_current_vertex_hint_pr_g10_smoke/`
+- Benchmark: `pr -g 10 -k 16 -o 5 -n 1 -i 2`, L3=4kB.
+- `POPT` and `ECG_POPT_PRIMARY` matched exactly across both ROI sections:
+  zero tick delta and zero L3-miss delta.
+- Output: `results/ecg_experiments/roi_matrix/gem5_popt_current_vertex_hint_sssp_g10_smoke/`
+- Benchmark: `sssp -g 10 -k 16 -o 5 -n 1 -r 0 -d 1`, L3=4kB.
+- `POPT` and `ECG_POPT_PRIMARY` also matched exactly across both ROI sections:
+  zero tick delta and zero L3-miss delta. This exercises the helper-level
+  `GEM5_SET_VERTEX(u)` call in the SSSP relaxation loop.
+
+Selected g12 validation after the same explicit-hint fix:
+- Output: `results/ecg_experiments/roi_matrix/gem5_popt_current_vertex_hint_pr_g12_selected_v2/`
+- Benchmark: `pr -g 12 -k 16 -o 5 -n 1 -i 2`, L3=4kB.
+- `ECG_POPT_PRIMARY` is slightly better than pure `POPT` on this point:
+  section deltas are `-4,634,000` / `-3,445,500` ticks and `-125` / `-118`
+  L3 misses. Average ticks/L3 misses are `9,317,427,250` / `61,215.5` for
+  `POPT` and `9,313,387,500` / `61,094.0` for `ECG_POPT_PRIMARY`.
+- Output: `results/ecg_experiments/roi_matrix/gem5_popt_current_vertex_hint_sssp_g12_selected_v2/`
+- Benchmark: `sssp -g 12 -k 16 -o 5 -n 1 -r 0 -d 1`, L3=4kB.
+- `POPT` and `ECG_POPT_PRIMARY` match exactly across both ROI sections:
+  zero tick delta and zero L3-miss delta. Average ticks/L3 misses for both are
+  `8,025,875,500` / `48,742.5`.
 
 ### Step 5: Configuration
 
@@ -105,6 +180,13 @@ l3_repl = GraphPoptRP(max_rrpv=7)
 ```
 Bélady ≤ P-OPT ≤ ECG(POPT_PRIMARY) ≤ ECG(DBG_PRIMARY) ≤ GRASP ≤ SRRIP ≤ LRU
 ```
+
+**Current corrected SSSP observation (2026-05-24)**: On the reference
+delta-stepping SSSP gem5 point `-g 12 -k 16 -o 5 -n 1 -r 0 -d 1`, L3=4kB,
+pure P-OPT and `ECG_POPT_PRIMARY` match exactly with the explicit
+`GEM5_SET_VERTEX` current-vertex path. This validates the P-OPT/ECG oracle-mode
+parity on the corrected same-algorithm path, though the point remains a
+tiny-cache stress case.
 
 ## Rereference Matrix Binary Format
 

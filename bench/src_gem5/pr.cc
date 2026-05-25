@@ -48,7 +48,10 @@ pvector<ScoreT> PageRankPullGS_Gem5(const Graph &g, int max_iters,
          static_cast<uint64_t>(g.num_nodes()) * sizeof(ScoreT),
          static_cast<uint32_t>(g.num_nodes()), sizeof(ScoreT)},
     };
-    gem5_export_context(regions, 2, g);
+    Gem5EdgeRegion edge_regions[2];
+    int num_edge_regions = gem5_make_edge_regions(g, edge_regions, 2, true);
+    gem5_export_context(regions, 2, g, GEM5_SIDEBAND_PATH,
+                        edge_regions, num_edge_regions);
 
     // Build P-OPT rereference matrix (matching standalone src_sim/pr.cc)
     // Predicts future cache line accesses from graph structure.
@@ -137,6 +140,7 @@ pvector<ScoreT> PageRankPullGS_Gem5(const Graph &g, int max_iters,
     for (int iter = 0; iter < max_iters; iter++) {
         double error = 0;
         for (NodeID u = 0; u < g.num_nodes(); u++) {
+            GEM5_SET_VERTEX(u);
             ScoreT incoming_total = 0;
 
             for (NodeID v : g.in_neigh(u)) {

@@ -14,7 +14,7 @@ GraphBrew/
 │   ├── experiments/                 # Paper experiment suites (VLDB + ECG)
 │   ├── lib/                         # 5 sub-packages (core, pipeline, ml, analysis, tools)
 │   └── test/                        # pytest test suite
-├── wiki/                           # 24 documentation pages
+├── wiki/                           # Detailed documentation pages
 ├── docs/                           # Quick guides + INDEX.md
 ├── research/                       # Paper drafts and reference materials
 ├── Makefile                        # Build system (make all, make all-sim)
@@ -25,6 +25,7 @@ GraphBrew/
 ## Top-Level Guides
 - `README.md` — Quick start, CLI overview
 - `wiki/` — Detailed guides (Quick Start, Command-Line Reference, Benchmarks)
+- `wiki/ECG-Final-Runs.md` — current ECG/gem5 final-run profiles, charged P-OPT, graph checks, and status commands
 
 ## Include Structure
 ```
@@ -62,7 +63,7 @@ bench/include/
 - `bench/include/graphbrew/` — GraphBrew extensions (graphbrew.h umbrella, reorder/, partition/)
 - `bench/include/graphbrew/reorder/` — All reordering algorithms (0–15), variant dispatch, perceptron weights
 - `bench/include/graphbrew/partition/` — TRUST partitioning (`trust.h`), Cagra/P-OPT (`cagra/popt.h`)
-- `bench/include/cache_sim/` — Cache simulation: 9 eviction policies, `GraphCacheContext` (multi-region 4-tier classification, `FatIDConfig` adaptive fat-ID encoding), `graph_sim.h` macros
+- `bench/include/cache_sim/` — Cache simulation: core eviction policies plus graph-aware context; final ECG runners add aliases such as `POPT_CHARGED` by changing effective cache geometry and output metadata
 
 ## External Libraries
 - `bench/include/external/rabbit/` — RabbitOrder community clustering
@@ -72,6 +73,11 @@ bench/include/
 
 ## Python Tooling
 - `scripts/graphbrew_experiment.py` — Main orchestration pipeline (reorder, benchmark, cache)
+- `scripts/experiments/ecg/paper_pipeline.py` — ECG paper workflow wrapper (profile runs, aggregate CSVs, SVG figures, LaTeX tables)
+- `scripts/experiments/ecg/final_paper_run.py` — ECG final-run harness (manifest, graph checks, validation gate, resume/status, combined CSVs)
+- `scripts/experiments/ecg/roi_matrix.py` — cache_sim/gem5 ROI policy matrix runner, including charged P-OPT labels
+- `scripts/experiments/ecg/proof_matrix.py` — cache_sim ECG component ablation runner
+- `wiki/ECG-Slurm-Runs.md` — UVA Slurm workflow for split graph/benchmark/policy shards and post-hoc aggregation
 - `scripts/lib/` — 5 sub-packages (core, pipeline, ml, analysis, tools); see `scripts/lib/README.md`
 - `scripts/lib/ml/adaptive_emulator.py` — AdaptiveOrder emulator and evaluation
 - `scripts/lib/core/datastore.py` — Unified data store (BenchmarkStore, GraphPropsStore)

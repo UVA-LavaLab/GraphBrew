@@ -27,12 +27,16 @@ size_t OrderedCount_Gem5(const Graph &g) {
     Gem5PropertyRegion regions[1] = {
         {"csr_edges", 0, 0, 0, 0},  // Placeholder — TC has no vertex property array
     };
-    gem5_export_context(regions, 0, g);  // 0 regions, just topology
+    Gem5EdgeRegion edge_regions[2];
+    int num_edge_regions = gem5_make_edge_regions(g, edge_regions, 2);
+    gem5_export_context(regions, 0, g, GEM5_SIDEBAND_PATH,
+                        edge_regions, num_edge_regions);  // 0 regions, just topology
 
     GEM5_RESET_STATS();
     GEM5_WORK_BEGIN(GEM5_WORK_COMPUTE);
 
     for (NodeID u = 0; u < g.num_nodes(); u++) {
+        GEM5_SET_VERTEX(u);
         for (NodeID v : g.out_neigh(u)) {
             if (v > u) break;  // Only count u < v (sorted neighbor lists)
             // Merge-join N(u) ∩ N(v)

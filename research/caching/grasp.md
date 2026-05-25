@@ -129,7 +129,7 @@ function bucketToRRPV(bucket, max_rrpv=7):
     rrpv = max_rrpv * (1.0 - edge_fraction)
     // High edge_fraction → low RRPV (important, keep in cache)
     // Low edge_fraction → high RRPV (unimportant, evict sooner)
-    clamp rrpv to [1, max_rrpv]             // Reserve 0 for hit promotion
+    clamp rrpv to [0, max_rrpv]  // HPCA'20 High-Reuse inserts at MRU
     return rrpv
 ```
 

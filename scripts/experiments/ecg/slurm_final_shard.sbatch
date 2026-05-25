@@ -1,0 +1,44 @@
+#!/bin/bash
+#SBATCH --job-name=ecg-gem5
+#SBATCH --nodes=1
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=2
+#SBATCH --mem=32G
+#SBATCH --time=3-00:00:00
+#SBATCH --exclusive
+#SBATCH --output=results/slurm_logs/ecg_%A_%a.out
+#SBATCH --error=results/slurm_logs/ecg_%A_%a.err
+# Set these for your UVA allocation if needed:
+# #SBATCH --account=<uva-allocation>
+# #SBATCH --partition=<uva-partition>
+
+set -euo pipefail
+
+if [[ -z "${SHARDS:-}" ]]; then
+  echo "SHARDS must point to the shard TSV" >&2
+  exit 2
+fi
+
+cd "${GRAPHBREW_ROOT:-$PWD}"
+source .venv/bin/activate
+mkdir -p results/slurm_logs
+
+line_number=$((SLURM_ARRAY_TASK_ID + 1))
+line=$(sed -n "${line_number}p" "$SHARDS")
+if [[ -z "$line" ]]; then
+  echo "No shard row for SLURM_ARRAY_TASK_ID=${SLURM_ARRAY_TASK_ID}" >&2
+  exit 3
+fi
+
+IFS=$'\t' read -r profile stage graph benchmark policy run_tag <<< "$line"
+safe_policy=${policy//:/_}
+run_dir="results/ecg_experiments/final_paper_runs/slurm/${run_tag}/${profile}_${graph}_${benchmark}_${safe_policy}"
+
+python3 scripts/experiments/ecg/final_paper_run.py \
+  --profile "$profile" \
+  --run-dir "$run_dir" \
+  --only "$stage" \
+  --graph "$graph" \
+  --benchmark "$benchmark" \
+  --policy "$policy" \
+  --no-build

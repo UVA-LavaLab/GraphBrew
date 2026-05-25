@@ -1,0 +1,1308 @@
+#!/usr/bin/env python3
+"""One-command ECG paper pipeline.
+
+Launch selected final-run profiles, collect result CSVs, and generate summary
+CSVs plus simple paper figures/tables.
+"""
+
+from __future__ import annotations
+
+import argparse
+import csv
+import glob
+import json
+import math
+import shlex
+import shutil
+import subprocess
+import sys
+from collections import defaultdict
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Iterable
+
+
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
+ECG_DIR = PROJECT_ROOT / "scripts" / "experiments" / "ecg"
+FINAL_RUN = ECG_DIR / "final_paper_run.py"
+RESULTS_ROOT = PROJECT_ROOT / "results" / "ecg_experiments" / "paper_pipeline"
+PAPER_CHARTS_DIR = PROJECT_ROOT / "paper" / "dataCharts" / "ecg"
+
+POLICY_ORDER = [
+    "LRU",
+    "SRRIP",
+    "GRASP",
+    "POPT_CHARGED",
+    "POPT",
+    "ECG_DBG_ONLY",
+    "ECG_DBG_PRIMARY_CHARGED",
+    "ECG_DBG_PRIMARY",
+    "ECG_POPT_PRIMARY",
+]
+
+BENCHMARK_ORDER = ["pr", "bfs", "sssp", "cc", "bc", "tc"]
+BENCHMARK_LABELS = {
+    "pr": "PR",
+    "bfs": "BFS",
+    "sssp": "SSSP",
+    "cc": "CC",
+    "bc": "BC",
+    "tc": "TC",
+}
+
+POLICY_LABELS = {
+    "LRU": "LRU",
+    "SRRIP": "SRRIP",
+    "GRASP": "GRASP",
+    "POPT_CHARGED": "P-OPT+C",
+    "POPT": "P-OPT",
+    "ECG_DBG_ONLY": "ECG-D",
+    "ECG_DBG_PRIMARY_CHARGED": "ECG-H+C",
+    "ECG_DBG_PRIMARY": "ECG-H",
+    "ECG_POPT_PRIMARY": "ECG-P",
+}
+
+POLICY_DESCRIPTIONS = {
+    "LRU": "Least recently used baseline",
+    "SRRIP": "Static re-reference interval prediction baseline",
+    "GRASP": "GRASP degree-aware replacement",
+    "POPT_CHARGED": "P-OPT with matrix capacity and stream overhead charged",
+    "POPT": "P-OPT oracle-capacity replacement",
+    "ECG_DBG_ONLY": "ECG DBG-only mode, GRASP-equivalence check",
+    "ECG_DBG_PRIMARY_CHARGED": "ECG hybrid mode with P-OPT overhead charged",
+    "ECG_DBG_PRIMARY": "ECG DBG-primary hybrid mode",
+    "ECG_POPT_PRIMARY": "ECG P-OPT-primary oracle-validation mode",
+}
+
+POLICY_COLORS = {
+    "LRU": "#BDBDBD",
+    "SRRIP": "#8E8E8E",
+    "GRASP": "#4C78A8",
+    "POPT_CHARGED": "#F2B872",
+    "POPT": "#F58518",
+    "ECG_DBG_ONLY": "#8CD17D",
+    "ECG_DBG_PRIMARY_CHARGED": "#B79A20",
+    "ECG_DBG_PRIMARY": "#54A24B",
+    "ECG_POPT_PRIMARY": "#B279A2",
+}
+
+POLICY_HATCHES = {
+    "POPT_CHARGED": "///",
+    "ECG_DBG_PRIMARY_CHARGED": "///",
+}
+
+TABLE_HEADER_LABELS = {
+    "avg_l3_miss_delta_pct": "avg LLC delta (\\%)",
+    "avg_l3_miss_reduction_vs_lru_pct": "avg LLC red. (\\%)",
+    "avg_popt_matrix_stream_cache_lines": "matrix stream lines",
+    "avg_popt_reserved_bytes": "reserved B",
+    "avg_popt_reserved_ways": "reserved ways",
+    "avg_reserved_l3_pct": "reserved LLC (\\%)",
+    "avg_sim_ticks": "avg ticks",
+    "avg_speedup_vs_lru": "avg speedup",
+    "candidate_short": "candidate",
+    "charged_policy": "charged",
+    "dynamic_popt_matrix": "P-OPT lookup",
+    "l3_miss_delta_pct": "LLC delta (\\%)",
+    "max_abs_l3_miss_delta_pct": "max LLC delta (\\%)",
+    "max_abs_tick_delta_pct": "max tick delta (\\%)",
+    "oracle_policy": "oracle",
+    "passes_tolerance": "pass",
+    "policy_short": "policy",
+    "popt_reserved_ways": "reserved ways",
+    "prefetch_fill_useful_pct": "useful/fills (\\%)",
+    "prefetch_accuracy_pct": "useful/issued (\\%)",
+    "prefetch_request_useful_pct": "useful/requests (\\%)",
+    "prefetch_unused_pct": "unused/issued (\\%)",
+    "reference_short": "reference",
+    "tick_delta_pct": "tick delta (\\%)",
+    "traffic_per_demand_access": "traffic/demand",
+}
+
+ROI_COMPARE_KEYS = (
+    "pipeline_run_name", "final_job_id", "simulator", "benchmark", "prefetcher", "l3_size", "section",
+)
+
+PAPER_FIGURE_WIDTH = 3.35
+PAPER_DPI = 300
+LEGACY_FIGURES = (
+    "avg_ticks_by_policy.png",
+    "avg_l3_misses_by_policy.png",
+    "charged_tick_overhead.png",
+)
+
+try:
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    HAS_MATPLOTLIB = True
+except ImportError:
+    HAS_MATPLOTLIB = False
+
+
+def utc_now() -> str:
+    return datetime.now(timezone.utc).isoformat(timespec="seconds")
+
+
+def now_tag() -> str:
+    return datetime.now().strftime("%Y%m%d_%H%M%S")
+
+
+def resolve_path(path_text: str) -> Path:
+    path = Path(path_text)
+    return path if path.is_absolute() else PROJECT_ROOT / path
+
+
+def command_text(command: list[str]) -> str:
+    return " ".join(shlex.quote(part) for part in command)
+
+
+def read_csv(path: Path) -> list[dict[str, Any]]:
+    with path.open(newline="") as fh:
+        return list(csv.DictReader(fh))
+
+
+def write_csv(path: Path, rows: list[dict[str, Any]]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fieldnames = sorted({key for row in rows for key in row.keys()})
+    with path.open("w", newline="") as fh:
+        writer = csv.DictWriter(fh, fieldnames=fieldnames)
+        writer.writeheader()
+        for row in rows:
+            writer.writerow(row)
+    print(f"[write] {path}")
+
+
+def as_float(value: Any) -> float | None:
+    if value in (None, ""):
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def parse_size_bytes(value: Any) -> float | None:
+    if value in (None, ""):
+        return None
+    text = str(value).strip()
+    if not text:
+        return None
+    suffixes = {
+        "kb": 1024.0,
+        "kib": 1024.0,
+        "mb": 1024.0 * 1024.0,
+        "mib": 1024.0 * 1024.0,
+        "gb": 1024.0 * 1024.0 * 1024.0,
+        "gib": 1024.0 * 1024.0 * 1024.0,
+        "b": 1.0,
+    }
+    lower = text.lower()
+    for suffix, multiplier in sorted(suffixes.items(), key=lambda item: -len(item[0])):
+        if lower.endswith(suffix):
+            number = lower[: -len(suffix)].strip()
+            try:
+                return float(number) * multiplier
+            except ValueError:
+                return None
+    try:
+        return float(lower)
+    except ValueError:
+        return None
+
+
+def pct_delta(value: float | None, baseline: float | None) -> float | None:
+    if value is None or baseline in (None, 0.0):
+        return None
+    return ((value - baseline) / baseline) * 100.0
+
+
+def safe_ratio(numerator: float | None, denominator: float | None) -> float | None:
+    if numerator is None or denominator in (None, 0.0):
+        return None
+    return numerator / denominator
+
+
+def avg(values: Iterable[float]) -> float | None:
+    data = list(values)
+    return (sum(data) / len(data)) if data else None
+
+
+def geo_mean(values: Iterable[float]) -> float | None:
+    data = [value for value in values if value > 0.0]
+    if not data:
+        return None
+    return math.exp(sum(math.log(value) for value in data) / len(data))
+
+
+def policy_sort_key(policy: str) -> tuple[int, str]:
+    try:
+        return (POLICY_ORDER.index(policy), policy)
+    except ValueError:
+        return (len(POLICY_ORDER), policy)
+
+
+def benchmark_sort_key(benchmark: str) -> tuple[int, str]:
+    try:
+        return (BENCHMARK_ORDER.index(benchmark), benchmark)
+    except ValueError:
+        return (len(BENCHMARK_ORDER), benchmark)
+
+
+def benchmark_label(benchmark: str) -> str:
+    return BENCHMARK_LABELS.get(benchmark, benchmark.upper())
+
+
+def policy_label(policy: str) -> str:
+    return POLICY_LABELS.get(policy, policy)
+
+
+def policy_label_rows(policies: Iterable[str]) -> list[dict[str, Any]]:
+    return [
+        {
+            "policy_label": policy,
+            "figure_label": policy_label(policy),
+            "description": POLICY_DESCRIPTIONS.get(policy, ""),
+        }
+        for policy in sorted(set(policies), key=policy_sort_key)
+    ]
+
+
+def effective_l3_misses(row: dict[str, Any]) -> float | None:
+    charged = as_float(row.get("popt_charged_l3_misses_plus_matrix_stream"))
+    if charged is not None:
+        return charged
+    return as_float(row.get("l3_misses"))
+
+
+def compare_key(row: dict[str, Any]) -> tuple[Any, ...]:
+    return tuple(row.get(key, "") for key in ROI_COMPARE_KEYS)
+
+
+def run_profile(args: argparse.Namespace, run_root: Path, profile: str) -> Path:
+    run_dir = run_root / profile
+    command = [sys.executable, str(FINAL_RUN), "--profile", profile, "--run-dir", str(run_dir)]
+    if args.dry_run:
+        command.append("--dry-run")
+    if args.no_build:
+        command.append("--no-build")
+    if args.allow_missing_graphs:
+        command.append("--allow-missing-graphs")
+    if args.force:
+        command.append("--force")
+    if not args.stop_on_error:
+        command.append("--no-stop-on-error")
+
+    log_dir = run_root / "pipeline_logs"
+    log_dir.mkdir(parents=True, exist_ok=True)
+    log_path = log_dir / f"{profile}.log"
+    print(f"[profile] {profile}: {command_text(command)}")
+
+    with log_path.open("w") as log:
+        log.write(f"$ {command_text(command)}\n")
+        log.flush()
+        result = subprocess.run(
+            command,
+            cwd=str(PROJECT_ROOT),
+            stdout=log,
+            stderr=subprocess.STDOUT,
+            text=True,
+        )
+        log.write(f"\n[pipeline_profile_exit_code] {result.returncode}\n")
+    if result.returncode != 0 and args.stop_on_error:
+        raise SystemExit(f"profile failed: {profile}; see {log_path}")
+    return run_dir
+
+
+def collect_csvs(run_dirs: list[Path], input_csvs: list[Path]) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    roi_rows: list[dict[str, Any]] = []
+    proof_rows: list[dict[str, Any]] = []
+
+    def add_rows(path: Path, kind: str, run_dir: Path | None = None) -> None:
+        rows = read_csv(path)
+        source_run = run_dir or path.parent
+        for row in rows:
+            row["pipeline_source_csv"] = str(path)
+            row["pipeline_run_dir"] = str(source_run)
+            row["pipeline_run_name"] = source_run.name
+        if kind == "proof":
+            proof_rows.extend(rows)
+        else:
+            roi_rows.extend(rows)
+
+    for run_dir in run_dirs:
+        roi_path = run_dir / "combined_roi_matrix.csv"
+        proof_path = run_dir / "combined_proof_matrix.csv"
+        if roi_path.exists():
+            add_rows(roi_path, "roi", run_dir)
+        else:
+            for path in sorted((run_dir / "matrices").glob("**/roi_matrix.csv")):
+                add_rows(path, "roi", run_dir)
+        if proof_path.exists():
+            add_rows(proof_path, "proof", run_dir)
+        else:
+            for path in sorted((run_dir / "matrices").glob("**/proof_matrix.csv")):
+                add_rows(path, "proof", run_dir)
+
+    for path in input_csvs:
+        kind = "proof" if path.name == "proof_matrix.csv" else "roi"
+        add_rows(path, kind, path.parent)
+
+    return roi_rows, proof_rows
+
+
+def summarize_roi(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    keys = ("simulator", "benchmark", "prefetcher", "l3_size", "policy_label")
+    numeric_fields = (
+        "sim_ticks", "l3_misses", "l3_miss_rate", "ipc",
+        "pf_issued", "pf_useful", "popt_charged_l3_misses_plus_matrix_stream",
+    )
+    groups: dict[tuple[Any, ...], list[dict[str, Any]]] = defaultdict(list)
+    for row in rows:
+        if row.get("status") == "ok":
+            groups[tuple(row.get(key, "") for key in keys)].append(row)
+
+    summary: list[dict[str, Any]] = []
+    for group_key, group_rows in sorted(groups.items(), key=lambda item: policy_sort_key(item[0][-1])):
+        out = {key: value for key, value in zip(keys, group_key)}
+        out["policy_short"] = policy_label(str(out.get("policy_label", "")))
+        out["rows"] = len(group_rows)
+        for field in numeric_fields:
+            value = avg(v for v in (as_float(row.get(field)) for row in group_rows) if v is not None)
+            if value is not None:
+                out[f"avg_{field}"] = value
+        summary.append(out)
+    return summary
+
+
+def roi_relative_metrics(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    grouped: dict[tuple[Any, ...], dict[str, dict[str, Any]]] = defaultdict(dict)
+    for row in rows:
+        if row.get("status") == "ok":
+            grouped[compare_key(row)][row.get("policy_label", "")] = row
+
+    out_rows: list[dict[str, Any]] = []
+    for group_key, by_policy in grouped.items():
+        lru = by_policy.get("LRU")
+        if not lru:
+            continue
+        lru_ticks = as_float(lru.get("sim_ticks"))
+        lru_misses = effective_l3_misses(lru)
+        for policy, row in sorted(by_policy.items(), key=lambda item: policy_sort_key(item[0])):
+            ticks = as_float(row.get("sim_ticks"))
+            misses = effective_l3_misses(row)
+            record = {key: value for key, value in zip(ROI_COMPARE_KEYS, group_key)}
+            record.update({
+                "policy_label": policy,
+                "policy_short": policy_label(policy),
+                "baseline_policy": "LRU",
+                "sim_ticks": row.get("sim_ticks", ""),
+                "l3_misses": row.get("l3_misses", ""),
+                "effective_l3_misses": misses if misses is not None else "",
+                "popt_overhead_charged": row.get("popt_overhead_charged", ""),
+                "popt_charged_l3_misses_plus_matrix_stream": row.get(
+                    "popt_charged_l3_misses_plus_matrix_stream", ""
+                ),
+            })
+            if ticks is not None and lru_ticks:
+                record["speedup_vs_lru"] = lru_ticks / ticks
+                record["normalized_ticks_vs_lru"] = ticks / lru_ticks
+            if misses is not None and lru_misses:
+                record["l3_miss_reduction_vs_lru_pct"] = ((lru_misses - misses) / lru_misses) * 100.0
+                record["l3_miss_ratio_vs_lru"] = misses / lru_misses
+            out_rows.append(record)
+    return out_rows
+
+
+def proof_relative_metrics(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    grouped: dict[tuple[Any, ...], dict[str, dict[str, Any]]] = defaultdict(dict)
+    for row in rows:
+        if row.get("status") == "ok":
+            grouped[compare_key(row)][row.get("policy_label", "")] = row
+
+    out_rows: list[dict[str, Any]] = []
+    for group_key, by_policy in grouped.items():
+        lru = by_policy.get("LRU")
+        if not lru:
+            continue
+        lru_traffic = as_float(lru.get("total_memory_traffic")) or as_float(lru.get("l3_misses"))
+        lru_misses = as_float(lru.get("l3_misses"))
+        for policy, row in sorted(by_policy.items(), key=lambda item: policy_sort_key(item[0])):
+            traffic = as_float(row.get("total_memory_traffic")) or as_float(row.get("l3_misses"))
+            misses = as_float(row.get("l3_misses"))
+            record = {key: value for key, value in zip(ROI_COMPARE_KEYS, group_key)}
+            record.update({
+                "policy_label": policy,
+                "policy_short": policy_label(policy),
+                "baseline_policy": "LRU",
+                "memory_traffic": traffic if traffic is not None else "",
+                "l3_misses": misses if misses is not None else "",
+            })
+            if traffic is not None and lru_traffic:
+                record["memory_traffic_reduction_vs_lru_pct"] = ((lru_traffic - traffic) / lru_traffic) * 100.0
+                record["memory_traffic_ratio_vs_lru"] = traffic / lru_traffic
+            if misses is not None and lru_misses:
+                record["l3_miss_reduction_vs_lru_pct"] = ((lru_misses - misses) / lru_misses) * 100.0
+                record["l3_miss_ratio_vs_lru"] = misses / lru_misses
+            out_rows.append(record)
+    return out_rows
+
+
+def summarize_relative(rows: list[dict[str, Any]], metrics: tuple[str, ...]) -> list[dict[str, Any]]:
+    keys = ("simulator", "benchmark", "prefetcher", "l3_size", "policy_label", "policy_short")
+    groups: dict[tuple[Any, ...], list[dict[str, Any]]] = defaultdict(list)
+    for row in rows:
+        groups[tuple(row.get(key, "") for key in keys)].append(row)
+
+    summary: list[dict[str, Any]] = []
+    for group_key, group_rows in sorted(groups.items(), key=lambda item: policy_sort_key(str(item[0][-2]))):
+        out = {key: value for key, value in zip(keys, group_key)}
+        out["rows"] = len(group_rows)
+        for metric in metrics:
+            value = avg(v for v in (as_float(row.get(metric)) for row in group_rows) if v is not None)
+            if value is not None:
+                out[f"avg_{metric}"] = value
+        summary.append(out)
+    return summary
+
+
+def charged_overhead(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    pairs = [("POPT_CHARGED", "POPT"), ("ECG_DBG_PRIMARY_CHARGED", "ECG_DBG_PRIMARY")]
+    keys = ("pipeline_run_name", "final_job_id", "simulator", "benchmark", "prefetcher", "l3_size", "section")
+    indexed: dict[tuple[Any, ...], dict[str, dict[str, Any]]] = defaultdict(dict)
+    for row in rows:
+        if row.get("status") != "ok":
+            continue
+        indexed[tuple(row.get(key, "") for key in keys)][row.get("policy_label", "")] = row
+
+    out_rows: list[dict[str, Any]] = []
+    for group_key, by_policy in indexed.items():
+        for charged, oracle in pairs:
+            if charged not in by_policy or oracle not in by_policy:
+                continue
+            charged_row = by_policy[charged]
+            oracle_row = by_policy[oracle]
+            record = {key: value for key, value in zip(keys, group_key)}
+            record.update({
+                "charged_policy": charged,
+                "oracle_policy": oracle,
+                "popt_effective_l3_size": charged_row.get("popt_effective_l3_size", ""),
+                "popt_effective_l3_ways": charged_row.get("popt_effective_l3_ways", ""),
+                "popt_reserved_ways": charged_row.get("popt_reserved_ways", ""),
+                "popt_reserved_bytes": charged_row.get("popt_reserved_bytes", ""),
+                "popt_matrix_stream_cache_lines": charged_row.get("popt_matrix_stream_cache_lines", ""),
+            })
+            tick_charged = as_float(charged_row.get("sim_ticks"))
+            tick_oracle = as_float(oracle_row.get("sim_ticks"))
+            miss_charged = as_float(charged_row.get("l3_misses"))
+            miss_oracle = as_float(oracle_row.get("l3_misses"))
+            if tick_charged is not None and tick_oracle:
+                record["tick_delta"] = tick_charged - tick_oracle
+                record["tick_delta_pct"] = ((tick_charged - tick_oracle) / tick_oracle) * 100.0
+            if miss_charged is not None and miss_oracle:
+                record["l3_miss_delta"] = miss_charged - miss_oracle
+                record["l3_miss_delta_pct"] = ((miss_charged - miss_oracle) / miss_oracle) * 100.0
+            out_rows.append(record)
+    return out_rows
+
+
+def faithfulness_summary(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    pairs = [
+        ("GRASP parity", "GRASP", "ECG_DBG_ONLY", 3.0),
+        ("P-OPT parity", "POPT", "ECG_POPT_PRIMARY", 3.0),
+    ]
+    group_keys = ("pipeline_run_name", "final_job_id", "simulator", "benchmark", "prefetcher", "l3_size")
+    indexed: dict[tuple[Any, ...], dict[str, dict[str, dict[str, Any]]]] = defaultdict(lambda: defaultdict(dict))
+    for row in rows:
+        if row.get("status") != "ok":
+            continue
+        key = tuple(row.get(field, "") for field in group_keys)
+        indexed[key][row.get("section", "")][row.get("policy_label", "")] = row
+
+    out_rows: list[dict[str, Any]] = []
+    for group_key, by_section in indexed.items():
+        for check_name, reference_policy, candidate_policy, tolerance_pct in pairs:
+            tick_deltas: list[float] = []
+            tick_delta_pcts: list[float] = []
+            miss_deltas: list[float] = []
+            miss_delta_pcts: list[float] = []
+            sections: list[str] = []
+            for section, by_policy in sorted(by_section.items(), key=lambda item: str(item[0])):
+                reference = by_policy.get(reference_policy)
+                candidate = by_policy.get(candidate_policy)
+                if not reference or not candidate:
+                    continue
+                ref_ticks = as_float(reference.get("sim_ticks"))
+                cand_ticks = as_float(candidate.get("sim_ticks"))
+                ref_misses = as_float(reference.get("l3_misses"))
+                cand_misses = as_float(candidate.get("l3_misses"))
+                if ref_ticks is not None and cand_ticks is not None:
+                    tick_deltas.append(cand_ticks - ref_ticks)
+                    delta_pct = pct_delta(cand_ticks, ref_ticks)
+                    if delta_pct is not None:
+                        tick_delta_pcts.append(delta_pct)
+                if ref_misses is not None and cand_misses is not None:
+                    miss_deltas.append(cand_misses - ref_misses)
+                    delta_pct = pct_delta(cand_misses, ref_misses)
+                    if delta_pct is not None:
+                        miss_delta_pcts.append(delta_pct)
+                sections.append(section)
+            if not sections:
+                continue
+            max_abs_tick_delta_pct = max((abs(value) for value in tick_delta_pcts), default=0.0)
+            max_abs_miss_delta_pct = max((abs(value) for value in miss_delta_pcts), default=0.0)
+            record = {field: value for field, value in zip(group_keys, group_key)}
+            record.update({
+                "check": check_name,
+                "reference_policy": reference_policy,
+                "candidate_policy": candidate_policy,
+                "reference_short": policy_label(reference_policy),
+                "candidate_short": policy_label(candidate_policy),
+                "matched_sections": len(sections),
+                "sections": ",".join(sections),
+                "tolerance_pct": tolerance_pct,
+                "avg_tick_delta": avg(tick_deltas) if tick_deltas else "",
+                "avg_tick_delta_pct": avg(tick_delta_pcts) if tick_delta_pcts else "",
+                "max_abs_tick_delta": max((abs(value) for value in tick_deltas), default=""),
+                "max_abs_tick_delta_pct": max_abs_tick_delta_pct,
+                "avg_l3_miss_delta": avg(miss_deltas) if miss_deltas else "",
+                "avg_l3_miss_delta_pct": avg(miss_delta_pcts) if miss_delta_pcts else "",
+                "max_abs_l3_miss_delta": max((abs(value) for value in miss_deltas), default=""),
+                "max_abs_l3_miss_delta_pct": max_abs_miss_delta_pct,
+                "passes_tolerance": "yes"
+                if max_abs_tick_delta_pct <= tolerance_pct and max_abs_miss_delta_pct <= tolerance_pct
+                else "no",
+            })
+            out_rows.append(record)
+    return out_rows
+
+
+def popt_storage_overhead_summary(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    keys = ("simulator", "benchmark", "prefetcher", "l3_size", "policy_label")
+    groups: dict[tuple[Any, ...], list[dict[str, Any]]] = defaultdict(list)
+    for row in rows:
+        if row.get("status") != "ok":
+            continue
+        if as_float(row.get("popt_reserved_bytes")) or as_float(row.get("popt_matrix_stream_bytes")):
+            groups[tuple(row.get(key, "") for key in keys)].append(row)
+
+    fields = (
+        "popt_reserved_ways",
+        "popt_reserved_bytes",
+        "popt_matrix_stream_bytes",
+        "popt_matrix_stream_cache_lines",
+        "popt_matrix_active_columns",
+        "popt_matrix_column_bytes",
+    )
+    out_rows: list[dict[str, Any]] = []
+    for group_key, group_rows in sorted(groups.items(), key=lambda item: policy_sort_key(str(item[0][-1]))):
+        record = {key: value for key, value in zip(keys, group_key)}
+        record["policy_short"] = policy_label(str(record.get("policy_label", "")))
+        record["rows"] = len(group_rows)
+        requested_bytes = avg(
+            value for value in (parse_size_bytes(row.get("popt_requested_l3_size") or row.get("l3_size")) for row in group_rows)
+            if value is not None
+        )
+        for field in fields:
+            value = avg(v for v in (as_float(row.get(field)) for row in group_rows) if v is not None)
+            if value is not None:
+                record[f"avg_{field}"] = value
+        reserved = as_float(record.get("avg_popt_reserved_bytes"))
+        if reserved is not None and requested_bytes:
+            record["avg_reserved_l3_pct"] = (reserved / requested_bytes) * 100.0
+        out_rows.append(record)
+    return out_rows
+
+
+def ecg_mode_overhead_rows() -> list[dict[str, Any]]:
+    return [
+        {
+            "policy_label": "ECG_DBG_ONLY",
+            "policy_short": policy_label("ECG_DBG_ONLY"),
+            "dynamic_popt_matrix": "no",
+            "charged_alias": "no",
+            "popt_reserved_ways": 0,
+            "role": "GRASP-equivalence / DBG-only low-overhead mode",
+        },
+        {
+            "policy_label": "ECG_DBG_PRIMARY",
+            "policy_short": policy_label("ECG_DBG_PRIMARY"),
+            "dynamic_popt_matrix": "yes",
+            "charged_alias": "no",
+            "popt_reserved_ways": 0,
+            "role": "Hybrid DBG-first ECG mode, oracle matrix capacity",
+        },
+        {
+            "policy_label": "ECG_DBG_PRIMARY_CHARGED",
+            "policy_short": policy_label("ECG_DBG_PRIMARY_CHARGED"),
+            "dynamic_popt_matrix": "yes",
+            "charged_alias": "yes",
+            "popt_reserved_ways": "from run geometry",
+            "role": "Hybrid DBG-first ECG mode with P-OPT overhead charged",
+        },
+        {
+            "policy_label": "ECG_POPT_PRIMARY",
+            "policy_short": policy_label("ECG_POPT_PRIMARY"),
+            "dynamic_popt_matrix": "yes",
+            "charged_alias": "no",
+            "popt_reserved_ways": 0,
+            "role": "P-OPT-equivalence / oracle-validation mode",
+        },
+    ]
+
+
+def prefetch_quality_summary(roi_rows: list[dict[str, Any]], proof_rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    out_rows: list[dict[str, Any]] = []
+
+    roi_keys = ("simulator", "benchmark", "prefetcher", "l3_size", "policy_label")
+    roi_groups: dict[tuple[Any, ...], list[dict[str, Any]]] = defaultdict(list)
+    for row in roi_rows:
+        issued = as_float(row.get("pf_issued"))
+        if row.get("status") == "ok" and issued is not None and issued > 0.0:
+            roi_groups[tuple(row.get(key, "") for key in roi_keys)].append(row)
+    for group_key, group_rows in sorted(roi_groups.items(), key=lambda item: policy_sort_key(str(item[0][-1]))):
+        issued = avg(v for v in (as_float(row.get("pf_issued")) for row in group_rows) if v is not None)
+        useful = avg(v for v in (as_float(row.get("pf_useful")) for row in group_rows) if v is not None)
+        late = avg(v for v in (as_float(row.get("pf_late")) for row in group_rows) if v is not None)
+        unused = avg(v for v in (as_float(row.get("pf_unused")) for row in group_rows) if v is not None)
+        record = {key: value for key, value in zip(roi_keys, group_key)}
+        record.update({
+            "source": "gem5",
+            "policy_short": policy_label(str(record.get("policy_label", ""))),
+            "rows": len(group_rows),
+            "avg_prefetch_issued": issued if issued is not None else "",
+            "avg_prefetch_useful": useful if useful is not None else "",
+            "avg_prefetch_late": late if late is not None else "",
+            "avg_prefetch_unused": unused if unused is not None else "",
+        })
+        accuracy = safe_ratio(useful, issued)
+        late_rate = safe_ratio(late, issued)
+        unused_rate = safe_ratio(unused, issued)
+        if accuracy is not None:
+            record["prefetch_accuracy_pct"] = accuracy * 100.0
+        if late_rate is not None:
+            record["prefetch_late_pct"] = late_rate * 100.0
+        if unused_rate is not None:
+            record["prefetch_unused_pct"] = unused_rate * 100.0
+        out_rows.append(record)
+
+    proof_keys = ("simulator", "benchmark", "prefetcher", "l3_size", "policy_label", "ablation")
+    proof_groups: dict[tuple[Any, ...], list[dict[str, Any]]] = defaultdict(list)
+    for row in proof_rows:
+        requests = as_float(row.get("prefetch_requests"))
+        fills = as_float(row.get("prefetch_fills"))
+        runtime_issued = as_float(row.get("ecg_runtime_issued"))
+        has_prefetch = any(value and value > 0.0 for value in (requests, fills, runtime_issued))
+        if row.get("status") == "ok" and has_prefetch:
+            proof_groups[tuple(row.get(key, "") for key in proof_keys)].append(row)
+    for group_key, group_rows in sorted(proof_groups.items(), key=lambda item: policy_sort_key(str(item[0][-2]))):
+        requests = avg(v for v in (as_float(row.get("prefetch_requests")) for row in group_rows) if v is not None)
+        fills = avg(v for v in (as_float(row.get("prefetch_fills")) for row in group_rows) if v is not None)
+        useful = avg(v for v in (as_float(row.get("prefetch_useful")) for row in group_rows) if v is not None)
+        evicted = avg(v for v in (as_float(row.get("prefetch_evicted_before_use")) for row in group_rows) if v is not None)
+        traffic = avg(v for v in (as_float(row.get("total_memory_traffic")) for row in group_rows) if v is not None)
+        demand = avg(v for v in (as_float(row.get("memory_accesses")) for row in group_rows) if v is not None)
+        record = {key: value for key, value in zip(proof_keys, group_key)}
+        record.update({
+            "source": "cache_sim",
+            "policy_short": policy_label(str(record.get("policy_label", ""))),
+            "rows": len(group_rows),
+            "avg_prefetch_requests": requests if requests is not None else "",
+            "avg_prefetch_fills": fills if fills is not None else "",
+            "avg_prefetch_useful": useful if useful is not None else "",
+            "avg_prefetch_evicted_before_use": evicted if evicted is not None else "",
+            "avg_total_memory_traffic": traffic if traffic is not None else "",
+            "avg_demand_memory_accesses": demand if demand is not None else "",
+        })
+        request_accuracy = safe_ratio(useful, requests)
+        fill_useful = safe_ratio(useful, fills)
+        traffic_ratio = safe_ratio(traffic, demand)
+        if request_accuracy is not None:
+            record["prefetch_request_useful_pct"] = request_accuracy * 100.0
+        if fill_useful is not None:
+            record["prefetch_fill_useful_pct"] = fill_useful * 100.0
+        if traffic_ratio is not None:
+            record["traffic_per_demand_access"] = traffic_ratio
+        out_rows.append(record)
+
+    return out_rows
+
+
+def write_latex_table(path: Path, rows: list[dict[str, Any]], fields: list[str], caption: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w") as fh:
+        fh.write("% Auto-generated by scripts/experiments/ecg/paper_pipeline.py\n")
+        fh.write("\\begin{table}[t]\n\\centering\n")
+        fh.write(f"\\caption{{{caption}}}\n")
+        fh.write("\\begin{tabular}{" + "l" * len(fields) + "}\n")
+        fh.write("\\toprule\n")
+        headers = [TABLE_HEADER_LABELS.get(field, field.replace("_", "\\_")) for field in fields]
+        fh.write(" & ".join(headers) + " \\\\\n")
+        fh.write("\\midrule\n")
+        for row in rows:
+            values = []
+            for field in fields:
+                value = row.get(field, "")
+                if isinstance(value, float):
+                    value = f"{value:.3f}"
+                values.append(str(value).replace("_", "\\_"))
+            fh.write(" & ".join(values) + " \\\\\n")
+        fh.write("\\bottomrule\n\\end{tabular}\n\\end{table}\n")
+    print(f"[write] {path}")
+
+
+def set_paper_plot_style() -> None:
+    plt.rcParams.update({
+        "font.size": 7,
+        "axes.labelsize": 7,
+        "axes.titlesize": 8,
+        "xtick.labelsize": 6.5,
+        "ytick.labelsize": 6.5,
+        "legend.fontsize": 6.5,
+        "svg.fonttype": "none",
+        "pdf.fonttype": 42,
+        "ps.fonttype": 42,
+    })
+
+
+def save_figure(path: Path) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    plt.savefig(path, bbox_inches="tight")
+    print(f"[write] {path}")
+    if path.suffix.lower() == ".svg":
+        png_path = path.with_suffix(".png")
+        plt.savefig(png_path, dpi=PAPER_DPI, bbox_inches="tight")
+        print(f"[write] {png_path}")
+
+
+def plot_metric_by_policy(
+    path: Path,
+    rows: list[dict[str, Any]],
+    metric: str,
+    xlabel: str,
+    value_format: str,
+    reference: float,
+) -> None:
+    if not HAS_MATPLOTLIB:
+        print(f"[skip] matplotlib not available; not writing {path}")
+        return
+    values_by_policy: dict[str, list[float]] = defaultdict(list)
+    for row in rows:
+        value = as_float(row.get(metric))
+        if value is not None:
+            values_by_policy[row.get("policy_label", "")].append(value)
+    if not values_by_policy:
+        print(f"[skip] no data for {metric}")
+        return
+    policies = sorted(values_by_policy, key=policy_sort_key)
+    values = [avg(values_by_policy[policy]) or 0.0 for policy in policies]
+    labels = [policy_label(policy) for policy in policies]
+
+    set_paper_plot_style()
+    fig_height = max(1.75, 0.23 * len(policies) + 0.65)
+    fig, ax = plt.subplots(figsize=(PAPER_FIGURE_WIDTH, fig_height))
+    bars = ax.barh(
+        range(len(policies)),
+        values,
+        height=0.48,
+        color=[POLICY_COLORS.get(policy, "#6B6B6B") for policy in policies],
+        edgecolor="black",
+        linewidth=0.55,
+    )
+    for bar, policy in zip(bars, policies):
+        hatch = POLICY_HATCHES.get(policy)
+        if hatch:
+            bar.set_hatch(hatch)
+
+    ax.set_yticks(range(len(policies)), labels)
+    ax.invert_yaxis()
+    ax.set_xlabel(xlabel)
+    ax.grid(axis="x", alpha=0.25, linewidth=0.5)
+    ax.axvline(reference, color="black", linewidth=0.7, linestyle="--")
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+
+    min_value = min(values + [reference])
+    max_value = max(values + [reference])
+    if reference == 1.0:
+        left = min(0.85, min_value * 0.96)
+        right = max(1.12, max_value * 1.08)
+    else:
+        span = max(1.0, max_value - min_value)
+        left = min(0.0, min_value) - 0.12 * span
+        right = max(0.0, max_value) + 0.18 * span
+    ax.set_xlim(left, right)
+    label_offset = (right - left) * 0.018
+    for y_pos, value in enumerate(values):
+        if reference == 0.0 and value < 0.0:
+            x_pos = value + label_offset
+            ha = "left"
+        elif value >= reference:
+            x_pos = value + label_offset
+            ha = "left"
+        else:
+            x_pos = value - label_offset
+            ha = "right"
+        ax.text(x_pos, y_pos, value_format.format(value), va="center", ha=ha, fontsize=6.2)
+    fig.tight_layout(pad=0.35)
+    save_figure(path)
+    plt.close()
+
+
+def plot_grouped_metric_by_benchmark(
+    path: Path,
+    rows: list[dict[str, Any]],
+    metric: str,
+    ylabel: str,
+    reference: float,
+    summary_label: str,
+    summary_mode: str,
+) -> None:
+    if not HAS_MATPLOTLIB:
+        print(f"[skip] matplotlib not available; not writing {path}")
+        return
+
+    values_by_benchmark_policy: dict[str, dict[str, list[float]]] = defaultdict(lambda: defaultdict(list))
+    for row in rows:
+        value = as_float(row.get(metric))
+        benchmark = str(row.get("benchmark", ""))
+        policy = str(row.get("policy_label", ""))
+        if value is not None and benchmark and policy:
+            values_by_benchmark_policy[benchmark][policy].append(value)
+    if not values_by_benchmark_policy:
+        print(f"[skip] no data for {metric}")
+        return
+
+    benchmarks = sorted(values_by_benchmark_policy, key=benchmark_sort_key)
+    policies = sorted(
+        {policy for by_policy in values_by_benchmark_policy.values() for policy in by_policy},
+        key=policy_sort_key,
+    )
+    bench_policy_avg: dict[str, dict[str, float]] = defaultdict(dict)
+    for benchmark in benchmarks:
+        for policy in policies:
+            value = avg(values_by_benchmark_policy[benchmark].get(policy, []))
+            if value is not None:
+                bench_policy_avg[benchmark][policy] = value
+
+    labels = [benchmark_label(benchmark) for benchmark in benchmarks] + [summary_label]
+    x_positions = list(range(len(labels)))
+    policy_count = max(1, len(policies))
+    group_width = 0.82
+    bar_width = group_width / policy_count
+
+    set_paper_plot_style()
+    fig, ax = plt.subplots(figsize=(PAPER_FIGURE_WIDTH, 2.15))
+    for policy_index, policy in enumerate(policies):
+        offset = (policy_index - (policy_count - 1) / 2.0) * bar_width
+        values: list[float] = []
+        for benchmark in benchmarks:
+            values.append(bench_policy_avg.get(benchmark, {}).get(policy, 0.0))
+        if summary_mode == "geomean":
+            summary = geo_mean(value for value in values if value > 0.0)
+        else:
+            summary = avg(values)
+        values.append(summary if summary is not None else 0.0)
+        bars = ax.bar(
+            [x + offset for x in x_positions],
+            values,
+            width=bar_width * 0.92,
+            label=policy_label(policy),
+            color=POLICY_COLORS.get(policy, "#6B6B6B"),
+            edgecolor="black",
+            linewidth=0.42,
+        )
+        hatch = POLICY_HATCHES.get(policy)
+        if hatch:
+            for bar in bars:
+                bar.set_hatch(hatch)
+
+    ax.set_xticks(x_positions, labels)
+    ax.set_ylabel(ylabel)
+    ax.grid(axis="y", alpha=0.25, linewidth=0.5)
+    ax.axhline(reference, color="black", linewidth=0.7, linestyle="--")
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+    ax.legend(
+        frameon=False,
+        loc="lower center",
+        bbox_to_anchor=(0.5, 1.02),
+        ncol=3,
+        columnspacing=0.9,
+        handlelength=1.3,
+    )
+    all_values = [
+        value
+        for benchmark in benchmarks
+        for policy in policies
+        for value in [bench_policy_avg.get(benchmark, {}).get(policy)]
+        if value is not None
+    ]
+    if summary_mode == "geomean":
+        lower = min(0.85, min(all_values + [reference]) * 0.97)
+        upper = max(1.12, max(all_values + [reference]) * 1.05)
+    else:
+        lower = min(0.0, min(all_values + [reference]))
+        upper = max(0.0, max(all_values + [reference]))
+        span = max(1.0, upper - lower)
+        lower -= span * 0.10
+        upper += span * 0.12
+    ax.set_ylim(lower, upper)
+    fig.tight_layout(pad=0.35)
+    save_figure(path)
+    plt.close()
+
+
+def plot_charged_overhead(path: Path, rows: list[dict[str, Any]]) -> None:
+    if not HAS_MATPLOTLIB:
+        print(f"[skip] matplotlib not available; not writing {path}")
+        return
+    tick_values: dict[tuple[str, str], list[float]] = defaultdict(list)
+    miss_values: dict[tuple[str, str], list[float]] = defaultdict(list)
+    for row in rows:
+        pair = (row.get("charged_policy", ""), row.get("oracle_policy", ""))
+        tick = as_float(row.get("tick_delta_pct"))
+        miss = as_float(row.get("l3_miss_delta_pct"))
+        if tick is not None:
+            tick_values[pair].append(tick)
+        if miss is not None:
+            miss_values[pair].append(miss)
+    pairs = sorted(set(tick_values) | set(miss_values), key=lambda pair: policy_sort_key(pair[0]))
+    if not pairs:
+        print("[skip] no charged overhead data")
+        return
+
+    labels = [f"{policy_label(charged)} / {policy_label(oracle)}" for charged, oracle in pairs]
+    tick_avgs = [avg(tick_values[pair]) or 0.0 for pair in pairs]
+    miss_avgs = [avg(miss_values[pair]) or 0.0 for pair in pairs]
+    y_positions = list(range(len(pairs)))
+
+    set_paper_plot_style()
+    fig, ax = plt.subplots(figsize=(PAPER_FIGURE_WIDTH, max(1.35, 0.34 * len(pairs) + 0.8)))
+    height = 0.28
+    ax.barh(
+        [pos - height / 2 for pos in y_positions],
+        tick_avgs,
+        height=height,
+        label="ticks",
+        color="#F58518",
+        edgecolor="black",
+        linewidth=0.55,
+    )
+    ax.barh(
+        [pos + height / 2 for pos in y_positions],
+        miss_avgs,
+        height=height,
+        label="LLC misses",
+        color="#4C78A8",
+        edgecolor="black",
+        linewidth=0.55,
+    )
+    ax.set_yticks(y_positions, labels)
+    ax.invert_yaxis()
+    ax.set_xlabel("Overhead vs oracle (%)")
+    ax.grid(axis="x", alpha=0.25, linewidth=0.5)
+    ax.axvline(0.0, color="black", linewidth=0.7)
+    ax.legend(frameon=False, loc="lower right", bbox_to_anchor=(1.0, 1.02), ncol=2)
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+    max_value = max(tick_avgs + miss_avgs + [0.0])
+    ax.set_xlim(0.0, max(1.0, max_value * 1.22))
+    label_offset = ax.get_xlim()[1] * 0.018
+    for y_pos, value in zip([pos - height / 2 for pos in y_positions], tick_avgs):
+        ax.text(value + label_offset, y_pos, f"{value:.1f}%", va="center", ha="left", fontsize=6.2)
+    for y_pos, value in zip([pos + height / 2 for pos in y_positions], miss_avgs):
+        ax.text(value + label_offset, y_pos, f"{value:.1f}%", va="center", ha="left", fontsize=6.2)
+    fig.tight_layout(pad=0.35)
+    save_figure(path)
+    plt.close()
+
+
+def generate_outputs(out_dir: Path, roi_rows: list[dict[str, Any]], proof_rows: list[dict[str, Any]], copy_to_paper: bool) -> None:
+    aggregate_dir = out_dir / "aggregate"
+    figures_dir = out_dir / "figures"
+    tables_dir = out_dir / "tables"
+
+    for legacy_name in LEGACY_FIGURES:
+        legacy_path = figures_dir / legacy_name
+        if legacy_path.exists():
+            legacy_path.unlink()
+            print(f"[remove] {legacy_path}")
+
+    policy_map = policy_label_rows(row.get("policy_label", "") for row in roi_rows + proof_rows)
+    if policy_map:
+        write_csv(aggregate_dir / "policy_label_map.csv", policy_map)
+
+    if roi_rows:
+        write_csv(aggregate_dir / "roi_matrix_all.csv", roi_rows)
+        summary = summarize_roi(roi_rows)
+        write_csv(aggregate_dir / "roi_policy_summary.csv", summary)
+        faithfulness = faithfulness_summary(roi_rows)
+        if faithfulness:
+            write_csv(aggregate_dir / "faithfulness_summary.csv", faithfulness)
+            write_latex_table(
+                tables_dir / "faithfulness_summary.tex",
+                faithfulness[:24],
+                [
+                    "check", "benchmark", "prefetcher", "reference_short", "candidate_short",
+                    "max_abs_tick_delta_pct", "max_abs_l3_miss_delta_pct", "passes_tolerance",
+                ],
+                "ECG faithfulness and parity checks",
+            )
+        storage_overhead = popt_storage_overhead_summary(roi_rows)
+        if storage_overhead:
+            write_csv(aggregate_dir / "popt_storage_overhead_summary.csv", storage_overhead)
+            write_latex_table(
+                tables_dir / "popt_storage_overhead_summary.tex",
+                storage_overhead[:24],
+                [
+                    "policy_short", "benchmark", "prefetcher", "avg_popt_reserved_ways",
+                    "avg_popt_reserved_bytes", "avg_reserved_l3_pct", "avg_popt_matrix_stream_cache_lines",
+                ],
+                "P-OPT storage and stream overhead summary",
+            )
+        mode_overhead = ecg_mode_overhead_rows()
+        write_csv(aggregate_dir / "ecg_mode_overhead_summary.csv", mode_overhead)
+        write_latex_table(
+            tables_dir / "ecg_mode_overhead_summary.tex",
+            mode_overhead,
+            ["policy_short", "dynamic_popt_matrix", "charged_alias", "popt_reserved_ways"],
+            "ECG mode overhead summary",
+        )
+        relative = roi_relative_metrics(roi_rows)
+        if relative:
+            write_csv(aggregate_dir / "roi_relative_metrics.csv", relative)
+            relative_summary = summarize_relative(
+                relative,
+                (
+                    "speedup_vs_lru",
+                    "normalized_ticks_vs_lru",
+                    "l3_miss_reduction_vs_lru_pct",
+                    "l3_miss_ratio_vs_lru",
+                ),
+            )
+            write_csv(aggregate_dir / "roi_relative_policy_summary.csv", relative_summary)
+        overhead = charged_overhead(roi_rows)
+        if overhead:
+            write_csv(aggregate_dir / "popt_charged_overhead.csv", overhead)
+            write_latex_table(
+                tables_dir / "popt_charged_overhead.tex",
+                overhead[:20],
+                ["charged_policy", "oracle_policy", "benchmark", "section", "tick_delta_pct", "l3_miss_delta_pct"],
+                "P-OPT charged overhead summary",
+            )
+        write_latex_table(
+            tables_dir / "roi_policy_summary.tex",
+            (relative_summary if relative else summary)[:24],
+            ["policy_short", "benchmark", "prefetcher", "avg_speedup_vs_lru", "avg_l3_miss_reduction_vs_lru_pct"]
+            if relative else ["policy_short", "benchmark", "prefetcher", "avg_sim_ticks", "avg_l3_misses"],
+            "ECG normalized ROI summary" if relative else "ECG ROI policy summary",
+        )
+        if relative:
+            replacement_relative = [row for row in relative if row.get("prefetcher") in ("", "none")]
+            prefetch_relative = [row for row in relative if row.get("prefetcher") not in ("", "none")]
+            if replacement_relative:
+                plot_grouped_metric_by_benchmark(
+                    figures_dir / "replacement_speedup_by_benchmark.svg",
+                    replacement_relative,
+                    "speedup_vs_lru",
+                    "Speedup vs LRU",
+                    1.0,
+                    "gmean",
+                    "geomean",
+                )
+                plot_grouped_metric_by_benchmark(
+                    figures_dir / "replacement_l3_miss_reduction_by_benchmark.svg",
+                    replacement_relative,
+                    "l3_miss_reduction_vs_lru_pct",
+                    "LLC miss reduction (%)",
+                    0.0,
+                    "avg",
+                    "mean",
+                )
+                plot_metric_by_policy(
+                    figures_dir / "replacement_speedup_vs_lru.svg",
+                    replacement_relative,
+                    "speedup_vs_lru",
+                    "Speedup vs LRU",
+                    "{:.2f}x",
+                    1.0,
+                )
+                plot_metric_by_policy(
+                    figures_dir / "replacement_l3_miss_reduction_vs_lru.svg",
+                    replacement_relative,
+                    "l3_miss_reduction_vs_lru_pct",
+                    "LLC miss reduction vs LRU (%)",
+                    "{:+.1f}%",
+                    0.0,
+                )
+            if prefetch_relative:
+                plot_grouped_metric_by_benchmark(
+                    figures_dir / "droplet_speedup_by_benchmark.svg",
+                    prefetch_relative,
+                    "speedup_vs_lru",
+                    "Speedup vs DROPLET+LRU",
+                    1.0,
+                    "gmean",
+                    "geomean",
+                )
+                plot_grouped_metric_by_benchmark(
+                    figures_dir / "droplet_l3_miss_reduction_by_benchmark.svg",
+                    prefetch_relative,
+                    "l3_miss_reduction_vs_lru_pct",
+                    "LLC miss reduction (%)",
+                    0.0,
+                    "avg",
+                    "mean",
+                )
+                plot_metric_by_policy(
+                    figures_dir / "droplet_speedup_vs_lru.svg",
+                    prefetch_relative,
+                    "speedup_vs_lru",
+                    "Speedup vs DROPLET+LRU",
+                    "{:.2f}x",
+                    1.0,
+                )
+                plot_metric_by_policy(
+                    figures_dir / "droplet_l3_miss_reduction_vs_lru.svg",
+                    prefetch_relative,
+                    "l3_miss_reduction_vs_lru_pct",
+                    "LLC miss reduction vs DROPLET+LRU (%)",
+                    "{:+.1f}%",
+                    0.0,
+                )
+        if overhead:
+            plot_charged_overhead(figures_dir / "charged_overhead.svg", overhead)
+
+    if proof_rows:
+        write_csv(aggregate_dir / "proof_matrix_all.csv", proof_rows)
+        proof_relative = proof_relative_metrics(proof_rows)
+        if proof_relative:
+            write_csv(aggregate_dir / "proof_relative_metrics.csv", proof_relative)
+            proof_relative_summary = summarize_relative(
+                proof_relative,
+                (
+                    "memory_traffic_reduction_vs_lru_pct",
+                    "memory_traffic_ratio_vs_lru",
+                    "l3_miss_reduction_vs_lru_pct",
+                    "l3_miss_ratio_vs_lru",
+                ),
+            )
+            write_csv(aggregate_dir / "proof_relative_policy_summary.csv", proof_relative_summary)
+            plot_grouped_metric_by_benchmark(
+                figures_dir / "component_memory_traffic_reduction_by_benchmark.svg",
+                proof_relative,
+                "memory_traffic_reduction_vs_lru_pct",
+                "Memory traffic reduction (%)",
+                0.0,
+                "avg",
+                "mean",
+            )
+            plot_metric_by_policy(
+                figures_dir / "component_memory_traffic_reduction_vs_lru.svg",
+                proof_relative,
+                "memory_traffic_reduction_vs_lru_pct",
+                "Memory traffic reduction vs LRU (%)",
+                "{:+.1f}%",
+                0.0,
+            )
+
+    prefetch_quality = prefetch_quality_summary(roi_rows, proof_rows)
+    if prefetch_quality:
+        write_csv(aggregate_dir / "prefetch_quality_summary.csv", prefetch_quality)
+        gem5_prefetch_quality = [row for row in prefetch_quality if row.get("source") == "gem5"]
+        cache_sim_prefetch_quality = [row for row in prefetch_quality if row.get("source") == "cache_sim"]
+        if gem5_prefetch_quality:
+            write_latex_table(
+                tables_dir / "prefetch_quality_summary.tex",
+                gem5_prefetch_quality[:24],
+                ["source", "benchmark", "prefetcher", "policy_short", "prefetch_accuracy_pct", "prefetch_unused_pct"],
+                "gem5 DROPLET prefetch quality summary",
+            )
+            plot_grouped_metric_by_benchmark(
+                figures_dir / "droplet_prefetch_accuracy_by_benchmark.svg",
+                gem5_prefetch_quality,
+                "prefetch_accuracy_pct",
+                "Useful prefetches / issued (%)",
+                0.0,
+                "avg",
+                "mean",
+            )
+        if cache_sim_prefetch_quality:
+            write_latex_table(
+                tables_dir / "cache_sim_prefetch_quality_summary.tex",
+                cache_sim_prefetch_quality[:24],
+                [
+                    "benchmark", "ablation", "policy_short", "prefetch_request_useful_pct",
+                    "prefetch_fill_useful_pct", "traffic_per_demand_access",
+                ],
+                "cache_sim ECG prefetch quality summary",
+            )
+
+    manifest = {
+        "created_utc": utc_now(),
+        "roi_rows": len(roi_rows),
+        "proof_rows": len(proof_rows),
+        "has_matplotlib": HAS_MATPLOTLIB,
+        "figure_format": "svg_primary_png_preview",
+        "has_faithfulness_summary": bool(roi_rows),
+        "has_prefetch_quality_summary": bool(prefetch_quality),
+    }
+    (out_dir / "paper_pipeline_manifest.json").write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n")
+
+    if copy_to_paper and figures_dir.exists():
+        PAPER_CHARTS_DIR.mkdir(parents=True, exist_ok=True)
+        for figure in sorted(list(figures_dir.glob("*.svg")) + list(figures_dir.glob("*.png"))):
+            dst = PAPER_CHARTS_DIR / figure.name
+            shutil.copy2(figure, dst)
+            print(f"[copy] {figure} -> {dst}")
+
+
+def parse_args(argv: list[str]) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Run ECG paper profiles, aggregate data, and generate figures.")
+    parser.add_argument("--profiles", nargs="+", default=["rehearsal"], help="final_paper_run.py profiles to run.")
+    parser.add_argument("--run-root", default="", help="Pipeline run root. Defaults to results/ecg_experiments/paper_pipeline/<timestamp>.")
+    parser.add_argument("--input-run-dirs", nargs="+", default=[], help="Existing final-run directories to aggregate.")
+    parser.add_argument("--input-run-glob", nargs="+", default=[], help="Glob(s) for existing final-run directories to aggregate, useful for Slurm shards.")
+    parser.add_argument("--input-csv", nargs="+", default=[], help="Additional roi_matrix.csv or proof_matrix.csv files to aggregate.")
+    parser.add_argument("--input-csv-glob", nargs="+", default=[], help="Glob(s) for additional roi_matrix.csv or proof_matrix.csv files to aggregate.")
+    parser.add_argument("--skip-run", action="store_true", help="Do not launch profiles; only aggregate inputs.")
+    parser.add_argument("--dry-run", action="store_true", help="Pass --dry-run to final_paper_run.py.")
+    parser.add_argument("--no-build", action="store_true", help="Pass --no-build to final_paper_run.py.")
+    parser.add_argument("--allow-missing-graphs", action="store_true", help="Pass --allow-missing-graphs to final_paper_run.py.")
+    parser.add_argument("--force", action="store_true", help="Pass --force to final_paper_run.py.")
+    parser.add_argument("--no-stop-on-error", action="store_false", dest="stop_on_error", help="Continue after failed profile.")
+    parser.add_argument("--copy-to-paper", action="store_true", help="Copy generated PNG figures into paper/dataCharts/ecg.")
+    parser.set_defaults(stop_on_error=True)
+    return parser.parse_args(argv)
+
+
+def main(argv: list[str]) -> int:
+    args = parse_args(argv)
+    run_root = Path(args.run_root) if args.run_root else RESULTS_ROOT / now_tag()
+    if not run_root.is_absolute():
+        run_root = PROJECT_ROOT / run_root
+    run_root.mkdir(parents=True, exist_ok=True)
+
+    run_dir_inputs = list(args.input_run_dirs)
+    for pattern in args.input_run_glob:
+        resolved_pattern = str(resolve_path(pattern)) if not Path(pattern).is_absolute() else pattern
+        run_dir_inputs.extend(sorted(glob.glob(resolved_pattern)))
+    run_dirs = [resolve_path(path) for path in run_dir_inputs]
+    if not args.skip_run:
+        for profile in args.profiles:
+            run_dirs.append(run_profile(args, run_root, profile))
+
+    csv_inputs = list(args.input_csv)
+    for pattern in args.input_csv_glob:
+        resolved_pattern = str(resolve_path(pattern)) if not Path(pattern).is_absolute() else pattern
+        csv_inputs.extend(sorted(glob.glob(resolved_pattern)))
+    input_csvs = [resolve_path(path) for path in csv_inputs]
+    roi_rows, proof_rows = collect_csvs(run_dirs, input_csvs)
+    print(f"[aggregate] roi_rows={len(roi_rows)} proof_rows={len(proof_rows)}")
+    generate_outputs(run_root, roi_rows, proof_rows, args.copy_to_paper)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main(sys.argv[1:]))

@@ -376,9 +376,11 @@ quantizeGraph(const CSRGraph<NodeID_, DestID_, invert> &g, NodeID_ numTiles)
  * Creates a matrix tracking when each cache line will next be accessed.
  * Used by P-OPT cache replacement policy to make optimal decisions.
  * 
- * The rereference matrix is compressed using:
- *   - MSB: 1 = rereference value, 0 = switch point
- *   - Lower 7 bits: intra-epoch information
+ * The rereference matrix is compressed using GraphBrew's paired convention:
+ *   - MSB=1: referenced in this epoch; lower bits = final sub-epoch
+ *   - MSB=0: not referenced in this epoch; lower bits = distance to next reference
+ * This is the inverse bit polarity of the HPCA'21 paper text, but the paired
+ * makeOffsetMatrix()/findNextRef() semantics are equivalent.
  * 
  * @tparam NodeID_ Node ID type
  * @tparam DestID_ Destination ID type

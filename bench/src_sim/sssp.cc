@@ -3,8 +3,11 @@
 
 #include <iostream>
 #include <fstream>
+#include <algorithm>
+#include <cstdint>
 #include <limits>
 #include <queue>
+#include <vector>
 
 #include "benchmark.h"
 #include "builder.h"
@@ -24,6 +27,63 @@ using namespace cache_sim;
 
 const WeightT kDistInf = numeric_limits<WeightT>::max() / 2;
 const size_t kMaxBin = numeric_limits<size_t>::max() / 2;
+const size_t kBinSizeThreshold = 1000;
+
+template<typename CacheType>
+inline void RelaxEdges_Sim(const WGraph &g, NodeID u, WeightT delta,
+                           pvector<WeightT> &dist,
+                           vector<vector<NodeID>> &local_bins,
+                           CacheType &cache, GraphCacheContext &graph_ctx,
+                           const vector<uint32_t> &vertex_masks,
+                           int pfx_lookahead) {
+    auto out_neigh = g.out_neigh(u);
+    for (auto it = out_neigh.begin(); it != out_neigh.end(); ++it) {
+        WNode wn = *it;
+        if (pfx_lookahead > 0 && graph_ctx.mask_config.prefetch_mode > 0) {
+            uint32_t lookahead_target = UINT32_MAX;
+            auto jt = it;
+            for (int step = 0; step < pfx_lookahead; step++) {
+                ++jt;
+                if (jt == out_neigh.end()) break;
+                WNode candidate_node = *jt;
+                NodeID candidate = candidate_node.v;
+                if (candidate < 0) continue;
+                if (graph_ctx.mask_config.prefetch_mode == 1) {
+                    if (lookahead_target == UINT32_MAX ||
+                        g.out_degree(candidate) > g.out_degree(lookahead_target)) {
+                        lookahead_target = static_cast<uint32_t>(candidate);
+                    }
+                } else {
+                    uint8_t candidate_popt = graph_ctx.mask_config.decodePOPT(vertex_masks[candidate]);
+                    if (lookahead_target == UINT32_MAX ||
+                        candidate_popt < graph_ctx.mask_config.decodePOPT(vertex_masks[lookahead_target])) {
+                        lookahead_target = static_cast<uint32_t>(candidate);
+                    }
+                }
+            }
+            if (lookahead_target != UINT32_MAX) {
+                SIM_CACHE_PREFETCH_VERTEX(cache, dist.data(), lookahead_target, graph_ctx);
+            } else {
+                graph_ctx.recordPrefetchNoTarget();
+            }
+        }
+        WeightT old_dist = dist[wn.v];
+        WeightT new_dist = dist[u] + wn.w;
+        SIM_CACHE_READ_MASKED(cache, dist.data(), wn.v, graph_ctx, vertex_masks[wn.v]);
+        while (new_dist < old_dist) {
+            SIM_CACHE_WRITE(cache, dist.data(), wn.v);
+            if (compare_and_swap(dist[wn.v], old_dist, new_dist)) {
+                size_t dest_bin = new_dist / delta;
+                if (dest_bin >= local_bins.size())
+                    local_bins.resize(dest_bin + 1);
+                local_bins[dest_bin].push_back(wn.v);
+                break;
+            }
+            old_dist = dist[wn.v];
+            SIM_CACHE_READ_MASKED(cache, dist.data(), wn.v, graph_ctx, vertex_masks[wn.v]);
+        }
+    }
+}
 
 template<typename CacheType>
 pvector<WeightT> DeltaStep_Sim(const WGraph &g, NodeID source, 
@@ -40,22 +100,28 @@ pvector<WeightT> DeltaStep_Sim(const WGraph &g, NodeID source,
     graph_ctx.initTopology(deg_arr.data(), g.num_nodes(),
                            g.num_edges_directed(), g.directed());
     size_t llc_size = 8 * 1024 * 1024;
-    const char* llc_env = getenv("CACHE_L3_SIZE");
-    if (llc_env) llc_size = std::strtoul(llc_env, nullptr, 10);
+    llc_size = GetEnvSizeBytes("CACHE_L3_SIZE", llc_size);
     graph_ctx.registerPropertyArray(dist.data(), g.num_nodes(), sizeof(WeightT), llc_size);
     cache.initGraphContext(&graph_ctx);
 
     // Compute per-vertex ECG mask array
     graph_ctx.initMaskConfig();
-    auto vertex_masks = graph_ctx.computeVertexMasks8(g);
-    graph_ctx.initMaskArray8(vertex_masks.data(), vertex_masks.size());
+    auto vertex_masks = graph_ctx.computeVertexMasks(g);
+    graph_ctx.initMaskArray32(vertex_masks.data(), vertex_masks.size());
+    int pfx_lookahead = GraphSimEnvIntClamped("ECG_PREFETCH_LOOKAHEAD", 0, 0, 64);
+    if (pfx_lookahead > 0 && graph_ctx.mask_config.prefetch_mode > 0) {
+        cout << "SSSP relax PFX lookahead: window=" << pfx_lookahead
+             << " mode=" << int(graph_ctx.mask_config.prefetch_mode) << endl;
+    }
 
     // Build P-OPT rereference matrix (for POPT and ECG policies)
     static pvector<uint8_t> popt_matrix;
     {
         const char* policy_env = getenv("CACHE_POLICY");
         std::string policy_str = policy_env ? policy_env : "";
-        if (policy_str == "POPT" || policy_str == "ECG") {
+        const char* pfx_env = getenv("ECG_PREFETCH_MODE");
+        bool popt_prefetch = pfx_env && atoi(pfx_env) == 2;
+        if (policy_str == "POPT" || policy_str == "ECG" || popt_prefetch) {
             constexpr int numVtxPerLine = 64 / sizeof(WeightT);
             constexpr int numEpochs = 256;
             makeOffsetMatrix(g, popt_matrix, numVtxPerLine, numEpochs);
@@ -83,34 +149,23 @@ pvector<WeightT> DeltaStep_Sim(const WGraph &g, NodeID source,
             #pragma omp for nowait schedule(dynamic, 64)
             for (size_t i = 0; i < curr_frontier_tail; i++) {
                 NodeID u = frontier[i];
-                // P-OPT: update current destination vertex
                 SIM_SET_VERTEX(cache, u);
-                // Track: read dist[u]
                 SIM_CACHE_READ(cache, dist.data(), u);
-                if (dist[u] >= delta * static_cast<WeightT>(curr_bin_index)) {
-                    for (WNode wn : g.out_neigh(u)) {
-                        WeightT old_dist = dist[wn.v];
-                        WeightT new_dist = dist[u] + wn.w;
-                        // Track: read/write dist[wn.v]
-                        SIM_CACHE_READ_MASKED(cache, dist.data(), wn.v, graph_ctx, vertex_masks[wn.v]);
-                        if (new_dist < old_dist) {
-                            SIM_CACHE_WRITE(cache, dist.data(), wn.v);
-                            bool changed_dist = true;
-                            while (!compare_and_swap(dist[wn.v], old_dist, new_dist)) {
-                                old_dist = dist[wn.v];
-                                if (old_dist <= new_dist) {
-                                    changed_dist = false;
-                                    break;
-                                }
-                            }
-                            if (changed_dist) {
-                                size_t dest_bin = new_dist / delta;
-                                if (dest_bin >= local_bins.size())
-                                    local_bins.resize(dest_bin + 1);
-                                local_bins[dest_bin].push_back(wn.v);
-                            }
-                        }
-                    }
+                if (dist[u] >= delta * static_cast<WeightT>(curr_bin_index))
+                    RelaxEdges_Sim(g, u, delta, dist, local_bins, cache,
+                                   graph_ctx, vertex_masks, pfx_lookahead);
+            }
+
+            while (curr_bin_index < local_bins.size() &&
+                   !local_bins[curr_bin_index].empty() &&
+                   local_bins[curr_bin_index].size() < kBinSizeThreshold) {
+                vector<NodeID> curr_bin_copy = local_bins[curr_bin_index];
+                local_bins[curr_bin_index].resize(0);
+                for (NodeID u : curr_bin_copy) {
+                    SIM_SET_VERTEX(cache, u);
+                    SIM_CACHE_READ(cache, dist.data(), u);
+                    RelaxEdges_Sim(g, u, delta, dist, local_bins, cache,
+                                   graph_ctx, vertex_masks, pfx_lookahead);
                 }
             }
             

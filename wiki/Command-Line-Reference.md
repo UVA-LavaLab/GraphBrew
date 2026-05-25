@@ -675,6 +675,18 @@ python3 scripts/graphbrew_experiment.py --ecg --exp A1 A2 A3   # Specific ECG ex
 python3 scripts/graphbrew_experiment.py --ecg --exp B1 B7      # Policy comparison + ECG modes
 python3 scripts/graphbrew_experiment.py --ecg --preview        # ECG preview mode
 
+# Current ECG/gem5 final-run harness
+python3 scripts/experiments/ecg/final_paper_run.py --profile rehearsal --dry-run
+python3 scripts/experiments/ecg/final_paper_run.py --profile final_replacement --check-graphs --allow-missing-graphs
+python3 scripts/experiments/ecg/final_paper_run.py --status --run-dir results/ecg_experiments/final_paper_runs/<run_name>
+```
+
+The current ECG final-run harness supports charged P-OPT labels such as
+`POPT_CHARGED` and `ECG:DBG_PRIMARY_CHARGED`. These labels are runner aliases
+that charge effective LLC data ways for P-OPT rereference matrix columns. See
+[[ECG-Final-Runs]] before launching multi-day gem5 jobs.
+
+```bash
 # Testing & evaluation
 python3 scripts/graphbrew_experiment.py --test                # Run all pytest tests
 python3 scripts/graphbrew_experiment.py --test gorder          # Filter: only gorder tests

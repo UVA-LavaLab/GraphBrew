@@ -59,6 +59,34 @@ python3 scripts/graphbrew_experiment.py --train --auto --size all
 
 See [[Command-Line-Reference]] for `--train` phases, download size options, and memory/disk management. See [[Python-Scripts]] for full script documentation. See [[VLDB-Experiments]] for reproducing the VLDB 2026 paper results.
 
+### ECG / gem5 Final Runs
+
+The ECG cache-policy workflow uses a dedicated final-run harness rather than the
+general GraphBrew benchmark pipeline. It serializes gem5 jobs, writes run
+snapshots, supports resume/status checks, and protects shared `/tmp` sideband
+files.
+
+```bash
+# Preview the supported final-run command expansion
+python3 scripts/experiments/ecg/final_paper_run.py --profile rehearsal --dry-run
+
+# Check whether all large graph files referenced by the manifest are present
+python3 scripts/experiments/ecg/final_paper_run.py \
+  --profile final_replacement \
+  --check-graphs \
+  --allow-missing-graphs
+
+# Run only the graph files currently available locally
+python3 scripts/experiments/ecg/final_paper_run.py \
+  --profile available_replacement \
+  --run-dir results/ecg_experiments/final_paper_runs/available_replacement_001
+```
+
+Current final replacement baselines include `POPT_CHARGED` and
+`ECG_DBG_PRIMARY_CHARGED`. The charged labels reserve effective LLC ways for
+P-OPT rereference matrix columns; uncharged `POPT` remains the oracle ceiling.
+See [[ECG-Final-Runs]] for the supported policy set and interpretation.
+
 ### VLDB 2026 Paper Experiments
 
 For reproducing the GraphBrew VLDB paper, use the dedicated experiment runner:

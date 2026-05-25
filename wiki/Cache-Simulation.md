@@ -41,7 +41,7 @@ size) tuple, so a single run suffices — there is no noise to average out.
 ```
 bench/
 ├── include/cache_sim/
-│   ├── cache_sim.h              # Cache simulator core (9 policies, 5 variants)
+│   ├── cache_sim.h              # Cache simulator core policies and graph-aware modes
 │   ├── graph_cache_context.h    # Unified graph metadata (GRASP/P-OPT/ECG context)
 │   └── graph_sim.h              # Macros: SIM_CACHE_READ, SIM_CACHE_READ_MASKED, SIM_CACHE_READ_EDGE
 ├── include/graphbrew/partition/cagra/
@@ -102,9 +102,10 @@ The default configuration models a typical modern CPU:
 | **LFU** | Evicts least frequently used | Good for hot data |
 | **PLRU** | Tree-based pseudo-LRU | Hardware-efficient LRU approximation |
 | **SRRIP** | Re-reference interval prediction | Scan-resistant, good for streaming |
-| **GRASP** | Graph-aware 3-tier RRIP: HOT=1/MODERATE=6/COLD=7 (Faldu et al., HPCA'20) | Power-law graphs with DBG reordering |
-| **P-OPT** | Graph-transpose Belady 3-phase: non-property first → oracle distance → RRIP tiebreak (Balaji et al., HPCA'21) | Best miss reduction; requires rereference matrix |
-| **ECG** | Layered: GRASP insertion + P-OPT/DBG eviction tiebreak, 4 modes (Mughrabi et al., GrAPL) | Combines structural + oracle; zero-overhead embedded mode |
+| **GRASP** | Graph-aware 3-tier RRIP: HIGH=0/MODERATE=6/LOW=7 (Faldu et al., HPCA'20) | Power-law graphs with DBG reordering |
+| **P-OPT** | Graph-transpose Belady 3-phase: non-property first -> oracle distance -> RRIP tiebreak (Balaji et al., HPCA'21) | Oracle ceiling; requires rereference matrix |
+| **P-OPT charged** | Runner alias `POPT_CHARGED`: same dynamic P-OPT logic, but effective LLC data ways are reduced for rereference matrix columns | Honest P-OPT prior-method baseline |
+| **ECG** | Layered: GRASP insertion + P-OPT/DBG eviction tiebreak, multiple modes (Mughrabi et al., GrAPL) | Combines structural + oracle; zero-overhead embedded mode |
 
 #### ECG Modes
 
@@ -116,9 +117,10 @@ ECG uses a 3-level layered eviction strategy. All modes start with SRRIP aging (
 | **POPT_PRIMARY** | P-OPT 3-phase algorithm (exact match) | DBG tier among P-OPT ties | `ECG_MODE=POPT_PRIMARY` |
 | **DBG_ONLY** | DBG tier only | None (fast path) | `ECG_MODE=DBG_ONLY` |
 | **ECG_EMBEDDED** | Stored P-OPT hint (from mask, zero LLC overhead) | DBG tier | `ECG_MODE=ECG_EMBEDDED` |
+| **ECG_COMBINED** | Combined DBG + stored P-OPT insertion RRPV | None | `ECG_MODE=ECG_COMBINED` |
 
 **Insertion RRPV by mode:**
-- **DBG_ONLY / DBG_PRIMARY / ECG_EMBEDDED**: GRASP-faithful 3-tier — HOT=1 (P_RRIP), MODERATE=6 (I_RRIP), COLD=7 (M_RRIP)
+- **DBG_ONLY / DBG_PRIMARY / ECG_EMBEDDED**: GRASP-faithful 3-tier — HIGH=0 (P_RRIP), MODERATE=6 (I_RRIP), LOW=7 (M_RRIP)
 - **POPT_PRIMARY**: Uniform RRPV=6 for all lines (matching pure P-OPT)
 
 **Non-property data handling:**
@@ -131,6 +133,12 @@ ECG uses a 3-level layered eviction strategy. All modes start with SRRIP aging (
 
 **P-OPT rereference matrix:**
 All sim kernels build the P-OPT rereference matrix via `makeOffsetMatrix()` when `CACHE_POLICY=POPT` or `CACHE_POLICY=ECG`. The matrix is a 256-epoch × num_cache_lines compressed oracle.
+
+`POPT_CHARGED` and `ECG:*_CHARGED` are experiment-runner labels, not direct
+`CACHE_POLICY` values. Use them through `scripts/experiments/ecg/roi_matrix.py`
+or `scripts/experiments/ecg/final_paper_run.py`. Charged rows reserve effective
+LLC data ways for current+next rereference matrix columns and report matrix
+streaming fields in CSV output. See [[ECG-Final-Runs]].
 
 **CSR edge tracking:**
 The PR, BFS, and PR_SPMV kernels track CSR edge list reads via `SIM_CACHE_READ_EDGE()`, providing realistic cache pressure from structure data alongside property data.
@@ -341,14 +349,15 @@ All eight benchmarks (`pr`, `pr_spmv`, `bfs`, `cc`, `cc_sv`, `sssp`, `bc`, `tc`)
 
 The cache policies have been validated against the original reference implementations:
 
-**GRASP** (Faldu et al., HPCA'20): Faithful 3-tier implementation matching the [original repo](https://github.com/faldupriyank/grasp). GRASP/LRU ratio = 0.65 (paper: 0.64) on web-Google PR at 1MB LLC.
+**GRASP** (Faldu et al., HPCA'20): Faithful 3-tier implementation with high-reuse insertion at RRPV=0, moderate at 6, low at 7, and plain SRRIP victim selection.
 
-**P-OPT** (Balaji et al., HPCA'21): Algorithm 2 three-phase eviction matching the [original repo](https://github.com/CMUAbstract/POPT-CacheSim-HPCA21). Achieves 40% miss reduction vs LRU.
+**P-OPT** (Balaji et al., HPCA'21): Algorithm 2 three-phase eviction using an explicit current-vertex signal. Use `POPT` as the uncharged oracle ceiling and `POPT_CHARGED` as the overhead-aware prior-method baseline.
 
-**ECG mode equivalences** (validated on web-Google PR, 1MB LLC, OMP=1):
-- ECG(DBG_ONLY) ≈ GRASP: 0.1-1.5% relative difference
-- ECG(POPT_PRIMARY) ≈ P-OPT: 0.1% relative difference
-- P-OPT ≤ ECG(DBG_PRIMARY) ≤ GRASP: hierarchy holds
+**Current focused validation:**
+- cache_sim component proof: `results/ecg_experiments/proof_matrix/component_g12_l3_4kb_grasp_rrpv0/proof_matrix.csv` has 36/36 `ok` rows.
+- gem5 GRASP parity: `GRASP` and `ECG_DBG_ONLY` match exactly on PR/BFS/SSSP g10 after the RRPV=0 and plain-SRRIP victim fixes.
+- gem5 P-OPT current-vertex validation: PR/SSSP selected rows pass with explicit `GEM5_SET_VERTEX` hints.
+- charged P-OPT smoke: `results/ecg_experiments/roi_matrix/popt_charged_gem5_smoke/roi_matrix.csv` shows `POPT_CHARGED` and `ECG_DBG_PRIMARY_CHARGED` run end-to-end with visible reserved-way overhead.
 
 ## Perceptron Integration
 

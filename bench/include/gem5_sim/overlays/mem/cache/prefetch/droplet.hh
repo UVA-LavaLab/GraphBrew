@@ -39,7 +39,9 @@
 
 #include <cstdint>
 #include <deque>
+#include <string>
 #include <unordered_set>
+#include <vector>
 
 namespace gem5 {
 namespace prefetch {
@@ -93,7 +95,21 @@ class GraphDropletPrefetcher : public Queued
     // ── Edge array region ──
     uint64_t edgeArrayBase = 0;
     uint64_t edgeArrayEnd = 0;
+    uint32_t edgeElemSize = sizeof(uint32_t);
     bool edgeConfigured = false;
+
+    // Shadow copy of CSR edge IDs, used to model the paper's property address
+    // generator reading prefetched structure cache-line contents.
+    std::vector<uint32_t> edgeData;
+    bool edgeDataLoaded = false;
+
+    // ── Runtime sideband configuration ──
+    bool sidebandTried = false;
+    bool sidebandLoaded = false;
+    uint64_t sidebandProbeCount = 0;
+    bool reportedSideband = false;
+    bool reportedFirstAccess = false;
+    bool reportedFirstEdge = false;
 
     // ── Stride detector state ──
     std::deque<StrideEntry> strideTable;
@@ -103,6 +119,16 @@ class GraphDropletPrefetcher : public Queued
     static constexpr size_t MAX_RECENT = 256;
 
     // ── Helper functions ──
+    void tryLoadSideband();
+    static uint64_t parseJsonUint(const std::string& json,
+                                  const std::string& key);
+    static std::string parseJsonString(const std::string& json,
+                                       const std::string& key);
+    static std::string findPreferredObject(const std::string& json,
+                                           const std::string& section,
+                                           const std::string& preferred);
+    bool loadEdgeData(const std::string& path, uint32_t elemSize);
+
     bool isEdgeArrayAccess(uint64_t addr) const {
         return edgeConfigured && addr >= edgeArrayBase && addr < edgeArrayEnd;
     }

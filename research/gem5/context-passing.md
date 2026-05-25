@@ -22,6 +22,8 @@ We use a **hybrid** of static and dynamic context passing:
 | Bucket boundaries | JSON sideband → gem5 config | Same |
 | Rereference matrix | Binary file → host-side load | Oracle data, not architecturally visible |
 | Property region addrs | JSON sideband → gem5 config | Determined at load time |
+| Edge region addrs | JSON sideband → DROPLET lazy load | Needed for graph prefetcher edge-stream recognition |
+| Edge region data | Binary sideband → DROPLET lazy load | Shadow CSR contents for paper-faithful indirect property prefetch |
 | Per-access mask hints | Custom instruction → CSR | Dynamic, changes every edge access |
 | Current vertex | Custom instruction → CSR | Dynamic, changes every iteration |
 
@@ -151,6 +153,25 @@ In gem5 SE (syscall emulation) mode, the process address space is determined by
 the ELF loader. Property array addresses are **not known until runtime** because
 they depend on `malloc()` allocations.
 
+The benchmark-side sideband export records **virtual addresses**. Graph-aware
+replacement policies therefore classify property lines and query P-OPT using
+`Request::getVaddr()` when gem5 provides one, falling back to `getPaddr()` only
+for requests without virtual-address metadata. A gem5 prefetcher must also train
+on virtual addresses when it compares `PrefetchInfo::getAddr()` with the
+sideband ranges. For GraphBrew DROPLET this means
+`GraphDropletPrefetcher(use_virtual_addresses=True, prefetch_on_access=True,
+on_inst=False)`. If it is left at the gem5 default physical-address mode,
+sideband loading succeeds but edge access recognition and prefetch counters
+remain zero.
+
+Because the sideband files live under `/tmp`, each gem5 invocation must remove
+`/tmp/gem5_graphbrew_ctx.json` and `/tmp/gem5_popt_matrix.bin` before simulation
+starts. Otherwise lazy C++ SimObjects can load stale regions from a previous run
+before the current benchmark writes its metadata.
+The same cleanup applies to `/tmp/gem5_graphbrew_in_edges.bin` and
+`/tmp/gem5_graphbrew_out_edges.bin`, which hold DROPLET's shadow structure-line
+contents.
+
 **Solutions**:
 
 1. **Static addresses** (recommended for initial validation):
@@ -179,3 +200,46 @@ they depend on `malloc()` allocations.
 | **Memory-mapped region** | Simple shared memory | Fixed address fragility | Rejected |
 | **SimObject parameters** | Clean gem5 API | Can't handle dynamic data | Used for static config |
 | **Hardware registers** | Realistic | Complex gem5 modifications | Future work |
+
+## Current-Vertex Fidelity Note
+
+For P-OPT, `current_vertex` is not just another property address. The HPCA'21
+algorithm uses the outer graph-loop vertex (`currDstID` / `update_index`) to
+choose the epoch and sub-epoch in the rereference matrix. Inferring this value
+inside an LLC replacement policy from observed property or edge packets is not
+fully faithful:
+
+- property packets can name neighbor/source vertices instead of the outer vertex,
+- edge/CSR packets can hit in upper cache levels and never reach the LLC policy,
+- a memory-mapped hint array would create extra simulated cache traffic.
+
+Therefore, cache_sim remains the final P-OPT faithfulness reference until gem5
+gets an explicit m5ops/pseudo-op or ECG CSR update at every benchmark point where
+cache_sim currently calls `SIM_SET_VERTEX`.
+
+2026-05-24 update: the x86 SE-mode path now has this explicit update. The gem5
+benchmark harness defines `GEM5_SET_VERTEX(v)` as a GraphBrew-reserved
+`m5_work_begin` work ID with `v` in the second operand. gem5's
+`pseudo_inst::workbegin()` intercepts that ID before normal work-item accounting
+and updates a host-side graph current-vertex hint. P-OPT/ECG POPT lookups prefer
+this hint and fall back to address inference only if the hint has never been set.
+gem5 wrappers emit `GEM5_SET_VERTEX` at the same outer-loop points where cache_sim
+emits `SIM_SET_VERTEX`. `graph_se.py` enables these hints only for POPT and
+POPT-using ECG modes through `GEM5_ENABLE_VERTEX_HINTS=1`, keeping LRU/GRASP and
+`ECG_DBG_ONLY` timing free of this m5ops overhead.
+
+Initial validation:
+- PR/g10 `POPT` vs `ECG_POPT_PRIMARY`: exact tick and L3-miss parity in
+  `results/ecg_experiments/roi_matrix/gem5_popt_current_vertex_hint_pr_g10_smoke/`.
+- SSSP/g10 `POPT` vs `ECG_POPT_PRIMARY`: exact tick and L3-miss parity in
+  `results/ecg_experiments/roi_matrix/gem5_popt_current_vertex_hint_sssp_g10_smoke/`.
+
+Selected g12 validation:
+- PR/g12 `POPT` vs `ECG_POPT_PRIMARY` in
+  `results/ecg_experiments/roi_matrix/gem5_popt_current_vertex_hint_pr_g12_selected_v2/`:
+  ECG is slightly ahead of pure P-OPT, with average ticks/L3 misses
+  `9,313,387,500` / `61,094.0` versus `9,317,427,250` / `61,215.5`.
+- SSSP/g12 `POPT` vs `ECG_POPT_PRIMARY` in
+  `results/ecg_experiments/roi_matrix/gem5_popt_current_vertex_hint_sssp_g12_selected_v2/`:
+  exact tick and L3-miss parity across both ROI sections; average ticks/L3
+  misses are `8,025,875,500` / `48,742.5` for both.

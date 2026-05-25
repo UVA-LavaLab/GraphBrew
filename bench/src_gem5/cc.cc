@@ -48,7 +48,10 @@ pvector<NodeID> Afforest_Gem5(const Graph &g, int32_t neighbor_rounds = 2) {
          static_cast<uint64_t>(g.num_nodes()) * sizeof(NodeID),
          static_cast<uint32_t>(g.num_nodes()), sizeof(NodeID)},
     };
-    gem5_export_context(regions, 1, g);
+    Gem5EdgeRegion edge_regions[2];
+    int num_edge_regions = gem5_make_edge_regions(g, edge_regions, 2);
+    gem5_export_context(regions, 1, g, GEM5_SIDEBAND_PATH,
+                        edge_regions, num_edge_regions);
 
     GEM5_RESET_STATS();
     GEM5_WORK_BEGIN(GEM5_WORK_COMPUTE);
@@ -56,6 +59,7 @@ pvector<NodeID> Afforest_Gem5(const Graph &g, int32_t neighbor_rounds = 2) {
     // Phase 1: sparse sampling
     for (int32_t r = 0; r < neighbor_rounds; r++) {
         for (NodeID u = 0; u < g.num_nodes(); u++) {
+            GEM5_SET_VERTEX(u);
             auto it = g.out_neigh(u).begin();
             for (int32_t i = 0; i < r && it != g.out_neigh(u).end(); ++i, ++it) {}
             if (it != g.out_neigh(u).end())
@@ -72,6 +76,7 @@ pvector<NodeID> Afforest_Gem5(const Graph &g, int32_t neighbor_rounds = 2) {
 
     // Phase 2: full edge traversal skipping largest
     for (NodeID u = 0; u < g.num_nodes(); u++) {
+        GEM5_SET_VERTEX(u);
         if (comp[u] == largest) continue;
         for (NodeID v : g.out_neigh(u))
             Link(u, v, comp);
